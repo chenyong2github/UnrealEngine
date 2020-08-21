@@ -326,13 +326,13 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMeshComponent(UNia
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and StaticMeshComponent \"%s\", skipping."), *OverrideName, StaticMeshComponent ? *StaticMeshComponent->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and StaticMeshComponent \"%s\", skipping."), *OverrideName, *GetFullNameSafe(StaticMeshComponent));
 		return;
 	}
 
 	if (!StaticMeshComponent)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("StaticMeshComponent in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("StaticMeshComponent in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -343,14 +343,14 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMeshComponent(UNia
 	int32 Index = OverrideParameters.IndexOf(Variable);
 	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 	
 	UNiagaraDataInterfaceStaticMesh* StaticMeshInterface = Cast<UNiagaraDataInterfaceStaticMesh>(OverrideParameters.GetDataInterface(Index));
 	if (!StaticMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Static Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Static Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -361,13 +361,13 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMesh(UNiagaraCompo
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and StaticMesh \"%s\", skipping."), *OverrideName, StaticMesh ? *StaticMesh->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and StaticMesh \"%s\", skipping."), *OverrideName, *GetFullNameSafe(StaticMesh));
 		return;
 	}
 
 	if (!StaticMesh)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("StaticMesh in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("StaticMesh in \"Set Niagara Static Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -378,14 +378,14 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableStaticMesh(UNiagaraCompo
 	int32 Index = OverrideParameters.IndexOf(Variable);
 	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
 	UNiagaraDataInterfaceStaticMesh* StaticMeshInterface = Cast<UNiagaraDataInterfaceStaticMesh>(OverrideParameters.GetDataInterface(Index));
 	if (!StaticMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Static Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Static Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -410,20 +410,20 @@ void UNiagaraFunctionLibrary::OverrideSystemUserVariableSkeletalMeshComponent(UN
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Skeletal Mesh Component\" is NULL, OverrideName \"%s\" and SkeletalMeshComponent \"%s\", skipping."), *OverrideName, SkeletalMeshComponent ? *SkeletalMeshComponent->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"Set Niagara Skeletal Mesh Component\" is NULL, OverrideName \"%s\" and SkeletalMeshComponent \"%s\", skipping."), *OverrideName, *GetFullNameSafe(SkeletalMeshComponent));
 		return;
 	}
 
 	if (!SkeletalMeshComponent)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("SkeletalMeshComponent in \"Set Niagara Skeletal Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("SkeletalMeshComponent in \"Set Niagara Skeletal Mesh Component\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
 	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = GetSkeletalMeshDataInterface(NiagaraSystem, OverrideName);
 	if (!SkeletalMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, NiagaraSystem != nullptr ? *NiagaraSystem->GetOwner()->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -441,7 +441,7 @@ void UNiagaraFunctionLibrary::SetSkeletalMeshDataInterfaceSamplingRegions(UNiaga
 	UNiagaraDataInterfaceSkeletalMesh* SkeletalMeshInterface = GetSkeletalMeshDataInterface(NiagaraSystem, OverrideName);
 	if (!SkeletalMeshInterface)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, NiagaraSystem != nullptr ? *NiagaraSystem->GetOwner()->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Skeletal Mesh Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -452,13 +452,13 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetTextureObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, Texture ? *Texture->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetTextureObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, *GetFullNameSafe(Texture));
 		return;
 	}
 
 	if (!Texture)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Texture in \"SetTextureObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Texture in \"SetTextureObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -469,14 +469,14 @@ void UNiagaraFunctionLibrary::SetTextureObject(UNiagaraComponent* NiagaraSystem,
 	int32 Index = OverrideParameters.IndexOf(Variable);
 	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
 	UNiagaraDataInterfaceTexture* TextureDI = Cast<UNiagaraDataInterfaceTexture>(OverrideParameters.GetDataInterface(Index));
 	if (!TextureDI)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -490,13 +490,13 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 {
 	if (!NiagaraSystem)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetVolumeTextureObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, Texture ? *Texture->GetName() : TEXT("NULL"));
+		UE_LOG(LogNiagara, Warning, TEXT("NiagaraSystem in \"SetVolumeTextureObject\" is NULL, OverrideName \"%s\" and Texture \"%s\", skipping."), *OverrideName, *GetFullNameSafe(Texture));
 		return;
 	}
 
 	if (!Texture)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Volume Texture in \"SetVolumeTextureObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Volume Texture in \"SetVolumeTextureObject\" is NULL, OverrideName \"%s\" and NiagaraSystem \"%s\", skipping."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
@@ -507,14 +507,14 @@ void UNiagaraFunctionLibrary::SetVolumeTextureObject(UNiagaraComponent* NiagaraS
 	int32 Index = OverrideParameters.IndexOf(Variable);
 	if (Index == INDEX_NONE)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Could not find index of variable \"%s\" in the OverrideParameters map of NiagaraSystem \"%s\"."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
 	UNiagaraDataInterfaceVolumeTexture* TextureDI = Cast<UNiagaraDataInterfaceVolumeTexture>(OverrideParameters.GetDataInterface(Index));
 	if (!TextureDI)
 	{
-		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Volume Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *NiagaraSystem->GetOwner()->GetName());
+		UE_LOG(LogNiagara, Warning, TEXT("Did not find a matching Volume Texture Data Interface variable named \"%s\" in the User variables of NiagaraSystem \"%s\" ."), *OverrideName, *GetFullNameSafe(NiagaraSystem));
 		return;
 	}
 
