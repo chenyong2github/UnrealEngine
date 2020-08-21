@@ -725,15 +725,14 @@ FSceneViewState::FEyeAdaptationRTManager::~FEyeAdaptationRTManager() {}
 
 void FSceneViewState::FEyeAdaptationRTManager::SafeRelease()
 {
-	PooledRenderTarget[0].SafeRelease();
-	PooledRenderTarget[1].SafeRelease();
+	for (int32 Index = 0; Index < 3; Index++)
+	{
+		PooledRenderTarget[Index].SafeRelease();
+		ExposureTextureReadback[Index] = nullptr;
 
-	ExposureTextureReadback = nullptr;
-
-	ExposureBufferData[0].SafeRelease();
-	ExposureBufferData[1].SafeRelease();
-
-	ExposureBufferReadback = nullptr;
+		ExposureBufferData[Index].SafeRelease();
+		ExposureBufferReadback[Index] = nullptr;
+	}
 }
 
 void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposure)
@@ -746,50 +745,51 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 	// GPUs that were actually used last frame.
 	const FRHIGPUMask ThisFrameGPUMask = RHICmdList.GetGPUMask();
 	const FRHIGPUMask LastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(ThisFrameGPUMask);
+	const FRHIGPUMask LastLastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(LastFrameGPUMask);
 
 	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid() && (GIsEditor || CVarEnablePreExposureOnlyInTheEditor.GetValueOnRenderThread() == 0))
 	{
-		if (!ExposureTextureReadback)
-		{
-			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
-			ExposureTextureReadback.Reset(new FRHIGPUTextureReadback(ExposureValueName));
-			// Send the first request.
-			ExposureTextureReadback->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
-		}
-		else if (ExposureTextureReadback->IsReady(LastFrameGPUMask))
+		// first, read the value from two frames ago
+		int32 PreviousPreviousBuffer = GetPreviousPreviousIndex();
+		if (ExposureTextureReadback[PreviousPreviousBuffer] != nullptr &&
+			ExposureTextureReadback[PreviousPreviousBuffer]->IsReady())
 		{
 			// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
-			FRHIGPUMask ReadBackGPUMask = LastFrameGPUMask;
-			if (!ReadBackGPUMask.HasSingleIndex())
-			{
-				ReadBackGPUMask = FRHIGPUMask::GPU0();
-			}
+			FRHIGPUMask ReadBackGPUMask = LastLastFrameGPUMask;
 
 			SCOPED_GPU_MASK(RHICmdList, ReadBackGPUMask);
 
 			// Read the last request results.
-			FVector4* ReadbackData = (FVector4*)ExposureTextureReadback->Lock(sizeof(FVector4));
+			FVector4* ReadbackData = (FVector4*)ExposureTextureReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4));
 			if (ReadbackData)
 			{
 				LastExposure = ReadbackData->X;
 				LastAverageSceneLuminance = ReadbackData->Z;
 
-				ExposureTextureReadback->Unlock();
+				ExposureTextureReadback[PreviousPreviousBuffer]->Unlock();
 			}
+		}
 
-			SCOPED_GPU_MASK(RHICmdList, ThisFrameGPUMask);
-
+		if (!ExposureTextureReadback[CurrentBuffer])
+		{
+			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
+			ExposureTextureReadback[CurrentBuffer].Reset(new FRHIGPUTextureReadback(ExposureValueName));
+			// Send the first request.
+			ExposureTextureReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
+		}
+		else // it exists, so just enqueue, don't  reset
+		{
 			// Send the request for next update.
-			ExposureTextureReadback->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
+			ExposureTextureReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, PooledRenderTarget[CurrentBuffer]->GetRenderTargetItem().TargetableTexture);
 		}
 	}
 
-	CurrentBuffer = 1 - CurrentBuffer;
+	CurrentBuffer = (CurrentBuffer+1)%3;
 }
 
 TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationRTManager::GetRTRef(FRHICommandList* RHICmdList, const int BufferNumber)
 {
-	check(BufferNumber == 0 || BufferNumber == 1);
+	check(0 <= BufferNumber && BufferNumber < 3);
 
 	// Create textures if needed.
 	if (!PooledRenderTarget[BufferNumber].IsValid() && RHICmdList)
@@ -808,7 +808,7 @@ TRefCountPtr<IPooledRenderTarget>& FSceneViewState::FEyeAdaptationRTManager::Get
 
 FExposureBufferData& FSceneViewState::FEyeAdaptationRTManager::GetBufferRef(const int BufferNumber)
 {
-	check(BufferNumber == 0 || BufferNumber == 1);
+	check(0 <= BufferNumber && BufferNumber < 3);
 
 	// Create textures if needed.
 	if (!ExposureBufferData[BufferNumber].IsValid())
@@ -835,14 +835,11 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapBuffers(bool bInUpdateLastExp
 
 	if (bInUpdateLastExposure && ExposureBufferData[CurrentBuffer].IsValid() && (GIsEditor || CVarEnablePreExposureOnlyInTheEditor.GetValueOnRenderThread() == 0))
 	{
-		if (!ExposureBufferReadback)
-		{
-			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
-			ExposureBufferReadback.Reset(new FRHIGPUBufferReadback(ExposureValueName));
-			// Send the first request.
-			ExposureBufferReadback->EnqueueCopy(RHICmdList, ExposureBufferData[CurrentBuffer].Buffer);
-		}
-		else if (ExposureBufferReadback->IsReady())
+
+		// first, read the value from two frames ago
+		int32 PreviousPreviousBuffer = GetPreviousPreviousIndex();
+		if (ExposureBufferReadback[PreviousPreviousBuffer] != nullptr &&
+			ExposureBufferReadback[PreviousPreviousBuffer]->IsReady())
 		{
 			// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
 			FRHIGPUMask ReadBackGPUMask = RHICmdList.GetGPUMask();
@@ -854,21 +851,32 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapBuffers(bool bInUpdateLastExp
 			SCOPED_GPU_MASK(RHICmdList, ReadBackGPUMask);
 
 			// Read the last request results.
-			FVector4* ReadbackData = (FVector4*)ExposureBufferReadback->Lock(sizeof(FVector4));
+			FVector4* ReadbackData = (FVector4*)ExposureBufferReadback[PreviousPreviousBuffer]->Lock(sizeof(FVector4));
 			if (ReadbackData)
 			{
 				LastExposure = ReadbackData->X;
 				LastAverageSceneLuminance = ReadbackData->Z;
 
-				ExposureBufferReadback->Unlock();
+				ExposureBufferReadback[PreviousPreviousBuffer]->Unlock();
 			}
+		}
 
+		if (!ExposureBufferReadback[CurrentBuffer])
+		{
+			static const FName ExposureValueName(TEXT("Scene view state exposure readback"));
+			ExposureBufferReadback[CurrentBuffer].Reset(new FRHIGPUBufferReadback(ExposureValueName));
+
+			// Send the first request.
+			ExposureBufferReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, ExposureBufferData[CurrentBuffer].Buffer);
+		}
+		else // it exists
+		{
 			// Send the request for next update.
-			ExposureBufferReadback->EnqueueCopy(RHICmdList, ExposureBufferData[CurrentBuffer].Buffer);
+			ExposureBufferReadback[CurrentBuffer]->EnqueueCopy(RHICmdList, ExposureBufferData[CurrentBuffer].Buffer);
 		}
 	}
 
-	CurrentBuffer = 1 - CurrentBuffer;
+	CurrentBuffer = (CurrentBuffer+1)%3;
 }
 
 void FSceneViewState::UpdatePreExposure(FViewInfo& View)
