@@ -71,7 +71,7 @@ void UGizmoEdMode::DestroyGizmo()
 void UGizmoEdMode::Enter()
 {
 	Super::Enter();
-	RecreateGizmo();
+	bNeedInitialGizmos = true;
 	WidgetModeChangedHandle =
 	    GetModeManager()->OnWidgetModeChanged().AddLambda([this](FWidget::EWidgetMode) { RecreateGizmo(); });
 	GetModeManager()->SetShowWidget(false);
@@ -94,6 +94,11 @@ bool UGizmoEdMode::InputKey(FEditorViewportClient* ViewportClient, FViewport* Vi
 void UGizmoEdMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
 {
 	Super::Tick(ViewportClient, DeltaTime);
+	if ( bNeedInitialGizmos )
+	{
+		RecreateGizmo();
+		bNeedInitialGizmos = false;
+	}
 	if ( LastFactory )
 	{
 		LastFactory->ConfigureGridSnapping(GetDefault<ULevelEditorViewportSettings>()->GridEnabled,
