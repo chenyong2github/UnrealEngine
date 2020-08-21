@@ -23,7 +23,7 @@ bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 Grou
 bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartEndpoints,
 	int32 NextGroupID, int32 NextEdgeID, int32 NextCornerID, int32 NextBoundaryID,
-	TSet<int32>& AlteredGroups, int32& NumInserted, TSet<int32>* NewEids, FProgressCancel* Progress);
+	TSet<int32>& AlteredGroups, int32& NumInserted, TSet<int32>* NewEidsOut, FProgressCancel* Progress);
 void InsertNewVertexEndpoints(
 	const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	int32 GroupEdgeID, int32 StartCornerID,
@@ -37,7 +37,7 @@ bool ConnectEndpoints(
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	TSet<int32>* NewEids, int32& NumGroupsCreated, FProgressCancel* Progress);
+	TSet<int32>* NewEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress);
 bool ConnectMultipleUsingRetriangulation(
 	FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
@@ -67,12 +67,13 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 	TArray<TPair<FMeshSurfacePoint, int>>& OutputPath, double VertexCutTolerance, FProgressCancel* Progress);
 
 bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topology,
-	int32 GroupID, FGroupTopology::FGroupBoundary& Boundary,
+	int32 GroupID, int32 BoundaryIndex,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
-	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, FProgressCancel* Progress);
+	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, 
+	TSet<int32>* NewEidsOut, FProgressCancel* Progress);
 
 /** Inserts an edge loop into a mesh, where an edge loop is a sequence of (group) edges across quads. */
-bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEids, FProgressCancel* Progress)
+bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -132,13 +133,13 @@ bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params,
 	if (bHaveForwardEdge)
 	{
 		bSuccess = InsertEdgeLoopEdgesInDirection(Params, StartEndpoints, ForwardGroupID, ForwardEdgeID,
-			ForwardCornerID, ForwardBoundaryIndex, AlteredGroups, TotalNumInserted, NewEids, Progress);
+			ForwardCornerID, ForwardBoundaryIndex, AlteredGroups, TotalNumInserted, NewEidsOut, Progress);
 	}
 	if (bHaveBackwardEdge)
 	{
 		int32 NumInserted = 0;
 		bSuccess = InsertEdgeLoopEdgesInDirection(Params, StartEndpoints, BackwardGroupID, BackwardEdgeID,
-			BackwardCornerID, BackwardBoundaryIndex, AlteredGroups, NumInserted, NewEids, Progress) && bSuccess;
+			BackwardCornerID, BackwardBoundaryIndex, AlteredGroups, NumInserted, NewEidsOut, Progress) && bSuccess;
 		TotalNumInserted += NumInserted;
 	}
 
@@ -221,7 +222,7 @@ bool GetEdgeLoopOpposingEdgeAndCorner(const FGroupTopology& Topology, int32 Grou
 bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertionParams& Params,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartEndpoints,
 	int32 NextGroupID, int32 NextEdgeID, int32 NextCornerID, int32 NextBoundaryIndex,
-	TSet<int32>& AlteredGroups, int32& NumInserted, TSet<int32>* NewEids, FProgressCancel* Progress)
+	TSet<int32>& AlteredGroups, int32& NumInserted, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
 {
 	NumInserted = 0;
 	if (AlteredGroups.Contains(NextGroupID) || StartEndpoints.Num() == 0)
@@ -253,7 +254,7 @@ bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertion
 		{
 			int32 NumGroupsCreated;
 			bSuccess = ConnectEndpoints(Params, NextGroupID, Boundary, *CurrentEndpoints, StartEndpoints, 
-				NewEids, NumGroupsCreated, Progress);
+				NewEidsOut, NumGroupsCreated, Progress);
 			AlteredGroups.Add(NextGroupID);
 			NumInserted += (NumGroupsCreated > 1 ? 1 : 0);
 			break;
@@ -272,7 +273,7 @@ bool InsertEdgeLoopEdgesInDirection(const FGroupEdgeInserter::FEdgeLoopInsertion
 		// Connect up the endpoints
 		int32 NumGroupsCreated;
 		bSuccess = ConnectEndpoints(Params, NextGroupID, Boundary, *CurrentEndpoints, *NextEndpoints, 
-			NewEids, NumGroupsCreated, Progress);
+			NewEidsOut, NumGroupsCreated, Progress);
 		AlteredGroups.Add(NextGroupID);
 		NumInserted += (NumGroupsCreated > 1 ? 1 : 0);
 
@@ -475,17 +476,17 @@ bool ConnectEndpoints(
 	const FGroupTopology::FGroupBoundary& GroupBoundary,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& StartPoints,
 	const TArray<FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
-	TSet<int32>* NewEids, int32& NumGroupsCreated, FProgressCancel* Progress)
+	TSet<int32>* NewEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress)
 {
 	if (Params.Mode == FGroupEdgeInserter::EInsertionMode::Retriangulate)
 	{
 		return ConnectMultipleUsingRetriangulation(*Params.Mesh, *Params.Topology, GroupID, 
-			GroupBoundary, StartPoints, EndPoints, NewEids, NumGroupsCreated, Progress);
+			GroupBoundary, StartPoints, EndPoints, NewEidsOut, NumGroupsCreated, Progress);
 	}
 	else if (Params.Mode == FGroupEdgeInserter::EInsertionMode::PlaneCut)
 	{
 		return ConnectMultipleUsingPlaneCut(*Params.Mesh, *Params.Topology, GroupID,
-			GroupBoundary, StartPoints, EndPoints, Params.VertexTolerance, NewEids, 
+			GroupBoundary, StartPoints, EndPoints, Params.VertexTolerance, NewEidsOut, 
 			NumGroupsCreated, Progress);
 	}
 	else
@@ -569,6 +570,11 @@ bool ConnectMultipleUsingRetriangulation(
 		return false;
 	}
 
+	// Due to snapping and such, we may end up with degenerate loops that don't need triangulation. 
+	// This could be the first loop, so we need to assign the existing group ID to the first loop 
+	// that is not degenerate.
+	bool bUsedOriginalGroup = false;
+
 	// Do the first loop
 	TArray<int32> LoopVids;
 	if (!bReverseSubloopDirection)
@@ -582,6 +588,7 @@ bool ConnectMultipleUsingRetriangulation(
 	if (LoopVids.Num() > 2)
 	{
 		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID);
+		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
 
@@ -593,6 +600,7 @@ bool ConnectMultipleUsingRetriangulation(
 			return false;
 		}
 
+		// Check for a degenerate loop
 		if (StartIndices[i - 1] == StartIndices[i] && EndIndices[i - 1] == EndIndices[i])
 		{
 			continue;
@@ -610,7 +618,9 @@ bool ConnectMultipleUsingRetriangulation(
 			AppendInclusiveRangeWrapAround(BoundaryVertices, LoopVids, EndIndices[i - 1], EndIndices[i]); // previous to current
 		}
 
-		bSuccess = RetriangulateLoop(Mesh, LoopVids, Mesh.AllocateTriangleGroup());
+		int32 GroupIDToUse = bUsedOriginalGroup ? GroupID : Mesh.AllocateTriangleGroup();
+		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse);
+		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
 
@@ -631,7 +641,9 @@ bool ConnectMultipleUsingRetriangulation(
 	}
 	if (LoopVids.Num() > 2)
 	{
-		bSuccess = RetriangulateLoop(Mesh, LoopVids, Mesh.AllocateTriangleGroup());
+		int32 GroupIDToUse = bUsedOriginalGroup ? GroupID : Mesh.AllocateTriangleGroup();
+		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse);
+		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
 
@@ -878,7 +890,7 @@ bool CreateNewGroups(FDynamicMesh3& Mesh, TSet<int32>& PathEids, int32 OriginalG
 }
 
 /** Inserts a group edge into a given group. */
-bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEids, FProgressCancel* Progress)
+bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet<int32>* NewEidsOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
@@ -888,23 +900,32 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 	// Validate the inputs
 	check(Params.Mesh);
 	check(Params.Topology);
-	check(Params.GroupBoundary);
 	check(Params.GroupID != FDynamicMesh3::InvalidID);
 	check(Params.StartPoint.ElementID != FDynamicMesh3::InvalidID);
 	check(Params.EndPoint.ElementID != FDynamicMesh3::InvalidID);
 
+	if (Params.StartPoint.bIsVertex == Params.EndPoint.bIsVertex
+		&& Params.StartPoint.ElementID == Params.EndPoint.ElementID)
+	{
+		// Points are on same vertex or edge.
+		return false;
+	}
+
 	if (Params.Mode == EInsertionMode::PlaneCut)
 	{
+		TSet<int32> TempNewEids;
+		TSet<int32>* NewEids = NewEidsOut ? NewEidsOut : &TempNewEids;
+
 		bool bSuccess = EmbedPlaneCutPath(*Params.Mesh, Params.GroupID, 
 			Params.StartPoint, Params.EndPoint, Params.VertexTolerance, *NewEids, Progress);
-		if (bSuccess || (Progress && Progress->Cancelled()))
+		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;
 		}
 		
 		int32 NumGroupsCreated;
 		bSuccess = CreateNewGroups(*Params.Mesh, *NewEids, Params.GroupID, NumGroupsCreated, Progress);
-		if (!bSuccess)
+		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;
 		}
@@ -912,9 +933,9 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 	else if (Params.Mode == EInsertionMode::Retriangulate)
 	{
 		bool bSuccess = InsertSingleWithRetriangulation(*Params.Mesh, *Params.Topology, 
-			Params.GroupID, *Params.GroupBoundary, Params.StartPoint, Params.EndPoint, 
-			Progress);
-		if (!bSuccess)
+			Params.GroupID, Params.GroupBoundaryIndex, Params.StartPoint, Params.EndPoint, 
+			NewEidsOut, Progress);
+		if (!bSuccess || (Progress && Progress->Cancelled()))
 		{
 			return false;
 		}
@@ -924,11 +945,6 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 		checkf(false, TEXT("GroupEdgeInserter:InsertGroupEdge: Unimplemented insertion method."));
 	}
 
-	if (Progress && Progress->Cancelled())
-	{
-		return false;
-	}
-
 	Params.Topology->RebuildTopology();
 
 	return true;
@@ -936,41 +952,59 @@ bool FGroupEdgeInserter::InsertGroupEdge(FGroupEdgeInsertionParams& Params, TSet
 
 /** Helper function. Not used when inserting multiple edges at once into a group to avoid continuously retriangulating and deleting. */
 bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topology, 
-	int32 GroupID, FGroupTopology::FGroupBoundary& Boundary,
+	int32 GroupID, int32 BoundaryIndex,
 	const FGroupEdgeInserter::FGroupEdgeSplitPoint& StartPoint,
-	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, FProgressCancel* Progress)
+	const FGroupEdgeInserter::FGroupEdgeSplitPoint& EndPoint, 
+	TSet<int32>* NewEidsOut, FProgressCancel* Progress)
 {
 	if (Progress && Progress->Cancelled())
 	{
 		return false;
 	}
 
-	int32 IndexA;
+	if (StartPoint.bIsVertex == EndPoint.bIsVertex
+		&& StartPoint.ElementID == EndPoint.ElementID)
+	{
+		// Points are on same vertex or edge.
+		return false;
+	}
+
+	int32 StartVid = StartPoint.ElementID;
 	if (!StartPoint.bIsVertex)
 	{
 		FDynamicMesh3::FEdgeSplitInfo SplitInfo;
 		Mesh.SplitEdge(StartPoint.ElementID, SplitInfo, StartPoint.EdgeTValue);
+		StartVid = SplitInfo.NewVertex;
 	}
 
-	int32 IndexB;
+	int32 EndVid = EndPoint.ElementID;
 	if (!EndPoint.bIsVertex)
 	{
 		FDynamicMesh3::FEdgeSplitInfo SplitInfo;
 		Mesh.SplitEdge(EndPoint.ElementID, SplitInfo, EndPoint.EdgeTValue);
+		EndVid = SplitInfo.NewVertex;
 	}
 
+	const FGroupTopology::FGroup* Group = Topology.FindGroupByID(GroupID);
+	check(Group && BoundaryIndex >= 0 && BoundaryIndex < Group->Boundaries.Num());
 	TArray<int32> BoundaryVertices;
-	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, Boundary, BoundaryVertices, Progress);
+	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, Group->Boundaries[BoundaryIndex], BoundaryVertices, Progress);
 	if (!bSuccess || (Progress && Progress->Cancelled()))
 	{
 		return false;
 	}
 
-	IndexA = BoundaryVertices.IndexOfByKey(StartPoint.ElementID);
-	IndexB = BoundaryVertices.IndexOfByKey(EndPoint.ElementID);
+	int32 IndexA = BoundaryVertices.IndexOfByKey(StartVid);
+	int32 IndexB = BoundaryVertices.IndexOfByKey(EndVid);
 
 	TArray<int32> LoopVids;
 	AppendInclusiveRangeWrapAround(BoundaryVertices, LoopVids, IndexA, IndexB);
+	if (LoopVids.Num() < 3)
+	{
+		// If one our endpoints turn out to be adjacent, there's nothing to insert.
+		// TODO: we could do a tiny bit more work to detect this earlier.
+		return false;
+	}
 	bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID);
 
 	if (!bSuccess || (Progress && Progress->Cancelled()))
@@ -980,7 +1014,16 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 
 	LoopVids.Reset();
 	AppendInclusiveRangeWrapAround(BoundaryVertices, LoopVids, IndexB, IndexA);
-	bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID);
+	if (LoopVids.Num() < 3)
+	{
+		return false;
+	}
+	bSuccess = RetriangulateLoop(Mesh, LoopVids, Mesh.AllocateTriangleGroup());
+
+	if (NewEidsOut)
+	{
+		NewEidsOut->Add(Mesh.FindEdge(StartVid, EndVid));
+	}
 
 	return bSuccess;
 }
@@ -990,10 +1033,8 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
  * Creates a path of FMeshSurfacePoint instances across a group that can be embedded into the mesh,
  * based on a plane cut from start to end. Does not actually embed that path yet.
  *
- * Does not attempt to deal with topology that creates local ambiguities in the path, for instance,
- * if the surface twists to become coplanar with the cut plane somewhere in the middle, or folds
- * over at one of the path vertices.
- * Assumes that the start and end points are on the boundary of the group.
+ * Assumes that the start and end points are on the boundary of the group, and doesn't try to deal
+ * with some complicated edge cases that could arise in nonplanar groups.
  *
  * Instead of having this function, we should modify EmbedSurfacePath.cpp::WalkMeshPlanar to allow the start and
  * end points to be edges/vertices and to have a filter function that we can use to filter out triangles that are
@@ -1041,15 +1082,8 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 
 	FVector CutPlaneOrigin = (FVector)StartPosition;
 
-	// Set up a bunch of variables we'll need as we walk from start to end
-	bool bCurrentPointIsVertex = StartPoint.bIsVertex;
-	int32 CurrentElementID = StartPoint.ElementID;
-
-	// These help us avoid backtracking.
-	int32 PreviousTid = FDynamicMesh3::InvalidID; // if we walked across a triangle
-	int32 PreviousVid = FDynamicMesh3::InvalidID; // if we walked from a vertex
-
-	// These avoid recomuting some distances
+	// These store distances of the current edge from the plane, so they don't have to be recomputed when
+	// finding the next point.
 	float CurrentEdgeVertPlaneDistances[2];
 
 	// Prep the first point
@@ -1059,11 +1093,39 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 	}
 	else
 	{
-		OutputPath.Emplace(FMeshSurfacePoint(StartPoint.ElementID, StartPoint.EdgeTValue), FDynamicMesh3::InvalidID);
-		FIndex2i EdgeVids = Mesh.GetEdgeV(CurrentElementID);
+		FIndex2i EdgeVids = Mesh.GetEdgeV(StartPoint.ElementID);
 		CurrentEdgeVertPlaneDistances[0] = FVector::PointPlaneDist((FVector)Mesh.GetVertex(EdgeVids.A), CutPlaneOrigin, CutPlaneNormal);
 		CurrentEdgeVertPlaneDistances[1] = FVector::PointPlaneDist((FVector)Mesh.GetVertex(EdgeVids.B), CutPlaneOrigin, CutPlaneNormal);
+
+		if (abs(CurrentEdgeVertPlaneDistances[0]) <= VertexCutTolerance)
+		{
+			if (abs(CurrentEdgeVertPlaneDistances[1]) <= VertexCutTolerance)
+			{
+				// This will happen if the first point is on an edge colinear with the direction to the endpoint,
+				// and it's not worth dealing with, since the path is quite unlikely to be reasonable anyway.
+				return false;
+			}
+			OutputPath.Emplace(FMeshSurfacePoint(EdgeVids.A), FDynamicMesh3::InvalidID);
+		}
+		else if (abs(CurrentEdgeVertPlaneDistances[1]) <= VertexCutTolerance)
+		{
+			OutputPath.Emplace(FMeshSurfacePoint(EdgeVids.B), FDynamicMesh3::InvalidID);
+		}
+		else
+		{
+			OutputPath.Emplace(FMeshSurfacePoint(StartPoint.ElementID, StartPoint.EdgeTValue), FDynamicMesh3::InvalidID);
+		}
 	}
+	check(OutputPath.Num() == 1);
+
+	// Set up a few more variables we'll need as we walk from start to end
+	bool bCurrentPointIsVertex = (OutputPath[0].Key.PointType == ESurfacePointType::Vertex);
+	int32 CurrentElementID = OutputPath[0].Key.ElementID;
+
+	// These help us avoid backtracking.
+	int32 PreviousTid = FDynamicMesh3::InvalidID; // if we walked across a triangle
+	int32 PreviousVid = FDynamicMesh3::InvalidID; // if we walked from a vertex
+
 
 	int32 PointCount = 1; // Used as a sanity check
 
@@ -1135,14 +1197,20 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 						}
 						else
 						{
-							return false; // Another point, so ambiguous
+							// Another point, so ambiguous. Accept it only if the previous moved away from the destination
+							// and the current is moving toward. This is a hack to deal with nonconvex planar surfaces nicely,
+							// but the proper solution is to alter EmbedSurfacePath.cpp::WalkMeshPlanar instead.
+							FVector3d CurrentPosition = OutputPath.Last().Key.Pos(&Mesh);
+							if (!(InPlaneVector.Dot(NextPoint.Pos(&Mesh) - CurrentPosition) < 0
+								&& InPlaneVector.Dot(Mesh.GetVertex(CandidateVert) - CurrentPosition) > 0))
+							{
+								continue;
+							}
 						}
 					}
-					else
-					{
-						// Save point
-						NextPoint = FMeshSurfacePoint(CandidateVert);
-					}
+
+					// Save point
+					NextPoint = FMeshSurfacePoint(CandidateVert);
 				}//end if one of the points is on the plane
 				else if (PlaneDistanceA * PlaneDistanceB < 0)
 				{
@@ -1155,26 +1223,35 @@ bool GetPlaneCutPath(const FDynamicMesh3& Mesh, int32 GroupID,
 						NextPoint = FMeshSurfacePoint(EndPoint.ElementID, EndPoint.EdgeTValue);
 						break;
 					}
-
-					if (NextPoint.ElementID != FDynamicMesh3::InvalidID)
-					{
-						// Looks like there are multiple intersections with the plane, so ambigous.
-						return false;
-					}
-
-					// Otherwise, save the edge point
-					
+			
 					double EdgeTValue = PlaneDistanceA / (PlaneDistanceA - PlaneDistanceB);
-
-					CurrentEdgeVertPlaneDistances[0] = PlaneDistanceA;
-					CurrentEdgeVertPlaneDistances[1] = PlaneDistanceB;
 
 					if (VertA != Mesh.GetEdgeV(Eid).A)
 					{
 						EdgeTValue = 1 - EdgeTValue;
-						Swap(CurrentEdgeVertPlaneDistances[0], CurrentEdgeVertPlaneDistances[1]);
 					}
 
+					if (NextPoint.ElementID != FDynamicMesh3::InvalidID)
+					{
+						// Looks like there are multiple intersections with the plane, so ambigous.
+						// Accept new point only if the previous moved away from the destination
+						// and the current is moving toward. This is a hack to deal with nonconvex planar surfaces nicely,
+						// but the proper solution is to alter EmbedSurfacePath.cpp::WalkMeshPlanar instead.
+						FVector3d CurrentPosition = OutputPath.Last().Key.Pos(&Mesh);
+						if (!(InPlaneVector.Dot(NextPoint.Pos(&Mesh) - CurrentPosition) < 0
+							&& InPlaneVector.Dot(Mesh.GetEdgePoint(Eid, EdgeTValue) - CurrentPosition) > 0))
+						{
+							continue;
+						}
+					}
+
+					// Save the edge point
+					CurrentEdgeVertPlaneDistances[0] = PlaneDistanceA;
+					CurrentEdgeVertPlaneDistances[1] = PlaneDistanceB;
+					if (VertA != Mesh.GetEdgeV(Eid).A)
+					{
+						Swap(CurrentEdgeVertPlaneDistances[0], CurrentEdgeVertPlaneDistances[1]);
+					}
 					NextPoint = FMeshSurfacePoint(Eid, EdgeTValue);
 					TraversedTid = Tid;
 				}

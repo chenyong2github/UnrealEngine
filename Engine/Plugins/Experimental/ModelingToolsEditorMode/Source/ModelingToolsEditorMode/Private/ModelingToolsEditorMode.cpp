@@ -16,6 +16,7 @@
 #include "MeshVertexSculptTool.h"
 #include "EditMeshPolygonsTool.h"
 #include "DeformMeshPolygonsTool.h"
+#include "GroupEdgeInsertionTool.h"
 #include "EdgeLoopInsertionTool.h"
 #include "ConvertToPolygonsTool.h"
 #include "AddPrimitiveTool.h"
@@ -607,6 +608,10 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginRemeshMeshTool, TEXT("RemeshMeshTool"), NewObject<URemeshMeshToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginProjectToTargetTool, TEXT("ProjectToTargetTool"), NewObject<UProjectToTargetToolBuilder>());
 	RegisterToolFunc(ToolManagerCommands.BeginSimplifyMeshTool, TEXT("SimplifyMeshTool"), NewObject<USimplifyMeshToolBuilder>());
+
+	auto GroupEdgeInsertionToolBuilder = NewObject<UGroupEdgeInsertionToolBuilder>();
+	GroupEdgeInsertionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginGroupEdgeInsertionTool, TEXT("GroupEdgeInsertionTool"), GroupEdgeInsertionToolBuilder);
 
 	auto EdgeLoopInsertionToolBuilder = NewObject<UEdgeLoopInsertionToolBuilder>();
 	EdgeLoopInsertionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
