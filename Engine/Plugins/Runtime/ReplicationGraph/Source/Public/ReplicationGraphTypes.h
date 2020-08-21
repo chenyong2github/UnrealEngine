@@ -73,6 +73,7 @@ enum class EActorRepListTypeFlags : uint8
 {
 	Default = 0,
 	FastShared = 1,
+	Max, // Always keep last
 };
 
 // Tests if an actor is valid for replication: not pending kill, etc. Says nothing about wanting to replicate or should replicate, etc.
@@ -1166,21 +1167,36 @@ struct REPLICATIONGRAPH_API FGatheredReplicationActorLists
 		repCheck(List.IsValid());
 		if (List.Num() > 0)
 		{
-
-			OutReplicationLists.FindOrAdd(Flags).Emplace(FActorRepListRawView(List)); 
+			ReplicationLists[(uint32)Flags].Emplace(FActorRepListRawView(List));
 			CachedNum++;
 		}
 	}
 
-	FORCEINLINE void Reset() { OutReplicationLists.Reset(); CachedNum =0; }
-	FORCEINLINE int32 NumLists() const { return CachedNum; }
+	FORCEINLINE void Reset()
+	{ 
+		for (uint32 i = (uint32)EActorRepListTypeFlags::Default; i < (uint32)EActorRepListTypeFlags::Max; ++i)
+		{
+			ReplicationLists[i].Reset();
+		}
+		CachedNum=0; 
+	}
+	FORCEINLINE int32 NumLists() const 
+	{ 
+		return CachedNum; 
+	}
 	
-	FORCEINLINE TArray< FActorRepListRawView>& GetLists(EActorRepListTypeFlags ListFlags) { return OutReplicationLists.FindOrAdd(ListFlags); }
-	FORCEINLINE bool ContainsLists(EActorRepListTypeFlags Flags) { return OutReplicationLists.Contains(Flags); }
+	FORCEINLINE TArray< FActorRepListRawView>& GetLists(EActorRepListTypeFlags ListFlags)
+	{ 
+		return ReplicationLists[(uint32)ListFlags];
+	}
+	FORCEINLINE bool ContainsLists(EActorRepListTypeFlags Flags) 
+	{ 
+		return ReplicationLists[(uint32)Flags].Num() > 0;
+	}
 	
 private:
 
-	TMap<EActorRepListTypeFlags, TArray< FActorRepListRawView> > OutReplicationLists;
+	TStaticArray< TArray<FActorRepListRawView>, (uint32)EActorRepListTypeFlags::Max > ReplicationLists;
 	int32 CachedNum = 0;
 };
 
