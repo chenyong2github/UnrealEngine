@@ -17,12 +17,12 @@ public:
 public:
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ColorSetting", "Color Output"); }
+	virtual bool CanBeDisabled() const override { return false; }
+	virtual bool CanEditChange(const FProperty* InProperty) const override;
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }
-	virtual bool CanBeDisabled() const override { return false; }
 
-	virtual bool CanEditChange(const FProperty* InProperty) const override;
 public:
 	/**
 	* OCIO config to be passed to OCIO View Extension. If this is enabled the Tone Curve will be disabled.
