@@ -1128,12 +1128,11 @@ void FD3D11DynamicRHI::FlushPendingLogs()
 #if NV_AFTERMATH
 static void CacheNVAftermathEnabled()
 {
-	if (GNVAftermathModuleLoaded && IsRHIDeviceNVIDIA())
+	if (GNVAftermathModuleLoaded && IsRHIDeviceNVIDIA() && !FParse::Param(FCommandLine::Get(), TEXT("nogpucrashdebugging")))
 	{
-		const bool bEnableInEditor = GIsEditor && !FParse::Param(FCommandLine::Get(), TEXT("nogpucrashdebugging"));
 		// Two ways to enable aftermath, command line or the r.GPUCrashDebugging variable
 		// Note: If intending to change this please alert game teams who use this for user support.
-		if (bEnableInEditor || FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
+		if (FParse::Param(FCommandLine::Get(), TEXT("gpucrashdebugging")))
 		{
 			GDX11NVAfterMathEnabled = true;
 		}
