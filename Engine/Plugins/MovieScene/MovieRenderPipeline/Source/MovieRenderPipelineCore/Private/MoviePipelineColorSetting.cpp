@@ -6,6 +6,7 @@ UMoviePipelineColorSetting::UMoviePipelineColorSetting() : bDisableToneCurve(fal
 {
 }
 
+#if WITH_EDITOR
 bool UMoviePipelineColorSetting::CanEditChange(const FProperty* InProperty) const
 {
 	if (InProperty->GetName() == GET_MEMBER_NAME_STRING_CHECKED(UMoviePipelineColorSetting, bDisableToneCurve))
@@ -15,3 +16,4 @@ bool UMoviePipelineColorSetting::CanEditChange(const FProperty* InProperty) cons
 
 	return Super::CanEditChange(InProperty);
 }
+#endif // #if WITH_EDITOR
