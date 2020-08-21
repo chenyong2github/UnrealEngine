@@ -761,10 +761,6 @@ bool FCurlHttpRequest::SetupRequest()
 
 	// set up request
 
-	}
-
-	// set up request
-
 	if (!RequestPayload.IsValid())
 	{
 		RequestPayload = MakeUnique<FRequestPayloadInMemory>(TArray<uint8>());
