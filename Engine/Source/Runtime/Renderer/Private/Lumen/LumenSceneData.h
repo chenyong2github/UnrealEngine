@@ -165,7 +165,7 @@ struct FLumenPrimitiveAddInfo
 		, bPendingUpdate(false)
 	{
 		TArray<FPrimitiveInstance>* Instances = InPrimitive->Proxy->GetPrimitiveInstances();
-		if (Instances && Instances->Num() > 0)
+		if (Instances)
 		{
 			NumInstances = Instances->Num();
 		}
