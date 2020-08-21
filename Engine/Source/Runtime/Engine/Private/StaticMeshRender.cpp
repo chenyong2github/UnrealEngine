@@ -1689,16 +1689,16 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 
 	FRayTracingGeometry& Geometry = bEvaluateWPO? DynamicRayTracingGeometries[LODIndex] : RenderData->LODResources[LODIndex].RayTracingGeometry;
 	{
-		FRayTracingInstance RayTracingInstance;
+		FRayTracingInstance &RayTracingInstance = OutRayTracingInstances.AddDefaulted_GetRef();
 	
 		const int32 NumBatches = GetNumMeshBatches();
 
+		RayTracingInstance.Materials.Reserve(LODModel.Sections.Num() * NumBatches);
 		for (int32 BatchIndex = 0; BatchIndex < NumBatches; BatchIndex++)
 		{
-			RayTracingInstance.Materials.Reserve(LODModel.Sections.Num());
 			for(int SectionIndex = 0; SectionIndex < LODModel.Sections.Num(); SectionIndex++)
 			{
-				FMeshBatch Mesh;
+				FMeshBatch &Mesh = RayTracingInstance.Materials.AddDefaulted_GetRef();
 	
 				bool bResult = GetMeshElement(LODIndex, BatchIndex, SectionIndex, PrimitiveDPG, false, false, Mesh);
 				if (!bResult)
@@ -1708,7 +1708,6 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 					Mesh.VertexFactory = &RenderData->LODVertexFactories[LODIndex].VertexFactory;
 				}
 				Mesh.SegmentIndex = SectionIndex;
-				RayTracingInstance.Materials.Add(Mesh);
 			}
 		}
 
@@ -1749,8 +1748,6 @@ void FStaticMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialGat
 			RayTracingInstance.Geometry->Initializer.Segments.Num(), 
 			RayTracingInstance.Materials.Num(), 
 			LODIndex);
-
-		OutRayTracingInstances.Add(RayTracingInstance);
 	}
 }
 #endif
