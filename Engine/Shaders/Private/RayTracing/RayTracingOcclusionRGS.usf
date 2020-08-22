@@ -343,7 +343,7 @@ FOcclusionResult ComputeOcclusion(
 
 		#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
-			uint2 RandomSeed = Rand3DPCG16(int3(PixelCoord, View.StateFrameIndexMod8)).xy;
+			uint2 RandomSeed = Rand3DPCG16(int3(PixelCoord, View.StateFrameIndex % 17)).xy;
 			
 			RandSample = Hammersley16(0, 1, RandomSeed);
 		}
