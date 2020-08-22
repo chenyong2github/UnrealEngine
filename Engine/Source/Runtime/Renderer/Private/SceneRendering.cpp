@@ -317,6 +317,13 @@ TAutoConsoleVariable<int32> CVarTransientResourceAliasing_Buffers(
 	TEXT("Enables transient resource aliasing for specified buffers. Used only if GSupportsTransientResourceAliasing is true.\n"),
 	ECVF_ReadOnly);
 
+static TAutoConsoleVariable<int32> CVarBasePassForceOutputsVelocity(
+	TEXT("r.BasePassForceOutputsVelocity"), 0,
+	TEXT("Force the base pass to compute motion vector, regardless of FPrimitiveUniformShaderParameters.")
+	TEXT("0: Disabled (default)")
+	TEXT("1: Enabled"),
+	ECVF_RenderThreadSafe);
+
 #if !UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<int32> CVarTestInternalViewRectOffset(
@@ -1458,6 +1465,8 @@ void FViewInfo::SetupUniformBufferParameters(
 			TemporalJitterPixels.X,
 			TemporalJitterPixels.Y);
 	}
+
+	ViewUniformShaderParameters.ForceDrawAllVelocities = CVarBasePassForceOutputsVelocity.GetValueOnRenderThread();
 		
 	uint32 FrameIndex = 0;
 	if (ViewState)
