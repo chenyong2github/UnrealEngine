@@ -8,7 +8,6 @@
 #include "../LightShaderParameters.ush"
 #include "../SceneTextureParameters.ush"
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
-#include "../SobolRandom.ush"
 #include "../TransmissionCommon.ush"
 #include "../HairStrands/HairStrandsVisibilityCommon.ush"
 #include "RayTracingCommon.ush"
@@ -344,13 +343,9 @@ FOcclusionResult ComputeOcclusion(
 
 		#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 		{
-			const uint TemporalBits = 10;
-			uint FrameIndexMod1024 = ReverseBitsN(GetPowerOfTwoModulatedFrameIndex(1 << TemporalBits), TemporalBits);
-
-			uint2 SobolBase = SobolPixel(PixelCoord);
-			uint2 SobolFrame = SobolIndex(SobolBase, FrameIndexMod1024, TemporalBits);
-
-			RandSample = SobolIndexToUniformUnitSquare(SobolFrame);
+			uint2 RandomSeed = Rand3DPCG16(int3(PixelCoord, View.StateFrameIndexMod8)).xy;
+			
+			RandSample = Hammersley16(0, 1, RandomSeed);
 		}
 		#endif // !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
 
