@@ -4524,7 +4524,7 @@ public:
 	FCompressionScratchBuffers()
 		: TempBufferSize(0)
 		, ScratchBufferSize(0)
-		, LastReader(nullptr)
+		, LastPakEntryOffset(-1)
 		, LastDecompressedBlock(0xFFFFFFFF)
 	{}
 
@@ -4533,7 +4533,8 @@ public:
 	int64				ScratchBufferSize;
 	TUniquePtr<uint8[]>	ScratchBuffer;
 
-	void* LastReader;
+	int64 LastPakEntryOffset;
+	FSHAHash LastPakIndexHash;
 	uint32 LastDecompressedBlock;
 
 	void EnsureBufferSpace(int64 CompressionBlockSize, int64 ScrachSize)
@@ -4600,12 +4601,6 @@ public:
 
 	~FPakCompressedReaderPolicy()
 	{
-		FCompressionScratchBuffers& ScratchSpace = FCompressionScratchBuffers::Get();
-		if(ScratchSpace.LastReader == this)
-		{
-			ScratchSpace.LastDecompressedBlock = 0xFFFFFFFF;
-			ScratchSpace.LastReader = nullptr;
-		}
 	}
 
 	/** Pak file that own this file data */
@@ -4669,7 +4664,9 @@ public:
 			const bool bCurrentScratchTempBufferValid = 
 				bExistingScratchBufferValid && !bStartedUncompress
 				// ensure this object was the last reader from the scratch buffer and the last thing it decompressed was this block.
-				&& ScratchSpace.LastReader == this && ScratchSpace.LastDecompressedBlock == CompressionBlockIndex 
+				&& (ScratchSpace.LastPakEntryOffset == PakEntry.Offset)
+				&& (ScratchSpace.LastPakIndexHash == PakFile.GetInfo().IndexHash)
+				&& (ScratchSpace.LastDecompressedBlock == CompressionBlockIndex)
 				// ensure the previous decompression destination was the scratch buffer.
 				&& !(DirectCopyStart == 0 && Length >= CompressionBlockSize); 
 
@@ -4680,54 +4677,56 @@ public:
 			}
 			else
 			{
-			PakReader->Seek(Block.CompressedStart + (PakFile.GetInfo().HasRelativeCompressedChunkOffsets() ? PakEntry.Offset : 0));
-			PakReader->Serialize(WorkingBuffers[CompressionBlockIndex & 1], ReadSize);
-			if (bStartedUncompress)
-			{
-				UncompressTask.EnsureCompletion();
-				bStartedUncompress = false;
-			}
+				PakReader->Seek(Block.CompressedStart + (PakFile.GetInfo().HasRelativeCompressedChunkOffsets() ? PakEntry.Offset : 0));
+				PakReader->Serialize(WorkingBuffers[CompressionBlockIndex & 1], ReadSize);
+				if (bStartedUncompress)
+				{
+					UncompressTask.EnsureCompletion();
+					bStartedUncompress = false;
+				}
 
-			FPakUncompressTask& TaskDetails = UncompressTask.GetTask();
-			TaskDetails.EncryptionKeyGuid = PakFile.GetInfo().EncryptionKeyGuid;
+				FPakUncompressTask& TaskDetails = UncompressTask.GetTask();
+				TaskDetails.EncryptionKeyGuid = PakFile.GetInfo().EncryptionKeyGuid;
 
-			if (DirectCopyStart == 0 && Length >= CompressionBlockSize)
-			{
-				// Block can be decompressed directly into output buffer
-				TaskDetails.CompressionFormat = CompressionMethod;
-				TaskDetails.UncompressedBuffer = (uint8*)V;
-				TaskDetails.UncompressedSize = UncompressedBlockSize;
-				TaskDetails.CompressedBuffer = WorkingBuffers[CompressionBlockIndex & 1];
-				TaskDetails.CompressedSize = CompressedBlockSize;
-				TaskDetails.CopyOut = nullptr;
+				if (DirectCopyStart == 0 && Length >= CompressionBlockSize)
+				{
+					// Block can be decompressed directly into output buffer
+					TaskDetails.CompressionFormat = CompressionMethod;
+					TaskDetails.UncompressedBuffer = (uint8*)V;
+					TaskDetails.UncompressedSize = UncompressedBlockSize;
+					TaskDetails.CompressedBuffer = WorkingBuffers[CompressionBlockIndex & 1];
+					TaskDetails.CompressedSize = CompressedBlockSize;
+					TaskDetails.CopyOut = nullptr;
 					ScratchSpace.LastDecompressedBlock = 0xFFFFFFFF;
-					ScratchSpace.LastReader = nullptr;
-			}
-			else
-			{
-				// Block needs to be copied from a working buffer
-				TaskDetails.CompressionFormat = CompressionMethod;
-				TaskDetails.UncompressedBuffer = ScratchSpace.TempBuffer.Get();
-				TaskDetails.UncompressedSize = UncompressedBlockSize;
-				TaskDetails.CompressedBuffer = WorkingBuffers[CompressionBlockIndex & 1];
-				TaskDetails.CompressedSize = CompressedBlockSize;
-				TaskDetails.CopyOut = V;
-				TaskDetails.CopyOffset = DirectCopyStart;
-				TaskDetails.CopyLength = WriteSize;
-
+					ScratchSpace.LastPakIndexHash = FSHAHash();
+					ScratchSpace.LastPakEntryOffset = -1;
+				}
+				else
+				{
+					// Block needs to be copied from a working buffer
+					TaskDetails.CompressionFormat = CompressionMethod;
+					TaskDetails.UncompressedBuffer = ScratchSpace.TempBuffer.Get();
+					TaskDetails.UncompressedSize = UncompressedBlockSize;
+					TaskDetails.CompressedBuffer = WorkingBuffers[CompressionBlockIndex & 1];
+					TaskDetails.CompressedSize = CompressedBlockSize;
+					TaskDetails.CopyOut = V;
+					TaskDetails.CopyOffset = DirectCopyStart;
+					TaskDetails.CopyLength = WriteSize;
 					ScratchSpace.LastDecompressedBlock = CompressionBlockIndex;
-					ScratchSpace.LastReader = this;
-			}
+					ScratchSpace.LastPakIndexHash = PakFile.GetInfo().IndexHash;
+					ScratchSpace.LastPakEntryOffset = PakEntry.Offset;
+				}
 
-			if (Length == WriteSize)
-			{
-				UncompressTask.StartSynchronousTask();
-			}
-			else
-			{
-				UncompressTask.StartBackgroundTask();
-			}
-			bStartedUncompress = true;
+				if (Length == WriteSize)
+				{
+					UncompressTask.StartSynchronousTask();
+				}
+				else
+				{
+					UncompressTask.StartBackgroundTask();
+				}
+
+				bStartedUncompress = true;
 			}
 		
 			V = (void*)((uint8*)V + WriteSize);
