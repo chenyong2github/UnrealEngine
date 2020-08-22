@@ -967,7 +967,7 @@ void FPixelShaderInOut_MainPS(
 
 #if WRITES_VELOCITY_TO_GBUFFER
 	BRANCH
-	if (GetPrimitiveData(MaterialParameters.PrimitiveId).OutputVelocity > 0)
+	if (GetPrimitiveData(MaterialParameters.PrimitiveId).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
 	{
 		// 2d velocity, includes camera an object motion
 	#if WRITES_VELOCITY_TO_GBUFFER_USE_POS_INTERPOLATOR
@@ -976,7 +976,15 @@ void FPixelShaderInOut_MainPS(
 		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
 	#endif
 
-		float4 EncodedVelocity = float4(EncodeVelocityToTexture(Velocity) * GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity, 0);
+		float4 EncodedVelocity = float4(EncodeVelocityToTexture(Velocity), 0);
+
+		FLATTEN
+		if (GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity == 0.0 && View.ForceDrawAllVelocities == 0)
+		{
+			// TODO: remove one of the DrawsVelocity or OutputVelocity
+			EncodedVelocity = 0.0;
+		}
+
 	#if USES_GBUFFER
 		GBuffer.Velocity = EncodedVelocity;
 	#else
