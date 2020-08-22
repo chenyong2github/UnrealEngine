@@ -202,7 +202,7 @@ void Main(
 	{
 		float4 PrevTranslatedWorldPosition = float4(0, 0, 0, 1);
 		BRANCH
-		if (GetPrimitiveData(VFIntermediates.PrimitiveId).OutputVelocity>0)
+		if (GetPrimitiveData(VFIntermediates.PrimitiveId).OutputVelocity > 0 || View.ForceDrawAllVelocities != 0)
 		{
 			PrevTranslatedWorldPosition = VertexFactoryGetPreviousWorldPosition( Input, VFIntermediates );	
 			VertexParameters = GetMaterialVertexParameters(Input, VFIntermediates, PrevTranslatedWorldPosition.xyz, TangentToLocal);
