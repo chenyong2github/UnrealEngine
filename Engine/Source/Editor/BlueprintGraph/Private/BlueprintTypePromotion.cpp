@@ -89,7 +89,7 @@ bool FTypePromotion::HasStructConversion(const UEdGraphPin* InputPin, const UEdG
 	UClass* DummyClass = nullptr;
 	UK2Node* DummyNode = nullptr;
 
-	const bool bCanAutocast = K2Schema->SearchForAutocastFunction(OutputPin, InputPin, /*out*/ DummyName, DummyClass);
+	const bool bCanAutocast = K2Schema->SearchForAutocastFunction(OutputPin->PinType, InputPin->PinType, /*out*/ DummyName, DummyClass);
 	const bool bCanAutoConvert = K2Schema->FindSpecializedConversionNode(OutputPin, InputPin, false, /* out */ DummyNode);
 	
 	return bCanAutocast || bCanAutoConvert;

@@ -318,21 +318,21 @@ void UAnimationGraphSchema::CreateFunctionGraphTerminators(UEdGraph& Graph, UCla
 	}
 }
 
-bool UAnimationGraphSchema::SearchForAutocastFunction(const UEdGraphPin* OutputPin, const UEdGraphPin* InputPin, FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const
+bool UAnimationGraphSchema::SearchForAutocastFunction(const FEdGraphPinType& OutputPinType, const FEdGraphPinType& InputPinType, FName& TargetFunction, /*out*/ UClass*& FunctionOwner) const
 {
-	if (IsComponentSpacePosePin(OutputPin->PinType) && IsLocalSpacePosePin(InputPin->PinType))
+	if (IsComponentSpacePosePin(OutputPinType) && IsLocalSpacePosePin(InputPinType))
 	{
 		// Insert a Component To LocalSpace conversion
 		return true;
 	}
-	else if (IsLocalSpacePosePin(OutputPin->PinType) && IsComponentSpacePosePin(InputPin->PinType))
+	else if (IsLocalSpacePosePin(OutputPinType) && IsComponentSpacePosePin(InputPinType))
 	{
 		// Insert a Local To ComponentSpace conversion
 		return true;
 	}
 	else
 	{
-		return Super::SearchForAutocastFunction(OutputPin, InputPin, TargetFunction, FunctionOwner);
+		return Super::SearchForAutocastFunction(OutputPinType, InputPinType, TargetFunction, FunctionOwner);
 	}
 }
 
