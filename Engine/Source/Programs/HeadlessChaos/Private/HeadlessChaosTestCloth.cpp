@@ -99,13 +99,14 @@ namespace ChaosTest {
 		const T Stiffness)
 	{
 		check(Stiffness >= 0. && Stiffness <= 1.);
-		Evolution->AddPBDConstraintFunction(
-			[SpringConstraints = Chaos::FPBDSpringConstraints(
-				Evolution->Particles(), Topology, Stiffness)](
-					TPBDParticles<float, 3>& InParticles, const float Dt) 
-			{
-				SpringConstraints.Apply(InParticles, Dt);
-			});
+		// TODO: Use Add AddConstraintRuleRange
+		//Evolution->AddPBDConstraintFunction(
+		//	[SpringConstraints = Chaos::FPBDSpringConstraints(
+		//		Evolution->Particles(), Topology, Stiffness)](
+		//			TPBDParticles<float, 3>& InParticles, const float Dt) 
+		//	{
+		//		SpringConstraints.Apply(InParticles, Dt);
+		//	});
 	}
 	
 	template <class T, int d, class TEvolutionPtr>
@@ -115,13 +116,14 @@ namespace ChaosTest {
 		const T Stiffness)
 	{
 		check(Stiffness >= 0. && Stiffness <= 1.);
-		Evolution->AddPBDConstraintFunction(
-			[SpringConstraints = Chaos::FPBDAxialSpringConstraints(
-				Evolution->Particles(), MoveTemp(Topology), Stiffness)](
-					TPBDParticles<float, 3>& InParticles, const float Dt) 
-			{
-				SpringConstraints.Apply(InParticles, Dt);
-			});
+		// TODO: Use Add AddConstraintRuleRange
+		//Evolution->AddPBDConstraintFunction(
+		//	[SpringConstraints = Chaos::FPBDAxialSpringConstraints(
+		//		Evolution->Particles(), MoveTemp(Topology), Stiffness)](
+		//			TPBDParticles<float, 3>& InParticles, const float Dt) 
+		//	{
+		//		SpringConstraints.Apply(InParticles, Dt);
+		//	});
 	}
 
 	template <class T, class TEvolutionPtr>
