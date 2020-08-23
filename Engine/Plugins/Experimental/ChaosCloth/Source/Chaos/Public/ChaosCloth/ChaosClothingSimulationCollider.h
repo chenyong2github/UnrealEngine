@@ -3,6 +3,8 @@
 
 #include "ClothCollisionData.h"
 #include "Containers/ContainersFwd.h"
+#include "Chaos/Rotation.h"
+#include "Chaos/ImplicitObject.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;
