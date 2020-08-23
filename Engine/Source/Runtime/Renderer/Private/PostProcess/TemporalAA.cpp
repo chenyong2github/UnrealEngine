@@ -352,11 +352,12 @@ class FTAA2DecimateHistoryCS : public FTAAGen5Shader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
-
+		SHADER_PARAMETER(FVector, OutputQuantizationError)
 		SHADER_PARAMETER(float, HistoryPreExposureCorrection)
 		SHADER_PARAMETER(int32, bCameraCut)
+
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedVelocityTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ParallaxRejectionMaskTexture)
 
 		SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PrevHistoryInfo)
 		SHADER_PARAMETER_STRUCT(FTAA2HistoryTextures, PrevHistory)
@@ -374,9 +375,12 @@ class FTAA2FilterFrequenciesCS : public FTAAGen5Shader
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_INCLUDE(FTAA2CommonParameters, CommonParameters)
+		SHADER_PARAMETER(FVector, OutputQuantizationError)
+
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, InputTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionSceneColorTexture)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, PredictionInfoTexture)
+
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredInputOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, FilteredPredictionSceneColorOutput)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
@@ -454,6 +458,25 @@ float CatmullRom(float x)
 		return ((-0.5f * ax + 2.5f) * ax - 4.0f) *ax + 2.0f;
 	else
 		return (1.5f * ax - 2.5f) * ax*ax + 1.0f;
+}
+
+FVector ComputePixelFormatQuantizationError(EPixelFormat PixelFormat)
+{
+	FVector Error;
+	if (PixelFormat == PF_FloatRGBA || PixelFormat == PF_FloatR11G11B10)
+	{
+		FIntVector HistoryColorMantissaBits = PixelFormat == PF_FloatR11G11B10 ? FIntVector(6, 6, 5) : FIntVector(10, 10, 10);
+
+		Error.X = FMath::Pow(0.5f, HistoryColorMantissaBits.X);
+		Error.Y = FMath::Pow(0.5f, HistoryColorMantissaBits.Y);
+		Error.Z = FMath::Pow(0.5f, HistoryColorMantissaBits.Z);
+	}
+	else
+	{
+		check(0);
+	}
+
+	return Error;
 }
 
 void SetupSampleWeightParameters(FTAAStandaloneCS::FParameters* OutTAAParameters, const FTAAPassParameters& PassParameters, FVector2D TemporalJitterPixels)
@@ -1194,10 +1217,12 @@ static void AddGen5MainTemporalAAPasses(
 
 		FTAA2DecimateHistoryCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2DecimateHistoryCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
-		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
-		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
+		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(PredictionSceneColorTexture->Desc.Format);
 		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		PassParameters->bCameraCut = bCameraCut;
+
+		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
+		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;\
 
 		PassParameters->PrevHistoryInfo = PrevHistoryInfo;
 		PassParameters->PrevHistory = PrevHistory;
@@ -1237,6 +1262,8 @@ static void AddGen5MainTemporalAAPasses(
 
 			FTAA2FilterFrequenciesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FTAA2FilterFrequenciesCS::FParameters>();
 			PassParameters->CommonParameters = CommonParameters;
+			PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(FilteredInputTexture->Desc.Format);
+
 			PassParameters->InputTexture = PassInputs.SceneColorTexture;
 			PassParameters->PredictionSceneColorTexture = PredictionSceneColorTexture;
 			PassParameters->PredictionInfoTexture = PredictionInfoTexture;
@@ -1332,12 +1359,7 @@ static void AddGen5MainTemporalAAPasses(
 		PassParameters->DilatedVelocityTexture = DilatedVelocityTexture;
 		PassParameters->ParallaxRejectionMaskTexture = ParallaxRejectionMaskTexture;
 
-		{
-			FIntVector HistoryColorMantissaBits = bR11G11B10History ? FIntVector(6, 6, 5) : FIntVector(10, 10, 10);
-			PassParameters->HistoryQuantizationError.X = FMath::Pow(0.5f, HistoryColorMantissaBits.X);
-			PassParameters->HistoryQuantizationError.Y = FMath::Pow(0.5f, HistoryColorMantissaBits.Y);
-			PassParameters->HistoryQuantizationError.Z = FMath::Pow(0.5f, HistoryColorMantissaBits.Z);
-		}
+		PassParameters->HistoryQuantizationError = ComputePixelFormatQuantizationError(History.Textures[0]->Desc.Format);
 		PassParameters->HistoryPreExposureCorrection = View.PreExposure / View.PrevViewInfo.SceneColorPreExposure;
 		PassParameters->bCameraCut = bCameraCut;
 

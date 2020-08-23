@@ -12,11 +12,12 @@
 
 //------------------------------------------------------- PARAMETERS
 
-Texture2D<float2> DilatedVelocityTexture;
-Texture2D<taa_half> ParallaxRejectionMaskTexture;
-
+float3 OutputQuantizationError;
 float HistoryPreExposureCorrection;
 uint bCameraCut;
+
+Texture2D<float2> DilatedVelocityTexture;
+Texture2D<taa_half> ParallaxRejectionMaskTexture;
 
 Texture2D<taa_half3> PrevHistory_Textures_0;
 Texture2D<taa_half3> PrevHistory_Textures_1;
@@ -233,6 +234,16 @@ void MainCS(
 	}
 	#else
 		#error Unknown kernel
+	#endif
+
+
+	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
+	{
+		uint2 Random = Rand3DPCG16(int3(InputPixelPos, View.StateFrameIndexMod8)).xy;
+		float2 E = Hammersley16(0, 1, Random);
+
+		DecimatedColor += DecimatedColor * (E.x * OutputQuantizationError);
+	}
 	#endif
 
 	// Immediately reject based on the rejection mask

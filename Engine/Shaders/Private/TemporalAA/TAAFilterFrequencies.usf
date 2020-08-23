@@ -88,6 +88,8 @@ static const float2 kStackowiakSampleSet0[56 * 4] =
 
 //------------------------------------------------------- PARAMETERS
 
+float3 OutputQuantizationError;
+
 Texture2D<taa_half3> InputTexture;
 Texture2D<taa_half3> PredictionSceneColorTexture;
 Texture2D<taa_half> PredictionInfoTexture;
@@ -265,6 +267,17 @@ void MainCS(
 		FilteredInput *= SafeRcp(FilteredInputWeight);
 		FilteredHistory *= SafeRcp(FilteredHistoryWeight);
 	}
+	
+	#if CONFIG_ENABLE_STOCASTIC_QUANTIZATION
+	{
+		uint2 Random = Rand3DPCG16(int3(InputPixelPos, View.StateFrameIndexMod8)).xy;
+		float2 E = Hammersley16(0, 1, Random);
+
+		FilteredInput += FilteredInput * (E.x * OutputQuantizationError);
+		FilteredHistory += FilteredHistory * (E.x * OutputQuantizationError);
+	}
+	#endif
+
 
 	if (all(InputPixelPos < InputInfo_ViewportSize))
 	{
