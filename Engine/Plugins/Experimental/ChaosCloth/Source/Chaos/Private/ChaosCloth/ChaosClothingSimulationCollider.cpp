@@ -9,6 +9,10 @@
 #include "Chaos/Convex.h"
 #include "ClothingSimulation.h" // For context
 #include "ClothingAsset.h"
+#include "Engine/SkeletalMesh.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "PhysicsEngine/PhysicsAsset.h"
+#include "PhysicsEngine/AggregateGeom.h"
 #include "HAL/PlatformMath.h"
 #include "Containers/ArrayView.h"
 #include "Containers/BitArray.h"
