@@ -2269,7 +2269,7 @@ void MainCS(
 		}
 		#endif
 
-		OutComputeTex_0[PixelPos] = OutColor0;
+		OutComputeTex_0[PixelPos] = FinalOutput0;
 
 		#if HISTORY_RENDER_TARGETS == 2
 			OutComputeTex_1[PixelPos] = OutColor1;
