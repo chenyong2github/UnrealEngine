@@ -4,6 +4,7 @@
 #include "ChaosCloth/ChaosClothConstraints.h"
 #include "Chaos/ArrayCollectionArray.h"
 #include "Chaos/Transform.h"
+#include "Chaos/ImplicitObject.h"
 
 class USkeletalMeshComponent;
 class UClothingAssetCommon;

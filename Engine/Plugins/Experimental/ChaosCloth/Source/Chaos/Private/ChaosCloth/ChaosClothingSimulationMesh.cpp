@@ -6,6 +6,8 @@
 #include "ClothingSimulation.h"
 #include "ClothingAsset.h"
 #include "Containers/ArrayView.h"
+#include "Components/SkeletalMeshComponent.h"
+#include "Async/ParallelFor.h"
 
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Skin Physics Mesh"), STAT_ChaosClothSkinPhysicsMesh, STATGROUP_Physics);
 DECLARE_CYCLE_STAT(TEXT("Chaos Cloth Wrap Deform Mesh"), STAT_ChaosClothWrapDeformMesh, STATGROUP_Physics);
