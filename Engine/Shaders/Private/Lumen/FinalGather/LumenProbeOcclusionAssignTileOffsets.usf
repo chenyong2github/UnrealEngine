@@ -115,7 +115,8 @@ void MainCS(
 
 		GroupMemoryBarrierWithGroupSync();
 
-		UNROLL_N(GROUP_SIZE * GROUP_SIZE)
+		// Commented out due a shader compiler bug on a certain console
+		// UNROLL_N(GROUP_SIZE * GROUP_SIZE)
 		for (uint i = 0; i < GROUP_SIZE * GROUP_SIZE; i++)
 		{
 			UNROLL_N(PROBE_OCCLUSION_MAX)
