@@ -723,7 +723,7 @@ struct FTemporalAAHistory
 
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in RT[0].
-	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
@@ -756,7 +756,7 @@ struct FScreenSpaceDenoiserHistory
 	FIntRect Scissor;
 
 	// Render target specific to the history.
-	TRefCountPtr<IPooledRenderTarget> RT[RTCount];
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, RTCount> RT;
 
 	// The texture for tile classification.
 	TRefCountPtr<IPooledRenderTarget> TileClassification;
@@ -785,9 +785,9 @@ struct FGTAOTAAHistory
 
 	// Render targets holding's pixel history.
 	//  scene color's RGBA are in RT[0].
-	TRefCountPtr<IPooledRenderTarget> RT[kRenderTargetCount];
-	TRefCountPtr<IPooledRenderTarget> Depth[kRenderTargetCount];
-	TRefCountPtr<IPooledRenderTarget> Velocity[kRenderTargetCount];
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> RT;
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> Depth;
+	TStaticArray<TRefCountPtr<IPooledRenderTarget>, kRenderTargetCount> Velocity;
 
 	// Reference size of RT. Might be different than RT's actual size to handle down res.
 	FIntPoint ReferenceBufferSize;
