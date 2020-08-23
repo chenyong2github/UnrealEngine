@@ -175,6 +175,7 @@ class FTAAStandaloneCS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, InputMaxPixelCoord)
 		SHADER_PARAMETER(FVector4, OutputViewportSize)
 		SHADER_PARAMETER(FVector4, OutputViewportRect)
+		SHADER_PARAMETER(FVector, OutputQuantizationError)
 
 		// History parameters
 		SHADER_PARAMETER(FVector4, HistoryBufferSize)
@@ -627,8 +628,11 @@ FTAAOutputs AddTemporalAAPass(
 {
 	check(Inputs.Validate());
 
+	// Whether alpha channel is supported.
+	const bool bSupportsAlpha = IsPostProcessingWithAlphaChannelSupported();
+
 	// Number of render target in TAA history.
-	const int32 IntputTextureCount = IsDOFTAAConfig(Inputs.Pass) && IsPostProcessingWithAlphaChannelSupported() ? 2 : 1;
+	const int32 IntputTextureCount = (IsDOFTAAConfig(Inputs.Pass) && bSupportsAlpha) ? 2 : 1;
 
 	// Whether this is main TAA pass;
 	const bool bIsMainPass = IsMainTAAConfig(Inputs.Pass);
@@ -655,9 +659,15 @@ FTAAOutputs AddTemporalAAPass(
 	TStaticArray<FRDGTextureRef, FTemporalAAHistory::kRenderTargetCount> NewHistoryTexture;
 
 	{
+		EPixelFormat HistoryPixelFormat = PF_FloatRGBA;
+		if (bIsMainPass && Inputs.bUseFast && !bSupportsAlpha && CVarTAAR11G11B10History.GetValueOnRenderThread())
+		{
+			HistoryPixelFormat = PF_FloatR11G11B10;
+		}
+
 		FRDGTextureDesc SceneColorDesc = FRDGTextureDesc::Create2DDesc(
 			OutputExtent,
-			PF_FloatRGBA,
+			HistoryPixelFormat,
 			FClearValueBinding::Black,
 			/* InFlags = */ TexCreate_None,
 			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
@@ -787,6 +797,7 @@ FTAAOutputs AddTemporalAAPass(
 		PassParameters->OutputViewportSize = FVector4(
 			PracticableDestRect.Width(), PracticableDestRect.Height(), 1.0f / float(PracticableDestRect.Width()), 1.0f / float(PracticableDestRect.Height()));
 		PassParameters->OutputViewportRect = FVector4(PracticableDestRect.Min.X, PracticableDestRect.Min.Y, PracticableDestRect.Max.X, PracticableDestRect.Max.Y);
+		PassParameters->OutputQuantizationError = ComputePixelFormatQuantizationError(NewHistoryTexture[0]->Desc.Format);
 
 		// Set history shader parameters.
 		{
