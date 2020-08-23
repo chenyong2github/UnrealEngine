@@ -1246,6 +1246,12 @@ public:
 	/** Set preview screen percentage on UI behalf. */
 	void SetPreviewScreenPercentage(int32 PreviewScreenPercentage);
 
+	/** @return preview custom temporal upscaler  for UI. */
+	bool GetPreviewCustomTemporalUpscaler() const;
+
+	/** Set preview temporal upscaler mode for UI. */
+	void SetPreviewCustomTemporalUpscaler(bool PreviewCustomTemporalUpscaler);
+
 	/** @return True if DPI preview is supported. */
 	bool SupportsLowDPIPreview() const;
 
@@ -1762,6 +1768,9 @@ protected:
 private:
 	/** Controles resolution fraction for previewing in editor viewport at different screen percentage. */
 	float PreviewResolutionFraction;
+
+	/** Controls whether a custom upscaler from a plugin is used*/
+	bool bPreviewCustomTemporalUpscaler;
 
 	// DPI mode for scene rendering.
 	enum class ESceneDPIMode

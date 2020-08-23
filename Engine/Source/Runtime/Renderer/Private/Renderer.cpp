@@ -33,7 +33,7 @@
 #include "VisualizeTexturePresent.h"
 #include "ScreenSpaceDenoise.h"
 #include "VT/VirtualTextureSystem.h"
-
+#include "PostProcess/TemporalAA.h"
 DEFINE_LOG_CATEGORY(LogRenderer);
 
 IMPLEMENT_MODULE(FRendererModule, Renderer);
@@ -53,6 +53,7 @@ FAutoConsoleVariableRef CVarFlushRenderTargetsOnWorldCleanup(TEXT("r.bFlushRende
 void FRendererModule::StartupModule()
 {
 	GScreenSpaceDenoiser = IScreenSpaceDenoiser::GetDefaultDenoiser();
+	GTemporalUpscaler = ITemporalUpscaler::GetDefaultTemporalUpscaler();
 
 	FVirtualTextureSystem::Initialize();
 }

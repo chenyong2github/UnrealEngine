@@ -27,6 +27,7 @@ class ISceneViewExtension;
 class FSceneViewFamily;
 class FVolumetricFogViewResources;
 class FIESLightProfileResource;
+class ITemporalUpscaler;
 
 enum class ERayTracingRenderMode
 {
@@ -1773,12 +1774,27 @@ public:
 		: FSceneViewFamily(static_cast<const FSceneViewFamily&>(InViewFamily))
 	{
 		check(ScreenPercentageInterface == nullptr);
+		check(TemporalUpscalerInterface == nullptr);
 	}
 
+
+	FORCEINLINE void SetTemporalUpscalerInterface(const ITemporalUpscaler* InTemporalUpscalerInterface)
+	{
+		check(InTemporalUpscalerInterface);
+		checkf(TemporalUpscalerInterface == nullptr, TEXT("View family already had a temporal upscaler assigned."));
+		TemporalUpscalerInterface = InTemporalUpscalerInterface;
+	}
+
+	FORCEINLINE const ITemporalUpscaler* GetTemporalUpscalerInterface() const
+	{
+		return TemporalUpscalerInterface;
+	}
 
 private:
 	/** Interface to handle screen percentage of the views of the family. */
 	ISceneViewFamilyScreenPercentage* ScreenPercentageInterface;
+
+	const ITemporalUpscaler* TemporalUpscalerInterface;
 
 	// Only FSceneRenderer can copy a view family.
 	FSceneViewFamily(const FSceneViewFamily&) = default;

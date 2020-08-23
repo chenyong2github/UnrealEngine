@@ -111,8 +111,8 @@ public:
 
 	TArray<FD3D12CommandListHandle> PendingCommandLists;
 
-	void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0);
-	void RegisterGPUDispatch(FIntVector GroupCount);
+	D3D12RHI_API void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0);
+	D3D12RHI_API void RegisterGPUDispatch(FIntVector GroupCount);
 	
 	FD3D12SamplerState* CreateSampler(const FSamplerStateInitializerRHI& Initializer);
 	void CreateSamplerInternal(const D3D12_SAMPLER_DESC& Desc, D3D12_CPU_DESCRIPTOR_HANDLE Descriptor);

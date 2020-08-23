@@ -56,6 +56,10 @@
 #include "UnrealEngine.h"
 #include "BufferVisualizationData.h"
 
+#include "CustomEditorStaticScreenPercentage.h"
+
+ICustomEditorStaticScreenPercentage* GCustomEditorStaticScreenPercentage = nullptr;
+
 #define LOCTEXT_NAMESPACE "EditorViewportClient"
 
 const EViewModeIndex FEditorViewportClient::DefaultPerspectiveViewMode = VMI_Lit;
@@ -431,6 +435,7 @@ FEditorViewportClient::FEditorViewportClient(FEditorModeTools* InModeTools, FPre
 	, MovingPreviewLightTimer(0.0f)
 	, bLockFlightCamera(false)
 	, PreviewResolutionFraction(1.0f)
+	, bPreviewCustomTemporalUpscaler(false)
 	, SceneDPIMode(ESceneDPIMode::EditorDefault)
 	, PerspViewModeIndex(DefaultPerspectiveViewMode)
 	, OrthoViewModeIndex(DefaultOrthoViewMode)
@@ -2679,6 +2684,16 @@ void FEditorViewportClient::SetPreviewScreenPercentage(int32 PreviewScreenPercen
 	PreviewResolutionFraction = PreviewScreenPercentage / 100.0f;
 }
 
+bool FEditorViewportClient::GetPreviewCustomTemporalUpscaler() const
+{
+	return bPreviewCustomTemporalUpscaler;
+}
+
+void FEditorViewportClient::SetPreviewCustomTemporalUpscaler(bool PreviewCustomTemporalUpscaler)
+{
+	bPreviewCustomTemporalUpscaler = PreviewCustomTemporalUpscaler;
+}
+
 bool FEditorViewportClient::SupportsLowDPIPreview() const
 {
 	return GetDPIDerivedResolutionFraction() < 1.0f;
@@ -3835,6 +3850,48 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 
 	ViewFamily.LandscapeLODOverride = LandscapeLODOverride;
 
+	// Setup the screen percentage and upscaling method for the view family.
+	bool bFinalScreenPercentageShowFlag;
+	{
+		checkf(ViewFamily.GetScreenPercentageInterface() == nullptr,
+			TEXT("Some code has tried to set up an alien screen percentage driver, that could be wrong if not supported very well by the RHI."));
+
+		// If not doing VR rendering, apply DPI derived resolution fraction even if show flag is disabled
+		if (!bStereoRendering && SupportsLowDPIPreview() && IsLowDPIPreview() && ViewFamily.SupportsScreenPercentage())
+		{
+			ViewFamily.SecondaryViewFraction = GetDPIDerivedResolutionFraction();
+		}
+
+		// Setup custom upscaler and screen percentage.
+		if (GCustomEditorStaticScreenPercentage)
+		{
+			GCustomEditorStaticScreenPercentage->SetupEditorViewFamily(ViewFamily, PreviewResolutionFraction, bPreviewCustomTemporalUpscaler);
+		}
+
+		// If a screen percentage interface was not set by one of the view extension, then set the legacy one.
+		if (ViewFamily.GetScreenPercentageInterface() == nullptr)
+		{
+			float GlobalResolutionFraction = 1.0f;
+
+			// If not doing VR rendering, apply preview resolution fraction.
+			if (!bStereoRendering && SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
+			{
+				GlobalResolutionFraction = PreviewResolutionFraction;
+
+				// Force screen percentage's engine show flag to be turned on for preview screen percentage.
+				ViewFamily.EngineShowFlags.ScreenPercentage = (GlobalResolutionFraction != 1.0);
+			}
+
+			// In editor viewport, we ignore r.ScreenPercentage and FPostProcessSettings::ScreenPercentage by design.
+			ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
+				ViewFamily, GlobalResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false));
+		}
+
+		check(ViewFamily.GetScreenPercentageInterface() != nullptr);
+
+		bFinalScreenPercentageShowFlag = ViewFamily.EngineShowFlags.ScreenPercentage;
+	}
+
 	FSceneView* View = nullptr;
 
 	// Stereo rendering
@@ -3862,30 +3919,8 @@ void FEditorViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		Canvas->Clear(FLinearColor::Black);
 	}
 
-	// If not doing VR rendering, apply DPI derived resolution fraction even if show flag is disabled
-	if (!bStereoRendering && SupportsLowDPIPreview() && IsLowDPIPreview() && ViewFamily.SupportsScreenPercentage())
-	{
-		ViewFamily.SecondaryViewFraction = GetDPIDerivedResolutionFraction();
-	}
-
-	// If a screen percentage interface was not set by one of the view extension, then set the legacy one.
-	if (ViewFamily.GetScreenPercentageInterface() == nullptr)
-	{
-		float GlobalResolutionFraction = 1.0f;
-
-		// If not doing VR rendering, apply preview resolution fraction.
-		if (!bStereoRendering && SupportsPreviewResolutionFraction() && ViewFamily.SupportsScreenPercentage())
-		{
-			GlobalResolutionFraction = PreviewResolutionFraction;
-
-			// Force screen percentage's engine show flag to be turned on for preview screen percentage.
-			ViewFamily.EngineShowFlags.ScreenPercentage = (GlobalResolutionFraction != 1.0);
-		}
-
-		// In editor viewport, we ignore r.ScreenPercentage and FPostProcessSettings::ScreenPercentage by design.
-		ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(
-			ViewFamily, GlobalResolutionFraction, /* AllowPostProcessSettingsScreenPercentage = */ false));
-	}
+	// Make sure the engine show flag for screen percentage is still what it was when setting up the screen percentage interface
+	ViewFamily.EngineShowFlags.ScreenPercentage = bFinalScreenPercentageShowFlag;
 
 	// Draw the 3D scene
 	GetRendererModule().BeginRenderingViewFamily(Canvas,&ViewFamily);

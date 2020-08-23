@@ -1617,12 +1617,13 @@ FRDGTextureRef DiaphragmDOF::AddPasses(
 	// TAA the setup for the convolution to be temporally stable.
 	if (View.AntiAliasingMethod == AAM_TemporalAA && ViewState)
 	{
+		TAAParameters.SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+		TAAParameters.SceneVelocityTexture = SceneTextures.SceneVelocityBuffer;
 		TAAParameters.SceneColorInput = HalfResGatherInputTextures.SceneColor;
 		TAAParameters.SceneMetadataInput = HalfResGatherInputTextures.SeparateCoc;
 
 		FTAAOutputs TAAOutputs = AddTemporalAAPass(
 			GraphBuilder,
-			SceneTextures,
 			View,
 			TAAParameters,
 			View.PrevViewInfo.DOFSetupHistory,

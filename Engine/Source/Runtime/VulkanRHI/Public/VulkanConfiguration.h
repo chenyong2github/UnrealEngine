@@ -261,7 +261,7 @@ typedef struct VkCommandBufferInheritanceRenderPassTransformInfoQCOM {
 
 
 
-DECLARE_LOG_CATEGORY_EXTERN(LogVulkanRHI, Log, All);
+VULKANRHI_API DECLARE_LOG_CATEGORY_EXTERN(LogVulkanRHI, Log, All);
 
 #if VULKAN_CUSTOM_MEMORY_MANAGER_ENABLED
 	#define VULKAN_CPU_ALLOCATOR								VulkanRHI::GetMemoryAllocator(nullptr)

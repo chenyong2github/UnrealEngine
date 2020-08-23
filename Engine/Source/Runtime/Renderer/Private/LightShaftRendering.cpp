@@ -581,12 +581,13 @@ void ApplyTemporalAA(
 
 		FTAAPassParameters TAAParameters(View);
 		TAAParameters.Pass = ETAAPassConfig::LightShaft;
+		TAAParameters.SceneDepthTexture = SceneTextures.SceneDepthBuffer;
+		TAAParameters.SceneVelocityTexture = SceneTextures.SceneVelocityBuffer;
 		TAAParameters.SetupViewRect(View, /** ResolutionDivisor = */ 2);
 		TAAParameters.SceneColorInput = LightShaftSetup;
 
 		FTAAOutputs Outputs = AddTemporalAAPass(
 			GraphBuilder,
-			SceneTextures,
 			View,
 			TAAParameters,
 			*HistoryState,

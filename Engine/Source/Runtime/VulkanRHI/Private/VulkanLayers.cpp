@@ -7,7 +7,14 @@
 #include "VulkanRHIPrivate.h"
 #include "IHeadMountedDisplayModule.h"
 #include "IHeadMountedDisplayVulkanExtensions.h"
-
+#include "VulkanRHIBridge.h"
+namespace VulkanRHIBridge
+{
+	extern TArray<const ANSICHAR*> InstanceExtensions;
+	extern TArray<const ANSICHAR*> InstanceLayers;
+	extern TArray<const ANSICHAR*> DeviceExtensions;
+	extern TArray<const ANSICHAR*> DeviceLayers;
+}
 #if VULKAN_HAS_DEBUGGING_ENABLED
 bool GRenderDocFound = false;
 #endif
@@ -403,6 +410,10 @@ void FVulkanDynamicRHI::GetInstanceLayersAndExtensions(TArray<const ANSICHAR*>& 
 		}
 	}
 
+	// plugins might have used the VulkanRHIBridge to enable additional extensions
+	OutInstanceExtensions.Append(VulkanRHIBridge::InstanceExtensions);
+	OutInstanceLayers.Append(VulkanRHIBridge::InstanceLayers);
+
 	TArray<const ANSICHAR*> PlatformExtensions;
 	FVulkanPlatform::GetInstanceExtensions(PlatformExtensions);
 
@@ -588,6 +599,10 @@ void FVulkanDevice::GetDeviceExtensionsAndLayers(VkPhysicalDevice Gpu, EGpuVendo
 			UE_LOG(LogVulkanRHI, Warning, TEXT( "Trying to use Vulkan with an HMD, but required extensions aren't supported on the selected device!"));
 		}
 	}
+
+	// plugins might have used the VulkanRHIBridge to enable additional extensions
+	OutDeviceExtensions.Append(VulkanRHIBridge::DeviceExtensions);
+	OutDeviceLayers.Append(VulkanRHIBridge::DeviceLayers);
 
 	// Now gather the actually used extensions based on the enabled layers
 	TArray<const ANSICHAR*> AvailableExtensions;

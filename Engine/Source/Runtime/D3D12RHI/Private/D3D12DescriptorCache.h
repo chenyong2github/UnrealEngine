@@ -600,7 +600,7 @@ public:
 	// Notify the descriptor cache every time you start recording a command list.
 	// This sets descriptor heaps on the command list and indicates the current fence value which allows
 	// us to avoid querying DX12 for that value thousands of times per frame, which can be costly.
-	void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
+	D3D12RHI_API void SetCurrentCommandList(const FD3D12CommandListHandle& CommandListHandle);
 
 	// ------------------------------------------------------
 	// end Descriptor Slot Reservation stuff

@@ -646,6 +646,12 @@ void FVulkanGPUProfiler::DumpCrashMarkers(void* BufferData)
 #include "VulkanRHIBridge.h"
 namespace VulkanRHIBridge
 {
+	TArray<const ANSICHAR*> InstanceExtensions;
+	TArray<const ANSICHAR*> InstanceLayers;
+	TArray<const ANSICHAR*> DeviceExtensions;
+	TArray<const ANSICHAR*> DeviceLayers;
+
+
 	uint64 GetInstance(FVulkanDynamicRHI* RHI)
 	{
 		return (uint64)RHI->GetInstance();
@@ -666,6 +672,20 @@ namespace VulkanRHIBridge
 	uint64 GetPhysicalDevice(FVulkanDevice* Device)
 	{
 		return (uint64)Device->GetPhysicalHandle();
+	}
+
+	void AddEnabledInstanceExtensionsAndLayers(const TArray<const ANSICHAR*>& InInstanceExtensions, const TArray<const ANSICHAR*>& InInstanceLayers)
+	{
+		checkf(!GVulkanRHI, TEXT("AddEnabledInstanceExtensionsAndLayers should be called before the VulkanRHI has been created"));
+		InstanceExtensions.Append(InInstanceExtensions);
+		InstanceLayers.Append(InInstanceLayers);
+	}
+
+	void AddEnabledDeviceExtensionsAndLayers(const TArray<const ANSICHAR*>& InDeviceExtensions, const TArray<const ANSICHAR*>& InDeviceLayers)
+	{
+		checkf(!GVulkanRHI, TEXT("AddEnabledDeviceExtensionsAndLayers should be called before the VulkanRHI has been created"));
+		DeviceExtensions.Append(InDeviceExtensions);
+		DeviceLayers.Append(InDeviceLayers);
 	}
 }
 

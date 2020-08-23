@@ -964,6 +964,17 @@ protected:
 	TMultiMap<ID3D11Resource*, FUnresolvedRTInfo> UnresolvedTargets;
 #endif
 
+public:
+	void RegisterGPUWork(uint32 NumPrimitives = 0, uint32 NumVertices = 0)
+	{
+		GPUProfilingData.RegisterGPUWork(NumPrimitives, NumVertices);
+	}
+	void RegisterGPUDispatch(FIntVector GroupCount)
+	{
+		GPUProfilingData.RegisterGPUDispatch(GroupCount);
+	}
+
+protected:
 	FD3DGPUProfiler GPUProfilingData;
 	// >= 0, was computed before, unless hardware was changed during engine init it should be the same
 	int32 ChosenAdapter;
