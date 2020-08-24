@@ -83,6 +83,15 @@ namespace Chaos
 
 		const FShapeDirtyFlags GetDirtyFlags() const { return DirtyFlags; }
 
+		void SetMaterial(FMaterialHandle InMaterial)
+		{
+			Materials.Modify(true, DirtyFlags, Proxy, ShapeIdx, [InMaterial](FMaterialData& Data)
+			{
+				Data.Materials.Reset(1);
+				Data.Materials.Add(InMaterial);
+			});
+		}
+
 		void SetMaterials(const TArray<FMaterialHandle>& InMaterials)
 		{
 			Materials.Modify(true,DirtyFlags,Proxy, ShapeIdx,[&InMaterials](FMaterialData& Data)

@@ -271,7 +271,7 @@ struct FSimulationParameters
 		, CacheBeginTime(Other.CacheBeginTime)
 		, ReverseCacheBeginTime(Other.ReverseCacheBeginTime)
 		, bClearCache(Other.bClearCache)
-		, PhysicalMaterial(Other.PhysicalMaterial)
+		, PhysicalMaterialHandle(Other.PhysicalMaterialHandle)
 		, CollisionData(Other.CollisionData)
 		, BreakingData(Other.BreakingData)
 		, TrailingData(Other.TrailingData)
@@ -281,11 +281,6 @@ struct FSimulationParameters
 		, QueryFilterData(Other.QueryFilterData)
 		, UserData(Other.UserData)
 	{
-		// Check to make sure we're not expecting the PhyicalMaterialOwner to be copied,
-		// which we can't because it's a TUniquePtr.  We'd need a non const version of this
-		// function to move the pointer.  However, the way the code is currently, this should
-		// never need to happen.
-		check(!Other.PhysicalMaterialOwner);
 	}
 
 	~FSimulationParameters()
@@ -329,12 +324,7 @@ struct FSimulationParameters
 
 	EObjectStateTypeEnum ObjectType;
 
-private:
-	template<typename>
-	friend class TGeometryCollectionPhysicsProxy;
-	TUniquePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterialOwner; // can be null
-public:
-	Chaos::TSerializablePtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial; // may or may not point to PhysicalMaterialOwner
+	Chaos::FMaterialHandle PhysicalMaterialHandle;
 
 	FCollisionDataSimulationParameters CollisionData;
 	FBreakingDataSimulationParameters BreakingData;
