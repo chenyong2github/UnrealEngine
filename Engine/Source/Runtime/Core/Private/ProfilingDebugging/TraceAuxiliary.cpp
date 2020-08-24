@@ -370,7 +370,13 @@ void FTraceAuxiliary::TryAutoConnect()
 	HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
 	if (KnownEvent != nullptr)
 	{
-		GTraceAuxiliary.ParseCommandLine(TEXT("-tracehost=127.0.0.1"));
+		const TCHAR* Params = TEXT("-tracehost=127.0.0.1 -trace=log");
+		if (FParse::Param(FCommandLine::Get(), TEXT("trace")))
+		{
+			Params = TEXT("-tracehost=127.0.0.1");
+		}
+
+		GTraceAuxiliary.ParseCommandLine(Params);
 		::CloseHandle(KnownEvent);
 	}
 	#endif
