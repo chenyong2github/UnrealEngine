@@ -370,15 +370,18 @@ void UActorComponent::DestroyComponentElement(TTypedElementOwner<FComponentEleme
 #if WITH_EDITOR
 FTypedElementHandle UActorComponent::AcquireEditorElementHandle(const bool bAllowCreate) const
 {
-	if (TTypedElementOwnerScopedAccess<FComponentElementData> EditorElementScopedAccess = GComponentElementOwnerStore.FindElementOwner(this))
+	if (GIsEditor)
 	{
-		return EditorElementScopedAccess->AcquireHandle();
-	}
+		if (TTypedElementOwnerScopedAccess<FComponentElementData> EditorElementScopedAccess = GComponentElementOwnerStore.FindElementOwner(this))
+		{
+			return EditorElementScopedAccess->AcquireHandle();
+		}
 
-	if (bAllowCreate)
-	{
-		TTypedElementOwnerScopedAccess<FComponentElementData> EditorElementScopedAccess = GComponentElementOwnerStore.RegisterElementOwner(this, CreateComponentElement());
-		return EditorElementScopedAccess->AcquireHandle();
+		if (bAllowCreate)
+		{
+			TTypedElementOwnerScopedAccess<FComponentElementData> EditorElementScopedAccess = GComponentElementOwnerStore.RegisterElementOwner(this, CreateComponentElement());
+			return EditorElementScopedAccess->AcquireHandle();
+		}
 	}
 
 	return FTypedElementHandle();

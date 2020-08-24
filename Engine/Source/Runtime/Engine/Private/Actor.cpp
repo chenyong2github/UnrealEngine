@@ -250,15 +250,18 @@ void AActor::DestroyActorElement(TTypedElementOwner<FActorElementData>& InOutAct
 #if WITH_EDITOR
 FTypedElementHandle AActor::AcquireEditorElementHandle(const bool bAllowCreate) const
 {
-	if (TTypedElementOwnerScopedAccess<FActorElementData> EditorElementScopedAccess = GActorElementOwnerStore.FindElementOwner(this))
+	if (GIsEditor)
 	{
-		return EditorElementScopedAccess->AcquireHandle();
-	}
+		if (TTypedElementOwnerScopedAccess<FActorElementData> EditorElementScopedAccess = GActorElementOwnerStore.FindElementOwner(this))
+		{
+			return EditorElementScopedAccess->AcquireHandle();
+		}
 
-	if (bAllowCreate)
-	{
-		TTypedElementOwnerScopedAccess<FActorElementData> EditorElementScopedAccess = GActorElementOwnerStore.RegisterElementOwner(this, CreateActorElement());
-		return EditorElementScopedAccess->AcquireHandle();
+		if (bAllowCreate)
+		{
+			TTypedElementOwnerScopedAccess<FActorElementData> EditorElementScopedAccess = GActorElementOwnerStore.RegisterElementOwner(this, CreateActorElement());
+			return EditorElementScopedAccess->AcquireHandle();
+		}
 	}
 
 	return FTypedElementHandle();
