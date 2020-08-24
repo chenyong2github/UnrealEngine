@@ -109,11 +109,6 @@ public:
 	 * Forcibly mark this batch as being dirty.
 	 */
 	virtual void ForceBatchDirty() = 0;
-
-	/**
-	 * Manually invoke a selection changed notification.
-	 */
-	virtual void NoteSelectionChanged() = 0;
 };
 
 } // namespace Selection_Private
