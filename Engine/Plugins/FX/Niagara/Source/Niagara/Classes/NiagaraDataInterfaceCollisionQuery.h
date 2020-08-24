@@ -29,8 +29,6 @@ public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
 
-#if WITH_EDITORONLY_DATA
-#endif
 	FNiagaraSystemInstance *SystemInstance;
 
 	//UObject Interface
@@ -49,6 +47,7 @@ public:
 	
 	virtual void GetFunctions(TArray<FNiagaraFunctionSignature>& OutFunctions) override;
 	virtual void GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc) override;
+	virtual bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const override;
 
 	// VM functions
 	void PerformQuerySyncCPU(FVectorVMContext& Context);
@@ -64,6 +63,10 @@ public:
 	virtual bool GetFunctionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, const FNiagaraDataInterfaceGeneratedFunction& FunctionInfo, int FunctionInstanceIndex, FString& OutHLSL) override;
 #if WITH_EDITORONLY_DATA
 	virtual bool UpgradeFunctionCall(FNiagaraFunctionSignature& FunctionSignature) override;
+#endif
+
+#if WITH_EDITOR	
+	virtual void ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors) override;
 #endif
 	
 	virtual bool HasPreSimulateTick() const override{ return true; }
