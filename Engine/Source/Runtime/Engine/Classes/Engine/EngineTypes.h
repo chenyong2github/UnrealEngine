@@ -2941,7 +2941,7 @@ enum ENetRole
 };
 
 /** Describes if an actor can enter a low network bandwidth dormant mode */
-UENUM()
+UENUM(BlueprintType)
 enum ENetDormancy
 {
 	/** This actor can never go network dormant. */

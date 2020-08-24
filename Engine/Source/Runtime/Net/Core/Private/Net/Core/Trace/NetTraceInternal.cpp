@@ -7,7 +7,7 @@
 #include "HAL/PlatformTLS.h"
 #include "HAL/TlsAutoCleanup.h"
 #include "Hash/CityHash.h"
-#include "Trace/Trace.h"	
+#include "Trace/Trace.h"
 #include "UObject/NameTypes.h"
 
 #define UE_NET_TRACE_VERSION ENetTraceVersion_BunchChannelIndex
