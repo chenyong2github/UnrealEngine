@@ -294,6 +294,10 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 		{
 			BlendTag = Components->Tags.AdditiveBlend;
 		}
+		else if (BlendType.Get() == EMovieSceneBlendType::AdditiveFromBase)
+		{
+			BlendTag = Components->Tags.AdditiveFromBaseBlend;
+		}
 	}
 
 	const bool bHasEasing = (Easing.GetEaseInDuration() > 0 || Easing.GetEaseOutDuration() > 0);
@@ -321,6 +325,19 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 		.AddTagConditional(Components->Tags.PreRoll,            bHasSequencePreRoll)
 		.AddTagConditional(BlendTag,                            BlendTag != FComponentTypeID::Invalid())
 	);
+
+	if (BlendTag == Components->Tags.AdditiveFromBaseBlend)
+	{
+		const UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+		const TRange<FFrameNumber> PlaybackRange = MovieScene->GetPlaybackRange();
+		const TRange<FFrameNumber> TrueRange = GetTrueRange();
+		const FFrameNumber BaseValueEvalTime = TrueRange.HasLowerBound() ? 
+			TrueRange.GetLowerBoundValue() : 
+			(PlaybackRange.HasLowerBound() ? PlaybackRange.GetLowerBoundValue() : FFrameNumber(0));
+		OutImportedEntity->AddBuilder(
+			FEntityBuilder().Add(Components->BaseValueEvalTime, BaseValueEvalTime)
+		);
+	}
 }
 
 bool UMovieSceneSection::TryModify(bool bAlwaysMarkDirty)
