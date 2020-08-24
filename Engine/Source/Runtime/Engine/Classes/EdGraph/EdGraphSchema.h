@@ -48,6 +48,9 @@ enum ECanCreateConnectionResponse
 	/** Make the connection via an intermediate cast node, or some other conversion node. */
 	CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE,
 
+	/** Make the connection by promoting a lower type to a higher type. Ex: Connecting a Float -> Double, float should become a double */
+	CONNECT_RESPONSE_MAKE_WITH_PROMOTION,
+
 	CONNECT_RESPONSE_MAX,
 };
 
@@ -710,6 +713,16 @@ class ENGINE_API UEdGraphSchema : public UObject
 	 * @return	True if a cast node and connection were made; false if the connection failed and had no side effects.
 	 */
 	virtual bool CreateAutomaticConversionNodeAndConnections(UEdGraphPin* A, UEdGraphPin* B) const;
+
+	/**
+	* Try to create a promotion from one type to another in order to make a connection between two pins.
+	* 
+	* @param	A	The first pin.
+	* @param	B	The second pin.
+	*
+	* @return	True if the promotion and connection were successful; False if the connection failed.
+	*/
+	virtual bool CreatePromotedConnection(UEdGraphPin* A, UEdGraphPin* B) const;
 
 	/**
 	 * Determine if the supplied pin default values would be valid.

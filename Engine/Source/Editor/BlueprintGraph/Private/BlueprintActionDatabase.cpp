@@ -68,6 +68,8 @@
 
 #include "Misc/HotReloadInterface.h"
 
+#include "BlueprintTypePromotion.h"
+
 #define LOCTEXT_NAMESPACE "BlueprintActionDatabase"
 
 /*******************************************************************************
@@ -645,7 +647,15 @@ static void BlueprintActionDatabaseImpl::AddClassFunctionActions(UClass const* c
 				ActionListOut.Add(NodeSpawner);
 			}
 		}
-		
+
+		// If this is a promotable function, and it has already been registered
+		// than do NOT add it to the asset action database. We should
+		// probably have some better logic for this, like adding our own node spawner
+		const bool bIsRegisteredPromotionFunc =
+			TypePromoDebug::IsTypePromoEnabled() &&
+			FTypePromotion::IsFunctionPromotionReady(Function) &&
+			FTypePromotion::IsOperatorSpawnerRegistered(Function);
+
 		if (UEdGraphSchema_K2::CanUserKismetCallFunction(Function))
 		{
 			// @TODO: if this is a Blueprint, and this function is from a 
@@ -653,7 +663,13 @@ static void BlueprintActionDatabaseImpl::AddClassFunctionActions(UClass const* c
 			//        include it (the function is accounted for in from the 
 			//        interface class).
 			UBlueprintFunctionNodeSpawner* FuncSpawner = UBlueprintFunctionNodeSpawner::Create(Function);
-			ActionListOut.Add(FuncSpawner);
+			
+			// Only add this action to the list of the operator function is not already registered. Otherwise we will 
+			// get a bunch of duplicate operator actions
+			if (!bIsRegisteredPromotionFunc)
+			{
+				ActionListOut.Add(FuncSpawner);
+			}
 
 			if (FKismetEditorUtilities::IsClassABlueprintInterface(Class))
 			{

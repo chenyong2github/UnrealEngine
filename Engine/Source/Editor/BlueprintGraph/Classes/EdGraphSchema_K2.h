@@ -479,6 +479,7 @@ public:
 	virtual const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
 	virtual bool TryCreateConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
 	virtual bool CreateAutomaticConversionNodeAndConnections(UEdGraphPin* A, UEdGraphPin* B) const override;
+	virtual bool CreatePromotedConnection(UEdGraphPin* A, UEdGraphPin* B) const override;
 	virtual FString IsPinDefaultValid(const UEdGraphPin* Pin, const FString& NewDefaultValue, UObject* NewDefaultObject, const FText& InNewDefaultText) const override;
 	virtual bool DoesSupportPinWatching() const	override;
 	virtual bool IsPinBeingWatched(UEdGraphPin const* Pin) const override;

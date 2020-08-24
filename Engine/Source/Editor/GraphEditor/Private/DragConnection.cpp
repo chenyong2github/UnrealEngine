@@ -141,6 +141,10 @@ void FDragConnection::HoverTargetChanged()
 				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ViaCast"));
 				break;
 
+			case CONNECT_RESPONSE_MAKE_WITH_PROMOTION:
+				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.ViaCast"));
+				break;
+
 			case CONNECT_RESPONSE_DISALLOW:
 			default:
 				StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));

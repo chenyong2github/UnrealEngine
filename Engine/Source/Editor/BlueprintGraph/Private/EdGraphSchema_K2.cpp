@@ -96,6 +96,7 @@
 #include "K2Node_ConvertAsset.h"
 #include "Framework/Commands/GenericCommands.h"
 
+#include "BlueprintTypePromotion.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FBlueprintMetadata
@@ -2704,6 +2705,25 @@ bool UEdGraphSchema_K2::CreateAutomaticConversionNodeAndConnections(UEdGraphPin*
 	}
 
 	return false;
+}
+
+bool UEdGraphSchema_K2::CreatePromotedConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
+{
+	PinA->Modify();
+	PinB->Modify();
+
+	PinB->BreakAllPinLinks(true);
+
+	PinA->MakeLinkTo(PinB);
+
+	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(PinA->GetOwningNode());
+
+	if (!PinA->IsPendingKill())
+	{
+		FBlueprintEditorUtils::MarkBlueprintAsModified(Blueprint);
+	}
+
+	return true;
 }
 
 FString UEdGraphSchema_K2::IsPinDefaultValid(const UEdGraphPin* Pin, const FString& NewDefaultValue, UObject* NewDefaultObject, const FText& InNewDefaultText) const

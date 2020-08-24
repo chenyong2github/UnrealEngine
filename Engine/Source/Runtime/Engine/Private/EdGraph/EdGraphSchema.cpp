@@ -440,6 +440,9 @@ bool UEdGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) c
 	case CONNECT_RESPONSE_MAKE_WITH_CONVERSION_NODE:
 		bModified = CreateAutomaticConversionNodeAndConnections(PinA, PinB);
 		break;
+
+	case CONNECT_RESPONSE_MAKE_WITH_PROMOTION:
+		bModified = CreatePromotedConnection(PinA, PinB);
 		break;
 
 	case CONNECT_RESPONSE_DISALLOW:
@@ -459,6 +462,11 @@ bool UEdGraphSchema::TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) c
 }
 
 bool UEdGraphSchema::CreateAutomaticConversionNodeAndConnections(UEdGraphPin* PinA, UEdGraphPin* PinB) const
+{
+	return false;
+}
+
+bool UEdGraphSchema::CreatePromotedConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const
 {
 	return false;
 }

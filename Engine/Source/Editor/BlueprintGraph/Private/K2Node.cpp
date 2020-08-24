@@ -381,14 +381,24 @@ void UK2Node::AutowireNewNode(UEdGraphPin* FromPin)
 
 				// null out the backup connection (so we don't attempt to make it 
 				// once we exit the loop... we successfully made this connection!)
-				BackupConnection = NULL;
+				BackupConnection = nullptr;
+				break;
+			}
+			else if(ConnectResponse == ECanCreateConnectionResponse::CONNECT_RESPONSE_MAKE_WITH_PROMOTION)
+			{
+				if (K2Schema->CreatePromotedConnection(FromPin, Pin))
+				{
+					NodeList.Add(FromPin->GetOwningNode());
+					NodeList.Add(this);
+				}
+				BackupConnection = nullptr;
 				break;
 			}
 		}
 
 		// if we didn't find an ideal connection, then lets connect this pin to 
 		// the BackupConnection (something, like a connection that requires a conversion node, etc.)
-		if ((BackupConnection != NULL) && K2Schema->TryCreateConnection(FromPin, BackupConnection))
+		if ((BackupConnection != nullptr) && K2Schema->TryCreateConnection(FromPin, BackupConnection))
 		{
 			NodeList.Add(FromPin->GetOwningNode());
 			NodeList.Add(this);
@@ -402,7 +412,7 @@ void UK2Node::AutowireNewNode(UEdGraphPin* FromPin)
 
 			UEdGraphPin* ToExecutePin = FindPin(UEdGraphSchema_K2::PN_Execute);
 
-			if ((FromThenPin != NULL) && (FromThenPin->LinkedTo.Num() == 0) && (ToExecutePin != NULL) && K2Schema->ArePinsCompatible(FromThenPin, ToExecutePin, NULL))
+			if ((FromThenPin != nullptr) && (FromThenPin->LinkedTo.Num() == 0) && (ToExecutePin != nullptr) && K2Schema->ArePinsCompatible(FromThenPin, ToExecutePin, NULL))
 			{
 				if (K2Schema->TryCreateConnection(FromThenPin, ToExecutePin))
 				{
