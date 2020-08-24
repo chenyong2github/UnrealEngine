@@ -996,7 +996,9 @@ void FDeferredShadingSceneRenderer::RenderLumenDiffuseGI(
 	DiffuseTracingParameters.DownsampledNormal = DownsampledNormal;
 	DiffuseTracingParameters.DownsampledDepth = DownsampledDepth;
 
-	if (GLumenDiffuseTraceCards)
+	const bool bTraceCards = GLumenDiffuseTraceCards && Scene->DistanceFieldSceneData.NumObjectsInBuffer > 0;
+
+	if (bTraceCards)
 	{
 		FLumenCardFroxelGridParameters GridParameters;
 		FLumenMeshSDFGridParameters MeshSDFGridParameters;
@@ -1061,7 +1063,7 @@ void FDeferredShadingSceneRenderer::RenderLumenDiffuseGI(
 		FDiffuseIndirectTraceVoxelsCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FVoxelTracingMode >(Lumen::GetVoxelTracingMode());
 		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FDynamicSkyLight >(ShouldRenderDynamicSkyLight(Scene, ViewFamily));
-		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FTraceCards >(GLumenDiffuseTraceCards != 0 || bResumeRays);
+		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FTraceCards >(bTraceCards || bResumeRays);
 		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FTraceDistantScene >(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FOutputIndividualRays >(bOutputIndiviualRays);
 		PermutationVector.Set< FDiffuseIndirectTraceVoxelsCS::FRadianceCache >(bRadianceCache);
