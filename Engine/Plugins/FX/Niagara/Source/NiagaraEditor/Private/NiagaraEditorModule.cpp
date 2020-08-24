@@ -742,6 +742,7 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 void FNiagaraEditorModule::OnPreExit()
 {
 	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
+	CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().Remove(PreviewPlatformChangedHandle);
 
 	// Ensure that we don't have any lingering compiles laying around that will explode after this module shuts down.
 	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
@@ -1177,6 +1178,8 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	if (GEditor)
 	{
 		GEditor->OnExecParticleInvoked().AddRaw(this, &FNiagaraEditorModule::OnExecParticleInvoked);
+
+		PreviewPlatformChangedHandle = CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().AddRaw(this, &FNiagaraEditorModule::OnPreviewPlatformChanged);
 	}
 	else
 	{
@@ -1187,6 +1190,18 @@ void FNiagaraEditorModule::OnPostEngineInit()
 void FNiagaraEditorModule::OnDeviceProfileManagerUpdated()
 {
 	FNiagaraPlatformSet::InvalidateCachedData();
+}
+
+void FNiagaraEditorModule::OnPreviewPlatformChanged()
+{
+	FNiagaraPlatformSet::InvalidateCachedData();
+
+	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+	{
+		UNiagaraSystem* System = *It;
+		check(System);
+		System->OnQualityLevelChanged();
+	}
 }
 
 FNiagaraEditorModule& FNiagaraEditorModule::Get()

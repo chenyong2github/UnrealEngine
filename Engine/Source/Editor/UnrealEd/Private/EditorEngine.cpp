@@ -229,6 +229,8 @@
 #include "ChaosSolversModule.h"
 #endif
 
+#include "DeviceProfiles/DeviceProfile.h"
+#include "DeviceProfiles/DeviceProfileManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -7594,7 +7596,9 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 #endif
 
 	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
-	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName)) == NewPreviewPlatform.PreviewFeatureLevel);
+	EShaderPlatform ShaderPlatform = ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName);
+	ERHIFeatureLevel::Type MaxFeatureLevel = GetMaxSupportedFeatureLevel(ShaderPlatform);
+	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || MaxFeatureLevel == NewPreviewPlatform.PreviewFeatureLevel);
 
 	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.PreviewShaderFormatName != PreviewPlatform.PreviewShaderFormatName;
 	const bool bChangedFeatureLevel = NewPreviewPlatform.PreviewFeatureLevel != PreviewPlatform.PreviewFeatureLevel ||
@@ -7667,6 +7671,19 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 
 	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
 
+	UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+
+	//Override the current device profile.
+	if (PreviewPlatform.DeviceProfileName != NAME_None)
+	{
+		if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
+		{
+			UDeviceProfileManager::Get().SetOverrideDeviceProfile(DP, true);
+		}
+	}
+
+	PreviewPlatformChanged.Broadcast();
+
 	if (bSaveSettings)
 	{
 		SaveEditorFeatureLevel();
@@ -7683,6 +7700,27 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 	PreviewFeatureLevelChanged.Broadcast(NewPreviewFeatureLevel);
 
 	Scalability::ChangeScalabilityPreviewPlatform(PreviewPlatform.GetEffectivePreviewPlatformName());
+
+	if (PreviewPlatform.bPreviewFeatureLevelActive)
+	{
+		if (PreviewPlatform.DeviceProfileName != NAME_None)
+		{
+			if (UDeviceProfile* DP = UDeviceProfileManager::Get().FindProfile(PreviewPlatform.DeviceProfileName.ToString(), false))
+			{
+				UDeviceProfileManager::Get().SetOverrideDeviceProfile(DP, true);
+			}
+		}
+		else
+		{
+			UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+		}
+	}
+	else
+	{
+		UDeviceProfileManager::Get().RestoreDefaultDeviceProfile();
+	}
+
+	PreviewPlatformChanged.Broadcast();
 
 	GEditor->RedrawAllViewports();
 	
@@ -7720,7 +7758,7 @@ void UEditorEngine::LoadEditorFeatureLevel()
 			}
 		}
 
-		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewPlatformName, Settings->PreviewShaderFormatName, Settings->bPreviewFeatureLevelActive), false);
+		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewPlatformName, Settings->PreviewShaderFormatName, Settings->PreviewDeviceProfileName, Settings->bPreviewFeatureLevelActive), false);
 	}
 }
 
@@ -7731,6 +7769,7 @@ void UEditorEngine::SaveEditorFeatureLevel()
 	Settings->PreviewPlatformName = PreviewPlatform.PreviewPlatformName;
 	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderFormatName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
+	Settings->PreviewDeviceProfileName = PreviewPlatform.DeviceProfileName;
 	Settings->PostEditChange();
 }
 

@@ -279,10 +279,11 @@ struct FPreviewPlatformInfo
 	,	bPreviewFeatureLevelActive(false)
 	{}
 
-	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, bool InbPreviewFeatureLevelActive = false)
+	FPreviewPlatformInfo(ERHIFeatureLevel::Type InFeatureLevel, FName InPreviewPlatformName = NAME_None, FName InPreviewShaderFormatName = NAME_None, FName InDeviceProfileName = NAME_None, bool InbPreviewFeatureLevelActive = false)
 	:	PreviewFeatureLevel(InFeatureLevel)
 	,	PreviewPlatformName(InPreviewPlatformName)
 	,	PreviewShaderFormatName(InPreviewShaderFormatName)
+	,	DeviceProfileName(InDeviceProfileName)
 	,	bPreviewFeatureLevelActive(InbPreviewFeatureLevelActive)
 	{}
 
@@ -295,13 +296,16 @@ struct FPreviewPlatformInfo
 	/** The shader platform to preview, or NAME_None if there is no shader preview platform */
 	FName PreviewShaderFormatName;
 
+	/** The device profile to preview. */
+	FName DeviceProfileName;
+
 	/** Is feature level preview currently active */
 	bool bPreviewFeatureLevelActive;
 
 	/** Checks if two FPreviewPlatformInfos are for the same preview platform. Note, this does NOT compare the bPreviewFeatureLevelActive flag */
 	bool Matches(const FPreviewPlatformInfo& Other) const
 	{
-		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName;
+		return PreviewFeatureLevel == Other.PreviewFeatureLevel && PreviewPlatformName == Other.PreviewPlatformName && PreviewShaderFormatName == Other.PreviewShaderFormatName && DeviceProfileName == Other.DeviceProfileName;
 	}
 
 	/** Return platform name like "Android", or NAME_None if none is set or the preview feature level is not active */
@@ -590,6 +594,10 @@ public:
 	/** A delegate that is called when the preview feature level changes. Primarily used to switch a viewport's feature level. */
 	DECLARE_MULTICAST_DELEGATE_OneParam(FPreviewFeatureLevelChanged, ERHIFeatureLevel::Type);
 	FPreviewFeatureLevelChanged PreviewFeatureLevelChanged;
+
+	/** A delegate that is called when the preview platform changes. */
+	DECLARE_MULTICAST_DELEGATE(FPreviewPlatformChanged);
+	FPreviewPlatformChanged PreviewPlatformChanged;
 
 	/** Whether or not the editor is currently compiling */
 	bool bIsCompiling;
@@ -3186,6 +3194,9 @@ public:
 
 	/** Return the delegate that is called when the preview feature level changes */
 	FPreviewFeatureLevelChanged& OnPreviewFeatureLevelChanged() { return PreviewFeatureLevelChanged; }
+
+	/** Return the delegate that is called when the preview platform changes */
+	FPreviewPlatformChanged& OnPreviewPlatformChanged() { return PreviewPlatformChanged; }
 
 protected:
 
