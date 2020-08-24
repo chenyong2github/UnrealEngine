@@ -26,7 +26,7 @@ protected:
 	//~ End FPrimitiveSceneProxy Interface
 
 private:
-	void BuildOcclusionVolumes();
+	void BuildOcclusionVolumes(TArrayView<FVector2D> const& InMinMaxData, FIntPoint const& InMinMaxSize, TArrayView<int32> const& InMinMaxMips, int32 InNumLods);
 	static void OnVirtualTextureDestroyedCB(const FVirtualTextureProducerHandle& InHandle, void* Baton);
 
 public:

@@ -57,11 +57,6 @@ protected:
 	/** Shared implementation for Build callbacks */
 	FReply BuildStreamedMipsInternal(bool bDebug);
 
-	/** Returns true if MinMax texture build button is enabled */
-	bool IsMinMaxTextureEnabled() const;
-	/** Callback for Build MinMax Texture button */
-	FReply BuildMinMaxTexture();
-
 	//~ Begin IDetailCustomization Interface.
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	//~ End IDetailCustomization Interface.
