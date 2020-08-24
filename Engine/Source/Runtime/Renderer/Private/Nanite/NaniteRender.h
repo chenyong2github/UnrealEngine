@@ -22,12 +22,12 @@ static constexpr uint32 MAX_VIEWS_PER_CULL_RASTERIZE_PASS		= ( 1 << MAX_VIEWS_PE
 
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
+	SHADER_PARAMETER(FIntVector4,   SOAStrides)
+	SHADER_PARAMETER(FIntVector4,	MaterialConfig) // .x mode, .yz grid size, .w unused
 	SHADER_PARAMETER(float,			MaterialDepth)
-	SHADER_PARAMETER(FIntVector4,	SOAStrides)
 	SHADER_PARAMETER(uint32,		MaxNodes)
 	SHADER_PARAMETER(uint32,		MaxClusters)
 	SHADER_PARAMETER(uint32,		RenderFlags)
-	SHADER_PARAMETER(uint32,		CullMaterials)
 	SHADER_PARAMETER(FVector4,		RectScaleOffset) // xy: scale, zw: offset
 
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
@@ -36,9 +36,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FNaniteUniformParameters, )
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,	InstanceDynamicData)
 #endif
 	SHADER_PARAMETER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
-
 	SHADER_PARAMETER_SRV(StructuredBuffer<uint>, VisibleMaterials)
-
+	SHADER_PARAMETER_TEXTURE(Texture2D<uint2>,		MaterialRange)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	VisBuffer64)
 	SHADER_PARAMETER_TEXTURE(Texture2D<UlongType>,	DbgBuffer64)
 	SHADER_PARAMETER_TEXTURE(Texture2D<uint>,		DbgBuffer32)

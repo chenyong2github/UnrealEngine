@@ -161,8 +161,10 @@ static FAutoConsoleVariableRef CVarNaniteMaterialCulling(
 	TEXT("r.Nanite.MaterialCulling"),
 	GNaniteMaterialCulling,
 	TEXT("0: Disable culling\n")
-	TEXT("1: Cull entire full screen pass for occluded materials\n")
-	TEXT("2: Cull individual screen space tiles on 8x4 grid (default)")
+	TEXT("1: Cull full screen passes for occluded materials\n")
+	TEXT("2: Cull individual screen space tiles on 8x4 grid\n")
+	TEXT("3: Cull individual screen space tiles on 64x64 grid - method 1\n")
+	TEXT("4: Cull individual screen space tiles on 64x64 grid - method 2")
 );
 
 // Nanite Debug Flags
@@ -384,6 +386,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 	SHADER_PARAMETER(uint32,		MaxClusters)
 	SHADER_PARAMETER(uint32,		MaxNodes)
 	SHADER_PARAMETER(uint32,		RenderFlags)
+	SHADER_PARAMETER(FIntPoint,		GridSize)
 	
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageData )
 	SHADER_PARAMETER_SRV( ByteAddressBuffer, ClusterPageHeaders )
@@ -393,6 +396,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FNaniteEmitGBufferParameters, )
 #endif
 	SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer,	VisibleClustersSWHW)
 
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint2>, MaterialRange)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, VisibleMaterials)
 
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
@@ -1425,6 +1429,31 @@ class FDepthExportCS : public FNaniteShader
 	END_SHADER_PARAMETER_STRUCT()
 };
 IMPLEMENT_GLOBAL_SHADER(FDepthExportCS, "/Engine/Private/Nanite/DepthExport.usf", "DepthExport", SF_Compute);
+
+class FReduceMaterialRangeCS : public FNaniteShader
+{
+	DECLARE_GLOBAL_SHADER(FReduceMaterialRangeCS);
+	SHADER_USE_PARAMETER_STRUCT(FReduceMaterialRangeCS, FNaniteShader);
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
+	}
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(ByteAddressBuffer, VisibleClustersSWHW)
+		SHADER_PARAMETER(FIntVector4, SOAStrides)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageData)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, ClusterPageHeaders)
+		SHADER_PARAMETER(FIntPoint, FetchClamp)
+		SHADER_PARAMETER(uint32, CullingMode)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D<UlongType>, VisBuffer64)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<uint2>, MaterialRange)
+		SHADER_PARAMETER_SRV(ByteAddressBuffer, MaterialDepthTable)
+		END_SHADER_PARAMETER_STRUCT()
+};
+IMPLEMENT_GLOBAL_SHADER(FReduceMaterialRangeCS, "/Engine/Private/Nanite/MaterialCulling.usf", "ReduceMaterialRange", SF_Compute);
 
 // TODO: Move to common location outside of Nanite
 class FHTileVisualizeCS : public FNaniteShader
@@ -3805,6 +3834,14 @@ void DrawBasePass(
 		// TODO: Force decompress depth buffer. This is a workaround for current lack of decompression support in the RHI when binding a compressed resource as UAV.
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneTargets.SceneDepthZ->GetRenderTargetItem().TargetableTexture);
 	}
+	else if (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2)
+	{
+		// Mode 1 and 2 (32bit mask) is currently unsupported when compute depth export is disabled.
+		// Culling was intended, so fall back to range load method.
+		// TODO: Test and optimize further before allowing the new fallback
+		//GNaniteMaterialCulling = 3;
+		GNaniteMaterialCulling = 0;
+	}
 
 	int32 VelocityRTIndex = -1;
 	int32 TangentRTIndex = -1;
@@ -3820,14 +3857,23 @@ void DrawBasePass(
 #endif
 	FRDGBufferRef VisibleClustersSWHW	= GraphBuilder.RegisterExternalBuffer(RasterResults.VisibleClustersSWHW,	TEXT("VisibleClustersSWHW"));
 
-	const bool       bCullMaterials       = GNaniteMaterialCulling!=0 && UseComputeDepthExport(); // #yuriy_todo: implement material culling for non-compute path
-	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, bCullMaterials ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
+	const bool b32BitMaskCulling = (GNaniteMaterialCulling == 1 || GNaniteMaterialCulling == 2);
+
+	FRDGBufferDesc   VisibleMaterialsDesc = FRDGBufferDesc::CreateStructuredDesc(4, b32BitMaskCulling ? FNaniteCommandInfo::MAX_STATE_BUCKET_ID+1 : 1);
 	FRDGBufferRef    VisibleMaterials     = GraphBuilder.CreateBuffer(VisibleMaterialsDesc, TEXT("NaniteVisibleMaterials"));
 	FRDGBufferUAVRef VisibleMaterialsUAV  = GraphBuilder.CreateUAV(VisibleMaterials);
 
 	// Visible material buffer is currently only filled by compute depth export pass.
 	// If that's not used, then initialize all materials to visible.
 	AddClearUAVPass(GraphBuilder, VisibleMaterialsUAV, 0);
+
+	FRDGTextureDesc MaterialRangeDesc = FRDGTextureDesc::Create2DDesc(FMath::DivideAndRoundUp(ViewSize, { 64, 64 }), PF_R32G32_UINT, FClearValueBinding::Black, TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV, false);
+	FRDGTextureRef  MaterialRange = GraphBuilder.CreateTexture(MaterialRangeDesc, TEXT("NaniteMaterialRange"));
+	FRDGTextureUAVRef  MaterialRangeUAV = GraphBuilder.CreateUAV(MaterialRange);
+	FRDGTextureSRVDesc MaterialRangeSRVDesc = FRDGTextureSRVDesc::Create(MaterialRange);
+	FRDGTextureSRVRef  MaterialRangeSRV = GraphBuilder.CreateSRV(MaterialRangeSRVDesc);
+
+	AddClearUAVPass(GraphBuilder, MaterialRangeUAV, { 0u, 1u, 0u, 0u });
 
 	if (UseComputeDepthExport())
 	{
@@ -3900,6 +3946,37 @@ void DrawBasePass(
 	}
 	else
 	{
+		// Classify materials for 64x64 tiles
+		if (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4)
+		{
+			FReduceMaterialRangeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReduceMaterialRangeCS::FParameters>();
+
+			const FIntVector DispatchDim = FComputeShaderUtils::GetGroupCount(View.ViewRect.Max, 64);
+
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
+			PassParameters->SOAStrides = RasterResults.SOAStrides;
+			PassParameters->ClusterPageData = Nanite::GStreamingManager.GetClusterPageDataSRV();
+			PassParameters->ClusterPageHeaders = Nanite::GStreamingManager.GetClusterPageHeadersSRV();
+			PassParameters->FetchClamp = View.ViewRect.Max - 1;
+			PassParameters->CullingMode = GNaniteMaterialCulling;
+
+			PassParameters->VisBuffer64 = VisBuffer64;
+
+			PassParameters->MaterialDepthTable = Scene.MaterialTables[MeshPass].GetDepthTableSRV();
+			PassParameters->MaterialRange = MaterialRangeUAV;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FReduceMaterialRangeCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("ReduceMaterialRange"),
+				ComputeShader,
+				PassParameters,
+				DispatchDim
+			);
+		}
+
 		// Mark stencil for all pixels that pass depth test
 		{
 			auto* PassParameters = GraphBuilder.AllocParameters<FNaniteMarkStencilPS::FParameters>();
@@ -3985,6 +4062,7 @@ void DrawBasePass(
 #endif
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(VisibleClustersSWHW);
 
+		PassParameters->MaterialRange = MaterialRange;
 		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
 
 		PassParameters->VisBuffer64 = VisBuffer64;
@@ -3997,6 +4075,29 @@ void DrawBasePass(
 		}
 
 		PassParameters->View = View.ViewUniformBuffer; // To get VTFeedbackBuffer
+
+		switch (GNaniteMaterialCulling)
+		{
+		// Rendering 32 tiles in a 8x4 grid
+		// 32bits, 1 bit per tile
+		case 1:
+		case 2:
+			PassParameters->GridSize.X = 8;
+			PassParameters->GridSize.Y = 4;
+			break;
+
+		// Rendering grid of 64x64 pixel tiles
+		case 3:
+		case 4:
+			PassParameters->GridSize = FMath::DivideAndRoundUp(View.ViewRect.Max, { 64,64 });
+			break;
+
+		// Rendering a full screen quad
+		default:
+			PassParameters->GridSize.X = 1;
+			PassParameters->GridSize.Y = 1;
+			break;
+		}
 
 		const FExclusiveDepthStencil MaterialDepthStencil = UseComputeDepthExport()
 			? FExclusiveDepthStencil::DepthWrite_StencilNop
@@ -4013,7 +4114,7 @@ void DrawBasePass(
 			RDG_EVENT_NAME("Emit GBuffer"),
 			PassParameters,
 			ERDGPassFlags::Raster,
-			[PassParameters, &Scene, MeshPass, bCullMaterials, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
+			[PassParameters, &Scene, MeshPass, ViewRect = View.ViewRect](FRHICommandListImmediate& RHICmdList)
 		{
 			RHICmdList.SetViewport(ViewRect.Min.X, ViewRect.Min.Y, 0.0f, ViewRect.Max.X, ViewRect.Max.Y, 1.0f);
 
@@ -4024,8 +4125,20 @@ void DrawBasePass(
 			UniformParams.MaxClusters = PassParameters->MaxClusters;
 			UniformParams.MaxNodes = PassParameters->MaxNodes;
 			UniformParams.RenderFlags = PassParameters->RenderFlags;
-			UniformParams.CullMaterials = bCullMaterials ? GNaniteMaterialCulling : 0;
+
+			UniformParams.MaterialConfig.X = GNaniteMaterialCulling;
+			UniformParams.MaterialConfig.Y = PassParameters->GridSize.X;
+			UniformParams.MaterialConfig.Z = PassParameters->GridSize.Y;
+			UniformParams.MaterialConfig.W = 0;
+
 			UniformParams.RectScaleOffset = FVector4(1.0f, 1.0f, 0.0f, 0.0f); // Render a rect that covers the entire screen
+
+			if (GNaniteMaterialCulling == 3 || GNaniteMaterialCulling == 4)
+			{
+				FIntPoint ScaledSize = PassParameters->GridSize * 64;
+				UniformParams.RectScaleOffset.X = float(ScaledSize.X) / float(ViewRect.Max.X);
+				UniformParams.RectScaleOffset.Y = float(ScaledSize.Y) / float(ViewRect.Max.Y);
+			}
 
 			UniformParams.ClusterPageData = PassParameters->ClusterPageData;
 			UniformParams.ClusterPageHeaders = PassParameters->ClusterPageHeaders;
@@ -4034,6 +4147,7 @@ void DrawBasePass(
 #endif
 			UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 
+			UniformParams.MaterialRange = PassParameters->MaterialRange->GetRHI();
 			UniformParams.VisibleMaterials = PassParameters->VisibleMaterials->GetRHI();
 
 			UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();
@@ -4047,7 +4161,7 @@ void DrawBasePass(
 
 			FMeshDrawCommandStateCache StateCache;
 
-			const uint32 InstanceFactor = bCullMaterials ? 32 : 1; // Rendering 32 tiles in a 8x4 grid, using instanced draw to replicate quads.
+			const uint32 TileCount = UniformParams.MaterialConfig.Y * UniformParams.MaterialConfig.Z; // (W * H)
 			for (auto CommandsIt = NaniteMaterialPassCommands.CreateConstIterator(); CommandsIt; ++CommandsIt)
 			{
 				const FNaniteMaterialPassCommand& MaterialPassCommand = *CommandsIt;
@@ -4057,7 +4171,7 @@ void DrawBasePass(
 				StateCache.InvalidateUniformBuffer(Scene.UniformBuffers.NaniteUniformBuffer);
 
 				const FMeshDrawCommand& MeshDrawCommand = MaterialPassCommand.MeshDrawCommand;
-				FMeshDrawCommand::SubmitDraw(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, InstanceFactor, RHICmdList, StateCache);
+				FMeshDrawCommand::SubmitDraw(MeshDrawCommand, GraphicsMinimalPipelineStateSet, nullptr, 0, TileCount, RHICmdList, StateCache);
 			}
 
 			RHICmdList.EndUAVOverlap();
@@ -4067,8 +4181,8 @@ void DrawBasePass(
 	// Emit depth values
 	if (!UseComputeDepthExport())
 	{
-		// While we are emitting depth also decrement stencil (setting it to 0) to disable all nanite meshes receiving decals.
-		// Then do another pass that sets stencil value to all the nanite meshes (depth tested) that want to receive decals.
+		// While we are emitting depth also decrement stencil (setting it to 0) to disable all Nanite meshes receiving decals.
+		// Then do another pass that sets stencil value to all the Nanite meshes (depth tested) that want to receive decals.
 		{
 			FEmitDepthPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEmitDepthPS::FParameters>();
 
@@ -4412,6 +4526,9 @@ void DrawLumenMeshCapturePass(
 #endif
 		PassParameters->VisibleClustersSWHW = GraphBuilder.CreateSRV(CullingContext.VisibleClustersSWHW);
 
+		PassParameters->MaterialRange = Black;
+		PassParameters->GridSize = { 1u, 1u };
+
 		PassParameters->VisibleMaterials = GraphBuilder.CreateSRV(VisibleMaterials, PF_R32_UINT);
 
 		PassParameters->VisBuffer64 = RasterContext.VisBuffer64;
@@ -4458,7 +4575,7 @@ void DrawLumenMeshCapturePass(
 				UniformParams.MaxClusters = PassParameters->MaxClusters;
 				UniformParams.MaxNodes = PassParameters->MaxNodes;
 				UniformParams.RenderFlags = PassParameters->RenderFlags;
-				UniformParams.CullMaterials = 0; // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
+				UniformParams.MaterialConfig = FIntVector4(0, 1, 1, 0); // Tile based material culling is not required for Lumen, as each card is rendered as a small rect
 				UniformParams.RectScaleOffset = FVector4(RectScale, RectOffset); // Render a rect that covers the card viewport
 
 				UniformParams.ClusterPageData = PassParameters->ClusterPageData;
@@ -4469,6 +4586,7 @@ void DrawLumenMeshCapturePass(
 #endif
 				UniformParams.VisibleClustersSWHW = PassParameters->VisibleClustersSWHW->GetRHI();
 
+				UniformParams.MaterialRange = PassParameters->MaterialRange->GetRHI();
 				UniformParams.VisibleMaterials = PassParameters->VisibleMaterials->GetRHI();
 
 				UniformParams.VisBuffer64 = PassParameters->VisBuffer64->GetRHI();

@@ -1,0 +1,99 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+#include "../DeferredShadingCommon.ush"
+
+#include "NaniteDataDecode.ush"
+
+uint2 FetchClamp;
+
+// Mode 0: no culling
+// Mode 1: cull full screen passes (32bit mask)
+// Mode 2: cull individual tiles   (32bit mask)
+// Mode 3: cull individual tiles   (range load)
+// Mode 4: cull individual tiles   (64bit mask)
+uint CullingMode;
+
+Texture2D<UlongType> VisBuffer64;
+ByteAddressBuffer MaterialDepthTable;
+
+RWTexture2D<uint2> MaterialRange;
+
+groupshared uint2 TileMinMax;
+
+#define DISPATCH_SIZE 16
+
+[numthreads(DISPATCH_SIZE, DISPATCH_SIZE, 1)]
+void ReduceMaterialRange(uint3 ThreadIndex : SV_GroupThreadID, uint3 GroupIndex : SV_GroupID)
+{
+	uint2 PixelPos = ThreadIndex.xy + GroupIndex.xy * 64u;
+
+	if (all(ThreadIndex.xy == 0u))
+	{
+		if (CullingMode == 3u)
+		{
+			TileMinMax.x = 0xffffffff;
+			TileMinMax.y = 0x0;
+		}
+		else
+		{
+			TileMinMax.x = 0x0;
+			TileMinMax.y = 0x0;
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (uint BlockY = 0; BlockY < 64u; BlockY += DISPATCH_SIZE)
+	{
+		for (uint BlockX = 0; BlockX < 64u; BlockX += DISPATCH_SIZE)
+		{
+			uint2 FetchPos = PixelPos + uint2(BlockX, BlockY);
+
+			FetchPos = min(FetchPos, FetchClamp);
+
+			UlongType VisPixel = VisBuffer64[FetchPos];
+
+			uint DepthInt = 0;
+			uint VisibleClusterIndex = 0;
+			uint TriIndex = 0;
+			UnpackVisPixel(VisPixel, DepthInt, VisibleClusterIndex, TriIndex);
+
+			FVisibleCluster VisibleCluster = GetVisibleCluster(VisibleClusterIndex);
+			FInstanceSceneData InstanceData = GetInstanceData(VisibleCluster.InstanceId);
+			FTriCluster ClusterData = GetCluster(VisibleCluster.PageIndex, VisibleCluster.ClusterIndex);
+			const uint MaterialDepthId = GetMaterialDepthId(ClusterData, InstanceData.PrimitiveId, TriIndex, MaterialDepthTable);
+
+			if (CullingMode == 3)
+			{
+				InterlockedMin(TileMinMax.x, MaterialDepthId);
+				InterlockedMax(TileMinMax.y, MaterialDepthId);
+			}
+			else
+			{
+				const uint MaterialBucket = GetMaterialBucketIdFromDepth(asfloat(MaterialDepthId));
+
+				uint2 MaterialMask = uint2(0, 0);
+				if ((MaterialBucket >> 5u) & 1u)
+				{
+					MaterialMask.y = 1u << (MaterialBucket & 0x1F);
+				}
+				else
+				{
+					MaterialMask.x = 1u << (MaterialBucket & 0x1F);
+				}
+
+				InterlockedOr(TileMinMax.x, MaterialMask.x);
+				InterlockedOr(TileMinMax.y, MaterialMask.y);
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (all(ThreadIndex.xy == 0u))
+	{
+		MaterialRange[GroupIndex.xy] = TileMinMax;
+	}
+}
