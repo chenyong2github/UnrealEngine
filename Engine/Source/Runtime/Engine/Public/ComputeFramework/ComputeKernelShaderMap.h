@@ -2,6 +2,12 @@
 
 #pragma once
 
+#include "RHI.h"
+#include "RHIDefinitions.h"
+#include "Serialization/MemoryImage.h"
+#include "Shader.h"
+
+
 class FComputeKernelResource;
 
 /* Stores all the output/stats from the compilation process, eg. error messages, error codes. */

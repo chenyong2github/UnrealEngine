@@ -2,6 +2,9 @@
 
 #pragma once
 
+#include "Shader.h"
+#include "ShaderCompiler.h"
+
 struct FShaderCompilerEnvironment;
 class FComputeKernelResource;
 

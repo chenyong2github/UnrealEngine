@@ -3,6 +3,7 @@
 #pragma once
 
 #include "ComputeKernelSource.h"
+#include "Engine/EngineTypes.h"
 
 #include "ComputeKernelFromText.generated.h"
 
