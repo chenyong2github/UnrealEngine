@@ -79,7 +79,7 @@ struct FNiagaraTranslateResults
 class FNiagaraCompileRequestData : public FNiagaraCompileRequestDataBase
 {
 public:
-	FNiagaraCompileRequestData() : bUseRapidIterationParams(true)
+	FNiagaraCompileRequestData()
 	{
 
 	}
@@ -106,6 +106,7 @@ public:
 	}
 	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
 	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
+	virtual bool GetUseShaderPermutations() const override { return bUseShaderPermutations; }
 
 	// Simulation Stage Variables. Sim stage of 0 is always Spawn/Update
 	TArray<uint32> NumIterationsPerStage;
@@ -127,6 +128,7 @@ public:
 	UNiagaraScriptSource* Source;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
+	bool bUseShaderPermutations = true;
 
 	UEnum* ENiagaraScriptCompileStatusEnum;
 	UEnum* ENiagaraScriptUsageEnum;
