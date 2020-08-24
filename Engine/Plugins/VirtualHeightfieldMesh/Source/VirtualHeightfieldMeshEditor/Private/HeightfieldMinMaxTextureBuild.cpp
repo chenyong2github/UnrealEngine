@@ -102,6 +102,11 @@ namespace VirtualHeightfieldMesh
 		{
 			return false;
 		}
+		
+		if (InComponent->GetVirtualTextureVolume() == nullptr || InComponent->GetVirtualTextureVolume()->VirtualTextureComponent == nullptr)
+		{
+			return false;
+		}
 
 		return true;
 	}
