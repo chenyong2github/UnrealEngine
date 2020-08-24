@@ -92,9 +92,6 @@ bool UInterchangePCXTranslator::Translate(const UInterchangeSourceData* SourceDa
 
 const TOptional<Interchange::FImportImage> UInterchangePCXTranslator::GetPayloadData(const UInterchangeSourceData* SourceData, const FString& PayLoadKey) const
 {
-#if !WITH_EDITOR
-	return {};
-#else
 	if (!SourceData)
 	{
 		UE_LOG(LogInterchangeImportPlugin, Error, TEXT("Failed to import PCX, bad source data."));
@@ -257,5 +254,4 @@ const TOptional<Interchange::FImportImage> UInterchangePCXTranslator::GetPayload
 	}
 
 	return PayloadData;
-#endif
 }

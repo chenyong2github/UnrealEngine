@@ -739,6 +739,22 @@ FTextureSourceBlock::FTextureSourceBlock()
 {
 }
 
+int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
+{
+	int32 BytesPerPixel = 0;
+	switch (Format)
+	{
+	case TSF_G8:		BytesPerPixel = 1; break;
+	case TSF_G16:		BytesPerPixel = 2; break;
+	case TSF_BGRA8:		BytesPerPixel = 4; break;
+	case TSF_BGRE8:		BytesPerPixel = 4; break;
+	case TSF_RGBA16:	BytesPerPixel = 8; break;
+	case TSF_RGBA16F:	BytesPerPixel = 8; break;
+	default:			BytesPerPixel = 0; break;
+	}
+	return BytesPerPixel;
+}
+
 #if WITH_EDITOR
 
 void FTextureSource::InitBlocked(const ETextureSourceFormat* InLayerFormats,
@@ -1064,22 +1080,6 @@ int64 FTextureSource::CalcMipSize(int32 BlockIndex, int32 LayerIndex, int32 MipI
 	const int64 MipSizeY = FMath::Max(Block.SizeY >> MipIndex, 1);
 	const int64 BytesPerPixel = GetBytesPerPixel(LayerIndex);
 	return MipSizeX * MipSizeY * Block.NumSlices * BytesPerPixel;
-}
-
-int32 FTextureSource::GetBytesPerPixel(ETextureSourceFormat Format)
-{
-	int32 BytesPerPixel = 0;
-	switch (Format)
-	{
-	case TSF_G8:		BytesPerPixel = 1; break;
-	case TSF_G16:		BytesPerPixel = 2; break;
-	case TSF_BGRA8:		BytesPerPixel = 4; break;
-	case TSF_BGRE8:		BytesPerPixel = 4; break;
-	case TSF_RGBA16:	BytesPerPixel = 8; break;
-	case TSF_RGBA16F:	BytesPerPixel = 8; break;
-	default:			BytesPerPixel = 0; break;
-	}
-	return BytesPerPixel;
 }
 
 int32 FTextureSource::GetBytesPerPixel(int32 LayerIndex) const

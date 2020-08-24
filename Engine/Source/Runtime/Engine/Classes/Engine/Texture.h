@@ -185,10 +185,10 @@ struct FTextureSource
 	/** Default constructor. */
 	ENGINE_API FTextureSource();
 
-#if WITH_EDITOR
-
 	ENGINE_API static int32 GetBytesPerPixel(ETextureSourceFormat Format);
 	FORCEINLINE static bool IsHDR(ETextureSourceFormat Format) { return (Format == TSF_BGRE8 || Format == TSF_RGBA16F); }
+
+#if WITH_EDITOR
 
 	ENGINE_API void InitBlocked(const ETextureSourceFormat* InLayerFormats,
 		const FTextureSourceBlock* InBlocks,
