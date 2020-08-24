@@ -2163,6 +2163,11 @@ void UNiagaraDataInterfaceParticleRead::GetEmitterDependencies(UNiagaraSystem* A
 	}
 }
 
+bool UNiagaraDataInterfaceParticleRead::ReadsEmitterParticleData(const FString& InEmitterName) const 
+{
+	return EmitterName == InEmitterName;
+}
+
 IMPLEMENT_NIAGARA_DI_PARAMETER(UNiagaraDataInterfaceParticleRead, FNiagaraDataInterfaceParametersCS_ParticleRead);
 
 #undef LOCTEXT_NAMESPACE
