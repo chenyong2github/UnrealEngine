@@ -1131,6 +1131,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].NumIterationsThisStage = NumIterationsThisStage;
 					TranslationStages[Index].bSpawnOnly = bSpawnOnly;
 					TranslationStages[Index].bPartialParticleUpdate = InCompileData->PartialParticleUpdatePerStage.IsValidIndex(SimStageIndex) ? InCompileData->PartialParticleUpdatePerStage[SimStageIndex] : false;
+					TranslationStages[Index].bPartialParticleUpdate &= InCompileData->GetUseShaderPermutations();
 					TranslationStages[Index].IterationSource = IterationSrc;
 					TranslationStages[Index].SourceSimStage = SimStageIndex;
 					SimStageStartIndex += NumIterationsThisStage;
@@ -2585,7 +2586,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			HlslOutput += TEXT("\t\tif (bValid)\n\t\t{\n");
 
-			if (bRequiresPersistentIDs)
+			if (bRequiresPersistentIDs && !TranslationStages[i].bPartialParticleUpdate)
 			{
 				HlslOutput += FString::Printf(TEXT("\t\t\tUpdateID(0, %sParticles.ID.Index, WriteIndex);\n"), *ContextName);
 			}
