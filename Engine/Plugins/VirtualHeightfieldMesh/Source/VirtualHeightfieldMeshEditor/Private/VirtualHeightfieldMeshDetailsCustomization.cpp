@@ -2,10 +2,13 @@
 
 #include "VirtualHeightfieldMeshDetailsCustomization.h"
 
+#include "AssetToolsModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
 #include "DetailWidgetRow.h"
+#include "HeightfieldMinMaxTexture.h"
 #include "HeightfieldMinMaxTextureBuild.h"
+#include "HeightfieldMinMaxTextureFactory.h"
 #include "ScopedTransaction.h"
 #include "SResetToDefaultMenu.h"
 #include "VirtualHeightfieldMeshComponent.h"

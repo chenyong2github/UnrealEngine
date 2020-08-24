@@ -8,9 +8,13 @@ class UVirtualHeightfieldMeshComponent;
 
 namespace VirtualHeightfieldMesh
 {
+#if WITH_EDITOR
+
 	/** Returns true if the component has a MinMax height texture. */
 	VIRTUALHEIGHTFIELDMESH_API bool HasMinMaxHeightTexture(UVirtualHeightfieldMeshComponent* InComponent);
 
 	/** Build the MinMax height texture. */
 	VIRTUALHEIGHTFIELDMESH_API bool BuildMinMaxHeightTexture(UVirtualHeightfieldMeshComponent* InComponent);
+
+#endif
 };
