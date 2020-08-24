@@ -9,8 +9,6 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Shader.h"
 
-#define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
-
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
 
 struct FNiagaraCollisionDIFunctionVersion
@@ -252,7 +250,7 @@ void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctio
 	{
 		if (!IsDistanceFieldEnabled())
 		{
-			OutValidationErrors.Add(LOCTEXT("NiagaraDistanceFieldNotEnabledMsg", "The mesh distance field generation is currently not enabled, please check the project settings.\nNiagara cannot query the distance field otherwise."));
+			OutValidationErrors.Add(NSLOCTEXT("NiagaraDataInterfaceCollisionQuery", "NiagaraDistanceFieldNotEnabledMsg", "The mesh distance field generation is currently not enabled, please check the project settings.\nNiagara cannot query the distance field otherwise."));
 		}
 	}
 }
