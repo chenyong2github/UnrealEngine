@@ -123,80 +123,98 @@ TSharedRef< FSlateStyleSet > FFriendsAndChatModuleStyle::Create(FFriendsAndChatS
 		.SetPressed(FSlateNoResource())
 		.SetHovered(FSlateNoResource());
 
+	FTextBlockStyle DefaultText;
+	FTextBlockStyle FontStyle;
+	FHyperlinkStyle HyperlinkStyle;
+
 	// Small
 	{
-		const FTextBlockStyle DefaultTextSmall = FTextBlockStyle(FriendStyle.FriendsChatStyle.TextStyle)
+		// DefaultChat
+		DefaultText = FTextBlockStyle(FriendStyle.FriendsChatStyle.TextStyle)
 			.SetFont(FriendStyle.ChatFontStyle.FriendsFontSmallBold);
 
-		const FTextBlockStyle GlobalChatFontSmall = FTextBlockStyle(DefaultTextSmall)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(DefaultText)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.DefaultHyperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.DefaultSmall", DefaultText);
+
+		// GlobalChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GlobalHyperlinkChatColor);
 
-		const FTextBlockStyle FounderChatFontSmall = FTextBlockStyle(DefaultTextSmall)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.GlobalHyperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.GlobalTextStyleSmall", FontStyle);
+
+		// FounderChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.FounderHyperlinkChatColor);
 
-		const FTextBlockStyle GameChatFontSmall = FTextBlockStyle(DefaultTextSmall)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.FounderHyperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.FounderTextStyleSmall", FontStyle);
+
+		// GameChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GameHyperlinkChatColor);
 
-		const FTextBlockStyle TeamChatFontSmall = FTextBlockStyle(DefaultTextSmall)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.GameHyperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.GameTextStyleSmall", FontStyle);
+
+		// TeamChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.TeamHyperlinkChatColor);
 
-		const FTextBlockStyle PartyChatFontSmall = FTextBlockStyle(DefaultTextSmall)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.TeamHyperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.TeamTextStyleSmall", FontStyle);
+
+		// PartyChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.PartyHyperlinkChatColor);
 
-		const FTextBlockStyle WhisperChatFontSmall = FTextBlockStyle(DefaultTextSmall)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.PartyHyperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.PartyTextStyleSmall", FontStyle);
+
+		// WhisperChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.WhisperHyperlinkChatColor);
 
-		const FHyperlinkStyle GlobalChatHyperlinkSmall = FHyperlinkStyle()
+		HyperlinkStyle = FHyperlinkStyle()
 			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(GlobalChatFontSmall)
+			.SetTextStyle(FontStyle)
 			.SetPadding(FMargin(0.0f));
 
-		const FHyperlinkStyle FounderChatHyperlinkSmall = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(FounderChatFontSmall)
-			.SetPadding(FMargin(0.0f));
+		Style->Set("UserNameTextStyle.WhisperlinkSmall", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.WhisperTextStyleSmall", FontStyle);
 
-		const FHyperlinkStyle GameChatHyperlinkSmall = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(GameChatFontSmall)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle TeamChatHyperlinkSmall = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(TeamChatFontSmall)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle PartyChatHyperlinkSmall = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(PartyChatFontSmall)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle WhisperChatHyperlinkSmall = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(WhisperChatFontSmall)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle DefaultChatHyperlinkSmall = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(DefaultTextSmall)
-			.SetPadding(FMargin(0.0f));
-
-		Style->Set("UserNameTextStyle.DefaultSmall", DefaultTextSmall);
-		Style->Set("UserNameTextStyle.GlobalHyperlinkSmall", GlobalChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.FounderHyperlinkSmall", FounderChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.GameHyperlinkSmall", GameChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.TeamHyperlinkSmall", TeamChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.PartyHyperlinkSmall", PartyChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.WhisperlinkSmall", WhisperChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.DefaultHyperlinkSmall", DefaultChatHyperlinkSmall);
-		Style->Set("UserNameTextStyle.GlobalTextStyleSmall", GlobalChatFontSmall);
-		Style->Set("UserNameTextStyle.FounderTextStyleSmall", FounderChatFontSmall);
-		Style->Set("UserNameTextStyle.GameTextStyleSmall", GameChatFontSmall);
-		Style->Set("UserNameTextStyle.TeamTextStyleSmall", TeamChatFontSmall);
-		Style->Set("UserNameTextStyle.PartyTextStyleSmall", PartyChatFontSmall);
-		Style->Set("UserNameTextStyle.WhisperTextStyleSmall", WhisperChatFontSmall);
-
-		Style->Set("MessageBreak", FTextBlockStyle(DefaultTextSmall)
+		// MessageBreak
+		Style->Set("MessageBreak", FTextBlockStyle(DefaultText)
 			.SetFont(FSlateFontInfo(
 			FriendStyle.FriendsNormalFontStyle.FriendsFontSmall.FontObject,
 			6,
@@ -207,150 +225,176 @@ TSharedRef< FSlateStyleSet > FFriendsAndChatModuleStyle::Create(FFriendsAndChatS
 
 	// Normal
 	{
-		const FTextBlockStyle DefaultText = FTextBlockStyle(FriendStyle.FriendsChatStyle.TextStyle)
+		// DefaultChat
+		DefaultText = FTextBlockStyle(FriendStyle.FriendsChatStyle.TextStyle)
 			.SetFont(FriendStyle.ChatFontStyle.FriendsFontNormalBold);
 
-		const FTextBlockStyle GlobalChatFont = FTextBlockStyle(DefaultText)
-			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GlobalHyperlinkChatColor);
-
-		const FTextBlockStyle FounderChatFont = FTextBlockStyle(DefaultText)
-			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.FounderHyperlinkChatColor);
-
-		const FTextBlockStyle GameChatFont = FTextBlockStyle(DefaultText)
-			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GameHyperlinkChatColor);
-
-		const FTextBlockStyle TeamChatFont = FTextBlockStyle(DefaultText)
-			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.TeamHyperlinkChatColor);
-
-		const FTextBlockStyle PartyChatFont = FTextBlockStyle(DefaultText)
-			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.PartyHyperlinkChatColor);
-
-		const FTextBlockStyle WhisperChatFont = FTextBlockStyle(DefaultText)
-			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.WhisperHyperlinkChatColor);
-
-		const FHyperlinkStyle GlobalChatHyperlink = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(GlobalChatFont)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle FounderChatHyperlink = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(FounderChatFont)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle GameChatHyperlink = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(GameChatFont)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle TeamChatHyperlink = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(TeamChatFont)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle PartyChatHyperlink = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(PartyChatFont)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle WhisperChatHyperlink = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(WhisperChatFont)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle DefaultChatHyperlink = FHyperlinkStyle()
+		HyperlinkStyle = FHyperlinkStyle()
 			.SetUnderlineStyle(UserNameButton)
 			.SetTextStyle(DefaultText)
 			.SetPadding(FMargin(0.0f));
 
+		Style->Set("UserNameTextStyle.DefaultHyperlink", HyperlinkStyle);
 		Style->Set("UserNameTextStyle.Default", DefaultText);
-		Style->Set("UserNameTextStyle.GlobalHyperlink", GlobalChatHyperlink);
-		Style->Set("UserNameTextStyle.FounderHyperlink", FounderChatHyperlink);
-		Style->Set("UserNameTextStyle.GameHyperlink", GameChatHyperlink);
-		Style->Set("UserNameTextStyle.TeamHyperlink", TeamChatHyperlink);
-		Style->Set("UserNameTextStyle.PartyHyperlink", PartyChatHyperlink);
-		Style->Set("UserNameTextStyle.Whisperlink", WhisperChatHyperlink);
-		Style->Set("UserNameTextStyle.DefaultHyperlink", DefaultChatHyperlink);
-		Style->Set("UserNameTextStyle.GlobalTextStyle", GlobalChatFont);
-		Style->Set("UserNameTextStyle.FounderTextStyle", FounderChatFont);
-		Style->Set("UserNameTextStyle.GameTextStyle", GameChatFont);
-		Style->Set("UserNameTextStyle.TeamTextStyle", TeamChatFont);
-		Style->Set("UserNameTextStyle.PartyTextStyle", PartyChatFont);
-		Style->Set("UserNameTextStyle.WhisperTextStyle", WhisperChatFont);
+
+		// GlobalChat
+		FontStyle = FTextBlockStyle(DefaultText)
+			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GlobalHyperlinkChatColor);
+
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.GlobalHyperlink", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.GlobalTextStyle", FontStyle);
+
+		// FounderChat
+		FontStyle = FTextBlockStyle(DefaultText)
+			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.FounderHyperlinkChatColor);
+
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.FounderHyperlink", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.FounderTextStyle", FontStyle);
+
+		// GameChat
+		FontStyle = FTextBlockStyle(DefaultText)
+			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GameHyperlinkChatColor);
+
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.GameHyperlink", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.GameTextStyle", FontStyle);
+
+		// TeamChat
+		FontStyle = FTextBlockStyle(DefaultText)
+			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.TeamHyperlinkChatColor);
+
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.TeamHyperlink", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.TeamTextStyle", FontStyle);
+
+		// PartyChat
+		FontStyle = FTextBlockStyle(DefaultText)
+			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.PartyHyperlinkChatColor);
+
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.PartyHyperlink", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.PartyTextStyle", FontStyle);
+
+		// WhisperChat
+		FontStyle = FTextBlockStyle(DefaultText)
+			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.WhisperHyperlinkChatColor);
+
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.Whisperlink", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.WhisperTextStyle", FontStyle);
 	}
 
 	// Large
 	{
-		const FTextBlockStyle DefaultTextLarge = FTextBlockStyle(FriendStyle.FriendsChatStyle.TextStyle)
+		// DefaultChat
+		DefaultText = FTextBlockStyle(FriendStyle.FriendsChatStyle.TextStyle)
 			.SetFont(FriendStyle.ChatFontStyle.FriendsFontLargeBold);
 
-		const FTextBlockStyle GlobalChatFontLarge = FTextBlockStyle(DefaultTextLarge)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(DefaultText)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.DefaultHyperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.DefaultLarge", DefaultText);
+
+		// GlobalChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GlobalHyperlinkChatColor);
 
-		const FTextBlockStyle FounderChatFontLarge = FTextBlockStyle(DefaultTextLarge)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.GlobalHyperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.GlobalTextStyleLarge", FontStyle);
+
+		// FounderChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.FounderHyperlinkChatColor);
 
-		const FTextBlockStyle GameChatFontLarge = FTextBlockStyle(DefaultTextLarge)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.FounderHyperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.FounderTextStyleLarge", FontStyle);
+
+		// GameChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.GameHyperlinkChatColor);
 
-		const FTextBlockStyle TeamChatFontLarge = FTextBlockStyle(DefaultTextLarge)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.GameHyperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.GameTextStyleLarge", FontStyle);
+
+		// TeamChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.TeamHyperlinkChatColor);
 
-		const FTextBlockStyle PartyChatFontLarge = FTextBlockStyle(DefaultTextLarge)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.TeamHyperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.TeamTextStyleLarge", FontStyle);
+
+		// PartyChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.PartyHyperlinkChatColor);
 
-		const FTextBlockStyle WhisperChatFontLarge = FTextBlockStyle(DefaultTextLarge)
+		HyperlinkStyle = FHyperlinkStyle()
+			.SetUnderlineStyle(UserNameButton)
+			.SetTextStyle(FontStyle)
+			.SetPadding(FMargin(0.0f));
+
+		Style->Set("UserNameTextStyle.PartyHyperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.PartyTextStyleLarge", FontStyle);
+
+		// WhisperChat
+		FontStyle = FTextBlockStyle(DefaultText)
 			.SetColorAndOpacity(FriendStyle.FriendsChatStyle.WhisperHyperlinkChatColor);
 
-		const FHyperlinkStyle GlobalChatHyperlinkLarge = FHyperlinkStyle()
+		HyperlinkStyle = FHyperlinkStyle()
 			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(GlobalChatFontLarge)
+			.SetTextStyle(FontStyle)
 			.SetPadding(FMargin(0.0f));
 
-		const FHyperlinkStyle FounderChatHyperlinkLarge = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(FounderChatFontLarge)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle GameChatHyperlinkLarge = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(GameChatFontLarge)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle TeamChatHyperlinkLarge = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(TeamChatFontLarge)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle PartyChatHyperlinkLarge = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(PartyChatFontLarge)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle WhisperChatHyperlinkLarge = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(WhisperChatFontLarge)
-			.SetPadding(FMargin(0.0f));
-
-		const FHyperlinkStyle DefaultChatHyperlinkLarge = FHyperlinkStyle()
-			.SetUnderlineStyle(UserNameButton)
-			.SetTextStyle(DefaultTextLarge)
-			.SetPadding(FMargin(0.0f));
-
-		Style->Set("UserNameTextStyle.DefaultLarge", DefaultTextLarge);
-		Style->Set("UserNameTextStyle.GlobalHyperlinkLarge", GlobalChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.FounderHyperlinkLarge", FounderChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.GameHyperlinkLarge", GameChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.TeamHyperlinkLarge", TeamChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.PartyHyperlinkLarge", PartyChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.WhisperlinkLarge", WhisperChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.DefaultHyperlinkLarge", DefaultChatHyperlinkLarge);
-		Style->Set("UserNameTextStyle.GlobalTextStyleLarge", GlobalChatFontLarge);
-		Style->Set("UserNameTextStyle.FounderTextStyleLarge", FounderChatFontLarge);
-		Style->Set("UserNameTextStyle.GameTextStyleLarge", GameChatFontLarge);
-		Style->Set("UserNameTextStyle.TeamTextStyleLarge", TeamChatFontLarge);
-		Style->Set("UserNameTextStyle.PartyTextStyleLarge", PartyChatFontLarge);
-		Style->Set("UserNameTextStyle.WhisperTextStyleLarge", WhisperChatFontLarge);
+		Style->Set("UserNameTextStyle.WhisperlinkLarge", HyperlinkStyle);
+		Style->Set("UserNameTextStyle.WhisperTextStyleLarge", FontStyle);
 	}
 
 	return Style;
