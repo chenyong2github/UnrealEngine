@@ -20,7 +20,7 @@ public:
 		const TArray< uint32 >& InIndexes,
 		const TArray< int32 >& InMaterialIndexes,
 		const TBitArray<>& InBoundaryEdges,
-		uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
+		uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes, uint32 NumTexCoords, bool bHasColors );
 
 	FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
 	FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList );

@@ -361,23 +361,14 @@ uint GetPackedPosition(uint VertIndex, FTriCluster Cluster)
 	const uint CompileTimeBitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
 	const uint BitsPerVertex = 3 * POSITION_QUANTIZATION_BITS;
 	
-	FBitStreamReaderState BitStream = BitStreamReader_Create(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, CompileTimeBitsPerVertex);
+	FBitStreamReaderState BitStream = BitStreamReader_Create_Aligned(ClusterPageData, Cluster.PageBaseAddress + Cluster.PositionOffset, VertIndex * BitsPerVertex, CompileTimeBitsPerVertex);
 	return BitStreamReader_Read(BitStream, BitsPerVertex, CompileTimeBitsPerVertex);
-}
-
-float3 DecodePackedPosition(uint PackedPos, FTriCluster Cluster)
-{
-	const uint Bits = POSITION_QUANTIZATION_BITS;
-	const uint Mask = (1u << Bits) - 1u;
-	const uint3 PosData = uint3(PackedPos & Mask, (PackedPos >> Bits) & Mask, (PackedPos >> (Bits * 2)) & Mask) + Cluster.QuantizedPosStart;
-	const float3 PointLocal = PosData * Cluster.MeshBoundsDelta + Cluster.MeshBoundsMin;
-	return PointLocal;
 }
 
 float3 DecodePosition(uint VertIndex, FTriCluster Cluster)
 {
 	const uint PackedPos = GetPackedPosition(VertIndex, Cluster);
-	return DecodePackedPosition(PackedPos, Cluster);
+	return UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
 }
 
 float3 TransformVertex(uint VertIndex, FTriCluster Cluster, float4x4 LocalToSubpixel)
@@ -794,7 +785,7 @@ uint GetCompactedTriangle(uint Position, uint Counts[4], uint References[4])
 
 float3 GetClusterPointTranslatedWorld(uint PackedPos, FNaniteView NaniteView, FInstanceSceneData InstanceData, FTriCluster Cluster)
 {
-	const float3 PointLocal = DecodePackedPosition(PackedPos, Cluster);
+	const float3 PointLocal = UnpackPosition(PackedPos, Cluster, POSITION_QUANTIZATION_BITS);
 
 	const float3 PointRotated = 
 		InstanceData.LocalToWorld[0].xyz * PointLocal.xxx +

@@ -31,15 +31,15 @@ FMeshlet::FMeshlet(
 	const TArray< uint32 >& InIndexes,
 	const TArray< int32 >& InMaterialIndexes,
 	const TBitArray<>& InBoundaryEdges,
-	uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes )
+	uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes, uint32 InNumTexCoords, bool bInHasColors )
 {
 	GUID = Murmur32( { TriBegin, TriEnd } );
 	
 	const uint32 NumTriangles = TriEnd - TriBegin;
 	//ensure(NumTriangles <= FMeshlet::ClusterSize);
 	
-	bHasColors = false;
-	NumTexCoords = 2;
+	bHasColors = bInHasColors;
+	NumTexCoords = InNumTexCoords;
 
 	Verts.Reserve( NumTriangles * GetVertSize() );
 	Indexes.Reserve( 3 * NumTriangles );

@@ -26,7 +26,7 @@
 #define MAX_CLUSTER_TRIANGLES					128
 #define MAX_CLUSTER_VERTICES					256
 #define MAX_CLUSTER_INDICES						( MAX_CLUSTER_TRIANGLES * 3 )
-#define MAX_NANITE_UVS							2
+#define MAX_NANITE_UVS							4														// must match define in NaniteDataDecode.ush
 
 #define USE_STRIP_INDICES						1														// must match define in NaniteDataDecode.ush
 
@@ -55,15 +55,20 @@
 #define MAX_GROUP_PARTS_MASK					((1 << MAX_GROUP_PARTS_BITS) - 1)
 #define MAX_GROUP_PARTS							(1 << MAX_GROUP_PARTS_BITS)
 
-#define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
-
-#define NUM_PACKED_CLUSTER_FLOAT4S				12														// must match define in NaniteDataDecode.ush
+#define NUM_PACKED_CLUSTER_FLOAT4S				8														// must match define in NaniteDataDecode.ush
 
 #define POSITION_QUANTIZATION_BITS				10
 #define POSITION_QUANTIZATION_MASK 				((1u << POSITION_QUANTIZATION_BITS) - 1u)
 #define NORMAL_QUANTIZATION_BITS				 9
 
+#define MAX_TEXCOORD_QUANTIZATION_BITS			15														// must match define in NaniteDataDecode.ush
+#define MAX_COLOR_QUANTIZATION_BITS				 8														// must match define in NaniteDataDecode.ush
+
 #define MAX_TRANSCODE_GROUPS_PER_PAGE			32														// must match define in NaniteDataDecode.ush
+
+#define VERTEX_COLOR_MODE_WHITE					0
+#define VERTEX_COLOR_MODE_CONSTANT				1
+#define VERTEX_COLOR_MODE_VARIABLE				2
 
 // TODO: Only needed while there are multiple graphs instead of one big one (or a more intelligent resource reuse).
 #define NANITE_USE_SCRATCH_BUFFERS				1
@@ -146,7 +151,6 @@ struct FTriCluster
 	
 	FVector			BoxBounds[2];
 	FSphere			SphereBounds;
-	//FPackedBound	PackedBounds;	// Make sure very large meshes like Q:\Dan.Pearson\Reverb\UpresIslandCluster_v3.11.1.fbx work before reenabling!
 	FSphere			LODBounds;
 
 	uint32			ClusterGroupIndex;
@@ -198,6 +202,21 @@ struct FPackedHierarchyNode
 	} Misc[64];
 };
 
+FORCEINLINE uint32 GetBits(uint32 Value, uint32 NumBits, uint32 Offset)
+{
+	uint32 Mask = (1u << NumBits) - 1u;
+	return (Value >> Offset) & Mask;
+}
+
+FORCEINLINE void SetBits(uint32& Value, uint32 Bits, uint32 NumBits, uint32 Offset)
+{
+	uint32 Mask = (1u << NumBits) - 1u;
+	check(Bits <= Mask);
+	Mask <<= Offset;
+	Value = (Value & ~Mask) | (Bits << Offset);
+}
+
+
 // Packed TriCluster as it is used by the GPU
 struct FPackedTriCluster
 {
@@ -220,23 +239,30 @@ struct FPackedTriCluster
 	FVector		BoxBoundsExtent;
 	uint32		Flags;
 
-	uint32		GroupIndex;		// Debug only
-	uint32		Pad0;
-	uint32		Pad1;
-	uint32		Pad2;
-
 	// Members needed by materials
-	uint32		AttributeOffset;
-	uint32		BitsPerAttrib;
-	uint32		UV_Prec;				// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
+	uint32		AttributeOffset_BitsPerAttribute;					// AttributeOffset: 22, BitsPerAttribute: 10
+	uint32		DecodeInfoOffset_NumUVs_ColorMode;					// DecodeInfoOffset: 22, NumUVs: 3, ColorMode: 2
+	uint32		UV_Prec;											// U0:4, V0:4, U1:4, V1:4, U2:4, V2:4, U3:4, V3:4
 	uint32		PackedMaterialInfo;
 
-	FUVRange	UVRanges[2];
+	uint32		ColorMin;
+	uint32		ColorBits;		// R:4, G:4, B:4, A:4
+	uint32		GroupIndex;		// Debug only
+	uint32		Pad0;
 
-	uint32		GetNumVerts() const				{ return NumVerts_NumTris_BitsPerIndex_QuantizedPosShift & 0x1FFu; }
-	uint32		GetNumTris() const				{ return (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> 9) & 0xFFu; }
-	uint32		GetBitsPerIndex() const			{ return (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> (9+8)) & 0xFu; }
-	uint32		GetQuantizedPosShift() const	{ return (NumVerts_NumTris_BitsPerIndex_QuantizedPosShift >> (9+8+4)) & 0x3Fu; }
+	uint32		GetNumVerts() const					{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 9, 0); }
+	uint32		GetNumTris() const					{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 8, 9); }
+	uint32		GetBitsPerIndex() const				{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 4, 9+8); }
+	uint32		GetQuantizedPosShift() const		{ return GetBits(NumVerts_NumTris_BitsPerIndex_QuantizedPosShift, 6, 9+8+4); }
+
+	uint32		GetAttributeOffset() const			{ return GetBits(AttributeOffset_BitsPerAttribute, 22, 0); }
+	void		SetAttributeOffset(uint32 Offset)	{ SetBits(AttributeOffset_BitsPerAttribute, Offset, 22, 0); }
+	uint32		GetBitsPerAttribute() const			{ return GetBits(AttributeOffset_BitsPerAttribute, 10, 22); }
+	void		SetBitsPerAttribute(uint32 Bits)	{ SetBits(AttributeOffset_BitsPerAttribute, Bits, 10, 22); }
+
+	void		SetDecodeInfoOffset(uint32 Offset)	{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Offset, 22, 0); }
+	void		SetNumUVs(uint32 Num)				{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Num, 3, 22); }
+	void		SetColorMode(uint32 Mode)			{ SetBits(DecodeInfoOffset_NumUVs_ColorMode, Mode, 2, 22+3); }
 };
 
 struct FPageStreamingState
@@ -312,6 +338,7 @@ struct FPageDiskHeader
 	uint32 NumClusters;
 	uint32 NumMaterialDwords;
 	uint32 NumTexCoords;
+	uint32 DecodeInfoOffset;
 	uint32 StripBitmaskOffset;
 	uint32 VertexRefBitmaskOffset;
 };
