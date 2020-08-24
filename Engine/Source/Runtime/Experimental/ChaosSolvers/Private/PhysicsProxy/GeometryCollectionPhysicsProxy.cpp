@@ -1104,8 +1104,8 @@ TGeometryCollectionPhysicsProxy<Traits>::BuildClusters(
 	Parent->SetStrains(Damage);
 
 	// #BGTODO This will not automatically update - material properties should only ever exist in the material, not in other arrays
-	FSolver* Solver = GetSolver<FSolver>();
-	const Chaos::FChaosPhysicsMaterial* CurMaterial = Solver->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
+	FSolver* CurrentSolver = GetSolver<FSolver>();
+	const Chaos::FChaosPhysicsMaterial* CurMaterial = CurrentSolver->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
 	if(CurMaterial)
 	{
 		Parent->SetLinearEtherDrag(CurMaterial->LinearEtherDrag);
