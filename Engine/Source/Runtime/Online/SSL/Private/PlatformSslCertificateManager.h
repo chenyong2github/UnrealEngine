@@ -14,7 +14,7 @@
 #include "Android/AndroidPlatformSslCertificateManager.h"
 #elif PLATFORM_UNIX
 #include "Unix/UnixPlatformSslCertificateManager.h"
-#elif PLATFORM_MAC || PLATFORM_PS4 || PLATFORM_IOS || PLATFORM_SWITCH || defined(USE_DEFAULT_SSLCERT)
+#elif USE_DEFAULT_SSLCERT
 #include "SslCertificateManager.h"
 using FPlatformSslCertificateManager = FSslCertificateManager;
 #else
