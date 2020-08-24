@@ -110,21 +110,20 @@ struct FNDIParticleRead_GameToRenderData
 
 struct FNDIParticleRead_RenderInstanceData
 {
-	FNDIParticleRead_RenderInstanceData() :
-		SourceEmitterGPUContext(nullptr)
-		, CachedDataSet(nullptr)
-		, AcquireTagRegisterIndex(-1)
-		, bSourceEmitterNotGPUErrorShown(false)
+	FNDIParticleRead_RenderInstanceData()
 	{
+		bSourceEmitterNotGPUErrorShown = false;
+		bWarnFailedToFindAcquireTag = true;
 	}
 
-	FNiagaraComputeExecutionContext* SourceEmitterGPUContext;
+	FNiagaraComputeExecutionContext* SourceEmitterGPUContext = nullptr;
 	FString SourceEmitterName;
-	const FNiagaraDataSet* CachedDataSet;
+	const FNiagaraDataSet* CachedDataSet = nullptr;
 	TArray<int32> AttributeIndices;
 	TArray<int32> AttributeCompressed;
-	int32 AcquireTagRegisterIndex;
-	bool bSourceEmitterNotGPUErrorShown;
+	int32 AcquireTagRegisterIndex = -1;
+	uint32 bSourceEmitterNotGPUErrorShown : 1;
+	uint32 bWarnFailedToFindAcquireTag : 1;
 };
 
 struct FNiagaraDataInterfaceProxyParticleRead : public FNiagaraDataInterfaceProxy
@@ -366,21 +365,18 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		}
 
 		// Find the register index for the AcquireTag part of the particle ID in the source emitter.
-		if (AcquireTagRegisterIndexParam.IsBound())
 		{
+			const FName FName_ID(TEXT("ID"));
+
 			InstanceData->AcquireTagRegisterIndex = -1;
 			for (int VarIdx = 0; VarIdx < SourceEmitterVariables.Num(); ++VarIdx)
 			{
 				const FNiagaraVariable& Var = SourceEmitterVariables[VarIdx];
-				if (Var.GetName().ToString() == TEXT("ID"))
+				if (Var.GetName() == FName_ID)
 				{
 					InstanceData->AcquireTagRegisterIndex = SourceEmitterVariableLayouts[VarIdx].Int32ComponentStart + 1;
 					break;
 				}
-			}
-			if (InstanceData->AcquireTagRegisterIndex == -1)
-			{
-				UE_LOG(LogNiagara, Error, TEXT("Particle read DI cannot find ID variable in emitter '%s'."), *InstanceData->SourceEmitterName);
 			}
 		}
 
@@ -433,6 +429,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 			}
 			SetErrorParams(RHICmdList, ComputeShader, false);
 			InstanceData->CachedDataSet = nullptr;
+			InstanceData->bWarnFailedToFindAcquireTag = true;
 			return;
 		}
 
@@ -443,6 +440,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		{
 			SetErrorParams(RHICmdList, ComputeShader, false);
 			InstanceData->CachedDataSet = nullptr;
+			InstanceData->bWarnFailedToFindAcquireTag = true;
 			return;
 		}
 
@@ -492,6 +490,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		{
 			FindAttributeIndices(InstanceData, SourceDataSet);
 			InstanceData->CachedDataSet = SourceDataSet;
+			InstanceData->bWarnFailedToFindAcquireTag = true;
 		}
 
 		if (!bReadingOwnEmitter)
@@ -536,6 +535,12 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		SetShaderValueArray(RHICmdList, ComputeShader, AttributeIndicesParam, InstanceData->AttributeIndices.GetData(), InstanceData->AttributeIndices.Num());
 		SetShaderValueArray(RHICmdList, ComputeShader, AttributeCompressedParam, InstanceData->AttributeCompressed.GetData(), InstanceData->AttributeCompressed.Num());
 		SetShaderValue(RHICmdList, ComputeShader, AcquireTagRegisterIndexParam, InstanceData->AcquireTagRegisterIndex);
+
+		if (InstanceData->bWarnFailedToFindAcquireTag && AcquireTagRegisterIndexParam.IsBound() && (InstanceData->AcquireTagRegisterIndex == -1))
+		{
+			InstanceData->bWarnFailedToFindAcquireTag = false;
+			UE_LOG(LogNiagara, Error, TEXT("Particle read DI cannot find ID variable in emitter '%s'."), *InstanceData->SourceEmitterName);
+		}
 	}
 	
 private:
