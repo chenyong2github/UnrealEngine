@@ -101,20 +101,16 @@ using namespace Chaos;
 		//UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		//float WheelMass;
 
-		/** Cheat Longitudinal Friction Force Multiplier */
+		/** Longitudinal Friction Force Multiplier */
 		UPROPERTY(EditAnywhere, Category = Wheel)
-		float CheatLongitudinalFrictionForce;
+		float LongitudinalFrictionForceMultiplier;
 
-		/** Cheat Lateral Friction Force Multiplier */
+		/** Lateral Friction Force Multiplier */
 		UPROPERTY(EditAnywhere, Category = Wheel)
-		float CheatLateralFrictionForce;
+		float LateralFrictionForceMultiplier;
 
-		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
-		UPROPERTY(EditAnywhere, Category = Wheel)
-		float CheatSkidFactor;
-
-		/** CHEAT WHEEL LATERAL SKID GRIP LOSS */
-		UPROPERTY(EditAnywhere, Category = Wheel)
+		/** Wheel Lateral Skid Grip Loss, lower number less grip on skid */
+		UPROPERTY(EditAnywhere, Category = Wheel, meta = (ClampMin = "0.0", UIMin = "0.0", ClampMax = "1.0", UIMax = "1.0"))
 		float SideSlipModifier;
 
 		///** Damping rate for this wheel (Kgm^2/s) */
@@ -354,9 +350,8 @@ using namespace Chaos;
 			PWheelConfig.EngineEnabled = this->bAffectedByEngine;
 			PWheelConfig.ABSEnabled = this->bABSEnabled;
 			PWheelConfig.TractionControlEnabled = this->bTractionControlEnabled;
-			PWheelConfig.CheatLongitudinalFrictionMultiplier = this->CheatLongitudinalFrictionForce;
-			PWheelConfig.CheatLateralFrictionMultiplier = this->CheatLateralFrictionForce;
-			PWheelConfig.CheatSkidFactor = this->CheatSkidFactor;
+			PWheelConfig.LongitudinalFrictionMultiplier = this->LongitudinalFrictionForceMultiplier;
+			PWheelConfig.LateralFrictionMultiplier = this->LateralFrictionForceMultiplier;
 			PWheelConfig.SideSlipModifier = this->SideSlipModifier;
 		}
 

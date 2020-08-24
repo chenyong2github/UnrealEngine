@@ -121,8 +121,8 @@ struct FVehicleEngineConfig
 	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.01", UIMin = "0.01"))
 	float EngineIdleRPM;
 
-	/** Maximum revolutions per minute of the engine */
-	UPROPERTY(EditAnywhere, Category = Setup, meta = (ClampMin = "0.001", UIMin = "0.001"))
+	/** Braking effect from engine, when throttle released */
+	UPROPERTY(EditAnywhere, Category = Setup)
 	float EngineBrakeEffect;
 
 	/** Affects how fast the engine RPM speed up */
@@ -144,8 +144,7 @@ struct FVehicleEngineConfig
 		MaxTorque = 300.0f;
 		MaxRPM = 4500.0f;
 		EngineIdleRPM = 1200.0f;
-		EngineBrakeEffect = 0.001f;
-
+		EngineBrakeEffect = 0.05f;
 		EngineRevUpMOI = 5.0f;
 		EngineRevDownRate = 600.0f;
 	}
@@ -366,8 +365,8 @@ struct CHAOSVEHICLES_API FChaosWheelSetup
 	TSubclassOf<UChaosVehicleWheel> WheelClass;
 
 	// Bone name on mesh to create wheel at
-	UPROPERTY(EditAnywhere, Category = WheelSetup)
-	FName SteeringBoneName;
+	//UPROPERTY(EditAnywhere, Category = WheelSetup)
+	//FName SteeringBoneName;
 
 	// Bone name on mesh to create wheel at
 	UPROPERTY(EditAnywhere, Category = WheelSetup)
