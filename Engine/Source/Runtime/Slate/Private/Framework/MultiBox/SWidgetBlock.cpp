@@ -111,6 +111,7 @@ void SWidgetBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNam
 				SNew( STextBlock )
 				.TextStyle(LabelStyle)
 				.Text(WidgetBlock->Label)
+				.ColorAndOpacity(FAppStyle::Get().GetSlateColor("Colors.ForegroundHover"))
 			]
 		]
 		+SHorizontalBox::Slot()
