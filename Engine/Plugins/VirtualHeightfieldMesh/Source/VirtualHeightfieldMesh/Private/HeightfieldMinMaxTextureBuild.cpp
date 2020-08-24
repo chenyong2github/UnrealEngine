@@ -1,18 +1,21 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RuntimeVirtualTextureBuildMinMaxHeight.h"
+#include "HeightfieldMinMaxTextureBuild.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "ContentStreaming.h"
 #include "Engine/Texture2D.h"
+#include "HeightfieldMinMaxRender.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RendererInterface.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
 #include "RenderTargetPool.h"
 #include "SceneInterface.h"
+#include "VirtualHeightfieldMeshComponent.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureRender.h"
+#include "VT/RuntimeVirtualTextureVolume.h"
 
 namespace
 {
@@ -91,16 +94,11 @@ namespace
 	};
 }
 
-namespace RuntimeVirtualTexture
+namespace VirtualHeightfieldMesh
 {
-	bool HasMinMaxHeightTexture(URuntimeVirtualTextureComponent* InComponent)
+	bool HasMinMaxHeightTexture(UVirtualHeightfieldMeshComponent* InComponent)
 	{
-		if (InComponent == nullptr)
-		{
-			return false;
-		}
-
-		if (InComponent->GetVirtualTexture() == nullptr || InComponent->GetMinMaxTexture() == nullptr || !InComponent->IsMinMaxTextureEnabled())
+		if (InComponent == nullptr || !InComponent->IsMinMaxTextureEnabled() || InComponent->GetMinMaxTexture() == nullptr)
 		{
 			return false;
 		}
@@ -108,17 +106,19 @@ namespace RuntimeVirtualTexture
 		return true;
 	}
 
-	bool BuildMinMaxHeightTexture(URuntimeVirtualTextureComponent* InComponent)
+	bool BuildMinMaxHeightTexture(UVirtualHeightfieldMeshComponent* InComponent)
 	{
 		if (!HasMinMaxHeightTexture(InComponent))
 		{
 			return true;
 		}
 
-		FSceneInterface* Scene = InComponent->GetScene();
-		const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(InComponent);
-		const FTransform Transform = InComponent->GetComponentTransform();
-		const FBox Bounds = InComponent->Bounds.GetBox();
+		ARuntimeVirtualTextureVolume* VirtualTextureVolume = InComponent->GetVirtualTextureVolume();
+		URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? VirtualTextureVolume->VirtualTextureComponent : nullptr;
+		FSceneInterface* Scene = VirtualTextureComponent->GetScene();
+		const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(VirtualTextureComponent);
+		const FTransform Transform = VirtualTextureComponent->GetComponentTransform();
+		const FBox Bounds = VirtualTextureComponent->Bounds.GetBox();
 
 		URuntimeVirtualTexture const* VirtualTexture = InComponent->GetVirtualTexture();
 
