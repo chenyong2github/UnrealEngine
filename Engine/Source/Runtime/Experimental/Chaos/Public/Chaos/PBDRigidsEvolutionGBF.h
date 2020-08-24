@@ -148,20 +148,20 @@ namespace Chaos
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
 		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction = (FReal)1.0);
 
-		FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
-		const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }
+		FORCEINLINE FCollisionConstraints& GetCollisionConstraints() { return CollisionConstraints; }
+		FORCEINLINE const FCollisionConstraints& GetCollisionConstraints() const { return CollisionConstraints; }
 
-		FCollisionConstraintRule& GetCollisionConstraintsRule() { return CollisionRule; }
-		const FCollisionConstraintRule& GetCollisionConstraintsRule() const { return CollisionRule; }
+		FORCEINLINE FCollisionConstraintRule& GetCollisionConstraintsRule() { return CollisionRule; }
+		FORCEINLINE const FCollisionConstraintRule& GetCollisionConstraintsRule() const { return CollisionRule; }
 
-		FCollisionDetector& GetCollisionDetector() { return CollisionDetector; }
-		const FCollisionDetector& GetCollisionDetector() const { return CollisionDetector; }
+		FORCEINLINE FCollisionDetector& GetCollisionDetector() { return CollisionDetector; }
+		FORCEINLINE const FCollisionDetector& GetCollisionDetector() const { return CollisionDetector; }
 
-		FGravityForces& GetGravityForces() { return GravityForces; }
-		const FGravityForces& GetGravityForces() const { return GravityForces; }
+		FORCEINLINE FGravityForces& GetGravityForces() { return GravityForces; }
+		FORCEINLINE const FGravityForces& GetGravityForces() const { return GravityForces; }
 
-		const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() const { return Clustering; }
-		TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() { return Clustering; }
+		FORCEINLINE const TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() const { return Clustering; }
+		FORCEINLINE TPBDRigidClustering<TPBDRigidsEvolutionGBF<Traits>, FPBDCollisionConstraints, FReal, 3>& GetRigidClustering() { return Clustering; }
 
 		CHAOS_API inline void EndFrame(FReal Dt)
 		{
