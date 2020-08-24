@@ -962,7 +962,7 @@ void UChaosWheeledVehicleMovementComponent::ProcessSteering()
 			float SpeedScale = 1.0f;
 
 			// allow full counter steering when steering into a power slide
-			if (SteeringInput * VehicleState.LocalGForce.Y < 0.1f)
+			if (SteeringInput * VehicleState.VehicleLocalVelocity.Y > 0.1f)
 			{
 				SpeedScale = SteeringCurveData->Eval(CmSToMPH(VehicleState.ForwardSpeed));
 			}
@@ -1711,7 +1711,7 @@ void UChaosWheeledVehicleMovementComponent::DrawDial(UCanvas* Canvas, FVector2D 
 
 FChaosWheelSetup::FChaosWheelSetup()
 	: WheelClass(UChaosVehicleWheel::StaticClass())
-	, SteeringBoneName(NAME_None)
+//	, SteeringBoneName(NAME_None)
 	, BoneName(NAME_None)
 	, AdditionalOffset(0.0f)
 {
