@@ -403,6 +403,8 @@ namespace AutomationTool
 		/// <param name="File"></param>
 		public void Export(FileReference File)
 		{
+			DirectoryReference.CreateDirectory(File.Directory);
+
 			XmlWriterSettings Settings = new XmlWriterSettings();
 			Settings.Indent = true;
 			Settings.IndentChars = "  ";
