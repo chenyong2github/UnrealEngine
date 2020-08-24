@@ -3,11 +3,8 @@
 
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
-#include "MetasoundNode.h"
-#include "MetasoundOperatorInterface.h"
-#include "MetasoundBuilderInterface.h"
-#include "MetasoundDataReferenceCollection.h"
 
+#include "MetasoundFacade.h"
 
 namespace Metasound
 {
@@ -15,28 +12,9 @@ namespace Metasound
 	 *
 	 *  Creates an Attack, Decay Sustain, Release audio processer node. 
 	 */
-	class METASOUNDSTANDARDNODES_API FADSRNode : public FNode
+	class METASOUNDSTANDARDNODES_API FADSRNode : public FNodeFacade
 	{
-		// The operator factory for this node.
-		class FOperatorFactory : public IOperatorFactory
-		{
-			public:
-				virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override;
-
-				template<typename DataType>
-				void SetReadableRefIfInCollection(const FString& InName, const FDataReferenceCollection& InCollection, TDataReadReference<DataType>& DataRef)
-				{
-					// TODO: add a helper function to FDataReferenceCollection to do a SetDataIfContains.
-					if (InCollection.ContainsDataReadReference<DataType>(InName))
-					{
-						DataRef = InCollection.GetDataReadReference<DataType>(InName);
-					}
-				}
-		};
-
 		public:
-			/** Class name for FADSRNode */
-			static const FName ClassName;
 
 			/** FADSR node constructor.
 			 *
@@ -64,34 +42,10 @@ namespace Metasound
 			/** Return default attack time in milliseconds */
 			float GetDefaultReleaseMs() const;
 
-			/** Returns the type name of the FADSRNode */
-			virtual const FName& GetClassName() const override;
-
-			virtual const FText& GetDescription() const override
-			{
-				static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_ADSRNodeDescription", "Emits an ADSR (Attack, decay, sustain, & release) envelope when bopped.");
-				return StaticDescription;
-			}
-
-			virtual const FText& GetAuthorName() const override
-			{
-				return PluginAuthor;
-			}
-
-			virtual const FText& GetPromptIfMissing() const override
-			{
-				return PluginNodeMissingPrompt;
-			}
-
-			/** Return a factory for building a metasound operator. */
-			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
-
 		private:
 			float DefaultAttackMs;
 			float DefaultDecayMs;
 			float DefaultSustainMs;
 			float DefaultReleaseMs;
-
-			FOperatorFactory Factory;
 	};
 } // namespace Metasound

@@ -292,8 +292,9 @@ bool FMetasoundFrontendRegistryContainer::RegisterDataType(const ::Metasound::FD
 
 bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(FNodeGetterCallback&& InCallback)
 {
-	using FInputDataVertexCollection = Metasound::FInputDataVertexCollection;
-	using FOutputDataVertexCollection = Metasound::FOutputDataVertexCollection;
+	using FVertexInterface = Metasound::FVertexInterface;
+	using FInputVertexInterface = Metasound::FInputVertexInterface;
+	using FOutputVertexInterface = Metasound::FOutputVertexInterface;
 
 	Metasound::FNodeInitData DummyInitData;
 	TUniquePtr<Metasound::INode> DummyNodePtr = InCallback(DummyInitData);
@@ -306,8 +307,8 @@ bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(FNodeGetterCallba
 
 	// First, build the key.
 	const FName NodeName = DummyNode.GetClassName();
-	const FInputDataVertexCollection& Inputs = DummyNode.GetInputDataVertices();
-	const FOutputDataVertexCollection& Outputs = DummyNode.GetOutputDataVertices();
+	const FInputVertexInterface& Inputs = DummyNode.GetDefaultVertexInterface().GetInputInterface();
+	const FOutputVertexInterface& Outputs = DummyNode.GetDefaultVertexInterface().GetOutputInterface();
 
 	// Construct a hash using a combination of the class name, input names and output names.
 	uint32 NodeHash = FCrc::StrCrc32(*NodeName.ToString());
@@ -317,14 +318,14 @@ bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(FNodeGetterCallba
 
 	for (auto& InputTuple : Inputs)
 	{
-		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*InputTuple.Value.VertexName));
-		InputTypes.Add(InputTuple.Value.DataReferenceTypeName);
+		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*InputTuple.Value.GetVertexName()));
+		InputTypes.Add(InputTuple.Value.GetDataTypeName());
 	}
 
 	for (auto& OutputTuple : Outputs)
 	{
-		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*OutputTuple.Value.VertexName));
-		OutputTypes.Add(OutputTuple.Value.DataReferenceTypeName);
+		NodeHash = HashCombine(NodeHash, FCrc::StrCrc32(*OutputTuple.Value.GetVertexName()));
+		OutputTypes.Add(OutputTuple.Value.GetDataTypeName());
 	}
 
 	FNodeRegistryKey InKey = { NodeName, NodeHash };
@@ -340,13 +341,13 @@ bool FMetasoundFrontendRegistryContainer::RegisterExternalNode(FNodeGetterCallba
 		UE_LOG(LogTemp, Display, TEXT("    %d inputs:"), Inputs.Num());
 		for (auto& InputTuple : Inputs)
 		{
-			UE_LOG(LogTemp, Display, TEXT("      %s (of type %s)"), *InputTuple.Value.VertexName, *InputTuple.Value.DataReferenceTypeName.ToString());
+			UE_LOG(LogTemp, Display, TEXT("      %s (of type %s)"), *InputTuple.Value.GetVertexName(), *InputTuple.Value.GetDataTypeName().ToString());
 		}
 
 		UE_LOG(LogTemp, Display, TEXT("    %d outputs:"), Outputs.Num());
 		for (auto& OutputTuple : Outputs)
 		{
-			UE_LOG(LogTemp, Display, TEXT("      %s (of type %s)"), *OutputTuple.Value.VertexName, *OutputTuple.Value.DataReferenceTypeName.ToString());
+			UE_LOG(LogTemp, Display, TEXT("      %s (of type %s)"), *OutputTuple.Value.GetVertexName(), *OutputTuple.Value.GetDataTypeName().ToString());
 		}
 	}
 

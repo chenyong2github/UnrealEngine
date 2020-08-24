@@ -3,54 +3,30 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "MetasoundNode.h"
-#include "MetasoundOperatorInterface.h"
+
+#include "MetasoundAudioBuffer.h"
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundDataReferenceCollection.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundFrequency.h"
+#include "MetasoundNode.h"
+#include "MetasoundOperatorInterface.h"
 
 namespace Metasound
 {
-	class METASOUNDSTANDARDNODES_API FOscNode : public FNode
+	class METASOUNDSTANDARDNODES_API FOscNode : public FNodeFacade
 	{
-			class FOperatorFactory : public IOperatorFactory
-			{
-				virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override;
-			};
-
 		public:
-			static const FName ClassName;
 
-			FOscNode(const FString& InName, float InDefaultFrequency);
+		FOscNode(const FString& InName, float InDefaultFrequency);
 
-			// constructor used by the Metasound Frontend.
-			FOscNode(const FNodeInitData& InInitData);
+		FOscNode(const FNodeInitData& InInitData);
 
-			virtual ~FOscNode();
-
-			float GetDefaultFrequency() const;
-
-			virtual const FName& GetClassName() const override;
-
-			virtual IOperatorFactory& GetDefaultOperatorFactory() override;
-
-			virtual const FText& GetDescription() const override
-			{
-				static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid.");
-				return StaticDescription;
-			}
-
-			virtual const FText& GetAuthorName() const override
-			{
-				return PluginAuthor;
-			}
-
-			virtual const FText& GetPromptIfMissing() const override
-			{
-				return PluginNodeMissingPrompt;
-			}
+		float GetDefaultFrequency() const;
 
 		private:
-			float DefaultFrequency;
-			FOperatorFactory Factory;
+
+		float DefaultFrequency = 440.f;
 	};
 }

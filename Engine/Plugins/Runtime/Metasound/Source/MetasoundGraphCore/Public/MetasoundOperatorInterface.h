@@ -146,6 +146,7 @@ namespace Metasound
 	{
 		FDataTypeLiteralParam(const FDataTypeLiteralParam& Other) = delete;
 		FDataTypeLiteralParam(FDataTypeLiteralParam&& Other) = default;
+		FDataTypeLiteralParam& operator=(FDataTypeLiteralParam&& Other) = default;
 
 		ELiteralArgType ConstructorArgType;
 		TVariant<bool, int, float, FString, Audio::IProxyDataPtr, TArray<Audio::IProxyDataPtr>> ConstructorArg;

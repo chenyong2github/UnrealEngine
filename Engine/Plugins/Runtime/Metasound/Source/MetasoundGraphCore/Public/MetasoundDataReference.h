@@ -9,7 +9,6 @@
 // Declares a metasound parameter type by
 // - Adding typedefs for commonly used template types.
 // - Defining parameter type traits.
-// - TODO- add argument for module api.
 #define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, ModuleApi, DataTypeMagicNumber, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
 	template<> \
 	struct ::Metasound::TDataReferenceTypeInfo<DataType> \
@@ -100,6 +99,23 @@ namespace Metasound
 		static constexpr bool bIsValidSpecialization = false;
 	};
 
+	template<>
+	struct TDataReferenceTypeInfo<void>
+	{
+		static METASOUNDGRAPHCORE_API const TCHAR* TypeName;
+		static constexpr const FDataTypeMagicNumber MagicNumber = -1;
+		static constexpr bool bIsStringParsable = false;
+		static constexpr bool bIsBoolParsable = false;
+		static constexpr bool bIsIntParsable = false;
+		static constexpr bool bIsFloatParsable = false;
+		static constexpr bool bIsProxyParsable = false;
+		static constexpr bool bIsProxyArrayParsable = false;
+		static constexpr bool bIsConstructableWithSettings = false;
+		static constexpr bool bCanUseDefaultConstructor = false;
+		static constexpr bool bIsValidSpecialization = false;
+	};
+
+	// TODO: comments
 	template<typename DataType>
 	const FName GetMetasoundDataTypeName() 
 	{
@@ -108,6 +124,15 @@ namespace Metasound
 		return TypeName;
 	}
 	
+	// TODO: comments
+	template<typename DataType>
+	bool IsReferenceOfType(const IDataReference& InReference)
+	{
+		static const FName TypeName = GetMetasoundDataTypeName<DataType>();
+		static const FDataTypeMagicNumber MagicNumber = TDataReferenceTypeInfo<typename TDecay<DataType>::Type >::MagicNumber;
+
+		return (InReference.GetDataTypeName() == TypeName) && (InReference.GetDataTypeMagicNumber() == MagicNumber);
+	}
 
 	// This enum is used as a token to explicitly delineate when we should create a new object for the reference,
 	// or use a different constructor.
@@ -461,3 +486,4 @@ namespace Metasound
 		Invalid,
 	};
 }
+

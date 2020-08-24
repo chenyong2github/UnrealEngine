@@ -23,13 +23,6 @@ namespace Metasound
 	{
 		using FBuildErrorPtr = TUniquePtr<IOperatorBuildError>;
 
-		// Convenience template for adding build errors
-		template<typename ErrorType, typename... ArgTypes>
-		void AddBuildError(TArray<FBuildErrorPtr>& OutErrors, ArgTypes&&... Args)
-		{
-			OutErrors.Add(MakeUnique<ErrorType>(Forward<ArgTypes>(Args)...));
-		}
-
 		// Convenience function for adding graph cycle build errors
 		void AddBuildErrorsForCycles(const FDirectedGraphAlgoAdapter& InAdapter, TArray<FBuildErrorPtr>& OutErrors)
 		{
@@ -338,10 +331,9 @@ namespace Metasound
 				return FBuildStatus::NonFatalError;
 			}
 
-			
 			const FDataReferenceCollection& FromDataReferenceCollection = InDataReferenceMap[Edge->From.Node].Outputs;
 
-			if (!FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.VertexName, Edge->From.Vertex.DataReferenceTypeName))
+			if (!FromDataReferenceCollection.ContainsDataReadReference(Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName()))
 			{
 				// This is likely a node programming error where the edges reported by the INode interface
 				// did not match the readable parameter refs created by the operators outputs. Or, the edge description is invalid.
@@ -354,7 +346,7 @@ namespace Metasound
 			}
 
 
-			bool bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.VertexName, FromDataReferenceCollection, Edge->From.Vertex.VertexName, Edge->From.Vertex.DataReferenceTypeName);
+			bool bSuccess = OutCollection.AddDataReadReferenceFrom(Edge->To.Vertex.GetVertexName(), FromDataReferenceCollection, Edge->From.Vertex.GetVertexName(), Edge->From.Vertex.GetDataTypeName());
 
 			if (!bSuccess)
 			{
@@ -393,9 +385,11 @@ namespace Metasound
 			}
 
 			// TODO: make factory retrieval const 
-			IOperatorFactory& Factory = const_cast<INode*>(Node)->GetDefaultOperatorFactory();
+			FOperatorFactorySharedRef Factory = Node->GetDefaultOperatorFactory();
 
-			FOperatorPtr Operator = Factory.CreateOperator(*Node, OperatorSettings, InputCollection, OutErrors);
+			FCreateOperatorParams CreateParams(*Node, OperatorSettings, InputCollection);
+
+			FOperatorPtr Operator = Factory->CreateOperator(CreateParams, OutErrors);
 
 			if (!Operator.IsValid())
 			{
@@ -436,7 +430,8 @@ namespace Metasound
 
 			FDataReferenceCollection& Collection = InNodeDataReferences[InputDestination.Node].Inputs;
 
-			if (!Collection.ContainsDataWriteReference(InputDestination.Vertex.VertexName, InputDestination.Vertex.DataReferenceTypeName))
+
+			if (!Collection.ContainsDataWriteReference(InputDestination.Vertex.GetVertexName(), InputDestination.Vertex.GetDataTypeName()))
 			{
 				AddBuildError<FMissingInputDataReferenceError>(OutErrors, InputDestination);
 
@@ -444,7 +439,7 @@ namespace Metasound
 				continue;
 			}
 
-			bool bSuccess = OutGraphInputs.AddDataWriteReferenceFrom(InputDestination.Vertex.VertexName, Collection, InputDestination.Vertex.VertexName, InputDestination.Vertex.DataReferenceTypeName);
+			bool bSuccess = OutGraphInputs.AddDataWriteReferenceFrom(InputDestination.Vertex.GetVertexName(), Collection, InputDestination.Vertex.GetVertexName(), InputDestination.Vertex.GetDataTypeName());
 
 			if (!bSuccess)
 			{
@@ -472,7 +467,7 @@ namespace Metasound
 
 			FDataReferenceCollection& Collection = InNodeDataReferences[OutputSource.Node].Outputs;
 
-			if (!Collection.ContainsDataReadReference(OutputSource.Vertex.VertexName, OutputSource.Vertex.DataReferenceTypeName))
+			if (!Collection.ContainsDataReadReference(OutputSource.Vertex.GetVertexName(), OutputSource.Vertex.GetDataTypeName()))
 			{
 				// This will likely produce an IOperator which does not work as
 				// expected.
@@ -483,7 +478,7 @@ namespace Metasound
 				continue;
 			}
 
-			bool bSuccess = OutGraphOutputs.AddDataReadReferenceFrom(OutputSource.Vertex.VertexName, Collection, OutputSource.Vertex.VertexName, OutputSource.Vertex.DataReferenceTypeName);
+			bool bSuccess = OutGraphOutputs.AddDataReadReferenceFrom(OutputSource.Vertex.GetVertexName(), Collection, OutputSource.Vertex.GetVertexName(), OutputSource.Vertex.GetDataTypeName());
 
 			if (!bSuccess)
 			{

@@ -4,117 +4,15 @@
 
 #include "CoreMinimal.h"
 #include "Internationalization/Text.h"
-#include "MetasoundOperatorInterface.h"
 #include "MetasoundDataReference.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundVertex.h"
 
 namespace Metasound
 {
 	static const FText PluginAuthor = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultAuthor", "Epic Games, Inc.");
 	static const FText PluginNodeMissingPrompt = NSLOCTEXT("MetasoundGraphCore", "Metasound_DefaultMissingPrompt", "Make sure that the Metasound plugin is loaded.");
 
-	/** FDataVertex
-	 *
-	 *  This describes a data vertex on a Node.
-	 */
-	struct FDataVertex
-	{
-		/** Name of vertex. */
-		FString VertexName;
-
-		/** Type name of data reference. */
-		FName DataReferenceTypeName;
-
-		/** Description of the vertex. */
-		FText Description;
-
-		FDataVertex()
-		:	Description(FText::GetEmpty())
-		{
-		}
-
-		FDataVertex(const FString& InVertexName, const FName& InDataReferenceTypeName, const FText& InDescription)
-		:	VertexName(InVertexName)
-		,	DataReferenceTypeName(InDataReferenceTypeName)
-		,	Description(InDescription)
-		{
-		}
-
-		/** Check if two data vertex specs are equal. */
-		friend bool METASOUNDGRAPHCORE_API operator==(const FDataVertex& LHS, const FDataVertex& RHS);
-
-		/** Check if two data vertex specs are unequal. */
-		friend bool METASOUNDGRAPHCORE_API operator!=(const FDataVertex& LHS, const FDataVertex& RHS);
-	};
-
-	struct FInputDataVertex: FDataVertex
-	{
-		using FDataVertex::FDataVertex;
-	};
-
-	struct FOutputDataVertex : FDataVertex
-	{
-		using FDataVertex::FDataVertex;
-	};
-
-
-	/** Create an input data vertex for a DataType. DataType refers to the C++
-	 * type used to specialize the TMetasoundDataTypeInfo<> struct.
-	 *
-	 * @param InVertexName - Name of the input data vertex.
-	 * @param InDescription - Description of the input data vertex.
-	 *
-	 * @return A new FInputDataVertex.
-	 */
-	template<typename DataType>
-	FInputDataVertex MakeInputDataVertex(const FString& InVertexName, const FText& InDescription)
-	{
-		static const FName DataTypeName = FName(TDataReferenceTypeInfo<DataType>::TypeName);
-
-		return FInputDataVertex(InVertexName, DataTypeName, InDescription);
-	}
-
-	/** Create an output data vertex for a DataType. DataType refers to the C++
-	 * type used to specialize the TMetasoundDataTypeInfo<> struct.
-	 *
-	 * @param InVertexName - Name of the output data vertex.
-	 * @param InDescription - Description of the output data vertex.
-	 *
-	 * @return A new FOutputDataVertex.
-	 */
-	template<typename DataType>
-	FOutputDataVertex MakeOutputDataVertex(const FString& InVertexName, const FText& InDescription)
-	{
-		static const FName DataTypeName = FName(TDataReferenceTypeInfo<DataType>::TypeName);
-
-		return FOutputDataVertex(InVertexName, DataTypeName, InDescription);
-	}
-
-	/** Key type for an FInputDataVertexColletion or 
-	 * FOutputDataVertexCollection. 
-	 */
-	typedef FString FDataVertexKey;
-
-	/** FInputDataVertexCollection contains multiple FInputDataVertexes mapped
-	 * by FDataVertexKeys.
-	 */
-	typedef TMap<FDataVertexKey, FInputDataVertex> FInputDataVertexCollection;
-
-	/** FOutputDataVertexCollection contains multiple FOutputDataVertexes mapped
-	 * by FDataVertexKeys.
-	 */
-	typedef TMap<FDataVertexKey, FOutputDataVertex> FOutputDataVertexCollection;
-
-	/** Create an FDataVertexKey from a FInputDataVertex. */
-	FORCEINLINE FDataVertexKey MakeDataVertexKey(const FInputDataVertex& InVertex)
-	{
-		return InVertex.VertexName;
-	}
-
-	/** Create an FDataVertexKey from a FOutputDataVertex. */
-	FORCEINLINE FDataVertexKey MakeDataVertexKey(const FOutputDataVertex& InVertex)
-	{
-		return InVertex.VertexName;
-	}
 
 	/**
 	 * This struct is used to pass in any arguments required for constructing a single node instance.
@@ -136,26 +34,6 @@ namespace Metasound
 		}
 	};
 
-	typedef FInputDataVertexCollection::ElementType FInputDataVertexElement;
-	typedef FOutputDataVertexCollection::ElementType FOutputDataVertexElement;
-
-	template<typename DataType>
-	FORCEINLINE FInputDataVertexElement MakeInputDataVertexElement(const FString& InName, const FText& InDescription)
-	{
-		FInputDataVertex Vertex = MakeInputDataVertex<DataType>(InName, InDescription);
-		return FInputDataVertexElement(MakeDataVertexKey(Vertex), Vertex);
-	}
-
-	template<typename DataType>
-	FORCEINLINE FOutputDataVertexElement MakeOutputDataVertexElement(const FString& InName, const FText& InDescription)
-	{
-		FOutputDataVertex Vertex = MakeOutputDataVertex<DataType>(InName, InDescription);
-		return FOutputDataVertexElement(MakeDataVertexKey(Vertex), Vertex);
-	}
-
-
-	//typedef uint32 FNodeId;
-
 	/** INodeBase
 	 * 
 	 * Interface for all nodes that can describe their name, type, inputs and outputs.
@@ -164,9 +42,6 @@ namespace Metasound
 	{
 		public:
 			virtual ~INodeBase() {}
-
-			// TODO: talk to ethan about nodeids. Maybe this should be handled by frontend. 
-			//FNodeId GetNodeId() const = 0;
 
 			/** Return the name of this specific instance of the node class. */
 			virtual const FString& GetInstanceName() const = 0;
@@ -186,15 +61,42 @@ namespace Metasound
 			 */
 			virtual const FText& GetPromptIfMissing() const = 0;
 
-			/** Return a collection of input parameter descriptions for this node. */
-			virtual const FInputDataVertexCollection& GetInputDataVertices() const = 0;
+			/** Return the current vertex interface. */
+			virtual const FVertexInterface& GetVertexInterface() const = 0;
 
-			/** Return a collection of output parameter descriptions for this node. */
-			virtual const FOutputDataVertexCollection& GetOutputDataVertices() const = 0;
+			/** Return the default vertex interface. */
+			virtual const FVertexInterface& GetDefaultVertexInterface() const = 0;
+
+			/** Set the vertex interface. If the vertex was successfully changed, returns true. 
+			 *
+			 * @param InInterface - New interface for node. 
+			 *
+			 * @return True on success, false otherwise.
+			 */
+			virtual bool SetVertexInterface(const FVertexInterface& InInterface) = 0;
+
+			/** Expresses whether a specific vertex interface is supported.
+			 *
+			 * @param InInterface - New interface. 
+			 *
+			 * @return True if the interface is supported, false otherwise. 
+			 */
+			virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const = 0;
 	};
 
 	// Forward declare
 	class IOperatorFactory;
+
+	/** Shared ref type of operator factory. */
+	typedef TSharedRef<IOperatorFactory, ESPMode::ThreadSafe> FOperatorFactorySharedRef;
+
+	/** Convenience function for making operator factory references */
+	template<typename FactoryType, typename... ArgTypes>
+	TSharedRef<FactoryType, ESPMode::ThreadSafe> MakeOperatorFactoryRef(ArgTypes&&... Args)
+	{
+		return MakeShared<FactoryType, ESPMode::ThreadSafe>(Forward<ArgTypes>(Args)...);
+	}
+
 
 	/** INode 
 	 * 
@@ -205,9 +107,8 @@ namespace Metasound
 		public:
 			virtual ~INode() {}
 
-			// TODO: consider making this return a sharedref to allow for more flexible management of factories. 
 			/** Return a reference to the default operator factory. */
-			virtual IOperatorFactory& GetDefaultOperatorFactory() = 0;
+			virtual FOperatorFactorySharedRef GetDefaultOperatorFactory() const = 0;
 
 			/* Future implementations may support additional factory types and interfaces
 				virtual bool DoesSupportOperatorFactory(const FString& InFractoryName) const = 0;
@@ -216,14 +117,13 @@ namespace Metasound
 			*/
 	};
 
-
 	/** FOutputDataSource describes the source of data which is produced within
 	 * a graph and exposed external to the graph. 
 	 */
 	struct FOutputDataSource
 	{
 		/** Node containing the output data vertex. */
-		INode* Node = nullptr;
+		const INode* Node = nullptr;
 
 		/** Output data vertex. */
 		FOutputDataVertex Vertex;
@@ -232,14 +132,15 @@ namespace Metasound
 		{
 		}
 
-		FOutputDataSource(INode& InNode, const FOutputDataVertex& InVertex)
+		FOutputDataSource(const INode& InNode, const FOutputDataVertex& InVertex)
 		:	Node(&InNode)
 		,	Vertex(InVertex)
 		{
 		}
 
+
 		/** Check if two FOutputDataSources are equal. */
-		friend bool operator==(const FOutputDataSource& InLeft, const FOutputDataSource& InRight);
+		friend bool METASOUNDGRAPHCORE_API operator==(const FOutputDataSource& InLeft, const FOutputDataSource& InRight);
 	};
 
 	/** FInputDataSource describes the destination of data which produced 
@@ -248,7 +149,7 @@ namespace Metasound
 	struct FInputDataDestination
 	{
 		/** Node containing the input data vertex. */
-		INode* Node = nullptr;
+		const INode* Node = nullptr;
 
 		/** Input data vertex of edge. */
 		FInputDataVertex Vertex;
@@ -257,14 +158,14 @@ namespace Metasound
 		{
 		}
 
-		FInputDataDestination(INode& InNode, const FInputDataVertex& InVertex)
+		FInputDataDestination(const INode& InNode, const FInputDataVertex& InVertex)
 		:	Node(&InNode)
 		,	Vertex(InVertex)
 		{
 		}
 
 		/** Check if two FInputDataDestinations are equal. */
-		friend bool operator==(const FInputDataDestination& InLeft, const FInputDataDestination& InRight);
+		friend bool METASOUNDGRAPHCORE_API operator==(const FInputDataDestination& InLeft, const FInputDataDestination& InRight);
 	};
 
 	/** Key type for an FOutputDataSource or FInputDataDestination. */
@@ -283,12 +184,12 @@ namespace Metasound
 	/** Make a FNodeDataVertexKey from an FOutputDataSource. */
 	FORCEINLINE FNodeDataVertexKey MakeSourceDataVertexKey(const FOutputDataSource& InSource)
 	{
-		return FNodeDataVertexKey(InSource.Node, InSource.Vertex.VertexName);
+		return FNodeDataVertexKey(InSource.Node, InSource.Vertex.GetVertexName());
 	}
 
 	FORCEINLINE FNodeDataVertexKey MakeDestinationDataVertexKey(const FInputDataDestination& InDestination)
 	{
-		return FNodeDataVertexKey(InDestination.Node, InDestination.Vertex.VertexName);
+		return FNodeDataVertexKey(InDestination.Node, InDestination.Vertex.GetVertexName());
 	}
 
 	/** FDataEdge
@@ -312,7 +213,7 @@ namespace Metasound
 		}
 
 		/** Check if two FDataEdges are equal. */
-		friend bool operator==(const FDataEdge& InLeft, const FDataEdge& InRight);
+		friend bool METASOUNDGRAPHCORE_API operator==(const FDataEdge& InLeft, const FDataEdge& InRight);
 	};
 
 
@@ -330,14 +231,5 @@ namespace Metasound
 
 			/** Get vertices which contain output parameters. */
 			virtual const FOutputDataSourceCollection& GetOutputDataSources() const = 0;
-	};
-
-
-	// This one is not yet implemented. It's design will likely be driven by UX and object management requirements. 
-	class INodeFactory
-	{
-		public:
-			virtual ~INodeFactory() {}
-			virtual TUniquePtr<INode> CreateNode(const FString& InJsonString) = 0;
 	};
 }

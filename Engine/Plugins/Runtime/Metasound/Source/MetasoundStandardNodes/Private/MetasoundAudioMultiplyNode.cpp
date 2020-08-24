@@ -3,6 +3,7 @@
 #include "MetasoundAudioMultiplyNode.h"
 #include "MetasoundExecutableOperator.h"
 #include "MetasoundDataReferenceTypes.h"
+#include "MetasoundFacade.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "DSP/BufferVectorOperations.h"
 
@@ -10,11 +11,15 @@
 
 namespace Metasound
 {
-	METASOUND_REGISTER_NODE(FAudioMultiplyNode);
-
 	class FAudioMultiplyOperator : public TExecutableOperator<FAudioMultiplyOperator>
 	{
 		public:
+			static const FNodeInfo& GetNodeInfo();
+
+			static FVertexInterface DeclareVertexInterface();
+
+			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
+
 			FAudioMultiplyOperator(const FOperatorSettings& InSettings, const FAudioBufferReadRef& InBuffer1, const FAudioBufferReadRef& InBuffer2)
 			:	OperatorSettings(InSettings)
 			,	InputBuffer1(InBuffer1)
@@ -58,63 +63,68 @@ namespace Metasound
 			FDataReferenceCollection InputDataReferences;
 	};
 
-	const FName FAudioMultiplyNode::ClassName = FName(TEXT("AudioMultiply"));
-
-	TUniquePtr<IOperator> FAudioMultiplyNode::FOperatorFactory::CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) 
+	FAudioMultiplyNode::FAudioMultiplyNode(const FString& InInstanceName)
+	:	FNodeFacade(InInstanceName, TFacadeOperatorClass<FAudioMultiplyOperator>())
 	{
-		const FAudioMultiplyNode& AudioMultiplyNode = static_cast<const FAudioMultiplyNode&>(InNode);
+	}
 
-		FAudioBufferReadRef InputBuffer1 = FAudioBufferReadRef::CreateNew();
-		FAudioBufferReadRef InputBuffer2 = FAudioBufferReadRef::CreateNew();
+	FAudioMultiplyNode::FAudioMultiplyNode(const FNodeInitData& InInitData)
+	:	FAudioMultiplyNode(InInitData.InstanceName)
+	{
+	}
 
-		FAudioBuffer Ones(InOperatorSettings.GetNumFramesPerBlock());
+	FVertexInterface FAudioMultiplyOperator::DeclareVertexInterface()
+	{
+		static const FVertexInterface Interface(
+			FInputVertexInterface(
+				TInputDataVertexModel<FAudioBuffer>(TEXT("InputBuffer1"), LOCTEXT("InputBuffer1Tooltip", "Input buffer to multiply.")),
+				TInputDataVertexModel<FAudioBuffer>(TEXT("InputBuffer2"), LOCTEXT("InputBuffer2Tooltip", "Input buffer to multiply."))
+			),
+			FOutputVertexInterface(
+				TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("OutpuBufferTooltip", "The output audio."))
+			)
+		);
+
+		return Interface;
+	}
+
+	TUniquePtr<IOperator> FAudioMultiplyOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
+	{
+		const FAudioMultiplyNode& AudioMultiplyNode = static_cast<const FAudioMultiplyNode&>(InParams.Node);
+
+
+		FAudioBuffer Ones(InParams.OperatorSettings.GetNumFramesPerBlock());
 
 		// initialize default array to all ones. 
 		float* Data = Ones.GetData();
-		for (int32 i = 0; i < InOperatorSettings.GetNumFramesPerBlock(); i++)
+		for (int32 i = 0; i < InParams.OperatorSettings.GetNumFramesPerBlock(); i++)
 		{
 			Data[i] = 1.f;
 		}
 
-		if (!SetReadableRefIfInCollection(TEXT("InputBuffer1"), InInputDataReferences, InputBuffer1))
-		{
-			InputBuffer1 = FAudioBufferReadRef::CreateNew(Ones);
-		}
+		// TODO: return a helper that uses implicit conversion so that return types can be deduced without templates.
 
-		if (!SetReadableRefIfInCollection(TEXT("InputBuffer2"), InInputDataReferences, InputBuffer2))
-		{
-			InputBuffer2 = FAudioBufferReadRef::CreateNew(Ones);
-		}
+		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 
-		return MakeUnique<FAudioMultiplyOperator>(InOperatorSettings, InputBuffer1, InputBuffer2);
+		FAudioBufferReadRef InputBuffer1 = InputCol.GetDataReadReferenceOrConstruct<FAudioBuffer>(TEXT("InputBuffer1"), Ones);
+		FAudioBufferReadRef InputBuffer2 = InputCol.GetDataReadReferenceOrConstruct<FAudioBuffer>(TEXT("InputBuffer2"), Ones);
+
+		return MakeUnique<FAudioMultiplyOperator>(InParams.OperatorSettings, InputBuffer1, InputBuffer2);
 	}
 
-	FAudioMultiplyNode::FAudioMultiplyNode(const FString& InName)
-	:	FNode(InName)
+	const FNodeInfo& FAudioMultiplyOperator::GetNodeInfo()
 	{
-		AddInputDataVertex<FAudioBuffer>(TEXT("InputBuffer1"), LOCTEXT("InputBuffer1Tooltip", "Input buffer to multiply."));
-		AddInputDataVertex<FAudioBuffer>(TEXT("InputBuffer2"), LOCTEXT("InputBuffer2Tooltip", "Input buffer to multiply."));
+		static const FNodeInfo Info = {
+			FName(TEXT("AudioMultiply")),
+			LOCTEXT("NodeDescription", "Multiply two audio streams, sample by sample."),
+			PluginAuthor,
+			PluginNodeMissingPrompt
+		};
 
-		AddOutputDataVertex<FAudioBuffer>(TEXT("Audio"), LOCTEXT("OutpuBufferTooltip", "The output audio."));
-	}
+		return Info;
+	};
 
-	FAudioMultiplyNode::FAudioMultiplyNode(const FNodeInitData& InInitData)
-		: FAudioMultiplyNode(InInitData.InstanceName)
-	{}
-
-	FAudioMultiplyNode::~FAudioMultiplyNode()
-	{
-	}
-
-	const FName& FAudioMultiplyNode::GetClassName() const
-	{
-		return ClassName;
-	}
-
-	IOperatorFactory& FAudioMultiplyNode::GetDefaultOperatorFactory() 
-	{
-		return Factory;
-	}
+	METASOUND_REGISTER_NODE(FAudioMultiplyNode);
 }
 
 #undef LOCTEXT_NAMESPACE //MetasoundAudioMultiplyNode

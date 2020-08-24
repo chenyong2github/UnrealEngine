@@ -14,40 +14,47 @@ namespace Metasound
 	{
 		class FOperatorFactory : public IOperatorFactory
 		{
-			virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override;
+			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override;
 		};
 
 	public:
-		static const FName ClassName;
+		static const FNodeInfo Info;
 
 		FWavePlayerNode(const FString& InName);
 
 		// constructor used by the Metasound Frontend.
 		FWavePlayerNode(const FNodeInitData& InInitData);
 
-		virtual ~FWavePlayerNode();
+		virtual ~FWavePlayerNode() = default;
 
-		const FName& GetClassName() const override;
+		virtual FOperatorFactorySharedRef GetDefaultOperatorFactory() const override;
 
-		IOperatorFactory& GetDefaultOperatorFactory() override;
+		/** Return the current vertex interface. */
+		virtual const FVertexInterface& GetVertexInterface() const override;
 
-		const FText& GetDescription() const override
-		{
-			static const FText StaticDescription = NSLOCTEXT("MetasoundGraphCore", "Metasound_WavePlayerNodeDescription", "Plays a supplied Wave");
-			return StaticDescription;
-		}
+		/** Return the default vertex interface. */
+		virtual const FVertexInterface& GetDefaultVertexInterface() const override;
 
-		const FText& GetAuthorName() const override
-		{
-			return PluginAuthor;
-		}
+		/** Set the vertex interface. If the vertex was successfully changed, returns true. 
+		 *
+		 * @param InInterface - New interface for node. 
+		 *
+		 * @return True on success, false otherwise.
+		 */
+		virtual bool SetVertexInterface(const FVertexInterface& InInterface) override;
 
-		const FText& GetPromptIfMissing() const override
-		{
-			return PluginNodeMissingPrompt;
-		}
+		/** Expresses whether a specific vertex interface is supported.
+		 *
+		 * @param InInterface - New interface. 
+		 *
+		 * @return True if the interface is supported, false otherwise. 
+		 */
+		virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
 
 	private:
-		FOperatorFactory Factory;
+
+		FOperatorFactorySharedRef Factory;
+
+		FVertexInterface Interface;
 	};
 }

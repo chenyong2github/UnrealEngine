@@ -5,14 +5,14 @@
 #include "MetasoundBuilderInterface.h"
 #include "MetasoundNodeInterface.h"
 #include "MetasoundOperatorInterface.h"
+#include "MetasoundNode.h"
 
 #define LOCTEXT_NAMESPACE "MetasoundGraphCore"
-
 
 namespace Metasound
 {
 	template<typename DataType>
-	class TOutputNode : public INode
+	class TOutputNode : public FNode
 	{
 		static_assert(TDataReferenceTypeInfo<DataType>::bIsValidSpecialization, "Please use DECLARE_METASOUND_DATA_REFERENCE_TYPES with this class before trying to create an output node with it.");
 			
@@ -56,92 +56,99 @@ namespace Metasound
 				{
 				}
 
-				virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) override
+				virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) override
 				{
-					if (!InInputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName))
+					if (!InParams.InputDataReferences.ContainsDataReadReference<DataType>(DataReferenceName))
 					{
 						// TODO: Add build error.
 						return TUniquePtr<IOperator>(nullptr);
 					}
 
-					return MakeUnique<FOutputOperator>(DataReferenceName, InInputDataReferences.GetDataReadReference<DataType>(DataReferenceName));
+					return MakeUnique<FOutputOperator>(DataReferenceName, InParams.InputDataReferences.GetDataReadReference<DataType>(DataReferenceName));
 				}
 
 			private:
 				FString DataReferenceName;
 		};
 
+		static const FNodeInfo& GetNodeInfo()
+		{
+			static const FString ClassNameString = FString(TEXT("Output_")) + GetMetasoundDataTypeName<DataType>().ToString();
+
+			static const FNodeInfo NodeInfo = {
+				FName(*ClassNameString),
+				LOCTEXT("Metasound_OutputNodeDescription", "Output from the parent Metasound graph."),
+				PluginAuthor,
+				PluginNodeMissingPrompt
+			};
+
+			return NodeInfo;
+		}
+
+		static FVertexInterface GetVertexInterface(const FString& InVertexName)
+		{
+			return FVertexInterface(
+				FInputVertexInterface(
+					TInputDataVertexModel<DataType>(InVertexName, LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph."))
+				),
+				FOutputVertexInterface(
+					TOutputDataVertexModel<DataType>(InVertexName, LOCTEXT("Metasound_OutputVertexDescription", "Output from the parent Metasound graph."))
+				)
+			);
+		}
+
 		public:
-			TOutputNode(const FString& InNodeDescription, const FString& InVertexName)
-			:	NodeDescription(InNodeDescription)
-			,	VertexName(InVertexName)
-			,	Factory(InVertexName)
+			TOutputNode(const FString& InInstanceName, const FString& InVertexName)
+			:	FNode(InInstanceName, GetNodeInfo())
+			,	VertexInterface(GetVertexInterface(InVertexName))
+			,	Factory(MakeShared<FOutputOperatorFactory, ESPMode::ThreadSafe>(InVertexName))
 			{
-				FInputDataVertex InputVertex = MakeInputDataVertex<DataType>(VertexName, FText::GetEmpty());
-				FDataVertexKey InputKey = MakeDataVertexKey(InputVertex);
-
-				Inputs.Add(InputKey, InputVertex);
-
-				FOutputDataVertex OutputVertex = MakeOutputDataVertex<DataType>(VertexName, FText::GetEmpty());
-				FDataVertexKey OutputKey = MakeDataVertexKey(OutputVertex);
-
-				Outputs.Add(OutputKey, OutputVertex);
 			}
 
-			virtual const FName& GetClassName() const override
+			/** Return the current vertex interface. */
+			virtual const FVertexInterface& GetVertexInterface() const override
 			{
-				// TODO: Any special formatting for these node type names?
-				// TODO: although this is ok with MSVC's lax template instantiation, every other compiler will complain about TDataReferenceTypeInfo.
-				//static const FName ClassName = FName(FString(TEXT("Input_")) + FString(TDataReferenceTypeInfo<DataType>::TypeName));
-				static const FName ClassName("OutputNode");
-				return ClassName;
+				return VertexInterface;
 			}
 
-			virtual const FString& GetInstanceName() const override
+			/** Return the default vertex interface. */
+			virtual const FVertexInterface& GetDefaultVertexInterface() const override
 			{
-				return NodeDescription;
+				return VertexInterface;
 			}
 
-			virtual const FText& GetDescription() const override
+			/** Set the vertex interface. If the vertex was successfully changed, returns true. 
+			 *
+			 * @param InInterface - New interface for node. 
+			 *
+			 * @return True on success, false otherwise.
+			 */
+			virtual bool SetVertexInterface(const FVertexInterface& InInterface) override
 			{
-				static const FText Description = LOCTEXT("Metasound_InputNodeDescription", "Output from the parent Metasound graph.");
-				return Description;
+				return VertexInterface == InInterface;
 			}
 
-			virtual const FText& GetAuthorName() const override
+			/** Expresses whether a specific vertex interface is supported.
+			 *
+			 * @param InInterface - New interface. 
+			 *
+			 * @return True if the interface is supported, false otherwise. 
+			 */
+			virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const 
 			{
-				return PluginAuthor;
+				return VertexInterface == InInterface;
 			}
 
-			virtual const FText& GetPromptIfMissing() const override
-			{
-				return PluginNodeMissingPrompt;
-			}
-
-			virtual const FInputDataVertexCollection& GetInputDataVertices() const override
-			{
-				return Inputs;
-			}
-
-			virtual const FOutputDataVertexCollection& GetOutputDataVertices() const override
-			{
-				return Outputs;
-			}
-
-			virtual IOperatorFactory& GetDefaultOperatorFactory() override
+			virtual TSharedRef<IOperatorFactory, ESPMode::ThreadSafe> GetDefaultOperatorFactory() const override
 			{
 				return Factory;
 			}
 
 		private:
-			FString NodeDescription;
-			FString VertexName;
+			FVertexInterface VertexInterface;
 
-			FOutputOperatorFactory Factory;
+			TSharedRef<FOutputOperatorFactory, ESPMode::ThreadSafe> Factory;
 
-
-			FInputDataVertexCollection Inputs;
-			FOutputDataVertexCollection Outputs;
 	};
 }
 #undef LOCTEXT_NAMESPACE // MetasoundOutputNode

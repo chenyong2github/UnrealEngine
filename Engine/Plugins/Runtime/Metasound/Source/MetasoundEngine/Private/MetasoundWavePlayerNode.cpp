@@ -118,23 +118,26 @@ namespace Metasound
 		TUniquePtr<Audio::IDecoderOutput> DecoderOutput;
 	};
 
-	const FName FWavePlayerNode::ClassName = FName(TEXT("Wave"));
+	const FNodeInfo FWavePlayerNode::Info = FNodeInfo(
+		{
+			FName(TEXT("Wave")),
+			LOCTEXT("Metasound_WavePlayerNodeDescription", "Plays a supplied Wave"),
+			PluginAuthor,
+			PluginNodeMissingPrompt
+		}
+	);
 
 	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(
-		const INode& InNode, 
-		const FOperatorSettings& InOperatorSettings,
-		const FDataReferenceCollection& InInputDataReferences, 
-		TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) 
+		const FCreateOperatorParams& InParams, 
+		FBuildErrorArray& OutErrors) 
 	{
 		using namespace Audio;
 
-		const FWavePlayerNode& WaveNode = static_cast<const FWavePlayerNode&>(InNode);
-		FWaveReadRef Wave = FWaveReadRef::CreateNew();
+		const FWavePlayerNode& WaveNode = static_cast<const FWavePlayerNode&>(InParams.Node);
 
-		if (InInputDataReferences.ContainsDataReadReference<FWave>(TEXT("Wave")))
-		{
-			Wave = InInputDataReferences.GetDataReadReference<FWave>(TEXT("Wave"));
-		}
+		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
+
+		FWaveReadRef Wave = InputCol.GetDataReadReferenceOrConstruct<FWave>(TEXT("Wave"));
 
 		FWave::FDecoderInputPtr Input = FWave::CreateDecoderInput(Wave);
 		if (Input)
@@ -143,12 +146,12 @@ namespace Metasound
 			if (Codec)
 			{
 				// V1, Ask for an output buffer the size of a frame.
-				IDecoderOutput::FRequirements Reqs { Float32_Interleaved, InOperatorSettings.GetNumFramesPerBlock() };
+				IDecoderOutput::FRequirements Reqs { Float32_Interleaved, InParams.OperatorSettings.GetNumFramesPerBlock() };
 				TUniquePtr<IDecoderOutput> Output = IDecoderOutput::Create(Reqs);
 				TUniquePtr<IDecoder> Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
 
 				return MakeUnique<FWavePlayerOperator>(
-					InOperatorSettings, 
+					InParams.OperatorSettings, 
 					Wave, 
 					MoveTemp(Input), 
 					MoveTemp(Output), 
@@ -157,25 +160,26 @@ namespace Metasound
 			}
 			else
 			{
-				OutErrors.Add(MakeUnique<FWavePlayerError>(TEXT("FailedToFindCodec"),
-					LOCTEXT("FailedToFindCodec", "Failed to find codec for opening the supplied Wave")));
+				AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToFindCodec"),
+					LOCTEXT("FailedToFindCodec", "Failed to find codec for opening the supplied Wave"));
 			}
 		}
 		else
 		{
-			OutErrors.Add(MakeUnique<FWavePlayerError>(TEXT("FailedToParseInput"),
-				LOCTEXT("FailedToParseInput", "Failed to parse the compressed data")));
+			AddBuildError<FWavePlayerError>(OutErrors, TEXT("FailedToParseInput"),
+				LOCTEXT("FailedToParseInput", "Failed to parse the compressed data"));
 		}
 
 		// Create the player without any inputs, will just produce silence.
-		return MakeUnique<FWavePlayerOperator>(InOperatorSettings,Wave);
+		return MakeUnique<FWavePlayerOperator>(InParams.OperatorSettings, Wave);
 	}
 
 	FWavePlayerNode::FWavePlayerNode(const FString& InName)
-		:	FNode(InName)
+		:	FNode(InName, FWavePlayerNode::Info)
+		,	Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
 	{
-		AddInputDataVertex<FWave>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded"));
-		AddOutputDataVertex<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"));
+		Interface.GetInputInterface().Add(TInputDataVertexModel<FWave>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded")));
+		Interface.GetOutputInterface().Add(TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio")));
 	}
 
 	FWavePlayerNode::FWavePlayerNode(const FNodeInitData& InInitData)
@@ -183,18 +187,29 @@ namespace Metasound
 	{
 	}
 
-	FWavePlayerNode::~FWavePlayerNode()
-	{
-	}
-	
-	const FName& FWavePlayerNode::GetClassName() const
-	{
-		return ::Metasound::FWavePlayerNode::ClassName;
-	}
-
-	IOperatorFactory& FWavePlayerNode::GetDefaultOperatorFactory() 
+	FOperatorFactorySharedRef FWavePlayerNode::GetDefaultOperatorFactory() const
 	{
 		return Factory;
+	}
+
+	const FVertexInterface& FWavePlayerNode::GetVertexInterface() const
+	{
+		return Interface;
+	}
+
+	const FVertexInterface& FWavePlayerNode::GetDefaultVertexInterface() const
+	{
+		return Interface;
+	}
+
+	bool FWavePlayerNode::SetVertexInterface(const FVertexInterface& InInterface)
+	{
+		return InInterface == Interface;
+	}
+
+	bool FWavePlayerNode::IsVertexInterfaceSupported(const FVertexInterface& InInterface) const
+	{
+		return InInterface == Interface;
 	}
 }
 #undef LOCTEXT_NAMESPACE //MetasoundWaveNode

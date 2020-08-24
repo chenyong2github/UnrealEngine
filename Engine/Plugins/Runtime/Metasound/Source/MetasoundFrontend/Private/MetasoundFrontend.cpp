@@ -157,8 +157,9 @@ namespace Metasound
 				}
 
 				const FName NodeName = DummyNode->GetClassName();
-				const FInputDataVertexCollection& Inputs = DummyNode->GetInputDataVertices();
-				const FOutputDataVertexCollection& Outputs = DummyNode->GetOutputDataVertices();
+				const FVertexInterface& DummyNodeInterface = DummyNode->GetDefaultVertexInterface();
+				const FInputVertexInterface& DummyInputInterface = DummyNodeInterface.GetInputInterface();
+				const FOutputVertexInterface& DummyOutputInterface = DummyNodeInterface.GetOutputInterface();
 
 				FMetasoundClassMetadata NodeMetadata;
 				NodeMetadata.NodeName = NodeName.ToString();
@@ -172,22 +173,22 @@ namespace Metasound
 
 				// External metasounds aren't dependent on any other nodes by definition, so all we need to do
 				// is populate the Input and Output sets.
-				for (auto& InputTuple : Inputs)
+				for (auto& InputTuple : DummyInputInterface)
 				{
 					FMetasoundInputDescription InputDescription;
-					InputDescription.Name = InputTuple.Value.VertexName;
-					InputDescription.TypeName = InputTuple.Value.DataReferenceTypeName;
-					InputDescription.ToolTip = InputTuple.Value.Description;
+					InputDescription.Name = InputTuple.Value.GetVertexName();
+					InputDescription.TypeName = InputTuple.Value.GetDataTypeName();
+					InputDescription.ToolTip = InputTuple.Value.GetDescription();
 
 					ClassDescription.Inputs.Add(InputDescription);
 				}
 
-				for (auto& OutputTuple : Outputs)
+				for (auto& OutputTuple : DummyOutputInterface)
 				{
 					FMetasoundOutputDescription OutputDescription;
-					OutputDescription.Name = OutputTuple.Value.VertexName;
-					OutputDescription.TypeName = OutputTuple.Value.DataReferenceTypeName;
-					OutputDescription.ToolTip = OutputTuple.Value.Description;
+					OutputDescription.Name = OutputTuple.Value.GetVertexName();
+					OutputDescription.TypeName = OutputTuple.Value.GetDataTypeName();
+					OutputDescription.ToolTip = OutputTuple.Value.GetDescription();
 
 					ClassDescription.Outputs.Add(OutputDescription);
 				}

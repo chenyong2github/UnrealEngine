@@ -1,54 +1,34 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetasoundOscNode.h"
-#include "MetasoundExecutableOperator.h"
-#include "MetasoundPrimitives.h"
-#include "MetasoundNodeRegistrationMacro.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundOscNode"
+#include "MetasoundAudioBuffer.h"
+#include "MetasoundExecutableOperator.h"
+#include "MetasoundFacade.h"
+#include "MetasoundFrequency.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundPrimitives.h"
+#include "MetasoundVertex.h"
+
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
-	METASOUND_REGISTER_NODE(FOscNode)
-
 	class FOscOperator : public TExecutableOperator<FOscOperator>
 	{
 		public:
-			FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency)
-			:	OperatorSettings(InSettings)
-			,	TwoPi(2.f * PI)
-			,	Phase(0.f)
-			,	Frequency(InFrequency)
-			,	AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
-			{
-				check(AudioBuffer->Num() == InSettings.GetNumFramesPerBlock());
 
-				OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
-			}
+			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
+			static const FNodeInfo& GetNodeInfo();
+			static FVertexInterface DeclareVertexInterface();
 
-			virtual const FDataReferenceCollection& GetInputs() const override
-			{
-				return InputDataReferences;
-			}
+			FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency);
 
-			virtual const FDataReferenceCollection& GetOutputs() const override
-			{
-				return OutputDataReferences;
-			}
+			virtual const FDataReferenceCollection& GetInputs() const override;
 
-			void Execute()
-			{
-				const float PhaseDelta = Frequency->GetRadiansPerSample(OperatorSettings.GetSampleRate());
-				float* Data = AudioBuffer->GetData();
+			virtual const FDataReferenceCollection& GetOutputs() const override;
 
-				for (int32 i = 0; i < OperatorSettings.GetNumFramesPerBlock(); i++)
-				{
-					Data[i] = FMath::Sin(Phase);
-					Phase += PhaseDelta;
-				}
-
-				Phase -= FMath::FloorToFloat(Phase / TwoPi) * TwoPi;
-			}
+			void Execute();
 
 		private:
 			const FOperatorSettings OperatorSettings;
@@ -62,35 +42,77 @@ namespace Metasound
 			FDataReferenceCollection OutputDataReferences;
 	};
 
-	const FName FOscNode::ClassName = FName(TEXT("Osc"));
-
-	TUniquePtr<IOperator> FOscNode::FOperatorFactory::CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) 
+	FOscOperator::FOscOperator(const FOperatorSettings& InSettings, const FFrequencyReadRef& InFrequency)
+	:	OperatorSettings(InSettings)
+	,	TwoPi(2.f * PI)
+	,	Phase(0.f)
+	,	Frequency(InFrequency)
+	,	AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
 	{
-		const FOscNode& OscNode = static_cast<const FOscNode&>(InNode);
-		FFrequencyReadRef Frequency = FFrequencyReadRef::CreateNew(OscNode.GetDefaultFrequency(), EFrequencyResolution::Hertz);
+		check(AudioBuffer->Num() == InSettings.GetNumFramesPerBlock());
 
-		if (InInputDataReferences.ContainsDataReadReference<FFrequency>(TEXT("Frequency")))
-		{
-			Frequency = InInputDataReferences.GetDataReadReference<FFrequency>(TEXT("Frequency"));
-		}
-
-		return MakeUnique<FOscOperator>(InOperatorSettings, Frequency);
+		OutputDataReferences.AddDataReadReference(TEXT("Audio"), FAudioBufferReadRef(AudioBuffer));
 	}
 
-	FOscNode::FOscNode(const FString& InName, float InDefaultFrequency)
-		:	FNode(InName)
-		,	DefaultFrequency(InDefaultFrequency)
+	const FDataReferenceCollection& FOscOperator::GetInputs() const
 	{
-		AddInputDataVertex<FFrequency>(TEXT("Frequency"), LOCTEXT("FrequencyTooltip", "The frequency of oscillator."));
-		AddOutputDataVertex<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"));
+		return InputDataReferences;
+	}
+
+	const FDataReferenceCollection& FOscOperator::GetOutputs() const
+	{
+		return OutputDataReferences;
+	}
+
+	void FOscOperator::Execute()
+	{
+		const float PhaseDelta = Frequency->GetRadiansPerSample(OperatorSettings.GetSampleRate());
+		float* Data = AudioBuffer->GetData();
+
+		for (int32 i = 0; i < OperatorSettings.GetNumFramesPerBlock(); i++)
+		{
+			Data[i] = FMath::Sin(Phase);
+			Phase += PhaseDelta;
+		}
+
+		Phase -= FMath::FloorToFloat(Phase / TwoPi) * TwoPi;
+	}
+
+	const FNodeInfo& FOscOperator::GetNodeInfo()
+	{
+		static const FNodeInfo Info = {
+			FName(TEXT("Osc")),
+			LOCTEXT("Metasound_OscNodeDescription", "Emits an audio signal of a sinusoid."),
+			PluginAuthor,
+			PluginNodeMissingPrompt
+		};
+
+		return Info;
+	}
+
+	FVertexInterface FOscOperator::DeclareVertexInterface()
+	{
+		static const FVertexInterface Interface(
+			FInputVertexInterface(
+				TInputDataVertexModel<FFrequency>(TEXT("Frequency"), LOCTEXT("OscFrequencyDescription", "The frequency of oscillator."))
+			),
+			FOutputVertexInterface(
+				TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio"))
+			)
+		);
+
+		return Interface;
+	}
+
+
+	FOscNode::FOscNode(const FString& InName, float InDefaultFrequency)
+	:	FNodeFacade(InName, TFacadeOperatorClass<FOscOperator>())
+	,	DefaultFrequency(InDefaultFrequency)
+	{
 	}
 
 	FOscNode::FOscNode(const FNodeInitData& InInitData)
 		: FOscNode(InInitData.InstanceName, 440.0f)
-	{
-	}
-
-	FOscNode::~FOscNode()
 	{
 	}
 
@@ -99,14 +121,17 @@ namespace Metasound
 		return DefaultFrequency;
 	}
 
-	const FName& FOscNode::GetClassName() const
+
+	TUniquePtr<IOperator> FOscOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) 
 	{
-		return ::Metasound::FOscNode::ClassName;
+		const FOscNode& OscNode = static_cast<const FOscNode&>(InParams.Node);
+		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
+
+		FFrequencyReadRef Frequency = InputCol.GetDataReadReferenceOrConstruct<FFrequency>(TEXT("Frequency"), OscNode.GetDefaultFrequency(), EFrequencyResolution::Hertz);
+
+		return MakeUnique<FOscOperator>(InParams.OperatorSettings, Frequency);
 	}
 
-	IOperatorFactory& FOscNode::GetDefaultOperatorFactory() 
-	{
-		return Factory;
-	}
+	METASOUND_REGISTER_NODE(FOscNode);
 }
 #undef LOCTEXT_NAMESPACE //MetasoundOscNode

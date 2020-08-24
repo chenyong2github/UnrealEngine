@@ -3,16 +3,18 @@
 #include "MetasoundPeriodicBopNode.h"
 
 #include "CoreMinimal.h"
-#include "MetasoundNode.h"
-#include "MetasoundOperatorInterface.h"
+
 #include "MetasoundBuilderInterface.h"
-#include "MetasoundNodeInterface.h"
 #include "MetasoundDataReferenceCollection.h"
 #include "MetasoundExecutableOperator.h"
-#include "MetasoundPrimitives.h"
+#include "MetasoundFacade.h"
+#include "MetasoundNode.h"
+#include "MetasoundNodeInterface.h"
 #include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundOperatorInterface.h"
+#include "MetasoundPrimitives.h"
 
-#define LOCTEXT_NAMESPACE "MetasoundPeriodicBopNode"
+#define LOCTEXT_NAMESPACE "MetasoundStandardNodes"
 
 namespace Metasound
 {
@@ -21,47 +23,20 @@ namespace Metasound
 	class FPeriodicBopOperator : public TExecutableOperator<FPeriodicBopOperator>
 	{
 		public:
+			static const FNodeInfo& GetNodeInfo();
+			static FVertexInterface DeclareVertexInterface();
+			static TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors);
+
 			static constexpr float MinimumPeriodSeconds = 0.001f;
 			static constexpr float MinimumPeriodSamples = 20.f;
 
-			FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod)
-			:	OperatorSettings(InSettings)
-			,	Bop(FBopWriteRef::CreateNew())
-			,	Period(InPeriod)
-			,	ExecuteDurationInSamples(InSettings.GetNumFramesPerBlock())
-			,	SampleCountdown(0.f)
-			{
-				OutputDataReferences.AddDataReadReference(TEXT("Bop"), FBopReadRef(Bop));
-			}
+			FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod);
 
-			virtual const FDataReferenceCollection& GetInputs() const override
-			{
-				return InputDataReferences;
-			}
+			virtual const FDataReferenceCollection& GetInputs() const override;
 
-			virtual const FDataReferenceCollection& GetOutputs() const override
-			{
-				return OutputDataReferences;
-			}
+			virtual const FDataReferenceCollection& GetOutputs() const override;
 
-			void Execute()
-			{
-				// Advance internal counter to get rid of old bops.
-				Bop->Advance(OperatorSettings.GetNumFramesPerBlock());
-
-				float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * OperatorSettings.GetSampleRate();
-
-				PeriodInSamples = FMath::Max(PeriodInSamples, MinimumPeriodSamples);
-
-				while ((SampleCountdown - ExecuteDurationInSamples) <= 0.f)
-				{
-					uint32 Frame = FMath::RoundToInt(SampleCountdown);
-					Bop->BopFrame(Frame);
-					SampleCountdown += PeriodInSamples;
-				}
-
-				SampleCountdown -= ExecuteDurationInSamples;
-			}
+			void Execute();
 
 		private:
 
@@ -76,54 +51,101 @@ namespace Metasound
 			FDataReferenceCollection OutputDataReferences;
 	};
 
-
-	TUniquePtr<IOperator> FPeriodicBopNode::FOperatorFactory::CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors)
+	FPeriodicBopOperator::FPeriodicBopOperator(const FOperatorSettings& InSettings, const FFloatTimeReadRef& InPeriod)
+	:	OperatorSettings(InSettings)
+	,	Bop(FBopWriteRef::CreateNew())
+	,	Period(InPeriod)
+	,	ExecuteDurationInSamples(InSettings.GetNumFramesPerBlock())
+	,	SampleCountdown(0.f)
 	{
-		const FPeriodicBopNode& PeriodicBopNode = static_cast<const FPeriodicBopNode&>(InNode);
-
-		// Note- won't this cause the Period input to not update after we build the operator?
-		FFloatTimeReadRef Period = FFloatTimeReadRef::CreateNew(PeriodicBopNode.GetDefaultPeriodInSeconds(), ETimeResolution::Seconds);
-
-		if (InInputDataReferences.ContainsDataReadReference<FFloatTime>(TEXT("Period")))
-		{
-			Period = InInputDataReferences.GetDataReadReference<FFloatTime>(TEXT("Period"));
-		}
-
-		return MakeUnique<FPeriodicBopOperator>(InOperatorSettings, Period);
+		OutputDataReferences.AddDataReadReference(TEXT("Bop"), FBopReadRef(Bop));
 	}
 
-	const FName FPeriodicBopNode::ClassName = FName(TEXT("PeriodicBop"));
+	const FDataReferenceCollection& FPeriodicBopOperator::GetInputs() const
+	{
+		return InputDataReferences;
+	}
+
+	const FDataReferenceCollection& FPeriodicBopOperator::GetOutputs() const
+	{
+		return OutputDataReferences;
+	}
+
+	void FPeriodicBopOperator::Execute()
+	{
+		// Advance internal counter to get rid of old bops.
+		Bop->Advance(OperatorSettings.GetNumFramesPerBlock());
+
+		float PeriodInSamples = FMath::Max(Period->GetSeconds(), MinimumPeriodSeconds) * OperatorSettings.GetSampleRate();
+
+		PeriodInSamples = FMath::Max(PeriodInSamples, MinimumPeriodSamples);
+
+		while ((SampleCountdown - ExecuteDurationInSamples) <= 0.f)
+		{
+			uint32 Frame = FMath::RoundToInt(SampleCountdown);
+			Bop->BopFrame(Frame);
+			SampleCountdown += PeriodInSamples;
+		}
+
+		SampleCountdown -= ExecuteDurationInSamples;
+	}
+
+
+	TUniquePtr<IOperator> FPeriodicBopOperator::CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors)
+	{
+		const FPeriodicBopNode& PeriodicBopNode = static_cast<const FPeriodicBopNode&>(InParams.Node);
+
+		FFloatTimeReadRef Period = FFloatTimeReadRef::CreateNew(PeriodicBopNode.GetDefaultPeriodInSeconds(), ETimeResolution::Seconds);
+
+		if (InParams.InputDataReferences.ContainsDataReadReference<FFloatTime>(TEXT("Period")))
+		{
+			Period = InParams.InputDataReferences.GetDataReadReference<FFloatTime>(TEXT("Period"));
+		}
+
+		return MakeUnique<FPeriodicBopOperator>(InParams.OperatorSettings, Period);
+	}
+
+	const FNodeInfo& FPeriodicBopOperator::GetNodeInfo()
+	{
+		static const FNodeInfo Info = {
+			FName(TEXT("PeriodicBop")),
+			LOCTEXT("Metasound_PeriodicBopNodeDescription", "Emits a bop periodically based on the period duration given."),
+			PluginAuthor,
+			PluginNodeMissingPrompt
+		};
+
+		return Info;
+	}
+
+	FVertexInterface FPeriodicBopOperator::DeclareVertexInterface()
+	{
+		static const FVertexInterface Interface(
+			FInputVertexInterface(
+				TInputDataVertexModel<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period of the bops in seconds."))
+			),
+			FOutputVertexInterface(
+				TOutputDataVertexModel<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "The output bop"))
+			)
+		);
+
+		return Interface;
+	}
 
 	FPeriodicBopNode::FPeriodicBopNode(const FString& InName, float InDefaultPeriodInSeconds)
-	:	FNode(InName)
+	:	FNodeFacade(InName, TFacadeOperatorClass<FPeriodicBopOperator>())
 	,	DefaultPeriod(InDefaultPeriodInSeconds)
 	{
-		AddInputDataVertex<FFloatTime>(TEXT("Period"), LOCTEXT("PeriodTooltip", "The period of the bops in seconds."));
-		AddOutputDataVertex<FBop>(TEXT("Bop"), LOCTEXT("BopTooltip", "The output bop"));
 	}
 
 	FPeriodicBopNode::FPeriodicBopNode(const FNodeInitData& InInitData)
 		: FPeriodicBopNode(InInitData.InstanceName, 1.0f)
 	{}
 
-	FPeriodicBopNode::~FPeriodicBopNode()
-	{
-	}
-
 	float FPeriodicBopNode::GetDefaultPeriodInSeconds() const
 	{
 		return DefaultPeriod;
 	}
 
-	const FName& FPeriodicBopNode::GetClassName() const
-	{
-		return ClassName;
-	}
-
-	IOperatorFactory& FPeriodicBopNode::GetDefaultOperatorFactory()
-	{
-		return Factory;
-	}
 }
 
 #undef LOCTEXT_NAMESPACE //MetasoundPeriodicBopNode

@@ -37,33 +37,23 @@ namespace Metasound
 		return PluginNodeMissingPrompt;
 	}
 
-	const FInputDataVertexCollection& FGraph::GetInputDataVertices() const
+	bool FGraph::AddInputDataDestination(const INode& InNode, const FDataVertexKey& InVertexKey)
 	{
-		return InputVertices;
-	}
-
-	const FOutputDataVertexCollection& FGraph::GetOutputDataVertices() const
-	{
-		return OutputVertices;
-	}
-
-	bool FGraph::AddInputDataDestination(INode& InNode, const FString& InVertexName)
-	{
-		if (!InNode.GetInputDataVertices().Contains(InVertexName))
+		if (!InNode.GetVertexInterface().ContainsInputVertex(InVertexKey))
 		{
 			return false;
 		}
 
-		FInputDataDestination Destination(InNode, InNode.GetInputDataVertices()[InVertexName]);
+		FInputDataDestination Destination(InNode, InNode.GetVertexInterface().GetInputVertex(InVertexKey));
 
 		AddInputDataDestination(Destination);
-
+		
 		return true;
 	}
 
 	void FGraph::AddInputDataDestination(const FInputDataDestination& InDestination)
 	{
-		InputVertices.Add(MakeDataVertexKey(InDestination.Vertex), InDestination.Vertex);
+		VertexInterface.GetInputInterface().Add(InDestination.Vertex);
 		InputDestinations.Add(MakeDestinationDataVertexKey(InDestination), InDestination);
 	}
 
@@ -72,14 +62,14 @@ namespace Metasound
 		return InputDestinations;
 	}
 
-	bool FGraph::AddOutputDataSource(INode& InNode, const FString& InVertexName)
+	bool FGraph::AddOutputDataSource(const INode& InNode, const FDataVertexKey& InVertexKey)
 	{
-		if (!InNode.GetOutputDataVertices().Contains(InVertexName))
+		if (!InNode.GetVertexInterface().ContainsOutputVertex(InVertexKey))
 		{
 			return false;
 		}
 
-		FOutputDataSource Source(InNode, InNode.GetOutputDataVertices()[InVertexName]);
+		FOutputDataSource Source(InNode, InNode.GetVertexInterface().GetOutputVertex(InVertexKey));
 
 		AddOutputDataSource(Source);
 
@@ -88,7 +78,7 @@ namespace Metasound
 
 	void FGraph::AddOutputDataSource(const FOutputDataSource& InSource)
 	{
-		OutputVertices.Add(MakeDataVertexKey(InSource.Vertex), InSource.Vertex);
+		VertexInterface.GetOutputInterface().Add(InSource.Vertex);
 		OutputSources.Add(MakeSourceDataVertexKey(InSource), InSource);
 	}
 
@@ -102,24 +92,26 @@ namespace Metasound
 		Edges.Add(InEdge);
 	}
 
-	// TODO: can we make node references const?  Would need to make operator factory accessing const as well.
-	bool FGraph::AddDataEdge(INode& FromNode, const FString& FromName, INode& ToNode, const FString ToName)
+	bool FGraph::AddDataEdge(const INode& FromNode, const FDataVertexKey& FromKey, const INode& ToNode, const FDataVertexKey& ToKey)
 	{
-		
-		if (!FromNode.GetOutputDataVertices().Contains(FromName))
+		const FVertexInterface& FromVertexInterface = FromNode.GetVertexInterface();
+		const FVertexInterface& ToVertexInterface = ToNode.GetVertexInterface();
+
+		if (!FromVertexInterface.ContainsOutputVertex(FromKey))
 		{
 			return false;
 		}
 
-		if (!ToNode.GetInputDataVertices().Contains(ToName))
+		if (!ToVertexInterface.ContainsInputVertex(ToKey))
 		{
 			return false;
 		}
 
-		const FOutputDataVertex& FromVertex = FromNode.GetOutputDataVertices()[FromName];
-		const FInputDataVertex& ToVertex = ToNode.GetInputDataVertices()[ToName];
+		const FOutputDataVertex& FromVertex = FromVertexInterface.GetOutputVertex(FromKey);
+		const FInputDataVertex& ToVertex = ToVertexInterface.GetInputVertex(ToKey);
 
-		if (FromVertex.DataReferenceTypeName != ToVertex.DataReferenceTypeName)
+
+		if (FromVertex.GetDataTypeName() != ToVertex.GetDataTypeName())
 		{
 			return false;
 		}
@@ -134,5 +126,27 @@ namespace Metasound
 	const TArray<FDataEdge>& FGraph::GetDataEdges() const
 	{
 		return Edges;
+	}
+
+	const FVertexInterface& FGraph::GetVertexInterface() const 
+	{
+		return VertexInterface;
+	}
+
+	const FVertexInterface& FGraph::GetDefaultVertexInterface() const 
+	{
+		static const FVertexInterface EmptyInterface;
+
+		return EmptyInterface;
+	}
+
+	bool FGraph::SetVertexInterface(const FVertexInterface& InInterface)
+	{
+		return InInterface == VertexInterface;
+	}
+
+	bool FGraph::IsVertexInterfaceSupported(const FVertexInterface& InInterface) const
+	{
+		return InInterface == VertexInterface;
 	}
 }

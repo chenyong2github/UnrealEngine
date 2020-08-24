@@ -10,7 +10,6 @@ class FText;
 
 namespace Metasound
 {
-	// TODO: consider making nodes TSharedPtr<INode>
 	/** FGraph contains the edges between nodes as well as input and output 
 	 * vertices.  FGraph does not maintain ownership over any node. Nodes used
 	 * within the graph must be valid for the lifetime of the graph. 
@@ -35,14 +34,30 @@ namespace Metasound
 
 			virtual const FText& GetPromptIfMissing() const override;
 
-			/** Return a collection of input parameter descriptions for this graph. */
-			virtual const FInputDataVertexCollection& GetInputDataVertices() const override;
-
-			/** Return a collection of output parameter descriptions for this graph. */
-			virtual const FOutputDataVertexCollection& GetOutputDataVertices() const override;
-
 			/** Retrieve all the edges associated with a graph. */
 			virtual const TArray<FDataEdge>& GetDataEdges() const override;
+
+			/** Return the current vertex interface. */
+			virtual const FVertexInterface& GetVertexInterface() const override;
+
+			/** Return the default vertex interface. */
+			virtual const FVertexInterface& GetDefaultVertexInterface() const override;
+
+			/** Set the vertex interface. If the vertex was successfully changed, returns true. 
+			 *
+			 * @param InInterface - New interface for node. 
+			 *
+			 * @return True on success, false otherwise.
+			 */
+			virtual bool SetVertexInterface(const FVertexInterface& InInterface) override;
+
+			/** Expresses whether a specific vertex interface is supported.
+			 *
+			 * @param InInterface - New interface. 
+			 *
+			 * @return True if the interface is supported, false otherwise. 
+			 */
+			virtual bool IsVertexInterfaceSupported(const FVertexInterface& InInterface) const override;
 
 			/** Get vertices which contain input parameters. */
 			virtual const FInputDataDestinationCollection& GetInputDataDestinations() const override;
@@ -57,24 +72,24 @@ namespace Metasound
 			 * nodes. 
 			 *
 			 * @param FromNode - Node which contains the output vertex.
-			 * @param FromVertexName - Name of the vertex in the FromNode.
+			 * @param FromVertexKey - Key of the vertex in the FromNode.
 			 * @param ToNode - Node which contains the input vertex.
-			 * @param ToVertexName - Name of the vertex in the ToNode.
+			 * @param ToVertexKey - Key of the vertex in the ToNode.
 			 *
 			 * @return True if the edge was successfully added. False otherwise.
 			 */
-			bool AddDataEdge(INode& FromNode, const FString& FromVertexName, INode& ToNode, const FString ToVertexName);
+			bool AddDataEdge(const INode& FromNode, const FDataVertexKey& FromVertexKey, const INode& ToNode, const FDataVertexKey& ToVertexKey);
 
 			/** Add an input data destination to describe how data provided 
 			 * outside this graph should be routed internally.
 			 *
 			 * @param InNode - Node which receives the data.
-			 * @param InVertexName - Name of input vertex on InNode.
+			 * @param InVertexKey - Key for input vertex on InNode.
 			 *
 			 * @return True if the destination was successfully added. False 
 			 * otherwise.
 			 */
-			bool AddInputDataDestination(INode& InNode, const FString& InVertexName);
+			bool AddInputDataDestination(const INode& InNode, const FDataVertexKey& InVertexKey);
 
 
 			/** Add an input data destination to describe how data provided 
@@ -86,12 +101,12 @@ namespace Metasound
 			 * owned this graph and exposed externally.
 			 *
 			 * @param InNode - Node which produces the data.
-			 * @param InVertexName - Name of output vertex on InNode.
+			 * @param InVertexKey - Key for output vertex on InNode.
 			 *
 			 * @return True if the source was successfully added. False 
 			 * otherwise.
 			 */
-			bool AddOutputDataSource(INode& InNode, const FString& InVertexName);
+			bool AddOutputDataSource(const INode& InNode, const FDataVertexKey& InVertexKey);
 
 			/** Add an output data source which describes routing of data which is 
 			 * owned this graph and exposed externally.
@@ -103,11 +118,10 @@ namespace Metasound
 		private:
 			FString Description;
 
-			FInputDataVertexCollection InputVertices;
-			FOutputDataVertexCollection OutputVertices;
 
 			TArray<FDataEdge> Edges;
 
+			FVertexInterface VertexInterface;
 			FInputDataDestinationCollection InputDestinations;
 			FOutputDataSourceCollection OutputSources;
 	};

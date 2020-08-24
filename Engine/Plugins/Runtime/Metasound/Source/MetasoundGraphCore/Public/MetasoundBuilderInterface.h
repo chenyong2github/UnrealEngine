@@ -36,6 +36,45 @@ namespace Metasound
 			virtual const TArray<FDataEdge>& GetEdges() const = 0;
 	};
 
+	/** FCreateOperatorParams holds the parameters provided to operator factories
+	 * during the creation of an IOperator
+	 */
+	struct FCreateOperatorParams
+	{
+		/** The node associated with this factory and the desired IOperator. */
+		const INode& Node;
+
+		/** General operator settings for the graph. */
+		const FOperatorSettings& OperatorSettings;
+
+		/** Collection of input parameters available for to an IOperator. */
+		const FDataReferenceCollection& InputDataReferences;
+
+		FCreateOperatorParams(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences)
+		:	Node(InNode)
+		,	OperatorSettings(InOperatorSettings)
+		,	InputDataReferences(InInputDataReferences)
+		{
+		}
+	};
+
+	typedef TArray<TUniquePtr<IOperatorBuildError>> FBuildErrorArray;
+
+	/** Convenience template for adding build errors.
+	 *
+	 * The function can be used in the following way:
+	 * 
+	 * FBuildErrorArray MyErrorArray;
+	 * AddBuildError<FMyBuildErrorType>(MyErrorArray, MyBuildErrorConstructorArgs...);
+	 *
+	 * @param OutErrors - Array which holds the errors.
+	 * @param Args - Constructor arguments for the error.
+	 */
+	template<typename ErrorType, typename... ArgTypes>
+	void AddBuildError(FBuildErrorArray& OutErrors, ArgTypes&&... Args)
+	{
+		OutErrors.Add(MakeUnique<ErrorType>(Forward<ArgTypes>(Args)...));
+	}
 
 	/** IOperatorFactory
 	 *
@@ -50,14 +89,12 @@ namespace Metasound
 
 			/** Create a new IOperator.
 			 *
-			 * @param InNode - The node associated with this factory and the desired IOperator.
-			 * @param FOperatorSettings - General operator settings for the graph.
-			 * @param InInputCollection - Collection of input parameters available for to this IOperator.
+			 * @param InParams - The parameters available for building an IOperator.
 			 * @param OutErrors - An array of errors. Errors can be added if issues occur while creating the IOperator.
 			 *
 			 * @return A unique pointer to an IOperator. 
 			 */
-			virtual TUniquePtr<IOperator> CreateOperator(const INode& InNode, const FOperatorSettings& InOperatorSettings, const FDataReferenceCollection& InInputDataReferences, TArray<TUniquePtr<IOperatorBuildError>>& OutErrors) = 0;
+			virtual TUniquePtr<IOperator> CreateOperator(const FCreateOperatorParams& InParams, FBuildErrorArray& OutErrors) = 0;
 	};
 
 

@@ -16,12 +16,6 @@ namespace Metasound
 	{
 		using FBuildErrorPtr = TUniquePtr<IOperatorBuildError>;
 
-		template<typename ErrorType, typename... ArgTypes>
-		void AddBuildError(TArray<FBuildErrorPtr>& OutErrors, ArgTypes&&... Args)
-		{
-			OutErrors.Add(MakeUnique<ErrorType>(Forward<ArgTypes>(Args)...));
-		}
-
 		// run validation on input destination
 		bool IsInputDestinationValid(const FInputDataDestination& InDest)
 		{
@@ -30,16 +24,17 @@ namespace Metasound
 				return false;
 			}
 
-			const FInputDataVertexCollection& InputCollection = InDest.Node->GetInputDataVertices();
+
+			const FInputVertexInterface& InputInterface = InDest.Node->GetVertexInterface().GetInputInterface();
 
 			FDataVertexKey VertexKey = MakeDataVertexKey(InDest.Vertex);
 
-			if (!InputCollection.Contains(VertexKey))
+			if (!InputInterface.Contains(VertexKey))
 			{
 				return false;
 			}
 
-			if (InputCollection[VertexKey] != InDest.Vertex)
+			if (InputInterface[VertexKey] != InDest.Vertex)
 			{
 				return false;
 			}
@@ -55,16 +50,16 @@ namespace Metasound
 				return false;
 			}
 
-			const FOutputDataVertexCollection& OutputCollection = InSource.Node->GetOutputDataVertices();
+			const FOutputVertexInterface& OutputInterface = InSource.Node->GetVertexInterface().GetOutputInterface();
 
 			FDataVertexKey VertexKey = MakeDataVertexKey(InSource.Vertex);
 
-			if (!OutputCollection.Contains(VertexKey))
+			if (!OutputInterface.Contains(VertexKey))
 			{
 				return false;
 			}
 
-			if (OutputCollection[VertexKey] != InSource.Vertex)
+			if (OutputInterface[VertexKey] != InSource.Vertex)
 			{
 				return false;
 			}
@@ -92,7 +87,7 @@ namespace Metasound
 
 		for (const FDataEdge& Edge : InGraph.GetDataEdges())
 		{
-			if (Edge.From.Vertex.DataReferenceTypeName != Edge.To.Vertex.DataReferenceTypeName)
+			if (Edge.From.Vertex.GetDataTypeName() != Edge.To.Vertex.GetDataTypeName())
 			{
 				AddBuildError<FInvalidConnectionDataTypeError>(OutErrors, Edge);
 

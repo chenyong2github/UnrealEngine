@@ -64,8 +64,9 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 	Duration = INDEFINITELY_LOOPING_DURATION;
 	bLooping = true;
 	SampleRate = InParams.SampleRate;
+	const float BlockRate = 100.f; // Metasound graph gets evaluated 100 times per second.
 
-	Metasound::FOperatorSettings InSettings(InParams.SampleRate, InParams.NumFramesPerCallback);
+	Metasound::FOperatorSettings InSettings(InParams.SampleRate, BlockRate);
 
 	TArray<Metasound::IOperatorBuilder::FBuildErrorPtr> BuildErrors;
 
@@ -80,7 +81,7 @@ ISoundGeneratorPtr UMetasoundSource::CreateSoundGenerator(const FSoundGeneratorI
 		Metasound::FMetasoundGeneratorInitParams InitParams =
 		{
 			MoveTemp(Operator),
-			Outputs.GetDataReadReferenceOrConstruct<Metasound::FAudioBuffer>(GetAudioOutputName(), InParams.NumFramesPerCallback),
+			Outputs.GetDataReadReferenceOrConstruct<Metasound::FAudioBuffer>(GetAudioOutputName(), InSettings.GetNumFramesPerBlock()),
 			Outputs.GetDataReadReferenceOrConstruct<Metasound::FBop>(GetIsFinishedOutputName(), false)
 		};
 
