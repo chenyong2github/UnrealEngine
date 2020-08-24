@@ -4,6 +4,7 @@
 
 #include "Components/RuntimeVirtualTextureComponent.h"
 #include "Engine/World.h"
+#include "HeightfieldMinMaxTexture.h"
 #include "VirtualHeightfieldMeshSceneProxy.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
@@ -24,22 +25,16 @@ ARuntimeVirtualTextureVolume* UVirtualHeightfieldMeshComponent::GetVirtualTextur
 	return VirtualTexture.Get();
 }
 
-FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
-{
-	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
-}
-
 URuntimeVirtualTexture* UVirtualHeightfieldMeshComponent::GetVirtualTexture() const
 {
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
 	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetVirtualTexture() : nullptr;
 }
 
-UTexture2D* UVirtualHeightfieldMeshComponent::GetMinMaxTexture() const
+FTransform UVirtualHeightfieldMeshComponent::GetVirtualTextureTransform() const
 {
 	URuntimeVirtualTextureComponent* RuntimeVirtualTextureComponent = VirtualTexture.IsValid() ? VirtualTexture.Get()->VirtualTextureComponent : nullptr;
-	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetMinMaxTexture() : nullptr;
+	return RuntimeVirtualTextureComponent ? RuntimeVirtualTextureComponent->GetComponentTransform() * RuntimeVirtualTextureComponent->GetTexelSnapTransform() : FTransform::Identity;
 }
 
 bool UVirtualHeightfieldMeshComponent::IsVisible() const
@@ -77,64 +72,29 @@ void UVirtualHeightfieldMeshComponent::GetUsedMaterials(TArray<UMaterialInterfac
 	}
 }
 
-#if WITH_EDITOR
-
-void UVirtualHeightfieldMeshComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+bool UVirtualHeightfieldMeshComponent::IsMinMaxTextureEnabled() const
 {
-	Super::PostEditChangeProperty(PropertyChangedEvent);
-
-	static FName VirtualTextureName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, VirtualTexture);
-	static FName NumOcclusionLodsName = GET_MEMBER_NAME_CHECKED(UVirtualHeightfieldMeshComponent, NumOcclusionLods);
-	if (PropertyChangedEvent.Property && (PropertyChangedEvent.Property->GetFName() == VirtualTextureName || PropertyChangedEvent.Property->GetFName() == NumOcclusionLodsName))
-	{
-		BuildOcclusionData();
-	}
+	URuntimeVirtualTexture* RuntimeVirtualTexture = GetVirtualTexture();
+	return RuntimeVirtualTexture != nullptr && RuntimeVirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight;
 }
 
-void UVirtualHeightfieldMeshComponent::BuildOcclusionData()
+#if WITH_EDITOR
+
+void UVirtualHeightfieldMeshComponent::InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData)
 {
-	NumBuiltOcclusionLods = 0;
-	BuiltOcclusionData.Reset();
-	
-	UTexture2D* MinMaxTexture = GetMinMaxTexture();
-	if (MinMaxTexture != nullptr && NumOcclusionLods > 0)
+	// We need an existing StreamingTexture object to update.
+	if (MinMaxTexture != nullptr)
 	{
-		if (MinMaxTexture->Source.IsValid() && MinMaxTexture->Source.GetFormat() == TSF_BGRA8)
-		{
-			const int32 NumMinMaxTextureMips = MinMaxTexture->Source.GetNumMips();
+		FHeightfieldMinMaxTextureBuildDesc BuildDesc;
+		BuildDesc.SizeX = InSizeX;
+		BuildDesc.SizeY = InSizeY;
+		BuildDesc.NumMips = InNumMips;
+		BuildDesc.Data = InData;
 
-			// Clamp NumBuiltOcclusionLods to give a maximum 341 occlusion volumes.
-			NumBuiltOcclusionLods = FMath::Min(NumOcclusionLods, 5);
-			NumBuiltOcclusionLods = FMath::Min(NumBuiltOcclusionLods, NumMinMaxTextureMips);
+		MinMaxTexture->Modify();
+		MinMaxTexture->BuildTexture(BuildDesc);
 
-			// Reserve the expected entries assuming square mips.
-			const int32 NumEntries = ((1 << (2 * NumBuiltOcclusionLods)) - 1) / 3;
-			BuiltOcclusionData.Reserve(NumEntries);
-		
-			// Iterate the MinMaxTexture mips and extract min/max values to store in a flat array.
-			const int32 BaseMipIndex = NumMinMaxTextureMips - NumBuiltOcclusionLods;
-			for (int32 MipIndex = BaseMipIndex; MipIndex < NumMinMaxTextureMips; ++MipIndex)
-			{
-				TArray64<uint8> MipData;
-				if (MinMaxTexture->Source.GetMipData(MipData, MipIndex))
-				{
-					for (int32 Index = 0; Index < MipData.Num(); Index += 4)
-					{
-						float Min = (float)(MipData[Index + 2] * 256 + MipData[Index + 3]) / 65535.f;
-						float Max = (float)(MipData[Index + 0] * 256 + MipData[Index + 1]) / 65535.f;
-						BuiltOcclusionData.Add(FVector2D(Min, Max));
-					}
-				}
-			}
-
-			// Check assumption of square mips, and disable occlusion if not true.
-			ensure(NumEntries == BuiltOcclusionData.Num());
-			if (NumEntries != BuiltOcclusionData.Num())
-			{
-				NumBuiltOcclusionLods = 0;
-				BuiltOcclusionData.Reset();
-			}
-		}
+		MarkRenderStateDirty();
 	}
 }
 
