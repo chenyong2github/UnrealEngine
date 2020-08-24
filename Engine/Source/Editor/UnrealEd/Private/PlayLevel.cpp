@@ -1965,7 +1965,7 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 			// The Simulate window should show stats
 			EditorViewportClient.SetShowStats( true );
 
-			if( SlatePlayInEditorSession.EditorPlayer.IsValid() )
+			if ( SlatePlayInEditorSession.EditorPlayer.IsValid() && SlatePlayInEditorSession.EditorPlayer.Get()->PlayerController )
 			{
 				// Move the editor camera to where the player was.  
 				FVector ViewLocation;
