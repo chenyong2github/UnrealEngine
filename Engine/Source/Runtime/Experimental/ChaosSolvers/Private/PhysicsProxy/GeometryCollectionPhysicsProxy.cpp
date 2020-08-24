@@ -660,15 +660,6 @@ void TGeometryCollectionPhysicsProxy<Traits>::InitializeBodiesPT(Chaos::TPBDRigi
 	const FGeometryCollection* RestCollection = Parameters.RestCollection;
 	const FGeometryDynamicCollection& DynamicCollection = PhysicsThreadCollection;
 
-	if (!Parameters.PhysicalMaterial)
-	{
-		// If PhysicalMaterial is non-null, then we have a physics material in the scene 
-		// that we're using.  If not, then we need to allocate a default FChaosPhysicsMaterial
-		// that we'll point PhysicalMaterial at.
-		Parameters.PhysicalMaterialOwner = TUniquePtr<Chaos::FChaosPhysicsMaterial>(new Chaos::FChaosPhysicsMaterial());
-		Parameters.PhysicalMaterial = Chaos::MakeSerializable(Parameters.PhysicalMaterialOwner);
-	}
-
 	if (Parameters.Simulating)
 	{
 		const TManagedArray<int32>& TransformIndex = RestCollection->TransformIndex;
@@ -779,9 +770,19 @@ void TGeometryCollectionPhysicsProxy<Traits>::InitializeBodiesPT(Chaos::TPBDRigi
 					CollisionParticles->Resize(CollisionParticlesSize); // Truncates!
 				}
 
-				Handle->SetLinearEtherDrag(Parameters.PhysicalMaterial->LinearEtherDrag);
-				Handle->SetAngularEtherDrag(Parameters.PhysicalMaterial->AngularEtherDrag);
-				RigidsSolver->GetEvolution()->SetPhysicsMaterial(Handle, Parameters.PhysicalMaterial);
+				// #BGTODO - non-updating parameters - remove lin/ang drag arrays and always query material if this stays a material parameter
+				Chaos::FChaosPhysicsMaterial* SolverMaterial = RigidsSolver->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
+				if(SolverMaterial)
+				{
+					Handle->SetLinearEtherDrag(SolverMaterial->LinearEtherDrag);
+					Handle->SetAngularEtherDrag(SolverMaterial->AngularEtherDrag);
+				}
+
+				const Chaos::FShapesArray& Shapes = Handle->ShapesArray();
+				for(const TUniquePtr<Chaos::FPerShapeData>& Shape : Shapes)
+				{
+					Shape->SetMaterial(Parameters.PhysicalMaterialHandle);
+				}
 			}
 		});
 
@@ -1102,12 +1103,20 @@ TGeometryCollectionPhysicsProxy<Traits>::BuildClusters(
 
 	Parent->SetStrains(Damage);
 
-	// If no PhysicalMaterial was specified by the caller, then a default one was constructed 
-	// for us by InitializeBodiesPT().
-	check(Parameters.PhysicalMaterial);
-	Parent->SetLinearEtherDrag(Parameters.PhysicalMaterial->LinearEtherDrag);
-	Parent->SetAngularEtherDrag(Parameters.PhysicalMaterial->AngularEtherDrag);
-	GetSolver<FSolver>()->GetEvolution()->SetPhysicsMaterial(Parent, Parameters.PhysicalMaterial);
+	// #BGTODO This will not automatically update - material properties should only ever exist in the material, not in other arrays
+	FSolver* Solver = GetSolver<FSolver>();
+	const Chaos::FChaosPhysicsMaterial* CurMaterial = Solver->GetSimMaterials().Get(Parameters.PhysicalMaterialHandle.InnerHandle);
+	if(CurMaterial)
+	{
+		Parent->SetLinearEtherDrag(CurMaterial->LinearEtherDrag);
+		Parent->SetAngularEtherDrag(CurMaterial->AngularEtherDrag);
+	}
+
+	const Chaos::FShapesArray& Shapes = Parent->ShapesArray();
+	for(const TUniquePtr<Chaos::FPerShapeData>& Shape : Shapes)
+	{
+		Shape->SetMaterial(Parameters.PhysicalMaterialHandle);
+	}
 
 	const FTransform ParentTransform = GeometryCollectionAlgo::GlobalMatrix(DynamicCollection.Transform, DynamicCollection.Parent, CollectionClusterIndex);
 
@@ -1124,7 +1133,7 @@ TGeometryCollectionPhysicsProxy<Traits>::BuildClusters(
 		SolverClusterHandles[ChildTransformGroupIndex] = Parent;
 
 		MinCollisionGroup = FMath::Min(Child->CollisionGroup(), MinCollisionGroup);
-		}
+	}
 	Parent->SetCollisionGroup(MinCollisionGroup);
 
 	// Populate bounds as we didn't pass a shared implicit to PopulateSimulatedParticle this will have been skipped, now that we have the full cluster we can build it

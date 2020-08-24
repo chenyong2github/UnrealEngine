@@ -893,16 +893,38 @@ namespace Chaos
 									PreSolveTM, 
 									CreationParameters);
 
-							NewCluster->SetStrain(ClusteredParticle->Strain());
 							MEvolution.SetPhysicsMaterial(
 								NewCluster, MEvolution.GetPhysicsMaterial(ClusteredParticle));
 
+							NewCluster->SetStrain(ClusteredParticle->Strain());
 							NewCluster->SetV(ClusteredParticle->V());
 							NewCluster->SetW(ClusteredParticle->W());
 							NewCluster->SetPreV(ClusteredParticle->PreV());
 							NewCluster->SetPreW(ClusteredParticle->PreW());
 							NewCluster->SetP(NewCluster->X());
 							NewCluster->SetQ(NewCluster->R());
+
+							// Need to get the material from the previous particle and apply it to the new one
+							const FShapesArray& ChildShapes = ClusteredParticle->ShapesArray();
+							const FShapesArray& NewShapes = NewCluster->ShapesArray();
+							const int32 NumChildShapes = ClusteredParticle->ShapesArray().Num();
+
+							if(NumChildShapes > 0)
+							{
+								// Can only take materials if the child has any - otherwise we fall back on defaults.
+								// Due to GC initialisation however, we should always have a valid material as even
+								// when one cannot be found we fall back on the default on GEngine
+								const int32 NumChildMaterials = ChildShapes[0]->GetMaterials().Num();
+								if(NumChildMaterials > 0)
+								{
+									Chaos::FMaterialHandle ChildMat = ChildShapes[0]->GetMaterials()[0];
+
+									for(const TUniquePtr<FPerShapeData>& PerShape : NewShapes)
+									{
+										PerShape->SetMaterial(ChildMat);
+									}
+								}
+							}
 
 							ActivatedChildren.Add(NewCluster);
 						}

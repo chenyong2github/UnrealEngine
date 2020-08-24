@@ -651,6 +651,38 @@ bool UGeometryCollectionComponent::DoCustomNavigableGeometryExport(FNavigableGeo
 	return true;
 }
 
+UPhysicalMaterial* UGeometryCollectionComponent::GetPhysicalMaterial() const
+{
+	// Pull material from first mesh element to grab physical material. Prefer an override if one exists
+	UPhysicalMaterial* PhysMatToUse = PhysicalMaterialOverride;
+
+	if(!PhysMatToUse)
+	{
+		// No override, try render materials
+		const int32 NumMaterials = GetNumMaterials();
+
+		if(NumMaterials > 0)
+		{
+			UMaterialInterface* FirstMatInterface = GetMaterial(0);
+
+			if(FirstMatInterface && FirstMatInterface->GetPhysicalMaterial())
+			{
+				PhysMatToUse = FirstMatInterface->GetPhysicalMaterial();
+			}
+		}
+	}
+
+	if(!PhysMatToUse)
+	{
+		// Still no material, fallback on default
+		PhysMatToUse = GEngine->DefaultPhysMaterial;
+	}
+
+	// Should definitely have a material at this point.
+	check(PhysMatToUse);
+	return PhysMatToUse;
+}
+
 void UGeometryCollectionComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
@@ -1642,15 +1674,6 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 		const bool bValidCollection = DynamicCollection && DynamicCollection->Transform.Num() > 0;
 		if (bValidWorld && bValidCollection)
 		{
-			if (!ChaosMaterial)
-			{
-				ChaosMaterial.Reset(new Chaos::FChaosPhysicsMaterial());
-			}
-			if (PhysicalMaterial)
-			{
-				PhysicalMaterial->CopyTo(*ChaosMaterial);
-			}
-
 			FPhysxUserData::Set<UPrimitiveComponent>(&PhysicsUserData, this);
 
 			FSimulationParameters SimulationParameters;
@@ -1698,7 +1721,12 @@ void UGeometryCollectionComponent::OnCreatePhysicsState()
 				SimulationParameters.RemoveOnFractureEnabled = SimulationParameters.Shared.RemoveOnFractureIndices.Num() > 0;
 				SimulationParameters.WorldTransform = GetComponentToWorld();
 				SimulationParameters.UserData = static_cast<void*>(&PhysicsUserData);
-				SimulationParameters.PhysicalMaterial = Chaos::MakeSerializable(ChaosMaterial);
+
+				UPhysicalMaterial* EnginePhysicalMaterial = GetPhysicalMaterial();
+				if(ensure(EnginePhysicalMaterial))
+				{
+					SimulationParameters.PhysicalMaterialHandle = EnginePhysicalMaterial->GetPhysicsMaterial();
+				}
 			}
 
 
