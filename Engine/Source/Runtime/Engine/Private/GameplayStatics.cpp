@@ -1863,6 +1863,11 @@ int32 UGameplayStatics::GetMaxAudioChannelCount(const UObject* WorldContextObjec
 
 UDecalComponent* CreateDecalComponent(class UMaterialInterface* DecalMaterial, FVector DecalSize, UWorld* World, AActor* Actor, float LifeSpan)
 {
+	if (World && World->GetNetMode() == NM_DedicatedServer)
+	{
+		return nullptr;
+	}
+
 	UDecalComponent* DecalComp = NewObject<UDecalComponent>((Actor ? Actor : (UObject*)World));
 	DecalComp->bAllowAnyoneToDestroyMe = true;
 	DecalComp->SetDecalMaterial(DecalMaterial);
@@ -1885,7 +1890,10 @@ UDecalComponent* UGameplayStatics::SpawnDecalAtLocation(const UObject* WorldCont
 		if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 		{
 			UDecalComponent* DecalComp = CreateDecalComponent(DecalMaterial, DecalSize, World, World->GetWorldSettings(), LifeSpan);
-			DecalComp->SetWorldLocationAndRotation(Location, Rotation);
+			if (DecalComp)
+			{
+				DecalComp->SetWorldLocationAndRotation(Location, Rotation);
+			}
 			return DecalComp;
 		}
 	}
@@ -1913,15 +1921,19 @@ UDecalComponent* UGameplayStatics::SpawnDecalAttached(class UMaterialInterface* 
 				else
 				{
 					UDecalComponent* DecalComp = CreateDecalComponent(DecalMaterial, DecalSize, AttachToComponent->GetWorld(), AttachToComponent->GetOwner(), LifeSpan);
-					DecalComp->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachPointName);
-					if (LocationType == EAttachLocation::KeepWorldPosition)
+					if (DecalComp)
 					{
-						DecalComp->SetWorldLocationAndRotation(Location, Rotation);
+						DecalComp->AttachToComponent(AttachToComponent, FAttachmentTransformRules::KeepRelativeTransform, AttachPointName);
+						if (LocationType == EAttachLocation::KeepWorldPosition)
+						{
+							DecalComp->SetWorldLocationAndRotation(Location, Rotation);
+						}
+						else
+						{
+							DecalComp->SetRelativeLocationAndRotation(Location, Rotation);
+						}
 					}
-					else
-					{
-						DecalComp->SetRelativeLocationAndRotation(Location, Rotation);
-					}
+					
 					return DecalComp;
 				}
 			}
