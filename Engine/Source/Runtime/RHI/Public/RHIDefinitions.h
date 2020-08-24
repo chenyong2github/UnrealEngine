@@ -343,6 +343,7 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsIntrinsicWaveOnce : 1;
 	uint32 bSupportsConservativeRasterization : 1;
 	uint32 bRequiresExplicit128bitRT : 1;
+	uint32 bSupportsGen5TemporalAA : 1;
 
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
@@ -583,6 +584,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsConservativeRasterization(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsConservativeRasterization;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGen5TemporalAA(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsGen5TemporalAA;
 	}
 
 private:
