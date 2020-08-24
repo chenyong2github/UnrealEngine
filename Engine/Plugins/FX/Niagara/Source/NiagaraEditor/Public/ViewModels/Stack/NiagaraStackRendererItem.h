@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "NiagaraRendererProperties.h"
 #include "ViewModels/Stack/NiagaraStackItem.h"
 #include "NiagaraTypes.h"
 #include "NiagaraStackRendererItem.generated.h"
@@ -71,6 +72,7 @@ protected:
 private:
 	void RendererChanged();
 	void RefreshIssues(TArray<FStackIssue>& NewIssues);
+	void ProcessRendererIssues(const TArray<FNiagaraRendererFeedback>& InIssues, EStackIssueSeverity Severity, TArray<FStackIssue>& OutIssues);
 
 private:
 	TWeakObjectPtr<UNiagaraRendererProperties> RendererProperties;

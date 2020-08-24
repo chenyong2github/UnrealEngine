@@ -131,6 +131,26 @@ const TArray<FNiagaraVariable>& UNiagaraRendererProperties::GetBoundAttributes()
 	return CurrentBoundAttributes;
 }
 
+void UNiagaraRendererProperties::GetRendererFeedback(UNiagaraEmitter* InEmitter,	TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings,	TArray<FNiagaraRendererFeedback>& OutInfo) const
+{
+	TArray<FText> Errors;
+	TArray<FText> Warnings;
+	TArray<FText> Infos;
+	GetRendererFeedback(InEmitter, Errors, Warnings, Infos);
+	for (FText ErrorText : Errors)
+	{
+		OutErrors.Add(FNiagaraRendererFeedback( ErrorText));
+	}
+	for (FText WarningText : Warnings)
+	{
+		OutWarnings.Add(FNiagaraRendererFeedback( WarningText));
+	}
+	for (FText InfoText : Infos)
+	{
+		OutInfo.Add(FNiagaraRendererFeedback(InfoText));
+	}
+}
+
 const FSlateBrush* UNiagaraRendererProperties::GetStackIcon() const
 {
 	return FSlateIconFinder::FindIconBrushForClass(GetClass());
