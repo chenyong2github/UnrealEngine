@@ -277,54 +277,6 @@ namespace Turnkey
 			return CopyProvider.ExecuteCopy(Sources[0].GetCopySourceOperation());
 		}
 
-		public string RetrieveByTags(string[] RequiredTags, string[] PreferredTags, Dictionary<string, string> ExtraVariables = null)
-		{
-			return null;
-// 			// @todo turnkey - delete, or replace with a more "retrieve by Platform and Name/Version something" function
-// 
-// 			// @todo turnkey: unset these
-// 			if (ExtraVariables != null)
-// 			{
-// 				foreach (var Pair in ExtraVariables)
-// 				{
-// 					TurnkeyUtils.SetVariable(Pair.Key, Pair.Value);
-// 				}
-// 			}
-// 
-// 			List<SdkInfo> Sdks = TurnkeyManifest.GetAllDiscoveredSdks();
-// 
-// 			string Tag = RequiredTags[0];
-// 			Sdks = Sdks.FindAll(x => x.Type == FileSource.SourceType.Misc);
-// 
-// 			Sdks = Sdks.FindAll(x =>
-// 			{
-// 				if (Tag.StartsWith("regex:"))
-// 				{
-// 					return TurnkeyUtils.IsValueValid(x.CustomSdkId, Tag, null);
-// 				}
-// 				// this will handle the case of x.CustomSdkId starting with regex: or just doing a case insensitive string comparison of tag and CustomSdkId
-// 				// range: is not supported, at least yet - we would have to check Tag with range: above, and also support range without a Platform (or pass in a platform somehow?)
-// 				return TurnkeyUtils.IsValueValid(Tag, x.CustomSdkId, null);
-// 			});
-// 
-// 			if (Sdks == null || Sdks.Count == 0)
-// 			{
-// 				return null;
-// 			}
-// 
-// 			SdkInfo Sdk = Sdks.First();
-// 
-// 			foreach (CopyAndRun Copy in Sdk.CustomSdkInputFiles)
-// 			{
-// 				if (Copy.ShouldExecute())
-// 				{
-// 					return CopyProvider.ExecuteCopy(Copy.Copy);
-// 				}
-// 			}
-// 
-// 			return null;
-		}
-
 		public string GetVariable(string VariableName)
 		{
 			return TurnkeyUtils.GetVariableValue(VariableName);

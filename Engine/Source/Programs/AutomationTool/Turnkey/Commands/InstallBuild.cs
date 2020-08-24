@@ -13,12 +13,8 @@ namespace Turnkey.Commands
 	{
 		protected override void Execute(string[] CommandOptions)
 		{
-		
-			// get all projects
-			List<BuildSource> AllSources = TurnkeyManifest.GetDiscoveredBuildSources();
-
 			// get distinct project names
-			List<string> AllProjects = AllSources.Select(x => x.Project).Distinct().ToList();
+			List<string> AllProjects = TurnkeyManifest.GetProjectsWithBuilds();
 
 			int Choice = TurnkeyUtils.ReadInputInt("Select a project:", AllProjects, true);
 			if (Choice == 0)
@@ -29,50 +25,26 @@ namespace Turnkey.Commands
 			string Project = AllProjects[Choice - 1];
 			
 			// go over sources for this project
-			List<BuildSource> ProjectSources = AllSources.Where(x => x.Project == Project).ToList();
+			List<FileSource> ProjectSources = TurnkeyManifest.FilterDiscoveredBuilds(Project);
 
+//			List<UnrealTargetPlatform> PossiblePlatforms = ProjectSources.SelectMany(x => x.GetPlatforms()).Distinct().ToList();
+			List<string> PossibleVersions = ProjectSources.Select(x => x.Version).Distinct().ToList();
 
-			// go over all possible sources, assume there is an wildcard with an expansion in it
-			// @todo turnkey: if there is no wildcard, then we could just use the final part of pathname in the results
-			Dictionary<string, Tuple<string, string>> BuildSourceToLocation = new Dictionary<string, Tuple<string, string>>();
-			foreach (BuildSource Source in ProjectSources)
-			{
-				foreach (CopyAndRun Copy in Source.Sources)
-				{
-					List<List<string>> Expansions = new List<List<string>>();
-					string[] EnumeratedSources = CopyProvider.ExecuteEnumerate(Copy.Copy, Expansions);
-					for (int Index = 0; Index < EnumeratedSources.Length; Index++)
-					{
-						// get a mapping of description (expanded bit) to location
-						BuildSourceToLocation.Add(Expansions[Index][0], new Tuple<string,string>(EnumeratedSources[Index], Source.BuildEnumerationSuffix));
-					}
-				}
-			}
-
-			if (BuildSourceToLocation.Count == 0)
-			{
-				TurnkeyUtils.Log("No builds found!");
-				return;
-			}
-
-			List<string> BuildKeys = BuildSourceToLocation.Keys.ToList();
-			Choice = TurnkeyUtils.ReadInputInt("Choose a build version", BuildKeys, true);
+			Choice = TurnkeyUtils.ReadInputInt("Choose a build version", PossibleVersions, true);
 			if (Choice == 0)
 			{
 				return;
 			}
 
-			// get the chosen path
-			string BuildLocation = BuildSourceToLocation[BuildKeys[Choice - 1]].Item1;
-			string EnumerationSuffix = BuildSourceToLocation[BuildKeys[Choice - 1]].Item2;
+			FileSource OriginalSource = ProjectSources[Choice - 1];
 
 			// now find platforms under it
 			List<List<string>> PlatformExpansion = new List<List<string>>();
-			string[] PlatformSources = CopyProvider.ExecuteEnumerate(BuildLocation + EnumerationSuffix, PlatformExpansion);
+			string[] PlatformSources = CopyProvider.ExecuteEnumerate(OriginalSource.GetCopySourceOperation() + OriginalSource.BuildPlatformEnumerationSuffix, PlatformExpansion);
 
 			if (PlatformSources.Length == 0)
 			{
-				TurnkeyUtils.Log("No platform builds found in {0}!", BuildLocation);
+				TurnkeyUtils.Log("No platform builds found in {0}!", OriginalSource.GetCopySourceOperation());
 				return;
 			}
 
@@ -90,11 +62,9 @@ namespace Turnkey.Commands
 			UnrealTargetPlatform Platform;
 			if (!UnrealTargetPlatform.TryParse(TargetPlatformString, out Platform))
 			{
-				Action<string> FindAndStrip = x => { int Loc = TargetPlatformString.IndexOf(x); if (Loc > 0) { TargetPlatformString = TargetPlatformString.Substring(0, Loc); } };
-
-				FindAndStrip("NoEditor");
-				FindAndStrip("Client");
-				FindAndStrip("Server");
+				TargetPlatformString = TargetPlatformString.Replace("Editor", "");
+				TargetPlatformString = TargetPlatformString.Replace("Client", "");
+				TargetPlatformString = TargetPlatformString.Replace("Server", "");
 
 				// Windows hack
 				if (TargetPlatformString == "Windows")

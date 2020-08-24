@@ -274,9 +274,13 @@ namespace Turnkey
 
 		public static bool IsValueValid(string Value, string AllowedValues, AutomationTool.Platform Platform)
 		{
-			if (string.IsNullOrEmpty(Value) || string.IsNullOrEmpty(AllowedValues))
+			if (string.IsNullOrEmpty(Value))
 			{
 				return false;
+			}
+			if (string.IsNullOrEmpty(AllowedValues))
+			{
+				return true;
 			}
 
 			// use a regex if the allowed string starts with "regex:"

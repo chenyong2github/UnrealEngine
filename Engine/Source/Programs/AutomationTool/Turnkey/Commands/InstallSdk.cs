@@ -37,14 +37,16 @@ namespace Turnkey.Commands
 			bool bNeededOnly = bBestAvailable || TurnkeyUtils.ParseParam("NeededOnly", CommandOptions);
 
 
-			FileSource.SourceType DesiredType = FileSource.SourceType.Misc;
+			FileSource.SourceType? DesiredType = null;
 			if (SdkTypeString != null)
 			{
-				if (!Enum.TryParse(SdkTypeString, out DesiredType))
+				FileSource.SourceType OutType;
+				if (!Enum.TryParse(SdkTypeString, out OutType))
 				{
 					TurnkeyUtils.Log("Invalid SdkType given with -SdkType={0}", SdkTypeString);
 					return;
 				}
+				DesiredType = OutType;
 			}
 
 			// we need all sdks we can find
@@ -72,11 +74,8 @@ namespace Turnkey.Commands
 				AutomationTool.Platform AutomationPlatform = AutomationTool.Platform.GetPlatform(Platform);
 				UEBuildPlatformSDK SDK = UEBuildPlatformSDK.GetSDKForPlatform(Platform.ToString());
 
-				// filter on type
-				FileSource.SourceType? OptionalType = SdkTypeString != null ? (FileSource.SourceType?)DesiredType : null;
-
-				// filter the Sdks if a platform was given
-				List<FileSource> Sdks = TurnkeyManifest.FilterDiscoveredFileSources(Platform, OptionalType);
+				// filter the Sdks if a platform was given, and type if it was given
+				List<FileSource> Sdks = TurnkeyManifest.FilterDiscoveredFileSources(Platform, DesiredType);
 
 				// strip out flash Sdks where there are no devices
 				int SdkCount = Sdks.Count;
@@ -84,7 +83,7 @@ namespace Turnkey.Commands
 				bool bStrippedDevices = Sdks.Count != SdkCount;
 
 				// skip Misc FileSources, as we dont know how they are sued
-				Sdks = Sdks.FindAll(x => x.Type != FileSource.SourceType.Misc);
+				Sdks = Sdks.FindAll(x => x.IsSdkType());
 
 				if (bUpdateOnly)
 				{
@@ -219,7 +218,7 @@ namespace Turnkey.Commands
 						}
 					}
 
-					Sdk.DownloadOrInstall(Platform);
+					Sdk.DownloadOrInstall(Platform, InstallDevice);
 				}
 			}
 		}

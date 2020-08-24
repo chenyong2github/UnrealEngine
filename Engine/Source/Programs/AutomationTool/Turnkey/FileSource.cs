@@ -89,6 +89,7 @@ namespace Turnkey
 			Full,
 			Flash,
 			Misc,
+			Build,
 		};
 
 		#region Fields
@@ -106,6 +107,11 @@ namespace Turnkey
 		public string Name = null;
 		public SourceType Type = SourceType.Full;
 		public string AllowedFlashDeviceTypes = null;
+		
+		// Project for Build types to filter on
+		public string Project;
+		public string BuildPlatformEnumerationSuffix;
+
 
 
 
@@ -117,6 +123,8 @@ namespace Turnkey
 			Clone.Name = Name;
 			Clone.AllowedFlashDeviceTypes = AllowedFlashDeviceTypes;
 			Clone.Type = Type;
+			Clone.Project = Project;
+			Clone.BuildPlatformEnumerationSuffix = BuildPlatformEnumerationSuffix;
 
 			if (NewValue != null)
 			{
@@ -178,10 +186,15 @@ namespace Turnkey
 			return Platforms.Contains(Platform);
 		}
 
+		public bool IsSdkType()
+		{
+			return Type == SourceType.BuildOnly || Type == SourceType.AutoSdk || Type == SourceType.RunOnly || Type == SourceType.Full || Type == SourceType.Flash;
+		}
+
 		public bool IsVersionValid(UnrealTargetPlatform Platform, DeviceInfo Device=null)
 		{
-			// Misc ones are always valid
-			if (Type == SourceType.Misc)
+			// Non-Sdk types are always valid, although this isn't meant for them
+			if (!IsSdkType())
 			{
 				return true;
 			}
@@ -700,6 +713,7 @@ namespace Turnkey
 			Expansions = CheckForListExpansions(Expansions, x => x.PlatformString, (x,y) => x.PlatformString = y);
 			Expansions = CheckForListExpansions(Expansions, x => x.Version, (x, y) => x.Version = y);
 			Expansions = CheckForListExpansions(Expansions, x => x.AllowedFlashDeviceTypes, (x, y) => x.AllowedFlashDeviceTypes = y);
+			Expansions = CheckForListExpansions(Expansions, x => x.Project, (x, y) => x.Project = y);
 
 			// return null if nothing was actually expanded!
 			if (Expansions.Count == 1 && Expansions[0] == this)
@@ -824,9 +838,9 @@ namespace Turnkey
 		internal void PostDeserialize()
 		{
 			// validate
-			if (Version == null && Type == SourceType.Misc)
+			if (Version == null && IsSdkType())
 			{
-				throw new AutomationTool.AutomationException("FileSource {0} needs to either be a Misc type, or have a version specified", Name);
+				throw new AutomationTool.AutomationException("FileSource {0} needs to have a version specified, since it's an Sdk type", Name);
 			}
 			if (Sources == null)
 			{

@@ -20,8 +20,6 @@ namespace Turnkey
 		[XmlElement("FileSource")]
 		public FileSource[] FileSources = null;
 
-		public BuildSource[] BuildSources = null;
-
 		[XmlArrayItem(ElementName = "Manifest")]
 		public string[] AdditionalManifests = null;
 
@@ -33,11 +31,6 @@ namespace Turnkey
 			if (SavedSettings != null)
 			{
 				Array.ForEach(SavedSettings, x => TurnkeyUtils.SetVariable(x.Variable, TurnkeyUtils.ExpandVariables(x.Value)));
-			}
-
-			if (BuildSources != null)
-			{
-				Array.ForEach(BuildSources, x => x.PostDeserialize());
 			}
 
 			if (FileSources != null)
@@ -69,17 +62,29 @@ namespace Turnkey
 		}
 
 		static List<FileSource> DiscoveredFileSources = null;
-		static List<BuildSource> DiscoveredBuildSources = null;
+
 		public static List<UnrealTargetPlatform> GetPlatformsWithSdks()
 		{
 			DiscoverManifests();
 
 			// this can handle FileSources with pending Expansions, so get the unique set of Platforms represented by pre or post expansion sources
-			// skip over Misc type, since this wants just Sdk types
+			// skip over non-Sdk types, since this wants just Sdks
 			List<UnrealTargetPlatform> Platforms = new List<UnrealTargetPlatform>();
-			DiscoveredFileSources.FindAll(x => x.Type != FileSource.SourceType.Misc).ForEach(x => Platforms.AddRange(x.GetPlatforms()));
+			DiscoveredFileSources.FindAll(x => x.IsSdkType()).ForEach(x => Platforms.AddRange(x.GetPlatforms()));
 
 			return Platforms.Distinct().ToList();
+		}
+
+		public static List<string> GetProjectsWithBuilds()
+		{
+			DiscoverManifests();
+
+			// this can handle FileSources with pending Expansions, so get the unique set of Platforms represented by pre or post expansion sources
+			// skip over non-Sdk types, since this wants just Sdks
+			List<string> Projects = new List<string>();
+			DiscoveredFileSources.FindAll(x => x.Type == FileSource.SourceType.Build).ForEach(x => Projects.Add(x.Project));
+
+			return Projects.Distinct(StringComparer.InvariantCultureIgnoreCase).ToList();
 		}
 
 
@@ -88,6 +93,29 @@ namespace Turnkey
 			return FilterDiscoveredFileSources(null, null);
 		}
 		
+		private static List<FileSource> ExpandFilteredSources(List<FileSource> Sources)
+		{
+			// get the set that needs to expand
+			List<FileSource> NeedsExpansion = Sources.FindAll(x => x.NeedsFileExpansion());
+			List<FileSource> NotNeedsExpansion = Sources.FindAll(x => !x.NeedsFileExpansion());
+
+
+			// remove them, then we add expansions below
+			DiscoveredFileSources = DiscoveredFileSources.FindAll(x => !x.NeedsFileExpansion());
+
+			foreach (FileSource Source in NeedsExpansion)
+			{
+				List<FileSource> ExpansionResult = Source.ExpandCopySource();
+
+				// add them to the full set of sources, and our filtered sources
+				NotNeedsExpansion.AddRange(ExpansionResult);
+				DiscoveredFileSources.AddRange(ExpansionResult);
+			}
+
+			// NotNeedsExpansion now contains the expanded sources, and the sources that didn't need to be expanded
+			return NotNeedsExpansion;
+		}
+
 		public static List<FileSource> FilterDiscoveredFileSources(UnrealTargetPlatform? Platform, FileSource.SourceType? Type)
 		{
 			// hunt down manifests if needed
@@ -104,30 +132,17 @@ namespace Turnkey
 				Matching = DiscoveredFileSources.FindAll(x => (Platform == null || (x.PlatformString?.StartsWith("$(")).GetValueOrDefault() || x.SupportsPlatform(Platform.Value)) && (Type == null || x.Type == Type.Value));
 			}
 
-			// get the set that needs to expand
-			List<FileSource> WorkingSet = Matching.FindAll(x => x.NeedsFileExpansion());
-
-			// remove them, then we add expansions below
-			DiscoveredFileSources = DiscoveredFileSources.FindAll(x => !WorkingSet.Contains(x));
-
-			foreach (FileSource Source in WorkingSet)
-			{
-				DiscoveredFileSources.AddRange(Source.ExpandCopySource());
-			}
-
-			if (Platform == null && Type == null)
-			{
-				return DiscoveredFileSources;
-			}
-			return DiscoveredFileSources.FindAll(x => (Platform == null || x.SupportsPlatform(Platform.Value)) && (Type == null || x.Type == Type.Value));
+			return ExpandFilteredSources(Matching);
 		}
 
-		public static List<BuildSource> GetDiscoveredBuildSources()
+		public static List<FileSource> FilterDiscoveredBuilds(string Project)
 		{
 			// hunt down manifests if needed
 			DiscoverManifests();
 
-			return DiscoveredBuildSources;
+			List<FileSource> Filtered = DiscoveredFileSources.FindAll(x => x.Type == FileSource.SourceType.Build && x.Project.Equals(Project, StringComparison.InvariantCultureIgnoreCase));
+
+			return ExpandFilteredSources(Filtered);
 		}
 
 		public static void DiscoverManifests()
@@ -136,7 +151,6 @@ namespace Turnkey
 			if (DiscoveredFileSources == null)
 			{
 				DiscoveredFileSources = new List<FileSource>();
-				DiscoveredBuildSources = new List<BuildSource>();
 
 				// known location to branch from, this will include a few other locations
 				string RootOperation = "file:$(EngineDir)/Build/Turnkey/TurnkeyManifest.xml";
@@ -146,10 +160,6 @@ namespace Turnkey
 					if (x.FileSources != null)
 					{
 						DiscoveredFileSources.AddRange(x.FileSources);
-					}
-					if (x.BuildSources != null)
-					{
-						DiscoveredBuildSources.AddRange(x.BuildSources);
 					}
 				});
 			}

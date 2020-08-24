@@ -100,6 +100,9 @@ namespace Turnkey
 				// get the path component that has a wildcard
 				string Wildcard = (NextSlash == -1) ? PathString.Substring(PrevSlash + 1) : PathString.Substring(PrevSlash + 1, (NextSlash - PrevSlash) - 1);
 
+				// replace * with a non-greedy capture so *-foo-*.zip can get the best values for the *'s
+				Regex Regex = new Regex(string.Format("^{0}$", Wildcard.Replace("*", "(.+?)")), RegexOptions.IgnoreCase);
+
 				// track what's before and after the * to return what it expanded to
 				int StarLoc = Wildcard.IndexOf('*');
 				int PrefixLen = StarLoc;
@@ -111,8 +114,20 @@ namespace Turnkey
 					{
 						NewExpansionSet = new List<string>(ExpansionSet);
 						string PathComponent = Path.GetFileName(Dirname);
-						// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
-						NewExpansionSet.Add(PathComponent.Substring(PrefixLen, PathComponent.Length - (PrefixLen + SuffixLen)));
+
+						Match Match = Regex.Match(PathComponent);
+						if (!Match.Success)
+						{
+							continue;
+						}
+
+						for (int GroupIndex = 1; GroupIndex < Match.Groups.Count; GroupIndex++)
+						{
+							NewExpansionSet.Add(Match.Groups[GroupIndex].Value);
+						}
+
+//						// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
+//						NewExpansionSet.Add(PathComponent.Substring(PrefixLen, PathComponent.Length - (PrefixLen + SuffixLen)));
 					}
 
 					if (bIsLastComponent)
@@ -130,15 +145,27 @@ namespace Turnkey
 				// if the path ends with a slash, then we are only looking for directories (D:\\Sdks\*\ would only want to return directories)
 				if (bIsLastComponent && NextSlash == -1)
 				{
-					foreach (string Filename in Directory.EnumerateFiles(FullPathBeforeWildcard, Wildcard))
+					foreach (string Filename in Directory.EnumerateFiles(FullPathBeforeWildcard))//, Wildcard))
 					{
+						string PathComponent = Path.GetFileName(Filename);
+						Match Match = Regex.Match(PathComponent);
+						if (!Match.Success)
+						{
+							continue;
+						}
+
 						List<string> NewExpansionSet = null;
 						if (ExpansionSet != null)
 						{
 							NewExpansionSet = new List<string>(ExpansionSet);
-							string PathComponent = Path.GetFileName(Filename);
+
+							for (int GroupIndex = 1; GroupIndex < Match.Groups.Count; GroupIndex++)
+							{
+								NewExpansionSet.Add(Match.Groups[GroupIndex].Value);
+							}
+
 							// the match is the part of the filename that was not the *, so removing that will give us what we wanted to match
-							NewExpansionSet.Add(PathComponent.Substring(PrefixLen, PathComponent.Length - (PrefixLen + SuffixLen)));
+//							NewExpansionSet.Add(PathComponent.Substring(PrefixLen, PathComponent.Length - (PrefixLen + SuffixLen)));
 						}
 
 						Output.Add(ProviderToken + ":" + Filename, NewExpansionSet);
