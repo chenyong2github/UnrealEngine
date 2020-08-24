@@ -17,8 +17,6 @@
 #include "VT/RuntimeVirtualTextureRender.h"
 #include "VT/RuntimeVirtualTextureVolume.h"
 
-#if WITH_EDITOR
-
 namespace
 {
 	/** Container for render resources needed to render the MinMax height texture. */
@@ -287,5 +285,3 @@ namespace VirtualHeightfieldMesh
 		return true;
 	}
 }
-
-#endif
