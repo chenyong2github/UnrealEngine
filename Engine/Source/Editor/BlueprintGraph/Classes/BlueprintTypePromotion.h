@@ -157,20 +157,9 @@ private:
 namespace TypePromoDebug
 {
 	/** Enables/Disables type promotion in BP */
-	static bool bIsTypePromoEnabled = false;
-	static FAutoConsoleVariableRef CVarIsTypePromoEnabled(
-		TEXT("BP.TypePromo.IsEnabled"), bIsTypePromoEnabled,
-		TEXT("If true then type promotion inside of blueprints will be enabled"),
-		FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
-			{
-				// Clear the node spawner so that we create the new BP actions correctly
-				FTypePromotion::ClearNodeSpawners();
-
-				// Refresh all the actions so that the context menu goes back to the normal options
-				if (FBlueprintActionDatabase* Actions = FBlueprintActionDatabase::TryGet())
-				{
-					Actions->RefreshAll();
-				}
-			}),
-		ECVF_Default);
+	static bool IsTypePromoEnabled()
+	{
+		static IConsoleVariable* TypePromoCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("BP.TypePromo.IsEnabled"));
+		return TypePromoCVar ? TypePromoCVar->GetBool() : false;
+	}
 }

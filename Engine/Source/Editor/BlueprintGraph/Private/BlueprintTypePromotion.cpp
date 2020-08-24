@@ -23,6 +23,26 @@ namespace OperatorNames
 	static const FString NotEq		= TEXT("NotEqual");
 }
 
+namespace TypePromoDebug
+{
+	static bool bIsTypePromoEnabled = false;
+	static FAutoConsoleVariableRef CVarIsTypePromoEnabled(
+		TEXT("BP.TypePromo.IsEnabled"), bIsTypePromoEnabled,
+		TEXT("If true then type promotion inside of blueprints will be enabled"),
+		FConsoleVariableDelegate::CreateLambda([](IConsoleVariable* InVariable)
+		{
+			// Clear the node spawner so that we create the new BP actions correctly
+			FTypePromotion::ClearNodeSpawners();
+
+			// Refresh all the actions so that the context menu goes back to the normal options
+			if (FBlueprintActionDatabase* Actions = FBlueprintActionDatabase::TryGet())
+			{
+				Actions->RefreshAll();
+			}
+		}),
+		ECVF_Default);
+}
+
 FTypePromotion& FTypePromotion::Get()
 {
 	if (Instance == nullptr)
@@ -65,7 +85,7 @@ void FTypePromotion::CreatePromotionTable()
 	{
 		// Type_X...						Can be promoted to...
 		{ UEdGraphSchema_K2::PC_Int,		{ UEdGraphSchema_K2::PC_Float, UEdGraphSchema_K2::PC_Double, UEdGraphSchema_K2::PC_Int64 } },
-		{ UEdGraphSchema_K2::PC_Byte,		{ UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64 } },
+		{ UEdGraphSchema_K2::PC_Byte,		{ UEdGraphSchema_K2::PC_Float, UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64 } },
 		{ UEdGraphSchema_K2::PC_Float,		{ UEdGraphSchema_K2::PC_Double, UEdGraphSchema_K2::PC_Int64 } },
 		{ UEdGraphSchema_K2::PC_Double,		{ UEdGraphSchema_K2::PC_Int64 } },
 		{ UEdGraphSchema_K2::PC_Wildcard,	{ UEdGraphSchema_K2::PC_Int, UEdGraphSchema_K2::PC_Int64, UEdGraphSchema_K2::PC_Float, UEdGraphSchema_K2::PC_Double, UEdGraphSchema_K2::PC_Byte, UEdGraphSchema_K2::PC_Boolean } },
@@ -77,8 +97,19 @@ bool FTypePromotion::IsValidPromotion(const FEdGraphPinType& A, const FEdGraphPi
 	// If either of these pin types is a struct, than we have to have some kind of valid
 	// conversion function, otherwise we can't possibly connect them
 	const ETypeComparisonResult Res = FTypePromotion::GetHigherType(A, B);
+	bool bCanAutocast = false;
+	if (A.PinCategory == UEdGraphSchema_K2::PC_Struct || B.PinCategory == UEdGraphSchema_K2::PC_Struct)
+	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-	return Res == ETypeComparisonResult::TypeBHigher;
+		FName DummyName;
+		UClass* DummyClass = nullptr;
+		UK2Node* DummyNode = nullptr;
+
+		bCanAutocast = K2Schema->SearchForAutocastFunction(A, B, /*out*/ DummyName, DummyClass);
+	}
+
+	return Res == ETypeComparisonResult::TypeBHigher || bCanAutocast;
 }
 
 bool FTypePromotion::HasStructConversion(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin)
@@ -381,7 +412,7 @@ UFunction* FTypePromotion::FindLowestMatchingFunc_Internal(const FString& Operat
 				{
 					// If an input of this function is compatible with this type
 					// Then we need to check all the other inputs on this function
-					OutPossibleFunctions.Emplace(Func);
+					OutPossibleFunctions.AddUnique(Func);
 					break;
 				}
 			}
