@@ -1812,7 +1812,7 @@ bool FLODUtilities::UpdateAlternateSkinWeights(FSkeletalMeshLODModel& LODModelDe
 				SkeletalMeshImportData::FRawBoneInfluence AlternateInfluence;
 				AlternateInfluence.BoneIndex = BoneIndexDest;
 				AlternateInfluence.VertexIndex = VertexIndexDest;
-				AlternateInfluence.Weight = InfluenceSrc.Weight;
+				AlternateInfluence.Weight = InfluenceSrc.Weight* Ratio;
 				int32 AlternateInfluencesIndex = AlternateInfluences.Add(AlternateInfluence);
 				AlternateInfluencesMap.Add(AlternateInfluencesIndex);
 			}
