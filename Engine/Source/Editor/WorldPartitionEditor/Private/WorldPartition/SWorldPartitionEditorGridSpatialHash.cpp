@@ -34,7 +34,8 @@ SWorldPartitionEditorGridSpatialHash::~SWorldPartitionEditorGridSpatialHash()
 
 void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 {
-	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
+	World = InArgs._InWorld;
+	WorldPartition = World ? World->GetWorldPartition() : nullptr;
 
 	UWorldPartitionEditorSpatialHash* EditorSpatialHash = (UWorldPartitionEditorSpatialHash*)WorldPartition->EditorHash;
 
@@ -54,8 +55,7 @@ void SWorldPartitionEditorGridSpatialHash::Construct(const FArguments& InArgs)
 		}
 	}
 
-	Trans = FVector2D(0, 0);
-	Scale = 0.00133333332;
+	SWorldPartitionEditorGrid2D::Construct(SWorldPartitionEditorGrid::FArguments().InWorld(InArgs._InWorld));
 }
 
 int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedGeometry, const FSlateRect& MyCullingRect, FSlateWindowElementList& OutDrawElements, int32 LayerId) const
