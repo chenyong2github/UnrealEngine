@@ -6,7 +6,12 @@
 #include "TrailHierarchy.h"
 #include "TrajectoryCache.h"
 
-FORCENOINLINE TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(const FVector& Point) const
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
+TOptional<FVector2D> FTrailScreenSpaceTransform::ProjectPoint(const FVector& Point) const
 {
 	const FPlane Projection = View->Project(Point);
 	if (Projection.W > 0.0f)
@@ -34,8 +39,6 @@ TArray<FVector> FCachedTrajectoryDrawInfo::GetTrajectoryPointsForDisplay(const F
 		TrajectoryPoints.Add(TrajectoryCache->Get(Time).GetTranslation());
 	}
 
-	TrajectoryPoints.Add(TrajectoryCache->GetInterp(CachedViewRange.GetUpperBoundValue()).GetTranslation());
-
 	return TrajectoryPoints;
 }
 
@@ -62,3 +65,6 @@ void FCachedTrajectoryDrawInfo::GetTickPointsForDisplay(const FDisplayContext& I
 		}
 	}
 }
+
+} // namespace MovieScene
+} // namespace UE
