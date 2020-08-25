@@ -14,7 +14,7 @@
 #include "FolderTreeItem.h"
 #include "ComponentTreeItem.h"
 #include "WorldTreeItem.h"
-#include "Foundation/FoundationEditorInstanceActor.h"
+#include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorMode"
 
@@ -70,7 +70,7 @@ namespace SceneOutliner
 FActorMode::FActorMode(const FActorModeParams& Params)
 	: ISceneOutlinerMode(Params.SceneOutliner)
 	, bHideComponents(Params.bHideComponents)
-	, bHideFoundationHierarchy(Params.bHideFoundationHierarchy)
+	, bHideLevelInstanceHierarchy(Params.bHideLevelInstanceHierarchy)
 	, SpecifiedWorldToDisplay(Params.SpecifiedWorldToDisplay)
 {
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
@@ -91,7 +91,7 @@ TUniquePtr<ISceneOutlinerHierarchy> FActorMode::CreateHierarchy()
 {
 	TUniquePtr<FActorHierarchy> ActorHierarchy = FActorHierarchy::Create(this, RepresentingWorld);
 	ActorHierarchy->SetShowingComponents(!bHideComponents);
-	ActorHierarchy->SetShowingFoundations(!bHideFoundationHierarchy);
+	ActorHierarchy->SetShowingLevelInstances(!bHideLevelInstanceHierarchy);
 
 	return ActorHierarchy;
 }

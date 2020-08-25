@@ -5907,7 +5907,7 @@ void FStarshipEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("CameraRig_Crane"),
 			TEXT("CameraRig_Rail"),
 			TEXT("FoliageType_Actor"),
-			TEXT("FoundationActor")
+			TEXT("LevelInstance")
 		};
 
 		for (int32 TypeIndex = 0; TypeIndex < UE_ARRAY_COUNT(AssetTypes); ++TypeIndex)

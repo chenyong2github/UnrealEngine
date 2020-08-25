@@ -13,8 +13,8 @@
 #include "LevelUtils.h"
 #include "GameFramework/WorldSettings.h"
 #include "EditorActorFolders.h"
-#include "Foundation/FoundationActor.h"
-#include "Foundation/FoundationSubsystem.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 
 TUniquePtr<FActorHierarchy> FActorHierarchy::Create(ISceneOutlinerMode* Mode, const TWeakObjectPtr<UWorld>& World)
 {
@@ -71,9 +71,9 @@ FActorHierarchy::~FActorHierarchy()
 
 void FActorHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMap<FSceneOutlinerTreeItemID, FSceneOutlinerTreeItemPtr>& Items, TArray<FSceneOutlinerTreeItemPtr>& OutChildren) const
 {
-	UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
+	ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
 
-	check(!bShowingFoundations || FoundationSubsystem);
+	check(!bShowingLevelInstances || LevelInstanceSubsystem);
 
 	if (const FWorldTreeItem* WorldTreeItem = Item.CastTo<FWorldTreeItem>())
 	{
@@ -110,9 +110,9 @@ void FActorHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMa
 	}
 	else if (const FActorTreeItem* ActorTreeItem = Item.CastTo<FActorTreeItem>())
 	{
-		if (AFoundationActor* FoundationActor = Cast<AFoundationActor>(ActorTreeItem->Actor))
+		if (ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(ActorTreeItem->Actor))
 		{
-			FoundationSubsystem->ForEachActorInFoundation(FoundationActor, [&OutChildren, &Items](AActor* Actor)
+			LevelInstanceSubsystem->ForEachActorInLevelInstance(LevelInstanceActor, [&OutChildren, &Items](AActor* Actor)
 				{
 					if (const FSceneOutlinerTreeItemPtr* ContainedActorItem = Items.Find(Actor))
 					{
@@ -193,18 +193,18 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 				}
 			}
 
-			if (const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>())
+			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				if (const AFoundationActor* OwningFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+				if (const ALevelInstance* OwningLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 				{
-					const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor);
-					const bool bIsAnEditingFoundation = FoundationActor ? FoundationActor->IsEditing() : false;
-					// Parent this to a foundation if the parent foundation is being edited or if this is a sub foundation which is being edited
-					if (bShowingFoundations || (OwningFoundation->IsEditing() || bIsAnEditingFoundation))
+					const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
+					const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceActor->IsEditing() : false;
+					// Parent this to a LevelInstance if the parent LevelInstance is being edited or if this is a sub LevelInstance which is being edited
+					if (bShowingLevelInstances || (OwningLevelInstance->IsEditing() || bIsAnEditingLevelInstance))
 					{
-						if (const FSceneOutlinerTreeItemPtr* OwningFoundationItem = Items.Find(OwningFoundation))
+						if (const FSceneOutlinerTreeItemPtr* OwningLevelInstanceItem = Items.Find(OwningLevelInstance))
 						{
-							return *OwningFoundationItem;
+							return *OwningLevelInstanceItem;
 						}
 						else
 						{
@@ -281,17 +281,17 @@ void FActorHierarchy::CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTr
 {
 	check(World);
 
-	const UFoundationSubsystem* FoundationSubsystem = World->GetSubsystem<UFoundationSubsystem>();
+	const ULevelInstanceSubsystem* LevelInstanceSubsystem = World->GetSubsystem<ULevelInstanceSubsystem>();
 	// Create all actor items
 	for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
 	{
 		AActor* Actor = *ActorIt;
-		// If we are not showing foundations, foundation sub actor items should not be created unless they belong to a foundation which is being edited
-		if (FoundationSubsystem)
+		// If we are not showing LevelInstances, LevelInstance sub actor items should not be created unless they belong to a LevelInstance which is being edited
+		if (LevelInstanceSubsystem)
 		{
-			if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+			if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 		{
-				if (!bShowingFoundations && !ParentFoundation->IsEditing())
+				if (!bShowingLevelInstances && !ParentLevelInstance->IsEditing())
 				{
 					continue;
 				}
@@ -349,16 +349,16 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 
 		TArray<AActor*> ChildActors;
 
-		if (const AFoundationActor* FoundationParentActor = Cast<AFoundationActor>(ParentActor))
+		if (const ALevelInstance* LevelInstanceParentActor = Cast<ALevelInstance>(ParentActor))
 		{
-			const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
-			check(FoundationSubsystem);
+			const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
+			check(LevelInstanceSubsystem);
 
-			FoundationSubsystem->ForEachActorInFoundation(FoundationParentActor, [this, FoundationParentActor, FoundationSubsystem, &ChildActors](AActor* SubActor)
+			LevelInstanceSubsystem->ForEachActorInLevelInstance(LevelInstanceParentActor, [this, LevelInstanceParentActor, LevelInstanceSubsystem, &ChildActors](AActor* SubActor)
 				{
-					const AFoundationActor* FoundationActor = Cast<AFoundationActor>(SubActor);
-					const bool bIsAnEditingFoundation = FoundationActor ? FoundationSubsystem->IsEditingFoundation(FoundationActor) : false;
-					if (bShowingFoundations || (FoundationSubsystem->IsEditingFoundation(FoundationParentActor) || bIsAnEditingFoundation))
+					const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(SubActor);
+					const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceActor) : false;
+					if (bShowingLevelInstances || (LevelInstanceSubsystem->IsEditingLevelInstance(LevelInstanceParentActor) || bIsAnEditingLevelInstance))
 					{
 						ChildActors.Add(SubActor);
 					}
@@ -428,16 +428,16 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 				return Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(ActorTreeItem->Actor->GetFolderPath(), ActorTreeItem->Actor->GetWorld()), true);
 			}
 
-			// If item belongs to a foundation
-			if (const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>())
+			// If item belongs to a LevelInstance
+			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				if (AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+				if (ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 				{
-					const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor);
-					const bool bIsAnEditingFoundation = FoundationActor ? FoundationActor->IsEditing() : false;
-					if (bShowingFoundations || (ParentFoundation->IsEditing() || bIsAnEditingFoundation))
+					const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
+					const bool bIsAnEditingLevelInstance = LevelInstanceActor ? LevelInstanceActor->IsEditing() : false;
+					if (bShowingLevelInstances || (ParentLevelInstance->IsEditing() || bIsAnEditingLevelInstance))
 					{
-						return Mode->CreateItemFor<FActorTreeItem>(ParentFoundation, true);
+						return Mode->CreateItemFor<FActorTreeItem>(ParentLevelInstance, true);
 					}
 				}
 			}

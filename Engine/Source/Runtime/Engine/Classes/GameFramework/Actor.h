@@ -3630,7 +3630,7 @@ private:
 
 	friend UWorld;
 	friend class FFoliageHelper;
-	friend class UFoundationSubsystem;
+	friend class ULevelInstanceSubsystem;
 };
 
 struct FSetActorGuid
@@ -3640,7 +3640,6 @@ private:
 	{
 		InActor->ActorGuid = InActorGuid;
 	}
-	friend class ULevelStreamingFoundationInstance;
 	friend UWorld;
 };
 #endif

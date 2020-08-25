@@ -25,7 +25,7 @@ public:
 	virtual FSceneOutlinerTreeItemPtr CreateParentItem(const FSceneOutlinerTreeItemPtr& Item) const override;
 
 	void SetShowingComponents(bool bInShowingComponents) { bShowingComponents = bInShowingComponents; }
-	void SetShowingFoundations(bool bInShowingFoundations) { bShowingFoundations = bInShowingFoundations; }
+	void SetShowingLevelInstances(bool bInShowingLevelInstances) { bShowingLevelInstances = bInShowingLevelInstances; }
 private:
 	/** Adds all the direct and indirect children of a world to OutItems */
 	void CreateWorldChildren(UWorld* World, TArray<FSceneOutlinerTreeItemPtr>& OutItems) const;
@@ -63,7 +63,7 @@ private:
 	void FullRefreshEvent();
 
 	bool bShowingComponents = false;
-	bool bShowingFoundations = false;
+	bool bShowingLevelInstances = false;
 
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 private:

@@ -98,7 +98,7 @@ private:
 	static TSharedRef<FSceneOutlinerFilter> CreateHideTemporaryActorsFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateIsInCurrentLevelFilter();
 	static TSharedRef<FSceneOutlinerFilter> CreateHideComponentsFilter();
-	static TSharedRef<FSceneOutlinerFilter> CreateHideFoundationsFilter();
+	static TSharedRef<FSceneOutlinerFilter> CreateHideLevelInstancesFilter();
 private:
 	/** Number of actors which have passed through the filters */
 	uint32 FilteredActorCount = 0;

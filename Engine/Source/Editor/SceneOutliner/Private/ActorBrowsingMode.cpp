@@ -26,9 +26,9 @@
 #include "ComponentTreeItem.h"
 #include "ActorBrowsingModeSettings.h"
 #include "ScopedTransaction.h"
-#include "Foundation/FoundationActor.h"
-#include "Foundation/FoundationSubsystem.h"
-#include "Foundation/FoundationEditorInstanceActor.h"
+#include "LevelInstance/LevelInstanceActor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
+#include "LevelInstance/LevelInstanceEditorInstanceActor.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogActorBrowser, Log, All);
 
@@ -105,32 +105,32 @@ FActorBrowsingMode::FActorBrowsingMode(SSceneOutliner* InSceneOutliner, TWeakObj
 
 	FilterInfoMap.Add(TEXT("HideComponentsFilter"), HideComponentsInfo);
 
-	FSceneOutlinerFilterInfo HideFoundationsInfo(LOCTEXT("ToggleHideFoundations", "Hide Foundations"), LOCTEXT("ToggleHideFoundationsToolTip", "When enabled, hides all foundation content."), SharedSettings->bHideFoundationHierarchy, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideFoundationsFilter));
-	HideFoundationsInfo.OnToggle().AddLambda([this](bool bIsActive)
+	FSceneOutlinerFilterInfo HideLevelInstancesInfo(LOCTEXT("ToggleHideLevelInstances", "Hide Level Instances"), LOCTEXT("ToggleHideLevelInstancesToolTip", "When enabled, hides all level instance content."), SharedSettings->bHideLevelInstanceHierarchy, FCreateSceneOutlinerFilter::CreateStatic(&FActorBrowsingMode::CreateHideLevelInstancesFilter));
+	HideLevelInstancesInfo.OnToggle().AddLambda([this](bool bIsActive)
 		{
 			UActorBrowsingModeSettings* Settings = GetMutableDefault<UActorBrowsingModeSettings>();
-			Settings->bHideFoundationHierarchy = bHideFoundationHierarchy = bIsActive;
+			Settings->bHideLevelInstanceHierarchy = bHideLevelInstanceHierarchy = bIsActive;
 			Settings->PostEditChange();
 
 			if (auto ActorHierarchy = StaticCast<FActorHierarchy*>(Hierarchy.Get()))
 			{
-				ActorHierarchy->SetShowingFoundations(!bIsActive);
+				ActorHierarchy->SetShowingLevelInstances(!bIsActive);
 			}
 		});
-	FilterInfoMap.Add(TEXT("HideFoundationsFilter"), HideFoundationsInfo);
+	FilterInfoMap.Add(TEXT("HideLevelInstancesFilter"), HideLevelInstancesInfo);
 
-	// Add a filter which sets the interactive mode of foundation items and their children
+	// Add a filter which sets the interactive mode of LevelInstance items and their children
 	SceneOutliner->AddFilter(MakeShared<FActorFilter>(FActorTreeItem::FFilterPredicate::CreateStatic([](const AActor* Actor) {return true; }), FSceneOutlinerFilter::EDefaultBehaviour::Pass, FActorTreeItem::FFilterPredicate::CreateLambda([this](const AActor* Actor)
 		{
-			if (!bHideFoundationHierarchy)
+			if (!bHideLevelInstanceHierarchy)
 			{
-				if (const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>())
+				if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>())
 				{
 					// if actor has a valid parent and the parent is not being edited,
 					// then the actor should not be selectable.
-					if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+					if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 					{
-						if (!FoundationSubsystem->IsEditingFoundation(ParentFoundation))
+						if (!LevelInstanceSubsystem->IsEditingLevelInstance(ParentLevelInstance))
 						{
 							return false;
 						}
@@ -270,23 +270,23 @@ TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideComponentsFilter(
 		FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
-TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideFoundationsFilter()
+TSharedRef<FSceneOutlinerFilter> FActorBrowsingMode::CreateHideLevelInstancesFilter()
 {
 	return MakeShareable(new FActorFilter(FActorTreeItem::FFilterPredicate::CreateStatic([](const AActor* Actor)
 		{
-			// Check if actor belongs to a foundation
-			if (const UFoundationSubsystem* FoundationSubsystem = Actor->GetWorld()->GetSubsystem<UFoundationSubsystem>())
+			// Check if actor belongs to a LevelInstance
+			if (const ULevelInstanceSubsystem* LevelInstanceSubsystem = Actor->GetWorld()->GetSubsystem<ULevelInstanceSubsystem>())
 			{
-				if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+				if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 				{
-					if (!FoundationSubsystem->IsEditingFoundation(ParentFoundation))
+					if (!LevelInstanceSubsystem->IsEditingLevelInstance(ParentLevelInstance))
 					{
 						return false;
 					}
 				}
 			}
-			// Or if the actor itself is a foundation editor instance
-			return Cast<AFoundationEditorInstanceActor>(Actor) == nullptr;
+			// Or if the actor itself is a LevelInstance editor instance
+			return Cast<ALevelInstanceEditorInstanceActor>(Actor) == nullptr;
 		}), FSceneOutlinerFilter::EDefaultBehaviour::Pass));
 }
 
@@ -554,16 +554,16 @@ void FActorBrowsingMode::OnItemDoubleClick(FSceneOutlinerTreeItemPtr Item)
 		AActor* Actor = ActorItem->Actor.Get();
 		check(Actor);
 
-		AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor);
-		if (FoundationActor && FSlateApplication::Get().GetModifierKeys().IsAltDown())
+		ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor);
+		if (LevelInstanceActor && FSlateApplication::Get().GetModifierKeys().IsAltDown())
 		{
-			if (FoundationActor->CanEdit())
+			if (LevelInstanceActor->CanEdit())
 			{
-				FoundationActor->Edit();
+				LevelInstanceActor->Edit();
 			}
-			else if (FoundationActor->CanCommit())
+			else if (LevelInstanceActor->CanCommit())
 			{
-				FoundationActor->Commit();
+				LevelInstanceActor->Commit();
 			}
 		}
 		else if (Item->CanInteract())
@@ -785,15 +785,15 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 			return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText());
 		}
 
-		const AFoundationActor* FoundationTarget = Cast<AFoundationActor>(ActorTarget);
-		const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
+		const ALevelInstance* LevelInstanceTarget = Cast<ALevelInstance>(ActorTarget);
+		const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
 
-		if (FoundationTarget)
+		if (LevelInstanceTarget)
 		{
-			check(FoundationSubsystem);
-			if (!FoundationTarget->IsEditing())
+			check(LevelInstanceSubsystem);
+			if (!LevelInstanceTarget->IsEditing())
 			{
-				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_AttachToClosedFoundation", "Cannot attach to foundation which is not being edited"));
+				return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_AttachToClosedLevelInstance", "Cannot attach to LevelInstance which is not being edited"));
 			}
 		}
 
@@ -808,20 +808,20 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 			{
 				if (bCanAttach)
 				{
-					if (FoundationSubsystem)
+					if (LevelInstanceSubsystem)
 					{
-						// Either all actors must be in a foundation or none of them
-						if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(DragActor))
+						// Either all actors must be in a LevelInstance or none of them
+						if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(DragActor))
 						{
-							if (!ParentFoundation->IsEditing())
+							if (!ParentLevelInstance->IsEditing())
 							{
-								return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingFoundation", "Cannot detach from a foundation which is not being edited"));
+								return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingLevelInstance", "Cannot detach from a LevelInstance which is not being edited"));
 							}
 						}
 
-						if (!FoundationSubsystem->CanMoveActorToLevel(DragActor))
+						if (!LevelInstanceSubsystem->CanMoveActorToLevel(DragActor))
 						{
-							AttachErrorMsg = LOCTEXT("Error_MoveActorToFoundation", "Cannot move foundation while it or its children are being edited");
+							AttachErrorMsg = LOCTEXT("Error_MoveActorToLevelInstance", "Cannot move LevelInstance while it or its children are being edited");
 							bCanAttach = bDraggedOntoAttachmentParent = false;
 							break;
 						}
@@ -833,7 +833,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 						bCanAttach = bDraggedOntoAttachmentParent = false;
 						break;
 					}
-					if (!FoundationTarget && !GEditor->CanParentActors(ActorTarget, DragActor, &AttachErrorMsg))
+					if (!LevelInstanceTarget && !GEditor->CanParentActors(ActorTarget, DragActor, &AttachErrorMsg))
 					{
 						bCanAttach = false;
 					}
@@ -941,29 +941,29 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 
 		if (Payload.Has<FActorTreeItem>())
 		{
-			const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
+			const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
 			// Iterate over all the actors that have been dragged
 			for (const TWeakObjectPtr<AActor>& WeakActor : Payload.GetData<TWeakObjectPtr<AActor>>(SceneOutliner::FWeakActorSelector()))
 			{
 				const AActor* Actor = WeakActor.Get();
 
-				bool bActorContainedInFoundation = false;
-				if (FoundationSubsystem)
+				bool bActorContainedInLevelInstance = false;
+				if (LevelInstanceSubsystem)
 				{
-					if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+					if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 					{
-						if (!ParentFoundation->IsEditing())
+						if (!ParentLevelInstance->IsEditing())
 						{
-							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingFoundation", "Cannot detach from a foundation which is not being edited"));
+							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingLevelInstance", "Cannot detach from a LevelInstance which is not being edited"));
 						}
-						bActorContainedInFoundation = true;
+						bActorContainedInLevelInstance = true;
 					}
 
-					if (const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor))
+					if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
 					{
-						if (!FoundationSubsystem->CanMoveActorToLevel(FoundationActor))
+						if (!LevelInstanceSubsystem->CanMoveActorToLevel(LevelInstanceActor))
 						{
-							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingFoundation", "Cannot detach a foundation which is currently being edited"));
+							return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, LOCTEXT("Error_RemoveEditingLevelInstance", "Cannot detach a LevelInstance which is currently being edited"));
 						}
 					}
 				}
@@ -972,7 +972,7 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 				{
 					return FSceneOutlinerDragValidationInfo(ESceneOutlinerDropCompatibility::IncompatibleGeneric, FText::Format(LOCTEXT("Error_AttachChildActor", "Cannot move {0} as it is a child actor."), FText::FromString(Actor->GetActorLabel())));
 				}
-				else if (Actor->GetFolderPath() == DestinationPath && !Actor->GetAttachParentActor() && !bActorContainedInFoundation)
+				else if (Actor->GetFolderPath() == DestinationPath && !Actor->GetAttachParentActor() && !bActorContainedInLevelInstance)
 				{
 					FFormatNamedArguments Args;
 					Args.Add(TEXT("SourceName"), FText::FromString(Actor->GetActorLabel()));
@@ -1052,22 +1052,22 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 		{
 			// Show socket chooser if we have sockets to select
 
-			if (AFoundationActor* TargetFoundation = Cast<AFoundationActor>(DropActor))
+			if (ALevelInstance* TargetLevelInstance = Cast<ALevelInstance>(DropActor))
 			{
-				// Actors inside foundations cannot have folder paths
+				// Actors inside LevelInstances cannot have folder paths
 				TArray<AActor*> DraggedActors = Payload.GetData<AActor*>(SceneOutliner::FActorSelector());
 				for (auto& Actor : DraggedActors)
 				{
 					Actor->SetFolderPath_Recursively(FName());
 				}
 
-				UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
-				check(FoundationSubsystem);
+				ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
+				check(LevelInstanceSubsystem);
 
-				check(TargetFoundation->IsEditing());
-				const FScopedTransaction Transaction(LOCTEXT("UndoAction_MoveActorsToFoundation", "Move actors to foundation"));
+				check(TargetLevelInstance->IsEditing());
+				const FScopedTransaction Transaction(LOCTEXT("UndoAction_MoveActorsToLevelInstance", "Move actors to LevelInstance"));
 
-				FoundationSubsystem->MoveActorsTo(TargetFoundation, DraggedActors);
+				LevelInstanceSubsystem->MoveActorsTo(TargetLevelInstance, DraggedActors);
 			}
 			else
 			{
@@ -1174,25 +1174,25 @@ void FActorBrowsingMode::OnDrop(ISceneOutlinerTreeItem& DropTarget, const FScene
 				}
 			}
 
-			const UFoundationSubsystem* FoundationSubsystem = RepresentingWorld->GetSubsystem<UFoundationSubsystem>();
-			check(FoundationSubsystem);
+			const ULevelInstanceSubsystem* LevelInstanceSubsystem = RepresentingWorld->GetSubsystem<ULevelInstanceSubsystem>();
+			check(LevelInstanceSubsystem);
 			// Since we are moving to a folder (or root), we must be moving into the persistent level.
 			ULevel* DestinationLevel = RepresentingWorld->PersistentLevel;
 			check(DestinationLevel);
 
 			TArray<AActor*> ActorsToMove;
-			Payload.ForEachItem<FActorTreeItem>([FoundationSubsystem, &ActorsToMove](const FActorTreeItem& ActorItem)
+			Payload.ForEachItem<FActorTreeItem>([LevelInstanceSubsystem, &ActorsToMove](const FActorTreeItem& ActorItem)
 				{
 					AActor* Actor = ActorItem.Actor.Get();
-					if (const AFoundationActor* ParentFoundation = FoundationSubsystem->GetParentFoundation(Actor))
+					if (const ALevelInstance* ParentLevelInstance = LevelInstanceSubsystem->GetParentLevelInstance(Actor))
 					{
-						check(ParentFoundation->IsEditing());
+						check(ParentLevelInstance->IsEditing());
 						ActorsToMove.Add(Actor);
 					}
 				});
 
 			TArray<AActor*> DraggedActors = Payload.GetData<AActor*>(SceneOutliner::FActorSelector());
-			FoundationSubsystem->MoveActorsToLevel(ActorsToMove, DestinationLevel);
+			LevelInstanceSubsystem->MoveActorsToLevel(ActorsToMove, DestinationLevel);
 		}
 	}
 }

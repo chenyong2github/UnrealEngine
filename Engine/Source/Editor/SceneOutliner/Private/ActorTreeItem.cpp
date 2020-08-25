@@ -17,7 +17,7 @@
 #include "ISceneOutlinerMode.h"
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
-#include "Foundation/FoundationActor.h"
+#include "LevelInstance/LevelInstanceActor.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_ActorTreeItem"
 
@@ -112,14 +112,14 @@ private:
 	FText GetDisplayText() const
 	{
 		const AActor* Actor = ActorPtr.Get();
-		if (const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor))
+		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
 		{
-			if (FoundationActor->IsDirty())
+			if (LevelInstanceActor->IsDirty())
 			{
 				FFormatNamedArguments Args;
-				Args.Add(TEXT("ActorLabel"), FText::FromString(FoundationActor->GetActorLabel()));
-				Args.Add(TEXT("EditTag"), LOCTEXT("EditingFoundationLabel", "*"));
-				return FText::Format(LOCTEXT("FoundationDisplay", "{ActorLabel}{EditTag}"), Args);
+				Args.Add(TEXT("ActorLabel"), FText::FromString(LevelInstanceActor->GetActorLabel()));
+				Args.Add(TEXT("EditTag"), LOCTEXT("EditingLevelInstanceLabel", "*"));
+				return FText::Format(LOCTEXT("LevelInstanceDisplay", "{ActorLabel}{EditTag}"), Args);
 			}
 		}
 
@@ -247,10 +247,10 @@ private:
 	{
 		AActor* Actor = ActorPtr.Get();
 
-		// Color foundations differently if they are being edited
-		if (const AFoundationActor* FoundationActor = Cast<AFoundationActor>(Actor))
+		// Color LevelInstances differently if they are being edited
+		if (const ALevelInstance* LevelInstanceActor = Cast<ALevelInstance>(Actor))
 		{
-			if (FoundationActor->IsEditing() && !FoundationActor->IsSelected())
+			if (LevelInstanceActor->IsEditing() && !LevelInstanceActor->IsSelected())
 			{
 				return FAppStyle::Get().GetSlateColor("Colors.AccentGreen");
 			}

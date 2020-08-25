@@ -18,7 +18,7 @@ class UWorldPartitionPreCookCommandlet : public UCommandlet
 	//~ End UCommandlet Interface
 
 private:
-	void OnFoundationActorPostLoad(class AFoundationActor* FoundationActor);
+	void OnLevelInstanceActorPostLoad(class ALevelInstance* LevelInstanceActor);
 	bool PreCookLevelAndSave(ULevel* InLevel);
 	bool SaveLevel(ULevel* InLevel);
 	void RemoveSubLevel(ULevel* InLevel);

@@ -23,17 +23,17 @@ struct SCENEOUTLINER_API FActorModeParams
 {
 	FActorModeParams() {}
 
-	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideFoundationHierarchy = true)
+	FActorModeParams(SSceneOutliner* InSceneOutliner, const TWeakObjectPtr<UWorld>& InSpecifiedWorldToDisplay = nullptr, bool bInHideComponents = true, bool bInHideLevelInstanceHierarchy = true)
 		: SpecifiedWorldToDisplay(InSpecifiedWorldToDisplay)
 		, SceneOutliner(InSceneOutliner)
 		, bHideComponents(bInHideComponents)
-		, bHideFoundationHierarchy(bInHideFoundationHierarchy)
+		, bHideLevelInstanceHierarchy(bInHideLevelInstanceHierarchy)
 	{}
 
 	TWeakObjectPtr<UWorld> SpecifiedWorldToDisplay = nullptr;
 	SSceneOutliner* SceneOutliner;
 	bool bHideComponents;
-	bool bHideFoundationHierarchy;
+	bool bHideLevelInstanceHierarchy;
 };
 
 class SCENEOUTLINER_API FActorMode : public ISceneOutlinerMode
@@ -72,8 +72,8 @@ protected:
 protected:
 	// Should the hide components filter be enabled
 	bool bHideComponents;
-	// Are foundations being hidden
-	bool bHideFoundationHierarchy;
+	// Are LevelInstances being hidden
+	bool bHideLevelInstanceHierarchy;
 	/** The world which we are currently representing */
 	TWeakObjectPtr<UWorld> RepresentingWorld;
 	/** The world which the user manually selected */

@@ -365,7 +365,7 @@ public class Engine : ModuleRules
             PrivateIncludePathModuleNames.Add("NaniteBuilder");
             DynamicallyLoadedModuleNames.Add("NaniteBuilder");
 
-			DynamicallyLoadedModuleNames.Add("FoundationEditor");
+			DynamicallyLoadedModuleNames.Add("LevelInstanceEditor");
         }
 
 		SetupModulePhysicsSupport(Target);
@@ -395,7 +395,7 @@ public class Engine : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Mac)
 		{
-			PublicFrameworks.AddRange(new string[] { "AVFoundation", "CoreVideo", "CoreMedia" });
+			PublicFrameworks.AddRange(new string[] { "AVLevelInstance", "CoreVideo", "CoreMedia" });
 		}
 
 		if (Target.IsInPlatformGroup(UnrealPlatformGroup.Android))

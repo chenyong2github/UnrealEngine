@@ -4,7 +4,7 @@
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
-#include "Foundation/FoundationActor.h"
+#include "LevelInstance/LevelInstanceActor.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "LevelUtils.h"
 #include "Editor.h"
@@ -18,26 +18,26 @@ UWorldPartitionPreCookCommandlet::UWorldPartitionPreCookCommandlet(const FObject
 {
 }
 
-void UWorldPartitionPreCookCommandlet::OnFoundationActorPostLoad(AFoundationActor* FoundationActor)
+void UWorldPartitionPreCookCommandlet::OnLevelInstanceActorPostLoad(ALevelInstance* LevelInstanceActor)
 {
-	if (FoundationActor->IsFoundationPathValid())
+	if (LevelInstanceActor->IsLevelInstancePathValid())
 	{
-		if (ULevel::GetIsLevelPartitionedFromPackage(FName(*FoundationActor->GetFoundationPackage())))
+		if (ULevel::GetIsLevelPartitionedFromPackage(FName(*LevelInstanceActor->GetWorldAssetPackage())))
 		{
-			const TSoftObjectPtr<UWorld>& Foundation = FoundationActor->GetFoundation();
-			PartitionedWorldsToGenerate.Add(Foundation.GetLongPackageName());
+			const TSoftObjectPtr<UWorld>& WorldAsset = LevelInstanceActor->GetWorldAsset();
+			PartitionedWorldsToGenerate.Add(WorldAsset.GetLongPackageName());
 
-			FString FoundationPath = Foundation.ToString();
-			FString PackageName = FPackageName::ObjectPathToPackageName(FoundationPath);
-			check(PackageName != FoundationPath);
-			FString ObjectName = FPackageName::ObjectPathToObjectName(Foundation.ToString());
-			check(ObjectName != FoundationPath);
+			FString WorldAssetPath = WorldAsset.ToString();
+			FString PackageName = FPackageName::ObjectPathToPackageName(WorldAssetPath);
+			check(PackageName != WorldAssetPath);
+			FString ObjectName = FPackageName::ObjectPathToObjectName(WorldAsset.ToString());
+			check(ObjectName != WorldAssetPath);
 
 			FString PackagePath = FPackageName::GetLongPackagePath(*PackageName);
 			FName PackageShortName = FPackageName::GetShortFName(*PackageName);
 
-			FString NewFoundation = FString::Printf(TEXT("%s/%s/%s/%s_Main.%s_Main"), *PackagePath, *PackageShortName.ToString(), FWorldPartitionLevelHelper::GetSavedLevelOutputSubFolderName(), *PackageShortName.ToString(), *ObjectName);
-			FoundationActor->SetFoundation(TSoftObjectPtr<UWorld>(FSoftObjectPath(NewFoundation)));
+			FString NewLevelInstance = FString::Printf(TEXT("%s/%s/%s/%s_Main.%s_Main"), *PackagePath, *PackageShortName.ToString(), FWorldPartitionLevelHelper::GetSavedLevelOutputSubFolderName(), *PackageShortName.ToString(), *ObjectName);
+			LevelInstanceActor->SetWorldAsset(TSoftObjectPtr<UWorld>(FSoftObjectPath(NewLevelInstance)));
 		}
 	}
 }
@@ -184,7 +184,7 @@ int32 UWorldPartitionPreCookCommandlet::Main(const FString& Params)
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().SearchAllAssets(true);
 
-	AFoundationActor::OnFoundationActorPostLoad.AddUObject(this, &UWorldPartitionPreCookCommandlet::OnFoundationActorPostLoad);
+	ALevelInstance::OnLevelInstanceActorPostLoad.AddUObject(this, &UWorldPartitionPreCookCommandlet::OnLevelInstanceActorPostLoad);
 
 	ULevel* MainLevel = LoadLevel(Tokens[0]);
 	if (!PreCookLevelAndSave(MainLevel))
