@@ -168,8 +168,8 @@ void UChaosWheeledVehicleMovementComponent::FixupSkeletalMesh()
 											Constraint->SetHardstopStiffness(1.0f);
 											Constraint->SetSpringStiffness(SusSettings.SpringRate * 0.25f);
 											Constraint->SetSpringPreload(SusSettings.SpringPreload);
-											Constraint->SetSpringDamping(SusSettings.DampingRatio * 15.0f);
-											Constraint->SetMinLength(SusSettings.SuspensionMaxRaise);
+											Constraint->SetSpringDamping(SusSettings.DampingRatio * 5.0f);
+											Constraint->SetMinLength(-SusSettings.SuspensionMaxRaise);
 											Constraint->SetMaxLength(SusSettings.SuspensionMaxDrop);
 											Constraint->SetAxis(-SusSettings.SuspensionAxis);
 										}
@@ -904,7 +904,7 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 			{
 				DrawDebugLine(GetWorld()
 					, SusApplicationPoint
-					, SusApplicationPoint + SuspensionForceVector * 0.0005f
+					, SusApplicationPoint + SuspensionForceVector * GVehicleDebugParams.ForceDebugScaling
 					, FColor::Blue, false, -1.0f, 0, 5);
 
 				DrawDebugLine(GetWorld()
@@ -914,6 +914,10 @@ void UChaosWheeledVehicleMovementComponent::ApplySuspensionForces(float DeltaTim
 			}
 #endif
 
+		}
+		else
+		{
+			PSuspension.SetSuspensionLength(PSuspension.GetTraceLength(PWheel.Setup().WheelRadius), PWheel.Setup().WheelRadius);
 		}
 
 	}
