@@ -158,7 +158,7 @@ void FMotionTrailTrackEditor::CreateBoneVisibilityMenu(FMenuBuilder& MenuBuilder
 			FText::FromName(BoneName),
 			LOCTEXT("SelectBoneTooltip", "Select bone"),
 			FSlateIcon(),
-			FUIAction::FUIAction(
+			FUIAction(
 				FExecuteAction::CreateLambda([this, BoneIndex, BoneName, Skeleton, Hierarchy]() {
 					TBitArray<>& Visibilities = BoneVisibilities[Skeleton];
 					Visibilities[BoneIndex] = !Visibilities[BoneIndex];
