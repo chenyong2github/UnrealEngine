@@ -19,8 +19,6 @@ namespace UnrealBuildTool.Rules
 					"Chaos",
 					"ChaosSolvers",
 					"ChaosSolverEngine",
-                    "FieldSystemCore",
-                    "FieldSystemSimulationCore"
                 }
                 );
 

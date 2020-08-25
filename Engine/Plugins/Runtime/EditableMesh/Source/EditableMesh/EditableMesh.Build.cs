@@ -14,8 +14,8 @@ namespace UnrealBuildTool.Rules
 				    "Engine",
                     "MeshDescription",
 					"StaticMeshDescription",
-                    "GeometryCollectionCore",
                     "GeometryCollectionEngine",
+					"Chaos",
                     "RenderCore"	// @todo mesheditor: For FlushRenderingCommands()
 				}
 			);

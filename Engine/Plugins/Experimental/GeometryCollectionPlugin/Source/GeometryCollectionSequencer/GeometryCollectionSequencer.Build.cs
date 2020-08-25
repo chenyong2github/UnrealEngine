@@ -32,9 +32,8 @@ namespace UnrealBuildTool.Rules
                     "TimeManagement",
                     "UnrealEd",
                     "GeometryCollectionTracks",
-                    "GeometryCollectionCore",
+					"Chaos",
                     "GeometryCollectionEngine",
-                    "GeometryCollectionSimulationCore",
                 }
             );
         }

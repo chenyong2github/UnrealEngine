@@ -12,6 +12,6 @@ namespace Field
 	// http://mrl.nyu.edu/~perlin/noise/
 	namespace PerlinNoise
 	{
-		void FIELDSYSTEMCORE_API Sample(float* Dst, float X, float Y, float Z);
+		void CHAOS_API Sample(float* Dst, float X, float Y, float Z);
 	}
 }

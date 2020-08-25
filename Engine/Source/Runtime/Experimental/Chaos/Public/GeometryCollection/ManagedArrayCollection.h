@@ -37,7 +37,7 @@ namespace Chaos
 *
 *
 */
-class GEOMETRYCOLLECTIONCORE_API FManagedArrayCollection
+class CHAOS_API FManagedArrayCollection
 {
 	friend FSimulationProperties;
 

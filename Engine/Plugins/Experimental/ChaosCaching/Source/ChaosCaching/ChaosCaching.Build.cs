@@ -18,7 +18,6 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "RHI",
 					"ChaosSolvers",
-					"GeometryCollectionCore",
 					"GeometryCollectionEngine"
 				});
 

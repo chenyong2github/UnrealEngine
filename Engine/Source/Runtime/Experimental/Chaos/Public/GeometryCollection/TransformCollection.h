@@ -13,7 +13,7 @@
 *
 * @see FTransformCollectionComponent
 */
-class GEOMETRYCOLLECTIONCORE_API FTransformCollection : public FManagedArrayCollection
+class CHAOS_API FTransformCollection : public FManagedArrayCollection
 {
 public:
 	typedef FManagedArrayCollection Super;

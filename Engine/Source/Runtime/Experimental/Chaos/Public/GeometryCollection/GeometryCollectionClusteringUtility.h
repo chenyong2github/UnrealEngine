@@ -7,7 +7,7 @@
 
 class FGeometryCollection;
 
-class GEOMETRYCOLLECTIONCORE_API FGeometryCollectionClusteringUtility
+class CHAOS_API FGeometryCollectionClusteringUtility
 {
 public:
 	/**
