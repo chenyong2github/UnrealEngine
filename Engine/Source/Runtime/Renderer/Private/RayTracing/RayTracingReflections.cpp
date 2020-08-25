@@ -628,10 +628,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingReflections(
 	CommonParameters.SamplesPerPixel = Options.SamplesPerPixel;
 	CommonParameters.MaxBounces = FMath::Max(1, GRayTracingReflectionsMaxBounces > -1? GRayTracingReflectionsMaxBounces : View.FinalPostProcessSettings.RayTracingReflectionsMaxBounces);
 	CommonParameters.HeightFog = GRayTracingReflectionsHeightFog;
-	CommonParameters.UseReflectionCaptures = GRayTracingReflectionsCaptures;
-	CommonParameters.ShouldDoDirectLighting = GRayTracingReflectionsDirectLighting;
+	CommonParameters.UseReflectionCaptures = Options.bReflectionCaptures;
+	CommonParameters.ShouldDoDirectLighting = Options.bDirectLighting;
 	CommonParameters.ReflectedShadowsType = GRayTracingReflectionsShadows > -1 ? GRayTracingReflectionsShadows : (int32)View.FinalPostProcessSettings.RayTracingReflectionsShadows;
-	CommonParameters.ShouldDoEmissiveAndIndirectLighting = GRayTracingReflectionsEmissiveAndIndirectLighting;
+	CommonParameters.ShouldDoEmissiveAndIndirectLighting = Options.bEmissiveAndIndirectLighting;
 	CommonParameters.ShouldReflectOnlyWater = Options.bReflectOnlyWater;
 	CommonParameters.UpscaleFactor = UpscaleFactor;
 	CommonParameters.ReflectionMinRayDistance = FMath::Min(GRayTracingReflectionsMinRayDistance, GRayTracingReflectionsMaxRayDistance);
@@ -903,6 +903,10 @@ FRayTracingReflectionOptions GetRayTracingReflectionOptions(const FViewInfo& Vie
 	Result.ResolutionFraction = FMath::Clamp(CVarReflectionScreenPercentage.GetValueOnRenderThread() / 100.0f, 0.25f, 1.0f);
 	Result.MaxRoughness = GetRayTracingReflectionsMaxRoughness(View);
 	Result.bSkyLight = ShouldRayTracedReflectionsRayTraceSkyLightContribution(Scene);
+
+	Result.bDirectLighting = GRayTracingReflectionsDirectLighting != 0;
+	Result.bEmissiveAndIndirectLighting = GRayTracingReflectionsEmissiveAndIndirectLighting != 0;
+	Result.bReflectionCaptures = GRayTracingReflectionsCaptures != 0;
 
 #else // RHI_RAYTRACING
 

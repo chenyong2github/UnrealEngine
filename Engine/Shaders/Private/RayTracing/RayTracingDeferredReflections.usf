@@ -44,12 +44,16 @@
 #include "RayTracingReflectionsCommon.ush"
 #include "RayTracingDeferredMaterials.ush"
 #include "RayTracingDeferredReflections.ush"
+#include "RayTracingReflectionEnvironment.ush"
 
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
 float ReflectionMaxRoughness;
 int   GlossyReflections;
+int   ShouldDoDirectLighting;
+int   ShouldDoEmissiveAndIndirectLighting;
+int   ShouldDoReflectionCaptures;
 
 RWStructuredBuffer<FSortedReflectionRay>        RayBuffer;
 RWStructuredBuffer<FDeferredMaterialPayload>    MaterialBuffer;
@@ -136,6 +140,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		return;
 	}
 
+	const bool bSkyLightAffectReflection = ShouldSkyLightAffectReflection();
+
 	float4 ResultColor    = (float4)0;
 	// Unify miss condition with RayTracingReflections.usf
 	//float ResultDistance = DENOISER_MISS_HIT_DISTANCE;
@@ -153,7 +159,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		FRayIntersectionBookmark Bookmark = BookmarkBuffer[DeferredMaterialPayload.PixelCoordinates];
 
 		FPackedMaterialClosestHitPayload PackedPayload = (FPackedMaterialClosestHitPayload)0;
-		PackedPayload.SetEnableSkyLightContribution();
+		if (bSkyLightAffectReflection)
+		{
+			PackedPayload.SetEnableSkyLightContribution();
+		}
 		PackedPayload.SetPixelCoord(PixelPos);
 
 		TraceDeferredMaterialShadingRay(
@@ -166,8 +175,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 		if (PackedPayload.IsHit())
 		{
-			bool bShouldDoDirectLighting               = true;
-			bool bShouldDoEmissiveAndIndirectLighting  = true;
+			bool bShouldDoDirectLighting               = ShouldDoDirectLighting != 0;
+			bool bShouldDoEmissiveAndIndirectLighting  = ShouldDoEmissiveAndIndirectLighting != 0;
 			bool bTopLayerRayTraceSkyLightContribution = false;
 			bool bDecoupleSampleGeneration             = false;
 			uint ReflectedShadowsType                  = 1; // Hard shadows
@@ -194,6 +203,28 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 				bDecoupleSampleGeneration,
 				RayCone,
 				ResultColor.rgb);
+
+			if (ShouldDoReflectionCaptures != 0)
+			{
+				float3 R = reflect(Ray.Direction, PackedPayload.GetWorldNormal());
+				const float NoV = saturate(dot(-Ray.Direction, PackedPayload.GetWorldNormal()));
+				const float Roughness = PackedPayload.GetRoughness();
+				const float RoughnessSq = Roughness * Roughness;
+				const float SpecularOcclusion = GetSpecularOcclusion(NoV, RoughnessSq, 1.0);
+				ResultColor.rgb += EnvBRDF(PackedPayload.GetSpecularColor(), Roughness, NoV) * SpecularOcclusion *
+					CompositeReflectionCapturesAndSkylight(
+						1.0, // CompositeAlpha
+						RayHitWorldPos,
+						R,
+						Roughness,
+						0.0, // IndirectIrradiance,
+						1.0, // IndirectSpecularOcclusion
+						0.0, // ExtraIndirectSpecular
+						ForwardLightData.NumReflectionCaptures,
+						0, // ReflectionCapturesStartIndex
+						0,
+						bSkyLightAffectReflection);
+			}
 
 			ResultColor.rgb *= View.PreExposure;
 			ResultColor.a = ReflectionRay.Validity;
