@@ -2551,6 +2551,12 @@ public:
 	FCachedRayTracingMeshCommandStorage CachedRayTracingMeshCommands;
 #endif
 
+	/** A map from primitive ID to whether the primitve is relevant for ray tracing */
+	TBitArray<> RayTracingRelevantPrimitiveMap;
+
+	/** A map from primitive ID to whether the primitve is relevant for static processing */
+	TBitArray<> RayTracingStaticRelevantPrimitiveMap;
+
 	/**
 	 * The following arrays are densely packed primitive data needed by various
 	 * rendering passes. PrimitiveSceneInfo->PackedIndex maintains the index
