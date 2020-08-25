@@ -777,6 +777,7 @@ TSharedPtr<FNiagaraScriptStackMergeAdapter> FNiagaraEmitterMergeAdapter::GetScri
 				return SimulationStage->GetSimulationStageStack();
 			}
 		}
+		break;
 	default:
 		checkf(false, TEXT("Unsupported usage"));
 	}
