@@ -335,6 +335,11 @@ public:
 	virtual bool IsDependent(UMaterialInterface* TestDependency) { return TestDependency == this; }
 
 	/**
+	 * Same as above, but can be called concurrently
+	 */
+	virtual bool IsDependent_Concurrent(UMaterialInterface* TestDependency, TMicRecursionGuard RecursionGuard = TMicRecursionGuard()) { return TestDependency == this; }
+
+	/**
 	* Return a pointer to the FMaterialRenderProxy used for rendering.
 	* @param	Selected	specify true to return an alternate material used for rendering this material when part of a selection
 	*						@note: only valid in the editor!
