@@ -533,7 +533,6 @@ TSharedRef<SWidget> MovieSceneToolHelpers::MakeEnumComboBox(const UEnum* InEnum,
 {
 	return SNew(SEnumComboBox, InEnum)
 		.CurrentValue(InCurrentValue)
-		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
 		.ContentPadding(FMargin(2, 0))
 		.Font(FEditorStyle::GetFontStyle("Sequencer.AnimationOutliner.RegularFont"))
 		.OnEnumSelectionChanged(InOnSelectionChanged);

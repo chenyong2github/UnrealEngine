@@ -332,7 +332,6 @@ void SAnimMontageSectionsPanel::Update()
 						SNew(SButton)
 						.IsEnabled(!bChildAnimMontage)
 						.ButtonColorAndOpacity(IsLoop(SectionIdx) ? LoopColor : NodeColor)
-						.ButtonStyle(FEditorStyle::Get(), "FlatButton.Light")
 						[
 							SNew(SHorizontalBox)
 							+SHorizontalBox::Slot()
