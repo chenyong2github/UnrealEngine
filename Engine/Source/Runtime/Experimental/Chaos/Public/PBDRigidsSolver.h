@@ -535,7 +535,7 @@ namespace Chaos
 		FPhysicsSolverBase* Solver;
 	};
 
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOSSOLVERS_TEMPLATE_API TPBDRigidsSolver<Trait>;
+#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TPBDRigidsSolver<Trait>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
