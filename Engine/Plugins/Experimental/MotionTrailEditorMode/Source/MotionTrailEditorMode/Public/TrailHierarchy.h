@@ -8,6 +8,30 @@
 #include "SceneView.h"
 #include "UnrealClient.h"
 
+#include "Misc/Timespan.h"
+
+// TODO: Add FTrailVisibilityManager (or no external class) to keep track of visible trails with members like Selection, Mask and AlwaysVisibleTrails and utility methods like IsTrailVisible
+// TODO: Find minimal subtree to update to evaluate visible trails every tick, accumulate parent states for skipped trails with FAccumulatedParentStates structure
+// TODO: Better support multiple parents when rendering with Visited
+
+class UMotionTrailEditorMode;
+
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
+struct FTrailHierarchyNode
+{
+	FTrailHierarchyNode()
+		: Parents()
+		, Children()
+	{}
+
+	TArray<FGuid> Parents;
+	TArray<FGuid> Children;
+};
+
 class ITrailHierarchyRenderer
 {
 public:
@@ -30,26 +54,17 @@ private:
 	class FTrailHierarchy* OwningHierarchy;
 };
 
-struct FTrailHierarchyNode
-{
-	FTrailHierarchyNode()
-		: Parents()
-		, Children()
-	{}
-
-	TArray<FGuid> Parents;
-	TArray<FGuid> Children;
-};
-
 class FTrailHierarchy
 {
 public:
 
-	FTrailHierarchy(TWeakObjectPtr<class UMotionTrailEditorMode> InWeakEditorMode)
+	FTrailHierarchy(TWeakObjectPtr<UMotionTrailEditorMode> InWeakEditorMode)
 		: ViewRange(TRange<double>::All())
 		, RootTrailGuid(FGuid())
 		, AllTrails()
 		, Hierarchy()
+		, SelectionMask()
+		, TimingStats()
 		, WeakEditorMode(InWeakEditorMode)
 	{}
 
@@ -66,11 +81,18 @@ public:
 	virtual void AddTrail(const FGuid& Key, const FTrailHierarchyNode& Node, TUniquePtr<FTrail>&& TrailPtr);
 	virtual void RemoveTrail(const FGuid& Key);
 
+	TArray<FGuid> GetAllChildren(const FGuid& TrailGuid);
+
 	const TRange<double>& GetViewRange() const { return ViewRange; }
 	FGuid GetRootTrailGuid() const { return RootTrailGuid; }
 	const TMap<FGuid, TUniquePtr<FTrail>>& GetAllTrails() const { return AllTrails; }
 	const TMap<FGuid, FTrailHierarchyNode>& GetHierarchy() const { return Hierarchy; }
-	const class UMotionTrailEditorMode* GetEditorMode() const { return WeakEditorMode.Get(); }
+	const UMotionTrailEditorMode* GetEditorMode() const { return WeakEditorMode.Get(); }
+
+	const TMap<FString, FTimespan>& GetTimingStats() const { return TimingStats; };
+	TMap<FString, FTimespan>& GetTimingStats() { return TimingStats; }
+
+	const TSet<FGuid>& GetSelectionMask() const { return SelectionMask; }
 
 protected:
 
@@ -79,6 +101,11 @@ protected:
 	FGuid RootTrailGuid;
 	TMap<FGuid, TUniquePtr<FTrail>> AllTrails;
 	TMap<FGuid, FTrailHierarchyNode> Hierarchy;
+	TSet<FGuid> SelectionMask;
 
-	TWeakObjectPtr<class UMotionTrailEditorMode> WeakEditorMode;
+	TMap<FString, FTimespan> TimingStats;
+	TWeakObjectPtr<UMotionTrailEditorMode> WeakEditorMode;
 };
+
+} // namespace MovieScene
+} // namespace UE
