@@ -1152,9 +1152,9 @@ void FStarshipCoreStyle::SetupComboButtonStyles(TSharedRef<FStyle>& Style)
 		.SetActiveHoveredBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
 		.SetActiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
 
-		.SetInactiveBrush(FSlateNoResource())
-		.SetInactiveHoveredBrush(FSlateNoResource())
-		.SetInactiveHighlightedBrush(FSlateNoResource())
+		.SetInactiveBrush(FSlateColorBrush(FStyleColors::Primary))
+		.SetInactiveHoveredBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
+		.SetInactiveHighlightedBrush(FSlateColorBrush(FStyleColors::PrimaryHover))
 
 
 		.SetTextColor(FStyleColors::White)

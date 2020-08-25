@@ -38,9 +38,9 @@ public:
 		: _Content()
 		, _ComboBoxStyle(&FCoreStyle::Get().GetWidgetStyle< FComboBoxStyle >("ComboBox"))
 		, _ButtonStyle(nullptr)
-		, _ItemStyle(&FCoreStyle::Get().GetWidgetStyle< FTableRowStyle >("TableView.Row"))
-		, _ContentPadding(FMargin(4.0, 2.0))
-		, _ForegroundColor(FCoreStyle::Get().GetSlateColor("InvertedForeground"))
+		, _ItemStyle(&FAppStyle::Get().GetWidgetStyle<FTableRowStyle>("ComboBox.Row"))
+		, _ContentPadding(_ComboBoxStyle->ContentPadding)
+		, _ForegroundColor(FSlateColor::UseStyle())
 		, _OnStructSelected()
 		, _InitiallySelectedItem(nullptr)
 		, _Method()
@@ -138,7 +138,8 @@ private:
 private:
 	/** Delegate that is invoked when the selected item in the combo box changes */
 	FDataTableEditorUtils::FOnDataTableStructSelected OnStructSelected;
-
+	/** The padding around each menu row */
+	FMargin MenuRowPadding;
 	/** The item currently selected in the combo box */
 	TSharedPtr<FString> SelectedItem;
 	/** The search field used for the combox box's contents */
@@ -159,6 +160,8 @@ void SDataTableStructComboBox::Construct(const FArguments& InArgs)
 	check(InArgs._ComboBoxStyle);
 
 	ItemStyle = InArgs._ItemStyle;
+
+	MenuRowPadding = InArgs._ComboBoxStyle->MenuRowPadding;
 
 	// Work out which values we should use based on whether we were given an override, or should use the style's version
 	const FComboButtonStyle& OurComboButtonStyle = InArgs._ComboBoxStyle->ComboButtonStyle;
@@ -218,6 +221,7 @@ void SDataTableStructComboBox::Construct(const FArguments& InArgs)
 		.OnMenuOpenChanged(this, &SDataTableStructComboBox::OnMenuOpenChanged)
 		.IsFocusable(true)
 		);
+
 
 	// Better to select search field so you can type right away
 	SetMenuContentWidgetToFocus(SearchField);
@@ -336,6 +340,7 @@ TSharedRef<ITableRow> SDataTableStructComboBox::GenerateMenuItemRow(TSharedPtr<F
 	return SNew(SComboRow<TSharedPtr<FString>>, OwnerTable)
 		.Style(ItemStyle)
 		.Visibility(WidgetVisibility)
+		.Padding(MenuRowPadding)
 		[
 			SNew(STextBlock)
 			.Text(FText::FromString(*InItem))
@@ -439,8 +444,7 @@ const FString FDataTableEditorUtils::VariableTypesTooltipDocLink = TEXT("Shared/
 TSharedRef<SWidget> FDataTableEditorUtils::MakeRowStructureComboBox(FOnDataTableStructSelected OnSelected)
 {
 	TSharedRef<SDataTableStructComboBox> ComboBox = SNew(SDataTableStructComboBox)
-		.OnStructSelected(OnSelected)
-		.ContentPadding(3);
+		.OnStructSelected(OnSelected);
 
 	return ComboBox;
 }

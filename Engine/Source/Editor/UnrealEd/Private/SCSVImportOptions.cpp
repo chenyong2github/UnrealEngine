@@ -56,16 +56,15 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 	this->ChildSlot
 	[
 		SNew(SBorder)
-		.BorderImage(FEditorStyle::GetBrush(TEXT("Menu.Background")))
+		.BorderImage(FAppStyle::Get().GetBrush(TEXT("Brushes.Background")))
 		.Padding(10)
 		[
 			SNew(SVerticalBox)
 			+SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SNew(SBorder)
+				SNew(SBox)
 				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 				.Visibility( InArgs._FullPath.IsEmpty() ? EVisibility::Collapsed : EVisibility::Visible )
 				[
 					SNew(SHorizontalBox)
@@ -73,8 +72,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 					.AutoWidth()
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("CurveEd.LabelFont"))
-						.Text(LOCTEXT("Import_CurrentFileTitle", "Current File: "))
+						.Text(LOCTEXT("Import_CurrentFileTitle", "Current File "))
 					]
 					+SHorizontalBox::Slot()
 					.Padding(5, 0, 0, 0)
@@ -82,7 +80,6 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 					.VAlign(VAlign_Center)
 					[
 						SNew(STextBlock)
-						.Font(FEditorStyle::GetFontStyle("CurveEd.InfoFont"))
 						.Text(InArgs._FullPath)
 					]
 				]
@@ -94,7 +91,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(STextBlock)
-				.Text( LOCTEXT("ChooseAssetType", "Import As:") )
+				.Text( LOCTEXT("ChooseAssetType", "Import As") )
 			]
 			+SVerticalBox::Slot()
 			.AutoHeight()
@@ -114,7 +111,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(STextBlock)
-				.Text( LOCTEXT("ChooseRowType", "Choose DataTable Row Type:") )
+				.Text( LOCTEXT("ChooseRowType", "Choose DataTable Row Type") )
 				.Visibility( this, &SCSVImportOptions::GetTableRowOptionVis )
 			]
 			+SVerticalBox::Slot()
@@ -128,7 +125,7 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 			.Padding(2)
 			[
 				SNew(STextBlock)
-				.Text( LOCTEXT("ChooseCurveType", "Choose Curve Interpolation Type:") )
+				.Text( LOCTEXT("ChooseCurveType", "Choose Curve Interpolation Type") )
 				.Visibility( this, &SCSVImportOptions::GetCurveTypeVis )
 			]
 			+SVerticalBox::Slot()
@@ -161,11 +158,12 @@ void SCSVImportOptions::Construct(const FArguments& InArgs)
 			[
 				SNew(SHorizontalBox)
 				+SHorizontalBox::Slot()
-				.AutoWidth()
+				.HAlign(HAlign_Right)
 				.Padding(2)
 				[
 					SNew(SButton)
 					.Text(LOCTEXT("Import", "Apply"))
+					.ButtonStyle(FAppStyle::Get(), "PrimaryButton")
 					.OnClicked( this, &SCSVImportOptions::OnImport )
 					.IsEnabled( this, &SCSVImportOptions::CanImport )
 				]
