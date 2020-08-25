@@ -59,15 +59,6 @@ int32 UWorldPartitionBuildHLODsCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	//  Retrieve the world partition.
-	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
-	UWorldPartition* WorldPartition = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled() ? World->GetWorldPartition() : nullptr;
-	if (!WorldPartition)
-	{
-		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Commandlet only works on partitioned maps."));
-		return 1;
-	}
-
 	// Setup the world.
 	World->WorldType = EWorldType::Editor;
 	World->AddToRoot();
@@ -85,6 +76,15 @@ int32 UWorldPartitionBuildHLODsCommandlet::Main(const FString& Params)
 		World->InitWorld(UWorld::InitializationValues(IVS));
 		World->PersistentLevel->UpdateModelComponents();
 		World->UpdateWorldComponents(true, false);
+	}
+
+	// Retrieve the world partition.
+	UWorldPartitionSubsystem* WorldPartitionSubsystem = World->GetSubsystem<UWorldPartitionSubsystem>();
+	UWorldPartition* WorldPartition = WorldPartitionSubsystem && WorldPartitionSubsystem->IsEnabled() ? World->GetWorldPartition() : nullptr;
+	if (!WorldPartition)
+	{
+		UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Commandlet only works on partitioned maps."));
+		return 1;
 	}
 
 	FWorldContext& WorldContext = GEditor->GetEditorWorldContext(true);
