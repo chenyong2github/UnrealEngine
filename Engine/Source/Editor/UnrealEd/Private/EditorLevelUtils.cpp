@@ -492,6 +492,7 @@ ULevelStreaming* UEditorLevelUtils::SetStreamingClassForLevel(ULevelStreaming* I
 		NewStreamingLevel->MinTimeBetweenVolumeUnloadRequests = InLevel->MinTimeBetweenVolumeUnloadRequests;
 		NewStreamingLevel->LevelColor = InLevel->LevelColor;
 		NewStreamingLevel->Keywords = InLevel->Keywords;
+		NewStreamingLevel->SetFolderPath(InLevel->GetFolderPath());
 	}
 
 	return NewStreamingLevel;
