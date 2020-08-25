@@ -1516,7 +1516,7 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 	}
 	
 	uint32 EventSpawnStart = Data.GetDestinationDataChecked().GetNumInstances();
-	int32 NumBeforeSpawn = Data.GetDestinationDataChecked().GetNumInstances();
+	const int32 NumBeforeSpawn = Data.GetDestinationDataChecked().GetNumInstances();
 	uint32 TotalActualEventSpawns = 0;
 
 	Data.GetSpawnedIDsTable().SetNum(0, false);
@@ -1663,8 +1663,8 @@ void FNiagaraEmitterInstance::Tick(float DeltaSeconds)
 		}
 	}
 
-	int32 NumAfterSpawn = Data.GetCurrentDataChecked().GetNumInstances();
-	int32 TotalNumSpawned = NumAfterSpawn - NumBeforeSpawn;
+	const int32 NumAfterSpawn = Data.GetDestinationDataChecked().GetNumInstances();
+	const int32 TotalNumSpawned = NumAfterSpawn - NumBeforeSpawn;
 
 	Data.GetDestinationDataChecked().SetNumSpawnedInstances(TotalNumSpawned);
 	Data.GetDestinationDataChecked().SetIDAcquireTag(Data.GetIDAcquireTag());

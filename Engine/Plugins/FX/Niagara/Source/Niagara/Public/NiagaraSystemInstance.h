@@ -319,6 +319,8 @@ public:
 		return ComponentTasks.Enqueue(Task);
 	}
 
+	TSet<int32> GetParticlesWithActiveComponents(USceneComponent* const Component);
+
 	/** Gets the current world transform of the system */
 	FORCEINLINE const FTransform& GetWorldTransform() const { return WorldTransform; }
 	/** Sets the world transform */
@@ -494,6 +496,7 @@ private:
 	/** The component renderer can queue update tasks that are executed on the game thread on finalization. */
 	TQueue<FNiagaraComponentUpdateTask, EQueueMode::Mpsc> ComponentTasks;
 	FNiagaraComponentRenderPool ComponentRenderPool;
+	mutable FRWLock ComponentPoolLock;
 	void ResetComponentRenderPool();
 
 public:
