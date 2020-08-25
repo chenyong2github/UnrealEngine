@@ -17,7 +17,7 @@ DEFINE_LOG_CATEGORY_STATIC(LogGeometryCollectionParticlesData, Log, All);
 
 template<class T, int d>
 TGeometryCollectionParticlesData<T, d>::TGeometryCollectionParticlesData()
-	: ChaosModule(FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers"))
+	: ChaosModule(FChaosSolversModule::GetModule())
 	, BufferedData()
 	, PhysicsSyncCount(0)
 	, GameSyncCount(MAX_int32)

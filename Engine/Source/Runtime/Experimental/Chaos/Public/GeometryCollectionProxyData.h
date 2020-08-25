@@ -17,7 +17,7 @@
 *
 * Stores per instance data for transforms and hierarchy information
 */
-class CHAOSSOLVERS_API FTransformDynamicCollection : public FManagedArrayCollection
+class CHAOS_API FTransformDynamicCollection : public FManagedArrayCollection
 {
 public:
 	typedef FManagedArrayCollection Super;
@@ -48,7 +48,7 @@ protected:
 * Stores per instance data for simulation level information
 */
 
-class CHAOSSOLVERS_API FGeometryDynamicCollection : public FTransformDynamicCollection
+class CHAOS_API FGeometryDynamicCollection : public FTransformDynamicCollection
 {
 
 public:

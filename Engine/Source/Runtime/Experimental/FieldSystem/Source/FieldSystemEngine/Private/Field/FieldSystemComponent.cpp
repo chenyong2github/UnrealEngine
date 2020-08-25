@@ -70,7 +70,7 @@ void UFieldSystemComponent::OnCreatePhysicsState()
 	if(bValidWorld)
 	{
 		// Check we can get a suitable dispatcher
-		ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		ChaosModule = FChaosSolversModule::GetModule();
 		check(ChaosModule);
 
 		bHasPhysicsState = true;

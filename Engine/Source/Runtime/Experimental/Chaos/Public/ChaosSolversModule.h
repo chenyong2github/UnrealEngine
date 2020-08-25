@@ -52,7 +52,7 @@ namespace Chaos
 	public:
 	};
 
-	extern CHAOSSOLVERS_API FInternalDefaultSettings GDefaultChaosSettings;
+	extern CHAOS_API FInternalDefaultSettings GDefaultChaosSettings;
 }
 
 struct FSolverStateStorage
@@ -81,7 +81,7 @@ enum class ESolverFlags : uint8
 };
 ENUM_CLASS_FLAGS(ESolverFlags);
 
-class CHAOSSOLVERS_API FChaosSolversModule : public IModuleInterface
+class CHAOS_API FChaosSolversModule
 {
 public:
 
@@ -89,8 +89,8 @@ public:
 
 	FChaosSolversModule();
 
-	virtual void StartupModule() override;
-	virtual void ShutdownModule() override;
+	void StartupModule();
+	void ShutdownModule();
 
 	void Initialize();
 	void Shutdown();
@@ -297,7 +297,7 @@ private:
 	FDelegateHandle OnUpdateMaterialMaskHandle;
 };
 
-struct CHAOSSOLVERS_API FChaosScopeSolverLock
+struct CHAOS_API FChaosScopeSolverLock
 {
 	FChaosScopeSolverLock()
 	{
@@ -312,10 +312,10 @@ struct CHAOSSOLVERS_API FChaosScopeSolverLock
 
 #if CHAOS_CHECKED
 #define EVOLUTION_TRAIT(Traits)\
-extern template CHAOSSOLVERS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode ThreadingMode, const FName& DebugName);
+extern template CHAOS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner, Chaos::EThreadingMode ThreadingMode, const FName& DebugName);
 #else
 #define EVOLUTION_TRAIT(Traits)\
-extern template CHAOSSOLVERS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,Chaos::EThreadingMode ThreadingMode);
+extern template CHAOS_API Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolver(UObject* InOwner,Chaos::EThreadingMode ThreadingMode);
 #endif
 
 #include "Chaos/EvolutionTraits.inl"

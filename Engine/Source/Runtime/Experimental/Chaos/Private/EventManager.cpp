@@ -128,7 +128,7 @@ namespace Chaos
 		return EncodedCollisionIdx & ~(1 << 31);
 	}
 
-#define EVOLUTION_TRAIT(Trait) template class CHAOSSOLVERS_API TEventManager<Trait>;
+#define EVOLUTION_TRAIT(Trait) template class CHAOS_API TEventManager<Trait>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 }

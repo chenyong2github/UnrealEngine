@@ -14,7 +14,7 @@ namespace Chaos
 	/**
 	 * Solver specific data buffered for use on Game thread
 	 */
-	struct CHAOSSOLVERS_API FPBDRigidDirtyParticlesBufferOut
+	struct CHAOS_API FPBDRigidDirtyParticlesBufferOut
 	{
 		TArray<FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >*> DirtyGameThreadParticles;
 		// Some particle types (clustered) only exist on the game thread, but we
@@ -23,7 +23,7 @@ namespace Chaos
 	};
 
 
-	class CHAOSSOLVERS_API FPBDRigidDirtyParticlesBuffer
+	class CHAOS_API FPBDRigidDirtyParticlesBuffer
 	{
 		friend class FPBDRigidDirtyParticlesBufferAccessor;
 
