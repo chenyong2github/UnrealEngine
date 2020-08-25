@@ -649,7 +649,11 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			}
 			else
 			{
-				ensureAlways(UIDToArrayIndexLUT == AnimationCurves.UIDToArrayIndexLUT);
+				ensureAlways(UIDToArrayIndexLUT->Num() == AnimationCurves.UIDToArrayIndexLUT->Num());
+				if (UIDToArrayIndexLUT != AnimationCurves.UIDToArrayIndexLUT)
+				{
+					UIDToArrayIndexLUT = AnimationCurves.UIDToArrayIndexLUT;
+				}
 			}
 		}
 
