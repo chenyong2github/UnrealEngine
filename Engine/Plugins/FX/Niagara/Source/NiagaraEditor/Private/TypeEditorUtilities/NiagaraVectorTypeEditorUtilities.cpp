@@ -467,3 +467,42 @@ void FNiagaraEditorQuatTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVar
 	checkf(Variable.GetType().GetStruct() == FNiagaraTypeDefinition::GetQuatStruct(), TEXT("Struct type not supported."));
 	Variable.SetValue<FQuat>(FQuat(0, 0, 0, 1));
 }
+
+bool FNiagaraEditorNiagaraIDTypeUtilities::CanHandlePinDefaults() const
+{
+	return true;
+}
+
+FString FNiagaraEditorNiagaraIDTypeUtilities::GetPinDefaultStringFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
+	FNiagaraID Value = AllocatedVariable.GetValue<FNiagaraID>();
+	return FString::Printf(TEXT("%i,%i"), Value.Index, Value.AcquireTag);
+}
+
+bool FNiagaraEditorNiagaraIDTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
+{
+	if (StringValue == TEXT("0"))
+	{
+		// Special case handling of 0 default which is specified in niagara constants and is already present in assets.
+		Variable.SetValue(FNiagaraID());
+		return true;
+	}
+	else
+	{
+		TArray<FString> ValueParts;
+		StringValue.ParseIntoArray(ValueParts, TEXT(","));
+		if (ValueParts.Num() == 2)
+		{
+			int32 Index;
+			int32 AcquireTag;
+			if (LexTryParseString(Index, *ValueParts[0]) && LexTryParseString(AcquireTag, *ValueParts[1]))
+			{
+				FNiagaraID Value(Index, AcquireTag);
+				Variable.SetValue(Value);
+				return true;
+			}
+		}
+	}
+	return false;
+}
