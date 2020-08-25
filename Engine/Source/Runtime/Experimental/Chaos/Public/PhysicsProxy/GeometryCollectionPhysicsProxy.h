@@ -310,7 +310,7 @@ private:
 
 };
 
-#define EVOLUTION_TRAIT(Traits) extern template class CHAOSSOLVERS_TEMPLATE_API TGeometryCollectionPhysicsProxy<Chaos::Traits>;
+#define EVOLUTION_TRAIT(Traits) extern template class CHAOS_TEMPLATE_API TGeometryCollectionPhysicsProxy<Chaos::Traits>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
