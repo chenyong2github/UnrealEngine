@@ -26,7 +26,7 @@ struct FInstanceSceneData
 	float3   LocalBoundsCenter;
 	uint     PrimitiveId;
 	float3   LocalBoundsExtent;
-	uint     Unused1;
+	uint     LastUpdateSceneFrameNumber;
 	uint	 NaniteRuntimeResourceID;
 	int      NaniteHierarchyOffset;
 	uint     Unused2;
@@ -39,7 +39,17 @@ struct FInstanceSceneData
 #if USE_GLOBAL_GPU_SCENE_DATA
 StructuredBuffer<float4> GPUSceneInstanceSceneData;
 StructuredBuffer<float4> GPUScenePrimitiveSceneData;
+uint GPUSceneFrameNumber;
 #endif // USE_GLOBAL_GPU_SCENE_DATA
+
+uint GetGPUSceneFrameNumber()
+{
+#if USE_GLOBAL_GPU_SCENE_DATA
+	return GPUSceneFrameNumber;
+#else // USE_GLOBAL_GPU_SCENE_DATA
+	return View.FrameNumber;
+#endif // USE_GLOBAL_GPU_SCENE_DATA
+}
 
 float4 LoadInstanceDataElement( uint Index )
 {
@@ -73,6 +83,7 @@ FInstanceSceneData GetInstanceData(uint InstanceId, uint SOAStride)
 	InstanceData.LocalBoundsCenter						= LoadInstanceDataElement(11 * SOAStride + InstanceId).xyz;
 	InstanceData.PrimitiveId							= asuint(LoadInstanceDataElement(11 * SOAStride + InstanceId).w);
 	InstanceData.LocalBoundsExtent						= LoadInstanceDataElement(12 * SOAStride + InstanceId).xyz;
+	InstanceData.LastUpdateSceneFrameNumber				= asuint(LoadInstanceDataElement(12 * SOAStride + InstanceId).w);
 
 	InstanceData.NaniteRuntimeResourceID				= asuint(LoadInstanceDataElement(13 * SOAStride + InstanceId).x);
 	InstanceData.NaniteHierarchyOffset					= asint(LoadInstanceDataElement(13 * SOAStride + InstanceId).y);

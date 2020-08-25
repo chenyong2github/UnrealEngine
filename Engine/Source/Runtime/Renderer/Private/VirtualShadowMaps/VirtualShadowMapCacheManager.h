@@ -10,7 +10,7 @@
 #include "SceneManagement.h"
 
 class FRHIGPUBufferReadback;
-
+class FGPUScene;
 
 class FVirtualShadowMapCacheEntry
 {
@@ -110,6 +110,19 @@ public:
 	 */
 	bool IsAccumulatingStats();
 
+
+	/**
+	 * This must to be executed before the instances are actually removed / updated, otherwise the wrong position will be used. 
+	 * In particular, it must be processed before the Scene primitive IDs are updated/compacted as part of the removal.
+	 * Invalidate pages that are touched by (the instances of) the removed primitives. 
+	 */
+	void ProcessRemovedPrimives(FRHICommandListImmediate& RHICmdList, const FGPUScene& GPUScene, const TArray<FPrimitiveSceneInfo*>& RemovedPrimitiveSceneInfos);
+
+	/**
+	 * Invalidate pages that are touched by (the instances of) all primitive about to be removed. Must be called before the GPU-Scene is updated (but after all upates are registered).
+	 */
+	void ProcessPrimitivesToUpdate(FRHICommandListImmediate& RHICmdList, const FScene& Scene);
+
 	// Index the Cache entries by the light ID and cascade index
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > CacheEntries;
 	TMap< FIntPoint, TSharedPtr<FVirtualShadowMapCacheEntry> > PrevCacheEntries;
@@ -117,10 +130,14 @@ public:
 
 	TRefCountPtr<FPooledRDGBuffer>		PrevPageTable;
 	TRefCountPtr<FPooledRDGBuffer>		PrevPageFlags;
+	TRefCountPtr<FPooledRDGBuffer>		PrevHPageFlags;
 
 	TRefCountPtr<FPooledRDGBuffer>		PrevDynamicCasterPageFlags;
 	TRefCountPtr<IPooledRenderTarget>	PrevPhysicalPagePool;
 	TRefCountPtr<FPooledRDGBuffer>		PrevPhysicalPageMetaData;
+
+	TRefCountPtr<FPooledRDGBuffer>		PrevShadowMapProjectionDataBuffer;
+	TRefCountPtr<FPooledRDGBuffer>		PrevPageRectBounds;
 
 	// Enough for er lots...
 	static constexpr uint32 MaxStatFrames = 512*1024U;
@@ -135,4 +152,17 @@ public:
 	TRefCountPtr<FPooledRDGBuffer>				HZBPageTable = nullptr;
 	uint32										HZBFrameNumber = 0;
 	TMap<int32, FVirtualShadowMapHZBMetadata>	HZBMetadata;
+	
+	FVirtualShadowMapCommonParameters			PrevCommonParameters;
+
+protected:
+
+	// Must match shader...
+	struct FInstanceDataRange
+	{
+		int32 InstanceDataOffset;
+		int32 NumInstanceDataEntries;
+	};
+
+	void ProcessInstanceRangeInvalidation(FRHICommandListImmediate& RHICmdList, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene);
 };

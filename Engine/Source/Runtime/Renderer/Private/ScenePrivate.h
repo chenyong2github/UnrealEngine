@@ -52,10 +52,10 @@
 #include "RayTracing/RayTracingIESLightProfiles.h"
 #include "Halton.h"
 #endif
-#include "GrowOnlySpanAllocator.h"
 #include "Nanite/NaniteRender.h"
 #include "Lumen/LumenViewState.h"
 #include "VolumetricRenderTargetViewStateData.h"
+#include "GPUScene.h"
 
 /** Factor by which to grow occlusion tests **/
 #define OCCLUSION_SLOP (1.0f)
@@ -1744,44 +1744,6 @@ public:
 	FBox WorldBounds;
 	int32 InstanceIndex;
 	FPrimitiveSceneInfo* Primitive;
-};
-
-class FGPUScene
-{
-public:
-	FGPUScene()
-	: bUpdateAllPrimitives(false)
-	, InstanceDataSOAStride(0)
-	{
-	}
-
-	bool bUpdateAllPrimitives;
-
-	/** Indices of primitives that need to be updated in GPU Scene */
-	TArray<int32>			PrimitivesToUpdate;
-
-	/** Bit array of all scene primitives. Set bit means that current primitive is in PrimitivesToUpdate array. */
-	TBitArray<>				PrimitivesMarkedToUpdate;
-
-	/** GPU mirror of Primitives */
-	/** Only one of the resources(TextureBuffer or Texture2D) will be used depending on the Mobile.UseGPUSceneTexture cvar */
-	FRWBufferStructured PrimitiveBuffer;
-	FTextureRWBuffer2D PrimitiveTexture;
-	FScatterUploadBuffer PrimitiveUploadBuffer;
-	FScatterUploadBuffer PrimitiveUploadViewBuffer;
-
-	/** GPU primitive instance list */
-	TBitArray<>				InstanceDataToClear;
-	FGrowOnlySpanAllocator	InstanceDataAllocator;
-	FRWBufferStructured		InstanceDataBuffer;
-	FScatterUploadBuffer	InstanceUploadBuffer;
-	uint32					InstanceDataSOAStride;	// Distance between arrays in float4s
-	TSet<uint32>			InstanceClearList;
-
-	/** GPU light map data */
-	FGrowOnlySpanAllocator	LightmapDataAllocator;
-	FRWBufferStructured		LightmapDataBuffer;
-	FScatterUploadBuffer	LightmapUploadBuffer;
 };
 
 class FPrimitiveRemoveInfo

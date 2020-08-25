@@ -16,6 +16,7 @@
 #include "RendererModule.h"
 #include "Rendering/NaniteResources.h"
 #include "Async/ParallelFor.h"
+#include "VirtualShadowMaps/VirtualShadowMapCacheManager.h"
 
 int32 GGPUSceneUploadEveryFrame = 0;
 FAutoConsoleVariableRef CVarGPUSceneUploadEveryFrame(
@@ -180,6 +181,10 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 		// Multi-GPU support : Updating on all GPUs is inefficient for AFR. Work is wasted
 		// for any primitives that update on consecutive frames.
 		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
+		const uint32 SceneFrameNumber = Scene.GetFrameNumber();
+		// Store in GPU-scene to enable validation that update has been carried out.
+		Scene.GPUScene.SceneFrameNumber = SceneFrameNumber;
 
 		const bool bNaniteEnabled = DoesPlatformSupportNanite(GMaxRHIShaderPlatform);
 
@@ -571,7 +576,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 
 				// Upload any out of data instance slots.
 				ParallelFor(RangeCount,
-					[&Scene, &ParallelRanges, RangeCount, InstanceDataNumArrays, InstanceDataSizeReserve](int32 RangeIndex)
+					[&Scene, &ParallelRanges, RangeCount, InstanceDataNumArrays, InstanceDataSizeReserve, SceneFrameNumber](int32 RangeIndex)
 					{
 						for (int32 ItemIndex = ParallelRanges.Range[RangeIndex].ItemStart; ItemIndex < ParallelRanges.Range[RangeIndex].ItemStart + ParallelRanges.Range[RangeIndex].ItemCount; ++ItemIndex)
 						{
@@ -624,6 +629,7 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 									PrimitiveInstance.LocalToWorld = PrimitiveInstance.InstanceToLocal * PrimitiveSceneProxy->GetLocalToWorld();
 									PrimitiveInstance.PrevLocalToWorld = PrimitiveInstance.InstanceToLocal * OutPreviousLocalToWorld;
 									PrimitiveInstance.WorldToLocal = PrimitiveInstance.LocalToWorld.Inverse();
+									PrimitiveInstance.LastUpdateSceneFrameNumber = SceneFrameNumber;
 
 									{
 										// Extract per axis scales from InstanceToWorld transform
@@ -753,6 +759,8 @@ void UpdateGPUSceneInternal(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 				Scene.GPUScene.LightmapUploadBuffer.Release();
 			}
 		}
+		// Clear the flags that mark newly added primitives.
+		Scene.GPUScene.AddedPrimitiveFlags.Init(false, Scene.GPUScene.AddedPrimitiveFlags.Num());
 	}
 
 	checkSlow(Scene.GPUScene.PrimitivesToUpdate.Num() == 0);
@@ -889,6 +897,12 @@ void AddPrimitiveToUpdateGPU(FScene& Scene, int32 PrimitiveId)
 
 void UpdateGPUScene(FRHICommandListImmediate& RHICmdList, FScene& Scene)
 {
+	// Invoke the cache manager to invalidate the previous location of all instances that are to be updated, 
+	// must be done prior to update of GPU-side data to use the previous transforms.
+	if (Scene.VirtualShadowMapArrayCacheManager)
+	{
+		Scene.VirtualShadowMapArrayCacheManager->ProcessPrimitivesToUpdate(RHICmdList, Scene);
+	}
 	if (GPUSceneUseTexture2D(Scene.GetShaderPlatform()))
 	{
 		UpdateGPUSceneInternal<FTextureRWBuffer2D>(RHICmdList, Scene);
@@ -909,4 +923,72 @@ void UploadDynamicPrimitiveShaderDataForView(FRHICommandListImmediate& RHICmdLis
 	{
 		UploadDynamicPrimitiveShaderDataForViewInternal<FRWBufferStructured>(RHICmdList, Scene, View);
 	}
+}
+
+
+
+int32 FGPUScene::AllocateInstanceSlots(int32 NumInstanceDataEntries)
+{
+	if (NumInstanceDataEntries > 0)
+	{
+		int32 InstanceDataOffset = InstanceDataAllocator.Allocate(NumInstanceDataEntries);
+
+		// Allocate enough storage space, if needed.
+		const int32 NewSize = InstanceDataOffset + NumInstanceDataEntries;
+		if (NewSize >= InstanceDataToClear.Num())
+		{
+			InstanceDataToClear.Add(false, NewSize - InstanceDataToClear.Num());
+		}
+
+		if (GGPUSceneInstanceClearList != 0)
+		{
+			InstanceClearList.Reserve(InstanceDataToClear.Num());
+		}
+
+		// Unset all bits associated with newly allocated instance data.
+		InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, false);
+		check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
+
+		return InstanceDataOffset;
+	}
+
+	return INDEX_NONE;
+}
+
+
+void FGPUScene::FreeInstanceSlots(int InstanceDataOffset, int32 NumInstanceDataEntries)
+{
+	InstanceDataAllocator.Free(InstanceDataOffset, NumInstanceDataEntries);
+	InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, true);
+
+	if (GGPUSceneInstanceClearList != 0)
+	{
+		InstanceClearList.Reserve(InstanceDataToClear.Num());
+		for (int32 AddIndex = 0; AddIndex < NumInstanceDataEntries; ++AddIndex)
+		{
+			InstanceClearList.Add(InstanceDataOffset + AddIndex);
+		}
+	}
+
+	// Resize bit arrays to match new high watermark
+	if (InstanceDataToClear.Num() > InstanceDataAllocator.GetMaxSize())
+	{
+		const int32 OldBitCount = InstanceDataToClear.Num();
+		const int32 NewBitCount = InstanceDataAllocator.GetMaxSize();
+		const int32 RemBitCount = OldBitCount - NewBitCount;
+		InstanceDataToClear.RemoveAt(NewBitCount, RemBitCount);
+		check(InstanceDataToClear.Num() == InstanceDataAllocator.GetMaxSize());
+	}
+}
+
+
+void FGPUScene::MarkPrimitiveAdded(int32 PrimitiveId)
+{
+	check(PrimitiveId >= 0);
+
+	if (PrimitiveId >= AddedPrimitiveFlags.Num())
+	{
+		AddedPrimitiveFlags.Add(false, PrimitiveId + 1 - AddedPrimitiveFlags.Num());
+	}
+	AddedPrimitiveFlags[PrimitiveId] = true;
 }

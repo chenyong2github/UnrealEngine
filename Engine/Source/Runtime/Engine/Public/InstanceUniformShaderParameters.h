@@ -41,6 +41,7 @@ struct FPrimitiveInstance
 	FBoxSphereBounds LocalBounds;
 	uint32 PrimitiveId;
 	FNaniteInfo NaniteInfo;
+	uint32 LastUpdateSceneFrameNumber;
 };
 
 /** 
@@ -57,7 +58,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FInstanceUniformShaderParameters,ENGINE_API
 	SHADER_PARAMETER(FVector,  LocalBoundsCenter)
 	SHADER_PARAMETER(uint32,   PrimitiveId)
 	SHADER_PARAMETER(FVector,  LocalBoundsExtent)
-	SHADER_PARAMETER(uint32,   Unused1)
+	SHADER_PARAMETER(uint32,   LastUpdateSceneFrameNumber)
 	SHADER_PARAMETER(uint32,   NaniteRuntimeResourceID)
 	SHADER_PARAMETER(int32,	   NaniteHierarchyOffset)
 	SHADER_PARAMETER(uint32,   Unused2)
@@ -74,7 +75,8 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	const FVector4& NonUniformScale,
 	const FVector4& InvNonUniformScaleAndDeterminantSign,
 	const FNaniteInfo& NaniteInfo,
-	uint32 PrimitiveId
+	uint32 PrimitiveId,
+	uint32 LastUpdateSceneFrameNumber
 )
 {
 	FInstanceUniformShaderParameters Result;
@@ -88,6 +90,7 @@ inline FInstanceUniformShaderParameters GetInstanceUniformShaderParameters(
 	Result.LocalBoundsExtent					= LocalBoundsExtent;
 	Result.NaniteRuntimeResourceID				= NaniteInfo.RuntimeResourceID;
 	Result.NaniteHierarchyOffset				= NaniteInfo.HierarchyOffset;
+	Result.LastUpdateSceneFrameNumber			= LastUpdateSceneFrameNumber;
 	return Result;
 }
 
@@ -100,7 +103,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 	const FVector4& NonUniformScale,
 	const FVector4& InvNonUniformScaleAndDeterminantSign,
 	const FNaniteInfo& NaniteInfo,
-	uint32 PrimitiveId
+	uint32 PrimitiveId,
+	uint32 LastUpdateSceneFrameNumber
 )
 {
 	check(IsInRenderingThread());
@@ -114,7 +118,8 @@ inline TUniformBufferRef<FInstanceUniformShaderParameters> CreateInstanceUniform
 			NonUniformScale,
 			InvNonUniformScaleAndDeterminantSign,
 			NaniteInfo,
-			PrimitiveId
+			PrimitiveId,
+			LastUpdateSceneFrameNumber
 		),
 		UniformBuffer_MultiFrame
 	);
@@ -138,7 +143,8 @@ struct FInstanceSceneShaderData
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 			FVector4(1.0f, 1.0f, 1.0f, 1.0f),
 			FNaniteInfo(),
-			0
+			0,
+			0xFFFFFFFFu
 		));
 	}
 

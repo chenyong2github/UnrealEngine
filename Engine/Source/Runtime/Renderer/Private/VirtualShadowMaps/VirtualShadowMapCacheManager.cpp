@@ -7,8 +7,10 @@
 #include "RendererModule.h"
 #include "RenderGraphUtils.h"
 #include "RHIGPUReadback.h"
+#include "ScenePrivate.h"
 #include "HAL/FileManager.h"
 
+#include "PrimitiveSceneInfo.h"
 
 static TAutoConsoleVariable<int32> CVarAccumulateStats(
 	TEXT("r.Shadow.v.AccumulateStats"),
@@ -182,25 +184,35 @@ void FVirtualShadowMapArrayCacheManager::ExtractFrameData(FVirtualShadowMapArray
 {
 	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0)
 	{
+		// TODO: All of these should be RDG buffers etc at this point, so queue an extraction pass.
 		PrevPageTable = VirtualShadowMapArray.PageTable;
 		PrevPageFlags = VirtualShadowMapArray.PageFlags;
-
+		PrevHPageFlags = VirtualShadowMapArray.HPageFlags;
+		
 		PrevPhysicalPagePool = VirtualShadowMapArray.PhysicalPagePool;
 		PrevPhysicalPageMetaData = VirtualShadowMapArray.PhysicalPageMetaData;
 		PrevDynamicCasterPageFlags = VirtualShadowMapArray.DynamicCasterPageFlags;
-
+		PrevShadowMapProjectionDataBuffer = VirtualShadowMapArray.ShadowMapProjectionDataBuffer;
+		PrevPageRectBounds = VirtualShadowMapArray.PageRectBounds;
 		// Move cache entries to previous frame, this implicitly removes any that were not used
 		PrevCacheEntries = CacheEntries;
+		PrevCommonParameters = VirtualShadowMapArray.CommonParameters;
 	}
 	else
 	{
 		// Drop all refs.
 		PrevPageTable = TRefCountPtr<FPooledRDGBuffer>();
 		PrevPageFlags = TRefCountPtr<FPooledRDGBuffer>();
+		PrevHPageFlags = TRefCountPtr<FPooledRDGBuffer>();
 
 		PrevPhysicalPagePool = TRefCountPtr<IPooledRenderTarget>();
 		PrevPhysicalPageMetaData = TRefCountPtr<FPooledRDGBuffer>();
 		PrevDynamicCasterPageFlags = TRefCountPtr<FPooledRDGBuffer>();
+		PrevShadowMapProjectionDataBuffer = TRefCountPtr<FPooledRDGBuffer>();
+		PrevPageRectBounds = TRefCountPtr<FPooledRDGBuffer>();
+
+		PrevCommonParameters.NumShadowMaps = 0;
+
 		PrevCacheEntries.Empty();
 	}
 	CacheEntries.Reset();
@@ -338,4 +350,143 @@ bool FVirtualShadowMapArrayCacheManager::IsValid()
 bool FVirtualShadowMapArrayCacheManager::IsAccumulatingStats()
 {
 	return CVarAccumulateStats.GetValueOnRenderThread() != 0;
+}
+
+void FVirtualShadowMapArrayCacheManager::ProcessRemovedPrimives(FRHICommandListImmediate& RHICmdList, const FGPUScene &GPUScene, const TArray<FPrimitiveSceneInfo*> &RemovedPrimitiveSceneInfos)
+{
+	if (CVarCacheVirtualSMs.GetValueOnRenderThread() != 0 && RemovedPrimitiveSceneInfos.Num() > 0 && PrevDynamicCasterPageFlags.IsValid())
+	{
+		// Note: Could filter out primitives that have no nanite here (though later this might be bad anyway, when regular geo is also rendered into virtual SMs)
+		TArray<FInstanceDataRange> InstanceRanges;
+		for (const FPrimitiveSceneInfo* PrimitiveSceneInfo : RemovedPrimitiveSceneInfos)
+		{
+			if (PrimitiveSceneInfo->GetInstanceDataOffset() != INDEX_NONE)
+			{
+				InstanceRanges.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), PrimitiveSceneInfo->GetNumInstanceDataEntries() });
+			}
+		}
+		ProcessInstanceRangeInvalidation(RHICmdList, InstanceRanges, GPUScene);
+	}
+}
+
+
+void FVirtualShadowMapArrayCacheManager::ProcessPrimitivesToUpdate(FRHICommandListImmediate& RHICmdList, const FScene &Scene)
+{
+	const FGPUScene& GPUScene = Scene.GPUScene;
+	if (IsValid() && GPUScene.PrimitivesToUpdate.Num() > 0)
+	{
+		// TODO: As a slight CPU optimization just pass primitive ID list and use instance ranges stored in GPU scene
+		TArray<FInstanceDataRange> InstanceRanges;
+		for (const int32 PrimitiveId : GPUScene.PrimitivesToUpdate)
+		{
+			// Skip added ones (they dont need it, but must be marked as having moved).
+			if (PrimitiveId < Scene.Primitives.Num() && (PrimitiveId >= GPUScene.AddedPrimitiveFlags.Num() || !GPUScene.AddedPrimitiveFlags[PrimitiveId]))
+			{
+				const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene.Primitives[PrimitiveId];
+				if (PrimitiveSceneInfo->GetInstanceDataOffset() != INDEX_NONE)
+				{
+					InstanceRanges.Add(FInstanceDataRange{ PrimitiveSceneInfo->GetInstanceDataOffset(), PrimitiveSceneInfo->GetNumInstanceDataEntries() });
+				}
+			}
+		}
+		ProcessInstanceRangeInvalidation(RHICmdList, InstanceRanges, GPUScene);
+	}
+}
+
+
+
+/**
+ * Compute shader to project and invalidate the rectangles of given instances.
+ */
+class FVirtualSmInvalidateInstancePagesCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FVirtualSmInvalidateInstancePagesCS);
+	SHADER_USE_PARAMETER_STRUCT(FVirtualSmInvalidateInstancePagesCS, FGlobalShader)
+public:
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FInstanceDataRange >, InstanceRanges)
+		SHADER_PARAMETER(uint32, NumRemovedItems)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, ShadowMapProjectionData)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, PageFlags)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint >, HPageFlags)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< uint4 >, PageRectBounds)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer< uint >, OutDynamicCasterFlags)
+
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUSceneInstanceSceneData)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, GPUScenePrimitiveSceneData)
+		SHADER_PARAMETER(uint32, GPUSceneFrameNumber)
+		SHADER_PARAMETER(uint32, InstanceDataSOAStride)
+		
+	END_SHADER_PARAMETER_STRUCT()
+
+	static constexpr int Cs1dGroupSizeX = 64;
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		FVirtualShadowMapArray::SetShaderDefines(OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("CS_1D_GROUP_SIZE_X"), Cs1dGroupSizeX);
+		OutEnvironment.SetDefine(TEXT("USE_GLOBAL_GPU_SCENE_DATA"), 1);
+		OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), 1);
+
+		// OutEnvironment.SetDefine(TEXT("MAX_STAT_FRAMES"), FVirtualShadowMapArrayCacheManager::MaxStatFrames);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FVirtualSmInvalidateInstancePagesCS, "/Engine/Private/VirtualShadowMaps/CacheManagement.usf", "VirtualSmInvalidateInstancePagesCS", SF_Compute);
+
+
+void FVirtualShadowMapArrayCacheManager::ProcessInstanceRangeInvalidation(FRHICommandListImmediate& RHICmdList, const TArray<FInstanceDataRange>& InstanceRanges, const FGPUScene& GPUScene)
+{
+	if (InstanceRanges.Num())
+	{
+		FRDGBuilder GraphBuilder(RHICmdList);
+		{
+			RDG_EVENT_SCOPE(GraphBuilder, "ProcessInstanceRangeInvalidation [%d ranges]", InstanceRanges.Num());
+
+			FVirtualSmInvalidateInstancePagesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualSmInvalidateInstancePagesCS::FParameters>();
+
+			FRDGBufferRef InstanceRangesRDG = CreateStructuredBuffer(GraphBuilder, TEXT("InstanceRanges"), InstanceRanges);
+			FRDGBufferRef DynamicCasterFlagsRDG = GraphBuilder.RegisterExternalBuffer(PrevDynamicCasterPageFlags, TEXT("DynamicCasterFlags"));
+
+			auto RegExtCreateSrv = [&GraphBuilder](const TRefCountPtr<FPooledRDGBuffer>& Buffer, const TCHAR* Name) -> FRDGBufferSRVRef
+			{
+				return GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(Buffer, Name));
+			};
+
+			PassParameters->CommonParameters = PrevCommonParameters;
+			PassParameters->InstanceRanges = GraphBuilder.CreateSRV(InstanceRangesRDG);
+			PassParameters->NumRemovedItems = InstanceRanges.Num();
+			PassParameters->ShadowMapProjectionData = RegExtCreateSrv(PrevShadowMapProjectionDataBuffer, TEXT("PrevShadowMapProjectionData"));
+
+			PassParameters->PageFlags = RegExtCreateSrv(PrevPageFlags, TEXT("PrevPageFlags"));
+			PassParameters->HPageFlags = RegExtCreateSrv(PrevHPageFlags, TEXT("PrevHPageFlags"));
+			PassParameters->PageRectBounds = RegExtCreateSrv(PrevPageRectBounds, TEXT("PrevPageRectBounds"));
+
+			PassParameters->OutDynamicCasterFlags = GraphBuilder.CreateUAV(DynamicCasterFlagsRDG);
+
+			PassParameters->GPUSceneInstanceSceneData = GPUScene.InstanceDataBuffer.SRV;
+			PassParameters->GPUScenePrimitiveSceneData = GPUScene.PrimitiveBuffer.SRV;
+			PassParameters->GPUSceneFrameNumber = GPUScene.SceneFrameNumber;
+			PassParameters->InstanceDataSOAStride = GPUScene.InstanceDataSOAStride;
+
+			auto ComputeShader = GetGlobalShaderMap(GMaxRHIFeatureLevel)->GetShader<FVirtualSmInvalidateInstancePagesCS>();
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("VirtualSmInvalidateInstancePagesCS"),
+				ComputeShader,
+				PassParameters,
+				FIntVector(FMath::DivideAndRoundUp(InstanceRanges.Num(), FVirtualSmInvalidateInstancePagesCS::Cs1dGroupSizeX), 1, 1)
+			);
+
+			GraphBuilder.QueueBufferExtraction(DynamicCasterFlagsRDG, &PrevDynamicCasterPageFlags);
+		}
+		GraphBuilder.Execute();
+	}
 }

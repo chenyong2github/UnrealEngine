@@ -15,12 +15,14 @@ struct FVirtualShadowMapProjectionShaderData
 	float3 ShadowPreViewTranslation;
 	float Dummy;
 	int VirtualShadowMapId;	
+	uint bNearClip;
+
 	int ClipmapLevel;
 	int ClipmapLevelCount;
 	float ClipmapResolutionLodBias;
-		
+
 	// Seems the FMatrix forces 16-byte alignment, so we need to pad
-	//float Padding[2];
+	float Padding[3];
 };
 
 uint CalcMipLevelFromFootprint(float Footprint, uint MipLevelCount = VSM_MAX_MIP_LEVELS)

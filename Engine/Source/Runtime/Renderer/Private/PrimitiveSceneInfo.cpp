@@ -448,27 +448,8 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		{
 			if (const TArray<FPrimitiveInstance>* PrimitiveInstances = SceneInfo->Proxy->GetPrimitiveInstances())
 			{
+				SceneInfo->InstanceDataOffset = Scene->GPUScene.AllocateInstanceSlots(PrimitiveInstances->Num());
 				SceneInfo->NumInstanceDataEntries = PrimitiveInstances->Num();
-				if (SceneInfo->NumInstanceDataEntries > 0)
-				{
-					SceneInfo->InstanceDataOffset = Scene->GPUScene.InstanceDataAllocator.Allocate(SceneInfo->NumInstanceDataEntries);
-
-					// Allocate enough storage space, if needed.
-					const int32 NewSize = SceneInfo->InstanceDataOffset + SceneInfo->NumInstanceDataEntries;
-					if (NewSize >= Scene->GPUScene.InstanceDataToClear.Num())
-					{
-						Scene->GPUScene.InstanceDataToClear.Add(false, NewSize - Scene->GPUScene.InstanceDataToClear.Num());
-					}
-
-					if (GGPUSceneInstanceClearList != 0)
-					{
-						Scene->GPUScene.InstanceClearList.Reserve(Scene->GPUScene.InstanceDataToClear.Num());
-					}
-
-					// Unset all bits associated with newly allocated instance data.
-					Scene->GPUScene.InstanceDataToClear.SetRange(SceneInfo->InstanceDataOffset, SceneInfo->NumInstanceDataEntries, false);
-					check(Scene->GPUScene.InstanceDataToClear.Num() == Scene->GPUScene.InstanceDataAllocator.GetMaxSize());
-				}
 			}
 		}
 
@@ -553,28 +534,7 @@ void FPrimitiveSceneInfo::RemoveCachedMeshDrawCommands()
 		SCOPE_CYCLE_COUNTER(STAT_UpdateGPUSceneTime);
 
 		check(Proxy->SupportsInstanceDataBuffer());
-		Scene->GPUScene.InstanceDataAllocator.Free(InstanceDataOffset, NumInstanceDataEntries);
-		Scene->GPUScene.InstanceDataToClear.SetRange(InstanceDataOffset, NumInstanceDataEntries, true);
-
-		if (GGPUSceneInstanceClearList != 0)
-		{
-			Scene->GPUScene.InstanceClearList.Reserve(Scene->GPUScene.InstanceDataToClear.Num());
-			for (int32 AddIndex = 0; AddIndex < NumInstanceDataEntries; ++AddIndex)
-			{
-				Scene->GPUScene.InstanceClearList.Add(InstanceDataOffset + AddIndex);
-			}
-		}
-
-		// Resize bit array to match new high watermark
-		if (Scene->GPUScene.InstanceDataToClear.Num() > Scene->GPUScene.InstanceDataAllocator.GetMaxSize())
-		{
-			const int32 OldBitCount = Scene->GPUScene.InstanceDataToClear.Num();
-			const int32 NewBitCount = Scene->GPUScene.InstanceDataAllocator.GetMaxSize();
-			const int32 RemBitCount = OldBitCount - NewBitCount;
-			Scene->GPUScene.InstanceDataToClear.RemoveAt(NewBitCount, RemBitCount);
-			check(Scene->GPUScene.InstanceDataToClear.Num() == Scene->GPUScene.InstanceDataAllocator.GetMaxSize());
-		}
-
+		Scene->GPUScene.FreeInstanceSlots(InstanceDataOffset, NumInstanceDataEntries);
 		InstanceDataOffset = INDEX_NONE;
 		NumInstanceDataEntries = 0;
 	}

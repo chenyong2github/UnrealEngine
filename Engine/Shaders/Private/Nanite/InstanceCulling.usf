@@ -269,10 +269,7 @@ void InstanceCullVSM(
 
 	const bool bActive = InstanceId < NumInstances && InstanceData.PrimitiveId != 0xFFFFFFFFu && RuntimeResourceID != 0xFFFFFFFFu; // Only process valid Nanite primitives
 
-	const bool bHasMoved = any(InstanceData.LocalToWorld[0] != InstanceData.PrevLocalToWorld[0])
-		|| any(InstanceData.LocalToWorld[1] != InstanceData.PrevLocalToWorld[1])
-		|| any(InstanceData.LocalToWorld[2] != InstanceData.PrevLocalToWorld[2])
-		|| any(InstanceData.LocalToWorld[3] != InstanceData.PrevLocalToWorld[3]);
+	const bool bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	// Loop over each of the views
 	for (uint PrimaryViewId = 0; PrimaryViewId < NumPrimaryViews; ++PrimaryViewId)

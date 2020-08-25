@@ -1,0 +1,103 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../SceneData.ush"
+#include "ProjectionCommon.ush"
+#include "PageAccessCommon.ush"
+
+//#include "NaniteDataDecode.ush"
+ #include "../Nanite/HZBCull.ush"
+
+struct FInstanceDataRange
+{
+	int InstanceDataOffset;
+	int NumInstanceDataEntries;
+};
+StructuredBuffer< FInstanceDataRange > InstanceRanges;
+uint NumRemovedItems;
+
+StructuredBuffer< FVirtualShadowMapProjectionShaderData > ShadowMapProjectionData;
+
+RWStructuredBuffer<uint> OutDynamicCasterFlags;
+uint InstanceDataSOAStride;
+
+/**
+ * Each thread loops over a range on instances loaded from a buffer. The instance bounds are projected to all cached virtual shadow map address space 
+ * and any overlapped pages are marked as invalid.
+ */
+[numthreads(CS_1D_GROUP_SIZE_X, 1, 1)]
+void VirtualSmInvalidateInstancePagesCS(
+	uint DispatchIndex : SV_DispatchThreadID,
+	uint GroupIndex : SV_GroupIndex)
+{
+	bool bIsVisible = false;
+	bool bWasOccluded = false;
+
+	if (DispatchIndex >= NumRemovedItems)
+	{
+		return;
+	}
+	FInstanceDataRange InstanceDataRange = InstanceRanges[DispatchIndex];
+	for (int InstanceId = InstanceDataRange.InstanceDataOffset; InstanceId < InstanceDataRange.NumInstanceDataEntries + InstanceDataRange.InstanceDataOffset; ++InstanceId)
+	{
+		FInstanceSceneData InstanceData = GetInstanceData(InstanceId, InstanceDataSOAStride);
+
+		for (uint ShadowMapDataIndex = 0; ShadowMapDataIndex < NumShadowMaps; ++ShadowMapDataIndex)
+		{
+			// 1. Load cached projection data
+			FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ShadowMapDataIndex];
+
+			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
+			LocalToTranslatedWorld[3].xyz += ProjectionData.ShadowPreViewTranslation;
+			// TODO: put mat mul in pre-computed
+			float4x4 LocalToClip = mul(LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowViewMatrix, ProjectionData.ShadowViewToClipMatrix));
+
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, ProjectionData.bNearClip, false);
+
+			if (Cull.bIsVisible)
+			{
+				// 2. figure out overlap and all that
+				// case #1 mip-map VSM - loop all mip levels, case #2 clipmap, just one 'mip level'
+				int NumMipLevels = (ProjectionData.ClipmapLevelCount <= 0) ? VSM_MAX_MIP_LEVELS : 1;
+				{
+					for (int MipLevel = 0; MipLevel < NumMipLevels; ++MipLevel)
+					{
+						float ViewDim = float(VSM_VIRTUAL_MAX_RESOLUTION_XY >> MipLevel);
+						FScreenRect Rect = GetScreenRect(float2(ViewDim, ViewDim), Cull, 2);
+						// Use Hierarchical mip test to speed up (allows skipping invalidating areas that don't have any flags anyway)
+						if (OverlapsAnyValidPage(ProjectionData.VirtualShadowMapId, MipLevel, float2(0.0f, 0.0f), Rect, true /* bHasMoved - checks against allocated flags*/ ))
+						{
+							uint4 RectPages = uint4(Rect.Pixels) >> VSM_LOG2_PAGE_SIZE;
+
+							// Clip to actually allocated pages
+							// TODO: move this to be done as part of or before the overlap test?
+							uint4 AllocatedBounds = PageRectBounds[ProjectionData.VirtualShadowMapId * VSM_MAX_MIP_LEVELS + MipLevel];
+							RectPages.xy = max(RectPages.xy, AllocatedBounds.xy);
+							RectPages.zw = min(RectPages.zw, AllocatedBounds.zw);
+							if (all(RectPages.zw >= RectPages.xy))
+							{
+								// 3. do invalidation
+								uint PageTableLevelOffset = CalcPageTableLevelOffset(ProjectionData.VirtualShadowMapId, MipLevel);
+								for (uint y = RectPages.y; y <= RectPages.w; y++)
+								{
+									for (uint x = RectPages.x; x <= RectPages.z; x++)
+									{
+										uint PageFlagOffset = PageTableLevelOffset + CalcPageOffsetInLevel(MipLevel, uint2(x, y));
+										uint PageFlag = PageFlags[PageFlagOffset];
+
+										if (PageFlag != 0)
+										{
+											// Somewhere
+											OutDynamicCasterFlags[PageFlagOffset] = 1;
+										}
+									}
+								}
+
+							}
+						}
+					}
+				}
+			}
+		}
+	}
+}

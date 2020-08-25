@@ -144,8 +144,9 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 		{
 #if HAS_CACHE_DATA
 			if (DebugMethod == 3)
-			{ 
+			{
 				uint PrevPageFlag = 0;
+				uint PrevDynFlag = 0;
 
 				if (ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId != INDEX_NONE)// && MipLevel < VSM_MAX_MIP_LEVELS - 1)
 				{
@@ -155,13 +156,18 @@ void DebugVisualizeVirtualSmCS(uint2 OutputPixel : SV_DispatchThreadID)
 					{
 						uint PrevOffset = CalcPageOffset(ShadowMapCacheData[VirtualShadowMapId].VirtualShadowMapId, MipLevel, PrevPageAddress);
 						PrevPageFlag = PrevPageFlags[PrevOffset];
+						PrevDynFlag = PrevDynamicCasterPageFlags[PrevOffset];
 					}
 				}
 
 				uint Offset = CalcPageOffset(VirtualShadowMapId, MipLevel, PageAddress);
 				uint PageFlag = PageFlags[Offset];
-				
+
 				float3 Color = float3(!PrevPageFlag && PageFlag, PrevPageFlag && PageFlag, PrevPageFlag && !PageFlag);
+				if (PageFlag && PrevDynFlag)
+				{
+					Color = float3(1.0f, 0.1f, 0.7f);
+				}
 				DebugOutput[OutputPixel] = float4(Color, 1.0f);
 			}
 			else

@@ -41,7 +41,7 @@ struct FCachedPageInfo
 static TAutoConsoleVariable<int32> CVarEnableVirtualShadowMaps(
 	TEXT("r.Shadow.v.Enable"),
 	0,
-	TEXT("Enable Virtual Shadow Maps, !!highly experimental!!"),
+	TEXT("Enable Virtual Shadow Maps."),
 	ECVF_RenderThreadSafe
 );
 
@@ -74,16 +74,6 @@ static TAutoConsoleVariable<float> CVarResolutionPixelCountPercent(
 	TEXT("If more than this percent of the screen pixels fall into a single page, virtual resolution will be increased. 0 disables. 1-2% typical."),
 	ECVF_RenderThreadSafe
 );
-
-// Helper to create a structured buffer with initial data from a TArray
-template <typename ElementType, typename AllocatorType>
-FRDGBufferRef CreateStructuredBuffer(
-	FRDGBuilder& GraphBuilder,
-	const TCHAR* Name,
-	const TArray< ElementType, AllocatorType> &InitialData)
-{
-	return CreateStructuredBuffer(GraphBuilder, Name, InitialData.GetTypeSize(), InitialData.Num(), InitialData.GetData(), InitialData.Num() * InitialData.GetTypeSize());
-}
 
 FMatrix CalcTranslatedWorldToShadowUvNormalMatrix(
 	const FMatrix& TranslatedWorldToShadowView,
@@ -121,6 +111,7 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
 	Data.ShadowPreViewTranslation = FVector4(ShadowInfo->PreShadowTranslation, 666.0f);
 	Data.VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
+	Data.bNearClip = uint32(!ShadowInfo->ShouldClampToNearPlane());
 
 	return Data;
 }
@@ -753,7 +744,7 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 				PassParameters->NumDirectionalLightSmInds = DirectionalLightSmInds.Num();
 				PassParameters->LodFootprintScale = LodFootprintScale;
 				PassParameters->LodPixelCountThreshold = LodPixelCountThreshold;
-
+				
 				auto ComputeShader = View.ShaderMap->GetShader<FGeneratePageFlagsFromPixelsCS>(PermutationVector);
 
 				static_assert((FVirtualPageManagementShader::DefaultCSGroupXY % 2) == 0, "GeneratePageFlagsFromPixels requires even-sized CS groups for quad swizzling.");

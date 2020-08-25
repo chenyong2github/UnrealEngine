@@ -3771,9 +3771,16 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 
 	check(IsInRenderingThread());
 
+	FMemMark Mark(FMemStack::Get());
+	SCOPED_DRAW_EVENT(RHICmdList, UpdateAllPrimitiveSceneInfos);
+
 	TArray<FPrimitiveSceneInfo*> RemovedLocalPrimitiveSceneInfos(RemovedPrimitiveSceneInfos.Array());
 	RemovedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
 
+	if (VirtualShadowMapArrayCacheManager)
+	{
+		VirtualShadowMapArrayCacheManager->ProcessRemovedPrimives(RHICmdList, GPUScene, RemovedLocalPrimitiveSceneInfos);
+	}
 	TArray<FPrimitiveSceneInfo*> AddedLocalPrimitiveSceneInfos(AddedPrimitiveSceneInfos.Array());
 	AddedLocalPrimitiveSceneInfos.Sort(FPrimitiveArraySortKey());
 
@@ -4108,6 +4115,9 @@ void FScene::UpdateAllPrimitiveSceneInfos(FRHICommandListImmediate& RHICmdList, 
 
 				// Set lod Parent information if valid
 				PrimitiveSceneInfo->LinkLODParentComponent();
+
+				// Flag the Primitive as added, as at this point the final PrimitiveIndex is known
+				GPUScene.MarkPrimitiveAdded(PrimitiveIndex);
 			}
 
 

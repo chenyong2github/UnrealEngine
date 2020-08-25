@@ -778,10 +778,7 @@ FInstanceDynamicData CalculateInstanceDynamicData( FNaniteView NaniteView, FInst
 	DynamicData.ViewPosScaledLocal = mul( float4( NaniteView.WorldCameraOrigin.xyz, 1 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
 	DynamicData.ViewForwardScaledLocal = mul( float4( NaniteView.ViewForward.xyz, 0 ), WorldToLocal ).xyz * InstanceData.NonUniformScale.xyz;
 
-	DynamicData.bHasMoved = any(InstanceData.LocalToWorld[0] != InstanceData.PrevLocalToWorld[0])
-		|| any(InstanceData.LocalToWorld[1] != InstanceData.PrevLocalToWorld[1])
-		|| any(InstanceData.LocalToWorld[2] != InstanceData.PrevLocalToWorld[2])
-		|| any(InstanceData.LocalToWorld[3] != InstanceData.PrevLocalToWorld[3]);
+	DynamicData.bHasMoved = GetGPUSceneFrameNumber() == InstanceData.LastUpdateSceneFrameNumber;
 
 	return DynamicData;
 }

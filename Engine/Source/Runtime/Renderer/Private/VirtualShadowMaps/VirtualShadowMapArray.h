@@ -60,11 +60,11 @@ public:
 	static constexpr uint32 MaxPhysicalTextureDimTexels = MaxPhysicalTextureDimPages * PageSize;
 
 	static constexpr uint32 RasterWindowPages = 4u;
-		
+	
 	// Something large (we're using ints at the moment...)
 	// TODO: Fix this when tweaking data sizes of page table entries to e.g., 2x8 bits
-	static constexpr uint32 InvalidPhysicalPageAddress = 65535U;
-	
+	static constexpr uint32 InvalidPhysicalPageAddress = 65535U; 
+
 	FVirtualShadowMap(uint32 InID) : ID(InID)
 	{
 	}
@@ -89,14 +89,15 @@ struct FVirtualShadowMapProjectionShaderData
 	 */
 	FVector4 ShadowPreViewTranslation;
 	int32 VirtualShadowMapId;
-	
+	uint32 bNearClip = 1U;
+
 	// These could be per-light (first/count), but convenient here and not much overhead
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 	int32 ClipmapLevelCount = 0;
 	float ClipmapResolutionLodBias = 0.0f;
 
 	// Seems the FMatrix forces 16-byte alignment
-	//float Padding[2];
+	float Padding[3];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 

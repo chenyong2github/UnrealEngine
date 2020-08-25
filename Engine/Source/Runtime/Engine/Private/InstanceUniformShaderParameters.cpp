@@ -15,7 +15,8 @@ FInstanceSceneShaderData::FInstanceSceneShaderData(const FPrimitiveInstance& Ins
 		Instance.NonUniformScale,
 		Instance.InvNonUniformScaleAndDeterminantSign,
 		Instance.NaniteInfo,
-		Instance.PrimitiveId
+		Instance.PrimitiveId,
+		Instance.LastUpdateSceneFrameNumber
 	));
 }
 
@@ -31,7 +32,7 @@ void FInstanceSceneShaderData::Setup(const FInstanceUniformShaderParameters& Ins
 	Data[11]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsCenter;
 	Data[11].W = *(const    float*)&InstanceUniformShaderParameters.PrimitiveId;
 	Data[12]   = *(const FVector *)&InstanceUniformShaderParameters.LocalBoundsExtent;
-	Data[12].W = 0.0f;
+	Data[12].W = *(const    float*)&InstanceUniformShaderParameters.LastUpdateSceneFrameNumber;
 	Data[13].X = *(const    float*)&InstanceUniformShaderParameters.NaniteRuntimeResourceID;
 	Data[13].Y = *(const    float*)&InstanceUniformShaderParameters.NaniteHierarchyOffset;
 	Data[13].Z = 0.0f;
