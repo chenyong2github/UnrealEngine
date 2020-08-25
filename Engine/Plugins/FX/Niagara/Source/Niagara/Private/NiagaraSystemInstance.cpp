@@ -2096,8 +2096,28 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	bAsyncWorkInProgress = false;
 }
 
+TSet<int32> FNiagaraSystemInstance::GetParticlesWithActiveComponents(USceneComponent* const Component)
+{
+	TSet<int32> Result;
+	TObjectKey<USceneComponent> ObjectKey(Component);
+	FRWScopeLock ReadLock(ComponentPoolLock, SLT_ReadOnly);
+	TArray<FNiagaraComponentRenderPoolEntry>* Pool = ComponentRenderPool.PoolsByTemplate.Find(ObjectKey);
+	if (Pool)
+	{
+		for (const FNiagaraComponentRenderPoolEntry& Entry : *Pool)
+		{
+			if (Entry.LastAssignedToParticleID >= 0)
+			{
+				Result.Add(Entry.LastAssignedToParticleID);
+			}
+		}
+	}
+	return Result;
+}
+
 void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 {
+	FRWScopeLock WriteLock(ComponentPoolLock, SLT_Write);
 	if (ComponentTasks.IsEmpty() && ComponentRenderPool.PoolsByTemplate.Num() == 0)
 	{
 		return;
@@ -2251,6 +2271,7 @@ void FNiagaraSystemInstance::ProcessComponentRendererTasks()
 
 void FNiagaraSystemInstance::ResetComponentRenderPool()
 {
+	FRWScopeLock WriteLock(ComponentPoolLock, SLT_Write);
 	for (TPair<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>>& Pair : ComponentRenderPool.PoolsByTemplate)
 	{
 		for (FNiagaraComponentRenderPoolEntry PoolEntry : Pair.Value)
