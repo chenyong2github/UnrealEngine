@@ -175,8 +175,8 @@ namespace GeometryCollectionTest
 
 			SkeletalMeshPhysicsProxy->Initialize();
 
-			RigidBodyWrapper* Floor = NewSimulationObject<GeometryType::RigidFloor>()->As<RigidBodyWrapper>();
-			UnitTest.AddSimulationObject(Floor);
+			//RigidBodyWrapper* Floor = NewSimulationObject<GeometryType::RigidFloor>()->As<RigidBodyWrapper>();
+			//UnitTest.AddSimulationObject(Floor);
 
 			// todo
 			// UnitTest.Solver->RegisterObject(SkeletalMeshPhysicsProxy.Get());
@@ -231,7 +231,7 @@ namespace GeometryCollectionTest
 		const float Dt = (FReal)1 / 30;
 
 		// Two kinematic bodies
-		TFakeSkeletalMeshPhysicsComponent<T> Component(Dt);
+		TFakeSkeletalMeshPhysicsComponent<Traits> Component(Dt);
 		Component.InputWorldTransforms =
 		{
 			FTransform(FVector(0, 0, 100)),
@@ -279,7 +279,7 @@ namespace GeometryCollectionTest
 		const float Dt = (FReal)1 / 30;
 
 		// One kinematic, one dynamic body
-		TFakeSkeletalMeshPhysicsComponent<T> Component(Dt);
+		TFakeSkeletalMeshPhysicsComponent<Traits> Component(Dt);
 		
 		Component.ObjectState = EObjectStateTypeEnum::Chaos_Object_Dynamic;
 		Component.InputWorldTransforms =
@@ -327,7 +327,7 @@ namespace GeometryCollectionTest
 			EXPECT_NEAR(Component.OutputWorldTransforms[0].GetTranslation().Z, Component.InputWorldTransforms[0].GetTranslation().Z, KINDA_SMALL_NUMBER);
 
 			// Dynamic body should swing around the kinematic body at fixed distance
-			const T Distance = (Component.OutputWorldTransforms[1].GetTranslation() - Component.OutputWorldTransforms[0].GetTranslation()).Size();
+			const Chaos::FReal Distance = (Component.OutputWorldTransforms[1].GetTranslation() - Component.OutputWorldTransforms[0].GetTranslation()).Size();
 			EXPECT_NEAR(Distance, InitialDistance, (FReal)3.0);
 		}
 	}
