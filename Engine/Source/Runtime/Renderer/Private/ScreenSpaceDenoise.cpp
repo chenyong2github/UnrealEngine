@@ -8,6 +8,7 @@
 #include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
 #include "PostProcess/SceneRenderTargets.h"
+#include "PostProcess/PostProcessing.h"
 #include "SceneRenderTargetParameters.h"
 #include "ScenePrivate.h"
 #include "ClearQuad.h"
@@ -124,6 +125,75 @@ static const int32 kMaxBufferProcessingCount = IScreenSpaceDenoiser::kMaxBatchSi
 static const int32 kCompressedMetadataTextures = 1;
 
 static_assert(IScreenSpaceDenoiser::kMaxBatchSize <= kMaxBufferProcessingCount, "Can't batch more signal than there is internal buffer in the denoiser.");
+
+// NVCHANGE_BEGIN_YB : GI Denoiser
+#define GIDENOISE_VAR(type, name, value, comment) \
+	static type GRayTracingGIDenoise##name = value;\
+	static FAutoConsoleVariableRef CVarRayTracingGIDenoise##name(\
+		TEXT("r.RayTracing.GIDenoise."#name),\
+		GRayTracingGIDenoise##name,\
+		TEXT(comment),\
+		ECVF_RenderThreadSafe);
+
+#define GET_GIDENOISE_CMD_VAR(Name) (GRayTracingGIDenoise##Name)
+//#define GET_GIDENOISE_VAR(Name) (GRayTracingGIDenoise##Name >= 0 ? GRayTracingGIDenoise##Name : View.FinalPostProcessSettings.GIDenoise##Name)
+#define GET_GIDENOISE_VAR(Name) ( GRayTracingGIDenoise##Name )
+
+GIDENOISE_VAR(int32, EnableTemporal, 1, "Denoise")//0
+GIDENOISE_VAR(float, TemporalBlendWeight, 0.02f, "Temporal Blend Weight")//0.98
+GIDENOISE_VAR(float, TemporalMomentBlendWeight, 0.1f, "Temporal Moment BlendWeight")//0.98
+
+// Unused
+GIDENOISE_VAR(float, TemporalColorTolerance, 0.1f, "Temporal Color Tolerance")//10
+
+GIDENOISE_VAR(float, TemporalNormalTolerance, 0.5f, "Temporal Normal Tolerance")//7
+GIDENOISE_VAR(float, TemporalDepthTolerance, 1.0f, "Temporal Depth Tolerance")//50
+GIDENOISE_VAR(float, ColorClamp, 5.0f, "Color Clamp")//50
+GIDENOISE_VAR(int32, HistoryLength, 32, "History Length")//50
+
+GIDENOISE_VAR(int32, EnableSpatial, 1, "Enable Spatial")
+GIDENOISE_VAR(float, SpatialBlendWeight, 0.9, "Temporal filter strength")//0.9
+GIDENOISE_VAR(float, SpatialBaseRadius, 15, "Temporal Color Tolerance")//15
+
+GIDENOISE_VAR(int32, EnableATrous, 1, "Enable ATrous")//1
+GIDENOISE_VAR(int32, SpatialFilterType, 0, "Spatial Filter Type (0=Gaussian, 1=ATrous")
+GIDENOISE_VAR(int32, ATrousIteration, 6, "ATrous Iteration")//3
+GIDENOISE_VAR(int32, ATrousCopyIteration, 1, "ATrous Copy Iteration")//3
+GIDENOISE_VAR(int32, ATrousSampleDepthAsNormal, 0, "Calculate normal from depth texture")
+GIDENOISE_VAR(int32, ATrousFilterWidth, 2, "Spatial Filter Width")
+GIDENOISE_VAR(float, ATrousVarianceGain, 1.0f, "ATrous Variance Gain")//10000
+GIDENOISE_VAR(float, ATrousNormalTolerance, 1.0f, "ATrous Normal Tolerance")//0.2
+GIDENOISE_VAR(float, ATrousDepthTolerance, 1.0f, "ATrous Depth Tolerance")//10
+GIDENOISE_VAR(float, ATrousAOTolerance, 1.0f, "ATrous AO Tolerance")//10
+
+
+GIDENOISE_VAR(int32, DebugType, 0, "Debug Type(0=disabled; 1=variance; 2=1st moment; 3=2nd moment; 4=history; 5=motion vector; 6=hit distance)")
+
+/*
+	// NVCHANGE_BEGIN_YB : GI Denoiser
+	GIDenoiseEnableTemporal = true;
+	GIDenoiseApplyAO = true;
+	GIDenoiseTemporalBlendWeight = 0.02f;
+	GIDenoiseTemporalMomentBlendWeight = 0.1;
+	GIDenoiseTemporalNormalTolerance = 0.5;
+	GIDenoiseTemporalDepthTolerance = 1;
+	GIDenoiseColorClamp = 5;
+	GIDenoiseHistoryLength = 32;
+	GIDenoiseEnableATrous = true;
+	GIDenoiseATrousIteration = 6;
+	GIDenoiseATrousCopyIteration = 1;
+	GIDenoiseATrousSampleDepthAsNormal = false;
+	GIDenoiseATrousFilterWidth = 2;
+	GIDenoiseATrousVarianceGain = 1;
+	GIDenoiseATrousNormalTolerance = 1.0;
+	GIDenoiseATrousDepthTolerance = 1;
+	GIDenoiseATrousAOTolerance = 1;
+	GIDenoiseSpatialFilterType = ERayTracingGIDenoiseSpatialFilterType::Gaussian;
+	GIDenoiseType = ERayTracingGIDenoiseType::New;
+	GIDenoiseDebugType = ERayTracingGIDenoiseDebugType::Disabled;
+	// NVCHANGE_END_YB : GI Denoiser
+*/
+// NVCHANGE_END_YB : GI Denoiser
 
 
 // ---------------------------------------------------- Globals
@@ -2019,6 +2089,504 @@ IScreenSpaceDenoiser::FHarmonicUAVs IScreenSpaceDenoiser::CreateUAVs(FRDGBuilder
 	return UAVs;
 }
 
+#if 0
+// NVCHANGE_BEGIN_YB : GI Denoiser
+class FDenoiseTemporalFilterCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FDenoiseTemporalFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FDenoiseTemporalFilterCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, ReprojectionMatrix)
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrixThis)
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrixLast)
+		SHADER_PARAMETER(FIntPoint, GBufferDim)
+		SHADER_PARAMETER(FIntPoint, CausticsDim)
+		SHADER_PARAMETER(float, BlendWeight)
+		SHADER_PARAMETER(float, MomentBlendWeight)
+		SHADER_PARAMETER(float, ColorKernel)
+		SHADER_PARAMETER(float, NormalKernel)
+		SHADER_PARAMETER(float, DepthKernel)
+		SHADER_PARAMETER(float, ColorClamp)
+		SHADER_PARAMETER(int, Enable)
+		SHADER_PARAMETER(int, HistoryLength)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureLast)
+
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ColorInput)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ColorLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, MomentLast)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorThis)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, MomentThis)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FDenoiseTemporalFilterCS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseTemporalFilter.usf", "TemporalFilter_CS", SF_Compute);
+
+class FDenoiseSpatialFilterCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FDenoiseSpatialFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FDenoiseSpatialFilterCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		//SHADER_PARAMETER(FMatrix, ReprojectionMatrix)
+		SHADER_PARAMETER(FMatrix, InverseWVPMatrix)
+		SHADER_PARAMETER(FMatrix, WVPMatrix)
+		SHADER_PARAMETER(FIntPoint, GBufferDim)
+		SHADER_PARAMETER(FIntPoint, CausticsDim)
+		SHADER_PARAMETER(float, BlendWeight)
+		SHADER_PARAMETER(float, MomentBlendWeight)
+		SHADER_PARAMETER(float, BaseRadius)
+		SHADER_PARAMETER(float, NormalKernel)
+		SHADER_PARAMETER(float, DepthKernel)
+		SHADER_PARAMETER(float, ColorKernel)
+		SHADER_PARAMETER(float, AOKernel)
+		SHADER_PARAMETER(float, RandomRotation)
+		SHADER_PARAMETER(int, Enable)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureThis)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureThis)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureLast)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, CausticsTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputMoment)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputColor)
+		//SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputResult)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FDenoiseSpatialFilterCS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseSpatialFilter.usf", "SpatialFilter_CS", SF_Compute);
+
+class FCausticsSpatialATrousFilterCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCausticsSpatialATrousFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FCausticsSpatialATrousFilterCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		//SHADER_PARAMETER(FMatrix, ReprojectionMatrix)
+		SHADER_PARAMETER(FMatrix, InverseWVPMatrix)
+		SHADER_PARAMETER(FMatrix, WVPMatrix)
+		SHADER_PARAMETER(FIntPoint, GBufferDim)
+		SHADER_PARAMETER(FIntPoint, CausticsDim)
+		SHADER_PARAMETER(float, BlendWeight)
+		//SHADER_PARAMETER(float, BaseRadius)
+		SHADER_PARAMETER(float, NormalKernel)
+		SHADER_PARAMETER(float, VarianceGain)
+		SHADER_PARAMETER(float, DepthKernel)
+		SHADER_PARAMETER(float, ColorKernel)
+		SHADER_PARAMETER(float, AOKernel)
+		SHADER_PARAMETER(float, RandomRotation)
+		SHADER_PARAMETER(int, Enable)
+		SHADER_PARAMETER(int, Step)
+		SHADER_PARAMETER(int, FilterType)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureThis)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureThis)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureLast)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, CausticsTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputColor)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputMoment)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputColor)
+		//SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputResult)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FCausticsSpatialATrousFilterCS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseSpatialATrousFilter.usf", "AtrousFilter_CS", SF_Compute);
+
+class FCompositeDenoisePS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCompositeDenoisePS);
+	SHADER_USE_PARAMETER_STRUCT(FCompositeDenoisePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrix)
+		SHADER_PARAMETER(FVector4, ViewportInfo)
+		SHADER_PARAMETER(float, CausticsBufferScale)
+		SHADER_PARAMETER(float, MaxIntensity)
+		SHADER_PARAMETER(int, DebugMode)
+		//SHADER_PARAMETER(float, MaxPixelArea)
+		//SHADER_PARAMETER(int, ShouldShowPhoton)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, AlbedoTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, CausticsTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, MomentTexture)
+		//SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, PhotonTexture)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FCompositeDenoisePS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseComposite.usf", "Composite_PS", SF_Pixel);
+
+
+class FClearDenoiseTexturePS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FClearDenoiseTexturePS);
+	SHADER_USE_PARAMETER_STRUCT(FClearDenoiseTexturePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, ClearColor)
+		RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FClearDenoiseTexturePS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseComposite.usf", "ClearTexture_PS", SF_Pixel);
+
+
+void AddClearDenoiseTexturePass(
+	FRDGBuilder& GraphBuilder,
+	FRHICommandListImmediate& RHICmdList,
+	FRDGTextureRef& TargetTexture,
+	const FViewInfo& View,
+	FVector4 ClearColor
+)
+{
+	FIntPoint TextureSize = TargetTexture->Desc.Extent;
+
+	FClearDenoiseTexturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearDenoiseTexturePS::FParameters>();
+	PassParameters->ClearColor = ClearColor;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(TargetTexture, ERenderTargetLoadAction::EClear);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("Clear Texture"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[PassParameters, &View, TextureSize](FRHICommandList& RHICmdList)
+	{
+		TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FClearDenoiseTexturePS> PixelShader(View.ShaderMap);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, TextureSize.X, TextureSize.Y, 1.0f);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+		DrawRectangle(
+			RHICmdList,
+			0, 0,
+			TextureSize.X, TextureSize.Y,
+			0, 0,
+			TextureSize.X, TextureSize.Y,
+			TextureSize,
+			TextureSize,
+			VertexShader);
+
+	});
+}
+// NVCHANGE_END_YB : GI Denoiser
+#else
+// NVCHANGE_BEGIN_YB : GI Denoiser
+class FDenoiseTemporalFilterCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FDenoiseTemporalFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FDenoiseTemporalFilterCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, ReprojectionMatrix)
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrixThis)
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrixLast)
+		SHADER_PARAMETER(FIntPoint, GBufferDim)
+		SHADER_PARAMETER(FIntPoint, DenoiseDim)
+		SHADER_PARAMETER(int32, UpscaleFactor)
+		SHADER_PARAMETER(float, BlendWeight)
+		SHADER_PARAMETER(float, MomentBlendWeight)
+		SHADER_PARAMETER(float, ColorKernel)
+		SHADER_PARAMETER(float, NormalKernel)
+		SHADER_PARAMETER(float, DepthKernel)
+		SHADER_PARAMETER(float, ColorClamp)
+		SHADER_PARAMETER(int, Enable)
+		SHADER_PARAMETER(int, HistoryLength)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ColorInput)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DistanceInput)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, ColorLast)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, MomentLast)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorThis)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, MomentThis)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FDenoiseTemporalFilterCS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseTemporalFilter.usf", "TemporalFilter_CS", SF_Compute);
+
+class FDenoiseSpatialFilterCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FDenoiseSpatialFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FDenoiseSpatialFilterCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, InverseWVPMatrix)
+		SHADER_PARAMETER(FMatrix, WVPMatrix)
+		SHADER_PARAMETER(FIntPoint, GBufferDim)
+		SHADER_PARAMETER(FIntPoint, DenoiseDim)
+		SHADER_PARAMETER(float, BlendWeight)
+		SHADER_PARAMETER(float, MomentBlendWeight)
+		SHADER_PARAMETER(float, BaseRadius)
+		SHADER_PARAMETER(float, NormalKernel)
+		SHADER_PARAMETER(float, DepthKernel)
+		SHADER_PARAMETER(float, ColorKernel)
+		SHADER_PARAMETER(float, AOKernel)
+		SHADER_PARAMETER(float, RandomRotation)
+		SHADER_PARAMETER(int, Enable)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputMoment)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputColor)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputColor)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FDenoiseSpatialFilterCS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseSpatialFilter.usf", "SpatialFilter_CS", SF_Compute);
+
+class FDenoiseSpatialATrousFilterCS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FDenoiseSpatialATrousFilterCS);
+	SHADER_USE_PARAMETER_STRUCT(FDenoiseSpatialATrousFilterCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, InverseWVPMatrix)
+		SHADER_PARAMETER(FMatrix, WVPMatrix)
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrix)
+		SHADER_PARAMETER(FIntPoint, GBufferDim)
+		SHADER_PARAMETER(FIntPoint, DenoiseDim)
+		SHADER_PARAMETER(float, NormalKernel)
+		SHADER_PARAMETER(float, VarianceGain)
+		SHADER_PARAMETER(float, DepthKernel)
+		SHADER_PARAMETER(float, AOKernel)
+		SHADER_PARAMETER(float, RandomRotation)
+		SHADER_PARAMETER(int, Enable)
+		SHADER_PARAMETER(int, Step)
+		SHADER_PARAMETER(int, FilterType)
+		SHADER_PARAMETER(int, FilterWidth)
+		SHADER_PARAMETER(int, SampleDepthAsNormal)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTextureThis)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputColor)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, InputMoment)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, OutputColor)
+		SHADER_PARAMETER_SAMPLER(SamplerState, LinearSampler)
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FDenoiseSpatialATrousFilterCS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseSpatialATrousFilter.usf", "AtrousFilter_CS", SF_Compute);
+
+class FCompositeDenoisePS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FCompositeDenoisePS);
+	SHADER_USE_PARAMETER_STRUCT(FCompositeDenoisePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FMatrix, InverseProjectionMatrix)
+		SHADER_PARAMETER(FVector4, ViewportInfo)
+		SHADER_PARAMETER(float, DenoiseBufferScale)
+		SHADER_PARAMETER(float, MaxIntensity)
+		SHADER_PARAMETER(int, DebugMode)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DepthTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, NormalTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, AlbedoTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, DenoiseTexture)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, MomentTexture)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
+		RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FCompositeDenoisePS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseComposite.usf", "Composite_PS", SF_Pixel);
+
+
+class FClearDenoiseTexturePS : public FGlobalShader
+{
+public:
+	DECLARE_GLOBAL_SHADER(FClearDenoiseTexturePS);
+	SHADER_USE_PARAMETER_STRUCT(FClearDenoiseTexturePS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER(FVector4, ClearColor)
+		RENDER_TARGET_BINDING_SLOTS()
+		END_SHADER_PARAMETER_STRUCT()
+
+		static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return ShouldCompileRayTracingShadersForProject(Parameters.Platform);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+	}
+};
+IMPLEMENT_GLOBAL_SHADER(FClearDenoiseTexturePS, "/Engine/Private/ScreenSpaceDenoise/GIDenoiseComposite.usf", "ClearTexture_PS", SF_Pixel);
+
+
+void AddClearDenoiseTexturePass(
+	FRDGBuilder& GraphBuilder,
+	FRHICommandListImmediate& RHICmdList,
+	FRDGTextureRef& TargetTexture,
+	const FViewInfo& View,
+	FVector4 ClearColor
+)
+{
+	FIntPoint TextureSize = TargetTexture->Desc.Extent;
+
+	FClearDenoiseTexturePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearDenoiseTexturePS::FParameters>();
+	PassParameters->ClearColor = ClearColor;
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(TargetTexture, ERenderTargetLoadAction::EClear);
+
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("Clear Texture"),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[PassParameters, &View, TextureSize](FRHICommandList& RHICmdList)
+	{
+		TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+		TShaderMapRef<FClearDenoiseTexturePS> PixelShader(View.ShaderMap);
+
+		FGraphicsPipelineStateInitializer GraphicsPSOInit;
+		RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+		GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
+		GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+		GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+		GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+		GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+		GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+		GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+		SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+		RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, TextureSize.X, TextureSize.Y, 1.0f);
+		SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+		DrawRectangle(
+			RHICmdList,
+			0, 0,
+			TextureSize.X, TextureSize.Y,
+			0, 0,
+			TextureSize.X, TextureSize.Y,
+			TextureSize,
+			TextureSize,
+			VertexShader);
+
+	});
+}
+// NVCHANGE_END_YB : GI Denoiser
+
+#endif
+
 /** The implementation of the default denoiser of the renderer. */
 class FDefaultScreenSpaceDenoiser : public IScreenSpaceDenoiser
 {
@@ -2692,6 +3260,677 @@ public:
 		GlobalIlluminationOutputs.AmbientOcclusionMask = SignalOutput.Textures[1];
 		return GlobalIlluminationOutputs;
 	}
+
+#if 0
+	// NVCHANGE_BEGIN_YB : GI Denoiser
+	FDiffuseIndirectOutputs DenoiseDiffuseIndirectMetro(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FDiffuseIndirectInputs& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const override
+	{
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+		//SetupSceneViewInfoPooledRenderTargets(View, &ViewInfoPooledRenderTargets);
+
+		FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+		FRDGTextureRef SceneNormalTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA);
+		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+		FRDGTextureRef SceneAlbedoTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferC);
+		FRDGTextureRef DepthTexLast = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.DepthBuffer, GSystemTextures.BlackDummy);
+		FRDGTextureRef NormalTexLast = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.GBufferA, GSystemTextures.BlackDummy);
+
+		FIntPoint GBufferRes = SceneColorTexture->Desc.Extent;
+		FIntPoint CausticsBufferRes = Inputs.Color->Desc.Extent;// FIntPoint(View.ViewRect.Width() * BufferScale, View.ViewRect.Height() * BufferScale);
+		float BufferScale = float(CausticsBufferRes.X) / GBufferRes.X;// GetBufferScale(View);
+		FRDGTextureRef CausticsIntensity[4];
+		TCHAR* CausticsTextureNames[] = { TEXT("CausticsIntensity0"), TEXT("CausticsIntensity1"), TEXT("CausticsIntensity2"), TEXT("CausticsIntensity3") };
+
+		if (!View.State ||
+			((FSceneViewState*)View.State)->DenoiseTexture[0].GetReference() == nullptr ||
+			((FSceneViewState*)View.State)->DenoiseTexture[0]->GetDesc().Extent != CausticsBufferRes)
+		{
+			//FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+			FRDGTextureDesc RTDesc = FRDGTextureDesc::Create2DDesc(
+				CausticsBufferRes,
+				PF_FloatRGBA,
+				FClearValueBinding::Black,
+				TexCreate_None,
+				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+				/* bInForceSeparateTargetAndShaderResource = */ false);
+			for (int i = 0; i < 4; ++i)
+			{
+				CausticsIntensity[i] = GraphBuilder.CreateTexture(RTDesc, CausticsTextureNames[i], ERDGResourceFlags::MultiFrame);
+				AddClearDenoiseTexturePass(GraphBuilder, RHICmdList, CausticsIntensity[i], View, FVector4(0, 0, 0, 0));
+			}
+		}
+		else
+		{
+			for (int i = 0; i < 4; ++i)
+			{
+				CausticsIntensity[i] = GraphBuilder.RegisterExternalTexture(((FSceneViewState*)View.State)->DenoiseTexture[i], CausticsTextureNames[i]);
+			}
+		}
+		int FrameCounter = ((FSceneViewState*)View.State)->FrameIndex;
+		FRDGTextureRef ColorLast = CausticsIntensity[0];// [1 - (FrameCounter & 0x1)] ;
+		//FRDGTextureRef ColorThis = CausticsIntensity[1];// [FrameCounter & 0x1] ;
+		FRDGTextureRef MomentLast = CausticsIntensity[2];// [2 + 1 - (FrameCounter & 0x1)] ;
+		//FRDGTextureRef MomentThis = CausticsIntensity[2+(FrameCounter & 0x1)];
+
+		FRDGTextureDesc RTDesc = FRDGTextureDesc::Create2DDesc(
+			CausticsBufferRes,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+			/* bInForceSeparateTargetAndShaderResource = */ false);
+		FRDGTextureRef TempTexture1 = GraphBuilder.CreateTexture(RTDesc, TEXT("TempTexture1"));
+		FRDGTextureRef TempTexture2 = GraphBuilder.CreateTexture(RTDesc, TEXT("TempTexture2"));
+
+		FRDGTextureRef ColorThis = TempTexture1;
+		FRDGTextureRef MomentThis = TempTexture2;
+
+		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2DDesc(
+			SceneColorTexture->Desc.Extent,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+			false);
+		GlobalIlluminationOutputs.Color = GraphBuilder.CreateTexture(OutputDesc, TEXT("DenoisedTexture"));
+		GlobalIlluminationOutputs.AmbientOcclusionMask = Inputs.AmbientOcclusionMask;
+
+		{
+			TShaderMapRef<FDenoiseTemporalFilterCS> ComputeShader(View.ShaderMap);
+			FDenoiseTemporalFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDenoiseTemporalFilterCS::FParameters>();
+			FMatrix ReprojectMatrix = View.ViewMatrices.GetInvViewProjectionMatrix() * View.PrevViewInfo.ViewMatrices.GetViewProjectionMatrix();
+			PassParameters->ReprojectionMatrix = ReprojectMatrix;
+			PassParameters->InverseProjectionMatrixLast = View.PrevViewInfo.ViewMatrices.GetInvProjectionMatrix();
+			PassParameters->InverseProjectionMatrixThis = View.ViewMatrices.GetInvProjectionMatrix();
+			PassParameters->GBufferDim = GBufferRes;// FIntPoint(View.ViewRect.Width(), View.ViewRect.Height());
+			PassParameters->CausticsDim = CausticsBufferRes;
+			PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->Enable = GET_GIDENOISE_VAR(EnableTemporal);
+			PassParameters->BlendWeight = GET_GIDENOISE_VAR(TemporalBlendWeight);
+			PassParameters->MomentBlendWeight = GET_GIDENOISE_VAR(TemporalMomentBlendWeight);
+			PassParameters->ColorKernel = GET_GIDENOISE_CMD_VAR(TemporalColorTolerance);
+			PassParameters->NormalKernel = GET_GIDENOISE_VAR(TemporalNormalTolerance);
+			PassParameters->DepthKernel = GET_GIDENOISE_VAR(TemporalDepthTolerance);
+			PassParameters->SceneTextures = SceneTextures;
+			PassParameters->HistoryLength = GET_GIDENOISE_VAR(HistoryLength);
+			PassParameters->ColorClamp = GET_GIDENOISE_VAR(ColorClamp);
+			PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+			PassParameters->DepthTextureLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(DepthTexLast));
+			PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+			PassParameters->NormalTextureLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(NormalTexLast));
+			PassParameters->MomentLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+			PassParameters->ColorLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ColorLast));
+			PassParameters->ColorInput = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Inputs.Color));// CausticsLast));
+			PassParameters->MomentThis = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(MomentThis));
+			PassParameters->ColorThis = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ColorThis));
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("CausticsTemporalFilter"),
+				ComputeShader,
+				PassParameters,
+				FIntVector((CausticsBufferRes.X + 15) / 16, (CausticsBufferRes.Y + 15) / 16, 1));
+
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size = MomentThis->Desc.GetSize();
+			AddCopyTexturePass(GraphBuilder, MomentThis, MomentLast, CopyInfo);
+		}
+
+		//if(0)
+		FRDGTextureRef ColorAndVariance = TempTexture2;
+		{
+			TShaderMapRef<FDenoiseSpatialFilterCS> ComputeShader(View.ShaderMap);
+
+			FDenoiseSpatialFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDenoiseSpatialFilterCS::FParameters>();
+
+			FMatrix ReprojectMatrix = View.ViewMatrices.GetInvViewProjectionMatrix() * View.PrevViewInfo.ViewMatrices.GetViewProjectionMatrix();
+			PassParameters->InverseWVPMatrix = View.ViewMatrices.GetInvViewProjectionMatrix();
+			PassParameters->WVPMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+			PassParameters->GBufferDim = GBufferRes;// FIntPoint(View.ViewRect.Width(), View.ViewRect.Height());
+			PassParameters->CausticsDim = CausticsBufferRes;
+			PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->Enable = GET_GIDENOISE_CMD_VAR(EnableSpatial);
+			PassParameters->BlendWeight = GET_GIDENOISE_CMD_VAR(SpatialBlendWeight);
+			PassParameters->BaseRadius = GET_GIDENOISE_CMD_VAR(SpatialBaseRadius);
+			PassParameters->NormalKernel = GET_GIDENOISE_VAR(ATrousNormalTolerance);
+			PassParameters->DepthKernel = GET_GIDENOISE_VAR(ATrousDepthTolerance);
+			PassParameters->ColorKernel = GET_GIDENOISE_VAR(ATrousColorTolerance);
+			PassParameters->AOKernel = GET_GIDENOISE_VAR(ATrousAOTolerance);
+			PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+			PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+			PassParameters->InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ColorThis));
+			PassParameters->InputMoment = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+			PassParameters->OutputColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ColorAndVariance));
+			PassParameters->RandomRotation = float(rand()) / RAND_MAX * 2 * 3.141593;
+
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("CausticsTemporalFilter"),
+				ComputeShader,
+				PassParameters,
+				FIntVector((CausticsBufferRes.X + 15) / 16, (CausticsBufferRes.Y + 15) / 16, 1));
+		}
+
+		int DebugType = 0;
+		if (GET_GIDENOISE_CMD_VAR(DebugType) > 0)
+		{
+			DebugType = GET_GIDENOISE_CMD_VAR(DebugType);
+		}
+
+		FRDGTextureRef InputColor = ColorAndVariance;
+		FRDGTextureRef OutputColor = TempTexture1;
+		{
+			int EnableATrous = GET_GIDENOISE_VAR(EnableATrous);
+			int nIteration = EnableATrous ? GET_GIDENOISE_VAR(ATrousIteration) : 1;
+			if (nIteration <= 0) nIteration = 1;
+			int copyIteration = FMath::Min<int32>(nIteration - 1, GET_GIDENOISE_VAR(ATrousCopyIteration));
+			TShaderMapRef<FCausticsSpatialATrousFilterCS> ComputeShader(View.ShaderMap);
+			FMatrix ReprojectMatrix = View.ViewMatrices.GetInvViewProjectionMatrix() * View.PrevViewInfo.ViewMatrices.GetViewProjectionMatrix();
+			int FilterType = GET_GIDENOISE_CMD_VAR(ATrousFilterType);
+			for (int i = 0; i < nIteration; i++)
+			{
+				{
+					FCausticsSpatialATrousFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCausticsSpatialATrousFilterCS::FParameters>();
+					PassParameters->InverseWVPMatrix = View.ViewMatrices.GetInvViewProjectionMatrix();
+					PassParameters->WVPMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+					PassParameters->GBufferDim = GBufferRes;// FIntPoint(View.ViewRect.Width(), View.ViewRect.Height());
+					PassParameters->CausticsDim = CausticsBufferRes;
+					PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+					PassParameters->Enable = GET_GIDENOISE_VAR(EnableATrous);
+					PassParameters->BlendWeight = GET_GIDENOISE_CMD_VAR(ATrousBlendWeight);
+					PassParameters->VarianceGain = GET_GIDENOISE_VAR(ATrousVarianceGain);
+					PassParameters->NormalKernel = GET_GIDENOISE_VAR(ATrousNormalTolerance);
+					PassParameters->DepthKernel = GET_GIDENOISE_VAR(ATrousDepthTolerance);
+					PassParameters->ColorKernel = GET_GIDENOISE_VAR(ATrousColorTolerance);
+					PassParameters->AOKernel = GET_GIDENOISE_VAR(ATrousAOTolerance);
+					PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+					PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+					PassParameters->Step = i;
+					PassParameters->FilterType = FilterType == 0 ? 0 : 1;
+					PassParameters->InputMoment = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+					PassParameters->InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(InputColor));
+					PassParameters->OutputColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutputColor));
+					//PassParameters->OutputResult = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GlobalIlluminationOutputs.Color));
+					PassParameters->RandomRotation = float(rand()) / RAND_MAX * 2 * 3.141593;
+
+					ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("CausticsTemporalFilter"),
+						ComputeShader,
+						PassParameters,
+						FIntVector((CausticsBufferRes.X + 15) / 16, (CausticsBufferRes.Y + 15) / 16, 1));
+				}
+
+				if (FilterType != 0)
+				{
+					FRDGTextureRef TempColor = OutputColor;
+					OutputColor = InputColor;
+					InputColor = TempColor;
+
+					FCausticsSpatialATrousFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCausticsSpatialATrousFilterCS::FParameters>();
+					PassParameters->InverseWVPMatrix = View.ViewMatrices.GetInvViewProjectionMatrix();
+					PassParameters->WVPMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+					PassParameters->GBufferDim = GBufferRes;// FIntPoint(View.ViewRect.Width(), View.ViewRect.Height());
+					PassParameters->CausticsDim = CausticsBufferRes;
+					PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+					PassParameters->Enable = GET_GIDENOISE_VAR(EnableATrous);
+					PassParameters->BlendWeight = GET_GIDENOISE_CMD_VAR(ATrousBlendWeight);
+					PassParameters->VarianceGain = GET_GIDENOISE_VAR(ATrousVarianceGain);
+					PassParameters->NormalKernel = GET_GIDENOISE_VAR(ATrousNormalTolerance);
+					PassParameters->DepthKernel = GET_GIDENOISE_VAR(ATrousDepthTolerance);
+					PassParameters->ColorKernel = GET_GIDENOISE_VAR(ATrousColorTolerance);
+					PassParameters->AOKernel = GET_GIDENOISE_VAR(ATrousAOTolerance);
+					PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+					PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+					PassParameters->Step = i;
+					PassParameters->FilterType = 2;
+					PassParameters->InputMoment = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+					PassParameters->InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(InputColor));
+					PassParameters->OutputColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutputColor));
+					//PassParameters->OutputResult = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(GlobalIlluminationOutputs.Color));
+					PassParameters->RandomRotation = float(rand()) / RAND_MAX * 2 * 3.141593;
+
+					ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("CausticsTemporalFilter"),
+						ComputeShader,
+						PassParameters,
+						FIntVector((CausticsBufferRes.X + 15) / 16, (CausticsBufferRes.Y + 15) / 16, 1));
+				}
+
+				if (copyIteration == i)
+				{
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.Size = MomentThis->Desc.GetSize();
+					AddCopyTexturePass(GraphBuilder, OutputColor, ColorLast, CopyInfo);
+				}
+
+				FRDGTextureRef TempColor = OutputColor;
+				OutputColor = InputColor;
+				InputColor = TempColor;
+			}
+		}
+
+		{
+			FIntPoint ViewRectSize = GBufferRes;// (View.ViewRect.Width(), View.ViewRect.Height());
+			FCompositeDenoisePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompositeDenoisePS::FParameters>();
+			PassParameters->InverseProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+			PassParameters->CausticsBufferScale = BufferScale;
+			PassParameters->MaxIntensity = 5;
+			PassParameters->DebugMode = DebugType;
+			PassParameters->DepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+			PassParameters->NormalTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+			PassParameters->CausticsTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(OutputColor));
+			PassParameters->MomentTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+			PassParameters->SceneTextures = SceneTextures;
+			PassParameters->AlbedoTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneAlbedoTexture));
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->ViewportInfo = FVector4(GBufferRes.X, GBufferRes.Y, 1.0f / GBufferRes.X, 1.0f / GBufferRes.Y);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(GlobalIlluminationOutputs.Color, ERenderTargetLoadAction::EClear);
+
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("CompositeCaustics"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[PassParameters, &View, ViewRectSize](FRHICommandList& RHICmdList)
+			{
+				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+				TShaderMapRef<FCompositeDenoisePS> PixelShader(View.ShaderMap);
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();// GETSAFERHISHADER_VERTEX(*VertexShader);
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();// GETSAFERHISHADER_PIXEL(*PixelShader);
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, ViewRectSize.X, ViewRectSize.Y, 1.0f);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+				ClearUnusedGraphResources(PixelShader, PassParameters);
+
+				DrawRectangle(
+					RHICmdList,
+					0, 0,
+					ViewRectSize.X, ViewRectSize.Y,
+					0, 0,
+					ViewRectSize.X, ViewRectSize.Y,
+					ViewRectSize,
+					ViewRectSize,
+					VertexShader);
+			});
+		}
+
+		if (View.State)
+		{
+			for (int i = 0; i < 4; ++i)
+				GraphBuilder.QueueTextureExtraction(CausticsIntensity[i], &((FSceneViewState*)View.State)->DenoiseTexture[i]);;
+		}
+
+		return GlobalIlluminationOutputs;
+	}
+	// NVCHANGE_END_YB : GI Denoiser
+#else
+	// NVCHANGE_BEGIN_YB : GI Denoiser
+	FDiffuseIndirectOutputs DenoiseDiffuseIndirectMetro(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FPreviousViewInfo* PreviousViewInfos,
+		const FSceneTextureParameters& SceneTextures,
+		const FDiffuseIndirectInputs& Inputs,
+		const FAmbientOcclusionRayTracingConfig Config) const override
+	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, DiffuseIndirectDenoiser);
+
+		FViewInfoPooledRenderTargets ViewInfoPooledRenderTargets;
+
+		FRHICommandListImmediate& RHICmdList = GraphBuilder.RHICmdList;
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FRDGTextureRef SceneDepthTexture = GraphBuilder.RegisterExternalTexture(SceneContext.SceneDepthZ);
+		FRDGTextureRef SceneNormalTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferA);
+		FRDGTextureRef SceneColorTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor());
+		FRDGTextureRef SceneAlbedoTexture = GraphBuilder.RegisterExternalTexture(SceneContext.GBufferC);
+		FRDGTextureRef DepthTexLast = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.DepthBuffer, GSystemTextures.BlackDummy);
+		FRDGTextureRef NormalTexLast = RegisterExternalTextureWithFallback(GraphBuilder, View.PrevViewInfo.GBufferA, GSystemTextures.BlackDummy);
+
+		FIntPoint GBufferRes = View.ViewRect.Size();
+		FIntPoint DenoiseBufferRes = FIntPoint(GBufferRes.X * Config.ResolutionFraction, GBufferRes.Y * Config.ResolutionFraction);
+		int32 UpscaleFactor(1.0f / Config.ResolutionFraction);
+		float BufferScale = float(DenoiseBufferRes.X) / GBufferRes.X;
+		FRDGTextureRef DenoiseIntensity[4];
+		TCHAR* DenoiseTextureNames[] = { TEXT("DenoiseIntensity0"), TEXT("DenoiseIntensity1"), TEXT("DenoiseIntensity2"), TEXT("DenoiseIntensity3") };
+
+		if (!View.State ||
+			((FSceneViewState*)View.State)->DenoiseTexture[0].GetReference() == nullptr ||
+			((FSceneViewState*)View.State)->DenoiseTexture[0]->GetDesc().Extent != DenoiseBufferRes)
+		{
+			FRDGTextureDesc RTDesc = FRDGTextureDesc::Create2DDesc(
+				DenoiseBufferRes,
+				PF_FloatRGBA,
+				FClearValueBinding::Black,
+				TexCreate_None,
+				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+				/* bInForceSeparateTargetAndShaderResource = */ false);
+			for (int i = 0; i < 4; ++i)
+			{
+				DenoiseIntensity[i] = GraphBuilder.CreateTexture(RTDesc, DenoiseTextureNames[i], ERDGResourceFlags::MultiFrame);
+				AddClearDenoiseTexturePass(GraphBuilder, RHICmdList, DenoiseIntensity[i], View, FVector4(0, 0, 0, 0));
+			}
+		}
+		else
+		{
+			for (int i = 0; i < 4; ++i)
+			{
+				DenoiseIntensity[i] = GraphBuilder.RegisterExternalTexture(((FSceneViewState*)View.State)->DenoiseTexture[i], DenoiseTextureNames[i]);
+			}
+		}
+		int FrameCounter = ((FSceneViewState*)View.State)->FrameIndex;
+		FRDGTextureRef ColorLast = DenoiseIntensity[0];
+		FRDGTextureRef MomentLast = DenoiseIntensity[2];
+
+		FRDGTextureDesc RTDesc = FRDGTextureDesc::Create2DDesc(
+			DenoiseBufferRes,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+			/* bInForceSeparateTargetAndShaderResource = */ false);
+
+		FRDGTextureRef ColorThis = GraphBuilder.CreateTexture(RTDesc, TEXT("ColorThis"));
+		FRDGTextureRef MomentThis = GraphBuilder.CreateTexture(RTDesc, TEXT("MomentThis"));
+
+		FDiffuseIndirectOutputs GlobalIlluminationOutputs;
+		FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2DDesc(
+			SceneColorTexture->Desc.Extent,
+			PF_FloatRGBA,
+			FClearValueBinding::Black,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable,
+			false);
+		GlobalIlluminationOutputs.Color = GraphBuilder.CreateTexture(OutputDesc, TEXT("DenoisedTexture"));
+		GlobalIlluminationOutputs.AmbientOcclusionMask = Inputs.AmbientOcclusionMask;
+
+		{
+			TShaderMapRef<FDenoiseTemporalFilterCS> ComputeShader(View.ShaderMap);
+			FDenoiseTemporalFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDenoiseTemporalFilterCS::FParameters>();
+			FMatrix ReprojectMatrix = View.ViewMatrices.GetInvViewProjectionMatrix() * View.PrevViewInfo.ViewMatrices.GetViewProjectionMatrix();
+			PassParameters->ReprojectionMatrix = ReprojectMatrix;
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->InverseProjectionMatrixLast = View.PrevViewInfo.ViewMatrices.GetInvProjectionMatrix();
+			PassParameters->InverseProjectionMatrixThis = View.ViewMatrices.GetInvProjectionMatrix();
+			PassParameters->GBufferDim = GBufferRes;
+			PassParameters->DenoiseDim = DenoiseBufferRes;
+			PassParameters->UpscaleFactor = UpscaleFactor;
+			PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->Enable = GET_GIDENOISE_VAR(EnableTemporal);
+			PassParameters->BlendWeight = GET_GIDENOISE_VAR(TemporalBlendWeight);
+			PassParameters->MomentBlendWeight = GET_GIDENOISE_VAR(TemporalMomentBlendWeight);
+			PassParameters->ColorKernel = GET_GIDENOISE_CMD_VAR(TemporalColorTolerance);
+			PassParameters->NormalKernel = GET_GIDENOISE_VAR(TemporalNormalTolerance);
+			PassParameters->DepthKernel = GET_GIDENOISE_VAR(TemporalDepthTolerance);
+			PassParameters->SceneTextures = SceneTextures;
+			PassParameters->HistoryLength = GET_GIDENOISE_VAR(HistoryLength);
+			PassParameters->ColorClamp = GET_GIDENOISE_VAR(ColorClamp);
+			PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+			PassParameters->DepthTextureLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(DepthTexLast));
+			PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+			PassParameters->NormalTextureLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(NormalTexLast));
+			PassParameters->MomentLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+			PassParameters->ColorLast = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ColorLast));
+			PassParameters->ColorInput = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Inputs.Color));
+			PassParameters->DistanceInput = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(Inputs.RayHitDistance));
+			PassParameters->MomentThis = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(MomentThis));
+			PassParameters->ColorThis = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ColorThis));
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GI Denoise Temporal Filter"),
+				ComputeShader,
+				PassParameters,
+				FIntVector((DenoiseBufferRes.X + 15) / 16, (DenoiseBufferRes.Y + 15) / 16, 1));
+
+			FRHICopyTextureInfo CopyInfo;
+			CopyInfo.Size = MomentThis->Desc.GetSize();
+			AddCopyTexturePass(GraphBuilder, MomentThis, MomentLast, CopyInfo);
+		}
+
+		FRDGTextureRef ColorAndVariance = GraphBuilder.CreateTexture(RTDesc, TEXT("ColorAndVariance"));
+		{
+			TShaderMapRef<FDenoiseSpatialFilterCS> ComputeShader(View.ShaderMap);
+
+			FDenoiseSpatialFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDenoiseSpatialFilterCS::FParameters>();
+
+			FMatrix ReprojectMatrix = View.ViewMatrices.GetInvViewProjectionMatrix() * View.PrevViewInfo.ViewMatrices.GetViewProjectionMatrix();
+			PassParameters->InverseWVPMatrix = View.ViewMatrices.GetInvViewProjectionMatrix();
+			PassParameters->WVPMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+			PassParameters->GBufferDim = GBufferRes;
+			PassParameters->DenoiseDim = DenoiseBufferRes;
+			PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+			PassParameters->Enable = GET_GIDENOISE_CMD_VAR(EnableSpatial);
+			PassParameters->BlendWeight = GET_GIDENOISE_CMD_VAR(SpatialBlendWeight);
+			PassParameters->BaseRadius = GET_GIDENOISE_CMD_VAR(SpatialBaseRadius);
+			PassParameters->NormalKernel = GET_GIDENOISE_VAR(ATrousNormalTolerance);
+			PassParameters->DepthKernel = GET_GIDENOISE_VAR(ATrousDepthTolerance);
+			PassParameters->ColorKernel = 1;
+			PassParameters->AOKernel = GET_GIDENOISE_VAR(ATrousAOTolerance);
+			PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+			PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+			PassParameters->InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(ColorThis));
+			PassParameters->InputMoment = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+			PassParameters->OutputColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(ColorAndVariance));
+			PassParameters->RandomRotation = float(rand()) / RAND_MAX * 2 * 3.141593;
+
+			ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GI Denoise Variance Filter"),
+				ComputeShader,
+				PassParameters,
+				FIntVector((DenoiseBufferRes.X + 15) / 16, (DenoiseBufferRes.Y + 15) / 16, 1));
+		}
+
+		int DebugType = 0;
+		if (GET_GIDENOISE_CMD_VAR(DebugType) > 0)
+		{
+			DebugType = GET_GIDENOISE_CMD_VAR(DebugType);
+		}
+		//else
+		//{
+		//	DebugType = int(View.FinalPostProcessSettings.GIDenoiseDebugType);
+		//}
+
+
+		FRDGTextureRef InputColor = ColorAndVariance;
+		FRDGTextureRef OutputColor = GraphBuilder.CreateTexture(RTDesc, TEXT("OutputColor"));
+		{
+			int FilterType = GET_GIDENOISE_CMD_VAR(SpatialFilterType);
+			//if (FilterType == -1)
+			//	FilterType = int(View.FinalPostProcessSettings.GIDenoiseSpatialFilterType);
+
+			int FilterWidth = GET_GIDENOISE_VAR(ATrousFilterWidth) * BufferScale * 2 * (FilterType == 0 ? 1 : 8);
+			int SampleDepthAsNormal = GET_GIDENOISE_VAR(ATrousSampleDepthAsNormal);
+			int EnableATrous = GET_GIDENOISE_VAR(EnableATrous);
+			int nIteration = EnableATrous ? GET_GIDENOISE_VAR(ATrousIteration) : 1;
+			if (nIteration <= 0) nIteration = 1;
+			int copyIteration = FMath::Min<int32>(nIteration - 1, GET_GIDENOISE_VAR(ATrousCopyIteration));
+			TShaderMapRef<FDenoiseSpatialATrousFilterCS> ComputeShader(View.ShaderMap);
+			FMatrix ReprojectMatrix = View.ViewMatrices.GetInvViewProjectionMatrix() * View.PrevViewInfo.ViewMatrices.GetViewProjectionMatrix();
+			for (int i = 0; i < nIteration; i++)
+			{
+				{
+					FDenoiseSpatialATrousFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDenoiseSpatialATrousFilterCS::FParameters>();
+					PassParameters->InverseWVPMatrix = View.ViewMatrices.GetInvViewProjectionMatrix();
+					PassParameters->WVPMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+					PassParameters->InverseProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+					PassParameters->GBufferDim = GBufferRes;
+					PassParameters->DenoiseDim = DenoiseBufferRes;
+					PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+					PassParameters->Enable = GET_GIDENOISE_VAR(EnableATrous);
+					PassParameters->VarianceGain = GET_GIDENOISE_VAR(ATrousVarianceGain);
+					PassParameters->NormalKernel = GET_GIDENOISE_VAR(ATrousNormalTolerance);
+					PassParameters->DepthKernel = GET_GIDENOISE_VAR(ATrousDepthTolerance);
+					PassParameters->AOKernel = GET_GIDENOISE_VAR(ATrousAOTolerance);
+					PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+					PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+					PassParameters->Step = i;
+					PassParameters->FilterType = FilterType == 0 ? 0 : 1;
+					PassParameters->FilterWidth = FilterWidth;
+					PassParameters->SampleDepthAsNormal = SampleDepthAsNormal;
+					PassParameters->InputMoment = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+					PassParameters->InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(InputColor));
+					PassParameters->OutputColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutputColor));
+					PassParameters->RandomRotation = float(rand()) / RAND_MAX * 2 * 3.141593;
+
+					ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("GI Denoise Spatial Filter"),
+						ComputeShader,
+						PassParameters,
+						FIntVector((DenoiseBufferRes.X + 15) / 16, (DenoiseBufferRes.Y + 15) / 16, 1));
+				}
+
+				if (FilterType != 0)
+				{
+					FRDGTextureRef TempColor = OutputColor;
+					OutputColor = InputColor;
+					InputColor = TempColor;
+
+					FDenoiseSpatialATrousFilterCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDenoiseSpatialATrousFilterCS::FParameters>();
+					PassParameters->InverseWVPMatrix = View.ViewMatrices.GetInvViewProjectionMatrix();
+					PassParameters->WVPMatrix = View.ViewMatrices.GetViewProjectionMatrix();
+					PassParameters->InverseProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+					PassParameters->GBufferDim = GBufferRes;
+					PassParameters->DenoiseDim = DenoiseBufferRes;
+					PassParameters->LinearSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+					PassParameters->Enable = GET_GIDENOISE_VAR(EnableATrous);
+					PassParameters->VarianceGain = GET_GIDENOISE_VAR(ATrousVarianceGain);
+					PassParameters->NormalKernel = GET_GIDENOISE_VAR(ATrousNormalTolerance);
+					PassParameters->DepthKernel = GET_GIDENOISE_VAR(ATrousDepthTolerance);
+					PassParameters->AOKernel = GET_GIDENOISE_VAR(ATrousAOTolerance);
+					PassParameters->DepthTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+					PassParameters->NormalTextureThis = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+					PassParameters->Step = i;
+					PassParameters->FilterType = 2;
+					PassParameters->FilterWidth = FilterWidth;
+					PassParameters->SampleDepthAsNormal = SampleDepthAsNormal;
+					PassParameters->InputMoment = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+					PassParameters->InputColor = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(InputColor));
+					PassParameters->OutputColor = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(OutputColor));
+					PassParameters->RandomRotation = float(rand()) / RAND_MAX * 2 * 3.141593;
+
+					ClearUnusedGraphResources(ComputeShader, PassParameters);
+
+					FComputeShaderUtils::AddPass(
+						GraphBuilder,
+						RDG_EVENT_NAME("GI Denoise Spatial Filter 2"),
+						ComputeShader,
+						PassParameters,
+						FIntVector((DenoiseBufferRes.X + 15) / 16, (DenoiseBufferRes.Y + 15) / 16, 1));
+				}
+
+				if (copyIteration == i)
+				{
+					FRHICopyTextureInfo CopyInfo;
+					CopyInfo.Size = MomentThis->Desc.GetSize();
+					AddCopyTexturePass(GraphBuilder, OutputColor, ColorLast, CopyInfo);
+				}
+
+				FRDGTextureRef TempColor = OutputColor;
+				OutputColor = InputColor;
+				InputColor = TempColor;
+			}
+		}
+
+		{
+			FIntPoint ViewRectSize = GBufferRes;
+			FCompositeDenoisePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompositeDenoisePS::FParameters>();
+			PassParameters->InverseProjectionMatrix = View.ViewMatrices.GetInvProjectionMatrix();
+			PassParameters->DenoiseBufferScale = BufferScale;
+			PassParameters->MaxIntensity = GET_GIDENOISE_VAR(ColorClamp);
+			PassParameters->DebugMode = DebugType;
+			PassParameters->DepthTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneDepthTexture));
+			PassParameters->NormalTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneNormalTexture));
+			PassParameters->DenoiseTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(OutputColor));
+			PassParameters->MomentTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(MomentLast));
+			PassParameters->SceneTextures = SceneTextures;
+			PassParameters->AlbedoTexture = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::Create(SceneAlbedoTexture));
+			PassParameters->ViewUniformBuffer = View.ViewUniformBuffer;
+			PassParameters->ViewportInfo = FVector4(GBufferRes.X, GBufferRes.Y, 1.0f / GBufferRes.X, 1.0f / GBufferRes.Y);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(GlobalIlluminationOutputs.Color, ERenderTargetLoadAction::EClear);
+
+
+			GraphBuilder.AddPass(
+				RDG_EVENT_NAME("GI Denoise Composite"),
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[PassParameters, &View, ViewRectSize](FRHICommandList& RHICmdList)
+			{
+				TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+				TShaderMapRef<FCompositeDenoisePS> PixelShader(View.ShaderMap);
+
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				RHICmdList.SetViewport(0.0f, 0.0f, 0.0f, ViewRectSize.X, ViewRectSize.Y, 1.0f);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *PassParameters);
+
+				ClearUnusedGraphResources(PixelShader, PassParameters);
+
+				DrawRectangle(
+					RHICmdList,
+					0, 0,
+					ViewRectSize.X, ViewRectSize.Y,
+					0, 0,
+					ViewRectSize.X, ViewRectSize.Y,
+					ViewRectSize,
+					ViewRectSize,
+					VertexShader);
+			});
+		}
+
+		if (View.State)
+		{
+			for (int i = 0; i < 4; ++i)
+				GraphBuilder.QueueTextureExtraction(DenoiseIntensity[i], &((FSceneViewState*)View.State)->DenoiseTexture[i]);;
+		}
+
+		return GlobalIlluminationOutputs;
+	}
+	// NVCHANGE_END_YB : GI Denoiser
+#endif
 }; // class FDefaultScreenSpaceDenoiser
 
 

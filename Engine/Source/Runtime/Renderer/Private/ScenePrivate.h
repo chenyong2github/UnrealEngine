@@ -989,6 +989,9 @@ public:
 	// Ray Traced Global Illumination Gather Point Data
 	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
 	FIntVector GatherPointsResolution;
+	// todo: shared definition for maximum gather points per-pixel (32)
+	TStaticArray<FMatrix, 32> GatherPointsViewHistory;
+	uint32 GatherPointsCount;
 
 	// Last valid RTPSO is saved, so it could be used as fallback in future frames if background PSO compilation is enabled.
 	// This RTPSO can be used only if the only difference from previous PSO is the material hit shaders.

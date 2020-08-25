@@ -570,6 +570,7 @@ private:
 		FSceneTextureParameters& SceneTextures,
 		FViewInfo& View,
 		int32 UpscaleFactor,
+		int32 SampleIndex,
 		FRDGBufferRef& GatherPointsBuffer,
 		FIntVector& GatherPointsResolution);
 
