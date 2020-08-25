@@ -111,6 +111,25 @@ private:
 	static const TCHAR* EnumToString(ETargetState InTargetState);
 
 public:
+	static ULevelStreaming* FindStreamingLevel(const ULevel* Level);
+	static void RemoveLevelAnnotation(const ULevel* Level);
+
+	// Annotation for fast inverse lookup
+	struct FLevelAnnotation
+	{
+		FLevelAnnotation() {}
+		FLevelAnnotation(ULevelStreaming* InLevelStreaming) : LevelStreaming(InLevelStreaming){}
+	
+		FORCEINLINE bool IsDefault()
+		{
+			return !LevelStreaming;
+		}
+
+		ULevelStreaming* LevelStreaming = nullptr;
+	};
+
+	static FUObjectAnnotationSparse<FLevelAnnotation, false> LevelAnnotations;
+
 
 #if WITH_EDITORONLY_DATA
 	/** Deprecated name of the package containing the level to load. Use GetWorldAsset() or GetWorldAssetPackageFName() instead.		*/

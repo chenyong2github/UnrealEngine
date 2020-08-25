@@ -58,21 +58,7 @@ bool FLevelUtils::bApplyingLevelTransform = false;
  */
 ULevelStreaming* FLevelUtils::FindStreamingLevel(const ULevel* Level)
 {
-	ULevelStreaming* MatchingLevel = NULL;
-
-	if (Level && Level->OwningWorld)
-	{
-		for (ULevelStreaming* CurStreamingLevel : Level->OwningWorld->GetStreamingLevels())
-		{
-			if( CurStreamingLevel && CurStreamingLevel->GetLoadedLevel() == Level )
-			{
-				MatchingLevel = CurStreamingLevel;
-				break;
-			}
-		}
-	}
-
-	return MatchingLevel;
+	return ULevelStreaming::FindStreamingLevel(Level);
 }
 
 /**

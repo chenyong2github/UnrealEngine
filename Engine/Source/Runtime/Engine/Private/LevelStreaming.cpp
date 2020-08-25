@@ -792,6 +792,42 @@ void ULevelStreaming::AddLevelToCollectionAfterReload()
 }
 #endif
 
+FUObjectAnnotationSparse<ULevelStreaming::FLevelAnnotation, false> ULevelStreaming::LevelAnnotations;
+
+void ULevelStreaming::RemoveLevelAnnotation(const ULevel* Level)
+{
+	ULevelStreaming::LevelAnnotations.RemoveAnnotation(Level);
+}
+
+ULevelStreaming* ULevelStreaming::FindStreamingLevel(const ULevel* Level)
+{
+	ULevelStreaming* FoundLevelStreaming = nullptr;
+	if (Level && Level->OwningWorld && !Level->IsPersistentLevel())
+	{
+		FLevelAnnotation LevelAnnotation = LevelAnnotations.GetAnnotation(Level);
+		if (LevelAnnotation.LevelStreaming)
+		{
+			check(LevelAnnotation.LevelStreaming->GetLoadedLevel() == Level);
+			FoundLevelStreaming = LevelAnnotation.LevelStreaming;
+		}
+
+		if (!ensure(FoundLevelStreaming))
+		{
+			// fallback search
+			for (ULevelStreaming* CurStreamingLevel : Level->OwningWorld->GetStreamingLevels())
+			{
+				if (CurStreamingLevel && CurStreamingLevel->GetLoadedLevel() == Level)
+				{
+					FoundLevelStreaming = CurStreamingLevel;
+					break;
+				}
+			}
+		}
+	}
+
+	return FoundLevelStreaming;
+}
+
 void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 { 
 	// Pending level should be unloaded at this point
@@ -811,9 +847,15 @@ void ULevelStreaming::SetLoadedLevel(ULevel* Level)
 	FLevelCollection& LC = World->FindOrAddCollectionByType(CollectionType);
 	LC.RemoveLevel(PendingUnloadLevel);
 
+	if (PendingUnloadLevel)
+	{
+		RemoveLevelAnnotation(PendingUnloadLevel);
+	}
+
 	if (LoadedLevel)
 	{
 		LoadedLevel->OwningWorld = World;
+		ULevelStreaming::LevelAnnotations.AddAnnotation(LoadedLevel, FLevelAnnotation(this));
 
 		// Remove the loaded level from its current collection, if any.
 		if (LoadedLevel->GetCachedLevelCollection())

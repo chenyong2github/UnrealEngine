@@ -932,6 +932,8 @@ void ULevel::ClearLevelComponents()
 
 void ULevel::BeginDestroy()
 {
+	ULevelStreaming::RemoveLevelAnnotation(this);
+	
 	if (!IStreamingManager::HasShutdown())
 	{
 		// At this time, referenced UTexture2Ds are still in memory.
@@ -1618,13 +1620,9 @@ void ULevel::PostEditUndo()
 		}
 		else
 		{
-			for (const ULevelStreaming* StreamedLevel : OwningWorld->GetStreamingLevels())
+			if(const ULevelStreaming* StreamingLevel = ULevelStreaming::FindStreamingLevel(this))
 			{
-				if (StreamedLevel && StreamedLevel->GetLoadedLevel() == this)
-				{
-					bIsStreamingLevelVisible = FLevelUtils::IsStreamingLevelVisibleInEditor(StreamedLevel);
-					break;
-				}
+				bIsStreamingLevelVisible = FLevelUtils::IsStreamingLevelVisibleInEditor(StreamingLevel);
 			}
 		}
 

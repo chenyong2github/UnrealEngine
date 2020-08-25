@@ -838,22 +838,9 @@ bool UEditorLevelUtils::RemoveLevelFromWorld(ULevel* InLevel, bool bClearSelecti
 
 void UEditorLevelUtils::PrivateRemoveLevelFromWorld(ULevel* InLevel)
 {
-	int32 StreamingLevelIndex = INDEX_NONE;
-
-	for (int32 LevelIndex = 0; LevelIndex < InLevel->OwningWorld->GetStreamingLevels().Num(); ++LevelIndex)
-	{
-		ULevelStreaming* StreamingLevel = InLevel->OwningWorld->GetStreamingLevels()[LevelIndex];
-		if (StreamingLevel && StreamingLevel->GetLoadedLevel() == InLevel)
-		{
-			StreamingLevelIndex = LevelIndex;
-			break;
-		}
-	}
-
 	bool bIsTransientLevelStreaming = false;
-	if (StreamingLevelIndex != INDEX_NONE)
+	if (ULevelStreaming* StreamingLevel = ULevelStreaming::FindStreamingLevel(InLevel))
 	{
-		ULevelStreaming* StreamingLevel = InLevel->OwningWorld->GetStreamingLevels()[StreamingLevelIndex];
 		bIsTransientLevelStreaming = StreamingLevel->HasAnyFlags(RF_Transient);
 		StreamingLevel->MarkPendingKill();
 		InLevel->OwningWorld->RemoveStreamingLevel(StreamingLevel);
