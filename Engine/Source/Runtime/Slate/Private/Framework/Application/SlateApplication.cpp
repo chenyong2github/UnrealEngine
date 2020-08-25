@@ -2977,12 +2977,14 @@ void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath
 		TSharedRef<FSlateUser> SlateUser = GetOrCreateUser(ValidatedUserIndex);
 		const bool bIsPrimaryUser = ValidatedUserIndex == CursorUserIndex;
 
+		static TSet<FKey> EmptySet;
+
 		FPointerEvent MouseEvent(
 			ValidatedUserIndex,
 			PointerIndex,
 			SlateUser->GetCursorPosition(),
 			SlateUser->GetPreviousCursorPosition(),
-			bIsPrimaryUser ? PressedMouseButtons : FTouchKeySet::EmptySet,
+			bIsPrimaryUser ? PressedMouseButtons : EmptySet,
 			EKeys::Invalid,
 			0,
 			bIsPrimaryUser ? PlatformApplication->GetModifierKeys() : FModifierKeysState()
