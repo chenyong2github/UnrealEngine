@@ -1119,21 +1119,42 @@ struct FScopedRPCTimingTracker
 		{
 			StartTime = FPlatformTime::Seconds();
 		}
+
+		ActiveTrackers.Add(this);
 	};
 
 	~FScopedRPCTimingTracker()
 	{
+		ActiveTrackers.RemoveSingleSwap(this);
 		if (GReceiveRPCTimingEnabled)
 		{
 			const double Elapsed = FPlatformTime::Seconds() - StartTime;
 			Connection->Driver->NotifyRPCProcessed(Function, Connection, Elapsed);
-
 		}
 	}
 	UNetConnection* Connection;
 	UFunction* Function;
 	double StartTime;
+
+	static TArray<FScopedRPCTimingTracker*> ActiveTrackers;
 };
+
+TArray<FScopedRPCTimingTracker*> FScopedRPCTimingTracker::ActiveTrackers;
+
+ENGINE_API TArray<UFunction*> FindScopedRPCTrackers(UNetConnection* Connection = nullptr)
+{
+	TArray<UFunction*> FuncList;
+	for (int32 Idx = 0; Idx < FScopedRPCTimingTracker::ActiveTrackers.Num(); Idx++)
+	{
+		const FScopedRPCTimingTracker* TestTracker = FScopedRPCTimingTracker::ActiveTrackers[Idx];
+		if (TestTracker && (Connection == nullptr || TestTracker->Connection == Connection))
+		{
+			FuncList.Add(TestTracker->Function);
+		}
+	}
+
+	return FuncList;
+}
 
 bool FObjectReplicator::ReceivedRPC(FNetBitReader& Reader, const FReplicationFlags& RepFlags, const FFieldNetCache* FieldCache, const bool bCanDelayRPC, bool& bOutDelayRPC, TSet<FNetworkGUID>& UnmappedGuids)
 {
