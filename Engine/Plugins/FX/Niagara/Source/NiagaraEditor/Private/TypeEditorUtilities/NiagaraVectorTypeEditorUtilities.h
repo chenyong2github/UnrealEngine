@@ -63,3 +63,13 @@ public:
 	virtual FText GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const override;
 	virtual FText GetStackDisplayText(FNiagaraVariable& Variable) const override;
 };
+
+/** Niagara editor utilities for the FNiagaraID type. */
+class FNiagaraEditorNiagaraIDTypeUtilities : public FNiagaraEditorTypeUtilities
+{
+public:
+	//~ INiagaraEditorTypeUtilities interface.
+	virtual bool CanHandlePinDefaults() const override;
+	virtual FString GetPinDefaultStringFromValue(const FNiagaraVariable& AllocatedVariable) const override;
+	virtual bool SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const override;
+};
