@@ -8,7 +8,7 @@ UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(FTestTypedElementData);
 
 FText UTestTypedElementInterfaceA_ImplTyped::GetDisplayName(const FTypedElementHandle& InElementHandle)
 {
-	const FTestTypedElementData* ElementData = InElementHandle.GetDataScript<FTestTypedElementData>();
+	const FTestTypedElementData* ElementData = InElementHandle.GetData<FTestTypedElementData>();
 	if (!ElementData)
 	{
 		return FText();
@@ -19,7 +19,7 @@ FText UTestTypedElementInterfaceA_ImplTyped::GetDisplayName(const FTypedElementH
 
 bool UTestTypedElementInterfaceA_ImplTyped::SetDisplayName(const FTypedElementHandle& InElementHandle, FText InNewName, bool bNotify)
 {
-	const FTestTypedElementData* ElementData = InElementHandle.GetDataScript<FTestTypedElementData>();
+	const FTestTypedElementData* ElementData = InElementHandle.GetData<FTestTypedElementData>();
 	if (!ElementData)
 	{
 		return false;

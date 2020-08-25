@@ -12,6 +12,6 @@ bool UActorElementSelectionInterface::IsValidSelection(const FTypedElementHandle
 
 UObject* UActorElementSelectionInterface::Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle)
 {
-	const FActorElementData* ActorData = InElementHandle.GetDataScript<FActorElementData>();
+	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
 	return ActorData ? ActorData->Actor : nullptr;
 }

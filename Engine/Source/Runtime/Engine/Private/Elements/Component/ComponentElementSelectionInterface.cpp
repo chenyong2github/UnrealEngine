@@ -12,6 +12,6 @@ bool UComponentElementSelectionInterface::IsValidSelection(const FTypedElementHa
 
 UObject* UComponentElementSelectionInterface::Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle)
 {
-	const FComponentElementData* ComponentData = InElementHandle.GetDataScript<FComponentElementData>();
+	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
 	return ComponentData ? ComponentData->Component : nullptr;
 }

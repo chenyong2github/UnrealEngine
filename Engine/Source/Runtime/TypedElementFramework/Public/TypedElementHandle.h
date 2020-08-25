@@ -242,23 +242,11 @@ public:
 	}
 
 	/**
-	 * Attempt to access the data stored within this handle as the given type, returning null if it isn't possible.
-	 * @note This is not typically something you'd want to use outside of data access within an interface implementation.
-	 */
-	template <typename ElementDataType>
-	FORCEINLINE const ElementDataType* GetData() const
-	{
-		return IsDataOfType<ElementDataType>()
-			? static_cast<const ElementDataType*>(DataPtr->GetUntypedData())
-			: nullptr;
-	}
-
-	/**
 	 * Attempt to access the data stored within this handle as the given type, returning null if it isn't possible and logging an access error for scripting.
 	 * @note This is not typically something you'd want to use outside of data access within an interface implementation.
 	 */
 	template <typename ElementDataType>
-	const ElementDataType* GetDataScript() const
+	const ElementDataType* GetData() const
 	{
 		if (!DataPtr)
 		{
