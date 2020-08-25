@@ -824,8 +824,12 @@ void USkeletalMesh::ReleaseResources()
 	FSkeletalMeshRenderData* SkelMeshRenderData = GetResourceForRendering();
 	if (SkelMeshRenderData)
 	{
-		//Flush the rendering command to be sure there is no command left that can create a rendering ressource
-		FlushRenderingCommands();
+
+		if(GIsEditor && !GIsPlayInEditorWorld)
+		{
+			//Flush the rendering command to be sure there is no command left that can create/modify a rendering ressource
+			FlushRenderingCommands();
+		}
 
 		SkelMeshRenderData->ReleaseResources();
 	}
