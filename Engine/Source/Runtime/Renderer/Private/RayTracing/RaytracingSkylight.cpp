@@ -601,7 +601,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingSkyLight(
 			{
 				// Declare default pipeline
 				FRayTracingPipelineStateInitializer Initializer;
-				Initializer.MaxPayloadSizeInBytes = 60; // sizeof(FPackedMaterialClosestHitPayload)
+				Initializer.MaxPayloadSizeInBytes = 64; // sizeof(FPackedMaterialClosestHitPayload)
 				FRHIRayTracingShader* RayGenShaderTable[] = { RayGenerationShader.GetRayTracingShader() };
 				Initializer.SetRayGenShaderTable(RayGenShaderTable);
 
