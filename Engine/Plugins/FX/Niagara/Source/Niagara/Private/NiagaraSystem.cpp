@@ -894,9 +894,46 @@ void UNiagaraSystem::FindDataInterfaceDependencies(UNiagaraEmitter* Emitter, UNi
 {
 	if (const FNiagaraScriptExecutionParameterStore* ParameterStore = Script->GetExecutionReadyParameterStore(Emitter->SimTarget))
 	{
-		for (UNiagaraDataInterface* DataInterface : ParameterStore->GetDataInterfaces())
+		const TArray<UNiagaraDataInterface*>& StoreDataInterfaces = ParameterStore->GetDataInterfaces();
+		if (StoreDataInterfaces.Num() > 0)
 		{
-			DataInterface->GetEmitterDependencies(this, Dependencies);
+			auto FindCachedDefaultDI =
+				[](UNiagaraScript* Script, const FNiagaraVariable& Variable) -> UNiagaraDataInterface*
+				{
+					if (Script)
+					{
+						for (FNiagaraScriptDataInterfaceInfo& DataInterfaceInfo : Script->GetCachedDefaultDataInterfaces())
+						{
+							if ((Variable.GetType() == DataInterfaceInfo.Type) && (Variable.GetName() == DataInterfaceInfo.RegisteredParameterMapWrite))
+							{
+								return DataInterfaceInfo.DataInterface;
+							}
+						}
+					}
+					return nullptr;
+				};
+
+			for (const FNiagaraVariableWithOffset& Variable : ParameterStore->ReadParameterVariables())
+			{
+				if (!Variable.IsDataInterface())
+				{
+					continue;
+				}
+
+				if (UNiagaraDataInterface* DefaultDI = FindCachedDefaultDI(SystemSpawnScript, Variable))
+				{
+					DefaultDI->GetEmitterDependencies(this, Dependencies);
+					continue;
+				}
+
+				if (UNiagaraDataInterface* DefaultDI = FindCachedDefaultDI(SystemUpdateScript, Variable))
+				{
+					DefaultDI->GetEmitterDependencies(this, Dependencies);
+					continue;
+				}
+
+				StoreDataInterfaces[Variable.Offset]->GetEmitterDependencies(this, Dependencies);
+			}
 		}
 	}
 }
