@@ -9,8 +9,6 @@
 #include "GeometryCollection/GeometryCollectionAlgo.h"
 #include "GeometryCollection/GeometryCollectionSimulationTypes.h"
 
-DEFINE_LOG_CATEGORY_STATIC(FSCA_Log, Log, All);
-
 namespace PhysicsFieldCommand
 {
 }
