@@ -2,6 +2,7 @@
 
 #include "MotionTrailEditorModeModule.h"
 #include "MotionTrailEditorMode.h"
+#include "Sequencer/MotionTrailTrackEditor.h"
 #include "EditorModeManager.h"
 
 #include "ISequencerModule.h"
@@ -16,6 +17,7 @@ void FMotionTrailEditorModeModule::StartupModule()
 {
 	ISequencerModule& SequencerModule = FModuleManager::Get().LoadModuleChecked<ISequencerModule>("Sequencer");
 	OnSequencerCreatedHandle = SequencerModule.RegisterOnSequencerCreated(FOnSequencerCreated::FDelegate::CreateRaw(this, &FMotionTrailEditorModeModule::OnSequencerCreated));
+	OnCreateTrackEditorHandle = SequencerModule.RegisterTrackEditor(FOnCreateTrackEditor::CreateStatic(&UE::MotionTrailEditor::FMotionTrailTrackEditor::CreateTrackEditor));
 }
 
 void FMotionTrailEditorModeModule::ShutdownModule()
@@ -24,6 +26,7 @@ void FMotionTrailEditorModeModule::ShutdownModule()
 	if (SequencerModule)
 	{
 		SequencerModule->UnregisterOnSequencerCreated(OnSequencerCreatedHandle);
+		SequencerModule->UnRegisterTrackEditor(OnCreateTrackEditorHandle);
 	}
 }
 
