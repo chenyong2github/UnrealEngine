@@ -83,6 +83,8 @@ void FTargetDeviceService::AddTargetDevice(TSharedPtr<ITargetDevice, ESPMode::Th
 
 	FName Variant = FName(InDevice->GetTargetPlatform().PlatformName().GetCharArray().GetData());
 
+	UE_LOG(LogTemp, Display, TEXT("TPDEBUG: Adding target device %s to target services"), *Variant.ToString());
+
 	if (DevicePlatformName == NAME_None)
 	{
 		// If this seems nasty your right!
