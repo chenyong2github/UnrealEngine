@@ -431,10 +431,12 @@ const TOptional<Interchange::FImportImage> UInterchangePSDTranslator::GetPayload
 	// PSD File
 	//
 	PSDParserHelper::FPSDFileHeader PSDHeader;
-	if (Length > sizeof(PSDParserHelper::FPSDFileHeader))
+	if (Length < sizeof(PSDParserHelper::FPSDFileHeader))
 	{
-		PSDParserHelper::GetPSDHeader(Buffer, PSDHeader);
+		return TOptional<Interchange::FImportImage>();
 	}
+
+	PSDParserHelper::GetPSDHeader(Buffer, PSDHeader);
 
 	if (!PSDHeader.IsValid())
 	{
