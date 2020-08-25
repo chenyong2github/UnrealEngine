@@ -150,7 +150,8 @@ void FTargetDeviceProxyManager::SendPing()
 
 		// message is going to be deleted by FMemory::Free() (see FMessageContext destructor), so allocate it with Malloc
 		void* Memory = FMemory::Malloc(sizeof(FTargetDeviceServicePing), alignof(FTargetDeviceServicePing));
-		MessageEndpoint->Publish(new (Memory) FTargetDeviceServicePing(FPlatformProcess::UserName(false)), EMessageScope::Network);
+		// send to only this process, as we no longer want to send out pings to the local network and get another machine's list of devices
+		MessageEndpoint->Publish(new (Memory) FTargetDeviceServicePing(FPlatformProcess::UserName(false)), EMessageScope::Process);
 	}
 }
 
