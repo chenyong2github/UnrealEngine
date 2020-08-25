@@ -460,9 +460,9 @@ void FTypePromotion::GetAllFuncsForOp(const FString& Operation, TArray<UFunction
 	return FTypePromotion::Get().GetAllFuncsForOp_Internal(Operation, OutFuncs);
 }
 
-const TArray<FString>& FTypePromotion::GetOpNames()
+const TSet<FString>& FTypePromotion::GetAllOpNames()
 {
-	static const TArray<FString> OpsArray =
+	static const TSet<FString> OpsArray =
 	{
 		OperatorNames::Add,
 		OperatorNames::Multiply,
@@ -476,6 +476,25 @@ const TArray<FString>& FTypePromotion::GetOpNames()
 	};
 
 	return OpsArray;
+}
+
+const TSet<FString>& FTypePromotion::GetComparisonOpNames()
+{
+	static const TSet<FString> ComparisonOps =
+	{
+		OperatorNames::Greater,
+		OperatorNames::GreaterEq,
+		OperatorNames::Less,
+		OperatorNames::LessEq,
+		OperatorNames::NotEq
+	};
+	return ComparisonOps;
+}
+
+bool FTypePromotion::IsComparisonFunc(UFunction const* const Func)
+{
+	FString OpName;
+	return Func && GetOpNameFromFunction(Func, /* out */ OpName) && GetComparisonOpNames().Contains(OpName);
 }
 
 void FTypePromotion::GetAllFuncsForOp_Internal(const FString& Operation, TArray<UFunction*>& OutFuncs)
@@ -496,18 +515,16 @@ bool FTypePromotion::GetOpNameFromFunction(UFunction const* const Func, FString&
 	// Get everything before the "_"
 	int32 Index = FuncName.Find(TEXT("_"));
 	FString FuncNameChopped = FuncName.Mid(0, Index);
-
-	for(const FString& OpName : GetOpNames())
+	if (GetAllOpNames().Contains(FuncNameChopped))
 	{
-		if(FuncNameChopped == OpName)
-		{
-			OutName = OpName;
-			return true;
-		}
+		OutName = FuncNameChopped;
+		return true;
 	}
-
-	OutName = OperatorNames::NoOp;
-	return false;
+	else
+	{
+		OutName = OperatorNames::NoOp;
+		return false;
+	}
 }
 
 void FTypePromotion::CreateOpTable()

@@ -36,8 +36,14 @@ public:
 	/** Returns all functions for a specific operation. Will empty the given array and populate it with UFunction pointers */
 	static void GetAllFuncsForOp(const FString& Operation, TArray<UFunction*>& OutFuncs);
 
-	/** Get an array of the supported operator names for type promo. Ex: "Add", "Subtract", "Multiply" */
-	static const TArray<FString>& GetOpNames();
+	/** Get a set of the supported operator names for type promo. Ex: "Add", "Subtract", "Multiply" */
+	static const TSet<FString>& GetAllOpNames();
+	
+	/** Set of comparison operator names (GreaterThan, LessThan, etc) */
+	static const TSet<FString>& GetComparisonOpNames();
+
+	/** Returns true if the given function is a comparison operator */
+	static bool IsComparisonFunc(UFunction const* const Func);
 
 	static bool GetOpNameFromFunction(UFunction const* const Func, FString& OutName);
 
