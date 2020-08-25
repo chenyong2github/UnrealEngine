@@ -9,7 +9,7 @@ class FGeometryCollection;
 
 
 
-class GEOMETRYCOLLECTIONCORE_API FGeometryCollectionProximityUtility
+class CHAOS_API FGeometryCollectionProximityUtility
 {
 public:
 

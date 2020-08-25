@@ -53,7 +53,7 @@ namespace UnrealBuildTool.Rules
             {
                 PublicDependencyModuleNames.AddRange(
                     new string[] {
-                        "GeometryCollectionCore",
+						"Chaos",
                         "GeometryCollectionEngine",
                     }
 					);

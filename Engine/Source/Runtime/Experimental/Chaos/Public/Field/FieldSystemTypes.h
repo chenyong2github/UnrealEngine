@@ -106,7 +106,7 @@ enum EFieldPhysicsType
 };
 
 inline 
-FName FIELDSYSTEMCORE_API GetFieldPhysicsName(EFieldPhysicsType Type)
+FName CHAOS_API GetFieldPhysicsName(EFieldPhysicsType Type)
 {
 	switch(Type)
 	{
@@ -147,7 +147,7 @@ FName FIELDSYSTEMCORE_API GetFieldPhysicsName(EFieldPhysicsType Type)
 }
 
 inline
-EFieldPhysicsType FIELDSYSTEMCORE_API GetFieldPhysicsType(const FName& Name)
+EFieldPhysicsType CHAOS_API GetFieldPhysicsType(const FName& Name)
 {
 	if(Name == "DynamicState")
 	{

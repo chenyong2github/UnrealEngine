@@ -1294,9 +1294,9 @@ bool FCullingField<T>::operator==(const FFieldNodeBase& Node)
 	}
 	return false;
 }
-template class FIELDSYSTEMCORE_API FCullingField<int32>;
-template class FIELDSYSTEMCORE_API FCullingField<float>;
-template class FIELDSYSTEMCORE_API FCullingField<FVector>;
+template class CHAOS_API FCullingField<int32>;
+template class CHAOS_API FCullingField<float>;
+template class CHAOS_API FCullingField<FVector>;
 
 
 /**
@@ -1333,6 +1333,6 @@ bool FReturnResultsTerminal<T>::operator==(const FFieldNodeBase& Node)
 	}
 	return false;
 }
-template class FIELDSYSTEMCORE_API FReturnResultsTerminal<int32>;
-template class FIELDSYSTEMCORE_API FReturnResultsTerminal<float>;
-template class FIELDSYSTEMCORE_API FReturnResultsTerminal<FVector>;
+template class CHAOS_API FReturnResultsTerminal<int32>;
+template class CHAOS_API FReturnResultsTerminal<float>;
+template class CHAOS_API FReturnResultsTerminal<FVector>;

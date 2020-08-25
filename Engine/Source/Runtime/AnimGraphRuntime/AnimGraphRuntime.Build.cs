@@ -37,7 +37,6 @@ public class AnimGraphRuntime : ModuleRules
                 new string[] {
 					"ChaosSolvers",
 					"GeometryCollectionEngine",
-					"GeometryCollectionSimulationCore"
                 }
             );
         }

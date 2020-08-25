@@ -16,7 +16,7 @@
 *   data package that the nodes will use during evaluation, the context does not assume
 *   ownership of the metadata but assumes it will remain in scope during evaluation.
 */
-struct FIELDSYSTEMCORE_API ContextIndex
+struct CHAOS_API ContextIndex
 {
 	ContextIndex(int32 InSample = INDEX_NONE, int32 InResult = INDEX_NONE)
 		: Sample(InSample)
@@ -52,10 +52,10 @@ struct FIELDSYSTEMCORE_API ContextIndex
 */
 
 
-class FIELDSYSTEMCORE_API FFieldSystemMetaData {
+class CHAOS_API FFieldSystemMetaData {
 public:
 
-	enum FIELDSYSTEMCORE_API EMetaType
+	enum CHAOS_API EMetaType
 	{
 		ECommandData_None = 0,
 		ECommandData_ProcessingResolution,
@@ -71,7 +71,7 @@ public:
 };
 
 
-class FIELDSYSTEMCORE_API FFieldSystemMetaDataProcessingResolution : public FFieldSystemMetaData {
+class CHAOS_API FFieldSystemMetaDataProcessingResolution : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataProcessingResolution(EFieldResolutionType ProcessingResolutionIn) : ProcessingResolution(ProcessingResolutionIn) {};
 	virtual ~FFieldSystemMetaDataProcessingResolution() {};
@@ -82,7 +82,7 @@ public:
 };
 
 template<class T>
-class FIELDSYSTEMCORE_API FFieldSystemMetaDataResults : public FFieldSystemMetaData {
+class CHAOS_API FFieldSystemMetaDataResults : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataResults(const TArrayView<T>& ResultsIn) : Results(ResultsIn) {};
 	virtual ~FFieldSystemMetaDataResults() {};
@@ -92,7 +92,7 @@ public:
 	const TArrayView<T>& Results;
 };
 
-class FIELDSYSTEMCORE_API FFieldSystemMetaDataIteration : public FFieldSystemMetaData {
+class CHAOS_API FFieldSystemMetaDataIteration : public FFieldSystemMetaData {
 public:
 	FFieldSystemMetaDataIteration(int32 IterationsIn) : Iterations(IterationsIn) {};
 	virtual ~FFieldSystemMetaDataIteration() {};
@@ -102,7 +102,7 @@ public:
 	int32 Iterations;
 };
 
-class FIELDSYSTEMCORE_API FFieldSystemMetaDataCulling : public FFieldSystemMetaData
+class CHAOS_API FFieldSystemMetaDataCulling : public FFieldSystemMetaData
 {
 public:
 	explicit FFieldSystemMetaDataCulling(const int32 PotentialSize)
@@ -128,7 +128,7 @@ public:
 	TArray<ContextIndex> EvaluatedIndexBuffer;
 };
 
-struct FIELDSYSTEMCORE_API FFieldContext
+struct CHAOS_API FFieldContext
 {
 	typedef  TMap<FFieldSystemMetaData::EMetaType, TUniquePtr<FFieldSystemMetaData> > UniquePointerMap;
 	typedef  TMap<FFieldSystemMetaData::EMetaType, FFieldSystemMetaData * > PointerMap;
@@ -194,7 +194,7 @@ struct FIELDSYSTEMCORE_API FFieldContext
  * This has the effect of exposing metadata to downstream nodes but making sure
  * upstream nodes cannot see it.
  */
-class FIELDSYSTEMCORE_API FScopedFieldContextMetaData
+class CHAOS_API FScopedFieldContextMetaData
 {
 	FScopedFieldContextMetaData() = delete;
 	FScopedFieldContextMetaData(const FScopedFieldContextMetaData&) = delete;
@@ -228,7 +228,7 @@ private:
 *  Abstract base class for the field node evaluation. 
 *
 */
-class FIELDSYSTEMCORE_API FFieldNodeBase
+class CHAOS_API FFieldNodeBase
 {
 
 public:
@@ -314,7 +314,7 @@ template<> inline FFieldNodeBase::EFieldType FFieldNode<FVector>::StaticType() {
 *   will be passed to the evaluation of the field. 
 *
 */
-class FIELDSYSTEMCORE_API FFieldSystemCommand
+class CHAOS_API FFieldSystemCommand
 {
 public:
 	FFieldSystemCommand()

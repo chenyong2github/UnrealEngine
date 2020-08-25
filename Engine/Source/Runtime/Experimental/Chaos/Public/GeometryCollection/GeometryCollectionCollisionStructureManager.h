@@ -20,7 +20,7 @@ namespace Chaos
 	class TParticles;
 }
 
-class GEOMETRYCOLLECTIONSIMULATIONCORE_API FCollisionStructureManager
+class CHAOS_API FCollisionStructureManager
 {
 public:
 	FCollisionStructureManager();
