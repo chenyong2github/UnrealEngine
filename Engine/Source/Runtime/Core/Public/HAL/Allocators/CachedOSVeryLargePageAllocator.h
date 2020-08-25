@@ -24,7 +24,7 @@
 #endif
 class FCachedOSVeryLargePageAllocator
 {
-	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * (1024 + 512));
+	static const uint64 AddressSpaceToReserve = ((1024 * 1024) * 2048LL);
 	static const uint64 SizeOfLargePage = (UE_VERYLARGEPAGEALLOCATOR_PAGESIZE_KB * 1024);
 	static const uint64 SizeOfSubPage = (1024 * 64);
 	static const uint64 NumberOfLargePages = (AddressSpaceToReserve / SizeOfLargePage);
@@ -52,6 +52,15 @@ public:
 	uint64 GetCachedFreeTotal()
 	{
 		return CachedFree + CachedOSPageAllocator.GetCachedFreeTotal();
+	}
+
+	FORCEINLINE bool IsPartOf(const void* Ptr)
+	{
+		if ((uintptr_t)Ptr >= AddressSpaceReserved && (uintptr_t)Ptr < (AddressSpaceReserved + AddressSpaceToReserve))
+		{
+			return true;
+		}
+		return false;
 	}
 
 private:
