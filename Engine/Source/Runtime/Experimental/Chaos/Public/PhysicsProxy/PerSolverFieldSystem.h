@@ -8,7 +8,7 @@
 #include "Chaos/EvolutionTraits.h"
 
 
-class CHAOSSOLVERS_API FPerSolverFieldSystem
+class CHAOS_API FPerSolverFieldSystem
 {
 public:
 
@@ -80,7 +80,7 @@ private:
 };
 
 #define EVOLUTION_TRAIT(Traits)\
-extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
+extern template CHAOS_API void FPerSolverFieldSystem::FieldParameterUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
 		Chaos::TPBDRigidParticles<float, 3>& InParticles, \
 		Chaos::TArrayCollectionArray<float>& Strains, \
@@ -88,14 +88,14 @@ extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::FieldParameterUpdat
 		TMap<int32, int32>& PositionTargetedParticles, \
 		const float InTime);\
 \
-extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
+extern template CHAOS_API void FPerSolverFieldSystem::FieldForcesUpdateCallback(\
 		Chaos::TPBDRigidsSolver<Chaos::Traits>* InSolver, \
 		Chaos::TPBDRigidParticles<float, 3>& Particles, \
 		Chaos::TArrayCollectionArray<FVector> & Force, \
 		Chaos::TArrayCollectionArray<FVector> & Torque, \
 		const float Time);\
 \
-extern template CHAOSSOLVERS_API void FPerSolverFieldSystem::GetParticleHandles(\
+extern template CHAOS_API void FPerSolverFieldSystem::GetParticleHandles(\
 		TArray<Chaos::TGeometryParticleHandle<float,3>*>& Handles,\
 		const Chaos::TPBDRigidsSolver<Chaos::Traits>* RigidSolver,\
 		const EFieldResolutionType ResolutionType,\

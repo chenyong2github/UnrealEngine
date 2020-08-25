@@ -57,7 +57,8 @@ FChaosSolversModule* FChaosSolversModule::GetModule()
 
 	if(!Instance)
 	{
-		Instance = FModuleManager::Get().LoadModulePtr<FChaosSolversModule>("ChaosSolvers");
+		Instance = new FChaosSolversModule();
+		Instance->StartupModule();	//todo:remove the module api
 	}
 
 	return Instance;
@@ -746,5 +747,3 @@ template Chaos::TPBDRigidsSolver<Chaos::Traits>* FChaosSolversModule::CreateSolv
 
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
-
-IMPLEMENT_MODULE(FChaosSolversModule, ChaosSolvers);

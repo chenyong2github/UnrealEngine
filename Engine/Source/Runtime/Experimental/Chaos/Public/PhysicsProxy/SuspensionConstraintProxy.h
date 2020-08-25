@@ -56,18 +56,18 @@ public:
 	//
 
 	template <typename Traits>
-	void CHAOSSOLVERS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	// Merge to perform a remote sync
 	template <typename Traits>
-	void CHAOSSOLVERS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	template <typename Traits>
-	void CHAOSSOLVERS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 	// Merge to perform a remote sync - END
 
 	template <typename Traits>
-	void CHAOSSOLVERS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
@@ -153,7 +153,7 @@ public:
 };
 
 
-template<> CHAOSSOLVERS_API EPhysicsProxyType TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::ConcreteType();
+template<> CHAOS_API EPhysicsProxyType TSuspensionConstraintProxy<Chaos::FSuspensionConstraint>::ConcreteType();
 
 extern template class TSuspensionConstraintProxy< Chaos::FSuspensionConstraint >;
 typedef TSuspensionConstraintProxy< Chaos::FSuspensionConstraint > FSuspensionConstraintPhysicsProxy;
