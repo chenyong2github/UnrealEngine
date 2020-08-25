@@ -349,21 +349,23 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::InitPerInstanceData(void* PerI
 		if (RT_InstanceData.EmitterInstance != nullptr)
 		{
 			TargetData->GPUContext = RT_InstanceData.EmitterInstance->GetGPUContext();
-
-			const TArray<FNiagaraScriptDataInterfaceCompileInfo>& DataInterfaceInfo = TargetData->GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
-			const TArray<UNiagaraDataInterface*>& DataInterfaces = TargetData->GPUContext->CombinedParamStore.GetDataInterfaces();
-
-			FString FullName = FString("Emitter.") + RT_InstanceData.DIName;
-			int Index = 0;
-
-			// #todo(dmp): we are looking at the UObjects that define the DIs here 
-			for (UNiagaraDataInterface* Interface : DataInterfaces)
+			if (TargetData->GPUContext != nullptr)
 			{
-				if (DataInterfaceInfo[Index].Name.GetPlainNameString() == FullName)
-				{										
-					TargetData->ProxyToUse = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(Interface->GetProxy());
+				const TArray<FNiagaraScriptDataInterfaceCompileInfo>& DataInterfaceInfo = TargetData->GPUContext->GPUScript->GetVMExecutableData().DataInterfaceInfo;
+				const TArray<UNiagaraDataInterface*>& DataInterfaces = TargetData->GPUContext->CombinedParamStore.GetDataInterfaces();
+
+				FString FullName = FString("Emitter.") + RT_InstanceData.DIName;
+				int Index = 0;
+
+				// #todo(dmp): we are looking at the UObjects that define the DIs here 
+				for (UNiagaraDataInterface* Interface : DataInterfaces)
+				{
+					if (DataInterfaceInfo[Index].Name.GetPlainNameString() == FullName)
+					{
+						TargetData->ProxyToUse = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(Interface->GetProxy());
+					}
+					++Index;
 				}
-				++Index;
 			}
 		}
 	});
