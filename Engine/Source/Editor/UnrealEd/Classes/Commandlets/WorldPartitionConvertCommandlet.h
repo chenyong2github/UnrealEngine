@@ -36,9 +36,12 @@ public:
 	virtual int32 Main(const FString& Params) override;
 	//~ End UCommandlet Interface
 
+private:
+	void GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
+
 protected:
-	virtual void GetSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
 	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
+	virtual bool PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel);	
 	virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
 	virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
 	virtual void OutputConversionReport() const;
@@ -81,6 +84,7 @@ protected:
 
 	bool bNoSourceControl;
 	bool bDeleteSourceLevels;
+	bool bGenerateIni;
 	bool bReportOnly;
 	bool bVerbose;
 	bool bConversionSuffix;
