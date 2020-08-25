@@ -792,13 +792,10 @@ void FNiagaraEmitterInstance::BindParameters(bool bExternalOnly)
 
 		if (CachedEmitter->SimTarget == ENiagaraSimTarget::GPUComputeSim)
 		{
-			// I don't think we need to bind the spawn parameters any more as this is purely bound to the GPU store
-			//SpawnExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
-			//UpdateExecContext.Parameters.Bind(&GPUExecContext->CombinedParamStore);
 			InstanceParams.Bind(&GPUExecContext->CombinedParamStore);
 #if WITH_EDITORONLY_DATA
-			CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Bind(&SpawnExecContext.Parameters);
-			CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Bind(&UpdateExecContext.Parameters);
+			CachedEmitter->SpawnScriptProps.Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
+			CachedEmitter->UpdateScriptProps.Script->RapidIterationParameters.Bind(&GPUExecContext->CombinedParamStore);
 
 			for (int32 i = 0; i < CachedEmitter->GetSimulationStages().Num(); i++)
 			{
