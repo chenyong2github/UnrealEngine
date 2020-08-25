@@ -13,6 +13,8 @@
 #include "Engine/World.h"
 #include "GameFramework/Actor.h"
 
+#include "Algo/Find.h"
+
 namespace UE
 {
 namespace MovieScene
@@ -154,15 +156,15 @@ bool FMovieSceneLevelStreamingSharedData::HasAnythingToDo() const
 	return VisibilityMap.Num() != 0;
 }
 
-void FMovieSceneLevelStreamingSharedData::AssignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID)
+void FMovieSceneLevelStreamingSharedData::AssignLevelVisibilityOverrides(FInstanceHandle Instance, TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID)
 {
 	for (FName Name : LevelNames)
 	{
-		VisibilityMap.FindOrAdd(Name).Add(EntityID, Bias, Visibility);
+		VisibilityMap.FindOrAdd(Name).Add(EntityID, Instance, Bias, Visibility);
 	}
 }
 
-void FMovieSceneLevelStreamingSharedData::UnassignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID)
+void FMovieSceneLevelStreamingSharedData::UnassignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, FMovieSceneEntityID EntityID)
 {
 	for (FName Name : LevelNames)
 	{
@@ -174,22 +176,29 @@ void FMovieSceneLevelStreamingSharedData::UnassignLevelVisibilityOverrides(TArra
 	}
 }
 
-void FMovieSceneLevelStreamingSharedData::ApplyLevelVisibility(IMovieScenePlayer& Player)
+void FMovieSceneLevelStreamingSharedData::Flush(UMovieSceneEntitySystemLinker* Linker)
 {
-	UObject* Context = Player.GetPlaybackContext();
-	UWorld* World = Context ? Context->GetWorld() : nullptr;
+	UWorld* World = Linker->GetWorld();
 	if (!World)
 	{
 		return;
 	}
 
+	TArray<IMovieScenePlayer*> PlayerPtrsScratch;
+
+	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
+
 	FLevelStreamingPreAnimatedTokenProducer TokenProducer;
 
-	TArray<FName, TInlineAllocator<8>> LevelsToRestore;
-
 	EFlushLevelStreamingType FlushStreamingType = EFlushLevelStreamingType::None;
-	for (auto& Pair : VisibilityMap)
+	for (TPair<FName, FVisibilityData>& Pair : VisibilityMap)
 	{
+		if (Pair.Value.IsEmpty())
+		{
+			LevelsToRestore.Add(Pair.Key);
+			continue;
+		}
+
 		FName SafeLevelName(*MakeSafeLevelName(Pair.Key, *World));
 
 		ULevelStreaming* Level = GetLevel(SafeLevelName, *World);
@@ -201,15 +210,16 @@ void FMovieSceneLevelStreamingSharedData::ApplyLevelVisibility(IMovieScenePlayer
 		TOptional<ELevelVisibility> DesiredVisibility = Pair.Value.CalculateVisibility();
 		if (!DesiredVisibility.IsSet())
 		{
-			if (Pair.Value.IsEmpty())
-			{
-				LevelsToRestore.Add(Pair.Key);
-			}
+			// This codepath means that we have an equal number of requests for both visible and hidden
+			// In such a scenario we revert the level back to its original visibility
 
-			// Restore the state from before our evaluation
 			if (Pair.Value.bPreviousState.IsSet())
 			{
-				SetLevelVisibility(*Level, Pair.Value.bPreviousState.GetValue(), &FlushStreamingType);
+				const bool bShouldBeVisible = Pair.Value.bPreviousState.GetValue();
+				if (GetLevelVisibility(*Level) != bShouldBeVisible)
+				{
+					SetLevelVisibility(*Level, Pair.Value.bPreviousState.GetValue(), &FlushStreamingType);
+				}
 			}
 		}
 		else
@@ -222,18 +232,54 @@ void FMovieSceneLevelStreamingSharedData::ApplyLevelVisibility(IMovieScenePlayer
 					Pair.Value.bPreviousState = GetLevelVisibility(*Level);
 				}
 
-				// Globally save preanimated state
-				Player.SavePreAnimatedState(*Level, TMovieSceneAnimTypeID<FMovieSceneLevelStreamingSharedData>(), TokenProducer);
+				PlayerPtrsScratch.Reset();
+				Pair.Value.GetPlayers(InstanceRegistry, PlayerPtrsScratch);
+				for (IMovieScenePlayer* Player : PlayerPtrsScratch)
+				{
+					// Globally save preanimated state
+					Player->SavePreAnimatedState(*Level, TMovieSceneAnimTypeID<FMovieSceneLevelStreamingSharedData>(), TokenProducer);
+				}
 
 				SetLevelVisibility(*Level, bShouldBeVisible, &FlushStreamingType);
 			}
 		}
 	}
 
-	for (FName Level : LevelsToRestore)
+	if (FlushStreamingType != EFlushLevelStreamingType::None)
 	{
-		VisibilityMap.Remove(Level);
+		World->FlushLevelStreaming( FlushStreamingType );
 	}
+}
+
+void FMovieSceneLevelStreamingSharedData::RestoreLevels(UMovieSceneEntitySystemLinker* Linker)
+{
+	UWorld* World = Linker->GetWorld();
+	if (!World)
+	{
+		return;
+	}
+
+	EFlushLevelStreamingType FlushStreamingType = EFlushLevelStreamingType::None;
+	for (FName LevelName : LevelsToRestore)
+	{
+		FName SafeLevelName(*MakeSafeLevelName(LevelName, *World));
+
+		ULevelStreaming* Level = GetLevel(SafeLevelName, *World);
+		if (Level)
+		{
+			if (VisibilityMap.FindChecked(LevelName).bPreviousState.IsSet())
+			{
+				const bool bShouldBeVisible = VisibilityMap.FindChecked(LevelName).bPreviousState.GetValue();
+				if (GetLevelVisibility(*Level) != bShouldBeVisible)
+				{
+					SetLevelVisibility(*Level, bShouldBeVisible, &FlushStreamingType);
+				}
+			}
+		}
+
+		VisibilityMap.Remove(LevelName);
+	}
+	LevelsToRestore.Empty();
 
 	if (FlushStreamingType != EFlushLevelStreamingType::None)
 	{
@@ -267,13 +313,9 @@ ULevelStreaming* FMovieSceneLevelStreamingSharedData::GetLevel(FName SafeLevelNa
 	return Level;
 }
 
-void FMovieSceneLevelStreamingSharedData::FVisibilityData::Add(FMovieSceneEntityID EntityID, int32 Bias, ELevelVisibility Visibility)
+void FMovieSceneLevelStreamingSharedData::FVisibilityData::Add(FMovieSceneEntityID EntityID, FInstanceHandle Instance, int32 Bias, ELevelVisibility Visibility)
 {
-	FVisibilityRequest* ExistingRequest = Requests.FindByPredicate(
-		[=](const FVisibilityRequest& In)
-		{
-			return In.EntityID == EntityID;
-		});
+	FVisibilityRequest* ExistingRequest = Algo::FindBy(Requests, EntityID, &FVisibilityRequest::EntityID);
 	if (ExistingRequest)
 	{
 		ExistingRequest->Bias = Bias;
@@ -281,7 +323,7 @@ void FMovieSceneLevelStreamingSharedData::FVisibilityData::Add(FMovieSceneEntity
 	}
 	else
 	{
-		Requests.Add(FVisibilityRequest {EntityID, Bias, Visibility });
+		Requests.Add(FVisibilityRequest {Instance, EntityID, Bias, Visibility });
 	}
 }
 
@@ -334,6 +376,21 @@ TOptional<ELevelVisibility> FMovieSceneLevelStreamingSharedData::FVisibilityData
 	}
 }
 
+void FMovieSceneLevelStreamingSharedData::FVisibilityData::GetPlayers(FInstanceRegistry* InstanceRegistry, TArray<IMovieScenePlayer*>& OutPlayers) const
+{
+	for (const FVisibilityRequest& Request : Requests)
+	{
+		if (InstanceRegistry->IsHandleValid(Request.Instance))
+		{
+			IMovieScenePlayer* Player = InstanceRegistry->GetInstance(Request.Instance).GetPlayer();
+			if (Player)
+			{
+				OutPlayers.AddUnique(Player);
+			}
+		}
+	}
+}
+
 } // namespace MovieScene
 } // namespace UE
 
@@ -358,6 +415,12 @@ UMovieSceneLevelVisibilitySystem::UMovieSceneLevelVisibilitySystem(const FObject
 	ApplicableFilter.Filter.Any({ BuiltInComponents->Tags.NeedsLink,BuiltInComponents->Tags.NeedsUnlink });
 }
 
+void UMovieSceneLevelVisibilitySystem::OnLink()
+{
+	UMovieSceneRestorePreAnimatedStateSystem* RestoreSystem = Linker->LinkSystem<UMovieSceneRestorePreAnimatedStateSystem>();
+	Linker->SystemGraph.AddReference(this, RestoreSystem);
+}
+
 void UMovieSceneLevelVisibilitySystem::OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 	using namespace UE::MovieScene;
@@ -370,11 +433,8 @@ void UMovieSceneLevelVisibilitySystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TracksComponents = FMovieSceneTracksComponentTypes::Get();
-	FInstanceRegistry* InstanceRegistry  = Linker->GetInstanceRegistry();
 
-	TSet<IMovieScenePlayer*> Players;
-
-	auto ApplyLevelVisibilities = [this, BuiltInComponents, InstanceRegistry, &Players](
+	auto ApplyLevelVisibilities = [this, BuiltInComponents](
 		const FEntityAllocation* Allocation,
 		FReadEntityIDs EntityIDAccessor,
 		TRead<FInstanceHandle> InstanceHandleAccessor,
@@ -385,55 +445,56 @@ void UMovieSceneLevelVisibilitySystem::OnRun(FSystemTaskPrerequisites& InPrerequ
 		const bool bHasNeedsUnlink = Allocation->HasComponent(BuiltInComponents->Tags.NeedsUnlink);
 		const bool bHasHBias = Allocation->HasComponent(BuiltInComponents->HierarchicalBias);
 
-		TArrayView<const FMovieSceneEntityID> EntityIDs = EntityIDAccessor.ResolveAsArray(Allocation);
-		TArrayView<const FInstanceHandle> InstanceHandles = InstanceHandleAccessor.ResolveAsArray(Allocation);
-		TArrayView<const FLevelVisibilityComponentData> LevelVisibilityData = LevelVisibilityAccessor.ResolveAsArray(Allocation);
-		TArrayView<const int16> HBiases = HBiasAccessor.ResolveAsArray(Allocation);
+		const FMovieSceneEntityID* EntityIDs = EntityIDAccessor.Resolve(Allocation);
+		const FInstanceHandle* InstanceHandles = InstanceHandleAccessor.Resolve(Allocation);
+		const FLevelVisibilityComponentData* LevelVisibilityData = LevelVisibilityAccessor.Resolve(Allocation);
+		const int16* HBiases = HBiasAccessor.Resolve(Allocation);
 
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
 			const FMovieSceneEntityID EntityID = EntityIDs[Index];
-			const FSequenceInstance& SequenceInstance = InstanceRegistry->GetInstance(InstanceHandles[Index]);
-			const FLevelVisibilityComponentData& CurData = LevelVisibilityData[Index];
-			const int16 HBias = (HBiases.Num() > 0 ? HBiases[Index] : 0);
+			const UMovieSceneLevelVisibilitySection* Section = LevelVisibilityData[Index].Section;
+			const int16 HBias = (bHasHBias ? HBiases[Index] : 0);
 
-			if (!ensure(CurData.Section))
+			if (!ensure(Section))
 			{
 				continue;
 			}
 
-			IMovieScenePlayer* Player = SequenceInstance.GetPlayer();
-			if (!ensure(Player))
-			{
-				continue;
-			}
-
-			const TArray<FName>& LevelNames = CurData.Section->GetLevelNames();
-			const ELevelVisibility Visibility = CurData.Section->GetVisibility();
+			const TArray<FName>& LevelNames = Section->GetLevelNames();
+			const ELevelVisibility Visibility = Section->GetVisibility();
 
 			if (bHasNeedsLink)
 			{
-				SharedData.AssignLevelVisibilityOverrides(LevelNames, Visibility, HBias, EntityID);
+				SharedData.AssignLevelVisibilityOverrides(InstanceHandles[Index], LevelNames, Visibility, HBias, EntityID);
 			}
 			if (bHasNeedsUnlink)
 			{
-				SharedData.UnassignLevelVisibilityOverrides(LevelNames, Visibility, HBias, EntityID);
+				SharedData.UnassignLevelVisibilityOverrides(LevelNames, EntityID);
 			}
-
-			Players.Add(Player);
 		}
 	};
 
 	FEntityTaskBuilder()
-		.ReadEntityIDs()
-		.Read(BuiltInComponents->InstanceHandle)
-		.Read(TracksComponents->LevelVisibility)
-		.ReadOptional(BuiltInComponents->HierarchicalBias)
-		.Iterate_PerAllocation(&Linker->EntityManager, ApplyLevelVisibilities);
+	.ReadEntityIDs()
+	.Read(BuiltInComponents->InstanceHandle)
+	.Read(TracksComponents->LevelVisibility)
+	.ReadOptional(BuiltInComponents->HierarchicalBias)
+	.Iterate_PerAllocation(&Linker->EntityManager, ApplyLevelVisibilities);
 
-	for (IMovieScenePlayer* Player : Players)
-	{
-		SharedData.ApplyLevelVisibility(*Player);
-	}
+	SharedData.Flush(Linker);
+}
+
+void UMovieSceneLevelVisibilitySystem::SavePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents)
+{
+}
+
+void UMovieSceneLevelVisibilitySystem::SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents)
+{
+}
+
+void UMovieSceneLevelVisibilitySystem::RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents)
+{
+	SharedData.RestoreLevels(Linker);
 }
 
