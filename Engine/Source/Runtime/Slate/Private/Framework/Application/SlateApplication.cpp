@@ -2982,7 +2982,7 @@ void FSlateApplication::ProcessExternalReply(const FWidgetPath& CurrentEventPath
 			PointerIndex,
 			SlateUser->GetCursorPosition(),
 			SlateUser->GetPreviousCursorPosition(),
-			bIsPrimaryUser ? PressedMouseButtons : TSet<FKey>(),
+			bIsPrimaryUser ? PressedMouseButtons : FTouchKeySet::EmptySet,
 			EKeys::Invalid,
 			0,
 			bIsPrimaryUser ? PlatformApplication->GetModifierKeys() : FModifierKeysState()
