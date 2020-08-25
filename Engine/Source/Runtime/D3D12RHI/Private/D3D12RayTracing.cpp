@@ -2705,6 +2705,9 @@ FD3D12RayTracingScene::FD3D12RayTracingScene(FD3D12Adapter* Adapter, const FRayT
 		}
 	}
 
+	// Reserve space for all segments
+	HitGroupSystemParametersCache.Reserve(NumTotalSegments);
+
 	NumCallableShaderSlots = Initializer.NumCallableShaderSlots;
 	NumMissShaderSlots = FMath::Max<uint32>(1, Initializer.NumMissShaderSlots);
 };
@@ -2877,6 +2880,10 @@ void FD3D12RayTracingScene::BuildAccelerationStructure(FD3D12CommandContext& Com
 		{
 			const FRayTracingGeometryInstance& Instance = Instances[InstanceIndex];
 			FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
+
+			// make a copy of system parameters to they can optimized fetch during SBT building (only done for GPU0)
+			check(Geometry->HitGroupSystemParameters[0].Num() > 0);
+			HitGroupSystemParametersCache.Append(Geometry->HitGroupSystemParameters[0]);
 
 			D3D12_RAYTRACING_INSTANCE_DESC InstanceDesc = {};
 
@@ -3271,7 +3278,7 @@ struct FD3D12RayTracingLocalResourceBinder
 
 	void AddResourceTransition(FD3D12ShaderResourceView* SRV)
 	{
-		if (SRV->GetResource()->RequiresResourceStateTracking())
+		if (SRV->RequiresResourceStateTracking())
 		{
 			ShaderTable.AddResourceTransition(SRV, WorkerIndex);
 		}
@@ -3844,13 +3851,23 @@ static void SetRayTracingHitGroup(
 	checkf(ShaderSlot < Scene->ShaderSlotsPerGeometrySegment, TEXT("Shader slot is invalid. Make sure that ShaderSlotsPerGeometrySegment is correct on FRayTracingSceneInitializer."));
 
 	const uint32 RecordIndex = Scene->GetHitRecordBaseIndex(InstanceIndex, SegmentIndex) + ShaderSlot;
-
 	const uint32 GPUIndex = Device->GetGPUIndex();
-	const FRayTracingGeometryInstance& Instance = Scene->Instances[InstanceIndex];
-	const FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
-	const TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = Geometry->HitGroupSystemParameters[GPUIndex];
 
-	FHitGroupSystemParameters SystemParameters = HitGroupSystemParametersForThisGPU[SegmentIndex];
+	FHitGroupSystemParameters SystemParameters;
+	if (GPUIndex == 0)
+	{
+		uint32 PrefixedSegmentIndex = Scene->SegmentPrefixSum[InstanceIndex];
+		SystemParameters = Scene->HitGroupSystemParametersCache[PrefixedSegmentIndex + SegmentIndex];
+	}
+	else
+	{
+		const FRayTracingGeometryInstance& Instance = Scene->Instances[InstanceIndex];
+		const FD3D12RayTracingGeometry* Geometry = FD3D12DynamicRHI::ResourceCast(Instance.GeometryRHI);
+		const TArray<FHitGroupSystemParameters>& HitGroupSystemParametersForThisGPU = Geometry->HitGroupSystemParameters[GPUIndex];
+
+		SystemParameters = HitGroupSystemParametersForThisGPU[SegmentIndex];
+	}
+
 	SystemParameters.RootConstants.BaseInstanceIndex = Scene->BaseInstancePrefixSum[InstanceIndex];
 	SystemParameters.RootConstants.UserData = UserData;
 	ShaderTable->SetHitGroupSystemParameters(RecordIndex, SystemParameters);
