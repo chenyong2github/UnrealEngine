@@ -270,7 +270,7 @@ namespace Chaos
 							ImpulseDenominator = (FReal)1;
 						}
 						FReal RelativeNormalVelocity = FVec3::DotProduct(VelocityChange, Contact.Normal);
-						const FReal ImpulseMag = (1 + Restitution) * RelativeNormalVelocity / ImpulseDenominator;
+						const FReal ImpulseMag = RelativeNormalVelocity / ImpulseDenominator;
 						ClippedAccumulatedImpulse = ImpulseMag * (Contact.Normal + Friction * Tangent) + AccImp;
 						// Clip to zero
 						if (FVec3::DotProduct(ClippedAccumulatedImpulse, Contact.Normal) <= (FReal)0)
