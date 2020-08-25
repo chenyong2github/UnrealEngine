@@ -128,7 +128,7 @@ bool FGroupEdgeInserter::InsertEdgeLoops(const FEdgeLoopInsertionParams& Params,
 
 	// Insert edges in both directions. In case of a loop, the second call won't do anything because
 	// AlteredGroups will be updated.
-	bool bSuccess = false;
+	bool bSuccess = true;
 	int32 TotalNumInserted = 0;
 	if (bHaveForwardEdge)
 	{
@@ -618,7 +618,7 @@ bool ConnectMultipleUsingRetriangulation(
 			AppendInclusiveRangeWrapAround(BoundaryVertices, LoopVids, EndIndices[i - 1], EndIndices[i]); // previous to current
 		}
 
-		int32 GroupIDToUse = bUsedOriginalGroup ? GroupID : Mesh.AllocateTriangleGroup();
+		int32 GroupIDToUse = bUsedOriginalGroup ? Mesh.AllocateTriangleGroup() : GroupID;
 		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse);
 		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
@@ -641,7 +641,7 @@ bool ConnectMultipleUsingRetriangulation(
 	}
 	if (LoopVids.Num() > 2)
 	{
-		int32 GroupIDToUse = bUsedOriginalGroup ? GroupID : Mesh.AllocateTriangleGroup();
+		int32 GroupIDToUse = bUsedOriginalGroup ? Mesh.AllocateTriangleGroup() : GroupID;
 		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse);
 		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
