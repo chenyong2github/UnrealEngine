@@ -9,6 +9,7 @@
 #include "BaseGizmos/AxisAngleGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/IntervalGizmo.h"
+#include "BaseGizmos/ScalableSphereGizmo.h"
 
 #define LOCTEXT_NAMESPACE "UInteractiveGizmoManager"
 
@@ -48,6 +49,7 @@ void UInteractiveGizmoManager::Shutdown()
 		DeregisterGizmoType(DefaultPlanePositionBuilderIdentifier);
 		DeregisterGizmoType(DefaultAxisAngleBuilderIdentifier);
 		DeregisterGizmoType(DefaultThreeAxisTransformBuilderIdentifier);
+		DeregisterGizmoType(DefaultScalableSphereBuilderIdentifier);
 	}
 }
 
@@ -129,19 +131,8 @@ UInteractiveGizmo* UInteractiveGizmoManager::CreateGizmo(const FString& BuilderI
 
 bool UInteractiveGizmoManager::DestroyGizmo(UInteractiveGizmo* Gizmo)
 {
-	int FoundIndex = -1;
-	for ( int i = 0; i < ActiveGizmos.Num(); ++i )
-	{
-		if (ActiveGizmos[i].Gizmo == Gizmo)
-		{
-			FoundIndex = i;
-			break;
-		}
-	}
-	if (FoundIndex == -1)
-	{
-		return false;
-	}
+	auto Pred = [Gizmo](const FActiveGizmo& ActiveGizmo) {return ActiveGizmo.Gizmo == Gizmo; };
+	check(ActiveGizmos.FindByPredicate(Pred));
 
 	InputRouter->ForceTerminateSource(Gizmo);
 
@@ -149,7 +140,7 @@ bool UInteractiveGizmoManager::DestroyGizmo(UInteractiveGizmo* Gizmo)
 
 	InputRouter->DeregisterSource(Gizmo);
 
-	ActiveGizmos.RemoveAt(FoundIndex);
+	ActiveGizmos.RemoveAll(Pred);
 
 	PostInvalidation();
 
@@ -270,6 +261,7 @@ FString UInteractiveGizmoManager::DefaultPlanePositionBuilderIdentifier = TEXT("
 FString UInteractiveGizmoManager::DefaultAxisAngleBuilderIdentifier = TEXT("StandardXFormAxisRotationGizmo");
 FString UInteractiveGizmoManager::DefaultThreeAxisTransformBuilderIdentifier = TEXT("DefaultThreeAxisTransformBuilderIdentifier");
 const FString UInteractiveGizmoManager::CustomThreeAxisTransformBuilderIdentifier = TEXT("CustomThreeAxisTransformBuilderIdentifier");
+FString UInteractiveGizmoManager::DefaultScalableSphereBuilderIdentifier = TEXT("DefaultScalableSphereBuilderIdentifier");
 
 void UInteractiveGizmoManager::RegisterDefaultGizmos()
 {
@@ -293,6 +285,9 @@ void UInteractiveGizmoManager::RegisterDefaultGizmos()
 
 	UIntervalGizmoBuilder* IntervalGizmoBuilder = NewObject<UIntervalGizmoBuilder>();
 	RegisterGizmoType(UIntervalGizmo::GizmoName, IntervalGizmoBuilder);
+
+	UScalableSphereGizmoBuilder* ScalableSphereBuilder = NewObject<UScalableSphereGizmoBuilder>();
+	RegisterGizmoType(DefaultScalableSphereBuilderIdentifier, ScalableSphereBuilder);
 
 	bDefaultGizmosRegistered = true;
 }

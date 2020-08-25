@@ -68,8 +68,8 @@ public:
 				}
 
 				FVector ScaledDiskOrigin = LengthScale * (WorldDiskOrigin - WorldBaseOrigin) + WorldBaseOrigin;
-				FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
-				FVector ScaledIntevalEnd = LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + WorldDiskOrigin;
+				FVector ScaledIntevalStart = -LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + ScaledDiskOrigin;
+				FVector ScaledIntevalEnd = LengthScale * (WorldIntervalEnd - WorldDiskOrigin) + ScaledDiskOrigin;
 
 				float UseThickness = (bExternalHoverState != nullptr && *bExternalHoverState == true) ?
 					(HoverThicknessMultiplier * Thickness) : (Thickness);

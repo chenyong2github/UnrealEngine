@@ -217,7 +217,7 @@ public:
 	static FString DefaultAxisAngleBuilderIdentifier;
 	static FString DefaultThreeAxisTransformBuilderIdentifier;
 	static const FString CustomThreeAxisTransformBuilderIdentifier;
-
+	static FString DefaultScalableSphereBuilderIdentifier;
 
 protected:
 	/** set of Currently-active Gizmos */

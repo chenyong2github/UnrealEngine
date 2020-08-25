@@ -19,6 +19,12 @@
 			"Name": "GizmoEdMode",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "LightGizmos",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+
 		}
 	]
 }
