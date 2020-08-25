@@ -101,49 +101,48 @@ namespace Chaos
 		CHAOS_API TPBDRigidsEvolutionGBF(TPBDRigidsSOAs<FReal, 3>& InParticles, THandleArray<FChaosPhysicsMaterial>& SolverPhysicsMaterials, int32 InNumIterations = DefaultNumIterations, int32 InNumPushoutIterations = DefaultNumPushOutIterations, bool InIsSingleThreaded = false);
 		CHAOS_API ~TPBDRigidsEvolutionGBF() {}
 
-		void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
+		FORCEINLINE void SetPostIntegrateCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PostIntegrateCallback = Cb;
 		}
 
-		void SetPostDetectCollisionsCallback(const FPBDRigidsEvolutionCallback& Cb)
+		FORCEINLINE void SetPostDetectCollisionsCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PostDetectCollisionsCallback = Cb;
 		}
 
-		void SetCollisionModifierCallback(const FCollisionModifierCallback& Cb)
+		FORCEINLINE void SetCollisionModifierCallback(const FCollisionModifierCallback& Cb)
 		{
 			CollisionModifierCallback = Cb;
 		}
 
-		void SetPreApplyCallback(const FPBDRigidsEvolutionCallback& Cb)
+		FORCEINLINE void SetPreApplyCallback(const FPBDRigidsEvolutionCallback& Cb)
 		{
 			PreApplyCallback = Cb;
 		}
 
-		void SetPostApplyCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
+		FORCEINLINE void SetPostApplyCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
 		{
 			PostApplyCallback = Cb;
 		}
 
-		void SetPostApplyPushOutCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
+		FORCEINLINE void SetPostApplyPushOutCallback(const FPBDRigidsEvolutionIslandCallback& Cb)
 		{
 			PostApplyPushOutCallback = Cb;
 		}
 
-		void SetInternalParticleInitilizationFunction(const FPBDRigidsEvolutionInternalHandleCallback& Cb)
+		FORCEINLINE void SetInternalParticleInitilizationFunction(const FPBDRigidsEvolutionInternalHandleCallback& Cb)
 		{ 
 			InternalParticleInitilization = Cb;
 		}
 
-		void DoInternalParticleInitilization(const TGeometryParticleHandle<float, 3>* OldParticle, const TGeometryParticleHandle<float, 3>* NewParticle) 
+		FORCEINLINE void DoInternalParticleInitilization(const TGeometryParticleHandle<float, 3>* OldParticle, const TGeometryParticleHandle<float, 3>* NewParticle) 
 		{ 
 			if(InternalParticleInitilization)
 			{
 				InternalParticleInitilization(OldParticle, NewParticle);
 			}
 		}
-
 
 		CHAOS_API void Advance(const FReal Dt, const FReal MaxStepDt, const int32 MaxSteps);
 		CHAOS_API void AdvanceOneTimeStep(const FReal dt, const FReal StepFraction = (FReal)1.0);
