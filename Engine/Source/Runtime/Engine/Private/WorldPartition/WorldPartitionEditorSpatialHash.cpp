@@ -243,7 +243,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCellInner(const FBox&
 
 				if (Box.Intersect(CellBounds))
 				{
-					ForEachIntersectingCellInner(Box, ChildCellCoord, InOperation);
+					NumIntersecting += ForEachIntersectingCellInner(Box, ChildCellCoord, InOperation);
 				}
 			});
 		}
