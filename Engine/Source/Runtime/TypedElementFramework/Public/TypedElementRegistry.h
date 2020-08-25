@@ -23,6 +23,7 @@ public:
 	UTypedElementRegistry();
 
 	//~ UObject interface
+	virtual void FinishDestroy() override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
 	/**
@@ -385,8 +386,6 @@ private:
 	}
 
 	void NotifyElementListPendingChanges();
-
-	static UTypedElementRegistry* Instance;
 	
 	mutable FRWLock RegisteredElementTypesRW;
 	TUniquePtr<FRegisteredElementType> RegisteredElementTypes[TypedHandleMaxTypeId - 1];
