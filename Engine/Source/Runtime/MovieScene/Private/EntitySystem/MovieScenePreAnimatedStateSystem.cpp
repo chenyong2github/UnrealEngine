@@ -45,6 +45,7 @@ void UMovieSceneCachePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& InP
 			Interfaces.Add(PreAnimInterface);
 		}
 	};
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
 
 	if (Linker->ShouldCaptureGlobalState())
@@ -87,6 +88,7 @@ void UMovieSceneRestorePreAnimatedStateSystem::OnRun(FSystemTaskPrerequisites& I
 			Interfaces.Add(PreAnimInterface);
 		}
 	};
+	Linker->SystemGraph.IteratePhase(ESystemPhase::Spawn, ForEachSystem);
 	Linker->SystemGraph.IteratePhase(ESystemPhase::Instantiation, ForEachSystem);
 
 	// Iterate backwards restoring stale state
