@@ -23,8 +23,9 @@ public:
 	{
 		if (FCoreStyle::IsStarshipStyle())
 		{
-			// This is necessary because the core style  loads the color table before ProcessNewlyLoadedUObjects is called which means none of the config properties are in the classs property link at that time.
-			UStyleColorTable::Get().ReloadConfig();
+#if ALLOW_THEMES
+			USlateThemeManager::Get().ValidateActiveTheme();
+#endif
 
 			bUsingStarshipStyle = true;
 			FStarshipEditorStyle::Initialize();

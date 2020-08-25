@@ -6702,7 +6702,9 @@ void FSlateApplication::InitializeCoreStyle()
 {
 	if (FCoreStyle::IsStarshipStyle() && !FStarshipCoreStyle::IsInitialized())
 	{
-		UStyleColorTable::Get();
+#if ALLOW_THEMES
+		USlateThemeManager::Get().LoadThemes();
+#endif
 		FStarshipCoreStyle::ResetToDefault();
 		FAppStyle::SetAppStyleSet(FStarshipCoreStyle::GetCoreStyle());
 	}

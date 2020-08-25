@@ -1,7 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "Styling/StyleColors.h"
+#include "Misc/Paths.h"
+#include "Serialization/JsonWriter.h"
+#include "Misc/FileHelper.h"
+#include "Serialization/JsonReader.h"
+#include "Serialization/JsonSerializer.h"
+#include "HAL/PlatformFileManager.h"
 
+// Note this value is not mutable by the user
 const FSlateColor FStyleColors::Transparent = FSlateColor(FLinearColor::Transparent);
 
 const FSlateColor FStyleColors::Black = EStyleColor::Black;
@@ -50,56 +57,346 @@ const FSlateColor FStyleColors::AccentWhite = EStyleColor::AccentWhite;
 const FSlateColor FStyleColors::AccentFolder = EStyleColor::AccentFolder;
 
 
-UStyleColorTable::UStyleColorTable()
+USlateThemeManager::USlateThemeManager()
 {
 	InitalizeDefaults();
 }
 
-void UStyleColorTable::InitalizeDefaults()
+void USlateThemeManager::InitalizeDefaults()
 {
-	SetColor(EStyleColor::Black, COLOR("#000000FF"));
-	SetColor(EStyleColor::Title, COLOR("#151515FF"));
-	SetColor(EStyleColor::WindowBorder, COLOR("0F0F0FFF"));
-	SetColor(EStyleColor::Foldout, COLOR("0F0F0FFF"));
-	SetColor(EStyleColor::Input, COLOR("0F0F0FFF"));
-	SetColor(EStyleColor::Recessed, COLOR("#1A1A1AFF"));
-	SetColor(EStyleColor::Background, COLOR("#242424FF"));
-	SetColor(EStyleColor::Header, COLOR("#2F2F2FFF"));
-	SetColor(EStyleColor::Dropdown, COLOR("#383838FF"));
-	SetColor(EStyleColor::Hover, COLOR("#575757FF"));
-	SetColor(EStyleColor::Hover2, COLOR("#808080FF"));
+	// This loads defaults for a dark theme
 
-	SetColor(EStyleColor::White, COLOR("#FFFFFFFF"));
-	SetColor(EStyleColor::White25, COLOR("#FFFFFF40"));
-	SetColor(EStyleColor::Highlight, COLOR("#0078D7FF"));
+	SetDefaultColor(EStyleColor::Black, COLOR("#000000FF"));
+	SetDefaultColor(EStyleColor::Title, COLOR("#151515FF"));
+	SetDefaultColor(EStyleColor::WindowBorder, COLOR("0F0F0FFF"));
+	SetDefaultColor(EStyleColor::Foldout, COLOR("0F0F0FFF"));
+	SetDefaultColor(EStyleColor::Input, COLOR("0F0F0FFF"));
+	SetDefaultColor(EStyleColor::Recessed, COLOR("#1A1A1AFF"));
+	SetDefaultColor(EStyleColor::Background, COLOR("#242424FF"));
+	SetDefaultColor(EStyleColor::Header, COLOR("#2F2F2FFF"));
+	SetDefaultColor(EStyleColor::Dropdown, COLOR("#383838FF"));
+	SetDefaultColor(EStyleColor::Hover, COLOR("#575757FF"));
+	SetDefaultColor(EStyleColor::Hover2, COLOR("#808080FF"));
 
-	SetColor(EStyleColor::Primary, COLOR("#26BBFFFF"));
-	SetColor(EStyleColor::PrimaryHover, COLOR("#6FD2FFFF"));
-	SetColor(EStyleColor::PrimaryPress, COLOR("#1989BCFF"));
-	SetColor(EStyleColor::Secondary, COLOR("#383838FF"));
+	SetDefaultColor(EStyleColor::White, COLOR("#FFFFFFFF"));
+	SetDefaultColor(EStyleColor::White25, COLOR("#FFFFFF40"));
+	SetDefaultColor(EStyleColor::Highlight, COLOR("#0078D7FF"));
 
-	SetColor(EStyleColor::Foreground, COLOR("#A6A6A6FF"));
-	SetColor(EStyleColor::ForegroundHover, COLOR("#FFFFFFFF"));
-	SetColor(EStyleColor::ForegroundInverted, GetColor(EStyleColor::Input));
-	SetColor(EStyleColor::ForegroundHeader, COLOR("#C8C8C8FF"));
+	SetDefaultColor(EStyleColor::Primary, COLOR("#26BBFFFF"));
+	SetDefaultColor(EStyleColor::PrimaryHover, COLOR("#6FD2FFFF"));
+	SetDefaultColor(EStyleColor::PrimaryPress, COLOR("#1989BCFF"));
+	SetDefaultColor(EStyleColor::Secondary, COLOR("#383838FF"));
 
-	SetColor(EStyleColor::Select, GetColor(EStyleColor::Primary));
-	SetColor(EStyleColor::SelectInactive, COLOR("#99B3BFFF"));
-	SetColor(EStyleColor::SelectParent, COLOR("#2C323AFF"));
-	SetColor(EStyleColor::SelectHover, GetColor(EStyleColor::Background));
+	SetDefaultColor(EStyleColor::Foreground, COLOR("#A6A6A6FF"));
+	SetDefaultColor(EStyleColor::ForegroundHover, COLOR("#FFFFFFFF"));
+	SetDefaultColor(EStyleColor::ForegroundInverted, GetDefaultColor(EStyleColor::Input));
+	SetDefaultColor(EStyleColor::ForegroundHeader, COLOR("#C8C8C8FF"));
+
+	SetDefaultColor(EStyleColor::Select, GetDefaultColor(EStyleColor::Primary));
+	SetDefaultColor(EStyleColor::SelectInactive, COLOR("#99B3BFFF"));
+	SetDefaultColor(EStyleColor::SelectParent, COLOR("#2C323AFF"));
+	SetDefaultColor(EStyleColor::SelectHover, GetDefaultColor(EStyleColor::Background));
 	// if select ==  primary shouldnt we have a select pressed which is the same as primary press?
 
-	SetColor(EStyleColor::AccentBlue, COLOR("#26BBFFFF"));
-	SetColor(EStyleColor::AccentPurple, COLOR("#A139BFFF"));
-	SetColor(EStyleColor::AccentPink, COLOR("#FF729CFF"));
-	SetColor(EStyleColor::AccentRed, COLOR("#FF4040FF"));
-	SetColor(EStyleColor::AccentOrange, COLOR("#FE9B07FF"));
-	SetColor(EStyleColor::AccentYellow, COLOR("#FFDC1AFF"));
-	SetColor(EStyleColor::AccentGreen, COLOR("#8BC24AFF"));
-	SetColor(EStyleColor::AccentBrown, COLOR("#804D39FF"));
-	SetColor(EStyleColor::AccentBlack, COLOR("#242424FF"));
-	SetColor(EStyleColor::AccentGray, COLOR("#808080FF"));
-	SetColor(EStyleColor::AccentWhite, COLOR("#FFFFFFFF"));
-	SetColor(EStyleColor::AccentFolder, COLOR("#B68F55FF"));
+	SetDefaultColor(EStyleColor::AccentBlue, COLOR("#26BBFFFF"));
+	SetDefaultColor(EStyleColor::AccentPurple, COLOR("#A139BFFF"));
+	SetDefaultColor(EStyleColor::AccentPink, COLOR("#FF729CFF"));
+	SetDefaultColor(EStyleColor::AccentRed, COLOR("#FF4040FF"));
+	SetDefaultColor(EStyleColor::AccentOrange, COLOR("#FE9B07FF"));
+	SetDefaultColor(EStyleColor::AccentYellow, COLOR("#FFDC1AFF"));
+	SetDefaultColor(EStyleColor::AccentGreen, COLOR("#8BC24AFF"));
+	SetDefaultColor(EStyleColor::AccentBrown, COLOR("#804D39FF"));
+	SetDefaultColor(EStyleColor::AccentBlack, COLOR("#242424FF"));
+	SetDefaultColor(EStyleColor::AccentGray, COLOR("#808080FF"));
+	SetDefaultColor(EStyleColor::AccentWhite, COLOR("#FFFFFFFF"));
+	SetDefaultColor(EStyleColor::AccentFolder, COLOR("#B68F55FF"));
 }
 
+#if ALLOW_THEMES
+
+static const FString ThemesSubDir = TEXT("Slate/Themes");
+
+
+void USlateThemeManager::LoadThemes()
+{
+	Themes.Empty();
+
+	// Engine wide themes
+	LoadThemesFromDirectory(GetEngineThemeDir());
+
+	// Project themes
+	LoadThemesFromDirectory(GetProjectThemeDir());
+
+	// User specific themes
+	LoadThemesFromDirectory(FPaths::EngineVersionAgnosticUserDir());
+
+	EnsureValidCurrentTheme();
+
+
+	ApplyTheme(CurrentThemeId);
+}
+
+void USlateThemeManager::SaveCurrentThemeAs(const FString& Filename)
+{
+	FStyleTheme& CurrentTheme = GetMutableCurrentTheme();
+	CurrentTheme.Filename = Filename;
+	{
+		FString Output;
+		TSharedRef<TJsonWriter<>> WriterRef = TJsonWriterFactory<>::Create(&Output);
+		TJsonWriter<>& Writer = WriterRef.Get();
+		Writer.WriteObjectStart();
+		Writer.WriteValue(TEXT("Version"), 1);
+		Writer.WriteValue(TEXT("Id"), CurrentTheme.Id.ToString());
+		Writer.WriteValue(TEXT("DisplayName"), CurrentTheme.DisplayName.ToString());
+
+		{
+			Writer.WriteObjectStart(TEXT("Colors"));
+			UEnum* Enum = StaticEnum<EStyleColor>();
+			check(Enum);
+			for (int32 ColorIndex = 0; ColorIndex < (int32)EStyleColor::MAX; ++ColorIndex)
+			{
+				FName EnumName = Enum->GetNameByIndex(ColorIndex);
+				Writer.WriteValue(EnumName.ToString(), *ActiveColors.StyleColors[ColorIndex].ToString());
+			}
+			Writer.WriteObjectEnd();
+		}
+		Writer.WriteObjectEnd();
+		Writer.Close();
+
+		if (FPlatformFileManager::Get().GetPlatformFile().FileExists(*Filename))
+		{
+			FPlatformFileManager::Get().GetPlatformFile().SetReadOnly(*Filename, false);
+		}
+		FFileHelper::SaveStringToFile(Output, *Filename);
+	}
+	
+}
+
+void USlateThemeManager::ApplyTheme(FGuid ThemeId)
+{
+	if (ThemeId.IsValid())
+	{
+		FStyleTheme* CurrentTheme = nullptr;
+		if (CurrentThemeId != ThemeId)
+		{
+			if (CurrentThemeId.IsValid())
+			{
+				CurrentTheme = &GetMutableCurrentTheme();
+				// Unload existing colors
+				CurrentTheme->LoadedDefaultColors.Empty();
+			}
+
+			FStyleTheme* Theme = Themes.FindByKey(ThemeId);
+			if (Theme)
+			{
+				CurrentThemeId = ThemeId;
+				SaveConfig();
+			}
+		}
+
+		//if (CurrentTheme->LoadedDefaultColors.IsEmpty())
+		{
+			CurrentTheme = &GetMutableCurrentTheme();
+			LoadThemeColors(*CurrentTheme);
+		}
+
+		// Apply the new colors. Note that if the incoming theme is the same as the current theme we still apply the colors as they may have been overwritten by defaults
+		FMemory::Memcpy(ActiveColors.StyleColors, CurrentTheme->LoadedDefaultColors.GetData(), sizeof(FLinearColor)*CurrentTheme->LoadedDefaultColors.Num());
+	}
+}
+
+void USlateThemeManager::RemoveTheme(FGuid ThemeId)
+{
+	// Current Theme cannot currently be removed.  Apply a new theme first
+	if (CurrentThemeId != ThemeId)
+	{
+		Themes.RemoveAll([&ThemeId](const FStyleTheme& TestTheme) { return TestTheme.Id == ThemeId; });
+	}
+}
+
+FGuid USlateThemeManager::DuplicateActiveTheme()
+{
+	const FStyleTheme& CurrentTheme = GetCurrentTheme();
+
+	FGuid NewThemeGuid = FGuid::NewGuid();
+	FStyleTheme NewTheme;
+	NewTheme.Id = NewThemeGuid;
+	NewTheme.DisplayName = FText::Format(NSLOCTEXT("StyleColors", "ThemeDuplicateCopyText", "{0} - Copy"), CurrentTheme.DisplayName);
+	NewTheme.LoadedDefaultColors = MakeArrayView<FLinearColor>(ActiveColors.StyleColors, (int32)EStyleColor::MAX);
+
+	Themes.Add(MoveTemp(NewTheme));
+
+	return NewThemeGuid;
+}
+
+void USlateThemeManager::SetCurrentThemeDisplayName(FText NewDisplayName)
+{
+	GetMutableCurrentTheme().DisplayName = NewDisplayName;
+}
+
+void USlateThemeManager::ResetActiveColorToDefault(EStyleColor Color)
+{
+	ActiveColors.StyleColors[(int32)Color] = GetCurrentTheme().LoadedDefaultColors[(int32)Color];
+}
+
+void USlateThemeManager::ValidateActiveTheme()
+{
+	// This is necessary because the core style loads the color table before ProcessNewlyLoadedUObjects is called which means none of the config properties are in the class property link at that time.
+	ReloadConfig();
+	EnsureValidCurrentTheme();
+	ApplyTheme(USlateThemeManager::Get().GetCurrentTheme().Id);
+}
+
+FString USlateThemeManager::GetEngineThemeDir() const
+{
+	return FPaths::EngineContentDir() / ThemesSubDir;
+}
+
+FString USlateThemeManager::GetProjectThemeDir() const
+{
+	return FPaths::ProjectContentDir() / ThemesSubDir;
+}
+
+FString USlateThemeManager::GetUserThemeDir() const
+{
+	return FPaths::EngineVersionAgnosticUserDir() / ThemesSubDir;
+}
+
+void USlateThemeManager::LoadThemesFromDirectory(const FString& Directory)
+{
+	TArray<FString> ThemeFiles;
+	IFileManager::Get().FindFiles(ThemeFiles, *Directory, TEXT(".json"));
+
+	for (const FString& ThemeFile : ThemeFiles)
+	{
+		bool bValidFile = false;
+		FString ThemeData;
+		FString ThemeFilename = Directory / ThemeFile;
+		if (FFileHelper::LoadFileToString(ThemeData, *ThemeFilename))
+		{
+			FStyleTheme Theme;
+			if (ReadTheme(ThemeData, Theme))
+			{
+				if (FStyleTheme* ExistingTheme = Themes.FindByKey(Theme.Id))
+				{
+					// Just update the existing theme.  Themes with the same id can override an existing one.  This behavior mimics config file hierarchies
+					ExistingTheme->Filename = MoveTemp(ThemeFilename);
+				}
+				else
+				{
+					// Theme not found, add a new one
+					Theme.Filename = MoveTemp(ThemeFilename);
+					Themes.Add(MoveTemp(Theme));
+				}
+			}
+		}
+	}
+}
+
+
+bool USlateThemeManager::ReadTheme(const FString& ThemeData, FStyleTheme& Theme)
+{
+	TSharedRef<TJsonReader<>> ReaderRef = TJsonReaderFactory<>::Create(ThemeData);
+	TJsonReader<>& Reader = ReaderRef.Get();
+
+	TSharedPtr<FJsonObject> ObjectPtr;
+	if (FJsonSerializer::Deserialize(Reader, ObjectPtr) && ObjectPtr.IsValid())
+	{
+		int32 Version = 0;
+		if (!ObjectPtr->TryGetNumberField("Version", Version))
+		{
+			// Invalid file
+			return false;
+		}
+
+		FString IdString;
+		if (!ObjectPtr->TryGetStringField(TEXT("Id"), IdString) || !FGuid::Parse(IdString, Theme.Id))
+		{
+			// Invalid Id;
+			return false;
+		}
+
+		FString DisplayStr;
+		if (!ObjectPtr->TryGetStringField(TEXT("DisplayName"), DisplayStr))
+		{
+			// Invalid file
+			return false;
+		}
+		Theme.DisplayName = FText::FromString(MoveTemp(DisplayStr));
+
+		// Just check that the theme has colors. We wont load them unless the theme is used
+		if (!ObjectPtr->HasField("Colors"))
+		{
+			// No colors
+			return false;
+		}
+	}
+	else
+	{
+		// Log invalid style file
+		return false;
+	}
+
+	return true;
+}
+
+void USlateThemeManager::EnsureValidCurrentTheme()
+{
+	FStyleTheme DefaultDarkTheme;
+	DefaultDarkTheme.DisplayName = NSLOCTEXT("StyleColors", "DefaultDarkTheme", "Dark");
+	// If you change this you invalidate the default dark theme forcing the default theme to be reset and the existing dark theme to become a user theme
+	// In general you should not do this. You should instead update the default "dark.json" file 
+	DefaultDarkTheme.Id = FGuid(0xE431F929, 0x452C4686, 0xAB5C0FE1, 0x2910653A);
+	DefaultDarkTheme.Filename = FPaths::EngineContentDir() / TEXT("Slate/Themes/Dark.json");
+
+	int32 ThemeIndex = Themes.AddUnique(DefaultDarkTheme);
+
+	if (!CurrentThemeId.IsValid() || !Themes.Contains(CurrentThemeId))
+	{
+		CurrentThemeId = DefaultDarkTheme.Id;
+	}
+}
+
+void USlateThemeManager::LoadThemeColors(FStyleTheme& Theme)
+{
+	FString ThemeData;
+	if (FFileHelper::LoadFileToString(ThemeData, *Theme.Filename))
+	{
+		Theme.LoadedDefaultColors.Empty();
+
+		// Start with the hard coded default colors. They are a fallback if the theme is incomplete 
+		Theme.LoadedDefaultColors = MakeArrayView<FLinearColor>(DefaultColors, (int32)EStyleColor::MAX);
+
+		TSharedRef<TJsonReader<>> ReaderRef = TJsonReaderFactory<>::Create(ThemeData);
+		TJsonReader<>& Reader = ReaderRef.Get();
+
+		TSharedPtr<FJsonObject> ObjectPtr;
+		if (FJsonSerializer::Deserialize(Reader, ObjectPtr) && ObjectPtr.IsValid())
+		{		
+			// Just check that the theme has colors. We wont load them unless the theme is used
+			const TSharedPtr<FJsonObject>* ColorsObject = nullptr;
+			if(ObjectPtr->TryGetObjectField(TEXT("Colors"), ColorsObject))
+			{
+				UEnum* Enum = StaticEnum<EStyleColor>();
+				check(Enum);
+				for (int32 ColorIndex = 0; ColorIndex < (int32)EStyleColor::MAX; ++ColorIndex)
+				{
+					FName EnumName = Enum->GetNameByIndex(ColorIndex);
+					FString ColorString;
+					if ((*ColorsObject)->TryGetStringField(EnumName.ToString(), ColorString))
+					{
+						Theme.LoadedDefaultColors[ColorIndex].InitFromString(ColorString);
+					}
+				}
+			}
+		}
+	}
+}
+
+/*
+const FStyleTheme* UStyleColorTable::GetTheme(const FGuid ThemeId) const
+{
+	return Themes.FindByKey(ThemeId);
+}*/
+
+#endif // ALLOW_THEMES

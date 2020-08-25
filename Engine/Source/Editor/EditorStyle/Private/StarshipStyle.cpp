@@ -46,27 +46,33 @@ void FStarshipEditorStyle::Initialize()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	PropertyEditorModule.RegisterCustomClassLayout("EditorStyleSettings", FOnGetDetailCustomizationInstance::CreateStatic(&FEditorStyleSettingsCustomization::MakeInstance));
 	PropertyEditorModule.RegisterCustomPropertyTypeLayout("StyleColorList", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FStyleColorListCustomization::MakeInstance));
-#endif
 
 	// Background
-	UStyleColorTable::Get().SetColor(EStyleColor::User1, UStyleColorTable::Get().GetColor(EStyleColor::Input));
-	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User1, LOCTEXT("UserColor_OutputLogBackground", "Log Background"));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User1, USlateThemeManager::Get().GetColor(EStyleColor::Input));
+	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User1, LOCTEXT("UserColor_OutputLogBackground", "Log Background"));
 	// Selection highlight
-	UStyleColorTable::Get().SetColor(EStyleColor::User2, UStyleColorTable::Get().GetColor(EStyleColor::Highlight));
-	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User2, LOCTEXT("UserColor_OutputLogHighlight", "Log Highlight"));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User2, USlateThemeManager::Get().GetColor(EStyleColor::Highlight));
+	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User2, LOCTEXT("UserColor_OutputLogHighlight", "Log Highlight"));
 	// Normal
-	UStyleColorTable::Get().SetColor(EStyleColor::User3, UStyleColorTable::Get().GetColor(EStyleColor::Foreground));
-	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User3, LOCTEXT("UserColor_OutputLogText", "Log Text"));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User3, USlateThemeManager::Get().GetColor(EStyleColor::Foreground));
+	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User3, LOCTEXT("UserColor_OutputLogText", "Log Text"));
 	// Command
-	UStyleColorTable::Get().SetColor(EStyleColor::User4, UStyleColorTable::Get().GetColor(EStyleColor::AccentGreen));
-	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User4, LOCTEXT("UserColor_OutputLogCommand", "Log Command"));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User4, USlateThemeManager::Get().GetColor(EStyleColor::AccentGreen));
+	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User4, LOCTEXT("UserColor_OutputLogCommand", "Log Command"));
 	// Warning
-	UStyleColorTable::Get().SetColor(EStyleColor::User5, UStyleColorTable::Get().GetColor(EStyleColor::AccentYellow));
-	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User5, LOCTEXT("UserColor_OutputLogWarning", "Log Warning"));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User5, USlateThemeManager::Get().GetColor(EStyleColor::AccentYellow));
+	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User5, LOCTEXT("UserColor_OutputLogWarning", "Log Warning"));
 	// Error
-	UStyleColorTable::Get().SetColor(EStyleColor::User6, UStyleColorTable::Get().GetColor(EStyleColor::AccentRed));
-	UStyleColorTable::Get().SetColorDisplayName(EStyleColor::User6, LOCTEXT("UserColor_OutputLogError", "Log Error"));
+	USlateThemeManager::Get().SetDefaultColor(EStyleColor::User6, USlateThemeManager::Get().GetColor(EStyleColor::AccentRed));
+	USlateThemeManager::Get().SetColorDisplayName(EStyleColor::User6, LOCTEXT("UserColor_OutputLogError", "Log Error"));
+#endif
 
+	const FString ThemesSubDir = TEXT("Slate/Themes");
+
+#if ALLOW_THEMES
+	USlateThemeManager::Get().ApplyTheme(USlateThemeManager::Get().GetCurrentTheme().Id);
+	//UStyleColorTable::Get().SaveCurrentThemeAs(UStyleColorTable::Get().GetCurrentTheme().Filename);
+#endif
 	StyleInstance = Create(Settings);
 	SetStyle(StyleInstance.ToSharedRef());
 }

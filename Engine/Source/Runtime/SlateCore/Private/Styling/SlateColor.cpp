@@ -32,5 +32,5 @@ bool FSlateColor::SerializeFromMismatchedTag(const FPropertyTag& Tag, FStructure
 
 const FLinearColor& FSlateColor::GetColorFromTable() const
 {
-	return UStyleColorTable::Get().GetColor(ColorTableId);
+	return USlateThemeManager::Get().GetColor(ColorTableId);
 }

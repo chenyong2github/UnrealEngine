@@ -364,6 +364,10 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 		Style->Set("Icons.FilledCircle", new IMAGE_BRUSH_SVG("Starship/Common/filled-circle", Icon16x16));
 
+		Style->Set("Icons.Duplicate", new IMAGE_BRUSH_SVG("Starship/Common/Duplicate", Icon16x16));
+		Style->Set("Icons.Edit", new IMAGE_BRUSH_SVG("Starship/Common/edit", Icon16x16));
+
+
 	}
 
 	// Tool panels
@@ -661,12 +665,6 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetPressed(IMAGE_BRUSH_SVG("Starship/CoreWidgets/Window/close", FVector2D(42.0f, 34.0f), FStyleColors::Foreground));
 #endif
 
-		const FTextBlockStyle TitleTextStyle = FTextBlockStyle(NormalText)
-			.SetFont(StyleFonts.Normal)
-			.SetColorAndOpacity(FLinearColor::White)
-			.SetShadowOffset(FVector2D(1.0f, 1.0f))
-			.SetShadowColorAndOpacity(FLinearColor::Black);
-
 		Style->Set("Window", FWindowStyle()
 
 #if !PLATFORM_MAC
@@ -675,7 +673,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 			.SetRestoreButtonStyle(RestoreButtonStyle)
 			.SetCloseButtonStyle(CloseButtonStyle)
 #endif
-			.SetTitleTextStyle(TitleTextStyle)
+			.SetTitleTextStyle(NormalText)
 			.SetActiveTitleBrush(FSlateNoResource())
 			.SetInactiveTitleBrush(FSlateNoResource())
 			.SetFlashTitleBrush(IMAGE_BRUSH("Common/Window/WindowTitle_Flashing", Icon24x24, FLinearColor(1.0f, 1.0f, 1.0f, 1.0f), ESlateBrushTileType::Horizontal))	
