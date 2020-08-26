@@ -116,7 +116,7 @@ void SPropertyEditorClass::Construct(const FArguments& InArgs, const TSharedPtr<
 			check(false);
 		}
 		
-		const FString* AllowAbstractString = Property->GetOwnerProperty()->FindMetaData(FBlueprintMetadata::MD_AllowAbstractClasses);
+		const FString* AllowAbstractString = Property->GetOwnerProperty()->FindMetaData(TEXT("AllowAbstract"));
 		bAllowAbstract = AllowAbstractString && (AllowAbstractString->IsEmpty() || AllowAbstractString->ToBool());
 		
 		bAllowOnlyPlaceable = Property->GetOwnerProperty()->HasMetaData(TEXT("OnlyPlaceable"));
