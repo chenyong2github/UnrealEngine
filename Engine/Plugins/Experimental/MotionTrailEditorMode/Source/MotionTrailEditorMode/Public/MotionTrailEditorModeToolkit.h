@@ -5,6 +5,10 @@
 #include "CoreMinimal.h"
 #include "Toolkits/BaseToolkit.h"
 
+class STextBlock;
+class SWidget;
+class UEdMode;
+
 namespace UE
 {
 namespace MotionTrailEditor
@@ -22,7 +26,7 @@ public:
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual class UEdMode* GetScriptableEditorMode() const override;
+	virtual UEdMode* GetScriptableEditorMode() const override;
 	TSharedPtr<SWidget> GetInlineContent() const override;
 
 	void SetTimingStats(const TArray<TMap<FString, FTimespan>>& HierarchyStats);

@@ -8,6 +8,8 @@
 
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
 
+class UAnimSequence;
+
 namespace UE 
 {
 namespace MotionTrailEditor	
