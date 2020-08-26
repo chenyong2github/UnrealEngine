@@ -3186,6 +3186,12 @@ bool FEdModeLandscape::Select(AActor* InActor, bool bInSelected)
 /** FEdMode: Check to see if an actor can be selected in this mode - no side effects */
 bool FEdModeLandscape::IsSelectionAllowed(AActor* InActor, bool bInSelection) const
 {
+	if (!bInSelection)
+	{
+		// always allow de-selection
+		return true;
+	}
+
 	if (!IsEditingEnabled())
 	{
 		return false;
@@ -3195,12 +3201,6 @@ bool FEdModeLandscape::IsSelectionAllowed(AActor* InActor, bool bInSelection) co
 	if (CurrentTool && CurrentTool->OverrideSelection())
 	{
 		return CurrentTool->IsSelectionAllowed(InActor, bInSelection);
-	}
-
-	if (!bInSelection)
-	{
-		// always allow de-selection
-		return true;
 	}
 
 	if (InActor->IsA(ALandscapeProxy::StaticClass()))
