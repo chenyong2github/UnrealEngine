@@ -19,14 +19,13 @@ class UOptimusNodePin;
 template<typename T, typename Allocator>
 static inline uint32 GetTypeHash(const TArray<T, Allocator>& A)
 {
-	uint32 Seed = A.Num();
+	uint32 Hash = GetTypeHash(A.Num());
 	for (const auto& V : A)
 	{
-		Seed ^= GetTypeHash(V) + 0x9e3779b9UL + (Seed << 6) + (Seed >> 2);
+		Hash = HashCombine(Hash, GetTypeHash(V));
 	}
-	return Seed;
+	return Hash;
 }
-
 
 
 UCLASS(abstract)
@@ -95,10 +94,19 @@ public:
 
 	const TArray<UOptimusNodePin*>& GetPins() const { return Pins; }
 
-	/// @brief Find the 
-	/// @param InPinPath 
-	/// @return 
-	UOptimusNodePin* FindPin(const FString &InPinPath);
+
+	/// Find the pin associated with the given dot-separated pin path.
+	/// @param InPinPath The path of the pin.
+	/// @return The pin object, if found, otherwise nullptr.
+	UOptimusNodePin* FindPin(const FString &InPinPath) const;
+
+	/// Find the pin from the given path array.
+	UOptimusNodePin* FindPinFromPath(const TArray<FName>& InPinPath) const;
+
+	/// Find the pin associated with the given FProperty object.
+	/// @param InPinPath The property representing the pin we're interested in.
+	/// @return The pin object, if found, otherwise nullptr.
+	UOptimusNodePin* FindPinFromProperty(const FProperty *InProperty) const;
 
 	/// @brief Returns the class of all non-deprecated UOptimusNodeBase nodes that are defined, 
 	/// in no particular order.
@@ -107,6 +115,10 @@ public:
 
 protected:
 	friend class UOptimusNodeGraph;
+	friend class UOptimusNodePin;
+
+	// Return the action stack for this node.
+	UOptimusActionStack* GetActionStack() const;
 
 	// Node layout data
 	UPROPERTY()
@@ -127,9 +139,6 @@ private:
 		UOptimusNodePin* InParentPin,
 		EOptimusNodePinDirection InDirection
 	);
-
-	// Return the action stack for this node.
-	UOptimusActionStack* GetActionStack() const;
 
 	UPROPERTY()
 	FText DisplayName;

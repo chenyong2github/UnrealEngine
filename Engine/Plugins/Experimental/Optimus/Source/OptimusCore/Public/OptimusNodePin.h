@@ -7,8 +7,9 @@
 
 #include "OptimusNodePin.generated.h"
 
-
+class UOptimusActionStack;
 class UOptimusNode;
+enum class EOptimusNodeGraphNotifyType;
 
 
 UENUM()
@@ -41,8 +42,7 @@ public:
 	const UOptimusNodePin* GetRootPin() const;
 
 	/// Returns the owning node of this pin and all its ancestors and children.
-	UOptimusNode* GetNode();
-	const UOptimusNode* GetNode() const;
+	UOptimusNode* GetNode() const;
 
 	/// Returns the array of pin names from the root pin to this pin. Can be used to to
 	/// easily traverse the pin hierarchy.
@@ -64,6 +64,22 @@ public:
 
 	UObject* GetTypeObject() const;
 
+	/// Returns the FProperty object for this pin. This can be used to directly address the
+	/// node data represented by this pin.
+	FProperty *GetPropertyFromPin() const;
+
+	/// Returns the current value of this pin, including sub-values if necessary, as a string.
+	FString GetValueAsString() const;
+
+	/// Sets the value of this pin from a value string in an undoable fashion.
+	bool SetValueFromString(const FString& InStringValue);
+
+	/// Sets the value of this pin from a value string with no undo (although if a transaction
+	/// bracket is open, it will receive the modification).
+	bool SetValueFromStringDirect(const FString &InStringValue);
+
+	/// Returns the sub-pins of this pin. For example for a pin representing the FVector type, 
+	/// this will return pins for the X, Y, and Z components of it (as float values).
 	const TArray<UOptimusNodePin*> &GetSubPins() const { return SubPins; }
 
 	/// Ask this pin if it allows a connection from the other pin. 
@@ -86,6 +102,10 @@ protected:
 		UOptimusNodePin* InSubPin);
 
 private:
+	void Notify(EOptimusNodeGraphNotifyType InNotifyType);
+
+	UOptimusActionStack* GetActionStack() const;
+
 	UPROPERTY()
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 

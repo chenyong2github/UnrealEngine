@@ -8,6 +8,7 @@
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
 
+#include "Algo/Reverse.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/StringBuilder.h"
 
@@ -117,15 +118,21 @@ UOptimusNodeGraph* UOptimusNode::GetOwningGraph() const
 }
 
 
-UOptimusNodePin* UOptimusNode::FindPin(const FString& InPinPath)
+UOptimusNodePin* UOptimusNode::FindPin(const FString& InPinPath) const
 {
 	TArray<FName> PinPath = UOptimusNodePin::GetPinNamePathFromString(InPinPath);
-	if (PinPath.Num() == 0)
+	if (PinPath.IsEmpty())
 	{
 		return nullptr;
 	}
 
-	UOptimusNodePin* const* PinPtrPtr = CachedPinLookup.Find(PinPath);
+	return FindPinFromPath(PinPath);
+}
+
+
+UOptimusNodePin* UOptimusNode::FindPinFromPath(const TArray<FName>& InPinPath) const
+{
+	UOptimusNodePin* const* PinPtrPtr = CachedPinLookup.Find(InPinPath);
 	if (PinPtrPtr)
 	{
 		return *PinPtrPtr;
@@ -135,18 +142,18 @@ UOptimusNodePin* UOptimusNode::FindPin(const FString& InPinPath)
 	int PathIndex = 0;
 	UOptimusNodePin* FoundPin = nullptr;
 
-	for (FName PinName: PinPath)
+	for (FName PinName : InPinPath)
 	{
-		if (CurrentPins == nullptr || CurrentPins->Num() == 0)
+		if (CurrentPins == nullptr || CurrentPins->IsEmpty())
 		{
 			FoundPin = nullptr;
 			break;
 		}
 
 		UOptimusNodePin* const* FoundPinPtr = CurrentPins->FindByPredicate(
-			[&PinName](const UOptimusNodePin* Pin) {
-				return Pin->GetFName() == PinName;
-			});
+		    [&PinName](const UOptimusNodePin* Pin) {
+			    return Pin->GetFName() == PinName;
+		    });
 
 		if (FoundPinPtr == nullptr)
 		{
@@ -158,15 +165,30 @@ UOptimusNodePin* UOptimusNode::FindPin(const FString& InPinPath)
 		CurrentPins = &FoundPin->GetSubPins();
 	}
 
-	CachedPinLookup.Add(PinPath, FoundPin);
+	CachedPinLookup.Add(InPinPath, FoundPin);
 
 	return FoundPin;
 }
 
 
+UOptimusNodePin* UOptimusNode::FindPinFromProperty(const FProperty* InProperty) const
+{
+	TArray<FName> PinPath;
+	while (InProperty)
+	{
+		PinPath.Add(InProperty->GetFName());
+		InProperty = InProperty->GetOwner<FProperty>();
+	}
+
+	Algo::Reverse(PinPath);
+	
+	return FindPinFromPath(PinPath);
+}
+
+
 TArray<UClass*> UOptimusNode::GetAllNodeClasses()
 {
-	if (CachedNodesClasses.Num() == 0)
+	if (CachedNodesClasses.IsEmpty())
 	{
 		UClass* ClassType = UOptimusNode::StaticClass();
 

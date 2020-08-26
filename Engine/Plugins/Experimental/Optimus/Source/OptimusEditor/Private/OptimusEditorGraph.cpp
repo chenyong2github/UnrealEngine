@@ -204,6 +204,23 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 		}
 		break;
 
+		case EOptimusNodeGraphNotifyType::PinValueChanged:
+		{
+			// The pin's value was changed on the model pin itself. The pin has already taken
+			// care of ensuring the value is properly set on the 
+			UOptimusNodePin *ModelPin = Cast<UOptimusNodePin>(InSubject);
+			if (ensure(ModelPin))
+			{
+			    UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelPin->GetNode());
+				UEdGraphPin *GraphPin = GraphNode->FindGraphPinFromModelPin(ModelPin);
+
+				if (ensure(GraphPin))
+				{
+				    GraphNode->SynchronizeGraphPinValueWithModelPin(GraphPin);
+				}
+			}
+		}
+		break;
 	}
 }
 
@@ -220,7 +237,7 @@ UOptimusEditorGraphNode* UOptimusEditorGraph::AddGraphNodeFromModelNode(UOptimus
 }
 
 
-UOptimusEditorGraphNode* UOptimusEditorGraph::FindGraphNodeFromModelNode(UOptimusNode* ModelNode)
+UOptimusEditorGraphNode* UOptimusEditorGraph::FindGraphNodeFromModelNode(const UOptimusNode* ModelNode)
 {
 	if (!ModelNode)
 	{

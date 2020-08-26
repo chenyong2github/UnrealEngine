@@ -28,7 +28,7 @@ public:
 
 	UOptimusNodeGraph* GetModelGraph() const { return NodeGraph; }
 
-	UOptimusEditorGraphNode* FindGraphNodeFromModelNode(UOptimusNode* Node);
+	UOptimusEditorGraphNode* FindGraphNodeFromModelNode(const UOptimusNode* Node);
 
 	const TSet<UOptimusEditorGraphNode*> &GetSelectedNodes() const { return SelectedNodes; }
 

@@ -79,6 +79,35 @@ UEdGraphPin* UOptimusEditorGraphNode::FindGraphPinFromModelPin(
 }
 
 
+void UOptimusEditorGraphNode::SynchronizeGraphPinValueWithModelPin(UEdGraphPin* InGraphPin)
+{
+	const UOptimusNodePin* ModelPin = FindModelPinFromGraphPin(InGraphPin);
+	if (!ModelPin)
+	{
+		return;
+	}
+
+	// This pin doesn't care about value display.
+	if (InGraphPin->bDefaultValueIsIgnored)
+	{
+		return;
+	}
+
+	// If the pin has sub-pins, don't bother.
+	if (!ModelPin->GetSubPins().IsEmpty())
+	{
+		return;
+	}
+
+	FString ValueString = ModelPin->GetValueAsString();
+
+	if (InGraphPin->DefaultValue != ValueString)
+	{
+		InGraphPin->Modify();
+		InGraphPin->DefaultValue = ValueString;
+	}
+}
+
 FText UOptimusEditorGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 {
 	if (ModelNode)
@@ -157,8 +186,15 @@ void UOptimusEditorGraphNode::CreateGraphPinFromModelPin(
 	PathToModelPinMap.Add(PinPath, const_cast<UOptimusNodePin *>(InModelPin));
 	PathToGraphPinMap.Add(PinPath, GraphPin);
 
-	for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+	if (InModelPin->GetSubPins().IsEmpty())
 	{
-		CreateGraphPinFromModelPin(ModelSubPin, InDirection, GraphPin);
+		GraphPin->DefaultValue = InModelPin->GetValueAsString();
+	}
+	else
+	{
+		for (const UOptimusNodePin* ModelSubPin : InModelPin->GetSubPins())
+		{
+			CreateGraphPinFromModelPin(ModelSubPin, InDirection, GraphPin);
+		}
 	}
 }

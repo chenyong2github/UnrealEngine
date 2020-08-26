@@ -200,6 +200,23 @@ FLinearColor UOptimusEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& P
 }
 
 
+void UOptimusEditorGraphSchema::TrySetDefaultValue(
+	UEdGraphPin& Pin, 
+	const FString& NewDefaultValue, 
+	bool bMarkAsModified
+	) const
+{
+	UOptimusNodePin* ModelPin = GetModelPinFromGraphPin(&Pin);
+	if (ensure(ModelPin))
+	{
+		// Kill the existing transaction, since it copies the wrong node.
+		GEditor->CancelTransaction(0);
+
+		ModelPin->SetValueFromString(NewDefaultValue);
+	}
+}
+
+
 UEdGraphNode* FOptimusGraphSchemaAction_NewNode::PerformAction(
 	UEdGraph* InParentGraph, 
 	UEdGraphPin* InFromPin, 

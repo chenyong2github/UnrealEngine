@@ -608,6 +608,7 @@ void FOptimusEditor::CreateWidgets()
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
 	const FDetailsViewArgs DetailsViewArgs(false, false, true, FDetailsViewArgs::ObjectsUseNameArea, true, this);
 	PropertyDetailsWidget = PropertyEditorModule.CreateDetailView(DetailsViewArgs);
+	PropertyDetailsWidget->OnFinishedChangingProperties().AddSP(this, &FOptimusEditor::OnFinishedChangingProperties);
 
 	// TODO: See FMaterialEditor::CreateInternalWidgets for prop layout customization.
 }
@@ -767,6 +768,34 @@ void FOptimusEditor::HandleGraphCollectionChanges(
 		RefreshEvent.Broadcast();
 		break;
 	}
+	}
+}
+
+
+void FOptimusEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	if (PropertyChangedEvent.ChangeType & EPropertyChangeType::ValueSet)
+	{
+		FProperty *Property = PropertyChangedEvent.Property;
+
+		for (int32 Index = 0; Index < PropertyChangedEvent.GetNumObjectsBeingEdited(); Index++ )
+		{
+			if (const UOptimusNode *ModelNode = Cast<const UOptimusNode>(PropertyChangedEvent.GetObjectBeingEdited(Index)))
+			{
+				UOptimusNodeGraph *ModelGraph = ModelNode->GetOwningGraph();
+				if (UpdateGraph && UpdateGraph == ModelGraph)
+				{
+					UOptimusNodePin* NodePin = ModelNode->FindPinFromProperty(Property);
+
+					if (UOptimusEditorGraphNode* GraphNode = EditorGraph->FindGraphNodeFromModelNode(ModelNode))
+					{
+						UEdGraphPin* GraphPin = GraphNode->FindGraphPinFromModelPin(NodePin);
+
+						GraphNode->SynchronizeGraphPinValueWithModelPin(GraphPin);
+					}
+				}
+			}
+		}
 	}
 }
 

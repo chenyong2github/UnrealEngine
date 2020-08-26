@@ -4,6 +4,7 @@
 
 #include "IOptimusNodeGraphCollectionOwner.h"
 #include "OptimusNode.h"
+#include "OptimusNodePin.h"
 
 FOptimusNodeAction_RenameNode::FOptimusNodeAction_RenameNode(
 	UOptimusNode* InNode, 
@@ -76,4 +77,44 @@ bool FOptimusNodeAction_MoveNode::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
 	}
 
 	return Node->SetGraphPositionDirect(OldPosition);
+}
+
+
+FOptimusNodeAction_SetPinValue::FOptimusNodeAction_SetPinValue(
+	UOptimusNodePin* InPin, 
+	const FString& InNewValue
+	)
+{
+	if (ensure(InPin) && InPin->GetSubPins().IsEmpty())
+	{
+		PinPath = InPin->GetPinPath();
+		OldValue = InPin->GetValueAsString();
+		NewValue = InNewValue;
+
+		SetTitlef(TEXT("Set Value %s"), *InPin->GetPinPath());
+	}
+}
+
+
+bool FOptimusNodeAction_SetPinValue::Do(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodePin* Pin = InRoot->ResolvePinPath(PinPath);
+	if (!Pin)
+	{
+		return false;
+	}
+
+	return Pin->SetValueFromStringDirect(NewValue);
+}
+
+
+bool FOptimusNodeAction_SetPinValue::Undo(IOptimusNodeGraphCollectionOwner* InRoot)
+{
+	UOptimusNodePin* Pin = InRoot->ResolvePinPath(PinPath);
+	if (!Pin)
+	{
+		return false;
+	}
+
+	return Pin->SetValueFromStringDirect(OldValue);
 }

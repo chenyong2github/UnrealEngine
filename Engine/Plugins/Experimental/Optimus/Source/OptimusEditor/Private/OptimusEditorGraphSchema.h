@@ -51,6 +51,8 @@ public:
 
 	void GetGraphDisplayInformation(const UEdGraph& Graph, FGraphDisplayInfo& DisplayInfo) const override;
 
+	void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const override;
+
 	FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
 
 };

@@ -131,7 +131,9 @@ public:
 protected:
 	friend class UOptimusDeformer;
 	friend class UOptimusNode;
+	friend class UOptimusNodePin;
 
+	// FIXME: Remove this.
 	void SetGraphType(EOptimusNodeGraphType InType)
 	{
 		GraphType = InType;

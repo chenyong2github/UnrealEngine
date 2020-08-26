@@ -2,6 +2,8 @@
 
 #include "OptimusNodePin.h"
 
+#include "Actions/OptimusNodeActions.h"
+#include "OptimusActionStack.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
@@ -42,19 +44,12 @@ const UOptimusNodePin* UOptimusNodePin::GetRootPin() const
 	return CurrentPin;
 }
 
-
-UOptimusNode* UOptimusNodePin::GetNode()
-{
-	UOptimusNodePin* RootPin = GetRootPin();
-	return Cast<UOptimusNode>(RootPin->GetOuter());
-}
-
-const UOptimusNode* UOptimusNodePin::GetNode() const
+// FIXME: Rename to GetOwningNode
+UOptimusNode* UOptimusNodePin::GetNode() const
 {
 	const UOptimusNodePin* RootPin = GetRootPin();
-	return Cast<const UOptimusNode>(RootPin->GetOuter());
+	return Cast<UOptimusNode>(RootPin->GetOuter());
 }
-
 
 TArray<FName> UOptimusNodePin::GetPinNamePath() const
 {
@@ -150,6 +145,91 @@ UObject* UOptimusNodePin::GetTypeObject() const
 	{
 		return TypeObject;
 	}
+}
+
+
+FProperty* UOptimusNodePin::GetPropertyFromPin() const
+{
+	UStruct *ScopeStruct = GetNode()->GetClass();
+	TArray<FName> NamePath = GetPinNamePath();
+
+	FProperty* Property = nullptr;
+	for (int32 Index = 0; Index < NamePath.Num(); Index++)
+	{
+		Property = ScopeStruct->FindPropertyByName(NamePath[Index]);
+		if (!Property)
+		{
+			return nullptr;
+		}
+
+		if (Index == (NamePath.Num() - 1))
+		{
+			break;
+		}
+
+		FStructProperty *StructProperty = CastField<FStructProperty>(Property);
+		if (!StructProperty)
+		{
+			return nullptr;
+		}
+
+		ScopeStruct = StructProperty->Struct;
+	}
+
+	return Property;
+}
+
+
+FString UOptimusNodePin::GetValueAsString() const
+{
+	UObject *NodeObject = GetNode();
+	const FProperty *Property = GetPropertyFromPin();
+
+	FString ValueString;
+	if (ensure(Property))
+	{
+		const uint8 *NodeData = Property->ContainerPtrToValuePtr<const uint8>(NodeObject);
+		Property->ExportTextItem(ValueString, NodeData, nullptr, NodeObject, PPF_None);
+	}
+
+	return ValueString;
+}
+
+
+
+bool UOptimusNodePin::SetValueFromString(const FString& InStringValue)
+{
+	return GetActionStack()->RunAction<FOptimusNodeAction_SetPinValue>(this, InStringValue);
+}
+
+
+bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
+{
+	UOptimusNode* Node = GetNode();
+	FProperty* Property = GetPropertyFromPin();
+	bool bSuccess = false;
+
+	if (ensure(Property))
+	{
+		FEditPropertyChain PropertyChain;
+		PropertyChain.AddHead(Property);
+		Node->PreEditChange(PropertyChain);
+
+		// FIXME: We need a way to sanitize the input. Trying and failing is not good, since
+		// it's unknown whether this may leave the property in an indeterminate state.
+		uint8 *NodeData = Property->ContainerPtrToValuePtr<uint8>(Node);
+		bSuccess = Property->ImportText(*InStringValue, NodeData, PPF_None, Node) != nullptr;
+
+		// We notify that the value change occurred, whether that's true or not. This way
+		// the graph pin value sync will ensure that if an invalid value was entered, it will
+		// get reverted back to the true value.
+		FPropertyChangedEvent ChangedEvent(Property);
+		Node->PostEditChangeProperty(ChangedEvent);
+
+		Notify(EOptimusNodeGraphNotifyType::PinValueChanged);
+	}
+
+	return bSuccess;
 }
 
 
@@ -270,3 +350,16 @@ void UOptimusNodePin::AddSubPin(UOptimusNodePin* InSubPin)
 	SubPins.Add(InSubPin);
 }
 
+
+void UOptimusNodePin::Notify(EOptimusNodeGraphNotifyType InNotifyType)
+{
+	UOptimusNodeGraph *Graph = GetNode()->GetOwningGraph();
+
+	Graph->Notify(InNotifyType, this);
+}
+
+
+UOptimusActionStack* UOptimusNodePin::GetActionStack() const
+{
+	return GetNode()->GetActionStack();
+}

@@ -7,6 +7,7 @@
 #include "OptimusNodeActions.generated.h"
 
 class UOptimusNode;
+class UOptimusNodePin;
 
 USTRUCT()
 struct FOptimusNodeAction_RenameNode : 
@@ -65,4 +66,34 @@ private:
 
 	// The node's old position
 	FVector2D OldPosition;
+};
+
+
+USTRUCT()
+struct FOptimusNodeAction_SetPinValue :
+	public FOptimusAction
+{
+	GENERATED_BODY()
+
+public:
+	FOptimusNodeAction_SetPinValue() = default;
+
+	FOptimusNodeAction_SetPinValue(
+		UOptimusNodePin *InPin,
+		const FString &InNewValue
+		);
+
+protected:
+	bool Do(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	bool Undo(IOptimusNodeGraphCollectionOwner* InRoot) override;
+	
+private:
+	// The path of the pin to set the value on
+	FString PinPath;
+
+	// The new value to set
+	FString NewValue;
+
+	// The old value
+	FString OldValue;
 };

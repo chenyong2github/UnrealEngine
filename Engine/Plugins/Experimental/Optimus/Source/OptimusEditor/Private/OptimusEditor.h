@@ -125,6 +125,9 @@ private:
 		UObject *InSubject
 		);
 
+	// Called when the inspector has changed a value.
+	void OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent);
+
 private:
 	// Tab Ids for the Optimus editor
 	static const FName PreviewTabId;

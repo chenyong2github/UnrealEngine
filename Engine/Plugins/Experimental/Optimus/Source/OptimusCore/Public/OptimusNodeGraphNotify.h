@@ -22,6 +22,7 @@ enum class EOptimusNodeGraphNotifyType
 	NodeDisplayNameChanged,	/// A node's display name has changed (Subject == UOptimusNode)
 	NodePositionChanged,	/// A node's position in the graph has changed (Subject == UOptimusNode)
 
+	PinValueChanged,		/// A pin on a node has had its value changed (Subject = UOptimusNodePin)
 };
 
 // A delegate for subscribing / reacting to graph modifications.
