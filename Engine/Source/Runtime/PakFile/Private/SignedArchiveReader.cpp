@@ -491,7 +491,7 @@ void FSignedArchiveReader::Serialize(void* Data, int64 Length)
 
 			if (ChunksReadThisLoop == 0)
 			{
-				if (SignatureChecker->IsMultithreaded())
+				if (ChunkReadEvent != nullptr)
 				{
 					ChunkReadEvent->Wait();
 				}
