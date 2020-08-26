@@ -56,12 +56,15 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 		return Ray;
 	}
 
-	// Use the same clearcoat approximation as SSR: simply blend base and clear coat roughness
+	// Use the similar clearcoat approximation as SSR: simply blend base and clear coat roughness
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
 		const float ClearCoat = GBuffer.CustomData.x;
 		const float ClearCoatRoughness = GBuffer.CustomData.y;
-		GBuffer.Roughness = lerp(GBuffer.Roughness, ClearCoatRoughness, ClearCoat);
+
+		// Combined reflection roughness is biased towards clear coat. 
+		// The approximation is quite arbitrary, based on empirical results.
+		GBuffer.Roughness = lerp(ClearCoatRoughness, GBuffer.Roughness, pow(1.0 - ClearCoat, 4.0));
 	}
 
 	float2 E = Rand1SPPDenoiserInput(PixelPos);
