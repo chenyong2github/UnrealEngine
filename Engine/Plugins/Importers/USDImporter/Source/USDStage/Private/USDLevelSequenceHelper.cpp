@@ -306,11 +306,14 @@ void FUsdLevelSequenceHelperImpl::CreateLocalLayersSequences()
 				{
 					if ( ULevelSequence* SubSequence = FindOrAddSequenceForLayer( SubLayer, SubLayer.GetIdentifier(), SubLayer.GetDisplayName() ) )
 					{
-						LocalLayersSequences.Add( SubSequence->GetFName() );
+						if ( !LocalLayersSequences.Contains( SubSequence->GetFName() ) ) // Make sure we don't parse an already parsed layer
+						{
+							LocalLayersSequences.Add( SubSequence->GetFName() );
 
-						CreateSubSequenceSection( ParentSequence, *SubSequence );
+							CreateSubSequenceSection( ParentSequence, *SubSequence );
 
-						RecursivelyCreateSequencesForLayer( LayerTimeInfosByLayerIdentifier.Find( SubLayer.GetIdentifier() ), *SubSequence );
+							RecursivelyCreateSequencesForLayer( LayerTimeInfosByLayerIdentifier.Find( SubLayer.GetIdentifier() ), *SubSequence );
+						}
 					}
 				}
 			}
