@@ -411,6 +411,12 @@ UControlRigHierarchyModifier* UControlRigBlueprint::GetHierarchyModifier()
 
 FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 {
+	TUniquePtr<FControlValueScope> ValueScope;
+	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	{
+		ValueScope = MakeUnique<FControlValueScope>(this);
+	}
+
 	// for now we only allow one pin control at the same time
 	ClearTransientControls();
 
@@ -461,6 +467,12 @@ FName UControlRigBlueprint::AddTransientControl(URigVMPin* InPin)
 
 FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
 {
+	TUniquePtr<FControlValueScope> ValueScope;
+	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	{
+		ValueScope = MakeUnique<FControlValueScope>(this);
+	}
+
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
@@ -490,6 +502,12 @@ FName UControlRigBlueprint::RemoveTransientControl(URigVMPin* InPin)
 
 FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 {
+	TUniquePtr<FControlValueScope> ValueScope;
+	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	{
+		ValueScope = MakeUnique<FControlValueScope>(this);
+	}
+
 	// for now we only allow one pin control at the same time
 	ClearTransientControls();
 
@@ -524,6 +542,12 @@ FName UControlRigBlueprint::AddTransientControl(const FRigElementKey& InElement)
 
 FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InElement)
 {
+	TUniquePtr<FControlValueScope> ValueScope;
+	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	{
+		ValueScope = MakeUnique<FControlValueScope>(this);
+	}
+
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
@@ -553,6 +577,12 @@ FName UControlRigBlueprint::RemoveTransientControl(const FRigElementKey& InEleme
 
 void UControlRigBlueprint::ClearTransientControls()
 {
+	TUniquePtr<FControlValueScope> ValueScope;
+	if (!UControlRigSettings::Get()->bResetControlsOnPinValueInteraction) // if we need to retain the controls
+	{
+		ValueScope = MakeUnique<FControlValueScope>(this);
+	}
+
 	UControlRigBlueprintGeneratedClass* RigClass = GetControlRigBlueprintGeneratedClass();
 	UControlRig* CDO = Cast<UControlRig>(RigClass->GetDefaultObject(true /* create if needed */));
 
@@ -1356,6 +1386,41 @@ void UControlRigBlueprint::HandleOnElementSelected(FRigHierarchyContainer* InCon
 }
 
 #endif
+
+UControlRigBlueprint::FControlValueScope::FControlValueScope(UControlRigBlueprint* InBlueprint)
+: Blueprint(InBlueprint)
+{
+#if WITH_EDITOR
+	check(Blueprint);
+
+	if (UControlRig* CR = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+	{
+		const TArray<FRigControl>& Controls = CR->AvailableControls();
+		for (const FRigControl& Control : Controls)
+		{
+			ControlValues.Add(Control.Name, CR->GetControlValue(Control.Name));
+		}
+	}
+#endif
+}
+
+UControlRigBlueprint::FControlValueScope::~FControlValueScope()
+{
+#if WITH_EDITOR
+	check(Blueprint);
+
+	if (UControlRig* CR = Cast<UControlRig>(Blueprint->GetObjectBeingDebugged()))
+	{
+		for (const TPair<FName, FRigControlValue>& Pair : ControlValues)
+		{
+			if (CR->FindControl(Pair.Key))
+			{
+				CR->SetControlValue(Pair.Key, Pair.Value);
+			}
+		}
+	}
+#endif
+}
 
 #undef LOCTEXT_NAMESPACE
 

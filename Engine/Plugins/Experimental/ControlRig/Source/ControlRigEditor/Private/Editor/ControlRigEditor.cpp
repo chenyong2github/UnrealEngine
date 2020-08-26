@@ -865,17 +865,10 @@ void FControlRigEditor::Compile()
 	{
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-		TMap<FName, FRigControlValue> ControlValues;
-		if (!UControlRigSettings::Get()->bResetControlsOnCompile)
+		TUniquePtr<UControlRigBlueprint::FControlValueScope> ValueScope;
+		if (!UControlRigSettings::Get()->bResetControlsOnCompile) // if we need to retain the controls
 		{
-			if (UControlRig* CR = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
-			{
-				const TArray<FRigControl>& Controls = CR->AvailableControls();
-				for (const FRigControl& Control : Controls)
-				{
-					ControlValues.Add(Control.Name, Control.GetValue(ERigControlValueType::Current));
-				}
-			}
+			ValueScope = MakeUnique<UControlRigBlueprint::FControlValueScope>(GetControlRigBlueprint());
 		}
 
 		LastDebuggedRig.Empty();
@@ -956,17 +949,6 @@ void FControlRigEditor::Compile()
 		if (PreviewInstance)
 		{
 			PreviewInstance->ResetModifiedBone();
-		}
-
-		if (!UControlRigSettings::Get()->bResetControlsOnCompile)
-		{
-			if (UControlRig* CR = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
-			{
-				for (const TPair<FName, FRigControlValue>& Pair : ControlValues)
-				{
-					CR->SetControlValue(Pair.Key, Pair.Value);
-				}
-			}
 		}
 	}
 
