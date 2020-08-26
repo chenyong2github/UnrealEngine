@@ -72,10 +72,10 @@ namespace Metasound
 			return &InEdge; 
 		};
 
-		// Raw pointer comparison for sorting.
-		bool CompareEdgeDestinationNode(const FDataEdge& InLHS, const FDataEdge& InRHS)
+		// For sorting edges by destination.
+		bool CompareEdgeDestination(const FDataEdge& InLHS, const FDataEdge& InRHS)
 		{
-			return InLHS.To.Node < InRHS.To.Node;
+			return InLHS.To < InRHS.To;
 		}
 	}
 
@@ -164,42 +164,56 @@ namespace Metasound
 
 		Algo::Transform(InGraph.GetDataEdges(), Edges, GetEdgePointer);
 
-		Edges.Sort(CompareEdgeDestinationNode);
+		Edges.Sort(CompareEdgeDestination);
 
 		if (Edges.Num() < 1)
 		{
 			return bIsValid;
 		}
 
+		// Loop through edges sorted by destinations. Look for duplicate destinations.
 		int32 GroupStartIndex = 0;
 		int32 GroupEndIndex = 0;
-		const INode* CurrentNode = Edges[GroupStartIndex]->To.Node;
+		const FInputDataDestination* CurrentDestination = &Edges[GroupStartIndex]->To;
+
+		auto AddErrorsIfGroupHasDuplicates = [&]()
+		{
+			if (GroupEndIndex > GroupStartIndex)
+			{
+				// This condition is hit when more than one edge refers to the
+				// same destination.
+				bIsValid = false;
+
+				// Collected edges with same destination.
+				TArray<FDataEdge> Duplicates;
+				for (int32 j = GroupStartIndex; j <= GroupEndIndex; j++)
+				{
+					Duplicates.Add(*Edges[j]);
+				}
+
+				// Add error.
+				AddBuildError<FDuplicateInputError>(OutErrors, Duplicates);
+			}
+		};
 
 		for (int32 i = 1; i < Edges.Num(); i++)
 		{
-			const INode* Node = Edges[i]->To.Node;
-			if (Node == CurrentNode)
+			const FInputDataDestination* Destination = &Edges[i]->To;
+
+			if (*Destination == *CurrentDestination)
 			{
 				GroupEndIndex = i;
 			}
 			else
 			{
-				if (GroupEndIndex > GroupStartIndex)
-				{
-					bIsValid = false;
-
-					TArray<FDataEdge> Duplicates;
-					for (int32 j = GroupStartIndex; j <= GroupEndIndex; j++)
-					{
-						Duplicates.Add(*Edges[j]);
-						AddBuildError<FDuplicateInputError>(OutErrors, Duplicates);
-					}
-				}
+				AddErrorsIfGroupHasDuplicates();
 
 				GroupStartIndex = GroupEndIndex = i;
-				CurrentNode = Node;
+				CurrentDestination = Destination;
 			}
 		}
+
+		AddErrorsIfGroupHasDuplicates();
 
 		return bIsValid;
 	}

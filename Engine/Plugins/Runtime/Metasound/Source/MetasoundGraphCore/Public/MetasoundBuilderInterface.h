@@ -24,16 +24,16 @@ namespace Metasound
 			virtual const FText& GetErrorDescription() const = 0;
 
 			/** Returns an array of destinations associated with the error. */
-			virtual const TArray<FInputDataDestination>& GetDestinations() const = 0;
+			virtual const TArray<FInputDataDestination>& GetInputDataDestinations() const = 0;
 			
 			/** Returns an array of sources associated with the error. */
-			virtual const TArray<FOutputDataSource>& GetSources() const = 0;
+			virtual const TArray<FOutputDataSource>& GetOutputDataSources() const = 0;
 
 			/** Returns an array of Nodes associated with the error. */
 			virtual const TArray<const INode*>& GetNodes() const = 0;
 
 			/** Returns an array of edges associated with the error. */
-			virtual const TArray<FDataEdge>& GetEdges() const = 0;
+			virtual const TArray<FDataEdge>& GetDataEdges() const = 0;
 	};
 
 	/** FCreateOperatorParams holds the parameters provided to operator factories

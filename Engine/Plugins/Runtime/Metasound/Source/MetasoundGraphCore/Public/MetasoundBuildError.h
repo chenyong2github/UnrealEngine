@@ -30,13 +30,13 @@ namespace Metasound
 			virtual const FText& GetErrorDescription() const override;
 
 			/** Returns an array of destinations associated with the error. */
-			virtual const TArray<FInputDataDestination>& GetDestinations() const override;
+			virtual const TArray<FInputDataDestination>& GetInputDataDestinations() const override;
 			
 			/** Returns an array of sources associated with the error. */
-			virtual const TArray<FOutputDataSource>& GetSources() const override;
+			virtual const TArray<FOutputDataSource>& GetOutputDataSources() const override;
 
 			/** Returns an array of edges associated with the error. */
-			virtual const TArray<FDataEdge>& GetEdges() const override;
+			virtual const TArray<FDataEdge>& GetDataEdges() const override;
 
 			/** Returns an array of Nodes associated with the error. */
 			virtual const TArray<const INode*>& GetNodes() const override;
@@ -52,8 +52,8 @@ namespace Metasound
 			void AddOutputDataSources(TArrayView<const FOutputDataSource> InOutputDataSources);
 
 			// Add edges to be associated with error.
-			void AddEdge(const FDataEdge& InEdge);
-			void AddEdges(TArrayView<const FDataEdge> InEdges);
+			void AddDataEdge(const FDataEdge& InEdge);
+			void AddDataEdges(TArrayView<const FDataEdge> InEdges);
 
 			// Add nodes to be associated with error.
 			void AddNode(const INode& InNode);

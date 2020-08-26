@@ -78,6 +78,23 @@ namespace Metasound
 		return !(InLHS == InRHS);
 	}
 
+	bool operator<(const FInputDataVertex& InLHS, const FInputDataVertex& InRHS)
+	{
+		if (InLHS == InRHS)
+		{
+			return false;
+		}
+		
+		if (InLHS.GetVertexName() == InRHS.GetVertexName())
+		{
+			return InLHS.GetDataTypeName().FastLess(InRHS.GetDataTypeName());
+		}
+		else
+		{
+			return InLHS.GetVertexName() < InRHS.GetVertexName();
+		}
+	}
+
 	FOutputDataVertex::FOutputDataVertex()
 	:	VertexModel(MakeUnique<FEmptyVertexModel>(TEXT(""), FText::GetEmpty()))
 	{}
@@ -149,6 +166,23 @@ namespace Metasound
 	bool operator!=(const FOutputDataVertex& InLHS, const FOutputDataVertex& InRHS)
 	{
 		return !(InLHS == InRHS);
+	}
+
+	bool operator<(const FOutputDataVertex& InLHS, const FOutputDataVertex& InRHS)
+	{
+		if (InLHS == InRHS)
+		{
+			return false;
+		}
+		
+		if (InLHS.GetVertexName() == InRHS.GetVertexName())
+		{
+			return InLHS.GetDataTypeName().FastLess(InRHS.GetDataTypeName());
+		}
+		else
+		{
+			return InLHS.GetVertexName() < InRHS.GetVertexName();
+		}
 	}
 
 			/** Construct with an input and output interface. */

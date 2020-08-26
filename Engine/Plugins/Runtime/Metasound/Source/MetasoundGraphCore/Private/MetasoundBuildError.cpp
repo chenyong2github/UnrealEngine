@@ -31,13 +31,13 @@ namespace Metasound
 	}
 
 	/** Returns an array of destinations associated with the error. */
-	const TArray<FInputDataDestination>& FBuildErrorBase::GetDestinations() const
+	const TArray<FInputDataDestination>& FBuildErrorBase::GetInputDataDestinations() const
 	{
 		return Destinations;
 	}
 	
 	/** Returns an array of sources associated with the error. */
-	const TArray<FOutputDataSource>& FBuildErrorBase::GetSources() const
+	const TArray<FOutputDataSource>& FBuildErrorBase::GetOutputDataSources() const
 	{
 		return Sources;
 	}
@@ -49,7 +49,7 @@ namespace Metasound
 	}
 
 	/** Returns an array of edges associated with the error. */
-	const TArray<FDataEdge>& FBuildErrorBase::GetEdges() const
+	const TArray<FDataEdge>& FBuildErrorBase::GetDataEdges() const
 	{
 		return Edges;
 	}
@@ -74,12 +74,12 @@ namespace Metasound
 		Sources.Append(InSources.GetData(), InSources.Num());
 	}
 
-	void FBuildErrorBase::AddEdge(const FDataEdge& InEdge)
+	void FBuildErrorBase::AddDataEdge(const FDataEdge& InEdge)
 	{
 		Edges.Add(InEdge);
 	}
 
-	void FBuildErrorBase::AddEdges(TArrayView<const FDataEdge> InEdges)
+	void FBuildErrorBase::AddDataEdges(TArrayView<const FDataEdge> InEdges)
 	{
 		Edges.Append(InEdges.GetData(), InEdges.Num());
 	}
@@ -115,7 +115,7 @@ namespace Metasound
 	FDanglingVertexError::FDanglingVertexError(const FDataEdge& InEdge)
 	:	FDanglingVertexError()
 	{
-		AddEdge(InEdge);
+		AddDataEdge(InEdge);
 	}
 
 	const FName FMissingVertexError::ErrorType = FName(TEXT("MetasoundMissingVertex"));
@@ -137,7 +137,7 @@ namespace Metasound
 	FDuplicateInputError::FDuplicateInputError(const TArrayView<FDataEdge> InEdges)
 	:	FBuildErrorBase(ErrorType, LOCTEXT("DuplicateInputError", "Node has duplicate connections to input"))
 	{
-		AddEdges(InEdges);
+		AddDataEdges(InEdges);
 	}
 
 	const FName FGraphCycleError::ErrorType = FName(TEXT("MetasoundGraphCycleError"));
@@ -146,7 +146,7 @@ namespace Metasound
 	:	FBuildErrorBase(ErrorType, LOCTEXT("GraphCycleError", "Graph contains cycles."))
 	{
 		AddNodes(InNodes);
-		AddEdges(InEdges);
+		AddDataEdges(InEdges);
 	}
 
 	const FName FNodePrunedError::ErrorType = FName(TEXT("MetasoundNodePrunedError"));
@@ -201,7 +201,7 @@ namespace Metasound
 	FInvalidConnectionDataTypeError::FInvalidConnectionDataTypeError(const FDataEdge& InEdge)
 	:	FBuildErrorBase(ErrorType, LOCTEXT("InvalidConnectionDataTypeError", "Source and destination data types do not match."))
 	{
-		AddEdge(InEdge);
+		AddDataEdge(InEdge);
 	}
 }
 
