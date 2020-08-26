@@ -14,6 +14,7 @@ class UActorComponent;
 class FToolCommandChange;
 class UPackage;
 class FPrimitiveDrawInterface;
+class FSceneView;
 class UInteractiveToolManager;
 class UInteractiveGizmoManager;
 struct FMeshDescription;
@@ -354,6 +355,9 @@ public:
 
 	/** @return Current PDI */
 	virtual FPrimitiveDrawInterface* GetPrimitiveDrawInterface() = 0;
+
+	/** @return Current FSceneView */
+	virtual const FSceneView* GetSceneView() = 0;
 
 	/** @return Current Camera State for this Render API */
 	virtual FViewCameraState GetCameraState() = 0;

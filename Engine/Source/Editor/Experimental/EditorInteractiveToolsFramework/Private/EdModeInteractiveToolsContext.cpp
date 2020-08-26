@@ -631,12 +631,14 @@ class FEdModeTempRenderContext : public IToolsContextRenderAPI
 {
 public:
 	FPrimitiveDrawInterface* PDI;
+	const FSceneView* SceneView;
 	FViewCameraState ViewCameraState;
 
 	FEdModeTempRenderContext(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient, FPrimitiveDrawInterface* DrawInterface)
 	{
 		PDI = DrawInterface;
-		CacheCurrentViewState(View, Viewport, ViewportClient);
+		SceneView = View;
+		CacheCurrentViewState(Viewport, ViewportClient);
 	}
 
 	virtual FPrimitiveDrawInterface* GetPrimitiveDrawInterface() override
@@ -644,12 +646,17 @@ public:
 		return PDI;
 	}
 
+	virtual const FSceneView* GetSceneView() override
+	{
+		return SceneView;
+	}
+
 	virtual FViewCameraState GetCameraState() override
 	{
 		return ViewCameraState;
 	}
 
-	void CacheCurrentViewState(const FSceneView* View, FViewport* Viewport, FEditorViewportClient* ViewportClient)
+	void CacheCurrentViewState(FViewport* Viewport, FEditorViewportClient* ViewportClient)
 	{
 		FViewportCameraTransform ViewTransform = ViewportClient->GetViewTransform();
 		ViewCameraState.bIsOrthographic = ViewportClient->IsOrtho();
