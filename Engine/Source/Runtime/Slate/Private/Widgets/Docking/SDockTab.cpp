@@ -430,6 +430,11 @@ void SDockTab::SetOnTabActivated( const FOnTabActivatedCallback& InDelegate )
 	OnTabActivated = InDelegate;
 }
 
+void SDockTab::SetOnTabRenamed(const FOnTabRenamed& InDelegate)
+{
+	OnTabRenamed = InDelegate;
+}
+
 TSharedRef<FTabManager> SDockTab::GetTabManager() const
 {
 	return MyTabManager.Pin().ToSharedRef();
@@ -785,6 +790,7 @@ FText SDockTab::GetTabLabel() const
 void SDockTab::SetLabel( const TAttribute<FText>& InTabLabel )
 {
 	TabLabel = InTabLabel;
+	OnTabRenamed.ExecuteIfBound(SharedThis(this));
 }
 
 FText SDockTab::GetTabLabelSuffix() const

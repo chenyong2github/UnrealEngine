@@ -33,6 +33,9 @@ public:
 
 		DockTabStyle = &FAppStyle::Get().GetWidgetStyle<FDockTabStyle>("Docking.Tab");
 
+		// Sometimes tabs can be renamed so ensure that we pick up the rename
+		ForTab->SetOnTabRenamed(SDockTab::FOnTabRenamed::CreateSP(this, &STabDrawerButton::OnTabRenamed));
+
 		OnDrawerButtonClicked = InArgs._OnDrawerButtonClicked;
 		OnGetContextMenuContent = InArgs._OnGetContextMenuContent;
 		Tab = ForTab;
@@ -124,6 +127,14 @@ public:
 		{
 			OpenIndicator->SetVisibility(EVisibility::Collapsed);
 			MainButton->SetButtonStyle(&FAppStyle::Get().GetWidgetStyle<FButtonStyle>("Docking.SidebarButton.Closed"));
+		}
+	}
+
+	void OnTabRenamed(TSharedRef<SDockTab> ForTab)
+	{
+		if (ensure(ForTab == Tab))
+		{
+			Label->SetText(ForTab->GetTabLabel());
 		}
 	}
 

@@ -56,7 +56,10 @@ public:
 	/** Invoked when a tab is activated */
 	DECLARE_DELEGATE_TwoParams(FOnTabActivatedCallback, TSharedRef<SDockTab>, ETabActivationCause);
 
-	/** Invoked when this tab should save some information about its content. */
+	/** Invoked when a tab is renamed */
+	DECLARE_DELEGATE_OneParam(FOnTabRenamed, TSharedRef<SDockTab>);
+
+	/** Invoked w`en this tab should save some information about its content. */
 	DECLARE_DELEGATE(FOnPersistVisualState);
 
 	/** Delegate called before a tab is closed.  Returning false will prevent the tab from closing */
@@ -245,6 +248,9 @@ public:
 	/** Set the handler that will be invoked when the tab is activated */
 	void SetOnTabActivated( const FOnTabActivatedCallback& InDelegate );
 
+	/** Set the handler that will be invoked when the tab is renamed */
+	void SetOnTabRenamed(const FOnTabRenamed& InDelegate);
+
 	/** Get the tab manager currently managing this tab. Note that a user move the tab between Tab Managers, so this return value may change. */
 	TSharedRef<FTabManager> GetTabManager() const;
 
@@ -386,6 +392,9 @@ protected:
 	 * e.g. Content Browser might save the current filters, current folder, whether some panel is collapsed, etc.
 	 */
 	FOnPersistVisualState OnPersistVisualState;
+
+	/** Invoked when the tab is renamed */
+	FOnTabRenamed OnTabRenamed;
 
 	/** The styles used to draw the tab in its various states */
 	const FDockTabStyle* MajorTabStyle;
