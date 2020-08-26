@@ -349,6 +349,9 @@ namespace Chaos
 		/**/
 		void PostTickDebugDraw() const;
 
+		// Visual debugger (VDB) push methods
+		void PostEvolutionVDBPush() const;
+
 		TArray<TGeometryCollectionPhysicsProxy<Traits>*>& GetGeometryCollectionPhysicsProxies()
 		{
 			return GeometryCollectionPhysicsProxies;
