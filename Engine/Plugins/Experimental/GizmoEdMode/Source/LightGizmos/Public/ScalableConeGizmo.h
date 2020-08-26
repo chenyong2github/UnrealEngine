@@ -21,26 +21,9 @@ public:
 	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
-UCLASS()
-class LIGHTGIZMOS_API AScalableConeGizmoActor : public AGizmoActor
-{
-	GENERATED_BODY()
-
-public:
-
-	AScalableConeGizmoActor();
-
-	UPrimitiveComponent* ScaleHandleYPlus;
-	UPrimitiveComponent* ScaleHandleYMinus;
-	UPrimitiveComponent* ScaleHandleZPlus;
-	UPrimitiveComponent* ScaleHandleZMinus;
-
-	UPrimitiveComponent* LengthHandle;
-};
-
 /**
  * UScalableConeGizmo provides a cone that can be scaled (changing its angle)
- * The in-scene representation of the Gizmo is a AScalableConeGizmoActor (or subclass).
+ * by dragging the base of the cone outwards/inwards
  */
 UCLASS()
 class LIGHTGIZMOS_API UScalableConeGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
@@ -54,11 +37,8 @@ public:
 
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	virtual void Shutdown() override;
-
 	// Set the target to attach the gizmo to
 	virtual void SetTarget(UTransformProxy* InTarget);
-	virtual void SetWorld(UWorld* InWorld);
 
 	// Gettors and Settors for the Angle and Length
 	void SetAngleDegrees(float InAngle);
@@ -67,13 +47,17 @@ public:
 	float GetAngleDegrees();
 
 	// IHoverBehaviorTarget interface
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override { return FInputRayHit(); }
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
 	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override { return true; }
-	virtual void OnEndHover() override {}
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
+
+	/** Check if the input ray hits the cone. The hit testable parts of the cone currently is just 
+	 *  the circle at its base
+	 */
 	bool HitTest(const FRay& Ray, FHitResult& OutHit, FVector& OutAxis, FTransform& OutTransform);
 
 	// The maximum angle the cone can be stretched to
@@ -88,14 +72,18 @@ public:
 	UPROPERTY()
 	FColor ConeColor;
 
+	// The error threshold for hit detection with the cone
+	UPROPERTY()
+	float HitErrorThreshold{ 12.f };
+
+	// The thickness of the base of the cone when being hovered over (in screen space)
+	UPROPERTY()
+	float HoverThickness{ 5.f };
+
 	/** Called when the Angle of the cone is changed. Sends new angle as parameter. */
 	TFunction<void(const float)> UpdateAngleFunc = nullptr;
 
 private:
-
-	void CreateGizmoHandles();
-	void UpdateGizmoHandles();
-	void OnTransformChanged(UTransformProxy*, FTransform);
 
 	// The ConeLength
 	UPROPERTY()
@@ -104,14 +92,12 @@ private:
 	UPROPERTY()
 	float Angle;
 
+	/** Whether the gizmo is being hovered over */
+	UPROPERTY()
+	bool bIsHovering{ false };
+
 	UPROPERTY()
 	UTransformProxy* ActiveTarget;
-
-	UPROPERTY()
-	AScalableConeGizmoActor* GizmoActor;
-
-	UPROPERTY()
-	UWorld* World;
 
 	/** Used for calculations when moving the handles*/
 

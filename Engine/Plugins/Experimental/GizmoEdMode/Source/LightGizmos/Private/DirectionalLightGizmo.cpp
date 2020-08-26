@@ -8,6 +8,8 @@
 #include "BaseGizmos/GizmoMath.h"
 #include "BaseGizmos/GizmoCircleComponent.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
+#include "SceneManagement.h"
 
 // UDirectionalLightGizmoBuilder
 
@@ -60,7 +62,48 @@ void UDirectionalLightGizmo::Setup()
 
 void UDirectionalLightGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 {
+	FVector Start = GizmoActor->GetActorLocation();
 	
+	// Parameters of the handle to rotate around y axis
+	FVector ArrowDir = GizmoActor->GetActorRotation().Vector();
+	FVector ArrowEnd = Start + ArrowDir * ArrowLength;
+
+	FVector ZAxis;
+	
+	// Checking if the rotation normal is positive or negative Z axis
+	if (ArrowEnd.Z < Start.Z)
+	{
+		ZAxis = -FVector::ZAxisVector;
+	}
+	else
+	{
+		ZAxis = FVector::ZAxisVector;
+	}
+
+	// Project the arrow end onto the XY plane to get it's direction along that plane
+	FVector EndProjection = GizmoMath::ProjectPointOntoPlane(ArrowEnd, Start, ZAxis);
+
+	FVector LineDir = EndProjection - Start;
+	LineDir.Normalize();
+
+	// The end point of the line
+	FVector LineEnd = Start + LineDir * ArrowLength;
+
+	const FSceneView* View = RenderAPI->GetSceneView();
+	float PixelToWorld = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, LineEnd);
+
+	// Calculate the "true" end point in world space (We want the line to be the same length in screen space)
+	FVector LineEndWorld = Start + LineDir * ArrowLength * PixelToWorld;
+
+	// Draw the line that represents the arrow projected onto the circle
+	RenderAPI->GetPrimitiveDrawInterface()->DrawLine(Start, LineEndWorld, FLinearColor::Red, SDPG_Foreground);
+
+	// Figure out the angle of the arc between the line and the arrow
+	float ArcAngle = FMath::Acos(FVector::DotProduct(LineDir, ArrowDir));
+	ArcAngle = FMath::RadiansToDegrees(ArcAngle);
+
+	// Draw an arc between the arrow and the line
+	DrawArc(RenderAPI->GetPrimitiveDrawInterface(), Start, LineDir, ZAxis, 0, ArcAngle, ArrowLength * PixelToWorld, 32, FLinearColor(0.f, 0.f, 1.f), SDPG_Foreground);
 }
 
 void UDirectionalLightGizmo::Shutdown()
@@ -266,6 +309,7 @@ void UDirectionalLightGizmo::CreateZRotationGizmo()
 	NewCircle->Normal = FVector::ZAxisVector;
 	NewCircle->Color = FLinearColor::Blue;
 	NewCircle->Radius = 120.f;
+	NewCircle->bDrawFullCircle = true;
 	NewCircle->RegisterComponent();
 
 	GizmoActor->RotationZCircle = NewCircle;

@@ -8,7 +8,7 @@
 #include "Kismet/KismetMathLibrary.h"
 #include "BaseGizmos/GizmoMath.h"
 #include "Components/SphereComponent.h"
-#include "BaseGizmos/GizmoBoxComponent.h"
+#include "BaseGizmos/GizmoLineHandleComponent.h"
 
 // USpotLightGizmoBuilder
 
@@ -228,6 +228,8 @@ void USpotLightGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 	// Update the attenuation of the cone
 	float NewAttenuation = LightActor->SpotLightComponent->AttenuationRadius + DeltaParam;
 
+	NewAttenuation = (NewAttenuation < 0) ? 0 : NewAttenuation;
+
 	LightActor->SpotLightComponent->AttenuationRadius = NewAttenuation;
 	LightActor->SpotLightComponent->MarkRenderStateDirty();
 
@@ -274,8 +276,8 @@ void USpotLightGizmo::CreateAttenuationScaleGizmo()
 	FActorSpawnParameters SpawnInfo;
 	GizmoActor = World->SpawnActor<ASpotLightGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
 
-	// The handle to scale attenuation is a box 
-	GizmoActor->AttenuationScaleHandle = AGizmoActor::AddDefaultBoxComponent(World, GizmoActor, FLinearColor::Red, FVector::ZeroVector);
+	// The handle to scale attenuation is line handle component
+	GizmoActor->AttenuationScaleHandle = AGizmoActor::AddDefaultLineHandleComponent(World, GizmoActor, FLinearColor::Blue, FVector::YAxisVector, FVector::XAxisVector, 60.f, true);
 	GizmoActor->AttenuationScaleHandle->SetRelativeLocation(FVector(LightActor->SpotLightComponent->AttenuationRadius, 0, 0));
 
 	TransformProxy->OnTransformChanged.AddUObject(this, &USpotLightGizmo::OnTransformChanged);

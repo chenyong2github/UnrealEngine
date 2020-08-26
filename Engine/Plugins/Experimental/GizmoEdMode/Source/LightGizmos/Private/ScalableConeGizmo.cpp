@@ -5,28 +5,16 @@
 #include "BaseGizmos/GizmoBoxComponent.h"
 #include "Engine/CollisionProfile.h"
 #include "BaseGizmos/GizmoMath.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
 
 // UScalableConeGizmoBuilder
 
 UInteractiveGizmo* UScalableConeGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
 	UScalableConeGizmo* NewGizmo = NewObject<UScalableConeGizmo>(SceneState.GizmoManager);
-	NewGizmo->SetWorld(SceneState.World);
 	return NewGizmo;
 }
-
-// AScalableConeGizmoActor
-
-AScalableConeGizmoActor::AScalableConeGizmoActor()
-{
-	// root component is a hidden sphere
-	USphereComponent* SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("GizmoCenter"));
-	RootComponent = SphereComponent;
-	SphereComponent->InitSphereRadius(1.0f);
-	SphereComponent->SetVisibility(false);
-	SphereComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
-}
-
 // UScalableConeGizmo
 
 void UScalableConeGizmo::Setup()
@@ -43,40 +31,64 @@ void UScalableConeGizmo::Setup()
 	ScalableConeBehavior->Initialize(this);
 	AddInputBehavior(ScalableConeBehavior);
 
-	CreateGizmoHandles();
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>(this);
+	HoverBehavior->Initialize(this);
+	AddInputBehavior(HoverBehavior);
 }
 
 void UScalableConeGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	if (ActiveTarget)
 	{
-		DrawWireSphereCappedCone(RenderAPI->GetPrimitiveDrawInterface(), GizmoActor->GetTransform(), Length, Angle, 32, 8, 10, ConeColor, SDPG_World);
-	}
-}
+		DrawWireSphereCappedCone(RenderAPI->GetPrimitiveDrawInterface(), ActiveTarget->GetTransform(), Length, Angle, 32, 8, 10, ConeColor, SDPG_Foreground);
 
-void UScalableConeGizmo::Shutdown()
-{
-	if (GizmoActor)
-	{
-		GizmoActor->Destroy();
-		GizmoActor = nullptr;
+		if (bIsHovering)
+		{
+			FVector WorldOrigin = ActiveTarget->GetTransform().GetLocation();
+			FVector CircleNormal = ActiveTarget->GetTransform().GetRotation().Vector();
+
+			float ConeHeight = Length * FMath::Cos(FMath::DegreesToRadians(Angle));
+			float ConeRadius = Length * FMath::Sin(FMath::DegreesToRadians(Angle));
+
+			// The center of the circle at the base of the cone
+			FVector CircleOrigin = WorldOrigin + CircleNormal * ConeHeight;
+
+			FVector CircleX;
+			FVector CircleY;
+
+			// Direction vectors to represent the circle
+			GizmoMath::MakeNormalPlaneBasis(CircleNormal, CircleX, CircleY);
+
+			float CircleThickness = HoverThickness;
+
+			// Figure out the correct thickness of the Circle in world coordinates
+			const FSceneView* View = RenderAPI->GetSceneView();
+
+			FVector CircleEndWithThickness = DragStartWorldPosition + CircleX * CircleThickness;
+			float ScreenThickness = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, CircleEndWithThickness);
+
+			CircleThickness *= ScreenThickness;
+
+			DrawCircle(RenderAPI->GetPrimitiveDrawInterface(), CircleOrigin, CircleX, CircleY, ConeColor, ConeRadius, 32, SDPG_Foreground, CircleThickness);
+
+			// Parameters for the line that shows the drag direction
+			FVector LineStart = DragStartWorldPosition;
+			float LineLength = 30.f;
+			FVector LineEnd = LineStart + HitAxis * LineLength;
+
+			// Get the Pixel to World scale of the line
+			float PixelToWorld = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, LineEnd);
+
+			// Draw the lines in both directions
+			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart + HitAxis * PixelToWorld * LineLength, FLinearColor::Red, SDPG_Foreground);
+			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart - HitAxis * PixelToWorld * LineLength, FLinearColor::Red, SDPG_Foreground);
+		}
 	}
 }
 
 void UScalableConeGizmo::SetTarget(UTransformProxy* InTarget)
 {
 	ActiveTarget = InTarget;
-
-	// To update the internal GizmoActor when the transform is changed
-	ActiveTarget->OnTransformChanged.AddUObject(this, &UScalableConeGizmo::OnTransformChanged);
-
-	OnTransformChanged(InTarget, InTarget->GetTransform());
-
-}
-
-void UScalableConeGizmo::SetWorld(UWorld* InWorld)
-{
-	World = InWorld;
 }
 
 void UScalableConeGizmo::SetAngleDegrees(float InAngle)
@@ -84,8 +96,6 @@ void UScalableConeGizmo::SetAngleDegrees(float InAngle)
 	Angle = InAngle;
 
 	Angle = FMath::Clamp<float>(Angle, MinAngle, MaxAngle);
-
-	UpdateGizmoHandles();
 
 	if (UpdateAngleFunc)
 	{
@@ -108,44 +118,55 @@ float UScalableConeGizmo::GetAngleDegrees()
 	return Angle;
 }
 
-void UScalableConeGizmo::CreateGizmoHandles()
+FInputRayHit UScalableConeGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
-	FActorSpawnParameters SpawnInfo;
-	GizmoActor = World->SpawnActor<AScalableConeGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+	FHitResult HitResult;
+	FVector TestHitAxis;
+	FTransform DragTransform;
 
-	 // Handles are Boxes right now
-	GizmoActor->ScaleHandleYPlus = AGizmoActor::AddDefaultBoxComponent(World, GizmoActor, FLinearColor(1.0, 0, 0), FVector::ZeroVector);
-	GizmoActor->ScaleHandleYMinus = AGizmoActor::AddDefaultBoxComponent(World, GizmoActor, FLinearColor(1.0, 0, 0), FVector::ZeroVector);
-	GizmoActor->ScaleHandleZPlus = AGizmoActor::AddDefaultBoxComponent(World, GizmoActor, FLinearColor(1.0, 0, 0), FVector::ZeroVector);
-	GizmoActor->ScaleHandleZMinus = AGizmoActor::AddDefaultBoxComponent(World, GizmoActor, FLinearColor(1.0, 0, 0), FVector::ZeroVector);
-	
-	UpdateGizmoHandles();
+	if (HitTest(PressPos.WorldRay, HitResult, TestHitAxis, DragTransform))
+	{
+		bIsHovering = true;
+		DragStartWorldPosition = DragTransform.GetLocation();
+		HitAxis = TestHitAxis;
+
+		return FInputRayHit(HitResult.Distance);
+	}
+
+	// Return invalid ray hit to say we don't want to listen to hover input
+	return FInputRayHit();
 }
 
-void UScalableConeGizmo::UpdateGizmoHandles()
+bool UScalableConeGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
-	 // Get radius and height of the cone
-	float Radius = Length * FMath::Sin(FMath::DegreesToRadians(Angle));
-	float Height = Length * FMath::Cos(FMath::DegreesToRadians(Angle));
+	if (!ActiveTarget)
+	{
+		return false;
+	}
 
-	GizmoActor->ScaleHandleYPlus->SetRelativeLocation(FVector::XAxisVector * Height + FVector::YAxisVector * Radius);
-	GizmoActor->ScaleHandleYMinus->SetRelativeLocation(FVector::XAxisVector * Height - FVector::YAxisVector * Radius);
-	GizmoActor->ScaleHandleZPlus->SetRelativeLocation(FVector::XAxisVector * Height + FVector::ZAxisVector * Radius);
-	GizmoActor->ScaleHandleZMinus->SetRelativeLocation(FVector::XAxisVector * Height - FVector::ZAxisVector * Radius);
+	FVector Start = DevicePos.WorldRay.Origin;
+	const float MaxRaycastDistance = 1e6f;
+	FVector End = DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * MaxRaycastDistance;
+
+	FRay HitCheckRay(Start, End - Start);
+	FHitResult HitResult;
+	FVector TestHitAxis;
+	FTransform DragTransform;
+
+	if (HitTest(HitCheckRay, HitResult, TestHitAxis, DragTransform))
+	{
+		bIsHovering = true;
+		DragStartWorldPosition = DragTransform.GetLocation();
+		HitAxis = TestHitAxis;
+		return true;
+	}
+
+	return false;
 }
 
-void UScalableConeGizmo::OnTransformChanged(UTransformProxy*, FTransform)
+void UScalableConeGizmo::OnEndHover()
 {
-	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
-
-	FTransform TargetTransform = ActiveTarget->GetTransform();
-
-	// GizmoActor doesn't want the scale of the object
-	TargetTransform.SetScale3D(FVector(1, 1, 1));
-
-	GizmoComponent->SetWorldTransform(TargetTransform);
-
-	UpdateGizmoHandles();
+	bIsHovering = false;
 }
 
 bool UScalableConeGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FVector& OutAxis, FTransform& OutTransform)
@@ -159,38 +180,50 @@ bool UScalableConeGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FVector& O
 	const float MaxRaycastDistance = 1e6f;
 	FVector End = Ray.Origin + Ray.Direction * MaxRaycastDistance;
 
-	FCollisionQueryParams Params;
+	// Find the intresection with the circle plane. Note that unlike the FMath version, GizmoMath::RayPlaneIntersectionPoint() 
+	// checks that the ray isn't parallel to the plane.
+	FVector WorldOrigin = ActiveTarget->GetTransform().GetLocation();
+	FVector CircleNormal = ActiveTarget->GetTransform().GetRotation().Vector();
 
-	FQuat Rotation = ActiveTarget->GetTransform().GetRotation();
+	float ConeHeight = Length * FMath::Cos(FMath::DegreesToRadians(Angle));
+	float ConeRadius = Length * FMath::Sin(FMath::DegreesToRadians(Angle));
 
-	// Check which component was hit and update OutAxis and OutTransform
-	if (GizmoActor->ScaleHandleYPlus->LineTraceComponent(OutHit, Start, End, Params))
+	// The center of the base of the cone
+	FVector CircleOrigin = WorldOrigin + CircleNormal * ConeHeight;
+	
+	FVector ConeBottom = WorldOrigin + CircleNormal * Length;
+
+	FVector HitPos;
+	bool bIntersects = false;
+
+	// Figure out if the ray interesects with the plane at the base of the cone
+	GizmoMath::RayPlaneIntersectionPoint(CircleOrigin, CircleNormal, Ray.Origin, Ray.Direction, bIntersects, HitPos);
+
+	if (!bIntersects || Ray.GetParameter(HitPos) > Ray.GetParameter(End))
 	{
-		OutAxis = Rotation.RotateVector(FVector::YAxisVector);
-		OutTransform = GizmoActor->ScaleHandleYPlus->GetComponentTransform();
-		return true;
-	}
-	if (GizmoActor->ScaleHandleYMinus->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = Rotation.RotateVector(-FVector::YAxisVector);
-		OutTransform = GizmoActor->ScaleHandleYMinus->GetComponentTransform();
-		return true;
-	}
-	if (GizmoActor->ScaleHandleZPlus->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = Rotation.RotateVector(FVector::ZAxisVector);
-		OutTransform = GizmoActor->ScaleHandleZPlus->GetComponentTransform();
-		return true;
-	}
-	if (GizmoActor->ScaleHandleZMinus->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = Rotation.RotateVector(-FVector::ZAxisVector);
-		OutTransform = GizmoActor->ScaleHandleZMinus->GetComponentTransform();
-		return true;
+		return false;
 	}
 
-	return false;
+	// Find the closest point on the circle of the intersection
+	FVector NearestCircle;
+	GizmoMath::ClosetPointOnCircle(HitPos, CircleOrigin, CircleNormal, ConeRadius, NearestCircle);
 
+	FVector NearestRay = Ray.ClosestPoint(NearestCircle);
+
+	// Make sure the distance to the ray is within a certain threshold
+	double Distance = FVector::Distance(NearestCircle, NearestRay);
+
+	if (Distance > HitErrorThreshold)
+	{
+		return false;
+	}
+
+	OutAxis = NearestCircle - ConeBottom;
+	OutAxis.Normalize();
+
+	OutTransform.SetIdentity();
+	OutTransform.SetTranslation(NearestCircle);
+	return true;
 }
 
 void UScalableConeGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
@@ -202,10 +235,13 @@ void UScalableConeGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 	FRay HitCheckRay(Start, End - Start);
 	FHitResult HitResult;
 	FTransform DragTransform;
+	FVector HitTestAxis;
 
 	 // Check if any component was hit
-	if (HitTest(HitCheckRay, HitResult, HitAxis, DragTransform))
+	if (HitTest(HitCheckRay, HitResult, HitTestAxis, DragTransform))
 	{
+		HitAxis = HitTestAxis;
+
 		FVector RayNearestPt; float RayNearestParam;
 
 		// Get the initial interaction parameters
@@ -229,7 +265,7 @@ void UScalableConeGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 		AxisNearestPt, AxisNearestParam,
 		RayNearestPt, RayNearestParam);
 
-	FVector GizmoLocation = GizmoActor->GetActorLocation();
+	FVector GizmoLocation = ActiveTarget->GetTransform().GetLocation();
 
 	// Vector to the starting position of the interaction
 	FVector Start = InteractionStartPoint - GizmoLocation;
@@ -244,8 +280,11 @@ void UScalableConeGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 	float DeltaAngle = FMath::Acos(DotP);
 
 	// Get the angle between the start and end vectors and the forward vector to check if the drag direction should be +ve or -ve
-	float StartAngle = FMath::Acos(FVector::DotProduct(Start, GizmoActor->GetActorForwardVector()));
-	float EndAngle = FMath::Acos(FVector::DotProduct(End, GizmoActor->GetActorForwardVector()));
+
+	FVector Forward = ActiveTarget->GetTransform().GetRotation().Vector();
+
+	float StartAngle = FMath::Acos(FVector::DotProduct(Start, Forward));
+	float EndAngle = FMath::Acos(FVector::DotProduct(End, Forward));
 
 	if (StartAngle > EndAngle)
 	{
@@ -270,9 +309,9 @@ FInputCaptureRequest UScalableConeGizmoInputBehavior::WantsCapture(const FInputD
 	if (IsPressed(input))
 	{
 		FHitResult HitResult;
-		FVector HitAxis;
+		FVector HitTestAxis;
 		FTransform DragTransform;
-		if (Gizmo->HitTest(input.Mouse.WorldRay, HitResult, HitAxis, DragTransform))
+		if (Gizmo->HitTest(input.Mouse.WorldRay, HitResult, HitTestAxis, DragTransform))
 		{
 			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any, HitResult.Distance);
 		}

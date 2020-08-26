@@ -32,6 +32,9 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bViewAligned = false;
 
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bDrawFullCircle = false;
+
 	// If the circle was on a 3D sphere, then only the 'front' part of the circle can be hit, 
 	// (in other words, if the ray would hit the sphere first, ignore the hit).
 	// Dynamically disabled if the circle is parallel to the view plane (ie "fully visible")

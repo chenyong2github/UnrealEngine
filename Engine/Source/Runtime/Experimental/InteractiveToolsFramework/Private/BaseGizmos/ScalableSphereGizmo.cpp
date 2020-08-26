@@ -8,29 +8,15 @@
 #include "Engine/CollisionProfile.h"
 #include "Kismet/KismetMathLibrary.h"
 #include "BaseGizmos/GizmoMath.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
+#include "BaseGizmos/GizmoRenderingUtil.h"
 
 // UScalableSphereGizmoBuilder
 
 UInteractiveGizmo* UScalableSphereGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
 	UScalableSphereGizmo* NewGizmo = NewObject<UScalableSphereGizmo>(SceneState.GizmoManager);
-
-	// Have to set world to be able to spawn actor
-	NewGizmo->SetWorld(SceneState.World);
-	
 	return NewGizmo;
-}
-
-// AScalableSphereGizmoActor
-
-AScalableSphereGizmoActor::AScalableSphereGizmoActor()
-{
-	// root component is a hidden sphere
-	USphereComponent* SphereComponent = CreateDefaultSubobject<USphereComponent>(TEXT("GizmoCenter"));
-	RootComponent = SphereComponent;
-	SphereComponent->InitSphereRadius(1.0f);
-	SphereComponent->SetVisibility(false);
-	SphereComponent->SetCollisionProfileName(UCollisionProfile::NoCollision_ProfileName);
 }
 
 // UScalableSphereGizmo
@@ -45,83 +31,141 @@ void UScalableSphereGizmo::Setup()
 	ScalableSphereBehavior->Initialize(this);
 	AddInputBehavior(ScalableSphereBehavior);
 
-	CreateGizmoHandles();
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>(this);
+	HoverBehavior->Initialize(this);
+	AddInputBehavior(HoverBehavior);
 }
 
 void UScalableSphereGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	if (ActiveTarget)
 	{
-		DrawWireSphereAutoSides(RenderAPI->GetPrimitiveDrawInterface(), ActiveTarget->GetTransform(), FColor(200, 255, 255), Radius, SDPG_World);
+		float UseThickness = Thickness;
+
+		if (bIsHovering)
+		{
+			UseThickness = HoverThickness;
+
+			// Parameters for the line that shows the drag direction
+			FVector LineStart = DragStartWorldPosition;
+			float LineLength = 30.f;
+			FVector LineEnd = LineStart + ActiveAxis * LineLength;
+
+			// Get the Pixel to World scale of the line
+			const FSceneView* View = RenderAPI->GetSceneView();
+			float PixelToWorld = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, LineEnd);
+
+			// Draw the lines in both directions
+			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart + ActiveAxis * PixelToWorld * LineLength, FLinearColor::Red, SDPG_Foreground);
+			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart - ActiveAxis * PixelToWorld* LineLength, FLinearColor::Red, SDPG_Foreground);
+
+			// Figure out the correct thickness of the sphere in world coordinates
+			FVector CircleEndWithThickness = LineStart + ActiveAxis * UseThickness;
+			float ScreenThickness = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, CircleEndWithThickness);
+
+			UseThickness *= ScreenThickness;
+		}
+
+		DrawWireSphereAutoSides(RenderAPI->GetPrimitiveDrawInterface(), ActiveTarget->GetTransform(), FColor(200, 255, 255), Radius, SDPG_Foreground, UseThickness);
 	}
 }
 
-void UScalableSphereGizmo::Shutdown()
+FInputRayHit UScalableSphereGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
 {
-	if (GizmoActor)
+	FHitResult HitResult;
+	FVector HitAxis;
+	FTransform DragTransform;
+
+	if (HitTest(PressPos.WorldRay, HitResult, HitAxis, DragTransform))
 	{
-		GizmoActor->Destroy();
-		GizmoActor = nullptr;
+		bIsHovering = true;
+		DragStartWorldPosition = DragTransform.GetLocation();
+		ActiveAxis = HitAxis;
+		
+		return FInputRayHit(HitResult.Distance);
 	}
+	
+	// Return invalid ray hit to say we don't want to listen to hover input
+	return FInputRayHit();
+}
+
+bool UScalableSphereGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	if (!ActiveTarget)
+	{
+		return false;
+	}
+
+	FVector Start = DevicePos.WorldRay.Origin;
+	const float MaxRaycastDistance = 1e6f;
+	FVector End = DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * MaxRaycastDistance;
+
+	FRay HitCheckRay(Start, End - Start);
+	FHitResult HitResult;
+	FVector HitAxis;
+	FTransform DragTransform;
+
+	if (HitTest(HitCheckRay, HitResult, HitAxis, DragTransform))
+	{
+		bIsHovering = true;
+		DragStartWorldPosition = DragTransform.GetLocation();
+		ActiveAxis = HitAxis;
+		return true;
+	}
+
+	return false;
+}
+
+void UScalableSphereGizmo::OnEndHover()
+{
+	bIsHovering = false;
 }
 
 void UScalableSphereGizmo::SetTarget(UTransformProxy* InTarget)
 {
 	ActiveTarget = InTarget;
-
-	// Make sure the internal GizmoActor updates when the transform of the target is changed
-	ActiveTarget->OnTransformChanged.AddUObject(this, &UScalableSphereGizmo::OnTransformChanged);
-	
-	OnTransformChanged(InTarget, InTarget->GetTransform());
 }
 
-void UScalableSphereGizmo::SetWorld(UWorld* InWorld)
+bool UScalableSphereGizmo::CheckCircleIntersection(const FRay& Ray, FVector CircleNormal, FVector& OutHitLocation, FVector& OutHitAxis)
 {
-	World = InWorld;
+	// Find the intresection with the circle plane. Note that unlike the FMath version, GizmoMath::RayPlaneIntersectionPoint() 
+	// checks that the ray isn't parallel to the plane.
+	FVector WorldOrigin = ActiveTarget->GetTransform().GetLocation();
 
-}
+	FVector Start = Ray.Origin;
+	const float MaxRaycastDistance = 1e6f;
+	FVector End = Ray.Origin + Ray.Direction * MaxRaycastDistance;
 
-void UScalableSphereGizmo::CreateGizmoHandles()
-{
-	FActorSpawnParameters SpawnInfo;
-	GizmoActor = World->SpawnActor<AScalableSphereGizmoActor>(FVector::ZeroVector, FRotator::ZeroRotator, SpawnInfo);
+	FVector HitPos;
+	bool bIntersects = false;
 
-	// Create all the 6 handles in each direction
+	// Figure out if the ray intersects the circle plane
+	GizmoMath::RayPlaneIntersectionPoint(WorldOrigin, CircleNormal, Ray.Origin, Ray.Direction, bIntersects, HitPos);
 
-	auto NewHandle = [this] { return AGizmoActor::AddDefaultBoxComponent(World, GizmoActor, FLinearColor(1.0f, 0.0f, 0.0f), FVector::ZeroVector); };
-	GizmoActor->XPositive = NewHandle();
-	GizmoActor->XNegative = NewHandle();
-	GizmoActor->YPositive = NewHandle();
-	GizmoActor->YNegative = NewHandle();
-	GizmoActor->ZPositive = NewHandle();
-	GizmoActor->ZNegative = NewHandle();
+	if (!bIntersects || Ray.GetParameter(HitPos) > Ray.GetParameter(End))
+	{
+		return false;
+	}
 
-	UpdateGizmoHandles();
+	// Find the point on the circle closest to the intersection
+	FVector NearestCircle;
+	GizmoMath::ClosetPointOnCircle(HitPos, WorldOrigin, CircleNormal, Radius, NearestCircle);
 
-}
+	FVector NearestRay = Ray.ClosestPoint(NearestCircle);
 
-void UScalableSphereGizmo::UpdateGizmoHandles()
-{
-	GizmoActor->XPositive->SetRelativeLocation(FVector::XAxisVector * Radius);
-	GizmoActor->XNegative->SetRelativeLocation(-FVector::XAxisVector * Radius);
+	// Make sure the point is within a certain distance of the ray
+	double Distance = FVector::Distance(NearestCircle, NearestRay);
 
-	GizmoActor->YPositive->SetRelativeLocation(FVector::YAxisVector * Radius);
-	GizmoActor->YNegative->SetRelativeLocation(-FVector::YAxisVector * Radius);
+	if (Distance > HitErrorThreshold)
+	{
+		return false;
+	}
 
-	GizmoActor->ZPositive->SetRelativeLocation(FVector::ZAxisVector * Radius);
-	GizmoActor->ZNegative->SetRelativeLocation(-FVector::ZAxisVector * Radius);
-}
+	OutHitAxis = NearestCircle - WorldOrigin;
+	OutHitAxis.Normalize();
 
-void UScalableSphereGizmo::OnTransformChanged(UTransformProxy*, FTransform)
-{
-	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
-
-	FTransform TargetTransform = ActiveTarget->GetTransform();
-
-	// Don't scale the internal gizmo actor (only update position and rotation changes)
-	TargetTransform.SetScale3D(FVector(1, 1, 1));
-
-	GizmoComponent->SetWorldTransform(TargetTransform);
+	OutHitLocation = NearestCircle;
+	return true;
 }
 
 bool UScalableSphereGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FVector& OutAxis, FTransform &OutTransform)
@@ -131,49 +175,33 @@ bool UScalableSphereGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FVector&
 		return false;
 	}
 
-	FVector Start = Ray.Origin;
-	const float MaxRaycastDistance = 1e6f;
-	FVector End = Ray.Origin + Ray.Direction * MaxRaycastDistance;
+	FVector OutHitLocation;
+	FVector OutHitAxis;
 
-	FCollisionQueryParams Params;
+	if (CheckCircleIntersection(Ray, FVector::XAxisVector, OutHitLocation, OutHitAxis))
+	{
+		OutAxis = OutHitAxis;
+		OutTransform.SetIdentity();
+		OutTransform.SetTranslation(OutHitLocation);
 
-	// Check each actor to see if any of them were hit
-	if (GizmoActor->XPositive->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = FVector::XAxisVector;
-		OutTransform = GizmoActor->XPositive->GetComponentTransform();
-		return true;
-	}
-	if (GizmoActor->XNegative->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = -FVector::XAxisVector;
-		OutTransform = GizmoActor->XNegative->GetComponentTransform();
 		return true;
 	}
 
-	if (GizmoActor->YPositive->LineTraceComponent(OutHit, Start, End, Params))
+	if (CheckCircleIntersection(Ray, FVector::YAxisVector, OutHitLocation, OutHitAxis))
 	{
-		OutAxis = FVector::YAxisVector;
-		OutTransform = GizmoActor->YPositive->GetComponentTransform();
-		return true;
-	}
-	if (GizmoActor->YNegative->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = -FVector::YAxisVector;
-		OutTransform = GizmoActor->YNegative->GetComponentTransform();
+		OutAxis = OutHitAxis;
+		OutTransform.SetIdentity();
+		OutTransform.SetTranslation(OutHitLocation);
+
 		return true;
 	}
 
-	if (GizmoActor->ZPositive->LineTraceComponent(OutHit, Start, End, Params))
+	if (CheckCircleIntersection(Ray, FVector::ZAxisVector, OutHitLocation, OutHitAxis))
 	{
-		OutAxis = FVector::ZAxisVector;
-		OutTransform = GizmoActor->ZPositive->GetComponentTransform();
-		return true;
-	}
-	if (GizmoActor->ZNegative->LineTraceComponent(OutHit, Start, End, Params))
-	{
-		OutAxis = -FVector::ZAxisVector;
-		OutTransform = GizmoActor->ZNegative->GetComponentTransform();
+		OutAxis = OutHitAxis;
+		OutTransform.SetIdentity();
+		OutTransform.SetTranslation(OutHitLocation);
+
 		return true;
 	}
 
@@ -194,8 +222,6 @@ void UScalableSphereGizmo::SetRadius(float InRadius)
 	{
 		UpdateRadiusFunc(Radius);
 	}
-
-	UpdateGizmoHandles();
 }
 
 void UScalableSphereGizmo::OnBeginDrag(const FInputDeviceRay& Ray)

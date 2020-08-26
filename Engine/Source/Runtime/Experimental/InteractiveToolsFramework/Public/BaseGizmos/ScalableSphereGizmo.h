@@ -6,7 +6,6 @@
 #include "InteractiveGizmo.h"
 #include "InteractiveGizmoBuilder.h"
 #include "TransformProxy.h"
-#include "GizmoActor.h"
 #include "BaseBehaviors/BehaviorTargetInterfaces.h"
 #include "BaseBehaviors/AnyButtonInputBehavior.h"
 
@@ -21,48 +20,9 @@ public:
 	virtual UInteractiveGizmo* BuildGizmo(const FToolBuilderState& SceneState) const override;
 };
 
-UCLASS()
-class INTERACTIVETOOLSFRAMEWORK_API AScalableSphereGizmoActor : public AGizmoActor
-{
-	GENERATED_BODY()
-
-	public:
-
-	AScalableSphereGizmoActor();
-
-	// +X Axis Handle
-	UPROPERTY()
-	UPrimitiveComponent* XPositive;
-
-	// -X Axis Handle
-	UPROPERTY()
-	UPrimitiveComponent* XNegative;
-
-	// +Y Axis Handle
-	UPROPERTY()
-	UPrimitiveComponent* YPositive;
-
-	// -Y Axis Handle
-	UPROPERTY()
-	UPrimitiveComponent* YNegative;
-
-	// +Z Axis Handle
-	UPROPERTY()
-	UPrimitiveComponent* ZPositive;
-
-	// -Z Axis Handle
-	UPROPERTY()
-	UPrimitiveComponent* ZNegative;
-};
-
 /**
- * UScalableSphereGizmo provides a sphere that can be scaled in all directions by dragging it's handles
- *
- * The in-scene representation of the Gizmo is a AScalableSphereGizmoActor (or subclass).
- * This Actor has FProperty members for the various sub-widgets, each as a separate Component.
- * Any particular sub-widget of the Gizmo can be disabled by setting the respective
- * Actor Component to null.
- *
+ * UScalableSphereGizmo provides a sphere that can be scaled in all directions by dragging
+ * anywhere on the three axial circles that represent it
  */
 UCLASS()
 class INTERACTIVETOOLSFRAMEWORK_API UScalableSphereGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
@@ -71,27 +31,19 @@ class INTERACTIVETOOLSFRAMEWORK_API UScalableSphereGizmo : public UInteractiveGi
 
 public:
 	// UInteractiveGizmo interface
-
 	virtual void Setup() override;
-
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
-	virtual void Shutdown() override;
-
 	// IHoverBehaviorTarget interface
-	// TODO: Add HoverBehavior
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override { return FInputRayHit(); }
-	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override { return true; }
-	virtual void OnEndHover() override {}
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override { }
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos);
+	virtual void OnEndHover();
 	
 	/**
 	 * Set the Target to which the gizmo will be attached
 	 */
 	virtual void SetTarget(UTransformProxy* InTarget);
-
-	/* Set the World in which the GizmoActor will be spawned*/
-	virtual void SetWorld(UWorld* InWorld);
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
@@ -104,35 +56,34 @@ public:
 
 	/** Called when the radius is chaged (by dragging or setting). Sends new radius as parameter. */
 	TFunction<void(const float)> UpdateRadiusFunc = nullptr;
+
+	// The error threshold for hit detection with the sphere
+	UPROPERTY()
+	float HitErrorThreshold{ 12.f };
+
+	// The thickness of the sphere when being hovered over (in screen space)
+	UPROPERTY()
+	float HoverThickness{ 5.f };
+
 private:
 
-	/**
-	 * Create the GizmoActor and the handles
-	 */
-	void CreateGizmoHandles();
-
-	/**
-	 * Update the handles to the right position when the radius changes
-	 */
-	void UpdateGizmoHandles();
-
-	/**
-	 * Callback for when the ActiveTarget's transform is changed
-	 */
-	void OnTransformChanged(UTransformProxy*, FTransform);
-
+	// Check if the Circle represented by CircleNormal centered at the gizmos location has been hit by the Ray
+	bool CheckCircleIntersection(const FRay& Ray, FVector CircleNormal, FVector& OutHitLocation, FVector& OutHitAxis);
+	
 	// The radius of the sphere
 	UPROPERTY()
 	float Radius;
 
+	// The thickness of the sphere
 	UPROPERTY()
-	UWorld* World;
+	float Thickness{ 0.f };
+
+	// Whether the sphere is currently being hovered over
+	UPROPERTY()
+	bool bIsHovering{ false };
 
 	UPROPERTY()
 	UTransformProxy* ActiveTarget;
-
-	UPROPERTY()
-	AScalableSphereGizmoActor* GizmoActor;
 
 	// The current axis that is being dragged along
 	UPROPERTY()

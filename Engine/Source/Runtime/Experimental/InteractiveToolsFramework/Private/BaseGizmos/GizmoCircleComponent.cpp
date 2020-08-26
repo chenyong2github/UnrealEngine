@@ -23,6 +23,7 @@ public:
 		Thickness(InComponent->Thickness),
 		NumSides(InComponent->NumSides),
 		bViewAligned(InComponent->bViewAligned),
+		bDrawFullCircle(InComponent->bDrawFullCircle),
 		HoverThicknessMultiplier(InComponent->HoverSizeMultiplier)
 	{
 	}
@@ -70,6 +71,12 @@ public:
 				{
 					UseThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
 					BackThickness *= (View->FOV / 90.0);		// compensate for FOV scaling in Gizmos...
+				}
+
+				if (bDrawFullCircle)
+				{
+					BackThickness = UseThickness;
+					BackColor = Color;
 				}
 
 				const float	AngleDelta = 2.0f * PI / NumSides;
@@ -219,6 +226,7 @@ private:
 	float Thickness;
 	int NumSides;
 	bool bViewAligned;
+	bool bDrawFullCircle;
 	float HoverThicknessMultiplier;
 
 	// set on Component for use in ::GetDynamicMeshElements()
