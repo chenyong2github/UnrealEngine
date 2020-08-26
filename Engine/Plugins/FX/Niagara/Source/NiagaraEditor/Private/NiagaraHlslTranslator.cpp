@@ -173,6 +173,158 @@ ENiagaraScriptCompileStatus FNiagaraTranslateResults::TranslateResultsToSummary(
 	return SummaryStatus;
 }
 
+// helper struct to provide an RAII interface for handling permutations scoping.  We either implement preprocessor directives
+// for creating different permutations, or if the Translator doesn't support it, then we fall back to static branches where
+// possible (this is not viable for declarations in the code)
+enum class EPermutationScopeContext
+{
+	Declaration,
+	Expression
+};
+
+template<EPermutationScopeContext Scope>
+struct TSimStagePermutationContext
+{
+	TSimStagePermutationContext(FString& InHlslOutput)
+		: HlslOutput(InHlslOutput)
+		, Enabled(false)
+		, UsingShaderPermutations(false)
+		, HasBranch(false)
+	{}
+
+	TSimStagePermutationContext(const FHlslNiagaraTranslator& Translator, const FHlslNiagaraTranslationStage& TranslationStage, FString& InHlslOutput)
+		: HlslOutput(InHlslOutput)
+		, Enabled(false)
+		, UsingShaderPermutations(false)
+		, HasBranch(false)
+	{
+		AddBranch(Translator, TranslationStage);
+	}
+
+	TSimStagePermutationContext(const FHlslNiagaraTranslator& Translator, TConstArrayView<FHlslNiagaraTranslationStage> TranslationStages, TConstArrayView<int32> StageIndices, FString& InHlslOutput)
+		: HlslOutput(InHlslOutput)
+		, Enabled(false)
+		, UsingShaderPermutations(false)
+		, HasBranch(false)
+	{
+		AddBranchInternal(Translator, TranslationStages, StageIndices);
+	}
+
+	~TSimStagePermutationContext()
+	{
+		Release();
+	}
+
+	void AddBranch(const FHlslNiagaraTranslator& Translator, const FHlslNiagaraTranslationStage& TranslationStage)
+	{
+		AddBranchInternal(Translator, MakeArrayView(&TranslationStage, 1), MakeArrayView<int32>({0}));
+	}
+	
+	void Release()
+	{
+		if (Enabled)
+		{
+			if (UsingShaderPermutations)
+			{
+				HlslOutput.Appendf(TEXT("#endif // %s\n"), *TranslationStageName);
+			}
+			else
+			{
+				HlslOutput.Appendf(TEXT("} // %s\n"), *TranslationStageName);
+			}
+			Enabled = false;
+		}
+	}
+
+private:
+	FString BuildConditionString(TConstArrayView<FHlslNiagaraTranslationStage> TranslationStages, TConstArrayView<int32> StageIndices)
+	{
+		FString ConditionString;
+
+		const int32 StageIndexCount = StageIndices.Num();
+		for (int32 i = 0; i < StageIndexCount; ++i)
+		{
+			const int32 StageIndex = StageIndices[i];
+
+			if (i)
+			{
+				ConditionString.Append(TEXT(" || "));
+			}
+			ConditionString.Appendf(TEXT("((SimulationStageIndex >= %d) && (SimulationStageIndex < %d))"),
+				TranslationStages[StageIndex].SimulationStageIndexMin,
+				TranslationStages[StageIndex].SimulationStageIndexMax);
+		}
+
+		return ConditionString;
+	}
+
+	void AddBranchInternal(const FHlslNiagaraTranslator& Translator, TConstArrayView<FHlslNiagaraTranslationStage> TranslationStages, TConstArrayView<int32> StageIndices)
+	{
+		if (Translator.GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim && StageIndices.Num()
+			&& Translator.GetUsesSimulationStages())
+		{
+			const bool SupportsShaderPermutations = Translator.GetUseShaderPermutations();
+
+			if (SupportsShaderPermutations || Scope == EPermutationScopeContext::Expression)
+			{
+				Enabled = true;
+				UsingShaderPermutations = SupportsShaderPermutations;
+				
+				const FString PreviousTranslationStageName = TranslationStageName;
+				TranslationStageName = StageIndices.Num() > 1 ? TEXT("Multiple stages") : TranslationStages[StageIndices[0]].PassNamespace;
+
+				FString ConditionString = BuildConditionString(TranslationStages, StageIndices);
+
+				if (UsingShaderPermutations)
+				{
+					if (HasBranch)
+					{
+						HlslOutput.Appendf(TEXT(
+							"#elif (%s) // %s\n"),
+							*ConditionString,
+							*TranslationStageName);
+					}
+					else
+					{
+						HlslOutput.Appendf(TEXT("#if (%s) // %s\n"),
+							*ConditionString,
+							*TranslationStageName);
+					}
+				}
+				else
+				{
+					if (HasBranch)
+					{
+						HlslOutput.Appendf(TEXT(
+							"} // %s\n"
+							"else if (%s) // %s\n"
+							"{\n"),
+							*PreviousTranslationStageName,
+							*ConditionString,
+							*TranslationStageName);
+					}
+					else
+					{
+						HlslOutput.Appendf(TEXT("BRANCH\nif (%s) // %s\n{\n"),
+							*ConditionString,
+							*TranslationStageName);
+					}
+				}
+
+				HasBranch = true;
+			}
+		}
+	}
+
+	FString& HlslOutput;
+	FString TranslationStageName;
+	bool Enabled;
+	bool UsingShaderPermutations;
+	bool HasBranch;
+};
+
+typedef TSimStagePermutationContext<EPermutationScopeContext::Declaration> FDeclarationPermutationContext;
+typedef TSimStagePermutationContext<EPermutationScopeContext::Expression> FExpressionPermutationContext;
 
 FString FHlslNiagaraTranslator::GetCode(int32 ChunkIdx)
 {
@@ -417,13 +569,14 @@ FString FHlslNiagaraTranslator::GetFunctionDefinitions()
 	FString FwdDeclString;
 	FString DefinitionsString;
 
-	for (TPair<FNiagaraFunctionSignature, FString> FuncPair : Functions)
+	for (const auto& FuncPair : Functions)
 	{
 		FString Sig = GetFunctionSignature(FuncPair.Key);
 		FwdDeclString += Sig + TEXT(";\n");
-		if (!FuncPair.Value.IsEmpty())
+		if (!FuncPair.Value.Body.IsEmpty())
 		{
-			DefinitionsString += Sig + TEXT("\n{\n") + FuncPair.Value + TEXT("}\n\n");
+			FDeclarationPermutationContext PermutationContext(*this, TranslationStages, FuncPair.Value.StageIndices, DefinitionsString);
+			DefinitionsString += Sig + TEXT("\n{\n") + FuncPair.Value.Body + TEXT("}\n\n");
 		}
 		// Don't do anything if the value is empty on the function pair, as this is indicative of 
 		// data interface functions that should be defined differently.
@@ -1237,6 +1390,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		}
 	}
 
+	PerStageMainPreSimulateChunks.SetNum(TranslationStages.Num());
 
 	// Get all the parameter map histories traced to this graph from output nodes. We'll revisit this shortly in order to build out just the ones we care about for this translation.
 	if (ParamMapHistories.Num() == 1 && OtherOutputParamMapHistories.Num() == 1 && (CompileOptions.TargetUsage == ENiagaraScriptUsage::Function || CompileOptions.TargetUsage == ENiagaraScriptUsage::DynamicInput))
@@ -1620,6 +1774,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			{
 				for (int32 i = 0; i < TranslationStages.Num(); i++)
 				{
+					FDeclarationPermutationContext PermutationContext(*this, TranslationStages[i], HlslOutput);
 					HlslOutput += TEXT("\tFParamMap0 ") + TranslationStages[i].PassNamespace + TEXT(";\n");
 				}
 			}
@@ -1671,13 +1826,14 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		DefineDataSetReadFunction(HlslOutput, CompilationOutput.ScriptData.ReadDataSets);
 		DefineDataSetWriteFunction(HlslOutput, CompilationOutput.ScriptData.WriteDataSets, WriteConditionVars);
 
-
 		//Define the shared per instance simulation function
 		// for interpolated scripts AND GPU sim, define spawn and sim in separate functions
 		if (TranslationStages.Num() > 1)
 		{
 			for (int32 StageIdx = 0; StageIdx < TranslationStages.Num(); StageIdx++)
 			{
+				FDeclarationPermutationContext PermutationContext(*this, TranslationStages[StageIdx], HlslOutput);
+
 				HlslOutput += TEXT("void Simulate") + TranslationStages[StageIdx].PassNamespace + TEXT("(inout FSimulationContext Context)\n{\n");
 				int32 ChunkMode = (int32)TranslationStages[StageIdx].ChunkModeIndex;
 				for (int32 i = 0; i < ChunksByMode[ChunkMode].Num(); ++i)
@@ -1938,6 +2094,8 @@ void FHlslNiagaraTranslator::DefineInterpolatedParametersFunction(FString &HlslO
 		FString PrevMap = TranslationStages[i - 1].PassNamespace;
 		FString CurMap = TranslationStages[i].PassNamespace;
 		{
+			FExpressionPermutationContext PermutationContext(*this, TranslationStages[i], HlslOutputString);
+
 			HlslOutputString += TEXT("\tint InterpSpawn_Index = ExecIndex();\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_SpawnTime = ") + Emitter_InterpSpawnStartDt + TEXT(" + (") + Emitter_SpawnInterval + TEXT(" * InterpSpawn_Index);\n");
 			HlslOutputString += TEXT("\tfloat InterpSpawn_UpdateTime = Engine_DeltaTime - InterpSpawn_SpawnTime;\n");
@@ -2267,13 +2425,24 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	HlslOutput += TEXT("void InitConstants(inout FSimulationContext Context)\n{\n");
 	{
 		// Fill in the defaults for parameters.
-		for (const FString& InitChunk : MainPreSimulateChunks)
+		const int32 StageCount = PerStageMainPreSimulateChunks.Num();
+		for (int32 StageIdx = 0; StageIdx < StageCount; ++StageIdx)
 		{
-			HlslOutput += TEXT("\t") + InitChunk + TEXT("\n");
+			const TArray<FString>& MainPreSimulateChunks = PerStageMainPreSimulateChunks[StageIdx];
 
-			if (InitChunk.Contains(TEXT("Emitter_SpawnGroup;")))
+			if (MainPreSimulateChunks.Num())
 			{
-				EmitterSpawnGroupReinit.Add(InitChunk);
+				FExpressionPermutationContext PermutationContext(*this, TranslationStages[StageIdx], HlslOutput);
+
+				for (const FString& InitChunk : MainPreSimulateChunks)
+				{
+					HlslOutput += TEXT("\t") + InitChunk + TEXT("\n");
+
+					if (InitChunk.Contains(TEXT("Emitter_SpawnGroup;")))
+					{
+						EmitterSpawnGroupReinit.Add(InitChunk);
+					}
+				}
 			}
 		}
 	}
@@ -2283,6 +2452,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	// InitSpawnVariables()
 	HlslOutput += TEXT("void InitSpawnVariables(inout FSimulationContext Context)\n{\n");
 	{
+		FExpressionPermutationContext PermutationContext(HlslOutput);
+		
+		if (TranslationStages.Num() > 1)
+		{
+			PermutationContext.AddBranch(*this, TranslationStages[0]);
+		}
+
 		// Reset constant that have been modified by GetEmitterSpawnInfoForParticle()
 		if (EmitterSpawnGroupReinit.Num())
 		{
@@ -2329,6 +2505,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	// LoadUpdateVariables()
 	HlslOutput += TEXT("void LoadUpdateVariables(inout FSimulationContext Context, int InstanceIdx)\n{\n");
 	{
+		FExpressionPermutationContext PermutationContext(HlslOutput);
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
@@ -2338,24 +2515,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				continue;
 			}
 
-			if (TranslationStages.Num() > 2)
-			{
-				if (StartIdx == i)
-				{
-					HlslOutput += TEXT("\tBRANCH\n\tif ");
-				}
-				else
-				{
-					HlslOutput += TEXT("\telse if ");
-				}
-
-				HlslOutput += FString::Printf(TEXT("(SimulationStageIndex >= %d && SimulationStageIndex < %d)\n"
-					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
-			}
-			else
-			{
-				// No need to add anything here..
-			}
+			PermutationContext.AddBranch(*this, TranslationStages[i]);
 
 			FString ContextName = TEXT("\t\tContext.Map.");
 			if (TranslationStages.Num() > 1) // Second context is "MapUpdate"
@@ -2440,11 +2600,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			{
 				HlslOutput += ContextName + TEXT("DataInstance.Alive=true;\n");
 			}
-
-			if (TranslationStages.Num() > 2)
-			{
-				HlslOutput += TEXT("\t}\n");
-			}
 		}
 	}
 	HlslOutput += TEXT("}\n\n");
@@ -2466,23 +2621,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	
 	HlslOutput += TEXT("void TransferAttributes(inout FSimulationContext Context)\n{\n");
 	{
+		FExpressionPermutationContext PermutationContext(HlslOutput);
+
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
-			if (TranslationStages.Num() > 2)
-			{
-				if (StartIdx == i)
-				{
-					HlslOutput += TEXT("\tBRANCH\n\tif "); 
-				}
-				else
-				{
-					HlslOutput += TEXT("\telse if ");
-				}
-
-				HlslOutput += FString::Printf(TEXT("(SimulationStageIndex >= %d && SimulationStageIndex < %d)\n"
-					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax );
-			}
+			PermutationContext.AddBranch(*this, TranslationStages[i]);
 
 			if (TranslationStages[i].bCopyPreviousParams)
 			{
@@ -2514,11 +2658,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					}
 				}
 			}
-			
-			if (TranslationStages.Num() > 2)
-			{
-				HlslOutput += TEXT("\t}\n");
-			}
+		
 		}
 	}
 	HlslOutput += TEXT("}\n\n");
@@ -2528,6 +2668,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 	HlslOutput += TEXT("void StoreUpdateVariables(in FSimulationContext Context)\n{\n");
 	{
+		FExpressionPermutationContext PermutationContext(HlslOutput);
+
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
@@ -2544,20 +2686,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				continue;
 			}
 
-			if (TranslationStages.Num() > 2)
-			{
-				if (StartIdx == i)
-				{
-					HlslOutput += TEXT("\tBRANCH\n\tif ");
-				}
-				else
-				{
-					HlslOutput += TEXT("\telse if ");
-				}
-
-				HlslOutput += FString::Printf(TEXT("(SimulationStageIndex >= %d && SimulationStageIndex < %d)\n"
-					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
-			}
+			PermutationContext.AddBranch(*this, TranslationStages[i]);
 
 			bool bWriteInstanceCount = !TranslationStages[i].bPartialParticleUpdate;
 			if (TranslationStages[i].bWritesAlive || (i == 1 && TranslationStages[0].bWritesAlive))
@@ -2620,8 +2749,6 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 						"\t\t}\n"
 					);
 				}
-
-				HlslOutput += TEXT("\t}\n");
 			}
 
 		}
@@ -2634,31 +2761,12 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 	//HlslOutput += TEXT("void SimulateDoWork(in FSimulationContext Context)\n{\n");
 	FString SimDoWorkString;// = TEXT("\t{ \n");
 	{
+		FExpressionPermutationContext PermutationContext(SimDoWorkString);
 		int32 StartIdx = 1;
 		for (int32 i = StartIdx; i < TranslationStages.Num(); i++)
 		{
-			if (TranslationStages.Num() > 2)
-			{
-				if (StartIdx == i)
-				{
-					SimDoWorkString += TEXT("\t\t//BRANCH\n\t\tif (SimulationStageIndex == 0)\n"
-						"\t\t{\n");
-					SimDoWorkString += TEXT("\t\t\tSimulate") + TranslationStages[i].PassNamespace + TEXT("(Context); \n");
-				}
-				else
-				{
-					SimDoWorkString += TEXT("\t\telse if ");
-					SimDoWorkString += FString::Printf(TEXT("(SimulationStageIndex >= %d && SimulationStageIndex < %d)\n"
-						"\t\t{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
-
-					SimDoWorkString += TEXT("\t\t\tSimulate") + TranslationStages[i].PassNamespace + TEXT("(Context); \n");
-				}
-				SimDoWorkString += TEXT("\t\t}\n");
-			}
-			else
-			{
-				SimDoWorkString += TEXT("\t\tSimulate") + TranslationStages[i].PassNamespace + TEXT("(Context); \n");
-			}
+			PermutationContext.AddBranch(*this, TranslationStages[i]);
+			SimDoWorkString += TEXT("\t\tSimulate") + TranslationStages[i].PassNamespace + TEXT("(Context); \n");
 		}
 		//SimDoWorkString += TEXT("\t}\n");
 	}
@@ -2695,6 +2803,23 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 #endif
 	}
 	HlslOutput += TEXT("}\n");
+
+	FString SpawnLogicString;
+	
+	{
+		FExpressionPermutationContext PermutationContext(SpawnLogicString);
+		
+		if (TranslationStages.Num() > 1)
+		{
+			PermutationContext.AddBranch(*this, TranslationStages[0]);
+		}
+
+		SpawnLogicString += TEXT(
+				"		Context.MapSpawn.Particles.UniqueID = Engine_Emitter_TotalSpawnedParticles + ExecIndex(); \n"
+				"		ConditionalInterpolateParameters(Context); \n"
+				"		SimulateMapSpawn(Context); \n"
+				"		\n");
+	}
 	
 	HlslOutput +=
 		TEXT("\n\n/*\n"
@@ -2777,11 +2902,8 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		InitConstants(Context); \n"
 			"		InitSpawnVariables(Context); \n"
 			"		ReadDataSets(Context); \n"
-			"		\n"
-			"		Context.MapSpawn.Particles.UniqueID = Engine_Emitter_TotalSpawnedParticles + ExecIndex(); \n"
-			"		ConditionalInterpolateParameters(Context); \n"
-			"		SimulateMapSpawn(Context); \n"
-			"		\n"
+			"		\n") + SpawnLogicString
+			+ TEXT(
 			"		GCurrentPhase = GUpdatePhase; \n"
 			"		\n"
 			"		TransferAttributes(Context); \n"
@@ -2878,9 +3000,12 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 	}
 
 	// Fill in the defaults for parameters.
-	for (int32 i = 0; i < MainPreSimulateChunks.Num(); ++i)
+	for (const auto& PerStageChunks : PerStageMainPreSimulateChunks)
 	{
-		OutHlslOutput += TEXT("\t") + MainPreSimulateChunks[i] + TEXT("\n");
+		for (const auto& Chunk : PerStageChunks)
+		{
+			OutHlslOutput += TEXT("\t") + Chunk + TEXT("\n");
+		}
 	}
 
 	// call the read data set function
@@ -4662,7 +4787,7 @@ bool FHlslNiagaraTranslator::ParameterMapRegisterExternalConstantNamespaceVariab
 			if ((bUseSimulationStages && !FNiagaraParameterMapHistory::IsInNamespace(InVariable, PARAM_MAP_INDICES_STR)) || !bUseSimulationStages)
 			{
 				//Add this separately as the same uniform can appear in the pre sim chunks more than once in different param maps.
-				MainPreSimulateChunks.AddUnique(FString::Printf(TEXT("%s.%s = %s;"), *ParameterMapInstanceName, *GetSanitizedSymbolName(VarName), *GetCodeAsSource(UniformChunk)));
+				PerStageMainPreSimulateChunks[ActiveStageIdx].AddUnique(FString::Printf(TEXT("%s.%s = %s;"), *ParameterMapInstanceName, *GetSanitizedSymbolName(VarName), *GetCodeAsSource(UniformChunk)));
 			}
 		}
 		else if (bIsPerInstanceBulkSystemParam && !ExternalVariablesForBulkUsage.Contains(InVariable))
@@ -6272,7 +6397,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		// 		}
 		// 		Inputs = OrderedInputChunks;
 
-		FString* FuncBody = Functions.Find(OutSignature);
+		FNiagaraFunctionBody* FuncBody = Functions.Find(OutSignature);
 		if (!FuncBody)
 		{
 			SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_FuncBody);
@@ -6408,9 +6533,12 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 
 			{
 				SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_RegisterFunctionCall_FunctionDefStr);
+
+				FNiagaraFunctionBody& FunctionBody = Functions.Add(OutSignature);
+
 				//Grab all the body chunks for this function.
-				FString FunctionDefStr;
-				FunctionDefStr.Reserve(256 * ChunksByMode[(int32)ENiagaraCodeChunkMode::Body].Num());
+				FunctionBody.StageIndices.AddUnique(ActiveStageIdx);
+				FunctionBody.Body.Reserve(256 * ChunksByMode[(int32)ENiagaraCodeChunkMode::Body].Num());
 
 				if (bIsModuleFunction)
 				{
@@ -6418,27 +6546,27 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 					{
 						if (bStageMinFilter && bStageMaxFilter)
 						{
-							FunctionDefStr += TEXT("if ((GCurrentPhase == GUpdatePhase && SimulationStageIndex >= ") + MinParam + TEXT(" && SimulationStageIndex <= ") + MaxParam + TEXT(") || ") +
+							FunctionBody.Body += TEXT("if ((GCurrentPhase == GUpdatePhase && SimulationStageIndex >= ") + MinParam + TEXT(" && SimulationStageIndex <= ") + MaxParam + TEXT(") || ") +
 								TEXT("(GCurrentPhase == GSpawnPhase && SimulationStageIndex >= ") + MinParamSpawn + TEXT(" && SimulationStageIndex <= ") + MaxParamSpawn + TEXT(")") +
 								TEXT(")\n{\n");
 						}
 						else
 						{
-							FunctionDefStr += TEXT("if ((GCurrentPhase == GSpawnPhase && SimulationStageIndex == 0) || (GCurrentPhase == GUpdatePhase && SimulationStageIndex == DefaultSimulationStageIndex))\n{\n");
+							FunctionBody.Body += TEXT("if ((GCurrentPhase == GSpawnPhase && SimulationStageIndex == 0) || (GCurrentPhase == GUpdatePhase && SimulationStageIndex == DefaultSimulationStageIndex))\n{\n");
 						}
 					}
 				}
 
 				for (int32 i = ChunkStartsByMode[(int32)ENiagaraCodeChunkMode::Body]; i < ChunksByMode[(int32)ENiagaraCodeChunkMode::Body].Num(); ++i)
 				{
-					FunctionDefStr += GetCode(ChunksByMode[(int32)ENiagaraCodeChunkMode::Body][i]);
+					FunctionBody.Body += GetCode(ChunksByMode[(int32)ENiagaraCodeChunkMode::Body][i]);
 				}
 
 				if (bIsModuleFunction)
 				{
 					if (UseOldShaderStages)
 					{
-						FunctionDefStr += TEXT("}\n");
+						FunctionBody.Body += TEXT("}\n");
 					}
 				}
 
@@ -6488,12 +6616,11 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 				}
 
 				// We don't support an empty function definition when calling a real function.
-				if (FunctionDefStr.IsEmpty())
+				if (FunctionBody.Body.IsEmpty())
 				{
-					FunctionDefStr += TEXT("\n");
+					FunctionBody.Body += TEXT("\n");
 				}
 
-				Functions.Add(OutSignature, FunctionDefStr);
 				FunctionStageWriteTargets.Add(OutSignature, ActiveStageWriteTargets.Top());
 			}
 
@@ -6501,6 +6628,8 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		}
 		else
 		{
+			FuncBody->StageIndices.AddUnique(ActiveStageIdx);
+
 			// Just because we had a cached call, doesn't mean that we should ignore adding an writetargets
 			TArray<FName>* Entries = FunctionStageWriteTargets.Find(OutSignature);
 			if (Entries)
@@ -6529,23 +6658,29 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		//First input for these is the owner of the function.
 		if (bIsCustomHlsl)
 		{
-			FString* FuncBody = Functions.Find(OutSignature);
+			FNiagaraFunctionBody* FuncBody = Functions.Find(OutSignature);
 			if (!FuncBody)
 			{
 				//We've not compiled this function yet so compile it now.
 				EnterFunction(InName, OutSignature, Inputs, CallNodeId);
 
-				FString FunctionDefStr = InCustomHlsl;
+				FNiagaraFunctionBody& FunctionBody = Functions.Add(OutSignature);
+				FunctionBody.Body = InCustomHlsl;
+				FunctionBody.StageIndices.AddUnique(ActiveStageIdx);
+
 				// We don't support an empty function definition when calling a real function.
-				if (FunctionDefStr.IsEmpty())
+				if (FunctionBody.Body.IsEmpty())
 				{
-					FunctionDefStr += TEXT("\n");
+					FunctionBody.Body += TEXT("\n");
 				}
 
-				Functions.Add(OutSignature, FunctionDefStr);
 				FunctionStageWriteTargets.Add(OutSignature, ActiveStageWriteTargets.Top());
 
 				ExitFunction();
+			}
+			else
+			{
+				FuncBody->StageIndices.AddUnique(ActiveStageIdx);
 			}
 		}
 		else if (!InSignature.bMemberFunction) // Fastpath or other provided function
