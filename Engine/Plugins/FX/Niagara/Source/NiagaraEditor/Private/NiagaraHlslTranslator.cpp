@@ -1185,10 +1185,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		return TranslateResults;
 	}
 
-	// The Call ID is changed every time a compiled node requests it, but we want to randomize it a bit from the start.
-	// Otherwise compilation units all start from the same ID (resulting in the same chain of generated randoms).
-	CurrentCallID = (int32)(GetTypeHash(CompileOptions.FullName) + GetTypeHash(CompileData->Source->NodeGraph->GraphGuid));
-
 	switch (CompileOptions.TargetUsage)
 	{
 	case ENiagaraScriptUsage::ParticleSpawnScriptInterpolated:
@@ -1543,6 +1539,11 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 			if (UNiagaraScript::IsParticleUpdateScript(TranslationStages[i].ScriptUsage))
 			{
 				AddBodyComment(TEXT("//Begin Update Script!"));
+
+				// We reset the counter for deterministic randoms to get parity between the standalone update script
+				// and the update script part in the interpolated spawn script
+				AddBodyChunk(TEXT("RandomCounterDeterministic = 0;"));
+				
 				//Now we compile the update script (with partial dt) and read from the temp values written above.
 				CurrentParamMapIndices.Empty();
 				CurrentParamMapIndices.Add(1);
@@ -7505,6 +7506,18 @@ bool FHlslNiagaraTranslator::GetFunctionParameter(const FNiagaraVariable& Parame
 		return true;
 	}
 	return false;
+}
+
+int32 FHlslNiagaraTranslator::GetUniqueCallerID()
+{
+	if (!TranslationStages[ActiveStageIdx].bCallIDInitialized)
+	{
+		// The Call ID is changed every time a compiled node requests it, but we want to randomize it a bit from the start.
+		// Otherwise compilation units all start from the same ID (resulting in the same chain of generated randoms).
+		TranslationStages[ActiveStageIdx].CurrentCallID = (int32)(GetTypeHash(CompileData->EmitterUniqueName) + (uint8)TranslationStages[ActiveStageIdx].ScriptUsage * 1024);
+		TranslationStages[ActiveStageIdx].bCallIDInitialized = true;
+	}
+	return TranslationStages[ActiveStageIdx].CurrentCallID++;
 }
 
 bool FHlslNiagaraTranslator::CanReadAttributes()const
