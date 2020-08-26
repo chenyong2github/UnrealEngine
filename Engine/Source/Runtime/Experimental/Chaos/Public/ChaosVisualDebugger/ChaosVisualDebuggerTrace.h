@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "chaos/vector.h"
+#include "Chaos/Vector.h"
 
 
 #if UE_TRACE_ENABLED
