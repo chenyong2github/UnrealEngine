@@ -49,8 +49,11 @@
 #include "SSequencerTrackArea.h"
 #include "SSequencerTrackOutliner.h"
 #include "DragAndDrop/AssetDragDropOp.h"
+#include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/ClassDragDropOp.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
+#include "DragAndDrop/FolderDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "SSequencerTreeView.h"
 #include "MovieSceneTrackEditor.h"
@@ -95,6 +98,7 @@
 #include "SequencerTrackFilters.h"
 #include "SequencerTrackFilterExtension.h"
 #include "SequencerCustomizationManager.h"
+#include "EngineUtils.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -338,6 +342,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	RootCustomization.OnAssetsDrop = InArgs._OnAssetsDrop;
 	RootCustomization.OnClassesDrop = InArgs._OnClassesDrop;
 	RootCustomization.OnActorsDrop = InArgs._OnActorsDrop;
+	RootCustomization.OnCompositeDrop = InArgs._OnCompositeDrop;
 
 	// Get the desired display format from the user's settings each time.
 	TAttribute<EFrameNumberDisplayFormats> GetDisplayFormatAttr = MakeAttributeLambda(
@@ -2914,7 +2919,8 @@ FReply SSequencer::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 	if (Operation.IsValid() && (
 		Operation->IsOfType<FAssetDragDropOp>() ||
 		Operation->IsOfType<FClassDragDropOp>() ||
-		Operation->IsOfType<FActorDragDropGraphEdOp>() ) )
+		Operation->IsOfType<FActorDragDropGraphEdOp>() ||
+		Operation->IsOfType<FCompositeDragDropOp>() ) )
 	{
 		bIsDragSupported = true;
 	}
@@ -2973,6 +2979,13 @@ FReply SSequencer::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 			const auto& DragDropOp = StaticCastSharedPtr<FActorDragDropGraphEdOp>( Operation );
 
 			OnActorsDropped( *DragDropOp );
+			bWasDropHandled = true;
+		}
+		else if (Operation->IsOfType<FCompositeDragDropOp>())
+		{
+			const auto& DragDropOp = StaticCastSharedPtr<FCompositeDragDropOp>(Operation);
+
+			OnCompositeDropped(*DragDropOp);
 			bWasDropHandled = true;
 		}
 	}
@@ -3183,6 +3196,70 @@ void SSequencer::OnActorsDropped( FActorDragDropGraphEdOp& DragDropOp )
 	if (DropResult == ESequencerDropResult::Unhandled)
 	{
 		SequencerPtr.Pin()->OnActorsDropped(DragDropOp.Actors);
+	}
+}
+
+void SSequencer::OnCompositeDropped( FCompositeDragDropOp& DragDropOp )
+{
+	const FScopedTransaction Transaction(LOCTEXT("DropActors", "Drop Actors"));
+
+	ESequencerDropResult DropResult = ESequencerDropResult::Unhandled;
+
+	TArray<TWeakObjectPtr<AActor>> DraggedActors;
+	FFolderDragDropOp* FolderDrag = DragDropOp.GetSubOp<FFolderDragDropOp>().Get();
+	FActorDragDropOp* ActorDrag = DragDropOp.GetSubOp<FActorDragDropOp>().Get();
+	if (ActorDrag)
+	{
+		DraggedActors.Reserve(ActorDrag->Actors.Num());
+		for (TWeakObjectPtr<AActor> WeakActor : ActorDrag->Actors)
+		{
+			if (AActor* Actor = WeakActor.Get())
+			{
+				DraggedActors.Add(Actor);
+			}
+		}
+	}
+
+	if (FolderDrag)
+	{
+		// Copy the array onto the stack if it's within a reasonable size
+		TArray<FName, TInlineAllocator<16>> DraggedFolders(FolderDrag->Folders);
+
+		// Find any actors in the global editor world that have any of the dragged paths.
+		// WARNING: Actor iteration can be very slow, so this needs to be optimized
+		TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
+		UObject* PlaybackContext = Sequencer->GetPlaybackContext();
+		UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
+		if (World)
+		{
+			for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
+			{
+				FName ActorPath = ActorIt->GetFolderPath();
+				if (ActorPath.IsNone() || !DraggedFolders.Contains(ActorPath))
+				{
+					continue;
+				}
+
+				DraggedActors.Add(*ActorIt);
+			}		
+		}
+	}	
+	
+	for (FOnCompositeDrop Delegate : OnCompositeDrop)
+	{
+		if (Delegate.IsBound())
+		{
+			DropResult = Delegate.Execute(DraggedActors, DragDropOp);
+			if (DropResult != ESequencerDropResult::Unhandled)
+			{
+				break;
+			}
+		}
+	}
+
+	if (DropResult == ESequencerDropResult::Unhandled)
+	{
+		SequencerPtr.Pin()->OnActorsDropped(DraggedActors);
 	}
 }
 
@@ -3894,6 +3971,7 @@ void SSequencer::ApplySequencerCustomizations(const TArray<FSequencerCustomizati
 	OnAssetsDrop.Reset();
 	OnActorsDrop.Reset();
 	OnClassesDrop.Reset();
+	OnCompositeDrop.Reset();
 
 	ApplySequencerCustomization(RootCustomization);
 	for (const FSequencerCustomizationInfo& Info : Customizations)
@@ -3934,6 +4012,10 @@ void SSequencer::ApplySequencerCustomization(const FSequencerCustomizationInfo& 
 	if (Customization.OnClassesDrop.IsBound())
 	{
 		OnClassesDrop.Add(Customization.OnClassesDrop);
+	}
+	if (Customization.OnCompositeDrop.IsBound())
+	{
+		OnCompositeDrop.Add(Customization.OnCompositeDrop);
 	}
 }
 
