@@ -79,27 +79,25 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 
 	// Find nDisplay root actor
 	DisplayClusterRootActor = FindDisplayClusterRootActor(InWorld);
+
 	if (!DisplayClusterRootActor)
 	{
 		// Also search inside streamed levels
 		const TArray<ULevelStreaming*>& StreamingLevels = InWorld->GetStreamingLevels();
+
 		for (const ULevelStreaming* StreamingLevel : StreamingLevels)
 		{
-			switch (StreamingLevel->GetCurrentState())
-			{
-			case ULevelStreaming::ECurrentState::LoadedVisible:
+			if (StreamingLevel && (StreamingLevel->GetCurrentState() == ULevelStreaming::ECurrentState::LoadedVisible))
 			{
 				// Look for the actor in those sub-levels that have been loaded already
 				const TSoftObjectPtr<UWorld>& SubWorldAsset = StreamingLevel->GetWorldAsset();
 				DisplayClusterRootActor = FindDisplayClusterRootActor(SubWorldAsset.Get());
+
 				if (DisplayClusterRootActor)
 				{
+					// Ok, we found it in a sublevel
 					break;
 				}
-			}
-
-			default:
-				break;
 			}
 		}
 	}
