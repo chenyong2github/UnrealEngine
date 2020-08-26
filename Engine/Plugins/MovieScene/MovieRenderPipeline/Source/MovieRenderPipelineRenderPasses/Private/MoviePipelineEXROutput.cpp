@@ -194,7 +194,7 @@ bool FEXRImageWriteTask::WriteToDisk()
 			// To complete the file, EXR seeks back into the file and writes the scanline offsets when the file is closed, 
 			// which moves the tellp location. So file length is stored in advance for later use. The output file needs to be
 			// created after the header information is filled.
-			Imf::OutputFile ImfFile(OutputFile, Header);
+			Imf::OutputFile ImfFile(OutputFile, Header, FPlatformMisc::NumberOfCoresIncludingHyperthreads());
 #if WITH_EDITOR
 			try
 #endif
