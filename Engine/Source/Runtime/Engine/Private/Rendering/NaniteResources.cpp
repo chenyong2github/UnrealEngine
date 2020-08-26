@@ -105,7 +105,7 @@ void FResources::ReleaseResources()
 		return;
 	}
 
-	if (PageStreamingStates.Num() == 0 || RootClusterPage.Num() == 0)
+	if (PageStreamingStates.Num() == 0)
 	{
 		return;
 	}
