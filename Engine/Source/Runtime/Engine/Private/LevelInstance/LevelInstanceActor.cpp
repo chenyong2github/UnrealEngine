@@ -114,15 +114,15 @@ void ALevelInstance::PostUnregisterAllComponents()
 void ALevelInstance::LoadLevelInstance()
 {
 #if WITH_EDITOR
-	if (!bGuardLoadUnload)
+	if (!bGuardLoadUnload && !bIsEditorPreviewActor)
 #endif
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
 		{
 			bool bForce = false;
 #if WITH_EDITOR
-			// When reinstancing. Avoid reloading the level but if the package changed, force the load
-			bForce = GIsReinstancing && IsLoaded() && LevelInstanceSubsystem->GetLevelInstanceLevel(this)->GetPackage()->FileName != FName(*GetWorldAssetPackage());
+			// When reinstancing or world wasn't ticked between changes. Avoid reloading the level but if the package changed, force the load
+			bForce = IsLoaded() && LevelInstanceSubsystem->GetLevelInstanceLevel(this)->GetPackage()->FileName != FName(*GetWorldAssetPackage());
 #endif
 			LevelInstanceSubsystem->RequestLoadLevelInstance(this, bForce);
 		}
@@ -132,7 +132,7 @@ void ALevelInstance::LoadLevelInstance()
 void ALevelInstance::UnloadLevelInstance()
 {
 #if WITH_EDITOR
-	if (!bGuardLoadUnload)
+	if (!bGuardLoadUnload && !bIsEditorPreviewActor)
 #endif
 	{
 		if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetLevelInstanceSubsystem())
@@ -327,8 +327,10 @@ bool ALevelInstance::CheckForLoop(TSoftObjectPtr<UWorld> InLevelInstance, TArray
 	{
 		LevelInstanceSubsystem->ForEachLevelInstanceAncestorsAndSelf(this, [&bValid, &InLevelInstance, LoopInfo, LoopStart, this](const ALevelInstance* LevelInstanceActor)
 		{
+			FName LongPackageName(*InLevelInstance.GetLongPackageName());
+			// Check to exclude NAME_None since Preview Levels are in the transient package
 			// Check the level we are spawned in to detect the loop (this will handle loops caused by LevelInstances and by regular level streaming)
-			if (LevelInstanceActor->GetLevel()->GetPackage()->FileName == FName(*InLevelInstance.GetLongPackageName()))
+			if (LongPackageName != NAME_None && LevelInstanceActor->GetLevel()->GetPackage()->FileName == LongPackageName)
 			{
 				bValid = false;
 				if (LoopStart)

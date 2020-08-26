@@ -73,6 +73,11 @@ void ULevelInstanceSubsystem::Deinitialize()
 	Super::Deinitialize();
 }
 
+bool ULevelInstanceSubsystem::DoesSupportWorldType(EWorldType::Type WorldType) const
+{
+	return Super::DoesSupportWorldType(WorldType) || WorldType == EWorldType::EditorPreview;
+}
+
 ALevelInstance* ULevelInstanceSubsystem::GetLevelInstance(FLevelInstanceID LevelInstanceID) const
 {
 	if (ALevelInstance*const* LevelInstanceActor = RegisteredLevelInstances.Find(LevelInstanceID))
@@ -888,6 +893,12 @@ bool ULevelInstanceSubsystem::IsLevelInstanceEditDirty(const FLevelInstanceEdit*
 
 bool ULevelInstanceSubsystem::CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason) const
 {
+	// Only allow Editing in Editor World
+	if (GetWorld()->WorldType != EWorldType::Editor)
+	{
+		return false;
+	}
+
 	if (ULevel* LevelInstanceLevel = GetLevelInstanceLevel(LevelInstanceActor))
 	{
 		if (LevelInstanceLevel->GetWorldPartition())
@@ -1197,12 +1208,19 @@ void ULevelInstanceSubsystem::CommitLevelInstance(ALevelInstance* LevelInstanceA
 	LevelInstanceEdits.Remove(FName(*EditPackage));
 
 	// Propagate to other instances
-	for (TActorIterator<ALevelInstance> LevelInstanceIt(GetWorld()); LevelInstanceIt; ++LevelInstanceIt)
+	for (TObjectIterator<UWorld> It(RF_ClassDefaultObject|RF_ArchetypeObject, true, EInternalObjectFlags::PendingKill); It; ++It)
 	{
-		ALevelInstance* CurrentLevelInstanceActor = *LevelInstanceIt;
-		if (CurrentLevelInstanceActor->GetWorldAssetPackage() == EditPackage && (LevelInstanceActor == CurrentLevelInstanceActor || bChangesCommitted))
+		UWorld* CurrentWorld = *It;
+		if (CurrentWorld->GetSubsystem<ULevelInstanceSubsystem>() != nullptr)
 		{
-			CurrentLevelInstanceActor->UpdateLevelInstance();
+			for (TActorIterator<ALevelInstance> LevelInstanceIt(CurrentWorld); LevelInstanceIt; ++LevelInstanceIt)
+			{
+				ALevelInstance* CurrentLevelInstanceActor = *LevelInstanceIt;
+				if (CurrentLevelInstanceActor->GetWorldAssetPackage() == EditPackage && (LevelInstanceActor == CurrentLevelInstanceActor || bChangesCommitted))
+				{
+					CurrentLevelInstanceActor->UpdateLevelInstance();
+				}
+			}
 		}
 	}
 
