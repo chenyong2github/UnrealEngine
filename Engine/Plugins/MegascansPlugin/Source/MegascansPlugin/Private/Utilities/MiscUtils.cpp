@@ -2,7 +2,7 @@
 #include "Utilities/MiscUtils.h"
 
 #include "Runtime/Core/Public/Misc/Paths.h"
-#include "Runtime/Core/Public/HAL/PlatformFilemanager.h"
+#include "Runtime/Core/Public/HAL/PlatformFileManager.h"
 #include "Runtime/Core/Public/GenericPlatform/GenericPlatformFile.h"
 #include "Runtime/Core/Public/HAL/FileManager.h"
 
