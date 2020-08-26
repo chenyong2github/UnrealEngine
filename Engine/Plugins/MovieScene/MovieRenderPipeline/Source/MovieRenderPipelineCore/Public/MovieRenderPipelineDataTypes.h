@@ -847,6 +847,10 @@ public:
 
 namespace MoviePipeline
 {
+	struct MOVIERENDERPIPELINECORE_API IMoviePipelineOverlappedAccumulator : public TSharedFromThis<IMoviePipelineOverlappedAccumulator>
+	{
+	};
+
 	struct FAudioState
 	{
 		struct FAudioSegment
@@ -875,13 +879,5 @@ namespace MoviePipeline
 
 		/** An array of active submixes we are recording for this shot. Gets cleared when recording stops on a shot. */
 		TArray<TWeakPtr<Audio::FMixerSubmix, ESPMode::ThreadSafe>> ActiveSubmixes;
-	};
-
-	struct FSampleAccumulationArgs
-	{
-	public:
-		TSharedPtr<FImageOverlappedAccumulator, ESPMode::ThreadSafe> ImageAccumulator;
-		TSharedPtr<FMoviePipelineOutputMerger, ESPMode::ThreadSafe> OutputMerger;
-		bool bAccumulateAlpha;
 	};
 }

@@ -73,7 +73,7 @@ public:
 /**
  * Contains all the image planes for the tiles.
  */
-struct MOVIERENDERPIPELINECORE_API FImageOverlappedAccumulator
+struct MOVIERENDERPIPELINECORE_API FImageOverlappedAccumulator : MoviePipeline::IMoviePipelineOverlappedAccumulator
 {
 public:
 	/**
