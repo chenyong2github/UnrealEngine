@@ -31,8 +31,6 @@ private:
 	TSharedPtr<class STextBlock> TileBorderSizeText;
 
 	TSharedPtr<class STextBlock> SizeText;
-	TSharedPtr<class STextBlock> PageTableTextureMemoryText;
-	TSharedPtr<class STextBlock> PhysicalTextureMemoryText;
 };
 
 

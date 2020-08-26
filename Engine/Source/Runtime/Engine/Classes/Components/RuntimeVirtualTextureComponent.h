@@ -29,6 +29,10 @@ protected:
 	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Num Streaming Mips"))
 	int32 StreamLowMips = 0;
 
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = VirtualTextureBuild)
+	bool bBuildStreamingMipsButton;
+
 	/** Enable Crunch texture compression for the streaming low mips. Generic ZLib compression is used when Crunch is disabled. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Enable Crunch"))
 	bool bEnableCompressCrunch = false;
@@ -37,9 +41,17 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View Streaming Mips in Editor"))
 	bool bUseStreamingLowMipsInEditor = false;
 
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, AdvancedDisplay, Category = VirtualTextureBuild)
+	bool bBuildDebugStreamingMipsButton;
+
 	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
 	UPROPERTY(EditAnywhere, Category = TransformFromBounds)
 	TSoftObjectPtr<AActor> BoundsAlignActor = nullptr;
+
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = TransformFromBounds)
+	bool bSetBoundsButton;
 
 	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
