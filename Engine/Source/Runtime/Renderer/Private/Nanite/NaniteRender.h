@@ -149,14 +149,18 @@ private:
 class FNaniteShader : public FGlobalShader
 {
 public:
-	FNaniteShader() {}
-	FNaniteShader( const ShaderMetaType::CompiledShaderInitializerType& Initializer )
-		: FGlobalShader( Initializer )
-	{}
-	
-	static bool ShouldCompilePermutation( const FGlobalShaderPermutationParameters& Parameters )
+	FNaniteShader()
 	{
-		return IsFeatureLevelSupported( Parameters.Platform, ERHIFeatureLevel::SM5 );
+	}
+
+	FNaniteShader(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	: FGlobalShader(Initializer)
+	{
+	}
+	
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportNanite(Parameters.Platform);
 	}
 
 	/**
