@@ -609,9 +609,6 @@ void FCompositionLighting::ProcessAfterBasePass(FRHICommandListImmediate& RHICmd
 
 		CompositeContext.Process(Context.FinalOutput.GetPass(), TEXT("CompositionLighting_AfterBasePass"));
 	}
-
-	SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
-	SceneContext.ScreenSpaceGTAODepths.SafeRelease();
 }
 
 
