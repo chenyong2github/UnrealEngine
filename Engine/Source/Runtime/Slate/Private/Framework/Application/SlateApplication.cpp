@@ -5590,9 +5590,10 @@ bool FSlateApplication::ProcessMouseMoveEvent( const FPointerEvent& MouseEvent, 
 
 	// When the event came from the OS, we are guaranteed to be over a slate window.
 	// Otherwise, we are synthesizing a MouseMove ourselves, and must verify that the
-	// cursor is indeed over a Slate window.
-	const bool bOverSlateWindow = !bIsSynthetic || IsActive() || PlatformApplication->IsCursorDirectlyOverSlateWindow();
-	
+	// cursor is indeed over a Slate window.  Synthesized device (gamepad) input while
+	// the application is inactive also needs to populate the widget path.
+	const bool bOverSlateWindow = !bIsSynthetic || IsActive() || PlatformApplication->IsCursorDirectlyOverSlateWindow() || GetHandleDeviceInputWhenApplicationNotActive();
+   
 	FWidgetPath WidgetsUnderCursor = bOverSlateWindow
 		? LocateWindowUnderMouse(MouseEvent.GetScreenSpacePosition(), GetInteractiveTopLevelWindows(), false, MouseEvent.GetUserIndex())
 		: FWidgetPath();
