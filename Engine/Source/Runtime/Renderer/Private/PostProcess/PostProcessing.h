@@ -64,7 +64,7 @@ void AddVisualizeCalibrationMaterialPostProcessingPasses(FRDGBuilder& GraphBuild
 #endif
 
 // For compatibility with composition graph passes until they are ported to Render Graph.
-class FPostProcessVS : public FScreenPassVS
+class RENDERER_API FPostProcessVS : public FScreenPassVS
 {
 public:
 	FPostProcessVS() = default;
