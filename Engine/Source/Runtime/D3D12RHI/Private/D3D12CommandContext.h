@@ -407,7 +407,16 @@ public:
 	template<typename Predicate>
 	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, Predicate Func)
 	{
-		FD3D12TextureBase* Result = Texture ? (FD3D12TextureBase*)Texture->GetTextureBaseRHI() : nullptr;
+		// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
+		FRHITexture* RHITexture = Texture;
+		if (RHITexture && RHITexture->GetFlags() & TexCreate_Presentable)
+		{
+			FD3D12BackBufferReferenceTexture2D* BufferBufferReferenceTexture = (FD3D12BackBufferReferenceTexture2D*)RHITexture;
+			FD3D12Viewport* ViewPort = BufferBufferReferenceTexture->GetViewPort();
+			RHITexture = BufferBufferReferenceTexture->IsSDR() ? ViewPort->GetSDRBackBuffer_RHIThread() : ViewPort->GetBackBuffer_RHIThread();
+		}
+
+		FD3D12TextureBase* Result = Texture ? (FD3D12TextureBase*)RHITexture->GetTextureBaseRHI() : nullptr;
 #if WITH_MGPU
 		if (Result && GNumExplicitGPUsForRendering > 1)
 		{
