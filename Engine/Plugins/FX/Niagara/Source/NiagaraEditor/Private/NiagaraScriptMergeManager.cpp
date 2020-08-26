@@ -2008,11 +2008,10 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 		TSharedRef<FNiagaraStackFunctionMergeAdapter> BaseDynamicValueFunction = BaseFunctionInputAdapter->GetDynamicValueFunction().ToSharedRef();
 		TSharedRef<FNiagaraStackFunctionMergeAdapter> OtherDynamicValueFunction = OtherFunctionInputAdapter->GetDynamicValueFunction().ToSharedRef();
 
-		if (BaseDynamicValueFunction->GetFunctionCallNode()->IsA<UNiagaraNodeCustomHlsl>() || OtherDynamicValueFunction->GetFunctionCallNode()->IsA<UNiagaraNodeCustomHlsl>())
+		UNiagaraNodeCustomHlsl* BaseCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(BaseDynamicValueFunction->GetFunctionCallNode());
+		UNiagaraNodeCustomHlsl* OtherCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(OtherDynamicValueFunction->GetFunctionCallNode());
+		if (BaseCustomHlsl != nullptr || OtherCustomHlsl != nullptr)
 		{
-			UNiagaraNodeCustomHlsl* BaseCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(BaseDynamicValueFunction->GetFunctionCallNode());
-			UNiagaraNodeCustomHlsl* OtherCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(OtherDynamicValueFunction->GetFunctionCallNode());
-
 			if ((BaseCustomHlsl != nullptr && OtherCustomHlsl == nullptr) ||
 				(BaseCustomHlsl == nullptr && OtherCustomHlsl != nullptr))
 			{
