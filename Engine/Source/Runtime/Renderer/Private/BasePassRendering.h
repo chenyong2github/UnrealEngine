@@ -96,6 +96,12 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FTranslucentBasePassUniformParameters,)
 	SHADER_PARAMETER_SAMPLER(SamplerState, HZBSampler)
 	SHADER_PARAMETER_TEXTURE(Texture2D, PrevSceneColor)
 	SHADER_PARAMETER_SAMPLER(SamplerState, PrevSceneColorSampler)
+	// Volumetric cloud
+	SHADER_PARAMETER_TEXTURE(Texture2D, VolumetricCloudColor)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudColorSampler)
+	SHADER_PARAMETER_TEXTURE(Texture2D, VolumetricCloudDepth)
+	SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudDepthSampler)
+	SHADER_PARAMETER(float, ApplyVolumetricCloudOnTransparent)
 	// Translucency Lighting Volume
 	SHADER_PARAMETER_TEXTURE(Texture3D, TranslucencyLightingVolumeAmbientInner)
 	SHADER_PARAMETER_SAMPLER(SamplerState, TranslucencyLightingVolumeAmbientInnerSampler)

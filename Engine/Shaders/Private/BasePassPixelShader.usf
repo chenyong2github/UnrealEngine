@@ -47,6 +47,9 @@
 #if PROJECT_SUPPORT_SKY_ATMOSPHERE
 	#include "SkyAtmosphereCommon.ush"
 #endif
+#if MATERIAL_ENABLE_TRANSLUCENCY_CLOUD_FOGGING
+#include "VolumetricCloudCommon.ush"
+#endif
 #endif
 
 #include "ReflectionEnvironmentShared.ush"
@@ -1210,12 +1213,15 @@ void FPixelShaderInOut_MainPS(
 	}
 #endif
 
+#if NEEDS_BASEPASS_PIXEL_FOGGING
+	const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
+	float4 NDCPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
+#endif
+
 #if NEEDS_BASEPASS_PIXEL_FOGGING && PROJECT_SUPPORT_SKY_ATMOSPHERE && MATERIAL_IS_SKY==0 // Do not apply aerial perpsective on sky materials
 	if (ResolvedView.SkyAtmosphereApplyCameraAerialPerspectiveVolume > 0.0f)
 	{
-		const float OneOverPreExposure = USE_PREEXPOSURE ? ResolvedView.OneOverPreExposure : 1.0f;
 
-		float4 NDCPosition = mul(float4(MaterialParameters.AbsoluteWorldPosition.xyz, 1), ResolvedView.WorldToClip);
 
 		// Sample the aerial perspective (AP).
 		Fogging = GetAerialPerspectiveLuminanceTransmittanceWithFogOver(
@@ -1229,6 +1235,19 @@ void FPixelShaderInOut_MainPS(
 			ResolvedView.SkyAtmosphereCameraAerialPerspectiveVolumeDepthSliceLengthKmInv,
 			OneOverPreExposure, Fogging);
 	}
+#endif
+
+#if NEEDS_BASEPASS_PIXEL_FOGGING && MATERIAL_ENABLE_TRANSLUCENCY_CLOUD_FOGGING
+
+	if (TranslucentBasePass.ApplyVolumetricCloudOnTransparent > 0.0f)
+	{
+		Fogging = GetCloudLuminanceTransmittanceOverFog(
+			NDCPosition, MaterialParameters.AbsoluteWorldPosition.xyz, ResolvedView.WorldCameraOrigin.xyz,
+			TranslucentBasePass.VolumetricCloudColor, TranslucentBasePass.VolumetricCloudColorSampler,
+			TranslucentBasePass.VolumetricCloudDepth, TranslucentBasePass.VolumetricCloudDepthSampler,
+			OneOverPreExposure, Fogging);
+	}
+
 #endif
 
 	// Volume lighting for lit translucency
