@@ -38,6 +38,9 @@ public:
 	void ExtractDstVolumetricReconstructRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGFullResRT);
 	void ExtractDstVolumetricReconstructRTDepth(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGFullResRT);
 
+	TRefCountPtr<IPooledRenderTarget> GetDstVolumetricReconstructRT();
+	TRefCountPtr<IPooledRenderTarget> GetDstVolumetricReconstructRTDepth();
+
 	FRDGTextureRef GetOrCreateSrcVolumetricReconstructRT(FRDGBuilder& GraphBuilder);
 	FRDGTextureRef GetOrCreateSrcVolumetricReconstructRTDepth(FRDGBuilder& GraphBuilder);
 

@@ -308,6 +308,15 @@ FRDGTextureRef FVolumetricRenderTargetViewStateData::GetOrCreateDstVolumetricRec
 	return RDGVolumetricVolumetricReconstructRTRTDepth;
 }
 
+TRefCountPtr<IPooledRenderTarget> FVolumetricRenderTargetViewStateData::GetDstVolumetricReconstructRT()
+{
+	return VolumetricReconstructRT[CurrentRT];
+}
+TRefCountPtr<IPooledRenderTarget> FVolumetricRenderTargetViewStateData::GetDstVolumetricReconstructRTDepth()
+{
+	return VolumetricReconstructRTDepth[CurrentRT];
+}
+
 void FVolumetricRenderTargetViewStateData::ExtractDstVolumetricReconstructRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGVolumetricVolumetricReconstructRT)
 {
 	check(VolumetricReconstructRTResolution != FIntPoint::ZeroValue); // check that initialization has been done at least once
