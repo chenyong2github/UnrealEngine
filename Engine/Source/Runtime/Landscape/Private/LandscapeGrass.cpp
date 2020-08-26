@@ -527,10 +527,13 @@ public:
 
 				for (auto& ComponentInfo : ComponentInfos)
 				{
-					const FMeshBatch& Mesh = ComponentInfo.SceneProxy->GetGrassMeshBatch();
-					Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
+					if (ensure(ComponentInfo.SceneProxy))
+					{
+						const FMeshBatch& Mesh = ComponentInfo.SceneProxy->GetGrassMeshBatch();
+						Mesh.MaterialRenderProxy->UpdateUniformExpressionCacheIfNeeded(View->GetFeatureLevel());
 
-					PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, NumPasses, ComponentInfo.ViewOffset, PassOffsetX, FirstHeightMipsPassIndex, HeightMips, ComponentInfo.SceneProxy);
+						PassMeshProcessor.AddMeshBatch(Mesh, DefaultBatchElementMask, NumPasses, ComponentInfo.ViewOffset, PassOffsetX, FirstHeightMipsPassIndex, HeightMips, ComponentInfo.SceneProxy);
+					}
 				}
 			});
 		}
@@ -579,6 +582,7 @@ public:
 			ViewOffset.X += PixelOffsetX;
 			ViewOffset /= (FVector2D(TargetSize) * 0.5f);
 
+			ensure(Component->SceneProxy);
 			ComponentInfos.Add(FComponentInfo(Component, ViewOffset, PixelOffsetX));
 		}
 
@@ -982,25 +986,28 @@ TArray<uint16> ULandscapeComponent::RenderWPOHeightmap(int32 LOD)
 		GetMaterialInstance(0)->GetMaterialResource(GetWorld()->FeatureLevel)->FinishCompilation();
 	}
 
-	TArray<ULandscapeGrassType*> GrassTypes;
-	TArray<ULandscapeComponent*> LandscapeComponents;
-	LandscapeComponents.Add(this);
+	if (ensure(SceneProxy))
+	{
+		TArray<ULandscapeGrassType*> GrassTypes;
+		TArray<ULandscapeComponent*> LandscapeComponents;
+		LandscapeComponents.Add(this);
 
-	if (LOD == 0)
-	{
-		FLandscapeGrassWeightExporter Exporter(GetLandscapeProxy(), MoveTemp(LandscapeComponents), MoveTemp(GrassTypes), true, {});
-		TMap<ULandscapeComponent*, TUniquePtr<FLandscapeComponentGrassData>, TInlineSetAllocator<1>> TempGrassData;
-		TempGrassData = Exporter.FetchResults();
-		Results = MoveTemp(TempGrassData[this]->HeightData);
-	}
-	else
-	{
-		TArray<int32> HeightMips;
-		HeightMips.Add(LOD);
-		FLandscapeGrassWeightExporter Exporter(GetLandscapeProxy(), MoveTemp(LandscapeComponents), MoveTemp(GrassTypes), false, MoveTemp(HeightMips));
-		TMap<ULandscapeComponent*, TUniquePtr<FLandscapeComponentGrassData>, TInlineSetAllocator<1>> TempGrassData;
-		TempGrassData = Exporter.FetchResults();
-		Results = MoveTemp(TempGrassData[this]->HeightMipData[LOD]);
+		if (LOD == 0)
+		{
+			FLandscapeGrassWeightExporter Exporter(GetLandscapeProxy(), MoveTemp(LandscapeComponents), MoveTemp(GrassTypes), true, {});
+			TMap<ULandscapeComponent*, TUniquePtr<FLandscapeComponentGrassData>, TInlineSetAllocator<1>> TempGrassData;
+			TempGrassData = Exporter.FetchResults();
+			Results = MoveTemp(TempGrassData[this]->HeightData);
+		}
+		else
+		{
+			TArray<int32> HeightMips;
+			HeightMips.Add(LOD);
+			FLandscapeGrassWeightExporter Exporter(GetLandscapeProxy(), MoveTemp(LandscapeComponents), MoveTemp(GrassTypes), false, MoveTemp(HeightMips));
+			TMap<ULandscapeComponent*, TUniquePtr<FLandscapeComponentGrassData>, TInlineSetAllocator<1>> TempGrassData;
+			TempGrassData = Exporter.FetchResults();
+			Results = MoveTemp(TempGrassData[this]->HeightMipData[LOD]);
+		}
 	}
 
 	return Results;
