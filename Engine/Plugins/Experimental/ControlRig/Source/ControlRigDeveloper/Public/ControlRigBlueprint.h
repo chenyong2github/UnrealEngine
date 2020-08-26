@@ -218,6 +218,21 @@ private:
 	void HandleOnElementSelected(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey, bool bSelected);
 #endif
 
+	// Class used to temporarily cache all 
+	// current control values and reapply them
+	// on destruction
+	class CONTROLRIGDEVELOPER_API FControlValueScope
+	{
+	public: 
+		FControlValueScope(UControlRigBlueprint* InBlueprint);
+		~FControlValueScope();
+
+	private:
+
+		UControlRigBlueprint* Blueprint;
+		TMap<FName, FRigControlValue> ControlValues;
+	};
+
 	friend class FControlRigBlueprintCompilerContext;
 	friend class SRigHierarchy;
 	friend class SRigCurveContainer;
