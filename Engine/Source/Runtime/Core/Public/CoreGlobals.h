@@ -498,6 +498,11 @@ class FTaskTagScope
 	ETaskTag Tag;
 	bool TagOnlyIfNone;
 
+public:
+	/**
+	 * Clear the ETaskTag::StaticInit tag so that the Main OS Thread has no active tag.
+	 * This will allow functions such as IsInGameThread() to function properly when called from the Main Thread.
+	 */
 	static void CORE_API SetTagNone();
 
 protected:

@@ -1044,6 +1044,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 		}
 
 		// Applies diffuse indirect and ambient occlusion to the scene color.
+#if !PLATFORM_MAC
 		if ((DenoiserOutputs.Textures[0] || AmbientOcclusionMask) && (!bIsVisualizePass || ViewPipelineState.DiffuseIndirectDenoiser != IScreenSpaceDenoiser::EMode::Disabled || ViewPipelineState.bUseLumenProbeHierarchy))
 		{
 			FDiffuseIndirectCompositePS::FParameters* PassParameters = GraphBuilder.AllocParameters<FDiffuseIndirectCompositePS::FParameters>();
@@ -1148,6 +1149,7 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				View.ViewRect,
 				BlendState);
 		} // if (DenoiserOutputs.Color || bApplySSAO)
+#endif // PLATFORM_MAC
 
 		if (ViewPipelineState.DiffuseIndirectMethod == EDiffuseIndirectMethod::Lumen && !ViewPipelineState.bUseLumenProbeHierarchy)
 		{

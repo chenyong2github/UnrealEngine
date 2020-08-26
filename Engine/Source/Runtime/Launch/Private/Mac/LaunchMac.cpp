@@ -339,6 +339,8 @@ extern bool GIsConsoleExecutable;
 
 INT32_MAIN_INT32_ARGC_TCHAR_ARGV()
 {
+	FTaskTagScope::SetTagNone();
+	
 	for (int32 Option = 1; Option < ArgC; Option++)
 	{
 		GSavedCommandLine += TEXT(" ");
