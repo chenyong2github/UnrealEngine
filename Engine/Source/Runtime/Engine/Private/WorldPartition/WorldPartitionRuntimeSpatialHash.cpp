@@ -30,6 +30,9 @@
 #include "AssetRegistryModule.h"
 #include "AssetData.h"
 
+#include "Engine/WorldComposition.h"
+#include "LevelUtils.h"
+
 extern UNREALED_API class UEditorEngine* GEditor;
 #endif
 
@@ -453,14 +456,61 @@ UWorldPartitionRuntimeSpatialHash::UWorldPartitionRuntimeSpatialHash(const FObje
 {}
 
 #if WITH_EDITOR
+FName UWorldPartitionRuntimeSpatialHash::GetActorRuntimeGrid(const AActor* Actor) const
+{
+	if (ULevel* Level = Actor ? Actor->GetLevel() : nullptr)
+	{
+		if (const FName* ActorRuntimeGrid = WorldCompositionStreamingLevelToRuntimeGrid.Find(FLevelUtils::FindStreamingLevel(Level)))
+		{
+			return *ActorRuntimeGrid;
+		}
+	}
+	return Super::GetActorRuntimeGrid(Actor);
+}
+
 void UWorldPartitionRuntimeSpatialHash::SetDefaultValues()
 {
 	FSpatialHashRuntimeGrid& MainGrid = Grids.AddDefaulted_GetRef();
-
 	MainGrid.GridName = TEXT("MainGrid");
 	MainGrid.CellSize = 3200;
 	MainGrid.LoadingRange = 25600;
 	MainGrid.DebugColor = FLinearColor::Gray;
+}
+
+void UWorldPartitionRuntimeSpatialHash::ImportFromWorldComposition(UWorldComposition* WorldComposition)
+{
+	check(IsRunningCommandlet());
+
+	if (WorldComposition)
+	{
+		const TArray<FWorldTileLayer> WorldCompositionTileLayers = WorldComposition->GetDistanceDependentLayers();
+		for (const FWorldTileLayer& Layer : WorldCompositionTileLayers)
+		{
+			FName GridName = FName(Layer.Name);
+			FSpatialHashRuntimeGrid* Grid = Algo::FindByPredicate(Grids, [GridName](const FSpatialHashRuntimeGrid& Grid) { return Grid.GridName == GridName; });
+			if (!Grid)
+			{
+				Grid = &Grids.AddDefaulted_GetRef();
+				Grid->GridName = GridName;
+				Grid->CellSize = 3200;
+				Grid->DebugColor = FLinearColor::MakeRandomColor();
+			}
+			// World Composition Layer Streaming Distance always wins over existing value (config file)
+			Grid->LoadingRange = Layer.StreamingDistance;
+		}
+
+		const UWorldComposition::FTilesList& Tiles = WorldComposition->GetTilesList();
+		for (int32 TileIdx = 0; TileIdx < Tiles.Num(); TileIdx++)
+		{
+			const FWorldCompositionTile& Tile = Tiles[TileIdx];
+			ULevelStreaming* StreamingLevel = WorldComposition->TilesStreaming[TileIdx];
+			if (StreamingLevel && WorldComposition->IsDistanceDependentLevel(Tile.PackageName))
+			{
+				// Map WorldComposition tiles streaming level to Runtime Grid
+				WorldCompositionStreamingLevelToRuntimeGrid.Add(StreamingLevel, FName(Tile.Info.Layer.Name));
+			}
+		}
+	}
 }
 
 bool UWorldPartitionRuntimeSpatialHash::GenerateStreaming(EWorldPartitionStreamingMode Mode, UWorldPartitionStreamingPolicy* StreamingPolicy)

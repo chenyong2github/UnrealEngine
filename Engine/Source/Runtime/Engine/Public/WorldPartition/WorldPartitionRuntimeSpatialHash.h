@@ -139,16 +139,22 @@ class ENGINE_API UWorldPartitionRuntimeSpatialHash : public UWorldPartitionRunti
 
 public:
 #if WITH_EDITOR
-	virtual void SetDefaultValues();
+	virtual void SetDefaultValues() override;
+	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) override;
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* StreamingPolicy) override;
 	virtual void FlushStreaming() override;
 	virtual bool GenerateHLOD() override;
+	virtual FName GetActorRuntimeGrid(const AActor* Actor) const override;
 #endif
 
 	// streaming interface
 	virtual int32 GetAllStreamingCells(TSet<const UWorldPartitionRuntimeCell*>& Cells) const override;
 	virtual int32 GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& Cells) const override;
 	virtual void SortStreamingCellsByDistance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*>& OutSortedCells) override;
+
+protected:
+	// Used to convert from a world using World Composition
+	TMap<class ULevelStreaming*, FName> WorldCompositionStreamingLevelToRuntimeGrid;
 
 private:
 

@@ -17,9 +17,11 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 
 #if WITH_EDITOR
 	virtual void SetDefaultValues() {}
+	virtual void ImportFromWorldComposition(class UWorldComposition* WorldComposition) {}
 	virtual bool GenerateStreaming(EWorldPartitionStreamingMode Mode, class UWorldPartitionStreamingPolicy* Policy) { return false; }
 	virtual void FlushStreaming() {}
 	virtual bool GenerateHLOD() { return false; }
+	virtual FName GetActorRuntimeGrid(const AActor* Actor) const { return NAME_None; }
 #endif
 
 	// Streaming interface

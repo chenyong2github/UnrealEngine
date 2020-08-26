@@ -19,6 +19,7 @@
 #include "Engine/LocalPlayer.h"
 #include "Engine/LevelStreamingDynamic.h"
 #include "Engine/AssetManager.h"
+#include "Engine/Level.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogWorldComposition, Log, All);
 
@@ -147,7 +148,12 @@ struct FWorldTilesGatherer
 		{
 			FString FullPath = FilenameOrDirectory;
 
-			if (FPaths::GetExtension(FullPath, true) == FPackageName::GetMapPackageExtension())
+			if (FPaths::GetExtension(FullPath, true) == FPackageName::GetMapPackageExtension() 
+#if WITH_EDITOR
+				// Make sure we don't gather partitioned levels in World Composition
+				&& !ULevel::GetIsLevelPartitionedFromPackage(FName(FPackageName::FilenameToLongPackageName(FullPath)))
+#endif
+				)
 			{
 				MapFilesToConsider.Emplace(MoveTemp(FullPath));
 			}
@@ -747,6 +753,19 @@ void UWorldComposition::UpdateStreamingState()
 }
 
 #if WITH_EDITOR
+TArray<FWorldTileLayer> UWorldComposition::GetDistanceDependentLayers() const
+{
+	TArray<FWorldTileLayer> Layers;
+	for (const FWorldCompositionTile& Tile : Tiles)
+	{
+		if (IsDistanceDependentLevel(Tile.PackageName))
+		{
+			Layers.AddUnique(Tile.Info.Layer);
+		}
+	}
+	return Layers;
+}
+
 bool UWorldComposition::UpdateEditorStreamingState(const FVector& InLocation)
 {
 	UWorld* OwningWorld = GetWorld();

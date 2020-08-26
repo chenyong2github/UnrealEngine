@@ -14,6 +14,9 @@
 
 UNREALED_API DECLARE_LOG_CATEGORY_EXTERN(LogWorldPartitionConvertCommandlet, Log, All);
 
+class UWorldPartition;
+class UWorldComposition;
+
 USTRUCT()
 struct FHLODLayerActorMapping
 {
@@ -37,18 +40,18 @@ public:
 	//~ End UCommandlet Interface
 
 private:
-	void GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
+	void GatherAndPrepareSubLevelsToConvert(const UWorldPartition* WorldPartition, ULevel* Level, TArray<ULevel*>& SubLevels);
 
 protected:
 	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
-	virtual bool PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel);	
+	virtual bool PrepareStreamingLevelForConversion(const UWorldPartition* WorldPartition, ULevelStreaming* StreamingLevel);
 	virtual bool ShouldDeleteActor(AActor* Actor, bool bMainLevel) const;
 	virtual void PerformAdditionalWorldCleanup(UWorld* World) const;
 	virtual void OutputConversionReport() const;
-	virtual void OnWorldLoaded(UWorld* World) {}
+	virtual void OnWorldLoaded(UWorld* World);
 	virtual void ReadAdditionalTokensAndSwitches(const TArray<FString>& Tokens, const TArray<FString>& Switches) {}
 
-	class UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings) const;
+	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const;
 	ULevel* LoadLevel(const FString& LevelToLoad);
 
 	bool UseSourceControl() const { return SourceControlProvider != nullptr; }

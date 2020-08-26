@@ -88,6 +88,8 @@ class ENGINE_API UWorldComposition : public UObject
 	 *  @returns Whether streaming levels state was updated by this call
 	 */
 	bool UpdateEditorStreamingState(const FVector& InLocation);
+
+	TArray<FWorldTileLayer> GetDistanceDependentLayers() const;
 #endif// WITH_EDITOR
 
 	/**

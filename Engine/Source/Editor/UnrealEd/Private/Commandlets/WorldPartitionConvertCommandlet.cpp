@@ -40,6 +40,7 @@
 #include "ProfilingDebugging/ScopedTimers.h"
 #include "AssetRegistryModule.h"
 #include "FoliageHelper.h"
+#include "Engine/WorldComposition.h"
 
 DEFINE_LOG_CATEGORY(LogWorldPartitionConvertCommandlet);
 
@@ -188,7 +189,7 @@ ULevel* UWorldPartitionConvertCommandlet::LoadLevel(const FString& LevelToLoad)
 	return nullptr;
 }
 
-UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings) const
+UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const
 {
 	UWorldPartition* WorldPartition = NewObject<UWorldPartition>(MainWorldSettings);
 
@@ -209,10 +210,12 @@ UWorldPartition* UWorldPartitionConvertCommandlet::CreateWorldPartition(AWorldSe
 		WorldPartition->DefaultHLODLayer = nullptr;
 	}
 
+	WorldPartition->RuntimeHash->ImportFromWorldComposition(WorldComposition);
+
 	return WorldPartition;
 }
 
-void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels)
+void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(const UWorldPartition* WorldPartition, ULevel* Level, TArray<ULevel*>& SubLevels)
 {
 	UWorld* World = Level->GetTypedOuter<UWorld>();	
 
@@ -227,7 +230,7 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(ULevel
 	
 	for(ULevelStreaming* StreamingLevel: World->GetStreamingLevels())
 	{
-		if (PrepareStreamingLevelForConversion(StreamingLevel))
+		if (PrepareStreamingLevelForConversion(WorldPartition, StreamingLevel))
 		{
 			ULevel* SubLevel = StreamingLevel->GetLoadedLevel();
 			check(SubLevel);
@@ -235,24 +238,19 @@ void UWorldPartitionConvertCommandlet::GatherAndPrepareSubLevelsToConvert(ULevel
 			SubLevels.Add(SubLevel);
 
 			// Recursively obtain sub levels to convert
-			GatherAndPrepareSubLevelsToConvert(SubLevel, SubLevels);
+			GatherAndPrepareSubLevelsToConvert(WorldPartition, SubLevel, SubLevels);
 		}
 	}
 }
 
-bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(ULevelStreaming* StreamingLevel)
+bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(const UWorldPartition* WorldPartition, ULevelStreaming* StreamingLevel)
 {
-	if (StreamingLevel->bDisableDistanceStreaming)
-	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Warning, TEXT("Converting non distance-based streaming level %s"), *StreamingLevel->GetWorldAssetPackageName());
-	}
+	ULevel* SubLevel = StreamingLevel->GetLoadedLevel();
+	check(SubLevel);
 
-	if (StreamingLevel->ShouldBeAlwaysLoaded())
+	if (StreamingLevel->ShouldBeAlwaysLoaded() || StreamingLevel->bDisableDistanceStreaming)
 	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting always loaded streaming level %s"), *StreamingLevel->GetWorldAssetPackageName());
-
-		ULevel* SubLevel = StreamingLevel->GetLoadedLevel();
-		check(SubLevel);
+		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting %s streaming level %s"), StreamingLevel->bDisableDistanceStreaming ? TEXT("non distance-based") : TEXT("always loaded"), *StreamingLevel->GetWorldAssetPackageName());
 
 		for (AActor* Actor: SubLevel->Actors)
 		{
@@ -265,6 +263,17 @@ bool UWorldPartitionConvertCommandlet::PrepareStreamingLevelForConversion(ULevel
 	else
 	{
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Converting dynamic streaming level %s"), *StreamingLevel->GetWorldAssetPackageName());
+
+		const UWorldPartitionRuntimeHash* RuntimeHash = WorldPartition->RuntimeHash;
+		check(RuntimeHash);
+
+		for (AActor* Actor : SubLevel->Actors)
+		{
+			if (Actor)
+			{
+				Actor->RuntimeGrid = RuntimeHash->GetActorRuntimeGrid(Actor);
+			}
+		}
 	}
 
 	return true;
@@ -747,6 +756,27 @@ void UWorldPartitionConvertCommandlet::SetupHLODLayerAssets()
 	}
 }
 
+void UWorldPartitionConvertCommandlet::OnWorldLoaded(UWorld* World)
+{
+	if (UWorldComposition* WorldComposition = World->WorldComposition)
+	{
+		// Add tiles streaming levels to world
+		World->SetStreamingLevels(WorldComposition->TilesStreaming);
+
+		// Make sure to force bDisableDistanceStreaming on streaming levels of World Composition non distance dependent tiles (for the rest of the process to handle streaming level as always loaded)
+		UWorldComposition::FTilesList& Tiles = WorldComposition->GetTilesList();
+		for (int32 TileIdx = 0; TileIdx < Tiles.Num(); TileIdx++)
+		{
+			FWorldCompositionTile& Tile = Tiles[TileIdx];
+			ULevelStreaming* StreamingLevel = WorldComposition->TilesStreaming[TileIdx];
+			if (StreamingLevel && !WorldComposition->IsDistanceDependentLevel(Tile.PackageName))
+			{
+				StreamingLevel->bDisableDistanceStreaming = true;
+			}
+		}
+	}
+}
+
 int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 {
 	UE_SCOPED_TIMER(TEXT("Conversion"), LogWorldPartitionConvertCommandlet, Display);
@@ -866,6 +896,13 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	OnWorldLoaded(MainWorld);
 
+	// Setup the world partition object
+	UWorldPartition* WorldPartition = CreateWorldPartition(MainWorldSettings, MainWorld->WorldComposition);
+	if (!WorldPartition)
+	{
+		return 1;
+	}
+	
 	auto PrepareLevelActors = [this](ULevel* Level, bool bMainLevel, EActorGridPlacement DefaultGridPlacement)
 	{
 		for (AActor* Actor: Level->Actors)
@@ -887,7 +924,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	// Gather sublevels
 	TArray<ULevel*> SubLevelsToConvert;
-	GatherAndPrepareSubLevelsToConvert(MainLevel, SubLevelsToConvert);
+	GatherAndPrepareSubLevelsToConvert(WorldPartition, MainLevel, SubLevelsToConvert);
 
 	if (!GetAdditionalLevelsToConvert(MainLevel, SubLevelsToConvert))
 	{
@@ -1054,13 +1091,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 	ActorList.Append(ChildActorList);
 	ChildActorList.Empty();
 
-	// Setup the world partition object
-	UWorldPartition* WorldPartition = CreateWorldPartition(MainWorldSettings);
-	if (!WorldPartition)
-	{
-		return 1;
-	}
-
 	WorldPartition->AddToRoot();
 
 	if (!bReportOnly)
@@ -1089,8 +1119,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		CollectGarbage(RF_Standalone);
 
 		MainLevel->bUseExternalActors = true;
-
 		MainWorldSettings->SetWorldPartition(WorldPartition);
+		MainWorld->WorldComposition = nullptr;
 		MainLevel->bIsPartitioned = true;
 
 		if (bDeleteSourceLevels)
