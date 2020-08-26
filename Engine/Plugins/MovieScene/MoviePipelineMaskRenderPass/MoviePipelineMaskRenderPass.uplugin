@@ -1,0 +1,35 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Movie Pipeline Mask Render Passes",
+	"Description": "Additional render passes for the Movie Render Queue which generate mattes with some limitations. Editor Only.",
+	"Category": "Rendering",
+	"CreatedBy": "Epic Games, Inc.",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": true,
+	"IsExperimentalVersion": false,
+	"Installed": false,
+	"EnabledByDefault": false,
+	"Plugins": [
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		},
+		{
+			"Name": "ActorLayerUtilities",
+			"Enabled": true
+		}
+	],
+	"Modules": [
+		{
+			"Name": "MoviePipelineMaskRenderPass",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "Default"
+		}
+	]
+}
