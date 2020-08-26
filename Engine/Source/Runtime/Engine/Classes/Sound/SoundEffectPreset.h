@@ -104,41 +104,7 @@ public:
 		return NewEffectPtr;
 	}
 
-	static void UnregisterInstance(TSoundEffectPtr InEffectPtr)
-	{
-		ensure(IsInAudioThread());
-		if (InEffectPtr.IsValid())
-		{
-			if (USoundEffectPreset* Preset = InEffectPtr->GetPreset())
-			{
-				Preset->RemoveEffectInstance(InEffectPtr);
-			}
+	static void UnregisterInstance(TSoundEffectPtr InEffectPtr);
 
-			InEffectPtr->ClearPreset();
-		}
-	}
-
-	static void RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr)
-	{
-		ensure(IsInAudioThread());
-		if (!InEffectPtr.IsValid())
-		{
-			return;
-		}
-
-		if (InEffectPtr->Preset.Get() != &InPreset)
-		{
-			UnregisterInstance(InEffectPtr);
-
-			InEffectPtr->Preset = &InPreset;
-			if (InEffectPtr->Preset.IsValid())
-			{
-				InPreset.AddEffectInstance(InEffectPtr);
-			}
-		}
-
-		// Anytime notification occurs that the preset has been modified,
-		// flag for update.
-		InEffectPtr->bChanged = true;
-	}
+	static void RegisterInstance(USoundEffectPreset& InPreset, TSoundEffectPtr InEffectPtr);
 };
