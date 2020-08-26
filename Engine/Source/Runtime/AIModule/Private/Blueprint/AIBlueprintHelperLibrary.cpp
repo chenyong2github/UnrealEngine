@@ -345,6 +345,22 @@ UNavigationPath* UAIBlueprintHelperLibrary::GetCurrentPath(AController* Controll
 	return ResultPath;
 }
 
+const TArray<FVector> UAIBlueprintHelperLibrary::GetCurrentPathPoints(AController* Controller)
+{
+	TArray<FVector> PathPoints;
+	
+	const UPathFollowingComponent* PFComp = GetPathComp(Controller);
+	if (PFComp && PFComp->GetPath().IsValid())
+	{
+		PathPoints.Reserve(PFComp->GetPath()->GetPathPoints().Num());
+		for (const FNavPathPoint& NavPathPoint : PFComp->GetPath()->GetPathPoints())
+		{
+			PathPoints.Add(NavPathPoint.Location);
+		}
+	}
+	return  PathPoints;
+}
+
 UPathFollowingComponent* UAIBlueprintHelperLibrary::GetPathComp(const AController* Controller)
 {	
 	if (Controller)
