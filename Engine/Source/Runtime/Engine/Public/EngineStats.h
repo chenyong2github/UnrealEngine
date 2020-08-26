@@ -124,7 +124,10 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: sync add generated tile Layer"), STAT_Na
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: tick"),STAT_Navigation_RecastTick,STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: pathfinding"),STAT_Navigation_RecastPathfinding, STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: test path"),STAT_Navigation_RecastTestPath, STATGROUP_Navigation, );
-DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: storing compressed layers"), STAT_RecastNavMeshGenerator_StoringCompressedLayers, STATGROUP_Navigation, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: storing compressed layers"), STAT_Navigation_StoringCompressedLayers, STATGROUP_Navigation, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: create tile generator"), STAT_Navigation_CreateTileGenerator, STATGROUP_Navigation, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: do work"), STAT_Navigation_DoWork, STATGROUP_Navigation, );
+DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: remove layers"), STAT_Navigation_RemoveLayers, STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: build compressed layers"),STAT_Navigation_RecastBuildCompressedLayers,STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: create height field"),STAT_Navigation_RecastCreateHeightField,STATGROUP_Navigation, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("Recast: compute rasterizaion masks"), STAT_Navigation_RecastComputeRasterizationMasks, STATGROUP_Navigation, );
