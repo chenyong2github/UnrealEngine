@@ -14,6 +14,7 @@ namespace UnrealBuildTool.Rules
                 "CoreUObject",
 				"ChaosCore",
                 "IntelISPC",
+				"TraceLog",
                 "Voronoi"
                 }
             );
