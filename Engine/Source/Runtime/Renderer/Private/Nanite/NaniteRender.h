@@ -7,6 +7,7 @@
 #include "RenderGraphResources.h"
 #include "MeshPassProcessor.h"
 #include "UnifiedBuffer.h"
+#include "Rendering/NaniteResources.h"
 
 class FCardRenderData;
 class FVirtualShadowMapArray;
