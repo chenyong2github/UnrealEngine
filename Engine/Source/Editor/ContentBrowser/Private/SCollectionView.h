@@ -105,7 +105,8 @@ public:
 	void MakeSaveDynamicCollectionMenu(FText InQueryString);
 
 	/** Creates the menu for the add collection button */
-	FReply MakeAddCollectionMenu();
+	FReply OnAddCollectionClicked();
+	void MakeAddCollectionMenu(TSharedRef<SWidget> MenuParent);
 
 private:
 

@@ -152,7 +152,7 @@ void SCollectionView::Construct( const FArguments& InArgs )
 				SNew(SButton)
 				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 				.ToolTipText(LOCTEXT("AddCollectionButtonTooltip", "Add a collection."))
-				.OnClicked(this, &SCollectionView::MakeAddCollectionMenu)
+				.OnClicked(this, &SCollectionView::OnAddCollectionClicked)
 				.ContentPadding( FMargin(2, 2) )
 				.Visibility(bAllowCollectionButtons ? EVisibility::Visible : EVisibility::Collapsed)
 				[
@@ -812,12 +812,18 @@ void SCollectionView::MakeSaveDynamicCollectionMenu(FText InQueryString)
 	}
 }
 
+FReply SCollectionView::OnAddCollectionClicked()
+{
+	MakeAddCollectionMenu(AsShared());
+	return FReply::Handled();
+}
+
 bool SCollectionView::ShouldAllowSelectionChangedDelegate() const
 {
 	return PreventSelectionChangedDelegateCount == 0;
 }
 
-FReply SCollectionView::MakeAddCollectionMenu()
+void SCollectionView::MakeAddCollectionMenu(TSharedRef<SWidget> MenuParent)
 {
 	// Get all menu extenders for this context menu from the content browser module
 	FContentBrowserModule& ContentBrowserModule = FModuleManager::GetModuleChecked<FContentBrowserModule>( TEXT("ContentBrowser") );
@@ -840,14 +846,12 @@ FReply SCollectionView::MakeAddCollectionMenu()
 	CollectionContextMenu->MakeNewCollectionSubMenu(MenuBuilder, ECollectionStorageMode::Static, SCollectionView::FCreateCollectionPayload());
 
 	FSlateApplication::Get().PushMenu(
-		AsShared(),
+		MenuParent,
 		FWidgetPath(),
 		MenuBuilder.MakeWidget(),
 		FSlateApplication::Get().GetCursorPos(),
 		FPopupTransitionEffect( FPopupTransitionEffect::TopMenu )
 		);
-
-	return FReply::Handled();
 }
 
 void SCollectionView::CreateCollectionItem( ECollectionShareType::Type CollectionType, ECollectionStorageMode::Type StorageMode, const FCreateCollectionPayload& InCreationPayload )

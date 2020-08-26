@@ -814,7 +814,7 @@ TSharedRef<SWidget> SContentBrowser::CreateDockedCollectionsView(const FContentB
 				SNew(SButton)
 				.ButtonStyle(FEditorStyle::Get(), "SimpleButton")
 				.ToolTipText(LOCTEXT("AddCollectionButtonTooltip", "Add a collection."))
-				.OnClicked(CollectionViewPtr.ToSharedRef(), &SCollectionView::MakeAddCollectionMenu)
+				.OnClicked(this, &SContentBrowser::OnAddCollectionClicked)
 				.ContentPadding(FMargin(1, 0))
 				[
 					SNew(SImage)
@@ -2428,6 +2428,15 @@ FReply SContentBrowser::BackClicked()
 FReply SContentBrowser::ForwardClicked()
 {
 	HistoryManager.GoForward();
+
+	return FReply::Handled();
+}
+
+FReply SContentBrowser::OnAddCollectionClicked()
+{
+	CollectionArea->SetExpanded(true);
+
+	CollectionViewPtr->MakeAddCollectionMenu(AsShared());
 
 	return FReply::Handled();
 }

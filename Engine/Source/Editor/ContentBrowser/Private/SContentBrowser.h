@@ -354,6 +354,9 @@ private:
 	/** Handler for clicking the history forward button */
 	FReply ForwardClicked();
 
+	/** Handler for clicking the add collection button */
+	FReply OnAddCollectionClicked();
+
 	/** Handler to check to see if a rename command is allowed */
 	bool HandleRenameCommandCanExecute() const;
 
