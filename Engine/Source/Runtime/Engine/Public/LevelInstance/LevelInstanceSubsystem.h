@@ -6,7 +6,6 @@
 #include "Containers/Map.h"
 #include "UObject/NameTypes.h"
 #include "LevelInstance/LevelInstanceTypes.h"
-#include "Tickable.h"
 
 #if WITH_EDITOR
 #include "WorldPartition/LevelInstance/LevelInstanceActorDescFactory.h"
@@ -23,7 +22,7 @@ class UWorldPartitionSubsystem;
  * ULevelInstanceSubsystem
  */
 UCLASS()
-class ENGINE_API ULevelInstanceSubsystem : public UWorldSubsystem, public FTickableGameObject
+class ENGINE_API ULevelInstanceSubsystem : public UWorldSubsystem
 {
 	GENERATED_BODY()
 
@@ -40,14 +39,6 @@ public:
 	virtual void UpdateStreamingState() override;
 	//~ End UWorldSubsystem Interface.
 
-	//~ Begin FTickableGameObject
-	virtual void Tick(float DeltaSeconds) override;
-	virtual bool IsTickableInEditor() const override;
-	virtual UWorld* GetTickableGameObjectWorld() const override;
-	virtual ETickableTickType GetTickableTickType() const override;
-	virtual TStatId GetStatId() const override;
-	//~End FTickableGameObject
-
 	ALevelInstance* GetLevelInstance(FLevelInstanceID LevelInstanceID) const;
 	FLevelInstanceID RegisterLevelInstance(ALevelInstance* LevelInstanceActor);
 	void UnregisterLevelInstance(ALevelInstance* LevelInstanceActor);
@@ -57,6 +48,8 @@ public:
 	void ForEachLevelInstanceAncestorsAndSelf(AActor* Actor, TFunctionRef<bool(ALevelInstance*)> Operation) const;
 
 #if WITH_EDITOR
+	void Tick();
+
 	bool CanEditLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	bool CanCommitLevelInstance(const ALevelInstance* LevelInstanceActor, FText* OutReason = nullptr) const;
 	void EditLevelInstance(ALevelInstance* LevelInstanceActor, TWeakObjectPtr<AActor> ContextActorPtr = nullptr);

@@ -158,50 +158,6 @@ bool ULevelInstanceSubsystem::IsLoaded(const ALevelInstance* LevelInstanceActor)
 	return LevelInstanceActor->HasValidLevelInstanceID() && LevelInstances.Contains(LevelInstanceActor->GetLevelInstanceID());
 }
 
-void ULevelInstanceSubsystem::Tick(float DeltaSeconds)
-{
-#if WITH_EDITOR
-	// For non-game world, Tick is responsible of processing LevelInstances to update/load/unload
-	if (!GetWorld()->IsGameWorld())
-	{
-		UpdateStreamingState();
-
-		// Begin editing the pending LevelInstance when loads complete
-		if (PendingLevelInstanceToEdit != InvalidLevelInstanceID && !LevelInstancesToLoadOrUpdate.Num())
-		{
-			if (ALevelInstance** LevelInstanceActor = RegisteredLevelInstances.Find(PendingLevelInstanceToEdit))
-			{
-				EditLevelInstance(*LevelInstanceActor);
-			}
-		}
-	}
-#endif
-}
-
-bool ULevelInstanceSubsystem::IsTickableInEditor() const
-{
-	return true;
-}
-
-UWorld* ULevelInstanceSubsystem::GetTickableGameObjectWorld() const
-{
-	return GetWorld();
-}
-
-ETickableTickType ULevelInstanceSubsystem::GetTickableTickType() const
-{
-#if WITH_EDITOR
-	return IsTemplate() ? ETickableTickType::Never : ETickableTickType::Always;
-#else
-	return ETickableTickType::Never;
-#endif
-}
-
-TStatId ULevelInstanceSubsystem::GetStatId() const
-{
-	RETURN_QUICK_DECLARE_CYCLE_STAT(ULevelInstanceSubsystem, STATGROUP_Tickables);
-}
-
 void ULevelInstanceSubsystem::UpdateStreamingState()
 {
 	if (!LevelInstancesToUnload.Num() && !LevelInstancesToLoadOrUpdate.Num())
@@ -395,6 +351,24 @@ ALevelInstance* ULevelInstanceSubsystem::GetOwningLevelInstance(const ULevel* Le
 }
 
 #if WITH_EDITOR
+
+void ULevelInstanceSubsystem::Tick()
+{
+	// For non-game world, Tick is responsible of processing LevelInstances to update/load/unload
+	if (!GetWorld()->IsGameWorld())
+	{
+		UpdateStreamingState();
+
+		// Begin editing the pending LevelInstance when loads complete
+		if (PendingLevelInstanceToEdit != InvalidLevelInstanceID && !LevelInstancesToLoadOrUpdate.Num())
+		{
+			if (ALevelInstance** LevelInstanceActor = RegisteredLevelInstances.Find(PendingLevelInstanceToEdit))
+			{
+				EditLevelInstance(*LevelInstanceActor);
+			}
+		}
+	}
+}
 
 bool ULevelInstanceSubsystem::GetLevelInstanceBounds(const ALevelInstance* LevelInstanceActor, FBox& OutBounds) const
 {

@@ -62,6 +62,7 @@
 
 #if WITH_EDITOR
 #include "Editor.h"
+#include "LevelInstance/LevelInstanceSubsystem.h"
 #endif
 
 CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
@@ -1528,6 +1529,14 @@ void UWorld::Tick( ELevelTick TickType, float DeltaSeconds )
 			FTickTaskManagerInterface::Get().EndFrame();
 		}
 	}
+
+#if WITH_EDITOR
+	// Tick LevelInstanceSubsystem outside of FTickTaskManagerInterface::StartFrame/EndFrame because it can cause levels to be deleted and invalidate its LevelList
+	if (ULevelInstanceSubsystem* LevelInstanceSubsystem = GetSubsystem<ULevelInstanceSubsystem>())
+	{
+		LevelInstanceSubsystem->Tick();
+	}
+#endif
 
 	if (bDoingActorTicks)
 	{

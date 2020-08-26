@@ -1442,6 +1442,7 @@ public:
 	/** Free a ticking structure for a ULevel **/
 	virtual void FreeTickTaskLevel(FTickTaskLevel* TickTaskLevel) override
 	{
+		check(!LevelList.Contains(TickTaskLevel));
 		delete TickTaskLevel;
 	}
 
