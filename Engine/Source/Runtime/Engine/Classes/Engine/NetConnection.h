@@ -1309,6 +1309,8 @@ public:
 	/** Called when owning network driver receives NotifyActorDestroyed. */
 	ENGINE_API virtual void NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel = false);
 
+	ENGINE_API virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason);
+
 protected:
 
 	bool GetPendingCloseDueToSocketSendFailure() const

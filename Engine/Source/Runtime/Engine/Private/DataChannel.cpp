@@ -2101,12 +2101,6 @@ bool UActorChannel::CleanUp(const bool bForDestroy, EChannelCloseReason CloseRea
 
 	Connection->Driver->NotifyActorChannelCleanedUp(this, CloseReason);
 
-	UReplicationConnectionDriver* const ConnectionDriver = Connection->GetReplicationConnectionDriver();
-	if (ConnectionDriver)
-	{
-		ConnectionDriver->NotifyActorChannelCleanedUp(this);
-	}
-
 	const bool bIsServer = Connection->Driver->IsServer();
 
 	UE_LOG( LogNetTraffic, Log, TEXT( "UActorChannel::CleanUp: %s" ), *Describe() );
