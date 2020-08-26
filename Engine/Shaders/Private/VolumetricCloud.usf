@@ -253,6 +253,9 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL
 #define MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL 0
 #endif
+#ifndef MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW
+#define MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW 0
+#endif
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
 #define MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION 0
 #endif
@@ -766,30 +769,28 @@ bool TraceClouds(
 			//
 			// C- shadow from volumetric LIGHT0
 			//
-		#if 0 // Use cloud shadowmap instead of ray marching
-			float OutOpticalDepth = 0.0f;
-			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix, RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm,
-				RenderVolumetricCloudParameters.ShadowTexture, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
-			[unroll]
-			for (ms = 0; ms < MSCOUNT; ++ms)
-			{
-				PMC.TransmittanceToLight[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
-			}
-		#else // Use cloud shadowmap
-			DebugShadowSampleCount++;
+			MATVEC ExtinctionAcc[MSCOUNT];
 			const float ShadowLengthTest = RenderVolumetricCloudParameters.ShadowTracingMaxDistance;
 			const float ShadowStepCount = float(RenderVolumetricCloudParameters.ShadowSampleCountMax);
 			const float InvShadowStepCount = 1.0f / ShadowStepCount;
-
-			MATVEC ExtinctionAcc[MSCOUNT];
+			const float ShadowJitteringSeed = float(ResolvedView.StateFrameIndexMod8) + PseudoRandom(SvPosition.xy);
+			const float ShadowJitterNorm = 0.5f; // InterleavedGradientNoise(SvPosition.xy, ShadowJitteringSeed); // Disabled jittering for now as this one cannot be hidden well by TAA in some cases.
+		#if MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW==0 // Use cloud shadowmap instead of ray marching.
+			float OutOpticalDepth = 0.0f;
+			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[0], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[0],
+				RenderVolumetricCloudParameters.CloudShadowTexture0, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
+			[unroll]
+			for (ms = 0; ms < MSCOUNT; ++ms)
+			{
+				PMC.TransmittanceToLight0[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
+			}
+		#else // Use cloud shadowmap
+			DebugShadowSampleCount++;
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
 			{
 				ExtinctionAcc[ms] = 0.0f;
 			}
-
-			const float ShadowJitteringSeed = float(ResolvedView.StateFrameIndexMod8) + PseudoRandom(SvPosition.xy);
-			const float ShadowJitterNorm = 0.5f; // InterleavedGradientNoise(SvPosition.xy, ShadowJitteringSeed); // Disabled jittering for now as this one cannot be hidden well by TAA in some cases.
 		#if 0
 			// Linear shadow samples (reference)
 			const float ShadowDtMeter = ShadowLengthTest * CENTIMETER_TO_METER / ShadowStepCount;
@@ -847,6 +848,16 @@ bool TraceClouds(
 			//
 		#if CLOUD_SAMPLE_SECOND_LIGHT
 		{ // CLOUD_SAMPLE_SECOND_LIGHT
+		#if MATERIAL_VOLUMETRIC_ADVANCED_RAYMARCH_VOLUME_SHADOW==0 // Use cloud shadowmap instead of ray marching.
+			float OutOpticalDepth = 0.0f;
+			float CloudShadow = GetCloudVolumetricShadow(SampleWorldPosition, RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[1], RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[1],
+				RenderVolumetricCloudParameters.CloudShadowTexture1, RenderVolumetricCloudParameters.CloudBilinearTextureSampler, OutOpticalDepth);
+			[unroll]
+			for (ms = 0; ms < MSCOUNT; ++ms)
+			{
+				PMC.TransmittanceToLight1[ms] *= exp(-OutOpticalDepth * (ms == 0 ? 1.0f : pow(MsExtinFactor, ms)));
+			}
+		#else // Use cloud shadowmap
 			DebugShadowSampleCount++;
 			[unroll]
 			for (ms = 0; ms < MSCOUNT; ++ms)
@@ -894,6 +905,7 @@ bool TraceClouds(
 			{
 				PMC.TransmittanceToLight1[ms] *= exp(-ExtinctionAcc[ms] * ShadowDtMeter);
 			}
+		#endif // Use cloud shadowmap
 		} // CLOUD_SAMPLE_SECOND_LIGHT
 		#endif // CLOUD_SAMPLE_SECOND_LIGHT
 		}
