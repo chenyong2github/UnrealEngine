@@ -761,6 +761,7 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 			}
 		}
 
+
 		for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
 		{
 			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
