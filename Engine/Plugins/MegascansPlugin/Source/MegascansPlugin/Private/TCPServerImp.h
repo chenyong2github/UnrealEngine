@@ -4,9 +4,10 @@
 
 #include "CoreMinimal.h"
 #include <string>
-#include "Runtime/Sockets/Public/Sockets.h"
-#include "Runtime/Core/Public/Misc/DateTime.h"
-#include "Runtime/Core/Public/Async/Async.h"
+#include "Sockets.h"
+#include "Misc/DateTime.h"
+//#include "Runtime/Core/Public/Async/Async.h"
+#include "Async/AsyncWork.h"
 #include "MSPythonBridge.h"
 #include "UI/QMSUIManager.h"
 #include "AssetsImportController.h"

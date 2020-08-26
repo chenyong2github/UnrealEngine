@@ -26,7 +26,7 @@
 #include "PropertyEditorModule.h"
 #include "Widgets/Docking/SDockTab.h"
 
-#include "Runtime/Engine/Classes/Materials/MaterialInterface.h"
+#include "Materials/MaterialInterface.h"
 #include "EditorAssetLibrary.h"
 
 

@@ -6,14 +6,14 @@
 #include "UI/MSSettings.h"
 #include "Utilities/Analytics.h"
 
-#include "Editor/UnrealEd/Classes/Factories/MaterialInstanceConstantFactoryNew.h"
-#include "Runtime/Engine/Classes/Materials/MaterialInstanceConstant.h"
-#include "Runtime/Engine/Classes/Engine/Texture.h"
-#include "Runtime/CoreUObject/Public/Misc/PackageName.h"
+#include "Factories/MaterialInstanceConstantFactoryNew.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Engine/Texture.h"
+#include "Misc/PackageName.h"
 #include "MaterialEditingLibrary.h"
 
-#include "Runtime/Core/Public/Misc/MessageDialog.h"
-#include "Runtime/Core/Public/Internationalization/Text.h"
+#include "Misc/MessageDialog.h"
+#include "Internationalization/Text.h"
 
 
 TSharedPtr<FMaterialBlend> FMaterialBlend::MaterialBlendInst;

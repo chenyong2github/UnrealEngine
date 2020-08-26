@@ -11,7 +11,7 @@
 #include "AssetImporters/ImportFactory.h"
 
 #include "Misc/MessageDialog.h"
-#include "Runtime/Core/Public/Internationalization/Text.h"
+#include "Internationalization/Text.h"
 #include "Misc/Paths.h"
 
 

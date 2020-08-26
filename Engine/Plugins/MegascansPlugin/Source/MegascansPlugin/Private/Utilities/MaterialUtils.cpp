@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MaterialUtils.h"
-#include "Editor/UnrealEd/Classes/Factories/MaterialInstanceConstantFactoryNew.h"
+#include "Factories/MaterialInstanceConstantFactoryNew.h"
 
-#include "Runtime/Engine/Classes/Engine/Texture.h"
+#include "Engine/Texture.h"
 #include "MaterialEditingLibrary.h"
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"

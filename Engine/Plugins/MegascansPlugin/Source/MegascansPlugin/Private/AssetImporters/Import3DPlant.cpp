@@ -6,7 +6,7 @@
 #include "Utilities/MeshOp.h"
 #include "AssetImportData.h"
 
-#include "Runtime/Engine/Classes/Engine/StaticMesh.h"
+#include "Engine/StaticMesh.h"
 #include "EditorAssetLibrary.h"
 #include "EditorStaticMeshLibrary.h"
 

@@ -3,8 +3,8 @@
 #include "UI/MSSettings.h"
 #include "Interfaces/IHttpRequest.h"
 
-#include "Runtime/Json/Public/Dom/JsonObject.h"
-#include "Runtime/Json/Public/Serialization/JsonSerializer.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
 #include "HttpModule.h"
 #include "Misc/EngineVersion.h"
 

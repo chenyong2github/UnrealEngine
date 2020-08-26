@@ -4,7 +4,7 @@
 #include "AssetImporters/ImportSurface.h"
 
 
-#include "Runtime/Engine/Classes/Engine/StaticMesh.h"
+#include "Engine/StaticMesh.h"
 #include "Utilities/MeshOp.h"
 #include "Utilities/MiscUtils.h"
 #include "Utilities/MaterialUtils.h"
@@ -12,8 +12,8 @@
 #include "EditorAssetLibrary.h"
 #include "EditorStaticMeshLibrary.h"
 #include "UI/MSSettings.h"
-#include "Runtime/Core/Public/Misc/MessageDialog.h"
-#include "Runtime/Core/Public/Internationalization/Text.h"
+#include "Misc/MessageDialog.h"
+#include "Internationalization/Text.h"
 
 #include "StaticMeshEditorSubsystem.h"
 

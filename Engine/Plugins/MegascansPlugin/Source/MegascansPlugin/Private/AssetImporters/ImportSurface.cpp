@@ -6,9 +6,9 @@
 #include "AssetToolsModule.h"
 #include "IAssetTools.h"
 #include "AssetImportTask.h"
-#include "Editor/UnrealEd/Classes/Factories/MaterialInstanceConstantFactoryNew.h"
-#include "Runtime/Engine/Classes/Materials/MaterialInstanceConstant.h"
-#include "Runtime/Engine/Classes/Engine/Texture.h"
+#include "Factories/MaterialInstanceConstantFactoryNew.h"
+#include "Materials/MaterialInstanceConstant.h"
+#include "Engine/Texture.h"
 #include "UI/MSSettings.h"
 #include "MaterialEditingLibrary.h"
 #include "ContentBrowserModule.h"
@@ -16,7 +16,7 @@
 
 #include "EditorAssetLibrary.h"
 
-#include "Runtime/Engine/Classes/Engine/Selection.h"
+#include "Engine/Selection.h"
 #include "Editor.h"
 #include "PackageTools.h"
 

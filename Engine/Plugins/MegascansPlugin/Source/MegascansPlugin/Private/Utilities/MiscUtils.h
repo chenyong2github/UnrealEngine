@@ -1,8 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "CoreMinimal.h"
-#include "Runtime/Json/Public/Dom/JsonObject.h"
-#include "Runtime/Json/Public/Serialization/JsonSerializer.h"
+#include "Dom/JsonObject.h"
+#include "Serialization/JsonSerializer.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "AssetImportData.h"
 

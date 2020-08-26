@@ -1,24 +1,24 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "Utilities/MiscUtils.h"
 
-#include "Runtime/Core/Public/Misc/Paths.h"
-#include "Runtime/Core/Public/HAL/PlatformFileManager.h"
-#include "Runtime/Core/Public/GenericPlatform/GenericPlatformFile.h"
-#include "Runtime/Core/Public/HAL/FileManager.h"
+#include "Misc/Paths.h"
+#include "HAL/PlatformFilemanager.h"
+//#include "Runtime/Core/Public/GenericPlatform/GenericPlatformFile.h"
+#include "HAL/FileManager.h"
 
 #include "EditorAssetLibrary.h"
-#include "Runtime/AssetRegistry/Public/AssetRegistryModule.h"
+#include "AssetRegistryModule.h"
 
 #include "ContentBrowserModule.h"
 #include "IContentBrowserSingleton.h"
-#include "Runtime/Engine/Classes/Engine/Selection.h"
+#include "Engine/Selection.h"
 
-#include "Editor/UnrealEd/Classes/Factories/MaterialInstanceConstantFactoryNew.h"
+#include "Factories/MaterialInstanceConstantFactoryNew.h"
 
-#include "Runtime/Engine/Classes/Engine/StaticMesh.h"
+#include "Engine/StaticMesh.h"
 
-#include "Runtime/Core/Public/Misc/MessageDialog.h"
-#include "Runtime/Core/Public/Internationalization/Text.h"
+#include "Misc/MessageDialog.h"
+#include "Internationalization/Text.h"
 
 #include "PackageTools.h"
 
