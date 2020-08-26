@@ -44,10 +44,9 @@ void FVirtualHeightfieldMeshComponentDetailsCustomization::CustomizeDetails(IDet
 		return;
 	}
 
-	IDetailCategoryBuilder& HeightfieldCategory = DetailBuilder.EditCategory("Heightfield", FText::GetEmpty());
-	
-	HeightfieldCategory
-	.AddCustomRow(LOCTEXT("Button_SetBounds", "Set Bounds"))
+	// Apply custom widget for SetBounds
+	TSharedRef<IPropertyHandle> SetBoundsPropertyHandle = DetailBuilder.GetProperty(TEXT("bSetBoundsButton"));
+	DetailBuilder.EditDefaultProperty(SetBoundsPropertyHandle)->CustomWidget()
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -66,8 +65,9 @@ void FVirtualHeightfieldMeshComponentDetailsCustomization::CustomizeDetails(IDet
 		.OnClicked(this, &FVirtualHeightfieldMeshComponentDetailsCustomization::SetBounds)
 	];
 
-	HeightfieldCategory
-	.AddCustomRow(LOCTEXT("Button_BuildMinMaxTexture", "Build MinMax Texture"))
+	// Apply custom widget for BuildMinMaxTexture
+	TSharedRef<IPropertyHandle> BuildMinMaxTexturePropertyHandle = DetailBuilder.GetProperty(TEXT("bBuildMinMaxTextureButton"));
+	DetailBuilder.EditDefaultProperty(BuildMinMaxTexturePropertyHandle)->CustomWidget()
 	.NameContent()
 	[
 		SNew(STextBlock)
