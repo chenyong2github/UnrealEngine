@@ -45,8 +45,6 @@ void UWorldPartitionEditorCell::AddActor(FWorldPartitionActorDesc* InActorDesc)
 			UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Referenced loaded actor %s(%d) [UWorldPartitionEditorCell::AddActor]"), *Actor->GetFullName(), ActorRefCount);
 		}
 	}
-
-	bDirty = true;
 }
 
 void UWorldPartitionEditorCell::RemoveActor(FWorldPartitionActorDesc* InActorDesc)
@@ -59,8 +57,6 @@ void UWorldPartitionEditorCell::RemoveActor(FWorldPartitionActorDesc* InActorDes
 		const uint32 ActorRefCount = InActorDesc->RemoveLoadedRefCount();
 		UE_LOG(LogWorldPartition, Verbose, TEXT(" ==> Unreferenced loaded actor %s(%d) [UWorldPartitionEditorCell::RemoveActor]"), *InActorDesc->GetActor()->GetFullName(), ActorRefCount);
 	}
-
-	bDirty = true;
 }
 
 void UWorldPartitionEditorCell::PreEditUndo()
@@ -85,9 +81,7 @@ UWorldPartitionEditorCell::UWorldPartitionEditorCell(const FObjectInitializer& O
 	: Super(ObjectInitializer)
 #if WITH_EDITOR
 	, Bounds(ForceInitToZero)
-	, bDirty(false)
 	, bLoaded(false)
 	, bWasLoaded(false)
-	, bSelected(false)
 #endif
 {}

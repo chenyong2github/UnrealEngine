@@ -72,7 +72,6 @@ private:
 
 	void FlushStreaming();
 
-protected:
 	// PIE Methods
 	void OnPreBeginPIE(bool bStartSimulate);
 	void OnEndPIE(bool bStartSimulate);
@@ -121,8 +120,11 @@ public:
 	FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid);
 	const FWorldPartitionActorDesc* GetActorDesc(const FGuid& Guid) const;
 
-	void LoadCells(const TArray<UWorldPartitionEditorCell*>& Cells);
-	void UnloadCells(const TArray<UWorldPartitionEditorCell*>& Cells);
+	void LoadEditorCells(const FBox& Box);
+	void UnloadEditorCells(const FBox& Box);
+
+	void LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& Cells);
+	void UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>& Cells);
 
 	void HashActorDesc(FWorldPartitionActorDesc* ActorDesc);
 	void UnhashActorDesc(FWorldPartitionActorDesc* ActorDesc);

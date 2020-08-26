@@ -52,9 +52,10 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 			{
 				ForEachIntersectingCells(Bounds, Level, [&](const FCellCoord& CellCoord)
 				{
-					if (HashNodes.Contains(CellCoord))
+					FCellNode CellNode;
+					if (HashCells.RemoveAndCopyValue(CellCoord, CellNode))
 					{
-						HashNodes.Remove(CellCoord);
+						check(!CellNode.Cell);
 					}
 				});
 			}
@@ -74,7 +75,8 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 	}
 	else
 	{
-		int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 ActorLevel = GetLevelForBox(InActorDesc->GetBounds());
 
 		auto UpdateHigherLevels = [this](const FCellCoord& CellCoord, int32 EndLevel)
 		{
@@ -85,7 +87,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 
 				LevelCellCoord = LevelCellCoord.GetParentCellCoord();
 
-				FCellNode& CellNode = HashNodes.FindOrAdd(LevelCellCoord);
+				FCellNode& CellNode = HashCells.FindOrAdd(LevelCellCoord);
 
 				if (CellNode.HasChildNode(ChildIndex))
 				{
@@ -96,39 +98,34 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 			}
 		};
 
-		ForEachIntersectingCells(InActorDesc->GetBounds(), 0, [&](const FCellCoord& CellCoord)
+		ForEachIntersectingCells(InActorDesc->GetBounds(), ActorLevel, [&](const FCellCoord& CellCoord)
 		{
-			UWorldPartitionEditorCell* EditorCell = nullptr;
-			if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
-			{
-				EditorCell = *EditorCellPtr;
-			}
-			else
-			{
-				EditorCell = NewObject<UWorldPartitionEditorCell>(this, NAME_None, RF_Transient);
-				EditorCell->SetFlags(RF_Transactional);
-				EditorCell->Bounds = GetCellBounds(CellCoord);
+			FCellNode& CellNode = HashCells.FindOrAdd(CellCoord);
 
-				Cells.Add(EditorCell);
-				HashCells.Add(CellCoord, EditorCell);
+			if (!CellNode.Cell)
+			{
+				CellNode.Cell = NewObject<UWorldPartitionEditorCell>(this, NAME_None, RF_Transient);
+				CellNode.Cell->SetFlags(RF_Transactional);
+				CellNode.Cell->Bounds = GetCellBounds(CellCoord);
+
+				Cells.Add(CellNode.Cell);
 
 				UpdateHigherLevels(CellCoord, CurrentLevel);
 
-				Bounds += EditorCell->Bounds;
+				Bounds += CellNode.Cell->Bounds;
 			}
 
-			check(EditorCell);
-			EditorCell->AddActor(InActorDesc);
+			CellNode.Cell->AddActor(InActorDesc);
 		});
 
-		int32 NewLevel = GetLevelForBox(Bounds);
+		const int32 NewLevel = GetLevelForBox(Bounds);
 		check(NewLevel >= CurrentLevel);
 
 		if (NewLevel > CurrentLevel)
 		{
 			ForEachIntersectingCells(Bounds, CurrentLevel, [&](const FCellCoord& CellCoord)
 			{
-				if (CurrentLevel ? HashNodes.Contains(CellCoord) : HashCells.Contains(CellCoord))
+				if (HashCells.Contains(CellCoord))
 				{
 					UpdateHigherLevels(CellCoord, NewLevel);
 				}
@@ -146,37 +143,19 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 	}
 	else
 	{
-		int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 CurrentLevel = GetLevelForBox(Bounds);
+		const int32 ActorLevel = GetLevelForBox(InActorDesc->GetBounds());
 
-		ForEachIntersectingCells(InActorDesc->GetBounds(), 0, [&](const FCellCoord& CellCoord)
+		ForEachIntersectingCells(InActorDesc->GetBounds(), ActorLevel, [&](const FCellCoord& CellCoord)
 		{
-			UWorldPartitionEditorCell* EditorCell = HashCells.FindChecked(CellCoord);
+			FCellNode& CellNode = HashCells.FindChecked(CellCoord);
 
-			EditorCell->RemoveActor(InActorDesc);
+			CellNode.Cell->RemoveActor(InActorDesc);
 
-			if (!EditorCell->Actors.Num())
+			if (!CellNode.Cell->Actors.Num())
 			{
-				verify(Cells.Remove(EditorCell));
-				verify(HashCells.Remove(CellCoord));
-
-				FCellCoord LevelCellCoord = CellCoord;
-				for (int32 Level=1; Level<=CurrentLevel; Level++)
-				{
-					const uint32 ChildIndex = LevelCellCoord.GetChildIndex();
-
-					LevelCellCoord = LevelCellCoord.GetParentCellCoord();
-
-					FCellNode& CellNode = HashNodes.FindChecked(LevelCellCoord);
-
-					CellNode.RemoveChildNode(ChildIndex);
-
-					if (CellNode.HasChildNodes())
-					{
-						break;
-					}
-
-					HashNodes.Remove(LevelCellCoord);
-				}
+				verify(Cells.Remove(CellNode.Cell));
+				CellNode.Cell = nullptr;
 
 				bBoundsDirty = true;
 			}
@@ -227,35 +206,27 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCellInner(const FBox&
 {
 	int32 NumIntersecting = 0;
 
-	if (CellCoord.Level)
+	FCellNode CellNode;
+	if (FCellNode* CellNodePtr = HashCells.Find(CellCoord))
 	{
-		FCellNode CellNode;
-		if (FCellNode* CellNodePtr = HashNodes.Find(CellCoord))
+		CellNode = *CellNodePtr;
+
+		if (CellNode.Cell)
 		{
-			CellNode = *CellNodePtr;
-
-			check(CellNode.HasChildNodes());
-
-			CellNode.ForEachChild([&](uint32 ChildIndex)
-			{
-				const FCellCoord ChildCellCoord = CellCoord.GetChildCellCoord(ChildIndex);
-				const FBox CellBounds = GetCellBounds(ChildCellCoord);
-
-				if (Box.Intersect(CellBounds))
-				{
-					NumIntersecting += ForEachIntersectingCellInner(Box, ChildCellCoord, InOperation);
-				}
-			});
-		}
-	}
-	else
-	{
-		UWorldPartitionEditorCell* EditorCell = nullptr;
-		if (UWorldPartitionEditorCell** EditorCellPtr = HashCells.Find(CellCoord))
-		{
-			InOperation(*EditorCellPtr);
+			InOperation(CellNode.Cell);
 			NumIntersecting++;
 		}
+
+		CellNode.ForEachChild([&](uint32 ChildIndex)
+		{
+			const FCellCoord ChildCellCoord = CellCoord.GetChildCellCoord(ChildIndex);
+			const FBox CellBounds = GetCellBounds(ChildCellCoord);
+
+			if (Box.Intersect(CellBounds))
+			{
+				NumIntersecting += ForEachIntersectingCellInner(Box, ChildCellCoord, InOperation);
+			}
+		});
 	}
 
 	return NumIntersecting;
@@ -265,9 +236,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 {
 	int32 NumIntersecting = 0;
 
-	const FBox SearchBox = Box.Overlap(Bounds);
-	const int32 SearchLevel = GetLevelForBox(SearchBox);
-
+	const int32 SearchLevel = GetLevelForBox(Bounds);
 	ForEachIntersectingCells(Box, SearchLevel, [&](const FCellCoord& CellCoord)
 	{
 		NumIntersecting += ForEachIntersectingCellInner(Box, CellCoord, InOperation);

@@ -776,7 +776,25 @@ bool UWorldPartition::IsSimulating() const
 	return GEditor->bIsSimulatingInEditor || !!GEditor->PlayWorld;
 }
 
-void UWorldPartition::LoadCells(const TArray<UWorldPartitionEditorCell*>& CellsToLoad)
+void UWorldPartition::LoadEditorCells(const FBox& Box)
+{
+	TArray<UWorldPartitionEditorCell*> CellsToLoad;
+	if (EditorHash->GetIntersectingCells(Box, CellsToLoad))
+	{
+		LoadEditorCells(CellsToLoad);
+	}
+}
+
+void UWorldPartition::UnloadEditorCells(const FBox& Box)
+{
+	TArray<UWorldPartitionEditorCell*> CellsToUnload;
+	if (EditorHash->GetIntersectingCells(Box, CellsToUnload))
+	{
+		UnloadEditorCells(CellsToUnload);
+	}
+}
+
+void UWorldPartition::LoadEditorCells(const TArray<UWorldPartitionEditorCell*>& CellsToLoad)
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
@@ -794,7 +812,7 @@ void UWorldPartition::LoadCells(const TArray<UWorldPartitionEditorCell*>& CellsT
 	}
 }
 
-void UWorldPartition::UnloadCells(const TArray<UWorldPartitionEditorCell*>& CellsToUnload)
+void UWorldPartition::UnloadEditorCells(const TArray<UWorldPartitionEditorCell*>& CellsToUnload)
 {
 	FWorldPartionCellUpdateContext CellUpdateContext(this);
 
@@ -921,10 +939,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	}
 
 	Cell->bLoaded = bShouldBeLoaded;
-	if (bShouldBeLoaded)
-	{
-		Cell->bDirty = true;
-	}
 }
 
 void UWorldPartition::CreateLayers(const TSet<FName>& LayerNames)

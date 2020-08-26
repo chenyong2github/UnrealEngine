@@ -153,7 +153,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 			FCellDesc2D& CellDesc2D = UniqueCells2D.Add(CellHash2D);
 
 			CellDesc2D.Bounds = FBox2D(FVector2D(Cell->Bounds.Min), FVector2D(Cell->Bounds.Max));
-			CellDesc2D.bSelected |= Cell->bSelected;
+			CellDesc2D.bSelected |= SelectedCells.Contains(Cell);
 			CellDesc2D.bLoaded |= Cell->bLoaded;
 			CellDesc2D.bEmpty &= !Cell->Actors.Num();
 		});

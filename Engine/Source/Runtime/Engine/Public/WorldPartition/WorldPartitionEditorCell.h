@@ -8,7 +8,7 @@ class FWorldPartitionActorDesc;
 class UWorldPartition;
 
 /**
- * Represents an edition cell (editor-only)
+ * Represents an editing cell (editor-only)
  */
 UCLASS(Within = WorldPartitionEditorHash)
 class UWorldPartitionEditorCell: public UObject
@@ -29,12 +29,13 @@ public:
 	virtual void PostEditUndo() override;
 
 	FBox						Bounds;
-	bool						bDirty : 1;
 
 	/** Tells if the cell was manually loaded in the editor */
 	bool						bLoaded : 1;
+
+	/** Tells if the cell loaded state changed during transactions */
 	bool						bWasLoaded : 1;
-	bool						bSelected : 1;
+
 	TSet<FWorldPartitionActorDesc*> Actors;
 	TSet<FWorldPartitionActorDesc*> LoadedActors;
 #endif

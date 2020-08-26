@@ -89,6 +89,6 @@ protected:
 	FVector2D MouseCursorPosWorld;
 	FVector2D SelectionStart;
 	FVector2D SelectionEnd;
-	TArray<UWorldPartitionEditorCell*> SelectedCells;
+	TSet<UWorldPartitionEditorCell*> SelectedCells;
 	FSlateFontInfo SmallLayoutFont;
 };

@@ -20,16 +20,9 @@ void AWorldPartitionVolume::LoadIntersectingCells()
 	{
 		FVector Origin;
 		FVector Extent;
-		this->GetActorBounds(false, Origin, Extent);
+		GetActorBounds(false, Origin, Extent);
 
-		TArray<UWorldPartitionEditorCell*> IntersectingCells;
-		if (WorldPartition->EditorHash->GetIntersectingCells(FBox(Origin - Extent, Origin + Extent), IntersectingCells))
-		{
-			FScopedSlowTask SlowTask(IntersectingCells.Num(), LOCTEXT("LoadingCells", "Loading cells..."));
-			SlowTask.MakeDialog();
-
-			WorldPartition->LoadCells(IntersectingCells);
-		}
+		WorldPartition->LoadEditorCells(FBox(Origin - Extent, Origin + Extent));
 	}
 }
 #endif

@@ -11,7 +11,6 @@
 #include "Editor.h"
 #include "Logging/LogMacros.h"
 
-#include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/WorldPartitionSubsystem.h"
 #include "WorldPartition/HLOD/HLODActor.h"
@@ -94,10 +93,8 @@ int32 UWorldPartitionBuildHLODsCommandlet::Main(const FString& Params)
 	// For now, load all cells
 	// In the future, we'll want the commandlet to be able to perform partial updates of the map
 	// to allow HLOD rebuild to be distributed on multiple machines.
-	TArray<UWorldPartitionEditorCell*> AllCells;
-	AllCells.Add(WorldPartition->EditorHash->GetAlwaysLoadedCell());
-	WorldPartition->EditorHash->GetAllCells(AllCells);	
-	WorldPartition->LoadCells(AllCells);
+	const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
+	WorldPartition->LoadEditorCells(LoadBox);
 
 	// Clear all existing HLOD actors
 	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(World); ItHLOD; ++ItHLOD)

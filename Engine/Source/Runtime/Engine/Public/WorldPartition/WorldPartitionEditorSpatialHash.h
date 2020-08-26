@@ -125,6 +125,7 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 	{
 		FCellNode()
 			: ChildNodesMask(0)
+			, Cell(nullptr)
 		{}
 
 		inline bool HasChildNodes() const
@@ -170,6 +171,7 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 		}
 
 		uint8 ChildNodesMask;
+		UWorldPartitionEditorCell* Cell;
 	};
 
 public:
@@ -196,8 +198,7 @@ private:
 	UPROPERTY(Config)
 	int32 CellSize;
 
-	TMap<FCellCoord, FCellNode> HashNodes;
-	TMap<FCellCoord, UWorldPartitionEditorCell*> HashCells;
+	TMap<FCellCoord, FCellNode> HashCells;
 
 	UPROPERTY(Transient)
 	TSet<UWorldPartitionEditorCell*> Cells;

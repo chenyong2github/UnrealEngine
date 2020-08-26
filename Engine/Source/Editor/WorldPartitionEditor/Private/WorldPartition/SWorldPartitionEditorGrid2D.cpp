@@ -160,14 +160,14 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 
 void SWorldPartitionEditorGrid2D::LoadSelectedCells()
 {
-	WorldPartition->LoadCells(SelectedCells);
+	WorldPartition->LoadEditorCells(SelectedCells.Array());
 	GEditor->RedrawLevelEditingViewports();
 	RefreshSceneOutliner();
 }
 
 void SWorldPartitionEditorGrid2D::UnloadSelectedCells()
 {
-	WorldPartition->UnloadCells(SelectedCells);
+	WorldPartition->UnloadEditorCells(SelectedCells.Array());
 	GEditor->RedrawLevelEditingViewports();
 	RefreshSceneOutliner();
 }
@@ -787,11 +787,6 @@ void SWorldPartitionEditorGrid2D::UpdateSelection(bool bAppend)
 {
 	if (!bAppend)
 	{
-		for (UWorldPartitionEditorCell* SelectedCell: SelectedCells)
-		{
-			check(SelectedCell->bSelected);
-			SelectedCell->bSelected = false;
-		}
 		SelectedCells.Empty();
 	}
 
@@ -805,15 +800,9 @@ void SWorldPartitionEditorGrid2D::UpdateSelection(bool bAppend)
 	{
 		WorldPartition->EditorHash->ForEachIntersectingCell(SelectBox, [&](UWorldPartitionEditorCell* SelectedCell)
 		{
-			if (SelectedCell->bSelected)
-			{
-				check(bAppend);
-			}
-			else
-			{
-				SelectedCells.Add(SelectedCell);
-				SelectedCell->bSelected = true;
-			}
+			bool bWasAlreadyInSet;
+			SelectedCells.Add(SelectedCell, &bWasAlreadyInSet);
+			check(!bWasAlreadyInSet || bAppend);
 		});
 	}
 }
