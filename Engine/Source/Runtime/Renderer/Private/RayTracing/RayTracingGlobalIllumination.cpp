@@ -37,7 +37,8 @@ static int32 GRayTracingGlobalIlluminationSamplesPerPixel = -1;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationSamplesPerPixel(
 	TEXT("r.RayTracing.GlobalIllumination.SamplesPerPixel"),
 	GRayTracingGlobalIlluminationSamplesPerPixel,
-	TEXT("Samples per pixel (default = -1 (driven by postprocesing volume))")
+	TEXT("Samples per pixel (default = -1 (driven by postprocesing volume))"),
+	ECVF_RenderThreadSafe
 );
 
 static float GRayTracingGlobalIlluminationMaxRayDistance = 1.0e27;
