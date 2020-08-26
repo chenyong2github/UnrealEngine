@@ -786,7 +786,7 @@ void FSkeletalMeshReductionSettingsLayout::GenerateChildContent(IDetailChildrenB
 
 bool FSkeletalMeshReductionSettingsLayout::IsReductionEnabled() const
 {
-	return IsLODSettingsEnabledDelegate.Execute(LODIndex);
+	return IsLODSettingsEnabledDelegate.IsBound() ? IsLODSettingsEnabledDelegate.Execute(LODIndex) : false;
 }
 
 FDetailWidgetRow& FSkeletalMeshReductionSettingsLayout::AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate)
@@ -1644,7 +1644,7 @@ void FSkeletalMeshBuildSettingsLayout::GenerateChildContent(IDetailChildrenBuild
 
 bool FSkeletalMeshBuildSettingsLayout::IsBuildEnabled() const
 {
-	return IsBuildSettingsEnabledDelegate.Execute(LODIndex);
+	return IsBuildSettingsEnabledDelegate.IsBound() ? IsBuildSettingsEnabledDelegate.Execute(LODIndex) : false;
 }
 
 FDetailWidgetRow& FSkeletalMeshBuildSettingsLayout::AddFloatRow(IDetailChildrenBuilder& ChildrenBuilder, const FText RowTitleText, const FText RowNameContentText, const FText RowNameContentTootlipText, const float MinSliderValue, const float MaxSliderValue, FGetFloatDelegate GetterDelegate, FSetFloatDelegate SetterDelegate)
@@ -2987,7 +2987,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::CreateSkinWeightProfileMenuContent()
 			SkeletalMesh->Modify();
 
 			FSkinWeightProfileHelpers::ImportSkinWeightProfile(SkeletalMesh);
-			MeshDetailLayout->ForceRefreshDetails();
+			RefreshMeshDetailLayout();
 		}
 	})));
 	
@@ -3041,7 +3041,7 @@ TSharedRef<SWidget> FPersonaMeshDetails::CreateSkinWeightProfileMenuContent()
 												SkeletalMesh->Modify();
 
 												FSkinWeightProfileHelpers::ImportSkinWeightProfileLOD(SkeletalMesh, ProfileName, LODIndex);
-												MeshDetailLayout->ForceRefreshDetails();
+												RefreshMeshDetailLayout();
 											}
 										})));
 									}
@@ -3287,7 +3287,7 @@ void FPersonaMeshDetails::OnAssetPostLODImported(UObject* InObject, int32 InLODI
 {
 	if (InObject == GetPersonaToolkit()->GetMesh())
 	{
-		MeshDetailLayout->ForceRefreshDetails();
+		RefreshMeshDetailLayout();
 	}
 }
 
@@ -3318,6 +3318,22 @@ void FPersonaMeshDetails::OnLODCountChanged(int32 NewValue)
 void FPersonaMeshDetails::OnLODCountCommitted(int32 InValue, ETextCommit::Type CommitInfo)
 {
 	OnLODCountChanged(InValue);
+}
+
+void FPersonaMeshDetails::RefreshMeshDetailLayout()
+{
+	//Unbound all UI delegate in case the user move the cursor during the refresh details	
+	for (TPair<int32, TSharedPtr<FSkeletalMeshBuildSettingsLayout>>& BuildSettingWidgetPair : BuildSettingsWidgetsPerLOD)
+	{
+		TSharedPtr<FSkeletalMeshBuildSettingsLayout>& LodBuildSettings = BuildSettingWidgetPair.Value;
+		LodBuildSettings->UnbindBuildSettings();
+	}
+	for (TPair<int32, TSharedPtr<FSkeletalMeshReductionSettingsLayout>>& ReductionSettingWidgetPair : ReductionSettingsWidgetsPerLOD)
+	{
+		TSharedPtr<FSkeletalMeshReductionSettingsLayout>& LodReductionSettings = ReductionSettingWidgetPair.Value;
+		LodReductionSettings->UnbindReductionSettings();
+	}
+	MeshDetailLayout->ForceRefreshDetails();
 }
 
 FReply FPersonaMeshDetails::OnApplyChanges()
@@ -3390,7 +3406,8 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 		}
 		SkelMesh->MarkPackageDirty();
 	}
-	MeshDetailLayout->ForceRefreshDetails();
+
+	RefreshMeshDetailLayout();
 	if (SkelMesh->MorphTargets.Num() > 0)
 	{
 		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
@@ -3565,7 +3582,7 @@ FReply FPersonaMeshDetails::RemoveOneLOD(int32 LODIndex)
 				}
 			}
 
-			MeshDetailLayout->ForceRefreshDetails();
+			RefreshMeshDetailLayout();
 		}
 	}
 	return FReply::Handled();
@@ -3654,7 +3671,7 @@ void FPersonaMeshDetails::ApplyChanges()
 		GetPersonaToolkit()->GetPreviewScene()->BroadcastOnMorphTargetsChanged();
 	}
 
-	MeshDetailLayout->ForceRefreshDetails();
+	RefreshMeshDetailLayout();
 }
 
 void FPersonaMeshDetails::UpdateLODNames()
@@ -3859,7 +3876,7 @@ void FPersonaMeshDetails::HideUnnecessaryProperties(IDetailLayoutBuilder& Detail
 
 void FPersonaMeshDetails::OnPostProcessBlueprintChanged(IDetailLayoutBuilder* DetailBuilder)
 {
-	DetailBuilder->ForceRefreshDetails();
+	RefreshMeshDetailLayout();
 }
 
 FString FPersonaMeshDetails::GetCurrentPostProcessBlueprintPath() const
@@ -3967,7 +3984,7 @@ FReply FPersonaMeshDetails::OnReimportLodClicked(EReimportButtonType InReimportT
 		else if(InReimportType == EReimportButtonType::ReimportWithNewFile)
 		{
 			//Refresh the layout so the BaseLOD min max get recompute
-			MeshDetailLayout->ForceRefreshDetails();
+			RefreshMeshDetailLayout();
 		}
 
 		return FReply::Handled();
@@ -5729,7 +5746,7 @@ FReply FPersonaMeshDetails::OnReimportApexFileClicked(int32 AssetIndex, IDetailL
 		RefreshClothingComboBoxes();
 
 		// Force layout to refresh
-		DetailLayout->ForceRefreshDetails();
+		RefreshMeshDetailLayout();
 	}
 
 	return FReply::Handled();
@@ -5777,7 +5794,7 @@ FReply FPersonaMeshDetails::OnRemoveClothingAssetClicked(int32 AssetIndex, IDeta
 	RefreshClothingComboBoxes();
 
 	// Force layout to refresh
-	//DetailLayout->ForceRefreshDetails();
+	//RefreshMeshDetailLayout();
 	
 	return FReply::Handled();
 }
@@ -5965,7 +5982,7 @@ void FPersonaMeshDetails::OnPreviewMeshChanged(USkeletalMesh* OldSkeletalMesh, U
 {
 	if (IsApplyNeeded())
 	{
-		MeshDetailLayout->ForceRefreshDetails();
+		RefreshMeshDetailLayout();
 	}
 }
 
