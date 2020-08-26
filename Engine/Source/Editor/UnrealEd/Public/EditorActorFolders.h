@@ -75,9 +75,6 @@ struct UNREALED_API FActorFolders : public FGCObject
 	static FOnActorFolderMove 	OnFolderMove;
 	static FOnActorFolderDelete OnFolderDelete;
 
-	/** Check if the specified path is a child of the specified parent */
-	static bool PathIsChildOf(const FString& InPotentialChild, const FString& InParent);
-
 	/** Get a map of folder properties for the specified world (map of folder path -> properties) */
 	const TMap<FName, FActorFolderProps>& GetFolderPropertiesForWorld(UWorld& InWorld);
 

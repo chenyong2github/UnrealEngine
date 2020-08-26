@@ -52,34 +52,4 @@ bool FSceneOutlinerCommonLabelData::CanExecuteRenameRequest(const ISceneOutliner
 	return false;
 }
 
-namespace SceneOutliner
-{
-	/** Parse a new path (including leaf-name) into this tree item. Does not do any notification */
-	FName GetFolderLeafName(FName InPath)
-	{
-		FString PathString = InPath.ToString();
-		int32 LeafIndex = 0;
-		if (PathString.FindLastChar('/', LeafIndex))
-		{
-			return FName(*PathString.RightChop(LeafIndex + 1));
-		}
-		else
-		{
-			return InPath;
-		}
-	}
-
-	bool PathIsChildOf(const FName& PotentialChild, const FName& Parent)
-	{
-		const FString ParentString = Parent.ToString();
-		const FString ChildString = PotentialChild.ToString();
-		const int32 ParentLen = ParentString.Len();
-		return
-			ChildString.Len() > ParentLen &&
-			ChildString[ParentLen] == '/' &&
-			ChildString.Left(ParentLen) == ParentString;
-	}
-
-}	// namespace SceneOutliner
-
 #undef LOCTEXT_NAMESPACE

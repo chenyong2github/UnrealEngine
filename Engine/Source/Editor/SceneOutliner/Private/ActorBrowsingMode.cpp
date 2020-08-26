@@ -15,8 +15,10 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "SceneOutlinerDragDrop.h"
 #include "EditorActorFolders.h"
+#include "EditorFolderUtils.h"
 #include "ActorEditorUtils.h"
 #include "DragAndDrop/ActorDragDropOp.h"
+#include "DragAndDrop/FolderDragDropOp.h"
 #include "Logging/MessageLog.h"
 #include "SSocketChooser.h"
 #include "ActorFolderPickingMode.h"
@@ -892,8 +894,8 @@ FSceneOutlinerDragValidationInfo FActorBrowsingMode::ValidateDrop(const ISceneOu
 			// Iterate over all the folders that have been dragged
 			for (FName DraggedFolder : Payload.GetData<FName>(SceneOutliner::FFolderPathSelector()))
 			{
-				const FName Leaf = SceneOutliner::GetFolderLeafName(DraggedFolder);
-				const FName Parent = SceneOutliner::GetParentPath(DraggedFolder);
+				const FName Leaf = FEditorFolderUtils::GetLeafName(DraggedFolder);
+				const FName Parent = FEditorFolderUtils::GetParentPath(DraggedFolder);
 
 				if (Parent == DestinationPath)
 				{

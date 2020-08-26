@@ -33,11 +33,12 @@
 #include "Widgets/Layout/SSeparator.h"
 #include "Widgets/SOverlay.h"
 #include "SceneOutlinerMenuContext.h"
+#include "ISceneOutlinerMode.h"
+#include "FolderTreeItem.h"
+#include "EditorFolderUtils.h"
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
-#include "ISceneOutlinerMode.h"
-#include "FolderTreeItem.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSceneOutliner, Log, All);
 
@@ -1006,7 +1007,7 @@ void SSceneOutliner::AddMoveToFolderOutliner(UToolMenu* Menu) const
 		auto FilterOutChildFolders = [](FName Path, TSharedRef<TSet<FName>> ExcludedParents){
 			for (const auto& Parent : *ExcludedParents)
 			{
-				if (Path == Parent || SceneOutliner::PathIsChildOf(Path, Parent))
+				if (Path == Parent || FEditorFolderUtils::PathIsChildOf(Path, Parent))
 				{
 					return false;
 				}
@@ -1246,8 +1247,8 @@ void SSceneOutliner::PasteFoldersEnd()
 	TMap<FName, FName> FolderMap;
 	for (FName Folder : CacheFoldersEdit)
 	{
-		FName ParentPath = SceneOutliner::GetParentPath(Folder);
-		FName LeafName = SceneOutliner::GetFolderLeafName(Folder);
+		FName ParentPath = FEditorFolderUtils::GetParentPath(Folder);
+		FName LeafName = FEditorFolderUtils::GetLeafName(Folder);
 		if (LeafName != TEXT(""))
 		{
 			if (FName* NewParentPath = FolderMap.Find(ParentPath))
@@ -1360,10 +1361,10 @@ void SSceneOutliner::DeleteFoldersEnd()
 			if (Folder)
 			{
 				// Find lowest parent not being deleted, for reparenting children of current folder
-				FName NewParentPath = SceneOutliner::GetParentPath(Folder->Path);
+				FName NewParentPath = FEditorFolderUtils::GetParentPath(Folder->Path);
 				while (!NewParentPath.IsNone() && CacheFoldersDelete.FindByPredicate(FMatchName(NewParentPath)))
 				{
-					NewParentPath = SceneOutliner::GetParentPath(NewParentPath);
+					NewParentPath = FEditorFolderUtils::GetParentPath(NewParentPath);
 				}
 
 				Folder->Delete(NewParentPath);
@@ -1587,7 +1588,7 @@ void SSceneOutliner::OnHierarchyChangedEvent(FSceneOutlinerHierarchyChangedData 
 			// Now change the path and put it back in the map with its new ID
 			auto Folder = StaticCastSharedPtr<FFolderTreeItem>(Item);
 			Folder->Path = Event.NewPath;
-			Folder->LeafName = SceneOutliner::GetFolderLeafName(Event.NewPath);
+			Folder->LeafName = FEditorFolderUtils::GetLeafName(Event.NewPath);
 
 			TreeItemMap.Add(Item->GetID(), Item);
 

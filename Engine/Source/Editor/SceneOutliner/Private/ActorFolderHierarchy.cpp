@@ -5,6 +5,7 @@
 #include "WorldTreeItem.h"
 #include "ActorFolderTreeItem.h"
 #include "EditorActorFolders.h"
+#include "EditorFolderUtils.h"
 
 FActorFolderHierarchy::FActorFolderHierarchy(ISceneOutlinerMode* InMode, const TWeakObjectPtr<UWorld>& World)
 	: ISceneOutlinerHierarchy(InMode)
@@ -22,7 +23,7 @@ FSceneOutlinerTreeItemPtr FActorFolderHierarchy::FindParent(const ISceneOutliner
 	}
 	else if (const FActorFolderTreeItem* ActorFolderItem = Item.CastTo<FActorFolderTreeItem>())
 	{
-		const FName ParentPath = SceneOutliner::GetParentPath(ActorFolderItem->Path);
+		const FName ParentPath = FEditorFolderUtils::GetParentPath(ActorFolderItem->Path);
 
 		const FSceneOutlinerTreeItemPtr* ParentItem = nullptr;
 		// If the folder has no parent path, it must be parented to the root world
@@ -32,7 +33,7 @@ FSceneOutlinerTreeItemPtr FActorFolderHierarchy::FindParent(const ISceneOutliner
 		}
 		else
 		{
-			ParentItem = Items.Find(SceneOutliner::GetParentPath(ActorFolderItem->Path));
+			ParentItem = Items.Find(FEditorFolderUtils::GetParentPath(ActorFolderItem->Path));
 		}
 
 		if (ParentItem)
@@ -54,7 +55,7 @@ void FActorFolderHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, con
 			{
 				if (const FFolderTreeItem* FolderItem = (*PotentialChild)->CastTo<FFolderTreeItem>())
 				{
-					if (SceneOutliner::GetParentPath(FolderItem->Path).IsNone())
+					if (FEditorFolderUtils::GetParentPath(FolderItem->Path).IsNone())
 					{
 						OutChildren.Add(*PotentialChild);
 					}
@@ -69,7 +70,7 @@ void FActorFolderHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, con
 		{
 			if (const FFolderTreeItem* PotentialChild = Pair.Value->CastTo<FFolderTreeItem>())
 			{
-				if (SceneOutliner::PathIsChildOf(PotentialChild->Path, FolderItem->Path))
+				if (FEditorFolderUtils::PathIsChildOf(PotentialChild->Path, FolderItem->Path))
 				{
 					OutChildren.Add(Pair.Value);
 				}
@@ -114,7 +115,7 @@ void FActorFolderHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item
 		// and manually check the path to know if it a child
 		for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*(FolderItem->World)))
 		{
-			if (SceneOutliner::PathIsChildOf(Pair.Key, FolderItem->Path))
+			if (FEditorFolderUtils::PathIsChildOf(Pair.Key, FolderItem->Path))
 			{
 				if (FSceneOutlinerTreeItemPtr NewFolderItem = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(Pair.Key, FolderItem->World), true))
 				{
@@ -133,7 +134,7 @@ FSceneOutlinerTreeItemPtr FActorFolderHierarchy::CreateParentItem(const FSceneOu
 	}
 	else if (const FActorFolderTreeItem* FolderTreeItem = Item->CastTo<FActorFolderTreeItem>())
 	{
-		const FName ParentPath = SceneOutliner::GetParentPath(FolderTreeItem->Path);
+		const FName ParentPath = FEditorFolderUtils::GetParentPath(FolderTreeItem->Path);
 		if (ParentPath.IsNone())
 		{
 			UWorld* OwningWorld = FolderTreeItem->World.Get();

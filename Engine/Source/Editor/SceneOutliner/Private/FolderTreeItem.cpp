@@ -11,6 +11,7 @@
 
 #include "ActorEditorUtils.h"
 #include "EditorActorFolders.h"
+#include "EditorFolderUtils.h"
 
 #define LOCTEXT_NAMESPACE "SceneOutliner_FolderTreeItem"
 
@@ -35,14 +36,14 @@ const FSceneOutlinerTreeItemType FFolderTreeItem::Type(&ISceneOutlinerTreeItem::
 FFolderTreeItem::FFolderTreeItem(FName InPath)
 	: ISceneOutlinerTreeItem(Type)
 	, Path(InPath)
-	, LeafName(SceneOutliner::GetFolderLeafName(InPath))
+	, LeafName(FEditorFolderUtils::GetLeafName(InPath))
 {
 }
 
 FFolderTreeItem::FFolderTreeItem(FName InPath, FSceneOutlinerTreeItemType InType)
 	: ISceneOutlinerTreeItem(InType)
 	, Path(InPath)
-	, LeafName(SceneOutliner::GetFolderLeafName(InPath))
+	, LeafName(FEditorFolderUtils::GetLeafName(InPath))
 {
 }
 

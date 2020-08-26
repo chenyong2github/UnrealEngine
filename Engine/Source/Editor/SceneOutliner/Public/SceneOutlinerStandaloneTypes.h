@@ -8,23 +8,6 @@
 #include "Templates/MaxSizeof.h"
 #include "SceneOutlinerFwd.h"
 
-namespace SceneOutliner
-{
-	/** Folder-specific helper functions */
-
-	/** Parse a new path (including leaf-name) into this tree item. Does not do any notification */
-	FName GetFolderLeafName(FName InPath);
-
-	/** Get the parent path for the specified folder path */
-	FORCEINLINE FName GetParentPath(FName Path)
-	{
-		return FName(*FPaths::GetPath(Path.ToString()));
-	}
-
-	bool PathIsChildOf(const FName& PotentialChild, const FName& Parent);
-}	// namespace SceneOutliner
-
-
 /** Variant type that defines an identifier for a tree item. Assumes 'trivial relocatability' as with many unreal containers. */
 struct FSceneOutlinerTreeItemID
 {

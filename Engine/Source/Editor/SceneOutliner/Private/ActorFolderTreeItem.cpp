@@ -5,6 +5,7 @@
 #include "SSceneOutliner.h"
 #include "ActorEditorUtils.h"
 #include "EditorActorFolders.h"
+#include "EditorFolderUtils.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "ISceneOutliner.h"
 #include "ISceneOutlinerMode.h"
@@ -144,7 +145,7 @@ private:
 		}
 
 		// Validate that this folder doesn't exist already
-		FName NewPath = SceneOutliner::GetParentPath(TreeItem->Path);
+		FName NewPath = FEditorFolderUtils::GetParentPath(TreeItem->Path);
 		if (NewPath.IsNone())
 		{
 			NewPath = FName(*LabelString);
@@ -169,7 +170,7 @@ private:
 		if (TreeItem.IsValid() && !InLabel.ToString().Equals(TreeItem->LeafName.ToString(), ESearchCase::CaseSensitive))
 		{
 			// Rename the item
-			FName NewPath = SceneOutliner::GetParentPath(TreeItem->Path);
+			FName NewPath = FEditorFolderUtils::GetParentPath(TreeItem->Path);
 			if (NewPath.IsNone())
 			{
 				NewPath = FName(*InLabel.ToString());

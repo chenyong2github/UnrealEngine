@@ -14,8 +14,9 @@
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSettings.h"
 #include "Features/IModularFeatures.h"
+#include "DragAndDrop/CompositeDragDropOp.h"
 #include "DragAndDrop/ActorDragDropOp.h"
-#include "SceneOutlinerDragDrop.h"
+#include "DragAndDrop/FolderDragDropOp.h"
 #include "EngineUtils.h"
 #include "Algo/Sort.h"
 #include "ScopedTransaction.h"
@@ -181,7 +182,7 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 			{
 				return StaticCastSharedPtr<FActorDragDropOp>(InOperation)->Actors.Num() > 0;
 			}
-			else if (InOperation->IsOfType<FSceneOutlinerDragDropOp>())
+			else if (InOperation->IsOfType<FCompositeDragDropOp>())
 			{
 				return true;
 			}
@@ -200,9 +201,9 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 		{
 			return TArray<AActor*>();
 		}
-		else if (OperationPtr->IsOfType<FSceneOutlinerDragDropOp>())
+		else if (OperationPtr->IsOfType<FCompositeDragDropOp>())
 		{
-			FSceneOutlinerDragDropOp* OutlinerOp = static_cast<FSceneOutlinerDragDropOp*>(OperationPtr);
+			FCompositeDragDropOp* OutlinerOp = static_cast<FCompositeDragDropOp*>(OperationPtr);
 			FolderDrag = OutlinerOp->GetSubOp<FFolderDragDropOp>().Get();
 			ActorDrag  = OutlinerOp->GetSubOp<FActorDragDropOp>().Get();
 

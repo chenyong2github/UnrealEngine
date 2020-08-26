@@ -11,6 +11,7 @@
 #include "Engine/Selection.h"
 #include "EngineUtils.h"
 #include "Editor.h"
+#include "EditorFolderUtils.h"
 #include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "FActorFolders"
@@ -179,15 +180,6 @@ void FActorFolders::OnActorFolderChanged(const AActor* InActor, FName OldPath)
 	{
 		Transaction.Cancel();
 	}
-}
-
-bool FActorFolders::PathIsChildOf(const FString& InPotentialChild, const FString& InParent)
-{
-	const int32 ParentLen = InParent.Len();
-	return
-		InPotentialChild.Len() > ParentLen &&
-		InPotentialChild[ParentLen] == '/' &&
-		InPotentialChild.Left(ParentLen) == InParent;
 }
 
 void FActorFolders::RebuildFolderListForWorld(UWorld& InWorld)
@@ -450,7 +442,7 @@ bool FActorFolders::RenameFolderInWorld(UWorld& World, FName OldPath, FName NewP
 	const FString OldPathString = OldPath.ToString();
 	const FString NewPathString = NewPath.ToString();
 
-	if (OldPath.IsNone() || OldPathString.Equals(NewPathString) || PathIsChildOf(NewPathString, OldPathString))
+	if (OldPath.IsNone() || OldPathString.Equals(NewPathString) || FEditorFolderUtils::PathIsChildOf(NewPathString, OldPathString))
 	{
 		return false;
 	}
@@ -470,7 +462,7 @@ bool FActorFolders::RenameFolderInWorld(UWorld& World, FName OldPath, FName NewP
 		auto Path = Pair.Key;
 
 		const FString FolderPath = Path.ToString();
-		if (OldPath == Path || PathIsChildOf(FolderPath, OldPathString))
+		if (OldPath == Path || FEditorFolderUtils::PathIsChildOf(FolderPath, OldPathString))
 		{
 			const FName NewFolder = OldPathToNewPath(OldPathString, NewPathString, FolderPath);
 			
@@ -501,7 +493,7 @@ bool FActorFolders::RenameFolderInWorld(UWorld& World, FName OldPath, FName NewP
 				OnFolderCreate.Broadcast(World, NewFolder);
 			}
 
-			// case insensive compare as we don't want to remove the folder if it has the same name
+			// case insensitive compare as we don't want to remove the folder if it has the same name
 			if (Path != NewFolder)
 			{
 				RenamedFolders.Add(Path);
@@ -521,12 +513,12 @@ bool FActorFolders::RenameFolderInWorld(UWorld& World, FName OldPath, FName NewP
 			continue;
 		}
 
-		if (OldActorPath == OldPath || PathIsChildOf(OldActorPath.ToString(), OldPathString))
+		if (OldActorPath == OldPath || FEditorFolderUtils::PathIsChildOf(OldActorPath.ToString(), OldPathString))
 		{
 			ActorIt->SetFolderPath_Recursively(OldPathToNewPath(OldPathString, NewPathString, OldActorPath.ToString()));
 			const FName& NewActorPath = ActorIt->GetFolderPath();
 
-			// case insensive compare as we don't want to remove the folder if it has the same name
+			// case insensitive compare as we don't want to remove the folder if it has the same name
 			if (OldActorPath != NewActorPath)
 			{
 				RenamedFolders.Add(OldActorPath);

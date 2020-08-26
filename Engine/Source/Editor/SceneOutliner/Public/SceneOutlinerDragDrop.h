@@ -150,17 +150,6 @@ struct FSceneOutlinerDragValidationInfo
 	}
 };
 
-/* A drag/drop operation when dragging folders in the scene outliner */
-struct FFolderDragDropOp: public FDecoratedDragDropOp
-{
-	DRAG_DROP_OPERATOR_TYPE(FFolderDragDropOp, FDecoratedDragDropOp)
-
-	/** Array of folders that we are dragging */
-	TArray<FName> Folders;
-
-	void Init(TArray<FName> InFolders);
-};
-
 /** A drag/drop operation that was started from the scene outliner */
 struct FSceneOutlinerDragDropOp : public FCompositeDragDropOp
 {

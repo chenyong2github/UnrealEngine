@@ -6,21 +6,6 @@
 
 #define LOCTEXT_NAMESPACE "SSceneOutliner"
 
-void FFolderDragDropOp::Init(TArray<FName> InFolders)
-{
-	Folders = MoveTemp(InFolders);
-
-	CurrentIconBrush = FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
-	if (Folders.Num() == 1)
-	{
-		CurrentHoverText = FText::FromName(SceneOutliner::GetFolderLeafName(Folders[0]));
-	}
-	else
-	{
-		CurrentHoverText = FText::Format(NSLOCTEXT("FFolderDragDropOp", "FormatFolders", "{0} Folders"), FText::AsNumber(Folders.Num()));
-	}
-}
-
 FSceneOutlinerDragDropOp::FSceneOutlinerDragDropOp()
 	: OverrideText()
 	, OverrideIcon(nullptr)

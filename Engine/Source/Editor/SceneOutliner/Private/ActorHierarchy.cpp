@@ -13,6 +13,7 @@
 #include "LevelUtils.h"
 #include "GameFramework/WorldSettings.h"
 #include "EditorActorFolders.h"
+#include "EditorFolderUtils.h"
 #include "LevelInstance/LevelInstanceActor.h"
 #include "LevelInstance/LevelInstanceSubsystem.h"
 
@@ -99,7 +100,7 @@ void FActorHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMa
 				{
 					if (const FFolderTreeItem* FolderItem = (*PotentialChild)->CastTo<FFolderTreeItem>())
 					{
-						if (SceneOutliner::GetParentPath(FolderItem->Path).IsNone())
+						if (FEditorFolderUtils::GetParentPath(FolderItem->Path).IsNone())
 						{
 							OutChildren.Add(*PotentialChild);
 						}
@@ -153,7 +154,7 @@ void FActorHierarchy::FindChildren(const ISceneOutlinerTreeItem& Item, const TMa
 		// Search through all folders and find any folders with paths which are children of this item
 		for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*RepresentingWorld))
 		{
-			if (SceneOutliner::PathIsChildOf(Pair.Key, FolderItem->Path))
+			if (FEditorFolderUtils::PathIsChildOf(Pair.Key, FolderItem->Path))
 			{
 				if (const FSceneOutlinerTreeItemPtr* Child = Items.Find(Pair.Key))
 				{
@@ -226,7 +227,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 		// We should never call FindParents on a folder item if folders are not being shown
 		check(Mode->ShouldShowFolders());
 
-		const FName ParentPath = SceneOutliner::GetParentPath(FolderItem->Path);
+		const FName ParentPath = FEditorFolderUtils::GetParentPath(FolderItem->Path);
 
 		const FSceneOutlinerTreeItemPtr* ParentItem = nullptr;
 		// If the folder has no parent path, it must be parented to the root world
@@ -236,7 +237,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::FindParent(const ISceneOutlinerTreeIt
 		}
 		else
 		{
-			ParentItem = Items.Find(SceneOutliner::GetParentPath(FolderItem->Path));
+			ParentItem = Items.Find(FEditorFolderUtils::GetParentPath(FolderItem->Path));
 		}
 			
 		if (ParentItem)
@@ -396,7 +397,7 @@ void FActorHierarchy::CreateChildren(const FSceneOutlinerTreeItemPtr& Item, TArr
 
 		for (const auto& Pair : FActorFolders::Get().GetFolderPropertiesForWorld(*FolderItem->World))
 		{
-			if (SceneOutliner::PathIsChildOf(Pair.Key, FolderItem->Path))
+			if (FEditorFolderUtils::PathIsChildOf(Pair.Key, FolderItem->Path))
 			{
 				if (FSceneOutlinerTreeItemPtr NewFolderItem = Mode->CreateItemFor<FActorFolderTreeItem>(FActorFolderTreeItem(Pair.Key, FolderItem->World)))
 				{
@@ -459,7 +460,7 @@ FSceneOutlinerTreeItemPtr FActorHierarchy::CreateParentItem(const FSceneOutliner
 	{
 		check(Mode->ShouldShowFolders());
 			
-		const FName ParentPath = SceneOutliner::GetParentPath(FolderTreeItem->Path);
+		const FName ParentPath = FEditorFolderUtils::GetParentPath(FolderTreeItem->Path);
 		if (ParentPath.IsNone())
 		{
 			UWorld* OwningWorld = FolderTreeItem->World.Get();
