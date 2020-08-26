@@ -43,5 +43,7 @@ public:
 		{
 			CurrentHoverText = FText::Format(NSLOCTEXT("FActorDragDropOp", "FormatActors", "{0} Actors"), FText::AsNumber(InActors.Num()));
 		}
+
+		SetupDefaults();
 	}
 };

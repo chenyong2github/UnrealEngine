@@ -10,7 +10,8 @@
 #include "Widgets/SBoxPanel.h"
 #include "LayerCollectionViewCommands.h"
 #include "Widgets/Views/SHeaderRow.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "SceneOutlinerDragDrop.h"
+#include "DragAndDrop/ActorDragDropOp.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
@@ -173,10 +174,14 @@ protected:
 	 */
 	virtual void OnDragLeave( const FDragDropEvent& DragDropEvent ) override
 	{
-		TSharedPtr< FActorDragDropGraphEdOp > DragActorOp = DragDropEvent.GetOperationAs< FActorDragDropGraphEdOp >();
-		if (DragActorOp.IsValid())
+		TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+		if (DragOp.IsValid())
 		{
-			DragActorOp->ResetToDefaultToolTip();
+			TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+			if (ActorDragOp.IsValid())
+			{
+				ActorDragOp->ResetToDefaultToolTip();
+			}
 		}
 	}
 
@@ -190,10 +195,14 @@ protected:
 	 */
 	virtual FReply OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override
 	{
-		TSharedPtr< FActorDragDropGraphEdOp > DragActorOp = DragDropEvent.GetOperationAs< FActorDragDropGraphEdOp >();
-		if (DragActorOp.IsValid())
+		TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+		if (DragOp.IsValid())
 		{
-			DragActorOp->SetToolTip(FActorDragDropGraphEdOp::ToolTip_CompatibleGeneric, LOCTEXT("OnDragOver", "Add Actors to New Layer"));
+			TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+			if (ActorDragOp.IsValid())
+			{
+				ActorDragOp->SetToolTip(LOCTEXT("OnDragOver", "Add Actors to New Layer"), FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			}
 		}
 
 		// We leave the event unhandled so the children of the ListView get a chance to grab the drag/drop
@@ -210,15 +219,18 @@ protected:
 	 */
 	virtual FReply OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent ) override
 	{
-		TSharedPtr< FActorDragDropGraphEdOp > DragActorOp = DragDropEvent.GetOperationAs< FActorDragDropGraphEdOp >();
-		if ( !DragActorOp.IsValid() )	
+		TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+		if ( DragOp.IsValid() )
 		{
-			return FReply::Unhandled();
+			TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+			if ( ActorDragOp.IsValid() )
+			{
+				ViewModel->AddActorsToNewLayer(ActorDragOp->Actors);
+				return FReply::Handled();
+			}
 		}
 
-		ViewModel->AddActorsToNewLayer( DragActorOp->Actors );
-
-		return FReply::Handled();
+		return FReply::Unhandled();
 	}
 
 	FReply OnDragRow(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)

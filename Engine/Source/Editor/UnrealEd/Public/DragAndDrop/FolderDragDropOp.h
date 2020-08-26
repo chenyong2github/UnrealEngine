@@ -28,5 +28,7 @@ struct FFolderDragDropOp : public FDecoratedDragDropOp
 		{
 			CurrentHoverText = FText::Format(NSLOCTEXT("FFolderDragDropOp", "FormatFolders", "{0} Folders"), FText::AsNumber(Folders.Num()));
 		}
+
+		SetupDefaults();
 	}
 };

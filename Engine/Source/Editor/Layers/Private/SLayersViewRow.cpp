@@ -6,7 +6,8 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
 #include "EditorStyleSet.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "SceneOutlinerDragDrop.h"
+#include "DragAndDrop/ActorDragDropOp.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 
 #define LOCTEXT_NAMESPACE "LayersView"
@@ -123,55 +124,65 @@ bool SLayersViewRow::OnRenameLayerTextChanged(const FText& NewText, FText& OutEr
 
 void SLayersViewRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr< FActorDragDropGraphEdOp > DragActorOp = DragDropEvent.GetOperationAs< FActorDragDropGraphEdOp >();
-	if (DragActorOp.IsValid())
+	TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+	if (DragOp.IsValid())
 	{
-		DragActorOp->ResetToDefaultToolTip();
+		TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+		if (ActorDragOp.IsValid())
+		{
+			ActorDragOp->ResetToDefaultToolTip();
+		}
 	}
 }
 
 FReply SLayersViewRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr< FActorDragDropGraphEdOp > DragActorOp = DragDropEvent.GetOperationAs< FActorDragDropGraphEdOp >();
-	if (!DragActorOp.IsValid())
+	TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+	if (DragOp.IsValid())
 	{
-		return FReply::Unhandled();
-	}
+		TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+		if (ActorDragOp.IsValid())
+		{
+			bool bCanAssign = false;
+			FText Message;
+			if (ActorDragOp->Actors.Num() > 1)
+			{
+				bCanAssign = ViewModel->CanAssignActors(ActorDragOp->Actors, OUT Message);
+			}
+			else
+			{
+				bCanAssign = ViewModel->CanAssignActor(ActorDragOp->Actors[0], OUT Message);
+			}
 
-	bool bCanAssign = false;
-	FText Message;
-	if (DragActorOp->Actors.Num() > 1)
-	{
-		bCanAssign = ViewModel->CanAssignActors(DragActorOp->Actors, OUT Message);
-	}
-	else
-	{
-		bCanAssign = ViewModel->CanAssignActor(DragActorOp->Actors[0], OUT Message);
-	}
+			if (bCanAssign)
+			{
+				ActorDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			}
+			else
+			{
+				ActorDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+			}
 
-	if (bCanAssign)
-	{
-		DragActorOp->SetToolTip(FActorDragDropGraphEdOp::ToolTip_CompatibleGeneric, Message);
+			FReply::Handled();
+		}
 	}
-	else
-	{
-		DragActorOp->SetToolTip(FActorDragDropGraphEdOp::ToolTip_IncompatibleGeneric, Message);
-	}
-
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 FReply SLayersViewRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr< FActorDragDropGraphEdOp > DragActorOp = DragDropEvent.GetOperationAs< FActorDragDropGraphEdOp >();
-	if (!DragActorOp.IsValid())
+	TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+	if (DragOp.IsValid())
 	{
-		return FReply::Unhandled();
+		TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+		if (ActorDragOp.IsValid())
+		{
+			ViewModel->AddActors(ActorDragOp->Actors);
+			return FReply::Handled();
+		}
 	}
 
-	ViewModel->AddActors(DragActorOp->Actors);
-
-	return FReply::Handled();
+	return FReply::Unhandled();
 }
 
 FSlateColor SLayersViewRow::GetColorAndOpacity() const
@@ -184,12 +195,18 @@ FSlateColor SLayersViewRow::GetColorAndOpacity() const
 	bool bCanAcceptDrop = false;
 	TSharedPtr<FDragDropOperation> DragDropOp = FSlateApplication::Get().GetDragDroppingContent();
 
-	if (DragDropOp.IsValid() && DragDropOp->IsOfType<FActorDragDropGraphEdOp>())
+	if (DragDropOp.IsValid() && DragDropOp->IsOfType<FSceneOutlinerDragDropOp>())
 	{
-		TSharedPtr<FActorDragDropGraphEdOp> DragDropActorOp = StaticCastSharedPtr<FActorDragDropGraphEdOp>(DragDropOp);
-
-		FText Message;
-		bCanAcceptDrop = ViewModel->CanAssignActors(DragDropActorOp->Actors, OUT Message);
+		TSharedPtr<FSceneOutlinerDragDropOp> DragOp = StaticCastSharedPtr<FSceneOutlinerDragDropOp>(DragDropOp);
+		if (DragOp.IsValid())
+		{
+			TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
+			if (ActorDragOp.IsValid())
+			{
+				FText Message;
+				bCanAcceptDrop = ViewModel->CanAssignActors(ActorDragOp->Actors, OUT Message);
+			}
+		}
 	}
 
 	return (bCanAcceptDrop) ? FSlateColor::UseForeground() : FLinearColor(0.30f, 0.30f, 0.30f);

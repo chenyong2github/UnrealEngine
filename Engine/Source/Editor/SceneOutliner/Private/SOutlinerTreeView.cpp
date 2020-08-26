@@ -72,6 +72,13 @@ FReply HandleDrop(TSharedPtr<SSceneOutliner> SceneOutlinerPtr, const FDragDropEv
 		return FReply::Unhandled();
 	}
 
+	// Don't handle this if we're not showing a hierarchy
+	const FSharedSceneOutlinerData& SharedData = SceneOutlinerPtr->GetSharedData();
+	if (!SharedData.bShowParentTree)
+	{
+		return FReply::Unhandled();
+	}
+
 	// Don't handle this if the scene outliner is not in a mode which supports drag and drop
 	if (!SceneOutlinerPtr->CanSupportDragAndDrop())
 	{
@@ -128,7 +135,10 @@ FReply SSceneOutlinerTreeView::OnDragOver(const FGeometry& MyGeometry, const FDr
 	FFolderTreeItem DropTarget(NAME_None);
 
 	auto Reply = HandleDropFromWeak(SceneOutlinerWeak, DragDropEvent, DropTarget, ValidationInfo);
-	UpdateOperationDecorator(DragDropEvent, ValidationInfo);
+	if (Reply.IsEventHandled())
+	{
+		UpdateOperationDecorator(DragDropEvent, ValidationInfo);
+	}
 
 	return Reply;
 }
@@ -170,8 +180,11 @@ void SSceneOutlinerTreeRow::OnDragEnter( const FGeometry& MyGeometry, const FDra
 	{
 		FSceneOutlinerDragValidationInfo ValidationInfo = FSceneOutlinerDragValidationInfo::Invalid();
 
-		HandleDrop(SceneOutlinerPtr, DragDropEvent, *ItemPtr, ValidationInfo, false);
-		UpdateOperationDecorator(DragDropEvent, ValidationInfo);
+		FReply Reply = HandleDrop(SceneOutlinerPtr, DragDropEvent, *ItemPtr, ValidationInfo, false);
+		if (Reply.IsEventHandled())
+		{
+			UpdateOperationDecorator(DragDropEvent, ValidationInfo);
+		}
 	}
 }
 
