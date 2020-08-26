@@ -1017,27 +1017,46 @@ void UMaterial::GetUsedTextures(TArray<UTexture*>& OutTextures, EMaterialQuality
 {
 	OutTextures.Empty();
 
-	if (QualityLevel == EMaterialQualityLevel::Num)
-	{
-		QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
-	}
-
 	if (!FPlatformProperties::IsServerOnly())
 	{
 		const UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(this);
 
-		for (const FMaterialResource* CurrentResource : MaterialResources)
+		FInt32Range QualityLevelRange(0, EMaterialQualityLevel::Num - 1);
+		if (!bAllQualityLevels)
 		{
-			if (CurrentResource->GetQualityLevel() != QualityLevel && !bAllQualityLevels)
+			if (QualityLevel == EMaterialQualityLevel::Num)
 			{
-				continue;
+				QualityLevel = GetCachedScalabilityCVars().MaterialQualityLevel;
 			}
+			QualityLevelRange = FInt32Range(QualityLevel, QualityLevel);
+		}
 
-			if (CurrentResource->GetFeatureLevel() != FeatureLevel && !bAllFeatureLevels)
+		FInt32Range FeatureLevelRange(0, ERHIFeatureLevel::Num - 1);
+		if (!bAllFeatureLevels)
+		{
+			if (FeatureLevel == ERHIFeatureLevel::Num)
 			{
-				continue;
+				FeatureLevel = GMaxRHIFeatureLevel;
 			}
+			FeatureLevelRange = FInt32Range(FeatureLevel, FeatureLevel);
+		}
 
+		TArray<const FMaterialResource*, TInlineAllocator<4>> MatchedResources;
+		// Parse all relevant quality and feature levels.
+		for (int32 QualityLevelIndex = QualityLevelRange.GetLowerBoundValue(); QualityLevelIndex <= QualityLevelRange.GetUpperBoundValue(); ++QualityLevelIndex)
+		{
+			for (int32 FeatureLevelIndex = FeatureLevelRange.GetLowerBoundValue(); FeatureLevelIndex <= FeatureLevelRange.GetUpperBoundValue(); ++FeatureLevelIndex)
+			{
+				const FMaterialResource* CurrentResource = FindMaterialResource(MaterialResources, (ERHIFeatureLevel::Type)FeatureLevelIndex, (EMaterialQualityLevel::Type)QualityLevelIndex, true);
+				if (CurrentResource)
+				{
+					MatchedResources.AddUnique(CurrentResource);
+				}
+			}
+		}
+
+		for (const FMaterialResource* CurrentResource : MatchedResources)
+		{
 			for (int32 TypeIndex = 0; TypeIndex < NumMaterialTextureParameterTypes; TypeIndex++)
 			{
 				// Iterate over each of the material's texture expressions.
