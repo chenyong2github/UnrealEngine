@@ -713,7 +713,7 @@ bool FSlateInvalidationRoot::ProcessInvalidation()
 
 				if (AddedWidgets >= CascadeInvalidationEventAmount)
 				{
-					CSV_EVENT(Slate, TEXT("%s"), *FReflectionMetaData::GetWidgetDebugInfo(WidgetProxy.Widget));
+					CSV_EVENT(Slate, TEXT("Invalidated %s"), *FReflectionMetaData::GetWidgetDebugInfo(WidgetProxy.Widget));
 				}
 
 				if (EnumHasAnyFlags(WidgetProxy.UpdateFlags, EWidgetUpdateFlags::NeedsRepaint))
