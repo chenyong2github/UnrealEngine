@@ -2377,6 +2377,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			GCompositionLighting.ProcessAfterBasePass(RHICmdList, View);
 		}
+		SceneContext.ScreenSpaceGTAOHorizons.SafeRelease();
+		SceneContext.ScreenSpaceGTAODepths.SafeRelease();
+
 		ServiceLocalQueue();
 	}
 
