@@ -17520,7 +17520,6 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	ConstPhaseG2 = 0.0f;
 	ConstPhaseBlend = 0.0f;
 	PerSamplePhaseEvaluation = false;
-	bGrayScaleMaterial = false;
 
 	MultiScatteringApproximationOctaveCount = 0;
 	ConstMultiScatteringContribution = 0.5f;
@@ -17528,6 +17527,8 @@ UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetr
 	ConstMultiScatteringEccentricity = 0.5f;
 
 	bGroundContribution = false;
+	bGrayScaleMaterial = false;
+	bRayMarchVolumeShadow = true;
 
 #if WITH_EDITORONLY_DATA
 	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedOutput);
