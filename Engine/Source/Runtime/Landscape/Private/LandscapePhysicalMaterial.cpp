@@ -231,11 +231,11 @@ namespace
 	 * Initially we only collect the base landscape mesh, but potentially we could gather other objects like roads?
 	 * WARNING: This gets the SceneProxy pointer from the UComponent on the render thread. This doesn't feel safe but it's what the grass renderer does...
 	 */
-	void FillMeshInfos_RenderThread(ULandscapeComponent const* InLandscapeComponent, FMeshInfoArray& OutMeshInfos)
+	void FillMeshInfos_RenderThread(const FPrimitiveSceneProxy* InSceneProxy, FMeshInfoArray& OutMeshInfos)
 	{
 		const int32 MeshInfoIndex = OutMeshInfos.AddUninitialized();
-		OutMeshInfos[MeshInfoIndex].Proxy = InLandscapeComponent->SceneProxy;
-		OutMeshInfos[MeshInfoIndex].MeshBatch = &((FLandscapeComponentSceneProxy*)InLandscapeComponent->SceneProxy)->GetGrassMeshBatch();
+		OutMeshInfos[MeshInfoIndex].Proxy = InSceneProxy;
+		OutMeshInfos[MeshInfoIndex].MeshBatch = &((FLandscapeComponentSceneProxy*)InSceneProxy)->GetGrassMeshBatch();
 		OutMeshInfos[MeshInfoIndex].MeshBatchElementMask = 1 << 0; // LOD 0 only
 	}
 
@@ -435,14 +435,15 @@ namespace
 	{
 		// WARNING: We access the UComponent to get in SceneProxy for FillMeshInfos_RenderThread(). 
 		// This isn't good style but probably works since the UComponent owns the update task and is guaranteed to be valid.
-		if (Task.CompletionState == ECompletionState::None && Task.LandscapeComponent->SceneProxy)
+		const FPrimitiveSceneProxy* SceneProxy = Task.LandscapeComponent->SceneProxy;
+		if (Task.CompletionState == ECompletionState::None && SceneProxy)
 		{
 			// Allocate read back resources
 			if (InitTaskRenderResources(Task))
 			{
 				// Render the pending item.
 				FMeshInfoArray MeshInfos;
-				FillMeshInfos_RenderThread(Task.LandscapeComponent, MeshInfos);
+				FillMeshInfos_RenderThread(SceneProxy, MeshInfos);
 
 				Render_RenderThread(
 					RHICmdList,
