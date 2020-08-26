@@ -175,7 +175,9 @@ bool FIOSVivoxVoiceChat::Uninitialize()
 
 IVoiceChatUser* FIOSVivoxVoiceChat::CreateUser()
 {
-	return new FIOSVivoxVoiceChatUser(*this);
+	FScopeLock Lock(&VoiceChatUsersCriticalSection);
+	const TUniquePtr<FVivoxVoiceChatUser>& User = VoiceChatUsers.Emplace_GetRef(MakeUnique<FIOSVivoxVoiceChatUser>(*this));
+	return User.Get();
 }
 
 bool FIOSVivoxVoiceChat::IsHardwareAECEnabled() const
