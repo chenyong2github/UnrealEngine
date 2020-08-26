@@ -37,6 +37,29 @@ static TArray<uint8> GenerateSRGBTable(uint32 InPrecision)
 	return OutsRGBTable;
 }
 
+static TArray<float> GenerateInverseSRGBTable(uint32 InPrecision)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_ImageQuant_TableGeneration);
+	TArray<float> OutLinearTable;
+	OutLinearTable.SetNumUninitialized(InPrecision);
+	for (int32 TableIndex = 0; TableIndex < OutLinearTable.Num(); TableIndex++)
+	{
+		float ValueAsLinear = (float)TableIndex / (OutLinearTable.Num() - 1);
+		if (ValueAsLinear <= 0.04045)
+		{
+			ValueAsLinear = ValueAsLinear / 12.92f;
+		}
+		else
+		{
+			ValueAsLinear = FMath::Pow((ValueAsLinear + 0.055f) / 1.055f, 2.4f);
+		}
+
+		OutLinearTable.GetData()[TableIndex] = ValueAsLinear;
+	}
+
+	return OutLinearTable;
+}
+
 static TArray<uint8> GenerateSRGBTableFloat16to8()
 {
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_ImageQuant_TableGeneration);
@@ -249,18 +272,44 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 	{
 	case 16:
 	{
-		int64 SizeInBytes = 0;
-		const void* SrcRawDataPtr = nullptr;
-		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
-
 		{
+			int64 SizeInBytes = 0;
+			const void* SrcRawDataPtr = nullptr;
+			InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
+
 			TArray<FFloat16Color> sRGBEncoded = ConvertLinearTosRGB16bppViaLookupTable((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
 			QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(sRGBEncoded)), InPayload);
 		}
 		break;
 	}
-	case 32:
 	case 8:
+	{
+		int64 SizeInBytes = 0;
+		const void* SrcRawDataPtr = nullptr;
+		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
+
+		// FColor is assumed to be in sRGB while FFloat16Color is assumed to be linear so we need to convert back.
+		TArray64<FFloat16Color> OutColors;
+		OutColors.SetNumUninitialized(RawSize.X * RawSize.Y);
+
+		TArray<float> LookupTable = GenerateInverseSRGBTable(256);
+		const float* LookupTablePtr = LookupTable.GetData();
+		
+		const FColor* DataPtr = (FColor*)(SrcRawDataPtr);
+		for (int64 Index = 0; Index < (RawSize.X * RawSize.Y); Index++)
+		{
+			OutColors[Index].R = LookupTablePtr[DataPtr[Index].R];
+			OutColors[Index].G = LookupTablePtr[DataPtr[Index].G];
+			OutColors[Index].B = LookupTablePtr[DataPtr[Index].B];
+
+			// Alpha is linear and doesn't get converted.
+			OutColors[Index].A = DataPtr[Index].A / 255.f;
+		}
+
+		QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(OutColors)), InPayload);
+		break;
+	}
+	case 32:
 	default:
 		// Unsupported source bit-depth, consider adding it!
 		check(false);
