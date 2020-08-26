@@ -39,7 +39,6 @@ DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_Accumula
 namespace MoviePipeline
 {
 	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
-	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig);
 }
 
 void UMoviePipelineImagePassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const
@@ -298,7 +297,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.bAccumulateAlpha = MoviePipeline::GetAnyOutputWantsAlpha(GetPipeline()->GetPipelineMasterConfig());
+		AccumulationArgs.bAccumulateAlpha = bOutputAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
@@ -451,7 +450,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.bAccumulateAlpha = MoviePipeline::GetAnyOutputWantsAlpha(GetPipeline()->GetPipelineMasterConfig());
+		AccumulationArgs.bAccumulateAlpha = bOutputAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
@@ -1008,21 +1007,6 @@ namespace MoviePipeline
 			// Free the memory in the accumulator.
 			InParams.ImageAccumulator->Reset();
 		}
-	}
-
-	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig)
-	{
-		TArray<UMoviePipelineOutputBase*> OutputSettings = InConfig->FindSettings<UMoviePipelineOutputBase>();
-
-		for (const UMoviePipelineOutputBase* Output : OutputSettings)
-		{
-			if (Output->IsAlphaSupported())
-			{
-				return true;
-			}
-		}
-
-		return false;
 	}
 }
 
