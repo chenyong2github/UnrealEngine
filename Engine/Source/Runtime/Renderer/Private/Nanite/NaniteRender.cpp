@@ -2950,6 +2950,8 @@ void CullRasterizeInner(
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
 	check(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
 
+	ensureMsgf(Views.Num() > 1 || RasterContext.ViewRect == FIntRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W), TEXT("When rendering in single-view mode the view rect must match that of the render target."));
+
 	{
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
 		CullingContext.ViewsBuffer = CreateStructuredBuffer(GraphBuilder, TEXT("Views"), Views.GetTypeSize(), ViewsBufferElements, Views.GetData(), Views.Num() * Views.GetTypeSize());

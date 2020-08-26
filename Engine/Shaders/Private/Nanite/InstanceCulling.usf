@@ -14,6 +14,7 @@
 //======================
 
 uint NumInstances;
+uint NumViews;
 uint NumPrimaryViews;
 
 StructuredBuffer<FInstanceDraw>			InInstanceDraws;
@@ -53,6 +54,15 @@ void InstanceCull(
 	const bool bIsPostPass = false;
 #endif
 
+#if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
+
+	// Loop over each of the views
+	for (uint ViewId = 0; ViewId < NumViews; ++ViewId)
+	{
+#else // !(NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST)
+	uint ViewId = 0;
+#endif // NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
+
 	if (GroupIndex == 0)
 	{
 		GroupNumNodes = 0;
@@ -68,7 +78,6 @@ void InstanceCull(
 
 	uint NodeOffset = 0;
 	uint OccludedInstanceOffset = 0;
-	uint ViewId = 0;
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
 	uint InstanceId = DispatchIndex;
@@ -245,6 +254,9 @@ void InstanceCull(
 			StoreVisibleNode( OutNodes, NodeOffset, Node, bIsPostPass );
 		}
 	}
+#if NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
+	}
+#endif // NANITE_MULTI_VIEW && !INSTANCE_DRAW_LIST
 }
 
 [numthreads(64, 1, 1)]
