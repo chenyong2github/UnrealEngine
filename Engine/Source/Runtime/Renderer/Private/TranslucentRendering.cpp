@@ -518,7 +518,7 @@ void FDeferredShadingSceneRenderer::SetupDownsampledTranslucencyViewParameters(
 	ensure(DownsamplingScale < 1.f);
 
 	SceneContext.GetDownsampledTranslucencyDepth(RHICmdList, ScaledSize);
-	DownsampleDepthSurface(RHICmdList, SceneContext.GetDownsampledTranslucencyDepthSurface(), View, DownsamplingScale, false);
+	DownsampleDepthSurface(RHICmdList, SceneContext.GetDownsampledTranslucencyDepthSurface(), View, DownsamplingScale, EDepthDownsampleMode::Sample0);
 
 	DownsampledTranslucencyViewParameters  = *View.CachedViewUniformShaderParameters;
 

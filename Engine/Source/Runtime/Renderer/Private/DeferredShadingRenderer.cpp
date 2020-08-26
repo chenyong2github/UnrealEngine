@@ -10,6 +10,7 @@
 #include "SingleLayerWaterRendering.h"
 #include "SkyAtmosphereRendering.h"
 #include "VolumetricCloudRendering.h"
+#include "VolumetricRenderTarget.h"
 #include "ScenePrivate.h"
 #include "ScreenRendering.h"
 #include "PostProcess/SceneFilterRendering.h"
@@ -2530,6 +2531,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	if (bShouldRenderVolumetricCloud && IsVolumetricRenderTargetEnabled())
+	{
+		// The checkerboarded half resolution depth texture will be needed.
+		UpdateHalfResDepthSurfaceCheckerboardMinMax(RHICmdList);
+	}
+
 	if (bShouldRenderVolumetricCloud)
 	{
 		// Generate the volumetric cloud render target
@@ -3094,12 +3101,13 @@ public:
 		ProjectionScaleBias.Bind(Initializer.ParameterMap,TEXT("ProjectionScaleBias"));
 		SourceTexelOffsets01.Bind(Initializer.ParameterMap,TEXT("SourceTexelOffsets01"));
 		SourceTexelOffsets23.Bind(Initializer.ParameterMap,TEXT("SourceTexelOffsets23"));
-		UseMaxDepth.Bind(Initializer.ParameterMap, TEXT("UseMaxDepth"));
 		SourceMaxUVParameter.Bind(Initializer.ParameterMap, TEXT("SourceMaxUV"));
+		DepthDownsampleMode.Bind(Initializer.ParameterMap, TEXT("DepthDownsampleMode"));
+		DestinationResolution.Bind(Initializer.ParameterMap, TEXT("DestinationResolution"));
 	}
 	FDownsampleSceneDepthPS() {}
 
-	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, bool bUseMaxDepth, FIntPoint ViewMax)
+	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, EDepthDownsampleMode SelectedDepthDownsampleMode, FIntPoint ViewMax, FVector2D InDestinationResolution, uint32 DownsampleFactor)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
@@ -3107,12 +3115,12 @@ public:
 		// Used to remap view space Z (which is stored in scene color alpha) into post projection z and w so we can write z/w into the downsized depth buffer
 		const FVector2D ProjectionScaleBiasValue(View.ViewMatrices.GetProjectionMatrix().M[2][2], View.ViewMatrices.GetProjectionMatrix().M[3][2]);
 		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), ProjectionScaleBias, ProjectionScaleBiasValue);
-		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), UseMaxDepth, (bUseMaxDepth ? 1.0f : 0.0f));
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), DepthDownsampleMode, (uint32)SelectedDepthDownsampleMode);
+		SetShaderValue(RHICmdList, RHICmdList.GetBoundPixelShader(), DestinationResolution, InDestinationResolution);
 
 		FIntPoint BufferSize = SceneContext.GetBufferSizeXY();
-
-		const uint32 DownsampledBufferSizeX = BufferSize.X / SceneContext.GetSmallColorDepthDownsampleFactor();
-		const uint32 DownsampledBufferSizeY = BufferSize.Y / SceneContext.GetSmallColorDepthDownsampleFactor();
+		const uint32 DownsampledBufferSizeX = BufferSize.X / DownsampleFactor;
+		const uint32 DownsampledBufferSizeY = BufferSize.Y / DownsampleFactor;
 
 		// Offsets of the four full resolution pixels corresponding with a low resolution pixel
 		const FVector4 Offsets01(0.0f, 0.0f, 1.0f / DownsampledBufferSizeX, 0.0f);
@@ -3131,7 +3139,8 @@ public:
 	LAYOUT_FIELD(FShaderParameter, SourceTexelOffsets23);
 	LAYOUT_FIELD(FShaderParameter, SourceMaxUVParameter);
 	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
-	LAYOUT_FIELD(FShaderParameter, UseMaxDepth);
+	LAYOUT_FIELD(FShaderParameter, DepthDownsampleMode);
+	LAYOUT_FIELD(FShaderParameter, DestinationResolution);
 };
 
 IMPLEMENT_SHADER_TYPE(,FDownsampleSceneDepthPS,TEXT("/Engine/Private/DownsampleDepthPixelShader.usf"),TEXT("Main"),SF_Pixel);
@@ -3148,15 +3157,39 @@ void FDeferredShadingSceneRenderer::UpdateDownsampledDepthSurface(FRHICommandLis
 		{
 			const FViewInfo& View = Views[ViewIndex];
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-			DownsampleDepthSurface(RHICmdList, SceneContext.GetSmallDepthSurface(), View, 1.0f / SceneContext.GetSmallColorDepthDownsampleFactor(), true);
+			DownsampleDepthSurface(RHICmdList, SceneContext.GetSmallDepthSurface(), View, SceneContext.GetSmallColorDepthDownsampleFactor(), EDepthDownsampleMode::Max);
 		}
+	}
+}
+
+/** Updates the downsized depth buffer with the current full resolution depth buffer. */
+void FDeferredShadingSceneRenderer::UpdateHalfResDepthSurfaceCheckerboardMinMax(FRHICommandList& RHICmdList)
+{
+	SCOPED_DRAW_EVENT(RHICmdList, HalfResDepthCheckerboardMinMax);
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneDepthSurface());
+
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		FViewInfo& View = Views[ViewIndex];
+		SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+
+		const uint32 DownsampleFactor = 2;
+		FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
+		FIntPoint HalfResBufferSizeXY(FMath::Max<uint32>(BufferSizeXY.X / DownsampleFactor, 1), FMath::Max<uint32>(BufferSizeXY.Y / DownsampleFactor, 1));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(HalfResBufferSizeXY, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, true));
+		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, View.HalfResDepthSurfaceCheckerboardMinMax, TEXT("HalfResDepthSurfaceCheckerboardMinMax"), true, ERenderTargetTransience::Transient);
+
+		DownsampleDepthSurface(RHICmdList, View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture->GetTexture2D(), View, DownsampleFactor, EDepthDownsampleMode::Checkerboard);
+		RHICmdList.CopyToResolveTarget(View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture, View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
 }
 
 /** Downsample the scene depth with a specified scale factor to a specified render target
 */
-void FDeferredShadingSceneRenderer::DownsampleDepthSurface(FRHICommandList& RHICmdList, const FTexture2DRHIRef& RenderTarget, const FViewInfo& View, float ScaleFactor, bool bUseMaxDepth)
+void FDeferredShadingSceneRenderer::DownsampleDepthSurface(FRHICommandList& RHICmdList, const FTexture2DRHIRef& RenderTarget, const FViewInfo& View, uint32 DownsampleFactor, EDepthDownsampleMode DepthDownsampleMode)
 {
+	const float ScaleFactor = 1.0f / float(DownsampleFactor);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	FRHIRenderPassInfo RPInfo;
@@ -3187,11 +3220,11 @@ void FDeferredShadingSceneRenderer::DownsampleDepthSurface(FRHICommandList& RHIC
 
 	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
 
-	PixelShader->SetParameters(RHICmdList, View, bUseMaxDepth, View.ViewRect.Max);
 	const uint32 DownsampledX = FMath::TruncToInt(View.ViewRect.Min.X * ScaleFactor);
 	const uint32 DownsampledY = FMath::TruncToInt(View.ViewRect.Min.Y * ScaleFactor);
 	const uint32 DownsampledSizeX = FMath::TruncToInt(View.ViewRect.Width() * ScaleFactor);
 	const uint32 DownsampledSizeY = FMath::TruncToInt(View.ViewRect.Height() * ScaleFactor);
+	PixelShader->SetParameters(RHICmdList, View, DepthDownsampleMode, View.ViewRect.Max, FVector2D(DownsampledSizeX, DownsampledSizeY), DownsampleFactor);
 
 	RHICmdList.SetViewport(DownsampledX, DownsampledY, 0.0f, DownsampledX + DownsampledSizeX, DownsampledY + DownsampledSizeY, 1.0f);
 

@@ -1189,6 +1189,8 @@ public:
 	float FurthestReflectionCaptureDistance;
 	TUniformBufferRef<FReflectionCaptureShaderData> ReflectionCaptureUniformBuffer;
 
+	TRefCountPtr<IPooledRenderTarget> HalfResDepthSurfaceCheckerboardMinMax;
+
 	// Sky / Atmosphere textures (transient owned by this view info) and pointer to constants owned by SkyAtmosphere proxy.
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereCameraAerialPerspectiveVolume;
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;

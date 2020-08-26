@@ -397,7 +397,7 @@ ParticipatingMediaPhaseContext SetupParticipatingMediaPhaseContext(float BasePha
 bool TraceClouds(
 	in float4 SvPosition,
 	inout float4 OutColor0,
-	inout float  OutColor1,
+	inout float2 OutColor1,
 	inout float3 RayOrigin,
 	inout float3 RayOriginKm,
 	inout float3 Raydir,
@@ -469,60 +469,19 @@ bool TraceClouds(
 	// Sample the depth buffer and update tracing distance
 	//
 
-	uint4 SubSetCoordToFullResolutionScaleBias = RenderVolumetricCloudParameters.SubSetCoordToFullResolutionScaleBias;
-	float DeviceZ = RenderVolumetricCloudParameters.SceneDepthTexture.Load(uint3(uint2(SvPosition.xy) * SubSetCoordToFullResolutionScaleBias.xy + SubSetCoordToFullResolutionScaleBias.zw, 0)).r;
+	uint4 TracingCoordToZbufferCoordScaleBias = RenderVolumetricCloudParameters.TracingCoordToZbufferCoordScaleBias;
+	float DeviceZ = RenderVolumetricCloudParameters.SceneDepthTexture.Load(uint3(uint2(SvPosition.xy - 0.5) * TracingCoordToZbufferCoordScaleBias.xy + TracingCoordToZbufferCoordScaleBias.zw, 0)).r;
 #if HAS_INVERTED_Z_BUFFER
 	DeviceZ = max(0.000000000001, DeviceZ);
 #endif
 	float3 DepthBufferWorldPos = SvPositionToWorld(float4(SvPosition.xy, DeviceZ, 1.0));
 	float TDepthBuffer = length(DepthBufferWorldPos - RayOrigin);
+	OutColor1.y = TDepthBuffer * CENTIMETER_TO_KILOMETER;
 
 	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 2)
 	{
-		//float CloudSampleAltitudeKm = length(RayOriginKm - RenderVolumetricCloudParameters.CloudLayerCenterKm);
-		//const bool bIsOutsideCloudLayer = CloudSampleAltitudeKm < RenderVolumetricCloudParameters.BottomRadiusKm || CloudSampleAltitudeKm > RenderVolumetricCloudParameters.TopRadiusKm;
-
-		if (TDepthBuffer < TMin)
-		{
-			// If there is an opaque object in front of the cloud layer, we wantto try to keep tracing near the edges to help with reprojection and upsampling quality.
-			// At the same time, we want to  avoid tracing inside the opaque meshes as an optimisation. 
-			// We also need to be carefull with meshes intersecting the layer to not see through them at edges.
-		
-			float3 DepthBufferPosition = RayOrigin + TDepthBuffer * Raydir;
-			float3 CloudLayerFrontPosition = RayOrigin + TMin * Raydir;
-			float4 CloudLayerFrontClipPosition = mul(float4((CloudLayerFrontPosition + ResolvedView.PreViewTranslation).xyz, 1.0f), ResolvedView.TranslatedWorldToClip);
-			float CloudLayerFrontZDepth = (CloudLayerFrontClipPosition / CloudLayerFrontClipPosition.w).z;
-		
-			const float2 BufferToTextureUVRatio = View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw;
-			const float TestedTileSize = 2.0f;
-			float4 ScreenUVMinMax = saturate((SvPosition.xyxy + TestedTileSize*float4(-1.0f, -1.0f, 1.0f, 1.0f)) * RenderVolumetricCloudParameters.OutputSizeInvSize.zwzw * BufferToTextureUVRatio.xyxy);
-			if (
-				RenderVolumetricCloudParameters.HasValidHZB &&
-				(
-					// We are not conservatively being an opaque mesh (we are still going to trace around opaque mesh edges)
-					!ViewHierarchicalZBufferMinDepth(ScreenUVMinMax, CloudLayerFrontZDepth) 
-				)
-
-				// In this case we always want to early exit
-				|| !RenderVolumetricCloudParameters.HasValidHZB
-			)
-			{
-				// The sky is not visible when using conservative furthest depth so we do not trace cloud.
-				OutColor0 = float4(0.0, 0.0, 0.0, 1.0);
-				// We write depth as the cloud layer front interface when behind opaque objects. This is to help with bnilateral reconstruction later and obtain sharper edges around meshes.
-				OutColor1 = max(TMin, TDepthBuffer) * CENTIMETER_TO_KILOMETER;
-		
-				return false; 
-			}
-
-			// We still need to do that in case after the conservative test in order to not see the tile when rendering at high quality and full resolution for instance.
-			TMax = RenderVolumetricCloudParameters.ClampRayTToDepthBufferPostHZB ? min(TMax, TDepthBuffer) : TMax;
-		}
-		else
-		{
-			// Only trace up to the closest between the cloud layer far distance and the depth buffer 
-			TMax = min(TMax, TDepthBuffer);
-		}
+		// Only trace up to the closest between the cloud layer far distance and the depth buffer 
+		TMax = min(TMax, TDepthBuffer);
 	}
 
 
@@ -643,15 +602,6 @@ bool TraceClouds(
 	{
 		// Using simple ALU based noise as it seems to work the best now. Mod8 is also used to stabilise the result when the amount of sample cannot converge to the correct integration.
 		t = TMin + (float(Rand3DPCG16(int3(SvPosition.xy, View.StateFrameIndexMod8)).x) * rcp(65536.0)) * StepT;
-		//const uint VolumetricRTMode = RenderVolumetricCloudParameters.VolumetricRenderTargetMode;
-		/*t = TMin + StepT * InterleavedGradientNoise(
-			VolumetricRTMode == 2 ? uint2(SvPosition.xy) * SubSetCoordToFullResolutionScaleBias.xy + SubSetCoordToFullResolutionScaleBias.zw	: uint2(SvPosition.xy),
-			VolumetricRTMode == 2 ? float(RenderVolumetricCloudParameters.NoiseFrameIndexModPattern)											: float(View.StateFrameIndexMod8));
-		*/
-		/*t = TMin + RenderVolumetricCloudParameters.BlueNoise.Texture.Load(
-			uint3(uint2(uint2(SvPosition.xy) * SubSetCoordToFullResolutionScaleBias.xy + SubSetCoordToFullResolutionScaleBias.zw) % RenderVolumetricCloudParameters.BlueNoise.Dimensions.xx
-				+ uint2(0, ((RenderVolumetricCloudParameters.NoiseFrameIndexModPattern) % RenderVolumetricCloudParameters.BlueNoise.Dimensions.z) * RenderVolumetricCloudParameters.BlueNoise.Dimensions.y), 0)).r * StepT;
-		*/
 	}
 
 
@@ -1047,7 +997,7 @@ void MainPS(
 	  in FVertexFactoryInterpolantsVSToPS FactoryInterpolants
 	, in float4 SvPosition : SV_Position
 	, out float4 OutColor0 : SV_Target0
-	, out float  OutColor1 : SV_Target1
+	, out float2 OutColor1 : SV_Target1
 )
 {
 	ResolvedView = ResolveView();
@@ -1186,10 +1136,10 @@ void MainPS(
 	float GrayScaleTransmittance = MeanTransmittance < TransmittanceCutThreshold ? 0.0f : MeanTransmittance;
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
 
-	OutColor1 = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
+	OutColor1.x = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
 	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 1)
 	{
-		OutColor1 = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
+		OutColor1.x = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
 
 #if 0
@@ -1217,7 +1167,7 @@ void MainPS(
 
 		const bool bMediumHit = CountToDebug > 0;
 		OutColor0 = float4(bMediumHit ? GetColorCode(saturate(float(CountToDebug) / 64.0f)) : float3(0.0f, 0.0f, 0.0), bMediumHit ? 0.0f : 1.0f); 
-		OutColor1 = bMediumHit ? OutColor1 : MaxHalfFloat;
+		OutColor1.x = bMediumHit ? OutColor1.x : MaxHalfFloat;
 	}
 #endif
 }
