@@ -50,6 +50,10 @@ public:
 
 	/** Free the entry and reset it to INDEX_NONE if valid. */
 	void FreeEntry(uint32& BufferOffset);
+
+	/** Free and array of entries, you are expected to reset or change to INDEX_NONE. */
+	void FreeEntryArray(TConstArrayView<uint32> EntryArray);
+
 	uint32 AcquireEntry();
 
 	uint32 AcquireCulledEntry()

@@ -591,7 +591,7 @@ void NiagaraEmitterInstanceBatcher::GatherResources(FOverlappableTicks& Overlapp
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraGPUDispatchSetup_RT);
 
-	const bool bReadbackPending = GPUInstanceCounterManager.HasPendingGPUReadback();
+	const bool bEnqueueReadback = !GPUInstanceCounterManager.HasPendingGPUReadback();
 
 	for (FNiagaraGPUSystemTick* Tick : OverlappableTick)
 	{
@@ -619,15 +619,18 @@ void NiagaraEmitterInstanceBatcher::GatherResources(FOverlappableTicks& Overlapp
 				FNiagaraDataBuffer* FinalBuffer = Context->MainDataSet->GetCurrentData();
 				Context->SetDataToRender(FinalBuffer);
 
-				// For the final tick we can stage the readback of the original source data
-				if (!bReadbackPending)
+				// If this is the final tick we can enqueue a readback on the source buffer
+				if (bEnqueueReadback)
 				{
-					FNiagaraDataBuffer* ReadbackBuffer = Instance.SimStageData[0].Source;
-					if (ReadbackBuffer->GetNumInstances() && Context->EmitterInstanceReadback.GPUCountOffset == INDEX_NONE && ReadbackBuffer->GetGPUInstanceCountBufferOffset() != INDEX_NONE)
+					const uint32 ReadbackCountOffset = Instance.SimStageData[0].SourceCountOffset;
+					const uint32 ReadbackNumInstances = Instance.SimStageData[0].SourceNumInstances;
+					if (ReadbackNumInstances && (ReadbackCountOffset != INDEX_NONE) && (Context->EmitterInstanceReadback.GPUCountOffset == INDEX_NONE))
 					{
-						// Transfer the GPU instance counter ownership to the context. Note that a readback request will be performed later in the tick update, unless there's already a pending readback.
-						Context->EmitterInstanceReadback.GPUCountOffset = ReadbackBuffer->GetGPUInstanceCountBufferOffset();
-						Context->EmitterInstanceReadback.CPUCount = ReadbackBuffer->GetNumInstances();
+						FNiagaraDataBuffer* ReadbackBuffer = Instance.SimStageData[0].Source;
+
+						// Transfer ownership of the count value to the emitter
+						Context->EmitterInstanceReadback.GPUCountOffset = ReadbackCountOffset;
+						Context->EmitterInstanceReadback.CPUCount = ReadbackNumInstances;
 						ReadbackBuffer->ClearGPUInstanceCountBufferOffset();
 					}
 				}
@@ -864,6 +867,7 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 	{
 		ContextsPerStage[iTickStage].Reset(Ticks_RT.Num());
 		TicksPerStage[iTickStage].Reset(Ticks_RT.Num());
+		CountsToRelease[iTickStage].Reset(Ticks_RT.Num());		//-TODO: Improve what we need here, should be able to make a better guess below
 	}
 
 	for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
@@ -955,6 +959,12 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 					ExecContext->MainDataSet->AllocateGPUFreeIDs(ExecContext->ScratchMaxInstances + 1, RHICmdList, FeatureLevel, ExecContext->GetDebugSimName());
 				}
 
+				if (DestinationData->GetGPUInstanceCountBufferOffset() != INDEX_NONE)
+				{
+					CountsToRelease[iTickStage].Add(DestinationData->GetGPUInstanceCountBufferOffset());
+					DestinationData->ClearGPUInstanceCountBufferOffset();
+				}
+
 				DestinationData->AllocateGPU(ExecContext->ScratchMaxInstances + 1, GPUInstanceCounterManager, RHICmdList, FeatureLevel, ExecContext->GetDebugSimName());
 
 				InstanceData.SimStageData[0].Source = CurrentData;
@@ -977,6 +987,15 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 
 						uint32 CurrentNumInstances = InstanceData.SimStageData[0].DestinationNumInstances;
 						uint32 DestinationNumInstances = InstanceData.SimStageData[0].SourceNumInstances;
+
+						// Old simulation will always RW the instance count, so ensure we have a count present for the destination
+						if (InstanceData.bUsesOldShaderStages)
+						{
+							if (DestinationData->GetGPUInstanceCountBufferOffset() == INDEX_NONE)
+							{
+								DestinationData->AllocateGPU(ExecContext->ScratchMaxInstances + 1, GPUInstanceCounterManager, RHICmdList, FeatureLevel, ExecContext->GetDebugSimName());
+							}
+						}
 
 						for (uint32 SimulationStageIndex = 1; SimulationStageIndex < NumStages; ++SimulationStageIndex)
 						{
@@ -1024,6 +1043,11 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 							// We need to allocate a new buffer as particle counts could be changing
 							ensure(CurrentData == ExecContext->MainDataSet->GetCurrentData());
 							DestinationData = &ExecContext->MainDataSet->BeginSimulate(false);
+							if (DestinationData->GetGPUInstanceCountBufferOffset() != INDEX_NONE)
+							{
+								CountsToRelease[iTickStage].Add(DestinationData->GetGPUInstanceCountBufferOffset());
+								DestinationData->ClearGPUInstanceCountBufferOffset();
+							}
 							DestinationData->AllocateGPU(ExecContext->ScratchMaxInstances + 1, GPUInstanceCounterManager, RHICmdList, FeatureLevel, ExecContext->GetDebugSimName());
 							ExecContext->MainDataSet->EndSimulate();
 
@@ -1167,6 +1191,10 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		RHICmdList.EndComputePass();
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
+
+	// Release counts
+	GPUInstanceCounterManager.FreeEntryArray(MakeArrayView(CountsToRelease[int(TickStage)]));
+	CountsToRelease[int(TickStage)].Reset();
 }
 
 void NiagaraEmitterInstanceBatcher::PreInitViews(FRHICommandListImmediate& RHICmdList, bool bAllowGPUParticleUpdate)
@@ -1559,6 +1587,12 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 {
 	FNiagaraComputeExecutionContext* Context = Instance->Context;
 
+	// We must always set the current counts to ensure they are up to date when we have 0 instances
+	check(Instance->SimStageData[SimulationStageIndex].Source && Instance->SimStageData[SimulationStageIndex].Destination);
+	FNiagaraDataBuffer& DestinationData = *Instance->SimStageData[SimulationStageIndex].Destination;
+	FNiagaraDataBuffer& CurrentData = *Instance->SimStageData[SimulationStageIndex].Source;
+
+	CurrentData.SetNumInstances(Instance->SimStageData[SimulationStageIndex].SourceNumInstances);
 
 	if (TotalNumInstances == 0)
 	{
@@ -1574,14 +1608,9 @@ void NiagaraEmitterInstanceBatcher::Run(const FNiagaraGPUSystemTick& Tick, const
 	);
 
 	const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies = Instance->DataInterfaceProxies;
-	check(Instance->SimStageData[SimulationStageIndex].Source && Instance->SimStageData[SimulationStageIndex].Destination);
-	FNiagaraDataBuffer& DestinationData = *Instance->SimStageData[SimulationStageIndex].Destination;
-	FNiagaraDataBuffer& CurrentData = *Instance->SimStageData[SimulationStageIndex].Source;
 
-	DestinationData.SetIDAcquireTag(FNiagaraComputeExecutionContext::TickCounter);
-
-	CurrentData.SetNumInstances(Instance->SimStageData[SimulationStageIndex].SourceNumInstances);
 	DestinationData.SetNumInstances(Instance->SimStageData[SimulationStageIndex].DestinationNumInstances);
+	DestinationData.SetIDAcquireTag(FNiagaraComputeExecutionContext::TickCounter);
 
 	// Only spawn particles on the first stage
 	int32 InstancesToSpawnThisFrame = 0;
