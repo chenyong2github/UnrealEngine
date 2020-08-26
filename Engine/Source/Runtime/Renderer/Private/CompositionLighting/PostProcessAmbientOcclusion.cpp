@@ -2389,7 +2389,7 @@ public:
 
 		FIntPoint ViewportOffset = InputHistory.ViewportRect.Min;
 		FIntPoint ViewportExtent = InputHistory.ViewportRect.Size();
-		FIntPoint BufferSize = InputHistory.ReferenceBufferSize;
+		FIntPoint BufferSize = FIntPoint(FMath::Max(1, InputHistory.ReferenceBufferSize.X), FMath::Max(1, InputHistory.ReferenceBufferSize.Y));
 
 		FVector4 PrevScreenPositionScaleBiasValue = FVector4(
 			ViewportExtent.X * 0.5f / BufferSize.X,
