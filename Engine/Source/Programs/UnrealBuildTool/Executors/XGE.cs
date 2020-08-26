@@ -245,7 +245,7 @@ namespace UnrealBuildTool
 							if (Subnet.Contains(AddressBytes))
 							{
 								Log.TraceInformationOnce("XGE coordinator {0} will be not be used over VPN (adapter '{1}' with IP {2} is in subnet {3}). Set <XGE><bAllowOverVpn>true</bAllowOverVpn></XGE> in BuildConfiguration.xml to override.", HostName, Interface.Description, UnicastAddressInfo.Address, Subnet);
-								return false;
+								return true;
 							}
 						}
 					}
