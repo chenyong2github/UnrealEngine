@@ -378,10 +378,10 @@ bool UGameplayAbility::ShouldAbilityRespondToEvent(const FGameplayAbilityActorIn
 	return true;
 }
 
-bool UGameplayAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+bool UGameplayAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags)
 {
 	// Last chance to fail (maybe we no longer have resources to commit since we after we started this ability activation)
-	if (!CommitCheck(Handle, ActorInfo, ActivationInfo))
+	if (!CommitCheck(Handle, ActorInfo, ActivationInfo, OptionalRelevantTags))
 	{
 		return false;
 	}
@@ -397,7 +397,7 @@ bool UGameplayAbility::CommitAbility(const FGameplayAbilitySpecHandle Handle, co
 	return true;
 }
 
-bool UGameplayAbility::CommitAbilityCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const bool ForceCooldown)
+bool UGameplayAbility::CommitAbilityCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const bool ForceCooldown, OUT FGameplayTagContainer* OptionalRelevantTags)
 {
 	if (UAbilitySystemGlobals::Get().ShouldIgnoreCooldowns())
 	{
@@ -407,7 +407,7 @@ bool UGameplayAbility::CommitAbilityCooldown(const FGameplayAbilitySpecHandle Ha
 	if (!ForceCooldown)
 	{
 		// Last chance to fail (maybe we no longer have resources to commit since we after we started this ability activation)
-		if (!CheckCooldown(Handle, ActorInfo))
+		if (!CheckCooldown(Handle, ActorInfo, OptionalRelevantTags))
 		{
 			return false;
 		}
@@ -417,7 +417,7 @@ bool UGameplayAbility::CommitAbilityCooldown(const FGameplayAbilitySpecHandle Ha
 	return true;
 }
 
-bool UGameplayAbility::CommitAbilityCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+bool UGameplayAbility::CommitAbilityCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags)
 {
 	if (UAbilitySystemGlobals::Get().ShouldIgnoreCosts())
 	{
@@ -425,7 +425,7 @@ bool UGameplayAbility::CommitAbilityCost(const FGameplayAbilitySpecHandle Handle
 	}
 
 	// Last chance to fail (maybe we no longer have resources to commit since we after we started this ability activation)
-	if (!CheckCost(Handle, ActorInfo))
+	if (!CheckCost(Handle, ActorInfo, OptionalRelevantTags))
 	{
 		return false;
 	}
@@ -434,7 +434,7 @@ bool UGameplayAbility::CommitAbilityCost(const FGameplayAbilitySpecHandle Handle
 	return true;
 }
 
-bool UGameplayAbility::CommitCheck(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo)
+bool UGameplayAbility::CommitCheck(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags)
 {
 	/**
 	 *	Checks if we can (still) commit this ability. There are some subtleties here.
@@ -457,12 +457,12 @@ bool UGameplayAbility::CommitCheck(const FGameplayAbilitySpecHandle Handle, cons
 
 	UAbilitySystemGlobals& AbilitySystemGlobals = UAbilitySystemGlobals::Get();
 
-	if (!AbilitySystemGlobals.ShouldIgnoreCooldowns() && !CheckCooldown(Handle, ActorInfo))
+	if (!AbilitySystemGlobals.ShouldIgnoreCooldowns() && !CheckCooldown(Handle, ActorInfo, OptionalRelevantTags))
 	{
 		return false;
 	}
 
-	if (!AbilitySystemGlobals.ShouldIgnoreCosts() && !CheckCost(Handle, ActorInfo))
+	if (!AbilitySystemGlobals.ShouldIgnoreCosts() && !CheckCost(Handle, ActorInfo, OptionalRelevantTags))
 	{
 		return false;
 	}

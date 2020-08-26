@@ -429,7 +429,7 @@ public:
 			const TArray<ItemType>& ItemsSourceRef = (*this->ItemsSource);
 
 			const int32 NumItemsPerLine = GetNumItemsPerLine();
-			const int32 CurSelectionIndex = (!TListTypeTraits<ItemType>::IsPtrValid(SelectorItem)) ? 0 : ItemsSourceRef.Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(SelectorItem));
+			const int32 CurSelectionIndex = (!TListTypeTraits<ItemType>::IsPtrValid(SelectorItem)) ? -1 : ItemsSourceRef.Find(TListTypeTraits<ItemType>::NullableItemTypeConvertToItemType(SelectorItem));
 			int32 AttemptSelectIndex = -1;
 
 			const EUINavigation NavType = InNavigationEvent.GetNavigationType();

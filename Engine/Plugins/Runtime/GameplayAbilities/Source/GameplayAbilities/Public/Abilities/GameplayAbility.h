@@ -345,12 +345,12 @@ public:
 	UFUNCTION(BlueprintCallable, Category = Ability, DisplayName = "CheckAbilityCost", meta=(ScriptName = "CheckAbilityCost"))
 	virtual bool K2_CheckAbilityCost();
 
-	virtual bool CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo);
-	virtual bool CommitAbilityCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const bool ForceCooldown);
-	virtual bool CommitAbilityCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo);
+	virtual bool CommitAbility(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags = nullptr);
+	virtual bool CommitAbilityCooldown(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, const bool ForceCooldown, OUT FGameplayTagContainer* OptionalRelevantTags = nullptr);
+	virtual bool CommitAbilityCost(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags = nullptr);
 
 	/** The last chance to fail before committing, this will usually be the same as CanActivateAbility. Some abilities may need to do extra checks here if they are consuming extra stuff in CommitExecute */
-	virtual bool CommitCheck(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo);
+	virtual bool CommitCheck(const FGameplayAbilitySpecHandle Handle, const FGameplayAbilityActorInfo* ActorInfo, const FGameplayAbilityActivationInfo ActivationInfo, OUT FGameplayTagContainer* OptionalRelevantTags = nullptr);
 
 	/** BP event called from CommitAbility */
 	UFUNCTION(BlueprintImplementableEvent, Category = Ability, DisplayName = "CommitExecute", meta = (ScriptName = "CommitExecute"))
@@ -661,11 +661,13 @@ protected:
 	//	Protected properties
 	// -------------------------------------
 
+	/** How an ability replicates state/events to everyone on the network. Replication is not required for NetExecutionPolicy. */
 	UPROPERTY(EditDefaultsOnly, Category = Advanced)
 	TEnumAsByte<EGameplayAbilityReplicationPolicy::Type> ReplicationPolicy;
 
+	/** How the ability is instanced when executed. This limits what an ability can do in its implementation. */
 	UPROPERTY(EditDefaultsOnly, Category = Advanced)
-	TEnumAsByte<EGameplayAbilityInstancingPolicy::Type>	InstancingPolicy;					
+	TEnumAsByte<EGameplayAbilityInstancingPolicy::Type>	InstancingPolicy;
 
 	/** If this is set, the server-side version of the ability can be canceled by the client-side version. The client-side version can always be canceled by the server. */
 	UPROPERTY(EditDefaultsOnly, Category = Advanced)
@@ -679,12 +681,15 @@ protected:
 	UPROPERTY(BlueprintReadOnly, Category = Ability)
 	FGameplayAbilityActivationInfo	CurrentActivationInfo;
 
+	/** Information specific to this instance of the ability, if it was activated by an event */
 	UPROPERTY(BlueprintReadOnly, Category = Ability)
 	FGameplayEventData CurrentEventData;
 
+	/** How does an ability execute on the network. Does a client "ask and predict", "ask and wait", "don't ask (just do it)". */
 	UPROPERTY(EditDefaultsOnly, Category=Advanced)
 	TEnumAsByte<EGameplayAbilityNetExecutionPolicy::Type> NetExecutionPolicy;
 
+	/** What protections does this ability have? Should the client be allowed to request changes to the execution of the ability? */
 	UPROPERTY(EditDefaultsOnly, Category = Advanced)
 	TEnumAsByte<EGameplayAbilityNetSecurityPolicy::Type> NetSecurityPolicy;
 
@@ -703,10 +708,6 @@ protected:
 	// ----------------------------------------------------------------------------------------------------------------
 	//	Ability exclusion / canceling
 	// ----------------------------------------------------------------------------------------------------------------
-
-	/** Abilities matching query are cancelled when this ability is executed */
-	UPROPERTY(EditDefaultsOnly, Category = TagQueries, meta=(Categories="AbilityTagCategory"))
-	FGameplayTagQuery CancelAbilitiesMatchingTagQuery;
 
 	/** Abilities with these tags are cancelled when this ability is executed */
 	UPROPERTY(EditDefaultsOnly, Category = Tags, meta=(Categories="AbilityTagCategory"))

@@ -21,7 +21,7 @@ private:
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Display, meta = (AllowPrivateAccess = "true"))
 	class UBillboardComponent* SpriteComponent;
 
-	UPROPERTY()
+	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category = Display, meta = (AllowPrivateAccess = "true"))
 	class UArrowComponent* ArrowComponent;
 
 public:

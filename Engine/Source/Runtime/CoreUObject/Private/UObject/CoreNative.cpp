@@ -218,9 +218,14 @@ UObject* FObjectInstancingGraph::GetInstancedSubobject( UObject* SourceSubobject
 							if (!InstancedSubobject)
 							{
 								// finally, create the component instance
-								InstancedSubobject = StaticConstructObject_Internal(SourceSubobject->GetClass(), SubobjectOuter,
-									SubobjectName, SubobjectOuter->GetMaskedFlags(RF_PropagateToSubObjects), EInternalObjectFlags::None, SourceSubobject,
-									true, this);
+								FStaticConstructObjectParameters Params(SourceSubobject->GetClass());
+								Params.Outer = SubobjectOuter;
+								Params.Name = SubobjectName;
+								Params.SetFlags = SubobjectOuter->GetMaskedFlags(RF_PropagateToSubObjects);
+								Params.Template = SourceSubobject;
+								Params.bCopyTransientsFromClassDefaults = true;
+								Params.InstanceGraph = this;
+								InstancedSubobject = StaticConstructObject_Internal(Params);
 							}
 						}
 					}

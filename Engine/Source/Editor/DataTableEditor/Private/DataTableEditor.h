@@ -175,9 +175,6 @@ protected:
 
 	void OnEditDataTableStructClicked();
 
-	FReply SaveDataTable_Execute();
-	FReply BrowseForDataTable_Execute();
-	
 	void ExtendToolbar(TSharedPtr<FExtender> Extender);
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 

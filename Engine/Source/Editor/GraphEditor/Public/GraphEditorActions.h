@@ -49,6 +49,9 @@ public:
 	// Event / Function Entry commands
 	TSharedPtr< FUICommandInfo > AddParentNode;
 
+	// CallFunction commands
+	TSharedPtr< FUICommandInfo > CreateMatchingFunction;
+
 	// Debugging commands
 	TSharedPtr< FUICommandInfo > RemoveBreakpoint;
 	TSharedPtr< FUICommandInfo > AddBreakpoint;

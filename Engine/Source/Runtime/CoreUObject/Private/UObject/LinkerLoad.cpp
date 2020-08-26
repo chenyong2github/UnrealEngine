@@ -4670,20 +4670,14 @@ UObject* FLinkerLoad::CreateExport( int32 Index )
 
 		LoadClass->GetDefaultObject();
 
-		Export.Object = StaticConstructObject_Internal
-		(
-			LoadClass,
-			ThisParent,
-			NewName,
-			ObjectLoadFlags,
-			EInternalObjectFlags::None,
-			Template,
-			false,
-			nullptr,
-			false,
-			// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
-			Export.OuterIndex.IsImport() ? LinkerRoot : nullptr /*ExternalPackage*/
-		);
+		FStaticConstructObjectParameters Params(LoadClass);
+		Params.Outer = ThisParent;
+		Params.Name = NewName;
+		Params.SetFlags = ObjectLoadFlags;
+		Params.Template = Template;
+		// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
+		Params.ExternalPackage = Export.OuterIndex.IsImport() ? LinkerRoot : nullptr;
+		Export.Object = StaticConstructObject_Internal(Params);
 
 		if (FPlatformProperties::RequiresCookedData())
 		{

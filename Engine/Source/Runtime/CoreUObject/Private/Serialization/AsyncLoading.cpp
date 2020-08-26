@@ -3038,20 +3038,15 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 						return;
 					}
 
-					Export.Object = StaticConstructObject_Internal
-						(
-							LoadClass,
-							ThisParent,
-							NewName,
-							ObjectLoadFlags,
-							EInternalObjectFlags::None,
-							Template,
-							false,
-							nullptr,
-							true,
-							// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
-							Export.OuterIndex.IsImport() ? LinkerRoot : nullptr
-						);
+					FStaticConstructObjectParameters Params(LoadClass);
+					Params.Outer = ThisParent;
+					Params.Name = NewName;
+					Params.SetFlags = ObjectLoadFlags;
+					Params.Template = Template;
+					Params.bAssumeTemplateIsArchetype = true;
+					// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
+					Params.ExternalPackage = Export.OuterIndex.IsImport() ? LinkerRoot : nullptr;
+					Export.Object = StaticConstructObject_Internal(Params);
 
 					if (GIsInitialLoad || GUObjectArray.IsOpenForDisregardForGC())
 					{

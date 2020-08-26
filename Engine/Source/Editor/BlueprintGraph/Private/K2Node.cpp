@@ -57,6 +57,32 @@ UK2Node::UK2Node(const FObjectInitializer& ObjectInitializer)
 	OrphanedPinSaveMode = ESaveOrphanPinMode::SaveAllButExec;
 }
 
+void UK2Node::PreEditChange(FProperty* PropertyThatWillChange)
+{
+	Super::PreEditChange(PropertyThatWillChange);
+
+	const FName PropertyName = PropertyThatWillChange ? PropertyThatWillChange->GetFName() : FName();
+	if (PropertyName == FName() ||
+		// don't dirty on cosmetic property changes:
+		(	PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosX) &&
+			PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodePosY) &&
+			PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodeWidth) &&
+			PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, NodeHeight) &&
+			PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, bCommentBubblePinned) &&
+			PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, bCommentBubbleVisible) &&
+			PropertyName != GET_MEMBER_NAME_CHECKED(UEdGraphNode, bCommentBubbleMakeVisible) ))
+	{
+		// we call 'preeditchange' on uk2nodes in the transaction buffer, and they
+		// may be outered to the transient package:
+		if (HasValidBlueprint())
+		{
+			UBlueprint* BP = GetBlueprint();
+			BP->Status = BS_Dirty;
+		}
+		
+	}
+}
+
 void UK2Node::PostLoad()
 {
 #if WITH_EDITORONLY_DATA

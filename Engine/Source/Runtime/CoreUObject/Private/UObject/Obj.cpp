@@ -2767,7 +2767,15 @@ void UObject::ReinitializeProperties( UObject* SourceObject/*=NULL*/, FObjectIns
 	// the properties for this object ensures that any cleanup required when an object is reinitialized from defaults occurs properly
 	// for example, when re-initializing UPrimitiveComponents, the component must notify the rendering thread that its data structures are
 	// going to be re-initialized
-	StaticConstructObject_Internal( GetClass(), GetOuter(), GetFName(), GetFlags(), GetInternalFlags(), SourceObject, !HasAnyFlags(RF_ClassDefaultObject), InstanceGraph );
+	FStaticConstructObjectParameters Params(GetClass());
+	Params.Outer = GetOuter();
+	Params.Name = GetFName();
+	Params.SetFlags = GetFlags();
+	Params.InternalSetFlags = GetInternalFlags();
+	Params.Template = SourceObject;
+	Params.bCopyTransientsFromClassDefaults = !HasAnyFlags(RF_ClassDefaultObject);
+	Params.InstanceGraph = InstanceGraph;
+	StaticConstructObject_Internal(Params);
 }
 
 

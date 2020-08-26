@@ -3716,6 +3716,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 				.ToolTipText(LOCTEXT("FunctionNewInputArgTooltip", "Create a new input argument"))
 				.VAlign(VAlign_Center)
 				.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FunctionNewInputArg")))
+				.IsEnabled(this, &FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled)
 				[
 					SNew(SHorizontalBox)
 
@@ -3769,6 +3770,7 @@ void FBlueprintGraphActionDetails::CustomizeDetails( IDetailLayoutBuilder& Detai
 					.ToolTipText(LOCTEXT("FunctionNewOutputArgTooltip", "Create a new output argument"))
 					.VAlign(VAlign_Center)
 					.AddMetaData<FTagMetaData>(FTagMetaData(TEXT("FunctionNewOutputArg")))
+					.IsEnabled(this, &FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled)
 					[
 						SNew(SHorizontalBox)
 
@@ -5079,6 +5081,19 @@ EVisibility FBlueprintGraphActionDetails::GetAddNewInputOutputVisibility() const
 		}
 	}
 	return EVisibility::Visible;
+}
+
+bool FBlueprintGraphActionDetails::IsAddNewInputOutputEnabled() const
+{
+	if (DetailsLayoutPtr)
+	{
+		if (const IDetailsView* DetailsView = DetailsLayoutPtr->GetDetailsView())
+		{
+			return DetailsView->IsPropertyEditingEnabled();
+		}
+	}
+
+	return false;
 }
 
 EVisibility FBlueprintGraphActionDetails::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const

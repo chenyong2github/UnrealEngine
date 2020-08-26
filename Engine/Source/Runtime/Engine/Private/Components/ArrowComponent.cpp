@@ -44,6 +44,7 @@ public:
 		, VertexFactory(GetScene().GetFeatureLevel(), "FArrowSceneProxy")
 		, ArrowColor(Component->ArrowColor)
 		, ArrowSize(Component->ArrowSize)
+		, ArrowLength(Component->ArrowLength)
 		, bIsScreenSizeScaled(Component->bIsScreenSizeScaled)
 		, ScreenSize(Component->ScreenSize)
 #if WITH_EDITORONLY_DATA
@@ -63,10 +64,11 @@ public:
 #endif	//WITH_EDITOR
 
 		const float HeadAngle = FMath::DegreesToRadians(ARROW_HEAD_ANGLE);
-		const float TotalLength = ArrowSize * ARROW_SCALE;
-		const float HeadLength = TotalLength * ARROW_HEAD_FACTOR;
-		const float ShaftRadius = TotalLength * ARROW_RADIUS_FACTOR;
-		const float ShaftLength = (TotalLength - HeadLength) * 1.1f; // 10% overlap between shaft and head
+		const float DefaultLength = ArrowSize * ARROW_SCALE;
+		const float TotalLength = ArrowSize * ArrowLength;
+		const float HeadLength = DefaultLength * ARROW_HEAD_FACTOR;
+		const float ShaftRadius = DefaultLength * ARROW_RADIUS_FACTOR;
+		const float ShaftLength = (TotalLength - HeadLength * 0.5); // 10% overlap between shaft and head
 		const FVector ShaftCenter = FVector(0.5f * ShaftLength, 0, 0);
 
 		TArray<FDynamicMeshVertex> OutVerts;
@@ -200,6 +202,7 @@ private:
 	FVector Origin;
 	FColor ArrowColor;
 	float ArrowSize;
+	float ArrowLength;
 	bool bIsScreenSizeScaled;
 	float ScreenSize;
 #if WITH_EDITORONLY_DATA
@@ -231,6 +234,7 @@ UArrowComponent::UArrowComponent(const FObjectInitializer& ObjectInitializer)
 	ArrowColor = FColor(255, 0, 0, 255);
 
 	ArrowSize = 1.0f;
+	ArrowLength = ARROW_SCALE;
 	bHiddenInGame = true;
 	bUseEditorCompositing = true;
 	SetGenerateOverlapEvents(false);
@@ -266,7 +270,7 @@ bool UArrowComponent::ComponentIsTouchingSelectionFrustum(const FConvexVolume& I
 
 FBoxSphereBounds UArrowComponent::CalcBounds(const FTransform& LocalToWorld) const
 {
-	return FBoxSphereBounds(FBox(FVector(0,-ARROW_SCALE,-ARROW_SCALE),FVector(ArrowSize * ARROW_SCALE * 3.0f,ARROW_SCALE,ARROW_SCALE))).TransformBy(LocalToWorld);
+	return FBoxSphereBounds(FBox(FVector(0,-ARROW_SCALE,-ARROW_SCALE),FVector(ArrowSize * ArrowLength * 3.0f,ARROW_SCALE,ARROW_SCALE))).TransformBy(LocalToWorld);
 }
 
 void UArrowComponent::SetArrowColor(FLinearColor NewColor)

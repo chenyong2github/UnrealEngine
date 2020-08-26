@@ -155,6 +155,8 @@
 
 #include "AudioDevice.h"
 
+#include "SFixupSelfContextDlg.h"
+
 // Blueprint merging
 #include "Widgets/Input/SHyperlink.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -1120,6 +1122,11 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().AddParentNode,
 				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnAddParentNode ),
 				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanAddParentNode )
+				);
+			
+			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().CreateMatchingFunction,
+				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnCreateMatchingFunction ),
+				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanCreateMatchingFunction )
 				);
 
 			// Debug actions
@@ -4847,6 +4854,30 @@ bool FBlueprintEditor::CanAddParentNode() const
 	return false;
 }
 
+void FBlueprintEditor::OnCreateMatchingFunction()
+{
+	if (UK2Node_CallFunction* SelectedNode = Cast<UK2Node_CallFunction>(GetSingleSelectedNode()))
+	{
+		FBlueprintEditorUtils::CreateMatchingFunction(SelectedNode, GetDefaultSchemaClass());
+	}
+}
+
+bool FBlueprintEditor::CanCreateMatchingFunction() const
+{
+	if (NewDocument_IsVisibleForType(CGT_NewFunctionGraph))
+	{
+		if (const UBlueprint* Blueprint = GetBlueprintObj())
+		{
+			if (const UK2Node_CallFunction* SelectedNode = Cast<UK2Node_CallFunction>(GetSingleSelectedNode()))
+			{
+				return FKismetNameValidator(Blueprint).IsValid(SelectedNode->GetFunctionName()) == EValidatorResult::Ok;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FBlueprintEditor::OnToggleBreakpoint()
 {
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
@@ -5028,6 +5059,26 @@ bool FBlueprintEditor::CanEnableBreakpoint() const
 	}
 
 	return false;
+}
+
+namespace CollapseGraphUtils
+{
+	/** Helper function to gather any moveable nodes out of a collapsed graph */
+	static void GatherMoveableNodes(const UEdGraph* const SourceGraph, TSet<UEdGraphNode*>& OutNodes)
+	{
+		for (UEdGraphNode* Node : SourceGraph->Nodes)
+		{
+			// Ignore tunnel nodes and break the links because new ones will be created during the collapse of this node
+			if (UK2Node_Tunnel* TunnelNode = Cast<UK2Node_Tunnel>(Node))
+			{
+				TunnelNode->BreakAllNodeLinks();
+			}
+			else
+			{
+				OutNodes.Add(Node);
+			}
+		}
+	}
 }
 
 void FBlueprintEditor::OnCollapseNodes()
@@ -5336,12 +5387,13 @@ bool FBlueprintEditor::CanCollapseSelectionToMacro() const
 void FBlueprintEditor::OnPromoteSelectionToFunction()
 {
 	const FScopedTransaction Transaction( LOCTEXT("ConvertCollapsedGraphToFunction", "Convert Collapse Graph to Function") );
-	GetBlueprintObj()->Modify();
+	UBlueprint* BP = GetBlueprintObj();
+	BP->Modify();
 
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 
 	// Set of nodes to select when finished
-	TSet<class UEdGraphNode*> NodesToSelect;
+	TSet<UEdGraphNode*> NodesToSelect;
 
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
@@ -5349,27 +5401,44 @@ void FBlueprintEditor::OnPromoteSelectionToFunction()
 		if (UK2Node_Composite* CompositeNode = Cast<UK2Node_Composite>(*It))
 		{
 			// Check if there is only one input and one output connection
-			TSet<class UEdGraphNode*> NodesInGraph;
+			TSet<UEdGraphNode*> NodesInGraph;
 			NodesInGraph.Add(CompositeNode);
 
 			if(CanCollapseSelectionToFunction(NodesInGraph))
 			{
 				DocumentManager->CleanInvalidTabs();
 
-				// Expand the composite node back into the world
 				UEdGraph* SourceGraph = CompositeNode->BoundGraph;
+				
+				TSet<UEdGraphNode*> NodesToMove;
+				CollapseGraphUtils::GatherMoveableNodes(SourceGraph, /* Out */ NodesToMove);
 
-				// Expand all composite nodes back in place
-				TSet<UEdGraphNode*> ExpandedNodes;
-				ExpandNode(CompositeNode, SourceGraph, /*inout*/ ExpandedNodes);
-				FBlueprintEditorUtils::RemoveGraph(GetBlueprintObj(), SourceGraph, EGraphRemoveFlags::Recompile);
-
-				//Remove this node from selection
+				// Remove this node from selection
 				FocusedGraphEd->SetNodeSelection(CompositeNode, false);
 
-				UEdGraphNode* FunctionNode = NULL;
-				CollapseSelectionToFunction(FocusedGraphEd, ExpandedNodes, FunctionNode);
+				UEdGraphNode* FunctionNode = nullptr;
+				CollapseSelectionToFunction(FocusedGraphEd, NodesToMove, FunctionNode);
 				NodesToSelect.Add(FunctionNode);
+
+				// Connect the exec pin of the newly dropped function call node to any previously existing connections
+				const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+				UEdGraphPin* ResultExecFunc = K2Schema->FindExecutionPin(*FunctionNode, EGPD_Input);
+				UEdGraphPin* OriginalExecPin = K2Schema->FindExecutionPin(*CompositeNode, EGPD_Input);
+
+				if (ResultExecFunc && OriginalExecPin)
+				{
+					for (UEdGraphPin* CurPin : OriginalExecPin->LinkedTo)
+					{
+						// Make a connection if this is an exec pin
+						if (CurPin && CurPin->Direction == EGPD_Output && K2Schema->IsExecPin(*CurPin))
+						{
+							ResultExecFunc->MakeLinkTo(CurPin);
+						}
+					}
+				}
+
+				// Remove the old collapsed graph
+				FBlueprintEditorUtils::RemoveGraph(BP, SourceGraph, EGraphRemoveFlags::Recompile);
 			}
 			else
 			{
@@ -5409,10 +5478,11 @@ bool FBlueprintEditor::CanPromoteSelectionToFunction() const
 void FBlueprintEditor::OnPromoteSelectionToMacro()
 {
 	const FScopedTransaction Transaction( LOCTEXT("ConvertCollapsedGraphToMacro", "Convert Collapse Graph to Macro") );
-	GetBlueprintObj()->Modify();
+	UBlueprint* BP = GetBlueprintObj();
+	BP->Modify();
 
 	// Set of nodes to select when finished
-	TSet<class UEdGraphNode*> NodesToSelect;
+	TSet<UEdGraphNode*> NodesToSelect;
 
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 
@@ -5421,36 +5491,25 @@ void FBlueprintEditor::OnPromoteSelectionToMacro()
 	{
 		if (UK2Node_Composite* CompositeNode = Cast<UK2Node_Composite>(*It))
 		{
-			TSet<class UEdGraphNode*> NodesInGraph;
+			TSet<UEdGraphNode*> NodesToMove;
+			UEdGraph* SourceGraph = CompositeNode->BoundGraph;
+			// Gather the entry and exit nodes of the collapsed graph so that we can create new macro inputs
 
-			// Collect all the nodes to test if they can be made into a function
-			for (UEdGraphNode* Node : CompositeNode->BoundGraph->Nodes)
+			// Gather the entry and exit nodes of the collapsed graph so that we can create new macro inputs
+			CollapseGraphUtils::GatherMoveableNodes(SourceGraph, /* Out */ NodesToMove);
+
+			if(CanCollapseSelectionToMacro(NodesToMove))
 			{
-				// Ignore the tunnel nodes
-				if (Node->GetClass() != UK2Node_Tunnel::StaticClass())
-				{
-					NodesInGraph.Add(Node);
-				}
-			}
+				DocumentManager->CleanInvalidTabs();				
 
-			if(CanCollapseSelectionToMacro(NodesInGraph))
-			{
-				DocumentManager->CleanInvalidTabs();
-
-				// Expand the composite node back into the world
-				UEdGraph* SourceGraph = CompositeNode->BoundGraph;
-
-				// Expand all composite nodes back in place
-				TSet<UEdGraphNode*> ExpandedNodes;
-				ExpandNode(CompositeNode, SourceGraph, /*inout*/ ExpandedNodes);
-				FBlueprintEditorUtils::RemoveGraph(GetBlueprintObj(), SourceGraph, EGraphRemoveFlags::Recompile);
-
-				//Remove this node from selection
+				// Remove this node from selection
 				FocusedGraphEd->SetNodeSelection(CompositeNode, false);
 
-				UEdGraphNode* MacroNode = NULL;
-				CollapseSelectionToMacro(FocusedGraphEd, ExpandedNodes, MacroNode);
+				UEdGraphNode* MacroNode = nullptr;
+				CollapseSelectionToMacro(FocusedGraphEd, NodesToMove, MacroNode);
 				NodesToSelect.Add(MacroNode);
+
+				FBlueprintEditorUtils::RemoveGraph(BP, SourceGraph, EGraphRemoveFlags::Recompile);
 			}
 			else
 			{
@@ -6776,6 +6835,35 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 		TSet<UEdGraphNode*> PastedNodes;
 		FEdGraphUtilities::ImportNodesFromText(DestinationGraph, TextToImport, /*out*/ PastedNodes);
 
+		// Only do this step if we can create functions on the blueprint (i.e. not macro graphs, etc)
+		if (NewDocument_IsVisibleForType(CGT_NewFunctionGraph))
+		{
+			// Spawn Deferred Fixup Modal window if necessary
+			TArray<UK2Node_CallFunction*> FixupNodes;
+			for (UEdGraphNode* PastedNode : PastedNodes)
+			{
+				if (UK2Node_CallFunction* Node = Cast<UK2Node_CallFunction>(PastedNode))
+				{
+					if (Node->FunctionReference.IsSelfContext() && !Node->GetTargetFunction())
+					{
+						FixupNodes.Add(Node);
+					}
+				}
+			}
+			if (FixupNodes.Num() > 0)
+			{
+				if (!SFixupSelfContextDialog::CreateModal(FixupNodes, this, FixupNodes.Num() != PastedNodes.Num()))
+				{
+					for (UEdGraphNode* Node : PastedNodes)
+					{
+						DestinationGraph->RemoveNode(Node);
+					}
+
+					return;
+				}
+			}
+		}
+
 		// Update Paste Analytics
 		AnalyticsStats.NodePasteCreateCount += PastedNodes.Num();
 
@@ -8047,28 +8135,28 @@ void FBlueprintEditor::CollapseNodes(TSet<UEdGraphNode*>& InCollapsableNodes)
 	CollapseNodesIntoGraph(GatewayNode, GatewayNode->GetInputSink(), GatewayNode->GetOutputSource(), SourceGraph, DestinationGraph, InCollapsableNodes, false, true);
 }
 
-UEdGraph* FBlueprintEditor::CollapseSelectionToFunction(TSharedPtr<SGraphEditor> InRootGraph, TSet<class UEdGraphNode*>& InCollapsableNodes, UEdGraphNode*& OutFunctionNode)
+UEdGraph* FBlueprintEditor::CollapseSelectionToFunction(TSharedPtr<SGraphEditor> InRootGraph, TSet<UEdGraphNode*>& InCollapsableNodes, UEdGraphNode*& OutFunctionNode)
 {
 	TSharedPtr<SGraphEditor> FocusedGraphEd = InRootGraph;
 	if (!FocusedGraphEd.IsValid())
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	UEdGraph* SourceGraph = FocusedGraphEd->GetCurrentGraph();
 	SourceGraph->Modify();
 
-	UEdGraph* NewGraph = NULL;
+	UEdGraph* NewGraph = nullptr;
 
 	FName DocumentName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewFunction"));
 
 	NewGraph = FBlueprintEditorUtils::CreateNewGraph(GetBlueprintObj(), DocumentName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-	FBlueprintEditorUtils::AddFunctionGraph<UClass>(GetBlueprintObj(), NewGraph, /*bIsUserCreated=*/ true, NULL);
+	FBlueprintEditorUtils::AddFunctionGraph<UClass>(GetBlueprintObj(), NewGraph, /*bIsUserCreated=*/ true, nullptr);
 
 	TArray<UK2Node_FunctionEntry*> EntryNodes;
 	NewGraph->GetNodesOfClass(EntryNodes);
 	UK2Node_FunctionEntry* EntryNode = EntryNodes[0];
-	UK2Node_FunctionResult* ResultNode = NULL;
+	UK2Node_FunctionResult* ResultNode = nullptr;
 
 	// Create Result
 	FGraphNodeCreator<UK2Node_FunctionResult> ResultNodeCreator(*NewGraph);
@@ -8107,18 +8195,20 @@ UEdGraph* FBlueprintEditor::CollapseSelectionToMacro(TSharedPtr<SGraphEditor> In
 	TSharedPtr<SGraphEditor> FocusedGraphEd = InRootGraph;
 	if (!FocusedGraphEd.IsValid())
 	{
-		return NULL;
+		return nullptr;
 	}
+
+	UBlueprint* BP = GetBlueprintObj();
 
 	UEdGraph* SourceGraph = FocusedGraphEd->GetCurrentGraph();
 	SourceGraph->Modify();
 
-	UEdGraph* DestinationGraph = NULL;
+	UEdGraph* DestinationGraph = nullptr;
 
-	FName DocumentName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewMacro"));
+	FName DocumentName = FBlueprintEditorUtils::FindUniqueKismetName(BP, TEXT("NewMacro"));
 
-	DestinationGraph = FBlueprintEditorUtils::CreateNewGraph(GetBlueprintObj(), DocumentName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-	FBlueprintEditorUtils::AddMacroGraph(GetBlueprintObj(), DestinationGraph, /*bIsUserCreated=*/ true, NULL);
+	DestinationGraph = FBlueprintEditorUtils::CreateNewGraph(BP, DocumentName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+	FBlueprintEditorUtils::AddMacroGraph(BP, DestinationGraph, /*bIsUserCreated=*/ true, nullptr);
 
 	UK2Node_MacroInstance* GatewayNode = FEdGraphSchemaAction_K2NewNode::SpawnNode<UK2Node_MacroInstance>(
 		SourceGraph,
@@ -8152,7 +8242,7 @@ UEdGraph* FBlueprintEditor::CollapseSelectionToMacro(TSharedPtr<SGraphEditor> In
 		}
 	}
 
-	CollapseNodesIntoGraph(GatewayNode, InputSink, OutputSink, SourceGraph, DestinationGraph, InCollapsableNodes, false, false);
+	CollapseNodesIntoGraph(GatewayNode, InputSink, OutputSink, SourceGraph, DestinationGraph, InCollapsableNodes, /* bCanDiscardEmptyReturnNode */ false, /* bCanHaveWeakObjPtrParam */ false);
 
 	OutMacroNode = GatewayNode;
 	OutMacroNode->ReconstructNode();
@@ -8786,6 +8876,20 @@ void FBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCha
 void FBlueprintEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	if (PropertyName.IsValid())
+	{
+		UBlueprint* Blueprint = GetBlueprintObj();
+		if (Blueprint)
+		{
+			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, PropertyName);
+			if (VarIndex != INDEX_NONE)
+			{
+				Blueprint->Modify();
+				Blueprint->NewVariables[VarIndex].DefaultValue.Empty();
+			}
+		}
+	}
 
 	//@TODO: This code does not belong here (might not even be necessary anymore as they seem to have PostEditChangeProperty impls now)!
 	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_Switch, bHasDefaultPin)) ||
