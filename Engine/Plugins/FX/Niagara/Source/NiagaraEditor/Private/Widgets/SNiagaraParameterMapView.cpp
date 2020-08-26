@@ -51,6 +51,8 @@
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeEmitter.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "NiagaraClipboard.h"
+#include "NiagaraEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapView"
 
@@ -828,6 +830,29 @@ TSharedPtr<SWidget> SNiagaraParameterMapView::OnContextMenuOpening()
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Rename, NAME_None, LOCTEXT("Rename", "Rename"), RenameToolTip);
 
 			MenuBuilder.AddMenuSeparator();
+
+			if (IsScriptToolkit())
+			{
+				TAttribute<FText> CopyParameterMetadataToolTip;
+				CopyParameterMetadataToolTip.Bind(this, &SNiagaraParameterMapView::GetCopyParameterMetadataToolTip);
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("CopyParameterMetadata", "Copy Metadata"),
+					CopyParameterMetadataToolTip,
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnCopyParameterMetadata),
+						FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanCopyParameterMetadata)));
+
+				MenuBuilder.AddMenuEntry(
+					LOCTEXT("PasteParameterMetadata", "Paste Metadata"),
+					LOCTEXT("PasteParameterMetadataToolTip", "Paste the parameter metadata from the system clipboard to the selected parameters."),
+					FSlateIcon(),
+					FUIAction(
+						FExecuteAction::CreateSP(this, &SNiagaraParameterMapView::OnPasteParameterMetadata),
+						FCanExecuteAction::CreateSP(this, &SNiagaraParameterMapView::CanPasteParameterMetadata)));
+
+				MenuBuilder.AddMenuSeparator();
+			}
 
 			MenuBuilder.AddSubMenu(
 				LOCTEXT("ChangeNamespace", "Change Namespace"),
@@ -1654,6 +1679,144 @@ void SNiagaraParameterMapView::OnCopyParameterReference()
 	{
 		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
 		FPlatformApplicationMisc::ClipboardCopy(*ParameterAction->Parameter.GetName().ToString());
+	}
+}
+
+FText SNiagaraParameterMapView::GetCopyParameterMetadataToolTip() const
+{
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+	if (SelectedActions.Num() != 1)
+	{
+		return LOCTEXT("CantCopyMetadataMultipleSelection", "Can only copy metadata from a single parameter.");
+	}
+
+	TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
+	if (ParameterAction.IsValid() == false)
+	{
+		return LOCTEXT("CantCopyInvalidParameterMetadataToolTip", "Can only copy metadata for valid parameters.");
+	}
+
+	bool bMetadataFound = false;
+	for (TWeakObjectPtr<UNiagaraGraph> WeakGraph : Graphs)
+	{
+		if (WeakGraph.IsValid())
+		{
+			UNiagaraScriptVariable* ParameterScriptVariable = WeakGraph->GetScriptVariable(ParameterAction->GetParameter().GetName());
+			if (ParameterScriptVariable != nullptr)
+			{
+				bMetadataFound = true;
+				break;
+			}
+		}
+	}
+
+	if (bMetadataFound == false)
+	{
+		return LOCTEXT("CantCopyInvalidMetadataToolTip", "The metadata for this parameter is invalid and can't be copied.");
+	}
+
+	return LOCTEXT("CopyMetadataToolTip", "Copy the metadata for this parameter to the system clipboard.");
+}
+
+bool SNiagaraParameterMapView::CanCopyParameterMetadata() const
+{
+	bool bMetadataFound = false;
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+	if (SelectedActions.Num() == 1)
+	{
+		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
+		if (ParameterAction.IsValid())
+		{
+			for (TWeakObjectPtr<UNiagaraGraph> WeakGraph : Graphs)
+			{
+				if (WeakGraph.IsValid() && WeakGraph->GetScriptVariable(ParameterAction->GetParameter().GetName()) != nullptr)
+				{
+					bMetadataFound = true;
+					break;
+				}
+			}
+		}
+	}
+
+	return bMetadataFound;
+}
+
+void SNiagaraParameterMapView::OnCopyParameterMetadata()
+{
+	bool bMetadataFound = false;
+	TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+	GraphActionMenu->GetSelectedActions(SelectedActions);
+	if (SelectedActions.Num() == 1)
+	{
+		TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
+		if (ParameterAction.IsValid())
+		{
+			for (TWeakObjectPtr<UNiagaraGraph> WeakGraph : Graphs)
+			{
+				if (WeakGraph.IsValid())
+				{
+					UNiagaraScriptVariable* ParameterScriptVariable = WeakGraph->GetScriptVariable(ParameterAction->GetParameter().GetName());
+					if (ParameterScriptVariable != nullptr)
+					{
+						UNiagaraClipboardContent* ClipboardContent = UNiagaraClipboardContent::Create();
+						ClipboardContent->ScriptVariables.Add(ParameterScriptVariable);
+						FNiagaraEditorModule::Get().GetClipboard().SetClipboardContent(ClipboardContent);
+						break;
+					}
+				}
+			}
+		}
+	}
+}
+
+bool SNiagaraParameterMapView::CanPasteParameterMetadata() const
+{
+	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
+	return ClipboardContent != nullptr && ClipboardContent->ScriptVariables.Num() == 1;
+}
+
+void SNiagaraParameterMapView::OnPasteParameterMetadata()
+{
+	const UNiagaraClipboardContent* ClipboardContent = FNiagaraEditorModule::Get().GetClipboard().GetClipboardContent();
+	if (ClipboardContent != nullptr && ClipboardContent->ScriptVariables.Num() == 1)
+	{
+		TArray<UNiagaraScriptVariable*> TargetScriptVariables;
+		TArray<TSharedPtr<FEdGraphSchemaAction>> SelectedActions;
+		GraphActionMenu->GetSelectedActions(SelectedActions);
+		if (SelectedActions.Num() > 0)
+		{
+			for (TSharedPtr<FEdGraphSchemaAction> SelectedAction : SelectedActions)
+			{
+				TSharedPtr<FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<FNiagaraParameterAction>(SelectedActions[0]);
+				if (ParameterAction.IsValid())
+				{
+					for (TWeakObjectPtr<UNiagaraGraph> WeakGraph : Graphs)
+					{
+						if (WeakGraph.IsValid())
+						{
+							UNiagaraScriptVariable* ParameterScriptVariable = WeakGraph->GetScriptVariable(ParameterAction->GetParameter().GetName());
+							if (ParameterScriptVariable != nullptr)
+							{
+								TargetScriptVariables.Add(ParameterScriptVariable);
+							}
+						}
+					}
+				}
+			}
+		}
+
+		if (TargetScriptVariables.Num() > 0)
+		{
+			FScopedTransaction PasteMetadataTransaction(LOCTEXT("PasteMetadataTransaction", "Paste parameter metadata"));
+			for (UNiagaraScriptVariable* TargetScriptVariable : TargetScriptVariables)
+			{
+				TargetScriptVariable->Modify();
+				TargetScriptVariable->Metadata = ClipboardContent->ScriptVariables[0]->Metadata;
+				TargetScriptVariable->PostEditChange();
+			}
+		}
 	}
 }
 
