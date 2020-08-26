@@ -101,11 +101,12 @@ void UMoviePipelineObjectIdRenderPass::PostRendererSubmission(const FMoviePipeli
 	TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> FramePayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 	FramePayload->PassIdentifier = PassIdentifier;
 	FramePayload->SampleState = InSampleState;
+	FramePayload->SortingOrder = GetOutputFileSortingOrder();
 
 	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> SampleAccumulator = nullptr;
 	{
 		SCOPE_CYCLE_COUNTER(STAT_MoviePipeline_WaitForAvailableAccumulator);
-		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber);
+		SampleAccumulator = AccumulatorPool->BlockAndGetAccumulator_GameThread(InSampleState.OutputState.OutputFrameNumber, FramePayload->PassIdentifier);
 	}
 
 	FObjectIdMaskSampleAccumulationArgs AccumulationArgs;
@@ -320,6 +321,7 @@ namespace MoviePipeline
 				TSharedRef<FImagePixelDataPayload, ESPMode::ThreadSafe> NewPayload = MakeShared<FImagePixelDataPayload, ESPMode::ThreadSafe>();
 				NewPayload->PassIdentifier = FMoviePipelinePassIdentifier(FramePayload->PassIdentifier.Name + FString::Printf(TEXT("%02d"), Index));
 				NewPayload->SampleState = FramePayload->SampleState;
+				NewPayload->SortingOrder = FramePayload->SortingOrder;
 
 				TUniquePtr<TImagePixelData<FLinearColor> > FinalPixelData = MakeUnique<TImagePixelData<FLinearColor>>(FIntPoint(FullSizeX, FullSizeY), MoveTemp(OutputLayers[Index]), NewPayload);
 

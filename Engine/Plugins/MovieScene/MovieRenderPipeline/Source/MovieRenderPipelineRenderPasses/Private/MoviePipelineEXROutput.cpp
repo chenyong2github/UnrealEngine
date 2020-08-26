@@ -173,6 +173,14 @@ bool FEXRImageWriteTask::WriteToDisk()
 				{
 					TUniquePtr<FImagePixelData> QuantizedPixelData = UE::MoviePipeline::QuantizeImagePixelDataToBitDepth(Layer.Get(), 16);
 					QuantizedData.Add(MoveTemp(QuantizedPixelData));
+
+					// Add an entry in the LayerNames table if needed since it matches by Layer pointer but that has changed.
+					FString LayerName = LayerNames.FindOrAdd(Layer.Get());
+					if (LayerName.Len() > 0)
+					{
+						LayerNames.Add(QuantizedData.Last().Get(), LayerName);
+					}
+
 					BytesWritten = CompressRaw<Imf::HALF>(Header, FrameBuffer, QuantizedData.Last().Get());
 				}
 					break;

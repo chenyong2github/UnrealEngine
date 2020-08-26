@@ -86,15 +86,18 @@ protected:
 	// ~FGCObject Interface
 
 	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState);
-	void OnBackbufferSampleReady(TArray<FFloat16Color>& InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
+
 
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
 	virtual void BlendPostProcessSettings(FSceneView* InView);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
+	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily);
 	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) {}
 	virtual bool IsScreenPercentageSupported() const { return true; }	
+	virtual bool IsAntiAliasingSupported() const { return true; }
+	virtual int32 GetOutputFileSortingOrder() const { return -1; }
 
 protected:
 	/** A temporary render target that we render the view to. */
@@ -137,20 +140,53 @@ protected:
 #endif
 	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) override;
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) override;
+	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily) override;
+	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
+	virtual bool IsAntiAliasingSupported() const { return !bDisableMultisampleEffects; }
+	virtual int32 GetOutputFileSortingOrder() const override { return 0; }
 	// ~UMoviePipelineRenderPass
 
+	TFunction<void(TUniquePtr<FImagePixelData>&&)> MakeForwardingEndpoint(const FMoviePipelinePassIdentifier InPassIdentifier, const FMoviePipelineRenderPassMetrics& InSampleState);
+	TArray<FString> GetCompositionGraphPasses() const;
+
 public:
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
-	bool bDisableAntiAliasing;
+	/**
+	* Certain passes don't support post-processing effects that blend pixels together. These include effects like
+	* Depth of Field, Temporal Anti-Aliasing, Motion Blur and chromattic abberation. When these post processing
+	* effects are used then each final output pixel is composed of the influence of many other pixels which is
+	* undesirable when rendering out an object id pass (which does not support post processing). This checkbox lets
+	* you disable them on a per-render basis instead of having to disable them in the editor as well.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Post Processing")
+	bool bDisableMultisampleEffects;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
-	bool bDisableDepthOfField;
+	/**
+	* Should we write a depth pass (in world units) when we render the image? This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
+	* Adds significant render time.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
+	bool bWriteWorldDepth;
+	
+	/**
+	* Should we write the motion vectors? Combined object + camera motion blur in screenspace. This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
+	* Adds significant render time.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
+	bool bWriteMotionVectors;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
-	bool bDisableMotionBlur;
+	/**
+	* Should we write the ambient occlusion data used during rendering when we render the image? This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
+	* Adds significant render time.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
+	bool bWriteAmbientOcclusion;
 
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
-	bool bDisableBloom;
+	/**
+	* An array of additional post-processing materials to run. Material should be set to Post Process domain, and Blendable Location = Before Tonemapping. This will need bDisableMultisampleEffects enabled for pixels to line up (ie: no DoF, MotionBlur, TAA)
+	* Adds significant render time.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Deferred Renderer Data")
+	TArray<UMaterialInterface*> AdditionalPostProcessMaterials;
 
 protected:
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
@@ -175,6 +211,8 @@ public:
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 		OutViewModeIndex = EViewModeIndex::VMI_Unlit;
 	}
+	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
+
 };
 
 UCLASS(BlueprintType)
@@ -196,6 +234,8 @@ public:
 		OutShowFlag.SetLightingOnlyOverride(true);
 		OutViewModeIndex = EViewModeIndex::VMI_Lit_DetailLighting;
 	}
+	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
+
 };
 
 UCLASS(BlueprintType)
@@ -217,6 +257,8 @@ public:
 		OutShowFlag.SetLightingOnlyOverride(true);
 		OutViewModeIndex = EViewModeIndex::VMI_LightingOnly;
 	}
+	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
+
 };
 
 UCLASS(BlueprintType)
@@ -238,6 +280,7 @@ public:
 		OutShowFlag.SetReflectionOverride(true);
 		OutViewModeIndex = EViewModeIndex::VMI_ReflectionOverride;
 	}
+	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
 };
 
 
@@ -260,6 +303,7 @@ public:
 		OutShowFlag.SetPathTracing(true);
 		OutViewModeIndex = EViewModeIndex::VMI_PathTracing;
 	}
+	virtual int32 GetOutputFileSortingOrder() const override { return 2; }
 };
 
 struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFromThis<FAccumulatorPool>
@@ -279,6 +323,7 @@ struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFrom
 
 		TSharedPtr<MoviePipeline::IMoviePipelineOverlappedAccumulator, ESPMode::ThreadSafe> Accumulator;
 		int32 ActiveFrameNumber;
+		FMoviePipelinePassIdentifier ActivePassIdentifier;
 		FThreadSafeBool bIsActive;
 	};
 
@@ -286,7 +331,7 @@ struct MOVIERENDERPIPELINERENDERPASSES_API FAccumulatorPool : public TSharedFrom
 	FCriticalSection CriticalSection;
 
 
-	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> BlockAndGetAccumulator_GameThread(int32 InFrameNumber);
+	TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> BlockAndGetAccumulator_GameThread(int32 InFrameNumber, const FMoviePipelinePassIdentifier& InPassIdentifier);
 };
 
 template<typename AccumulatorType>
