@@ -238,6 +238,34 @@ static FAutoConsoleVariableRef CVarLightMaxDrawDistanceScale(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+static int32 GRayTracingSceneCaptures = -1;
+static FAutoConsoleVariableRef CVarRayTracingSceneCaptures(
+	TEXT("r.RayTracing.SceneCaptures"),
+	GRayTracingSceneCaptures,
+	TEXT("Enable ray tracing in scene captures.\n")
+	TEXT(" -1: Use scene capture settings (default) \n")
+	TEXT(" 0: off \n")
+	TEXT(" 1: on"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingCulling(
+	TEXT("r.RayTracing.Culling"),
+	0,
+	TEXT("Enable culling in ray tracing for objects that are behind the camera\n")
+	TEXT(" 0: Culling disabled (default)\n")
+	TEXT(" 1: Culling by distance and solid angle enabled"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarRayTracingCullingRadius(
+	TEXT("r.RayTracing.Culling.Radius"),
+	10000.0f,
+	TEXT("Do camera culling for objects behind the camera outside of this radius in ray tracing effects (default = 10000 (100m))"));
+
+static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
+	TEXT("r.RayTracing.Culling.Angle"),
+	1.0f,
+	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"));
+
 #if !UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<float> CVarFreezeTemporalSequences(
@@ -615,6 +643,186 @@ static int32 FrustumCull(const FScene* Scene, FViewInfo& View)
 
 	return NumCulledPrimitives.GetValue();
 }
+
+#if RHI_RAYTRACING
+
+static void ComputeAndMarkRayTracingRelevanceForScene(FScene* Scene)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(ScanRayTracingInstances);
+
+	const int32 BitArrayNum = Scene->PrimitiveSceneProxies.Num();
+	const int32 BitArrayWords = FMath::DivideAndRoundUp(Scene->PrimitiveSceneProxies.Num(), (int32)NumBitsPerDWORD);
+	const int32 NumTasks = FMath::DivideAndRoundUp(BitArrayWords, FrustumCullNumWordsPerTask);
+
+	ParallelFor(NumTasks,
+		[ Scene](int32 TaskIndex)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ScanRayTracingInstances_Loop);
+		const int32 BitArrayNumInner = Scene->PrimitiveSceneProxies.Num();
+
+		// Primitives may be explicitly removed from stereo views when using mono
+		const int32 TaskWordOffset = TaskIndex * FrustumCullNumWordsPerTask;
+
+		for (int32 WordIndex = TaskWordOffset; WordIndex < TaskWordOffset + FrustumCullNumWordsPerTask && WordIndex * NumBitsPerDWORD < BitArrayNumInner; WordIndex++)
+		{
+			uint32 Mask = 0x1;
+			uint32 StaticRelevantBits = 0;
+			uint32 RelevantBits = 0;
+			for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
+			{
+				int32 PrimitiveIndex = WordIndex * NumBitsPerDWORD + BitSubIndex;
+
+				const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
+
+				//skip over unsupported SceneProxies (warning don't make IsRayTracingRelevant data dependent other than the vtable)
+				if (!SceneInfo->bIsRayTracingRelevant)
+				{
+					// Ideally, skip to the next relevant prim, as there may be a run of the same type
+					continue;
+				}
+
+				if (SceneInfo->bIsRayTracingStaticRelevant)
+				{
+					StaticRelevantBits |= Mask;
+				}
+
+				if (!SceneInfo->bIsVisibleInRayTracing)
+				{
+					continue;
+				}
+
+				if (!(SceneInfo->bShouldRenderInMainPass && SceneInfo->bDrawInGame))
+				{
+					continue;
+				}
+
+				RelevantBits |= Mask;
+			}
+
+			if (StaticRelevantBits)
+			{
+				check(!Scene->RayTracingStaticRelevantPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+				Scene->RayTracingStaticRelevantPrimitiveMap.GetData()[WordIndex] = StaticRelevantBits;
+			}
+			if (RelevantBits)
+			{
+				check(!Scene->RayTracingRelevantPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+				Scene->RayTracingRelevantPrimitiveMap.GetData()[WordIndex] = RelevantBits;
+			}
+		}
+	},
+		!FApp::ShouldUseThreadingForPerformance() || CVarParallelInitViews.GetValueOnRenderThread() == 0 || !IsInActualRenderingThread()
+		);
+}
+
+static void ComputeAndMarkRayTracingRelevanceForView(const FScene* Scene, FViewInfo& View)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(CullRayTracingInstances);
+
+	const bool bApplyCulling = CVarRayTracingCulling.GetValueOnRenderThread() > 0;
+	const float CullingRadius = CVarRayTracingCullingRadius.GetValueOnRenderThread();
+	const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
+	const float AngleThresholdRatio = FMath::Tan(CullAngleThreshold * PI / 180.0f);
+
+	const int32 BitArrayNum = Scene->PrimitiveSceneProxies.Num();
+	const int32 BitArrayWords = FMath::DivideAndRoundUp(Scene->PrimitiveSceneProxies.Num(), (int32)NumBitsPerDWORD);
+	const int32 NumTasks = FMath::DivideAndRoundUp(BitArrayWords, FrustumCullNumWordsPerTask);
+
+	ParallelFor(NumTasks,
+		[Scene,&View,bApplyCulling,CullingRadius,AngleThresholdRatio](int32 TaskIndex)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(ScanRayTracingInstances_Loop);
+		const int32 BitArrayNumInner = Scene->PrimitiveSceneProxies.Num();
+		const FVector ViewOrigin = View.ViewMatrices.GetViewOrigin();
+		const FVector ViewDirection = View.GetViewDirection();
+
+		const int32 TaskWordOffset = TaskIndex * FrustumCullNumWordsPerTask;
+
+		for (int32 WordIndex = TaskWordOffset; WordIndex < TaskWordOffset + FrustumCullNumWordsPerTask && WordIndex * NumBitsPerDWORD < BitArrayNumInner; WordIndex++)
+		{
+			uint32 Mask = 0x1;
+			uint32 StaticRelevantBits = 0;
+			uint32 RelevantBits = 0;
+
+			if (Scene->RayTracingRelevantPrimitiveMap.GetData()[WordIndex] == 0)
+			{
+				//Run of primitives all culled
+				continue;
+			}
+
+			for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
+			{
+				int32 PrimitiveIndex = WordIndex * NumBitsPerDWORD + BitSubIndex;
+
+				const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
+				
+				if (!Scene->RayTracingRelevantPrimitiveMap[PrimitiveIndex])
+				{
+					continue;
+				}
+
+				if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
+				{
+					continue;
+				}
+
+				if (bApplyCulling)
+				{
+					const FBoxSphereBounds &ObjectBounds = Scene->PrimitiveBounds[PrimitiveIndex].BoxSphereBounds;
+					const float ObjectRadius = ObjectBounds.SphereRadius;
+					const FVector ObjectCenter = ObjectBounds.Origin + 0.5*ObjectBounds.BoxExtent;
+					const FVector CameraToObjectCenter = FVector(ObjectCenter - ViewOrigin);
+
+					const bool bIsBehindCamera = FVector::DotProduct(ViewDirection, CameraToObjectCenter) < -ObjectRadius;
+
+					if (bIsBehindCamera)
+					{
+						const float CameraToObjectCenterLength = CameraToObjectCenter.Size();
+						const bool bIsFarEnoughToCull = CameraToObjectCenterLength > (CullingRadius + ObjectRadius);
+
+						if (bIsFarEnoughToCull)
+						{
+							// Cull by solid angle: check the radius of bounding sphere against angle threshold
+							const bool bAngleIsSmallEnoughToCull = ObjectRadius / CameraToObjectCenterLength < AngleThresholdRatio;
+
+							if (bAngleIsSmallEnoughToCull)
+							{
+								continue;
+							}
+						}
+					}
+				}
+
+				bool bShouldRayTraceSceneCapture = GRayTracingSceneCaptures > 0 || (GRayTracingSceneCaptures == -1 && View.bSceneCaptureUsesRayTracing);
+				if (View.bIsSceneCapture && (!bShouldRayTraceSceneCapture || !SceneInfo->bIsVisibleInReflectionCaptures))
+				{
+					continue;
+				}
+
+				if (View.HiddenPrimitives.Contains(SceneInfo->PrimitiveComponentId))
+				{
+					continue;
+				}
+
+				if (View.ShowOnlyPrimitives.IsSet() && !View.ShowOnlyPrimitives->Contains(SceneInfo->PrimitiveComponentId))
+				{
+					continue;
+				}
+
+				RelevantBits |= Mask;
+			}
+
+			if (RelevantBits)
+			{
+				check(!View.RayTracingCullingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+				View.RayTracingCullingPrimitiveMap.GetData()[WordIndex] = RelevantBits;
+			}
+		}
+	},
+		!FApp::ShouldUseThreadingForPerformance() || CVarParallelInitViews.GetValueOnRenderThread() == 0 || !IsInActualRenderingThread()
+		);
+}
+#endif
 
 /**
  * Updated primitive fading states for the view.
@@ -3726,6 +3934,34 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		Scene->PrimitivesNeedingStaticMeshUpdateWithoutVisibilityCheck.Reset();
 	}
 
+	bool bAnyRayTracingPassEnabled = false;
+#if RHI_RAYTRACING
+	bool bPathTracingOrDebugViewEnabled = false;
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
+	{
+		bAnyRayTracingPassEnabled |= AnyRayTracingPassEnabled(Scene, Views[ViewIndex]);
+		bPathTracingOrDebugViewEnabled |= !CanOverlayRayTracingOutput(Views[ViewIndex]);
+	}
+
+	if (GetForceRayTracingEffectsCVarValue() == 0 && !bPathTracingOrDebugViewEnabled)
+	{
+		bAnyRayTracingPassEnabled = false;
+	}
+
+	if (!IsRayTracingEnabled())
+	{
+		bAnyRayTracingPassEnabled = false;
+	}
+
+	if (bAnyRayTracingPassEnabled)
+	{
+		Scene->RayTracingRelevantPrimitiveMap.Init(false, Scene->Primitives.Num());
+		Scene->RayTracingStaticRelevantPrimitiveMap.Init(false, Scene->Primitives.Num());
+
+		ComputeAndMarkRayTracingRelevanceForScene(Scene);
+	}
+#endif
+
 	uint8 ViewBit = 0x1;
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex, ViewBit <<= 1)
 	{
@@ -3748,6 +3984,11 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 		View.StaticMeshFadeInDitheredLODMap.Init(false,Scene->StaticMeshes.GetMaxIndex());
 		View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
 		View.DistanceCullingPrimitiveMap.Init(false, Scene->Primitives.Num());
+
+		if (bAnyRayTracingPassEnabled)
+		{
+			View.RayTracingCullingPrimitiveMap.Init(false, Scene->Primitives.Num());
+		}
 		View.VisibleLightInfos.Empty(Scene->Lights.GetMaxIndex());
 
 		// The dirty list allocation must take into account the max possible size because when GILCUpdatePrimTaskEnabled is true,
@@ -3925,6 +4166,29 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 				}
 			}
 		}
+
+#if RHI_RAYTRACING
+		if (bAnyRayTracingPassEnabled)
+		{
+			bool bProcessCulling = AnyRayTracingPassEnabled(Scene, View);
+
+			if (!View.State)
+			{
+				bProcessCulling = false;
+			}
+
+			if (View.bIsReflectionCapture)
+			{
+				bProcessCulling = false;
+			}
+
+			if (bProcessCulling)
+			{
+				ComputeAndMarkRayTracingRelevanceForView(Scene, View);
+				
+			}
+		}
+#endif
 
 		// Occlusion cull for all primitives in the view frustum, but not in wireframe.
 		if (!View.Family->EngineShowFlags.Wireframe)
