@@ -53,10 +53,10 @@ void FMaterialCachedExpressionData::Reset()
 	bHasSceneColor = false;
 }
 
-static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& Entry, const FHashedMaterialParameterInfo& HashedParameterInfo)
+static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& Entry, const FHashedName& HashedName, const FHashedMaterialParameterInfo& ParameterInfo)
 {
 	// Parameters are first sorted by name hash
-	const uint64 NameHash = HashedParameterInfo.Name.GetHash();
+	const uint64 NameHash = HashedName.GetHash();
 	const int32 LowerIndex = Algo::LowerBound(Entry.NameHashes, NameHash);
 	if (LowerIndex < Entry.NameHashes.Num())
 	{
@@ -67,7 +67,7 @@ static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& E
 			// more than 1 entry with the same name, next sort by Association/Index
 			auto ProjectionFunc = [](const FMaterialParameterInfo& InParameterInfo)
 			{
-				return FHashedMaterialParameterInfo(FHashedName(), InParameterInfo.Association, InParameterInfo.Index);
+				return FHashedMaterialParameterInfo(FScriptName(), InParameterInfo.Association, InParameterInfo.Index);
 			};
 			auto CompareFunc = [](const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
 			{
@@ -76,7 +76,7 @@ static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& E
 			};
 
 			const TConstArrayView<FMaterialParameterInfo> ParameterInfos = MakeArrayView(&Entry.ParameterInfos[LowerIndex], UpperIndex - LowerIndex);
-			return LowerIndex + Algo::LowerBoundBy(ParameterInfos, HashedParameterInfo, ProjectionFunc, CompareFunc);
+			return LowerIndex + Algo::LowerBoundBy(ParameterInfos, ParameterInfo, ProjectionFunc, CompareFunc);
 		}
 	}
 	return LowerIndex;
@@ -86,12 +86,12 @@ static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& E
 static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMaterialParameterType Type, const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool bOverride = false)
 {
 	FMaterialCachedParameterEntry& Entry = CachedParameters.Entries[(int32)Type];
-	const FHashedMaterialParameterInfo HashedParameterInfo(ParameterInfo);
-	int32 Index = FindParameterLowerBoundIndex(Entry, HashedParameterInfo);
+	const FHashedName HashedName(ParameterInfo.Name);
+	int32 Index = FindParameterLowerBoundIndex(Entry, HashedName, ParameterInfo);
 
 	if (Index >= Entry.NameHashes.Num() || Entry.ParameterInfos[Index] != ParameterInfo)
 	{
-		Entry.NameHashes.Insert(HashedParameterInfo.Name.GetHash(), Index);
+		Entry.NameHashes.Insert(HashedName.GetHash(), Index);
 		Entry.ParameterInfos.Insert(ParameterInfo, Index);
 		Entry.ExpressionGuids.Insert(ExpressionGuid, Index);
 		Entry.Overrides.Insert(bOverride, Index);
@@ -604,14 +604,15 @@ int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type,
 	return INDEX_NONE;
 }
 
-int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo) const
+int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const
 {
 	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
-	const int32 Index = FindParameterLowerBoundIndex(Entry, HashedParameterInfo);
+	const FHashedName HashedName(ParameterInfo.GetName());
+	const int32 Index = FindParameterLowerBoundIndex(Entry, HashedName, ParameterInfo);
 	if (Index < Entry.NameHashes.Num() &&
-		Entry.NameHashes[Index] == HashedParameterInfo.Name.GetHash() &&
-		Entry.ParameterInfos[Index].Association == HashedParameterInfo.Association &&
-		Entry.ParameterInfos[Index].Index == HashedParameterInfo.Index)
+		Entry.NameHashes[Index] == HashedName.GetHash() &&
+		Entry.ParameterInfos[Index].Association == ParameterInfo.Association &&
+		Entry.ParameterInfos[Index].Index == ParameterInfo.Index)
 	{
 		return Index;
 	}

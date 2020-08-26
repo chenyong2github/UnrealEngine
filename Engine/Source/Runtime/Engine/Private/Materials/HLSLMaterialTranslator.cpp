@@ -2969,7 +2969,6 @@ int32 FHLSLMaterialTranslator::ScalarParameter(FName ParameterName, float Defaul
 		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.Num();
 		FMaterialScalarParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.AddDefaulted_GetRef();
 		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.ParameterName = ParameterName.ToString();
 		Parameter.DefaultValue = DefaultValue;
 	}
 
@@ -2996,7 +2995,6 @@ int32 FHLSLMaterialTranslator::VectorParameter(FName ParameterName, const FLinea
 		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.Num();
 		FMaterialVectorParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.AddDefaulted_GetRef();
 		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.ParameterName = ParameterName.ToString();
 		Parameter.DefaultValue = DefaultValue;
 	}
 

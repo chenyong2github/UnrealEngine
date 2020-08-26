@@ -56,7 +56,7 @@ TMap<FName,FMaterialUniformExpressionType*>& FMaterialUniformExpressionType::Get
 	return TypeMap;
 }
 
-static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, const FGuid& ExternalTextureGuid, const FHashedName& ParameterName, int32 SourceTextureIndex)
+static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, const FGuid& ExternalTextureGuid, const FName& ParameterName, int32 SourceTextureIndex)
 {
 	FGuid GuidToLookup;
 	if (ExternalTextureGuid.IsValid())
@@ -545,7 +545,7 @@ void FMaterialPreshaderData::WriteData(const void* Value, uint32 Size)
 	Data.Append((uint8*)Value, Size);
 }
 
-void FMaterialPreshaderData::WriteName(const FHashedName& Name)
+void FMaterialPreshaderData::WriteName(const FScriptName& Name)
 {
 	int32 Index = Names.Find(Name);
 	if (Index == INDEX_NONE)
@@ -576,7 +576,7 @@ namespace
 
 		const uint8* RESTRICT Ptr;
 		const uint8* RESTRICT EndPtr;
-		const FHashedName* RESTRICT Names;
+		const FScriptName* RESTRICT Names;
 		int32 NumNames;
 	};
 
@@ -598,7 +598,7 @@ namespace
 	}
 
 	template<>
-	FHashedName ReadPreshaderValue<FHashedName>(FPreshaderDataContext& RESTRICT Data)
+	FScriptName ReadPreshaderValue<FScriptName>(FPreshaderDataContext& RESTRICT Data)
 	{
 		const int32 Index = ReadPreshaderValue<uint16>(Data);
 		check(Index >= 0 && Index < Data.NumNames);
@@ -606,9 +606,12 @@ namespace
 	}
 
 	template<>
+	FName ReadPreshaderValue<FName>(FPreshaderDataContext& RESTRICT Data) = delete;
+
+	template<>
 	FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(FPreshaderDataContext& RESTRICT Data)
 	{
-		const FHashedName Name = ReadPreshaderValue<FHashedName>(Data);
+		const FScriptName Name = ReadPreshaderValue<FScriptName>(Data);
 		const int32 Index = ReadPreshaderValue<int32>(Data);
 		const TEnumAsByte<EMaterialParameterAssociation> Association = ReadPreshaderValue<TEnumAsByte<EMaterialParameterAssociation>>(Data);
 		return FHashedMaterialParameterInfo(Name, Association, Index);
@@ -837,10 +840,10 @@ static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderS
 
 static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
 {
-	const FHashedName ParameterName = ReadPreshaderValue<FHashedName>(Data);
+	const FScriptName ParameterName = ReadPreshaderValue<FScriptName>(Data);
 	const FGuid ExternalTextureGuid = ReadPreshaderValue<FGuid>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
-	return GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName, TextureIndex);
+	return GetExternalTextureGuid(Context, ExternalTextureGuid, ScriptNameToName(ParameterName), TextureIndex);
 }
 
 static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
@@ -1212,7 +1215,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				// gmartin: Trying to locate UE-23902
 				if (!Value->IsValidLowLevel())
 				{
-					ensureMsgf(false, TEXT("Texture not valid! UE-23902! Parameter (%s)"), *Parameter.ParameterName);
+					ensureMsgf(false, TEXT("Texture not valid! UE-23902! Parameter (%s)"), *Parameter.ParameterInfo.Name.ToString());
 				}
 
 				// Trying to track down a dangling pointer bug.
@@ -1220,7 +1223,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					Value->IsA<UTexture>(),
 					TEXT("Expecting a UTexture! Name(%s), Type(%s), TextureParameter(%s), Expression(%d), Material(%s)"),
 					*Value->GetName(), *Value->GetClass()->GetName(),
-					*Parameter.ParameterName,
+					*Parameter.ParameterInfo.Name.ToString(),
 					ExpressionIndex,
 					*MaterialRenderContext.Material.GetFriendlyName());
 
@@ -1229,7 +1232,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					FText MessageText = FText::Format(
 						NSLOCTEXT("MaterialExpressions", "IncompatibleExternalTexture", " applied to a non-external Texture2D sampler. This may work by chance on some platforms but is not portable. Please change sampler type to 'External'. Parameter '{0}' (slot {1}) in material '{2}'"),
-						FText::FromString(*Parameter.ParameterName),
+						FText::FromName(Parameter.ParameterInfo.GetName()),
 						ExpressionIndex,
 						FText::FromString(*MaterialRenderContext.Material.GetFriendlyName()));
 
@@ -1666,8 +1669,7 @@ bool FMaterialUniformExpressionExternalTextureBase::IsIdentical(const FMaterialU
 
 FGuid FMaterialUniformExpressionExternalTextureBase::ResolveExternalTextureGUID(const FMaterialRenderContext& Context, TOptional<FName> ParameterName) const
 {
-	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	return GetExternalTextureGuid(Context, ExternalTextureGuid, HashedParameterName, SourceTextureIndex);
+	return GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName.IsSet() ? ParameterName.GetValue() : FName(), SourceTextureIndex);
 }
 
 void FMaterialUniformExpressionExternalTexture::GetExternalTextureParameterInfo(FMaterialExternalTextureParameterInfo& OutParameter) const
@@ -1681,13 +1683,12 @@ FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionEx
 
 FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionExternalTextureParameter(FName InParameterName, int32 InTextureIndex)
 	: Super(InTextureIndex)
-	, ParameterName(InParameterName)
 {}
 
 void FMaterialUniformExpressionExternalTextureParameter::GetExternalTextureParameterInfo(FMaterialExternalTextureParameterInfo& OutParameter) const
 {
 	Super::GetExternalTextureParameterInfo(OutParameter);
-	OutParameter.ParameterName = *ParameterName.ToString();
+	OutParameter.ParameterName = NameToScriptName(ParameterName);
 }
 
 bool FMaterialUniformExpressionExternalTextureParameter::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
@@ -1786,7 +1787,7 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 bool FMaterialExternalTextureParameterInfo::GetExternalTexture(const FMaterialRenderContext& Context, FTextureRHIRef& OutTextureRHI, FSamplerStateRHIRef& OutSamplerStateRHI) const
 {
 	check(IsInParallelRenderingThread());
-	const FGuid GuidToLookup = GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName, SourceTextureIndex);
+	const FGuid GuidToLookup = GetExternalTextureGuid(Context, ExternalTextureGuid, ScriptNameToName(ParameterName), SourceTextureIndex);
 	return FExternalTextureRegistry::Get().GetExternalTexture(Context.MaterialRenderProxy, GuidToLookup, OutTextureRHI, OutSamplerStateRHI);
 }
 
@@ -1803,8 +1804,8 @@ bool FMaterialUniformExpressionExternalTextureCoordinateScaleRotation::IsIdentic
 
 void FMaterialUniformExpressionExternalTextureCoordinateScaleRotation::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
-	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateScaleRotation).Write(HashedParameterName).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
+	const FScriptName Name = ParameterName.IsSet() ? NameToScriptName(ParameterName.GetValue()) : FScriptName();
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateScaleRotation).Write(Name).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
 }
 
 bool FMaterialUniformExpressionExternalTextureCoordinateOffset::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
@@ -1820,8 +1821,8 @@ bool FMaterialUniformExpressionExternalTextureCoordinateOffset::IsIdentical(cons
 
 void FMaterialUniformExpressionExternalTextureCoordinateOffset::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
-	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateOffset).Write(HashedParameterName).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
+	const FScriptName Name = ParameterName.IsSet() ? NameToScriptName(ParameterName.GetValue()) : FScriptName();
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateOffset).Write(Name).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
 }
 
 FMaterialUniformExpressionRuntimeVirtualTextureUniform::FMaterialUniformExpressionRuntimeVirtualTextureUniform()

@@ -269,28 +269,27 @@ public:
 		return !operator==(Lhs, Rhs);
 	}
 
-	friend inline FArchive& operator<<(FArchive& Ar, FMaterialPreshaderData& Ref)
-	{
-		return Ar << Ref.Data;
-	}
-
 	const int32 Num() const { return Data.Num(); }
 
 	void WriteData(const void* Value, uint32 Size);
-	void WriteName(const FHashedName& Name);
+	void WriteName(const FScriptName& Name);
 
 	template<typename T>
 	FMaterialPreshaderData& Write(const T& Value) { WriteData(&Value, sizeof(T)); return *this; }
 
 	template<>
-	FMaterialPreshaderData& Write<FHashedName>(const FHashedName& Value) { WriteName(Value); return *this; }
+	FMaterialPreshaderData& Write<FScriptName>(const FScriptName& Value) { WriteName(Value); return *this; }
+
+	/** Can't write FName, use FScriptName instead */
+	template<>
+	FMaterialPreshaderData& Write<FName>(const FName& Value) = delete;
 
 	template<>
 	FMaterialPreshaderData& Write<FHashedMaterialParameterInfo>(const FHashedMaterialParameterInfo& Value) { return Write(Value.Name).Write(Value.Index).Write(Value.Association); }
 
 	inline FMaterialPreshaderData& WriteOpcode(EMaterialPreshaderOpcode Op) { return Write<uint8>((uint8)Op); }
 
-	LAYOUT_FIELD(TMemoryImageArray<FHashedName>, Names);
+	LAYOUT_FIELD(TMemoryImageArray<FScriptName>, Names);
 	LAYOUT_FIELD(TMemoryImageArray<uint8>, Data);
 };
 
@@ -380,20 +379,17 @@ class FMaterialScalarParameterInfo
 public:
 	friend inline bool operator==(const FMaterialScalarParameterInfo& Lhs, const FMaterialScalarParameterInfo& Rhs)
 	{
-		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.ParameterName == Rhs.ParameterName && Lhs.DefaultValue == Rhs.DefaultValue;
+		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.DefaultValue == Rhs.DefaultValue;
 	}
 	friend inline bool operator!=(const FMaterialScalarParameterInfo& Lhs, const FMaterialScalarParameterInfo& Rhs)
 	{
 		return !operator==(Lhs, Rhs);
 	}
 
-	FMaterialParameterInfo GetParameterInfo() const { return FMaterialParameterInfo(*ParameterName, ParameterInfo.Association, ParameterInfo.Index); }
-
 	void GetGameThreadNumberValue(const UMaterialInterface* SourceMaterialToCopyFrom, float& OutValue) const;
 	void GetDefaultValue(float& OutValue) const { OutValue = DefaultValue; }
 	
 	LAYOUT_FIELD(FHashedMaterialParameterInfo, ParameterInfo);
-	LAYOUT_FIELD(FMemoryImageString, ParameterName);
 	LAYOUT_FIELD(float, DefaultValue);
 };
 
@@ -404,20 +400,17 @@ class FMaterialVectorParameterInfo
 public:
 	friend inline bool operator==(const FMaterialVectorParameterInfo& Lhs, const FMaterialVectorParameterInfo& Rhs)
 	{
-		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.ParameterName == Rhs.ParameterName && Lhs.DefaultValue == Rhs.DefaultValue;
+		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.DefaultValue == Rhs.DefaultValue;
 	}
 	friend inline bool operator!=(const FMaterialVectorParameterInfo& Lhs, const FMaterialVectorParameterInfo& Rhs)
 	{
 		return !operator==(Lhs, Rhs);
 	}
 
-	FMaterialParameterInfo GetParameterInfo() const { return FMaterialParameterInfo(*ParameterName, ParameterInfo.Association, ParameterInfo.Index); }
-
 	void GetGameThreadNumberValue(const UMaterialInterface* SourceMaterialToCopyFrom, FLinearColor& OutValue) const;
 	void GetDefaultValue(FLinearColor& OutValue) const { OutValue = DefaultValue; }
 
 	LAYOUT_FIELD(FHashedMaterialParameterInfo, ParameterInfo);
-	LAYOUT_FIELD(FMemoryImageString, ParameterName);
 	LAYOUT_FIELD(FLinearColor, DefaultValue);
 };
 
@@ -440,19 +433,18 @@ class ENGINE_API FMaterialTextureParameterInfo
 public:
 	friend inline bool operator==(const FMaterialTextureParameterInfo& Lhs, const FMaterialTextureParameterInfo& Rhs)
 	{
-		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.ParameterName == Rhs.ParameterName && Lhs.TextureIndex == Rhs.TextureIndex && Lhs.SamplerSource == Rhs.SamplerSource && Lhs.VirtualTextureLayerIndex == Rhs.VirtualTextureLayerIndex;
+		return Lhs.ParameterInfo == Rhs.ParameterInfo && Lhs.TextureIndex == Rhs.TextureIndex && Lhs.SamplerSource == Rhs.SamplerSource && Lhs.VirtualTextureLayerIndex == Rhs.VirtualTextureLayerIndex;
 	}
 	friend inline bool operator!=(const FMaterialTextureParameterInfo& Lhs, const FMaterialTextureParameterInfo& Rhs)
 	{
 		return !operator==(Lhs, Rhs);
 	}
 
-	FMaterialParameterInfo GetParameterInfo() const { return FMaterialParameterInfo(*ParameterName, ParameterInfo.Association, ParameterInfo.Index); }
+	inline FName GetParameterName() const { return ScriptNameToName(ParameterInfo.Name); }
 
 	void GetGameThreadTextureValue(const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue) const;
 
 	LAYOUT_FIELD(FHashedMaterialParameterInfo, ParameterInfo);
-	LAYOUT_FIELD(FMemoryImageString, ParameterName);
 	LAYOUT_FIELD_INITIALIZED(int32, TextureIndex, INDEX_NONE);
 	LAYOUT_FIELD(TEnumAsByte<ESamplerSourceMode>, SamplerSource);
 	LAYOUT_FIELD_INITIALIZED(uint8, VirtualTextureLayerIndex, 0u);
@@ -474,7 +466,7 @@ public:
 
 	bool GetExternalTexture(const FMaterialRenderContext& Context, FTextureRHIRef& OutTextureRHI, FSamplerStateRHIRef& OutSamplerStateRHI) const;
 
-	LAYOUT_FIELD(FHashedName, ParameterName);
+	LAYOUT_FIELD(FScriptName, ParameterName);
 	LAYOUT_FIELD(FGuid, ExternalTextureGuid);
 	LAYOUT_FIELD(int32, SourceTextureIndex);
 };
