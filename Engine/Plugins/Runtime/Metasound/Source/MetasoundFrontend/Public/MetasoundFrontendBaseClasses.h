@@ -454,7 +454,7 @@ namespace Metasound
 						return FDescPath();
 						break;
 					}
-					/** Individiual inputs, outpus and nodes, as well as metadata, do not have any child elements. */
+					/** Individual inputs, outputs and nodes, as well as metadata, do not have any child elements. */
 					case Path::EDescType::Input:
 					case Path::EDescType::Output:
 					case Path::EDescType::Node:
@@ -507,6 +507,8 @@ namespace Metasound
 			FDescPath GetInputDescriptionPath(FDescPath InPathForInputNode, const FString& InputName);
 
 			FDescPath GetOutputDescriptionPath(FDescPath InPathForOutputNode, const FString& OutputName);
+
+			FDescPath GetOuterGraphPath(FDescPath InPath);
 
 			// Generates a human readable string for a path into a Metasound description. Used for debugging.
 			FString GetPrintableString(FDescPath InPath);

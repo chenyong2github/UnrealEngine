@@ -992,6 +992,17 @@ namespace Metasound
 			return (InPathForOutputNode << 3)[Path::EFromClass::ToOutputs][*OutputName];
 		}
 
+		FDescPath Path::GetOuterGraphPath(FDescPath InPath)
+		{
+			// Unwind element by element until we hit a graph.
+			while (InPath.Path.Num() > 1 && InPath.Path.Last().CurrentDescType != Path::EDescType::Graph)
+			{
+				InPath.Path.Pop();
+			}
+
+			return InPath;
+		}
+
 		FString Path::GetPrintableString(FDescPath InPath)
 		{
 			FString OutString = FString(TEXT("//"));

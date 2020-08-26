@@ -10,7 +10,11 @@
 #include "MetasoundInputNode.h"
 #include "MetasoundOperatorInterface.h"
 #include "MetasoundFrontendRegistries.h"
+#include "MetasoundAutoConverterNode.h"
+#include "MetasoundNodeRegistrationMacro.h"
+#include "MetasoundConverterNodeRegistrationMacro.h"
 
+#include <type_traits>
 
 // SFINAE used to optionally invoke subclasses of IAudioProxyDataFactory when we can.
 template<typename UClassToUse, typename TEnableIf<TIsDerivedFrom<UClassToUse, IAudioProxyDataFactory>::Value, bool>::Type = true>
@@ -31,6 +35,44 @@ template<typename UClassToUse, typename TEnableIf<!TIsDerivedFrom<UClassToUse, I
 IAudioProxyDataFactory* CastToAudioProxyDataFactory(UObject* InObject)
 {
 	return nullptr;
+}
+
+// This utility function can be used to check to see if we can static cast between two types, and autogenerate a node for that static cast.
+template<typename TFromDataType, typename TToDataType, typename TEnableIf<std::is_convertible<TFromDataType, TToDataType>::value, bool>::Type = true>
+void AttemptToRegisterConverter()
+{
+	using FConverterNode = Metasound::TAutoConverterNode<TFromDataType, TToDataType>;
+
+	if (!TIsSame<TFromDataType, TToDataType>::Value && !FMetasoundFrontendRegistryContainer::Get()->IsNodeRegistered<FConverterNode>())
+	{
+		ensureAlways(RegisterNodeWithFrontend<FConverterNode>());
+		
+		bool bSucessfullyRegisteredConversionNode = RegisterConversionNode<FConverterNode, TFromDataType, TToDataType>(FConverterNode::GetInputName(), FConverterNode::GetOutputName());
+		ensureAlways(bSucessfullyRegisteredConversionNode);
+	}
+}
+
+template<typename TFromDataType, typename TToDataType, typename TEnableIf<!std::is_convertible<TFromDataType, TToDataType>::value, bool>::Type = true>
+void AttemptToRegisterConverter()
+{
+	// This implementation intentionally noops, because static_cast<TFromDataType>(TToDataType&) is invalid.
+}
+
+// Here we attempt to infer and autogenerate conversions for basic datatypes.
+template<typename TDataType>
+void RegisterConverterNodes()
+{
+	// Conversions to this data type:
+	AttemptToRegisterConverter<bool, TDataType>();
+	AttemptToRegisterConverter<int32, TDataType>();
+	AttemptToRegisterConverter<float, TDataType>();
+	AttemptToRegisterConverter<FString, TDataType>();
+
+	// Conversions from this data type:
+	AttemptToRegisterConverter<TDataType, bool>();
+	AttemptToRegisterConverter<TDataType, int32>();
+	AttemptToRegisterConverter<TDataType, float>();
+	AttemptToRegisterConverter<TDataType, FString>();
 }
 
 template<typename TDataType, ::Metasound::ELiteralArgType PreferredArgType = ::Metasound::ELiteralArgType::None, typename UClassToUse = UObject>
@@ -111,6 +153,9 @@ bool RegisterDataTypeWithFrontend()
 
 	bool bSucceeded = FMetasoundFrontendRegistryContainer::Get()->RegisterDataType(RegistryInfo, MoveTemp(Callbacks));
 	ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), ::Metasound::TDataReferenceTypeInfo<TDataType>::TypeName);
+	
+	RegisterConverterNodes<TDataType>();
+	
 	return bSucceeded;
 }
 

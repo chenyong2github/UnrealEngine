@@ -621,7 +621,13 @@ namespace Metasound
 				return OutConnectability;
 			}
 
-			//@todo: scan for possible converter nodes here. (UEAU-473)
+			OutConnectability.PossibleConverterNodeClasses = FMetasoundFrontendRegistryContainer::Get()->GetPossibleConverterNodes(InHandle.GetOutputType(), GetInputType());
+			if (OutConnectability.PossibleConverterNodeClasses.Num() > 0)
+			{
+				OutConnectability.Connectable = FConnectability::EConnectable::YesWithConverterNode;
+				return OutConnectability;
+			}
+
 			return OutConnectability;
 		}
 
@@ -708,11 +714,33 @@ namespace Metasound
 			return false;
 		}
 
-		bool FInputHandle::ConnectWithConverterNode(FOutputHandle& InHandle, FString& InNodeClassName)
+		bool FInputHandle::ConnectWithConverterNode(FOutputHandle& InHandle, const FConverterNodeInfo& InNodeClassName)
 		{
-			// (UEAU-473)
-			ensureAlwaysMsgf(false, TEXT("Implement me!"));
-			return false;
+			FDescPath OwningGraphPath = Path::GetOuterGraphPath(NodePtr.GetPath());
+			FHandleInitParams GraphHandleInitParams =
+			{
+				NodePtr.GetAccessPoint(),
+				OwningGraphPath,
+				FString(), // Caching the graph name is not necessary here.
+				OwningAsset
+			};
+
+			FGraphHandle OwningGraphHandle = FGraphHandle(FHandleInitParams::PrivateToken, GraphHandleInitParams);
+			check(OwningGraphHandle.IsValid());
+
+			// Generate the converter node.
+			FNodeHandle Converter = OwningGraphHandle.AddNewNode(InNodeClassName.NodeKey);
+
+			check(Converter.IsValid());
+
+			FInputHandle ConverterInput = Converter.GetInputWithName(InNodeClassName.PreferredConverterInputPin);
+			FOutputHandle ConverterOutput = Converter.GetOutputWithName(InNodeClassName.PreferredConverterOutputPin);
+
+			check(ConverterInput.IsValid() && ConverterOutput.IsValid());
+
+			// Connect the output InHandle to the converter, than connect the converter to this input.
+			ensureAlways(ConverterInput.Connect(InHandle));
+			return ensureAlways(Connect(ConverterOutput));
 		}
 
 		const FMetasoundNodeConnectionDescription* FInputHandle::GetConnectionDescription() const
@@ -888,7 +916,7 @@ namespace Metasound
 			return InHandle.Connect(*this);
 		}
 
-		bool FOutputHandle::ConnectWithConverterNode(FInputHandle& InHandle, FString& InNodeClassName)
+		bool FOutputHandle::ConnectWithConverterNode(FInputHandle& InHandle, const FConverterNodeInfo& InNodeClassName)
 		{
 			return InHandle.ConnectWithConverterNode(*this, InNodeClassName);
 		}
@@ -2005,6 +2033,17 @@ namespace Metasound
 			FDescPath NodePath = GraphPtr.GetPath()[Path::EFromGraph::ToNodes][NewNodeDescription.UniqueID];
 			FHandleInitParams InitParams = { GraphPtr.GetAccessPoint(), NodePath, NewNodeDescription.Name, OwningAsset };
 			return FNodeHandle(FHandleInitParams::PrivateToken, InitParams, NewNodeDescription.ObjectTypeOfNode);
+		}
+
+		FNodeHandle FGraphHandle::AddNewNode(const FNodeRegistryKey& InNodeClass)
+		{
+			// Construct a FNodeClassInfo from this lookup key.
+			FNodeClassInfo ClassInfo;
+			ClassInfo.LookupKey = InNodeClass;
+			ClassInfo.NodeName = InNodeClass.NodeName.ToString();
+			ClassInfo.NodeType = EMetasoundClassType::External;
+
+			return AddNewNode(ClassInfo);
 		}
 
 		bool FGraphHandle::RemoveNode(const FNodeHandle& InNode)

@@ -155,7 +155,7 @@ namespace Metasound
 			// If Connectable is EConnectable::YesWithConverterNode,
 			// this will be a populated list of nodes we can use 
 			// to convert between the input and output.
-			TArray<FNodeClassInfo> PossibleConverterNodeClasses;
+			TArray<FConverterNodeInfo> PossibleConverterNodeClasses;
 		};
 
 		struct METASOUNDFRONTEND_API FHandleInitParams
@@ -216,7 +216,7 @@ namespace Metasound
 
 			FConnectability CanConnectTo(const FInputHandle& InHandle) const;
 			bool Connect(FInputHandle& InHandle);
-			bool ConnectWithConverterNode(FInputHandle& InHandle, FString& InNodeClassName);
+			bool ConnectWithConverterNode(FInputHandle& InHandle, const FConverterNodeInfo& InNodeClassName);
 			bool Disconnect(FInputHandle& InHandle);
 
 		private:
@@ -256,7 +256,7 @@ namespace Metasound
 
 			FConnectability CanConnectTo(const FOutputHandle& InHandle) const;
 			bool Connect(FOutputHandle& InHandle);
-			bool ConnectWithConverterNode(FOutputHandle& InHandle, FString& InNodeClassName);
+			bool ConnectWithConverterNode(FOutputHandle& InHandle, const FConverterNodeInfo& InNodeClassName);
 			bool Disconnect(FOutputHandle& InHandle);
 			bool Disconnect();
 
@@ -423,6 +423,7 @@ namespace Metasound
 			bool ClearLiteralForInput(const FString& InInputName);
 
 			FNodeHandle AddNewNode(const FNodeClassInfo& InNodeClass);
+			FNodeHandle AddNewNode(const FNodeRegistryKey& InNodeClass);
 
 			// Remove the node corresponding to this node handle.
 			// On success, invalidates the received node handle.

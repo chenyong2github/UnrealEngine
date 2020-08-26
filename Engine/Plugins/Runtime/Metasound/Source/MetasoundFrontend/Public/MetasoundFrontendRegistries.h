@@ -95,6 +95,48 @@ namespace Metasound
 			{
 			}
 		};
+
+		struct METASOUNDFRONTEND_API FConverterNodeRegistryKey
+		{
+			// The datatype one would like to convert from.
+			FName FromDataType;
+
+			// The datatype one would like to convert to.
+			FName ToDataType;
+
+			FORCEINLINE bool operator==(const FConverterNodeRegistryKey& Other) const
+			{
+				return FromDataType == Other.FromDataType && ToDataType == Other.ToDataType;
+			}
+
+			friend uint32 GetTypeHash(const ::Metasound::Frontend::FConverterNodeRegistryKey& InKey)
+			{
+				return HashCombine(GetTypeHash(InKey.FromDataType), GetTypeHash(InKey.ToDataType));
+			}
+		};
+
+		struct METASOUNDFRONTEND_API FConverterNodeInfo
+		{
+			// If this node has multiple input pins, we use this to designate which pin should be used.
+			FString PreferredConverterInputPin;
+
+			// If this node has multiple output pins, we use this to designate which pin should be used.
+			FString PreferredConverterOutputPin;
+
+			// The key for this node in the node registry.
+			FNodeRegistryKey NodeKey;
+
+			FORCEINLINE bool operator==(const FConverterNodeInfo& Other) const
+			{
+				return NodeKey == Other.NodeKey;
+			}
+		};
+
+		struct METASOUNDFRONTEND_API FConverterNodeRegistryValue
+		{
+			// A list of nodes that can perform a conversion between the two datatypes described in the FConverterNodeRegistryKey for this map element.
+			TArray<FConverterNodeInfo> PotentialConverterNodes;
+		};
 	}
 
 	struct FDataTypeConstructorCallbacks
@@ -115,17 +157,27 @@ namespace Metasound
  */
 class METASOUNDFRONTEND_API FMetasoundFrontendRegistryContainer
 {
+	using FConverterNodeRegistryKey = ::Metasound::Frontend::FConverterNodeRegistryKey;
+	using FConverterNodeRegistryValue = ::Metasound::Frontend::FConverterNodeRegistryValue;
+	using FConverterNodeInfo = ::Metasound::Frontend::FConverterNodeInfo;
+
+	using FNodeRegistryKey = Metasound::Frontend::FNodeRegistryKey;
+	using FNodeRegistryElement = Metasound::Frontend::FNodeRegistryElement;
+
+	using FDataTypeRegistryInfo = Metasound::FDataTypeRegistryInfo;
+	using FDataTypeConstructorCallbacks = ::Metasound::FDataTypeConstructorCallbacks;
+
 public:
 	static FMetasoundFrontendRegistryContainer* Get();
 	static void ShutdownMetasoundFrontend();
 
 	FMetasoundFrontendRegistryContainer(const FMetasoundFrontendRegistryContainer&) = delete;
 
+	// This is called on module startup. This invokes any registration commands enqueued by our registration macros.
 	void InitializeFrontend();
-	bool EnqueueInitCommand(TUniqueFunction<void()>&& InFunc);
 
-	using FNodeRegistryKey = Metasound::Frontend::FNodeRegistryKey;
-	using FNodeRegistryElement = Metasound::Frontend::FNodeRegistryElement;
+
+	bool EnqueueInitCommand(TUniqueFunction<void()>&& InFunc);
 
 	TMap<FNodeRegistryKey, FNodeRegistryElement>& GetExternalNodeRegistry();
 
@@ -135,7 +187,12 @@ public:
 	Metasound::FDataTypeLiteralParam GenerateLiteralForUObject(const FName& InDataType, UObject* InObject);
 	Metasound::FDataTypeLiteralParam GenerateLiteralForUObjectArray(const FName& InDataType, TArray<UObject*> InObjectArray);
 
+	// Create a new instance of a C++ implemented node from the registry.
 	TUniquePtr<Metasound::INode> ConstructExternalNode(const FName& InNodeType, uint32 InNodeHash, const Metasound::FNodeInitData& InInitData);
+
+	// Returns a list of possible nodes to use to convert from FromDataType to ToDataType.
+	// Returns an empty array if none are available.
+	TArray<FConverterNodeInfo> GetPossibleConverterNodes(const FName& FromDataType, const FName& ToDataType);
 
 	// Get the desired kind of literal for a given data type. Returns EConstructorArgType::Invalid if the data type couldn't be found.
 	Metasound::ELiteralArgType GetDesiredLiteralTypeForDataType(FName InDataType) const;
@@ -146,18 +203,38 @@ public:
 	// Get whether we can build a literal of this specific type for InDataType.
 	bool DoesDataTypeSupportLiteralType(FName InDataType, Metasound::ELiteralArgType InLiteralType) const;
 
-	bool RegisterDataType(const ::Metasound::FDataTypeRegistryInfo& InDataInfo, ::Metasound::FDataTypeConstructorCallbacks&& InCallbacks);
+	bool RegisterDataType(const FDataTypeRegistryInfo& InDataInfo, FDataTypeConstructorCallbacks&& InCallbacks);
 	bool RegisterExternalNode(FNodeGetterCallback&& InCallback);
+	bool RegisterConversionNode(const FConverterNodeRegistryKey& InNodeKey, const FConverterNodeInfo& InNodeInfo);
+
+	template <typename TNodeType>
+	static FNodeRegistryKey GetRegistryKeyForNode()
+	{
+		Metasound::FNodeInitData DummyInitData;
+
+		TNodeType DummyNode = TNodeType(DummyInitData);
+
+		return GetRegistryKeyForNodeInternal(DummyNode);
+	}
+
+	template <typename TNodeType>
+	bool IsNodeRegistered()
+	{
+		return ExternalNodeRegistry.Contains(GetRegistryKeyForNode<TNodeType>());
+	}
 
 	// Return any data types that can be used as a metasound input type or output type.
 	TArray<FName> GetAllValidDataTypes();
 
 	// Get info about a specific data type (what kind of literals we can use, etc.)
 	// @returns false if InDataType wasn't found in the registry. 
-	bool GetInfoForDataType(FName InDataType, Metasound::FDataTypeRegistryInfo& OutInfo);
+	bool GetInfoForDataType(FName InDataType, FDataTypeRegistryInfo& OutInfo);
 
 private:
 	FMetasoundFrontendRegistryContainer();
+
+	// Internal convenience function for generating a hash for an INode.
+	static FNodeRegistryKey GetRegistryKeyForNodeInternal(const Metasound::INode& InNode);
 
 	static FMetasoundFrontendRegistryContainer* LazySingleton;
 
@@ -166,13 +243,16 @@ private:
 	// The bad news is that TInlineAllocator is the safest allocator to use on static init.
 	// The good news is that none of these lambdas typically have captures, so this should have low memory overhead.
 	static constexpr int32 MaxNumNodesAndDatatypesToInitialize = 8192;
-	TArray<TUniqueFunction<void()>/*, TInlineAllocator<MaxNumNodesAndDatatypesToInitialize>*/> LazyInitCommands;
+	TArray<TUniqueFunction<void()>, TInlineAllocator<MaxNumNodesAndDatatypesToInitialize>> LazyInitCommands;
 	
 	FCriticalSection LazyInitCommandCritSection;
 	bool bHasModuleBeenInitialized;
 
 	// Registry in which we keep all information about nodes implemented in C++.
 	TMap<FNodeRegistryKey, FNodeRegistryElement> ExternalNodeRegistry;
+
+	// Registry in which we keep lists of possible nodes to use to convert between two datatypes
+	TMap<FConverterNodeRegistryKey, FConverterNodeRegistryValue> ConverterNodeRegistry;
 
 	struct FDataTypeRegistryElement
 	{

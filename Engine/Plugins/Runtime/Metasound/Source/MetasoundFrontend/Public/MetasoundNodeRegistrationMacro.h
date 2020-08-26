@@ -29,7 +29,7 @@ bool RegisterNodeWithFrontend()
 	static bool bAlreadyRegisteredThisDataType = false;
 	if (bAlreadyRegisteredThisDataType)
 	{
-		UE_LOG(LogTemp, Display, TEXT("Tried to call REGISTER_METASOUND_DATATYPE twice with the same class. ignoring the second call. Likely because METASOUND_REGISTER_NODE is in a header that's used in multiple modules. Consider moving it to a private header or cpp file."));
+		UE_LOG(LogTemp, Display, TEXT("Tried to call METASOUND_REGISTER_NODE twice with the same class. ignoring the second call. Likely because METASOUND_REGISTER_NODE is in a header that's used in multiple modules. Consider moving it to a private header or cpp file."));
 		return false;
 	}
 
