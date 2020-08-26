@@ -712,82 +712,85 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 	FNiagaraTypeRegistry::Register(FNiagaraRandInfo::StaticStruct(), true, true, false);
 	FNiagaraTypeRegistry::Register(StaticEnum<ENiagaraLegacyTrailWidthMode>(), true, true, false);
 
-	const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
-	check(Settings);
-	TArray<FSoftObjectPath> TotalStructAssets;
-	for (FSoftObjectPath AssetRef : Settings->AdditionalParameterTypes)
+	if (!IsRunningCommandlet())
 	{
-		TotalStructAssets.AddUnique(AssetRef);
-	}
-
-	for (FSoftObjectPath AssetRef : Settings->AdditionalPayloadTypes)
-	{
-		TotalStructAssets.AddUnique(AssetRef);
-	}
-
-	for (FSoftObjectPath AssetRef : TotalStructAssets)
-	{
-		FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
-
-		UObject* Obj = AssetRef.ResolveObject();
-		if (Obj == nullptr)
+		const UNiagaraSettings* Settings = GetDefault<UNiagaraSettings>();
+		check(Settings);
+		TArray<FSoftObjectPath> TotalStructAssets;
+		for (FSoftObjectPath AssetRef : Settings->AdditionalParameterTypes)
 		{
-			Obj = AssetRef.TryLoad();
+			TotalStructAssets.AddUnique(AssetRef);
 		}
 
-		if (Obj != nullptr)
+		for (FSoftObjectPath AssetRef : Settings->AdditionalPayloadTypes)
 		{
-			const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-			const FSoftObjectPath* PayloadRefFound = Settings->AdditionalPayloadTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-			UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Obj);
-			if (ScriptStruct != nullptr)
+			TotalStructAssets.AddUnique(AssetRef);
+		}
+
+		for (FSoftObjectPath AssetRef : TotalStructAssets)
+		{
+			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
+
+			UObject* Obj = AssetRef.ResolveObject();
+			if (Obj == nullptr)
 			{
-				FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+				Obj = AssetRef.TryLoad();
 			}
 
-			UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
-			bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
-			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+			if (Obj != nullptr)
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
+				const FSoftObjectPath* PayloadRefFound = Settings->AdditionalPayloadTypes.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
+				UScriptStruct* ScriptStruct = Cast<UScriptStruct>(Obj);
+				if (ScriptStruct != nullptr)
+				{
+					FNiagaraTypeRegistry::Register(ScriptStruct, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+				}
+
+				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
+				bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
+				if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				}
+
 			}
-
-		}
-		else
-		{
-			UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload type: %s"), *AssetRef.ToString());
-		}
-	}
-
-	for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
-	{
-		FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
-		UObject* Obj = AssetRef.ResolveObject();
-		if (Obj == nullptr)
-		{
-			Obj = AssetRef.TryLoad();
-		}
-
-		if (Obj != nullptr)
-		{
-			const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterEnums.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
-			const FSoftObjectPath* PayloadRefFound = nullptr;
-			UEnum* Enum = Cast<UEnum>(Obj);
-			if (Enum != nullptr)
+			else
 			{
-				FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
-			}
-
-			UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
-			bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
-			if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
-			{
-				UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload type: %s"), *AssetRef.ToString());
 			}
 		}
-		else
+
+		for (FSoftObjectPath AssetRef : Settings->AdditionalParameterEnums)
 		{
-			UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload enum: %s"), *AssetRef.ToString());
+			FName AssetRefPathNamePreResolve = AssetRef.GetAssetPathName();
+			UObject* Obj = AssetRef.ResolveObject();
+			if (Obj == nullptr)
+			{
+				Obj = AssetRef.TryLoad();
+			}
+
+			if (Obj != nullptr)
+			{
+				const FSoftObjectPath* ParamRefFound = Settings->AdditionalParameterEnums.FindByPredicate([&](const FSoftObjectPath& Ref) { return Ref.ToString() == AssetRef.ToString(); });
+				const FSoftObjectPath* PayloadRefFound = nullptr;
+				UEnum* Enum = Cast<UEnum>(Obj);
+				if (Enum != nullptr)
+				{
+					FNiagaraTypeRegistry::Register(Enum, ParamRefFound != nullptr, PayloadRefFound != nullptr, true);
+				}
+
+				UObjectRedirector* Redirector = FindObject<UObjectRedirector>(nullptr, *AssetRefPathNamePreResolve.ToString());
+				bool bRedirectorFollowed = Redirector && (Redirector->DestinationObject == Obj);
+				if (!bRedirectorFollowed && Obj->GetPathName() != AssetRefPathNamePreResolve.ToString())
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Additional parameter/payload enum has moved from where it was in settings (this may cause errors at runtime): Was: \"%s\" Now: \"%s\""), *AssetRefPathNamePreResolve.ToString(), *Obj->GetPathName());
+				}
+			}
+			else
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Could not find additional parameter/payload enum: %s"), *AssetRef.ToString());
+			}
 		}
 	}
 }
