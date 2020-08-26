@@ -708,6 +708,10 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 		}
 		else if (FPipelineCacheFileFormatPSO::DescriptorType::RayTracing == PSO.Type)
 		{
+		#if 0 // Workaround for UE-97607:
+			  // If ray tracing PSO file cache is generated using one payload size but later shaders were re-compiled with a different payload declaration 
+			  // it is possible for the wrong size to be used here, which leads to a D3D run-time error when attempting to create the PSO.
+			  // Ray tracing shader pre-compilation is disabled until a robust solution is found.
 			if (IsRayTracingEnabled())
 			{
 				FRayTracingPipelineStateInitializer Initializer;
@@ -740,6 +744,7 @@ bool FShaderPipelineCache::Precompile(FRHICommandListImmediate& RHICmdList, ESha
 				FRayTracingPipelineState* RayTracingPipeline = PipelineStateCache::GetAndOrCreateRayTracingPipelineState(RHICmdList, Initializer);
 				bOk = RayTracingPipeline != nullptr;
 			}
+		#endif // Workaround for UE-97607
 		}
 		else
 		{
