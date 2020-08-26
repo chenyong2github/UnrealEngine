@@ -3928,6 +3928,9 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 
 	if (bHasStaticPermutationResource != bWantsStaticPermutationResource || bParamsHaveChanged || (bBasePropertyOverridesHaveChanged && bWantsStaticPermutationResource) || bForceStaticPermutationUpdate)
 	{
+		// This will flush the rendering thread which is necessary before changing bHasStaticPermutationResource, since the RT is reading from that directly
+		FlushRenderingCommands();
+
 		bHasStaticPermutationResource = bWantsStaticPermutationResource;
 		StaticParameters = CompareParameters;
 
@@ -3941,9 +3944,8 @@ void UMaterialInstance::UpdateStaticPermutation(const FStaticParameterSet& NewPa
 		}
 		else
 		{
-			// This will flush the rendering thread which is necessary before changing bHasStaticPermutationResource, since the RT is reading from that directly
-			// The update context will also make sure any dependent MI's with static parameters get recompiled
-			FMaterialUpdateContext LocalMaterialUpdateContext;
+			// The update context will make sure any dependent MI's with static parameters get recompiled
+			FMaterialUpdateContext LocalMaterialUpdateContext(FMaterialUpdateContext::EOptions::RecreateRenderStates);
 			LocalMaterialUpdateContext.AddMaterialInstance(this);
 		}
 	}
