@@ -619,7 +619,7 @@ static bool MigratePropertyValue(UObject* SourceObject, UObject* DestinationObje
 	ensure(SourceObject->GetClass() == DestinationObject->GetClass());
 
 	// If the current property is an array, map or set, short-circuit current progress so that we copy the whole container.
-	if ( CastField<FArrayProperty>(CurrentProperty) || CastField<FMapProperty>(CurrentProperty) || CastField<FSetProperty>(CurrentProperty) )
+	if ( CastField<FArrayProperty>(CurrentProperty) || CastField<FMapProperty>(CurrentProperty) || CastField<FSetProperty>(CurrentProperty) || CastField<FStructProperty>(CurrentProperty))
 	{
 		NextNode = nullptr;
 	}

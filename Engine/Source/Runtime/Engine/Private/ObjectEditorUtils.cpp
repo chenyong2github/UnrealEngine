@@ -246,7 +246,7 @@ namespace FObjectEditorUtils
 						UObject* ExistingObject = StaticFindObject(UObject::StaticClass(), InDestinationObject, *Value->GetFName().ToString());
 						if (ExistingObject)
 						{
-							ExistingObject->Rename(nullptr, GetTransientPackage());
+							ExistingObject->Rename(nullptr, GetTransientPackage(), REN_DontCreateRedirectors);
 						}
 
 						UObject* DuplicateValue = StaticDuplicateObject(Value, InDestinationObject, Value->GetFName(), RF_AllFlags, nullptr, EDuplicateMode::Normal, EInternalObjectFlags::AllFlags);
