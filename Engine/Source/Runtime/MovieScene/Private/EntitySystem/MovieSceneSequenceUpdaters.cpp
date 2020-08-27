@@ -47,6 +47,7 @@ private:
 
 	TRange<FFrameNumber> CachedEntityRange;
 
+	TOptional<TArray<FFrameTime>> CachedDeterminismFences;
 	FMovieSceneCompiledDataID CompiledDataID;
 };
 
@@ -182,11 +183,26 @@ TUniquePtr<ISequenceUpdater> FSequenceUpdater_Flat::MigrateToHierarchical()
 
 void FSequenceUpdater_Flat::DissectContext(UMovieSceneEntitySystemLinker* Linker, IMovieScenePlayer* InPlayer, const FMovieSceneContext& Context, TArray<TRange<FFrameTime>>& OutDissections)
 {
-	UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
-	TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntry(CompiledDataID).DeterminismFences;
-	TArrayView<const FFrameTime>    TraversedFences     = GetFencesWithinRange(DeterminismFences, Context.GetFrameNumberRange());
+	if (!CachedDeterminismFences.IsSet())
+	{
+		UMovieSceneCompiledDataManager* CompiledDataManager = InPlayer->GetEvaluationTemplate().GetCompiledDataManager();
+		TArrayView<const FFrameTime>    DeterminismFences   = CompiledDataManager->GetEntry(CompiledDataID).DeterminismFences;
 
-	UE::MovieScene::DissectRange(TraversedFences, Context.GetRange(), OutDissections);
+		if (DeterminismFences.Num() != 0)
+		{
+			CachedDeterminismFences = TArray<FFrameTime>(DeterminismFences.GetData(), DeterminismFences.Num());
+		}
+		else
+		{
+			CachedDeterminismFences.Emplace();
+		}
+	}
+
+	if (CachedDeterminismFences->Num() != 0)
+	{
+		TArrayView<const FFrameTime> TraversedFences = GetFencesWithinRange(CachedDeterminismFences.GetValue(), Context.GetFrameNumberRange());
+		UE::MovieScene::DissectRange(TraversedFences, Context.GetRange(), OutDissections);
+	}
 }
 
 void FSequenceUpdater_Flat::Start(UMovieSceneEntitySystemLinker* Linker, FInstanceHandle InstanceHandle, IMovieScenePlayer* InPlayer, const FMovieSceneContext& InContext)
@@ -250,6 +266,7 @@ void FSequenceUpdater_Flat::Destroy(UMovieSceneEntitySystemLinker* Linker)
 void FSequenceUpdater_Flat::InvalidateCachedData(UMovieSceneEntitySystemLinker* Linker)
 {
 	CachedEntityRange = TRange<FFrameNumber>::Empty();
+	CachedDeterminismFences.Reset();
 }
 
 
