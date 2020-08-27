@@ -1745,7 +1745,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 						const bool bUpdateStreaming = CVarNaniteShadowsUpdateStreaming.GetValueOnRenderThread() != 0;
 						Nanite::FCullingContext CullingContext = Nanite::InitCullingContext( GraphBuilder, *Scene, nullptr, NaniteViewRect, true, bUpdateStreaming, false, false );
 
-						Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, NaniteViewRect, RasterContextSize, Nanite::EOutputBufferMode::DepthOnly);
+						Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, RasterContextSize, Nanite::EOutputBufferMode::DepthOnly);
 
 						// Setup packed view
 						TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;
@@ -1838,7 +1838,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 			const FIntPoint VirtualShadowSize = VirtualShadowMapArray.GetPhysicalPoolSize();
 			const FIntRect VirtualShadowViewRect = FIntRect(0, 0, VirtualShadowSize.X, VirtualShadowSize.Y);
 
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, VirtualShadowViewRect, VirtualShadowSize, Nanite::EOutputBufferMode::DepthOnly, false);
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, VirtualShadowSize, Nanite::EOutputBufferMode::DepthOnly, false);
 
 			VirtualShadowMapArray.ClearPhysicalMemory(GraphBuilder, RasterContext.DepthBuffer, Scene->VirtualShadowMapArrayCacheManager);
 
@@ -2012,7 +2012,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 					GraphBuilder,
 					SceneDepth,
 					RasterContext.DepthBuffer,
-					RasterContext.ViewRect,
+					VirtualShadowViewRect,
 					/* OutClosestHZBTexture = */ nullptr,
 					/* OutFurthestHZBTexture = */ &HZBPhysicalRDG,
 					PF_R32_FLOAT);
@@ -2148,7 +2148,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 					check(ProjectedShadowInfo->BorderSize == 0);
 					
 					Nanite::FCullingContext CullingContext = Nanite::InitCullingContext(GraphBuilder, *Scene, nullptr, ShadowViewRect, true, bUpdateStreaming, false, false);
-					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, ShadowViewRect, TargetSize, Nanite::EOutputBufferMode::DepthOnly);
+					Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, TargetSize, Nanite::EOutputBufferMode::DepthOnly);
 
 					// Setup packed view
 					TArray<Nanite::FPackedView, SceneRenderingAllocator> PackedViews;

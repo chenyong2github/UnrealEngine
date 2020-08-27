@@ -2010,7 +2010,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 			Nanite::FRasterState RasterState;
 
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, PrimaryViewRect, RasterTextureSize);
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, RasterTextureSize);
 
 			const bool bTwoPassOcclusion = true;
 			const bool bUpdateStreaming = true;
@@ -2059,7 +2059,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 						GraphBuilder,
 						SceneDepth,
 						RasterContext.VisBuffer64,
-						RasterContext.ViewRect,
+						PrimaryViewRect,
 						/* OutClosestHZBTexture = */ nullptr,
 						/* OutFurthestHZBTexture = */ &GraphHZB );
 					

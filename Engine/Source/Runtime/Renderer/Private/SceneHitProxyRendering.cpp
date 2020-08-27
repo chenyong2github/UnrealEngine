@@ -660,14 +660,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 			FRDGBuilder GraphBuilder(RHICmdList);
 
 			const FIntPoint HitProxyTextureSize = HitProxyDepthRT->GetDesc().Extent;
-			FIntRect HitProxyViewRect = FIntRect(0, 0, HitProxyTextureSize.X, HitProxyTextureSize.Y);
-			if (Views.IsValidIndex(0))
-			{
-				HitProxyViewRect = Views[0].ViewRect;
-			}
-
 			Nanite::FRasterState RasterState;
-			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, HitProxyViewRect, HitProxyTextureSize);
+			Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(GraphBuilder, HitProxyTextureSize);
 
 			const bool bTwoPassOcclusion = true;
 			const bool bUpdateStreaming = false;

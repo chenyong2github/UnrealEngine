@@ -418,7 +418,6 @@ struct FCullingContext
 
 struct FRasterContext
 {
-	FIntRect			ViewRect;
 	FVector2D			RcpViewSize;
 	FIntPoint			TextureSize;
 	ERasterTechnique	RasterTechnique;
@@ -461,7 +460,6 @@ FCullingContext	InitCullingContext(
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
-	FIntRect ViewRect,
 	FIntPoint TextureSize,
 	EOutputBufferMode RasterMode = EOutputBufferMode::VisBuffer,
 	bool bClearTarget = true,

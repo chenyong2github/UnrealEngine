@@ -2657,8 +2657,8 @@ void AddPass_Rasterize(
 	const bool bNearClip = RasterState.bNearClip;
 	const bool bMultiView = Views.Num() > 1;
 
-	// NOTE the ViewRectMinAndMax stores max - 1...
-	FIntRect ViewRect = RasterContext.ViewRect;
+
+	FIntRect ViewRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
 	if (bMultiView)
 	{
 		ViewRect.Min = FIntPoint::ZeroValue;
@@ -2807,7 +2807,6 @@ void AddPass_Rasterize(
 
 FRasterContext InitRasterContext(
 	FRDGBuilder& GraphBuilder,
-	FIntRect ViewRect,
 	FIntPoint TextureSize,
 	EOutputBufferMode RasterMode,
 	bool bClearTarget,
@@ -2820,7 +2819,6 @@ FRasterContext InitRasterContext(
 
 	FRasterContext RasterContext;
 
-	RasterContext.ViewRect = ViewRect;
 	RasterContext.TextureSize = TextureSize;
 
 	// Set rasterizer scheduling based on config and platform capabilities.
@@ -2949,8 +2947,6 @@ void CullRasterizeInner(
 
 	//check(Views.Num() == 1 || !CullingContext.PrevHZB);	// HZB not supported with multi-view, yet
 	check(Views.Num() > 0 && Views.Num() <= MAX_VIEWS_PER_CULL_RASTERIZE_PASS);
-
-	ensureMsgf(Views.Num() > 1 || RasterContext.ViewRect == FIntRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W), TEXT("When rendering in single-view mode the view rect must match that of the render target."));
 
 	{
 		const uint32 ViewsBufferElements = FMath::RoundUpToPowerOfTwo(Views.Num());
@@ -3109,6 +3105,8 @@ void CullRasterizeInner(
 	// Occlusion post pass. Retest instances and clusters that were not visible last frame. If they are visible now, render them.
 	if( CullingContext.bTwoPassOcclusion )
 	{
+		ensureMsgf(Views.Num() == 1, TEXT("Multi-view does not support two pass occlusion culling"));
+
 		// Build a closest HZB with previous frame occluders to test remainder occluders against.
 		{
 			RDG_EVENT_SCOPE(GraphBuilder, "BuildPreviousOccluderHZB");
@@ -3127,17 +3125,18 @@ void CullRasterizeInner(
 
 			FRDGTextureRef OutFurthestHZBTexture;
 
+			FIntRect ViewRect(Views[0].ViewRect.X, Views[0].ViewRect.Y, Views[0].ViewRect.Z, Views[0].ViewRect.W);
 			BuildHZB(
 				GraphBuilder,
 				SceneDepth,
 				RasterizedDepth,
-				RasterContext.ViewRect,
+				ViewRect,
 				/* OutClosestHZBTexture = */ nullptr,
 				/* OutFurthestHZBTexture = */ &OutFurthestHZBTexture);
 
 			CullingParameters.HZBTexture = OutFurthestHZBTexture;
 			CullingParameters.HZBSize = CullingParameters.HZBTexture->Desc.Extent;
-			CullingParameters.HZBViewSize = RasterContext.ViewRect.Size();
+			CullingParameters.HZBViewSize = ViewRect.Size();
 		}
 
 		// Post Pass

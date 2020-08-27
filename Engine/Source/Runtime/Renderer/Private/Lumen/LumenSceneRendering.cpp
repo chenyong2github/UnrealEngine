@@ -2191,7 +2191,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 
 				Nanite::FRasterContext RasterContext = Nanite::InitRasterContext(
 					GraphBuilder,
-					DepthAtlasRect,
 					DepthAtlasSize,
 					Nanite::EOutputBufferMode::VisBuffer,
 					true,
@@ -2304,7 +2303,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 					if (CardRenderData.CardData.bDistantScene)
 					{
 						CardRenderData.PatchView(RHICmdList, Scene, SharedView);
-						RasterContext.ViewRect = CardRenderData.GetAtlasAllocation();
 
 						Nanite::FRasterState RasterState;
 						RasterState.bNearClip = false;
