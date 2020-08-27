@@ -157,6 +157,10 @@ namespace AutomationTool
 			{
 				return false;
 			}
+			if (ModuleName.StartsWith("Anvil", StringComparison.OrdinalIgnoreCase))
+			{
+				return false;
+			}
 			return true;
 		}
 
