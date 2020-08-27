@@ -902,9 +902,9 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	// In case we're not yet ready to run due to compilation requests, go ahead and keep polling there..
 	if (Asset->HasOutstandingCompilationRequests())
 	{
-		if (bWaitForCompilationOnActivate && GNiagaraForceWaitForCompilationOnActivate)
+		if (bWaitForCompilationOnActivate || GNiagaraForceWaitForCompilationOnActivate)
 		{
-			Asset->WaitForCompilationComplete();
+			Asset->WaitForCompilationComplete(true);
 		}
 		Asset->PollForCompilationComplete();
 	}
