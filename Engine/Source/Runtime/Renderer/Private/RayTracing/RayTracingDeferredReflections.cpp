@@ -46,6 +46,13 @@ static TAutoConsoleVariable<int32> CVarRayTracingReflectionsGlossy(
 	ECVF_RenderThreadSafe
 );
 
+static TAutoConsoleVariable<float> CVarRayTracingReflectionsAnyHitMaxRoughness(
+	TEXT("r.RayTracing.Reflections.ExperimentalDeferred.AnyHitMaxRoughness"),
+	0.1,
+	TEXT("Allows skipping AnyHit shader execution for rough reflection rays (default: 0.1)"),
+	ECVF_RenderThreadSafe
+);
+
 namespace 
 {
 	struct FSortedReflectionRay
@@ -53,7 +60,7 @@ namespace
 		float  Origin[3];
 		uint32 PixelCoordinates; // X in low 16 bits, Y in high 16 bits
 		float  Direction[3];
-		float  Validity; // Only technically need 8 bits, the rest could be repurposed
+		float  Roughness; // Only technically need 8 bits, the rest could be repurposed
 	};
 
 	struct FRayIntersectionBookmark
@@ -127,6 +134,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 		SHADER_PARAMETER(float, ReflectionMaxNormalBias)
 		SHADER_PARAMETER(float, ReflectionMaxRoughness)
+		SHADER_PARAMETER(float, AnyHitMaxRoughness)
 		SHADER_PARAMETER(int, GlossyReflections)
 		SHADER_PARAMETER(int, ShouldDoDirectLighting)
 		SHADER_PARAMETER(int, ShouldDoEmissiveAndIndirectLighting)
@@ -272,6 +280,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
 	CommonParameters.ReflectionMaxRoughness  = Options.MaxRoughness;
+	CommonParameters.AnyHitMaxRoughness      = CVarRayTracingReflectionsAnyHitMaxRoughness.GetValueOnRenderThread();
 	CommonParameters.GlossyReflections       = CVarRayTracingReflectionsGlossy.GetValueOnRenderThread();
 
 	CommonParameters.ShouldDoDirectLighting              = Options.bDirectLighting;
