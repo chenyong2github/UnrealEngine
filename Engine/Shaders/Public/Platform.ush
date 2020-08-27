@@ -176,8 +176,6 @@
 
 #ifndef COMPILER_SUPPORTS_WAVE_32_64_MODE
 #define COMPILER_SUPPORTS_WAVE_32_64_MODE 0
-#define COMPILE_MODE_WAVE_32
-#define COMPILE_MODE_WAVE_64
 #endif
 
 // ---------------------------------------------------- Alternative floating point types
