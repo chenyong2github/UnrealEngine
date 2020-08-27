@@ -945,9 +945,6 @@ public:
 	/** A map from primitive ID to a boolean is distance culled */
 	FSceneBitArray DistanceCullingPrimitiveMap;
 
-	/** A map from primitive ID to whether the primitve was culled for ray tracing */
-	FSceneBitArray RayTracingCullingPrimitiveMap;
-
 	/** Primitive fade uniform buffers, indexed by packed primitive index. */
 	TArray<FRHIUniformBuffer*,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;
 
@@ -1064,7 +1061,6 @@ public:
 	TStaticArray<FParallelMeshDrawCommandPass, EMeshPass::Num> ParallelMeshDrawCommandPasses;
 	
 #if RHI_RAYTRACING
-
 	TUniquePtr<FRayTracingMeshResourceCollector> RayTracingMeshResourceCollector;
 	FRayTracingMeshCommandOneFrameArray VisibleRayTracingMeshCommands;
 	FDynamicRayTracingMeshCommandStorage DynamicRayTracingMeshCommandStorage;
