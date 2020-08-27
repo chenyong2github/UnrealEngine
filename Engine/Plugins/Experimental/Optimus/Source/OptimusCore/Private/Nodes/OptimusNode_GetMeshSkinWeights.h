@@ -7,7 +7,7 @@
 #include "OptimusNode_GetMeshSkinWeights.generated.h"
 
 class USkeletalMesh;
-class UOptimusMeshSkinWeights;
+class UOptimusType_MeshSkinWeights;
 
 UCLASS()
 class UOptimusNode_GetMeshSkinWeights
@@ -28,5 +28,5 @@ public:
 	FName SkinWeightProfileName;
 
 	UPROPERTY(meta = (Output))
-	UOptimusMeshSkinWeights *SkinWeights = nullptr;
+	UOptimusType_MeshSkinWeights *SkinWeights = nullptr;
 };

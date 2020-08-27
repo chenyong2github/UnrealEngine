@@ -6,7 +6,7 @@
 
 #include "OptimusNode_BlendMeshAttribute.generated.h"
 
-class UOptimusMeshAttribute;
+class UOptimusType_MeshAttribute;
 
 UCLASS()
 class UOptimusNode_BlendMeshAttribute
@@ -21,14 +21,14 @@ public:
 	}
 
 	UPROPERTY(meta = (Input))
-	UOptimusMeshAttribute* AttributeA = nullptr;
+	UOptimusType_MeshAttribute* AttributeA = nullptr;
 
 	UPROPERTY(meta = (Input))
-	UOptimusMeshAttribute* AttributeB = nullptr;
+	UOptimusType_MeshAttribute* AttributeB = nullptr;
 
 	UPROPERTY(EditAnywhere, Category="Blend Settings", meta = (Input))
 	float Alpha = 0.5f;
 
 	UPROPERTY(meta = (Output))
-	UOptimusMeshAttribute* Result = nullptr;
+	UOptimusType_MeshAttribute* Result = nullptr;
 };

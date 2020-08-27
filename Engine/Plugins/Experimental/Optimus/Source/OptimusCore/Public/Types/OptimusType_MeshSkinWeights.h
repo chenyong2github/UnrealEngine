@@ -5,10 +5,10 @@
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
 
-#include "OptimusMeshSkinWeights.generated.h"
+#include "OptimusType_MeshSkinWeights.generated.h"
 
 UCLASS()
-class OPTIMUSCORE_API UOptimusMeshSkinWeights : public UObject
+class OPTIMUSCORE_API UOptimusType_MeshSkinWeights : public UObject
 {
 	GENERATED_BODY()
 

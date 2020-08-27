@@ -6,8 +6,8 @@
 
 #include "OptimusNode_LinearBlendSkinning.generated.h"
 
-class UOptimusMeshSkinWeights;
-class UOptimusMeshAttribute;
+class UOptimusType_MeshSkinWeights;
+class UOptimusType_MeshAttribute;
 class USkeleton;
 class USkeletalMesh;
 
@@ -27,10 +27,10 @@ public:
 	USkeleton* Skeleton = nullptr;
 
 	UPROPERTY(meta = (Input))
-	UOptimusMeshSkinWeights* SkinWeights = nullptr;
+	UOptimusType_MeshSkinWeights* SkinWeights = nullptr;
 
 	UPROPERTY(meta = (Input))
-	UOptimusMeshAttribute* EffectWeights = nullptr;
+	UOptimusType_MeshAttribute* EffectWeights = nullptr;
 
 	UPROPERTY(meta = (Output))
 	USkeletalMesh* Result = nullptr;

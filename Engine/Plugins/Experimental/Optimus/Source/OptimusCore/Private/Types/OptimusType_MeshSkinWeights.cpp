@@ -1,4 +1,3 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "OptimusMeshAttribute.h"
-
+#include "Types/OptimusType_MeshSkinWeights.h"

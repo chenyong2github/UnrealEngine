@@ -5,10 +5,10 @@
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
 
-#include "OptimusMeshAttribute.generated.h"
+#include "OptimusType_MeshAttribute.generated.h"
 
 UCLASS()
-class OPTIMUSCORE_API UOptimusMeshAttribute : public UObject
+class OPTIMUSCORE_API UOptimusType_MeshAttribute : public UObject
 {
 	GENERATED_BODY()
 

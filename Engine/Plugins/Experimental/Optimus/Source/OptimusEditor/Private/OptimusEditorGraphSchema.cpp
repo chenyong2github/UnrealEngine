@@ -9,8 +9,8 @@
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
-#include "OptimusMeshAttribute.h"
-#include "OptimusMeshSkinWeights.h"
+#include "Types/OptimusType_MeshAttribute.h"
+#include "Types/OptimusType_MeshSkinWeights.h"
 
 #include "EdGraphSchema_K2.h"
 #include "Toolkits/ToolkitManager.h"
