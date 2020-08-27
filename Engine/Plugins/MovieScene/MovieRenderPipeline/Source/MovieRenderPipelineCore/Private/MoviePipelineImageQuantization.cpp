@@ -311,12 +311,18 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 	{
 	case 16:
 	{
-		{
-			int64 SizeInBytes = 0;
-			const void* SrcRawDataPtr = nullptr;
-			InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
+		int64 SizeInBytes = 0;
+		const void* SrcRawDataPtr = nullptr;
+		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
 
+		if (bConvertToSrgb)
+		{
 			TArray<FFloat16Color> sRGBEncoded = ConvertLinearTosRGB16bppViaLookupTable((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
+			QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(sRGBEncoded)), InPayload);
+		}
+		else
+		{
+			TArray<FFloat16Color> sRGBEncoded = ConvertLinearToLinearBitDepth<FFloat16Color, FFloat16Color, uint16>((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
 			QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(sRGBEncoded)), InPayload);
 		}
 		break;
@@ -327,8 +333,6 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 		const void* SrcRawDataPtr = nullptr;
 		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
 
->>>> ORIGINAL //UE4/Release-Engine-Staging/Engine/Plugins/MovieScene/MovieRenderPipeline/Source/MovieRenderPipelineCore/Private/MoviePipelineImageQuantization.cpp#2
-==== THEIRS //UE4/Release-Engine-Staging/Engine/Plugins/MovieScene/MovieRenderPipeline/Source/MovieRenderPipelineCore/Private/MoviePipelineImageQuantization.cpp#3
 		// FColor is assumed to be in sRGB while FFloat16Color is assumed to be linear so we need to convert back.
 		TArray64<FFloat16Color> OutColors;
 		OutColors.SetNumUninitialized(RawSize.X * RawSize.Y);
@@ -338,9 +342,7 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 		
 		const FColor* DataPtr = (FColor*)(SrcRawDataPtr);
 		for (int64 Index = 0; Index < (RawSize.X * RawSize.Y); Index++)
-==== YOURS //matt.hoffman_SFO-DevMain/Engine/Plugins/MovieScene/MovieRenderPipeline/Source/MovieRenderPipelineCore/Private/MoviePipelineImageQuantization.cpp
 		if (bConvertToSrgb)
-<<<<
 		{
 			OutColors[Index].R = LookupTablePtr[DataPtr[Index].R];
 			OutColors[Index].G = LookupTablePtr[DataPtr[Index].G];
@@ -349,17 +351,8 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 			// Alpha is linear and doesn't get converted.
 			OutColors[Index].A = DataPtr[Index].A / 255.f;
 		}
->>>> ORIGINAL //UE4/Release-Engine-Staging/Engine/Plugins/MovieScene/MovieRenderPipeline/Source/MovieRenderPipelineCore/Private/MoviePipelineImageQuantization.cpp#2
-==== THEIRS //UE4/Release-Engine-Staging/Engine/Plugins/MovieScene/MovieRenderPipeline/Source/MovieRenderPipelineCore/Private/MoviePipelineImageQuantization.cpp#3
 
 		QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(OutColors)), InPayload);
-==== YOURS //matt.hoffman_SFO-DevMain/Engine/Plugins/MovieScene/MovieRenderPipeline/Source/MovieRenderPipelineCore/Private/MoviePipelineImageQuantization.cpp
-		else
-		{
-			TArray<FFloat16Color> sRGBEncoded = ConvertLinearToLinearBitDepth<FFloat16Color, FFloat16Color, uint16>((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
-			QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(sRGBEncoded)), InPayload);
-		}
-<<<<
 		break;
 	}
 	case 32:
