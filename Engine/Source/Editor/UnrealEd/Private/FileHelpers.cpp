@@ -57,7 +57,6 @@
 #include "IContentBrowserSingleton.h"
 #include "ContentBrowserModule.h"
 
-#include "PackageTools.h"
 #include "ObjectTools.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
@@ -4524,6 +4523,11 @@ void UEditorLoadingAndSavingUtils::ExportScene(bool bExportSelectedActorsOnly)
 void UEditorLoadingAndSavingUtils::UnloadPackages(const TArray<UPackage*>& PackagesToUnload, bool& bOutAnyPackagesUnloaded, FText& OutErrorMessage)
 {
 	bOutAnyPackagesUnloaded = UPackageTools::UnloadPackages(PackagesToUnload, OutErrorMessage);
+}
+
+void UEditorLoadingAndSavingUtils::ReloadPackages(const TArray<UPackage*>& PackagesToReload, bool& bOutAnyPackagesReloaded, FText& OutErrorMessage, const EReloadPackagesInteractionMode InteractionMode)
+{
+	bOutAnyPackagesReloaded = UPackageTools::ReloadPackages(PackagesToReload, OutErrorMessage, InteractionMode);
 }
 
 #undef LOCTEXT_NAMESPACE

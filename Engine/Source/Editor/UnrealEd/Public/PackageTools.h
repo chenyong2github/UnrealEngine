@@ -15,12 +15,26 @@ class ULevel;
 class FPackageReloadedEvent;
 enum class EPackageReloadPhase : uint8;
 
+UENUM()
+enum class EReloadPackagesInteractionMode : uint8
+{
+	/** Interactive, ask the user what to do */
+	Interactive,
+
+	/** Non-interactive, assume a positive response */
+	AssumePositive,
+
+	/** Non-interactive, assume a negative response */
+	AssumeNegative,
+};
+
 UCLASS(Abstract)
 class UNREALED_API UPackageTools : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
 public:
+	using EReloadPackagesInteractionMode = ::EReloadPackagesInteractionMode;
 
 	/**
 	 * Filters the global set of packages.
@@ -77,18 +91,6 @@ public:
 	 * @return	true if the set of loaded packages was changed
 	 */
 	static bool UnloadPackages( const TArray<UPackage*>& PackagesToUnload, FText& OutErrorMessage );
-
-	enum class EReloadPackagesInteractionMode : uint8
-	{
-		/** Interactive, ask the user what to do */
-		Interactive,
-
-		/** Non-interactive, assume a positive response */
-		AssumePositive,
-
-		/** Non-interactive, assume a negative response */
-		AssumeNegative,
-	};
 
 	/**
 	 * Helper function that attempts to reload the specified top-level packages.
