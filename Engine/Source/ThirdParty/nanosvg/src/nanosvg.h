@@ -455,36 +455,39 @@ int nsvg__parseDefs(char* input,
 	if (defsTag)
 	{
 		char* defsBuf = (char*)malloc(strlen(defsTag)+1);
-		strcpy(defsBuf, defsTag);
-
-		char* s = defsBuf;
-		char* mark = s;
-		int state = NSVG_XML_CONTENT;
-		while (p->parsedDefs == false)
+		if(defsBuf)
 		{
-			if (*s == '<' && state == NSVG_XML_CONTENT)
-			{
-				// Start of a tag
-				*s++ = '\0';
-				nsvg__parseContent(mark, contentCb, p);
-				mark = s;
-				state = NSVG_XML_TAG;
-			}
-			else if (*s == '>' && state == NSVG_XML_TAG)
-			{
-				// Start of a content or new tag.
-				*s++ = '\0';
-				nsvg__parseElement(mark, startelCb, endelCb, p);
-				mark = s;
-				state = NSVG_XML_CONTENT;
-			}
-			else
-			{
-				s++;
-			}
-		}
+			strcpy(defsBuf, defsTag);
 
-		free(defsBuf);
+			char* s = defsBuf;
+			char* mark = s;
+			int state = NSVG_XML_CONTENT;
+			while (p->parsedDefs == false)
+			{
+				if (*s == '<' && state == NSVG_XML_CONTENT)
+				{
+					// Start of a tag
+					*s++ = '\0';
+					nsvg__parseContent(mark, contentCb, p);
+					mark = s;
+					state = NSVG_XML_TAG;
+				}
+				else if (*s == '>' && state == NSVG_XML_TAG)
+				{
+					// Start of a content or new tag.
+					*s++ = '\0';
+					nsvg__parseElement(mark, startelCb, endelCb, p);
+					mark = s;
+					state = NSVG_XML_CONTENT;
+				}
+				else
+				{
+					s++;
+				}
+			}
+
+			free(defsBuf);
+		}
 	}
 	return 1;
 }
