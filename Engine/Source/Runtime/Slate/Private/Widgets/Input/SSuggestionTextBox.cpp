@@ -48,6 +48,7 @@ void SSuggestionTextBox::Construct( const FArguments& InArgs )
 					.SelectAllTextWhenFocused(InArgs._SelectAllTextWhenFocused.Get())
 					.Style(InArgs._TextStyle)
 					.Text(InArgs._Text)
+					.OnKeyDownHandler(this, &SSuggestionTextBox::OnKeyDown)
 					.OnTextChanged(this, &SSuggestionTextBox::HandleTextBoxTextChanged)
 					.OnTextCommitted(this, &SSuggestionTextBox::HandleTextBoxTextCommitted)
 			]
