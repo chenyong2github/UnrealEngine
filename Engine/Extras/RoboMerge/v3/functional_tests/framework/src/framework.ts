@@ -137,9 +137,6 @@ type RobomergeBranchOptions = {
 	aliases: string[]
 	badgeProject: string | null
 
-	pathsToMonitor: string[] | null
-
-
 	////////////////////
 	// NodeOptionFields
 	disabled: boolean
