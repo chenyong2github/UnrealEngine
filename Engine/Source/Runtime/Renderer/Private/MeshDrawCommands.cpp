@@ -25,6 +25,15 @@ static TAutoConsoleVariable<int32> CVarMobileMeshSortingMethod(
 	TEXT("\t1: Strict front to back sorting.\n"),
 	ECVF_RenderThreadSafe);
 
+static int32 GAllowOnDemandShaderCreation = 1;
+static FAutoConsoleVariableRef CVarAllowOnDemandShaderCreation(
+	TEXT("r.MeshDrawCommands.AllowOnDemandShaderCreation"),
+	GAllowOnDemandShaderCreation,
+	TEXT("How to create RHI shaders:\n")
+	TEXT("\t0: Always create them on a Rendering Thread, before executing other MDC tasks.\n")
+	TEXT("\t1: If RHI supports multi-threaded shader creation, create them on demand on tasks threads, at the time of submitting the draws.\n"),
+	ECVF_RenderThreadSafe);
+
 FPrimitiveIdVertexBufferPool::FPrimitiveIdVertexBufferPool()
 	: DiscardId(0)
 {
@@ -1091,7 +1100,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		if (bExecuteInParallel)
 		{
-			if (RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			if (GAllowOnDemandShaderCreation && RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
 			{
 				TaskEventRef = TGraphTask<FMeshDrawCommandPassSetupTask>::CreateTask(nullptr, ENamedThreads::GetRenderThread()).ConstructAndDispatchWhenReady(TaskContext);
 			}
@@ -1107,7 +1116,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 			QUICK_SCOPE_CYCLE_COUNTER(STAT_MeshPassSetupImmediate);
 			FMeshDrawCommandPassSetupTask Task(TaskContext);
 			Task.AnyThreadTask();
-			if (!RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
+			if (!GAllowOnDemandShaderCreation || !RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform))
 			{
 				FMeshDrawCommandInitResourcesTask DependentTask(TaskContext);
 				DependentTask.AnyThreadTask();
