@@ -613,6 +613,8 @@ class FRenderSkyAtmospherePS : public FGlobalShader
 		SHADER_PARAMETER(uint32, DepthReadDisabled)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
+		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -808,6 +810,8 @@ public:
 		SHADER_PARAMETER_SAMPLER(SamplerState, VolumetricCloudSkyAOTextureSampler)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
+		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
 		SHADER_PARAMETER(uint32, SourceDiskEnabled)
 	END_SHADER_PARAMETER_STRUCT()
@@ -859,6 +863,8 @@ public:
 		SHADER_PARAMETER(float, RealTimeReflection360Mode)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 		SHADER_PARAMETER_STRUCT_REF(FVolumeShadowingShaderParametersGlobal1, Light1Shadow)
+		SHADER_PARAMETER(float, VolumetricCloudShadowStrength0)
+		SHADER_PARAMETER(float, VolumetricCloudShadowStrength1)
 		SHADER_PARAMETER_STRUCT_REF(FVolumetricCloudCommonGlobalShaderParameters, VolumetricCloudCommonGlobalParams)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -1307,6 +1313,11 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 	SkyAtmosphereLightShadowData LightShadowData;
 	const bool bShouldSampleOpaqueShadow = ShouldSkySampleAtmosphereLightsOpaqueShadow(*Scene, VisibleLightInfos, LightShadowData);
 
+	FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
+	FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
+	const float CloudShadowOnAtmosphereStrength0 = AtmosphereLight0Proxy ? AtmosphereLight0Proxy->GetCloudShadowOnAtmosphereStrength() : 0.0f;
+	const float CloudShadowOnAtmosphereStrength1 = AtmosphereLight1Proxy ? AtmosphereLight1Proxy->GetCloudShadowOnAtmosphereStrength() : 0.0f;
+
 	// SkyViewLUT texture is required if there are any sky dome material that could potentially sample it.
 	// This texture is sampled on skydome mesh with a sky material when rendered into a cubemap real time capture.
 	const bool bRealTimeReflectionCaptureSkyAtmosphereViewLutTexture = Views.Num() > 0 && Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled;
@@ -1342,6 +1353,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 		FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 		FCloudShadowAOData CloudShadowAOData;
 		GetCloudShadowAOData(CloudInfo, View, GraphBuilder, CloudShadowAOData);
+		const bool bShouldSampleCloudShadow = CloudShadowAOData.bShouldSampleCloudShadow && (CloudShadowOnAtmosphereStrength0 > 0.0f || CloudShadowOnAtmosphereStrength1 > 0.0f);
 
 		TUniformBufferRef<FViewUniformShaderParameters> ReflectionViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(ReflectionViewParameters, UniformBuffer_SingleFrame);
 
@@ -1358,7 +1370,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PermutationVector.Set<FSampleCloudSkyAO>(CloudShadowAOData.bShouldSampleCloudSkyAO);
 			PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
 			PermutationVector.Set<FSampleOpaqueShadow>(false); // bShouldSampleOpaqueShadow); Off for now to not have to generate Light0Shadow and Light1Shadow
-			PermutationVector.Set<FSampleCloudShadow>(CloudShadowAOData.bShouldSampleCloudShadow);
+			PermutationVector.Set<FSampleCloudShadow>(bShouldSampleCloudShadow);
 			TShaderMapRef<FRenderSkyViewLutCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 			FRenderSkyViewLutCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderSkyViewLutCS::FParameters>();
@@ -1375,10 +1387,10 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PassParameters->VolumetricCloudShadowMapTexture0 = CloudShadowAOData.VolumetricCloudShadowMap[0];
 			PassParameters->VolumetricCloudShadowMapTexture1 = CloudShadowAOData.VolumetricCloudShadowMap[1];
 			PassParameters->VolumetricCloudSkyAOTexture = CloudShadowAOData.VolumetricCloudSkyAO;
+			PassParameters->VolumetricCloudShadowStrength0 = CloudShadowOnAtmosphereStrength0;
+			PassParameters->VolumetricCloudShadowStrength1 = CloudShadowOnAtmosphereStrength1;
 			PassParameters->SkyViewLutUAV = RealTimeReflectionCaptureSkyAtmosphereViewLutTextureUAV;
-			//PassParameters->Light0Shadow = nullptr;
-			//PassParameters->Light1Shadow = nullptr;
-			if (CloudShadowAOData.bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
+			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
 			}
@@ -1409,7 +1421,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PermutationVector.Set<FSampleCloudSkyAO>(CloudShadowAOData.bShouldSampleCloudSkyAO);
 			PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
 			PermutationVector.Set<FSampleOpaqueShadow>(false); // bShouldSampleOpaqueShadow); Off for now to not have to generate Light0Shadow and Light1Shadow
-			PermutationVector.Set<FSampleCloudShadow>(CloudShadowAOData.bShouldSampleCloudShadow);
+			PermutationVector.Set<FSampleCloudShadow>(bShouldSampleCloudShadow);
 			TShaderMapRef<FRenderCameraAerialPerspectiveVolumeCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 			FRenderCameraAerialPerspectiveVolumeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FRenderCameraAerialPerspectiveVolumeCS::FParameters>();
@@ -1426,12 +1438,14 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PassParameters->VolumetricCloudShadowMapTexture0 = CloudShadowAOData.VolumetricCloudShadowMap[0];
 			PassParameters->VolumetricCloudShadowMapTexture1 = CloudShadowAOData.VolumetricCloudShadowMap[1];
 			PassParameters->VolumetricCloudSkyAOTexture = CloudShadowAOData.VolumetricCloudSkyAO;
+			PassParameters->VolumetricCloudShadowStrength0 = CloudShadowOnAtmosphereStrength0;
+			PassParameters->VolumetricCloudShadowStrength1 = CloudShadowOnAtmosphereStrength1;
 			PassParameters->CameraAerialPerspectiveVolumeUAV = RealTimeReflectionCaptureSkyAtmosphereViewLutTextureUAV;
 			PassParameters->AerialPerspectiveStartDepthKm = AerialPerspectiveStartDepthInCm * CM_TO_KM;
 			PassParameters->RealTimeReflection360Mode = 1.0f;
 			//PassParameters->Light0Shadow = nullptr;
 			//PassParameters->Light1Shadow = nullptr;
-			if (CloudShadowAOData.bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
+			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
 			}
@@ -1472,6 +1486,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 		FVolumetricCloudRenderSceneInfo* CloudInfo = Scene->GetVolumetricCloudSceneInfo();
 		FCloudShadowAOData CloudShadowAOData;
 		GetCloudShadowAOData(CloudInfo, View, GraphBuilder, CloudShadowAOData);
+		const bool bShouldSampleCloudShadow = CloudShadowAOData.bShouldSampleCloudShadow && (CloudShadowOnAtmosphereStrength0 > 0.0f || CloudShadowOnAtmosphereStrength1 > 0.0f);
 
 		// Sky View LUT
 		{
@@ -1479,7 +1494,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PermutationVector.Set<FSampleCloudSkyAO>(CloudShadowAOData.bShouldSampleCloudSkyAO);
 			PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
 			PermutationVector.Set<FSampleOpaqueShadow>(bShouldSampleOpaqueShadow);
-			PermutationVector.Set<FSampleCloudShadow>(CloudShadowAOData.bShouldSampleCloudShadow);
+			PermutationVector.Set<FSampleCloudShadow>(bShouldSampleCloudShadow);
 			TShaderMapRef<FRenderSkyViewLutCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 			FRenderSkyViewLutCS::FParameters * PassParameters = GraphBuilder.AllocParameters<FRenderSkyViewLutCS::FParameters>();
@@ -1496,10 +1511,12 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PassParameters->VolumetricCloudShadowMapTexture0 = CloudShadowAOData.VolumetricCloudShadowMap[0];
 			PassParameters->VolumetricCloudShadowMapTexture1 = CloudShadowAOData.VolumetricCloudShadowMap[1];
 			PassParameters->VolumetricCloudSkyAOTexture = CloudShadowAOData.VolumetricCloudSkyAO;
+			PassParameters->VolumetricCloudShadowStrength0 = CloudShadowOnAtmosphereStrength0;
+			PassParameters->VolumetricCloudShadowStrength1 = CloudShadowOnAtmosphereStrength1;
 			PassParameters->SkyViewLutUAV = SkyAtmosphereViewLutTextureUAV;
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
-			if (CloudShadowAOData.bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
+			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
 			}
@@ -1517,7 +1534,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PermutationVector.Set<FSampleCloudSkyAO>(CloudShadowAOData.bShouldSampleCloudSkyAO);
 			PermutationVector.Set<FSecondAtmosphereLight>(bSecondAtmosphereLightEnabled);
 			PermutationVector.Set<FSampleOpaqueShadow>(bShouldSampleOpaqueShadow);
-			PermutationVector.Set<FSampleCloudShadow>(CloudShadowAOData.bShouldSampleCloudShadow);
+			PermutationVector.Set<FSampleCloudShadow>(bShouldSampleCloudShadow);
 			TShaderMapRef<FRenderCameraAerialPerspectiveVolumeCS> ComputeShader(View.ShaderMap, PermutationVector);
 
 			FRenderCameraAerialPerspectiveVolumeCS::FParameters * PassParameters = GraphBuilder.AllocParameters<FRenderCameraAerialPerspectiveVolumeCS::FParameters>();
@@ -1534,12 +1551,14 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			PassParameters->VolumetricCloudShadowMapTexture0 = CloudShadowAOData.VolumetricCloudShadowMap[0];
 			PassParameters->VolumetricCloudShadowMapTexture1 = CloudShadowAOData.VolumetricCloudShadowMap[1];
 			PassParameters->VolumetricCloudSkyAOTexture = CloudShadowAOData.VolumetricCloudSkyAO;
+			PassParameters->VolumetricCloudShadowStrength0 = CloudShadowOnAtmosphereStrength0;
+			PassParameters->VolumetricCloudShadowStrength1 = CloudShadowOnAtmosphereStrength1;
 			PassParameters->CameraAerialPerspectiveVolumeUAV = SkyAtmosphereCameraAerialPerspectiveVolumeUAV;
 			PassParameters->AerialPerspectiveStartDepthKm = AerialPerspectiveStartDepthInCm * CM_TO_KM;
 			PassParameters->RealTimeReflection360Mode = 0.0f;
 			PassParameters->Light0Shadow = LightShadowShaderParams0UniformBuffer;
 			PassParameters->Light1Shadow = LightShadowShaderParams1UniformBuffer;
-			if (CloudShadowAOData.bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
+			if (bShouldSampleCloudShadow || CloudShadowAOData.bShouldSampleCloudSkyAO)
 			{
 				PassParameters->VolumetricCloudCommonGlobalParams = CloudInfo->GetVolumetricCloudCommonShaderParametersUB();
 			}
@@ -1586,6 +1605,12 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(FRDGBuilder& GraphBuilder, FSky
 
 	// Render the sky, and optionally the atmosphere aerial perspective, on the scene luminance buffer
 	{
+		FLightSceneProxy* AtmosphereLight0Proxy = Scene->AtmosphereLights[0] ? Scene->AtmosphereLights[0]->Proxy : nullptr;
+		FLightSceneProxy* AtmosphereLight1Proxy = Scene->AtmosphereLights[1] ? Scene->AtmosphereLights[1]->Proxy : nullptr;
+		const float CloudShadowOnAtmosphereStrength0 = AtmosphereLight0Proxy ? AtmosphereLight0Proxy->GetCloudShadowOnAtmosphereStrength() : 0.0f;
+		const float CloudShadowOnAtmosphereStrength1 = AtmosphereLight1Proxy ? AtmosphereLight1Proxy->GetCloudShadowOnAtmosphereStrength() : 0.0f;
+		const bool bShouldSampleCloudShadow = SkyRC.bShouldSampleCloudShadow && (CloudShadowOnAtmosphereStrength0 > 0.0f || CloudShadowOnAtmosphereStrength1 > 0.0f);
+
 		FRenderSkyAtmospherePS::FPermutationDomain PsPermutationVector;
 		PsPermutationVector.Set<FSampleCloudSkyAO>(SkyRC.bShouldSampleCloudSkyAO);
 		PsPermutationVector.Set<FFastSky>(SkyRC.bFastSky && !ForceRayMarching);
@@ -1593,7 +1618,7 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(FRDGBuilder& GraphBuilder, FSky
 		PsPermutationVector.Set<FSecondAtmosphereLight>(SkyRC.bSecondAtmosphereLightEnabled);
 		PsPermutationVector.Set<FRenderSky>(SkyRC.bRenderSkyPixel);
 		PsPermutationVector.Set<FSampleOpaqueShadow>(SkyRC.bShouldSampleOpaqueShadow);
-		PsPermutationVector.Set<FSampleCloudShadow>(SkyRC.bShouldSampleCloudShadow);
+		PsPermutationVector.Set<FSampleCloudShadow>(bShouldSampleCloudShadow);
 		PsPermutationVector.Set<FAtmosphereOnClouds>(SkyRC.bAPOnCloudMode);
 		PsPermutationVector = FRenderSkyAtmospherePS::RemapPermutation(PsPermutationVector);
 		TShaderMapRef<FRenderSkyAtmospherePS> PixelShader(GetGlobalShaderMap(SkyRC.FeatureLevel), PsPermutationVector);
@@ -1621,12 +1646,14 @@ void FSceneRenderer::RenderSkyAtmosphereInternal(FRDGBuilder& GraphBuilder, FSky
 		PsPassParameters->VolumetricCloudShadowMapTexture0 = SkyRC.VolumetricCloudShadowMap[0];
 		PsPassParameters->VolumetricCloudShadowMapTexture1 = SkyRC.VolumetricCloudShadowMap[1];
 		PsPassParameters->VolumetricCloudSkyAOTexture = SkyRC.VolumetricCloudSkyAO;
+		PsPassParameters->VolumetricCloudShadowStrength0 = CloudShadowOnAtmosphereStrength0;
+		PsPassParameters->VolumetricCloudShadowStrength1 = CloudShadowOnAtmosphereStrength1;
 		PsPassParameters->VolumetricCloudDepthTexture = SkyRC.VolumetricCloudDepthTexture;
 		PsPassParameters->InputCloudLuminanceTransmittanceTexture = SkyRC.InputCloudLuminanceTransmittanceTexture;
 		PsPassParameters->AerialPerspectiveStartDepthKm = AerialPerspectiveStartDepthInCm * CM_TO_KM;
 		PsPassParameters->SourceDiskEnabled = SkyRC.bLightDiskEnabled ? 1 : 0;
 		PsPassParameters->DepthReadDisabled = SkyRC.bDepthReadDisabled ? 1 : 0;
-		if (SkyRC.bShouldSampleCloudShadow || SkyRC.bShouldSampleCloudSkyAO)
+		if (bShouldSampleCloudShadow || SkyRC.bShouldSampleCloudSkyAO)
 		{
 			PsPassParameters->VolumetricCloudCommonGlobalParams = Scene->GetVolumetricCloudSceneInfo()->GetVolumetricCloudCommonShaderParametersUB();
 		}

@@ -825,6 +825,7 @@ public:
 		VolumetricCloudWorldToLightClipShadowMatrix.Bind(Initializer.ParameterMap, TEXT("VolumetricCloudWorldToLightClipShadowMatrix"));
 		VolumetricCloudShadowmapFarDepthKm.Bind(Initializer.ParameterMap, TEXT("VolumetricCloudShadowmapFarDepthKm"));
 		VolumetricCloudShadowEnabled.Bind(Initializer.ParameterMap, TEXT("VolumetricCloudShadowEnabled"));
+		VolumetricCloudShadowmapStrength.Bind(Initializer.ParameterMap, TEXT("VolumetricCloudShadowmapStrength"));
 		VolumetricCloudShadowmapTexture.Bind(Initializer.ParameterMap, TEXT("VolumetricCloudShadowmapTexture"));
 		VolumetricCloudShadowmapTextureSampler.Bind(Initializer.ParameterMap, TEXT("VolumetricCloudShadowmapTextureSampler"));
 		AtmospherePerPixelTransmittanceEnabled.Bind(Initializer.ParameterMap, TEXT("AtmospherePerPixelTransmittanceEnabled"));
@@ -874,8 +875,8 @@ public:
 		{
 			FVolumetricCloudRenderSceneInfo* CloudInfo = LightSceneInfo->Scene->GetVolumetricCloudSceneInfo();
 
-			const bool bLight0CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap[0].IsValid() && AtmosphereLight0Proxy == LightSceneInfo->Proxy;
-			const bool bLight1CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap[1].IsValid() && AtmosphereLight1Proxy == LightSceneInfo->Proxy;
+			const bool bLight0CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap[0].IsValid() && AtmosphereLight0Proxy == LightSceneInfo->Proxy && AtmosphereLight0Proxy && AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
+			const bool bLight1CloudPerPixelTransmittance = CloudInfo && View.VolumetricCloudShadowMap[1].IsValid() && AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
 
 			if (bLight0CloudPerPixelTransmittance || bLight1CloudPerPixelTransmittance)
 			{
@@ -890,6 +891,15 @@ public:
 					VolumetricCloudShadowmapTextureSampler,
 					TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 					View.VolumetricCloudShadowMap[LightIndex]->GetRenderTargetItem().ShaderResourceTexture);
+
+				if (bLight0CloudPerPixelTransmittance)
+				{
+					SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, AtmosphereLight0Proxy->GetCloudShadowOnAtmosphereStrength());
+				}
+				else if(bLight1CloudPerPixelTransmittance)
+				{
+					SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, AtmosphereLight1Proxy->GetCloudShadowOnAtmosphereStrength());
+				}
 			}
 			else
 			{
@@ -903,6 +913,7 @@ public:
 					VolumetricCloudShadowmapTextureSampler,
 					TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(),
 					GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture);
+				SetShaderValue(RHICmdList, ShaderRHI, VolumetricCloudShadowmapStrength, 0.0f);
 			}
 		}
 		
@@ -922,6 +933,7 @@ private:
 	LAYOUT_FIELD(FShaderParameter, VolumetricCloudWorldToLightClipShadowMatrix);
 	LAYOUT_FIELD(FShaderParameter, VolumetricCloudShadowmapFarDepthKm);
 	LAYOUT_FIELD(FShaderParameter, VolumetricCloudShadowEnabled);
+	LAYOUT_FIELD(FShaderParameter, VolumetricCloudShadowmapStrength);
 	LAYOUT_FIELD(FShaderResourceParameter, VolumetricCloudShadowmapTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, VolumetricCloudShadowmapTextureSampler);
 	LAYOUT_FIELD(FShaderParameter, AtmospherePerPixelTransmittanceEnabled);

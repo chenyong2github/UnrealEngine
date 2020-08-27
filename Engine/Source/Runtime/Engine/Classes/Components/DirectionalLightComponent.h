@@ -187,10 +187,20 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud)
 	uint32 bCastCloudShadows : 1;
 	/**
-	 * The strength of the shadow, higher value will block more light.
+	 * The overal strength of the cloud shadow, higher value will block more light.
 	 */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
 	float CloudShadowStrength;
+	/**
+	 * The strength of the shadow on atmosphere. Disabled when 0.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	float CloudShadowOnAtmosphereStrength;
+	/**
+	 * The strength of the shadow on opaque and transparent meshes. Disabled when 0.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = AtmosphereAndCloud, AdvancedDisplay, meta = (UIMin = "0", UIMax = "1", ClampMin = "0", SliderExponent = 3.0))
+	float CloudShadowOnSurfaceStrength;
 	/**
 	 * The world space radius of the cloud shadow map around the camera in kilometers.
 	 */
