@@ -3256,7 +3256,7 @@ void UNetDriver::NotifyStreamingLevelUnload(ULevel* Level)
 
 	if (ServerConnection && ServerConnection->PackageMap)
 	{
-		UE_LOG(LogNet, Log, TEXT("NotifyStreamingLevelUnload: %s"), *Level->GetFullName() );
+		UE_LOG(LogNet, Verbose, TEXT("NotifyStreamingLevelUnload: %s"), *Level->GetFullName() );
 
 		if (Level->LevelScriptActor)
 		{
