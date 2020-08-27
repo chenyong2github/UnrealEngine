@@ -339,37 +339,57 @@ void VerifyD3D11CreateTextureResult(HRESULT D3DResult, int32 UEFormat,const ANSI
 		SubResSlicePitch);
 }
 
-void VerifyD3D11ResizeViewportResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, uint32 SizeX, uint32 SizeY, uint8 Format, ID3D11Device* Device)
+void VerifyD3D11ResizeViewportResult(
+	HRESULT D3DResult,
+	const ANSICHAR* Code,
+	const ANSICHAR* Filename,
+	uint32 Line,
+	const FD3D11ResizeViewportState& OldState,
+	const FD3D11ResizeViewportState& NewState,
+	ID3D11Device* Device)
 {
 	check(FAILED(D3DResult));
 
 	const FString ErrorString = GetD3D11ErrorString(D3DResult, 0);
-	const TCHAR* D3DFormatString = GetD3D11TextureFormatString((DXGI_FORMAT)Format);
+	const TCHAR* OldStateFormat = GetD3D11TextureFormatString(OldState.Format);
+	const TCHAR* NewStateFormat = GetD3D11TextureFormatString(NewState.Format);
 
 	UE_LOG(LogD3D11RHI, Error,
-		TEXT("%s failed \n at %s:%u \n with error %s, \n Size=%ix%i Format=%s(0x%08X)"),
+		TEXT("%s failed \n at %s:%u \n with error %s, \n (Size=%ix%i Fullscreen=%d Format=%s(0x%08X)) -> (Size=%ix%i Fullscreen=%d Format=%s(0x%08X))"),
 		ANSI_TO_TCHAR(Code),
 		ANSI_TO_TCHAR(Filename),
 		Line,
 		*ErrorString,
-		SizeX,
-		SizeY,
-		D3DFormatString,
-		Format);
+		OldState.SizeX,
+		OldState.SizeY,
+		OldState.bIsFullscreen ? 1 : 0,
+		OldStateFormat,
+		OldState.Format,
+		NewState.SizeX,
+		NewState.SizeY,
+		NewState.bIsFullscreen ? 1 : 0,
+		NewStateFormat,
+		NewState.Format);
 
 	TerminateOnDeviceRemoved(D3DResult, Device);
 	TerminateOnOutOfMemory(D3DResult, true);
 
 	UE_LOG(LogD3D11RHI, Fatal,
-		TEXT("%s failed \n at %s:%u \n with error %s, \n Size=%ix%i Format=%s(0x%08X)"),
+		TEXT("%s failed \n at %s:%u \n with error %s, \n (Size=%ix%i Fullscreen=%d Format=%s(0x%08X)) -> (Size=%ix%i Fullscreen=%d Format=%s(0x%08X))"),
 		ANSI_TO_TCHAR(Code),
 		ANSI_TO_TCHAR(Filename),
 		Line,
 		*ErrorString,
-		SizeX,
-		SizeY,
-		D3DFormatString,
-		Format);
+		OldState.SizeX,
+		OldState.SizeY,
+		OldState.bIsFullscreen ? 1 : 0,
+		OldStateFormat,
+		OldState.Format,
+		NewState.SizeX,
+		NewState.SizeY,
+		NewState.bIsFullscreen ? 1 : 0,
+		NewStateFormat,
+		NewState.Format);
 }
 
 void VerifyComRefCount(IUnknown* Object,int32 ExpectedRefs,const TCHAR* Code,const TCHAR* Filename,int32 Line)

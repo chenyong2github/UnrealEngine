@@ -272,6 +272,9 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 	}
 	BackBuffer.SafeRelease();
 
+	const FD3D11ResizeViewportState OldState{ SizeX, SizeY, GetRenderTargetFormat(PixelFormat), bIsFullscreen };
+	const FD3D11ResizeViewportState NewState{ InSizeX, InSizeY, GetRenderTargetFormat(PreferredPixelFormat), bInIsFullscreen };
+
 	if(SizeX != InSizeX || SizeY != InSizeY || PixelFormat != PreferredPixelFormat)
 	{
 		SizeX = InSizeX;
@@ -289,7 +292,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			const DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
 
 			// Resize all existing buffers, don't change count
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), OldState, NewState, D3DRHI->GetDevice());
 
 			if (bInIsFullscreen)
 			{
@@ -298,7 +301,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 				if (FAILED(SwapChain->ResizeTarget(&BufferDesc)))
 				{
 					ResetSwapChainInternal(true);
-					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+					VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, SwapChainFlags), OldState, NewState, D3DRHI->GetDevice());
 				}
 			}
 		}
@@ -315,7 +318,7 @@ void FD3D11Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			// Ignore the viewport's focus state; since Resize is called as the result of a user action we assume authority without waiting for Focus.
 			ResetSwapChainInternal(true);
 			DXGI_FORMAT RenderTargetFormat = GetRenderTargetFormat(PixelFormat);
-			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, GetSwapChainFlags()), SizeX, SizeY, RenderTargetFormat, D3DRHI->GetDevice());
+			VERIFYD3D11RESIZEVIEWPORTRESULT(SwapChain->ResizeBuffers(0, SizeX, SizeY, RenderTargetFormat, GetSwapChainFlags()), OldState, NewState, D3DRHI->GetDevice());
 		}
 	}
 
