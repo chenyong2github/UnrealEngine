@@ -1613,6 +1613,7 @@ private:
 	/** Caches the flags that indicate whether this component has network authority. */
 	void CacheIsNetSimulated();
 
+	uint8 bDestroyActiveStateInitiated : 1;
 public:
 
 	/** PredictionKeys, see more info in GameplayPrediction.h. This has to come *last* in all replicated properties on the AbilitySystemComponent to ensure OnRep/callback order. */
