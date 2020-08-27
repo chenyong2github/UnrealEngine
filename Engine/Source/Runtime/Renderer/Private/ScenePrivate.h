@@ -1052,6 +1052,9 @@ public:
 	FTemporalLODState TemporalLODState;
 
 	FVolumetricRenderTargetViewStateData VolumetricCloudRenderTarget;
+	FTemporalRenderTargetState VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS];
+	FMatrix VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[NUM_ATMOSPHERE_LIGHTS];
+	FVector PreviousFrameAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const

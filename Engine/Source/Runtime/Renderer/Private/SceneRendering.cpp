@@ -853,8 +853,6 @@ void FViewInfo::Init()
 	SkyAtmosphereCameraAerialPerspectiveVolume = nullptr;
 	SkyAtmosphereUniformShaderParameters = nullptr;
 
-	VolumetricCloudShadowMap[0] = nullptr;
-	VolumetricCloudShadowMap[1] = nullptr;
 	VolumetricCloudSkyAO = nullptr;
 
 	bUseDirectionalInscattering = false;

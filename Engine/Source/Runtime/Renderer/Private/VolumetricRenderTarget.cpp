@@ -727,3 +727,95 @@ void FSceneRenderer::ComposeVolumetricRenderTargetOverSceneUnderWater(FRHIComman
 
 
 
+FTemporalRenderTargetState::FTemporalRenderTargetState()
+	: CurrentRT(1)
+	, FrameId(0)
+	, bFirstTimeUsed(true)
+	, bHistoryValid(false)
+	, Resolution(FIntPoint::ZeroValue)
+	, Format(PF_MAX)
+{ 
+}
+
+FTemporalRenderTargetState::~FTemporalRenderTargetState()
+{
+}
+
+void FTemporalRenderTargetState::Initialise(FIntPoint& ResolutionIn, EPixelFormat FormatIn)
+{
+	// Update internal settings
+
+	if (bFirstTimeUsed)
+	{
+		bFirstTimeUsed = false;
+		bHistoryValid = false;
+		FrameId = 0;
+	}
+
+	CurrentRT = 1 - CurrentRT;
+	const uint32 PreviousRT = 1 - CurrentRT;
+
+	FIntVector ResolutionVector = FIntVector(ResolutionIn.X, ResolutionIn.Y, 0);
+	for (int32 i = 0; i < kRenderTargetCount; ++i)
+	{
+		if (RenderTargets[i].IsValid() && (RenderTargets[i]->GetDesc().GetSize() != ResolutionVector || Format != FormatIn))
+		{
+			// Resolution does not match so release target we are going to render in, keep the previous one at a different resolution.
+			RenderTargets[i].SafeRelease();
+		}
+	}
+	Resolution = ResolutionIn;
+	Format = FormatIn;
+
+	// Regular every frame update
+	bHistoryValid = RenderTargets[PreviousRT].IsValid();
+}
+
+FRDGTextureRef FTemporalRenderTargetState::GetOrCreateCurrentRT(FRDGBuilder& GraphBuilder)
+{
+	check(Resolution.X > 0 && Resolution.Y > 0);
+
+	if (RenderTargets[CurrentRT].IsValid())
+	{
+		return GraphBuilder.RegisterExternalTexture(RenderTargets[CurrentRT]);
+	}
+
+	FRDGTextureRef RDGTexture = GraphBuilder.CreateTexture(
+		FRDGTextureDesc::Create2DDesc(Resolution, Format, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)), 
+			TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable, false), TEXT("TemporalRenderTarget"));
+	return RDGTexture;
+}
+void FTemporalRenderTargetState::ExtractCurrentRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGTexture)
+{
+	check(Resolution.X > 0 && Resolution.Y > 0);
+
+	GraphBuilder.QueueTextureExtraction(RDGTexture, &RenderTargets[CurrentRT]);
+}
+
+FRDGTextureRef FTemporalRenderTargetState::GetOrCreatePreviousRT(FRDGBuilder& GraphBuilder)
+{
+	check(Resolution.X > 0 && Resolution.Y > 0);
+	const uint32 PreviousRT = 1u - CurrentRT;
+	check(RenderTargets[PreviousRT].IsValid());
+
+	return GraphBuilder.RegisterExternalTexture(RenderTargets[PreviousRT]);
+}
+
+void FTemporalRenderTargetState::Reset()
+{
+	bFirstTimeUsed = false;
+	bHistoryValid = false;
+	FrameId = 0;
+	for (int32 i = 0; i < kRenderTargetCount; ++i)
+	{
+		RenderTargets[i].SafeRelease();
+	}
+	Resolution = FIntPoint::ZeroValue;
+	Format = PF_MAX;
+}
+
+
+
+//////////////////////////////////////////////////////////////////////////
+
+
