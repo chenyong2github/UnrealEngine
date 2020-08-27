@@ -24,7 +24,7 @@ export class Perforce {
 	static readonly REGEX_NEWLINE = /\r\n|\n|\r/g
 
 	init() {
-		return this.exec(['login', '-s'])
+		return this.exec(process.platform === 'darwin' ? ['-plocalhost:1666', 'login', '-s'] : ['login', '-s'])
 	}
 
 	depot(depotType: string, spec: string)	{ return this.exec(['depot', '-t', depotType],	{stdin:spec}) }

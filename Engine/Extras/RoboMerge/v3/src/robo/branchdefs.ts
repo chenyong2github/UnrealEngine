@@ -38,8 +38,6 @@ export interface BranchBase {
 	resolver: string | null
 	aliases: string[]
 	badgeProject: string | null
-
-	pathsToMonitor: string[] | null
 }
 
 export class IntegrationMethod {
