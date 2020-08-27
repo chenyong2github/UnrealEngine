@@ -101,3 +101,55 @@ bool FSimpleHoleFiller::Fill_EarClip(int GroupID)
 
 	return true;
 }
+
+bool FSimpleHoleFiller::UpdateAttributes(TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& VidUVMaps)
+{
+	if (!Mesh->HasAttributes() || NewTriangles.Num() == 0)
+	{
+		return false;
+	}
+
+	FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+
+	check(VidUVMaps.Num() == Attributes->NumUVLayers());
+	for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+	{
+		FDynamicMeshUVOverlay* UVLayer = Attributes->GetUVLayer(i);
+		FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>& UVMap = VidUVMaps[i];
+
+		for (int32 Tid : NewTriangles)
+		{
+			FIndex3i TriVids = Mesh->GetTriangle(Tid);
+			FIndex3i TriUVs;
+			for (int32 j = 0; j < 3; ++j)
+			{
+				int32 Vid = TriVids[j];
+
+				if (!UVMap.Contains(Vid))
+				{
+					return false;
+				}
+
+				FMeshRegionBoundaryLoops::ElementIDAndValue<FVector2f>& VertUVInfo = UVMap[Vid];
+				if (VertUVInfo.Key == IndexConstants::InvalidID)
+				{
+					TriUVs[j] = UVLayer->AppendElement(VertUVInfo.Value);
+					VertUVInfo.Key = TriUVs[j];
+				}
+				else if (UVLayer->IsElement(VertUVInfo.Key))
+				{
+					TriUVs[j] = VertUVInfo.Key;
+				}
+				else
+				{
+					return false;
+				}
+			}
+			UVLayer->SetTriangle(Tid, TriUVs);
+		}
+	}
+
+	FDynamicMeshEditor MeshEditor(Mesh);
+	MeshEditor.SetTriangleNormals(NewTriangles);
+	return true;
+}
