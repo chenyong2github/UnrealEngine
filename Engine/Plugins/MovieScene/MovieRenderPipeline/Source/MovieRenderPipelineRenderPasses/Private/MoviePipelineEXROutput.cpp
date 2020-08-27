@@ -418,18 +418,19 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 		// No quantization required, just copy the data as we will move it into the image write task.
 		TUniquePtr<FImagePixelData> PixelData = RenderPassData.Value->CopyImageData();
 
-		// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
-		// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
-		if (LayerIndex > 0)
-		{
-			MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), RenderPassData.Key.Name);
-		}
-		else if (LayerIndex == 0)
+		if (LayerIndex == 0)
 		{
 			// Only check the main image pass for transparent output since that's generally considered the 'preview'.
 			FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 			bRequiresTransparentOutput = Payload->bRequireTransparentOutput;
 		}
+		else
+		{
+			// If there is more than one layer, then we will prefix the layer. The first layer is not prefixed (and gets inserted as RGBA)
+			// as most programs that handle EXRs expect the main image data to be in an unnamed layer.
+			MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), RenderPassData.Key.Name);
+		}
+
 		MultiLayerImageTask->Width = PixelData->GetSize().X;
 		MultiLayerImageTask->Height = PixelData->GetSize().Y;
 		MultiLayerImageTask->Layers.Add(MoveTemp(PixelData));
