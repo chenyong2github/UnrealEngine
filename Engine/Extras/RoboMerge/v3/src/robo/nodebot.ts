@@ -220,32 +220,54 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	}
 
 	private async getChanges(startingCl: number) {
-		let changes: Change[] = [];
 
-		const changePaths = this.getChangePaths()
-		this._log_action(`checking for changes in ${changePaths}`, 'silly');
+
+/**
+From Kevin:
+
+	p4 changes -m 1 -s submitted <path>
+
+will get you the most recent submitted changelist for a given path. I'm
+assuming that you're storing the last processed changelist number for a given
+path somewhere inside Robomerge so it should be fairly easily to compare the
+last processed changelist against the output of the command I shared to see if
+there's a new changelist.
+
+Once you've determined if there's a new changelist, you can do 
+
+	p4 changes -s submitted <path>@<last processed>,<current>
+
+to get a list of changelists between the two changelists.
+
+For the moment, check for changes even if all edges paused or held on gate:
+	need to look out for CLs that may unpause _other_ nodes (notably edges with
+	this node as a target)
+
+Going to get rid of multiple subpaths unless we ever need it again. Logic
+would be a little complicated, keeping track of the most recent CLs from any
+of the paths, maybe.
+
+*/
+
+		const path = this.branch.rootPath
+		this._log_action(`checking for changes in ${path}`, 'silly');
 
 		try {
 			if (startingCl <= 0) {
-				for (const path of changePaths) {
-					const change = await this.p4.latestChange(path);
-					if (change) {
-						changes.push(change);
-					}
+				const change = await this.p4.latestChange(path);
+				if (change) {
+					return [change];
 				}
 			}
 			else {
-				for (const path of changePaths) {
-					changes = changes.concat(await this.p4.changes(path, startingCl));
-				}
+				return await this.p4.changes(path, startingCl);
 			}
 		}
 		catch (err) {
 			this.nodeBotLogger.printException(err, `${this.fullName} Error while querying P4 for changes`)
-			return [];
 		}
 
-		return changes;
+		return [];
 	}
 
 	public initTickJournal() {
