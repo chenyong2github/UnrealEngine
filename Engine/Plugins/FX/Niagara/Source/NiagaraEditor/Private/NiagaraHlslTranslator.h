@@ -215,6 +215,8 @@ FORCEINLINE uint32 GetTypeHash(const FNiagaraFunctionSignature& Sig)
 		Hash = HashCombine(Hash, GetTypeHash(Var));
 	}
 	Hash = HashCombine(Hash, GetTypeHash(Sig.OwnerName));
+	Hash = HashCombine(Hash, GetTypeHash(Sig.ContextStageMinIndex));
+	Hash = HashCombine(Hash, GetTypeHash(Sig.ContextStageMaxIndex));
 	return Hash;
 }
 
