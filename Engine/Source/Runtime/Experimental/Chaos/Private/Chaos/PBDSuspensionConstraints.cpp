@@ -103,7 +103,7 @@ namespace Chaos
 
 			// This constraint is causing considerable harm to the steering effect from the tires, using only the z component for damping
 			// makes this issue go away, rather than using DotProduct against the expected AxisWorld vector
-			float PointVelocityAlongAxis = FVec3::DotProduct(ArmVelocity, FVector(0,0,1));
+			float PointVelocityAlongAxis = FVec3::DotProduct(ArmVelocity, AxisWorld);
 
 			if (Distance < Setting.MinLength)
 			{
