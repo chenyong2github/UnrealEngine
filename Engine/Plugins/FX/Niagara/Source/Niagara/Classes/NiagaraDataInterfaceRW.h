@@ -23,6 +23,7 @@ extern NIAGARA_API const FName WorldBBoxSizeFunctionName;
 extern NIAGARA_API const FName SimulationToUnitFunctionName;
 extern NIAGARA_API const FName UnitToSimulationFunctionName;
 extern NIAGARA_API const FName UnitToIndexFunctionName;
+extern NIAGARA_API const FName UnitToFloatIndexFunctionName;
 extern NIAGARA_API const FName IndexToUnitFunctionName;
 
 extern NIAGARA_API const FName IndexToUnitStaggeredXFunctionName;
