@@ -7,7 +7,7 @@
 #include "OptimusNode_GetMeshAttribute.generated.h"
 
 class USkeletalMesh;
-class UOptimusMeshAttribute;
+class UOptimusType_MeshAttribute;
 
 UCLASS()
 class UOptimusNode_GetMeshAttribute
@@ -28,5 +28,5 @@ public:
 	FName AttributeName;
 
 	UPROPERTY(meta = (Output))
-	UOptimusMeshAttribute *Attribute = nullptr;
+	UOptimusType_MeshAttribute *Attribute = nullptr;
 };
