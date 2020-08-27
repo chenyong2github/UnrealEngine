@@ -551,6 +551,7 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 	{
 		FNiagaraGraphFunctionAliasContext FunctionAliasContext;
 		FunctionAliasContext.CompileUsage = GetCurrentUsage();
+		FunctionAliasContext.ScriptUsage = TranslationStages[ActiveStageIdx].ScriptUsage;
 		FunctionAliasContext.StaticSwitchValues = StaticSwitchValues;
 		FString SignatureName = InName + FuncGraph->GetFunctionAliasByContext(FunctionAliasContext);
 		OutSig = FNiagaraFunctionSignature(*SignatureName, InputVars, OutputVars, *InFullName, true, false);

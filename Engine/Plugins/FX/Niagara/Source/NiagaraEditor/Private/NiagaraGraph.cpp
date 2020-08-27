@@ -2295,12 +2295,22 @@ void UNiagaraGraph::InvalidateNumericCache()
 FString UNiagaraGraph::GetFunctionAliasByContext(const FNiagaraGraphFunctionAliasContext& FunctionAliasContext)
 {
 	FString FunctionAlias;
+	TSet<UClass*> SkipNodeTypes;
 	for (UEdGraphNode* Node : Nodes)
 	{
 		UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
 		if (NiagaraNode != nullptr)
 		{
-			NiagaraNode->AppendFunctionAliasForContext(FunctionAliasContext, FunctionAlias);
+			if (SkipNodeTypes.Contains(NiagaraNode->GetClass()))
+			{
+				continue;
+			}
+			bool OncePerNodeType = false;
+			NiagaraNode->AppendFunctionAliasForContext(FunctionAliasContext, FunctionAlias, OncePerNodeType);
+			if (OncePerNodeType)
+			{
+				SkipNodeTypes.Add(NiagaraNode->GetClass());
+			}
 		}
 	}
 
