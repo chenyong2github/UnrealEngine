@@ -239,17 +239,20 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 	}
 
 	// Update any one-shot entities for the current frame
-	if (ComponentField)
+	if (ComponentField && ComponentField->HasAnyOneShotEntities())
 	{
 		EntitiesScratch.Reset();
 		ComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
 
-		FEntityImportSequenceParams Params;
-		Params.InstanceHandle = InstanceHandle;
-		Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
-		Params.HierarchicalBias = 0;
+		if (EntitiesScratch.Num() != 0)
+		{
+			FEntityImportSequenceParams Params;
+			Params.InstanceHandle = InstanceHandle;
+			Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
+			Params.HierarchicalBias = 0;
 
-		SequenceInstance.Ledger.UpdateOneShotEntities(Linker, Params, ComponentField, EntitiesScratch);
+			SequenceInstance.Ledger.UpdateOneShotEntities(Linker, Params, ComponentField, EntitiesScratch);
+		}
 	}
 }
 
@@ -404,17 +407,20 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		}
 
 		// Update any one-shot entities for the current root frame
-		if (RootComponentField)
+		if (RootComponentField && RootComponentField->HasAnyOneShotEntities())
 		{
 			EntitiesScratch.Reset();
 			RootComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
 
-			FEntityImportSequenceParams Params;
-			Params.InstanceHandle = InstanceHandle;
-			Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
-			Params.HierarchicalBias = 0;
+			if (EntitiesScratch.Num() != 0)
+			{
+				FEntityImportSequenceParams Params;
+				Params.InstanceHandle = InstanceHandle;
+				Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
+				Params.HierarchicalBias = 0;
 
-			RootInstance.Ledger.UpdateOneShotEntities(Linker, Params, RootComponentField, EntitiesScratch);
+				RootInstance.Ledger.UpdateOneShotEntities(Linker, Params, RootComponentField, EntitiesScratch);
+			}
 		}
 	}
 
@@ -493,11 +499,15 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 				}
 
 				// Update any one-shot entities for the sub sequence
-				if (SubComponentField)
+				if (SubComponentField && SubComponentField->HasAnyOneShotEntities())
 				{
 					EntitiesScratch.Reset();
 					SubComponentField->QueryOneShotEntities(SubContext.GetFrameNumberRange(), EntitiesScratch);
-					SubSequenceInstance.Ledger.UpdateOneShotEntities(Linker, Params, SubComponentField, EntitiesScratch);
+
+					if (EntitiesScratch.Num() != 0)
+					{
+						SubSequenceInstance.Ledger.UpdateOneShotEntities(Linker, Params, SubComponentField, EntitiesScratch);
+					}
 				}
 			}
 		}
