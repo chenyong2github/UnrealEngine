@@ -1196,7 +1196,6 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SkyAtmosphereViewLutTexture;
 	const FAtmosphereUniformShaderParameters* SkyAtmosphereUniformShaderParameters;
 
-	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowMap[2];
 	TRefCountPtr<IPooledRenderTarget> VolumetricCloudSkyAO;
 	TUniformBufferRef<FViewUniformShaderParameters> VolumetricRenderTargetViewUniformBuffer;
 

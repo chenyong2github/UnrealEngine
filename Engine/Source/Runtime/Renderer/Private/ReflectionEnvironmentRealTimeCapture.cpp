@@ -516,9 +516,11 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				//SkyRC.LightShadowShaderParams0UniformBuffer = nullptr;
 				//SkyRC.LightShadowShaderParams1UniformBuffer = nullptr;
 
-				SkyRC.bShouldSampleCloudShadow = HasVolumetricCloud() && (MainView.VolumetricCloudShadowMap[0].IsValid() || MainView.VolumetricCloudShadowMap[1].IsValid());
-				SkyRC.VolumetricCloudShadowMap[0] = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudShadow && MainView.VolumetricCloudShadowMap[0].IsValid() ? MainView.VolumetricCloudShadowMap[0] : GSystemTextures.BlackDummy);
-				SkyRC.VolumetricCloudShadowMap[1] = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudShadow && MainView.VolumetricCloudShadowMap[1].IsValid() ? MainView.VolumetricCloudShadowMap[1] : GSystemTextures.BlackDummy);
+				const bool VolumetricCloudShadowMap0Valid = MainView.ViewState && MainView.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentIsValid();
+				const bool VolumetricCloudShadowMap1Valid = MainView.ViewState && MainView.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentIsValid();
+				SkyRC.bShouldSampleCloudShadow = HasVolumetricCloud() && (VolumetricCloudShadowMap0Valid || VolumetricCloudShadowMap1Valid);
+				SkyRC.VolumetricCloudShadowMap[0] = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudShadow && VolumetricCloudShadowMap0Valid ? MainView.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentRenderTarget() : GSystemTextures.BlackDummy);
+				SkyRC.VolumetricCloudShadowMap[1] = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudShadow && VolumetricCloudShadowMap1Valid ? MainView.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentRenderTarget() : GSystemTextures.BlackDummy);
 
 				SkyRC.bShouldSampleCloudSkyAO = HasVolumetricCloud() && MainView.VolumetricCloudSkyAO.IsValid();
 				SkyRC.VolumetricCloudSkyAO = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudSkyAO ? MainView.VolumetricCloudSkyAO : GSystemTextures.BlackDummy);
