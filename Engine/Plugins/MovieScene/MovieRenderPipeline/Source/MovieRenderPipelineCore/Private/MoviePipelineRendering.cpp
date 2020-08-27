@@ -33,23 +33,10 @@
 
 #define LOCTEXT_NAMESPACE "MoviePipeline"
 
-static TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipelineMasterConfig* InMasterConfig, const UMoviePipelineExecutorShot* InShot)
+TArray<UMoviePipelineRenderPass*> UMoviePipeline::GetAllRenderPasses(const UMoviePipelineExecutorShot* InShot)
 {
-	TArray<UMoviePipelineRenderPass*> RenderPasses;
-
-	// Master Configuration first.
-	RenderPasses.Append(InMasterConfig->FindSettings<UMoviePipelineRenderPass>());
-
-	// And then any additional passes requested by the shot.
-	if (InShot->ShotOverrideConfig != nullptr)
-	{
-		RenderPasses.Append(InShot->ShotOverrideConfig->FindSettings<UMoviePipelineRenderPass>());
-	}
-
-	return RenderPasses;
+	return FindSettings<UMoviePipelineRenderPass>(InShot);
 }
-
-
 
 void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
@@ -95,7 +82,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 	// Initialize out output passes
 	int32 NumOutputPasses = 0;
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
+	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(InShot))
 	{
 		RenderPass->Setup(RenderPassInitSettings);
 		NumOutputPasses++;
@@ -106,7 +93,7 @@ void UMoviePipeline::SetupRenderingPipelineForShot(UMoviePipelineExecutorShot* I
 
 void UMoviePipeline::TeardownRenderingPipelineForShot(UMoviePipelineExecutorShot* InShot)
 {
-	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(GetPipelineMasterConfig(), InShot))
+	for (UMoviePipelineRenderPass* RenderPass : GetAllRenderPasses(InShot))
 	{
 		RenderPass->Teardown();
 	}
@@ -219,7 +206,7 @@ void UMoviePipeline::RenderFrame()
 		NumWarmupSamples = AntiAliasingSettings->RenderWarmUpCount;
 	}
 
-	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(GetPipelineMasterConfig(), ActiveShotList[CurrentShotIndex]);
+	TArray<UMoviePipelineRenderPass*> InputBuffers = GetAllRenderPasses(ActiveShotList[CurrentShotIndex]);
 
 	// If this is the first sample for a new frame, we want to notify the output builder that it should expect data to accumulate for this frame.
 	if (CachedOutputState.IsFirstTemporalSample())
