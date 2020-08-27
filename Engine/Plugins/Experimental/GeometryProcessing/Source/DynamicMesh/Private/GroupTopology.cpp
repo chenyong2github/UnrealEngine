@@ -547,7 +547,7 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 		{ 
 			FIndex2i EdgeID = MakeEdgeID(Loop.Edges[0]);
 			int OtherGroupID = (EdgeID.A == Group.GroupID) ? EdgeID.B : EdgeID.A;
-			int EdgeIndex = FindExistingGroupEdge(Group.GroupID, OtherGroupID, Loop.Vertices[0]);
+			int EdgeIndex = FindExistingGroupEdge(Group.GroupID, OtherGroupID, Loop.Vertices[0], Loop.Vertices[1]);
 			if (EdgeIndex == -1)
 			{
 				FGroupEdge Edge = { EdgeID };
@@ -572,7 +572,7 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 
 			FIndex2i EdgeID = MakeEdgeID(Loop.Edges[i0]);
 			int OtherGroupID = (EdgeID.A == Group.GroupID) ? EdgeID.B : EdgeID.A;
-			int EdgeIndex = FindExistingGroupEdge(Group.GroupID, OtherGroupID, Loop.Vertices[i0]);
+			int EdgeIndex = FindExistingGroupEdge(Group.GroupID, OtherGroupID, Loop.Vertices[i0], Loop.Vertices[(i0+1)%Loop.Vertices.Num()]);
 			if (EdgeIndex != -1)
 			{
 				FGroupEdge& Existing = Edges[EdgeIndex];
@@ -605,7 +605,7 @@ bool FGroupTopology::ExtractGroupEdges(FGroup& Group)
 
 
 
-int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID)
+int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID, int SecondVertexID)
 {
 	// if this is a boundary edge, we cannot have created it already
 	if (OtherGroupID < 0)
@@ -622,17 +622,35 @@ int FGroupTopology::FindExistingGroupEdge(int GroupID, int OtherGroupID, int Fir
 		{
 			if (Edges[EdgeIndex].Groups == EdgeID)
 			{
-				// same EdgeID pair may occur multiple times in the same boundary loop! 
-				// need to check that at least one endpoint is the same vertex
-
+				// Same EdgeID pair may occur multiple times in the same boundary loop
+				// (think of a cube with its side faces joined together on opposite corners).
+				// For non-loop edges, it is sufficient to check that one of the endpoints is the
+				// same vertex to know that the edges are the same.
 				TArray<int>& Vertices = Edges[EdgeIndex].Span.Vertices;
-				if (Vertices[0] == FirstVertexID || Vertices[Vertices.Num() - 1] == FirstVertexID)
+				int32 NumVerts = Vertices.Num();
+				if (Edges[EdgeIndex].EndpointCorners.A != IndexConstants::InvalidID)
 				{
-					return EdgeIndex;
+					if (Vertices[0] == FirstVertexID || Vertices[NumVerts - 1] == FirstVertexID)
+					{
+						return EdgeIndex;
+					}
 				}
-			}
+				else
+				{
+					// For loop edges we're not guaranteed to have the loop start on any particular
+					// vertex. We have to make sure that the two loops share at least two adjacent 
+					// vertices, because of pathological cases with bowtie-shaped groups.
+					int32 FirstVertIndex = Vertices.IndexOfByKey(FirstVertexID);
+					if (FirstVertIndex != INDEX_NONE 
+						&& (Vertices[(FirstVertIndex + 1) % NumVerts] == SecondVertexID
+							|| Vertices[(FirstVertIndex + NumVerts - 1) % NumVerts] == SecondVertexID))
+					{
+						return EdgeIndex;
+					}
+				}
+			}//end if group pair matched
 		}
-	}
+	}//end looking through other group boundaries
 	return -1;
 }
 
