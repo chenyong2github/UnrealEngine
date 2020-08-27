@@ -7,7 +7,7 @@
 
 
 // Storage for shared shader value types.
-inline uint32 GetTypeHash(const FShaderValueTypeHandle& InTypeHandle)
+static uint32 GetTypeHash(const FShaderValueTypeHandle& InTypeHandle)
 {
 	return GetTypeHash(*InTypeHandle.ValueTypePtr);
 }

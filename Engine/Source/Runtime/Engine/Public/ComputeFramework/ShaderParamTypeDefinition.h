@@ -87,6 +87,7 @@ struct FShaderValueTypeHandle
 
 };
 
+
 USTRUCT()
 struct ENGINE_API FShaderValueType
 {
@@ -178,7 +179,7 @@ private:
 * A hashing function to allow the FShaderValueType class to be used with hashing containers (e.g.
 * TSet or TMap).
 */
-inline uint32 GetTypeHash(const FShaderValueType& InShaderValueType);
+uint32 GetTypeHash(const FShaderValueType& InShaderValueType);
 
 
 /* Fully describes the name and type of a parameter a shader exposes. */
