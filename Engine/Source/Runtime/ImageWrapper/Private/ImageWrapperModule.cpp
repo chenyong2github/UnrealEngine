@@ -11,6 +11,7 @@
 #include "Formats/IcoImageWrapper.h"
 #include "Formats/JpegImageWrapper.h"
 #include "Formats/PngImageWrapper.h"
+#include "Formats/TgaImageWrapper.h"
 #include "IImageWrapperModule.h"
 
 
@@ -95,6 +96,10 @@ public:
 #endif
 		case EImageFormat::ICNS:
 			ImageWrapper = new FIcnsImageWrapper();
+			break;
+
+		case EImageFormat::TGA:
+			ImageWrapper = new FTgaImageWrapper();
 			break;
 
 		default:

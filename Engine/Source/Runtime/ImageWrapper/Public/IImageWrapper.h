@@ -34,7 +34,10 @@ enum class EImageFormat : int8
 	EXR,
 
 	/** Mac icon. */
-	ICNS
+	ICNS,
+	
+	/** Truevision TGA / TARGA */
+	TGA
 };
 
 

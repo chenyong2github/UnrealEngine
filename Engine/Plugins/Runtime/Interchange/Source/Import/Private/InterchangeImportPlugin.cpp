@@ -12,7 +12,7 @@
 #include "Texture/InterchangePNGTranslator.h"
 #include "Texture/InterchangePSDTranslator.h"
 #include "Texture/InterchangeTextureFactory.h"
-
+#include "Texture/InterchangeTGATranslator.h"
 
 DEFINE_LOG_CATEGORY(LogInterchangeImportPlugin);
 
@@ -40,6 +40,7 @@ void FInterchangeImportPlugin::StartupModule()
 	InterchangeManager.RegisterTranslator(UInterchangePCXTranslator::StaticClass());
 	InterchangeManager.RegisterTranslator(UInterchangePNGTranslator::StaticClass());
 	InterchangeManager.RegisterTranslator(UInterchangePSDTranslator::StaticClass());
+	InterchangeManager.RegisterTranslator(UInterchangeTGATranslator::StaticClass());
 
 	//Register the factories
 	InterchangeManager.RegisterFactory(UInterchangeTextureFactory::StaticClass());
