@@ -2,7 +2,15 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
+#include "UObject/NameTypes.h"
+
 #include "ShaderParamTypeDefinition.generated.h"
+
+
+class FArchive;
+struct FShaderValueType;
+
 
 /* The base types of data that shaders can consume/expose */
 UENUM()
@@ -13,7 +21,7 @@ enum class EShaderFundamentalType : uint8
 	Uint,
 	Float,
 	Double,
-	Struct,
+	Struct
 };
 
 /*
@@ -50,6 +58,129 @@ enum class EShaderResourceType : uint8
 	ByteAddressBuffer,
 };
 
+USTRUCT()
+struct FShaderValueTypeHandle
+{
+	GENERATED_BODY()
+
+	const FShaderValueType *ValueTypePtr = nullptr;
+
+	bool IsValid() const
+	{
+		return ValueTypePtr != nullptr;
+	}
+
+	explicit operator bool() const
+	{
+		return IsValid();
+	}
+
+	const FShaderValueType *operator->() const
+	{
+		return ValueTypePtr;
+	}
+
+	const FShaderValueType &operator*() const
+	{
+		return *ValueTypePtr;
+	}
+
+};
+
+USTRUCT()
+struct ENGINE_API FShaderValueType
+{
+	GENERATED_BODY()
+
+	// A simple container representing a single, named element in a shader value struct.
+	struct FStructElement
+	{
+		FStructElement() = default;
+		FStructElement(FName InName, FShaderValueTypeHandle InType)
+		    : Name(InName), Type(InType) {}
+
+		bool operator==(const FStructElement &InOther) const
+		{
+			return Name == InOther.Name && Type.ValueTypePtr == InOther.Type.ValueTypePtr;
+		}
+
+		bool operator!=(const FStructElement& InOther) const { return !(*this == InOther); }
+
+		friend FArchive& operator<<(FArchive& InArchive, FStructElement& InElement);
+
+		FName Name;
+		FShaderValueTypeHandle Type;
+	};
+
+
+
+	/** Returns a scalar value type. If the fundamental type given is invalid for scalar values 
+	  * (e.g. struct), then this function returns a nullptr. 
+	  */
+	static FShaderValueTypeHandle Get(EShaderFundamentalType InType);
+
+	/** Returns a vector value type. InElemCount can be any value between 1-4. If the type 
+	  * given is invalid for scalar values (e.g. struct) or InElemCount is out of range, then 
+	  * this function returns a nullptr. 
+	  */
+	static FShaderValueTypeHandle Get(EShaderFundamentalType InType, int32 InElemCount);
+
+	/** Constructor for vector values. InElemCount can be any value between 1-4 */
+	static FShaderValueTypeHandle Get(EShaderFundamentalType InType, int32 InRowCount, int32 InColumnCount);
+
+	static FShaderValueTypeHandle Get(FName InName, std::initializer_list<FStructElement> InStructElements);
+
+	/** Returns true if this type and the other type are exactly equal. */
+	bool operator==(const FShaderValueType &InOtherType) const;
+
+	/** Returns true if this type and the other type are not equal. */
+	bool operator!=(const FShaderValueType& InOtherType) const
+	{
+		return !(*this == InOtherType);
+	}
+
+	friend FArchive& operator<<(FArchive& InArchive, FShaderValueTypeHandle& InHandle);
+
+	/** Returns the type name as a string (e.g. 'vector2', 'matrix2x3' or 'struct_name') for 
+	    use in variable declarations. */
+	FString ToString() const;
+
+	/** Returns the type declaration if this type is a struct, or the empty string if not. */
+	FString GetTypeDeclaration() const;
+
+	UPROPERTY()
+	EShaderFundamentalType Type;
+
+	UPROPERTY()
+	EShaderFundamentalDimensionType DimensionType;
+
+	union
+	{
+		uint8 VectorElemCount;
+
+		struct
+		{
+			uint8 MatrixRowCount;
+			uint8 MatrixColumnCount;
+		};
+	};
+
+	UPROPERTY()
+	FName Name;
+
+	TArray<FStructElement> StructElements;
+
+private:
+	static FShaderValueTypeHandle GetOrCreate(FShaderValueType &&InValueType);
+};
+
+/**
+* A hashing function to allow the FShaderValueType class to be used with hashing containers (e.g.
+* TSet or TMap).
+*/
+inline uint32 GetTypeHash(const FShaderValueType& InShaderValueType);
+
+
 /* Fully describes the name and type of a parameter a shader exposes. */
 USTRUCT()
 struct FShaderParamTypeDefinition
@@ -59,6 +190,10 @@ struct FShaderParamTypeDefinition
 public:
 	UPROPERTY(EditAnywhere, Category = "Kernel")
 	FString	Name;
+
+	// The value type for this definition.
+	UPROPERTY()
+	FShaderValueTypeHandle ValueType;
 
 // #TODO_ZABIR: Shader reflection needs to extract much richer type info. Currently skip param type validation
 #if 0
