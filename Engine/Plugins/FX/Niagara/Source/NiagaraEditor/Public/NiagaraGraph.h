@@ -123,7 +123,11 @@ private:
 
 struct FNiagaraGraphFunctionAliasContext
 {
+	// the usage as defined in the compilation request (same for all translation stages)
 	ENiagaraScriptUsage CompileUsage;
+
+	// the usage as defined in the current translation stage
+	ENiagaraScriptUsage ScriptUsage;
 	TArray<UEdGraphPin*> StaticSwitchValues;
 };
 
