@@ -632,6 +632,9 @@ public:
 	/** Rebuilds the spatial acceleration from scratch. This should only be used for perf testing */
 	CHAOS_API void RebuildSpatialAccelerationForPerfTest();
 
+	/* Ticks computation of acceleration structures. Normally handled by Advance, but if not advancing can be called to incrementally build structures.*/
+	CHAOS_API void ComputeIntermediateSpatialAcceleration(bool bBlock = false);
+
 	CHAOS_API const FPBDConstraintGraph& GetConstraintGraph() const { return ConstraintGraph; }
 	CHAOS_API FPBDConstraintGraph& GetConstraintGraph() { return ConstraintGraph; }
 
@@ -731,7 +734,6 @@ protected:
 		}
 	}
 
-	void ComputeIntermediateSpatialAcceleration(bool bBlock = false);
 	void FlushInternalAccelerationQueue();
 	void FlushAsyncAccelerationQueue();
 	void WaitOnAccelerationStructure();
