@@ -607,7 +607,11 @@ int32 ReportCrashForMonitor(
 		if (ReportUI != EErrorReportUI::ReportInUnattendedMode)
 		{
 			// Only check if we are in a non-editor build
+#if UE_BUILD_SHIPPING
 			GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+#else
+			GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSendInNonShipping"), bImplicitSend, GEngineIni);
+#endif
 		}
 #endif
 	}
@@ -772,7 +776,11 @@ int32 ReportCrashUsingCrashReportClient(FWindowsPlatformCrashContext& InContext,
 	if (GConfig && ReportUI != EErrorReportUI::ReportInUnattendedMode)
 	{
 		// Only check if we are in a non-editor build
+#if UE_BUILD_SHIPPING
 		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
+#else
+		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSendInNonShipping"), bImplicitSend, GEngineIni);
+#endif
 	}
 #endif
 
