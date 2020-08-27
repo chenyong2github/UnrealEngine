@@ -1008,7 +1008,7 @@ public:
 			FPackageStoreEntry* RedirectEntry = StoreEntriesMap.FindRef(RedirectId);
 			check(RedirectEntry);
 			FPackageStoreEntry*& PackageEntry = StoreEntriesMap.FindOrAdd(SourceId);
-			if (RedirectEntry && PackageEntry)
+			if (RedirectEntry)
 			{
 				PackageEntry = RedirectEntry;
 			}
