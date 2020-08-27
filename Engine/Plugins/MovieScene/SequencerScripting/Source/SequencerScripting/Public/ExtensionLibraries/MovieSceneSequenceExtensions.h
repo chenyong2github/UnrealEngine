@@ -138,7 +138,7 @@ public:
 	static FSequencerScriptingRange MakeRangeSeconds(UMovieSceneSequence* Sequence, float StartTime, float Duration);
 
 	/**
-	 * Get playback range of this sequence
+	 * Get playback range of this sequence in display rate resolution
 	 *
 	 * @param Sequence        The sequence within which to get the playback range
 	 * @return Playback range of this sequence
@@ -147,7 +147,7 @@ public:
 	static FSequencerScriptingRange GetPlaybackRange(UMovieSceneSequence* Sequence);
 
 	/**
-	 * Get playback start of this sequence
+	 * Get playback start of this sequence in display rate resolution
 	 *
 	 * @param Sequence        The sequence within which to get the playback start
 	 * @return Playback start of this sequence
@@ -165,7 +165,7 @@ public:
 	static float GetPlaybackStartSeconds(UMovieSceneSequence* Sequence);
 
 	/**
-	 * Get playback end of this sequence
+	 * Get playback end of this sequence in display rate resolution
 	 *
 	 * @param Sequence        The sequence within which to get the playback end
 	 * @return Playback end of this sequence
