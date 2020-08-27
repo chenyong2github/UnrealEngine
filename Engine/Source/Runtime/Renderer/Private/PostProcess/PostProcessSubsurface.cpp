@@ -743,7 +743,7 @@ class FSubsurfaceRecombinePS : public FSubsurfaceShader
 		// high quality mode.
 		const bool bUseHighQuality = (QualityCVar == -1 && View.AntiAliasingMethod != AAM_TemporalAA);
 
-		if (QualityCVar == 1 || bUseHighQuality)
+		if (QualityCVar == 1 || bUseHighQuality || View.Family->GetTemporalUpscalerInterface() != nullptr)
 		{
 			return EQuality::High;
 		}
