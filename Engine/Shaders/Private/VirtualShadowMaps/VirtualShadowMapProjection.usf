@@ -22,14 +22,7 @@
 #define OUTPUT_TYPE 0
 #endif
 
-#define MIN_OCCLUDER_DISTANCE 1e-6f
-
-// One per clipmap level for directional lights
-StructuredBuffer< FVirtualShadowMapProjectionShaderData > ShadowMapProjectionData;
-Texture2D< uint > PhysicalPagePool;
-
-uint LightType;		// Matches ELightComponentType via defines in SSDDefinitions.ush
-uint ProjectionCount;
+int VirtualShadowMapId;		// For the first layer for clipmaps
 int DebugOutputType;
 float ContactShadowLength;
 
@@ -49,70 +42,6 @@ float3 IntToColor(uint Index)
 		float3(1.0f, 1.0f, 1.0f)
 	};
 	return ColorTable[Index % 8];
-}
-
-struct FVirtualSmSample
-{
-	float Depth;
-	uint2 VirtualTexelAddress;
-	float2 VirtualTexelAddressFloat;
-	uint2 PhysicalTexelAddress;
-	uint MipLevel;
-	bool bValid;
-};
-
-FVirtualSmSample SampleVirtualSmLevel(uint VirtualShadowMapId, float2 ShadowMapUV, uint VSMLevel)
-{
-	uint VSMLevelDim = CalcLevelDimsTexels(VSMLevel);
-	float2 VirtualTexelAddressFloat = ShadowMapUV * float(VSMLevelDim);
-	uint2 VirtualTexelAddress = uint2(VirtualTexelAddressFloat);
-
-	// Page map to physical address
-	uint2 PhysicalTexelAddress = uint2(0, 0);
-	bool PagePresent = VirtualToPhysicalTexel(VirtualShadowMapId, VSMLevel, VirtualTexelAddress, PhysicalTexelAddress);
-	if (PagePresent)
-	{
-		// TODO: maybe store metadata about Max depth (and/or use sparse HZB) for each tile, and early out if completely in shadow (must test using kernel size).
-		FVirtualSmSample Result;
-		Result.Depth = asfloat(PhysicalPagePool.Load(int3(PhysicalTexelAddress, 0)));
-		Result.VirtualTexelAddress = VirtualTexelAddress;
-		Result.PhysicalTexelAddress = PhysicalTexelAddress;
-		Result.VirtualTexelAddressFloat = VirtualTexelAddressFloat;
-		Result.MipLevel = VSMLevel;
-		Result.bValid = true;
-		return Result;
-	}
-	else
-	{
-		FVirtualSmSample Result;
-		Result.Depth = 0.0f;
-		Result.VirtualTexelAddress = uint2(0, 0);
-		Result.PhysicalTexelAddress = uint2(0, 0);
-		Result.MipLevel = 0;
-		Result.bValid = false;
-		return Result;
-	}
-}
-
-FVirtualSmSample SampleVirtualSm(uint VirtualShadowMapId, float2 ShadowMapUV)
-{
-	// Compute virtual address, map to physical & sample
-	for (uint VSMLevel = 0; VSMLevel < VSM_MAX_MIP_LEVELS; ++VSMLevel)
-	{
-		FVirtualSmSample Result = SampleVirtualSmLevel(VirtualShadowMapId, ShadowMapUV, VSMLevel);
-		if (Result.bValid)
-		{
-			return Result;
-		}
-	}
-
-	FVirtualSmSample Result;
-	Result.Depth = 0.0f;
-	Result.VirtualTexelAddress = uint2(0, 0);
-	Result.PhysicalTexelAddress = uint2(0, 0);
-	Result.MipLevel = 0;
-	Result.bValid = false;
-	return Result;
 }
 
 float ShadowRayCast(
@@ -180,33 +109,6 @@ float4 EncodeLightAttenuationFromMask(float ShadowMask)
 	return EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
 }
 
-// Receiver depth is post-projection-divide.
-float ComputeOccluderDistance(float4x4 ShadowViewToClip, float OccluderDepth, float ReceiverDepth, float3 ReceiverShadowViewPosition)
-{
-	float Result = 0.0f;
-	if (ShadowViewToClip._44 < 1.0f)
-	{
-		// Perspective projection
-		float OccluderViewZ = ShadowViewToClip._43 / (OccluderDepth - ShadowViewToClip._33);
-		float ReceiverViewZ = ShadowViewToClip._43 / (ReceiverDepth - ShadowViewToClip._33);
-
-		// Similar triangles to compute euclidean distance in view/world space
-		float ReceiverDistance = length(ReceiverShadowViewPosition);
-		float OccluderDistance = (ReceiverDistance / ReceiverViewZ) * OccluderViewZ;
-		Result = ReceiverDistance - OccluderDistance;
-	}
-	else
-	{
-		// Ortho
-		float OccluderViewZ = (OccluderDepth - ShadowViewToClip._43) / ShadowViewToClip._33;
-		float ReceiverViewZ = (ReceiverDepth - ShadowViewToClip._43) / ShadowViewToClip._33;
-
-		// No perspective projection, so simple difference gets us the distance
-		Result = ReceiverViewZ - OccluderViewZ;
-	}
-	return max(MIN_OCCLUDER_DISTANCE, Result);
-}
-
 void VirtualShadowMapProjectionPS(
 	in float4 SvPosition : SV_Position,
 	out float4 OutputTarget : SV_Target
@@ -221,11 +123,13 @@ void VirtualShadowMapProjectionPS(
 		
 	// TODO: Early out on sky, etc.
 	bool bInLightRegion = true;
-	int ProjectionDataIndex = 0;
+
+	FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
+	uint LightType = ProjectionData.LightType;
 
 	FLightShaderParameters Light = GetRootLightShaderParameters();
 	float3 ToLight = Light.Direction;
-	if (LightType == LIGHT_TYPE_SPOT)
+	if (ProjectionData.LightType == LIGHT_TYPE_SPOT)
 	{
 		// Early out if we're outside the spot light cone		
 		ToLight = Light.Position - (TranslatedWorldPosition - View.PreViewTranslation);
@@ -233,17 +137,6 @@ void VirtualShadowMapProjectionPS(
 		ToLight = normalize(ToLight);
 		bool bInLightCone = dot(ToLight, Light.Direction) >= Light.SpotAngles.x;
 		bInLightRegion = bInLightRegion && bInLightRadius && bInLightCone;
-	}
-	else if (LightType == LIGHT_TYPE_DIRECTIONAL)
-	{
-		float3 ViewPosition = mul(float4(TranslatedWorldPosition, 1.0f), View.TranslatedWorldToView).xyz;
-
-		const int FirstClipmapLevel = ShadowMapProjectionData[0].ClipmapLevel;
-		const int ClipmapLevelCount = ShadowMapProjectionData[0].ClipmapLevelCount;
-		const float ClipmapResolutionLodBias = ShadowMapProjectionData[0].ClipmapResolutionLodBias;
-		int ClipmapLevel = CalcClipmapLevel(ViewPosition, ClipmapResolutionLodBias);
-		ProjectionDataIndex = max(0, ClipmapLevel - FirstClipmapLevel);
-		bInLightRegion = (ProjectionDataIndex < ClipmapLevelCount);
 	}
 	if (!bInLightRegion)
 	{
@@ -264,26 +157,7 @@ void VirtualShadowMapProjectionPS(
 
 	// NOTE: Could skip most of the rest of the shader if contact shadows say we're shadowed, but likely to be small, incoherent branching
 
-	FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ProjectionDataIndex];
-	FShadowPosition ShadowPosition = WorldToShadow(ProjectionData, TranslatedWorldPosition - View.PreViewTranslation);
-	
-	FVirtualSmSample SmSample;
-	if (LightType == LIGHT_TYPE_DIRECTIONAL)
-	{
-		SmSample = SampleVirtualSmLevel(ProjectionData.VirtualShadowMapId, ShadowPosition.UV, 0);
-	}
-	else
-	{
-		SmSample = SampleVirtualSm(ProjectionData.VirtualShadowMapId, ShadowPosition.UV);
-	}
-
-	if (!SmSample.bValid)
-	{
-		// Generally shouldn't occur if PT allocation is conservative
-		discard;
-	}
-
-	// 3.1, figure out slope, we do world space since that is the space where we might override using the shading normal...
+	// Figure out slope, we do world space since that is the space where we might override using the shading normal...
 	float3 TranslatedWorldPositionDDX = DDX(TranslatedWorldPosition);
 	float3 TranslatedWorldPositionDDY = DDY(TranslatedWorldPosition);
 	float3 EstimatedGeoWorldNormal = normalize(cross(TranslatedWorldPositionDDX, TranslatedWorldPositionDDY));
@@ -297,38 +171,22 @@ void VirtualShadowMapProjectionPS(
 	}
 #endif
 
-	// Transform geometry world-space plane eq to shadow 'UV' texture space [0-1] ranges
-	float4 NormalPlaneWorld = float4(EstimatedGeoWorldNormal, -dot(EstimatedGeoWorldNormal, TranslatedWorldPosition));
-	float4 NormalPlaneUv = mul(NormalPlaneWorld, ProjectionData.TranslatedWorldToShadowUvNormalMatrix);
-		
-	float2 DepthSlopeUv = -NormalPlaneUv.xy / NormalPlaneUv.z;
-	float MipLevelDim = float(CalcLevelDimsTexels(SmSample.MipLevel));
-	float2 TexelCenter = float2(SmSample.VirtualTexelAddress) + 0.5;
-	float2 TexelCenterOffset = TexelCenter - SmSample.VirtualTexelAddressFloat;
-	float2 TexelCenterOffsetUv = TexelCenterOffset / MipLevelDim;
-	// 2x factor due to lack of precision (probably)
-	float OptimalSlopeBias = 2.0f * max(0.0f, dot(DepthSlopeUv, TexelCenterOffsetUv));
-	// Clamp to avoid excessive degenerate slope biases causing flickering lit pixels
-	OptimalSlopeBias = min(OptimalSlopeBias, 0.01f);
+	float3 WorldPositon = TranslatedWorldPosition - View.PreViewTranslation;
+	FVirtualShadowMapSampleResult VirtualShadowMapSample = SampleVirtualShadowMap(VirtualShadowMapId, WorldPositon, EstimatedGeoWorldNormal);
 
-	//SmSample.Depth = asfloat( max( asint( SmSample.Depth ) - 1, 0 ) );
-
-	float SmSampleBiasedDepth = SmSample.Depth - OptimalSlopeBias;
-
-	if (ContactShadowLength == 0.0f)
+	if (!VirtualShadowMapSample.bValid)
 	{
-		// When not doing contact shadow trace, at least add a constant bias to avoid obvious artifacts
-		// TODO: Could pull this bias itself from the contact shadow length... say if negative or something.
-		// This is mostly a debug path though so fine for the moment.
-		SmSampleBiasedDepth -= 0.0006f * SmSample.Depth;
+		// Generally shouldn't occur if PT allocation is conservative
+		discard;
 	}
 
 	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION in SSDSignalBufferEncoding.ush
 	float4 OutputSignal = float4(0, 0, 0, 0);
-	if (SmSampleBiasedDepth > ShadowPosition.Depth)
+	if (VirtualShadowMapSample.bOccluded)
 	{
 		// Hit
-		float OccluderDistance = ComputeOccluderDistance(ProjectionData.ShadowViewToClipMatrix, SmSampleBiasedDepth, ShadowPosition.Depth, ShadowPosition.View);
+		// Recall we offset the initial ray, so add the distance back in
+		float OccluderDistance = VirtualShadowMapSample.OccluderDistance + ContactShadowLengthWorld;
 		float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, OccluderDistance);
 		OutputSignal = float4(0, 1, WorldBluringRadius, 0);
 	}
@@ -338,7 +196,7 @@ void VirtualShadowMapProjectionPS(
 		OutputSignal = float4(1, 1, -1, 0);
 	}
 
-	if( ContactShadow < 1 )
+	if (ContactShadow < 1)
 	{
 		OutputSignal.x *= ContactShadow;
 		OutputSignal.z = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, ContactShadowLengthWorld);
@@ -354,23 +212,18 @@ void VirtualShadowMapProjectionPS(
 	// Output debug for "vis".
 	float3 Color = float3(0, 0, 0);
 
-	if (DebugOutputType == 1)		// Clipmap level
+	if (DebugOutputType == 1)	// Invalid page
 	{
-		Color = lerp(IntToColor(ProjectionDataIndex), OutputSignal.rrr, 0.4f);
+		Color = VirtualShadowMapSample.bValid ? (0.25f * OutputSignal.rrr) : float3(1, 0, 1);
 	}
-	else if (DebugOutputType == 2)	// Mip level/LOD
+	else if (DebugOutputType == 2)		// Clipmap level
 	{
-		Color = lerp(IntToColor(SmSample.MipLevel + 1), OutputSignal.rrr, 0.0f);
-	}
-	else if (DebugOutputType == 3)	// Invalid page
-	{
-		Color = SmSample.bValid ? (0.25f * OutputSignal.rrr) : float3(1, 0, 1);
+		//Color = lerp(IntToColor(ProjectionDataIndex), OutputSignal.rrr, 0.4f);
 	}
 
 	//Color = OptimalSlopeBias.xxx * 1.0f;
 
-	OutputTarget = float4(Color, 1.0f);
-	
+	OutputTarget = float4(Color, 1.0f);	
 #endif // OUTPUT_TYPE
 }
 

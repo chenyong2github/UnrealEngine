@@ -69,7 +69,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 	LevelData.Empty();
 	LevelData.AddDefaulted(LevelCount);
 
-	const FVector ClipmapCenter = CameraViewMatrices.GetViewOrigin();
+	WorldOrigin = CameraViewMatrices.GetViewOrigin();
 
 	for (int32 Index = 0; Index < LevelCount; ++Index)
 	{
@@ -90,19 +90,19 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 
 		// NOTE: We may eventually want to snap/quantize Z as well, but right now we just adjust it each time
 		// we update the cache page. With clipmaps this could ertainly be simplified.
-		FVector CenterView = TranslatedWorldToView.TransformPosition(ClipmapCenter);
+		FVector ViewCenter = TranslatedWorldToView.TransformPosition(WorldOrigin);
 		FIntPoint PageSpaceCenter(
-			FMath::RoundToInt(CenterView.X / PageSizeInWorldSpace),
-			FMath::RoundToInt(CenterView.Y / PageSizeInWorldSpace));
-		CenterView.X = PageSpaceCenter.X * PageSizeInWorldSpace;
-		CenterView.Y = PageSpaceCenter.Y * PageSizeInWorldSpace;
+			FMath::RoundToInt(ViewCenter.X / PageSizeInWorldSpace),
+			FMath::RoundToInt(ViewCenter.Y / PageSizeInWorldSpace));
+		ViewCenter.X = PageSpaceCenter.X * PageSizeInWorldSpace;
+		ViewCenter.Y = PageSpaceCenter.Y * PageSizeInWorldSpace;
 
-		const FVector SnappedWorldCenter = TranslatedWorldToView.InverseTransformPosition(CenterView);
+		const FVector SnappedWorldCenter = TranslatedWorldToView.InverseTransformPosition(ViewCenter);
 		const float SnappedLevelRadius = 0.5f * (PageSizeInWorldSpace * DimPages);
 			
 		// Sanity check that we didn't snap further away than we thought we were going to
 		{
-			float SnapError = (SnappedWorldCenter - ClipmapCenter).Size();
+			float SnapError = (SnappedWorldCenter - WorldOrigin).Size();
 			check(SnapError <= (UE_HALF_SQRT_2 * PageSizeInWorldSpace));
 			check((RawLevelRadius + SnapError) <= SnappedLevelRadius);
 		}
@@ -123,7 +123,7 @@ FVirtualShadowMapClipmap::FVirtualShadowMapClipmap(
 			{
 				FIntPoint PageOffset(PageSpaceCenter);
 				PageOffset.Y = -PageOffset.Y;		// Viewport
-				float DepthOffset = -CenterView.Z * ZScale;
+				float DepthOffset = -ViewCenter.Z * ZScale;
 
 				CacheEntry->UpdateClipmap(Level.VirtualShadowMap->ID, WorldToLight, PageOffset, DepthOffset);
 
@@ -161,12 +161,13 @@ FVirtualShadowMapProjectionShaderData FVirtualShadowMapClipmap::GetProjectionSha
 	Data.TranslatedWorldToShadowViewMatrix = TranslatedWorldToView;
 	Data.ShadowViewToClipMatrix = Level.ViewToClip;
 	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(TranslatedWorldToView, Level.ViewToClip);
-	Data.ShadowPreViewTranslation = FVector4(-Level.WorldCenter, 666.0f);
+	Data.ShadowPreViewTranslation = -Level.WorldCenter;
 	Data.VirtualShadowMapId = Level.VirtualShadowMap->ID;
+	Data.LightType = ELightComponentType::LightType_Directional;
+	Data.ClipmapWorldOrigin = WorldOrigin;
 	Data.ClipmapLevel = FirstLevel + ClipmapIndex;
 	Data.ClipmapLevelCount = LevelData.Num();
 	Data.ClipmapResolutionLodBias = ResolutionLodBias;
-	Data.bNearClip = false;
 
 	return Data;
 }

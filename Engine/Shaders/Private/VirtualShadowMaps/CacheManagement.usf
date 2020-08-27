@@ -4,6 +4,7 @@
 #include "../SceneData.ush"
 #include "ProjectionCommon.ush"
 #include "PageAccessCommon.ush"
+#include "../ScreenSpaceDenoise/SSDDefinitions.ush"		// For LIGHT_TYPE's
 
 //#include "NaniteDataDecode.ush"
  #include "../Nanite/HZBCull.ush"
@@ -46,13 +47,14 @@ void VirtualSmInvalidateInstancePagesCS(
 		{
 			// 1. Load cached projection data
 			FVirtualShadowMapProjectionShaderData ProjectionData = ShadowMapProjectionData[ShadowMapDataIndex];
+			const bool bDirectionalLight = (ProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL);
 
 			float4x4 LocalToTranslatedWorld = InstanceData.LocalToWorld;
 			LocalToTranslatedWorld[3].xyz += ProjectionData.ShadowPreViewTranslation;
 			// TODO: put mat mul in pre-computed
 			float4x4 LocalToClip = mul(LocalToTranslatedWorld, mul(ProjectionData.TranslatedWorldToShadowViewMatrix, ProjectionData.ShadowViewToClipMatrix));
 
-			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, ProjectionData.bNearClip, false);
+			FFrustumCullData Cull = BoxCullFrustum(InstanceData.LocalBoundsCenter, InstanceData.LocalBoundsExtent, LocalToClip, !bDirectionalLight, false);
 
 			if (Cull.bIsVisible)
 			{

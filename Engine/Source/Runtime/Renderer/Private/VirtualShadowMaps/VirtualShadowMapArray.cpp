@@ -109,9 +109,9 @@ FVirtualShadowMapProjectionShaderData GetVirtualShadowMapProjectionShaderData(co
 	Data.TranslatedWorldToShadowViewMatrix = ShadowInfo->TranslatedWorldToView;
 	Data.ShadowViewToClipMatrix = ViewToClip;
 	Data.TranslatedWorldToShadowUvNormalMatrix = CalcTranslatedWorldToShadowUvNormalMatrix(ShadowInfo->TranslatedWorldToView, ViewToClip);
-	Data.ShadowPreViewTranslation = FVector4(ShadowInfo->PreShadowTranslation, 666.0f);
+	Data.ShadowPreViewTranslation = FVector(ShadowInfo->PreShadowTranslation);
 	Data.VirtualShadowMapId = ShadowInfo->VirtualShadowMap->ID;
-	Data.bNearClip = uint32(!ShadowInfo->ShouldClampToNearPlane());
+	Data.LightType = ShadowInfo->GetLightSceneInfo().Proxy->GetLightType();
 
 	return Data;
 }
@@ -871,6 +871,13 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 	}
 }
 
+void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapProjectionParameters& OutParameters)
+{
+	OutParameters.CommonParameters = CommonParameters;
+	OutParameters.PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(PageTable));
+	OutParameters.PhysicalPagePool = GraphBuilder.RegisterExternalTexture(PhysicalPagePool);
+	OutParameters.VirtualShadowMapProjectionData = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(ShadowMapProjectionDataBuffer));
+}
 
 class FDebugVisualizeVirtualSmCS : public FVirtualPageManagementShader
 {

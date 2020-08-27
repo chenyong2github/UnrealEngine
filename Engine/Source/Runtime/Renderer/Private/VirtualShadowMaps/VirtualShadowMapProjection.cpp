@@ -38,18 +38,14 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
 	ECVF_RenderThreadSafe
 );
 
-BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapProjectionParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapProjectionParameters, ProjectionParameters)
 	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-	SHADER_PARAMETER(uint32, LightType)
-	SHADER_PARAMETER(uint32, ProjectionCount)
+	SHADER_PARAMETER(int32, VirtualShadowMapId)
 	SHADER_PARAMETER(float, ContactShadowLength)
 	SHADER_PARAMETER(int32, DebugOutputType)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, ShadowMapProjectionData)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -61,7 +57,7 @@ class FVirtualShadowMapProjectionPS : public FGlobalShader
 	class FOutputTypeDim : SHADER_PERMUTATION_ENUM_CLASS("OUTPUT_TYPE", EVirtualShadowMapProjectionOutputType);
 	using FPermutationDomain = TShaderPermutationDomain<FOutputTypeDim>;
 
-	using FParameters = FVirtualShadowMapProjectionParameters;
+	using FParameters = FProjectionParameters;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -104,10 +100,10 @@ IMPLEMENT_GLOBAL_SHADER(FVirtualShadowMapProjectionCompositePS, "/Engine/Private
 
 static void AddPass_RenderVirtualShadowMapProjection(
 	const FLightSceneProxy* LightProxy,
-	const TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator>& ShadowMapProjectionData,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	FVirtualShadowMapArray& VirtualShadowMapArray,
+	int VirtualShadowMapId,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionOutputType OutputType,
 	const FRenderTargetBinding& RenderTargetBinding,
@@ -118,30 +114,17 @@ static void AddPass_RenderVirtualShadowMapProjection(
 	FGlobalShaderMap* ShaderMap = View.ShaderMap;
 	TRefCountPtr<FPooledRDGBuffer> PageTable = VirtualShadowMapArray.PageTable;
 
-	FVirtualShadowMapProjectionParameters* PassParameters = GraphBuilder.AllocParameters<FVirtualShadowMapProjectionParameters>();
-	PassParameters->CommonParameters = VirtualShadowMapArray.CommonParameters;
-	PassParameters->PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(VirtualShadowMapArray.PageTable));
-	PassParameters->PhysicalPagePool = GraphBuilder.RegisterExternalTexture(VirtualShadowMapArray.PhysicalPagePool);
+	FProjectionParameters* PassParameters = GraphBuilder.AllocParameters<FProjectionParameters>();
+	VirtualShadowMapArray.SetProjectionParameters(GraphBuilder, PassParameters->ProjectionParameters);
 	PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::GBuffers | ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
 	PassParameters->View = View.ViewUniformBuffer;
 		
 	FLightShaderParameters LightParameters;
 	LightProxy->GetLightShaderParameters(LightParameters);
 	PassParameters->Light = LightParameters;
-	PassParameters->LightType = LightProxy->GetLightType();
+	PassParameters->VirtualShadowMapId = VirtualShadowMapId;
 	PassParameters->DebugOutputType = CVarVirtualShadowMapDebugProjection.GetValueOnRenderThread();
 	PassParameters->ContactShadowLength = CVarContactShadowLength.GetValueOnRenderThread();
-	PassParameters->ProjectionCount = ShadowMapProjectionData.Num();
-
-	FRDGBufferRef ShadowMapProjectionDataRDG = CreateStructuredBuffer(
-		GraphBuilder, 
-		TEXT("ShadowMapProjectionData"),
-		ShadowMapProjectionData.GetTypeSize(),
-		ShadowMapProjectionData.Num(),
-		ShadowMapProjectionData.GetData(),
-		ShadowMapProjectionData.Num() * ShadowMapProjectionData.GetTypeSize());
-
-	PassParameters->ShadowMapProjectionData = GraphBuilder.CreateSRV(ShadowMapProjectionDataRDG);
 
 	PassParameters->RenderTargets[0] = RenderTargetBinding;
 
@@ -177,10 +160,10 @@ static FRDGTextureRef CreateDebugOutput(FRDGBuilder& GraphBuilder, FIntPoint Ext
 
 static void RenderVirtualShadowMapProjectionCommon(
 	const FLightSceneProxy* LightProxy,
-	const TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator>& ShadowMapProjectionData,
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View, 
 	FVirtualShadowMapArray& VirtualShadowMapArray,
+	int32 VirtualShadowMapId,
 	const FIntRect ScissorRect,
 	EVirtualShadowMapProjectionOutputType OutputType,
 	const FRenderTargetBinding& RenderTargetBinding,
@@ -188,10 +171,11 @@ static void RenderVirtualShadowMapProjectionCommon(
 {
 	// Main Pass
 	AddPass_RenderVirtualShadowMapProjection(
-		LightProxy, ShadowMapProjectionData,
+		LightProxy,
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
+		VirtualShadowMapId,
 		ScissorRect,
 		OutputType,
 		RenderTargetBinding,
@@ -205,31 +189,17 @@ static void RenderVirtualShadowMapProjectionCommon(
 		FRenderTargetBinding DebugRenderTargetBinding(DebugOutput, ERenderTargetLoadAction::EClear);
 
 		AddPass_RenderVirtualShadowMapProjection(
-			LightProxy, ShadowMapProjectionData,
+			LightProxy,
 			GraphBuilder,
 			View,
 			VirtualShadowMapArray,
+			VirtualShadowMapId,
 			ScissorRect,
 			EVirtualShadowMapProjectionOutputType::Debug,
 			DebugRenderTargetBinding,
 			nullptr);
 
 		GraphBuilder.QueueTextureExtraction(DebugOutput, &VirtualShadowMapArray.DebugVisualizationProjectionOutput);
-	}
-}
-
-static void GetVirtualShadowMapProjectionData(
-	const TSharedPtr<FVirtualShadowMapClipmap>& Clipmap,
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator>& OutShadowMapProjectionData)
-{	
-	OutShadowMapProjectionData.Empty();
-	
-	// Expand to one projection data per clipmap level
-	int32 ClipmapLevelCount = Clipmap->GetLevelCount();
-	OutShadowMapProjectionData.AddDefaulted(ClipmapLevelCount);
-	for (int32 ClipmapLevel = 0; ClipmapLevel < ClipmapLevelCount; ++ClipmapLevel)
-	{
-		OutShadowMapProjectionData[ClipmapLevel] = Clipmap->GetProjectionShaderData(ClipmapLevel);
 	}
 }
 
@@ -241,15 +211,13 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	const FIntRect ScissorRect,
 	FRDGTextureRef SignalTexture)
 {
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	ShadowMapProjectionData.Add(GetVirtualShadowMapProjectionShaderData(ShadowInfo));
-
 	FRenderTargetBinding RenderTargetBinding(SignalTexture, ERenderTargetLoadAction::EClear);
 	RenderVirtualShadowMapProjectionCommon(
-		ShadowInfo->GetLightSceneInfo().Proxy, ShadowMapProjectionData,
+		ShadowInfo->GetLightSceneInfo().Proxy,
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
+		ShadowInfo->VirtualShadowMap->ID,
 		ScissorRect,
 		EVirtualShadowMapProjectionOutputType::Denoiser,
 		RenderTargetBinding,
@@ -263,22 +231,19 @@ void RenderVirtualShadowMapProjectionForDenoising(
 	FVirtualShadowMapArray& VirtualShadowMapArray,
 	const FIntRect ScissorRect,
 	FRDGTextureRef SignalTexture)
-{
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	GetVirtualShadowMapProjectionData(Clipmap, ShadowMapProjectionData);
-
+{	
 	FRenderTargetBinding RenderTargetBinding(SignalTexture, ERenderTargetLoadAction::EClear);
 	RenderVirtualShadowMapProjectionCommon(
-		Clipmap->GetLightSceneInfo().Proxy, ShadowMapProjectionData,
+		Clipmap->GetLightSceneInfo().Proxy,
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
+		Clipmap->GetVirtualShadowMap()->ID,
 		ScissorRect,
 		EVirtualShadowMapProjectionOutputType::Denoiser,
 		RenderTargetBinding,
 		nullptr);
 }
-
 
 void RenderVirtualShadowMapProjection(
 	FProjectedShadowInfo* ShadowInfo,
@@ -289,17 +254,14 @@ void RenderVirtualShadowMapProjection(
 	FRDGTextureRef ScreenShadowMaskTexture,
 	bool bProjectingForForwardShading)
 {
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	ShadowMapProjectionData.Add(GetVirtualShadowMapProjectionShaderData(ShadowInfo));
-
 	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
-	// Blend state should not vary per cascade
 	FRHIBlendState* BlendState = ShadowInfo->GetBlendStateForProjection(bProjectingForForwardShading, false);
 	RenderVirtualShadowMapProjectionCommon(
-		ShadowInfo->GetLightSceneInfo().Proxy, ShadowMapProjectionData,
+		ShadowInfo->GetLightSceneInfo().Proxy,
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
+		ShadowInfo->VirtualShadowMap->ID,
 		ScissorRect,
 		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
 		RenderTargetBinding,
@@ -315,19 +277,15 @@ void RenderVirtualShadowMapProjection(
 	FRDGTextureRef ScreenShadowMaskTexture,
 	bool bProjectingForForwardShading)
 {
-	TArray<FVirtualShadowMapProjectionShaderData, SceneRenderingAllocator> ShadowMapProjectionData;
-	GetVirtualShadowMapProjectionData(Clipmap, ShadowMapProjectionData);
-
-	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);
-	
+	FRenderTargetBinding RenderTargetBinding(ScreenShadowMaskTexture, ERenderTargetLoadAction::ELoad);	
 	// See FProjectedShadowInfo::GetBlendStateForProjection. TODO: Support other modes in this path?
 	FRHIBlendState* BlendState = TStaticBlendState<CW_BA, BO_Min, BF_One, BF_One, BO_Min, BF_One, BF_One>::GetRHI();
-
 	RenderVirtualShadowMapProjectionCommon(
-		Clipmap->GetLightSceneInfo().Proxy, ShadowMapProjectionData,
+		Clipmap->GetLightSceneInfo().Proxy,
 		GraphBuilder,
 		View,
 		VirtualShadowMapArray,
+		Clipmap->GetVirtualShadowMap()->ID,
 		ScissorRect,
 		EVirtualShadowMapProjectionOutputType::ScreenShadowMask,
 		RenderTargetBinding,

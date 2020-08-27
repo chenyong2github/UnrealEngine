@@ -391,7 +391,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 	{
 		// Mark one page per directional light. Lights can have varying numbers of clipmap levels allocated which
 		// will all be contiguous in the array, so we hop between them using the counts.
-		int ProjectionIndex = 0;
+		uint ProjectionIndex = 0;
 		while (ProjectionIndex < NumDirectionalLightSmInds)
 		{
 			int ClipmapStartId = VirtualShadowMapIdRemap[ProjectionIndex];
@@ -402,7 +402,7 @@ void GeneratePageFlagsFromPixels(uint3 GroupId : SV_GroupID, uint GroupIndex : S
 
 			// Possibly use a single shadow projection data for the whole clipmap with just scales/biases for
 			// each level (to handle snapping). For now we maintain one per level.
-			int ClipmapLevel = CalcClipmapLevel(Pixel.ViewPosition, ClipmapResolutionLodBias);
+			int ClipmapLevel = CalcClipmapLevel(length(Pixel.ViewPosition), ClipmapResolutionLodBias);
 			int ClipmapIndex = max(0, ClipmapLevel - FirstClipmapLevel);
 			if (ClipmapIndex < ClipmapLevelCount)
 			{

@@ -27,7 +27,7 @@ public:
 
 	FViewMatrices GetViewMatrices(int32 ClipmapIndex) const;
 
-	FVirtualShadowMap* GetVirtualShadowMap(int32 ClipmapIndex)
+	FVirtualShadowMap* GetVirtualShadowMap(int32 ClipmapIndex = 0)
 	{
 		return LevelData[ClipmapIndex].VirtualShadowMap;
 	}
@@ -48,13 +48,23 @@ public:
 		return LightSceneInfo;
 	}
 
-	FVirtualShadowMapProjectionShaderData GetProjectionShaderData(
-		int32 ClipmapIndex) const;
+	FVirtualShadowMapProjectionShaderData GetProjectionShaderData(int32 ClipmapIndex) const;
+
+	FVector GetWorldOrigin() const
+	{
+		return WorldOrigin;
+	}
+
 
 private:
 	const FLightSceneInfo& LightSceneInfo;
 
-	// A translation that is applied to world-space before transforming by one of the shadow matrices.
+	/** Origin of the clipmap in world space
+	* Usually aligns with the camera position from which it was created.
+	* Note that the centers of each of the levels can be different as they are snapped to page alignment at their respective scales
+	* */
+	FVector WorldOrigin;
+
 	FMatrix TranslatedWorldToView;
 
 	int32 FirstLevel;

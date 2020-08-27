@@ -5,6 +5,7 @@
 #pragma once
 
 #include "../Nanite/NaniteRender.h"
+#include "SceneTypes.h"
 
 struct FSortedLightSetSceneInfo;
 class FViewInfo;
@@ -87,17 +88,18 @@ struct FVirtualShadowMapProjectionShaderData
 	/**
 	 * Translation from world space to shadow space (add before transform by TranslatedWorldToShadowViewMatrix).
 	 */
-	FVector4 ShadowPreViewTranslation;
-	int32 VirtualShadowMapId;
-	uint32 bNearClip = 1U;
+	FVector ShadowPreViewTranslation;
+	uint32 LightType = ELightComponentType::LightType_Directional;
+	
+	FVector ClipmapWorldOrigin;
+	int32 VirtualShadowMapId = INDEX_NONE;
 
-	// These could be per-light (first/count), but convenient here and not much overhead
 	int32 ClipmapLevel = 0;					// "Absolute" level, can be negative
 	int32 ClipmapLevelCount = 0;
 	float ClipmapResolutionLodBias = 0.0f;
 
 	// Seems the FMatrix forces 16-byte alignment
-	float Padding[3];
+	//float Padding[3];
 };
 static_assert((sizeof(FVirtualShadowMapProjectionShaderData) % 16) == 0, "FVirtualShadowMapProjectionShaderData size should be a multiple of 16-bytes for alignment.");
 
@@ -115,6 +117,13 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapCommonParameters, )
 	// use to map linear index to x,y page coord
 	SHADER_PARAMETER(uint32, PhysicalPageRowMask)
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
+END_SHADER_PARAMETER_STRUCT()
+
+BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapProjectionParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer< FVirtualShadowMapProjectionShaderData >, VirtualShadowMapProjectionData)
 END_SHADER_PARAMETER_STRUCT()
 
 class FVirtualShadowMapArray
@@ -140,6 +149,8 @@ public:
 	}
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
+
+	void SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapProjectionParameters& OutParameters);
 
 	//
 	void GenerateIdentityPageTables(FRDGBuilder& GraphBuilder, uint32 MipLevel = INDEX_NONE);
@@ -176,8 +187,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget>	HZBPhysical;
 	TRefCountPtr<FPooledRDGBuffer>		HZBPageTable;
 
-	TRefCountPtr<IPooledRenderTarget> DebugVisualizationOutput;
-	TRefCountPtr<IPooledRenderTarget> DebugVisualizationProjectionOutput;
+	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationOutput;
+	TRefCountPtr<IPooledRenderTarget>	DebugVisualizationProjectionOutput;
 	
 	TRefCountPtr<FPooledRDGBuffer>		AllocatedPagesOffset;
 
@@ -200,7 +211,6 @@ public:
 	// uint4 buffer with one rect for each mip level in all SMs, calculated to bound committed pages
 	// Used to clip the rect size of clusters during culling.
 	TRefCountPtr<FPooledRDGBuffer>		PageRectBounds;
-
 
 	TRefCountPtr<FPooledRDGBuffer>		ShadowMapProjectionDataBuffer;
 };
