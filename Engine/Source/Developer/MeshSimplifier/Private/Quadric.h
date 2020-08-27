@@ -11,6 +11,7 @@
 // doubles needed for precision
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma float_control( precise, on, push )
+#pragma warning(disable:6011)
 #endif
 
 #define WEIGHT_BY_AREA		1

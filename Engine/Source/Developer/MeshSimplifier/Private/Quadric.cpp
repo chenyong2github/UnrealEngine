@@ -6,6 +6,7 @@ DEFINE_LOG_CATEGORY_STATIC( LogQuadric, Log, All );
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #pragma float_control( precise, on, push )
+#pragma warning(disable:6011)
 #endif
 
 // LUP factorization using Doolittle's method with partial pivoting
