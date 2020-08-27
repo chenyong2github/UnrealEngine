@@ -90,6 +90,40 @@ private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
 };
 
+
+/**
+ * A pixel shader for rendering a textured screen element.
+ */
+class FScreenPSInvertAlpha : public FGlobalShader
+{
+	DECLARE_EXPORTED_SHADER_TYPE(FScreenPSInvertAlpha, Global, ENGINE_API);
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return true; }
+
+	FScreenPSInvertAlpha(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
+		FGlobalShader(Initializer)
+	{
+		InTexture.Bind(Initializer.ParameterMap, TEXT("InTexture"), SPF_Mandatory);
+		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
+	}
+	FScreenPSInvertAlpha() {}
+
+	void SetParameters(FRHICommandList& RHICmdList, const FTexture* Texture)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, Texture);
+	}
+
+	void SetParameters(FRHICommandList& RHICmdList, FRHISamplerState* SamplerStateRHI, FRHITexture* TextureRHI)
+	{
+		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
+	}
+
+private:
+	LAYOUT_FIELD(FShaderResourceParameter, InTexture);
+	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler);
+};
+
 /**
 * A pixel shader for rendering a textured screen element.
 */
