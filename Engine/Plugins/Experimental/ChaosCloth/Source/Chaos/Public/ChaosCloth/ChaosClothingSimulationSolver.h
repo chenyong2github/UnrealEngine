@@ -103,8 +103,8 @@ namespace Chaos
 		const TVector<float, 3>* GetParticleVs(int32 Offset) const;
 		TVector<float, 3>* GetParticleVs(int32 Offset);
 		const float* GetParticleInvMasses(int32 Offset) const;
-		const FClothConstraints& GetClothConstraints(int32 Offset) const { return ClothsConstraints.FindChecked(Offset);  }
-		FClothConstraints& GetClothConstraints(int32 Offset) { return ClothsConstraints.FindChecked(Offset);  }
+		const FClothConstraints& GetClothConstraints(int32 Offset) const { return *ClothsConstraints.FindChecked(Offset);  }
+		FClothConstraints& GetClothConstraints(int32 Offset) { return *ClothsConstraints.FindChecked(Offset);  }
 		// ---- End of the Cloth interface ----
 
 		// ---- Collider interface ----
@@ -157,7 +157,7 @@ namespace Chaos
 		TArrayCollectionArray<TRigidTransform<float, 3>> CollisionTransforms;
 
 		// Cloth constraints
-		TMap<int32, FClothConstraints> ClothsConstraints;
+		TMap<int32, FClothConstraints*> ClothsConstraints;
 
 		// Local space simulation
 		TVector<float, 3> OldLocalSpaceLocation;
