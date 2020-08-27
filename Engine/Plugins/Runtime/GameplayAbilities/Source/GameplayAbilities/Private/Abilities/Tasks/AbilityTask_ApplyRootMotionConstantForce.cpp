@@ -147,6 +147,13 @@ void UAbilityTask_ApplyRootMotionConstantForce::OnDestroy(bool AbilityIsEnding)
 {
 	if (MovementComponent)
 	{
+		TSharedPtr<FRootMotionSource> RootMotionSource = MovementComponent->GetRootMotionSourceByID(RootMotionSourceID);
+		TSharedPtr<FRootMotionSource_ConstantForce> ConstantForce = StaticCastSharedPtr<FRootMotionSource_ConstantForce>(RootMotionSource);
+		if (ConstantForce.IsValid())
+		{
+			ConstantForce->StrengthOverTime = nullptr; // Manually clear to fix race condition with GC & root motion removal.
+		}
+
 		MovementComponent->RemoveRootMotionSourceByID(RootMotionSourceID);
 	}
 
