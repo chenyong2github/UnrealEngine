@@ -94,6 +94,8 @@ public:
 	virtual void OnRegister() override;
 	virtual void DrawVisualization(const UActorComponent* Component, const FSceneView* View, FPrimitiveDrawInterface* PDI) override;
 	virtual bool VisProxyHandleClick(FEditorViewportClient* InViewportClient, HComponentVisProxy* VisProxy, const FViewportClick& Click) override;
+	/** Draw HUD on viewport for the supplied component */
+	virtual void DrawVisualizationHUD(const UActorComponent* Component, const FViewport* Viewport, const FSceneView* View, FCanvas* Canvas) override;
 	virtual void EndEditing() override;
 	virtual bool GetWidgetLocation(const FEditorViewportClient* ViewportClient, FVector& OutLocation) const override;
 	virtual bool GetCustomInputCoordinateSystem(const FEditorViewportClient* ViewportClient, FMatrix& OutMatrix) const override;
@@ -129,6 +131,9 @@ protected:
 	/** Whether a single spline key is currently selected */
 	bool IsSingleKeySelected() const;
 	
+	/** Whether a multiple spline keys are currently selected */
+	bool AreMultipleKeysSelected() const;
+
 	/** Transforms selected tangent by given translation */
 	bool TransformSelectedTangent(const FVector& DeltaTranslate);
 
@@ -163,7 +168,28 @@ protected:
 	virtual void ResetAllowDuplication();
 
 	/** Snapping: snap keys to axis position of last selected key */
-	void SnapToLastSelectedAxisPosition(const EAxis::Type InAxis, TArray<int32> InSnapKeys);
+	virtual void SnapKeysToLastSelectedAxisPosition(const EAxis::Type InAxis, TArray<int32> InSnapKeys);
+
+	/** Snapping: snap key to selected actor */
+	virtual void SnapKeyToActor(const AActor* InActor, const ESplineComponentSnapMode::Type SnapMode);
+
+	/** Snapping: generic method for snapping selected keys to given transform */
+	virtual void SnapKeyToTransform(const ESplineComponentSnapMode::Type InSnapMode,
+		const FVector& InWorldPos,
+		const FVector& InWorldUpVector,
+		const FVector& InWorldForwardVector,
+		const FVector& InScale,
+		const USplineMetadata* InCopySplineMetadata = nullptr,
+		const int32 InCopySplineMetadataKey = 0);
+
+	/** Snapping: set snap to actor temporary mode */
+	virtual void SetSnapToActorMode(const bool bInIsSnappingToActor, const ESplineComponentSnapMode::Type InSnapMode = ESplineComponentSnapMode::Snap);
+
+	/** Snapping: get snap to actor temporary mode */
+	virtual bool GetSnapToActorMode(ESplineComponentSnapMode::Type& OutSnapMode) const;
+
+	/** Reset temporary modes after inputs are handled. */
+	virtual void ResetTempModes();
 
 	void OnDeleteKey();
 	bool CanDeleteKey() const;
@@ -175,14 +201,13 @@ protected:
 	void OnAddKeyToSegment();
 	bool CanAddKeyToSegment() const;
 
-	void OnSnapToNearestSplinePoint(ESplineComponentSnapMode::Type InSnapMode);
-	bool CanSnapToNearestSplinePoint() const;
+	void OnSnapKeyToNearestSplinePoint(ESplineComponentSnapMode::Type InSnapMode);
+
+	void OnSnapKeyToActor(const ESplineComponentSnapMode::Type InSnapMode);
 
 	void OnSnapAllToAxis(EAxis::Type InAxis);
-	bool CanSnapAllToAxis() const;
 
 	void OnSnapSelectedToAxis(EAxis::Type InAxis);
-	bool CanSnapSelectedToAxis() const;
 
 	void OnLockAxis(EAxis::Type InAxis);
 	bool IsLockAxisSet(EAxis::Type InAxis) const; 
@@ -277,6 +302,12 @@ protected:
 	/** Axis to fix when adding new spline points. Uses the value of the currently 
 	    selected spline point's X, Y, or Z value when fix is not equal to none. */
 	EAxis::Type AddKeyLockedAxis;
+
+	/** Snap: True when in process of snapping to actor which needs to be Ctrl-Selected. */
+	bool bIsSnappingToActor;
+
+	/** Snap: Snap to actor mode. */
+	ESplineComponentSnapMode::Type SnapToActorMode;
 
 	FProperty* SplineCurvesProperty;
 
