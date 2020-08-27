@@ -23,6 +23,21 @@ bool FWildcardNodeUtils::IsWildcardPin(const UEdGraphPin* const Pin)
 	return Pin && Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard;
 }
 
+bool FWildcardNodeUtils::IsLinkedToWildcard(const UEdGraphPin* const Pin)
+{
+	if (Pin)
+	{
+		for (const UEdGraphPin* const LinkedPin : Pin->LinkedTo)
+		{
+			if (FWildcardNodeUtils::IsWildcardPin(LinkedPin))
+			{
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 UEdGraphPin* FWildcardNodeUtils::CreateWildcardPin(UEdGraphNode* Node, const FName PinName, const EEdGraphPinDirection Direction, const EPinContainerType ContainerType/* = EPinContainerType::None*/)
 {
 	check(Node);

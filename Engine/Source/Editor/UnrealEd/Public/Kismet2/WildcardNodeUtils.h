@@ -28,6 +28,13 @@ public:
 	static bool IsWildcardPin(const UEdGraphPin* const Pin);
 
 	/**
+	* Checks if the given pin is linked to any wildcard pins
+	* 
+	* @return	True if the given pin is linked to any wildcard pins
+	*/
+	static bool IsLinkedToWildcard(const UEdGraphPin* const Pin);
+
+	/**
 	* Add a default wildcard pin to the given node
 	* 
 	* @param Node				The node to add this pin to
