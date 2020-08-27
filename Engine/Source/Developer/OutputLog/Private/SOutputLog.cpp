@@ -219,6 +219,7 @@ TSharedRef<ITableRow> SConsoleInputBox::MakeSuggestionListItemWidget(TSharedPtr<
 			.Text(FText::FromString(SanitizedText))
 			.TextStyle(FEditorStyle::Get(), "Log.Normal")
 			.HighlightText(Suggestions.SuggestionsHighlight)
+			.ColorAndOpacity(FSlateColor::UseForeground())
 		];
 }
 

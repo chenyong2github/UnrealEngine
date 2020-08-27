@@ -967,7 +967,7 @@ void FStarshipEditorStyle::FStyle::SetupGeneralStyles()
 			.SetFont(DEFAULT_FONT("Mono", LogFontSize))
 			.SetColorAndOpacity(LogColor_Normal)
 			.SetSelectedBackgroundColor(LogColor_SelectionBackground)
-			.SetHighlightColor(FLinearColor::White);
+			.SetHighlightColor(FStyleColors::Black);
 
 		Set("Log.Normal", NormalLogText );
 
