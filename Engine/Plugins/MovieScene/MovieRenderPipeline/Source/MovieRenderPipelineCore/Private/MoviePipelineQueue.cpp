@@ -147,3 +147,57 @@ void UMoviePipelineExecutorJob::OnDuplicated_Implementation()
 	StatusProgress = 0.f;
 	SetConsumed(false);
 }
+
+UMoviePipelineShotConfig* UMoviePipelineExecutorShot::AllocateNewShotOverrideConfig(TSubclassOf<UMoviePipelineShotConfig> InConfigType)
+{
+	if (!ensureAlwaysMsgf(InConfigType, TEXT("Failed to specify a Config Type. Use the default in project setting or UMoviePipelineShotConfig.")))
+	{
+		InConfigType = UMoviePipelineShotConfig::StaticClass();
+	}
+
+#if WITH_EDITOR
+	Modify();
+#endif
+
+	ShotOverrideConfig = NewObject<UMoviePipelineShotConfig>(this, InConfigType);
+	ShotOverrideConfig->SetFlags(RF_Transactional);
+
+	return ShotOverrideConfig;
+}
+
+void UMoviePipelineExecutorShot::SetShotOverrideConfiguration(UMoviePipelineShotConfig* InPreset)
+{
+	if (InPreset)
+	{
+		if (ShotOverrideConfig == nullptr)
+		{
+			AllocateNewShotOverrideConfig(UMoviePipelineShotConfig::StaticClass());
+		}
+
+		ShotOverrideConfig->CopyFrom(InPreset);
+	}
+	else
+	{
+		ShotOverrideConfig = nullptr;
+	}
+
+	ShotOverridePresetOrigin = nullptr;
+}
+
+void UMoviePipelineExecutorShot::SetShotOverridePresetOrigin(UMoviePipelineShotConfig* InPreset)
+{
+	if (InPreset)
+	{
+		if (ShotOverrideConfig == nullptr)
+		{
+			AllocateNewShotOverrideConfig(UMoviePipelineShotConfig::StaticClass());
+		}
+
+		ShotOverrideConfig->CopyFrom(InPreset);
+		ShotOverridePresetOrigin = TSoftObjectPtr<UMoviePipelineShotConfig>(InPreset);
+	}
+	else
+	{
+		ShotOverridePresetOrigin.Reset();
+	}
+}

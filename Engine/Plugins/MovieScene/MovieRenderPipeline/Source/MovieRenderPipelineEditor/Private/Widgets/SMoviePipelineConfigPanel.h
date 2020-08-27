@@ -13,7 +13,7 @@ class SMoviePipelineConfigEditor;
 struct FAssetData;
 class UMoviePipelineExecutorJob;
 
-DECLARE_DELEGATE_TwoParams(FOnMoviePipelineConfigChanged, TWeakObjectPtr<UMoviePipelineExecutorJob>, UMoviePipelineConfigBase*)
+DECLARE_DELEGATE_ThreeParams(FOnMoviePipelineConfigChanged, TWeakObjectPtr<UMoviePipelineExecutorJob>, TWeakObjectPtr<UMoviePipelineExecutorShot>, UMoviePipelineConfigBase*)
 
 /**
  * Outermost widget that is used for setting up a new movie render pipeline config. Operates on a transient UMovieRenderShotConfig that is internally owned and maintained 
@@ -26,9 +26,11 @@ public:
 
 	SLATE_BEGIN_ARGS(SMoviePipelineConfigPanel)
 		: _BasePreset(nullptr)
+		,  _BaseConfig(nullptr)
 
 		{}
 		SLATE_ARGUMENT(TWeakObjectPtr<UMoviePipelineExecutorJob>, Job)
+		SLATE_ARGUMENT(TWeakObjectPtr<UMoviePipelineExecutorShot>, Shot)
 
 		SLATE_EVENT(FOnMoviePipelineConfigChanged, OnConfigurationModified)
 		SLATE_EVENT(FOnMoviePipelineConfigChanged, OnConfigurationSetToPreset)
@@ -47,6 +49,7 @@ public:
 	void Construct(const FArguments& InArgs, TSubclassOf<UMoviePipelineConfigBase> InConfigType);
 	UMoviePipelineConfigBase* GetPipelineConfig() const;
 	UMoviePipelineExecutorJob* GetOwningJob() const;
+	UMoviePipelineExecutorShot* GetOwningShot() const;
 
 private:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -89,6 +92,9 @@ private:
 
 	/** The job this editing panel is for. Kept alive externally. */
 	TWeakObjectPtr<UMoviePipelineExecutorJob> WeakJob;
+
+	/** The job this editing panel is for. Kept alive externally. */
+	TWeakObjectPtr<UMoviePipelineExecutorShot> WeakShot;
 
 	/** The main movie pipeline editor widget */
 	TSharedPtr<SMoviePipelineConfigEditor> MoviePipelineEditorWidget;
