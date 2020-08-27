@@ -12,6 +12,7 @@
 #include "Engine/DirectionalLight.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "SubTransformProxy.h"
+#include "BaseGizmos/GizmoBaseComponent.h"
 
 #include "DirectionalLightGizmo.generated.h"
 
@@ -34,10 +35,10 @@ public:
 	ADirectionalLightGizmoActor();
 
 	// The handle to rotate around its y axis
-	UPrimitiveComponent* Arrow;
+	UGizmoBaseComponent* Arrow;
 
 	// The handle to rotate around the world z axis
-	UPrimitiveComponent* RotationZCircle;
+	UGizmoBaseComponent* RotationZCircle;
 };
 
 /**
@@ -64,24 +65,27 @@ public:
 	USubTransformProxy* GetTransformProxy();
 
 	// IHoverBehaviorTarget interface
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override { return FInputRayHit(); }
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
 	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override { return true; }
-	virtual void OnEndHover() override {}
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 	virtual void SetSelectedObject(ADirectionalLight* InLight);
 	virtual void SetWorld(UWorld* InWorld);
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
+	virtual void OnEndDrag(const FInputDeviceRay& Ray);
 
 	/** Check if any of the components are hit by the input ray */
-	bool HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UPrimitiveComponent*& OutHitComponent);
+	bool HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UGizmoBaseComponent*& OutHitComponent);
 
 private:
 
 	void CreateGizmoHandles();
 	void UpdateGizmoHandles();
+
+	void UpdateHandleColors();
 
 	void OnTransformChanged(UTransformProxy*, FTransform);
 
@@ -103,6 +107,12 @@ private:
 	UPROPERTY()
 	ADirectionalLight* LightActor;
 
+	UPROPERTY()
+	bool bIsHovering{ false };
+
+	UPROPERTY()
+	bool bIsDragging{ false };
+
 	/** Parameters used during hit testing */
 	UPROPERTY()
 	FVector DragStartWorldPosition;
@@ -123,7 +133,7 @@ private:
 	FVector RotationPlaneZ;
 
 	UPROPERTY()
-	UPrimitiveComponent* HitComponent;
+	UGizmoBaseComponent* HitComponent;
 
 	UPROPERTY()
 	float ArrowLength{ 120.f };

@@ -40,14 +40,15 @@ void UScalableSphereGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	if (ActiveTarget)
 	{
-		float UseThickness = Thickness;
+		FColor UseColor = FColor(200, 255, 255);
 
-		if (bIsHovering)
+		// Draw the gizmo in yellow and draw lines showing drag direction if hovering or dragging
+		if (bIsHovering || bIsDragging)
 		{
-			UseThickness = HoverThickness;
+			UseColor = FColor::Yellow;
 
 			// Parameters for the line that shows the drag direction
-			FVector LineStart = DragStartWorldPosition;
+			FVector LineStart = DragCurrentPositionProjected;
 			float LineLength = 30.f;
 			FVector LineEnd = LineStart + ActiveAxis * LineLength;
 
@@ -57,16 +58,10 @@ void UScalableSphereGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 
 			// Draw the lines in both directions
 			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart + ActiveAxis * PixelToWorld * LineLength, FLinearColor::Red, SDPG_Foreground);
-			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart - ActiveAxis * PixelToWorld* LineLength, FLinearColor::Red, SDPG_Foreground);
-
-			// Figure out the correct thickness of the sphere in world coordinates
-			FVector CircleEndWithThickness = LineStart + ActiveAxis * UseThickness;
-			float ScreenThickness = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, CircleEndWithThickness);
-
-			UseThickness *= ScreenThickness;
+			RenderAPI->GetPrimitiveDrawInterface()->DrawLine(LineStart, LineStart - ActiveAxis * PixelToWorld * LineLength, FLinearColor::Red, SDPG_Foreground);
 		}
 
-		DrawWireSphereAutoSides(RenderAPI->GetPrimitiveDrawInterface(), ActiveTarget->GetTransform(), FColor(200, 255, 255), Radius, SDPG_Foreground, UseThickness);
+		DrawWireSphereAutoSides(RenderAPI->GetPrimitiveDrawInterface(), ActiveTarget->GetTransform(), UseColor, Radius, SDPG_Foreground);
 	}
 }
 
@@ -80,11 +75,13 @@ FInputRayHit UScalableSphereGizmo::BeginHoverSequenceHitTest(const FInputDeviceR
 	{
 		bIsHovering = true;
 		DragStartWorldPosition = DragTransform.GetLocation();
+		DragCurrentPositionProjected = DragStartWorldPosition;
 		ActiveAxis = HitAxis;
 		
 		return FInputRayHit(HitResult.Distance);
 	}
 	
+	bIsHovering = false;
 	// Return invalid ray hit to say we don't want to listen to hover input
 	return FInputRayHit();
 }
@@ -93,6 +90,7 @@ bool UScalableSphereGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	if (!ActiveTarget)
 	{
+		bIsHovering = false;
 		return false;
 	}
 
@@ -109,10 +107,12 @@ bool UScalableSphereGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	{
 		bIsHovering = true;
 		DragStartWorldPosition = DragTransform.GetLocation();
+		DragCurrentPositionProjected = DragStartWorldPosition;
 		ActiveAxis = HitAxis;
 		return true;
 	}
 
+	bIsHovering = false;
 	return false;
 }
 
@@ -251,6 +251,9 @@ void UScalableSphereGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 			RayNearestPt, RayNearestParam);
 
 		DragStartWorldPosition = DragTransform.GetLocation();
+		DragCurrentPositionProjected = DragStartWorldPosition;
+
+		bIsDragging = true;
 	}
 }
 
@@ -273,8 +276,15 @@ void UScalableSphereGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 
 	InteractionStartParameter = InteractionCurrentParameter;
 
+	DragCurrentPositionProjected = AxisNearestPt;
+
 	 // Update the radius
 	SetRadius(Radius + DeltaParam);
+}
+
+void UScalableSphereGizmo::OnEndDrag(const FInputDeviceRay& Ray)
+{
+	bIsDragging = false;
 }
 
 // UScalableSphereGizmoInputBehavior
@@ -322,6 +332,7 @@ FInputCaptureUpdate UScalableSphereGizmoInputBehavior::UpdateCapture(const FInpu
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
+		Gizmo->OnEndDrag(LastWorldRay);
 		return FInputCaptureUpdate::End();
 	}
 
@@ -336,5 +347,6 @@ void UScalableSphereGizmoInputBehavior::ForceEndCapture(const FInputCaptureData&
 	if (bInputDragCaptured)
 	{
 		bInputDragCaptured = false;
+		Gizmo->OnEndDrag(LastWorldRay);
 	}
 }

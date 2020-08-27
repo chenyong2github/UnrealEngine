@@ -10,6 +10,7 @@
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "SceneManagement.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
 
 // UDirectionalLightGizmoBuilder
 
@@ -49,6 +50,10 @@ void UDirectionalLightGizmo::Setup()
 	UDirectionalLightGizmoInputBehavior* DirectionalLightBehavior = NewObject<UDirectionalLightGizmoInputBehavior>(this);
 	DirectionalLightBehavior->Initialize(this);
 	AddInputBehavior(DirectionalLightBehavior);
+
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>(this);
+	HoverBehavior->Initialize(this);
+	AddInputBehavior(HoverBehavior);
 
 	CreateGizmoHandles();
 
@@ -120,6 +125,56 @@ USubTransformProxy* UDirectionalLightGizmo::GetTransformProxy()
 	return TransformProxy;
 }
 
+FInputRayHit UDirectionalLightGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FHitResult HitResult;
+	FTransform DragTransform;
+
+	if (HitTest(PressPos.WorldRay, HitResult, DragTransform, HitComponent))
+	{
+		bIsHovering = true;
+		UpdateHandleColors();
+		return FInputRayHit(HitResult.Distance);
+	}
+
+	bIsHovering = false;
+	// Return invalid ray hit to say we don't want to listen to hover input
+	return FInputRayHit();
+}
+
+bool UDirectionalLightGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	if (!LightActor)
+	{
+		bIsHovering = false;
+		return false;
+	}
+
+	FVector Start = DevicePos.WorldRay.Origin;
+	const float MaxRaycastDistance = 1e6f;
+	FVector End = DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * MaxRaycastDistance;
+
+	FRay HitCheckRay(Start, End - Start);
+	FHitResult HitResult;
+	FTransform DragTransform;
+
+	if (HitTest(HitCheckRay, HitResult, DragTransform, HitComponent))
+	{
+		bIsHovering = true;
+		return true;
+	}
+
+	bIsHovering = false;
+	return false;
+}
+
+void UDirectionalLightGizmo::OnEndHover()
+{
+	bIsHovering = false;
+
+	UpdateHandleColors();
+}
+
 void UDirectionalLightGizmo::SetSelectedObject(ADirectionalLight* InLight)
 {
 	LightActor = InLight;
@@ -160,16 +215,19 @@ void UDirectionalLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 	// Check if any component was hit
 	if (HitTest(HitCheckRay, HitResult, DragTransform, HitComponent))
 	{
+		bIsDragging = true;
+		UpdateHandleColors();
+
 		// Rotate around y axis if the arrow was hit
 		if (HitComponent == GizmoActor->Arrow)
 		{
-			HitAxis = FVector::YAxisVector;
+			HitAxis = LightActor->GetActorRotation().RotateVector(FVector::YAxisVector);
 
 			// Get the rotated plane vectors for the interaction
 			GizmoMath::MakeNormalPlaneBasis(HitAxis, RotationPlaneX, RotationPlaneZ);
 			RotationPlaneX = LightActor->GetActorRotation().RotateVector(FVector::XAxisVector);
 			RotationPlaneZ = LightActor->GetActorRotation().RotateVector(FVector::ZAxisVector);
-
+			
 		}
 		// Rotate around Z axis if the circle was hit
 		else
@@ -246,7 +304,14 @@ void UDirectionalLightGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 
 }
 
-bool UDirectionalLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UPrimitiveComponent*& OutHitComponent)
+void UDirectionalLightGizmo::OnEndDrag(const FInputDeviceRay& Ray)
+{
+	bIsDragging = false;
+
+	UpdateHandleColors();
+}
+
+bool UDirectionalLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UGizmoBaseComponent*& OutHitComponent)
 {
 	FVector Start = Ray.Origin;
 	const float MaxRaycastDistance = 1e6f;
@@ -283,6 +348,27 @@ void UDirectionalLightGizmo::UpdateGizmoHandles()
 	if (GizmoActor && GizmoActor->RotationZCircle)
 	{
 		GizmoActor->RotationZCircle->SetRelativeRotation(GizmoActor->GetActorRotation().Quaternion().Inverse());
+	}
+}
+
+void UDirectionalLightGizmo::UpdateHandleColors()
+{
+	if (bIsHovering || bIsDragging)
+	{
+		if (HitComponent)
+		{
+			HitComponent->Color = FLinearColor::Yellow;
+			HitComponent->NotifyExternalPropertyUpdates();
+		}
+	}
+	else
+	{
+		GizmoActor->Arrow->Color = FLinearColor::Red;
+		GizmoActor->Arrow->NotifyExternalPropertyUpdates();
+
+		GizmoActor->RotationZCircle->Color = FLinearColor::Blue;
+		GizmoActor->RotationZCircle->NotifyExternalPropertyUpdates();
+
 	}
 }
 
@@ -330,7 +416,7 @@ FInputCaptureRequest UDirectionalLightGizmoInputBehavior::WantsCapture(const FIn
 	{
 		FHitResult HitResult;
 		FTransform DragTransform;
-		UPrimitiveComponent* HitComponent = nullptr;
+		UGizmoBaseComponent* HitComponent = nullptr;
 		if (Gizmo->HitTest(input.Mouse.WorldRay, HitResult, DragTransform, HitComponent))
 		{
 			return FInputCaptureRequest::Begin(this, EInputCaptureSide::Any, HitResult.Distance);
@@ -360,6 +446,7 @@ FInputCaptureUpdate UDirectionalLightGizmoInputBehavior::UpdateCapture(const FIn
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
+		Gizmo->OnEndDrag(LastWorldRay);
 		return FInputCaptureUpdate::End();
 	}
 
@@ -372,6 +459,7 @@ void UDirectionalLightGizmoInputBehavior::ForceEndCapture(const FInputCaptureDat
 {
 	if (bInputDragCaptured)
 	{
+		Gizmo->OnEndDrag(LastWorldRay);
 		bInputDragCaptured = false;
 	}
 }

@@ -54,6 +54,7 @@ public:
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
+	virtual void OnEndDrag(const FInputDeviceRay& Ray);
 
 	/** Check if the input ray hits the cone. The hit testable parts of the cone currently is just 
 	 *  the circle at its base
@@ -76,9 +77,6 @@ public:
 	UPROPERTY()
 	float HitErrorThreshold{ 12.f };
 
-	// The thickness of the base of the cone when being hovered over (in screen space)
-	UPROPERTY()
-	float HoverThickness{ 5.f };
 
 	/** Called when the Angle of the cone is changed. Sends new angle as parameter. */
 	TFunction<void(const float)> UpdateAngleFunc = nullptr;
@@ -96,6 +94,10 @@ private:
 	UPROPERTY()
 	bool bIsHovering{ false };
 
+	/** Whether the gizmo is being dragged */
+	UPROPERTY()
+	bool bIsDragging{ false };
+
 	UPROPERTY()
 	UTransformProxy* ActiveTarget;
 
@@ -103,6 +105,10 @@ private:
 
 	UPROPERTY()
 	FVector DragStartWorldPosition;
+
+	// The position the drag is on currently (projected onto the line it is being dragged along)
+	UPROPERTY()
+	FVector DragCurrentPositionProjected;
 
 	UPROPERTY()
 	FVector InteractionStartPoint;

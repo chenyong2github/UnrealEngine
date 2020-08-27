@@ -42,7 +42,8 @@ void UScalableConeGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		DrawWireSphereCappedCone(RenderAPI->GetPrimitiveDrawInterface(), ActiveTarget->GetTransform(), Length, Angle, 32, 8, 10, ConeColor, SDPG_Foreground);
 
-		if (bIsHovering)
+		// Draw the yellow circle as a hightlight when hovering or dragging
+		if (bIsHovering || bIsDragging)
 		{
 			FVector WorldOrigin = ActiveTarget->GetTransform().GetLocation();
 			FVector CircleNormal = ActiveTarget->GetTransform().GetRotation().Vector();
@@ -59,24 +60,19 @@ void UScalableConeGizmo::Render(IToolsContextRenderAPI* RenderAPI)
 			// Direction vectors to represent the circle
 			GizmoMath::MakeNormalPlaneBasis(CircleNormal, CircleX, CircleY);
 
-			float CircleThickness = HoverThickness;
+			DrawCircle(RenderAPI->GetPrimitiveDrawInterface(), CircleOrigin, CircleX, CircleY, FLinearColor::Yellow, ConeRadius, 32, SDPG_Foreground, 0, 0.1f);
+		}
 
-			// Figure out the correct thickness of the Circle in world coordinates
-			const FSceneView* View = RenderAPI->GetSceneView();
-
-			FVector CircleEndWithThickness = DragStartWorldPosition + CircleX * CircleThickness;
-			float ScreenThickness = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, CircleEndWithThickness);
-
-			CircleThickness *= ScreenThickness;
-
-			DrawCircle(RenderAPI->GetPrimitiveDrawInterface(), CircleOrigin, CircleX, CircleY, ConeColor, ConeRadius, 32, SDPG_Foreground, CircleThickness);
-
+		// Draw the lines to show which direction to drag in while hovering
+		if (bIsHovering)
+		{
 			// Parameters for the line that shows the drag direction
-			FVector LineStart = DragStartWorldPosition;
+			FVector LineStart = DragCurrentPositionProjected;
 			float LineLength = 30.f;
 			FVector LineEnd = LineStart + HitAxis * LineLength;
 
 			// Get the Pixel to World scale of the line
+			const FSceneView* View = RenderAPI->GetSceneView();
 			float PixelToWorld = GizmoRenderingUtil::CalculateLocalPixelToWorldScale(View, LineEnd);
 
 			// Draw the lines in both directions
@@ -128,11 +124,13 @@ FInputRayHit UScalableConeGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay
 	{
 		bIsHovering = true;
 		DragStartWorldPosition = DragTransform.GetLocation();
+		DragCurrentPositionProjected = DragStartWorldPosition;
 		HitAxis = TestHitAxis;
 
 		return FInputRayHit(HitResult.Distance);
 	}
 
+	bIsHovering = false;
 	// Return invalid ray hit to say we don't want to listen to hover input
 	return FInputRayHit();
 }
@@ -141,6 +139,7 @@ bool UScalableConeGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
 {
 	if (!ActiveTarget)
 	{
+		bIsHovering = false;
 		return false;
 	}
 
@@ -157,10 +156,12 @@ bool UScalableConeGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
 	{
 		bIsHovering = true;
 		DragStartWorldPosition = DragTransform.GetLocation();
+		DragCurrentPositionProjected = DragStartWorldPosition;
 		HitAxis = TestHitAxis;
 		return true;
 	}
 
+	bIsHovering = false;
 	return false;
 }
 
@@ -251,6 +252,9 @@ void UScalableConeGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 			RayNearestPt, RayNearestParam);
 
 		DragStartWorldPosition = DragTransform.GetLocation();
+		DragCurrentPositionProjected = DragStartWorldPosition;
+
+		bIsDragging = true;
 	}
 }
 
@@ -294,7 +298,13 @@ void UScalableConeGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 	SetAngleDegrees(Angle + FMath::RadiansToDegrees(DeltaAngle));
 
 	InteractionStartPoint = AxisNearestPt;
+	DragCurrentPositionProjected = AxisNearestPt;
 	InteractionStartParameter = AxisNearestParam;
+}
+
+void UScalableConeGizmo::OnEndDrag(const FInputDeviceRay& Ray)
+{
+	bIsDragging = false;
 }
 
 // UScalableConeGizmoInputBehavior
@@ -340,6 +350,7 @@ FInputCaptureUpdate UScalableConeGizmoInputBehavior::UpdateCapture(const FInputD
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
+		Gizmo->OnEndDrag(LastWorldRay);
 		return FInputCaptureUpdate::End();
 	}
 
@@ -353,5 +364,6 @@ void UScalableConeGizmoInputBehavior::ForceEndCapture(const FInputCaptureData& d
 	if (bInputDragCaptured)
 	{
 		bInputDragCaptured = false;
+		Gizmo->OnEndDrag(LastWorldRay);
 	}
 }

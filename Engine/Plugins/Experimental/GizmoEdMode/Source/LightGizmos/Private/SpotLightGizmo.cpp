@@ -9,6 +9,7 @@
 #include "BaseGizmos/GizmoMath.h"
 #include "Components/SphereComponent.h"
 #include "BaseGizmos/GizmoLineHandleComponent.h"
+#include "BaseBehaviors/MouseHoverBehavior.h"
 
 // USpotLightGizmoBuilder
 
@@ -45,6 +46,10 @@ void USpotLightGizmo::Setup()
 	USpotLightGizmoInputBehavior* SpotLightBehavior = NewObject<USpotLightGizmoInputBehavior>(this);
 	SpotLightBehavior->Initialize(this);
 	AddInputBehavior(SpotLightBehavior);
+
+	UMouseHoverBehavior* HoverBehavior = NewObject<UMouseHoverBehavior>(this);
+	HoverBehavior->Initialize(this);
+	AddInputBehavior(HoverBehavior);
 }
 
 void USpotLightGizmo::Tick(float DeltaTime)
@@ -87,6 +92,80 @@ void USpotLightGizmo::Shutdown()
 		GizmoActor->Destroy();
 		GizmoActor = nullptr;
 	}
+}
+
+FInputRayHit USpotLightGizmo::BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos)
+{
+	FHitResult HitResult;
+	FVector HitAxis;
+	FTransform DragTransform;
+
+	if (HitTest(PressPos.WorldRay, HitResult, DragTransform))
+	{
+		bIsHovering = true;
+		DragStartWorldPosition = DragTransform.GetLocation();
+		UpdateHandleColors();
+		return FInputRayHit(HitResult.Distance);
+	}
+
+	// check to avoid refreshing handle colors constantly even if not required
+	if (bIsHovering)
+	{
+		bIsHovering = false;
+		UpdateHandleColors();
+	}
+	
+	// Return invalid ray hit to say we don't want to listen to hover input
+	return FInputRayHit();
+}
+
+bool USpotLightGizmo::OnUpdateHover(const FInputDeviceRay& DevicePos)
+{
+	if (!LightActor)
+	{
+		bIsHovering = false;
+		return false;
+	}
+
+	FVector Start = DevicePos.WorldRay.Origin;
+	const float MaxRaycastDistance = 1e6f;
+	FVector End = DevicePos.WorldRay.Origin + DevicePos.WorldRay.Direction * MaxRaycastDistance;
+
+	FRay HitCheckRay(Start, End - Start);
+	FHitResult HitResult;
+	FTransform DragTransform;
+
+	if (HitTest(HitCheckRay, HitResult, DragTransform))
+	{
+		bIsHovering = true;
+		DragStartWorldPosition = DragTransform.GetLocation();
+		return true;
+	}
+
+	bIsHovering = false;
+	return false;
+}
+
+void USpotLightGizmo::OnEndHover()
+{
+	bIsHovering = false;
+
+	UpdateHandleColors();
+}
+
+void USpotLightGizmo::UpdateHandleColors()
+{
+	if (bIsHovering || bIsDragging)
+	{
+		GizmoActor->AttenuationScaleHandle->Color = FLinearColor::Yellow;
+	}
+	else
+	{
+		GizmoActor->AttenuationScaleHandle->Color = FLinearColor::Blue;
+	}
+
+	GizmoActor->AttenuationScaleHandle->NotifyExternalPropertyUpdates();
+
 }
 
 void USpotLightGizmo::SetSelectedObject(ASpotLight* InLight)
@@ -205,6 +284,10 @@ void USpotLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 			RayNearestPt, RayNearestParam);
 
 		DragStartWorldPosition = DragTransform.GetLocation();
+
+		bIsDragging = true;
+
+		UpdateHandleColors();
 	}
 }
 
@@ -242,6 +325,13 @@ void USpotLightGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 	{
 		InnerAngleGizmo->SetLength(NewAttenuation);
 	}
+}
+
+void USpotLightGizmo::OnEndDrag(const FInputDeviceRay& Ray)
+{
+	bIsDragging = false;
+
+	UpdateHandleColors();
 }
 
 bool USpotLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform)
@@ -327,6 +417,7 @@ FInputCaptureUpdate USpotLightGizmoInputBehavior::UpdateCapture(const FInputDevi
 	if (IsReleased(input))
 	{
 		bInputDragCaptured = false;
+		Gizmo->OnEndDrag(LastWorldRay);
 		return FInputCaptureUpdate::End();
 	}
 
@@ -339,6 +430,7 @@ void USpotLightGizmoInputBehavior::ForceEndCapture(const FInputCaptureData& data
 {
 	if (bInputDragCaptured)
 	{
+		Gizmo->OnEndDrag(LastWorldRay);
 		bInputDragCaptured = false;
 	}
 }

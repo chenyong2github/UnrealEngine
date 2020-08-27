@@ -6,6 +6,8 @@
 #include "Engine/SpotLight.h"
 #include "InteractiveGizmo.h"
 #include "SubTransformProxy.h"
+#include "BaseBehaviors/BehaviorTargetInterfaces.h"
+#include "BaseGizmos/GizmoBaseComponent.h"
 
 #include "SpotLightGizmo.generated.h"
 
@@ -28,7 +30,7 @@ public:
 	ASpotLightGizmoActor();
 
 	 // The handle to drag and scale the attenuation
-	UPrimitiveComponent* AttenuationScaleHandle;
+	UGizmoBaseComponent* AttenuationScaleHandle;
 };
 
 
@@ -38,7 +40,7 @@ public:
  *
  */
 UCLASS()
-class USpotLightGizmo : public UInteractiveGizmo
+class USpotLightGizmo : public UInteractiveGizmo, public IHoverBehaviorTarget
 {
 	GENERATED_BODY()
 
@@ -50,6 +52,12 @@ public:
 	virtual void Tick(float DeltaTime) override;
 
 	virtual void Shutdown() override;
+
+	// IHoverBehaviorTarget interface
+	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
+	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {}
+	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
+	virtual void OnEndHover() override;
 
 	USpotLightGizmo();
 
@@ -70,6 +78,7 @@ public:
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
+	virtual void OnEndDrag(const FInputDeviceRay& Ray);
 
 	/** Check if the Input ray hit any of the components of the gizmo*/
 	bool HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform);
@@ -109,9 +118,17 @@ private:
 	UPROPERTY()
 	float InteractionStartParameter;
 
+	UPROPERTY()
+	bool bIsHovering{ false };
+
+	UPROPERTY()
+	bool bIsDragging{ false };
+
 	void OnOuterAngleUpdate(float NewAngle);
 	void OnInnerAngleUpdate(float NewAngle);
 	void OnTransformChanged(UTransformProxy*, FTransform);
+
+	void UpdateHandleColors();
 };
 
 /**

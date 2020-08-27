@@ -47,6 +47,7 @@ public:
 
 	virtual void OnBeginDrag(const FInputDeviceRay& Ray);
 	virtual void OnUpdateDrag(const FInputDeviceRay& Ray);
+	virtual void OnEndDrag(const FInputDeviceRay& Ray);
 
 	/** Check if the input Ray hit any of the components of the internal actor */
 	bool HitTest(const FRay& Ray, FHitResult& OutHit, FVector& OutAxis, FTransform& OutTransform);
@@ -61,10 +62,6 @@ public:
 	UPROPERTY()
 	float HitErrorThreshold{ 12.f };
 
-	// The thickness of the sphere when being hovered over (in screen space)
-	UPROPERTY()
-	float HoverThickness{ 5.f };
-
 private:
 
 	// Check if the Circle represented by CircleNormal centered at the gizmos location has been hit by the Ray
@@ -74,13 +71,13 @@ private:
 	UPROPERTY()
 	float Radius;
 
-	// The thickness of the sphere
-	UPROPERTY()
-	float Thickness{ 0.f };
-
 	// Whether the sphere is currently being hovered over
 	UPROPERTY()
 	bool bIsHovering{ false };
+
+	// Whether the sphere is currently being dragged
+	UPROPERTY()
+	bool bIsDragging{ false };
 
 	UPROPERTY()
 	UTransformProxy* ActiveTarget;
@@ -92,6 +89,10 @@ private:
 	// The position the drag was started on
 	UPROPERTY()
 	FVector DragStartWorldPosition;
+
+	// The position the drag is on currently (projected onto the line it is being dragged along)
+	UPROPERTY()
+	FVector DragCurrentPositionProjected;
 
 	// The initial parameter along the drag axist
 	UPROPERTY()
