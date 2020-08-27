@@ -18,6 +18,8 @@
 #include "BlueprintNodeSpawnerUtils.h"
 #include "BlueprintEditorSettings.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "BlueprintTypePromotion.h"
+#include "K2Node_PromotableOperator.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintFunctionNodeSpawner"
 
@@ -187,8 +189,14 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(UFunction c
 	bool const bIsMaterialParamCollectionFunc = Function->HasMetaData(FBlueprintMetadata::MD_MaterialParameterCollectionFunction);
 	bool const bIsDataTableFunc = Function->HasMetaData(FBlueprintMetadata::MD_DataTablePin);
 
+	bool const bIsPromotableFunction = TypePromoDebug::IsTypePromoEnabled() && FTypePromotion::IsFunctionPromotionReady(Function);
+
 	TSubclassOf<UK2Node_CallFunction> NodeClass;
-	if (bIsCommutativeAssociativeBinaryOp && bIsPure)
+	if (bIsPromotableFunction)
+	{
+		NodeClass = UK2Node_PromotableOperator::StaticClass();
+	}
+	else if(bIsCommutativeAssociativeBinaryOp && bIsPure)
 	{
 		NodeClass = UK2Node_CommutativeAssociativeBinaryOperator::StaticClass();
 	}
@@ -225,6 +233,22 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 	// Constructing the Spawner
 	//--------------------------------------
 
+	bool const bIsPromotableFunction =
+		TypePromoDebug::IsTypePromoEnabled() &&
+		FTypePromotion::IsFunctionPromotionReady(Function);
+
+	FString OpName;
+	FTypePromotion::GetOpNameFromFunction(Function, OpName);
+
+	// If a spawner for this operator has been created already, than just return that
+	if (bIsPromotableFunction && FTypePromotion::IsOperatorSpawnerRegistered(Function))
+	{
+		if (UBlueprintFunctionNodeSpawner* OpSpawner = FTypePromotion::GetOperatorSpawner(OpName))
+		{
+			return OpSpawner;
+		}
+	}
+
 	UBlueprintFunctionNodeSpawner* NodeSpawner = NewObject<UBlueprintFunctionNodeSpawner>(Outer);
 	NodeSpawner->SetField(const_cast<UFunction*>(Function));
 
@@ -242,11 +266,29 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 	//--------------------------------------
 
 	FBlueprintActionUiSpec& MenuSignature = NodeSpawner->DefaultMenuSignature;
-	MenuSignature.MenuName = UK2Node_CallFunction::GetUserFacingFunctionName(Function);
-	MenuSignature.Category = UK2Node_CallFunction::GetDefaultCategoryForFunction(Function, FText::GetEmpty());
-	MenuSignature.Tooltip  = FText::FromString( UK2Node_CallFunction::GetDefaultTooltipForFunction(Function) );
-	// add at least one character, so that PrimeDefaultUiSpec() doesn't attempt to query the template node
-	MenuSignature.Keywords = UK2Node_CallFunction::GetKeywordsForFunction(Function);
+
+	if(bIsPromotableFunction)
+	{
+		FFormatNamedArguments Args;
+		Args.Add(TEXT("OpName"), FText::FromString(OpName));
+		MenuSignature.MenuName = FText::Format(LOCTEXT("OpName", "{OpName}"), Args);
+		MenuSignature.Category = LOCTEXT("UtilityOperatorCategory", "Utilities|Operators");
+		// Possibly generate some special tooltips for promotable operators?
+		MenuSignature.Tooltip = FText::FromString(TEXT(" "));
+		// add at least one character, so that PrimeDefaultUiSpec() doesn't attempt to query the template node
+		MenuSignature.Keywords = FText::FromString(OpName);
+		FTypePromotion::RegisterOperatorSpawner(OpName, NodeSpawner);
+	}
+	else
+	{
+		MenuSignature.MenuName = UK2Node_CallFunction::GetUserFacingFunctionName(Function);
+		MenuSignature.Category = UK2Node_CallFunction::GetDefaultCategoryForFunction(Function, FText::GetEmpty());
+		MenuSignature.Tooltip = FText::FromString(UK2Node_CallFunction::GetDefaultTooltipForFunction(Function));
+		// add at least one character, so that PrimeDefaultUiSpec() doesn't attempt to query the template node
+		MenuSignature.Keywords = UK2Node_CallFunction::GetKeywordsForFunction(Function);
+	}
+	
+	
 	if (MenuSignature.Keywords.IsEmpty())
 	{
 		MenuSignature.Keywords = FText::FromString(TEXT(" "));
@@ -259,7 +301,7 @@ UBlueprintFunctionNodeSpawner* UBlueprintFunctionNodeSpawner::Create(TSubclassOf
 		MenuSignature.Category = BlueprintFunctionNodeSpawnerImpl::FallbackCategory;
 	}
 
-	if (MenuSignature.Tooltip.IsEmpty())
+	if (MenuSignature.Tooltip.IsEmpty() && !bIsPromotableFunction)
 	{
 		MenuSignature.Tooltip = MenuSignature.MenuName;
 	}

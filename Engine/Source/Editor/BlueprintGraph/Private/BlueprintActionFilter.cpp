@@ -34,6 +34,7 @@
 // "impure" node types (utilized in BlueprintActionFilterImpl::IsImpure)
 #include "K2Node_MultiGate.h"
 #include "K2Node_Message.h"
+#include "K2Node_PromotableOperator.h"
 #include "EditorCategoryUtils.h"
 
 /*******************************************************************************
@@ -1354,6 +1355,11 @@ static bool BlueprintActionFilterImpl::IsFunctionMissingPinParam(FBlueprintActio
 		UEdGraphSchema_K2 const* K2Schema = GetDefault<UEdGraphSchema_K2>();
 		bool const bIsEventSpawner  = BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_Event>();
 		bool const bIsArrayFunction = BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_CallArrayFunction>();
+		
+		if (BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_PromotableOperator>())
+		{
+			return false;
+		}
 
 		for (int32 PinIndex = 0; !bIsFilteredOut && (PinIndex < Filter.Context.Pins.Num()); ++PinIndex)
 		{
@@ -1519,7 +1525,7 @@ static bool BlueprintActionFilterImpl::IsMissingMatchingPinParam(FBlueprintActio
 	// we have a separate pin tests for function/property nodes (IsFunctionMissingPinParam/IsMissmatchedPropertyType). Note that we only skip
 	// this test for functions with bindings (because it does not handle getting templates for all binding nodes). By running this for 
 	// other functions we ensure that IsConnectionDisallowed is honored.
-	bool const bTestPinCompatibility = (BlueprintAction.GetAssociatedProperty() == nullptr) && BlueprintAction.GetBindings().Num() == 0;
+	bool const bTestPinCompatibility = (BlueprintAction.GetAssociatedProperty() == nullptr) && BlueprintAction.GetBindings().Num() == 0 && !BlueprintAction.GetNodeClass()->IsChildOf<UK2Node_PromotableOperator>();
 
 	if (bTestPinCompatibility)
 	{
