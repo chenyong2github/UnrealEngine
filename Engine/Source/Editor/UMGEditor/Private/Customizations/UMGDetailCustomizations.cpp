@@ -115,7 +115,7 @@ void FBlueprintWidgetCustomization::CreateEventCustomization( IDetailLayoutBuild
 		.NameContent()
 		[
 			SNew(SHorizontalBox)
-
+			.ToolTipText(Property->GetToolTipText())
 			+ SHorizontalBox::Slot()
 			.AutoWidth()
 			.VAlign(VAlign_Center)
