@@ -164,6 +164,9 @@ bool FD3D12Device::GetQueryData(FD3D12RenderQuery& Query, bool bWait)
 			check(IsInRenderingThread());
 			FScopedRHIThreadStaller StallRHIThread(FRHICommandListExecutor::GetImmediateCommandList());
 			GetDefaultCommandContext().FlushCommands();	// Don't wait yet, since we're stalling the RHI thread.
+
+			// We have to make sure all command lists have actually flush and executed here
+			CommandListManager->WaitOnExecuteTask();
 		}
 
 		SyncPoint.WaitForCompletion();
