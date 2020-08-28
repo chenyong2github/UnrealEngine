@@ -114,9 +114,8 @@ void TranslucencyLightingCS(
 				float IntersectRayTime;
 				float Unused;
 
-				FGlobalSDFTraceInput SDFTraceInput;
 				float MinStepSizeScale = 1.0f / 8000.0f;
-				SDFTraceInput.Setup(WorldPosition, WorldConeDirection, VoxelTraceStartDistance * 2, TraceInput.SDFStepFactor, MinStepSizeScale);
+				FGlobalSDFTraceInput SDFTraceInput = SetupTraceInput(WorldPosition, WorldConeDirection, VoxelTraceStartDistance * 2, TraceInput.SDFStepFactor, MinStepSizeScale);
 				RayTraceThroughGlobalDistanceFieldClipmap(ClipmapIndex, SDFTraceInput, 0, NextMaxRayTime, IntersectRayTime, Unused);
 				bHitSDF = IntersectRayTime < SDFTraceInput.TraceDistance;
 			}

@@ -187,8 +187,7 @@ void LumenCardDirectLightingPS(
 							float SDFStepFactor = 1.0f;
 							float MinStepSizeScale = 1.0f / 8000.0f;
 
-							FGlobalSDFTraceInput TraceInput;
-							TraceInput.Setup(WorldPositionForSDFTrace, L, TraceDistance, SDFStepFactor, MinStepSizeScale);
+							FGlobalSDFTraceInput TraceInput = SetupTraceInput(WorldPositionForSDFTrace, L, TraceDistance, SDFStepFactor, MinStepSizeScale);
 
 							TraceInput.ExpandSurfaceStartDistance = 100;
 							TraceInput.ExpandSurfaceInvLength = 1.0f / (100);

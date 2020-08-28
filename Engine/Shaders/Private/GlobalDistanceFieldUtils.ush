@@ -14,19 +14,22 @@ struct FGlobalSDFTraceInput
 	float ExpandSurfaceStartDistance;
 	float ExpandSurfaceInvLength;
 	float ExpandSurfaceAmount;
-
-	void Setup(float3 InWorldRayStart, float3 InWorldRayDirection, float InTraceDistance, float InStepFactor, float InMinStepSizeScale)
-	{
-		WorldRayStart = InWorldRayStart;
-		WorldRayDirection = InWorldRayDirection;
-		TraceDistance = InTraceDistance;
-		StepFactor = InStepFactor;
-		MinStepSizeScale = InMinStepSizeScale;
-		ExpandSurfaceStartDistance = 0;
-		ExpandSurfaceInvLength = 0;
-		ExpandSurfaceAmount = 0;
-	}
 };
+
+FGlobalSDFTraceInput SetupTraceInput(float3 InWorldRayStart, float3 InWorldRayDirection, float InTraceDistance, float InStepFactor, float InMinStepSizeScale)
+{
+	FGlobalSDFTraceInput TraceInput;
+	TraceInput.WorldRayStart = InWorldRayStart;
+	TraceInput.WorldRayDirection = InWorldRayDirection;
+	TraceInput.TraceDistance = InTraceDistance;
+	TraceInput.StepFactor = InStepFactor;
+	TraceInput.MinStepSizeScale = InMinStepSizeScale;
+	TraceInput.ExpandSurfaceStartDistance = 0;
+	TraceInput.ExpandSurfaceInvLength = 0;
+	TraceInput.ExpandSurfaceAmount = 0;
+	return TraceInput;
+}
+
 
 void RayTraceThroughGlobalDistanceFieldClipmap(
 	uniform uint ClipmapIndex,

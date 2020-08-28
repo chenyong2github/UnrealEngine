@@ -221,6 +221,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSamples.Array[MultiplexId].SceneColor.rgb = RawSample[0].rgb * Weight;
 		}
 		
+	#if SIGNAL_ARRAY_SIZE >= 2
 		// Decode specular harmonic
 		{
 			const uint MultiplexId = 1;
@@ -235,6 +236,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSamples.Array[MultiplexId].SampleCount = Weight;
 			OutSamples.Array[MultiplexId].SceneColor.rgb = RawSample[1].rgb * Weight;
 		}
+	#endif
 	}
 	#endif
 	#if COMPILE_SIGNAL_COLOR
@@ -279,16 +281,20 @@ void DecodeMultiplexedSignalsFromFloat4(
 			OutSamples.Array[0].SampleCount = RawSample[0].g > 0 ? 1 : 0;
 			OutSamples.Array[0].MissCount = RawSample[0].g > 0 ? RawSample[0].r : 0;
 			
+		#if SIGNAL_ARRAY_SIZE >= 2
 			OutSamples.Array[1].SampleCount = RawSample[0].a > 0 ? 1 : 0;
 			OutSamples.Array[1].MissCount = RawSample[0].a > 0 ? RawSample[0].b : 0;
+		#endif
 		}
 		else
 		{
 			OutSamples.Array[0].SampleCount = RawSample[0].g;
 			OutSamples.Array[0].MissCount = RawSample[0].g * RawSample[0].r;
 			
+		#if SIGNAL_ARRAY_SIZE >= 2
 			OutSamples.Array[1].SampleCount = RawSample[0].a;
 			OutSamples.Array[1].MissCount = RawSample[0].a * RawSample[0].b;
+		#endif
 		}
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_HISTORY)
@@ -576,6 +582,7 @@ void EncodeMultiplexedSignals(
 		}
 
 		// Encode specular harmonic
+	#if SIGNAL_ARRAY_SIZE >= 2
 		{
 			const uint MultiplexId = 1;
 
@@ -584,6 +591,7 @@ void EncodeMultiplexedSignals(
 			OutRawSample[1].rgb = ClampColorForEncoding(Sample[MultiplexId].SceneColor.rgb * NormalizationFactor);
 			OutRawSample[1].a = Sample[MultiplexId].SampleCount;
 		}
+	#endif
 
 		OutBufferCount = 2;
 	}
@@ -607,11 +615,13 @@ void EncodeMultiplexedSignals(
 		OutRawSample[0].r = Sample[0].SampleCount > 0 ? Sample[0].MissCount / Sample[0].SampleCount : 1.0;
 		OutRawSample[0].g = Sample[0].SampleCount;
 		
+	#if SIGNAL_ARRAY_SIZE >= 2
 		if (MultiplexCount == 2)
 		{
 			OutRawSample[0].b = Sample[1].SampleCount > 0 ? Sample[1].MissCount / Sample[1].SampleCount : 1.0;
 			OutRawSample[0].a = Sample[1].SampleCount;
 		}
+	#endif
 	}
 	else if (SignalBufferLayout == SIGNAL_BUFFER_LAYOUT_AO_HISTORY)
 	{

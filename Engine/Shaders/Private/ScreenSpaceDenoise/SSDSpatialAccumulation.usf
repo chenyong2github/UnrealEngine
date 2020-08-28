@@ -899,7 +899,7 @@ void MainCS(
 
 			// Add a bit of jittering to hide low sample.
 			KernelConfig.bSampleKernelCenter = false;
-			KernelConfig.BufferUV += View.ViewSizeAndInvSize.zw * (E - 0.5) * (KernelConfig.KernelSpreadFactor * (0.5 * rcp(2)));
+			KernelConfig.BufferUV += View.ViewSizeAndInvSize.zw * (E - 0.5) * (KernelConfig.KernelSpreadFactor * (0.5 * 0.5));
 		}
 		#endif
 

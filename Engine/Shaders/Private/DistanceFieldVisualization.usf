@@ -113,8 +113,7 @@ void VisualizeMeshDistanceFieldCS(
 	float StepFactor = 1;
 	float MinStepSizeScale = 1.0f / 8000.0f;
 
-	FGlobalSDFTraceInput TraceInput;
-	TraceInput.Setup(WorldRayStart, WorldRayDirection, TraceDistance, StepFactor, MinStepSizeScale);
+	FGlobalSDFTraceInput TraceInput = SetupTraceInput(WorldRayStart, WorldRayDirection, TraceDistance, StepFactor, MinStepSizeScale);
 
 	float MinRayTime = 0;
 
