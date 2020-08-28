@@ -49,6 +49,7 @@ namespace Chaos
 			const TVector<float, 3>& InLinearVelocityScale,
 			float InAngularVelocityScale,
 			float InDragCoefficient,
+			float InLiftCoefficient,
 			float InDampingCoefficient,
 			float InCollisionThickness,
 			float InFrictionCoefficient,
@@ -178,6 +179,7 @@ namespace Chaos
 		TVector<float, 3> LinearVelocityScale;  // Linear ratio applied to the reference bone transforms
 		float AngularVelocityScale;  // Angular ratio factor applied to the reference bone transforms
 		float DragCoefficient;
+		float LiftCoefficient;
 		float DampingCoefficient;
 		float CollisionThickness;
 		float FrictionCoefficient;
