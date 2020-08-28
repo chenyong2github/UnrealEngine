@@ -381,6 +381,7 @@ void FStreamingManager::Add( FResources* Resources )
 	LLM_SCOPE(ELLMTag::Nanite);
 	if (Resources->RuntimeResourceID == INVALID_RUNTIME_RESOURCE_ID)
 	{
+		check(Resources->RootClusterPage.Num() > 0);
 		Resources->HierarchyOffset = Hierarchy.Allocator.Allocate(Resources->HierarchyNodes.Num());
 		Hierarchy.TotalUpload += Resources->HierarchyNodes.Num();
 		INC_DWORD_STAT_BY( STAT_NaniteTotalPages, Resources->PageStreamingStates.Num() );

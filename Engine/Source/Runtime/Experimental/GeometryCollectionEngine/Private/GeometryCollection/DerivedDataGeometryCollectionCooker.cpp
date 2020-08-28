@@ -28,7 +28,7 @@ FString FDerivedDataGeometryCollectionCooker::GetDebugContextString() const
 
 bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 {
-	FMemoryWriter Ar(OutData);
+	FMemoryWriter Ar(OutData, true);	// Must be persistent for BulkData to serialize
 	Chaos::FChaosArchive ChaosAr(Ar);
 	if (FGeometryCollection* Collection = GeometryCollection.GetGeometryCollection().Get())
 	{
@@ -76,7 +76,7 @@ const TCHAR* FDerivedDataGeometryCollectionCooker::GetVersionString() const
 	static FString CachedNaniteVersionString;
 	if (CachedNaniteVersionString.IsEmpty())
 	{
-		const TCHAR* NaniteVersionString = TEXT("CE9B3AB5F81A49B388E50FE4B8C19D7E");
+		const TCHAR* NaniteVersionString = TEXT("CE9B3AB5F81A5AB388E51FF4C8C19D7E");
 		CachedNaniteVersionString = FString::Printf(TEXT("%s_%s_%s"), VersionString, NaniteVersionString, *Nanite::IBuilderModule::Get().GetVersionString());
 	}
 

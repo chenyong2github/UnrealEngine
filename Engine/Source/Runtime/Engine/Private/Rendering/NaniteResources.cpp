@@ -83,11 +83,14 @@ void FResources::InitResources()
 		return;
 	}
 
-	if (PageStreamingStates.Num() == 0 || RootClusterPage.Num() == 0)
+	if (PageStreamingStates.Num() == 0)
 	{
 		// Skip resources that have their render data stripped
 		return;
 	}
+	
+	// Root pages should be available here. If they aren't, this resource has probably already been initialized and added to the streamer. Investigate!
+	check(RootClusterPage.Num() > 0);
 
 	ENQUEUE_RENDER_COMMAND(InitNaniteResources)(
 		[this](FRHICommandListImmediate& RHICmdList)

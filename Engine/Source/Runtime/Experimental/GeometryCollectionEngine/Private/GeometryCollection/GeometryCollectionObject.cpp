@@ -412,7 +412,7 @@ void UGeometryCollection::Serialize(FArchive& Ar)
 	//for all versions loaded, make sure sim data is up to date
 	if (Ar.IsLoading())
 	{
-		CreateSimulationDataImp(/*bCopyFromDDC=*/ true);	//make sure loaded content is built
+		EnsureDataIsCooked();	//make sure loaded content is built
 	}
 #endif
 }
@@ -451,9 +451,13 @@ void UGeometryCollection::CreateSimulationDataImp(bool bCopyFromDDC, const TCHAR
 
 		if (bCopyFromDDC)
 		{
-			FMemoryReader Ar(DDCData);
+			FMemoryReader Ar(DDCData, true);	// Must be persistent for BulkData to serialize
 			Chaos::FChaosArchive ChaosAr(Ar);
 			GeometryCollection->Serialize(ChaosAr);
+			for (Nanite::FResources& NaniteResource : NaniteResources)
+			{
+				NaniteResource.Serialize(ChaosAr, this);
+			}
 		}
 	}
 }
