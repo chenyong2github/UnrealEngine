@@ -39,7 +39,7 @@ static TAutoConsoleVariable<int32> CVarVirtualShadowMapDebugProjection(
 );
 
 BEGIN_SHADER_PARAMETER_STRUCT(FProjectionParameters, )
-	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapProjectionParameters, ProjectionParameters)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapSamplingParameters, ProjectionParameters)
 	SHADER_PARAMETER_STRUCT(FLightShaderParameters, Light)
 	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)

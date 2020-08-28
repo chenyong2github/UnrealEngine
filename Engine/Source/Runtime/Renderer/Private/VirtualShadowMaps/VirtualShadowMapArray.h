@@ -119,7 +119,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapCommonParameters, )
 	SHADER_PARAMETER(uint32, PhysicalPageRowShift)
 END_SHADER_PARAMETER_STRUCT()
 
-BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapProjectionParameters, )
+BEGIN_SHADER_PARAMETER_STRUCT(FVirtualShadowMapSamplingParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVirtualShadowMapCommonParameters, CommonParameters)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint2>, PageTable)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, PhysicalPagePool)
@@ -150,7 +150,7 @@ public:
 
 	static void SetShaderDefines(FShaderCompilerEnvironment& OutEnvironment);
 
-	void SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapProjectionParameters& OutParameters);
+	void SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters);
 
 	//
 	void GenerateIdentityPageTables(FRDGBuilder& GraphBuilder, uint32 MipLevel = INDEX_NONE);

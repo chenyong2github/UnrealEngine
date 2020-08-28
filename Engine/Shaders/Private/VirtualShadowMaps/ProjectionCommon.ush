@@ -199,9 +199,15 @@ float ComputeOccluderDistancePerspective(float4x4 ShadowViewToClip, float Occlud
 * EstimatedGeoWorldNormal is ideally the geometric (flat) normal of the sample point in world space
 *   - This is used to compute a receiver-plane-based bias for the sample point
 *   - The shading normal can be used if the geometric normal is not available, but divergence from the geometric normal can cause biasing issues.
+* RayStartDistance is an optional offset to move the lookup along the shadow ray towards the light
+*   - Should zero or positive
+*   - This offset is useful in that it does *not* affect the selection of clipmap level, unlike offsetting the WorldPosition itself
+*   - OccluderDistance will still be relative to the original sample position
 */
-FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float3 EstimatedGeoWorldNormal)
+FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, float3 WorldPosition, float3 EstimatedGeoWorldNormal, float RayStartDistance = 0.0f)
 {
+	RayStartDistance= max(RayStartDistance, 0.0f);
+
 	FVirtualShadowMapProjectionShaderData BaseProjectionData = GetVirtualShadowMapProjectionData(VirtualShadowMapId);
 
 	FVirtualSmSample SmSample;
@@ -211,9 +217,7 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 	SmSample.MipLevel = 0;
 	SmSample.bValid = false;
 
-	FShadowPosition Position;
-	float OccluderDistance = 0.0f;
-	float BiasedDepth = 0.0f;
+	float OccluderDistance = -1.0f;
 	bool bOccluded = false;
 
 	if (BaseProjectionData.LightType == LIGHT_TYPE_DIRECTIONAL)
@@ -230,18 +234,20 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 			int ClipmapLevelVirtualShadowMapId = VirtualShadowMapId + ClipmapIndex;
 			FVirtualShadowMapProjectionShaderData ProjectionData = GetVirtualShadowMapProjectionData(ClipmapLevelVirtualShadowMapId);
 
-			Position = WorldToShadow(ProjectionData, WorldPosition);
+			FShadowPosition Position = WorldToShadow(ProjectionData, WorldPosition);
 			SmSample = SampleVirtualSmLevel(ClipmapLevelVirtualShadowMapId, Position.UV, 0);
 			if (SmSample.bValid)
 			{
-				BiasedDepth = SmSample.Depth - ComputeVirtualShadowMapOptimalSlopeBias(ProjectionData, SmSample, WorldPosition, EstimatedGeoWorldNormal);
+				float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(ProjectionData, SmSample, WorldPosition, EstimatedGeoWorldNormal);
+				float RayStartBias = -RayStartDistance * ProjectionData.ShadowViewToClipMatrix._33;
+				float BiasedDepth = SmSample.Depth - OptimalSlopeBias - RayStartBias;
 
 				if (BiasedDepth > Position.Depth)
 				{
 					bOccluded = true;
 					OccluderDistance = ComputeOccluderDistanceOrtho(
 						ProjectionData.ShadowViewToClipMatrix,
-						BiasedDepth,
+						SmSample.Depth,
 						Position.Depth);
 				}
 			}
@@ -249,18 +255,20 @@ FVirtualShadowMapSampleResult SampleVirtualShadowMap(int VirtualShadowMapId, flo
 	}
 	else	// Spot light
 	{
-		Position = WorldToShadow(BaseProjectionData, WorldPosition);
+		FShadowPosition Position = WorldToShadow(BaseProjectionData, WorldPosition);
 		SmSample = SampleVirtualSm(VirtualShadowMapId, Position.UV);
 		if (SmSample.bValid)
 		{
-			BiasedDepth = SmSample.Depth - ComputeVirtualShadowMapOptimalSlopeBias(BaseProjectionData, SmSample, WorldPosition, EstimatedGeoWorldNormal);
+			float OptimalSlopeBias = ComputeVirtualShadowMapOptimalSlopeBias(BaseProjectionData, SmSample, WorldPosition, EstimatedGeoWorldNormal);
+			float RayStartBias = -RayStartDistance * BaseProjectionData.ShadowViewToClipMatrix._33 / Position.ClipH.w;
+			float BiasedDepth = SmSample.Depth - OptimalSlopeBias - RayStartBias;
 
 			if (BiasedDepth > Position.Depth)
 			{
 				bOccluded = true;
-				OccluderDistance = ComputeOccluderDistancePerspective(
+				OccluderDistance = RayStartDistance + ComputeOccluderDistancePerspective(
 					BaseProjectionData.ShadowViewToClipMatrix,
-					BiasedDepth,
+					SmSample.Depth,
 					Position.Depth,
 					Position.View);
 			}

@@ -871,7 +871,7 @@ void FVirtualShadowMapArray::GeneratePageFlagsFromLightGrid(FRDGBuilder& GraphBu
 	}
 }
 
-void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapProjectionParameters& OutParameters)
+void FVirtualShadowMapArray::SetProjectionParameters(FRDGBuilder& GraphBuilder, FVirtualShadowMapSamplingParameters& OutParameters)
 {
 	OutParameters.CommonParameters = CommonParameters;
 	OutParameters.PageTable = GraphBuilder.CreateSRV(GraphBuilder.RegisterExternalBuffer(PageTable));
