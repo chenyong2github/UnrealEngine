@@ -127,11 +127,11 @@ public:
 
 	// The aerodynamic coefficient of drag applying on each particle.
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float DragCoefficient = 0.1f;
+	float DragCoefficient = 0.07f;
 
 	// The aerodynamic coefficient of lift applying on each particle.
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (UIMin = "0", UIMax = "1", ClampMin = "0", ClampMax = "10"))
-	float LiftCoefficient = 0.01f;
+	float LiftCoefficient = 0.035f;
 
 	// Use the config gravity value instead of world gravity.
 	UPROPERTY(EditAnywhere, Category = "Environmental Properties", meta = (InlineEditConditionToggle))
