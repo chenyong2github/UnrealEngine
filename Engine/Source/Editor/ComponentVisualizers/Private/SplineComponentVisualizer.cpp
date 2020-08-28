@@ -22,6 +22,7 @@
 #include "SplineGeneratorPanel.h"
 #include "EngineUtils.h"
 #include "CanvasItem.h"
+#include "CanvasTypes.h"
 
 IMPLEMENT_HIT_PROXY(HSplineVisProxy, HComponentVisProxy);
 IMPLEMENT_HIT_PROXY(HSplineKeyProxy, HSplineVisProxy);
