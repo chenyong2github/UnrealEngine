@@ -27,6 +27,7 @@
 #include "Net/Common/Packets/PacketTraits.h"
 #include "Net/Core/Misc/ResizableCircularQueue.h"
 #include "Net/NetAnalyticsTypes.h"
+#include "Net/TrafficControl.h"
 
 #include "NetConnection.generated.h"
 
@@ -46,6 +47,7 @@ namespace NetConnectionHelper
 	constexpr int32 NumBitsForJitterClockTimeInHeader = 10;
 }
 
+extern ENGINE_API TAutoConsoleVariable<int32> CVarNetEnableCongestionControl;
 
 /*-----------------------------------------------------------------------------
 	Types.
@@ -875,7 +877,7 @@ public:
 	ENGINE_API virtual void Tick(float DeltaSeconds);
 
 	/** Return whether this channel is ready for sending. */
-	ENGINE_API virtual int32 IsNetReady( bool Saturate );
+	ENGINE_API virtual int32 IsNetReady(bool Saturate);
 
 	/** 
 	 * Handle the player controller client
@@ -1497,6 +1499,9 @@ public:
 
 	bool GetAutoFlush() const { return bAutoFlush; }
 	void SetAutoFlush(bool bValue) { bAutoFlush = bValue; }
+
+protected:
+	TOptional<FNetworkCongestionControl> NetworkCongestionControl;
 };
 
 struct FScopedRepContext
@@ -1626,5 +1631,3 @@ public:
 	inline FNetTraceCollector* UNetConnection::GetInTraceCollector() const { return nullptr; }
 	inline FNetTraceCollector* UNetConnection::GetOutTraceCollector() const { return nullptr; }
 #endif
-
-

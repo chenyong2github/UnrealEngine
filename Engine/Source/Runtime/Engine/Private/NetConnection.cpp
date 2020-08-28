@@ -84,6 +84,9 @@ static TAutoConsoleVariable<int32> CVarDisableBandwithThrottling(TEXT("net.Disab
 	TEXT("Forces IsNetReady to always return true. Not available in shipping builds."));
 #endif
 
+TAutoConsoleVariable<int32> CVarNetEnableCongestionControl(TEXT("net.EnableCongestionControl"), 0,
+	TEXT("Enables congestion control module."));
+
 extern int32 GNetDormancyValidate;
 extern bool GbNetReuseReplicatorsForDormantObjects;
 
@@ -1525,8 +1528,8 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		// Remember the actual time this packet was sent out, so we can compute ping when the ack comes back
 		OutLagPacketId[Index]			= OutPacketId;
 		OutLagTime[Index]				= PacketSentTimeInS;
-	
 		OutBytesPerSecondHistory[Index]	= FMath::Min(OutBytesPerSecond / 1024, 255);
+		
 
 		// Increase outgoing sequence number
 		if (!IsInternalAck())
@@ -1537,7 +1540,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		// Make sure that we always push an ChannelRecordEntry for each transmitted packet even if it is empty
 		FChannelRecordImpl::PushPacketId(ChannelRecord, OutPacketId);
 
-		++OutPacketId; 
+		
 
 		++OutPackets;
 		++OutTotalPackets;
@@ -1545,7 +1548,7 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		Driver->OutTotalPackets++;
 
 		//Record the first packet time in the histogram
-		if (bFlushedNetThisFrame == false)
+		if (!bFlushedNetThisFrame)
 		{
 			double LastPacketTimeDiffInMs = (Driver->GetElapsedTime() - LastSendTime) * 1000.0;
 			NetConnectionHistogram.AddMeasurement(LastPacketTimeDiffInMs);
@@ -1554,6 +1557,13 @@ void UNetConnection::FlushNet(bool bIgnoreSimulation)
 		LastSendTime = Driver->GetElapsedTime();
 
 		const int32 PacketBytes = SendBuffer.GetNumBytes() + PacketOverhead;
+
+		if (NetworkCongestionControl.IsSet())
+		{
+			NetworkCongestionControl.GetValue().OnSend({ PacketSentTimeInS, OutPacketId, PacketBytes });
+		}
+		
+		++OutPacketId; 
 
 		QueuedBits += (PacketBytes * 8);
 
@@ -1661,7 +1671,7 @@ bool UNetConnection::ShouldDropOutgoingPacketForLossSimulation(int64 NumBits) co
 }
 #endif
 
-int32 UNetConnection::IsNetReady( bool Saturate )
+int32 UNetConnection::IsNetReady(bool Saturate)
 {
 	// Return whether we can send more data without saturation the connection.
 	if (Saturate)
@@ -1675,6 +1685,11 @@ int32 UNetConnection::IsNetReady( bool Saturate )
 		return true;
 	}
 #endif
+
+	if (NetworkCongestionControl.IsSet())
+	{
+		return NetworkCongestionControl.GetValue().IsReadyToSend(Driver->GetElapsedTime());
+	}
 
 	return QueuedBits + SendBuffer.GetNumBits() <= 0;
 }
@@ -1922,9 +1937,9 @@ void UNetConnection::WriteFinalPacketInfo(FBitWriter& Writer, const double Packe
 bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPayload)
 {
 	// If this packet did not contain any packet info, nothing else to read
-	if (bHasPacketInfoPayload == false)
+	if (!bHasPacketInfoPayload)
 	{
-		const bool bCanContinueReading = Reader.IsError() == false;
+		const bool bCanContinueReading = !Reader.IsError();
 		return bCanContinueReading;
 	}
 
@@ -1999,9 +2014,14 @@ bool UNetConnection::ReadPacketInfo(FBitReader& Reader, bool bHasPacketInfoPaylo
 		LagAcc += NewLag;
 		LagCount++;
 
-		if (PlayerController != NULL)
+		if (PlayerController)
 		{
 			PlayerController->UpdatePing(NewLag);
+		}
+
+		if (NetworkCongestionControl.IsSet())
+		{
+			NetworkCongestionControl.GetValue().OnAck({ CurrentTime, OutAckPacketId });
 		}
 	}
 

@@ -69,7 +69,7 @@ void UVoiceChannel::Tick()
 		int32 Index;
 		for (Index = 0; Index < VoicePackets.Num(); Index++)
 		{
-			if (Connection->IsNetReady(0) == false)
+			if (!Connection->IsNetReady(0))
 			{
 				// If the network is saturated bail early
 				UE_LOG(LogNet, Warning, TEXT("Network saturated"));
