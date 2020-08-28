@@ -1040,8 +1040,6 @@ void FSlateRHIRenderingPolicy::DrawElements(
 				{
 					MaterialShaderResource->CheckForStaleResources();
 
-					//FMaterialRenderProxy* MaterialRenderProxy = MaterialShaderResource->GetRenderProxy();
-
 					const FMaterial* Material = MaterialRenderProxy->GetMaterial(ActiveSceneView.GetFeatureLevel());
 
 					TShaderRef<FSlateMaterialShaderPS> PixelShader = GetMaterialPixelShader(Material, ShaderType);
