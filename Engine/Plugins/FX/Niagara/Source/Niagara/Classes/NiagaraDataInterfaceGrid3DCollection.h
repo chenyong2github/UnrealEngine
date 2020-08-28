@@ -5,6 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
+#include "NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid3DCollection.generated.h"
 
@@ -15,8 +16,15 @@ class FGrid3DBuffer
 {
 public:
 	FGrid3DBuffer(int NumX, int NumY, int NumZ)
-	{		
+	{
 		GridBuffer.Initialize(4, NumX, NumY, NumZ, EPixelFormat::PF_R32_FLOAT);
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+	}
+
+	~FGrid3DBuffer()
+	{
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+		GridBuffer.Release();
 	}
 
 	FTextureRWBuffer3D GridBuffer;	
