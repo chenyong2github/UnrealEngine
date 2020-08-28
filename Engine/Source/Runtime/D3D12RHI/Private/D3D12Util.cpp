@@ -598,11 +598,13 @@ namespace D3D12RHI
 		GLog->Flush();
 
 		// Show message box or trace information
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		if (!FApp::IsUnattended())
 		{
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMessage.ToText().ToString(), TEXT("Error"));
 		}
 		else
+#endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		{
 			UE_LOG(LogD3D12RHI, Error, TEXT("%s"), *ErrorMessage.ToText().ToString());
 		}
