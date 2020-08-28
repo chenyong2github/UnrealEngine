@@ -85,7 +85,7 @@ private:
 	EVisibility HandleThrobberVisibility() const;
 
 	// Callback to get the background color of the checkout wanring
-	FSlateColor HandleBorderBackgroundColor() const;
+	FSlateColor GetLockedStatusTextColor() const;
 private:
 
 	// Called when the file was modified externally
