@@ -130,7 +130,7 @@ public:
 				.VAlign(VAlign_Center)
 				[
 					SNew( SImage )
-					.Image( FCoreStyle::Get().GetBrush( "ToolBar.SubMenuIndicator" ) )
+					.Image( FCoreStyle::Get().GetBrush( "Menu.SubMenuIndicator" ) )
 				]
 			]
 			+SScrollBox::Slot() .Padding(5)

@@ -626,7 +626,7 @@ TSharedRef<ITableRow> SPinTypeSelector::GenerateTypeTreeRow(FPinTypeTreeItem InI
 				.Padding(FMargin(7,0,0,0))
 				[
 					SNew( SImage )
-					.Image( FEditorStyle::Get().GetBrush( "ToolBar.SubMenuIndicator" ) )
+					.Image( FEditorStyle::Get().GetBrush( "Menu.SubMenuIndicator" ) )
 				]
 			];
 	}
