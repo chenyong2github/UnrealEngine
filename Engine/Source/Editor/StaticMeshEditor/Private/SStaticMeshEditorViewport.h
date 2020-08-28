@@ -27,7 +27,6 @@ class SStaticMeshEditorViewport : public SAssetEditorViewport, public FGCObject,
 public:
 	SLATE_BEGIN_ARGS( SStaticMeshEditorViewport ){}
 		SLATE_ARGUMENT(TWeakPtr<IStaticMeshEditor>, StaticMeshEditor)
-		SLATE_ARGUMENT(UStaticMesh*, ObjectToEdit)
 	SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs);
