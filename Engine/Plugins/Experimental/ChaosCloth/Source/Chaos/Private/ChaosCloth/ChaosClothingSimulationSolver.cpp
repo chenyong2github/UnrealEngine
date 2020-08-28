@@ -265,7 +265,10 @@ int32 FClothingSimulationSolver::AddParticles(int32 NumParticles, uint32 GroupId
 	const int32 Offset = Evolution->AddParticleRange(NumParticles, GroupId, /*bActivate =*/ false);
 
 	// Add an empty constraints container for this range
-	ClothsConstraints.Add(Offset).Initialize(Evolution.Get(), AnimationPositions, AnimationNormals, Offset, NumParticles);
+	check(!ClothsConstraints.Find(Offset));  // We cannot already have this Offset in the map, particle ranges are always added, never removed (unless reset)
+
+	ClothsConstraints.Emplace(Offset, MakeUnique<FClothConstraints>())
+		->Initialize(Evolution.Get(), AnimationPositions, AnimationNormals, Offset, NumParticles);
 
 	// Always starts with particles disabled
 	EnableParticles(Offset, false);
