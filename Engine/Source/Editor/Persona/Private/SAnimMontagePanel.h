@@ -14,6 +14,7 @@
 #include "Animation/EditorAnimBaseObj.h"
 #include "STrack.h"
 #include "EditorUndoClient.h"
+#include "SAnimCurveEd.h"
 
 class FMenuBuilder;
 class SBorder;

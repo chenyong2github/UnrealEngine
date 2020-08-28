@@ -6,7 +6,6 @@
 #include "AnimSequenceTimelineCommands.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Animation/AnimSequenceBase.h"
-#include "SAnimCurvePanel.h"
 #include "Widgets/Input/STextEntryPopup.h"
 #include "Framework/Application/SlateApplication.h"
 #include "ScopedTransaction.h"
@@ -137,6 +136,26 @@ TSharedRef<SWidget> FAnimTimelineTrack_Curves::BuildCurvesSubMenu()
 
 	return MenuBuilder.MakeWidget();
 }
+
+
+struct FSmartNameSortItem
+{
+	FName SmartName;
+	USkeleton::AnimCurveUID ID;
+
+	FSmartNameSortItem(const FName& InSmartName, const USkeleton::AnimCurveUID& InID)
+		: SmartName(InSmartName)
+		, ID(InID)
+	{}
+};
+
+struct FSmartNameSortItemSortOp
+{
+	bool operator()(const FSmartNameSortItem& A, const FSmartNameSortItem& B) const
+	{
+		return (A.SmartName.Compare(B.SmartName) < 0);
+	}
+};
 
 void FAnimTimelineTrack_Curves::FillMetadataEntryMenu(FMenuBuilder& Builder)
 {

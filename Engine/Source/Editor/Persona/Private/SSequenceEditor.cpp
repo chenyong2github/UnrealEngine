@@ -5,7 +5,6 @@
 #include "Animation/AnimSequence.h"
 
 #include "SAnimNotifyPanel.h"
-#include "SAnimTrackCurvePanel.h"
 #include "AnimPreviewInstance.h"
 #include "Editor.h"
 #include "AnimModel_AnimSequenceBase.h"

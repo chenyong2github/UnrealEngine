@@ -6,14 +6,12 @@
 #include "CoreMinimal.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "IPersonaPreviewScene.h"
-#include "SAnimCurvePanel.h"
 #include "SAnimationScrubPanel.h"
 #include "SAnimEditorBase.h"
 #include "EditorUndoClient.h"
 #include "Animation/AnimSequence.h"
 
 class SAnimNotifyPanel;
-class SAnimTrackCurvePanel;
 class FAnimModel_AnimSequenceBase;
 
 //////////////////////////////////////////////////////////////////////////

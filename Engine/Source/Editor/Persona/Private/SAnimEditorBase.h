@@ -12,7 +12,6 @@
 #include "PersonaDelegates.h"
 #include "SAnimationScrubPanel.h"
 #include "EditorObjectsTracker.h"
-#include "SAnimCurvePanel.h"
 
 class FAnimModel;
 class SAnimTimeline;
