@@ -534,12 +534,12 @@ FText SDMXFunctionItemListViewBox::GetPixelFunctionsHeader() const
 		int32 XPixels = 0;
 		if (XPixelsHandle->GetValue(XPixels) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXPixelMatrix.PropertyError", "Unable to retrieve PixelMatrix XPixels value.");
+			return LOCTEXT("DMXPixelMatrix.ErrorAccessXPixels", "Unable to retrieve PixelMatrix XPixels value.");
 		}
 		int32 YPixels = 0;
 		if (YPixelsHandle->GetValue(YPixels) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXPixelMatrix.PropertyError", "Unable to retrieve PixelMatrix YPixels value.");
+			return LOCTEXT("DMXPixelMatrix.ErrorAccessYPixels", "Unable to retrieve PixelMatrix YPixels value.");
 		}
 
 		TSharedPtr<IPropertyHandle> PixelFunctionsHandle = PixelMatrixConfigHandle->GetChildHandle(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions));
@@ -551,13 +551,13 @@ FText SDMXFunctionItemListViewBox::GetPixelFunctionsHeader() const
 		uint32 NumPixelFunctions = 0;
 		if (PixelFunctionsHandleArray->GetNumElements(NumPixelFunctions) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXFixtureMode.PropertyError", "Unable to retrieve FixtureMode Functions value.");
+			return LOCTEXT("DMXPixelMatrix.ErrorAccessFunctions", "Unable to retrieve FixtureMode Functions value.");
 		}
 
 		int32 NumElements = XPixels * YPixels * NumPixelFunctions;
 		if (NumElements < 0)
 		{
-			return LOCTEXT("DMXPixelMatrix.ValueError", "Invalid PixelMatrix values.");
+			return LOCTEXT("DMXPixelMatrix.InvalidPixelMatrixValues", "Invalid PixelMatrix values.");
 		}
 
 		return FText::FromString(FString::Printf(TEXT("Pixel Functions %d elements"), NumElements));
@@ -579,7 +579,7 @@ FText SDMXFunctionItemListViewBox::GetPixelFunctionsStartChannel() const
 		int32 StartChannel = 0;
 		if (FirstPixelChannelHandle->GetValue(StartChannel) != FPropertyAccess::Success)
 		{
-			return LOCTEXT("DMXPixelMatrix.PropertyError", "Unable to retrieve PixelMatrix Pixel First Channel value.");
+			return LOCTEXT("DMXPixelMatrix.ErrorAccessFirstChannel", "Unable to retrieve PixelMatrix Pixel First Channel value.");
 		}
 		
 		return FText::FromString(FString::Printf(TEXT("Pixel Function Starting Channel: %d"), StartChannel));
