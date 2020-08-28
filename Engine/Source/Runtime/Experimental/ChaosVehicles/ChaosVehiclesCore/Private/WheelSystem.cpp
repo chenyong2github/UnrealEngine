@@ -95,7 +95,6 @@ namespace Chaos
 			// we can only obtain as much accel/decel force as the friction will allow
 			if (FMath::Abs(FinalLongitudinalForce) > LongitudinalAdhesiveLimit)
 			{
-				SideSlipModifier = FMath::Clamp(LongitudinalAdhesiveLimit / FMath::Abs(FinalLongitudinalForce), 0.6f, 1.0f);
 				if (Braking)
 				{
 					BrakeFactor = FMath::Clamp(LongitudinalAdhesiveLimit / FMath::Abs(FinalLongitudinalForce), 0.6f, 1.0f);
@@ -131,8 +130,6 @@ namespace Chaos
 				ForceFromFriction.X = -ForceFromFriction.X;
 			}
 
-			SideSlipModifier = 1.0f- (FMath::Abs(SlipAngle)/10.0f);
-			SideSlipModifier = FMath::Clamp(SideSlipModifier, 0.25f, 1.0f);
 			static float DynamicFrictionLateralScaling = 0.75f;
 			if (Locked || Spinning)
 			{
