@@ -903,14 +903,14 @@ TGlobalResource< FGlobalResources > GGlobalResources;
 bool DoesPlatformSupportNanite(EShaderPlatform Platform)
 {
 	// Make sure the current platform has DDPI definitions.
-	static const bool bValidPlatform = FDataDrivenShaderPlatformInfo::IsValid(Platform);
+	const bool bValidPlatform = FDataDrivenShaderPlatformInfo::IsValid(Platform);
 
 	// GPUScene is required for Nanite
-	static const bool bSupportGPUScene = FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform);
+	const bool bSupportGPUScene = FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform);
 
 	// Nanite specific check
-	static const bool bSupportNanite = FDataDrivenShaderPlatformInfo::GetSupportsNanite(Platform);
+	const bool bSupportNanite = FDataDrivenShaderPlatformInfo::GetSupportsNanite(Platform);
 
-	static const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
+	const bool bFullCheck = bValidPlatform && bSupportGPUScene && bSupportNanite;
 	return bFullCheck;
 }
