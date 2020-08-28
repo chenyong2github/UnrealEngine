@@ -868,7 +868,7 @@ void InjectCardsWithRasterizerScatter(
 	if (bUseComputeScatter)
 	{
 		const int32 AverageQuadsPerObject = 32;
-		MaxQuads = 2 * MaxObjects * ClipmapsToUpdate.Num() * AverageQuadsPerObject;
+		MaxQuads = 2 * FMath::Max(MaxObjects, 1024) * ClipmapsToUpdate.Num() * AverageQuadsPerObject;
 	}
 	MaxQuads = FMath::RoundUpToPowerOfTwo(FMath::Max(MaxQuads, 1));
 
