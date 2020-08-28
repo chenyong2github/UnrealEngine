@@ -309,43 +309,12 @@ UNiagaraParameterCollectionInstance* FNiagaraWorldManager::GetParameterCollectio
 		//Bind to the default instance so that changes to the collection propagate through.
 		DefaultInstance->GetParameterStore().Bind(&(*OverrideInst)->GetParameterStore());
 #endif
+
+		(*OverrideInst)->Bind(World);
 	}
 
 	check(OverrideInst && *OverrideInst);
 	return *OverrideInst;
-}
-
-void FNiagaraWorldManager::SetParameterCollection(UNiagaraParameterCollectionInstance* NewInstance)
-{
-	check(NewInstance);
-	if (NewInstance)
-	{
-		UNiagaraParameterCollection* Collection = NewInstance->GetParent();
-		UNiagaraParameterCollectionInstance** OverrideInst = ParameterCollections.Find(Collection);
-		if (!OverrideInst)
-		{
-			OverrideInst = &ParameterCollections.Add(Collection);
-		}
-		else
-		{
-			if (*OverrideInst && NewInstance)
-			{
-				UNiagaraParameterCollectionInstance* DefaultInstance = Collection->GetDefaultInstance();
-				//Need to transfer existing bindings from old instance to new one.
-				FNiagaraParameterStore& ExistingStore = (*OverrideInst)->GetParameterStore();
-				FNiagaraParameterStore& NewStore = NewInstance->GetParameterStore();
-
-				ExistingStore.TransferBindings(NewStore);
-
-#if WITH_EDITOR
-				//If the existing store was this world's duplicate of the default then we must be sure it's unbound.
-				DefaultInstance->GetParameterStore().Unbind(&ExistingStore);
-#endif
-			}
-		}
-
-		*OverrideInst = NewInstance;
-	}
 }
 
 void FNiagaraWorldManager::CleanupParameterCollections()
@@ -752,7 +721,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		for (TPair<UNiagaraParameterCollection*, UNiagaraParameterCollectionInstance*> CollectionInstPair : ParameterCollections)
 		{
 			check(CollectionInstPair.Value);
-			CollectionInstPair.Value->Tick();
+			CollectionInstPair.Value->Tick(World);
 		}
 	}
 
