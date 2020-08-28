@@ -1891,7 +1891,8 @@ FReply SDesignerView::OnMouseMove(const FGeometry& MyGeometry, const FPointerEve
 				bool bIsRootWidgetSelected = false;
 				for (const auto& SelectedWidget : SelectedWidgets)
 				{
-					if (SelectedWidget.GetTemplate()->GetParent() == nullptr)
+					UWidget* ParentWidget = SelectedWidget.GetTemplate()->GetParent();
+					if (!ParentWidget || Cast<UNamedSlot>(ParentWidget))
 					{
 						bIsRootWidgetSelected = true;
 						break;
@@ -2956,7 +2957,7 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 				UPanelWidget* NewParent = Cast<UPanelWidget>(Target);
 
 				UWidget* Widget = bIsPreview ? DraggedWidget.Preview : DraggedWidget.Template;
-				UPanelWidget* ParentWidget = bIsPreview ? Cast<UPanelWidget>(DraggedWidget.ParentWidget.GetPreview()) : Cast<UPanelWidget>(DraggedWidget.ParentWidget.GetTemplate());
+				UWidget* ParentWidget = bIsPreview ? (DraggedWidget.ParentWidget.GetPreview()) : (DraggedWidget.ParentWidget.GetTemplate());
 				if (ensure(Widget))
 				{
 					bool bIsChangingParent = ParentWidget != NewParent;
@@ -3044,9 +3045,9 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 					{
 						Slot = NewParent->AddChild(Widget);
 					}
-					else
+					else if (UPanelWidget* ParentwidgetAsPanel = Cast<UPanelWidget>(ParentWidget))
 					{
-						Slot = ParentWidget->InsertChildAt(ParentWidget->GetChildIndex(Widget), Widget);
+						Slot = ParentwidgetAsPanel->InsertChildAt(ParentwidgetAsPanel->GetChildIndex(Widget), Widget);
 					}
 
 					if (Slot != nullptr)
