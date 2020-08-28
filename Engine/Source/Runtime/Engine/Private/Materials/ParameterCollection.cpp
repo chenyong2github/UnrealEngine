@@ -606,6 +606,8 @@ void UMaterialParameterCollectionInstance::UpdateRenderState(bool bRecreateUnifo
 	{
 		DeferredUpdateRenderState(bRecreateUniformBuffer);
 	}
+
+	ParametersUpdatedDelegate.Broadcast();
 }
 
 void UMaterialParameterCollectionInstance::DeferredUpdateRenderState(bool bRecreateUniformBuffer)
