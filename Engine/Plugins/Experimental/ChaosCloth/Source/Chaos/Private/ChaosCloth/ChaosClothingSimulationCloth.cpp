@@ -339,6 +339,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	const TVector<float, 3>& InLinearVelocityScale,
 	float InAngularVelocityScale,
 	float InDragCoefficient,
+	float InLiftCoefficient,
 	float InDampingCoefficient,
 	float InCollisionThickness,
 	float InFrictionCoefficient,
@@ -371,6 +372,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, LinearVelocityScale(InLinearVelocityScale)
 	, AngularVelocityScale(InAngularVelocityScale)
 	, DragCoefficient(InDragCoefficient)
+	, LiftCoefficient(InLiftCoefficient)
 	, DampingCoefficient(InDampingCoefficient)
 	, CollisionThickness(InCollisionThickness)
 	, FrictionCoefficient(InFrictionCoefficient)
@@ -673,7 +675,7 @@ void FClothingSimulationCloth::Update(FClothingSimulationSolver* Solver)
 		Solver->SetGravity(GroupId, GetGravity(Solver));
 
 		// Update wind
-		Solver->SetWindVelocityField(GroupId, DragCoefficient, &GetTriangleMesh(Solver));
+		Solver->SetWindVelocityField(GroupId, DragCoefficient, LiftCoefficient, &GetTriangleMesh(Solver));
 
 		// Update general solver properties
 		Solver->SetProperties(GroupId, DampingCoefficient, CollisionThickness, FrictionCoefficient);
