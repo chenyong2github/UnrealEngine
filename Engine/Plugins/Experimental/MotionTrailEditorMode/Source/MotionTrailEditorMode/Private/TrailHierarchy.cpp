@@ -271,9 +271,9 @@ TArray<FGuid> FTrailHierarchy::GetAllChildren(const FGuid& TrailGuid)
 	return Children;
 }
 
-FTrailHierarchy::FAccumulatedParentStates::FAccumulatedParentStates(const TMap<FGuid, FTrailHierarchyNode>& Hierarchy)
+FTrailHierarchy::FAccumulatedParentStates::FAccumulatedParentStates(const TMap<FGuid, FTrailHierarchyNode>& InHierarchy)
 {
-	for (const TPair<FGuid, FTrailHierarchyNode>& GuidNodePair : Hierarchy)
+	for (const TPair<FGuid, FTrailHierarchyNode>& GuidNodePair : InHierarchy)
 	{
 		for (const FGuid ParentGuid : GuidNodePair.Value.Parents)
 		{
@@ -282,11 +282,11 @@ FTrailHierarchy::FAccumulatedParentStates::FAccumulatedParentStates(const TMap<F
 	}
 }
 
-void FTrailHierarchy::FAccumulatedParentStates::OnParentsChanged(const FGuid& Guid, const TMap<FGuid, FTrailHierarchyNode>& Hierarchy)
+void FTrailHierarchy::FAccumulatedParentStates::OnParentsChanged(const FGuid& Guid, const TMap<FGuid, FTrailHierarchyNode>& InHierarchy)
 {
 	TMap<FGuid, ETrailCacheState> OldParentState = ParentStates.FindOrAdd(Guid);
 	ParentStates[Guid].Reset();
-	for (const FGuid& Parent : Hierarchy[Guid].Parents)
+	for (const FGuid& Parent : InHierarchy[Guid].Parents)
 	{
 		ParentStates[Guid].Add(Parent, OldParentState.FindOrAdd(Parent, ETrailCacheState::Stale));
 	}

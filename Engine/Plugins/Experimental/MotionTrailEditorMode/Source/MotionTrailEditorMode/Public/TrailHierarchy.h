@@ -129,9 +129,9 @@ protected:
 			: ParentStates()
 		{}
 
-		FAccumulatedParentStates(const TMap<FGuid, FTrailHierarchyNode>& Hierarchy);
+		FAccumulatedParentStates(const TMap<FGuid, FTrailHierarchyNode>& InHierarchy);
 
-		void OnParentsChanged(const FGuid& Guid, const TMap<FGuid, FTrailHierarchyNode>& Hierarchy);
+		void OnParentsChanged(const FGuid& Guid, const TMap<FGuid, FTrailHierarchyNode>& InHierarchy);
 		void AccumulateParentState(const FGuid& Guid, const FGuid& ParentGuid, ETrailCacheState ParentState);
 		void ResetParentStates(const FGuid& Guid);
 
