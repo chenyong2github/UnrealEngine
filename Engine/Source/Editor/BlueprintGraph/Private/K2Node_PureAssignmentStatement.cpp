@@ -67,7 +67,7 @@ public:
 
 FName UK2Node_PureAssignmentStatement::VariablePinName = TEXT("Variable");
 FName UK2Node_PureAssignmentStatement::ValuePinName = TEXT("Value");
-FName UK2Node_PureAssignmentStatement::OutputPinName = TEXT("ReturnValue");
+FName UK2Node_PureAssignmentStatement::OutputPinName = UEdGraphSchema_K2::PN_ReturnValue;
 
 
 UK2Node_PureAssignmentStatement::UK2Node_PureAssignmentStatement(const FObjectInitializer& ObjectInitializer)

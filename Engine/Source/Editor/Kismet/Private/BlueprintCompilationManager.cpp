@@ -2505,7 +2505,6 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 				// Gather all input pins on these nodes, these are 
 				// the outputs of the function:
 				TSet<FName> UsedPinNames;
-				static const FName RetValName = FName(TEXT("ReturnValue"));
 				for(UK2Node_FunctionResult* Node : ReturnNodes)
 				{
 					for(UEdGraphPin* Pin : Node->Pins)
@@ -2521,7 +2520,7 @@ UClass* FBlueprintCompilationManagerImpl::FastGenerateSkeletonClass(UBlueprint* 
 								{
 									Param->SetFlags(RF_Transient);
 									// we only tag things as CPF_ReturnParm if the value is named ReturnValue.... this is *terrible* behavior:
-									if(Param->GetFName() == RetValName)
+									if(Param->GetFName() == UEdGraphSchema_K2::PN_ReturnValue)
 									{
 										Param->PropertyFlags |= CPF_ReturnParm;
 									}

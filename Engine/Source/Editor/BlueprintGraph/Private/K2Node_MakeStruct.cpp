@@ -440,17 +440,17 @@ void UK2Node_MakeStruct::ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeCh
 		if (StructType == TBaseStructure<FRotator>::Get())
 		{
 			MakeNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, MakeRotator));
-			OldPinToNewPinMap.Add(TEXT("Rotator"), TEXT("ReturnValue"));
+			OldPinToNewPinMap.Add(TEXT("Rotator"), UEdGraphSchema_K2::PN_ReturnValue);
 		}
 		else if (StructType == TBaseStructure<FVector>::Get())
 		{
 			MakeNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, MakeVector));
-			OldPinToNewPinMap.Add(TEXT("Vector"), TEXT("ReturnValue"));
+			OldPinToNewPinMap.Add(TEXT("Vector"), UEdGraphSchema_K2::PN_ReturnValue);
 		}
 		else if (StructType == TBaseStructure<FVector2D>::Get())
 		{
 			MakeNodeFunction = UKismetMathLibrary::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(UKismetMathLibrary, MakeVector2D));
-			OldPinToNewPinMap.Add(TEXT("Vector2D"), TEXT("ReturnValue"));
+			OldPinToNewPinMap.Add(TEXT("Vector2D"), UEdGraphSchema_K2::PN_ReturnValue);
 		}
 		else
 		{
@@ -459,7 +459,7 @@ void UK2Node_MakeStruct::ConvertDeprecatedNode(UEdGraph* Graph, bool bOnlySafeCh
 
 			if (MakeNodeFunction)
 			{
-				OldPinToNewPinMap.Add(*StructType->GetName(), TEXT("ReturnValue"));
+				OldPinToNewPinMap.Add(*StructType->GetName(), UEdGraphSchema_K2::PN_ReturnValue);
 			}
 		}
 

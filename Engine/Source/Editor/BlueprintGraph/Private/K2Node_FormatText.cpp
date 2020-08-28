@@ -276,7 +276,7 @@ void UK2Node_FormatText::PostReconstructNode()
 					CurrentPin->DefaultTextValue = FText::GetEmpty();
 
 					// Connect the new node to the existing pin
-					UEdGraphPin* LiteralReturnValuePin = MakeLiteralText->FindPinChecked(TEXT("ReturnValue"));
+					UEdGraphPin* LiteralReturnValuePin = MakeLiteralText->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
 					GetSchema()->TryCreateConnection(LiteralReturnValuePin, CurrentPin);
 
 					++NumPinsFixedUp;
@@ -363,7 +363,7 @@ void UK2Node_FormatText::ExpandNode(class FKismetCompilerContext& CompilerContex
 
 				CompilerContext.MovePinLinksToIntermediate(*ArgumentPin, *ToTextFunction->FindPinChecked(PinName));
 
-				ToTextFunction->FindPinChecked(TEXT("ReturnValue"))->MakeLinkTo(MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValue)));
+				ToTextFunction->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue)->MakeLinkTo(MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValue)));
 			};
 
 			if (ArgumentPinCategory == UEdGraphSchema_K2::PC_Int)
@@ -395,7 +395,7 @@ void UK2Node_FormatText::ExpandNode(class FKismetCompilerContext& CompilerContex
 				CompilerContext.MovePinLinksToIntermediate(*ArgumentPin, *CallByteToIntFunction->FindPinChecked(TEXT("InByte")));
 
 				// Connect the int output pin to the argument value
-				CallByteToIntFunction->FindPinChecked(TEXT("ReturnValue"))->MakeLinkTo(MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValueInt)));
+				CallByteToIntFunction->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue)->MakeLinkTo(MakeFormatArgumentDataStruct->FindPinChecked(GET_MEMBER_NAME_STRING_CHECKED(FFormatArgumentData, ArgumentValueInt)));
 			}
 			else if (ArgumentPinCategory == UEdGraphSchema_K2::PC_Byte || ArgumentPinCategory == UEdGraphSchema_K2::PC_Enum)
 			{

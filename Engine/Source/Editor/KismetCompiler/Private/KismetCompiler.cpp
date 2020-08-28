@@ -1161,11 +1161,10 @@ void FKismetCompilerContext::CreateLocalVariablesForFunction(FKismetFunctionCont
 
 		// Fix up the return value
 		//@todo:  Is there a better way of doing this without mangling code?
-		const FName RetValName = FName(TEXT("ReturnValue"));
 		for (TFieldIterator<FProperty> It(Context.Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 		{
 			FProperty* Property = *It;
-			if ((Property->GetFName() == RetValName) && Property->HasAnyPropertyFlags(CPF_OutParm))
+			if ((Property->GetFName() == UEdGraphSchema_K2::PN_ReturnValue) && Property->HasAnyPropertyFlags(CPF_OutParm))
 			{
 				Property->SetPropertyFlags(CPF_ReturnParm);
 			}
@@ -1951,11 +1950,10 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 		{
 			// Fix up the return value - this used to be done by CreateLocalVariablesForFunction.
 			// This should probably be done in CreateParametersForFunction
-			const FName RetValName = FName(TEXT("ReturnValue"));
 			for (TFieldIterator<FProperty> It(Context.Function); It && (It->PropertyFlags & CPF_Parm); ++It)
 			{
 				FProperty* Property = *It;
-				if ((Property->GetFName() == RetValName) && Property->HasAnyPropertyFlags(CPF_OutParm))
+				if ((Property->GetFName() == UEdGraphSchema_K2::PN_ReturnValue) && Property->HasAnyPropertyFlags(CPF_OutParm))
 				{
 					Property->SetPropertyFlags(CPF_ReturnParm);
 				}
