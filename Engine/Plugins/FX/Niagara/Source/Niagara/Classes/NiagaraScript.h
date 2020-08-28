@@ -152,10 +152,6 @@ public:
 	UPROPERTY()
 	uint32 bUsesRapidIterationParams : 1;
 
-	/** Should we use shader permutations to reduce the cost of simulation stages or not */
-	UPROPERTY()
-	uint32 bUseShaderPermutations : 1;
-
 	/** Do we require interpolated spawning */
 	UPROPERTY()
 	uint32 bInterpolatedSpawn : 1;
@@ -189,7 +185,6 @@ public:
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
 		, bUsesRapidIterationParams(true)
-		, bUseShaderPermutations(true)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)
 		, BaseScriptID_DEPRECATED(0, 0, 0, 0)

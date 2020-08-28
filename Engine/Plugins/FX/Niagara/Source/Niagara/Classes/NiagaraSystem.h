@@ -361,10 +361,6 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
 	uint32 bBakeOutRapidIterationOnCook : 1;
 
-	/** If true we generate shader permutations per stage to optimize the GPU.  */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")
-	uint32 bUseShaderPermutations : 1;
-
 	/** Toggles whether or not emitters within this system will try and compress their particle attributes.
 	In some cases, this precision change can lead to perceivable differences, but memory costs and or performance (especially true for GPU emitters) can improve. */
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Performance")

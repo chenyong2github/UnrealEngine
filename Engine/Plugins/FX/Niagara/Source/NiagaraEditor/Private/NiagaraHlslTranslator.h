@@ -106,7 +106,6 @@ public:
 	}
 	void AddRapidIterationParameters(const FNiagaraParameterStore& InParamStore, FCompileConstantResolver InResolver);
 	virtual bool GetUseRapidIterationParams() const override { return bUseRapidIterationParams; }
-	virtual bool GetUseShaderPermutations() const override { return bUseShaderPermutations; }
 
 	// Simulation Stage Variables. Sim stage of 0 is always Spawn/Update
 	TArray<uint32> NumIterationsPerStage;
@@ -128,7 +127,6 @@ public:
 	UNiagaraScriptSource* Source;
 	FString SourceName;
 	bool bUseRapidIterationParams = true;
-	bool bUseShaderPermutations = true;
 
 	UEnum* ENiagaraScriptCompileStatusEnum;
 	UEnum* ENiagaraScriptUsageEnum;
@@ -547,10 +545,6 @@ public:
 	virtual ENiagaraSimTarget GetSimulationTarget() const
 	{
 		return CompilationTarget;
-	}
-	bool GetUseShaderPermutations() const
-	{
-		return CompileData ? CompileData->GetUseShaderPermutations() : true;
 	}
 	bool GetUsesSimulationStages() const;
 
