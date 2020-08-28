@@ -68,9 +68,10 @@ UNiagaraStackFunctionInput::UNiagaraStackFunctionInput()
 void GenerateInputParameterHandlePath(UNiagaraNodeFunctionCall& ModuleNode, UNiagaraNodeFunctionCall& FunctionCallNode, TArray<FNiagaraParameterHandle>& OutHandlePath)
 {
 	UNiagaraNodeFunctionCall* CurrentFunctionCallNode = &FunctionCallNode;
+	FPinCollectorArray FunctionOutputPins;
 	while (CurrentFunctionCallNode != &ModuleNode)
 	{
-		TArray<UEdGraphPin*> FunctionOutputPins;
+		FunctionOutputPins.Reset();
 		CurrentFunctionCallNode->GetOutputPins(FunctionOutputPins);
 		if (ensureMsgf(FunctionOutputPins.Num() == 1 && FunctionOutputPins[0]->LinkedTo.Num() == 1 && FunctionOutputPins[0]->LinkedTo[0]->GetOwningNode()->IsA<UNiagaraNodeParameterMapSet>(),
 			TEXT("Invalid Stack Graph - Dynamic Input Function call didn't have a valid connected output.")))
@@ -1158,14 +1159,16 @@ void UNiagaraStackFunctionInput::GetAvailableDynamicInputs(TArray<UNiagaraScript
 	DynamicInputScriptFilterOptions.bIncludeNonLibraryScripts = bIncludeNonLibraryInputs;
 	FNiagaraEditorUtilities::GetFilteredScriptAssets(DynamicInputScriptFilterOptions, DynamicInputAssets);
 
-	auto MatchesInputType = [this](UNiagaraScript* Script)
+	FPinCollectorArray InputPins;
+	TArray<UNiagaraNodeOutput*> OutputNodes;
+	auto MatchesInputType = [this, &InputPins, &OutputNodes](UNiagaraScript* Script)
 	{
 		UNiagaraScriptSource* DynamicInputScriptSource = Cast<UNiagaraScriptSource>(Script->GetSource());
-		TArray<UNiagaraNodeOutput*> OutputNodes;
+		OutputNodes.Reset();
 		DynamicInputScriptSource->NodeGraph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 		if (OutputNodes.Num() == 1)
 		{
-			TArray<UEdGraphPin*> InputPins;
+			InputPins.Reset();
 			OutputNodes[0]->GetInputPins(InputPins);
 			if (InputPins.Num() == 1)
 			{

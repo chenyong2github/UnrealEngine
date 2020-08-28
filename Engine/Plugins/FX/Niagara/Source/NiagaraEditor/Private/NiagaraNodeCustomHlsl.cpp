@@ -329,10 +329,10 @@ void UNiagaraNodeCustomHlsl::BuildParameterMapHistory(FNiagaraParameterMapHistor
 	TArray<FString> Tokens;
 	GetTokens(Tokens);
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
 
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	int32 ParamMapIdx = INDEX_NONE;
@@ -474,8 +474,8 @@ void UNiagaraNodeCustomHlsl::RebuildSignatureFromPins()
 	Sig.Inputs.Empty();
 	Sig.Outputs.Empty();
 
-	TArray<UEdGraphPin*> InputPins;
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray InputPins;
+	FPinCollectorArray OutputPins;
 	GetInputPins(InputPins);
 	GetOutputPins(OutputPins);
 

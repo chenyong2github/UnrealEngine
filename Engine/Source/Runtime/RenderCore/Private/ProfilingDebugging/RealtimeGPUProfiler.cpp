@@ -340,6 +340,8 @@ public:
 
 		EventAggregates.Empty(GPredictedMaxNumEvents);
 		EventAggregates.AddUninitialized();
+
+		CPUFrameStartTimestamp = FPlatformTime::Cycles64();
 	}
 
 	~FRealtimeGPUProfilerFrame()
@@ -473,6 +475,7 @@ public:
 			}
 
 #if TRACING_PROFILER
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			const bool bTracingStatsEnabled = !!CVarGPUTracingStatsEnabled.GetValueOnRenderThread();
 			if (bTracingStatsEnabled)
 			{
@@ -486,6 +489,7 @@ public:
 						Event.GetFrameNumber());
 				}
 			}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif //TRACING_PROFILER
 		}
 
@@ -535,7 +539,7 @@ public:
 
 		// Sanitize event start/end times
 		TArray<TStaticArray<uint64, MAX_NUM_GPUS>> lastEndTimes;
-		lastEndTimes.AddDefaulted(GpuProfilerEvents.Num());
+		lastEndTimes.AddZeroed(GpuProfilerEvents.Num());
 		for (int32 EventIdx = 1; EventIdx < GpuProfilerEventParentIndices.Num(); ++EventIdx)
 		{
 			const int32 ParentIdx = GpuProfilerEventParentIndices[EventIdx];

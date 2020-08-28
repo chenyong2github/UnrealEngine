@@ -140,6 +140,8 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 	TArray<UNiagaraNode*> Nodes;
 	InGraph->GetNodesOfClass(Nodes);
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
+	FPinCollectorArray CallOutputs;
+	FPinCollectorArray CallInputs;
 
 	for (UEdGraphNode* Node : Nodes)
 	{
@@ -180,8 +182,8 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 						// module nodes and UNiagaraNodeCustomHlsl expression dynamic input nodes.
 						bool bRequiresClonedScript = FunctionScript->GetOuter()->IsA<UNiagaraNodeFunctionCall>() == false;
 
-						TArray<UEdGraphPin*> CallOutputs;
-						TArray<UEdGraphPin*> CallInputs;
+						CallOutputs.Reset();
+						CallInputs.Reset();
 						InNode->GetOutputPins(CallOutputs);
 						InNode->GetInputPins(CallInputs);
 

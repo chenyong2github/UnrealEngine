@@ -8,16 +8,12 @@
 
 class FDelegateBase;
 class IDelegateInstance;
-template <typename FuncType> struct IBaseDelegateInstance;
 
-template <typename FuncType>
+template <typename FuncType, typename UserPolicy>
 struct IBaseDelegateInstance;
 
-template <typename FuncType>
-struct IBaseDelegateInstanceCommon;
-
-template <typename RetType, typename... ArgTypes>
-struct IBaseDelegateInstanceCommon<RetType(ArgTypes...)> : public IDelegateInstance
+template <typename RetType, typename... ArgTypes, typename UserPolicy>
+struct IBaseDelegateInstance<RetType(ArgTypes...), UserPolicy> : public UserPolicy::FDelegateInstanceExtras
 {
 	/**
 	 * Emplaces a copy of the delegate instance into the FDelegateBase.
@@ -28,16 +24,7 @@ struct IBaseDelegateInstanceCommon<RetType(ArgTypes...)> : public IDelegateInsta
 	 * Execute the delegate.  If the function pointer is not valid, an error will occur.
 	 */
 	virtual RetType Execute(ArgTypes...) const = 0;
-};
 
-template <typename FuncType>
-struct IBaseDelegateInstance : public IBaseDelegateInstanceCommon<FuncType>
-{
-};
-
-template <typename... ArgTypes>
-struct IBaseDelegateInstance<void(ArgTypes...)> : public IBaseDelegateInstanceCommon<void(ArgTypes...)>
-{
 	/**
 	 * Execute the delegate, but only if the function pointer is still valid
 	 *
@@ -135,24 +122,4 @@ struct TPlacementNewer
 private:
 	TTypeCompatibleBytes<T> Bytes;
 	bool                    bConstructed;
-};
-
-template <typename T, typename MemFunPtrType>
-class TMemberFunctionCaller
-{
-	T*            Obj;
-	MemFunPtrType MemFunPtr;
-
-public:
-	TMemberFunctionCaller(T* InObj, MemFunPtrType InMemFunPtr)
-		: Obj      (InObj)
-		, MemFunPtr(InMemFunPtr)
-	{
-	}
-
-	template <typename... ArgTypes>
-	auto operator()(ArgTypes&&... Args) -> decltype((Obj->*MemFunPtr)(Forward<ArgTypes>(Args)...))
-	{
-		return (Obj->*MemFunPtr)(Forward<ArgTypes>(Args)...);
-	}
 };

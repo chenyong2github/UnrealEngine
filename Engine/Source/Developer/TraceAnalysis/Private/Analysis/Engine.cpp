@@ -142,7 +142,7 @@ const ANSICHAR* IAnalyzer::FThreadInfo::GetName() const
 	const auto* Info = (const FThreads::FInfo*)this;
 	if (Info->Name.Num() <= 0)
 	{
-		return "UnnamedThread";
+		return nullptr;
 	}
 
 	return (const ANSICHAR*)(Info->Name.GetData());
@@ -615,7 +615,7 @@ bool IAnalyzer::FEventData::GetString(const ANSICHAR* FieldName, FStringView& Ou
 
 	if (const FAuxData* Data = Info->GetAuxData(Index))
 	{
-		Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize); // Data combo!
+		Out = FStringView((const TCHAR*)(Data->Data), Data->DataSize / sizeof(TCHAR));
 		return true;
 	}
 

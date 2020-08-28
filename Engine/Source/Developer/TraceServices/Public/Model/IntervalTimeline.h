@@ -122,6 +122,13 @@ public:
 		return EventInternal.Event;
 	}
 
+	virtual bool GetEventInfo(double InTime, double DeltaTime, int32 Depth, typename ITimeline<EventType>::FTimelineEventInfo& EventInfo) const override
+	{
+		//Not implemented
+		check(false);
+		return false;
+	}
+
 private:
 	struct FEventInternal
 	{

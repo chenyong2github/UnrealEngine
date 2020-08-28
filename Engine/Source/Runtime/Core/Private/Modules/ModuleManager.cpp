@@ -20,7 +20,15 @@ DEFINE_LOG_CATEGORY_STATIC(LogModuleManager, Log, All);
 
 #if WITH_HOT_RELOAD
 	/** If true, we are reloading a class for HotReload */
-	CORE_API bool			GIsHotReload							= false;
+	CORE_API bool GIsHotReload = false;
+#endif
+
+#if WITH_ENGINE
+	TMap<UClass*, UClass*>& GetClassesToReinstanceForHotReload()
+	{
+		static TMap<UClass*, UClass*> Data;
+		return Data;
+	}
 #endif
 
 

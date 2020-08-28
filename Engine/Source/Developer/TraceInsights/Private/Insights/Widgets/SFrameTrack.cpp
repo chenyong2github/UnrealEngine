@@ -614,6 +614,9 @@ void SFrameTrack::DrawVerticalAxisGrid(FDrawContext& DrawContext, const FSlateBr
 	{
 		0.0,
 		1.0 / 200.0, //    5 ms (200 fps)
+		1.0 / 120.0, //  8.3 ms (120 fps)
+		1.0 / 90.0,  // 11.1 ms (90 fps)
+		1.0 / 72.0,  // 13.9 ms (72 fps)
 		1.0 / 60.0,  // 16.7 ms (60 fps)
 		1.0 / 30.0,  // 33.3 ms (30 fps)
 		1.0 / 20.0,  //   50 ms (20 fps)

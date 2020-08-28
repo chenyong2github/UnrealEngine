@@ -113,6 +113,9 @@ public:
 	/** Empty the loaders */
 	void ResetLoaders(UObject* InPkg);
 
+	/** Empty the loaders from the specified set */
+	void ResetLoaders(const TSet<FLinkerLoad*>& InLinkerLoadSet);
+
 	/** Complete all loading (thumbnails/bulkdata) for the given Package */
 	void EnsureLoadingComplete(UPackage* Package);
 

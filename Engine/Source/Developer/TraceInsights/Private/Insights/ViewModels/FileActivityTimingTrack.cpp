@@ -217,7 +217,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 					uint32 Type = ((uint32)FileActivity->ActivityType & 0x0F) | (FileActivity->Failed ? 0x80 : 0);
 
-					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileActivity->Offset, FileActivity->Size, Activity });
+					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileActivity->Offset, FileActivity->Size, FileActivity->ActualSize, Activity });
 					return Trace::EEventEnumerate::Continue;
 				});
 
@@ -568,6 +568,10 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 				TypeStr = GetFileActivityTypeName(ActivityType);
 				TypeColor = GetFileActivityTypeColor(ActivityType);
 			}
+			if (InEvent.ActualSize != InEvent.Size)
+			{
+				TypeStr += TEXT(" [!]");
+			}
 			FLinearColor TypeLinearColor = FLinearColor(FColor(TypeColor));
 			TypeLinearColor.R *= 2.0f;
 			TypeLinearColor.G *= 2.0f;
@@ -583,6 +587,12 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 			{
 				InOutTooltip.AddNameValueTextLine(TEXT("Offset:"), FText::AsNumber(InEvent.Offset).ToString() + TEXT(" bytes"));
 				InOutTooltip.AddNameValueTextLine(TEXT("Size:"), FText::AsNumber(InEvent.Size).ToString() + TEXT(" bytes"));
+				FString ActualSizeStr = FText::AsNumber(InEvent.ActualSize).ToString() + TEXT(" bytes");
+				if (InEvent.ActualSize != InEvent.Size)
+				{
+					ActualSizeStr += TEXT(" [!]");
+				}
+				InOutTooltip.AddNameValueTextLine(TEXT("Actual Size:"), ActualSizeStr);
 			}
 
 			if (!bIgnoreEventDepth)
@@ -696,7 +706,11 @@ void FOverviewFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 			continue;
 		}
 
-		const uint32 Color = bHasFailed ? 0xFFAA0000 : GetFileActivityTypeColor(ActivityType);
+		uint32 Color = bHasFailed ? 0xFFAA0000 : GetFileActivityTypeColor(ActivityType);
+		if (Event.ActualSize != Event.Size)
+		{
+			Color = (Color & 0xFF000000) | ((Color & 0xFEFEFE) >> 1);
+		}
 
 		Builder.AddEvent(Event.StartTime, EventEndTime, 0, Color,
 			[&Event](float Width)
@@ -711,6 +725,11 @@ void FOverviewFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 
 				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
 				EventName += GetFileActivityTypeName(ActivityType);
+
+				if (Event.ActualSize != Event.Size)
+				{
+					EventName += TEXT(" [!]");
+				}
 
 				if (Width > EventName.Len() * 4.0f + 32.0f)
 				{
@@ -819,7 +838,11 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 			continue;
 		}
 
-		const uint32 Color = bHasFailed ? 0xFFAA0000 : GetFileActivityTypeColor(ActivityType);
+		uint32 Color = bHasFailed ? 0xFFAA0000 : GetFileActivityTypeColor(ActivityType);
+		if (Event.ActualSize != Event.Size)
+		{
+			Color = (Color & 0xFF000000) | ((Color & 0xFEFEFE) >> 1);
+		}
 
 		Builder.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, Color,
 			[&Event](float Width)
@@ -834,6 +857,11 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 
 				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
 				EventName += GetFileActivityTypeName(ActivityType);
+
+				if (Event.ActualSize != Event.Size)
+				{
+					EventName += TEXT(" [!]");
+				}
 
 				if (ActivityType >= Trace::FileActivityType_Count)
 				{

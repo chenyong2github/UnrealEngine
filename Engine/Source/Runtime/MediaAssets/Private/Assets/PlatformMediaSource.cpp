@@ -9,6 +9,14 @@
 #endif
 
 
+void UPlatformMediaSource::PreSave(const class ITargetPlatform* TargetPlatform)
+{
+#if WITH_EDITORONLY_DATA
+	UMediaSource** PlatformMediaSource = PlatformMediaSources.Find(TargetPlatform->IniPlatformName());
+	MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
+#endif
+}
+
 /* UMediaSource interface
  *****************************************************************************/
 
@@ -49,17 +57,11 @@ void UPlatformMediaSource::Serialize(FArchive& Ar)
 #if WITH_EDITORONLY_DATA
 		if (Ar.IsFilterEditorOnly())
 		{
-			if (Ar.IsSaving())
-			{
-				UMediaSource** PlatformMediaSource = PlatformMediaSources.Find(Ar.CookingTarget()->IniPlatformName());
-				MediaSource = (PlatformMediaSource != nullptr) ? *PlatformMediaSource : nullptr;
-			}
-
 			Ar << MediaSource;
 		}
 		else
 		{
-		Ar << PlatformMediaSources;
+			Ar << PlatformMediaSources;
 		}
 #else
 		Ar << MediaSource;

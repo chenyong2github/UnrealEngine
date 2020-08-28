@@ -6,15 +6,18 @@
 =============================================================================*/
 
 #include "Commandlets/AssetRegUtilCommandlet.h"
-#include "PackageHelperFunctions.h"
+
+#include "AssetRegistryModule.h"
+#include "AssetRegistryState.h"
 #include "Engine/Texture.h"
 #include "Logging/LogMacros.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "UObject/UObjectIterator.h"
-#include "Stats/StatsMisc.h"
-#include "AssetRegistryModule.h"
 #include "Misc/FileHelper.h"
+#include "PackageHelperFunctions.h"
+#include "Serialization/ArrayReader.h"
+#include "Stats/StatsMisc.h"
+#include "UObject/UObjectIterator.h"
 
 DEFINE_LOG_CATEGORY(LogAssetRegUtil);
 
@@ -689,4 +692,90 @@ int32 UAssetRegUtilCommandlet::Main(const FString& CmdLineParams)
 	}
 
 	return 0;
+}
+
+UAssetRegistryDumpCommandlet::UAssetRegistryDumpCommandlet(const FObjectInitializer& Initializer)
+	: Super(Initializer)
+{
+}
+
+int32 UAssetRegistryDumpCommandlet::Main(const FString& CmdLineParams)
+{
+	const FString* InputFileNamePtr;
+	const FString* OutputDirectoryPtr;
+	TArray<FString> Tokens, Switches;
+	TMap<FString, FString> Params;
+	ParseCommandLine(*CmdLineParams, Tokens, Switches, Params);
+	InputFileNamePtr = Params.Find(TEXT("Input"));
+	OutputDirectoryPtr = Params.Find(TEXT("OutDir"));
+	if (!InputFileNamePtr || !OutputDirectoryPtr)
+	{
+		UE_LOG(LogAssetRegUtil, Warning, TEXT("Usage: -input <AssetRegistry.bin Filepath> -outdir <Directory to contain the dumped file(s)"));
+		return 1;
+	}
+	const FString& InputFileName = *InputFileNamePtr;
+	const FString& OutputDirectory = *OutputDirectoryPtr;
+
+	IFileManager& FileManager = IFileManager::Get();
+	if (!FileManager.FileExists(*InputFileName))
+	{
+		UE_LOG(LogAssetRegUtil, Warning, TEXT("Could not open input file %s"), *InputFileName);
+		return 3;
+	}
+
+	FArrayReader Bytes;
+	if (!FFileHelper::LoadFileToArray(Bytes, *InputFileName))
+	{
+		UE_LOG(LogAssetRegUtil, Warning, TEXT("Failed to load file %s"), *InputFileName);
+		return 3;
+	}
+
+	FAssetRegistryState State;
+	FAssetRegistrySerializationOptions Options;
+	Options.ModifyForDevelopment();
+	if (!State.Serialize(Bytes, Options))
+	{
+		UE_LOG(LogAssetRegUtil, Warning, TEXT("Failed to serialize file %s as an AssetRegistry"), *InputFileName);
+		return 3;
+	}
+
+	FString DumpDir = FPaths::ConvertRelativePathToFull(OutputDirectory / TEXT("AssetRegistry"));
+	if (FileManager.DirectoryExists(*DumpDir))
+	{
+		FString DeleteDirectory = OutputDirectory / FGuid::NewGuid().ToString();
+		if (!FileManager.Move(*DeleteDirectory, *DumpDir))
+		{
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Failed to move old directory %s to delete staging directory %s"), *DumpDir, *DeleteDirectory);
+			return 4;
+		}
+		if (!FileManager.DeleteDirectory(*DeleteDirectory, false /* RequireExists */, true /* Tree */))
+		{
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Failed to delete temporary delete-staging directory %s"), *DeleteDirectory);
+		}
+	}
+	if (!FileManager.MakeDirectory(*DumpDir, true /* Tree */))
+	{
+		UE_LOG(LogAssetRegUtil, Warning, TEXT("Failed to create directory %s"), *DumpDir);
+		return 4;
+	}
+
+	TArray<FString> Pages;
+	TArray<FString> Arguments({ TEXT("ObjectPath"),TEXT("PackageName"),TEXT("Path"),TEXT("Class"),TEXT("Tag"), TEXT("DependencyDetails"), TEXT("PackageData") });
+	State.Dump(Arguments, Pages, 10000 /* LinesPerPage */);
+	int PageIndex = 0;
+	TStringBuilder<256> FileName;
+	int32 Result = 0;
+	for (FString& PageText : Pages)
+	{
+		FileName.Reset();
+		FileName.Appendf(TEXT("%s_%05d.txt"), *(DumpDir / TEXT("Page")), PageIndex++);
+		PageText.ToLowerInline();
+		if (!FFileHelper::SaveStringToFile(PageText, FileName.ToString()))
+		{
+			UE_LOG(LogAssetRegUtil, Warning, TEXT("Failed to save file %s"), *FileName);
+			Result = 4;
+		}
+	}
+
+	return Result;
 }

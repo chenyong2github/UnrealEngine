@@ -68,9 +68,9 @@ void UNiagaraNodeSimTargetSelector::InsertInputPinsFor(const FNiagaraVariable& V
 
 void UNiagaraNodeSimTargetSelector::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	//ENiagaraSimTarget SimulationTarget = Translator->GetSimulationTarget();

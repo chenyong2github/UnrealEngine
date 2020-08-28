@@ -35,7 +35,12 @@ class FTimingGraphTrack;
 class FTimingViewDrawHelper;
 class SOverlay;
 class SScrollBar;
-namespace Insights { class ITimingViewExtender; }
+
+namespace Insights
+{
+	class ITimingViewExtender;
+	class FTimeMarker;
+}
 
 /** A custom widget used to display timing events. */
 class STimingView : public SCompoundWidget, public Insights::ITimingViewSession
@@ -240,7 +245,7 @@ public:
 
 	virtual TSharedPtr<FBaseTimingTrack> FindTrack(uint64 InTrackId) override;
 
-	virtual double GetTimeMarker() const override { return TimeMarker; }
+	virtual double GetTimeMarker() const override;
 	virtual void SetTimeMarker(double InTimeMarker) override;
 	virtual void SetAndCenterOnTimeMarker(double InTimeMarker) override;
 
@@ -293,7 +298,6 @@ public:
 
 	bool IsPanning() const { return bIsPanning; }
 	bool IsSelecting() const { return bIsSelecting; }
-	bool IsScrubbing() const { return bIsScrubbing; }
 
 	bool IsTimeSelected(double Time) const { return Time >= SelectionStartTime && Time < SelectionEndTime; }
 	bool IsTimeSelectedInclusive(double Time) const { return Time >= SelectionStartTime && Time <= SelectionEndTime; }
@@ -449,13 +453,16 @@ protected:
 
 	////////////////////////////////////////////////////////////
 
-	/** The time ruler track. */
-	TSharedPtr<FTimeRulerTrack> TimeRulerTrack;
+	/** The time ruler track. It includes the custom time markers (ones user can drag with mouse). */
+	TSharedRef<FTimeRulerTrack> TimeRulerTrack;
 
-	/** The time markers track. */
-	TSharedPtr<FMarkersTimingTrack> MarkersTrack;
+	/** The default time marker (for backward compatibility). */
+	TSharedRef<Insights::FTimeMarker> DefaultTimeMarker;
 
-	/** A graph track for frame times. */
+	/** The time markers track. It displayes fixed time markers based on bookmarks and log messages. */
+	TSharedRef<FMarkersTimingTrack> MarkersTrack;
+
+	/** A graph track for frame times and cpu/gpu timing graphs. */
 	TSharedPtr<FTimingGraphTrack> GraphTrack;
 
 	////////////////////////////////////////////////////////////
@@ -563,13 +570,8 @@ protected:
 	};
 	ESelectionType LastSelectionType;
 
-	double TimeMarker;
-
 	/** Throttle flag, allowing tracks to control whether Slate throttle should take place */
 	bool bPreventThrottling;
-
-	/** True of the user is currently dragging the time marker */
-	bool bIsScrubbing;
 
 	////////////////////////////////////////////////////////////
 	// Misc

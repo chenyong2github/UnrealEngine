@@ -1738,7 +1738,7 @@ void FConsoleManager::RegisterThreadPropagation(uint32 ThreadId, IConsoleThreadP
 	}
 
 	ThreadPropagationCallback = InCallback;
-	ThreadPropagationThreadId = ThreadId;
+	// `ThreadId` is ignored as only RenderingThread is supported
 }
 
 IConsoleThreadPropagation* FConsoleManager::GetThreadPropagationCallback()
@@ -1748,7 +1748,7 @@ IConsoleThreadPropagation* FConsoleManager::GetThreadPropagationCallback()
 
 bool FConsoleManager::IsThreadPropagationThread()
 {
-	return FPlatformTLS::GetCurrentThreadId() == ThreadPropagationThreadId;
+	return IsInActualRenderingThread();
 }
 
 void FConsoleManager::OnCVarChanged()

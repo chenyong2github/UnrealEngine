@@ -371,9 +371,9 @@ public:
 private:
 	ELLMTracker			Tracker;
 	FLLMAllocator*		Allocator;
-	FLLMArray<int64>	StatTags;
+	FLLMArray<int64>	StatTags; // uses 0 as invalid tag id; != 0 for valid tag ids
 	FLLMArray<int64>	StatValues;
-	FLLMArray<int64>	StatTagsSnapshot;
+	FLLMArray<int64>	StatTagsSnapshot; // copy of StatTags
 	FLLMArray<int64>	StatValuesSnapshot;
 	FCriticalSection	StatValuesLock;
 	int32				LastTracedTagCount;
@@ -432,7 +432,7 @@ public:
 	typedef ELLMTag FLowLevelAllocInfo;
 #endif
 
-	typedef LLMMap<PointerKey, uint32, FLowLevelAllocInfo> LLMMap;	// pointer, size, info
+	typedef LLMMap<PointerKey, uint32, FLowLevelAllocInfo, LLMNumAllocsType> LLMMap;	// pointer, size, info, Capacity SizeType
 
 	LLMMap& GetAllocationMap()
 	{
@@ -646,6 +646,8 @@ FLowLevelMemTracker::~FLowLevelMemTracker()
 
 void FLowLevelMemTracker::InitialiseTrackers()
 {
+	UE_LOG(LogInit, Log, TEXT("Initialize LLM trackers..."));
+
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; ++TrackerIndex)
 	{
 		FLLMTracker* Tracker = (FLLMTracker*)Allocator.Alloc(sizeof(FLLMTracker));
@@ -663,7 +665,9 @@ void FLowLevelMemTracker::InitialiseTrackers()
 void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 {
 	if (bIsDisabled && !bCanEnable)
+	{
 		return;
+	}
 
 	// let some stats get through even if we've disabled LLM - this shows up some overhead that is always there even when disabled
 	// (unless the #define completely removes support, of course)
@@ -675,6 +679,8 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	// delay init
 	if (bFirstTimeUpdating)
 	{
+		UE_LOG(LogInit, Log, TEXT("First time updating LLM stats..."));
+
 		static_assert((uint8)ELLMTracker::Max == 2, "You added a tracker, without updating FLowLevelMemTracker::UpdateStatsPerFrame (and probably need to update macros)");
 
 		GetTracker(ELLMTracker::Platform)->SetTotalTags(ELLMTag::PlatformUntaggedTotal, ELLMTag::PlatformTrackedTotal);
@@ -713,6 +719,8 @@ void FLowLevelMemTracker::UpdateStatsPerFrame(const TCHAR* LogName)
 	FPlatformMemoryStats PlatformStats = FPlatformMemory::GetStats();
 #if PLATFORM_ANDROID || PLATFORM_IOS || WITH_SERVER_CODE
 	uint64 PlatformProcessMemory = PlatformStats.UsedPhysical;
+#elif PLATFORM_DESKTOP
+	uint64 PlatformProcessMemory = PlatformStats.UsedVirtual;  // virtual is working set + paged out memory
 #else
 	uint64 PlatformProcessMemory = PlatformStats.TotalPhysical - PlatformStats.AvailablePhysical;
 #endif
@@ -768,7 +776,9 @@ void FLowLevelMemTracker::InitialiseProgramSize()
 void FLowLevelMemTracker::SetProgramSize(uint64 InProgramSize)
 {
 	if (bIsDisabled)
+	{
 		return;
+	}
 
 	int64 ProgramSizeDiff = InProgramSize - ProgramSize;
 
@@ -780,8 +790,16 @@ void FLowLevelMemTracker::SetProgramSize(uint64 InProgramSize)
 
 void FLowLevelMemTracker::ProcessCommandLine(const TCHAR* CmdLine)
 {
+	UE_LOG(LogInit, Log, TEXT("LLM is %s"), bIsDisabled ? TEXT("disabled") : TEXT("enabled"));
+	if (bIsDisabled)
+	{
+		UE_LOG(LogInit, Log, TEXT("LLM %s be enabled"), bCanEnable ? TEXT("can") : TEXT("cannot"));
+	}
+
 	if (bIsDisabled && !bCanEnable)
+	{
 		return;
+	}
 
 	if (bCanEnable)
 	{
@@ -799,15 +817,19 @@ void FLowLevelMemTracker::ProcessCommandLine(const TCHAR* CmdLine)
 
 	bCsvWriterEnabled = FParse::Param(CmdLine, TEXT("LLMCSV"));
 	bTraceWriterEnabled = UE_TRACE_CHANNELEXPR_IS_ENABLED(MemoryChannel);
+
 	for (int32 TrackerIndex = 0; TrackerIndex < (int32)ELLMTracker::Max; ++TrackerIndex)
 	{
 		GetTracker((ELLMTracker)TrackerIndex)->SetCSVEnabled(bCsvWriterEnabled);
 	}
 
+	UE_LOG(LogInit, Log, TEXT("LLM CsvWriter: %s TraceWriter: %s"), bCsvWriterEnabled ? TEXT("on") : TEXT("off"), bTraceWriterEnabled ? TEXT("on") : TEXT("off"));
+
 	// automatically enable LLM if only csv or trace output is active
 	if ((bCsvWriterEnabled || bTraceWriterEnabled) && bIsDisabled && bCanEnable)
 	{
 		bIsDisabled = false;
+		UE_LOG(LogInit, Log, TEXT("LLM has just been enabled"));
 	}
 
 	if (bIsDisabled)
@@ -1407,7 +1429,7 @@ void FLLMTracker::TrackFree(const void* Ptr, ELLMTracker Tracker, ELLMAllocType 
 		return;
 	}
 	LLMMap::Values Values = GetAllocationMap().Remove(Ptr);
-	uint64 Size = Values.Value1;
+	uint32 Size = Values.Value1;
 	FLLMTracker::FLowLevelAllocInfo AllocInfo = Values.Value2;
 
 	// track the total quickly
@@ -1511,20 +1533,20 @@ void FLLMTracker::SetTotalTags(ELLMTag InUntaggedTotalTag, ELLMTag InTrackedTota
 
 void FLLMTracker::Update(FLLMCustomTag* CustomTags, const int32* ParentTags)
 {
-	int ThreadStateNum = ThreadStates.Num();
+	int32 ThreadStateNum = ThreadStates.Num();
 
 	// Consume pending thread states
 	// We must be careful to do all allocations outside of the PendingThreadStatesGuard guard as that can lead to a deadlock due to contention with PendingThreadStatesGuard & Locks inside the underlying allocator (i.e. MallocBinned2 -> Mutex)
 	{
 		PendingThreadStatesGuard.Lock();
-		const int NumPendingThreadStatesToConsume = PendingThreadStates.Num();
+		const int32 NumPendingThreadStatesToConsume = PendingThreadStates.Num();
 		if (NumPendingThreadStatesToConsume > 0 )
 		{
 			PendingThreadStatesGuard.Unlock();
 			ThreadStates.Reserve(ThreadStateNum + NumPendingThreadStatesToConsume);
 			PendingThreadStatesGuard.Lock();
 
-			for ( int32 i=0; i < NumPendingThreadStatesToConsume; ++i )
+			for (int32 i=0; i < NumPendingThreadStatesToConsume; ++i )
 			{
 				ThreadStates.Add(PendingThreadStates.RemoveLast());
 			}
@@ -2051,7 +2073,7 @@ void FLLMCsvWriter::AddStat(int64 Tag, int64 Value)
 		return;
 	}
 
-	int StatValueCount = StatValues.Num();
+	int32 StatValueCount = StatValues.Num();
 	for (int32 i = 0; i < StatValueCount; ++i)
 	{
 		if (StatValues[i].Tag == Tag)
@@ -2088,7 +2110,7 @@ void FLLMCsvWriter::SetStat(int64 Tag, int64 Value)
 {
 	FScopeLock lock(&StatValuesLock);
 
-	int StatValueCount = StatValues.Num();
+	int32 StatValueCount = StatValues.Num();
 	for (int32 i = 0; i < StatValueCount; ++i)
 	{
 		if (StatValues[i].Tag == Tag)
@@ -2262,10 +2284,10 @@ void FLLMTraceWriter::Clear()
 void FLLMTraceWriter::AddStat(int64 Tag, int64 Value)
 {
 	FScopeLock lock(&StatValuesLock);
-	int StatValueCount = StatTags.Num();
+	int32 StatValueCount = StatTags.Num();
 	for (int32 i = 0; i < StatValueCount; ++i)
 	{
-		if (StatTags[i] == Tag)
+		if (StatTags[i] == Tag + 1)
 		{
 			StatValues[i] += Value;
 			return;
@@ -2273,17 +2295,17 @@ void FLLMTraceWriter::AddStat(int64 Tag, int64 Value)
 	}
 
 	check(StatTags.Num() == StatValues.Num());
-	StatTags.Add(Tag);
+	StatTags.Add(Tag + 1);
 	StatValues.Add(Value);
 }
 
 void FLLMTraceWriter::SetStat(int64 Tag, int64 Value)
 {
 	FScopeLock lock(&StatValuesLock);
-	int StatValueCount = StatValues.Num();
+	int32 StatValueCount = StatValues.Num();
 	for (int32 i = 0; i < StatValueCount; ++i)
 	{
-		if (StatTags[i] == Tag)
+		if (StatTags[i] == Tag + 1)
 		{
 			StatValues[i] = Value;
 			return;
@@ -2291,7 +2313,7 @@ void FLLMTraceWriter::SetStat(int64 Tag, int64 Value)
 	}
 
 	check(StatTags.Num() == StatValues.Num());
-	StatTags.Add(Tag);
+	StatTags.Add(Tag + 1);
 	StatValues.Add(Value);
 }
 
@@ -2305,7 +2327,7 @@ void FLLMTraceWriter::Update(FLLMCustomTag* CustomTags, const int32* ParentTags)
 	if (!bTrackerSpecSent)
 	{
 		bTrackerSpecSent = true;
-		static const ANSICHAR* TrackerNames[] = {"System", "Default"};
+		static const ANSICHAR* TrackerNames[] = {"Platform", "Default"};
 		static_assert(UE_ARRAY_COUNT(TrackerNames) == int(ELLMTracker::Max), "");
 		UE_TRACE_LOG(LLM, TrackerSpec, MemoryChannel)
 			<< TrackerSpec.TrackerId((uint8)Tracker)
@@ -2325,13 +2347,12 @@ void FLLMTraceWriter::Update(FLLMCustomTag* CustomTags, const int32* ParentTags)
 	{
 		for (int32 i = LastTracedTagCount; i < TagCount; ++i)
 		{
-			const int64 Tag = StatTagsSnapshot[i];
+			const int64 Tag = StatTagsSnapshot[i] - 1;
 			//FString TagName = GetTagName(Tag, CustomTags, ParentTags); // prefix with parent tag
 			FString TagName = GetTagName(Tag, CustomTags, nullptr);
-			const uint32 TagNameSize = TagName.Len() * sizeof(TCHAR);
-			UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel, TagNameSize)
-				<< TagsSpec.TagId(Tag)
-				<< TagsSpec.ParentId(ParentTags[Tag])
+			UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel)
+				<< TagsSpec.TagId(Tag + 1) // 0 as invalid tag id; != 0 for valid tag ids
+				<< TagsSpec.ParentId(ParentTags[Tag] + 1)
 				<< TagsSpec.Name(*TagName);
 		}
 		LastTracedTagCount = TagCount;
@@ -2343,7 +2364,7 @@ void FLLMTraceWriter::Update(FLLMCustomTag* CustomTags, const int32* ParentTags)
 	UE_TRACE_LOG(LLM, TagValue, MemoryChannel)
 		<< TagValue.TrackerId((uint8)Tracker)
 		<< TagValue.Cycle(Cycle)
-		<< TagValue.Tags(Tags, TagCount)
+		<< TagValue.Tags(Tags, TagCount) // uses 0 as invalid tag id; != 0 for valid tag ids
 		<< TagValue.Values(Values, TagCount);
 }
 
@@ -2352,10 +2373,9 @@ void FLLMTraceWriter::TraceGenericTags(const int32* ParentTags)
 	for (int32 GenericTagIndex = 0; GenericTagIndex < (int32)ELLMTag::GenericTagCount; GenericTagIndex++)
 	{
 		FString TagName = GetTagName(GenericTagIndex, nullptr, ParentTags);
-		const uint32 TagNameSize = TagName.Len() * sizeof(TCHAR);
-		UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel, TagNameSize)
-			<< TagsSpec.TagId(GenericTagIndex)
-			<< TagsSpec.ParentId(ParentTags[GenericTagIndex])
+		UE_TRACE_LOG(LLM, TagsSpec, MemoryChannel)
+			<< TagsSpec.TagId(GenericTagIndex + 1) // 0 as invalid tag id; != 0 for valid tag ids
+			<< TagsSpec.ParentId(ParentTags[GenericTagIndex] + 1)
 			<< TagsSpec.Name(*TagName);
 	}
 }

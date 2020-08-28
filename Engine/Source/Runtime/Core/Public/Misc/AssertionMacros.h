@@ -57,10 +57,10 @@ struct CORE_API FDebug
 	static SIZE_T GetNumEnsureFailures();
 
 	/** Dumps the stack trace into the log, meant to be used for debugging purposes. */
-	static void DumpStackTraceToLog();
+	static void DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity);
 
 	/** Dumps the stack trace into the log with a custom heading, meant to be used for debugging purposes. */
-	static void DumpStackTraceToLog(const TCHAR* Heading);
+	static void DumpStackTraceToLog(const TCHAR* Heading, const ELogVerbosity::Type LogVerbosity);
 
 #if DO_CHECK || DO_GUARD_SLOW || DO_ENSURE
 private:

@@ -17,13 +17,16 @@
 
 // Insights
 #include "Insights/Common/Stopwatch.h"
+#include "Insights/Common/TimeUtils.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/TimingProfilerCommon.h"
 #include "Insights/TimingProfilerManager.h"
+#include "Insights/ViewModels/CounterAggregation.h"
 #include "Insights/ViewModels/StatsNodeHelper.h"
 #include "Insights/ViewModels/StatsViewColumnFactory.h"
 #include "Insights/ViewModels/TimingGraphTrack.h"
+#include "Insights/Widgets/SAggregatorStatus.h"
 #include "Insights/Widgets/SStatsViewTooltip.h"
 #include "Insights/Widgets/SStatsTableRow.h"
 #include "Insights/Widgets/STimingProfilerWindow.h"
@@ -42,8 +45,7 @@ SStatsView::SStatsView()
 	, CurrentSorter(nullptr)
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 	, ColumnSortMode(GetDefaultColumnSortMode())
-	, StatsStartTime(0.0)
-	, StatsEndTime(0.0)
+	, Aggregator(MakeShared<Insights::FCounterAggregator>())
 {
 	FMemory::Memset(bStatsNodeIsVisible, 1);
 }
@@ -196,10 +198,16 @@ void SStatsView::Construct(const FArguments& InArgs)
 
 				+ SScrollBox::Slot()
 				[
-					SNew(SBorder)
-					.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
-					.Padding(0.0f)
+					SNew(SOverlay)
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Fill)
+					.VAlign(VAlign_Fill)
 					[
+					//SNew(SBorder)
+					//.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+					//.Padding(0.0f)
+					//[
 						SAssignNew(TreeView, STreeView<FStatsNodePtr>)
 						.ExternalScrollbar(ExternalScrollbar)
 						.SelectionMode(ESelectionMode::Multi)
@@ -215,6 +223,15 @@ void SStatsView::Construct(const FArguments& InArgs)
 							SAssignNew(TreeViewHeaderRow, SHeaderRow)
 							.Visibility(EVisibility::Visible)
 						)
+					//]
+					]
+
+					+ SOverlay::Slot()
+					.HAlign(HAlign_Right)
+					.VAlign(VAlign_Bottom)
+					.Padding(16.0f)
+					[
+						SAssignNew(AggregatorStatus, Insights::SAggregatorStatus, Aggregator)
 					]
 				]
 			]
@@ -1552,8 +1569,8 @@ void SStatsView::ContextMenu_ResetColumns_Execute()
 
 void SStatsView::Reset()
 {
-	StatsStartTime = 0.0;
-	StatsEndTime = 0.0;
+	Aggregator->Cancel();
+	Aggregator->SetTimeInterval(0.0, 0.0);
 
 	RebuildTree(true);
 }
@@ -1562,7 +1579,7 @@ void SStatsView::Reset()
 
 void SStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
-	// Check if we need to update the lists of counters, but not too often.
+	// Check if we need to update the list of counters, but not too often.
 	static uint64 NextTimestamp = 0;
 	const uint64 Time = FPlatformTime::Cycles64();
 	if (Time > NextTimestamp)
@@ -1576,6 +1593,8 @@ void SStatsView::Tick(const FGeometry& AllottedGeometry, const double InCurrentT
 		const uint64 WaitTime = static_cast<uint64>(WaitTimeSec / FPlatformTime::GetSecondsPerCycle64());
 		NextTimestamp = Time + WaitTime;
 	}
+
+	Aggregator->Tick(Session, InCurrentTime, InDeltaTime, [this]() { FinishAggregation(); });
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1645,7 +1664,8 @@ void SStatsView::RebuildTree(bool bResync)
 		}
 
 		UpdateTree();
-		UpdateStatsInternal();
+		Aggregator->Cancel();
+		Aggregator->Start();
 
 		// Save selection.
 		TArray<FStatsNodePtr> SelectedItems;
@@ -1709,366 +1729,32 @@ void SStatsView::UpdateNode(FStatsNodePtr NodePtr)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename Type>
-class TTimeCalculationHelper
-{
-public:
-	TTimeCalculationHelper<Type>(double InIntervalStartTime, double InIntervalEndTime)
-		: IntervalStartTime(InIntervalStartTime)
-		, IntervalEndTime(InIntervalEndTime)
-	{
-	}
-
-	void Update(uint32 CounterId, const Trace::ICounter& Counter)
-	{
-		EnumerateValues(CounterId, Counter, UpdateMinMax);
-	}
-
-	void PrecomputeHistograms();
-
-	void UpdateHistograms(uint32 CounterId, const Trace::ICounter& Counter)
-	{
-		EnumerateValues(CounterId, Counter, UpdateHistogram);
-	}
-
-	void PostProcess(TMap<uint32, FStatsNodePtr>& StatsNodesIdMap, bool bComputeMedian);
-
-private:
-	template<typename CallbackType>
-	void EnumerateValues(uint32 CounterId, const Trace::ICounter& Counter, CallbackType Callback);
-
-	static void UpdateMinMax(TAggregatedStatsEx<Type>& Stats, Type Value);
-	static void UpdateHistogram(TAggregatedStatsEx<Type>& StatsEx, Type Value);
-	static void PostProcess(TAggregatedStatsEx<Type>& StatsEx, bool bComputeMedian);
-
-	double IntervalStartTime;
-	double IntervalEndTime;
-	TMap<uint64, TAggregatedStatsEx<Type>> StatsMap;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// specialization for Type = double
-
-template<>
-template<typename CallbackType>
-void TTimeCalculationHelper<double>::EnumerateValues(uint32 CounterId, const Trace::ICounter& Counter, CallbackType Callback)
-{
-	TAggregatedStatsEx<double>* StatsExPtr = StatsMap.Find(CounterId);
-	if (!StatsExPtr)
-	{
-		StatsExPtr = &StatsMap.Add(CounterId);
-		StatsExPtr->BaseStats.Min = +MAX_dbl;
-		StatsExPtr->BaseStats.Max = -MAX_dbl;
-	}
-	TAggregatedStatsEx<double>& StatsEx = *StatsExPtr;
-
-	Counter.EnumerateFloatValues(IntervalStartTime, IntervalEndTime, false, [this, &StatsEx, Callback](double Time, double Value)
-	{
-		Callback(StatsEx, Value);
-	});
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// specialization for Type = int64
-
-template<>
-template<typename CallbackType>
-void TTimeCalculationHelper<int64>::EnumerateValues(uint32 CounterId, const Trace::ICounter& Counter, CallbackType Callback)
-{
-	TAggregatedStatsEx<int64>* StatsExPtr = StatsMap.Find(CounterId);
-	if (!StatsExPtr)
-	{
-		StatsExPtr = &StatsMap.Add(CounterId);
-		StatsExPtr->BaseStats.Min = +MAX_int64;
-		StatsExPtr->BaseStats.Max = -MAX_int64;
-	}
-	TAggregatedStatsEx<int64>& StatsEx = *StatsExPtr;
-
-	Counter.EnumerateValues(IntervalStartTime, IntervalEndTime, false, [this, &StatsEx, Callback](double Time, int64 Value)
-	{
-		Callback(StatsEx, Value);
-	});
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<typename Type>
-void TTimeCalculationHelper<Type>::UpdateMinMax(TAggregatedStatsEx<Type>& StatsEx, Type Value)
-{
-	TAggregatedStats<Type>& Stats = StatsEx.BaseStats;
-
-	Stats.Sum += Value;
-
-	if (Value < Stats.Min)
-	{
-		Stats.Min = Value;
-	}
-
-	if (Value > Stats.Max)
-	{
-		Stats.Max = Value;
-	}
-
-	Stats.Count++;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// specialization for Type = double
-
-template<>
-void TTimeCalculationHelper<double>::PrecomputeHistograms()
-{
-	for (auto& KV : StatsMap)
-	{
-		TAggregatedStatsEx<double>& StatsEx = KV.Value;
-		const TAggregatedStats<double>& Stats = StatsEx.BaseStats;
-
-		// Each bucket (Histogram[i]) will be centered on a value.
-		// I.e. First bucket (bucket 0) is centered on Min value: [Min-DT/2, Min+DT/2)
-		// and last bucket (bucket N-1) is centered on Max value: [Max-DT/2, Max+DT/2).
-
-		if (Stats.Max == Stats.Min)
-		{
-			StatsEx.DT = 1.0; // single large bucket
-		}
-		else
-		{
-			StatsEx.DT = (Stats.Max - Stats.Min) / (TAggregatedStatsEx<double>::HistogramLen - 1);
-			if (StatsEx.DT == 0.0)
-			{
-				StatsEx.DT = 1.0;
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// specialization for Type = int64
-
-template<>
-void TTimeCalculationHelper<int64>::PrecomputeHistograms()
-{
-	for (auto& KV : StatsMap)
-	{
-		TAggregatedStatsEx<int64>& StatsEx = KV.Value;
-		const TAggregatedStats<int64>& Stats = StatsEx.BaseStats;
-
-		// Each bucket (Histogram[i]) will be centered on a value.
-		// I.e. First bucket (bucket 0) is centered on Min value: [Min-DT/2, Min+DT/2)
-		// and last bucket (bucket N-1) is centered on Max value: [Max-DT/2, Max+DT/2).
-
-		if (Stats.Max == Stats.Min)
-		{
-			StatsEx.DT = 1; // single bucket
-		}
-		else
-		{
-			// DT = Ceil[(Max - Min) / (N - 1)]
-			StatsEx.DT = (Stats.Max - Stats.Min + TAggregatedStatsEx<int64>::HistogramLen - 2) / (TAggregatedStatsEx<int64>::HistogramLen - 1);
-			if (StatsEx.DT == 0)
-			{
-				StatsEx.DT = 1;
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<typename Type>
-void TTimeCalculationHelper<Type>::UpdateHistogram(TAggregatedStatsEx<Type>& StatsEx, Type Value)
-{
-	const TAggregatedStats<Type>& Stats = StatsEx.BaseStats;
-
-	// Index = (Value - Min + DT/2) / DT
-	int32 Index = static_cast<int32>((Value - Stats.Min + StatsEx.DT/2) / StatsEx.DT);
-	ensure(Index >= 0);
-	if (Index < 0)
-	{
-		Index = 0;
-	}
-	ensure(Index < TAggregatedStatsEx<Type>::HistogramLen);
-	if (Index >= TAggregatedStatsEx<Type>::HistogramLen)
-	{
-		Index = TAggregatedStatsEx<Type>::HistogramLen - 1;
-	}
-	StatsEx.Histogram[Index]++;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-template<typename Type>
-void TTimeCalculationHelper<Type>::PostProcess(TAggregatedStatsEx<Type>& StatsEx, bool bComputeMedian)
-{
-	TAggregatedStats<Type>& Stats = StatsEx.BaseStats;
-
-	// Compute average value.
-	if (Stats.Count > 0)
-	{
-		Stats.Average = Stats.Sum / static_cast<Type>(Stats.Count);
-
-		if (bComputeMedian)
-		{
-			const int32 HalfCount = Stats.Count / 2;
-
-			// Compute median value.
-			int32 Count = 0;
-			for (int32 HistogramIndex = 0; HistogramIndex < TAggregatedStatsEx<Type>::HistogramLen; HistogramIndex++)
-			{
-				Count += StatsEx.Histogram[HistogramIndex];
-				if (Count > HalfCount)
-				{
-					Stats.Median = Stats.Min + HistogramIndex * StatsEx.DT;
-
-					if (HistogramIndex > 0 &&
-						Stats.Count % 2 == 0 &&
-						Count - StatsEx.Histogram[HistogramIndex] == HalfCount)
-					{
-						const Type PrevMedian = Stats.Min + (HistogramIndex - 1) * StatsEx.DT;
-						Stats.Median = (Stats.Median + PrevMedian) / 2;
-					}
-
-					break;
-				}
-			}
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// specialization for Type = double
-
-template<>
-void TTimeCalculationHelper<double>::PostProcess(TMap<uint32, FStatsNodePtr>& StatsNodesIdMap, bool bComputeMedian)
-{
-	for (auto& KV : StatsMap)
-	{
-		PostProcess(KV.Value, bComputeMedian);
-
-		// Update the stats node.
-		FStatsNodePtr* NodePtrPtr = StatsNodesIdMap.Find(KV.Key);
-		if (NodePtrPtr != nullptr)
-		{
-			FStatsNodePtr NodePtr = *NodePtrPtr;
-			NodePtr->SetAggregatedStats(KV.Value.BaseStats);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-// specialization for Type = int64
-
-template<>
-void TTimeCalculationHelper<int64>::PostProcess(TMap<uint32, FStatsNodePtr>& StatsNodesIdMap, bool bComputeMedian)
-{
-	for (auto& KV : StatsMap)
-	{
-		PostProcess(KV.Value, bComputeMedian);
-
-		// Update the stats node.
-		FStatsNodePtr* NodePtrPtr = StatsNodesIdMap.Find(KV.Key);
-		if (NodePtrPtr != nullptr)
-		{
-			FStatsNodePtr NodePtr = *NodePtrPtr;
-			NodePtr->SetAggregatedIntegerStats(KV.Value.BaseStats);
-		}
-	}
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void SStatsView::ResetStats()
 {
-	StatsStartTime = 0.0;
-	StatsEndTime = 0.0;
-
-	UpdateStatsInternal();
+	Aggregator->Cancel();
+	Aggregator->SetTimeInterval(0.0, 0.0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 void SStatsView::UpdateStats(double StartTime, double EndTime)
 {
-	StatsStartTime = StartTime;
-	StatsEndTime = EndTime;
-
-	UpdateStatsInternal();
+	Aggregator->Cancel();
+	Aggregator->SetTimeInterval(StartTime, EndTime);
+	Aggregator->Start();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SStatsView::UpdateStatsInternal()
+void SStatsView::FinishAggregation()
 {
-	if (StatsStartTime >= StatsEndTime)
-	{
-		// keep previous aggregated stats
-		return;
-	}
-
-	FStopwatch AggregationStopwatch;
-	FStopwatch Stopwatch;
-	Stopwatch.Start();
-
 	for (const FStatsNodePtr& NodePtr : StatsNodes)
 	{
 		NodePtr->ResetAggregatedStats();
 	}
 
-	if (Session.IsValid())
-	{
-		const bool bComputeMedian = true;
-
-		TTimeCalculationHelper<double> CalculationHelperDbl(StatsStartTime, StatsEndTime);
-		TTimeCalculationHelper<int64>  CalculationHelperInt(StatsStartTime, StatsEndTime);
-
-		AggregationStopwatch.Start();
-		{
-			Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
-			const Trace::ICounterProvider& CountersProvider = Trace::ReadCounterProvider(*Session.Get());
-
-			// Compute instance count and total/min/max inclusive/exclusive times for each counter.
-			// Iterate through all counters.
-			CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](uint32 CounterId, const Trace::ICounter& Counter)
-			{
-				if (Counter.IsFloatingPoint())
-				{
-					CalculationHelperDbl.Update(CounterId, Counter);
-				}
-				else
-				{
-					CalculationHelperInt.Update(CounterId, Counter);
-				}
-			});
-
-			// Now, as we know min/max inclusive/exclusive times for counter, we can compute histogram and median values.
-			if (bComputeMedian)
-			{
-				// Update bucket size (DT) for computing histogram.
-				CalculationHelperDbl.PrecomputeHistograms();
-				CalculationHelperInt.PrecomputeHistograms();
-
-				// Compute histogram.
-				// Iterate again through all counters.
-				CountersProvider.EnumerateCounters([&CalculationHelperDbl, &CalculationHelperInt](uint32 CounterId, const Trace::ICounter& Counter)
-				{
-					if (Counter.IsFloatingPoint())
-					{
-						CalculationHelperDbl.UpdateHistograms(CounterId, Counter);
-					}
-					else
-					{
-						CalculationHelperInt.UpdateHistograms(CounterId, Counter);
-					}
-				});
-			}
-		}
-		AggregationStopwatch.Stop();
-
-		// Compute average and median inclusive/exclusive times.
-		CalculationHelperDbl.PostProcess(StatsNodesIdMap, bComputeMedian);
-		CalculationHelperInt.PostProcess(StatsNodesIdMap, bComputeMedian);
-	}
+	Aggregator->ApplyResultsTo(StatsNodesIdMap);
+	Aggregator->ResetResults();
 
 	// Invalidate all tree table rows.
 	for (const FStatsNodePtr& NodePtr : StatsNodes)
@@ -2076,24 +1762,19 @@ void SStatsView::UpdateStatsInternal()
 		TSharedPtr<ITableRow> TableRowPtr = TreeView->WidgetFromItem(NodePtr);
 		if (TableRowPtr.IsValid())
 		{
-			TSharedPtr<SStatsTableRow> StatsTableRowPtr = StaticCastSharedPtr<SStatsTableRow, ITableRow>(TableRowPtr);
-			StatsTableRowPtr->InvalidateContent();
+			TSharedPtr<SStatsTableRow> RowPtr = StaticCastSharedPtr<SStatsTableRow, ITableRow>(TableRowPtr);
+			RowPtr->InvalidateContent();
 		}
 	}
 
-	UpdateTree();
+	UpdateTree(); // grouping + sorting + filtering
 
+	// Ensure the last selected item is visible.
 	const TArray<FStatsNodePtr> SelectedNodes = TreeView->GetSelectedItems();
 	if (SelectedNodes.Num() > 0)
 	{
-		TreeView->RequestScrollIntoView(SelectedNodes[0]);
+		TreeView->RequestScrollIntoView(SelectedNodes.Last());
 	}
-
-	Stopwatch.Stop();
-	const double TotalTime = Stopwatch.GetAccumulatedTime();
-	const double AggregationTime = AggregationStopwatch.GetAccumulatedTime();
-	UE_LOG(TimingProfiler, Log, TEXT("[Counters] Aggregated stats updated in %.4fs (%.4fs + %.4fs)"),
-		TotalTime, AggregationTime, TotalTime - AggregationTime);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

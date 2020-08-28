@@ -7,6 +7,7 @@
 #include "Internationalization/GatherableTextData.h"
 #include "UObject/PackageFileSummary.h"
 #include "UObject/LinkerInstancingContext.h"
+#include "UObject/SavePackage.h"
 #include "Templates/RefCounting.h"
 
 class FReferenceCollector;
@@ -601,7 +602,11 @@ typedef uint32 ELazyLoaderFlags;
 	Global functions
 -----------------------------------------------------------------------------*/
 
-/** Resets linkers on packages after they have finished loading */
+/**
+ * Remove references to the linker for the given package and delete the linker. 
+ * Can be called after the package has finished loading.
+ * Flushes async loading.
+ */
 COREUOBJECT_API void ResetLoaders( UObject* InOuter );
 
 /** Deletes all linkers that have finished loading */
@@ -654,6 +659,14 @@ COREUOBJECT_API void ResetLoadersForSave(UObject* InOuter, const TCHAR *Filename
  * @param	Filename		The filename we are saving too
  */
 COREUOBJECT_API void ResetLoadersForSave(UPackage* Package, const TCHAR* Filename);
+
+/**
+ *
+ * Reset the loaders for the given packages if they are using the given filenames, so we can write to the files
+ *
+ * @param	InPackage			The package we are saving along with their filename
+ */
+COREUOBJECT_API void ResetLoadersForSave(TArrayView<FPackageSaveInfo> InPackages);
 
 /*
  * Ensure all data that can be loaded from the linker (thumbnails, bulk data) is loaded, in preparation for saving out the given package

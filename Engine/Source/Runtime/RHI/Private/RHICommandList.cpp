@@ -415,7 +415,9 @@ public:
 		SCOPE_CYCLE_COUNTER(STAT_RHIThreadExecute);
 		if (IsRunningRHIInTaskThread())
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			GRHIThreadId = FPlatformTLS::GetCurrentThreadId();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 		{
 			FScopeLock Lock(&GRHIThreadOnTasksCritical);
@@ -428,7 +430,9 @@ public:
 		}
 		if (IsRunningRHIInTaskThread())
 		{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 			GRHIThreadId = 0;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
 };

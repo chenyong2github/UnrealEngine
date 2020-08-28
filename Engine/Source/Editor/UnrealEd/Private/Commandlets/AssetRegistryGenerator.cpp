@@ -99,9 +99,13 @@ FAssetRegistryGenerator::FAssetRegistryGenerator(const ITargetPlatform* InPlatfo
 		bOnlyHardReferences = PackagingSettings->bChunkHardReferencesOnly;
 	}	
 
-	DependencyType = bOnlyHardReferences ? EAssetRegistryDependencyType::Hard : EAssetRegistryDependencyType::Packages;
+	DependencyQuery = bOnlyHardReferences ? UE::AssetRegistry::EDependencyQuery::Hard : UE::AssetRegistry::EDependencyQuery::NoRequirements;
 
-	if (UAssetManager::IsValid() && !FGameDelegates::Get().GetAssignStreamingChunkDelegate().IsBound() && !FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate().IsBound())
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FAssignStreamingChunkDelegate& AssignStreamingChunkDelegate = FGameDelegates::Get().GetAssignStreamingChunkDelegate();
+	FGetPackageDependenciesForManifestGeneratorDelegate& GetPackageDependenciesForManifestGeneratorDelegate = FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	if (UAssetManager::IsValid() && !AssignStreamingChunkDelegate.IsBound() && !GetPackageDependenciesForManifestGeneratorDelegate.IsBound())
 	{
 		bUseAssetManager = true;
 
@@ -602,9 +606,12 @@ void FAssetRegistryGenerator::GenerateChunkManifestForPackage(const FName& Packa
 		{
 			// Try to call game-specific delegate to determine the target chunk ID
 			// FString Name = Package->GetPathName();
-			if (FGameDelegates::Get().GetAssignStreamingChunkDelegate().IsBound())
+			PRAGMA_DISABLE_DEPRECATION_WARNINGS
+			FAssignStreamingChunkDelegate& AssignStreamingChunkDelegate = FGameDelegates::Get().GetAssignStreamingChunkDelegate();
+			PRAGMA_ENABLE_DEPRECATION_WARNINGS
+			if (AssignStreamingChunkDelegate.IsBound())
 			{
-				FGameDelegates::Get().GetAssignStreamingChunkDelegate().ExecuteIfBound(PackagePathName, LastLoadedMapName, RegistryChunkIDs, ExistingChunkIDs, TargetChunks);
+				AssignStreamingChunkDelegate.ExecuteIfBound(PackagePathName, LastLoadedMapName, RegistryChunkIDs, ExistingChunkIDs, TargetChunks);
 			}
 			else
 			{
@@ -976,7 +983,7 @@ void FAssetRegistryGenerator::ComputePackageDifferences(TSet<FName>& ModifiedPac
 		{
 			FName ModifiedPackage = ModifiedPackagesToRecurse[RecurseIndex];
 			TArray<FAssetIdentifier> Referencers;
-			State.GetReferencers(ModifiedPackage, Referencers, EAssetRegistryDependencyType::Hard);
+			State.GetReferencers(ModifiedPackage, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
@@ -1189,7 +1196,7 @@ void FAssetRegistryGenerator::AddAssetToFileOrderRecursive(const FName& InPackag
 		OutEncounteredNames.Add(InPackageName);
 
 		TArray<FName> Dependencies;
-		AssetRegistry.GetDependencies(InPackageName, Dependencies, EAssetRegistryDependencyType::Hard);
+		AssetRegistry.GetDependencies(InPackageName, Dependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 		for (FName DependencyName : Dependencies)
 		{
@@ -1382,7 +1389,7 @@ bool FAssetRegistryGenerator::WriteCookerOpenOrder()
 		for (FName PackageName : PackageNameSet)
 		{
 			TArray<FName> Referencers;
-			AssetRegistry.GetReferencers(PackageName, Referencers, EAssetRegistryDependencyType::Hard);
+			AssetRegistry.GetReferencers(PackageName, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 			bool bIsTopLevel = true;
 			bool bIsMap = MapList.Contains(PackageName);
@@ -1467,7 +1474,7 @@ bool FAssetRegistryGenerator::GetPackageDependencyChain(FName SourcePackage, FNa
 	}
 
 	TArray<FName> SourceDependencies;
-	if (GetPackageDependencies(SourcePackage, SourceDependencies, DependencyType) == false)
+	if (GetPackageDependencies(SourcePackage, SourceDependencies, DependencyQuery) == false)
 	{		
 		return false;
 	}
@@ -1487,21 +1494,28 @@ bool FAssetRegistryGenerator::GetPackageDependencyChain(FName SourcePackage, FNa
 	return false;
 }
 
-bool FAssetRegistryGenerator::GetPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames, EAssetRegistryDependencyType::Type InDependencyType)
-{	
-	if (FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate().IsBound())
+bool FAssetRegistryGenerator::GetPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames, UE::AssetRegistry::EDependencyQuery InDependencyQuery)
+{
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	FGetPackageDependenciesForManifestGeneratorDelegate& GetPackageDependenciesForManifestGeneratorDelegate = FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate();
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	if (GetPackageDependenciesForManifestGeneratorDelegate.IsBound())
 	{
-		return FGameDelegates::Get().GetGetPackageDependenciesForManifestGeneratorDelegate().Execute(PackageName, DependentPackageNames, InDependencyType);
+		uint8 DependencyType = 0;
+		DependencyType |= (uint8)(!!(InDependencyQuery & UE::AssetRegistry::EDependencyQuery::Soft) ? EAssetRegistryDependencyType::None : EAssetRegistryDependencyType::Hard);
+		DependencyType |= (uint8)(!!(InDependencyQuery & UE::AssetRegistry::EDependencyQuery::Hard) ? EAssetRegistryDependencyType::None : EAssetRegistryDependencyType::Soft);
+		return GetPackageDependenciesForManifestGeneratorDelegate.Execute(PackageName, DependentPackageNames, DependencyType);
 	}
 	else
 	{
-		return AssetRegistry.GetDependencies(PackageName, DependentPackageNames, InDependencyType);
+		return AssetRegistry.GetDependencies(PackageName, DependentPackageNames, UE::AssetRegistry::EDependencyCategory::Package, InDependencyQuery);
 	}
 }
 
 bool FAssetRegistryGenerator::GatherAllPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames)
 {	
-	if (GetPackageDependencies(PackageName, DependentPackageNames, DependencyType) == false)
+	if (GetPackageDependencies(PackageName, DependentPackageNames, DependencyQuery) == false)
 	{
 		return false;
 	}
@@ -1515,7 +1529,7 @@ bool FAssetRegistryGenerator::GatherAllPackageDependencies(FName PackageName, TA
 		const FName& ChildPackageName = DependentPackageNames[DependencyCounter];
 		++DependencyCounter;
 		TArray<FName> ChildDependentPackageNames;
-		if (GetPackageDependencies(ChildPackageName, ChildDependentPackageNames, DependencyType) == false)
+		if (GetPackageDependencies(ChildPackageName, ChildDependentPackageNames, DependencyQuery) == false)
 		{
 			return false;
 		}

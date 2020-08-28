@@ -30,6 +30,7 @@ FFileActivityProvider::FFileActivityProvider(IAnalysisSession& InSession)
 			TEXT("Type")).
 		AddColumn(&FFileActivity::Offset, TEXT("Offset")).
 		AddColumn(&FFileActivity::Size, TEXT("Size")).
+		AddColumn(&FFileActivity::ActualSize, TEXT("ActualSize")).
 		AddColumn(&FFileActivity::Failed, TEXT("Failed"));
 }
 
@@ -72,6 +73,7 @@ uint64 FFileActivityProvider::BeginActivity(uint32 FileIndex, EFileActivityType 
 	FileActivity.File = &FileInfo.FileInfo;
 	FileActivity.Offset = Offset;
 	FileActivity.Size = Size;
+	FileActivity.ActualSize = 0;
 	FileActivity.StartTime = Time;
 	FileActivity.EndTime = std::numeric_limits<double>::infinity();
 	FileActivity.ThreadId = ThreadId;
@@ -84,12 +86,9 @@ void FFileActivityProvider::EndActivity(uint32 FileIndex, uint64 ActivityIndex, 
 {
 	FFileInfoInternal& FileInfo = Files[FileIndex];
 	FFileActivity* Activity = FileInfo.ActivityTimeline->EndEvent(ActivityIndex, Time);
+	Activity->ActualSize = ActualSize;
 	Activity->EndTime = Time;
 	Activity->Failed = Failed;
-	if (!Failed)
-	{
-		Activity->Size = ActualSize;
-	}
 }
 
 const TCHAR* FFileActivityProvider::GetFilePath(uint32 FileIndex) const

@@ -4,9 +4,6 @@
 
 #if UE_TRACE_ENABLED
 
-#include "Atomic.h"
-#include "Protocol.h"
-
 namespace Trace {
 namespace Private {
 

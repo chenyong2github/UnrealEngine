@@ -1864,7 +1864,7 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 		}
 		else
 		{
-			FDebug::DumpStackTraceToLog();
+			FDebug::DumpStackTraceToLog(ELogVerbosity::Error);
 		}
 		return;
 	}

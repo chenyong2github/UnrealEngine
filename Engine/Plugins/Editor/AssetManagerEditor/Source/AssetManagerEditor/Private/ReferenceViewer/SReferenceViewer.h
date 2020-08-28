@@ -119,6 +119,8 @@ private:
 	ECheckBoxState IsShowSoftReferencesChecked() const;
 	void OnShowHardReferencesChanged(ECheckBoxState NewState);
 	ECheckBoxState IsShowHardReferencesChecked() const;
+	void OnShowEditorOnlyReferencesChanged(ECheckBoxState NewState);
+	ECheckBoxState IsShowEditorOnlyReferencesChecked() const;
 
 	EVisibility GetManagementReferencesVisibility() const;
 	void OnShowManagementReferencesChanged(ECheckBoxState NewState);
@@ -214,3 +216,20 @@ private:
 	/** Handle to know if dirty */
 	FDelegateHandle AssetRefreshHandle;
 };
+
+enum class EDependencyPinCategory
+{
+	LinkEndPassive = 0,
+	LinkEndActive = 1,
+	LinkEndMask = LinkEndActive,
+
+	LinkTypeNone = 0,
+	LinkTypeUsedInGame = 2,
+	LinkTypeHard = 4,
+	LinkTypeMask = LinkTypeHard | LinkTypeUsedInGame,
+};
+ENUM_CLASS_FLAGS(EDependencyPinCategory);
+
+extern EDependencyPinCategory ParseDependencyPinCategory(FName PinCategory);
+extern FLinearColor GetColor(EDependencyPinCategory Category);
+extern FName GetName(EDependencyPinCategory Category);

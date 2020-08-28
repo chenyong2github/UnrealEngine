@@ -214,6 +214,10 @@ void FSlateOpenGLRenderingPolicy::DrawElements( const FMatrix& ViewProjectionMat
 		{
 			ElementProgram.SetGammaValues(FVector2D(1.0f, 1.0f));
 		}
+		else
+		{
+			ElementProgram.SetGammaValues(FVector2D(1, 1 / 2.2f));
+		}
 
 		ElementProgram.SetShaderType( static_cast<uint8>(RenderBatch.GetShaderType()) );
 		ElementProgram.SetMarginUVs( RenderBatch.GetShaderParams().PixelParams );

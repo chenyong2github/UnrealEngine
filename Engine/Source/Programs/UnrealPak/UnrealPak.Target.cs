@@ -26,7 +26,7 @@ public class UnrealPakTarget : TargetRules
 		// ICU is not needed
 		bCompileICU = false;
 
-		// UnrealHeaderTool is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
+		// UnrealPak is a console application, not a Windows app (sets entry point to main(), instead of WinMain())
 		bCompileAgainstApplicationCore = false;
 		bIsBuildingConsoleApplication = true;
 	}

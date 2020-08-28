@@ -927,6 +927,11 @@ public:
 		return bUsingSharedDDC;
 	}
 
+	virtual const TCHAR* GetGraphName() const override
+	{
+		return *GraphName;
+	}
+
 	virtual void AddToAsyncCompletionCounter(int32 Addend) override
 	{
 		AsyncCompletionCounter.Add(Addend);

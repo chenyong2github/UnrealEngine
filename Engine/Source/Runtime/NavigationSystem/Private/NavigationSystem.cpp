@@ -1744,8 +1744,7 @@ ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentProperti
 
 ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentProperties& AgentProperties)
 {
-	const UNavigationSystemV1* ConstThis = AsConst(this);
-	return const_cast<ANavigationData*>(ConstThis->GetNavDataForProps(AgentProperties));
+	return const_cast<ANavigationData*>(AsConst(*this).GetNavDataForProps(AgentProperties));
 }
 
 // @todo could optimize this by having "SupportedAgentIndex" in FNavAgentProperties

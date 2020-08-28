@@ -607,12 +607,14 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 	UClass* TDClass = GetClass();
 	UEnum* TDEnum = GetEnum();
 
+	TStringBuilder<128> PathName;
 	if (TDEnum)
 	{
 		// Do we need to enumerate all the enum values and rebuild if that changes or are we ok with just knowing that there are the same  count of enum entries?
 		// For now, am just going to be ok with the number of entries. The actual string values don't matter so much.
 		FString CppType = TDEnum->CppType;
-		FString PathName = TDEnum->GetPathName();
+		PathName.Reset();
+		TDEnum->GetPathName(nullptr, PathName);
 		InVisitor->UpdateString(TEXT("\tEnumPath"), PathName);
 		InVisitor->UpdateString(TEXT("\tEnumCppType"), CppType);
 		InVisitor->UpdatePOD(TEXT("\t\tNumEnums"),TDEnum->NumEnums());
@@ -624,22 +626,27 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 		UObject* TempObj = TDClass->GetDefaultObject(false);
 		check(TempObj);
 
-		FString ClassName = TDClass->GetPathName();
-		InVisitor->UpdateString(TEXT("\tClassName"), ClassName);
+		PathName.Reset();
+		TDClass->GetPathName(nullptr, PathName);
+		InVisitor->UpdateString(TEXT("\tClassName"), PathName);
 
 		UNiagaraDataInterface* TempDI = Cast< UNiagaraDataInterface>(TempObj);
 		if (TempDI)
 		{
 			if (!TempDI->AppendCompileHash(InVisitor))
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Unable to generate AppendCompileHash for DI %s"), *TempDI->GetPathName());
+				PathName.Reset();
+				TempDI->GetPathName(nullptr, PathName);
+				UE_LOG(LogNiagara, Warning, TEXT("Unable to generate AppendCompileHash for DI %s"), PathName.ToString());
 			}
 		}
 	}
 	else if (TDStruct)
 	{
-		FString ClassName = TDStruct->GetPathName();
-		InVisitor->UpdateString(TEXT("\tStructName"), ClassName);
+		PathName.Reset();
+		TDStruct->GetPathName(nullptr, PathName);
+		InVisitor->UpdateString(TEXT("\tStructName"), PathName);
+		TStringBuilder<128> NameBuffer;
 		// Structs are potentially changed, so we will want to register their actual types and variable names.
 		for (TFieldIterator<FProperty> PropertyIt(TDStruct, EFieldIteratorFlags::IncludeSuper, EFieldIteratorFlags::IncludeDeprecated); PropertyIt; ++PropertyIt)
 		{
@@ -648,8 +655,12 @@ bool FNiagaraTypeDefinition::AppendCompileHash(FNiagaraCompileHashVisitor* InVis
 			{
 				continue;
 			}
-			InVisitor->UpdateString(TEXT("\t\tPropertyName"), Property->GetName());
-			InVisitor->UpdateString(TEXT("\t\tPropertyClass"), Property->GetClass()->GetName());
+			NameBuffer.Reset();
+			Property->GetFName().ToString(NameBuffer);
+			InVisitor->UpdateString(TEXT("\t\tPropertyName"), NameBuffer);
+			NameBuffer.Reset();
+			Property->GetClass()->GetFName().ToString(NameBuffer);
+			InVisitor->UpdateString(TEXT("\t\tPropertyClass"), NameBuffer);
 		}
 	}
 	else

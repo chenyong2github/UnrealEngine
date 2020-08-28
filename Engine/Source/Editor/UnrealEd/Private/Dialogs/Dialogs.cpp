@@ -357,7 +357,7 @@ EAppReturnType::Type OpenMessageDialog_Internal(EAppMsgType::Type InMessageType,
 		}
 		else
 		{
-			FDebug::DumpStackTraceToLog();
+			FDebug::DumpStackTraceToLog(ELogVerbosity::Error);
 		}
 	}
 

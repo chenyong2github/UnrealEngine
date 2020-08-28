@@ -164,9 +164,10 @@ void FNiagaraStackGraphUtilities::GetWrittenVariablesForGraph(UEdGraph& Graph, T
 {
 	TArray<UNiagaraNodeOutput*> OutputNodes;
 	Graph.GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
+	FPinCollectorArray InputPins;
 	for (UNiagaraNodeOutput* OutputNode : OutputNodes)
 	{
-		TArray<UEdGraphPin*> InputPins;
+		InputPins.Reset();
 		OutputNode->GetInputPins(InputPins);
 		if (InputPins.Num() == 1)
 		{
@@ -186,7 +187,7 @@ void FNiagaraStackGraphUtilities::GetWrittenVariablesForGraph(UEdGraph& Graph, T
 
 void FNiagaraStackGraphUtilities::ConnectPinToInputNode(UEdGraphPin& Pin, UNiagaraNodeInput& InputNode)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	InputNode.GetOutputPins(InputPins);
 	if (InputPins.Num() == 1)
 	{
@@ -194,7 +195,7 @@ void FNiagaraStackGraphUtilities::ConnectPinToInputNode(UEdGraphPin& Pin, UNiaga
 	}
 }
 
-UEdGraphPin* GetParameterMapPin(const TArray<UEdGraphPin*>& Pins)
+UEdGraphPin* GetParameterMapPin(TArrayView<UEdGraphPin* const> Pins)
 {
 	auto IsParameterMapPin = [](const UEdGraphPin* Pin)
 	{
@@ -210,14 +211,14 @@ UEdGraphPin* GetParameterMapPin(const TArray<UEdGraphPin*>& Pins)
 
 UEdGraphPin* FNiagaraStackGraphUtilities::GetParameterMapInputPin(UNiagaraNode& Node)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	Node.GetInputPins(InputPins);
 	return GetParameterMapPin(InputPins);
 }
 
 UEdGraphPin* FNiagaraStackGraphUtilities::GetParameterMapOutputPin(UNiagaraNode& Node)
 {
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	Node.GetOutputPins(OutputPins);
 	return GetParameterMapPin(OutputPins);
 }
@@ -280,6 +281,7 @@ OutputNodeType* GetEmitterOutputNodeForStackNodeInternal(InputNodeType& StackNod
 {
 	TArray<InputNodeType*> NodesToCheck;
 	TSet<InputNodeType*> NodesChecked;
+	FPinCollectorArray OutputPins;
 	NodesToCheck.Add(&StackNode);
 	while (NodesToCheck.Num() > 0)
 	{
@@ -291,8 +293,8 @@ OutputNodeType* GetEmitterOutputNodeForStackNodeInternal(InputNodeType& StackNod
 		{
 			return CastChecked<UNiagaraNodeOutput>(NodeToCheck);
 		}
-		
-		TArray<const UEdGraphPin*> OutputPins;
+
+		OutputPins.Reset();
 		NodeToCheck->GetOutputPins(OutputPins);
 		for (const UEdGraphPin* OutputPin : OutputPins)
 		{
@@ -349,6 +351,8 @@ UNiagaraNodeInput* FNiagaraStackGraphUtilities::GetEmitterInputNodeForStackNode(
 
 void GetGroupNodesRecursive(const TArray<UNiagaraNode*>& CurrentStartNodes, UNiagaraNode* EndNode, TArray<UNiagaraNode*>& OutAllNodes)
 {
+	FPinCollectorArray InputPins;
+	FPinCollectorArray OutputPins;
 	for (UNiagaraNode* CurrentStartNode : CurrentStartNodes)
 	{
 		if (OutAllNodes.Contains(CurrentStartNode) == false)
@@ -359,7 +363,7 @@ void GetGroupNodesRecursive(const TArray<UNiagaraNode*>& CurrentStartNodes, UNia
 			UEdGraphPin* ParameterMapInputPin = FNiagaraStackGraphUtilities::GetParameterMapInputPin(*CurrentStartNode);
 			if (ParameterMapInputPin != nullptr)
 			{
-				TArray<UEdGraphPin*> InputPins;
+				InputPins.Reset();
 				CurrentStartNode->GetInputPins(InputPins);
 				for (UEdGraphPin* InputPin : InputPins)
 				{
@@ -381,7 +385,7 @@ void GetGroupNodesRecursive(const TArray<UNiagaraNode*>& CurrentStartNodes, UNia
 			if (CurrentStartNode != EndNode)
 			{
 				TArray<UNiagaraNode*> LinkedNodes;
-				TArray<UEdGraphPin*> OutputPins;
+				OutputPins.Reset();
 				CurrentStartNode->GetOutputPins(OutputPins);
 				for (UEdGraphPin* OutputPin : OutputPins)
 				{
@@ -612,7 +616,7 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	}
 	
 	// Set the static switch values so we traverse the correct node paths
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	FunctionCallNode.GetInputPins(InputPins);
 	FNiagaraEditorUtilities::SetStaticSwitchConstants(FunctionGraph, InputPins, ConstantResolver);
 
@@ -632,6 +636,7 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 		UNiagaraNodeParameterMapSet* ParamMapNode = Cast<UNiagaraNodeParameterMapSet>(InputPins[0]->LinkedTo[0]->GetOwningNode());
 		if (ParamMapNode)
 		{
+			InputPins.Reset();
 			ParamMapNode->GetInputPins(InputPins);
 			for (UEdGraphPin* Pin : InputPins)
 			{
@@ -652,6 +657,7 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 	TArray<UNiagaraNode*> ReachedNodes;
 	FunctionGraph->BuildTraversal(ReachedNodes, OutputNode, true);
 
+	FPinCollectorArray OutPins;
 	// We only care about reachable parameter map get nodes with module inputs
 	const UEdGraphSchema_Niagara* Schema = GetDefault<UEdGraphSchema_Niagara>();
 	for (UNiagaraNode* Node : ReachedNodes)
@@ -659,7 +665,7 @@ TArray<UEdGraphPin*> FNiagaraStackGraphUtilities::GetUnusedFunctionInputPins(UNi
 		UNiagaraNodeParameterMapGet* ParamMapNode = Cast<UNiagaraNodeParameterMapGet>(Node);
 		if (ParamMapNode)
 		{
-			TArray<UEdGraphPin*> OutPins;
+			OutPins.Reset();
 			ParamMapNode->GetOutputPins(OutPins);
 			for (UEdGraphPin* OutPin : OutPins)
 			{
@@ -857,7 +863,7 @@ UEdGraphPin* FNiagaraStackGraphUtilities::GetStackFunctionInputOverridePin(UNiag
 	UNiagaraNodeParameterMapSet* OverrideNode = GetStackFunctionOverrideNode(StackFunctionCall);
 	if (OverrideNode != nullptr)
 	{
-		TArray<UEdGraphPin*> InputPins;
+		FPinCollectorArray InputPins;
 		OverrideNode->GetInputPins(InputPins);
 		UEdGraphPin** OverridePinPtr = InputPins.FindByPredicate([&](const UEdGraphPin* Pin) { return Pin->PinName == AliasedInputParameterHandle.GetParameterHandleString(); });
 		if (OverridePinPtr != nullptr)
@@ -876,7 +882,7 @@ UEdGraphPin& FNiagaraStackGraphUtilities::GetOrCreateStackFunctionInputOverrideP
 		UNiagaraNodeParameterMapSet& OverrideNode = GetOrCreateStackFunctionOverrideNode(StackFunctionCall, PreferredOverrideNodeGuid);
 		OverrideNode.Modify();
 
-		TArray<UEdGraphPin*> OverrideInputPins;
+		FPinCollectorArray OverrideInputPins;
 		OverrideNode.GetInputPins(OverrideInputPins);
 
 		const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -916,7 +922,7 @@ void FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(UE
 				UNiagaraNodeParameterMapSet* DynamicInputNodeOverrideNode = Cast<UNiagaraNodeParameterMapSet>(DynamicInputNodeInputPin->LinkedTo[0]->GetOwningNode());
 				if (DynamicInputNodeOverrideNode != nullptr)
 				{
-					TArray<UEdGraphPin*> InputPins;
+					FPinCollectorArray InputPins;
 					DynamicInputNodeOverrideNode->GetInputPins(InputPins);
 					for (UEdGraphPin* InputPin : InputPins)
 					{
@@ -928,7 +934,7 @@ void FNiagaraStackGraphUtilities::RemoveNodesForStackFunctionInputOverridePin(UE
 						}
 					}
 
-					TArray<UEdGraphPin*> NewInputPins;
+					FPinCollectorArray NewInputPins;
 					DynamicInputNodeOverrideNode->GetInputPins(NewInputPins);
 					if (NewInputPins.Num() == 2)
 					{
@@ -1042,7 +1048,7 @@ void FNiagaraStackGraphUtilities::SetDynamicInputForFunctionInput(UEdGraphPin& O
 	FunctionCallNode->SetEnabledState(OverrideNode->GetDesiredEnabledState(), OverrideNode->HasUserSetTheEnabledState());
 
 	UEdGraphPin* FunctionCallInputPin = FNiagaraStackGraphUtilities::GetParameterMapInputPin(*FunctionCallNode);
-	TArray<UEdGraphPin*> FunctionCallOutputPins;
+	FPinCollectorArray FunctionCallOutputPins;
 	FunctionCallNode->GetOutputPins(FunctionCallOutputPins);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -1096,7 +1102,7 @@ void FNiagaraStackGraphUtilities::SetCustomExpressionForFunctionInput(UEdGraphPi
 	FunctionCallNode->SetEnabledState(OverrideNode->GetDesiredEnabledState(), OverrideNode->HasUserSetTheEnabledState());
 
 	UEdGraphPin* FunctionCallInputPin = FNiagaraStackGraphUtilities::GetParameterMapInputPin(*FunctionCallNode);
-	TArray<UEdGraphPin*> FunctionCallOutputPins;
+	FPinCollectorArray FunctionCallOutputPins;
 	FunctionCallNode->GetOutputPins(FunctionCallOutputPins);
 
 	const UEdGraphSchema_Niagara* NiagaraSchema = GetDefault<UEdGraphSchema_Niagara>();
@@ -1167,6 +1173,7 @@ bool FNiagaraStackGraphUtilities::RemoveModuleFromStack(UNiagaraScript& OwningSc
 	FNiagaraStackGraphUtilities::FStackNodeGroup ModuleGroup = StackNodeGroups[ModuleStackIndex];
 	TArray<UNiagaraNode*> NodesToRemove;
 	TArray<UNiagaraNode*> NodesToCheck;
+	FPinCollectorArray InputPins;
 	NodesToCheck.Add(ModuleGroup.EndNode);
 	while (NodesToCheck.Num() > 0)
 	{
@@ -1174,7 +1181,7 @@ bool FNiagaraStackGraphUtilities::RemoveModuleFromStack(UNiagaraScript& OwningSc
 		NodesToCheck.RemoveAt(0);
 		NodesToRemove.AddUnique(NodeToRemove);
 
-		TArray<UEdGraphPin*> InputPins;
+		InputPins.Reset();
 		NodeToRemove->GetInputPins(InputPins);
 		for (UEdGraphPin* InputPin : InputPins)
 		{

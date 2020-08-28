@@ -4056,7 +4056,7 @@ void FEditorFileUtils::FindAllPackageFiles(TArray<FString>& OutPackages)
 
 	for (int32 PathIndex = 0; PathIndex < Paths.Num(); PathIndex++)
 	{
-		FPackageName::FindPackagesInDirectory(OutPackages, *Paths[PathIndex]);
+		FPackageName::FindPackagesInDirectory(OutPackages, Paths[PathIndex]);
 	}
 }
 

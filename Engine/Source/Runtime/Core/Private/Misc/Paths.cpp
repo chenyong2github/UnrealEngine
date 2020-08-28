@@ -1273,7 +1273,7 @@ bool FPaths::MakePathRelativeTo( FString& InPath, const TCHAR* InRelativeTo )
 	if (TargetArray.Num() && SourceArray.Num())
 	{
 		// Check for being on different drives
-		if ((TargetArray[0][1] == TEXT(':')) && (SourceArray[0][1] == TEXT(':')))
+		if ((TargetArray[0].Len() > 1) && (TargetArray[0][1] == TEXT(':')) && (SourceArray[0].Len() > 1) && (SourceArray[0][1] == TEXT(':')))
 		{
 			if (FChar::ToUpper(TargetArray[0][0]) != FChar::ToUpper(SourceArray[0][0]))
 			{

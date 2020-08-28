@@ -52,6 +52,7 @@
 #include "AnalyticsEventAttribute.h"
 #include "Kismet2/DebuggerCommands.h"
 #include "GameMapsSettings.h"
+#include "DerivedDataCacheInterface.h"
 
 #define LOCTEXT_NAMESPACE "MainFrameActions"
 
@@ -377,6 +378,12 @@ FString GetCookingOptionalParams()
 	{
 		OptionalParams += TEXT(" -SkipCookingEditorContent");
 	}
+
+	if (FDerivedDataCacheInterface* DDC = GetDerivedDataCache())
+	{
+		OptionalParams += FString::Printf(TEXT(" -ddc=%s"), DDC->GetGraphName());
+	}
+
 	return OptionalParams;
 }
 

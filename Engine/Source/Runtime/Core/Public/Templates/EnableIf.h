@@ -23,7 +23,8 @@ template <typename Result>
 class TEnableIf<true, Result>
 {
 public:
-	typedef Result Type;
+	using type = Result;
+	using Type = Result;
 };
 
 template <typename Result>
@@ -52,9 +53,11 @@ template <typename Func>
 class TLazyEnableIf<true, Func>
 {
 public:
-	typedef typename Func::Type Type;
+	using type = typename Func::Type;
+	using Type = typename Func::Type;
 };
 
 template <typename Func>
 class TLazyEnableIf<false, Func>
-{ };
+{
+};

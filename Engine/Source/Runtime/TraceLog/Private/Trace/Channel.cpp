@@ -159,7 +159,7 @@ void FChannel::Announce() const
 	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel)
 		<< ChannelAnnounce.Id(Name.Hash)
 		<< ChannelAnnounce.IsEnabled(IsEnabled())
-		<< ChannelAnnounce.Name(Name.Ptr);
+		<< ChannelAnnounce.Name(Name.Ptr, Name.Len);
 }
 
 ///////////////////////////////////////////////////////////////////////////////

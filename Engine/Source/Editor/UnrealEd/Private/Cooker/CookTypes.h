@@ -156,5 +156,9 @@ namespace Cook
 		}
 	};
 
+	/* Thread Local Storage access to identify which thread is the SchedulerThread for cooking. */
+	void InitializeTls();
+	bool IsSchedulerThread();
+	void SetIsSchedulerThread(bool bValue);
 }
 }

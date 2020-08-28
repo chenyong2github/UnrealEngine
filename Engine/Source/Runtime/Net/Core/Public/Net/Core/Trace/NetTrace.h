@@ -76,10 +76,10 @@
 #define UE_NET_TRACE_EVENTS(DstCollector, SrcCollector) UE_NET_TRACE_INTERNAL_EVENTS(DstCollector, SrcCollector)
 
 /** Mark the end of a bunch */
-#define UE_NET_TRACE_END_BUNCH(Collector,...) UE_NET_TRACE_INTERNAL_END_BUNCH(Collector, __VA_ARGS__)				
+#define UE_NET_TRACE_END_BUNCH(Collector, Bunch, ...) UE_NET_TRACE_INTERNAL_END_BUNCH(Collector, Bunch, __VA_ARGS__)				
 
 /** Scope to track begin/end bunch */
-#define UE_NET_TRACE_BUNCH_SCOPE(Collector, ...) UE_NET_TRACE_INTERNAL_BUNCH_SCOPE(Collector, __VA_ARGS__)
+#define UE_NET_TRACE_BUNCH_SCOPE(Collector, Bunch, ...) UE_NET_TRACE_INTERNAL_BUNCH_SCOPE(Collector, Bunch, __VA_ARGS__)
 
 /** Trace Assigned NetGUID */
 #define UE_NET_TRACE_ASSIGNED_GUID(GameInstanceId, NetGUID, PathName, OwnerId) UE_NET_TRACE_INTERNAL_ASSIGNED_GUID(GameInstanceId, NetGUID, PathName, OwnerId)

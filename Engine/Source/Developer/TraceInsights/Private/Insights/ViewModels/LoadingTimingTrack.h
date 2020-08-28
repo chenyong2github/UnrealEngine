@@ -59,6 +59,8 @@ private:
 	/** Maps thread id to track pointer. */
 	TMap<uint32, TSharedPtr<FLoadingTimingTrack>> LoadingTracks;
 
+	uint64 LoadTimeProfilerTimelineCount;
+
 	FLoadingTrackGetEventNameDelegate GetEventNameDelegate;
 };
 
