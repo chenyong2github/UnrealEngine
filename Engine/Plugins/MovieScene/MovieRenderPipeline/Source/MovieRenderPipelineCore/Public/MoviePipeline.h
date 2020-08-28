@@ -31,8 +31,8 @@ class UTexture;
 
 
 
-DECLARE_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinishedNative, UMoviePipeline*);
-DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FMoviePipelineFinished, UMoviePipeline*, MoviePipeline);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinishedNative, UMoviePipeline*, bool);
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FMoviePipelineFinished, UMoviePipeline*, MoviePipeline, bool, bFatalError);
 
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FMoviePipelineErrored, UMoviePipeline* /*Pipeline*/, bool /*bIsFatal*/, FText /*ErrorText*/);
 
@@ -59,20 +59,24 @@ public:
 	* completed work is written to disk. This is a non-blocking operation, use Shutdown() instead if you need to
 	* block until it is fully shut down.
 	*
+	* @param bError - Whether this is a request for early shut down due to an error
+	* 
 	* This function is thread safe.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void RequestShutdown();
+	void RequestShutdown(bool bIsError=false);
 	
 	/** 
 	* Abandons any future work on this Movie Pipeline and runs through the shutdown flow to ensure already
 	* completed work is written to disk. This is a blocking-operation and will not return until all outstanding
 	* work has been completed.
 	*
+	* @param bError - Whether this is an early shut down due to an error
+	*
 	* This function should only be called from the game thread.
 	*/
 	UFUNCTION(BlueprintCallable, Category = "Movie Render Pipeline")
-	void Shutdown();
+	void Shutdown(bool bError=false);
 
 	/**
 	* Has RequestShutdown() been called?
@@ -93,14 +97,6 @@ public:
 
 	UPROPERTY(BlueprintAssignable, Category = "Movie Render Pipeline")
 	FMoviePipelineFinished OnMoviePipelineFinishedDelegate;
-
-	/**
-	* Called when there was an error during the rendering of this movie pipeline (such as missing sequence, i/o failure, etc.)
-	*/
-	FMoviePipelineErrored& OnMoviePipelineErrored()
-	{
-		return OnMoviePipelineErroredDelegate;
-	}
 
 	/**
 	* Get the Master Configuration used to render this shot. This contains the global settings for the shot, as well as per-shot
@@ -184,8 +180,8 @@ protected:
 	virtual void OnMoviePipelineFinishedImpl()
 	{
 		// Broadcast to both Native and Python/BP
-		OnMoviePipelineFinishedDelegateNative.Broadcast(this);
-		OnMoviePipelineFinishedDelegate.Broadcast(this);
+		OnMoviePipelineFinishedDelegateNative.Broadcast(this, bFatalError);
+		OnMoviePipelineFinishedDelegate.Broadcast(this, bFatalError);
 	}
 private:
 
@@ -391,6 +387,9 @@ private:
 	/** True if RequestShutdown() was called. At the start of the next frame we will stop producing frames (if needed) and start shutting down. */
 	FThreadSafeBool bShutdownRequested;
 
+	/** True if an error or other event occured which halted frame production prematurely. */
+	FThreadSafeBool bFatalError;
+
 	/** True if we're in a TransitionToState call. Used to prevent reentrancy. */
 	bool bIsTransitioningState;
 
@@ -399,9 +398,6 @@ private:
 
 	/** Called when we have completely finished. This object will call Shutdown before this and stop ticking. */
 	FMoviePipelineFinishedNative OnMoviePipelineFinishedDelegateNative;
-
-	/** Called when there is a warning/error that the user should pay attention to.*/
-	FMoviePipelineErrored OnMoviePipelineErroredDelegate;
 
 	/**
 	 * We have to apply camera motion vectors manually. So we keep the current and previous frame's camera view and rotation.

@@ -116,34 +116,26 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 
 	if (!ensureAlwaysMsgf(InJob, TEXT("MoviePipeline cannot be initialized with null job. Aborting.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingJob", "Job was not specified, movie render is aborting."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 	
 	if (!ensureAlwaysMsgf(InJob->GetConfiguration(), TEXT("MoviePipeline cannot be initialized with null configuration. Aborting.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingConfiguration", "Job did not specify a configuration, movie render is aborting."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
 	if (!ensureAlwaysMsgf(PipelineState == EMovieRenderPipelineState::Uninitialized, TEXT("Pipeline cannot be reused. Create a new pipeline to execute a job.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("DontReusePipeline", "Attempted to reuse an existing Movie Pipeline. Initialize a new pipeline instead of reusing an existing one."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
 	// Ensure this object has the World as part of its Outer (so that it has context to spawn things)
 	if (!ensureAlwaysMsgf(GetWorld(), TEXT("Pipeline does not contain the world as an outer.")))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingWorld", "Could not find World in the Outer Path for Pipeline. The world must be an outer to give the Pipeline enough context to spawn things."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
@@ -152,9 +144,7 @@ void UMoviePipeline::Initialize(UMoviePipelineExecutorJob* InJob)
 	ULevelSequence* OriginalSequence = Cast<ULevelSequence>(InJob->Sequence.TryLoad());
 	if (!ensureAlwaysMsgf(OriginalSequence, TEXT("Failed to load Sequence Asset from specified path, aborting movie render! Attempted to load Path: %s"), *InJob->Sequence.ToString()))
 	{
-		OnMoviePipelineErroredDelegate.Broadcast(this, true, LOCTEXT("MissingSequence", "Could not load sequence asset, movie render is aborting. Check logs for additional details."));
-
-		Shutdown();
+		Shutdown(true);
 		return;
 	}
 
@@ -344,8 +334,15 @@ void UMoviePipeline::RestoreTargetSequenceToOriginalState()
 }
 
 
-void UMoviePipeline::RequestShutdown()
+void UMoviePipeline::RequestShutdown(bool bIsError)
 {
+	// It's possible for a previous call to RequestionShutdown to have set an error before this call that may not
+	// We don't want to unset a previously set error state
+	if (bIsError)
+	{
+		bFatalError = true;
+	}
+
 	// The user has requested a shutdown, it will be read the next available chance and possibly acted on.
 	bShutdownRequested = true;
 	switch (PipelineState)
@@ -362,9 +359,16 @@ void UMoviePipeline::RequestShutdown()
 	}
 }
 
-void UMoviePipeline::Shutdown()
+void UMoviePipeline::Shutdown(bool bIsError)
 {
 	check(IsInGameThread());
+
+	// It's possible for a previous call to RequestionShutdown to have set an error before this call that may not
+	// We don't want to unset a previously set error state
+	if (bIsError)
+	{
+		bFatalError = true;
+	}
 
 	// This is a blocking operation which abandons any outstanding work to be submitted but finishes
 	// the existing work already processed.

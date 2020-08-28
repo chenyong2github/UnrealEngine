@@ -41,7 +41,7 @@ private:
 	/** Called before PIE tears down the world during shutdown. Used to detect cancel-via-escape/stop PIE. */
 	void OnPIEEnded(bool);
 	/** Called when the instance of the pipeline in the PIE world has finished. */
-	void OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline);
+	void OnPIEMoviePipelineFinished(UMoviePipeline* InMoviePipeline, bool bFatalError);
 	/** Called a short period of time after OnPIEMoviePipelineFinished to allow Editor the time to fully close PIE before we make a new request. */
 	void DelayedFinishNotification();
 private:
