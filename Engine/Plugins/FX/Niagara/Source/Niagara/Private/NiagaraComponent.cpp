@@ -575,6 +575,24 @@ uint32 UNiagaraComponent::GetApproxMemoryUsage() const
 	return 1;
 }
 
+void UNiagaraComponent::ActivateSystem(bool bFlagAsJustAttached)
+{
+	// Attachment is handled different in niagara so the bFlagAsJustAttached is ignored here.
+	if (IsActive())
+	{
+		// If the system is already active then activate with reset to reset the system simulation but
+		// leave the emitter simulations active.
+		bool bResetSystem = true;
+		bool bIsFromScalability = false;
+		ActivateInternal(bResetSystem, bIsFromScalability);
+	}
+	else
+	{
+		// Otherwise just follow the standard activate path.
+		Activate();
+	}
+}
+
 /********* UFXSystemComponent *********/
 
 

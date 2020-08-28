@@ -74,6 +74,7 @@ public:
 	void SetEmitterEnable(FName EmitterName, bool bNewEnableState) override;
 	void ReleaseToPool() override;
 	uint32 GetApproxMemoryUsage() const override;
+	virtual void ActivateSystem(bool bFlagAsJustAttached = false) override;
 	/********* UFXSystemComponent *********/
 
 private:
