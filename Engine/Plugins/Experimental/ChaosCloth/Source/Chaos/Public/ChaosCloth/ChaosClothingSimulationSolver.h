@@ -13,6 +13,7 @@ namespace Chaos
 {
 	template<typename T, int d> class TPBDEvolution;
 	template<typename T> class TTriangleMesh;
+	template<typename T, int d> class TVelocityField;
 
 	class FClothingSimulationCloth;
 	class FClothingSimulationCollider;
@@ -84,6 +85,7 @@ namespace Chaos
 
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
 		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh = nullptr);
+		const TVelocityField<float, 3>&  GetWindVelocityField(uint32 GroupId);
 
 		// Enable self collision, or disable if TriangleMesh is null.
 		void SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh = nullptr);
