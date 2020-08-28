@@ -58,7 +58,7 @@ namespace UnrealGameSync
 			{
 				if(!WorkerThread.Join(30))
 				{
-					WorkerThread.Abort();
+					WorkerThread.Interrupt();
 					WorkerThread.Join();
 				}
 				WorkerThread = null;

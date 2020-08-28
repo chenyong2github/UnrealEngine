@@ -239,6 +239,11 @@ namespace UnrealGameSync
 			return Result;
 		}
 
+		class ProjectJson
+		{
+			public bool Enterprise { get; set; }
+		}
+
 		/// <summary>
 		/// Determines if a project is an enterprise project
 		/// </summary>
@@ -248,15 +253,9 @@ namespace UnrealGameSync
 		{
 			try
 			{
-				Dictionary<string, object> RawObject = JsonSerializer.Deserialize<Dictionary<string, object>>(Text);
+				ProjectJson Project = JsonSerializer.Deserialize<ProjectJson>(Text);
 
-				object Enterprise;
-				if(RawObject.TryGetValue("Enterprise", out Enterprise) && Enterprise is bool)
-				{
-					return (bool)Enterprise;
-				}
-
-				return false;
+				return Project.Enterprise;
 			}
 			catch
 			{

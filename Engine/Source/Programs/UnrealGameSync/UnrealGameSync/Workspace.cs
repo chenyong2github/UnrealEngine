@@ -10,6 +10,8 @@ using System.IO.Compression;
 using System.Linq;
 using System.Security.Cryptography;
 using System.Text;
+using System.Text.Encodings.Web;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 
@@ -355,7 +357,7 @@ namespace UnrealGameSync
 				Log.WriteLine("OPERATION ABORTED");
 				if(WorkerThread != null)
 				{
-					WorkerThread.Abort();
+					WorkerThread.Interrupt();
 					WorkerThread.Join();
 					WorkerThread = null;
 				}
@@ -1326,7 +1328,7 @@ namespace UnrealGameSync
 			{
 				foreach (Thread ChildThread in ChildThreads)
 				{
-					ChildThread.Abort();
+					ChildThread.Interrupt();
 				}
 				foreach (Thread ChildThread in ChildThreads)
 				{
@@ -1584,13 +1586,13 @@ namespace UnrealGameSync
 
 		string UpdateBuildVersion(string Text, int Changelist, int CodeChangelist, string BranchOrStreamName, bool bIsLicenseeVersion)
 		{
-			Dictionary<string, object> Object = Json.Deserialize(Text);
+			Dictionary<string, object> Object = JsonSerializer.Deserialize<Dictionary<string, object>>(Text);
 
 			object PrevCompatibleChangelistObj;
-			int PrevCompatibleChangelist = Object.TryGetValue("CompatibleChangelist", out PrevCompatibleChangelistObj) ? (int)Convert.ChangeType(PrevCompatibleChangelistObj, typeof(int)) : 0;
+			int PrevCompatibleChangelist = Object.TryGetValue("CompatibleChangelist", out PrevCompatibleChangelistObj) ? (int)Convert.ChangeType(PrevCompatibleChangelistObj.ToString(), typeof(int)) : 0;
 
 			object PrevIsLicenseeVersionObj;
-			bool PrevIsLicenseeVersion = Object.TryGetValue("IsLicenseeVersion", out PrevIsLicenseeVersionObj)? ((int)Convert.ChangeType(PrevIsLicenseeVersionObj, typeof(int)) != 0) : false;
+			bool PrevIsLicenseeVersion = Object.TryGetValue("IsLicenseeVersion", out PrevIsLicenseeVersionObj)? ((int)Convert.ChangeType(PrevIsLicenseeVersionObj.ToString(), typeof(int)) != 0) : false;
 
 			Object["Changelist"] = Changelist;
 			if(PrevCompatibleChangelist == 0 || PrevIsLicenseeVersion != bIsLicenseeVersion)
@@ -1602,7 +1604,12 @@ namespace UnrealGameSync
 			Object["IsPromotedBuild"] = 0;
 			Object["IsLicenseeVersion"] = bIsLicenseeVersion ? 1 : 0;
 
-			return Json.Serialize(Object, JsonSerializeOptions.PrettyPrint);
+			return JsonSerializer.Serialize(Object, new JsonSerializerOptions
+			{
+				WriteIndented = true, 
+				// do not escape +
+				Encoder = JavaScriptEncoder.UnsafeRelaxedJsonEscaping
+			});
 		}
 
 		bool WriteVersionFile(string LocalPath, string DepotPath, string NewText)

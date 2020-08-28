@@ -2851,6 +2851,11 @@ namespace UnrealGameSync
 			}
 		}
 
+		private class ReceiptJsonObject
+		{
+			public string Launch { get; set; }
+		}
+
 		private string GetEditorExePath(BuildConfig Config)
 		{
 			// Try to read the executable path from the target receipt
@@ -2863,18 +2868,14 @@ namespace UnrealGameSync
 					try
 					{
 						string Text = File.ReadAllText(ReceiptFileName);
-						Dictionary<string, object> RawObject = JsonSerializer.Deserialize<Dictionary<string, object>>(Text);
+						ReceiptJsonObject Receipt = JsonSerializer.Deserialize<ReceiptJsonObject>(Text);
 
-						object LaunchFileNameObject;
-						if (RawObject.TryGetValue("Launch", out LaunchFileNameObject))
+						string LaunchFileName = Receipt.Launch;
+						if (LaunchFileName != null)
 						{
-							string LaunchFileName = LaunchFileNameObject as string;
-							if (LaunchFileName != null)
-							{
-								LaunchFileName = LaunchFileName.Replace("$(EngineDir)", Path.Combine(BranchDirectoryName, "Engine"));
-								LaunchFileName = LaunchFileName.Replace("$(ProjectDir)", Path.GetDirectoryName(SelectedFileName));
-								return Path.GetFullPath(LaunchFileName);
-							}
+							LaunchFileName = LaunchFileName.Replace("$(EngineDir)", Path.Combine(BranchDirectoryName, "Engine"));
+							LaunchFileName = LaunchFileName.Replace("$(ProjectDir)", Path.GetDirectoryName(SelectedFileName));
+							return Path.GetFullPath(LaunchFileName);
 						}
 					}
 					catch (Exception Ex)

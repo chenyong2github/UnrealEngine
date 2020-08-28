@@ -202,7 +202,7 @@ namespace UnrealGameSync
 				RefreshEvent.Set();
 				if(!WorkerThread.Join(100))
 				{
-					WorkerThread.Abort();
+					WorkerThread.Interrupt();
 					WorkerThread.Join();
 				}
 				WorkerThread = null;
