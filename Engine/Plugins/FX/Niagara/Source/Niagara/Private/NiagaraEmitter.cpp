@@ -1838,6 +1838,11 @@ UNiagaraEmitter* UNiagaraEmitter::GetParent() const
 	return Parent;
 }
 
+UNiagaraEmitter* UNiagaraEmitter::GetParentAtLastMerge() const
+{
+	return ParentAtLastMerge;
+}
+
 void UNiagaraEmitter::RemoveParent()
 {
 	Parent = nullptr;
