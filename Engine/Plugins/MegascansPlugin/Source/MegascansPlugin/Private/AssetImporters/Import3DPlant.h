@@ -3,7 +3,7 @@
 #include "CoreMinimal.h"
 
 #include "AssetImporters/ImportSurface.h"
-#include "Utilities/AssetData.h"
+#include "Utilities/MSAssetData.h"
 
 
 class UMaterialInstanceConstant;

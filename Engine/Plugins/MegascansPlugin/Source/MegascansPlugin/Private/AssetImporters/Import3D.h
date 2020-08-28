@@ -4,7 +4,7 @@
 
 #include "AssetImportData.h"
 #include "ImportFactory.h"
-#include "Utilities/AssetData.h"
+#include "Utilities/MSAssetData.h"
 
 class UMaterialInstanceConstant;
 

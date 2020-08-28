@@ -7,7 +7,7 @@
 #include "UI/MSSettings.h"
 #include "Utilities/AssetsDatabase.h"
 #include "Utilities/Analytics.h"
-#include "Utilities/AssetData.h"
+#include "Utilities/MSAssetData.h"
 #include "AssetImporters/ImportFactory.h"
 
 #include "Misc/MessageDialog.h"
