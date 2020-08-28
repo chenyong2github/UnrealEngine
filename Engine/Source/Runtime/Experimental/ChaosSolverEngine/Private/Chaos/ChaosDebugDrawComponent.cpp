@@ -224,6 +224,7 @@ void UChaosDebugDrawComponent::CreateDebugDrawActor(UWorld* World)
 	FActorSpawnParameters Params;
 	Params.Name = NAME_ChaosDebugDrawActor;
 	Params.ObjectFlags = Params.ObjectFlags | RF_Transient;
+	Params.bHideFromSceneOutliner = true;
 
 	AActor* Actor = World->SpawnActor<AActor>(FVector::ZeroVector, FRotator::ZeroRotator, Params);
 	
