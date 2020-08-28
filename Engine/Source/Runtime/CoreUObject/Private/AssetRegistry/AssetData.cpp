@@ -1,9 +1,13 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AssetRegistry/AssetData.h"
+#include "AssetRegistry/ARFilter.h"
 #include "Serialization/CustomVersion.h"
 
 DEFINE_LOG_CATEGORY(LogAssetData);
+
+IMPLEMENT_STRUCT(ARFilter);
+IMPLEMENT_STRUCT(AssetData);
 
 // Register Asset Registry version
 const FGuid FAssetRegistryVersion::GUID(0x717F9EE7, 0xE9B0493A, 0x88B39132, 0x1B388107);
