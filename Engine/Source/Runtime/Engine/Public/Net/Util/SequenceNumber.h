@@ -14,8 +14,8 @@ class TSequenceNumber
 	static_assert(TIsSigned<SequenceType>::Value == false, "The base type for sequence numbers must be unsigned");
 
 public:
-	typedef SequenceType SequenceT;
-	typedef int32 DifferenceT;
+	using SequenceT = SequenceType;
+	using DifferenceT = int32;
 
 	// Constants
 	enum { SeqNumberBits = NumBits };
@@ -42,11 +42,6 @@ public:
 	/** Check if this is >= Other, See above */
 	bool operator>=(const TSequenceNumber& Other) const { return ((Value - Other.Value) & SeqNumberMask) < SeqNumberHalf; }
 
-	/** Equals, NOTE that sequence numbers wrap around so 0 == 0 + SequenceNumberCount */
-	bool operator==(const TSequenceNumber& Other) const { return Value == Other.Value; }
-
-	bool operator!=(const TSequenceNumber& Other) const { return Value != Other.Value; }
-
 	/** Pre-increment and wrap around */
 	TSequenceNumber& operator++() { Increment(1u); return *this; }
 	
@@ -68,3 +63,64 @@ typename TSequenceNumber<NumBits, SequenceType>::DifferenceT TSequenceNumber<Num
 
 	return (DifferenceT)((ValueA - ValueB) << ShiftValue) >> ShiftValue;
 };
+
+template <SIZE_T NumBits, typename SequenceType>
+bool operator>(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{ 
+	return Lhs > Rhs; 
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+bool operator>=(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{
+	return Lhs >= Rhs;
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+bool operator<(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{
+	return !(Lhs >= Rhs);
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+bool operator<=(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{
+	return !(Lhs > Rhs);
+}
+
+/** Equals, NOTE that sequence numbers wrap around so 0 == 0 + SequenceNumberCount */
+template <SIZE_T NumBits, typename SequenceType>
+bool operator==(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{ 
+	return Lhs.Get() == Rhs.Get(); 
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+bool operator!=(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{
+	return Lhs.Get() != Rhs.Get();
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+const TSequenceNumber<NumBits, SequenceType> operator+(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{
+	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() + Rhs.Get());
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+const TSequenceNumber<NumBits, SequenceType> operator-(const TSequenceNumber<NumBits, SequenceType>& Lhs, const TSequenceNumber<NumBits, SequenceType>& Rhs)
+{
+	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() - Rhs.Get());
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+const TSequenceNumber<NumBits, SequenceType> operator+(const TSequenceNumber<NumBits, SequenceType>& Lhs, SequenceType Rhs)
+{
+	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() + Rhs);
+}
+
+template <SIZE_T NumBits, typename SequenceType>
+const TSequenceNumber<NumBits, SequenceType> operator-(const TSequenceNumber<NumBits, SequenceType>& Lhs, SequenceType Rhs)
+{
+	return TSequenceNumber<NumBits, SequenceType>(Lhs.Get() - Rhs);
+}

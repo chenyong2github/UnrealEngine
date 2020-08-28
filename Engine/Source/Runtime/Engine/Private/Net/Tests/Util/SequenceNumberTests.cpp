@@ -71,6 +71,73 @@ bool FNetSequenceNumberTest::RunTest(const FString& Parameters)
 		TestFalse("SequenceNumbers - operator> MaxSeq > Zero", MaxSeq > Zero);
 		TestTrue("SequenceNumbers - operator> Zero > MaxSeq", Zero > MaxSeq);
 	}
+
+	// Test operator >=
+	{
+		FSequence3 Zero(0);
+		FSequence3 HalfMinusOne(FSequence3::SeqNumberHalf - 1);
+		FSequence3 Half(FSequence3::SeqNumberHalf);
+		FSequence3 MaxSeq(FSequence3::SeqNumberCount - 1);
+
+		TestTrue("SequenceNumbers - operator> Zero >= Zero", Zero >= Zero);
+		TestTrue("SequenceNumbers - operator> MaxSeq >= MaxSeq", MaxSeq >= MaxSeq);
+
+		TestTrue("SequenceNumbers - operator> HalfMinusOne >= Zero", HalfMinusOne >= Zero);
+		TestTrue("SequenceNumbers - operator> Half >= HalfMinusOne", Half >= HalfMinusOne);
+		TestFalse("SequenceNumbers - operator> Half >= Zero", Half >= Zero);
+
+		TestFalse("SequenceNumbers - operator> MaxSeq >= Zero", MaxSeq >= Zero);
+		TestTrue("SequenceNumbers - operator> Zero >= MaxSeq", Zero >= MaxSeq);
+	}
+
+	// Test operator <
+	{
+		FSequence3 Zero(0);
+		FSequence3 HalfMinusOne(FSequence3::SeqNumberHalf - 1);
+		FSequence3 Half(FSequence3::SeqNumberHalf);
+		FSequence3 MaxSeq(FSequence3::SeqNumberCount - 1);
+
+		TestFalse("SequenceNumbers - operator> HalfMinusOne < Zero", HalfMinusOne < Zero);
+		TestFalse("SequenceNumbers - operator> Half < HalfMinusOne", Half < HalfMinusOne);
+		TestTrue("SequenceNumbers - operator> Half < Zero", Half < Zero);
+
+		TestTrue("SequenceNumbers - operator> MaxSeq < Zero", MaxSeq < Zero);
+		TestFalse("SequenceNumbers - operator> Zero < MaxSeq", Zero < MaxSeq);
+	}
+
+	// Test operator <=
+	{
+		FSequence3 Zero(0);
+		FSequence3 HalfMinusOne(FSequence3::SeqNumberHalf - 1);
+		FSequence3 Half(FSequence3::SeqNumberHalf);
+		FSequence3 MaxSeq(FSequence3::SeqNumberCount - 1);
+
+		TestTrue("SequenceNumbers - operator> Zero <= Zero", Zero <= Zero);
+		TestTrue("SequenceNumbers - operator> MaxSeq <= MaxSeq", MaxSeq <= MaxSeq);
+
+		TestFalse("SequenceNumbers - operator> HalfMinusOne < Zero", HalfMinusOne < Zero);
+		TestFalse("SequenceNumbers - operator> Half < HalfMinusOne", Half < HalfMinusOne);
+		TestTrue("SequenceNumbers - operator> Half < Zero", Half < Zero);
+
+		TestTrue("SequenceNumbers - operator> MaxSeq < Zero", MaxSeq < Zero);
+		TestFalse("SequenceNumbers - operator> Zero < MaxSeq", Zero < MaxSeq);
+	}
+
+	// Test operator +
+	{
+		FSequence3 Seq(5);
+		FSequence3 Result(Seq + FSequence3(3));
+
+		TestEqual("SequenceNumbers - Seq(5) + 3 == 0", 0, Result.Get());
+	}
+
+	// Test operator -
+	{
+		FSequence3 Seq(5);
+		FSequence3 Result(Seq - FSequence3(7));
+
+		TestEqual("SequenceNumbers - Seq(5) - 7 == 6", 6, Result.Get());
+	}
 	
 	// Test diff sequence numbers
 	{		
