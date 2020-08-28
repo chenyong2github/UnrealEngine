@@ -247,15 +247,15 @@ FText FDMXPixelMappingDetailCustomization_Renderer::GetInputTextureWarningText()
 		{
 			if (Component->RendererType == EDMXPixelMappingRendererType::Texture)
 			{
-				return LOCTEXT("WarningCategoryDisplayName", "Texture is not set.");
+				return LOCTEXT("WarningCategoryDisplayName.TextureNotSet", "Texture is not set.");
 			}
 			else if (Component->RendererType == EDMXPixelMappingRendererType::Material)
 			{
-				return LOCTEXT("WarningCategoryDisplayName", "Material is not set.");
+				return LOCTEXT("WarningCategoryDisplayName.MaterialNotSet", "Material is not set.");
 			}
 			else if (Component->RendererType == EDMXPixelMappingRendererType::UMG)
 			{
-				return LOCTEXT("WarningCategoryDisplayName", "UMG is not set.");
+				return LOCTEXT("WarningCategoryDisplayName.UMGNotSet", "UMG is not set.");
 			}
 		}
 	}

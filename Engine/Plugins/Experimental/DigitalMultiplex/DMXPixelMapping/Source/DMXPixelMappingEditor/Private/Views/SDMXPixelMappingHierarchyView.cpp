@@ -503,7 +503,7 @@ void SDMXPixelMappingHierarchyView::BeginDuplicate()
 {
 	FDMXPixelMappingHierarchyItemWidgetModelArr SelectedItems = WidgetTreeView->GetSelectedItems();
 
-	const FScopedTransaction Transaction(FText::Format(LOCTEXT("RemoveComponents", "Duplicate {0}|plural(one=Component, other=Components)"), SelectedItems.Num()));
+	const FScopedTransaction Transaction(FText::Format(LOCTEXT("DMXPixelMapping.DuplicateComponents", "Duplicate {0}|plural(one=Component, other=Components)"), SelectedItems.Num()));
 
 	for (FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem : SelectedItems)
 	{
@@ -537,7 +537,7 @@ void SDMXPixelMappingHierarchyView::BeginDelete()
 {
 	FDMXPixelMappingHierarchyItemWidgetModelArr SelectedItems = WidgetTreeView->GetSelectedItems();
 
-	const FScopedTransaction Transaction(FText::Format(LOCTEXT("RemoveComponents", "Remove {0}|plural(one=Component, other=Components)"), SelectedItems.Num()));
+	const FScopedTransaction Transaction(FText::Format(LOCTEXT("DMXPixelMapping.RemoveComponents", "Remove {0}|plural(one=Component, other=Components)"), SelectedItems.Num()));
 
 	for (FDMXPixelMappingHierarchyItemWidgetModelPtr SelectedItem : SelectedItems)
 	{

@@ -386,7 +386,7 @@ bool UDMXEntityFixturePatch::IsValidEntity(FText& OutReason) const
 		else if (GetChannelSpan() == 0)
 		{
 			OutReason = FText::Format(
-				LOCTEXT("InvalidReason_NoFunctionsDefined", "'{0}' cannot be assigned as its parent Fixture Type '{1}' overrides channel span with 0."),
+				LOCTEXT("InvalidReason_ParentChannelSpanIsZero", "'{0}' cannot be assigned as its parent Fixture Type '{1}' overrides channel span with 0."),
 				FText::FromString(GetDisplayName()),
 				FText::FromString(ParentFixtureTypeTemplate->GetDisplayName()));
 		}
