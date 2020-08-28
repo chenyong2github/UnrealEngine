@@ -30,7 +30,6 @@ public:
 	// Begin FTrail interface
 	virtual ETrailCacheState UpdateTrail(const FSceneContext& InSceneContext) override;
 	virtual FTrajectoryCache* GetTrajectoryTransforms() override { return TrajectoryCache.Get(); }
-	virtual FTrajectoryDrawInfo* GetDrawInfo() override { return DrawInfo.Get(); }
 	virtual TMap<FString, FInteractiveTrailTool*> GetTools() override;
 	virtual TRange<double> GetEffectiveRange() const override { return CachedEffectiveRange; }
 	// End FTrail interface
@@ -39,7 +38,8 @@ public:
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 	// End FGCObject interface
 
-	TSharedPtr<ISequencer> GetSequencer() { return WeakSequencer.Pin(); }
+	TSharedPtr<ISequencer> GetSequencer() const { return WeakSequencer.Pin(); }
+	FGuid GetCachedHierarchyGuid() const { return CachedHierarchyGuid; }
 	UMovieSceneSection* GetSection() const { return WeakSection.Get(); }
 	int32 GetChannelOffset() const { return ChannelOffset; }
 
@@ -55,10 +55,10 @@ private:
 	TRange<double> CachedEffectiveRange;
 
 	TUniquePtr<FDefaultMovieSceneTransformTrailTool> DefaultTrailTool;
-	TUniquePtr<FCachedTrajectoryDrawInfo> DrawInfo;
 	TUniquePtr<FArrayTrajectoryCache> TrajectoryCache;
 
 	FGuid LastTransformSectionSig;
+	FGuid CachedHierarchyGuid;
 	TWeakObjectPtr<UMovieSceneSection> WeakSection;
 	int32 ChannelOffset;
 	TWeakPtr<ISequencer> WeakSequencer;

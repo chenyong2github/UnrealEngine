@@ -95,32 +95,42 @@ void FMotionTrailTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBu
 				if(Hierarchy->GetObjectsTracked().Contains(BoundObject))
 				{
 					const FGuid SelectedCompGuid = Hierarchy->GetObjectsTracked().FindChecked(BoundObject);
-					FTrail* SelectedCompTrail = Hierarchy->GetAllTrails().FindChecked(SelectedCompGuid).Get();
 
-					TArray<FTrail*> SelectedTrails;
-					SelectedTrails.Add(SelectedCompTrail);
+					TArray<FGuid> SelectedTrails;
+					SelectedTrails.Add(SelectedCompGuid);
 					for (const TPair<FName, FGuid>& NameGuidPair : Hierarchy->GetBonesTracked().FindRef(SkelMeshComp))
 					{
-						SelectedTrails.Add(Hierarchy->GetAllTrails()[NameGuidPair.Value].Get());
+						SelectedTrails.Add(NameGuidPair.Value);
 					}
-
-					if (SelectedCompTrail->GetDrawInfo())
+					
+					for (const TPair<FName, FGuid>& NameGuidPair : Hierarchy->GetControlsTracked().FindRef(SkelMeshComp))
 					{
-						TSharedRef<SColorPicker> ColorPickerWidget = SNew(SColorPicker)
-							.TargetColorAttribute(SelectedCompTrail->GetDrawInfo()->GetColor())
-							.UseAlpha(false)
-							.DisplayInlineVersion(true)
-							.OnColorCommitted_Lambda([SelectedTrails](FLinearColor NewColor) { 
-							for (FTrail* Trail : SelectedTrails)
-							{
-								Trail->GetDrawInfo()->SetColor(NewColor);
-							}
-						});
-
-						MenuBuilder.AddSubMenu(LOCTEXT("SetTrailColor", "Set Trail Color"), LOCTEXT("SetTrailColorTooltip", "Set the color of the trail for this object"), FNewMenuDelegate::CreateLambda([ColorPickerWidget](FMenuBuilder& MenuBuilder) {
-							MenuBuilder.AddWidget(ColorPickerWidget, FText(), true, false);
-						}));
+						SelectedTrails.Add(NameGuidPair.Value);
 					}
+
+					VisibilityStates.FindOrAdd(BoundObject, EBindingVisibilityState::VisibleWhenSelected);
+
+					MenuBuilder.AddMenuEntry(LOCTEXT("VisibleWhenSelected", "Visible When Selected"), LOCTEXT("VisibleWhenSelectedTooltip", "Makes the trails for this object visible when it is selected"), FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, BoundObject, Hierarchy]() { 
+								VisibilityStates.FindChecked(BoundObject) = EBindingVisibilityState::VisibleWhenSelected;
+								Hierarchy->OnBindingVisibilityStateChanged(BoundObject, EBindingVisibilityState::VisibleWhenSelected); 
+							}), 
+							FCanExecuteAction::CreateLambda([]() { return true; }),
+							FIsActionChecked::CreateLambda([this, BoundObject]() { return VisibilityStates.FindChecked(BoundObject) == EBindingVisibilityState::VisibleWhenSelected; })
+						), NAME_None, EUserInterfaceActionType::RadioButton
+					);
+
+					MenuBuilder.AddMenuEntry(LOCTEXT("AlwaysVisible", "Always Visible"), LOCTEXT("AlwaysVisibleTooltip", "Makes the trails for this object always visible"), FSlateIcon(),
+						FUIAction(
+							FExecuteAction::CreateLambda([this, BoundObject, Hierarchy]() {
+							VisibilityStates.FindChecked(BoundObject) = EBindingVisibilityState::AlwaysVisible;
+							Hierarchy->OnBindingVisibilityStateChanged(BoundObject, EBindingVisibilityState::AlwaysVisible);
+						}),
+						FCanExecuteAction::CreateLambda([]() { return true; }),
+						FIsActionChecked::CreateLambda([this, BoundObject]() { return VisibilityStates.FindChecked(BoundObject) == EBindingVisibilityState::AlwaysVisible; })
+						), NAME_None, EUserInterfaceActionType::RadioButton
+					);
 				}
 
 				if (SkelMeshComp && SkelMeshComp->SkeletalMesh && SkelMeshComp->SkeletalMesh->Skeleton && Hierarchy->GetBonesTracked().Contains(SkelMeshComp))
@@ -134,7 +144,7 @@ void FMotionTrailTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBu
 					FTrajectoryCache* ParentCache = Hierarchy->GetAllTrails().FindChecked(ComponentGuid)->GetTrajectoryTransforms();
 
 					MenuBuilder.AddMenuEntry(LOCTEXT("GenerateBoneTrails", "Generate Bone Trails"), LOCTEXT("GenerateBoneTrailsTooltip", "Evaluates trails for every bone in the animation, can be expensive"), FSlateIcon(),
-						FUIAction(FExecuteAction::CreateLambda([AnimCache, ParentCache, SkelMeshComp]() { AnimCache.Pin()->Evaluate(ParentCache, SkelMeshComp); })));
+						FUIAction(FExecuteAction::CreateLambda([AnimCache, ParentCache, SkelMeshComp]() { AnimCache.Pin()->Evaluate(ParentCache); })));
 					MenuBuilder.AddSubMenu(LOCTEXT("VisibleBones", "Visible Bones"), LOCTEXT("VisibleBonesTooltip", "Set which bone trails should be visible"), FNewMenuDelegate::CreateRaw(this, &FMotionTrailTrackEditor::CreateBoneVisibilityMenu, Skeleton, Hierarchy),
 						FUIAction(FExecuteAction::CreateLambda([] {}), FCanExecuteAction::CreateLambda([AnimCache] {
 						return AnimCache.IsValid() && !AnimCache.Pin()->IsDirty();
@@ -163,7 +173,7 @@ void FMotionTrailTrackEditor::CreateBoneVisibilityMenu(FMenuBuilder& MenuBuilder
 				FExecuteAction::CreateLambda([this, BoneIndex, BoneName, Skeleton, Hierarchy]() {
 					TBitArray<>& Visibilities = BoneVisibilities[Skeleton];
 					Visibilities[BoneIndex] = !Visibilities[BoneIndex];
-					Hierarchy->OnBoneVisibilityChanged(Skeleton, BoneName);
+					Hierarchy->OnBoneVisibilityChanged(Skeleton, BoneName, Visibilities[BoneIndex]);
 				}),
 				FCanExecuteAction::CreateLambda([]() { return true; }),
 				FIsActionChecked::CreateLambda([this, BoneIndex, Skeleton]() { return BoneVisibilities[Skeleton][BoneIndex]; })
