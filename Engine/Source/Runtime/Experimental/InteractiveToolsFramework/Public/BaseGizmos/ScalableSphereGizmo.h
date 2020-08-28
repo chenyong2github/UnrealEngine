@@ -62,6 +62,10 @@ public:
 	UPROPERTY()
 	float HitErrorThreshold{ 12.f };
 
+	// The text that will be used as the transaction description for undo/redo
+	UPROPERTY()
+	FText TransactionDescription;
+
 private:
 
 	// Check if the Circle represented by CircleNormal centered at the gizmos location has been hit by the Ray

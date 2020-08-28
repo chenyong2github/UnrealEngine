@@ -3,6 +3,8 @@
 #include "PointLightGizmo.h"
 #include "Components/PointLightComponent.h"
 
+#define LOCTEXT_NAMESPACE "UScalableSphereGizmo"
+
 UInteractiveGizmo* UPointLightGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
 {
 	UPointLightGizmo* NewGizmo = NewObject<UPointLightGizmo>(SceneState.GizmoManager);
@@ -75,6 +77,8 @@ void UPointLightGizmo::CreateLightGizmo()
 	AttenuationGizmo->SetTarget(TransformProxy);
 
 	AttenuationGizmo->UpdateRadiusFunc = [this](float NewRadius) { this->OnAttenuationUpdate(NewRadius); };
+
+	AttenuationGizmo->TransactionDescription = LOCTEXT("PointLightGizmo", "Point Light Attenuation");
 }
 
 void UPointLightGizmo::SetWorld(UWorld* InWorld)
@@ -86,7 +90,10 @@ void UPointLightGizmo::OnAttenuationUpdate(float NewRadius)
 {
 	// Update the attenuation radius
 	// TODO: Is this the right way to update radius?
+
+	LightActor->PointLightComponent->Modify();
 	LightActor->PointLightComponent->AttenuationRadius = NewRadius;
-	LightActor->PointLightComponent->MarkRenderStateDirty();
+
 }
 
+#undef LOCTEXT_NAMESPACE

@@ -11,6 +11,8 @@
 #include "BaseGizmos/GizmoLineHandleComponent.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
+#define LOCTEXT_NAMESPACE "USpotLightGizmo"
+
 // USpotLightGizmoBuilder
 
 UInteractiveGizmo* USpotLightGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -189,6 +191,8 @@ USubTransformProxy* USpotLightGizmo::GetTransformProxy()
 
 void USpotLightGizmo::OnOuterAngleUpdate(float NewAngle)
 {
+	LightActor->SpotLightComponent->Modify();
+
 	LightActor->SpotLightComponent->OuterConeAngle = NewAngle;
 	
 	// OuterAngle cannot be less than Inner Angle
@@ -203,6 +207,8 @@ void USpotLightGizmo::OnOuterAngleUpdate(float NewAngle)
 
 void USpotLightGizmo::OnInnerAngleUpdate(float NewAngle)
 {
+	LightActor->SpotLightComponent->Modify();
+
 	LightActor->SpotLightComponent->InnerConeAngle = NewAngle;
 
 	// Inner Angle cannot be greater than Outer Angle
@@ -216,6 +222,11 @@ void USpotLightGizmo::OnInnerAngleUpdate(float NewAngle)
 
 void USpotLightGizmo::OnTransformChanged(UTransformProxy*, FTransform)
 {
+	if (!GizmoActor)
+	{
+		return;
+	}
+
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 
 	FTransform TargetTransform = TransformProxy->GetTransform();
@@ -238,6 +249,7 @@ void USpotLightGizmo::CreateOuterAngleGizmo()
 	OuterAngleGizmo->UpdateAngleFunc = [this](float NewAngle) { this->OnOuterAngleUpdate(NewAngle); };
 	OuterAngleGizmo->MaxAngle = 80.f;
 	OuterAngleGizmo->MinAngle = 1.f;
+	OuterAngleGizmo->TransactionDescription = LOCTEXT("SpotLightOuterAngle", "Spot Light Outer Angle");
 }
 
 void USpotLightGizmo::CreateInnerAngleGizmo()
@@ -253,6 +265,7 @@ void USpotLightGizmo::CreateInnerAngleGizmo()
 	InnerAngleGizmo->MaxAngle = 80.f;
 	InnerAngleGizmo->MinAngle = 1.f;
 	InnerAngleGizmo->ConeColor = FColor(150, 200, 255);
+	InnerAngleGizmo->TransactionDescription = LOCTEXT("SpotLightInnerAngle", "Spot Light Inner Angle");
 }
 
 void USpotLightGizmo::SetWorld(UWorld* InWorld)
@@ -288,6 +301,8 @@ void USpotLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 		bIsDragging = true;
 
 		UpdateHandleColors();
+
+		GetGizmoManager()->BeginUndoTransaction(LOCTEXT("SpotLightAttenuation", "Spot Light Attenuation"));
 	}
 }
 
@@ -313,6 +328,7 @@ void USpotLightGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 
 	NewAttenuation = (NewAttenuation < 0) ? 0 : NewAttenuation;
 
+	LightActor->SpotLightComponent->Modify();
 	LightActor->SpotLightComponent->AttenuationRadius = NewAttenuation;
 	LightActor->SpotLightComponent->MarkRenderStateDirty();
 
@@ -332,6 +348,8 @@ void USpotLightGizmo::OnEndDrag(const FInputDeviceRay& Ray)
 	bIsDragging = false;
 
 	UpdateHandleColors();
+
+	GetGizmoManager()->EndUndoTransaction();
 }
 
 bool USpotLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform)
@@ -434,3 +452,5 @@ void USpotLightGizmoInputBehavior::ForceEndCapture(const FInputCaptureData& data
 		bInputDragCaptured = false;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

@@ -8,6 +8,8 @@
 #include "BaseGizmos/GizmoRenderingUtil.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
+#define LOCTEXT_NAMESPACE "UScalableSphereGizmo"
+
 // UScalableConeGizmoBuilder
 
 UInteractiveGizmo* UScalableConeGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -26,6 +28,8 @@ void UScalableConeGizmo::Setup()
 	MaxAngle = 90.f;
 	MinAngle = 0.f;
 	ConeColor = FColor(200, 255, 255);
+
+	TransactionDescription = LOCTEXT("ScalableConeGizmo", "Scale Cone Gizmo");
 
 	UScalableConeGizmoInputBehavior* ScalableConeBehavior = NewObject<UScalableConeGizmoInputBehavior>(this);
 	ScalableConeBehavior->Initialize(this);
@@ -255,6 +259,8 @@ void UScalableConeGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 		DragCurrentPositionProjected = DragStartWorldPosition;
 
 		bIsDragging = true;
+
+		GetGizmoManager()->BeginUndoTransaction(TransactionDescription);
 	}
 }
 
@@ -304,6 +310,7 @@ void UScalableConeGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 
 void UScalableConeGizmo::OnEndDrag(const FInputDeviceRay& Ray)
 {
+	GetGizmoManager()->EndUndoTransaction();
 	bIsDragging = false;
 }
 
@@ -367,3 +374,5 @@ void UScalableConeGizmoInputBehavior::ForceEndCapture(const FInputCaptureData& d
 		Gizmo->OnEndDrag(LastWorldRay);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

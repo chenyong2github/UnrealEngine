@@ -11,6 +11,7 @@
 #include "BaseBehaviors/MouseHoverBehavior.h"
 #include "BaseGizmos/GizmoRenderingUtil.h"
 
+#define LOCTEXT_NAMESPACE "UScalableSphereGizmo"
 // UScalableSphereGizmoBuilder
 
 UInteractiveGizmo* UScalableSphereGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -26,6 +27,8 @@ void UScalableSphereGizmo::Setup()
 	UInteractiveGizmo::Setup();
 
 	Radius = 1000.0f;
+
+	TransactionDescription = LOCTEXT("ScalableSphereGizmo", "Scale Sphere Gizmo");
 
 	UScalableSphereGizmoInputBehavior* ScalableSphereBehavior = NewObject<UScalableSphereGizmoInputBehavior>(this);
 	ScalableSphereBehavior->Initialize(this);
@@ -254,6 +257,8 @@ void UScalableSphereGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 		DragCurrentPositionProjected = DragStartWorldPosition;
 
 		bIsDragging = true;
+
+		GetGizmoManager()->BeginUndoTransaction(TransactionDescription);
 	}
 }
 
@@ -284,6 +289,7 @@ void UScalableSphereGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 
 void UScalableSphereGizmo::OnEndDrag(const FInputDeviceRay& Ray)
 {
+	GetGizmoManager()->EndUndoTransaction();
 	bIsDragging = false;
 }
 
@@ -350,3 +356,5 @@ void UScalableSphereGizmoInputBehavior::ForceEndCapture(const FInputCaptureData&
 		Gizmo->OnEndDrag(LastWorldRay);
 	}
 }
+
+#undef LOCTEXT_NAMESPACE

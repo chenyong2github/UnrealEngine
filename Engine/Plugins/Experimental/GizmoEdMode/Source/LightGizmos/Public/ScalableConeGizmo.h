@@ -77,6 +77,9 @@ public:
 	UPROPERTY()
 	float HitErrorThreshold{ 12.f };
 
+	// The text that will be used as the transaction description for undo/redo
+	UPROPERTY()
+	FText TransactionDescription;
 
 	/** Called when the Angle of the cone is changed. Sends new angle as parameter. */
 	TFunction<void(const float)> UpdateAngleFunc = nullptr;

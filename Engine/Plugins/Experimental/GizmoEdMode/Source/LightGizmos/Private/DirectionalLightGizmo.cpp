@@ -12,6 +12,9 @@
 #include "SceneManagement.h"
 #include "BaseBehaviors/MouseHoverBehavior.h"
 
+#define LOCTEXT_NAMESPACE "UDirectionalLightGizmo"
+
+
 // UDirectionalLightGizmoBuilder
 
 UInteractiveGizmo* UDirectionalLightGizmoBuilder::BuildGizmo(const FToolBuilderState& SceneState) const
@@ -227,6 +230,8 @@ void UDirectionalLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 			GizmoMath::MakeNormalPlaneBasis(HitAxis, RotationPlaneX, RotationPlaneZ);
 			RotationPlaneX = LightActor->GetActorRotation().RotateVector(FVector::XAxisVector);
 			RotationPlaneZ = LightActor->GetActorRotation().RotateVector(FVector::ZAxisVector);
+
+			GetGizmoManager()->BeginUndoTransaction(LOCTEXT("DirectionalLightYRotation", "Directional Light Y Rotation"));
 			
 		}
 		// Rotate around Z axis if the circle was hit
@@ -235,6 +240,8 @@ void UDirectionalLightGizmo::OnBeginDrag(const FInputDeviceRay& Ray)
 			HitAxis = FVector::ZAxisVector;
 			RotationPlaneX = FVector::XAxisVector;
 			RotationPlaneZ = FVector::YAxisVector;
+
+			GetGizmoManager()->BeginUndoTransaction(LOCTEXT("DirectionalLightZRotation", "Directional Light Z Rotation"));
 		}
 
 		// Calculate initial hit position
@@ -281,6 +288,8 @@ void UDirectionalLightGizmo::OnUpdateDrag(const FInputDeviceRay& Ray)
 
 	float DeltaAngle = InteractionCurAngle - InteractionStartParameter;
 
+	LightActor->Modify();
+
 	// Rotate around y axis if the arrow was hit
 	if (HitComponent == GizmoActor->Arrow)
 	{
@@ -309,6 +318,8 @@ void UDirectionalLightGizmo::OnEndDrag(const FInputDeviceRay& Ray)
 	bIsDragging = false;
 
 	UpdateHandleColors();
+
+	GetGizmoManager()->EndUndoTransaction();
 }
 
 bool UDirectionalLightGizmo::HitTest(const FRay& Ray, FHitResult& OutHit, FTransform& OutTransform, UGizmoBaseComponent*& OutHitComponent)
@@ -374,6 +385,11 @@ void UDirectionalLightGizmo::UpdateHandleColors()
 
 void UDirectionalLightGizmo::OnTransformChanged(UTransformProxy*, FTransform)
 {
+	if (!GizmoActor)
+	{
+		return;
+	}
+
 	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
 
 	FTransform TargetTransform = TransformProxy->GetTransform();
@@ -463,3 +479,5 @@ void UDirectionalLightGizmoInputBehavior::ForceEndCapture(const FInputCaptureDat
 		bInputDragCaptured = false;
 	}
 }
+
+#undef LOCTEXT_NAMESPACE
