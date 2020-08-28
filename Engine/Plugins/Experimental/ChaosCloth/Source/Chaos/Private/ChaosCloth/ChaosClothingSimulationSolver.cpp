@@ -108,10 +108,6 @@ FClothingSimulationSolver::FClothingSimulationSolver()
 
 FClothingSimulationSolver::~FClothingSimulationSolver()
 {
-	for (auto ConstraintsIt = ClothsConstraints.CreateConstIterator(); ConstraintsIt; ++ConstraintsIt)
-	{
-		delete ConstraintsIt.Value();
-	}
 }
 
 void FClothingSimulationSolver::SetCloths(TArray<FClothingSimulationCloth*>&& InCloths)
@@ -257,10 +253,6 @@ void FClothingSimulationSolver::ResetParticles()
 	Evolution->ResetParticles();
 	Evolution->ResetConstraintRules();
 	Evolution->ResetSelfCollision();
-	for (auto ConstraintsIt = ClothsConstraints.CreateConstIterator(); ConstraintsIt; ++ConstraintsIt)
-	{
-		delete ConstraintsIt.Value();
-	}
 	ClothsConstraints.Reset();
 }
 
@@ -273,14 +265,10 @@ int32 FClothingSimulationSolver::AddParticles(int32 NumParticles, uint32 GroupId
 	const int32 Offset = Evolution->AddParticleRange(NumParticles, GroupId, /*bActivate =*/ false);
 
 	// Add an empty constraints container for this range
-	FClothConstraints* ClothConstraintPtr = ClothsConstraints.FindRef(Offset);
-	if (!ClothConstraintPtr)
-	{
-		ClothConstraintPtr = ClothsConstraints.Add(Offset, new FClothConstraints());
-	}
+	check(!ClothsConstraints.Find(Offset));  // We cannot already have this Offset in the map, particle ranges are always added, never removed (unless reset)
 
-	check(ClothConstraintPtr);
-	ClothConstraintPtr->Initialize(Evolution.Get(), AnimationPositions, AnimationNormals, Offset, NumParticles);
+	ClothsConstraints.Emplace(Offset, MakeUnique<FClothConstraints>())
+		->Initialize(Evolution.Get(), AnimationPositions, AnimationNormals, Offset, NumParticles);
 
 	// Always starts with particles disabled
 	EnableParticles(Offset, false);
