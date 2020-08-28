@@ -26,6 +26,10 @@ extern ENGINE_API int32 GSkinWeightProfilesLoadByDefaultMode;
 extern ENGINE_API int32 GSkinWeightProfilesDefaultLODOverride;
 extern ENGINE_API int32 GSkinWeightProfilesAllowedFromLOD;
 
+extern ENGINE_API FAutoConsoleVariableRef CVarSkinWeightsLoadByDefaultMode;
+extern ENGINE_API FAutoConsoleVariableRef CVarSkinWeightProfilesDefaultLODOverride;
+extern ENGINE_API FAutoConsoleVariableRef CVarSkinWeightProfilesAllowedFromLOD;
+
 /** Structure storing user facing properties, and is used to identify profiles at the SkeletalMesh level*/
 USTRUCT()
 struct FSkinWeightProfileInfo
