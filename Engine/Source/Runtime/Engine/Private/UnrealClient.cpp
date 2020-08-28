@@ -27,6 +27,7 @@
 #include "EngineModule.h"
 #include "Performance/EnginePerformanceTargets.h"
 #include "Templates/UniquePtr.h"
+#include "TypedElementList.h"
 #include "EngineUtils.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogClient, Log, All);
@@ -1803,44 +1804,87 @@ HHitProxy* FViewport::GetHitProxy(int32 X,int32 Y)
 
 void FViewport::GetActorsAndModelsInHitProxy(FIntRect InRect, TSet<AActor*>& OutActors, TSet<UModel*>& OutModels)
 {
-	const TArray<FColor>& RawHitProxyData = GetRawHitProxyData(InRect);
-
 	OutActors.Empty();
 	OutModels.Empty();
+
+	EnumerateHitProxiesInRect(InRect, [&OutActors, &OutModels](HHitProxy* HitProxy)
+	{
+		if (HitProxy->IsA(HActor::StaticGetType()))
+		{
+			AActor* Actor = ((HActor*)HitProxy)->Actor;
+			if (Actor)
+			{
+				OutActors.Add(Actor);
+			}
+		}
+		else if (HitProxy->IsA(HModel::StaticGetType()))
+		{
+			OutModels.Add(((HModel*)HitProxy)->GetModel());
+		}
+		else if (HitProxy->IsA(HBSPBrushVert::StaticGetType()))
+		{
+			HBSPBrushVert* HitBSPBrushVert = ((HBSPBrushVert*)HitProxy);
+			if (HitBSPBrushVert->Brush.IsValid())
+			{
+				OutActors.Add(HitBSPBrushVert->Brush.Get());
+			}
+		}
+		return true;
+	});
+}
+
+FTypedElementHandle FViewport::GetElementHandleAtPoint(int32 X, int32 Y)
+{
+	if (HHitProxy* HitProxy = GetHitProxy(X, Y))
+	{
+		return HitProxy->GetElementHandle();
+	}
+	return FTypedElementHandle();
+}
+
+void FViewport::GetElementHandlesInRect(FIntRect InRect, FTypedElementList& OutElementHandles)
+{
+	GetElementHandlesInRectImpl(InRect, OutElementHandles);
+}
+
+void FViewport::GetElementHandlesInRect(FIntRect InRect, TSet<FTypedElementHandle>& OutElementHandles)
+{
+	GetElementHandlesInRectImpl(InRect, OutElementHandles);
+}
+
+template <typename ContainerType>
+void FViewport::GetElementHandlesInRectImpl(FIntRect InRect, ContainerType& OutElementHandles)
+{
+	OutElementHandles.Reset();
+
+	EnumerateHitProxiesInRect(InRect, [&OutElementHandles](HHitProxy* HitProxy)
+	{
+		if (FTypedElementHandle ElementHandle = HitProxy->GetElementHandle())
+		{
+			OutElementHandles.Add(MoveTemp(ElementHandle));
+		}
+		return true;
+	});
+}
+
+void FViewport::EnumerateHitProxiesInRect(FIntRect InRect, TFunctionRef<bool(HHitProxy*)> InCallback)
+{
+	const TArray<FColor>& RawHitProxyData = GetRawHitProxyData(InRect);
 
 	// Lower the resolution with massive box selects
 	const int32 Step = (InRect.Width() > 500 && InRect.Height() > 500) ? 4 : 1;
 
-	for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; Y = Y < InRect.Max.Y - 1 ? FMath::Min(InRect.Max.Y-1, Y+Step) : ++Y )
+	for (int32 Y = InRect.Min.Y; Y < InRect.Max.Y; Y = Y < InRect.Max.Y-1 ? FMath::Min(InRect.Max.Y-1, Y+Step) : ++Y)
 	{
 		const FColor* SourceData = &RawHitProxyData[Y * SizeX];
-		for (int32 X = InRect.Min.X; X < InRect.Max.X; X = X < InRect.Max.X-1 ? FMath::Min(InRect.Max.X-1, X + Step) : ++X )
+		for (int32 X = InRect.Min.X; X < InRect.Max.X; X = X < InRect.Max.X-1 ? FMath::Min(InRect.Max.X-1, X+Step) : ++X)
 		{
 			FHitProxyId HitProxyId(SourceData[X]);
 			HHitProxy* HitProxy = GetHitProxyById(HitProxyId);
 
-			if (HitProxy)
+			if (HitProxy && !InCallback(HitProxy))
 			{
-				if( HitProxy->IsA(HActor::StaticGetType()) )
-				{
-					AActor* Actor = ((HActor*)HitProxy)->Actor;
-					if (Actor)
-					{
-						OutActors.Add(Actor);
-					}
-				}
-				else if( HitProxy->IsA(HModel::StaticGetType()) )
-				{
-					OutModels.Add( ((HModel*)HitProxy)->GetModel() );
-				}
-				else if( HitProxy->IsA(HBSPBrushVert::StaticGetType()) )
-				{
-					HBSPBrushVert* HitBSPBrushVert = ((HBSPBrushVert*)HitProxy);
-					if( HitBSPBrushVert->Brush.IsValid() )
-					{
-						OutActors.Add( HitBSPBrushVert->Brush.Get() );
-					}
-				}
+				return;
 			}
 		}
 	}

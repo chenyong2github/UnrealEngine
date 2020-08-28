@@ -121,6 +121,11 @@ bool HHitProxy::IsA(HHitProxyType* TestType) const
 	return bIsInstance;
 }
 
+FTypedElementHandle HHitProxy::GetElementHandle() const
+{
+	return FTypedElementHandle();
+}
+
 HHitProxy* GetHitProxyById(FHitProxyId Id)
 {
 	return FHitProxyArray::Get().GetHitProxyById(Id.Index);

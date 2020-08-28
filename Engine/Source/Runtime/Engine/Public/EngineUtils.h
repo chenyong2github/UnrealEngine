@@ -77,6 +77,8 @@ struct HActor : public HHitProxy
 	{
 		return EMouseCursor::Crosshairs;
 	}
+
+	ENGINE_API virtual FTypedElementHandle GetElementHandle() const override;
 };
 
 //

@@ -40,6 +40,20 @@ IMPLEMENT_HIT_PROXY(HTranslucentActor,HActor)
 
 #define LOCTEXT_NAMESPACE "EngineUtils"
 
+FTypedElementHandle HActor::GetElementHandle() const
+{
+#if WITH_EDITOR
+	if (PrimComponent)
+	{
+		return PrimComponent->AcquireEditorElementHandle();
+	}
+	if (Actor)
+	{
+		return Actor->AcquireEditorElementHandle();
+	}
+#endif	// WITH_EDITOR
+	return FTypedElementHandle();
+}
 
 #if !UE_BUILD_SHIPPING
 FContentComparisonHelper::FContentComparisonHelper()

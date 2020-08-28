@@ -20,6 +20,7 @@ class FCanvas;
 class FViewport;
 class FViewportClient;
 class UModel;
+class FTypedElementList;
 
 /**
  * A render target.
@@ -492,6 +493,19 @@ public:
 	ENGINE_API void GetActorsAndModelsInHitProxy(FIntRect InRect, TSet<AActor*>& OutActors, TSet<UModel*>& OutModels);
 
 	/**
+	 * Returns the dominant element handle at a given point.  If X,Y are outside the client area of the viewport, returns an invalid handle.
+	 */
+	ENGINE_API FTypedElementHandle GetElementHandleAtPoint(int32 X, int32 Y);
+
+	/**
+	 * Returns all element handles found within a specified region.
+	 * InRect must be entirely within the viewport's client area.
+	 * If the hit proxies are not cached, this will call ViewportClient->Draw with a hit-testing canvas.
+	 */
+	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, FTypedElementList& OutElementHandles);
+	ENGINE_API void GetElementHandlesInRect(FIntRect InRect, TSet<FTypedElementHandle>& OutElementHandles);
+
+	/**
 	 * Retrieves the interface to the viewport's frame, if it has one.
 	 * @return The viewport's frame interface.
 	 */
@@ -623,6 +637,23 @@ protected:
 	 * Take a high-resolution screenshot and save to disk.
 	 */
 	void HighResScreenshot();
+
+private:
+
+	/**
+	 * Returns all element handles found within a specified region.
+	 * InRect must be entirely within the viewport's client area.
+	 * If the hit proxies are not cached, this will call ViewportClient->Draw with a hit-testing canvas.
+	 */
+	template <typename ContainerType>
+	void GetElementHandlesInRectImpl(FIntRect InRect, ContainerType& OutElementHandles);
+
+	/**
+	 * Enumerate all valid hit proxies found within a specified region.
+	 * InRect must be entirely within the viewport's client area.
+	 * If the hit proxies are not cached, this will call ViewportClient->Draw with a hit-testing canvas.
+	 */
+	void EnumerateHitProxiesInRect(FIntRect InRect, TFunctionRef<bool(HHitProxy*)> InCallback);
 
 protected:
 

@@ -10,6 +10,7 @@
 #include "UObject/ObjectMacros.h"
 #include "Templates/RefCounting.h"
 #include "GenericPlatform/ICursor.h"
+#include "TypedElementHandle.h"
 
 class FReferenceCollector;
 
@@ -178,6 +179,11 @@ public:
 	{
 		return false;
 	}
+
+	/**
+	 * Get the element handle associated with this hit proxy, if any.
+	 */
+	ENGINE_API virtual FTypedElementHandle GetElementHandle() const;
 
 private:
 	void InitHitProxy();
