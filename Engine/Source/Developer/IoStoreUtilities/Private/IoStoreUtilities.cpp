@@ -577,6 +577,7 @@ public:
 struct FContainerSourceFile 
 {
 	FString NormalizedPath;
+	FString DestinationPath;
 	bool bNeedsCompression = false;
 	bool bNeedsEncryption = false;
 };
@@ -613,6 +614,7 @@ struct FContainerTargetFile
 	FPackage* Package = nullptr;
 	FString NormalizedSourcePath;
 	FString TargetPath;
+	FString DestinationPath;
 	uint64 SourceSize = 0;
 	uint64 TargetSize = 0;
 	uint64 Offset = 0;
@@ -651,10 +653,12 @@ struct FIoStoreArguments
 	FString DLCPluginPath;
 	FString DLCName;
 	FString BasedOnReleaseVersionPath;
+	FString ExtractIndexPath;
 	FAssetRegistryState ReleaseAssetRegistry;
 	FReleasedPackages ReleasedPackages;
 	bool bSign = false;
 	bool bRemapPluginContentToGame = false;
+	bool bCreateDirectoryIndex = true;
 
 	bool ShouldCreateContainers() const
 	{
@@ -3356,6 +3360,7 @@ void InitializeContainerTargetsAndPackages(
 					TargetFile.SourceSize = uint64(CookedFileStatData->FileSize);
 					TargetFile.NormalizedSourcePath = NormalizedSourcePath;
 					TargetFile.TargetPath = MoveTemp(RelativeFileName);
+					TargetFile.DestinationPath = SourceFile.DestinationPath;
 					TargetFile.Package = Package;
 					if (SourceFile.bNeedsCompression)
 					{
@@ -3446,10 +3451,11 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 				*Result.CompressionMethod.ToString());
 		}
 
-		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s"),
+		FString ContainerSettings = FString::Printf(TEXT("%s/%s/%s/%s"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Compressed) ? TEXT("C") : TEXT("-"),
 			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Encrypted) ? TEXT("E") : TEXT("-"),
-			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"));
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Signed) ? TEXT("S") : TEXT("-"),
+			EnumHasAnyFlags(Result.ContainerFlags, EIoContainerFlags::Indexed) ? TEXT("I") : TEXT("-"));
 
 		UE_LOG(LogIoStore, Display, TEXT("%-30s %10s %15.2lf %15llu %15.2lf %25s"),
 			*Result.ContainerName,
@@ -3475,10 +3481,17 @@ void LogWriterResults(const TArray<FIoStoreWriterResult>& Results)
 		TEXT("-"));
 
 	UE_LOG(LogIoStore, Display, TEXT(""));
-	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) **"));
+	UE_LOG(LogIoStore, Display, TEXT("** Flags: (C)ompressed / (E)ncrypted / (S)igned) / (I)ndexed) **"));
 	UE_LOG(LogIoStore, Display, TEXT(""));
 	UE_LOG(LogIoStore, Display, TEXT("Compression block padding: %8.2lf MB"), (double)TotalPaddingSize / 1024.0 / 1024.0);
 	UE_LOG(LogIoStore, Display, TEXT(""));
+
+	UE_LOG(LogIoStore, Display, TEXT("-------------------------------------------- Container Directory Index --------------------------------------------------"));
+	UE_LOG(LogIoStore, Display, TEXT("%-30s %15s"), TEXT("Container"), TEXT("Size (KB)"));
+	for (const FIoStoreWriterResult& Result : Results)
+	{
+		UE_LOG(LogIoStore, Display, TEXT("%-30s %15.2lf"), *Result.ContainerName, double(Result.DirectoryIndexSize) / 1024.0);
+	}
 }
 
 void LogContainerPackageInfo(const TArray<FContainerTargetSpec*>& ContainerTargets)
@@ -3865,7 +3878,10 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 			{
 				FIoContainerSettings ContainerSettings;
 				ContainerSettings.ContainerId = ContainerTarget->Header.ContainerId;
-				ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags;
+				if (Arguments.bCreateDirectoryIndex)
+				{
+					ContainerSettings.ContainerFlags = ContainerTarget->ContainerFlags | EIoContainerFlags::Indexed;
+				}
 				if (EnumHasAnyFlags(ContainerTarget->ContainerFlags, EIoContainerFlags::Encrypted))
 				{
 					const FNamedAESKey* Key = Arguments.KeyChain.EncryptionKeys.Find(ContainerTarget->EncryptionKeyGuid);
@@ -3981,6 +3997,7 @@ int32 CreateTarget(const FIoStoreArguments& Arguments, const FIoStoreWriterSetti
 				WriteOptions.DebugName = *TargetFile.TargetPath;
 				WriteOptions.bForceUncompressed = TargetFile.bForceUncompressed;
 				WriteOptions.bIsMemoryMapped = TargetFile.bIsMemoryMappedBulkData;
+				WriteOptions.FileName = TargetFile.DestinationPath;
 				FIoStatus Status = ReadFileTask.IoStoreWriter->Append(TargetFile.ChunkId, TargetFile.ChunkHash, ReadFileTask.IoBuffer, WriteOptions);
 				UE_CLOG(!Status.IsOk(), LogIoStore, Fatal, TEXT("Failed to append chunk to container file due to '%s'"), *Status.ToString());
 
@@ -4347,6 +4364,70 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 	return 0;
 }
 
+using DirectoryIndexVisitorFunction = TFunctionRef<bool(const FString&)>;
+
+bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, const FIoDirectoryIndexReader& Reader, DirectoryIndexVisitorFunction Visit)
+{
+	FIoDirectoryIndexHandle ChildDirectory = Reader.GetChildDirectory(Directory);
+	while (ChildDirectory.IsValid())
+	{
+		FStringView DirectoryName = Reader.GetDirectoryName(ChildDirectory);
+		FString ChildDirectoryPath = Path / FString(DirectoryName);
+
+		FIoDirectoryIndexHandle File = Reader.GetFile(ChildDirectory);
+		while (File.IsValid())
+		{
+			FStringView FileName = Reader.GetFileName(File);
+			FString FilePath = Reader.GetMountPoint() / ChildDirectoryPath / FString(FileName);
+
+			if (!Visit(FilePath))
+			{
+				return false;
+			}
+
+			File = Reader.GetNextFile(File);
+		}
+
+		if (!IterateDirectoryIndex(ChildDirectory, ChildDirectoryPath, Reader, Visit))
+		{
+			return false;
+		}
+
+		ChildDirectory = Reader.GetNextDirectory(ChildDirectory);
+	}
+
+	return true;
+}
+
+int32 ExtractContainerIndex(const FIoStoreArguments& Arguments)
+{
+	if (!IFileManager::Get().FileExists(*Arguments.ExtractIndexPath))
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Failed to extract '%s'. File doesn't exist"), *Arguments.ExtractIndexPath);
+		return -1;
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Extracting directory index from '%s' ..."), *Arguments.ExtractIndexPath);
+
+	TArray<FString> FileNames;
+	TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*Arguments.ExtractIndexPath, Arguments.KeyChain);
+	const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
+
+	IterateDirectoryIndex(FIoDirectoryIndexHandle::RootDirectory(), TEXT(""), IndexReader, [&FileNames](const FString& FilePath) -> bool
+	{
+		FString PackageName;
+		FPackageName::TryConvertFilenameToLongPackageName(FilePath, PackageName, nullptr);
+		FileNames.Emplace(FString::Printf(TEXT("\"%s\" \"%s\""), *FilePath, *PackageName));
+		return true;
+	});
+
+	FString OutputPath = FPaths::ChangeExtension(Arguments.ExtractIndexPath, TEXT(".txt"));
+	UE_LOG(LogIoStore, Display, TEXT("Saving directory index to '%s'"), *OutputPath );
+	FFileHelper::SaveStringArrayToFile(FileNames, *OutputPath);
+
+	return 0;
+}
+
 static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceFile>& OutFiles)
 {
 	TArray<FString> ResponseFileContents;
@@ -4390,6 +4471,7 @@ static bool ParsePakResponseFile(const TCHAR* FilePath, TArray<FContainerSourceF
 
 		FContainerSourceFile& FileEntry = OutFiles.AddDefaulted_GetRef();
 		FileEntry.NormalizedPath = MoveTemp(SourceAndDest[0]);
+		FileEntry.DestinationPath = MoveTemp(SourceAndDest[1]);
 
 		for (int32 Index = 0; Index < Switches.Num(); ++Index)
 		{
@@ -4566,6 +4648,9 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 	}
 
 	UE_LOG(LogIoStore, Display, TEXT("Container signing - %s"), Arguments.bSign ? TEXT("ENABLED") : TEXT("DISABLED"));
+
+	Arguments.bCreateDirectoryIndex = !FParse::Param(FCommandLine::Get(), TEXT("NoDirectoryIndex"));
+	UE_LOG(LogIoStore, Display, TEXT("Directory index - %s"), Arguments.bCreateDirectoryIndex  ? TEXT("ENABLED") : TEXT("DISABLED"));
 
 	FString PatchReferenceCryptoKeysFilename;
 	FKeyChain PatchKeyChain;
@@ -4802,7 +4887,6 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			}
 		}
 
-
 		if (!FParse::Value(FCommandLine::Get(), TEXT("CookedDirectory="), Arguments.CookedDir))
 		{
 			UE_LOG(LogIoStore, Error, TEXT("CookedDirectory must be specified"));
@@ -4845,6 +4929,10 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 		{
 			return ReturnValue;
 		}
+	}
+	else if (FParse::Value(FCommandLine::Get(), TEXT("ExtractIndex="), Arguments.ExtractIndexPath))
+	{
+		return ExtractContainerIndex(Arguments);
 	}
 	else
 	{
