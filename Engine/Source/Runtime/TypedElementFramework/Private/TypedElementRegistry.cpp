@@ -122,10 +122,10 @@ void UTypedElementRegistry::ReleaseElementId(FTypedElementId& InOutElementId)
 	FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InOutElementId.GetTypeId());
 	checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InOutElementId.GetTypeId());
 
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 	const FTypedElementInternalData& ElementData = RegisteredElementType->GetDataForElement(InOutElementId.GetElementId());
 	ElementData.ReleaseRef();
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 
 	InOutElementId.Private_DestroyNoRef();
 }

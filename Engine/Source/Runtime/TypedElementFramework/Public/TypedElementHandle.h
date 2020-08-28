@@ -351,22 +351,22 @@ public:
 private:
 	FORCEINLINE void AddRef() const
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
 			DataPtr->AddRef();
 		}
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	FORCEINLINE void ReleaseRef() const
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
 			DataPtr->ReleaseRef();
 		}
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	FTypedElementId Id;
@@ -811,22 +811,22 @@ public:
 private:
 	FORCEINLINE void AddRef() const
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
 			DataPtr->AddRef();
 		}
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	FORCEINLINE void ReleaseRef() const
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
 			DataPtr->ReleaseRef();
 		}
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	FTypedElementId Id;

@@ -39,7 +39,7 @@ public:
 
 	virtual ~FTypedElementInternalData() = default;
 
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 	FORCEINLINE void AddRef() const
 	{
 		checkSlow(RefCount < TNumericLimits<FTypedHandleRefCount>::Max());
@@ -56,7 +56,7 @@ public:
 	{
 		return FPlatformAtomics::AtomicRead(&RefCount);
 	}
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 
 	virtual const void* GetUntypedData() const
 	{
@@ -64,9 +64,9 @@ public:
 	}
 
 private:
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 	mutable FTypedHandleRefCount RefCount = 0;
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 };
 
 /**
@@ -194,7 +194,7 @@ public:
 
 	TTypedElementInternalData<void>& AddDataForElement(FTypedHandleElementId& InOutElementId)
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
 		checkSlow(InOutElementId >= 0);
@@ -206,14 +206,14 @@ public:
 
 		ElementIdToArrayIndex.Add(InOutElementId, InternalDataArrayIndex);
 		return InternalDataArray[InternalDataArrayIndex];
-#else	// WITH_TYPED_ELEMENT_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 		return SharedInternalData;
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr)
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
 		int32 InternalDataArrayIndex = INDEX_NONE;
@@ -225,22 +225,22 @@ public:
 		checkf(InExpectedDataPtr == &InternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
 		InternalData = TTypedElementInternalData<void>();
 		InternalDataFreeIndices.Add(InternalDataArrayIndex);
-#else	// WITH_TYPED_ELEMENT_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 		checkf(InExpectedDataPtr == &SharedInternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	const TTypedElementInternalData<void>& GetDataForElement(const FTypedHandleElementId InElementId) const
 	{
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		FReadScopeLock InternalDataLock(InternalDataRW);
 
 		const int32* InternalDataArrayIndexPtr = ElementIdToArrayIndex.Find(InElementId);
 		checkSlow(InternalDataArrayIndexPtr && InternalDataArray.IsValidIndex(*InternalDataArrayIndexPtr));
 		return InternalDataArray[*InternalDataArrayIndexPtr];
-#else	// WITH_TYPED_ELEMENT_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 		return SharedInternalData;
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	static FORCEINLINE void SetStaticDataTypeId(const FTypedHandleTypeId InTypeId)
@@ -258,12 +258,12 @@ public:
 	}
 
 private:
-#if WITH_TYPED_ELEMENT_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 	mutable FRWLock InternalDataRW;
 	TChunkedArray<TTypedElementInternalData<void>> InternalDataArray;
 	TArray<int32> InternalDataFreeIndices;
 	TMap<FTypedHandleElementId, int32> ElementIdToArrayIndex;
-#else	// WITH_TYPED_ELEMENT_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	TTypedElementInternalData<void> SharedInternalData;
-#endif	// WITH_TYPED_ELEMENT_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 };
