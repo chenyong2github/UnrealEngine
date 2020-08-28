@@ -173,13 +173,7 @@ namespace UnrealGameSync
 			Exception Ex = Args.ExceptionObject as Exception;
 			if(Ex != null)
 			{
-				StringBuilder ExceptionTrace = new StringBuilder(Ex.ToString());
-				for(Exception InnerEx = Ex.InnerException; InnerEx != null; InnerEx = InnerEx.InnerException)
-				{
-					ExceptionTrace.Append("\nInner Exception:\n");
-					ExceptionTrace.Append(InnerEx.ToString());
-				}
-				Telemetry.SendEvent("Crash", new { Exception = Ex });
+				Telemetry.SendEvent("Crash", new {Exception = Ex.ToString()});
 			}
 		}
 
