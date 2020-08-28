@@ -132,7 +132,7 @@ namespace Chaos
 		}
 
 		const TConstArrayView<TVector<int32, 3>>& GetElements() const { return Elements; }
-		const TArray<TVector<T, d>>& GetForces() const { return Forces; }
+		TConstArrayView<TVector<T, d>> GetForces() const { return TConstArrayView<TVector<T, d>>(Forces); }
 
 	private:
 		inline void UpdateField(const TPBDParticles<T, d>& InParticles, int32 ElementIndex, const TVector<T, d>& InVelocity) const

@@ -565,6 +565,11 @@ void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragC
 	VelocityField.SetCoefficients(DragCoefficient, LiftCoefficient);
 }
 
+const TVelocityField<float, 3>& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
+{
+	return Evolution->GetVelocityField(GroupId);
+}
+
 void FClothingSimulationSolver::SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh)
 {
 #ifdef CHAOS_CLOTH_MUST_IMPROVE_SELF_COLLISION  // TODO: Improve self-collision until it can run in engine tests without crashing the simulation.
