@@ -122,6 +122,11 @@ public:
 		if (IsEnabled())
 		{
 			FScopeLock ScopedLock(&LoggerLock);
+			TGuardValue<bool> ReentrantGuard(bReentrantGuard, true);
+			if (*ReentrantGuard) // Read the old value.
+			{
+				return; // Prevent renentrant logging.
+			}
 
 			// Add the separator if some text is already logged.
 			if (DiagnosticInfo.Len())
@@ -171,6 +176,11 @@ public:
 	{
 		if (IsEnabled())
 		{
+			FScopeLock ScopedLock(&LoggerLock);
+
+			// To prevent LogEvent() executing if if WriteToFile() below ends up firing an error log (like a disk is full error message logged).
+			TGuardValue<bool> ReentrantGuard(bReentrantGuard, true);
+
 			const double CurrTimeSecs = FPlatformTime::Seconds();
 			if (CurrTimeSecs >= NextTimestampUpdateTimeSeconds)
 			{
@@ -336,14 +346,20 @@ private:
 	}
 
 private:
-	/** This is the string containing all the logged informations. */
-	FString DiagnosticInfo;
-	/** The period at which the log timestamp is updated. During the first minute, timestamp every 5 seconds, then after the first minute, every minutes. */
-	double NextTimestampUpdateTimeSeconds;
 	/** Serialize write access in the file */
 	FCriticalSection LoggerLock;
+
+	/** This is the string containing all the logged informations. */
+	FString DiagnosticInfo;
+
 	/** File used to write the diagnostic */
 	TUniquePtr<FArchive> LogFileAr;
+
+	/** The period at which the log timestamp is updated. During the first minute, timestamp every 5 seconds, then after the first minute, every minutes. */
+	double NextTimestampUpdateTimeSeconds;
+
+	/** Prevent a reentrency in the logger. */
+	bool bReentrantGuard = false;
 };
 
 // This extra function can be declared external in the platform specific code. (This avoid creating an extra file for just one function).
