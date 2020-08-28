@@ -217,7 +217,10 @@ struct TSimStagePermutationContext
 
 	void AddBranch(const FHlslNiagaraTranslator& Translator, const FHlslNiagaraTranslationStage& TranslationStage)
 	{
-		AddBranchInternal(Translator, MakeArrayView(&TranslationStage, 1), MakeArrayView<int32>({0}));
+		// vs2017 generates a link error; this works around it...some how
+		const FHlslNiagaraTranslationStage& LocalTranslation = TranslationStage;
+
+		AddBranchInternal(Translator, MakeArrayView(&LocalTranslation, 1), MakeArrayView({ 0 }));
 	}
 	
 	void Release()
