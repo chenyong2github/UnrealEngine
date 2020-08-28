@@ -3992,6 +3992,11 @@ void UMaterial::PreEditChange(FProperty* PropertyThatChanged)
 
 void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
+	return PostEditChangePropertyInternal(PropertyChangedEvent, EPostEditChangeEffectOnShaders::Default);
+}
+
+void UMaterial::PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyChangedEvent, const EPostEditChangeEffectOnShaders EffectOnShaders)
+{
 	// PreEditChange is not enforced to be called before PostEditChange.
 	// CacheResourceShadersForRendering if called will cause a rendering thread race condition with a debug mechanism (bDeletedThroughDeferredCleanup) if there is no flush or
 	// FMaterialUpdateContext present.
@@ -4045,7 +4050,7 @@ void UMaterial::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEve
 		UpdateCachedExpressionData();
 
 		// When redirecting an object pointer, we trust that the DDC hash will detect the change and that we don't need to force a recompile.
-		const bool bRegenerateId = PropertyChangedEvent.ChangeType != EPropertyChangeType::Redirected;
+		const bool bRegenerateId = PropertyChangedEvent.ChangeType != EPropertyChangeType::Redirected && EffectOnShaders != EPostEditChangeEffectOnShaders::DoesNotInvalidate;
 		CacheResourceShadersForRendering(bRegenerateId);
 
 		// Ensure that the ReferencedTextureGuids array is up to date.
