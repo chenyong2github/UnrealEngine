@@ -1162,7 +1162,7 @@ bool FFCPXMLExportVisitor::GetCinematicSectionFrames(const TSharedPtr<FMovieScen
 	OutStartFrame = InCinematicSectionData->StartFrame.Value;
 	OutEndFrame = InCinematicSectionData->EndFrame.Value;
 	OutDuration = OutEndFrame - OutStartFrame;
-	OutInFrame = HandleFrames + 1;
+	OutInFrame = HandleFrames;
 	OutOutFrame = HandleFrames + OutDuration;
 
 	return true;
