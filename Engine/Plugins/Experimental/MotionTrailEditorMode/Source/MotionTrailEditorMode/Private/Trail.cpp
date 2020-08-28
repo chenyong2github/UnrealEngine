@@ -37,7 +37,7 @@ ETrailCacheState FConstantTrail::UpdateTrail(const FTrail::FSceneContext& InScen
 	FTrailEvaluateTimes TempEvalTimes = InSceneContext.EvalTimes;
 	if (CacheState == ETrailCacheState::Stale)
 	{
-		double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetEditorMode()->GetTrailOptions()->SecondsPerSegment);
+		double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetSecondsPerSegment());
 		CachedEffectiveRange = Parent->GetEffectiveRange();
 		*TrajectoryCache = FArrayTrajectoryCache(Spacing, CachedEffectiveRange, GetConstantLocalTransform() * Parent->GetTrajectoryTransforms()->GetDefault());
 		TrajectoryCache->UpdateCacheTimes(TempEvalTimes);

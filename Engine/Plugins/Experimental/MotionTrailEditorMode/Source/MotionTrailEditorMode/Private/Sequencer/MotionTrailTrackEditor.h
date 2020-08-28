@@ -41,7 +41,8 @@ private:
 	void CreateBoneVisibilityMenu(FMenuBuilder& MenuBuilder, USkeleton* Skeleton, FSequencerTrailHierarchy* Hierarchy);
 
 	// TODO: make map of FName to bool, index lookup is O(N)
-	TMap<class USkeleton*, TBitArray<>> BoneVisibilities;
+	TMap<USkeleton*, TBitArray<>> BoneVisibilities;
+	TMap<UObject*, EBindingVisibilityState> VisibilityStates;
 };
 
 } // namespace MovieScene

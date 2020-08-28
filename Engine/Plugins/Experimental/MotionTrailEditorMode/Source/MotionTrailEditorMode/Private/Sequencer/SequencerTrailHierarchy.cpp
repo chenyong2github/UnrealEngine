@@ -32,6 +32,20 @@ void FSequencerTrailHierarchy::Initialize()
 		return;
 	}
 
+	UpdateViewRange();
+
+	RootTrailGuid = FGuid::NewGuid();
+	TUniquePtr<FTrail> RootTrail = MakeUnique<FRootTrail>();
+	AllTrails.Add(RootTrailGuid, MoveTemp(RootTrail));
+	Hierarchy.Add(RootTrailGuid, FTrailHierarchyNode());
+
+	TArray<FGuid> SequencerSelectedObjects;
+	Sequencer->GetSelectedObjects(SequencerSelectedObjects);
+	UpdateSequencerBindings(SequencerSelectedObjects,
+		[this](UObject* Object, FTrail*, FGuid Guid) {
+		VisibilityManager.Selected.Add(Guid);
+	});
+
 	OnActorAddedToSequencerHandle = Sequencer->OnActorAddedToSequencer().AddLambda([this](AActor* InActor, const FGuid InGuid) {
 		UMovieScene3DTransformTrack* TransformTrack = WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieScene3DTransformTrack>(InGuid);
 		if (TransformTrack)
@@ -82,47 +96,21 @@ void FSequencerTrailHierarchy::Initialize()
 		TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 		check(Sequencer);
 
-		for (TPair<FGuid, TUniquePtr<FTrail>>& GuidTrailPair : AllTrails)
-		{
-			if (GuidTrailPair.Value->GetDrawInfo()) GuidTrailPair.Value->GetDrawInfo()->SetIsVisible(false);
-		}
+		VisibilityManager.Selected.Reset();
 		
-		auto SetVisibleFunc = [this](FTrail* TrailPtr) {
-			FTrajectoryDrawInfo* DrawInfo = TrailPtr->GetDrawInfo();
-			if (DrawInfo && !DrawInfo->IsVisible())
-			{
-				DrawInfo->SetIsVisible(true);
-			}
+		auto SetVisibleFunc = [this](UObject* Object, FTrail* TrailPtr, FGuid Guid) {
+			VisibilityManager.Selected.Add(Guid);
 		};
 
 		UpdateSequencerBindings(NewSelection, SetVisibleFunc);
 	});
 
 	OnViewOptionsChangedHandle = WeakEditorMode->GetTrailOptions()->OnDisplayPropertyChanged.AddLambda([this](FName PropertyName) {
-		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMotionTrailOptions, SecondsPerSegment))
+		if (PropertyName == GET_MEMBER_NAME_CHECKED(UMotionTrailOptions, Subdivisions))
 		{
 			AllTrails[RootTrailGuid]->ForceEvaluateNextTick();
 		}
 	});
-
-	UpdateViewRange();
-
-	RootTrailGuid = FGuid::NewGuid();
-	TUniquePtr<FTrail> RootTrail = MakeUnique<FRootTrail>();
-	AllTrails.Add(RootTrailGuid, MoveTemp(RootTrail));
-	Hierarchy.Add(RootTrailGuid, FTrailHierarchyNode());
-
-	TArray<FGuid> SequencerSelectedObjects;
-	Sequencer->GetSelectedObjects(SequencerSelectedObjects);
-	UpdateSequencerBindings(SequencerSelectedObjects, 
-		[this](FTrail* TrailPtr) {
-			FTrajectoryDrawInfo* DrawInfo = TrailPtr->GetDrawInfo();
-			if (DrawInfo && !DrawInfo->IsVisible())
-			{
-				DrawInfo->SetIsVisible(true);
-			}
-		}
-	);
 }
 
 void FSequencerTrailHierarchy::Destroy()
@@ -168,6 +156,16 @@ void FSequencerTrailHierarchy::Destroy()
 	RootTrailGuid = FGuid();
 }
 
+double FSequencerTrailHierarchy::GetSecondsPerSegment() const 
+{ 
+	const FFrameRate TickResolution = WeakSequencer.Pin()->GetFocusedTickResolution();
+	const TRange<FFrameNumber> MovieSceneRange = WeakSequencer.Pin()->GetFocusedMovieSceneSequence()->GetMovieScene()->GetPlaybackRange();
+
+	const double StartSeconds = TickResolution.AsSeconds(FFrameTime(MovieSceneRange.GetLowerBoundValue()));
+	const double EndSeconds = TickResolution.AsSeconds(FFrameTime(MovieSceneRange.GetUpperBoundValue()));
+	return (EndSeconds - StartSeconds) / double(WeakEditorMode->GetTrailOptions()->Subdivisions); 
+}
+
 void FSequencerTrailHierarchy::RemoveTrail(const FGuid& Key)
 {
 	FTrailHierarchy::RemoveTrail(Key);
@@ -207,7 +205,7 @@ void FSequencerTrailHierarchy::Update()
 	TimingStats.Add("FSequencerTrailHierarchy::Update", UpdateTimespan);
 }
 
-void FSequencerTrailHierarchy::OnBoneVisibilityChanged(class USkeleton* Skeleton, const FName& BoneName)
+void FSequencerTrailHierarchy::OnBoneVisibilityChanged(class USkeleton* Skeleton, const FName& BoneName, const bool bIsVisible)
 {
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	check(Sequencer);
@@ -218,7 +216,6 @@ void FSequencerTrailHierarchy::OnBoneVisibilityChanged(class USkeleton* Skeleton
 	// TODO: potentially expensive
 	for (const FGuid& SelectedGuid : SelectedSequencerGuids)
 	{
-		UMovieSceneSkeletalAnimationTrack* SkelAnimTrack = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieSceneSkeletalAnimationTrack>(SelectedGuid);
 		for (TWeakObjectPtr<> BoundObject : Sequencer->FindObjectsInCurrentSequence(SelectedGuid))
 		{
 			USkeletalMeshComponent* BoundComponent = Cast<USkeletalMeshComponent>(BoundObject.Get());
@@ -234,17 +231,57 @@ void FSequencerTrailHierarchy::OnBoneVisibilityChanged(class USkeleton* Skeleton
 
 			const FGuid BoneTrailGuid = BonesTracked[BoundComponent][BoneName];
 			const int32 BoneIndex = Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneName);
-			const bool bIsVisible = !AllTrails[BoneTrailGuid]->GetDrawInfo()->IsVisible();
-
-			if (!SelectionMask.Contains(BoneTrailGuid))
+			
+			if (bIsVisible)
 			{
-				AllTrails[BoneTrailGuid]->GetDrawInfo()->SetIsVisible(bIsVisible);
+				VisibilityManager.VisibilityMask.Remove(BoneTrailGuid);
+				VisibilityManager.Selected.Add(BoneTrailGuid);
+			}
+			else
+			{
+				VisibilityManager.VisibilityMask.Add(BoneTrailGuid);
+				VisibilityManager.Selected.Remove(BoneTrailGuid);
 			}
 		}
 	}
 }
 
-void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& SequencerBindings, TFunctionRef<void(FTrail*)> OnUpdated)
+void FSequencerTrailHierarchy::OnBindingVisibilityStateChanged(UObject* BoundObject, const EBindingVisibilityState VisibilityState)
+{
+	auto UpdateTrailVisibilityState = [this, VisibilityState](const FGuid& Guid) {
+		if (VisibilityState == EBindingVisibilityState::AlwaysVisible)
+		{
+			VisibilityManager.AlwaysVisible.Add(Guid);
+		}
+		else if (VisibilityState == EBindingVisibilityState::VisibleWhenSelected)
+		{
+			VisibilityManager.AlwaysVisible.Remove(Guid);
+		}
+	};
+
+	if (ObjectsTracked.Contains(BoundObject))
+	{
+		UpdateTrailVisibilityState(ObjectsTracked[BoundObject]);
+	}
+
+	USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(BoundObject);
+	if (!SkelMeshComp)
+	{
+		return;
+	}
+
+	for (const TPair<FName, FGuid>& Pair : BonesTracked.FindRef(SkelMeshComp))
+	{
+		UpdateTrailVisibilityState(Pair.Value);
+	}
+
+	for (const TPair<FName, FGuid>& Pair : ControlsTracked.FindRef(SkelMeshComp))
+	{
+		UpdateTrailVisibilityState(ControlsTracked[SkelMeshComp][Pair.Key]);
+	}
+}
+
+void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& SequencerBindings, TFunctionRef<void(UObject*, FTrail*, FGuid)> OnUpdated)
 {
 	const FDateTime StartTime = FDateTime::Now();
 
@@ -257,6 +294,11 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 		{
 			for (TWeakObjectPtr<> BoundObject : Sequencer->FindBoundObjects(BindingGuid, Sequencer->GetFocusedTemplateID()))
 			{
+				if (!BoundObject.IsValid())
+				{
+					continue;
+				}
+
 				USceneComponent* BoundComponent = Cast<USceneComponent>(BoundObject.Get());
 				if (AActor* BoundActor = Cast<AActor>(BoundObject.Get()))
 				{
@@ -273,17 +315,18 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 					continue;
 				}
 
-				if (!SelectionMask.Contains(ObjectsTracked[BoundComponent]))
-				{
-					OnUpdated(AllTrails[ObjectsTracked[BoundComponent]].Get());
-				}
-				
+				OnUpdated(BoundComponent, AllTrails[ObjectsTracked[BoundComponent]].Get(), ObjectsTracked[BoundComponent]);
 			}
 		} // if TransformTrack
 		if (UMovieSceneSkeletalAnimationTrack* AnimTrack = Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrack<UMovieSceneSkeletalAnimationTrack>(BindingGuid))
 		{
 			for (TWeakObjectPtr<> BoundObject : Sequencer->FindBoundObjects(BindingGuid, Sequencer->GetFocusedTemplateID()))
 			{
+				if (!BoundObject.IsValid())
+				{
+					continue;
+				}
+
 				USkeletalMeshComponent* BoundComponent = Cast<USkeletalMeshComponent>(BoundObject.Get());
 				if (AActor* BoundActor = Cast<AActor>(BoundObject.Get()))
 				{
@@ -320,12 +363,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 
 				for (const TPair<FName, FGuid>& BoneNameGuidPair : BonesTracked[BoundComponent])
 				{
-					// TODO: hack for now
-					const int32 BoneIndex = BoundComponent->SkeletalMesh->Skeleton->GetReferenceSkeleton().FindBoneIndex(BoneNameGuidPair.Key);
-					if (false /* is visible */)
-					{
-						OnUpdated(AllTrails[BoneNameGuidPair.Value].Get());
-					}
+					OnUpdated(BoundComponent, AllTrails[BoneNameGuidPair.Value].Get(), BoneNameGuidPair.Value);
 				}
 			}
 		}
@@ -333,6 +371,11 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 		{
 			for (TWeakObjectPtr<> BoundObject : Sequencer->FindBoundObjects(BindingGuid, Sequencer->GetFocusedTemplateID()))
 			{
+				if (!BoundObject.IsValid())
+				{
+					continue;
+				}
+
 				USkeletalMeshComponent* BoundComponent = Cast<USkeletalMeshComponent>(BoundObject.Get());
 				if (AActor* BoundActor = Cast<AActor>(BoundObject.Get()))
 				{
@@ -369,10 +412,7 @@ void FSequencerTrailHierarchy::UpdateSequencerBindings(const TArray<FGuid>& Sequ
 
 				for (const TPair<FName, FGuid>& ControlNameGuidPair : ControlsTracked[BoundComponent])
 				{
-					if (!SelectionMask.Contains(ControlNameGuidPair.Value))
-					{
-						OnUpdated(AllTrails[ControlNameGuidPair.Value].Get());
-					}
+					OnUpdated(BoundComponent, AllTrails[ControlNameGuidPair.Value].Get(), ControlNameGuidPair.Value);
 				}
 			}
 		} // if ControlRigParameterTrack
@@ -406,7 +446,7 @@ void FSequencerTrailHierarchy::UpdateObjectsTracked()
 		SequencerBoundGuids.Add(Binding.GetObjectGuid());
 	}
 
-	UpdateSequencerBindings(SequencerBoundGuids, [](FTrail*) {});
+	UpdateSequencerBindings(SequencerBoundGuids, [](UObject*, FTrail*, FGuid) {});
 }
 
 void FSequencerTrailHierarchy::UpdateViewRange()
@@ -434,7 +474,7 @@ void FSequencerTrailHierarchy::UpdateViewRange()
 	const double EndSeconds = TickResolution.AsSeconds(FFrameTime(TickViewRange.GetUpperBoundValue()));
 
 	// snap view range to ticks per segment
-	const double TicksBetween = FMath::Fmod(StartSeconds, WeakEditorMode->GetTrailOptions()->SecondsPerSegment);
+	const double TicksBetween = FMath::Fmod(StartSeconds, GetSecondsPerSegment());
 	ViewRange = TRange<double>(StartSeconds - TicksBetween, EndSeconds - TicksBetween);
 }
 
@@ -497,7 +537,7 @@ void FSequencerTrailHierarchy::AddSkeletonToHierarchy(class USkeletalMeshCompone
 
 	TSharedPtr<FAnimTrajectoryCache> AnimTrajectoryCache = MakeShared<FAnimTrajectoryCache>(CompToAdd, Sequencer);
 	TMap<FName, FGuid>& BoneMap = BonesTracked.Add(CompToAdd, TMap<FName, FGuid>());
-
+	
 	USkeleton* MySkeleton = CompToAdd->SkeletalMesh->Skeleton;
 	const int32 NumBones = MySkeleton->GetReferenceSkeleton().GetNum();
 	for (int32 BoneIdx = 0; BoneIdx < NumBones; BoneIdx++)
@@ -508,6 +548,7 @@ void FSequencerTrailHierarchy::AddSkeletonToHierarchy(class USkeletalMeshCompone
 		const FGuid BoneGuid = FGuid::NewGuid();
 		BoneMap.Add(BoneName, BoneGuid);
 		FTrailHierarchyNode& BoneNode = Hierarchy.Add(BoneGuid, FTrailHierarchyNode());
+		VisibilityManager.VisibilityMask.Add(BoneGuid);
 
 		FGuid ParentGuid;
 		FTrailHierarchyNode* ParentNode;
@@ -545,7 +586,7 @@ void FSequencerTrailHierarchy::ResolveRigElementToRootComponent(FRigHierarchyCon
 	FRigElementKey ChildItr = InElementKey;
 	while (ParentKey.IsValid() && ParentKey.Type != ERigElementType::Bone)
 	{
-		if (ParentKey.Type == ERigElementType::Space) // TODO: add empty space trail with inital transform
+		if (ParentKey.Type == ERigElementType::Space) // TODO: add empty space trail with initial transform
 		{
 			ChildItr = ParentKey;
 			ElementIndex = RigHierarchy->ControlHierarchy.GetIndex(ChildItr.Name);

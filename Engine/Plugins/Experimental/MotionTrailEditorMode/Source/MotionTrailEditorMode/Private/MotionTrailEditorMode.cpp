@@ -6,6 +6,7 @@
 #include "Toolkits/ToolkitManager.h"
 #include "EditorModeManager.h"
 #include "EdModeInteractiveToolsContext.h"
+#include "EdMode.h"
 
 #include "LevelEditorSequencerIntegration.h"
 #include "ISequencer.h"
@@ -34,7 +35,7 @@ UMotionTrailEditorMode::UMotionTrailEditorMode()
 		ModeName,
 		LOCTEXT("ModeName", "Motion Trail Editor"),
 		FSlateIcon(),
-		false
+		true
 	);
 }
 
@@ -58,6 +59,11 @@ void UMotionTrailEditorMode::Enter()
 	RegisterTool(UE::MotionTrailEditor::FMotionTrailEditorModeCommands::Get().Default, UMotionTrailEditorMode::DefaultToolName, DefaultTrailToolManagerBuilder);
 
 	OnSequencersChangedHandle = FLevelEditorSequencerIntegration::Get().GetOnSequencersChanged().AddLambda([this] {
+		for (const TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
+		{
+			TrailHierarchy->Destroy();
+		}
+
 		TrailHierarchies.Reset();
 		SequencerHierarchies.Reset();
 		TrailTools[DefaultToolName].Reset();
@@ -211,6 +217,26 @@ void UMotionTrailEditorMode::RefreshNonDefaultToolset()
 void UMotionTrailEditorMode::ActivateDefaultTool()
 {
 	ToolsContext->StartTool(UMotionTrailEditorMode::DefaultToolName);
+}
+
+FEdMode* UMotionTrailEditorMode::AsLegacyMode()
+{
+	class FMotionTrailEditorMode : public FEdMode
+	{
+	public:
+		FMotionTrailEditorMode()
+			: FEdMode()
+		{
+			Owner = &GLevelEditorModeTools();
+		}
+
+		virtual ~FMotionTrailEditorMode() {};
+		virtual bool UsesTransformWidget() const { return true; }
+	};
+
+	static TUniquePtr<FMotionTrailEditorMode> LegacyEdMode = MakeUnique<FMotionTrailEditorMode>();
+
+	return LegacyEdMode.Get();
 }
 
 bool UMotionTrailEditorMode::IsCompatibleWith(FEditorModeID OtherModeID) const
