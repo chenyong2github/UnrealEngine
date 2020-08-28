@@ -764,11 +764,11 @@ BEGIN_SHADER_PARAMETER_STRUCT( FRasterizePassParameters, )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( ByteAddressBuffer,					VisibleClustersSWHW )
 	SHADER_PARAMETER_RDG_BUFFER_SRV( StructuredBuffer< FUintVector2 >,	InTotalPrevDrawClusters )
 
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,	OutDepthBuffer )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		OutDepthBuffer )
 	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >,	OutVisBuffer64 )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >, OutDbgBuffer64 )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint  >, OutDbgBuffer32 )
-	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint  >,	LockBuffer )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< UlongType >,	OutDbgBuffer64 )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		OutDbgBuffer32 )
+	SHADER_PARAMETER_RDG_TEXTURE_UAV( RWTexture2D< uint >,		LockBuffer )
 
 	SHADER_PARAMETER_RDG_BUFFER_SRV( Buffer< uint >, InClusterOffsetSWHW )
 
@@ -2630,10 +2630,21 @@ void AddPass_Rasterize(
 	{
 		PassParameters->OutDepthBuffer = GraphBuilder.CreateUAV(RasterContext.DepthBuffer);
 	}
-	PassParameters->OutVisBuffer64 = GraphBuilder.CreateUAV(RasterContext.VisBuffer64);
-	PassParameters->OutDbgBuffer64 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer64);
-	PassParameters->OutDbgBuffer32 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer32);
-	PassParameters->LockBuffer = GraphBuilder.CreateUAV(RasterContext.LockBuffer);
+	else
+	{
+		PassParameters->OutVisBuffer64 = GraphBuilder.CreateUAV(RasterContext.VisBuffer64);
+	}
+
+	if( ShouldExportDebugBuffers() )
+	{
+		PassParameters->OutDbgBuffer64 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer64);
+		PassParameters->OutDbgBuffer32 = GraphBuilder.CreateUAV(RasterContext.DbgBuffer32);
+	}
+
+	if( RasterContext.RasterTechnique == ERasterTechnique::LockBufferFallback )
+	{
+		PassParameters->LockBuffer = GraphBuilder.CreateUAV(RasterContext.LockBuffer);
+	}
 	
 	if (VirtualShadowMapArray)
 	{
