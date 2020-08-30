@@ -418,6 +418,15 @@ bool FNiagaraEditorUtilities::NestedPropertiesAppendCompileHash(const void* Cont
 			return true;
 		}
 	}
+	else if (Struct == FNiagaraTypeDefinitionHandle::StaticStruct())
+	{
+		FNiagaraTypeDefinitionHandle* TypeDef = (FNiagaraTypeDefinitionHandle*)Container;
+		if (TypeDef)
+		{
+			TypeDef->AppendCompileHash(InVisitor);
+			return true;
+		}
+	}
 
 	TFieldIterator<FProperty> PropertyCountIt(Struct, IteratorFlags);
 	int32 NumProperties = 0;
