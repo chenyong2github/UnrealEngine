@@ -978,6 +978,9 @@ namespace FNiagaraUtilities
 
 	// Whether compute shaders are allowed. Could change depending on config and runtime switches.
 	bool AllowComputeShaders(EShaderPlatform ShaderPlatform);
+
+	ENiagaraCompileUsageStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage);
+	ENiagaraScriptContextStaticSwitch NIAGARA_API ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage);
 	
 #if WITH_EDITORONLY_DATA
 	/**

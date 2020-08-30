@@ -23,6 +23,7 @@
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraSimulationStageBase.h"
+#include "NiagaraCommon.h"
 
 #include "NiagaraFunctionLibrary.h"
 
@@ -4659,26 +4660,7 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 	{
 		ENiagaraScriptUsage Usage = TranslationStages[ActiveStageIdx].ScriptUsage;
 		FNiagaraInt32 EnumValue;
-		if (Usage == ENiagaraScriptUsage::ParticleEventScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Event;
-		}
-		else if (Usage == ENiagaraScriptUsage::ParticleSimulationStageScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::SimulationStage;
-		}
-		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || Usage == ENiagaraScriptUsage::ParticleSpawnScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Spawn;
-		}
-		else if (Usage == ENiagaraScriptUsage::EmitterUpdateScript || Usage == ENiagaraScriptUsage::SystemUpdateScript || Usage == ENiagaraScriptUsage::ParticleUpdateScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Update;
-		}
-		else
-		{
-			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Default;
-		}
+		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(Usage);
 		OutVar.SetValue(EnumValue);
 		return true;
 	}
@@ -4686,18 +4668,7 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 	{
 		ENiagaraScriptUsage Usage = GetCurrentUsage();
 		FNiagaraInt32 EnumValue;
-		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::System;
-		}
-		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
-		{
-			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Emitter;
-		}
-		else
-		{
-			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Particle;
-		}
+		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchContext(Usage);
 		OutVar.SetValue(EnumValue);
 		return true;
 	}

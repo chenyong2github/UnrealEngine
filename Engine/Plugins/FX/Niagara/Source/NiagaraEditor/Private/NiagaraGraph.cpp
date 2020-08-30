@@ -863,7 +863,7 @@ UEdGraphPin* UNiagaraGraph::FindParameterMapDefaultValuePin(const FName Variable
 	TArray<UEdGraphPin*> MatchingDefaultPins;
 	
 	TArray<UNiagaraNode*> NodesTraversed;
-	BuildTraversal(NodesTraversed, InUsage, FGuid());
+	BuildTraversal(NodesTraversed, InUsage, FGuid(), true);
 
 	UEdGraphPin* DefaultInputPin = nullptr;
 	for (UNiagaraNode* Node : NodesTraversed)
