@@ -35,8 +35,8 @@ protected:
 	UHeightfieldMinMaxTexture* MinMaxTexture = nullptr;
 
 	/** Number of levels to build in the MinMax Texture. A default value of 0 will build all levels from the heightfield. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Levels", UIMin = "0"))
-	int32 NumMinMaxTextureLevels = 0;
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Build Levels", UIMin = "0"))
+	int32 NumMinMaxTextureBuildLevels = 0;
 
 	/** Placeholder for details customization button. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = HeightfieldBuild)
@@ -82,6 +82,8 @@ public:
 	bool IsMinMaxTextureEnabled() const;
 	/** Get the MinMax height texture on this component. */
 	UHeightfieldMinMaxTexture* GetMinMaxTexture() const { return MinMaxTexture; }
+	/** Get the number of levels to build in the MinMax Texture. */
+	int32 GetNumMinMaxTextureBuildLevels() { return NumMinMaxTextureBuildLevels; }
 
 #if WITH_EDITOR
 	/** Set a new asset to hold the MinMax height texture. This should only be called directly before setting data to the new asset. */
