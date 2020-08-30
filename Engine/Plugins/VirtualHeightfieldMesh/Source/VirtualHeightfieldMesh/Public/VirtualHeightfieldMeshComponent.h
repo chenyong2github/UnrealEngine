@@ -22,16 +22,24 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Heightfield)
 	TSoftObjectPtr<ARuntimeVirtualTextureVolume> VirtualTexture;
 
+	/** Placeholder for details customization image. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
+	UObject* VirtualTextureThumbnail = nullptr;
+
 	/** Placeholder for details customization button. */
 	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
-	bool bSetBoundsButton;
+	bool bCopyBoundsButton;
 
-	/** Texture object containing min and max height. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Heightfield)
+	/** Texture object containing minimum and maximum height values. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Texture"))
 	UHeightfieldMinMaxTexture* MinMaxTexture = nullptr;
 
+	/** Number of levels to build in the MinMax Texture. A default value of 0 will build all levels from the heightfield. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Texture Levels", UIMin = "0"))
+	int32 NumMinMaxTextureLevels = 0;
+
 	/** Placeholder for details customization button. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
+	UPROPERTY(VisibleAnywhere, Transient, Category = HeightfieldBuild)
 	bool bBuildMinMaxTextureButton;
 
 	/** The material to apply. */
