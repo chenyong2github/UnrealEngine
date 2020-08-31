@@ -590,20 +590,19 @@ FWorldPartitionActorDescFactory* UWorldPartition::GetActorDescFactory(const AAct
 	return GetActorDescFactory(Actor->GetClass());
 }
 
-bool UWorldPartition::GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell) const
+TArray<const FWorldPartitionActorDesc*> UWorldPartition::GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const
 {
-	return EditorHash->GetCellAtLocation(Location, Center, Cell);
-}
+	TArray<const FWorldPartitionActorDesc*> ActorDescs;
 
-void UWorldPartition::GetCellActors(UWorldPartitionEditorCell* Cell, TArray<AActor*>& CellActors) const
-{
-	check(Cell->bLoaded);
-	for (const FWorldPartitionActorDesc* ActorDesc: Cell->Actors)
+	EditorHash->ForEachIntersectingActor(Box, [&ActorDescs, &ActorClass](const FWorldPartitionActorDesc* ActorDesc)
 	{
-		AActor* CellActor = ActorDesc->GetActor();
-		check(CellActor);
-		CellActors.Add(CellActor);
-	}
+		if (ActorDesc->GetActorClass()->IsChildOf(ActorClass))
+		{
+			ActorDescs.Add(ActorDesc);
+		}
+	});
+	
+	return MoveTemp(ActorDescs);
 }
 
 const FWorldPartitionActorDesc* UWorldPartition::GetActorDesc(const FGuid& Guid) const

@@ -31,6 +31,7 @@ public:
 	 */
 	static void SaveActorMetaData(FName Name, bool Value, TArray<FAssetRegistryTag>& OutTags);
 	static void SaveActorMetaData(FName Name, int32 Value, TArray<FAssetRegistryTag>& OutTags);
+	static void SaveActorMetaData(FName Name, int64 Value, TArray<FAssetRegistryTag>& OutTags);
 	static void SaveActorMetaData(FName Name, const FGuid& Value, TArray<FAssetRegistryTag>& OutTags);
 	static void SaveActorMetaData(FName Name, const FVector& Value, TArray<FAssetRegistryTag>& OutTags);
 	static void SaveActorMetaData(FName Name, const FTransform& Value, TArray<FAssetRegistryTag>& OutTags);
@@ -46,6 +47,7 @@ public:
 	 */
 	static bool ReadActorMetaData(FName Name, bool& OutValue, const FAssetData& AssetData);
 	static bool ReadActorMetaData(FName Name, int32& OutValue, const FAssetData& AssetData);
+	static bool ReadActorMetaData(FName Name, int64& OutValue, const FAssetData& AssetData);
 	static bool ReadActorMetaData(FName Name, FGuid& OutValue, const FAssetData& AssetData);
 	static bool ReadActorMetaData(FName Name, FVector& OutValue, const FAssetData& AssetData);
 	static bool ReadActorMetaData(FName Name, FTransform& OutValue, const FAssetData& AssetData);

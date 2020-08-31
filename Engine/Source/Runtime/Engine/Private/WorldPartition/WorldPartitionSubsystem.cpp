@@ -180,22 +180,14 @@ void UWorldPartitionSubsystem::OnShowDebugInfo(class AHUD* HUD, UCanvas* Canvas,
 //
 
 #if WITH_EDITOR
-
-bool UWorldPartitionSubsystem::GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell) const
+TArray<const FWorldPartitionActorDesc*> UWorldPartitionSubsystem::GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const
 {
+	TArray<const FWorldPartitionActorDesc*> ActorDescs;
 	if (const UWorldPartition* MainPartition = GetMainWorldPartition())
 	{
-		return MainPartition->GetCellAtLocation(Location, Center, Cell);
+		ActorDescs = MainPartition->GetIntersectingActorDescs(Box, ActorClass);
 	}
-	return false;
-}
-
-void UWorldPartitionSubsystem::GetCellActors(UWorldPartitionEditorCell* Cell, TArray<AActor*>& CellActors) const
-{
-	if (const UWorldPartition* MainPartition = GetMainWorldPartition())
-	{
-		MainPartition->GetCellActors(Cell, CellActors);
-	}
+	return MoveTemp(ActorDescs);
 }
 
 void UWorldPartitionSubsystem::UpdateActorDesc(AActor* Actor)

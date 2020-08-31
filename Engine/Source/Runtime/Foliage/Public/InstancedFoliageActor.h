@@ -10,6 +10,7 @@
 #include "FoliageType_InstancedStaticMesh.h"
 #include "FoliageInstanceBase.h"
 #include "InstancedFoliage.h"
+#include "ActorPartition/InstancedObjectsActor.h"
 
 #include "InstancedFoliageActor.generated.h"
 
@@ -66,7 +67,7 @@ class UProceduralFoliageComponent;
 typedef TFunction<bool(const UPrimitiveComponent*)> FFoliageTraceFilterFunc;
 
 UCLASS(notplaceable, hidecategories = (Object, Rendering, Mobility), MinimalAPI, NotBlueprintable)
-class AInstancedFoliageActor : public AActor
+class AInstancedFoliageActor : public AInstancedObjectsActor
 {
 	GENERATED_UCLASS_BODY()
 
@@ -272,8 +273,6 @@ public:
 	void RepairDuplicateIFA(AInstancedFoliageActor* InDuplicateIFA);
 
 	void RemoveBaseComponentOnFoliageTypeInstances(UFoliageType* FoliageType);
-
-	virtual EActorGridPlacement GetDefaultGridPlacement() const override { return EActorGridPlacement::Location; }
 #endif	//WITH_EDITOR
 
 private:

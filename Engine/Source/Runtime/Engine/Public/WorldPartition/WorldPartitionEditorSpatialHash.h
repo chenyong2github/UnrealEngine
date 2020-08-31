@@ -92,7 +92,7 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 		return FBox(Min, Max);
 	}
 
-	inline int32 GetLevelForBox(const FBox& Box)
+	inline int32 GetLevelForBox(const FBox& Box) const
 	{
 		const FVector Extent = Box.GetExtent();
 		const float MaxLength = Extent.GetMax() * 2.0;
@@ -187,12 +187,11 @@ public:
 	virtual int32 ForEachIntersectingCell(const FBox& Box, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) override;
 	virtual int32 ForEachCell(TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation) override;
 	virtual UWorldPartitionEditorCell* GetAlwaysLoadedCell() override;
-	virtual bool GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell) const override;
-
 #endif
 
 #if WITH_EDITORONLY_DATA
 private:
+	FBox GetActorBounds(FWorldPartitionActorDesc* InActorDesc) const;
 	int32 ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation);
 
 	UPROPERTY(Config)

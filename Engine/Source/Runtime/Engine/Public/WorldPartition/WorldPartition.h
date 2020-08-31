@@ -93,10 +93,9 @@ private:
 	// UWorldPartitionSubsystem interface+
 	friend class UWorldPartitionSubsystem;
 
-	virtual bool GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell) const;
-
-	bool GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell);
-	void GetCellActors(UWorldPartitionEditorCell* Cell, TArray<AActor*>& CellActors) const;
+	// UActorPartitionSubsystem interface+
+	TArray<const FWorldPartitionActorDesc*> GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const;
+	// UActorPartitionSubsystem interface-
 
 	void AddActor(AActor* InActor);
 	void RemoveActor(AActor* InActor);

@@ -21,7 +21,7 @@ void UWorldPartitionEditorSpatialHash::Initialize()
 {
 	check(!AlwaysLoadedCell);
 
-	AlwaysLoadedCell = NewObject<UWorldPartitionEditorCell>(this, NAME_None, RF_Transactional | RF_Transient);
+	AlwaysLoadedCell = NewObject<UWorldPartitionEditorCell>(this, TEXT("AlwaysLoadedCell"), RF_Transactional | RF_Transient);
 	AlwaysLoadedCell->Bounds.Init();
 }
 
@@ -66,6 +66,25 @@ void UWorldPartitionEditorSpatialHash::Tick(float DeltaSeconds)
 	}
 }
 
+// In the editor, actors are always using their bounds for grid placement, which makes more sense from a user standpoint.
+FBox UWorldPartitionEditorSpatialHash::GetActorBounds(FWorldPartitionActorDesc* InActorDesc) const
+{
+	FBox ActorBounds;
+
+	switch(InActorDesc->GetGridPlacement())
+	{
+	case EActorGridPlacement::Location:
+	case EActorGridPlacement::Bounds:
+	{
+		ActorBounds = InActorDesc->GetBounds();
+		break;
+	}
+	}
+
+	check(ActorBounds.IsValid);
+	return ActorBounds;
+}
+
 void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InActorDesc)
 {
 	check(InActorDesc);
@@ -75,8 +94,9 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 	}
 	else
 	{
+		const FBox ActorBounds = GetActorBounds(InActorDesc);
 		const int32 CurrentLevel = GetLevelForBox(Bounds);
-		const int32 ActorLevel = GetLevelForBox(InActorDesc->GetBounds());
+		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
 		auto UpdateHigherLevels = [this](const FCellCoord& CellCoord, int32 EndLevel)
 		{
@@ -98,13 +118,13 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 			}
 		};
 
-		ForEachIntersectingCells(InActorDesc->GetBounds(), ActorLevel, [&](const FCellCoord& CellCoord)
+		ForEachIntersectingCells(ActorBounds, ActorLevel, [&](const FCellCoord& CellCoord)
 		{
 			FCellNode& CellNode = HashCells.FindOrAdd(CellCoord);
 
 			if (!CellNode.Cell)
 			{
-				CellNode.Cell = NewObject<UWorldPartitionEditorCell>(this, NAME_None, RF_Transient);
+				CellNode.Cell = NewObject<UWorldPartitionEditorCell>(this, *FString::Printf(TEXT("EditorCell_X%lld_Y%lld_Z%lld_L%d"), CellCoord.X, CellCoord.Y, CellCoord.Z, CellCoord.Level), RF_Transient);
 				CellNode.Cell->SetFlags(RF_Transactional);
 				CellNode.Cell->Bounds = GetCellBounds(CellCoord);
 
@@ -143,10 +163,11 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 	}
 	else
 	{
+		const FBox ActorBounds = GetActorBounds(InActorDesc);
 		const int32 CurrentLevel = GetLevelForBox(Bounds);
-		const int32 ActorLevel = GetLevelForBox(InActorDesc->GetBounds());
+		const int32 ActorLevel = GetLevelForBox(ActorBounds);
 
-		ForEachIntersectingCells(InActorDesc->GetBounds(), ActorLevel, [&](const FCellCoord& CellCoord)
+		ForEachIntersectingCells(ActorBounds, ActorLevel, [&](const FCellCoord& CellCoord)
 		{
 			FCellNode& CellNode = HashCells.FindChecked(CellCoord);
 
@@ -257,19 +278,6 @@ int32 UWorldPartitionEditorSpatialHash::ForEachCell(TFunctionRef<void(UWorldPart
 UWorldPartitionEditorCell* UWorldPartitionEditorSpatialHash::GetAlwaysLoadedCell()
 {
 	return AlwaysLoadedCell;
-}
-
-bool UWorldPartitionEditorSpatialHash::GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell) const
-{
-	FCellCoord CellCoord(GetCellCoords(Location, 0));
-	if (UWorldPartitionEditorCell* const* CellPtr = (UWorldPartitionEditorCell* const*)HashCells.Find(CellCoord))
-	{
-		Cell = *CellPtr;
-		Center = Cell->Bounds.GetCenter();
-		return true;
-	}
-
-	return false;
 }
 #endif
 

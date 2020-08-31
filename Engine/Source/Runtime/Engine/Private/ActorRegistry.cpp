@@ -40,6 +40,11 @@ void FActorRegistry::SaveActorMetaData(FName Name, int32 Value, TArray<UObject::
 	OutTags.Add(FAssetRegistryTag(Name, *FString::Printf(TEXT("%d"), Value), FAssetRegistryTag::TT_Hidden));
 }
 
+void FActorRegistry::SaveActorMetaData(FName Name, int64 Value, TArray<UObject::FAssetRegistryTag>& OutTags)
+{
+	OutTags.Add(FAssetRegistryTag(Name, *FString::Printf(TEXT("%lld"), Value), FAssetRegistryTag::TT_Hidden));
+}
+
 void FActorRegistry::SaveActorMetaData(FName Name, const FGuid& Value, TArray<UObject::FAssetRegistryTag>& OutTags)
 {
 	OutTags.Add(FAssetRegistryTag(Name, Value.ToString(EGuidFormats::Base36Encoded), FAssetRegistryTag::TT_Hidden));
@@ -91,6 +96,18 @@ bool FActorRegistry::ReadActorMetaData(FName Name, int32& OutValue, const FAsset
 	if (AssetData.GetTagValue(Name, ValueStr))
 	{
 		OutValue = FCString::Atoi(*ValueStr);
+		return true;
+	}
+
+	return false;
+}
+
+bool FActorRegistry::ReadActorMetaData(FName Name, int64& OutValue, const FAssetData& AssetData)
+{
+	FString ValueStr;
+	if (AssetData.GetTagValue(Name, ValueStr))
+	{
+		OutValue = FCString::Atoi64(*ValueStr);
 		return true;
 	}
 

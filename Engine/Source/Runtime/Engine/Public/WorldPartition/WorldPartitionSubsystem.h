@@ -10,6 +10,7 @@
 class UWorldPartition;
 class UWorldPartitionEditorCell;
 class FWorldPartitionActorDescFactory;
+class FWorldPartitionActorDesc;
 
 /**
  * UWorldPartitionSubsystem
@@ -43,8 +44,7 @@ public:
 	//~End FTickableGameObject
 
 #if WITH_EDITOR
-	bool GetCellAtLocation(const FVector& Location, FVector& Center, UWorldPartitionEditorCell*& Cell) const;
-	void GetCellActors(UWorldPartitionEditorCell* Cell, TArray<AActor*>& CellActors) const;
+	TArray<const FWorldPartitionActorDesc*> GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const;
 
 	void UpdateActorDesc(AActor* Actor);
 	void AddActor(AActor* Actor);

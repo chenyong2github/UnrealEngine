@@ -542,6 +542,9 @@ protected:
 	UWorldPartition* WorldPartition;
 
 public:
+	/** Size of the grid for instanced foliage actors*/
+	UPROPERTY(EditAnywhere, Category = Foliage)
+	uint32 InstancedFoliageGridSize;
 
 	/** scale of 1uu to 1m in real world measurements, for HMD and other physically tracked devices (e.g. 1uu = 1cm would be 100.0) */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=VR)

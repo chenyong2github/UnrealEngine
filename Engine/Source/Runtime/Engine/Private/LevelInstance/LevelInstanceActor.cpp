@@ -12,7 +12,6 @@
 
 #if WITH_EDITOR
 #include "ActorRegistry.h"
-#include "AssetData.h"
 #include "Logging/MessageLog.h"
 #include "Logging/TokenizedMessage.h"
 #include "Misc/MapErrors.h"

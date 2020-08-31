@@ -63,9 +63,9 @@ enum class EActorUpdateOverlapsMethod : uint8
 UENUM()
 enum class EActorGridPlacement : uint8
 {
-	Bounds,
-	Location,
-	AlwaysLoaded,
+	Bounds,						// Actor uses its bounds to determine in which runtime cells it's going to be placed.
+	Location,					// Actor uses its location to determine in which runtime cells it's going to be placed.
+	AlwaysLoaded,				// Actor is always loaded (not placed in the grid), also affects editor.
 	None UMETA(Hidden)
 };
 

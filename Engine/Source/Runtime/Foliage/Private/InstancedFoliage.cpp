@@ -2336,10 +2336,6 @@ TArray<int32> FFoliageInfo::GetInstancesOverlappingBox(const FBox& Box) const
 AInstancedFoliageActor::AInstancedFoliageActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent0"));
-	RootComponent = SceneComponent;
-	RootComponent->Mobility = EComponentMobility::Static;
-
 	SetActorEnableCollision(true);
 #if WITH_EDITORONLY_DATA
 	bListedInSceneOutliner = false;
@@ -2492,7 +2488,19 @@ const FFoliageInfo* AInstancedFoliageActor::FindInfo(const UFoliageType* InType)
 #if WITH_EDITOR
 AInstancedFoliageActor* AInstancedFoliageActor::Get(UWorld* InWorld, bool bCreateIfNone, ULevel* InLevelHint, const FVector& InLocationHint)
 {
-	return Cast<AInstancedFoliageActor>(InWorld->GetSubsystem<UActorPartitionSubsystem>()->GetActor(FActorPartitionGetParams(AInstancedFoliageActor::StaticClass(), bCreateIfNone, InLevelHint, InLocationHint)));
+	UActorPartitionSubsystem* ActorPartitionSubsystem = InWorld->GetSubsystem<UActorPartitionSubsystem>();
+
+	return CastChecked<AInstancedFoliageActor>(
+		ActorPartitionSubsystem->GetActor(
+			FActorPartitionGetParams(
+				AInstancedFoliageActor::StaticClass(), 
+				bCreateIfNone, 
+				InLevelHint, 
+				InLocationHint, 
+				InWorld->GetWorldSettings()->InstancedFoliageGridSize
+			)
+		)
+	);
 }
 
 
