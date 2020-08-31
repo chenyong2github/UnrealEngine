@@ -2583,6 +2583,9 @@ void FActiveGameplayEffectsContainer::SetAttributeBaseValue(FGameplayAttribute A
 		return;
 	}
 
+	float OldBaseValue = 0.0f;
+	bool bBaseValueSet = false;
+
 	Set->PreAttributeBaseChange(Attribute, NewBaseValue);
 
 	// if we're using the new attributes we should always update their base value
@@ -2594,21 +2597,35 @@ void FActiveGameplayEffectsContainer::SetAttributeBaseValue(FGameplayAttribute A
 		FGameplayAttributeData* DataPtr = StructProperty->ContainerPtrToValuePtr<FGameplayAttributeData>(const_cast<UAttributeSet*>(Set));
 		if (ensure(DataPtr))
 		{
+			OldBaseValue = DataPtr->GetBaseValue();
 			DataPtr->SetBaseValue(NewBaseValue);
+			bBaseValueSet = true;
 		}
 	}
 
 	FAggregatorRef* RefPtr = AttributeAggregatorMap.Find(Attribute);
 	if (RefPtr)
 	{
+		FAggregator* Aggregator = RefPtr->Get();
+		check(Aggregator);
+
 		// There is an aggregator for this attribute, so set the base value. The dirty callback chain
 		// will update the actual AttributeSet property value for us.		
-		RefPtr->Get()->SetBaseValue(NewBaseValue);
+		OldBaseValue = Aggregator->GetBaseValue();
+		Aggregator->SetBaseValue(NewBaseValue);
+		bBaseValueSet = true;
 	}
 	// if there is no aggregator set the current value (base == current in this case)
 	else
 	{
+		OldBaseValue = Owner->GetNumericAttribute(Attribute);
 		InternalUpdateNumericalAttribute(Attribute, NewBaseValue, nullptr);
+		bBaseValueSet = true;
+	}
+
+	if (bBaseValueSet)
+	{
+		Set->PostAttributeBaseChange(Attribute, OldBaseValue, NewBaseValue);
 	}
 }
 

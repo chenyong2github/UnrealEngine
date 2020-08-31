@@ -216,6 +216,9 @@ public:
 	 */
 	virtual void PreAttributeChange(const FGameplayAttribute& Attribute, float& NewValue) { }
 
+	/** Called just after any modification happens to an attribute. */
+	virtual void PostAttributeChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) const { }
+
 	/**
 	 *	This is called just before any modification happens to an attribute's base value when an attribute aggregator exists.
 	 *	This function should enforce clamping (presuming you wish to clamp the base value along with the final value in PreAttributeChange)
@@ -223,6 +226,9 @@ public:
 	 *	final value of the attribute actually changing.
 	 */
 	virtual void PreAttributeBaseChange(const FGameplayAttribute& Attribute, float& NewValue) const { }
+
+	/** Called just after any modification happens to an attribute's base value when an attribute aggregator exists. */
+	virtual void PostAttributeBaseChange(const FGameplayAttribute& Attribute, float OldValue, float NewValue) const { }
 
 	/** Callback for when an FAggregator is created for an attribute in this set. Allows custom setup of FAggregator::EvaluationMetaData */
 	virtual void OnAttributeAggregatorCreated(const FGameplayAttribute& Attribute, FAggregator* NewAggregator) const { }

@@ -87,6 +87,7 @@ void FGameplayAttribute::SetNumericValueChecked(float& NewValue, class UAttribut
 		OldValue = *static_cast<float*>(ValuePtr);
 		Dest->PreAttributeChange(*this, NewValue);
 		NumericProperty->SetFloatingPointPropertyValue(ValuePtr, NewValue);
+		Dest->PostAttributeChange(*this, OldValue, NewValue);
 
 		MARK_PROPERTY_DIRTY(Dest, NumericProperty);
 	}
@@ -99,6 +100,7 @@ void FGameplayAttribute::SetNumericValueChecked(float& NewValue, class UAttribut
 		OldValue = DataPtr->GetCurrentValue();
 		Dest->PreAttributeChange(*this, NewValue);
 		DataPtr->SetCurrentValue(NewValue);
+		Dest->PostAttributeChange(*this, OldValue, NewValue);
 
 		MARK_PROPERTY_DIRTY(Dest, StructProperty);
 	}
