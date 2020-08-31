@@ -121,9 +121,9 @@ namespace Tools.DotNETCommon
 		}
 
 		// Map of assembly name to path on disk
-		private static Dictionary<string, string> AssemblyLocationCache = new Dictionary<string, string>();
+		private static Dictionary<string, string> AssemblyLocationCache = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
 		// Track last modified date of each assembly, so we can ensure we always reference the latest one in the case of stale assemblies on disk.
-		private static Dictionary<string, DateTime> AssemblyWriteTimes = new Dictionary<string, DateTime>();
+		private static Dictionary<string, DateTime> AssemblyWriteTimes = new Dictionary<string, DateTime>(StringComparer.OrdinalIgnoreCase);
 
     }
 }
