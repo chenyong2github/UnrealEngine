@@ -732,6 +732,10 @@ void UEdModeInteractiveToolsContext::Render(const FSceneView* View, FViewport* V
 	GizmoManager->Render(&RenderContext);
 }
 
+void UEdModeInteractiveToolsContext::DrawHUD(FCanvas* Canvas)
+{
+	ToolManager->DrawHUD(Canvas);
+}
 
 
 bool UEdModeInteractiveToolsContext::ProcessEditDelete()

@@ -11,7 +11,7 @@
 #include "InteractiveTool.generated.h"
 
 class UInteractiveToolManager;
-
+class FCanvas;
 
 /** Passed to UInteractiveTool::Shutdown to indicate how Tool should shut itself down*/
 enum class EToolShutdownType
@@ -267,6 +267,7 @@ public:
 	 */
 	virtual void Render(IToolsContextRenderAPI* RenderAPI);
 
+	virtual void DrawHUD( FCanvas* Canvas );
 
 	/**
 	 * Non overrideable func which does processing and calls the tool's OnTick

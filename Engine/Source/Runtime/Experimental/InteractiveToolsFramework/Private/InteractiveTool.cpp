@@ -49,6 +49,9 @@ void UInteractiveTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 }
 
+void UInteractiveTool::DrawHUD(FCanvas* Canvas)
+{
+}
 
 void UInteractiveTool::AddInputBehavior(UInputBehavior* Behavior)
 {

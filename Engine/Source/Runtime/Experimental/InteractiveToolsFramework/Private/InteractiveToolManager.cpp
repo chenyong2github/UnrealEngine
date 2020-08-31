@@ -303,6 +303,19 @@ void UInteractiveToolManager::Render(IToolsContextRenderAPI* RenderAPI)
 	}
 }
 
+void UInteractiveToolManager::DrawHUD(FCanvas* Canvas)
+{
+	if (ActiveLeftTool != nullptr)
+	{
+		ActiveLeftTool->DrawHUD(Canvas);
+	}
+
+	if (ActiveRightTool != nullptr)
+	{
+		ActiveRightTool->DrawHUD(Canvas);
+	}
+}
+
 
 
 UInteractiveGizmoManager* UInteractiveToolManager::GetPairedGizmoManager()
