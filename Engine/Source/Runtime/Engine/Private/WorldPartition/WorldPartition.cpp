@@ -232,10 +232,7 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 
 		EditorHash->Initialize();
 
-		if (!IsRunningCommandlet())
-		{
-			LayerSubSystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
-		}
+		LayerSubSystem = GEditor->GetEditorSubsystem<ULayersSubsystem>();
 
 		if (IsMainWorldPartition())
 		{
@@ -308,21 +305,18 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 				HashActorDesc(Pair.Value.Get());
 			}
 
-			if (!IsRunningCommandlet())
+			CreateLayers(AllLayersNames);
+
+			// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
+			UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
+
+			// When loading a subworld, load all actors
+			if (!IsMainWorldPartition())
 			{
-				CreateLayers(AllLayersNames);
-
-				// Load the always loaded cell, don't call LoadCells to avoid creating a transaction
-				UpdateLoadingEditorCell(EditorHash->GetAlwaysLoadedCell(), true);
-
-				// When loading a subworld, load all actors
-				if (!IsMainWorldPartition())
+				EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
 				{
-					EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-					{
-						UpdateLoadingEditorCell(Cell, true);
-					});
-				}
+					UpdateLoadingEditorCell(Cell, true);
+				});
 			}
 		}
 	}
