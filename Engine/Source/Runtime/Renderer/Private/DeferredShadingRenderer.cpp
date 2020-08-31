@@ -3314,11 +3314,10 @@ void FDeferredShadingSceneRenderer::UpdateHalfResDepthSurfaceCheckerboardMinMax(
 		const uint32 DownsampleFactor = 2;
 		FIntPoint BufferSizeXY = SceneContext.GetBufferSizeXY();
 		FIntPoint HalfResBufferSizeXY(FMath::Max<uint32>(BufferSizeXY.X / DownsampleFactor, 1), FMath::Max<uint32>(BufferSizeXY.Y / DownsampleFactor, 1));
-		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(HalfResBufferSizeXY, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, true));
+		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(HalfResBufferSizeXY, PF_DepthStencil, FClearValueBinding::None, TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false));
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, View.HalfResDepthSurfaceCheckerboardMinMax, TEXT("HalfResDepthSurfaceCheckerboardMinMax"), true, ERenderTargetTransience::Transient);
 
 		DownsampleDepthSurface(RHICmdList, View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture->GetTexture2D(), View, DownsampleFactor, EDepthDownsampleMode::Checkerboard);
-		RHICmdList.CopyToResolveTarget(View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture, View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().ShaderResourceTexture, FResolveParams());
 	}
 }
 
