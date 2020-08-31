@@ -54,7 +54,7 @@ void UNiagaraStackModuleItemOutputCollection::RefreshChildrenInternal(const TArr
 		TArray<FNiagaraVariable> OutputVariables;
 		TArray<FNiagaraVariable> Unused;
 		FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid()
-			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*FunctionCallNode)->GetUsage())
+			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode))
 			: FCompileConstantResolver();
 		FNiagaraStackGraphUtilities::GetStackFunctionOutputVariables(*FunctionCallNode, ConstantResolver, OutputVariables, Unused);
 		
