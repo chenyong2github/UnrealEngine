@@ -173,8 +173,7 @@ void FIoDirectoryIndexWriter::SetMountPoint(FString InMountPoint)
 
 uint32 FIoDirectoryIndexWriter::AddFile(const FString& InFileName)
 {
-	uint32 Parent = 0; //Root
-	uint32 Directory = ~uint32(0);
+	uint32 Directory = 0; //Root
 
 	FString RelativePathFromMount = InFileName.Mid(MountPoint.Len());
 	FString RelativeDirectoryFromMount = RelativePathFromMount;
@@ -185,12 +184,12 @@ uint32 FIoDirectoryIndexWriter::AddFile(const FString& InFileName)
 	FStringView DirectoryName = GetNextDirectoryName(Path);
 	while (!DirectoryName.IsEmpty())
 	{
-		Directory = CreateDirectory(DirectoryName, Parent);
-
+		Directory = CreateDirectory(DirectoryName, Directory);
 		Path.RightChopInline(DirectoryName.Len() + 1);
 		DirectoryName = GetNextDirectoryName(Path);
-		Parent = Directory;
 	}
+
+	check(Directory != ~uint32(0));
 
 	return AddFile(CleanFileName, Directory);
 }
