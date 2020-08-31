@@ -386,7 +386,12 @@ public:
 
 	FCompactPoseBoneIndex GetCompactPoseIndexFromSkeletonIndex(const int32 SkeletonIndex) const
 	{
-		return SkeletonToCompactPose[SkeletonIndex];
+		if (ensure(SkeletonToCompactPose.IsValidIndex(SkeletonIndex)))
+		{
+			return SkeletonToCompactPose[SkeletonIndex];
+		}
+
+		return FCompactPoseBoneIndex(INDEX_NONE);
 	}
 
 	FMeshPoseBoneIndex MakeMeshPoseIndex(const FCompactPoseBoneIndex& BoneIndex) const
