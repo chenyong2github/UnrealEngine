@@ -1755,10 +1755,12 @@ void FVirtualTexture2DResource::InitRHI()
 	const int32 MaxLevel = VTData->GetNumMips() - FirstMipToUse - 1;
 	check(MaxLevel >= 0);
 
+	const bool bContinuousUpdate = TextureOwner->IsVirtualTexturedWithContinuousUpdate();
 	const bool bSinglePhysicalSpace = TextureOwner->IsVirtualTexturedWithSinglePhysicalSpace();
 
 	FVTProducerDescription ProducerDesc;
 	ProducerDesc.Name = TextureOwner->GetFName();
+	ProducerDesc.bContinuousUpdate = bContinuousUpdate;
 	ProducerDesc.Dimensions = 2;
 	ProducerDesc.TileSize = VTData->TileSize;
 	ProducerDesc.TileBorderSize = VTData->TileBorderSize;
