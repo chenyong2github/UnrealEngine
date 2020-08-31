@@ -430,6 +430,7 @@ struct FSamplerMappingGatherData
 	struct FEntry
 	{
 		bool bUsingLoadOrDim = false; // either "Load" or "GetDimensions" intrinsics are used
+		bool bUsingSampling = false; // at least one texture intrinsic that requires a sampler state was used, e.g. "Sample", "SampleLevel" etc.
 		TStringSet SamplerStates;
 	};
 	std::map<std::string, FEntry> Entries;
@@ -451,7 +452,8 @@ struct FSamplerMapping
 		// First find all samplers using T.Load()
 		for (auto EntryPair : GatherData.Entries)
 		{
-			if (EntryPair.second.bUsingLoadOrDim)
+			// Use a combined sampler if "Load" or "GetDimensions" intrinsic is used, except when sampling is used as well.
+			if (EntryPair.second.bUsingLoadOrDim && !EntryPair.second.bUsingSampling)
 			{
 				CombinedSamplers.insert(EntryPair.first);
 			}
@@ -462,21 +464,22 @@ struct FSamplerMapping
 		TStringSet CombinedSamplerStates;
 		for (auto Pair : GatherData.SamplerToTextureMap)
 		{
-			uint32 NumTextures = 0;
+			uint32 NumTexturesPerSampler = 0;
 			for (auto& Texture : Pair.second)
 			{
+				// Only count the textures that are *not* listed as combined-texture-samplers
 				if (CombinedSamplers.find(Texture) == CombinedSamplers.end())
 				{
-					++NumTextures;
+					++NumTexturesPerSampler;
 				}
 			}
 
-			if (NumTextures == 0 || NumTextures == 1)
+			if (NumTexturesPerSampler == 0 || NumTexturesPerSampler == 1)
 			{
 				CombinedSamplerStates.insert(Pair.first);
 			}
 
-			TexturesUsedPerSampler[Pair.first] = NumTextures;
+			TexturesUsedPerSampler[Pair.first] = NumTexturesPerSampler;
 		}
 
 		// Now add combined samplers (ones with one samplerstate)
@@ -1656,8 +1659,13 @@ class FGenerateVulkanVisitor : public ir_visitor
 			ralloc_asprintf_append(buffer, "sampler%s%s(", GetSamplerSuffix(tex->sampler->type->sampler_dimensionality),
 					tex->sampler->type->sampler_array ? "Array" : "");
 			tex->sampler->accept(this);
-			if ((op == ir_txs || op == ir_txm) && !bHasSamplerState)
+			if ((op == ir_txf || op == ir_txs || op == ir_txm) && !bHasSamplerState)
 			{
+				// No sampler state was provided in the intrinsic, so look up the texture-to-sampler map to find a sampler state.
+				// This is required when a texture is used for intrinsics that actually don't need a sampler-state such as "texelFetch",
+				// but the texture was also used for an intrinsic that might need a separate sampler, so we have a "uniform texture2D" instead of a "uniform sampler2D".
+				// To avoid the dependency to the GLSL extension "GL_EXT_samplerless_texture_functions", which provides "texelFetch(texture2D,...)",
+				// we construct a combined-sampler with *any* of the samplers for this texture such as "sampler2D(myTexture, mySampler)".
 				auto Found = ParseState->TextureToSamplerMap.find(tex->sampler->variable_referenced()->name);
 
 				// Can't find a sampler state for this texture, internal error!
@@ -3855,6 +3863,8 @@ struct FGenerateSamplerToTextureMapVisitor : public ir_hierarchical_visitor
 		{
 			if (IR->SamplerStateName && IR->SamplerStateName[0])
 			{
+				// Keep in mind this sampler uses a sampling intrinsic, e.g. "Sample" or "SampleLevel" (Potential separate sampler sate).
+				GatherData.Entries[Sampler->name].bUsingSampling = true;
 				GatherData.Entries[Sampler->name].SamplerStates.insert(IR->SamplerStateName);
 				GatherData.SamplerToTextureMap[IR->SamplerStateName].insert(Sampler->name);
 			}
@@ -3862,6 +3872,7 @@ struct FGenerateSamplerToTextureMapVisitor : public ir_hierarchical_visitor
 			{
 				if (IR->op == ir_txf || IR->op == ir_txs || IR->op == ir_txm)
 				{
+					// Keep in mind this sampler uses the "Load" or "GetDimensions" intrinsic (Potential combined image-sampler).
 					GatherData.Entries[Sampler->name].bUsingLoadOrDim = true;
 				}
 				else
