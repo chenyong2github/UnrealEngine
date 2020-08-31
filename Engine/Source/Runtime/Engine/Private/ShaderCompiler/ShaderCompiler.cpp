@@ -4981,6 +4981,8 @@ void CompileGlobalShaderMap(bool bRefreshShaderMap)
 
 void ReloadGlobalShaders()
 {
+	UE_LOG(LogShaders, Display, TEXT("Reloading global shaders..."));
+
 	// Flush pending accesses to the existing global shaders.
 	FlushRenderingCommands();
 
