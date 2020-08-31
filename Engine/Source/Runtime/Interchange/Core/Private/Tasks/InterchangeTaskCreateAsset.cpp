@@ -1,11 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InterchangeTaskCreateAsset.h"
-#include "InterchangeLogPrivate.h"
 
-#include "AssetRegistryModule.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "InterchangeFactoryBase.h"
+#include "InterchangeLogPrivate.h"
 #include "InterchangeManager.h"
 #include "InterchangeSourceData.h"
 #include "InterchangeTranslatorBase.h"

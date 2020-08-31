@@ -1,7 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "InterchangeTaskCompletion.h"
 
-#include "AssetRegistryModule.h"
 #include "Async/TaskGraphInterfaces.h"
 #include "CoreMinimal.h"
 #include "InterchangeFactoryBase.h"
@@ -11,6 +10,10 @@
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+#if WITH_ENGINE
+#include "AssetRegistryModule.h"
+#endif //WITH_ENGINE
 
 void Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
@@ -50,8 +53,10 @@ void Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, con
 			{
 				InterchangeManager->OnAssetPostImport.Broadcast(Asset);
 			}
+#if WITH_ENGINE
 			//Notify the asset registry
 			FAssetRegistryModule::AssetCreated(Asset);
+#endif //WITH_ENGINE
 		}
 	}
 	//Release the async helper

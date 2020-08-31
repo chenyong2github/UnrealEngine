@@ -14,6 +14,12 @@ namespace UnrealBuildTool.Rules
 					"InterchangeCore",
 				}
 			);
+
+			if(Target.bCompileAgainstEngine)
+            {
+				PublicDependencyModuleNames.Add("Engine");
+
+			}
 		}
 	}
 }

@@ -10,14 +10,17 @@ public class InterchangeCore : ModuleRules
 				new string[] {
 					"Core",
 					"CoreUObject",
-					"Engine",
 				}
 			);
 
-		PrivateDependencyModuleNames.AddRange(
+		if(Target.bCompileAgainstEngine)
+        {
+			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"AssetRegistry",
+					"Engine",
 				}
 			);
+		}
 	}
 }

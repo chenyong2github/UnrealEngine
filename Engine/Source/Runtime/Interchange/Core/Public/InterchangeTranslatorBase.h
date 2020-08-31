@@ -33,4 +33,13 @@ public:
 	{
 		return false;
 	}
+
+	/**
+	 * This function is call when the import is done (FImportAsyncHelper::CleanUp) and we are cleaning the data.
+	 * Use it to free resource that need to be release before the next garbage collector pass.
+	 */
+	virtual void ImportFinish()
+	{
+		return;
+	}
 };

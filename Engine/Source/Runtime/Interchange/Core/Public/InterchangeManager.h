@@ -183,15 +183,6 @@ public:
 	bool RegisterFactory(const UClass* Factory);
 
 	/**
-	 * Any c++ pipeline must register to the manager
-	 * @Param pipeline - The UClass of the pipeline you want to register
-	 * @return true if the pipeline class can be register false otherwise.
-	 *
-	 * @Note if you register multiple time the same class it will return true for every call
-	 */
-	bool RegisterPipeline(const UClass* Pipeline);
-
-	/**
 	 * Any writer must register to the manager
 	 * @Param Writer - The UClass of the writer you want to register
 	 * @return true if the writer class can be register false otherwise.

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "CoreMinimal.h"
+#include "Fbx/InterchangeFbxTranslator.h"
 #include "IInterchangeImportPlugin.h"
 #include "InterchangeManager.h"
 #include "Modules/ModuleManager.h"
@@ -32,6 +33,8 @@ void FInterchangeImportPlugin::StartupModule()
 	UInterchangeManager& InterchangeManager = UInterchangeManager::GetInterchangeManager();
 
 	//Register the translators
+	//Scenes
+	InterchangeManager.RegisterTranslator(UInterchangeFbxTranslator::StaticClass()); //Do not submit uncommented until we replace completly fbx importer (staticmesh + skeletalMesh + animation)
 	//Textures
 	InterchangeManager.RegisterTranslator(UInterchangeBMPTranslator::StaticClass());
 	InterchangeManager.RegisterTranslator(UInterchangeDDSTranslator::StaticClass());

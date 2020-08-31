@@ -13,7 +13,9 @@ namespace UnrealBuildTool.Rules
 					"CoreUObject",
 					"Engine",
 					"InterchangeCore",
+					"InterchangeDispatcher",
 					"InterchangeNodePlugin",
+					"MeshDescription"
 				}
 				);
 			PrivateDependencyModuleNames.AddRange(
@@ -21,6 +23,8 @@ namespace UnrealBuildTool.Rules
 				{
 					"ImageWrapper",
 					"RHI",
+					"InterchangeDispatcher",
+					"Json",
 				}
 				);
 		}

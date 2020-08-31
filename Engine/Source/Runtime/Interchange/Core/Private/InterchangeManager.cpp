@@ -2,10 +2,7 @@
 
 #include "InterchangeManager.h"
 
-#include "AssetDataTagMap.h"
-#include "AssetRegistryModule.h"
 #include "CoreMinimal.h"
-#include "Engine/Blueprint.h"
 #include "InterchangeFactoryBase.h"
 #include "InterchangeLogPrivate.h"
 #include "InterchangeSourceData.h"
@@ -27,6 +24,12 @@
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectIterator.h"
 #include "UObject/WeakObjectPtrTemplates.h"
+
+#if WITH_ENGINE
+#include "AssetDataTagMap.h"
+#include "AssetRegistryModule.h"
+#include "Engine/Blueprint.h"
+#endif //WITH_ENGINE
 
 namespace InternalInterchangePrivate
 {
@@ -103,6 +106,7 @@ void Interchange::FImportAsyncHelper::CleanUp()
 	{
 		if(Translator)
 		{
+			Translator->ImportFinish();
 			Translator->RemoveFromRoot();
 			Translator->MarkPendingKill();
 			Translator = nullptr;
@@ -438,6 +442,8 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 		PipelineCandidates.AddUnique(Class);
 	}
 
+//Blueprint and python script discoverability is available only if we compile with the engine
+#if WITH_ENGINE
 	// Load the asset registry module
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked< FAssetRegistryModule >(FName("AssetRegistry"));
 	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
@@ -490,4 +496,6 @@ void UInterchangeManager::FindPipelineCandidate(TArray<UClass*>& PipelineCandida
 			PipelineCandidates.AddUnique(Blueprint->GeneratedClass);
 		}
 	}
+#endif //WITH_ENGINE
+
 }

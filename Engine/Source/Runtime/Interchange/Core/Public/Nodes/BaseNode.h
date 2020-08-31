@@ -79,6 +79,7 @@ namespace InterchangePrivateNodeBase
  * @param AssetType - This is the asset you want to apply the storage value"
  * @param EnumType - Optional, specify it only if the AssetType member is an enum so we can type cast it in the apply function (we use uint8 to store the enum value)"
  */
+#if WITH_ENGINE
 #define IMPLEMENT_NODE_ATTRIBUTE(NodeClassName, AttributeName, AttributeType, AssetType, EnumType)										\
 private:																																\
 const FAttributeKey Macro_Custom##AttributeName##Key = Interchange::FAttributeKey(TEXT(#AttributeName));								\
@@ -116,14 +117,37 @@ bool SetCustom##AttributeName(const AttributeType& AttributeValue, bool bAddAppl
 	{																																	\
 		if(bAddApplyDelegate)																											\
 		{																																\
-			TArray<FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());					\
+			TArray<FApplyAttributeToAsset>& Delegates = ApplyCustomAttributeDelegates.FindOrAdd(AssetType::StaticClass());				\
 			Delegates.Add(FApplyAttributeToAsset::CreateRaw(this, &NodeClassName::ApplyCustom##AttributeName##ToAsset));				\
 		}																																\
 		return true;																													\
 	}																																	\
 	return false;																														\
 }
-
+#else //WITH_ENGINE
+//AssetType is not use when we are not compiling with Engine
+//We then skip the ApplyCustom##AttributeName##ToAsset function
+//Because of this we also skip to add the delegate to ApplyCustomAttributeDelegates
+//Example UTexture is define in engine, a TextureNode compile without the engine will have the attribute
+//setter/getter but will not be able to apply it to a UTexture asset. We use this in out of prcess parser and the graph is reconstruct
+//in the interchange framework which compile with engine so it has the UObject setter call by the interchange factory
+#define IMPLEMENT_NODE_ATTRIBUTE(NodeClassName, AttributeName, AttributeType, AssetType, EnumType)										\
+private:																																\
+const FAttributeKey Macro_Custom##AttributeName##Key = Interchange::FAttributeKey(TEXT(#AttributeName));								\
+																																		\
+public:																																	\
+bool GetCustom##AttributeName(AttributeType& AttributeValue) const																		\
+{																																		\
+	FString OperationName = GetTypeName() + TEXT(".Get##AttributeName");																\
+	return InterchangePrivateNodeBase::GetCustomAttribute<AttributeType>(Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);	\
+}																																		\
+																																		\
+bool SetCustom##AttributeName(const AttributeType& AttributeValue, bool bAddApplyDelegate = true)										\
+{																																		\
+	FString OperationName = GetTypeName() + TEXT(".Set##AttributeName");																\
+	return InterchangePrivateNodeBase::SetCustomAttribute<AttributeType>(Attributes, Macro_Custom##AttributeName##Key, OperationName, AttributeValue);	\
+}
+#endif //else WITH_ENGINE
 
 
 //Interchange namespace

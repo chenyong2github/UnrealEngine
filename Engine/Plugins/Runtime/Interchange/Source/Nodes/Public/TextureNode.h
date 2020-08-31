@@ -4,8 +4,11 @@
 
 #include "CoreMinimal.h"
 #include "Nodes/BaseNode.h"
+
+#if WITH_ENGINE
 #include "Engine/Texture.h"
 #include "Engine/Texture2D.h"
+#endif
 
 //Interchange namespace
 namespace Interchange
