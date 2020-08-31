@@ -8,7 +8,7 @@
 
 #if VF_USE_PRIMITIVE_SCENE_DATA
 
-#define NUM_CUSTOM_PRIMITIVE_DATA 8 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
+#define NUM_CUSTOM_PRIMITIVE_DATA 9 // Num float4s used for custom data. Must match FCustomPrimitiveData::NumCustomPrimitiveDataFloat4s in SceneTypes.h
 
 // Must match FPrimitiveUniformShaderParameters in C++
 struct FPrimitiveSceneData
@@ -41,7 +41,7 @@ struct FPrimitiveSceneData
 };
 
 // Stride of a single primitive's data in float4's, must match C++
-#define PRIMITIVE_SCENE_DATA_STRIDE 35
+#define PRIMITIVE_SCENE_DATA_STRIDE 36
 
 struct FPrimitiveIndex
 {
