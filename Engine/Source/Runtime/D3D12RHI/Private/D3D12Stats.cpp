@@ -62,7 +62,10 @@ void D3D12RHI::FD3DGPUProfiler::BeginFrame(FD3D12DynamicRHI* InRHI)
 	}
 	bPreviousLatchedGProfilingGPUHitches = bLatchedGProfilingGPUHitches;
 
-	FrameTiming.StartTiming();
+	if (!GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
+	{
+		FrameTiming.StartTiming();
+	}
 
 	if (GetEmitDrawEvents())
 	{
@@ -78,7 +81,10 @@ void D3D12RHI::FD3DGPUProfiler::EndFrame(FD3D12DynamicRHI* InRHI)
 		check(StackDepth == 0);
 	}
 
-	FrameTiming.EndTiming();
+	if (!GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
+	{
+		FrameTiming.EndTiming();
+	}
 
 	const uint32 GPUIndex = GetParentDevice()->GetGPUIndex();
 	if (FrameTiming.IsSupported())

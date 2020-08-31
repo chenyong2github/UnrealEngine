@@ -33,8 +33,11 @@ public:
 	// Called to indicate a command list using this allocator has been executed OR discarded (closed with no intention to execute it).
 	inline void DecrementPendingCommandLists()
 	{
-		check(PendingCommandListCount.GetValue() > 0);
-		PendingCommandListCount.Decrement();
+		// Suspend can occur between the creation of the allocator and it's usage so no assert if it's zero just ensure it's valid prior to decrementing.
+		if (PendingCommandListCount.GetValue() > 0)
+		{
+			PendingCommandListCount.Decrement();
+		}
 	}
 
 private:
