@@ -6,6 +6,7 @@
 #include "NiagaraScriptSource.h"
 #include "NiagaraGraph.h"
 #include "NiagaraNodeFunctionCall.h"
+#include "NiagaraNodeOutput.h"
 
 #include "EdGraph/EdGraphPin.h"
 
@@ -299,7 +300,7 @@ void FNiagaraStackFunctionInputBinder::RefreshGraphPins() const
 	}
 
 	OverridePin = FNiagaraStackGraphUtilities::GetStackFunctionInputOverridePin(*FunctionCallNode, AliasedParameterHandle);
-	DefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(InputName, Script->GetUsage());
+	DefaultPin = FunctionCallNode->FindParameterMapDefaultValuePin(InputName, Script->GetUsage(), FCompileConstantResolver());
 	
 	// if we bind to a static switch value the default value pin cannot be found via the parameter map
 	if (DefaultPin == nullptr)

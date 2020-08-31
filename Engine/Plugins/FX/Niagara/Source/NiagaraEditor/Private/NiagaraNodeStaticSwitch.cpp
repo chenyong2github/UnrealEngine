@@ -443,6 +443,15 @@ UEdGraphPin* UNiagaraNodeStaticSwitch::GetTracedOutputPin(UEdGraphPin* LocallyOw
 	return LocallyOwnedOutputPin;
 }
 
+UEdGraphPin* UNiagaraNodeStaticSwitch::GetPassThroughPin(const UEdGraphPin* LocallyOwnedOutputPin,	ENiagaraScriptUsage MasterUsage) const
+{
+	if (IsValueSet)
+	{
+		return GetTracedOutputPin(const_cast<UEdGraphPin*>(LocallyOwnedOutputPin));
+	}
+	return Super::GetPassThroughPin(LocallyOwnedOutputPin, MasterUsage);
+}
+
 void UNiagaraNodeStaticSwitch::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuilder& OutHistory, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/) const
 {
 	UNiagaraNode::BuildParameterMapHistory(OutHistory, bRecursive, bFilterForCompilation);
