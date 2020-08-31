@@ -14,6 +14,15 @@
 class FClusterBuilder;
 class FStaticLightingTextureMapping_InstancedStaticMesh;
 
+
+UENUM()
+enum class EHISMViewRelevanceType : uint8
+{
+	Grass,
+	Foliage,
+	HISM
+};
+
 // Due to BulkSerialize we can't edit the struct, so we must deprecated this one and create a new one
 USTRUCT()
 struct FClusterNode_DEPRECATED
@@ -252,6 +261,8 @@ public:
 	void UpdateDensityScaling();
 
 	virtual void PropagateLightingScenarioChange() override;
+
+	virtual EHISMViewRelevanceType GetViewRelevanceType() const { return PerInstanceSMData.Num() ? EHISMViewRelevanceType::HISM : EHISMViewRelevanceType::Grass; }
 
 protected:
 	void BuildTree();

@@ -44,6 +44,8 @@ public:
 	void SetGenerationGuid(const FGuid& InGuid) { GenerationGuid = InGuid; }
 	const FGuid& GetGenerationGuid() const { return GenerationGuid; }
 
+	virtual EHISMViewRelevanceType GetViewRelevanceType() const override { return EHISMViewRelevanceType::Foliage; }
+
 private:
 
 	UPROPERTY()
