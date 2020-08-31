@@ -51,7 +51,7 @@ void MainCS(
 		// Encode split components to output formats and output
 		ImaginaryReflectionGBufferA[PixelCoord] = float4(EncodeNormal(NormalizedWorldNormal), 0.0f);
 		ImaginaryReflectionDepthZ[PixelCoord] = ConvertToDeviceZ(AveragedSceneDepth); // Output format expecting DeviceZ similar to a proper depth buffer
-		ImaginaryReflectionVelocity[PixelCoord] = float4(EncodeVelocityToTexture(float3(AveragedVelocity, 0.0)), 0.0);
+		ImaginaryReflectionVelocity[PixelCoord] = EncodeVelocityToTexture(float4(AveragedVelocity, 0.0, 0.0));
 	}
 	else
 	{

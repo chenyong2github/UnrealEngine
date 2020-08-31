@@ -1990,12 +1990,11 @@ FTAAHistoryPayload TemporalAASample(uint2 GroupId, uint2 GroupThreadId, uint Gro
 
 		#if AA_DYNAMIC
 		{
-			float2 VelocityN;
-			VelocityN = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV + VelocityOffset, 0).xy;
-			bool DynamicN = VelocityN.x > 0.0;
+			float4 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, InputParams.NearestBufferUV + VelocityOffset, 0);
+			bool DynamicN = EncodedVelocity.x > 0.0;
 			if(DynamicN)
 			{
-				BackN = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
+				BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
 			}
 			BackTemp = BackN * OutputViewportSize.xy;
 		}
