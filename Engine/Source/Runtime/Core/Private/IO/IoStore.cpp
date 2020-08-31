@@ -966,24 +966,28 @@ public:
 	void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
 	{
 		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
-		const bool bIsContainerCompressed = EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Compressed);
 
 		for (int32 ChunkIndex = 0; ChunkIndex < TocResource.ChunkIds.Num(); ++ChunkIndex)
 		{
-			const FIoStoreTocEntryMeta& Meta = TocResource.ChunkMetas[ChunkIndex];
-			const FIoOffsetAndLength& OffsetLength = TocResource.ChunkOffsetLengths[ChunkIndex];
-
-			FIoStoreTocChunkInfo ChunkInfo;
-			ChunkInfo.Id = TocResource.ChunkIds[ChunkIndex];
-			ChunkInfo.Hash = Meta.ChunkHash;
-			ChunkInfo.bIsMemoryMapped = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::MemoryMapped);
-			ChunkInfo.bForceUncompressed = bIsContainerCompressed && !EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
-			ChunkInfo.Offset = OffsetLength.GetOffset();
-			ChunkInfo.Size = OffsetLength.GetLength();
+			FIoStoreTocChunkInfo ChunkInfo = GetTocChunkInfo(ChunkIndex);
 			if (!Callback(ChunkInfo))
 			{
 				break;
 			}
+		}
+	}
+
+	TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const
+	{
+		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
+
+		if (TocEntryIndex < uint32(TocResource.ChunkIds.Num()))
+		{
+			return GetTocChunkInfo(TocEntryIndex);
+		}
+		else
+		{
+			return EIoErrorCode::InvalidParameter;
 		}
 	}
 
@@ -1053,6 +1057,26 @@ public:
 	}
 
 private:
+	FIoStoreTocChunkInfo GetTocChunkInfo(const int32 TocEntryIndex) const
+	{
+		const FIoStoreTocResource& TocResource = Toc.GetTocResource();
+		const FIoStoreTocEntryMeta& Meta = TocResource.ChunkMetas[TocEntryIndex];
+		const FIoOffsetAndLength& OffsetLength = TocResource.ChunkOffsetLengths[TocEntryIndex];
+
+		const bool bIsContainerCompressed = EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Compressed);
+
+		FIoStoreTocChunkInfo ChunkInfo;
+		ChunkInfo.Id = TocResource.ChunkIds[TocEntryIndex];
+		ChunkInfo.Hash = Meta.ChunkHash;
+		ChunkInfo.bIsCompressed = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
+		ChunkInfo.bIsMemoryMapped = EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::MemoryMapped);
+		ChunkInfo.bForceUncompressed = bIsContainerCompressed && !EnumHasAnyFlags(Meta.Flags, FIoStoreTocEntryMetaFlags::Compressed);
+		ChunkInfo.Offset = OffsetLength.GetOffset();
+		ChunkInfo.Size = OffsetLength.GetLength();
+
+		return ChunkInfo;
+	}
+
 	FIoStoreToc Toc;
 	FAES::FAESKey DecryptionKey;
 	TUniquePtr<IFileHandle> ContainerFileHandle;
@@ -1094,6 +1118,11 @@ FGuid FIoStoreReader::GetEncryptionKeyGuid() const
 void FIoStoreReader::EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const
 {
 	Impl->EnumerateChunks(MoveTemp(Callback));
+}
+
+TIoStatusOr<FIoStoreTocChunkInfo> FIoStoreReader::GetChunkInfo(const uint32 TocEntryIndex) const
+{
+	return Impl->GetChunkInfo(TocEntryIndex);
 }
 
 TIoStatusOr<FIoBuffer> FIoStoreReader::Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const

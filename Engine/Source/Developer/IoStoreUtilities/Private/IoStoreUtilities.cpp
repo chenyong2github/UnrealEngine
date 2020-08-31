@@ -653,7 +653,6 @@ struct FIoStoreArguments
 	FString DLCPluginPath;
 	FString DLCName;
 	FString BasedOnReleaseVersionPath;
-	FString ExtractIndexPath;
 	FAssetRegistryState ReleaseAssetRegistry;
 	FReleasedPackages ReleasedPackages;
 	bool bSign = false;
@@ -4364,7 +4363,7 @@ int32 CreateContentPatch(const FIoStoreArguments& Arguments, const FIoStoreWrite
 	return 0;
 }
 
-using DirectoryIndexVisitorFunction = TFunctionRef<bool(const FString&)>;
+using DirectoryIndexVisitorFunction = TFunctionRef<bool(FString, const uint32)>;
 
 bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Path, const FIoDirectoryIndexReader& Reader, DirectoryIndexVisitorFunction Visit)
 {
@@ -4377,10 +4376,11 @@ bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Pat
 		FIoDirectoryIndexHandle File = Reader.GetFile(ChildDirectory);
 		while (File.IsValid())
 		{
+			const uint32 TocEntryIndex = Reader.GetFileData(File);
 			FStringView FileName = Reader.GetFileName(File);
 			FString FilePath = Reader.GetMountPoint() / ChildDirectoryPath / FString(FileName);
 
-			if (!Visit(FilePath))
+			if (!Visit(MoveTemp(FilePath), TocEntryIndex))
 			{
 				return false;
 			}
@@ -4399,31 +4399,98 @@ bool IterateDirectoryIndex(FIoDirectoryIndexHandle Directory, const FString& Pat
 	return true;
 }
 
-int32 ExtractContainerIndex(const FIoStoreArguments& Arguments)
+int32 ListContainer(
+	const FIoStoreArguments& Arguments,
+	const FString& ContainerPathOrWildcard,
+	const FString& CsvPath)
 {
-	if (!IFileManager::Get().FileExists(*Arguments.ExtractIndexPath))
+	TArray<FString> ContainerFilePaths;
+
+	if (IFileManager::Get().FileExists(*ContainerPathOrWildcard))
 	{
-		UE_LOG(LogIoStore, Error, TEXT("Failed to extract '%s'. File doesn't exist"), *Arguments.ExtractIndexPath);
+		ContainerFilePaths.Add(ContainerPathOrWildcard);
+	}
+	else
+	{
+		FString Directory = FPaths::GetPath(ContainerPathOrWildcard);
+		FPaths::NormalizeDirectoryName(Directory);
+
+		TArray<FString> FoundContainerFiles;
+		IFileManager::Get().FindFiles(FoundContainerFiles, *ContainerPathOrWildcard, true, false);
+
+		for (const FString& Filename : FoundContainerFiles)
+		{
+			ContainerFilePaths.Emplace(Directory / Filename);
+		}
+	}
+
+	if (ContainerFilePaths.Num() == 0)
+	{
+		UE_LOG(LogIoStore, Error, TEXT("Container '%s' doesn't exist and no container matches wildcard."), *ContainerPathOrWildcard);
 		return -1;
 	}
 
-	UE_LOG(LogIoStore, Display, TEXT("Extracting directory index from '%s' ..."), *Arguments.ExtractIndexPath);
+	TArray<FString> CsvLines;
+	CsvLines.Add(TEXT("PackageId, PackageName, Filename, ContainerName, Offset, Size, Hash"));
 
-	TArray<FString> FileNames;
-	TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*Arguments.ExtractIndexPath, Arguments.KeyChain);
-	const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
-
-	IterateDirectoryIndex(FIoDirectoryIndexHandle::RootDirectory(), TEXT(""), IndexReader, [&FileNames](const FString& FilePath) -> bool
+	for (const FString& ContainerFilePath : ContainerFilePaths)
 	{
-		FString PackageName;
-		FPackageName::TryConvertFilenameToLongPackageName(FilePath, PackageName, nullptr);
-		FileNames.Emplace(FString::Printf(TEXT("\"%s\" \"%s\""), *FilePath, *PackageName));
-		return true;
-	});
+		TUniquePtr<FIoStoreReader> Reader = CreateIoStoreReader(*ContainerFilePath, Arguments.KeyChain);
+		if (!Reader.IsValid())
+		{
+			UE_LOG(LogIoStore, Warning, TEXT("Failed to read container '%s'"), *ContainerFilePath);
+			continue;
+		}
 
-	FString OutputPath = FPaths::ChangeExtension(Arguments.ExtractIndexPath, TEXT(".txt"));
-	UE_LOG(LogIoStore, Display, TEXT("Saving directory index to '%s'"), *OutputPath );
-	FFileHelper::SaveStringArrayToFile(FileNames, *OutputPath);
+		UE_LOG(LogIoStore, Display, TEXT("Listing container '%s'"), *ContainerFilePath);
+
+		FString ContainerName = FPaths::GetBaseFilename(ContainerFilePath);
+		const FIoDirectoryIndexReader& IndexReader = Reader->GetDirectoryIndexReader();
+
+		IterateDirectoryIndex(
+			FIoDirectoryIndexHandle::RootDirectory(),
+			TEXT(""),
+			IndexReader,
+			[&CsvLines, &Reader, &ContainerName ](FString Filename, const uint32 TocEntryIndex) -> bool
+		{
+			TIoStatusOr<FIoStoreTocChunkInfo> ChunkInfo = Reader->GetChunkInfo(TocEntryIndex);
+
+			FString PackageName;
+			FPackageName::TryConvertFilenameToLongPackageName(Filename, PackageName, nullptr);
+
+			FPackageId PackageId = PackageName.Len() > 0
+				? FPackageId::FromName(FName(*PackageName))
+				: FPackageId();
+
+			if (ChunkInfo.IsOk())
+			{
+				CsvLines.Emplace(FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, 0x%s"),
+					PackageId.ValueForDebugging(),
+					*PackageName,
+					*Filename,
+					*ContainerName,
+					ChunkInfo.ValueOrDie().Offset,
+					ChunkInfo.ValueOrDie().Size,
+					*ChunkInfo.ValueOrDie().Hash.ToString()));
+			}
+			else
+			{
+				CsvLines.Emplace(FString::Printf(TEXT("0x%llX, %s, %s, %s, %lld, %lld, %s"),
+					PackageId.ValueForDebugging(),
+					*PackageName,
+					*Filename,
+					*ContainerName,
+					0,
+					0,
+					TEXT("<NotFound>")));
+			}
+
+			return true;
+		});
+	}
+
+	UE_LOG(LogIoStore, Display, TEXT("Saving CSV file '%s'"), *CsvPath);
+	FFileHelper::SaveStringArrayToFile(CsvLines, *CsvPath);
 
 	return 0;
 }
@@ -4930,12 +4997,20 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 			return ReturnValue;
 		}
 	}
-	else if (FParse::Value(FCommandLine::Get(), TEXT("ExtractIndex="), Arguments.ExtractIndexPath))
-	{
-		return ExtractContainerIndex(Arguments);
-	}
 	else
 	{
+		FString ContainerPathOrWildcard;
+		if (FParse::Value(FCommandLine::Get(), TEXT("List="), ContainerPathOrWildcard))
+		{
+			FString CsvPath;
+			if (!FParse::Value(FCommandLine::Get(), TEXT("csv="), CsvPath))
+			{
+				UE_LOG(LogIoStore, Error, TEXT("Incorrect arguments. Expected: -list=<ContainerFile> -csv=<path>"));
+			}
+
+			return ListContainer(Arguments, ContainerPathOrWildcard, CsvPath);
+		}
+
 		UE_LOG(LogIoStore, Error, TEXT("Nothing to do!"));
 		return -1;
 	}
