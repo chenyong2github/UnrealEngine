@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "dna/types/Aliases.h"
+#include "dna/types/ArrayView.h"
 
 namespace dna {
 
