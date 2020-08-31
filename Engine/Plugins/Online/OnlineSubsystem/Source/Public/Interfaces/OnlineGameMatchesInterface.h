@@ -106,7 +106,7 @@ struct FGameMatchTeam
 	/** Id of the team */
 	FString TeamId;
 	/** Members belonging to the team */
-	TArray<FString> TeamMemberIds;
+	TArray<TSharedRef<const FUniqueNetId>> TeamMemberIds;
 };
 
 /** 
