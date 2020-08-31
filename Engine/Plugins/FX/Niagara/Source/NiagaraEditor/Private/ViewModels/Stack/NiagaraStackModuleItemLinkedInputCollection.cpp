@@ -65,7 +65,7 @@ void UNiagaraStackModuleItemLinkedInputCollection::RefreshChildrenInternal(const
 		FNiagaraParameterMapHistoryBuilder Builder;
 		Builder.SetIgnoreDisabled(false);
 		Builder.ConstantResolver = GetEmitterViewModel().IsValid() 
-			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*FunctionCallNode)->GetUsage())
+			? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*FunctionCallNode))
 			: FCompileConstantResolver();
 		FunctionCallNode->BuildParameterMapHistory(Builder, false);
 

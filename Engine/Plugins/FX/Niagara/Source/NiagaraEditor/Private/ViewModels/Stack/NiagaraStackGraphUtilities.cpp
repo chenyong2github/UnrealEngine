@@ -314,6 +314,12 @@ UNiagaraNodeOutput* FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNod
 	return GetEmitterOutputNodeForStackNodeInternal<UNiagaraNodeOutput, UNiagaraNode>(StackNode);
 }
 
+ENiagaraScriptUsage FNiagaraStackGraphUtilities::GetOutputNodeUsage(UNiagaraNode& StackNode)
+{
+	UNiagaraNodeOutput* OutputNode = GetEmitterOutputNodeForStackNode(StackNode);
+	return OutputNode ? OutputNode->GetUsage() : ENiagaraScriptUsage::Function;
+}
+
 const UNiagaraNodeOutput* FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(const UNiagaraNode& StackNode)
 {
 	return GetEmitterOutputNodeForStackNodeInternal<const UNiagaraNodeOutput, const UNiagaraNode>(StackNode);
