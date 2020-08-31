@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "IDetailCustomization.h"
-#include "Widgets/Text/STextBlock.h"
 #include "Input/Reply.h"
 
 /** UI customization for UVirtualHeightfieldMeshComponent */
@@ -15,6 +14,9 @@ public:
 
 protected:
 	FVirtualHeightfieldMeshComponentDetailsCustomization();
+
+	/** Callback for updating virtual texture thumbnail. */
+	void RefreshThumbnail();
 
 	/** Callback for Set Bounds button */
 	FReply SetBounds();
@@ -30,4 +32,7 @@ protected:
 
 private:
 	class UVirtualHeightfieldMeshComponent* VirtualHeightfieldMeshComponent;
+	
+	TSharedPtr<class FAssetThumbnailPool> AssetThumbnailPool;
+	TSharedRef<class FAssetThumbnail> AssetThumbnail;
 };
