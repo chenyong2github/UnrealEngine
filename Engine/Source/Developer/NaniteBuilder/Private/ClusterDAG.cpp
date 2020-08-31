@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "MeshletDAG.h"
+#include "ClusterDAG.h"
 #include "Async/Async.h"
 #include "Async/ParallelFor.h"
 #include "GraphPartitioner.h"

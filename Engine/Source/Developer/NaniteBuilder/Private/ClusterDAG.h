@@ -3,7 +3,7 @@
 #pragma once
 
 #include "Rendering/NaniteResources.h"
-#include "Meshlet.h"
+#include "Cluster.h"
 
 namespace Nanite
 {
