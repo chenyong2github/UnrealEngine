@@ -2,6 +2,7 @@
 
 #include "Operations/GroupEdgeInserter.h"
 
+#include "Algo/ForEach.h"
 #include "CompGeom/PolygonTriangulation.h"
 #include "ConstrainedDelaunay2.h"
 #include "DynamicMeshChangeTracker.h"
@@ -706,6 +707,10 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 	FMeshRegionBoundaryLoops RegionLoops(&Mesh, Component.Indices, true);
 	if (RegionLoops.bFailed || RegionLoops.Loops.Num() != 1)
 	{
+		// We don't support components with multiple boundaries (like a single cylinder side) because
+		// group edge insertion only works in very limited circumstances here (for instance, connecting
+		// multiple boundaries generally can't be done with a single group edge, since the group will
+		// remain connected), and retriangulation would be a huge pain.
 		return false;
 	}
 	RegionLoops.Loops[0].Reverse();
@@ -728,11 +733,25 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 		return false;
 	}
 
-	// Do the actual deletion. 
-	// TODO: We don't want to remove orphaned vertices on the boundaries, but we do in
-	// the center. We should implement that.
+	// When deleting, we don't we don't want to remove isolated verts on the boundary,
+	// but we do want to remove isolated verts on the interior of the component. We 
+	// could finish the retriangulation and look for isolated verts afterwards, but
+	// that requires us to keep track of the old verts until we're done triangulating.
+	// Instead, we'll just go ahead and delete any old verts not on the boundary.
+
+	// Get all verts in the component, and the verts on the boundary
+	TArray<int32> ComponentVids;
+	MeshIndexUtil::TriangleToVertexIDs(&Mesh, Component.Indices, ComponentVids);
+	TSet<int32> BoundaryVidSet(RegionLoops.Loops[0].Vertices);
+
+	// Delete the triangles
 	FDynamicMeshEditor Editor(&Mesh);
-	Editor.RemoveTriangles(Component.Indices, false);
+	Editor.RemoveTriangles(Component.Indices, false); // don't remove isolated verts
+	
+	// Remove verts that weren't on the boundary
+	Algo::ForEachIf(ComponentVids, [&BoundaryVidSet](int32 Vid) { return !BoundaryVidSet.Contains(Vid); },
+		[&Mesh](int32 Vid) { Mesh.RemoveVertex(Vid, false, false); } // Don't try to remove attached tris, don't care about bowties
+	);
 
 	if (Mesh.HasAttributes())
 	{
