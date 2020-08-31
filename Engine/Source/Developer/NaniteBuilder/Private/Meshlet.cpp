@@ -26,7 +26,7 @@ void CorrectAttributesColor( float* Attributes )
 }
 
 
-FMeshlet::FMeshlet(
+FCluster::FCluster(
 	const TArray< FStaticMeshBuildVertex >& InVerts,
 	const TArray< uint32 >& InIndexes,
 	const TArray< int32 >& InMaterialIndexes,
@@ -36,7 +36,7 @@ FMeshlet::FMeshlet(
 	GUID = Murmur32( { TriBegin, TriEnd } );
 	
 	const uint32 NumTriangles = TriEnd - TriBegin;
-	//ensure(NumTriangles <= FMeshlet::ClusterSize);
+	//ensure(NumTriangles <= FCluster::ClusterSize);
 	
 	bHasColors = bInHasColors;
 	NumTexCoords = InNumTexCoords;
@@ -115,16 +115,17 @@ FMeshlet::FMeshlet(
 	}
 
 	FindExternalEdges();
+	Bound();
 }
 
 // Split
-FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes )
-	: MipLevel( SrcMeshlet.MipLevel )
+FCluster::FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes )
+	: MipLevel( SrcCluster.MipLevel )
 {
-	GUID = Murmur32( { SrcMeshlet.GUID, TriBegin, TriEnd } );
+	GUID = Murmur32( { SrcCluster.GUID, TriBegin, TriEnd } );
 
-	NumTexCoords = SrcMeshlet.NumTexCoords;
-	bHasColors = SrcMeshlet.bHasColors;
+	NumTexCoords = SrcCluster.NumTexCoords;
+	bHasColors   = SrcCluster.bHasColors;
 	
 	const uint32 NumTriangles = TriEnd - TriBegin;
 
@@ -142,7 +143,7 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 
 		for( uint32 k = 0; k < 3; k++ )
 		{
-			uint32 OldIndex = SrcMeshlet.Indexes[ TriIndex * 3 + k ];
+			uint32 OldIndex = SrcCluster.Indexes[ TriIndex * 3 + k ];
 			uint32* NewIndexPtr = OldToNewIndex.Find( OldIndex );
 			uint32 NewIndex = NewIndexPtr ? *NewIndexPtr : ~0u;
 
@@ -152,19 +153,19 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 				NewIndex = NumVerts++;
 				OldToNewIndex.Add( OldIndex, NewIndex );
 
-				FMemory::Memcpy( &GetPosition( NewIndex ), &SrcMeshlet.GetPosition( OldIndex ), GetVertSize() * sizeof( float ) );
+				FMemory::Memcpy( &GetPosition( NewIndex ), &SrcCluster.GetPosition( OldIndex ), GetVertSize() * sizeof( float ) );
 
 				Bounds += GetPosition( NewIndex );
 			}
 
 			Indexes.Add( NewIndex );
-			BoundaryEdges.Add( SrcMeshlet.BoundaryEdges[ TriIndex * 3 + k ] );
+			BoundaryEdges.Add( SrcCluster.BoundaryEdges[ TriIndex * 3 + k ] );
 		}
 
 		{
-			const FVector& Position0 = SrcMeshlet.GetPosition( SrcMeshlet.Indexes[ TriIndex * 3 + 0 ] );
-			const FVector& Position1 = SrcMeshlet.GetPosition( SrcMeshlet.Indexes[ TriIndex * 3 + 1 ] );
-			const FVector& Position2 = SrcMeshlet.GetPosition( SrcMeshlet.Indexes[ TriIndex * 3 + 2 ] );
+			const FVector& Position0 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 0 ] );
+			const FVector& Position1 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 1 ] );
+			const FVector& Position2 = SrcCluster.GetPosition( SrcCluster.Indexes[ TriIndex * 3 + 2 ] );
 
 			FVector Edge01 = Position1 - Position0;
 			FVector Edge12 = Position2 - Position1;
@@ -174,15 +175,16 @@ FMeshlet::FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const 
 			SurfaceArea += TriArea;
 		}
 
-		const int32 MaterialIndex = SrcMeshlet.MaterialIndexes[ TriIndex ];
+		const int32 MaterialIndex = SrcCluster.MaterialIndexes[ TriIndex ];
 		MaterialIndexes.Add( MaterialIndex );
 	}
 
 	FindExternalEdges();
+	Bound();
 }
 
 // Merge
-FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
+FCluster::FCluster( const TArray< FCluster*, TInlineAllocator<16> >& MergeList )
 {
 	NumTexCoords = MergeList[0]->NumTexCoords;
 	bHasColors = MergeList[0]->bHasColors;
@@ -197,7 +199,7 @@ FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
 
 	FHashTable HashTable( 1 << FMath::FloorLog2( NumTriangles ), NumTriangles );
 
-	for( const FMeshlet* Child : MergeList )
+	for( const FCluster* Child : MergeList )
 	{
 		Bounds += Child->Bounds;
 		SurfaceArea	+= Child->SurfaceArea;
@@ -239,7 +241,7 @@ FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
 	}
 }
 
-float FMeshlet::Simplify( uint32 TargetNumTris )
+float FCluster::Simplify( uint32 TargetNumTris )
 {
 	if( TargetNumTris * 3 >= (uint32)Indexes.Num() )
 	{
@@ -320,7 +322,7 @@ float FMeshlet::Simplify( uint32 TargetNumTris )
 	return FMath::Sqrt( MaxErrorSqr ) * InvScale;
 }
 
-void FMeshlet::Split( FGraphPartitioner& Partitioner ) const
+void FCluster::Split( FGraphPartitioner& Partitioner ) const
 {
 	uint32 NumTriangles = Indexes.Num() / 3;
 	
@@ -371,14 +373,6 @@ void FMeshlet::Split( FGraphPartitioner& Partitioner ) const
 		}
 	}
 
-	FBounds	MeshBounds;
-	for( uint32 i = 0; i < NumVerts; i++ )
-	{
-		MeshBounds += GetPosition(i);
-		MeshBounds += GetPosition(i);
-		MeshBounds += GetPosition(i);
-	}
-
 	auto GetCenter = [ this ]( uint32 TriIndex )
 	{
 		FVector Center;
@@ -388,7 +382,7 @@ void FMeshlet::Split( FGraphPartitioner& Partitioner ) const
 		return Center * (1.0f / 3.0f);
 	};
 
-	Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
+	Partitioner.BuildLocalityLinks( DisjointSet, Bounds, GetCenter );
 
 	auto* RESTRICT Graph = Partitioner.NewGraph( NumTriangles * 3 );
 
@@ -415,7 +409,7 @@ void FMeshlet::Split( FGraphPartitioner& Partitioner ) const
 	Partitioner.PartitionStrict( Graph, ClusterSize - 4, ClusterSize, false );
 }
 
-void FMeshlet::FindExternalEdges()
+void FCluster::FindExternalEdges()
 {
 	ExternalEdges.Init( true, Indexes.Num() );
 	NumExternalEdges = Indexes.Num();
@@ -586,44 +580,33 @@ FMatrix CovarianceToBasis( const FMatrix& Covariance )
 #endif
 }
 
-
-FTriCluster BuildCluster( const FMeshlet& Meshlet )
+void FCluster::Bound()
 {
-	FTriCluster Cluster;
-	Cluster.NumVerts = Meshlet.NumVerts;
-	Cluster.NumTris  = Meshlet.Indexes.Num() / 3;
-	Cluster.QuantizedPosShift = 0;	//TODO: seed this with something sensible like floor(log2(range)), so we can skip testing a lot of quantization levels
-	Cluster.LODError = 0.0f;
-	Cluster.BoxBounds[0] = Meshlet.Bounds.Min;
-	Cluster.BoxBounds[1] = Meshlet.Bounds.Max;
-	Cluster.ClusterGroupIndex = MAX_uint32;
-	Cluster.GroupPartIndex = MAX_uint32;
-	Cluster.GeneratingGroupIndex = MAX_uint32;
+	NumTris = Indexes.Num() / 3;
 	
 	TArray< FVector, TInlineAllocator<128> > Positions;
-	Positions.SetNum( Cluster.NumVerts, false );
+	Positions.SetNum( NumVerts, false );
 
-	for( uint32 i = 0; i < Meshlet.NumVerts; i++ )
+	for( uint32 i = 0; i < NumVerts; i++ )
 	{
-		Positions[i] = Meshlet.GetPosition(i);
+		Positions[i] = GetPosition(i);
 	}
-	Cluster.SphereBounds = FSphere( Positions.GetData(), Positions.Num() );
-	Cluster.LODBounds = Cluster.SphereBounds;
+	SphereBounds = FSphere( Positions.GetData(), Positions.Num() );
+	LODBounds = SphereBounds;
 
 	//auto& Normals = Positions;
 	//Normals.Reset( Cluster.NumTris );
 
-	FVector	SurfaceMean( 0.0f );
-	float	SurfaceArea = 0.0f;
+	FVector SurfaceMean( 0.0f );
 	
 	float MaxEdgeLength2 = 0.0f;
 	FVector AvgNormal = FVector::ZeroVector;
-	for( int i = 0; i < Meshlet.Indexes.Num(); i += 3 )
+	for( int i = 0; i < Indexes.Num(); i += 3 )
 	{
 		FVector v[3];
-		v[0] = Meshlet.GetPosition( Meshlet.Indexes[ i + 0 ] );
-		v[1] = Meshlet.GetPosition( Meshlet.Indexes[ i + 1 ] );
-		v[2] = Meshlet.GetPosition( Meshlet.Indexes[ i + 2 ] );
+		v[0] = GetPosition( Indexes[ i + 0 ] );
+		v[1] = GetPosition( Indexes[ i + 1 ] );
+		v[2] = GetPosition( Indexes[ i + 2 ] );
 
 		FVector Edge01 = v[1] - v[0];
 		FVector Edge12 = v[2] - v[1];
@@ -647,22 +630,20 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 
 		for( int k = 0; k < 3; k++ )
 			SurfaceMean += TriArea * v[k];
-
-		SurfaceArea += TriArea;
 	}
-	Cluster.EdgeLength = FMath::Sqrt( MaxEdgeLength2 );
+	EdgeLength = FMath::Sqrt( MaxEdgeLength2 );
 	SurfaceMean /= 3.0f * SurfaceArea;
 
 #if 0
 	// Minimal OBB using eigenvectors of covariance
 	// https://www.geometrictools.com/Documentation/DynamicCollisionDetection.pdf
 	float Covariance[6] = { 0 };
-	for( int i = 0; i < Meshlet.Indexes.Num(); i += 3 )
+	for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
 	{
 		FVector v[3];
-		v[0] = Meshlet.Verts[ Meshlet.Indexes[ i + 0 ] ].Position;
-		v[1] = Meshlet.Verts[ Meshlet.Indexes[ i + 1 ] ].Position;
-		v[2] = Meshlet.Verts[ Meshlet.Indexes[ i + 2 ] ].Position;
+		v[0] = Cluster.Verts[ Cluster.Indexes[ i + 0 ] ].Position;
+		v[1] = Cluster.Verts[ Cluster.Indexes[ i + 1 ] ].Position;
+		v[2] = Cluster.Verts[ Cluster.Indexes[ i + 2 ] ].Position;
 
 		float TriArea = 0.5f * ( (v[2] - v[0]) ^ (v[1] - v[0]) ).Size();
 
@@ -689,9 +670,9 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 	FMatrix InvAxis = Axis.GetTransposed();
 
 	FBounds Bounds;
-	for( int i = 0; i < Meshlet.NumVerts; i++ )
+	for( int i = 0; i < Cluster.NumVerts; i++ )
 	{
-		Bounds += InvAxis.TransformVector( Meshlet.Verts[i].Position );
+		Bounds += InvAxis.TransformVector( Cluster.Verts[i].Position );
 	}
 
 	FVector Center = 0.5f * ( Bounds[1] + Bounds[0] );
@@ -739,12 +720,12 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 		Cluster.ConeStart = FVector2D( -MAX_FLT, MAX_FLT );
 		
 		// Push half space cone outside of every triangle's half space.
-		for( int i = 0; i < Meshlet.Indexes.Num(); i += 3 )
+		for( int i = 0; i < Cluster.Indexes.Num(); i += 3 )
 		{
 			FVector v[3];
-			v[0] = Meshlet.Verts[ Meshlet.Indexes[ i + 0 ] ].Position;
-			v[1] = Meshlet.Verts[ Meshlet.Indexes[ i + 1 ] ].Position;
-			v[2] = Meshlet.Verts[ Meshlet.Indexes[ i + 2 ] ].Position;
+			v[0] = Cluster.Verts[ Cluster.Indexes[ i + 0 ] ].Position;
+			v[1] = Cluster.Verts[ Cluster.Indexes[ i + 1 ] ].Position;
+			v[2] = Cluster.Verts[ Cluster.Indexes[ i + 2 ] ].Position;
 
 			FVector Normal = (v[2] - v[0]) ^ (v[1] - v[0]);
 			if( Normal.Normalize( 1e-12 ) )
@@ -767,8 +748,6 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 		Cluster.ConeStart = FVector2D::ZeroVector;
 	}
 #endif
-
-	return Cluster;
 }
 
 } // namespace Nanite

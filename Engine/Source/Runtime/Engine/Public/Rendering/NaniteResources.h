@@ -93,21 +93,6 @@ class UHierarchicalInstancedStaticMeshComponent;
 namespace Nanite
 {
 
-struct FUVRange
-{
-	FVector2D	Min;
-	FVector2D	Scale;
-	int32		GapStart[2];
-	int32		GapLength[2];
-};
-
-struct FMaterialRange
-{
-	uint32 RangeStart;
-	uint32 RangeLength;
-	uint32 MaterialIndex;
-};
-
 struct FUIntVector
 {
 	uint32 X, Y, Z;
@@ -116,67 +101,6 @@ struct FUIntVector
 	{
 		return X == V.X && Y == V.Y && Z == V.Z;
 	}
-};
-
-struct FStripDesc
-{
-	uint32 Bitmasks[4][3];
-	uint32 NumPrevRefVerticesBeforeDwords;
-	uint32 NumPrevNewVerticesBeforeDwords;
-};
-
-struct FTriCluster
-{
-	FUIntVector		QuantizedPosStart;
-	FVector			MeshBoundsMin;
-	FVector			MeshBoundsDelta;
-	
-	uint32			NumVerts;
-	uint32			NumTris;
-	uint32			QuantizedPosShift;
-
-	float			EdgeLength;
-	float			LODError;
-	
-	FVector			BoxBounds[2];
-	FSphere			SphereBounds;
-	FSphere			LODBounds;
-
-	uint32			ClusterGroupIndex;
-	uint32			GroupPartIndex;
-	uint32			GeneratingGroupIndex;
-
-	TArray<FMaterialRange, TInlineAllocator<4>> MaterialRanges;
-	TArray<FUIntVector>	QuantizedPositions;
-
-	FStripDesc		StripDesc;
-	TArray<uint8>	StripIndexData;
-};
-
-struct FClusterGroup
-{
-	FSphere				Bounds;
-	FSphere				LODBounds;
-	//FPackedBound		PackedBounds;
-	float				MinLODError;
-	float				MaxLODError;
-	int32				MipLevel;					// Mip Level of meshlets
-	
-	uint32				PageIndexStart;
-	uint32				PageIndexNum;
-	TArray<uint32>		Children;
-};
-
-struct FHierarchyNode
-{
-	FSphere			Bounds[64];
-	FSphere			LODBounds[64];
-	//FPackedBound	PackedBounds[64];
-	float			MinLODErrors[64];
-	float			MaxLODErrors[64];
-	uint32			ChildrenStartIndex[64];
-	uint32			NumChildren[64];
-	uint32			ClusterGroupPartIndex[64];
 };
 
 struct FPackedHierarchyNode

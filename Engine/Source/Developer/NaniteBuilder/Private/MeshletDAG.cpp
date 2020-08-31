@@ -9,34 +9,33 @@
 namespace Nanite
 {
 
-FMeshletDAG::FMeshletDAG( TArray< FMeshlet >& InMeshlets, TArray< FTriCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups )
-	: Meshlets( InMeshlets )
-	, Clusters( InClusters )
+FClusterDAG::FClusterDAG( TArray< FCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups )
+	: Clusters( InClusters )
 	, ClusterGroups( InClusterGroups )
-	, NumMeshlets( Meshlets.Num() )
+	, NumClusters( Clusters.Num() )
 {
-	for( int i = 0; i < Meshlets.Num(); i++ )
+	for( int i = 0; i < Clusters.Num(); i++ )
 	{
-		CompleteMeshlet(i);
+		CompleteCluster(i);
 	}
 }
 
-void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
+void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 {
 	int32 LevelOffset = 0;
 
 	while( true )
 	{
-		MipEnds.Add( Meshlets.Num() );
+		MipEnds.Add( Clusters.Num() );
 
-		TArrayView< FMeshlet > LevelMeshlets( &Meshlets[ LevelOffset ], Meshlets.Num() - LevelOffset );
+		TArrayView< FCluster > LevelClusters( &Clusters[ LevelOffset ], Clusters.Num() - LevelOffset );
 
-		if( LevelMeshlets.Num() < 2 )
+		if( LevelClusters.Num() < 2 )
 			break;
 		
 		struct FExternalEdge
 		{
-			uint32	MeshletIndex;
+			uint32	ClusterIndex;
 			uint32	EdgeIndex;
 		};
 		TArray< FExternalEdge >	ExternalEdges;
@@ -49,27 +48,27 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 		NumExternalEdges = 0;
 
 		// Add edges to hash table
-		ParallelFor( LevelMeshlets.Num(),
-			[&]( uint32 MeshletIndex )
+		ParallelFor( LevelClusters.Num(),
+			[&]( uint32 ClusterIndex )
 			{
-				FMeshlet& Meshlet = LevelMeshlets[ MeshletIndex ];
+				FCluster& Cluster = LevelClusters[ ClusterIndex ];
 
-				for( TConstSetBitIterator<> SetBit( Meshlet.ExternalEdges ); SetBit; ++SetBit )
+				for( TConstSetBitIterator<> SetBit( Cluster.ExternalEdges ); SetBit; ++SetBit )
 				{
 					uint32 EdgeIndex = SetBit.GetIndex();
 
-					uint32 VertIndex0 = Meshlet.Indexes[ EdgeIndex ];
-					uint32 VertIndex1 = Meshlet.Indexes[ Cycle3( EdgeIndex ) ];
+					uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
+					uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Meshlet.GetPosition( VertIndex0 );
-					const FVector& Position1 = Meshlet.GetPosition( VertIndex1 );
+					const FVector& Position0 = Cluster.GetPosition( VertIndex0 );
+					const FVector& Position1 = Cluster.GetPosition( VertIndex1 );
 
 					uint32 Hash0 = HashPosition( Position0 );
 					uint32 Hash1 = HashPosition( Position1 );
 					uint32 Hash = Murmur32( { Hash0, Hash1 } );
 
 					uint32 ExternalEdgeIndex = ExternalEdgeOffset++;
-					ExternalEdges[ ExternalEdgeIndex ] = { MeshletIndex, EdgeIndex };
+					ExternalEdges[ ExternalEdgeIndex ] = { ClusterIndex, EdgeIndex };
 					ExternalEdgeHash.Add_Concurrent( Hash, ExternalEdgeIndex );
 				}
 			} );
@@ -78,21 +77,21 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 
 		TAtomic< uint32 > NumAdjacency(0);
 
-		// Find matching edge in other meshlets
-		ParallelFor( LevelMeshlets.Num(),
-			[&]( uint32 MeshletIndex )
+		// Find matching edge in other clusters
+		ParallelFor( LevelClusters.Num(),
+			[&]( uint32 ClusterIndex )
 			{
-				FMeshlet& Meshlet = LevelMeshlets[ MeshletIndex ];
+				FCluster& Cluster = LevelClusters[ ClusterIndex ];
 
-				for( TConstSetBitIterator<> SetBit( Meshlet.ExternalEdges ); SetBit; ++SetBit )
+				for( TConstSetBitIterator<> SetBit( Cluster.ExternalEdges ); SetBit; ++SetBit )
 				{
 					uint32 EdgeIndex = SetBit.GetIndex();
 
-					uint32 VertIndex0 = Meshlet.Indexes[ EdgeIndex ];
-					uint32 VertIndex1 = Meshlet.Indexes[ Cycle3( EdgeIndex ) ];
+					uint32 VertIndex0 = Cluster.Indexes[ EdgeIndex ];
+					uint32 VertIndex1 = Cluster.Indexes[ Cycle3( EdgeIndex ) ];
 	
-					const FVector& Position0 = Meshlet.GetPosition( VertIndex0 );
-					const FVector& Position1 = Meshlet.GetPosition( VertIndex1 );
+					const FVector& Position0 = Cluster.GetPosition( VertIndex0 );
+					const FVector& Position1 = Cluster.GetPosition( VertIndex1 );
 
 					uint32 Hash0 = HashPosition( Position0 );
 					uint32 Hash1 = HashPosition( Position1 );
@@ -102,18 +101,18 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 					{
 						FExternalEdge ExternalEdge = ExternalEdges[ ExternalEdgeIndex ];
 
-						FMeshlet& OtherMeshlet = LevelMeshlets[ ExternalEdge.MeshletIndex ];
+						FCluster& OtherCluster = LevelClusters[ ExternalEdge.ClusterIndex ];
 
-						if( OtherMeshlet.ExternalEdges[ ExternalEdge.EdgeIndex ] )
+						if( OtherCluster.ExternalEdges[ ExternalEdge.EdgeIndex ] )
 						{
-							uint32 OtherVertIndex0 = OtherMeshlet.Indexes[ ExternalEdge.EdgeIndex ];
-							uint32 OtherVertIndex1 = OtherMeshlet.Indexes[ Cycle3( ExternalEdge.EdgeIndex ) ];
+							uint32 OtherVertIndex0 = OtherCluster.Indexes[ ExternalEdge.EdgeIndex ];
+							uint32 OtherVertIndex1 = OtherCluster.Indexes[ Cycle3( ExternalEdge.EdgeIndex ) ];
 			
-							if( Position0 == OtherMeshlet.GetPosition( OtherVertIndex1 ) &&
-								Position1 == OtherMeshlet.GetPosition( OtherVertIndex0 ) )
+							if( Position0 == OtherCluster.GetPosition( OtherVertIndex1 ) &&
+								Position1 == OtherCluster.GetPosition( OtherVertIndex0 ) )
 							{
 								// Found matching edge. Increase it's count.
-								Meshlet.AdjacentMeshlets.FindOrAdd( ExternalEdge.MeshletIndex, 0 )++;
+								Cluster.AdjacentClusters.FindOrAdd( ExternalEdge.ClusterIndex, 0 )++;
 
 								// Can't break or a triple edge might be non-deterministically connected.
 								// Need to find all matching, not just first.
@@ -121,35 +120,35 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 						}
 					}
 				}
-				NumAdjacency += Meshlet.AdjacentMeshlets.Num();
+				NumAdjacency += Cluster.AdjacentClusters.Num();
 
 				// Force deterministic order of adjacency.
-				Meshlet.AdjacentMeshlets.KeySort(
-					[ &LevelMeshlets ]( uint32 A, uint32 B )
+				Cluster.AdjacentClusters.KeySort(
+					[ &LevelClusters ]( uint32 A, uint32 B )
 					{
-						return LevelMeshlets[A].GUID < LevelMeshlets[B].GUID;
+						return LevelClusters[A].GUID < LevelClusters[B].GUID;
 					} );
 			} );
 
-		FDisjointSet DisjointSet( LevelMeshlets.Num() );
+		FDisjointSet DisjointSet( LevelClusters.Num() );
 
-		for( uint32 MeshletIndex = 0; MeshletIndex < (uint32)LevelMeshlets.Num(); MeshletIndex++ )
+		for( uint32 ClusterIndex = 0; ClusterIndex < (uint32)LevelClusters.Num(); ClusterIndex++ )
 		{
-			for( auto& Pair : LevelMeshlets[ MeshletIndex ].AdjacentMeshlets )
+			for( auto& Pair : LevelClusters[ ClusterIndex ].AdjacentClusters )
 			{
-				uint32 OtherMeshletIndex = Pair.Key;
+				uint32 OtherClusterIndex = Pair.Key;
 
-				uint32 Count = LevelMeshlets[ OtherMeshletIndex ].AdjacentMeshlets.FindChecked( MeshletIndex );
+				uint32 Count = LevelClusters[ OtherClusterIndex ].AdjacentClusters.FindChecked( ClusterIndex );
 				check( Count == Pair.Value );
 
-				if( MeshletIndex > OtherMeshletIndex )
+				if( ClusterIndex > OtherClusterIndex )
 				{
-					DisjointSet.UnionSequential( MeshletIndex, OtherMeshletIndex );
+					DisjointSet.UnionSequential( ClusterIndex, OtherClusterIndex );
 				}
 			}
 		}
 
-		FGraphPartitioner Partitioner( LevelMeshlets.Num() );
+		FGraphPartitioner Partitioner( LevelClusters.Num() );
 
 		// Sort to force deterministic order
 		{
@@ -158,40 +157,40 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 			RadixSort32( SortedIndexes.GetData(), Partitioner.Indexes.GetData(), Partitioner.Indexes.Num(),
 				[&]( uint32 Index )
 				{
-					return LevelMeshlets[ Index ].GUID;
+					return LevelClusters[ Index ].GUID;
 				} );
 			Swap( Partitioner.Indexes, SortedIndexes );
 		}
 
 		auto GetCenter = [&]( uint32 Index )
 		{
-			FBounds& Bounds = LevelMeshlets[ Index ].Bounds;
+			FBounds& Bounds = LevelClusters[ Index ].Bounds;
 			return 0.5f * ( Bounds.Min + Bounds.Max );
 		};
 		Partitioner.BuildLocalityLinks( DisjointSet, MeshBounds, GetCenter );
 
 		auto* RESTRICT Graph = Partitioner.NewGraph( NumAdjacency );
 
-		for( int32 i = 0; i < LevelMeshlets.Num(); i++ )
+		for( int32 i = 0; i < LevelClusters.Num(); i++ )
 		{
 			Graph->AdjacencyOffset[i] = Graph->Adjacency.Num();
 
-			uint32 MeshletIndex = Partitioner.Indexes[i];
+			uint32 ClusterIndex = Partitioner.Indexes[i];
 
-			for( auto& Pair : LevelMeshlets[ MeshletIndex ].AdjacentMeshlets )
+			for( auto& Pair : LevelClusters[ ClusterIndex ].AdjacentClusters )
 			{
-				uint32 OtherMeshletIndex = Pair.Key;
+				uint32 OtherClusterIndex = Pair.Key;
 				uint32 NumSharedEdges = Pair.Value;
 
-				const auto& Cluster0 = Clusters[ LevelOffset + MeshletIndex ];
-				const auto& Cluster1 = Clusters[ LevelOffset + OtherMeshletIndex ];
+				const auto& Cluster0 = Clusters[ LevelOffset + ClusterIndex ];
+				const auto& Cluster1 = Clusters[ LevelOffset + OtherClusterIndex ];
 
-				bool bSiblings = Cluster0.ClusterGroupIndex != MAX_uint32 && Cluster0.ClusterGroupIndex == Cluster1.ClusterGroupIndex;
+				bool bSiblings = Cluster0.GroupIndex != MAX_uint32 && Cluster0.GroupIndex == Cluster1.GroupIndex;
 
-				Partitioner.AddAdjacency( Graph, OtherMeshletIndex, NumSharedEdges * ( bSiblings ? 1 : 16 ) + 4 );
+				Partitioner.AddAdjacency( Graph, OtherClusterIndex, NumSharedEdges * ( bSiblings ? 1 : 16 ) + 4 );
 			}
 
-			Partitioner.AddLocalityLinks( Graph, MeshletIndex, 1 );
+			Partitioner.AddLocalityLinks( Graph, ClusterIndex, 1 );
 		}
 		Graph->AdjacencyOffset[ Graph->Num ] = Graph->Adjacency.Num();
 
@@ -212,14 +211,13 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 			{
 				// Global indexing is needed in Reduce()
 				Partitioner.Indexes[i] += LevelOffset;
-				NumParentIndexes += Meshlets[ Partitioner.Indexes[i] ].Indexes.Num();
+				NumParentIndexes += Clusters[ Partitioner.Indexes[i] ].Indexes.Num();
 			}
-			MaxParents += FMath::DivideAndRoundUp( NumParentIndexes, FMeshlet::ClusterSize * 6 );
+			MaxParents += FMath::DivideAndRoundUp( NumParentIndexes, FCluster::ClusterSize * 6 );
 		}
 
-		LevelOffset = Meshlets.Num();
+		LevelOffset = Clusters.Num();
 
-		Meshlets.AddDefaulted( MaxParents );
 		Clusters.AddDefaulted( MaxParents );
 		ClusterGroups.AddDefaulted( Partitioner.Ranges.Num() );
 
@@ -235,17 +233,16 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 			} );
 
 		// Correct num to atomic count
-		Meshlets.SetNum( NumMeshlets, false );
-		Clusters.SetNum( NumMeshlets, false );
+		Clusters.SetNum( NumClusters, false );
 
-		for( int32 i = LevelOffset; i < Meshlets.Num(); i++ )
+		for( int32 i = LevelOffset; i < Clusters.Num(); i++ )
 		{
-			CompleteMeshlet(i);
+			CompleteCluster(i);
 		}
 	}
 	
 	// Max out root node
-	int32 RootIndex = Meshlets.Num() - 1;
+	int32 RootIndex = Clusters.Num() - 1;
 	FClusterGroup RootClusterGroup;
 	RootClusterGroup.Children.Add( RootIndex );
 	RootClusterGroup.Bounds = Clusters[ RootIndex ].SphereBounds;
@@ -253,38 +250,38 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 	RootClusterGroup.MaxLODError = 1e10f;
 	RootClusterGroup.MinLODError = -1.0f;
 	RootClusterGroup.MipLevel = MAX_int32;
-	Clusters[ RootIndex ].ClusterGroupIndex = ClusterGroups.Num();
+	Clusters[ RootIndex ].GroupIndex = ClusterGroups.Num();
 	ClusterGroups.Add( RootClusterGroup );
 }
 
-void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex )
+void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex )
 {
 	check( ClusterGroupIndex >= 0 );
 
 	// Merge
-	TArray< FMeshlet*, TInlineAllocator<16> > MergeList;
+	TArray< FCluster*, TInlineAllocator<16> > MergeList;
 	for( int32 Child : Children )
 	{
-		MergeList.Add( &Meshlets[ Child ] );
+		MergeList.Add( &Clusters[ Child ] );
 	}
 	
 	// Force a deterministic order
 	MergeList.Sort(
-		[]( const FMeshlet& A, const FMeshlet& B )
+		[]( const FCluster& A, const FCluster& B )
 		{
 			return A.GUID < B.GUID;
 		} );
 
-	FMeshlet Merged( MergeList );
+	FCluster Merged( MergeList );
 
-	int32 NumParents = FMath::DivideAndRoundUp< int32 >( Merged.Indexes.Num(), FMeshlet::ClusterSize * 6 );
+	int32 NumParents = FMath::DivideAndRoundUp< int32 >( Merged.Indexes.Num(), FCluster::ClusterSize * 6 );
 	int32 ParentStart = 0;
 	int32 ParentEnd = 0;
 
 	float ParentMinLODError = 0.0f;
 	float ParentMaxLODError = 0.0f;
 
-	for( int32 TargetClusterSize = FMeshlet::ClusterSize - 2; TargetClusterSize > FMeshlet::ClusterSize / 2; TargetClusterSize -= 2 )
+	for( int32 TargetClusterSize = FCluster::ClusterSize - 2; TargetClusterSize > FCluster::ClusterSize / 2; TargetClusterSize -= 2 )
 	{
 		int32 TargetNumTris = NumParents * TargetClusterSize;
 
@@ -294,11 +291,11 @@ void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		// Split
 		if( NumParents == 1 )
 		{
-			ParentEnd = ( NumMeshlets += NumParents );
+			ParentEnd = ( NumClusters += NumParents );
 			ParentStart = ParentEnd - NumParents;
 
-			Meshlets[ ParentStart ] = Merged;
-			Clusters[ ParentStart ] = BuildCluster( Merged );
+			Clusters[ ParentStart ] = Merged;
+			Clusters[ ParentStart ].Bound();
 			break;
 		}
 		else
@@ -309,14 +306,13 @@ void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 			if( Partitioner.Ranges.Num() <= NumParents )
 			{
 				NumParents = Partitioner.Ranges.Num();
-				ParentEnd = ( NumMeshlets += NumParents );
+				ParentEnd = ( NumClusters += NumParents );
 				ParentStart = ParentEnd - NumParents;
 
 				int32 Parent = ParentStart;
 				for( auto& Range : Partitioner.Ranges )
 				{
-					Meshlets[ Parent ] = FMeshlet( Merged, Range.Begin, Range.End, Partitioner.Indexes );
-					Clusters[ Parent ] = BuildCluster( Meshlets[ Parent ] );
+					Clusters[ Parent ] = FCluster( Merged, Range.Begin, Range.End, Partitioner.Indexes );
 					Parent++;
 				}
 
@@ -352,8 +348,8 @@ void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 
 	for( int32 Parent = ParentStart; Parent < ParentEnd; Parent++ )
 	{
-		Clusters[ Parent ].LODBounds		= ParentLODBound;
-		Clusters[ Parent ].LODError			= ParentMaxLODError;
+		Clusters[ Parent ].LODBounds			= ParentLODBound;
+		Clusters[ Parent ].LODError				= ParentMaxLODError;
 		Clusters[ Parent ].GeneratingGroupIndex = ClusterGroupIndex;
 	}
 
@@ -368,19 +364,18 @@ void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 	{
 		check( ClusterGroups[ ClusterGroupIndex ].Children.Num() <= MAX_CLUSTERS_PER_GROUP_TARGET);
 		ClusterGroups[ ClusterGroupIndex ].Children.Add( Child );
-		Clusters[ Child ].ClusterGroupIndex = ClusterGroupIndex;
+		Clusters[ Child ].GroupIndex = ClusterGroupIndex;
 	}
 }
 
-void FMeshletDAG::CompleteMeshlet( uint32 Index )
+void FClusterDAG::CompleteCluster( uint32 Index )
 {
-	FMeshlet&    Meshlet = Meshlets[ Index ];
-	FTriCluster& Cluster = Clusters[ Index ];
+	FCluster& Cluster = Clusters[ Index ];
 	
-	NumVerts			+= Meshlet.NumVerts;
-	NumIndexes			+= Meshlet.Indexes.Num();
-	NumExternalEdges	+= Meshlet.NumExternalEdges;
-	MeshBounds			+= Meshlet.Bounds;
+	NumVerts			+= Cluster.NumVerts;
+	NumIndexes			+= Cluster.Indexes.Num();
+	NumExternalEdges	+= Cluster.NumExternalEdges;
+	MeshBounds			+= Cluster.Bounds;
 }
 
 } // namespace Nanite

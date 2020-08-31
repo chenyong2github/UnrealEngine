@@ -11,22 +11,37 @@ class FGraphPartitioner;
 namespace Nanite
 {
 
-class FMeshlet
+struct FMaterialRange
+{
+	uint32 RangeStart;
+	uint32 RangeLength;
+	uint32 MaterialIndex;
+};
+
+struct FStripDesc
+{
+	uint32 Bitmasks[4][3];
+	uint32 NumPrevRefVerticesBeforeDwords;
+	uint32 NumPrevNewVerticesBeforeDwords;
+};
+
+class FCluster
 {
 public:
-	FMeshlet() {}
-	FMeshlet(
+	FCluster() {}
+	FCluster(
 		const TArray< FStaticMeshBuildVertex >& InVerts,
 		const TArray< uint32 >& InIndexes,
 		const TArray< int32 >& InMaterialIndexes,
 		const TBitArray<>& InBoundaryEdges,
 		uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes, uint32 NumTexCoords, bool bHasColors );
 
-	FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
-	FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList );
+	FCluster( FCluster& SrcCluster, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
+	FCluster( const TArray< FCluster*, TInlineAllocator<16> >& MergeList );
 
 	float	Simplify( uint32 NumTris );
 	void	Split( FGraphPartitioner& Partitioner ) const;
+	void	Bound();
 
 private:
 	void	FindExternalEdges();
@@ -47,6 +62,7 @@ public:
 	static const uint32	ClusterSize = 128;
 
 	uint32		NumVerts = 0;
+	uint32		NumTris = 0;
 	uint32		NumTexCoords = 0;
 	bool		bHasColors = false;
 
@@ -57,64 +73,84 @@ public:
 	TBitArray<>			ExternalEdges;
 	uint32				NumExternalEdges;
 
-	TMap< uint32, uint32 >	AdjacentMeshlets;
+	TMap< uint32, uint32 >	AdjacentClusters;
 
-	FBounds	Bounds;
-	float	SurfaceArea = 0.0f;
-	uint32	GUID = 0;
-	int32	MipLevel = 0;
+	FBounds		Bounds;
+	float		SurfaceArea = 0.0f;
+	uint32		GUID = 0;
+	int32		MipLevel = 0;
+
+	FUIntVector	QuantizedPosStart = { 0u, 0u, 0u };	//TODO: seed this with something sensible like floor(log2(range)), so we can skip testing a lot of quantization levels
+	uint32		QuantizedPosShift;
+	
+	FVector		MeshBoundsMin;
+	FVector		MeshBoundsDelta;
+
+	float		EdgeLength = 0.0f;
+	float		LODError = 0.0f;
+	
+	FSphere		SphereBounds;
+	FSphere		LODBounds;
+
+	uint32		GroupIndex			= MAX_uint32;
+	uint32		GroupPartIndex		= MAX_uint32;
+	uint32		GeneratingGroupIndex= MAX_uint32;
+
+	TArray<FMaterialRange, TInlineAllocator<4>> MaterialRanges;
+	TArray<FUIntVector>	QuantizedPositions;
+
+	FStripDesc		StripDesc;
+	TArray<uint8>	StripIndexData;
 };
 
-FORCEINLINE uint32 FMeshlet::GetVertSize() const
+FORCEINLINE uint32 FCluster::GetVertSize() const
 {
 	return 6 + ( bHasColors ? 4 : 0 ) + NumTexCoords * 2;
 }
 
-FORCEINLINE FVector& FMeshlet::GetPosition( uint32 VertIndex )
+FORCEINLINE FVector& FCluster::GetPosition( uint32 VertIndex )
 {
 	return *reinterpret_cast< FVector* >( &Verts[ VertIndex * GetVertSize() ] );
 }
 
-FORCEINLINE const FVector& FMeshlet::GetPosition( uint32 VertIndex ) const
+FORCEINLINE const FVector& FCluster::GetPosition( uint32 VertIndex ) const
 {
 	return *reinterpret_cast< const FVector* >( &Verts[ VertIndex * GetVertSize() ] );
 }
 
-FORCEINLINE float* FMeshlet::GetAttributes( uint32 VertIndex )
+FORCEINLINE float* FCluster::GetAttributes( uint32 VertIndex )
 {
 	return &Verts[ VertIndex * GetVertSize() + 3 ];
 }
 
-FORCEINLINE FVector& FMeshlet::GetNormal( uint32 VertIndex )
+FORCEINLINE FVector& FCluster::GetNormal( uint32 VertIndex )
 {
 	return *reinterpret_cast< FVector* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
 }
 
-FORCEINLINE const FVector& FMeshlet::GetNormal( uint32 VertIndex ) const
+FORCEINLINE const FVector& FCluster::GetNormal( uint32 VertIndex ) const
 {
 	return *reinterpret_cast< const FVector* >( &Verts[ VertIndex * GetVertSize() + 3 ] );
 }
 
-FORCEINLINE FLinearColor& FMeshlet::GetColor( uint32 VertIndex )
+FORCEINLINE FLinearColor& FCluster::GetColor( uint32 VertIndex )
 {
 	return *reinterpret_cast< FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
 }
 
-FORCEINLINE const FLinearColor& FMeshlet::GetColor( uint32 VertIndex ) const
+FORCEINLINE const FLinearColor& FCluster::GetColor( uint32 VertIndex ) const
 {
 	return *reinterpret_cast< const FLinearColor* >( &Verts[ VertIndex * GetVertSize() + 6 ] );
 }
 
-FORCEINLINE FVector2D* FMeshlet::GetUVs( uint32 VertIndex )
+FORCEINLINE FVector2D* FCluster::GetUVs( uint32 VertIndex )
 {
 	return reinterpret_cast< FVector2D* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
 }
 
-FORCEINLINE const FVector2D* FMeshlet::GetUVs( uint32 VertIndex ) const
+FORCEINLINE const FVector2D* FCluster::GetUVs( uint32 VertIndex ) const
 {
 	return reinterpret_cast< const FVector2D* >( &Verts[ VertIndex * GetVertSize() + 6 + ( bHasColors ? 4 : 0 ) ] );
 }
-
-FTriCluster BuildCluster( const FMeshlet& Meshlet );
 
 } // namespace Nanite

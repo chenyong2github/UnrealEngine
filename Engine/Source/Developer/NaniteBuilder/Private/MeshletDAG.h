@@ -8,10 +8,36 @@
 namespace Nanite
 {
 
-class FMeshletDAG
+struct FClusterGroup
+{
+	FSphere				Bounds;
+	FSphere				LODBounds;
+	//FPackedBound		PackedBounds;
+	float				MinLODError;
+	float				MaxLODError;
+	int32				MipLevel;
+	
+	uint32				PageIndexStart;
+	uint32				PageIndexNum;
+	TArray<uint32>		Children;
+};
+
+struct FHierarchyNode
+{
+	FSphere			Bounds[64];
+	FSphere			LODBounds[64];
+	//FPackedBound	PackedBounds[64];
+	float			MinLODErrors[64];
+	float			MaxLODErrors[64];
+	uint32			ChildrenStartIndex[64];
+	uint32			NumChildren[64];
+	uint32			ClusterGroupPartIndex[64];
+};
+
+class FClusterDAG
 {
 public:
-	FMeshletDAG( TArray< FMeshlet >& InMeshlets, TArray< FTriCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups );
+	FClusterDAG( TArray< FCluster >& InCluster, TArray< FClusterGroup >& InClusterGroups );
 	
 	void		Reduce( const FMeshNaniteSettings& Settings );
 	
@@ -22,14 +48,13 @@ public:
 	TArray< int32 >		MipEnds;
 
 private:
-	void		CompleteMeshlet( uint32 Index );
+	void		CompleteCluster( uint32 Index );
 	void		Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex );
 
-	TArray< FMeshlet >&			Meshlets;
-	TArray< FTriCluster >&		Clusters;
+	TArray< FCluster >&			Clusters;
 	TArray< FClusterGroup >&	ClusterGroups;
 
-	TAtomic< uint32 >	NumMeshlets;
+	TAtomic< uint32 >	NumClusters;
 	uint32				NumExternalEdges = 0;
 };
 
