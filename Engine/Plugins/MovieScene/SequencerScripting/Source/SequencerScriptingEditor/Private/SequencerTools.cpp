@@ -203,8 +203,7 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 	FMovieSceneSequenceIDRef Template = MovieSceneSequenceID::Root;
 	bool bDidExport = false;
 	FMovieSceneSequenceTransform RootToLocalTransform;
-
-	FScopedTransaction ExportFBXTransaction(NSLOCTEXT("Sequencer", "ExportFBX", "Export FBX"));
+	
 	{
 		FSpawnableRestoreState SpawnableRestoreState(MovieScene);
 
@@ -216,9 +215,8 @@ bool USequencerToolsFunctionLibrary::ExportFBX(UWorld* World, ULevelSequence* Se
 		}
 
 		bDidExport = MovieSceneToolHelpers::ExportFBX(World, MovieScene, Player, Bindings, NodeNameAdapter, Template, InFBXFileName, RootToLocalTransform);
-
 	}
-		
+
 	Player->Stop();
 	Exporter->SetExportOptionsOverride(nullptr);
 	World->DestroyActor(OutActor);
