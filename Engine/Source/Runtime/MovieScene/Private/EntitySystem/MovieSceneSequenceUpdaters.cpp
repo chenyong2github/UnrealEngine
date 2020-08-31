@@ -215,6 +215,12 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 	SequenceInstance.SetContext(Context);
 
 	const FMovieSceneEntityComponentField* ComponentField = InPlayer->GetEvaluationTemplate().GetCompiledDataManager()->FindEntityComponentField(CompiledDataID);
+	UMovieSceneSequence* Sequence = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root);
+	if (Sequence == nullptr)
+	{
+		SequenceInstance.Ledger.UnlinkEverything(Linker);
+		return;
+	}
 
 	FMovieSceneEvaluationFieldEntitySet EntitiesScratch;
 
@@ -232,7 +238,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 
 		FEntityImportSequenceParams Params;
 		Params.InstanceHandle = InstanceHandle;
-		Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
+		Params.DefaultCompletionMode = Sequence->DefaultCompletionMode;
 		Params.HierarchicalBias = 0;
 
 		SequenceInstance.Ledger.UpdateEntities(Linker, Params, ComponentField, EntitiesScratch);
@@ -248,7 +254,7 @@ void FSequenceUpdater_Flat::Update(UMovieSceneEntitySystemLinker* Linker, FInsta
 		{
 			FEntityImportSequenceParams Params;
 			Params.InstanceHandle = InstanceHandle;
-			Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
+			Params.DefaultCompletionMode = Sequence->DefaultCompletionMode;
 			Params.HierarchicalBias = 0;
 
 			SequenceInstance.Ledger.UpdateOneShotEntities(Linker, Params, ComponentField, EntitiesScratch);
@@ -392,34 +398,42 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 		RootInstance.SetContext(Context);
 
 		const FMovieSceneEntityComponentField* RootComponentField = CompiledDataManager->FindEntityComponentField(CompiledDataID);
+		UMovieSceneSequence* RootSequence = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root);
 
-		// Update entities if necessary
-		if (bGatherEntities)
+		if (RootSequence == nullptr)
 		{
-			CachedEntityRange = UpdateEntitiesForSequence(RootComponentField, RootTime, EntitiesScratch);
-
-			FEntityImportSequenceParams Params;
-			Params.InstanceHandle = InstanceHandle;
-			Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
-			Params.HierarchicalBias = 0;
-
-			RootInstance.Ledger.UpdateEntities(Linker, Params, RootComponentField, EntitiesScratch);
+			RootInstance.Ledger.UnlinkEverything(Linker);
 		}
-
-		// Update any one-shot entities for the current root frame
-		if (RootComponentField && RootComponentField->HasAnyOneShotEntities())
+		else
 		{
-			EntitiesScratch.Reset();
-			RootComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
-
-			if (EntitiesScratch.Num() != 0)
+			// Update entities if necessary
+			if (bGatherEntities)
 			{
+				CachedEntityRange = UpdateEntitiesForSequence(RootComponentField, RootTime, EntitiesScratch);
+
 				FEntityImportSequenceParams Params;
 				Params.InstanceHandle = InstanceHandle;
-				Params.DefaultCompletionMode = InPlayer->GetEvaluationTemplate().GetSequence(MovieSceneSequenceID::Root)->DefaultCompletionMode;
+				Params.DefaultCompletionMode = RootSequence->DefaultCompletionMode;
 				Params.HierarchicalBias = 0;
 
-				RootInstance.Ledger.UpdateOneShotEntities(Linker, Params, RootComponentField, EntitiesScratch);
+				RootInstance.Ledger.UpdateEntities(Linker, Params, RootComponentField, EntitiesScratch);
+			}
+
+			// Update any one-shot entities for the current root frame
+			if (RootComponentField && RootComponentField->HasAnyOneShotEntities())
+			{
+				EntitiesScratch.Reset();
+				RootComponentField->QueryOneShotEntities(Context.GetFrameNumberRange(), EntitiesScratch);
+
+				if (EntitiesScratch.Num() != 0)
+				{
+					FEntityImportSequenceParams Params;
+					Params.InstanceHandle = InstanceHandle;
+					Params.DefaultCompletionMode = RootSequence->DefaultCompletionMode;
+					Params.HierarchicalBias = 0;
+
+					RootInstance.Ledger.UpdateOneShotEntities(Linker, Params, RootComponentField, EntitiesScratch);
+				}
 			}
 		}
 	}
@@ -445,7 +459,17 @@ void FSequenceUpdater_Hierarchical::Update(UMovieSceneEntitySystemLinker* Linker
 			const FMovieSceneSubSequenceData* SubData = Hierarchy->FindSubData(Entry.SequenceID);
 			checkf(SubData, TEXT("Sub data does not exist for a SequenceID that exists in the hierarchical tree - this indicates a corrupt compilation product."));
 
-			if (UMovieSceneSequence* SubSequence = SubData->GetSequence())
+			UMovieSceneSequence* SubSequence = SubData->GetSequence();
+			if (SubSequence == nullptr)
+			{
+				FInstanceHandle SubSequenceHandle = SequenceInstances.FindRef(Entry.SequenceID);
+				if (SubSequenceHandle.IsValid())
+				{
+					FSequenceInstance& SubSequenceInstance = InstanceRegistry->MutateInstance(SubSequenceHandle);
+					SubSequenceInstance.Ledger.UnlinkEverything(Linker);
+				}
+			}
+			else
 			{
 				FMovieSceneCompiledDataID SubDataID = CompiledDataManager->GetDataID(SubSequence);
 
