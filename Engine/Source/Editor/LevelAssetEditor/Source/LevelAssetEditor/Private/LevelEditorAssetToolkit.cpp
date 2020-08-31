@@ -3,14 +3,12 @@
 #include "LevelAssetEditorToolkit.h"
 
 #include "AssetEditorModeManager.h"
-#include "GizmoEdMode.h"
 #include "Tools/UAssetEditor.h"
 #include "LevelAssetEditorViewportClient.h"
 #include "InteractiveToolsContext.h"
 #include "LevelEditorToolsContextInterfaces.h"
 #include "LevelAssetEditorViewport.h"
 #include "Viewports.h"
-#include "GizmoEdMode.h"
 #include "EditorModeManager.h"
 
 FLevelEditorAssetToolkit::FLevelEditorAssetToolkit(UAssetEditor* InOwningAssetEditor, UInteractiveToolsContext* InContext)
@@ -51,5 +49,4 @@ TSharedPtr<FEditorViewportClient> FLevelEditorAssetToolkit::CreateEditorViewport
 
 void FLevelEditorAssetToolkit::PostInitAssetEditor()
 {
-	GetEditorModeManager().ActivateMode(GetDefault<UGizmoEdMode>()->GetID());
 }

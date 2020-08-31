@@ -27,7 +27,6 @@ public class LevelAssetEditor : ModuleRules
 			{
 				"Core",
 				"InteractiveToolsFramework",
-				"EditorInteractiveToolsFramework",
 				"ToolMenus"
 				// ... add other public dependencies that you statically link with here ...
 			}
@@ -47,7 +46,6 @@ public class LevelAssetEditor : ModuleRules
 				"Slate",
 				"SlateCore",
 				"EditorStyle",
-				"GizmoEdMode"
 				// ... add private dependencies that you statically link with here ...	
 			}
 			);
