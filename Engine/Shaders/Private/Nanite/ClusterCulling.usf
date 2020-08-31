@@ -491,23 +491,24 @@ void PersistentHierarchicalCull(
 					}
 				}
 			}
-#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-			else
-			{
-				if( GroupOccludedBitmask[0] | GroupOccludedBitmask[1] )
-				{
-					FVisibleNode Node;
-					Node.Flags = VisibleNode.Flags & ~CULLING_FLAG_TEST_LOD;
-					Node.ViewId = VisibleNode.ViewId;
-					Node.InstanceId = VisibleNode.InstanceId;
-					Node.NodeIndex = VisibleNode.NodeIndex;
-					Node.EnabledBitmask[ 0 ] = GroupOccludedBitmask[ 0 ];
-					Node.EnabledBitmask[ 1 ] = GroupOccludedBitmask[ 1 ];
-					StoreVisibleNode( OutOccludedNodes, GroupOccludedNodesOffset, Node, true );
-				}
-			}
-#endif
 		}
+
+#if CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
+		if( GroupIndex == 0 )
+		{
+			if( GroupOccludedBitmask[0] | GroupOccludedBitmask[1] )
+			{
+				FVisibleNode Node;
+				Node.Flags = VisibleNode.Flags & ~CULLING_FLAG_TEST_LOD;
+				Node.ViewId = VisibleNode.ViewId;
+				Node.InstanceId = VisibleNode.InstanceId;
+				Node.NodeIndex = VisibleNode.NodeIndex;
+				Node.EnabledBitmask[ 0 ] = GroupOccludedBitmask[ 0 ];
+				Node.EnabledBitmask[ 1 ] = GroupOccludedBitmask[ 1 ];
+				StoreVisibleNode( OutOccludedNodes, GroupOccludedNodesOffset, Node, true );
+			}
+		}
+#endif
 		
 		MarkVisibleNodeAsClear( InOutCandidateNodes, CandidateIndex, bIsPostPass );	// clear processed element so we leave the buffer cleared for next pass.
 	}
