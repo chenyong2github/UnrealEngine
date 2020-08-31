@@ -2379,7 +2379,7 @@ int32 UMaterialExpressionRuntimeVirtualTextureSample::Compile(class FMaterialCom
 			SAMPLERTYPE_VirtualMasks,
 			MipValueIndex, INDEX_NONE, TextureMipLevelMode, SSM_Wrap_WorldGroupSettings,
 			TextureReferenceIndex[TexureLayerIndex],
-			false);
+			true);
 	}
 
 	// Compile any unpacking code
