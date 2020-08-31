@@ -562,32 +562,141 @@ FString FBlueprintCompilerCppBackend::EmitSwitchValueStatmentInner(FEmitterLocal
 
 struct FCastWildCard
 {
-	TArray<FString> TypeDependentPinNames;
-	int32 ArrayParamIndex = -1;
+	// Type-dependent parameter info.
+	struct FTypeDependentParamInfo
+	{
+		FString PropertyName;
+		uint8 bIsValueTypeDependency : 1;
+
+		FTypeDependentParamInfo() : bIsValueTypeDependency(0) {}
+	};
+
+	// Captures all type-dependent parameter info for a single function call.
+	struct FFunctionParamTypeDependencyInfo
+	{
+		int32 ParamIndex;
+		TArray<FTypeDependentParamInfo> TypeDependentParams;
+
+		FFunctionParamTypeDependencyInfo() : ParamIndex(INDEX_NONE) {}
+	};
+
+	TArray<FFunctionParamTypeDependencyInfo> FunctionParamTypeDependencies;
 	const FBlueprintCompiledStatement& Statement;
 
-	FCastWildCard(const FBlueprintCompiledStatement& InStatement) : ArrayParamIndex(-1), Statement(InStatement)
+	FCastWildCard(const FBlueprintCompiledStatement& InStatement) : Statement(InStatement)
 	{
-		const FString& DependentPinMetaData = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_ArrayDependentParam);
-		DependentPinMetaData.ParseIntoArray(TypeDependentPinNames, TEXT(","), true);
-
-		const FString& ArrayPointerMetaData = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_ArrayParam);
-		TArray<FString> ArrayPinComboNames;
-		ArrayPointerMetaData.ParseIntoArray(ArrayPinComboNames, TEXT(","), true);
-
-		int32 LocNumParams = 0;
-		if (ArrayPinComboNames.Num() == 1)
+		// Determine the index of the given parameter property within the function's overall parameter list.
+		auto GetParamPropertyIndexLambda = [&Statement = this->Statement](const FString& InPropertyName) -> int32
 		{
-			for (TFieldIterator<FProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
+			int32 LocParamIndex = 0;
+			for (TFieldIterator<FProperty> PropIt(Statement.FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt, ++LocParamIndex)
 			{
-				if (!PropIt->HasAnyPropertyFlags(CPF_ReturnParm))
+				// Skip the return param as it's not included as a type-dependent parameter by name.
+				if (PropIt->HasAnyPropertyFlags(CPF_ReturnParm))
 				{
-					if (PropIt->GetName() == ArrayPinComboNames[0])
+					continue;
+				}
+
+				if (PropIt->GetName() == InPropertyName)
+				{
+					return LocParamIndex;
+				}
+			}
+
+			return INDEX_NONE;
+		};
+
+		// Map container param types (only one param per function call)
+		const FString& MapParamPropertyName = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_MapParam);
+		if (!MapParamPropertyName.IsEmpty())
+		{
+			FFunctionParamTypeDependencyInfo MapParamTypeDependency;
+			MapParamTypeDependency.ParamIndex = GetParamPropertyIndexLambda(MapParamPropertyName);
+
+			const FString& MapKeyParamName = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_MapKeyParam);
+			if (!MapKeyParamName.IsEmpty())
+			{
+				FTypeDependentParamInfo TypeDependentMapKeyParamInfo;
+				TypeDependentMapKeyParamInfo.PropertyName = MapKeyParamName;
+				MapParamTypeDependency.TypeDependentParams.Add(MoveTemp(TypeDependentMapKeyParamInfo));
+			}
+
+			const FString& MapValueParamName = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_MapValueParam);
+			if (!MapValueParamName.IsEmpty())
+			{
+				FTypeDependentParamInfo TypeDependentMapValueParam;
+				TypeDependentMapValueParam.PropertyName = MapValueParamName;
+				TypeDependentMapValueParam.bIsValueTypeDependency = 1;
+				MapParamTypeDependency.TypeDependentParams.Add(MoveTemp(TypeDependentMapValueParam));
+			}
+
+			FunctionParamTypeDependencies.Add(MoveTemp(MapParamTypeDependency));
+		}
+
+		// Set container param types
+		const FString& SetParamMetadata = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_SetParam);
+		if (!SetParamMetadata.IsEmpty())
+		{
+			TArray<FString> SetTypeDependencyParamGroups;
+			SetParamMetadata.ParseIntoArray(SetTypeDependencyParamGroups, TEXT(","), true);
+
+			for (const FString& SetTypeDependencyParamGroup : SetTypeDependencyParamGroups)
+			{
+				// Actual set param name is the first entry, followed by dependent param names, each delimited by '|'
+				TArray<FString> SetTypeDependencyParamPropertyNames;
+				SetTypeDependencyParamGroup.ParseIntoArray(SetTypeDependencyParamPropertyNames, TEXT("|"), true);
+
+				if (SetTypeDependencyParamPropertyNames.Num() > 0)
+				{
+					FFunctionParamTypeDependencyInfo SetParamTypeDependency;
+					SetParamTypeDependency.ParamIndex = GetParamPropertyIndexLambda(SetTypeDependencyParamPropertyNames[0]);
+
+					for (int i = 1; i < SetTypeDependencyParamPropertyNames.Num(); ++i)
 					{
-						ArrayParamIndex = LocNumParams;
-						break;
+						FTypeDependentParamInfo TypeDependentSetValueParam;
+						TypeDependentSetValueParam.PropertyName = SetTypeDependencyParamPropertyNames[i];
+						SetParamTypeDependency.TypeDependentParams.Add(MoveTemp(TypeDependentSetValueParam));
 					}
-					LocNumParams++;
+
+					FunctionParamTypeDependencies.Add(MoveTemp(SetParamTypeDependency));
+				}
+			}
+		}
+
+		// Array container param types
+		const FString& ArrayParamMetadata = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_ArrayParam);
+		if (!ArrayParamMetadata.IsEmpty())
+		{
+			TArray<FString> ArrayTypeDependencyComboNames;
+			ArrayParamMetadata.ParseIntoArray(ArrayTypeDependencyComboNames, TEXT(","), true);
+
+			for (const FString& ArrayTypeDependencyComboName : ArrayTypeDependencyComboNames)
+			{
+				// This might be legacy formatting, but it follows the convention used in FKismetCompilerUtilities::IsTypeCompatibleWithProperty() and elsewhere.
+				TArray<FString> ArrayTypeDependencyParamPropertyNames;
+				ArrayTypeDependencyComboName.ParseIntoArray(ArrayTypeDependencyParamPropertyNames, TEXT("|"), true);
+
+				if (ArrayTypeDependencyParamPropertyNames.Num() > 0)
+				{
+					// The first string represents the parameter on which the remaining parameters will be type-dependent.
+					FFunctionParamTypeDependencyInfo ArrayParamTypeDependency;
+					ArrayParamTypeDependency.ParamIndex = GetParamPropertyIndexLambda(ArrayTypeDependencyParamPropertyNames[0]);
+
+					const FString& ArrayTypeDependentParamMetadata = Statement.FunctionToCall->GetMetaData(FBlueprintMetadata::MD_ArrayDependentParam);
+					if (!ArrayTypeDependentParamMetadata.IsEmpty())
+					{
+						TArray<FString> ArrayTypeDependentParamPropertyNames;
+						ArrayTypeDependentParamMetadata.ParseIntoArray(ArrayTypeDependentParamPropertyNames, TEXT(","), true);
+
+						for (const FString& ArrayTypeDependentParamPropertyName : ArrayTypeDependentParamPropertyNames)
+						{
+							FTypeDependentParamInfo TypeDependentArrayValueParam;
+							TypeDependentArrayValueParam.PropertyName = ArrayTypeDependentParamPropertyName;
+							ArrayParamTypeDependency.TypeDependentParams.Add(MoveTemp(TypeDependentArrayValueParam));
+						}
+					}
+
+					FunctionParamTypeDependencies.Add(MoveTemp(ArrayParamTypeDependency));
 				}
 			}
 		}
@@ -596,17 +705,37 @@ struct FCastWildCard
 	bool FillWildcardType(const FProperty* FuncParamProperty, FEdGraphPinType& LType)
 	{
 		if ((FuncParamProperty->HasAnyPropertyFlags(CPF_ConstParm) || !FuncParamProperty->HasAnyPropertyFlags(CPF_OutParm)) // it's pointless(?) and unsafe(?) to cast Output parameter
-			&& (ArrayParamIndex >= 0)
-			&& ((LType.PinCategory == UEdGraphSchema_K2::PC_Wildcard) || (LType.PinCategory == UEdGraphSchema_K2::PC_Int))
-			&& TypeDependentPinNames.Contains(FuncParamProperty->GetName()))
+			&& ((LType.PinCategory == UEdGraphSchema_K2::PC_Wildcard) || (LType.PinCategory == UEdGraphSchema_K2::PC_Int)))
 		{
-			FBPTerminal* ArrayTerm = Statement.RHS[ArrayParamIndex];
-			check(ArrayTerm);
-			LType.PinCategory = ArrayTerm->Type.PinCategory;
-			LType.PinSubCategory = ArrayTerm->Type.PinSubCategory;
-			LType.PinSubCategoryObject = ArrayTerm->Type.PinSubCategoryObject;
-			LType.PinSubCategoryMemberReference = ArrayTerm->Type.PinSubCategoryMemberReference;
-			return true;
+			for (const FFunctionParamTypeDependencyInfo& FunctionParamTypeDependency : FunctionParamTypeDependencies)
+			{
+				const FTypeDependentParamInfo* TypeDependentParam = FunctionParamTypeDependency.TypeDependentParams.FindByPredicate([FuncParamProperty](const FTypeDependentParamInfo& InParam)
+				{
+					return InParam.PropertyName == FuncParamProperty->GetName();
+				});
+
+				if (TypeDependentParam)
+				{
+					FBPTerminal* TypeDependentTerm = Statement.RHS[FunctionParamTypeDependency.ParamIndex];
+					check(TypeDependentTerm);
+
+					if (TypeDependentParam->bIsValueTypeDependency)
+					{
+						LType.PinCategory = TypeDependentTerm->Type.PinValueType.TerminalCategory;
+						LType.PinSubCategory = TypeDependentTerm->Type.PinValueType.TerminalSubCategory;
+						LType.PinSubCategoryObject = TypeDependentTerm->Type.PinValueType.TerminalSubCategoryObject;
+					}
+					else
+					{
+						LType.PinCategory = TypeDependentTerm->Type.PinCategory;
+						LType.PinSubCategory = TypeDependentTerm->Type.PinSubCategory;
+						LType.PinSubCategoryObject = TypeDependentTerm->Type.PinSubCategoryObject;
+						LType.PinSubCategoryMemberReference = TypeDependentTerm->Type.PinSubCategoryMemberReference;
+					}
+					
+					return true;
+				}
+			}
 		}
 		return false;
 	}
