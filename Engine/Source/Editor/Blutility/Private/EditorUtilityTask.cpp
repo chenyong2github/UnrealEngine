@@ -5,6 +5,7 @@
 #include "Editor.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "EditorUtilityCommon.h"
 
 //////////////////////////////////////////////////////////////////////
 
@@ -64,6 +65,8 @@ void UEditorUtilityTask::CreateNotification()
 
 void UEditorUtilityTask::SetTaskNotificationText(const FText& Text)
 {
+	UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("%s: %s"), *GetPathNameSafe(this), *Text.ToString());
+
 	if (TaskNotification.IsValid())
 	{
 		TaskNotification->SetProgressText(Text);
