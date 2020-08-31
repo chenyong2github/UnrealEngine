@@ -79,7 +79,6 @@ UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 , bBakeOutRapidIterationOnCook(true)
-, bUseShaderPermutations(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
 #endif

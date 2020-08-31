@@ -181,7 +181,6 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
 		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
-		bUseShaderPermutations != ReferenceSet.bUseShaderPermutations ||
 		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
 		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
 	{
@@ -259,15 +258,6 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 	else
 	{
 		KeyString += TEXT("NORI") + Delimiter;
-	}
-
-	if (bUseShaderPermutations)
-	{
-		KeyString += TEXT("USEPERM_");
-	}
-	else
-	{
-		KeyString += TEXT("NOPERM_");
 	}
 
 	for (int32 Idx = 0; Idx < AdditionalDefines.Num(); Idx++)
@@ -359,7 +349,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
-	Id.bUseShaderPermutations = true;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
 	
@@ -375,10 +364,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			if (EmitterOwner->bBakeOutRapidIteration)
 			{
 				Id.bUsesRapidIterationParams = false;
-			}
-			if (!EmitterOwner->bUseShaderPermutations)
-			{
-				Id.bUseShaderPermutations = false;
 			}
 			if (EmitterOwner->bCompressAttributes)
 			{
@@ -516,10 +501,6 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		if (System->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = false;
-		}
-		if (!System->bUseShaderPermutations)
-		{
-			Id.bUseShaderPermutations = false;
 		}
 		if (System->bCompressAttributes)
 		{
@@ -2017,7 +1998,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 
 			NewResource->SetScript(this, TargetFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.bUseShaderPermutations, GetFriendlyName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -2086,7 +2067,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			ScriptResource->SetScript(this, CacheFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.bUseShaderPermutations, GetFriendlyName());
+				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
 
 			if (FNiagaraUtilities::SupportsGPUParticles(ShaderPlatform))
 			{

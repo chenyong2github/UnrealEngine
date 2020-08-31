@@ -236,9 +236,6 @@ public:
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	LAYOUT_FIELD_INITIALIZED(bool, bUsesRapidIterationParams, true);
 
-	/** Should we use shader permutations to reduce the cost of simulation stages or not */
-	LAYOUT_FIELD_INITIALIZED(bool, bUseShaderPermutations, true);
-
 	FNiagaraShaderMapId()
 		: CompilerVersionID()
 		, FeatureLevel(GMaxRHIFeatureLevel)
@@ -615,8 +612,9 @@ public:
 	NIAGARASHADER_API  bool CacheShaders(bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false, const ITargetPlatform* TargetPlatform = nullptr);
 	bool CacheShaders(const FNiagaraShaderMapId& ShaderMapId, bool bApplyCompletedShaderMapForRendering, bool bForceRecompile, bool bSynchronous = false);
 
+	NIAGARASHADER_API bool GetUsesSimulationStages() const;
+	NIAGARASHADER_API bool GetUsesOldShaderStages() const;
 
-	NIAGARASHADER_API uint32 GetUseSimStagesDefine() const;
 	/**
 	 * Should the shader for this script with the given platform, shader type and vertex
 	 * factory type combination be compiled
@@ -730,7 +728,7 @@ public:
 
 	NIAGARASHADER_API void SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
-		bool bInUsesRapidIterationParams, bool bInUseShaderPermutations, FString InFriendlyName);
+		bool bInUsesRapidIterationParams, FString InFriendlyName);
 #if WITH_EDITOR
 	NIAGARASHADER_API bool MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FNiagaraVMExecutableDataId& ScriptId) const;
 #endif
@@ -766,7 +764,6 @@ public:
 
 	bool IsSame(const FNiagaraShaderMapId& InId) const;
 
-	bool GetUseShaderPermutations() const { return bUseShaderPermutations; }
 	NIAGARASHADER_API int32 GetNumPermutations() const { return NumPermutations; }
 	NIAGARASHADER_API int32 PermutationIdToShaderStageIndex(int32 PermutationId) const;
 
@@ -828,9 +825,6 @@ private:
 
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	bool bUsesRapidIterationParams = true;
-
-	/** Should we use shader permutations to reduce the cost of simulation stages or not */
-	bool bUseShaderPermutations = true;
 
 	/** Compile hash for the base script. */
 	FNiagaraCompileHash BaseCompileHash;
