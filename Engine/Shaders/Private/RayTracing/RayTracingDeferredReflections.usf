@@ -49,6 +49,7 @@
 uint2 RayTracingResolution;
 uint2 TileAlignedResolution;
 float ReflectionMaxNormalBias;
+float ReflectionSmoothBias;
 float ReflectionMaxRoughness;
 float AnyHitMaxRoughness;
 int   GlossyReflections;
@@ -87,7 +88,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 		const uint2 TileBasePixelPos = uint2(TileIndex % NumTiles.x, TileIndex / NumTiles.x) * TileSize;
 		const uint2 PixelPos         = TileBasePixelPos + uint2(RayIndexInTile % TileSize.x, RayIndexInTile / TileSize.x);
 
-		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, GlossyReflections==1);
+		ReflectionRay = GenerateDeferredReflectionRay(PixelPos, ReflectionMaxNormalBias, ReflectionSmoothBias, GlossyReflections==1);
 		RayBuffer[DispatchThreadId] = ReflectionRay; // Store the ray to be used in shading phase
 	}	
 	#else

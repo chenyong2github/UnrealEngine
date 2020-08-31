@@ -29,7 +29,21 @@ uint2 UnpackPixelCoordinates(uint PixelCoordinates)
 		PixelCoordinates >> 16);
 }
 
-FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float ReflectionMaxNormalBias, bool bGlossyReflections)
+float ApplySmoothBias(float Roughness, float SmoothBias)
+{
+	if (SmoothBias > 0)
+	{
+		// SmoothStep-like function up to SmoothBias, original value above
+		float X = saturate(Roughness / SmoothBias);
+		return Roughness * X * X * (3.0 - 2.0 * X);
+	}
+	else
+	{
+		return Roughness;
+	}
+}
+
+FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float ReflectionMaxNormalBias, float SmoothBias, bool bGlossyReflections)
 {
 	const float2 UV              = (float2(PixelPos.xy) + 0.5) * View.BufferSizeAndInvSize.zw;
 
@@ -81,7 +95,10 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 
 	if (bGlossyReflections)
 	{
-		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(GBuffer.Roughness), TangentV).xyz, TangentBasis);
+		// Biased roughness is used for GGX sampling, but original value is still used to compute roughness threshold / fade.
+		// This means that biased roughness will never cause more rays to be traced, so will never cause performance drop.
+		float Roughness = ApplySmoothBias(GBuffer.Roughness, SmoothBias);
+		float3 H = mul(ImportanceSampleVisibleGGX(UniformSampleDisk(E), Pow4(Roughness), TangentV).xyz, TangentBasis);
 		L = 2 * dot(V, H) * H - V;
 	}
 	else
