@@ -9,14 +9,16 @@
 
 AInstancedObjectsActor::AInstancedObjectsActor(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+#if WITH_EDITORONLY_DATA
 	, GridSize(0)
+#endif
 {
 	USceneComponent* SceneComponent = CreateDefaultSubobject<USceneComponent>(TEXT("RootComponent0"));
 	RootComponent = SceneComponent;
 	RootComponent->Mobility = EComponentMobility::Static;
 }
 
-#if WITH_EDITOR	
+#if WITH_EDITOR
 void AInstancedObjectsActor::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 {
 	Super::GetAssetRegistryTags(OutTags);
