@@ -114,6 +114,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 			uint32 CompressTextures : 1;
 			uint32 SinglePhysicalSpace : 1;
 			uint32 EnableCompressCrunch : 1;
+			uint32 ContinuousUpdate : 1;
 		};
 	};
 
@@ -125,6 +126,7 @@ uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() 
 	Settings.StreamLowMips = (uint32)StreamLowMips;
 	Settings.LODGroup = (uint32)VirtualTexture->GetLODGroup();
 	Settings.CompressTextures = (uint32)VirtualTexture->GetCompressTextures();
+	Settings.ContinuousUpdate = (uint32)VirtualTexture->GetContinuousUpdate();
 	Settings.SinglePhysicalSpace = (uint32)VirtualTexture->GetSinglePhysicalSpace();
 	Settings.EnableCompressCrunch = (uint32)bEnableCompressCrunch;
 
@@ -159,6 +161,7 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 		VirtualTexture->Release();
 
 		FVirtualTextureBuildDesc BuildDesc;
+		BuildDesc.bContinuousUpdate = VirtualTexture->GetContinuousUpdate();
 		BuildDesc.bSinglePhysicalSpace = VirtualTexture->GetSinglePhysicalSpace();
 
 		BuildDesc.TileSize = VirtualTexture->GetTileSize();

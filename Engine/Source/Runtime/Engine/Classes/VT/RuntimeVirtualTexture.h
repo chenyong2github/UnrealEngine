@@ -106,6 +106,8 @@ public:
 	bool GetCompressTextures() const { return bCompressTextures; }
 	/** Public getter for virtual texture removed low mips */
 	int32 GetRemoveLowMips() const { return FMath::Clamp(RemoveLowMips, 0, 5); }
+	/** Public getter for virtual texture using continuous update flag. */
+	bool GetContinuousUpdate() const { return bContinuousUpdate; }
 	/** Public getter for virtual texture using single physical space flag. */
 	bool GetSinglePhysicalSpace() const { return bSinglePhysicalSpace; }
 
