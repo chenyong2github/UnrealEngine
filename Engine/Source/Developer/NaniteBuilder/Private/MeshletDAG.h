@@ -11,13 +11,15 @@ namespace Nanite
 class FMeshletDAG
 {
 public:
-	FMeshletDAG( TArray< FMeshlet >& InMeshlets, TArray< FTriCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups, float* InUVWeights, FMeshlet& CoarseRepresentation );
+	FMeshletDAG( TArray< FMeshlet >& InMeshlets, TArray< FTriCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups );
 	
 	void		Reduce( const FMeshNaniteSettings& Settings );
 	
 	uint32		NumVerts = 0;
 	uint32		NumIndexes = 0;
 	FBounds		MeshBounds;
+
+	TArray< int32 >		MipEnds;
 
 private:
 	void		CompleteMeshlet( uint32 Index );
@@ -26,13 +28,9 @@ private:
 	TArray< FMeshlet >&			Meshlets;
 	TArray< FTriCluster >&		Clusters;
 	TArray< FClusterGroup >&	ClusterGroups;
-	FMeshlet&					CoarseRepresentation;
 
 	TAtomic< uint32 >	NumMeshlets;
 	uint32				NumExternalEdges = 0;
-
-	float		PositionScale;
-	float*		UVWeights;
 };
 
 } // namespace Nanite

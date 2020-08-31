@@ -25,7 +25,7 @@ public:
 	FMeshlet( FMeshlet& SrcMeshlet, uint32 TriBegin, uint32 TriEnd, const TArray< uint32 >& TriIndexes );
 	FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList );
 
-	float	Simplify( uint32 NumTris, float Scale, float* UVWeights );
+	float	Simplify( uint32 NumTris );
 	void	Split( FGraphPartitioner& Partitioner ) const;
 
 private:

@@ -93,12 +93,6 @@ class UHierarchicalInstancedStaticMeshComponent;
 namespace Nanite
 {
 
-struct FTreeNode
-{
-	int32	Parent;
-	int32	Child[2];
-};
-
 struct FUVRange
 {
 	FVector2D	Min;
@@ -140,11 +134,6 @@ struct FTriCluster
 	uint32			NumVerts;
 	uint32			NumTris;
 	uint32			QuantizedPosShift;
-
-	FVector			ConeAxis;
-	float			ConeCosAngle;
-
-	FVector2D		ConeStart;
 
 	float			EdgeLength;
 	float			LODError;

@@ -44,14 +44,6 @@ namespace Nanite
 
 static_assert(sizeof(FPackedTriCluster) == NUM_PACKED_CLUSTER_FLOAT4S * 16, "NUM_PACKED_CLUSTER_FLOAT4S out of sync with sizeof(FPackedTriCluster)");
 
-FArchive& operator<<( FArchive& Ar, FTreeNode& Node )
-{
-	Ar << Node.Parent;
-	Ar << Node.Child[0];
-	Ar << Node.Child[1];
-	return Ar;
-}
-
 FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode& Node)
 {
 	for (uint32 i = 0; i < 64; i++)

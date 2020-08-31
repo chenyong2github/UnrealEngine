@@ -579,7 +579,7 @@ TArray<Nanite::FResources>& UGeometryCollection::CreateNaniteData(FGeometryColle
 		NaniteSettings.bEnabled = true;
 		NaniteSettings.PercentTriangles = 1.0f; // 100% - no reduction
 
-		if (!NaniteBuilderModule.Build(NaniteResource, BuildVertices, BuildIndices, MaterialIndices, NumTexCoords, bHasColors, NaniteSettings))
+		if (!NaniteBuilderModule.Build(NaniteResource, BuildVertices, BuildIndices, MaterialIndices, NumTexCoords, NaniteSettings))
 		{
 			UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for geometry collection. See previous line(s) for details."));
 		}

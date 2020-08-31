@@ -9,66 +9,27 @@
 namespace Nanite
 {
 
-FMeshletDAG::FMeshletDAG( TArray< FMeshlet >& InMeshlets, TArray< FTriCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups, float* InUVWeights, FMeshlet& InCoarseRepresentation)
+FMeshletDAG::FMeshletDAG( TArray< FMeshlet >& InMeshlets, TArray< FTriCluster >& InClusters, TArray< FClusterGroup >& InClusterGroups )
 	: Meshlets( InMeshlets )
 	, Clusters( InClusters )
 	, ClusterGroups( InClusterGroups )
-	, CoarseRepresentation( InCoarseRepresentation )
 	, NumMeshlets( Meshlets.Num() )
-	, UVWeights( InUVWeights )
 {
 	for( int i = 0; i < Meshlets.Num(); i++ )
 	{
 		CompleteMeshlet(i);
 	}
-
-	float MeshSize = ( MeshBounds.Max - MeshBounds.Min ).Size();
-	MeshSize = FMath::Max( MeshSize, THRESH_POINTS_ARE_SAME );
-
-	FFloat32 CurrentSize( MeshSize );
-	FFloat32 DesiredSize( 128.0f );
-	FFloat32 Scale( 1.0f );
-
-	// Lossless scaling by only changing the float exponent.
-	int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
-	Scale.Components.Exponent = Exponent + 127;	//ExpBias
-	PositionScale = Scale.FloatValue;
-
-	UE_LOG( LogStaticMesh, Log, TEXT("MeshSize: %f, Scale: %f"), MeshSize, PositionScale );
 }
 
 void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 {
 	int32 LevelOffset = 0;
 
-	bool bCaptureCoarseClusters = false;
-
-	const int32 MinTriCount = 8000; // Temporary fix: make sure that resulting mesh is detailed enough for SDF and bounds computation
-	const int32 TotalTriCount = Meshlets.Num() * FMeshlet::ClusterSize;
-	const int32 CoarseTriCount = FMath::Max(MinTriCount, int32((float(TotalTriCount) * Settings.PercentTriangles)));
-
-	bool bCoarseCreated = false;
-
 	while( true )
 	{
+		MipEnds.Add( Meshlets.Num() );
+
 		TArrayView< FMeshlet > LevelMeshlets( &Meshlets[ LevelOffset ], Meshlets.Num() - LevelOffset );
-
-		const int32 IterationTriCount = LevelMeshlets.Num() * FMeshlet::ClusterSize;
-		if (!bCoarseCreated && (IterationTriCount <= CoarseTriCount || LevelMeshlets.Num() < 2))
-		{
-			UE_LOG(LogStaticMesh, Log, TEXT("Creating coarse representation of %d triangles, percentage %.1f%%"), IterationTriCount, Settings.PercentTriangles * 100.0f);
-
-			TArray< FMeshlet*, TInlineAllocator<16> > CoarseMeshlets;
-			CoarseMeshlets.AddUninitialized( LevelMeshlets.Num() );
-			for( int32 i = 0; i < LevelMeshlets.Num(); i++ )
-			{
-				CoarseMeshlets[i] = &LevelMeshlets[i];
-			}
-
-			// Merge all the selected coarse meshlets into a single coarse representation of the mesh.
-			CoarseRepresentation = FMeshlet(CoarseMeshlets);
-			bCoarseCreated = true;
-		}
 
 		if( LevelMeshlets.Num() < 2 )
 			break;
@@ -162,8 +123,12 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 				}
 				NumAdjacency += Meshlet.AdjacentMeshlets.Num();
 
-				// Force deterministic order of adjacency. Not sure if this matters to partitioner.
-				Meshlet.AdjacentMeshlets.KeySort( TLess< uint32 >() );
+				// Force deterministic order of adjacency.
+				Meshlet.AdjacentMeshlets.KeySort(
+					[ &LevelMeshlets ]( uint32 A, uint32 B )
+					{
+						return LevelMeshlets[A].GUID < LevelMeshlets[B].GUID;
+					} );
 			} );
 
 		FDisjointSet DisjointSet( LevelMeshlets.Num() );
@@ -221,7 +186,7 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 				const auto& Cluster0 = Clusters[ LevelOffset + MeshletIndex ];
 				const auto& Cluster1 = Clusters[ LevelOffset + OtherMeshletIndex ];
 
-				bool bSiblings = Cluster0.ClusterGroupIndex == Cluster1.ClusterGroupIndex;
+				bool bSiblings = Cluster0.ClusterGroupIndex != MAX_uint32 && Cluster0.ClusterGroupIndex == Cluster1.ClusterGroupIndex;
 
 				Partitioner.AddAdjacency( Graph, OtherMeshletIndex, NumSharedEdges * ( bSiblings ? 1 : 16 ) + 4 );
 			}
@@ -230,8 +195,14 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 		}
 		Graph->AdjacencyOffset[ Graph->Num ] = Graph->Adjacency.Num();
 
+		//UE_LOG( LogStaticMesh, Log, TEXT("Adjacency CRC %u"), FCrc::MemCrc32( Graph->Adjacency.GetData(), Graph->Adjacency.Num() * Graph->Adjacency.GetTypeSize() ) );
+		//UE_LOG( LogStaticMesh, Log, TEXT("AdjacencyCost CRC %u"), FCrc::MemCrc32( Graph->AdjacencyCost.GetData(), Graph->AdjacencyCost.Num() * Graph->AdjacencyCost.GetTypeSize() ) );
+		//UE_LOG( LogStaticMesh, Log, TEXT("AdjacencyOffset CRC %u"), FCrc::MemCrc32( Graph->AdjacencyOffset.GetData(), Graph->AdjacencyOffset.Num() * Graph->AdjacencyOffset.GetTypeSize() ) );
+
 		Partitioner.PartitionStrict( Graph, 8, 32, true );
 		//Partitioner.Partition( Graph, 8, 32 );
+
+		//UE_LOG( LogStaticMesh, Log, TEXT("Partitioner.Ranges CRC %u"), FCrc::MemCrc32( Partitioner.Ranges.GetData(), Partitioner.Ranges.Num() * Partitioner.Ranges.GetTypeSize() ) );
 
 		uint32 MaxParents = 0;
 		for( auto& Range : Partitioner.Ranges )
@@ -272,9 +243,6 @@ void FMeshletDAG::Reduce( const FMeshNaniteSettings& Settings )
 			CompleteMeshlet(i);
 		}
 	}
-
-	// There should always be a coarse representation created at this point.
-	check(bCoarseCreated);
 	
 	// Max out root node
 	int32 RootIndex = Meshlets.Num() - 1;
@@ -321,7 +289,7 @@ void FMeshletDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		int32 TargetNumTris = NumParents * TargetClusterSize;
 
 		// Simplify
-		ParentMinLODError = ParentMaxLODError = Merged.Simplify( TargetNumTris, PositionScale, UVWeights );
+		ParentMinLODError = ParentMaxLODError = Merged.Simplify( TargetNumTris );
 
 		// Split
 		if( NumParents == 1 )

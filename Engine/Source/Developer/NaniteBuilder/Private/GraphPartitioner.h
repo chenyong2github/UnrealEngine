@@ -41,7 +41,7 @@ public:
 	void		AddLocalityLinks( FGraphData* Graph, uint32 Index, idx_t Cost );
 
 	template< typename FGetCenter >
-	void		BuildLocalityLinks( FDisjointSet& DisjointSet, FBounds& Bounds, FGetCenter& GetCenter );
+	void		BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds& Bounds, FGetCenter& GetCenter );
 
 	void		Partition( FGraphData* Graph, int32 InMinPartitionSize, int32 InMaxPartitionSize );
 	void		PartitionStrict( FGraphData* Graph, int32 InMinPartitionSize, int32 InMaxPartitionSize, bool bThreaded );
@@ -80,7 +80,7 @@ FORCEINLINE void FGraphPartitioner::AddLocalityLinks( FGraphData* Graph, uint32 
 }
 
 template< typename FGetCenter >
-void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, FBounds& Bounds, FGetCenter& GetCenter )
+void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, const FBounds& Bounds, FGetCenter& GetCenter )
 {
 	TArray< uint32 > SortKeys;
 	SortKeys.AddUninitialized( NumElements );
@@ -123,7 +123,7 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, FBounds& 
 	// Used for jumping past connected elements to the next nearby disjoint element.
 	{
 		uint32 RunIslandID = 0;
-		uint32 RunFirstTri = 0;
+		uint32 RunFirstElement = 0;
 
 		for( uint32 i = 0; i < NumElements; i++ )
 		{
@@ -132,20 +132,20 @@ void FGraphPartitioner::BuildLocalityLinks( FDisjointSet& DisjointSet, FBounds& 
 			if( RunIslandID != IslandID )
 			{
 				// We found the end so rewind to the beginning of the run and fill.
-				for( uint32 j = RunFirstTri; j < i; j++ )
+				for( uint32 j = RunFirstElement; j < i; j++ )
 				{
 					IslandRuns[j].End = i - 1;
 				}
 			
 				// Start the next run
 				RunIslandID = IslandID;
-				RunFirstTri = i;
+				RunFirstElement = i;
 			}
 
-			IslandRuns[i].Begin = RunFirstTri;
+			IslandRuns[i].Begin = RunFirstElement;
 		}
 		// Finish the last run
-		for( uint32 j = RunFirstTri; j < NumElements; j++ )
+		for( uint32 j = RunFirstElement; j < NumElements; j++ )
 		{
 			IslandRuns[j].End = NumElements - 1;
 		}

@@ -48,7 +48,6 @@ public:
 		TArray<uint32>& TriangleIndices,
 		TArray<int32>& MaterialIndices,
 		uint32 NumTexCoords,
-		bool bHasColors,
 		const FMeshNaniteSettings& Settings)
 	{
 		return false;
@@ -60,7 +59,6 @@ public:
 		TArray<uint32>& TriangleIndices,
 		TArray<FStaticMeshSection, TInlineAllocator<1>>& Sections,
 		uint32 NumTexCoords,
-		bool bHasColors,
 		const FMeshNaniteSettings& Settings)
 	{
 		return false;

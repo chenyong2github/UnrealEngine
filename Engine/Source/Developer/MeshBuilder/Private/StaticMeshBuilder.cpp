@@ -278,9 +278,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 		//Build the vertex and index buffer
 		BuildVertexBuffer(StaticMesh, MeshDescriptions[LodIndex], LODBuildSettings, WedgeMap, StaticMeshLOD.Sections, PerSectionIndices, StaticMeshBuildVertices, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts);
 
-		FStaticMeshConstAttributes Attributes( MeshDescriptions[LodIndex] );
-		const uint32 NumTextureCoord = Attributes.GetVertexInstanceUVs().GetNumChannels();
-		const bool bHasColors = Attributes.GetVertexInstanceColors().IsValid();
+		const uint32 NumTextureCoord = MeshDescriptions[LodIndex].VertexInstanceAttributes().GetAttributesRef<FVector2D>( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
 
 		// Only the render data and vertex buffers will be used from now on unless we have more than one source models
 		// This will help with memory usage for Nanite Mesh by releasing memory before doing the build
@@ -330,7 +328,7 @@ bool FStaticMeshBuilder::Build(FStaticMeshRenderData& StaticMeshRenderData, USta
 			TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(TEXT("FStaticMeshBuilder::Build::Nanite"));
 
 			Nanite::IBuilderModule& NaniteBuilderModule = Nanite::IBuilderModule::Get();
-			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, StaticMeshBuildVertices, CombinedIndices, StaticMeshLOD.Sections, NumTextureCoord, bHasColors, NaniteSettings ) )
+			if( !NaniteBuilderModule.Build( StaticMeshRenderData.NaniteResources, StaticMeshBuildVertices, CombinedIndices, StaticMeshLOD.Sections, NumTextureCoord, NaniteSettings ) )
 			{
 				UE_LOG(LogStaticMesh, Error, TEXT("Failed to build Nanite for static mesh. See previous line(s) for details."));
 			}
@@ -426,7 +424,6 @@ bool FStaticMeshBuilder::Build(
 	BuildVertexBuffer( StaticMesh, MeshDescription, BuildSettings, WedgeMap, Sections, PerSectionIndices, Verts, MeshDescriptionHelper.GetOverlappingCorners(), RemapVerts );
 
 	NumTexCoords = MeshDescription.VertexInstanceAttributes().GetAttributesRef< FVector2D >( MeshAttribute::VertexInstance::TextureCoordinate ).GetNumChannels();
-	bHasColors = true;
 
 	// Concatenate the per-section index buffers.
 	for (int32 SectionIndex = 0; SectionIndex < Sections.Num(); SectionIndex++)
@@ -517,6 +514,7 @@ void BuildVertexBuffer(
 	TVertexInstanceAttributesConstRef<FVector2D> VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
 
 	const bool bHasColors = VertexInstanceColors.IsValid();
+	const bool bIgnoreTangents = StaticMesh->NaniteSettings.bEnabled;
 
 	const uint32 NumTextureCoord = VertexInstanceUVs.GetNumChannels();
 	const FMatrix ScaleMatrix = FScaleMatrix(BuildSettings.BuildScale3D).Inverse().GetTransposed();
@@ -587,8 +585,16 @@ void BuildVertexBuffer(
 			FStaticMeshBuildVertex StaticMeshVertex;
 
 			StaticMeshVertex.Position = VertexPosition * BuildSettings.BuildScale3D;
-			StaticMeshVertex.TangentX = ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
-			StaticMeshVertex.TangentY = ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent).GetSafeNormal() * VertexInstanceBinormalSign).GetSafeNormal();
+			if( bIgnoreTangents )
+			{
+				StaticMeshVertex.TangentX = FVector( 1.0f, 0.0f, 0.0f );
+				StaticMeshVertex.TangentY = FVector( 0.0f, 1.0f, 0.0f );
+			}
+			else
+			{
+				StaticMeshVertex.TangentX = ScaleMatrix.TransformVector(VertexInstanceTangent).GetSafeNormal();
+				StaticMeshVertex.TangentY = ScaleMatrix.TransformVector(FVector::CrossProduct(VertexInstanceNormal, VertexInstanceTangent) * VertexInstanceBinormalSign).GetSafeNormal();
+			}
 			StaticMeshVertex.TangentZ = ScaleMatrix.TransformVector(VertexInstanceNormal).GetSafeNormal();
 				
 			if (bHasColors)

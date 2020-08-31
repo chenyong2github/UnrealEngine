@@ -650,8 +650,6 @@ public:
 		return Declaration;
 	}
 
-	virtual bool IsGPUSkinned() const { return false; }
-
 	/** Indicates whether the vertex factory supports a position-only stream. */
 	virtual bool SupportsPositionOnlyStream() const { return !!PositionStream.Num(); }
 

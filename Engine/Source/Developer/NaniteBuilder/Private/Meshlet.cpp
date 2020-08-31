@@ -239,7 +239,7 @@ FMeshlet::FMeshlet( const TArray< FMeshlet*, TInlineAllocator<16> >& MergeList )
 	}
 }
 
-float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeights )
+float FMeshlet::Simplify( uint32 TargetNumTris )
 {
 	if( TargetNumTris * 3 >= (uint32)Indexes.Num() )
 	{
@@ -268,11 +268,10 @@ float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeig
 
 	for( uint32 UVIndex = 0; UVIndex < NumTexCoords; UVIndex++ )
 	{
-		UVWeights[ 2 * UVIndex + 0 ] = GlobalUVWeights[ UVIndex ];
-		UVWeights[ 2 * UVIndex + 1 ] = GlobalUVWeights[ UVIndex ];
+		UVWeights[ 2 * UVIndex + 0 ] = 1.0f / ( 1024.0f * NumTexCoords );
+		UVWeights[ 2 * UVIndex + 1 ] = 1.0f / ( 1024.0f * NumTexCoords );
 	}
 
-#if 1
 	float TriangleSize = FMath::Sqrt( SurfaceArea * 3.0f / Indexes.Num() );
 	
 	FFloat32 CurrentSize( FMath::Max( TriangleSize, THRESH_POINTS_ARE_SAME ) );
@@ -283,8 +282,7 @@ float FMeshlet::Simplify( uint32 TargetNumTris, float Scale, float* GlobalUVWeig
 	int32 Exponent = FMath::Clamp( (int)DesiredSize.Components.Exponent - (int)CurrentSize.Components.Exponent, -126, 127 );
 	FloatScale.Components.Exponent = Exponent + 127;	//ExpBias
 	// Scale ~= DesiredSize / CurrentSize
-	Scale = FloatScale.FloatValue;
-#endif
+	float Scale = FloatScale.FloatValue;
 
 	for( uint32 i = 0; i < NumVerts; i++ )
 	{
@@ -598,6 +596,7 @@ FTriCluster BuildCluster( const FMeshlet& Meshlet )
 	Cluster.LODError = 0.0f;
 	Cluster.BoxBounds[0] = Meshlet.Bounds.Min;
 	Cluster.BoxBounds[1] = Meshlet.Bounds.Max;
+	Cluster.ClusterGroupIndex = MAX_uint32;
 	Cluster.GroupPartIndex = MAX_uint32;
 	Cluster.GeneratingGroupIndex = MAX_uint32;
 	

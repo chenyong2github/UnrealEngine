@@ -1370,7 +1370,7 @@ void FVirtualTextureSystem::GatherRequestsTask(const FGatherRequestsParameters& 
 		const FAllocatedVirtualTexture* RESTRICT AllocatedVT = Space->GetAllocator().Find(vAddress, AllocatedLocal_vAddress);
 		if (!AllocatedVT)
 		{
-			if (CVarVTVerbose.GetValueOnRenderThread())
+			if (CVarVTVerbose.GetValueOnAnyThread())
 			{
 				UE_LOG(LogConsoleResponse, Display, TEXT("Space %i, vAddr %i@%i is not allocated to any AllocatedVT but was still requested."), ID, vAddress, vLevel);
 			}
