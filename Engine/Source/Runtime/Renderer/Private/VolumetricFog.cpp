@@ -441,21 +441,34 @@ void GetVolumeShadowingShaderParameters(
 	OutParameters.StaticShadowBufferSize = StaticShadowBufferSizeValue;
 }
 
-FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FLightSceneProxy* LightProxy, FVisibleLightInfo& VisibleLightInfo)
+const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(FVisibleLightInfo& VisibleLightInfo)
 {
-	for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
+	if (VisibleLightInfo.CompleteProjectedShadows.Num() > 0)
 	{
-		FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
+		const FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.CompleteProjectedShadows[0];
+		check(ProjectedShadowInfo->bWholeSceneShadow);
+		check(!ProjectedShadowInfo->bRayTracedDistanceField);
 
-		if (ProjectedShadowInfo->bAllocated
-			&& ProjectedShadowInfo->bWholeSceneShadow
-			&& !ProjectedShadowInfo->bRayTracedDistanceField)
+		if (ProjectedShadowInfo->bAllocated)
 		{
 			return ProjectedShadowInfo;
 		}
 	}
+	else
+	{
+		for (int32 ShadowIndex = 0; ShadowIndex < VisibleLightInfo.ShadowsToProject.Num(); ShadowIndex++)
+		{
+			FProjectedShadowInfo* ProjectedShadowInfo = VisibleLightInfo.ShadowsToProject[ShadowIndex];
 
-	return NULL;
+			if (ProjectedShadowInfo->bAllocated
+				&& ProjectedShadowInfo->bWholeSceneShadow
+				&& !ProjectedShadowInfo->bRayTracedDistanceField)
+			{
+				return ProjectedShadowInfo;
+			}
+		}
+	}
+	return nullptr;
 }
 
 bool LightNeedsSeparateInjectionIntoVolumetricFog(const FLightSceneInfo* LightSceneInfo, FVisibleLightInfo& VisibleLightInfo)
@@ -471,7 +484,7 @@ bool LightNeedsSeparateInjectionIntoVolumetricFog(const FLightSceneInfo* LightSc
 		const FStaticShadowDepthMap* StaticShadowDepthMap = LightProxy->GetStaticShadowDepthMap();
 		const bool bStaticallyShadowed = LightSceneInfo->IsPrecomputedLightingValid() && StaticShadowDepthMap && StaticShadowDepthMap->Data && StaticShadowDepthMap->TextureRHI;
 
-		return GetShadowForInjectionIntoVolumetricFog(LightProxy, VisibleLightInfo) != NULL || bStaticallyShadowed;
+		return GetShadowForInjectionIntoVolumetricFog(VisibleLightInfo) != NULL || bStaticallyShadowed;
 	}
 
 	return false;
@@ -621,7 +634,7 @@ void FDeferredShadingSceneRenderer::RenderLocalLightsForVolumetricFog(
 			for (int32 LightIndex = 0; LightIndex < LightsToInject.Num(); LightIndex++)
 			{
 				const FLightSceneInfo* LightSceneInfo = LightsToInject[LightIndex];
-				FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(LightSceneInfo->Proxy, VisibleLightInfos[LightSceneInfo->Id]);
+				const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfos[LightSceneInfo->Id]);
 
 				const bool bInverseSquared = LightSceneInfo->Proxy->IsInverseSquared();
 				const bool bDynamicallyShadowed = ProjectedShadowInfo != NULL;

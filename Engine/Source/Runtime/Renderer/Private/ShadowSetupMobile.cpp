@@ -341,8 +341,6 @@ bool BuildSingleCascadeShadowInfo(FViewInfo &View, TArray<FVisibleLightInfo, Sce
 				WholeSceneInitializer,
 				ShadowBufferResolution.X,
 				ShadowBufferResolution.Y,
-				ShadowBufferResolution.X,
-				ShadowBufferResolution.Y,
 				ShadowBorder,
 				false	// no RSM
 			);

@@ -165,6 +165,9 @@ public:
 
 	/** Virtual shadow map clipmap shadows */
 	TArray<TSharedPtr<FVirtualShadowMapClipmap>,SceneRenderingAllocator> VirtualShadowMapClipmaps;
+
+	/** FProjectedShadowInfo set up to receive a dense copy of all types of geometry (nanite+trad) to be able to sample from e.g., volumetric effects */
+	TArray<FProjectedShadowInfo*,SceneRenderingAllocator> CompleteProjectedShadows;
 };
 
 // Stores the primitive count of each translucency pass (redundant, could be computed after sorting but this way we touch less memory)

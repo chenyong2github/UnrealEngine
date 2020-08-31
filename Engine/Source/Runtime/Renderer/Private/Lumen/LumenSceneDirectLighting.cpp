@@ -248,8 +248,8 @@ void RenderDirectLightIntoLumenCards(
 		PassParameters->VS.ScatterInstanceIndex = ScatterInstanceIndex;
 		PassParameters->VS.CardUVSamplingOffset = FVector2D::ZeroVector;
 
-		extern FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(const FLightSceneProxy* LightProxy, FVisibleLightInfo& VisibleLightInfo);
-		const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(LightSceneInfo->Proxy, VisibleLightInfos[LightSceneInfo->Id]);
+		extern const FProjectedShadowInfo* GetShadowForInjectionIntoVolumetricFog(FVisibleLightInfo& VisibleLightInfo);
+		const FProjectedShadowInfo* ProjectedShadowInfo = GetShadowForInjectionIntoVolumetricFog(VisibleLightInfos[LightSceneInfo->Id]);
 
 		bDynamicallyShadowed = ProjectedShadowInfo != nullptr;
 

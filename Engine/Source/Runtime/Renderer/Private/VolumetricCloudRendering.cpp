@@ -1529,7 +1529,7 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 				const FProjectedShadowInfo* ProjectedShadowInfo0 = nullptr;
 				if (AtmosphericLight0Info)
 				{
-					ProjectedShadowInfo0 = GetLastCascadeShadowInfo(AtmosphericLight0, VisibleLightInfos[AtmosphericLight0Info->Id]);
+					ProjectedShadowInfo0 = GetCompleteShadowMap(VisibleLightInfos[AtmosphericLight0Info->Id]);
 				}
 				if (!CloudRC.bSkipAtmosphericLightShadowmap && AtmosphericLight0 && ProjectedShadowInfo0)
 				{

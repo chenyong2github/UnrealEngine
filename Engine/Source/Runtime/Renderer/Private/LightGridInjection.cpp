@@ -513,13 +513,21 @@ void FDeferredShadingSceneRenderer::ComputeLightGrid(FRHICommandListImmediate& R
 
 							if (ViewFamily.EngineShowFlags.DynamicShadows && VisibleLightInfos.IsValidIndex(LightSceneInfo->Id) && VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows.Num() > 0)
 							{
-								const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows;
+								// If complete/fallback shadow maps are available, prefer those as they include all geometry types
+								bool bUseCompleteShadowMaps = VisibleLightInfos[LightSceneInfo->Id].CompleteProjectedShadows.Num() > 0;
+								const TArray<FProjectedShadowInfo*, SceneRenderingAllocator>& DirectionalLightShadowInfos = bUseCompleteShadowMaps ?
+									VisibleLightInfos[LightSceneInfo->Id].CompleteProjectedShadows :
+									VisibleLightInfos[LightSceneInfo->Id].AllProjectedShadows;
 
 								ForwardLightData.NumDirectionalLightCascades = 0;
 
-								for (int32 ShadowIndex = 0; ShadowIndex < DirectionalLightShadowInfos.Num(); ShadowIndex++)
+								for (const FProjectedShadowInfo* ShadowInfo : DirectionalLightShadowInfos)
 								{
-									const FProjectedShadowInfo* ShadowInfo = DirectionalLightShadowInfos[ShadowIndex];
+									if (!bUseCompleteShadowMaps && ShadowInfo->bCompleteShadowMap)
+									{
+										continue;
+									}
+
 									const int32 CascadeIndex = ShadowInfo->CascadeSettings.ShadowSplitIndex;
 
 									if (ShadowInfo->IsWholeSceneDirectionalShadow() && ShadowInfo->bAllocated && CascadeIndex < GMaxForwardShadowCascades)

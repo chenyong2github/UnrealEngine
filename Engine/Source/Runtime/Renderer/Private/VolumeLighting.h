@@ -75,7 +75,10 @@ void SetVolumeShadowingShaderParameters(
 void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal0& ShaderParams);
 void SetVolumeShadowingDefaultShaderParameters(FVolumeShadowingShaderParametersGlobal1& ShaderParams);
 
-const FProjectedShadowInfo* GetLastCascadeShadowInfo(const FLightSceneProxy* LightProxy, const FVisibleLightInfo& VisibleLightInfo);
+/**
+ * Fetch a dense shadow map representing shadow from all shadow casting geometry types complete shadow info.
+ */
+const FProjectedShadowInfo* GetCompleteShadowMap(const FVisibleLightInfo& VisibleLightInfo);
 
 
 

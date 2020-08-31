@@ -370,6 +370,8 @@ public:
 	 * for direct lighting visibility. */
 	uint32 bIncludeInScreenSpaceShadowMask : 1;
 
+	/** Defaults to false, used to flag a fallback map. */
+	uint32 bCompleteShadowMap : 1;
 
 	/** */
 	FVirtualShadowMap *VirtualShadowMap;
@@ -420,8 +422,6 @@ public:
 		const FWholeSceneProjectedShadowInitializer& Initializer,
 		uint32 InResolutionX,
 		uint32 InResolutionY,
-		uint32 InSnapResolutionX,
-		uint32 InSnapResolutionY,
 		uint32 InBorderSize,
 		bool bInReflectiveShadowMap,
 		TSharedPtr<FVirtualShadowMapCacheEntry> VirtualSmCacheEntry = TSharedPtr<FVirtualShadowMapCacheEntry>()

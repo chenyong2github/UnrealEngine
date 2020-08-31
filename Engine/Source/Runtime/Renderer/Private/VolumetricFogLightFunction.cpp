@@ -192,8 +192,6 @@ void FDeferredShadingSceneRenderer::RenderLightFunctionForVolumetricFog(
 				ShadowInitializer,
 				LightFunctionResolution.X,
 				LightFunctionResolution.Y,
-				LightFunctionResolution.X,
-				LightFunctionResolution.Y,
 				0,
 				false
 			);

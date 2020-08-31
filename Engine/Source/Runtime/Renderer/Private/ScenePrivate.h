@@ -2319,11 +2319,13 @@ public:
 	FShadowMapRenderTargetsRefCounted ShadowMap;
 	float LastUsedTime;
 	bool bCachedShadowMapHasPrimitives;
+	bool bCachedShadowMapHasNaniteGeometry;
 
 	FCachedShadowMapData(const FWholeSceneProjectedShadowInitializer& InInitializer, float InLastUsedTime) :
 		Initializer(InInitializer),
 		LastUsedTime(InLastUsedTime),
-		bCachedShadowMapHasPrimitives(true)
+		bCachedShadowMapHasPrimitives(true),
+		bCachedShadowMapHasNaniteGeometry(false)
 	{}
 };
 

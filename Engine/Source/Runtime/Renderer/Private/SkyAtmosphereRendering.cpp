@@ -286,11 +286,11 @@ bool ShouldSkySampleAtmosphereLightsOpaqueShadow(const FScene& Scene, const TArr
 	
 	if (LightShadowData.LightVolumetricShadowSceneinfo0 && LightShadowData.LightVolumetricShadowSceneinfo0->Proxy && LightShadowData.LightVolumetricShadowSceneinfo0->Proxy->GetCastShadowsOnAtmosphere())
 	{
-		LightShadowData.ProjectedShadowInfo0 = GetLastCascadeShadowInfo(LightShadowData.LightVolumetricShadowSceneinfo0->Proxy, VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id]);
+		LightShadowData.ProjectedShadowInfo0 = GetCompleteShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo0->Id]);
 	}
 	if (LightShadowData.LightVolumetricShadowSceneinfo1 && LightShadowData.LightVolumetricShadowSceneinfo1->Proxy && LightShadowData.LightVolumetricShadowSceneinfo1->Proxy->GetCastShadowsOnAtmosphere())
 	{
-		LightShadowData.ProjectedShadowInfo1 = GetLastCascadeShadowInfo(LightShadowData.LightVolumetricShadowSceneinfo1->Proxy, VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id]);
+		LightShadowData.ProjectedShadowInfo1 = GetCompleteShadowMap(VisibleLightInfos[LightShadowData.LightVolumetricShadowSceneinfo1->Id]);
 	}
 
 	return CVarSkyAtmosphereSampleLightShadowmap.GetValueOnRenderThread() > 0 &&
