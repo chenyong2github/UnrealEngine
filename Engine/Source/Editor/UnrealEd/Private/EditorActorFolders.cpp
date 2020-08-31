@@ -175,10 +175,6 @@ void FActorFolders::OnActorFolderChanged(const AActor* InActor, FName OldPath)
 	{
 		OnFolderCreate.Broadcast(*World, NewPath);
 	}
-	else
-	{
-		Transaction.Cancel();
-	}
 }
 
 bool FActorFolders::PathIsChildOf(const FString& InPotentialChild, const FString& InParent)
@@ -425,10 +421,6 @@ void FActorFolders::CreateFolder(UWorld& InWorld, FName Path)
 	if (AddFolderToWorld(InWorld, Path))
 	{
 		OnFolderCreate.Broadcast(InWorld, Path);
-	}
-	else
-	{
-		Transaction.Cancel();
 	}
 }
 
