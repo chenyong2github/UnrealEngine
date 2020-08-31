@@ -23,6 +23,9 @@ namespace Turnkey.Commands
 			UserSetting[] UserSettings = TurnkeySettings.AllUserSettings;
 			UserSetting[] StudioSettings = TurnkeySettings.AllStudioSettings;
 
+			// need to load the manifests to get StudioSettings!
+			TurnkeyManifest.DiscoverManifests();
+
 			if (TurnkeyUtils.ParseParam("ListVars", CommandOptions))
 			{
 				TurnkeyUtils.Log("All Settings:");

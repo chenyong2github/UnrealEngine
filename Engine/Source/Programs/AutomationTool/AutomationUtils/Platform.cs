@@ -16,7 +16,7 @@ namespace AutomationTool
 		string RetrieveFileSource(string Name, string InType = "Misc", string InPlatform = null, string SubType = null);
 		string RetrieveFileSource(object HintObject);
 		string GetVariable(string VariableName);
-		bool RunExternalCommand(string Command, string Params);
+		bool RunExternalCommand(string Command, string Params, string Preamble = "", string SuccessPostamble = "", string FailurePostamble = "");
 	}
 
 	//public interface InputOutput
@@ -31,6 +31,9 @@ namespace AutomationTool
 		public string SoftwareVersion;
 		public string Type;
 		public bool bIsDefault = false;
+		// is the device able to be connected to (this is more about able to flash SDK or run, not about matching SDK version)
+		// if false, any of the above fields are suspect, especually SoftwareVersion
+		public bool bCanConnect = true;
 	}
 
 	/// <summary>
@@ -185,28 +188,28 @@ namespace AutomationTool
 				return false;
 			}
 
-			string Command, Params;
+			string Command, Params, Preamble="", SuccessPostamble="", FailurePostamble="";
 			
-			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, Retriever, Device))
+			if (Device != null && GetDeviceUpdateSoftwareCommand(out Command, out Params, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever, Device))
 			{
-				return Retriever.RunExternalCommand(Command, Params);
+				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble);
 			}
-			else if (Device == null && GetSDKInstallCommand(out Command, out Params, Retriever))
+			else if (Device == null && GetSDKInstallCommand(out Command, out Params, ref Preamble, ref SuccessPostamble, ref FailurePostamble, Retriever))
 			{
-				return Retriever.RunExternalCommand(Command, Params);
+				return Retriever.RunExternalCommand(Command, Params, Preamble, SuccessPostamble, FailurePostamble);
 			}
 
 			return false;
 		}
 
-		public virtual bool GetSDKInstallCommand(out string Command, out string Params, FileRetriever Retriever)
+		public virtual bool GetSDKInstallCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
 		{
 			Command = null;
 			Params = null;
 			return false;
 		}
 
-		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, FileRetriever Retriever, DeviceInfo Device = null)
+		public virtual bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device = null)
 		{
 			Command = null;
 			Params = null;

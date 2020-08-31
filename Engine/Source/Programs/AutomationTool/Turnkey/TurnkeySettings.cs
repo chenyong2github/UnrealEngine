@@ -46,7 +46,7 @@ namespace Turnkey
 		public static UserSetting[] AllStudioSettings =
 		{
 			new UserSetting("Studio_AppleSigningCertPassword", null, "A shared password that is used across Apple Signing Certificates"),
-			new UserSetting("Studio_AutoSDKSupported", null, "if true, your studio has set up AutoSDK, and Turnkey will offer to set up your local machine if needed."),
+			new UserSetting("Studio_GoogleDriveCredentials", null, "The location of credentials file needed for GoogleDrive integration. The contents should start with: '{\"installed\":{\"client_id\":'"),
 		};
 
 		// basically same as Turnkey variables, but this only contains ones that were loaded so we can write them back out

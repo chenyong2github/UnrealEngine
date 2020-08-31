@@ -224,16 +224,16 @@ namespace Turnkey
 		{
 			if (ServiceHelper == null)
 			{
-				if (!TurnkeyUtils.HasVariable("GoogleDrive_Credentials"))
+				if (!TurnkeyUtils.HasVariable("Studio_GoogleDriveCredentials"))
 				{
-					TurnkeyUtils.Log("ERROR: Unable to use GoogleDrive without GoogleDrive_Credentials being set first!");
+					TurnkeyUtils.Log("ERROR: Unable to use GoogleDrive without Studio_GoogleDriveCredentials being set first!");
 					return false;
 				}
 
-				string SecretsFile = CopyProvider.ExecuteCopy("$(GoogleDrive_Credentials)");
+				string SecretsFile = CopyProvider.ExecuteCopy("$(Studio_GoogleDriveCredentials)");
 				if (SecretsFile == null)
 				{
-					TurnkeyUtils.Log("ERROR: Unable to get GoogleDrive secrets file from {0}", TurnkeyUtils.GetVariableValue("GoogleDrive_Credentials"));
+					TurnkeyUtils.Log("ERROR: Unable to get GoogleDrive secrets file from {0}", TurnkeyUtils.GetVariableValue("Studio_GoogleDriveCredentials"));
 					return false;
 				}
 

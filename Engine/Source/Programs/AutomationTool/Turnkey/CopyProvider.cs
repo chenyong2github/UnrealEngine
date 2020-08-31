@@ -231,9 +231,43 @@ namespace Turnkey
 			return null;
 		}
 
-		public bool RunExternalCommand(string Command, string Params)
+		public bool RunExternalCommand(string Command, string Params, string Preamble, string SuccessPostAmble, string FailurePostamble)
 		{
-			return CopyAndRun.RunExternalCommand(Command, Params);
+			TurnkeyUtils.Log("----------------------------------------------");
+			TurnkeyUtils.Log("Running '{0} {1}'", Command, Params);
+
+			if (!string.IsNullOrEmpty(Preamble))
+			{
+				TurnkeyUtils.Log("");
+				TurnkeyUtils.Log(Preamble);
+			}
+			TurnkeyUtils.Log("----------------------------------------------", Command);
+
+			bool bSuccess = CopyAndRun.RunExternalCommand(Command, Params);
+
+			TurnkeyUtils.Log("----------------------------------------------");
+			TurnkeyUtils.Log("Finished with {0}", bSuccess ? "Success" : "Failure");
+
+			if (bSuccess)
+			{
+				if (!string.IsNullOrEmpty(SuccessPostAmble))
+				{
+					TurnkeyUtils.Log("");
+					TurnkeyUtils.Log(SuccessPostAmble);
+				}
+			}
+			else
+			{
+				if (!string.IsNullOrEmpty(FailurePostamble))
+				{
+					TurnkeyUtils.Log("");
+					TurnkeyUtils.Log(FailurePostamble);
+				}
+			}
+
+			TurnkeyUtils.Log("----------------------------------------------", Command);
+
+			return bSuccess;
 		}
 
 		public string RetrieveFileSource(string Name, string InType, string InPlatform, string SubType)

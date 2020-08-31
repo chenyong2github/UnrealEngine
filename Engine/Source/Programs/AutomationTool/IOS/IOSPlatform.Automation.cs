@@ -174,8 +174,11 @@ public class IOSPlatform : Platform
 		return @"regex:^13\.5.*";
 	}
 
-	public override bool GetSDKInstallCommand(out string Command, out string Params, FileRetriever Retriever)
+	public override bool GetSDKInstallCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever)
 	{
+		Preamble = "Moving your original Xcode application from /Applications to the Trash, and unzipping the new version into /Applications";
+		SuccessPostamble = "If you had Xcode in your Dock, you will need to remove it and add the new one (even though it was in the same location). macOS follows the move to the Trash for the Dock icon";
+
 		// put current Xcode in the trash, and unzip a new one. Xcode in the dock will have to be fixed up tho!
 		Command = "osascript";
 		Params = 
@@ -190,8 +193,10 @@ public class IOSPlatform : Platform
 		return true;
 	}
 
-	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, FileRetriever Retriever, DeviceInfo Device)
+	public override bool GetDeviceUpdateSoftwareCommand(out string Command, out string Params, ref string Preamble, ref string SuccessPostamble, ref string FailurePostamble, FileRetriever Retriever, DeviceInfo Device)
 	{
+		Preamble = "Installing an offline downloaded .ipsw onto your device using the Apple Configurator application.";
+
 		// cfgtool needs ECID, not UDID, so find it
 		string Configurator = Path.Combine(GetConfiguratorLocation().Replace(" ", "\\ "), "Contents/MacOS/cfgutil");
 

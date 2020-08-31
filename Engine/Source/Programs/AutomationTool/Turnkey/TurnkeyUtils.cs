@@ -27,6 +27,16 @@ namespace Turnkey
 			IOProvider = InIOProvider;
 			CommandUtilHelper = InCommandUtilHelper;
 
+			// set up some lists
+			SetVariable("AllPlatforms", string.Join(",", UnrealTargetPlatform.GetValidPlatformNames()));
+
+			// walk over all the SDKs and get their AutoSDK string
+			IEnumerable<string> AutoSDKPlatforms = UEBuildPlatformSDK.AllSDKs.Select(x => x.GetAutoSDKPlatformName()).Distinct();
+			SetVariable("AutoSDKPlatforms", string.Join(",", AutoSDKPlatforms));
+
+			TurnkeyUtils.Log("AllPlatforms = {0}", GetVariableValue("AllPlatforms"));
+			TurnkeyUtils.Log("AutoSDKPlatforms = {0}", GetVariableValue("AutoSDKPlatforms"));
+
 			SetVariable("HOST_PLATFORM_NAME", HostPlatform.Current.HostEditorPlatform.ToString());
 		}
 
