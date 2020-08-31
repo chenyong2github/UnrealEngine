@@ -213,8 +213,8 @@ public:
 		CloudShadowExtent(Component->CloudShadowExtent),
 		CloudShadowStrength(Component->CloudShadowStrength),
 		CloudShadowOnAtmosphereStrength(Component->CloudShadowOnAtmosphereStrength),
-		CloudShadowDepthBias(Component->CloudShadowDepthBias),
 		CloudShadowOnSurfaceStrength(Component->CloudShadowOnSurfaceStrength),
+		CloudShadowDepthBias(Component->CloudShadowDepthBias),
 		CloudShadowMapResolutionScale(Component->CloudShadowMapResolutionScale),
 		CloudScatteredLuminanceScale(Component->CloudScatteredLuminanceScale),
 		bPerPixelAtmosphereTransmittance(Component->bPerPixelAtmosphereTransmittance)
