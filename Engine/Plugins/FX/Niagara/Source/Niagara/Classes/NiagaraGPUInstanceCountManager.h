@@ -70,7 +70,8 @@ public:
 	bool HasPendingGPUReadback() const;
 
 	/** Add a draw indirect task to generate the draw indirect args. Returns the draw indirect arg buffer offset. */
-	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation, bool bCulled = false);
+	uint32 AddDrawIndirect(uint32 InstanceCountBufferOffset, uint32 NumIndicesPerInstance, uint32 StartIndexLocation,
+		bool bIsInstancedStereoEnabled, bool bCulled);
 	FRWBuffer& GetDrawIndirectBuffer() { return DrawIndirectBuffer; }
 
 	/** 

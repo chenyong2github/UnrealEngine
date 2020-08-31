@@ -57,7 +57,6 @@ private:
 		const FSceneViewFamily& ViewFamily,
 		const FNiagaraSceneProxy *SceneProxy,
 		FNiagaraDynamicDataSprites *DynamicDataSprites,
-		uint32 IndirectArgsOffset,
 		FMeshBatch& OutMeshBatch,
 		class FNiagaraSpriteVFLooseParameters& VFLooseParams,
 		class FNiagaraMeshCollectorResourcesSprite& OutCollectorResources,

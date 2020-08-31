@@ -552,7 +552,6 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	const FSceneViewFamily& ViewFamily, 
 	const FNiagaraSceneProxy *SceneProxy,
 	FNiagaraDynamicDataSprites *DynamicDataSprites,
-	uint32 IndirectArgsOffset,
 	FMeshBatch& MeshBatch,
 	FNiagaraSpriteVFLooseParameters& VFLooseParams,
 	FNiagaraMeshCollectorResourcesSprite& CollectorResources,
@@ -563,7 +562,6 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	check(SourceParticleData);//Can be null but should be checked before here.
 	int32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? SourceParticleData->GetNumInstances() : 1;
 	const bool bIsWireframe = ViewFamily.EngineShowFlags.Wireframe;
-
 
 	FMaterialRenderProxy* MaterialRenderProxy = DynamicDataSprites->Material;
 	check(MaterialRenderProxy);
@@ -598,10 +596,19 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	VFLooseParams.ParticleFacingMode = CollectorResources.VertexFactory.GetFacingMode();
 	VFLooseParams.SortedIndices = CollectorResources.VertexFactory.GetSortedIndicesSRV() ? CollectorResources.VertexFactory.GetSortedIndicesSRV() : GFNiagaraNullSortedIndicesVertexBuffer.VertexBufferSRV.GetReference();
 	VFLooseParams.SortedIndicesOffset = CollectorResources.VertexFactory.GetSortedIndicesOffset();
+
+	uint32 IndirectArgsOffset = INDEX_NONE;
+	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+	if (SimTarget == ENiagaraSimTarget::GPUComputeSim && SourceMode == ENiagaraRendererSourceDataMode::Particles)
+	{
+		Batcher = SceneProxy->GetBatcher();
+		check(Batcher);
+		Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance, 0,
+			View->IsInstancedStereoPass(), false);
+	}
+
 	if (IndirectArgsOffset != INDEX_NONE)
 	{
-		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
-		check(Batcher); // Already verified at this point.
 		VFLooseParams.IndirectArgsOffset = IndirectArgsOffset / sizeof(uint32);
 		VFLooseParams.IndirectArgsBuffer = Batcher->GetGPUInstanceCounterManager().GetDrawIndirectBuffer().SRV;
 	}
@@ -645,8 +652,6 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	MeshElement.PrimitiveUniformBuffer = IsMotionBlurEnabled() ? SceneProxy->GetUniformBuffer() : SceneProxy->GetUniformBufferNoVelocity();
 	if (IndirectArgsOffset != INDEX_NONE)
 	{
-		NiagaraEmitterInstanceBatcher* Batcher = SceneProxy->GetBatcher();
-		check(Batcher); // Already verified at this point.
 		MeshElement.IndirectArgsOffset = IndirectArgsOffset;
 		MeshElement.IndirectArgsBuffer = Batcher->GetGPUInstanceCounterManager().GetDrawIndirectBuffer().Buffer;
 		MeshElement.NumPrimitives = 0;
@@ -697,17 +702,16 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 
 	FCPUSimParticleDataAllocation CPUSimParticleDataAllocation = ConditionalAllocateCPUSimParticleData(DynamicDataSprites, RendererLayout, Collector.GetDynamicReadBuffer());
 
-	uint32 IndirectArgsOffset = INDEX_NONE;
-	if (SimTarget == ENiagaraSimTarget::GPUComputeSim && SourceMode == ENiagaraRendererSourceDataMode::Particles)
-	{
-		IndirectArgsOffset = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance, 0);
-	}
-
 	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 	{
 		if (VisibilityMap & (1 << ViewIndex))
 		{
 			const FSceneView* View = Views[ViewIndex];
+			if (View->bIsInstancedStereoEnabled && IStereoRendering::IsStereoEyeView(*View) && !IStereoRendering::IsAPrimaryView(*View))
+			{
+				// We don't have to generate batches for non-primary views in stereo instance rendering
+				continue;
+			}
 
 			FNiagaraMeshCollectorResourcesSprite& CollectorResources = Collector.AllocateOneFrameResource<FNiagaraMeshCollectorResourcesSprite>();
 			FNiagaraSpriteVFLooseParameters VFLooseParams;
@@ -715,7 +719,7 @@ void FNiagaraRendererSprites::GetDynamicMeshElements(const TArray<const FSceneVi
 			CollectorResources.UniformBuffer = CreatePerViewUniformBuffer(View, ViewFamily, SceneProxy, RendererLayout, DynamicDataSprites);
 			FMeshBatch& MeshBatch = Collector.AllocateMesh();
 
-			CreateMeshBatchForView(View, ViewFamily, SceneProxy, DynamicDataSprites, IndirectArgsOffset, MeshBatch, VFLooseParams, CollectorResources, RendererLayout);
+			CreateMeshBatchForView(View, ViewFamily, SceneProxy, DynamicDataSprites, MeshBatch, VFLooseParams, CollectorResources, RendererLayout);
 
 			Collector.AddMesh(ViewIndex, MeshBatch);
 		}
@@ -754,12 +758,6 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 
 	uint32 NumInstances = SourceMode == ENiagaraRendererSourceDataMode::Particles ? SourceParticleData->GetNumInstances() : 1;
 
-	uint32 IndirectArgsOffset = INDEX_NONE;
-	if (SimTarget == ENiagaraSimTarget::GPUComputeSim && SourceMode == ENiagaraRendererSourceDataMode::Particles)
-	{
-		IndirectArgsOffset = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance, 0);
-	}
-
 	FRayTracingInstance RayTracingInstance;
 	RayTracingInstance.Geometry = &RayTracingGeometry;
 	RayTracingInstance.InstanceTransforms.Add(FMatrix::Identity);
@@ -774,7 +772,7 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 		SetVertexFactoryParticleData(CollectorResources.VertexFactory, DynamicDataSprites, CPUSimParticleDataAllocation, Context.ReferenceView, VFLooseParams, SceneProxy, RendererLayout);
 		CollectorResources.UniformBuffer = CreatePerViewUniformBuffer(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, RendererLayout, DynamicDataSprites);
 		FMeshBatch MeshBatch;
-		CreateMeshBatchForView(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, DynamicDataSprites, IndirectArgsOffset, MeshBatch, VFLooseParams, CollectorResources, RendererLayout);
+		CreateMeshBatchForView(Context.ReferenceView, Context.ReferenceViewFamily, SceneProxy, DynamicDataSprites, MeshBatch, VFLooseParams, CollectorResources, RendererLayout);
 
 		RayTracingInstance.Materials.Add(MeshBatch);
 
