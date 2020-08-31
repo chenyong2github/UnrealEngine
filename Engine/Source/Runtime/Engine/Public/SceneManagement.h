@@ -1451,6 +1451,7 @@ public:
 	virtual float GetCloudShadowStrength() const { return 1.0f; }
 	virtual float GetCloudShadowOnAtmosphereStrength() const { return 1.0f; }
 	virtual float GetCloudShadowOnSurfaceStrength() const { return 1.0f; }
+	virtual float GetCloudShadowDepthBias() const { return 0.0f; }
 	virtual FLinearColor GetCloudScatteredLuminanceScale() const { return FLinearColor::White; }
 	virtual bool GetUsePerPixelAtmosphereTransmittance() const { return false; }
 
