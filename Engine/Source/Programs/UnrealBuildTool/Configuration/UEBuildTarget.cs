@@ -4075,7 +4075,14 @@ namespace UnrealBuildTool
 			List<string> NewPathList = new List<string>();
 			foreach (string Path in PathList)
 			{
-				NewPathList.Add(System.IO.Path.Combine(BasePath.FullName, Path));
+				if(Path.StartsWith("$(", StringComparison.Ordinal))
+				{
+					NewPathList.Add(Path);
+				}
+				else
+				{
+					NewPathList.Add(System.IO.Path.Combine(BasePath.FullName, Path));
+				}
 			}
 			return NewPathList;
 		}
