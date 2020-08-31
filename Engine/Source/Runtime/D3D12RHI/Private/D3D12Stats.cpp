@@ -60,7 +60,7 @@ void D3D12RHI::FD3DGPUProfiler::BeginFrame(FD3D12DynamicRHI* InRHI)
 	}
 	bPreviousLatchedGProfilingGPUHitches = bLatchedGProfilingGPUHitches;
 
-	if (!GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
+	if (GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
 	{
 		FrameTiming.StartTiming();
 	}
@@ -79,7 +79,7 @@ void D3D12RHI::FD3DGPUProfiler::EndFrame(FD3D12DynamicRHI* InRHI)
 		check(StackDepth == 0);
 	}
 
-	if (!GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
+	if (GDynamicRHI && !GDynamicRHI->RHIIsRenderingSuspended())
 	{
 		FrameTiming.EndTiming();
 	}
