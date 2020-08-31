@@ -869,13 +869,7 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 
 	for (FNiagaraGPUSystemTick& Tick : Ticks_RT)
 	{
-		FNiagaraComputeInstanceData* Data = Tick.GetInstanceData();
-		FNiagaraComputeExecutionContext* SharedContext = Data->Context;
-
-		if (!SharedContext->GPUScript_RT->IsShaderMapComplete_RenderThread())
-		{
-			continue;
-		}
+		FNiagaraComputeSharedContext* SharedContext = Tick.SharedContext;
 
 		const ETickStage TickStage = NiagaraEmitterInstanceBatcherLocal::CalculateTickStage(Tick);
 		if (bGeneratePerTickStage && (GenerateTickStage != TickStage))
@@ -894,10 +888,12 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 			check(!ContextsPerStage[(int)ETickStage::PostInitViews].Contains(SharedContext));
 			check(!ContextsPerStage[(int)ETickStage::PostOpaqueRender].Contains(SharedContext));
 			ContextsPerStage[(int)TickStage].Add(SharedContext);
+			SharedContext->ScratchTickStage = (int)TickStage;
 		}
 
 		// Here scratch index represent the index of the last tick
 		SharedContext->ScratchIndex = TicksPerStage[(int)TickStage].Add(&Tick);
+		check(SharedContext->ScratchTickStage == (int)TickStage);
 
 		// Allows us to count total required instances across all ticks
 		for (uint32 i = 0; i < Tick.Count; ++i)
@@ -934,10 +930,10 @@ void NiagaraEmitterInstanceBatcher::BuildTickStagePasses(FRHICommandListImmediat
 	{
 		// Set bIsFinalTick for the last tick of each context and reset the scratch index.
 		const int32 ScrachIndexReset = UseOverlapCompute() ? 0 : INDEX_NONE;
-		for (FNiagaraComputeExecutionContext* Context : ContextsPerStage[iTickStage])
+		for (FNiagaraComputeSharedContext* SharedContext : ContextsPerStage[iTickStage])
 		{
-			TicksPerStage[iTickStage][Context->ScratchIndex]->bIsFinalTick = true;
-			Context->ScratchIndex = ScrachIndexReset;
+			TicksPerStage[iTickStage][SharedContext->ScratchIndex]->bIsFinalTick = true;
+			SharedContext->ScratchIndex = ScrachIndexReset;
 		}
 
 		for (FNiagaraGPUSystemTick* Tick : TicksPerStage[iTickStage])
@@ -1129,8 +1125,8 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 
 			for (FNiagaraGPUSystemTick* Tick : TicksPerStage[(int)TickStage])
 			{
-				FNiagaraComputeExecutionContext* Context = Tick->GetInstanceData()->Context;
-				const int32 ScratchIndex = Context->ScratchIndex;
+				FNiagaraComputeSharedContext* SharedContext = Tick->SharedContext;
+				const int32 ScratchIndex = SharedContext->ScratchIndex;
 				check(ScratchIndex != INDEX_NONE);
 
 				if (ScratchIndex >= SimPasses.Num())
@@ -1146,11 +1142,11 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 				if (Tick->bIsFinalTick)
 				{
 					// Reset to default as it will no longer be used.
-					Context->ScratchIndex = INDEX_NONE;
+					SharedContext->ScratchIndex = INDEX_NONE;
 				}
 				else
 				{
-					Context->ScratchIndex += 1;
+					SharedContext->ScratchIndex += 1;
 				}
 			}
 		}

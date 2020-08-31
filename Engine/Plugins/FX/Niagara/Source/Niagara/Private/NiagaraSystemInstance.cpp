@@ -1239,6 +1239,30 @@ bool FNiagaraSystemInstance::RequiresEarlyViewData() const
 	return false;
 }
 
+bool FNiagaraSystemInstance::RequiresViewUniformBuffer() const
+{
+	if (!bHasGPUEmitters)
+	{
+		return false;
+	}
+
+	for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterHandle : Emitters)
+	{
+		if (FNiagaraComputeExecutionContext* GPUContext = EmitterHandle->GetGPUContext())
+		{
+			if (UNiagaraEmitter* Emitter = EmitterHandle->GetCachedEmitter())
+			{
+				if (Emitter->RequiresViewUniformBuffer())
+				{
+					return true;
+				}
+			}
+		}
+	}
+
+	return false;
+}
+
 void FNiagaraSystemInstance::InitDataInterfaces()
 {
 	bDataInterfacesHaveTickPrereqs = false;
@@ -1831,6 +1855,11 @@ void FNiagaraSystemInstance::InitEmitters()
 				if (const UNiagaraEmitter* Emitter = Sim->GetCachedEmitter())
 				{
 					bHasGPUEmitters |= Emitter->SimTarget == ENiagaraSimTarget::GPUComputeSim;
+				}
+
+				if (bHasGPUEmitters)
+				{
+					SharedContext.Reset(new FNiagaraComputeSharedContext());
 				}
 			}
 		}
