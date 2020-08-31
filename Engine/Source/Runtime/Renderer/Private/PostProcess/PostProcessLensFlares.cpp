@@ -3,6 +3,8 @@
 #include "PostProcessLensFlares.h"
 #include "PostProcessDownsample.h"
 
+DECLARE_GPU_STAT(LensFlare);
+
 namespace
 {
 const int32 GLensFlareQuadsPerInstance = 4;
@@ -337,6 +339,8 @@ FScreenPassTexture AddLensFlaresPass(
 		Settings.LensFlareBokehSize > SMALL_NUMBER &&
 		Settings.LensFlareIntensity > SMALL_NUMBER)
 	{
+		RDG_GPU_STAT_SCOPE(GraphBuilder, LensFlare);
+
 		FRHITexture* BokehTextureRHI = GWhiteTexture->TextureRHI;
 
 		if (GEngine->DefaultBokehTexture)
