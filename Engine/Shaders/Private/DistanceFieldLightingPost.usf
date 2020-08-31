@@ -174,11 +174,11 @@ void UpdateHistoryDepthRejectionPS(
 	float2 Screenvelocity = UVAndScreenPos.zw - PrevScreen;
 		
 	float2 FullResTexel = UVAndScreenPos.xy - .5f * View.BufferSizeAndInvSize.zw;
-	float2 VelocityN = Texture2DSampleLevel(VelocityTexture, VelocityTextureSampler, FullResTexel, 0).xy;
+	float4 EncodedVelocity = Texture2DSampleLevel(VelocityTexture, VelocityTextureSampler, FullResTexel, 0);
 		
-	if (VelocityN.x > 0.0)
+	if (EncodedVelocity.x > 0.0)
 	{
-		Screenvelocity = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
+		Screenvelocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
 	}
 		
 	float PixelSpeed = 0.5 * length(Screenvelocity);

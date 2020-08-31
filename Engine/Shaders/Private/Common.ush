@@ -1522,20 +1522,30 @@ struct FScreenVertexOutput
 // for velocity rendering, motionblur and temporal AA
 // velocity needs to support -2..2 screen space range for x and y
 // texture is 16bit 0..1 range per channel
-float3 EncodeVelocityToTexture(float3 In)
+float4 EncodeVelocityToTexture(float3 V)
 {
 	// 0.499f is a value smaller than 0.5f to avoid using the full range to use the clear color (0,0) as special value
 	// 0.5f to allow for a range of -2..2 instead of -1..1 for really fast motions for temporal AA
-	return In * (0.499f * 0.5f) + 32767.0f / 65535.0f;
+	float4 EncodedV;
+	EncodedV.xy = V.xy * (0.499f * 0.5f) + 32767.0f / 65535.0f;
+
+	uint Vz = asuint(V.z);
+
+	EncodedV.z = saturate(float((Vz >> 16) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
+	EncodedV.w = saturate(float((Vz >>  0) & 0xFFFF) * rcp(65535.0f) + (0.1 / 65535.0f));
+
+	return EncodedV;
 }
 // see EncodeVelocityToTexture()
-float3 DecodeVelocityFromTexture(float3 In)
+float3 DecodeVelocityFromTexture(float4 EncodedV)
 {
 	const float InvDiv = 1.0f / (0.499f * 0.5f);
-	// reference
-//	return (In - 32767.0f / 65535.0f ) / (0.499f * 0.5f);
-	// MAD layout to help compiler
-	return In * InvDiv - 32767.0f / 65535.0f * InvDiv;
+
+	float3 V;
+	V.xy = EncodedV.xy * InvDiv - 32767.0f / 65535.0f * InvDiv;
+	V.z = asfloat((uint(round(EncodedV.z * 65535.0f)) << 16) | uint(round(EncodedV.w * 65535.0f)));
+
+	return V;
 }
 
 // Used for the Global Illumination in the GIReplace material expression

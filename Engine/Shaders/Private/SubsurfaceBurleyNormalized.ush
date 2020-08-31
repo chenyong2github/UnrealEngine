@@ -857,14 +857,11 @@ float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
 
 #if (ENABLE_VELOCITY)
 	{
-		float2 VelocityN;
-		VelocityN = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0).xy;
+		float4 EncodedVelocity = Texture2DSampleLevel(SubsurfaceInput2_Texture, SubsurfaceSampler2, NearestBufferUV + VelocityOffset, 0);
 		
-		bool DynamicN = VelocityN.x > 0.0;
-
-		if (DynamicN)
+		if (EncodedVelocity.x > 0.0)
 		{
-			BackN = DecodeVelocityFromTexture(float3(VelocityN, 0.0)).xy;
+			BackN = DecodeVelocityFromTexture(EncodedVelocity).xy;
 		}
 
 		BackTemp = BackN * SubsurfaceInput1_ViewportSize.xy;

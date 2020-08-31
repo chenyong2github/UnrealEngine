@@ -60,10 +60,10 @@ void MainCS(
 
 		#if 1
 		{
-			float2 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset)].xy;
+			float4 EncodedVelocity = SceneVelocityTexture[uint2(InputBufferUV * InputInfo_Extent + VelocityPixelOffset)];
 			if (EncodedVelocity.x > 0.0)
 			{
-				FinalScreenVelocity = DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
+				FinalScreenVelocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
 			}
 		}
 		#endif

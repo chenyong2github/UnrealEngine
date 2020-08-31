@@ -1774,14 +1774,15 @@ MaterialFloat4 MobileSceneTextureLookup(inout FMaterialPixelParameters Parameter
 float2 PostProcessVelocityLookup(float Depth, float2 UV)
 {
 #if GBUFFER_HAS_VELOCITY
-	float2 Velocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct.GBufferVelocityTextureSampler, UV, 0).xy;
+	float4 EncodedVelocity = Texture2DSampleLevel(SceneTexturesStruct.GBufferVelocityTexture, SceneTexturesStruct.GBufferVelocityTextureSampler, UV, 0);
 #else
-	float2 Velocity = Texture2DSample(PostProcessInput_4_Texture, PostProcessInput_4_SharedSampler, UV).xy;
+	float4 EncodedVelocity = Texture2DSample(PostProcessInput_4_Texture, PostProcessInput_4_SharedSampler, UV);
 #endif
 
-	if( Velocity.x > 0.0 )
+	float2 Velocity;
+	if( EncodedVelocity.x > 0.0 )
 	{
-		Velocity = DecodeVelocityFromTexture(float3(Velocity, 0.0)).xy;
+		Velocity = DecodeVelocityFromTexture(EncodedVelocity).xy;
 	}
 	else
 	{

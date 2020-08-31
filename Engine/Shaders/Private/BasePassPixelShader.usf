@@ -979,7 +979,7 @@ void FPixelShaderInOut_MainPS(
 		float3 Velocity = Calculate3DVelocity(MaterialParameters.ScreenPosition, BasePassInterpolants.VelocityPrevScreenPosition);
 	#endif
 
-		float4 EncodedVelocity = float4(EncodeVelocityToTexture(Velocity), 0);
+		float4 EncodedVelocity = EncodeVelocityToTexture(Velocity);
 
 		FLATTEN
 		if (GetPrimitiveData(MaterialParameters.PrimitiveId).DrawsVelocity == 0.0 && View.ForceDrawAllVelocities == 0)
