@@ -135,6 +135,8 @@ namespace
 //////////////////////////////////////////////////////////////////////////
 // FPropertySpecifier
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 FString FPropertySpecifier::ConvertToString() const
 {
 	FString Result;
@@ -170,6 +172,7 @@ FString FPropertySpecifier::ConvertToString() const
 
 	return Result;
 }
+*/
 
 /////////////////////////////////////////////////////
 // FBaseParser
@@ -712,6 +715,8 @@ bool FBaseParser::GetIdentifier( FToken& Token, bool bNoConsts )
 //
 // Get a symbol token, return 1 if gotten, 0 if not.
 //
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 bool FBaseParser::GetSymbol( FToken& Token )
 {
 	if (!GetToken(Token))
@@ -727,6 +732,7 @@ bool FBaseParser::GetSymbol( FToken& Token )
 	UngetToken(Token);
 	return false;
 }
+*/
 
 bool FBaseParser::GetConstInt(int32& Result, const TCHAR* Tag)
 {
@@ -751,6 +757,8 @@ bool FBaseParser::GetConstInt(int32& Result, const TCHAR* Tag)
 	return false;
 }
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 bool FBaseParser::GetConstInt64(int64& Result, const TCHAR* Tag)
 {
 	FToken Token;
@@ -773,6 +781,7 @@ bool FBaseParser::GetConstInt64(int64& Result, const TCHAR* Tag)
 
 	return false;
 }
+*/
 
 bool FBaseParser::MatchSymbol( const TCHAR Match, ESymbolParseOption bParseTemplateClosingBracket/*=ESymbolParseOption::Normal*/ )
 {
@@ -812,6 +821,8 @@ bool FBaseParser::MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTempl
 	return false;
 }
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 //
 // Get a specific identifier and return 1 if gotten, 0 if not.
 // This is used primarily for checking for required symbols during compilation.
@@ -832,6 +843,7 @@ bool FBaseParser::MatchIdentifierByName( FName Match )
 	UngetToken(Token);
 	return false;
 }
+*/
 
 bool FBaseParser::MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase)
 {
@@ -919,6 +931,8 @@ bool FBaseParser::PeekSymbol( const TCHAR Match )
 	return Token.TokenType==TOKEN_Symbol && Token.Identifier[0] == Match && Token.Identifier[1] == 0;
 }
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 //
 // Peek ahead and see if an identifier follows in the stream.
 //
@@ -932,6 +946,7 @@ bool FBaseParser::PeekIdentifierByName( FName Match )
 	UngetToken(Token);
 	return Token.TokenType==TOKEN_Identifier && Token.GetTokenName()==Match;
 }
+*/
 
 bool FBaseParser::PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase)
 {
@@ -972,6 +987,8 @@ void FBaseParser::RequireSymbol(const TCHAR Match, TFunctionRef<FString()> Error
 	}
 }
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 //
 // Require an integer.
 //
@@ -982,6 +999,7 @@ void FBaseParser::RequireConstInt( const TCHAR* Match, const TCHAR* Tag )
 		FError::Throwf(TEXT("Missing integer '%s' in %s"), Match, Tag );
 	}
 }
+*/
 
 void FBaseParser::RequireAnyConstInt( const TCHAR* Tag )
 {
@@ -1216,5 +1234,3 @@ void FBaseParser::InsertMetaDataPair(TMap<FName, FString>& MetaData, FName KeyNa
 	// finally we have enough to put it into our metadata
 	MetaData.Add(KeyName, MoveTemp(Value));
 }
-
-

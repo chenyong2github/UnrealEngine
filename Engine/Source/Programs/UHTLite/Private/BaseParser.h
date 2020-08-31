@@ -34,7 +34,10 @@ public:
 	FString Key;
 	TArray<FString> Values;
 
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	FString ConvertToString() const;
+	*/
 };
 
 //
@@ -129,21 +132,35 @@ public:
 
 	void UngetToken( const FToken& Token );
 	bool GetIdentifier( FToken& Token, bool bNoConsts = false );
+	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	bool GetSymbol( FToken& Token );
+	*/
 
 	/**
 	 * Get an int constant
 	 * @return true on success, otherwise false.
 	 */
 	bool GetConstInt(int32& Result, const TCHAR* Tag = NULL);
+	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	bool GetConstInt64(int64& Result, const TCHAR* Tag = NULL);
+	*/
 
 	// Matching predefined text.
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	bool MatchIdentifierByName( FName Match );
+	*/
 	bool MatchIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase);
 	bool MatchConstInt( const TCHAR* Match );
 	bool MatchAnyConstInt();
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	bool PeekIdentifierByName( FName Match );
+	*/
 	bool PeekIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase);
 	bool MatchSymbol( const TCHAR Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
 	bool MatchSymbol(const TCHAR* Match, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal);
@@ -154,7 +171,10 @@ public:
 	void RequireIdentifier( const TCHAR* Match, ESearchCase::Type SearchCase, const TCHAR* Tag );
 	void RequireSymbol( const TCHAR Match, const TCHAR* Tag, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal );
 	void RequireSymbol(const TCHAR Match, TFunctionRef<FString()> TagGetter, ESymbolParseOption bParseTemplateClosingBracket = ESymbolParseOption::Normal);
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	void RequireConstInt( const TCHAR* Match, const TCHAR* Tag );
+	*/
 	void RequireAnyConstInt( const TCHAR* Tag );
 
 	/** Clears out the stored comment. */

@@ -390,8 +390,6 @@ struct ClassDefinitionRange
 	bool bHasGeneratedBody;
 };
 
-extern TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
-
 #ifndef UHT_DOCUMENTATION_POLICY_DEFAULT
 #define UHT_DOCUMENTATION_POLICY_DEFAULT false
 #endif
@@ -416,7 +414,7 @@ class FHeaderParser : public FBaseParser, public FContextSupplier
 {
 public:
 	// Default version of generated code. Defaults to oldest possible, unless specified otherwise in config.
-	static EGeneratedCodeVersion DefaultGeneratedCodeVersion;
+	EGeneratedCodeVersion DefaultGeneratedCodeVersion;
 
 	// Compute the function parameter size and save the return offset
 	static void ComputeFunctionParametersSize(UClass* InClass);
@@ -427,7 +425,18 @@ public:
 		FFeedbackContext* Warn,
 		UPackage* LimitOuter,
 		const FManifestModule& Module,
-		TArray<class IScriptGeneratorPluginInterface*>& ScriptPlugins
+#pragma region Plugins
+		TArray<class IScriptGeneratorPluginInterface*>& ScriptPlugins,
+#pragma endregion Plugins
+		const FUnrealSourceFiles& UnrealSourceFilesMap,
+		FTypeDefinitionInfoMap& TypeDefinitionInfoMap,
+		const FPublicSourceFileSet& PublicSourceFileSet,
+		const TMap<UPackage*, const FManifestModule*>& PackageToManifestModuleMap,
+		const FClassDeclarations& ClassDeclarations,
+		TMap<UEnum*, EUnderlyingEnumType>& EnumUnderlyingTypes,
+		FRWLock& EnumUnderlyingTypesLock,
+		TMap<UClass*, FArchiveTypeDefinePair>& InClassSerializerMap,
+		FRWLock& InClassSerializerMapLock
 	);
 
 	// Performs a preliminary parse of the text in the specified buffer, pulling out:
@@ -437,7 +446,7 @@ public:
 	//   
 	//  It also splits the buffer up into:
 	//   ScriptText (text outside of #if CPP and #if DEFAULTS blocks)
-	static void SimplifiedClassParse(const TCHAR* Filename, const TCHAR* Buffer, TArray<FSimplifiedParsingClassInfo>& OutParsedClassArray, TArray<FHeaderProvider>& DependentOn, FStringOutputDevice& ScriptText);
+	static void SimplifiedClassParse(const TCHAR* Filename, const TCHAR* Buffer, TArray<FSimplifiedParsingClassInfo>& OutParsedClassArray, TArray<FHeaderProvider>& DependentOn, FStringOutputDevice& ScriptText, FClassDeclarations& ClassDeclarations);
 
 	/**
 	 * Returns True if the given class name includes a valid Unreal prefix and matches up with the given original class Name.
@@ -454,7 +463,10 @@ public:
 	 * @param OutClass The resulting class name (if successfull)
 	 * @return true if the filename was a header filename (.h), false otherwise (in which case OutClassName is unmodified).
 	 */
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static bool DependentClassNameFromHeader(const TCHAR* HeaderFilename, FString& OutClassName);
+	*/
 
 	/**
 	 * Transforms CPP-formated string containing default value, to inner formated string
@@ -476,11 +488,16 @@ public:
 	 *
 	 * @return	Result enumeration.
 	 */
-	static ECompilationResult::Type ParseHeaders(FClasses& AllClasses, FHeaderParser& HeaderParser, FUnrealSourceFile* SourceFile);
+	ECompilationResult::Type ParseHeaders(FClasses& AllClasses, FUnrealSourceFile* SourceFile);
 
 protected:
 	friend struct FScriptLocation;
 	friend struct FNativeClassHeaderGenerator;
+
+	// UHTLite
+	const FUnrealSourceFiles& UnrealSourceFilesMap;
+	FTypeDefinitionInfoMap&   TypeDefinitionInfoMap;
+	const FClassDeclarations& ClassDeclarations;
 
 	// For compiling messages and errors.
 	FFeedbackContext* Warn;
@@ -648,17 +665,17 @@ protected:
 	////////////////////////////////////////////////////
 
 	// Special parsed struct names that do not require a prefix
-	static TArray<FString> StructsWithNoPrefix;
+	TArray<FString> StructsWithNoPrefix;
 	
 	// Special parsed struct names that have a 'T' prefix
-	static TArray<FString> StructsWithTPrefix;
+	TArray<FString> StructsWithTPrefix;
 
 	// Mapping from 'human-readable' macro substring to # of parameters for delegate declarations
 	// Index 0 is 1 parameter, Index 1 is 2, etc...
-	static TArray<FString> DelegateParameterCountStrings;
+	TArray<FString> DelegateParameterCountStrings;
 
 	// Types that have been renamed, treat the old deprecated name as the new name for code generation
-	static TMap<FString, FString> TypeRedirectMap;
+	TMap<FString, FString> TypeRedirectMap;
 
 	// List of all used identifiers for net service function declarations (every function must be unique)
 	TMap<int32, FString> UsedRPCIds;
@@ -666,10 +683,19 @@ protected:
 	TMap<int32, FString> RPCsNeedingHookup;
 
 	// List of all multiplex methods defined on structs
-	static FRigVMStructMap StructRigVMMap;
+	FRigVMStructMap StructRigVMMap;
 
 	// Constructor.
-	explicit FHeaderParser(FFeedbackContext* InWarn, const FManifestModule& InModule);
+	explicit FHeaderParser(FFeedbackContext* InWarn,
+		const FManifestModule& InModule,
+		const FUnrealSourceFiles& InUnrealSourceFilesMap,
+		FTypeDefinitionInfoMap& InTypeDefinitionInfoMap,
+		const FClassDeclarations& InClassDeclarations,
+		TMap<UEnum*, EUnderlyingEnumType>& InEnumUnderlyingTypes,
+		FRWLock& InEnumUnderlyingTypesLock,
+		TMap<UClass*, FArchiveTypeDefinePair>& InClassSerializerMap,
+		FRWLock& InClassSerializerMapLock
+		);
 
 	virtual ~FHeaderParser()
 	{
@@ -725,10 +751,13 @@ protected:
 	 *
 	 * @return	Result enumeration.
 	 */
-	static ECompilationResult::Type ParseRestOfModulesSourceFiles(FClasses& AllClasses, UPackage* ModulePackage, FHeaderParser& HeaderParser);
+	ECompilationResult::Type ParseRestOfModulesSourceFiles(FClasses& AllClasses, UPackage* ModulePackage);
 
 	//@TODO: Remove this method
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static void ParseClassName(const TCHAR* Temp, FString& ClassName);
+	*/
 
 	/**
 	 * @param		Input		An input string, expected to be a script comment.
@@ -750,12 +779,30 @@ protected:
 	 * @param AllClasses The class tree for CurrentPackage.
 	 * @param Module Currently exported module.
 	 */
-	static void ExportNativeHeaders(
+	void ExportNativeHeaders(
 		UPackage* CurrentPackage,
 		FClasses& AllClasses,
 		bool bAllowSaveExportedHeaders,
-		const FManifestModule& Module
-	);
+		const FManifestModule& Module,
+		const FPublicSourceFileSet& PublicSourceFileSet,
+		const TMap<UPackage*, const FManifestModule*>& PackageToManifestModuleMap
+	) const;
+
+	// UHTLite
+	bool DoesAnythingInHierarchyHaveDefaultToInstanced(UClass* TestClass) const;
+
+	// UHTLite
+	TSet<FUnrealSourceFile*> GetSourceFilesWithInheritanceOrdering(UPackage* CurrentPackage, FClasses& AllClasses) const;
+
+	// UHTLite
+	FProperty* CreateVariableProperty(FPropertyBase& VarProperty, FFieldVariant Scope, const FName& Name, EObjectFlags ObjectFlags, EVariableCategory::Type VariableCategory, FUnrealSourceFile* UnrealSourceFile) const;
+
+	// UHTLite
+	void AddModuleRelativePathToMetadata(FUnrealSourceFile& SourceFile, TMap<FName, FString>& MetaData) const;
+	void AddModuleRelativePathToMetadata(UField* Type, TMap<FName, FString>& MetaData) const;
+
+	// UHTLite
+	void AddIncludePathToMetadata(UField* Type, TMap<FName, FString>& MetaData) const;
 
 	// FContextSupplier interface.
 	virtual FString GetContext() override;
@@ -831,9 +878,12 @@ protected:
 	// nesting level.
 	void CheckAllow(const TCHAR* Thing, ENestAllowFlags AllowFlags);
 
-	UStruct* GetSuperScope( UStruct* CurrentScope, const FName& SearchName );	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
+	UStruct* GetSuperScope( UStruct* CurrentScope, const FName& SearchName );
 
 	void SkipStatements( int32 SubCount, const TCHAR* ErrorTag );
+	*/
 
 	/**
 	 * Parses a variable or return value declaration and determines the variable type and property flags.
@@ -881,12 +931,18 @@ protected:
 	 *
 	 * @return	true if the specified class is an intrinsic type or if the class has successfully been parsed
 	 */
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	bool AllowReferenceToClass(UStruct* Scope, UClass* CheckClass) const;
+	*/
 
 	/**
 	 * @return	true if Scope has FProperty objects in its list of fields
 	 */
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static bool HasMemberProperties( const UStruct* Scope );
+	*/
 
 	/**
 	 * Parses optional metadata text.
@@ -1026,7 +1082,7 @@ private:
 	static FDocumentationPolicy GetDocumentationPolicyForStruct(UStruct* Struct);
 
 	// Property types to provide UI Min and Max ranges
-	static TArray<FString> PropertyCPPTypesRequiringUIRanges;
+	static const TArray<FString> PropertyCPPTypesRequiringUIRanges;
 
 	// Returns true if a given CPP types required ui checking
 	static bool DoesCPPTypeRequireDocumentation(const FString& CPPType);
@@ -1044,7 +1100,7 @@ private:
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
 
 	// Names that cannot be used enums, UStructs, or UClasses
-	static TArray<FString> ReservedTypeNames;
+	static const TArray<FString> ReservedTypeNames;
 
 public:
 	/**
@@ -1062,6 +1118,21 @@ public:
 	* @return True if the Token is using a reserved name
 	*/
 	static bool IsReservedTypeName(const FToken& Token);
+
+	// UHTLite
+	TMap<UClass*, ClassDefinitionRange> ClassDefinitionRanges;
+	TMap<FProperty*, FString>           ArrayDimensions;
+	mutable TSet<FProperty*>            UnsizedProperties;
+	TSet<UField*>                       EditorOnlyDataTypes;
+	TSet<FProperty*>                    PropertyUsesMemoryImageAllocator;
+
+	// UHTLite NOTE: These are read-only in the code-generation phase
+	TMap<UEnum*, EUnderlyingEnumType>& EnumUnderlyingTypes;
+	FRWLock&                           EnumUnderlyingTypesLock;
+
+	// UHTLite NOTE: These are read-only in the code-generation phase
+	TMap<UClass*, FArchiveTypeDefinePair>& ClassSerializerMap;
+	FRWLock&                               ClassSerializerMapLock;
 };
 
 /////////////////////////////////////////////////////
@@ -1084,6 +1155,7 @@ public:
 		FString& out_ClassName,
 		FString& out_BaseClassName,
 		TArray<FHeaderProvider>& out_ClassNames,
-		const TArray<FSimplifiedParsingClassInfo>& ParsedClassArray
+		const TArray<FSimplifiedParsingClassInfo>& ParsedClassArray,
+		FClassDeclarations& ClassDeclarations
 	);
 };

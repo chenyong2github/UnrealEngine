@@ -680,6 +680,8 @@ public:
 		}
 	}
 
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	FString Describe()
 	{
 		return FString::Printf(
@@ -692,6 +694,8 @@ public:
 			MetaClass!=NULL?*MetaClass->GetName():TEXT("NULL")
 			);
 	}
+	*/
+
 	//@}
 
 	EIntType GetSizedIntTypeFromPropertyType(EPropertyType PropType)
@@ -713,7 +717,10 @@ public:
 		}
 	}
 
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static const TCHAR* GetPropertyTypeText( EPropertyType Type );
+	*/
 
 	friend struct FPropertyBaseArchiveProxy;
 };
@@ -1017,6 +1024,8 @@ public:
 		else return 0;
 	}
 
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	FString Describe()
 	{
 		return FString::Printf(
@@ -1028,6 +1037,7 @@ public:
 			ImpliedPropertyFlags
 			);
 	}
+	*/
 
 	friend struct FTokenArchiveProxy;
 };
@@ -1235,6 +1245,8 @@ public:
 	 * 
 	 * @param	Indent	number of spaces to insert at the beginning of each line
 	 */	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	void Dump( int32 Indent )
 	{
 		for (auto& Kvp : *this)
@@ -1247,6 +1259,7 @@ public:
 			}
 		}
 	}
+	*/
 };
 
 /**
@@ -1288,6 +1301,8 @@ public:
 	* 
 	* @param	Indent	number of spaces to insert at the beginning of each line
 	*/	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	void Dump( int32 Indent )
 	{
 		UE_LOG(LogCompile, Log, TEXT("%s%s"), FCString::Spc(Indent), *StructData.Describe());
@@ -1295,6 +1310,7 @@ public:
 		UE_LOG(LogCompile, Log, TEXT("%sproperties:"), FCString::Spc(Indent));
 		StructPropertyData.Dump(Indent + 4);
 	}
+	*/
 
 	/** Constructor */
 	FStructData(FToken&& StructToken) : StructData(MoveTemp(StructToken)) {}
@@ -1392,6 +1408,8 @@ public:
 	 * 
 	 * @param	Indent	number of spaces to insert at the beginning of each line
 	 */	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	void Dump( int32 Indent )
 	{
 		UE_LOG(LogCompile, Log, TEXT("%sparameters:"), FCString::Spc(Indent));
@@ -1403,6 +1421,7 @@ public:
 			UE_LOG(LogCompile, Log, TEXT("%s%s"), FCString::Spc(Indent + 4), *ReturnTypeData.Token.Describe());
 		}
 	}
+	*/
 
 	/**
 	 * Sets the specified function export flags
@@ -1428,7 +1447,10 @@ public:
 	/**
 	 * Adds function data object for given function object.
 	 */
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static FFunctionData* Add(UFunction* Function);
+	*/
 
 	/**
 	 * Adds function data object for given function object.
@@ -1713,7 +1735,10 @@ public:
 	 * 
 	 * @param	Indent	number of spaces to insert at the beginning of each line
 	 */	
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	void Dump( int32 Indent );
+	*/
 
 	/**
 	 * Add a string to the list of inheritance parents for this class.

@@ -390,7 +390,7 @@ void FClassDeclarationMetaData::MergeClassCategories(FClass* Class)
 	AutoExpandCategories.Append(MoveTemp(ParentAutoExpandCategories));
 }
 
-void FClassDeclarationMetaData::MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class, const FClasses& AllClasses)
+void FClassDeclarationMetaData::MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class, const FClasses& AllClasses) const
 {
 	if (WantsToBePlaceable)
 	{
@@ -457,7 +457,7 @@ void FClassDeclarationMetaData::MergeAndValidateClassFlags(const FString& Declar
 	}
 }
 
-void FClassDeclarationMetaData::SetAndValidateConfigName(FClass* Class)
+void FClassDeclarationMetaData::SetAndValidateConfigName(FClass* Class) const
 {
 	if (ConfigName.IsEmpty() == false)
 	{
@@ -489,7 +489,7 @@ void FClassDeclarationMetaData::SetAndValidateConfigName(FClass* Class)
 	}
 }
 
-void FClassDeclarationMetaData::SetAndValidateWithinClass(FClass* Class, const FClasses& AllClasses)
+void FClassDeclarationMetaData::SetAndValidateWithinClass(FClass* Class, const FClasses& AllClasses) const
 {
 	// Process all of the class specifiers
 	if (ClassWithin.IsEmpty() == false)

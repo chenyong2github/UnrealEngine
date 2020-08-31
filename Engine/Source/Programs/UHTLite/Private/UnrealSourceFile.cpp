@@ -109,14 +109,14 @@ const FString& FUnrealSourceFile::GetContent() const
 	return Content;
 }
 
-EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(UStruct* Struct) const
+EGeneratedCodeVersion FUnrealSourceFile::GetGeneratedCodeVersionForStruct(const FHeaderParser& HeaderParser, UStruct* Struct) const
 {
 	if (const EGeneratedCodeVersion* Version = GeneratedCodeVersions.Find(Struct))
 	{
 		return *Version;
 	}
 
-	return FHeaderParser::DefaultGeneratedCodeVersion;
+	return HeaderParser.DefaultGeneratedCodeVersion;
 }
 
 void FUnrealSourceFile::MarkDependenciesResolved()

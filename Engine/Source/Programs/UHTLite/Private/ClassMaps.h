@@ -41,10 +41,26 @@ struct FTypeDefinitionInfoMap
 		DefinitionsByField.Add(Field, Definition);
 		DefinitionsByName.Add(Field->GetFName(), MoveTemp(Definition));
 	}
-	bool Contains(const UField* Field) { return DefinitionsByField.Contains(Field); }
-	TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UField* Field) { return DefinitionsByField.Find(Field); }
-	TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name) { return DefinitionsByName.Find(Name); }
-	TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UField* Field) { return DefinitionsByField[Field]; }
+
+	bool Contains(const UField* Field) const
+	{
+		return DefinitionsByField.Contains(Field);
+	}
+
+	const TSharedRef<FUnrealTypeDefinitionInfo>* Find(const UField* Field) const
+	{
+		return DefinitionsByField.Find(Field);
+	}
+
+	const TSharedRef<FUnrealTypeDefinitionInfo>* FindByName(const FName Name) const
+	{
+		return DefinitionsByName.Find(Name);
+	}
+
+	const TSharedRef<FUnrealTypeDefinitionInfo>& operator[](const UField* Field) const
+	{
+		return DefinitionsByField[Field];
+	}
 
 private:
 
@@ -56,13 +72,13 @@ private:
 struct FClassDeclarations
 {
 	void AddIfMissing(FName Name, TUniqueFunction<TSharedRef<FClassDeclarationMetaData>()>&& DeclConstructFunc);
-	FClassDeclarationMetaData* Find(FName Name);
-	FClassDeclarationMetaData& FindChecked(FName Name);
+	FClassDeclarationMetaData* Find(FName Name) const;
+	FClassDeclarationMetaData& FindChecked(FName Name) const;
 
 private:
 	TMap<FName, TSharedRef<FClassDeclarationMetaData>> ClassDeclarations;
 
-	FRWLock ClassDeclLock;
+	mutable FRWLock ClassDeclLock;
 };
 
 // Wrapper class around SourceFiles map so we can quickly get a list of source files for a given package
@@ -107,23 +123,6 @@ private:
 	// The list of public source files per package. Stored as raw pointer since FUnrealSourceFiles::SourceFilesByString holds shared ref.
 	TMap<UPackage*, TArray<FUnrealSourceFile*>> SourceFilesByPackage;
 };
-
-extern FUnrealSourceFiles GUnrealSourceFilesMap;
-extern FTypeDefinitionInfoMap GTypeDefinitionInfoMap;
-extern TMap<const UPackage*, TArray<UField*>> GPackageSingletons;
-extern FCriticalSection GPackageSingletonsCriticalSection;
-extern FPublicSourceFileSet GPublicSourceFileSet;
-extern TMap<FProperty*, FString> GArrayDimensions;
-extern TMap<UPackage*,  const FManifestModule*> GPackageToManifestModuleMap;
-extern TMap<void*, uint32> GGeneratedCodeHashes;
-extern FRWLock GGeneratedCodeHashesLock;
-extern TMap<UEnum*, EUnderlyingEnumType> GEnumUnderlyingTypes;
-extern FClassDeclarations GClassDeclarations;
-extern TSet<FProperty*> GUnsizedProperties;
-extern TSet<UField*> GEditorOnlyDataTypes;
-extern TMap<UStruct*, TTuple<TSharedRef<FUnrealSourceFile>, int32>> GStructToSourceLine;
-extern TMap<UClass*, FArchiveTypeDefinePair> GClassSerializerMap;
-extern TSet<FProperty*> GPropertyUsesMemoryImageAllocator;
 
 /** Types access specifiers. */
 enum EAccessSpecifier

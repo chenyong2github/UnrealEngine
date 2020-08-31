@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Classes.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "HeaderParser.h"
 
 class FUnrealSourceFile;
 class UPackage;
@@ -82,6 +83,8 @@ FString CreateUTF8LiteralString(const FString& Str);
 struct FNativeClassHeaderGenerator
 {
 private:
+	// UHTLite
+	const FHeaderParser& HeaderParser;
 	FString API;
 	FString APIStringPrivate;
 
@@ -133,7 +136,7 @@ private:
 	 * @param	Struct			UStruct to export properties
 	 * @param	TextIndent		Current text indentation
 	 */
-	static void ExportProperties(FOutputDevice& Out, UStruct* Struct, int32 TextIndent);
+	void ExportProperties(FOutputDevice& Out, UStruct* Struct, int32 TextIndent) const;
 
 	/** Return the name of the singleton function that returns the UObject for Item */
 	static const FString& GetPackageSingletonName(const UPackage* Item, TSet<FString>* UniqueCrossModuleReferences);
@@ -257,9 +260,9 @@ private:
 	 * @param	Structs		the struct to export
 	 * @param	TextIndent	the current indentation of the header exporter
 	 */
-	static void ExportMirrorsForNoexportStruct(FOutputDevice& Out, UScriptStruct* Struct, int32 TextIndent);
+	void ExportMirrorsForNoexportStruct(FOutputDevice& Out, UScriptStruct* Struct, int32 TextIndent) const;
 
-	/**heade
+	/**
 	 * Exports the parameter struct declarations for the list of functions specified
 	 * 
 	 * @param	Function	the function that (may) have parameters which need to be exported
@@ -293,7 +296,7 @@ private:
 	 * @param	Indent				number of spaces to put before each line
 	 * @param	bOutputConstructor	If true, output a constructor for the param struct
 	 */
-	static void ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& PropertyFwd, UFunction* Function, int32 Indent, bool bOutputConstructor, EExportingState ExportingState);
+	void ExportEventParm(FUHTStringBuilder& Out, TSet<FString>& PropertyFwd, UFunction* Function, int32 Indent, bool bOutputConstructor, EExportingState ExportingState) const;
 
 	/**
 	* Move the temp header files into the .h files
@@ -328,7 +331,7 @@ private:
 	 * @param	FunctionHeaderStyle	Whether we're outputting a declaration or definition.
 	 * @param	ExtraParam			Optional extra parameter that will be added to the declaration as the first argument
 	 */
-	static void ExportNativeFunctionHeader(
+	void ExportNativeFunctionHeader(
 		FOutputDevice&                   Out,
 		TSet<FString>&                   OutFwdDecls,
 		const FFuncInfo&                 FunctionData,
@@ -336,7 +339,7 @@ private:
 		EExportFunctionHeaderStyle::Type FunctionHeaderStyle,
 		const TCHAR*                     ExtraParam,
 		const TCHAR*                     APIString
-	);
+	) const;
 
 	/**
 	* Runs checks whether necessary RPC functions exist for function described by FunctionData.
@@ -347,7 +350,10 @@ private:
 	* @param	ValidatePosition		Position in source file of _Validate function for function described by FunctionData.
 	* @param	SourceFile				Currently analyzed source file.
 	*/
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	void CheckRPCFunctions(FReferenceGatherers& OutReferenceGatherers, const FFuncInfo& FunctionData, const FString& ClassName, int32 ImplementationPosition, int32 ValidatePosition, const FUnrealSourceFile& SourceFile) const;
+	*/
 
 	/**
 	 * Exports the native stubs for the list of functions specified
@@ -397,7 +403,7 @@ private:
 	 * @param	Out			The destination to write to.
 	 * @param	Package		Package to export code for.
 	**/
-	void ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, const UPackage* Package, uint32 CRC);
+	void ExportGeneratedPackageInitCode(FOutputDevice& Out, const TCHAR* InDeclarations, const UPackage* Package, uint32 CRC, TMap<const UPackage*, TArray<UField*>>& PackageSingletons);
 
 	/**
 	 * Function to output the C++ code necessary to set up the given array of properties
@@ -444,7 +450,7 @@ private:
 	 * 
 	 * @param SourceFile	current source file
 	 */
-	static void ExportCallbackFunctions(
+	void ExportCallbackFunctions(
 		FOutputDevice&            OutGeneratedHeaderText,
 		FOutputDevice&            Out,
 		TSet<FString>&            OutFwdDecls,
@@ -452,7 +458,7 @@ private:
 		const TCHAR*              CallbackWrappersMacroName,
 		EExportCallbackType       ExportCallbackType,
 		const TCHAR*              APIString
-	);
+	) const;
 
 	/**
 	 * Determines if the property has alternate export text associated with it and if so replaces the text in PropertyText with the
@@ -499,6 +505,36 @@ private:
 	 */
 	static void ExportConstructorsMacros(FOutputDevice& OutGeneratedHeaderText, FOutputDevice& VTableOut, FOutputDevice& StandardUObjectConstructorsMacroCall, FOutputDevice& EnhancedUObjectConstructorsMacroCall, const FString& ConstructorsMacroPrefix, FClass* Class, const TCHAR* APIArg);
 
+	// UHTLite
+	TArray<FUnrealSourceFile*> GetSourceFilesInDependencyOrder(const TSet<FUnrealSourceFile*>& SourceFiles, const TSet<FUnrealSourceFile*>& Ignore) const;
+
+	// UHTLite
+	void GetSourceFilesInDependencyOrderRecursive(TArray<FUnrealSourceFile*>& OutTest, FUnrealSourceFile* SourceFile, TSet<const FUnrealSourceFile*>& VisitedSet, bool bCheckDependenciesOnly, const TSet<FUnrealSourceFile*>& Ignore) const;
+
+	// UHTLite
+	void WriteReplicatedMacroData(
+		const ClassDefinitionRange& ClassRange,
+		const TCHAR* ClassCPPName,
+		const TCHAR* APIArg,
+		FClass* Class,
+		FClass* SuperClass,
+		FOutputDevice& Writer,
+		const FUnrealSourceFile& SourceFile,
+		FNativeClassHeaderGenerator::EExportClassOutFlags& OutFlags) const;
+
+	// UHTLite
+	void ExportNetData(FOutputDevice& Out, UClass* Class, const TCHAR* APIArg) const;
+
+	// UHTLite NOTE: This function modifies GeneratedCodeHashes!
+	void AddGeneratedCodeHash(void* Field, uint32 Hash) const;
+
+	// UHTLite
+	FString GetGeneratedCodeHashTag(void* Field) const;
+
+	// UHTLite NOTE: Globals!
+	static TMap<void*, uint32> GeneratedCodeHashes;
+	static FRWLock             GeneratedCodeHashesLock;
+
 public:
 
 	/** 
@@ -535,10 +571,13 @@ public:
 
 	// Constructor
 	FNativeClassHeaderGenerator(
+		const FHeaderParser& InHeaderParser,
 		const UPackage* InPackage,
 		const TSet<FUnrealSourceFile*>& SourceFiles,
 		FClasses& AllClasses,
-		bool InAllowSaveExportedHeaders
+		bool InAllowSaveExportedHeaders,
+		const FPublicSourceFileSet& PublicSourceFileSet,
+		const TMap<UPackage*, const FManifestModule*>& PackageToManifestModuleMap
 	);
 
 	/**
@@ -547,7 +586,10 @@ public:
 	 * @param Function Function to get return type of.
 	 * @return FString with function return type.
 	 */
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static FString GetFunctionReturnString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+	*/
 
 	/**
 	* Gets string with function parameters (with names).
@@ -555,7 +597,7 @@ public:
 	* @param Function Function to get parameters of.
 	* @return FString with function parameters.
 	*/
-	static FString GetFunctionParameterString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers);
+	FString GetFunctionParameterString(UFunction* Function, FReferenceGatherers& OutReferenceGatherers) const;
 
 	/**
 	 * Checks if function is missing "virtual" specifier.
@@ -564,7 +606,10 @@ public:
 	 * @param FunctionNamePosition Position of name of function in SourceFile.
 	 * @return true if function misses "virtual" specifier, false otherwise.
 	 */
+	// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+	/*
 	static bool IsMissingVirtualSpecifier(const FString& SourceFile, int32 FunctionNamePosition);
+	*/
 };
 
 ENUM_CLASS_FLAGS(FNativeClassHeaderGenerator::EExportClassOutFlags);

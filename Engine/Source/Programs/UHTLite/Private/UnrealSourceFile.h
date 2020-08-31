@@ -197,7 +197,7 @@ public:
 	/**
 	 * Gets generated code version for given UStruct.
 	 */
-	EGeneratedCodeVersion GetGeneratedCodeVersionForStruct(UStruct* Struct) const;
+	EGeneratedCodeVersion GetGeneratedCodeVersionForStruct(const class FHeaderParser& HeaderParser, UStruct* Struct) const;
 
 	/**
 	 * Gets generated code versions.

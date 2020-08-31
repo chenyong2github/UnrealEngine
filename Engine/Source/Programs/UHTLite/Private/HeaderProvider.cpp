@@ -13,19 +13,19 @@ FHeaderProvider::FHeaderProvider(EHeaderProviderSourceType InType, FString&& InI
 
 }
 
-FUnrealSourceFile* FHeaderProvider::Resolve()
+FUnrealSourceFile* FHeaderProvider::Resolve(const FUnrealSourceFiles& UnrealSourceFilesMap, const FTypeDefinitionInfoMap& TypeDefinitionInfoMap)
 {
 	if (Type != EHeaderProviderSourceType::Resolved)
 	{
 		if (Type == EHeaderProviderSourceType::ClassName)
 		{
 			FName IdName(*Id, FNAME_Find);
-			if (TSharedRef<FUnrealTypeDefinitionInfo>* Source = GTypeDefinitionInfoMap.FindByName(IdName))
+			if (const TSharedRef<FUnrealTypeDefinitionInfo>* Source = TypeDefinitionInfoMap.FindByName(IdName))
 			{
 				Cache = &(*Source)->GetUnrealSourceFile();
 			}
 		}
-		else if (const TSharedRef<FUnrealSourceFile>* Source = GUnrealSourceFilesMap.Find(Id))
+		else if (const TSharedRef<FUnrealSourceFile>* Source = UnrealSourceFilesMap.Find(Id))
 		{
 			Cache = &Source->Get();
 		}

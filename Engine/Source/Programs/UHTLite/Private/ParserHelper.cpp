@@ -96,6 +96,8 @@ void FClassMetaData::AddInheritanceParent(UClass* ImplementedInterfaceClass, FUn
 /////////////////////////////////////////////////////
 // FPropertyBase
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
 {
 	switch ( Type )
@@ -135,6 +137,7 @@ const TCHAR* FPropertyBase::GetPropertyTypeText( EPropertyType Type )
 
 	return TEXT("");
 }
+*/
 
 /////////////////////////////////////////////////////
 // FToken
@@ -246,12 +249,15 @@ FFunctionData* FFunctionData::FindForFunction(UFunction* Function)
 	return &(*Output).Get();
 }
 
+// UHTLite NOTE: Not required for code-gen. Will be refactored later.
+/*
 FFunctionData* FFunctionData::Add(UFunction* Function)
 {
 	TUniqueObj<FFunctionData>& Output = FunctionDataMap.Add(Function);
 
 	return &Output.Get();
 }
+*/
 
 FFunctionData* FFunctionData::Add(FFuncInfo&& FunctionInfo)
 {

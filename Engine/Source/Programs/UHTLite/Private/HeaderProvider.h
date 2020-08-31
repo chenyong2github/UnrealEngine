@@ -20,7 +20,7 @@ class FHeaderProvider
 public:
 	FHeaderProvider(EHeaderProviderSourceType Type, FString&& Id);
 
-	FUnrealSourceFile* Resolve();
+	FUnrealSourceFile* Resolve(const struct FUnrealSourceFiles& UnrealSourceFilesMap, const struct FTypeDefinitionInfoMap& TypeDefinitionInfoMap);
 
 	FString ToString() const;
 

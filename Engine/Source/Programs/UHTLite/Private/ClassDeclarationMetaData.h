@@ -55,18 +55,18 @@ public:
 	* @param	Class Class to merge flags for
 	* @param  AllClasses All known classes
 	*/
-	void MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class, const FClasses& AllClasses);
+	void MergeAndValidateClassFlags(const FString& DeclaredClassName, uint32 PreviousClassFlags, FClass* Class, const FClasses& AllClasses) const;
 private:
 
 	/** Merges all 'show' categories */
 	void MergeShowCategories();
 	/** Sets and validates 'within' property */
-	void SetAndValidateWithinClass(FClass* Class, const FClasses& AllClasses);
+	void SetAndValidateWithinClass(FClass* Class, const FClasses& AllClasses) const;
 	/** Sets and validates 'ConfigName' property */
-	void SetAndValidateConfigName(FClass* Class);
+	void SetAndValidateConfigName(FClass* Class) const;
 
 	TArray<FString> ShowCategories;
 	TArray<FString> ShowFunctions;
 	TArray<FString> DontAutoCollapseCategories;
-	bool WantsToBePlaceable;
+	mutable bool WantsToBePlaceable;
 };
