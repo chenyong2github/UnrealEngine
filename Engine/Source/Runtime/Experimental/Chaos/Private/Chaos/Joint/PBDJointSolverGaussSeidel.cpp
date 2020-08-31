@@ -139,19 +139,13 @@ namespace Chaos
 		NetAngularImpulse = FVec3(0);
 
 		LinearSoftLambda = 0;
-		LinearDriveLambda = 0;
 		TwistSoftLambda = 0;
 		SwingSoftLambda = 0;
-		RotationDriveLambdas[0] = 0;
-		RotationDriveLambdas[1] = 0;
-		RotationDriveLambdas[2] = 0;
+		LinearDriveLambdas = FVec3(0);
+		RotationDriveLambdas = FVec3(0);
 
-		LinearConstraintPadding[0] = -1;
-		LinearConstraintPadding[1] = -1;
-		LinearConstraintPadding[2] = -1;
-		AngularConstraintPadding[0] = -1;
-		AngularConstraintPadding[1] = -1;
-		AngularConstraintPadding[2] = -1;
+		LinearConstraintPadding = FVec3(-1);
+		AngularConstraintPadding = FVec3(-1);
 
 		// Tolerances are positional errors below visible detection. But in PBD the errors
 		// we leave behind get converted to velocity, so we need to ensure that the resultant
@@ -1748,7 +1742,7 @@ namespace Chaos
 
 		if ((FMath::Abs(DeltaPos) > PositionTolerance) || (Damping > 0.0f))
 		{
-			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, DeltaPos, DeltaVel, LinearDriveLambda);
+			ApplyPositionConstraintSoft(Dt, Stiffness, Damping, bAccelerationMode, Axis, DeltaPos, DeltaVel, LinearDriveLambdas[AxisIndex]);
 		}
 	}
 
