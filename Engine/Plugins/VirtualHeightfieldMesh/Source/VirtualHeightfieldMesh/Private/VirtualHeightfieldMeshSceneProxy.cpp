@@ -678,6 +678,7 @@ namespace VirtualHeightfieldMesh
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			SHADER_PARAMETER_TEXTURE(Texture2D, MinMaxTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, MinMaxTextureSampler)
+			SHADER_PARAMETER(int32, MinMaxLevelOffset)
 			SHADER_PARAMETER_TEXTURE(Texture2D<float>, OcclusionTexture)
 			SHADER_PARAMETER(int32, OcclusionLevelOffset)
 			SHADER_PARAMETER_TEXTURE(Texture2D<uint>, PageTableTexture)
@@ -943,6 +944,7 @@ namespace VirtualHeightfieldMesh
 	{
 		FRHITexture* PageTableTexture;
 		FRHITexture* MinMaxTexture;
+		int32 MinMaxLevelOffset;
 
 		uint32 MaxLevel;
 		uint32 PageTableFeedbackId;
@@ -1133,6 +1135,7 @@ namespace VirtualHeightfieldMesh
 		FCollectQuadsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCollectQuadsCS::FParameters>();
 		PassParameters->MinMaxTexture = InDesc.MinMaxTexture;
 		PassParameters->MinMaxTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
+		PassParameters->MinMaxLevelOffset = InDesc.MinMaxLevelOffset;
 		PassParameters->OcclusionTexture = InViewDesc.OcclusionTexture;
 		PassParameters->OcclusionLevelOffset = InViewDesc.OcclusionLevelOffset;
 		PassParameters->PageTableTexture = InDesc.PageTableTexture;
@@ -1338,7 +1341,8 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 
 			VirtualHeightfieldMesh::FProxyDesc ProxyDesc;
 			ProxyDesc.PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
-			ProxyDesc.MinMaxTexture = Proxy->MinMaxTexture ? Proxy->MinMaxTexture->Resource->TextureRHI : VirtualHeightfieldMesh::GMinMaxDefaultTexture->TextureRHI;;
+			ProxyDesc.MinMaxTexture = Proxy->MinMaxTexture ? Proxy->MinMaxTexture->Resource->TextureRHI : VirtualHeightfieldMesh::GMinMaxDefaultTexture->TextureRHI;
+			ProxyDesc.MinMaxLevelOffset = ProxyDesc.MinMaxTexture->GetNumMips() - 1 - AllocatedVirtualTexture->GetMaxLevel();
 			ProxyDesc.MaxLevel = AllocatedVirtualTexture->GetMaxLevel();
 			ProxyDesc.PageTableSize = PageTableSize;
 			ProxyDesc.PhysicalPageTransform = PhysicalPageTransform;
