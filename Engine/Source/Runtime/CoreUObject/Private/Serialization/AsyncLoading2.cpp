@@ -444,8 +444,6 @@ struct FAsyncPackageDesc2
 #endif
 };
 
-using FExportObjects = TArray<FExportObject>;
-
 class FNameMap
 {
 public:
@@ -1359,7 +1357,7 @@ public:
 	FORCENOINLINE void HandleBadExportIndex(int32 ExportIndex, UObject*& Object)
 	{
 		UE_ASYNC_PACKAGE_LOG(Error, *PackageDesc, TEXT("HandleBadExportIndex"),
-			TEXT("Index: %d/%d"), ExportIndex, ExportCount);
+			TEXT("Index: %d/%d"), ExportIndex, Exports.Num());
 
 		Object = nullptr;
 	}
@@ -1385,9 +1383,9 @@ public:
 		else if (Index.IsExport())
 		{
 			const int32 ExportIndex = Index.ToExport();
-			if (ExportIndex < ExportCount)
+			if (ExportIndex < Exports.Num())
 			{
-				Object = (*Exports)[ExportIndex].Object;
+				Object = Exports[ExportIndex].Object;
 
 #if ALT2_LOG_VERBOSE
 				const FExportMapEntry& Export = ExportMap[ExportIndex];
@@ -1474,9 +1472,8 @@ private:
 	FPackageImportStore* ImportStore = nullptr;
 	TArray<FExternalReadCallback>* ExternalReadDependencies;
 	const FNameMap* NameMap = nullptr;
-	const FExportObjects* Exports = nullptr;
+	TArrayView<const FExportObject> Exports;
 	const FExportMapEntry* ExportMap = nullptr;
-	int32 ExportCount = 0;
 	uint32 CookedHeaderSize = 0;
 	uint64 CookedSerialOffset = 0;
 	uint64 CookedSerialSize = 0;
@@ -1486,10 +1483,20 @@ private:
 enum class EAsyncPackageLoadingState2 : uint8
 {
 	NewPackage,
-	WaitingForSummary,
-	ProcessNewImportsAndExports,
-	PostLoad_Etc,
-	PackageComplete,
+	ImportPackages,
+	ImportPackagesDone,
+	WaitingForIo,
+	ProcessPackageSummary,
+	ProcessExportBundles,
+	WaitingForExternalReads,
+	ExportsDone,
+	PostLoad,
+	DeferredPostLoad,
+	DeferredPostLoadDone,
+	Finalize,
+	CreateClusters,
+	Complete,
+	DeferredDelete,
 };
 
 class FEventLoadGraphAllocator;
@@ -1500,7 +1507,7 @@ struct FAsyncLoadingThreadState2;
 class FEventLoadNode2
 {
 public:
-	FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex);
+	FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex, int32 InBarrierCount);
 	void DependsOn(FEventLoadNode2* Other);
 	void AddBarrier();
 	void AddBarrier(int32 Count);
@@ -1535,32 +1542,14 @@ private:
 	TAtomic<uint8> bFired { 0 };
 #endif
 
-	const FAsyncLoadEventSpec* Spec;
-	FAsyncPackage2* Package;
-	int32 ImportOrExportIndex;
+	const FAsyncLoadEventSpec* Spec = nullptr;
+	FAsyncPackage2* Package = nullptr;
+	int32 ImportOrExportIndex = -1;
 };
 
 class FAsyncLoadEventGraphAllocator
 {
 public:
-	FEventLoadNode2* AllocNodes(uint32 Count)
-	{
-		//TRACE_CPUPROFILER_EVENT_SCOPE(AllocNodes);
-		SIZE_T Size = Count * sizeof(FEventLoadNode2);
-		TotalNodeCount += Count;
-		TotalAllocated += Size;
-		return reinterpret_cast<FEventLoadNode2*>(FMemory::Malloc(Size));
-	}
-
-	void FreeNodes(FEventLoadNode2* Nodes, uint32 Count)
-	{
-		//TRACE_CPUPROFILER_EVENT_SCOPE(FreeNodes);
-		FMemory::Free(Nodes);
-		SIZE_T Size = Count * sizeof(FEventLoadNode2);
-		TotalAllocated -= Size;
-		TotalNodeCount -= Count;
-	}
-
 	FEventLoadNode2** AllocArcs(uint32 Count)
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(AllocArcs);
@@ -1579,7 +1568,6 @@ public:
 		TotalArcCount -= Count;
 	}
 
-	TAtomic<int64> TotalNodeCount { 0 };
 	TAtomic<int64> TotalArcCount { 0 };
 	TAtomic<int64> TotalAllocated { 0 };
 };
@@ -1723,6 +1711,20 @@ enum EEventLoadNode2 : uint8
 	ExportBundle_NumPhases,
 };
 
+struct FAsyncPackageData
+{
+	int32 ExportCount = 0;
+	int32 ExportBundleCount = 0;
+	uint64 ExportBundlesMetaSize = 0;
+	uint8* ExportBundlesMetaMemory = nullptr;
+	const FExportBundleHeader* ExportBundleHeaders = nullptr;
+	const FExportBundleEntry* ExportBundleEntries = nullptr;
+	TArrayView<FExportObject> Exports;
+	TArrayView<FAsyncPackage2*> ImportedAsyncPackages;
+	TArrayView<FEventLoadNode2> PackageNodes;
+	TArrayView<FEventLoadNode2> ExportBundleNodes;
+};
+
 /**
 * Structure containing intermediate data required for async loading of all exports of a package.
 */
@@ -1733,13 +1735,12 @@ struct FAsyncPackage2
 	friend class FAsyncLoadingThread2;
 
 	FAsyncPackage2(const FAsyncPackageDesc2& InDesc,
+		const FAsyncPackageData& InData,
 		FAsyncLoadingThread2& InAsyncLoadingThread,
 		FAsyncLoadEventGraphAllocator& InGraphAllocator,
 		const FAsyncLoadEventSpec* EventSpecs);
 	virtual ~FAsyncPackage2();
 
-
-	bool bCompleted = false;
 
 	void AddRef()
 	{
@@ -1754,14 +1755,6 @@ struct FAsyncPackage2
 	void MarkRequestIDsAsComplete();
 
 	/**
-	 * @return Estimated load completion percentage.
-	 */
-	FORCEINLINE float GetLoadPercentage() const
-	{
-		return LoadPercentage;
-	}
-
-	/**
 	 * @return Time load begun. This is NOT the time the load was requested in the case of other pending requests.
 	 */
 	double GetLoadStartTime() const;
@@ -1771,12 +1764,6 @@ struct FAsyncPackage2
 	FORCEINLINE UPackage* GetLinkerRoot() const
 	{
 		return LinkerRoot;
-	}
-
-	/** Returns true if the package has finished loading. */
-	FORCEINLINE bool HasFinishedLoading() const
-	{
-		return bLoadHasFinished;
 	}
 
 	/** Returns true if loading has failed */
@@ -1826,12 +1813,6 @@ struct FAsyncPackage2
 	/** Checks if all dependencies (imported packages) of this package have been fully loaded */
 	bool AreAllDependenciesFullyLoaded(TSet<FPackageId>& VisitedPackages);
 
-	/** Returs true if this package loaded objects that can create GC clusters */
-	bool HasClusterObjects() const
-	{
-		return bHasClusterObjects;
-	}
-
 	/** Creates GC clusters from loaded objects */
 	EAsyncPackageState::Type CreateClusters();
 
@@ -1843,48 +1824,37 @@ private:
 	/** Checks if all dependencies (imported packages) of this package have been fully loaded */
 	bool AreAllDependenciesFullyLoadedInternal(FAsyncPackage2* Package, TSet<FPackageId>& VisitedPackages, FPackageId& OutPackageId);
 
-	TAtomic<int32> RefCount{ 0 };
-
 	/** Basic information associated with this package */
 	FAsyncPackageDesc2 Desc;
-	/** Package which is going to have its exports and imports loaded									*/
-	UPackage*				LinkerRoot;
-	/** Call backs called when we finished loading this package											*/
-	using FCompletionCallback = TUniquePtr<FLoadPackageAsyncDelegate>;
-	TArray<FCompletionCallback, TInlineAllocator<2>> CompletionCallbacks;
+	FAsyncPackageData Data;
+	/** Cached async loading thread object this package was created by */
+	FAsyncLoadingThread2& AsyncLoadingThread;
+	FAsyncLoadEventGraphAllocator& GraphAllocator;
+	/** Package which is going to have its exports and imports loaded */
+	UPackage* LinkerRoot = nullptr;
+	/** Time load begun. This is NOT the time the load was requested in the case of pending requests.	*/
+	double						LoadStartTime = 0.0;
+	TAtomic<int32> RefCount{ 0 };
 	/** Current bundle entry index in the current export bundle */
 	int32						ExportBundleEntryIndex = 0;
 	/** Current index into ExternalReadDependencies array used to spread wating for external reads over several frames			*/
 	int32						ExternalReadIndex = 0;
 	/** Current index into DeferredClusterObjects array used to spread routing CreateClusters over several frames			*/
-	int32						DeferredClusterIndex;
-	/** True if any export can be a cluster root */
-	bool						bHasClusterObjects;
+	int32						DeferredClusterIndex = 0;
+	EAsyncPackageLoadingState2	AsyncPackageLoadingState = EAsyncPackageLoadingState2::NewPackage;
 	/** True if our load has failed */
-	bool						bLoadHasFailed;
-	/** True if our load has finished */
-	bool						bLoadHasFinished;
+	bool						bLoadHasFailed = false;
 	/** True if this package was created by this async package */
-	bool						bCreatedLinkerRoot;
-	/** Time load begun. This is NOT the time the load was requested in the case of pending requests.	*/
-	double						LoadStartTime;
-	/** Estimated load percentage.																		*/
-	float						LoadPercentage;
+	bool						bCreatedLinkerRoot = false;
 
 	/** List of all request handles */
 	TArray<int32, TInlineAllocator<2>> RequestIDs;
-	/** Number of times we recursed to load this package. */
-	int32 ReentryCount;
-	TArray<FAsyncPackage2*> ImportedAsyncPackages;
 	/** List of ConstructedObjects = Exports + UPackage + ObjectsCreatedFromExports */
 	TArray<UObject*> ConstructedObjects;
-	/** Cached async loading thread object this package was created by */
-	FAsyncLoadingThread2& AsyncLoadingThread;
-	FAsyncLoadEventGraphAllocator& GraphAllocator;
-
-	FEventLoadNode2* PackageNodes = nullptr;
-	FEventLoadNode2* ExportBundleNodes = nullptr;
-	uint32 ExportBundleNodeCount = 0;
+	TArray<FExternalReadCallback> ExternalReadDependencies;
+	/** Call backs called when we finished loading this package											*/
+	using FCompletionCallback = TUniquePtr<FLoadPackageAsyncDelegate>;
+	TArray<FCompletionCallback, TInlineAllocator<2>> CompletionCallbacks;
 
 	FIoBuffer IoBuffer;
 	const uint8* CurrentExportDataPtr = nullptr;
@@ -1893,18 +1863,10 @@ private:
 	uint32 CookedHeaderSize = 0;
 	uint32 LoadOrder = 0;
 
-	TArray<FExternalReadCallback> ExternalReadDependencies;
-	int32 ExportCount = 0;
 	const FExportMapEntry* ExportMap = nullptr;
-	FExportObjects Exports;
 	FPackageImportStore ImportStore;
 	FNameMap NameMap;
 
-	int32 ExportBundleCount = 0;
-	uint64 ExportBundlesMetaSize = 0;
-	uint8* ExportBundlesMetaMemory = nullptr;
-	const FExportBundleHeader* ExportBundleHeaders = nullptr;
-	const FExportBundleEntry* ExportBundleEntries = nullptr;
 public:
 
 	FAsyncLoadingThread2& GetAsyncLoadingThread()
@@ -1918,13 +1880,6 @@ public:
 	}
 
 	/** [EDL] Begin Event driven loader specific stuff */
-
-	EAsyncPackageLoadingState2 AsyncPackageLoadingState;
-
-	bool bHasImportedPackagesRecursive = false;
-
-	bool bAllExportsSerialized;
-	bool bAllExportsDeferredPostLoaded;
 
 	static EAsyncPackageState::Type Event_ProcessExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex);
 	static EAsyncPackageState::Type Event_ProcessPackageSummary(FAsyncPackage2* Package, int32);
@@ -1947,9 +1902,8 @@ public:
 		return CastChecked<T>(Result);
 	}
 
-	FEventLoadNode2* GetPackageNode(EEventLoadNode2 Phase);
-	FEventLoadNode2* GetExportBundleNode(EEventLoadNode2 Phase, uint32 ExportBundleIndex);
-	FEventLoadNode2* GetNode(int32 NodeIndex);
+	FEventLoadNode2& GetPackageNode(EEventLoadNode2 Phase);
+	FEventLoadNode2& GetExportBundleNode(EEventLoadNode2 Phase, uint32 ExportBundleIndex);
 
 	/** [EDL] End Event driven loader specific stuff */
 
@@ -2426,11 +2380,11 @@ public:
 
 	void AddPendingCDOs(FAsyncPackage2* Package, TArray<UClass*, TInlineAllocator<8>>& Classes)
 	{
-		FEventLoadNode2* FirstBundleNode = Package->GetExportBundleNode(ExportBundle_Process, 0);
-		FirstBundleNode->AddBarrier(Classes.Num());
+		FEventLoadNode2& FirstBundleNode = Package->GetExportBundleNode(ExportBundle_Process, 0);
+		FirstBundleNode.AddBarrier(Classes.Num());
 		for (UClass* Class : Classes)
 		{
-			PendingCDOs.FindOrAdd(Class).Add(FirstBundleNode);
+			PendingCDOs.FindOrAdd(Class).Add(&FirstBundleNode);
 		}
 	}
 
@@ -2486,9 +2440,54 @@ private:
 
 	FAsyncPackage2* CreateAsyncPackage(const FAsyncPackageDesc2& Desc)
 	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(CreateAsyncPackage);
 		UE_ASYNC_PACKAGE_DEBUG(Desc);
 		checkf(Desc.StoreEntry, TEXT("No package store entry for package %s"), *Desc.DiskPackageName.ToString());
-		return new FAsyncPackage2(Desc, *this, GraphAllocator, EventSpecs.GetData());
+
+		FAsyncPackageData Data;
+		Data.ExportCount = Desc.StoreEntry->ExportCount;
+		Data.ExportBundleCount = Desc.StoreEntry->ExportBundleCount;
+
+		const int32 ExportBundleNodeCount = Data.ExportBundleCount * EEventLoadNode2::ExportBundle_NumPhases;
+		const int32 ImportedPackageCount = Desc.StoreEntry->ImportedPackages.Num();
+		const int32 NodeCount = EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount;
+
+		const uint64 ExportBundleHeadersSize = sizeof(FExportBundleHeader) * Data.ExportBundleCount;
+		const uint64 ExportBundleEntriesSize = sizeof(FExportBundleEntry) * Data.ExportCount * FExportBundleEntry::ExportCommandType_Count;
+		Data.ExportBundlesMetaSize = ExportBundleHeadersSize + ExportBundleEntriesSize;
+
+		const uint64 AsyncPackageMemSize = Align(sizeof(FAsyncPackage2), 8);
+		const uint64 ExportBundlesMetaMemSize = Align(Data.ExportBundlesMetaSize, 8);
+		const uint64 ExportsMemSize = Align(sizeof(FExportObject) * Data.ExportCount, 8);
+		const uint64 ImportedPackagesMemSize = Align(sizeof(FAsyncPackage2*) * ImportedPackageCount, 8);
+		const uint64 PackageNodesMemSize = Align(sizeof(FEventLoadNode2) * NodeCount, 8);
+		const uint64 MemoryBufferSize =
+			AsyncPackageMemSize +
+			ExportBundlesMetaMemSize +
+			ExportsMemSize +
+			ImportedPackagesMemSize +
+			PackageNodesMemSize;
+
+		uint8* MemoryBuffer = reinterpret_cast<uint8*>(FMemory::Malloc(MemoryBufferSize));
+
+		Data.ExportBundlesMetaMemory = MemoryBuffer + AsyncPackageMemSize;
+		Data.ExportBundleHeaders = reinterpret_cast<const FExportBundleHeader*>(Data.ExportBundlesMetaMemory);
+		Data.ExportBundleEntries = reinterpret_cast<const FExportBundleEntry*>(Data.ExportBundleHeaders + Data.ExportBundleCount);
+
+		Data.Exports = MakeArrayView(reinterpret_cast<FExportObject*>(MemoryBuffer + AsyncPackageMemSize + ExportBundlesMetaMemSize), Data.ExportCount);
+		Data.ImportedAsyncPackages = MakeArrayView(reinterpret_cast<FAsyncPackage2**>(MemoryBuffer + AsyncPackageMemSize + ExportBundlesMetaMemSize + ExportsMemSize), 0);
+		Data.PackageNodes = MakeArrayView(reinterpret_cast<FEventLoadNode2*>(MemoryBuffer + AsyncPackageMemSize + ExportBundlesMetaMemSize + ExportsMemSize + ImportedPackagesMemSize), NodeCount);
+		Data.ExportBundleNodes = MakeArrayView(&Data.PackageNodes[EEventLoadNode2::Package_NumPhases], ExportBundleNodeCount);
+
+		return new (MemoryBuffer) FAsyncPackage2(Desc, Data, *this, GraphAllocator, EventSpecs.GetData());
+	}
+
+	void DeleteAsyncPackage(FAsyncPackage2* Package)
+	{
+		TRACE_CPUPROFILER_EVENT_SCOPE(DeleteAsyncPackage);
+		UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+		Package->~FAsyncPackage2();
+		FMemory::Free(Package);
 	}
 
 	/** Number of times we re-entered the async loading tick, mostly used by singlethreaded ticking. Debug purposes only. */
@@ -2727,15 +2726,16 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 					TEXT("Failed reading chunk for package: %s"), *Result.Status().ToString());
 				Package->bLoadHasFailed = true;
 			}
-			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary)->ReleaseBarrier();
+			Package->GetPackageNode(EEventLoadNode2::Package_ProcessSummary).ReleaseBarrier();
 			Package->AsyncLoadingThread.WaitingForIoBundleCounter.Decrement();
 		});
 		TRACE_COUNTER_DECREMENT(PendingBundleIoRequests);
 	}
 }
 
-FEventLoadNode2::FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex)
-	: Spec(InSpec)
+FEventLoadNode2::FEventLoadNode2(const FAsyncLoadEventSpec* InSpec, FAsyncPackage2* InPackage, int32 InImportOrExportIndex, int32 InBarrierCount)
+	: BarrierCount(InBarrierCount)
+	, Spec(InSpec)
 	, Package(InPackage)
 	, ImportOrExportIndex(InImportOrExportIndex)
 {
@@ -3083,20 +3083,18 @@ void FAsyncPackage2::SetupSerializedArcs(const uint8* GraphData, uint64 GraphDat
 			if (ImportedPackage)
 			{
 				FromExportBundleIndex = FromExportBundleIndex == MAX_uint32
-					? ImportedPackage->ExportBundleCount - 1
+					? ImportedPackage->Data.ExportBundleCount - 1
 					: FromExportBundleIndex;
 
-				check(FromExportBundleIndex < ImportedPackage->ExportBundleCount);
-				check(ToExportBundleIndex < ExportBundleCount);
+				check(FromExportBundleIndex < ImportedPackage->Data.ExportBundleCount);
+				check(ToExportBundleIndex < Data.ExportBundleCount);
 				uint32 FromNodeIndexBase = FromExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
 				uint32 ToNodeIndexBase = ToExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases;
 				for (int32 Phase = 0; Phase < EEventLoadNode2::ExportBundle_NumPhases; ++Phase)
 				{
 					uint32 ToNodeIndex = ToNodeIndexBase + Phase;
-					check(ToNodeIndex < ExportBundleNodeCount);
 					uint32 FromNodeIndex = FromNodeIndexBase + Phase;
-					check(FromNodeIndex < ImportedPackage->ExportBundleNodeCount);
-					ExportBundleNodes[ToNodeIndex].DependsOn(ImportedPackage->ExportBundleNodes + FromNodeIndex);
+					Data.ExportBundleNodes[ToNodeIndex].DependsOn(&ImportedPackage->Data.ExportBundleNodes[FromNodeIndex]);
 				}
 			}
 		}
@@ -3180,17 +3178,24 @@ void FGlobalImportStore::FindAllScriptObjects()
 
 void FAsyncPackage2::ImportPackagesRecursive()
 {
-	if (bHasImportedPackagesRecursive)
+	if (AsyncPackageLoadingState >= EAsyncPackageLoadingState2::ImportPackages)
 	{
 		return;
 	}
-	bHasImportedPackagesRecursive = true;
+	check(AsyncPackageLoadingState == EAsyncPackageLoadingState2::NewPackage);
 
 	const int32 ImportedPackageCount = Desc.StoreEntry->ImportedPackages.Num();
 	if (!ImportedPackageCount)
 	{
+		AsyncPackageLoadingState = EAsyncPackageLoadingState2::ImportPackagesDone;
 		return;
 	}
+	else
+	{
+		AsyncPackageLoadingState = EAsyncPackageLoadingState2::ImportPackages;
+	}
+
+	int32 ImportedPackageIndex = 0;
 
 	FPackageStore& GlobalPackageStore = AsyncLoadingThread.GlobalPackageStore;
 	for (const FPackageId& ImportedPackageId : Desc.StoreEntry->ImportedPackages)
@@ -3233,8 +3238,9 @@ void FAsyncPackage2::ImportPackagesRecursive()
 				TEXT("Imported package is already being loaded."));
 		}
 		ImportedPackage->AddRef();
-		ImportedAsyncPackages.Reserve(ImportedPackageCount);
-		ImportedAsyncPackages.Add(ImportedPackage);
+		check(ImportedPackageIndex == Data.ImportedAsyncPackages.Num());
+		Data.ImportedAsyncPackages = MakeArrayView(Data.ImportedAsyncPackages.GetData(), ImportedPackageIndex + 1);
+		Data.ImportedAsyncPackages[ImportedPackageIndex++] = ImportedPackage;
 		if (bInserted)
 		{
 			ImportedPackage->ImportPackagesRecursive();
@@ -3243,30 +3249,34 @@ void FAsyncPackage2::ImportPackagesRecursive()
 	}
 	UE_ASYNC_PACKAGE_LOG_VERBOSE(VeryVerbose, Desc, TEXT("ImportPackages: ImportsDone"),
 		TEXT("All imported packages are now being loaded."));
+
+	check(AsyncPackageLoadingState == EAsyncPackageLoadingState2::ImportPackages);
+	AsyncPackageLoadingState = EAsyncPackageLoadingState2::ImportPackagesDone;
 }
 
 void FAsyncPackage2::StartLoading()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(StartLoading);
 	TRACE_LOADTIME_BEGIN_LOAD_ASYNC_PACKAGE(this);
-	check(AsyncPackageLoadingState == EAsyncPackageLoadingState2::NewPackage);
-	AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForSummary;
+	check(AsyncPackageLoadingState == EAsyncPackageLoadingState2::ImportPackagesDone);
 
 	LoadStartTime = FPlatformTime::Seconds();
 
 	AsyncLoadingThread.AddBundleIoRequest(this);
+	AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForIo;
 }
 
 EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPackage2* Package, int32)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ProcessPackageSummary);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::WaitingForIo);
+	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessPackageSummary;
 
 	FScopedAsyncPackageEvent2 Scope(Package);
 
 	if (!Package->bLoadHasFailed)
 	{
-		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::WaitingForSummary);
 		check(Package->ExportBundleEntryIndex == 0);
 
 		const uint8* PackageSummaryData = Package->IoBuffer.Data();
@@ -3304,7 +3314,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 				(PackageSummary->ExportMapOffset - PackageSummary->ImportMapOffset) / sizeof(FPackageObjectIndex));
 		Package->ExportMap = reinterpret_cast<const FExportMapEntry*>(PackageSummaryData + PackageSummary->ExportMapOffset);
 		
-		FMemory::Memcpy(Package->ExportBundlesMetaMemory, PackageSummaryData + PackageSummary->ExportBundlesOffset, Package->ExportBundlesMetaSize);
+		FMemory::Memcpy(Package->Data.ExportBundlesMetaMemory, PackageSummaryData + PackageSummary->ExportBundlesOffset, Package->Data.ExportBundlesMetaSize);
 
 		Package->CreateUPackage(PackageSummary);
 		Package->SetupSerializedArcs(GraphData, PackageSummary->GraphDataSize);
@@ -3312,16 +3322,17 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessPackageSummary(FAsyncPacka
 		Package->AllExportDataPtr = PackageSummaryData + PackageSummarySize;
 		Package->CurrentExportDataPtr = Package->AllExportDataPtr;
 
-		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMap.Num(), Package->ExportCount);
+		TRACE_LOADTIME_PACKAGE_SUMMARY(Package, PackageSummarySize, Package->ImportStore.ImportMap.Num(), Package->Data.ExportCount);
 	}
-	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessNewImportsAndExports;
 
 	if (GIsInitialLoad)
 	{
 		Package->SetupScriptDependencies();
 	}
-	Package->GetExportBundleNode(ExportBundle_Process, 0)->ReleaseBarrier();
+	Package->GetExportBundleNode(ExportBundle_Process, 0).ReleaseBarrier();
 
+	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessPackageSummary);
+	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ProcessExportBundles;
 	return EAsyncPackageState::Complete;
 }
 
@@ -3329,6 +3340,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ProcessExportBundle);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
 
 	FScopedAsyncPackageEvent2 Scope(Package);
 
@@ -3356,12 +3368,10 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 #endif
 	};
 
-	check(ExportBundleIndex < Package->ExportBundleCount);
+	check(ExportBundleIndex < Package->Data.ExportBundleCount);
 	
 	if (!Package->bLoadHasFailed)
 	{
-		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessNewImportsAndExports);
-
 		const uint64 AllExportDataSize = Package->IoBuffer.DataSize() - (Package->AllExportDataPtr - Package->IoBuffer.Data());
 		FExportArchive Ar(Package->AllExportDataPtr, Package->CurrentExportDataPtr, AllExportDataSize);
 		{
@@ -3383,13 +3393,12 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 			Ar.PackageDesc = &Package->Desc;
 			Ar.NameMap = &Package->NameMap;
 			Ar.ImportStore = &Package->ImportStore;
-			Ar.Exports = &Package->Exports;
+			Ar.Exports = Package->Data.Exports;
 			Ar.ExportMap = Package->ExportMap;
-			Ar.ExportCount = Package->ExportCount;
 			Ar.ExternalReadDependencies = &Package->ExternalReadDependencies;
 		}
-		const FExportBundleHeader* ExportBundle = Package->ExportBundleHeaders + ExportBundleIndex;
-		const FExportBundleEntry* BundleEntries = Package->ExportBundleEntries + ExportBundle->FirstEntryIndex;
+		const FExportBundleHeader* ExportBundle = Package->Data.ExportBundleHeaders + ExportBundleIndex;
+		const FExportBundleEntry* BundleEntries = Package->Data.ExportBundleEntries + ExportBundle->FirstEntryIndex;
 		const FExportBundleEntry* BundleEntry = BundleEntries + Package->ExportBundleEntryIndex;
 		const FExportBundleEntry* BundleEntryEnd = BundleEntries + ExportBundle->EntryCount;
 		check(BundleEntry <= BundleEntryEnd);
@@ -3400,7 +3409,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 				return EAsyncPackageState::TimeOut;
 			}
 			const FExportMapEntry& ExportMapEntry = Package->ExportMap[BundleEntry->LocalExportIndex];
-			FExportObject& Export = Package->Exports[BundleEntry->LocalExportIndex];
+			FExportObject& Export = Package->Data.Exports[BundleEntry->LocalExportIndex];
 			Export.bFiltered = FilterExport(ExportMapEntry.FilterFlags);
 
 			if (BundleEntry->CommandType == FExportBundleEntry::ExportCommandType_Create)
@@ -3446,24 +3455,25 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ProcessExportBundle(FAsyncPackage
 	
 	Package->ExportBundleEntryIndex = 0;
 
-	if (ExportBundleIndex + 1 < Package->ExportBundleCount)
+	if (ExportBundleIndex + 1 < Package->Data.ExportBundleCount)
 	{
-		Package->GetExportBundleNode(ExportBundle_Process, ExportBundleIndex + 1)->ReleaseBarrier();
+		Package->GetExportBundleNode(ExportBundle_Process, ExportBundleIndex + 1).ReleaseBarrier();
 	}
 	else
 	{
-		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessNewImportsAndExports);
 		Package->ImportStore.ImportMap = TArrayView<const FPackageObjectIndex>();
-		Package->bAllExportsSerialized = true;
 		Package->IoBuffer = FIoBuffer();
-		Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoad_Etc;
 
 		if (Package->ExternalReadDependencies.Num() == 0)
 		{
-			Package->GetNode(Package_ExportsSerialized)->ReleaseBarrier();
+			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
+			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::ExportsDone;
+			Package->GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
 		}
 		else
 		{
+			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ProcessExportBundles);
+			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::WaitingForExternalReads;
 			Package->AsyncLoadingThread.ExternalReadQueue.Enqueue(Package);
 		}
 	}
@@ -3485,7 +3495,7 @@ UObject* FAsyncPackage2::EventDrivenIndexToObject(FPackageObjectIndex Index, boo
 	}
 	if (Index.IsExport())
 	{
-		Result = Exports[Index.ToExport()].Object;
+		Result = Data.Exports[Index.ToExport()].Object;
 	}
 	else if (Index.IsImport())
 	{
@@ -3527,7 +3537,7 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateExport);
 
 	const FExportMapEntry& Export = ExportMap[LocalExportIndex];
-	FExportObject& ExportObject = Exports[LocalExportIndex];
+	FExportObject& ExportObject = Data.Exports[LocalExportIndex];
 	UObject*& Object = ExportObject.Object;
 	check(!Object);
 
@@ -3720,7 +3730,7 @@ bool FAsyncPackage2::EventDrivenSerializeExport(int32 LocalExportIndex, FExportA
 	TRACE_CPUPROFILER_EVENT_SCOPE(SerializeExport);
 
 	const FExportMapEntry& Export = ExportMap[LocalExportIndex];
-	FExportObject& ExportObject = Exports[LocalExportIndex];
+	FExportObject& ExportObject = Data.Exports[LocalExportIndex];
 	UObject* Object = ExportObject.Object;
 	check(Object || (ExportObject.bFiltered | ExportObject.bExportLoadFailed));
 
@@ -3821,6 +3831,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_ExportsDone);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::ExportsDone);
 
 	if (Package->Desc.IsTrackingPublicExports())
 	{
@@ -3829,7 +3840,8 @@ EAsyncPackageState::Type FAsyncPackage2::Event_ExportsDone(FAsyncPackage2* Packa
 		PackageRef.SetAllPublicExportsLoaded();
 	}
 
-	Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_PostLoad, 0)->ReleaseBarrier();
+	Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PostLoad;
+	Package->GetExportBundleNode(EEventLoadNode2::ExportBundle_PostLoad, 0).ReleaseBarrier();
 	return EAsyncPackageState::Complete;
 }
 
@@ -3837,8 +3849,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_PostLoad);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
-
-	check(!Package->HasFinishedLoading());
+	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::PostLoad);
 	check(Package->ExternalReadDependencies.Num() == 0);
 	
 	FAsyncPackageScope2 PackageScope(Package);
@@ -3850,7 +3861,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 	{
 		FAsyncPackage2* CurrentPackage = ProcessQueue.Pop();
 		Visited.Add(CurrentPackage);
-		if (!CurrentPackage->bAllExportsSerialized)
+		if (CurrentPackage->AsyncPackageLoadingState < EAsyncPackageLoadingState2::ExportsDone)
 		{
 			UE_DEBUG_BREAK();
 		}
@@ -3864,7 +3875,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 		}
 	}*/
 	
-	check(ExportBundleIndex < Package->ExportBundleCount);
+	check(ExportBundleIndex < Package->Data.ExportBundleCount);
 
 	EAsyncPackageState::Type LoadingState = EAsyncPackageState::Complete;
 
@@ -3881,8 +3892,8 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 		const bool bAsyncPostLoadEnabled = FAsyncLoadingThreadSettings::Get().bAsyncPostLoadEnabled;
 		const bool bIsMultithreaded = Package->AsyncLoadingThread.IsMultithreaded();
 
-		const FExportBundleHeader* ExportBundle = Package->ExportBundleHeaders + ExportBundleIndex;
-		const FExportBundleEntry* BundleEntries = Package->ExportBundleEntries + ExportBundle->FirstEntryIndex;
+		const FExportBundleHeader* ExportBundle = Package->Data.ExportBundleHeaders + ExportBundleIndex;
+		const FExportBundleEntry* BundleEntries = Package->Data.ExportBundleEntries + ExportBundle->FirstEntryIndex;
 		const FExportBundleEntry* BundleEntry = BundleEntries + Package->ExportBundleEntryIndex;
 		const FExportBundleEntry* BundleEntryEnd = BundleEntries + ExportBundle->EntryCount;
 		check(BundleEntry <= BundleEntryEnd);
@@ -3898,7 +3909,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 			{
 				do
 				{
-					FExportObject& Export = Package->Exports[BundleEntry->LocalExportIndex];
+					FExportObject& Export = Package->Data.Exports[BundleEntry->LocalExportIndex];
 					if (Export.bFiltered | Export.bExportLoadFailed)
 					{
 						break;
@@ -3940,9 +3951,9 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 
 	Package->ExportBundleEntryIndex = 0;
 
-	if (ExportBundleIndex + 1 < Package->ExportBundleCount)
+	if (ExportBundleIndex + 1 < Package->Data.ExportBundleCount)
 	{
-		Package->GetExportBundleNode(ExportBundle_PostLoad, ExportBundleIndex + 1)->ReleaseBarrier();
+		Package->GetExportBundleNode(ExportBundle_PostLoad, ExportBundleIndex + 1).ReleaseBarrier();
 	}
 	else
 	{
@@ -3951,15 +3962,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 		// If the load has failed, perform completion callbacks and then quit
 		LoadingState = Package->FinishObjects();
 
-		// Mark this package as loaded if everything completed.
-		Package->bLoadHasFinished = (LoadingState == EAsyncPackageState::Complete);
-
-		if (Package->bLoadHasFinished)
-		{
-			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::PostLoad_Etc);
-			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::PackageComplete;
-		}
-
 		if (Package->LinkerRoot && LoadingState == EAsyncPackageState::Complete)
 		{
 			UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("AsyncThread: FullyLoaded"),
@@ -3967,10 +3969,9 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 				Package->LinkerRoot->MarkAsFullyLoaded();
 		}
 
-		// TODO: This doesn't seem right, this could be set to Failed above
-		check(LoadingState == EAsyncPackageState::Complete);
-
-		Package->GetExportBundleNode(ExportBundle_DeferredPostLoad, 0)->ReleaseBarrier();
+		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::PostLoad);
+		Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::DeferredPostLoad;
+		Package->GetExportBundleNode(ExportBundle_DeferredPostLoad, 0).ReleaseBarrier();
 	}
 
 	return EAsyncPackageState::Complete;
@@ -3981,10 +3982,11 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_PostLoadObjectsGameThread);
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_DeferredPostLoad);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+	check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::DeferredPostLoad);
 
 	FAsyncPackageScope2 PackageScope(Package);
 
-	check(ExportBundleIndex < Package->ExportBundleCount);
+	check(ExportBundleIndex < Package->Data.ExportBundleCount);
 	EAsyncPackageState::Type LoadingState = EAsyncPackageState::Complete;
 
 	if (Package->bLoadHasFailed)
@@ -3997,8 +3999,8 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 		TGuardValue<bool> GuardIsRoutingPostLoad(PackageScope.ThreadContext.IsRoutingPostLoad, true);
 		FAsyncLoadingTickScope2 InAsyncLoadingTick(Package->AsyncLoadingThread);
 
-		const FExportBundleHeader* ExportBundle = Package->ExportBundleHeaders + ExportBundleIndex;
-		const FExportBundleEntry* BundleEntries = Package->ExportBundleEntries + ExportBundle->FirstEntryIndex;
+		const FExportBundleHeader* ExportBundle = Package->Data.ExportBundleHeaders + ExportBundleIndex;
+		const FExportBundleEntry* BundleEntries = Package->Data.ExportBundleEntries + ExportBundle->FirstEntryIndex;
 		const FExportBundleEntry* BundleEntry = BundleEntries + Package->ExportBundleEntryIndex;
 		const FExportBundleEntry* BundleEntryEnd = BundleEntries + ExportBundle->EntryCount;
 		check(BundleEntry <= BundleEntryEnd);
@@ -4014,7 +4016,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 			{
 				do
 				{
-					FExportObject& Export = Package->Exports[BundleEntry->LocalExportIndex];
+					FExportObject& Export = Package->Data.Exports[BundleEntry->LocalExportIndex];
 					if (Export.bFiltered | Export.bExportLoadFailed)
 					{
 						break;
@@ -4048,36 +4050,31 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 
 	Package->ExportBundleEntryIndex = 0;
 
-	if (ExportBundleIndex + 1 < Package->ExportBundleCount)
+	if (ExportBundleIndex + 1 < Package->Data.ExportBundleCount)
 	{
-		Package->GetExportBundleNode(ExportBundle_DeferredPostLoad, ExportBundleIndex + 1)->ReleaseBarrier();
+		Package->GetExportBundleNode(ExportBundle_DeferredPostLoad, ExportBundleIndex + 1).ReleaseBarrier();
 	}
 	else
 	{
-		Package->bAllExportsDeferredPostLoaded = true;
+		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::DeferredPostLoad);
+		Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::DeferredPostLoadDone;
 		Package->AsyncLoadingThread.LoadedPackagesToProcess.Add(Package);
 	}
 
 	return EAsyncPackageState::Complete;
 }
 
-FEventLoadNode2* FAsyncPackage2::GetPackageNode(EEventLoadNode2 Phase)
+FEventLoadNode2& FAsyncPackage2::GetPackageNode(EEventLoadNode2 Phase)
 {
 	check(Phase < EEventLoadNode2::Package_NumPhases);
-	return PackageNodes + Phase;
+	return Data.PackageNodes[Phase];
 }
 
-FEventLoadNode2* FAsyncPackage2::GetExportBundleNode(EEventLoadNode2 Phase, uint32 ExportBundleIndex)
+FEventLoadNode2& FAsyncPackage2::GetExportBundleNode(EEventLoadNode2 Phase, uint32 ExportBundleIndex)
 {
-	check(ExportBundleIndex < uint32(ExportBundleCount));
+	check(ExportBundleIndex < uint32(Data.ExportBundleCount));
 	uint32 ExportBundleNodeIndex = ExportBundleIndex * EEventLoadNode2::ExportBundle_NumPhases + Phase;
-	return ExportBundleNodes + ExportBundleNodeIndex;
-}
-
-FEventLoadNode2* FAsyncPackage2::GetNode(int32 NodeIndex)
-{ 
-	check(uint32(NodeIndex) < EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount);
-	return &PackageNodes[NodeIndex];
+	return Data.ExportBundleNodes[ExportBundleNodeIndex];
 }
 
 #if ALT2_VERIFY_RECURSIVE_LOADS 
@@ -4179,9 +4176,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessAsyncLoadingFromGameThread
 			{
 				FAsyncPackage2* Package = nullptr;
 				DeferredDeletePackages.Dequeue(Package);
-				TRACE_CPUPROFILER_EVENT_SCOPE(DeleteAsyncPackage);
-				UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
-				delete Package;
+				DeleteAsyncPackage(Package);
 				OutPackagesProcessed++;
 				break;
 			}
@@ -4206,7 +4201,7 @@ bool FAsyncPackage2::AreAllDependenciesFullyLoadedInternal(FAsyncPackage2* Packa
 		FAsyncPackage2* AsyncRoot = AsyncLoadingThread.GetAsyncPackage(ImportedPackageId);
 		if (AsyncRoot)
 		{
-			if (!AsyncRoot->bAllExportsDeferredPostLoaded)
+			if (AsyncRoot->AsyncPackageLoadingState < EAsyncPackageLoadingState2::DeferredPostLoadDone)
 			{
 				OutPackageId = ImportedPackageId;
 				return false;
@@ -4277,12 +4272,15 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			SCOPED_LOADTIMER(ProcessLoadedPackagesTime);
 			FAsyncPackage2* Package = LoadedPackagesToProcess[PackageIndex];
 			UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::DeferredPostLoadDone);
+			Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::Finalize;
 
+			bool bHasClusterObjects = false;
 			TArray<UObject*> CDODefaultSubobjects;
 			// Clear async loading flags (we still want RF_Async, but EInternalObjectFlags::AsyncLoading can be cleared)
-			for (int32 FinalizeIndex = 0; FinalizeIndex < Package->ExportCount; ++FinalizeIndex)
+			for (int32 FinalizeIndex = 0; FinalizeIndex < Package->Data.ExportCount; ++FinalizeIndex)
 			{
-				const FExportObject& Export = Package->Exports[FinalizeIndex];
+				const FExportObject& Export = Package->Data.Exports[FinalizeIndex];
 				if (Export.bFiltered | Export.bExportLoadFailed)
 				{
 					continue;
@@ -4336,11 +4334,11 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 				if (CanCreateObjectClusters())
 				{
-					for (const FExportObject& Export : Package->Exports)
+					for (const FExportObject& Export : Package->Data.Exports)
 					{
 						if (!(Export.bFiltered | Export.bExportLoadFailed) && Export.Object->CanBeClusterRoot())
 						{
-							Package->bHasClusterObjects = true;
+							bHasClusterObjects = true;
 							break;
 						}
 					}
@@ -4375,10 +4373,17 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			}
 
 			// We don't need the package anymore
-			check(!Package->bCompleted);
+			check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::Finalize);
+			if (bHasClusterObjects)
+			{
+				Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::CreateClusters;
+			}
+			else
+			{
+				Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::Complete;
+			}
 			check(!CompletedPackages.Contains(Package));
 			CompletedPackages.Add(Package);
-			Package->bCompleted = true;
 			Package->MarkRequestIDsAsComplete();
 
 			UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("GameThread: LoadCompleted"),
@@ -4398,7 +4403,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 			FAsyncPackage2* Package = CompletedPackages[PackageIndex];
 			{
 				bool bSafeToDelete = false;
-				if (Package->HasClusterObjects())
+				if (Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::CreateClusters)
 				{
 					SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateClustersGameThread);
 					// This package will create GC clusters but first check if all dependencies of this package have been fully loaded
@@ -4408,6 +4413,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 						{
 							// All clusters created, it's safe to delete the package
 							bSafeToDelete = true;
+							Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::Complete;
 						}
 						else
 						{
@@ -4426,6 +4432,9 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 				if (bSafeToDelete)
 				{
 					UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
+					check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::Complete);
+					Package->AsyncPackageLoadingState = EAsyncPackageLoadingState2::DeferredDelete;
+
 					CompletedPackages.RemoveAtSwap(PackageIndex--);
 					Package->ClearImportedPackages();
 					Package->ReleaseRef();
@@ -4794,9 +4803,7 @@ uint32 FAsyncLoadingThread2::Run()
 					int32 Count = 0;
 					while (++Count <= 100 && DeferredDeletePackages.Dequeue(Package))
 					{
-						TRACE_CPUPROFILER_EVENT_SCOPE(DeleteAsyncPackage);
-						UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
-						delete Package;
+						DeleteAsyncPackage(Package);
 					}
 					bDidSomething = true;
 				}
@@ -4902,11 +4909,13 @@ void FAsyncLoadingThread2::ResumeLoading()
 float FAsyncLoadingThread2::GetAsyncLoadPercentage(const FName& PackageName)
 {
 	float LoadPercentage = -1.0f;
+	/*
 	FAsyncPackage2* Package = FindAsyncPackage(PackageName);
 	if (Package)
 	{
 		LoadPercentage = Package->GetLoadPercentage();
 	}
+	*/
 	return LoadPercentage;
 }
 
@@ -5066,76 +5075,47 @@ void FAsyncLoadingThread2::NotifyConstructedDuringAsyncLoading(UObject* Object, 
 */
 FAsyncPackage2::FAsyncPackage2(
 	const FAsyncPackageDesc2& InDesc,
+	const FAsyncPackageData& InData,
 	FAsyncLoadingThread2& InAsyncLoadingThread,
 	FAsyncLoadEventGraphAllocator& InGraphAllocator,
 	const FAsyncLoadEventSpec* EventSpecs)
 : Desc(InDesc)
-, LinkerRoot(nullptr)
-, DeferredClusterIndex(0)
-, bHasClusterObjects(false)
-, bLoadHasFailed(false)
-, bLoadHasFinished(false)
-, bCreatedLinkerRoot(false)
-, LoadStartTime(0.0)
-, LoadPercentage(0)
+, Data(InData)
 , AsyncLoadingThread(InAsyncLoadingThread)
 , GraphAllocator(InGraphAllocator)
 , ImportStore(AsyncLoadingThread.GlobalPackageStore, Desc)
-, AsyncPackageLoadingState(EAsyncPackageLoadingState2::NewPackage)
-, bAllExportsSerialized(false)
-, bAllExportsDeferredPostLoaded(false)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(NewAsyncPackage);
 	TRACE_LOADTIME_NEW_ASYNC_PACKAGE(this, Desc.DiskPackageName);
 	AddRequestID(Desc.RequestID);
 
 	ExportBundlesSize = Desc.StoreEntry->ExportBundlesSize;
-	ExportBundleCount = Desc.StoreEntry->ExportBundleCount;
 	LoadOrder = Desc.StoreEntry->LoadOrder;
-	ExportCount = Desc.StoreEntry->ExportCount;
-	Exports.AddDefaulted(ExportCount);
-	ConstructedObjects.Reserve(ExportCount + 1); // +1 for UPackage
+
+	ConstructedObjects.Reserve(Data.ExportCount + 1); // +1 for UPackage, may grow dynamically beoynd that
+
+	for (FExportObject& Export : Data.Exports)
+	{
+		Export = FExportObject();
+	}
 
 	CreateNodes(EventSpecs);
-
-	ExportBundlesMetaSize = 
-		sizeof(FExportBundleHeader) * ExportBundleCount +
-		sizeof(FExportBundleEntry) * ExportCount * 2;
-	
-	ExportBundlesMetaMemory = reinterpret_cast<uint8*>(FMemory::Malloc(ExportBundlesMetaSize));
-	ExportBundleHeaders = reinterpret_cast<const FExportBundleHeader*>(ExportBundlesMetaMemory);
-	ExportBundleEntries = reinterpret_cast<const FExportBundleEntry*>(ExportBundleHeaders + ExportBundleCount);
-
 }
 
 void FAsyncPackage2::CreateNodes(const FAsyncLoadEventSpec* EventSpecs)
 {
+	const int32 BarrierCount = 1;
+	for (int32 Phase = 0; Phase < EEventLoadNode2::Package_NumPhases; ++Phase)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(CreateNodes);
-		ExportBundleNodeCount = ExportBundleCount * EEventLoadNode2::ExportBundle_NumPhases;
+		new (&Data.PackageNodes[Phase]) FEventLoadNode2(EventSpecs + Phase, this, -1, BarrierCount);
+	}
 
-		PackageNodes = GraphAllocator.AllocNodes(EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount);
-		for (int32 Phase = 0; Phase < EEventLoadNode2::Package_NumPhases; ++Phase)
+	for (int32 ExportBundleIndex = 0; ExportBundleIndex < Data.ExportBundleCount; ++ExportBundleIndex)
+	{
+		uint32 NodeIndex = EEventLoadNode2::ExportBundle_NumPhases * ExportBundleIndex;
+		for (int32 Phase = 0; Phase < EEventLoadNode2::ExportBundle_NumPhases; ++Phase)
 		{
-			new (PackageNodes + Phase) FEventLoadNode2(EventSpecs + Phase, this, -1);
+			new (&Data.ExportBundleNodes[NodeIndex + Phase]) FEventLoadNode2(EventSpecs + EEventLoadNode2::Package_NumPhases + Phase, this, ExportBundleIndex, BarrierCount);
 		}
-
-		FEventLoadNode2* ProcessSummaryNode = PackageNodes + EEventLoadNode2::Package_ProcessSummary;
-		ProcessSummaryNode->AddBarrier();
-		FEventLoadNode2* ExportsSerializedNode = PackageNodes + EEventLoadNode2::Package_ExportsSerialized;
-
-		ExportBundleNodes = PackageNodes + EEventLoadNode2::Package_NumPhases;
-		for (int32 ExportBundleIndex = 0; ExportBundleIndex < ExportBundleCount; ++ExportBundleIndex)
-		{
-			uint32 NodeIndex = EEventLoadNode2::ExportBundle_NumPhases * ExportBundleIndex;
-			for (int32 Phase = 0; Phase < EEventLoadNode2::ExportBundle_NumPhases; ++Phase)
-			{
-				FEventLoadNode2* ExportBundleNode = ExportBundleNodes + NodeIndex + Phase;
-				new (ExportBundleNode) FEventLoadNode2(EventSpecs + EEventLoadNode2::Package_NumPhases + Phase, this, ExportBundleIndex);
-				ExportBundleNode->AddBarrier();
-			}
-		}
-		ExportsSerializedNode->AddBarrier();
 	}
 }
 
@@ -5152,10 +5132,6 @@ FAsyncPackage2::~FAsyncPackage2()
 	
 	checkf(ConstructedObjects.Num() == 0, TEXT("ClearConstructedObjects() has not been called for package %s"),
 		*Desc.DiskPackageName.ToString());
-
-	GraphAllocator.FreeNodes(PackageNodes, EEventLoadNode2::Package_NumPhases + ExportBundleNodeCount);
-
-	FMemory::Free(ExportBundlesMetaMemory);
 }
 
 void FAsyncPackage2::ReleaseRef()
@@ -5172,31 +5148,11 @@ void FAsyncPackage2::ReleaseRef()
 void FAsyncPackage2::ClearImportedPackages()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(ClearImportedPackages);
-	// TODO: Use AsyncPackage pointer from global id, namelookup entry has already been removed
-#if 0
-	FPackageStore& GlobalPackageStore = AsyncLoadingThread.GlobalPackageStore;
-	int32 ImportedPackageCount = 0;
-	int32* Imports = GlobalPackageStore.GetPackageImportedPackages(PackageId, ImportedPackageCount);
-	TArray<FAsyncPackage2*> TempImportedAsyncPackages;
-	for (int32 LocalImportIndex = 0; LocalImportIndex < ImportedPackageCount; ++LocalImportIndex)
-	{
-		int32 EntryIndex = Imports[LocalImportIndex];
-		FPackageStoreEntry& Entry = GlobalPackageStore.StoreEntries[EntryIndex];
-		FAsyncPackage2* ImportedAsyncPackage = AsyncLoadingThread.FindAsyncPackage(Entry.Name);
-		TempImportedAsyncPackages.Add(ImportedAsyncPackage);
-		if (ImportedAsyncPackage)
-		{
-			// ImportedAsyncPackage->ReleaseRef();
-		}
-	}
-	ensure(TempImportedAsyncPackages == ImportedAsyncPackages);
-#else
-	for (FAsyncPackage2* ImportedAsyncPackage : ImportedAsyncPackages)
+	for (FAsyncPackage2* ImportedAsyncPackage : Data.ImportedAsyncPackages)
 	{
 		ImportedAsyncPackage->ReleaseRef();
 	}
-	ImportedAsyncPackages.Empty();
-#endif
+	Data.ImportedAsyncPackages = MakeArrayView(Data.ImportedAsyncPackages.GetData(), 0);
 }
 
 void FAsyncPackage2::ClearConstructedObjects()
@@ -5217,7 +5173,7 @@ void FAsyncPackage2::ClearConstructedObjects()
 	// the async flag of all GC'able public export objects in non-temp packages are handled by FGlobalImportStore::ClearAsyncFlags
 	const bool bShouldClearAsyncFlagForPublicExports = GUObjectArray.IsDisregardForGC(LinkerRoot) || !Desc.IsTrackingPublicExports();
 
-	for (FExportObject& Export : Exports)
+	for (FExportObject& Export : Data.Exports)
 	{
 		if (Export.bFiltered | Export.bExportLoadFailed)
 		{
@@ -5374,6 +5330,7 @@ void FAsyncPackage2::CreateUPackage(const FPackageSummary* PackageSummary)
 
 EAsyncPackageState::Type FAsyncPackage2::ProcessExternalReads(EExternalReadAction Action)
 {
+	check(AsyncPackageLoadingState == EAsyncPackageLoadingState2::WaitingForExternalReads);
 	double WaitTime;
 	if (Action == ExternalReadAction_Poll)
 	{
@@ -5395,17 +5352,18 @@ EAsyncPackageState::Type FAsyncPackage2::ProcessExternalReads(EExternalReadActio
 	}
 
 	ExternalReadDependencies.Empty();
-	GetNode(Package_ExportsSerialized)->ReleaseBarrier();
+	AsyncPackageLoadingState = EAsyncPackageLoadingState2::ExportsDone;
+	GetPackageNode(Package_ExportsSerialized).ReleaseBarrier();
 	return EAsyncPackageState::Complete;
 }
 
 EAsyncPackageState::Type FAsyncPackage2::CreateClusters()
 {
-	while (DeferredClusterIndex < ExportCount &&
+	while (DeferredClusterIndex < Data.ExportCount &&
 			!AsyncLoadingThread.IsAsyncLoadingSuspended() &&
 			!FAsyncLoadingThreadState2::Get()->IsTimeLimitExceeded(TEXT("CreateClusters")))
 	{
-		const FExportObject& Export = Exports[DeferredClusterIndex++];
+		const FExportObject& Export = Data.Exports[DeferredClusterIndex++];
 
 		if (!(Export.bFiltered | Export.bExportLoadFailed) && Export.Object->CanBeClusterRoot())
 		{
@@ -5413,7 +5371,7 @@ EAsyncPackageState::Type FAsyncPackage2::CreateClusters()
 		}
 	}
 
-	return DeferredClusterIndex == ExportCount ? EAsyncPackageState::Complete : EAsyncPackageState::TimeOut;
+	return DeferredClusterIndex == Data.ExportCount ? EAsyncPackageState::Complete : EAsyncPackageState::TimeOut;
 }
 
 EAsyncPackageState::Type FAsyncPackage2::FinishObjects()
@@ -5492,15 +5450,6 @@ void FAsyncPackage2::AddCompletionCallback(TUniquePtr<FLoadPackageAsyncDelegate>
 	// This is to ensure that there is no one trying to subscribe to a already loaded package
 	//check(!bLoadHasFinished && !bLoadHasFailed);
 	CompletionCallbacks.Emplace(MoveTemp(Callback));
-}
-
-void FAsyncPackage2::UpdateLoadPercentage()
-{
-	// PostLoadCount is just an estimate to prevent packages to go to 100% too quickly
-	// We may never reach 100% this way, but it's better than spending most of the load package time at 100%
-	float NewLoadPercentage = 0.0f;
-	// It's also possible that we got so many objects to PostLoad that LoadPercantage will actually drop
-	LoadPercentage = FMath::Max(NewLoadPercentage, LoadPercentage);
 }
 
 int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGuid, const TCHAR* InPackageToLoadFrom, FLoadPackageAsyncDelegate InCompletionDelegate, EPackageFlags InPackageFlags, int32 InPIEInstanceID, int32 InPackagePriority, const FLinkerInstancingContext*)
@@ -5657,7 +5606,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(bool
 	SCOPE_CYCLE_COUNTER(STAT_AsyncLoadingTime);
 	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncLoading);
 
-	CSV_CUSTOM_STAT(FileIO, EDLEventQueueDepth, (int32)GraphAllocator.TotalNodeCount, ECsvCustomStatOp::Set);
+	// CSV_CUSTOM_STAT(FileIO, EDLEventQueueDepth, (int32)GraphAllocator.TotalNodeCount, ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, QueuedPackagesQueueDepth, GetNumQueuedPackages(), ECsvCustomStatOp::Set);
 	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
 
