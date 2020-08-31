@@ -2257,31 +2257,41 @@ bool MovieSceneToolHelpers::ExportToAnimSequence(UAnimSequence* AnimSequence, UM
 	return true;
 }
 
-FSpawnableRestoreState::FSpawnableRestoreState(UMovieScene* MovieScene) :
-	bWasChanged(false)
-{
-	WeakMovieScene = MovieScene;
 
+FSpawnableRestoreState::FSpawnableRestoreState(UMovieScene* MovieScene)
+	: bWasChanged(false)
+	, WeakMovieScene(MovieScene)
+{
 	for (int32 SpawnableIndex = 0; SpawnableIndex < WeakMovieScene->GetSpawnableCount(); ++SpawnableIndex)
 	{
 		FMovieSceneSpawnable& Spawnable = WeakMovieScene->GetSpawnable(SpawnableIndex);
 
 		UMovieSceneSpawnTrack* SpawnTrack = WeakMovieScene->FindTrack<UMovieSceneSpawnTrack>(Spawnable.GetGuid());
 
-		if (SpawnTrack)
+		if (SpawnTrack && SpawnTrack->GetAllSections().Num() > 0)
 		{
-			bWasChanged = true;
+			// Start a transaction that will be undone later for the modifications to the spawn track
+			if (!bWasChanged)
+			{
+				GEditor->BeginTransaction(NSLOCTEXT("MovieSceneToolHelpers", "SpwanableRestoreState", "SpawnableRestoreState"));
+			}
 
+			bWasChanged = true;
+			
 			// Spawnable could be in a subscene, so temporarily override it to persist throughout
 			SpawnOwnershipMap.Add(Spawnable.GetGuid(), Spawnable.GetSpawnOwnership());
 			Spawnable.SetSpawnOwnership(ESpawnOwnership::MasterSequence);
 
-			// Spawnable could have animated spawned state, so temporarily override it to spawn infinitely
-			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->CreateNewSection());
+			UMovieSceneSpawnSection* SpawnSection = Cast<UMovieSceneSpawnSection>(SpawnTrack->GetAllSections()[0]);
 			SpawnSection->Modify();
 			SpawnSection->GetChannel().Reset();
 			SpawnSection->GetChannel().SetDefault(true);
 		}
+	}
+
+	if (bWasChanged)
+	{
+		GEditor->EndTransaction();
 	}
 }
 
@@ -2305,3 +2315,4 @@ FSpawnableRestoreState::~FSpawnableRestoreState()
 	GEditor->UndoTransaction(false);
 	GEditor->bSquelchTransactionNotification = bOrigSquelchTransactionNotification;
 }
+
