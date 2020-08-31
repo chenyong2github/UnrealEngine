@@ -15,8 +15,8 @@ class UTextureRenderTarget2D;
 
 struct FGrid2DCollectionReaderInstanceData_GameThread
 {
-	FNiagaraSystemInstance* SystemInstance;
-	FNiagaraEmitterInstance* EmitterInstance;	
+	FNiagaraSystemInstance* SystemInstance = nullptr;
+	FNiagaraEmitterInstance* EmitterInstance = nullptr;	
 
 	FString EmitterName;
 	FString DIName;
@@ -24,8 +24,7 @@ struct FGrid2DCollectionReaderInstanceData_GameThread
 
 struct FGrid2DCollectionReaderInstanceData_RenderThread
 {
-	FNiagaraComputeExecutionContext* GPUContext;
-	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* ProxyToUse;
+	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* ProxyToUse = nullptr;
 };
 
 struct FNiagaraDataInterfaceProxyGrid2DCollectionReaderProxy : public FNiagaraDataInterfaceProxyRW
