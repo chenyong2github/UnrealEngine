@@ -215,6 +215,15 @@ static float GetVolumetricCloudShadowmapStrength(const FLightSceneProxy* Atmosph
 	return 1.0f;
 }
 
+static float GetVolumetricCloudShadowmapDepthBias(const FLightSceneProxy* AtmosphericLight)
+{
+	if (AtmosphericLight)
+	{
+		return AtmosphericLight->GetCloudShadowDepthBias();
+	}
+	return 0.0f;
+}
+
 static int32 GetVolumetricCloudShadowMapResolution(const FLightSceneProxy* AtmosphericLight)
 {
 	if (AtmosphericLight)
@@ -1133,6 +1142,7 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRHICommandListImmediate& RHIC
 				const float CloudShadowmapResolutionInv = 1.0f / CloudShadowmapResolution;
 				CloudGlobalShaderParams.CloudShadowmapSizeInvSize[LightIndex] = FVector4(CloudShadowmapResolution, CloudShadowmapResolution, CloudShadowmapResolutionInv, CloudShadowmapResolutionInv);
 				CloudGlobalShaderParams.CloudShadowmapStrength[LightIndex] = GetVolumetricCloudShadowmapStrength(AtmosphericLight);
+				CloudGlobalShaderParams.CloudShadowmapDepthBias[LightIndex] = GetVolumetricCloudShadowmapDepthBias(AtmosphericLight);
 				CloudGlobalShaderParams.AtmosphericLightCloudScatteredLuminanceScale[LightIndex] = GetVolumetricCloudScatteredLuminanceScale(AtmosphericLight);
 
 				// Setup cloud shadow constants
@@ -1375,14 +1385,6 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRHICommandListImmediate& RHIC
 							TUniformBufferRef<FRenderVolumetricCloudGlobalParameters> TraceVolumetricCloudShadowParamsUB = TUniformBufferRef<FRenderVolumetricCloudGlobalParameters>::CreateUniformBufferImmediate(VolumetricCloudParams, UniformBuffer_SingleFrame);
 							TraceCloudTexture(CloudShadowTexture, false, TraceVolumetricCloudShadowParamsUB);
 
-							if (CVarVolumetricCloudShadowSpatialFiltering.GetValueOnAnyThread() > 0)
-							{
-								const float CloudShadowTextureTexelWorldSize = GetVolumetricCloudShadowMapExtentKm(AtmosphericLight) * KilometersToCentimeters * VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex].Z;
-								const FVector4 CloudShadowTextureTexelWorldSizeInvSize = FVector4(CloudShadowTextureTexelWorldSize, CloudShadowTextureTexelWorldSize, 1.0f / CloudShadowTextureTexelWorldSize, 1.0f / CloudShadowTextureTexelWorldSize);
-
-								FilterTracedCloudTexture(&CloudShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
-							}
-
 							// Directional light shadow temporal filter
 							const float CloudShadowTemporalWeight = FMath::Min( FMath::Max(CVarVolumetricCloudShadowTemporalFilteringFrameWeight.GetValueOnRenderThread(), 0.0f), 1.0f);
 							const float LightRotationCutCosAngle = FMath::Cos(FMath::DegreesToRadians(CVarVolumetricCloudShadowTemporalFilteringLightRotationCutHistory.GetValueOnAnyThread()));
@@ -1423,10 +1425,25 @@ void FSceneRenderer::InitVolumetricCloudsForViews(FRHICommandListImmediate& RHIC
 								const FIntVector DispatchCount = DispatchCount.DivideAndRoundUp(FIntVector(CloudShadowTextureSize.X, CloudShadowTextureSize.Y, 1), FIntVector(8, 8, 1));
 								FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("CloudDataTemporalFilter"), ComputeShader, Parameters, DispatchCount);
 
+								// Spatial filtering after temporal
+								if (CVarVolumetricCloudShadowSpatialFiltering.GetValueOnAnyThread() > 0)
+								{
+									const float CloudShadowTextureTexelWorldSize = GetVolumetricCloudShadowMapExtentKm(AtmosphericLight) * KilometersToCentimeters * VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex].Z;
+									const FVector4 CloudShadowTextureTexelWorldSizeInvSize = FVector4(CloudShadowTextureTexelWorldSize, CloudShadowTextureTexelWorldSize, 1.0f / CloudShadowTextureTexelWorldSize, 1.0f / CloudShadowTextureTexelWorldSize);
+									FilterTracedCloudTexture(&CurrentShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
+								}
+
 								CloudShadowTemporalRT.ExtractCurrentRT(GraphBuilder, CurrentShadowTexture);
 							}
 							else
 							{
+								if (CVarVolumetricCloudShadowSpatialFiltering.GetValueOnAnyThread() > 0)
+								{
+									const float CloudShadowTextureTexelWorldSize = GetVolumetricCloudShadowMapExtentKm(AtmosphericLight) * KilometersToCentimeters * VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex].Z;
+									const FVector4 CloudShadowTextureTexelWorldSizeInvSize = FVector4(CloudShadowTextureTexelWorldSize, CloudShadowTextureTexelWorldSize, 1.0f / CloudShadowTextureTexelWorldSize, 1.0f / CloudShadowTextureTexelWorldSize);
+									FilterTracedCloudTexture(&CloudShadowTexture, VolumetricCloudParams.VolumetricCloud.CloudShadowmapSizeInvSize[LightIndex], CloudShadowTextureTexelWorldSizeInvSize, false);
+								}
+
 								CloudShadowTemporalRT.ExtractCurrentRT(GraphBuilder, CloudShadowTexture);
 							}
 						}

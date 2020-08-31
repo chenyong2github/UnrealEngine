@@ -1194,6 +1194,7 @@ struct CloudShadowTraceContext
 {
 	float		FarDepthKm;
 	float		Strength;
+	float		DepthBias;
 	float		SampleClount;
 	float4		SizeInvSize;
 	float4x4	WorldToLightClipMatrix;
@@ -1215,6 +1216,7 @@ void MainPS(
 		const uint LightIndex = RenderVolumetricCloudParameters.TraceShadowmap - 1;
 		TraceContext.FarDepthKm					= RenderVolumetricCloudParameters.CloudShadowmapFarDepthKm[LightIndex];
 		TraceContext.Strength					= RenderVolumetricCloudParameters.CloudShadowmapStrength[LightIndex];
+		TraceContext.DepthBias					= RenderVolumetricCloudParameters.CloudShadowmapDepthBias[LightIndex];
 		TraceContext.SampleClount				= RenderVolumetricCloudParameters.CloudShadowmapSampleClount[LightIndex];
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudShadowmapSizeInvSize[LightIndex];
 		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[LightIndex];
@@ -1225,6 +1227,7 @@ void MainPS(
 	{
 		TraceContext.FarDepthKm					= RenderVolumetricCloudParameters.CloudSkyAOFarDepthKm;
 		TraceContext.Strength					= RenderVolumetricCloudParameters.CloudSkyAOStrength;
+		TraceContext.DepthBias					= 0.0f;
 		TraceContext.SampleClount				= RenderVolumetricCloudParameters.CloudSkyAOSampleClount;
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudSkyAOSizeInvSize;
 		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudSkyAOWorldToLightClipMatrix;
@@ -1337,11 +1340,12 @@ void MainPS(
 	}
 
 	// We output front depth and also the mean path extinction that is going to be scaled later by the real path length behind the front depth.
-	const float MeanGreyExtinction = dot(ExtinctionAcc / max(1.0f, ExtinctionAccCount), float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
-	const float MaxGreyOpticalDepth = dot(MaxOpticalDepth, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+	// We also scale extinction and optical depth by the global cloud shadow strength.
+	const float MeanGreyExtinction = TraceContext.Strength * dot(ExtinctionAcc / max(1.0f, ExtinctionAccCount), float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
+	const float MaxGreyOpticalDepth = TraceContext.Strength * dot(MaxOpticalDepth, float3(1.0f / 3.0f, 1.0f / 3.0f, 1.0f / 3.0f));
 	const bool NoHit = NearDepth == DefaultFarDepth;
 	const float FrontDepth = NoHit ? TMax * CENTIMETER_TO_KILOMETER : (ClosestIntersection + NearDepth) * CENTIMETER_TO_KILOMETER;
-	OutColor0 = float3(FrontDepth, MeanGreyExtinction * TraceContext.Strength, MaxGreyOpticalDepth);
+	OutColor0 = float3(max(0.0f, FrontDepth + TraceContext.DepthBias), MeanGreyExtinction , MaxGreyOpticalDepth);
 }
 
 #endif // SHADER_SHADOW_PS
@@ -1472,11 +1476,10 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			MeanExtinction = Weight * Center.MeanExtinction;
 			MinTransmittance = Weight * exp(-Center.MaxOpticalDepth); // We blur in transmittance space for a softer look
 			SampleCount = Weight;
-		}
-		if (Center.MeanExtinction > 0.0f)
-		{
+
 			const float CloudTextureTexelWorldSizeKm = CloudTextureTexelWorldSizeInvSize.x * CENTIMETER_TO_KILOMETER;
-			const float BilateralBlurthresholdKm = CloudTextureTexelWorldSizeKm * 3.0f; // we accept texel ina range of three texel in distance appart
+			//const float BilateralBlurthresholdKm = CloudTextureTexelWorldSizeKm * 10.0f; // we accept texel in a range of three texel in distance appart
+
 			// 5x5 Gaussian blur
 			UNROLL
 			for (int i = -2; i <= 2; ++i)
@@ -1487,7 +1490,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 						continue;
 
 					CloudShadowData Data = CloudShadowData_LoadSrc(CenterCoord + int2(i, j));
-					if (Data.MeanExtinction > 0.0f && abs(Data.DepthKm - Center.DepthKm) < BilateralBlurthresholdKm)
+					if (Data.MeanExtinction > 0.0f)// && abs(Data.DepthKm - Center.DepthKm) < BilateralBlurthresholdKm)
 					{
 						const float Weight = GaussianBlur[2 + i][2 + j];
 						DepthKm += Data.DepthKm * Weight;
@@ -1501,9 +1504,10 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 		if (SampleCount > 0.0f)
 		{
-			Center.DepthKm = DepthKm / SampleCount;
-			Center.MeanExtinction = MeanExtinction / SampleCount;
-			Center.MaxOpticalDepth = MinTransmittance > 0.0f ? -log(MinTransmittance / SampleCount) : 100.0f;
+			const float rescale = 1.0 / SampleCount;
+			Center.DepthKm = DepthKm * rescale;
+			Center.MeanExtinction = MeanExtinction * rescale;
+			Center.MaxOpticalDepth = MinTransmittance > 0.0f ? -log(MinTransmittance * rescale) : 100.0f;
 		}
 
 		CloudShadowData_WriteDst(Center, CenterCoord);
@@ -1606,7 +1610,7 @@ void MainShadowTemporalProcessCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 			// A very simple filter for now that does work well for reasonable atmospheric light rotations.
 			FilteredData = PrevCloudShadowData + TemporalFactor * (CurrCloudShadowData - PrevCloudShadowData);
-			//FilteredData.x = CurrCloudShadowData.x; // do not filter depth otherwise we can drift and self shadowing becomes too impoirtant.
+			FilteredData.x = CurrCloudShadowData.x; // Do not filter depth otherwise we have trouble converging. This will need to be fixed
 		}
 		OutCloudShadowTexture[CenterCoord] = max(0.0, FilteredData);
 	}

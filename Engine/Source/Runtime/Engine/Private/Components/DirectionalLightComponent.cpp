@@ -181,6 +181,7 @@ public:
 	float CloudShadowStrength;
 	float CloudShadowOnAtmosphereStrength;
 	float CloudShadowOnSurfaceStrength;
+	float CloudShadowDepthBias;
 	float CloudShadowMapResolutionScale;
 	FLinearColor CloudScatteredLuminanceScale;
 	uint32 bPerPixelAtmosphereTransmittance : 1;
@@ -212,6 +213,7 @@ public:
 		CloudShadowExtent(Component->CloudShadowExtent),
 		CloudShadowStrength(Component->CloudShadowStrength),
 		CloudShadowOnAtmosphereStrength(Component->CloudShadowOnAtmosphereStrength),
+		CloudShadowDepthBias(Component->CloudShadowDepthBias),
 		CloudShadowOnSurfaceStrength(Component->CloudShadowOnSurfaceStrength),
 		CloudShadowMapResolutionScale(Component->CloudShadowMapResolutionScale),
 		CloudScatteredLuminanceScale(Component->CloudScatteredLuminanceScale),
@@ -514,6 +516,10 @@ public:
 	virtual float GetCloudShadowOnAtmosphereStrength()  const override
 	{
 		return CloudShadowOnAtmosphereStrength;
+	}
+	virtual float GetCloudShadowDepthBias()  const override
+	{
+		return CloudShadowDepthBias;
 	}
 	virtual float GetCloudShadowOnSurfaceStrength()  const override
 	{
@@ -966,6 +972,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	CloudShadowStrength = 1.0f;
 	CloudShadowOnAtmosphereStrength = 1.0f;
 	CloudShadowOnSurfaceStrength = 1.0f;
+	CloudShadowDepthBias = 0.0f;
 	CloudScatteredLuminanceScale = FLinearColor::White;
 	bPerPixelAtmosphereTransmittance = 0;
 }
@@ -1063,7 +1070,8 @@ bool UDirectionalLightComponent::CanEditChange(const FProperty* InProperty) cons
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowMapResolutionScale)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowStrength)
 			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnAtmosphereStrength)
-			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnSurfaceStrength))
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowOnSurfaceStrength)
+			|| PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDirectionalLightComponent, CloudShadowDepthBias))
 		{
 			return bCastCloudShadows && bUsedAsAtmosphereSunLight;
 		}
