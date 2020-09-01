@@ -165,7 +165,7 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 			
 			if ((InUsage & EMetalBufferUsage_LinearTex) && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesTextureBuffers))
 			{
-				if ((InUsage & BUF_UnorderedAccess) && ((InSize - AllocSize) < 512))
+				if (InUsage & BUF_UnorderedAccess)
 				{
 					// Padding for write flushing when not using linear texture bindings for buffers
 					AllocSize = Align(AllocSize + 512, 1024);
@@ -190,10 +190,19 @@ FMetalRHIBuffer::FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType
 						{
 							Dimension <<= 1;
 							checkf(SizeX <= GMaxTextureDimensions, TEXT("Calculated width %u is greater than maximum permitted %d when converting buffer of size %u to a 2D texture."), Dimension, (int32)GMaxTextureDimensions, AllocSize);
-							check(Dimension <= GMaxTextureDimensions);
-							AllocSize = Align(Size, Dimension);
-							NumElements = AllocSize;
-							SizeX = NumElements;
+							if(Dimension <= GMaxTextureDimensions)
+							{
+								AllocSize = Align(Size, Dimension);
+								NumElements = AllocSize;
+								SizeX = NumElements;
+							}
+							else
+							{
+								// We don't know the Pixel Format and so the bytes per element for the potential linear texture
+								// Use max texture dimension as the align to be a worst case rather than crashing
+								AllocSize = Align(Size, GMaxTextureDimensions);
+								break;
+							}
 						}
 					}
 					
