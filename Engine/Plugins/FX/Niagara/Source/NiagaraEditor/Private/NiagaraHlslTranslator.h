@@ -327,6 +327,8 @@ public:
 	bool bWritesParticles = false;
 	bool bPartialParticleUpdate = false;
 	TArray<FNiagaraVariable> SetParticleAttributes;
+	int32 CurrentCallID = 0;
+	bool bCallIDInitialized = false;
 };
 
 class NIAGARAEDITOR_API FHlslNiagaraTranslator
@@ -534,7 +536,7 @@ public:
 	virtual void Warning(FText WarningText, const UNiagaraNode* Node, const UEdGraphPin* Pin);
 
 	virtual bool GetFunctionParameter(const FNiagaraVariable& Parameter, int32& OutParam)const;
-	int32 GetUniqueCallerID() { return CurrentCallID++; }
+	int32 GetUniqueCallerID();
 
 	virtual bool CanReadAttributes()const;
 	virtual ENiagaraScriptUsage GetTargetUsage() const;
@@ -653,8 +655,6 @@ private:
 
 	/** Map of symbol names to count of times it's been used. Used for generating unique symbol names. */
 	TMap<FName, uint32> SymbolCounts;
-
-	int32 CurrentCallID = 0;
 
 	//Set of non-builtin structs we have to define in hlsl.
 	TArray<FNiagaraTypeDefinition> StructsToDefine;
