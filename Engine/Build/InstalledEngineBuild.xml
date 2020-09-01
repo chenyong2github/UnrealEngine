@@ -10,7 +10,7 @@
 	<!-- Option to enable all target platforms by default, as we ship in the launcher. Note that this will require cross-compiling IOS on Windows. -->
 	<Option Name="AllPlatforms" Restrict="true|false" DefaultValue="false" Description="Include all target platforms by default"/>
 
-	<Option Name="CompileDatasmithPlugins" Restrict="true|false" DefaultValue="false" Description="If Datasmith plugins should be compiled."/>
+	<Option Name="CompileDatasmithPlugins" Restrict="true|false" DefaultValue="false" Description="If Datasmith plugins should be compiled on a separate node."/>
 
 	<!-- Get default values for each platform being enabled -->
 	<Property Name="DefaultWithWin64" Value="true"/>
@@ -172,7 +172,9 @@
 				<SrcSrv BinaryFiles="#UE4Editor Win64" SourceFiles="#SourceFiles" Branch="$(Branch)" Change="$(Change)"/>
 			</Do>
 
-			<Tag Files="#UE4Editor Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions);$(PluginsExceptions)" With="#UE4Editor Win64 Unstripped"/>
+			<Property Name="UE4EditorExceptions" Value="$(Win64StripExceptions)"/>
+			<Property Name="UE4EditorExceptions" Value="$(UE4EditorExceptions);$(PluginsExceptions)" If="$(CompileDatasmithPlugins)"/>
+			<Tag Files="#UE4Editor Win64" Filter="$(Win64StripFilter)" Except="$(Win64StripExceptions)" With="#UE4Editor Win64 Unstripped"/>
 
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
@@ -206,7 +208,9 @@
 			<Compile Target="UE4Editor" Platform="Mac" Configuration="DebugGame" Tag="#UE4Editor Mac" Arguments="-precompile -allmodules $(CrashReporterCompileArgsMac)"/>
 			<Compile Target="UE4Editor" Platform="Mac" Configuration="Development" Tag="#UE4Editor Mac" Arguments="-precompile -allmodules $(CrashReporterCompileArgsMac)"/>
 
-			<Tag Files="#UE4Editor Mac" Filter="$(MacStripFilter)" Except="$(PluginsExceptions)" With="#UE4Editor Mac Unstripped"/>
+			<Property Name="UE4EditorExceptions" Value=""/>
+			<Property Name="UE4EditorExceptions" Value="$(PluginsExceptions)" If="$(CompileDatasmithPlugins)"/>
+			<Tag Files="#UE4Editor Mac" Filter="$(MacStripFilter)" Except="$(UE4EditorExceptions)" With="#UE4Editor Mac Unstripped"/>
 
 			<Switch>
 				<Case If="'$(WithFullDebugInfo)' == true">
@@ -796,7 +800,9 @@
 
 	<Agent Name="Installed Build Group Win64" Type="Win64_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;#UE4Editor Win64 WithExceptions;#UE4Editor Win64 Unstripped;#UE4Editor Win64 Stripped;#UE4Editor Win64 Unsigned;#UE4Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries;#Rules Assemblies"/>
+		<Property Name="UE4Editor" Value="#UE4Editor Win64" />
+		<Property Name="UE4Editor" Value="#UE4Editor Win64 WithExceptions" If="$(CompileDatasmithPlugins)" />
+		<Property Name="InstalledRequirements" Value="Compile UnrealHeaderTool Win64;$(UE4Editor);#UE4Editor Win64 Unstripped;#UE4Editor Win64 Stripped;#UE4Editor Win64 Unsigned;#UE4Editor Win64 Signed;#Build Tools Win64;#Build Tools CS Binaries;#Rules Assemblies"/>
 		<!-- Optional Target Platform requirements -->
 		<ForEach Name="Platform" Values="$(ExtensionPlatforms)">
 			<Expand Name="$(Platform)_AddInstalledRequirements"/>
@@ -830,7 +836,7 @@
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Win64" With="#Installed Win64"/>
-			<Tag Files="#UE4Editor Win64 WithExceptions" Except="#UE4Editor Win64 Unstripped;#UE4Editor Win64 Unsigned" With="#Installed Win64"/>
+			<Tag Files="$(UE4Editor)" Except="#UE4Editor Win64 Unstripped;#UE4Editor Win64 Unsigned" With="#Installed Win64"/>
 			<Tag Files="#UE4Editor Win64 Stripped;#UE4Editor Win64 Signed" With="#Saved Output"/>
 			<Tag Files="#Build Tools Win64;#Make Feature Packs;#Rules Assemblies" With="#Installed Win64"/>
 			<Tag Files="#DatasmithPluginBinaries Win64" With="#Installed Win64" If="$(CompileDatasmithPlugins)"/>
@@ -966,7 +972,9 @@
 
 	<Agent Name="Installed Build Group Mac" Type="Mac_Licensee">
 		<!-- Build up a list of requirements as some can be optional -->
-		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;#UE4Editor Mac WithExceptions;#UE4Editor Mac Unstripped;#UE4Editor Mac Stripped;#UE4Editor Mac Unsigned;#UE4Editor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries;#Rules Assemblies"/>
+		<Property Name="UE4Editor" Value="#UE4Editor Mac" />
+		<Property Name="UE4Editor" Value="#UE4Editor Mac WithExceptions" If="$(CompileDatasmithPlugins)" />
+		<Property Name="FilterRequirements" Value="#Compile UnrealHeaderTool Mac;$(UE4Editor);#UE4Editor Mac Unstripped;#UE4Editor Mac Stripped;#UE4Editor Mac Unsigned;#UE4Editor Mac Signed;#Build Tools Mac;#Build Tools CS Binaries;#Rules Assemblies"/>
 
 		<!-- Optional Target Platform requirements -->
 		<Property Name="FilterRequirements" Value="$(FilterRequirements);#UE4Game Mac;#UE4Game Mac Unstripped;#UE4Game Mac Stripped;#UE4Game Mac Unsigned;#UE4Game Mac Signed" If="'$(WithMac)' == true"/>
@@ -994,7 +1002,7 @@
 
 			<!-- Tag files that always need to be part of an installed build -->
 			<Tag Files="#Compile UnrealHeaderTool Mac" With="#Installed Mac"/>
-			<Tag Files="#UE4Editor Mac WithExceptions" Except="#UE4Editor Mac Unstripped;#UE4Editor Mac Unsigned" With="#Installed Mac"/>
+			<Tag Files="$(UE4Editor)" Except="#UE4Editor Mac Unstripped;#UE4Editor Mac Unsigned" With="#Installed Mac"/>
 			<Tag Files="#UE4Editor Mac Stripped;#UE4Editor Mac Signed" With="#Saved Output"/>
 			<Tag Files="#Build Tools Mac;#Make Feature Packs;#Rules Assemblies" With="#Installed Mac"/>
 			<Tag Files="#DatasmithPluginBinaries Mac" With="#Installed Mac" If="$(CompileDatasmithPlugins)"/>
