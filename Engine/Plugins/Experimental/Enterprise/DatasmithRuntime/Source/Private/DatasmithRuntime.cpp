@@ -76,10 +76,12 @@ ADatasmithRuntimeActor::ADatasmithRuntimeActor()
 
 	PrimaryActorTick.TickInterval = 0.1f;
 
+#if !NO_LOGGING
 	LogDatasmith.SetVerbosity( ELogVerbosity::Error );
 	LogDirectLink.SetVerbosity( ELogVerbosity::Error );
 	LogDirectLinkIndexer.SetVerbosity( ELogVerbosity::Error );
 	LogDirectLinkNet.SetVerbosity( ELogVerbosity::Error );
+#endif
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
