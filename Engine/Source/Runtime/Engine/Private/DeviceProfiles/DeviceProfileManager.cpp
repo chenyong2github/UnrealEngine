@@ -109,7 +109,7 @@ static void GetFragmentCvars(const FString& CurrentSectionName, const FString& C
 	}
 }
 
-void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings)
+void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSettings, bool bForceDeviceProfilePriority)
 {
 	FString ActiveProfileName = DeviceProfileManagerSingleton ? DeviceProfileManagerSingleton->ActiveDeviceProfile->GetName() : GetPlatformDeviceProfileName();
 
@@ -299,7 +299,7 @@ void UDeviceProfileManager::InitializeCVarsForActiveDeviceProfile(bool bPushSett
 								}
 							}
 
-							uint32 CVarPriority = bIsScalabilityBucket ? ECVF_SetByScalability : ECVF_SetByDeviceProfile;
+							uint32 CVarPriority = (bIsScalabilityBucket && !bForceDeviceProfilePriority) ? ECVF_SetByScalability : ECVF_SetByDeviceProfile;
 							OnSetCVarFromIniEntry(*GDeviceProfilesIni, *CVarKey, *CVarValue, CVarPriority);
 							CVarsAlreadySetList.Add(CVarKey, CVarValue);
 						}
@@ -635,7 +635,7 @@ void UDeviceProfileManager::SaveProfiles(bool bSaveToDefaults)
 /**
 * Overrides the device profile. The original profile can be restored with RestoreDefaultDeviceProfile
 */
-void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile)
+void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfile, bool bForceDeviceProfilePriority)
 {
 	// pop any pushed settings
 	HandleDeviceProfileOverridePop();
@@ -645,7 +645,7 @@ void UDeviceProfileManager::SetOverrideDeviceProfile(UDeviceProfile* DeviceProfi
 
 	// activate new one!
 	DeviceProfileManagerSingleton->SetActiveDeviceProfile(DeviceProfile);
-	InitializeCVarsForActiveDeviceProfile(true);
+	InitializeCVarsForActiveDeviceProfile(true, bForceDeviceProfilePriority);
 
 	// broadcast cvar sinks now that we are done
 	IConsoleManager::Get().CallAllConsoleVariableSinks();
