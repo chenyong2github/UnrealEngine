@@ -654,6 +654,7 @@ struct FNiagaraComponentUpdateTask
 
 struct FNiagaraComponentRenderPool
 {
+	TWeakObjectPtr<AActor> OwnerActor;
 	TMap<TObjectKey<USceneComponent>, TArray<FNiagaraComponentRenderPoolEntry>> PoolsByTemplate;
 };
 
