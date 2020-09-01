@@ -22,9 +22,17 @@ protected:
 	UPROPERTY(EditAnywhere, Category = Heightfield)
 	TSoftObjectPtr<ARuntimeVirtualTextureVolume> VirtualTexture;
 
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
+	bool bSetBoundsButton;
+
 	/** Texture object containing min and max height. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Heightfield)
 	UHeightfieldMinMaxTexture* MinMaxTexture = nullptr;
+
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = Heightfield)
+	bool bBuildMinMaxTextureButton;
 
 	/** The material to apply. */
 	UPROPERTY(EditAnywhere, Category = Rendering)
