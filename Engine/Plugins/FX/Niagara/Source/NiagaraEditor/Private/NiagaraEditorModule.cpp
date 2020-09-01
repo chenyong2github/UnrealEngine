@@ -742,7 +742,10 @@ class FNiagaraSystemColorParameterTrackEditor : public FNiagaraSystemParameterTr
 void FNiagaraEditorModule::OnPreExit()
 {
 	UDeviceProfileManager::Get().OnManagerUpdated().Remove(DeviceProfileManagerUpdatedHandle);
-	CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().Remove(PreviewPlatformChangedHandle);
+	if (GEditor)
+	{
+		CastChecked<UEditorEngine>(GEngine)->OnPreviewPlatformChanged().Remove(PreviewPlatformChangedHandle);
+	}
 
 	// Ensure that we don't have any lingering compiles laying around that will explode after this module shuts down.
 	for (TObjectIterator<UNiagaraSystem> It; It; ++It)
