@@ -83,6 +83,7 @@ public:
 
 	DECLARE_NIAGARA_DI_PARAMETER();
 
+	// Number of attributes stored on the grid
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
