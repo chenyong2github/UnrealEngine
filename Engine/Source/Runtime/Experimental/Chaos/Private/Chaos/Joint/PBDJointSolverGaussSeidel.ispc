@@ -47,7 +47,7 @@ struct FJointSolverGaussSeidel
 	float LinearSoftLambda;
 	float TwistSoftLambda;
 	float SwingSoftLambda;
-	float LinearDriveLambda;
+	FVector LinearDriveLambdas;
 	FVector RotationDriveLambdas;
 	
 	// Constraint padding which can act something like a velocity constraint (for restitution)
