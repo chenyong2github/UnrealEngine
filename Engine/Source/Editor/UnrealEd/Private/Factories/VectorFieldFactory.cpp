@@ -386,13 +386,21 @@ bool UVectorFieldExporter::ExportText(const FExportObjectInnerContext* Context, 
 		LocalVectorField->Bounds.Max.Y,
 		LocalVectorField->Bounds.Max.Z);
 
+	constexpr int32 ComponentCount = 3;
 	const int32 SampleCount = LocalVectorField->SizeX * LocalVectorField->SizeY * LocalVectorField->SizeZ;
 
-	if (LocalVectorField->CPUData.Num() == SampleCount)
+	if (LocalVectorField->HasCPUData())
 	{
-		for (const FVector4& SampleData : LocalVectorField->CPUData)
+		for (int32 SampleX = 0; SampleX < LocalVectorField->SizeX; ++SampleX)
 		{
-			Ar.Logf(TEXT(", %f, %f, %f"), SampleData.X, SampleData.Y, SampleData.Z);
+			for (int32 SampleY = 0; SampleY < LocalVectorField->SizeY; ++SampleY)
+			{
+				for (int32 SampleZ = 0; SampleZ < LocalVectorField->SizeZ; ++SampleZ)
+				{
+					const FVector SampleData = LocalVectorField->Sample(FIntVector(SampleX, SampleY, SampleZ));
+					Ar.Logf(TEXT(", %f, %f, %f"), SampleData.X, SampleData.Y, SampleData.Z);
+				}
+			}
 		}
 		return true;
 	}
