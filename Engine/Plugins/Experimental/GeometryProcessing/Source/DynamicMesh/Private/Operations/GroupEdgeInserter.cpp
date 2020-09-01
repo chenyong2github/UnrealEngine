@@ -45,10 +45,12 @@ bool ConnectMultipleUsingRetriangulation(
 	const TArray <FGroupEdgeInserter::FGroupEdgeSplitPoint>& EndPoints,
 	TSet<int32>* ConnectionEidsOut, int32& NumGroupsCreated, FProgressCancel* Progress);
 bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
-	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVertices, FProgressCancel* Progress);
+	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVerticesOut, 
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut, FProgressCancel* Progress);
 void AppendInclusiveRangeWrapAround(const TArray<int32>& InputArray, TArray<int32>& OutputArray,
 	int32 StartIndex, int32 InclusiveEndIndex);
-bool RetriangulateLoop(FDynamicMesh3& Mesh, const TArray<int32>& LoopVertices, int32 NewGroupID);
+bool RetriangulateLoop(FDynamicMesh3& Mesh, const TArray<int32>& LoopVertices, 
+	int32 NewGroupID, TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& VidUVMaps);
 
 bool ConnectMultipleUsingPlaneCut(FDynamicMesh3& Mesh,
 	const FGroupTopology& Topology, int32 GroupID,
@@ -535,7 +537,9 @@ bool ConnectMultipleUsingRetriangulation(
 	}
 
 	TArray<int32> BoundaryVertices;
-	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, GroupBoundary, BoundaryVertices, Progress);
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>> VidUVMaps;
+	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, GroupBoundary, 
+		BoundaryVertices, VidUVMaps, Progress);
 
 	if (!bSuccess || (Progress && Progress->Cancelled()))
 	{
@@ -587,7 +591,7 @@ bool ConnectMultipleUsingRetriangulation(
 	}
 	if (LoopVids.Num() > 2)
 	{
-		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID);
+		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID, VidUVMaps);
 		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
@@ -619,7 +623,7 @@ bool ConnectMultipleUsingRetriangulation(
 		}
 
 		int32 GroupIDToUse = bUsedOriginalGroup ? Mesh.AllocateTriangleGroup() : GroupID;
-		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse);
+		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse, VidUVMaps);
 		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
@@ -642,7 +646,7 @@ bool ConnectMultipleUsingRetriangulation(
 	if (LoopVids.Num() > 2)
 	{
 		int32 GroupIDToUse = bUsedOriginalGroup ? Mesh.AllocateTriangleGroup() : GroupID;
-		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse);
+		bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupIDToUse, VidUVMaps);
 		bUsedOriginalGroup = true;
 		NumGroupsCreated += (bSuccess ? 1 : 0);
 	}
@@ -663,8 +667,14 @@ bool ConnectMultipleUsingRetriangulation(
  * Does not delete the vertices.
  */
 bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& Topology, int32 GroupID,
-	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVertices, FProgressCancel* Progress)
+	const FGroupTopology::FGroupBoundary& GroupBoundary, TArray<int32>& BoundaryVerticesOut,
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& BoundaryVidUVMapsOut,	FProgressCancel* Progress)
 {
+	if (Progress && Progress->Cancelled())
+	{
+		return false;
+	}
+
 	// Since groups may not be contiguous, we have to do a connected component search
 	// rather than deleting all triangles marked with that group, so get the seeds for the search.
 	int32 FirstEid = Topology.Edges[GroupBoundary.GroupEdges[0]].Span.Edges[0];
@@ -699,7 +709,19 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 		return false;
 	}
 	RegionLoops.Loops[0].Reverse();
-	BoundaryVertices = RegionLoops.Loops[0].Vertices;
+	BoundaryVerticesOut = RegionLoops.Loops[0].Vertices;
+
+
+	if (Mesh.HasAttributes())
+	{
+		const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
+		for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+		{
+			BoundaryVidUVMapsOut.Emplace();
+			RegionLoops.GetLoopOverlayMap(RegionLoops.Loops[0], 
+				*Mesh.Attributes()->GetUVLayer(i), BoundaryVidUVMapsOut.Last());
+		}
+	}
 
 	if (Progress && Progress->Cancelled())
 	{
@@ -711,6 +733,16 @@ bool DeleteGroupTrianglesAndGetLoop(FDynamicMesh3& Mesh, const FGroupTopology& T
 	// the center. We should implement that.
 	FDynamicMeshEditor Editor(&Mesh);
 	Editor.RemoveTriangles(Component.Indices, false);
+
+	if (Mesh.HasAttributes())
+	{
+		const FDynamicMeshAttributeSet* Attributes = Mesh.Attributes();
+		for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+		{
+			RegionLoops.UpdateLoopOverlayMapValidity(BoundaryVidUVMapsOut[i],
+				*Mesh.Attributes()->GetUVLayer(i));
+		}
+	}
 
 	return true;
 }
@@ -734,13 +766,28 @@ void AppendInclusiveRangeWrapAround(const TArray<int32>& InputArray, TArray<int3
 	OutputArray.Add(InputArray[InclusiveEndIndex]);
 }
 
-bool RetriangulateLoop(FDynamicMesh3& Mesh, const TArray<int32>& LoopVertices, int32 NewGroupID)
+bool RetriangulateLoop(FDynamicMesh3& Mesh,
+	const TArray<int32>& LoopVertices, int32 NewGroupID,
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>>& VidUVMaps)
 {
 	TArray<int32> LoopEdges;
 	FEdgeLoop::VertexLoopToEdgeLoop(&Mesh, LoopVertices, LoopEdges);
 	FEdgeLoop Loop(&Mesh, LoopVertices, LoopEdges);
 	FSimpleHoleFiller HoleFiller(&Mesh, Loop, FSimpleHoleFiller::EFillType::PolygonEarClipping);
-	return HoleFiller.Fill(NewGroupID);
+	if (!HoleFiller.Fill(NewGroupID))
+	{
+		return false;
+	}
+
+	if (Mesh.HasAttributes())
+	{
+		if (!HoleFiller.UpdateAttributes(VidUVMaps))
+		{
+			return false;
+		}
+	}
+
+	return true;
 }
 
 /**
@@ -988,7 +1035,9 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 	const FGroupTopology::FGroup* Group = Topology.FindGroupByID(GroupID);
 	check(Group && BoundaryIndex >= 0 && BoundaryIndex < Group->Boundaries.Num());
 	TArray<int32> BoundaryVertices;
-	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, Group->Boundaries[BoundaryIndex], BoundaryVertices, Progress);
+	TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>> VidUVMaps;
+	bool bSuccess = DeleteGroupTrianglesAndGetLoop(Mesh, Topology, GroupID, Group->Boundaries[BoundaryIndex], 
+		BoundaryVertices, VidUVMaps, Progress);
 	if (!bSuccess || (Progress && Progress->Cancelled()))
 	{
 		return false;
@@ -1005,7 +1054,7 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 		// TODO: we could do a tiny bit more work to detect this earlier.
 		return false;
 	}
-	bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID);
+	bSuccess = RetriangulateLoop(Mesh, LoopVids, GroupID, VidUVMaps);
 
 	if (!bSuccess || (Progress && Progress->Cancelled()))
 	{
@@ -1018,7 +1067,7 @@ bool InsertSingleWithRetriangulation(FDynamicMesh3& Mesh, FGroupTopology& Topolo
 	{
 		return false;
 	}
-	bSuccess = RetriangulateLoop(Mesh, LoopVids, Mesh.AllocateTriangleGroup());
+	bSuccess = RetriangulateLoop(Mesh, LoopVids, Mesh.AllocateTriangleGroup(), VidUVMaps);
 
 	if (NewEidsOut)
 	{
