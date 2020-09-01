@@ -4365,6 +4365,15 @@ void UNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel /
 	CleanupDormantReplicatorsForActor(Actor);
 }
 
+void UNetConnection::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
+{
+	UReplicationConnectionDriver* const ConnectionDriver = GetReplicationConnectionDriver();
+	if (ConnectionDriver)
+	{
+		ConnectionDriver->NotifyActorChannelCleanedUp(Channel);
+	}
+}
+
 /*-----------------------------------------------------------------------------
 	USimulatedClientNetConnection.
 -----------------------------------------------------------------------------*/

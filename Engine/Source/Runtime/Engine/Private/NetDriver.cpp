@@ -5939,7 +5939,10 @@ void UNetDriver::NotifyActorChannelOpen(UActorChannel* Channel, AActor* Actor)
 
 void UNetDriver::NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason)
 {
-
+	if (Channel && Channel->Connection)
+	{
+		Channel->Connection->NotifyActorChannelCleanedUp(Channel, CloseReason);
+	}
 }
 
 void UNetDriver::NotifyActorTornOff(AActor* Actor)
