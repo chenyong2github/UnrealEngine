@@ -7,13 +7,16 @@
 #include "Engine/EngineTypes.h"
 #include "Components/MeshComponent.h"
 #include "GroomAsset.h"
+#include "GroomBindingAsset.h"
 #include "RHIDefinitions.h"
 #include "GroomDesc.h"
+#include "LODSyncInterface.h"
+#include "GroomInstance.h"
 
 #include "GroomComponent.generated.h"
 
 UCLASS(HideCategories = (Object, Physics, Activation, Mobility, "Components|Activation"), editinlinenew, meta = (BlueprintSpawnableComponent), ClassGroup = Rendering)
-class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent
+class HAIRSTRANDSCORE_API UGroomComponent : public UMeshComponent, public ILODSyncInterface
 {
 	GENERATED_UCLASS_BODY()
 
@@ -36,8 +39,8 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	bool bBindGroomToSkeletalMesh;
 
-	/** Skeletal mesh on which the groom has been authored. If not provided, the skeletal mesh on which the groom component is attached will be used. If provided, both skeletal mesh needs to share the same topology. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
+	// Kept for debugging mesh transfer
+	UPROPERTY()
 	class USkeletalMesh* SourceSkeletalMesh;
 
 	/** Optional binding asset for binding a groom onto a skeletal mesh. If the binding asset is not provided the projection is done at runtime, which implies a large GPU cost at startup time. */
@@ -48,11 +51,15 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Groom")
 	class UPhysicsAsset* PhysicsAsset;
 
+	/* Reference of the default/debug materials for each geometric representation */
 	UPROPERTY()
-	UMaterialInterface* HairDebugMaterial;
-
+	UMaterialInterface* Strands_DebugMaterial;
 	UPROPERTY()
-	UMaterialInterface* HairDefaultMaterial;
+	UMaterialInterface* Strands_DefaultMaterial;
+	UPROPERTY()
+	UMaterialInterface* Cards_DefaultMaterial;
+	UPROPERTY()
+	UMaterialInterface* Meshes_DefaultMaterial;
 
 	UPROPERTY()
 	class UNiagaraSystem* AngularSpringsSystem;
@@ -76,7 +83,7 @@ public:
 	void ReleaseHairSimulation();
 
 	/** Update Group Description */
-	void UpdateHairGroupsDesc();
+	void UpdateHairGroupsDesc(bool bForceInit);
 
 	/** Update simulated groups */
 	void UpdateSimulatedGroups();
@@ -136,52 +143,24 @@ public:
 	void SetScatterSceneLighting(bool Enable);
 	void SetBinding(bool bBind);
 	void SetBinding(UGroomBindingAsset* InBinding);
+	void SetValidation(bool bEnable) { bValidationEnable = bEnable; }
+
+	///~ Begin ILODSyncInterface Interface.
+	virtual int32 GetDesiredSyncLOD() const override;
+	virtual void SetSyncLOD(int32 LODIndex) override;
+	virtual int32 GetNumSyncLODs() const override;
+	//~ End ILODSyncInterface
+
+	int32 GetNumLODs() const;
+	int32 GetForcedLOD() const;
+	void  SetForcedLOD(int32 LODIndex);
 
 	/** Groom's groups info. */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Groom")
-		TArray<FHairGroupDesc> GroomGroupsDesc;
+	TArray<FHairGroupDesc> GroomGroupsDesc;
 
 private:
-
-	struct FHairGroupResource
-	{
-		// Sim to rendering interpolation resources
-		FHairStrandsInterpolationResource* InterpolationResource = nullptr;
-
-		// Projection resources
-		bool bOwnRootResourceAllocation = true;
-		struct FHairStrandsRestRootResource* RenRestRootResources = nullptr;
-		struct FHairStrandsRestRootResource* SimRestRootResources = nullptr;
-
-		struct FHairStrandsDeformedRootResource* RenDeformedRootResources = nullptr;
-		struct FHairStrandsDeformedRootResource* SimDeformedRootResources = nullptr;
-
-	#if RHI_RAYTRACING
-		FHairStrandsRaytracingResource* RaytracingResources = nullptr;
-	#endif
-
-		// Deformed position
-		FHairStrandsDeformedResource* RenderDeformedResources = nullptr;
-		FHairStrandsDeformedResource* SimDeformedResources = nullptr;
-
-		FHairStrandsClusterCullingResource* ClusterCullingResources = nullptr; // TODO merge into FHairGroupPublicData
-		FHairGroupPublicData* HairGroupPublicDatas = nullptr;
-
-		// Rest resources, owned by the asset
-		FHairStrandsRestResource* RenderRestResources = nullptr;
-		FHairStrandsRestResource* SimRestResources = nullptr;
-	};
-
-	struct FHairGroupResources
-	{
-		TArray<FHairGroupResource> HairGroups;
-	};
-	static void DeleteHairGroupResources(FHairGroupResources*& InHairGroupResources);
-
-	FHairGroupResources* HairGroupResources = nullptr;
-	struct FHairStrandsInterpolationOutput* InterpolationOutput = nullptr;
-	struct FHairStrandsInterpolationInput* InterpolationInput = nullptr;
-
+	TArray<FHairGroupInstance*> HairGroupInstances;
 protected:
 	// Used for tracking if a Niagara component is attached or not
 	virtual void OnChildAttached(USceneComponent* ChildComponent) override;
@@ -193,6 +172,8 @@ private:
 	FVector SkeletalPreviousPositionOffset;
 	bool bIsGroomAssetCallbackRegistered;
 	bool bIsGroomBindingAssetCallbackRegistered;
+	int32 PredictedLODIndex = -1;
+	bool bValidationEnable = true;
 
 	EWorldType::Type GetWorldType() const; 
 	void InitResources(bool bIsBindingReloading=false);
@@ -203,6 +184,7 @@ private:
 
 	friend class FGroomComponentRecreateRenderStateContext;
 	friend class FHairStrandsSceneProxy;
+	friend class FHairCardsSceneProxy;
 };
 
 /** Used to recreate render context for all GroomComponents that use a given GroomAsset */

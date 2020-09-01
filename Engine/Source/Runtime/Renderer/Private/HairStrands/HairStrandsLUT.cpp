@@ -183,7 +183,63 @@ struct FHairCountToCoverageData
 		0.419846, 0.781548, 0.921494, 0.965538, 0.985680, 0.996445, 0.997757, 0.999626, 0.999504, 0.999771, 1.000000, 0.999985, 1.000000, 1.000000, 0.999771, 1.000000, 1.000000, 0.999718, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000,
 		0.426842, 0.782837, 0.919655, 0.968567, 0.988304, 0.995544, 0.998573, 0.998650, 0.999329, 0.999252, 1.000000, 0.999916, 0.999992, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000, 1.000000,
 	};
+
+	static uint32 ToLinearIndex(uint32 HairCountIndex, uint32 HairRadiusIndex)
+	{
+		check(HairCountIndex < FHairCountToCoverageData::HairCount);
+		check(HairRadiusIndex < FHairCountToCoverageData::HairRadiusCount);
+		return HairRadiusIndex + HairCountIndex * FHairCountToCoverageData::HairRadiusCount;
+	}
 };
+
+static FHairCountToCoverageData g_CPUHairLUT;
+float GetHairCoverage(uint32 InCount, float InAvgRadius)
+{
+	const float AvgWidth = FMath::Clamp(InAvgRadius, 0.f, 1.f);
+
+	const float RadiusIndex = FMath::FloorToFloat(AvgWidth * FHairCountToCoverageData::HairRadiusCount);
+	const float S = FMath::Clamp(AvgWidth * FHairCountToCoverageData::HairRadiusCount - RadiusIndex, 0.f, 1.f);
+
+	const uint32 CountIndex   = FMath::Clamp(InCount,				 0u, FHairCountToCoverageData::HairCount - 1u);
+	const uint32 RadiusIndex0 = FMath::Clamp(uint32(RadiusIndex),    0u, FHairCountToCoverageData::HairRadiusCount - 1u);
+	const uint32 RadiusIndex1 = FMath::Clamp(uint32(RadiusIndex)+1u, 0u, FHairCountToCoverageData::HairRadiusCount - 1u);
+
+	const uint32 Index0 = FHairCountToCoverageData::ToLinearIndex(CountIndex, RadiusIndex0);
+	const uint32 Index1 = FHairCountToCoverageData::ToLinearIndex(CountIndex, RadiusIndex1);
+
+	return FMath::Lerp(float(g_CPUHairLUT.Data[Index0]), float(g_CPUHairLUT.Data[Index1]), S);
+}
+
+float GetHairAvgRadius(uint32 InCount, float InCoverage)
+{
+	InCoverage = FMath::Clamp(InCoverage, 0.f, 1.f);
+
+	const uint32 CountIndex = FMath::Clamp(InCount, 0u, FHairCountToCoverageData::HairCount - 1u);
+
+	const uint32 Offset = CountIndex * FHairCountToCoverageData::HairCount;
+	uint32 RadiusIndex = 0;
+	while (
+		RadiusIndex + 1 < FHairCountToCoverageData::HairRadiusCount && 
+		!(InCoverage >= g_CPUHairLUT.Data[Offset + RadiusIndex] &&
+		  InCoverage <= g_CPUHairLUT.Data[Offset + RadiusIndex+1]))
+	{
+		++RadiusIndex;
+	}
+
+	const uint32 RadiusIndex0 = FMath::Clamp(RadiusIndex,   0u, FHairCountToCoverageData::HairRadiusCount - 1u);
+	const uint32 RadiusIndex1 = FMath::Clamp(RadiusIndex+1, 0u, FHairCountToCoverageData::HairRadiusCount - 1u);
+
+	const float Coverage0 = g_CPUHairLUT.Data[Offset + RadiusIndex0];
+	const float Coverage1 = g_CPUHairLUT.Data[Offset + RadiusIndex1];
+	const float Delta = FMath::Abs(Coverage1 - Coverage0);
+
+	const float S =  FMath::Clamp((InCoverage - Coverage0) / FMath::Max(0.001f, Delta), 0.f, 1.f);
+
+	return FMath::Lerp(
+		RadiusIndex0 / float(FHairCountToCoverageData::HairRadiusCount - 1u), 
+		RadiusIndex1 / float(FHairCountToCoverageData::HairRadiusCount - 1u), 
+		S);
+}
 
 /////////////////////////////////////////////////////////////////////////////////////////
 

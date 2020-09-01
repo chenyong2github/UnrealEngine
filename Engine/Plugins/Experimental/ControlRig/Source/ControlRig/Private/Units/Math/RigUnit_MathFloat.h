@@ -257,36 +257,105 @@ struct FRigUnit_MathFloatAbs : public FRigUnit_MathFloatUnaryOp
  * Returns the closest lower full number (integer) of the value
  */
 USTRUCT(meta=(DisplayName="Floor", PrototypeName="Floor", Keywords="Round"))
-struct FRigUnit_MathFloatFloor : public FRigUnit_MathFloatUnaryOp
+struct FRigUnit_MathFloatFloor : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
 
+	FRigUnit_MathFloatFloor()
+	{
+		Value = Result = 0.f;
+		Int = 0;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	float Value;
+
+	UPROPERTY(meta=(Output))
+	float Result;
+
+	UPROPERTY(meta=(Output))
+	int32 Int;
 };
 
 /**
  * Returns the closest higher full number (integer) of the value
  */
 USTRUCT(meta=(DisplayName="Ceiling", PrototypeName="Ceiling", Keywords="Round"))
-struct FRigUnit_MathFloatCeil : public FRigUnit_MathFloatUnaryOp
+struct FRigUnit_MathFloatCeil : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
 
+	FRigUnit_MathFloatCeil()
+	{
+		Value = Result = 0.f;
+		Int = 0;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	float Value;
+
+	UPROPERTY(meta=(Output))
+	float Result;
+
+	UPROPERTY(meta=(Output))
+	int32 Int;
 };
 
 /**
  * Returns the closest higher full number (integer) of the value
  */
 USTRUCT(meta=(DisplayName="Round", PrototypeName="Round"))
-struct FRigUnit_MathFloatRound : public FRigUnit_MathFloatUnaryOp
+struct FRigUnit_MathFloatRound : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()
 
+	FRigUnit_MathFloatRound()
+	{
+		Value = Result = 0.f;
+		Int = 0;
+	}
+
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	float Value;
+
+	UPROPERTY(meta=(Output))
+	float Result;
+
+	UPROPERTY(meta=(Output))
+	int32 Int;
+};
+
+/**
+ * Returns the float cast to an int (this uses floor)
+ */
+USTRUCT(meta=(DisplayName="To Int", PrototypeName="Convert"))
+struct FRigUnit_MathFloatToInt : public FRigUnit_MathFloatBase
+{
+	GENERATED_BODY()
+
+	FRigUnit_MathFloatToInt()
+	{
+		Value = 0.f;
+		Result = 0;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	UPROPERTY(meta=(Input))
+	float Value;
+
+	UPROPERTY(meta=(Output))
+	int32 Result;
 };
 
 /**
@@ -621,7 +690,7 @@ struct FRigUnit_MathFloatIsNearlyEqual : public FRigUnit_MathFloatBase
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If"))
+USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct FRigUnit_MathFloatSelectBool : public FRigUnit_MathFloatBase
 {
 	GENERATED_BODY()

@@ -14,8 +14,6 @@ class UGroomImportOptions;
 class UGroomHairGroupsPreview;
 struct FHairGroupInfo;
 
-bool RunGroomAssetValidation();
-
 class SGroomImportOptionsWindow : public SCompoundWidget
 {
 public:
@@ -38,8 +36,15 @@ public:
 	void Construct(const FArguments& InArgs);
 	virtual bool SupportsKeyboardFocus() const override { return true; }
 
-	static TSharedPtr<SGroomImportOptionsWindow> DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, const struct FProcessedHairDescription* ProcessedDescription);
-	static TSharedPtr<SGroomImportOptionsWindow> DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath);
+	static TSharedPtr<SGroomImportOptionsWindow> DisplayImportOptions(
+		UGroomImportOptions* ImportOptions, 
+		UGroomHairGroupsPreview* GroupsPreview,
+		const FString& FilePath);
+
+	static TSharedPtr<SGroomImportOptionsWindow> DisplayRebuildOptions(
+		UGroomImportOptions* ImportOptions,
+		UGroomHairGroupsPreview* GroupsPreview,
+		const FString& FilePath);
 
 	FReply OnImport()
 	{

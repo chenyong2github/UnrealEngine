@@ -633,12 +633,12 @@ void FAutomationEditorCommonUtils::LoadMap(const FString& MapName)
 	FEditorFileUtils::LoadMap(MapName, bLoadAsTemplate, bShowProgress);
 }
 
-void FAutomationEditorCommonUtils::RunPIE()
+void FAutomationEditorCommonUtils::RunPIE(float PIEDuration)
 {
 	bool bInSimulateInEditor = true;
 	//once in the editor
 	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(true));
-	ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(3.0f));
+	ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(PIEDuration));
 	ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
 
 	//wait between tests
@@ -646,7 +646,7 @@ void FAutomationEditorCommonUtils::RunPIE()
 
 	//once not in the editor
 	ADD_LATENT_AUTOMATION_COMMAND(FStartPIECommand(false));
-	ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(3.0f));
+	ADD_LATENT_AUTOMATION_COMMAND(FWaitLatentCommand(PIEDuration));
 	ADD_LATENT_AUTOMATION_COMMAND(FEndPlayMapCommand());
 }
 

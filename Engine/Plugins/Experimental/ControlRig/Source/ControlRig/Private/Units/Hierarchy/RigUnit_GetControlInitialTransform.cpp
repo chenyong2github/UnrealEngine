@@ -3,11 +3,6 @@
 #include "RigUnit_GetControlInitialTransform.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_GetControlInitialTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Get Initial Control %s"), *Control.ToString());
-}
-
 FRigUnit_GetControlInitialTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -18,11 +13,15 @@ FRigUnit_GetControlInitialTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (!CachedControlIndex.UpdateCache(Control, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Control '%s' is not valid."), *Control.ToString());
+				}
+				else
 				{
 					switch (Space)
 					{

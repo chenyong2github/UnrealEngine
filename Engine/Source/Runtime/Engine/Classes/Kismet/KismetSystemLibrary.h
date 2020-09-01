@@ -1766,6 +1766,18 @@ class ENGINE_API UKismetSystemLibrary : public UBlueprintFunctionLibrary
 
 	
 	/**
+	 * Returns true if the string has -param in it (do not specify the leading -)
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities")
+	static bool ParseParam(const FString& InString, const FString& InParam);
+
+	/**
+	 * Returns 'value' if -option=value is in the string
+	 */
+	UFUNCTION(BlueprintPure, Category = "Utilities")
+	static bool ParseParamValue(const FString& InString, const FString& InParam, FString& OutValue);
+
+	/**
 	 * Returns true if running unattended (-unattended is on the command line)
 	 *
 	 * @return	Unattended state

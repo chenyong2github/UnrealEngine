@@ -37,9 +37,6 @@ static FAutoConsoleVariableRef CVarHairSkylightingConeAngle(TEXT("r.HairStrands.
 static int32 GHairStrandsSkyLightingSampleCount = 16;
 static FAutoConsoleVariableRef CVarHairStrandsSkyLightingSampleCount(TEXT("r.HairStrands.SkyLighting.SampleCount"), GHairStrandsSkyLightingSampleCount, TEXT("Number of samples used for evaluating multiple scattering and visible area (default is set to 16)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
-static int32 GHairStrandsSkyLightingJitterSphericalIntegration = 0;
-static FAutoConsoleVariableRef CVarHairStrandsSkyLightingJitterSphericalIntegration(TEXT("r.HairStrands.SkyLighting.JitterIntegration"), GHairStrandsSkyLightingJitterSphericalIntegration, TEXT("Jitter the sphereical integration for the multiple scattering term. The result is more correct, but noiser as well."), ECVF_Scalability | ECVF_RenderThreadSafe);
-
 static int32 GHairStrandsSkyAOSampleCount = 16;
 static FAutoConsoleVariableRef CVarHairStrandsSkyAOSampleCount(TEXT("r.HairStrands.SkyAO.SampleCount"), GHairStrandsSkyAOSampleCount, TEXT("Number of samples used for evaluating hair AO (default is set to 16)."), ECVF_Scalability | ECVF_RenderThreadSafe);
 
@@ -66,7 +63,8 @@ enum class EHairLightingIntegrationType : uint8
 {
 	SceneColor = 0,
 	AdHoc = 1,
-	Uniform = 2
+	Uniform = 2,
+	SH = 3
 };
 
 bool GetHairStrandsSkyLightingEnable() { return GHairSkylightingEnable > 0; }
@@ -176,10 +174,9 @@ static void AddHairStrandsEnvironmentAOPass(
 class FHairEnvironmentLighting
 {
 public:
-	class FSampleSet		: SHADER_PERMUTATION_INT("PERMUTATION_SAMPLESET", 2);
-	class FIntegrationType	: SHADER_PERMUTATION_INT("PERMUTATION_INTEGRATION_TYPE", 3);
+	class FIntegrationType	: SHADER_PERMUTATION_INT("PERMUTATION_INTEGRATION_TYPE", 4);
 	class FDebug			: SHADER_PERMUTATION_INT("PERMUTATION_DEBUG", 2); 
-	using FPermutationDomain = TShaderPermutationDomain<FSampleSet, FIntegrationType, FDebug>;
+	using FPermutationDomain = TShaderPermutationDomain<FIntegrationType, FDebug>;
 
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
@@ -193,23 +190,11 @@ public:
 			return false;
 		}
 
-		const FPermutationDomain PermutationVector(Parameters.PermutationId);
-		if (PermutationVector.Get<FIntegrationType>() == uint32(EHairLightingIntegrationType::SceneColor) && PermutationVector.Get<FSampleSet>() == 1)
-		{
-			return false;
-		}
-
 		return true;
 	}
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		// If not rendering the sky, ignore the fastsky and sundisk permutations
-		if (PermutationVector.Get<FIntegrationType>() == uint32(EHairLightingIntegrationType::SceneColor))
-		{
-			PermutationVector.Set<FSampleSet>(0);
-		}
-
 		return PermutationVector;
 	}
 
@@ -223,7 +208,6 @@ public:
 		SHADER_PARAMETER(uint32, HairComponents)
 		SHADER_PARAMETER(float,  HairDualScatteringRoughnessOverride)
 		SHADER_PARAMETER(float, TransmissionDensityScaleFactor)
-		SHADER_PARAMETER(uint32, JitterSphericalIntegration)
 		SHADER_PARAMETER(float, HairDistanceThreshold)
 		SHADER_PARAMETER(uint32, bHairUseViewHairCount)
 		SHADER_PARAMETER(FIntPoint, MaxViewportResolution)
@@ -346,6 +330,7 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 		{
 			case 0: IntegrationType = EHairLightingIntegrationType::AdHoc; break;
 			case 1: IntegrationType = EHairLightingIntegrationType::Uniform; break;
+			case 2: IntegrationType = EHairLightingIntegrationType::SH; break;
 		}
 	}
 
@@ -356,7 +341,6 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	PassParameters->bHairUseViewHairCount = VisibilityData.ViewHairCountTexture && GHairStrandsSkyLightingUseHairCountTexture ? 1 : 0;
 	PassParameters->MaxVisibilityNodeCount = VisibilityData.NodeData->Desc.NumElements;
 	PassParameters->MultipleScatterSampleCount = FMath::Max(uint32(GHairStrandsSkyLightingSampleCount), 1u);
-	PassParameters->JitterSphericalIntegration = GHairStrandsSkyLightingJitterSphericalIntegration ? 1 : 0;
 	PassParameters->HairComponents = ToBitfield(GetHairComponents());
 	PassParameters->HairDualScatteringRoughnessOverride = GetHairDualScatteringRoughnessOverride();
 	PassParameters->TransmissionDensityScaleFactor = FMath::Max(0.f, GHairStrandsTransmissionDensityScaleFactor);
@@ -393,7 +377,6 @@ static void AddHairStrandsEnvironmentLightingPassPS(
 	PassParameters->HairVisibilityNodeCoord = GraphBuilder.CreateSRV(InHairVisibilityNodeCoord);
 
 	FHairEnvironmentLightingPS::FPermutationDomain PermutationVector;
-	PermutationVector.Set<FHairEnvironmentLighting::FSampleSet>(PassParameters->MultipleScatterSampleCount <= 16 ? 0 : 1);
 	PermutationVector.Set<FHairEnvironmentLighting::FIntegrationType>(uint32(IntegrationType));
 	PermutationVector.Set<FHairEnvironmentLighting::FDebug>(DebugData ? 1 : 0);
 	PermutationVector = FHairEnvironmentLighting::RemapPermutation(PermutationVector);
@@ -449,7 +432,7 @@ void RenderHairStrandsSceneColorScattering(
 	{
 		check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeDataSRV;
+		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeDataSRV && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
 		if (!bRenderHairLighting)
 		{
 			continue;
@@ -512,7 +495,7 @@ void RenderHairStrandsEnvironmentLighting(
 	check(ViewIndex < uint32(Views.Num()));
 	check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));	
 	const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-	const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeDataSRV;
+	const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeDataSRV && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
 	if (!bRenderHairLighting)
 	{
 		return;
@@ -551,7 +534,7 @@ void RenderHairStrandsAmbientOcclusion(
 	{
 		check(ViewIndex < uint32(HairDatas->HairVisibilityViews.HairDatas.Num()));
 		const FHairStrandsVisibilityData& VisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
-		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeDataSRV;
+		const bool bRenderHairLighting = VisibilityData.NodeIndex && VisibilityData.NodeDataSRV && HairDatas->MacroGroupsPerViews.Views[ViewIndex].VirtualVoxelResources.IsValid();
 		if (!bRenderHairLighting)
 		{
 			continue;

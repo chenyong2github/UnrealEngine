@@ -11,9 +11,16 @@
 #include "SlateOptMacros.h"
 #include "FbxHairTranslator.h"
 
-IMPLEMENT_MODULE(FHairStrandsEditor, HairStrandsEditor);
+#include "GroomEditorCommands.h"
+#include "GroomEditorMode.h"
 
-void FHairStrandsEditor::StartupModule()
+IMPLEMENT_MODULE(FGroomEditor, HairStrandsEditor);
+
+#define LOCTEXT_NAMESPACE "GroomEditor"
+
+FName FGroomEditor::GroomEditorAppIdentifier(TEXT("GroomEditor"));
+
+void FGroomEditor::StartupModule()
 {
 	IAssetTools& AssetTools = FModuleManager::LoadModuleChecked<FAssetToolsModule>("AssetTools").Get();
 	TSharedRef<IAssetTypeActions> GroomAssetActions = MakeShareable(new FGroomActions());
@@ -30,6 +37,8 @@ void FHairStrandsEditor::StartupModule()
 	if (!StyleSet.IsValid())
 	{
 		const FVector2D Icon16x16(16.0f, 16.0f);
+		const FVector2D Icon20x20(20.0f, 20.0f);
+		const FVector2D Icon40x40(40.0f, 40.0f);
 		const FVector2D Icon64x64(64.0f, 64.0f);
 		FString HairStrandsContent = IPluginManager::Get().FindPlugin("HairStrands")->GetBaseDir() + "/Content";
 
@@ -48,13 +57,25 @@ void FHairStrandsEditor::StartupModule()
 
 		StyleSet->Set("ClassIcon.GroomBindingAsset", new FSlateImageBrush(HairStrandsContent + "/Icons/S_GroomBinding_16.png", Icon16x16));
 		StyleSet->Set("ClassThumbnail.GroomBindingAsset", new FSlateImageBrush(HairStrandsContent + "/Icons/S_GroomBinding_64.png", Icon64x64));
+		
+		StyleSet->Set("GroomEditor.SimulationOptions", new FSlateImageBrush(HairStrandsContent + "/Icons/S_SimulationOptions_40x.png", Icon40x40));
+		StyleSet->Set("GroomEditor.SimulationOptions.Small", new FSlateImageBrush(HairStrandsContent + "/Icons/S_SimulationOptions_40x.png", Icon20x20));
 
 		FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 	}
+
+	FGroomEditorCommands::Register();
+	FEditorModeRegistry::Get().RegisterMode<FGroomEditorMode>(
+		FGroomEditorMode::EM_GroomEditorModeId,
+		LOCTEXT("GroomEditorMode", "Groom Editor"),
+		FSlateIcon(),
+		false);
 }
 
-void FHairStrandsEditor::ShutdownModule()
+void FGroomEditor::ShutdownModule()
 {
+	FEditorModeRegistry::Get().UnregisterMode(FGroomEditorMode::EM_GroomEditorModeId);
+
 	// #ueent_todo: Unregister the translators
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
 
@@ -76,13 +97,15 @@ void FHairStrandsEditor::ShutdownModule()
 	}
 }
 
-TArray<TSharedPtr<IHairStrandsTranslator>> FHairStrandsEditor::GetHairTranslators()
+TArray<TSharedPtr<IGroomTranslator>> FGroomEditor::GetHairTranslators()
 {
-	TArray<TSharedPtr<IHairStrandsTranslator>> Translators;
-	for (TFunction<TSharedPtr<IHairStrandsTranslator>()>& SpawnTranslator : TranslatorSpawners)
+	TArray<TSharedPtr<IGroomTranslator>> Translators;
+	for (TFunction<TSharedPtr<IGroomTranslator>()>& SpawnTranslator : TranslatorSpawners)
 	{
 		Translators.Add(SpawnTranslator());
 	}
 
 	return Translators;
 }
+
+#undef LOCTEXT_NAMESPACE

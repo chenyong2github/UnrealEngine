@@ -185,7 +185,7 @@ bool FBlueprintActionDatabaseRegistrar::IsOpenForRegistration(UObject const* Own
 	{
 		ActionKey = GeneratingClass;
 	}
-	return (ActionKey != nullptr) && ((ActionKeyFilter == nullptr) || (ActionKeyFilter == ActionKey));
+	return (ActionKey != nullptr) && ((ActionKeyFilter == nullptr) || (ActionKeyFilter == ActionKey) || (ActionKeyFilter == OwnerKey));
 }
 
 //------------------------------------------------------------------------------

@@ -248,6 +248,12 @@ void FAnimTimelineTrack_NotifiesPanel::Update()
 	}
 }
 
+void FAnimTimelineTrack_NotifiesPanel::HandleNotifyChanged()
+{
+	SetHeight((float)GetModel()->GetAnimSequenceBase()->AnimNotifyTracks.Num() * NotificationTrackHeight);
+	RefreshOutlinerWidget();
+}
+
 void FAnimTimelineTrack_NotifiesPanel::OnCommitTrackName(const FText& InText, ETextCommit::Type CommitInfo, int32 TrackIndexToName)
 {
 	UAnimSequenceBase* AnimSequence = GetModel()->GetAnimSequenceBase();
@@ -290,7 +296,9 @@ TSharedRef<SAnimNotifyPanel> FAnimTimelineTrack_NotifiesPanel::GetAnimNotifyPane
 			{ 
 				Update();
 				GetModel()->OnTracksChanged().Broadcast(); 
-			});	
+			});
+
+		GetModel()->GetAnimSequenceBase()->RegisterOnNotifyChanged(UAnimSequenceBase::FOnNotifyChanged::CreateSP(this, &FAnimTimelineTrack_NotifiesPanel::HandleNotifyChanged));
 	}
 
 	return AnimNotifyPanel.ToSharedRef();

@@ -3,11 +3,6 @@
 #include "RigUnit_GetInitialBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_GetInitialBoneTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Get Initial Transform %s"), *Bone.ToString());
-}
-
 FRigUnit_GetInitialBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -18,32 +13,26 @@ FRigUnit_GetInitialBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-				if (CachedBoneIndex == INDEX_NONE)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
-				}
+				CachedBone.Reset();
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedBoneIndex != INDEX_NONE)
+				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+				}
+				else
 				{
 					switch (Space)
 					{
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							Transform = Hierarchy->GetInitialTransform(CachedBoneIndex);
+							Transform = Hierarchy->GetInitialGlobalTransform(CachedBone);
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							Transform = Hierarchy->GetInitialTransform(CachedBoneIndex);
-							int32 ParentBoneIndex = (*Hierarchy)[CachedBoneIndex].ParentIndex;
-							if (ParentBoneIndex != INDEX_NONE)
-							{
-								FTransform ParentTransform = Hierarchy->GetInitialTransform(ParentBoneIndex);
-								Transform.SetToRelativeTransform(ParentTransform);
-							}
+							Transform = Hierarchy->GetInitialLocalTransform(CachedBone);
 							break;
 						}
 						default:

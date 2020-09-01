@@ -4,7 +4,7 @@
 
 #include "HairStrandsTranslator.h"
 
-class FAlembicHairTranslator : public IHairStrandsTranslator
+class FAlembicHairTranslator : public IGroomTranslator
 {
 public:
 	virtual bool Translate(const FString& FilePath, FHairDescription& OutHairDescription, const FGroomConversionSettings& ConversionSettings) override;

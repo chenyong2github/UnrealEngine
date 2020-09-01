@@ -4,10 +4,9 @@
 
 #include "AssetTypeActions_Base.h"
 #include "Templates/SharedPointer.h"
+#include "GroomBindingAsset.h"
 
 class ISlateStyle;
-class UGroomBindingAsset;
-
 /**
  * Implements an action for groom binding assets.
  */

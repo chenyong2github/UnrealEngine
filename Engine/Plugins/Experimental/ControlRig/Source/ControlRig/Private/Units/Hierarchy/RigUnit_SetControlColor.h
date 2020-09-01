@@ -8,7 +8,7 @@
 /**
  * SetControlTransform is used to change the gizmo color on a control at runtime
  */
-USTRUCT(meta=(DisplayName="Set Control Color", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlColor", PrototypeName = "SetControlColor"))
+USTRUCT(meta=(DisplayName="Set Control Color", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlColor,SetGizmoColor", PrototypeName = "SetControlColor"))
 struct FRigUnit_SetControlColor : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -16,16 +16,16 @@ struct FRigUnit_SetControlColor : public FRigUnitMutable
 	FRigUnit_SetControlColor()
 		: Control(NAME_None)
 		, Color(FLinearColor::Black)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
-	 * The name of the Control to set the transform for.
+	 * The name of the Control to set the color for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -36,5 +36,5 @@ struct FRigUnit_SetControlColor : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };

@@ -1,0 +1,56 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "FBIKUtil.h"
+#include "Rigs/RigHierarchyDefines.h"
+#include "Rigs/RigHierarchyContainer.h"
+
+// in the future, we expose rotation axis 
+namespace FBIKUtil
+{
+	bool CanCrossProduct(const FVector& Vector1, const FVector& Vector2)
+	{
+		// here we test their parallelism, and we normalize vectors
+		float Cosine = FVector::DotProduct(Vector1.GetUnsafeNormal(), Vector2.GetUnsafeNormal());
+		// if they're parallel, we need to find other axis
+		return !(FMath::IsNearlyEqual(FMath::Abs(Cosine), 1.f));
+	}
+
+	FVector GetScaledRotationAxis(const FQuat& InQuat)
+	{
+		FVector Axis;
+		float	Radian;
+
+		InQuat.ToAxisAndAngle(Axis, Radian);
+
+		Axis.Normalize();
+
+		return Axis * Radian;
+	}
+
+	// the output should be from current index -> to root parent or to max depth
+	bool GetBoneChain(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const FRigElementKey& Current, int32 MaxDepth, TArray<FRigElementKey>& ChainIndices)
+	{
+		ChainIndices.Reset();
+
+		FRigElementKey Iterator = Current;
+
+		while (Iterator.IsValid() && Iterator != Root && ChainIndices.Num() < MaxDepth)
+		{
+			ChainIndices.Insert(Iterator, 0);
+			Iterator = Hierarchy->GetParentKey(Iterator);
+		}
+
+		// add the last one if valid
+		if (Iterator.IsValid())
+		{
+			ChainIndices.Insert(Iterator, 0);
+
+			return true;
+		}
+
+		// when you reached to something invalid, that means, we did not hit the 
+		// expected root, we iterated to the root and above, and we exhausted our option
+		// so if you hit or valid target by the hitting max depth, we should 
+		return false;
+	}
+}

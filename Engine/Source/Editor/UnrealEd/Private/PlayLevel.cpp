@@ -527,10 +527,15 @@ void UEditorEngine::EndPlayMap()
 			// Update the position where the first PIE window will be opened (this also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
 			if (WindowIndex == 0)
 			{
-				// Only update it if "Always center window to screen" is disabled
-				if (!PlaySettingsConfig->CenterNewWindow)
+				// Remember last known size
+				PlaySettingsConfig->LastSize = PlayInEditorSessionInfo->CachedWindowInfo[0].Size;
+
+				// Only update it if "Always center window to screen" is disabled, and the size was not 0 (which means it is attached to the editor rather than being an standalone window)
+				if (!PlaySettingsConfig->CenterNewWindow && PlaySettingsConfig->LastSize.X > 0 && PlaySettingsConfig->LastSize.Y > 0)
 				{
 					PlaySettingsConfig->NewWindowPosition = PlaySettingsConfig->MultipleInstancePositions[WindowIndex];
+					PlaySettingsConfig->NewWindowWidth = PlaySettingsConfig->LastSize.X;
+					PlaySettingsConfig->NewWindowHeight = PlaySettingsConfig->LastSize.Y;
 				}
 			}
 		}
@@ -3303,7 +3308,8 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 	// Now we can position the window. If it is the first window, we can respect the center window flag.
 	if (InInstanceIndex == 0)
 	{
-		if (InEditorPlaySettings.CenterNewWindow)
+		// Center window if CenterNewWindow checked or if NewWindowPosition is FIntPoint::NoneValue (-1,-1)
+		if (InEditorPlaySettings.CenterNewWindow || InEditorPlaySettings.NewWindowPosition == FIntPoint::NoneValue)
 		{
 			// We don't store the last window position in this case, because we want additional windows
 			// to open starting at the top left of the monitor.

@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+float3 DecodeVelocityFromTexture(float4 In);
 #include "HairStrandsVisibilityCommon.ush" 
 #include "../Common.ush"
 #include "/Engine/Generated/Material.ush"

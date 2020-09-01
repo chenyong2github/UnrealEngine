@@ -545,6 +545,7 @@ private:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
 	TEnumAsByte<enum ECanBeCharacterBase> CanBeCharacterBase_DEPRECATED;
+
 #endif
 
 	FMaskFilter MoveIgnoreMask;

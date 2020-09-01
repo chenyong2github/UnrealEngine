@@ -91,6 +91,9 @@ struct FVertexFactoryInput
 	float3	DeltaTangentZ	: ATTRIBUTE10;	//NORMAL1;
 #endif
 
+	float3 PreSkinOffset : ATTRIBUTE11;
+	float3 PostSkinOffset : ATTRIBUTE12;
+
 #if GPUSKIN_APEX_CLOTH
 	uint ClothVertexID : SV_VertexID;
 #endif
@@ -236,6 +239,9 @@ FMaterialVertexParameters GetMaterialVertexParameters(FVertexFactoryInput Input,
 	Result.TangentToWorld = mul(TangentToLocal, GetLocalToWorld3x3());
 	Result.PreSkinnedPosition = Intermediates.UnpackedPosition.xyz;
 	Result.PreSkinnedNormal = Input.TangentZ.xyz;
+
+	Result.PreSkinOffset = Input.PreSkinOffset;
+	Result.PostSkinOffset = Input.PostSkinOffset;
 
 	// Assumes no instacing
 	Result.PrevFrameLocalToWorld = Primitive.PreviousLocalToWorld;
@@ -440,23 +446,29 @@ FBoneMatrix CalcPreviousBoneMatrix( FVertexFactoryInput Input )
 float3 SkinPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
 #if GPUSKIN_MORPH_BLEND
-	float4 Position = float4(MorphPosition(Input, Intermediates),1);
+	float3 Position = MorphPosition(Input, Intermediates);
 #else
-	float4 Position = float4(Intermediates.UnpackedPosition,1);
+	float3 Position = Intermediates.UnpackedPosition;
 #endif
+
+	Position += Input.PreSkinOffset;
 
 	// Note the use of mul(Matrix,Vector), bone matrices are stored transposed
 	// for tighter packing.
-	return mul( Intermediates.BlendMatrix, Position );
+	Position = mul(Intermediates.BlendMatrix, float4(Position, 1));
+
+	Position += Input.PostSkinOffset;
+
+	return Position;
 }
 
 /** transform position by weighted sum of skinning matrices */
 float3 SkinPreviousPosition( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )
 {
 #if GPUSKIN_MORPH_BLEND
-	float4 Position = float4(MorphPosition(Input, Intermediates),1);
+	float3 Position = MorphPosition(Input, Intermediates);
 #else
-	float4 Position = float4(Intermediates.UnpackedPosition,1);
+	float3 Position = Intermediates.UnpackedPosition;
 #endif
 
 	FBoneMatrix BlendMatrix = Intermediates.BlendMatrix;
@@ -468,9 +480,15 @@ float3 SkinPreviousPosition( FVertexFactoryInput Input, FVertexFactoryIntermedia
 		BlendMatrix = CalcPreviousBoneMatrix( Input );
 	}
 
+	Position += Input.PreSkinOffset;
+
 	// Note the use of mul(Matrix,Vector), bone matrices are stored transposed
 	// for tighter packing.
-	return mul( BlendMatrix, Position );
+	Position = mul(BlendMatrix, float4(Position, 1));
+
+	Position += Input.PostSkinOffset;
+
+	return Position;
 }
 /** transform the tangent basis vectors */
 float3x3 SkinTangents( FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates )

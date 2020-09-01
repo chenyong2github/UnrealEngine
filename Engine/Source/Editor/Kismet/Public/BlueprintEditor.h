@@ -1140,7 +1140,7 @@ private:
 	void OnEditTunnel();
 
 	/* Create comment node on graph */
-	void OnCreateComment();
+	virtual void OnCreateComment();
 
 	// Create new graph editor widget for the supplied document container
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph);

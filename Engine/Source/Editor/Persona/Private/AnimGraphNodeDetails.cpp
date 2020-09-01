@@ -499,6 +499,7 @@ void FBoneReferenceCustomization::CustomizeHeader( TSharedRef<IPropertyHandle> S
 			StructPropertyHandle->CreatePropertyNameWidget()
 		]
 		.ValueContent()
+		.MaxDesiredWidth(0.0f)
 		[
 			SNew(SBoneSelectionWidget)
 			.ToolTipText(StructPropertyHandle->GetToolTipText())

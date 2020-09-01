@@ -13,7 +13,6 @@
 #include "ControlRig.h"
 #include "Sequencer/MovieSceneControlRigParameterTrack.h"
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
-#include "Sequencer/ControlRigSortedControls.h"
 #include "AnimationBoneTrail.h"
 //#include "ControlRigTransformTrail.h"
 
@@ -654,7 +653,7 @@ void FSequencerTrailHierarchy::AddControlsToHierarchy(class USkeletalMeshCompone
 	CRParamSection->ReconstructChannelProxy(true);
 
 	TArray<FRigControl> SortedControls;
-	FControlRigSortedControls::GetControlsInOrder(CRParamSection->ControlRig, SortedControls);
+	CRParamSection->ControlRig->GetControlsInOrder(SortedControls);
 	for (const TPair<FName, FChannelMapInfo>& NameInfoPair : CRParamSection->ControlChannelMap)
 	{
 		const FRigControl& Control = SortedControls[NameInfoPair.Value.ControlIndex];

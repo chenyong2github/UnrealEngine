@@ -48,6 +48,8 @@ public:
 
 	bool IsLODImportDataValid(int32 LODIndex);
 
+	bool RemoveLODImportedData(int32 LODIndex);
+
 	/* UObject overrides */
 
 	virtual void Serialize(FArchive& Ar) override;

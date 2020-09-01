@@ -3,9 +3,8 @@
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMModel/RigVMGraph.h"
 #include "RigVMCore/RigVMExecuteContext.h"
+#include "RigVMCore/RigVMStruct.h"
 
-const FString URigVMNode::ExecuteName = TEXT("Execute");
-const FString URigVMNode::ExecuteContextName = TEXT("ExecuteContext");
 const FString URigVMNode::NodeColorName = TEXT("NodeColor");
 
 URigVMNode::URigVMNode()
@@ -14,6 +13,8 @@ URigVMNode::URigVMNode()
 , Size(FVector2D::ZeroVector)
 , NodeColor(FLinearColor::Black)
 , InstructionIndex(INDEX_NONE)
+, BlockIndex(INDEX_NONE)
+, GetSliceContextBracket(0)
 {
 
 }
@@ -41,6 +42,11 @@ int32 URigVMNode::GetNodeIndex() const
 int32 URigVMNode::GetInstructionIndex() const
 {
 	return InstructionIndex;
+}
+
+int32 URigVMNode::GetBlockIndex() const
+{
+	return BlockIndex;
 }
 
 const TArray<URigVMPin*>& URigVMNode::GetPins() const
@@ -184,7 +190,7 @@ bool URigVMNode::IsPure() const
 
 bool URigVMNode::IsMutable() const
 {
-	URigVMPin* ExecutePin = FindPin(ExecuteContextName);
+	URigVMPin* ExecutePin = FindPin(FRigVMStruct::ExecuteContextName.ToString());
 	if (ExecutePin)
 	{
 		if (ExecutePin->GetScriptStruct()->IsChildOf(FRigVMExecuteContext::StaticStruct()))
@@ -197,12 +203,12 @@ bool URigVMNode::IsMutable() const
 
 bool URigVMNode::IsEvent() const
 {
-	return IsMutable() && !HasInputPin(true /* include io */);
+	return IsMutable() && !HasInputPin(true /* include io */) && !GetEventName().IsNone();
 }
 
 FName URigVMNode::GetEventName() const
 {
-	return TEXT("Update");
+	return NAME_None;
 }
 
 bool URigVMNode::HasInputPin(bool bIncludeIO) const
@@ -330,4 +336,47 @@ void URigVMNode::GetLinkedNodesRecursive(URigVMPin* InPin, bool bLookForSources,
 	{
 		GetLinkedNodesRecursive(SubPin, bLookForSources, OutNodes);
 	}
+}
+
+FName URigVMNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData)
+{
+	return NAME_None;
+}
+
+int32 URigVMNode::GetNumSlices(const FRigVMUserDataArray& InUserData)
+{
+	return GetNumSlicesForContext(NAME_None, InUserData);
+}
+
+int32 URigVMNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
+{
+	for (URigVMPin* RootPin : Pins)
+	{
+		if (RootPin->GetFName() == InContextName)
+		{
+			return RootPin->GetNumSlices(InUserData);
+		}
+	}
+
+	int32 MaxSlices = 1;
+
+	if (GetSliceContextBracket == 0)
+	{
+		TGuardValue<int32> ReentrantGuard(GetSliceContextBracket, GetSliceContextBracket + 1);
+
+		for (URigVMPin* Pin : Pins)
+		{
+			TArray<URigVMPin*> SourcePins = Pin->GetLinkedSourcePins(true /* recursive */);
+			if (SourcePins.Num() > 0)
+			{
+				for (URigVMPin* SourcePin : SourcePins)
+				{
+					int32 NumSlices = SourcePin->GetNumSlices(InUserData);
+					MaxSlices = FMath::Max<int32>(NumSlices, MaxSlices);
+				}
+			}
+		}
+	}
+
+	return MaxSlices;
 }

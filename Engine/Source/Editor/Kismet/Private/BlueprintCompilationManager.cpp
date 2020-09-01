@@ -846,6 +846,13 @@ void FBlueprintCompilationManagerImpl::FlushCompilationQueueImpl(bool bSuppressB
 
 			CompilerData.Compiler->ValidateVariableNames();
 			CompilerData.Compiler->ValidateClassPropertyDefaults();
+
+			UBlueprint* BP = CompilerData.BP;
+			if (BP->bIsRegeneratingOnLoad)
+			{
+				FKismetCompilerContext& CompilerContext = *(CompilerData.Compiler);
+				CompilerContext.PreCompileUpdateBlueprintOnLoad(BP);
+			}
 		}
 
 		// STAGE VI: Purge null graphs, misc. data fixup

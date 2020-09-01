@@ -27,7 +27,7 @@ void UControlRigThumbnailRenderer::Draw(UObject* Object, int32 X, int32 Y, uint3
 
 	if (UControlRigBlueprint* InRigBlueprint = Cast<UControlRigBlueprint>(Object))
 	{
-		USkeletalMesh* SkeletalMesh = Cast<USkeletalMesh>(InRigBlueprint->GetPreviewMesh());
+		USkeletalMesh* SkeletalMesh = InRigBlueprint->PreviewSkeletalMesh.Get();
 		if (SkeletalMesh != nullptr)
 		{
 			RigBlueprint = InRigBlueprint;
@@ -63,14 +63,13 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 			break;
 		}
 
-		bool bRequiresMarkPendingkill = false;
 		if (ControlRig == nullptr)
 		{
-			ControlRig = NewObject<UControlRig>(GetTransientPackage(), RigBlueprint->GeneratedClass);
-			ControlRig->ExecutionType = ERigExecutionType::Editing;
-			ControlRig->Initialize();
-			ControlRig->Execute(EControlRigState::Update);
-			bRequiresMarkPendingkill = true;
+			// fall back to the CDO. we only need to pull out
+			// the pose of the default hierarchy so the CDO is fine.
+			// this case only happens if the editor had been closed
+			// and there are no archetype instances left.
+			ControlRig = CDO;
 		}
 
 		FTransform ComponentToWorld = ThumbnailScene->GetPreviewActor()->GetSkeletalMeshComponent()->GetComponentToWorld();
@@ -80,17 +79,23 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 			switch (Control.ControlType)
 			{
 				case ERigControlType::Float:
+				case ERigControlType::Integer:
 				case ERigControlType::Vector2D:
 				case ERigControlType::Position:
 				case ERigControlType::Scale:
 				case ERigControlType::Rotator:
 				case ERigControlType::Transform:
 				case ERigControlType::TransformNoScale:
+				case ERigControlType::EulerTransform:
 				{
 					if (const FControlRigGizmoDefinition* GizmoDef = RigBlueprint->GizmoLibrary->GetGizmoByName(Control.GizmoName))
 					{
 						FTransform GizmoTransform = Control.GizmoTransform * (GizmoDef->Transform * ControlRig->GetControlGlobalTransform(Control.Name)) * ComponentToWorld;
-						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.LoadSynchronous();
+						UStaticMesh* StaticMesh = GizmoDef->StaticMesh.Get();
+						if (StaticMesh == nullptr) // not yet loaded
+						{
+							continue;
+						}
 
 						FActorSpawnParameters SpawnInfo;
 						SpawnInfo.SpawnCollisionHandlingOverride = ESpawnActorCollisionHandlingMethod::AlwaysSpawn;
@@ -99,7 +104,12 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 						AStaticMeshActor* GizmoActor = PreviewWorld->SpawnActor<AStaticMeshActor>(SpawnInfo);
 						GizmoActor->SetActorEnableCollision(false);
 
-						UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(RigBlueprint->GizmoLibrary->DefaultMaterial.LoadSynchronous(), GizmoActor);
+						UMaterial* DefaultMaterial = RigBlueprint->GizmoLibrary->DefaultMaterial.Get();
+						if (DefaultMaterial == nullptr) // not yet loaded
+						{
+							continue;
+						}
+						UMaterialInstanceDynamic* MaterialInstance = UMaterialInstanceDynamic::Create(DefaultMaterial, GizmoActor);
 						MaterialInstance->SetVectorParameterValue(RigBlueprint->GizmoLibrary->MaterialColorParameter, FVector(Control.GizmoColor));
 						GizmoActor->GetStaticMeshComponent()->SetMaterial(0, MaterialInstance);
 
@@ -115,11 +125,6 @@ void UControlRigThumbnailRenderer::AddAdditionalPreviewSceneContent(UObject* Obj
 					break;
 				}
 			}
-		}
-
-		if (bRequiresMarkPendingkill)
-		{
-			ControlRig->MarkPendingKill();
 		}
 	}
 }

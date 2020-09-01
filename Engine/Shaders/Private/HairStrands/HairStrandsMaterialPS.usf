@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+float3 DecodeVelocityFromTexture(float4 In);
 #include "HairStrandsVisibilityCommon.ush" 
 
 #define USE_FORCE_TEXTURE_MIP 1
@@ -20,6 +21,9 @@ uint MaterialPass_MaterialId;
 uint MaterialPass_PrimitiveId;
 uint MaterialPass_LightChannelMask;
 
+#ifndef HAIR_MATERIAL_DEBUG_OUTPUT
+#define HAIR_MATERIAL_DEBUG_OUTPUT 0
+#endif
 
 #if VF_STRAND_HAIR
 struct FEvaluateOutput
@@ -192,7 +196,10 @@ FEvaluateOutput Evaluate(
 void Main(
 	in float4 SvPosition: SV_Position
 	, in uint2 Resolution : DISPATCH_RESOLUTION
-	, out float4 OutColor0 : SV_Target0)
+	#if HAIR_MATERIAL_DEBUG_OUTPUT
+	, out float4 OutColor0 : SV_Target0
+	#endif
+	)
 {
 	ResolvedView = ResolveView();
 
@@ -221,7 +228,9 @@ void Main(
 		}
 	}
 
+	#if HAIR_MATERIAL_DEBUG_OUTPUT
 	OutColor0 = bIsValid? float4(0, 1, 0, 1) : float4(1, 0, 0, 1);
+	#endif
 }
 
 

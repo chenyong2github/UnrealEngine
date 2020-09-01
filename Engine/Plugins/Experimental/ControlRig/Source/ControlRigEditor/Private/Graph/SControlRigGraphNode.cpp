@@ -167,6 +167,8 @@ void SControlRigGraphNode::Construct( const FArguments& InArgs )
 		SNew(SImage)
 		.Image(ImageBrush)
 		.Visibility(EVisibility::Visible);
+
+	ControlRigGraphNode->GetNodeTitleDirtied().BindSP(this, &SControlRigGraphNode::HandleNodeTitleDirtied);
 }
 
 TSharedRef<SWidget> SControlRigGraphNode::CreateNodeContentArea()
@@ -225,32 +227,9 @@ void SControlRigGraphNode::EndUserInteraction() const
 
 	if (GraphNode)
 	{
-		UControlRigGraphNode* ControlRigGraphNode = CastChecked<UControlRigGraphNode>(GraphNode);
-		URigVMController* Controller = ControlRigGraphNode->GetBlueprint()->Controller;
-		if (URigVMGraph* Model = Controller->GetGraph())
+		if (const UControlRigGraphSchema* RigSchema = Cast<UControlRigGraphSchema>(GraphNode->GetSchema()))
 		{
-			UControlRigGraph* Graph = Cast<UControlRigGraph>(ControlRigGraphNode->GetGraph());
-			Controller->OpenUndoBracket(TEXT("Moved Nodes."));
-			bool bMovedSomething = false;
-			for (const FName& SelectedNodeName : Model->GetSelectNodes())
-			{
-				if (UEdGraphNode* SelectedNode = Graph->FindNodeForModelNodeName(SelectedNodeName))
-				{
-					FVector2D Position(SelectedNode->NodePosX, SelectedNode->NodePosY);
-					if (Controller->SetNodePositionByName(SelectedNodeName, Position, true, true))
-					{
-						bMovedSomething = true;
-					}
-				}
-			}
-			if (bMovedSomething)
-			{
-				Controller->CloseUndoBracket();
-			}
-			else
-			{
-				Controller->CancelUndoBracket();
-			}
+			RigSchema->EndGraphNodeInteraction(GraphNode);
 		}
 	}
 }
@@ -353,8 +332,10 @@ EVisibility SControlRigGraphNode::GetOutputTreeVisibility() const
 	return ControlRigGraphNode->OutputPins.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
-TSharedRef<SWidget> SControlRigGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> NodeTitle)
+TSharedRef<SWidget> SControlRigGraphNode::CreateTitleWidget(TSharedPtr<SNodeTitle> InNodeTitle)
 {
+	NodeTitle = InNodeTitle;
+
 	auto WidgetRef = SGraphNode::CreateTitleWidget(NodeTitle);
 	auto VisibilityAttribute = TAttribute<EVisibility>::Create(
 		TAttribute<EVisibility>::FGetter::CreateSP(this, &SControlRigGraphNode::GetTitleVisibility));
@@ -851,7 +832,7 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 						{
 							FRigVMMemoryContainer& Memory = 
 								WatchOperand->GetMemoryType() == ERigVMMemoryType::Literal ?
-								ActiveObject->GetVM()->LiteralMemory : ActiveObject->GetVM()->WorkMemory;
+								ActiveObject->GetVM()->GetLiteralMemory() : ActiveObject->GetVM()->GetWorkMemory();
 
 							TArray<FString> DefaultValues = Memory.GetRegisterValueAsString(*WatchOperand, ModelPin->GetCPPType(), ModelPin->GetCPPTypeObject());
 							if (DefaultValues.Num() == 1)
@@ -860,7 +841,7 @@ void SControlRigGraphNode::GetNodeInfoPopups(FNodeInfoContext* Context, TArray<F
 							}
 							else if (DefaultValues.Num() > 1)
 							{
-								WatchText = FString::Printf(TEXT("[%s]"), *FString::Join(DefaultValues, TEXT(", ")));
+								WatchText = FString::Printf(TEXT("%s"), *FString::Join(DefaultValues, TEXT("\n")));
 							}
 							if (!WatchText.IsEmpty())
 							{
@@ -971,6 +952,14 @@ void SControlRigGraphNode::Tick(const FGeometry& AllottedGeometry, const double 
 		GraphNode->NodeWidth = (int32)AllottedGeometry.Size.X;
 		GraphNode->NodeHeight = (int32)AllottedGeometry.Size.Y;
 		RefreshErrorInfo();
+	}
+}
+
+void SControlRigGraphNode::HandleNodeTitleDirtied()
+{
+	if (NodeTitle.IsValid())
+	{
+		NodeTitle->MarkDirty();
 	}
 }
 

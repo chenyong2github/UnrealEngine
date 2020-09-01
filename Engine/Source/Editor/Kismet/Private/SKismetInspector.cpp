@@ -361,7 +361,7 @@ void SKismetInspector::Construct(const FArguments& InArgs)
 	{
 		FOnGetDetailCustomizationInstance LayoutDelegateDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FBlueprintDelegateActionDetails::MakeInstance, MyBlueprint);
 		PropertyView->RegisterInstancedCustomPropertyLayout(UMulticastDelegatePropertyWrapper::StaticClass(), LayoutDelegateDetails);
-
+		
 		// Register function and variable details customization
 		FOnGetDetailCustomizationInstance LayoutGraphDetails = FOnGetDetailCustomizationInstance::CreateStatic(&FBlueprintGraphActionDetails::MakeInstance, MyBlueprint);
 		PropertyView->RegisterInstancedCustomPropertyLayout(UEdGraph::StaticClass(), LayoutGraphDetails);

@@ -35,6 +35,11 @@ void UAnimSequencerInstance::UpdateAnimTrack(UAnimSequenceBase* InAnimSequence, 
 	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().UpdateAnimTrack(InAnimSequence, SequenceId, InFromPosition, InToPosition, Weight, bFireNotifies);
 }
 
+void UAnimSequencerInstance::UpdateAnimTrackWithRootMotion(UAnimSequenceBase* InAnimSequence, int32 SequenceId, const TOptional<FTransform>& RootMotion, float InFromPosition, float InToPosition, float Weight, bool bFireNotifies)
+{
+	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().UpdateAnimTrackWithRootMotion(InAnimSequence, SequenceId, RootMotion, InFromPosition, InToPosition, Weight, bFireNotifies);
+}
+
 void UAnimSequencerInstance::ConstructNodes()
 {
 	GetProxyOnGameThread<FAnimSequencerInstanceProxy>().ConstructNodes();

@@ -191,6 +191,10 @@ class UNREALED_API UPersonaOptions : public UObject
 	UPROPERTY(config)
 	bool bTimelineDisplayCurveKeys;
 
+	/** Whether to snap to various things */
+	UPROPERTY(config)
+	TArray<FName> TimelineEnabledSnaps;
+
 public:
 	void SetShowGrid( bool bInShowGrid );
 	void SetHighlightOrigin( bool bInHighlightOrigin );

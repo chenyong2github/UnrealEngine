@@ -32,6 +32,7 @@ namespace UnrealBuildTool.Rules
                     "AnimationCore",
                     "LevelSequence",
                     "RigVM",
+                    "RHI",
                 }
             );
 
@@ -40,6 +41,9 @@ namespace UnrealBuildTool.Rules
                 PublicDependencyModuleNames.AddRange(
 				    new string[]
 					{
+						"Slate",
+						"SlateCore",
+						"EditorStyle",
 						"RigVMDeveloper",
                         "AnimGraph",
                     }

@@ -20,6 +20,7 @@ FAnimNode_ControlRig::FAnimNode_ControlRig()
 	, AlphaInputType(EAnimAlphaInputType::Float)
 	, bAlphaBoolEnabled(true)
 	, AlphaCurveName(NAME_None)
+	, LODThreshold(INDEX_NONE)
 {
 }
 
@@ -70,30 +71,37 @@ void FAnimNode_ControlRig::Update_AnyThread(const FAnimationUpdateContext& Conte
 {
 	DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
-	GetEvaluateGraphExposedInputs().Execute(Context);
-
-	// alpha handlers
-	InternalBlendAlpha = 0.f;
-	switch (AlphaInputType)
+	if (IsLODEnabled(Context.AnimInstanceProxy))
 	{
-	case EAnimAlphaInputType::Float:
-		InternalBlendAlpha = AlphaScaleBias.ApplyTo(AlphaScaleBiasClamp.ApplyTo(Alpha, Context.GetDeltaTime()));
-		break;
-	case EAnimAlphaInputType::Bool:
-		InternalBlendAlpha = AlphaBoolBlend.ApplyTo(bAlphaBoolEnabled, Context.GetDeltaTime());
-		break;
-	case EAnimAlphaInputType::Curve:
-		if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject()))
+		GetEvaluateGraphExposedInputs().Execute(Context);
+
+		// alpha handlers
+		InternalBlendAlpha = 0.f;
+		switch (AlphaInputType)
 		{
-			InternalBlendAlpha = AlphaScaleBiasClamp.ApplyTo(AnimInstance->GetCurveValue(AlphaCurveName), Context.GetDeltaTime());
-		}
-		break;
-	};
+		case EAnimAlphaInputType::Float:
+			InternalBlendAlpha = AlphaScaleBias.ApplyTo(AlphaScaleBiasClamp.ApplyTo(Alpha, Context.GetDeltaTime()));
+			break;
+		case EAnimAlphaInputType::Bool:
+			InternalBlendAlpha = AlphaBoolBlend.ApplyTo(bAlphaBoolEnabled, Context.GetDeltaTime());
+			break;
+		case EAnimAlphaInputType::Curve:
+			if (UAnimInstance* AnimInstance = Cast<UAnimInstance>(Context.AnimInstanceProxy->GetAnimInstanceObject()))
+			{
+				InternalBlendAlpha = AlphaScaleBiasClamp.ApplyTo(AnimInstance->GetCurveValue(AlphaCurveName), Context.GetDeltaTime());
+			}
+			break;
+		};
 
-	// Make sure Alpha is clamped between 0 and 1.
-	InternalBlendAlpha = FMath::Clamp<float>(InternalBlendAlpha, 0.f, 1.f);
+		// Make sure Alpha is clamped between 0 and 1.
+		InternalBlendAlpha = FMath::Clamp<float>(InternalBlendAlpha, 0.f, 1.f);
 
-	PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
+		PropagateInputProperties(Context.AnimInstanceProxy->GetAnimInstanceObject());
+	}
+	else
+	{
+		InternalBlendAlpha = 0.f;
+	}
 
 	FAnimNode_ControlRigBase::Update_AnyThread(Context);
 
@@ -118,38 +126,42 @@ void FAnimNode_ControlRig::CacheBones_AnyThread(const FAnimationCacheBonesContex
 
 	FBoneContainer& RequiredBones = Context.AnimInstanceProxy->GetRequiredBones();
 	InputToCurveMappingUIDs.Reset();
-	TArray<FName> const& UIDToNameLookUpTable = RequiredBones.GetUIDToNameLookupTable();
 
-	auto CacheCurveMappingUIDs = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
-		const FAnimationCacheBonesContext& InContext)
+	if(RequiredBones.IsValid())
 	{
-		for (auto Iter = Mapping.CreateConstIterator(); Iter; ++Iter)
+		TArray<FName> const& UIDToNameLookUpTable = RequiredBones.GetUIDToNameLookupTable();
+
+		auto CacheCurveMappingUIDs = [&](const TMap<FName, FName>& Mapping, TArray<FName> const& InUIDToNameLookUpTable, 
+			const FAnimationCacheBonesContext& InContext)
 		{
-			// we need to have list of variables using pin
-			const FName SourcePath = Iter.Key();
-			const FName CurveName = Iter.Value();
-
-			if (SourcePath != NAME_None && CurveName != NAME_None)
+			for (auto Iter = Mapping.CreateConstIterator(); Iter; ++Iter)
 			{
-				int32 Found = InUIDToNameLookUpTable.Find(CurveName);
-				if (Found != INDEX_NONE)
+				// we need to have list of variables using pin
+				const FName SourcePath = Iter.Key();
+				const FName CurveName = Iter.Value();
+
+				if (SourcePath != NAME_None && CurveName != NAME_None)
 				{
-					// set value - sound should be UID
-					InputToCurveMappingUIDs.Add(Iter.Value()) = Found;
+					int32 Found = InUIDToNameLookUpTable.Find(CurveName);
+					if (Found != INDEX_NONE)
+					{
+						// set value - sound should be UID
+						InputToCurveMappingUIDs.Add(Iter.Value()) = Found;
+					}
+					else
+					{
+						UE_LOG(LogAnimation, Warning, TEXT("Curve %s Not Found from the Skeleton %s"), 
+							*CurveName.ToString(), *GetNameSafe(InContext.AnimInstanceProxy->GetSkeleton()));
+					}
 				}
-				else
-				{
-					UE_LOG(LogAnimation, Warning, TEXT("Curve %s Not Found from the Skeleton %s"), 
-						*CurveName.ToString(), *GetNameSafe(InContext.AnimInstanceProxy->GetSkeleton()));
-				}
+
+				// @todo: should we clear the item if not found?
 			}
+		};
 
-			// @todo: should we clear the item if not found?
-		}
-	};
-
-	CacheCurveMappingUIDs(InputMapping, UIDToNameLookUpTable, Context);
-	CacheCurveMappingUIDs(OutputMapping, UIDToNameLookUpTable, Context);
+		CacheCurveMappingUIDs(InputMapping, UIDToNameLookUpTable, Context);
+		CacheCurveMappingUIDs(OutputMapping, UIDToNameLookUpTable, Context);
+	}
 }
 
 void FAnimNode_ControlRig::Evaluate_AnyThread(FPoseContext & Output)
@@ -198,14 +210,14 @@ void FAnimNode_ControlRig::UpdateInput(UControlRig* InControlRig, const FPoseCon
 				{
 					const float Value = InOutput.Curve.Get(UID);
 
-					FRigVMParameter Parameter = InControlRig->GetVM()->GetParameterByName(SourcePath);
-					if (Parameter.GetType() == ERigVMParameterType::Input && Parameter.GetCPPType() == TEXT("float"))
+					FRigVMExternalVariable Variable = InControlRig->GetPublicVariableByName(SourcePath);
+					if (!Variable.bIsReadOnly && Variable.TypeName == TEXT("float"))
 					{
-						InControlRig->GetVM()->SetParameterValue<float>(Parameter, Value);
+						Variable.SetValue<float>(Value);
 					}
 					else
 					{
-						UE_LOG(LogAnimation, Warning, TEXT("[%s] Missing Input Parameter [%s]"), *GetNameSafe(InControlRig->GetClass()), *SourcePath.ToString());
+						UE_LOG(LogAnimation, Warning, TEXT("[%s] Missing Input Variable [%s]"), *GetNameSafe(InControlRig->GetClass()), *SourcePath.ToString());
 					}
 				}
 			}
@@ -229,10 +241,10 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 
 			if (SourcePath != NAME_None)
 			{
-				FRigVMParameter Parameter = InControlRig->GetVM()->GetParameterByName(SourcePath);
-				if (Parameter.GetType() == ERigVMParameterType::Output && Parameter.GetCPPType() == TEXT("float"))
+				FRigVMExternalVariable Variable = InControlRig->GetPublicVariableByName(SourcePath);
+				if (Variable.TypeName == TEXT("float"))
 				{
-					float Value = InControlRig->GetVM()->GetParameterValue<float>(Parameter);
+					float Value = Variable.GetValue<float>();
 					SmartName::UID_Type* UID = InputToCurveMappingUIDs.Find(Iter.Value());
 					if (UID)
 					{
@@ -241,7 +253,7 @@ void FAnimNode_ControlRig::UpdateOutput(UControlRig* InControlRig, FPoseContext&
 				}
 				else
 				{
-					UE_LOG(LogAnimation, Warning, TEXT("[%s] Missing Output Parameter [%s]"), *GetNameSafe(ControlRig->GetClass()), *SourcePath.ToString());
+					UE_LOG(LogAnimation, Warning, TEXT("[%s] Missing Output Variable [%s]"), *GetNameSafe(ControlRig->GetClass()), *SourcePath.ToString());
 				}
 			}
 		}
@@ -261,9 +273,8 @@ void FAnimNode_ControlRig::SetIOMapping(bool bInput, const FName& SourceProperty
 			TMap<FName, FName>& MappingData = (bInput) ? InputMapping : OutputMapping;
 
 			// if it's valid as of now, we add it
-			ERigVMParameterType ParameterType = CDO->GetVM()->GetParameterByName(SourceProperty).GetType();
-			if ((bInput && (ParameterType == ERigVMParameterType::Input)) ||
-				(!bInput && (ParameterType == ERigVMParameterType::Output)))
+			bool bIsReadOnly = CDO->GetPublicVariableByName(SourceProperty).bIsReadOnly;
+			if (!bInput || !bIsReadOnly)
 			{
 				if (TargetCurve == NAME_None)
 				{
@@ -322,40 +333,44 @@ void FAnimNode_ControlRig::PropagateInputProperties(const UObject* InSourceInsta
 		{
 			FProperty* CallerProperty = SourceProperties[PropIdx];
 
-			FRigVMParameter DestParameter = TargetControlRig->GetVM()->GetParameterByName(DestPropertyNames[PropIdx]);
-			if (DestParameter.GetType() != ERigVMParameterType::Input)
+			FRigVMExternalVariable Variable = TargetControlRig->GetPublicVariableByName(DestPropertyNames[PropIdx]);
+			if (Variable.bIsReadOnly)
 			{
 				continue;
 			}
 
 			const uint8* SrcPtr = CallerProperty->ContainerPtrToValuePtr<uint8>(InSourceInstance);
 
-			if (CastField<FBoolProperty>(CallerProperty) != nullptr && DestParameter.GetCPPType() == TEXT("bool"))
+			if (CastField<FBoolProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("bool"))
 			{
 				const bool Value = *(const bool*)SrcPtr;
-				TargetControlRig->GetVM()->SetParameterValue<bool>(DestParameter, Value);
+				Variable.SetValue<bool>(Value);
 			}
-			else if (CastField<FFloatProperty>(CallerProperty) != nullptr && DestParameter.GetCPPType() == TEXT("float"))
+			else if (CastField<FFloatProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("float"))
 			{
 				const float Value = *(const float*)SrcPtr;
-				TargetControlRig->GetVM()->SetParameterValue<float>(DestParameter, Value);
+				Variable.SetValue<float>(Value);
 			}
-			else if (CastField<FIntProperty>(CallerProperty) != nullptr && DestParameter.GetCPPType() == TEXT("int32"))
+			else if (CastField<FIntProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("int32"))
 			{
 				const int32 Value = *(const int32*)SrcPtr;
-				TargetControlRig->GetVM()->SetParameterValue<int32>(DestParameter, Value);
+				Variable.SetValue<int32>(Value);
 			}
-			else if (CastField<FNameProperty>(CallerProperty) != nullptr && DestParameter.GetCPPType() == TEXT("FName"))
+			else if (CastField<FNameProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("FName"))
 			{
 				const FName Value = *(const FName*)SrcPtr;
-				TargetControlRig->GetVM()->SetParameterValue<FName>(DestParameter, Value);
+				Variable.SetValue<FName>(Value);
+			}
+			else if (CastField<FNameProperty>(CallerProperty) != nullptr && Variable.TypeName == TEXT("FString"))
+			{
+				const FString Value = *(const FString*)SrcPtr;
+				Variable.SetValue<FString>(Value);
 			}
 			else if (FStructProperty* StructProperty = CastField<FStructProperty>(CallerProperty))
 			{
-				if (StructProperty->Struct == DestParameter.GetScriptStruct())
+				if (StructProperty->Struct == Variable.TypeObject)
 				{
-					uint8* DestPtr = TargetControlRig->GetVM()->WorkMemory.GetData(DestParameter.GetRegisterIndex());
-					StructProperty->Struct->CopyScriptStruct(DestPtr, SrcPtr, 1);
+					StructProperty->Struct->CopyScriptStruct(Variable.Memory, SrcPtr, 1);
 				}
 			}
 		}

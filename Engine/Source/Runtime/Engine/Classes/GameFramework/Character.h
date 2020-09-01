@@ -686,7 +686,7 @@ public:
 
 	/** Return current playing Montage **/
 	UFUNCTION(BlueprintCallable, Category=Animation)
-	class UAnimMontage* GetCurrentMontage();
+	class UAnimMontage* GetCurrentMontage() const;
 
 	/**
 	 * Set a pending launch velocity on the Character. This velocity will be processed on the next CharacterMovementComponent tick,

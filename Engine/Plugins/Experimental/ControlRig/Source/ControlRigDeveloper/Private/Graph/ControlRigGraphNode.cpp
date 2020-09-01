@@ -46,11 +46,31 @@ FText UControlRigGraphNode::GetNodeTitle(ENodeTitleType::Type TitleType) const
 	{
 		if(URigVMNode* ModelNode = GetModelNode())
 		{
-			NodeTitle = FText::FromString(ModelNode->GetNodeTitle());
+			if (URigVMStructNode* StructNode = Cast<URigVMStructNode>(ModelNode))
+			{
+				if (StructNode->GetScriptStruct()->IsChildOf(FRigUnit::StaticStruct()))
+				{
+					if (TSharedPtr<FStructOnScope> StructOnScope = StructNode->ConstructStructInstance())
+					{
+						FRigUnit* RigUnit = (FRigUnit*)StructOnScope->GetStructMemory();
+						NodeTitle = FText::FromString(RigUnit->GetUnitLabel());
+					}
+				}
+			}
+
+			if (NodeTitle.IsEmpty())
+			{
+				NodeTitle = FText::FromString(ModelNode->GetNodeTitle());
+			}
+		}
+
+		if(IsDeprecated())
+		{
+			NodeTitle = FText::FromString(FString::Printf(TEXT("%s (Deprecated)"), *NodeTitle.ToString()));
 		}
 	}
 
-		return NodeTitle;
+	return NodeTitle;
 }
 
 void UControlRigGraphNode::ReconstructNode()
@@ -106,15 +126,7 @@ bool UControlRigGraphNode::IsDeprecated() const
 	{
 		if(URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(ModelNode))
 		{
-			if (UScriptStruct* ScriptStruct = StructModelNode->GetScriptStruct())
-			{
-				FString DeprecatedMetadata;
-				ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
-				if (!DeprecatedMetadata.IsEmpty())
-				{
-					return true;
-				}
-			}
+			return StructModelNode->IsDeprecated();
 		}
 	}
 	return Super::IsDeprecated();
@@ -128,17 +140,13 @@ FEdGraphNodeDeprecationResponse UControlRigGraphNode::GetDeprecationResponse(EEd
 	{
 		if(URigVMStructNode* StructModelNode = Cast<URigVMStructNode>(ModelNode))
 		{
-			if (UScriptStruct* ScriptStruct = StructModelNode->GetScriptStruct())
-	{
-		FString DeprecatedMetadata;
-		ScriptStruct->GetStringMetaDataHierarchical(UControlRig::DeprecatedMetaName, &DeprecatedMetadata);
-		if (!DeprecatedMetadata.IsEmpty())
-		{
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("DeprecatedMetadata"), FText::FromString(DeprecatedMetadata));
-			Response.MessageText = FText::Format(LOCTEXT("ControlRigGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
-		}
-	}
+			FString DeprecatedMetadata = StructModelNode->GetDeprecatedMetadata();
+			if (!DeprecatedMetadata.IsEmpty())
+			{
+				FFormatNamedArguments Args;
+				Args.Add(TEXT("DeprecatedMetadata"), FText::FromString(DeprecatedMetadata));
+				Response.MessageText = FText::Format(LOCTEXT("ControlRigGraphNodeDeprecationMessage", "Warning: This node is deprecated from: {DeprecatedMetadata}"), Args);
+			}
 		}
 	}
 
@@ -283,6 +291,10 @@ void UControlRigGraphNode::AllocateDefaultPins()
 	{
 		for (URigVMPin* ModelPin : ModelNode->GetPins())
 		{
+			if (ModelPin->ShowInDetailsPanelOnly())
+			{
+				continue;
+			}
 			if (ModelPin->GetDirection() == ERigVMPinDirection::IO)
 			{
 				if (ModelPin->IsStruct())
@@ -708,6 +720,8 @@ FText UControlRigGraphNode::GetTooltipText() const
 void UControlRigGraphNode::InvalidateNodeTitle() const
 {
 	NodeTitle = FText();
+
+	NodeTitleDirtied.ExecuteIfBound();
 }
 
 bool UControlRigGraphNode::CanCreateUnderSpecifiedSchema(const UEdGraphSchema* InSchema) const
@@ -814,7 +828,7 @@ FEdGraphPinType UControlRigGraphNode::GetPinTypeForModelPin(URigVMPin* InModelPi
 		PinType.ContainerType = EPinContainerType::None;
 	}
 
-	PinType.bIsConst = InModelPin->IsConstant();
+	PinType.bIsConst = InModelPin->IsDefinedAsConstant();
 
 	return PinType;
 }

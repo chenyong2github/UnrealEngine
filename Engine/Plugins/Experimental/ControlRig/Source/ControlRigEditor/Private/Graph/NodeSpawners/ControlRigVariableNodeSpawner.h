@@ -12,6 +12,7 @@
 #include "BlueprintActionFilter.h"
 #include "BlueprintNodeSignature.h"
 #include "BlueprintFieldNodeSpawner.h"
+#include "RigVMCore/RigVMExternalVariable.h"
 #include "ControlRigVariableNodeSpawner.generated.h"
 
 class UControlRigGraphNode;
@@ -22,13 +23,14 @@ class CONTROLRIGEDITOR_API UControlRigVariableNodeSpawner : public UBlueprintNod
 	GENERATED_BODY()
 
 public:
+
 	/**
 	 * Creates a new UControlRigVariableNodeSpawner, charged with spawning 
 	 * a new member-variable node
 	 * 
 	 * @return A newly allocated instance of this class.
 	 */
-	static UControlRigVariableNodeSpawner* CreateFromPinType(const FEdGraphPinType& InPinType, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
+	static UControlRigVariableNodeSpawner* CreateFromExternalVariable(const FRigVMExternalVariable& InExternalVariable, bool bInIsGetter, const FText& InMenuDesc, const FText& InCategory, const FText& InTooltip);
 
 	// UBlueprintNodeSpawner interface
 	virtual void Prime() override;
@@ -38,8 +40,9 @@ public:
 	// End UBlueprintNodeSpawner interface
 
 private:
+
 	/** The pin type we will spawn */
-	FEdGraphPinType EdGraphPinType;
+	FRigVMExternalVariable ExternalVariable;
 	bool bIsGetter;
 
 	friend class UEngineTestControlRig;

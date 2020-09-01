@@ -71,6 +71,9 @@ private:
 	mutable FText NodeTitle;
 
 public:
+
+	DECLARE_DELEGATE(FNodeTitleDirtied);
+
 	UControlRigGraphNode();
 
 	// UEdGraphNode Interface.
@@ -129,6 +132,8 @@ public:
 	/** Insert a new array element after the element referred to by the property path */
 	void HandleInsertArrayElement(FString InPinPath);
 
+	FNodeTitleDirtied& GetNodeTitleDirtied() { return NodeTitleDirtied; }
+
 protected:
 
 	FLinearColor GetNodeOpacityColor() const;
@@ -185,6 +190,8 @@ private:
 		UEdGraphPin* OutputPin;
 	};
 	TMap<URigVMPin*, PinPair> CachedPins;
+
+	FNodeTitleDirtied NodeTitleDirtied;
 
 	friend class SControlRigGraphNode;
 };

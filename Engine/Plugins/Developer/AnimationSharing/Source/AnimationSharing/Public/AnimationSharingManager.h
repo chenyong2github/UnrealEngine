@@ -117,6 +117,61 @@ struct FAdditiveInstance
 	uint32 UsedPerStateComponentIndex;
 };
 
+template <typename InstanceType>
+struct FInstanceStack
+{
+	~FInstanceStack()
+	{
+		for (InstanceType* Instance : AvailableInstances)
+		{
+			delete Instance;
+		}
+		AvailableInstances.Empty();
+
+		for (InstanceType* Instance : InUseInstances)
+		{
+			delete Instance;
+		}
+		InUseInstances.Empty();
+	}
+
+
+	/** Return whether instance are available */
+	bool InstanceAvailable() const
+	{
+		return AvailableInstances.Num() != 0;
+	}
+
+	/** Get an available instance */
+	InstanceType* GetInstance()
+	{
+		InstanceType* Instance = nullptr;
+		if (AvailableInstances.Num())
+		{
+			Instance = AvailableInstances.Pop(false);
+			InUseInstances.Add(Instance);
+		}
+
+		return Instance;
+	}
+
+	/** Return instance back */
+	void FreeInstance(InstanceType* Instance)
+	{
+		AvailableInstances.Add(Instance);
+		InUseInstances.RemoveSwap(Instance);
+	}
+
+	/** Add a new instance to the 'stack' */
+	void AddInstance(InstanceType* Instance)
+	{
+		AvailableInstances.Add(Instance);
+	}
+
+	TArray<InstanceType*> AvailableInstances;
+	TArray<InstanceType*> InUseInstances;
+};
+
 /** Structure which holds data about a unique state which is linked to an enumeration value defined by the user. The data is populated from the user exposed FAnimationStateEntry */
 struct FPerStateData
 {
@@ -162,6 +217,9 @@ struct FPerStateData
 
 	/** Length of the animations used for an on-demand state, array as it could contain different animation permutations */
 	TArray<float> AnimationLengths;
+
+	/** Additive actors data structure */
+	FInstanceStack<FAdditiveAnimationInstance> AdditiveInstanceStack;
 };
 
 struct FPerComponentData
@@ -209,60 +267,6 @@ struct FPerActorData
 	FUpdateActorHandle UpdateActorHandleDelegate;	
 };
 
-template <typename InstanceType>
-struct FInstanceStack
-{
-	~FInstanceStack()
-	{
-		for (InstanceType* Instance : AvailableInstances)
-		{
-			delete Instance;
-		}
-		AvailableInstances.Empty();
-
-		for (InstanceType* Instance : InUseInstances)
-		{
-			delete Instance;
-		}
-		InUseInstances.Empty();
-	}
-
-
-	/** Return whether instance are available */
-	bool InstanceAvailable() const
-	{
-		return AvailableInstances.Num() != 0;
-	}
-
-	/** Get an available instance */
-	InstanceType* GetInstance()
-	{
-		InstanceType* Instance = nullptr;
-		if (AvailableInstances.Num())
-		{
-			Instance = AvailableInstances.Pop(false);
-			InUseInstances.Add(Instance);
-		}
-
-		return Instance;
-	}
-	
-	/** Return instance back */
-	void FreeInstance(InstanceType* Instance)
-	{
-		AvailableInstances.Add(Instance);
-		InUseInstances.RemoveSwap(Instance);
-	}
-	
-	/** Add a new instance to the 'stack' */
-	void AddInstance(InstanceType* Instance)
-	{
-		AvailableInstances.Add(Instance);
-	}
-
-	TArray<InstanceType*> AvailableInstances;
-	TArray<InstanceType*> InUseInstances;
-};
 
 UCLASS()
 class UAnimSharingInstance : public UObject
@@ -359,7 +363,7 @@ public:
 	void FreeBlendInstance(FTransitionBlendInstance* Instance);
 
 	/**  Frees up an Additive Animation instance and resets it state*/
-	void FreeAdditiveInstance(FAdditiveAnimationInstance* Instance);
+	void FreeAdditiveInstance(uint8 StateIndex, FAdditiveAnimationInstance* Instance);
 
 	/** Sets up all components of an actor to be slaves of Component */
 	void SetMasterComponentForActor(uint32 ActorIndex, USkeletalMeshComponent* Component);
@@ -391,9 +395,8 @@ public:
 	/** Array of unique state data */
 	TArray<FPerStateData> PerStateData;
 
-	/** Blend and Additive actors data structure */
+	/** Blend actors data structure */
 	FInstanceStack<FTransitionBlendInstance> BlendInstanceStack;
-	FInstanceStack<FAdditiveAnimationInstance> AdditiveInstanceStack;
 
 	/** (Blueprint)class instance used for determining the state enum value for each registered actor */
 	UPROPERTY(EditAnywhere, Transient, Category = AnimationSharing)

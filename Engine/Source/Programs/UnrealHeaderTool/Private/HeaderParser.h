@@ -143,7 +143,8 @@ struct FRigVMParameter
 		, bConstant(false)
 		, bInput(false)
 		, bOutput(false)
-		, MaxArraySize()
+		, bSingleton(false)
+		, ArraySize()
 		, Getter()
 		, CastName()
 		, CastType()
@@ -156,7 +157,8 @@ struct FRigVMParameter
 	bool bConstant;
 	bool bInput;
 	bool bOutput;
-	FString MaxArraySize;
+	bool bSingleton;
+	FString ArraySize;
 	FString Getter;
 	FString CastName;
 	FString CastType;
@@ -243,6 +245,16 @@ struct FRigVMParameter
 	bool IsArray() const
 	{
 		return BaseType().Equals(TEXT("TArray"));
+	}
+
+	bool IsDynamic() const
+	{
+		return ArraySize.IsEmpty() && !bInput && !bOutput && !bSingleton;
+	}
+
+	bool IsDynamicArray() const
+	{
+		return IsArray() && IsDynamic();
 	}
 
 	bool RequiresCast() const
@@ -1062,6 +1074,20 @@ public:
 	* @return True if the Token is using a reserved name
 	*/
 	static bool IsReservedTypeName(const FToken& Token);
+	
+	static const FName NAME_InputText;
+	static const FName NAME_OutputText;
+	static const FName NAME_ConstantText;
+	static const FName NAME_VisibleText;
+	static const FName NAME_ArraySizeText;
+	static const FName NAME_SingletonText;
+	static const TCHAR* TArrayText;
+	static const TCHAR* TEnumAsByteText;
+	static const TCHAR* FFixedArrayText;
+	static const TCHAR* FDynamicArrayText;
+	static const TCHAR* GetRefText;
+	static const TCHAR* GetFixedArrayText;
+	static const TCHAR* GetDynamicArrayText;
 };
 
 /////////////////////////////////////////////////////

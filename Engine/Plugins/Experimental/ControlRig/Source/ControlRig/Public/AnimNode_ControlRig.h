@@ -29,7 +29,7 @@ struct CONTROLRIG_API FAnimNode_ControlRig : public FAnimNode_ControlRigBase
 	virtual void Update_AnyThread(const FAnimationUpdateContext& Context) override;
 	virtual void CacheBones_AnyThread(const FAnimationCacheBonesContext& Context) override;
 	virtual void Evaluate_AnyThread(FPoseContext & Output) override;
-
+	virtual int32 GetLODThreshold() const override { return LODThreshold; }
 	void SetIOMapping(bool bInput, const FName& SourceProperty, const FName& TargetCurve);
 	FName GetIOMapping(bool bInput, const FName& SourceProperty) const;
 
@@ -79,6 +79,15 @@ private:
 	TMap<FName, FName> InputTypes;
 	TMap<FName, FName> OutputTypes;
 	TArray<uint8*> DestParameters;
+
+	/*
+	 * Max LOD that this node is allowed to run
+	 * For example if you have LODThreadhold to be 2, it will run until LOD 2 (based on 0 index)
+	 * when the component LOD becomes 3, it will stop update/evaluate
+	 * currently transition would be issue and that has to be re-visited
+	 */
+	UPROPERTY(EditAnywhere, Category = Performance, meta = (DisplayName = "LOD Threshold"))
+	int32 LODThreshold;
 
 #if WITH_EDITOR
 	void OnObjectsReplaced(const TMap<UObject*, UObject*>& OldToNewInstanceMap);

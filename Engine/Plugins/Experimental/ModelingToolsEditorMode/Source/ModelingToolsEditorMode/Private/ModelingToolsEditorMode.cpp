@@ -73,6 +73,10 @@
 #include "Physics/ExtractCollisionGeometryTool.h"
 //#include "Physics/EditCollisionGeometryTool.h"
 
+// hair tools
+#include "Hair/GroomToMeshTool.h"
+#include "GenerateLODMeshesTool.h"
+
 #include "EditorModeManager.h"
 
 // stylus support
@@ -733,6 +737,18 @@ void FModelingToolsEditorMode::Enter()
 	auto ExtractCollisionGeoToolBuilder = NewObject<UExtractCollisionGeometryToolBuilder>();
 	ExtractCollisionGeoToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	RegisterToolFunc(ToolManagerCommands.BeginExtractCollisionGeometryTool, TEXT("ExtractCollisionGeoTool"), ExtractCollisionGeoToolBuilder);
+
+
+
+	// (experimental) hair tools
+
+	UGroomToMeshToolBuilder* GroomToMeshToolBuilder = NewObject<UGroomToMeshToolBuilder>();
+	GroomToMeshToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginGroomToMeshTool, TEXT("GroomToMeshTool"), GroomToMeshToolBuilder);
+
+	UGenerateLODMeshesToolBuilder* GenerateLODMeshesToolBuilder = NewObject<UGenerateLODMeshesToolBuilder>();
+	GenerateLODMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RegisterToolFunc(ToolManagerCommands.BeginGenerateLODMeshesTool, TEXT("GenerateLODMeshesTool"), GenerateLODMeshesToolBuilder);
 
 
 

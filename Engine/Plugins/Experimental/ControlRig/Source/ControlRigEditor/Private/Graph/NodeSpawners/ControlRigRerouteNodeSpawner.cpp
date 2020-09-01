@@ -92,8 +92,8 @@ UEdGraphNode* UControlRigRerouteNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 		NewNode->Pins.Add(InputValuePin);
 		NewNode->Pins.Add(OutputValuePin);
 
-		InputValuePin->PinType.PinCategory = TEXT("REROUTE");
-		OutputValuePin->PinType.PinCategory = TEXT("REROUTE");
+		InputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
+		OutputValuePin->PinType.PinCategory = TEXT("POLYMORPH");
 		InputValuePin->Direction = EGPD_Input;
 		OutputValuePin->Direction = EGPD_Output;
 		NewNode->SetFlags(RF_Transactional);
@@ -161,6 +161,14 @@ bool UControlRigRerouteNodeSpawner::IsTemplateNodeFilteredOut(FBlueprintActionFi
 			{
 				return true;
 			}
+			for (UEdGraphPin* Pin : Filter.Context.Pins)
+			{
+				if (Pin->PinType.ContainerType != EPinContainerType::None)
+				{
+					return true;
+				}
+			}
+
 			return false;
 		}
 	}

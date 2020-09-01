@@ -43,7 +43,15 @@ private:
 	bool CanRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 	void ExecuteRebuild(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 
-	/** Callback for create binding asset action */
+	/** Callback for creating binding asset action */
 	bool CanCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 	void ExecuteCreateBindingAsset(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+
+	/** Callback for creating follicle texture action */
+	bool CanCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+	void ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+
+	/** Callback for creating strands texture action */
+	bool CanCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
+	void ExecuteCreateStrandsTextures(TArray<TWeakObjectPtr<UGroomAsset>> Objects) const;
 };

@@ -7,6 +7,21 @@
 
 FRigUnit_TransformConstraint_Execute()
 {
+	FRigUnit_TransformConstraintPerItem::StaticExecute(
+		RigVMExecuteContext, 
+		FRigElementKey(Bone, ERigElementType::Bone),
+		BaseTransformSpace,
+		BaseTransform,
+		FRigElementKey(BaseBone, ERigElementType::Bone),
+		Targets,
+		bUseInitialTransforms,
+		WorkData,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_TransformConstraintPerItem_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 
 	TArray<FConstraintData>&	ConstraintData = WorkData.ConstraintData;
@@ -17,30 +32,29 @@ FRigUnit_TransformConstraint_Execute()
 		ConstraintData.Reset();
 		ConstraintDataToTargets.Reset();
 
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+		FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 		if(Hierarchy)
 		{
-			int32 BoneIndex = Hierarchy->GetIndex(Bone);
-			if (BoneIndex != INDEX_NONE)
+			if (Item.IsValid())
 			{
 				const int32 TargetNum = Targets.Num();
 				if (TargetNum > 0)
 				{
-					const FTransform SourceTransform = bUseInitialTransforms ? Hierarchy->GetInitialTransform(BoneIndex) : Hierarchy->GetGlobalTransform(BoneIndex);
+					const FTransform SourceTransform = bUseInitialTransforms ? Hierarchy->GetInitialGlobalTransform(Item) : Hierarchy->GetGlobalTransform(Item);
 					FTransform InputBaseTransform =
 						bUseInitialTransforms ?
 						UtilityHelpers::GetBaseTransformByMode(
 							BaseTransformSpace,
-							[Hierarchy](const FName& JointName) { return Hierarchy->GetInitialTransform(JointName); },
-							(*Hierarchy)[BoneIndex].ParentName,
-							BaseBone,
+							[Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetInitialGlobalTransform(Item); },
+							Hierarchy->GetParentKey(Item),
+							BaseItem,
 							BaseTransform
 						) :
 						UtilityHelpers::GetBaseTransformByMode(
 							BaseTransformSpace,
-							[Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
-							(*Hierarchy)[BoneIndex].ParentName,
-							BaseBone,
+							[Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item); },
+							Hierarchy->GetParentKey(Item),
+							BaseItem,
 							BaseTransform
 						);
 
@@ -83,25 +97,18 @@ FRigUnit_TransformConstraint_Execute()
 	{
 		ConstraintData.Reset();
 		ConstraintDataToTargets.Reset();
-
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
-		if (Hierarchy && bUseInitialTransforms)
-		{
-			SetupConstraintData();
-		}
 	}
 	else if (Context.State == EControlRigState::Update)
 	{
-		FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+		FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 		if (Hierarchy)
 		{
-			if ((ConstraintData.Num() != Targets.Num()) && !bUseInitialTransforms)
+			if ((ConstraintData.Num() != Targets.Num()))
 			{
 				SetupConstraintData();
 			}
 
-			int32 BoneIndex = Hierarchy->GetIndex(Bone);
-			if (BoneIndex != INDEX_NONE)
+			if (Item.IsValid())
 			{
 				const int32 TargetNum = Targets.Num();
 				if (TargetNum > 0 && ConstraintData.Num() > 0)
@@ -118,22 +125,22 @@ FRigUnit_TransformConstraint_Execute()
 						}
 					}
 
-					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
-							(*Hierarchy)[BoneIndex].ParentName, BaseBone, BaseTransform);
+					FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(BaseTransformSpace, [Hierarchy](const FRigElementKey& Item) { return Hierarchy->GetGlobalTransform(Item); },
+							Hierarchy->GetParentKey(Item), BaseItem, BaseTransform);
 
-					FTransform SourceTransform = Hierarchy->GetGlobalTransform(BoneIndex);
+					FTransform SourceTransform = Hierarchy->GetGlobalTransform(Item);
 
 					// @todo: ignore maintain offset for now
 					FTransform ConstrainedTransform = AnimationCore::SolveConstraints(SourceTransform, InputBaseTransform, ConstraintData);
 
-					Hierarchy->SetGlobalTransform(BoneIndex, ConstrainedTransform);
+					Hierarchy->SetGlobalTransform(Item, ConstrainedTransform);
 				}
 			}
 		}
 	}
 }
 
-void FRigUnit_TransformConstraint::AddConstraintData(const TArrayView<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
+void FRigUnit_TransformConstraintPerItem::AddConstraintData(const FRigVMFixedArray<FConstraintTarget>& Targets, ETransformConstraintType ConstraintType, const int32 TargetIndex, const FTransform& SourceTransform, const FTransform& InBaseTransform, TArray<FConstraintData>& OutConstraintData, TMap<int32, int32>& OutConstraintDataToTargets)
 {
 	const FConstraintTarget& Target = Targets[TargetIndex];
 

@@ -1585,7 +1585,8 @@ function connect() {
 			webRtcPlayerObj = undefined;
 		}
 
-		start();
+		showTextOverlay(`Disconnected: ${event.reason}`);
+		var reclickToStart = setTimeout(start, 4000);
 	};
 }
 

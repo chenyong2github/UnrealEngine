@@ -131,6 +131,16 @@ FHairVertexAttributes GetHairStrandsAttributes(uint HairPrimitiveId, float2 Vert
 	return Out; 
 }
 
+float GetHairStrandsDepth(float2 InUV)
+{
+	return 0; // TODO: what should we do for the strands cards as we don't want to override the depth output, but we still want to share the same shader than the non cards one
+}
+
+float GetHairStrandsCoverage(float2 InUV)
+{
+	return 0; // TODO: what should we do for the strands cards as we don't want to override the depth output, but we still want to share the same shader than the non cards one
+}
+
 float2 GetHairStrandsUV(uint HairPrimitiveId, float2 HairPrimitiveUV)
 {
 	return GetHairStrandsAttributes(HairPrimitiveId, HairPrimitiveUV).HairUV;
@@ -467,7 +477,7 @@ float4 ComputeViewAlignedWorldPosition(FVertexFactoryInput Input, float3 WorldTa
 	const float MinStrandHairRadius = HairViewInfo.bIsOrthoView ? HairViewInfo.RadiusAtDepth1 : (DistanceToCamera * HairViewInfo.RadiusAtDepth1);
 	const float3 ViewDir = -HairViewInfo.ViewForward;
 	const float3 Right = normalize(cross(WorldTangent, ViewDir));
-	const float3 OutWorldPosition = WorldPosition.xyz + (VertexInfo.IsLeft ? -Right : Right) * max(WorldStrandRadius * VertexInfo.LodRadiusScale, MinStrandHairRadius);
+	const float3 OutWorldPosition = WorldPosition.xyz + (VertexInfo.IsLeft ? -Right : Right) * max(WorldStrandRadius, MinStrandHairRadius);
 	
 	return float4(OutWorldPosition, 1);
 }
@@ -488,7 +498,7 @@ float4 VertexFactoryGetWorldPosition_Visibility(FVertexFactoryInput Input, FHair
 	const float MinStrandHairRadius = DistanceToCamera * HairViewInfo.RadiusAtDepth1;
 	const float3 ViewDir = -HairViewInfo.ViewForward;
 	const float3 Right = normalize(cross(WorldTangent, ViewDir));
-	const float3 OutWorldPosition = WorldPosition.xyz + (VertexInfo.IsLeft ? -Right : Right) * max(ControlPoint.WorldRadius * VertexInfo.LodRadiusScale, MinStrandHairRadius);
+	const float3 OutWorldPosition = WorldPosition.xyz + (VertexInfo.IsLeft ? -Right : Right) * max(ControlPoint.WorldRadius, MinStrandHairRadius);
 
 	return float4(OutWorldPosition, 1);
 }
@@ -509,7 +519,7 @@ float4 VertexFactoryGetWorldPosition_Voxelization(FVertexFactoryInput Input, FHa
 	// Minimal radius to snap the strand to a sample/pixel center (to avoid aliasing)
 	const float3 ViewDir = -HairViewInfo.ViewForward;
 	const float3 Right = normalize(cross(WorldTangent, ViewDir));
-	const float3 OutWorldPosition = WorldPosition.xyz + (VertexInfo.IsLeft ? -Right : Right) * max(ControlPoint.WorldRadius * VertexInfo.LodRadiusScale, HairViewInfo.RadiusAtDepth1);
+	const float3 OutWorldPosition = WorldPosition.xyz + (VertexInfo.IsLeft ? -Right : Right) * max(ControlPoint.WorldRadius, HairViewInfo.RadiusAtDepth1);
 
 	return float4(OutWorldPosition, 1);
 }

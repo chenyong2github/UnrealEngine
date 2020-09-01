@@ -174,7 +174,7 @@ bool FAnimationRecorder::TriggerRecordAnimation(USkeletalMeshComponent* Componen
 }
 
 /** Helper function to get space bases depending on master pose component */
-static void GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms)
+void FAnimationRecorder::GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms)
 {
 	const USkinnedMeshComponent* const MasterPoseComponentInst = Component->MasterPoseComponent.Get();
 	if(MasterPoseComponentInst)
@@ -219,7 +219,7 @@ void FAnimationRecorder::StartRecord(USkeletalMeshComponent* Component, UAnimSeq
 	AnimationObject->RecycleAnimSequence();
 	AnimationObject->BoneCompressionSettings = FAnimationUtils::GetDefaultAnimationRecorderBoneCompressionSettings();
 
-	GetBoneTransforms(Component, PreviousSpacesBases);
+	FAnimationRecorder::GetBoneTransforms(Component, PreviousSpacesBases);
 	PreviousAnimCurves = Component->GetAnimationCurves();
 	PreviousComponentToWorld = Component->GetComponentTransform();
 
@@ -482,7 +482,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 	}
 
 	TArray<FTransform> SpaceBases;
-	GetBoneTransforms(Component, SpaceBases);
+	FAnimationRecorder::GetBoneTransforms(Component, SpaceBases);
 
 	if (FramesRecorded < FramesToRecord)
 	{
@@ -620,12 +620,15 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 				}
 
 				FRawAnimSequenceTrack& RawTrack = AnimationObject->GetRawAnimationTrack(TrackIndex);
-				RawTrack.PosKeys.Add(LocalTransform.GetTranslation());
-				RawTrack.RotKeys.Add(LocalTransform.GetRotation());
-				RawTrack.ScaleKeys.Add(LocalTransform.GetScale3D());
-				if (AnimationSerializer)
+				if (bRecordTransforms)
 				{
-					SerializedAnimation.AddTransform(TrackIndex, LocalTransform);
+					RawTrack.PosKeys.Add(LocalTransform.GetTranslation());
+					RawTrack.RotKeys.Add(LocalTransform.GetRotation());
+					RawTrack.ScaleKeys.Add(LocalTransform.GetScale3D());
+					if (AnimationSerializer)
+					{
+						SerializedAnimation.AddTransform(TrackIndex, LocalTransform);
+					}
 				}
 				// verification
 				if (FrameToAdd != RawTrack.PosKeys.Num()-1)
@@ -640,7 +643,7 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			AnimationSerializer->WriteFrameData(AnimationSerializer->FramesWritten, SerializedAnimation);
 		}
 		// each RecordedCurves contains all elements
-		if (AnimationCurves.CurveWeights.Num() > 0)
+		if (bRecordCurves && AnimationCurves.CurveWeights.Num() > 0)
 		{
 			RecordedCurves.Emplace(AnimationCurves.CurveWeights, AnimationCurves.ValidCurveWeights);
 			if (UIDToArrayIndexLUT == nullptr)
@@ -822,6 +825,8 @@ void FAnimRecorderInstance::InitInternal(USkeletalMeshComponent* InComponent, co
 	Recorder->bRemoveRootTransform = Settings.bRemoveRootAnimation;
 	Recorder->bCheckDeltaTimeAtBeginning = Settings.bCheckDeltaTimeAtBeginning;
 	Recorder->AnimationSerializer = InAnimationSerializer;
+	Recorder->bRecordTransforms = Settings.bRecordTransforms;
+	Recorder->bRecordCurves = Settings.bRecordCurves;
 
 	if (InComponent)
 	{

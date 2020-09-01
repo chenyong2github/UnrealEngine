@@ -12,7 +12,7 @@ UNodeMappingContainer::UNodeMappingContainer(const FObjectInitializer& ObjectIni
 #if WITH_EDITOR
 void UNodeMappingContainer::AddMapping(const FName& InSourceNode, const FName& InTargetNode)
 {
-	if (SourceItems.Find(InSourceNode) && TargetItems.Find(InTargetNode))
+	if (SourceItems.Find(InSourceNode) && (InTargetNode == NAME_None || TargetItems.Find(InTargetNode)))
 	{
 		FName& TargetNode = SourceToTarget.Add(InSourceNode);
 		TargetNode = InTargetNode;

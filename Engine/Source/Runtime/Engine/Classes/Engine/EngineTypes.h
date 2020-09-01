@@ -3556,19 +3556,22 @@ struct FConstrainComponentPropName
  *	Struct that allows for different ways to reference a component. 
  *	If just an Actor is specified, will return RootComponent of that Actor.
  */
-USTRUCT()
+USTRUCT(BlueprintType)
 struct ENGINE_API FComponentReference
 {
 	GENERATED_BODY()
 
 	FComponentReference() : OtherActor(nullptr) {}
 
-	/** Pointer to a different Actor that owns the Component.  */
-	UPROPERTY(EditInstanceOnly, Category=Component)
+	/** 
+	 * Pointer to a different Actor that owns the Component.  
+	 * If this is not provided the reference refers to a component on this / the same actor.
+	 */
+	UPROPERTY(EditInstanceOnly, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Referenced Actor"))
 	AActor* OtherActor;
 
-	/** Name of component property to use */
-	UPROPERTY(EditAnywhere, Category=Component)
+	/** Name of component to use. If this is not specified the reference refers to the root component. */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=Component, meta = (DisplayName = "Component Name"))
 	FName ComponentProperty;
 
 	/** Path to the component from its owner actor */

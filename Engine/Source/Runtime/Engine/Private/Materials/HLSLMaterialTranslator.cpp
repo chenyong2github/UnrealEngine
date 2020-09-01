@@ -5319,6 +5319,26 @@ int32 FHLSLMaterialTranslator::VertexColor()
 	return AddInlinedCodeChunk(MCT_Float4,TEXT("Parameters.VertexColor"));
 }
 
+int32 FHLSLMaterialTranslator::PreSkinVertexOffset()
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return Errorf(TEXT("Pre Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
+	}
+
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPreSkinOffset(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::PostSkinVertexOffset()
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return Errorf(TEXT("Post Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
+	}
+
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPostSkinOffset(Parameters)"));
+}
+
 int32 FHLSLMaterialTranslator::PreSkinnedPosition()
 {
 	if (ShaderFrequency != SF_Vertex)
@@ -6834,6 +6854,40 @@ int32 FHLSLMaterialTranslator::GetHairRoughness()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairRoughness(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetHairDepth()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairDepth(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairCoverage()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairCoverage(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairAtlasUVs()
+{
+	return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetAtlasUVs(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor)
+{
+	if (Melanin == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (Redness == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (DyeColor == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairColorFromMelanin(%s, %s, %s)"), *GetParameterCode(Melanin), *GetParameterCode(Redness), *GetParameterCode(DyeColor));
+}
+
 int32 FHLSLMaterialTranslator::DistanceToNearestSurface(int32 PositionArg)
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
@@ -6936,49 +6990,6 @@ int32 FHLSLMaterialTranslator::SkyAtmosphereDistantLightScatteredLuminance()
 {
 	bUsesSkyAtmosphere = true;
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionSkyAtmosphereDistantLightScatteredLuminance(Parameters)"));
-}
-
-int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
-{
-	if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
-	{
-		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
-		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
-	}
-
-	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
-	}
-	
-	if (Material->GetMaterialDomain() != MD_Surface)
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
-	}
-
-	if (IsTranslucentBlendMode(Material->GetBlendMode()))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
-	}
-
-	if (Offset == INDEX_NONE && bUseOffset)
-	{
-		return INDEX_NONE;
-	}
-
-	AddEstimatedTextureSample();
-
-	const FString UserDepthCode(TEXT("MaterialExpressionSceneDepthWithoutWater(%s, %s)"));
-	const FString FallbackString(FString::SanitizeFloat(FallbackDepth));
-	const int32 TexCoordCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);
-
-	// add the code string
-	return AddCodeChunk(
-		MCT_Float,
-		*UserDepthCode,
-		*GetParameterCode(TexCoordCode),
-		*FallbackString
-	);
 }
 
 int32 FHLSLMaterialTranslator::GetCloudSampleAltitude()

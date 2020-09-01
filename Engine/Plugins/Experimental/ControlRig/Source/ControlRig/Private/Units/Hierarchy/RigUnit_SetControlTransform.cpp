@@ -14,12 +14,12 @@ FRigUnit_SetControlBool_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<bool>(BoolValue));
 				}
@@ -43,12 +43,12 @@ FRigUnit_SetControlFloat_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
@@ -58,6 +58,43 @@ FRigUnit_SetControlFloat_Execute()
 					{
 						float PreviousValue = Hierarchy->GetValue(CachedControlIndex).Get<float>();
 						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<float>(FMath::Lerp<float>(PreviousValue, FloatValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
+					}
+				}
+				break;
+			}
+			default:
+			{
+				break;
+			}
+		}
+	}
+}
+
+FRigUnit_SetControlInteger_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	FRigControlHierarchy* Hierarchy = ExecuteContext.GetControls();
+	if (Hierarchy)
+	{
+		switch (Context.State)
+		{
+			case EControlRigState::Init:
+			{
+				CachedControlIndex.Reset();
+				break;
+			}
+			case EControlRigState::Update:
+			{
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
+				{
+					if(FMath::IsNearlyEqual(Weight, 1.f))
+					{
+						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<int32>(IntegerValue));
+					}
+					else
+					{
+						int32 PreviousValue = Hierarchy->GetValue(CachedControlIndex).Get<int32>();
+						Hierarchy->SetValue(CachedControlIndex, FRigControlValue::Make<int32>((int32)FMath::Lerp<float>((float)PreviousValue, (float)IntegerValue, FMath::Clamp<float>(Weight, 0.f, 1.f))));
 					}
 				}
 				break;
@@ -80,12 +117,12 @@ FRigUnit_SetControlVector2D_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					if(FMath::IsNearlyEqual(Weight, 1.f))
 					{
@@ -117,12 +154,12 @@ FRigUnit_SetControlVector_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					FTransform Transform = FTransform::Identity;
 					if (Space == EBoneGetterSetterMode::GlobalSpace)
@@ -192,12 +229,12 @@ FRigUnit_SetControlRotator_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					FTransform Transform = FTransform::Identity;
 					if (Space == EBoneGetterSetterMode::GlobalSpace)
@@ -254,12 +291,12 @@ FRigUnit_SetControlTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedControlIndex = Hierarchy->GetIndex(Control);
+				CachedControlIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedControlIndex != INDEX_NONE)
+				if (CachedControlIndex.UpdateCache(Control, Hierarchy))
 				{
 					switch (Space)
 					{

@@ -59,6 +59,7 @@ FRBFParams::FRBFParams()
 	: TargetDimensions(3)
 	, SolverType(ERBFSolverType::Additive)
 	, Radius(1.f)
+	, bAutomaticRadius(false)
 	, Function(ERBFFunctionType::Gaussian)
 	, DistanceMethod(ERBFDistanceMethod::Euclidean)
 	, TwistAxis(EBoneAxis::BA_X)
@@ -143,7 +144,7 @@ float FRBFSolver::FindDistanceBetweenEntries(const FRBFEntry& A, const FRBFEntry
 // Sigma controls the falloff width. The larger the value the narrower the falloff
 static float GetWeightedValue(
 	float Value, 
-	float Sigma, 
+	float KernelWidth, 
 	ERBFFunctionType FalloffFunctionType,
 	bool bBackCompFix = false
 )
@@ -155,7 +156,7 @@ static float GetWeightedValue(
 		case ERBFFunctionType::Linear:
 		case ERBFFunctionType::DefaultFunction:
 		default:
-			return RBFKernel::Linear(Value, Sigma);
+			return Value;
 
 		case ERBFFunctionType::Gaussian:
 			if (bBackCompFix)
@@ -166,7 +167,7 @@ static float GetWeightedValue(
 			}
 			else
 			{
-				return RBFKernel::Gaussian(Value, Sigma);
+				return RBFKernel::Gaussian(Value, KernelWidth);
 			}
 
 		case ERBFFunctionType::Exponential:
@@ -178,14 +179,14 @@ static float GetWeightedValue(
 			}
 			else
 			{
-				return RBFKernel::Exponential(Value, Sigma);
+				return RBFKernel::Exponential(Value, KernelWidth);
 			}
 
 		case ERBFFunctionType::Cubic:
-			return RBFKernel::Cubic(Value, Sigma);
+			return RBFKernel::Cubic(Value, KernelWidth);
 
 		case ERBFFunctionType::Quintic:
-			return RBFKernel::Quintic(Value, Sigma);
+			return RBFKernel::Quintic(Value, KernelWidth);
 		}
 	}
 	else
@@ -194,18 +195,50 @@ static float GetWeightedValue(
 	}
 }
 
+static float GetOptimalKernelWidth(
+	const FRBFParams& Params,
+	const FVector &TwistAxis,
+	const TArrayView<FRBFEntry>& Targets
+	)
+	{
+		float Sum = 0.0f;
+		int Count = 0;
+
+		for (const FRBFEntry& A : Targets)
+		{
+			for (const FRBFEntry& B : Targets)
+			{
+				if (&A != &B)
+				{
+					Sum += GetDistanceBetweenEntries(A, B, Params.DistanceMethod, TwistAxis);
+				Count++;
+				}
+			}
+		}
+
+	return Sum / float(Count);
+}
+
 static auto InterpolativeWeightFunction(
-	const FRBFParams& Params
+	const FRBFParams& Params,
+	const TArrayView<FRBFEntry>& Targets
 	)
 {
-	// This is fairly arbitrary, but is done to maintain a close relationship with how the radius 
-	// controls the falloff distance in the additive solver.
-	float Sigma = FMath::DegreesToRadians(Params.Radius);
 	FVector TwistAxis = Params.GetTwistAxisVector();
 
-	return [Sigma, TwistAxis, &Params](const FRBFEntry& A, const FRBFEntry& B) {
+	float KernelWidth;
+	if (Params.bAutomaticRadius)
+	{
+		KernelWidth = GetOptimalKernelWidth(Params, TwistAxis, Targets);
+	}
+	else 
+	{
+		KernelWidth = FMath::DegreesToRadians(Params.Radius);
+	}
+
+	return [KernelWidth, TwistAxis, &Params](const FRBFEntry& A, const FRBFEntry& B) {
 		float Distance = GetDistanceBetweenEntries(A, B, Params.DistanceMethod, TwistAxis);
-		return GetWeightedValue(Distance, Sigma, Params.Function);
+		return GetWeightedValue(Distance, KernelWidth, Params.Function);
 	};
 }
 
@@ -223,7 +256,7 @@ static bool ValidateInterpolative(
 	TSet<int> InvalidTargetSet;
 
 	InvalidTargets.Empty();
-	if (TRBFInterpolator<FRBFEntry>::GetIdenticalNodePairs(EntryTargets, InterpolativeWeightFunction(Params), InvalidPairs))
+	if (TRBFInterpolator<FRBFEntry>::GetIdenticalNodePairs(EntryTargets, InterpolativeWeightFunction(Params, EntryTargets), InvalidPairs))
 	{
 		// We mark the second of the pair to be invalid. Given how GetInvalidNodePairs iterates over all possible pairs,
 		// this should guarantee to catch them all.
@@ -302,13 +335,14 @@ static void SolveInterpolative(
 {
 	check(Input.GetDimensions() == 3);
 
-	TArray<FRBFEntry> EntryTargets;
+	TArray<FRBFEntry, TMemStackAllocator<>> EntryTargets;
+	EntryTargets.Reset(Targets.Num());
 	for (const auto& T : Targets)
 		EntryTargets.Add(T);
 
 	// FIXME: We ought to be able to store the initial RBF interpolator matrix and re-use it between solves
 	// but that requires larger changes in the PoseDriver and how this code is wrapped.
-	TRBFInterpolator<FRBFEntry> Rbf(EntryTargets, InterpolativeWeightFunction(Params));
+	TRBFInterpolator<FRBFEntry> Rbf(EntryTargets, InterpolativeWeightFunction(Params, EntryTargets), false);
 
 	Rbf.Interpolate(AllWeights, Input);
 
@@ -467,4 +501,19 @@ float FRBFSolver::GetRadiusForTarget(const FRBFTarget& Target, const FRBFParams&
 	}
 
 	return FMath::Max(Radius, KINDA_SMALL_NUMBER);
+}
+
+
+float FRBFSolver::GetOptimalRadiusForTargets(const FRBFParams& Params, const TArray<FRBFTarget>& Targets)
+{
+	TArray<FRBFEntry, TMemStackAllocator<>> EntryTargets;
+	EntryTargets.Reset(Targets.Num());
+	for (const auto& T : Targets)
+		EntryTargets.Add(T);
+
+	FVector TwistAxis = Params.GetTwistAxisVector();
+
+	float KernelWidth = GetOptimalKernelWidth(Params, TwistAxis, EntryTargets);
+
+	return FMath::RadiansToDegrees(KernelWidth);
 }

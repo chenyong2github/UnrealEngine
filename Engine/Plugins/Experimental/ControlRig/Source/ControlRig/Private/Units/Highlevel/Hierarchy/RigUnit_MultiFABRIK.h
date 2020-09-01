@@ -12,8 +12,8 @@
 struct FRigUnit_MultiFABRIK_BoneWorkingData
 {
 	FName BoneName;
-	int32 BoneIndex; // bone index of hierarchy
-	int32 ParentIndex; // bone index of hierarchy
+	FCachedRigElement BoneIndex; // bone index of hierarchy
+	FCachedRigElement ParentIndex; // bone index of hierarchy
 	int32 ParentTreeIndex; // parent index of BoneTree 
 	TArray<int32> ChildrenTreeIndices;
 	float BoneLength; // initial bone length 
@@ -21,9 +21,9 @@ struct FRigUnit_MultiFABRIK_BoneWorkingData
 
 	FRigUnit_MultiFABRIK_BoneWorkingData()
 		: BoneName(NAME_None)
-		, BoneIndex(INDEX_NONE)
-		, ParentIndex(INDEX_NONE)
-		, ParentTreeIndex(INDEX_NONE) 
+		, BoneIndex(FCachedRigElement())
+		, ParentIndex(FCachedRigElement())
+		, ParentTreeIndex(INDEX_NONE)
 		, BoneLength(0.f)
 	{}
 };
@@ -61,7 +61,7 @@ struct FRigUnit_MultiFABRIK_ChainGroup
 	// current chain data
 	FRigUnit_MultiFABRIK_Chain Chain;
 	// root bone index for this specific chain - this index is 
-	int32	RootBoneTreeIndex;
+	int32 RootBoneTreeIndex;
 
 	// children of this chain
 	// this means these are children AT THE END OF THE CHAIN
@@ -69,10 +69,6 @@ struct FRigUnit_MultiFABRIK_ChainGroup
 
 	FRigUnit_MultiFABRIK_ChainGroup()
 		: RootBoneTreeIndex(INDEX_NONE)
-	{}
-
-	FRigUnit_MultiFABRIK_ChainGroup(int32 InBaseBoneTreeIndex)
-		: RootBoneTreeIndex(InBaseBoneTreeIndex)
 	{}
 
 	void Reset()
@@ -92,7 +88,7 @@ struct FRigUnit_MultiFABRIK_WorkData
 	}
 
 	// list of effector bone indices
-	TArray<int32> EffectorBoneIndices;
+	TArray<FCachedRigElement> EffectorBoneIndices;
 
 	// chain groups - contains list of sub groups (Children)
 	FRigUnit_MultiFABRIK_ChainGroup	ChainGroup;
@@ -108,7 +104,7 @@ struct FRigUnit_MultiFABRIK_EndEffector
 	/**
 	 * The last bone in the chain to solve - the effector
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName"))
 	FName Bone;
 
 	/**
@@ -140,7 +136,7 @@ struct FRigUnit_MultiFABRIK : public FRigUnit_HighlevelBaseMutable
 	/**
 	 * The first bone in the chain to solve
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input, CustomWidget = "BoneName"))
 	FName RootBone;
 
 	UPROPERTY(meta = (Input))

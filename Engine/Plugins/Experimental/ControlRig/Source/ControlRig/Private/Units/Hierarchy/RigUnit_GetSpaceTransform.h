@@ -8,24 +8,23 @@
 /**
  * GetSpaceTransform is used to retrieve a single transform from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Space Transform", Category="Spaces", DocumentationPolicy = "Strict", Keywords="GetSpaceTransform"))
+USTRUCT(meta=(DisplayName="Get Space Transform", Category="Spaces", DocumentationPolicy = "Strict", Keywords="GetSpaceTransform", Varying, Deprecated = "4.25"))
 struct FRigUnit_GetSpaceTransform : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_GetSpaceTransform()
 		: SpaceType(EBoneGetterSetterMode::GlobalSpace)
-		, CachedSpaceIndex(INDEX_NONE)
+		, CachedSpaceIndex(FCachedRigElement())
 	{}
 
-	virtual FString GetUnitLabel() const override;
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
 
 	/**
 	 * The name of the Space to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "SpaceName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	/**
@@ -41,5 +40,5 @@ struct FRigUnit_GetSpaceTransform : public FRigUnit
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedSpaceIndex;
+	FCachedRigElement CachedSpaceIndex;
 };

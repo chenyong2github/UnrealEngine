@@ -6,12 +6,20 @@
 #include "TraceServices/Model/AnalysisSession.h"
 #include "TraceServices/Containers/Timelines.h"
 
+struct FClassPropertyInfo
+{
+	int32 ParentId = 0;
+	uint32 TypeStringId = 0;
+	uint32 KeyStringId = 0;
+};
+
 struct FClassInfo
 {	
 	uint64 Id = 0;
 	uint64 SuperId = 0;
 	const TCHAR* Name = nullptr;
 	const TCHAR* PathName = nullptr;
+	TArray<FClassPropertyInfo> Properties;
 };
 
 struct FObjectInfo
@@ -21,6 +29,19 @@ struct FObjectInfo
 	uint64 ClassId = 0;
 	const TCHAR* Name = nullptr;
 	const TCHAR* PathName = nullptr;
+};
+
+struct FObjectPropertiesMessage
+{
+	int64 PropertyValueStartIndex = INDEX_NONE;
+	int64 PropertyValueEndIndex = INDEX_NONE;
+};
+
+struct FObjectPropertyValue
+{
+	const TCHAR* Value = nullptr;
+	int32 PropertyId;
+	float ValueAsFloat = 0.0f;
 };
 
 struct FObjectEventMessage
@@ -70,9 +91,12 @@ class IGameplayProvider : public Trace::IProvider
 {
 public:
 	typedef Trace::ITimeline<FObjectEventMessage> ObjectEventsTimeline;
+	typedef Trace::ITimeline<FObjectPropertiesMessage> ObjectPropertiesTimeline;
 
 	virtual bool ReadObjectEventsTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectEventsTimeline&)> Callback) const = 0;
 	virtual bool ReadObjectEvent(uint64 InObjectId, uint64 InMessageId, TFunctionRef<void(const FObjectEventMessage&)> Callback) const = 0;
+	virtual bool ReadObjectPropertiesTimeline(uint64 InObjectId, TFunctionRef<void(const ObjectPropertiesTimeline&)> Callback) const = 0;
+	virtual void EnumerateObjectPropertyValues(uint64 InObjectId, const FObjectPropertiesMessage& InMessage, TFunctionRef<void(const FObjectPropertyValue&)> Callback) const = 0;
 	virtual void EnumerateObjects(TFunctionRef<void(const FObjectInfo&)> Callback) const = 0;
 	virtual const FClassInfo* FindClassInfo(uint64 InClassId) const = 0;
 	virtual const FClassInfo* FindClassInfo(const TCHAR* InClassPath) const = 0;
@@ -84,4 +108,5 @@ public:
 	virtual const FClassInfo& GetClassInfoFromObject(uint64 InObjectId) const = 0;
 	virtual const FObjectInfo& GetObjectInfo(uint64 InObjectId) const = 0;
 	virtual FOnObjectEndPlay& OnObjectEndPlay() = 0;
+	virtual const TCHAR* GetPropertyName(uint32 InPropertyStringId) const = 0;
 };

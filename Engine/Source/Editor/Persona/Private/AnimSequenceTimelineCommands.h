@@ -57,6 +57,14 @@ public:
 
 	TSharedPtr<FUICommandInfo> DisplaySecondaryFormat;
 
+	TSharedPtr<FUICommandInfo> SnapToFrames;
+
+	TSharedPtr<FUICommandInfo> SnapToNotifies;
+
+	TSharedPtr<FUICommandInfo> SnapToMontageSections;
+
+	TSharedPtr<FUICommandInfo> SnapToCompositeSegments;
+
 public:
 	virtual void RegisterCommands() override;
 };

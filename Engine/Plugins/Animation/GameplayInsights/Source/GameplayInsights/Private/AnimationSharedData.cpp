@@ -106,6 +106,8 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 							GameplaySharedData.InvalidateObjectTracksOrder();
 
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(SkeletalMeshPoseTrack->GetGameplayTrack());
+
+							GameplaySharedData.MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
 						}
 
 						if(bInHasCurves)
@@ -126,6 +128,8 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 								GameplaySharedData.InvalidateObjectTracksOrder();
 
 								ObjectEventsTrack->GetGameplayTrack().AddChildTrack(SkeletalMeshCurvesTrack->GetGameplayTrack());
+
+								GameplaySharedData.MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
 							}
 						}
 					});
@@ -148,6 +152,8 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 							GameplaySharedData.InvalidateObjectTracksOrder();
 
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(AnimationTickRecordsTrack->GetGameplayTrack());
+
+							GameplaySharedData.MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
 						}
 					});
 
@@ -169,6 +175,8 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 							GameplaySharedData.InvalidateObjectTracksOrder();
 
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(AnimNodesTrack->GetGameplayTrack());
+
+							GameplaySharedData.MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
 						}
 					});
 
@@ -190,6 +198,8 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 							GameplaySharedData.InvalidateObjectTracksOrder();
 
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(AnimNotifyTrack->GetGameplayTrack());
+
+							GameplaySharedData.MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
 						}
 					};
 
@@ -221,6 +231,8 @@ void FAnimationSharedData::Tick(Insights::ITimingViewSession& InTimingViewSessio
 							GameplaySharedData.InvalidateObjectTracksOrder();
 
 							ObjectEventsTrack->GetGameplayTrack().AddChildTrack(MontageTrack->GetGameplayTrack());
+
+							GameplaySharedData.MakeTrackAndAncestorsVisible(ObjectEventsTrack, true);
 						}
 					});
 				}

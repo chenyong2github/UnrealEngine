@@ -492,22 +492,18 @@ static FORCEINLINE bool NeedsPrePass(const FDeferredShadingSceneRenderer* Render
 		(Renderer->EarlyZPassMode != DDM_None || Renderer->bEarlyZPassMovable != 0);
 }
 
-static bool DoesHairStrandsRequestHzb(EShaderPlatform Platform)
-{
-	auto HzbRequested = [&]()
-	{
-		IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("HairStrands.Cluster.CullingUsesHzb"));
-		return CVar && CVar->GetInt() > 0;
-	};
-	return IsHairStrandsEnable(Platform) && HzbRequested();
-}
-
 bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdList)
 {
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	SCOPED_GPU_STAT(RHICmdList, HZB);
 
 	RHICmdList.TransitionResource(FExclusiveDepthStencil::DepthRead_StencilRead, SceneContext.GetSceneDepthSurface());
+
+	auto HzbRequested = [&]()
+	{
+		static const IConsoleVariable* CVar = IConsoleManager::Get().FindConsoleVariable(TEXT("HairStrands.Cluster.CullingUsesHzb"));
+		return CVar && CVar->GetInt() > 0;
+	};
 
 	static const auto ICVarHZBOcc = IConsoleManager::Get().FindConsoleVariable(TEXT("r.HZBOcclusion"));
 	bool bHZBOcclusion = ICVarHZBOcc->GetInt() != 0;
@@ -523,7 +519,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		const bool bSSR  = ShouldRenderScreenSpaceReflections(View);
 		const bool bSSAO = ShouldRenderScreenSpaceAmbientOcclusion(View);
 		const bool bSSGI = ShouldRenderScreenSpaceDiffuseIndirect(View);
-		const bool bHair = DoesHairStrandsRequestHzb(Scene->GetShaderPlatform());
+		const bool bHair = CreateHairStrandsBookmarkParameters(View).bHasElements && HzbRequested();
 
 		if (bSSAO || bHZBOcclusion || bSSR || bSSGI || bHair)
 		{
@@ -1919,23 +1915,26 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	RunGPUSkinCacheTransition(RHICmdList, Scene, EGPUSkinCacheTransition::Renderer);
 
-	if (HasHairStrandsProcess(Scene->GetShaderPlatform()))
+	FHairStrandsBookmarkParameters HairStrandsBookmarkParameters;
+	if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
 	{
-		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
-		RunHairStrandsProcess(RHICmdList, ShaderMap);
+		HairStrandsBookmarkParameters = CreateHairStrandsBookmarkParameters(Views[0]);
+		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessTasks, HairStrandsBookmarkParameters);
 	}
 
 	// Interpolation needs to happen after the skin cache run as there is a dependency 
 	// on the skin cache output.
-	const bool bRunHairStrands = IsHairStrandsEnable(Scene->GetShaderPlatform()) && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
-	FHairStrandClusterData HairClusterData;
+	const bool bRunHairStrands = HairStrandsBookmarkParameters.bHasElements && (Views.Num() > 0) && !ViewFamily.bWorldIsPaused;
 	if (bRunHairStrands)
 	{
-		const EWorldType::Type WorldType = Views[0].Family->Scene->GetWorld()->WorldType;
-		auto ShaderMap = GetGlobalShaderMap(FeatureLevel);
+		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessGatherCluster, HairStrandsBookmarkParameters);
 
-		FGPUSkinCache* GPUSkinCache = Scene->GetGPUSkinCache();
-		RunHairStrandsInterpolation(RHICmdList, WorldType, GPUSkinCache, &Views[0].ShaderDrawData, ShaderMap, EHairStrandsInterpolationType::RenderStrands, &HairClusterData); // Send data to full up with culling
+		FHairCullingParams CullingParams;
+		CullingParams.bCullingProcessSkipped = false;
+		CullingParams.bShadowViewMode = false;
+		ComputeHairStrandsClustersCulling(RHICmdList, *HairStrandsBookmarkParameters.ShaderMap, Views, CullingParams, HairStrandsBookmarkParameters.HairClusterData);
+
+		RunHairStrandsBookmark(RHICmdList, EHairStrandsBookmark::ProcessStrandsInterpolation, HairStrandsBookmarkParameters);
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -2088,7 +2087,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	FHairStrandsRenderingData* HairDatas = nullptr;
 	FHairStrandsRenderingData HairDatasStorage;
 	const bool bIsViewCompatible = Views.Num() > 0 && Views[0].Family->ViewMode == VMI_Lit;
-	const bool bHairEnable = IsHairStrandsEnable(Scene->GetShaderPlatform()) && bIsViewCompatible;
+	const bool bHairEnable = HairStrandsBookmarkParameters.bHasElements && bIsViewCompatible;
 
 	TRefCountPtr<IPooledRenderTarget> ForwardScreenSpaceShadowMask;
 	TRefCountPtr<IPooledRenderTarget> ForwardScreenSpaceShadowMask_Hair;
@@ -2096,8 +2095,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	{
 		if (bHairEnable)
 		{
-			RenderHairPrePass(RHICmdList, Scene, Views, HairClusterData, HairDatasStorage);
-			RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairClusterData, HairDatasStorage);
+			RenderHairPrePass(RHICmdList, Scene, Views, HairDatasStorage);
+			RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairDatasStorage);
 			HairDatas = &HairDatasStorage;
 		}
 
@@ -2419,7 +2418,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	// Hair base pass for deferred shading
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
-		RenderHairPrePass(RHICmdList, Scene, Views, HairClusterData, HairDatasStorage);
+		RenderHairPrePass(RHICmdList, Scene, Views, HairDatasStorage);
 		HairDatas = &HairDatasStorage;
 	}
 
@@ -2523,7 +2522,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	if (bHairEnable && !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		check(HairDatas);
-		RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairClusterData, HairDatasStorage);
+		RenderHairBasePass(RHICmdList, Scene, SceneContext, Views, HairDatasStorage);
 	}
 
 	// Render lighting.
@@ -2877,6 +2876,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	GRenderTargetPool.AddPhaseEvent(TEXT("Translucency"));
 
+	if (HairDatas && !IsHairStrandsComposeAfterTranslucency())
+	{
+		RenderHairComposition(RHICmdList, Views, HairDatas);
+	}
+
 	// Draw translucency.
 	if (bHasAnyViewsAbovewater && bCanOverlayRayTracingOutput && ViewFamily.EngineShowFlags.Translucency && !ViewFamily.EngineShowFlags.VisualizeLightCulling && !ViewFamily.UseDebugViewPS())
 	{
@@ -2936,14 +2940,14 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	{
 		SCOPED_GPU_STAT(RHICmdList, HairRendering);
-		if (HairDatas)
+		if (HairDatas && IsHairStrandsComposeAfterTranslucency())
 		{
 			RenderHairComposition(RHICmdList, Views, HairDatas);
 		}
 
-		if (IsHairStrandsEnable(Scene->GetShaderPlatform()))
+		if (HairStrandsBookmarkParameters.bHasElements)
 		{
-			RenderHairStrandsDebugInfo(RHICmdList, Views, HairDatas, HairClusterData);
+			RenderHairStrandsDebugInfo(RHICmdList, Views, HairDatas, HairStrandsBookmarkParameters.HairClusterData);
 		}
 	}
 

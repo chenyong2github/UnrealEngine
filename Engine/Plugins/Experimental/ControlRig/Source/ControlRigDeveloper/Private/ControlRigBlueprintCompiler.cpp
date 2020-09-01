@@ -95,6 +95,7 @@ void FControlRigBlueprintCompilerContext::CopyTermDefaultsToDefaultObject(UObjec
 		UControlRig* ControlRig = CastChecked<UControlRig>(DefaultObject);
 		ControlRig->Hierarchy = ControlRigBlueprint->HierarchyContainer;
 		ControlRig->DrawContainer = ControlRigBlueprint->DrawContainer;
+		ControlRig->Influences = ControlRigBlueprint->Influences;
 	}
 }
 
@@ -143,5 +144,14 @@ void FControlRigBlueprintCompilerContext::CleanAndSanitizeClass(UBlueprintGenera
 	// Make sure our typed pointer is set
 	check(ClassToClean == NewClass && NewControlRigBlueprintGeneratedClass == NewClass);
 }
+
+void FControlRigBlueprintCompilerContext::PreCompileUpdateBlueprintOnLoad(UBlueprint* BP)
+{
+	if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(BP))
+	{
+		RigBlueprint->CreateMemberVariablesOnLoad();
+	}
+}
+
 
 #undef LOCTEXT_NAMESPACE

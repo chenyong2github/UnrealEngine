@@ -5,10 +5,12 @@
 
 FRigUnit_MathBoolConstTrue_Execute()
 {
+	Value = true;
 }
 
 FRigUnit_MathBoolConstFalse_Execute()
 {
+	Value = false;
 }
 
 FRigUnit_MathBoolNot_Execute()

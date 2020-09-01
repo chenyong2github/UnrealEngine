@@ -7,6 +7,7 @@
 #include "UObject/UObjectIterator.h"
 #include "Units/RigUnit.h"
 #include "Kismet2/BlueprintEditorUtils.h"
+#include "EdGraphNode_Comment.h"
 #include "ScopedTransaction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "GraphEditorActions.h"
@@ -319,19 +320,64 @@ bool UControlRigGraphSchema::ArePinsCompatible(const UEdGraphPin* PinA, const UE
 	}
 
 	// for reroute nodes - always allow it
-	if (PinA->PinType.PinCategory == TEXT("REROUTE"))
+	if (PinA->PinType.PinCategory == TEXT("POLYMORPH"))
 	{
 		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 		MutableThis->LastPinForCompatibleCheck = PinB;
 		MutableThis->bLastPinWasInput = PinB->Direction == EGPD_Input;
 		return true;
 	}
-	if (PinB->PinType.PinCategory == TEXT("REROUTE"))
+	if (PinB->PinType.PinCategory == TEXT("POLYMORPH"))
 	{
 		UControlRigGraphSchema* MutableThis = (UControlRigGraphSchema*)this;
 		MutableThis->LastPinForCompatibleCheck = PinA;
 		MutableThis->bLastPinWasInput = PinA->Direction == EGPD_Input;
 		return true;
+	}
+
+	struct Local
+	{
+		static FString GetCPPTypeFromPinType(const FEdGraphPinType& InPinType)
+		{
+			return FString();
+		}
+	};
+
+	if (PinA->PinType.PinCategory.IsNone() && PinB->PinType.PinCategory.IsNone())
+	{
+		return true;
+	}
+	else if (PinA->PinType.PinCategory.IsNone() && !PinB->PinType.PinCategory.IsNone())
+	{
+		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(PinA->GetOwningNode()))
+		{
+			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(RigNode->GetModelNode()))
+			{
+				FString CPPType = Local::GetCPPTypeFromPinType(PinB->PinType);
+				FString Left, Right;
+				URigVMPin::SplitPinPathAtStart(PinA->GetName(), Left, Right);
+				if (URigVMPin* ModelPin = PrototypeNode->FindPin(Right))
+				{
+					return PrototypeNode->SupportsType(ModelPin, CPPType);
+				}
+			}
+		}
+	}
+	else if (!PinA->PinType.PinCategory.IsNone() && PinB->PinType.PinCategory.IsNone())
+	{
+		if (UControlRigGraphNode* RigNode = Cast<UControlRigGraphNode>(PinB->GetOwningNode()))
+		{
+			if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(RigNode->GetModelNode()))
+			{
+				FString CPPType = Local::GetCPPTypeFromPinType(PinA->PinType);
+				FString Left, Right;
+				URigVMPin::SplitPinPathAtStart(PinB->GetName(), Left, Right);
+				if (URigVMPin* ModelPin = PrototypeNode->FindPin(Right))
+				{
+					return PrototypeNode->SupportsType(ModelPin, CPPType);
+				}
+			}
+		}
 	}
 
 	return GetDefault<UEdGraphSchema_K2>()->ArePinsCompatible(PinA, PinB, CallingContext, bIgnoreArray);
@@ -385,5 +431,106 @@ bool UControlRigGraphSchema::SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNo
 	return false;
 }
 
+bool UControlRigGraphSchema::CanVariableBeDropped(UEdGraph* InGraph, FProperty* InVariableToDrop) const
+{
+	FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InVariableToDrop, nullptr);
+	return ExternalVariable.IsValid(true /* allow nullptr */);
+}
+
+bool UControlRigGraphSchema::RequestVariableDropOnPanel(UEdGraph* InGraph, FProperty* InVariableToDrop, const FVector2D& InDropPosition, const FVector2D& InScreenPosition)
+{
+#if WITH_EDITOR
+	if (CanVariableBeDropped(InGraph, InVariableToDrop))
+	{
+		FRigVMExternalVariable ExternalVariable = FRigVMExternalVariable::Make(InVariableToDrop, nullptr);
+
+		UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(InGraph);
+		UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Blueprint);
+		if (RigBlueprint != nullptr)
+		{
+			RigBlueprint->OnVariableDropped().Broadcast(InGraph, InVariableToDrop, InDropPosition, InScreenPosition);
+			return true;
+		}
+	}
+#endif
+
+	return false;
+}
+
+void UControlRigGraphSchema::EndGraphNodeInteraction(UEdGraphNode* InNode) const
+{
+#if WITH_EDITOR
+
+	UControlRigGraph* Graph = Cast<UControlRigGraph>(InNode->GetOuter());
+	if (Graph == nullptr)
+	{
+		return;
+	}
+
+	UControlRigBlueprint* Blueprint = Cast<UControlRigBlueprint>(Graph->GetOuter());
+	if (Blueprint == nullptr)
+	{
+		return;
+	}
+
+	check(Blueprint->Controller);
+	check(Blueprint->Model);
+
+	TArray<UEdGraphNode*> NodesToMove;
+	NodesToMove.Add(InNode);
+
+	for (UEdGraphNode* SelectedGraphNode : Graph->Nodes)
+	{
+		if (SelectedGraphNode->IsSelected())
+		{
+			NodesToMove.AddUnique(SelectedGraphNode);
+		}
+	}
+
+	for (int32 NodeIndex = 0; NodeIndex < NodesToMove.Num(); NodeIndex++)
+	{
+		if (UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(NodesToMove[NodeIndex]))
+		{
+			if (CommentNode->MoveMode == ECommentBoxMode::GroupMovement)
+			{
+				for (FCommentNodeSet::TConstIterator NodeIt(CommentNode->GetNodesUnderComment()); NodeIt; ++NodeIt)
+				{
+					if (UEdGraphNode* NodeUnderComment = Cast<UEdGraphNode>(*NodeIt))
+					{
+						NodesToMove.AddUnique(NodeUnderComment);
+					}
+				}
+			}
+		}
+	}
+
+	bool bMovedSomething = false;
+
+	Blueprint->Controller->OpenUndoBracket(TEXT("Move Nodes"));
+
+	for (UEdGraphNode* NodeToMove : NodesToMove)
+	{
+		FName NodeName = NodeToMove->GetFName();
+		if (URigVMNode* ModelNode = Blueprint->Model->FindNodeByName(NodeName))
+		{
+			FVector2D Position(NodeToMove->NodePosX, NodeToMove->NodePosY);
+			if (Blueprint->Controller->SetNodePositionByName(NodeName, Position, true, false))
+			{
+				bMovedSomething = true;
+			}
+		}
+	}
+
+	if (bMovedSomething)
+	{
+		Blueprint->Controller->CloseUndoBracket();
+	}
+	else
+	{
+		Blueprint->Controller->CancelUndoBracket();
+	}
+
+#endif
+}
 
 #undef LOCTEXT_NAMESPACE

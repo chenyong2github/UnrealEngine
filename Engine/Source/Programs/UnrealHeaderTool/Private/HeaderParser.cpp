@@ -6757,15 +6757,20 @@ void FHeaderParser::CompileRigVMMethodDeclaration(FClasses& AllClasses, UStruct*
 	StructRigVMInfo.Methods.Add(MethodInfo);
 }
 
-static const FName NAME_InputText(TEXT("Input"));
-static const FName NAME_OutputText(TEXT("Output"));
-static const FName NAME_ConstantText(TEXT("Constant"));
-static const FName NAME_MaxArraySizeText(TEXT("MaxArraySize"));
+const FName FHeaderParser::NAME_InputText(TEXT("Input"));
+const FName FHeaderParser::NAME_OutputText(TEXT("Output"));
+const FName FHeaderParser::NAME_ConstantText(TEXT("Constant"));
+const FName FHeaderParser::NAME_VisibleText(TEXT("Visible"));
+const FName FHeaderParser::NAME_ArraySizeText(TEXT("ArraySize"));
+const FName FHeaderParser::NAME_SingletonText(TEXT("Singleton"));
 
-static const TCHAR* TArrayText = TEXT("TArray");
-static const TCHAR* TArrayViewText = TEXT("TArrayView");
-static const TCHAR* GetRefText = TEXT("GetRef");
-static const TCHAR* GetArrayText = TEXT("GetArray");
+const TCHAR* FHeaderParser::TArrayText = TEXT("TArray");
+const TCHAR* FHeaderParser::TEnumAsByteText = TEXT("TEnumAsByte");
+const TCHAR* FHeaderParser::FFixedArrayText = TEXT("FRigVMFixedArray");
+const TCHAR* FHeaderParser::FDynamicArrayText = TEXT("FRigVMDynamicArray");
+const TCHAR* FHeaderParser::GetRefText = TEXT("GetRef");
+const TCHAR* FHeaderParser::GetFixedArrayText = TEXT("GetFixedArray");
+const TCHAR* FHeaderParser::GetDynamicArrayText = TEXT("GetDynamicArray");
 
 void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 {
@@ -6783,15 +6788,28 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		FString ExtendedCPPType;
 		MemberCPPType = Prop->GetCPPType(&ExtendedCPPType);
 
+		if (ExtendedCPPType.IsEmpty() && MemberCPPType.StartsWith(TEnumAsByteText))
+		{
+			MemberCPPType = MemberCPPType.LeftChop(1).RightChop(12);
+		}
+
 		FRigVMParameter Parameter;
 		Parameter.Name = Prop->GetName();
 		Parameter.Type = MemberCPPType + ExtendedCPPType;
 		Parameter.bConstant = Prop->HasMetaData(NAME_ConstantText);
 		Parameter.bInput = Prop->HasMetaData(NAME_InputText);
 		Parameter.bOutput = Prop->HasMetaData(NAME_OutputText);
-		Parameter.MaxArraySize = Prop->GetMetaData(NAME_MaxArraySizeText);
+		Parameter.ArraySize = Prop->GetMetaData(NAME_ArraySizeText);
 		Parameter.Getter = GetRefText;
 		Parameter.bEditorOnly = Prop->IsEditorOnlyProperty();
+		Parameter.bSingleton = Prop->HasMetaData(NAME_SingletonText);
+
+		if (Prop->HasMetaData(NAME_VisibleText))
+		{
+			Parameter.bConstant = true;
+			Parameter.bInput = true;
+			Parameter.bOutput = false;
+		}
 
 		if (Parameter.bEditorOnly)
 		{
@@ -6801,26 +6819,26 @@ void FHeaderParser::ParseRigVMMethodParameters(UStruct* Struct)
 		if (!ExtendedCPPType.IsEmpty())
 		{
 			// we only support arrays - no maps or similar data structures
-			if (MemberCPPType != TArrayText)
+			if (MemberCPPType != TArrayText && MemberCPPType != TEnumAsByteText)
 			{
 				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' type '%s' not supported by RigVM."), *Struct->GetName(), *Parameter.Name, *MemberCPPType);
-				continue;
-			}
-
-			if (!Parameter.IsConst() && Parameter.MaxArraySize.IsEmpty())
-			{
-				UE_LOG_ERROR_UHT(TEXT("RigVM Struct '%s' - Member '%s' requires the 'MaxArraySize' meta tag."), *Struct->GetName(), *Parameter.Name);
 				continue;
 			}
 		}
 
 		if (MemberCPPType.StartsWith(TArrayText, ESearchCase::CaseSensitive))
 		{
-			if (Parameter.IsConst() || !Parameter.MaxArraySize.IsEmpty())
+			ExtendedCPPType = FString::Printf(TEXT("<%s>"), *ExtendedCPPType.LeftChop(1).RightChop(1));
+			Parameter.CastName = FString::Printf(TEXT("%s_%d_Array"), *Parameter.Name, StructRigVMInfo->Members.Num());
+			if (Parameter.IsConst() || !Parameter.ArraySize.IsEmpty())
 			{
-				Parameter.CastName = FString::Printf(TEXT("%s_%d_View"), *Parameter.Name, StructRigVMInfo->Members.Num());
-				Parameter.CastType = FString::Printf(TEXT("%s%s"), TArrayViewText, *ExtendedCPPType);
-				Parameter.Getter = GetArrayText;
+				Parameter.CastType = FString::Printf(TEXT("%s%s"), FFixedArrayText, *ExtendedCPPType);
+				Parameter.Getter = GetFixedArrayText;
+			}
+			else
+			{
+				Parameter.CastType = FString::Printf(TEXT("%s%s"), FDynamicArrayText, *ExtendedCPPType);
+				Parameter.Getter = GetDynamicArrayText;
 			}
 		}
 

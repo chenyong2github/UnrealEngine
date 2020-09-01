@@ -5,27 +5,20 @@
 
 FRigUnit_DebugRectangle_Execute()
 {
-    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	if (Context.State == EControlRigState::Init)
-	{
-		return;
-	}
-
-	if (Context.DrawInterface == nullptr || !bEnabled)
-	{
-		return;
-	}
-
-	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
-	{
-		DrawTransform = DrawTransform * Context.GetBones()->GetGlobalTransform(Space);
-	}
-
-	Context.DrawInterface->DrawRectangle(WorldOffset, DrawTransform, Scale, Color, Thickness);
+	FRigUnit_DebugRectangleItemSpace::StaticExecute(
+		RigVMExecuteContext, 
+		Transform,
+		Color,
+		Scale,
+		Thickness,
+		FRigElementKey(Space, ERigElementType::Bone), 
+		WorldOffset, 
+		bEnabled,
+		ExecuteContext, 
+		Context);
 }
 
-FRigUnit_DebugArc_Execute()
+FRigUnit_DebugRectangleItemSpace_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
@@ -39,9 +32,49 @@ FRigUnit_DebugArc_Execute()
 	}
 
 	FTransform DrawTransform = Transform;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid())
 	{
-		DrawTransform = DrawTransform * Context.GetBones()->GetGlobalTransform(Space);
+		DrawTransform = DrawTransform * Context.Hierarchy->GetGlobalTransform(Space);
+	}
+
+	Context.DrawInterface->DrawRectangle(WorldOffset, DrawTransform, Scale, Color, Thickness);
+}
+
+FRigUnit_DebugArc_Execute()
+{
+	FRigUnit_DebugArcItemSpace::StaticExecute(
+		RigVMExecuteContext, 
+		Transform,
+		Color,
+		Radius,
+		MinimumDegrees,
+		MaximumDegrees,
+		Thickness,
+		Detail,
+		FRigElementKey(Space, ERigElementType::Bone), 
+		WorldOffset, 
+		bEnabled,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_DebugArcItemSpace_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	if (Context.State == EControlRigState::Init)
+	{
+		return;
+	}
+
+	if (Context.DrawInterface == nullptr || !bEnabled)
+	{
+		return;
+	}
+
+	FTransform DrawTransform = Transform;
+	if (Space.IsValid())
+	{
+		DrawTransform = DrawTransform * Context.Hierarchy->GetGlobalTransform(Space);
 	}
 
 	Context.DrawInterface->DrawArc(WorldOffset, DrawTransform, Radius, FMath::DegreesToRadians(MinimumDegrees), FMath::DegreesToRadians(MaximumDegrees), Color, Thickness, Detail);

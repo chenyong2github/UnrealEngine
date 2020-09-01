@@ -77,7 +77,7 @@ struct FRigUnit_PointSimulation_BoneTarget
 	/**
 	 * The name of the bone to map
 	 */
-	UPROPERTY(EditAnywhere, meta = (Input, Constant, CustomWidget = "BoneName"), Category = "BoneTarget")
+	UPROPERTY(EditAnywhere, meta = (Input), Category = "BoneTarget")
 	FName Bone;
 
 	/**
@@ -110,14 +110,14 @@ struct FRigUnit_PointSimulation_WorkData
 	FCRSimPointContainer Simulation;
 
 	UPROPERTY()
-	TArray<int32> BoneIndices;
+	TArray<FCachedRigElement> BoneIndices;
 };
 
 /**
  * Performs point based simulation
  * Note: Disabled for now.
  */
-USTRUCT(meta=(Abstract, DisplayName="Point Simulation", Keywords="Simulate,Verlet,Springs"))
+USTRUCT(meta=(DisplayName="Point Simulation", Keywords="Simulate,Verlet,Springs", Deprecated="4.25"))
 struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 {
 	GENERATED_BODY()
@@ -194,7 +194,7 @@ struct FRigUnit_PointSimulation : public FRigUnit_SimBaseMutable
 	FVector SecondaryAimAxis;
 
 	/** Debug draw settings for this simulation */
-	UPROPERTY(meta = (Input))
+	UPROPERTY(meta = (Input, DetailsOnly))
 	FRigUnit_PointSimulation_DebugSettings DebugSettings;
 
 	/** If the simulation has at least four points they will be stored in here. */

@@ -3,11 +3,6 @@
 #include "RigUnit_SetBoneRotation.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_SetBoneRotation::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Set Rotation %s"), *Bone.ToString());
-}
-
 FRigUnit_SetBoneRotation_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -18,22 +13,22 @@ FRigUnit_SetBoneRotation_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-				if (CachedBoneIndex == INDEX_NONE)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
-				}
+				CachedBone.Reset();
 				// fall through to update
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedBoneIndex != INDEX_NONE)
+				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+				}
+				else
 				{
 					switch (Space)
 					{
 						case EBoneGetterSetterMode::GlobalSpace:
 						{
-							FTransform Transform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+							FTransform Transform = Hierarchy->GetGlobalTransform(CachedBone);
 
 							if (FMath::IsNearlyEqual(Weight, 1.f))
 							{
@@ -45,12 +40,12 @@ FRigUnit_SetBoneRotation_Execute()
 								Transform.SetRotation(FQuat::Slerp(Transform.GetRotation(), Rotation, T));
 							}
 
-							Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+							Hierarchy->SetGlobalTransform(CachedBone, Transform, bPropagateToChildren);
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
-							FTransform Transform = Hierarchy->GetLocalTransform(CachedBoneIndex);
+							FTransform Transform = Hierarchy->GetLocalTransform(CachedBone);
 
 							if (FMath::IsNearlyEqual(Weight, 1.f))
 							{
@@ -62,7 +57,7 @@ FRigUnit_SetBoneRotation_Execute()
 								Transform.SetRotation(FQuat::Slerp(Transform.GetRotation(), Rotation, T));
 							}
 
-							Hierarchy->SetLocalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+							Hierarchy->SetLocalTransform(CachedBone, Transform, bPropagateToChildren);
 							break;
 						}
 						default:

@@ -19,13 +19,25 @@ class RIGVMDEVELOPER_API URigVMStructNode : public URigVMNode
 
 public:
 
-	// Override node tooltip
+	// Override node functions
+	virtual FString GetNodeTitle() const override;
 	virtual FText GetToolTipText() const override;
+	virtual bool IsDefinedAsConstant() const override;
+	virtual bool IsDefinedAsVarying() const override;
+	virtual FName GetEventName() const override;
+	virtual FName GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData) override;
+	virtual int32 GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData) override;
+
+	bool IsDeprecated() const;
+	FString GetDeprecatedMetadata() const;
 
 	// Returns the UStruct for this struct node
 	// (the struct declaring the RIGVM_METHOD)
 	UFUNCTION(BlueprintCallable, Category = RigVMStructNode)
 	UScriptStruct* GetScriptStruct() const;
+
+	// return true if this node is a loop node
+	bool IsLoopNode() const;
 
 	// Returns the name of the declared RIGVM_METHOD
 	UFUNCTION(BlueprintCallable, Category = RigVMStructNode)
@@ -38,6 +50,8 @@ public:
 	// Returns an instance of the struct with the current values.
 	// @param bUseDefault If set to true the default struct will be created - otherwise the struct will contains the values from the node
 	TSharedPtr<FStructOnScope> ConstructStructInstance(bool bUseDefault = false) const;
+
+	static const FName LoopSliceContextName;
 
 protected:
 

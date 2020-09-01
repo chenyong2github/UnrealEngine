@@ -5,92 +5,113 @@
 
 FRigUnit_CCDIK_Execute()
 {
+	if (Context.State == EControlRigState::Init)
+	{
+		WorkData.CachedItems.Reset();
+		return;
+	}
+
+	FRigElementKeyCollection Items;
+	if(WorkData.CachedItems.Num() == 0)
+	{
+		Items = FRigElementKeyCollection::MakeFromChain(
+			Context.Hierarchy,
+			FRigElementKey(StartBone, ERigElementType::Bone),
+			FRigElementKey(EffectorBone, ERigElementType::Bone),
+			false /* reverse */
+		);
+	}
+
+	// transfer the rotation limits
+	TArray<FRigUnit_CCDIK_RotationLimitPerItem> RotationLimitsPerItem;
+	for (int32 RotationLimitIndex = 0; RotationLimitIndex < RotationLimits.Num(); RotationLimitIndex++)
+	{
+		FRigUnit_CCDIK_RotationLimitPerItem RotationLimitPerItem;
+		RotationLimitPerItem.Item = FRigElementKey(RotationLimits[RotationLimitIndex].Bone, ERigElementType::Bone);
+		RotationLimitPerItem.Limit = RotationLimits[RotationLimitIndex].Limit;
+		RotationLimitsPerItem.Add(RotationLimitPerItem);
+	}
+
+	FRigUnit_CCDIKPerItem::StaticExecute(
+		RigVMExecuteContext, 
+		Items,
+		EffectorTransform,
+		Precision,
+		Weight,
+		MaxIterations,
+		bStartFromTail,
+		BaseRotationLimit,
+		RotationLimitsPerItem,
+		bPropagateToChildren,
+		WorkData,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_CCDIKPerItem_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
 
 	TArray<FCCDIKChainLink>& Chain = WorkData.Chain;
-	TArray<int32>& BoneIndices = WorkData.BoneIndices;
+	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
 	TArray<int32>& RotationLimitIndex = WorkData.RotationLimitIndex;
-	TArray<float>& RotationLimitsPerBone = WorkData.RotationLimitsPerBone;
-	int32& EffectorIndex = WorkData.EffectorIndex;
+	TArray<float>& RotationLimitsPerItem = WorkData.RotationLimitsPerItem;
+	FCachedRigElement& CachedEffector = WorkData.CachedEffector;
 
 	if (Context.State == EControlRigState::Init ||
 		RotationLimits.Num() != RotationLimitIndex.Num())
 	{
-		BoneIndices.Reset();
+		CachedItems.Reset();
 		RotationLimitIndex.Reset();
-		RotationLimitsPerBone.Reset();
-
-		// verify the chain
-		const int32 RootIndex = Hierarchy->GetIndex(StartBone);
-		if (RootIndex != INDEX_NONE)
+		RotationLimitsPerItem.Reset();
+		CachedEffector.Reset();
+		return;
+	}
+	
+	if (Context.State == EControlRigState::Update)
+	{
+		if (CachedItems.Num() == 0 && Items.Num() > 0)
 		{
-			int32 CurrentIndex = EffectorIndex = Hierarchy->GetIndex(EffectorBone);
-			while (CurrentIndex != INDEX_NONE)
+			for (FRigElementKey Item : Items)
 			{
-				// ensure the chain
-				int32 ParentIndex = (*Hierarchy)[CurrentIndex].ParentIndex;
-				if (ParentIndex != INDEX_NONE)
-				{
-					BoneIndices.Add(CurrentIndex);
-				}
-
-				if (ParentIndex == RootIndex)
-				{
-					BoneIndices.Add(RootIndex);
-					break;
-				}
-
-				CurrentIndex = ParentIndex;
+				CachedItems.Add(FCachedRigElement(Item, Hierarchy));
 			}
 
-			Chain.Reserve(BoneIndices.Num());
-		}
-		else
-		{
-			return;
+			CachedEffector = CachedItems.Last();
+			Chain.Reserve(CachedItems.Num());
+
+			RotationLimitsPerItem.SetNumUninitialized(CachedItems.Num());
+			for (const FRigUnit_CCDIK_RotationLimitPerItem& RotationLimit : RotationLimits)
+			{
+				FCachedRigElement BoneIndex(RotationLimit.Item, Hierarchy);
+				int32 BoneIndexInLookup = CachedItems.Find(BoneIndex);
+				RotationLimitIndex.Add(BoneIndexInLookup);
+			}
+
+			if (CachedItems.Num() < 2)
+			{
+				UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("No bones found."));
+			}
 		}
 
-		int32 RootParentIndex = (*Hierarchy)[RootIndex].ParentIndex;
-		if (RootParentIndex != INDEX_NONE)
-		{
-			BoneIndices.Add(RootParentIndex);
-		}
-
-		Algo::Reverse(BoneIndices);
-
-		RotationLimitsPerBone.SetNumUninitialized(BoneIndices.Num());
-		for(const FRigUnit_CCDIK_RotationLimit& RotationLimit : RotationLimits)
-		{
-			int32 BoneIndex = Hierarchy->GetIndex(RotationLimit.Bone);
-			BoneIndex = BoneIndices.Find(BoneIndex);
-			RotationLimitIndex.Add(BoneIndex);
-		}
-
-		if(BoneIndices.Num() < 2)
-		{
-			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("No bones found."));
-		}
-	}
-	else  if (Context.State == EControlRigState::Update)
-	{
-		if (BoneIndices.Num() > 0)
+		if (CachedItems.Num() > 1)
 		{
 			// Gather chain links. These are non zero length bones.
 			Chain.Reset();
 			
-			for (int32 ChainIndex = 0; ChainIndex < BoneIndices.Num(); ChainIndex++)
+			for (int32 ChainIndex = 0; ChainIndex < CachedItems.Num(); ChainIndex++)
 			{
-				const FTransform& GlobalTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex]);
-				const FTransform& LocalTransform = Hierarchy->GetLocalTransform(BoneIndices[ChainIndex]);
+				const FTransform& GlobalTransform = Hierarchy->GetGlobalTransform(CachedItems[ChainIndex]);
+				const FTransform& LocalTransform = Hierarchy->GetLocalTransform(CachedItems[ChainIndex]);
 				Chain.Add(FCCDIKChainLink(GlobalTransform, LocalTransform, ChainIndex));
 			}
 
-			for (float& Limit : RotationLimitsPerBone)
+			for (float& Limit : RotationLimitsPerItem)
 			{
 				Limit = BaseRotationLimit;
 			}
@@ -99,41 +120,47 @@ FRigUnit_CCDIK_Execute()
 			{
 				if (RotationLimitIndex[LimitIndex] != INDEX_NONE)
 				{
-					RotationLimitsPerBone[RotationLimitIndex[LimitIndex]] = RotationLimits[LimitIndex].Limit;
+					RotationLimitsPerItem[RotationLimitIndex[LimitIndex]] = RotationLimits[LimitIndex].Limit;
 				}
 			}
 
-			bool bBoneLocationUpdated = AnimationCore::SolveCCDIK(Chain, EffectorTransform.GetLocation(), Precision, MaxIterations, bStartFromTail, RotationLimits.Num() > 0, RotationLimitsPerBone);
+			bool bBoneLocationUpdated = AnimationCore::SolveCCDIK(Chain, EffectorTransform.GetLocation(), Precision, MaxIterations, bStartFromTail, RotationLimits.Num() > 0, RotationLimitsPerItem);
 
 			// If we moved some bones, update bone transforms.
 			if (bBoneLocationUpdated)
 			{
 				if (FMath::IsNearlyEqual(Weight, 1.f))
 				{
-					for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
+					for (int32 LinkIndex = 0; LinkIndex < CachedItems.Num(); LinkIndex++)
 					{
 						const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
-						Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], CurrentLink.Transform, bPropagateToChildren);
+						Hierarchy->SetGlobalTransform(CachedItems[LinkIndex], CurrentLink.Transform, bPropagateToChildren);
 					}
-
-					Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform, bPropagateToChildren);
 				}
 				else
 				{
 					float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
 
-					for (int32 LinkIndex = 0; LinkIndex < BoneIndices.Num(); LinkIndex++)
+					for (int32 LinkIndex = 0; LinkIndex < CachedItems.Num(); LinkIndex++)
 					{
 						const FCCDIKChainLink& CurrentLink = Chain[LinkIndex];
-						FTransform PreviousXfo = Hierarchy->GetGlobalTransform(BoneIndices[LinkIndex]);
+						FTransform PreviousXfo = Hierarchy->GetGlobalTransform(CachedItems[LinkIndex]);
 						FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, CurrentLink.Transform, T);
-						Hierarchy->SetGlobalTransform(BoneIndices[LinkIndex], Xfo, bPropagateToChildren);
+						Hierarchy->SetGlobalTransform(CachedItems[LinkIndex], Xfo, bPropagateToChildren);
 					}
-
-					FTransform PreviousXfo = Hierarchy->GetGlobalTransform(EffectorIndex);
-					FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
-					Hierarchy->SetGlobalTransform(EffectorIndex, Xfo, bPropagateToChildren);
 				}
+			}
+
+			if (FMath::IsNearlyEqual(Weight, 1.f))
+			{
+				Hierarchy->SetGlobalTransform(CachedEffector, EffectorTransform, bPropagateToChildren);
+			}
+			else
+			{
+				float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+				FTransform PreviousXfo = Hierarchy->GetGlobalTransform(CachedEffector);
+				FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
+				Hierarchy->SetGlobalTransform(CachedEffector, Xfo, bPropagateToChildren);
 			}
 		}
 	}

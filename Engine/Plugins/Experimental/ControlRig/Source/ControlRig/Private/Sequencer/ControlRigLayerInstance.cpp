@@ -59,11 +59,17 @@ UControlRig* UControlRigLayerInstance::GetFirstAvailableControlRig() const
 void UControlRigLayerInstance::SetSourceAnimInstance(UAnimInstance* SourceAnimInstance)
 {
 	USkeletalMeshComponent* MeshComponent = GetOwningComponent();
+	ensure (MeshComponent->GetAnimInstance() != SourceAnimInstance);
+
 	if (SourceAnimInstance)
 	{
 		// we only have one instance fir this layer
 		FLinkedInstancesAdapter::ResetLinkedInstance(MeshComponent);
 		FLinkedInstancesAdapter::AddLinkedInstance(MeshComponent, SourceAnimInstance);
+	}
+	else
+	{
+		FLinkedInstancesAdapter::ResetLinkedInstance(MeshComponent);
 	}
 
 	if (SourceAnimInstance)

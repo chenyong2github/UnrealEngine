@@ -100,6 +100,7 @@ private:
 
 	bool IsValid() const { return PoseNames.Num() == Poses.Num() && Tracks.Num() == TrackMap.Num(); }
 	void GetPoseCurve(const FPoseData* PoseData, FBlendedCurve& OutCurve) const;
+	void BlendPoseCurve(const FPoseData* PoseData, FBlendedCurve& OutCurve, float Weight) const;
 
 	// we have to delete tracks if skeleton has modified
 	// usually this may not be issue since once cooked, it should match

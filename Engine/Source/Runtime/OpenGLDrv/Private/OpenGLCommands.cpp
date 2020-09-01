@@ -222,6 +222,19 @@ static FOpenGLVertexBuffer* FindExpandedZeroStrideBuffer(FOpenGLVertexBuffer* Ze
 			}
 		}
 		break;
+	case 12:
+		{
+			uint64 SourceA = *(uint64*)SourceData;
+			uint32 SourceB = *((uint32*)SourceData + 2);
+			uint32* RESTRICT Dest = (uint32*)Data;
+			for (uint32 Index = 0; Index < Size / (3 * sizeof(uint32)); ++Index)
+			{
+				*((uint64*)Dest) = SourceA;
+				Dest = Dest + 2;
+				*Dest++ = SourceB;
+			}
+		}
+		break;
 	case 16:
 		{
 			uint64 SourceA = *(uint64*)SourceData;

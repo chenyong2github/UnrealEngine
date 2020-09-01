@@ -617,7 +617,7 @@ FReply FAnimTimeSliderController::OnMouseButtonUp( SWidget& WidgetOwner, const F
 			if(!MouseEvent.IsControlDown())
 			{
 				double SnapMargin = (ScrubConstants::SnapMarginInPixels / (double)RangeToScreen.PixelsPerInput);
-				WeakModel.Pin()->Snap(Time, SnapMargin);
+				WeakModel.Pin()->Snap(Time, SnapMargin, { FName("MontageSection") });
 			}
 
 			SetEditableTime(DraggedTimeIndex, Time, false);
@@ -778,7 +778,7 @@ FReply FAnimTimeSliderController::OnMouseMove( SWidget& WidgetOwner, const FGeom
 				if(!MouseEvent.IsControlDown())
 				{
 					double SnapMargin = (ScrubConstants::SnapMarginInPixels / (double)RangeToScreen.PixelsPerInput);
-					WeakModel.Pin()->Snap(Time, SnapMargin);
+					WeakModel.Pin()->Snap(Time, SnapMargin, { FName("MontageSection") });
 				}
 
 				SetEditableTime(DraggedTimeIndex, Time, true);

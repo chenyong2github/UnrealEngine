@@ -328,10 +328,11 @@ static const FName TransformTabName(TEXT("Transform"));
 static const FName DeformTabName(TEXT("Deform"));
 static const FName VolumesTabName(TEXT("Volumes"));
 static const FName PrototypesTabName(TEXT("Prototypes"));
+static const FName HairTabName(TEXT("Hair"));
 
 
 const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Standard = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName };
-const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName, PrototypesTabName };
+const TArray<FName> FModelingToolsEditorModeToolkit::PaletteNames_Experimental = { PrimitiveTabName, CreateTabName, TransformTabName, DeformTabName, PolyGroupsTabName, TrianglesTabName, UVNormalTabName, VolumesTabName, HairTabName, PrototypesTabName };
 
 
 void FModelingToolsEditorModeToolkit::GetToolPaletteNames(TArray<FName>& InPaletteName) const
@@ -642,6 +643,17 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginSetCollisionGeometryTool);
 		//ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginExtractCollisionGeometryTool);
+	}
+	else if (PaletteIndex == HairTabName)
+	{
+		ToolbarBuilder.AddToolBarButton(Commands.BeginTransformMeshesTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshSelectionTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginGroomToMeshTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginGenerateLODMeshesTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
 	else if (PaletteIndex == PrototypesTabName)
 	{

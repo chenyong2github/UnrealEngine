@@ -2075,11 +2075,14 @@ void FBlueprintEditorUtils::MarkBlueprintAsModified(UBlueprint* Blueprint, FProp
 		FBlueprintEditorUtils::ClearMacroCosmeticInfoCache(Blueprint);
 	}
 	
-	IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
-	if (AssetEditor)
+	if (GEditor)
 	{
-		FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
-		BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+		IAssetEditorInstance* AssetEditor = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->FindEditorForAsset(Blueprint, false);
+		if (AssetEditor)
+		{
+			FBlueprintEditor* BlueprintEditor = static_cast<FBlueprintEditor*>(AssetEditor);
+			BlueprintEditor->UpdateNodesUnrelatedStatesAfterGraphChange();
+		}
 	}
 }
 

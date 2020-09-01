@@ -10,6 +10,7 @@
 #include "Policies/CondensedJsonPrintPolicy.h"
 #include "Misc/AssertionMacros.h"
 #include "Logging/LogMacros.h"
+#include "TimerManager.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogPixelStreamingSS, Log, VeryVerbose);
 DEFINE_LOG_CATEGORY(LogPixelStreamingSS);
@@ -152,9 +153,27 @@ void FSignallingServerConnection::SendDisconnectPlayer(uint32 PlayerId, const FS
 	WS->Send(Msg);
 }
 
+void FSignallingServerConnection::KeepAlive()
+{
+	auto Json = MakeShared<FJsonObject>();
+	double unixTime = FDateTime::UtcNow().ToUnixTimestamp();
+	Json->SetStringField(TEXT("type"), TEXT("ping"));
+	Json->SetNumberField(TEXT("time"), unixTime);
+
+	FString Msg = ToString(Json, false);
+
+	if (WS.IsValid() && WS->IsConnected())
+	{
+		WS->Send(Msg);
+	}
+}
+
 void FSignallingServerConnection::OnConnected()
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connected to SS"));
+
+	//Send message to keep connection alive every 60 seconds
+	GWorld->GetTimerManager().SetTimer(TimerHandle_KeepAlive, std::bind(&FSignallingServerConnection::KeepAlive, this), KEEP_ALIVE_INTERVAL, true);
 }
 
 void FSignallingServerConnection::OnConnectionError(const FString& Error)
@@ -167,6 +186,7 @@ void FSignallingServerConnection::OnClosed(int32 StatusCode, const FString& Reas
 {
 	UE_LOG(LogPixelStreamingSS, Log, TEXT("Connection to SS closed: \n\tstatus %d\n\treason: %s\n\twas clean: %d"), StatusCode, *Reason, bWasClean);
 	Observer.OnSignallingServerDisconnected();
+	GWorld->GetTimerManager().ClearTimer(TimerHandle_KeepAlive);
 }
 
 void FSignallingServerConnection::OnMessage(const FString& Msg)
@@ -212,6 +232,10 @@ void FSignallingServerConnection::OnMessage(const FString& Msg)
 	else if (MsgType == TEXT("playerDisconnected"))
 	{
 		OnPlayerDisconnected(JsonMsg);
+	}
+	else if (MsgType == TEXT("pong"))
+	{
+		//Do nothing, this is a keep alive message
 	}
 	else
 	{

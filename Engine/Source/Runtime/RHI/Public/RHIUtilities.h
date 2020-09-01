@@ -242,7 +242,6 @@ struct FRWBuffer
 			|| IsMetalPlatform(GMaxRHIShaderPlatform)
 			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
 		);
-
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 		NumBytes = BytesPerElement * NumElements;
@@ -352,11 +351,12 @@ struct FReadBuffer
 
 	FReadBuffer(): NumBytes(0) {}
 
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr)
+	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr, FResourceArrayInterface* InResourceArray = nullptr)
 	{
 		check(GSupportsResourceView);
 		NumBytes = BytesPerElement * NumElements;
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.ResourceArray = InResourceArray;
 		CreateInfo.DebugName = InDebugName;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);

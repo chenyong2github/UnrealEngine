@@ -81,6 +81,11 @@ void SToolTip::SetContentWidget(const TSharedRef<SWidget>& InContentWidget)
 	}
 }
 
+void SToolTip::ResetContentWidget()
+{
+	WidgetContent.Reset();
+	SetContentWidget(SNullWidget::NullWidget);
+}
 
 bool SToolTip::IsEmpty() const
 {

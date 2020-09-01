@@ -339,7 +339,7 @@ public:
 #endif
 
 	/** An instance created from the PostPhysicsBlueprint property of the skeletal mesh we're using,
-	 *  Runs after physics has been blended
+	 *  Runs after (and receives pose from) the main anim instance.
 	 */
 	UPROPERTY(transient)
 	UAnimInstance* PostProcessAnimInstance;
@@ -635,6 +635,9 @@ protected:
 	/** If true, this will Tick until disabled */
 	UPROPERTY(AdvancedDisplay, EditInstanceOnly, transient, Category = SkeletalMesh)
 	uint8 bUpdateAnimationInEditor : 1;
+	/** If true, will play cloth in editor */
+	UPROPERTY(AdvancedDisplay, EditInstanceOnly, transient, Category = SkeletalMesh)
+	uint8 bUpdateClothInEditor : 1;
 #endif
 
 	/** If true, OnSyncComponentToRBPhysics() notify will be called */
@@ -1102,6 +1105,13 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (DevelopmentOnly, UnsafeDuringActorConstruction = "true"))
 	void SetUpdateAnimationInEditor(const bool NewUpdateState);
 
+	/**
+	* Sets whether or not to animate cloth in the editor. Requires Update Animation In Editor to also be true.
+	* This is supported only in the editor
+	*/
+	UFUNCTION(BlueprintCallable, Category = "Components|SkeletalMesh", meta = (DevelopmentOnly, UnsafeDuringActorConstruction = "true"))
+	void SetUpdateClothInEditor(const bool NewUpdateState);
+
 #if WITH_EDITOR
 	/**
 	 * return true if currently updating in editor is true
@@ -1110,6 +1120,11 @@ public:
 	bool GetUpdateAnimationInEditor() const 
 	{		
 		return bUpdateAnimationInEditor;	
+	}
+
+	bool GetUpdateClothInEditor() const
+	{
+		return bUpdateClothInEditor;
 	}
 #endif 
 

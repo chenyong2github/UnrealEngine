@@ -9,7 +9,7 @@ IMPLEMENT_MODULE(FAlembicHairTranslatorModule, AlembicHairTranslatorModule);
 
 void FAlembicHairTranslatorModule::StartupModule()
 {
-	FHairStrandsEditor::Get().RegisterHairTranslator<FAlembicHairTranslator>();
+	FGroomEditor::Get().RegisterHairTranslator<FAlembicHairTranslator>();
 }
 
 void FAlembicHairTranslatorModule::ShutdownModule()

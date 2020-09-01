@@ -24,6 +24,11 @@ namespace ShaderPrint
 	// Have we enabled the ShaderPrint system?
 	bool IsEnabled();
 
+	// Accessors for controlling from code: enabling/disabling, font size, and max drawn element
+	void SetEnabled(bool bInEnabled);
+	void SetFontSize(int32 InFontSize);
+	void SetMaxValueCount(int32 InMaxCount);
+
 	// Allocate the debug print buffer associated with the view
 	void BeginView(FRHICommandListImmediate& RHICmdList, FViewInfo& View);
 	// Draw info from the debug print buffer to the given output target

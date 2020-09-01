@@ -67,6 +67,8 @@ class FDeepShadowCreateViewInfoCS : public FGlobalShader
 		SHADER_PARAMETER(uint32, SlotIndexCount)
 		SHADER_PARAMETER(uint32, MacroGroupCount)
 
+		SHADER_PARAMETER(float, AABBScale)
+
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<int>, MacroGroupAABBBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeepShadowViewInfo>, OutShadowViewInfoBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<float4x4>, OutShadowWorldToLightTransformBuffer)
@@ -86,6 +88,8 @@ IMPLEMENT_GLOBAL_SHADER(FDeepShadowCreateViewInfoCS, "/Engine/Private/HairStrand
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 float GetDeepShadowRasterizationScale();
+float GetDeepShadowAABBScale();
+FVector4 ComputeDeepShadowLayerDepths(float LayerDistribution);
 
 void RenderHairStrandsDeepShadows(
 	FRHICommandListImmediate& RHICmdList,
@@ -195,6 +199,7 @@ void RenderHairStrandsDeepShadows(
 				DomData.LightDirection = LightProxy->GetDirection();
 				DomData.LightPosition = FVector4(LightProxy->GetPosition(), LightType == ELightComponentType::LightType_Directional ? 0 : 1);
 				DomData.LightLuminance = LightProxy->GetColor();
+				DomData.LayerDistribution = LightProxy->GetDeepShadowLayerDistribution();
 				DomData.LightType = LightType;
 				DomData.LightId = LightInfo->Id;
 				DomData.ShadowResolution = AtlasSlotResolution;
@@ -245,6 +250,7 @@ void RenderHairStrandsDeepShadows(
 			Parameters->OutShadowViewInfoBuffer = GraphBuilder.CreateUAV(DeepShadowViewInfoBuffer);
 			Parameters->OutShadowWorldToLightTransformBuffer = GraphBuilder.CreateUAV(DeepShadowWorldToLightBuffer);
 
+			Parameters->AABBScale = GetDeepShadowAABBScale();
 			Parameters->RasterizationScale = GetDeepShadowRasterizationScale();
 			Parameters->CPU_bUseCPUData	= 0;
 			Parameters->CPU_MinAABB		= FVector::ZeroVector;
@@ -269,6 +275,7 @@ void RenderHairStrandsDeepShadows(
 				const FVector4 HairRenderInfo = PackHairRenderInfo(DomData.CPU_MinStrandRadiusAtDepth1.Primary, DomData.CPU_MinStrandRadiusAtDepth1.Stable, DomData.CPU_MinStrandRadiusAtDepth1.Primary, 1);
 				const uint32 HairRenderInfoBits = PackHairRenderInfoBits(bIsOrtho, Resources.bIsGPUDriven);
 					
+				const FVector4 LayerDepths = ComputeDeepShadowLayerDepths(DomData.LayerDistribution);
 				// Front depth
 				{
 					DECLARE_GPU_STAT(HairStrandsDeepShadowFrontDepth);
@@ -280,6 +287,7 @@ void RenderHairStrandsDeepShadows(
 					PassParameters->SliceValue = FVector4(1, 1, 1, 1);
 					PassParameters->AtlasRect = DomData.AtlasRect;
 					PassParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
+					PassParameters->LayerDepths = LayerDepths;
 					PassParameters->ViewportResolution = AtlasSlotResolution;
 					PassParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
 					PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(FrontDepthAtlasTexture, bClear ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ENoAction, FExclusiveDepthStencil::DepthWrite_StencilNop);
@@ -308,6 +316,7 @@ void RenderHairStrandsDeepShadows(
 					PassParameters->SliceValue = FVector4(1, 1, 1, 1);
 					PassParameters->AtlasRect = DomData.AtlasRect;
 					PassParameters->AtlasSlotIndex = DomData.AtlasSlotIndex;
+					PassParameters->LayerDepths = LayerDepths;
 					PassParameters->ViewportResolution = AtlasSlotResolution;
 					PassParameters->FrontDepthTexture = FrontDepthAtlasTexture;
 					PassParameters->DeepShadowViewInfoBuffer = DeepShadowViewInfoBufferSRV;
