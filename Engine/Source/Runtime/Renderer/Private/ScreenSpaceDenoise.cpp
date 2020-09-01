@@ -80,8 +80,8 @@ static TAutoConsoleVariable<int32> CVarAOHistoryConvolutionSampleCount(
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<float> CVarAOHistoryConvolutionKernelSpreadFactor(
-	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolution.KernelSpreadFactor"), 3,
-	TEXT("Multiplication factor applied on the kernel sample offset (default=3)."),
+	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolution.KernelSpreadFactor"), 7,
+	TEXT("Multiplication factor applied on the kernel sample offset (default = 7)."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarGIReconstructionSampleCount(
