@@ -53,6 +53,16 @@ static TAutoConsoleVariable<float> CVarRayTracingReflectionsAnyHitMaxRoughness(
 	ECVF_RenderThreadSafe
 );
 
+
+static TAutoConsoleVariable<float> CVarRayTracingReflectionsSmoothBias(
+	TEXT("r.RayTracing.Reflections.ExperimentalDeferred.SmoothBias"),
+	0.0,
+	TEXT("Whether to bias reflections towards smooth / mirror-like directions. Improves performance, but is not physically based. (default: 0)\n")
+	TEXT("The bias is implemented as a non-linear function, affecting low roughness values more than high roughness ones.\n")
+	TEXT("Roughness values higher than this CVar value remain entirely unaffected.\n"),
+	ECVF_RenderThreadSafe
+);
+
 namespace 
 {
 	struct FSortedReflectionRay
@@ -82,6 +92,7 @@ class FGenerateReflectionRaysCS : public FGlobalShader
 	SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 	SHADER_PARAMETER(float, ReflectionMaxNormalBias)
 	SHADER_PARAMETER(float, ReflectionMaxRoughness)
+	SHADER_PARAMETER(float, ReflectionSmoothBias)
 	SHADER_PARAMETER(int, GlossyReflections)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
@@ -134,6 +145,7 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER(FIntPoint, TileAlignedResolution)
 		SHADER_PARAMETER(float, ReflectionMaxNormalBias)
 		SHADER_PARAMETER(float, ReflectionMaxRoughness)
+		SHADER_PARAMETER(float, ReflectionSmoothBias)
 		SHADER_PARAMETER(float, AnyHitMaxRoughness)
 		SHADER_PARAMETER(int, GlossyReflections)
 		SHADER_PARAMETER(int, ShouldDoDirectLighting)
@@ -232,6 +244,7 @@ static void AddGenerateReflectionRaysPass(
 	PassParameters->TileAlignedResolution   = CommonParameters.TileAlignedResolution;
 	PassParameters->ReflectionMaxNormalBias = CommonParameters.ReflectionMaxNormalBias;
 	PassParameters->ReflectionMaxRoughness  = CommonParameters.ReflectionMaxRoughness;
+	PassParameters->ReflectionSmoothBias    = CommonParameters.ReflectionSmoothBias;
 	PassParameters->GlossyReflections       = CommonParameters.GlossyReflections;
 	PassParameters->ViewUniformBuffer       = CommonParameters.ViewUniformBuffer;
 	PassParameters->SceneTextures           = CommonParameters.SceneTextures;
@@ -280,6 +293,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
 	CommonParameters.ReflectionMaxRoughness  = Options.MaxRoughness;
+	CommonParameters.ReflectionSmoothBias    = CVarRayTracingReflectionsSmoothBias.GetValueOnRenderThread();
 	CommonParameters.AnyHitMaxRoughness      = CVarRayTracingReflectionsAnyHitMaxRoughness.GetValueOnRenderThread();
 	CommonParameters.GlossyReflections       = CVarRayTracingReflectionsGlossy.GetValueOnRenderThread();
 
