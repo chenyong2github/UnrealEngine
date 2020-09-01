@@ -9,18 +9,29 @@
 #include "IBlutilityModule.h"
 #include "EditorUtilityWidget.h"
 #include "ScopedTransaction.h"
+#include "ARFilter.h"
+#include "AssetRegistryModule.h"
+#include "IAssetRegistry.h"
+#include "EditorUtilityTask.h"
 
 #define LOCTEXT_NAMESPACE "EditorUtilitySubsystem"
 
 
-UEditorUtilitySubsystem::UEditorUtilitySubsystem() :
-	UEditorSubsystem()
+UEditorUtilitySubsystem::UEditorUtilitySubsystem()
+	: UEditorSubsystem()
 {
 
 }
 
 void UEditorUtilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	RunTaskCommandObject = IConsoleManager::Get().RegisterConsoleCommand(
+		TEXT("RunTask"),
+		TEXT(""),
+		FConsoleCommandWithWorldArgsAndOutputDeviceDelegate::CreateUObject(this, &UEditorUtilitySubsystem::RunTaskCommand),
+		ECVF_Default
+	);
+
 	IMainFrameModule& MainFrameModule = IMainFrameModule::Get();
 	if (MainFrameModule.IsWindowInitialized())
 	{
@@ -30,6 +41,8 @@ void UEditorUtilitySubsystem::Initialize(FSubsystemCollectionBase& Collection)
 	{
 		MainFrameModule.OnMainFrameCreationFinished().AddUObject(this, &UEditorUtilitySubsystem::MainFrameCreationFinished);
 	}
+
+	TickerHandle = FTicker::GetCoreTicker().AddTicker(FTickerDelegate::CreateUObject(this, &UEditorUtilitySubsystem::Tick), 0);
 }
 
 void UEditorUtilitySubsystem::Deinitialize()
@@ -38,6 +51,10 @@ void UEditorUtilitySubsystem::Deinitialize()
 	{
 		IMainFrameModule::Get().OnMainFrameCreationFinished().RemoveAll(this);
 	}
+
+	FTicker::GetCoreTicker().RemoveTicker(TickerHandle);
+
+	IConsoleManager::Get().UnregisterConsoleObject(RunTaskCommandObject);
 }
 
 void UEditorUtilitySubsystem::MainFrameCreationFinished(TSharedPtr<SWindow> InRootWindow, bool bIsNewProjectWindow)
@@ -111,7 +128,6 @@ UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTabAndGetID(UEdit
 	return FindUtilityWidgetFromBlueprint(InBlueprint);
 }
 
-
 UEditorUtilityWidget* UEditorUtilitySubsystem::SpawnAndRegisterTab(class UEditorUtilityWidgetBlueprint* InBlueprint)
 {
 	FName InTabID;
@@ -137,7 +153,6 @@ void UEditorUtilitySubsystem::RegisterTabAndGetID(class UEditorUtilityWidgetBlue
 		}
 		NewTabID = RegistrationName;
 	}
-
 }
 
 bool UEditorUtilitySubsystem::SpawnRegisteredTabByID(FName NewTabID)
@@ -191,6 +206,180 @@ bool UEditorUtilitySubsystem::CloseTabByID(FName NewTabID)
 UEditorUtilityWidget* UEditorUtilitySubsystem::FindUtilityWidgetFromBlueprint(class UEditorUtilityWidgetBlueprint* InBlueprint)
 {
 	return InBlueprint->GetCreatedWidget();
+}
+
+bool UEditorUtilitySubsystem::Tick(float DeltaTime)
+{
+	if (ActiveTask == nullptr && PendingTasks.Num() > 0)
+	{
+		ActiveTask = PendingTasks[0];
+		PendingTasks.RemoveAt(0);
+
+		UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Running task %s"), *GetPathNameSafe(ActiveTask));
+
+		// And start executing it
+		ActiveTask->StartExecutingTask();
+	}
+
+	return true;
+}
+
+void UEditorUtilitySubsystem::RunTaskCommand(const TArray<FString>& Params, UWorld* InWorld, FOutputDevice& Ar)
+{
+	if (Params.Num() >= 1)
+	{
+		FString TaskName = Params[0];
+		if (UClass* FoundClass = FindClassByName(TaskName))
+		{
+			TSubclassOf<UEditorUtilityTask> TaskToSpawn(FoundClass);
+			if (FoundClass == nullptr)
+			{
+				//UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Missing function named 'Run': %s"), *Asset->GetPathName());
+				return;
+			}
+
+			UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Running task %s"), *TaskToSpawn->GetPathName());
+
+			UEditorUtilityTask* NewTask = NewObject<UEditorUtilityTask>(this, *TaskToSpawn);
+			if (ensure(NewTask))
+			{
+				//TODO Attempt to map XXX=YYY to properties on the task to make the tasks parameterizable
+
+				RegisterAndExecuteTask(NewTask);
+			}
+		}
+	}
+}
+
+void UEditorUtilitySubsystem::RegisterAndExecuteTask(UEditorUtilityTask* NewTask)
+{
+	if (NewTask != nullptr)
+	{
+		// Make sure this task wasn't already registered somehow
+		ensureAlwaysMsgf(NewTask->MyTaskManager == nullptr, TEXT("RegisterAndExecuteTask(this=%s, task=%s) - Passed in task is already registered to %s"), *GetPathName(), *NewTask->GetPathName(), *GetPathNameSafe(NewTask->MyTaskManager));
+		if (NewTask->MyTaskManager != nullptr)
+		{
+			NewTask->MyTaskManager->RemoveTaskFromActiveList(NewTask);
+		}
+
+		// Register it
+		check(!(PendingTasks.Contains(NewTask) || ActiveTask == NewTask));
+		PendingTasks.Add(NewTask);
+		NewTask->MyTaskManager = this;
+	}
+}
+
+void UEditorUtilitySubsystem::RemoveTaskFromActiveList(UEditorUtilityTask* Task)
+{
+	if (Task != nullptr)
+	{
+		if (ensure(Task->MyTaskManager == this))
+		{
+			check(PendingTasks.Contains(Task) || ActiveTask == Task);
+			PendingTasks.Remove(Task);
+
+			if (ActiveTask == Task)
+			{
+				ActiveTask = nullptr;
+			}
+
+			Task->MyTaskManager = nullptr;
+
+			UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Task %s completed"), *GetPathNameSafe(Task));
+		}
+	}
+}
+
+UClass* UEditorUtilitySubsystem::FindClassByName(const FString& RawTargetName)
+{
+	FString TargetName = RawTargetName;
+
+	// Check native classes and loaded assets first before resorting to the asset registry
+	bool bIsValidClassName = true;
+	if (TargetName.IsEmpty() || TargetName.Contains(TEXT(" ")))
+	{
+		bIsValidClassName = false;
+	}
+	else if (!FPackageName::IsShortPackageName(TargetName))
+	{
+		if (TargetName.Contains(TEXT(".")))
+		{
+			// Convert type'path' to just path (will return the full string if it doesn't have ' in it)
+			TargetName = FPackageName::ExportTextPathToObjectPath(TargetName);
+
+			FString PackageName;
+			FString ObjectName;
+			TargetName.Split(TEXT("."), &PackageName, &ObjectName);
+
+			const bool bIncludeReadOnlyRoots = true;
+			FText Reason;
+			if (!FPackageName::IsValidLongPackageName(PackageName, bIncludeReadOnlyRoots, &Reason))
+			{
+				bIsValidClassName = false;
+			}
+		}
+		else
+		{
+			bIsValidClassName = false;
+		}
+	}
+
+	UClass* ResultClass = nullptr;
+	if (bIsValidClassName)
+	{
+		if (FPackageName::IsShortPackageName(TargetName))
+		{
+			ResultClass = FindObject<UClass>(ANY_PACKAGE, *TargetName);
+		}
+		else
+		{
+			ResultClass = FindObject<UClass>(nullptr, *TargetName);
+		}
+	}
+
+	// If we still haven't found anything yet, try the asset registry for blueprints that match the requirements
+	if (ResultClass == nullptr)
+	{
+		ResultClass = FindBlueprintClass(TargetName);
+	}
+
+	return ResultClass;
+}
+
+UClass* UEditorUtilitySubsystem::FindBlueprintClass(const FString& TargetNameRaw)
+{
+	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
+	IAssetRegistry& AssetRegistry = AssetRegistryModule.Get();
+	if (AssetRegistry.IsLoadingAssets())
+	{
+		AssetRegistry.SearchAllAssets(true);
+	}
+
+	FString TargetName = TargetNameRaw;
+	TargetName.RemoveFromEnd(TEXT("_C"), ESearchCase::CaseSensitive);
+
+	FARFilter Filter;
+	Filter.bRecursiveClasses = true;
+	Filter.ClassNames.Add(UBlueprintCore::StaticClass()->GetFName());
+
+	// We enumerate all assets to find any blueprints who inherit from native classes directly - or
+	// from other blueprints.
+	UClass* FoundClass = nullptr;
+	AssetRegistry.EnumerateAssets(Filter, [&FoundClass, TargetName](const FAssetData& AssetData)
+	{
+		if ((AssetData.AssetName.ToString() == TargetName) || (AssetData.ObjectPath.ToString() == TargetName))
+		{
+			if (UBlueprint* BP = Cast<UBlueprint>(AssetData.GetAsset()))
+			{
+				FoundClass = BP->GeneratedClass;
+				return false;
+			}
+		}
+
+		return true;
+	});
+
+	return FoundClass;
 }
 
 #undef LOCTEXT_NAMESPACE

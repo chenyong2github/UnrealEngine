@@ -335,6 +335,11 @@ void UEditorLevelLibrary::EditorPlaySimulate()
 	}
 }
 
+void UEditorLevelLibrary::EditorEndPlay()
+{
+	GUnrealEd->RequestEndPlayMap();
+}
+
 void UEditorLevelLibrary::EditorInvalidateViewports()
 {
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
