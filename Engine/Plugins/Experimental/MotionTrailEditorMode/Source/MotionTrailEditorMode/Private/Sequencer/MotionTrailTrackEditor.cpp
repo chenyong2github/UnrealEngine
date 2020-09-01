@@ -133,9 +133,9 @@ void FMotionTrailTrackEditor::BuildObjectBindingContextMenu(FMenuBuilder& MenuBu
 					FTrajectoryCache* ParentCache = Hierarchy->GetAllTrails().FindChecked(ComponentGuid)->GetTrajectoryTransforms();
 
 					MenuBuilder.AddMenuEntry(LOCTEXT("GenerateBoneTrails", "Generate Bone Trails"), LOCTEXT("GenerateBoneTrailsTooltip", "Evaluates trails for every bone in the animation, can be expensive"), FSlateIcon(),
-						FUIAction::FUIAction(FExecuteAction::CreateLambda([AnimCache, ParentCache, SkelMeshComp]() { AnimCache.Pin()->Evaluate(ParentCache, SkelMeshComp); })));
+						FUIAction(FExecuteAction::CreateLambda([AnimCache, ParentCache, SkelMeshComp]() { AnimCache.Pin()->Evaluate(ParentCache, SkelMeshComp); })));
 					MenuBuilder.AddSubMenu(LOCTEXT("VisibleBones", "Visible Bones"), LOCTEXT("VisibleBonesTooltip", "Set which bone trails should be visible"), FNewMenuDelegate::CreateRaw(this, &FMotionTrailTrackEditor::CreateBoneVisibilityMenu, Skeleton, Hierarchy),
-						FUIAction::FUIAction(FExecuteAction::CreateLambda([] {}), FCanExecuteAction::CreateLambda([AnimCache] {
+						FUIAction(FExecuteAction::CreateLambda([] {}), FCanExecuteAction::CreateLambda([AnimCache] {
 						return AnimCache.IsValid() && !AnimCache.Pin()->IsDirty();
 					}), EUIActionRepeatMode::RepeatDisabled), NAME_None, EUserInterfaceActionType::Button, false, FSlateIcon(), false);
 				}

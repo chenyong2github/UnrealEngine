@@ -7,11 +7,6 @@
 
 class ISequencer;
 
-namespace UE
-{
-namespace MotionTrailEditor
-{
-
 class FMotionTrailEditorModeModule : public IModuleInterface
 {
 public:
@@ -26,6 +21,3 @@ private:
 	FDelegateHandle OnSequencerCreatedHandle;
 	FDelegateHandle OnCreateTrackEditorHandle;
 };
-
-} // namespace MovieScene
-} // namespace UE

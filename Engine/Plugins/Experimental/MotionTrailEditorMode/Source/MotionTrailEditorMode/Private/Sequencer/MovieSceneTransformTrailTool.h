@@ -71,6 +71,7 @@ private:
 		FromTrailCache
 	};
 
+public:
 	struct FKeyInfo
 	{
 		FKeyInfo(const FFrameNumber InFrameNumber, class UMovieSceneSection* InSection, FMovieSceneTransformTrail* InOwningTrail);
@@ -96,6 +97,8 @@ private:
 		FMovieSceneTransformTrail* OwningTrail;
 	};
 
+private:
+
 	void UpdateGizmoActorComponents(FKeyInfo* KeyInfo, class UTransformGizmo* TransformGizmo);
 
 	static UMSTrailKeyProperties* KeyProps;
@@ -105,7 +108,7 @@ private:
 	TWeakObjectPtr<class UTransformGizmo> ActiveTransformGizmo;
 	FMovieSceneTransformTrail* OwningTrail;
 
-	friend class UMSTrailTransformProxy;
+	friend class ::UMSTrailTransformProxy;
 };
 
 } // namespace MovieScene
