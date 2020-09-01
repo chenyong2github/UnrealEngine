@@ -179,7 +179,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 
 		+SOverlay::Slot()
 		[
-			SNew(SBorder).BorderImage( FAppStyle::Get().GetBrush("Brushes.Recessed") )
+			SNew(SBorder).BorderImage( FAppStyle::Get().GetBrush("Brushes.Background") )
 		]
 
 		+SOverlay::Slot()
