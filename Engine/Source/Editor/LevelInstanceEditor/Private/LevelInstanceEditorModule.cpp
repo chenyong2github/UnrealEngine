@@ -27,6 +27,7 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Misc/ScopeExit.h"
 #include "Widgets/Input/SNumericEntryBox.h"
+#include "Widgets/Input/SButton.h"
 
 IMPLEMENT_MODULE( FLevelInstanceEditorModule, LevelInstanceEditor );
 
