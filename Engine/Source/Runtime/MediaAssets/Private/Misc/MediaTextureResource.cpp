@@ -22,6 +22,7 @@
 #include "RHIStaticStates.h"
 #include "GenerateMips.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Async/Async.h"
 
 #include "MediaTexture.h"
 
@@ -137,6 +138,7 @@ FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& 
 	, bEnableGenMips(InEnableGenMips)
 	, CurrentNumMips(InEnableGenMips ? InNumMips : 1)
 	, CurrentSamplerFilter(ESamplerFilter_Num)
+	, PriorSamples(MakeShared<FPriorSamples, ESPMode::ThreadSafe>())
 {
 #if PLATFORM_ANDROID
 	bUsesImageExternal = !Owner.NewStyleOutput && (!FAndroidMisc::ShouldUseVulkan() && GSupportsImageExternal);
@@ -145,6 +147,11 @@ FMediaTextureResource::FMediaTextureResource(UMediaTexture& InOwner, FIntPoint& 
 #endif
 }
 
+
+void FMediaTextureResource::FlushPendingData()
+{
+	PriorSamples = MakeShared<FPriorSamples, ESPMode::ThreadSafe>();
+}
 
 /* FMediaTextureResource interface
  *****************************************************************************/
@@ -156,6 +163,8 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 	LLM_SCOPE(ELLMTag::MediaStreaming);
 	SCOPE_CYCLE_COUNTER(STAT_MediaAssets_MediaTextureResourceRender);
 	CSV_SCOPED_TIMING_STAT(MediaStreaming, FMediaTextureResource_Render);
+
+	PriorSamples->Update();
 
 	FLinearColor Rotation(1, 0, 0, 1);
 	FLinearColor Offset(0, 0, 0, 0);
@@ -313,10 +322,24 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			Rotation = Sample->GetScaleRotation();
 			Offset = Sample->GetOffset();
 
-			// Keep new current sample around to avoid it returning to any pool too soon
-			// (we hold on to rendering resources at a lower level anyway)
-			CurrentSample = TRefCountPtr<FTextureSampleKeeper>(new FTextureSampleKeeper(Sample));
-			check(CurrentSample);
+			if (CurrentSample)
+			{
+				// If we had a current sample (directly used as output), we can now schedule its retirement
+				PriorSamples->Retire(CurrentSample);
+				CurrentSample = nullptr;
+			}
+
+			// Do we use a local copy as our output?
+			if (OutputTarget == RenderTargetTextureRHI)
+			{
+				// Yes, we can schedule the actual sample for retirement right away
+				PriorSamples->Retire(Sample);
+			}
+			else
+			{
+				// No, we need to hold on to the sample
+				CurrentSample = Sample;
+			}
 
 			// Generate mips as needed
 			if (CurrentNumMips > 1 && !Cleared)
@@ -343,17 +366,7 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 			// Last sample is still valid
 			//
 
-			// Output is using internal buffer?
-			if (OutputTarget == RenderTargetTextureRHI)
-			{
-				/*
-					We know that the current sample is using the internal buffer to store converted data.
-					This data is the data actually used by any user of this resource. Hence we can release
-					the current sample as soon as the first frame using it is done processing.
-					Either this will happen when a new sample arrives or we do it explicitly here.
-				*/
-				CurrentSample = nullptr;
-			}
+			// nothing to do for now
 		}
 	}
 	else if (Params.CanClear)
@@ -367,8 +380,13 @@ void FMediaTextureResource::Render(const FRenderParams& Params)
 		{
 			// Yes...
 			ClearTexture(Params.ClearColor, Params.SrgbOutput);
-			// Also get rid of any sample from previous rendering...
-			CurrentSample = nullptr;
+
+			if (CurrentSample)
+			{
+				// If we had a current sample (directly used as output), we can now schedule its retirement
+				PriorSamples->Retire(CurrentSample);
+				CurrentSample = nullptr;
+			}
 		}
 	}
 
@@ -636,9 +654,8 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			// Use the sample as source texture...
 
 			InputTexture = SampleTexture2D;
-
-			InputTarget.SafeRelease();
 			UpdateResourceSize();
+			InputTarget = nullptr;
 		}
 		else
 		{
@@ -693,6 +710,10 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 
 		FIntPoint OutputDim(RenderTarget->GetSizeXYZ().X, RenderTarget->GetSizeXYZ().Y);
 
+		// note: we are not explicitly transitioning the input texture to be readable here
+		// (we assume this to be the case already - main as some platforms may fail to orderly transition the resource due to special cases regarding their internal setup)
+		CommandList.TransitionResource(EResourceTransitionAccess::EWritable, RenderTargetTextureRHI);
+
 		FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::DontLoad_Store);
 		CommandList.BeginRenderPass(RPInfo, TEXT("ConvertMedia"));
 		{
@@ -746,10 +767,10 @@ void FMediaTextureResource::ConvertSample(const TSharedPtr<IMediaTextureSample, 
 			{
 				if (InputTexture->GetFormat() == PF_NV12)
 				{
-				TShaderMapRef<FNV12ConvertPS> ConvertShader(ShaderMap);
-				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
-				SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
-				ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
+					TShaderMapRef<FNV12ConvertPS> ConvertShader(ShaderMap);
+					GraphicsPSOInit.BoundShaderState.PixelShaderRHI = ConvertShader.GetPixelShader();
+					SetGraphicsPipelineState(CommandList, GraphicsPSOInit);
+					ConvertShader->SetParameters(CommandList, InputTexture, OutputDim, YUVToRGBMatrix, YUVOffset, bIsSampleOutputSrgb);
 				}
 			else
 				{
@@ -1054,6 +1075,8 @@ void FMediaTextureResource::CreateOutputRenderTarget(const FIntPoint & InDim, EP
 			OutputTarget,
 			DummyTexture2DRHI
 		);
+
+		OutputTarget->SetName(TEXT("MediaTextureResourceOutput"));
 
 		CurrentClearColor = InClearColor;
 		CurrentNumMips = InNumMips;
