@@ -100,7 +100,10 @@ namespace Chaos
 			const FVec3 COM = Chaos::FParticleUtilitiesGT::GetCoMWorldPosition(Particle);
 			const FVec3 Diff = WorldSpaceX - COM;
 			FVec3 ArmVelocity = Particle->V() - FVec3::CrossProduct(Diff, Particle->W());
-			float PointVelocityAlongAxis = FVec3::DotProduct(ArmVelocity, AxisWorld);
+
+			// This constraint is causing considerable harm to the steering effect from the tires, using only the z component for damping
+			// makes this issue go away, rather than using DotProduct against the expected AxisWorld vector
+			float PointVelocityAlongAxis = FVec3::DotProduct(ArmVelocity, FVector(0,0,1));
 
 			if (Distance < Setting.MinLength)
 			{

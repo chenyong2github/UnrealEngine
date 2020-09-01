@@ -50,8 +50,8 @@ namespace Chaos
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
 		{
-			LongitudinalAdhesiveLimit = ForceIntoSurface * SurfaceFriction * Setup().CheatLongitudinalFrictionMultiplier;
-			LateralAdhesiveLimit = ForceIntoSurface * SurfaceFriction * Setup().CheatLateralFrictionMultiplier;
+			LongitudinalAdhesiveLimit = ForceIntoSurface * SurfaceFriction * Setup().LongitudinalFrictionMultiplier;
+			LateralAdhesiveLimit = ForceIntoSurface * SurfaceFriction * Setup().LateralFrictionMultiplier;
 
 			if (Braking)
 			{

@@ -25,9 +25,8 @@ UChaosVehicleWheel::UChaosVehicleWheel(const FObjectInitializer& ObjectInitializ
 	WheelWidth = 20.0f;
 	//bAutoAdjustCollisionSize = true;
 	//WheelMass = 20.0f;
-	CheatLongitudinalFrictionForce = 1.0f;
-	CheatLateralFrictionForce = 2.0f;
-	CheatSkidFactor = 1.0f;
+	LongitudinalFrictionForceMultiplier = 1.0f;
+	LateralFrictionForceMultiplier = 2.0f;
 	SideSlipModifier = 1.0f;
 
 	bAffectedByBrake = true;
