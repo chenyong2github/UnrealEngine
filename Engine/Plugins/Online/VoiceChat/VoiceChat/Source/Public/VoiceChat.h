@@ -77,11 +77,13 @@ struct FVoiceChatDeviceInfo
 
 	inline bool operator==(const FVoiceChatDeviceInfo& Other) const { return Id == Other.Id; }
 	inline bool operator!=(const FVoiceChatDeviceInfo& Other) const { return !operator==(Other); }
+
+	FString ToDebugString() const { return FString::Printf(TEXT("DisplayName=[%s] Id=[%s]"), *DisplayName, *Id); }
 };
 
 inline FString LexToString(const FVoiceChatDeviceInfo& DeviceInfo)
 {
-	return FString::Printf(TEXT("DisplayName=[%s] Id=[%s]"), *DeviceInfo.DisplayName, *DeviceInfo.Id);
+	return DeviceInfo.ToDebugString();
 }
 
 DECLARE_DELEGATE_OneParam(FOnVoiceChatInitializeCompleteDelegate, const FVoiceChatResult& /* Result */);
