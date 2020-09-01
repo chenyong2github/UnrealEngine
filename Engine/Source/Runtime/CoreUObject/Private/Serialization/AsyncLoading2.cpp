@@ -1921,8 +1921,7 @@ private:
 	 */
 	void BeginAsyncLoad();
 	/**
-	 * End async loading process. Simulates parts of EndLoad(). FinishObjects
-	 * simulates some further parts once we're fully done loading the package.
+	 * End async loading process. Simulates parts of EndLoad().
 	 */
 	void EndAsyncLoad();
 	/**
@@ -1933,11 +1932,11 @@ private:
 	void CreateUPackage(const FPackageSummary* PackageSummary);
 
 	/**
-	 * Finish up objects and state, which means clearing the EInternalObjectFlags::AsyncLoading flag on newly created ones
+	 * Finish up UPackage
 	 *
 	 * @return true
 	 */
-	EAsyncPackageState::Type FinishObjects();
+	void FinishUPackage();
 
 	/**
 	 * Finalizes external dependencies till time limit is exceeded
@@ -3926,7 +3925,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 						{
 							TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
 							Object->ConditionalPostLoad();
-							Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 						}
 						ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 					}
@@ -3953,16 +3951,13 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 	}
 	else
 	{
-		// Finish objects (removing EInternalObjectFlags::AsyncLoading, dissociate imports and forced exports, 
-		// call completion callback, ...
-		// If the load has failed, perform completion callbacks and then quit
-		LoadingState = Package->FinishObjects();
-
-		if (Package->LinkerRoot && LoadingState == EAsyncPackageState::Complete)
+		if (Package->LinkerRoot && !Package->bLoadHasFailed)
 		{
 			UE_ASYNC_PACKAGE_LOG(Verbose, Package->Desc, TEXT("AsyncThread: FullyLoaded"),
-				TEXT("Async loading of package is done, and UPackage is marked as fully loaded."))
-				Package->LinkerRoot->MarkAsFullyLoaded();
+				TEXT("Async loading of package is done, and UPackage is marked as fully loaded."));
+			// mimic old loader behavior for now, but this is more correctly also done in FinishUPackage
+			// called from ProcessLoadedPackagesFromGameThread just before complection callbacks
+			Package->LinkerRoot->MarkAsFullyLoaded();
 		}
 
 		check(Package->AsyncPackageLoadingState == EAsyncPackageLoadingState2::PostLoad);
@@ -4031,7 +4026,6 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 						}
 						PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
 					}
-					Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 				} while (false);
 			}
 			++BundleEntry;
@@ -4321,22 +4315,16 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 				}
 			}
 
-			// Mark package as having been fully loaded and update load time.
-			if (Package->LinkerRoot && !Package->bLoadHasFailed)
-			{
-				Package->LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-				Package->LinkerRoot->MarkAsFullyLoaded();
-				Package->LinkerRoot->SetLoadTime(FPlatformTime::Seconds() - Package->LoadStartTime);
+			Package->FinishUPackage();
 
-				if (CanCreateObjectClusters())
+			if (!Package->bLoadHasFailed && CanCreateObjectClusters())
+			{
+				for (const FExportObject& Export : Package->Data.Exports)
 				{
-					for (const FExportObject& Export : Package->Data.Exports)
+					if (!(Export.bFiltered | Export.bExportLoadFailed) && Export.Object->CanBeClusterRoot())
 					{
-						if (!(Export.bFiltered | Export.bExportLoadFailed) && Export.Object->CanBeClusterRoot())
-						{
-							bHasClusterObjects = true;
-							break;
-						}
+						bHasClusterObjects = true;
+						break;
 					}
 				}
 			}
@@ -5157,7 +5145,8 @@ void FAsyncPackage2::ClearConstructedObjects()
 	{
 		if (Object->HasAnyFlags(RF_WasLoaded))
 		{
-			// exports and the upackage itself are are handled below
+			// the upackage itself is handled in FinishUObject,
+			// while package exports are are handled below
 			continue;
 		}
 		Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
@@ -5187,8 +5176,6 @@ void FAsyncPackage2::ClearConstructedObjects()
 			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
 		}
 	}
-
-	LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
 }
 
 void FAsyncPackage2::AddRequestID(int32 Id)
@@ -5244,8 +5231,7 @@ void FAsyncPackage2::BeginAsyncLoad()
 }
 
 /**
- * End async loading process. Simulates parts of EndLoad(). FinishObjects 
- * simulates some further parts once we're fully done loading the package.
+ * End async loading process. Simulates parts of EndLoad(). 
  */
 void FAsyncPackage2::EndAsyncLoad()
 {
@@ -5368,40 +5354,28 @@ EAsyncPackageState::Type FAsyncPackage2::CreateClusters()
 	return DeferredClusterIndex == Data.ExportCount ? EAsyncPackageState::Complete : EAsyncPackageState::TimeOut;
 }
 
-EAsyncPackageState::Type FAsyncPackage2::FinishObjects()
+void FAsyncPackage2::FinishUPackage()
 {
-	SCOPED_LOADTIMER(FinishObjectsTime);
-
-	EAsyncLoadingResult::Type LoadingResult;
-	if (!bLoadHasFailed)
+	if (LinkerRoot)
 	{
-		LoadingResult = EAsyncLoadingResult::Succeeded;
-	}
-	else
-	{		
-		// Clean up UPackage so it can't be found later
-		if (LinkerRoot && !LinkerRoot->IsRooted())
+		LinkerRoot->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading | EInternalObjectFlags::Async);
+		if (!bLoadHasFailed)
 		{
-			if (bCreatedLinkerRoot)
+			// Mark package as having been fully loaded and update load time.
+			LinkerRoot->MarkAsFullyLoaded();
+			LinkerRoot->SetLoadTime(FPlatformTime::Seconds() - LoadStartTime);
+		}
+		else
+		{
+			// Clean up UPackage so it can't be found later
+			if (bCreatedLinkerRoot && !LinkerRoot->IsRooted())
 			{
 				LinkerRoot->ClearFlags(RF_NeedPostLoad | RF_NeedLoad | RF_NeedPostLoadSubobjects);
 				LinkerRoot->MarkPendingKill();
 				LinkerRoot->Rename(*MakeUniqueObjectName(GetTransientPackage(), UPackage::StaticClass()).ToString(), nullptr, REN_DontCreateRedirectors | REN_DoNotDirty | REN_ForceNoResetLoaders | REN_NonTransactional);
 			}
 		}
-
-		LoadingResult = EAsyncLoadingResult::Failed;
 	}
-
-	for (UObject* Object : ConstructedObjects)
-	{
-		if (!Object->HasAnyFlags(RF_NeedPostLoad | RF_NeedPostLoadSubobjects))
-		{
-			Object->AtomicallyClearInternalFlags(EInternalObjectFlags::AsyncLoading);
-		}
-	}
-
-	return EAsyncPackageState::Complete;
 }
 
 void FAsyncPackage2::CallCompletionCallbacks(EAsyncLoadingResult::Type LoadingResult)
