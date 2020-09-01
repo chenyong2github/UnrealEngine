@@ -71,6 +71,7 @@
 #include "UnrealExporter.h"
 #include "ControlRigElementDetails.h"
 #include "PropertyEditorModule.h"
+#include "Settings/ControlRigSettings.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigEditor"
 
@@ -863,6 +864,19 @@ void FControlRigEditor::Compile()
 	{
 		DECLARE_SCOPE_HIERARCHICAL_COUNTER_FUNC()
 
+		TMap<FName, FRigControlValue> ControlValues;
+		if (!UControlRigSettings::Get()->bResetControlsOnCompile)
+		{
+			if (UControlRig* CR = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+			{
+				const TArray<FRigControl>& Controls = CR->AvailableControls();
+				for (const FRigControl& Control : Controls)
+				{
+					ControlValues.Add(Control.Name, Control.GetValue(ERigControlValueType::Current));
+				}
+			}
+		}
+
 		LastDebuggedRig.Empty();
 
 		FString LastDebuggedObjectName = GetCustomDebugObjectLabel(GetBlueprintObj()->GetObjectBeingDebugged());
@@ -941,6 +955,17 @@ void FControlRigEditor::Compile()
 		if (PreviewInstance)
 		{
 			PreviewInstance->ResetModifiedBone();
+		}
+
+		if (!UControlRigSettings::Get()->bResetControlsOnCompile)
+		{
+			if (UControlRig* CR = Cast<UControlRig>(GetBlueprintObj()->GetObjectBeingDebugged()))
+			{
+				for (const TPair<FName, FRigControlValue>& Pair : ControlValues)
+				{
+					CR->SetControlValue(Pair.Key, Pair.Value);
+				}
+			}
 		}
 	}
 
