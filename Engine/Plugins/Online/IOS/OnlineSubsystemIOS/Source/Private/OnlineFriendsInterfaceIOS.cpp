@@ -103,15 +103,17 @@ bool FOnlineFriendsIOS::ReadFriendsList(int32 LocalUserNum, const FString& ListN
                   
                                     // Add new friend entry to list
                                     TSharedRef<FOnlineFriendIOS> FriendEntry(
-                                            new FOnlineFriendIOS(*FString(Friend.playerID))
+										new FOnlineFriendIOS(*FString(FOnlineSubsystemIOS::GetPlayerId(Friend)))
                                     );
                                     FriendEntry->AccountData.Add(
-                                            TEXT("nickname"), *FString(Friend.alias)
+                                        TEXT("nickname"), *FString(Friend.alias)
                                     );
                                     CachedFriends.Add(FriendEntry);
                   
-                                    UE_LOG_ONLINE_FRIEND(Verbose, TEXT("GCFriend - Id:%s Alias:%s"), *FString(Friend.playerID),
-                                        *FriendEntry->GetDisplayName() );
+                                    UE_LOG_ONLINE_FRIEND(Verbose, TEXT("GCFriend - Id:%s Alias:%s"),
+										*FString(FOnlineSubsystemIOS::GetPlayerId(Friend)),
+                                        *FriendEntry->GetDisplayName()
+									);
                                 }
                   
                                 bWasSuccessful = true;
@@ -167,15 +169,17 @@ bool FOnlineFriendsIOS::ReadFriendsList(int32 LocalUserNum, const FString& ListN
 
 									// Add new friend entry to list
 									TSharedRef<FOnlineFriendIOS> FriendEntry(
-										new FOnlineFriendIOS(*FString(Friend.playerID))
-										);
+										new FOnlineFriendIOS(*FString(FOnlineSubsystemIOS::GetPlayerId(Friend)))
+									);
 									FriendEntry->AccountData.Add(
 										TEXT("nickname"), *FString(Friend.alias)
-										);
+									);
 									CachedFriends.Add(FriendEntry);
 
-									UE_LOG_ONLINE_FRIEND(Verbose, TEXT("GCFriend - Id:%s Alias:%s"), *FString(Friend.playerID), 
-										*FriendEntry->GetDisplayName() );
+									UE_LOG_ONLINE_FRIEND(Verbose, TEXT("GCFriend - Id:%s Alias:%s"),
+										*FString(FOnlineSubsystemIOS::GetPlayerId(Friend)),
+										*FriendEntry->GetDisplayName()
+									);
 								}
 
                                 bWasSuccessful = true;
