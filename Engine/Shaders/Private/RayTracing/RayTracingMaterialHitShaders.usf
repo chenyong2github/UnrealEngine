@@ -275,7 +275,7 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		return;
 	}
 
-	const uint2 PixelCoord = PackedPayload.GetPixelCoordFromCustomData();
+	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
 
 	ResolvedView = ResolveView();
 
@@ -468,7 +468,7 @@ RAY_TRACING_ENTRY_ANY_HIT(MaterialAHS,
 
 #if MATERIALBLENDING_MASKED
 
-	const uint2 PixelCoord = PackedPayload.GetPixelCoordFromCustomData();
+	const uint2 PixelCoord = PackedPayload.GetPixelCoord();
 
 	ResolvedView = ResolveView();
 
