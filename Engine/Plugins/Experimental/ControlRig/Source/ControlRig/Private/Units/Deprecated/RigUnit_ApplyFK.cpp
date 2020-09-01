@@ -26,9 +26,9 @@ FRigUnit_ApplyFK_Execute()
 
 				FTransform InputBaseTransform = UtilityHelpers::GetBaseTransformByMode(
 					ApplyTransformSpace,
-					[Hierarchy](const FName& BoneName) { return Hierarchy->GetGlobalTransform(BoneName); },
-					(*Hierarchy)[Index].ParentName,
-					BaseJoint,
+					[Hierarchy](const FRigElementKey& BoneKey) { return Hierarchy->GetGlobalTransform(BoneKey.Name); },
+					(*Hierarchy)[Index].GetParentElementKey(),
+					FRigElementKey(BaseJoint, ERigElementType::Bone),
 					BaseTransform
 				);
 

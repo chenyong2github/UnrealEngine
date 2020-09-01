@@ -15,7 +15,11 @@ FRigUnit_DeltaFromPreviousFloat_Execute()
 
 	PreviousValue = Cache;
 	Delta = Cache - Value;
-	Cache = Value;
+
+	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	{
+		Cache = Value;
+	}
 }
 
 FRigUnit_DeltaFromPreviousVector_Execute()
@@ -30,7 +34,11 @@ FRigUnit_DeltaFromPreviousVector_Execute()
 
 	PreviousValue = Cache;
 	Delta = Cache - Value;
-	Cache = Value;
+
+	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	{
+		Cache = Value;
+	}
 }
 
 FRigUnit_DeltaFromPreviousQuat_Execute()
@@ -45,7 +53,11 @@ FRigUnit_DeltaFromPreviousQuat_Execute()
 
 	PreviousValue = Cache;
 	Delta = Cache.Inverse() * Value;
-	Cache = Value;
+
+	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	{
+		Cache = Value;
+	}
 }
 
 FRigUnit_DeltaFromPreviousTransform_Execute()
@@ -60,7 +72,11 @@ FRigUnit_DeltaFromPreviousTransform_Execute()
 
 	PreviousValue = Cache;
 	Delta = Value.GetRelativeTransform(Cache);
-	Cache = Value;
+
+	if (FMath::Abs(Context.DeltaTime) > SMALL_NUMBER)
+	{
+		Cache = Value;
+	}
 }
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -68,6 +84,7 @@ FRigUnit_DeltaFromPreviousTransform_Execute()
 
 IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_DeltaFromPreviousFloat)
 {
+	Context.DeltaTime = 0.1f;
 	Unit.Value = 1.f;
 	InitAndExecute();
 	AddErrorIfFalse(FMath::IsNearlyEqual(Unit.Delta, 0.f), TEXT("unexpected average result"));

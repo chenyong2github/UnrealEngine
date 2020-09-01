@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "RigVMCore/RigVMExternalVariable.h"
 #include "RigVMModel/RigVMNode.h"
 #include "RigVMVariableNode.generated.h"
 
@@ -38,6 +39,31 @@ public:
 	// The default value of the variable
 	UPROPERTY(BlueprintReadOnly, Category = RigVMGraphVariableDescription)
 	FString DefaultValue;
+
+	// Returns nullptr external variable matching this description
+	FORCEINLINE FRigVMExternalVariable ToExternalVariable() const
+	{
+		FRigVMExternalVariable ExternalVariable;
+		ExternalVariable.Name = Name;
+
+		if (CPPType.StartsWith(TEXT("TArray<")))
+		{
+			ExternalVariable.bIsArray = true;
+			ExternalVariable.TypeName = *CPPType.Mid(7, CPPType.Len() - 8);
+			ExternalVariable.TypeObject = CPPTypeObject;
+		}
+		else
+		{
+			ExternalVariable.bIsArray = false;
+			ExternalVariable.TypeName = *CPPType;
+			ExternalVariable.TypeObject = CPPTypeObject;
+		}
+
+		ExternalVariable.bIsPublic = false;
+		ExternalVariable.bIsReadOnly = false;
+		ExternalVariable.Memory = nullptr;
+		return ExternalVariable;
+	}
 };
 
 /**
@@ -85,6 +111,7 @@ public:
 
 	// Override of node title
 	virtual FLinearColor GetNodeColor() const override { return FLinearColor::Blue; }
+	virtual bool IsDefinedAsVarying() const override { return true; }
 
 private:
 
@@ -93,5 +120,7 @@ private:
 
 	friend class URigVMController;
 	friend class URigVMCompiler;
+	friend class FRigVMVarExprAST;
+	friend class FRigVMParserAST;
 };
 

@@ -24,8 +24,10 @@ FString FJsonObjectConverter::StandardizeCase(const FString &StringIn)
 
 namespace
 {
+	const FString ObjectClassNameKey = "_ClassName";
+
 /** Convert property to JSON, assuming either the property is not an array or the value is an individual array element */
-TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const FJsonObjectConverter::CustomExportCallback* ExportCb)
+TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const FJsonObjectConverter::CustomExportCallback* ExportCb, FProperty* OuterProperty)
 {
 	// See if there's a custom export callback first, so it can override default behavior
 	if (ExportCb && ExportCb->IsBound())
@@ -87,7 +89,7 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 		FScriptArrayHelper Helper(ArrayProperty, Value);
 		for (int32 i=0, n=Helper.Num(); i<n; ++i)
 		{
-			TSharedPtr<FJsonValue> Elem = FJsonObjectConverter::UPropertyToJsonValue(ArrayProperty->Inner, Helper.GetRawPtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb);
+			TSharedPtr<FJsonValue> Elem = FJsonObjectConverter::UPropertyToJsonValue(ArrayProperty->Inner, Helper.GetRawPtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb, ArrayProperty);
 			if ( Elem.IsValid() )
 			{
 				// add to the array
@@ -104,7 +106,7 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 		{
 			if ( Helper.IsValidIndex(i) )
 			{
-				TSharedPtr<FJsonValue> Elem = FJsonObjectConverter::UPropertyToJsonValue(SetProperty->ElementProp, Helper.GetElementPtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb);
+				TSharedPtr<FJsonValue> Elem = FJsonObjectConverter::UPropertyToJsonValue(SetProperty->ElementProp, Helper.GetElementPtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb, SetProperty);
 				if ( Elem.IsValid() )
 				{
 					// add to the array
@@ -125,8 +127,8 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 		{
 			if ( Helper.IsValidIndex(i) )
 			{
-				TSharedPtr<FJsonValue> KeyElement = FJsonObjectConverter::UPropertyToJsonValue(MapProperty->KeyProp, Helper.GetKeyPtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb);
-				TSharedPtr<FJsonValue> ValueElement = FJsonObjectConverter::UPropertyToJsonValue(MapProperty->ValueProp, Helper.GetValuePtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb);
+				TSharedPtr<FJsonValue> KeyElement = FJsonObjectConverter::UPropertyToJsonValue(MapProperty->KeyProp, Helper.GetKeyPtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb, MapProperty);
+				TSharedPtr<FJsonValue> ValueElement = FJsonObjectConverter::UPropertyToJsonValue(MapProperty->ValueProp, Helper.GetValuePtr(i), CheckFlags & ( ~CPF_ParmFlags ), SkipFlags, ExportCb, MapProperty);
 				if ( KeyElement.IsValid() && ValueElement.IsValid() )
 				{
 					FString KeyString;
@@ -165,7 +167,29 @@ TSharedPtr<FJsonValue> ConvertScalarFPropertyToJsonValue(FProperty* Property, co
 		{
 			return MakeShared<FJsonValueObject>(Out);
 		}
-		// fall through to default
+	}
+	else if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+	{
+		// Instanced properties should be copied by value, while normal UObject* properties should output as asset references
+		UObject* Object = ObjectProperty->GetObjectPropertyValue(Value);
+		if (Object && (ObjectProperty->HasAnyPropertyFlags(CPF_PersistentInstance) || (OuterProperty && OuterProperty->HasAnyPropertyFlags(CPF_PersistentInstance))))
+		{
+			TSharedRef<FJsonObject> Out = MakeShared<FJsonObject>();
+
+			Out->SetStringField(ObjectClassNameKey, Object->GetClass()->GetFName().ToString());
+			if (FJsonObjectConverter::UStructToJsonObject(ObjectProperty->GetObjectPropertyValue(Value)->GetClass(), Object, Out, CheckFlags, SkipFlags, ExportCb))
+			{
+				TSharedRef<FJsonValueObject> JsonObject = MakeShared<FJsonValueObject>(Out);
+				JsonObject->Type = EJson::Object;
+				return JsonObject;
+			}
+		}
+		else
+		{
+			FString StringValue;
+			Property->ExportTextItem(StringValue, Value, nullptr, nullptr, PPF_None);
+			return MakeShared<FJsonValueString>(StringValue);
+		}
 	}
 	else
 	{
@@ -208,17 +232,17 @@ TSharedPtr<FJsonValue> FJsonObjectConverter::ObjectJsonCallback(FProperty* Prope
 
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-TSharedPtr<FJsonValue> FJsonObjectConverter::UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb)
+TSharedPtr<FJsonValue> FJsonObjectConverter::UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb, FProperty* OuterProperty)
 {
 	if (Property->ArrayDim == 1)
 	{
-		return ConvertScalarFPropertyToJsonValue(Property, Value, CheckFlags, SkipFlags, ExportCb);
+		return ConvertScalarFPropertyToJsonValue(Property, Value, CheckFlags, SkipFlags, ExportCb, OuterProperty);
 	}
 
 	TArray< TSharedPtr<FJsonValue> > Array;
 	for (int Index = 0; Index != Property->ArrayDim; ++Index)
 	{
-		Array.Add(ConvertScalarFPropertyToJsonValue(Property, (char*)Value + Index * Property->ElementSize, CheckFlags, SkipFlags, ExportCb));
+		Array.Add(ConvertScalarFPropertyToJsonValue(Property, (char*)Value + Index * Property->ElementSize, CheckFlags, SkipFlags, ExportCb, OuterProperty));
 	}
 	return MakeShared<FJsonValueArray>(Array);
 }
@@ -672,15 +696,28 @@ namespace
 					Outer = (UObject*)Container;
 				}
 
+				TSharedPtr<FJsonObject> Obj = JsonValue->AsObject();
 				UClass* PropertyClass = ObjectProperty->PropertyClass;
+
+				// If a specific subclass was stored in the Json, use that instead of the PropertyClass
+				FString ClassString = Obj->GetStringField(ObjectClassNameKey);
+				Obj->RemoveField(ObjectClassNameKey);
+				if (!ClassString.IsEmpty())
+				{
+					UClass* FoundClass = FindObject<UClass>(ANY_PACKAGE, *ClassString);
+					if (FoundClass)
+					{
+						PropertyClass = FoundClass;
+					}
+				}
+
 				UObject* createdObj = StaticAllocateObject(PropertyClass, Outer, NAME_None, EObjectFlags::RF_NoFlags, EInternalObjectFlags::None, false);
 				(*PropertyClass->ClassConstructor)(FObjectInitializer(createdObj, PropertyClass->ClassDefaultObject, false, false));
 
 				ObjectProperty->SetObjectPropertyValue(OutValue, createdObj);
 
-				TSharedPtr<FJsonObject> Obj = JsonValue->AsObject();
 				check(Obj.IsValid()); // should not fail if Type == EJson::Object
-				if (!JsonAttributesToUStructWithContainer(Obj->Values, ObjectProperty->PropertyClass, createdObj, ObjectProperty->PropertyClass, createdObj, CheckFlags & (~CPF_ParmFlags), SkipFlags))
+				if (!JsonAttributesToUStructWithContainer(Obj->Values, PropertyClass, createdObj, PropertyClass, createdObj, CheckFlags & (~CPF_ParmFlags), SkipFlags))
 				{
 					UE_LOG(LogJson, Error, TEXT("JsonValueToUProperty - FJsonObjectConverter::JsonObjectToUStruct failed for property %s"), *Property->GetNameCPP());
 					return false;

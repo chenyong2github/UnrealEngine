@@ -24,13 +24,13 @@ namespace UtilityHelpers
 	}
 
 	template <typename Predicate>
-	FTransform GetBaseTransformByMode(ETransformSpaceMode TransformSpaceMode, Predicate TransformGetter, const FName& ParentName, const FName& BaseBone, const FTransform& BaseTransform)
+	FTransform GetBaseTransformByMode(ETransformSpaceMode TransformSpaceMode, Predicate TransformGetter, const FRigElementKey& ParentKey, const FRigElementKey& BaseKey, const FTransform& BaseTransform)
 	{
 		switch (TransformSpaceMode)
 		{
 		case ETransformSpaceMode::LocalSpace:
 		{
-			return TransformGetter(ParentName);
+			return TransformGetter(ParentKey);
 		}
 		case ETransformSpaceMode::BaseSpace:
 		{
@@ -38,7 +38,7 @@ namespace UtilityHelpers
 		}
 		case ETransformSpaceMode::BaseJoint:
 		{
-			return TransformGetter(BaseBone);
+			return TransformGetter(BaseKey);
 		}
 		case ETransformSpaceMode::GlobalSpace:
 		default:

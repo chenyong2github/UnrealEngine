@@ -54,6 +54,10 @@
 		{
 			"Name": "ProxyLODPlugin",
 			"Enabled": true
+		},
+		{
+			"Name": "HairStrands",
+			"Enabled": true
 		}
 	]
 }

@@ -95,6 +95,12 @@ class ENGINE_API ULightComponentBase : public USceneComponent
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (DisplayName = "Affect Ray Tracing Global Illumination"))
 	uint32 bAffectGlobalIllumination : 1;
 
+	/**
+	 *Change the deep shadow layers distribution 0:linear distribution (uniform layer distribution), 1:exponential (more details on near small details).
+	 **/
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Light, AdvancedDisplay, meta = (ClampMin = "0.0", ClampMax = "1.0", UIMin = "0.0", UIMax = "1.0"))
+	float DeepShadowLayerDistribution;
+
 	/** 
 	 * Scales the indirect lighting contribution from this light. 
 	 * A value of 0 disables any GI from this light. Default is 1.

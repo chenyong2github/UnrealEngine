@@ -7,6 +7,7 @@
 #include "HairStrandsRendering.h"
 #include "Toolkits/SimpleAssetEditor.h"
 #include "ToolMenuSection.h"
+#include "GroomBindingBuilder.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
 
@@ -91,7 +92,7 @@ void FGroomBindingActions::ExecuteRebuildBindingAsset(TArray<TWeakObjectPtr<UGro
 			{
 				BindingAsset->SourceSkeletalMesh->ConditionalPostLoad();
 			}
-			AddGroomBindingTask(BindingAsset.Get());
+			FGroomBindingBuilder::BuildBinding(BindingAsset.Get(), true, true);
 			BindingAsset->GetOutermost()->MarkPackageDirty();
 		}
 	}

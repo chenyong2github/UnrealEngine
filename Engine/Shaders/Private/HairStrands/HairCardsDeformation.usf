@@ -1,0 +1,73 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "HairStrandsVertexFactoryCommon.ush"
+
+uint CardsVertexCount;
+uint GuideVertexCount;
+float3 GuideRestPositionOffset;
+float3 GuideDeformedPositionOffset;
+
+Buffer<uint4>  GuideRestPositionBuffer;
+Buffer<uint4>  GuideDeformedPositionBuffer;
+Buffer<float4> CardsRestPositionBuffer;
+Buffer<uint>   CardsInterpolationBuffer;
+
+RWBuffer<float4> CardsDeformedPositionBuffer;
+
+#if PERMUTATION_GROUP_SIZE == 0
+	#define GROUP_SIZE 64
+#elif PERMUTATION_GROUP_SIZE == 1
+	#define GROUP_SIZE 32
+#else
+	#error Unknown group size	
+#endif
+
+[numthreads(GROUP_SIZE, 1, 1)]
+void MainCS(uint2 DispatchThreadId : SV_DispatchThreadID)
+{
+	const uint VertexId = DispatchThreadId.x;
+	if (VertexId >= CardsVertexCount)
+		return;
+
+	const float GuideRadius = 1;
+	const float GuideLength = 1;
+
+	const uint PackedInterpolationData = CardsInterpolationBuffer[VertexId];
+	const uint GuideIndex0 = PackedInterpolationData & 0xFFFFFF;
+	const uint GuideIndex1 = min(GuideIndex0+1, GuideVertexCount-1);
+
+	const float GuideLerp = ((PackedInterpolationData>>24) & 0xFF)/float(0xFF);
+
+	const FHairControlPoint RestGuideP0 = UnpackHairControlPoint(
+		GuideRestPositionBuffer[GuideIndex0],
+		GuideRestPositionOffset,
+		GuideRadius,
+		GuideLength);
+
+	const FHairControlPoint RestGuideP1 = UnpackHairControlPoint(
+		GuideRestPositionBuffer[GuideIndex1],
+		GuideRestPositionOffset,
+		GuideRadius,
+		GuideLength);
+
+	const FHairControlPoint DeformedGuideP0 = UnpackHairControlPoint(
+		GuideDeformedPositionBuffer[GuideIndex0],
+		GuideDeformedPositionOffset,
+		GuideRadius,
+		GuideLength);
+
+	const FHairControlPoint DeformedGuideP1 = UnpackHairControlPoint(
+		GuideDeformedPositionBuffer[GuideIndex1],
+		GuideDeformedPositionOffset,
+		GuideRadius,
+		GuideLength);
+
+	const float3 RestGuidePosition		= lerp(RestGuideP0.Position, RestGuideP1.Position, GuideLerp);
+	const float3 DeformedGuidePosition	= lerp(DeformedGuideP0.Position, DeformedGuideP1.Position, GuideLerp);
+
+	const float3 DeformationOffset = DeformedGuidePosition - RestGuidePosition;
+	const float4 RestPosition = CardsRestPositionBuffer[VertexId];
+	const float3 OutPosition = RestPosition.xyz + DeformationOffset;
+	CardsDeformedPositionBuffer[VertexId] = float4(OutPosition, RestPosition.w);
+}

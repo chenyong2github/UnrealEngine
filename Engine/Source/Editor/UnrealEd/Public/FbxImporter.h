@@ -870,7 +870,7 @@ public:
 	/**
 	 * Get Animation Time Span - duration of the animation
 	 */
-	FbxTimeSpan GetAnimationTimeSpan(FbxNode* RootNode, FbxAnimStack* AnimStack);
+	UNREALED_API FbxTimeSpan GetAnimationTimeSpan(FbxNode* RootNode, FbxAnimStack* AnimStack);
 
 	/**
 	* When we get exported time we call GetanimationInterval from fbx sdk and it return the layer 0 by default

@@ -3791,7 +3791,7 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailLayout.EditCategory("ImportSettings");
 	TSharedRef<IPropertyHandle> AssetImportProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, AssetImportData), USkeletalMesh::StaticClass());
-	if (!SkeletalMeshPtr.IsValid() || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
+	if (!SkeletalMeshPtr.IsValid() || !IsValid(SkeletalMeshPtr->AssetImportData) || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
 	{
 		// Hide the ability to change the import settings object
 		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);

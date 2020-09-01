@@ -127,6 +127,7 @@ public:
 
 		checkf(D3DCompileFlags == 0, TEXT("Unhandled shader compiler flags 0x%x!"), D3DCompileFlags);
 
+
 		ExtraArguments.Add(L"/Zss");
 		ExtraArguments.Add(L"/Qembed_debug");
 		ExtraArguments.Add(L"/Zi");

@@ -36,9 +36,9 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	URigVM* VM = NewObject<URigVM>(GetTransientPackage());
 
 	if (UControlRig* CDO = Cast<UControlRig>(GetDefaultObject(true)))
-		{
+	{
 		if (Ar.IsSaving() && CDO->VM)
-			{
+		{
 			VM->CopyFrom(CDO->VM);
 		}
 	}
@@ -48,11 +48,11 @@ void UControlRigBlueprintGeneratedClass::Serialize(FArchive& Ar)
 	if (UControlRig* CDO = Cast<UControlRig>(GetDefaultObject(false)))
 	{
 		if (Ar.IsLoading())
-				{
+		{
 			if (CDO->VM == nullptr)
 			{
 				CDO->VM = NewObject<URigVM>(CDO, TEXT("VM"));
-				}
+			}
 			if (CDO->VM->GetOuter() != CDO)
 			{
 				CDO->VM = NewObject<URigVM>(CDO, TEXT("VM"));

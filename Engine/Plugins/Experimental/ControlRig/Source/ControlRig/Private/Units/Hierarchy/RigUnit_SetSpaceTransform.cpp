@@ -4,11 +4,6 @@
 #include "Units/RigUnitContext.h"
 #include "Math/ControlRigMathLibrary.h"
 
-FString FRigUnit_SetSpaceTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Set Space %s"), *Space.ToString());
-}
-
 FRigUnit_SetSpaceTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -19,12 +14,12 @@ FRigUnit_SetSpaceTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedSpaceIndex = Hierarchy->GetIndex(Space);
+				CachedSpaceIndex.Reset();
 				break;
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedSpaceIndex != INDEX_NONE)
+				if (CachedSpaceIndex.UpdateCache(Space, Hierarchy))
 				{
 					switch (SpaceType)
 					{

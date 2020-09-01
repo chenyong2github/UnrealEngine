@@ -29,8 +29,10 @@ struct FRigUnitContext
 		, DrawContainer(nullptr)
 		, DataSourceRegistry(nullptr)
 		, DeltaTime(0.f)
+		, AbsoluteTime(0.f)
 		, State(EControlRigState::Invalid)
 		, Hierarchy(nullptr)
+		, bDuringInteraction(false)
 #if WITH_EDITOR
 		, Log(nullptr)
 #endif
@@ -49,11 +51,20 @@ struct FRigUnitContext
 	/** The current delta time */
 	float DeltaTime;
 
+	/** The current delta time */
+	float AbsoluteTime;
+
+	/** The current frames per second */
+	float FramesPerSecond;
+
 	/** Current execution context */
 	EControlRigState State;
 
 	/** The current hierarchy being executed */
 	const FRigHierarchyContainer* Hierarchy;
+
+	/** True if the rig is executing during an interaction */
+	bool bDuringInteraction;
 
 #if WITH_EDITOR
 	/** A handle to the compiler log */
@@ -117,7 +128,7 @@ struct FRigUnitContext
 #define UE_CONTROLRIG_RIGUNIT_REPORT(Severity, Format, ...) \
 if(Context.Log != nullptr) \
 { \
-	Context.Log->Report(EMessageSeverity::Severity, RigVMOperatorName, RigVMOperatorIndex, FString::Printf((Format), ##__VA_ARGS__)); \
+	Context.Log->Report(EMessageSeverity::Severity, RigVMExecuteContext.FunctionName, RigVMExecuteContext.InstructionIndex, FString::Printf((Format), ##__VA_ARGS__)); \
 }
 #define UE_CONTROLRIG_RIGUNIT_LOG_MESSAGE(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Info, (Format), ##__VA_ARGS__)
 #define UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(Format, ...) UE_CONTROLRIG_RIGUNIT_REPORT(Warning, (Format), ##__VA_ARGS__)

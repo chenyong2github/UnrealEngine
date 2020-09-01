@@ -3,14 +3,10 @@
 #include "RigUnit_SetBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_SetBoneTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Set Transform %s"), *Bone.ToString());
-}
-
 FRigUnit_SetBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
 	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
 	if (Hierarchy)
 	{
@@ -18,16 +14,16 @@ FRigUnit_SetBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-				if (CachedBoneIndex == INDEX_NONE)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
-				}
+				CachedBone.Reset();
 				// fall through to update
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedBoneIndex != INDEX_NONE)
+				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+				}
+				else
 				{
 					switch (Space)
 					{
@@ -35,28 +31,30 @@ FRigUnit_SetBoneTransform_Execute()
 						{
 							if (FMath::IsNearlyEqual(Weight, 1.f))
 							{
-								Hierarchy->SetGlobalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+								Result = Transform;
 							}
 							else
 							{
 								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
-								const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
-								Hierarchy->SetGlobalTransform(CachedBoneIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, T), bPropagateToChildren);
+								const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBone);
+								Result = FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, T);
 							}
+							Hierarchy->SetGlobalTransform(CachedBone, Result, bPropagateToChildren);
 							break;
 						}
 						case EBoneGetterSetterMode::LocalSpace:
 						{
 							if (FMath::IsNearlyEqual(Weight, 1.f))
 							{
-								Hierarchy->SetLocalTransform(CachedBoneIndex, Transform, bPropagateToChildren);
+								Result = Transform;
 							}
 							else
 							{
 								float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
-								const FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedBoneIndex);
-								Hierarchy->SetLocalTransform(CachedBoneIndex, FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, T), bPropagateToChildren);
+								const FTransform PreviousTransform = Hierarchy->GetLocalTransform(CachedBone);
+								Result = FControlRigMathLibrary::LerpTransform(PreviousTransform, Transform, T);
 							}
+							Hierarchy->SetLocalTransform(CachedBone, Result, bPropagateToChildren);
 							break;
 						}
 						default:

@@ -940,13 +940,18 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(FGPUSkinCache* GP
 
 #if WANTS_DRAW_MESH_EVENTS
 	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
+		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
 		{
 			BEGIN_DRAW_EVENTF(
 				RHICmdList, 
 				SendAllEndOfFrameUpdates, 
 				SendAllEndOfFrameUpdates->DrawEvent,
 				TEXT("SendAllEndOfFrameUpdates"));
+
+			if (SendAllEndOfFrameUpdates->GPUSkinCache)
+			{
+				SendAllEndOfFrameUpdates->GPUSkinCache->BeginBatchDispatch(RHICmdList);
+			}
 		});
 #endif
 
@@ -956,7 +961,7 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(FGPUSkinCache* GP
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
+		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
 	{
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
@@ -964,6 +969,9 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 			SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
 
 		#if RHI_RAYTRACING
+			// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
+			// allow the GPU Skin Cache system to update.
+			SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
 		#endif
 		}
@@ -1035,6 +1043,7 @@ void UWorld::SendAllEndOfFrameUpdates()
 				FMarkComponentEndOfFrameUpdateState::Set(NextComponent, INDEX_NONE, EComponentMarkedForEndOfFrameUpdateState::Unmarked);
 			}
 		};
+
 	auto GTWork = 
 		[this]()
 		{

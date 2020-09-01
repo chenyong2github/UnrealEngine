@@ -2932,6 +2932,32 @@ void USkinnedMeshComponent::SetCapsuleIndirectShadowMinVisibility(float NewValue
 	}
 }
 
+// @todo: think about consolidating this with UpdateLODStatus_Internal
+int32 USkinnedMeshComponent::GetDesiredSyncLOD() const
+{
+	if (SkeletalMesh && MeshObject)
+	{
+#if WITH_EDITOR
+		const int32 LODBias = GetLODBias();
+#else
+		const int32 LODBias = GSkeletalMeshLODBias;
+#endif
+		return MeshObject->MinDesiredLODLevel + LODBias;
+	}
+
+	return INDEX_NONE;
+}
+
+void USkinnedMeshComponent::SetSyncLOD(int32 LODIndex)
+{
+	SetForcedLOD(LODIndex + 1);
+}
+
+int32 USkinnedMeshComponent::GetNumSyncLODs() const
+{
+	return GetNumLODs();
+}
+
 bool USkinnedMeshComponent::UpdateLODStatus()
 {
 	return UpdateLODStatus_Internal(INDEX_NONE);
@@ -3795,6 +3821,89 @@ void USkinnedMeshComponent::SetRenderStatic(bool bNewValue)
 	{
 		bRenderStatic = bNewValue;
 		MarkRenderStateDirty();
+	}
+}
+
+int32 USkinnedMeshComponent::GetVertexOffsetUsage(int32 LODIndex) const
+{
+	if (LODInfo.IsValidIndex(LODIndex))
+	{
+		return (LODIndex < VertexOffsetUsage.Num()) ? VertexOffsetUsage[LODIndex].Usage : 0;
+	}
+
+	return 0;
+}
+
+void USkinnedMeshComponent::SetVertexOffsetUsage(int32 LODIndex, int32 Usage)
+{
+	InitLODInfos();
+
+	if (LODInfo.IsValidIndex(LODIndex))
+	{
+		if (LODIndex >= VertexOffsetUsage.Num())
+		{
+			VertexOffsetUsage.SetNumZeroed(LODIndex+1);
+		}
+
+		VertexOffsetUsage[LODIndex].Usage = Usage;
+
+		if ((Usage & int32(EVertexOffsetUsageType::PreSkinningOffset)) == 0)
+		{
+			LODInfo[LODIndex].PreSkinningOffsets.Empty();
+		}
+
+		if ((Usage & int32(EVertexOffsetUsageType::PostSkinningOffset)) == 0)
+		{
+			LODInfo[LODIndex].PostSkinningOffsets.Empty();
+		}
+
+		MarkRenderStateDirty();
+	}
+}
+
+void USkinnedMeshComponent::SetPreSkinningOffsets(int32 LODIndex, TArray<FVector> Offsets)
+{
+	InitLODInfos();
+
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
+
+	// If we have a render resource, and the requested LODIndex is valid (for both component and mesh, though these should be the same)
+	if (SkelMeshRenderData && LODInfo.IsValidIndex(LODIndex) && SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex))
+	{
+		ensure(LODInfo.Num() == SkelMeshRenderData->LODRenderData.Num());
+
+		FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+		FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+
+		uint32 VertexCount = LODData.GetNumVertices();
+		Offsets.SetNumZeroed(VertexCount);
+
+		Info.PreSkinningOffsets = MoveTemp(Offsets);
+
+		MarkRenderDynamicDataDirty();
+	}
+}
+
+void USkinnedMeshComponent::SetPostSkinningOffsets(int32 LODIndex, TArray<FVector> Offsets)
+{
+	InitLODInfos();
+
+	FSkeletalMeshRenderData* SkelMeshRenderData = GetSkeletalMeshRenderData();
+
+	// If we have a render resource, and the requested LODIndex is valid (for both component and mesh, though these should be the same)
+	if (SkelMeshRenderData && LODInfo.IsValidIndex(LODIndex) && SkelMeshRenderData->LODRenderData.IsValidIndex(LODIndex))
+	{
+		ensure(LODInfo.Num() == SkelMeshRenderData->LODRenderData.Num());
+
+		FSkelMeshComponentLODInfo& Info = LODInfo[LODIndex];
+		FSkeletalMeshLODRenderData& LODData = SkelMeshRenderData->LODRenderData[LODIndex];
+
+		uint32 VertexCount = LODData.GetNumVertices();
+		Offsets.SetNumZeroed(VertexCount);
+
+		Info.PostSkinningOffsets = MoveTemp(Offsets);
+
+		MarkRenderDynamicDataDirty();
 	}
 }
 

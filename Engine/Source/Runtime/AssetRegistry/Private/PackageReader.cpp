@@ -67,6 +67,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	if( PackageFileSummary.Tag != PACKAGE_FILE_TAG || IsError())
 	{
 		// Unrecognized or malformed package file
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s has malformed tag"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::MalformedTag);
 		return false;
 	}
@@ -74,6 +75,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	// Don't read packages that are too old
 	if( PackageFileSummary.GetFileVersionUE4() < VER_UE4_OLDEST_LOADABLE_PACKAGE )
 	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too old"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooOld);
 		return false;
 	}
@@ -81,6 +83,7 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 	// Don't read packages that were saved with an package version newer than the current one.
 	if( (PackageFileSummary.GetFileVersionUE4() > GPackageFileUE4Version) || (PackageFileSummary.GetFileVersionLicenseeUE4() > GPackageFileLicenseeUE4Version) )
 	{
+		UE_LOG(LogAssetRegistry, Error, TEXT("Package %s is too new"), *PackageFilename);
 		SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
 		return false;
 	}
@@ -96,6 +99,8 @@ bool FPackageReader::OpenPackageFile(EOpenPackageResult* OutErrorCode)
 		}
 		else if (Diff.Type == ECustomVersionDifference::Newer)
 		{
+			UE_LOG(LogAssetRegistry, Error, TEXT("Package %s has newer custom version of %s"), *PackageFilename, *Diff.Version->GetFriendlyName().ToString());
+
 			SetPackageErrorCode(EOpenPackageResult::VersionTooNew);
 			return false;
 		}

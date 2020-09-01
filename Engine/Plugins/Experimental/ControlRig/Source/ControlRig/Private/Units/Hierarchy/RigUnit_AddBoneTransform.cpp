@@ -3,11 +3,6 @@
 #include "Units/Hierarchy/RigUnit_AddBoneTransform.h"
 #include "Units/RigUnitContext.h"
 
-FString FRigUnit_AddBoneTransform::GetUnitLabel() const
-{
-	return FString::Printf(TEXT("Offset Transform %s"), *Bone.ToString());
-}
-
 FRigUnit_AddBoneTransform_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
@@ -18,19 +13,18 @@ FRigUnit_AddBoneTransform_Execute()
 		{
 			case EControlRigState::Init:
 			{
-				CachedBoneIndex = Hierarchy->GetIndex(Bone);
-				if (CachedBoneIndex == INDEX_NONE)
-				{
-					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone is not set."));
-				}
-				break;
+				CachedBone.Reset();
 			}
 			case EControlRigState::Update:
 			{
-				if (CachedBoneIndex != INDEX_NONE)
+				if (!CachedBone.UpdateCache(Bone, Hierarchy))
+				{
+					UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Bone '%s' is not valid."), *Bone.ToString());
+				}
+				else
 				{
 					FTransform TargetTransform;
-					const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBoneIndex);
+					const FTransform PreviousTransform = Hierarchy->GetGlobalTransform(CachedBone);
 
 					if (bPostMultiply)
 					{
@@ -47,7 +41,7 @@ FRigUnit_AddBoneTransform_Execute()
 						TargetTransform = FControlRigMathLibrary::LerpTransform(PreviousTransform, TargetTransform, T);
 					}
 
-					Hierarchy->SetGlobalTransform(CachedBoneIndex, TargetTransform, bPropagateToChildren);
+					Hierarchy->SetGlobalTransform(CachedBone, TargetTransform, bPropagateToChildren);
 				}
 			}
 			default:

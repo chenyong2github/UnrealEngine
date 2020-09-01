@@ -75,7 +75,7 @@ void FControlRigBlueprintUtils::ForAllRigUnits(TFunction<void(UScriptStruct*)> I
 	// Run over all unit types
 	for(TObjectIterator<UStruct> StructIt; StructIt; ++StructIt)
 	{
-		if(StructIt->IsChildOf(FRigUnit::StaticStruct()) && !StructIt->HasMetaData(UControlRig::AbstractMetaName))
+		if(StructIt->IsChildOf(FRigUnit::StaticStruct()) && !StructIt->HasMetaData(FRigVMStruct::AbstractMetaName))
 		{
 			if (UScriptStruct* ScriptStruct = Cast<UScriptStruct>(*StructIt))
 			{
@@ -106,9 +106,19 @@ void FControlRigBlueprintUtils::HandleRefreshAllNodes(UBlueprint* InBlueprint)
 		TArray<UControlRigGraphNode*> AllNodes;
 		FBlueprintEditorUtils::GetAllNodesOfClass(RigBlueprint, AllNodes);
 
+		for (UControlRigGraphNode* Node : AllNodes)
+		{
+			Node->SetFlags(RF_Transient);
+		}
+
 		for(UControlRigGraphNode* Node : AllNodes)
 		{
 			Node->ReconstructNode();
+		}
+
+		for (UControlRigGraphNode* Node : AllNodes)
+		{
+			Node->ClearFlags(RF_Transient);
 		}
 	}
 }

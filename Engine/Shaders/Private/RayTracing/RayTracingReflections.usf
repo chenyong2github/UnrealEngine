@@ -30,6 +30,7 @@
 #define SAMPLE_PHASE_ACCUM      2
 #define SAMPLE_PHASE_RESOLVE    3
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0
@@ -52,6 +53,7 @@
 #include "../ScreenSpaceDenoise/SSDPublic.ush"
 #include "../SobolRandom.ush"
 #include "../SceneTextureParameters.ush"
+
 #include "RayTracingCommon.ush"
 #include "RayTracingDeferredShadingCommon.ush"
 #include "RayTracingHitGroupCommon.ush"
@@ -243,7 +245,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	uint2 DispatchThreadId = DispatchRaysIndex().xy + uint2(RenderTileOffsetX, RenderTileOffsetY);
 #endif
 
-	DispatchThreadId += (uint2)View.ViewRectMin;
+	DispatchThreadId += (uint2)View.ViewRectMin.xy;
 
 	uint2 PixelCoord = GetPixelCoord(DispatchThreadId, UpscaleFactor); // GBuffer pixel coordinates (full resolution)
 
@@ -1049,8 +1051,6 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	#if USE_PREEXPOSURE
 		ReflectedColor.xyz *= View.PreExposure;
 	#endif
-
-		float DistanceCameraToPixel = 
 
 		// Output required information
 		ColorOutput[DispatchThreadId] = ClampToHalfFloatRange(ReflectedColor);

@@ -68,6 +68,9 @@ protected:
 	 */
 	void HandleSelection(bool bIsSelected, bool bUpdateNodesUnderComment = false) const;
 
+	/** Helper function to determine if a node is under this comment widget or not */
+	virtual bool IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const;
+
 	/** called when user is moving the comment node */
 	virtual void MoveTo(const FVector2D& NewPosition, FNodeSet& NodeFilter ) override;
 

@@ -125,7 +125,7 @@ bool FProjectDescriptor::Read(const FJsonObject& Object, const FString& PathToPr
 	const TArray< TSharedPtr<FJsonValue> >* AdditionalPluginDirectoriesValue;
 	if (Object.TryGetArrayField(TEXT("AdditionalPluginDirectories"), AdditionalPluginDirectoriesValue))
 	{
-#if WITH_EDITOR
+#if WITH_EDITOR || (IS_PROGRAM && WITH_PLUGIN_SUPPORT)
 		for (int32 Idx = 0; Idx < AdditionalPluginDirectoriesValue->Num(); Idx++)
 		{
 			FString AdditionalPluginDir;

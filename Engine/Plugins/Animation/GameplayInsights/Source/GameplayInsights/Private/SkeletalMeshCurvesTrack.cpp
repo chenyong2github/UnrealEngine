@@ -222,7 +222,7 @@ void FSkeletalMeshCurvesTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, 
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName())));
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName()), 0));
 
 		AnimationProvider->ReadSkeletalMeshPoseTimeline(GetGameplayTrack().GetObjectId(), [&Header, &AnimationProvider, &InFrame](const FAnimationProvider::SkeletalMeshPoseTimeline& InTimeline, bool bInHasCurves)
 		{

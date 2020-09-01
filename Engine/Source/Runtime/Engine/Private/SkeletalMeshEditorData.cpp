@@ -59,6 +59,16 @@ bool USkeletalMeshEditorData::IsLODImportDataValid(int32 LODIndex)
 	return RawSkeletalMeshBulkDatas.IsValidIndex(LODIndex);
 }
 
+bool USkeletalMeshEditorData::RemoveLODImportedData(int32 LODIndex)
+{
+	if(RawSkeletalMeshBulkDatas.IsValidIndex(LODIndex))
+	{
+		RawSkeletalMeshBulkDatas.RemoveAt(LODIndex);
+		return true;
+	}
+	return false;
+}
+
 void USkeletalMeshEditorData::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

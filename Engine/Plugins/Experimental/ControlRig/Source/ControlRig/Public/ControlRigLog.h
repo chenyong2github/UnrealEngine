@@ -15,20 +15,21 @@ public:
 #if WITH_EDITOR
 	struct FLogEntry
 	{
-		FLogEntry(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage)
+		FLogEntry(EMessageSeverity::Type InSeverity, const FName& InFunctionName, int32 InInstructionIndex, const FString& InMessage)
 		: Severity(InSeverity)
-		, OperatorName(InOperatorName)
+		, FunctionName(InFunctionName)
 		, InstructionIndex(InInstructionIndex)
 		, Message(InMessage)
 		{}
 		
 		EMessageSeverity::Type Severity;
-		FName OperatorName;
+		FName FunctionName;
 		int32 InstructionIndex;
 		FString Message;
 	};
 	TArray<FLogEntry> Entries;
+	TMap<FString, bool> KnownMessages;
 #endif
 
-	virtual void Report(EMessageSeverity::Type InSeverity, const FName& InOperatorName, int32 InInstructionIndex, const FString& InMessage);
+	virtual void Report(EMessageSeverity::Type InSeverity, const FName& InFunctionName, int32 InInstructionIndex, const FString& InMessage);
 };

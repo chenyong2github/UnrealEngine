@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "GroomSettings.h"
 #include "UObject/Object.h"
+#include "GroomAssetInterpolation.h"
 #include "GroomImportOptions.generated.h"
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories = ("Hidden"))
@@ -16,8 +17,9 @@ public:
 	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Conversion)
 	FGroomConversionSettings ConversionSettings;
 
-	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = BuildSettings)
-	FGroomBuildSettings BuildSettings;
+	/* Interpolation settings per group */
+	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Hidden)
+	TArray<FHairGroupsInterpolation> InterpolationSettings;
 };
 
 USTRUCT(BlueprintType)
@@ -29,6 +31,7 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 	: GroupID(0)
 	, CurveCount(0)
 	, GuideCount(0)
+	, InterpolationSettings()
 	{}
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
@@ -39,6 +42,9 @@ struct HAIRSTRANDSCORE_API FGroomHairGroupPreview
 
 	UPROPERTY(VisibleAnywhere, BlueprintReadWrite, Category = Preview)
 	int32 GuideCount;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Preview)
+	FHairGroupsInterpolation InterpolationSettings;
 };
 
 UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories = ("Hidden"))
@@ -47,6 +53,6 @@ class HAIRSTRANDSCORE_API UGroomHairGroupsPreview : public UObject
 	GENERATED_UCLASS_BODY()
 
 public:
-	UPROPERTY(config, VisibleAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Preview)
+	UPROPERTY(config, EditAnywhere, BlueprintReadWrite, meta = (ShowOnlyInnerProperties), Category = Preview)
 	TArray<FGroomHairGroupPreview> Groups;
 };

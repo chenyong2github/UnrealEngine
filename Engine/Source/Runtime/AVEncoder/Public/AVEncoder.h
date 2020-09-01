@@ -135,6 +135,11 @@ struct FVideoEncoderConfig
 	*/
 	EPreset Preset = EPreset::HighQuality;
 
+	/**
+	 * Temporay hack for enabling filler data in NvEnc
+	 */
+	bool bFillerDataHack = false;
+
 	/** 
 	* Options specific to an hardware vendor (e.g: AMF or NVidia), or specific to a codec (h264)
 	* At the moment there are the following options (name and value)

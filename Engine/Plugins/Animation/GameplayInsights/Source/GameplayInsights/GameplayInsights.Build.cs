@@ -41,6 +41,8 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
   					"GameplayInsightsEditor",
 					"EditorWidgets",
+					"ToolMenus",
+					"Kismet",
 				});
 			}
 		}

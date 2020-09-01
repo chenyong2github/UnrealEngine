@@ -17,7 +17,7 @@ void UNiagaraDataInterfaceArray::PostInitProperties()
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), true, false, false);
 	}
 
-	if (Impl.IsValid())
+	if (Impl.IsValid() && !HasAnyFlags(RF_ClassDefaultObject))
 	{
 		Impl->PushToRenderThread();
 	}

@@ -477,7 +477,8 @@ void FInEditorCapture::OverridePlaySettings(ULevelEditorPlaySettings* PlayInEdit
 
 	PlayInEditorSettings->NewWindowWidth = Settings.Resolution.ResX;
 	PlayInEditorSettings->NewWindowHeight = Settings.Resolution.ResY;
-	PlayInEditorSettings->CenterNewWindow = true;
+	PlayInEditorSettings->CenterNewWindow = false;
+	PlayInEditorSettings->NewWindowPosition = FIntPoint::NoneValue; // It will center PIE to the middle of the screen the first time it is run (until the user drag the window somewhere else)
 	PlayInEditorSettings->LastExecutedPlayModeType = EPlayModeType::PlayMode_InEditorFloating;
 
 	// Reset everything else

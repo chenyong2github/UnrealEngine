@@ -44,8 +44,10 @@
 class FGPUSkinPassthroughVertexFactory;
 class FGPUBaseSkinVertexFactory;
 class FMorphVertexBuffer;
+class FSkeletalMeshLODRenderData;
 class FSkeletalMeshObjectGPUSkin;
 class FSkeletalMeshVertexClothBuffer;
+class FVertexOffsetBuffers;
 struct FClothSimulData;
 struct FSkelMeshRenderSection;
 struct FVertexBufferAndSRV;
@@ -85,6 +87,7 @@ struct FGPUSkinBatchElementUserData
 	int32 Section;
 };
 
+struct FPooledRDGBuffer;
 struct FCachedGeometry
 {
 	struct Section
@@ -105,6 +108,8 @@ struct FCachedGeometry
 
 	int32 LODIndex = 0;
 	TArray<Section> Sections;
+	TRefCountPtr<FPooledRDGBuffer> DeformedPositionBuffer;
+	FShaderResourceViewRHIRef DeformedPositionsSRV;
 };
 
 class FGPUSkinCache
@@ -123,6 +128,20 @@ public:
 		// 3 ints for normal, 3 ints for tangent, 1 for orientation = 7, rounded up to 8 as it should result in faster math and caching
 		IntermediateAccumBufferNumInts = 8,
 	};
+
+	struct FDispatchEntry
+	{
+		FGPUSkinCacheEntry* SkinCacheEntry = nullptr;
+		FSkeletalMeshLODRenderData* LODModel = nullptr;
+
+		uint32 RevisionNumber = 0;
+
+		// Section is a uint32, but steal 2 bits since its impossible to have over 1 billion sections
+		uint32 Section : 30;	
+		uint32 bRequireRecreatingRayTracingGeometry : 1;
+		uint32 bAnySegmentUsesWorldPositionOffset : 1;
+	};
+
 	ENGINE_API FGPUSkinCache(bool bInRequiresMemoryLimit);
 	ENGINE_API ~FGPUSkinCache();
 
@@ -130,10 +149,22 @@ public:
 	FCachedGeometry::Section GetCachedGeometry(FGPUSkinCacheEntry* InOutEntry, uint32 SectionId);
 	void UpdateSkinWeightBuffer(FGPUSkinCacheEntry* Entry);
 
-	void ProcessEntry(FRHICommandListImmediate& RHICmdList, FGPUBaseSkinVertexFactory* VertexFactory,
-		FGPUSkinPassthroughVertexFactory* TargetVertexFactory, const FSkelMeshRenderSection& BatchElement, FSkeletalMeshObjectGPUSkin* Skin,
-		const FMorphVertexBuffer* MorphVertexBuffer, const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer, const FClothSimulData* SimData,
-		const FMatrix& ClothLocalToWorld, float ClothBlendWeight, uint32 RevisionNumber, int32 Section, FGPUSkinCacheEntry*& InOutEntry);
+	void ProcessEntry(
+		FRHICommandListImmediate& RHICmdList, 
+		FGPUBaseSkinVertexFactory* VertexFactory,
+		FGPUSkinPassthroughVertexFactory* TargetVertexFactory, 
+		const FSkelMeshRenderSection& BatchElement, 
+		FSkeletalMeshObjectGPUSkin* Skin,
+		FVertexOffsetBuffers* VertexOffsetBuffers,
+		const FMorphVertexBuffer* MorphVertexBuffer, 
+		const FSkeletalMeshVertexClothBuffer* ClothVertexBuffer, 
+		const FClothSimulData* SimData,
+		const FMatrix& ClothLocalToWorld,
+		float ClothBlendWeight, 
+		uint32 RevisionNumber, 
+		int32 Section, 
+		FGPUSkinCacheEntry*& InOutEntry
+		);
 
 	static void SetVertexStreams(FGPUSkinCacheEntry* Entry, int32 Section, FRHICommandList& RHICmdList,
 		class FRHIVertexShader* ShaderRHI, const FGPUSkinPassthroughVertexFactory* VertexFactory,
@@ -346,7 +377,19 @@ public:
 		if (RayTracingGeometriesToUpdate.Find(RayTracingGeometry) != nullptr)
 			RayTracingGeometriesToUpdate.Remove(RayTracingGeometry);
 	}
+
+	void ProcessRayTracingGeometryToUpdate(
+		FRHICommandListImmediate& RHICmdList,
+		FGPUSkinCacheEntry* SkinCacheEntry,
+		FSkeletalMeshLODRenderData& LODModel,
+		bool bRequireRecreatingRayTracingGeometry,
+		bool bAnySegmentUsesWorldPositionOffset
+		);
 #endif // RHI_RAYTRACING
+
+	void BeginBatchDispatch(FRHICommandListImmediate& RHICmdList);
+	void EndBatchDispatch(FRHICommandListImmediate& RHICmdList);
+	bool IsBatchingDispatch() const { return bShouldBatchDispatches; }
 
 protected:
 	TArray<FRHIUnorderedAccessView*> BuffersToTransition;
@@ -356,7 +399,10 @@ protected:
 
 	TArray<FRWBuffersAllocation*> Allocations;
 	TArray<FGPUSkinCacheEntry*> Entries;
+	TArray<FDispatchEntry> BatchDispatches;
+
 	FRWBuffersAllocation* TryAllocBuffer(uint32 NumVertices, bool WithTangnents);
+	void DoDispatch(FRHICommandListImmediate& RHICmdList);
 	void DoDispatch(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* SkinCacheEntry, int32 Section, int32 RevisionNumber);
 	void DispatchUpdateSkinTangents(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 SectionIndex);
 	void DispatchUpdateSkinning(FRHICommandListImmediate& RHICmdList, FGPUSkinCacheEntry* Entry, int32 Section, uint32 RevisionNumber);
@@ -369,6 +415,7 @@ protected:
 	uint64 ExtraRequiredMemory;
 	int32 FlushCounter;
 	bool bRequiresMemoryLimit;
+	bool bShouldBatchDispatches = false;
 
 	// For recompute tangents, holds the data required between compute shaders
 	TArray<FRWBuffer> StagingBuffers;

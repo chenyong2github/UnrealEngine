@@ -432,4 +432,10 @@ public:
 	 */
 	UPROPERTY(EditAnywhere, config, Category=Screenshots)
 	FIntPoint DefaultScreenshotResolution;
+
+	/**
+	 * PIE test duration in seconds. Only applied if you do PIETest
+	 */
+	UPROPERTY(EditAnywhere, config, Category = Automation)
+	float PIETestDuration;
 };

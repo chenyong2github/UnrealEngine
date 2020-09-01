@@ -1,14 +1,113 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "RigVMModel/Nodes/RigVMStructNode.h"
+#include "RigVMCore/RigVMStruct.h"
+
+const FName URigVMStructNode::LoopSliceContextName = TEXT("LoopContext");
+
+FString URigVMStructNode::GetNodeTitle() const
+{
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		return Struct->GetDisplayNameText().ToString();
+	}
+	return Super::GetNodeTitle();
+}
 
 FText URigVMStructNode::GetToolTipText() const
 {
-	if(UScriptStruct* Struct = GetScriptStruct())
+	if (UScriptStruct* Struct = GetScriptStruct())
 	{
 		return Struct->GetToolTipText();
 	}
 	return URigVMNode::GetToolTipText();
+}
+
+bool URigVMStructNode::IsDefinedAsConstant() const
+{
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		return Struct->HasMetaData(FRigVMStruct::ConstantMetaName);
+	}
+	return false;
+}
+
+bool URigVMStructNode::IsDefinedAsVarying() const
+{
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		return Struct->HasMetaData(FRigVMStruct::VaryingMetaName);
+	}
+	return false;
+}
+
+FName URigVMStructNode::GetEventName() const
+{
+	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
+	if (StructOnScope.IsValid())
+	{
+		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->GetEventName();
+	}
+	return NAME_None;
+}
+
+FName URigVMStructNode::GetSliceContextForPin(URigVMPin* InRootPin, const FRigVMUserDataArray& InUserData)
+{
+	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
+	if (StructOnScope.IsValid())
+	{
+		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+		if (StructMemory->IsForLoop())
+		{
+			// if we are on any of the pins returning something from the loop
+			if (InRootPin->GetFName() == FRigVMStruct::ExecuteContextName ||
+				InRootPin->GetFName() == FRigVMStruct::ForLoopIndexPinName)
+			{
+				return LoopSliceContextName;
+			}
+			else if (InRootPin->GetFName() == FRigVMStruct::ForLoopCompletedPinName||
+				InRootPin->GetFName() == FRigVMStruct::ForLoopCountPinName ||
+				InRootPin->GetFName() == FRigVMStruct::ForLoopContinuePinName)
+			{
+				return NAME_None;
+			}
+		}
+	}
+
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		if (FProperty* Property = Struct->FindPropertyByName(InRootPin->GetFName()))
+		{
+			FString SliceContextMetaData = Property->GetMetaData(FRigVMStruct::SliceContextMetaName);
+			if (!SliceContextMetaData.IsEmpty())
+			{
+				return *SliceContextMetaData;
+			}
+		}
+	}
+
+	return Super::GetSliceContextForPin(InRootPin, InUserData);
+}
+
+int32 URigVMStructNode::GetNumSlicesForContext(const FName& InContextName, const FRigVMUserDataArray& InUserData)
+{
+	int32 NumSlices = Super::GetNumSlicesForContext(InContextName, InUserData);
+
+	if (InContextName == LoopSliceContextName)
+	{
+		TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(false);
+		if (StructOnScope.IsValid())
+		{
+			const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+			if (StructMemory->IsForLoop())
+			{
+				NumSlices = NumSlices * FMath::Max<int32>(StructMemory->GetNumSlices(), 1);
+			}
+		}
+	}
+
+	return NumSlices;
 }
 
 FText URigVMStructNode::GetToolTipTextForPin(const URigVMPin* InPin) const
@@ -50,9 +149,38 @@ FText URigVMStructNode::GetToolTipTextForPin(const URigVMPin* InPin) const
 	return URigVMNode::GetToolTipTextForPin(InPin);
 }
 
+bool URigVMStructNode::IsDeprecated() const
+{
+	return !GetDeprecatedMetadata().IsEmpty();
+}
+
+FString URigVMStructNode::GetDeprecatedMetadata() const
+{
+	if (UScriptStruct* Struct = GetScriptStruct())
+	{
+		FString DeprecatedMetadata;
+		if(Struct->GetStringMetaDataHierarchical(FRigVMStruct::DeprecatedMetaName, &DeprecatedMetadata))
+		{
+			return DeprecatedMetadata;
+		}
+	}
+	return FString();
+}
+
 UScriptStruct* URigVMStructNode::GetScriptStruct() const
 {
 	return ScriptStruct;
+}
+
+bool URigVMStructNode::IsLoopNode() const
+{
+	TSharedPtr<FStructOnScope> StructOnScope = ConstructStructInstance(true);
+	if (StructOnScope.IsValid())
+	{
+		const FRigVMStruct* StructMemory = (FRigVMStruct*)StructOnScope->GetStructMemory();
+		return StructMemory->IsForLoop();
+	}
+	return false;
 }
 
 FName URigVMStructNode::GetMethodName() const

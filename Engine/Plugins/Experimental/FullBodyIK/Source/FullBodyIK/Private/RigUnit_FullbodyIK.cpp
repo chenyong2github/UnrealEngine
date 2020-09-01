@@ -1,0 +1,717 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
+#include "RigUnit_FullbodyIK.h"
+#include "Units/RigUnitContext.h"
+#include "Materials/MaterialInstanceDynamic.h"
+#include "FBIKUtil.h"
+#include "FBIKConstraintLib.h"
+
+#define MAX_DEPTH 10000
+
+void FJacobianSolver_FullbodyIK::InitializeSolver(TArray<FFBIKLinkData>& InOutLinkData, TMap<int32, FFBIKEffectorTarget>& InOutEndEffectors) const
+{
+// since we're using constraints, we don't want to create new motion base all the time
+// constraints will add that info and we'll utilize it
+}
+
+void FJacobianSolver_FullbodyIK::PreSolve(TArray<FFBIKLinkData>& InOutLinkData, const TMap<int32, FFBIKEffectorTarget>& InEndEffectors) const
+{
+	// for final one, we'll have to add those in the beginning, and then just update the frame for every iteration
+	for (int32 Index = 0; Index < InOutLinkData.Num(); ++Index)
+	{
+		// we update existing data
+		const FQuat& LocalFrame = InOutLinkData[Index].LocalFrame;
+
+		FQuat CurrentFrame;
+
+		if (InOutLinkData[Index].ParentLinkIndex != INDEX_NONE)
+		{
+			CurrentFrame = InOutLinkData[InOutLinkData[Index].ParentLinkIndex].GetTransform().GetRotation() * LocalFrame;
+		}
+		else
+		{
+			CurrentFrame = LocalFrame;
+		}
+
+		// update the base axis
+		if (InOutLinkData[Index].GetNumMotionBases() == 3)
+		{
+			InOutLinkData[Index].GetMotionBase(0).BaseAxis = CurrentFrame.RotateVector(FVector::ForwardVector);
+			InOutLinkData[Index].GetMotionBase(1).BaseAxis = CurrentFrame.RotateVector(FVector::RightVector);
+			InOutLinkData[Index].GetMotionBase(2).BaseAxis = CurrentFrame.RotateVector(FVector::UpVector);
+		}
+		else
+		{
+			ensure(InOutLinkData[Index].GetNumMotionBases() == 0);
+
+			// invalid number of motion bases for this solver
+			InOutLinkData[Index].ResetMotionBases();
+			InOutLinkData[Index].AddMotionBase(FMotionBase(CurrentFrame.RotateVector(FVector::ForwardVector)));
+			InOutLinkData[Index].AddMotionBase(FMotionBase(CurrentFrame.RotateVector(FVector::RightVector)));
+			InOutLinkData[Index].AddMotionBase(FMotionBase(CurrentFrame.RotateVector(FVector::UpVector)));
+		}
+	}
+}
+/////////////////////////////////////////////////////
+
+/////////////////////////////////////////////////////
+
+
+static float EnsureToAddBoneToLinkData(FRigHierarchyContainer* Hierarchy, const FRigElementKey& CurrentItem, TArray<FFBIKLinkData>& LinkData,
+	TMap<FRigElementKey, int32>& HierarchyToLinkDataMap, TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices)
+{
+	float ChainLength = 0;
+
+	// we insert from back to first, but only if the list doesn't have it
+	int32* FoundLinkIndex = HierarchyToLinkDataMap.Find(CurrentItem);
+	if (!FoundLinkIndex)
+	{
+		int32 NewLinkIndex = LinkData.AddDefaulted();
+		FFBIKLinkData& NewLink = LinkData[NewLinkIndex];
+
+		// find parent LinkIndex
+		const FRigElementKey& ParentItem = Hierarchy->GetParentKey(CurrentItem);
+		FoundLinkIndex = HierarchyToLinkDataMap.Find(ParentItem);
+		NewLink.ParentLinkIndex = (FoundLinkIndex) ? *FoundLinkIndex : INDEX_NONE;
+		NewLink.SetTransform(Hierarchy->GetGlobalTransform(CurrentItem));
+
+		if (ParentItem.IsValid())
+		{
+			FVector DiffLocation = Hierarchy->GetInitialGlobalTransform(CurrentItem).GetLocation() - Hierarchy->GetInitialGlobalTransform(ParentItem).GetLocation();
+			// set Length
+			NewLink.Length = DiffLocation.Size();
+		}
+
+		// we create bidirectional look up table
+		HierarchyToLinkDataMap.Add(CurrentItem, NewLinkIndex);
+		LinkDataToHierarchyIndices.Add(NewLinkIndex, CurrentItem);
+
+		ChainLength = NewLink.Length;
+	}
+	else
+	{
+		ChainLength = LinkData[*FoundLinkIndex].Length;
+	}
+
+	return ChainLength;
+}
+
+static void AddToEffectorTarget(int32 EffectorIndex, const FRigElementKey& Effector, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, const TMap<FRigElementKey, int32>& HierarchyToLinkDataMap,
+	TArray<int32>& EffectorLinkIndices,	float ChainLength, const TArray<FRigElementKey>& ChainIndices)
+{
+	const int32* EffectorLinkIndexID = HierarchyToLinkDataMap.Find(Effector);
+	check(EffectorLinkIndexID);
+	EffectorLinkIndices[EffectorIndex] = *EffectorLinkIndexID;
+	// add EffectorTarget for this link Index
+	FFBIKEffectorTarget& EffectorTarget = EffectorTargets.FindOrAdd(*EffectorLinkIndexID);
+	EffectorTarget.ChainLength = ChainLength;
+	// convert bone chain indices to link chain
+	EffectorTarget.LinkChain.Reset(ChainIndices.Num());
+	for (const FRigElementKey& Bone : ChainIndices)
+	{
+		const int32* LinkIndexID = HierarchyToLinkDataMap.Find(Bone);
+		EffectorTarget.LinkChain.Add(*LinkIndexID);
+	}
+}
+
+static void AddEndEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKEndEffector>& Effectors,
+	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices, 
+	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices, TMap<FRigElementKey, int32>& HierarchyToLinkDataMap, const FSolverInput& SolverProperty)
+{
+	EffectorLinkIndices.SetNum(Effectors.Num());
+	// fill up all effector indices
+	for (int32 Index = 0; Index < Effectors.Num(); ++Index)
+	{
+		// clear link indices, so that we don't search
+		EffectorLinkIndices[Index] = INDEX_NONE;
+		// create LinkeData from root bone to all effectors 
+		const FRigElementKey& Item = Effectors[Index].Item;
+		if (!Item.IsValid())
+		{
+			continue;
+		}
+
+		const FFBIKEndEffector& CurrentEffector = Effectors[Index];
+		// we find chain until max depth
+		const int32 MaxDepth = FMath::Max(CurrentEffector.PositionDepth, CurrentEffector.RotationDepth);
+		if (MaxDepth == 0)
+		{
+			continue;
+		}
+
+		TArray<FRigElementKey> ChainIndices;
+		// if we haven't got to root, this is not valid chain
+		if (FBIKUtil::GetBoneChain(Hierarchy, Root, Item, MaxDepth, ChainIndices))
+		{
+			auto CalculateStrength = [&](int32 InBoneChainDepth, const int32 MaxDepth, float CurrentStrength, float MinStrength) -> float
+			{
+				const float Range = FMath::Max(CurrentStrength - MinStrength, 0.f);
+				const float ApplicationStrength = (float)(1.f - (float)InBoneChainDepth / (float)MaxDepth) * Range;
+				return ApplicationStrength + MinStrength;
+				//return FMath::Clamp(ApplicationStrength + MinStrength, MinStrength, CurrentStrength);
+			};
+
+			auto UpdateMotionStrength = [&](int32 InBoneChainDepth,
+				const int32 MaxPositionDepth, const int32 MaxRotationDepth, FFBIKLinkData& InOutNewLink)
+			{
+				// add motion scales
+				float LinearMotionStrength;
+				float AngularMotionStrength;
+
+				if (CurrentEffector.PositionDepth <= InBoneChainDepth)
+				{
+					LinearMotionStrength = 0.f;
+				}
+				else
+				{
+					LinearMotionStrength = CalculateStrength(InBoneChainDepth, MaxPositionDepth, SolverProperty.LinearMotionStrength, SolverProperty.MinLinearMotionStrength);
+				}
+
+				if (CurrentEffector.RotationDepth <= InBoneChainDepth)
+				{
+					AngularMotionStrength = 0.f;
+				}
+				else
+				{
+					AngularMotionStrength = CalculateStrength(InBoneChainDepth, MaxRotationDepth, SolverProperty.AngularMotionStrength, SolverProperty.MinAngularMotionStrength);
+				}
+
+				InOutNewLink.AddMotionStrength(LinearMotionStrength, AngularMotionStrength);
+			};
+
+			// position depth and rotation depth can't go beyond of it
+			// for now we cull it. 
+			const int32 PositionDepth = FMath::Min(CurrentEffector.PositionDepth, ChainIndices.Num());
+			const int32 RotationDepth = FMath::Min(CurrentEffector.RotationDepth, ChainIndices.Num());
+
+			float ChainLength = 0.f;
+
+			// add to link data
+			for (int32 BoneChainIndex = 0; BoneChainIndex < ChainIndices.Num(); ++BoneChainIndex)
+			{
+				const FRigElementKey& CurrentItem = ChainIndices[BoneChainIndex];
+				ChainLength += EnsureToAddBoneToLinkData(Hierarchy, CurrentItem, LinkData,
+					HierarchyToLinkDataMap, LinkDataToHierarchyIndices);
+
+				const int32 ChainDepth = ChainIndices.Num() - BoneChainIndex;
+				int32* FoundLinkIndex = HierarchyToLinkDataMap.Find(CurrentItem);
+
+				// now we should always have it
+				check(FoundLinkIndex);
+				UpdateMotionStrength(ChainDepth, PositionDepth, RotationDepth, LinkData[*FoundLinkIndex]);
+			}
+
+			// add to EffectorTargets
+			AddToEffectorTarget(Index, Item, EffectorTargets, HierarchyToLinkDataMap, EffectorLinkIndices, ChainLength, ChainIndices);
+		}
+	}
+}
+
+static void AddMidEffectors(FRigHierarchyContainer* Hierarchy, const FRigElementKey& Root, const TArray<FFBIKMidEffector>& Effectors,
+	TArray<FFBIKLinkData>& LinkData, TMap<int32, FFBIKEffectorTarget>& EffectorTargets, TArray<int32>& EffectorLinkIndices,
+	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices, TMap<FRigElementKey, int32>& HierarchyToLinkDataMap)
+{
+	EffectorLinkIndices.SetNum(Effectors.Num());
+	// fill up all effector indices
+	for (int32 Index = 0; Index < Effectors.Num(); ++Index)
+	{
+		// clear link indices, so that we don't search
+		EffectorLinkIndices[Index] = INDEX_NONE;
+		// create LinkeData from root bone to all effectors 
+		const FRigElementKey& Item = Effectors[Index].Item;
+		if (!Item.IsValid())
+		{
+			continue;
+		}
+
+		const FFBIKMidEffector& CurrentEffector = Effectors[Index];
+		TArray<FRigElementKey> ChainIndices;
+		// if we haven't got to root, this is not valid chain
+		if (FBIKUtil::GetBoneChain(Hierarchy, Root, Item, MAX_DEPTH, ChainIndices))
+		{
+			float ChainLength = 0.f;
+
+			// add to link data
+			for (int32 BoneChainIndex = 0; BoneChainIndex < ChainIndices.Num(); ++BoneChainIndex)
+			{
+				ChainLength += EnsureToAddBoneToLinkData(Hierarchy, ChainIndices[BoneChainIndex], LinkData,
+					HierarchyToLinkDataMap, LinkDataToHierarchyIndices);
+			}
+
+			// add to EffectorTargets
+			AddToEffectorTarget(Index, Item, EffectorTargets, HierarchyToLinkDataMap, EffectorLinkIndices, ChainLength, ChainIndices);
+		}
+	}
+}
+/////////////////////////////////////////////////////
+
+FRigUnit_FullbodyIK_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+
+	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
+	if (Hierarchy == nullptr)
+	{
+		return;
+	}
+
+	// workdata reference
+	TArray<FFBIKLinkData>& LinkData = WorkData.LinkData;
+	TMap<int32, FFBIKEffectorTarget>& EffectorTargets = WorkData.EffectorTargets;
+	TArray<int32>& MidEffectorLinkIndices = WorkData.MidEffectorLinkIndices;
+	TArray<int32>& EndEffectorLinkIndices = WorkData.EndEffectorLinkIndices;
+	TMap<int32, FRigElementKey>& LinkDataToHierarchyIndices = WorkData.LinkDataToHierarchyIndices;
+	TMap<FRigElementKey, int32>& HierarchyToLinkDataMap = WorkData.HierarchyToLinkDataMap;
+	TArray<ConstraintType>& InternalConstraints = WorkData.InternalConstraints;
+
+	// during iteration, doing this all the time is so easier
+	// @todo: remove Context.State == EControlRigState::Update for optimizaiton
+	if (Context.State == EControlRigState::Init 
+#if WITH_EDITOR || WITH_EDITORONLY_DATA
+		|| Context.State == EControlRigState::Update
+#endif 
+		)
+	{
+		LinkData.Reset();
+		EffectorTargets.Reset();
+		MidEffectorLinkIndices.Reset();
+		EndEffectorLinkIndices.Reset();
+		LinkDataToHierarchyIndices.Reset();
+		HierarchyToLinkDataMap.Reset();
+
+		// verify the chain
+		if (Root.IsValid())
+		{
+			AddMidEffectors(Hierarchy, Root, MidEffectors, LinkData, EffectorTargets, MidEffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
+			AddEndEffectors(Hierarchy, Root, EndEffectors, LinkData, EffectorTargets, EndEffectorLinkIndices, LinkDataToHierarchyIndices, HierarchyToLinkDataMap, SolverProperty);
+		}
+	}
+
+	if (Context.State == EControlRigState::Update)
+	{
+		// we do this every frame for now
+		if (Constraints.Num() > 0)
+		{
+			//Build constraints
+			FBIKConstraintLib::BuildConstraints(Constraints, InternalConstraints, Hierarchy, LinkData, LinkDataToHierarchyIndices, HierarchyToLinkDataMap);
+		}
+
+		// during only editor and update
+		// we expect solver type changes, it will reinit
+		// InternalConstraints can't be changed during runtime
+		if (InternalConstraints.Num() > 0)
+		{
+			WorkData.IKSolver.SetPostProcessDelegateForIteration(FPostProcessDelegateForIteration::CreateStatic(&FBIKConstraintLib::ApplyConstraint, &InternalConstraints));
+		}
+		else
+		{
+			WorkData.IKSolver.ClearPostProcessDelegateForIteration();
+		}
+
+		if (LinkDataToHierarchyIndices.Num() > 0)
+		{
+			// first set mid effector's transform
+			for (const FFBIKMidEffector& Effector : MidEffectors)
+			{
+				// update hierarchy transform if valid
+				if (Effector.Item.IsValid())
+				{
+					FTransform GlobalTransform = Hierarchy->GetGlobalTransform(Effector.Item);
+					if (Effector.PositionAlpha > 0.f)
+					{
+						GlobalTransform.SetLocation(FMath::Lerp(GlobalTransform.GetLocation(), Effector.Position, Effector.PositionAlpha));
+					}
+					if (Effector.RotationAlpha > 0.f)
+					{
+						GlobalTransform.SetRotation(FQuat::FastLerp(GlobalTransform.GetRotation(), Effector.Rotation, Effector.RotationAlpha));
+					}
+
+					Hierarchy->SetGlobalTransform(Effector.Item, GlobalTransform);
+				}
+			}
+
+			// before update we finalize motion scale
+			// this code may go away once we have constraint
+			// update link data and end effectors
+			for (int32 LinkIndex = 0; LinkIndex < LinkData.Num(); ++LinkIndex)
+			{
+				const FRigElementKey& Item = *LinkDataToHierarchyIndices.Find(LinkIndex);
+				LinkData[LinkIndex].SetTransform(Hierarchy->GetGlobalTransform(Item));
+				// @todo: fix this somewhere else - we can add this to prepare step
+				// @todo: we update motion scale here, then?
+				LinkData[LinkIndex].FinalizeForSolver();
+			}
+
+			// update mid effector info
+			for (int32 EffectorIndex = 0; EffectorIndex < MidEffectors.Num(); ++EffectorIndex)
+			{
+				int32 EffectorLinkIndex = MidEffectorLinkIndices[EffectorIndex];
+				if (MidEffectorLinkIndices[EffectorIndex] != INDEX_NONE)
+				{
+					FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
+					if (EffectorTarget)
+					{
+						const FFBIKMidEffector& CurEffector = MidEffectors[EffectorIndex];
+						const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
+						const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
+						const FVector& EffectorLocation = CurEffector.Position;
+						const FQuat& EffectorRotation = CurEffector.Rotation;
+						EffectorTarget->Position = FMath::Lerp(CurrentLinkLocation, EffectorLocation, CurEffector.PositionAlpha);
+						EffectorTarget->Rotation = FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
+						EffectorTarget->InitialPositionDistance = (EffectorLocation - CurrentLinkLocation).Size();
+						EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorRotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
+
+						// mid effectors don't want to impact for the target
+						// and give heavy scale for wanting to move
+						EffectorTarget->bPositionEnabled = CurEffector.PositionAlpha > 0.f;
+						EffectorTarget->bRotationEnabled = CurEffector.RotationAlpha > 0.f;
+						// increase chain length, so it doesn't clamp
+						//EffectorTarget->ChainLength *= 100;
+						// if enabled, make them strong
+						// this does not translate to joint right now. It applies to the speed of the motion of target
+						// but the joint set up is done in init @todo: something to rethink
+						EffectorTarget->LinearMotionStrength = (EffectorTarget->bPositionEnabled)? SolverProperty.LinearMotionStrength* (1.f-FMath::Clamp(CurEffector.Stiffness, 0.f, 1.f)): 0.f;
+						EffectorTarget->AngularMotionStrength = (EffectorTarget->bRotationEnabled) ? SolverProperty.AngularMotionStrength* (1.f-FMath::Clamp(CurEffector.Stiffness, 0.f, 1.f)) : 0.f;
+					}
+				}
+			}
+
+			const float LinearMotionStrength = FMath::Max(SolverProperty.LinearMotionStrength, SolverProperty.MinLinearMotionStrength);
+			const float AngularMotionStrength = FMath::Max(SolverProperty.AngularMotionStrength, SolverProperty.MinAngularMotionStrength);
+			const float LinearRange = LinearMotionStrength - SolverProperty.MinLinearMotionStrength;
+			const float AngularRange = AngularMotionStrength - SolverProperty.MinAngularMotionStrength;
+
+			// update end effector info
+			for (int32 EffectorIndex = 0; EffectorIndex < EndEffectors.Num(); ++EffectorIndex)
+			{
+				int32 EffectorLinkIndex = EndEffectorLinkIndices[EffectorIndex];
+				if (EffectorLinkIndex != INDEX_NONE)
+				{
+					FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
+					if (EffectorTarget)
+					{
+						const FFBIKEndEffector& CurEffector = EndEffectors[EffectorIndex];
+						const FVector CurrentLinkLocation = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
+						const FQuat CurrentLinkRotation = LinkData[EffectorLinkIndex].GetTransform().GetRotation();
+						const FVector& EffectorLocation = CurEffector.Position;
+						const FQuat& EffectorRotation = CurEffector.Rotation;
+						EffectorTarget->Position = FMath::Lerp(CurrentLinkLocation, EffectorLocation, CurEffector.PositionAlpha);
+						EffectorTarget->Rotation = FMath::Lerp(CurrentLinkRotation, EffectorRotation, CurEffector.RotationAlpha);
+						EffectorTarget->InitialPositionDistance = (EffectorLocation - CurrentLinkLocation).Size();
+						EffectorTarget->InitialRotationDistance = (FBIKUtil::GetScaledRotationAxis(EffectorRotation) - FBIKUtil::GetScaledRotationAxis(CurrentLinkRotation)).Size();
+
+						const float Pull = FMath::Clamp(CurEffector.Pull, 0.f, 1.f);
+						// we want some impact of Pull, in order for Pull to have some impact, we clamp to some number
+						const float TargetClamp = FMath::Clamp(SolverProperty.DefaultTargetClamp, 0.f, 0.7f);
+						const float Scale = TargetClamp + Pull * (1.f - TargetClamp);
+						// Pull set up
+						EffectorTarget->LinearMotionStrength = LinearRange * Scale + SolverProperty.MinLinearMotionStrength;
+						EffectorTarget->AngularMotionStrength = AngularRange * Scale + SolverProperty.MinAngularMotionStrength;
+						EffectorTarget->ConvergeScale = Scale;
+						EffectorTarget->TargetClampScale = Scale;
+
+						EffectorTarget->bPositionEnabled = true;
+						EffectorTarget->bRotationEnabled = true;
+					}
+				}
+			}
+
+			TArray<FJacobianDebugData>& DebugData = WorkData.DebugData;
+			DebugData.Reset();
+
+			const bool bDebugEnabled = DebugOption.bDrawDebugHierarchy || DebugOption.bDrawDebugEffector || DebugOption.bDrawDebugConstraints;
+
+			// we can't reuse memory until we fix the memory issue on RigVM
+			FJacobianSolver_FullbodyIK& IKSolver = WorkData.IKSolver;
+			IKSolver.SolveJacobianIK(LinkData, EffectorTargets,
+				JacobianIK::FSolverParameter(SolverProperty.Damping, true, false, (SolverProperty.bUseJacobianTranspose)? EJacobianSolver::JacobianTranspose : EJacobianSolver::JacobianPIDLS),
+				SolverProperty.MaxIterations, SolverProperty.Precision, (bDebugEnabled)? &DebugData : nullptr);
+
+			if (MotionProperty.bForceEffectorRotationTarget)
+			{
+				// if position is reached, we force rotation target
+				for (int32 EffectorIndex = 0; EffectorIndex < EndEffectors.Num(); ++EffectorIndex)
+				{
+					int32 EffectorLinkIndex = EndEffectorLinkIndices[EffectorIndex];
+					if (EffectorLinkIndex != INDEX_NONE)
+					{
+						FFBIKEffectorTarget* EffectorTarget = EffectorTargets.Find(EffectorLinkIndex);
+						if (EffectorTarget && EffectorTarget->bRotationEnabled)
+						{
+							bool bApplyRotation = true;
+
+							if (MotionProperty.bOnlyApplyWhenReachedToTarget)
+							{
+								// only do this when position is reached? This will conflict with converge scale
+								const FVector& BonePosition = LinkData[EffectorLinkIndex].GetTransform().GetLocation();
+								const FVector& TargetPosition = EffectorTarget->Position;
+
+								bApplyRotation = (FVector(BonePosition-TargetPosition).SizeSquared() <= SolverProperty.Precision * SolverProperty.Precision);
+							}
+
+							if (bApplyRotation)
+							{
+								FQuat NewRotation = EffectorTarget->Rotation;
+								FTransform NewTransform = LinkData[EffectorLinkIndex].GetTransform();
+								NewTransform.SetRotation(NewRotation);
+								LinkData[EffectorLinkIndex].SetTransform(NewTransform);
+							}
+						}
+					}
+				}
+			}
+
+			///////////////////////////////////////////////////////////////////////////
+			// debug draw start
+			///////////////////////////////////////////////////////////////////////////
+			if (bDebugEnabled && Context.DrawInterface != nullptr)
+			{
+				const int32 DebugDataNum = DebugData.Num();
+				if (DebugData.Num() > 0)
+				{
+					for (int32 DebugIndex = DebugDataNum - 1; DebugIndex >= 0; --DebugIndex)
+					{
+						const TArray<FFBIKLinkData>& LocalLink = DebugData[DebugIndex].LinkData;
+
+						FTransform Offset = DebugOption.DrawWorldOffset;
+						Offset.SetLocation(Offset.GetLocation() * (DebugDataNum - DebugIndex));
+
+						if (DebugOption.bDrawDebugHierarchy)
+						{
+							for (int32 LinkIndex = 0; LinkIndex < LocalLink.Num(); ++LinkIndex)
+							{
+								const FFBIKLinkData& Data = LocalLink[LinkIndex];
+
+								FLinearColor DrawColor = FLinearColor::White;
+
+								float LineThickness = 0.f;
+								if (DebugOption.bColorAngularMotionStrength || DebugOption.bColorLinearMotionStrength)
+								{
+									DrawColor = FLinearColor::Black;
+									if (DebugOption.bColorAngularMotionStrength)
+									{
+										const float Range = FMath::Max(SolverProperty.AngularMotionStrength - SolverProperty.MinAngularMotionStrength, 0.f);
+										if (Range > 0.f)
+										{
+											float CurrentStrength = Data.GetAngularMotionStrength() - SolverProperty.MinAngularMotionStrength;
+											float Alpha = FMath::Clamp(CurrentStrength / Range, 0.f, 1.f);
+											DrawColor.R = LineThickness = Alpha;
+										}
+									}
+									else if (DebugOption.bColorLinearMotionStrength)
+									{
+										const float Range = FMath::Max(SolverProperty.LinearMotionStrength - SolverProperty.MinLinearMotionStrength, 0.f);
+										if (Range > 0.f)
+										{
+											float CurrentStrength = Data.GetLinearMotionStrength() - SolverProperty.MinLinearMotionStrength;
+											float Alpha = FMath::Clamp(CurrentStrength / Range, 0.f, 1.f);
+											DrawColor.B = LineThickness = Alpha;
+										}
+									}
+								}
+
+								if (Data.ParentLinkIndex != INDEX_NONE)
+								{
+									const FFBIKLinkData& ParentData = LocalLink[Data.ParentLinkIndex];
+									Context.DrawInterface->DrawLine(Offset, Data.GetPreviousTransform().GetLocation(), ParentData.GetPreviousTransform().GetLocation(), DrawColor, LineThickness);
+								}
+
+								if (DebugOption.bDrawDebugAxes)
+								{
+									Context.DrawInterface->DrawAxes(Offset, Data.GetPreviousTransform(), DebugOption.DrawSize);
+								}
+							}
+						}
+
+						if (DebugOption.bDrawDebugEffector)
+						{
+							for (auto Iter = EffectorTargets.CreateConstIterator(); Iter; ++Iter)
+							{
+								const FFBIKEffectorTarget& EffectorTarget = Iter.Value();
+								if (EffectorTarget.bPositionEnabled)
+								{
+									// draw effector target locations
+									Context.DrawInterface->DrawBox(Offset, FTransform(EffectorTarget.Position), FLinearColor::Yellow, DebugOption.DrawSize);
+								}
+
+								// draw effector link location
+								Context.DrawInterface->DrawBox(Offset, LocalLink[Iter.Key()].GetPreviousTransform(), FLinearColor::Green, DebugOption.DrawSize);
+							}
+
+							for (int32 Index = 0; Index < DebugData[DebugIndex].TargetVectorSources.Num(); ++Index)
+							{
+								// draw arrow to the target
+								Context.DrawInterface->DrawLine(Offset, DebugData[DebugIndex].TargetVectorSources[Index].GetLocation(), 
+									DebugData[DebugIndex].TargetVectorSources[Index].GetLocation() + DebugData[DebugIndex].TargetVectors[Index], FLinearColor::Red);
+							}
+						}
+					}
+				}
+
+				if (DebugOption.bDrawDebugConstraints && InternalConstraints.Num())
+				{
+					FTransform Offset = FTransform::Identity;
+
+					// draw frame if active
+					for (int32 Index = 0; Index < Constraints.Num(); ++Index)
+					{
+						if (Constraints[Index].bEnabled)
+						{
+							if (Constraints[Index].Item.IsValid())
+							{
+								const int32* Found = HierarchyToLinkDataMap.Find(Constraints[Index].Item);
+								if (Found)
+								{
+									FTransform ConstraintFrame = LinkData[*Found].GetTransform();
+									ConstraintFrame.ConcatenateRotation(FQuat(Constraints[Index].OffsetRotation));
+									Context.DrawInterface->DrawAxes(Offset, ConstraintFrame, 2.f);
+								}
+							}
+						}
+					}
+
+					for (int32 Index = 0; Index < InternalConstraints.Num(); ++Index)
+					{
+						// for now we have rotation limit only
+						if (InternalConstraints[Index].IsType< FRotationLimitConstraint>())
+						{
+							FRotationLimitConstraint& LimitConstraint = InternalConstraints[Index].Get<FRotationLimitConstraint>();
+							const FQuat LocalRefRotation = LimitConstraint.RelativelRefPose.GetRotation();
+							FTransform RotationTransform = LinkData[LimitConstraint.ConstrainedIndex].GetTransform();
+							// base is parent transform but in their space, we can get there by inversing local ref rotation
+							FTransform BaseTransform = FTransform(LocalRefRotation).GetRelativeTransformReverse(RotationTransform);
+							BaseTransform.ConcatenateRotation(LimitConstraint.BaseFrameOffset);
+							Context.DrawInterface->DrawAxes(Offset, BaseTransform, 5.f, 1.f);
+
+							// current transform
+							const FQuat LocalRotation = BaseTransform.GetRotation().Inverse() * RotationTransform.GetRotation();
+							const FQuat DeltaTransform = LocalRefRotation.Inverse() * LocalRotation;
+							RotationTransform.SetRotation(BaseTransform.GetRotation() * DeltaTransform);
+							RotationTransform.NormalizeRotation();
+							RotationTransform.SetLocation(BaseTransform.GetLocation());
+
+							// draw ref pose on their current transform
+							Context.DrawInterface->DrawAxes(Offset, RotationTransform, 10.f, 1.f);
+
+							FVector XAxis = BaseTransform.GetUnitAxis(EAxis::X);
+							FVector YAxis = BaseTransform.GetUnitAxis(EAxis::Y);
+							FVector ZAxis = BaseTransform.GetUnitAxis(EAxis::Z);
+
+							if (LimitConstraint.bXLimitSet)
+							{
+								FTransform XAxisConeTM(YAxis, XAxis ^ YAxis, XAxis, BaseTransform.GetTranslation());
+								XAxisConeTM.SetRotation(FQuat(XAxis, 0.f) * XAxisConeTM.GetRotation());
+								XAxisConeTM.SetScale3D(FVector(30.f));
+								Context.DrawInterface->DrawCone(Offset, XAxisConeTM, LimitConstraint.Limit.X, 0.0f, 24, false, FLinearColor::Red, GEngine->ConstraintLimitMaterialX->GetRenderProxy());
+							}
+
+							if (LimitConstraint.bYLimitSet)
+							{
+								FTransform YAxisConeTM(ZAxis, YAxis ^ ZAxis, YAxis, BaseTransform.GetTranslation());
+								YAxisConeTM.SetRotation(FQuat(YAxis, 0.f) * YAxisConeTM.GetRotation());
+								YAxisConeTM.SetScale3D(FVector(30.f));
+								Context.DrawInterface->DrawCone(Offset, YAxisConeTM, LimitConstraint.Limit.Y, 0.0f, 24, false, FLinearColor::Green, GEngine->ConstraintLimitMaterialY->GetRenderProxy());
+							}
+
+							if (LimitConstraint.bZLimitSet)
+							{
+								FTransform ZAxisConeTM(XAxis, ZAxis ^ XAxis, ZAxis, BaseTransform.GetTranslation());
+								ZAxisConeTM.SetRotation(FQuat(ZAxis, 0.f) * ZAxisConeTM.GetRotation());
+								ZAxisConeTM.SetScale3D(FVector(30.f));
+								Context.DrawInterface->DrawCone(Offset, ZAxisConeTM, LimitConstraint.Limit.Z, 0.0f, 24, false, FLinearColor::Blue, GEngine->ConstraintLimitMaterialZ->GetRenderProxy());
+							}
+						}
+
+						if (InternalConstraints[Index].IsType<FPoleVectorConstraint>())
+						{
+							// darw pole vector location
+							// draw 3 joints line and a plane to pole vector
+							FPoleVectorConstraint& Constraint = InternalConstraints[Index].Get<FPoleVectorConstraint>();
+							FTransform RootTransform = LinkData[Constraint.ParentBoneIndex].GetTransform();
+							FTransform JointTransform = LinkData[Constraint.BoneIndex].GetTransform();
+							FTransform ChildTransform = LinkData[Constraint.ChildBoneIndex].GetTransform();
+
+							FVector JointTarget = (Constraint.bUseLocalDir)? Constraint.CalculateCurrentPoleVectorDir(RootTransform, JointTransform, ChildTransform, LinkData[Constraint.BoneIndex].LocalFrame) : Constraint.PoleVector;
+
+							// draw the plane, 
+							TArray<FVector> Positions;
+							Positions.Add(RootTransform.GetLocation());
+							Positions.Add(ChildTransform.GetLocation());
+							Positions.Add(ChildTransform.GetLocation());
+							Positions.Add(JointTarget);
+							Positions.Add(JointTarget);
+							Positions.Add(RootTransform.GetLocation());
+
+							Context.DrawInterface->DrawLines(Offset, Positions, FLinearColor::Gray, 1.2f);
+							Context.DrawInterface->DrawLine(Offset, JointTransform.GetLocation(), JointTarget, FLinearColor::Red, 1.2f);
+						}
+					}
+				}
+			}
+			///////////////////////////////////////////////////////////////////////////
+			// debug draw end
+			///////////////////////////////////////////////////////////////////////////
+		}
+
+		// we update back to hierarchy
+		for (int32 LinkIndex= 0; LinkIndex < LinkData.Num() ; ++LinkIndex)
+		{
+			// only propagate, if you are leaf joints here
+			// this means, only the last joint in the test
+			const FRigElementKey& CurrentItem = *LinkDataToHierarchyIndices.Find(LinkIndex);
+			const FTransform& LinkTransform = LinkData[LinkIndex].GetTransform();
+			Hierarchy->SetGlobalTransform(CurrentItem, LinkTransform, bPropagateToChildren);
+		}
+	}
+}
+
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Units/RigUnitTest.h"
+
+IMPLEMENT_RIGUNIT_AUTOMATION_TEST(FRigUnit_FullbodyIK)
+{
+/*	BoneHierarchy.Add(TEXT("Root"), NAME_None, ERigBoneType::User, FTransform(FVector(1.f, 0.f, 0.f)));
+	// add  2 chains of length 2,2 
+	BoneHierarchy.Add(TEXT("Chain1_0"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(1.f, 2.f, 0.f)));
+	BoneHierarchy.Add(TEXT("Chain1_1"), TEXT("Chain1_0"), ERigBoneType::User, FTransform(FVector(3.f, 2.f, 0.f)));
+	//length 3,3
+	BoneHierarchy.Add(TEXT("Chain2_0"), TEXT("Root"), ERigBoneType::User, FTransform(FVector(-2.f, 0.f, 0.f)));
+	BoneHierarchy.Add(TEXT("Chain2_1"), TEXT("Chain2_0"), ERigBoneType::User, FTransform(FVector(-2.f, 3.f, 0.f)));
+
+	BoneHierarchy.Initialize();
+	Unit.ExecuteContext.Hierarchy = &HierarchyContainer;
+
+	// first validation test
+	// make sure this doesn't crash
+	InitAndExecute();
+
+	Unit.RootBone = TEXT("Root");
+	Unit.EndEffectors.AddDefaulted(2);
+
+	// second make sure this doesn't crash
+	InitAndExecute();
+
+	// now add the data
+	Unit.EndEffectors[0].Bone = TEXT("Chain1_1");
+	Unit.EndEffectors[0].Position = FVector(3.f, 2.f, 0.f);
+	Unit.EndEffectors[1].Bone = TEXT("Chain2_1");
+	Unit.EndEffectors[1].Position = FVector(-2.f, 3.f, 0.f);
+	Unit.bPropagateToChildren = true;
+
+	InitAndExecute();
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain1_1")).GetTranslation().Equals(FVector(3.f, 2.f, 0.f)), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain2_1")).GetTranslation().Equals(FVector(-2.f, 3.f, 0.f)), TEXT("unexpected transform"));
+
+	// root is (1, 0, 0)
+	Unit.EndEffectors[0].Bone = TEXT("Chain1_1");
+	Unit.EndEffectors[0].Position = FVector(4.f, 0.f, 0.f);
+	Unit.EndEffectors[1].Bone = TEXT("Chain2_1");
+	Unit.EndEffectors[1].Position = FVector(0.f, -5.f, 0.f);
+	Unit.bPropagateToChildren = true;
+
+	InitAndExecute();
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain1_1")).GetTranslation().Equals(FVector(4.f, 0.f, 0.f), 0.1f), TEXT("unexpected transform"));
+	AddErrorIfFalse(BoneHierarchy.GetGlobalTransform(TEXT("Chain2_1")).GetTranslation().Equals(FVector(0.f, -5.f, 0.f), 0.1f), TEXT("unexpected transform"));*/
+	return true;
+}
+#endif

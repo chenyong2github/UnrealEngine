@@ -40,23 +40,14 @@ struct FHairStrandsMacroGroupData
 		uint32 MaterialId;
 		uint32 ResourceId;
 		uint32 GroupIndex;		
+		FHairGroupPublicData* PublicDataPtr = nullptr;
 		bool IsCullingEnable() const;
 	};
 	typedef TArray<PrimitiveInfo, SceneRenderingAllocator> TPrimitiveInfos;
 
-	// List of unique group within an instance group
-	struct PrimitiveGroup
-	{
-		uint32 ResourceId;
-		uint32 GroupIndex;
-	};
-	typedef TArray<PrimitiveGroup, SceneRenderingAllocator> TPrimitiveGroups;
-
-
 	FVirtualVoxelNodeDesc VirtualVoxelNodeDesc;
 	FHairStrandsDeepShadowDatas DeepShadowDatas;
 	TPrimitiveInfos PrimitivesInfos;
-	TPrimitiveGroups PrimitivesGroups;
 	FBoxSphereBounds Bounds;
 	FIntRect ScreenRect;
 	uint32 MacroGroupId;

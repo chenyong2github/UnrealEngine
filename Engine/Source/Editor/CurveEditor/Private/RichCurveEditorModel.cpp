@@ -426,9 +426,10 @@ void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 
 			for (int32 Index = 0; Index < InKeys.Num(); ++Index)
 			{
-				if (RichCurve.IsKeyHandleValid(InKeys[Index]))
+				FKeyHandle KeyHandle = InKeys[Index];
+				if (RichCurve.IsKeyHandleValid(KeyHandle))
 				{
-					FRichCurveKey*        ThisKey    = &RichCurve.GetKey(InKeys[Index]);
+					FRichCurveKey*        ThisKey    = &RichCurve.GetKey(KeyHandle);
 					const FKeyAttributes& Attributes = InAttributes[Index];
 
 					if (Attributes.HasInterpMode())    { ThisKey->InterpMode  = Attributes.GetInterpMode();  bAutoSetTangents = true; }
@@ -451,14 +452,16 @@ void FRichCurveEditorModel::SetKeyAttributes(TArrayView<const FKeyHandle> InKeys
 							//calculate arrive tangent weight
 							if (ThisKey != FirstKey)
 							{
-								const float Y = ThisKey->ArriveTangent;
-								ThisKey->ArriveTangentWeight = FMath::Sqrt(1.f + Y*Y) * OneThird;
+								const float X = ThisKey->Time - RichCurve.GetKey(RichCurve.GetPreviousKey(KeyHandle)).Time;
+								const float Y = ThisKey->ArriveTangent *X;
+								ThisKey->ArriveTangentWeight = FMath::Sqrt(X*X + Y*Y) * OneThird;
 							}
 							//calculate leave weight
 							if(ThisKey != LastKey)
 							{
-								const float Y = ThisKey->LeaveTangent;
-								ThisKey->LeaveTangentWeight = FMath::Sqrt(1.f + Y*Y) * OneThird;
+								const float X = RichCurve.GetKey(RichCurve.GetNextKey(KeyHandle)).Time - ThisKey->Time;
+								const float Y = ThisKey->LeaveTangent *X;
+								ThisKey->LeaveTangentWeight = FMath::Sqrt(X*X + Y*Y) * OneThird;
 							}
 						}
 						ThisKey->TangentWeightMode = Attributes.GetTangentWeightMode();

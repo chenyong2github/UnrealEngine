@@ -8,5 +8,5 @@ FRigUnit_Control_StaticMesh::FRigUnit_Control_StaticMesh()
 
 FRigUnit_Control_StaticMesh_Execute()
 {
-	FRigUnit_Control::StaticExecute(RigVMOperatorName, RigVMOperatorIndex, Transform, Base, InitTransform, Result, Filter, Context);
+	FRigUnit_Control::StaticExecute(RigVMExecuteContext, Transform, Base, InitTransform, Result, Filter, Context);
 }

@@ -152,7 +152,7 @@ public:
 	/**
 	 * Update all auto-generated easing curves for all sections in this track
 	 */
-	MOVIESCENE_API void UpdateEasing();
+	MOVIESCENE_API virtual void UpdateEasing();
 
 protected:
 
@@ -420,5 +420,6 @@ public:
 	 * @param Section The section that moved.
 	 */
 	virtual void OnSectionMoved(UMovieSceneSection& Section, const FMovieSceneSectionMovedParams& Params) {}
-#endif
+
+	#endif
 };

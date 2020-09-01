@@ -25,6 +25,7 @@ FAnimModel_AnimMontage::FAnimModel_AnimMontage(const TSharedRef<IPersonaPreviewS
 	, bSectionTimingEnabled(false)
 {
 	SnapTypes.Add(FAnimModel::FSnapType::CompositeSegment.Type, FAnimModel::FSnapType::CompositeSegment);
+	SnapTypes.Add(FAnimModel::FSnapType::MontageSection.Type, FAnimModel::FSnapType::MontageSection);
 
 	// Clear display flags
 	for(bool& bElementNodeDisplayFlag : TimingElementNodeDisplayFlags)
@@ -73,7 +74,10 @@ void FAnimModel_AnimMontage::RefreshTracks()
 	// Add curves
 	RefreshCurveTracks();
 
-	// Refresh sections
+	// Refresh snaps
+	RefreshSnapTimes();
+
+	// Refresh section times
 	RefreshSectionTimes();
 
 	// Tell the UI to refresh
@@ -82,15 +86,15 @@ void FAnimModel_AnimMontage::RefreshTracks()
 	UpdateRange();
 }
 
-void FAnimModel_AnimMontage::RefreshSectionTimes()
+void FAnimModel_AnimMontage::RefreshSnapTimes()
 {
-	EditableTimes.Empty();
+	FAnimModel_AnimSequenceBase::RefreshSnapTimes();
+
 	for(const FCompositeSection& Section : AnimMontage->CompositeSections)
 	{
-		EditableTimes.Add((double)Section.GetTime());
+		SnapTimes.Add(FSnapTime(FSnapType::MontageSection.Type, (double)Section.GetTime()));
 	}
 
-	SnapTimes.Empty();
 	for(const FSlotAnimationTrack& Slot : AnimMontage->SlotAnimTracks)
 	{
 		for(const FAnimSegment& Segment : Slot.AnimTrack.AnimSegments)
@@ -98,6 +102,15 @@ void FAnimModel_AnimMontage::RefreshSectionTimes()
 			SnapTimes.Add(FSnapTime(FSnapType::CompositeSegment.Type, (double)Segment.StartPos));
 			SnapTimes.Add(FSnapTime(FSnapType::CompositeSegment.Type, (double)(Segment.StartPos + Segment.AnimEndTime)));
 		}
+	}
+}
+
+void FAnimModel_AnimMontage::RefreshSectionTimes()
+{
+	EditableTimes.Empty();
+	for(const FCompositeSection& Section : AnimMontage->CompositeSections)
+	{
+		EditableTimes.Add((double)Section.GetTime());
 	}
 }
 

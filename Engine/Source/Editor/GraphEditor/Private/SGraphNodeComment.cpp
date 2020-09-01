@@ -297,13 +297,8 @@ void SGraphNodeComment::HandleSelection(bool bSelected, bool bUpdateNodesUnderCo
 		{
 			SGraphNodeComment* Comment = const_cast<SGraphNodeComment*> (this);
 			UEdGraphNode_Comment* CommentNode = Cast<UEdGraphNode_Comment>(GraphNode);
-
 			if (CommentNode)
 			{
-				// Get our geo
-				const FVector2D NodePosition = GetPosition();
-				const FSlateRect CommentRect( NodePosition.X, NodePosition.Y, NodePosition.X + NodeSize.X, NodePosition.Y + NodeSize.Y );
-
 				TSharedPtr<SGraphPanel> Panel = Comment->GetOwnerPanel();
 				FChildren* PanelChildren = Panel->GetAllChildren();
 				int32 NumChildren = PanelChildren->Num();
@@ -312,16 +307,10 @@ void SGraphNodeComment::HandleSelection(bool bSelected, bool bUpdateNodesUnderCo
 				for ( int32 NodeIndex=0; NodeIndex < NumChildren; ++NodeIndex )
 				{
 					const TSharedRef<SGraphNode> SomeNodeWidget = StaticCastSharedRef<SGraphNode>(PanelChildren->GetChildAt(NodeIndex));
-
 					UObject* GraphObject = SomeNodeWidget->GetObjectBeingDisplayed();
-
-					if( GraphObject != CommentNode )
+					if (GraphObject != CommentNode)
 					{
-						const FVector2D SomeNodePosition = SomeNodeWidget->GetPosition();
-						const FVector2D SomeNodeSize = SomeNodeWidget->GetDesiredSize();
-
-						const FSlateRect NodeGeometryGraphSpace( SomeNodePosition.X, SomeNodePosition.Y, SomeNodePosition.X + SomeNodeSize.X, SomeNodePosition.Y + SomeNodeSize.Y );
-						if( FSlateRect::IsRectangleContained( CommentRect, NodeGeometryGraphSpace ) )
+						if (IsNodeUnderComment(CommentNode, SomeNodeWidget))
 						{
 							CommentNode->AddNodeUnderComment(GraphObject);
 						}
@@ -331,6 +320,19 @@ void SGraphNodeComment::HandleSelection(bool bSelected, bool bUpdateNodesUnderCo
 		}
 		bIsSelected = bSelected;
 	}
+}
+
+bool SGraphNodeComment::IsNodeUnderComment(UEdGraphNode_Comment* InCommentNode, const TSharedRef<SGraphNode> InNodeWidget) const
+{
+	const FVector2D NodePosition = GetPosition();
+	const FVector2D NodeSize = GetDesiredSize();
+	const FSlateRect CommentRect(NodePosition.X, NodePosition.Y, NodePosition.X + NodeSize.X, NodePosition.Y + NodeSize.Y);
+
+	const FVector2D InNodePosition = InNodeWidget->GetPosition();
+	const FVector2D InNodeSize = InNodeWidget->GetDesiredSize();
+
+	const FSlateRect NodeGeometryGraphSpace(InNodePosition.X, InNodePosition.Y, InNodePosition.X + InNodeSize.X, InNodePosition.Y + InNodeSize.Y);
+	return FSlateRect::IsRectangleContained(CommentRect, NodeGeometryGraphSpace);
 }
 
 const FSlateBrush* SGraphNodeComment::GetShadowBrush(bool bSelected) const

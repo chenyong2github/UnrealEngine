@@ -375,7 +375,14 @@ void FSequencer::InitSequencer(const FSequencerInitParams& InitParams, const TSh
 				}
 			}
 
+			//Reset Bindings for replaced objects.
+			for (TPair<UObject*, UObject*> ReplacedObject : ReplacementMap)
+			{
+				FGuid Guid = GetHandleToObject(ReplacedObject.Key, false);
+			}
+
 			PreAnimatedState.OnObjectsReplaced(ReplacementMap);
+
 		});
 		AcquiredResources.Add([=] { GEditor->OnObjectsReplaced().Remove(OnObjectsReplacedHandle); });
 	}
@@ -2407,6 +2414,7 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 	else if (DataChangeType == EMovieSceneDataChangeType::TrackValueChangedRefreshImmediately)
 	{
 		// Evaluate now
+		OnPreRefreshImmediateDelagate.Broadcast();
 		EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 	}
 	else if (DataChangeType == EMovieSceneDataChangeType::RefreshAllImmediately)
@@ -2414,6 +2422,7 @@ void FSequencer::NotifyMovieSceneDataChanged( EMovieSceneDataChangeType DataChan
 		RefreshTree();
 
 		// Evaluate now
+		OnPreRefreshImmediateDelagate.Broadcast();
 		EvaluateInternal(PlayPosition.GetCurrentPositionAsRange());
 	}
 	else
@@ -6957,7 +6966,13 @@ void FSequencer::SelectByNthCategoryNode(UMovieSceneSection* Section, int Index,
 				break;
 			}
 		}
-		Selection.AddToSelection(NodesToSelect);
+
+		if (NodesToSelect.Num() > 0)
+		{
+			SequencerWidget->GetTreeView()->RequestScrollIntoView(NodesToSelect[0]);
+
+			Selection.AddToSelection(NodesToSelect);
+		}
 	}
 	else
 	{
@@ -7004,9 +7019,14 @@ void FSequencer::SelectByChannels(UMovieSceneSection* Section, TArrayView<const 
 	{
 		for (const TSharedRef<FSequencerDisplayNode>& DisplayNode : Nodes)
 		{
-			if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->IsExpanded())
+			if (DisplayNode->GetParent().IsValid() && DisplayNode->GetParent()->GetType() == ESequencerNode::Category && !DisplayNode->GetParent()->IsExpanded())
 			{
 				DisplayNode->GetParent()->SetExpansionState(true);
+			}
+			//MAY NEED TO EXPAND TRACK ABOVE THE CATEGORY
+			if (DisplayNode->GetParent()->GetParent().IsValid() && DisplayNode->GetParent()->GetParent()->GetType() == ESequencerNode::Track && !DisplayNode->GetParent()->GetParent()->IsExpanded())
+			{
+				DisplayNode->GetParent()->GetParent()->SetExpansionState(true);
 			}
 			NodesToSelect.Add(DisplayNode);
 		}
@@ -9364,6 +9384,21 @@ void FSequencer::ConvertToSpawnable(TSharedRef<FSequencerObjectBindingNode> Node
 		ConvertToSpawnableInternal(Possessable->GetGuid());
 		NotifyMovieSceneDataChanged( EMovieSceneDataChangeType::MovieSceneStructureItemsChanged );
 	}
+}
+TArray<FGuid> FSequencer::ConvertToSpawnable(FGuid Guid)
+{
+	TArray< FMovieSceneSpawnable*> Spawnables = ConvertToSpawnableInternal(Guid);
+	TArray<FGuid> SpawnableGuids;
+	if (Spawnables.Num() > 0)
+	{
+		for (FMovieSceneSpawnable* Spawnable: Spawnables)
+		{
+			FGuid NewGuid = Spawnable->GetGuid();
+			SpawnableGuids.Add(NewGuid);
+		}
+	}
+	NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
+	return SpawnableGuids;
 }
 
 void FSequencer::ConvertSelectedNodesToSpawnables()
@@ -12665,6 +12700,45 @@ void FSequencer::RecompileDirtyDirectors()
 		}
 	}
 }
+
+void FSequencer::SetDisplayName(FGuid Binding, const FText& InDisplayName)
+{
+	for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
+	{
+		if (Node->GetType() != ESequencerNode::Object)
+		{
+			continue;
+		}
+
+		auto ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
+		FGuid Guid = ObjectBindingNode->GetObjectBinding();
+		if (Guid == Binding)
+		{
+			ObjectBindingNode->SetDisplayName(InDisplayName);
+			break;
+		}
+	}
+}
+
+FText FSequencer::GetDisplayName(FGuid Binding)
+{
+	for (const TSharedRef<FSequencerDisplayNode>& Node : Selection.GetSelectedOutlinerNodes())
+	{
+		if (Node->GetType() != ESequencerNode::Object)
+		{
+			continue;
+		}
+
+		auto ObjectBindingNode = StaticCastSharedRef<FSequencerObjectBindingNode>(Node);
+		FGuid Guid = ObjectBindingNode->GetObjectBinding();
+		if (Guid == Binding)
+		{
+			return ObjectBindingNode->GetDisplayName();
+		}
+	}
+	return FText();
+}
+
 
 void FSequencer::OnCurveModelDisplayChanged(FCurveModel *InCurveModel, bool bDisplayed)
 {

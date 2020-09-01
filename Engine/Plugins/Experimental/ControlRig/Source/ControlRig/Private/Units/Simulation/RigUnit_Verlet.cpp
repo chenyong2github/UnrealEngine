@@ -8,9 +8,16 @@ FRigUnit_VerletIntegrateVector_Execute()
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
+		bInitialized = false;
+		return;
+	}
+
+	if (!bInitialized)
+	{
 		Point.Mass = 1.f;
 		Position = Point.Position = Target;
 		Velocity = Acceleration = Point.LinearVelocity = FVector::ZeroVector;
+		bInitialized = true;
 		return;
 	}
 

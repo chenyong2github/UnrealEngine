@@ -30,26 +30,10 @@ struct FHairStrandsRenderingData
 	FHairStrandsDebugData DebugData;
 };
 
-enum class EHairStrandsInterpolationType
-{
-	RenderStrands,
-	SimulationStrands
-};
-
-void RunHairStrandsInterpolation(
-	FRHICommandListImmediate& RHICmdList, 
-	EWorldType::Type WorldType, 
-	const class FGPUSkinCache* GPUSkinCache,
-	const struct FShaderDrawDebugData* DebugShaderData,
-	FGlobalShaderMap* ShaderMap, 
-	EHairStrandsInterpolationType Type,
-	FHairStrandClusterData* ClusterData);
-
 void RenderHairPrePass(
 	FRHICommandListImmediate& RHICmdList,
 	FScene* Scene,
 	TArray<FViewInfo>& Views,
-	FHairStrandClusterData HairClusterData,
 	FHairStrandsRenderingData& OutHairDatas);
 
 void RenderHairBasePass(
@@ -57,5 +41,11 @@ void RenderHairBasePass(
 	FScene* Scene,
 	FSceneRenderTargets& SceneContext,
 	TArray<FViewInfo>& Views,
-	FHairStrandClusterData HairClusterData,
 	FHairStrandsRenderingData& OutHairDatas);
+
+void RunHairStrandsBookmark(
+	FRHICommandListImmediate& RHICmdList, 
+	EHairStrandsBookmark Bookmark, 
+	FHairStrandsBookmarkParameters& Parameters);
+
+FHairStrandsBookmarkParameters CreateHairStrandsBookmarkParameters(FViewInfo& View);

@@ -295,6 +295,9 @@ public:
 	/** Regenerated filtered results (FilteredRootAction and FilteredActionNodes) based on filter text  */ 
 	void GenerateFilteredItems(bool bPreserveExpansion);
 
+	/** The last typed action within the graph action menu */
+	static FString LastUsedFilterText;
+
 protected:
 	/** Get current filter text */
 	FText GetFilterText() const;

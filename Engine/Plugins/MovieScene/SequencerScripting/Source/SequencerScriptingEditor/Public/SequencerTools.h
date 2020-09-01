@@ -12,11 +12,15 @@
 #include "SequencerTools.generated.h"
 
 class UFbxExportOption;
+class UAnimSequenceExportOption;
 class UAnimSequence;
 class UPoseAsset;
+
 class UMovieSceneEventSectionBase;
 class UK2Node_CustomEvent;
 
+class UAnimSeqExportOption;
+class UMovieSceneUserImportFBXControlRigSettings;
 DECLARE_DYNAMIC_DELEGATE_OneParam(FOnRenderMovieStopped, bool, bSuccess);
 
 USTRUCT(BlueprintType)
@@ -125,11 +129,12 @@ public:
 	 * @InWorld World to export
 	 * @InSequence Sequence to export
 	 * @AnimSequence The AnimSequence to save into.
+	 * @ExportOption The export options for the sequence.
 	 * @InBinding Binding to export that has a skelmesh component on it
 	 * @InAnimSequenceFilename File to create
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
-	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, const FSequencerBindingProxy& Binding);
+	static bool ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence, UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOption, const FSequencerBindingProxy& Binding);
 
 	/*
 	 * Import Passed in Bindings to FBX
@@ -174,4 +179,18 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | Animation")
 	static FSequencerQuickBindingResult CreateQuickBinding(UMovieSceneSequence* InSequence, UObject* InObject, const FString& InFunctionName, bool bCallInEditor);
 
+	/*
+	 * Import FBX onto a control rig with the specified track name
+	 *
+	 * @InWorld World to import to
+	 * @InSequence InSequence to import
+	 * @ActorWithControlRigTrack ActorWithControlRigTrack The name of the actor with the control rig track we are importing onto
+	 * @SelectedControlRigNames  List of selected control rig names. Will use them if  ImportFBXControlRigSettings->bImportOntoSelectedControls is true
+	 * @ImportFBXControlRigSettings Settings to control import.
+	 * @InImportFileName Path to fbx file to create
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Sequencer Tools | FBX")
+	static bool ImportFBXToControlRig(UWorld* World, ULevelSequence* InSequence, const FString& ActorWithControlRigTrack, const TArray<FString>& SelectedControlRigNames,
+		UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
+		const FString& ImportFilename);
 };

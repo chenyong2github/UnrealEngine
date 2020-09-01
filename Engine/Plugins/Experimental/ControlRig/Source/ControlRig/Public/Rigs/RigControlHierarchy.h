@@ -4,7 +4,9 @@
 
 #include "CoreMinimal.h"
 #include "RigHierarchyDefines.h"
+#include "RigHierarchyPose.h"
 #include "TransformNoScale.h"
+#include "EulerTransform.h"
 #include "RigControlHierarchy.generated.h"
 
 class UControlRig;
@@ -14,12 +16,14 @@ enum class ERigControlType : uint8
 {
 	Bool,
 	Float,
+	Integer,
 	Vector2D,
 	Position,
 	Scale,
 	Rotator,
 	Transform,
-	TransformNoScale
+	TransformNoScale,
+	EulerTransform,
 };
 
 UENUM(BlueprintType)
@@ -40,6 +44,70 @@ enum class ERigControlAxis : uint8
 };
 
 USTRUCT(BlueprintType)
+struct CONTROLRIG_API FRigControlValueStorage
+{
+public:
+
+	GENERATED_BODY()
+
+	FRigControlValueStorage()
+	{
+		FMemory::Memzero(this, sizeof(FRigControlValueStorage));
+	}
+
+	UPROPERTY()
+	float Float00;
+
+	UPROPERTY()
+	float Float01;
+
+	UPROPERTY()
+	float Float02;
+
+	UPROPERTY()
+	float Float03;
+
+	UPROPERTY()
+	float Float10;
+
+	UPROPERTY()
+	float Float11;
+
+	UPROPERTY()
+	float Float12;
+
+	UPROPERTY()
+	float Float13;
+
+	UPROPERTY()
+	float Float20;
+
+	UPROPERTY()
+	float Float21;
+
+	UPROPERTY()
+	float Float22;
+
+	UPROPERTY()
+	float Float23;
+
+	UPROPERTY()
+	float Float30;
+
+	UPROPERTY()
+	float Float31;
+
+	UPROPERTY()
+	float Float32;
+
+	UPROPERTY()
+	float Float33;
+
+	UPROPERTY()
+	bool bValid;
+};
+
+USTRUCT(BlueprintType)
 struct CONTROLRIG_API FRigControlValue
 {
 	GENERATED_BODY()
@@ -47,8 +115,14 @@ struct CONTROLRIG_API FRigControlValue
 public:
 
 	FRigControlValue()
-		:Storage(FTransform::Identity)
+		: FloatStorage()
+		, Storage_DEPRECATED(FTransform::Identity)
 	{
+	}
+
+	FORCEINLINE_DEBUGGABLE bool IsValid() const
+	{
+		return FloatStorage.bValid;
 	}
 
 	template<class T>
@@ -60,15 +134,14 @@ public:
 	template<class T>
 	FORCEINLINE_DEBUGGABLE T& GetRef()
 	{
-		ensure(sizeof(T) <= sizeof(FTransform));
-		return *(T*)&Storage;
+		FloatStorage.bValid = true;
+		return *(T*)&FloatStorage;
 	}
 
 	template<class T>
 	FORCEINLINE_DEBUGGABLE const T& GetRef() const
 	{
-		ensure(sizeof(T) <= sizeof(FTransform));
-		return *(T*)&Storage;
+		return *(T*)&FloatStorage;
 	}
 
 	template<class T>
@@ -103,9 +176,14 @@ public:
 	}
 
 private:
+
+	UPROPERTY()
+	FRigControlValueStorage FloatStorage;
 	
 	UPROPERTY()
-	FTransform Storage;
+	FTransform Storage_DEPRECATED;
+
+	friend struct FRigControlHierarchy;
 };
 
 template<>
@@ -128,10 +206,12 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 		FRigControl()
 		: FRigElement()
 		, ControlType(ERigControlType::Transform)
+		, DisplayName(NAME_None)
 		, ParentName(NAME_None)
 		, ParentIndex(INDEX_NONE)
 		, SpaceName(NAME_None)
 		, SpaceIndex(INDEX_NONE)
+		, OffsetTransform(FTransform::Identity)
 		, InitialValue()
 		, Value()
 		, PrimaryAxis(ERigControlAxis::X)
@@ -144,17 +224,22 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 		, MinimumValue()
 		, MaximumValue()
 		, bGizmoEnabled(true)
+		, bGizmoVisible(true)
 		, GizmoName(TEXT("Gizmo"))
 		, GizmoTransform(FTransform::Identity)
 		, GizmoColor(FLinearColor::Red)
 		, Dependents()
 		, bIsTransientControl(false)
+		, ControlEnum(nullptr)
 	{
 	}
 	virtual ~FRigControl() {}
 
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
 	ERigControlType ControlType;
+
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
+	FName DisplayName;
 
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Control)
 	FName ParentName;
@@ -168,9 +253,23 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 	UPROPERTY(BlueprintReadOnly, transient, Category = Control)
 	int32 SpaceIndex;
 
+	/**
+	 * Used to offset a control in global space. This can be useful
+	 * to offset a float control by rotating it or translating it.
+	 */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control, meta = (DisplayAfter = "ControlType"))
+	FTransform OffsetTransform;
+
+	/**
+	 * The value that a control is reset to during begin play or when the
+	 * control rig is instantiated.
+	 */
 	UPROPERTY(BlueprintReadOnly, VisibleAnywhere, Category = Control)
 	FRigControlValue InitialValue;
 
+	/**
+	 * The current value of the control.
+	 */
 	UPROPERTY(BlueprintReadOnly, transient, VisibleAnywhere, Category = Control)
 	FRigControlValue Value;
 
@@ -202,17 +301,21 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
 	bool bDrawLimits;
 
-	/** The storage for all minimum values */
+	/** The minimum limit of the control's value */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
 	FRigControlValue MinimumValue;
 
-	/** The storage for all maximum values */
+	/** The maximum limit of the control's value */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Limits, meta = (EditCondition = "bLimitTranslation || bLimitRotation || bLimitScale"))
 	FRigControlValue MaximumValue;
 
 	/** Set to true if the gizmo is enabled in 3d */
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo)
 	bool bGizmoEnabled;
+
+	/** Set to true if the gizmo is currently visible in 3d */
+	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo, meta = (EditCondition = "bGizmoEnabled"))
+	bool bGizmoVisible;
 
 	/* This is optional UI setting - this doesn't mean this is always used, but it is optional for manipulation layer to use this*/
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Gizmo, meta = (EditCondition = "bGizmoEnabled"))
@@ -232,19 +335,36 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category = Control)
 	bool bIsTransientControl;
 
+	/** If the control is transient and only visible in the control rig editor */
+	UPROPERTY(BlueprintReadOnly, EditAnywhere, Category = Control)
+	UEnum* ControlEnum;
+
 	FORCEINLINE_DEBUGGABLE virtual ERigElementType GetElementType() const override
 	{
 		return ERigElementType::Control;
 	}
 
-	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetParentElementKey() const
+	FORCEINLINE_DEBUGGABLE const FName& GetDisplayName() const
 	{
-		return FRigElementKey(ParentName, GetElementType());
+		return DisplayName.IsNone() ? Name : DisplayName;
 	}
 
-	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetSpaceElementKey() const
+	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetParentElementKey(bool bForce = false) const
 	{
-		return FRigElementKey(SpaceName, ERigElementType::Space);
+		if (ParentIndex != INDEX_NONE || bForce)
+		{
+			return FRigElementKey(ParentName, GetElementType());
+		}
+		return FRigElementKey();
+	}
+
+	FORCEINLINE_DEBUGGABLE virtual FRigElementKey GetSpaceElementKey(bool bForce = false) const
+	{
+		if (SpaceIndex != INDEX_NONE || bForce)
+		{
+			return FRigElementKey(SpaceName, ERigElementType::Space);
+		}
+		return FRigElementKey();
 	}
 
 	FORCEINLINE_DEBUGGABLE const FRigControlValue& GetValue(ERigControlValueType InValueType = ERigControlValueType::Current) const
@@ -328,6 +448,10 @@ struct CONTROLRIG_API FRigControl : public FRigElement
 		}
 		return nullptr;
 	}
+
+	FTransform GetTransformFromValue(ERigControlValueType InValueType = ERigControlValueType::Current) const;
+	void SetValueFromTransform(const FTransform& InTransform, ERigControlValueType InValueType = ERigControlValueType::Current);
+
 };
 
 USTRUCT(BlueprintType)
@@ -362,6 +486,7 @@ struct CONTROLRIG_API FRigControlHierarchy
 		ERigControlType InControlType = ERigControlType::Transform,
 		const FName& InParentName = NAME_None,
 		const FName& InSpaceName = NAME_None,
+		const FTransform& InOffsetTransform = FTransform::Identity,
 		const FRigControlValue& InValue = FRigControlValue(),
 		const FName& InGizmoName = TEXT("Gizmo"),
 		const FTransform& InGizmoTransform = FTransform::Identity,
@@ -415,17 +540,20 @@ struct CONTROLRIG_API FRigControlHierarchy
 
 	FTransform GetLocalTransform(int32 InIndex, ERigControlValueType InValueType = ERigControlValueType::Current) const;
 
-	FTransform GetParentTransform(int32 InIndex) const;
+	FTransform GetParentTransform(int32 InIndex, bool bIncludeOffsetTransform = true) const;
+
+	FTransform GetParentInitialTransform(int32 InIndex, bool bIncludeOffsetTransform = true) const;
 
 	// this is only valid if you have transform as type
 	// setting initial transform from global transform (control transform is based on parent)
 	void SetInitialGlobalTransform(const FName& InName, const FTransform& GlobalTransform);
 	
 	void SetInitialGlobalTransform(int32 InIndex, const FTransform& GlobalTransform);
-	
 	FTransform GetInitialGlobalTransform(const FName& InName) const;
 	
 	FTransform GetInitialGlobalTransform(int32 InIndex) const;
+
+	void SetControlOffset(int32 InIndex, const FTransform& InOffsetTransform);
 	
 	void SetValue(const FName& InName, const FRigControlValue& InValue, ERigControlValueType InValueType = ERigControlValueType::Current);
 
@@ -597,10 +725,17 @@ struct CONTROLRIG_API FRigControlHierarchy
 	// clears the hierarchy and removes all content
 	void Reset();
 
+	// returns the current pose
+	FRigPose GetPose() const;
+
+	// sets the current transforms from the given pose
+	void SetPose(FRigPose& InPose);
+
 	// resets all of the values back to the initial values
 	void ResetValues();
 
-#if WITH_EDITOR
+	// copies all offset transforms from another hierarchy
+	void CopyOffsetTransforms(const FRigControlHierarchy& InOther);
 
 	bool Select(const FName& InName, bool bSelect = true);
 	bool ClearSelection();
@@ -612,12 +747,11 @@ struct CONTROLRIG_API FRigControlHierarchy
 	FRigElementRenamed OnControlRenamed;
 	FRigElementReparented OnControlReparented;
 	FRigElementSelected OnControlSelected;
+
 	FRigElementChanged OnControlUISettingsChanged;
 
 	void HandleOnElementRemoved(FRigHierarchyContainer* InContainer, const FRigElementKey& InKey);
 	void HandleOnElementRenamed(FRigHierarchyContainer* InContainer, ERigElementType InElementType, const FName& InOldName, const FName& InNewName);
-
-#endif
 
 private:
 
@@ -633,10 +767,8 @@ private:
 	UPROPERTY()
 	TMap<FName, int32> NameToIndexMapping;
 
-#if WITH_EDITORONLY_DATA
 	UPROPERTY(transient)
 	TArray<FName> Selection;
-#endif
 
 	int32 GetSpaceIndex(const FName& InName) const;
 
@@ -644,9 +776,16 @@ private:
 
 	void RefreshMapping();
 
+	void AppendToPose(FRigPose& InOutPose) const;
+
 	// list of names of children - this is not cheap, and is supposed to be used only for one time set up
 	int32 GetChildrenRecursive(const int32 InIndex, TArray<int32>& OutChildren, bool bRecursively) const;
 
+	void PostLoad();
+
 	friend struct FRigHierarchyContainer;
+	friend struct FCachedRigElement;
 	friend class UControlRigHierarchyModifier;
+	friend class UControlRig;
+	friend class UControlRigBlueprint;
 };

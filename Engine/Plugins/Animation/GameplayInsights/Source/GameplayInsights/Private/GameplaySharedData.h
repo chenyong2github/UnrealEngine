@@ -8,6 +8,7 @@
 namespace Trace { class IAnalysisSession; }
 namespace Insights { class ITimingViewSession; }
 class FObjectEventsTrack;
+class FObjectPropertiesTrack;
 class FSkeletalMeshPoseTrack;
 class FAnimationTickRecordsTrack;
 struct FObjectInfo;
@@ -25,6 +26,9 @@ public:
 
 	// Helper function. Builds object track hierarchy on-demand and returns a track for the supplied object info.
 	TSharedRef<FObjectEventsTrack> GetObjectEventsTrackForId(Insights::ITimingViewSession& InTimingViewSession, const Trace::IAnalysisSession& InAnalysisSession, const FObjectInfo& InObjectInfo);
+
+	// Helper function to make tracks visible when children are first added
+	void MakeTrackAndAncestorsVisible(const TSharedRef<FObjectEventsTrack>& InObjectEventsTrack, bool bInVisible);
 
 	// Check whether gameplay tacks are enabled
 	bool AreGameplayTracksEnabled() const;
@@ -78,10 +82,13 @@ private:
 
 	// UI handlers
 	void ToggleGameplayTracks();
+	void ToggleObjectPropertyTracks();
+	bool AreObjectPropertyTracksEnabled() const;
 
 private:
 	// Track for each tracked object, mapped from Object ID -> track
 	TMap<uint64, TSharedPtr<FObjectEventsTrack>> ObjectTracks;
+	TArray<TSharedRef<FObjectPropertiesTrack>> ObjectPropertyTracks;
 
 	// The root tracks
 	TArray<TSharedRef<FBaseTimingTrack>> RootTracks;
@@ -103,4 +110,7 @@ private:
 
 	// Whether all of our object tracks are enabled
 	bool bObjectTracksEnabled;
+
+	// Whether all of our object property tracks are enabled
+	bool bObjectPropertyTracksEnabled;
 };

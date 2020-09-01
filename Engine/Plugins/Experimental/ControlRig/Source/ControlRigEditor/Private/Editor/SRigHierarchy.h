@@ -164,8 +164,11 @@ private:
 	/** Check whether we can deleting the selected item(s) */
 	bool CanDuplicateItem() const;
 
-	/** Delete Item */
+	/** Duplicate Item */
 	void HandleDuplicateItem();
+
+	/** Mirror Item */
+	void HandleMirrorItem();
 
 	/** Check whether we can deleting the selected item(s) */
 	bool CanRenameItem() const;
@@ -246,13 +249,14 @@ private:
 	bool ShouldFilterOnImport(const FAssetData& AssetData) const;
 	void RefreshHierarchy(const FAssetData& InAssetData);
 
-	void HandleResetTransform();
+	void HandleResetTransform(bool bSelectionOnly);
 	void HandleResetInitialTransform();
 	void HandleResetSpace();
 	void HandleSetInitialTransformFromCurrentTransform();
 	void HandleSetInitialTransformFromClosestBone();
 	void HandleFrameSelection();
 	void HandleControlBoneOrSpaceTransform();
+	void HandleUnparent();
 	bool FindClosestBone(const FVector& Point, FName& OutRigElementName, FTransform& OutGlobalTransform) const;
 
 	FName CreateUniqueName(const FName& InBaseName, ERigElementType InElementType) const;
@@ -267,9 +271,11 @@ private:
 	void OnRigElementRenamed(FRigHierarchyContainer* Container, ERigElementType ElementType, const FName& InOldName, const FName& InNewName);
 	void OnRigElementReparented(FRigHierarchyContainer* Container, const FRigElementKey& InKey, const FName& InOldParentName, const FName& InNewParentName);
 	void OnRigElementSelected(FRigHierarchyContainer* Container, const FRigElementKey& InKey, bool bSelected);
+	void HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint);
 
 	static TSharedPtr<FRigTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FRigTreeElement> CurrentItem);
 	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
+	void AddSpacerElement();
 	void AddBoneElement(FRigBone InBone);
 	void AddControlElement(FRigControl InControl);
 	void AddSpaceElement(FRigSpace InSpace);

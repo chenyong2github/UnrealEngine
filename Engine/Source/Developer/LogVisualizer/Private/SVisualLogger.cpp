@@ -1004,6 +1004,16 @@ void SVisualLogger::OnScrubPositionChanged(float NewScrubPosition, bool bScrubbi
 			DBRow.MoveTo(ClosestItem);
 		}
 	}
+
+	const TMap<FName, FVisualLogExtensionInterface*>& AllExtensions = FVisualLogger::Get().GetAllExtensions();
+	for (auto Iterator = AllExtensions.CreateConstIterator(); Iterator; ++Iterator)
+	{
+		FVisualLogExtensionInterface* Extension = (*Iterator).Value;
+		if (Extension != NULL)
+		{
+			Extension->OnScrubPositionChanged(FVisualLoggerEditorInterface::Get(), NewScrubPosition, bScrubbing);
+		}
+	}
 }
 
 FReply SVisualLogger::OnKeyboaedRedirection(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
