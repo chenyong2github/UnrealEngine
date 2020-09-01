@@ -75,7 +75,7 @@ FAutoConsoleVariableRef CVarTryToGCDuringMissingIndexing(
 	TEXT("Tries to GC occasionally while indexing missing items.")
 );
 
-DEFINE_LOG_CATEGORY_STATIC(LogAssetSearch, Log, All);
+//DEFINE_LOG_CATEGORY_STATIC(LogAssetSearch, Log, All);
 
 class FUnloadPackageScope
 {
