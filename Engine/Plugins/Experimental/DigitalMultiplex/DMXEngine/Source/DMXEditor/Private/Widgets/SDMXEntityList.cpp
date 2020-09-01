@@ -1615,20 +1615,13 @@ void SDMXEntityList::InitializeNodes()
 					if (Controllers.Num() == 0)
 					{
 						// There's no controller to assign the patch to
-						FixturePatchNode->SetErrorStatus(
-							LOCTEXT(
-								"PatchMissingController",
-								"No controller available. See 'Controllers' tab to create one.")
-						);
+						FText ErrorText = LOCTEXT("DMXEntityList.PatchMissingController", "No controller available. See 'Controllers' tab to create one.");
+						FixturePatchNode->SetErrorStatus(ErrorText);
 					}
 					else if (!FixturePatch->IsInControllersRange(Controllers))
 					{
-						FixturePatchNode->SetErrorStatus(
-							LOCTEXT(
-								"PatchNotInControllersRange",
-							     "The Universe of the patch is smaller than 0 or not reachable by any Controller in the Library.")
-						);
-
+						FText ErrorText = LOCTEXT("DMXEntityList.PatchNotInControllersRange", "The Universe of the patch is smaller than 0 or not reachable by any Controller in the Library.");
+						FixturePatchNode->SetErrorStatus(ErrorText);
 					}
 
 					UnassignedFixturesCategoryNode->AddChild(FixturePatchNode);
