@@ -18,6 +18,7 @@ RWTexture2D<float> RWHitDistanceUAV;
 
 
 void GenerateCosineNormalRay(
+	uint2 PixelCoord,
 	float3 WorldPosition,
 	float3 WorldNormal,
 	inout RandomSequence RandSequence,
@@ -33,7 +34,21 @@ void GenerateCosineNormalRay(
 	float2 RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
 
 	// Perform cosine-hemispherical sampling and convert to world-space
-	float4 Direction_Tangent = CosineSampleHemisphere(RandSample);
+	float4 Direction_Tangent;
+	#if 1
+	{
+		Direction_Tangent.xy = UniformSampleDiskConcentric(RandSample);
+
+		Direction_Tangent.z = sqrt(1.0 - dot(Direction_Tangent.xy, Direction_Tangent.xy));
+		Direction_Tangent.w = Direction_Tangent.z;
+	}
+	#else
+	{
+		Direction_Tangent = CosineSampleHemisphere(RandSample);
+	}
+	#endif
+
+
 	float3 Direction_World = TangentToWorld(Direction_Tangent.xyz, WorldNormal);
 
 	RayOrigin = WorldPosition;
@@ -68,7 +83,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 
 	float RayCount = 0.0;
 	float Visibility = 0.0;
-	float ClosestRayHitDistance = INFINITE_FLOAT;
+	float ClosestRayHitDistance = 10000.0;
 	// Declaring intensity as a local variable is a workaround for a shader compiler bug with NV drivers 430.39 and 430.64.
 	const float IntensityLocal = Intensity;
 	uint SamplesPerPixelLocal = SamplesPerPixel;
@@ -86,7 +101,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 	for (uint SampleIndex = 0; SampleIndex < SamplesPerPixelLocal; ++SampleIndex)
 	{
 		RayDesc Ray;
-		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
+		GenerateCosineNormalRay(PixelCoord, WorldPosition, WorldNormal, RandSequence, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
 		if (dot(WorldNormal, Ray.Direction) <= 0.0) // TODO(Denoiser): does it needs to be handled by the denoiser?

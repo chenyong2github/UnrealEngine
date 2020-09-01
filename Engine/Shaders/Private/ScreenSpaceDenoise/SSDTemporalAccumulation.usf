@@ -109,10 +109,12 @@
 	#define CONFIG_INPUT_TEXTURE_COUNT 1
 	#define CONFIG_HISTORY_TEXTURE_COUNT 1
 
+	#define CONFIG_NORMALIZED_INPUT 1
+
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
-	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
-	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO_HISTORY
+	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_AO_HISTORY
 	#define CONFIG_PATCH_PREV_SCENE_DEPTH 1
 
 	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
@@ -123,6 +125,8 @@
 
 		#define CONFIG_REJECTION_INPUT_MODE               REJECTION_INPUT_MODE_2PRETRANSFORMED_MOMMENTS
 		#define CONFIG_REJECTION_SAMPLE_SET               SAMPLE_SET_3X3_SOBEK2018
+	#else
+		#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3
 	#endif
 
 #elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_DIFFUSE_INDIRECT_AND_AO
@@ -251,6 +255,10 @@
 /** Whether should consider the depth velocity to compute the reference scene depth. */
 #ifndef CONFIG_PATCH_PREV_SCENE_DEPTH
 	#define CONFIG_PATCH_PREV_REF_SCENE_DEPTH 0
+#endif
+
+#ifndef CONFIG_NORMALIZED_INPUT
+	#define CONFIG_NORMALIZED_INPUT 0
 #endif
 
 
@@ -475,7 +483,7 @@ void TemporallyAccumulate(
 		GlobalPointClampedSampler,
 		CONFIG_SIGNAL_INPUT_LAYOUT,
 		/* MultiplexedSampleId = */ 0,
-		/* bNormalizeSample = */ false,
+		/* bNormalizeSample = */ CONFIG_NORMALIZED_INPUT != 0,
 		SceneBufferUV,
 		/* out */ CurrentFrameSamples,
 		/* out */ CurrentFrameFrequencies);
@@ -843,7 +851,11 @@ void TemporallyAccumulate(
 			// Clamp the history.
 			#if CONFIG_HISTORY_REJECTION == HISTORY_REJECTION_VAR_BOUNDARIES
 			{
-				const float StdDevMultiplier = 1.25;
+				#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_AO
+					const float StdDevMultiplier = 6.00;
+				#else
+					const float StdDevMultiplier = 1.25;
+				#endif
 
 				// StdDev = sqrt(abs(NeighborSquareAvg - NeighborAvg * NeighborAvg));
 				FSSDSignalSample StdDev = SqrtSignal(AbsSignal(SubtractSignal(NeighborMoment2, PowerSignal(NeighborMoment1, 2))));
