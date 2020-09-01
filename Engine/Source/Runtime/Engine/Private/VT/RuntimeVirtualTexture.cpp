@@ -198,10 +198,10 @@ void URuntimeVirtualTexture::GetProducerDescription(FVTProducerDescription& OutD
 
 	OutDesc.TileBorderSize = GetTileBorderSize();
 
-	// Apply runtime scalability option for TileCount bias here.
-	// We could also add a LODGroup driven bias in the future if it is useful.
-	const int32 TileCountBias = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
-	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBias);
+	// Apply TileCount bias here.
+	const int32 TileCountBiasFromLodGroup = UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetTextureLODGroup(LODGroup).VirtualTextureTileCountBias;
+	const int32 TileCountBiasFromScalability = VirtualTextureScalability::GetRuntimeVirtualTextureSizeBias();
+	const int32 MaxSizeInTiles = GetTileCount(TileCount + TileCountBiasFromLodGroup + TileCountBiasFromScalability);
 
 	// Set width and height to best match the runtime virtual texture volume's aspect ratio.
 	const FVector VolumeSize = VolumeToWorld.GetScale3D();
