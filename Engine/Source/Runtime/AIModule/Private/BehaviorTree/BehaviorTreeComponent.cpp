@@ -175,6 +175,7 @@ void UBehaviorTreeComponent::PauseLogic(const FString& Reason)
 
 EAILogicResuming::Type UBehaviorTreeComponent::ResumeLogic(const FString& Reason)
 {
+	UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("Execution updates: RESUMED (%s)"), *Reason);
 	const EAILogicResuming::Type SuperResumeResult = Super::ResumeLogic(Reason);
 	if (!!bIsPaused)
 	{
@@ -1458,6 +1459,44 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 		UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("BT(%i) planned to do something but actually did not."), GFrameCounter);
 	}
 	ScheduleNextTick(NextNeededDeltaTime);
+
+#if DO_ENSURE
+	// Adding code to track an problem earlier that is happening by RequestExecution from a decorator that has lower priority.
+	// The idea here is to try to rule out that the tick leaves the behavior tree is a bad state with lower priority decorators(AuxNodes).
+	static bool bWarnOnce = false;
+	if (!bWarnOnce)
+	{
+		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
+		{
+			const FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
+			if (!InstanceInfo.ActiveNode)
+			{
+				break;
+			}
+
+			const uint16 ActiveExecutionIdx = InstanceInfo.ActiveNode->GetExecutionIndex();
+			for (const UBTAuxiliaryNode* ActiveAuxNode : InstanceInfo.GetActiveAuxNodes())
+			{
+				if (ActiveAuxNode->GetExecutionIndex() >= ActiveExecutionIdx)
+				{
+					FString ErrorMsg(FString::Printf(TEXT("%s: leaving the tick of behavior tree with a lower priority active node %s, Current Tasks : "),
+						ANSI_TO_TCHAR(__FUNCTION__),
+						*UBehaviorTreeTypes::DescribeNodeHelper(ActiveAuxNode)));
+
+					for (int32 ParentInstanceIndex = 0; ParentInstanceIndex <= InstanceIndex; ++ParentInstanceIndex)
+					{
+						ErrorMsg += *UBehaviorTreeTypes::DescribeNodeHelper(InstanceStack[ParentInstanceIndex].ActiveNode);
+						ErrorMsg += TEXT("\\");
+					}
+
+					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
+					bWarnOnce = true;
+					break;
+				}
+			}
+		}
+	}
+#endif // DO_ENSURE
 }
 
 void UBehaviorTreeComponent::ScheduleNextTick(const float NextNeededDeltaTime)
@@ -1688,7 +1727,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 				const bool bIsTaskRunning = InstanceStack[ActiveInstanceIdx].HasActiveNode(NextTaskIdx.ExecutionIndex);
 				if (bIsTaskRunning)
 				{
-					BT_SEARCHLOG(SearchData, Verbose, TEXT("Task doesn't allow restart and it's already running! Discaring search."));
+					BT_SEARCHLOG(SearchData, Verbose, TEXT("Task doesn't allow restart and it's already running! Discarding search."));
 					bIsSearchValid = false;
 				}
 			}
@@ -1788,44 +1827,6 @@ void UBehaviorTreeComponent::ProcessPendingExecution()
 	{
 		OnTreeFinished();
 	}
-
-#if DO_ENSURE
-	// Adding code to track an problem earlier that is happening by RequestExecution from a decorator that has lower priority.
-	// The idea here is to try to rule out that the tick leaves the behavior tree is a bad state with lower priority decorators(AuxNodes).
-	static bool bWarnOnce = false;
-	if (!bWarnOnce)
-	{
-		for (int32 InstanceIndex = 0; InstanceIndex < InstanceStack.Num(); InstanceIndex++)
-		{
-			const FBehaviorTreeInstance& InstanceInfo = InstanceStack[InstanceIndex];
-			if (!InstanceInfo.ActiveNode)
-			{
-				break;
-			}
-
-			const uint16 ActiveExecutionIdx = InstanceInfo.ActiveNode->GetExecutionIndex();
-			for (const UBTAuxiliaryNode* ActiveAuxNode : InstanceInfo.GetActiveAuxNodes())
-			{
-				if (ActiveAuxNode->GetExecutionIndex() >= ActiveExecutionIdx)
-				{
-					FString ErrorMsg(FString::Printf(TEXT("%s: leaving the tick of behavior tree with a lower priority active node %s, Current Tasks : "),
-						ANSI_TO_TCHAR(__FUNCTION__),
-						*UBehaviorTreeTypes::DescribeNodeHelper(ActiveAuxNode)));
-
-					for (int32 ParentInstanceIndex = 0; ParentInstanceIndex <= InstanceIndex; ++ParentInstanceIndex)
-					{
-						ErrorMsg += *UBehaviorTreeTypes::DescribeNodeHelper(InstanceStack[ParentInstanceIndex].ActiveNode);
-						ErrorMsg += TEXT("\\");
-					}
-
-					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
-					bWarnOnce = true;
-					break;
-				}
-			}
-		}
-	}
-#endif // DO_ENSURE
 }
 
 void UBehaviorTreeComponent::RollbackSearchChanges()
