@@ -233,8 +233,8 @@ public:
 				}
 				else
 				{
-					UE_LOG(LogNiagaraEditor, Error, TEXT("Pin type is invalid! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
-						*InPin->GetOwningNode()->GetName());
+					UE_LOG(LogNiagaraEditor, Warning, TEXT("Pin type is invalid! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
+						*InPin->GetOwningNode()->GetFullName());
 					InPin->PinType.PinSubCategoryObject = MakeWeakObjectPtr(const_cast<UScriptStruct*>(FNiagaraTypeDefinition::GetIntStruct()));
 					InPin->DefaultValue.Empty();
 					return CreatePin(InPin);
@@ -245,8 +245,8 @@ public:
 				const UEnum* Enum = Cast<const UEnum>(InPin->PinType.PinSubCategoryObject.Get());
 				if (Enum == nullptr)
 				{
-					UE_LOG(LogNiagaraEditor, Error, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
-						*InPin->GetOwningNode()->GetName());
+					UE_LOG(LogNiagaraEditor, Warning, TEXT("Pin states that it is of Enum type, but is missing its Enum! Pin Name '%s' Owning Node '%s'. Turning into standard int definition!"), *InPin->PinName.ToString(),
+						*InPin->GetOwningNode()->GetFullName());
 					InPin->PinType.PinCategory = UEdGraphSchema_Niagara::PinCategoryType;
 					InPin->PinType.PinSubCategoryObject = MakeWeakObjectPtr(const_cast<UScriptStruct*>(FNiagaraTypeDefinition::GetIntStruct()));
 					InPin->DefaultValue.Empty();
