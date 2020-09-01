@@ -141,6 +141,10 @@ class ir_remove_empty_stat_scopes : public ir_hierarchical_visitor
 				call->remove();
 			}
 		}
+		else if (StatScopeAssingmentCounts.Num() > 0)
+		{
+			++StatScopeAssingmentCounts.Last();
+		}
 		return visit_continue_with_parent;
 	}
 
