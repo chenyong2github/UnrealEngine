@@ -132,6 +132,11 @@ void FEvaluationTreePopulationRules::HighPassCustomPerRow(TArrayView<UMovieScene
 
 void FEvaluationTreePopulationRules::PopulateNearestSection(TArrayView<UMovieSceneSection* const> Sections, TMovieSceneEvaluationTree<FMovieSceneTrackEvaluationData>& OutTree)
 {
+	if (OutTree.IsEmpty())
+	{
+		return;
+	}
+
 	// Fill in gaps
 	TArray<TTuple<TRange<FFrameNumber>, FMovieSceneTrackEvaluationData>> RangesToInsert;
 
