@@ -84,6 +84,10 @@ class UMaterialExpressionVolumetricAdvancedMaterialOutput : public UMaterialExpr
 	UPROPERTY(EditAnywhere, Category = "Options")
 	bool bGrayScaleMaterial;
 
+	/** Disable this to use the cloud shadow map instead of secondary raymarching. This is usually enough for clouds viewed from the ground and it result in a performance boost. Shadow now have infinite length but also becomes less accurate and gray scale.*/
+	UPROPERTY(EditAnywhere, Category = "Options")
+	bool bRayMarchVolumeShadow;
+
 public:
 #if WITH_EDITOR
 	//~ Begin UMaterialExpression Interface
