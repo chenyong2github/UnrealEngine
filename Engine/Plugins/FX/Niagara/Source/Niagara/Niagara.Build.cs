@@ -38,6 +38,7 @@ public class Niagara : ModuleRules
                 "RHI",
                 "NiagaraVertexFactories",
                 "RenderCore",
+                "IntelISPC",
             }
         );
 

@@ -7,6 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Math/Float16.h"
 #include "UObject/ObjectMacros.h"
 #include "Serialization/BulkData.h"
 #include "VectorField/VectorField.h"
@@ -14,6 +15,11 @@
 
 class FRHITexture;
 struct FPropertyChangedEvent;
+
+// The internal representation of the CPU data (if used) is based on how we can
+// effectively sample it.  Currently we'll decide that based on if we have ISPC
+// supported
+#define VECTOR_FIELD_DATA_AS_HALF (INTEL_ISPC)
 
 UCLASS(hidecategories=VectorFieldBounds, MinimalAPI)
 class UVectorFieldStatic : public UVectorField
@@ -42,11 +48,6 @@ public:
 
 	/** Source vector data. */
 	FByteBulkData SourceData;
-
-	/** Local copy of the source vector data. */
-	UPROPERTY(Transient)
-	TArray<FVector4> CPUData; 
-
 
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -94,8 +95,25 @@ public:
 
 	/** Returns a reference to a 3D texture handle for the GPU data. */
 	ENGINE_API FRHITexture* GetVolumeTextureRef();
-private:
 
+	ENGINE_API FVector FilteredSample(const FVector& SamplePosition, const FVector& TilingAxes) const;
+	ENGINE_API FVector Sample(const FIntVector& SamplePosition) const;
+
+	using InternalFloatType = 
+#if VECTOR_FIELD_DATA_AS_HALF
+		FFloat16;
+#else
+		float;
+#endif
+
+	TConstArrayView<InternalFloatType> ReadCPUData() const
+	{
+		return MakeArrayView<const InternalFloatType>(reinterpret_cast<const InternalFloatType*>(CPUData.GetData()), CPUData.Num() / sizeof(InternalFloatType));
+	}
+
+	bool HasCPUData() const { return bAllowCPUAccess && CPUData.Num(); }
+
+private:
 	/** Permit the factory class to update and release resources externally. */
 	friend class UVectorFieldStaticFactory;
 
@@ -110,7 +128,10 @@ private:
 	 */
 	ENGINE_API void ReleaseResource();
 
-	
+	FORCEINLINE FVector SampleInternal(int32 SampleIndex) const;
+
+	/** Local copy of the source vector data.  May be stored in half precision if it can be sampled efficiently */
+	TArray<uint8> CPUData;
 };
 
 // work around for the private nature of FVectorFieldResource
