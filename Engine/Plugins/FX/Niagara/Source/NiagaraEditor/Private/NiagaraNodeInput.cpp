@@ -9,6 +9,7 @@
 #include "NiagaraNodeOp.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "EdGraphSchema_Niagara.h"
+#include "NiagaraConstants.h"
 #include "NiagaraDataInterface.h"
 #include "SNiagaraGraphNodeInput.h"
 #include "NiagaraEditorUtilities.h"
@@ -102,6 +103,17 @@ void UNiagaraNodeInput::BuildParameterMapHistory(FNiagaraParameterMapHistoryBuil
 
 			OutHistory.RegisterParameterMapPin(ParamMapIdx, GetOutputPin(0));
 		}
+	}
+}
+
+void UNiagaraNodeInput::AppendFunctionAliasForContext(const FNiagaraGraphFunctionAliasContext& InFunctionAliasContext, FString& InOutFunctionAlias, bool& OutOnlyOncePerNodeType)
+{
+	if (Usage == ENiagaraInputNodeUsage::TranslatorConstant && Input == TRANSLATOR_PARAM_CALL_ID)
+	{
+		OutOnlyOncePerNodeType = true;
+		// The call ID should be unique for each translated node as it is used by the seeded random functions.
+		// We don't want it to be shared across the spawn and update script, so functions including it will have the usage added to their name.
+		InOutFunctionAlias += "_ScriptUsage" + FString::FormatAsNumber((uint8)InFunctionAliasContext.ScriptUsage);
 	}
 }
 
