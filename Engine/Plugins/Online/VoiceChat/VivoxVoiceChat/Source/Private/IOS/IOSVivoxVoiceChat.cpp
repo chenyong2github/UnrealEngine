@@ -5,6 +5,7 @@
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/CoreDelegates.h"
 #include "Misc/EmbeddedCommunication.h"
+#include "Misc/ScopeLock.h"
 #include "IOS/IOSAppDelegate.h"
 
 TUniquePtr<FVivoxVoiceChat> CreateVivoxObject()
