@@ -128,31 +128,7 @@ public:
 				return; // Prevent renentrant logging.
 			}
 
-			// Add the separator if some text is already logged.
-			if (DiagnosticInfo.Len())
-			{
-				DiagnosticInfo.Append(TEXT("|"));
-			}
-
-			// Rotate the log if it gets too long.
-			int32 FreeLen = MaxLogLen - DiagnosticInfo.Len();
-			int32 EventLen = FCString::Strlen(Event);
-			if (EventLen > FreeLen)
-			{
-				if (EventLen > MaxLogLen)
-				{
-					DiagnosticInfo.Reset(MaxLogLen);
-					EventLen = MaxLogLen;
-				}
-				else
-				{
-					DiagnosticInfo.RemoveAt(0, EventLen - FreeLen, /*bAllowShrinking*/false); // Free space, remove the chars from the oldest events (in front).
-				}
-			}
-
-			// Append the log entry and dump the log to the file.
-			DiagnosticInfo.AppendChars(Event, EventLen);
-			WriteToFile(FDateTime::UtcNow(), &DiagnosticInfo);
+			AppendLog(Event);
 
 			// Prevent error logs coming from the logging system to be duplicated.
 			if (bForwardToUELog)
@@ -178,14 +154,28 @@ public:
 		{
 			FScopeLock ScopedLock(&LoggerLock);
 
-			// To prevent LogEvent() executing if if WriteToFile() below ends up firing an error log (like a disk is full error message logged).
+			// To prevent LogEvent() executing if WriteToFile() below ends up firing an error log (like a disk is full error message logged).
 			TGuardValue<bool> ReentrantGuard(bReentrantGuard, true);
 
+			// Timestamp the log file every n seconds.
+			constexpr double TimestampingPeriodSecs = 5;
+
 			const double CurrTimeSecs = FPlatformTime::Seconds();
-			if (CurrTimeSecs >= NextTimestampUpdateTimeSeconds)
+			if (CurrTimeSecs >= NextTickLogSeconds)
+			{
+				// Append the current time to log at few point in times as a proof that CRC ticked at the expected beat. 
+				AppendLog(*FDateTime::UtcNow().ToString());
+
+				// Log after 5s, 20s, 1.3min, 5.3min, 21.3min, up to every 2 hours.
+				TickLogPeriodSeconds = FMath::Min(TickLogPeriodSeconds * 4, 2.0 * 3600);
+				NextTickLogSeconds = CurrTimeSecs + TickLogPeriodSeconds;
+
+				// Appending a log updated the timestamp too, schedule the next one later.
+				NextTimestampUpdateTimeSeconds = CurrTimeSecs + TimestampingPeriodSecs;
+			}
+			else if (CurrTimeSecs >= NextTimestampUpdateTimeSeconds)
 			{
 				// Update the timestamp every n seconds.
-				constexpr double TimestampingPeriodSecs = 5;
 				NextTimestampUpdateTimeSeconds = CurrTimeSecs + TimestampingPeriodSecs;
 
 				// Timestamp the log.
@@ -259,6 +249,8 @@ public:
 private:
 	FDiagnosticLogger()
 		: NextTimestampUpdateTimeSeconds(FPlatformTime::Seconds())
+		, TickLogPeriodSeconds(5)
+		, NextTickLogSeconds(NextTimestampUpdateTimeSeconds + TickLogPeriodSeconds)
 	{
 		if (IsEnabled())
 		{
@@ -272,7 +264,7 @@ private:
 			DiagnosticInfo.Reset(MaxLogLen);
 
 			// Open the file.
-			LogFileAr.Reset(IFileManager::Get().CreateFileWriter(*GetLogPathname()));
+			LogFileAr.Reset(IFileManager::Get().CreateFileWriter(*GetLogPathname(), FILEWRITE_AllowRead));
 		}
 	}
 
@@ -318,6 +310,35 @@ private:
 		return FCString::Atoi(*ProcessIdStr);
 	}
 
+	void AppendLog(const TCHAR* Event)
+	{
+		// Add the separator if some text is already logged.
+		if (DiagnosticInfo.Len())
+		{
+			DiagnosticInfo.Append(TEXT("|"));
+		}
+
+		// Rotate the log if it gets too long.
+		int32 FreeLen = MaxLogLen - DiagnosticInfo.Len();
+		int32 EventLen = FCString::Strlen(Event);
+		if (EventLen > FreeLen)
+		{
+			if (EventLen > MaxLogLen)
+			{
+				DiagnosticInfo.Reset(MaxLogLen);
+				EventLen = MaxLogLen;
+			}
+			else
+			{
+				DiagnosticInfo.RemoveAt(0, EventLen - FreeLen, /*bAllowShrinking*/false); // Free space, remove the chars from the oldest events (in front).
+			}
+		}
+
+		// Append the log entry and dump the log to the file.
+		DiagnosticInfo.AppendChars(Event, EventLen);
+		WriteToFile(FDateTime::UtcNow(), &DiagnosticInfo);
+	}
+
 	/**
 	 * Write the diagnostic info into the file.
 	 * @param Timestamp The CRC timestamp, written at the beginning of the file.
@@ -357,6 +378,12 @@ private:
 
 	/** The period at which the log timestamp is updated. During the first minute, timestamp every 5 seconds, then after the first minute, every minutes. */
 	double NextTimestampUpdateTimeSeconds;
+
+	/** The current period to wait between 'tick' logs. */
+	double TickLogPeriodSeconds;
+
+	/** The next time a 'tick' should be logged. */
+	double NextTickLogSeconds;
 
 	/** Prevent a reentrency in the logger. */
 	bool bReentrantGuard = false;
@@ -875,8 +902,8 @@ bool IsCrashReportAvailable(uint32 WatchedProcess, FSharedCrashContext& CrashCon
 		SharedCtxIt = CopyFn(Buffer, SharedCtxIt, SharedCtxEndIt);
 
 		// Try to consume all the expected data within a defined period of time.
-		FDateTime WaitEndTime = FDateTime::UtcNow() + FTimespan(0, 0, 2);
-		while (SharedCtxIt != SharedCtxEndIt && FDateTime::UtcNow() <= WaitEndTime)
+		double WaitEndTime = FPlatformTime::Seconds() + 5;
+		while (SharedCtxIt != SharedCtxEndIt && FPlatformTime::Seconds() <= WaitEndTime)
 		{
 			if (FPlatformProcess::ReadPipeToArray(ReadPipe, Buffer)) // This is false if no data is available, but the writer may be still be writing.
 			{
@@ -1139,7 +1166,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	{
 		FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("Monitor/Start:%d"), FPlatformProcess::GetCurrentProcessId()));
 
-		const int32 IdealFramerate = 30;
+		const int32 IdealFramerate = 10;
 		double PrevLoopStartTime = FPlatformTime::Seconds();
 		const float IdealFrameTime = 1.0f / IdealFramerate;
 
@@ -1187,10 +1214,7 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			return MakeTuple(bRunning, ProcessReturnCodeOpt);
 		};
 
-		// This GetProcessStatus() call is expensive, perform it at low frequency.
 		TTuple<bool/*bRunning*/, TOptional<int32>/*ExitCode*/> ProcessStatus = GetProcessStatus(MonitoredProcess);
-		constexpr double ProcessStatusCheckPeriodSecs = 0.5;
-		double NextProcessStatusCheckTime = FPlatformTime::Seconds() + ProcessStatusCheckPeriodSecs;
 
 		while (ProcessStatus.Get<0>() && !IsEngineExitRequested())
 		{
@@ -1264,12 +1288,8 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 			const float SleepSeconds = IdealFrameTime - static_cast<float>(FPlatformTime::Seconds() - CurrLoopStartTime);
 			FPlatformProcess::Sleep(FMath::Clamp(SleepSeconds, 0.0f, 1.0f));
 
-			// Is it time to refresh the monitored application status?
-			if (FPlatformTime::Seconds() >= NextProcessStatusCheckTime)
-			{
-				ProcessStatus = GetProcessStatus(MonitoredProcess);
-				NextProcessStatusCheckTime = FPlatformTime::Seconds() + ProcessStatusCheckPeriodSecs;
-			}
+			// Refresh the monitored application status.
+			ProcessStatus = GetProcessStatus(MonitoredProcess);
 
 			PrevLoopStartTime = CurrLoopStartTime;
 			
