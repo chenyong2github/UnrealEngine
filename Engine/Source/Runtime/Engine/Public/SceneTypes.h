@@ -25,7 +25,7 @@ struct FCustomPrimitiveData
 {
 	GENERATED_USTRUCT_BODY()
 
-	static constexpr int32 NumCustomPrimitiveDataFloat4s = 8; // Must match NUM_CUSTOM_PRIMITIVE_DATA in SceneData.ush
+	static constexpr int32 NumCustomPrimitiveDataFloat4s = 9; // Must match NUM_CUSTOM_PRIMITIVE_DATA in SceneData.ush
 	static constexpr int32 NumCustomPrimitiveDataFloats = NumCustomPrimitiveDataFloat4s * 4;
 
 	UPROPERTY(EditAnywhere, Category=Rendering)

@@ -211,7 +211,7 @@ extern ENGINE_API TGlobalResource<FIdentityPrimitiveUniformBuffer> GIdentityPrim
 struct FPrimitiveSceneShaderData
 {
 	// Must match usf
-	enum { PrimitiveDataStrideInFloat4s = 35 };
+	enum { PrimitiveDataStrideInFloat4s = 36 };
 
 	FVector4 Data[PrimitiveDataStrideInFloat4s];
 
