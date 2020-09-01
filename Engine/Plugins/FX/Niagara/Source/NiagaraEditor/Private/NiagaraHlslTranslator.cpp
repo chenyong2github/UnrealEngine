@@ -241,12 +241,7 @@ struct TSimStagePermutationContext
 
 	static bool SupportsBranching(const FHlslNiagaraTranslator& Translator)
 	{
-		if (Translator.GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim && Translator.GetUsesSimulationStages())
-		{
-			return Translator.GetUseShaderPermutations() || Scope == EPermutationScopeContext::Expression;
-		}
-
-		return false;
+		return Translator.GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim && Translator.GetUsesSimulationStages();
 	}
 
 
@@ -277,7 +272,7 @@ private:
 		if (SupportsBranching(Translator) && StageIndices.Num())
 		{
 			Enabled = true;
-			UsingShaderPermutations = Translator.GetUseShaderPermutations();
+			UsingShaderPermutations = Translator.GetUsesSimulationStages();
 				
 			const FString PreviousTranslationStageName = TranslationStageName;
 			TranslationStageName = StageIndices.Num() > 1 ? TEXT("Multiple stages") : TranslationStages[StageIndices[0]].PassNamespace;
@@ -1297,7 +1292,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].NumIterationsThisStage = NumIterationsThisStage;
 					TranslationStages[Index].bSpawnOnly = bSpawnOnly;
 					TranslationStages[Index].bPartialParticleUpdate = InCompileData->PartialParticleUpdatePerStage.IsValidIndex(SimStageIndex) ? InCompileData->PartialParticleUpdatePerStage[SimStageIndex] : false;
-					TranslationStages[Index].bPartialParticleUpdate &= InCompileData->GetUseShaderPermutations();
 					TranslationStages[Index].IterationSource = IterationSrc;
 					TranslationStages[Index].SourceSimStage = SimStageIndex;
 					SimStageStartIndex += NumIterationsThisStage;
