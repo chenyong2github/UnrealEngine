@@ -236,6 +236,17 @@ struct TSimStagePermutationContext
 		}
 	}
 
+	static bool SupportsBranching(const FHlslNiagaraTranslator& Translator)
+	{
+		if (Translator.GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim && Translator.GetUsesSimulationStages())
+		{
+			return Translator.GetUseShaderPermutations() || Scope == EPermutationScopeContext::Expression;
+		}
+
+		return false;
+	}
+
+
 private:
 	FString BuildConditionString(TConstArrayView<FHlslNiagaraTranslationStage> TranslationStages, TConstArrayView<int32> StageIndices)
 	{
@@ -260,59 +271,53 @@ private:
 
 	void AddBranchInternal(const FHlslNiagaraTranslator& Translator, TConstArrayView<FHlslNiagaraTranslationStage> TranslationStages, TConstArrayView<int32> StageIndices)
 	{
-		if (Translator.GetSimulationTarget() == ENiagaraSimTarget::GPUComputeSim && StageIndices.Num()
-			&& Translator.GetUsesSimulationStages())
+		if (SupportsBranching(Translator) && StageIndices.Num())
 		{
-			const bool SupportsShaderPermutations = Translator.GetUseShaderPermutations();
-
-			if (SupportsShaderPermutations || Scope == EPermutationScopeContext::Expression)
-			{
-				Enabled = true;
-				UsingShaderPermutations = SupportsShaderPermutations;
+			Enabled = true;
+			UsingShaderPermutations = Translator.GetUseShaderPermutations();
 				
-				const FString PreviousTranslationStageName = TranslationStageName;
-				TranslationStageName = StageIndices.Num() > 1 ? TEXT("Multiple stages") : TranslationStages[StageIndices[0]].PassNamespace;
+			const FString PreviousTranslationStageName = TranslationStageName;
+			TranslationStageName = StageIndices.Num() > 1 ? TEXT("Multiple stages") : TranslationStages[StageIndices[0]].PassNamespace;
 
-				FString ConditionString = BuildConditionString(TranslationStages, StageIndices);
+			FString ConditionString = BuildConditionString(TranslationStages, StageIndices);
 
-				if (UsingShaderPermutations)
+			if (UsingShaderPermutations)
+			{
+				if (HasBranch)
 				{
-					if (HasBranch)
-					{
-						HlslOutput.Appendf(TEXT(
-							"#elif (%s) // %s\n"),
-							*ConditionString,
-							*TranslationStageName);
-					}
-					else
-					{
-						HlslOutput.Appendf(TEXT("#if (%s) // %s\n"),
-							*ConditionString,
-							*TranslationStageName);
-					}
+					HlslOutput.Appendf(TEXT(
+						"#elif (%s) // %s\n"),
+						*ConditionString,
+						*TranslationStageName);
 				}
 				else
 				{
-					if (HasBranch)
-					{
-						HlslOutput.Appendf(TEXT(
-							"} // %s\n"
-							"else if (%s) // %s\n"
-							"{\n"),
-							*PreviousTranslationStageName,
-							*ConditionString,
-							*TranslationStageName);
-					}
-					else
-					{
-						HlslOutput.Appendf(TEXT("BRANCH\nif (%s) // %s\n{\n"),
-							*ConditionString,
-							*TranslationStageName);
-					}
+					HlslOutput.Appendf(TEXT("#if (%s) // %s\n"),
+						*ConditionString,
+						*TranslationStageName);
 				}
-
-				HasBranch = true;
 			}
+			else
+			{
+				if (HasBranch)
+				{
+					HlslOutput.Appendf(TEXT(
+						"} // %s\n"
+						"else if (%s) // %s\n"
+						"{\n"),
+						*PreviousTranslationStageName,
+						*ConditionString,
+						*TranslationStageName);
+				}
+				else
+				{
+					HlslOutput.Appendf(TEXT("BRANCH\nif (%s) // %s\n{\n"),
+						*ConditionString,
+						*TranslationStageName);
+				}
+			}
+
+			HasBranch = true;
 		}
 	}
 
@@ -549,6 +554,13 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 		FunctionAliasContext.StaticSwitchValues = StaticSwitchValues;
 		FString SignatureName = InName + FuncGraph->GetFunctionAliasByContext(FunctionAliasContext);
 		OutSig = FNiagaraFunctionSignature(*SignatureName, InputVars, OutputVars, *InFullName, true, false);
+	}
+
+	// if we are splitting up our functions then we need to mark which stage this function signature is associated 
+	// with so that if we encounter a function implementation for another stage that it will also be added
+	if (OutSig.bRequiresContext && FDeclarationPermutationContext::SupportsBranching(*this))
+	{
+		OutSig.ContextStageIndex = ActiveStageIdx;
 	}
 }
 

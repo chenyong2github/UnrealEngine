@@ -289,6 +289,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 	UPROPERTY(meta = (Bitmask, BitmaskEnum = ENiagaraScriptUsage))
 	int32 ModuleUsageBitmask;
 
+	/** When using simulation stages and bRequiresContext is true this will be the index of the stage that is associated with the function. */
+	UPROPERTY()
+	int32 ContextStageIndex;
+
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
 	TMap<FName, FName> FunctionSpecifiers;
@@ -308,6 +312,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, ModuleUsageBitmask(0)
+		, ContextStageIndex(INDEX_NONE)
 	{
 	}
 
@@ -323,6 +328,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, ModuleUsageBitmask(0)
+		, ContextStageIndex(INDEX_NONE)
 	{
 
 	}
@@ -339,6 +345,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, ModuleUsageBitmask(0)
+		, ContextStageIndex(INDEX_NONE)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -373,6 +380,7 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		bMatches &= bRequiresExecPin == Other.bRequiresExecPin;
 		bMatches &= bMemberFunction == Other.bMemberFunction;
 		bMatches &= OwnerName == Other.OwnerName;
+		bMatches &= ContextStageIndex == Other.ContextStageIndex;
 		return bMatches;
 	}
 
