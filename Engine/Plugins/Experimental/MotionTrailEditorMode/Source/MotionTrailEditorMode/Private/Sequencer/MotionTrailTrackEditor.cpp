@@ -11,6 +11,7 @@
 #include "Editor.h"
 #include "EditorModeManager.h"
 
+#include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Colors/SColorPicker.h"
 
 #define LOCTEXT_NAMESPACE "MotionTrailTrackEditor"
