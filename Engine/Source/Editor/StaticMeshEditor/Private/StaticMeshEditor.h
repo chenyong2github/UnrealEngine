@@ -64,9 +64,11 @@ public:
 
 	~FStaticMeshEditor();
 
+private:
 	/** Initializes the editor to use a static mesh. Should be the first thing called. */
 	void InitEditorForStaticMesh(UStaticMesh* ObjectToEdit);
 
+public:
 	virtual void RegisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 	virtual void UnregisterTabSpawners(const TSharedRef<class FTabManager>& TabManager) override;
 
