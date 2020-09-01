@@ -392,7 +392,13 @@ protected:
 	FORCEINLINE FNiagaraDataSetID GetSystemConstantDataSetID()const { return FNiagaraDataSetID(TEXT("Constant"), ENiagaraDataSetType::ParticleData); }
 
 	/** All functions called in the script. */
-	TMap<FNiagaraFunctionSignature, FString> Functions;
+	struct FNiagaraFunctionBody
+	{
+		FString Body;
+		TArray<int32> StageIndices;
+	};
+
+	TMap<FNiagaraFunctionSignature, FNiagaraFunctionBody> Functions;
 	TMap<FNiagaraFunctionSignature, TArray<FName> > FunctionStageWriteTargets;
 	TArray<TArray<FName>> ActiveStageWriteTargets;
 
@@ -538,6 +544,11 @@ public:
 	{
 		return CompilationTarget;
 	}
+	bool GetUseShaderPermutations() const
+	{
+		return CompileData ? CompileData->GetUseShaderPermutations() : true;
+	}
+	bool GetUsesSimulationStages() const;
 
 	static bool IsBuiltInHlslType(const FNiagaraTypeDefinition& Type);
 	static FString GetStructHlslTypeName(const FNiagaraTypeDefinition& Type);
@@ -571,7 +582,6 @@ public:
 
 private:
 	bool GetUsesOldShaderStages() const;
-	bool GetUsesSimulationStages() const;
 
 	void InitializeParameterMapDefaults(int32 ParamMapHistoryIdx);
 	void HandleParameterRead(int32 ParamMapHistoryIdx, const FNiagaraVariable& Var, const UEdGraphPin* DefaultPin, UNiagaraNode* ErrorNode, int32& OutputChunkId, UNiagaraScriptVariable* Variable, bool bTreatAsUnknownParameterMap = false);
@@ -699,7 +709,7 @@ private:
 	TMap<FNiagaraVariable, int32> UniqueVarToChunk;
 
 	// Strings to be inserted within the main function
-	TArray<FString> MainPreSimulateChunks;
+	TArray<TArray<FString>> PerStageMainPreSimulateChunks;
 
 	// read and write data set indices
 	int32 ReadIdx;
