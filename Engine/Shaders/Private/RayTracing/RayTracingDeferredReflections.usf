@@ -167,17 +167,36 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDeferredReflectionsRGS)
 
 		TraceDeferredMaterialShadingRay(
 			TLAS,
-			RAY_FLAG_FORCE_OPAQUE,
+			0, // RayFlags
 			RAY_TRACING_MASK_OPAQUE,
 			Ray,
 			Bookmark,
 			PackedPayload);
 
+		const bool bTopLayerRayTraceSkyLightContribution = false;
+
+		// If the closest surface that we found during material gather is transparent,
+		// we can trace another ray that performs full traversal and masked material evaluation.
+		// The assumption here is that majority of the rays will actually hit opaque surfaces and
+		// the win from skipping AHS invocations during initial traversal will lead to overall win on average.
+		if (!PackedPayload.IsHit())
+		{
+			FRayCone RayCone = (FRayCone)0;
+			TraceMaterialRayPacked(
+				PackedPayload,
+				TLAS,
+				0, // RayFlags
+				RAY_TRACING_MASK_OPAQUE,
+				Ray,
+				RayCone,
+				PixelPos,
+				bTopLayerRayTraceSkyLightContribution);
+		}
+
 		if (PackedPayload.IsHit())
 		{
 			bool bShouldDoDirectLighting               = ShouldDoDirectLighting != 0;
 			bool bShouldDoEmissiveAndIndirectLighting  = ShouldDoEmissiveAndIndirectLighting != 0;
-			bool bTopLayerRayTraceSkyLightContribution = false;
 			bool bDecoupleSampleGeneration             = false;
 			uint ReflectedShadowsType                  = 1; // Hard shadows
 			

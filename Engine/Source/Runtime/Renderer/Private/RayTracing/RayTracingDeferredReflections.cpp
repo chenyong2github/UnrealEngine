@@ -7,20 +7,17 @@
  * - Trace screen space reflection rays and output validity mask to avoid tracing/shading full rays [TODO; currently always tracing full rays]
  * - Trace reflection rays using lightweight RayGen shader and output material IDs
  * - Sort material IDs
- * - Execute material shaders and produce "Reflection GBuffer"
- * - Apply lighting to produce the final reflection buffer [TODO; currently done in material eval RGS]
+ * - Execute material shaders and produce "Reflection GBuffer" [TODO; all lighting currently done in material eval RGS]
+ * - Apply lighting to produce the final reflection buffer [TODO; all lighting currently done in material eval RGS]
  * 
  * Other features that are currently not implemented, but may be in the future:
- * - Roughness threshold
- * - Forced mirror-like reflections (similar to SSR low quality profile)
- * - Alpha masked materials
- * - Reflection capture for multi-bounce fallback
+ * - Screen percentage (i.g. half-resolution ray traced reflections)
  * - Shadow maps instead of ray traced shadows
  * 
  * Features that will never be supported due to performance:
  * - Multi-bounce
  * - Multi-SPP
- * - Clearcoat
+ * - Clearcoat (only approximation will be supported)
  * - Translucency
  **/
 
