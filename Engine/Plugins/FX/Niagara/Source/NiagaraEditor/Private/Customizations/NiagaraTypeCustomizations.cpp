@@ -403,10 +403,10 @@ void FNiagaraVariableAttributeBindingCustomization::CustomizeHeader(TSharedRef<I
 						PropertyHandle->CreatePropertyNameWidget()
 					]
 					.ValueContent()
-					.MaxDesiredWidth(200.f)
 					[
 						SNew(SHorizontalBox)
 						+ SHorizontalBox::Slot()
+						.AutoWidth()
 						.Padding(0.0f, 0.0f, 4.0f, 0.0f)
 						[
 							SNew(SComboButton)
