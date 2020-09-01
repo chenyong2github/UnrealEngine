@@ -397,25 +397,6 @@ void UWidgetBlueprintGeneratedClass::SetWidgetTreeArchetype(UWidgetTree* InWidge
 	}
 }
 
-void UWidgetBlueprintGeneratedClass::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-#if WITH_EDITOR
-	if (TargetPlatform == nullptr)
-	{
-		// If we're saving the generated class in the editor, should we allow it to preserve a shadow copy of the one in the
-		// blueprint?  Seems dangerous to have this potentially stale copy around, when really it should be the latest version
-		// that's compiled on load.
-		if (WidgetTree)
-		{
-			WidgetTree->SetFlags(RF_Transient);
-			WidgetTree = nullptr;
-		}
-	}
-#endif
-
-	Super::PreSave(TargetPlatform);
-}
-
 void UWidgetBlueprintGeneratedClass::Serialize(FArchive& Ar)
 {
 	Super::Serialize(Ar);

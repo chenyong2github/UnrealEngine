@@ -98,7 +98,6 @@ public:
 	UWidgetBlueprintGeneratedClass* FindWidgetTreeOwningClass();
 
 	// UObject interface
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void Serialize(FArchive& Ar) override;
 
 	virtual void PostLoad() override;
