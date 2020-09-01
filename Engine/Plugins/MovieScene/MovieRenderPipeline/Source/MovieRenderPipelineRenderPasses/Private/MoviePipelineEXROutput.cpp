@@ -412,6 +412,7 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 	MultiLayerImageTask->FileMetadata = FinalFormatArgs.FileMetadata; // This is already merged by ResolveFilenameFormatArgs with the FrameOutputState.
 
 	int32 LayerIndex = 0;
+	bool bRequiresTransparentOutput = false;
 	for (TPair<FMoviePipelinePassIdentifier, TUniquePtr<FImagePixelData>>& RenderPassData : InMergedOutputFrame->ImageOutputData)
 	{
 		// No quantization required, just copy the data as we will move it into the image write task.
@@ -423,6 +424,12 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 		{
 			MultiLayerImageTask->LayerNames.FindOrAdd(PixelData.Get(), RenderPassData.Key.Name);
 		}
+		else if (LayerIndex == 0)
+		{
+			// Only check the main image pass for transparent output since that's generally considered the 'preview'.
+			FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
+			bRequiresTransparentOutput = Payload->bRequireTransparentOutput;
+		}
 		MultiLayerImageTask->Width = PixelData->GetSize().X;
 		MultiLayerImageTask->Height = PixelData->GetSize().Y;
 		MultiLayerImageTask->Layers.Add(MoveTemp(PixelData));
@@ -432,6 +439,6 @@ void UMoviePipelineImageSequenceOutput_EXR::OnRecieveImageDataImpl(FMoviePipelin
 	ImageWriteQueue->Enqueue(MoveTemp(MultiLayerImageTask));
 
 #if WITH_EDITOR
-	GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bOutputAlpha);
+	GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalImageSequenceFileName, InMergedOutputFrame->FrameOutputState, Extension, bRequiresTransparentOutput);
 #endif
 }

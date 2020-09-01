@@ -177,39 +177,6 @@ void UMoviePipelineImageSequenceOutputBase::OnRecieveImageDataImpl(FMoviePipelin
 			}
 		}
 
-		if (IsAlphaSupported())
-		{
-			// Flip the alpha channel output to match what PNG and other specifications expect.
-			switch (QuantizedPixelData->GetType())
-			{
-			case EImagePixelType::Color:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaInvert<FColor>());
-				break;
-			case EImagePixelType::Float16:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaInvert<FFloat16Color>());
-				break;
-			case EImagePixelType::Float32:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaInvert<FLinearColor>());
-				break;
-			}
-		}
-		// We don't flip these right now because we assume that it comes in with the correct Transparent vs. Opaque.
-		else if(!Payload->bRequireTransparentOutput)
-		{
-			// Fill the alpha channel when alpha is not supported/enabled.
-			switch (QuantizedPixelData->GetType())
-			{
-			case EImagePixelType::Color:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FColor>(255));
-				break;
-			case EImagePixelType::Float16:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FFloat16Color>(1.f));
-				break;
-			case EImagePixelType::Float32:
-				TileImageTask->PixelPreProcessors.Add(TAsyncAlphaWrite<FLinearColor>(1.f));
-				break;
-			}
-		}
 
 		TileImageTask->PixelData = MoveTemp(QuantizedPixelData);
 		
