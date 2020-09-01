@@ -416,7 +416,7 @@ void UVectorFieldStatic::UpdateCPUData(bool bDiscardData)
 			UE_LOG(LogVectorField, Warning, TEXT("SourceData.GetCopy() is supposed to unload the data after copying, but it is still loaded."));
 		}
 
-		const int32 SampleCount = SizeX * SizeY * SizeZ;
+		const size_t SampleCount = SizeX * SizeY * SizeZ;
 
 		FMemoryWriter Ar(CPUData);
 
