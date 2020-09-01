@@ -18,6 +18,15 @@ void Main(
 	OutColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
 }
 
+void MainInvertAlpha(
+	FScreenVertexOutput Input,
+	out float4 OutColor : SV_Target0
+	)
+{
+	OutColor = Texture2DSample(InTexture, InTextureSampler, Input.UV);
+	OutColor.a = 1.f - OutColor.a;
+}
+
 void MainsRGBSource(
 	FScreenVertexOutput Input,
 	out float4 OutColor : SV_Target0
