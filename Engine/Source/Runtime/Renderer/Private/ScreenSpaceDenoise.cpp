@@ -69,13 +69,23 @@ static TAutoConsoleVariable<int32> CVarAOReconstructionSampleCount(
 	TEXT("Maximum number of samples for the reconstruction pass (default = 16)."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarAOPreConvolutionCount(
+	TEXT("r.AmbientOcclusion.Denoiser.PreConvolution"), 2,
+	TEXT("Number of pre-convolution passes (default = 1)."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarAOKernelSpreadFactor(
+	TEXT("r.AmbientOcclusion.Denoiser.KernelSpreadFactor"), 4,
+	TEXT("Spread factor of the preconvolution passes."),
+	ECVF_RenderThreadSafe);
+
 static TAutoConsoleVariable<int32> CVarAOTemporalAccumulation(
 	TEXT("r.AmbientOcclusion.Denoiser.TemporalAccumulation"), 1,
 	TEXT("Accumulates the samples over multiple frames."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarAOHistoryConvolutionSampleCount(
-	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolution.SampleCount"), 16,
+	TEXT("r.AmbientOcclusion.Denoiser.HistoryConvolution.SampleCount"), 1,
 	TEXT("Number of samples to use for history post filter (default = 16)."),
 	ECVF_RenderThreadSafe);
 
@@ -226,6 +236,7 @@ static bool SignalUsesPreConvolution(ESignalProcessing SignalProcessing)
 	return
 		SignalProcessing == ESignalProcessing::ShadowVisibilityMask ||
 		SignalProcessing == ESignalProcessing::Reflections ||
+		SignalProcessing == ESignalProcessing::AmbientOcclusion ||
 		SignalProcessing == ESignalProcessing::DiffuseAndAmbientOcclusion;
 }
 
@@ -426,7 +437,7 @@ const TCHAR* const kPreConvolutionResourceNames[] = {
 	nullptr,
 
 	// AmbientOcclusion
-	nullptr,
+	TEXT("AOPreConvolution0"),
 	nullptr,
 	nullptr,
 	nullptr,
@@ -1150,6 +1161,7 @@ struct FSSDConstantPixelDensitySettings
 	bool bEnableReconstruction = true;
 	int32 ReconstructionSamples = 1;
 	int32 PreConvolutionCount = 0;
+	float KernelSpreadFactor = 8;
 	bool bUseTemporalAccumulation = false;
 	int32 HistoryConvolutionSampleCount = 1;
 	float HistoryConvolutionKernelSpreadFactor = 1.0f;
@@ -1277,7 +1289,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		}
 		else if (Settings.SignalProcessing == ESignalProcessing::AmbientOcclusion)
 		{
-			ReconstructionDescs[0].Format = HistoryDescs[0].Format = PF_G16R16F;
+			ReconstructionDescs[0].Format = HistoryDescs[0].Format = PF_FloatRGBA;
 			ReconstructionTextureCount = HistoryTextureCountPerSignal = 1;
 			bHasReconstructionLayoutDifferentFromHistory = false;
 		}
@@ -1596,7 +1608,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		PassParameters->MaxSampleCount = Settings.ReconstructionSamples;
 		PassParameters->PreviousCumulativeMaxSampleCount = FMath::Pow(PassParameters->MaxSampleCount, 1 + PreConvolutionId);
-		PassParameters->KernelSpreadFactor = 8 * (1 << PreConvolutionId);
+		PassParameters->KernelSpreadFactor = Settings.KernelSpreadFactor * (1 << PreConvolutionId);
 		PassParameters->SignalInput = SignalHistory;
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput);
 		
@@ -1689,7 +1701,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 			FComputeShaderUtils::AddPass(
 				GraphBuilder,
-				RDG_EVENT_NAME("SSD SpatialAccumulation(RejectionPreConvolution MaxSamples=5)"),
+				RDG_EVENT_NAME("SSD RejectionPreConvolution(MaxSamples=5)"),
 				ComputeShader,
 				PassParameters,
 				FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
@@ -1855,7 +1867,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		TShaderMapRef<FSSDSpatialAccumulationCS> ComputeShader(View.ShaderMap, PermutationVector);
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("SSD SpatialAccumulation(PostFiltering MaxSamples=%i)", MaxPostFilterSampleCount),
+			RDG_EVENT_NAME("SSD HistoryConvolution(MaxSamples=%i)", MaxPostFilterSampleCount),
 			ComputeShader,
 			PassParameters,
 			FComputeShaderUtils::GetGroupCount(Viewport.Size(), FSSDSpatialAccumulationCS::kGroupSize));
@@ -2438,6 +2450,8 @@ public:
 		Settings.SignalProcessing = ESignalProcessing::AmbientOcclusion;
 		Settings.InputResolutionFraction = RayTracingConfig.ResolutionFraction;
 		Settings.ReconstructionSamples = FMath::Clamp(CVarAOReconstructionSampleCount.GetValueOnRenderThread(), 1, kStackowiakMaxSampleCountPerSet);
+		Settings.PreConvolutionCount = CVarAOPreConvolutionCount.GetValueOnRenderThread();
+		Settings.KernelSpreadFactor = CVarAOKernelSpreadFactor.GetValueOnRenderThread();
 		Settings.bUseTemporalAccumulation = CVarAOTemporalAccumulation.GetValueOnRenderThread() != 0;
 		Settings.HistoryConvolutionSampleCount = CVarAOHistoryConvolutionSampleCount.GetValueOnRenderThread();
 		Settings.HistoryConvolutionKernelSpreadFactor = CVarAOHistoryConvolutionKernelSpreadFactor.GetValueOnRenderThread();

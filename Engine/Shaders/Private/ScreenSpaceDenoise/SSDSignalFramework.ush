@@ -469,6 +469,9 @@ float ComputeBilateralWeight(
 		float3 NeighborNormal = NeighborSceneMetadata.WorldNormal;
 	#endif
 	
+	// TODO(Denoiser): extremely expensive with rcp()...
+	float InvMaxWorldBluringDistance = rcp(MaxWorldBluringDistance);
+
 	float PositionBilateralWeight = 1;
 	if ((BilateralSettings & 0xF) == 1)
 	{
@@ -495,7 +498,7 @@ float ComputeBilateralWeight(
 
 		float DistFromRefPlane = abs(dot(RefNormal, NeighborToRefVector));
 
-		PositionBilateralWeight = saturate(1 - DistFromRefPlane * rcp(MaxWorldBluringDistance));
+		PositionBilateralWeight = saturate(1 - DistFromRefPlane * InvMaxWorldBluringDistance);
 	}
 	else if ((BilateralSettings & 0xF) == 3)
 	{
@@ -511,9 +514,6 @@ float ComputeBilateralWeight(
 	}
 	else if ((BilateralSettings & 0xF) == 5)
 	{
-		// TODO(Denoiser): extremely expensive with rcp()...
-		float InvMaxWorldBluringDistance = rcp(MaxWorldBluringDistance);
-
 		float LightTangentBilateral;
 		{
 			// Projet in the NeighborToRefVector into the the light tangential plane.
@@ -523,10 +523,10 @@ float ComputeBilateralWeight(
 			// Measure in the tangential space the distance to take into account anisotropy.
 			LightTangentBilateral = saturate(1 - dot(ProjectedNeighborToRefVector, ProjectedNeighborToRefVector) * (InvMaxWorldBluringDistance * InvMaxWorldBluringDistance));
 		}
-
+		
 		float PlaneMisAlignementBilateral;
 		{
-			const float NormalEncodingError = View.GeneralPurposeTweak;
+			const float NormalEncodingError = 0.25;
 			
 			float DistFromRefPlane = dot(RefNormal, -NeighborToRefVector);
 
@@ -537,6 +537,22 @@ float ComputeBilateralWeight(
 		}
 
 		PositionBilateralWeight = LightTangentBilateral * PlaneMisAlignementBilateral;
+	}
+	else if ((BilateralSettings & 0xF) == 6)
+	{
+		float PlaneMisAlignementBilateral;
+		{
+			const float NormalEncodingError = View.GeneralPurposeTweak;
+			
+			float DistFromRefPlane = dot(RefNormal, -NeighborToRefVector);
+
+			float NeighborToRefPlaneDistance = length(-NeighborToRefVector - DistFromRefPlane * RefNormal);
+			float NeighborToRefError = NeighborToRefPlaneDistance * NormalEncodingError;
+
+			PlaneMisAlignementBilateral = saturate(1 - (abs(DistFromRefPlane) - NeighborToRefError) * InvMaxWorldBluringDistance);
+		}
+
+		PositionBilateralWeight = PlaneMisAlignementBilateral;
 	}
 
 	float NormalBilateralWeight = 1;

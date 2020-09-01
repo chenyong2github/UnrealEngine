@@ -356,6 +356,27 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 		// Spherical harmonic encode directionality, so only reject based on world position.
 		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(2);
 	}
+	else if (BilateralPresetId == BILATERAL_PRESET_AO)
+	{
+		// Diffuse depends on world position, but also the normal of the surface given it doesn't store any directionality.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(4) | BILATERAL_NORMAL;
+		
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
+	}
+	else if (BilateralPresetId == BILATERAL_PRESET_AO_HISTORY)
+	{
+		// Diffuse depends on world position, but also the normal of the surface given it doesn't store any directionality.
+		KernelConfig.BilateralSettings[0] = BILATERAL_POSITION_BASED(2) | BILATERAL_NORMAL;
+		//KernelConfig.BilateralSettings[0] = BILATERAL_NORMAL;
+		
+		#if SIGNAL_ARRAY_SIZE > 1
+			// Variance for sampling rejection pre convolution.
+			KernelConfig.BilateralSettings[1] = KernelConfig.BilateralSettings[0];
+		#endif
+	}
 }
 
 
