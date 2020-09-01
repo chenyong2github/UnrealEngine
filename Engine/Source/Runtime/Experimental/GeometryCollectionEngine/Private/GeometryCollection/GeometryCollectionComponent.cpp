@@ -2480,7 +2480,7 @@ void UGeometryCollectionComponent::DispatchCommand(const FFieldSystemCommand& In
 {
 	if (PhysicsProxy)
 	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 		checkSlow(ChaosModule);
 
 		PhysicsProxy->GetSolver<Chaos::FPBDRigidsSolver>()->EnqueueCommandImmediate([PhysicsProxy = this->PhysicsProxy, NewCommand = InCommand]()

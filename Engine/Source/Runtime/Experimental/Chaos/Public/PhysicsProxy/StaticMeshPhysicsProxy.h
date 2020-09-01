@@ -16,7 +16,7 @@ struct FStubSkeletalMeshData : public Chaos::FParticleData {
 	void Reset() { };
 };
 
-class CHAOSSOLVERS_API FStaticMeshPhysicsProxy : public TPhysicsProxy<FStaticMeshPhysicsProxy, FStubSkeletalMeshData>
+class CHAOS_API FStaticMeshPhysicsProxy : public TPhysicsProxy<FStaticMeshPhysicsProxy, FStubSkeletalMeshData>
 {
 	typedef  TPhysicsProxy<FStaticMeshPhysicsProxy, FStubSkeletalMeshData> Base;
 public:

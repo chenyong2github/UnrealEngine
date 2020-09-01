@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
                     "EngineSettings",
                     "RenderCore",
                     "RHI",
-					"ChaosSolvers",
 					"GeometryCollectionEngine"
 				});
 

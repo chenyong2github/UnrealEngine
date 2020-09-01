@@ -39,9 +39,9 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
-#include "ChaosSolvers/Public/EventsData.h"
-#include "ChaosSolvers/Public/EventManager.h"
-#include "ChaosSolvers/Public/RewindData.h"
+#include "EventsData.h"
+#include "EventManager.h"
+#include "RewindData.h"
 
 
 #if !UE_BUILD_SHIPPING
@@ -128,7 +128,7 @@ public:
 
 	FPhysicsThreadSyncCaller()
 	{
-		ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		ChaosModule = FChaosSolversModule::GetModule();
 		check(ChaosModule);
 
 		WorldCleanupHandle = FWorldDelegates::OnPostWorldCleanup.AddRaw(this, &FPhysicsThreadSyncCaller::OnWorldDestroyed);
