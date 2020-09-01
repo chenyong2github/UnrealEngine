@@ -9,8 +9,7 @@
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "Shader.h"
 
-//////////////////////////////////////////////////////////////////////////
-//Color Curve
+#define LOCTEXT_NAMESPACE "NiagaraDataInterfaceCollisionQuery"
 
 FCriticalSection UNiagaraDataInterfaceCollisionQuery::CriticalSection;
 
@@ -240,6 +239,25 @@ bool UNiagaraDataInterfaceCollisionQuery::UpgradeFunctionCall(FNiagaraFunctionSi
 }
 #endif
 
+bool IsDistanceFieldEnabled()
+{
+	static const auto* CVarGenerateMeshDistanceFields = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	return CVarGenerateMeshDistanceFields != nullptr && CVarGenerateMeshDistanceFields->GetValueOnAnyThread() > 0;
+}
+
+#if WITH_EDITOR
+void UNiagaraDataInterfaceCollisionQuery::ValidateFunction(const FNiagaraFunctionSignature& Function, TArray<FText>& OutValidationErrors)
+{
+	if (Function.Name == DistanceFieldName)
+	{
+		if (!IsDistanceFieldEnabled())
+		{
+			OutValidationErrors.Add(LOCTEXT("NiagaraDistanceFieldNotEnabledMsg", "The mesh distance field generation is currently not enabled, please check the project settings.\nNiagara cannot query the distance field otherwise."));
+		}
+	}
+}
+#endif
+
 void UNiagaraDataInterfaceCollisionQuery::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
 {
 	// we don't need to add these to hlsl, as they're already in common.ush
@@ -273,6 +291,17 @@ void UNiagaraDataInterfaceCollisionQuery::GetVMExternalFunction(const FVMExterna
 		UE_LOG(LogNiagara, Error, TEXT("Could not find data interface external function. %s\n"),
 			*BindingInfo.Name.ToString());
 	}
+}
+
+bool UNiagaraDataInterfaceCollisionQuery::AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+{
+	if (!Super::AppendCompileHash(InVisitor))
+	{
+		return false;
+	}
+	bool bDistanceFieldEnabled = IsDistanceFieldEnabled();
+	InVisitor->UpdatePOD(TEXT("NiagaraCollisionDI_DistanceField"), bDistanceFieldEnabled);
+	return true;
 }
 
 void UNiagaraDataInterfaceCollisionQuery::PerformQuerySyncCPU(FVectorVMContext & Context)
