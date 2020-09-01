@@ -517,6 +517,11 @@ public:
 		return FDerivedDataBackend::Get().GetUsingSharedDDC();
 	}
 
+	virtual const TCHAR* GetGraphName() const override
+	{
+		return FDerivedDataBackend::Get().GetGraphName();
+	}
+
 	void GetDirectories(TArray<FString>& OutResults) override
 	{
 		FDerivedDataBackend::Get().GetDirectories(OutResults);

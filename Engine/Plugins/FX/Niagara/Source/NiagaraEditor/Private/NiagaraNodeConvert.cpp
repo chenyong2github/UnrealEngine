@@ -28,10 +28,11 @@ TSharedPtr<SGraphNode> UNiagaraNodeConvert::CreateVisualWidget()
 
 void UNiagaraNodeConvert::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& CompileOutputs)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
 
-	TArray<int32> CompileInputs;
+	TArray<int32, TInlineAllocator<16>> CompileInputs;
+	CompileInputs.Reserve(InputPins.Num());
 	for(UEdGraphPin* InputPin : InputPins)
 	{
 		if (InputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType || 
@@ -217,8 +218,8 @@ FText UNiagaraNodeConvert::GetNodeTitle(ENodeTitleType::Type TitleType)const
 	}
 	else
 	{
-		TArray<UEdGraphPin*> InPins;
-		TArray<UEdGraphPin*> OutPins;
+		FPinCollectorArray InPins;
+		FPinCollectorArray OutPins;
 		GetInputPins(InPins);
 		GetOutputPins(OutPins);
 		if (InPins.Num() == 2 && OutPins.Num() == 2)

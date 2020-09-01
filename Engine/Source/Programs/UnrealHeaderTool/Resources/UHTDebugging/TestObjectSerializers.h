@@ -22,7 +22,7 @@ UCLASS()
 class UTestObject_FStructuredArchive : public UObject
 {
 	GENERATED_UCLASS_BODY()
-	virtual void Serialize(FStructuredArchive::FSlot Slot) override;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 };
 
 UCLASS()
@@ -30,7 +30,7 @@ class UTestObject_BothArchives : public UObject
 {
 	GENERATED_UCLASS_BODY()
 	virtual void Serialize(FArchive& Ar) override;
-	virtual void Serialize(FStructuredArchive::FSlot Slot) override;
+	virtual void Serialize(FStructuredArchive::FRecord Record) override;
 };
 
 UCLASS()

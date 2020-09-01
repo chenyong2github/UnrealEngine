@@ -61,7 +61,7 @@ void FAnalysisSessionLock::EndRead()
 void FAnalysisSessionLock::BeginEdit()
 {
 	check(!GThreadCurrentSessionLock || GThreadCurrentSessionLock == this);
-	checkf(GThreadCurrentWriteLockCount == 0, TEXT("Trying to lock for edit while holding read access"));
+	checkf(GThreadCurrentReadLockCount == 0, TEXT("Trying to lock for edit while holding read access"));
 	if (GThreadCurrentWriteLockCount++ == 0)
 	{
 		GThreadCurrentSessionLock = this;

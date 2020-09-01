@@ -3156,20 +3156,8 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 	// flush packet now so that we can report collected stats in the correct scope
 	PrepareWriteBitsToSendBuffer(BunchHeaderBits, BunchBits);
 
-	// Report bunch, if the bunch has a debug name set, we use the name when reporting the bunch
-	if (GetOutTraceCollector())
-	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (!Bunch.DebugString.IsEmpty())
-		{
-			UE_NET_TRACE_END_BUNCH(OutTraceCollector, ToCStr(Bunch.DebugString), 0, BunchHeaderBits, BunchBits, Bunch.ChIndex, BunchCollector);
-		}
-		else
-#endif
-		{
-			UE_NET_TRACE_END_BUNCH(OutTraceCollector, Bunch.ChName, 0, BunchHeaderBits, BunchBits, Bunch.ChIndex, BunchCollector);
-		}
-	}
+	// Report bunch
+	UE_NET_TRACE_END_BUNCH(OutTraceCollector, Bunch, Bunch.ChName, 0, BunchHeaderBits, BunchBits, BunchCollector);
 
 	// Write the bits to the buffer and remember the packet id used
 	Bunch.PacketId = WriteBitsToSendBufferInternal(SendBunchHeader.GetData(), BunchHeaderBits, Bunch.GetData(), BunchBits, EWriteBitsDataType::Bunch);

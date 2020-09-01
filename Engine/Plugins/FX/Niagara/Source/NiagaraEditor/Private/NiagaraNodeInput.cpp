@@ -346,7 +346,7 @@ void UNiagaraNodeInput::AutowireNewNode(UEdGraphPin* FromPin)
 			ReallocatePins();
 		}
 
-		TArray<UEdGraphPin*> OutPins;
+		FPinCollectorArray OutPins;
 		GetOutputPins(OutPins);
 		check(OutPins.Num() == 1 && OutPins[0] != NULL);
 
@@ -390,7 +390,7 @@ void UNiagaraNodeInput::Compile(class FHlslNiagaraTranslator* Translator, TArray
 		//If we're in a function and this parameter hasn't been provided, compile the local default.
 		if (FunctionParam == INDEX_NONE)
 		{
-			TArray<UEdGraphPin*> InputPins;
+			FPinCollectorArray InputPins;
 			GetInputPins(InputPins);
 			int32 Default = InputPins.Num() > 0 ? Translator->CompilePin(InputPins[0]) : INDEX_NONE;
 			if (Default == INDEX_NONE)

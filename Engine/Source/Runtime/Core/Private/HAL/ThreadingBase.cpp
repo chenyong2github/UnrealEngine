@@ -46,10 +46,19 @@ CORE_API bool IsInSlateThread()
 
 CORE_API FRunnableThread* GAudioThread = nullptr;
 
+CORE_API bool IsAudioThreadRunning()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GAudioThread != nullptr;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 CORE_API bool IsInAudioThread()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	// True if this is the audio thread or if there is no audio thread, then if it is the game thread
 	return FPlatformTLS::GetCurrentThreadId() == (GAudioThreadId ? GAudioThreadId : GGameThreadId);
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 CORE_API TAtomic<int32> GIsRenderingThreadSuspended(0);
@@ -58,17 +67,23 @@ CORE_API FRunnableThread* GRenderingThread = nullptr;
 
 CORE_API bool IsInActualRenderingThread()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GRenderingThread && FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 CORE_API bool IsInRenderingThread()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return !GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed) || (FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID());
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 CORE_API bool IsInParallelRenderingThread()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	if (!GRenderingThread || GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	{
 		return true;
 	}
@@ -81,9 +96,18 @@ CORE_API bool IsInParallelRenderingThread()
 CORE_API uint32 GRHIThreadId = 0;
 CORE_API FRunnableThread* GRHIThread_InternalUseOnly = nullptr;
 
+CORE_API bool IsRHIThreadRunning()
+{
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	return GRHIThreadId != 0;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
 CORE_API bool IsInRHIThread()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	return GRHIThreadId && FPlatformTLS::GetCurrentThreadId() == GRHIThreadId;
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 // Fake threads

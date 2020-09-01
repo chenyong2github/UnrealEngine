@@ -85,18 +85,6 @@ void FBaseSessionFilterService::UpdateFilterPresets(const TArray<TSharedPtr<IFil
 		// We are only interested in the unique channels names, as a result of combining multiple presets
 		Algo::Transform(Names, UniqueNames, [](FString InName) { return InName; });
 	}
-
-	DisableAllChannels();
-
-	for (const FString& EventName : UniqueNames)
-	{
-		SetObjectFilterState(EventName, true);
-	}
-
-	for (const FString& EventName : FrameZeroEnabledChannels)
-	{
-		SetObjectFilterState(EventName, true);
-	}
 	// Commandline channels are only applied once when changing presets
 	FrameZeroEnabledChannels.Empty();
 }

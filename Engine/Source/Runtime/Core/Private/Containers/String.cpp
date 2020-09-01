@@ -917,7 +917,7 @@ int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim,
 	// Make sure the delimit string is not null or empty
 	check(pchDelim);
 	OutArray.Reset();
-	const TCHAR *Start = Data.GetData();
+	const TCHAR *Start = **this;
 	const int32 DelimLength = FCString::Strlen(pchDelim);
 	if (Start && *Start != TEXT('\0') && DelimLength)
 	{

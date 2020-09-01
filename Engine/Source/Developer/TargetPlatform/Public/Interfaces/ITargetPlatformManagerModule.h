@@ -4,11 +4,13 @@
 
 #include "CoreMinimal.h"
 #include "Containers/StringView.h"
+#include "Delegates/Delegate.h"
 #include "Interfaces/ITargetDevice.h"
 #include "Modules/ModuleInterface.h"
 
 class ITargetPlatform;
 
+DECLARE_MULTICAST_DELEGATE(FOnTargetPlatformsInvalidated);
 
 /**
  * Module for the target platform manager
@@ -168,6 +170,9 @@ public:
 	 * Allows changes to environment for a given platform
 	 */
 	virtual bool UpdatePlatformEnvironment(const FString& PlatformName, TArray<FString> &Keys, TArray<FString> &Values) = 0;
+
+	/** A callback that holders of ITargetPlatform* must subscribe to to be notified of when the ITargetPlatform* has been invalidated and should be requeried from e.g. FindTargetPlatform */
+	virtual FOnTargetPlatformsInvalidated& GetOnTargetPlatformsInvalidatedDelegate() = 0;
 
 public:
 

@@ -221,10 +221,10 @@ bool UCompileAllBlueprintsCommandlet::ShouldBuildAsset(FAssetData const& Asset) 
 		bShouldBuild = false;
 	}
 
-	if ((WhitelistFiles.Num() > 0) && (CheckInWhitelist(Asset)))
+	if ((WhitelistFiles.Num() > 0) && (!CheckInWhitelist(Asset)))
 	{
 		FString const AssetPath = Asset.ObjectPath.ToString();
-		UE_LOG(LogCompileAllBlueprintsCommandlet, Verbose, TEXT("Skipping Building %s: As the asset is part of the whitelist"), *AssetPath);
+		UE_LOG(LogCompileAllBlueprintsCommandlet, Verbose, TEXT("Skipping Building %s: As the asset is not part of the whitelist"), *AssetPath);
 		bShouldBuild = false;
 	}
 

@@ -125,7 +125,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		else if( FParse::Value( *CurrentSwitch, TEXT( "PACKAGEFOLDER="), PackageFolder ) )
 		{
 			TArray<FString> FilesInPackageFolder;
-			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, *PackageFolder);
+			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, PackageFolder);
 			for( int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++ )
 			{
 				FString PackageFile(FilesInPackageFolder[FileIndex]);
@@ -219,7 +219,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		for (const FDirectoryPath& Path : Settings->DirectoriesForHLODCommandlet)
 		{
 			TArray<FString> FilesInPackageFolder;			
-			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, *FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir(), Path.Path));
+			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir(), Path.Path));
 			for (int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++)
 			{
 				FString PackageFile(FilesInPackageFolder[FileIndex]);

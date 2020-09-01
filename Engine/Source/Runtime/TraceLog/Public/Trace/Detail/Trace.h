@@ -62,9 +62,11 @@ namespace Trace
 			PartialEventFlags	= (0, ##__VA_ARGS__) & ~Important, \
 		}; \
 		enum : bool { bIsImportant = ((0, ##__VA_ARGS__) & Important) != 0, }; \
+		static constexpr uint32 GetSize() { return decltype(EventProps_Private)::Size; } \
+		static uint32 GetUid() { static uint32 Uid = 0; return (Uid = Uid ? Uid : Initialize()); } \
 		static uint32 FORCENOINLINE Initialize() \
 		{ \
-			static const uint32 OnceOnly = [] () \
+			static const uint32 Uid_ThreadSafeInit = [] () \
 			{ \
 				using namespace Trace; \
 				static F##LoggerName##EventName##Fields Fields; \
@@ -78,7 +80,7 @@ namespace Trace
 				}; \
 				return LoggerName##EventName##Event.Initialize(&Info); \
 			}(); \
-			return OnceOnly; \
+			return Uid_ThreadSafeInit; \
 		} \
 		Trace::TField<0 /*Index*/, 0 /*Offset*/,
 
@@ -97,21 +99,13 @@ namespace Trace
 		enum { EventFlags = PartialEventFlags|(decltype(EventProps_Private)::MaybeHasAux ? Trace::Private::FEventInfo::Flag_MaybeHasAux : 0), }; \
 	};
 
-#define TRACE_PRIVATE_EVENT_IS_IMPORTANT(LoggerName, EventName) \
-	(F##LoggerName##EventName##Fields::EventFlags & F##LoggerName##EventName##Fields::Important)
-
-#define TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) \
-	decltype(F##LoggerName##EventName##Fields::EventProps_Private)::Size
-
 #define TRACE_PRIVATE_LOG_PRELUDE(EnterFunc, LoggerName, EventName, ChannelsExpr, ...) \
 	if (TRACE_PRIVATE_CHANNELEXPR_IS_ENABLED(ChannelsExpr)) \
-		if (auto LogScope = Trace::Private::TLogScope<F##LoggerName##EventName##Fields>::EnterFunc( \
-			LoggerName##EventName##Event.GetUid() ? LoggerName##EventName##Event.GetUid() : F##LoggerName##EventName##Fields::Initialize(), \
-			TRACE_PRIVATE_EVENT_SIZE(LoggerName, EventName) + (0, ##__VA_ARGS__))) \
-				if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)LogScope.GetPointer()) \
+		if (auto LogScope = Trace::Private::TLogScope<F##LoggerName##EventName##Fields>::EnterFunc(__VA_ARGS__)) \
+			if (const auto& __restrict EventName = *(F##LoggerName##EventName##Fields*)LogScope.GetPointer())
 
 #define TRACE_PRIVATE_LOG_EPILOG() \
-					LogScope += LogScope
+				LogScope += LogScope
 
 #define TRACE_PRIVATE_LOG(LoggerName, EventName, ChannelsExpr, ...) \
 	TRACE_PRIVATE_LOG_PRELUDE(Enter, LoggerName, EventName, ChannelsExpr, ##__VA_ARGS__) \

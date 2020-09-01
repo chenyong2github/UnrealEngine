@@ -14,6 +14,8 @@
 #include "RenderingThread.h"
 #include "UObject/NameTypes.h"
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 static TAutoConsoleVariable<int32> GTracingProfileBufferSize(
 	TEXT("TracingProfiler.BufferSize"),
 	65536,
@@ -152,6 +154,8 @@ void FTracingProfiler::BeginFrameRT()
 	}
 
 	bCapturingRT = bCapturing;
+
+	RenderThreadId = FPlatformTLS::GetCurrentThreadId();
 }
 
 void FTracingProfiler::EndFrameRT()
@@ -166,7 +170,7 @@ void FTracingProfiler::EndFrameRT()
 	AddCPUEvent(NAME_RenderThread,
 		RenderThreadFrameBeginCycle,
 		RenderThreadFrameEndCycle,
-		GRenderThreadId,
+		RenderThreadId,
 		GFrameNumberRenderThread);
 }
 
@@ -280,7 +284,7 @@ void FTracingProfiler::WriteCaptureToFile()
 		R"({"pid":%d, "tid":%d, "ph": "M", "name": "thread_name", "args":{"name":"Render thread"}},)"
 		R"({"pid":%d, "tid":%d, "ph": "M", "name": "thread_sort_index", "args":{"sort_index": %d}},)"
 		"\n",
-		Pid, GRenderThreadId, Pid, GRenderThreadId, SortIndex);
+		Pid, RenderThreadId, Pid, RenderThreadId, SortIndex);
 	WriteString(StringBuffer);
 	SortIndex++;
 
@@ -375,5 +379,7 @@ void FTracingProfiler::WriteCaptureToFile()
 
 	OutputFile->Close();
 }
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #endif //TRACING_PROFILER

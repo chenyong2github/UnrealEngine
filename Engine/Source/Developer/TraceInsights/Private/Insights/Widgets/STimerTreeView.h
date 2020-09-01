@@ -26,6 +26,7 @@ namespace Insights
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
+	class SAggregatorStatus;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -223,6 +224,8 @@ private:
 	double StatsStartTime;
 	double StatsEndTime;
 	uint32 StatsTimerId;
+
+	TSharedPtr<Insights::SAggregatorStatus> AggregatorStatus;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

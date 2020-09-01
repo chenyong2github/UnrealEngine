@@ -4,11 +4,12 @@
 
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
+#include "Containers/RingBuffer.h"
 #include "Containers/UnrealString.h"
 #include "CookTypes.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
-#include "RingBuffer.h"
 #include "UObject/NameTypes.h"
 
 class FEvent;
@@ -57,6 +58,8 @@ namespace Cook
 		void Clear();
 		bool operator==(const FFilePlatformRequest& InFileRequest) const;
 		FString ToString() const;
+
+		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 	};
 
 
@@ -70,8 +73,6 @@ namespace Cook
 	class FExternalRequests
 	{
 	public:
-
-		FExternalRequests(FCriticalSection& InRequestLock);
 
 		/**
 		 * Lockless value for the number of External Requests in the container.
@@ -93,8 +94,6 @@ namespace Cook
 
 		/** Add the given cook-type request, merging its list of platforms with any existing request if one already exists. */
 		void EnqueueUnique(FFilePlatformRequest&& FileRequest, bool bForceFrontOfQueue = false);
-		/** Unsynchronized version of the EnqueueUnique function, used by CookOnTheFlyServer for batched calls to enqueue, done within the RequestLock. */
-		void ThreadUnsafeEnqueueUnique(FFilePlatformRequest&& FileRequest, bool bForceFrontOfQueue = false);
 
 		/**
 		 * If this FExternalRequests has any callbacks, dequeue them all into OutCallbacks and return EExternalRequestType::Callback; Callbacks take priority over cook requests.
@@ -112,8 +111,8 @@ namespace Cook
 		/** Remove references to the given platform from all cook requests. */
 		void OnRemoveSessionPlatform(const ITargetPlatform* TargetPlatform);
 
-		/** Return the CriticalSection used to guard access to the data in this FExternalRequests. This is used for batched calls to methods. */
-		FCriticalSection& GetRequestLock();
+		/** Swap all ITargetPlatform* stored on this instance according to the mapping in @param Remap. */
+		void RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap);
 
 	public:
 		/** An FEvent the scheduler can sleep on when waiting for new cookonthefly requests. */
@@ -127,7 +126,7 @@ namespace Cook
 		/** Map of the extended information for the cook-type requests in this instance, keyed by the FileName of the request. */
 		TMap<FName, FFilePlatformRequest> RequestMap;
 		TArray<FSchedulerCallback> Callbacks;
-		FCriticalSection& RequestLock;
+		FCriticalSection RequestLock;
 		int32 RequestCount = 0;
 	};
 }

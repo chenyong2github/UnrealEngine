@@ -103,7 +103,7 @@ EAppReturnType::Type FMessageDialog::Open( EAppMsgType::Type MessageType, const 
 		}
 		else
 		{
-			FDebug::DumpStackTraceToLog();
+			FDebug::DumpStackTraceToLog(ELogVerbosity::Error);
 		}
 	}
 

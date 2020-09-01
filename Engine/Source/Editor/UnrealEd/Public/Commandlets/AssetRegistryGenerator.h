@@ -215,8 +215,8 @@ private:
 	/** */
 	UChunkDependencyInfo*			DependencyInfo;
 
-	/** Dependency type to follow when adding package dependencies to chunks.*/
-	EAssetRegistryDependencyType::Type DependencyType;
+	/** Required flags a dependency must have if it is to be followed when adding package dependencies to chunks.*/
+	UE::AssetRegistry::EDependencyQuery DependencyQuery;
 
 	/** Mapping from chunk id to pakchunk file index. If not defined, Pakchunk index will be the same as chunk id by default */
 	TMap<int32, int32> ChunkIdPakchunkIndexMapping;
@@ -356,7 +356,7 @@ private:
 	bool GetPackageDependencyChain(FName SourcePackage, FName TargetPackage, TSet<FName>& VisitedPackages, TArray<FName>& OutDependencyChain);
 
 	/** Get an array of Packages this package will import */
-	bool GetPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames, EAssetRegistryDependencyType::Type InDependencyType);
+	bool GetPackageDependencies(FName PackageName, TArray<FName>& DependentPackageNames, UE::AssetRegistry::EDependencyQuery InDependencyQuery);
 
 	/** Save a CSV dump of chunk asset information, if bWriteIndividualFiles is true it writes a CSV per chunk in addition to AllChunksInfo */
 	bool GenerateAssetChunkInformationCSV(const FString& OutputPath, bool bWriteIndividualFiles = false);

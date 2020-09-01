@@ -34,7 +34,6 @@ private:
 		int32 PrioritySortOrder = INT_MAX;
 		uint32 FallbackSortOrder = ~0u;
 		const TCHAR* GroupName = nullptr;
-		bool IsGameThread = false;
 
 		bool operator<(const FThreadInfoInternal& Other) const;
 	};

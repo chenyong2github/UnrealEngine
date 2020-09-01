@@ -26,8 +26,6 @@ namespace Insights
 
 class FMemorySharedState : public Insights::ITimingViewExtender, public TSharedFromThis<FMemorySharedState>
 {
-	//friend class FMemoryGraphTrack;
-
 public:
 	FMemorySharedState();
 	virtual ~FMemorySharedState();
@@ -40,9 +38,12 @@ public:
 	const TArray<TSharedPtr<Insights::FMemoryTracker>>& GetTrackers()  const { return Trackers; }
 	TSharedPtr<Insights::FMemoryTracker> GetCurrentTracker() const { return CurrentTracker; }
 	void SetCurrentTracker(TSharedPtr<Insights::FMemoryTracker> Tracker) { CurrentTracker = Tracker; OnTrackerChanged(); }
-	FString TrackersToString(uint64 Flags) const;
+	FString TrackersToString(uint64 Flags, const TCHAR* Conjunction) const;
 
 	TSharedPtr<FMemoryGraphTrack> GetMainGraphTrack() const { return MainGraphTrack; }
+
+	EMemoryTrackHeightMode GetTrackHeightMode() const { return TrackHeightMode; }
+	void SetTrackHeightMode(EMemoryTrackHeightMode InTrackHeightMode);
 
 	// ITimingViewExtender
 	virtual void OnBeginSession(Insights::ITimingViewSession& InSession) override;
@@ -64,13 +65,11 @@ public:
 
 	TSharedPtr<FMemoryGraphTrack> GetMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
 	TSharedPtr<FMemoryGraphTrack> CreateMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
+	void RemoveTrackFromMemTags(TSharedPtr<FMemoryGraphTrack>& GraphTrack);
 	int32 RemoveMemTagGraphTrack(Insights::FMemoryTagId MemTagId);
-	int32 RemoveAllMemTagGraphTracks();
+	int32 RemoveUnusedMemTagGraphTracks();
 
 	TSharedPtr<FMemoryGraphSeries> ToggleMemTagGraphSeries(TSharedPtr<FMemoryGraphTrack> GraphTrack, Insights::FMemoryTagId MemTagId);
-
-	EMemoryTrackHeightMode GetTrackHeightMode() const { return TrackHeightMode; }
-	void SetTrackHeightMode(EMemoryTrackHeightMode InTrackHeightMode);
 
 	void CreateTracksFromReport(const FString& Filename);
 	void CreateTracksFromReport(const Insights::FReportConfig& ReportConfig);
@@ -89,14 +88,17 @@ private:
 	Insights::FMemoryTagList TagList;
 
 	TArray<TSharedPtr<Insights::FMemoryTracker>> Trackers;
+	TSharedPtr<Insights::FMemoryTracker> DefaultTracker;
 	TSharedPtr<Insights::FMemoryTracker> CurrentTracker;
 
 	TSharedPtr<FMemoryGraphTrack> MainGraphTrack; // the Main Memory Graph track
-	TMap<Insights::FMemoryTagId, TSharedPtr<FMemoryGraphTrack>> MemTagIdToGraphMap; // graphs showing a single LLM Tag
-	TSet<TSharedPtr<FMemoryGraphTrack>> OtherGraphTracks; // other graphs (ex.: from report xml)
 	TSet<TSharedPtr<FMemoryGraphTrack>> AllTracks;
-	bool bShowHideAllMemoryTracks;
+
 	EMemoryTrackHeightMode TrackHeightMode;
+
+	bool bShowHideAllMemoryTracks;
+
+	TBitArray<> CreatedDefaultTracks;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

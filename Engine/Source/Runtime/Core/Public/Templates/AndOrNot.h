@@ -13,13 +13,15 @@ struct TAnd;
 template <bool LHSValue, typename... RHS>
 struct TAndValue
 {
-	enum { Value = TAnd<RHS...>::Value };
+	static constexpr bool Value = TAnd<RHS...>::value;
+	static constexpr bool value = TAnd<RHS...>::value;
 };
 
 template <typename... RHS>
 struct TAndValue<false, RHS...>
 {
-	enum { Value = false };
+	static constexpr bool Value = false;
+	static constexpr bool value = false;
 };
 
 template <typename LHS, typename... RHS>
@@ -30,7 +32,8 @@ struct TAnd<LHS, RHS...> : TAndValue<LHS::Value, RHS...>
 template <>
 struct TAnd<>
 {
-	enum { Value = true };
+	static constexpr bool Value = true;
+	static constexpr bool value = true;
 };
 
 /**
@@ -42,13 +45,15 @@ struct TOr;
 template <bool LHSValue, typename... RHS>
 struct TOrValue
 {
-	enum { Value = TOr<RHS...>::Value };
+	static constexpr bool Value = TOr<RHS...>::value;
+	static constexpr bool value = TOr<RHS...>::value;
 };
 
 template <typename... RHS>
 struct TOrValue<true, RHS...>
 {
-	enum { Value = true };
+	static constexpr bool Value = true;
+	static constexpr bool value = true;
 };
 
 template <typename LHS, typename... RHS>
@@ -59,7 +64,8 @@ struct TOr<LHS, RHS...> : TOrValue<LHS::Value, RHS...>
 template <>
 struct TOr<>
 {
-	enum { Value = false };
+	static constexpr bool Value = false;
+	static constexpr bool value = false;
 };
 
 /**
@@ -68,6 +74,7 @@ struct TOr<>
 template <typename Type>
 struct TNot
 {
-	enum { Value = !Type::Value };
+	static constexpr bool Value = !Type::Value;
+	static constexpr bool value = !Type::Value;
 };
 

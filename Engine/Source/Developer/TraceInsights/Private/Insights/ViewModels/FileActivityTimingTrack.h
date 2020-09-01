@@ -42,6 +42,7 @@ public:
 		uint32 Type; // Trace::EFileActivityType + "Failed" flag
 		uint64 Offset;
 		uint64 Size;
+		uint64 ActualSize;
 		TSharedPtr<FIoFileActivity> FileActivity;
 	};
 

@@ -7,6 +7,7 @@
 
 #include "CheckedMetadataSpecifiers.h"
 #include "ClassMetadataSpecifiers.h"
+#include "EnumSpecifiers.h"
 #include "FunctionSpecifiers.h"
 #include "InterfaceSpecifiers.h"
 #include "StructSpecifiers.h"
@@ -55,6 +56,13 @@ const TCHAR* GClassMetadataSpecifierStrings[(int32)EClassMetadataSpecifier::Max]
 	#undef CLASS_METADATA_SPECIFIER
 };
 
+const TCHAR* GEnumSpecifierStrings[(int32)EEnumSpecifier::Max] =
+{
+	#define ENUM_SPECIFIER(SpecifierName) TEXT(#SpecifierName),
+		#include "EnumSpecifiers.def"
+	#undef ENUM_SPECIFIER
+};
+
 ECheckedMetadataSpecifier GetCheckedMetadataSpecifier(FName Key)
 {
 	if (const ECheckedMetadataSpecifier* Specifier = GCheckedMetadataSpecifiers.Find(Key))
@@ -72,8 +80,9 @@ struct FCStringsLessThanCaseInsensitive
 	}
 };
 
-const bool GIsGFunctionSpecifierStringsSorted        = ensure(Algo::IsSorted(GFunctionSpecifierStrings,        FCStringsLessThanCaseInsensitive()));
-const bool GIsGStructSpecifierStringsSorted          = ensure(Algo::IsSorted(GStructSpecifierStrings,          FCStringsLessThanCaseInsensitive()));
-const bool GIsGInterfaceSpecifierStringsSorted       = ensure(Algo::IsSorted(GInterfaceSpecifierStrings,       FCStringsLessThanCaseInsensitive()));
-const bool GIsGVariableSpecifierStringsSorted        = ensure(Algo::IsSorted(GVariableSpecifierStrings,        FCStringsLessThanCaseInsensitive()));
-const bool GIsGClassMetadataSpecifierStringsSorted   = ensure(Algo::IsSorted(GClassMetadataSpecifierStrings,   FCStringsLessThanCaseInsensitive()));
+const bool GIsGFunctionSpecifierStringsSorted      = ensure(Algo::IsSorted(GFunctionSpecifierStrings,      FCStringsLessThanCaseInsensitive()));
+const bool GIsGStructSpecifierStringsSorted        = ensure(Algo::IsSorted(GStructSpecifierStrings,        FCStringsLessThanCaseInsensitive()));
+const bool GIsGInterfaceSpecifierStringsSorted     = ensure(Algo::IsSorted(GInterfaceSpecifierStrings,     FCStringsLessThanCaseInsensitive()));
+const bool GIsGVariableSpecifierStringsSorted      = ensure(Algo::IsSorted(GVariableSpecifierStrings,      FCStringsLessThanCaseInsensitive()));
+const bool GIsGClassMetadataSpecifierStringsSorted = ensure(Algo::IsSorted(GClassMetadataSpecifierStrings, FCStringsLessThanCaseInsensitive()));
+const bool GIsGEnumSpecifierStringsSorted          = ensure(Algo::IsSorted(GEnumSpecifierStrings,          FCStringsLessThanCaseInsensitive()));

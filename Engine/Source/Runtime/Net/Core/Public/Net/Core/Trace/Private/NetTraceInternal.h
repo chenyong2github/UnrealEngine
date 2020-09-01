@@ -44,13 +44,35 @@ struct FNetTracePacketInfo
 	ENetTracePacketType PacketType;
 };
 
+// Any changes to this struct must also be reflected on the NetTraceAnalyzer side and versioned
+union FNetTraceBunchInfo
+{
+	struct
+	{
+		uint64 ChannelIndex : 20;
+		uint64 Seq : 12;
+		uint64 ChannelCloseReason : 4;
+		uint64 bPartial : 1;
+		uint64 bPartialInitial : 1;
+		uint64 bPartialFinal : 1;
+		uint64 bIsReplicationPaused : 1;
+		uint64 bOpen : 1;
+		uint64 bClose : 1;
+		uint64 bReliable : 1;
+		uint64 bHasPackageMapExports : 1;
+		uint64 bHasMustBeMappedGUIDs : 1;
+		uint64 Padding : 19;
+	};
+	uint64 Value;
+};
+
 struct FNetTracePacketContentEvent
 {
 	union
 	{
 		FNetDebugNameId DebugNameId;
 		uint32 ObjectId;
-		int32 ChannelIndex;
+		FNetTraceBunchInfo BunchInfo;
 	};
 	struct
 	{
@@ -60,6 +82,8 @@ struct FNetTracePacketContentEvent
 		uint32 NestingLevel : 8;
 	};
 };
+
+static_assert(sizeof(FNetTracePacketContentEvent) == 16U, "Unexpected size of PacketContentEvent");
 
 /** 
 * Scope used to track data read from or written to a bitstream, supports nesting
@@ -162,13 +186,13 @@ struct FNetTrace
 	NETCORE_API static void DiscardBunch(FNetTraceCollector& Collector);
 
 	/** Trace end of a bunch, all events recorded between BeginBunch/EndBunch will be part of the bunch */
-	NETCORE_API static void EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex);
+	NETCORE_API static void EndBunch(FNetTraceCollector& DstCollector, FNetDebugNameId BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceBunchInfo& BunchInfo);
 
 	/** TraceBunch, Commits all events in BunchCollector to DstCollector, if DstCollector == BunchCollector it is assumed that we are Ending the bunch */
-	NETCORE_API static void TraceBunch(FNetTraceCollector& DstCollector, FName BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector);
+	NETCORE_API static void TraceBunch(FNetTraceCollector& DstCollector, const FNetTraceBunchInfo& BunchInfo, FName BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceCollector* BunchCollector);
 
 	/** TraceBunch, Commits all events in BunchCollector to DstCollector, if DstCollector == BunchCollector it is assumed that we are Ending the bunch */
-	NETCORE_API static void TraceBunch(FNetTraceCollector& DstCollector, const TCHAR* BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, int32 ChIndex, const FNetTraceCollector* BunchCollector);
+	NETCORE_API static void TraceBunch(FNetTraceCollector& DstCollector, const FNetTraceBunchInfo& BunchInfo, const TCHAR* BunchName, uint32 StartPos, uint32 HeaderBits, uint32 BunchBits, const FNetTraceCollector* BunchCollector);
 
 	/** PopSendBunch, last send bunch is considered to be merged with the next one, mark this by zeroing out the BunchHeaderSize */
 	NETCORE_API static void PopSendBunch(FNetTraceCollector& Collector);
@@ -229,6 +253,28 @@ uint32 GetObjectIdForNetTrace(const T&)
 inline uint32 GetObjectIdForNetTrace(const FNetworkGUID& NetGUID)
 {
 	return NetGUID.Value;
+}
+
+template<typename T>
+FNetTraceBunchInfo MakeBunchInfo(const T& Bunch)
+{
+	FNetTraceBunchInfo BunchInfo;
+	BunchInfo.Value = uint64(0);
+	BunchInfo.ChannelIndex = Bunch.ChIndex;
+	BunchInfo.Seq = Bunch.ChSequence;
+	BunchInfo.ChannelCloseReason = uint64(Bunch.CloseReason);
+	BunchInfo.bPartial = Bunch.bPartial;
+	BunchInfo.bPartialInitial = Bunch.bPartialInitial;
+	BunchInfo.bPartialFinal = Bunch.bPartialFinal;
+	BunchInfo.bIsReplicationPaused = Bunch.bIsReplicationPaused;
+	BunchInfo.bOpen = Bunch.bOpen;
+	BunchInfo.bClose = Bunch.bClose;
+	BunchInfo.bReliable = Bunch.bReliable;
+	BunchInfo.bHasPackageMapExports = Bunch.bHasPackageMapExports;
+	BunchInfo.bHasMustBeMappedGUIDs = Bunch.bHasMustBeMappedGUIDs;
+	BunchInfo.Padding = 0;
+
+	return BunchInfo;
 }
 
 // The purpose of a NetTraceCollector is to allow tracing of full packet content data with as low overhead as possible.
@@ -415,7 +461,7 @@ FNetTraceBunchScope<T>::~FNetTraceBunchScope()
 	// Only report if we have a valid collector
 	if (Collector)
 	{
-		FNetTrace::EndBunch(*Collector, FNetTrace::TraceName(Bunch.ChName), StartPos, HeaderBits, Bunch.GetNumBits(), Bunch.ChIndex);
+		FNetTrace::EndBunch(*Collector, FNetTrace::TraceName(Bunch.ChName), StartPos, HeaderBits, Bunch.GetNumBits(), MakeBunchInfo(Bunch));
 	}
 }
 
@@ -459,8 +505,8 @@ void FNetTraceCollector::Reset()
 #define UE_NET_TRACE_INTERNAL_DISCARD_BUNCH(Collector) UE_NET_TRACE_DO_IF(Collector, FNetTrace::DiscardBunch(*Collector))
 #define UE_NET_TRACE_INTERNAL_POP_SEND_BUNCH(Collector) UE_NET_TRACE_DO_IF(Collector, FNetTrace::PopSendBunch(*Collector))
 #define UE_NET_TRACE_INTERNAL_EVENTS(Collector, SrcCollector) UE_NET_TRACE_DO_IF(Collector, FNetTrace::FoldTraceCollector(Collector, SrcCollector, false))
-#define UE_NET_TRACE_INTERNAL_END_BUNCH(Collector,...) UE_NET_TRACE_DO_IF(Collector, FNetTrace::TraceBunch(*Collector, __VA_ARGS__))
-#define UE_NET_TRACE_INTERNAL_BUNCH_SCOPE(Collector, ...) FNetTraceBunchScope<decltype(Bunch)> PREPROCESSOR_JOIN(NetTraceBunchScope, __LINE__)(__VA_ARGS__, Collector);
+#define UE_NET_TRACE_INTERNAL_END_BUNCH(Collector, Bunch, ...) UE_NET_TRACE_DO_IF(Collector, FNetTrace::TraceBunch(*Collector, MakeBunchInfo(Bunch), __VA_ARGS__))
+#define UE_NET_TRACE_INTERNAL_BUNCH_SCOPE(Collector, Bunch, ...) FNetTraceBunchScope<decltype(Bunch)> PREPROCESSOR_JOIN(NetTraceBunchScope, __LINE__)(Bunch, __VA_ARGS__, Collector)
 
 #define UE_NET_TRACE_INTERNAL_SCOPE(Name, Stream, Collector, Verbosity) \
 	auto PREPROCESSOR_JOIN(NetTraceNameFunc_, __LINE__) = []() { static uint16 NameId = FNetTrace::TraceName(TEXT(#Name)); return NameId; }; \

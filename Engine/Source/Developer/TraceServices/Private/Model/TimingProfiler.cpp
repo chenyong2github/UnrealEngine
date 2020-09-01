@@ -51,6 +51,7 @@ private:
 FTimingProfilerProvider::FTimingProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
+	// Adds the GPU timeline.
 	Timelines.Add(MakeShared<TimelineInternal>(Session.GetLinearAllocator()));
 
 	AggregatedStatsTableLayout.
@@ -135,7 +136,8 @@ FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThrea
 {
 	Session.WriteAccessCheck();
 
-	if (!CpuThreadTimelineIndexMap.Contains(ThreadId))
+	const uint32* FoundTimelineIndex = CpuThreadTimelineIndexMap.Find(ThreadId);
+	if (!FoundTimelineIndex)
 	{
 		TSharedRef<TimelineInternal> Timeline = MakeShared<TimelineInternal>(Session.GetLinearAllocator());
 		uint32 TimelineIndex = Timelines.Num();
@@ -145,8 +147,7 @@ FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThrea
 	}
 	else
 	{
-		uint32 TimelineIndex = CpuThreadTimelineIndexMap[ThreadId];
-		return Timelines[TimelineIndex].Get();
+		return Timelines[*FoundTimelineIndex].Get();
 	}
 }
 
@@ -161,9 +162,10 @@ bool FTimingProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32&
 {
 	Session.ReadAccessCheck();
 
-	if (CpuThreadTimelineIndexMap.Contains(ThreadId))
+	const uint32* FoundTimelineIndex = CpuThreadTimelineIndexMap.Find(ThreadId);
+	if (FoundTimelineIndex)
 	{
-		OutTimelineIndex = CpuThreadTimelineIndexMap[ThreadId];
+		OutTimelineIndex = *FoundTimelineIndex;
 		return true;
 	}
 	return false;

@@ -180,7 +180,12 @@ void ULevelActorContainer::CreateCluster()
 
 	// Collect all objects referenced by cluster root and by all objects it's referencing
 	FActorClusterReferenceProcessor Processor(ContainerInternalIndex, Cluster, CastChecked<ULevel>(GetOuter()));
-	TFastReferenceCollector<false, FActorClusterReferenceProcessor, TDefaultReferenceCollector<FActorClusterReferenceProcessor>, FGCArrayPool, true> ReferenceCollector(Processor, FGCArrayPool::Get());
+	TFastReferenceCollector<
+		FActorClusterReferenceProcessor, 
+		TDefaultReferenceCollector<FActorClusterReferenceProcessor>, 
+		FGCArrayPool, 
+		EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
+	> ReferenceCollector(Processor, FGCArrayPool::Get());
 	FGCArrayStruct ArrayStruct;
 	TArray<UObject*>& ObjectsToProcess = ArrayStruct.ObjectsToSerialize;
 	ObjectsToProcess.Add(static_cast<UObject*>(this));

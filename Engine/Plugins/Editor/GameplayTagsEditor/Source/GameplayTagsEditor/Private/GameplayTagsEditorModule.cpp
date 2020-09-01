@@ -581,7 +581,7 @@ public:
 			TArray<FAssetIdentifier> Referencers;
 
 			FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
-			AssetRegistryModule.Get().GetReferencers(TagId, Referencers, EAssetRegistryDependencyType::SearchableName);
+			AssetRegistryModule.Get().GetReferencers(TagId, Referencers, UE::AssetRegistry::EDependencyCategory::SearchableName);
 
 			if (Referencers.Num() > 0)
 			{
@@ -866,7 +866,7 @@ public:
 		{
 			TArray<FAssetIdentifier> Referencers;
 			FAssetIdentifier TagId = FAssetIdentifier(FGameplayTag::StaticStruct(), Tag.GetTagName());
-			AssetRegistryModule.Get().GetReferencers(TagId, Referencers, EAssetRegistryDependencyType::SearchableName);
+			AssetRegistryModule.Get().GetReferencers(TagId, Referencers, UE::AssetRegistry::EDependencyCategory::SearchableName);
 
 			FString Comment;
 			FName TagSource;

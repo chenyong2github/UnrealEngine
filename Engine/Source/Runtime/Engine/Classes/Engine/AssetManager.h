@@ -580,8 +580,11 @@ protected:
 	bool OnAssetRegistryAvailableAfterInitialization(FName InName, FAssetRegistryState& OutNewState);
 
 #if WITH_EDITOR
-	/** Function used during creating Management references to decide when to recurse and set references */
+	UE_DEPRECATED(4.26, "ShouldSetManager that takes EAssetRegistryDependencyType is no longer called; switch to the version that takes EDependencyCategory")
 	virtual EAssetSetManagerResult::Type ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, EAssetRegistryDependencyType::Type DependencyType, EAssetSetManagerFlags::Type Flags) const;
+	/** Function used during creating Management references to decide when to recurse and set references */
+	virtual EAssetSetManagerResult::Type ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target,
+		UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags) const;
 
 	/** Called when asset registry is done loading off disk, will finish any deferred loads */
 	virtual void OnAssetRegistryFilesLoaded();

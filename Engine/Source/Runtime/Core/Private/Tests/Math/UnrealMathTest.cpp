@@ -2049,5 +2049,57 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FMathIntegerTests, "System.Core.Math.IntegerFunctions", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FMathIntegerTests::RunTest(const FString& Parameters)
+{
+	// Test CountLeadingZeros8
+	TestEqual(TEXT("CountLeadingZeros8(0)"), FMath::CountLeadingZeros8(0), 8);
+	TestEqual(TEXT("CountLeadingZeros8(1)"), FMath::CountLeadingZeros8(1), 7);
+	TestEqual(TEXT("CountLeadingZeros8(2)"), FMath::CountLeadingZeros8(2), 6);
+	TestEqual(TEXT("CountLeadingZeros8(0x7f)"), FMath::CountLeadingZeros8(0x7f), 1);
+	TestEqual(TEXT("CountLeadingZeros8(0x80)"), FMath::CountLeadingZeros8(0x80), 0);
+	TestEqual(TEXT("CountLeadingZeros8(0xff)"), FMath::CountLeadingZeros8(0xff), 0);
+
+	// Test CountLeadingZeros
+	TestEqual(TEXT("CountLeadingZeros(0)"), FMath::CountLeadingZeros(0), 32);
+	TestEqual(TEXT("CountLeadingZeros(1)"), FMath::CountLeadingZeros(1), 31);
+	TestEqual(TEXT("CountLeadingZeros(2)"), FMath::CountLeadingZeros(2), 30);
+	TestEqual(TEXT("CountLeadingZeros(0x7fffffff)"), FMath::CountLeadingZeros(0x7fffffff), 1);
+	TestEqual(TEXT("CountLeadingZeros(0x80000000)"), FMath::CountLeadingZeros(0x80000000), 0);
+	TestEqual(TEXT("CountLeadingZeros(0xffffffff)"), FMath::CountLeadingZeros(0xffffffff), 0);
+
+	// Test CountLeadingZeros64
+	TestEqual(TEXT("CountLeadingZeros64(0)"), FMath::CountLeadingZeros64(0), uint64(64));
+	TestEqual(TEXT("CountLeadingZeros64(1)"), FMath::CountLeadingZeros64(1), uint64(63));
+	TestEqual(TEXT("CountLeadingZeros64(2)"), FMath::CountLeadingZeros64(2), uint64(62));
+	TestEqual(TEXT("CountLeadingZeros64(0x7fffffff'ffffffff)"), FMath::CountLeadingZeros64(0x7fffffff'ffffffff), uint64(1));
+	TestEqual(TEXT("CountLeadingZeros64(0x80000000'00000000)"), FMath::CountLeadingZeros64(0x80000000'00000000), uint64(0));
+	TestEqual(TEXT("CountLeadingZeros64(0xffffffff'ffffffff)"), FMath::CountLeadingZeros64(0xffffffff'ffffffff), uint64(0));
+
+	// Test FloorLog2
+	TestEqual(TEXT("FloorLog2(0)"), FMath::FloorLog2(0), 0);
+	TestEqual(TEXT("FloorLog2(1)"), FMath::FloorLog2(1), 0);
+	TestEqual(TEXT("FloorLog2(2)"), FMath::FloorLog2(2), 1);
+	TestEqual(TEXT("FloorLog2(3)"), FMath::FloorLog2(3), 1);
+	TestEqual(TEXT("FloorLog2(4)"), FMath::FloorLog2(4), 2);
+	TestEqual(TEXT("FloorLog2(0x7fffffff)"), FMath::FloorLog2(0x7fffffff), 30);
+	TestEqual(TEXT("FloorLog2(0x80000000)"), FMath::FloorLog2(0x80000000), 31);
+	TestEqual(TEXT("FloorLog2(0xffffffff)"), FMath::FloorLog2(0xffffffff), 31);
+
+	// Test FloorLog2_64
+	TestEqual(TEXT("FloorLog2_64(0)"), FMath::FloorLog2_64(0), uint64(0));
+	TestEqual(TEXT("FloorLog2_64(1)"), FMath::FloorLog2_64(1), uint64(0));
+	TestEqual(TEXT("FloorLog2_64(2)"), FMath::FloorLog2_64(2), uint64(1));
+	TestEqual(TEXT("FloorLog2_64(3)"), FMath::FloorLog2_64(3), uint64(1));
+	TestEqual(TEXT("FloorLog2_64(4)"), FMath::FloorLog2_64(4), uint64(2));
+	TestEqual(TEXT("FloorLog2_64(0x7fffffff)"), FMath::FloorLog2_64(0x7fffffff), uint64(30));
+	TestEqual(TEXT("FloorLog2_64(0x80000000)"), FMath::FloorLog2_64(0x80000000), uint64(31));
+	TestEqual(TEXT("FloorLog2_64(0xffffffff)"), FMath::FloorLog2_64(0xffffffff), uint64(31));
+	TestEqual(TEXT("FloorLog2_64(0x7fffffff'ffffffff)"), FMath::FloorLog2_64(0x7fffffff'ffffffff), uint64(62));
+	TestEqual(TEXT("FloorLog2_64(0x80000000'00000000)"), FMath::FloorLog2_64(0x80000000'00000000), uint64(63));
+	TestEqual(TEXT("FloorLog2_64(0xffffffff'ffffffff)"), FMath::FloorLog2_64(0xffffffff'ffffffff), uint64(63));
+
+	return true;
+}
 
 #endif //WITH_DEV_AUTOMATION_TESTS

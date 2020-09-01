@@ -152,6 +152,12 @@ const TCHAR* const FWindowsPlatformCrashContext::UE4GPUAftermathMinidumpName = T
 */
 void FGenericCrashContext::CleanupPlatformSpecificFiles()
 {
+	// FPaths functions below requires command line to be initialized
+	if (!FCommandLine::IsInitialized())
+	{
+		return;
+	}
+
 	// Manually delete any potential leftover gpu dumps because the crash reporter will upload any leftover crash data from last session
 	const FString CrashVideoPath = FPaths::ProjectLogDir() + TEXT("CrashVideo.avi");
 	IFileManager::Get().Delete(*CrashVideoPath);
@@ -586,13 +592,22 @@ int32 ReportCrashForMonitor(
 	// Determine UI settings for the crash report. Suppress the user input dialog if we're running in unattended mode
 	// Usage data controls if we want analytics in the crash report client
 	// Finally we cannot call some of these functions if we crash during static init, so check if they are initialized.
-	bool bNoDialog = ReportUI == EErrorReportUI::ReportInUnattendedMode || IsRunningDedicatedServer();
+	bool bNoDialog = ReportUI == EErrorReportUI::ReportInUnattendedMode;
 	bool bSendUnattendedBugReports = true;
 	bool bSendUsageData = true;
 	bool bCanSendCrashReport = true;
 	// Some projects set this value in non editor builds to automatically send error reports unattended, but display
 	// a plain message box in the crash report client. See CRC app code for details.
 	bool bImplicitSend = false;
+	// IsRunningDedicatedServer will check command line arguments, but only for editor builds. 
+#if UE_EDITOR
+	if (FCommandLine::IsInitialized())
+	{
+		bNoDialog |= IsRunningDedicatedServer();
+	}
+#else
+	bNoDialog |= IsRunningDedicatedServer();
+#endif
 
 	if (FCommandLine::IsInitialized())
 	{
@@ -611,6 +626,17 @@ int32 ReportCrashForMonitor(
 			GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
 		}
 #endif
+	}
+	else
+	{
+		// Crashes before config system is ready (e.g. during static init) we cannot know the user
+		// settings for sending unattended. We check for the existense of the marker file from previous
+		// sessions, otherwise we cannot send a report at all.
+		FString NotAllowedUnattendedBugReportMarkerPath = FString::Printf(TEXT("%s/NotAllowedUnattendedBugReports"), FWindowsPlatformProcess::ApplicationSettingsDir());
+		if (::PathFileExistsW(*NotAllowedUnattendedBugReportMarkerPath))
+		{
+			bSendUnattendedBugReports = false;
+		}
 	}
 
 #if !UE_EDITOR
@@ -1224,7 +1250,7 @@ public:
 				FPlatformCrashContext::Initialize();
 			}
 
-			return ReportCrashForMonitor(
+			ReportCrashForMonitor(
 				InExceptionInfo,
 				Type,
 				ErrorMessage,
@@ -1235,11 +1261,12 @@ public:
 				&SharedContext,
 				CrashMonitorWritePipe,
 				CrashMonitorReadPipe,
-				EErrorReportUI::ShowDialog
+				EErrorReportUI::ReportInUnattendedMode
 			);
 		}
 
-		return EXCEPTION_CONTINUE_EXECUTION;
+		// Always exit the process after handling crash during static initialization.
+		ExitProcess(ECrashExitCodes::CrashDuringStaticInit);
 	}
 
 private:

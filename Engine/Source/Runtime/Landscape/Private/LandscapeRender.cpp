@@ -846,7 +846,7 @@ void FLandscapeRenderSystem::PrepareView(const FSceneView* View)
 #endif
 	
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+		&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
 
 	if (bExecuteInParallel)
 	{
@@ -1090,7 +1090,7 @@ void FLandscapeRenderSystem::BeginFrame()
 	}
 
 	const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
-		&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+		&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
 
 	if (bExecuteInParallel)
 	{

@@ -1090,6 +1090,16 @@ void UObjectBaseInit()
 #endif
 	}
 
+	if (MaxObjectsNotConsideredByGC <= 0 && SizeOfPermanentObjectPool > 0)
+	{
+		// If permanent object pool is enabled but disregard for GC is disabled, GC will mark permanent object pool objects
+		// as unreachable and may destroy them so disable permanent object pool too.
+		// An alternative would be to make GC not mark permanent object pool objects as unreachable but then they would have to
+		// be considered as root set objects because they could be referencing objects from outside of permanent object pool.
+		// This would be inconsistent and confusing and also counter productive (the more root set objects the more expensive MarkAsUnreachable phase is).
+		SizeOfPermanentObjectPool = 0;
+		UE_LOG(LogInit, Warning, TEXT("Disabling permanent object pool because disregard for GC is disabled (gc.MaxObjectsNotConsideredByGC=%d)."), MaxObjectsNotConsideredByGC);
+	}
 
 	// Log what we're doing to track down what really happens as log in LaunchEngineLoop doesn't report those settings in pristine form.
 	UE_LOG(LogInit, Log, TEXT("%s for max %d objects, including %i objects not considered by GC, pre-allocating %i bytes for permanent pool."), 

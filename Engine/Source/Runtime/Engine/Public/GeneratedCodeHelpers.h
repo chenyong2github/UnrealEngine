@@ -114,7 +114,7 @@ public:
 		int32 LastIndex = TargetArray.Num() - 1;
 		for (int32 i = 0; i < LastIndex; ++i)
 		{
-			int32 Index = FMath::RandRange(0, LastIndex);
+			int32 Index = FMath::RandRange(i, LastIndex);
 			if (i != Index)
 			{
 				const_cast<TArray<T>*>(&TargetArray)->Swap(i, Index);

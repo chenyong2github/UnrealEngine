@@ -71,7 +71,7 @@ struct CORE_API FScopedBootTiming
 };
 
 
-#define SCOPED_BOOT_TIMING(x) TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(x); FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)(x);
+#define SCOPED_BOOT_TIMING(x) TRACE_CPUPROFILER_EVENT_SCOPE_STR(x); FScopedBootTiming ANONYMOUS_VARIABLE(BootTiming_)(x);
 
 #define GLog GetGlobalLogSingleton()
 extern CORE_API FConfigCacheIni* GConfig;
@@ -405,12 +405,14 @@ extern CORE_API int32 GSavingCompressionChunkSize;
 extern CORE_API uint32 GGameThreadId;
 
 /** Thread ID of the render thread, if any */
+UE_DEPRECATED(4.26, "Please use `IsInActualRenderingThread()`")
 extern CORE_API uint32 GRenderThreadId;
 
 /** Thread ID of the slate thread, if any */
 extern CORE_API uint32 GSlateLoadingThreadId;
 
 /** Thread ID of the audio thread, if any */
+UE_DEPRECATED(4.26, "Please use `IsAudioThreadRunning()` or `IsInAudioThread()`")
 extern CORE_API uint32 GAudioThreadId;
 
 /** Has GGameThreadId been set yet? */
@@ -481,10 +483,13 @@ FORCEINLINE bool IsInGameThread()
 	return true;
 }
 
+extern CORE_API bool IsAudioThreadRunning();
+
 /** @return True if called from the audio thread, and not merely a thread calling audio functions. */
 extern CORE_API bool IsInAudioThread();
 
 /** Thread used for audio */
+UE_DEPRECATED(4.26, "Please use `IsAudioThreadRunning()` or `IsInAudioThread()`")
 extern CORE_API FRunnableThread* GAudioThread;
 
 /** @return True if called from the slate thread, and not merely a thread calling slate functions. */
@@ -504,18 +509,24 @@ extern CORE_API bool IsInActualRenderingThread();
 extern CORE_API bool (*IsInAsyncLoadingThread)();
 
 /** Thread used for rendering */
+UE_DEPRECATED(4.26, "Please use `GIsThreadedRendering` or `IsInActualRenderingThread()`")
 extern CORE_API FRunnableThread* GRenderingThread;
 
 /** Whether the rendering thread is suspended (not even processing the tickables) */
 extern CORE_API TAtomic<int32> GIsRenderingThreadSuspended;
 
+/** @return True if RHI thread is running */
+extern CORE_API bool IsRHIThreadRunning();
+
 /** @return True if called from the RHI thread, or if called from ANY thread during single threaded rendering */
 extern CORE_API bool IsInRHIThread();
 
 /** Thread used for RHI */
+UE_DEPRECATED(4.26, "Please use `IsRHIThreadRunning()`")
 extern CORE_API FRunnableThread* GRHIThread_InternalUseOnly;
 
 /** Thread ID of the the thread we are executing RHI commands on. This could either be a constant dedicated thread or changing every task if we run the rhi thread on tasks. */
+UE_DEPRECATED(4.26, "Please use `IsRHIThreadRunning()` or `IsInRHIThread()`")
 extern CORE_API uint32 GRHIThreadId;
 
 /** Boot loading timers */

@@ -24,7 +24,6 @@ enum WideString {};
 struct FInitializeDesc
 {
 	bool			bUseWorkerThread	= true;
-	uint32			MaxMemoryHintMb		= 64;
 };
 
 UE_TRACE_API void	Initialize(const FInitializeDesc& Desc) UE_TRACE_IMPL();

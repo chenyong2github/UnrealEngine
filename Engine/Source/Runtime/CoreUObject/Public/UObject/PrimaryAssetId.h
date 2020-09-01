@@ -4,6 +4,8 @@
 
 #include "CoreMinimal.h"
 
+#include "Misc/StringBuilder.h"
+
 /**
  * A primary asset type, represented as an FName internally and implicitly convertible back and forth
  * This exists so the blueprint API can understand it's not a normal FName
@@ -53,6 +55,12 @@ struct FPrimaryAssetType
 	FString ToString() const
 	{
 		return Name.ToString();
+	}
+
+	/** Appends to the given builder the string version of this Type */
+	void AppendString(FStringBuilderBase& Builder) const
+	{
+		Name.AppendString(Builder);
 	}
 
 	/** UStruct Overrides */
@@ -114,13 +122,19 @@ struct FPrimaryAssetId
 	/** Returns string version of this identifier in Type:Name format */
 	FString ToString() const
 	{
+		TStringBuilder<256> Builder;
+		AppendString(Builder);
+		return FString(Builder.Len(), Builder.GetData());
+	}
+
+	/** Appends to the given builder the string version of this identifier in Type:Name format */
+	void AppendString(FStringBuilderBase& Builder) const
+	{
 		if (IsValid())
 		{
-			return FString::Printf(TEXT("%s:%s"), *PrimaryAssetType.ToString(), *PrimaryAssetName.ToString());
-		}
-		else
-		{
-			return FString();
+			PrimaryAssetType.AppendString(Builder);
+			Builder << TEXT(":");
+			PrimaryAssetName.AppendString(Builder);
 		}
 	}
 

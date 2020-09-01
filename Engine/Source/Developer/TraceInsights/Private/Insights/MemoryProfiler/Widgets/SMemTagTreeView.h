@@ -83,7 +83,7 @@ public:
 	FMemTagNodePtr GetMemTagNode(Insights::FMemoryTagId MemTagId) const { return MemTagNodesIdMap.FindRef(MemTagId); }
 	void SelectMemTagNode(Insights::FMemoryTagId MemTagId);
 
-protected:
+private:
 	void UpdateTree();
 
 	void UpdateStatsInternal();
@@ -104,6 +104,8 @@ protected:
 	// Tree View - Context Menu
 
 	TSharedPtr<SWidget> TreeView_GetMenuContent();
+	void TreeView_BuildCreateGraphTracksMenu(FMenuBuilder& MenuBuilder);
+	void TreeView_BuildRemoveGraphTracksMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildSortByMenu(FMenuBuilder& MenuBuilder);
 	void TreeView_BuildViewColumnMenu(FMenuBuilder& MenuBuilder);
 
@@ -258,7 +260,43 @@ protected:
 	FReply AllTracksMediumHeight_OnClicked();
 	FReply AllTracksLargeHeight_OnClicked();
 
-	TSharedPtr<FMemoryGraphTrack> CreateMemTagGraphTrackForNode(FMemTagNodePtr MemTagNodePtr);
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+
+	// Create memory graph tracks for selected LLM tag(s)
+	bool CanCreateGraphTracksForSelectedMemTags() const;
+	void CreateGraphTracksForSelectedMemTags();
+
+	// Create memory graph tracks for filtered LLM tags
+	bool CanCreateGraphTracksForFilteredMemTags() const;
+	void CreateGraphTracksForFilteredMemTags();
+
+	// Create all memory graph tracks
+	bool CanCreateAllGraphTracks() const;
+	void CreateAllGraphTracks();
+
+	// Remove memory graph tracks for selected LLM tag(s)
+	bool CanRemoveGraphTracksForSelectedMemTags() const;
+	void RemoveGraphTracksForSelectedMemTags();
+
+	// Remove memory graph tracks for LLM tags not used by the current tracker
+	bool CanRemoveGraphTracksForUnusedMemTags() const;
+	void RemoveGraphTracksForUnusedMemTags();
+
+	// Remove all memory graph tracks
+	bool CanRemoveAllGraphTracks() const;
+	void RemoveAllGraphTracks();
+
+	// Generate new color for selected LLM tag(s)
+	bool CanGenerateColorForSelectedMemTags() const;
+	void GenerateColorForSelectedMemTags();
+	void SetColorToNode(const FMemTagNodePtr& MemTagNode, FLinearColor CustomColor, bool bSetRandomColor);
+	FLinearColor GetEditableColor() const;
+	void SetEditableColor(FLinearColor NewColor);
+	void ColorPickerCancelled(FLinearColor OriginalColor);
+
+	// Edit color for selected LLM tag(s)
+	bool CanEditColorForSelectedMemTags() const;
+	void EditColorForSelectedMemTags();
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -271,7 +309,7 @@ protected:
 	 */
 	virtual void Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime) override;
 
-protected:
+private:
 	TSharedPtr<SMemoryProfilerWindow> ProfilerWindow;
 
 	/** Table view model. */
@@ -305,7 +343,7 @@ protected:
 	FName HighlightedNodeName;
 
 	//////////////////////////////////////////////////
-	// Net Event Nodes
+	// MemTag Nodes
 
 	/** An array of group nodes. */
 	TArray<FMemTagNodePtr> GroupNodes;
@@ -380,6 +418,8 @@ protected:
 	//////////////////////////////////////////////////
 
 	TSharedPtr<SComboBox<TSharedPtr<Insights::FMemoryTracker>>> TrackerComboBox;
+
+	FLinearColor EditableColorValue;
 
 	//////////////////////////////////////////////////
 

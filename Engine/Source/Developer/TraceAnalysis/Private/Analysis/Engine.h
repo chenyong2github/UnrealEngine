@@ -46,7 +46,7 @@ struct FTiming
 	uint64	BaseTimestamp;
 	uint64	TimestampHz;
 	double	InvTimestampHz;
-	uint64	EventTimestamp;
+	uint64	EventTimestamp = 0;
 };
 
 

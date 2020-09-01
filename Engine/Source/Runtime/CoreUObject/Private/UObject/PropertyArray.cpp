@@ -65,7 +65,6 @@ void FArrayProperty::LinkInternal(FArchive& Ar)
 	Inner->Link(Ar);
 
 	SetElementSize();
-	PropertyFlags |= CPF_HasGetValueTypeHash;
 }
 bool FArrayProperty::Identical( const void* A, const void* B, uint32 PortFlags ) const
 {

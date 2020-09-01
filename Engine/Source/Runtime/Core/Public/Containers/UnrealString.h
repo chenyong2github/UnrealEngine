@@ -32,6 +32,9 @@ template<typename KeyType,typename ValueType,typename SetAllocator ,typename Key
 typedef TMap<FString, FStringFormatArg> FStringFormatNamedArguments;
 typedef TArray<FStringFormatArg> FStringFormatOrderedArguments;
 
+TCHAR*       GetData(FString&);
+const TCHAR* GetData(const FString&);
+
 /**
  * A dynamically sizeable string.
  * @see https://docs.unrealengine.com/latest/INT/Programming/UnrealArchitecture/StringHandling/FString/
@@ -45,19 +48,32 @@ private:
 	typedef TArray<TCHAR> DataType;
 	DataType Data;
 
+	template <typename RangeType>
+	using TRangeElementType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<RangeType>()))>::Type>::Type;
+
+	template <typename CharRangeType>
+	struct TIsRangeOfCharType : TIsCharType<TRangeElementType<CharRangeType>>
+	{
+	};
+
+	template <typename CharRangeType>
+	struct TIsRangeOfTCHAR : TIsSame<TCHAR, TRangeElementType<CharRangeType>>
+	{
+	};
+
 	/** Trait testing whether a type is a contiguous range of characters, and not CharType[]. */
 	template <typename CharRangeType>
 	using TIsCharRangeNotCArray = TAnd<
 		TIsContiguousContainer<CharRangeType>,
 		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
-		TIsCharType<typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
+		TIsRangeOfCharType<CharRangeType>>;
 
 	/** Trait testing whether a type is a contiguous range of TCHAR, and not TCHAR[]. */
 	template <typename CharRangeType>
 	using TIsTCharRangeNotCArray = TAnd<
 		TIsContiguousContainer<CharRangeType>,
 		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
-		TIsSame<TCHAR, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
+		TIsRangeOfTCHAR<CharRangeType>>;
 
 public:
 	using ElementType = TCHAR;
@@ -124,10 +140,10 @@ public:
 	>
 	FORCEINLINE explicit FString(int32 InCount, const CharType* InSrc)
 	{
-		if (InSrc && *InSrc)
+		if (InSrc)
 		{
 			int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(InSrc, InCount);
-			if (DestLen > 0)
+			if (DestLen > 0 && *InSrc)
 			{
 				Data.Reserve(DestLen + 1);
 				Data.AddUninitialized(DestLen + 1);
@@ -1100,7 +1116,7 @@ public:
 	 */
 	FORCEINLINE friend bool operator==(const FString& Lhs, const FString& Rhs)
 	{
-		return FPlatformString::Stricmp(*Lhs, *Rhs) == 0;
+		return Lhs.Equals(Rhs, ESearchCase::IgnoreCase);
 	}
 
 	/**
@@ -1141,7 +1157,7 @@ public:
 	 */
 	FORCEINLINE friend bool operator!=(const FString& Lhs, const FString& Rhs)
 	{
-		return FPlatformString::Stricmp(*Lhs, *Rhs) != 0;
+		return !(Lhs == Rhs);
 	}
 
 	/**
@@ -1400,16 +1416,29 @@ public:
 	 * @param SearchCase 	Whether or not the comparison should ignore case
 	 * @return true if this string is lexicographically equivalent to the other, otherwise false
 	 */
-	FORCEINLINE bool Equals( const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive ) const
+	FORCEINLINE bool Equals(const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const
 	{
-		if( SearchCase == ESearchCase::CaseSensitive )
+		int32 Num = Data.Num();
+		int32 OtherNum = Other.Data.Num();
+
+		if (Num != OtherNum)
 		{
-			return FCString::Strcmp( **this, *Other )==0; 
+			// Handle special case where FString() == FString("")
+			return Num + OtherNum == 1;
 		}
-		else
+		else if (Num > 1)
 		{
-			return FCString::Stricmp( **this, *Other )==0;
+			if (SearchCase == ESearchCase::CaseSensitive)
+			{
+				return FCString::Strcmp(Data.GetData(), Other.Data.GetData()) == 0; 
+			}
+			else
+			{
+				return FCString::Stricmp(Data.GetData(), Other.Data.GetData()) == 0;
+			}
 		}
+
+		return true;
 	}
 
 	/**

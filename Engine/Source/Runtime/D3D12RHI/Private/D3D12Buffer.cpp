@@ -440,7 +440,7 @@ void* FD3D12DynamicRHI::LockBuffer(FRHICommandListImmediate* RHICmdList, FD3D12B
 				}
 				else
 				{
-					check(IsInRenderingThread() && !GRHIThreadId);
+					check(IsInRenderingThread() && !IsRHIThreadRunning());
 					pfnCopyContents();
 				}
 			}

@@ -285,7 +285,7 @@ void UNiagaraNodeParameterMapBase::OnPinRenamed(UEdGraphPin* RenamedPin, const F
 {
 	RenamedPin->PinFriendlyName = FText::FromName(RenamedPin->PinName);
 
-	TArray<UEdGraphPin*> InOrOutPins;
+	FPinCollectorArray InOrOutPins;
 	if (RenamedPin->Direction == EEdGraphPinDirection::EGPD_Input)
 	{
 		GetInputPins(InOrOutPins);

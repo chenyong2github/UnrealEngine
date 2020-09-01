@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "RingBuffer.h"
+#include "Containers/RingBuffer.h"
 #include "Misc/AutomationTest.h"
 
 #if WITH_DEV_AUTOMATION_TESTS
@@ -84,125 +84,125 @@ public:
 
 			TestTrue(TEXT("Test empty - IsEmpty"), Q.IsEmpty());
 			TestEqual(TEXT("Test empty - Size"), Q.Num(), 0);
-			TestEqual(TEXT("Test empty - Capacity"), Q.GetCapacity(), 0);
+			TestEqual(TEXT("Test empty - Capacity"), Q.Max(), 0);
 			TestEqual(TEXT("Test empty - Iterator"), Q.begin(), Q.end());
-			TestEqual(TEXT("Test empty - ConvertReferenceToIndex"), Q.ConvertReferenceToIndex(0), INDEX_NONE);
-			TestEqual(TEXT("Test empty - ConvertReferenceToIndex"), Q.ConvertReferenceToIndex(1), INDEX_NONE);
+			TestEqual(TEXT("Test empty - ConvertPointerToIndex"), Q.ConvertPointerToIndex(nullptr), INDEX_NONE);
+			TestEqual(TEXT("Test empty - ConvertPointerToIndex"), Q.ConvertPointerToIndex(reinterpret_cast<uint32*>(this)), INDEX_NONE);
 			Q.Trim();
 			TestEqual(TEXT("Test Trim From empty - Size"), Q.Num(), 0);
-			TestEqual(TEXT("Test Trim From empty - Capacity"), Q.GetCapacity(), 0);
+			TestEqual(TEXT("Test Trim From empty - Capacity"), Q.Max(), 0);
 			Q.Reset();
 			TestEqual(TEXT("Test Reset From empty - Size"), Q.Num(), 0);
-			TestEqual(TEXT("Test Reset From empty - Capacity"), Q.GetCapacity(), 0);
+			TestEqual(TEXT("Test Reset From empty - Capacity"), Q.Max(), 0);
 			Q.Empty(0);
 			TestEqual(TEXT("Test Empty From empty - Size"), Q.Num(), 0);
-			TestEqual(TEXT("Test Empty From empty - Capacity"), Q.GetCapacity(), 0);
+			TestEqual(TEXT("Test Empty From empty - Capacity"), Q.Max(), 0);
 			Q.PopFront(0);
-			Q.PopBack(0);
+			Q.Pop(0);
 			TestEqual(TEXT("Test Pop on empty - Size"), Q.Num(), 0);
-			TestEqual(TEXT("Test Pop on empty - Capacity"), Q.GetCapacity(), 0);
+			TestEqual(TEXT("Test Pop on empty - Capacity"), Q.Max(), 0);
 			TestEqual(TEXT("Test empty - IsValidIndex"), Q.IsValidIndex(0), false);
 
 
 			const TRingBuffer<uint32> ConstQ(0);
 			TestTrue(TEXT("Test const empty - IsEmpty"), ConstQ.IsEmpty());
 			TestEqual(TEXT("Test const empty - Size"), ConstQ.Num(), 0);
-			TestEqual(TEXT("Test const empty - Capacity"), ConstQ.GetCapacity(), 0);
+			TestEqual(TEXT("Test const empty - Capacity"), ConstQ.Max(), 0);
 			TestEqual(TEXT("Test const empty - Iterator"), ConstQ.begin(), ConstQ.end());
-			TestEqual(TEXT("Test const empty - ConvertReferenceToIndex"), ConstQ.ConvertReferenceToIndex(0), INDEX_NONE);
+			TestEqual(TEXT("Test const empty - ConvertPointerToIndex"), ConstQ.ConvertPointerToIndex(reinterpret_cast<uint32*>(this)), INDEX_NONE);
 		}
 
-		// Test Push Sequence
+		// Test Adding a sequence of elements
 		{
 			const TRingBuffer<int32>::IndexType FirstSize = 8;
 
 			TRingBuffer<int32> Q(0);
 
-			TestEqual(TEXT("Test PushSequence - Capacity (Implementation Detail)"), Q.GetCapacity(), 0);
-			Q.EmplaceBack(0);
-			TestEqual(TEXT("Test PushSequence - Size"), Q.Num(), 1);
-			TestEqual(TEXT("Test PushSequence - Capacity (Implementation Detail)"), Q.GetCapacity(), 1);
-			Q.EmplaceBack(1);
-			TestEqual(TEXT("Test PushSequence - Size"), Q.Num(), 2);
-			TestEqual(TEXT("Implementation Detail - These tests expect that growing size will set capacity to successive powers of 2."), Q.GetCapacity(), 2);
+			TestEqual(TEXT("Test AddSequence - Capacity (Implementation Detail)"), Q.Max(), 0);
+			Q.Emplace(0);
+			TestEqual(TEXT("Test AddSequence - Size"), Q.Num(), 1);
+			TestEqual(TEXT("Test AddSequence - Capacity (Implementation Detail)"), Q.Max(), 1);
+			Q.Emplace(1);
+			TestEqual(TEXT("Test AddSequence - Size"), Q.Num(), 2);
+			TestEqual(TEXT("Implementation Detail - These tests expect that growing size will set capacity to successive powers of 2."), Q.Max(), 2);
 			for (int32 It = 2; It < FirstSize; ++It)
 			{
-				Q.EmplaceBack(It);
-				TestEqual(TEXT("Test PushSequence - Size"), Q.Num(), It + 1);
-				TestEqual(TEXT("Test PushSequence - Capacity (Implementation Detail)"), static_cast<uint32>(Q.GetCapacity()), FMath::RoundUpToPowerOfTwo(It + 1));
+				Q.Emplace(It);
+				TestEqual(TEXT("Test AddSequence - Size"), Q.Num(), It + 1);
+				TestEqual(TEXT("Test AddSequence - Capacity (Implementation Detail)"), static_cast<uint32>(Q.Max()), FMath::RoundUpToPowerOfTwo(It + 1));
 			}
 
 			for (int32 Index = 0; Index < FirstSize; ++Index)
 			{
-				TestEqual(TEXT("Test PushSequence - Expected values"), Q[Index], Index);
-				TestEqual(TEXT("Test PushSequence const- Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
+				TestEqual(TEXT("Test AddSequence - Expected values"), Q[Index], Index);
+				TestEqual(TEXT("Test AddSequence const- Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
 			}
 
 			const TRingBuffer<int32>::IndexType SecondSize = 13;
 			for (int32 It = FirstSize; It < SecondSize; ++It)
 			{
-				Q.EmplaceBack(It);
-				TestEqual(TEXT("Test PushSequence non powerof2 - Size"), Q.Num(), It + 1);
-				TestEqual(TEXT("Test PushSequence non powerof2 const - Capacity (Implementation Detail)"), static_cast<uint32>(Q.GetCapacity()), FMath::RoundUpToPowerOfTwo(It + 1));
+				Q.Emplace(It);
+				TestEqual(TEXT("Test AddSequence non powerof2 - Size"), Q.Num(), It + 1);
+				TestEqual(TEXT("Test AddSequence non powerof2 const - Capacity (Implementation Detail)"), static_cast<uint32>(Q.Max()), FMath::RoundUpToPowerOfTwo(It + 1));
 			}
 
 			for (int32 Index = 0; Index < FirstSize; ++Index)
 			{
-				TestEqual(TEXT("Test PushSequence non powerof2 - Expected values"), Q[Index], Index);
-				TestEqual(TEXT("Test PushSequence non powerof2 const - Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
+				TestEqual(TEXT("Test AddSequence non powerof2 - Expected values"), Q[Index], Index);
+				TestEqual(TEXT("Test AddSequence non powerof2 const - Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
 			}
 		}
 
-		// Test Push under/over Capacity
+		// Test Add under/over Capacity
 		{
-			const TRingBuffer<int32>::IndexType FirstElementsToPush = 3;
+			const TRingBuffer<int32>::IndexType FirstElementsToAdd = 3;
 			const TRingBuffer<int32>::IndexType InitialCapacity = 8;
-			const TRingBuffer<int32>::IndexType SecondElementsToPush = 9;
+			const TRingBuffer<int32>::IndexType SecondElementsToAdd = 9;
 
 			TRingBuffer<int32> Q(InitialCapacity);
 
-			for (int32 It = 0; It < FirstElementsToPush; ++It)
+			for (int32 It = 0; It < FirstElementsToAdd; ++It)
 			{
-				Q.EmplaceBack(It);
+				Q.Emplace(It);
 			}
 
-			TestEqual(TEXT("Test Push under Capacity - Size"), Q.Num(), FirstElementsToPush);
-			TestEqual(TEXT("Test Push under Capacity - Capacity"), Q.GetCapacity(), InitialCapacity);
-			for (int32 Index = 0; Index < FirstElementsToPush; ++Index)
+			TestEqual(TEXT("Test Add under Capacity - Size"), Q.Num(), FirstElementsToAdd);
+			TestEqual(TEXT("Test Add under Capacity - Capacity"), Q.Max(), InitialCapacity);
+			for (int32 Index = 0; Index < FirstElementsToAdd; ++Index)
 			{
-				TestEqual(TEXT("Test Push under Capacity - Expected values"), Q[Index], Index);
-				TestEqual(TEXT("Test Push under Capacity const - Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
+				TestEqual(TEXT("Test Add under Capacity - Expected values"), Q[Index], Index);
+				TestEqual(TEXT("Test Add under Capacity const - Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
 			}
 
-			for (int32 It = FirstElementsToPush; It < SecondElementsToPush; ++It)
+			for (int32 It = FirstElementsToAdd; It < SecondElementsToAdd; ++It)
 			{
-				Q.EmplaceBack(It);
+				Q.Emplace(It);
 			}
 
-			TestEqual(TEXT("Test Push over Capacity - Size"), Q.Num(), SecondElementsToPush);
-			TestEqual(TEXT("Test Push over Capacity - Capacity (Implementation Detail)"), static_cast<uint32>(Q.GetCapacity()), FMath::RoundUpToPowerOfTwo(SecondElementsToPush));
-			for (int32 Index = 0; Index < SecondElementsToPush; ++Index)
+			TestEqual(TEXT("Test Add over Capacity - Size"), Q.Num(), SecondElementsToAdd);
+			TestEqual(TEXT("Test Add over Capacity - Capacity (Implementation Detail)"), static_cast<uint32>(Q.Max()), FMath::RoundUpToPowerOfTwo(SecondElementsToAdd));
+			for (int32 Index = 0; Index < SecondElementsToAdd; ++Index)
 			{
-				TestEqual(TEXT("Test Push over Capacity - Expected values"), Q[Index], Index);
-				TestEqual(TEXT("Test Push over Capacity const - Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
+				TestEqual(TEXT("Test Add over Capacity - Expected values"), Q[Index], Index);
+				TestEqual(TEXT("Test Add over Capacity const - Expected values"), const_cast<TRingBuffer<int32>&>(Q)[Index], Index);
 			}
 		}
 
-		// Test GetBack/GetFront
+		// Test Last/First
 		{
 			TRingBuffer<uint32> Q({ 0,1,2,3 });
-			TestEqual(TEXT("Test GetBack"), 3, Q.GetBack());
-			Q.GetBack() = 4;
-			TestEqual(TEXT("Test GetBack const"), 4, const_cast<TRingBuffer<uint32>&>(Q).GetBack());
-			TestEqual(TEXT("Test GetFront"), 0, Q.GetFront());
-			Q.GetFront() = 5;
-			TestEqual(TEXT("Test GetFront const"), 5, const_cast<TRingBuffer<uint32>&>(Q).GetFront());
+			TestEqual(TEXT("Test Last"), 3, Q.Last());
+			Q.Last() = 4;
+			TestEqual(TEXT("Test Last const"), 4, const_cast<TRingBuffer<uint32>&>(Q).Last());
+			TestEqual(TEXT("Test First"), 0, Q.First());
+			Q.First() = 5;
+			TestEqual(TEXT("Test First const"), 5, const_cast<TRingBuffer<uint32>&>(Q).First());
 		}
 
-		// Test PopFrontValue/PopBackValue
+		// Test PopFrontValue/PopValue
 		{
 			TRingBuffer<Counter> Q({ 31,32,33 });
-			Q.PushFront(30);
+			Q.AddFront(30);
 
 			Counter::Clear();
 			Counter C(Q.PopFrontValue());
@@ -215,14 +215,14 @@ public:
 			TestEqual(TEXT("PopFrontValue Inline - Remaining Values"), Q, TRingBuffer<Counter>({ 32,33 }));
 
 			Counter::Clear();
-			Counter D(Q.PopBackValue());
-			TestEqual(TEXT("PopBackValue - PoppedValue"), D.Value, 33);
-			TestTrue(TEXT("PopBackValue - ConstructorCounts"), Counter::NumMove > 0 && Counter::NumCopy == 0);
-			TestEqual(TEXT("PopBackValue - Remaining Values"), Q, TRingBuffer<Counter>({ Counter(32) }));
+			Counter D(Q.PopValue());
+			TestEqual(TEXT("PopValue - PoppedValue"), D.Value, 33);
+			TestTrue(TEXT("PopValue - ConstructorCounts"), Counter::NumMove > 0 && Counter::NumCopy == 0);
+			TestEqual(TEXT("PopValue - Remaining Values"), Q, TRingBuffer<Counter>({ Counter(32) }));
 			Counter::Clear();
-			TestEqual(TEXT("PopBackValue Inline - PoppedValue"), Q.PopBackValue().Value, 32);
-			TestTrue(TEXT("PopBackValue Inline - ConstructorCounts"), Counter::NumCopy == 0);
-			TestTrue(TEXT("PopBackValue Inline - Remaining Values"), Q.IsEmpty());
+			TestEqual(TEXT("PopValue Inline - PoppedValue"), Q.PopValue().Value, 32);
+			TestTrue(TEXT("PopValue Inline - ConstructorCounts"), Counter::NumCopy == 0);
+			TestTrue(TEXT("PopValue Inline - Remaining Values"), Q.IsEmpty());
 		}
 
 		// Test Initializer_List
@@ -231,7 +231,7 @@ public:
 			TRingBuffer<int32> Q({ 0, 1, 2, 3, 4, 5, 6, 7, 8 });
 
 			TestEqual(TEXT("Test Initializer_List - Size"), Q.Num(), InitializerSize);
-			TestEqual(TEXT("Test Initializer_List - Capacity (Implementation Detail)"), static_cast<uint32>(Q.GetCapacity()), FMath::RoundUpToPowerOfTwo(InitializerSize));
+			TestEqual(TEXT("Test Initializer_List - Capacity (Implementation Detail)"), static_cast<uint32>(Q.Max()), FMath::RoundUpToPowerOfTwo(InitializerSize));
 			for (int32 Index = 0; Index < InitializerSize; ++Index)
 			{
 				TestEqual(TEXT("Test Initializer_List - Expected values"), Q[Index], Index);
@@ -245,14 +245,14 @@ public:
 			TestEqual(TEXT("Copy Constructor"), Original, Copy);
 			TRingBuffer<uint32> Moved(MoveTemp(Copy));
 			TestEqual(TEXT("Move Constructor"), Original, Moved);
-			TestEqual(TEXT("Move Constructor did in fact move"), Copy.GetCapacity(), 0);
+			TestEqual(TEXT("Move Constructor did in fact move"), Copy.Max(), 0);
 			TRingBuffer<uint32> AssignCopy;
 			AssignCopy = Original;
 			TestEqual(TEXT("Copy Assignment"), Original, AssignCopy);
 			TRingBuffer<uint32> AssignMove;
 			AssignMove = MoveTemp(AssignCopy);
 			TestEqual(TEXT("Move Assignment"), Original, AssignMove);
-			TestEqual(TEXT("Move Assignment did in fact move"), AssignCopy.GetCapacity(), 0);
+			TestEqual(TEXT("Move Assignment did in fact move"), AssignCopy.Max(), 0);
 		}
 
 		// Test Equality 
@@ -273,7 +273,7 @@ public:
 				TRingBuffer<int32> QNum6Cap16(16);
 				for (int32 Index = 0; Index < 6; ++Index)
 				{
-					QNum6Cap16.PushBack(Index);
+					QNum6Cap16.Add(Index);
 				}
 				TestEquality(TEXT("equal nonempty different capacities"), true, QNum6Cap16, TRingBuffer<int32>({ 0, 1, 2, 3, 4, 5 }));
 			}
@@ -289,58 +289,58 @@ public:
 				TRingBuffer<int32> Q0Pop;
 				TRingBuffer<int32> Q1PopFront;
 				TRingBuffer<int32> Q2PopFront;
-				TRingBuffer<int32> Q1PopBack;
-				TRingBuffer<int32> Q2PopBack;
-				TRingBuffer<int32> Q2PopFront3PopBack;
-				Q1PopFront.PushBack(47);
-				Q2PopFront.PushBack(576);
-				Q2PopFront.PushBack(-5);
-				Q2PopFront3PopBack.PushBack(84);
-				Q2PopFront3PopBack.PushBack(1000);
+				TRingBuffer<int32> Q1Pop;
+				TRingBuffer<int32> Q2Pop;
+				TRingBuffer<int32> Q2PopFront3Pop;
+				Q1PopFront.Add(47);
+				Q2PopFront.Add(576);
+				Q2PopFront.Add(-5);
+				Q2PopFront3Pop.Add(84);
+				Q2PopFront3Pop.Add(1000);
 				for (int Index = 0; Index < Count; ++Index)
 				{
-					Q0Pop.PushBack(Index);
-					Q1PopFront.PushBack(Index);
-					Q2PopFront.PushBack(Index);
-					Q1PopBack.PushBack(Index);
-					Q2PopBack.PushBack(Index);
-					Q2PopFront3PopBack.PushBack(Index);
+					Q0Pop.Add(Index);
+					Q1PopFront.Add(Index);
+					Q2PopFront.Add(Index);
+					Q1Pop.Add(Index);
+					Q2Pop.Add(Index);
+					Q2PopFront3Pop.Add(Index);
 				}
 				Q1PopFront.PopFront();
 				Q2PopFront.PopFront();
 				Q2PopFront.PopFront();
-				Q1PopBack.PushBack(-18);
-				Q1PopBack.PopBack();
-				Q2PopBack.PushBack(105);
-				Q2PopBack.PushBack(219);
-				Q2PopBack.PopBack();
-				Q2PopBack.PopBack();
-				Q2PopFront3PopBack.PushBack(456);
-				Q2PopFront3PopBack.PushBack(654);
-				Q2PopFront3PopBack.PushBack(8888888);
-				Q2PopFront3PopBack.PopFront();
-				Q2PopFront3PopBack.PopBack();
-				Q2PopFront3PopBack.PopFront();
-				Q2PopFront3PopBack.PopBack();
-				Q2PopFront3PopBack.PopBack();
+				Q1Pop.Add(-18);
+				Q1Pop.Pop();
+				Q2Pop.Add(105);
+				Q2Pop.Add(219);
+				Q2Pop.Pop();
+				Q2Pop.Pop();
+				Q2PopFront3Pop.Add(456);
+				Q2PopFront3Pop.Add(654);
+				Q2PopFront3Pop.Add(8888888);
+				Q2PopFront3Pop.PopFront();
+				Q2PopFront3Pop.Pop();
+				Q2PopFront3Pop.PopFront();
+				Q2PopFront3Pop.Pop();
+				Q2PopFront3Pop.Pop();
 
 				const TCHAR* Names[] =
 				{
 					TEXT("Q0Pop"),
 					TEXT("Q1PopFront"),
 					TEXT("Q2PopFront"),
-					TEXT("Q1PopBack"),
-					TEXT("Q2PopBack"),
-					TEXT("Q2PopFront3PopBack"),
+					TEXT("Q1Pop"),
+					TEXT("Q2Pop"),
+					TEXT("Q2PopFront3Pop"),
 				};
 				TRingBuffer<int32>* Pops[] =
 				{
 					&Q0Pop,
 					&Q1PopFront,
 					&Q2PopFront,
-					&Q1PopBack,
-					&Q2PopBack,
-					&Q2PopFront3PopBack
+					&Q1Pop,
+					&Q2Pop,
+					&Q2PopFront3Pop
 				};
 
 
@@ -359,18 +359,18 @@ public:
 			}
 		}
 
-		// Test Push and pop all
+		// Test Add and pop all
 		for (int Direction = 0; Direction < 2; ++Direction)
 		{
-			bool bIsPushBack = Direction == 0;
-			auto GetMessage = [&bIsPushBack](const TCHAR* Message)
+			bool bIsAddBack = Direction == 0;
+			auto GetMessage = [&bIsAddBack](const TCHAR* Message)
 			{
-				return FString::Printf(TEXT("Test %s (%s)"), Message, (bIsPushBack ? TEXT("PushBack") : TEXT("PushFront")));
+				return FString::Printf(TEXT("Test %s (%s)"), Message, (bIsAddBack ? TEXT("AddBack") : TEXT("AddFront")));
 			};
 
-			// Test Mixed Pushes and Pops
+			// Test Mixed Adds and Pops
 			{
-				const TRingBuffer<uint32>::IndexType ElementsToPush = 256;
+				const TRingBuffer<uint32>::IndexType ElementsToAdd = 256;
 				const TRingBuffer<uint32>::IndexType ElementPopMod = 16;
 				const TRingBuffer<uint32>::IndexType ExpectedSize = 256 - ElementPopMod;
 				const TRingBuffer<uint32>::IndexType ExpectedCapacity = 256;
@@ -380,21 +380,21 @@ public:
 				uint32 ExpectedPoppedValue = 0;
 				for (uint32 It = 0; It < 256; ++It)
 				{
-					if (bIsPushBack)
+					if (bIsAddBack)
 					{
-						Q.PushBack(It);
-						TestEqual(*GetMessage(TEXT("Push and pop - Push")), It, Q[Q.Num() - 1]);
+						Q.Add(It);
+						TestEqual(*GetMessage(TEXT("Add and pop - Add")), It, Q[Q.Num() - 1]);
 					}
 					else
 					{
-						Q.PushFront(It);
-						TestEqual(*GetMessage(TEXT("Push and pop - Push")), It, Q[0]);
+						Q.AddFront(It);
+						TestEqual(*GetMessage(TEXT("Add and pop - Add")), It, Q[0]);
 					}
 
 					if (It % ElementPopMod == 0)
 					{
 						uint32 PoppedValue;
-						if (bIsPushBack)
+						if (bIsAddBack)
 						{
 							PoppedValue = Q[0];
 							Q.PopFront();
@@ -402,66 +402,66 @@ public:
 						else
 						{
 							PoppedValue = Q[Q.Num() - 1];
-							Q.PopBack();
+							Q.Pop();
 						}
-						TestEqual(*GetMessage(TEXT("Push and pop - Pop")), ExpectedPoppedValue, PoppedValue);
+						TestEqual(*GetMessage(TEXT("Add and pop - Pop")), ExpectedPoppedValue, PoppedValue);
 						++ExpectedPoppedValue;
 					}
 				}
 
-				TestEqual(*GetMessage(TEXT("Push and pop - Size")), Q.Num(), ExpectedSize);
-				TestEqual(*GetMessage(TEXT("Push and pop - Capacity")), Q.GetCapacity(), ExpectedCapacity);
-				TestTrue(*GetMessage(TEXT("Push and pop - IntegerRange")), IsIntegerRange(Q, ExpectedPoppedValue, ExpectedPoppedValue + ExpectedSize, bIsPushBack));
+				TestEqual(*GetMessage(TEXT("Add and pop - Size")), Q.Num(), ExpectedSize);
+				TestEqual(*GetMessage(TEXT("Add and pop - Capacity")), Q.Max(), ExpectedCapacity);
+				TestTrue(*GetMessage(TEXT("Add and pop - IntegerRange")), IsIntegerRange(Q, ExpectedPoppedValue, ExpectedPoppedValue + ExpectedSize, bIsAddBack));
 			}
 
 
 			// Popping down to empty
 			{
-				const TRingBuffer<uint32>::IndexType ElementsToPush = 256;
+				const TRingBuffer<uint32>::IndexType ElementsToAdd = 256;
 
-				TRingBuffer<uint32> Q(ElementsToPush);
+				TRingBuffer<uint32> Q(ElementsToAdd);
 
-				TestTrue(*GetMessage(TEXT("Push and pop all - IsEmpty before")), Q.IsEmpty());
-				TestEqual(*GetMessage(TEXT("Push and pop all - Size before")), Q.Num(), 0);
+				TestTrue(*GetMessage(TEXT("Add and pop all - IsEmpty before")), Q.IsEmpty());
+				TestEqual(*GetMessage(TEXT("Add and pop all - Size before")), Q.Num(), 0);
 
-				for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToPush; ++It)
+				for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToAdd; ++It)
 				{
-					if (bIsPushBack)
+					if (bIsAddBack)
 					{
-						Q.PushBack(It);
+						Q.Add(It);
 					}
 					else
 					{
-						Q.PushFront(It);
+						Q.AddFront(It);
 					}
 				}
 
-				TestEqual(*GetMessage(TEXT("Push and pop all - Size")), Q.Num(), ElementsToPush);
-				TestEqual(*GetMessage(TEXT("Push and pop all - Capacity")), Q.GetCapacity(), ElementsToPush);
-				TestTrue(*GetMessage(TEXT("Push and pop all - Expected")), IsIntegerRange(Q, 0, ElementsToPush, bIsPushBack));
+				TestEqual(*GetMessage(TEXT("Add and pop all - Size")), Q.Num(), ElementsToAdd);
+				TestEqual(*GetMessage(TEXT("Add and pop all - Capacity")), Q.Max(), ElementsToAdd);
+				TestTrue(*GetMessage(TEXT("Add and pop all - Expected")), IsIntegerRange(Q, 0, ElementsToAdd, bIsAddBack));
 
-				for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToPush; ++It)
+				for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToAdd; ++It)
 				{
-					if (bIsPushBack)
+					if (bIsAddBack)
 					{
 						Q.PopFront();
 					}
 					else
 					{
-						Q.PopBack();
+						Q.Pop();
 					}
 				}
 
-				TestTrue(*GetMessage(TEXT("Push and pop all - IsEmpty after")), Q.IsEmpty());
-				TestEqual(*GetMessage(TEXT("Push and pop all - Size after")), Q.Num(), 0);
-				TestEqual(*GetMessage(TEXT("Push and pop all - Capacity after")), Q.GetCapacity(), ElementsToPush);
+				TestTrue(*GetMessage(TEXT("Add and pop all - IsEmpty after")), Q.IsEmpty());
+				TestEqual(*GetMessage(TEXT("Add and pop all - Size after")), Q.Num(), 0);
+				TestEqual(*GetMessage(TEXT("Add and pop all - Capacity after")), Q.Max(), ElementsToAdd);
 			}
 
 			// Test index wrap
 			{
 				for (int32 Offset : {-12, -8, -5, -1, 0, 2, 7, 8, 15})
 				{
-					const TRingBuffer<uint32>::IndexType ElementsToPush = 256;
+					const TRingBuffer<uint32>::IndexType ElementsToAdd = 256;
 					const TRingBuffer<uint32>::IndexType ElementPopMod = 16;
 					const TRingBuffer<uint32>::IndexType ExpectedSize = 256 - ElementPopMod;
 					const TRingBuffer<uint32>::IndexType ExpectedCapacity = 256;
@@ -476,58 +476,58 @@ public:
 					TestTrue(*GetMessage(TEXT("index wrap - IsEmpty before")), Q.IsEmpty());
 					TestEqual(*GetMessage(TEXT("index wrap - Size before")), Q.Num(), 0);
 
-					for (TRingBuffer<uint32>::IndexType It = 0; It < ElementsToPush; ++It)
+					for (TRingBuffer<uint32>::IndexType It = 0; It < ElementsToAdd; ++It)
 					{
-						if (bIsPushBack)
+						if (bIsAddBack)
 						{
-							Q.PushBack(It);
+							Q.Add(It);
 						}
 						else
 						{
-							Q.PushFront(It);
+							Q.AddFront(It);
 						}
 					}
 
-					TestEqual(*GetMessage(TEXT("index wrap - Size")), Q.Num(), ElementsToPush);
-					TestEqual(*GetMessage(TEXT("index wrap - Capacity")), Q.GetCapacity(), ElementsToPush);
-					TestTrue(*GetMessage(TEXT("index wrap - Expected")), IsIntegerRange(Q, 0, ElementsToPush, bIsPushBack));
+					TestEqual(*GetMessage(TEXT("index wrap - Size")), Q.Num(), ElementsToAdd);
+					TestEqual(*GetMessage(TEXT("index wrap - Capacity")), Q.Max(), ElementsToAdd);
+					TestTrue(*GetMessage(TEXT("index wrap - Expected")), IsIntegerRange(Q, 0, ElementsToAdd, bIsAddBack));
 
-					for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToPush; ++It)
+					for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToAdd; ++It)
 					{
-						if (bIsPushBack)
+						if (bIsAddBack)
 						{
 							Q.PopFront();
 						}
 						else
 						{
-							Q.PopBack();
+							Q.Pop();
 						}
 					}
 
 					TestTrue(*GetMessage(TEXT("index wrap - IsEmpty after")), Q.IsEmpty());
 					TestEqual(*GetMessage(TEXT("index wrap - Size after")), Q.Num(), 0);
-					TestEqual(*GetMessage(TEXT("index wrap - Capacity after")), Q.GetCapacity(), ElementsToPush);
+					TestEqual(*GetMessage(TEXT("index wrap - Capacity after")), Q.Max(), ElementsToAdd);
 				}
 			}
 		}
 
 		// Test Trim
 		{
-			const TRingBuffer<int32>::IndexType ElementsToPush = 9;
+			const TRingBuffer<int32>::IndexType ElementsToAdd = 9;
 			const TRingBuffer<int32>::IndexType ElementsToPop = 5;
 			const TRingBuffer<int32>::IndexType ExpectedCapacity = 16;
 			const TRingBuffer<int32>::IndexType ExpectedCapacityAfterTrim = 4;
 
 			TRingBuffer<uint32> Q(0);
 
-			for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToPush; ++It)
+			for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToAdd; ++It)
 			{
-				Q.PushBack(It);
+				Q.Add(It);
 			}
 
-			TestEqual(TEXT("Test Trim - Size"), Q.Num(), ElementsToPush);
-			TestEqual(TEXT("Test Trim - Capacity"), Q.GetCapacity(), ExpectedCapacity);
-			TestTrue(TEXT("Test Trim - Expected"), IsIntegerRange(Q, 0, ElementsToPush));
+			TestEqual(TEXT("Test Trim - Size"), Q.Num(), ElementsToAdd);
+			TestEqual(TEXT("Test Trim - Capacity"), Q.Max(), ExpectedCapacity);
+			TestTrue(TEXT("Test Trim - Expected"), IsIntegerRange(Q, 0, ElementsToAdd));
 
 			for (TRingBuffer<int32>::IndexType It = 0; It < ElementsToPop; ++It)
 			{
@@ -536,114 +536,114 @@ public:
 
 			Q.Trim();
 
-			TestEqual(TEXT("Test Trim - Size"), Q.Num(), ElementsToPush - ElementsToPop);
-			TestEqual(TEXT("Test Trim - Capacity"), Q.GetCapacity(), ExpectedCapacityAfterTrim);
-			TestTrue(TEXT("Test Trim - Expected"), IsIntegerRange(Q, ElementsToPop, ElementsToPush));
+			TestEqual(TEXT("Test Trim - Size"), Q.Num(), ElementsToAdd - ElementsToPop);
+			TestEqual(TEXT("Test Trim - Capacity"), Q.Max(), ExpectedCapacityAfterTrim);
+			TestTrue(TEXT("Test Trim - Expected"), IsIntegerRange(Q, ElementsToPop, ElementsToAdd));
 		}
 
-		// Test Front and Back acting as two stacks
+		// Test First and Last acting as two stacks
 		{
 			TRingBuffer<uint32> Q;
 
-			const uint32 ElementsToPush = 64;
+			const uint32 ElementsToAdd = 64;
 			const uint32 ElementPopMod = 5;
 
-			for (uint32 It = 0; It < ElementsToPush; ++It)
+			for (uint32 It = 0; It < ElementsToAdd; ++It)
 			{
-				Q.PushBack(It);
-				TestEqual(TEXT("Test TwoStacks - PushBack"), Q.GetBack(), It);
-				Q.PushFront(It);
-				TestEqual(TEXT("Test TwoStacks - PushFront"), Q.GetFront(), It);
+				Q.Add(It);
+				TestEqual(TEXT("Test TwoStacks - AddBack"), Q.Last(), It);
+				Q.AddFront(It);
+				TestEqual(TEXT("Test TwoStacks - AddFront"), Q.First(), It);
 				if (It % ElementPopMod == 0)
 				{
-					uint32 PushValue = 0xfefefefe;
-					Q.PushBack(PushValue);
-					TestEqual(TEXT("Test TwoStacks - Sporadic PopBack"), Q.GetBack(), PushValue);
-					Q.PopBack();
-					Q.PushFront(PushValue);
-					TestEqual(TEXT("Test TwoStacks - Sporadic PopFront"), Q.GetFront(), PushValue);
+					uint32 AddValue = 0xfefefefe;
+					Q.Add(AddValue);
+					TestEqual(TEXT("Test TwoStacks - Sporadic Pop"), Q.Last(), AddValue);
+					Q.Pop();
+					Q.AddFront(AddValue);
+					TestEqual(TEXT("Test TwoStacks - Sporadic PopFront"), Q.First(), AddValue);
 					Q.PopFront();
 				}
 			}
 
-			TestEqual(TEXT("Test TwoStacks - MiddleSize"), Q.Num(), ElementsToPush * 2);
-			for (uint32 It = 0; It < ElementsToPush * 2; ++It)
+			TestEqual(TEXT("Test TwoStacks - MiddleSize"), Q.Num(), ElementsToAdd * 2);
+			for (uint32 It = 0; It < ElementsToAdd * 2; ++It)
 			{
-				TestEqual(*FString::Printf(TEXT("TwoStacks - Middle value %d"), It), Q[It], (It < ElementsToPush ? ElementsToPush - 1 - It : It - ElementsToPush));
+				TestEqual(*FString::Printf(TEXT("TwoStacks - Middle value %d"), It), Q[It], (It < ElementsToAdd ? ElementsToAdd - 1 - It : It - ElementsToAdd));
 			}
 
-			for (uint32 It = 0; It < ElementsToPush; ++It)
+			for (uint32 It = 0; It < ElementsToAdd; ++It)
 			{
-				TestEqual(TEXT("Test TwoStacks - Final PopBack"), Q.GetBack(), ElementsToPush - 1 - It);
-				Q.PopBack();
-				TestEqual(TEXT("Test TwoStacks - Final PopFront"), Q.GetFront(), ElementsToPush - 1 - It);
+				TestEqual(TEXT("Test TwoStacks - Final Pop"), Q.Last(), ElementsToAdd - 1 - It);
+				Q.Pop();
+				TestEqual(TEXT("Test TwoStacks - Final PopFront"), Q.First(), ElementsToAdd - 1 - It);
 				Q.PopFront();
 			}
 
 			TestEqual(TEXT("Test TwoStacks - FinalSize"), Q.Num(), 0);
 		}
 
-		// Test pushing into space that has been cleared from popping on the other side
+		// Test adding into space that has been cleared from popping on the other side
 		{
 			for (int Direction = 0; Direction < 2; ++Direction)
 			{
-				bool bIsPushBack = Direction == 0;
-				auto GetMessage = [bIsPushBack](const TCHAR* Message)
+				bool bIsAddBack = Direction == 0;
+				auto GetMessage = [bIsAddBack](const TCHAR* Message)
 				{
-					return FString::Printf(TEXT("Test PushIntoPop - %s (%s)"), Message, (bIsPushBack ? TEXT("PushBack") : TEXT("PushFront")));
+					return FString::Printf(TEXT("Test AddIntoPop - %s (%s)"), Message, (bIsAddBack ? TEXT("AddBack") : TEXT("AddFront")));
 				};
 				TRingBuffer<uint32> Q({ 0,1,2,3,4,5,6,7 });
 				TRingBuffer<int32>::IndexType InitialSize = 8;
 				TestEqual(*GetMessage(TEXT("InitialSize")), InitialSize, Q.Num());
-				TestEqual(*GetMessage(TEXT("InitialCapacity (Implementation Detail)")), InitialSize, Q.GetCapacity());
+				TestEqual(*GetMessage(TEXT("InitialCapacity (Implementation Detail)")), InitialSize, Q.Max());
 
-				if (bIsPushBack)
+				if (bIsAddBack)
 				{
-					Q.PopBack();
+					Q.Pop();
 				}
 				else
 				{
 					Q.PopFront();
 				}
 				TestEqual(*GetMessage(TEXT("PoppedSize")), InitialSize - 1, Q.Num());
-				TestEqual(*GetMessage(TEXT("PoppedCapacity")), InitialSize, Q.GetCapacity());
+				TestEqual(*GetMessage(TEXT("PoppedCapacity")), InitialSize, Q.Max());
 
-				if (bIsPushBack)
+				if (bIsAddBack)
 				{
-					Q.PushFront(8);
+					Q.AddFront(8);
 				}
 				else
 				{
-					Q.PushBack(8);
+					Q.Add(8);
 				}
-				TestEqual(*GetMessage(TEXT("PushedSize")), InitialSize, Q.Num());
-				TestEqual(*GetMessage(TEXT("PushedCapacity")), InitialSize, Q.GetCapacity());
-				if (bIsPushBack)
+				TestEqual(*GetMessage(TEXT("AddedSize")), InitialSize, Q.Num());
+				TestEqual(*GetMessage(TEXT("AddedCapacity")), InitialSize, Q.Max());
+				if (bIsAddBack)
 				{
-					TestEqual(*GetMessage(TEXT("PushedValues")), Q, TRingBuffer<uint32>({ 8,0,1,2,3,4,5,6 }));
+					TestEqual(*GetMessage(TEXT("AddedValues")), Q, TRingBuffer<uint32>({ 8,0,1,2,3,4,5,6 }));
 				}
 				else
 				{
-					TestEqual(*GetMessage(TEXT("PushedValues")), Q, TRingBuffer<uint32>({ 1,2,3,4,5,6,7,8 }));
+					TestEqual(*GetMessage(TEXT("AddedValues")), Q, TRingBuffer<uint32>({ 1,2,3,4,5,6,7,8 }));
 				}
 
-				if (bIsPushBack)
+				if (bIsAddBack)
 				{
-					Q.PushFront(9);
+					Q.AddFront(9);
 				}
 				else
 				{
-					Q.PushBack(9);
+					Q.Add(9);
 				}
-				TestEqual(*GetMessage(TEXT("Second PushedSize")), InitialSize + 1, Q.Num());
-				TestEqual(*GetMessage(TEXT("Second PushedCapacity")), static_cast<uint32>(FMath::RoundUpToPowerOfTwo(InitialSize + 1)), Q.GetCapacity());
-				if (bIsPushBack)
+				TestEqual(*GetMessage(TEXT("Second AddedSize")), InitialSize + 1, Q.Num());
+				TestEqual(*GetMessage(TEXT("Second AddedCapacity")), static_cast<uint32>(FMath::RoundUpToPowerOfTwo(InitialSize + 1)), Q.Max());
+				if (bIsAddBack)
 				{
-					TestEqual(*GetMessage(TEXT("Second PushedValues")), Q, TRingBuffer<uint32>({ 9,8,0,1,2,3,4,5,6 }));
+					TestEqual(*GetMessage(TEXT("Second AddedValues")), Q, TRingBuffer<uint32>({ 9,8,0,1,2,3,4,5,6 }));
 				}
 				else
 				{
-					TestEqual(*GetMessage(TEXT("Second PushedValues")), Q, TRingBuffer<uint32>({ 1,2,3,4,5,6,7,8,9 }));
+					TestEqual(*GetMessage(TEXT("Second AddedValues")), Q, TRingBuffer<uint32>({ 1,2,3,4,5,6,7,8,9 }));
 				}
 			}
 		}
@@ -651,14 +651,14 @@ public:
 		// Test Empty to a capacity
 		{
 			TRingBuffer<uint32> Q(16);
-			TestEqual(TEXT("Test EmptyToCapacity - InitialCapacity"), 16, Q.GetCapacity());
+			TestEqual(TEXT("Test EmptyToCapacity - InitialCapacity"), 16, Q.Max());
 			Q.Empty(8);
-			TestEqual(TEXT("Test EmptyToCapacity - Lower"), 8, Q.GetCapacity());
+			TestEqual(TEXT("Test EmptyToCapacity - Lower"), 8, Q.Max());
 			Q.Empty(32);
-			TestEqual(TEXT("Test EmptyToCapacity - Higher"), 32, Q.GetCapacity());
+			TestEqual(TEXT("Test EmptyToCapacity - Higher"), 32, Q.Max());
 		}
 
-		// Test Different Push constructors
+		// Test Different Add constructors
 		{
 			auto Clear = []()
 			{
@@ -676,14 +676,14 @@ public:
 				QEmpty.Empty();
 				TRingBuffer<Counter> QEmpty2(4);
 			}
-			TestCounts(TEXT("Test Push Constructors - Unallocated elements call no constructors/destructors"), 0, 0, 0, 0);
+			TestCounts(TEXT("Test Add Constructors - Unallocated elements call no constructors/destructors"), 0, 0, 0, 0);
 			{
 				TRingBuffer<Counter> QEmpty(4);
-				QEmpty.EmplaceBack();
-				QEmpty.PopBack();
+				QEmpty.Emplace();
+				QEmpty.Pop();
 				Clear();
 			}
-			TestCounts(TEXT("Test Push Constructors - Already removed element calls no destructors"), 0, 0, 0, 0);
+			TestCounts(TEXT("Test Add Constructors - Already removed element calls no destructors"), 0, 0, 0, 0);
 
 
 			uint32 MarkerValue = 0x54321;
@@ -693,37 +693,37 @@ public:
 			Clear();
 			for (int Direction = 0; Direction < 2; ++Direction)
 			{
-				bool bPushBack = Direction == 0;
-				auto TestDirCounts = [this, bPushBack, &TestCounts, &Q, &Clear, MarkerValue](const TCHAR* Message, int32 NumVoid, int32 NumCopy, int32 NumMove, int32 NumDestruct, bool bWasInitialized = true)
+				bool bAddBack = Direction == 0;
+				auto TestDirCounts = [this, bAddBack, &TestCounts, &Q, &Clear, MarkerValue](const TCHAR* Message, int32 NumVoid, int32 NumCopy, int32 NumMove, int32 NumDestruct, bool bWasInitialized = true)
 				{
-					const TCHAR* DirectionText = bPushBack ? TEXT("Back") : TEXT("Front");
+					const TCHAR* DirectionText = bAddBack ? TEXT("Back") : TEXT("Front");
 					bool bElementExists = Q.Num() == 1;
-					TestTrue(*FString::Printf(TEXT("Test Push Constructors - %s%s ElementExists"), Message, DirectionText), bElementExists);
+					TestTrue(*FString::Printf(TEXT("Test Add Constructors - %s%s ElementExists"), Message, DirectionText), bElementExists);
 					if (bWasInitialized && bElementExists)
 					{
-						TestTrue(*FString::Printf(TEXT("Test Push Constructors - %s%s ValueEquals"), Message, DirectionText), Q.GetFront().Value == MarkerValue);
+						TestTrue(*FString::Printf(TEXT("Test Add Constructors - %s%s ValueEquals"), Message, DirectionText), Q.First().Value == MarkerValue);
 					}
 					Q.PopFront();
-					TestCounts(*FString::Printf(TEXT("Test Push Constructors - %s%s CountsEqual"), Message, DirectionText), NumVoid, NumCopy, NumMove, NumDestruct);
+					TestCounts(*FString::Printf(TEXT("Test Add Constructors - %s%s CountsEqual"), Message, DirectionText), NumVoid, NumCopy, NumMove, NumDestruct);
 					Clear();
 				};
 
-				if (bPushBack) Q.PushBack(CounterA); else Q.PushFront(CounterA);
-				TestDirCounts(TEXT("Copy Push"), 0, 1, 0, 1);
-				if (bPushBack) Q.PushBack_GetRef(CounterA); else Q.PushFront_GetRef(CounterA);
-				TestDirCounts(TEXT("Copy GetRef Push"), 0, 1, 0, 1);
-				if (bPushBack) Q.PushBack(MoveTemp(CounterA)); else Q.PushFront(MoveTemp(CounterA));
-				TestDirCounts(TEXT("Move Push"), 0, 0, 1, 1);
-				if (bPushBack) Q.PushBack_GetRef(MoveTemp(CounterA)); else Q.PushFront_GetRef(MoveTemp(CounterA));
-				TestDirCounts(TEXT("Move GetRef Push"), 0, 0, 1, 1);
-				if (bPushBack) Q.EmplaceBack(MarkerValue); else Q.EmplaceFront(MarkerValue);
+				if (bAddBack) Q.Add(CounterA); else Q.AddFront(CounterA);
+				TestDirCounts(TEXT("Copy Add"), 0, 1, 0, 1);
+				if (bAddBack) Q.Add_GetRef(CounterA); else Q.AddFront_GetRef(CounterA);
+				TestDirCounts(TEXT("Copy GetRef Add"), 0, 1, 0, 1);
+				if (bAddBack) Q.Add(MoveTemp(CounterA)); else Q.AddFront(MoveTemp(CounterA));
+				TestDirCounts(TEXT("Move Add"), 0, 0, 1, 1);
+				if (bAddBack) Q.Add_GetRef(MoveTemp(CounterA)); else Q.AddFront_GetRef(MoveTemp(CounterA));
+				TestDirCounts(TEXT("Move GetRef Add"), 0, 0, 1, 1);
+				if (bAddBack) Q.Emplace(MarkerValue); else Q.EmplaceFront(MarkerValue);
 				TestDirCounts(TEXT("Emplace"), 1, 0, 0, 1);
-				if (bPushBack) Q.EmplaceBack_GetRef(MarkerValue); else Q.EmplaceFront_GetRef(MarkerValue);
+				if (bAddBack) Q.Emplace_GetRef(MarkerValue); else Q.EmplaceFront_GetRef(MarkerValue);
 				TestDirCounts(TEXT("GetRef Emplace"), 1, 0, 0, 1);
-				if (bPushBack) Q.PushBackUninitialized(); else Q.PushFrontUninitialized();
-				TestDirCounts(TEXT("Uninitialized Push"), 0, 0, 0, 1, false);
-				if (bPushBack) Q.PushBackUninitialized_GetRef(); else Q.PushFrontUninitialized_GetRef();
-				TestDirCounts(TEXT("Uninitialized GetRef Push"), 0, 0, 0, 1, false);
+				if (bAddBack) Q.AddUninitialized(); else Q.AddFrontUninitialized();
+				TestDirCounts(TEXT("Uninitialized Add"), 0, 0, 0, 1, false);
+				if (bAddBack) Q.AddUninitialized_GetRef(); else Q.AddFrontUninitialized_GetRef();
+				TestDirCounts(TEXT("Uninitialized GetRef Add"), 0, 0, 0, 1, false);
 			}
 		}
 
@@ -760,17 +760,6 @@ public:
 				Q.RemoveAt(5);
 				TestEqual(TEXT("Test RemoveAt Back Closest With Offset"), TRingBuffer<uint32>({ 4,5,6,7,0,2,3 }), Q);
 			}
-			{
-				TRingBuffer<uint32> Q{ 0,1 };
-				Q.RemoveAt(-1);
-				Q.RemoveAt(2);
-				TestEqual(TEXT("Test RemoveAt OutOfRange"), Q.Num(), 2);
-				TRingBuffer<uint32> QEmpty;
-				QEmpty.RemoveAt(-1);
-				QEmpty.RemoveAt(0);
-				QEmpty.RemoveAt(1);
-				TestEqual(TEXT("Test RemoveAt OutOfRange Empty"), QEmpty.Num(), 0);
-			}
 		}
 
 		// Test Iteration
@@ -799,7 +788,7 @@ public:
 			}
 		}
 
-		// Test ConvertReferenceToIndex
+		// Test ConvertPointerToIndex
 		{
 			{
 				TRingBuffer<uint32> Q{ 4,5,6,7,0,1,2,3 };
@@ -807,11 +796,11 @@ public:
 				Q.Front += Offset;
 				Q.AfterBack += Offset;
 				// Now equal to 0,1,2,3,4,5,6,7
-				TestEqual(TEXT("Test ConvertReferenceToIndex - before array"), Q.ConvertReferenceToIndex(*(&Q[0] - 100)), INDEX_NONE);
-				TestEqual(TEXT("Test ConvertReferenceToIndex - after array"), Q.ConvertReferenceToIndex(*(&Q[0] + 100)), INDEX_NONE);
+				TestEqual(TEXT("Test ConvertPointerToIndex - before array"), Q.ConvertPointerToIndex(&Q[0] - 100), INDEX_NONE);
+				TestEqual(TEXT("Test ConvertPointerToIndex - after array"), Q.ConvertPointerToIndex(&Q[0] + 100), INDEX_NONE);
 				for (int32 It = 0; It < 8; ++It)
 				{
-					TestEqual(TEXT("Test ConvertReferenceToIndex - Values"), Q.ConvertReferenceToIndex(Q[It]), It);
+					TestEqual(TEXT("Test ConvertPointerToIndex - Values"), Q.ConvertPointerToIndex(&Q[It]), It);
 				}
 			}
 
@@ -819,30 +808,30 @@ public:
 				TRingBuffer<uint32> Q(16);
 				for (int32 It = 7; It >= 0; --It)
 				{
-					Q.PushFront(It);
+					Q.AddFront(It);
 				}
-				Q.PopBack();
+				Q.Pop();
 				// 8 Invalids, followed by 0,1,2,3,4,5,6, followed by Invalid
 				for (int32 It = 0; It < 7; ++It)
 				{
-					TestEqual(TEXT("Test ConvertReferenceToIndex - Cap - Values"), Q.ConvertReferenceToIndex(Q[It]), It);
+					TestEqual(TEXT("Test ConvertPointerToIndex - Cap - Values"), Q.ConvertPointerToIndex(&Q[It]), It);
 				}
-				TestEqual(TEXT("Test ConvertReferenceToIndex - Cap - After End"), Q.ConvertReferenceToIndex(*(&Q[6] + 1)), INDEX_NONE);
-				TestEqual(TEXT("Test ConvertReferenceToIndex - Cap - Before Start"), Q.ConvertReferenceToIndex(*(&Q[0] - 1)), INDEX_NONE);
+				TestEqual(TEXT("Test ConvertPointerToIndex - Cap - After End"), Q.ConvertPointerToIndex(&Q[6] + 1), INDEX_NONE);
+				TestEqual(TEXT("Test ConvertPointerToIndex - Cap - Before Start"), Q.ConvertPointerToIndex(&Q[0] - 1), INDEX_NONE);
 			}
 		}
 
 		// Test that setting Front to its maximum value and then popping the maximum number of elements does not break the contract that Front < capacity in StorageModulo space
 		{
 			TRingBuffer<uint32> Q(8);
-			Q.PushFront(0);
+			Q.AddFront(0);
 			for (uint32 It = 1; It < 8; ++It)
 			{
-				Q.PushBack(It);
+				Q.Add(It);
 			}
-			TestTrue(TEXT("Test Front<Capacity - Setup"), (Q.Front & Q.IndexMask) == Q.IndexMask && Q.Num() == Q.GetCapacity());
+			TestTrue(TEXT("Test Front<Capacity - Setup"), (Q.Front & Q.IndexMask) == Q.IndexMask && Q.Num() == Q.Max());
 			Q.PopFront(8);
-			TestTrue(TEXT("Test Front<Capacity - Contract is true"), static_cast<uint32>(Q.Front) < static_cast<uint32>(Q.GetCapacity()));
+			TestTrue(TEXT("Test Front<Capacity - Contract is true"), static_cast<uint32>(Q.Front) < static_cast<uint32>(Q.Max()));
 		}
 
 		// Test IsValidIndex
@@ -854,65 +843,65 @@ public:
 			}
 			TestEqual(TEXT("IsValidIndex - Negative"), Q.IsValidIndex(-1), false);
 			TestEqual(TEXT("IsValidIndex - Num()"), Q.IsValidIndex(Q.Num() + 1), false);
-			TestEqual(TEXT("IsValidIndex - Capacity"), Q.IsValidIndex(Q.GetCapacity()), false);
-			TestEqual(TEXT("IsValidIndex - Capacity + 1"), Q.IsValidIndex(Q.GetCapacity()+1), false);
+			TestEqual(TEXT("IsValidIndex - Capacity"), Q.IsValidIndex(Q.Max()), false);
+			TestEqual(TEXT("IsValidIndex - Capacity + 1"), Q.IsValidIndex(Q.Max()+1), false);
 		}
 
-		// Test MakeContiguous
+		// Test Compact
 		{
 			{
 				TRingBuffer<uint32> QEmpty;
-				TestEqual(TEXT("MakeContiguous - Empty zero capacity"), QEmpty.MakeContiguous().Num(), 0);
-				QEmpty.PushBack(1);
+				TestEqual(TEXT("Compact - Empty zero capacity"), QEmpty.Compact().Num(), 0);
+				QEmpty.Add(1);
 				QEmpty.PopFront();
-				TestEqual(TEXT("MakeContiguous - Empty non-zero capacity"), QEmpty.MakeContiguous().Num(), 0);
+				TestEqual(TEXT("Compact - Empty non-zero capacity"), QEmpty.Compact().Num(), 0);
 			}
 			{
 				TArrayView<uint32> View;
 				TRingBuffer<uint32> Q(8);
-				Q.PushFront(37);
-				View = Q.MakeContiguous();
-				TestTrue(TEXT("MakeContiguous - Front at end"), ArrayViewsEqual(View, TArrayView<const uint32>({ 37 })));
+				Q.AddFront(37);
+				View = Q.Compact();
+				TestTrue(TEXT("Compact - Front at end"), ArrayViewsEqual(View, TArrayView<const uint32>({ 37 })));
 			}
 			{
 				TArrayView<uint32> View;
 				TRingBuffer<uint32> Q(8);
 				for (TRingBuffer<uint32>::IndexType It = 0; It < 6; ++It)
 				{
-					Q.PushBack(It);
+					Q.Add(It);
 				}
 				Q.PopFront();
 				TRingBuffer<uint32>::StorageModuloType SavedFront = Q.Front;
-				TestTrue(TEXT("MakeContiguous - Front in middle - setup"), SavedFront > 0);
-				View = Q.MakeContiguous();
-				TestTrue(TEXT("MakeContiguous - Front in middle - values"), ArrayViewsEqual(View, TArrayView<const uint32>({ 1,2,3,4,5 })));
-				TestTrue(TEXT("MakeContiguous - Front in middle - no reallocate"), Q.Front == SavedFront);
+				TestTrue(TEXT("Compact - Front in middle - setup"), SavedFront > 0);
+				View = Q.Compact();
+				TestTrue(TEXT("Compact - Front in middle - values"), ArrayViewsEqual(View, TArrayView<const uint32>({ 1,2,3,4,5 })));
+				TestTrue(TEXT("Compact - Front in middle - no reallocate"), Q.Front == SavedFront);
 			}
 			{
 				TArrayView<uint32> View;
 				TRingBuffer<uint32> Q(8);
 				for (TRingBuffer<uint32>::IndexType It = 1; It < 8; ++It)
 				{
-					Q.PushBack(It);
+					Q.Add(It);
 				}
-				Q.PushFront(0);
-				TestTrue(TEXT("MakeContiguous - Full array front at end - setup"), (Q.Front & Q.IndexMask) == 7);
-				View = Q.MakeContiguous();
-				TestTrue(TEXT("MakeContiguous - Full array front at end - values"), ArrayViewsEqual(View, TArrayView<const uint32>({0,1,2,3,4,5,6,7 })));
-				TestTrue(TEXT("MakeContiguous - Full array front at end - reallocated"), Q.Front == 0);
+				Q.AddFront(0);
+				TestTrue(TEXT("Compact - Full array front at end - setup"), (Q.Front & Q.IndexMask) == 7);
+				View = Q.Compact();
+				TestTrue(TEXT("Compact - Full array front at end - values"), ArrayViewsEqual(View, TArrayView<const uint32>({0,1,2,3,4,5,6,7 })));
+				TestTrue(TEXT("Compact - Full array front at end - reallocated"), Q.Front == 0);
 			}
 			{
 				TArrayView<uint32> View;
 				TRingBuffer<uint32> Q(8);
 				for (TRingBuffer<uint32>::IndexType It = 0; It < 8; ++It)
 				{
-					Q.PushBack(It);
+					Q.Add(It);
 				}
 				uint32* SavedData = Q.AllocationData;
-				TestTrue(TEXT("MakeContiguous - Full array front at start - setup"), Q.Front == 0);
-				View = Q.MakeContiguous();
-				TestTrue(TEXT("MakeContiguous - Full array front at start - values"), ArrayViewsEqual(View, TArrayView<const uint32>({ 0,1,2,3,4,5,6,7 })));
-				TestTrue(TEXT("MakeContiguous - Full array front at start - no reallocate"), Q.AllocationData == SavedData);
+				TestTrue(TEXT("Compact - Full array front at start - setup"), Q.Front == 0);
+				View = Q.Compact();
+				TestTrue(TEXT("Compact - Full array front at start - values"), ArrayViewsEqual(View, TArrayView<const uint32>({ 0,1,2,3,4,5,6,7 })));
+				TestTrue(TEXT("Compact - Full array front at start - no reallocate"), Q.AllocationData == SavedData);
 			}
 		}
 
@@ -932,17 +921,17 @@ public:
 				Counter::Clear();
 				TestEqual(TEXT("Remove - no hits"), Q.Remove(Value), 0);
 				TestEqual(TEXT("Remove - no hits - destructor count"), Counter::NumDestruct, 0);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - no hits - values"), Q == TRingBuffer<Counter>({ 0,1,2,3,4,5 }));
 			}
 			{
 				TRingBuffer<Counter> Q({ 1,2,3,4 });
-				Q.PushFront(0);
+				Q.AddFront(0);
 				Value.Value = 0;
 				Counter::Clear();
 				TestEqual(TEXT("Remove - one element at front - num"), Q.Remove(Value), 1);
 				TestEqual(TEXT("Remove - one element at front - destructor count"), Counter::NumDestruct, 5);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - one element at front - values"), Q == TRingBuffer<Counter>({ 1,2,3,4,5 }));
 			}
 			{
@@ -951,17 +940,17 @@ public:
 				Counter::Clear();
 				TestEqual(TEXT("Remove - one element in mid - num"), Q.Remove(Value), 1);
 				TestEqual(TEXT("Remove - one element in mid - destructor count"), Counter::NumDestruct, 3);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - one element in mid - values"), Q == TRingBuffer<Counter>({ 0,1,3,4,5 }));
 			}
 			{
 				TRingBuffer<Counter> Q({ 1,2,3,4 });
-				Q.PushFront(0);
+				Q.AddFront(0);
 				Value.Value = 2;
 				Counter::Clear();
 				TestEqual(TEXT("Remove - one element in mid - front at end"), Q.Remove(Value), 1);
 				TestEqual(TEXT("Remove - one element in mid - front at end - destructor count"), Counter::NumDestruct, 3);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - one element in mid - front at end - values"), Q == TRingBuffer<Counter>({ 0,1,3,4,5 }));
 			}
 			{
@@ -970,27 +959,27 @@ public:
 				Counter::Clear();
 				TestEqual(TEXT("Remove - one element - element at end - num"), Q.Remove(Value), 1);
 				TestEqual(TEXT("Remove - one element - element at end - destructor count"), Counter::NumDestruct, 1);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - one element - element at end - values"), Q == TRingBuffer<Counter>({ 0,1,2,3,5 }));
 			}
 			{
 				TRingBuffer<Counter> Q({ 1,2,3,4 });
-				Q.PushFront(4);
+				Q.AddFront(4);
 				Value.Value = 4;
 				Counter::Clear();
 				TestEqual(TEXT("Remove - one element at front one at end - num"), Q.Remove(Value), 2);
 				TestEqual(TEXT("Remove - one element at front one at end - destructor count"), Counter::NumDestruct, 5);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - one element at front one at end - values"), Q == TRingBuffer<Counter>({ 1,2,3,5 }));
 			}
 			{
 				TRingBuffer<Counter> Q({ 1,2,3,4 });
-				Q.PushFront(1);
+				Q.AddFront(1);
 				Value.Value = 1;
 				Counter::Clear();
 				TestEqual(TEXT("Remove - two elements - front at end - num"), Q.Remove(Value), 2);
 				TestEqual(TEXT("Remove - two elements - front at end - destructor count"), Counter::NumDestruct, 5);
-				Q.PushBack(5);
+				Q.Add(5);
 				TestTrue(TEXT("Remove - two elements - front at end - values"), Q == TRingBuffer<Counter>({ 2,3,4,5 }));
 			}
 		}
@@ -1025,7 +1014,7 @@ public:
 
 			{
 				TRingBuffer<T> Q{ 0,1,2,3,4,5,6,7,8 };
-				TestEqual(TEXT("ShiftIndexToFront Cap - Capacity"), Q.GetCapacity(), 16);
+				TestEqual(TEXT("ShiftIndexToFront Cap - Capacity"), Q.Max(), 16);
 				Q.ShiftIndexToFront(5);
 				TestEqual(TEXT("ShiftIndexToFront Cap"), TRingBuffer<T>({ 5,0,1,2,3,4,6,7,8 }), Q);
 				Q.ShiftIndexToBack(3);
@@ -1036,9 +1025,9 @@ public:
 				TRingBuffer<T> Q(16);
 				for (int32 It = 7; It >= 0; --It)
 				{
-					Q.PushFront(It);
+					Q.AddFront(It);
 				}
-				Q.PopBack();
+				Q.Pop();
 				// 8 Invalids, followed by 0,1,2,3,4,5,6, followed by Invalid
 				Q.ShiftIndexToFront(5);
 				TestEqual(TEXT("ShiftIndexToFront Cap With Offset"), TRingBuffer<T>({ 5,0,1,2,3,4,6 }), Q);
@@ -1050,9 +1039,9 @@ public:
 				TRingBuffer<T> Q(16);
 				for (int32 It = 7; It >= 0; --It)
 				{
-					Q.PushFront(It);
+					Q.AddFront(It);
 				}
-				Q.PushBack(8);
+				Q.Add(8);
 				// 8, (AfterBack), followed by 7 Invalids, followed by (Start) 0,1,2,3,4,5,6,7
 				Q.ShiftIndexToFront(8);
 				TestEqual(TEXT("ShiftIndexToFront Cap With Wrapped"), TRingBuffer<T>({ 8,0,1,2,3,4,5,6,7 }), Q);

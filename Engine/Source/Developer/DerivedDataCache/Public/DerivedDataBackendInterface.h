@@ -179,6 +179,7 @@ public:
 	virtual void WaitForQuiescence(bool bShutdown = false) = 0;
 	virtual void GetDirectories(TArray<FString>& OutResults) = 0;
 	virtual bool GetUsingSharedDDC() const = 0;
+	virtual const TCHAR* GetGraphName() const = 0;
 
 	/**
 	 * Mounts a read-only pak file.

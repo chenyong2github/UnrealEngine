@@ -335,6 +335,84 @@ void FMemoryGraphTrack::UpdateMemTagSeries(FMemoryGraphSeries& Series, const FTi
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FMemoryGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
+{
+	FGraphTrack::Draw(Context);
+
+	// Show warnings for series using llm tag id with incompatible tracker.
+	{
+		int WarningCount = 0;
+		float X = 12.0f;
+		float Y = GetPosY() + 12.0f;
+		const float MaxY = GetPosY() + GetHeight() - 8.0f;
+		for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
+		{
+			if (Series->IsVisible())
+			{
+				if (Y > MaxY)
+				{
+					break;
+				}
+
+				//TODO: if (Series->Is<FMemoryGraphSeries>())
+				TSharedPtr<FMemoryGraphSeries> MemorySeries = StaticCastSharedPtr<FMemoryGraphSeries>(Series);
+
+				const Insights::FMemoryTag* Tag = SharedState.GetTagList().GetTagById(MemorySeries->GetTagId());
+				const uint64 TrackerFlag = 1ULL << MemorySeries->GetTrackerId();
+
+				if ((Tag->GetTrackers() & TrackerFlag) != TrackerFlag)
+				{
+					FDrawContext& DrawContext = Context.GetDrawContext();
+					const FSlateBrush* Brush = Context.GetHelper().GetWhiteBrush();
+
+					if (WarningCount == 0)
+					{
+						const FText WarningText1 = FText::Format(LOCTEXT("WarningFmt1", "Warning: One or more LLM tags in this graph are not used by the current tracker ({0})!"),
+							SharedState.GetCurrentTracker() ? FText::FromString(SharedState.GetCurrentTracker()->GetName()) : FText::GetEmpty());
+						const FLinearColor WarningTextColor1(1.0f, 0.2f, 0.2f, 1.0f);
+						DrawContext.DrawText(DrawContext.LayerId, X, Y, WarningText1.ToString(), Font, WarningTextColor1);
+						Y += 12.0f;
+
+						const FText WarningText2 = FText::Format(LOCTEXT("WarningLine2", "In order to see graph series for these LLM tags, change the current tracker to one that uses the LLM tag."),
+							SharedState.GetCurrentTracker() ? FText::FromString(SharedState.GetCurrentTracker()->GetName()) : FText::GetEmpty());
+						const FLinearColor WarningTextColor2(0.75f, 0.5f, 0.25f, 1.0f);
+						DrawContext.DrawText(DrawContext.LayerId, X, Y, WarningText2.ToString(), Font, WarningTextColor2);
+						Y += 12.0f;
+					}
+
+					if (Tag->GetTrackers() != 0)
+					{
+						const FText Conjunction = LOCTEXT("WarningTrackersConjunction", " and the ");
+						const FText Text = FText::Format(LOCTEXT("WarningFmt2", "The {0} LLM tag is only used by the {1} tracker(s)."),
+							FText::FromString(Tag->GetStatName()),
+							FText::FromString(SharedState.TrackersToString(Tag->GetTrackers(), *Conjunction.ToString())));
+						const FLinearColor TextColor(1.0f, 0.75f, 0.5f, 1.0f);
+						DrawContext.DrawText(DrawContext.LayerId, X, Y, Text.ToString(), Font, TextColor);
+						Y += 12.0f;
+					}
+					else
+					{
+						const FText Text = FText::Format(LOCTEXT("WarningFmt3", "The {0} LLM tag is not used by any tracker."),
+							FText::FromString(Tag->GetStatName()));
+						const FLinearColor TextColor(1.0f, 0.75f, 0.5f, 1.0f);
+						DrawContext.DrawText(DrawContext.LayerId, X, Y, Text.ToString(), Font, TextColor);
+						Y += 12.0f;
+					}
+
+					++WarningCount;
+				}
+			}
+		}
+		if (WarningCount > 0)
+		{
+			FDrawContext& DrawContext = Context.GetDrawContext();
+			DrawContext.LayerId++;
+		}
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FMemoryGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const
 {
 	TSharedPtr<FMemoryGraphSeries> Series = MainSeries;
@@ -579,16 +657,28 @@ void FMemoryGraphTrack::DrawHorizontalAxisLabel(const TDrawHorizontalAxisLabelPa
 
 void FMemoryGraphTrack::GetUnit(const EGraphTrackLabelUnit InLabelUnit, const double InPrecision, double& OutUnitValue, const TCHAR*& OutUnitText)
 {
-	constexpr double KiB = 1024.0;
-	constexpr double MiB = 1024.0 * 1024.0;
-	constexpr double GiB = 1024.0 * 1024.0 * 1024.0;
-	constexpr double TiB = 1024.0 * 1024.0 * 1024.0 * 1024.0;
+	constexpr double KiB = (double)(1LL << 10); // 2^10 bytes
+	constexpr double MiB = (double)(1LL << 20); // 2^20 bytes
+	constexpr double GiB = (double)(1LL << 30); // 2^30 bytes
+	constexpr double TiB = (double)(1LL << 40); // 2^40 bytes
+	constexpr double PiB = (double)(1LL << 50); // 2^50 bytes
+	constexpr double EiB = (double)(1LL << 60); // 2^60 bytes
 
 	switch (InLabelUnit)
 	{
 		case EGraphTrackLabelUnit::Auto:
 		{
-			if (InPrecision >= TiB)
+			if (InPrecision >= EiB)
+			{
+				OutUnitValue = EiB;
+				OutUnitText = TEXT("EiB");
+			}
+			else if (InPrecision >= PiB)
+			{
+				OutUnitValue = PiB;
+				OutUnitText = TEXT("PiB");
+			}
+			else if (InPrecision >= TiB)
 			{
 				OutUnitValue = TiB;
 				OutUnitText = TEXT("TiB");
@@ -634,6 +724,16 @@ void FMemoryGraphTrack::GetUnit(const EGraphTrackLabelUnit InLabelUnit, const do
 		case EGraphTrackLabelUnit::TiB:
 			OutUnitValue = TiB;
 			OutUnitText = TEXT("TiB");
+			break;
+
+		case EGraphTrackLabelUnit::PiB:
+			OutUnitValue = PiB;
+			OutUnitText = TEXT("PiB");
+			break;
+
+		case EGraphTrackLabelUnit::EiB:
+			OutUnitValue = EiB;
+			OutUnitText = TEXT("EiB");
 			break;
 
 		case EGraphTrackLabelUnit::Byte:

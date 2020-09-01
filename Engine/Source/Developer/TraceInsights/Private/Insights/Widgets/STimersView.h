@@ -34,6 +34,9 @@ namespace Insights
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
+
+	class FTimerAggregator;
+	class SAggregatorStatus;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -87,7 +90,8 @@ public:
 private:
 	void UpdateTree();
 
-	void UpdateStatsInternal();
+	void FinishAggregation();
+	void ApplyAggregation(Trace::ITable<Trace::FTimingProfilerAggregatedStats>* AggregatedStatsTable);
 
 	/** Called when the analysis session has changed. */
 	void InsightsManager_OnSessionChanged();
@@ -352,8 +356,8 @@ private:
 
 	//////////////////////////////////////////////////
 
-	double StatsStartTime;
-	double StatsEndTime;
+	TSharedRef<Insights::FTimerAggregator> Aggregator;
+	TSharedPtr<Insights::SAggregatorStatus> AggregatorStatus;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
