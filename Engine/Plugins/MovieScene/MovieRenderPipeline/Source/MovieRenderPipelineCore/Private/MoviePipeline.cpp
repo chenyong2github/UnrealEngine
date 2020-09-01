@@ -89,12 +89,12 @@ void UMoviePipeline::ValidateSequenceAndSettings() const
 		IConsoleVariable* TonemapAlphaCVar = IConsoleManager::Get().FindConsoleVariable(TEXT("r.PostProcessing.PropagateAlpha"));
 		check(TonemapAlphaCVar);
 
-		TArray<UMoviePipelineOutputBase*> OutputSettings = GetPipelineMasterConfig()->FindSettings<UMoviePipelineOutputBase>();
+		TArray<UMoviePipelineRenderPass*> OutputSettings = GetPipelineMasterConfig()->FindSettings<UMoviePipelineRenderPass>();
 		bool bAnyOutputWantsAlpha = false;
 
-		for (const UMoviePipelineOutputBase* Output : OutputSettings)
+		for (const UMoviePipelineRenderPass* Output : OutputSettings)
 		{
-			bAnyOutputWantsAlpha |= Output->IsAlphaSupported();
+			bAnyOutputWantsAlpha |= Output->IsAlphaInTonemapperRequired();
 		}
 
 		if (bAnyOutputWantsAlpha && TonemapAlphaCVar->GetInt() == 0)
