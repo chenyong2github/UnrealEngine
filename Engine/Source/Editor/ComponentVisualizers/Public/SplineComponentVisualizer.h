@@ -12,6 +12,7 @@ class AActor;
 class FEditorViewportClient;
 class FMenuBuilder;
 class FPrimitiveDrawInterface;
+class FCanvas;
 class FSceneView;
 class FUICommandList;
 class FViewport;
