@@ -785,8 +785,11 @@ struct FImagePixelDataPayload : IImagePixelDataPayload, public TSharedFromThis<F
 	/** Does this output data have to be transparent to be useful? Overrides output format to one that supports transparency. */
 	bool bRequireTransparentOutput;
 
+	int32 SortingOrder;
+
 	FImagePixelDataPayload()
 		: bRequireTransparentOutput(false)
+		, SortingOrder(TNumericLimits<int32>::Max())
 	{}
 
 	/** Is this the first tile of an image and we should start accumulating? */

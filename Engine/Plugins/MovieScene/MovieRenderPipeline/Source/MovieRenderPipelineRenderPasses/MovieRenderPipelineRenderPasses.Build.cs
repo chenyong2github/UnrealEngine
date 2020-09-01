@@ -19,6 +19,7 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"UEOpenExr", // Needed for multilayer EXRs
 				"UEOpenExrRTTI", // Needed for EXR metadata
 				"ImageWrapper",				
+				"CinematicCamera", // For metadata
 			}
 		);
 
