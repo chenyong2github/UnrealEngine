@@ -106,6 +106,7 @@ TEST(CollisionTests, Collisions) {
 	ChaosTest::CollisionBoxPlane<float>();
 	ChaosTest::CollisionBoxPlaneZeroResitution<float>();
 	ChaosTest::CollisionBoxPlaneRestitution<float>();
+	ChaosTest::CollisionCubeCubeRestitution<float>();
 	ChaosTest::CollisionBoxToStaticBox<float>();
 	ChaosTest::CollisionConvexConvex<float>();
 

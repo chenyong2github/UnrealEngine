@@ -512,7 +512,7 @@ protected:
 	class UPhysicalMaterial* PhysMaterialOverride;
 
 public:
-	/** The maximum angular velocity for this instance */
+	/** The maximum angular velocity for this instance [degrees/s]*/
 	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = Physics, meta = (editcondition = "bOverrideMaxAngularVelocity"))
 	float MaxAngularVelocity;
 

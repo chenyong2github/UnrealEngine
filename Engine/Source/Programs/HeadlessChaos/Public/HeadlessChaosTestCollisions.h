@@ -31,6 +31,9 @@ namespace ChaosTest {
 	void CollisionBoxPlaneRestitution();
 
 	template<class T>
+	void CollisionCubeCubeRestitution();
+
+	template<class T>
 	void CollisionBoxToStaticBox();
 
 	template<class T>
