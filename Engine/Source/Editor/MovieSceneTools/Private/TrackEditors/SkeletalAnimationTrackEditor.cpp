@@ -388,7 +388,10 @@ void FSkeletalAnimationSection::ResizeSection(ESequencerSectionResizeMode Resize
 		{
 			// If the start offset exceeds the length of one loop, trim it back.
 			const FFrameNumber SeqLength = FrameRate.AsFrameNumber(Section.Params.GetSequenceLength()) - Section.Params.StartFrameOffset - Section.Params.EndFrameOffset;
-			StartOffset = StartOffset % SeqLength;
+			if (SeqLength > 0)
+			{
+				StartOffset = StartOffset % SeqLength;
+			}
 		}
 
 		Section.Params.FirstLoopStartFrameOffset = StartOffset;
