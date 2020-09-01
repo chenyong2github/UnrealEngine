@@ -412,7 +412,7 @@ void FNiagaraShaderType::CacheUniformBufferIncludes(TMap<const TCHAR*, FCachedUn
 			if (It.Key() == StructIt->GetShaderVariableName())
 			{
 				BufferDeclaration.Declaration = MakeShared<FString>();
-				CreateUniformBufferShaderDeclaration(StructIt->GetShaderVariableName(), **StructIt, *BufferDeclaration.Declaration.Get());
+				CreateUniformBufferShaderDeclaration(StructIt->GetShaderVariableName(), **StructIt, Platform, *BufferDeclaration.Declaration.Get());
 				break;
 			}
 		}

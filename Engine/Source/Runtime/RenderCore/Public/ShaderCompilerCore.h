@@ -80,6 +80,8 @@ enum ECompilerFlags
 
 	// Force using the SC rewrite functionality before calling DXC on D3D12
 	CFLAG_D3D12ForceShaderConductorRewrite,
+	// Enable support of C-style data types for platforms that can. Check for PLATFORM_SUPPORTS_REAL_TYPES.
+	CFLAG_AllowRealTypes,
 
 	CFLAG_Max,
 };

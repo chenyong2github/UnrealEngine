@@ -139,7 +139,7 @@ private:
 };
 
 /** Creates a shader code declaration of this struct for the given shader platform. */
-extern RENDERCORE_API void CreateUniformBufferShaderDeclaration(const TCHAR* Name,const FShaderParametersMetadata& UniformBufferStruct, FString& OutDeclaration);
+extern RENDERCORE_API void CreateUniformBufferShaderDeclaration(const TCHAR* Name,const FShaderParametersMetadata& UniformBufferStruct, EShaderPlatform Platform, FString& OutDeclaration);
 
 class FShaderUniformBufferParameter
 {

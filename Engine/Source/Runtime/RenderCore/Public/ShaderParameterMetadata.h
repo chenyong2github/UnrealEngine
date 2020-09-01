@@ -22,6 +22,12 @@ namespace EShaderPrecisionModifier
 	};
 };
 
+/** Returns whether EShaderPrecisionModifier is supported. */
+inline bool SupportShaderPrecisionModifier(EShaderPlatform Platform)
+{
+	return IsMobilePlatform(Platform);
+}
+
 /** Each entry in a resource table is provided to the shader compiler for creating mappings. */
 struct FResourceTableEntry
 {
@@ -102,7 +108,7 @@ public:
 	static constexpr const TCHAR* kRootUniformBufferBindingName = TEXT("_RootShaderParameters");
 	
 	/** A member of a shader parameter structure. */
-	class FMember
+	class RENDERCORE_API FMember
 	{
 	public:
 
@@ -169,6 +175,8 @@ public:
 			}
 			return ElementSize;
 		}
+
+		void GenerateShaderParameterType(FString& Result, EShaderPlatform ShaderPlatform) const;
 
 	private:
 
