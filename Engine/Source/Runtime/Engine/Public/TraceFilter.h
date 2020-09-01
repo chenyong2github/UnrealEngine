@@ -8,6 +8,7 @@
 #include "GameFramework/Actor.h"
 #include "Engine/World.h"
 #include "Components/ActorComponent.h"
+#include "Animation/AnimInstance.h"
 #include "Templates/UnrealTemplate.h"
 #include "UObject/Object.h"
 
@@ -49,8 +50,16 @@ struct ENGINE_API FTraceFilter
 		}
 
 		template<typename T>
+		static typename TEnableIf<TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UAnimInstance>::Value, bool>::Type FORCEINLINE CanTrace(const T* Object)
+		{
+			/** For an AnimInstance object, we expect it or the owning component to be marked traceable */
+			const UAnimInstance* AnimInstance = (const UAnimInstance*)Object;
+			return FTraceFilter::IsObjectTraceable(AnimInstance) || (AnimInstance && TObjectFilter::CanTrace(AnimInstance->GetOwningComponent()));
+		}
+
+		template<typename T>
 		static typename TEnableIf<(!TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UActorComponent>::Value && !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, AActor>::Value
-			&& !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UWorld>::Value && TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UObject>::Value), bool>::Type FORCEINLINE CanTrace(const T* Object)
+			&& !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UWorld>::Value && !TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UAnimInstance>::Value && TPointerIsConvertibleFromTo<typename TRemovePointer<T>::Type, UObject>::Value), bool>::Type FORCEINLINE CanTrace(const T* Object)
 		{
 			/** For an individual UObject, we expect it or the owning world to be marked traceable */
 			const UObject* BaseObject = (const UObject*)Object;
