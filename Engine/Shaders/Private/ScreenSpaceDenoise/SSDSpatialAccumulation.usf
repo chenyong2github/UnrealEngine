@@ -769,8 +769,9 @@ void MainCS(
 				else
 				{
 					const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, MultiplexId);
+					FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
 
-					KernelConfig.RefBilateralDistance[MultiplexId] = GetSignalWorldBluringRadius(RefFrequencies.Array[MultiplexId], RefSceneMetadata, BatchedSignalId);
+					KernelConfig.RefBilateralDistance[MultiplexId] = GetSignalWorldBluringRadius(RefFrequencies.Array[MultiplexId], RefSceneMetadata, DomainKnowledge);
 				}
 			}
 		}
@@ -810,7 +811,8 @@ void MainCS(
 			for (uint SignalMultiplexId = 0; SignalMultiplexId < SIGNAL_ARRAY_SIZE; SignalMultiplexId++)
 			{
 				const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, SignalMultiplexId);
-				
+				FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(BatchedSignalId);
+
 				uint2 RefPixelCoord = floor(KernelConfig.BufferUV * KernelConfig.BufferSizeAndInvSize.xy);
 				FSSDSignalSample CenterSample = TransformSignalSampleForAccumulation(
 					KernelConfig,
@@ -823,7 +825,7 @@ void MainCS(
 				SampleInfos.Sample = CenterSample;
 				SampleInfos.Frequency = RefFrequencies.Array[SignalMultiplexId];
 				SampleInfos.FinalWeight = 1.0;
-				SampleInfos.InvFrequency = GetSignalWorldBluringRadius(SampleInfos.Frequency, RefSceneMetadata, BatchedSignalId);
+				SampleInfos.InvFrequency = GetSignalWorldBluringRadius(SampleInfos.Frequency, RefSceneMetadata, DomainKnowledge);
 				
 				if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS)
 				{
