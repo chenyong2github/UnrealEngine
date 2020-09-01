@@ -4,6 +4,7 @@
 #include "NiagaraEditorModule.h"
 #include "NiagaraSystem.h"
 #include "NiagaraEmitter.h"
+#include "NiagaraScriptSource.h"
 #include "NiagaraObjectSelection.h"
 #include "ViewModels/NiagaraSystemViewModel.h"
 #include "ViewModels/NiagaraEmitterHandleViewModel.h"
@@ -11,6 +12,7 @@
 #include "ViewModels/NiagaraSystemSelectionViewModel.h"
 #include "ViewModels/NiagaraScratchPadScriptViewModel.h"
 #include "ViewModels/NiagaraScratchPadViewModel.h"
+#include "ViewModels/NiagaraScriptGraphViewModel.h"
 #include "NiagaraSystemScriptViewModel.h"
 #include "Widgets/SNiagaraCurveEditor.h"
 #include "Widgets/SNiagaraSystemScript.h"
@@ -40,6 +42,7 @@
 #include "Framework/Application/SlateApplication.h"
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Layout/SSplitter.h"
 #include "Widgets/Docking/SDockTab.h"
 #include "AdvancedPreviewSceneModule.h"
 #include "BusyCursor.h"
@@ -601,7 +604,76 @@ private:
 		if (SelectedEmitterHandleIds.Num() == 1)
 		{
 			TSharedPtr<FNiagaraEmitterHandleViewModel> SelectedEmitterHandle = SystemViewModel->GetEmitterHandleViewModelById(SelectedEmitterHandleIds[0]);
-			GraphWidgetContainer->SetContent(SNew(SNiagaraScriptGraph, SelectedEmitterHandle->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel()));
+			TSharedRef<SWidget> EmitterWidget = 
+				SNew(SSplitter)
+				+ SSplitter::Slot()
+				.Value(.25f)
+				[
+					SNew(SNiagaraSelectedObjectsDetails, SelectedEmitterHandle->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel()->GetNodeSelection())
+				]
+				+ SSplitter::Slot()
+				.Value(.75f)
+				[
+					SNew(SNiagaraScriptGraph, SelectedEmitterHandle->GetEmitterViewModel()->GetSharedScriptViewModel()->GetGraphViewModel())
+				];
+
+			UNiagaraEmitter* LastMergedEmitter = SelectedEmitterHandle->GetEmitterViewModel()->GetEmitter()->GetParentAtLastMerge();
+			if (LastMergedEmitter != nullptr)
+			{
+				UNiagaraScriptSource* LastMergedScriptSource = CastChecked<UNiagaraScriptSource>(LastMergedEmitter->GraphSource);
+				TSharedRef<FNiagaraScriptGraphViewModel> LastMergedScriptGraphViewModel = MakeShared<FNiagaraScriptGraphViewModel>(FText());
+				LastMergedScriptGraphViewModel->SetScriptSource(LastMergedScriptSource);
+				TSharedRef<SWidget> LastMergedEmitterWidget = 
+					SNew(SSplitter)
+					+ SSplitter::Slot()
+					.Value(.25f)
+					[
+						SNew(SNiagaraSelectedObjectsDetails, LastMergedScriptGraphViewModel->GetNodeSelection())
+					]
+					+ SSplitter::Slot()
+					.Value(.75f)
+					[
+						SNew(SNiagaraScriptGraph, LastMergedScriptGraphViewModel)
+					];
+
+				GraphWidgetContainer->SetContent
+				(
+					SNew(SSplitter)
+					.Orientation(Orient_Vertical)
+					+ SSplitter::Slot()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(TEXT("Emitter")))
+						]
+						+ SVerticalBox::Slot()
+						[
+							EmitterWidget
+						]
+					]
+					+ SSplitter::Slot()
+					[
+						SNew(SVerticalBox)
+						+ SVerticalBox::Slot()
+						.AutoHeight()
+						[
+							SNew(STextBlock)
+							.Text(FText::FromString(TEXT("Last Merged Emitter")))
+						]
+						+ SVerticalBox::Slot()
+						[
+							LastMergedEmitterWidget
+						]
+					]
+				);
+			}
+			else
+			{
+				GraphWidgetContainer->SetContent(EmitterWidget);
+			}
 		}
 		else
 		{
