@@ -26,6 +26,7 @@
 #include "Layout/LayoutUtils.h"
 #include "MarqueeOperation.h"
 #include "Templates/UniquePtr.h"
+#include "UObject/GCObject.h"
 
 class FActiveTimerHandle;
 class FScopedTransaction;
@@ -187,7 +188,7 @@ struct FZoomLevelsContainer
 	virtual ~FZoomLevelsContainer( void ) {};
 };
 
-struct GRAPHEDITOR_API FGraphSelectionManager
+struct GRAPHEDITOR_API FGraphSelectionManager : public FGCObject
 {
 	FGraphPanelSelectionSet SelectedNodes;
 
@@ -228,6 +229,8 @@ public:
 
 	// Handle the selection mechanics when a node is clicked on
 	void ClickedOnNode(SelectedItemType Node, const FPointerEvent& MouseEvent);
+
+	void AddReferencedObjects(FReferenceCollector& Collector) override;
 };
 
 /**
