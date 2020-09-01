@@ -18,10 +18,18 @@ class UMovieSceneControlRigParameterSection;
 
 struct FRigHierarchyContainer;
 
+// TODO: Add OnSequencerBindingsChanged
+
 namespace UE
 {
 namespace MotionTrailEditor
 {
+
+enum class EBindingVisibilityState
+{
+	AlwaysVisible,
+	VisibleWhenSelected
+};
 
 class FSequencerTrailHierarchy : public FTrailHierarchy
 {
@@ -36,7 +44,6 @@ public:
 		, OnLevelActorAttachedHandle()
 		, OnLevelActorDetachedHandle()
 		, OnSelectionChangedHandle()
-		, OnBoneVisibilityChangedHandle()
 		, OnViewOptionsChangedHandle()
 		, ControlRigDelegateHandles()
 	{}
@@ -46,6 +53,7 @@ public:
 	virtual void Destroy() override;
 	virtual ITrailHierarchyRenderer* GetRenderer() const override { return HierarchyRenderer.Get(); }
 	virtual double GetSecondsPerFrame() const override { return 1.0 / WeakSequencer.Pin()->GetFocusedDisplayRate().AsDecimal(); }
+	virtual double GetSecondsPerSegment() const override;
 	virtual void RemoveTrail(const FGuid& Key) override;
 	virtual void Update() override;
 
@@ -53,10 +61,11 @@ public:
 	const TMap<USkeletalMeshComponent*, TMap<FName, FGuid>>& GetBonesTracked() const { return BonesTracked; }
 	const TMap<USkeletalMeshComponent*, TMap<FName, FGuid>>& GetControlsTracked() const { return ControlsTracked; }
 
-	void OnBoneVisibilityChanged(USkeleton* Skeelton, const FName& BoneName);
+	void OnBoneVisibilityChanged(USkeleton* Skeelton, const FName& BoneName, const bool bIsVisible);
+	void OnBindingVisibilityStateChanged(UObject* BoundObject, const EBindingVisibilityState VisibilityState);
 
 private:
-	void UpdateSequencerBindings(const TArray<FGuid>& SequencerBindings, TFunctionRef<void(FTrail*)> OnUpdated);
+	void UpdateSequencerBindings(const TArray<FGuid>& SequencerBindings, TFunctionRef<void(UObject*, FTrail*, FGuid)> OnUpdated);
 	void UpdateObjectsTracked(); // TODO: will remove
 	void UpdateViewRange();
 
@@ -70,8 +79,9 @@ private:
 
 	TWeakPtr<ISequencer> WeakSequencer;
 	TMap<UObject*, FGuid> ObjectsTracked;
-	TMap<USkeletalMeshComponent*, TMap<FName, FGuid>> BonesTracked; // TODO: components can have multiple rigs so make this a map from sections to controls instead
-	TMap<USkeletalMeshComponent*, TMap<FName, FGuid>> ControlsTracked;
+	TMap<USkeletalMeshComponent*, TMap<FName, FGuid>> BonesTracked; 
+	TMap<USkeletalMeshComponent*, TMap<FName, FGuid>> ControlsTracked; 
+	// TODO: components can have multiple rigs so make this a map from sections to controls instead. However, this is only part of a larger problem of handling blending
 
 	TUniquePtr<FTrailHierarchyRenderer> HierarchyRenderer;
 
@@ -79,7 +89,6 @@ private:
 	FDelegateHandle OnLevelActorAttachedHandle;
 	FDelegateHandle OnLevelActorDetachedHandle;
 	FDelegateHandle OnSelectionChangedHandle;
-	FDelegateHandle OnBoneVisibilityChangedHandle;
 	FDelegateHandle OnViewOptionsChangedHandle;
 
 	struct FControlRigDelegateHandles

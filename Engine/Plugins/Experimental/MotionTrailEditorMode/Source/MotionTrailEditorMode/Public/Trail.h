@@ -11,13 +11,13 @@
 #include "GameFramework/Actor.h"
 
 #include "TrajectoryCache.h"
+#include "TrajectoryDrawInfo.h"
 
 namespace UE
 {
 namespace MotionTrailEditor
 {
 
-class FTrajectoryDrawInfo;
 class FInteractiveTrailTool;
 struct FTrailHierarchyNode;
 
@@ -35,6 +35,7 @@ public:
 
 	FTrail()
 		: bForceEvaluateNextTick(true)
+		, DrawInfo(nullptr)
 	{}
 
 	virtual ~FTrail() {}
@@ -52,14 +53,15 @@ public:
 	virtual FTrajectoryCache* GetTrajectoryTransforms() = 0;
 
 	// Optionally implemented methods
-	virtual FTrajectoryDrawInfo* GetDrawInfo() { return nullptr; }
 	virtual TMap<FString, FInteractiveTrailTool*> GetTools() { return TMap<FString, FInteractiveTrailTool*>(); }
 	virtual TRange<double> GetEffectiveRange() const { return TRange<double>::Empty(); }
 
+	FTrajectoryDrawInfo* GetDrawInfo() { return DrawInfo.Get(); }
 	void ForceEvaluateNextTick() { bForceEvaluateNextTick = true; }
 
 protected:
 	bool bForceEvaluateNextTick;
+	TUniquePtr<FTrajectoryDrawInfo> DrawInfo;
 };
 
 class FRootTrail : public FTrail

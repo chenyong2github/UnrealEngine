@@ -2,6 +2,7 @@
 
 #include "AnimationBoneTrail.h"
 #include "TrailHierarchy.h"
+#include "SequencerTrailHierarchy.h"
 
 #include "Animation/AnimInstance.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -21,12 +22,12 @@ float GetIntervalPerKey(int32 NumFrames, float SequenceLength)
 	return (NumFrames > 1) ? (SequenceLength / (NumFrames - 1)) : MINIMUM_ANIMATION_LENGTH;
 }
 
-void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache, USkeletalMeshComponent* SkeletalMeshComponent)
+void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache)
 {
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 	check(Sequencer);
 
-	if (!SkeletalMeshComponent || !SkeletalMeshComponent->SkeletalMesh || !SkeletalMeshComponent->SkeletalMesh->Skeleton)
+	if (!SkeletalMeshComponent.IsValid() || !SkeletalMeshComponent->SkeletalMesh || !SkeletalMeshComponent->SkeletalMesh->Skeleton)
 	{
 		return;
 	}
@@ -37,7 +38,7 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache, USke
 
 	// TODO: for some reason SkeletalMeshComponent becomes invalid sometimes when evaluating, no clue why yet
 	FMovieSceneSequenceTransform MovieSceneSequenceTransform;
-	MovieSceneToolHelpers::ExportToAnimSequence(CachedAnimSequence, Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene(), Sequencer.Get(), SkeletalMeshComponent,
+	MovieSceneToolHelpers::ExportToAnimSequence(CachedAnimSequence, Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene(), Sequencer.Get(), SkeletalMeshComponent.Get(),
 		Sequencer->GetFocusedTemplateID(), MovieSceneSequenceTransform);
 
 	Sequencer->ForceEvaluate();
@@ -50,11 +51,12 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache, USke
 	AnimRange = TRange<double>(0.0, AnimLength);
 	for (int32 TrackIndex = 0; TrackIndex < GlobalBoneTransforms.Num(); TrackIndex++)
 	{
-		ComponentBoneTransforms[TrackIndex].SetNumUninitialized(GlobalBoneTransforms[TrackIndex].Num());
+		ComponentBoneTransforms[TrackIndex].SetNum(GlobalBoneTransforms[TrackIndex].Num());
 		double TimeSeconds = 0.0;
 		for (int32 TimeIndex = 0; TimeIndex < GlobalBoneTransforms[TrackIndex].Num(); TimeIndex++, TimeSeconds += Spacing)
 		{
-			ComponentBoneTransforms[TrackIndex][TimeIndex] = ParentTransformCache->GetInterp(TimeSeconds).GetRelativeTransform(GlobalBoneTransforms[TrackIndex][TimeIndex]);
+			ComponentBoneTransforms[TrackIndex][TimeIndex] = GlobalBoneTransforms[TrackIndex][TimeIndex].GetRelativeTransform(ParentTransformCache->GetInterp(TimeSeconds));
+			//ComponentBoneTransforms[TrackIndex][TimeIndex] = GlobalBoneTransforms[TrackIndex][TimeIndex].GetRelativeTransformReverse(ParentTransformCache->GetInterp(TimeSeconds));
 		}
 	}
 
@@ -197,13 +199,17 @@ ETrailCacheState FAnimationBoneTrail::UpdateTrail(const FSceneContext& InSceneCo
 {
 	if (TrajectoryCache->GetAnimCache()->IsDirty())
 	{
-		DrawInfo->SetIsVisible(false);
 		return ETrailCacheState::NotUpdated;
 	}
 
 	checkf(InSceneContext.TrailHierarchy->GetHierarchy()[InSceneContext.YourNode].Parents.Num() == 1, TEXT("AnimationBoneTrails only support one parent"));
 	const FGuid ParentGuid = InSceneContext.TrailHierarchy->GetHierarchy()[InSceneContext.YourNode].Parents[0];
 	const TUniquePtr<FTrail>& Parent = InSceneContext.TrailHierarchy->GetAllTrails()[ParentGuid];
+
+	USkeletalMeshComponent* SkeletalMeshComponent = TrajectoryCache->GetAnimCache()->GetSkeletalMeshComponent();
+	FSequencerTrailHierarchy* SequencerTrailHierarchy = static_cast<FSequencerTrailHierarchy*>(InSceneContext.TrailHierarchy);
+	const FGuid SkelMeshCompGuid = SequencerTrailHierarchy->GetObjectsTracked().FindChecked(SkeletalMeshComponent);
+	FTrajectoryCache* SkelMeshCompTrajectoryCache = SequencerTrailHierarchy->GetAllTrails().FindChecked(SkelMeshCompGuid)->GetTrajectoryTransforms();
 
 	ETrailCacheState ParentCacheState = InSceneContext.ParentCacheStates[ParentGuid];
 
@@ -220,7 +226,7 @@ ETrailCacheState FAnimationBoneTrail::UpdateTrail(const FSceneContext& InSceneCo
 		if (bParentChanged)
 		{
 			const FDateTime StartTime = FDateTime::Now();
-			TrajectoryCache->GetAnimCache()->UpdateRange(InSceneContext.EvalTimes.Range, Parent->GetTrajectoryTransforms(), TrajectoryCache->GetBoneIndex());
+			TrajectoryCache->GetAnimCache()->UpdateRange(InSceneContext.EvalTimes.Range, SkelMeshCompTrajectoryCache, TrajectoryCache->GetBoneIndex());
 			const FTimespan Timespan = FDateTime::Now() - StartTime;
 			InSceneContext.TrailHierarchy->GetTimingStats().Add("FAnimTrajectoryCache::Update", Timespan);
 		}
