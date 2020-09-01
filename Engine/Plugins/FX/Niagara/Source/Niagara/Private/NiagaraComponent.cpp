@@ -463,6 +463,7 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bAllowScalability(true)
 	, bIsCulledByScalability(false)
 	, bDuringUpdateContextReset(false)
+	, bNeedsUpdateEmitterMaterials(true) // At least need to run once
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
 	, ForceUpdateTransformTime(0.0f)
@@ -850,6 +851,7 @@ bool UNiagaraComponent::InitializeSystem()
 #endif
 		SystemInstance->Init(bForceSolo);
 		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
+		UpdateEmitterMaterials(true); // On system reset we want to always reinit materials for now. Hopefully we can recycle the already created Mids.
 		MarkRenderStateDirty();
 		return true;
 	}
@@ -1494,6 +1496,7 @@ void UNiagaraComponent::OnEndOfFrameUpdateDuringTick()
 	if ( SystemInstance )
 	{
 		SystemInstance->WaitForAsyncTickAndFinalize();
+		UpdateEmitterMaterials(); // Possible that something changed mid-frame. Let's clean up.
 	}
 }
 
@@ -1655,8 +1658,12 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	return SystemBounds.TransformBy(LocalToWorld);
 }
 
-void UNiagaraComponent::UpdateEmitterMaterials()
+void UNiagaraComponent::UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials)
 {
+	check(IsInRenderingThread() || IsInGameThread() || IsAsyncLoading() || GIsSavingPackage); // Same restrictions as MIDs
+	if (!bNeedsUpdateEmitterMaterials && !bForceUpdateEmitterMaterials)
+		return;
+
 	TArray<FNiagaraMaterialOverride> NewEmitterMaterials;
 	
 	if (SystemInstance)
@@ -1713,6 +1720,8 @@ void UNiagaraComponent::UpdateEmitterMaterials()
 				);				
 			}
 		}
+
+		bNeedsUpdateEmitterMaterials = false;
 	}
 
 	EmitterMaterials = NewEmitterMaterials;
@@ -1724,7 +1733,8 @@ FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
 
-	UpdateEmitterMaterials();
+	// We can't safely update emitter materials here because it can be called from non-game thread
+	ensure(bNeedsUpdateEmitterMaterials == false || !SystemInstance.IsValid());
 	
 	// The constructor will set up the System renderers from the component.
 	FNiagaraSceneProxy* Proxy = new FNiagaraSceneProxy(this);
@@ -1975,11 +1985,17 @@ void UNiagaraComponent::SetNiagaraVariableObject(const FString& InVariableName, 
 void UNiagaraComponent::SetVariableMaterial(FName InVariableName, UMaterialInterface* InValue)
 {
 	const FNiagaraVariable VariableDesc(FNiagaraTypeDefinition::GetUMaterialDef(), InVariableName);
+	UObject*  CurrentValue = OverrideParameters.GetUObject(VariableDesc);
 	OverrideParameters.SetUObject(InValue, VariableDesc);
+
 #if WITH_EDITOR
 	SetParameterOverride(VariableDesc, FNiagaraVariant(InValue));
 #endif
-	MarkRenderStateDirty(); // Materials might be using this on the system, so invalidate the render state to re-gather them.
+	if (CurrentValue != InValue)
+	{
+		UpdateEmitterMaterials(true); // Will need to update our internal tables. Maybe need a new MID. Can't easily defer this because we don't have another good sync point.
+		MarkRenderStateDirty(); // Materials might be using this on the system, so invalidate the render state to re-gather them.
+	}
 }
 
 TArray<FVector> UNiagaraComponent::GetNiagaraParticlePositions_DebugOnly(const FString& InEmitterName)

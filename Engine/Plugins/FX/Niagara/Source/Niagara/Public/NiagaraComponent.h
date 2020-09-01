@@ -149,7 +149,7 @@ protected:
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
 
-	void UpdateEmitterMaterials();
+	void UpdateEmitterMaterials(bool bForceUpdateEmitterMaterials = false);
 public:
 	/**
 	* True if we should automatically attach to AutoAttachParent when activated, and detach from our parent when completed.
@@ -598,6 +598,9 @@ private:
 
 	/** True if we're currently inside an update context reset. This will prevent us from doing some completion work such as releaseing to the pool or auto destroy etc during a reset. */
 	uint32 bDuringUpdateContextReset : 1;
+
+	/** True if UpdateEmitterMaterials needs to be called*/
+	uint32 bNeedsUpdateEmitterMaterials : 1;
 
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
 	void CancelAutoAttachment(bool bDetachFromParent);
