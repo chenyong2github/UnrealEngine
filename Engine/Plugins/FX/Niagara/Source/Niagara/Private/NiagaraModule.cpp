@@ -732,6 +732,16 @@ void FNiagaraTypeDefinition::RecreateUserDefinedTypeRegistry()
 		UObject* Obj = AssetRef.ResolveObject();
 		if (Obj == nullptr)
 		{
+			// Load the object, but this is an editor-only property so make sure serialization options knows this
+			FName PackageName;
+			FName PropertyName;
+			ESoftObjectPathCollectType CollectType = ESoftObjectPathCollectType::AlwaysCollect;
+			ESoftObjectPathSerializeType SerializeType = ESoftObjectPathSerializeType::AlwaysSerialize;
+			FSoftObjectPathThreadContext& ThreadContext = FSoftObjectPathThreadContext::Get();
+			ThreadContext.GetSerializationOptions(PackageName, PropertyName, CollectType, SerializeType);
+			FSoftObjectPathSerializationScope SerializationScope(PackageName, PropertyName, ESoftObjectPathCollectType::EditorOnlyCollect, SerializeType);
+
+			// Do the load now that the serialization scope is set up
 			Obj = AssetRef.TryLoad();
 		}
 
