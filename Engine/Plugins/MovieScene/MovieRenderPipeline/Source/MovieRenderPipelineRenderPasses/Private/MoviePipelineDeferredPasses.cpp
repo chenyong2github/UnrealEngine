@@ -1,4 +1,4 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
+	// Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MoviePipelineDeferredPasses.h"
 #include "MoviePipelineOutputBase.h"
@@ -32,14 +32,12 @@
 #include "SceneViewExtension.h"
 #include "OpenColorIODisplayExtension.h"
 
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_MoviePipeline_WaitForAvailableAccumulator, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
-DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);
 
 // Forward Declare
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FSampleAccumulationArgs& InParams);
+	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams);
 	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig);
 }
 
@@ -276,10 +274,10 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	FramePayload->PassIdentifier = PassIdentifier;
 	FramePayload->SampleState = InSampleState;
 
-	MoviePipeline::FSampleAccumulationArgs AccumulationArgs;
+	MoviePipeline::FImageSampleAccumulationArgs AccumulationArgs;
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
-		AccumulationArgs.ImageAccumulator = SampleAccumulator->Accumulator;
+		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
 		AccumulationArgs.bAccumulateAlpha = MoviePipeline::GetAnyOutputWantsAlpha(GetPipeline()->GetPipelineMasterConfig());
 	}
 
@@ -406,7 +404,7 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	}
 	
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
-	AccumulatorPool = MakeShared<FAccumulatorPool, ESPMode::ThreadSafe>(6);
+	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
 
 	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
 	// One Extension per sequence, since each sequence has its own OCIO settings.
@@ -699,7 +697,7 @@ void UMoviePipelineImagePassBase::BlendPostProcessSettings(FSceneView* InView)
 
 namespace MoviePipeline
 {
-	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FSampleAccumulationArgs& InParams)
+	static void AccumulateSample_TaskThread(TUniquePtr<FImagePixelData>&& InPixelData, const MoviePipeline::FImageSampleAccumulationArgs& InParams)
 	{
 		SCOPE_CYCLE_COUNTER(STAT_AccumulateSample_TaskThread);
 
@@ -848,13 +846,6 @@ namespace MoviePipeline
 	}
 }
 
-FAccumulatorPool::FAccumulatorPool(int32 InNumAccumulators)
-{
-	for (int32 Index = 0; Index < InNumAccumulators; Index++)
-	{
-		Accumulators.Add(MakeShared<FAccumulatorInstance, ESPMode::ThreadSafe>());
-	}
-}
 
 TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumulatorPool::BlockAndGetAccumulator_GameThread(int32 InFrameNumber)
 {
@@ -890,13 +881,6 @@ TSharedPtr<FAccumulatorPool::FAccumulatorInstance, ESPMode::ThreadSafe> FAccumul
 	}
 
 	return Accumulators[AvailableIndex];
-}
-
-FAccumulatorPool::FAccumulatorInstance::FAccumulatorInstance()
-{
-	Accumulator = MakeShared<FImageOverlappedAccumulator, ESPMode::ThreadSafe>();
-	ActiveFrameNumber = INDEX_NONE;
-	bIsActive = false;
 }
 
 bool FAccumulatorPool::FAccumulatorInstance::IsActive() const
