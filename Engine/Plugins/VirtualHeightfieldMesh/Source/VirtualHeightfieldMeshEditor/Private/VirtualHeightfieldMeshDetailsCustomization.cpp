@@ -2,6 +2,7 @@
 
 #include "VirtualHeightfieldMeshDetailsCustomization.h"
 
+#include "AssetThumbnail.h"
 #include "AssetToolsModule.h"
 #include "DetailCategoryBuilder.h"
 #include "DetailLayoutBuilder.h"
@@ -21,6 +22,8 @@
 #define LOCTEXT_NAMESPACE "VirtualHeightfieldMeshEditorModule"
 
 FVirtualHeightfieldMeshComponentDetailsCustomization::FVirtualHeightfieldMeshComponentDetailsCustomization()
+	: AssetThumbnailPool(MakeShareable(new FAssetThumbnailPool(4)))
+	, AssetThumbnail(MakeShared<FAssetThumbnail>(nullptr, 64, 64, AssetThumbnailPool))
 {
 }
 
@@ -44,15 +47,37 @@ void FVirtualHeightfieldMeshComponentDetailsCustomization::CustomizeDetails(IDet
 		return;
 	}
 
-	// Apply custom widget for SetBounds
-	TSharedRef<IPropertyHandle> SetBoundsPropertyHandle = DetailBuilder.GetProperty(TEXT("bSetBoundsButton"));
-	DetailBuilder.EditDefaultProperty(SetBoundsPropertyHandle)->CustomWidget()
+	// Apply custom widget for VirtualTextureThumbnail
+	TSharedRef<IPropertyHandle> VirtualTextureThumbnailPropertyHandle = DetailBuilder.GetProperty(TEXT("VirtualTextureThumbnail"));
+	DetailBuilder.EditDefaultProperty(VirtualTextureThumbnailPropertyHandle)->CustomWidget()
+	.ValueContent()
+	[
+		SNew(SBox)
+		.HAlign(HAlign_Left)
+		.VAlign(VAlign_Center)
+		[
+			SNew( SBox )
+			.WidthOverride(64)
+			.HeightOverride(64)
+			[
+				AssetThumbnail->MakeThumbnailWidget(FAssetThumbnailConfig())
+			]
+		]
+	];
+
+	// Call to initialize AssetThumbnail
+	RefreshThumbnail();
+	DetailBuilder.GetProperty(FName(TEXT("VirtualTexture")))->SetOnPropertyValueChanged(FSimpleDelegate::CreateSP(this, &FVirtualHeightfieldMeshComponentDetailsCustomization::RefreshThumbnail));
+
+	// Apply custom widget for CopyBounds
+	TSharedRef<IPropertyHandle> CopyBoundsPropertyHandle = DetailBuilder.GetProperty(TEXT("bCopyBoundsButton"));
+	DetailBuilder.EditDefaultProperty(CopyBoundsPropertyHandle)->CustomWidget()
 	.NameContent()
 	[
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
-		.ToolTipText(LOCTEXT("Button_SetBounds_Tooltip", "Copy the bounds from the virtual texture volume."))
+		.Text(LOCTEXT("Button_CopyBounds", "Copy Bounds"))
+		.ToolTipText(LOCTEXT("Button_CopyBounds_Tooltip", "Copy the full bounds from the Virtual Texture volume."))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -61,7 +86,7 @@ void FVirtualHeightfieldMeshComponentDetailsCustomization::CustomizeDetails(IDet
 		.VAlign(VAlign_Center)
 		.HAlign(HAlign_Center)
 		.ContentPadding(2)
-		.Text(LOCTEXT("Button_SetBounds", "Set Bounds"))
+		.Text(LOCTEXT("Button_CopyBounds", "Copy Bounds"))
 		.OnClicked(this, &FVirtualHeightfieldMeshComponentDetailsCustomization::SetBounds)
 	];
 
@@ -73,7 +98,7 @@ void FVirtualHeightfieldMeshComponentDetailsCustomization::CustomizeDetails(IDet
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
 		.Text(LOCTEXT("Button_BuildMinMaxTexture", "Build MinMax Texture"))
-		.ToolTipText(LOCTEXT("Button_BuildMinMaxTexture_Tooltip", "Build the min/max height texture"))
+		.ToolTipText(LOCTEXT("Button_BuildMinMaxTexture_Tooltip", "Build the MinMax height texture"))
 	]
 	.ValueContent()
 	.MaxDesiredWidth(125.f)
@@ -86,6 +111,11 @@ void FVirtualHeightfieldMeshComponentDetailsCustomization::CustomizeDetails(IDet
 		.OnClicked(this, &FVirtualHeightfieldMeshComponentDetailsCustomization::BuildMinMaxTexture)
 		.IsEnabled(this, &FVirtualHeightfieldMeshComponentDetailsCustomization::IsMinMaxTextureEnabled)
 	];
+}
+
+void FVirtualHeightfieldMeshComponentDetailsCustomization::RefreshThumbnail()
+{
+	AssetThumbnail->SetAsset(VirtualHeightfieldMeshComponent->GetVirtualTexture());
 }
 
 FReply FVirtualHeightfieldMeshComponentDetailsCustomization::SetBounds()
