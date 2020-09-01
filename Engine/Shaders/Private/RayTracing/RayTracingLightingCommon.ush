@@ -225,7 +225,7 @@ void TraceShadowRayMissShaderLighting(
 	in uint2 PixelCoord,
 	inout FPackedMaterialClosestHitPayload PackedPayload)
 {
-	PackedPayload.SetPixelCoordInCustomData(PixelCoord);
+	PackedPayload.SetPixelCoord(PixelCoord);
 	TraceRay
 	(
 		TLAS,
@@ -417,9 +417,6 @@ float3 ComputeDirectLighting(
 	FCulledLightList CullData = FCulledLightList::Create(WorldPosition);
 	const uint LightCount = CullData.NumLights();
 
-	// Preserve current custom data value from the material payload, as it will be overwritten during shadow ray tracing.
-	uint SavedPackedCustomData = Payload.PackedCustomData;
-
 	for (uint Index = 0; WaveActiveAnyTrue(Index < LightCount); Index++)
 	{
 		uint Lit = 0;
@@ -525,8 +522,6 @@ float3 ComputeDirectLighting(
 		float SurfaceShadow = 1.0f;
 		float4 LightAttenuation = 1.0f;
 
-		// Restore material custom data and reconstruct GBuffer
-		Payload.PackedCustomData = SavedPackedCustomData;
 		FGBufferData GBufferData = GetGBufferDataFromPayload(Payload);
 
 		float3 LightContribution = GetDynamicLighting(WorldPosition, ViewDirection, GBufferData, 1.0, GBufferData.ShadingModelID, LightData, LightAttenuation, 0.5, uint2(0, 0), RectTexture, SurfaceShadow).xyz;
