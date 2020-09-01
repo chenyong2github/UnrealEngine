@@ -63,6 +63,8 @@ namespace Interchange
 	class FImportAsyncHelper : public FGCObject
 	{
 	public:
+		FImportAsyncHelper();
+
 		~FImportAsyncHelper()
 		{
 			CleanUp();
@@ -100,7 +102,25 @@ namespace Interchange
 
 		FImportAsyncHelperData TaskData;
 
+		TPromise< UObject* > RootObject;
+		FGraphEventRef RootObjectCompletionEvent;
+
 		void CleanUp();
+	};
+
+	class INTERCHANGECORE_API FAsyncImportResult
+	{
+	public:
+		FAsyncImportResult() = default;
+		explicit FAsyncImportResult( TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent );
+
+		bool IsValid() const;
+		UObject* Get() const;
+		FAsyncImportResult Next( TFunction< UObject*( UObject* ) > Continuation );
+
+	private:
+		TFuture< UObject* > FutureObject;
+		FGraphEventRef GraphEvent;
 	};
 
 	void SanitizeInvalidChar(FString& String);
@@ -117,6 +137,9 @@ struct FImportAssetParameters
 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
 	bool bIsAutomated = false;
+
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Interchange|ImportAsset")
+	UInterchangePipelineBase* OverridePipeline = nullptr;
 };
 
 UCLASS(Transient, BlueprintType)
@@ -210,6 +233,7 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Import Manager")
 	bool ImportAsset(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
+	Interchange::FAsyncImportResult ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters);
 
 	/**
 	 * Call this to start an import scene process, the caller must specify a source data.

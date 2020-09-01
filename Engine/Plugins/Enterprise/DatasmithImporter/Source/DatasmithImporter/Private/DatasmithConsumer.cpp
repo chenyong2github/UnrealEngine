@@ -689,7 +689,7 @@ bool UDatasmithConsumer::BuildContexts()
 	ImportContextPtr->ActorsContext.FinalWorld = WorkingWorld.Get();
 
 	// Initialize ActorsContext's UniqueNameProvider with actors in the GWorld not the Import world
-	ImportContextPtr->ActorsContext.UniqueNameProvider = FDatasmithActorUniqueLabelProvider();
+	ImportContextPtr->ActorsContext.UniqueNameProvider.Clear();
 	ImportContextPtr->ActorsContext.UniqueNameProvider.PopulateLabelFrom( ImportContextPtr->ActorsContext.FinalWorld );
 
 	// Add assets as if they have been imported using the current import context
@@ -1528,7 +1528,8 @@ namespace DatasmithConsumerUtils
 					TSharedRef< IDatasmithTextureElement > TextureElement = FDatasmithSceneFactory::CreateTexture( *AssetTag );
 					TextureElement->SetLabel( *Texture->GetName() );
 
-					ImportContext.ImportedTextures.Add( TextureElement, Texture );
+					TPromise< UObject* > TexturePromise = MakeFulfilledPromise< UObject* >( Texture );
+					ImportContext.ImportedTextures.FindOrAdd( TextureElement ) = Interchange::FAsyncImportResult{ TexturePromise.GetFuture(), FGraphEventRef() };
 					ImportContext.Scene->AddTexture( TextureElement );
 				}
 				else if(UMaterialInstance* MaterialInstance = Cast<UMaterialInstance>(Asset))

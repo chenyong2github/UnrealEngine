@@ -57,6 +57,12 @@ void Interchange::FTaskCompletion::DoTask(ENamedThreads::Type CurrentThread, con
 			//Notify the asset registry
 			FAssetRegistryModule::AssetCreated(Asset);
 #endif //WITH_ENGINE
+
+			if (SourceIndex == 0)
+			{
+				AsyncHelper->RootObject.SetValue(Asset);
+				AsyncHelper->RootObjectCompletionEvent->DispatchSubsequents();
+			}
 		}
 	}
 	//Release the async helper

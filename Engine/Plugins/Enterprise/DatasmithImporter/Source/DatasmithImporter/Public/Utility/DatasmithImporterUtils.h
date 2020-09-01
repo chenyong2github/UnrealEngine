@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "DatasmithImportContext.h"
 #include "DatasmithScene.h"
+#include "IDatasmithSceneElements.h"
+#include "InterchangeManager.h"
 #include "UObject/UObjectHash.h"
 
 class ADatasmithSceneActor;
@@ -248,7 +250,7 @@ struct FDatasmithFindAssetTypeHelper< UStaticMesh >
 template<>
 struct FDatasmithFindAssetTypeHelper< UTexture >
 {
-	static const TMap< TSharedRef< IDatasmithTextureElement >, UTexture* >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
+	static const TMap< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& GetImportedAssetsMap( const FDatasmithAssetsImportContext& AssetsContext )
 	{
 		return AssetsContext.ParentContext.ImportedTextures;
 	}
@@ -405,6 +407,65 @@ inline ObjectType* FDatasmithImporterUtils::FindAsset( const FDatasmithAssetsImp
 	else
 	{
 		return FindObject< ObjectType >( nullptr, ObjectPathName );
+	}
+}
+
+template<>
+inline UTexture* FDatasmithImporterUtils::FindAsset< UTexture >( const FDatasmithAssetsImportContext& AssetsContext, const TCHAR* ObjectPathName )
+{
+	if ( FCString::Strlen( ObjectPathName ) <= 0 )
+	{
+		return nullptr;
+	}
+
+	if ( FPaths::IsRelative( ObjectPathName ) )
+	{
+		const TSharedRef< IDatasmithTextureElement >* ImportedElement   = FDatasmithFindAssetTypeHelper< UTexture >::GetImportedElementByName( AssetsContext, ObjectPathName );
+		const TMap< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& ImportedAssetsMap = FDatasmithFindAssetTypeHelper< UTexture >::GetImportedAssetsMap( AssetsContext );
+
+		if (ImportedElement)
+		{
+			Interchange::FAsyncImportResult* Result =  const_cast< Interchange::FAsyncImportResult* >( ImportedAssetsMap.Find(*ImportedElement) );
+			ensure(Result);
+			if (Result)
+			{
+				return Cast< UTexture >( Result->Get() );
+			}
+		}
+		else
+		{
+			for ( const TPair< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& ImportedAssetPair : ImportedAssetsMap )
+			{
+				if ( FCString::Stricmp( ImportedAssetPair.Key->GetName(), ObjectPathName ) == 0 )
+				{
+					Interchange::FAsyncImportResult& Result = const_cast< Interchange::FAsyncImportResult& >( ImportedAssetPair.Value );
+					return Cast< UTexture >( Result.Get() );
+				}
+			}
+		}
+
+		{
+			const TMap< FName, TSoftObjectPtr< UTexture > >* AssetsMap = FDatasmithFindAssetTypeHelper< UTexture >::GetAssetsMap( AssetsContext.ParentContext.SceneAsset );
+
+			// Check if the AssetsMap is already tracking our asset
+			if ( AssetsMap && AssetsMap->Contains( ObjectPathName ) )
+			{
+				UTexture* Texture = (*AssetsMap)[ FName( ObjectPathName ) ].LoadSynchronous();
+				ensure( Texture );
+				return Texture;
+			}
+			else
+			{
+				UPackage* FinalPackage = FDatasmithFindAssetTypeHelper< UTexture >::GetFinalPackage( AssetsContext );
+				UTexture* Texture = FindObject< UTexture >( FinalPackage, ObjectPathName );
+				ensure( Texture );
+				return Texture;
+			}
+		}
+	}
+	else
+	{
+		return FindObject< UTexture >( nullptr, ObjectPathName );
 	}
 }
 

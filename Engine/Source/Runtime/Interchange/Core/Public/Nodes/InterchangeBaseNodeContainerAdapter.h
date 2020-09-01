@@ -373,6 +373,6 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Interchange | Node Attribute")
 	bool SetNodeAttributeValueVector4(const FName NodeIdentity, const FName AttributeName, const FVector4& Value);
 
-private:
+public:
 	Interchange::FBaseNodeContainer* BaseNodeContainer = nullptr;
 };

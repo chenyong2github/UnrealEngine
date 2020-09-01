@@ -293,11 +293,11 @@ void UDatasmithFileProducer::SceneElementToWorld()
 		}
 	}
 
-	for ( TPair< TSharedRef< IDatasmithTextureElement >, UTexture* >& AssetPair : ImportContextPtr->ImportedTextures )
+	for ( TPair< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult >& AssetPair : ImportContextPtr->ImportedTextures )
 	{
-		if(AssetPair.Value)
+		if(AssetPair.Value.IsValid())
 		{
-			Assets.Emplace( AssetPair.Value );
+			Assets.Emplace( AssetPair.Value.Get() );
 		}
 	}
 

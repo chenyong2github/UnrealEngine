@@ -66,6 +66,11 @@ UInterchangeTranslatorBase* Interchange::FScopedTranslator::GetTranslator()
 	return ScopedTranslatorPtr.Get();
 }
 
+Interchange::FImportAsyncHelper::FImportAsyncHelper()
+{
+	RootObjectCompletionEvent = FGraphEvent::CreateGraphEvent();
+}
+
 void Interchange::FImportAsyncHelper::AddReferencedObjects(FReferenceCollector& Collector)
 {
 	for (UInterchangeSourceData* SourceData : SourceDatas)
@@ -127,6 +132,33 @@ void Interchange::FImportAsyncHelper::CleanUp()
 
 	//Factories are not instantiate, we use the registered one directly
 	Factories.Empty();
+}
+
+Interchange::FAsyncImportResult::FAsyncImportResult( TFuture< UObject* >&& InFutureObject, const FGraphEventRef& InGraphEvent )
+	: FutureObject( MoveTemp( InFutureObject ) )
+	, GraphEvent( InGraphEvent )
+{
+}
+
+bool Interchange::FAsyncImportResult::IsValid() const
+{
+	return FutureObject.IsValid();
+}
+
+UObject* Interchange::FAsyncImportResult::Get() const
+{
+	if ( !FutureObject.IsReady() )
+	{
+		// Tick the task graph until our FutureObject is ready
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes( GraphEvent );
+	}
+
+	return FutureObject.Get();
+}
+
+Interchange::FAsyncImportResult Interchange::FAsyncImportResult::Next( TFunction< UObject*( UObject* ) > Continuation )
+{
+	return Interchange::FAsyncImportResult{ FutureObject.Next( Continuation ), GraphEvent };
 }
 
 void Interchange::SanitizeInvalidChar(FString& String)
@@ -214,6 +246,11 @@ bool UInterchangeManager::CanTranslateSourceData(const UInterchangeSourceData* S
 
 bool UInterchangeManager::ImportAsset(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
 {
+	return ImportAssetAsync( ContentPath, SourceData, ImportAssetParameters ).IsValid();
+}
+
+Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FString& ContentPath, const UInterchangeSourceData* SourceData, const FImportAssetParameters& ImportAssetParameters)
+{
 	FString PackageBasePath = ContentPath;
 	if(!ImportAssetParameters.ReimportAsset)
 	{
@@ -266,19 +303,25 @@ bool UInterchangeManager::ImportAsset(const FString& ContentPath, const UInterch
 		check(AsyncHelper->BaseNodeContainerAdapters[SourceDataIndex].IsValid());
 		AsyncHelper->BaseNodeContainerAdapters[SourceDataIndex].Get()->SetBaseNodeContainer(&AsyncHelper->BaseNodeContainers[SourceDataIndex]);
 	}
-	
 
-	//Get all pipeline candidate we want for this import
-	TArray<UClass*> PipelineCandidates;
-	FindPipelineCandidate(PipelineCandidates);
-
-	// Stack all pipelines, for this import proto. TODO: We need to be able to control which pipeline we use for the import
-	// It can be set in the project settings and can also be set by a UI where the user create the pipeline stack he want.
-	// This should be a list of available pipelines that can be drop into a stack where you can control the order.
-	for (int32 GraphPipelineNumber = 0; GraphPipelineNumber < PipelineCandidates.Num(); ++GraphPipelineNumber)
+	if ( ImportAssetParameters.OverridePipeline == nullptr )
 	{
-		UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineCandidates[GraphPipelineNumber], NAME_None, RF_NoFlags);
-		AsyncHelper->Pipelines.Add(GeneratedPipeline);
+		//Get all pipeline candidate we want for this import
+		/*TArray<UClass*> PipelineCandidates;
+		FindPipelineCandidate(PipelineCandidates);
+
+		// Stack all pipelines, for this import proto. TODO: We need to be able to control which pipeline we use for the import
+		// It can be set in the project settings and can also be set by a UI where the user create the pipeline stack he want.
+		// This should be a list of available pipelines that can be drop into a stack where you can control the order.
+		for (int32 GraphPipelineNumber = 0; GraphPipelineNumber < PipelineCandidates.Num(); ++GraphPipelineNumber)
+		{
+			UInterchangePipelineBase* GeneratedPipeline = NewObject<UInterchangePipelineBase>(GetTransientPackage(), PipelineCandidates[GraphPipelineNumber], NAME_None, RF_NoFlags);
+			AsyncHelper->Pipelines.Add(GeneratedPipeline);
+		}*/
+	}
+	else
+	{
+		AsyncHelper->Pipelines.Add(ImportAssetParameters.OverridePipeline);
 	}
 
 	//Create/Start import tasks
@@ -317,7 +360,7 @@ bool UInterchangeManager::ImportAsset(const FString& ContentPath, const UInterch
 
 	//The graph parsing task will create the FCreateAssetTask that will run after them, the FAssetImportTask will call the appropriate Post asset import pipeline when the asset is completed
 
-	return true;
+	return Interchange::FAsyncImportResult{ AsyncHelper->RootObject.GetFuture(), AsyncHelper->RootObjectCompletionEvent };
 }
 
 bool UInterchangeManager::ImportScene(const FString& ImportContext, const UInterchangeSourceData* SourceData, bool bIsReimport, bool bIsAutomated)

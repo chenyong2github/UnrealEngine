@@ -24,6 +24,8 @@ namespace UnrealBuildTool.Rules
 					"Foliage",
 					"FreeImage",
 					"InputCore",
+					"InterchangeCore",
+					"InterchangeNodePlugin",
 					"Json",
 					"Landscape",
 					"LandscapeEditor",
@@ -49,7 +51,7 @@ namespace UnrealBuildTool.Rules
 					"UnrealEd",
 					"VariantManager",
 					"VariantManagerContent",
-                }
+				}
 			);
 
 			PublicDependencyModuleNames.AddRange(
@@ -57,11 +59,11 @@ namespace UnrealBuildTool.Rules
 				{
 					"DataprepCore",
 					"DatasmithContent",
-                    "DatasmithCore",
+					"DatasmithCore",
 					"DatasmithTranslator",
-                    "DatasmithContentEditor",
+					"DatasmithContentEditor",
 				}
 			);
-        }
-    }
+		}
+	}
 }

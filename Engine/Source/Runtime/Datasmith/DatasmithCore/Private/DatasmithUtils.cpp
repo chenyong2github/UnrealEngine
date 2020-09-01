@@ -650,6 +650,8 @@ bool FDatasmithSceneUtils::IsPostProcessUsedInScene(const TSharedPtr<IDatasmithS
 
 FString FDatasmithUniqueNameProviderBase::GenerateUniqueName(const FString& BaseName)
 {
+	FScopeLock Lock( &CriticalSection );
+
 	const int32 FrequentlyUsedThreshold = 5; // don't saturate the table with uncommon names
 	if (!Contains(BaseName))
 	{

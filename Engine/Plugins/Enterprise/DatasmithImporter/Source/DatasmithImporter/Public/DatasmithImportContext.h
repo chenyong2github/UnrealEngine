@@ -13,6 +13,7 @@
 
 #include "DatasmithUtils.h"
 #include "DatasmithImportOptions.h"
+#include "InterchangeManager.h"
 
 class AActor;
 class ADatasmithSceneActor;
@@ -52,7 +53,7 @@ class IDatasmithTranslator;
 class DATASMITHIMPORTER_API FDatasmithActorUniqueLabelProvider : public FDatasmithUniqueNameProvider
 {
 public:
-	FDatasmithActorUniqueLabelProvider(UWorld* World=nullptr);
+	explicit FDatasmithActorUniqueLabelProvider(UWorld* World=nullptr);
 	void PopulateLabelFrom(UWorld* World);
 };
 
@@ -255,7 +256,7 @@ struct DATASMITHIMPORTER_API FDatasmithImportContext
 	TMap< FString, TSharedRef < IDatasmithMeshElement > > ImportedStaticMeshesByName;
 
 	/** Map of imported texture for each texture element */
-	TMap< TSharedRef< IDatasmithTextureElement >, UTexture* > ImportedTextures;
+	TMap< TSharedRef< IDatasmithTextureElement >, Interchange::FAsyncImportResult > ImportedTextures;
 
 	/** Map of imported material for each material element */
 	TMap< TSharedRef< IDatasmithBaseMaterialElement >, UMaterialInterface* > ImportedMaterials;
