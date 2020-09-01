@@ -31,6 +31,11 @@ public:
 	// value as the user hits the Compile button.
 	UPROPERTY(EditAnywhere, config, Category = Interaction)
 	bool bResetControlsOnCompile;
+
+	// When this is checked all controls will return to their initial
+	// value as the user interacts with a pin value
+	UPROPERTY(EditAnywhere, config, Category = Interaction)
+	bool bResetControlsOnPinValueInteraction;
 #endif
 
 	static UControlRigSettings * Get() { return CastChecked<UControlRigSettings>(UControlRigSettings::StaticClass()->GetDefaultObject()); }
