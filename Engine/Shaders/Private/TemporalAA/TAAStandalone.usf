@@ -4,6 +4,7 @@
 #include "../Random.ush"
 #include "../EyeAdaptationCommon.ush"
 #include "../TextureSampling.ush"
+#include "../MonteCarlo.ush"
 
 //------------------------------------------------------- COMPILER CONFIG
 
@@ -314,6 +315,11 @@
 	#define AA_SAMPLE_CACHE_METHOD (AA_SAMPLE_CACHE_METHOD_VGPR_3X3)
 #endif
 
+// By default, enable stocastic quantization of the output.
+#ifndef AA_ENABLE_STOCASTIC_QUANTIZATION
+	#define AA_ENABLE_STOCASTIC_QUANTIZATION 1
+#endif
+
 
 //------------------------------------------------------- MENDATORY CONFIG
 
@@ -463,6 +469,7 @@ float4 HistoryBufferUVMinMax;
 
 float4 OutputViewportSize;
 float4 OutputViewportRect;
+float3 OutputQuantizationError;
 
 #if COMPUTESHADER
 RWTexture2D<float4> OutComputeTex_0;
@@ -2252,7 +2259,17 @@ void MainCS(
 	uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
 	if (all(PixelPos < OutputViewportRect.zw))
 	{
-		OutComputeTex_0[PixelPos] = min(MaxHalfFloat.xxxx, OutColor0);
+		float4 FinalOutput0 = min(MaxHalfFloat.xxxx, OutColor0);
+		#if AA_ENABLE_STOCASTIC_QUANTIZATION
+		{
+			uint2 Random = Rand3DPCG16(int3(PixelPos, View.StateFrameIndexMod8)).xy;
+			float2 E = Hammersley16(0, 1, Random);
+
+			FinalOutput0.rgb += FinalOutput0.rgb * (E.x * OutputQuantizationError);
+		}
+		#endif
+
+		OutComputeTex_0[PixelPos] = OutColor0;
 
 		#if HISTORY_RENDER_TARGETS == 2
 			OutComputeTex_1[PixelPos] = OutColor1;
