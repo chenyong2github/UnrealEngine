@@ -1,3 +1,5 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+
 #include "MovieSceneTransformTrailTool.h"
 #include "TrailHierarchy.h"
 #include "MovieSceneTransformTrail.h"
