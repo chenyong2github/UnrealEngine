@@ -48,6 +48,68 @@ static FAutoConsoleVariableRef CVarNiagaraQualityLevel(
 	ECVF_Scalability
 );
 
+// Override platform device profile
+// In editor all profiles will be available
+// On cooked builds only the profiles for that cooked platform will be available
+TWeakObjectPtr<UDeviceProfile> GNiagaraPlatformOverride;
+
+static FAutoConsoleCommand GCmdSetNiagaraPlatformOverride(
+	TEXT("fx.Niagara.SetOverridePlatformName"),
+	TEXT("Sets which platform we should override with, no args means reset to default"),
+	FConsoleCommandWithArgsDelegate::CreateLambda(
+		[](const TArray<FString>& Args)
+		{
+			GNiagaraPlatformOverride.Reset();
+			if (Args.Num() == 0)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Niagara Clearing Override DeviceProfile"));
+			}
+			else
+			{
+				for (UObject* DeviceProfileObj : UDeviceProfileManager::Get().Profiles)
+				{
+					if (UDeviceProfile* Profile = Cast<UDeviceProfile>(DeviceProfileObj))
+					{
+						if (Profile->GetName() == Args[0])
+						{
+							GNiagaraPlatformOverride = Profile;
+							break;
+						}
+					}
+				}
+
+				if (GNiagaraPlatformOverride.IsValid())
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Niagara Setting Override DeviceProfile '%s'"), *Args[0]);
+				}
+				else
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Niagara Failed to Find Override DeviceProfile '%s'"), *Args[0]);
+				}
+			}
+
+			FNiagaraPlatformSet::InvalidateCachedData();
+
+			for (TObjectIterator<UNiagaraSystem> It; It; ++It)
+			{
+				UNiagaraSystem* System = *It;
+				check(System);
+				System->OnQualityLevelChanged();
+			}
+		}
+	)
+);
+
+static UDeviceProfile* NiagaraGetActiveDeviceProfile()
+{
+	UDeviceProfile* ActiveProfile = GNiagaraPlatformOverride.Get();
+	if (ActiveProfile == nullptr)
+	{
+		ActiveProfile = UDeviceProfileManager::Get().GetActiveProfile();
+	}
+	return ActiveProfile;
+}
+
 int32 FNiagaraPlatformSet::CachedQualityLevel = INDEX_NONE;
 
 int32 FNiagaraPlatformSet::GetQualityLevel()
@@ -134,7 +196,7 @@ bool FNiagaraPlatformSet::IsActive()const
 {
 	if (LastBuiltFrame <= LastDirtiedFrame || LastBuiltFrame == 0)
 	{
-		bEnabledForCurrentProfileAndEffectQuality = IsEnabled(UDeviceProfileManager::Get().GetActiveProfile(), GetQualityLevel());
+		bEnabledForCurrentProfileAndEffectQuality = IsEnabled(NiagaraGetActiveDeviceProfile(), GetQualityLevel());
 		LastBuiltFrame = GFrameNumber;
 	}
 	return bEnabledForCurrentProfileAndEffectQuality;
@@ -255,7 +317,7 @@ int32 FNiagaraPlatformSet::GetEffectQualityMaskForDeviceProfile(const UDevicePro
 #else
 
 	//When not in editor we can assume we're asking about the current platform.
-	check(Profile == UDeviceProfileManager::Get().GetActiveProfile());
+	check(Profile == NiagaraGetActiveDeviceProfile());
 	bool bCanChangeEQAtRuntime = CanChangeScalabilityAtRuntime();
 
 	return CreateQualityLevelMask(bCanChangeEQAtRuntime ? INDEX_NONE : GetQualityLevel());
