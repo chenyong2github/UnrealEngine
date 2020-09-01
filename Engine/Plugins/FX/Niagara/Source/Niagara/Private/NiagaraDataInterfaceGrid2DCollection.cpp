@@ -250,7 +250,10 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 	}
 	const UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid2DCollection>(Other);
 
-	return OtherTyped != nullptr && OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter && OtherTyped->bCreateRenderTarget == bCreateRenderTarget;
+	return OtherTyped != nullptr &&
+		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
+		OtherTyped->bCreateRenderTarget == bCreateRenderTarget &&
+		OtherTyped->bUseHalfs == bUseHalfs;
 }
 
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -372,6 +375,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 	UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2DCollection>(Destination);
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 	OtherTyped->bCreateRenderTarget = bCreateRenderTarget;
+	OtherTyped->bUseHalfs = bUseHalfs;
 
 	return true;
 }
@@ -405,6 +409,8 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	InstanceData->NumTiles.Y = NumTilesY;
 	
 	InstanceData->WorldBBoxSize = WorldBBoxSize;
+
+	InstanceData->PixelFormat = bUseHalfs ? EPixelFormat::PF_R16F : EPixelFormat::PF_R32_FLOAT;
 
 	// If we are setting the grid from the voxel size, then recompute NumVoxels and change bbox	
 	if (SetGridFromMaxAxis)
@@ -479,6 +485,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 		TargetData->NumTiles = RT_InstanceData.NumTiles;
 		TargetData->CellSize = RT_InstanceData.CellSize;
 		TargetData->WorldBBoxSize = RT_InstanceData.WorldBBoxSize;
+		TargetData->PixelFormat = RT_InstanceData.PixelFormat;
 
 		RT_Proxy->OutputSimulationStages_DEPRECATED = RT_OutputShaderStages;
 		RT_Proxy->IterationSimulationStages_DEPRECATED = RT_IterationShaderStages;
@@ -831,7 +838,7 @@ void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate()
 
 	if (DestinationData == nullptr)
 	{
-		DestinationData = new FGrid2DBuffer(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y);
+		DestinationData = new FGrid2DBuffer(NumCells.X * NumTiles.X, NumCells.Y * NumTiles.Y, PixelFormat);
 		Buffers.Emplace(DestinationData);
 	}
 }
