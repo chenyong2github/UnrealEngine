@@ -7,8 +7,7 @@
 #include "TrajectoryDrawInfo.h"
 
 #include "Sequencer/MovieSceneControlRigParameterSection.h"
-
-class UAnimSequence;
+#include "Animation/AnimSequence.h"
 
 namespace UE 
 {
