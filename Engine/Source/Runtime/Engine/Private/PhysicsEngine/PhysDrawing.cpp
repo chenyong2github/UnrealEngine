@@ -807,52 +807,30 @@ void FKConvexElem::AddCachedSolidConvexGeom(TArray<FDynamicMeshVertex>& VertexBu
 	const int32 NumIndices = IndexData.Num();
 	if(NumIndices > 0 && ensure(NumIndices % 3 == 0))
 	{
-		int32 BeginOffset = VertexBuffer.Num();
-
-		const int32 NumVerts = VertexData.Num();
 		const int32 NumTriangles = NumIndices / 3;
 
-		// Generate Tangents
-		struct LocalTangents
-		{
-			FVector T[3];
-		};
-
-		TArray<LocalTangents> VertTangents;
-		VertTangents.Init({ { FVector::ZeroVector, FVector::ZeroVector, FVector::ZeroVector } }, VertexData.Num());
 		for(int32 TriIndex = 0; TriIndex < NumTriangles; ++TriIndex)
 		{
 			const int32 Base = TriIndex * 3;
 
-			const int32 I0 = IndexData[Base];
-			const int32 I1 = IndexData[Base + 1];
-			const int32 I2 = IndexData[Base + 2];
+			// Note: we are swapping the winding order of the triangles here from CW to CCW winding (Left handed coordinates)
+			const int32 TriVertexIndex[3] = { IndexData[Base], IndexData[Base + 2], IndexData[Base + 1] };
 
-			const FVector TangentX = (VertexData[I1] - VertexData[I0]).GetSafeNormal();
-			const FVector TangentZ = FPlane(VertexData[I0], VertexData[I1], VertexData[I2]).GetSafeNormal();
-			const FVector TangentY = FVector::CrossProduct(TangentX, TangentZ).GetSafeNormal();
+			const FVector TangentX = (VertexData[TriVertexIndex[1]] - VertexData[TriVertexIndex[0]]).GetSafeNormal();
+			// Note: FPlane assumes CW winding in left handed coordinates and we need CCW (That explains the sign here)
+			const FVector TangentZ = -FPlane(VertexData[TriVertexIndex[0]], VertexData[TriVertexIndex[1]], VertexData[TriVertexIndex[2]]).GetSafeNormal();
+			const FVector TangentY = FVector::CrossProduct(TangentZ, TangentX).GetSafeNormal();
 
-			for(int32 TriVertIndex = 0; TriVertIndex < 3; ++TriVertIndex)
+			for(int32 TriVertCount = 0; TriVertCount < 3; ++TriVertCount)
 			{
-				const int32 Index = IndexData[Base + TriVertIndex];
-				VertTangents[IndexData[Base + TriVertIndex]].T[0] = TangentX;
-				VertTangents[IndexData[Base + TriVertIndex]].T[1] = TangentX;
-				VertTangents[IndexData[Base + TriVertIndex]].T[2] = TangentX;
+				const int32 Index = TriVertexIndex[TriVertCount];
+				FDynamicMeshVertex Vert;
+				Vert.Position = VertexData[Index];
+				Vert.Color = VertexColor;
+				Vert.SetTangents(TangentX, TangentY, TangentZ);
+				VertexBuffer.Add(Vert);
+				IndexBuffer.Add(VertexBuffer.Num() - 1); // Output indices
 			}
-		}
-
-		for(int32 VertIndex = 0; VertIndex < VertexData.Num(); ++VertIndex)
-		{
-			FDynamicMeshVertex Vert;
-			Vert.Position = VertexData[VertIndex];
-			Vert.Color = VertexColor;
-			Vert.SetTangents(VertTangents[VertIndex].T[0], VertTangents[VertIndex].T[1], VertTangents[VertIndex].T[2]);
-			VertexBuffer.Add(Vert);
-		}
-
-		for(int32 Index : IndexData)
-		{
-			IndexBuffer.Add(BeginOffset + Index);
 		}
 	}
 	else
