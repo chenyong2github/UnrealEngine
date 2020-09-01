@@ -1009,10 +1009,10 @@ FD3D12ResourceAllocator::FInitConfig FD3D12DefaultBufferPool::GetResourceAllocat
 		InitConfig.InitialResourceState = D3D12_RESOURCE_STATE_GENERIC_READ;
 	}
 
-	// when UAV is set also support Indirect buffers?
 	InitConfig.HeapFlags = D3D12_HEAP_FLAG_ALLOW_ONLY_BUFFERS;
-	if (InResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS)
+	if (EnumHasAnyFlags(InBufferUsage, BUF_DrawIndirect))
 	{
+		check(InResourceFlags & D3D12_RESOURCE_FLAG_ALLOW_UNORDERED_ACCESS);
 		InitConfig.HeapFlags |= D3D12RHI_HEAP_FLAG_ALLOW_INDIRECT_BUFFERS;
 	}
 
