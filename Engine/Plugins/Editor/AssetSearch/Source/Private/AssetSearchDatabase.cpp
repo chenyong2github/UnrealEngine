@@ -127,7 +127,7 @@ public:
 	}
 
 	 SQLITE_PREPARED_STATEMENT(FGetTotalSearchRecords,
-		"SELECT COUNT(rowid) FROM table_asset_properties;",
+		"SELECT COUNT(assetid) FROM table_asset_properties;",
 		SQLITE_PREPARED_STATEMENT_COLUMNS(int64),
 		SQLITE_PREPARED_STATEMENT_BINDINGS()
 	);
