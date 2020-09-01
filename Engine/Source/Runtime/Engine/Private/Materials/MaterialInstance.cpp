@@ -623,7 +623,7 @@ void UMaterialInstance::InitResources()
 	}
 
 	// Don't use the instance's parent if it has a circular dependency on the instance.
-	if (SafeParent && SafeParent->IsDependent(this))
+	if (SafeParent && SafeParent->IsDependent_Concurrent(this))
 	{
 		SafeParent = NULL;
 	}
@@ -1650,6 +1650,28 @@ bool UMaterialInstance::IsDependent(UMaterialInterface* TestDependency)
 	}
 }
 
+bool UMaterialInstance::IsDependent_Concurrent(UMaterialInterface* TestDependency, TMicRecursionGuard RecursionGuard)
+{
+	if (TestDependency == this)
+	{
+		return true;
+	}
+	else if (Parent)
+	{
+		if (RecursionGuard.Contains(this))
+		{
+			return true;
+		}
+
+		RecursionGuard.Set(this);
+		return Parent->IsDependent_Concurrent(TestDependency, RecursionGuard);
+	}
+	else
+	{
+		return false;
+	}
+}
+
 void UMaterialInstanceDynamic::CopyScalarAndVectorParameters(const UMaterialInterface& SourceMaterialToCopyFrom, ERHIFeatureLevel::Type FeatureLevel)
 {
 	check(IsInGameThread());
@@ -2068,7 +2090,7 @@ void UMaterialInstance::GetStaticParameterValues(FStaticParameterSet& OutStaticP
 
 void UMaterialInstance::GetAllParametersOfType(EMaterialParameterType Type, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	const UMaterial* Material = GetMaterial();
+	const UMaterial* Material = GetMaterial_Concurrent();
 	int32 NumParameters = CachedLayerParameters.GetNumParameters(Type);
 	if (Material)
 	{
@@ -4415,9 +4437,7 @@ void UMaterialInstance::GetBasePropertyOverridesHash(FSHAHash& OutHash)const
 
 bool UMaterialInstance::HasOverridenBaseProperties()const
 {
-	check(IsInGameThread());
-
-	const UMaterial* Material = GetMaterial();
+	const UMaterial* Material = GetMaterial_Concurrent();
 	if (Parent && Material && Material->bUsedAsSpecialEngineMaterial == false &&
 		((FMath::Abs(GetOpacityMaskClipValue() - Parent->GetOpacityMaskClipValue()) > SMALL_NUMBER) ||
 		(GetBlendMode() != Parent->GetBlendMode()) ||
