@@ -1975,7 +1975,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 				GRenderTargetPool.TickPoolElements();
 				FRDGBuilder::TickPoolElements();
-				ICustomResourcePool::TickPoolElements();
+				ICustomResourcePool::TickPoolElements(RHICmdList);
 			});
 	}
 
