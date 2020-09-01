@@ -15,10 +15,10 @@ class FTaskParsing
 {
 private:
 	UInterchangeManager* InterchangeManager;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 	FString PackageBasePath;
 public:
-	FTaskParsing(UInterchangeManager* InInterchangeManager, const FString& InPackageBasePath, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper)
+	FTaskParsing(UInterchangeManager* InInterchangeManager, const FString& InPackageBasePath, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
 		: InterchangeManager(InInterchangeManager)
 		, WeakAsyncHelper(InAsyncHelper)
 		, PackageBasePath(InPackageBasePath)

@@ -297,10 +297,10 @@ public:
 	 * Return an FImportAsynHelper pointer. The pointer is deleted when ReleaseAsyncHelper is call.
 	 * @param Data - The data we want to pass to the different import tasks
 	 */
-	TWeakPtr<Interchange::FImportAsyncHelper> CreateAsyncHelper(const Interchange::FImportAsyncHelperData& Data);
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> CreateAsyncHelper(const Interchange::FImportAsyncHelperData& Data);
 
 	/** Delete the specified AsyncHelper and remove it from the array that was holding it. */
-	void ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper> AsyncHelper);
+	void ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper);
 
 protected:
 
@@ -323,7 +323,7 @@ protected:
 
 private:
 	//By using pointer, there is no issue if the array get resize
-	TArray<TSharedPtr<Interchange::FImportAsyncHelper> > ImportTasks;
+	TArray<TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> > ImportTasks;
 
 	TSharedPtr<FAsyncTaskNotification> Notification = nullptr;
 

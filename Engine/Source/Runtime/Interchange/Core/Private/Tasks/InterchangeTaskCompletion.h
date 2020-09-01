@@ -15,9 +15,9 @@ class FTaskCompletion
 {
 private:
 	UInterchangeManager* InterchangeManager;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 public:
-	FTaskCompletion(UInterchangeManager* InInterchangeManager, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper)
+	FTaskCompletion(UInterchangeManager* InInterchangeManager, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
 		: InterchangeManager(InInterchangeManager)
 		, WeakAsyncHelper(InAsyncHelper)
 	{

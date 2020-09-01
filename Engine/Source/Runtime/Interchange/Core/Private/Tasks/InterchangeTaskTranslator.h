@@ -15,10 +15,10 @@ class FTaskTranslator
 {
 private:
 	int32 SourceIndex = INDEX_NONE;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 
 public:
-	FTaskTranslator(int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper)
+	FTaskTranslator(int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
 		: SourceIndex(InSourceIndex)
 		, WeakAsyncHelper(InAsyncHelper)
 	{

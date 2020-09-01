@@ -16,9 +16,9 @@ class FTaskPipeline
 {
 private:
 	TWeakObjectPtr<UInterchangePipelineBase> PipelineBase;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 public:
-	FTaskPipeline(TWeakObjectPtr<UInterchangePipelineBase> InPipelineBase, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper)
+	FTaskPipeline(TWeakObjectPtr<UInterchangePipelineBase> InPipelineBase, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper)
 		: PipelineBase(InPipelineBase)
 		, WeakAsyncHelper(InAsyncHelper)
 	{

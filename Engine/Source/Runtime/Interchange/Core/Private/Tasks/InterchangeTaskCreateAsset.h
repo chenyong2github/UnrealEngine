@@ -21,12 +21,12 @@ class FTaskCreatePackage
 private:
 	FString PackageBasePath;
 	int32 SourceIndex;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 	const FBaseNode* Node;
 	UInterchangeFactoryBase* Factory;
 
 public:
-	FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+	FTaskCreatePackage(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
 		: PackageBasePath(InPackageBasePath)
 		, SourceIndex(InSourceIndex)
 		, WeakAsyncHelper(InAsyncHelper)
@@ -65,12 +65,12 @@ class FTaskCreateAsset
 private:
 	FString PackageBasePath;
 	int32 SourceIndex;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper;
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper;
 	const FBaseNode* Node;
 	UInterchangeFactoryBase* Factory;
 
 public:
-	FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
+	FTaskCreateAsset(const FString& InPackageBasePath, const int32 InSourceIndex, TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> InAsyncHelper, const Interchange::FBaseNode* InNode, UInterchangeFactoryBase* InFactory)
 		: PackageBasePath(InPackageBasePath)
 		, SourceIndex(InSourceIndex)
 		, WeakAsyncHelper(InAsyncHelper)

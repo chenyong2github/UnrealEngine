@@ -264,8 +264,8 @@ Interchange::FAsyncImportResult UInterchangeManager::ImportAssetAsync(const FStr
 	TaskData.bIsAutomated = ImportAssetParameters.bIsAutomated;
 	TaskData.ImportType = Interchange::EImportType::ImportType_Asset;
 	TaskData.ReimportObject = ImportAssetParameters.ReimportAsset;
-	TWeakPtr<Interchange::FImportAsyncHelper> WeakAsyncHelper = CreateAsyncHelper(TaskData);
-	TSharedPtr<Interchange::FImportAsyncHelper> AsyncHelper = WeakAsyncHelper.Pin();
+	TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> WeakAsyncHelper = CreateAsyncHelper(TaskData);
+	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = WeakAsyncHelper.Pin();
 	check(AsyncHelper.IsValid());
 
 	FText TitleText = NSLOCTEXT("Interchange", "Asynchronous_import_start", "Importing");
@@ -388,9 +388,9 @@ UInterchangeSourceData* UInterchangeManager::CreateSourceData(const FString& InF
 	return SourceDataAsset;
 }
 
-TWeakPtr<Interchange::FImportAsyncHelper> UInterchangeManager::CreateAsyncHelper(const Interchange::FImportAsyncHelperData& Data)
+TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> UInterchangeManager::CreateAsyncHelper(const Interchange::FImportAsyncHelperData& Data)
 {
-	TSharedPtr<Interchange::FImportAsyncHelper> AsyncHelper = MakeShared<Interchange::FImportAsyncHelper>();
+	TSharedPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper = MakeShared<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe>();
 	//Copy the task data
 	AsyncHelper->TaskData = Data;
 	int32 AsyncHelperIndex = ImportTasks.Add(AsyncHelper);
@@ -405,7 +405,7 @@ TWeakPtr<Interchange::FImportAsyncHelper> UInterchangeManager::CreateAsyncHelper
 	return ImportTasks[AsyncHelperIndex];
 }
 
-void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper> AsyncHelper)
+void UInterchangeManager::ReleaseAsyncHelper(TWeakPtr<Interchange::FImportAsyncHelper, ESPMode::ThreadSafe> AsyncHelper)
 {
 	check(AsyncHelper.IsValid());
 	ImportTasks.RemoveSingle(AsyncHelper.Pin());
