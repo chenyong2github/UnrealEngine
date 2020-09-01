@@ -192,6 +192,7 @@ private:
 		FPool* Pool = PoolTable.FindByPredicate([&ExpectedMaxSize](const FPool& InPool) { return ExpectedMaxSize <= InPool.ListSize; });
 		if (!Pool)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(RepList_Pool_Allocation);
 			if (!ForPreAllocation)
 			{
 				UE_LOG(LogReplicationGraph, Warning, TEXT("No pool big enough for requested list size %d. Creating a new pool. (You may want to preallocate a pool of this size or investigate why this size is needed)"), ExpectedMaxSize);
