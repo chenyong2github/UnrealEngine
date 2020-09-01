@@ -3,6 +3,7 @@
 #include "OptimusCoreModule.h"
 
 #include "OptimusObjectVersion.h"
+#include "OptimusDataTypeRegistry.h"
 
 #include "UObject/DevObjectVersion.h"
 #include "Modules/ModuleManager.h"
@@ -15,13 +16,16 @@ static FDevVersionRegistration GRegisterOptimusObjectVersion(FOptimusObjectVersi
 
 void FOptimusCoreModule::StartupModule()
 {
-
+	// Make sure all our types are known at startup.
+	FOptimusDataTypeRegistry::RegisterBuiltinTypes();
 }
 
 
 void FOptimusCoreModule::ShutdownModule()
 {
-
+	FOptimusDataTypeRegistry::UnregisterAllTypes();
 }
 
 IMPLEMENT_MODULE(FOptimusCoreModule, OptimusCore)
+
+DEFINE_LOG_CATEGORY(LogOptimusCore);

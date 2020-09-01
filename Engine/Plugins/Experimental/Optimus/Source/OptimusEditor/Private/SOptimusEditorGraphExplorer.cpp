@@ -4,11 +4,14 @@
 
 #include "OptimusEditor.h"
 #include "OptimusEditorGraphSchema.h"
+#include "OptimusEditorGraphSchemaActions.h"
 #include "SOptimusEditorGraphExplorerItem.h"
 
 #include "IOptimusNodeGraphCollectionOwner.h"
 #include "OptimusDeformer.h"
 #include "OptimusNodeGraph.h"
+#include "OptimusResourceDescription.h"
+#include "OptimusVariableDescription.h"
 
 #include "EditorStyleSet.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -28,22 +31,25 @@
 #define LOCTEXT_NAMESPACE "OptimusGraphExplorer"
 
 
- SOptimusEditorGraphExplorerCommands::SOptimusEditorGraphExplorerCommands()
-    : TCommands<SOptimusEditorGraphExplorerCommands>(
+FOptimusEditorGraphExplorerCommands::FOptimusEditorGraphExplorerCommands()
+	: TCommands<FOptimusEditorGraphExplorerCommands>(
           TEXT("OptimusEditorGraphExplorer"), NSLOCTEXT("Contexts", "Explorer", "Explorer"),
           NAME_None, FEditorStyle::GetStyleSetName())
 {
 }
 
 
-void SOptimusEditorGraphExplorerCommands::RegisterCommands()
+void FOptimusEditorGraphExplorerCommands::RegisterCommands()
 {
 	UI_COMMAND(OpenGraph, "Open Graph", "Opens up this graph in the editor.", EUserInterfaceActionType::Button, FInputChord());
 
 	UI_COMMAND(CreateSetupGraph, "Add New Setup Graph", "Create a new setup graph and show it in the edior.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(CreateTriggerGraph, "Add New Trigger Graph", "Create a new external trigger graph and show it in the edior.", EUserInterfaceActionType::Button, FInputChord());
 
-	UI_COMMAND(DeleteEntry, "Delete", "Deletes this graph, buffer or variable from this deformer.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
+	UI_COMMAND(CreateResource, "Add New Resource", "Create a shader resource.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(CreateVariable, "Add New Variable", "Create a variable on the asset.", EUserInterfaceActionType::Button, FInputChord());
+
+	UI_COMMAND(DeleteEntry, "Delete", "Deletes this graph, resource or variable from this deformer.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
 }
 
 
@@ -101,21 +107,29 @@ void SOptimusEditorGraphExplorer::RegisterCommands()
 	{
 		TSharedPtr<FUICommandList> ToolKitCommandList = Editor->GetToolkitCommands();
 
-		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().OpenGraph,
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().OpenGraph,
 		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnOpenGraph),
 			FCanExecuteAction(), FGetActionCheckState(), 
 			FIsActionButtonVisible::CreateSP(this, &SOptimusEditorGraphExplorer::CanOpenGraph));
 
-		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph,
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph,
 			FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateSetupGraph),
 			FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateSetupGraph)
 			);
 
-		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph,
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph,
 		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateTriggerGraph),
 		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateTriggerGraph));
 
-		ToolKitCommandList->MapAction(SOptimusEditorGraphExplorerCommands::Get().DeleteEntry,
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateResource,
+		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateResource),
+		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateResource));
+
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().CreateVariable,
+		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnCreateVariable),
+		    FCanExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::CanCreateVariable));
+
+		ToolKitCommandList->MapAction(FOptimusEditorGraphExplorerCommands::Get().DeleteEntry,
 		    FExecuteAction::CreateSP(this, &SOptimusEditorGraphExplorer::OnDeleteEntry),
 		    FCanExecuteAction(), FGetActionCheckState(),
 		    FIsActionButtonVisible::CreateSP(this, &SOptimusEditorGraphExplorer::CanDeleteEntry));
@@ -134,7 +148,7 @@ void SOptimusEditorGraphExplorer::CreateWidgets()
 		.ComboButtonStyle(FEditorStyle::Get(), "ToolbarComboButton")
 		.ButtonStyle(FEditorStyle::Get(), "FlatButton.Success")
 		.ForegroundColor(FLinearColor::White)
-		.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new Graph."))
+		.ToolTipText(LOCTEXT("AddNewToolTip", "Add a new item."))
 		.OnGetMenuContent(this, &SOptimusEditorGraphExplorer::CreateAddNewMenuWidget)
 		.HasDownArrow(true)
 		.ContentPadding(FMargin(1, 0, 2, 0))
@@ -270,8 +284,11 @@ void SOptimusEditorGraphExplorer::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 {
 	MenuBuilder.BeginSection("AddNewItem", LOCTEXT("AddOperations", "Add New"));
 
-	MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
-	MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
+	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
+	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
+
+	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateResource);
+	MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().CreateVariable);
 
 	MenuBuilder.EndSection();
 }
@@ -292,11 +309,27 @@ void SOptimusEditorGraphExplorer::CollectAllActions(FGraphActionListBuilderBase&
 	}
 
 	IOptimusNodeGraphCollectionOwner* GraphCollection = Editor->GetGraphCollectionRoot();
+	UOptimusDeformer *Deformer = Cast<UOptimusDeformer>(GraphCollection);
 
 	for (UOptimusNodeGraph* Graph : GraphCollection->GetGraphs())
 	{
-		TSharedPtr<FOptimusSchemaAction_Graph> GraphAction = MakeShared<FOptimusSchemaAction_Graph>(Graph, /*Gropuing=*/1);
+		TSharedPtr<FOptimusSchemaAction_Graph> GraphAction = MakeShared<FOptimusSchemaAction_Graph>(Graph, /*Grouping=*/1);
 		OutAllActions.AddAction(GraphAction);
+	}
+
+	if (Deformer)
+	{
+		for (UOptimusResourceDescription* Resource : Deformer->GetResources())
+		{
+			TSharedPtr<FOptimusSchemaAction_Resource> ResourceAction = MakeShared<FOptimusSchemaAction_Resource>(Resource, /*Grouping=*/2);
+			OutAllActions.AddAction(ResourceAction);
+		}
+
+		for (UOptimusVariableDescription* Variable : Deformer->GetVariables())
+		{
+			TSharedPtr<FOptimusSchemaAction_Variable> VariableAction = MakeShared<FOptimusSchemaAction_Variable>(Variable, /*Grouping=*/3);
+			OutAllActions.AddAction(VariableAction);
+		}
 	}
 }
 
@@ -306,7 +339,7 @@ void SOptimusEditorGraphExplorer::CollectStaticSections(TArray<int32>& StaticSec
 	if (IsShowingEmptySections())
 	{
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Graphs));
-		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Buffers));
+		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Resources));
 		StaticSectionIDs.Add(int32(EOptimusSchemaItemGroup::Variables));
 	}
 }
@@ -355,6 +388,24 @@ void SOptimusEditorGraphExplorer::OnActionSelected(
 			Editor->InspectObject(NodeGraph);
 		}
 	}
+	else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
+		UOptimusResourceDescription* Resource = Editor->GetDeformer()->ResolveResource(ResourceAction->ResourceName);
+		if (Resource)
+		{
+			Editor->InspectObject(Resource);
+		}
+	}
+	else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+	{
+		FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
+		UOptimusVariableDescription* Variable = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
+		if (Variable)
+		{
+			Editor->InspectObject(Variable);
+		}
+	}
 }
 
 void SOptimusEditorGraphExplorer::OnActionDoubleClicked(const TArray<TSharedPtr<FEdGraphSchemaAction>>& InActions)
@@ -394,8 +445,8 @@ TSharedPtr<SWidget> SOptimusEditorGraphExplorer::OnContextMenuOpening()
 	if (SelectionHasContextMenu())
 	{
 		MenuBuilder.BeginSection("BasicOperations");
-		MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().OpenGraph);
-		MenuBuilder.AddMenuEntry(SOptimusEditorGraphExplorerCommands::Get().DeleteEntry);
+		MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().OpenGraph);
+		MenuBuilder.AddMenuEntry(FOptimusEditorGraphExplorerCommands::Get().DeleteEntry);
 		MenuBuilder.EndSection();
 	}
 	else
@@ -434,7 +485,7 @@ bool SOptimusEditorGraphExplorer::CanRenameAction(TSharedPtr<FEdGraphSchemaActio
 {
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 
-	if (Editor.IsValid())
+	if (Editor.IsValid() && InAction.IsValid())
 	{
 		if (InAction->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
 		{
@@ -446,6 +497,12 @@ bool SOptimusEditorGraphExplorer::CanRenameAction(TSharedPtr<FEdGraphSchemaActio
 				// Only trigger graphs can be renamed.
 				return NodeGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger;
 			}
+		}
+		else if (InAction->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId() ||
+				 InAction->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+		{
+			// Resources and variables can always be renamed.
+			return true;
 		}
 	}
 
@@ -464,8 +521,8 @@ FText SOptimusEditorGraphExplorer::OnGetSectionTitle(int32 InSectionID)
 	case EOptimusSchemaItemGroup::Graphs:
 		return NSLOCTEXT("GraphActionNode", "Graphs", "Graphs");
 
-	case EOptimusSchemaItemGroup::Buffers:
-		return NSLOCTEXT("GraphActionNode", "Buffers", "Buffers");
+	case EOptimusSchemaItemGroup::Resources:
+		return NSLOCTEXT("GraphActionNode", "Resources", "Resources");
 
 	case EOptimusSchemaItemGroup::Variables:
 		return NSLOCTEXT("GraphActionNode", "Variables", "Variables");
@@ -489,8 +546,8 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 		AddNewTooltipText = LOCTEXT("AddNewGraphHelp", "Create a new Setup or Trigger graph");
 		break;
 
-	case EOptimusSchemaItemGroup::Buffers:
-		AddNewTooltipText = LOCTEXT("AddNewBufferHelp", "Create a new workbuffer resource");
+	case EOptimusSchemaItemGroup::Resources:
+		AddNewTooltipText = LOCTEXT("AddNewResourceHelp", "Create a new shader resource");
 		break;
 
 	case EOptimusSchemaItemGroup::Variables:
@@ -509,7 +566,7 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 
 
 	TArray<TSharedPtr<FUICommandInfo>> SubCommands = GetSectionMenuCommands(InSectionID);
-	if (SubCommands.Num() != 0)
+	if (SubCommands.Num() > 1)
 	{
 		TSharedPtr<SWidget> AddMenuWidget;
 
@@ -563,15 +620,26 @@ TSharedRef<SWidget> SOptimusEditorGraphExplorer::OnGetSectionWidget(TSharedRef<S
 // Called when the + button on a section is clicked.
 FReply SOptimusEditorGraphExplorer::OnAddButtonClickedOnSection(int32 InSectionID)
 {
-	switch (EOptimusSchemaItemGroup(InSectionID))
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor.IsValid())
 	{
-	case EOptimusSchemaItemGroup::Graphs:
-	case EOptimusSchemaItemGroup::Buffers:
-	case EOptimusSchemaItemGroup::Variables:
-		break;
+		switch (EOptimusSchemaItemGroup(InSectionID))
+		{
+		case EOptimusSchemaItemGroup::Graphs:
+			// Handled by the submenu.
+			break;
+
+		case EOptimusSchemaItemGroup::Resources:
+			Editor->GetToolkitCommands()->ExecuteAction(FOptimusEditorGraphExplorerCommands::Get().CreateResource.ToSharedRef());
+			break;
+
+		case EOptimusSchemaItemGroup::Variables:
+			Editor->GetToolkitCommands()->ExecuteAction(FOptimusEditorGraphExplorerCommands::Get().CreateVariable.ToSharedRef());
+			break;
+		}
 	}
 
-	return FReply::Unhandled();
+	return FReply::Handled();
 }
 
 
@@ -588,12 +656,16 @@ TArray<TSharedPtr<FUICommandInfo>> SOptimusEditorGraphExplorer::GetSectionMenuCo
 	switch (EOptimusSchemaItemGroup(InSectionID))
 	{
 	case EOptimusSchemaItemGroup::Graphs: 
-		Commands.Add(SOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
-		Commands.Add(SOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
+		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateSetupGraph);
+		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateTriggerGraph);
 		break;
 
-	case EOptimusSchemaItemGroup::Buffers:
+	case EOptimusSchemaItemGroup::Resources:
+		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateResource);
+		break;
+
 	case EOptimusSchemaItemGroup::Variables:
+		Commands.Add(FOptimusEditorGraphExplorerCommands::Get().CreateVariable);
 		break;
 	}
 
@@ -706,21 +778,82 @@ bool SOptimusEditorGraphExplorer::CanCreateTriggerGraph()
 }
 
 
+void SOptimusEditorGraphExplorer::OnCreateResource()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+
+		if (Deformer)
+		{
+			// Go with the default type.
+			Deformer->AddResource(FOptimusDataTypeRef());
+		}
+	}
+}
+
+
+bool SOptimusEditorGraphExplorer::CanCreateResource()
+{
+	return OptimusEditor.IsValid();
+}
+
+
+void SOptimusEditorGraphExplorer::OnCreateVariable()
+{
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	if (Editor)
+	{
+		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+
+		if (Deformer)
+		{
+			// Go with the default type.
+			Deformer->AddVariable(FOptimusDataTypeRef());
+		}
+	}
+}
+
+
+bool SOptimusEditorGraphExplorer::CanCreateVariable()
+{
+	return OptimusEditor.IsValid();
+}
+
+
 void SOptimusEditorGraphExplorer::OnDeleteEntry()
 {
 	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
 
 	if (Editor)
 	{
+		UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
+
 		if (FOptimusSchemaAction_Graph* GraphAction = SelectionAsType<FOptimusSchemaAction_Graph>())
 		{
-			UOptimusDeformer* Deformer = Cast<UOptimusDeformer>(Editor->GetGraphCollectionRoot());
-
 			UOptimusNodeGraph* NodeGraph = Deformer->ResolveGraphPath(GraphAction->GraphPath);
 
 			if (NodeGraph)
 			{
 				Deformer->RemoveGraph(NodeGraph);
+			}
+		}
+		else if (FOptimusSchemaAction_Resource* ResourceAction = SelectionAsType<FOptimusSchemaAction_Resource>())
+		{
+			UOptimusResourceDescription* Resource = Deformer->ResolveResource(ResourceAction->ResourceName);
+
+			if (Resource)
+			{
+				Deformer->RemoveResource(Resource);
+			}
+		}
+		else if (FOptimusSchemaAction_Variable* VariableAction = SelectionAsType<FOptimusSchemaAction_Variable>())
+		{
+			UOptimusVariableDescription* Variable = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
+			if (Variable)
+			{
+				Deformer->RemoveVariable(Variable);
 			}
 		}
 	}
@@ -743,6 +876,11 @@ bool SOptimusEditorGraphExplorer::CanDeleteEntry()
 				return NodeGraph->GetGraphType() != EOptimusNodeGraphType::Update;
 			}
 		}
+		else if (SelectionAsType<FOptimusSchemaAction_Resource>() || 
+				 SelectionAsType<FOptimusSchemaAction_Variable>())
+		{
+			return true;
+		}
 	}
 	return false;
 }
@@ -750,7 +888,7 @@ bool SOptimusEditorGraphExplorer::CanDeleteEntry()
 
 void SOptimusEditorGraphExplorer::OnRenameEntry()
 {
-	
+	GraphActionMenu->OnRequestRenameOnActionNode();
 }
 
 

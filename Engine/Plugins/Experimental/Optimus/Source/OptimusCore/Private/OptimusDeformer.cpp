@@ -3,11 +3,17 @@
 #include "OptimusDeformer.h"
 
 #include "Actions/OptimusNodeGraphActions.h"
+#include "Actions/OptimusResourceActions.h"
+#include "Actions/OptimusVariableActions.h"
 #include "OptimusActionStack.h"
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusNodeGraph.h"
-
+#include "OptimusResourceDescription.h"
+#include "OptimusVariableDescription.h"
+#include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodePin.h"
+#include "OptimusCoreModule.h"
 
 #include "UObject/Package.h"
 
@@ -16,6 +22,9 @@
 static const FName SetupGraphName("SetupGraph");
 static const FName UpdateGraphName("UpdateGraph");
 
+static const FName DefaultResourceName("Resource");
+
+static const FName DefaultVariableName("Variable");
 
 
 UOptimusDeformer::UOptimusDeformer()
@@ -69,6 +78,389 @@ UOptimusNodeGraph* UOptimusDeformer::AddTriggerGraph(const FString &InName)
 bool UOptimusDeformer::RemoveGraph(UOptimusNodeGraph* InGraph)
 {
     return GetActionStack()->RunAction<FOptimusNodeGraphAction_RemoveGraph>(InGraph);
+}
+
+
+UOptimusVariableDescription* UOptimusDeformer::AddVariable(
+	FOptimusDataTypeRef InDataTypeRef, 
+	FName InName /*= NAME_None */
+	)
+{
+	if (InName.IsNone())
+	{
+		InName = DefaultVariableName;
+	}
+
+	if (!InDataTypeRef.IsValid())
+	{
+		// Default to float.
+		InDataTypeRef.Set(FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass()));
+	}
+
+	// Is this data type compatible with resources?
+	FOptimusDataTypeHandle DataType = InDataTypeRef.Resolve();
+	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->Flags, EOptimusDataTypeFlags::UseInVariable))
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type for variables."));
+		return nullptr;
+	}
+
+	FOptimusVariableAction_AddVariable* AddVariabAction =
+	    new FOptimusVariableAction_AddVariable(this, InDataTypeRef, InName);
+
+	if (GetActionStack()->RunAction(AddVariabAction))
+	{
+		return AddVariabAction->GetVariable(this);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+
+bool UOptimusDeformer::RemoveVariable(
+	UOptimusVariableDescription* InVariableDesc
+	)
+{
+	if (!ensure(InVariableDesc))
+	{
+		return false;
+	}
+	if (InVariableDesc->GetOuter() != this)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Variable not owned by this deformer."));
+		return false;
+	}
+
+	return GetActionStack()->RunAction<FOptimusVariableAction_RemoveVariable>(InVariableDesc);
+}
+
+
+bool UOptimusDeformer::RenameVariable(
+	UOptimusVariableDescription* InVariableDesc, 
+	FName InNewName
+	)
+{
+	if (InNewName.IsNone())
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Invalid resource name."));
+		return false;
+	}
+	if (InVariableDesc->GetOuter() != this)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Variable not owned by this deformer."));
+		return false;
+	}
+
+	return GetActionStack()->RunAction<FOptimusVariableAction_RenameVariable>(InVariableDesc, InNewName);
+}
+
+
+UOptimusVariableDescription* UOptimusDeformer::ResolveVariable(
+	FName InVariableName
+	)
+{
+	for (UOptimusVariableDescription* Variable : GetVariables())
+	{
+		if (Variable->GetFName() == InVariableName)
+		{
+			return Variable;
+		}
+	}
+	return nullptr;
+}
+
+
+UOptimusVariableDescription* UOptimusDeformer::CreateVariableDirect(
+	FName InName
+	)
+{
+	if (InName.IsNone())
+	{
+		InName = DefaultResourceName;
+	}
+
+	// If there's already an object with this name, then attempt to make the name unique.
+	InName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusVariableDescription::StaticClass(), InName);
+
+	UOptimusVariableDescription* Variable = NewObject<UOptimusVariableDescription>(this, UOptimusVariableDescription::StaticClass(), InName, RF_Transactional);
+
+	MarkPackageDirty();
+
+	return Variable;
+}
+
+
+bool UOptimusDeformer::AddVariableDirect(
+	UOptimusVariableDescription* InVariableDesc
+	)
+{
+	if (!ensure(InVariableDesc))
+	{
+		return false;
+	}
+
+	if (!ensure(InVariableDesc->GetOuter() == this))
+	{
+		return false;
+	}
+
+
+	VariableDescriptions.Add(InVariableDesc);
+
+	Notify(EOptimusGlobalNotifyType::VariableAdded, InVariableDesc);
+
+	return true;
+}
+
+
+bool UOptimusDeformer::RemoveVariableDirect(
+	UOptimusVariableDescription* InVariableDesc
+	)
+{
+	// Do we actually own this resource?
+	int32 ResourceIndex = VariableDescriptions.Add(InVariableDesc);
+	if (ResourceIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	VariableDescriptions.RemoveAt(ResourceIndex);
+
+	Notify(EOptimusGlobalNotifyType::VariableRemoved, InVariableDesc);
+
+	InVariableDesc->Rename(nullptr, GetTransientPackage());
+	InVariableDesc->MarkPendingKill();
+
+	MarkPackageDirty();
+
+	return true;
+}
+
+
+bool UOptimusDeformer::RenameVariableDirect(
+	UOptimusVariableDescription* InVariableDesc, 
+	FName InNewName
+	)
+{
+	// Do we actually own this variable?
+	int32 ResourceIndex = VariableDescriptions.IndexOfByKey(InVariableDesc);
+	if (ResourceIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	InNewName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusVariableDescription::StaticClass(), InNewName);
+
+	bool bChanged = false;
+	if (InVariableDesc->VariableName != InNewName)
+	{
+		InVariableDesc->Modify();
+		InVariableDesc->VariableName = InNewName;
+		bChanged = true;
+	}
+
+	if (InVariableDesc->GetFName() != InNewName)
+	{
+		InVariableDesc->Rename(*InNewName.ToString(), nullptr);
+		bChanged = true;
+	}
+
+	if (bChanged)
+	{
+		Notify(EOptimusGlobalNotifyType::VariableRenamed, InVariableDesc);
+
+		MarkPackageDirty();
+	}
+
+	return bChanged;
+}
+
+
+UOptimusResourceDescription* UOptimusDeformer::AddResource(
+	FOptimusDataTypeRef InDataTypeRef,
+	FName InName
+	)
+{
+	if (InName.IsNone())
+	{
+		InName = DefaultResourceName;
+	}
+
+	if (!InDataTypeRef.IsValid())
+	{
+		// Default to float.
+		InDataTypeRef.Set(FOptimusDataTypeRegistry::Get().FindType(*FFloatProperty::StaticClass()));
+	}
+
+	// Is this data type compatible with resources?
+	FOptimusDataTypeHandle DataType = InDataTypeRef.Resolve();
+	if (!DataType.IsValid() || !EnumHasAnyFlags(DataType->Flags, EOptimusDataTypeFlags::UseInResource))
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Invalid data type for resources."));
+		return nullptr;
+	}
+
+	FOptimusResourceAction_AddResource *AddResourceAction = 	
+	    new FOptimusResourceAction_AddResource(this, InDataTypeRef, InName);
+
+	if (GetActionStack()->RunAction(AddResourceAction))
+	{
+		return AddResourceAction->GetResource(this);
+	}
+	else
+	{
+		return nullptr;
+	}
+}
+
+
+bool UOptimusDeformer::RemoveResource(UOptimusResourceDescription* InResourceDesc)
+{
+	if (!ensure(InResourceDesc))
+	{
+		return false;
+	}
+	if (InResourceDesc->GetOuter() != this)
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Resource not owned by this deformer."));
+		return false;
+	}
+
+	return GetActionStack()->RunAction<FOptimusResourceAction_RemoveResource>(InResourceDesc);
+}
+
+
+bool UOptimusDeformer::RenameResource(
+	UOptimusResourceDescription* InResourceDesc, 
+	FName InNewName
+	)
+{
+	if (InNewName.IsNone())
+	{
+		UE_LOG(LogOptimusCore, Error, TEXT("Invalid resource name."));
+		return false;
+	}
+
+	return GetActionStack()->RunAction<FOptimusResourceAction_RenameResource>(InResourceDesc, InNewName);
+}
+
+
+UOptimusResourceDescription* UOptimusDeformer::ResolveResource(FName InResourceName)
+{
+	for (UOptimusResourceDescription* Resource : GetResources())
+	{
+		if (Resource->GetFName() == InResourceName)
+		{
+			return Resource;
+		}
+	}
+	return nullptr;
+}
+
+
+UOptimusResourceDescription* UOptimusDeformer::CreateResourceDirect(
+	FName InName
+	)
+{
+	if (InName.IsNone())
+	{
+		InName = DefaultResourceName;
+	}
+
+	// If there's already an object with this name, then attempt to make the name unique.
+	InName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusResourceDescription::StaticClass(), InName);
+
+	UOptimusResourceDescription* Resource = NewObject<UOptimusResourceDescription>(this, UOptimusResourceDescription::StaticClass(), InName, RF_Transactional);
+
+	MarkPackageDirty();
+	
+	return Resource;
+}
+
+
+bool UOptimusDeformer::AddResourceDirect(UOptimusResourceDescription* InResourceDesc)
+{
+	if (!ensure(InResourceDesc))
+	{
+		return false;
+	}
+
+	if (!ensure(InResourceDesc->GetOuter() == this))
+	{
+		return false;
+	}
+
+
+	ResourceDescriptions.Add(InResourceDesc);
+
+	Notify(EOptimusGlobalNotifyType::ResourceAdded, InResourceDesc);
+
+	return true;
+}
+
+
+bool UOptimusDeformer::RemoveResourceDirect(
+	UOptimusResourceDescription* InResourceDesc
+	)
+{
+	// Do we actually own this resource?
+	int32 ResourceIndex = ResourceDescriptions.IndexOfByKey(InResourceDesc);
+	if (ResourceIndex == INDEX_NONE)
+	{
+		return false;
+	}
+
+	ResourceDescriptions.RemoveAt(ResourceIndex);
+
+	Notify(EOptimusGlobalNotifyType::ResourceRemoved, InResourceDesc);
+
+	InResourceDesc->Rename(nullptr, GetTransientPackage());
+	InResourceDesc->MarkPendingKill();
+
+	MarkPackageDirty();
+
+	return true;
+}
+
+
+bool UOptimusDeformer::RenameResourceDirect(
+	UOptimusResourceDescription* InResourceDesc, 
+	FName InNewName
+	)
+{
+	// Do we actually own this resource?
+	int32 ResourceIndex = ResourceDescriptions.IndexOfByKey(InResourceDesc);
+	if (ResourceIndex == INDEX_NONE)
+	{
+		return false;
+	}
+	
+	InNewName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusResourceDescription::StaticClass(), InNewName);
+
+	bool bChanged = false;
+	if (InResourceDesc->ResourceName != InNewName)
+	{
+		InResourceDesc->Modify();
+		InResourceDesc->ResourceName = InNewName;
+		bChanged = true;
+	}
+
+	if (InResourceDesc->GetFName() != InNewName)
+	{
+		InResourceDesc->Rename(*InNewName.ToString(), nullptr);
+		bChanged = true;
+	}
+
+	if (bChanged)
+	{
+		Notify(EOptimusGlobalNotifyType::ResourceRenamed, InResourceDesc);
+
+		MarkPackageDirty();
+	}
+
+	return bChanged;
 }
 
 
@@ -129,9 +521,38 @@ UOptimusNode* UOptimusDeformer::ResolveNodePath(
 }
 
 
-void UOptimusDeformer::Notify(EOptimusNodeGraphNotifyType InNotifyType, UOptimusNodeGraph* InGraph)
+void UOptimusDeformer::Notify(EOptimusGlobalNotifyType InNotifyType, UObject* InObject)
 {
-    ModifiedEventDelegate.Broadcast(InNotifyType, InGraph, nullptr);
+	switch (InNotifyType)
+	{
+	case EOptimusGlobalNotifyType::GraphAdded: 
+	case EOptimusGlobalNotifyType::GraphRemoved:
+	case EOptimusGlobalNotifyType::GraphIndexChanged:
+	case EOptimusGlobalNotifyType::GraphRenamed:
+		checkSlow(Cast<UOptimusNodeGraph>(InObject) != nullptr);
+		break;
+
+	case EOptimusGlobalNotifyType::ResourceAdded:
+	case EOptimusGlobalNotifyType::ResourceRemoved:
+	case EOptimusGlobalNotifyType::ResourceIndexChanged:
+	case EOptimusGlobalNotifyType::ResourceRenamed:
+	case EOptimusGlobalNotifyType::ResourceTypeChanged:
+		checkSlow(Cast<UOptimusResourceDescription>(InObject) != nullptr);
+		break;
+
+	case EOptimusGlobalNotifyType::VariableAdded:
+	case EOptimusGlobalNotifyType::VariableRemoved:
+	case EOptimusGlobalNotifyType::VariableIndexChanged:
+	case EOptimusGlobalNotifyType::VariableRenamed:
+	case EOptimusGlobalNotifyType::VariabelTypeChanged:
+		checkSlow(Cast<UOptimusVariableDescription>(InObject) != nullptr);
+		break;
+	default:
+		checkfSlow(false, TEXT("Unchecked EOptimusGlobalNotifyType!"));
+		break;
+	}
+
+	GlobalNotifyDelegate.Broadcast(InNotifyType, InObject);
 }
 
 
@@ -198,11 +619,7 @@ UOptimusNodeGraph* UOptimusDeformer::CreateGraph(
 	}
 
 	// If there's already an object with this name, then attempt to make the name unique.
-	// For soem reason, MakeUniqueObjectName does not already do this check.
-	if (StaticFindObjectFast(UOptimusNodeGraph::StaticClass(), this, InName) != nullptr)
-	{
-		InName = MakeUniqueObjectName(this, UOptimusNodeGraph::StaticClass(), InName);
-	}
+	InName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeGraph::StaticClass(), InName);
 
 	UOptimusNodeGraph* Graph = NewObject<UOptimusNodeGraph>(this, UOptimusNodeGraph::StaticClass(), InName, RF_Transactional);
 
@@ -275,23 +692,21 @@ bool UOptimusDeformer::AddGraph(
 		}
 
 		// Ensure that the object has a unique name within our namespace.
-		FString NewNameStr;
-		
-		if (StaticFindObjectFast(UOptimusNodeGraph::StaticClass(), this, InGraph->GetFName()) != nullptr)
-		{
-			FName NewName = MakeUniqueObjectName(this, UOptimusNodeGraph::StaticClass(), InGraph->GetFName());
-			if (NewName != InGraph->GetFName())
-			{
-				NewNameStr = NewName.ToString();
-			}
-		}
+		FName NewName = Optimus::GetUniqueNameForScopeAndClass(this, UOptimusNodeGraph::StaticClass(), InGraph->GetFName());
 
-		InGraph->Rename(!NewNameStr.IsEmpty() ? *NewNameStr : nullptr, this);
+		if (NewName == InGraph->GetFName())
+		{
+			InGraph->Rename(nullptr, this);
+		}
+		else
+		{
+			InGraph->Rename(*NewName.ToString(), this);
+		}
 	}
 
 	Graphs.Insert(InGraph, InInsertBefore);
 
-	Notify(EOptimusNodeGraphNotifyType::GraphAdded, InGraph);
+	Notify(EOptimusGlobalNotifyType::GraphAdded, InGraph);
 
 	return true;
 }
@@ -316,7 +731,7 @@ bool UOptimusDeformer::RemoveGraph(
 
 	Graphs.RemoveAt(GraphIndex);
 
-	Notify(EOptimusNodeGraphNotifyType::GraphRemoved, InGraph);
+	Notify(EOptimusGlobalNotifyType::GraphRemoved, InGraph);
 
 	if (bDeleteGraph)
 	{
@@ -367,7 +782,7 @@ bool UOptimusDeformer::MoveGraph(
 	Graphs.RemoveAt(GraphOldIndex);
 	Graphs.Insert(InGraph, InInsertBefore);
 
-	Notify(EOptimusNodeGraphNotifyType::GraphIndexChanged, InGraph);
+	Notify(EOptimusGlobalNotifyType::GraphIndexChanged, InGraph);
 
 	return true;
 }
@@ -406,7 +821,7 @@ bool UOptimusDeformer::RenameGraph(UOptimusNodeGraph* InGraph, const FString& In
 	bool bSuccess = GetActionStack()->RunAction<FOptimusNodeGraphAction_RenameGraph>(InGraph, FName(*InNewName));
 	if (bSuccess)
 	{
-		Notify(EOptimusNodeGraphNotifyType::GraphNameChanged, InGraph);
+		Notify(EOptimusGlobalNotifyType::GraphRenamed, InGraph);
 	}
 	return bSuccess;
 }

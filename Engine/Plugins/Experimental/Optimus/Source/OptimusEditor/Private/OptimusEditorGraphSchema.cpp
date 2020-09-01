@@ -2,24 +2,19 @@
 
 #include "OptimusEditorGraphSchema.h"
 
-#include "IOptimusEditor.h"
 #include "OptimusEditorGraph.h"
+#include "OptimusEditorGraphSchemaActions.h"
 #include "OptimusEditorGraphNode.h"
 
+#include "OptimusDataTypeRegistry.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
-#include "Types/OptimusType_MeshAttribute.h"
-#include "Types/OptimusType_MeshSkinWeights.h"
 
 #include "EdGraphSchema_K2.h"
-#include "Toolkits/ToolkitManager.h"
-#include "ScopedTransaction.h"
+#include "Editor.h"
+#include "Styling/SlateIconFinder.h"
 
-
-FName OptimusSchemaPinTypes::Attribute("Optimus_Attribute");
-FName OptimusSchemaPinTypes::Skeleton("Optimus_Skeleton");
-FName OptimusSchemaPinTypes::Mesh("Optimus_Mesh");
 
 static UOptimusNodePin* GetModelPinFromGraphPin(const UEdGraphPin* InGraphPin)
 {
@@ -174,30 +169,66 @@ void UOptimusEditorGraphSchema::GetGraphDisplayInformation(const UEdGraph& Graph
 }
 
 
-FLinearColor UOptimusEditorGraphSchema::GetPinTypeColor(const FEdGraphPinType& PinType) const
+FEdGraphPinType UOptimusEditorGraphSchema::GetPinTypeFromDataType(
+	FOptimusDataTypeHandle InDataType
+	)
 {
-	if (PinType.PinCategory == OptimusSchemaPinTypes::Mesh)
+	FEdGraphPinType PinType;
+
+	if (InDataType.IsValid())
 	{
-		return FLinearColor::White;
-	}
-	else if (PinType.PinCategory == OptimusSchemaPinTypes::Attribute)
-	{
-		if (PinType.PinSubCategory == FName("UOptimusMeshAttribute*"))
-		{
-			return FLinearColor(0.4f, 0.4f, 0.8f, 1.0f);
-		}
-		else if (PinType.PinSubCategory == FName("UOptimusMeshSkinWeights*"))
-		{
-			return FLinearColor(0.4f, 0.8f, 0.8f, 1.0f);
-		}
-	}
-	else if (PinType.PinCategory == OptimusSchemaPinTypes::Skeleton)
-	{
-		return FLinearColor(0.4f, 0.8f, 0.4f, 1.0f);
+		// Set the categories as defined by the registered data type. We hijack the PinSubCategory
+		// so that we can query back to the registry for whether the pin color should come out of the
+		// K2 schema or the registered custom color.
+		PinType.PinCategory = InDataType->PinCategory;
+		PinType.PinSubCategory = InDataType->TypeName;
+		PinType.PinSubCategoryObject = InDataType->PinSubCategory;
 	}
 
-	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(PinType);
+	return PinType;
 }
+
+
+
+FLinearColor UOptimusEditorGraphSchema::GetPinTypeColor(
+	const FEdGraphPinType& InPinType
+	) const
+{
+	// Use the PinSubCategory value to resolve the type. It's set in 
+	// UOptimusEditorGraphSchema::GetPinTypeFromDataType.
+	FOptimusDataTypeHandle DataType = FOptimusDataTypeRegistry::Get().FindType(InPinType.PinSubCategory);
+	
+	// If the data type has custom color, use that. Otherwise fall back on the K2 schema
+	// since we want to be compatible with known types (which also have preferences for them).
+	if (DataType.IsValid() && DataType->bHasCustomPinColor)
+	{
+		return DataType->CustomPinColor;
+	}
+
+	return GetDefault<UEdGraphSchema_K2>()->GetPinTypeColor(InPinType);
+}
+
+
+const FSlateBrush* UOptimusEditorGraphSchema::GetPinTypeIcon(
+	const FEdGraphPinType& InPinType
+	)
+{
+	const FSlateBrush* IconBrush = FEditorStyle::GetBrush(TEXT("Kismet.VariableList.TypeIcon"));
+	const UObject *TypeObject = InPinType.PinSubCategoryObject.Get();
+
+	if (TypeObject)
+	{
+		UClass *VarClass = FindObject<UClass>(ANY_PACKAGE, *TypeObject->GetName());
+		if (VarClass)
+		{
+			IconBrush = FSlateIconFinder::FindIconBrushForClass(VarClass);
+		}
+	}
+
+	return IconBrush;
+}
+
+
 
 
 void UOptimusEditorGraphSchema::TrySetDefaultValue(
@@ -214,67 +245,4 @@ void UOptimusEditorGraphSchema::TrySetDefaultValue(
 
 		ModelPin->SetValueFromString(NewDefaultValue);
 	}
-}
-
-
-UEdGraphNode* FOptimusGraphSchemaAction_NewNode::PerformAction(
-	UEdGraph* InParentGraph, 
-	UEdGraphPin* InFromPin, 
-	const FVector2D InLocation, 
-	bool bInSelectNewNode /*= true*/
-	)
-{
-	check(NodeClass != nullptr);											 
-
-	UOptimusEditorGraph* Graph = Cast<UOptimusEditorGraph>(InParentGraph);
-	
-	if (ensure(Graph != nullptr))
-	{
-		UOptimusNode* ModelNode = Graph->GetModelGraph()->AddNode(NodeClass, InLocation);
-
- 		// FIXME: Automatic connection from the given pin.
-
-		UOptimusEditorGraphNode* GraphNode = Graph->FindGraphNodeFromModelNode(ModelNode);
-		if (GraphNode && bInSelectNewNode)
-		{
-			Graph->SelectNodeSet({GraphNode});
-		}
-		return GraphNode;
-	}
-
-	return nullptr;
-}
-
-static FText GetGraphSubCategory(UOptimusNodeGraph* InGraph)
-{
-	if (InGraph->GetGraphType() == EOptimusNodeGraphType::ExternalTrigger)
-	{
-		return FText::FromString(TEXT("Triggered Graphs"));
-	}
-	else
-	{
-		return FText::GetEmpty();
-	}
-}
-
-static FText GetGraphTooltip(UOptimusNodeGraph* InGraph)
-{
-	return FText::GetEmpty();
-}
-
-
-FOptimusSchemaAction_Graph::FOptimusSchemaAction_Graph(
-	UOptimusNodeGraph* InGraph,
-	int32 InGrouping) : 
-		FEdGraphSchemaAction(
-			GetGraphSubCategory(InGraph), 
-			FText::FromString(InGraph->GetName()), 
-			GetGraphTooltip(InGraph), 
-			InGrouping, 
-			FText(), 
-			int32(EOptimusSchemaItemGroup::Graphs) 
-		), 
-		GraphType(InGraph->GetGraphType())
-{
-	GraphPath = InGraph->GetGraphPath();
 }

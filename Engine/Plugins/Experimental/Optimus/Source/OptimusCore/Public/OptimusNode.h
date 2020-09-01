@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OptimusNodeGraphNotify.h"
+#include "OptimusCoreNotify.h"
 
 #include "UObject/Object.h"
 #include "CoreMinimal.h"
@@ -126,7 +126,7 @@ protected:
 
 private:
 	void Notify(
-		EOptimusNodeGraphNotifyType InNotifyType
+		EOptimusGraphNotifyType InNotifyType
 	);
 
 	void CreatePinsFromStructLayout(

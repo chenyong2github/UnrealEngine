@@ -26,6 +26,8 @@ public:
 		FCreateWidgetForActionData* const InCreateData, 
 		TWeakPtr<FOptimusEditor> InOptimusEditor);
 
+	TSharedRef<SWidget> CreateIconWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly);
+
 	// SWidget overrides
 	// virtual void OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent) override;
 	// End of SWidget Interface

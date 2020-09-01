@@ -17,19 +17,6 @@
 #include "UObject/UObjectGlobals.h"
 
 
-// FObjectReader::Serialize(TArray<uint8>& InBytes) constructor is protected.
-class FBinaryObjectReader : public FObjectReader
-{
-public:
-	FBinaryObjectReader(UObject* Obj, TArray<uint8>& InBytes)
-		: FObjectReader(InBytes)
-	{
-		this->SetWantBinaryPropertySerialization(true);
-		Obj->Serialize(*this);
-	}
-};
-
-
 // ---- Add graph
 
 FOptimusNodeGraphAction_AddGraph::FOptimusNodeGraphAction_AddGraph(
@@ -135,7 +122,7 @@ bool FOptimusNodeGraphAction_RemoveGraph::Undo(IOptimusNodeGraphCollectionOwner*
 
 	// Unserialize all the stored properties (and sub-objects) back onto the new graph.
 	{
-		FBinaryObjectReader GraphArchive(Graph, GraphData);
+		Optimus::FBinaryObjectReader GraphArchive(Graph, GraphData);
 	}
 	
 	// Now add the graph such that interested parties get notified.

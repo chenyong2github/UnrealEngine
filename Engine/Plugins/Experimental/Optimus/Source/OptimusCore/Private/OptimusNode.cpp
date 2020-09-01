@@ -4,6 +4,7 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
+#include "OptimusCoreModule.h"
 #include "OptimusDeformer.h"
 #include "OptimusNodeGraph.h"
 #include "OptimusNodePin.h"
@@ -11,6 +12,8 @@
 #include "Algo/Reverse.h"
 #include "UObject/UObjectIterator.h"
 #include "Misc/StringBuilder.h"
+#include "UObject/Package.h"
+#include "UObject/UObjectGlobals.h"
 
 
 const FName UOptimusNode::CategoryName::Attributes("Attributes");
@@ -71,7 +74,7 @@ bool UOptimusNode::SetDisplayName(FText InDisplayName)
 	
 	DisplayName = InDisplayName;
 
-	Notify(EOptimusNodeGraphNotifyType::NodeDisplayNameChanged);
+	Notify(EOptimusGraphNotifyType::NodeDisplayNameChanged);
 
 	return true;
 }
@@ -93,7 +96,7 @@ bool UOptimusNode::SetGraphPositionDirect(const FVector2D& InPosition)
 
 	GraphPosition = InPosition;
 
-	Notify(EOptimusNodeGraphNotifyType::NodePositionChanged);
+	Notify(EOptimusGraphNotifyType::NodePositionChanged);
 
 	return true;
 }
@@ -206,7 +209,7 @@ TArray<UClass*> UOptimusNode::GetAllNodeClasses()
 }
 
 
-void UOptimusNode::Notify(EOptimusNodeGraphNotifyType InNotifyType)
+void UOptimusNode::Notify(EOptimusGraphNotifyType InNotifyType)
 {
 	UOptimusNodeGraph *Graph = Cast<UOptimusNodeGraph>(GetOuter());
 
@@ -229,18 +232,20 @@ void UOptimusNode::CreatePinsFromStructLayout(
 			// Sub-pins keep the same direction as the parent.
 			CreatePinFromProperty(Property, InParentPin, InParentPin->GetDirection());
 		}
-		else
+		else if (Property->HasMetaData(PropertyMeta::Input))
 		{
-			if (Property->HasMetaData(PropertyMeta::Input))
-			{
-				CreatePinFromProperty(Property, InParentPin, EOptimusNodePinDirection::Input);
-			}
 			if (Property->HasMetaData(PropertyMeta::Output))
 			{
-				CreatePinFromProperty(Property, InParentPin, EOptimusNodePinDirection::Output);
+				UE_LOG(LogOptimusCore, Error, TEXT("Pin on %s.%s marked both input and output. Ignoring it as output."),
+					*GetName(), *Property->GetName());
 			}
-		}
 
+			CreatePinFromProperty(Property, InParentPin, EOptimusNodePinDirection::Input);
+		}
+		else if (Property->HasMetaData(PropertyMeta::Output))
+		{
+			CreatePinFromProperty(Property, InParentPin, EOptimusNodePinDirection::Output);
+		}
 	}
 }
 
@@ -254,7 +259,12 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 	UObject* PinParent = InParentPin ? Cast<UObject>(InParentPin) : this;
 	UOptimusNodePin* Pin = NewObject<UOptimusNodePin>(PinParent, InProperty->GetFName(), RF_Public| RF_Transactional);
 
-	Pin->InitializeFromProperty(InDirection, InProperty);
+	if (!ensure(Pin->InitializeFromProperty(InDirection, InProperty)))
+	{
+		Pin->Rename(nullptr, GetTransientPackage());
+		Pin->MarkPendingKill();
+		return nullptr;
+	}
 
 	if (InParentPin)
 	{
@@ -265,10 +275,13 @@ UOptimusNodePin* UOptimusNode::CreatePinFromProperty(
 		Pins.Add(Pin);
 	}
 
-	if (const FStructProperty* StructProperty = CastField<const FStructProperty>(InProperty))
+	// Add sub-pins, if the registered type is set to show them.
+	if (EnumHasAnyFlags(Pin->GetDataType()->Flags, EOptimusDataTypeFlags::ShowElements))
 	{
-		// FIXME: Whitelisting.
-		CreatePinsFromStructLayout(StructProperty->Struct, Pin);
+		if (const FStructProperty* StructProperty = CastField<const FStructProperty>(InProperty))
+		{
+			CreatePinsFromStructLayout(StructProperty->Struct, Pin);
+		}
 	}
 
 	return Pin;

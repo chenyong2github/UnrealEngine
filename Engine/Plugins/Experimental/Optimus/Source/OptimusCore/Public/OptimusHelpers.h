@@ -3,6 +3,8 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Serialization/ObjectReader.h"
+#include "Serialization/ObjectWriter.h"
 #include "UObject/UObjectGlobals.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Package.h"
@@ -34,4 +36,35 @@ namespace Optimus
 
 		return FoundObject;
 	}
+
+	/** Given an object hierarchy scope, and object class, ensure that the given name is
+	    unique within those parameters. If the name is already unique, it will be returned
+		unchanged. */
+	FName GetUniqueNameForScopeAndClass(UObject *InScopeObj, UClass *InClass, FName InName);
+
+	/** A small helper class to enable binary reads on an archive, since the 
+		FObjectReader::Serialize(TArray<uint8>& InBytes) constructor is protected */
+	class FBinaryObjectReader : public FObjectReader
+	{
+	public:
+		FBinaryObjectReader(UObject* Obj, const TArray<uint8>& InBytes)
+			// FIXME: The constructor is broken. It only needs a const ref.
+		    : FObjectReader(const_cast<TArray<uint8>&>(InBytes))
+		{
+			this->SetWantBinaryPropertySerialization(true);
+			Obj->Serialize(*this);
+		}
+	};
+
+	class FBinaryObjectWriter : public FObjectWriter
+	{
+	public:
+		FBinaryObjectWriter(UObject* Obj, TArray<uint8>& OutBytes)
+		    : FObjectWriter(OutBytes)
+		{
+			this->SetWantBinaryPropertySerialization(true);
+			Obj->Serialize(*this);
+		}
+	};
+
 }

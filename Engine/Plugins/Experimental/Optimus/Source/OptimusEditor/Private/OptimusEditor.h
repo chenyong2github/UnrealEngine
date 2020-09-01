@@ -18,7 +18,7 @@ class UOptimusActionStack;
 class UOptimusDeformer;
 class UOptimusEditorGraph;
 class UOptimusNodeGraph;
-enum class EOptimusNodeGraphNotifyType;
+enum class EOptimusGlobalNotifyType;
 struct FGraphAppearanceInfo;
 
 class FOptimusEditor
@@ -43,6 +43,7 @@ public:
 	}
 
 	IOptimusNodeGraphCollectionOwner* GetGraphCollectionRoot() const;
+	UOptimusDeformer* GetDeformer() const;
 
 	FText GetGraphCollectionRootName() const;
 
@@ -119,10 +120,9 @@ private:
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget();
 	FGraphAppearanceInfo GetGraphAppearance() const;
 
-	void HandleGraphCollectionChanges(
-		EOptimusNodeGraphNotifyType InNotifyType, 
-		UOptimusNodeGraph *InGraph,
-		UObject *InSubject
+	void OnDeformerModified(
+		EOptimusGlobalNotifyType InNotifyType, 
+		UObject *InModifiedObject
 		);
 
 	// Called when the inspector has changed a value.

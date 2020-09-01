@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OptimusNodeGraphNotify.h"
+#include "OptimusCoreNotify.h"
 
 #include "CoreMinimal.h"
 #include "UObject/Interface.h"
@@ -31,9 +31,10 @@ class OPTIMUSCORE_API IOptimusNodeGraphCollectionOwner
 	GENERATED_BODY()
 
 public:
-	/// Returns a multicast delegate that can be subscribed to listen for graph collection events.
+	/// Returns a multicast delegate that can be subscribed to listen for any event happening
+	/// to this graph collection.
 	/// @return The multicast delegate to subscribe to.
-	virtual FOptimusNodeGraphEvent& OnModify() = 0;
+	virtual FOptimusGlobalNotifyDelegate& GetNotifyDelegate() = 0;
 
 	/// Takes a dot-separated path string and attempts to resolve it to a specific graph,
 	/// relative to this graph collection owner.

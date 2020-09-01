@@ -19,14 +19,17 @@ struct FCreateWidgetForActionData;
 struct FEdGraphSchemaAction;
 struct FGraphActionListBuilderBase;
 
-class SOptimusEditorGraphExplorerCommands : public TCommands<SOptimusEditorGraphExplorerCommands>
+class FOptimusEditorGraphExplorerCommands : public TCommands<FOptimusEditorGraphExplorerCommands>
 {
 public:
-	SOptimusEditorGraphExplorerCommands();
+	FOptimusEditorGraphExplorerCommands();
 
 	TSharedPtr<FUICommandInfo> OpenGraph;
 	TSharedPtr<FUICommandInfo> CreateSetupGraph;
 	TSharedPtr<FUICommandInfo> CreateTriggerGraph;
+
+	TSharedPtr<FUICommandInfo> CreateResource;
+	TSharedPtr<FUICommandInfo> CreateVariable;
 
 	TSharedPtr<FUICommandInfo> DeleteEntry;
 
@@ -104,6 +107,12 @@ private:
 
 	void OnCreateTriggerGraph();
 	bool CanCreateTriggerGraph();
+
+	void OnCreateResource();
+	bool CanCreateResource();
+
+	void OnCreateVariable();
+	bool CanCreateVariable();
 
 	void OnDeleteEntry();
 	bool CanDeleteEntry();

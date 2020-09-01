@@ -25,6 +25,9 @@ public:
 	) override;
 
 private:
+	void RegisterPropertyCustomizations();
+	void UnregisterPropertyCustomizations();
+
 	TArray<TSharedRef<IAssetTypeActions>> RegisteredAssetTypeActions;
 
 	TSharedPtr<FOptimusEditorGraphNodeFactory> GraphNodeFactory;

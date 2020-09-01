@@ -39,9 +39,9 @@ int32 UOptimusNodeGraph::GetGraphIndex() const
 }
 
 
-FOptimusNodeGraphEvent& UOptimusNodeGraph::OnModify()
+FOptimusGraphNotifyDelegate& UOptimusNodeGraph::GetNotifyDelegate()
 {
-	return ModifiedEvent;
+	return GraphNotifyDelegate;
 }
 
 
@@ -268,7 +268,7 @@ bool UOptimusNodeGraph::AddNodeDirect(UOptimusNode* InNode)
 
 	Nodes.Add(InNode);
 
-	Notify(EOptimusNodeGraphNotifyType::NodeAdded, InNode);
+	Notify(EOptimusGraphNotifyType::NodeAdded, InNode);
 
 	InNode->MarkPackageDirty();
 
@@ -306,7 +306,7 @@ bool UOptimusNodeGraph::RemoveNodeDirect(
 
 	Nodes.RemoveAt(NodeIndex);
 
-	Notify(EOptimusNodeGraphNotifyType::NodeRemoved, InNode);
+	Notify(EOptimusGraphNotifyType::NodeRemoved, InNode);
 
 	// Unparent this node to a temporary storage and mark it for kill.
 	InNode->Rename(nullptr, GetTransientPackage());
@@ -352,7 +352,7 @@ bool UOptimusNodeGraph::AddLinkDirect(UOptimusNodePin* NodeOutputPin, UOptimusNo
 	NewLink->NodeInputPin = NodeInputPin;
 	Links.Add(NewLink);
 
-	Notify(EOptimusNodeGraphNotifyType::NodeLinkAdded, NewLink);
+	Notify(EOptimusGraphNotifyType::LinkAdded, NewLink);
 
 	NewLink->MarkPackageDirty();
 
@@ -445,7 +445,7 @@ void UOptimusNodeGraph::RemoveLinkByIndex(int32 LinkIndex)
 
 	Links.RemoveAt(LinkIndex);
 
-	Notify(EOptimusNodeGraphNotifyType::NodeLinkRemoved, Link);
+	Notify(EOptimusGraphNotifyType::LinkRemoved, Link);
 
 	// Unparent the link to a temporary storage and mark it for kill.
 	Link->Rename(nullptr, GetTransientPackage());
@@ -515,9 +515,9 @@ bool UOptimusNodeGraph::DoesLinkFormCycle(const UOptimusNodePin* InNodeOutputPin
 }
 
 
-void UOptimusNodeGraph::Notify(EOptimusNodeGraphNotifyType InNotifyType, UObject* InSubject)
+void UOptimusNodeGraph::Notify(EOptimusGraphNotifyType InNotifyType, UObject* InSubject)
 {
-	ModifiedEvent.Broadcast(InNotifyType, this, InSubject);
+	GraphNotifyDelegate.Broadcast(InNotifyType, this, InSubject);
 }
 
 

@@ -8,10 +8,14 @@
 #include "OptimusEditorGraphNodeFactory.h"
 #include "OptimusEditorGraphPinFactory.h"
 #include "SOptimusEditorGraphExplorer.h"
+#include "OptimusDetailsCustomization.h"
+
+#include "OptimusDataType.h"
 
 #include "IAssetTools.h"
 #include "AssetToolsModule.h"
 #include "EdGraphUtilities.h"
+#include "PropertyEditorModule.h"
 
 #define LOCTEXT_NAMESPACE "OptimusEditorModule"
 
@@ -26,21 +30,25 @@ void FOptimusEditorModule::StartupModule()
 	RegisteredAssetTypeActions.Add(OptimusDeformerAssetAction);
 
 	FOptimusEditorCommands::Register();
-	SOptimusEditorGraphExplorerCommands::Register();
+	FOptimusEditorGraphExplorerCommands::Register();
 
 	GraphNodeFactory = MakeShared<FOptimusEditorGraphNodeFactory>();
 	FEdGraphUtilities::RegisterVisualNodeFactory(GraphNodeFactory);
 
 	GraphPinFactory = MakeShared<FOptimusEditorGraphPinFactory>();
 	FEdGraphUtilities::RegisterVisualPinFactory(GraphPinFactory);
+
+	RegisterPropertyCustomizations();
 }
 
 void FOptimusEditorModule::ShutdownModule()
 {
+	UnregisterPropertyCustomizations();
+
 	FEdGraphUtilities::UnregisterVisualPinFactory(GraphPinFactory);
 	FEdGraphUtilities::UnregisterVisualNodeFactory(GraphNodeFactory);
 
-	SOptimusEditorGraphExplorerCommands::Unregister();
+	FOptimusEditorGraphExplorerCommands::Unregister();
 	FOptimusEditorCommands::Unregister();
 
 	FAssetToolsModule* AssetToolsModule = FModuleManager::GetModulePtr<FAssetToolsModule>("AssetTools");
@@ -63,6 +71,32 @@ TSharedRef<IOptimusEditor> FOptimusEditorModule::CreateEditor(const EToolkitMode
 }
 
 
+
+void FOptimusEditorModule::RegisterPropertyCustomizations()
+{
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	PropertyModule.RegisterCustomPropertyTypeLayout(
+		FOptimusDataTypeRef::StaticStruct()->GetFName(), 
+		FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FOptimusDataTypeRefCustomization::MakeInstance)
+		);
+}
+
+
+void FOptimusEditorModule::UnregisterPropertyCustomizations()
+{
+	if (!FModuleManager::Get().IsModuleLoaded("PropertyEditor"))
+	{
+		return;
+	}
+
+	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>("PropertyEditor");
+
+	PropertyModule.UnregisterCustomPropertyTypeLayout(FOptimusDataTypeRef::StaticStruct()->GetFName());
+}
+
+
 IMPLEMENT_MODULE(FOptimusEditorModule, OptimusEditor)
+
 
 #undef LOCTEXT_NAMESPACE

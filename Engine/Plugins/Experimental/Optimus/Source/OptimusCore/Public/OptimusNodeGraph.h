@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OptimusNodeGraphNotify.h"
+#include "OptimusCoreNotify.h"
 
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
@@ -47,8 +47,8 @@ public:
 
 	/// @brief Returns the modify event object that can listened to in case there are changes
 	/// to the graph that need to be reacted to.
-	/// @return The node graph event object.
-	FOptimusNodeGraphEvent &OnModify();
+	/// @return The node core event object.
+	FOptimusGraphNotifyDelegate &GetNotifyDelegate();
 
 #if WITH_EDITOR
 	// Editor/python functions. These all obey undo/redo.
@@ -139,7 +139,7 @@ protected:
 		GraphType = InType;
 	}
 
-	void Notify(EOptimusNodeGraphNotifyType InNotifyType, UObject *InSubject);
+	void Notify(EOptimusGraphNotifyType InNotifyType, UObject *InSubject);
 
 	// The type of graph this represents. 
 	UPROPERTY(VisibleAnywhere, BlueprintReadOnly, Category=Overview)
@@ -174,5 +174,5 @@ private:
 	TArray<UOptimusNodeLink*> Links;
 
 
-	FOptimusNodeGraphEvent ModifiedEvent;
+	FOptimusGraphNotifyDelegate GraphNotifyDelegate;
 };

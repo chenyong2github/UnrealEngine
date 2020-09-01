@@ -15,7 +15,7 @@
 
 #include "OptimusDeformer.h"
 #include "OptimusActionStack.h"
-#include "OptimusNodeGraphNotify.h"
+#include "OptimusCoreNotify.h"
 
 #include "Engine/SkeletalMesh.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -52,7 +52,7 @@ FOptimusEditor::~FOptimusEditor()
 {
 	if (DeformerObject)
 	{
-		DeformerObject->OnModify().RemoveAll(this);
+		DeformerObject->GetNotifyDelegate().RemoveAll(this);
 	}
 }
 
@@ -123,8 +123,8 @@ void FOptimusEditor::Construct(
 		}
 		);
 
-	// Make sure we get told when the graph collection changes.
-	DeformerObject->OnModify().AddRaw(this, &FOptimusEditor::HandleGraphCollectionChanges);
+	// Make sure we get told when the deformer changes.
+	DeformerObject->GetNotifyDelegate().AddRaw(this, &FOptimusEditor::OnDeformerModified);
 
 	if (DeformerObject->Mesh)
 	{
@@ -134,6 +134,12 @@ void FOptimusEditor::Construct(
 
 
 IOptimusNodeGraphCollectionOwner* FOptimusEditor::GetGraphCollectionRoot() const
+{
+	return DeformerObject;
+}
+
+
+UOptimusDeformer* FOptimusEditor::GetDeformer() const
 {
 	return DeformerObject;
 }
@@ -731,29 +737,49 @@ FGraphAppearanceInfo FOptimusEditor::GetGraphAppearance() const
 }
 
 
-void FOptimusEditor::HandleGraphCollectionChanges(
-	EOptimusNodeGraphNotifyType InNotifyType, 
-	UOptimusNodeGraph* InGraph, 
-	UObject* InSubject
+void FOptimusEditor::OnDeformerModified(
+	EOptimusGlobalNotifyType InNotifyType, 
+	UObject* InModifiedObject
 	)
 {
 	switch (InNotifyType)
 	{
-	case EOptimusNodeGraphNotifyType::GraphAdded:
-		SetEditGraph(InGraph);
+	case EOptimusGlobalNotifyType::GraphAdded:
+		SetEditGraph(Cast<UOptimusNodeGraph>(InModifiedObject));
 		RefreshEvent.Broadcast();
 		break;
 
-	case EOptimusNodeGraphNotifyType::GraphIndexChanged:
-	case EOptimusNodeGraphNotifyType::GraphNameChanged:
+	case EOptimusGlobalNotifyType::GraphIndexChanged:
+	case EOptimusGlobalNotifyType::GraphRenamed:
 		RefreshEvent.Broadcast();
 		break;
 
-	case EOptimusNodeGraphNotifyType::GraphRemoved: 
+	case EOptimusGlobalNotifyType::ResourceAdded:
+	case EOptimusGlobalNotifyType::VariableAdded:
+		InspectObject(InModifiedObject);
+		RefreshEvent.Broadcast();
+		break;
+
+	case EOptimusGlobalNotifyType::ResourceRemoved:
+	case EOptimusGlobalNotifyType::VariableRemoved:
+		InspectObject(UpdateGraph);
+		RefreshEvent.Broadcast();
+		break;
+
+	case EOptimusGlobalNotifyType::ResourceRenamed:
+	case EOptimusGlobalNotifyType::ResourceIndexChanged:
+	case EOptimusGlobalNotifyType::VariableRenamed:
+	case EOptimusGlobalNotifyType::VariableIndexChanged:
+		RefreshEvent.Broadcast();
+		break;
+		
+
+	case EOptimusGlobalNotifyType::GraphRemoved: 
 	{
 		// If the currently editing graph is being removed, then switch to the previous graph
 		// or the update graph if no previous graph.
-		if (EditorGraph->NodeGraph == InGraph)
+		UOptimusNodeGraph *RemovedGraph = Cast<UOptimusNodeGraph>(InModifiedObject);
+		if (EditorGraph->NodeGraph == RemovedGraph)
 		{
 			if (ensure(PreviousEditedNodeGraph))
 			{
@@ -761,7 +787,7 @@ void FOptimusEditor::HandleGraphCollectionChanges(
 			}
 			PreviousEditedNodeGraph = UpdateGraph;
 		}
-		else if (PreviousEditedNodeGraph == InGraph)
+		else if (PreviousEditedNodeGraph == RemovedGraph)
 		{
 			PreviousEditedNodeGraph = UpdateGraph;
 		}

@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "OptimusNodeGraphNotify.h"
+#include "OptimusCoreNotify.h"
 
 #include "EdGraph/EdGraph.h"
 #include "Containers/Set.h"
@@ -33,7 +33,7 @@ public:
 	const TSet<UOptimusEditorGraphNode*> &GetSelectedNodes() const { return SelectedNodes; }
 
 	///
-	const FSlateBrush* GetGraphTypeIcon() const;
+	static const FSlateBrush* GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph);
 
 protected:
 	friend class FOptimusEditor;
@@ -49,7 +49,7 @@ private:
 	);
 
 	void HandleNodeGraphModified(
-		EOptimusNodeGraphNotifyType InNotifyType, 
+		EOptimusGraphNotifyType InNotifyType, 
 		UOptimusNodeGraph *InNodeGraph, 
 		UObject *InSubject
 		);

@@ -52,7 +52,7 @@ void UOptimusEditorGraph::InitFromNodeGraph(UOptimusNodeGraph* InNodeGraph)
 	}
 
 	// Listen to notifications from the node graph.
-	InNodeGraph->OnModify().AddUObject(this, &UOptimusEditorGraph::HandleNodeGraphModified);
+	InNodeGraph->GetNotifyDelegate().AddUObject(this, &UOptimusEditorGraph::HandleNodeGraphModified);
 }
 
 
@@ -63,7 +63,7 @@ void UOptimusEditorGraph::Reset()
 		return;
 	}
 
-	NodeGraph->OnModify().RemoveAll(this);
+	NodeGraph->GetNotifyDelegate().RemoveAll(this);
 
 	SelectedNodes.Reset();
 	NodeGraph = nullptr;
@@ -78,7 +78,7 @@ void UOptimusEditorGraph::Reset()
 }
 
 
-const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon() const
+const FSlateBrush* UOptimusEditorGraph::GetGraphTypeIcon(UOptimusNodeGraph* InModelGraph)
 {
 	// FIXME: Need icon types.
 	return FEditorStyle::GetBrush(TEXT("GraphEditor.Animation_24x"));
@@ -123,11 +123,11 @@ void UOptimusEditorGraph::HandleThisGraphModified(const FEdGraphEditAction& InEd
 }
 
 
-void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType InNotifyType, UOptimusNodeGraph* InNodeGraph, UObject* InSubject)
+void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusGraphNotifyType InNotifyType, UOptimusNodeGraph* InNodeGraph, UObject* InSubject)
 {
 	switch (InNotifyType)
 	{
-		case EOptimusNodeGraphNotifyType::NodeAdded:
+		case EOptimusGraphNotifyType::NodeAdded:
 		{
 			UOptimusNode *ModelNode = Cast<UOptimusNode>(InSubject);
 
@@ -142,7 +142,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 		}
 		break;
 
-		case EOptimusNodeGraphNotifyType::NodeRemoved:
+		case EOptimusGraphNotifyType::NodeRemoved:
 		{
 			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
 
@@ -157,8 +157,8 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 		}
 		break;
 
-		case EOptimusNodeGraphNotifyType::NodeLinkAdded:
-		case EOptimusNodeGraphNotifyType::NodeLinkRemoved:
+		case EOptimusGraphNotifyType::LinkAdded:
+		case EOptimusGraphNotifyType::LinkRemoved:
 		{
 			UOptimusNodeLink *ModelNodeLink = Cast<UOptimusNodeLink>(InSubject);
 			UOptimusEditorGraphNode* OutputGraphNode = FindGraphNodeFromModelNode(ModelNodeLink->GetNodeOutputPin()->GetNode());
@@ -172,7 +172,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 				if (ensure(OutputGraphPin) && ensure(InputGraphPin))
 				{
 					Modify();
-					if (InNotifyType == EOptimusNodeGraphNotifyType::NodeLinkAdded)
+					if (InNotifyType == EOptimusGraphNotifyType::LinkAdded)
 					{
 						OutputGraphPin->MakeLinkTo(InputGraphPin);
 					}
@@ -185,13 +185,13 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 		}
 		break;
 
-		case EOptimusNodeGraphNotifyType::NodeDisplayNameChanged:
+		case EOptimusGraphNotifyType::NodeDisplayNameChanged:
 		{
 			ensure(false);
 		}
 		break;
 
-		case EOptimusNodeGraphNotifyType::NodePositionChanged:
+		case EOptimusGraphNotifyType::NodePositionChanged:
 		{
 			UOptimusNode* ModelNode = Cast<UOptimusNode>(InSubject);
 			UOptimusEditorGraphNode* GraphNode = FindGraphNodeFromModelNode(ModelNode);
@@ -204,7 +204,7 @@ void UOptimusEditorGraph::HandleNodeGraphModified(EOptimusNodeGraphNotifyType In
 		}
 		break;
 
-		case EOptimusNodeGraphNotifyType::PinValueChanged:
+		case EOptimusGraphNotifyType::PinValueChanged:
 		{
 			// The pin's value was changed on the model pin itself. The pin has already taken
 			// care of ensuring the value is properly set on the 

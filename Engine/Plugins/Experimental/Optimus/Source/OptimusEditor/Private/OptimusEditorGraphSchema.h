@@ -4,26 +4,13 @@
 
 #include "EdGraph/EdGraphSchema.h"
 
+#include "OptimusDataType.h"
+
 #include "OptimusEditorGraphSchema.generated.h"
 
-enum class EOptimusNodeGraphType;
+struct FOptimusDataType;
+struct FSlateBrush;
 class UOptimusNodeGraph;
-
-namespace OptimusSchemaPinTypes
-{
-	extern FName Attribute;
-	extern FName Skeleton;
-	extern FName Mesh;
-}
-
-
-enum class EOptimusSchemaItemGroup
-{
-	InvalidGroup = 0,
-	Graphs,
-	Variables,
-	Buffers,
-};
 
 
 UCLASS()
@@ -41,6 +28,10 @@ public:
 		const UEdGraphPin *InFromPin,
 		const UEdGraph* InGraph) const;
 
+
+	static FEdGraphPinType GetPinTypeFromDataType(FOptimusDataTypeHandle InDataType);
+	static const FSlateBrush *GetPinTypeIcon(const FEdGraphPinType& InPinType);
+
 	// UEdGraphSchema overrides
 	bool TryCreateConnection(UEdGraphPin* PinA, UEdGraphPin* PinB) const;
 	const FPinConnectionResponse CanCreateConnection(const UEdGraphPin* A, const UEdGraphPin* B) const override;
@@ -53,56 +44,6 @@ public:
 
 	void TrySetDefaultValue(UEdGraphPin& Pin, const FString& NewDefaultValue, bool bMarkAsModified = true) const override;
 
-	FLinearColor GetPinTypeColor(const FEdGraphPinType& PinType) const override;
-
-};
-
-
-/// Action to add a new Optimus node to the graph
-USTRUCT()
-struct FOptimusGraphSchemaAction_NewNode : 
-	public FEdGraphSchemaAction
-{
-	GENERATED_BODY()
-
-	// Inherit the base class's constructors
-	using FEdGraphSchemaAction::FEdGraphSchemaAction;
-
-	UPROPERTY()
-	UClass* NodeClass = nullptr;
-
-	static FName StaticGetTypeId() { static FName Type("FOptimusDeformerGraphSchemaAction_NewNode"); return Type; }
-	FName GetTypeId() const override { return StaticGetTypeId(); }
-
-	// FEdGraphSchemaAction overrides
-	UEdGraphNode* PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode = true) override;
-};
-
-
-/// Reference to a graph.
-USTRUCT()
-struct FOptimusSchemaAction_Graph : 
-	public FEdGraphSchemaAction
-{
-	GENERATED_BODY()
-
-	static FName StaticGetTypeId()
-	{
-		static FName Type("FOptimusSchemaAction_Graph");
-		return Type;
-	}
-	FName GetTypeId() const override { return StaticGetTypeId(); }
-
-	FString GraphPath;
-
-	EOptimusNodeGraphType GraphType;
-
-	FOptimusSchemaAction_Graph() = default;
-
-	FOptimusSchemaAction_Graph(
-	    UOptimusNodeGraph* InGraph,
-	    int32 InGrouping);
-
-	// FEdGraphSchemaAction overrides
-	bool IsParentable() const override { return true; }
+	FLinearColor GetPinTypeColor(const FEdGraphPinType& InPinType) const override;
+	
 };

@@ -2,6 +2,8 @@
 
 #pragma once
 
+#include "OptimusDataType.h"
+
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 
@@ -9,7 +11,7 @@
 
 class UOptimusActionStack;
 class UOptimusNode;
-enum class EOptimusNodeGraphNotifyType;
+enum class EOptimusGraphNotifyType;
 
 
 UENUM()
@@ -59,10 +61,8 @@ public:
 	/// Returns a pin path from a string. Returns an empty array if string is invalid or empty.
 	static TArray<FName> GetPinNamePathFromString(const FString& PinPathString);
 
-	/// Returns the C++ data type string for this 
-	FName GetTypeName() const { return TypeName; }
-
-	UObject* GetTypeObject() const;
+	/** Return the registered Optimus data type associated with this pin */
+	FOptimusDataTypeHandle GetDataType() const { return DataType.Resolve(); }
 
 	/// Returns the FProperty object for this pin. This can be used to directly address the
 	/// node data represented by this pin.
@@ -93,7 +93,7 @@ protected:
 	friend class UOptimusNode;
 
 	// Initialize the pin data from the given direction and property.
-	void InitializeFromProperty(
+	bool InitializeFromProperty(
 		EOptimusNodePinDirection InDirection, 
 		const FProperty* InProperty
 		);
@@ -102,7 +102,7 @@ protected:
 		UOptimusNodePin* InSubPin);
 
 private:
-	void Notify(EOptimusNodeGraphNotifyType InNotifyType);
+	void Notify(EOptimusGraphNotifyType InNotifyType);
 
 	UOptimusActionStack* GetActionStack() const;
 
@@ -110,18 +110,11 @@ private:
 	EOptimusNodePinDirection Direction = EOptimusNodePinDirection::Unknown;
 
 	UPROPERTY()
-	FName TypeName;
-
-	UPROPERTY(transient)
-	mutable UObject* TypeObject = nullptr;
-
-	/// @brief The path to the data type definition so that we can resolve it lazily later.
-	UPROPERTY()
-	FString TypeObjectPath;
+	FOptimusDataTypeRef DataType;
 
 	UPROPERTY()
 	TArray<UOptimusNodePin*> SubPins;
 
-	/// @brief The invalid pin. Used as a sentinel.
+	/// The invalid pin. Used as a sentinel.
 	static UOptimusNodePin* InvalidPin;
 };

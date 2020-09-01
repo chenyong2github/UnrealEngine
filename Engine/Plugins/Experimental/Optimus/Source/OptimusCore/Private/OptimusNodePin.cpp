@@ -4,9 +4,11 @@
 
 #include "Actions/OptimusNodeActions.h"
 #include "OptimusActionStack.h"
+#include "OptimusCoreModule.h"
 #include "OptimusHelpers.h"
 #include "OptimusNode.h"
 #include "OptimusNodeGraph.h"
+#include "OptimusDataTypeRegistry.h"
 
 #include "UObject/Package.h"
 
@@ -117,37 +119,6 @@ TArray<FName> UOptimusNodePin::GetPinNamePathFromString(const FString& PinPathSt
 }
 
 
-UObject* UOptimusNodePin::GetTypeObject() const
-{
-	// A sentinel object to mark a pointer as "invalid but don't try searching again".
-	UObject* SentinelObject = GetClass()->GetDefaultObject();
-
-	if (TypeObject == nullptr && !TypeObjectPath.IsEmpty())
-	{
-		TypeObject = Optimus::FindObjectInPackageOrGlobal<UObject>(TypeObjectPath);
-
-		if (TypeObject == nullptr)
-		{
-			// Use the CDO as a sentinel to indicate that the object was not found and we should
-			// not try to search again.
-			TypeObject = SentinelObject;
-		}
-	}
-
-	
-	if (TypeObject == SentinelObject)
-	{
-		// We tried to find it before but failed, so don't attempt again to avoid repeated
-		// useless resolves.
-		return nullptr;
-	}
-	else
-	{
-		return TypeObject;
-	}
-}
-
-
 FProperty* UOptimusNodePin::GetPropertyFromPin() const
 {
 	UStruct *ScopeStruct = GetNode()->GetClass();
@@ -226,7 +197,7 @@ bool UOptimusNodePin::SetValueFromStringDirect(const FString& InStringValue)
 		FPropertyChangedEvent ChangedEvent(Property);
 		Node->PostEditChangeProperty(ChangedEvent);
 
-		Notify(EOptimusNodeGraphNotifyType::PinValueChanged);
+		Notify(EOptimusGraphNotifyType::PinValueChanged);
 	}
 
 	return bSuccess;
@@ -274,7 +245,7 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 	}
 
 	// Check for incompatible types.
-	if (TypeName != InOtherPin->GetTypeName())
+	if (DataType != InOtherPin->DataType)
 	{
 		// TBD: Automatic conversion.
 		if (OutReason)
@@ -301,47 +272,26 @@ bool UOptimusNodePin::CanCannect(const UOptimusNodePin* InOtherPin, FString* Out
 }
 
 
-void UOptimusNodePin::InitializeFromProperty(
+bool UOptimusNodePin::InitializeFromProperty(
 	EOptimusNodePinDirection InDirection, 
 	const FProperty *InProperty
 	)
 {
-	Direction = InDirection;
-
-	FString ExtendedType;
-	FString TypeString = InProperty->GetCPPType(&ExtendedType);
-	if (!ExtendedType.IsEmpty())
+	if (ensure(InProperty))
 	{
-		TypeString += ExtendedType;
-	}
+		// Is this a legitimate type for pins?
+		const FOptimusDataTypeRegistry& Registry = FOptimusDataTypeRegistry::Get();
 
-	TypeName = *TypeString;
+		DataType = Registry.FindType(*InProperty);
+		Direction = InDirection;
 
-	const FProperty* PropertyForType = InProperty;
-	const FArrayProperty* ArrayProperty = CastField<const FArrayProperty>(PropertyForType);
-	if (ArrayProperty)
-	{
-		PropertyForType = ArrayProperty->Inner;
+		if (!DataType.IsValid())
+		{
+			UE_LOG(LogOptimusCore, Error, TEXT("No registered type found for pin '%s'."), *InProperty->GetName());
+		}
 	}
 
-	if (const FStructProperty* StructProperty = CastField<const FStructProperty>(PropertyForType))
-	{
-		TypeObject = StructProperty->Struct->GetClass();
-	}
-	else if (const FEnumProperty* EnumProperty = CastField<const FEnumProperty>(PropertyForType))
-	{
-		TypeObject = EnumProperty->GetEnum()->GetClass();
-	}
-	else if (const FByteProperty* ByteProperty = CastField<const FByteProperty>(PropertyForType))
-	{
-		TypeObject = ByteProperty->Enum->GetClass();
-	}
-
-	if (TypeObject)
-	{
-		// Store this so that we can restore the type object on load/undo.
-		TypeObjectPath = TypeObject->GetPathName();
-	}
+	return DataType.IsValid();
 }
 
 
@@ -351,7 +301,7 @@ void UOptimusNodePin::AddSubPin(UOptimusNodePin* InSubPin)
 }
 
 
-void UOptimusNodePin::Notify(EOptimusNodeGraphNotifyType InNotifyType)
+void UOptimusNodePin::Notify(EOptimusGraphNotifyType InNotifyType)
 {
 	UOptimusNodeGraph *Graph = GetNode()->GetOwningGraph();
 

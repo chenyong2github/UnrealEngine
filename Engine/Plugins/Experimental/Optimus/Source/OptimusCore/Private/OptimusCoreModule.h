@@ -16,3 +16,5 @@ public:
 
 private:
 };
+
+DECLARE_LOG_CATEGORY_EXTERN(LogOptimusCore, Log, All);

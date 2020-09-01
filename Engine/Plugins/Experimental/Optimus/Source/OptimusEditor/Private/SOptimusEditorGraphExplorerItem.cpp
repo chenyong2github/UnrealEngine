@@ -4,13 +4,110 @@
 
 #include "OptimusActionStack.h"
 #include "OptimusEditor.h"
+#include "OptimusEditorGraph.h"
 #include "OptimusEditorGraphSchema.h"
+#include "OptimusEditorGraphSchemaActions.h"
 #include "OptimusNameValidator.h"
 
 #include "IOptimusNodeGraphCollectionOwner.h"
+#include "OptimusDeformer.h"
 #include "OptimusNodeGraph.h"
+#include "OptimusResourceDescription.h"
+#include "OptimusVariableDescription.h"
+#include "SOptimusDataTypeSelector.h"
 
+#include "Widgets/Images/SImage.h"
+#include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+
+
+class SResourceDataTypeSelectorHelper :
+	public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS( SResourceDataTypeSelectorHelper ) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UOptimusResourceDescription* InResource, TAttribute<bool> bInIsReadOnly)	
+	{
+		WeakResource = InResource;
+
+		ChildSlot
+		[
+			SNew(SOptimusDataTypeSelector)
+			.CurrentDataType(this, &SResourceDataTypeSelectorHelper::OnGetDataType)
+			.TypeMask(EOptimusDataTypeFlags::UseInResource)
+			.ViewType(SOptimusDataTypeSelector::EViewType::IconOnly)
+			.bViewOnly(bInIsReadOnly.Get())			// FIXME: May be dynamic.
+			.OnDataTypeChanged(this, &SResourceDataTypeSelectorHelper::OnDataTypeChanged)
+		];
+	}
+
+private:
+	FOptimusDataTypeHandle OnGetDataType() const
+	{
+		UOptimusResourceDescription *Resource = WeakResource.Get();
+		if (Resource)
+		{
+			return Resource->DataType.Resolve();
+		}
+		else
+		{
+			return FOptimusDataTypeHandle();
+		}
+	}
+
+	void OnDataTypeChanged(FOptimusDataTypeHandle InDataType)
+	{
+		// FIXME: Call command.
+	}
+
+	TWeakObjectPtr<UOptimusResourceDescription> WeakResource;
+};
+
+
+class SVariableDataTypeSelectorHelper : public SCompoundWidget
+{
+public:
+	SLATE_BEGIN_ARGS(SVariableDataTypeSelectorHelper) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, UOptimusVariableDescription* InVariable, TAttribute<bool> bInIsReadOnly)
+	{
+		WeakVariable = InVariable;
+
+		ChildSlot
+		    [SNew(SOptimusDataTypeSelector)
+		            .CurrentDataType(this, &SVariableDataTypeSelectorHelper::OnGetDataType)
+		            .TypeMask(EOptimusDataTypeFlags::UseInVariable)
+		            .ViewType(SOptimusDataTypeSelector::EViewType::IconOnly)
+		            .bViewOnly(bInIsReadOnly.Get()) // FIXME: May be dynamic.
+		            .OnDataTypeChanged(this, &SVariableDataTypeSelectorHelper::OnDataTypeChanged)];
+	}
+
+private:
+	FOptimusDataTypeHandle OnGetDataType() const
+	{
+		UOptimusVariableDescription* Variable = WeakVariable.Get();
+		if (Variable)
+		{
+			return Variable->DataType.Resolve();
+		}
+		else
+		{
+			return FOptimusDataTypeHandle();
+		}
+	}
+
+	void OnDataTypeChanged(FOptimusDataTypeHandle InDataType)
+	{
+		// FIXME: Call command.
+	}
+
+	TWeakObjectPtr<UOptimusVariableDescription> WeakVariable;
+};
+
+
 
 void SOptimusEditorGraphEplorerItem::Construct(
 	const FArguments& InArgs, 
@@ -38,10 +135,72 @@ void SOptimusEditorGraphEplorerItem::Construct(
 
 	ChildSlot
 	[
-		CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly )
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			CreateIconWidget(InCreateData, bIsReadOnly)
+		]
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.f)
+		.VAlign(VAlign_Center)
+		.Padding(/* horizontal */ 3.0f, /* vertical */ 0.0f)
+		[
+			CreateTextSlotWidget( NameFont, InCreateData, bIsReadOnly )
+		]		
 	];
 }
 
+
+TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateIconWidget(FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly)
+{
+	TSharedPtr<FEdGraphSchemaAction> Action = InCreateData->Action;
+	TSharedPtr<FOptimusEditor> Editor = OptimusEditor.Pin();
+	
+	TSharedPtr<SWidget> IconWidget;
+
+	if (ensure(Action) && ensure(Editor))
+	{
+		if (Action->GetTypeId() == FOptimusSchemaAction_Graph::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Graph* GraphAction = static_cast<FOptimusSchemaAction_Graph*>(Action.Get());
+			UOptimusNodeGraph* NodeGraph = Editor->GetGraphCollectionRoot()->ResolveGraphPath(GraphAction->GraphPath);
+			if (ensure(NodeGraph))
+			{
+				IconWidget = SNew(SImage)
+					.Image(UOptimusEditorGraph::GetGraphTypeIcon(NodeGraph));
+			}
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
+			UOptimusResourceDescription* Resource = Editor->GetDeformer()->ResolveResource(ResourceAction->ResourceName);
+			if (ensure(Resource))
+			{
+				
+				IconWidget = SNew(SResourceDataTypeSelectorHelper, Resource, InbIsReadOnly);
+			}
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
+			UOptimusVariableDescription* Variable = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
+			if (ensure(Variable))
+			{
+				IconWidget = SNew(SVariableDataTypeSelectorHelper, Variable, InbIsReadOnly);
+			}
+		}
+	}
+
+	if (IconWidget.IsValid())
+	{
+		return IconWidget.ToSharedRef();
+	}
+	else
+	{
+		return SNullWidget::NullWidget;
+	}
+}
 
 TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(const FSlateFontInfo& NameFont, FCreateWidgetForActionData* const InCreateData, TAttribute<bool> InbIsReadOnly)
 {
@@ -50,7 +209,7 @@ TSharedRef<SWidget> SOptimusEditorGraphEplorerItem::CreateTextSlotWidget(const F
 
 	if (false /* Check for specific action rename options */)
 	{
-
+		
 	}
 	else
 	{
@@ -120,6 +279,17 @@ bool SOptimusEditorGraphEplorerItem::OnNameTextVerifyChanged(
 				OriginalName = NodeGraph->GetFName();
 			}
 		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
+			OriginalName = ResourceAction->ResourceName;
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
+			OriginalName = VariableAction->VariableName;
+		}
+
 
 		TSharedPtr<INameValidatorInterface> NameValidator = MakeShareable(new FOptimusNameValidator(Editor->GetGraphCollectionRoot(), OriginalName));
 
@@ -166,6 +336,24 @@ void SOptimusEditorGraphEplorerItem::OnNameTextCommitted(
 			if (ensure(NodeGraph))
 			{
 				NodeGraph->GetOwnerCollection()->RenameGraph(NodeGraph, NameStr);
+			}
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Resource::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Resource* ResourceAction = static_cast<FOptimusSchemaAction_Resource*>(Action.Get());
+			UOptimusResourceDescription* Resource = Editor->GetDeformer()->ResolveResource(ResourceAction->ResourceName);
+			if (ensure(Resource))
+			{
+				Editor->GetDeformer()->RenameResource(Resource, FName(NameStr));
+			}
+		}
+		else if (Action->GetTypeId() == FOptimusSchemaAction_Variable::StaticGetTypeId())
+		{
+			FOptimusSchemaAction_Variable* VariableAction = static_cast<FOptimusSchemaAction_Variable*>(Action.Get());
+			UOptimusVariableDescription* Variable = Editor->GetDeformer()->ResolveVariable(VariableAction->VariableName);
+			if (ensure(Variable))
+			{
+				Editor->GetDeformer()->RenameVariable(Variable, FName(NameStr));
 			}
 		}
 	}
