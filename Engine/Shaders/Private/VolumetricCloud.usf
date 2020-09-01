@@ -1410,6 +1410,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float DepthKm = 0.0f;
 		float MeanExtinction = 0.0f;
 		float MaxOpticalDepth = 0.0f;
+		float MinTransmittance = 0.0f;
 		float SampleCount = 0.0f;
 
 #if PERMUTATION_SKYAO
@@ -1449,7 +1450,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		CloudShadowData OutputCloudData;
 		OutputCloudData.DepthKm = DepthKm / SampleCount;
 		OutputCloudData.MeanExtinction	= MeanExtinction / SampleCount;
-		OutputCloudData.MaxOpticalDepth	= -log(MaxTransmittance / SampleCount);
+		OutputCloudData.MaxOpticalDepth	= MinTransmittance > 0.0f ? -log(MaxTransmittance / SampleCount) : 100.0f;
 
 		CloudShadowData_WriteDst(OutputCloudData, CenterCoord);
 
@@ -1469,11 +1470,13 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 			const float Weight = GaussianBlur[2][2]; // center
 			DepthKm = Weight * Center.DepthKm;
 			MeanExtinction = Weight * Center.MeanExtinction;
-			MaxOpticalDepth = Weight * Center.MaxOpticalDepth;
+			MinTransmittance = Weight * exp(-Center.MaxOpticalDepth); // We blur in transmittance space for a softer look
 			SampleCount = Weight;
 		}
 		if (Center.MeanExtinction > 0.0f)
 		{
+			const float CloudTextureTexelWorldSizeKm = CloudTextureTexelWorldSizeInvSize.x * CENTIMETER_TO_KILOMETER;
+			const float BilateralBlurthresholdKm = CloudTextureTexelWorldSizeKm * 3.0f; // we accept texel ina range of three texel in distance appart
 			// 5x5 Gaussian blur
 			UNROLL
 			for (int i = -2; i <= 2; ++i)
@@ -1484,12 +1487,12 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 						continue;
 
 					CloudShadowData Data = CloudShadowData_LoadSrc(CenterCoord + int2(i, j));
-					if (Data.MeanExtinction > 0.0f)
+					if (Data.MeanExtinction > 0.0f && abs(Data.DepthKm - Center.DepthKm) < BilateralBlurthresholdKm)
 					{
 						const float Weight = GaussianBlur[2 + i][2 + j];
 						DepthKm += Data.DepthKm * Weight;
 						MeanExtinction += Data.MeanExtinction * Weight;
-						MaxOpticalDepth += Data.MaxOpticalDepth * Weight;
+						MinTransmittance += exp(-Data.MaxOpticalDepth) * Weight;
 						SampleCount += Weight;
 					}
 				}
@@ -1500,7 +1503,7 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		{
 			Center.DepthKm = DepthKm / SampleCount;
 			Center.MeanExtinction = MeanExtinction / SampleCount;
-			Center.MaxOpticalDepth = MaxOpticalDepth / SampleCount;
+			Center.MaxOpticalDepth = MinTransmittance > 0.0f ? -log(MinTransmittance / SampleCount) : 100.0f;
 		}
 
 		CloudShadowData_WriteDst(Center, CenterCoord);
@@ -1560,5 +1563,55 @@ void MainDrawDebugShadowCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #endif // SHADER_DEBUG_SHADOW_CS
 
+
+
+#if SHADER_SHADOW_TEMPORAL_PROCESS_CS
+
+SamplerState BilinearSampler;
+Texture2D<float3> CurrCloudShadowTexture;
+Texture2D<float3> PrevCloudShadowTexture;
+RWTexture2D<float3> OutCloudShadowTexture;
+
+float4x4 CurrFrameCloudShadowmapWorldToLightClipMatrixInv;
+float4x4 PrevFrameCloudShadowmapWorldToLightClipMatrix;
+
+float4 CloudTextureSizeInvSize;
+float TemporalFactor;
+uint PreviousDataIsValid;
+
+[numthreads(8, 8, 1)]
+void MainShadowTemporalProcessCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	ResolvedView = ResolveView();
+
+	if (all(DispatchThreadId.xy < uint2(CloudTextureSizeInvSize.xy)))
+	{
+		const int2 CenterCoord = int2(DispatchThreadId.xy);
+		const float2 CenterUV = (float2(DispatchThreadId.xy) + 0.5f) * CloudTextureSizeInvSize.zw;
+
+		float3 CurrCloudShadowData = CurrCloudShadowTexture.Load(uint3(CenterCoord, 0));
+
+		float3 FilteredData = CurrCloudShadowData;
+		if (PreviousDataIsValid)
+		{
+			const float DummyDepth = 0.5f;
+			float4 ClipCoord = float4(CenterUV * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), DummyDepth, 1.0f);
+			float4 HomogeneousCoord = mul(ClipCoord, CurrFrameCloudShadowmapWorldToLightClipMatrixInv);
+			float3 WorldPos = HomogeneousCoord.xyz / HomogeneousCoord.www;
+			ClipCoord = mul(float4(WorldPos, 1.0f), PrevFrameCloudShadowmapWorldToLightClipMatrix);
+			ClipCoord /= ClipCoord.wwww;
+			float2 PreviousUVs = 0.5f + float2(0.5f, -0.5f) * ClipCoord;
+
+			float3 PrevCloudShadowData = PrevCloudShadowTexture.SampleLevel(BilinearSampler, PreviousUVs, 0);
+
+			// A very simple filter for now that does work well for reasonable atmospheric light rotations.
+			FilteredData = PrevCloudShadowData + TemporalFactor * (CurrCloudShadowData - PrevCloudShadowData);
+			//FilteredData.x = CurrCloudShadowData.x; // do not filter depth otherwise we can drift and self shadowing becomes too impoirtant.
+		}
+		OutCloudShadowTexture[CenterCoord] = max(0.0, FilteredData);
+	}
+}
+
+#endif // SHADER_SHADOW_FILTER_CS
 
 

@@ -95,6 +95,45 @@ private:
 };
 
 
+class FTemporalRenderTargetState
+{
+
+public:
+
+	FTemporalRenderTargetState();
+	~FTemporalRenderTargetState();
+
+	void Initialise(FIntPoint& ResolutionIn, EPixelFormat FormatIn);
+
+	FRDGTextureRef GetOrCreateCurrentRT(FRDGBuilder& GraphBuilder);
+	void ExtractCurrentRT(FRDGBuilder& GraphBuilder, FRDGTextureRef RDGRT);
+
+	FRDGTextureRef GetOrCreatePreviousRT(FRDGBuilder& GraphBuilder);
+
+	bool GetHistoryValid() const { return bHistoryValid; }
+
+	bool CurrentIsValid() const { return RenderTargets[CurrentRT].IsValid(); }
+	TRefCountPtr<IPooledRenderTarget> CurrentRenderTarget() const { return RenderTargets[CurrentRT]; }
+
+	uint32 GetCurrentIndex() { return CurrentRT; }
+	uint32 GetPreviousIndex() { return 1 - CurrentRT; }
+
+	void Reset();
+
+private:
+
+	uint32 CurrentRT;
+	int32 FrameId;
+
+	bool bFirstTimeUsed;
+	bool bHistoryValid;
+
+	FIntPoint Resolution;
+	EPixelFormat Format;
+
+	static constexpr uint32 kRenderTargetCount = 2;
+	TRefCountPtr<IPooledRenderTarget> RenderTargets[kRenderTargetCount];
+};
 
 
 
