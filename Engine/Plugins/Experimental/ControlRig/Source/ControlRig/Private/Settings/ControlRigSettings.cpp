@@ -7,6 +7,7 @@ UControlRigSettings::UControlRigSettings(const FObjectInitializer& ObjectInitial
 {
 #if WITH_EDITORONLY_DATA
 	DefaultGizmoLibrary = LoadObject<UControlRigGizmoLibrary>(nullptr, TEXT("/ControlRig/Controls/DefaultGizmoLibrary.DefaultGizmoLibrary"));
+	bResetControlsOnCompile = true;
 #endif
 }
 

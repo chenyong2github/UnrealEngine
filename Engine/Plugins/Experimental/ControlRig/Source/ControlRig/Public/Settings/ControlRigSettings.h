@@ -26,6 +26,11 @@ public:
 #if WITH_EDITORONLY_DATA
 	UPROPERTY(EditAnywhere, config, Category = DefaultGizmo)
 	TAssetPtr<UControlRigGizmoLibrary> DefaultGizmoLibrary;
+
+	// When this is checked all controls will return to their initial
+	// value as the user hits the Compile button.
+	UPROPERTY(EditAnywhere, config, Category = Interaction)
+	bool bResetControlsOnCompile;
 #endif
 
 	static UControlRigSettings * Get() { return CastChecked<UControlRigSettings>(UControlRigSettings::StaticClass()->GetDefaultObject()); }
