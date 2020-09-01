@@ -4,13 +4,11 @@
 #include "ViewModels/Stack/NiagaraStackFunctionInput.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
 #include "NiagaraNodeFunctionCall.h"
-#include "NiagaraEmitterEditorData.h"
 #include "EdGraphSchema_Niagara.h"
 #include "ViewModels/NiagaraEmitterViewModel.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraConstants.h"
 #include "NiagaraGraph.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraClipboard.h"
@@ -18,6 +16,7 @@
 #include "EdGraph/EdGraphPin.h"
 #include "ScopedTransaction.h"
 #include "NiagaraEditorUtilities.h"
+#include "NiagaraNodeOutput.h"
 #include "Containers/ContainerAllocationPolicies.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
@@ -125,7 +124,7 @@ void UNiagaraStackFunctionInputCollection::RefreshChildrenInternal(const TArray<
 	TSet<const UEdGraphPin*> HiddenPins;
 	TArray<const UEdGraphPin*> InputPins;
 	FCompileConstantResolver ConstantResolver = GetEmitterViewModel().IsValid() 
-		? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter()) 
+		? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*InputFunctionCallNode)->GetUsage()) 
 		: FCompileConstantResolver();
 	FNiagaraStackGraphUtilities::GetStackFunctionInputPins(*InputFunctionCallNode, InputPins, HiddenPins, ConstantResolver, FNiagaraStackGraphUtilities::ENiagaraGetStackFunctionInputPinsOptions::ModuleInputsOnly);
 

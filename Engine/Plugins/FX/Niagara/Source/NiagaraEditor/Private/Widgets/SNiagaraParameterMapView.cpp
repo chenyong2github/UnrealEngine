@@ -4,7 +4,6 @@
 #include "SNiagaraParameterMapPaletteItem.h"
 #include "NiagaraObjectSelection.h"
 #include "Widgets/Images/SImage.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "NiagaraCommon.h"
@@ -15,13 +14,11 @@
 #include "NiagaraGraph.h"
 #include "NiagaraParameterStore.h"
 #include "NiagaraNodeWithDynamicPins.h"
-#include "NiagaraNodeParameterMapBase.h"
 #include "NiagaraNodeAssignment.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraActions.h"
 #include "SGraphActionMenu.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
-#include "IDetailsView.h"
 #include "DetailLayoutBuilder.h"
 #include "NiagaraConstants.h"
 #include "EdGraph/EdGraphSchema.h"
@@ -36,11 +33,9 @@
 #include "ScopedTransaction.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraScriptVariable.h"
-#include "Widgets/SPanel.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/SToolTip.h"
-#include "NiagaraSystemEditorData.h"
 #include "ViewModels/Stack/NiagaraStackSystemSettingsGroup.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "SNiagaraGraphActionWidget.h"
@@ -685,7 +680,7 @@ void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVa
 			FNiagaraParameterMapHistoryBuilder Builder;
 			UNiagaraEmitter* GraphOwningEmitter = Graph->GetTypedOuter<UNiagaraEmitter>();
 			FCompileConstantResolver ConstantResolver = GraphOwningEmitter != nullptr
-				? FCompileConstantResolver(GraphOwningEmitter)
+				? FCompileConstantResolver(GraphOwningEmitter, ENiagaraScriptUsage::Function)
 				: FCompileConstantResolver();
 
 			Builder.SetIgnoreDisabled(bIgnoreDisabled);

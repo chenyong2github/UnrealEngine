@@ -3,12 +3,9 @@
 #include "NiagaraParameterMapHistory.h"
 
 #include "NiagaraEditorCommon.h"
-#include "AssetData.h"
 #include "NiagaraHlslTranslator.h"
 #include "NiagaraSystem.h"
 #include "NiagaraGraph.h"
-#include "ActorFactoryNiagara.h"
-#include "NiagaraActor.h"
 #include "EdGraphSchema_Niagara.h"
 #include "NiagaraNode.h"
 #include "NiagaraCompiler.h"
@@ -16,7 +13,6 @@
 #include "NiagaraNodeOutput.h"
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeParameterMapGet.h"
-#include "ViewModels/Stack/NiagaraStackEntry.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraParameterCollection.h"
 #include "NiagaraConstants.h"
@@ -1495,14 +1491,14 @@ bool FCompileConstantResolver::ResolveConstant(FNiagaraVariable& OutConstant) co
 	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptUsageEnum(), TEXT("Script.Usage")))
 	{
 		FNiagaraInt32 EnumValue;
-		EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Default;
+		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(Usage);
 		OutConstant.SetValue(EnumValue);
 		return true;
 	}
 	if (Emitter && OutConstant == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context")))
 	{
 		FNiagaraInt32 EnumValue;
-		EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Particle;
+		EnumValue.Value = (uint8)FNiagaraUtilities::ConvertScriptUsageToStaticSwitchContext(Usage);
 		OutConstant.SetValue(EnumValue);
 		return true;
 	}
