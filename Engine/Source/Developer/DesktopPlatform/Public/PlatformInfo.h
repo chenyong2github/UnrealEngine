@@ -104,6 +104,7 @@ namespace PlatformInfo
 	struct FPreviewPlatformMenuItem
 	{
 		FName PlatformName;
+		FName ShaderFormat;
 		FString ActiveIconPath;
 		FName ActiveIconName;
 		FString InactiveIconPath;
@@ -111,6 +112,7 @@ namespace PlatformInfo
 		FText MenuText;
 		FText MenuTooltip;
 		FText IconText;
+		FName DeviceProfileName;
 	};
 
 	/** Information about a given platform */

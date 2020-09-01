@@ -173,6 +173,9 @@ public:
 	UPROPERTY(config)
 	bool bPreviewFeatureLevelActive;
 
+	UPROPERTY(config)
+	FName PreviewDeviceProfileName;
+
 public:
 
 	/** Delegate for when a user setting has changed */

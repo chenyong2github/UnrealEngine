@@ -204,15 +204,15 @@ void ParseDataDrivenPreviewPlatform(const TCHAR* Name, const FConfigSection& Sec
 	FName PlatformName = *GetSectionString(Section, FName("PlatformName"));
 	checkf(PlatformName != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a PlatformName"), Name);
 
-	FName ShaderFormat = *GetSectionString(Section, FName("ShaderFormat"));
-	checkf(ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), Name);
-
-	FPreviewPlatformMenuItem& Item = PreviewPlatformMenuItems.FindOrAdd(ShaderFormat);
+	FPreviewPlatformMenuItem& Item = PreviewPlatformMenuItems.FindOrAdd(PlatformName);
 	Item.PlatformName = PlatformName;
+	Item.ShaderFormat = *GetSectionString(Section, FName("ShaderFormat"));
+	checkf(Item.ShaderFormat != NAME_None, TEXT("DataDrivenPlatformInfo section [PreviewPlatform %s] must specify a ShaderFormat"), Name);
 	Item.ActiveIconPath = GetSectionString(Section, FName("ActiveIconPath"));
 	Item.ActiveIconName = *GetSectionString(Section, FName("ActiveIconName"));
 	Item.InactiveIconPath = GetSectionString(Section, FName("InactiveIconPath"));
 	Item.InactiveIconName = *GetSectionString(Section, FName("InactiveIconName"));
+	Item.DeviceProfileName = *GetSectionString(Section, FName("DeviceProfileName"));
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuText")), Item.MenuText);
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("MenuTooltip")), Item.MenuTooltip);
 	FTextStringHelper::ReadFromBuffer(*GetSectionString(Section, FName("IconText")), Item.IconText);
