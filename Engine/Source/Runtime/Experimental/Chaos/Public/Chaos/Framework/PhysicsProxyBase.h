@@ -15,7 +15,8 @@ enum class EPhysicsProxyType
 	SingleGeometryParticleType = 5,
 	SingleKinematicParticleType = 6,
 	SingleRigidParticleType = 7,
-	JointConstraintType = 8
+	JointConstraintType = 8,
+	SuspensionConstraintType = 9
 };
 
 namespace Chaos

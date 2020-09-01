@@ -4,51 +4,20 @@
 
 namespace Chaos
 {
-
 	FJointConstraint::FJointConstraint()
-		: Proxy(nullptr)
-		, JointParticles({ nullptr,nullptr })
+		: FConstraintBase(EConstraintType::JointConstraintType)
 		, JointTransforms({ FTransform::Identity, FTransform::Identity })
 		, UserData(nullptr)
 	{
 	}
 
-
-
-	void FJointConstraint::SetProxy(IPhysicsProxyBase* InProxy)
-	{
-		Proxy = InProxy;
-		if (Proxy)
-		{
-			if (FPhysicsSolverBase* PhysicsSolverBase = Proxy->GetSolver<FPhysicsSolverBase>())
-			{
-				PhysicsSolverBase->AddDirtyProxy(Proxy);
-			}
-		}
-	}
-
-	bool FJointConstraint::IsValid() const
-	{
-		return Proxy != nullptr;
-	}
-
-	FJointConstraint::FParticlePair FJointConstraint::GetJointParticles() { return JointParticles; }
-	const FJointConstraint::FParticlePair FJointConstraint::GetJointParticles() const { return JointParticles; }
-	void FJointConstraint::SetJointParticles(const Chaos::FJointConstraint::FParticlePair& InJointParticles)
-	{
-		JointParticles[0] = InJointParticles[0];
-		JointParticles[1] = InJointParticles[1];
-	}
-
-
 	FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() { return JointTransforms; }
 	const FJointConstraint::FTransformPair FJointConstraint::GetJointTransforms() const { return JointTransforms; }
-	void FJointConstraint::SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointParticles)
+	void FJointConstraint::SetJointTransforms(const Chaos::FJointConstraint::FTransformPair& InJointTransforms)
 	{
-		JointTransforms[0] = InJointParticles[0];
-		JointTransforms[1] = InJointParticles[1];
+		JointTransforms[0] = InJointTransforms[0];
+		JointTransforms[1] = InJointTransforms[1];
 	}
-
 
 	void FJointConstraint::SetLinearPositionDriveEnabled(TVector<bool,3> Enabled)
 	{

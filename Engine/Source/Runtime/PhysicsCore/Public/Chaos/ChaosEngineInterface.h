@@ -211,7 +211,9 @@ namespace Chaos
 	template <typename T, int>
 	class TSphere;
 
+	class FConstraintBase;
 	class FJointConstraint;
+	class FSuspensionConstraint;
 
 	class FTriangleMeshImplicitObject;
 }
@@ -233,10 +235,12 @@ public:
 
 	bool IsValid() const;
 
-	Chaos::FJointConstraint* operator->() { return Constraint; }
-	const Chaos::FJointConstraint* operator->() const { return Constraint; }
 
-	Chaos::FJointConstraint* Constraint;
+
+	Chaos::FConstraintBase* operator->() { return Constraint; }
+	const Chaos::FConstraintBase* operator->() const { return Constraint; }
+
+	Chaos::FConstraintBase* Constraint;
 };
 
 class PHYSICSCORE_API FPhysicsShapeReference_Chaos
@@ -449,6 +453,7 @@ public:
 	static SIZE_T GetResourceSizeEx(const FPhysicsActorHandle& InActorRef);
 
 	static FPhysicsConstraintHandle CreateConstraint(const FPhysicsActorHandle& InActorRef1,const FPhysicsActorHandle& InActorRef2,const FTransform& InLocalFrame1,const FTransform& InLocalFrame2);
+	static FPhysicsConstraintHandle CreateSuspension(const FPhysicsActorHandle& InActorRef, const FVector& InLocalFrame);
 	static void SetConstraintUserData(const FPhysicsConstraintHandle& InConstraintRef,void* InUserData);
 	static void ReleaseConstraint(FPhysicsConstraintHandle& InConstraintRef);
 

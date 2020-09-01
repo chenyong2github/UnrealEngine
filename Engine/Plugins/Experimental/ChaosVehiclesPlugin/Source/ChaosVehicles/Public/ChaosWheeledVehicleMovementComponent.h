@@ -8,6 +8,7 @@
 #include "ChaosVehicleMovementComponent.h"
 #include "Curves/CurveFloat.h"
 #include "VehicleUtility.h"
+#include "Chaos/PBDSuspensionConstraints.h"
 #include "ChaosWheeledVehicleMovementComponent.generated.h"
 
 #if VEHICLE_DEBUGGING_ENABLED
@@ -30,6 +31,8 @@ struct FWheeledVehicleDebugParams
 	float SteeringOverride = 0.f;
 
 	bool ResetPerformanceMeasurements = false;
+
+	bool DisableSuspensionConstraint = false;
 };
 
 /**
@@ -580,6 +583,7 @@ protected:
 	FWheelState WheelState;	/** Cached state that hold wheel data for this frame */
 	FVector2D WheelTrackDimensions;	// Wheelbase (X) and track (Y) dimensions
 	TMap<UChaosVehicleWheel*, TArray<int>> AxleToWheelMap;
+	TArray<FPhysicsConstraintHandle> ConstraintHandles;
 
 	FPerformanceMeasure PerformanceMeasure;
 };
