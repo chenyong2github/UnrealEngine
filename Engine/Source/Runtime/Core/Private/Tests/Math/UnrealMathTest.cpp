@@ -17,6 +17,8 @@
 #include "Math/Quat.h"
 #include "Math/QuatRotationTranslationMatrix.h"
 #include "Misc/AutomationTest.h"
+#include <limits>
+#include <cmath>
 
 #if WITH_DEV_AUTOMATION_TESTS
 
@@ -2045,6 +2047,57 @@ bool FMathTruncationTests::RunTest(const FString& Parameters)
 	TimeIt(TEXT("FloorToDouble"), [](float Input) { return (float)FMath::FloorToDouble((double)Input); }, [](float Input) { return (float)FGenericPlatformMath::FloorToDouble((double)Input); });
 	TimeIt(TEXT("RoundToDouble"), [](float Input) { return (float)FMath::RoundToDouble((double)Input); }, [](float Input) { return (float)FGenericPlatformMath::RoundToDouble((double)Input); });
 #endif
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FNanInfVerificationTest, "System.Core.Math.NaNandInfTest", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FNanInfVerificationTest::RunTest(const FString& Parameters)
+{
+	static float FloatNan = FMath::Sqrt(-1.0f);
+	static double DoubleNan = double(FloatNan);
+
+	static float FloatInf = 1.0f / 0.0f;
+	static double DoubleInf = 1.0 / 0.0;
+
+	static float FloatStdNan = std::numeric_limits<float>::quiet_NaN();
+	static double DoubleStdNan = std::numeric_limits<double>::quiet_NaN();
+
+	static float FloatStdInf = std::numeric_limits<float>::infinity();
+	static double DoubleStdInf = std::numeric_limits<double>::infinity();
+
+	static double DoubleMax = std::numeric_limits<double>::max();
+	static float FloatMax = std::numeric_limits<float>::max();
+
+	TestTrue(TEXT("HasQuietNaNFloat"), std::numeric_limits<float>::has_quiet_NaN);
+	TestTrue(TEXT("HasQuietNaNDouble"), std::numeric_limits<double>::has_quiet_NaN);
+	TestTrue(TEXT("HasInfinityFloat"), std::numeric_limits<float>::has_infinity);
+	TestTrue(TEXT("HasInfinityDouble"), std::numeric_limits<double>::has_infinity);
+
+	TestTrue(TEXT("SqrtNegOneIsNanFloat"), std::isnan(FloatNan));
+	TestTrue(TEXT("SqrtNegOneIsNanDouble"), std::isnan(DoubleNan));
+	TestTrue(TEXT("OneOverZeroIsInfFloat"), !std::isfinite(FloatInf) && !std::isnan(FloatInf));
+	TestTrue(TEXT("OneOverZeroIsInfDouble"), !std::isfinite(DoubleInf) && !std::isnan(DoubleInf));
+
+	TestTrue(TEXT("UE4IsNanTrueFloat"), FPlatformMath::IsNaN(FloatNan));
+	TestTrue(TEXT("UE4IsNanFalseFloat"), !FPlatformMath::IsNaN(0.0f));
+	TestTrue(TEXT("UE4IsNanTrueDouble"), FPlatformMath::IsNaN(DoubleNan));
+	TestTrue(TEXT("UE4IsNanFalseDouble"), !FPlatformMath::IsNaN(0.0));
+
+	TestTrue(TEXT("UE4IsFiniteTrueFloat"), FPlatformMath::IsFinite(0.0f) && !FPlatformMath::IsNaN(0.0f));
+	TestTrue(TEXT("UE4IsFiniteFalseFloat"), !FPlatformMath::IsFinite(FloatInf) && !FPlatformMath::IsNaN(FloatInf));
+	TestTrue(TEXT("UE4IsFiniteTrueDouble"), FPlatformMath::IsFinite(0.0) && !FPlatformMath::IsNaN(0.0));
+	TestTrue(TEXT("UE4IsFiniteFalseDouble"), !FPlatformMath::IsFinite(DoubleInf) && !FPlatformMath::IsNaN(DoubleInf));
+
+	TestTrue(TEXT("UE4IsNanStdFloat"), FPlatformMath::IsNaN(FloatStdNan));
+	TestTrue(TEXT("UE4IsNanStdDouble"), FPlatformMath::IsNaN(DoubleStdNan));
+
+	TestTrue(TEXT("UE4IsFiniteStdFloat"), !FPlatformMath::IsFinite(FloatStdInf) && !FPlatformMath::IsNaN(FloatStdInf));
+	TestTrue(TEXT("UE4IsFiniteStdDouble"), !FPlatformMath::IsFinite(DoubleStdInf) && !FPlatformMath::IsNaN(DoubleStdInf));
+
+	// test for Mac/Linux regression where IsFinite did not have a double equivalent so would downcast to a float and return INF.
+	TestTrue(TEXT("UE4IsFiniteDoubleMax"), FPlatformMath::IsFinite(DoubleMax) && !FPlatformMath::IsNaN(DoubleMax));
+	TestTrue(TEXT("UE4IsFiniteFloatMax"), FPlatformMath::IsFinite(FloatMax) && !FPlatformMath::IsNaN(FloatMax));
 
 	return true;
 }
