@@ -125,6 +125,9 @@ public:
 	static void EditorPlaySimulate();
 
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
+	static void EditorEndPlay();
+
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DevelopmentOnly))
 	static void EditorInvalidateViewports();
 
 #endif
