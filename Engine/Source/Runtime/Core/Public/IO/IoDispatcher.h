@@ -581,6 +581,11 @@ public:
 		return !(*this == Rhs);
 	}
 
+	inline FString ToString() const
+	{
+		return BytesToHex(Hash, 20);
+	}
+
 	static FIoChunkHash HashBuffer(const void* Data, uint64 DataSize)
 	{
 		FIoChunkHash Result;
@@ -991,6 +996,7 @@ public:
 	CORE_API FIoDirectoryIndexHandle GetNextFile(FIoDirectoryIndexHandle File) const;
 	CORE_API FStringView GetDirectoryName(FIoDirectoryIndexHandle Directory) const;
 	CORE_API FStringView GetFileName(FIoDirectoryIndexHandle File) const;
+	CORE_API uint32 GetFileData(FIoDirectoryIndexHandle File) const;
 
 private:
 	UE_NONCOPYABLE(FIoDirectoryIndexReader);
@@ -1111,6 +1117,7 @@ struct FIoStoreTocChunkInfo
 	uint64 Size;
 	bool bForceUncompressed;
 	bool bIsMemoryMapped;
+	bool bIsCompressed;
 };
 
 class FIoStoreReader
@@ -1124,6 +1131,7 @@ public:
 	CORE_API EIoContainerFlags GetContainerFlags() const;
 	CORE_API FGuid GetEncryptionKeyGuid() const;
 	CORE_API void EnumerateChunks(TFunction<bool(const FIoStoreTocChunkInfo&)>&& Callback) const;
+	CORE_API TIoStatusOr<FIoStoreTocChunkInfo> GetChunkInfo(const uint32 TocEntryIndex) const;
 	CORE_API TIoStatusOr<FIoBuffer> Read(const FIoChunkId& Chunk, const FIoReadOptions& Options) const;
 
 	CORE_API const FIoDirectoryIndexReader& GetDirectoryIndexReader() const;
