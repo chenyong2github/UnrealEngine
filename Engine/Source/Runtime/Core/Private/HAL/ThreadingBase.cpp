@@ -748,6 +748,11 @@ void FRunnableThread::FreeTls()
 	FThreadPoolPriorityQueue
 -----------------------------------------------------------------------------*/
 
+FThreadPoolPriorityQueue::FThreadPoolPriorityQueue()
+	: NumQueuedWork(0)
+{
+}
+
 void FThreadPoolPriorityQueue::Enqueue(IQueuedWork* InQueuedWork, EQueuedWorkPriority InPriority)
 {
 	int32 QueueIndex = static_cast<int32>(InPriority);
@@ -795,6 +800,28 @@ IQueuedWork* FThreadPoolPriorityQueue::Dequeue(EQueuedWorkPriority* OutDequeuedW
 
 			FirstNonEmptyQueueIndex = QueueIndex;
 			NumQueuedWork--;
+
+			if (OutDequeuedWorkPriority)
+			{
+				*OutDequeuedWorkPriority = (EQueuedWorkPriority)QueueIndex;
+			}
+
+			break;
+		}
+	}
+
+	return Work;
+}
+
+IQueuedWork* FThreadPoolPriorityQueue::Peek(EQueuedWorkPriority* OutDequeuedWorkPriority)
+{
+	IQueuedWork* Work = nullptr;
+	for (int32 QueueIndex = FirstNonEmptyQueueIndex, Num = PriorityQueuedWork.Num(); QueueIndex < Num; ++QueueIndex)
+	{
+		TArray<IQueuedWork*>& QueuedWork = PriorityQueuedWork[QueueIndex];
+		if (QueuedWork.Num() > 0)
+		{
+			Work = QueuedWork[0];
 
 			if (OutDequeuedWorkPriority)
 			{

@@ -25,7 +25,7 @@ struct FQueuedThreadPoolWrapper::FScheduledWork : public IQueuedWork
 	}
 
 	IQueuedWork* InnerWork = nullptr;
-
+	EQueuedWorkPriority Priority = EQueuedWorkPriority::Normal;
 private:
 	FQueuedThreadPoolWrapper* ParentPool;
 };
@@ -181,6 +181,36 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 		ReleaseWorkNoLock(Work);
 	}
 
+	// If a higher priority task comes in, try to retract a lower priority one if possible to make room
+	if (CurrentConcurrency >= MaxConcurrency.Load(EMemoryOrder::Relaxed) && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
+	{
+		EQueuedWorkPriority NextWorkPriority;
+		IQueuedWork* NextWork = QueuedWork.Peek(&NextWorkPriority);
+		if (NextWork)
+		{
+			// Scheduled work is bound by MaxConcurrency which is normally limited by Core count. 
+			// The linear scan should be small and pretty fast.
+			for (TTuple<IQueuedWork*, FScheduledWork*>& Pair : ScheduledWork)
+			{
+				// higher number means lower priority
+				if (Pair.Value->Priority > NextWorkPriority)
+				{
+					if (WrappedQueuedThreadPool->RetractQueuedWork(Pair.Value))
+					{
+						QueuedWork.Enqueue(Pair.Key, Pair.Value->Priority);
+						ReleaseWorkNoLock(Pair.Value);
+
+						if (MaxTaskToSchedule != -1)
+						{
+							MaxTaskToSchedule++;
+						}
+						break;
+					}
+				}
+			}
+		}
+	}
+
 	while (CurrentConcurrency < MaxConcurrency.Load(EMemoryOrder::Relaxed) && (MaxTaskToSchedule == -1 || MaxTaskToSchedule > 0))
 	{
 		EQueuedWorkPriority WorkPriority;
@@ -198,6 +228,7 @@ void FQueuedThreadPoolWrapper::Schedule(FScheduledWork* Work)
 				Work = new FScheduledWork(this);
 			}
 
+			Work->Priority = WorkPriority;
 			Work->InnerWork = InnerWork;
 			ScheduledWork.Add(InnerWork, Work);
 			WrappedQueuedThreadPool->AddQueuedWork(Work, PriorityMapper(WorkPriority));

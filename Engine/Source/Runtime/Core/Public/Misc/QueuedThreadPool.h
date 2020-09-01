@@ -25,6 +25,8 @@ enum class EQueuedWorkPriority : uint8
 class CORE_API FThreadPoolPriorityQueue
 {
 public:
+	FThreadPoolPriorityQueue();
+
 	/**
 	 * Enqueue a work item at specified priority
 	 */
@@ -39,6 +41,11 @@ public:
 	 * Get the next work item in priority order.
 	 */
 	IQueuedWork* Dequeue(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr);
+
+	/**
+	 * Get the next work item in priority order without actually dequeuing.
+	 */
+	IQueuedWork* Peek(EQueuedWorkPriority* OutDequeuedWorkPriority = nullptr);
 
 	/**
 	 * Empty the queue.
