@@ -83,7 +83,7 @@ namespace Chaos
 		void SetGravity(uint32 GroupId, const TVector<float, 3>& Gravity);
 
 		// Set the geometry affected by wind, or disable if TriangleMesh is null.
-		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, const TTriangleMesh<float>* TriangleMesh = nullptr);
+		void SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh = nullptr);
 
 		// Enable self collision, or disable if TriangleMesh is null.
 		void SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh = nullptr);
