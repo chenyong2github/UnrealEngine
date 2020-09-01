@@ -423,9 +423,9 @@ namespace ChaosTest {
 		Particles.GetParticleHandles().AddArray(&PhysicsMaterials);
 		Particles.GetParticleHandles().AddArray(&PerParticlePhysicsMaterials);
 
-		auto StaticCube = AppendStaticParticleBox<T>(Particles, TVector<T, 3>(100.0f));
+		TGeometryParticleHandle<T, 3>* StaticCube = AppendStaticParticleBox<T>(Particles, TVector<T, 3>(100.0f));
 		StaticCube->X() = TVector<T, 3>(0, 0, -50.0f);
-		auto DynamicCube = AppendDynamicParticleBox<T>(Particles, TVector<T, 3>(100.0f));
+		TPBDRigidParticleHandle<T, 3>* DynamicCube = AppendDynamicParticleBox<T>(Particles, TVector<T, 3>(100.0f));
 		DynamicCube->X() = TVector<T, 3>(0, 0, 80); // Penetrating by about 5cm
 		DynamicCube->R() = TRotation<T, 3>::FromElements( 0.27059805f, 0.27059805f, 0.0f, 0.923879532f ); // Rotate so that vertex collide
 		DynamicCube->V() = TVector<T, 3>(0, 0, -100);
@@ -446,7 +446,7 @@ namespace ChaosTest {
 		}
 
 		FCollisionConstraintBase& Constraint = Collisions.GetConstraint(0);
-		if (auto PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
+		if (TPBDRigidParticleHandle<T, 3>* PBDRigid = Constraint.Particle[0]->CastToRigidParticle())
 		{
 			PBDRigid->CollisionParticles()->UpdateAccelerationStructures();
 		}
@@ -461,8 +461,11 @@ namespace ChaosTest {
 			INVARIANT_XR_END(DynamicCube);
 		}
 
+		// This test's tolerances are set to be very crude as to not be over sensitive (for now)
 		EXPECT_TRUE(DynamicCube->V().Z > 10.0f);  // restitution not too low
 		EXPECT_TRUE(DynamicCube->V().Z < 70.0f);  // restitution not too high
+		EXPECT_TRUE(FMath::Abs(DynamicCube->V().X) < 1.0f);
+		EXPECT_TRUE(FMath::Abs(DynamicCube->V().Y) < 1.0f);
 	}
 	template void CollisionCubeCubeRestitution<float>();
 
