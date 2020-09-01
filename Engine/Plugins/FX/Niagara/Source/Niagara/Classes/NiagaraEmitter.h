@@ -532,6 +532,8 @@ public:
 #if WITH_EDITORONLY_DATA
 	NIAGARA_API UNiagaraEmitter* GetParent() const;
 
+	NIAGARA_API UNiagaraEmitter* GetParentAtLastMerge() const;
+
 	NIAGARA_API void RemoveParent();
 
 	NIAGARA_API void SetParent(UNiagaraEmitter& InParent);
