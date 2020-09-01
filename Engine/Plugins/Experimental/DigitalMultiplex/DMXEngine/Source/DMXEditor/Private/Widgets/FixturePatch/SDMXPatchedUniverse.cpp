@@ -390,9 +390,9 @@ FText SDMXPatchedUniverse::GetUniverseName() const
 {
 	if (bOutOfControllersRanges)
 	{
-		return FText::Format(LOCTEXT("UniverseListCategory", "Universe {0} - Unreachable by Controllers"), UniverseID);
+		return FText::Format(LOCTEXT("DMXPatchedUniverse.Unreachable", "Universe {0} - Unreachable by Controllers"), UniverseID);
 	}
-	return FText::Format(LOCTEXT("UniverseListCategory", "Universe {0}"), UniverseID);
+	return FText::Format(LOCTEXT("DMXPatchedUniverse.Reachable", "Universe {0}"), UniverseID);
 }
 
 EVisibility SDMXPatchedUniverse::GetOutOfControllersRangesBannerVisibility() const
