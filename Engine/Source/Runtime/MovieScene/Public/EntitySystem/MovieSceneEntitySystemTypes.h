@@ -4,7 +4,7 @@
 
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "Algo/Find.h"
-#include "Stats/Stats2.h"
+#include "Stats/Stats.h"
 #include "Misc/EnumClassFlags.h"
 #include "Containers/ArrayView.h"
 
