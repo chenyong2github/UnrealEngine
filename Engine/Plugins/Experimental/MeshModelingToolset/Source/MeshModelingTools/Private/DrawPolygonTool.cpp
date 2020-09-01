@@ -133,6 +133,7 @@ void UDrawPolygonTool::Setup()
 	// initialize material properties for new objects
 	MaterialProperties = NewObject<UNewMeshMaterialProperties>(this);
 	MaterialProperties->RestoreProperties(this);
+	MaterialProperties->bShowExtendedOptions = true;
 
 	// create preview mesh object
 	PreviewMesh = NewObject<UPreviewMesh>(this, TEXT("DrawPolygonPreviewMesh"));
@@ -276,9 +277,10 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	double CurViewSizeFactor = ToolSceneQueriesUtil::CalculateDimensionFromVisualAngleD(RenderCameraState, PreviewVertex, 1.0);
 
-	FColor OpenPolygonColor(240, 16, 240);
-	FColor ClosedPolygonColor(16, 240, 16);
-	FColor ErrorColor(240, 16, 16);
+	FColor PreviewColor = FColor::Green;
+	FColor OpenPolygonColor = FColor::Orange;
+	FColor ClosedPolygonColor = FColor::Yellow;
+	FColor ErrorColor = FColor::Magenta;
 	float HiddenLineThickness = 1.0f*PDIScale;
 	float LineThickness = 4.0f*PDIScale;
 	float SelfIntersectThickness = 8.0f*PDIScale;
@@ -286,10 +288,12 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	float GridThickness = 0.5f*PDIScale;
 	float GridLineSpacing = 25.0f*PDIScale;   // @todo should be relative to view
 	int NumGridLines = 21;
-	FColor SnapHighlightColor(240, 200, 16);
+	FColor SnapLineColor = FColor::Yellow;
+	FColor SnapHighlightColor = SnapLineColor;
 	float ElementSize = CurViewSizeFactor;
 
-	bool bIsClosed = SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID;
+	bool bIsClosed = bInInteractiveExtrude 
+		|| (SnapEngine.HaveActiveSnap() && SnapEngine.GetActiveSnapTargetID() == StartPointSnapID);
 
 	if (bInInteractiveExtrude == false)
 	{
@@ -314,7 +318,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapToPoint(), ClosedPolygonColor, 10.0f*PDIScale, SDPG_Foreground);
 		
-		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapFromPoint(), OpenPolygonColor, 15.0f*PDIScale, SDPG_Foreground);
+		PDI->DrawPoint((FVector)SnapEngine.GetActiveSnapFromPoint(), SnapHighlightColor, 15.0f*PDIScale, SDPG_Foreground);
 		PDI->DrawLine((FVector)SnapEngine.GetActiveSnapToPoint(), (FVector)SnapEngine.GetActiveSnapFromPoint(),
 			ClosedPolygonColor, SDPG_Foreground, 0.5f*PDIScale, 0.0f, true);
 		if (SnapEngine.GetActiveSnapTargetID() == CurrentSceneSnapID)
@@ -339,7 +343,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 		{
 			FLine3d SnapLine = SnapEngine.GetActiveSnapLine();
 			PDI->DrawLine((FVector)SnapLine.PointAt(-9999), (FVector)SnapLine.PointAt(9999),
-				ClosedPolygonColor, SDPG_Foreground, 0.5*PDIScale, 0.0f, true);
+				SnapLineColor, SDPG_Foreground, 0.5*PDIScale, 0.0f, true);
 
 			if (SnapEngine.HaveActiveSnapDistance())
 			{
@@ -350,8 +354,9 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 					0.75f*ElementSize, UseNormal, SnapHighlightColor, SDPG_Foreground, 1.0f*PDIScale, true);
 				DrawEdgeTicks(PDI, FSegment3d(HistoryPoints[HistoryPoints.Num()-1], PreviewVertex),
 					0.75f*ElementSize, UseNormal, SnapHighlightColor, SDPG_Foreground, 1.0f*PDIScale, true);
+				// Drawing a highlight
 				PDI->DrawLine((FVector)HistoryPoints[iSegment], (FVector)HistoryPoints[iSegment + 1],
-					SnapHighlightColor, SDPG_Foreground, 2.0f*PDIScale, 0.0f, true);
+					SnapHighlightColor, SDPG_Foreground, 2.0f*PDIScale, 1.0f, true);
 			}
 		}
 	}
@@ -372,14 +377,12 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 	if (PolygonVertices.Num() > 0)
 	{
-		FColor UseColor = (bIsClosed) ? ClosedPolygonColor : OpenPolygonColor;
-		FVector3d UseLastVertex = (bIsClosed) ? PolygonVertices[0] : PreviewVertex;
-		float UseThickness = LineThickness;
-		if (bHaveSelfIntersection)
-		{
-			UseColor = ErrorColor;
-			UseThickness = SelfIntersectThickness;
-		}
+		FColor UseColor = bIsClosed ? ClosedPolygonColor 
+			: bHaveSelfIntersection ? ErrorColor : OpenPolygonColor;
+		FColor LastSegmentColor = bIsClosed ? ClosedPolygonColor 
+			: bHaveSelfIntersection ? ErrorColor : PreviewColor;
+		FVector3d UseLastVertex = bIsClosed ? PolygonVertices[0] : PreviewVertex;
+		float UseThickness = bHaveSelfIntersection ? SelfIntersectThickness : LineThickness;
 
 		auto DrawVertices = [&PDI, &UseColor](const TArray<FVector3d>& Vertices, ESceneDepthPriorityGroup Group, float Thickness)
 		{
@@ -398,7 +401,7 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 				UseColor, SDPG_Foreground, HiddenLineThickness, 0.0f, true);
 		}
 		PDI->DrawLine((FVector)PolygonVertices[NumVerts - 1], (FVector)UseLastVertex,
-			UseColor, SDPG_Foreground, HiddenLineThickness, 0.0f, true);
+			LastSegmentColor, SDPG_Foreground, HiddenLineThickness, 0.0f, true);
 		for (int HoleIdx = 0; HoleIdx < PolygonHolesVertices.Num(); HoleIdx++)
 		{
 			DrawVertices(PolygonHolesVertices[HoleIdx], SDPG_Foreground, HiddenLineThickness);
@@ -412,20 +415,24 @@ void UDrawPolygonTool::Render(IToolsContextRenderAPI* RenderAPI)
 				UseColor, SDPG_World, LineThickness, 0.0f, true);
 		}
 		PDI->DrawLine((FVector)PolygonVertices[NumVerts - 1], (FVector)UseLastVertex,
-			UseColor, SDPG_World, LineThickness, 0.0f, true);
+			LastSegmentColor, SDPG_World, LineThickness, 0.0f, true);
 		for (int HoleIdx = 0; HoleIdx < PolygonHolesVertices.Num(); HoleIdx++)
 		{
 			DrawVertices(PolygonHolesVertices[HoleIdx], SDPG_World, LineThickness);
 		}
 
-		if (bHaveSelfIntersection)
+		// Intersection point
+		if (bHaveSelfIntersection && !bInInteractiveExtrude)
 		{
-			PDI->DrawPoint((FVector)SelfIntersectionPoint, ErrorColor, 10*PDIScale, SDPG_Foreground);
+			PDI->DrawPoint((FVector)SelfIntersectionPoint, SnapHighlightColor, 12*PDIScale, SDPG_Foreground);
 		}
 	}
 
 	// draw preview vertex
-	PDI->DrawPoint((FVector)PreviewVertex, ClosedPolygonColor, 10*PDIScale, SDPG_Foreground);
+	if (!bInInteractiveExtrude)
+	{
+		PDI->DrawPoint((FVector)PreviewVertex, PreviewColor, 10 * PDIScale, SDPG_Foreground);
+	}
 
 	// draw height preview stuff
 	if (bInInteractiveExtrude)
@@ -869,6 +876,7 @@ void UDrawPolygonTool::GenerateFixedPolygon(const TArray<FVector3d>& FixedPoints
 void UDrawPolygonTool::BeginInteractiveExtrude()
 {
 	bInInteractiveExtrude = true;
+	SnapEngine.ResetActiveSnap();
 
 	HeightMechanic = NewObject<UPlaneDistanceFromHitMechanic>(this);
 	HeightMechanic->Setup(this);

@@ -102,7 +102,7 @@ void UEditMeshPolygonsTool::Setup()
 	}
 
 	// configure secondary render material
-	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor(0.9f, 0.1f, 0.1f), GetToolManager());
+	UMaterialInterface* SelectionMaterial = ToolSetupUtil::GetSelectionMaterial(FLinearColor::Yellow, GetToolManager());
 	if (SelectionMaterial != nullptr)
 	{
 		DynamicMeshComponent->SetSecondaryRenderMaterial(SelectionMaterial);
@@ -127,6 +127,7 @@ void UEditMeshPolygonsTool::Setup()
 
 	// add properties
 	CommonProps = NewObject<UPolyEditCommonProperties>(this);
+	CommonProps->RestoreProperties(this);
 	AddToolPropertySource(CommonProps);
 	CommonProps->WatchProperty(CommonProps->LocalFrameMode,
 								  [this](ELocalFrameMode) { UpdateMultiTransformerFrame(); });
@@ -139,6 +140,7 @@ void UEditMeshPolygonsTool::Setup()
 	// set up SelectionMechanic
 	SelectionMechanic = NewObject<UPolygonSelectionMechanic>(this);
 	SelectionMechanic->Setup(this);
+	SelectionMechanic->Properties->RestoreProperties(this);
 	SelectionMechanic->OnSelectionChanged.AddUObject(this, &UEditMeshPolygonsTool::OnSelectionModifiedEvent);
 	if (bTriangleMode)
 	{
@@ -237,10 +239,12 @@ void UEditMeshPolygonsTool::Setup()
 
 void UEditMeshPolygonsTool::Shutdown(EToolShutdownType ShutdownType)
 {
+	CommonProps->SaveProperties(this);
 	ExtrudeProperties->SaveProperties(this);
 	InsetProperties->SaveProperties(this);
 	CutProperties->SaveProperties(this);
 	SetUVProperties->SaveProperties(this);
+	SelectionMechanic->Properties->SaveProperties(this);
 
 	MultiTransformer->Shutdown();
 	SelectionMechanic->Shutdown();
