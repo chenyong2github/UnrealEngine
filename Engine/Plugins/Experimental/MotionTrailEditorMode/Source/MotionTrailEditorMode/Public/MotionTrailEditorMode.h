@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Tools/UEdMode.h"
+#include "ISequencer.h"
 
 #include "TrailHierarchy.h"
 
@@ -13,6 +14,7 @@ class FInteractiveTrailTool;
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMotionTrailEditorMode, Log, All);
 
+// TODO: option to make tick size proportional to distance from camera to get a sense of perspective and scale
 UCLASS()
 class UMotionTrailOptions : public UObject
 {
@@ -28,6 +30,7 @@ public:
 		, bLockTicksToFrames(true)
 		, SecondsPerTick(0.1)
 		, TickSize(4.0)
+		, TrailThickness(0.0f)
 	{}
 
 	UPROPERTY(EditAnywhere, Category = ShowOptions)
@@ -48,11 +51,14 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails"))
 	bool bLockTicksToFrames;
 
-	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails && !bLockTicksToFrames", ClampMin = "0.0001"))
+	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails && !bLockTicksToFrames", ClampMin = "0.01"))
 	double SecondsPerTick;
 
 	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails", ClampMin = "0.0"))
 	double TickSize;
+
+	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails", ClampMin = "0.0"))
+	float TrailThickness;
 
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override
 	{
@@ -69,7 +75,7 @@ class UMotionTrailEditorMode : public UEdMode
 {
 	GENERATED_BODY()
 public:
-	const static FEditorModeID EM_MotionTrailEditorModeId;
+	static FEditorModeID ModeName;
 
 
 	static FName MotionTrailEditorMode_Default; // Palette name
@@ -92,13 +98,16 @@ public:
 	virtual void ActivateDefaultTool() override;
 
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
-	// End of FEdMode interface
+	// End of UEdMode interface
 
-	void AddTrailTool(const FString& ToolType, FInteractiveTrailTool* TrailTool);
-	void RemoveTrailTool(const FString& ToolType, FInteractiveTrailTool* TrailTool);
+	void AddTrailTool(const FString& ToolType, UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool);
+	void RemoveTrailTool(const FString& ToolType, UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool);
 
-	const TMap<FString, TSet<FInteractiveTrailTool*>>& GetTrailTools() const { return TrailTools; }
+	const TMap<FString, TSet<UE::MotionTrailEditor::FInteractiveTrailTool*>>& GetTrailTools() const { return TrailTools; }
 	UMotionTrailOptions* GetTrailOptions() const { return TrailOptions; }
+
+	UE::MotionTrailEditor::FTrailHierarchy* GetHierarchyForSequencer(ISequencer* Sequencer) const { return SequencerHierarchies[Sequencer]; }
+	const TArray<TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>>& GetHierarchies() const { return TrailHierarchies; }
 
 private:
 	
@@ -107,9 +116,10 @@ private:
 	UPROPERTY(Transient)
 	UMotionTrailOptions* TrailOptions;
 
-	TMap<FString, TSet<FInteractiveTrailTool*>> TrailTools;
+	TMap<FString, TSet<UE::MotionTrailEditor::FInteractiveTrailTool*>> TrailTools;
 
-	TArray<TUniquePtr<FTrailHierarchy>> TrailHierarchies;
+	TArray<TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>> TrailHierarchies;
+	TMap<ISequencer*, UE::MotionTrailEditor::FTrailHierarchy*> SequencerHierarchies;
 
 	FDelegateHandle OnSequencersChangedHandle;
 };

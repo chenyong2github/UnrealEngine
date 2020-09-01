@@ -9,14 +9,16 @@
 
 #include "LevelEditorSequencerIntegration.h"
 #include "ISequencer.h"
-#include "SequencerTrailHierarchy.h"
+#include "Sequencer/SequencerTrailHierarchy.h"
 
-#include "MovieSceneTransformTrail.h"
+#include "Sequencer/MovieSceneTransformTrail.h"
 
 
 #define LOCTEXT_NAMESPACE "MotionTrailEditorMode"
 
 DEFINE_LOG_CATEGORY(LogMotionTrailEditorMode);
+
+FEditorModeID UMotionTrailEditorMode::ModeName = TEXT("MotionTrailEditorMode");
 
 FName UMotionTrailEditorMode::MotionTrailEditorMode_Default = FName(TEXT("Default"));
 
@@ -26,8 +28,10 @@ UMotionTrailEditorMode::UMotionTrailEditorMode()
 {
 	SettingsClass = UMotionTrailOptions::StaticClass();
 
+	// TODO: make invisible, but for some reason when invisible the toolkit doesn't show
+	// Not a todo, but when multiple modes are active they can't have their toolkits open at the same time
 	Info = FEditorModeInfo(
-		FName(TEXT("MotionTrailEditorMode")),
+		ModeName,
 		LOCTEXT("ModeName", "Motion Trail Editor"),
 		FSlateIcon(),
 		false
@@ -46,26 +50,29 @@ void UMotionTrailEditorMode::Enter()
 	TrailOptions = Cast<UMotionTrailOptions>(SettingsObject);
 
 	// Add default tool
-	FMotionTrailEditorModeCommands::Register();
+	UE::MotionTrailEditor::FMotionTrailEditorModeCommands::Register();
 	TrailTools.Add(UMotionTrailEditorMode::DefaultToolName);
 	UTrailToolManagerBuilder* DefaultTrailToolManagerBuilder = NewObject<UTrailToolManagerBuilder>();
 	DefaultTrailToolManagerBuilder->SetMotionTrailEditorMode(this);
 	DefaultTrailToolManagerBuilder->SetTrailToolName(UMotionTrailEditorMode::DefaultToolName);
-	RegisterTool(FMotionTrailEditorModeCommands::Get().Default, UMotionTrailEditorMode::DefaultToolName, DefaultTrailToolManagerBuilder);
+	RegisterTool(UE::MotionTrailEditor::FMotionTrailEditorModeCommands::Get().Default, UMotionTrailEditorMode::DefaultToolName, DefaultTrailToolManagerBuilder);
 
 	OnSequencersChangedHandle = FLevelEditorSequencerIntegration::Get().GetOnSequencersChanged().AddLambda([this] {
 		TrailHierarchies.Reset();
+		SequencerHierarchies.Reset();
 		TrailTools[DefaultToolName].Reset();
 		// TODO: kind of cheap for now, later should check with member TMap<ISequencer*, FTrailHierarchy*> TrackedSequencers
 		for (TWeakPtr<ISequencer> WeakSequencer : FLevelEditorSequencerIntegration::Get().GetSequencers())
 		{
-			TrailHierarchies.Add_GetRef(MakeUnique<FSequencerTrailHierarchy>(this, WeakSequencer))->Initialize();
+			TrailHierarchies.Add_GetRef(MakeUnique<UE::MotionTrailEditor::FSequencerTrailHierarchy>(this, WeakSequencer))->Initialize();
+			SequencerHierarchies.Add(WeakSequencer.Pin().Get(), TrailHierarchies.Last().Get());
 		}
 	});
 
 	for (TWeakPtr<ISequencer> WeakSequencer : FLevelEditorSequencerIntegration::Get().GetSequencers())
 	{
-		TrailHierarchies.Add_GetRef(MakeUnique<FSequencerTrailHierarchy>(this, WeakSequencer))->Initialize();
+		TrailHierarchies.Add_GetRef(MakeUnique<UE::MotionTrailEditor::FSequencerTrailHierarchy>(this, WeakSequencer))->Initialize();
+		SequencerHierarchies.Add(WeakSequencer.Pin().Get(), TrailHierarchies.Last().Get());
 	}
 
 	GetToolManager()->ConfigureChangeTrackingMode(EToolChangeTrackingMode::NoChangeTracking);
@@ -75,7 +82,7 @@ void UMotionTrailEditorMode::Enter()
 
 void UMotionTrailEditorMode::Exit()
 {
-	for (TUniquePtr<FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
+	for (TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
 	{
 		// TODO: just use dtor?
 		TrailHierarchy->Destroy();
@@ -95,7 +102,7 @@ void UMotionTrailEditorMode::CreateToolkit()
 {
 	if (!Toolkit.IsValid())
 	{
-		FMotionTrailEditorModeToolkit* MotionTrailToolkit = new FMotionTrailEditorModeToolkit;
+		UE::MotionTrailEditor::FMotionTrailEditorModeToolkit* MotionTrailToolkit = new UE::MotionTrailEditor::FMotionTrailEditorModeToolkit;
 		Toolkit = MakeShareable(MotionTrailToolkit);
 		Toolkit->Init(Owner->GetToolkitHost());
 	}
@@ -110,22 +117,35 @@ void UMotionTrailEditorMode::Render(const FSceneView* View, FViewport* Viewport,
 		return;
 	}
 
-	for (TUniquePtr<FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
+	for (TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
 	{
 		TrailHierarchy->Update();
 	}
 
-	for (TUniquePtr<FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
+	for (TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
 	{
 		TrailHierarchy->GetRenderer()->Render(View, Viewport, PDI);
 	}
+
+	TArray<TMap<FString, FTimespan>> HierarchyTimingStats;
+	HierarchyTimingStats.Reserve(TrailHierarchies.Num());
+	for (TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
+	{
+		HierarchyTimingStats.Add(TrailHierarchy->GetTimingStats());
+	}
+	StaticCastSharedPtr<UE::MotionTrailEditor::FMotionTrailEditorModeToolkit>(Toolkit)->SetTimingStats(HierarchyTimingStats);
 
 	Super::Render(View, Viewport, PDI);
 }
 
 void UMotionTrailEditorMode::DrawHUD(FEditorViewportClient* ViewportClient, FViewport* Viewport, const FSceneView* View, FCanvas* Canvas)
 {
-	for (TUniquePtr<FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
+	if (!TrailOptions->bShowTrails)
+	{
+		return;
+	}
+
+	for (TUniquePtr<UE::MotionTrailEditor::FTrailHierarchy>& TrailHierarchy : TrailHierarchies)
 	{
 		TrailHierarchy->GetRenderer()->DrawHUD(ViewportClient, Viewport, View, Canvas);
 	}
@@ -140,7 +160,7 @@ bool UMotionTrailEditorMode::UsesToolkits() const
 
 TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> UMotionTrailEditorMode::GetModeCommands() const
 {
-	const TMap<FName, TArray<TSharedPtr<FUICommandInfo>>>& Commands = FMotionTrailEditorModeCommands::Get().GetCommands();
+	const TMap<FName, TArray<TSharedPtr<FUICommandInfo>>>& Commands = UE::MotionTrailEditor::FMotionTrailEditorModeCommands::Get().GetCommands();
 	if (Commands.Num() > 1)
 	{
 		return Commands;
@@ -149,7 +169,7 @@ TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> UMotionTrailEditorMode::GetModeC
 	return TMap<FName, TArray<TSharedPtr<FUICommandInfo>>>();
 }
 
-void UMotionTrailEditorMode::AddTrailTool(const FString& ToolType, FInteractiveTrailTool* TrailTool)
+void UMotionTrailEditorMode::AddTrailTool(const FString& ToolType, UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool)
 {
 	checkf(ToolType.Equals(DefaultToolName), TEXT("Only default tool supported for now"))
 
@@ -161,7 +181,7 @@ void UMotionTrailEditorMode::AddTrailTool(const FString& ToolType, FInteractiveT
 	}
 }
 
-void UMotionTrailEditorMode::RemoveTrailTool(const FString& ToolType, FInteractiveTrailTool* TrailTool)
+void UMotionTrailEditorMode::RemoveTrailTool(const FString& ToolType, UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool)
 {
 	TrailTools[ToolType].Remove(TrailTool);
 }
@@ -169,7 +189,7 @@ void UMotionTrailEditorMode::RemoveTrailTool(const FString& ToolType, FInteracti
 void UMotionTrailEditorMode::RefreshNonDefaultToolset()
 {
 	TArray<TSharedPtr<FUICommandInfo>> NewNonDefaultCommands;
-	for (const TPair<FString, TSet<FInteractiveTrailTool*>>& ToolPair : TrailTools)
+	for (const TPair<FString, TSet<UE::MotionTrailEditor::FInteractiveTrailTool*>>& ToolPair : TrailTools)
 	{
 		if (ToolPair.Key.Equals(UMotionTrailEditorMode::DefaultToolName))
 		{
@@ -185,7 +205,7 @@ void UMotionTrailEditorMode::RefreshNonDefaultToolset()
 		RegisterTool(NewUICommand, ToolPair.Key, NewTrailToolManagerBuilder);
 
 	}
-	FMotionTrailEditorModeCommands::RegisterDynamic("Curve Specific Tools", NewNonDefaultCommands);
+	UE::MotionTrailEditor::FMotionTrailEditorModeCommands::RegisterDynamic("Curve Specific Tools", NewNonDefaultCommands);
 }
 
 void UMotionTrailEditorMode::ActivateDefaultTool()
@@ -195,7 +215,7 @@ void UMotionTrailEditorMode::ActivateDefaultTool()
 
 bool UMotionTrailEditorMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
-	return OtherModeID == TEXT("EM_SequencerMode") || OtherModeID == TEXT("EditMode.ControlRig");
+	return OtherModeID == FName(TEXT("EM_SequencerMode"), FNAME_Find) || OtherModeID == FName(TEXT("EditMode.ControlRig"), FNAME_Find) || OtherModeID == FName(TEXT("EditMode.ControlRigEditor"), FNAME_Find);
 }
 
 #undef LOCTEXT_NAMESPACE

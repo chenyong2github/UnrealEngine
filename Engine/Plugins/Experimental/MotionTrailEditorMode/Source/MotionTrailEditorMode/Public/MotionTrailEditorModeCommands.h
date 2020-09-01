@@ -6,6 +6,11 @@
 #include "Framework/Commands/Commands.h"
 #include "EditorStyleSet.h"
 
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 class FMotionTrailEditorModeCommands : public TCommands<FMotionTrailEditorModeCommands>
 {
 public:
@@ -36,3 +41,6 @@ public:
 
 	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> Commands;
 };
+
+} // namespace MovieScene
+} // namespace UE
