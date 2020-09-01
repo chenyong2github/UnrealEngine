@@ -115,13 +115,13 @@ public:
 
 		if (NewCapacity <= StaticArrayCapacity)
 		{
-			if (Capacity > StaticArrayCapacity)
+			if (Array != StaticArray)
 			{
 				if (Count)
 				{
 					memcpy(StaticArray, Array, Count * sizeof(T));
-					Allocator->Free(Array, Capacity * sizeof(T));
 				}
+				Allocator->Free(Array, Capacity * sizeof(T));
 
 				Array = StaticArray;
 				Capacity = StaticArrayCapacity;
@@ -136,10 +136,10 @@ public:
 			if (Count)
 			{
 				memcpy(NewArray, Array, Count * sizeof(T));
-				if (Array != StaticArray)
-				{
-					Allocator->Free(Array, Capacity * sizeof(T));
-				}
+			}
+			if (Array != StaticArray)
+			{
+				Allocator->Free(Array, Capacity * sizeof(T));
 			}
 
 			Array = NewArray;
