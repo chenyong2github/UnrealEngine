@@ -1220,6 +1220,7 @@ void UMaterialInstance::GetUsedTextures(TArray<UTexture*>& OutTextures, EMateria
 			// Use the uniform expressions from the lowest material instance with static parameters in the chain, if one exists
 			const UMaterialInterface* MaterialToUse = (MaterialInstanceToUse && MaterialInstanceToUse->bHasStaticPermutationResource) ? (const UMaterialInterface*)MaterialInstanceToUse : (const UMaterialInterface*)BaseMaterial;
 
+			TArray<const FMaterialResource*, TInlineAllocator<4>> MatchedResources;
 			// Parse all relevant quality and feature levels.
 			for (int32 QualityLevelIndex = QualityLevelRange.GetLowerBoundValue(); QualityLevelIndex <= QualityLevelRange.GetUpperBoundValue(); ++QualityLevelIndex)
 			{
@@ -1228,9 +1229,14 @@ void UMaterialInstance::GetUsedTextures(TArray<UTexture*>& OutTextures, EMateria
 					const FMaterialResource* MaterialResource = MaterialToUse->GetMaterialResource((ERHIFeatureLevel::Type)FeatureLevelIndex, (EMaterialQualityLevel::Type)QualityLevelIndex);
 					if (MaterialResource)
 					{
-						GetTextureExpressionValues(MaterialResource, OutTextures);
+						MatchedResources.AddUnique(MaterialResource);
 					}
 				}
+			}
+
+			for (const FMaterialResource* MaterialResource : MatchedResources)
+			{
+				GetTextureExpressionValues(MaterialResource, OutTextures);
 			}
 		}
 		else
