@@ -127,7 +127,7 @@ void InvokeSetterFunction(UObject* InRuntimeObject, UFunction* Setter, const uin
 void FNiagaraRendererComponents::Initialize(const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent)
 {
 	const UNiagaraComponentRendererProperties* Properties = CastChecked<const UNiagaraComponentRendererProperties>(InProperties);
-	if (!Properties)
+	if (!Properties || !Properties->TemplateComponent)
 	{
 		return;
 	}
