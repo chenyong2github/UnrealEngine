@@ -444,6 +444,7 @@ void FChaosScene::CompleteSceneSimulationImp()
 template <typename TSolver>
 void FChaosScene::SyncBodies(TSolver* Solver)
 {
+#if WITH_CHAOS
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
 	const int32 SolverSyncTimestamp = Solver->GetMarshallingManager().GetExternalTimestampConsumed_External();
 	Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
@@ -460,6 +461,7 @@ void FChaosScene::SyncBodies(TSolver* Solver)
 	{
 		Proxy->PullFromPhysicsState(SolverSyncTimestamp);
 	}
+#endif
 }
 
 
