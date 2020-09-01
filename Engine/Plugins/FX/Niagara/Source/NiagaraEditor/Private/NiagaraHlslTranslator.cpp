@@ -560,7 +560,8 @@ void FHlslNiagaraTranslator::GenerateFunctionSignature(ENiagaraScriptUsage Scrip
 	// with so that if we encounter a function implementation for another stage that it will also be added
 	if (OutSig.bRequiresContext && FDeclarationPermutationContext::SupportsBranching(*this))
 	{
-		OutSig.ContextStageIndex = ActiveStageIdx;
+		OutSig.ContextStageMinIndex = TranslationStages[ActiveStageIdx].SimulationStageIndexMin;
+		OutSig.ContextStageMaxIndex = TranslationStages[ActiveStageIdx].SimulationStageIndexMax;
 	}
 }
 
