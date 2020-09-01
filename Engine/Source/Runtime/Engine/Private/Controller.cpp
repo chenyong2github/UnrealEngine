@@ -423,6 +423,11 @@ void AController::Reset()
 
 /// @cond DOXYGEN_WARNINGS
 
+bool AController::ClientSetLocation_Validate(FVector NewLocation, FRotator NewRotation)
+{
+	return true;
+}
+
 void AController::ClientSetLocation_Implementation( FVector NewLocation, FRotator NewRotation )
 {
 	ClientSetRotation(NewRotation);
@@ -430,6 +435,11 @@ void AController::ClientSetLocation_Implementation( FVector NewLocation, FRotato
 	{
 		Pawn->TeleportTo(NewLocation, Pawn->GetActorRotation());
 	}
+}
+
+bool AController::ClientSetRotation_Validate(FRotator NewRotation, bool bResetCamera)
+{
+	return true;
 }
 
 void AController::ClientSetRotation_Implementation( FRotator NewRotation, bool bResetCamera )
