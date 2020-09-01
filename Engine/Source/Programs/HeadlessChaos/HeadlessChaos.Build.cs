@@ -20,9 +20,6 @@ public class HeadlessChaos : ModuleRules
                 "Projects",
                 "GoogleTest",
 				"GeometricObjects",
-				"GeometryCollectionCore",
-				"GeometryCollectionSimulationCore",
-				"FieldSystemSimulationCore",
 				"ChaosVehiclesCore"
             }
         );

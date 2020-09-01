@@ -13,7 +13,7 @@ namespace GeometryCollection
 	* Add the geometry group to a collection. Mostly for backwards compatibility with older files.
 	*/
 	void
-	GEOMETRYCOLLECTIONCORE_API
+	CHAOS_API
 	AddGeometryProperties(FGeometryCollection* Collection);
 
 	/****
@@ -105,7 +105,7 @@ namespace GeometryCollection
 	*   Utility to create a triangulated unit cube using the FGeometryCollection format.
 	*/
 	TSharedPtr<FGeometryCollection> 
-	GEOMETRYCOLLECTIONCORE_API 
+	CHAOS_API 
 	MakeCubeElement(const FTransform& center, FVector Scale = FVector(1.f), int NumberOfMaterials = 2);
 
 	/****
@@ -113,7 +113,7 @@ namespace GeometryCollection
 	*   Utility to create a grid (10x10x10) of triangulated unit cube using the FGeometryCollection format.
 	*/
 	void 
-	GEOMETRYCOLLECTIONCORE_API 
+	CHAOS_API 
 	SetupCubeGridExample(TSharedPtr<FGeometryCollection> GeometryCollection);
 
 
@@ -121,7 +121,7 @@ namespace GeometryCollection
 	* Setup Nested Hierarchy Example	
 	*/
 	void
-	GEOMETRYCOLLECTIONCORE_API
+	CHAOS_API
 	SetupNestedBoneCollection(FGeometryCollection * Collection);
 
 	/****
@@ -130,14 +130,14 @@ namespace GeometryCollection
 	* ... center of mass { (-10,0,0) && (10,0,0)}
 	*/
 	void
-	GEOMETRYCOLLECTIONCORE_API
+	CHAOS_API
 	SetupTwoClusteredCubesCollection(FGeometryCollection * Collection);
 
 	/***
 	* Ensure Material indices are setup correctly. Mostly for backwards compatibility with older files. 
 	*/
 	void 
-	GEOMETRYCOLLECTIONCORE_API 
+	CHAOS_API 
 	MakeMaterialsContiguous(FGeometryCollection * Collection);
 
 	/***

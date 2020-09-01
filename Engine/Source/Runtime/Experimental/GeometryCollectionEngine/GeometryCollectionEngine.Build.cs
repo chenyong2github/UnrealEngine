@@ -21,8 +21,6 @@ namespace UnrealBuildTool.Rules
                     "RHI",
                     "PhysX",
                     "FieldSystemEngine",
-                    "GeometryCollectionCore", 
-                    "GeometryCollectionSimulationCore",
 	                "ChaosSolverEngine",
 					"NetCore",
                     "IntelISPC"

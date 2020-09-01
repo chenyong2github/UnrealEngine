@@ -22,7 +22,7 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "Renderer",
                     "VectorVM",
-					"FieldSystemCore",
+					"Chaos",
 					"FieldSystemEngine",
 					"RHI",
 					"HairStrandsCore"

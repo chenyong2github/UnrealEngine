@@ -54,7 +54,7 @@ enum class EGeometryCollectionPhysicsTypeEnum : uint8
 	Chaos_Max						UMETA(Hidden)
 };
 inline
-FName GEOMETRYCOLLECTIONSIMULATIONCORE_API 
+FName CHAOS_API 
 GetGeometryCollectionPhysicsTypeName(EGeometryCollectionPhysicsTypeEnum Attribute)
 {
 	switch (Attribute)
