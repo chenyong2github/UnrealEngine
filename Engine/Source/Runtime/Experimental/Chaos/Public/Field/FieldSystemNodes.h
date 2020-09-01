@@ -11,7 +11,7 @@
 * FUniformInteger
 **/
 
-class FIELDSYSTEMCORE_API FUniformInteger : public FFieldNode<int32>
+class CHAOS_API FUniformInteger : public FFieldNode<int32>
 {
 	typedef FFieldNode<int32> Super;
 
@@ -40,7 +40,7 @@ public:
 * RadialMaskField
 **/
 
-class FIELDSYSTEMCORE_API FRadialIntMask : public FFieldNode<int32>
+class CHAOS_API FRadialIntMask : public FFieldNode<int32>
 {
 	typedef FFieldNode<int32> Super;
 
@@ -80,7 +80,7 @@ public:
 * FUniformScalar
 **/
 
-class FIELDSYSTEMCORE_API FUniformScalar : public FFieldNode<float>
+class CHAOS_API FUniformScalar : public FFieldNode<float>
 {
 	typedef FFieldNode<float> Super;
 
@@ -110,7 +110,7 @@ public:
 * RadialFalloff
 **/
 
-class FIELDSYSTEMCORE_API FRadialFalloff : public FFieldNode<float>
+class CHAOS_API FRadialFalloff : public FFieldNode<float>
 {
 	typedef FFieldNode<float> Super;
 
@@ -160,7 +160,7 @@ protected:
 /**
 * FPlaneFalloff
 **/
-class FIELDSYSTEMCORE_API FPlaneFalloff : public FFieldNode<float>
+class CHAOS_API FPlaneFalloff : public FFieldNode<float>
 {
 	typedef FFieldNode<float> Super;
 
@@ -213,7 +213,7 @@ protected :
 /**
 * FBoxFalloff
 **/
-class FIELDSYSTEMCORE_API FBoxFalloff : public FFieldNode<float>
+class CHAOS_API FBoxFalloff : public FFieldNode<float>
 {
 	typedef FFieldNode<float> Super;
 
@@ -261,7 +261,7 @@ protected:
 /**
 * NoiseField
 **/
-class FIELDSYSTEMCORE_API FNoiseField : public FFieldNode<float>
+class CHAOS_API FNoiseField : public FFieldNode<float>
 {
 	typedef FFieldNode<float> Super;
 
@@ -295,7 +295,7 @@ public:
 * UniformVector
 **/
 
-class FIELDSYSTEMCORE_API FUniformVector : public FFieldNode<FVector>
+class CHAOS_API FUniformVector : public FFieldNode<FVector>
 {
 	typedef FFieldNode<FVector> Super;
 
@@ -326,7 +326,7 @@ public:
 * RadialVector
 **/
 
-class FIELDSYSTEMCORE_API FRadialVector : public FFieldNode<FVector>
+class CHAOS_API FRadialVector : public FFieldNode<FVector>
 {
 	typedef FFieldNode<FVector> Super;
 
@@ -358,7 +358,7 @@ public:
 * RandomVector
 **/
 
-class FIELDSYSTEMCORE_API FRandomVector : public FFieldNode<FVector>
+class CHAOS_API FRandomVector : public FFieldNode<FVector>
 {
 	typedef FFieldNode<FVector> Super;
 
@@ -386,7 +386,7 @@ public:
 * SumScalar
 **/
 
-class FIELDSYSTEMCORE_API FSumScalar : public FFieldNode<float>
+class CHAOS_API FSumScalar : public FFieldNode<float>
 {
 	typedef FFieldNode<float> Super;
 
@@ -428,7 +428,7 @@ public:
 * SumVector
 **/
 
-class FIELDSYSTEMCORE_API FSumVector : public FFieldNode<FVector>
+class CHAOS_API FSumVector : public FFieldNode<FVector>
 {
 	typedef FFieldNode<FVector> Super;
 
@@ -475,7 +475,7 @@ public:
 * FConversionField
 **/
 template<class InT, class OutT>
-class FIELDSYSTEMCORE_API FConversionField : public FFieldNode<OutT>
+class CHAOS_API FConversionField : public FFieldNode<OutT>
 {
 	typedef FFieldNode<OutT> Super;
 
@@ -506,7 +506,7 @@ public:
 **/
 
 template<class T>
-class FIELDSYSTEMCORE_API FCullingField : public FFieldNode<T>
+class CHAOS_API FCullingField : public FFieldNode<T>
 {
 	typedef FFieldNode<T> Super;
 
@@ -544,9 +544,9 @@ public:
 };
 
 #if PLATFORM_MAC
-extern template class FIELDSYSTEMCORE_API FCullingField<int32>;
-extern template class FIELDSYSTEMCORE_API FCullingField<float>;
-extern template class FIELDSYSTEMCORE_API FCullingField<FVector>;
+extern template class CHAOS_API FCullingField<int32>;
+extern template class CHAOS_API FCullingField<float>;
+extern template class CHAOS_API FCullingField<FVector>;
 #endif
 
 /**
@@ -554,7 +554,7 @@ extern template class FIELDSYSTEMCORE_API FCullingField<FVector>;
 **/
 
 template<class T>
-class FIELDSYSTEMCORE_API FReturnResultsTerminal : public FFieldNode<T>
+class CHAOS_API FReturnResultsTerminal : public FFieldNode<T>
 {
 	typedef FFieldNode<T> Super;
 
@@ -578,9 +578,9 @@ public:
 };
 
 #if PLATFORM_MAC
-extern template class FIELDSYSTEMCORE_API FReturnResultsTerminal<int32>;
-extern template class FIELDSYSTEMCORE_API FReturnResultsTerminal<float>;
-extern template class FIELDSYSTEMCORE_API FReturnResultsTerminal<FVector>;
+extern template class CHAOS_API FReturnResultsTerminal<int32>;
+extern template class CHAOS_API FReturnResultsTerminal<float>;
+extern template class CHAOS_API FReturnResultsTerminal<FVector>;
 #endif
 
 /*

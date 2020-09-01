@@ -17,7 +17,7 @@ namespace Chaos
 *    see : https://wiki.it.epicgames.net/display/~Brice.Criswell/Geometry+Collections
 *
 */
-class GEOMETRYCOLLECTIONCORE_API FGeometryCollection : public FTransformCollection
+class CHAOS_API FGeometryCollection : public FTransformCollection
 {
 
 public:

@@ -13,9 +13,6 @@ namespace UnrealBuildTool.Rules
                 "Core",
                 "CoreUObject",
 				"Chaos",
-				"FieldSystemCore",
-				"GeometryCollectionCore",
-                "GeometryCollectionSimulationCore"
                 }
             ); 
 

@@ -269,7 +269,7 @@ struct FRecordedFrame
 };
 
 USTRUCT()
-struct GEOMETRYCOLLECTIONCORE_API FRecordedTransformTrack
+struct CHAOS_API FRecordedTransformTrack
 {
 	GENERATED_BODY()
 
