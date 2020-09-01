@@ -9,6 +9,7 @@
 #include "Chaos/ChaosDebugDraw.h"
 #include "ChaosStats.h"
 #include "ChaosSolversModule.h"
+#include "ChaosVisualDebugger/ChaosVisualDebuggerTrace.h"
 #include "HAL/FileManager.h"
 #include "Misc/ScopeLock.h"
 #include "PhysicsProxy/SingleParticlePhysicsProxy.h"
@@ -52,6 +53,8 @@ FAutoConsoleVariableRef CVarChaosSolverCollisionDeferNarrowPhase(TEXT("p.Chaos.S
 int32 ChaosSolverCollisionUseManifolds = 0;
 FAutoConsoleVariableRef CVarChaosSolverCollisionUseManifolds(TEXT("p.Chaos.Solver.Collision.UseManifolds"), ChaosSolverCollisionUseManifolds, TEXT("Enable/Disable use of manifoldes in collision."));
 
+int32 ChaosVisualDebuggerEnable = 1;
+FAutoConsoleVariableRef CVarChaosVisualDebuggerEnable(TEXT("p.Chaos.VisualDebuggerEnable"), ChaosVisualDebuggerEnable, TEXT("Enable/Disable pushing/saving data to the visual debugger"));
 
 
 namespace Chaos
@@ -159,6 +162,7 @@ namespace Chaos
 					}
 
 					MSolver->GetEvolution()->AdvanceOneTimeStep(DeltaTime);
+					MSolver->PostEvolutionVDBPush();
 					bFirstStep = false;
 				}
 
@@ -1098,6 +1102,22 @@ namespace Chaos
 #if CHAOS_DEBUG_DRAW
 		if (ChaosSolverDrawCollisions == 1) {
 			DebugDraw::DrawCollisions(TRigidTransform<float, 3>(), GetEvolution()->GetCollisionConstraints(), 1.f);
+		}
+#endif
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::PostEvolutionVDBPush() const
+	{
+#if CHAOS_VISUAL_DEBUGGER_ENABLED
+		if (ChaosVisualDebuggerEnable)
+		{
+			const TGeometryParticleHandles<FReal, 3>&  AllParticleHandles = GetEvolution()->GetParticleHandles();
+			for (uint32 ParticelIndex = 0; ParticelIndex < AllParticleHandles.Size(); ParticelIndex++)
+			{
+				const TUniquePtr<TGeometryParticleHandle<float, 3>>& ParticleHandle = AllParticleHandles.Handle(ParticelIndex);
+				ChaosVisualDebugger::ParticlePositionLog(ParticleHandle->X());				
+			}
 		}
 #endif
 	}
