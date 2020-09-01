@@ -23,6 +23,7 @@ struct FVirtualTextureBuildDesc
 	TEnumAsByte<enum TextureGroup> LODGroup;
 
 	bool bCrunchCompressed = false;
+	bool bContinuousUpdate = false;
 	bool bSinglePhysicalSpace = false;
 
 	int32 NumMips = 0;
