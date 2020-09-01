@@ -1567,14 +1567,20 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 
 	if (Mesh)
 	{
-		if (!Mesh->GetResourceForRendering())
+		FSkeletalMeshRenderData* RenderData = Mesh->GetResourceForRendering();
+		if (!RenderData)
 		{
 			UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface trying to use a mesh with no render data. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
 			return false;
 		}
 
 		MinLODIdx = Mesh->MinLod.GetValue();
-		const int32 PendingFirstLODIndex = Mesh->GetResourceForRendering()->GetPendingFirstLODIdx(MinLODIdx);
+		const int32 PendingFirstLODIndex = RenderData->GetPendingFirstLODIdx(MinLODIdx);
+		if (PendingFirstLODIndex == INDEX_NONE)
+		{
+			UE_LOG(LogNiagara, Log, TEXT("SkeletalMesh data interface trying to use a mesh with no valid render data for any LOD. Failed InitPerInstanceData - %s"), *Interface->GetFullName());
+			return false;
+		}
 
 		const int32 DesiredLODIndex = Interface->CalculateLODIndexAndSamplingRegions(Mesh, SamplingRegionIndices, bAllRegionsAreAreaWeighting);
 		if (DesiredLODIndex != INDEX_NONE)
@@ -1589,7 +1595,7 @@ bool FNDISkeletalMesh_InstanceData::Init(UNiagaraDataInterfaceSkeletalMesh* Inte
 				bResetOnLODStreamedIn = true;
 			}
 
-			CachedLODData = &Mesh->GetResourceForRendering()->LODRenderData[CachedLODIdx];
+			CachedLODData = &RenderData->LODRenderData[CachedLODIdx];
 		}
 		else
 		{
@@ -1882,7 +1888,7 @@ bool FNDISkeletalMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceSkeletalM
 	if (SkelMesh != nullptr)
 	{
 		const int32 PendingFirstLODIndex = SkelMesh->GetResourceForRendering()->GetPendingFirstLODIdx(MinLODIdx);
-		if (PendingFirstLODIndex > CachedLODIdx || (PendingFirstLODIndex < CachedLODIdx && bResetOnLODStreamedIn))
+		if (PendingFirstLODIndex == INDEX_NONE || PendingFirstLODIndex > CachedLODIdx || (PendingFirstLODIndex < CachedLODIdx && bResetOnLODStreamedIn))
 		{
 			return true;
 		}

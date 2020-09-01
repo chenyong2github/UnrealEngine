@@ -83,11 +83,12 @@ public:
 	/** 
 	 * Return the pending first LOD that can be used for rendering starting at MinLODIdx.
 	 * This takes into account the streaming status from PendingFirstLODIdx, 
-	 * and MinLODIdx is expected to be UStaticMesh::MinLOD, which is platform specific.
+	 * and MinLODIdx is expected to be USkeletalMesh::MinLOD, which is platform specific.
 	 */
 	FORCEINLINE const FSkeletalMeshLODRenderData* GetPendingFirstLOD(int32 MinLODIdx) const
 	{
-		return &LODRenderData[GetPendingFirstLODIdx(MinLODIdx)];
+		const int32 PendingFirstIdx = GetPendingFirstLODIdx(MinLODIdx);
+		return PendingFirstIdx == INDEX_NONE ? nullptr : &LODRenderData[PendingFirstIdx];
 	}
 
 private:
