@@ -375,6 +375,13 @@ public:
 		return FStringView();
 	}
 
+	uint32 GetFileData(FIoDirectoryIndexHandle File) const
+	{
+		return File.IsValid() && IsValidIndex()
+			? DirectoryIndex.FileEntries[File.ToIndex()].UserData
+			: ~uint32(0);
+	}
+
 private:
 	const FIoDirectoryIndexEntry& GetDirectoryEntry(FIoDirectoryIndexHandle Directory) const
 	{
@@ -442,4 +449,9 @@ FStringView FIoDirectoryIndexReader::GetDirectoryName(FIoDirectoryIndexHandle Di
 FStringView FIoDirectoryIndexReader::GetFileName(FIoDirectoryIndexHandle File) const
 {
 	return Impl->GetFileName(File);
+}
+
+uint32 FIoDirectoryIndexReader::GetFileData(FIoDirectoryIndexHandle File) const
+{
+	return Impl->GetFileData(File);
 }
