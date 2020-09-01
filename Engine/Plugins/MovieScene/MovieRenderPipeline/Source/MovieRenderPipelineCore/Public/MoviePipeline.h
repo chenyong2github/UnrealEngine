@@ -148,7 +148,22 @@ public:
 	}
 
 	UMoviePipelineSetting* FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const;
-	
+
+	template<typename SettingType>
+	TArray<SettingType*> FindSettings(const UMoviePipelineExecutorShot* InShot) const
+	{
+		TArray<SettingType*> Result;
+		TArray<UMoviePipelineSetting*> FoundSettings = FindSettings(SettingType::StaticClass(), InShot);
+		Result.Reserve(FoundSettings.Num());
+		for (UMoviePipelineSetting* Setting : FoundSettings)
+		{
+			Result.Add(CastChecked<SettingType>(Setting));
+		}
+		return Result;
+	}
+
+	TArray<UMoviePipelineSetting*> FindSettings(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const;
+
 	/**
 	* Resolves the provided InFormatString by converting {format_strings} into settings provided by the master config.
 	* @param	InFormatString		A format string (in the form of "{format_key1}_{format_key2}") to resolve.
@@ -259,6 +274,8 @@ private:
 	*/
 	void SetProgressWidgetVisible(bool bVisible);
 
+	/** Returns list of render passes for a given shot */
+	TArray<UMoviePipelineRenderPass*> GetAllRenderPasses(const UMoviePipelineExecutorShot* InShot);
 
 
 private:

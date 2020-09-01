@@ -300,6 +300,14 @@ public:
 
 	TSharedRef<SWidget> OnGenerateConfigPresetPickerMenu()
 	{
+		return OnGenerateConfigPresetPickerMenuFromClass(UMoviePipelineMasterConfig::StaticClass(),
+			FOnAssetSelected::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickPresetFromAsset),
+			FExecuteAction::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickNewPreset)
+			);
+	}
+
+	static TSharedRef<SWidget> OnGenerateConfigPresetPickerMenuFromClass(TSubclassOf<UMoviePipelineConfigBase> InClass, FOnAssetSelected InOnAssetSelected, FExecuteAction InNewConfig)
+	{
 		FMenuBuilder MenuBuilder(true, nullptr);
 		IContentBrowserSingleton& ContentBrowser = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser").Get();
 
@@ -320,22 +328,17 @@ public:
 			AssetPickerConfig.SaveSettingsName = TEXT("MoviePipelineConfigAsset");
 
 			AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoConfigs_Warning", "No Master Configurations Found");
-			AssetPickerConfig.Filter.ClassNames.Add(UMoviePipelineMasterConfig::StaticClass()->GetFName());
-			AssetPickerConfig.OnAssetSelected = FOnAssetSelected::CreateRaw(this, &FMoviePipelineQueueJobTreeItem::OnPickPresetFromAsset);
+			AssetPickerConfig.Filter.ClassNames.Add(InClass->GetFName());
+			AssetPickerConfig.OnAssetSelected = InOnAssetSelected;
 		}
 
 		MenuBuilder.BeginSection(NAME_None, LOCTEXT("NewConfig_MenuSection", "New Configuration"));
 		{
-			FExecuteAction ExecuteAction = FExecuteAction::CreateLambda([this]()
-				{
-					this->OnPickNewPreset();
-				});
-
 			MenuBuilder.AddMenuEntry(
 				LOCTEXT("NewConfig_Label", "Clear Config"),
 				LOCTEXT("NewConfig_Tooltip", "Resets the changes to the config and goes back to the defaults."),
 				FSlateIcon(),
-				FUIAction(ExecuteAction),
+				FUIAction(InNewConfig),
 				NAME_None,
 				EUserInterfaceActionType::Button
 			);
@@ -519,9 +522,14 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 
 	TWeakPtr<SMoviePipelineQueueEditor> WeakQueueEditor;
 
-	explicit FMoviePipelineShotItem(UMoviePipelineExecutorJob* InJob, UMoviePipelineExecutorShot* InShot)
+	FOnMoviePipelineEditConfig OnEditConfigCallback;
+	FOnMoviePipelineEditConfig OnChosePresetCallback;
+
+	explicit FMoviePipelineShotItem(UMoviePipelineExecutorJob* InJob, UMoviePipelineExecutorShot* InShot, FOnMoviePipelineEditConfig InOnEditConfigCallback, FOnMoviePipelineEditConfig InOnChosePresetCallback)
 		: WeakJob(InJob)
 		, WeakShot(InShot)
+		, OnEditConfigCallback(InOnEditConfigCallback)
+		, OnChosePresetCallback(InOnChosePresetCallback)
 	{}
 
 	virtual UMoviePipelineExecutorJob* GetOwningJob() override
@@ -618,6 +626,78 @@ struct FMoviePipelineShotItem : IMoviePipelineQueueTreeItem
 		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
 		return Shot ? FText::FromString(Shot->GetStatusMessage()) : FText();
 	}
+
+	FText GetShotConfigLabel() const
+	{
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (Shot)
+		{
+			UMoviePipelineShotConfig* Config = Shot->GetShotOverridePresetOrigin();
+			if (!Config)
+			{
+				Config = Shot->GetShotOverrideConfiguration();
+			}
+
+			if (Config)
+			{
+				return FText::FromString(Config->DisplayName);
+			}
+		}
+
+		return FText::FromString(TEXT("Edit"));
+	}
+
+	void OnPickShotPresetFromAsset(const FAssetData& AssetData)
+	{
+		// Close the dropdown menu that showed them the assets to pick from.
+		FSlateApplication::Get().DismissAllMenus();
+
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (Shot)
+		{
+			Shot->SetShotOverridePresetOrigin(CastChecked<UMoviePipelineShotConfig>(AssetData.GetAsset()));
+		}
+
+		OnChosePresetCallback.ExecuteIfBound(WeakJob, WeakShot);
+	}
+
+	void OnPickNewShotPreset()
+	{
+		// Close the dropdown menu that showed them the assets to pick from.
+		FSlateApplication::Get().DismissAllMenus();
+
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (Shot)
+		{
+			Shot->SetShotOverrideConfiguration(nullptr);
+		}
+
+		OnChosePresetCallback.ExecuteIfBound(WeakJob, WeakShot);
+	}
+
+	EVisibility GetShotConfigModifiedVisibility() const
+	{
+		UMoviePipelineExecutorShot* Shot = WeakShot.Get();
+		if (Shot && Shot->GetShotOverrideConfiguration() && (Shot->GetShotOverridePresetOrigin() == nullptr))
+		{
+			return EVisibility::Visible;
+		}
+
+		return EVisibility::Collapsed;
+	}
+
+	void OnEditConfigForShot()
+	{
+		OnEditConfigCallback.ExecuteIfBound(WeakJob, WeakShot);
+	}
+
+	TSharedRef<SWidget> OnGenerateShotConfigPresetPickerMenu()
+	{
+		return FMoviePipelineQueueJobTreeItem::OnGenerateConfigPresetPickerMenuFromClass(UMoviePipelineShotConfig::StaticClass(),
+			FOnAssetSelected::CreateRaw(this, &FMoviePipelineShotItem::OnPickShotPresetFromAsset),
+			FExecuteAction::CreateRaw(this, &FMoviePipelineShotItem::OnPickNewShotPreset)
+			);
+	}
 };
 
 void SQueueShotListRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTable)
@@ -663,57 +743,57 @@ TSharedRef<SWidget> SQueueShotListRow::GenerateWidgetForColumn(const FName& Colu
 	}
 	else if (ColumnName == SQueueJobListRow::NAME_Settings)
 	{
-		return SNullWidget::NullWidget;
-		/*return SNew(SHorizontalBox)
+		return SNew(SHorizontalBox)
+		.IsEnabled(Item.Get(), &FMoviePipelineShotItem::IsEnabled)
 
-			// Preset Label
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.Padding(2, 0)
-			[
-				SNew(SHyperlink)
-				.Text(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetMasterConfigLabel)
-				.OnNavigate(Item.Get(), &FMoviePipelineQueueJobTreeItem::OnEditMasterConfigForJob)
-			]
+		// Preset Label
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.Padding(2, 0)
+		[
+			SNew(SHyperlink)
+			.Text(TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(Item.Get(), &FMoviePipelineShotItem::GetShotConfigLabel)))
+			.OnNavigate(Item.Get(), &FMoviePipelineShotItem::OnEditConfigForShot)
+		]
 
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			[
-				SNew(STextBlock)
-				.Text(LOCTEXT("ModifiedConfigIndicator", "*"))
-				.Visibility(Item.Get(), &FMoviePipelineQueueJobTreeItem::GetMasterConfigModifiedVisibility)
-			]
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("ModifiedShotConfigIndicator", "*"))
+			.Visibility(Item.Get(), &FMoviePipelineShotItem::GetShotConfigModifiedVisibility)
+		]
 
-			+ SHorizontalBox::Slot()
-			.FillWidth(1.f)
-			[
-				SNullWidget::NullWidget
-			]
+		+ SHorizontalBox::Slot()
+		.FillWidth(1.f)
+		[
+			SNullWidget::NullWidget
+		]
 
-			// Dropdown Arrow
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Right)
-			.Padding(4, 0, 4, 0)
+		// Dropdown Arrow
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
+		.VAlign(VAlign_Center)
+		.HAlign(HAlign_Right)
+		.Padding(4, 0, 4, 0)
+		[
+			SNew(SComboButton)
+			.ContentPadding(1)
+			.OnGetMenuContent(Item.Get(), &FMoviePipelineShotItem::OnGenerateShotConfigPresetPickerMenu)
+			.HasDownArrow(false)
+			.ButtonContent()
 			[
-				SNew(SComboButton)
-				.ContentPadding(1)
-				.OnGetMenuContent(Item.Get(), &FMoviePipelineQueueJobTreeItem::OnGenerateConfigPresetPickerMenu)
-				.HasDownArrow(false)
-				.ButtonContent()
+				SNew(SBox)
+				.Padding(FMargin(2, 0))
 				[
-					SNew(SBox)
-					.Padding(FMargin(2, 0))
-					[
-						SNew(STextBlock)
-						.TextStyle(FEditorStyle::Get(), "NormalText.Important")
-						.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
-						.Text(FEditorFontGlyphs::Caret_Down)
-					]
+					SNew(STextBlock)
+					.TextStyle(FEditorStyle::Get(), "NormalText.Important")
+					.Font(FEditorStyle::Get().GetFontStyle("FontAwesome.10"))
+					.Text(FEditorFontGlyphs::Caret_Down)
 				]
-			];*/
+			]
+		];
 	}
 	else if (ColumnName == SQueueJobListRow::NAME_Output)
 	{
@@ -1081,7 +1161,7 @@ void SMoviePipelineQueueEditor::ReconstructTree()
 		// Add Shots
 		for (UMoviePipelineExecutorShot* ShotInfo : Job->ShotInfo)
 		{
-			TSharedPtr<FMoviePipelineShotItem> Shot = MakeShared<FMoviePipelineShotItem>(Job, ShotInfo);
+			TSharedPtr<FMoviePipelineShotItem> Shot = MakeShared<FMoviePipelineShotItem>(Job, ShotInfo, OnEditConfigRequested, OnPresetChosen);
 			JobTreeItem->Children.Add(Shot);
 		}
 

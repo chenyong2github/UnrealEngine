@@ -16,13 +16,14 @@ class FUICommandList;
 class ITableRow;
 class STableViewBase;
 class UMoviePipelineExecutorJob;
+class UMoviePipelineExecutorShot;
 class SWindow;
 class UMoviePipelineQueue;
 class SMoviePipelineQueueEditor;
 class UMovieSceneCinematicShotSection;
 struct FMoviePipelineQueueJobTreeItem;
 
-DECLARE_DELEGATE_TwoParams(FOnMoviePipelineEditConfig, TWeakObjectPtr<UMoviePipelineExecutorJob>, TWeakObjectPtr<UMovieSceneCinematicShotSection>)
+DECLARE_DELEGATE_TwoParams(FOnMoviePipelineEditConfig, TWeakObjectPtr<UMoviePipelineExecutorJob>, TWeakObjectPtr<UMoviePipelineExecutorShot>)
 DECLARE_DELEGATE_OneParam(FOnMoviePipelineJobSelection, const TArray<UMoviePipelineExecutorJob*>&)
 
 /**

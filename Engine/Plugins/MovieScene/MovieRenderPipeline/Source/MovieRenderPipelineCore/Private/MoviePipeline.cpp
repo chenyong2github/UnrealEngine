@@ -917,10 +917,10 @@ void UMoviePipeline::InitializeShot(UMoviePipelineExecutorShot* InShot)
 	// Set the new shot as the active shot. This enables the specified shot section and disables all other shot sections.
 	SetSoloShot(InShot);
 
-	if (InShot->ShotOverrideConfig != nullptr)
+	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
-		for (UMoviePipelineSetting* Setting : InShot->ShotOverrideConfig->GetUserSettings())
+		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
 		{
 			Setting->OnMoviePipelineInitialized(this);
 		}
@@ -943,10 +943,10 @@ void UMoviePipeline::TeardownShot(UMoviePipelineExecutorShot* InShot)
 		Container->OnShotFinished(InShot);
 	}
 
-	if (InShot->ShotOverrideConfig != nullptr)
+	if (InShot->GetShotOverrideConfiguration() != nullptr)
 	{
 		// Any shot-specific overrides haven't had first time initialization. So we'll do that now.
-		for (UMoviePipelineSetting* Setting : InShot->ShotOverrideConfig->GetUserSettings())
+		for (UMoviePipelineSetting* Setting : InShot->GetShotOverrideConfiguration()->GetUserSettings())
 		{
 			Setting->OnMoviePipelineShutdown(this);
 		}
@@ -1284,9 +1284,9 @@ UMoviePipelineMasterConfig* UMoviePipeline::GetPipelineMasterConfig() const
 UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
 {
 	// Check to see if this setting is in the shot override, if it is we'll use the shot version of that.
-	if (InShot->ShotOverrideConfig)
+	if (InShot->GetShotOverrideConfiguration())
 	{
-		UMoviePipelineSetting* Setting = InShot->ShotOverrideConfig->FindSettingByClass(InSetting);
+		UMoviePipelineSetting* Setting = InShot->GetShotOverrideConfiguration()->FindSettingByClass(InSetting);
 		if (Setting)
 		{
 			// If they specified the setting at all, respect the enabled setting. If it's not enabled, we return the
@@ -1304,6 +1304,38 @@ UMoviePipelineSetting* UMoviePipeline::FindOrAddSetting(TSubclassOf<UMoviePipeli
 
 	// If no one overrode it, then we return the default.
 	return InSetting->GetDefaultObject<UMoviePipelineSetting>();
+}
+
+TArray<UMoviePipelineSetting*> UMoviePipeline::FindSettings(TSubclassOf<UMoviePipelineSetting> InSetting, const UMoviePipelineExecutorShot* InShot) const
+{
+	TArray<UMoviePipelineSetting*> FoundSettings;
+
+	// Find all enabled settings of given subclass in the shot override first
+	if (UMoviePipelineShotConfig* ShotOverride = InShot->GetShotOverrideConfiguration())
+	{
+		for (UMoviePipelineSetting* Setting : ShotOverride->FindSettings(InSetting))
+		{
+			if (Setting && Setting->IsEnabled())
+			{
+				FoundSettings.Add(Setting);
+			}
+		}
+	}
+
+	// Add all enabled settings of given subclass not overridden by shot override
+	for (UMoviePipelineSetting* Setting : GetPipelineMasterConfig()->FindSettings(InSetting))
+	{
+		if (Setting && Setting->IsEnabled())
+		{
+			TSubclassOf<UMoviePipelineSetting> SettingClass = Setting->GetClass();
+			if (!FoundSettings.ContainsByPredicate([SettingClass](UMoviePipelineSetting* ExistingSetting) { return ExistingSetting && ExistingSetting->GetClass() == SettingClass; } ))
+			{
+				FoundSettings.Add(Setting);
+			}
+		}
+	}
+
+	return FoundSettings;
 }
 
 static bool CanWriteToFile(const TCHAR* InFilename, bool bOverwriteExisting)
