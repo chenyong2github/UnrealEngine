@@ -587,7 +587,7 @@ public:
 		TIoStatusOr<uint64> TocSize = FIoStoreTocResource::Write(*TocFilePath, TocResource, ContainerSettings, WriterContext->GetSettings());
 		if (!TocSize.IsOk())
 		{
-			TocSize.Status();
+			return TocSize.Status();
 		}
 
 		Result.ContainerId = ContainerSettings.ContainerId;
