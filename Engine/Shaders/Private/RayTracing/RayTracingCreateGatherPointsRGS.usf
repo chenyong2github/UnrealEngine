@@ -72,7 +72,7 @@ void GenerateUniformRay(
 
 	RayOrigin = WorldPosition;
 	RayDirection = Direction_World;
-	RayTMin = 0.01;
+	RayTMin = 0.05;
 	RayTMax = MaxRayDistanceForGI;
 	RayPdf = SampleResult.w;
 }
@@ -94,7 +94,7 @@ void GenerateCosineNormalRay(
 
 	RayOrigin = WorldPosition;
 	RayDirection = Direction_World;
-	RayTMin = 0.01;
+	RayTMin = 0.05;
 	RayTMax = MaxRayDistanceForGI;
 	RayPdf = Direction_Tangent.w;
 }
@@ -179,9 +179,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsTraceRGS)
 		// Initialize ray
 		RayDesc Ray;
 		float RayPdf = 1.0;
-		//GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateUniformRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
-		GenerateCosineNormalRay(WorldPosition, SampleCenterNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		//GenerateCosineNormalRay(WorldPosition, SampleCenterNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
 		uint RayFlags = 0;
@@ -306,9 +306,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingCreateGatherPointsRGS)
 		// Initialize ray
 		RayDesc Ray;
 		float RayPdf = 1.0;
-		//GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		GenerateCosineNormalRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		//GenerateUniformRay(WorldPosition, WorldNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
-		GenerateCosineNormalRay(WorldPosition, SampleCenterNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
+		//GenerateCosineNormalRay(WorldPosition, SampleCenterNormal, RandSample.yz, Ray.Origin, Ray.Direction, Ray.TMin, Ray.TMax, RayPdf);
 		// Distribution PDF is not used for gather points, only gather queries.
 		ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, WorldNormal, MaxNormalBias);
 
