@@ -146,17 +146,17 @@ TEST(BroadphaseTests, Broadphase) {
 	SUCCEED();
 }
 
-TEST(ClothTests, DeformableGravity) {
-	ChaosTest::DeformableGravity<float>();
-
-	SUCCEED();
-}
-
-TEST(ClothTests, EdgeConstraints) {
-	ChaosTest::EdgeConstraints<float>();
-
-	SUCCEED();
-}
+//TEST(ClothTests, DeformableGravity) {
+//	ChaosTest::DeformableGravity<float>();
+//
+//	SUCCEED();
+//}
+//
+//TEST(ClothTests, EdgeConstraints) {
+//	ChaosTest::EdgeConstraints<float>();
+//
+//	SUCCEED();
+//}
 
 TEST(RaycastTests, Raycast) {
 	ChaosTest::SphereRaycast<float>();
