@@ -50,11 +50,6 @@ FText UK2Node_DoOnceMultiInput::GetNodeTitle(ENodeTitleType::Type TitleType) con
 	return LOCTEXT("DoOnceMultiInput", "DoOnce MultiInput");
 }
 
-int32 UK2Node_DoOnceMultiInput::GetMaxInputPinsNum()
-{
-	return (TCHAR('Z') - TCHAR('A'));
-}
-
 FText UK2Node_DoOnceMultiInput::GetNameForPin(int32 PinIndex, bool In)
 {
 	check(PinIndex < GetMaxInputPinsNum());

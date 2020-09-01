@@ -23,13 +23,13 @@ class UK2Node_CommutativeAssociativeBinaryOperator : public UK2Node_CallFunction
 private:
 	const static int32 BinaryOperatorInputsNum = 2;
 
-	static int32 GetMaxInputPinsNum();
-	static FName GetNameForPin(int32 PinIndex);
-
 	FEdGraphPinType GetType() const;
 
 	void AddInputPinInner(int32 AdditionalPinIndex);
-	bool CanRemovePin(const UEdGraphPin* Pin) const;
+
+protected: 
+	bool CanRemovePin(const UEdGraphPin* Pin) const override;
+
 public:
 	BLUEPRINTGRAPH_API UEdGraphPin* FindOutPin() const;
 	BLUEPRINTGRAPH_API UEdGraphPin* FindSelfPin() const;
@@ -37,7 +37,7 @@ public:
 	/** Get TRUE input type (self, etc.. are skipped) */
 	BLUEPRINTGRAPH_API UEdGraphPin* GetInputPin(int32 InputPinIndex);
 
-	BLUEPRINTGRAPH_API void RemoveInputPin(UEdGraphPin* Pin);
+	virtual void RemoveInputPin(UEdGraphPin* Pin) override;
 
 	// UEdGraphNode interface
 	virtual void AllocateDefaultPins() override;

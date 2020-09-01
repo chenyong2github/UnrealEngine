@@ -12,18 +12,6 @@
 
 #define LOCTEXT_NAMESPACE "CommutativeAssociativeBinaryOperatorNode"
 
-int32 UK2Node_CommutativeAssociativeBinaryOperator::GetMaxInputPinsNum()
-{
-	return (TCHAR('Z') - TCHAR('A'));
-}
-
-FName UK2Node_CommutativeAssociativeBinaryOperator::GetNameForPin(int32 PinIndex)
-{
-	check(PinIndex < GetMaxInputPinsNum());
-	const FName Name(*FString::Chr(TCHAR('A') + PinIndex));
-	return Name;
-}
-
 UK2Node_CommutativeAssociativeBinaryOperator::UK2Node_CommutativeAssociativeBinaryOperator(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -168,7 +156,7 @@ void UK2Node_CommutativeAssociativeBinaryOperator::AddInputPinInner(int32 Additi
 		InputType.PinCategory, 
 		InputType.PinSubCategory, 
 		InputType.PinSubCategoryObject.Get(), 
-		GetNameForPin(AdditionalPinIndex + BinaryOperatorInputsNum),
+		GetNameForAdditionalPin(AdditionalPinIndex + BinaryOperatorInputsNum),
 		PinParams
 	);
 }
@@ -206,7 +194,7 @@ void UK2Node_CommutativeAssociativeBinaryOperator::RemoveInputPin(UEdGraphPin* P
 				UEdGraphPin* LocalPin = Pins[PinIndex];
 				if(LocalPin && (LocalPin != OutPin) && (LocalPin != SelfPin))
 				{
-					const FName PinName = GetNameForPin(NameIndex);
+					const FName PinName = GetNameForAdditionalPin(NameIndex);
 					if (PinName != LocalPin->PinName)
 					{
 						LocalPin->Modify();
