@@ -3597,7 +3597,7 @@ void ALandscape::InitializeLayersWeightmapResources()
 {
 	ULandscapeInfo* Info = GetLandscapeInfo();
 
-	if (Info == nullptr || Info->Layers.Num() == 0)
+	if (Info == nullptr)
 	{
 		return;
 	}
@@ -3715,7 +3715,7 @@ int32 ALandscape::RegenerateLayersWeightmaps(const TArray<ULandscapeComponent*>&
 		return 0;
 	}
 
-	if (InLandscapeComponentsToResolve.Num() == 0 || Info == nullptr || Info->Layers.Num() == 0)
+	if (InLandscapeComponentsToResolve.Num() == 0 || Info == nullptr)
 	{
 		return WeightmapUpdateModes;
 	}
