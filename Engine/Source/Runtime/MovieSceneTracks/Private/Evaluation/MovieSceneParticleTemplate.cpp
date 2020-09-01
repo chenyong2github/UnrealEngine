@@ -11,7 +11,7 @@
 
 DECLARE_CYCLE_STAT(TEXT("Particle Track Token Execute"), MovieSceneEval_ParticleTrack_TokenExecute, STATGROUP_MovieSceneEval);
 
-static UParticleSystemComponent* GetParticleSystemComponentFromObject(UObject* Object)
+static UFXSystemComponent* GetFXSystemComponentFromObject(UObject* Object)
 {
 	if (AEmitter* Emitter = Cast<AEmitter>(Object))
 	{
@@ -19,7 +19,7 @@ static UParticleSystemComponent* GetParticleSystemComponentFromObject(UObject* O
 	}
 	else
 	{
-		return Cast<UParticleSystemComponent>(Object);
+		return Cast<UFXSystemComponent>(Object);
 	}
 }
 
@@ -34,14 +34,22 @@ struct FActivePreAnimatedToken : IMovieScenePreAnimatedToken
 		{
 			bCurrentlyActive = Emitter->bCurrentlyActive;
 		}
+		else
+		{
+			UFXSystemComponent* FXSystemComponent = GetFXSystemComponentFromObject(&InObject);
+			if (FXSystemComponent != nullptr)
+			{
+				bCurrentlyActive = FXSystemComponent->IsActive();
+			}
+		}
 	}
 
 	virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
 	{
-		UParticleSystemComponent* ParticleSystemComponent = GetParticleSystemComponentFromObject(&InObject);
-		if (ParticleSystemComponent)
+		UFXSystemComponent* FXSystemComponent = GetFXSystemComponentFromObject(&InObject);
+		if (FXSystemComponent)
 		{
-			ParticleSystemComponent->SetActive(bCurrentlyActive, true);
+			FXSystemComponent->SetActive(bCurrentlyActive, true);
 		}
 	}
 
@@ -80,26 +88,26 @@ struct FParticleTrackExecutionToken
 		for (TWeakObjectPtr<> Object : Player.FindBoundObjects(Operand))
 		{
 			UObject* ObjectPtr = Object.Get();
-			UParticleSystemComponent* ParticleSystemComponent = GetParticleSystemComponentFromObject(ObjectPtr);
+			UFXSystemComponent* FXSystemComponent = GetFXSystemComponentFromObject(ObjectPtr);
 
-			if (ParticleSystemComponent)
+			if (FXSystemComponent)
 			{
 				Player.SavePreAnimatedState(*ObjectPtr, FActiveTokenProducer::GetAnimTypeID(), FActiveTokenProducer());
 
 				if ( ParticleKey == EParticleKey::Activate)
 				{
-					if ( !ParticleSystemComponent->IsActive() )
+					if ( !FXSystemComponent->IsActive() )
 					{
-						ParticleSystemComponent->SetActive(true, true);
+						FXSystemComponent->SetActive(true, true);
 					}
 				}
 				else if( ParticleKey == EParticleKey::Deactivate )
 				{
-					ParticleSystemComponent->SetActive(false, true);
+					FXSystemComponent->SetActive(false, true);
 				}
 				else if ( ParticleKey == EParticleKey::Trigger )
 				{
-					ParticleSystemComponent->ActivateSystem(true);
+					FXSystemComponent->ActivateSystem(true);
 				}
 			}
 		}
