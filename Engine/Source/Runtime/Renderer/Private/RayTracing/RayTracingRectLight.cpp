@@ -24,7 +24,8 @@ static FAutoConsoleVariableRef CVarRayTracingStochasticRectLight(
 	TEXT("r.RayTracing.StochasticRectLight"),
 	GRayTracingStochasticRectLight,
 	TEXT("0: use analytical evaluation (default)\n")
-	TEXT("1: use stochastic evaluation\n")
+	TEXT("1: use stochastic evaluation\n"),
+	ECVF_RenderThreadSafe
 );
 
 static int32 GRayTracingStochasticRectLightSamplesPerPixel = -1;
