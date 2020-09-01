@@ -3674,18 +3674,13 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ConstructObject);
-			Object = StaticConstructObject_Internal
-				(
-				 LoadClass,
-				 ThisParent,
-				 ObjectName,
-				 ObjectLoadFlags,
-				 EInternalObjectFlags::None,
-				 Template,
-				 false,
-				 nullptr,
-				 true
-				);
+			FStaticConstructObjectParameters Params(LoadClass);
+			Params.Outer = ThisParent;
+			Params.Name = ObjectName;
+			Params.SetFlags = ObjectLoadFlags;
+			Params.Template = Template;
+			Params.bAssumeTemplateIsArchetype = true;
+			Object = StaticConstructObject_Internal(Params);
 		}
 
 		if (GIsInitialLoad || GUObjectArray.IsOpenForDisregardForGC())

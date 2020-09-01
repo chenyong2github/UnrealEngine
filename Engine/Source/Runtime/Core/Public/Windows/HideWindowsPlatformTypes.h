@@ -3,7 +3,7 @@
 #ifdef WINDOWS_PLATFORM_TYPES_GUARD
 	#undef WINDOWS_PLATFORM_TYPES_GUARD
 #else
-	#error Mismatched HideWindowsPLatformTypes.h detected.
+	#error Mismatched HideWindowsPlatformTypes.h detected.
 #endif
 
 #undef INT

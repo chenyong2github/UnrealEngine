@@ -818,6 +818,9 @@ protected:
 
 	void OnAddParentNode();
 	bool CanAddParentNode() const;
+	
+	void OnCreateMatchingFunction();
+	bool CanCreateMatchingFunction() const;
 
 	void OnEnableBreakpoint();
 	bool CanEnableBreakpoint() const;

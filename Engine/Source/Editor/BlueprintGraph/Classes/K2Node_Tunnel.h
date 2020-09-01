@@ -47,6 +47,7 @@ class BLUEPRINTGRAPH_API UK2Node_Tunnel : public UK2Node_EditablePinBase
 	virtual UObject* GetJumpTargetForDoubleClick() const override;
 	virtual FName CreateUniquePinName(FName SourcePinName) const override;
 	virtual void ReallocatePinsDuringReconstruction(TArray<UEdGraphPin*>& OldPins) override;
+	virtual bool IsCompatibleWithGraph(const UEdGraph* InGraph) const override;
 	//~ End UEdGraphNode Interface
 
 	//~ Begin UK2Node Interface.

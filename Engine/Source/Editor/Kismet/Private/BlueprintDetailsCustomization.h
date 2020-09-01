@@ -627,6 +627,9 @@ private:
 	/** Callback to determine if the "New" button for adding input/output pins is visible */
 	EVisibility GetAddNewInputOutputVisibility() const;
 
+	/** Callback to determine if the "new" button for adding input/output pins is enabled */
+	bool IsAddNewInputOutputEnabled() const;
+
 	EVisibility OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const;
 
 	/** Called to set the replication type from the details view combo */

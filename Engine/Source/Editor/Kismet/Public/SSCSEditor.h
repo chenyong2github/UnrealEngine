@@ -825,6 +825,13 @@ private:
 	 */
 	FText GetComponentAddSourceToolTipText() const;
 
+	/**
+	 * Retrieves tooltip text for the specified Native Component's underlying Name
+	 *
+	 * @returns An FText object containing the Component's Name
+	 */
+	FText GetNativeComponentNameToolTipText() const;
+
 public:
 	/** Pointer back to owning SCSEditor 2 tool */
 	TWeakPtr<SSCSEditor> SCSEditor;
@@ -1027,6 +1034,21 @@ public:
 	   @param bSkipMarkBlueprintModified 	(In) Optionally skip marking this blueprint as modified (e.g. if we're handling that externally)
 	   @return The reference of the newly created ActorComponent */
 	UActorComponent* AddNewComponent(UClass* NewComponentClass, UObject* Asset, const bool bSkipMarkBlueprintModified = false, bool bSetFocusToNewItem = true);
+
+	struct FAddedNodeDetails
+	{
+		FSCSEditorTreeNodePtrType NewNodePtr;
+		FSCSEditorTreeNodePtrType ParentNodePtr;
+	};
+
+	/** Adds a new SCS Node to the component Table
+	   @param OutNodeDetails (Out) Struct to be populated by the tree node pointers of the new node and its parent
+	   @param OngoingCreateTransaction (In) The transaction containing the creation of the node. The transaction will remain ongoing until the node gets its initial name from user.
+	   @param NewNode	(In) The SCS node to add
+	   @param Asset		(In) Optional asset to assign to the component
+	   @param bMarkBlueprintModified (In) Whether or not to mark the Blueprint as structurally modified
+	   @param bSetFocusToNewItem (In) Select the new item and activate the inline rename widget (default is true) */
+	void AddNewNode(FAddedNodeDetails& OutNodeDetails, TUniquePtr<FScopedTransaction> OngoingCreateTransaction, USCS_Node* NewNode, UObject* Asset, bool bMarkBlueprintModified, bool bSetFocusToNewItem = true);
 
 	/** Adds a new SCS Node to the component Table
 	   @param OngoingCreateTransaction (In) The transaction containing the creation of the node. The transaction will remain ongoing until the node gets its initial name from user.

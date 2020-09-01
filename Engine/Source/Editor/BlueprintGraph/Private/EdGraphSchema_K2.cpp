@@ -191,6 +191,8 @@ const FName FBlueprintMetadata::MD_UseEnumValuesAsMaskValuesInEditor(TEXT("UseEn
 
 const FName FBlueprintMetadata::MD_AnimBlueprintFunction(TEXT("AnimBlueprintFunction"));
 
+const FName FBlueprintMetadata::MD_AllowAbstractClasses(TEXT("AllowAbstract"));
+
 //////////////////////////////////////////////////////////////////////////
 
 #define LOCTEXT_NAMESPACE "KismetSchema"
@@ -1072,6 +1074,7 @@ void UEdGraphSchema_K2::MarkFunctionEntryAsEditable(const UEdGraph* CurrentGraph
 	{
 		if (UK2Node_EditablePinBase* EditableNode = Cast<UK2Node_EditablePinBase>(Node))
 		{
+			EditableNode->Modify();
 			EditableNode->bIsEditable = bNewEditable;
 		}
 	}
@@ -1587,6 +1590,15 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 					if (InGraphNode->IsA(UK2Node_ActorBoundEvent::StaticClass()) && GEditor->GetSelectedActorCount() == 1)
 					{
 						Section.AddMenuEntry(FGraphEditorCommands::Get().AssignReferencedActor);
+					}
+
+					// Conditionally show the "Create Matching Function" option if it is an unresolved CallFunction node
+					if (const UK2Node_CallFunction* FuncNode = Cast<UK2Node_CallFunction>(InGraphNode))
+					{
+						if (!FuncNode->GetTargetFunction())
+						{
+							Section.AddMenuEntry(FGraphEditorCommands::Get().CreateMatchingFunction);
+						}
 					}
 				}
 
@@ -3717,8 +3729,6 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Byte, true), PC_Byte, this, LOCTEXT("ByteType", "8 bit number")) ) );
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int, true), PC_Int, this, LOCTEXT("IntegerType", "Integer number")) ) );
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int64, true), PC_Int64, this, LOCTEXT("Integer64Type", "64 bit Integer number")) ) );
-
-	TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_FieldPath, true), PC_FieldPath, this, LOCTEXT("FieldPathType", "Reference to a property"))));
 
 	if (!bIndexTypesOnly)
 	{

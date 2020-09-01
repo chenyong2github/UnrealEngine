@@ -1435,8 +1435,8 @@ public:
 	 * Splits this string at given string position case sensitive.
 	 *
 	 * @param InStr The string to search and split at
-	 * @param LeftS out the string to the left of InStr, not updated if return is false
-	 * @param RightS out the string to the right of InStr, not updated if return is false
+	 * @param LeftS out the string to the left of InStr, not updated if return is false. LeftS must not point to the same location as RightS or this.
+	 * @param RightS out the string to the right of InStr, not updated if return is false. RightS must not point to the same location as LeftS or this.
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return true if string is split, otherwise false
@@ -1444,12 +1444,57 @@ public:
 	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
 		ESearchDir::Type SearchDir = ESearchDir::FromStart) const
 	{
+		check(this != LeftS);
+		check(this != RightS);
+		check(LeftS != RightS || LeftS == nullptr);
+
 		int32 InPos = Find(InS, SearchCase, SearchDir);
 
 		if (InPos < 0)	{ return false; }
 
 		if (LeftS)		{ *LeftS = Left(InPos); }
 		if (RightS)	{ *RightS = Mid(InPos + InS.Len()); }
+
+		return true;
+	}
+
+	/**
+	 * Splits this string at given string position case sensitive.
+	 *
+	 * @param InStr The string to search and split at
+	 * @param LeftS out the string to the left of InStr, not updated if return is false. LeftS must not point to the same location as RightS.
+	 * @param RightS out the string to the right of InStr, not updated if return is false. RightS must not point to the same location as LeftS.
+	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
+	 * @return true if string is split, otherwise false
+	 */
+	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
+		ESearchDir::Type SearchDir = ESearchDir::FromStart)
+	{
+		check(LeftS != RightS || LeftS == nullptr);
+
+		int32 InPos = Find(InS, SearchCase, SearchDir);
+
+		if (InPos < 0) { return false; }
+
+		if (LeftS)
+		{
+			if (LeftS != this)
+			{
+				*LeftS = Left(InPos);
+				if (RightS) { *RightS = Mid(InPos + InS.Len()); }
+			}
+			else
+			{
+				// we know that RightS can't be this so we can safely modify it before we deal with LeftS
+				if (RightS) { *RightS = Mid(InPos + InS.Len()); }
+				*LeftS = Left(InPos);
+			}
+		}
+		else if (RightS)
+		{
+			*RightS = Mid(InPos + InS.Len());
+		}
 
 		return true;
 	}
