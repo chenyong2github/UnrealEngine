@@ -3240,7 +3240,6 @@ void FBodyInstance::SetLinearVelocity(const FVector& NewVel, bool bAddToCurrent,
 	});
 }
 
-/** Note NewAngVel is in degrees per second */
 void FBodyInstance::SetAngularVelocityInRadians(const FVector& NewAngVel, bool bAddToCurrent, bool bAutoWake)
 {
 	FPhysicsCommand::ExecuteWrite(ActorHandle, [&](const FPhysicsActorHandle& Actor)
