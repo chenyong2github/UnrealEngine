@@ -302,22 +302,29 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 
 
 	// Ensure our shadow buffer is large enough to hold the readback.
-	if (!StagingBuffer->StagedRead || StagingBuffer->ShadowBufferSize < NumBytes)
+	if (!StagingBuffer->ResourceLocation.IsValid() || StagingBuffer->ShadowBufferSize < NumBytes)
 	{
-		// @todo-mattc I feel like we should allocate more than NumBytes to handle small reads without blowing tons of space. Need to pool this.
-		// Hopefully d3d12 will do smart pooling out of an internal heap.
 		StagingBuffer->SafeRelease();
 
-		VERIFYD3D12RESULT(GetParentDevice()->GetParentAdapter()->CreateBuffer(D3D12_HEAP_TYPE_READBACK, GetGPUMask(), GetGPUMask(), NumBytes, &StagingBuffer->StagedRead, TEXT("StagedRead")));
+		// Unknown aligment requirement for sub allocated read back buffer data
+		uint32 AllocationAlignment = 16;
+		const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(NumBytes, D3D12_RESOURCE_FLAG_NONE);		
+		GetParentDevice()->GetDefaultBufferAllocator().AllocDefaultResource(D3D12_HEAP_TYPE_READBACK, BufferDesc, (EBufferUsageFlags)BUF_None, ED3D12ResourceStateMode::SingleState, StagingBuffer->ResourceLocation, AllocationAlignment, TEXT("StagedRead"));
+		check(StagingBuffer->ResourceLocation.GetSize() == NumBytes);
 		StagingBuffer->ShadowBufferSize = NumBytes;
 	}
+
+	// Validate the GPU mask to make sure it's a resource for the currently set GPU mask
+	check(StagingBuffer->ResourceLocation.GetResource()->GetGPUMask() == GetGPUMask());
 
 	{
 		FD3D12Resource* pSourceResource = VertexBuffer->ResourceLocation.GetResource();
 		D3D12_RESOURCE_DESC const& SourceBufferDesc = pSourceResource->GetDesc();
+		uint32 SourceOffset = VertexBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
 
-		FD3D12Resource* pDestResource = StagingBuffer->StagedRead;
+		FD3D12Resource* pDestResource = StagingBuffer->ResourceLocation.GetResource();
 		D3D12_RESOURCE_DESC const& DestBufferDesc = pDestResource->GetDesc();
+		uint32 DestOffset = StagingBuffer->ResourceLocation.GetOffsetFromBaseOfResource();
 
 		if (pSourceResource->RequiresResourceStateTracking())
 		{
@@ -327,7 +334,7 @@ void FD3D12CommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuffer
 
 		numCopies++;
 
-		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), 0, pSourceResource->GetResource(), Offset, NumBytes);
+		CommandListHandle->CopyBufferRegion(pDestResource->GetResource(), DestOffset, pSourceResource->GetResource(), Offset + SourceOffset, NumBytes);
 		CommandListHandle.UpdateResidency(pDestResource);
 		CommandListHandle.UpdateResidency(pSourceResource);
 	}

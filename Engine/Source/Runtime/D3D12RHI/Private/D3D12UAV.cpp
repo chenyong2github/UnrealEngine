@@ -380,22 +380,19 @@ FUnorderedAccessViewRHIRef FD3D12DynamicRHI::RHICreateUnorderedAccessView_Render
 
 FD3D12StagingBuffer::~FD3D12StagingBuffer()
 {
-	if (StagedRead)
-	{
-		StagedRead->DeferDelete();
-	}
+	ResourceLocation.Clear();
 }
 
 void* FD3D12StagingBuffer::Lock(uint32 Offset, uint32 NumBytes)
 {
 	check(!bIsLocked);
 	bIsLocked = true;
-	if (StagedRead)
+	if (ResourceLocation.IsValid())
 	{
 		D3D12_RANGE ReadRange;
-		ReadRange.Begin = Offset;
-		ReadRange.End = Offset + NumBytes;
-		return reinterpret_cast<uint8*>(StagedRead->Map(&ReadRange)) + Offset;
+		ReadRange.Begin = ResourceLocation.GetOffsetFromBaseOfResource() + Offset;
+		ReadRange.End = ResourceLocation.GetOffsetFromBaseOfResource() + Offset + NumBytes;
+		return reinterpret_cast<uint8*>(ResourceLocation.GetResource()->Map(&ReadRange)) + ResourceLocation.GetOffsetFromBaseOfResource() + Offset;
 	}
 	else
 	{
@@ -407,8 +404,8 @@ void FD3D12StagingBuffer::Unlock()
 {
 	check(bIsLocked);
 	bIsLocked = false;
-	if (StagedRead)
+	if (ResourceLocation.IsValid())
 	{
-		StagedRead->Unmap();
+		ResourceLocation.GetResource()->Unmap();
 	}
 }
