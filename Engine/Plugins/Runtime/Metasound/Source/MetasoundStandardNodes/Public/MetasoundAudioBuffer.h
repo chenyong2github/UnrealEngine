@@ -154,5 +154,5 @@ namespace Metasound
 #endif				
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDSTANDARDNODES_API, 0x1b02dac2 , FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDSTANDARDNODES_API, FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
 };

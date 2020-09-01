@@ -187,7 +187,7 @@ namespace Metasound
 
 				check(nullptr != DataRefPtr);
 
-				check(HasMatchingTypeInfo<DataType>(*DataRefPtr));
+				check(IsDataReferenceOfType<DataType>(*DataRefPtr));
 
 				return FDataRefType(*static_cast<const FDataRefType*>(DataRefPtr));
 			}
@@ -230,7 +230,7 @@ namespace Metasound
 
 				check(nullptr != DataRefPtr);
 
-				check(HasMatchingTypeInfo<DataType>(*DataRefPtr));
+				check(IsDataReferenceOfType<DataType>(*DataRefPtr));
 
 				return FDataRefType(*static_cast<const FDataRefType*>(DataRefPtr));
 			}
@@ -269,22 +269,11 @@ namespace Metasound
 
 					if (nullptr != DataRefPtr)
 					{
-						return HasMatchingTypeInfo<DataType>(*DataRefPtr);
+						return IsDataReferenceOfType<DataType>(*DataRefPtr);
 					}
 				}
 
 				return false;
-			}
-
-			template<typename DataType>
-			bool HasMatchingTypeInfo(const IDataReference& InRef) const
-			{
-				static const FName DataTypeName = FName(TDataReferenceTypeInfo<DataType>::TypeName);
-
-				bool bTypeNameMatch = InRef.GetDataTypeName() == DataTypeName;
-				bool bTypeIdMatch = InRef.GetDataTypeMagicNumber() == TDataReferenceTypeInfo<DataType>::MagicNumber;
-
-				return bTypeNameMatch && bTypeIdMatch;
 			}
 
 			const IDataReference* GetDataReference(const FDataReferenceMap& InMap, const FString& InName) const;

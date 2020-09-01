@@ -146,7 +146,7 @@ namespace Metasound
 		 */
 		virtual bool IsReferenceOfSameType(const IDataReference& InReference) const override
 		{
-			return IsReferenceOfType<DataType>(InReference);
+			return IsDataReferenceOfType<DataType>(InReference);
 		}
 
 

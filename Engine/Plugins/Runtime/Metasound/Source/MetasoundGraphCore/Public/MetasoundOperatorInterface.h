@@ -6,8 +6,10 @@
 
 #include "MetasoundDataReference.h"
 #include "MetasoundDataReferenceCollection.h"
-#include "MetasoundOperatorSettings.h"
-#include "IAudioProxyInitializer.h"
+#include "MetasoundOperatorSettings.h" // < TODO: For literal param.  Should remove when literal param is moved. 
+#include "Misc/TVariant.h" // < TODO: For literal param.  Should remove when literal param is moved. 
+#include "IAudioProxyInitializer.h" // < TODO: For literal param.  Should remove when literal param is moved. 
+
 
 namespace Metasound
 {
@@ -56,32 +58,7 @@ namespace Metasound
 	};
 }
 
-template <typename TDataType, typename TTypeToParse>
-struct TTestIfDataTypeCtorIsImplemented
-{
-private:
-	static constexpr bool bSupportsConstructionWithSettings = 
-		TIsConstructible<TDataType, TTypeToParse, const ::Metasound::FOperatorSettings&>::Value
-		|| TIsConstructible<TDataType, TTypeToParse, ::Metasound::FOperatorSettings&>::Value
-		|| TIsConstructible<TDataType, TTypeToParse, ::Metasound::FOperatorSettings>::Value;
 
-	static constexpr bool bSupportsConstructionWithoutSettings = TIsConstructible<TDataType, TTypeToParse>::Value;
-
-public:
-	/*
-	static constexpr bool Value = TIsConstructible<TDataType, TTypeToParse, const ::Metasound::FOperatorSettings&>::Value
-		|| TIsConstructible<TDataType, TTypeToParse>::Value;
-		*/
-
-	static constexpr bool Value = bSupportsConstructionWithSettings || bSupportsConstructionWithoutSettings;
-};
-
-template <typename TDataType>
-struct TTestIfDataTypeDefaultCtorIsImplemented
-{
-public:
-	static constexpr bool Value = TIsConstructible<TDataType, const ::Metasound::FOperatorSettings&>::Value;
-};
 
 namespace Metasound
 {
@@ -118,6 +95,7 @@ namespace Metasound
 	}
 	*/
 
+	// TODO: move data type literal to own file.
 	/**
 	 * Convenience wrapper for safely invoking the correct constructor.
 	 * This can be used for int32, float, bool, or FString.
@@ -235,7 +213,7 @@ namespace Metasound
 				}
 				case ELiteralArgType::None:
 				{
-					return TTestIfDataTypeDefaultCtorIsImplemented<DataType>::Value || TIsConstructible<DataType>::Value;
+					return TTestIfDataTypeSettingsCtorIsImplemented<DataType>::Value || std::is_constructible<DataType>::value;
 				}
 				default:
 				{

@@ -3,26 +3,27 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Misc/TVariant.h"
+#include "MetasoundOperatorSettings.h"
+#include <type_traits>
 
 /** Macro to make declaring a metasound parameter simple.  */
 // Declares a metasound parameter type by
 // - Adding typedefs for commonly used template types.
 // - Defining parameter type traits.
-#define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, ModuleApi, DataTypeMagicNumber, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
+#define DECLARE_METASOUND_DATA_REFERENCE_TYPES(DataType, ModuleApi, DataTypeInfoTypeName, DataReadReferenceTypeName, DataWriteReferenceTypeName) \
 	template<> \
 	struct ::Metasound::TDataReferenceTypeInfo<DataType> \
 	{ \
 		static ModuleApi const TCHAR* TypeName; \
-		static constexpr ::Metasound::FDataTypeMagicNumber MagicNumber = (DataTypeMagicNumber); \
+		static constexpr ::Metasound::FMetasoundDataTypeId TypeId = static_cast<::Metasound::FMetasoundDataTypeId>(::Metasound::GetMetasoundDataTypeIdPtr<DataType>()); \
 		static constexpr bool bIsStringParsable = TTestIfDataTypeCtorIsImplemented<DataType, const FString&>::Value; \
-		static constexpr bool bIsBoolParsable = TTestIfDataTypeCtorIsImplemented<DataType, bool>::Value; \
-		static constexpr bool bIsIntParsable = TTestIfDataTypeCtorIsImplemented<DataType, int32>::Value; \
-		static constexpr bool bIsFloatParsable = TTestIfDataTypeCtorIsImplemented<DataType, float>::Value; \
-		static constexpr bool bIsProxyParsable =  TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value; \
-		static constexpr bool bIsProxyArrayParsable =  TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value; \
-		static constexpr bool bIsConstructableWithSettings = TTestIfDataTypeDefaultCtorIsImplemented<DataType>::Value; \
-		static constexpr bool bCanUseDefaultConstructor = TIsConstructible<DataType>::Value; \
+		static constexpr bool bIsBoolParsable = ::Metasound::TTestIfDataTypeCtorIsImplemented<DataType, bool>::Value; \
+		static constexpr bool bIsIntParsable = ::Metasound::TTestIfDataTypeCtorIsImplemented<DataType, int32>::Value; \
+		static constexpr bool bIsFloatParsable = ::Metasound::TTestIfDataTypeCtorIsImplemented<DataType, float>::Value; \
+		static constexpr bool bIsProxyParsable =  ::Metasound::TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value; \
+		static constexpr bool bIsProxyArrayParsable =  ::Metasound::TTestIfDataTypeCtorIsImplemented<DataType, const Audio::IProxyData&>::Value; \
+		static constexpr bool bIsConstructableWithSettings = ::Metasound::TTestIfDataTypeSettingsCtorIsImplemented<DataType>::Value; \
+		static constexpr bool bCanUseDefaultConstructor = std::is_constructible<DataType>::value; \
 		static constexpr bool bIsValidSpecialization = true; \
 	}; \
 	\
@@ -35,32 +36,63 @@
 #define IMPL_METASOUND_DATA_TYPE(DataType, DataTypeName) \
 	const TCHAR* ::Metasound::TDataReferenceTypeInfo<DataType>::TypeName = TEXT(DataTypeName);
 
+namespace Audio
+{
+	// Forward declare
+	class IProxyData;
+}
+
 namespace Metasound
 {
-	/** ID for parameter type. Should be unique for different C++ types. */
-	typedef int32 FDataTypeMagicNumber;
-
-	/** A Data Reference Interface.
-	 *
-	 * A parameter references provides information and access to a shared object in the graph. 
-	 */
-	class IDataReference
+	/** Used to generate a unique ID for each registered data type. */
+	template<typename DataType>
+	struct TMetasoundDataTypeIdPtr
 	{
-		public:
-
-		virtual ~IDataReference() 
-		{
-		}
-
-		/** Returns the name of the data type. */
-		virtual const FName& GetDataTypeName() const = 0;
-
-		/** Returns the ID of the parameter type. */
-		virtual FDataTypeMagicNumber GetDataTypeMagicNumber() const = 0;
-
-		/** Creates a copy of the parameter type. */
-		virtual TUniquePtr<IDataReference> Clone() const = 0;
+		/** static const address of specific type as an ID. */
+		static const DataType* const Ptr;
 	};
+
+	template<typename DataType>
+	const DataType* const TMetasoundDataTypeIdPtr<DataType>::Ptr = nullptr;
+
+	/** Returns an address of a pointer which is defined once per a Metasound
+	 * data type. 
+	 */
+	template <typename DataType>
+	constexpr const DataType* const* GetMetasoundDataTypeIdPtr() noexcept 
+	{
+		return &TMetasoundDataTypeIdPtr<DataType>::Ptr;
+	}
+
+	/** ID for parameter type. Should be unique for different C++ types. */
+	using FMetasoundDataTypeId = const void*;
+
+	/** Test if a data type has a constructor which accepts FOperatorSettings */
+	template <typename TDataType>
+	struct TTestIfDataTypeSettingsCtorIsImplemented
+	{
+	public:
+		static constexpr bool Value = std::is_constructible<TDataType, const ::Metasound::FOperatorSettings&>::value;
+	};
+
+	/** Test if a stat type has a constructor which accepts the given data type 
+	 * and a FOperatorSettings.
+	 */
+	template <typename TDataType, typename TTypeToParse>
+	struct TTestIfDataTypeCtorIsImplemented
+	{
+	private:
+		static constexpr bool bSupportsConstructionWithSettings = 
+			std::is_constructible<TDataType, TTypeToParse, const ::Metasound::FOperatorSettings&>::value
+			|| std::is_constructible<TDataType, TTypeToParse, ::Metasound::FOperatorSettings>::value;
+
+		static constexpr bool bSupportsConstructionWithoutSettings = std::is_constructible<TDataType, TTypeToParse>::value;
+
+	public:
+
+		static constexpr bool Value = bSupportsConstructionWithSettings || bSupportsConstructionWithoutSettings;
+	};
+
 
 	/** Helper class to enforce specialization of TDataReferenceTypeInfo */
 	template<typename DataType>
@@ -82,7 +114,7 @@ namespace Metasound
 		static constexpr const TCHAR TypeName[] = TEXT("");
 
 		/** Magic number used to check the data type when casting. */
-		static constexpr const FDataTypeMagicNumber MagicNumber = -1;
+		static constexpr const FMetasoundDataTypeId TypeId = nullptr;
 
 		// This static assert is triggered if TDataReferenceTypeInfo is used 
 		// without specialization.
@@ -99,11 +131,32 @@ namespace Metasound
 		static constexpr bool bIsValidSpecialization = false;
 	};
 
+
+	/** Return the data type name for a registered data type. */
+	template<typename DataType>
+	const FName GetMetasoundDataTypeName() 
+	{
+		static const FName TypeName = FName(TDataReferenceTypeInfo<std::decay_t<DataType>>::TypeName);
+
+		return TypeName;
+	}
+
+	/** Return the data type ID for a registered data type. 
+	 *
+	 * This ID is runtime constant but may change between executions and builds.
+	 */
+	template<typename DataType>
+	const FMetasoundDataTypeId GetMetasoundDataTypeId() 
+	{
+		return TDataReferenceTypeInfo<std::decay_t<DataType>>::TypeId;
+	}
+
+	/** Specialize void data type for internal use. */
 	template<>
 	struct TDataReferenceTypeInfo<void>
 	{
 		static METASOUNDGRAPHCORE_API const TCHAR* TypeName;
-		static constexpr const FDataTypeMagicNumber MagicNumber = -1;
+		static constexpr FMetasoundDataTypeId TypeId = static_cast<FMetasoundDataTypeId>(GetMetasoundDataTypeIdPtr<void>());
 		static constexpr bool bIsStringParsable = false;
 		static constexpr bool bIsBoolParsable = false;
 		static constexpr bool bIsIntParsable = false;
@@ -115,23 +168,40 @@ namespace Metasound
 		static constexpr bool bIsValidSpecialization = false;
 	};
 
-	// TODO: comments
-	template<typename DataType>
-	const FName GetMetasoundDataTypeName() 
+	/** A Data Reference Interface.
+	 *
+	 * A parameter references provides information and access to a shared object in the graph. 
+	 */
+	class IDataReference
 	{
-		static const FName TypeName = FName(TDataReferenceTypeInfo<typename TDecay<DataType>::Type >::TypeName);
+		public:
 
-		return TypeName;
-	}
+		virtual ~IDataReference() 
+		{
+		}
+
+		/** Returns the name of the data type. */
+		virtual const FName& GetDataTypeName() const = 0;
+
+		/** Returns the ID of the parameter type. */
+		virtual FMetasoundDataTypeId GetDataTypeId() const = 0;
+
+		/** Creates a copy of the parameter type. */
+		virtual TUniquePtr<IDataReference> Clone() const = 0;
+	};
 	
-	// TODO: comments
+	/** Test if an IDataReference contains the same data type as the template
+	 * parameter.
+	 *
+	 * @return True if the IDataReference contains the DataType. False otherwise. 
+	 */
 	template<typename DataType>
-	bool IsReferenceOfType(const IDataReference& InReference)
+	bool IsDataReferenceOfType(const IDataReference& InReference)
 	{
 		static const FName TypeName = GetMetasoundDataTypeName<DataType>();
-		static const FDataTypeMagicNumber MagicNumber = TDataReferenceTypeInfo<typename TDecay<DataType>::Type >::MagicNumber;
+		static const FMetasoundDataTypeId TypeId = GetMetasoundDataTypeId<DataType>();
 
-		return (InReference.GetDataTypeName() == TypeName) && (InReference.GetDataTypeMagicNumber() == MagicNumber);
+		return (InReference.GetDataTypeName() == TypeName) && (InReference.GetDataTypeId() == TypeId);
 	}
 
 	// This enum is used as a token to explicitly delineate when we should create a new object for the reference,
@@ -149,6 +219,7 @@ namespace Metasound
 	template <typename DataType>
 	class TDataReference : public IDataReference
 	{
+		static_assert(std::is_same<DataType, std::decay_t<DataType>>::value, "Data types used as data references must not decay");
 	protected:
 		/**
 		 * This constructor forwards arguments to an underlying constructor.
@@ -165,44 +236,12 @@ namespace Metasound
 			typedef TDataReferenceTypeInfo<DataType> FInfoType;
 
 
-			/*
-			 * This constructor forwards arguments to the constructor of the underlying DataType.
-			 *
-			 * SFINAE is used to disable copy and move constructors as those are defined separately. 
-			 
-			template <
-				typename... ArgTypes,
-				typename = typename TEnableIf<
-					TAndValue<
-						sizeof...(ArgTypes) != 0,
-						TOrValue<
-							sizeof...(ArgTypes) != 1,
-							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type,  TDataReference<DataType> > >
-						>
-					>::Value
-				>::Type
-			>
-			TDataReference(ArgTypes&&... Args)
-			:	ObjectReference(MakeShared<DataType, ESPMode::NotThreadSafe>(Forward<ArgTypes>(Args)...))
-			{
-			}
-
-			
-			
-			// TODO: having issues compiling this on linux when no default constructor is available. 
-			// Construct operator with no arguments if the DataType has a default constructor.
-			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
-			TDataReference()
-			:	ObjectReference(MakeShared<DataType, ESPMode::NotThreadSafe>())
-			{
-			}
-			*/
-
-			// This should be used to construct a new DataType object and return this TDataReference as a wrapper around it.
+			/** This should be used to construct a new DataType object and return this TDataReference as a wrapper around it.
+			 */
 			template <typename... ArgTypes>
 			static TDataReference<DataType> CreateNew(ArgTypes&&... Args)
 			{
-				static_assert(TIsConstructible<DataType, ArgTypes...>::Value, "Tried to call TDataReference::CreateNew with args that don't match any constructor for an underlying type!");
+				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "Tried to call TDataReference::CreateNew with args that don't match any constructor for an underlying type!");
 				return TDataReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
@@ -221,24 +260,16 @@ namespace Metasound
 			/** Return the name of the underlying type. */
 			virtual const FName& GetDataTypeName() const override
 			{
-				static const FName TypeName = GetMetasoundDataTypeName<DataType>();
-				return TypeName;
+				static const FName Name = GetMetasoundDataTypeName<DataType>();
+
+				return Name;
 			}
 
 			/** Return the ID of the underlying type. */
-			virtual FDataTypeMagicNumber GetDataTypeMagicNumber() const override
+			virtual FMetasoundDataTypeId GetDataTypeId() const override
 			{
-				return FInfoType::MagicNumber;
+				return GetMetasoundDataTypeId<DataType>();
 			}
-
-			/** Create a clone of this object. 
-			virtual TUniquePtr<IDataReference> Clone() const override
-			{
-				typedef TDataReference<DataType> FDataReference;
-
-				return MakeUnique< FDataReference >(*this);
-			}
-			*/
 
 		protected:
 
@@ -266,40 +297,11 @@ namespace Metasound
 		public:
 			typedef TDataReference<DataType> FDataReference;
 
-			/*
-			// Construct operator type with arguments to "DataType" constructor. 
-			template<
-				typename... ArgTypes,
-				typename = typename TEnableIf<
-					TAndValue<
-						sizeof...(ArgTypes) != 0,
-						TOrValue<
-							sizeof...(ArgTypes) != 1,
-							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, TDataReference<DataType> > >
-						>
-					>::Value
-				>::Type
-			>
-			explicit TDataWriteReference(ArgTypes&&... Args)
-			:	FDataReference(Forward<ArgTypes>(Args)...)
-			{
-			}
-
-			
-			// Construct operator with no arguments if the DataType has a default constructor.
-			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
-			TDataWriteReference()
-			:	FDataReference()
-			{
-			}
-
-			*/
-
-			// This should be used to construct a new DataType object and return this TDataWriteReference as a wrapper around it.
+			/** This should be used to construct a new DataType object and return this TDataWriteReference as a wrapper around it. */
 			template <typename... ArgTypes>
 			static TDataWriteReference<DataType> CreateNew(ArgTypes&&... Args)
 			{
-				static_assert(TIsConstructible<DataType, ArgTypes...>::Value, "Tried to call TDataWriteReference::CreateNew with args that don't match any constructor for an underlying type!");
+				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "Tried to call TDataWriteReference::CreateNew with args that don't match any constructor for an underlying type!");
 				return TDataWriteReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
@@ -325,14 +327,12 @@ namespace Metasound
 			FORCEINLINE DataType& operator*() const
 			{
 				return *TDataReference<DataType>::ObjectReference;
-				//return *ObjectReference;
 			}
 
 			/** Non-const access to the underlying parameter object. */
 			FORCEINLINE DataType* operator->() const
 			{
 				return TDataReference<DataType>::ObjectReference.operator->();
-				//return ObjectReference.operator->();
 			}
 
 			/** Create a clone of this parameter reference. */
@@ -393,39 +393,11 @@ namespace Metasound
 		public:
 			typedef TDataReference<DataType> FDataReference;
 
-			/*
-			// Construct operator type with arguments to "DataType" constructor. 
-			template<
-				typename... ArgTypes,
-				typename = typename TEnableIf<
-					TAndValue<
-						sizeof...(ArgTypes) != 0,
-						TOrValue<
-							sizeof...(ArgTypes) != 1,
-							TNot< TIsDerivedFrom< typename TDecay< typename TNthTypeFromParameterPack< 0, ArgTypes... >::Type >::Type, TDataReference<DataType> > >
-						>
-					>::Value
-				>::Type
-			>
-			explicit TDataReadReference(ArgTypes&&... Args)
-			:	FDataReference(Forward<ArgTypes>(Args)...)
-			{
-			}
-
-			
-			// Construct operator with no arguments if the DataType has a default constructor.
-			template< typename = typename TEnableIf< TIsConstructible<DataType>::Value >::Type >
-			TDataReadReference()
-			:	FDataReference()
-			{
-			}
-			*/
-
 			// This should be used to construct a new DataType object and return this TDataReadReference as a wrapper around it.
 			template <typename... ArgTypes>
 			static TDataReadReference<DataType> CreateNew(ArgTypes&&... Args)
 			{
-				static_assert(TIsConstructible<DataType, ArgTypes...>::Value, "Tried to call TDataReadReference::CreateNew with args that don't match any constructor for an underlying type!");
+				static_assert(std::is_constructible<DataType, ArgTypes...>::value, "Tried to call TDataReadReference::CreateNew with args that don't match any constructor for an underlying type!");
 				return TDataReadReference<DataType>(EDataRefShouldConstruct::NewObject, Forward<ArgTypes>(Args)...);
 			}
 
