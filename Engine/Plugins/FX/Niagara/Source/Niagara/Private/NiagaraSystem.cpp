@@ -24,6 +24,9 @@
 #include "NiagaraPrecompileContainer.h"
 #include "ProfilingDebugging/CookStats.h"
 #include "Algo/RemoveIf.h"
+#include "Misc/ScopedSlowTask.h"
+
+#define LOCTEXT_NAMESPACE "NiagaraSystem"
 
 #if WITH_EDITOR
 #include "DerivedDataCacheInterface.h"
@@ -806,9 +809,36 @@ bool UNiagaraSystem::IsReadyToRunInternal() const
 }
 
 #if WITH_EDITORONLY_DATA
-bool UNiagaraSystem::HasOutstandingCompilationRequests() const
+bool UNiagaraSystem::HasOutstandingCompilationRequests(bool bIncludingGPUShaders) const
 {
-	return ActiveCompilations.Num() > 0;
+	if (ActiveCompilations.Num() > 0)
+	{
+		return true;
+	}
+
+	// the above check only handles the VM script generation, and so GPU compute script compilation can still
+	// be underway, so we'll check for that explicitly, only when needed, so that we don't burden the user with excessive compiles
+	if (bIncludingGPUShaders)
+	{
+		for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
+		{
+			if (const UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+			{
+				if (const UNiagaraScript* GPUComputeScript = Emitter->GetGPUComputeScript())
+				{
+					if (const FNiagaraShaderScript* ShaderScript = GPUComputeScript->GetRenderThreadScript())
+					{
+						if (!ShaderScript->IsCompilationFinished())
+						{
+							return true;
+						}
+					}
+				}
+			}
+		}
+	}
+
+	return false;
 }
 #endif
 
@@ -1376,13 +1406,46 @@ void UNiagaraSystem::ForceGraphToRecompileOnNextCheck()
 	}
 }
 
-void UNiagaraSystem::WaitForCompilationComplete()
+void UNiagaraSystem::WaitForCompilationComplete(bool bIncludingGPUShaders, bool bShowProgress)
 {
-	while (ActiveCompilations.Num() > 0)
+	// Calculate the slow progress for notifying via UI
+	TArray<FNiagaraShaderScript*, TInlineAllocator<16>> GPUScripts;
+	if (bIncludingGPUShaders)
 	{
-		QueryCompileComplete(true, ActiveCompilations.Num() == 1);
+		for (FNiagaraEmitterHandle& EmitterHandle : EmitterHandles)
+		{
+			if (UNiagaraEmitter* Emitter = EmitterHandle.GetInstance())
+			{
+				if (UNiagaraScript* GPUComputeScript = Emitter->GetGPUComputeScript())
+				{
+					if (FNiagaraShaderScript* ShaderScript = GPUComputeScript->GetRenderThreadScript())
+					{
+						if (!ShaderScript->IsCompilationFinished())
+							GPUScripts.Add(ShaderScript);
+					}
+				}
+			}
+		}
+	}
+	
+	const int32 TotalCompiles = ActiveCompilations.Num() + GPUScripts.Num();
+	FScopedSlowTask Progress(TotalCompiles, LOCTEXT("WaitingForCompile", "Waiting for compilation to complete"));
+	if (bShowProgress && TotalCompiles > 0)
+	{
+		Progress.MakeDialog();
 	}
 
+	while (ActiveCompilations.Num() > 0)
+	{
+		Progress.EnterProgressFrame();
+		QueryCompileComplete(true, ActiveCompilations.Num() == 1);
+	}
+	
+	for (FNiagaraShaderScript* ShaderScript : GPUScripts)
+	{
+		Progress.EnterProgressFrame();
+		ShaderScript->FinishCompilation();
+	}
 }
 
 void UNiagaraSystem::InvalidateActiveCompiles()
@@ -2310,3 +2373,5 @@ void FNiagaraParameterDataSetBindingCollection::BuildInternal(const TArray<FNiag
 	Int32Offsets.Shrink();
 }
 #endif
+
+#undef LOCTEXT_NAMESPACE // NiagaraSystem
