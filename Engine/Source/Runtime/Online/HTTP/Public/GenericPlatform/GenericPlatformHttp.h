@@ -76,7 +76,14 @@ public:
 	static FString HtmlEncode(const FStringView UnencodedString);
 
 	/** 
-	 * Returns the domain portion of the URL, e.g., "a.b.c" of "http://a.b.c/d"
+	* Returns the domain and port portion of the URL, e.g., "a.b.c:d" of "http://a.b.c:d/e"
+	* @param Url the URL to return the domain and port of
+	* @return the domain and port of the specified URL
+	*/
+	static FString GetUrlDomainAndPort(const FStringView Url);
+
+	/** 
+	 * Returns the domain portion of the URL, e.g., "a.b.c" of "http://a.b.c:d/e"
 	 * @param Url the URL to return the domain of
 	 * @return the domain of the specified URL
 	 */
