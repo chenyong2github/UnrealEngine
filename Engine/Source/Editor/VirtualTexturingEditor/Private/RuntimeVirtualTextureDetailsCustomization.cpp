@@ -18,6 +18,7 @@
 #include "VT/VirtualTextureBuilder.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
+#include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SWrapBox.h"
 
 #define LOCTEXT_NAMESPACE "VirtualTexturingEditorModule"
@@ -192,9 +193,6 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.IsEnabled(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsSetBoundsEnabled)
 	];
 
-	// Force TransformFromBounds to top (near the Transform that it applies to).
-	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
-
 	// Apply custom widget for BuildStreamingMips.
 	TSharedRef<IPropertyHandle> BuildStreamingMipsPropertyHandle = DetailBuilder.GetProperty(TEXT("bBuildStreamingMipsButton"));
 	DetailBuilder.EditDefaultProperty(BuildStreamingMipsPropertyHandle)->CustomWidget()
@@ -202,39 +200,31 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 	[
 		SNew(STextBlock)
 		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(LOCTEXT("Button_BuildStreamingMips", "Build Streaming Mips"))
+		.Text(LOCTEXT("Button_BuildStreamingTexture", "Build Streaming Texture"))
 		.ToolTipText(LOCTEXT("Button_Build_Tooltip", "Build the low mips as streaming virtual texture data"))
 	]
 	.ValueContent()
-	.MaxDesiredWidth(125.f)
 	[
-		SNew(SButton)
-		.VAlign(VAlign_Center)
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.FillWidth(4.0f)
+		[
+			SNew(SButton)
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Center)
+			.ContentPadding(2)
+			.Text(LOCTEXT("Button_Build", "Build"))
+			.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
+		]
+		+ SHorizontalBox::Slot()
 		.HAlign(HAlign_Center)
-		.ContentPadding(2)
-		.Text(LOCTEXT("Button_Build", "Build"))
-		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
-	];
-
-	// Apply custom widget for BuildDebugStreamingMip.
-	TSharedRef<IPropertyHandle> BuildDebugStreamingMipsPropertyHandle = DetailBuilder.GetProperty(TEXT("bBuildDebugStreamingMipsButton"));
-	DetailBuilder.EditDefaultProperty(BuildDebugStreamingMipsPropertyHandle)->CustomWidget()
-	.NameContent()
-	[
-		SNew(STextBlock)
-		.Font(IDetailLayoutBuilder::GetDetailFont())
-		.Text(LOCTEXT("Button_BuildDebugStreamingMips", "Build Debug Streaming Mips"))
-		.ToolTipText(LOCTEXT("Button_BuildDebug_Tooltip", "Build the low mips with debug data"))
-	]
-	.ValueContent()
-	.MaxDesiredWidth(125.f)
-	[
-		SNew(SButton)
 		.VAlign(VAlign_Center)
-		.HAlign(HAlign_Center)
-		.ContentPadding(2)
-		.Text(LOCTEXT("Button_Build", "Build"))
-		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug)
+		[
+			SNew(SImage)
+			.Image(FEditorStyle::GetBrush("Icons.Warning"))
+			.Visibility(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsBuildWarningIconVisible)
+			.ToolTipText(LOCTEXT("Warning_Build_Tooltip", "The settings have changed since the Streaming Texture was last rebuilt. Streaming mips are disabled."))
+		]
 	];
 }
 
@@ -254,17 +244,12 @@ FReply FRuntimeVirtualTextureComponentDetailsCustomization::SetBounds()
 	return FReply::Unhandled();
 }
 
+EVisibility FRuntimeVirtualTextureComponentDetailsCustomization::IsBuildWarningIconVisible() const
+{
+	return RuntimeVirtualTextureComponent->IsStreamingTextureValid() ? EVisibility::Hidden : EVisibility::Visible;
+}
+
 FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips()
-{
-	return BuildStreamedMipsInternal(false);
-}
-
-FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildLowMipsDebug()
-{
-	return BuildStreamedMipsInternal(true);
-}
-
-FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMipsInternal(bool bDebug)
 {
 	// Create a new asset if none is already bound
 	UVirtualTextureBuilder* CreatedTexture = nullptr;
@@ -284,7 +269,7 @@ FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMipsInt
 	bool bOK = false;
 	if (RuntimeVirtualTextureComponent->GetStreamingTexture() != nullptr || CreatedTexture != nullptr)
 	{
-		const FScopedTransaction Transaction(LOCTEXT("Transaction_BuildDebugStreamingMips", "Build Streaming Mips"));
+		const FScopedTransaction Transaction(LOCTEXT("Transaction_BuildDebugStreamingTexture", "Build Streaming Texture"));
 
 		if (CreatedTexture != nullptr)
 		{
@@ -294,6 +279,7 @@ FReply FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMipsInt
 
 		RuntimeVirtualTextureComponent->GetStreamingTexture()->Modify();
 
+		const bool bDebug = RuntimeVirtualTextureComponent->IsBuildDebugStreamingMips();
 		const ERuntimeVirtualTextureDebugType DebugType = bDebug ? ERuntimeVirtualTextureDebugType::Debug : ERuntimeVirtualTextureDebugType::None;
 		if (RuntimeVirtualTexture::BuildStreamedMips(RuntimeVirtualTextureComponent, DebugType))
 		{
