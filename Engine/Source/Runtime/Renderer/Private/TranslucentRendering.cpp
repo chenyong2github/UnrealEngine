@@ -15,6 +15,7 @@ TranslucentRendering.cpp: Translucent rendering implementation.
 #include "PostProcess/SceneFilterRendering.h"
 #include "PipelineStateCache.h"
 #include "MeshPassProcessor.inl"
+#include "VolumetricRenderTarget.h"
 
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQueryFence Wait"), STAT_TranslucencyTimestampQueryFence_Wait, STATGROUP_SceneRendering);
 DECLARE_CYCLE_STAT(TEXT("TranslucencyTimestampQuery Wait"), STAT_TranslucencyTimestampQuery_Wait, STATGROUP_SceneRendering);
@@ -658,6 +659,29 @@ void CreateTranslucentBasePassUniformBuffer(
 			BasePassParameters.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			BasePassParameters.PrevSceneColor = GBlackTexture->TextureRHI;
 			BasePassParameters.PrevSceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		}
+
+		BasePassParameters.ApplyVolumetricCloudOnTransparent = 0.0f;
+		BasePassParameters.VolumetricCloudColor = nullptr;
+		BasePassParameters.VolumetricCloudDepth = nullptr;
+		BasePassParameters.VolumetricCloudColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		BasePassParameters.VolumetricCloudDepthSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+		if (IsVolumetricRenderTargetEnabled() && View.ViewState && View.ViewState->VolumetricCloudRenderTarget.GetVolumetricTracingRTValid())
+		{
+			TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRT = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRT();
+			if (VolumetricReconstructRT.IsValid())
+			{
+				TRefCountPtr<IPooledRenderTarget> VolumetricReconstructRTDepth = View.ViewState->VolumetricCloudRenderTarget.GetDstVolumetricReconstructRTDepth();
+
+				BasePassParameters.VolumetricCloudColor = VolumetricReconstructRT->GetRenderTargetItem().ShaderResourceTexture;
+				BasePassParameters.VolumetricCloudDepth = VolumetricReconstructRTDepth->GetRenderTargetItem().ShaderResourceTexture;
+				BasePassParameters.ApplyVolumetricCloudOnTransparent = 1.0f;
+			}
+		}
+		if (BasePassParameters.VolumetricCloudColor == nullptr)
+		{
+			BasePassParameters.VolumetricCloudColor = GSystemTextures.BlackAlphaOneDummy->GetRenderTargetItem().ShaderResourceTexture;
+			BasePassParameters.VolumetricCloudDepth = GSystemTextures.BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 		}
 
 		FIntPoint ViewportOffset = View.ViewRect.Min;
