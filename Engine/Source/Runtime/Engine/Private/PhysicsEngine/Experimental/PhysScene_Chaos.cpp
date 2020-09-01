@@ -1169,15 +1169,6 @@ bool FPhysScene_Chaos::GetKinematicTarget_AssumesLocked(const FBodyInstance* Bod
 	return true;
 }
 
-void FPhysScene_Chaos::DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable)
-{
-
-}
-
-void FPhysScene_Chaos::DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID)
-{
-
-}
 
 bool FPhysScene_Chaos::MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning)
 {

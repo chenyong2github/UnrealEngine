@@ -1773,6 +1773,12 @@ public:
 
 	void PostAnimEvaluation(FAnimationEvaluationContext& EvaluationContext);
 
+	/** */
+	void InitCollisionRelationships();
+
+	/** */
+	void TermCollisionRelationships();
+
 	/**
 	 * Blend of Physics Bones with PhysicsWeight and Animated Bones with (1-PhysicsWeight)
 	 *
