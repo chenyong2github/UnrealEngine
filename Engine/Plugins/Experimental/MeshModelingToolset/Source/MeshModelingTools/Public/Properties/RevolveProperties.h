@@ -46,7 +46,7 @@ UENUM()
 enum class ERevolvePropertiesQuadSplit : uint8
 {
 	/** Quads will always be split the same way relative to an unrolled mesh, regardless of quad shape. */
-	Unform,
+	Uniform,
 	
 	/** Quads will be split such that the shortest diagonal is connected. */
 	ShortestDiagonal

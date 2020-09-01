@@ -61,7 +61,7 @@ void UCurveControlPointsMechanic::Setup(UInteractiveTool* ParentToolIn)
 	PreviewSegment->SetLineMaterial(
 		LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/LineSetOverlaidComponentMaterial")));
 
-	InitializationCurveColor = FColor::Yellow;
+	InitializationCurveColor = FColor::Orange;
 	NormalCurveColor = FColor::Red;
 	CurrentSegmentsColor = bInteractiveInitializationMode ? InitializationCurveColor : NormalCurveColor;
 	SegmentsThickness = 4.0f;

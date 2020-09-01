@@ -97,8 +97,7 @@ void UConstructionPlaneMechanic::SetDrawPlaneFromWorldPos(const FVector3d& Posit
 void UConstructionPlaneMechanic::SetPlaneWithoutBroadcast(const FFrame3d &PlaneIn)
 {
 	Plane = PlaneIn;
-	PlaneTransformGizmo->SetActiveTarget(PlaneTransformProxy);
-	PlaneTransformGizmo->SetNewGizmoTransform(Plane.ToFTransform());
+	PlaneTransformGizmo->ReinitializeGizmoTransform(Plane.ToFTransform());
 }
 
 

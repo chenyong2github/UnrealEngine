@@ -83,7 +83,7 @@ void URevolveProperties::ApplyToCurveSweepOp(const UNewMeshMaterialProperties& M
 	case ERevolvePropertiesQuadSplit::ShortestDiagonal:
 		CurveSweepOpOut.QuadSplitMode = EProfileSweepQuadSplit::ShortestDiagonal;
 		break;
-	case ERevolvePropertiesQuadSplit::Unform:
+	case ERevolvePropertiesQuadSplit::Uniform:
 		CurveSweepOpOut.QuadSplitMode = EProfileSweepQuadSplit::Uniform;
 		break;
 	}
