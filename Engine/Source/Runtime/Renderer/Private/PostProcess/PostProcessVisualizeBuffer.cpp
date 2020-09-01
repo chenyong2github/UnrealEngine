@@ -438,6 +438,11 @@ FScreenPassTexture AddVisualizeGBufferOverviewPass(
 	}
 	else
 	{
+		if (Inputs.OverrideOutput.IsValid())
+		{
+			AddDrawTexturePass(GraphBuilder, View, Inputs.SceneColor, Inputs.OverrideOutput);
+		}
+
 		return Inputs.SceneColor;
 	}
 }
