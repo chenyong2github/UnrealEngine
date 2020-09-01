@@ -1268,7 +1268,7 @@ void FD3D12DynamicRHI::RHIReadSurfaceData(FRHITexture* InRHITexture, FIntRect In
 	FD3D12TextureBase* D3D12TextureBase = CommandContext.RetrieveTextureBase(InRHITexture);
 
 	// Wait for the command list if needed
-	FD3D12Texture2D* DestTexture2D = ResourceCast(D3D12TextureBase);
+	FD3D12Texture2D* DestTexture2D = static_cast<FD3D12Texture2D*>(D3D12TextureBase);
 	FD3D12CLSyncPoint SyncPoint = DestTexture2D->GetReadBackSyncPoint();
 
 	if (!!SyncPoint)
