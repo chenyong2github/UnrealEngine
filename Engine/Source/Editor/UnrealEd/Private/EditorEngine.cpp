@@ -93,6 +93,7 @@
 #include "IMediaModule.h"
 #include "Scalability.h"
 #include "PlatformInfo.h"
+#include "Interfaces/ITargetPlatform.h"
 
 // needed for the RemotePropagator
 #include "AudioDevice.h"
@@ -7726,7 +7727,18 @@ void UEditorEngine::LoadEditorFeatureLevel()
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 	if (Settings->PreviewFeatureLevel >= 0 && Settings->PreviewFeatureLevel < (int32)ERHIFeatureLevel::Num)
 	{
-		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewShaderFormatName, Settings->bPreviewFeatureLevelActive), false);
+		// Try to map a saved ShaderFormatName to the PreviewPlatformName using ITargetPlatform if we don't have one. 
+		// We now store the PreviewPlatformName explicitly to support preview for platforms we don't have an ITargetPlatform of.
+		if (Settings->PreviewPlatformName == NAME_None && Settings->PreviewShaderFormatName != NAME_None)
+		{
+			const ITargetPlatform* TargetPlatform = GetTargetPlatformManager()->FindTargetPlatformWithSupport(TEXT("ShaderFormat"), Settings->PreviewShaderFormatName);
+			if (TargetPlatform)
+			{
+				Settings->PreviewPlatformName = FName(*TargetPlatform->IniPlatformName());
+			}
+		}
+
+		SetPreviewPlatform(FPreviewPlatformInfo((ERHIFeatureLevel::Type)Settings->PreviewFeatureLevel, Settings->PreviewPlatformName, Settings->PreviewShaderFormatName, Settings->bPreviewFeatureLevelActive), false);
 	}
 }
 
@@ -7734,6 +7746,7 @@ void UEditorEngine::SaveEditorFeatureLevel()
 {
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 	Settings->PreviewFeatureLevel = (int32)PreviewPlatform.PreviewFeatureLevel;
+	Settings->PreviewPlatformName = PreviewPlatform.PreviewPlatformName;
 	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderFormatName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->PostEditChange();

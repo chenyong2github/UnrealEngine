@@ -103,6 +103,7 @@ namespace PlatformInfo
 	/** Information for feature level menu item added by this platform */
 	struct FPreviewPlatformMenuItem
 	{
+		FName PlatformName;
 		FString ActiveIconPath;
 		FName ActiveIconName;
 		FString InactiveIconPath;
