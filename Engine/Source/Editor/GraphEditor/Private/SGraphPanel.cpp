@@ -731,7 +731,8 @@ TSharedPtr<SWidget> SGraphPanel::OnSummonContextMenu(const FGeometry& MyGeometry
 	UEdGraphNode* EdNodeUnderMouse = NodeUnderMouse.IsValid() ? NodeUnderMouse->GetNodeObj() : nullptr;
 	TArray<UEdGraphPin*> NoSourcePins;
 
-	return SummonContextMenu(MouseEvent.GetScreenSpacePosition(), PastePosition, EdNodeUnderMouse, PinUnderCursor, NoSourcePins);
+	const FVector2D NodeAddPosition = PanelCoordToGraphCoord(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
+	return SummonContextMenu(MouseEvent.GetScreenSpacePosition(), NodeAddPosition, EdNodeUnderMouse, PinUnderCursor, NoSourcePins);
 }
 
 
