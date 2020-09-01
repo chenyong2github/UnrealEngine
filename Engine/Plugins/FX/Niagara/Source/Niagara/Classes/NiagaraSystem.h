@@ -270,7 +270,7 @@ public:
 
 #if WITH_EDITORONLY_DATA
 	/** Are there any pending compile requests?*/
-	bool HasOutstandingCompilationRequests() const;
+	bool HasOutstandingCompilationRequests(bool bIncludingGPUShaders = false) const;
 
 	/** Determines if this system has the supplied emitter as an editable and simulating emitter instance. */
 	bool ReferencesInstanceEmitter(UNiagaraEmitter& Emitter);
@@ -288,7 +288,7 @@ public:
 	bool PollForCompilationComplete();
 
 	/** Blocks until all active compile jobs have finished */
-	void WaitForCompilationComplete();
+	void WaitForCompilationComplete(bool bIncludingGPUShaders = false, bool bShowProgress = true);
 
 	/** Invalidates any active compilation requests which will ignore their results. */
 	void InvalidateActiveCompiles();
