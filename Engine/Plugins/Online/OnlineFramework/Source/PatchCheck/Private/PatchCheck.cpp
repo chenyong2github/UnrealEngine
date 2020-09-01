@@ -227,12 +227,15 @@ void FPatchCheck::OnCheckForPatchComplete(const FUniqueNetId& UniqueId, EUserPri
 			}
 			else if (PrivilegeResult & (uint32)IOnlineIdentity::EPrivilegeResults::GenericFailure)
 			{
-#if (PLATFORM_XBOXONE || PLATFORM_PS4 || PLATFORM_SWITCH) // #JANUS-PlatformDefReview: Online
-				// Skip console backend failures
-				Result = EPatchCheckResult::NoPatchRequired;
-#else
-				Result = EPatchCheckResult::PatchCheckFailure;
-#endif
+				CA_CONSTANT_IF(PATCH_CHECK_FAIL_ON_GENERIC_FAILURE)
+				{
+					Result = EPatchCheckResult::PatchCheckFailure;
+				}
+				else
+				{
+					// Skip console backend failures
+					Result = EPatchCheckResult::NoPatchRequired;
+				}
 			}
 		}
 	}

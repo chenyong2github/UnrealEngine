@@ -17,6 +17,10 @@ public class PatchCheck : ModuleRules
 				"OnlineSubsystem",
 				"OnlineSubsystemUtils"
 			}
-			);
+		);
+
+		PrivateDefinitions.Add("PATCH_CHECK_FAIL_ON_GENERIC_FAILURE=" + (bFailOnGenericFailure ? "1" : "0"));
 	}
+
+	protected virtual bool bFailOnGenericFailure { get { return true; } }
 }
