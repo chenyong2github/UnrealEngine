@@ -1126,7 +1126,7 @@ void FNiagaraDataBuffer::SetShaderParams(FNiagaraShader* Shader, FRHICommandList
 		SetShaderValue(CommandList, ComputeShader, Shader->ComponentBufferSizeWriteParam, SafeBufferSize);
 		if (Shader->IDToIndexBufferParam.IsUAVBound())
 		{
-			check(GPUIDToIndexTable.Buffer);
+			ensure(GPUIDToIndexTable.Buffer);
 			Shader->IDToIndexBufferParam.SetBuffer(CommandList, ComputeShader, GPUIDToIndexTable);
 		}
 	}
