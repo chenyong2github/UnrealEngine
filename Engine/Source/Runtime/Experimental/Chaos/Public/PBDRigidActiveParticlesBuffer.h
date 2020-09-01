@@ -90,11 +90,11 @@ namespace Chaos
 	};
 
 
-#define EVOLUTION_TRAIT(Trait) extern template CHAOSSOLVERS_TEMPLATE_API void Chaos::FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults<Trait>(TPBDRigidsSolver<Trait>* Solver);
+#define EVOLUTION_TRAIT(Trait) extern template CHAOS_TEMPLATE_API void Chaos::FPBDRigidDirtyParticlesBuffer::BufferPhysicsResults<Trait>(TPBDRigidsSolver<Trait>* Solver);
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
-#define EVOLUTION_TRAIT(Trait) extern template CHAOSSOLVERS_TEMPLATE_API void Chaos::FPBDRigidDirtyParticlesBuffer::CaptureSolverData<Trait>(TPBDRigidsSolver<Trait>* Solver);
+#define EVOLUTION_TRAIT(Trait) extern template CHAOS_TEMPLATE_API void Chaos::FPBDRigidDirtyParticlesBuffer::CaptureSolverData<Trait>(TPBDRigidsSolver<Trait>* Solver);
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 
