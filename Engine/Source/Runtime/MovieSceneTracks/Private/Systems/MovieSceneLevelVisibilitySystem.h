@@ -5,8 +5,11 @@
 #include "EntitySystem/MovieSceneEntitySystem.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieSceneCachedEntityFilterResult.h"
+#include "EntitySystem/MovieScenePreAnimatedStateSystem.h"
 #include "Sections/MovieSceneLevelVisibilitySection.h"
 #include "Engine/LevelStreaming.h"
+#include "Containers/ArrayView.h"
+
 #include "MovieSceneLevelVisibilitySystem.generated.h"
 
 class UWorld;
@@ -18,9 +21,10 @@ namespace MovieScene
 	struct FMovieSceneLevelStreamingSharedData
 	{
 		bool HasAnythingToDo() const;
-		void AssignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID);
-		void UnassignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID);
-		void ApplyLevelVisibility(IMovieScenePlayer& Player);
+		void AssignLevelVisibilityOverrides(FInstanceHandle Instance, TArrayView<const FName> LevelNames, ELevelVisibility Visibility, int32 Bias, FMovieSceneEntityID EntityID);
+		void UnassignLevelVisibilityOverrides(TArrayView<const FName> LevelNames, FMovieSceneEntityID EntityID);
+		void Flush(UMovieSceneEntitySystemLinker* Linker);
+		void RestoreLevels(UMovieSceneEntitySystemLinker* Linker);
 
 	private:
 		ULevelStreaming* GetLevel(FName SafeLevelName, UWorld& World);
@@ -30,7 +34,7 @@ namespace MovieScene
 		{
 			TOptional<bool> bPreviousState;
 
-			void Add(FMovieSceneEntityID EntityID, int32 Bias, ELevelVisibility Visibility);
+			void Add(FMovieSceneEntityID EntityID, FInstanceHandle Instance, int32 Bias, ELevelVisibility Visibility);
 			void Remove(FMovieSceneEntityID EntityID);
 
 			/** Check whether this visibility data is empty */
@@ -39,9 +43,14 @@ namespace MovieScene
 			/** Returns whether or not this level name should be visible or not */
 			TOptional<ELevelVisibility> CalculateVisibility() const;
 
+			/** Retrieve all players that are animating this level's visibility */
+			void GetPlayers(FInstanceRegistry* InstanceRegistry, TArray<IMovieScenePlayer*>& OutPlayers) const;
+
 		private:
 			struct FVisibilityRequest
 			{
+				/** The instance that contains the entity that made the request */
+				FInstanceHandle Instance;
 				/** The entity that made the request */
 				FMovieSceneEntityID EntityID;
 				/** The bias of the entity */
@@ -54,12 +63,16 @@ namespace MovieScene
 		TMap<FName, FVisibilityData> VisibilityMap;
 
 		TMap<FName, TWeakObjectPtr<ULevelStreaming>> NameToLevelMap;
+
+		TArray<FName, TInlineAllocator<8>> LevelsToRestore;
 	};
 }
 }
 
 UCLASS(MinimalAPI)
-class UMovieSceneLevelVisibilitySystem : public UMovieSceneEntitySystem
+class UMovieSceneLevelVisibilitySystem
+	: public UMovieSceneEntitySystem
+	, public IMovieScenePreAnimatedStateSystemInterface
 {
 public:
 
@@ -69,7 +82,12 @@ public:
 
 private:
 
+	virtual void OnLink() override;
 	virtual void OnRun(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents) override final;
+
+	virtual void SavePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) override;
+	virtual void SaveGlobalPreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) override;
+	virtual void RestorePreAnimatedState(UE::MovieScene::FSystemTaskPrerequisites& InPrerequisites, UE::MovieScene::FSystemSubsequentTasks& Subsequents) override;
 
 private:
 
