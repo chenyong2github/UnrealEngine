@@ -23,6 +23,7 @@
 #include "DynamicMeshChangeTracker.h"
 #include "Changes/MeshChange.h"
 #include "MeshIndexUtil.h"
+#include "MeshRegionBoundaryLoops.h"
 
 #include "Operations/OffsetMeshRegion.h"
 #include "Operations/InsetMeshRegion.h"
@@ -1443,11 +1444,33 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 		FMeshRegionBoundaryLoops RegionLoops(Mesh, Triangles, true);
 		if (!RegionLoops.bFailed && RegionLoops.Loops.Num() == 1 && Triangles.Num() > 1)
 		{
-			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), true);
+			TArray<FMeshRegionBoundaryLoops::VidOverlayMap<FVector2f>> VidUVMaps;
+			if (Mesh->HasAttributes())
+			{
+				const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+				for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+				{
+					VidUVMaps.Emplace();
+					RegionLoops.GetLoopOverlayMap(RegionLoops.Loops[0], *Attributes->GetUVLayer(i), VidUVMaps.Last());
+				}
+			}
+
+			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), false);
 			RegionLoops.Loops[0].Reverse();
 			FSimpleHoleFiller Filler(Mesh, RegionLoops.Loops[0]);
 			Filler.FillType = FSimpleHoleFiller::EFillType::PolygonEarClipping;
 			Filler.Fill(GroupID);
+
+			if (Mesh->HasAttributes())
+			{
+				const FDynamicMeshAttributeSet* Attributes = Mesh->Attributes();
+				for (int i = 0; i < Attributes->NumUVLayers(); ++i)
+				{
+					RegionLoops.UpdateLoopOverlayMapValidity(VidUVMaps[i], *Attributes->GetUVLayer(i));
+				}
+				Filler.UpdateAttributes(VidUVMaps);
+			}
+
 			nCompleted++;
 		}
 	}

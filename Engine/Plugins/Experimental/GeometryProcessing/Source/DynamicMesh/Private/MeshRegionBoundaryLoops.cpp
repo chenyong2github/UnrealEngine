@@ -2,6 +2,9 @@
 
 
 #include "MeshRegionBoundaryLoops.h"
+
+#include "Algo/ForEach.h"
+#include "DynamicMeshAttributeSet.h"
 #include "MeshBoundaryLoops.h"   // has a set of internal static functions we re-use
 #include "VectorUtil.h"
 #include "Util/SparseIndexCollectionTypes.h"
@@ -522,6 +525,61 @@ bool FMeshRegionBoundaryLoops::TryExtractSubloops(TArray<int>& loopV, const TArr
 
 	return true;
 }
+
+template<typename StorageType, int ElementSize, typename ElementType>
+bool FMeshRegionBoundaryLoops::GetLoopOverlayMap(const FEdgeLoop& LoopIn,
+	const TDynamicMeshOverlay<StorageType, ElementSize>& Overlay,
+	VidOverlayMap<ElementType>& LoopVidsToOverlayElementsOut)
+{
+	for (int32 i = 0; i < LoopIn.Vertices.Num(); ++i)
+	{
+		int32 Vid = LoopIn.Vertices[i];
+
+		// Get the inner triangle associated with the edges going forward from this vertex
+		int32 TidInside, TidOutside;
+		IsEdgeOnBoundary(LoopIn.Edges[i], TidInside, TidOutside);
+		check(TidInside != IndexConstants::InvalidID);
+
+		// Find the overlay element associated with the vertex
+		FIndex3i TriangleVerts = Mesh->GetTriangle(TidInside);
+		int32 VidTriIndex = TriangleVerts.IndexOf(Vid);
+		check(VidTriIndex >= 0);
+
+		FIndex3i TriangleElements = Overlay.GetTriangle(TidInside);
+		int32 UVElementID = TriangleElements[VidTriIndex];
+		if (!Overlay.IsElement(UVElementID))
+		{
+			return false;
+		}
+
+		ElementType Element; 
+		Overlay.GetElement(UVElementID, Element);
+		LoopVidsToOverlayElementsOut.Add(Vid,
+			ElementIDAndValue<ElementType>(UVElementID, Element));
+	}
+
+	return true;
+}
+
+template<typename StorageType, int ElementSize, typename ElementType>
+void FMeshRegionBoundaryLoops::UpdateLoopOverlayMapValidity(
+	VidOverlayMap<ElementType>& LoopVidsToOverlayElements, 
+	const TDynamicMeshOverlay<StorageType, ElementSize>& Overlay)
+{
+	// Go through all the overlay element ids's and see if they are still an element
+	// in the overlay. If not, make that id an invalid ID.
+	Algo::ForEachIf(LoopVidsToOverlayElements,
+		[&Overlay](const auto& Entry) { return !Overlay.IsElement(Entry.Value.Key); },
+		[](auto& Entry) { Entry.Value.Key = IndexConstants::InvalidID; });
+}
+
+// Right now we use our templated functions just for UV layers. If we need other overlay layers,
+// we'll need to add instantiations here.
+template DYNAMICMESH_API bool FMeshRegionBoundaryLoops::GetLoopOverlayMap<float, 2, FVector2f>(
+	const FEdgeLoop& LoopIn, const TDynamicMeshOverlay<float, 2>& Overlay,
+	VidOverlayMap<FVector2f>& LoopVidsToOverlayElementsOut);
+template DYNAMICMESH_API void FMeshRegionBoundaryLoops::UpdateLoopOverlayMapValidity<float, 2, FVector2f>(
+	VidOverlayMap<FVector2f>& LoopVidsToOverlayElements, const TDynamicMeshOverlay<float, 2>& Overlay);
 
 
 bool FMeshRegionBoundaryLoops::GetTriangleSetBoundaryLoop(const FDynamicMesh3& Mesh, const TArray<int32>& Tris, FEdgeLoop& Loop)
