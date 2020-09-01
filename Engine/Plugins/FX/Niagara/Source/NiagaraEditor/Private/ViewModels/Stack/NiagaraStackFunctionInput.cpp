@@ -2188,7 +2188,7 @@ void UNiagaraStackFunctionInput::UpdateValuesFromScriptDefaults(FInputValues& In
 		{
 			// Otherwise we need to check the pin that defined the variable in the graph to determine the default.
 
-			FCompileConstantResolver ConstantResolver = GetEmitterViewModel() ? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningFunctionCallNode)->GetUsage()) : FCompileConstantResolver();
+			FCompileConstantResolver ConstantResolver = GetEmitterViewModel() ? FCompileConstantResolver(GetEmitterViewModel()->GetEmitter(), FNiagaraStackGraphUtilities::GetOutputNodeUsage(*OwningFunctionCallNode)) : FCompileConstantResolver();
 			UEdGraphPin* DefaultPin = OwningFunctionCallNode->FindParameterMapDefaultValuePin(InputParameterHandle.GetParameterHandleString(), SourceScript->GetUsage(), ConstantResolver);
 			if (DefaultPin != nullptr)
 			{

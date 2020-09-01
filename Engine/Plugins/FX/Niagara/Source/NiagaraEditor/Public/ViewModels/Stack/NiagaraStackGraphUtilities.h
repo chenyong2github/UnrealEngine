@@ -49,6 +49,8 @@ namespace FNiagaraStackGraphUtilities
 
 	UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(UNiagaraNode& StackNode);
 
+	ENiagaraScriptUsage GetOutputNodeUsage(UNiagaraNode& StackNode);
+
 	const UNiagaraNodeOutput* GetEmitterOutputNodeForStackNode(const UNiagaraNode& StackNode);
 
 	UNiagaraNodeInput* GetEmitterInputNodeForStackNode(UNiagaraNode& StackNode);
