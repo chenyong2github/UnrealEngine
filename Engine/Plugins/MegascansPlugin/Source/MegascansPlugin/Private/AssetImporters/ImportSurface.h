@@ -30,6 +30,8 @@ struct SurfaceImportParams
 	bool bExrEnabled;
 };
 
+// Forward declare
+class UAssetImportTask;
 
 class FImportSurface : public IImportAsset
 {

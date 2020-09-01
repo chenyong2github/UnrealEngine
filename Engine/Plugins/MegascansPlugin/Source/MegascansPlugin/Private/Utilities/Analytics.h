@@ -2,8 +2,8 @@
 #pragma once
 #include "CoreMinimal.h"
 
-
-
+// Forward declare
+class FJsonObject;
 
 class FAnalytics
 {

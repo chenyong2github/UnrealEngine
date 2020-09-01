@@ -1,5 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "MSPythonBridge.h"
+#include "UObject/UObjectHash.h"
 
 UMSPythonBridge* UMSPythonBridge::Get()
 {

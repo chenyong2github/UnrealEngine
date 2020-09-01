@@ -7,6 +7,7 @@
 #include "Serialization/JsonSerializer.h"
 #include "HttpModule.h"
 #include "Misc/EngineVersion.h"
+#include "Launch/Resources/Version.h"
 
 TSharedPtr<FAnalytics> FAnalytics::AnalyticsInst;
 

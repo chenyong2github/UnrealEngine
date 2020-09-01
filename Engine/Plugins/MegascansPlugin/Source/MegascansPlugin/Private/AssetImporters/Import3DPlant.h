@@ -7,6 +7,7 @@
 
 
 class UMaterialInstanceConstant;
+class UStaticMesh;
 
 enum PlantImportType {
 	BILLBOARD_ONLY,

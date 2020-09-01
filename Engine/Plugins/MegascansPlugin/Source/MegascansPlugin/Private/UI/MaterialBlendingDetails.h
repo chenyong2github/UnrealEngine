@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #pragma once
 #include "IDetailCustomization.h"
+#include "Input/Reply.h"
 
 class BlendSettingsCustomization : public IDetailCustomization
 

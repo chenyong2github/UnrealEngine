@@ -7,6 +7,7 @@
 #include "DetailWidgetRow.h"
 
 #include "Tools/BlendMaterials.h"
+#include "Widgets/Input/SButton.h"
 
 #define LOCTEXT_NAMESPACE "MegascansLiveLinkModule"
 
