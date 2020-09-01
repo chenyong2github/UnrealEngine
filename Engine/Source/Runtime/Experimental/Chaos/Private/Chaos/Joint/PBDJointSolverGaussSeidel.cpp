@@ -611,7 +611,9 @@ namespace Chaos
 			if (bDriven[0] || bDriven[1] || bDriven[2])
 			{
 				const FMatrix33 R0M = Rs[0].ToMatrix();
-				const FVec3 CX = Xs[1] - Xs[0];
+				const FVec3 XTarget = Xs[0] + Rs[0] * JointSettings.LinearDrivePositionTarget;
+				const FVec3 VTarget = Rs[0] * JointSettings.LinearDriveVelocityTarget;
+				const FVec3 CX = Xs[1] - XTarget;
 
 				for (int32 AxisIndex = 0; AxisIndex < 3; ++AxisIndex)
 				{
@@ -619,7 +621,7 @@ namespace Chaos
 					{
 						const FVec3 Axis = R0M.GetAxis(AxisIndex);
 						const FReal DeltaPos = FVec3::DotProduct(CX, Axis);
-						const FReal DeltaVel = JointSettings.LinearDriveVelocityTarget[AxisIndex];
+						const FReal DeltaVel = FVec3::DotProduct(VTarget, Axis);
 
 						ApplyPositionDrive(Dt, AxisIndex, SolverSettings, JointSettings, Axis, DeltaPos, DeltaVel);
 					}
@@ -1743,7 +1745,6 @@ namespace Chaos
 		const FReal Stiffness = FPBDJointUtilities::GetLinearDriveStiffness(SolverSettings, JointSettings, AxisIndex);
 		const FReal Damping = FPBDJointUtilities::GetLinearDriveDamping(SolverSettings, JointSettings, AxisIndex);
 		const bool bAccelerationMode = FPBDJointUtilities::GetDriveAccelerationMode(SolverSettings, JointSettings);
-		const FReal TargetVel = (Damping > 0.0f) ? FVec3::DotProduct(Axis, Rs[0] * JointSettings.LinearDriveVelocityTarget) : 0.0f;
 
 		if ((FMath::Abs(DeltaPos) > PositionTolerance) || (Damping > 0.0f))
 		{
