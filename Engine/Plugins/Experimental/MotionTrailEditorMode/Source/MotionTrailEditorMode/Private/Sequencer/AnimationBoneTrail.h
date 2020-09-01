@@ -63,7 +63,11 @@ public:
 	{}
 
 	// begin FTrajectoryCache interface
-	virtual const FTransform& Get(const double InTime) const override { return GetInterp(InTime); }
+	virtual const FTransform& Get(const double InTime) const override 
+	{ 
+		return AnimTrajectoryCache->GlobalBoneTransforms[BoneIdx][FMath::Clamp(int32((InTime - AnimTrajectoryCache->AnimRange.GetLowerBoundValue()) / AnimTrajectoryCache->Spacing), 0, AnimTrajectoryCache->ComponentBoneTransforms[0].Num() - 1)];
+	}
+
 	virtual FTransform GetInterp(const double InTime) const override;
 
 	// This cache is read-only
