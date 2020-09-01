@@ -39,7 +39,9 @@ void FDefaultMovieSceneTransformTrailTool::Setup()
 
 void FDefaultMovieSceneTransformTrailTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	if (!OwningTrail->GetDrawInfo()->IsVisible())
+	const bool bIsVisible = WeakEditorMode->GetHierarchyForSequencer(OwningTrail->GetSequencer().Get())->GetVisibilityManager().IsTrailVisible(OwningTrail->GetCachedHierarchyGuid());
+
+	if (!bIsVisible)
 	{
 		if (ActiveTransformGizmo.IsValid() && Cast<UMSTrailTransformProxy>(ActiveTransformGizmo->ActiveTarget))
 		{
@@ -69,7 +71,9 @@ void FDefaultMovieSceneTransformTrailTool::Render(IToolsContextRenderAPI* Render
 
 FInputRayHit FDefaultMovieSceneTransformTrailTool::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
-	if (!OwningTrail->GetDrawInfo()->IsVisible())
+	const bool bIsVisible = WeakEditorMode->GetHierarchyForSequencer(OwningTrail->GetSequencer().Get())->GetVisibilityManager().IsTrailVisible(OwningTrail->GetCachedHierarchyGuid());
+
+	if (!bIsVisible)
 	{
 		return FInputRayHit();
 	}
@@ -111,8 +115,9 @@ FInputRayHit FDefaultMovieSceneTransformTrailTool::IsHitByClick(const FInputDevi
 
 void FDefaultMovieSceneTransformTrailTool::OnClicked(const FInputDeviceRay& ClickPos)
 {
+	const bool bIsVisible = WeakEditorMode->GetHierarchyForSequencer(OwningTrail->GetSequencer().Get())->GetVisibilityManager().IsTrailVisible(OwningTrail->GetCachedHierarchyGuid());
 	UTrailToolManager* TrailToolManager = Cast<UTrailToolManager>(WeakEditorMode->GetToolManager()->GetActiveTool(EToolSide::Mouse));
-	if (!OwningTrail->GetDrawInfo()->IsVisible() || !TrailToolManager)
+	if (!bIsVisible || !TrailToolManager)
 	{
 		return;
 	}
@@ -300,7 +305,7 @@ void FDefaultMovieSceneTransformTrailTool::UpdateKeysInRange(FTrajectoryCache* P
 	for (const TPair<FFrameNumber, TUniquePtr<FKeyInfo>>& FrameKeyPair : Keys)
 	{
 		const double EvalTime = OwningTrail->GetSequencer()->GetFocusedTickResolution().AsSeconds(FrameKeyPair.Value->FrameNumber);
-		if (FrameKeyPair.Value->bDirty && ViewRange.Contains(EvalTime))
+		if (FrameKeyPair.Value->bDirty && ViewRange.Contains(EvalTime + KINDA_SMALL_NUMBER))
 		{
 			FrameKeyPair.Value->UpdateKeyTransform(EKeyUpdateType::FromTrailCache, ParentTrajectoryCache);
 		}

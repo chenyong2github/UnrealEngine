@@ -30,24 +30,25 @@ FMovieSceneTransformTrail::FMovieSceneTransformTrail(const FLinearColor& InColor
 	: FTrail()
 	, CachedEffectiveRange(TRange<double>::Empty())
 	, DefaultTrailTool()
-	, DrawInfo()
 	, TrajectoryCache()
 	, LastTransformSectionSig(InWeakSection->GetSignature())
+	, CachedHierarchyGuid()
 	, WeakSection(InWeakSection)
 	, ChannelOffset(InChannelOffset)
 	, WeakSequencer(InSequencer)
 {
 	DefaultTrailTool = MakeUnique<FDefaultMovieSceneTransformTrailTool>(this);
 	TrajectoryCache = MakeUnique<FArrayTrajectoryCache>(0.01, GetEffectiveSectionRange());
-	DrawInfo = MakeUnique<FCachedTrajectoryDrawInfo>(InColor, bInIsVisible, TrajectoryCache.Get());
+	DrawInfo = MakeUnique<FTrajectoryDrawInfo>(InColor, TrajectoryCache.Get());
 }
 
 ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InSceneContext)
 {
+	CachedHierarchyGuid = InSceneContext.YourNode;
 	UMovieSceneSection* Section = WeakSection.Get();
 	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
 
-	FGuid SequencerBinding;
+	FGuid SequencerBinding = FGuid();
 	if (Sequencer)
 	{ // TODO: expensive, but for some reason Section stays alive even after it is deleted
 		Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrackBinding(*Cast<UMovieSceneTrack>(Section->GetOuter()), SequencerBinding);
@@ -76,7 +77,7 @@ ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InS
 			DefaultTrailTool->OnSectionChanged();
 		}
 
-		const double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetEditorMode()->GetTrailOptions()->SecondsPerSegment);
+		const double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetSecondsPerSegment());
 		CachedEffectiveRange = TRange<double>::Hull({ Parent->GetEffectiveRange(), GetEffectiveSectionRange() });
 		*TrajectoryCache = FArrayTrajectoryCache(Spacing, CachedEffectiveRange, FTransform::Identity * Parent->GetTrajectoryTransforms()->GetDefault()); // TODO:: Get channel default values
 		TrajectoryCache->UpdateCacheTimes(TempEvalTimes);
@@ -99,7 +100,7 @@ ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InS
 
 	if (DefaultTrailTool->IsActive())
 	{
-		DefaultTrailTool->UpdateKeysInRange(Parent->GetTrajectoryTransforms(), InSceneContext.EvalTimes.Range);
+		DefaultTrailTool->UpdateKeysInRange(Parent->GetTrajectoryTransforms(), InSceneContext.TrailHierarchy->GetViewRange());
 	}
 
 	return CacheState;
@@ -174,7 +175,7 @@ void FMovieSceneComponentTransformTrail::UpdateCacheTimes(const FTrailEvaluateTi
 	for (int32 Idx = 0; Idx < EvaluateTimes.EvalTimes.Num(); Idx++)
 	{
 		const FTransform TempLocalTransform = FTransform(TempLocalTransforms[Idx].GetRotation(), TempLocalTransforms[Idx].GetTranslation(), TempLocalTransforms[Idx].GetScale());
-		FTransform TempWorldTransform = TempLocalTransform * ParentTrajectoryCache->Get(EvaluateTimes.EvalTimes[Idx]);
+		FTransform TempWorldTransform = TempLocalTransform * ParentTrajectoryCache->Get(EvaluateTimes.EvalTimes[Idx] + KINDA_SMALL_NUMBER);
 		TempWorldTransform.NormalizeRotation();
 		GetTrajectoryTransforms()->Set(EvaluateTimes.EvalTimes[Idx] + KINDA_SMALL_NUMBER, TempWorldTransform); // The KINDA_SMALL_NUMBER is a hack to prevent rounding down when the calculated array index is just below a whole number
 	}
@@ -223,6 +224,7 @@ FTransform FMovieSceneControlTransformTrail::EvaluateChannelsAtTime(TArrayView<F
 
 void FMovieSceneControlTransformTrail::UpdateCacheTimes(const FTrailEvaluateTimes& EvaluateTimes, FTrajectoryCache* ParentTrajectoryCache)
 {
+	// TODO: dirty skeleton root bone
 	UMovieSceneControlRigParameterSection* Section = Cast<UMovieSceneControlRigParameterSection>(GetSection());
 	check(Section);
 
@@ -235,7 +237,7 @@ void FMovieSceneControlTransformTrail::UpdateCacheTimes(const FTrailEvaluateTime
 	{
 		const FFrameTime TickTime = Time * GetSequencer()->GetFocusedTickResolution();
 		const FTransform TempLocalTransform = EvaluateChannelsAtTime(FloatChannels, TickTime);
-		FTransform TempWorldTransform = TempLocalTransform * InitialTransform * ParentTrajectoryCache->Get(Time);
+		FTransform TempWorldTransform = TempLocalTransform * InitialTransform * ParentTrajectoryCache->Get(Time + KINDA_SMALL_NUMBER);
 		TempWorldTransform.NormalizeRotation();
 		GetTrajectoryTransforms()->Set(Time + KINDA_SMALL_NUMBER, TempWorldTransform);
 	}

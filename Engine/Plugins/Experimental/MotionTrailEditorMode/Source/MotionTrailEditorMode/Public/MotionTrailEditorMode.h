@@ -26,7 +26,7 @@ public:
 		, bShowFullTrail(true)
 		, FramesBefore(10)
 		, FramesAfter(10)
-		, SecondsPerSegment(0.1)
+		, Subdivisions(100)
 		, bLockTicksToFrames(true)
 		, SecondsPerTick(0.1)
 		, TickSize(4.0)
@@ -45,8 +45,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "!bShowFullTrail && bShowTrails", ClampMin = "0"))
 	int32 FramesAfter;
 
-	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails", ClampMin = "0.0001"))
-	double SecondsPerSegment;
+	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails", ClampMin = "2"))
+	int32 Subdivisions;
 
 	UPROPERTY(EditAnywhere, Category = ShowOptions, Meta = (EditCondition = "bShowTrails"))
 	bool bLockTicksToFrames;
@@ -97,6 +97,7 @@ public:
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const override;
 	virtual void ActivateDefaultTool() override;
 
+	virtual class FEdMode* AsLegacyMode() override;
 	virtual bool IsCompatibleWith(FEditorModeID OtherModeID) const override;
 	// End of UEdMode interface
 
