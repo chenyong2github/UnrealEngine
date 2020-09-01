@@ -38,6 +38,7 @@ struct ENGINE_API FTextureLODGroup
 		, DuplicateNonOptionalMips(false)
 		, Downscale(1.0)
 		, DownscaleOptions(ETextureDownscaleOptions::SimpleAverage)
+		, VirtualTextureTileCountBias(0)
 		, VirtualTextureTileSizeBias(0)
 	{
 		SetupGroup();
@@ -113,6 +114,9 @@ struct ENGINE_API FTextureLODGroup
 
 	UPROPERTY()
 	ETextureDownscaleOptions DownscaleOptions;
+
+	UPROPERTY()
+	int32 VirtualTextureTileCountBias;
 
 	UPROPERTY()
 	int32 VirtualTextureTileSizeBias;
