@@ -69,7 +69,7 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 		return nullptr;
 	}
 
-	const EObjectFlags ObjectFlags = RF_Transient;
+	const EObjectFlags ObjectFlags = RF_Transient | RF_Transactional;
 
 	// @todo sequencer livecapture: Consider using SetPlayInEditorWorld() and RestoreEditorWorld() here instead
 	
@@ -189,7 +189,7 @@ UObject* FLevelSequenceActorSpawner::SpawnObject(FMovieSceneSpawnable& Spawnable
 #if WITH_EDITOR
 	if (GIsEditor)
 	{
-		// Explicitly set RF_Transactional on spawned actors so we can undo/redo properties on them. We don't add this as a spawn flag since we don't want to transact spawn/destroy events.
+		// Explicitly set RF_Transactional on spawned actors so we can undo/redo properties on them.
 		SpawnedActor->SetFlags(RF_Transactional);
 
 		for (UActorComponent* Component : SpawnedActor->GetComponents())
