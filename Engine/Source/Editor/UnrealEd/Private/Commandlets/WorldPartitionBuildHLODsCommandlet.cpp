@@ -27,6 +27,9 @@ int32 UWorldPartitionBuildHLODsCommandlet::Main(const FString& Params)
 	TArray<FString> Tokens, Switches;
 	ParseCommandLine(*Params, Tokens, Switches);
 
+	bool bNoSourceControl = Switches.Contains(TEXT("NoSourceControl"));
+	PackageHelper.SetSourceControlEnabled(!bNoSourceControl);
+
 	// Retrieve map name from the commandline
 	FString MapName;
 	bool bMapProvided = FParse::Value(*Params, TEXT("Map="), MapName);
@@ -96,14 +99,75 @@ int32 UWorldPartitionBuildHLODsCommandlet::Main(const FString& Params)
 	const FBox LoadBox(FVector(-WORLD_MAX, -WORLD_MAX, -WORLD_MAX), FVector(WORLD_MAX, WORLD_MAX, WORLD_MAX));
 	WorldPartition->LoadEditorCells(LoadBox);
 
+	TSet<UPackage*> PackagesToDelete;
+	TSet<UPackage*> PackagesToSave;
+
 	// Clear all existing HLOD actors
 	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(World); ItHLOD; ++ItHLOD)
 	{
+		PackagesToDelete.Add(ItHLOD->GetPackage());
 		World->DestroyActor(*ItHLOD);
 	}
 
 	// Rebuild HLOD for the whole world
 	WorldPartition->GenerateHLOD();
+	
+	// Required to clear any deleted actors from the level
+	CollectGarbage(RF_Standalone);
+
+	// Gather all packages
+	for (TActorIterator<AWorldPartitionHLOD> ItHLOD(World); ItHLOD; ++ItHLOD)
+	{
+		UPackage* Package = ItHLOD->GetPackage();
+		if (Package && Package->IsDirty())
+		{
+			PackagesToSave.Add(Package);
+		}
+	}
+
+	// Delete packages
+	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Deleting %d packages."), PackagesToDelete.Num());
+	for (UPackage* Package : PackagesToDelete)
+	{
+		if (!PackageHelper.Delete(Package->GetName()))
+		{
+			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error deleting package %s."), *Package->GetName());
+			return 1;
+		}
+	}
+
+	// Checkout packages
+	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
+	for (UPackage* Package : PackagesToSave)
+	{
+		if (!PackageHelper.Checkout(Package))
+		{
+			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error checking out package %s."), *Package->GetName());
+			return 1;
+		}
+	}
+
+	// Save packages
+	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
+	for (UPackage* Package : PackagesToSave)
+	{
+		if (!PackageHelper.Save(Package))
+		{
+			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error saving package %s."), *Package->GetName());
+			return 1;
+		}
+	}
+
+	// Add new packages to source control
+	UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Log, TEXT("Adding packages to source control."));
+	for (UPackage* Package : PackagesToSave)
+	{
+		if (!PackageHelper.AddToSourceControl(Package))
+		{
+			UE_LOG(LogWorldPartitionBuildHLODsCommandlet, Error, TEXT("Error adding package %s to source control."), *Package->GetName());
+			return 1;
+		}
+	}
 
 	// Cleanup
 	World->RemoveFromRoot();

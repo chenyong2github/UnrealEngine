@@ -6,7 +6,6 @@
 
 #include "Commandlets/WorldPartitionConvertCommandlet.h"
 #include "Algo/Transform.h"
-#include "HAL/FileManager.h"
 #include "HAL/PlatformFileManager.h"
 #include "Misc/Paths.h"
 #include "Misc/ConfigCacheIni.h"
@@ -24,10 +23,6 @@
 #include "GameFramework/WorldSettings.h"
 #include "UObject/UObjectHash.h"
 #include "PackageHelperFunctions.h"
-#include "ISourceControlOperation.h"
-#include "SourceControlOperations.h"
-#include "SourceControlHelpers.h"
-#include "ISourceControlModule.h"
 #include "UObject/MetaData.h"
 #include "Editor.h"
 #include "HierarchicalLOD.h"
@@ -308,160 +303,8 @@ bool UWorldPartitionConvertCommandlet::ShouldDeleteActor(AActor* Actor, bool bMa
 	return false;
 }
 
-bool UWorldPartitionConvertCommandlet::DeleteFile(const FString& Filename)
-{
-	UE_LOG(LogWorldPartitionConvertCommandlet, Verbose, TEXT("Deleting %s"), *Filename);
-
-	if (!UseSourceControl())
-	{
-		if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*Filename, false) ||
-			!IPlatformFile::GetPlatformPhysical().DeleteFile(*Filename))
-		{
-			UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error deleting %s"), *Filename);
-			return false;
-		}
-	}
-	else 
-	{
-		FSourceControlStatePtr SourceControlState = GetSourceControlProvider().GetState(Filename, EStateCacheUsage::ForceUpdate);
-
-		if (SourceControlState.IsValid() && SourceControlState->IsSourceControlled())
-		{
-			FString OtherCheckedOutUser;
-			if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Overwriting package %s already checked out by %s, will not submit"), *Filename, *OtherCheckedOutUser);
-				return false;
-			}
-			else if (!SourceControlState->IsCurrent())
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Overwriting package %s (not at head revision), will not submit"), *Filename);
-				return false;
-			}
-			else if (SourceControlState->IsAdded())
-			{
-				if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), Filename) != ECommandResult::Succeeded)
-				{
-					UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error reverting package %s from source control"), *Filename);
-					return false;
-				}
-			}
-			else
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Deleting package %s from source control"), *Filename);
-
-				if (SourceControlState->IsCheckedOut())
-				{
-					if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FRevert>(), Filename) != ECommandResult::Succeeded)
-					{
-						UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error reverting package %s from source control"), *Filename);
-						return false;
-					}
-				}
-
-				if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FDelete>(), Filename) != ECommandResult::Succeeded)
-				{
-					UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error deleting package %s from source control"), *Filename);
-					return false;
-				}
-			}
-		}
-		else
-		{
-			if (!IFileManager::Get().Delete(*Filename, false, true))
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error deleting package %s locally"), *Filename);
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
 void UWorldPartitionConvertCommandlet::PerformAdditionalWorldCleanup(UWorld* World) const
 {
-}
-
-bool UWorldPartitionConvertCommandlet::AddPackageToSourceControl(UPackage* Package)
-{
-	if (UseSourceControl())
-	{
-		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
-		FSourceControlStatePtr SourceControlState = GetSourceControlProvider().GetState(PackageFilename, EStateCacheUsage::ForceUpdate);
-
-		if (SourceControlState.IsValid() && !SourceControlState->IsSourceControlled())
-		{
-			UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Adding package %s to source control"), *PackageFilename);
-			if (GetSourceControlProvider().Execute(ISourceControlOperation::Create<FMarkForAdd>(), Package) != ECommandResult::Succeeded)
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error adding %s to source control."), *PackageFilename);
-				return false;
-			}
-		}
-	}
-
-	return true;
-}
-
-bool UWorldPartitionConvertCommandlet::SavePackage(UPackage* Package)
-{
-	FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-	if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_Async))
-	{
-		UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error saving %s"), *PackageFileName);
-		return false;
-	}
-
-	return true;
-}
-
-bool UWorldPartitionConvertCommandlet::CheckoutPackage(UPackage* Package)
-{
-	if (UseSourceControl())
-	{
-		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
-		FSourceControlStatePtr SourceControlState = GetSourceControlProvider().GetState(PackageFilename, EStateCacheUsage::ForceUpdate);
-
-		if (SourceControlState.IsValid())
-		{
-			FString OtherCheckedOutUser;
-			if (SourceControlState->IsCheckedOutOther(&OtherCheckedOutUser))
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Overwriting package %s already checked out by %s, will not submit"), *PackageFilename, *OtherCheckedOutUser);
-				return false;
-			}
-			else if (!SourceControlState->IsCurrent())
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Overwriting package %s (not at head revision), will not submit"), *PackageFilename);
-				return false;
-			}
-			else if (SourceControlState->IsCheckedOut() || SourceControlState->IsAdded())
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Skipping package %s (already checked out)"), *PackageFilename);
-				return true;
-			}
-			else if (SourceControlState->IsSourceControlled())
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Checking out package %s from source control"), *PackageFilename);
-				return GetSourceControlProvider().Execute(ISourceControlOperation::Create<FCheckOut>(), Package) == ECommandResult::Succeeded;
-			}
-		}
-	}
-	else
-	{
-		FString PackageFilename = SourceControlHelpers::PackageFilename(Package);
-		if (IPlatformFile::GetPlatformPhysical().FileExists(*PackageFilename))
-		{
-			if (!IPlatformFile::GetPlatformPhysical().SetReadOnly(*PackageFilename, false))
-			{
-				UE_LOG(LogWorldPartitionConvertCommandlet, Error, TEXT("Error setting %s writable"), *PackageFilename);
-				return false;
-			}
-		}
-	}
-
-	return true;
 }
 
 void UWorldPartitionConvertCommandlet::OutputConversionReport() const
@@ -797,7 +640,6 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		return 1;
 	}
 
-	bNoSourceControl = Switches.Contains(TEXT("NoSourceControl"));
 	bDeleteSourceLevels = Switches.Contains(TEXT("DeleteSourceLevels"));
 	bGenerateIni = Switches.Contains(TEXT("GenerateIni"));
 	bReportOnly = bGenerateIni || Switches.Contains(TEXT("ReportOnly"));
@@ -812,8 +654,8 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 	bConversionSuffix = Switches.Contains(TEXT("ConversionSuffix"));
 
-	FScopedSourceControl SourceControl;
-	SourceControlProvider = bNoSourceControl ? nullptr : &ISourceControlModule::Get().GetProvider();
+	bool bNoSourceControl = Switches.Contains(TEXT("NoSourceControl"));
+	PackageHelper.SetSourceControlEnabled(!bNoSourceControl);
 
 	// Load configuration file
 	FString LevelLongPackageName;
@@ -864,7 +706,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		for (const FAssetData& Asset : Assets)
 		{
-			if (!DeleteFile(SourceControlHelpers::PackageFilename(Asset.PackageName.ToString())))
+			if (!PackageHelper.Delete(Asset.PackageName.ToString()))
 			{
 				return 1;
 			}
@@ -872,7 +714,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 
 		if (FPackageName::SearchForPackageOnDisk(OldLevelName, &OldLevelName))
 		{
-			DeleteFile(SourceControlHelpers::PackageFilename(OldLevelName));
+			PackageHelper.Delete(OldLevelName);
 		}
 	}
 
@@ -1127,7 +969,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		{
 			for (UPackage* Package : PackagesToDelete)
 			{
-				if (!DeleteFile(SourceControlHelpers::PackageFilename(Package)))
+				if (!PackageHelper.Delete(Package))
 				{
 					return 1;
 				}
@@ -1137,7 +979,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Checking out %d actor packages."), PackagesToSave.Num());
 		for(UPackage* Package: PackagesToSave)
 		{
-			if (!CheckoutPackage(Package))
+			if (!PackageHelper.Checkout(Package))
 			{
 				return 1;
 			}
@@ -1156,7 +998,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Saving %d packages."), PackagesToSave.Num());
 		for (UPackage* PackageToSave : PackagesToSave)
 		{
-			if (!SavePackage(PackageToSave))
+			if (!PackageHelper.Save(PackageToSave))
 			{
 				return 1;
 			}
@@ -1165,7 +1007,7 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		// Add new packages to source control
 		for(UPackage* PackageToSave: PackagesToSave)
 		{
-			if(!AddPackageToSourceControl(PackageToSave))
+			if(!PackageHelper.AddToSourceControl(PackageToSave))
 			{
 				return 1;
 			}
@@ -1174,13 +1016,13 @@ int32 UWorldPartitionConvertCommandlet::Main(const FString& Params)
 		// Checkout level
 		UE_LOG(LogWorldPartitionConvertCommandlet, Log, TEXT("Saving %s."), *MainPackage->GetName());
 
-		if (!CheckoutPackage(MainPackage))
+		if (!PackageHelper.Checkout(MainPackage))
 		{
 			return 1;
 		}
 
 		// Save level
-		if (!SavePackage(MainPackage))
+		if (!PackageHelper.Save(MainPackage))
 		{
 			return 1;
 		}

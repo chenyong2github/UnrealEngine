@@ -5,8 +5,10 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/UObjectAnnotation.h"
+
 #include "Commandlets/Commandlet.h"
-#include "ISourceControlProvider.h"
+#include "Commandlets/CommandletPackageHelper.h"
+
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
@@ -54,16 +56,9 @@ protected:
 	UWorldPartition* CreateWorldPartition(class AWorldSettings* MainWorldSettings, UWorldComposition* WorldComposition) const;
 	ULevel* LoadLevel(const FString& LevelToLoad);
 
-	bool UseSourceControl() const { return SourceControlProvider != nullptr; }
-	ISourceControlProvider& GetSourceControlProvider() { check(UseSourceControl()); return *SourceControlProvider; }
-
 	void ChangeObjectOuter(UObject* Object, UObject* NewOuter);
 	void FixupSoftObjectPaths(UPackage* OuterPackage);
 
-	bool DeleteFile(const FString& Filename);
-	bool AddPackageToSourceControl(UPackage* Package);
-	bool CheckoutPackage(UPackage* Package);
-	bool SavePackage(UPackage* Package);
 	bool DetachDependantLevelPackages(ULevel* Level);
 	bool RenameWorldPackageWithSuffix(UWorld* World);
 
@@ -78,14 +73,13 @@ protected:
 	TSet<FString> ActorsInGroupActors;
 	TSet<FString> ActorsReferencesToActors;
 
-	ISourceControlProvider* SourceControlProvider;
 	TMap<FString, FString> RemapSoftObjectPaths;
 
 	FString LevelConfigFilename;
 	TArray<UPackage*> PackagesToSave;
 	TArray<UPackage*> PackagesToDelete;
+	FCommandletPackageHelper PackageHelper;
 
-	bool bNoSourceControl;
 	bool bDeleteSourceLevels;
 	bool bGenerateIni;
 	bool bReportOnly;
