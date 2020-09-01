@@ -238,32 +238,55 @@ void FNiagaraSystemViewportClient::DrawInstructionCounts(UNiagaraSystem* Particl
 
 void FNiagaraSystemViewportClient::DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight)
 {
-	FCanvasTextItem TextItem(FVector2D(CurrentX, CurrentY), FText::FromString(TEXT("Particle Counts")), Font, FLinearColor::White);
-	TextItem.EnableShadow(FLinearColor::Black);
-	TextItem.Draw(Canvas);
-	CurrentY += FontHeight;
-
-	FNiagaraSystemInstance* SystemInstance = Component->GetSystemInstance();
-	if (!SystemInstance)
+	// Show particle counts
+	if ( FNiagaraSystemInstance* SystemInstance = Component->GetSystemInstance() )
 	{
-		return;
-	}
-
-	for (TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
-	{
-		FName EmitterName = EmitterInstance->GetEmitterHandle().GetName();
-		int32 CurrentCount = EmitterInstance->GetNumParticles();
-		int32 MaxCount = EmitterInstance->GetEmitterHandle().GetInstance()->GetMaxParticleCountEstimate();
-		bool IsIsolated = EmitterInstance->GetEmitterHandle().IsIsolated();
-		bool IsEnabled = EmitterInstance->GetEmitterHandle().GetIsEnabled();
-		TextItem.Text = FText::FromString(FString::Printf(TEXT("%i Current, %i Max (est.) - [%s]"), CurrentCount, MaxCount, *EmitterName.ToString()));
-		TextItem.Position = FVector2D(CurrentX, CurrentY);
-		TextItem.bOutlined = IsIsolated;
-		TextItem.OutlineColor = FLinearColor(0.7f, 0.0f, 0.0f);
-		TextItem.SetColor(IsEnabled ? FLinearColor::White : FLinearColor::Gray);
+		FCanvasTextItem TextItem(FVector2D(CurrentX, CurrentY), FText::FromString(TEXT("Particle Counts")), Font, FLinearColor::White);
+		TextItem.EnableShadow(FLinearColor::Black);
 		TextItem.Draw(Canvas);
 		CurrentY += FontHeight;
+
+		for (const TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe>& EmitterInstance : SystemInstance->GetEmitters())
+		{
+			const FName EmitterName = EmitterInstance->GetEmitterHandle().GetName();
+			const int32 CurrentCount = EmitterInstance->GetNumParticles();
+			const int32 MaxCount = EmitterInstance->GetEmitterHandle().GetInstance()->GetMaxParticleCountEstimate();
+			const bool IsIsolated = EmitterInstance->GetEmitterHandle().IsIsolated();
+			const bool IsEnabled = EmitterInstance->GetEmitterHandle().GetIsEnabled();
+			TextItem.Text = FText::FromString(FString::Printf(TEXT("%i Current, %i Max (est.) - [%s]"), CurrentCount, MaxCount, *EmitterName.ToString()));
+			TextItem.Position = FVector2D(CurrentX, CurrentY);
+			TextItem.bOutlined = IsIsolated;
+			TextItem.OutlineColor = FLinearColor(0.7f, 0.0f, 0.0f);
+			TextItem.SetColor(IsEnabled ? FLinearColor::White : FLinearColor::Gray);
+			TextItem.Draw(Canvas);
+			CurrentY += FontHeight;
+		}
 	}
+	else if ( UNiagaraSystem* NiagaraSystem = Component->GetAsset() )
+	{
+		const bool bSystemCompiling = NiagaraSystem->HasOutstandingCompilationRequests();
+
+		for (const FNiagaraEmitterHandle& EmitterHandle : NiagaraSystem->GetEmitterHandles())
+		{
+			UNiagaraEmitter* Emitter = EmitterHandle.GetInstance();
+			if (Emitter == nullptr)
+			{
+				continue;
+			}
+
+			const bool bEmitterCompiling = bSystemCompiling || !Emitter->IsReadyToRun();
+			if (!bEmitterCompiling)
+			{
+				continue;
+			}
+
+			FString CompilingText = FString::Printf(TEXT("%s - %s"), *FText::FromString("Compiling Emitter").ToString(), *Emitter->GetName());
+			Canvas->DrawShadowedString(CurrentX, CurrentY, *CompilingText, Font, FLinearColor::Yellow);
+			CurrentY += FontHeight;
+		}
+	}
+
+	return;
 }
 
 bool FNiagaraSystemViewportClient::ShouldOrbitCamera() const
