@@ -647,7 +647,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 	else if (System)
 	{
 		BasePtr->bUseRapidIterationParams = !System->bBakeOutRapidIteration;
-		BasePtr->bUseShaderPermutations = System->bUseShaderPermutations;
 
 		// Store off the current variables in the exposed parameters list.
 		TArray<FNiagaraVariable> OriginalExposedParams;
@@ -675,7 +674,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 			}
 			EmitterPtr->SourceName = BasePtr->SourceName;
 			EmitterPtr->bUseRapidIterationParams = BasePtr->bUseRapidIterationParams || (!Handle.GetInstance()->bBakeOutRapidIteration);
-			EmitterPtr->bUseShaderPermutations = BasePtr->bUseShaderPermutations;
 			BasePtr->EmitterData.Add(EmitterPtr);
 		}
 
