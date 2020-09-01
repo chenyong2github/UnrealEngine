@@ -115,6 +115,9 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 
 	if (BufferOffset != INDEX_NONE)
 	{
+		checkf(!FreeEntries.Contains(BufferOffset), TEXT("BufferOffset %u exists in FreeEntries"), BufferOffset);
+		checkf(!InstanceCountClearTasks.Contains(BufferOffset), TEXT("BufferOffset %u exists in InstanceCountClearTasks"), BufferOffset);
+
 		//UE_LOG(LogNiagara, Warning, TEXT("FNiagaraGPUInstanceCountManager::FreeEntry %d"), BufferOffset);
 		// Add a reset to 0 task.
 		// The entry will only become available/reusable after being reset to 0 in UpdateDrawIndirectBuffer()
@@ -134,6 +137,13 @@ void FNiagaraGPUInstanceCountManager::FreeEntryArray(TConstArrayView<uint32> Ent
 	const int32 NumToFree = EntryArray.Num();
 	if (NumToFree > 0)
 	{
+#if DO_CHECK
+		for (uint32 BufferOffset : EntryArray)
+		{
+			checkf(!FreeEntries.Contains(BufferOffset), TEXT("BufferOffset %u exists in FreeEntries"), BufferOffset);
+			checkf(!InstanceCountClearTasks.Contains(BufferOffset), TEXT("BufferOffset %u exists in InstanceCountClearTasks"), BufferOffset);
+		}
+#endif
 		InstanceCountClearTasks.Append(EntryArray.GetData(), NumToFree);
 	}
 }
