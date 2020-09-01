@@ -212,7 +212,7 @@ void ReconstructVolumetricRenderTargetPS(
 				// Get information about neightboors
 				float4 NewNeighboorsRGBA[8];
 				float2 NewNeighboorsDepths[8];
-				int2 NeightboorsOffset[8] = { {1,0}, {1,1}, {0,1}, {-1,1}, {-1,0}, {-1,-1}, {0,-1}, {1,-1}};
+				int2 NeightboorsOffset[8] = { int2(1,0), int2(1,1), int2(0,1), int2(-1,1), int2(-1,0), int2(-1,-1), int2(0,-1), int2(1,-1)};
 
 
 				const float ReconstructDepthZ = HalfResDepthTexture.Load(int3(SVPos.xy, 0)).r; // TODO split screen offset?
@@ -548,10 +548,10 @@ void ComposeVolumetricRTOverScenePS(
 
 #endif
 
-	uint2 VolumeCoord0 = VolumeCoordUInt + int2(0, 0);
-	uint2 VolumeCoord1 = VolumeCoordUInt + int2(OffsetX, 0);
-	uint2 VolumeCoord2 = VolumeCoordUInt + int2(OffsetX, OffsetY);
-	uint2 VolumeCoord3 = VolumeCoordUInt + int2(0, OffsetY);
+	uint2 VolumeCoord0 = max(0, int2(VolumeCoordUInt) + int2(0, 0));
+	uint2 VolumeCoord1 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, 0));
+	uint2 VolumeCoord2 = max(0, int2(VolumeCoordUInt) + int2(OffsetX, OffsetY));
+	uint2 VolumeCoord3 = max(0, int2(VolumeCoordUInt) + int2(0, OffsetY));
 
 	float4 VolumeRGBT0 = SafeLoadVolumetricTexture(VolumeCoord0);
 	float2 VolumeFrontDepth0 = SafeLoadVolumetricDepthTexture(VolumeCoord0);
@@ -589,7 +589,7 @@ void ComposeVolumetricRTOverScenePS(
 	}
 	else
 	{
-		// Naw do a bilinear sample to have a soft look region without depth edges
+		// Now do a bilinear sample to have a soft look region without depth edges.
 		ValidSampleCount = 1.0;
 		DataAcc = SafeSampleVolumetricTexture((float2(VolumeCoord0) + 0.25 + (float2(OffsetX, OffsetY) * 0.5 + 0.5) * 0.5) * VolumetricTextureSizeAndInvSize.zw);
 		//DataAcc += float4(0, 0.1, 0, 0);
