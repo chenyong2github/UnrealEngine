@@ -1501,10 +1501,17 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 
 		FNiagaraSceneProxy* NiagaraProxy = static_cast<FNiagaraSceneProxy*>(SceneProxy);
 		const TArray<FNiagaraRenderer*>& EmitterRenderers = NiagaraProxy->GetEmitterRenderers();
+		const int32 NumEmitterRenderers = EmitterRenderers.Num();
+
+		if (NumEmitterRenderers == 0)
+		{
+			// Early out if we have no renderers
+			return;
+		}
 
 		typedef TArray<FNiagaraDynamicDataBase*, TInlineAllocator<8>> TDynamicDataArray;
 		TDynamicDataArray NewDynamicData;
-		NewDynamicData.Reserve(EmitterRenderers.Num());
+		NewDynamicData.Reserve(NumEmitterRenderers);
 
 		int32 RendererIndex = 0;
 		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
@@ -1547,7 +1554,7 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 		}
 
 #if WITH_EDITOR
-		if (EmitterRenderers.Num() != NewDynamicData.Num())
+		if (NumEmitterRenderers != NewDynamicData.Num())
 		{
 			// This can happen in the editor when modifying the number or renderers while the system is running and the render thread is already processing the data.
 			// in this case we just skip drawing this frame since the system will be reinitialized.
