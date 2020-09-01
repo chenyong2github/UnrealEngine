@@ -159,7 +159,7 @@ private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
 
 	void UpdateInstanceCountManager(FRHICommandListImmediate& RHICmdList);
-	void BuildTickStagePasses(FRHICommandListImmediate& RHICmdList);
+	void BuildTickStagePasses(FRHICommandListImmediate& RHICmdList, ETickStage GenerateTickStage);
 
 	void ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, ETickStage TickStage);
 	void GatherResources(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FNiagaraBufferArray& OutputGraphicsBuffers, FEmitterInstanceList& InstancesWithPersistentIDs);

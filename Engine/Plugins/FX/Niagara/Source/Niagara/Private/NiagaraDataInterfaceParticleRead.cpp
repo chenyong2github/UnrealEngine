@@ -464,6 +464,12 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 				NumSpawnedInstances = SimStageData.Destination->GetNumSpawnedInstances();
 				IDAcquireTag = SimStageData.Destination->GetIDAcquireTag();
 			}
+			// When we don't write particle data the destination is invalid, therefore we can pull from the source
+			else if (SimStageData.Source != nullptr)
+			{
+				NumSpawnedInstances = SimStageData.Source->GetNumSpawnedInstances();
+				IDAcquireTag = SimStageData.Source->GetIDAcquireTag();
+			}
 		}
 		else
 		{
