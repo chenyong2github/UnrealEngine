@@ -22,6 +22,10 @@ const INTEGRATION_FAILURE_REGEXES: [RegExp, string][] = [
 
 export const EXCLUSIVE_CHECKOUT_REGEX = INTEGRATION_FAILURE_REGEXES[0][0]
 
+const changeResultExpectedShape: ztag.ParseOptions = {
+	expected: {change: 'integer', client: 'string', user: 'string', desc: 'string', time: 'integer', status: 'string', changeType: 'string'},
+	optional: {oldChange: 'integer'}
+}
 
 const ztag_group_rex = /\n\n\.\.\.\s/;
 const ztag_field_rex = /(?:\n|^)\.\.\.\s/;
@@ -444,13 +448,6 @@ export class PerforceContext {
 		return this._execP4Ztag(null, ['changes', '-u', this.username, '-s', 'pending'], { multiline: true });
 	}
 
-	// get a list of changes in a path since a specific CL
-	// output format is list of changelists
-	async latestChange(path: string) {
-		const result = await this.changes(path, 0, 1);
-		return <Change>(result && result.length > 0 ? result[0] : null);
-	}
-
 	/** get a single change in the format of changes() */
 	async getChange(path_in: string, changenum: number, status?: ChangelistStatus) {
 		const list = await this.changes(`${path_in}@${changenum},${changenum}`, -1, 1, status)
@@ -475,6 +472,21 @@ export class PerforceContext {
 			expected: {change: 'integer', client: 'string', user: 'string', desc: 'string'},
 			optional: {shelved: 'integer', oldChange: 'integer', IsPromoted: 'integer'}
 		}) as unknown as Promise<Change[]>
+	}
+
+	async latestChange(path: string): Promise<Change> {
+		const args = ['changes', '-l', '-ssubmitted', '-m1', path]
+		const result = await this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape)
+		if (!result || result.length !== 1) {
+			throw new Error("Expected exactly one change")
+		}
+
+		return result[0] as unknown as Change
+	}
+
+	changesBetween(path: string, from: number, to: number) {
+		const args = ['changes', '-l', '-ssubmitted', `${path}@${from},${to}`]
+		return this.execAndParse(null, args, {quiet: true}, changeResultExpectedShape) as unknown as Promise<Change[]>
 	}
 
 	// find a workspace for the given user

@@ -209,6 +209,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 
 			for (const bot of this.botlist) {
 				bot.isActive = true
+				let ticked = false
 				try {
 					// crashMe API support - simulate a bot crashing and stopping the GraphBot instance
 					if (this.crashRequested) {
@@ -217,7 +218,7 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 						throw new Error(errMsg)
 					}
 
-					await bot.tick()
+					ticked = await bot.tick()
 				}
 				catch (err) {
 					this._runningBots = false
@@ -246,8 +247,8 @@ export class GraphBot implements GraphInterface, BotEventHandler {
 				}
 				bot.isActive = false
 
-				if (bot.tickJournal) {
-					const nodeBot = <NodeBot>bot
+				if (ticked && bot.tickJournal) {
+					const nodeBot = bot as NodeBot
 					bot.tickJournal.monitored = nodeBot.branch.isMonitored
 					activity.set(nodeBot.branch.upperName, bot.tickJournal)
 				}
