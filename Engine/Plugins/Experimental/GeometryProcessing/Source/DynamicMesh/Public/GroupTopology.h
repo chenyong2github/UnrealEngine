@@ -329,7 +329,7 @@ protected:
 	inline FIndex2i MakeEdgeID(int MeshEdgeID) const;
 	inline FIndex2i MakeEdgeID(int Group1, int Group2) const;
 
-	int FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID);
+	int FindExistingGroupEdge(int GroupID, int OtherGroupID, int FirstVertexID, int SecondVertexID);
 	void GetAllVertexGroups(int32 VertexID, TArray<int32>& GroupsOut) const;
 };
 
