@@ -377,7 +377,7 @@ public:
 		}
 	}
 
-	bool AddChunkEntry(const FIoChunkId& ChunkId, const FIoOffsetAndLength& OffsetLength, const FIoStoreTocEntryMeta& Meta)
+	int32 AddChunkEntry(const FIoChunkId& ChunkId, const FIoOffsetAndLength& OffsetLength, const FIoStoreTocEntryMeta& Meta)
 	{
 		int32& Index = ChunkIdToIndex.FindOrAdd(ChunkId);
 
@@ -387,10 +387,10 @@ public:
 			Toc.ChunkOffsetLengths.Add(OffsetLength);
 			Toc.ChunkMetas.Add(Meta);
 
-			return true;
+			return Index;
 		}
 
-		return false;
+		return INDEX_NONE;
 	}
 
 	FIoStoreTocCompressedBlockEntry& AddCompressionBlockEntry()
@@ -423,6 +423,12 @@ public:
 		return 1 + uint8(Toc.CompressionMethods.Add(CompressionMethod));
 	}
 
+	void AddToFileIndex(FString FileName, int32 TocEntryIndex)
+	{
+		FilesToIndex.Emplace(MoveTemp(FileName));
+		FileTocEntryIndices.Add(TocEntryIndex);
+	}
+
 	FIoStoreTocResource& GetTocResource()
 	{
 		return Toc;
@@ -443,9 +449,21 @@ public:
 		return nullptr;
 	}
 
+	const TArray<FString>& GetFilesToIndex() const
+	{
+		return FilesToIndex;
+	}
+
+	const TArray<uint32>& GetFileTocEntryIndices() const
+	{
+		return FileTocEntryIndices;
+	}
+
 private:
 	TMap<FIoChunkId, int32> ChunkIdToIndex;
 	FIoStoreTocResource Toc;
+	TArray<FString> FilesToIndex;
+	TArray<uint32> FileTocEntryIndices;
 };
 
 class FIoStoreWriterImpl
@@ -543,6 +561,29 @@ public:
 		WriterThread.Wait();
 
 		FIoStoreTocResource& TocResource = Toc.GetTocResource();
+
+		if (ContainerSettings.IsIndexed())
+		{
+			const TArray<FString>& FilesToIndex = Toc.GetFilesToIndex();
+			const TArray<uint32>& FileTocEntryIndices = Toc.GetFileTocEntryIndices();
+
+			FString MountPoint = IoDirectoryIndexUtils::GetCommonRootPath(FilesToIndex);
+			FIoDirectoryIndexWriter DirectoryIndexWriter;
+			DirectoryIndexWriter.SetMountPoint(MountPoint);
+
+			check(FilesToIndex.Num() == FileTocEntryIndices.Num());
+			for (int32 FileIndex = 0; FileIndex < FilesToIndex.Num(); ++FileIndex)
+			{
+				const uint32 FileEntryIndex = DirectoryIndexWriter.AddFile(FilesToIndex[FileIndex]);
+				check(FileEntryIndex != ~uint32(0));
+				DirectoryIndexWriter.SetFileUserData(FileEntryIndex, FileTocEntryIndices[FileIndex]);
+			}
+
+			DirectoryIndexWriter.Flush(
+				TocResource.DirectoryIndexBuffer,
+				ContainerSettings.IsEncrypted() ? ContainerSettings.EncryptionKey : FAES::FAESKey());
+		}
+
 		TIoStatusOr<uint64> TocSize = FIoStoreTocResource::Write(*TocFilePath, TocResource, ContainerSettings, WriterContext->GetSettings());
 		if (!TocSize.IsOk())
 		{
@@ -557,6 +598,7 @@ public:
 		Result.PaddingSize = TotalPaddedBytes;
 		Result.UncompressedContainerSize = UncompressedContainerSize;
 		Result.CompressedContainerSize = CompressedContainerSize;
+		Result.DirectoryIndexSize = TocResource.Header.DirectoryIndexSize;
 		Result.CompressionMethod = EnumHasAnyFlags(ContainerSettings.ContainerFlags, EIoContainerFlags::Compressed)
 			? WriterContext->GetSettings().CompressionMethod
 			: NAME_None;
@@ -649,8 +691,13 @@ private:
 					}
 				}
 
-				const bool bAdded = Toc.AddChunkEntry(Entry->ChunkId, OffsetLength, ChunkMeta);
-				check(bAdded);
+				const int32 TocEntryIndex = Toc.AddChunkEntry(Entry->ChunkId, OffsetLength, ChunkMeta);
+				check(TocEntryIndex != INDEX_NONE);
+
+				if (ContainerSettings.IsIndexed() && Entry->Options.FileName.Len() > 0)
+				{
+					Toc.AddToFileIndex(Entry->Options.FileName, TocEntryIndex);
+				}
 
 				ContainerFileHandle->Write(Entry->ChunkBuffer.Data(), Entry->ChunkBuffer.DataSize());
 				UncompressedFileOffset += Align(Entry->ChunkSize, Settings.CompressionBlockSize);
@@ -874,7 +921,7 @@ public:
 		}
 
 		FIoStoreTocResource& TocResource = Toc.GetTocResource();
-		FIoStatus TocStatus = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::IncludeTocMeta, TocResource);
+		FIoStatus TocStatus = FIoStoreTocResource::Read(*TocFilePath, EIoStoreTocReadOptions::ReadAll, TocResource);
 		if (!TocStatus.IsOk())
 		{
 			return TocStatus;
@@ -890,6 +937,12 @@ public:
 				return FIoStatusBuilder(EIoErrorCode::FileOpenFailed) << TEXT("Missing decryption key for IoStore container file '") << *TocFilePath << TEXT("'");
 			}
 			DecryptionKey = *FindKey;
+		}
+
+		if (EnumHasAnyFlags(TocResource.Header.ContainerFlags, EIoContainerFlags::Indexed) &&
+			TocResource.DirectoryIndexBuffer.Num() > 0)
+		{
+			return DirectoryIndexReader.Initialize(TocResource.DirectoryIndexBuffer, DecryptionKey);
 		}
 
 		return FIoStatus::Ok;
@@ -994,12 +1047,18 @@ public:
 		return IoBuffer;
 	}
 
+	const FIoDirectoryIndexReader& GetDirectoryIndexReader() const
+	{
+		return DirectoryIndexReader;
+	}
+
 private:
 	FIoStoreToc Toc;
 	FAES::FAESKey DecryptionKey;
 	TUniquePtr<IFileHandle> ContainerFileHandle;
 	mutable TArray<uint8> CompressedBuffer;
 	mutable TArray<uint8> UncompressedBuffer;
+	FIoDirectoryIndexReader DirectoryIndexReader;
 };
 
 FIoStoreReader::FIoStoreReader()
@@ -1042,6 +1101,11 @@ TIoStatusOr<FIoBuffer> FIoStoreReader::Read(const FIoChunkId& Chunk, const FIoRe
 	return Impl->Read(Chunk, Options);
 }
 
+const FIoDirectoryIndexReader& FIoStoreReader::GetDirectoryIndexReader() const
+{
+	return Impl->GetDirectoryIndexReader();
+}
+
 FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOptions ReadOptions, FIoStoreTocResource& OutTocResource)
 {
 	check(TocFilePath != nullptr);
@@ -1077,9 +1141,19 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 		return FIoStatusBuilder(EIoErrorCode::CorruptToc) << TEXT("TOC compressed block entry size mismatch while reading '") << TocFilePath << TEXT("'");
 	}
 
-	const uint64 TocSize = ReadOptions == EIoStoreTocReadOptions::IncludeTocMeta
-		? TocFileHandle->Size() - sizeof(FIoStoreTocHeader)
-		: TocFileHandle->Size() - sizeof(FIoStoreTocHeader) - (Header.TocEntryCount * sizeof(FIoStoreTocEntryMeta));
+	const uint64 TotalTocSize = TocFileHandle->Size() - sizeof(FIoStoreTocHeader);
+	const uint64 TocMetaSize = Header.TocEntryCount * sizeof(FIoStoreTocEntryMeta);
+	const uint64 DefaultTocSize = TotalTocSize - Header.DirectoryIndexSize - TocMetaSize;
+	uint64 TocSize = DefaultTocSize;
+
+	if (EnumHasAnyFlags(ReadOptions, EIoStoreTocReadOptions::ReadTocMeta))
+	{
+		TocSize = TotalTocSize; // Meta data is at the end of the TOC file
+	}
+	else if (EnumHasAnyFlags(ReadOptions, EIoStoreTocReadOptions::ReadDirectoryIndex))
+	{
+		TocSize = DefaultTocSize + Header.DirectoryIndexSize;
+	}
 
 	TUniquePtr<uint8[]> TocBuffer = MakeUnique<uint8[]>(TocSize);
 
@@ -1113,7 +1187,7 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 
 	// Chunk block signatures
 	const uint8* SignatureBuffer = reinterpret_cast<const uint8*>(AnsiCompressionMethodNames + Header.CompressionMethodNameCount * Header.CompressionMethodNameLength);
-	const uint8* TocMeta = SignatureBuffer;
+	const uint8* DirectoryIndexBuffer = SignatureBuffer;
 
 	const bool bIsSigned = EnumHasAnyFlags(Header.ContainerFlags, EIoContainerFlags::Signed);
 	if (IsSigningEnabled() || bIsSigned)
@@ -1129,7 +1203,7 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 		TArrayView<const FSHAHash> ChunkBlockSignatures = MakeArrayView<const FSHAHash>(reinterpret_cast<const FSHAHash*>(BlockSignature.GetData() + *HashSize), Header.TocCompressedBlockEntryCount);
 
 		// Adjust address to meta data
-		TocMeta = reinterpret_cast<const uint8*>(ChunkBlockSignatures.GetData() + ChunkBlockSignatures.Num());
+		DirectoryIndexBuffer = reinterpret_cast<const uint8*>(ChunkBlockSignatures.GetData() + ChunkBlockSignatures.Num());
 
 		OutTocResource.ChunkBlockSignatures = ChunkBlockSignatures;
 
@@ -1143,8 +1217,18 @@ FIoStatus FIoStoreTocResource::Read(const TCHAR* TocFilePath, EIoStoreTocReadOpt
 		}
 	}
 
+	// Directory index
+	if (Header.Version >= static_cast<uint8>(EIoStoreTocVersion::DirectoryIndex) &&
+		EnumHasAnyFlags(ReadOptions, EIoStoreTocReadOptions::ReadDirectoryIndex) &&
+		EnumHasAnyFlags(Header.ContainerFlags, EIoContainerFlags::Indexed) &&
+		Header.DirectoryIndexSize > 0)
+	{
+		OutTocResource.DirectoryIndexBuffer = MakeArrayView<const uint8>(DirectoryIndexBuffer, Header.DirectoryIndexSize);
+	}
+
 	// Meta
-	if (ReadOptions == EIoStoreTocReadOptions::IncludeTocMeta)
+	const uint8* TocMeta = DirectoryIndexBuffer + Header.DirectoryIndexSize;
+	if (EnumHasAnyFlags(ReadOptions, EIoStoreTocReadOptions::ReadTocMeta))
 	{
 		const FIoStoreTocEntryMeta* ChunkMetas = reinterpret_cast<const FIoStoreTocEntryMeta*>(TocMeta);
 		OutTocResource.ChunkMetas = MakeArrayView<FIoStoreTocEntryMeta const>(ChunkMetas, Header.TocEntryCount);
@@ -1192,6 +1276,7 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 	TocHeader.CompressionBlockSize = uint32(WriterSettings.CompressionBlockSize);
 	TocHeader.CompressionMethodNameCount = TocResource.CompressionMethods.Num();
 	TocHeader.CompressionMethodNameLength = FIoStoreTocResource::CompressionMethodNameLen;
+	TocHeader.DirectoryIndexSize = TocResource.DirectoryIndexBuffer.Num();
 	TocHeader.ContainerId = ContainerSettings.ContainerId;
 	TocHeader.EncryptionKeyGuid = ContainerSettings.EncryptionKeyGuid;
 	TocHeader.ContainerFlags = ContainerSettings.ContainerFlags;
@@ -1265,6 +1350,12 @@ TIoStatusOr<uint64> FIoStoreTocResource::Write(
 		{
 			return FIoStatus(EIoErrorCode::WriteError, TEXT("Failed to write chunk block signatures"));
 		}
+	}
+
+	// Directory index
+	if (EnumHasAnyFlags(TocHeader.ContainerFlags, EIoContainerFlags::Indexed))
+	{
+		TocFileHandle->Write(TocResource.DirectoryIndexBuffer.GetData(), TocResource.DirectoryIndexBuffer.Num());
 	}
 
 	// Meta
