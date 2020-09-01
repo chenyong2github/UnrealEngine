@@ -60,6 +60,8 @@ UAbilitySystemComponent::UAbilitySystemComponent(const FObjectInitializer& Objec
 
 	ClientActivateAbilityFailedStartTime = 0.f;
 	ClientActivateAbilityFailedCountRecent = 0;
+
+	bDestroyActiveStateInitiated = false;
 }
 
 const UAttributeSet* UAbilitySystemComponent::InitStats(TSubclassOf<class UAttributeSet> Attributes, const UDataTable* DataTable)

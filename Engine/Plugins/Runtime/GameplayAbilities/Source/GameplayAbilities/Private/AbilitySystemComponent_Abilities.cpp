@@ -885,8 +885,11 @@ void UAbilitySystemComponent::CancelAllAbilities(UGameplayAbility* Ignore)
 void UAbilitySystemComponent::DestroyActiveState()
 {
 	// If we haven't already begun being destroyed
-	if ((GetFlags() & RF_BeginDestroyed) == 0)
+	if (!bDestroyActiveStateInitiated && ((GetFlags() & RF_BeginDestroyed) == 0))
 	{
+		// Avoid re-entrancy (ie if during CancelAbilities() an EndAbility callback destroys the Actor owning this ability system)
+		bDestroyActiveStateInitiated = true;
+
 		// Cancel all abilities before we are destroyed.
 		FGameplayAbilityActorInfo* ActorInfo = AbilityActorInfo.Get();
 		
