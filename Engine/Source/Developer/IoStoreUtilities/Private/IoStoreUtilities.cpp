@@ -4649,7 +4649,7 @@ int32 CreateIoStoreContainerFiles(const TCHAR* CmdLine)
 
 	UE_LOG(LogIoStore, Display, TEXT("Container signing - %s"), Arguments.bSign ? TEXT("ENABLED") : TEXT("DISABLED"));
 
-	Arguments.bCreateDirectoryIndex = false; //!FParse::Param(FCommandLine::Get(), TEXT("NoDirectoryIndex"));
+	Arguments.bCreateDirectoryIndex = !FParse::Param(FCommandLine::Get(), TEXT("NoDirectoryIndex"));
 	UE_LOG(LogIoStore, Display, TEXT("Directory index - %s"), Arguments.bCreateDirectoryIndex  ? TEXT("ENABLED") : TEXT("DISABLED"));
 
 	FString PatchReferenceCryptoKeysFilename;
