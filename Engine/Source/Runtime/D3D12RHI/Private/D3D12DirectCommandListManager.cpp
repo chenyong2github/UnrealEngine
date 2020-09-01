@@ -12,6 +12,18 @@ static TAutoConsoleVariable<int32> CVarD3D12GPUTimeout(
 	ECVF_ReadOnly
 );
 
+#if PLATFORM_WINDOWS
+static int32 GD3D12ExecuteCommandListTask = 1;
+#else
+static int32 GD3D12ExecuteCommandListTask = 0;
+#endif
+static TAutoConsoleVariable<int32> CVarD3D12ExecuteCommandListTask(
+	TEXT("r.D3D12.ExecuteCommandListTask"),
+	GD3D12ExecuteCommandListTask,
+	TEXT("0: Execute command lists on RHI Thread instead of separate task!\n")
+	TEXT("1: Execute command lists on task created from RHIThread to offload expensive work (default)\n")
+);
+
 extern bool D3D12RHI_ShouldCreateWithD3DDebug();
 
 FComputeFenceRHIRef FD3D12DynamicRHI::RHICreateComputeFence(const FName& Name)
@@ -267,7 +279,7 @@ uint64 FD3D12Fence::UpdateLastCompletedFence()
 	return CompletedFence;
 }
 
-uint64 FD3D12ManualFence::Signal(ED3D12CommandQueueType InQueueType, uint64 FenceToSignal)
+uint64 FD3D12ManualFence::ManualSignal(ED3D12CommandQueueType InQueueType, uint64 FenceToSignal)
 {
 	check(LastSignaledFence != FenceToSignal);
 	InternalSignal(InQueueType, FenceToSignal);
@@ -377,7 +389,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 	FD3D12Device* Device = GetParentDevice();
 	FD3D12Adapter* Adapter = Device->GetParentAdapter();
 
-	CommandListFence = new FD3D12Fence(Adapter, GetGPUMask(), L"Command List Fence");
+	CommandListFence = new FD3D12CommandListFence(Adapter, GetGPUMask(), L"Command List Fence");
 	CommandListFence->CreateFence();
 
 	check(D3DCommandQueue.GetReference() == nullptr);
@@ -580,7 +592,47 @@ uint64 FD3D12CommandListManager::ExecuteAndIncrementFence(FD3D12CommandListPaylo
 	return Fence.Signal(QueueType);
 }
 
+
+void FD3D12CommandListManager::WaitOnExecuteTask()
+{
+	if (ExecuteTask != nullptr)
+	{
+		FTaskGraphInterface::Get().WaitUntilTaskCompletes(ExecuteTask, ENamedThreads::AnyThread);
+		ExecuteTask = nullptr;
+	}
+}
+
 void FD3D12CommandListManager::ExecuteCommandLists(TArray<FD3D12CommandListHandle>& Lists, bool WaitForCompletion)
+{
+	// Still has a pending execute task, then make sure the current one is finished before executing a new command list set
+	WaitOnExecuteTask();
+
+	check(ExecuteCommandListHandles.Num() == 0);
+
+	// Do we want to kick via a task - only for direct/graphics queue for now
+	bool bUseExecuteTask = (CommandListType == D3D12_COMMAND_LIST_TYPE_DIRECT) && !WaitForCompletion && GD3D12ExecuteCommandListTask;
+	if (bUseExecuteTask)
+	{		
+		ExecuteCommandListHandles = Lists;
+
+		// Increment the pending fence value so all object can be corrected fenced again future pending signal
+		CommandListFence->AdvancePendingFenceValue();
+
+		ExecuteTask = FFunctionGraphTask::CreateAndDispatchWhenReady(
+			[this]()
+			{	
+				ExecuteCommandListInteral(ExecuteCommandListHandles, false);
+				ExecuteCommandListHandles.Reset();
+			}, TStatId(), nullptr, ENamedThreads::AnyThread);
+	}
+	else
+	{
+		ExecuteCommandListInteral(Lists, WaitForCompletion);
+	}
+}
+
+
+void FD3D12CommandListManager::ExecuteCommandListInteral(TArray<FD3D12CommandListHandle>& Lists, bool WaitForCompletion)
 {
 	SCOPE_CYCLE_COUNTER(STAT_D3D12ExecuteCommandListTime);
 	check(CommandListFence);
@@ -724,6 +776,8 @@ void FD3D12CommandListManager::ReleaseResourceBarrierCommandListAllocator()
 	// Release the resource barrier command allocator.
 	if (ResourceBarrierCommandAllocator != nullptr)
 	{
+		WaitOnExecuteTask();
+
 		ResourceBarrierCommandAllocatorManager.ReleaseCommandAllocator(ResourceBarrierCommandAllocator);
 		ResourceBarrierCommandAllocator = nullptr;
 	}
@@ -875,6 +929,8 @@ void FD3D12CommandListManager::FlushPendingTimingPairs(bool bBlock)
 
 uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandListHandle& hList, FD3D12CommandListHandle& hResourceBarrierList)
 {
+	TRACE_CPUPROFILER_EVENT_SCOPE(GetResourceBarrierCommandList);
+
 	TArray<FD3D12PendingResourceBarrier>& PendingResourceBarriers = hList.PendingResourceBarriers();
 	const uint32 NumPendingResourceBarriers = PendingResourceBarriers.Num();
 	if (NumPendingResourceBarriers)
@@ -1047,6 +1103,9 @@ CommandListState FD3D12CommandListManager::GetCommandListState(const FD3D12CLSyn
 
 void FD3D12CommandListManager::WaitForCommandQueueFlush()
 {
+	// Make sure pending execute tasks are done
+	WaitOnExecuteTask();
+
 	if (D3DCommandQueue)
 	{
 		check(CommandListFence);
