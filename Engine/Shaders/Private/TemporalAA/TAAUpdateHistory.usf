@@ -115,7 +115,7 @@ void MainCS(
 	{
 		float2 EncodedVelocity = DilatedVelocityTexture[InputPixelPos];
 		ParallaxRejectionMask = ParallaxRejectionMaskTexture[InputPixelPos];
-		PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
+		PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 
 		float2 RejectionBilinearBufferUV = clamp(
 			PPCo * InputInfo_ExtentInverse,

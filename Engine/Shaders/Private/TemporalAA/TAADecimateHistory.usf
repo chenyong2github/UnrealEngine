@@ -60,7 +60,7 @@ void MainCS(
 	float2 OutputViewportUV = InputPPCk * InputInfo_ViewportSizeInverse;
 	float2 OutputScreenPos = ViewportUVToScreenPos(OutputViewportUV);
 
-	float2 PrevOutputScreenPos = OutputScreenPos - DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
+	float2 PrevOutputScreenPos = OutputScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 
 	float2 PrevOutputViewportUV = ScreenPosToViewportUV(PrevOutputScreenPos);
 

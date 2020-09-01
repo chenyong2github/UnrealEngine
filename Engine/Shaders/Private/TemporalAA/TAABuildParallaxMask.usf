@@ -47,7 +47,7 @@ void MainCS(
 	
 	float ParallaxRejectionMask = 0.0;
 	{
-		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float3(EncodedVelocity, 0.0)).xy;
+		float2 PrevScreenPos = ScreenPos - DecodeVelocityFromTexture(float4(EncodedVelocity, 0.0, 0.0)).xy;
 		float2 PrevInputBufferUV = (InputInfo_ScreenPosToViewportScale * PrevScreenPos + InputInfo_ScreenPosToViewportBias) * InputInfo_ExtentInverse;
 		
 		FBilinearSampleInfos BilinearInter = GetBilinearSampleLevelInfos(PrevInputBufferUV, InputInfo_Extent, InputInfo_ExtentInverse);
