@@ -34,6 +34,12 @@ typedef FIOSPlatformTextField FPlatformTextField;
 	TWeakPtr<IVirtualKeyboardEntry> TextWidget;
 	FText TextEntry;
     
+    bool bTransitioning;
+    bool bWantsToShow;
+    NSString* CachedTextContents;
+    NSString* CachedPlaceholderContents;
+    FKeyboardConfig CachedKeyboardConfig;
+    
 #ifdef __IPHONE_8_0
     UIAlertController* AlertController;
 #endif
@@ -44,6 +50,7 @@ typedef FIOSPlatformTextField FPlatformTextField;
 
 -(void)show:(TSharedPtr<IVirtualKeyboardEntry>)InTextWidget text:(NSString*)TextContents placeholder:(NSString*)PlaceholderContents keyboardConfig:(FKeyboardConfig)KeyboardConfig;
 -(void)hide;
+-(void)updateToDesiredState;
 -(bool)hasTextWidget;
 
 @end
