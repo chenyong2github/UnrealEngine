@@ -894,11 +894,20 @@ void UNiagaraSystem::FindDataInterfaceDependencies(UNiagaraEmitter* Emitter, UNi
 {
 	if (const FNiagaraScriptExecutionParameterStore* ParameterStore = Script->GetExecutionReadyParameterStore(Emitter->SimTarget))
 	{
-		const TArray<UNiagaraDataInterface*>& StoreDataInterfaces = ParameterStore->GetDataInterfaces();
-		if (StoreDataInterfaces.Num() > 0)
+		if (Emitter->SimTarget == ENiagaraSimTarget::CPUSim)
 		{
-			auto FindCachedDefaultDI =
-				[](UNiagaraScript* Script, const FNiagaraVariable& Variable) -> UNiagaraDataInterface*
+			for (UNiagaraDataInterface* DataInterface : ParameterStore->GetDataInterfaces())
+			{
+				DataInterface->GetEmitterDependencies(this, Dependencies);
+			}
+		}
+		else
+		{
+			const TArray<UNiagaraDataInterface*>& StoreDataInterfaces = ParameterStore->GetDataInterfaces();
+			if (StoreDataInterfaces.Num() > 0)
+			{
+				auto FindCachedDefaultDI =
+					[](UNiagaraScript* Script, const FNiagaraVariable& Variable) -> UNiagaraDataInterface*
 				{
 					if (Script)
 					{
@@ -913,26 +922,27 @@ void UNiagaraSystem::FindDataInterfaceDependencies(UNiagaraEmitter* Emitter, UNi
 					return nullptr;
 				};
 
-			for (const FNiagaraVariableWithOffset& Variable : ParameterStore->ReadParameterVariables())
-			{
-				if (!Variable.IsDataInterface())
+				for (const FNiagaraVariableWithOffset& Variable : ParameterStore->ReadParameterVariables())
 				{
-					continue;
-				}
+					if (!Variable.IsDataInterface())
+					{
+						continue;
+					}
 
-				if (UNiagaraDataInterface* DefaultDI = FindCachedDefaultDI(SystemSpawnScript, Variable))
-				{
-					DefaultDI->GetEmitterDependencies(this, Dependencies);
-					continue;
-				}
+					if (UNiagaraDataInterface* DefaultDI = FindCachedDefaultDI(SystemSpawnScript, Variable))
+					{
+						DefaultDI->GetEmitterDependencies(this, Dependencies);
+						continue;
+					}
 
-				if (UNiagaraDataInterface* DefaultDI = FindCachedDefaultDI(SystemUpdateScript, Variable))
-				{
-					DefaultDI->GetEmitterDependencies(this, Dependencies);
-					continue;
-				}
+					if (UNiagaraDataInterface* DefaultDI = FindCachedDefaultDI(SystemUpdateScript, Variable))
+					{
+						DefaultDI->GetEmitterDependencies(this, Dependencies);
+						continue;
+					}
 
-				StoreDataInterfaces[Variable.Offset]->GetEmitterDependencies(this, Dependencies);
+					StoreDataInterfaces[Variable.Offset]->GetEmitterDependencies(this, Dependencies);
+				}
 			}
 		}
 	}
