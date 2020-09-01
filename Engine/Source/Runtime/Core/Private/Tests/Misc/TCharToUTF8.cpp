@@ -100,6 +100,12 @@ bool FTCharToUTF8Test::RunTest(const FString& Parameters)
 		}
 	}
 
+	{
+		// Verify that we handle invalid UTF-16 strings that ends in half a surrogate pair w/o crashing
+		TCHAR EndWithIllegalSurrogatePair[] = TEXT("ab\xD800");
+		TestEqual("IllegalSurrogatePair", TCHAR_TO_UTF8(EndWithIllegalSurrogatePair), "ab?");
+	}
+
 	return !HasAnyErrors();
 }
 
