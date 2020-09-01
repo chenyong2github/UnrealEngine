@@ -564,10 +564,8 @@ protected:
 	/** Check whether we can autokey the specified section at the specified time */
 	static bool CanAutoKeySection(UMovieSceneSection* Section, FFrameNumber Time)
 	{
-		FOptionalMovieSceneBlendType BlendType = Section->GetBlendType();
-		// Sections are only eligible for autokey if they are not blendable (or absolute, relative), and overlap the current time
-		return ( !BlendType.IsValid() || BlendType.Get() == EMovieSceneBlendType::Absolute || BlendType.Get() == EMovieSceneBlendType::Additive ||
-			BlendType.Get() == EMovieSceneBlendType::Relative) && Section->GetRange().Contains(Time);
+		// Sections are only eligible for autokey if they overlap the current time
+		return Section->GetRange().Contains(Time);
 	}
 };
 
