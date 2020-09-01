@@ -514,6 +514,8 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 		bool bBuiltPath = false;
 		if (FastWidgetPathList.Num() > 0)
 		{
+			SCOPED_NAMED_EVENT_FSTRING(FString::Printf(TEXT("BuildFastPathList_BuildNewFastPathList_Recursive: %s"), *FReflectionMetaData::GetWidgetDebugInfo(FastWidgetPathList[0].Widget)), FColor::Magenta);
+
 			int32 NextTreeIndex = 1;
 			bBuiltPath = BuildNewFastPathList_Recursive(*this, FastWidgetPathList[0], INDEX_NONE, NextTreeIndex, FastWidgetPathList, TempList);
 			if (!bBuiltPath)
@@ -525,6 +527,7 @@ void FSlateInvalidationRoot::BuildFastPathList(SWidget* RootWidget)
 		
 		if (!bBuiltPath)
 		{
+			SCOPED_NAMED_EVENT_FSTRING(FString::Printf(TEXT("BuildFastPathList_AssignIndicesToChildren: %s"), *FReflectionMetaData::GetWidgetDebugInfo(RootWidget)), FColor::Magenta);
 			TempList.Reset();
 			RootWidget->AssignIndicesToChildren(*this, INDEX_NONE, TempList, bParentVisible, bParentVolatile);
 		}
