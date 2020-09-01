@@ -34,9 +34,7 @@
  * The amount of buffer space to allocate is specified via a template
  * parameter and if the constructed string should overflow this initial
  * buffer, a new buffer will be allocated using regular dynamic memory
- * allocations. For instances where you absolutely must not allocate
- * any memory, you should use the fixed variants named
- * TFixed*StringBuilder.
+ * allocations.
  *
  * Overflow allocation should be the exceptional case however -- always
  * try to size the buffer so that it can hold the vast majority of
