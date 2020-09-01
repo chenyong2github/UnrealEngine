@@ -919,6 +919,8 @@ namespace DatasmithRuntime
 #endif
 } // End of namespace DatasmithRuntime
 
+#if WITH_FREEIMAGE_LIB
 #if PLATFORM_WINDOWS
 #include "Windows/HideWindowsPlatformTypes.h"
+#endif
 #endif
