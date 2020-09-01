@@ -47,6 +47,15 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, GBuffer.WorldNormal, V);
 #endif
 
+	FSortedReflectionRay Ray = (FSortedReflectionRay)0;
+	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
+
+	if (GBuffer.ShadingModelID == SHADINGMODELID_HAIR 
+	 || GBuffer.ShadingModelID == SHADINGMODELID_UNLIT)
+	{
+		return Ray;
+	}
+
 	// Use the same clearcoat approximation as SSR: simply blend base and clear coat roughness
 	if (GBuffer.ShadingModelID == SHADINGMODELID_CLEAR_COAT)
 	{
@@ -78,13 +87,9 @@ FSortedReflectionRay GenerateDeferredReflectionRay(const uint2 PixelPos, float R
 		L = reflect(-V, GBuffer.WorldNormal);
 	}
 
-	FSortedReflectionRay Ray = (FSortedReflectionRay)0;
-
 	Ray.Origin = WorldPosition;
 	Ray.Direction = L;
 	ApplyCameraRelativeDepthBias(Ray.Origin, Ray.Direction, PixelPos, DeviceZ, GBuffer.WorldNormal, ReflectionMaxNormalBias);
-
-	Ray.PixelCoordinates = PackPixelCoordinates(PixelPos);
 
 	Ray.Validity = GetRoughnessFade(GBuffer.Roughness, MaxRoughness);
 
