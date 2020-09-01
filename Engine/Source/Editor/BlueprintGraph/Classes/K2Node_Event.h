@@ -115,7 +115,7 @@ class UK2Node_Event : public UK2Node_EditablePinBase, public IK2Node_EventNodeIn
 	static BLUEPRINTGRAPH_API bool AreEventNodesIdentical(const UK2Node_Event* InNodeA, const UK2Node_Event* InNodeB);
 
 protected:
-	void FixupEventReference();
+	void FixupEventReference(bool bForce = false);
 
 private:
 	/** Constructing FText strings can be costly, so we cache the node's tooltip */

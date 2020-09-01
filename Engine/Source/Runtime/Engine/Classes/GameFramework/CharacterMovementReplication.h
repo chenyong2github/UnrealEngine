@@ -14,6 +14,16 @@ class FSavedMove_Character;
 class UCharacterMovementComponent;
 struct FRootMotionSourceGroup;
 
+#ifndef SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS
+#define SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS 0
+#endif
+
+#if SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS
+#define DEPRECATED_CHARACTER_MOVEMENT_RPC(...)
+#else
+#define DEPRECATED_CHARACTER_MOVEMENT_RPC(DeprecatedFunction, NewFunction) UE_DEPRECATED_FORGAME(4.26, #DeprecatedFunction "() is deprecated, use " #NewFunction "() instead, or define SUPPORT_DEPRECATED_CHARACTER_MOVEMENT_RPCS=1 in the project and set CVar p.NetUsePackedMovementRPCs=0 to use the old code path.")
+#endif
+
 #ifndef CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE
 #define CHARACTER_SERIALIZATION_PACKEDBITS_RESERVED_SIZE 256
 #endif

@@ -420,20 +420,23 @@ public:
 			}
 			else
 #endif
-			if(TargetScope != nullptr)
+			if (TargetScope != nullptr)
 			{
 #if WITH_EDITOR
 				TargetScope = GetClassToUse(TargetScope, bUseUpToDateClass);
+				if (TargetScope)
 #endif
-				// Find in target scope or in the sparse class data
-				UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct();
-				if (SparseClassDataStruct)
 				{
-					ReturnField = FindUFieldOrFProperty(SparseClassDataStruct, MemberName).Get<TFieldType>();
-				}
-				if (ReturnField == nullptr)
-				{
-					ReturnField = FindUFieldOrFProperty(TargetScope, MemberName).Get<TFieldType>();
+					// Find in target scope or in the sparse class data
+					UScriptStruct* SparseClassDataStruct = TargetScope->GetSparseClassDataStruct();
+					if (SparseClassDataStruct)
+					{
+						ReturnField = FindUFieldOrFProperty(SparseClassDataStruct, MemberName).Get<TFieldType>();
+					}
+					if (ReturnField == nullptr)
+					{
+						ReturnField = FindUFieldOrFProperty(TargetScope, MemberName).Get<TFieldType>();
+					}
 				}
 
 #if WITH_EDITOR

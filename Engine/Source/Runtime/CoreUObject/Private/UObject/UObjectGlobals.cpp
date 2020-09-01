@@ -2029,17 +2029,16 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	UObject* DupRootObject = Parameters.DuplicationSeed.FindRef(Parameters.SourceObject);
 	if ( DupRootObject == NULL )
 	{
-		DupRootObject = StaticConstructObject_Internal(	Parameters.DestClass,
-														Parameters.DestOuter,
-														Parameters.DestName,
-														Parameters.ApplyFlags | Parameters.SourceObject->GetMaskedFlags(Parameters.FlagMask),
-														Parameters.ApplyInternalFlags | (Parameters.SourceObject->GetInternalFlags() & Parameters.InternalFlagMask),
-														Parameters.SourceObject->GetArchetype()->GetClass() == Parameters.DestClass
-																? Parameters.SourceObject->GetArchetype()
-																: NULL,
-														true,
-														&InstanceGraph
-														);
+		FStaticConstructObjectParameters Params(Parameters.DestClass);
+		Params.Outer = Parameters.DestOuter;
+		Params.Name = Parameters.DestName;
+		Params.SetFlags = Parameters.ApplyFlags | Parameters.SourceObject->GetMaskedFlags(Parameters.FlagMask);
+		Params.InternalSetFlags = Parameters.ApplyInternalFlags | (Parameters.SourceObject->GetInternalFlags() & Parameters.InternalFlagMask);
+		Params.Template = Parameters.SourceObject->GetArchetype()->GetClass() == Parameters.DestClass ? Parameters.SourceObject->GetArchetype() : nullptr;
+		Params.bCopyTransientsFromClassDefaults = true;
+		Params.InstanceGraph = &InstanceGraph;
+
+		DupRootObject = StaticConstructObject_Internal(Params);
 	}
 
 	FLargeMemoryData ObjectData;
@@ -3124,20 +3123,35 @@ void CheckIsClassChildOf_Internal(const UClass* Parent, const UClass* Child)
 }
 #endif
 
-UObject* StaticConstructObject_Internal
-(
-	const UClass*	InClass,
-	UObject*		InOuter,					/*=GetTransientPackage()*/
-	FName			InName,						/*=NAME_None*/
-	EObjectFlags	InFlags,					/*=0*/
-	EInternalObjectFlags InternalSetFlags,		/*=0*/
-	UObject*		InTemplate,					/*=NULL*/
-	bool bCopyTransientsFromClassDefaults,		/*=false*/
-	FObjectInstancingGraph* InInstanceGraph,	/*=NULL*/
-	bool bAssumeTemplateIsArchetype,			/*=false*/
-	UPackage* ExternalPackage					/*=nullptr*/
-)
+FStaticConstructObjectParameters::FStaticConstructObjectParameters(const UClass* InClass)
+	: Class(InClass)
+	, Outer((UObject*)GetTransientPackage())
 {
+}
+
+UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags, UObject* Template, bool bCopyTransientsFromClassDefaults, FObjectInstancingGraph* InstanceGraph, bool bAssumeTemplateIsArchetype, UPackage* ExternalPackage)
+{
+	FStaticConstructObjectParameters Params(Class);
+	Params.Outer = InOuter;
+	Params.Name = Name;
+	Params.SetFlags = SetFlags;
+	Params.InternalSetFlags = InternalSetFlags;
+	Params.Template = Template;
+	Params.bCopyTransientsFromClassDefaults = bCopyTransientsFromClassDefaults;
+	Params.InstanceGraph = InstanceGraph;
+	Params.bAssumeTemplateIsArchetype = bAssumeTemplateIsArchetype;
+	Params.ExternalPackage = ExternalPackage;
+	return StaticConstructObject_Internal(Params);
+}
+
+UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params)
+{
+	const UClass* InClass = Params.Class;
+	UObject* InOuter = Params.Outer;
+	const FName& InName = Params.Name;
+	EObjectFlags InFlags = Params.SetFlags;
+	UObject* InTemplate = Params.Template;
+
 	LLM_SCOPE(ELLMTag::UObject);
 
 	SCOPE_CYCLE_COUNTER(STAT_ConstructObject);
@@ -3155,7 +3169,7 @@ UObject* StaticConstructObject_Internal
 	const bool bIsNativeFromCDO = bIsNativeClass &&
 		(	
 			!InTemplate || 
-			(InName != NAME_None && (bAssumeTemplateIsArchetype || InTemplate == UObject::GetArchetypeFromRequiredInfo(InClass, InOuter, InName, InFlags)))
+			(InName != NAME_None && (Params.bAssumeTemplateIsArchetype || InTemplate == UObject::GetArchetypeFromRequiredInfo(InClass, InOuter, InName, InFlags)))
 			);
 	const bool bCanRecycleSubobjects = bIsNativeFromCDO && (!(InFlags & RF_DefaultSubObject) || !FUObjectThreadContext::Get().IsInConstructor)
 #if WITH_HOT_RELOAD
@@ -3165,13 +3179,13 @@ UObject* StaticConstructObject_Internal
 		;
 
 	bool bRecycledSubobject = false;	
-	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, ExternalPackage);
+	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, Params.InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, Params.ExternalPackage);
 	check(Result != NULL);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
 	{		
 		STAT(FScopeCycleCounterUObject ConstructorScope(InClass, GET_STATID(STAT_ConstructObject)));
-		(*InClass->ClassConstructor)( FObjectInitializer(Result, InTemplate, bCopyTransientsFromClassDefaults, true, InInstanceGraph) );
+		(*InClass->ClassConstructor)( FObjectInitializer(Result, InTemplate, Params.bCopyTransientsFromClassDefaults, true, Params.InstanceGraph) );
 	}
 	
 	if( GIsEditor && GUndo && (InFlags & RF_Transactional) && !(InFlags & RF_NeedLoad) && !InClass->IsChildOf(UField::StaticClass()) )
@@ -3774,7 +3788,12 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 				ConstructedSubobjects.Add(SubobjectFName);
 			}
 #endif
-			Result = StaticConstructObject_Internal(OverrideClass, Outer, SubobjectFName, SubobjectFlags);
+			FStaticConstructObjectParameters Params(OverrideClass);
+			Params.Outer = Outer;
+			Params.Name = SubobjectFName;
+			Params.SetFlags = SubobjectFlags;
+
+			Result = StaticConstructObject_Internal(Params);
 			if (!bIsTransient && (bOwnerArchetypeIsNotNative || bOwnerTemplateIsNotCDO))
 			{
 				UObject* MaybeTemplate = nullptr;

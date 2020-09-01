@@ -17,6 +17,7 @@
 #include "ObjectEditorUtils.h"
 #include "BlueprintNodeSpawnerUtils.h"
 #include "BlueprintEditorSettings.h"
+#include "SNodePanel.h"
 #include "Kismet2/BlueprintEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "BlueprintFunctionNodeSpawner"
@@ -416,7 +417,9 @@ UEdGraphNode* UBlueprintFunctionNodeSpawner::Invoke(UEdGraph* ParentGraph, FBind
 	// bound nodes get positioned properly
 	BlueprintFunctionNodeSpawnerImpl::BindingOffset = FVector2D::ZeroVector;
 
-	return Super::SpawnNode<UEdGraphNode>(SpawnClass, ParentGraph, Bindings, Location, PostSpawnSetupDelegate);
+	UEdGraphNode* SpawnedNode = Super::SpawnNode<UEdGraphNode>(SpawnClass, ParentGraph, Bindings, Location, PostSpawnSetupDelegate);
+	SpawnedNode->SnapToGrid(SNodePanel::GetSnapGridSize());
+	return SpawnedNode;
 }
 
 //------------------------------------------------------------------------------

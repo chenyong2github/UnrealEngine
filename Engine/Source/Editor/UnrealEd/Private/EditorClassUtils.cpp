@@ -11,6 +11,7 @@
 #include "IDocumentation.h"
 #include "SourceCodeNavigation.h"
 #include "Widgets/Input/SHyperlink.h"
+#include "BlueprintEditorSettings.h"
 
 FString FEditorClassUtils::GetDocumentationPage(const UClass* Class)
 {
@@ -24,7 +25,7 @@ FString FEditorClassUtils::GetDocumentationExcerpt(const UClass* Class)
 
 TSharedRef<SToolTip> FEditorClassUtils::GetTooltip(const UClass* Class)
 {
-	return (Class ? GetTooltip(Class, Class->GetToolTipText()) : SNew(SToolTip));
+	return (Class ? GetTooltip(Class, Class->GetToolTipText(GetDefault<UBlueprintEditorSettings>()->bShowShortTooltips)) : SNew(SToolTip));
 }
 
 TSharedRef<SToolTip> FEditorClassUtils::GetTooltip(const UClass* Class, const TAttribute<FText>& OverrideText)

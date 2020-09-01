@@ -77,6 +77,10 @@ public:
 	/** Gets the flipbook used by this instance. */
 	UFUNCTION(BlueprintPure, Category="Sprite")
 	virtual UPaperFlipbook* GetFlipbook();
+
+	/** Returns the current color of the sprite */
+	UFUNCTION(BlueprintPure, Category="Sprite")
+	FLinearColor GetSpriteColor() const { return SpriteColor; }
 	
 	/** Set color of the sprite */
 	UFUNCTION(BlueprintCallable, Category="Sprite")
