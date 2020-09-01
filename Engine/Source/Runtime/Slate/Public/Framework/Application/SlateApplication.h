@@ -623,6 +623,7 @@ public:
 	  * @param bAllow If true, mouse pointer capture will be processed even when the application is not active or widget is not a virtual window
 	  */
 	void SetHandleDeviceInputWhenApplicationNotActive(bool bAllow) { bHandleDeviceInputWhenApplicationNotActive = bAllow; }
+	bool GetHandleDeviceInputWhenApplicationNotActive() const { return bHandleDeviceInputWhenApplicationNotActive; }
 
 	/** returning platform-specific value designating window that captures mouse, or nullptr if mouse isn't captured */
 	virtual void* GetMouseCaptureWindow() const;
