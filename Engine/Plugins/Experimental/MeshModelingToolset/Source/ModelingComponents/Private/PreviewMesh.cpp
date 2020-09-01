@@ -260,6 +260,19 @@ const FDynamicMesh3* UPreviewMesh::GetMesh() const
 	return nullptr;
 }
 
+FDynamicMeshAABBTree3* UPreviewMesh::GetSpatial()
+{
+	if (DynamicMeshComponent != nullptr && bBuildSpatialDataStructure)
+	{
+		if (MeshAABBTree.IsValid())
+		{
+			return &MeshAABBTree;
+		}
+	}
+	return nullptr;
+}
+
+
 
 
 TUniquePtr<FDynamicMesh3> UPreviewMesh::ExtractPreviewMesh() const

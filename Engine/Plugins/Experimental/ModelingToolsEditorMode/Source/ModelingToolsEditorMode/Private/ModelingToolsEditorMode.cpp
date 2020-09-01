@@ -65,6 +65,7 @@
 #include "ParameterizeMeshTool.h"
 #include "MeshTangentsTool.h"
 #include "ProjectToTargetTool.h"
+#include "SeamSculptTool.h"
 
 #include "Physics/PhysicsInspectorTool.h"
 #include "Physics/SetCollisionGeometryTool.h"
@@ -693,6 +694,8 @@ void FModelingToolsEditorMode::Enter()
 	GroupUVGenerateToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
 	GroupUVGenerateToolBuilder->bDoAutomaticGlobalUnwrap = false;
 	RegisterToolFunc(ToolManagerCommands.BeginGroupUVGenerateTool, TEXT("GroupParameterizeMeshTool"), GroupUVGenerateToolBuilder);
+
+	RegisterToolFunc(ToolManagerCommands.BeginUVSeamEditTool, TEXT("UVSeamSculptTool"), NewObject< USeamSculptToolBuilder>());
 
 	auto MeshSelectionToolBuilder = NewObject<UMeshSelectionToolBuilder>();
 	MeshSelectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
