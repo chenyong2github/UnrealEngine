@@ -72,7 +72,7 @@
 #include "ToolMenus.h"
 #include "SBlueprintEditorToolbar.h"
 #include "SEnumCombobox.h"
-
+#include "Dialogs/Dialogs.h"
 
 #include "Misc/DataDrivenPlatformInfoRegistry.h"
 #include "IUATHelperModule.h"
