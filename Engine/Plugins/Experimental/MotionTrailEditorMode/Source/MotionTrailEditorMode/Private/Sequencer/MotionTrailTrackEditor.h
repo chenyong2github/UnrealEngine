@@ -4,8 +4,10 @@
 
 #include "MovieSceneTrackEditor.h"
 #include "SequencerTrailHierarchy.h"
+#include "Animation/Skeleton.h"
 
 #include "Containers/BitArray.h"
+
 
 namespace UE
 {
