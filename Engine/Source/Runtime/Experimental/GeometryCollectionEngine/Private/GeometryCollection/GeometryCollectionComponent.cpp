@@ -25,6 +25,7 @@
 #include "AI/NavigationSystemHelpers.h"
 #include "Net/UnrealNetwork.h"
 #include "Net/Core/PushModel/PushModel.h"
+#include "PhysicalMaterials/PhysicalMaterial.h"
 
 #if WITH_EDITOR
 #include "AssetToolsModule.h"
