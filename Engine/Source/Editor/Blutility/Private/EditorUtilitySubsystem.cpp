@@ -210,7 +210,8 @@ UEditorUtilityWidget* UEditorUtilitySubsystem::FindUtilityWidgetFromBlueprint(cl
 
 bool UEditorUtilitySubsystem::Tick(float DeltaTime)
 {
-	if (ActiveTask == nullptr && PendingTasks.Num() > 0)
+	// Will run until we have a task that doesn't immediately complete upon calling StartExecutingTask().
+	while (ActiveTask == nullptr && PendingTasks.Num() > 0)
 	{
 		ActiveTask = PendingTasks[0];
 		PendingTasks.RemoveAt(0);
@@ -234,20 +235,26 @@ void UEditorUtilitySubsystem::RunTaskCommand(const TArray<FString>& Params, UWor
 			TSubclassOf<UEditorUtilityTask> TaskToSpawn(FoundClass);
 			if (FoundClass == nullptr)
 			{
-				//UE_LOG(LogEditorUtilityBlueprint, Warning, TEXT("Missing function named 'Run': %s"), *Asset->GetPathName());
+				UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("Found Task: %s, but it's not a subclass of 'EditorUtilityTask'."), *FoundClass->GetName());
 				return;
 			}
 
 			UE_LOG(LogEditorUtilityBlueprint, Log, TEXT("Running task %s"), *TaskToSpawn->GetPathName());
 
 			UEditorUtilityTask* NewTask = NewObject<UEditorUtilityTask>(this, *TaskToSpawn);
-			if (ensure(NewTask))
-			{
-				//TODO Attempt to map XXX=YYY to properties on the task to make the tasks parameterizable
+			
+			//TODO Attempt to map XXX=YYY to properties on the task to make the tasks parameterizable
 
-				RegisterAndExecuteTask(NewTask);
-			}
+			RegisterAndExecuteTask(NewTask);
 		}
+		else
+		{
+			UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("Unable to find task named %s."), *TaskName);
+		}
+	}
+	else
+	{
+		UE_LOG(LogEditorUtilityBlueprint, Error, TEXT("No task specified.  RunTask <Name of Task>"));
 	}
 }
 
