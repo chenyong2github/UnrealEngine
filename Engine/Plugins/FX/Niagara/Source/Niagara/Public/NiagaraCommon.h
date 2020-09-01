@@ -291,7 +291,10 @@ struct NIAGARA_API FNiagaraFunctionSignature
 
 	/** When using simulation stages and bRequiresContext is true this will be the index of the stage that is associated with the function. */
 	UPROPERTY()
-	int32 ContextStageIndex;
+	int32 ContextStageMinIndex;
+
+	UPROPERTY()
+	int32 ContextStageMaxIndex;
 
 	/** Function specifiers verified at bind time. */
 	UPROPERTY()
@@ -312,7 +315,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, ModuleUsageBitmask(0)
-		, ContextStageIndex(INDEX_NONE)
+		, ContextStageMinIndex(INDEX_NONE)
+		, ContextStageMaxIndex(INDEX_NONE)
 	{
 	}
 
@@ -328,7 +332,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, ModuleUsageBitmask(0)
-		, ContextStageIndex(INDEX_NONE)
+		, ContextStageMinIndex(INDEX_NONE)
+		, ContextStageMaxIndex(INDEX_NONE)
 	{
 
 	}
@@ -345,7 +350,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		, bSupportsGPU(true)
 		, bWriteFunction(false)
 		, ModuleUsageBitmask(0)
-		, ContextStageIndex(INDEX_NONE)
+		, ContextStageMinIndex(INDEX_NONE)
+		, ContextStageMaxIndex(INDEX_NONE)
 		, FunctionSpecifiers(InFunctionSpecifiers)
 	{
 
@@ -380,7 +386,8 @@ struct NIAGARA_API FNiagaraFunctionSignature
 		bMatches &= bRequiresExecPin == Other.bRequiresExecPin;
 		bMatches &= bMemberFunction == Other.bMemberFunction;
 		bMatches &= OwnerName == Other.OwnerName;
-		bMatches &= ContextStageIndex == Other.ContextStageIndex;
+		bMatches &= ContextStageMinIndex == Other.ContextStageMinIndex;
+		bMatches &= ContextStageMaxIndex == Other.ContextStageMaxIndex;
 		return bMatches;
 	}
 
