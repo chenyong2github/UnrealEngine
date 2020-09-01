@@ -198,6 +198,19 @@ void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflections(const F
 	}
 }
 
+void FDeferredShadingSceneRenderer::PrepareRayTracingDeferredReflectionsDeferredMaterial(const FViewInfo& View, const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders)
+{
+	FRayTracingDeferredReflectionsRGS::FPermutationDomain PermutationVector;
+
+	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread() == 1;
+
+	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FDeferredMaterialMode>(EDeferredMaterialMode::Gather);
+	PermutationVector.Set<FRayTracingDeferredReflectionsRGS::FGenerateRays>(bGenerateRaysWithRGS);
+	auto RayGenShader = View.ShaderMap->GetShader<FRayTracingDeferredReflectionsRGS>(PermutationVector);
+	OutRayGenShaders.Add(RayGenShader.GetRayTracingShader());
+
+}
+
 static void AddGenerateReflectionRaysPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
@@ -309,7 +322,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 			ERDGPassFlags::Compute,
 		[&PassParameters, this, &View, TileAlignedNumRays, RayGenShader](FRHICommandList& RHICmdList)
 		{
-			FRayTracingPipelineState* Pipeline = BindRayTracingDeferredMaterialGatherPipeline(RHICmdList, View, RayGenShader.GetRayTracingShader());
+			FRayTracingPipelineState* Pipeline = View.RayTracingMaterialGatherPipeline;
 
 			FRayTracingShaderBindingsWriter GlobalResources;
 			SetShaderParameters(GlobalResources, RayGenShader, PassParameters);
