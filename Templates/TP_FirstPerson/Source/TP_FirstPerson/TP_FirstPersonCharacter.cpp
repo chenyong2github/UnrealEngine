@@ -43,7 +43,7 @@ ATP_FirstPersonCharacter::ATP_FirstPersonCharacter()
 
 	// Create a gun mesh component
 	FP_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("FP_Gun"));
-	FP_Gun->SetOnlyOwnerSee(true);			// only the owning player will see this mesh
+	FP_Gun->SetOnlyOwnerSee(false);			// otherwise won't be visible in the multiplayer
 	FP_Gun->bCastDynamicShadow = false;
 	FP_Gun->CastShadow = false;
 	// FP_Gun->SetupAttachment(Mesh1P, TEXT("GripPoint"));
@@ -69,7 +69,7 @@ ATP_FirstPersonCharacter::ATP_FirstPersonCharacter()
 	// Create a gun and attach it to the right-hand VR controller.
 	// Create a gun mesh component
 	VR_Gun = CreateDefaultSubobject<USkeletalMeshComponent>(TEXT("VR_Gun"));
-	VR_Gun->SetOnlyOwnerSee(true);			// only the owning player will see this mesh
+	VR_Gun->SetOnlyOwnerSee(false);			// otherwise won't be visible in the multiplayer
 	VR_Gun->bCastDynamicShadow = false;
 	VR_Gun->CastShadow = false;
 	VR_Gun->SetupAttachment(R_MotionController);
