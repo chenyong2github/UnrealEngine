@@ -75,7 +75,7 @@ FHierarchyNodeSlice GetHierarchyNodeSlice( uint NodeIndex, uint LaneIndex )
 	uint3 Misc				=	HierarchyBuffer.Load3( BaseAddress + 2048 + 12 * LaneIndex );
 
 	Node.MinLODError		=	f16tof32( Misc.x );
-	Node.MaxLODError		=	f16tof32( Misc.x >> 16 );
+	Node.MaxParentLODError	=	f16tof32( Misc.x >> 16 );
 	Node.ChildStartReference=	Misc.y;
 	Node.bLoaded			=	Misc.y != 0xFFFFFFFFu;
 
@@ -139,14 +139,15 @@ float2 GetProjectedEdgeScales(FNaniteView NaniteView, FInstanceSceneData Instanc
 		return float2( 0.0f, 0.0f );
 }
 
-bool ShouldVisitChild( FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, float4 LODBounds, float MinLODError, float MaxLODError, inout float Priority )
+bool ShouldVisitChild( FNaniteView NaniteView, FInstanceSceneData InstanceData, FInstanceDynamicData DynamicData, float4 LODBounds, float MinLODError, float MaxParentLODError, inout float Priority )
 {
 	float2 ProjectedEdgeScales = GetProjectedEdgeScales(NaniteView, InstanceData, DynamicData, LODBounds);
 	float UniformScale = min3( InstanceData.NonUniformScale.x, InstanceData.NonUniformScale.y, InstanceData.NonUniformScale.z );
-	float Threshold = NaniteView.LODScale * UniformScale * MaxLODError;
+	float Threshold = NaniteView.LODScale * UniformScale * MaxParentLODError;
 	if( ProjectedEdgeScales.x <= Threshold )
 	{
 		Priority = Threshold / ProjectedEdgeScales.x;	// TODO: Experiment with better priority
+		// return (ProjectedEdgeScales.y >= NaniteView.LODScale * UniformScale * MinLODError); //TODO: Doesn't currently work with streaming. MinLODError needs to also reflect leafness caused by streaming cut.
 		return true;
 	}
 	else
@@ -335,7 +336,7 @@ void PersistentHierarchicalCull(
 			float4 LODBounds = HierarchyNodeSlice.LODBounds;
 
 #if CULLING_PASS == CULLING_PASS_NO_OCCLUSION || CULLING_PASS == CULLING_PASS_OCCLUSION_MAIN
-			bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxLODError, StreamingPriority );
+			bVisible = ShouldVisitChild( NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
 		
 			BRANCH
 			if (bVisible)
@@ -380,7 +381,7 @@ void PersistentHierarchicalCull(
 #elif CULLING_PASS == CULLING_PASS_OCCLUSION_POST
 			if (VisibleNode.Flags & CULLING_FLAG_TEST_LOD)
 			{
-				bVisible = ShouldVisitChild(NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxLODError, StreamingPriority);
+				bVisible = ShouldVisitChild(NaniteView, InstanceData, DynamicData, LODBounds, HierarchyNodeSlice.MinLODError, HierarchyNodeSlice.MaxParentLODError, StreamingPriority );
 			}
 		
 			BRANCH

@@ -668,7 +668,7 @@ static void PackHierarchyNode(Nanite::FPackedHierarchyNode& OutNode, const Nanit
 		//OutNode.Misc[i].BoundsZW						= InNode.PackedBounds[i].ZW;
 
 		check(InNode.NumChildren[i] <= MAX_CLUSTERS_PER_GROUP);
-		OutNode.Misc[i].MinMaxLODError					= FFloat16( InNode.MinLODErrors[i] ).Encoded | ( FFloat16( InNode.MaxLODErrors[i] ).Encoded << 16 );
+		OutNode.Misc[i].MinLODError_MaxParentLODError	= FFloat16( InNode.MinLODErrors[i] ).Encoded | ( FFloat16( InNode.MaxParentLODErrors[i] ).Encoded << 16 );
 		OutNode.Misc[i].ChildStartReference				= InNode.ChildrenStartIndex[i];
 
 		uint32 ResourcePageIndex_NumPages_GroupPartSize = 0;
@@ -1709,6 +1709,7 @@ static void WritePages(	FResources& Resources,
 		{
 			const FClusterGroupPart& Part = Parts[Page.PartsStartIndex + LocalPartIndex];
 			const FClusterGroup& Group = Groups[Part.GroupIndex];
+			uint32 GeneratingGroupIndex = MAX_uint32;
 			for (uint32 ClusterPositionInPart = 0; ClusterPositionInPart < (uint32)Part.Clusters.Num(); ClusterPositionInPart++)
 			{
 				const FCluster& Cluster = Clusters[Part.Clusters[ClusterPositionInPart]];
@@ -1976,13 +1977,13 @@ static uint32 BuildHierarchyNodesKMeansRecursive( TArray< Nanite::FHierarchyNode
 			TArray< FSphere, TInlineAllocator<64> > BoundSpheres;
 			TArray< FSphere, TInlineAllocator<64> > LODBoundSpheres;
 			float MinLODError = MAX_flt;
-			float MaxLODError = 0.0f;
+			float MaxParentLODError = 0.0f;
 			for( uint32 GrandChildIndex = 0; GrandChildIndex < 64 && ChildHNode.NumChildren[ GrandChildIndex ] != 0; GrandChildIndex++ )
 			{
 				BoundSpheres.Add( ChildHNode.Bounds[ GrandChildIndex ] );
 				LODBoundSpheres.Add( ChildHNode.LODBounds[ GrandChildIndex ] );
 				MinLODError = FMath::Min( MinLODError, ChildHNode.MinLODErrors[ GrandChildIndex ] );
-				MaxLODError = FMath::Max( MaxLODError, ChildHNode.MaxLODErrors[ GrandChildIndex ] );
+				MaxParentLODError = FMath::Max( MaxParentLODError, ChildHNode.MaxParentLODErrors[ GrandChildIndex ] );
 			}
 
 			FSphere Bounds = FSphere( BoundSpheres.GetData(), BoundSpheres.Num() );
@@ -1992,7 +1993,7 @@ static uint32 BuildHierarchyNodesKMeansRecursive( TArray< Nanite::FHierarchyNode
 			HNode.Bounds[ ChildIndex ] = Bounds;
 			HNode.LODBounds[ ChildIndex ] = LODBounds;
 			HNode.MinLODErrors[ ChildIndex ] = MinLODError;
-			HNode.MaxLODErrors[ ChildIndex ] = MaxLODError;
+			HNode.MaxParentLODErrors[ ChildIndex ] = MaxParentLODError;
 			HNode.ChildrenStartIndex[ ChildIndex ] = ChildHierarchyNodeIndex;
 			HNode.NumChildren[ ChildIndex ] = MAX_CLUSTERS_PER_GROUP;
 			HNode.ClusterGroupPartIndex[ ChildIndex ] = INVALID_GROUP_INDEX;
@@ -2008,7 +2009,7 @@ static uint32 BuildHierarchyNodesKMeansRecursive( TArray< Nanite::FHierarchyNode
 			HNode.Bounds[ ChildIndex ] = Part.Bounds;
 			HNode.LODBounds[ ChildIndex ] = Group.LODBounds;
 			HNode.MinLODErrors[ ChildIndex ] = Group.MinLODError;
-			HNode.MaxLODErrors[ ChildIndex ] = Group.MaxLODError;
+			HNode.MaxParentLODErrors[ ChildIndex ] = Group.MaxParentLODError;
 			HNode.ChildrenStartIndex[ ChildIndex ] = 0xFFFFFFFFu;
 			HNode.NumChildren[ ChildIndex ] = Part.Clusters.Num();
 			HNode.ClusterGroupPartIndex[ ChildIndex ] = ChildNode.Index;

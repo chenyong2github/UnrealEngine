@@ -247,7 +247,7 @@ void FClusterDAG::Reduce( const FMeshNaniteSettings& Settings )
 	RootClusterGroup.Children.Add( RootIndex );
 	RootClusterGroup.Bounds = Clusters[ RootIndex ].SphereBounds;
 	RootClusterGroup.LODBounds = FSphere( 0 );
-	RootClusterGroup.MaxLODError = 1e10f;
+	RootClusterGroup.MaxParentLODError = 1e10f;
 	RootClusterGroup.MinLODError = -1.0f;
 	RootClusterGroup.MipLevel = MAX_int32;
 	Clusters[ RootIndex ].GroupIndex = ClusterGroups.Num();
@@ -278,7 +278,6 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 	int32 ParentStart = 0;
 	int32 ParentEnd = 0;
 
-	float ParentMinLODError = 0.0f;
 	float ParentMaxLODError = 0.0f;
 
 	for( int32 TargetClusterSize = FCluster::ClusterSize - 2; TargetClusterSize > FCluster::ClusterSize / 2; TargetClusterSize -= 2 )
@@ -286,7 +285,7 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		int32 TargetNumTris = NumParents * TargetClusterSize;
 
 		// Simplify
-		ParentMinLODError = ParentMaxLODError = Merged.Simplify( TargetNumTris );
+		ParentMaxLODError = Merged.Simplify( TargetNumTris );
 
 		// Split
 		if( NumParents == 1 )
@@ -332,6 +331,7 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 	TArray< FSphere, TInlineAllocator<32> > ChildSpheres;
 					
 	// Force monotonic nesting.
+	float ChildMinLODError = MAX_flt;
 	for( int32 Child : Children )
 	{
 		bool bLeaf = Clusters[ Child ].EdgeLength < 0.0f;
@@ -339,7 +339,7 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 
 		LODBoundSpheres.Add( Clusters[ Child ].LODBounds );
 		ChildSpheres.Add( Clusters[ Child ].SphereBounds );
-		ParentMinLODError = FMath::Min( ParentMinLODError, bLeaf ? -1.0f : LODError );
+		ChildMinLODError = FMath::Min( ChildMinLODError, bLeaf ? -1.0f : LODError );
 		ParentMaxLODError = FMath::Max( ParentMaxLODError, LODError );
 	}
 
@@ -353,11 +353,11 @@ void FClusterDAG::Reduce( TArrayView< uint32 > Children, int32 ClusterGroupIndex
 		Clusters[ Parent ].GeneratingGroupIndex = ClusterGroupIndex;
 	}
 
-	ClusterGroups[ ClusterGroupIndex ].Bounds		= ParentBound;
-	ClusterGroups[ ClusterGroupIndex ].LODBounds	= ParentLODBound;
-	ClusterGroups[ ClusterGroupIndex ].MinLODError	= ParentMinLODError;
-	ClusterGroups[ ClusterGroupIndex ].MaxLODError	= ParentMaxLODError;
-	ClusterGroups[ ClusterGroupIndex ].MipLevel		= Merged.MipLevel;
+	ClusterGroups[ ClusterGroupIndex ].Bounds				= ParentBound;
+	ClusterGroups[ ClusterGroupIndex ].LODBounds			= ParentLODBound;
+	ClusterGroups[ ClusterGroupIndex ].MinLODError			= ChildMinLODError;
+	ClusterGroups[ ClusterGroupIndex ].MaxParentLODError	= ParentMaxLODError;
+	ClusterGroups[ ClusterGroupIndex ].MipLevel				= Merged.MipLevel;
 
 	// Parents are completed, match parent data.
 	for( int32 Child : Children )

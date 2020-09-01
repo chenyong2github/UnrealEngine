@@ -227,7 +227,7 @@ struct FHierarchyNodeSlice
 	float4	Bounds;
 	float4	LODBounds;
 	float	MinLODError;
-	float	MaxLODError;
+	float	MaxParentLODError;
 	uint	ChildStartReference;	// Can be node (index) or cluster (page:cluster)
 	uint	NumChildren;
 	uint	StartPageIndex;

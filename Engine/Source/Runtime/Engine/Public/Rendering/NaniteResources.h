@@ -109,7 +109,7 @@ struct FPackedHierarchyNode
 	FSphere		Bounds[64];
 	struct
 	{
-		uint32	MinMaxLODError;
+		uint32	MinLODError_MaxParentLODError;
 		uint32	ChildStartReference;
 		uint32	ResourcePageIndex_NumPages_GroupPartSize;
 	} Misc[64];

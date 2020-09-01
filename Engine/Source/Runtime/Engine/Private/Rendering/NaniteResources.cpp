@@ -50,7 +50,7 @@ FArchive& operator<<(FArchive& Ar, FPackedHierarchyNode& Node)
 	{
 		Ar << Node.LODBounds[ i ];
 		Ar << Node.Bounds[ i ];
-		Ar << Node.Misc[ i ].MinMaxLODError;
+		Ar << Node.Misc[ i ].MinLODError_MaxParentLODError;
 		Ar << Node.Misc[ i ].ChildStartReference;
 		Ar << Node.Misc[ i ].ResourcePageIndex_NumPages_GroupPartSize;
 	}

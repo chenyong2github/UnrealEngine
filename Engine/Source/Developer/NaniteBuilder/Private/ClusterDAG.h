@@ -12,9 +12,8 @@ struct FClusterGroup
 {
 	FSphere				Bounds;
 	FSphere				LODBounds;
-	//FPackedBound		PackedBounds;
 	float				MinLODError;
-	float				MaxLODError;
+	float				MaxParentLODError;
 	int32				MipLevel;
 	
 	uint32				PageIndexStart;
@@ -28,7 +27,7 @@ struct FHierarchyNode
 	FSphere			LODBounds[64];
 	//FPackedBound	PackedBounds[64];
 	float			MinLODErrors[64];
-	float			MaxLODErrors[64];
+	float			MaxParentLODErrors[64];
 	uint32			ChildrenStartIndex[64];
 	uint32			NumChildren[64];
 	uint32			ClusterGroupPartIndex[64];
