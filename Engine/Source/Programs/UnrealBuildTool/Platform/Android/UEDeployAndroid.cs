@@ -2232,6 +2232,11 @@ namespace UnrealBuildTool
 			}
 			Text.AppendLine("\t             android:hardwareAccelerated=\"true\"");
 			Text.AppendLine("\t				android:name=\"com.epicgames.ue4.GameApplication\"");
+			if (!bIsForDistribution && SDKLevelInt >= 29 && !ExtraApplicationNodeTags.Contains("requestLegacyExternalStorage"))
+			{
+				// work around scoped storage for non-distribution for SDK 29; add to ExtraApplicationNodeTags if you need it for distribution
+				Text.AppendLine("\t				android:requestLegacyExternalStorage=\"true\"");
+			}
 			Text.AppendLine("\t             android:hasCode=\"true\">");
 			if (bShowLaunchImage)
 			{
