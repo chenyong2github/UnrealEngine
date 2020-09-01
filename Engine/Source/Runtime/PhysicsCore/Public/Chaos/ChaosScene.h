@@ -122,7 +122,8 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnPhysScenePostTick,FChaosScene*);
 	FOnPhysScenePostTick OnPhysScenePostTick;
 
-	FGraphEventRef GetCompletionEvent();
+	bool IsCompletionEventComplete() const;
+	FGraphEventArray GetCompletionEvents();
 
 protected:
 
@@ -156,8 +157,6 @@ protected:
 	UObject* Owner;
 
 private:
-	void CompleteSceneSimulation(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent);
-	void CompleteSceneSimulationImp();
 
 	void SetGravity(const Chaos::TVector<float,3>& Acceleration)
 	{
@@ -168,5 +167,5 @@ private:
 	void SyncBodies(TSolver* Solver);
 
 	// Taskgraph control
-	FGraphEventRef CompletionEvent;
+	FGraphEventArray CompletionEvents;
 };
