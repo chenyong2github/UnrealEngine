@@ -16,14 +16,15 @@ class FHlslNiagaraTranslator;
 class FCompileConstantResolver
 {
 public:
-	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr) {}
-	FCompileConstantResolver(const UNiagaraEmitter* Emitter) : Emitter(Emitter), Translator(nullptr) {}
-	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator) {}
+	FCompileConstantResolver() : Emitter(nullptr), Translator(nullptr), Usage(ENiagaraScriptUsage::Function) {}
+	FCompileConstantResolver(const UNiagaraEmitter* Emitter, ENiagaraScriptUsage Usage) : Emitter(Emitter), Translator(nullptr), Usage(Usage) {}
+	FCompileConstantResolver(const FHlslNiagaraTranslator* Translator) : Emitter(nullptr), Translator(Translator), Usage(ENiagaraScriptUsage::Function) {}
 
 	bool ResolveConstant(FNiagaraVariable& OutConstant) const;
 private:
 	const UNiagaraEmitter* Emitter;
 	const FHlslNiagaraTranslator* Translator;
+	ENiagaraScriptUsage Usage;
 };
 
 /** Traverses a Niagara node graph to identify the variables that have been written and read from a parameter map. 

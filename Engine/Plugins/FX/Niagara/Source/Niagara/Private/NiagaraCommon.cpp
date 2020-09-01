@@ -567,6 +567,40 @@ bool FNiagaraUtilities::AllowComputeShaders(EShaderPlatform ShaderPlatform)
 	return RHISupportsComputeShaders(ShaderPlatform) && GNiagaraAllowComputeShaders && GRHISupportsDrawIndirect;
 }
 
+ENiagaraCompileUsageStaticSwitch FNiagaraUtilities::ConvertScriptUsageToStaticSwitchUsage(ENiagaraScriptUsage ScriptUsage)
+{
+	if (ScriptUsage == ENiagaraScriptUsage::ParticleEventScript)
+	{
+		return ENiagaraCompileUsageStaticSwitch::Event;
+	}
+	if (ScriptUsage == ENiagaraScriptUsage::ParticleSimulationStageScript)
+	{
+		return ENiagaraCompileUsageStaticSwitch::SimulationStage;
+	}
+	if (ScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript || ScriptUsage == ENiagaraScriptUsage::SystemSpawnScript || ScriptUsage == ENiagaraScriptUsage::ParticleSpawnScriptInterpolated || ScriptUsage == ENiagaraScriptUsage::ParticleSpawnScript)
+	{
+		return ENiagaraCompileUsageStaticSwitch::Spawn;
+	}
+	if (ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript || ScriptUsage == ENiagaraScriptUsage::SystemUpdateScript || ScriptUsage == ENiagaraScriptUsage::ParticleUpdateScript)
+	{
+		return ENiagaraCompileUsageStaticSwitch::Update;
+	}
+	return ENiagaraCompileUsageStaticSwitch::Default;
+}
+
+ENiagaraScriptContextStaticSwitch FNiagaraUtilities::ConvertScriptUsageToStaticSwitchContext(ENiagaraScriptUsage ScriptUsage)
+{
+	if (ScriptUsage == ENiagaraScriptUsage::SystemSpawnScript || ScriptUsage == ENiagaraScriptUsage::SystemUpdateScript)
+	{
+		return ENiagaraScriptContextStaticSwitch::System;
+	}
+	if (ScriptUsage == ENiagaraScriptUsage::EmitterSpawnScript || ScriptUsage == ENiagaraScriptUsage::EmitterUpdateScript)
+	{
+		return ENiagaraScriptContextStaticSwitch::Emitter;
+	}
+	return ENiagaraScriptContextStaticSwitch::Particle;
+}
+
 FName NIAGARA_API FNiagaraUtilities::GetUniqueName(FName CandidateName, const TSet<FName>& ExistingNames)
 {
 	if (ExistingNames.Contains(CandidateName) == false)

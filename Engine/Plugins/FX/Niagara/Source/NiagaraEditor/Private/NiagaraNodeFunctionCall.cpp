@@ -171,7 +171,6 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 	}
 
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
-	UNiagaraGraph* CallerGraph = GetNiagaraGraph();
 	if (FunctionScript)
 	{
 		UNiagaraScriptSource* Source = CastChecked<UNiagaraScriptSource>(FunctionScript->GetSource());
@@ -897,13 +896,18 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 	}
 }
 
-UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InParentUsage) const
+UEdGraphPin* UNiagaraNodeFunctionCall::FindParameterMapDefaultValuePin(const FName VariableName, ENiagaraScriptUsage InParentUsage, FCompileConstantResolver ConstantResolver) const
 {
 	if (FunctionScript)
 	{
 		UNiagaraScriptSource* ScriptSource = Cast<UNiagaraScriptSource>(FunctionScript->GetSource());
 		if (ScriptSource != nullptr && ScriptSource->NodeGraph != nullptr)
 		{
+			// Set the static switch values so we traverse the correct node paths
+			TArray<UEdGraphPin*> InputPins;
+			GetInputPins(InputPins);
+			FNiagaraEditorUtilities::SetStaticSwitchConstants(ScriptSource->NodeGraph, InputPins, ConstantResolver);
+			
 			return ScriptSource->NodeGraph->FindParameterMapDefaultValuePin(VariableName, FunctionScript->GetUsage(), InParentUsage);
 		}
 	}
