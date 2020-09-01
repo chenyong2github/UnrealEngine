@@ -40,11 +40,16 @@ bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 		BuildSimulationData(ErrorReporter, *Collection, SharedParams);
 		Collection->Serialize(ChaosAr);
 
-		TArray<Nanite::FResources>& NaniteResources = GeometryCollection.CreateNaniteData(Collection);
-
-		for (Nanite::FResources& NaniteResource : NaniteResources)
+		if (GeometryCollection.EnableNanite)
 		{
-			NaniteResource.Serialize(ChaosAr, &GeometryCollection);
+			TUniquePtr<FGeometryCollectionNaniteData> NaniteData = UGeometryCollection::CreateNaniteData(Collection);
+			NaniteData->Serialize(ChaosAr, &GeometryCollection);
+		}
+		else
+		{
+			// No Nanite data, write out zero resources
+			int32 NumNaniteResources = 0;
+			Ar << NumNaniteResources;
 		}
 
 		if (false && ErrorReporter.EncounteredAnyErrors())
@@ -66,17 +71,12 @@ bool FDerivedDataGeometryCollectionCooker::Build(TArray<uint8>& OutData)
 
 const TCHAR* FDerivedDataGeometryCollectionCooker::GetVersionString() const
 {
-	if (OverrideVersion)
-	{
-		return OverrideVersion;	//force load old ddc if found. Not recommended
-	}
-
 	const TCHAR* VersionString = TEXT("A8A2C0FB45084FCB922FEC1139E11341");
 
 	static FString CachedNaniteVersionString;
 	if (CachedNaniteVersionString.IsEmpty())
 	{
-		const TCHAR* NaniteVersionString = TEXT("CE9B3AB5F81A5AB388E51FF4C8C19D7E");
+		const TCHAR* NaniteVersionString = TEXT("CE9B42F81A5XX388E51GGNC8C19D3E");
 		CachedNaniteVersionString = FString::Printf(TEXT("%s_%s_%s"), VersionString, NaniteVersionString, *Nanite::IBuilderModule::Get().GetVersionString());
 	}
 
@@ -94,6 +94,5 @@ FString FDerivedDataGeometryCollectionCooker::GetPluginSpecificCacheKeySuffix() 
 		FUE5MainStreamObjectVersion::Type::LatestVersion
 	);
 }
-
 
 #endif // WITH_EDITOR

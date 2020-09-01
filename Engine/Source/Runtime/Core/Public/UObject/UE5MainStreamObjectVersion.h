@@ -15,6 +15,9 @@ struct CORE_API FUE5MainStreamObjectVersion
 		// Nanite data added to Chaos geometry collections
 		GeometryCollectionNaniteData,
 
+		// Nanite Geometry Collection data moved to DDC
+		GeometryCollectionNaniteDDC,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

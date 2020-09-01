@@ -15,10 +15,6 @@ class FDerivedDataGeometryCollectionCooker : public FDerivedDataPluginInterface
 {
 public:
 	FDerivedDataGeometryCollectionCooker(UGeometryCollection& InGeometryCollection);
-	void SetOverrideVersion(const TCHAR* InOverrideVersion)
-	{
-		OverrideVersion = InOverrideVersion;
-	}
 
 	virtual const TCHAR* GetPluginName() const override
 	{
@@ -53,7 +49,6 @@ public:
 
 private:
 	UGeometryCollection& GeometryCollection;
-	const TCHAR* OverrideVersion;	//force load old ddc content
 };
 
-#endif	//WITH_EDITOR
+#endif	// WITH_EDITOR

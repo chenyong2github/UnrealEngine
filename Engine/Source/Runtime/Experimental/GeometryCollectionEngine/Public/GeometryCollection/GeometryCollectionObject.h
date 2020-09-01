@@ -84,6 +84,32 @@ struct GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionSizeSpecificData
 
 };
 
+class FGeometryCollectionNaniteData
+{
+public:
+	GEOMETRYCOLLECTIONENGINE_API FGeometryCollectionNaniteData();
+	GEOMETRYCOLLECTIONENGINE_API ~FGeometryCollectionNaniteData();
+
+	FORCEINLINE bool IsInitialized()
+	{
+		return bIsInitialized;
+	}
+
+	/** Serialization. */
+	void Serialize(FArchive& Ar, UGeometryCollection* Owner);
+
+	/** Initialize the render resources. */
+	void InitResources(UGeometryCollection* Owner);
+
+	/** Releases the render resources. */
+	GEOMETRYCOLLECTIONENGINE_API void ReleaseResources();
+
+	TArray<Nanite::FResources> Resources;
+
+private:
+	bool bIsInitialized = false;
+};
+
 /**
 * UGeometryCollectionObject (UObject)
 *
@@ -124,7 +150,8 @@ public:
 
 	FORCEINLINE FNaniteInfo GetNaniteInfo(int32 GeometryIndex) const
 	{
-		const Nanite::FResources& Resources = NaniteResources[GeometryIndex];
+		check(NaniteData && GeometryIndex >= 0 && GeometryIndex < NaniteData->Resources.Num());
+		const Nanite::FResources& Resources = NaniteData->Resources[GeometryIndex];
 		return FNaniteInfo(Resources.RuntimeResourceID, Resources.HierarchyOffset);
 	}
 
@@ -145,7 +172,7 @@ public:
 	void CreateSimulationData();
 
 	/** Create the Nanite rendering data. */
-	TArray<Nanite::FResources>& CreateNaniteData(FGeometryCollection* Collection);
+	static TUniquePtr<FGeometryCollectionNaniteData> CreateNaniteData(FGeometryCollection* Collection);
 #endif
 
 	void InitResources();
@@ -158,6 +185,9 @@ public:
 	/** Accessors for the two guids used to identify this collection */
 	FGuid GetIdGuid() const;
 	FGuid GetStateGuid() const;
+
+	/** Pointer to the data used to render this geometry collection with Nanite. */
+	TUniquePtr<class FGeometryCollectionNaniteData> NaniteData;
 
 	/** The editable mesh representation of this geometry collection */
 	class UObject* EditableMesh;
@@ -269,13 +299,9 @@ public:
 	class UThumbnailInfo* ThumbnailInfo;
 #endif // WITH_EDITORONLY_DATA
 
-protected:
-	/** Tracks whether InitResources has been called, and rendering resources are initialized. */
-	uint8 bRenderingResourcesInitialized : 1;
-
 private:
 #if WITH_EDITOR
-	void CreateSimulationDataImp(bool bCopyFromDDC, const TCHAR* OverrideVersion = nullptr);
+	void CreateSimulationDataImp(bool bCopyFromDDC);
 #endif
 
 private:
@@ -301,8 +327,4 @@ private:
 	int32 BoneSelectedMaterialIndex;
 
 	TSharedPtr<FGeometryCollection, ESPMode::ThreadSafe> GeometryCollection;
-
-	TArray<Nanite::FResources> NaniteResources;
 };
-
-
