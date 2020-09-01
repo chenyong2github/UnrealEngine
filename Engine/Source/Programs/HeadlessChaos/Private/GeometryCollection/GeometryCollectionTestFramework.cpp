@@ -140,15 +140,16 @@ namespace GeometryCollectionTest
 			RestCollection->ParentTransforms(ParentIndex, ChildIndex);
 		}
 
-		TSharedPtr<Chaos::FChaosPhysicsMaterial> PhysicalMaterial = MakeShared<Chaos::FChaosPhysicsMaterial>();
-		InitMaterialToZero(PhysicalMaterial.Get());
+		Chaos::FMaterialHandle NewHandle = Chaos::FPhysicalMaterialManager::Get().Create();
+		InitMaterialToZero(NewHandle.Get());
+		Chaos::FPhysicalMaterialManager::Get().UpdateMaterial(NewHandle);
 
 		TSharedPtr<FGeometryDynamicCollection> DynamicCollection = GeometryCollectionToGeometryDynamicCollection(RestCollection.Get(), Params.DynamicState);
 
 		FSimulationParameters SimulationParams;
 		{
 			SimulationParams.RestCollection = RestCollection.Get();
-			SimulationParams.PhysicalMaterial = MakeSerializable(PhysicalMaterial);
+			SimulationParams.PhysicalMaterialHandle = NewHandle;
 			SimulationParams.Shared.Mass = Params.Mass;
 			SimulationParams.Shared.bMassAsDensity = Params.bMassAsDensity;
 			SimulationParams.Shared.SizeSpecificData[0].CollisionType = Params.CollisionType;
@@ -192,7 +193,7 @@ namespace GeometryCollectionTest
 				nullptr,			// Init func
 				nullptr,			// Cache sync func
 				nullptr);			// Final sync func
-		return new TGeometryCollectionWrapper<Traits>(PhysicalMaterial, RestCollection, DynamicCollection, PhysObject);
+		return new TGeometryCollectionWrapper<Traits>(RestCollection, DynamicCollection, PhysObject);
 	}
 
 	template <>
