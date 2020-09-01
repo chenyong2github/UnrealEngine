@@ -197,54 +197,10 @@ void URuntimeVirtualTextureComponent::InitializeStreamingTexture(uint32 InSizeX,
 	}
 }
 
-#endif
-
-bool URuntimeVirtualTextureComponent::IsMinMaxTextureEnabled() const
-{
-	return VirtualTexture != nullptr && VirtualTexture->GetMaterialType() == ERuntimeVirtualTextureMaterialType::WorldHeight;
-}
-
-bool URuntimeVirtualTextureComponent::IsMinMaxTextureValid() const
-{
-	return VirtualTexture != nullptr && MinMaxTexture != nullptr && VirtualTexture->GetTileCount() == MinMaxTexture->GetSizeX() && VirtualTexture->GetTileCount() == MinMaxTexture->GetSizeY();
-}
-
-#if WITH_EDITOR
-
-void URuntimeVirtualTextureComponent::InitializeMinMaxTexture(uint32 InSizeX, uint32 InSizeY, uint32 InNumMips, uint8* InData)
-{
-	// We need an existing MinMaxTexture object to update.
-	if (VirtualTexture != nullptr && MinMaxTexture != nullptr)
-	{
-		MinMaxTexture->Modify();
-
-		FTextureFormatSettings Settings;
-		Settings.CompressionSettings = TC_EditorIcon;
-		Settings.CompressionNone = true;
-		Settings.SRGB = false;
-
-		const EObjectFlags Flags = RF_Public | RF_Standalone | RF_Transactional;
-		UTexture2D* Texture = NewObject<UTexture2D>(MinMaxTexture->GetOutermost(), MinMaxTexture->GetFName(), Flags);
-		Texture->Filter = TF_Nearest;
-		Texture->MipGenSettings = TMGS_LeaveExistingMips;
-		Texture->MipLoadOptions = ETextureMipLoadOptions::AllMips;
-		Texture->NeverStream = true;
-		Texture->SetLayerFormatSettings(0, Settings);
-		Texture->Source.Init(InSizeX, InSizeY, 1, InNumMips, TSF_BGRA8, InData);
-		Texture->PostEditChange();
-		
-		MinMaxTexture = Texture;
-	}
-}
-
 bool URuntimeVirtualTextureComponent::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEdit = Super::CanEditChange(InProperty);
-	if (InProperty->GetFName() == TEXT("MinMaxTexture"))
-	{
-		bCanEdit &= IsMinMaxTextureEnabled();
-	}
-	else if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
+	if (InProperty->GetFName() == TEXT("bEnableCompressCrunch"))
 	{
 		bCanEdit &= NumStreamingMips() > 0 && GetVirtualTexture() != nullptr && GetVirtualTexture()->GetCompressTextures();
 	}
@@ -266,15 +222,6 @@ void URuntimeVirtualTextureComponent::CheckForErrors()
 			->AddToken(FUObjectToken::Create(this))
 			->AddToken(FTextToken::Create(LOCTEXT("RuntimeVirtualTextureComponent_StreamingTextureNeedsUpdate", "The settings have changed since the streaming texture was last rebuilt. Streaming mips are disabled.")))
 			->AddToken(FMapErrorToken::Create(FName(TEXT("RuntimeVirtualTextureComponent_StreamingTextureNeedsUpdate"))));
-	}
-
-	// Check if MinMax texture has been built with the latest settings.
-	if (MinMaxTexture != nullptr && !IsMinMaxTextureValid())
-	{
-		FMessageLog("MapCheck").Warning()
-			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(LOCTEXT("RuntimeVirtualTextureComponent_MinMaxTextureNeedsUpdate", "The settings have changed since the MinMax texture was last rebuilt.")))
-			->AddToken(FMapErrorToken::Create(FName(TEXT("RuntimeVirtualTextureComponent_MinMaxTextureNeedsUpdate"))));
 	}
 }
 

@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "VT/RuntimeVirtualTextureRender.h"
+#include "HeightfieldMinMaxRender.h"
 
 #include "GlobalShader.h"
 #include "RendererInterface.h"
@@ -86,7 +86,7 @@ public:
 /** Implementations of the used shader variations. */
 #define IMPLEMENT_MINMAX_SHADER_TYPE(Input, Output, Type, ShaderName) \
 	typedef TMinMaxTextureCS<Input, Output, Type> TMinMaxTextureCS##ShaderName; \
-	IMPLEMENT_SHADER_TYPE(template<>, TMinMaxTextureCS##ShaderName, TEXT("/Engine/Private/VirtualTextureBuild.usf"), TEXT("MinMaxHeightCS"), SF_Compute);
+	IMPLEMENT_SHADER_TYPE(template<>, TMinMaxTextureCS##ShaderName, TEXT("/Plugin/VirtualHeightfieldMesh/Private/HeightfieldMinMaxRender.usf"), TEXT("MinMaxHeightCS"), SF_Compute);
 
 IMPLEMENT_MINMAX_SHADER_TYPE(EHeight_R16, EHeight_RG16, EOutputTexture, _R16ToRG16);
 IMPLEMENT_MINMAX_SHADER_TYPE(EHeight_RG16, EHeight_RG16, EOutputTexture, _RG16ToRG16);
@@ -158,7 +158,7 @@ namespace
 	}
 }
 
-namespace RuntimeVirtualTexture
+namespace VirtualHeightfieldMesh
 {
 	void DownsampleMinMaxAndCopy(FRDGBuilder& GraphBuilder, FRDGTexture* SrcTexture, FIntPoint SrcSize, FRDGTextureUAV* DstTextureUAV, FIntPoint DstCoord)
 	{

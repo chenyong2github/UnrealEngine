@@ -7,6 +7,7 @@
 #include "Engine/Engine.h"
 #include "GlobalShader.h"
 #include "HAL/IConsoleManager.h"
+#include "HeightfieldMinMaxTexture.h"
 #include "Materials/Material.h"
 #include "RenderGraphBuilder.h"
 #include "RenderGraphUtils.h"
@@ -333,7 +334,7 @@ const static FName NAME_VirtualHeightfieldMesh(TEXT("VirtualHeightfieldMesh"));
 FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHeightfieldMeshComponent* InComponent)
 	: FPrimitiveSceneProxy(InComponent, NAME_VirtualHeightfieldMesh)
 	, RuntimeVirtualTexture(InComponent->GetVirtualTexture())
-	, MinMaxTexture(InComponent->GetMinMaxTexture())
+	, MinMaxTexture(nullptr)
 	, AllocatedVirtualTexture(nullptr)
 	, bCallbackRegistered(false)
 	, NumQuadsPerTileSide(0)
@@ -343,8 +344,7 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 	, LodDistribution(InComponent->GetLodDistribution())
 	, NumSubdivisionLODs(InComponent->GetNumSubdivisionLods())
 	, NumTailLods(InComponent->GetNumTailLods())
-	, OcclusionData(InComponent->GetOcclusionData())
-	, NumOcclusionLods(InComponent->GetNumOcclusionLods())
+	, NumOcclusionLods(0)
 	, OcclusionGridSize(0, 0)
 {
 	GVirtualHeightfieldMeshViewRendererExtension.RegisterExtension();
@@ -362,7 +362,12 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 
 	UVToLocal = UVToWorld * GetLocalToWorld().Inverse();
 
-	BuildOcclusionVolumes();
+	UHeightfieldMinMaxTexture* HeightfieldMinMaxTexture = InComponent->GetMinMaxTexture();
+	if (HeightfieldMinMaxTexture != nullptr)
+	{
+		MinMaxTexture = HeightfieldMinMaxTexture->Texture;
+		BuildOcclusionVolumes(HeightfieldMinMaxTexture->TextureData, HeightfieldMinMaxTexture->TextureDataSize, HeightfieldMinMaxTexture->TextureDataMips, InComponent->GetNumOcclusionLods());
+	}
 }
 
 SIZE_T FVirtualHeightfieldMeshSceneProxy::GetTypeHash() const
@@ -380,7 +385,10 @@ void FVirtualHeightfieldMeshSceneProxy::OnTransformChanged()
 {
 	UVToLocal = UVToWorld * GetLocalToWorld().Inverse();
 
-	// BuildOcclusionVolumes();
+	// Setup a default occlusion volume array containing just the primitive bounds.
+	// We use this if disabling the full set of occlusion volumes.
+	DefaultOcclusionVolumes.Reset();
+	DefaultOcclusionVolumes.Add(GetBounds());
 }
 
 void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
@@ -528,54 +536,52 @@ const TArray<FBoxSphereBounds>* FVirtualHeightfieldMeshSceneProxy::GetOcclusionQ
 	return (CVarVHMOcclusion.GetValueOnAnyThread() == 0 || OcclusionVolumes.Num() == 0) ? &DefaultOcclusionVolumes : &OcclusionVolumes;
 }
 
-void FVirtualHeightfieldMeshSceneProxy::BuildOcclusionVolumes()
+void FVirtualHeightfieldMeshSceneProxy::BuildOcclusionVolumes(TArrayView<FVector2D> const& InMinMaxData, FIntPoint const& InMinMaxSize, TArrayView<int32> const& InMinMaxMips, int32 InNumLods)
 {
+	NumOcclusionLods = 0;
+	OcclusionGridSize = FIntPoint::ZeroValue;
 	OcclusionVolumes.Reset();
-	if (NumOcclusionLods > 0)
+
+	if (InNumLods > 0 && InMinMaxMips.Num() > 0)
 	{
-		int32 SizeX = 1 << (NumOcclusionLods - 1);
-		int32 SizeY = 1 << (NumOcclusionLods - 1);
-		OcclusionGridSize = FIntPoint(SizeX, SizeY);
+		NumOcclusionLods = FMath::Min(InNumLods, InMinMaxMips.Num());
 
-		OcclusionVolumes.Reserve(OcclusionData.Num());
+		const int32 BaseLod = InMinMaxMips.Num() - NumOcclusionLods;
+		OcclusionGridSize.X = FMath::Max(InMinMaxSize.X >> BaseLod, 1);
+		OcclusionGridSize.Y = FMath::Max(InMinMaxSize.Y >> BaseLod, 1);
 
-		const FMatrix Transform = UVToWorld;
+		OcclusionVolumes.Reserve(InMinMaxData.Num() - InMinMaxMips[BaseLod]);
 
-		int32 OcclusionDataIndex = 0;
-		for (int32 LodIndex = 0; LodIndex < NumOcclusionLods; ++LodIndex)
+		for (int32 LodIndex = BaseLod; LodIndex < InMinMaxMips.Num(); ++LodIndex)
 		{
+			int32 SizeX = FMath::Max(InMinMaxSize.X >> LodIndex, 1);
+			int32 SizeY = FMath::Max(InMinMaxSize.Y >> LodIndex, 1);
+			int32 MinMaxDataIndex = InMinMaxMips[LodIndex];
+
 			for (int Y = 0; Y < SizeY; ++Y)
 			{
 				for (int X = 0; X < SizeX; ++X)
 				{
 					FVector2D MinMaxU = FVector2D((float)X / (float)SizeX, (float)(X + 1) / (float)SizeX);
 					FVector2D MinMaxV = FVector2D((float)Y / (float)SizeY, (float)(Y + 1) / (float)SizeY);
-					FVector2D MinMaxZ = OcclusionData[OcclusionDataIndex++];
+					FVector2D MinMaxZ = InMinMaxData[MinMaxDataIndex++];
 
 					FVector Pos[8];
-					Pos[0] = Transform.TransformPosition(FVector(MinMaxU.X, MinMaxV.X, MinMaxZ.X));
-					Pos[1] = Transform.TransformPosition(FVector(MinMaxU.Y, MinMaxV.X, MinMaxZ.X));
-					Pos[2] = Transform.TransformPosition(FVector(MinMaxU.X, MinMaxV.Y, MinMaxZ.X));
-					Pos[3] = Transform.TransformPosition(FVector(MinMaxU.Y, MinMaxV.Y, MinMaxZ.X));
-					Pos[4] = Transform.TransformPosition(FVector(MinMaxU.X, MinMaxV.X, MinMaxZ.Y));
-					Pos[5] = Transform.TransformPosition(FVector(MinMaxU.Y, MinMaxV.X, MinMaxZ.Y));
-					Pos[6] = Transform.TransformPosition(FVector(MinMaxU.X, MinMaxV.Y, MinMaxZ.Y));
-					Pos[7] = Transform.TransformPosition(FVector(MinMaxU.Y, MinMaxV.Y, MinMaxZ.Y));
+					Pos[0] = UVToWorld.TransformPosition(FVector(MinMaxU.X, MinMaxV.X, MinMaxZ.X));
+					Pos[1] = UVToWorld.TransformPosition(FVector(MinMaxU.Y, MinMaxV.X, MinMaxZ.X));
+					Pos[2] = UVToWorld.TransformPosition(FVector(MinMaxU.X, MinMaxV.Y, MinMaxZ.X));
+					Pos[3] = UVToWorld.TransformPosition(FVector(MinMaxU.Y, MinMaxV.Y, MinMaxZ.X));
+					Pos[4] = UVToWorld.TransformPosition(FVector(MinMaxU.X, MinMaxV.X, MinMaxZ.Y));
+					Pos[5] = UVToWorld.TransformPosition(FVector(MinMaxU.Y, MinMaxV.X, MinMaxZ.Y));
+					Pos[6] = UVToWorld.TransformPosition(FVector(MinMaxU.X, MinMaxV.Y, MinMaxZ.Y));
+					Pos[7] = UVToWorld.TransformPosition(FVector(MinMaxU.Y, MinMaxV.Y, MinMaxZ.Y));
 
 					const float ExpandOcclusion = 3.f;
 					OcclusionVolumes.Add(FBoxSphereBounds(FBox(Pos, 8).ExpandBy(ExpandOcclusion)));
 				}
 			}
-
-			SizeX = FMath::Max(SizeX / 2, 1);
-			SizeY = FMath::Max(SizeY / 2, 1);
 		}
 	}
-
-	// Setup a default occlusion volume array containing just the primitive bounds.
-	// We use this if disabling the full set of occlusion volumes.
-	DefaultOcclusionVolumes.Reset();
-	DefaultOcclusionVolumes.Add(GetBounds());
 }
 
 void FVirtualHeightfieldMeshSceneProxy::AcceptOcclusionResults(FSceneView const* View, TArray<bool>* Results, int32 ResultsStart, int32 NumResults)

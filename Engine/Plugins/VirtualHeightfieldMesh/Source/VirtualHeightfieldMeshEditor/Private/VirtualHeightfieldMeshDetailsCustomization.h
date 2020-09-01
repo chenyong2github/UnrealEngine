@@ -19,6 +19,11 @@ protected:
 	/** Callback for Set Bounds button */
 	FReply SetBounds();
 
+	/** Returns true if MinMax texture build button is enabled */
+	bool IsMinMaxTextureEnabled() const;
+	/** Callback for Build MinMax Texture button */
+	FReply BuildMinMaxTexture();
+
 	//~ Begin IDetailCustomization Interface.
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
 	//~ End IDetailCustomization Interface.
