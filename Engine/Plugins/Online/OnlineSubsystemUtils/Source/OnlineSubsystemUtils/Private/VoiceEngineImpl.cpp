@@ -587,6 +587,12 @@ uint32 FVoiceEngineImpl::SubmitRemoteVoiceData(const FUniqueNetIdWrapper& Remote
 	if (QueuedData.VoipSynthComponent == nullptr || QueuedData.VoipSynthComponent->IsPendingKill())
 	{
 		CreateSerializeHelper();
+		
+		if (QueuedData.VoipSynthComponent && QueuedData.VoipSynthComponent->IsPendingKill())
+		{
+			QueuedData.VoipSynthComponent->Stop();
+			QueuedData.VoipSynthComponent->ClosePacketStream();
+		}
 
 		if (GetOnlineSubSystem())
 		{
