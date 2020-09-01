@@ -1602,6 +1602,7 @@ public:
 	virtual float GetRefractionDepthBiasValue() const { return 0.0f; }
 	virtual float GetMaxDisplacement() const { return 0.0f; }
 	virtual bool ShouldApplyFogging() const { return false; }
+	virtual bool ShouldApplyCloudFogging() const { return false; }
 	virtual bool ComputeFogPerPixel() const { return false; }
 	virtual bool IsSky() const { return false; }
 	virtual FString GetFriendlyName() const = 0;
@@ -2454,6 +2455,7 @@ public:
 	ENGINE_API virtual float GetRefractionDepthBiasValue() const override;
 	ENGINE_API virtual float GetMaxDisplacement() const override;
 	ENGINE_API virtual bool ShouldApplyFogging() const override;
+	ENGINE_API virtual bool ShouldApplyCloudFogging() const override;
 	ENGINE_API virtual bool IsSky() const override;
 	ENGINE_API virtual bool ComputeFogPerPixel() const override;
 	ENGINE_API virtual bool HasRuntimeVirtualTextureOutput() const override;
