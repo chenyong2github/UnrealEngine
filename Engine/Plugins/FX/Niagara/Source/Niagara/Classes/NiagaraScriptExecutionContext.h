@@ -285,6 +285,23 @@ public:
 	FRHIUniformBufferLayout UBLayout;
 };
 
+struct FNiagaraComputeSharedContext
+{
+	int32 ScratchIndex = INDEX_NONE;
+	int32 ScratchTickStage = INDEX_NONE;
+};
+
+struct FNiagaraComputeSharedContextDeleter
+{
+	void operator()(FNiagaraComputeSharedContext* Ptr) const
+	{
+		if (Ptr)
+		{
+			ENQUEUE_RENDER_COMMAND(NiagaraDeleteSharedContext)([RT_Ptr=Ptr](FRHICommandListImmediate& RHICmdList) { delete RT_Ptr; });
+		}
+	}
+};
+
 struct FNiagaraComputeExecutionContext
 {
 	FNiagaraComputeExecutionContext();
@@ -363,7 +380,6 @@ public:
 	bool HasInterpolationParameters;
 
 	/** Temp data used in NiagaraEmitterInstanceBatcher::ExecuteAll() to avoid creating a map per FNiagaraComputeExecutionContext */
-	mutable int32 ScratchIndex = INDEX_NONE;
 	mutable uint32 ScratchNumInstances = 0;
 	mutable uint32 ScratchMaxInstances = 0;
 
@@ -485,6 +501,7 @@ public:
 
 	// data assigned by GT
 	FNiagaraSystemInstanceID SystemInstanceID = 0LL;
+	FNiagaraComputeSharedContext* SharedContext = nullptr;
 	FNiagaraDataInterfaceInstanceData* DIInstanceData = nullptr;
 	uint8* InstanceData_ParamData_Packed = nullptr;
 	uint8* GlobalParamData = nullptr;

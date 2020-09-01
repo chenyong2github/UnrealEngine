@@ -107,6 +107,7 @@ public:
 	bool RequiresDistanceFieldData() const;
 	bool RequiresDepthBuffer() const;
 	bool RequiresEarlyViewData() const;
+	bool RequiresViewUniformBuffer() const;
 
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);
@@ -178,9 +179,11 @@ public:
 
 	FNiagaraEmitterInstance* GetEmitterByID(FGuid InID);
 
-	FORCEINLINE bool IsSolo()const { return bSolo; }
+	FORCEINLINE bool IsSolo() const { return bSolo; }
 
-	FORCEINLINE bool NeedsGPUTick()const{ return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+	FORCEINLINE bool NeedsGPUTick() const { return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+
+	struct FNiagaraComputeSharedContext* GetComputeSharedContext() { check(SharedContext.Get()); return SharedContext.Get(); }
 
 	/** Gets a multicast delegate which is called after this instance has finished ticking for the frame on the game thread */
 	FORCEINLINE void SetOnPostTick(const FOnPostTick& InPostTickDelegate) { OnPostTickDelegate = InPostTickDelegate; }
@@ -506,6 +509,8 @@ public:
 	// Transient data that is accumulated during tick.
 	uint32 TotalGPUParamSize = 0;
 	uint32 ActiveGPUEmitterCount = 0;
+	TUniquePtr<FNiagaraComputeSharedContext, FNiagaraComputeSharedContextDeleter> SharedContext;
+
 	int32 GPUDataInterfaceInstanceDataSize = 0;
 	bool GPUParamIncludeInterpolation = false;
 
