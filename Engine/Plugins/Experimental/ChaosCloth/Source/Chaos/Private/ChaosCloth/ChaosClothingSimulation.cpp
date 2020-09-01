@@ -246,6 +246,18 @@ void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
 	}
 }
 
+bool FClothingSimulation::ShouldSimulate() const
+{
+	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
+	{
+		if (Cloth->GetLODIndex(Solver.Get()) != INDEX_NONE && Cloth->GetOffset(Solver.Get()) != INDEX_NONE)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ChaosClothSimulate);
