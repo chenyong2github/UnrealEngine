@@ -17,6 +17,8 @@ IMovieScenePlayer::IMovieScenePlayer()
 
 IMovieScenePlayer::~IMovieScenePlayer()
 {
+	ensureMsgf(IsInGameThread(), TEXT("Destruction must occur on the game thread"));
+
 	GlobalPlayerRegistry.RemoveAt(UniqueIndex, 1);
 }
 
