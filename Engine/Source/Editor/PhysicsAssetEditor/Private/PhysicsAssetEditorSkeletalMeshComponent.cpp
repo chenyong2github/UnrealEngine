@@ -524,13 +524,11 @@ void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impu
 
 bool UPhysicsAssetEditorSkeletalMeshComponent::ShouldCreatePhysicsState() const
 {
-#if !WITH_CHAOS
+	// @todo(chaos): the main physics scene is not running (and never runs) in the physics editor,
+	// and currently this means it will accumulate body create/destroy commands every time
+	// we hit "Simulate". Fix this!  However, we still need physics state for mouse ray hit detection 
+	// on the bodies so we can't just avoid creating physics state...
 	return Super::ShouldCreatePhysicsState();
-#else
-	// Chaos uses a RigidBody AnimNode to run the simulation in the PhysicsAsset Editor.
-	// See FPhysicsAssetEditorAnimInstanceProxy
-	return false;
-#endif
 }
 
 
