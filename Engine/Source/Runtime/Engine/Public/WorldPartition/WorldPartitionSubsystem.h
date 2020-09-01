@@ -55,15 +55,18 @@ public:
 	FBox GetWorldBounds();
 #endif
 
+	void ToggleDrawRuntimeHash2D();
+
 private:
 	UWorldPartition* GetMainWorldPartition();
 	const UWorldPartition* GetMainWorldPartition() const;
-
-	void OnShowDebugInfo(class AHUD* HUD, class UCanvas* Canvas, const class FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos);
 	void RegisterWorldPartition(UWorldPartition* WorldPartition);
 	void UnregisterWorldPartition(UWorldPartition* WorldPartition);
+	void DrawRuntimeHash2D(class UCanvas* Canvas, class APlayerController* PC);
 	friend class UWorldPartition;
 
 	UPROPERTY()
 	TArray<UWorldPartition*> RegisteredWorldPartitions;
+
+	FDelegateHandle	DrawRuntimeHash2DHandle;
 };
