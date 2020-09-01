@@ -35,7 +35,7 @@ protected:
 	UHeightfieldMinMaxTexture* MinMaxTexture = nullptr;
 
 	/** Number of levels to build in the MinMax Texture. A default value of 0 will build all levels from the heightfield. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Texture Levels", UIMin = "0"))
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = HeightfieldBuild, meta = (DisplayName = "MinMax Levels", UIMin = "0"))
 	int32 NumMinMaxTextureLevels = 0;
 
 	/** Placeholder for details customization button. */
