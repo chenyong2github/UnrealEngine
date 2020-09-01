@@ -152,11 +152,11 @@ public:
 
 	virtual bool GetIsActive() const;
 	virtual bool GetIsEnabled() const { return bIsEnabled; }
-	virtual void SetIsEnabled(bool bInIsEnabled) { bIsEnabled = bInIsEnabled; }
+	virtual void SetIsEnabled(bool bInIsEnabled);
 
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) {}
 
-	virtual bool NeedsMIDsForMaterials() const { return false; }
+	virtual bool NeedsMIDsForMaterials() const { return false; }	
 	
 	/** Platforms on which this renderer is enabled. */
 	UPROPERTY(EditAnywhere, Category = "Scalability")
