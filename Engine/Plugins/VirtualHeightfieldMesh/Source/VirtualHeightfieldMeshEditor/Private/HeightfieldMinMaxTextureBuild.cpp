@@ -6,6 +6,7 @@
 #include "ContentStreaming.h"
 #include "Engine/Texture2D.h"
 #include "HeightfieldMinMaxRender.h"
+#include "HeightfieldMinMaxTexture.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RendererInterface.h"
 #include "RenderGraphBuilder.h"
@@ -137,10 +138,14 @@ namespace VirtualHeightfieldMesh
 		VirtualTexture->GetProducerDescription(VTDesc, Transform);
 
 		const int32 TileSize = VTDesc.TileSize;
-		const int32 TileBorderSize = VTDesc.TileBorderSize;
 		const int32 MaxLevel = VTDesc.MaxLevel;
-		const int32 NumTilesX = VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles;
-		const int32 NumTilesY = VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles;
+
+		// Adjust number of tiles to match requested number of build levels
+		const int32 NumBuildLevels = InComponent->GetNumMinMaxTextureBuildLevels();
+		const int32 IncLevels = NumBuildLevels == 0 ? 0 : FMath::Max(NumBuildLevels - MaxLevel - 1, 0);
+		const int32 DecLevels = NumBuildLevels == 0 ? 0 : FMath::Max(MaxLevel - NumBuildLevels + 1, 0);
+		const int32 NumTilesX = ((VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles) << IncLevels) >> DecLevels;
+		const int32 NumTilesY = ((VTDesc.WidthInBlocks * VTDesc.BlockWidthInTiles) << IncLevels) >> DecLevels;
 		const int32 NumMips = (int32)FMath::CeilLogTwo(FMath::Max(NumTilesX, NumTilesY)) + 1;
 
 		// Allocate render targets for rendering out the runtime virtual texture tiles
@@ -151,7 +156,7 @@ namespace VirtualHeightfieldMesh
 		const float TaskWorkRender = NumTilesX * NumTilesY;
 		const float TaskWorkDownsample = 2;
 		const float TaskWorkBuildBulkData = 2;
-		FScopedSlowTask Task(TaskWorkRender + TaskWorkDownsample + TaskWorkBuildBulkData, FText::AsCultureInvariant(VirtualTexture->GetName()));
+		FScopedSlowTask Task(TaskWorkRender + TaskWorkDownsample + TaskWorkBuildBulkData, FText::AsCultureInvariant(InComponent->GetMinMaxTexture()->GetName()));
 		Task.MakeDialog(true);
 
 		// Final pixels will contain image data for each virtual texture layer in order
