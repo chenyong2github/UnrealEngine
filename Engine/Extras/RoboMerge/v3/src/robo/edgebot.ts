@@ -40,7 +40,7 @@ export type ResolveResultDetail = 'quick' | 'detailed'
 class EdgeBotImpl extends PerforceStatefulBot {
 	readonly graphBotName: string
 	readonly branch: Branch
-    readonly sourceBranch: Branch
+	readonly sourceBranch: Branch
 	private readonly edgeBotLogger: ContextualLogger
 
 	// These are the quality control gates, usually driven by CI systems
@@ -194,14 +194,15 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		}
 	}
 
-	private async getPerforceRequestResultFromCL(changelist: number, paths_in?: string[], changelistStatus?: ChangelistStatus) : Promise<PerforceRequestResult> {
-		const requestedChange = await this._getChange(changelist, paths_in, changelistStatus)
+	private async getPerforceRequestResultFromCL(changelist: number, path?: string, changelistStatus?: ChangelistStatus) : Promise<PerforceRequestResult> {
+		const result = await this._getChange(changelist, path, changelistStatus)
 
-		if (!requestedChange.changes || requestedChange.changes.length != 1) {
-			return { errors : [`Got incorrect number of entries back from ${changelistStatus ? changelistStatus : 'submitted'} CL ${changelist} (length = ${requestedChange.changes ? requestedChange.changes.length : 'null'}, should be 1)`] }
+		if (!result.changes || !result.changes[0]) {
+			// swallowing actual error! should probably fix
+			return { errors : [`Failed to get ${changelistStatus ? changelistStatus : 'submitted'} CL ${changelist} (errors = ${result.errors}`] }
 		}
 
-		return { changes : requestedChange.changes, errors : [] }
+		return { changes : result.changes, errors : [] }
 	}
 	
 	private analyzeConflict(unresolved: ConflictedResolveNFile[]) {
@@ -227,9 +228,9 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return results
 	}
 
-    private async analyzeIntegrationError(errors: string[]) {
-        if (errors.length > MAX_INTEGRATION_ERRORS_TO_ANALYZE) {
-            this.edgeBotLogger.error(`Integration error: ${errors.length} files, checking first ${MAX_INTEGRATION_ERRORS_TO_ANALYZE}`)
+	private async analyzeIntegrationError(errors: string[]) {
+		if (errors.length > MAX_INTEGRATION_ERRORS_TO_ANALYZE) {
+			this.edgeBotLogger.error(`Integration error: ${errors.length} files, checking first ${MAX_INTEGRATION_ERRORS_TO_ANALYZE}`)
 		}
 		
 		const openedRequests: [RegExpMatchArray, Promise<OpenedFileRecord[]>][] = []
@@ -241,16 +242,16 @@ class EdgeBotImpl extends PerforceStatefulBot {
 			}
 		}
 
-        const results: ExclusiveFile[] = []
-        for (const [match, req] of openedRequests) {
-            const recs = await req
-            if (recs.length > 0) {
-                // should only be one, since we're looking for exclusive check-out errors
-                results.push({name: match[2], user: recs[0].user})
-            }
-        }
+		const results: ExclusiveFile[] = []
+		for (const [match, req] of openedRequests) {
+			const recs = await req
+			if (recs.length > 0) {
+				// should only be one, since we're looking for exclusive check-out errors
+				results.push({name: match[2], user: recs[0].user})
+			}
+		}
 
-        return results
+		return results
 	}
 
 	private async handleIntegrationError(failure: Failure, pending: PendingChange) {
@@ -595,7 +596,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 				this.sourceNode.emailShelfRequester(pending)
 			}
 			
-			return this.getPerforceRequestResultFromCL(pending.newCl, this.getChangePaths(pending.action.branch), "shelved")
+			return this.getPerforceRequestResultFromCL(pending.newCl, pending.action.branch.rootPath, "shelved")
 		}
 
 		let failure: Failure | null = null
@@ -641,7 +642,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 		return this.getPerforceRequestResultFromCL(pending.newCl)
 	}
 
-    /**
+	/**
 	 * Attempt to submit changelist as described by incoming PendingChange.
 	 * @param pending Change to submit
 	 * @param {Number} [resolveRetries=3] Number of times to catch non-fatal errors and attempt the resolve -> submit chain again.

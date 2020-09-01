@@ -75,7 +75,6 @@ for both node and edge.
 |`aliases`                  |n |            | |Alternative names for use in commands    | |
 |`badgeProject`             |n |            | |UGS integration                          | |
 |`depot`                    |n |**required**| |Depot, e.g. UE4                          |Flag currently called `defaultStreamDepot`|
-|`pathsToMonitor`           |n |            | |Optional multiple sub-paths              | |
 |`rootPath`                 |n |from stream | |P4 depot full path                       | |
 |`streamSubpath`            |n |`/...`      | |P4 depot sub-path                        | |
 |`workspaceNameOverride`    |n |            | |Used specified workspace name for commits| |

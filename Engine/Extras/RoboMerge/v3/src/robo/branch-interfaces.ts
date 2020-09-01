@@ -134,10 +134,6 @@ export type BranchStatus = Partial<NodeStatusFields> & {
 	branch_spec_cl: number
 }
 
-export function getChangePaths(branch: Branch) {
-	return branch.pathsToMonitor || [branch.rootPath]
-}
-
 export interface Branch extends BranchBase {
 	bot?: NodeBotInterface
 	parent: BranchGraphInterface

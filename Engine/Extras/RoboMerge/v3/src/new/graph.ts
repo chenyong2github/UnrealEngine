@@ -268,7 +268,7 @@ export function addBranchGraph(graph: Graph, branchGraph: BranchGraphInterface) 
 	const branchNodes = new Map<Branch, Node>()
 
 	// excluding subpath bots for now
-	const streamBranches = branchGraph.branches.filter(x => x.stream && !x.pathsToMonitor && x.rootPath === x.stream + '/...')
+	const streamBranches = branchGraph.branches.filter(x => x.stream && x.rootPath === x.stream + '/...')
 	for (const branch of streamBranches) {
 		if (!branch.bot) {
 			throw new Error(`branch ${branch.name} not running!`) // fine, but try again later
