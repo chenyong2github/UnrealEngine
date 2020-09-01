@@ -156,16 +156,6 @@ static TAutoConsoleVariable<int32> CVarForceAllRayTracingEffects(
 	TEXT(" 1: All ray tracing effects enabled"),
 	ECVF_RenderThreadSafe);
 
-static int32 GRayTracingSceneCaptures = -1;
-static FAutoConsoleVariableRef CVarRayTracingSceneCaptures(
-	TEXT("r.RayTracing.SceneCaptures"),
-	GRayTracingSceneCaptures,
-	TEXT("Enable ray tracing in scene captures.\n")
-	TEXT(" -1: Use scene capture settings (default) \n")
-	TEXT(" 0: off \n")
-	TEXT(" 1: on"),
-	ECVF_RenderThreadSafe);
-
 static int32 GRayTracingExcludeDecals = 0;
 static FAutoConsoleVariableRef CRayTracingExcludeDecals(
 	TEXT("r.RayTracing.ExcludeDecals"),
@@ -200,24 +190,6 @@ static TAutoConsoleVariable<float> CVarRayTracingDynamicGeometryLastRenderTimeUp
 	TEXT("r.RayTracing.DynamicGeometryLastRenderTimeUpdateDistance"),
 	5000.0f,
 	TEXT("Dynamic geometries within this distance will have their LastRenderTime updated, so that visibility based ticking (like skeletal mesh) can work when the component is not directly visible in the view (but reflected)."));
-
-static TAutoConsoleVariable<int32> CVarRayTracingCulling(
-	TEXT("r.RayTracing.Culling"),
-	0,
-	TEXT("Enable culling in ray tracing for objects that are behind the camera\n")
-	TEXT(" 0: Culling disabled (default)\n")
-	TEXT(" 1: Culling by distance and solid angle enabled"),
-	ECVF_RenderThreadSafe);
-
-static TAutoConsoleVariable<float> CVarRayTracingCullingRadius(
-	TEXT("r.RayTracing.Culling.Radius"),
-	10000.0f, 
-	TEXT("Do camera culling for objects behind the camera outside of this radius in ray tracing effects (default = 10000 (100m))"));
-
-static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
-	TEXT("r.RayTracing.Culling.Angle"),
-	1.0f, 
-	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"));
 
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
@@ -763,68 +735,16 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 	{
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
-		int32 BroadIndex = 0;
-		const int32 CullInRayTracing = CVarRayTracingCulling.GetValueOnRenderThread();
-		const float CullingRadius = CVarRayTracingCullingRadius.GetValueOnRenderThread();
-		const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
-		const float AngleThresholdRatio = FMath::Tan(CullAngleThreshold * PI / 180.0f);
-		const FVector ViewOrigin = ReferenceView.ViewMatrices.GetViewOrigin();
-		const FVector ViewDirection = ReferenceView.GetViewDirection();
+		//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
+		//Touching the SceneProxy to determine this would simply cost too much
+		static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
+		const bool bShowStaticMeshes = RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0;
 
-		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene->PrimitiveSceneProxies.Num(); PrimitiveIndex++)
+		for (FSceneSetBitIterator BitIt(Scene->RayTracingRelevantPrimitiveMap); BitIt; ++BitIt)
 		{
-			while (PrimitiveIndex >= int(Scene->TypeOffsetTable[BroadIndex].Offset))
-			{
-				BroadIndex++;
-			}
+			int32 PrimitiveIndex = BitIt.GetIndex();
 
 			const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
-
-			if (!SceneInfo->bIsRayTracingRelevant)
-			{
-				//skip over unsupported SceneProxies (warning don't make IsRayTracingRelevant data dependent other than the vtable)
-				PrimitiveIndex = Scene->TypeOffsetTable[BroadIndex].Offset - 1;
-				continue;
-			}
-
-			if (!SceneInfo->bIsVisibleInRayTracing)
-			{
-				continue;
-			}
-
-			if (!(SceneInfo->bShouldRenderInMainPass && SceneInfo->bDrawInGame))
-			{
-				continue;
-			}
-
-			if (CullInRayTracing > 0)
-			{
-				FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
-
-				const FBoxSphereBounds ObjectBounds = SceneProxy->GetBounds();
-				const float ObjectRadius = ObjectBounds.SphereRadius;
-				const FVector ObjectCenter = ObjectBounds.Origin + 0.5*ObjectBounds.BoxExtent;
-				const FVector CameraToObjectCenter = FVector(ObjectCenter - ViewOrigin);
-
-				const bool bIsBehindCamera = FVector::DotProduct(ViewDirection, CameraToObjectCenter) < -ObjectRadius;
-
-				if (bIsBehindCamera)
-				{
-					const float CameraToObjectCenterLength = CameraToObjectCenter.Size();
-					const bool bIsFarEnoughToCull = CameraToObjectCenterLength > (CullingRadius + ObjectRadius);
-
-					if (bIsFarEnoughToCull) 
-					{
-						// Cull by solid angle: check the radius of bounding sphere against angle threshold
-						const bool bAngleIsSmallEnoughToCull = ObjectRadius / CameraToObjectCenterLength < AngleThresholdRatio;
-
-						if (bAngleIsSmallEnoughToCull)
-						{
-							continue;
-						}					
-					}
-				}
-			}
 
 			bool bIsDynamic = false;
 
@@ -834,43 +754,13 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 			{
 				FViewInfo& View = Views[ViewIndex];
-				if (!View.State)// || View.RayTracingRenderMode == ERayTracingRenderMode::Disabled)
+
+				if (!View.RayTracingCullingPrimitiveMap[PrimitiveIndex])
 				{
 					continue;
 				}
 
-				if (View.bIsReflectionCapture)
-				{
-					continue;
-				}
-
-				if (View.HiddenPrimitives.Contains(SceneInfo->PrimitiveComponentId))
-				{
-					continue;
-				}
-
-				if (View.ShowOnlyPrimitives.IsSet() && !View.ShowOnlyPrimitives->Contains(SceneInfo->PrimitiveComponentId))
-				{
-					continue;
-				}
-
-				bool bShouldRayTraceSceneCapture = GRayTracingSceneCaptures > 0 || (GRayTracingSceneCaptures == -1 && View.bSceneCaptureUsesRayTracing);
-				if (View.bIsSceneCapture && (!bShouldRayTraceSceneCapture || !SceneInfo->bIsVisibleInReflectionCaptures))
-				{
-					continue;
-				}
-				
-				// Check if the primitive has been distance culled already during frustum culling
-				if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
-				{
-					continue;
-				}
-
-				//#dxr_todo UE-68621  The Raytracing code path does not support ShowFlags since data moved to the SceneInfo. 
-				//Touching the SceneProxy to determine this would simply cost too much
-				static const auto RayTracingStaticMeshesCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RayTracing.Geometry.StaticMeshes"));
-
-				if (SceneInfo->bIsRayTracingStaticRelevant && View.Family->EngineShowFlags.StaticMeshes && RayTracingStaticMeshesCVar && RayTracingStaticMeshesCVar->GetValueOnRenderThread() > 0)
+				if (Scene->RayTracingStaticRelevantPrimitiveMap[PrimitiveIndex] && View.Family->EngineShowFlags.StaticMeshes && bShowStaticMeshes)
 				{
 					Item.ViewIndex = ViewIndex;
 					RelevantPrimitives.Add(Item);
