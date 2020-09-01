@@ -30,6 +30,7 @@
 #include "Operations/SimpleHoleFiller.h"
 #include "MeshTransforms.h"
 
+#include "Algo/ForEach.h"
 #include "Async/ParallelFor.h"
 #include "Containers/BitArray.h"
 #include "Materials/MaterialInstanceDynamic.h"
@@ -1455,11 +1456,22 @@ void UEditMeshPolygonsTool::ApplyRetriangulate()
 				}
 			}
 
+			// We don't want to remove isolated vertices while removing triangles because we don't
+			// want to throw away boundary verts. However, this means that we'll have to go back
+			// through these vertices later to throw away isolated internal verts.
+			TArray<int32> OldVertices;
+			MeshIndexUtil::TriangleToVertexIDs(Mesh, Triangles, OldVertices);
 			Editor.RemoveTriangles(Topology->GetGroupTriangles(GroupID), false);
+
 			RegionLoops.Loops[0].Reverse();
 			FSimpleHoleFiller Filler(Mesh, RegionLoops.Loops[0]);
 			Filler.FillType = FSimpleHoleFiller::EFillType::PolygonEarClipping;
 			Filler.Fill(GroupID);
+
+			// Throw away any of the old verts that are still isolated (they were in the interior of the group)
+			Algo::ForEachIf(OldVertices, [Mesh](int32 Vid) { return !Mesh->IsReferencedVertex(Vid); },
+				[Mesh](int32 Vid) { Mesh->RemoveVertex(Vid, false, false); } // Don't try to remove attached tris, don't care about bowties
+			);
 
 			if (Mesh->HasAttributes())
 			{
