@@ -427,6 +427,11 @@ public:
 	}
 
 	/**
+	 * Returns true if this virtual texture requests round-robin updates of the virtual texture pages. 
+	 */
+	virtual bool IsVirtualTexturedWithContinuousUpdate() const { return false; }
+
+	/**
 	 * Returns true if this virtual texture uses a single physical space all of its texture layers.
 	 * This can reduce page table overhead but potentially increase the number of physical pools allocated.
 	 */
