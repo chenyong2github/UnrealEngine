@@ -111,7 +111,7 @@ public:
 	TArray<uint32> NumIterationsPerStage;
 	TArray<FName> IterationSourcePerStage;
 	TArray<bool> SpawnOnlyPerStage;
-	TArray<bool> PartialParticleUpdatePerStage;
+	mutable TArray<bool> PartialParticleUpdatePerStage;		//-TODO: Remove mutable and communicate that we can do a partial write in another way
 	TArray<FGuid> StageGuids;
 	TArray<FName> StageNames;
 
