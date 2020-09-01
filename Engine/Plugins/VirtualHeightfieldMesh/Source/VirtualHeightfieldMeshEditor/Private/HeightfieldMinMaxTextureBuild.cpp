@@ -120,6 +120,12 @@ namespace VirtualHeightfieldMesh
 
 		ARuntimeVirtualTextureVolume* VirtualTextureVolume = InComponent->GetVirtualTextureVolume();
 		URuntimeVirtualTextureComponent* VirtualTextureComponent = VirtualTextureVolume != nullptr ? VirtualTextureVolume->VirtualTextureComponent : nullptr;
+
+		if (VirtualTextureComponent == nullptr)
+		{
+			return false;
+		}
+
 		FSceneInterface* Scene = VirtualTextureComponent->GetScene();
 		const uint32 VirtualTextureSceneIndex = RuntimeVirtualTexture::GetRuntimeVirtualTextureSceneIndex_GameThread(VirtualTextureComponent);
 		const FTransform Transform = VirtualTextureComponent->GetComponentTransform();
