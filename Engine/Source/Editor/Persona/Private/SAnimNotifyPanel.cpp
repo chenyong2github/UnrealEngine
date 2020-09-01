@@ -4232,6 +4232,11 @@ FReply SAnimNotifyPanel::OnNotifyNodeDragStarted(TArray<TSharedPtr<SAnimNotifyNo
 	return FReply::Handled().BeginDragDrop(FNotifyDragDropOp::New(Nodes, NodeDragDecorator, NotifyAnimTracks, Sequence, ScreenCursorPos, OverlayOrigin, OverlayExtents, CurrentDragXPosition, PanRequestDelegate, OnSnapPosition, UpdateDelegate));
 }
 
+float SAnimNotifyPanel::GetSequenceLength() const
+{
+	return Sequence->SequenceLength;
+}
+
 void SAnimNotifyPanel::PostUndo( bool bSuccess )
 {
 	if(Sequence != NULL)
