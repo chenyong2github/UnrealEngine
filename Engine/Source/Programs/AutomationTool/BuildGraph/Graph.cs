@@ -660,6 +660,7 @@ namespace AutomationTool
 						JsonWriter.WriteObjectStart();
 						JsonWriter.WriteValue("Name", Node.Name);
 						JsonWriter.WriteValue("RunEarly", Node.bRunEarly);
+						JsonWriter.WriteValue("Warnings", Node.bNotifyOnWarnings);
 
 						JsonWriter.WriteArrayStart("InputDependencies");
 						foreach (string InputDependency in Node.GetDirectInputDependencies().Select(x => x.Name))
