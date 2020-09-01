@@ -17,6 +17,18 @@ class ENGINE_API URuntimeVirtualTextureComponent : public USceneComponent
 	GENERATED_UCLASS_BODY()
 
 protected:
+	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
+	UPROPERTY(EditAnywhere, Category = TransformFromBounds)
+	TSoftObjectPtr<AActor> BoundsAlignActor = nullptr;
+
+	/** Placeholder for details customization button. */
+	UPROPERTY(VisibleAnywhere, Transient, Category = TransformFromBounds)
+	bool bSetBoundsButton;
+
+	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
+	bool bSnapBoundsToLandscape;
+
 	/** The virtual texture object to use. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, NonPIEDuplicateTransient, Category = VirtualTexture)
 	URuntimeVirtualTexture* VirtualTexture = nullptr;
@@ -26,7 +38,7 @@ protected:
 	UVirtualTextureBuilder* StreamingTexture = nullptr;
 
 	/** Number of low mips to serialize and stream for the virtual texture. This can reduce rendering update cost. */
-	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Num Streaming Mips"))
+	UPROPERTY(EditAnywhere, Category = VirtualTextureBuild, meta = (UIMin = "0", UIMax = "6", DisplayName = "Streaming Levels"))
 	int32 StreamLowMips = 0;
 
 	/** Placeholder for details customization button. */
@@ -41,21 +53,9 @@ protected:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "View Streaming Mips in Editor"))
 	bool bUseStreamingLowMipsInEditor = false;
 
-	/** Placeholder for details customization button. */
-	UPROPERTY(VisibleAnywhere, Transient, AdvancedDisplay, Category = VirtualTextureBuild)
-	bool bBuildDebugStreamingMipsButton;
-
-	/** Actor to align rotation to. If set this actor is always included in the bounds calculation. */
-	UPROPERTY(EditAnywhere, Category = TransformFromBounds)
-	TSoftObjectPtr<AActor> BoundsAlignActor = nullptr;
-
-	/** Placeholder for details customization button. */
-	UPROPERTY(VisibleAnywhere, Transient, Category = TransformFromBounds)
-	bool bSetBoundsButton;
-
-	/** If the Bounds Align Actor is a Landscape then this will snap the bounds so that virtual texture texels align with landscape vertex positions. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = TransformFromBounds, meta = (DisplayName = "Snap To Landscape"))
-	bool bSnapBoundsToLandscape;
+	/** Build the streaming low mips using debug coloring. This can help show where streaming mips are being used. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Transient, AdvancedDisplay, Category = VirtualTextureBuild, meta = (DisplayName = "Build Debug"))
+	bool bBuildDebugStreamingMips = false;
 
 #if WITH_EDITOR
 	FDelegateHandle PieEndDelegateHandle;
@@ -83,6 +83,12 @@ public:
 
 	/** Public getter for crunch compression flag. */
 	bool IsCrunchCompressed() const { return bEnableCompressCrunch; }
+
+	/** Public getter for debug streaming mips flag. */
+	bool IsBuildDebugStreamingMips() { return bBuildDebugStreamingMips; }
+
+	/** Returns true if the StreamingTexure contents are valid for use. */
+	bool IsStreamingTextureValid() const;
 
 #if WITH_EDITOR
 	/** Set a new asset to hold the low mip streaming texture. This should only be called directly before setting data to the new asset. */
@@ -128,8 +134,6 @@ protected:
 protected:
 	/** Calculate a hash used to determine if the StreamingTexture contents are valid for use. The hash doesn't include whether the contents are up to date. */
 	uint64 CalculateStreamingTextureSettingsHash() const;
-	/** Returns true if the StreamingTexure contents are valid for use. */
-	bool IsStreamingTextureValid() const;
 
 public:
 	/** Scene proxy object. Managed by the scene but stored here. */
