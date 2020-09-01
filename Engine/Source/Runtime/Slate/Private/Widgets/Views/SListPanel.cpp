@@ -55,7 +55,7 @@ void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 			// This is a tile view list - arrange items side by side along the line axis until there is no more room, then create a new line along the scroll axis.
 			const EListItemAlignment ListItemAlignment = ItemAlignment.Get();
 			const float ItemPadding = GetItemPadding(AllottedGeometry, ListItemAlignment);
-			const float HalfItemPadding = ItemPadding * 0.5;
+			const float HalfItemPadding = ItemPadding * 0.5f;
 
 			const FTableViewDimensions LocalItemSize = GetItemSize(AllottedGeometry, ListItemAlignment);
 			DimensionsSoFar.ScrollAxis = -FMath::FloorToInt(FirstLineScrollOffset * LocalItemSize.ScrollAxis) - OverscrollAmount;
@@ -75,7 +75,7 @@ void SListPanel::OnArrangeChildren( const FGeometry& AllottedGeometry, FArranged
 						}
 						else
 						{
-							const float HalfLinePadding = LinePadding * 0.5;
+							const float HalfLinePadding = LinePadding * 0.5f;
 							DimensionsSoFar.LineAxis += IsVisible ? HalfLinePadding : 0;
 						}
 					}

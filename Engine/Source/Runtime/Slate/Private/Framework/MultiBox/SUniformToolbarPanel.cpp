@@ -42,7 +42,7 @@ void SUniformToolbarPanel::Construct( const FArguments& InArgs )
 		SAssignNew(Dropdown, SComboButton)
 		.HasDownArrow(false)
 		.ButtonStyle(&ToolBarStyle.ButtonStyle)
-		.ContentPadding(0)
+		.ContentPadding(0.f)
 		.ToolTipText(NSLOCTEXT("Slate", "ExpandToolbar", "Click to expand toolbar"))
 		.OnGetMenuContent(InArgs._OnDropdownOpened)
 		.Cursor(EMouseCursor::Default)
@@ -120,8 +120,8 @@ void SUniformToolbarPanel::OnArrangeChildren( const FGeometry& AllottedGeometry,
 							FVector2D(XAxisResult.Size, YAxisResult.Size)
 						);
 
-					WidgetExtents = FMath::TruncToFloat(ArrangedChild.Geometry.AbsolutePosition.X + ArrangedChild.Geometry.GetLocalSize().X * ArrangedChild.Geometry.Scale);
-					AllottedGeometryExtents = FMath::TruncToFloat((AllottedGeometry.AbsolutePosition.X + AllottedGeometry.GetLocalSize().X * AllottedGeometry.Scale) - ClippedChildrenDropDownDesiredSize.X);
+					WidgetExtents = FMath::TruncToInt(ArrangedChild.Geometry.AbsolutePosition.X + ArrangedChild.Geometry.GetLocalSize().X * ArrangedChild.Geometry.Scale);
+					AllottedGeometryExtents = FMath::TruncToInt((AllottedGeometry.AbsolutePosition.X + AllottedGeometry.GetLocalSize().X * AllottedGeometry.Scale) - ClippedChildrenDropDownDesiredSize.X);
 
 				}
 				else
@@ -132,8 +132,8 @@ void SUniformToolbarPanel::OnArrangeChildren( const FGeometry& AllottedGeometry,
 							FVector2D(XAxisResult.Size, YAxisResult.Size)
 						);
 
-					WidgetExtents = FMath::TruncToFloat(ArrangedChild.Geometry.AbsolutePosition.Y + ArrangedChild.Geometry.GetLocalSize().Y * ArrangedChild.Geometry.Scale);
-					AllottedGeometryExtents = FMath::TruncToFloat((AllottedGeometry.AbsolutePosition.Y + AllottedGeometry.GetLocalSize().Y * AllottedGeometry.Scale) - ClippedChildrenDropDownDesiredSize.Y);
+					WidgetExtents = FMath::TruncToInt(ArrangedChild.Geometry.AbsolutePosition.Y + ArrangedChild.Geometry.GetLocalSize().Y * ArrangedChild.Geometry.Scale);
+					AllottedGeometryExtents = FMath::TruncToInt((AllottedGeometry.AbsolutePosition.Y + AllottedGeometry.GetLocalSize().Y * AllottedGeometry.Scale) - ClippedChildrenDropDownDesiredSize.Y);
 
 				}
 

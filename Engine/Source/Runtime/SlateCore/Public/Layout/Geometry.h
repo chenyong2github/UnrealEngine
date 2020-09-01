@@ -427,13 +427,13 @@ public:
 	/**
 	 * Translates the local coordinates into local coordinates that after being transformed into absolute space will be rounded
 	 * to a whole number or approximately a whole number.  This is important for cases where you want to show a popup or a tooltip
-	 * and not have the window start on a half pixel, which can cause the contents to jitter in relation to eachother as the tooltip 
+	 * and not have the window start on a half pixel, which can cause the contents to jitter in relation to each other as the tooltip 
 	 * or popup moves around.
 	 */
 	FORCEINLINE_DEBUGGABLE FVector2D LocalToRoundedLocal(FVector2D LocalCoordinate) const
 	{
 		const FVector2D AbsoluteCoordinate = LocalToAbsolute(LocalCoordinate);
-		const FVector2D AbsoluteCoordinateRounded = FVector2D(FMath::RoundToInt(AbsoluteCoordinate.X), FMath::RoundToInt(AbsoluteCoordinate.Y));
+		const FVector2D AbsoluteCoordinateRounded = FVector2D(FMath::RoundToFloat(AbsoluteCoordinate.X), FMath::RoundToFloat(AbsoluteCoordinate.Y));
 
 		return AbsoluteToLocal(AbsoluteCoordinateRounded);
 	}

@@ -795,8 +795,8 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 
 	// Create a box panel that the various multiblocks will resides within
 	// @todo Slate MultiBox: Expose margins and other useful bits
-	TSharedPtr< SVerticalBox > VerticalBox;
-	TSharedPtr< SWidget > MainWidget;
+	TSharedPtr<SVerticalBox> VerticalBox;
+	TSharedPtr<SWidget> MainWidget;
 	TSharedPtr<SHorizontalBox> HorizontalBox;
 
 	/** The current row of buttons for if the multibox type is a button row */
@@ -834,11 +834,11 @@ void SMultiBoxWidget::BuildMultiBoxWidget()
 			[
 				SAssignNew(UniformToolbarPanel, SUniformWrapPanel)
 				.HAlign(HAlign_Left)
-				.MinDesiredSlotWidth(68)
-				.MinDesiredSlotHeight(52)
-				.MaxDesiredSlotWidth(68)
-				.MaxDesiredSlotHeight(52)
-				.SlotPadding( 0.0 )
+				.MinDesiredSlotWidth(68.f)
+				.MinDesiredSlotHeight(52.f)
+				.MaxDesiredSlotWidth(68.f)
+				.MaxDesiredSlotHeight(52.f)
+				.SlotPadding(0.f)
 			];
 		}
 		break;

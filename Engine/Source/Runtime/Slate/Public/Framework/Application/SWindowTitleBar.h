@@ -266,7 +266,7 @@ protected:
 			MinimizeButton = SNew(SButton)
 					.IsFocusable(false)
 					.IsEnabled(OwnerWindow->HasMinimizeBox())
-					.ContentPadding(0)
+					.ContentPadding(0.f)
 					.OnClicked(this, &SWindowTitleBar::MinimizeButton_OnClicked)
 					.Cursor(EMouseCursor::Default)
 					.ButtonStyle(FCoreStyle::Get(), "NoBorder")

@@ -61,7 +61,7 @@ void SComboButton::Construct( const FArguments& InArgs )
 				.AutoWidth()
 				.HAlign( HAlign_Center )
 				.VAlign( VAlign_Center )
-				.Padding( InArgs._HasDownArrow ? 2 : 0 )
+				.Padding( InArgs._HasDownArrow ? 2.f : 0.f )
 				[
 					SNew(SOverlay)
 					// drop shadow

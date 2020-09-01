@@ -63,6 +63,8 @@ enum class ESlateShader : uint8
 	Custom = 5,
 	/** For post processing passes */
 	PostProcess = 6,
+	/** Rounded Box shader. **/
+	RoundedBox = 7,
 };
 
 /**
@@ -464,11 +466,6 @@ typedef TArray<SlateIndex> FSlateIndexArray;
 typedef TArray<FSlateDrawElement> FSlateDrawElementArray;
 
 #endif
-
-static FVector2D RoundToInt(const FVector2D& Vec)
-{
-	return FVector2D(FMath::RoundToInt(Vec.X), FMath::RoundToInt(Vec.Y));
-}
 
 /**
  * Viewport implementation interface that is used by SViewport when it needs to draw and processes input.                   

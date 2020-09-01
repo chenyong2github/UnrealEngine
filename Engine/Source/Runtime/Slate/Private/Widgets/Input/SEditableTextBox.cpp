@@ -40,7 +40,7 @@ void SEditableTextBox::Construct( const FArguments& InArgs )
 		.BorderImage( this, &SEditableTextBox::GetBorderImage )
 		.BorderBackgroundColor( this, &SEditableTextBox::DetermineBackgroundColor )
 		.ForegroundColor( this, &SEditableTextBox::DetermineForegroundColor )
-		.Padding( 0 )
+		.Padding(0.f)
 		[
 			SAssignNew( Box, SHorizontalBox)
 

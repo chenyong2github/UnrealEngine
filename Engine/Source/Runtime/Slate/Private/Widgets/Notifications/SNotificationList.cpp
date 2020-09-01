@@ -653,7 +653,7 @@ public:
 		ChildSlot
 			[
 				SNew(SBorder)
-				.Padding(0)
+				.Padding(0.f)
 				.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
 				.BorderBackgroundColor(this, &SNotificationItemExternalImpl::GetContentColor)
 				.ColorAndOpacity(this, &SNotificationItemExternalImpl::GetContentColorRaw)

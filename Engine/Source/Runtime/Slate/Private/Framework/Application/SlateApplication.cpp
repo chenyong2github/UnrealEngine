@@ -1597,7 +1597,7 @@ void FSlateApplication::ThrottleApplicationBasedOnMouseMovement()
 
 		// After a key or mouse button is pressed, we'll leave the throttle disengaged for awhile so the
 		// user can use the keys to navigate in a viewport, for example.
-		const float MinTimeSinceButtonPressToThrottle = 1.0f;
+		const double MinTimeSinceButtonPressToThrottle = 1.0;
 
 		// Use a small movement threshold to avoid engaging the throttle when the user bumps the mouse
 		const float MinMouseMovePixelsBeforeThrottle = 2.0f;
@@ -1617,8 +1617,8 @@ void FSlateApplication::ThrottleApplicationBasedOnMouseMovement()
 			}
 		}
 
-		const float TimeSinceLastUserInteraction = CurrentTime - LastUserInteractionTimeForThrottling;
-		const float TimeSinceLastMouseMove = CurrentTime - LastMouseMoveTime;
+		const double TimeSinceLastUserInteraction = CurrentTime - LastUserInteractionTimeForThrottling;
+		const double TimeSinceLastMouseMove = CurrentTime - LastMouseMoveTime;
 		if( TimeSinceLastMouseMove < TimeToThrottleAfterMouseStops )
 		{
 			// Only throttle if a Slate window is currently active.  If a Wx window (such as Matinee) is
@@ -1942,15 +1942,15 @@ void FSlateApplication::AddModalWindow( TSharedRef<SWindow> InSlateWindow, const
 		Renderer->EndFrame();
 
 		//Throttle loop data
-		float LastLoopTime = (float)FPlatformTime::Seconds();
-		const float MinThrottlePeriod = (1.0f / 60.0f); //Throttle the loop to a maximum of 60Hz
+		double LastLoopTime = FPlatformTime::Seconds();
+		const double MinThrottlePeriod = (1.0 / 60.0); //Throttle the loop to a maximum of 60Hz
 
 		// Tick slate from here in the event that we should not return until the modal window is closed.
 		while( InSlateWindow == GetActiveModalWindow() )
 		{
 			//Throttle the loop
-			const float CurrentLoopTime = FPlatformTime::Seconds();
-			const float SleepTime = MinThrottlePeriod - (CurrentLoopTime-LastLoopTime);
+			const double CurrentLoopTime = FPlatformTime::Seconds();
+			const float SleepTime = static_cast<float>(MinThrottlePeriod - (CurrentLoopTime-LastLoopTime));
 			LastLoopTime = CurrentLoopTime;
 			if (SleepTime > 0.0f)
 			{

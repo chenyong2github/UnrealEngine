@@ -43,7 +43,7 @@ public:
 
 protected:
 	
-	mutable uint32 FrameCounterLastCached = 0;
+	mutable uint64 FrameCounterLastCached = 0;
 	mutable FVector2D CachedUniformSize;
 
 private:

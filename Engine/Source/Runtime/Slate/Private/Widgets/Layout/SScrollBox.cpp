@@ -350,7 +350,7 @@ float SScrollBox::GetViewOffsetFraction() const
 	const float ContentSize = GetScrollComponentFromVector(ScrollPanel->GetDesiredSize());
 
 	const float ViewFraction = GetViewFraction();
-	return FMath::Clamp<float>( DesiredScrollOffset/ContentSize, 0.0, 1.0 - ViewFraction );
+	return FMath::Clamp( DesiredScrollOffset/ContentSize, 0.f, 1.f - ViewFraction );
 }
 
 void SScrollBox::SetScrollOffset( float NewScrollOffset )

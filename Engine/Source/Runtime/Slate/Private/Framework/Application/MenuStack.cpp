@@ -120,7 +120,7 @@ namespace MenuStackInternal
 					+ SOverlay::Slot()
 					[
 						SNew(SBorder)
-						.Padding(0)
+						.Padding(0.f)
 						.BorderImage(FStyleDefaults::GetNoBrush())
 						.ForegroundColor(FCoreStyle::Get().GetSlateColor("DefaultForeground"))
 						[

@@ -122,7 +122,7 @@ public:
 		: StartUV(0.0f, 0.0f)
 		, SizeUV(1.0f, 1.0f)
 		, Resource(nullptr)
-		, ActualSize(0.0f, 0.0f)
+		, ActualSize(0, 0)
 	{ }
 
 	~FSlateShaderResourceProxy()

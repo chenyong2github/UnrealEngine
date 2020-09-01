@@ -221,7 +221,7 @@ int32 SProgressBar::OnPaint( const FPaintArgs& Args, const FGeometry& AllottedGe
 						OutDrawElements,
 						RetLayerId++,
 						AllottedGeometry.ToPaintGeometry(
-							FVector2D( (AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * ( ClampedFraction ))*0.5), 0.0f),
+							FVector2D( (AllottedGeometry.GetLocalSize().X * 0.5f) - ((AllottedGeometry.GetLocalSize().X * ( ClampedFraction ))*0.5f), 0.0f),
 							FVector2D( AllottedGeometry.GetLocalSize().X * ( ClampedFraction ) , AllottedGeometry.GetLocalSize().Y )),
 						CurrentFillImage,
 						DrawEffects,
@@ -368,7 +368,7 @@ void SProgressBar::UpdateMarqueeActiveTimer()
 
 EActiveTimerReturnType SProgressBar::ActiveTick(double InCurrentTime, float InDeltaTime)
 {
-	MarqueeOffset = InCurrentTime - FMath::FloorToDouble(InCurrentTime);
+	MarqueeOffset = (float)(InCurrentTime - FMath::FloorToDouble(InCurrentTime));
 	
 	TOptional<float> PercentFraction = Percent.Get();
 	if (PercentFraction.IsSet())
