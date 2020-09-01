@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "TgaImageSupport.h"
+#include "ImageWrapperPrivate.h"
 
 namespace TgaImageSupportImpl
 {
