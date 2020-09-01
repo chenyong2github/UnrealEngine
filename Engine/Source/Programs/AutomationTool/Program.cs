@@ -22,7 +22,6 @@ namespace AutomationTool
 		/// </summary>
 		static ProcessManager.CtrlHandlerDelegate CtrlHandlerDelegateInstance = CtrlHandler;
 
-		[STAThread]
 		public static int Main(string[] Arguments)
 		{
             // Ensure UTF8Output flag is respected, since we are initializing logging early in the program.
