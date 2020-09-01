@@ -603,7 +603,7 @@ void FNiagaraRendererSprites::CreateMeshBatchForView(
 	{
 		Batcher = SceneProxy->GetBatcher();
 		check(Batcher);
-		Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance, 0,
+		IndirectArgsOffset = Batcher->GetGPUInstanceCounterManager().AddDrawIndirect(SourceParticleData->GetGPUInstanceCountBufferOffset(), NumIndicesPerInstance, 0,
 			View->IsInstancedStereoPass(), false);
 	}
 
