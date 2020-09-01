@@ -23,21 +23,6 @@ extern ONLINESUBSYSTEM_API bool IsUniqueIdLocal(const FUniqueNetId& UniqueId);
 #define OSS_REDACT(x) (x)
 #endif
 
-/** Maximum players supported on a given platform */
-#if !defined(MAX_LOCAL_PLAYERS)
-	#if PLATFORM_XBOXONE
-	#define MAX_LOCAL_PLAYERS 4
-	#elif PLATFORM_PS4
-	#define MAX_LOCAL_PLAYERS 4
-	#elif PLATFORM_SWITCH
-	#define MAX_LOCAL_PLAYERS 8
-	#elif PLATFORM_WINDOWS
-	#define MAX_LOCAL_PLAYERS 4
-	#else
-	#define MAX_LOCAL_PLAYERS 1
-	#endif
-#endif //MAX_LOCAL_PLAYERS
-
 #define DEDICATED_SERVER_USER_INDEX 0
 
 #ifndef ONLINE_SUCCESS
