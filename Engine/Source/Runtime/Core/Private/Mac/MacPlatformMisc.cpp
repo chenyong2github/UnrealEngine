@@ -1940,11 +1940,7 @@ void FMacCrashContext::GenerateCrashInfoAndLaunchReporter() const
 	if (!UE_EDITOR && GConfig)
 	{
 		// Only check if we are in a non-editor build
-#if UE_BUILD_SHIPPING
 		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
-#else
-		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSendInNonShipping"), bImplicitSend, GEngineIni);
-#endif
 	}
 
 	bool bSendUnattendedBugReports = true;

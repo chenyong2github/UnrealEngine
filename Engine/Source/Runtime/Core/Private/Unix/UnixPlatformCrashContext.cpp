@@ -464,11 +464,7 @@ void FUnixCrashContext::GenerateCrashInfoAndLaunchReporter(bool bReportingNonCra
 	if (!UE_EDITOR && GConfig && !bReportingNonCrash)
 	{
 		// Only check if we are in a non-editor build
-#if UE_BUILD_SHIPPING
 		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSend"), bImplicitSend, GEngineIni);
-#else
-		GConfig->GetBool(TEXT("CrashReportClient"), TEXT("bImplicitSendInNonShipping"), bImplicitSend, GEngineIni);
-#endif
 	}
 
 	// By default we wont upload unless the *.ini has set this to true
