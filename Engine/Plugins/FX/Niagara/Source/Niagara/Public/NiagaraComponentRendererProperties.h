@@ -89,6 +89,11 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering")
 	bool bAssignComponentsOnParticleID;
 
+	/** If true then new components can only be created on newly spawned particles. If a particle is not able to create a component on it's first frame (e.g. because the component
+	 * limit was reached) then it will be blocked from spawning a component on subsequent frames. */
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Component Rendering", meta = (EditConition = "bAssignComponentsOnParticleID"))
+	bool bOnlyCreateComponentsOnParticleSpawn;
+
 #if WITH_EDITORONLY_DATA
 
 	/** If true then the editor visualization is enabled for the component; has no effect in-game. */
