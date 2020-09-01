@@ -4,7 +4,7 @@
 
 void UChaosClothingSimulationInteractor::PhysicsAssetUpdated()
 {
-	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::FClothingSimulation* InSimulation, Chaos::FClothingSimulationContext* InContext)
 	{
 		InSimulation->RefreshPhysicsAsset();
 	}));
@@ -14,9 +14,9 @@ void UChaosClothingSimulationInteractor::PhysicsAssetUpdated()
 
 void UChaosClothingSimulationInteractor::ClothConfigUpdated()
 {
-	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::FClothingSimulation* InSimulation, Chaos::FClothingSimulationContext* InContext)
 	{
-		InSimulation->RefreshClothConfig();
+		InSimulation->RefreshClothConfig(InContext);
 	}));
 
 	MarkDirty();
@@ -27,8 +27,8 @@ void UChaosClothingSimulationInteractor::Sync(IClothingSimulation* InSimulation,
 	check(InSimulation);
 	check(InContext);
 
-	Chaos::ClothingSimulation* ChaosSim = static_cast<Chaos::ClothingSimulation*>(InSimulation);
-	Chaos::ClothingSimulationContext* ChaosContext = static_cast<Chaos::ClothingSimulationContext*>(InContext);
+	Chaos::FClothingSimulation* ChaosSim = static_cast<Chaos::FClothingSimulation*>(InSimulation);
+	Chaos::FClothingSimulationContext* ChaosContext = static_cast<Chaos::FClothingSimulationContext*>(InContext);
 
 	for(ChaosClothInteractorCommand& Command : Commands)
 	{
@@ -48,7 +48,7 @@ void UChaosClothingSimulationInteractor::Sync(IClothingSimulation* InSimulation,
 
 void UChaosClothingSimulationInteractor::SetAnimDriveSpringStiffness(float InStiffness)
 {
-	Commands.Add(ChaosClothInteractorCommand::CreateLambda([InStiffness](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([InStiffness](Chaos::FClothingSimulation* InSimulation, Chaos::FClothingSimulationContext* InContext)
 	{
 		InSimulation->SetAnimDriveSpringStiffness(InStiffness);
 	}));
@@ -58,7 +58,7 @@ void UChaosClothingSimulationInteractor::SetAnimDriveSpringStiffness(float InSti
 
 void UChaosClothingSimulationInteractor::EnableGravityOverride(const FVector& InVector)
 {
-	Commands.Add(ChaosClothInteractorCommand::CreateLambda([InVector](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([InVector](Chaos::FClothingSimulation* InSimulation, Chaos::FClothingSimulationContext* InContext)
 	{
 		InSimulation->SetGravityOverride(InVector);
 	}));
@@ -68,7 +68,7 @@ void UChaosClothingSimulationInteractor::EnableGravityOverride(const FVector& In
 
 void UChaosClothingSimulationInteractor::DisableGravityOverride()
 {
-	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::ClothingSimulation* InSimulation, Chaos::ClothingSimulationContext* InContext)
+	Commands.Add(ChaosClothInteractorCommand::CreateLambda([](Chaos::FClothingSimulation* InSimulation, Chaos::FClothingSimulationContext* InContext)
 	{
 		InSimulation->DisableGravityOverride();
 	}));

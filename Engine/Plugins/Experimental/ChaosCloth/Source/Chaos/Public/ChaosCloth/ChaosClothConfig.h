@@ -28,6 +28,9 @@ public:
 	/** PostLoad override used to deal with updates/changes in properties. */
 	virtual void PostLoad() override;
 
+	/** Return the mass value, from whichever mass mode (Density, UniformMass, or TotalMass) is selected. */
+	float GetMassValue() const;
+
 	/**
 	 * How cloth particle mass is determined
 	 * -	Uniform Mass: Every particle's mass will be set to the value specified in the UniformMass setting. Mostly to avoid as it can cause some serious issues with irregular tessellations.
