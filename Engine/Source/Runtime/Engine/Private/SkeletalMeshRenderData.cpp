@@ -513,10 +513,15 @@ int32 FSkeletalMeshRenderData::GetMaxBonesPerSection() const
 int32 FSkeletalMeshRenderData::GetFirstValidLODIdx(int32 MinIdx) const
 {
 	const int32 LODCount = LODRenderData.Num();
+	if (LODCount == 0)
+	{
+		return INDEX_NONE;
+	}
+
 	int32 LODIndex = FMath::Clamp<int32>(MinIdx, 0, LODCount - 1);
 	while (LODIndex < LODCount && !LODRenderData[LODIndex].GetNumVertices())
 	{
 		++LODIndex;
 	}
-	return LODIndex;
+	return (LODIndex < LODCount) ? LODIndex : INDEX_NONE;
 }
