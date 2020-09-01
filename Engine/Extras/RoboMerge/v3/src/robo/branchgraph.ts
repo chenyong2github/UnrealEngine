@@ -201,7 +201,7 @@ if (botname === '__TEST__') {
 		return !!(fromOptions === undefined ? fromConfig : fromOptions)
 	}
 
-	add(name: string, options: NodeOptions) {
+	private add(name: string, options: NodeOptions) {
 		BranchDefs.checkName(name)
 
 		// make a branch data entry
@@ -217,7 +217,6 @@ if (botname === '__TEST__') {
 			config: options,
 			depot: "", // will compute
 			rootPath: options.rootPath || "",
-			pathsToMonitor: options.pathsToMonitor || null,
 			badgeProject: options.badgeProject || null,
 			isDefaultBot: BranchGraph._getBoolConfig(options.isDefaultBot, this.config.isDefaultBot),
 			maxFilesPerIntegration: options.maxFilesPerIntegration || this.config.maxFilesPerIntegration,
@@ -267,16 +266,6 @@ if (botname === '__TEST__') {
 			}
 
 			branch.depot = depotMatch[1]
-		}
-
-		if (branch.pathsToMonitor && computedStreamRoot) {
-			for (let n = 0; n < branch.pathsToMonitor.length; ++n) {
-				const path = branch.pathsToMonitor[n]
-				if (path[0] !== '/') {
-					// relative, assume relative to stream root (must be absolute if rootPath overridden)
-					branch.pathsToMonitor[n] = `${computedStreamRoot}/${path}`
-				}
-			}
 		}
 
 		// make sure flowsTo and defaultFlow are all upper case
