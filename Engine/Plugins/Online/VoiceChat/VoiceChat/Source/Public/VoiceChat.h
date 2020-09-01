@@ -701,11 +701,18 @@ public:
 	virtual FOnVoiceChatReconnectedDelegate& OnVoiceChatReconnected() = 0;
 
 	/**
-	 * Allocate an interface for an additional user // TODO: document limitations
+	 * Allocate an interface for an additional user. The interface must be released with ReleaseUser.
 	 *
 	 * @return new instance of IVoiceChatUser, or nullptr if implementation does not support multiple users
 	 */
 	virtual IVoiceChatUser* CreateUser() = 0;
+
+	/**
+	 * Release an interface for an additional user.
+	 * 
+	 * @param VoiceChatUser the user interface to release.
+	 */
+	virtual void ReleaseUser(IVoiceChatUser* VoiceChatUser) = 0;
 
 private:
 	static FName GetModularFeatureName()
