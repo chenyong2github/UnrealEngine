@@ -82,6 +82,14 @@ static FAutoConsoleVariableRef CVarNiagaraUseFastSetUserParametersToDefaultValue
 	ECVF_Default
 );
 
+static int GNiagaraForceWaitForCompilationOnActivate = 0;
+static FAutoConsoleVariableRef CVarNiagaraForceWaitForCompilationOnActivate(
+	TEXT("fx.Niagara.ForceWaitForCompilationOnActivate"),
+	GNiagaraForceWaitForCompilationOnActivate,
+	TEXT("When a component is activated it will stall waiting for any pending shader compilation."),
+	ECVF_Default
+);
+
 void DumpNiagaraComponents(UWorld* World)
 {
 	for (TActorIterator<AActor> ActorItr(World); ActorItr; ++ActorItr)
@@ -894,7 +902,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	// In case we're not yet ready to run due to compilation requests, go ahead and keep polling there..
 	if (Asset->HasOutstandingCompilationRequests())
 	{
-		if (bWaitForCompilationOnActivate)
+		if (bWaitForCompilationOnActivate && GNiagaraForceWaitForCompilationOnActivate)
 		{
 			Asset->WaitForCompilationComplete();
 		}
