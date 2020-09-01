@@ -5,6 +5,7 @@
 #include "NiagaraDataInterfaceRW.h"
 #include "ClearQuad.h"
 #include "NiagaraComponent.h"
+#include "NiagaraStats.h"
 
 #include "NiagaraDataInterfaceGrid2DCollection.generated.h"
 
@@ -14,9 +15,16 @@ class UTextureRenderTarget2D;
 class FGrid2DBuffer
 {
 public:
-	FGrid2DBuffer(int NumX, int NumY)
-	{		
-		GridBuffer.Initialize(4, NumX, NumY, EPixelFormat::PF_R32_FLOAT);
+	FGrid2DBuffer(int NumX, int NumY, EPixelFormat PixelFormat)
+	{
+		check((PixelFormat == EPixelFormat::PF_R16F) || (PixelFormat == EPixelFormat::PF_R32_FLOAT));
+		GridBuffer.Initialize(PixelFormat == EPixelFormat::PF_R16F ? 2 : 4, NumX, NumY, PixelFormat);
+		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+	}
+	~FGrid2DBuffer()
+	{
+		DEC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
+		GridBuffer.Release();
 	}
 
 	FTextureRWBuffer2D GridBuffer;	
@@ -28,6 +36,7 @@ struct FGrid2DCollectionRWInstanceData_GameThread
 	FIntPoint NumTiles = FIntPoint(EForceInit::ForceInitToZero);
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
+	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
 	/** A binding to the user ptr we're reading the RT from (if we are). */
 	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
@@ -41,6 +50,7 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 	FIntPoint NumTiles = FIntPoint(EForceInit::ForceInitToZero);
 	FVector2D CellSize = FVector2D::ZeroVector;
 	FVector2D WorldBBoxSize = FVector2D::ZeroVector;
+	EPixelFormat PixelFormat = EPixelFormat::PF_R32_FLOAT;
 
 	TArray<TUniquePtr<FGrid2DBuffer>> Buffers;
 	FGrid2DBuffer* CurrentData = nullptr;
@@ -84,6 +94,9 @@ public:
 
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
 	uint8 bCreateRenderTarget : 1;
+
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Use half precision floats.  These have a more limited range but consume half the memory."))
+	uint8 bUseHalfs : 1;
 
 	virtual void PostInitProperties() override;
 	
