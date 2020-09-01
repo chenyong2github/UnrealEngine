@@ -1100,6 +1100,14 @@ public:
 	ENGINE_API virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 	//~ End UObject Interface
 
+	enum class EPostEditChangeEffectOnShaders
+	{
+		Default,
+		DoesNotInvalidate
+	};
+
+	ENGINE_API void PostEditChangePropertyInternal(FPropertyChangedEvent& PropertyChangedEvent, const EPostEditChangeEffectOnShaders EffectOnShaders);
+
 #if WITH_EDITOR
 	/** Cancels any currently outstanding compilation jobs for this material. Useful in the material editor when some edits superceds existing, in flight compilation jobs.*/
 	ENGINE_API virtual void CancelOutstandingCompilation();

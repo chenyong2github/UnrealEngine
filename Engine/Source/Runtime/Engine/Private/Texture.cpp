@@ -176,6 +176,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	// Determine whether any property that requires recompression of the texture, or notification to Materials has changed.
 	bool RequiresNotifyMaterials = false;
 	bool DeferCompressionWasEnabled = false;
+	bool bInvalidatesMaterialShaders = true;	// too conservative, but as to not change the current behavior
 
 	FProperty* PropertyThatChanged = PropertyChangedEvent.Property;
 	if( PropertyThatChanged )
@@ -224,6 +225,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 		else if (PropertyName == CompressionQualityName)
 		{
 			RequiresNotifyMaterials = true;
+			bInvalidatesMaterialShaders = false;
 		}
 		else if (PropertyName == MaxTextureSizeName)
 		{
@@ -297,7 +299,7 @@ void UTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEven
 	// Notify any loaded material instances if changed our compression format
 	if (RequiresNotifyMaterials)
 	{
-		NotifyMaterials();
+		NotifyMaterials(bInvalidatesMaterialShaders ? ENotifyMaterialsEffectOnShaders::Default : ENotifyMaterialsEffectOnShaders::DoesNotInvalidate);
 	}
 		
 #if WITH_EDITORONLY_DATA
@@ -1528,7 +1530,7 @@ void GetAllDefaultTextureFormats(const class ITargetPlatform* TargetPlatform, TA
 
 #if WITH_EDITOR
 
-void UTexture::NotifyMaterials()
+void UTexture::NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders)
 {
 	// Create a material update context to safely update materials.
 	{
@@ -1552,9 +1554,20 @@ void UTexture::NotifyMaterials()
 		}
 
 		// Go ahead and update any base materials that need to be.
-		for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+		if (EffectOnShaders == ENotifyMaterialsEffectOnShaders::Default)
 		{
-			(*It)->PostEditChange();
+			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+			{
+				(*It)->PostEditChange();
+			}
+		}
+		else
+		{
+			FPropertyChangedEvent EmptyPropertyUpdateStruct(nullptr);
+			for (TSet<UMaterial*>::TConstIterator It(BaseMaterialsThatUseThisTexture); It; ++It)
+			{
+				(*It)->PostEditChangePropertyInternal(EmptyPropertyUpdateStruct, UMaterial::EPostEditChangeEffectOnShaders::DoesNotInvalidate);
+			}
 		}
 	}
 }

@@ -1138,8 +1138,14 @@ protected:
 
 #if WITH_EDITOR
 
+	enum class ENotifyMaterialsEffectOnShaders
+	{
+		Default,
+		DoesNotInvalidate
+	};
+
 	/** Notify any loaded material instances that the texture has changed. */
-	ENGINE_API void NotifyMaterials();
+	ENGINE_API void NotifyMaterials(const ENotifyMaterialsEffectOnShaders EffectOnShaders = ENotifyMaterialsEffectOnShaders::Default);
 
 #endif //WITH_EDOTIR
 };
