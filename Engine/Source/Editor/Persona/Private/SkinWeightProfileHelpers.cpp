@@ -28,7 +28,7 @@ void FSkinWeightProfileHelpers::ImportSkinWeightProfile(USkeletalMesh* InSkeleta
 	if (InSkeletalMesh)
 	{
 		const int32 LOD0Index = 0;
-		FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LOD0Index);
+		FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LOD0Index, InSkeletalMesh);
 
 		bool bShouldImport = false;
 		USkinWeightImportOptions* ImportSettings = GetMutableDefault<USkinWeightImportOptions>();		
@@ -100,7 +100,7 @@ void FSkinWeightProfileHelpers::ImportSkinWeightProfileLOD(USkeletalMesh* InSkel
 	if (InSkeletalMesh)
 	{
 		// Pick a FBX file to import the weights from 
-		const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LODIndex);
+		const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LODIndex, InSkeletalMesh);
 		FScopedSuspendAlternateSkinWeightPreview ScopedSuspendAlternateSkinnWeightPreview(InSkeletalMesh);
 		FScopedSkeletalMeshPostEditChange ScopedPostEditChange(InSkeletalMesh);
 		// Try and import skin weights for a specific mesh LOD
@@ -151,7 +151,7 @@ void FSkinWeightProfileHelpers::ReimportSkinWeightProfileLOD(USkeletalMesh* InSk
 				if (EAppReturnType::Yes == FMessageDialog::Open(EAppMsgType::YesNo, WarningMessage))
 				{
 					// Otherwise let the user pick a new path
-					const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LODIndex);
+					const FString PickedFileName = FSkinWeightsUtilities::PickSkinWeightFBXPath(LODIndex, InSkeletalMesh);
 					bResult = FSkinWeightsUtilities::ImportAlternateSkinWeight(InSkeletalMesh, PickedFileName, LODIndex, InProfileName);
 				}
 			}
