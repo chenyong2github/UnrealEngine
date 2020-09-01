@@ -25,7 +25,7 @@ FString UTrailToolManager::TrailKeyTransformGizmoInstanceIdentifier = TEXT("Trai
 FInputRayHit UTrailToolManager::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
 	FInputRayHit ReturnHit = FInputRayHit();
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		FInputRayHit TestHit = TrailTool->IsHitByClick(ClickPos);
 		if (TestHit.bHit)
@@ -39,7 +39,7 @@ FInputRayHit UTrailToolManager::IsHitByClick(const FInputDeviceRay& ClickPos)
 
 void UTrailToolManager::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->OnClicked(ClickPos);
 	}
@@ -48,7 +48,7 @@ void UTrailToolManager::OnClicked(const FInputDeviceRay& ClickPos)
 FInputRayHit UTrailToolManager::CanBeginClickDragSequence(const FInputDeviceRay& PressPos)
 {
 	FInputRayHit ReturnHit = FInputRayHit();
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		FInputRayHit TestHit = TrailTool->CanBeginClickDragSequence(PressPos);
 		if (TestHit.bHit)
@@ -61,7 +61,7 @@ FInputRayHit UTrailToolManager::CanBeginClickDragSequence(const FInputDeviceRay&
 
 void UTrailToolManager::OnClickPress(const FInputDeviceRay& PressPos)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->OnClickPress(PressPos);
 	}
@@ -69,7 +69,7 @@ void UTrailToolManager::OnClickPress(const FInputDeviceRay& PressPos)
 
 void UTrailToolManager::OnClickDrag(const FInputDeviceRay& DragPos)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->OnClickDrag(DragPos);
 	}
@@ -77,7 +77,7 @@ void UTrailToolManager::OnClickDrag(const FInputDeviceRay& DragPos)
 
 void UTrailToolManager::OnClickRelease(const FInputDeviceRay& ReleasePos)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->OnClickRelease(ReleasePos);
 	}
@@ -85,7 +85,7 @@ void UTrailToolManager::OnClickRelease(const FInputDeviceRay& ReleasePos)
 
 void UTrailToolManager::OnTerminateDragSequence()
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->OnTerminateDragSequence();
 	}
@@ -104,7 +104,7 @@ void UTrailToolManager::Setup()
 	ClickDragBehavior->Initialize(this);
 	AddInputBehavior(ClickDragBehavior);
 
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->SetMotionTrailEditorMode(EditorMode);
 		TrailTool->Setup();
@@ -118,7 +118,7 @@ void UTrailToolManager::Setup()
 
 void UTrailToolManager::Shutdown(EToolShutdownType ShutdownType)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->SetMotionTrailEditorMode(nullptr);
 	}
@@ -126,15 +126,23 @@ void UTrailToolManager::Shutdown(EToolShutdownType ShutdownType)
 
 void UTrailToolManager::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	const FDateTime RenderStartTime = FDateTime::Now();
+
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools().FindRef(TrailToolName))
 	{
 		TrailTool->Render(RenderAPI);
+	}
+
+	const FTimespan RenderTimespan = FDateTime::Now() - RenderStartTime;
+	if (EditorMode->GetHierarchies().Num() > 0)
+	{
+		EditorMode->GetHierarchies()[0]->GetTimingStats().Add("UTrailToolManager::Render", RenderTimespan);
 	}
 }
 
 void UTrailToolManager::OnTick(float DeltaTime)
 {
-	for (FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
+	for (UE::MotionTrailEditor::FInteractiveTrailTool* TrailTool : EditorMode->GetTrailTools()[TrailToolName])
 	{
 		TrailTool->Tick(DeltaTime);
 	}

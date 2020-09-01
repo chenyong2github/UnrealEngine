@@ -11,13 +11,22 @@
 
 namespace UE
 {
-	bool RangesContain(const TSet<TRange<double>>& Ranges, const double Time);
-}
+namespace MotionTrailEditor
+{
+
+bool RangesContain(const TSet<TRange<double>>& Ranges, const double Time);
+
 
 // Intermediate range reprsentation structure
 class FTrailEvaluateTimes
 {
 public:
+	FTrailEvaluateTimes()
+		: EvalTimes()
+		, Spacing()
+		, Range(TRange<double>::Empty())
+	{}
+
 	FTrailEvaluateTimes(TArrayView<double> InEvalTimes, TOptional<double> InSpacing) 
 		: EvalTimes(InEvalTimes)
 		, Spacing(InSpacing)
@@ -49,6 +58,7 @@ public:
 	virtual FTransform GetInterp(const double InTime) const = 0;
 	virtual TArray<double> GetAllTimesInRange(const TRange<double>& InRange) const = 0;
 	
+	// And SetEvaluateTimes(const FTrailEvaluateTimes&, const TArray<FTransform>&)
 	virtual void Set(const double InTime, const FTransform& InValue) = 0;
 
 	// Optionally implemented
@@ -96,13 +106,14 @@ public:
 			TrajectoryCache[FMath::Clamp(int32((InTime - TrackRange.GetLowerBoundValue()) / Spacing), 0, TrajectoryCache.Num() - 1)] = InValue;
 		}
 	}
-	
-	const FTransform& GetDefault() const { return Default; }
+
 	const TRange<double>& GetTrackRange() const { return TrackRange; }
 
 private:
 	TArray<FTransform> TrajectoryCache;
-	FTransform Default;
 	TRange<double> TrackRange;
 	double Spacing;
 };
+
+} // namespace MovieScene
+} // namespace UE

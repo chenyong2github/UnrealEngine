@@ -1,7 +1,6 @@
-// Copyright Epic Games, Inc. All Rights Reserved.
-
-#include "MovieSceneTransformTrail.h"
+#include "MovieSceneTransformTrailTool.h"
 #include "TrailHierarchy.h"
+#include "MovieSceneTransformTrail.h"
 #include "MotionTrailEditorMode.h"
 
 #include "ISequencer.h"
@@ -19,6 +18,11 @@
 #include "ViewportWorldInteraction.h"
 #include "GameFramework/Actor.h"
 #include "Components/SceneComponent.h"
+
+namespace UE
+{
+namespace MotionTrailEditor
+{
 
 UMSTrailKeyProperties* FDefaultMovieSceneTransformTrailTool::KeyProps = nullptr;
 
@@ -154,9 +158,21 @@ void FDefaultMovieSceneTransformTrailTool::OnClicked(const FInputDeviceRay& Clic
 		{
 			UpdateGizmoActorComponents(SelectedKeyInfo.Key, ActiveTransformGizmo.Get());
 		}
-		
+
 		ActiveTransformGizmo->SetActiveTarget(MSTrailTransformProxy);
 	}
+}
+
+TArray<UObject*> FDefaultMovieSceneTransformTrailTool::GetKeySceneComponents()
+{
+	TArray<UObject*> SceneComponents;
+	SceneComponents.Reserve(Keys.Num() * 2);
+	for (const TPair<FFrameNumber, TUniquePtr<FKeyInfo>>& FrameKeyPair : Keys)
+	{
+		SceneComponents.Add(FrameKeyPair.Value->SceneComponent);
+		SceneComponents.Add(FrameKeyPair.Value->ParentSceneComponent);
+	}
+	return SceneComponents;
 }
 
 void FDefaultMovieSceneTransformTrailTool::OnSectionChanged()
@@ -181,10 +197,12 @@ void FDefaultMovieSceneTransformTrailTool::BuildKeys()
 
 	Keys.Reset();
 
-	UMovieScene3DTransformSection* AbsoluteTransformSection = OwningTrail->GetTransformSection();
+	UMovieSceneSection* AbsoluteTransformSection = OwningTrail->GetSection();
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = AbsoluteTransformSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	for (FMovieSceneFloatChannel* FloatChannel : FloatChannels)
+	FloatChannels = FloatChannels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
+	for (int32 ChannelIdx = 0; ChannelIdx <= uint8(EMSTrailTransformChannel::MaxChannel); ChannelIdx++)
 	{
+		FMovieSceneFloatChannel* FloatChannel = FloatChannels[ChannelIdx];
 		for (int32 Idx = 0; Idx < FloatChannel->GetNumKeys(); Idx++)
 		{
 			const FFrameNumber CurTime = FloatChannel->GetTimes()[Idx];
@@ -201,7 +219,8 @@ void FDefaultMovieSceneTransformTrailTool::BuildKeys()
 bool FDefaultMovieSceneTransformTrailTool::ShouldRebuildKeys()
 {
 	TMap<FFrameNumber, TSet<EMSTrailTransformChannel>> KeyTimes;
-	TArrayView<FMovieSceneFloatChannel*> FloatChannels = OwningTrail->GetTransformSection()->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneFloatChannel*> FloatChannels = OwningTrail->GetSection()->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	FloatChannels = FloatChannels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 
 	for (uint8 ChannelIdx = 0; ChannelIdx <= uint8(EMSTrailTransformChannel::MaxChannel); ChannelIdx++)
 	{
@@ -228,6 +247,7 @@ bool FDefaultMovieSceneTransformTrailTool::ShouldRebuildKeys()
 		{
 			const EMSTrailTransformChannel TransformChannel = EMSTrailTransformChannel(ChannelIdx);
 			if ((!TimeKeyPair.Value.Contains(TransformChannel) && Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel)) ||
+				(Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel) && FloatChannels[uint8(TransformChannel)]->GetData().GetIndex(Keys[TimeKeyPair.Key]->IdxMap[TransformChannel]) == INDEX_NONE) ||
 				(TimeKeyPair.Value.Contains(TransformChannel) && !Keys[TimeKeyPair.Key]->IdxMap.Contains(TransformChannel)))
 			{
 				return true;
@@ -285,17 +305,18 @@ void FDefaultMovieSceneTransformTrailTool::UpdateKeysInRange(FTrajectoryCache* P
 	}
 }
 
-FDefaultMovieSceneTransformTrailTool::FKeyInfo::FKeyInfo(const FFrameNumber InFrameNumber, UMovieScene3DTransformSection* InTrackSection, FMovieSceneTransformTrail* InOwningTrail)
+FDefaultMovieSceneTransformTrailTool::FKeyInfo::FKeyInfo(const FFrameNumber InFrameNumber, UMovieSceneSection* InSection, FMovieSceneTransformTrail* InOwningTrail)
 	: SceneComponent(NewObject<USceneComponent>())
 	, ParentSceneComponent(NewObject<USceneComponent>())
 	, IdxMap()
 	, DragStartTransform()
 	, FrameNumber(InFrameNumber)
 	, bDirty(true)
-	, TrackSection(InTrackSection)
+	, Section(InSection)
 	, OwningTrail(InOwningTrail)
 {
-	TArrayView<FMovieSceneFloatChannel*> Channels = InTrackSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneFloatChannel*> Channels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	Channels = Channels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 	for (uint8 Idx = 0; Idx <= uint8(EMSTrailTransformChannel::MaxChannel); Idx++)
 	{
 		const int32 FoundIdx = Channels[Idx]->GetData().FindKey(InFrameNumber);
@@ -305,35 +326,59 @@ FDefaultMovieSceneTransformTrailTool::FKeyInfo::FKeyInfo(const FFrameNumber InFr
 		}
 	}
 
-	SceneComponent->AttachToComponent(ParentSceneComponent,FAttachmentTransformRules::KeepRelativeTransform);
+	SceneComponent->AttachToComponent(ParentSceneComponent, FAttachmentTransformRules::KeepRelativeTransform);
 }
 
-void FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragStart(class UTransformProxy*)
+void  FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnKeyTransformChanged(UTransformProxy*, FTransform NewTransform)
 {
-	TArrayView<FMovieSceneFloatChannel*> Channels = TrackSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	for(const TPair<EMSTrailTransformChannel, FKeyHandle>& ChannelHandlePair : IdxMap)
+	if (DragStartCompTransform)
+	{
+		UpdateKeyTransform(EKeyUpdateType::FromComponentDelta);
+	}
+}
+
+void FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragStart(UTransformProxy*)
+{
+	TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	Channels = Channels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
+	for (const TPair<EMSTrailTransformChannel, FKeyHandle>& ChannelHandlePair : IdxMap)
 	{
 		const int32 KeyIdx = Channels[uint8(ChannelHandlePair.Key)]->GetData().GetIndex(ChannelHandlePair.Value);
+		if (KeyIdx == INDEX_NONE) // This can happen when the channel is re-built on undo and all key handles are invalidated, hack for now but shouldn't happen anyways 
+		{
+			OwningTrail->ForceEvaluateNextTick();
+			return;
+		}
+
 		DragStartTransform.Add(ChannelHandlePair.Key, Channels[uint8(ChannelHandlePair.Key)]->GetData().GetValues()[KeyIdx].Value);
 	}
 	DragStartCompTransform = UE::MovieScene::FIntermediate3DTransform(SceneComponent->GetRelativeLocation(), SceneComponent->GetRelativeRotation(), SceneComponent->GetRelativeScale3D());
 }
 
+void FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragEnd(UTransformProxy*)
+{
+	DragStartTransform.Reset();
+	DragStartCompTransform = TOptional<UE::MovieScene::FIntermediate3DTransform>();
+}
+
 void FDefaultMovieSceneTransformTrailTool::FKeyInfo::UpdateKeyTransform(EKeyUpdateType UpdateType, FTrajectoryCache* ParentTrajectoryCache)
 {
 	bDirty = false;
-	TArrayView<FMovieSceneFloatChannel*> Channels = TrackSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	TArrayView<FMovieSceneFloatChannel*> Channels = Section->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
+	Channels = Channels.Slice(OwningTrail->GetChannelOffset(), uint8(EMSTrailTransformChannel::MaxChannel) + 1);
 	if (UpdateType == EKeyUpdateType::FromComponentDelta)
 	{
-		UE::MovieScene::FIntermediate3DTransform RelativeTransform = UE::MovieScene::FIntermediate3DTransform(
-			SceneComponent->GetRelativeLocation() - DragStartCompTransform->GetTranslation(),
-			SceneComponent->GetRelativeRotation() - DragStartCompTransform->GetRotation(),
-			SceneComponent->GetRelativeScale3D() / DragStartCompTransform->GetScale()
+		const UE::MovieScene::FIntermediate3DTransform CurrentTransform = UE::MovieScene::FIntermediate3DTransform(
+			SceneComponent->GetRelativeLocation(),
+			SceneComponent->GetRelativeRotation(),
+			SceneComponent->GetRelativeScale3D()
 		);
 
+		const UE::MovieScene::FIntermediate3DTransform RelativeTransform = OwningTrail->CalculateDeltaToApply(*DragStartCompTransform, CurrentTransform);
+
 		OwningTrail->ForceEvaluateNextTick();
-		TrackSection->Modify();
-		
+		Section->Modify();
+
 		auto TryUpdateChannel = [this, &RelativeTransform, &Channels](const EMSTrailTransformChannel Channel) {
 			if (IdxMap.Contains(Channel))
 			{
@@ -362,7 +407,7 @@ void FDefaultMovieSceneTransformTrailTool::FKeyInfo::UpdateKeyTransform(EKeyUpda
 		TryUpdateScaleChannel(EMSTrailTransformChannel::ScaleY);
 		TryUpdateScaleChannel(EMSTrailTransformChannel::ScaleZ);
 	}
-	else if(UpdateType == EKeyUpdateType::FromTrailCache)
+	else if (UpdateType == EKeyUpdateType::FromTrailCache)
 	{
 		const double EvalTime = OwningTrail->GetSequencer()->GetFocusedTickResolution().AsSeconds(FrameNumber);
 
@@ -427,162 +472,40 @@ void FDefaultMovieSceneTransformTrailTool::UpdateGizmoActorComponents(FKeyInfo* 
 	}
 }
 
-FMovieSceneTransformTrail::FMovieSceneTransformTrail(const FLinearColor& InColor, const bool bInIsVisible, TWeakObjectPtr<UMovieScene3DTransformTrack> InWeakTrack, TSharedPtr<ISequencer> InSequencer)
-	: FTrail()
-	, CachedEffectiveRange(TRange<double>::Empty())
-	, DefaultTrailTool()
-	, DrawInfo()
-	, TrajectoryCache()
-	, LastTransformTrackSig(InWeakTrack->GetSignature())
-	, WeakTrack(InWeakTrack)
-	, WeakSequencer(InSequencer)
-{
-	DefaultTrailTool = MakeUnique<FDefaultMovieSceneTransformTrailTool>(this);
-	TrajectoryCache = MakeUnique<FArrayTrajectoryCache>(0.01, GetEffectiveTrackRange());
-	DrawInfo = MakeUnique<FCachedTrajectoryDrawInfo>(InColor, bInIsVisible, TrajectoryCache.Get());
+} // namespace MovieScene
+} // namespace UE
 
-	Interrogator = MakeUnique<UE::MovieScene::FSystemInterrogator>();
-	Interrogator->ImportTrack(WeakTrack.Get(), UE::MovieScene::FInterrogationChannel::Default());
+
+void UMSTrailTransformProxy::AddKey(UE::MotionTrailEditor::FDefaultMovieSceneTransformTrailTool::FKeyInfo* KeyInfo)
+{
+	FKeyDelegateHandles KeyDelegateHandles;
+	KeyDelegateHandles.OnTransformChangedHandle = OnTransformChanged.AddRaw(KeyInfo, &UE::MotionTrailEditor::FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnKeyTransformChanged);
+	KeyDelegateHandles.OnBeginTransformEditSequenceHandle = OnBeginTransformEdit.AddRaw(KeyInfo, &UE::MotionTrailEditor::FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragStart);
+	KeyDelegateHandles.OnEndTransformEditSequenceHandle = OnEndTransformEdit.AddRaw(KeyInfo, &UE::MotionTrailEditor::FDefaultMovieSceneTransformTrailTool::FKeyInfo::OnDragEnd);
+	KeysTracked.Add(KeyInfo, KeyDelegateHandles);
+	AddComponent(KeyInfo->SceneComponent);
 }
 
-ETrailCacheState FMovieSceneTransformTrail::UpdateTrail(const FSceneContext& InSceneContext)
+void UMSTrailTransformProxy::RemoveKey(UE::MotionTrailEditor::FDefaultMovieSceneTransformTrailTool::FKeyInfo* KeyInfo)
 {
-	UMovieScene3DTransformTrack* Track = WeakTrack.Get();
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-
-	FGuid SequencerBinding;
-	if (Sequencer)
-	{ // TODO: expensive, but for some reason Track stays alive even after it is deleted
-		Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene()->FindTrackBinding(*Track, SequencerBinding);
-	}
-
-	checkf(InSceneContext.TrailHierarchy->GetHierarchy()[InSceneContext.YourNode].Parents.Num() == 1, TEXT("MovieSceneTransformTrails only support one parent"));
-	const FGuid ParentGuid = InSceneContext.TrailHierarchy->GetHierarchy()[InSceneContext.YourNode].Parents[0];
-	const TUniquePtr<FTrail>& Parent = InSceneContext.TrailHierarchy->GetAllTrails()[ParentGuid];
-
-	ETrailCacheState ParentCacheState = InSceneContext.ParentCacheStates[ParentGuid];
-
-	if (!Sequencer || !SequencerBinding.IsValid() || (ParentCacheState == ETrailCacheState::Dead))
-	{
-		return ETrailCacheState::Dead;
-	}
-	
-	const bool bTrackUnchanged = Track->GetSignature() == LastTransformTrackSig;
-	const bool bParentChanged = ParentCacheState != ETrailCacheState::UpToDate;
-
-	ETrailCacheState CacheState;
-	FTrailEvaluateTimes TempEvalTimes = InSceneContext.EvalTimes;
-	TArrayView<FMovieSceneFloatChannel*> Channels = GetTransformSection()->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
-	if (!bTrackUnchanged || bParentChanged || bForceEvaluateNextTick)
-	{
-		if (DefaultTrailTool->IsActive())
-		{
-			DefaultTrailTool->OnSectionChanged();
-		}
-
-		const double Spacing = InSceneContext.EvalTimes.Spacing.Get(InSceneContext.TrailHierarchy->GetEditorMode()->GetTrailOptions()->SecondsPerSegment);
-		CachedEffectiveRange = TRange<double>::Hull({ Parent->GetEffectiveRange(), GetEffectiveTrackRange() });
-		*TrajectoryCache = FArrayTrajectoryCache(Spacing, CachedEffectiveRange, FTransform::Identity * Parent->GetTrajectoryTransforms()->GetDefault()); // TODO:: Get channel default values
-		TrajectoryCache->UpdateCacheTimes(TempEvalTimes);
-
-		CacheState = ETrailCacheState::Stale;
-		bForceEvaluateNextTick = false;
-		LastTransformTrackSig = Track->GetSignature();
-	}
-	else 
-	{
-		TrajectoryCache->UpdateCacheTimes(TempEvalTimes);
-	
-		CacheState = ETrailCacheState::UpToDate;
-	}
-
-	if (TempEvalTimes.EvalTimes.Num() > 0)
-	{
-		// TODO: re-populating the interrogator every frame is kind of inefficient
-		Interrogator->ImportTrack(WeakTrack.Get(), UE::MovieScene::FInterrogationChannel::Default());
-
-		for (const double Time : TempEvalTimes.EvalTimes)
-		{
-			const FFrameTime TickTime = Time * Sequencer->GetFocusedTickResolution();
-			Interrogator->AddInterrogation(TickTime);
-		}
-
-		Interrogator->Update();
-
-		TArray<UE::MovieScene::FIntermediate3DTransform> TempLocalTransforms;
-		Interrogator->QueryLocalSpaceTransforms(UE::MovieScene::FInterrogationChannel::Default(), TempLocalTransforms);
-
-		for (int32 Idx = 0; Idx < TempEvalTimes.EvalTimes.Num(); Idx++)
-		{
-			const FTransform TempLocalTransform = FTransform(TempLocalTransforms[Idx].GetRotation(), TempLocalTransforms[Idx].GetTranslation(), TempLocalTransforms[Idx].GetScale());
-			FTransform TempWorldTransform = TempLocalTransform * Parent->GetTrajectoryTransforms()->Get(TempEvalTimes.EvalTimes[Idx]);
-			TempWorldTransform.NormalizeRotation();
-			TrajectoryCache->Set(TempEvalTimes.EvalTimes[Idx] + KINDA_SMALL_NUMBER, TempWorldTransform);
-		}
-
-		Interrogator->Reset();
-	}
-
-	if (DefaultTrailTool->IsActive())
-	{
-		DefaultTrailTool->UpdateKeysInRange(Parent->GetTrajectoryTransforms(), InSceneContext.EvalTimes.Range);
-	}
-
-	return CacheState;
+	OnTransformChanged.Remove(KeysTracked[KeyInfo].OnTransformChangedHandle);
+	OnBeginTransformEdit.Remove(KeysTracked[KeyInfo].OnBeginTransformEditSequenceHandle);
+	OnEndTransformEdit.Remove(KeysTracked[KeyInfo].OnEndTransformEditSequenceHandle);
+	KeysTracked.Remove(KeyInfo);
+	RemoveComponent(KeyInfo->SceneComponent);
 }
 
-TMap<FString, FInteractiveTrailTool*> FMovieSceneTransformTrail::GetTools()
+void UMSTrailTransformProxy::RemoveComponent(USceneComponent* Component)
 {
-	TMap<FString, FInteractiveTrailTool*> TempToolMap;
-	TempToolMap.Add(UMotionTrailEditorMode::DefaultToolName, DefaultTrailTool.Get());
-	return TempToolMap;
-}
-
-void FMovieSceneTransformTrail::AddReferencedObjects(FReferenceCollector & Collector)
-{
-	TArray<UObject*> ToolKeys = DefaultTrailTool->GetKeySceneComponents();
-	Collector.AddReferencedObjects(ToolKeys);
-}
-
-UMovieScene3DTransformSection* FMovieSceneTransformTrail::GetTransformSection() const
-{
-	UMovieScene3DTransformTrack* TransformTrack = WeakTrack.Get();
-	check(TransformTrack);
-
-	UMovieScene3DTransformSection* AbsoluteTransformSection = nullptr;
-	for (UMovieSceneSection* Section : TransformTrack->GetAllSections())
+	for (int32 Idx = 0; Idx < Objects.Num(); Idx++)
 	{
-		UMovieScene3DTransformSection* TransformSection = Cast<UMovieScene3DTransformSection>(Section);
-		check(Section);
-
-		if (!TransformSection->GetBlendType().IsValid() || TransformSection->GetBlendType().Get() == EMovieSceneBlendType::Absolute)
+		if (Objects[Idx].Component == Component)
 		{
-			AbsoluteTransformSection = TransformSection;
-			break;
+			Objects.RemoveAt(Idx);
+			UpdateSharedTransform();
+			OnTransformChanged.Broadcast(this, SharedTransform);
+			return;
 		}
 	}
-
-	check(AbsoluteTransformSection);
-
-	return AbsoluteTransformSection;
-}
-
-TRange<double> FMovieSceneTransformTrail::GetEffectiveTrackRange() const
-{
-	UMovieScene3DTransformTrack* TransformTrack = WeakTrack.Get();
-	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
-	check(TransformTrack && Sequencer);
-
-	TRange<double> EffectiveTrackRange = TRange<double>::Empty();
-	for (UMovieSceneSection* Section : TransformTrack->GetAllSections())
-	{
-		TRange<FFrameNumber> EffectiveRange = Section->ComputeEffectiveRange();
-		TRange<double> SectionRangeSeconds = TRange<double>(
-			Sequencer->GetFocusedTickResolution().AsSeconds(EffectiveRange.GetLowerBoundValue()),
-			Sequencer->GetFocusedTickResolution().AsSeconds(EffectiveRange.GetUpperBoundValue())
-		);
-		EffectiveTrackRange = TRange<double>::Hull(TArray<TRange<double>>{ EffectiveTrackRange, SectionRangeSeconds });
-	}
-
-	return EffectiveTrackRange;
+	return;
 }

@@ -13,6 +13,11 @@
 #include "SceneView.h"
 #include "UnrealClient.h"
 
+namespace UE
+{
+namespace MotionTrailEditor
+{
+
 class FTrail;  
 struct FTrailHierarchyNode;
 class FMapTrajectoryCache;
@@ -86,3 +91,6 @@ public:
 private:
 	FTrajectoryCache* TrajectoryCache;
 };
+
+} // namespace MovieScene
+} // namespace UE
