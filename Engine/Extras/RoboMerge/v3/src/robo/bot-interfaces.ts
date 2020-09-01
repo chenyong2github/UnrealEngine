@@ -6,7 +6,7 @@ import { TickJournal } from "./tick-journal";
 
 export interface Bot {
 	start(): Promise<void>;
-	tick(): Promise<void>;
+	tick(): Promise<boolean>;
 
 	fullName: string;
 	fullNameForLogging: string

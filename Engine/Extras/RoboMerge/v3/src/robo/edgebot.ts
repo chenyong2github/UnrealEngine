@@ -124,12 +124,12 @@ class EdgeBotImpl extends PerforceStatefulBot {
 	async tick() {
 		// Update the Last Good Change from the gate file in Perforce
 		if (!this.options.lastGoodCLPath) {
-			return
+			return true
 		}
 
 		if (typeof(this.options.lastGoodCLPath) === 'number') {
 			this.lastGoodCL = this.options.lastGoodCLPath
-			return
+			return true
 		}
 
 		let goodCL = -1
@@ -181,6 +181,7 @@ class EdgeBotImpl extends PerforceStatefulBot {
 
 		// always set - if -1, prevents integrations until problem is sorted out
 		this.lastGoodCL = goodCL
+		return true
 	}
 
 	// isAvailable override to take account of gates

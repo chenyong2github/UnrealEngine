@@ -107,6 +107,13 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 
 	private readonly externalRobomergeUrl: string
 
+	/**
+		Every 10 ticks (initially 30 seconds) of no changes, skip a tick
+	 */
+	private ticksSinceLastNewP4Commit = 0
+	private skipTickCounter = 0
+
+
 	// required by Bot interface
 	public isActive = false
 
@@ -220,35 +227,6 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	}
 
 	private async getChanges(startingCl: number) {
-
-
-/**
-From Kevin:
-
-	p4 changes -m 1 -s submitted <path>
-
-will get you the most recent submitted changelist for a given path. I'm
-assuming that you're storing the last processed changelist number for a given
-path somewhere inside Robomerge so it should be fairly easily to compare the
-last processed changelist against the output of the command I shared to see if
-there's a new changelist.
-
-Once you've determined if there's a new changelist, you can do 
-
-	p4 changes -s submitted <path>@<last processed>,<current>
-
-to get a list of changelists between the two changelists.
-
-For the moment, check for changes even if all edges paused or held on gate:
-	need to look out for CLs that may unpause _other_ nodes (notably edges with
-	this node as a target)
-
-Going to get rid of multiple subpaths unless we ever need it again. Logic
-would be a little complicated, keeping track of the most recent CLs from any
-of the paths, maybe.
-
-*/
-
 		const path = this.branch.rootPath
 		this._log_action(`checking for changes in ${path}`, 'silly');
 
@@ -258,6 +236,16 @@ of the paths, maybe.
 				if (change) {
 					return [change];
 				}
+			}
+			else if (this.lastCl === startingCl) {
+				const change = await this.p4.latestChange(path);
+				if (change.change === startingCl) {
+					// this.nodeBotLogger.info('all CLs match')
+					return []
+				}
+
+				const result = await this.p4.changesBetween(path, startingCl + 1, change.change)
+				return result
 			}
 			else {
 				return await this.p4.changes(path, startingCl);
@@ -307,7 +295,7 @@ of the paths, maybe.
 		if (this.queuedChanges.length > 0) {
 			const fromQueue = this.queuedChanges.shift()!
 			await this.processQueuedChange(fromQueue)
-			return
+			return false
 		}
 
 		// see if our flow is paused
@@ -315,7 +303,7 @@ of the paths, maybe.
 			this.nodeBotLogger.silly('tick() - This bot is manually paused')
 
 			await _nextTick()
-			return
+			return false
 		}
 
 		// see if our flow is blocked
@@ -324,7 +312,7 @@ of the paths, maybe.
 
 			this.sendNagEmails()
 			await _nextTick()
-			return
+			return false
 		}
 
 		// temp extra debugging for large catch-ups
@@ -334,12 +322,40 @@ of the paths, maybe.
 			}
 		}
 
+		if (this.skipTickCounter > 0) {
+			--this.skipTickCounter
+			return false
+		}
+
+		/**
+		 * Values for stream that becomes idle:
+		 *			after n more ticks	total minutes  skip ticks	minutes between ticks
+		 *				4 			 		2			1 			1
+		 *				2					3			2			1.5
+		 *				3					4.5			3			2
+		 *				4					6.5			4			2.5
+		 *				5					9			5			3
+		 *				6					12			6			3.5
+
+	triangle: 4, 6, 9, 13, 18 ...  (((n+1)*n)/2+3)/2, e.g. 3:((4*3)/2+3)/2 = 4.5
+	simplified: (n²/2 + n/2 + 3)/2 = (n² + n + 6)/4
+
+			gets to 5 minutes between skips (skip 9) after 25 minutes
+		 */
 		// process the list of changes from p4 changes
 		const changes = await this.getChanges(minCl)
-		if (changes.length !== 0) {
+		if (changes.length === 0) {
+			if (++this.ticksSinceLastNewP4Commit > 3) {
+				// max gap of 5 minutes
+				this.skipTickCounter = Math.min(this.ticksSinceLastNewP4Commit - 3, 9)
+			}
+		}
+		else {
+			this.ticksSinceLastNewP4Commit = 0
 			this.headCL = changes[0].change
 			await this._processListOfChanges(availableEdges, changes, MAX_CHANGES_TO_PROCESS_BEFORE_YIELDING)
 		}
+		return true
 	}
 
 	private async processQueuedChange(fromQueue: QueuedChange) {

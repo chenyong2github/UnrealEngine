@@ -234,5 +234,5 @@ export abstract class PerforceStatefulBot implements BotIPC {
 	 */
 	abstract async setBotToLatestCl(): Promise<void>
 
-	abstract async tick(): Promise<void>;
+	abstract async tick(): Promise<boolean>;
 }
