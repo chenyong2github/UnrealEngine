@@ -415,6 +415,7 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 	Session->GRHIDeviceRevision = GRHIDeviceRevision;
 	Session->GRHIAdapterInternalDriverVersion = GRHIAdapterInternalDriverVersion;
 	Session->GRHIAdapterUserDriverVersion = GRHIAdapterUserDriverVersion;
+	Session->GRHIName = GDynamicRHI ? GDynamicRHI->GetName() : TEXT("");
 	Session->TotalPhysicalRAM = Stats.TotalPhysical;
 	Session->CPUPhysicalCores = FPlatformMisc::NumberOfCores();
 	Session->CPULogicalCores = FPlatformMisc::NumberOfCoresIncludingHyperthreads();
