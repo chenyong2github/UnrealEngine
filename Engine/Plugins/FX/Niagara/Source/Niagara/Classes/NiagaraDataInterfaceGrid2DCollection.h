@@ -17,8 +17,7 @@ class FGrid2DBuffer
 public:
 	FGrid2DBuffer(int NumX, int NumY, EPixelFormat PixelFormat)
 	{
-		check((PixelFormat == EPixelFormat::PF_R16F) || (PixelFormat == EPixelFormat::PF_R32_FLOAT));
-		GridBuffer.Initialize(PixelFormat == EPixelFormat::PF_R16F ? 2 : 4, NumX, NumY, PixelFormat);
+		GridBuffer.Initialize(GPixelFormats[PixelFormat].BlockBytes, NumX, NumY, PixelFormat);
 		INC_MEMORY_STAT_BY(STAT_NiagaraGPUDataInterfaceMemory, GridBuffer.NumBytes);
 	}
 	~FGrid2DBuffer()
@@ -84,9 +83,7 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2DCollection : public UNiagaraDataInt
 	GENERATED_UCLASS_BODY()
 
 public:
-
 	DECLARE_NIAGARA_DI_PARAMETER();
-	
 
 	/** Reference to a user parameter if we're reading one. */
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
@@ -95,8 +92,8 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid2DCollection")
 	uint8 bCreateRenderTarget : 1;
 
-	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Use half precision floats.  These have a more limited range but consume half the memory."))
-	uint8 bUseHalfs : 1;
+	UPROPERTY(EditAnywhere, Category = "Grid2DCollection", meta = (ToolTip = "Changes the format used to store data inside the grid, low bit formats save memory and performance."))
+	ENiagaraGpuBufferFormat BufferFormat;
 
 	virtual void PostInitProperties() override;
 	

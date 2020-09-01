@@ -4,6 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Engine/EngineBaseTypes.h"
+#include "Engine/TextureRenderTarget2D.h"
 #include "UObject/ObjectMacros.h"
 #include "NiagaraTypes.h"
 #include "UObject/SoftObjectPath.h"
@@ -58,6 +59,18 @@ enum ENiagaraBaseTypes
 	NBT_Int32,
 	NBT_Bool,
 	NBT_Max,
+};
+
+/** Niagara supported buffer formats on the GPU. */
+UENUM()
+enum class ENiagaraGpuBufferFormat : uint8
+{
+	/** 32-bit per channel floating point, range [-3.402823 x 10^38, 3.402823 x 10^38] */
+	Float,
+	/** 16-bit per channel floating point, range [-65504, 65504] */
+	HalfFloat,
+	/** 8-bit per channel fixed point, range [0, 1]. */
+	UnsignedNormalizedByte,
 };
 
 // TODO: Custom will eventually mean that the default value or binding will be overridden by a subgraph default, i.e. expose it to a "Initialize variable" node. 
@@ -998,6 +1011,12 @@ namespace FNiagaraUtilities
 	void NIAGARA_API DumpHLSLText(const FString& SourceCode, const FString& DebugName);
 
 	NIAGARA_API FString SystemInstanceIDToString(FNiagaraSystemInstanceID ID);
+
+	/** Converts a Niagara format into a EPixelFormat */
+	NIAGARA_API EPixelFormat BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat);
+
+	/** Converts a Niagara format into a ETextureRenderTargetFormat */
+	NIAGARA_API ETextureRenderTargetFormat BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat);
 };
 
 USTRUCT()

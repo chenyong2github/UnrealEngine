@@ -253,7 +253,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 	return OtherTyped != nullptr &&
 		OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter &&
 		OtherTyped->bCreateRenderTarget == bCreateRenderTarget &&
-		OtherTyped->bUseHalfs == bUseHalfs;
+		OtherTyped->BufferFormat == BufferFormat;
 }
 
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -375,7 +375,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 	UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2DCollection>(Destination);
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
 	OtherTyped->bCreateRenderTarget = bCreateRenderTarget;
-	OtherTyped->bUseHalfs = bUseHalfs;
+	OtherTyped->BufferFormat = BufferFormat;
 
 	return true;
 }
@@ -410,7 +410,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	
 	InstanceData->WorldBBoxSize = WorldBBoxSize;
 
-	InstanceData->PixelFormat = bUseHalfs ? EPixelFormat::PF_R16F : EPixelFormat::PF_R32_FLOAT;
+	InstanceData->PixelFormat = FNiagaraUtilities::BufferFormatToPixelFormat(BufferFormat);
 
 	// If we are setting the grid from the voxel size, then recompute NumVoxels and change bbox	
 	if (SetGridFromMaxAxis)
@@ -460,7 +460,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 	if (InstanceData->TargetTexture)
 	{
 		// resize RT to match what we need for the output
-		InstanceData->TargetTexture->RenderTargetFormat = RTF_R32f;
+		InstanceData->TargetTexture->RenderTargetFormat = FNiagaraUtilities::BufferFormatToRenderTargetFormat(BufferFormat);
 		InstanceData->TargetTexture->ClearColor = FLinearColor(.5, 0, 0, 0);
 		InstanceData->TargetTexture->bAutoGenerateMips = false;
 		InstanceData->TargetTexture->InitAutoFormat(NumCellsX * NumTilesX, NumCellsY * NumTilesY);
@@ -553,10 +553,11 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceDat
 		int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
 		int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
 
-		if (InstanceData->TargetTexture->SizeX != RTSizeX || InstanceData->TargetTexture->SizeY != RTSizeY || InstanceData->TargetTexture->RenderTargetFormat != RTF_R32f)
+		const ETextureRenderTargetFormat RenderTargetFormat = FNiagaraUtilities::BufferFormatToRenderTargetFormat(BufferFormat);
+		if (InstanceData->TargetTexture->SizeX != RTSizeX || InstanceData->TargetTexture->SizeY != RTSizeY || InstanceData->TargetTexture->RenderTargetFormat != RenderTargetFormat)
 		{
 			// resize RT to match what we need for the output
-			InstanceData->TargetTexture->RenderTargetFormat = RTF_R32f;
+			InstanceData->TargetTexture->RenderTargetFormat = RenderTargetFormat;
 			InstanceData->TargetTexture->ClearColor = FLinearColor(0.5,0,0,0);
 			InstanceData->TargetTexture->bAutoGenerateMips = false;
 			InstanceData->TargetTexture->InitAutoFormat(RTSizeX, RTSizeY);
