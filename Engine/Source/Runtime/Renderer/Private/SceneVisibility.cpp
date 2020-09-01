@@ -3960,6 +3960,12 @@ void FSceneRenderer::ComputeViewVisibility(FRHICommandListImmediate& RHICmdList,
 
 		ComputeAndMarkRayTracingRelevanceForScene(Scene);
 	}
+	else
+	{
+		//ensure arrays are empty to prevent size mismatches with View arrays in the advent of a race condition on ray tracing enable logic
+		Scene->RayTracingRelevantPrimitiveMap.Empty();
+		Scene->RayTracingStaticRelevantPrimitiveMap.Empty();
+	}
 #endif
 
 	uint8 ViewBit = 0x1;
