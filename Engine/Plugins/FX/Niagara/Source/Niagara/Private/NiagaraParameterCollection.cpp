@@ -2,6 +2,8 @@
 
 #include "NiagaraParameterCollection.h"
 #include "NiagaraDataInterface.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialParameterCollectionInstance.h"
 #include "Misc/SecureHash.h"
 #if WITH_EDITORONLY_DATA
 	#include "IAssetTools.h"
@@ -12,6 +14,7 @@
 
 UNiagaraParameterCollectionInstance::UNiagaraParameterCollectionInstance(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, SourceInstanceDirtied(false)
 {
 	ParameterStorage.SetOwner(this);
 	//Bind(ParameterStorage);
@@ -72,8 +75,72 @@ void UNiagaraParameterCollectionInstance::GetParameters(TArray<FNiagaraVariable>
 	ParameterStorage.GetParameters(OutParameters);
 }
 
-void UNiagaraParameterCollectionInstance::Tick()
+void UNiagaraParameterCollectionInstance::Bind(UWorld* World)
 {
+	if (const UMaterialParameterCollection* SourceCollection = Collection ? Collection->GetSourceCollection() : nullptr)
+	{
+		if (UMaterialParameterCollectionInstance* SourceInstance = World->GetParameterCollectionInstance(SourceCollection))
+		{
+			SourceInstance->OnParametersUpdated().AddLambda([this]()
+			{
+				SourceInstanceDirtied = true;
+			});
+
+			RefreshSourceParameters(World);
+		}
+	}
+
+}
+
+void UNiagaraParameterCollectionInstance::RefreshSourceParameters(UWorld* World)
+{
+	// if the NPC uses any MPC as sources, the make those bindings now
+	if (const UMaterialParameterCollection* SourceCollection = Collection ? Collection->GetSourceCollection() : nullptr)
+	{
+		if (UMaterialParameterCollectionInstance* SourceInstance = World->GetParameterCollectionInstance(SourceCollection))
+		{
+			const FNiagaraTypeDefinition& ScalarDef = FNiagaraTypeDefinition::GetFloatDef();
+			const FNiagaraTypeDefinition& ColorDef = FNiagaraTypeDefinition::GetColorDef();
+
+			for (const auto& Variable : ParameterStorage.ReadParameterVariables())
+			{
+				const FNiagaraTypeDefinition& VariableType = Variable.GetType();
+
+				// TODO - we should probably store an array of the FriendlyNames as FNames rather than doing any string work
+				const FName ParameterName = *Collection->FriendlyNameFromParameterName(Variable.GetName().ToString());
+
+				if (ParameterName != NAME_None)
+				{
+					if (VariableType == ScalarDef)
+					{
+						float ScalarValue;
+						if (SourceInstance->GetScalarParameterValue(ParameterName, ScalarValue))
+						{
+							ParameterStorage.SetParameterValue(ScalarValue, Variable);
+						}
+					}
+					else if (VariableType == ColorDef)
+					{
+						FLinearColor VectorValue;
+						if (SourceInstance->GetVectorParameterValue(ParameterName, VectorValue))
+						{
+							ParameterStorage.SetParameterValue(VectorValue, Variable);
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+void UNiagaraParameterCollectionInstance::Tick(UWorld* World)
+{
+	if (SourceInstanceDirtied)
+	{
+		RefreshSourceParameters(World);
+		SourceInstanceDirtied = false;
+	}
+
 	//Push our parameter changes to any bound stores.
 	ParameterStorage.Tick();
 }
@@ -182,44 +249,102 @@ FLinearColor UNiagaraParameterCollectionInstance::GetColorParameter(const FStrin
 	return ParameterStorage.GetParameterValue<FLinearColor>(FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
 }
 
+template<typename T>
+static bool CheckConflictWithSourceMpc(FName ParameterName, FString FunctionCall, const T& Value, const UNiagaraParameterCollection* Collection)
+{
+	if (const UMaterialParameterCollection* SourceCollection = Collection ? Collection->GetSourceCollection() : nullptr)
+	{
+		if (SourceCollection->GetParameterId(ParameterName).IsValid())
+		{
+#if !UE_BUILD_SHIPPING
+			static bool LogWrittenOnce = false;
+
+			if (!LogWrittenOnce)
+			{
+				UE_LOG(LogNiagara, Warning, TEXT("Skipping attempt to %s for parameter %s of %s because it is driven by MPC %s"),
+					*ParameterName.ToString(), *FunctionCall, *Collection->GetFullName(), *Collection->GetSourceCollection()->GetFullName());
+
+				LogWrittenOnce = true;
+			}
+#endif
+
+			return true;
+		}
+	}
+
+	return false;
+}
+
 void UNiagaraParameterCollectionInstance::SetBoolParameter(const FString& InVariableName, bool InValue)
 {
-	ParameterStorage.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue ? FNiagaraBool::True : FNiagaraBool::False, FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetFloatParameter(const FString& InVariableName, float InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetFloatDef(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetIntParameter(const FString& InVariableName, int32 InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetIntDef(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetVector2DParameter(const FString& InVariableName, FVector2D InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec2Def(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetVectorParameter(const FString& InVariableName, FVector InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec3Def(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetVector4Parameter(const FString& InVariableName, const FVector4& InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetVec4Def(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetColorParameter(const FString& InVariableName, FLinearColor InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetColorDef(), ParameterName));
+	}
 }
 
 void UNiagaraParameterCollectionInstance::SetQuatParameter(const FString& InVariableName, const FQuat& InValue)
 {
-	ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), *Collection->ParameterNameFromFriendlyName(InVariableName)));
+	const FName ParameterName = *Collection->ParameterNameFromFriendlyName(InVariableName);
+	if (!CheckConflictWithSourceMpc(ParameterName, __FUNCTION__, InValue, Collection))
+	{
+		ParameterStorage.SetParameterValue(InValue, FNiagaraVariable(FNiagaraTypeDefinition::GetQuatDef(), ParameterName));
+	}
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -238,6 +363,12 @@ void UNiagaraParameterCollection::PostEditChangeProperty(struct FPropertyChanged
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
 	MakeNamespaceNameUnique();
+
+	if (PropertyChangedEvent.Property && PropertyChangedEvent.Property->GetFName() == GET_MEMBER_NAME_CHECKED(UNiagaraParameterCollection, SourceMaterialCollection))
+	{
+		AddDefaultSourceParameters();
+		OnChangedDelegate.Broadcast();
+	}
 }
 #endif
 
@@ -249,20 +380,24 @@ int32 UNiagaraParameterCollection::IndexOfParameter(const FNiagaraVariable& Var)
 	});
 }
 
-int32 UNiagaraParameterCollection::AddParameter(FName Name, FNiagaraTypeDefinition Type)
+int32 UNiagaraParameterCollection::AddParameter(const FNiagaraVariable& Parameter)
 {
-	Modify();
+	// go through the existing elements to see if we already have an entry for the supplied parameter
+	int32 Idx = IndexOfParameter(Parameter);
+	if (Idx == INDEX_NONE)
+	{
+		Modify();
 
-	int32 Idx = Parameters.AddDefaulted(1);
-
-	// We don't need to adjust the change id here as no one will be referencing the new parameter yet.
-
-	Parameters[Idx].SetName(Name);
-	Parameters[Idx].SetType(Type);
-
-	DefaultInstance->AddParameter(Parameters[Idx]);
+		Idx = Parameters.Add(Parameter);
+		DefaultInstance->AddParameter(Parameter);
+	}
 
 	return Idx;
+}
+
+int32 UNiagaraParameterCollection::AddParameter(FName Name, FNiagaraTypeDefinition Type)
+{
+	return AddParameter(FNiagaraVariable(Type, Name));
 }
 
 //void UNiagaraParameterCollection::RemoveParameter(int32 ParamIdx)
@@ -330,6 +465,7 @@ FString UNiagaraParameterCollection::ParameterNameFromFriendlyName(const FString
 	return FString::Printf(TEXT("%s%s"), *GetFullNamespace(), *FriendlyName);
 }
 
+#if WITH_EDITORONLY_DATA
 void UNiagaraParameterCollection::MakeNamespaceNameUnique()
 {
  	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>("AssetRegistry");
@@ -366,6 +502,37 @@ void UNiagaraParameterCollection::MakeNamespaceNameUnique()
 	}
 }
 
+void UNiagaraParameterCollection::AddDefaultSourceParameters()
+{
+	if (SourceMaterialCollection)
+	{
+		TArray<FName> ScalarParameterNames;
+		TArray<FName> VectorParameterNames;
+
+		SourceMaterialCollection->GetParameterNames(ScalarParameterNames, false /* bVectorParameters */);
+		SourceMaterialCollection->GetParameterNames(VectorParameterNames, true /* bVectorParameters */);
+
+		const FNiagaraTypeDefinition& ScalarDef = FNiagaraTypeDefinition::GetFloatDef();
+		const FNiagaraTypeDefinition& ColorDef = FNiagaraTypeDefinition::GetColorDef();
+
+		for (const FName& ScalarParameterName : ScalarParameterNames)
+		{
+			FNiagaraVariable ScalarParameter(ScalarDef, *ParameterNameFromFriendlyName(ScalarParameterName.ToString()));
+			ScalarParameter.SetValue(SourceMaterialCollection->GetScalarParameterByName(ScalarParameterName)->DefaultValue);
+
+			AddParameter(ScalarParameter);
+		}
+
+		for (const FName& VectorParameterName : VectorParameterNames)
+		{
+			FNiagaraVariable VectorParameter(ColorDef, *ParameterNameFromFriendlyName(VectorParameterName.ToString()));
+			VectorParameter.SetValue(SourceMaterialCollection->GetVectorParameterByName(VectorParameterName)->DefaultValue);
+			AddParameter(VectorParameter);
+		}
+	}
+}
+
+#endif
 
 void UNiagaraParameterCollection::PostLoad()
 {
@@ -376,5 +543,15 @@ void UNiagaraParameterCollection::PostLoad()
 	if (CompileId.IsValid() == false)
 	{
 		CompileId = FGuid::NewGuid();
+	}
+
+	if (SourceMaterialCollection)
+	{
+		SourceMaterialCollection->ConditionalPostLoad();
+
+#if WITH_EDITOR
+		// catch up with any changes that may have been made to the MPC
+		AddDefaultSourceParameters();
+#endif
 	}
 }

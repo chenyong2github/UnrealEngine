@@ -74,6 +74,9 @@ private:
 
 	void OnParameterValueChangedInternal(TSharedRef<FNiagaraCollectionParameterViewModel> ChangedParameter);
 
+	/** Called if the Collection is changed external to the UI and needs refereshing */
+	void OnCollectionChangedExternally();
+
 	FName GenerateNewName(FNiagaraTypeDefinition Type)const;
 
 private:
@@ -87,5 +90,7 @@ private:
 	UNiagaraParameterCollectionInstance* Instance;
 
 	TNiagaraViewModelManager<UNiagaraParameterCollection, FNiagaraParameterCollectionAssetViewModel>::Handle RegisteredHandle;
+
+	FDelegateHandle ExternalChangeHandle;
 };
 
