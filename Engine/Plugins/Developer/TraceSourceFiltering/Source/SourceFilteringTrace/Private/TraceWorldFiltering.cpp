@@ -42,6 +42,7 @@ void FTraceWorldFiltering::Initialize()
 
 	// Disable engine level world filter
 	DISABLE_ENGINE_WORLD_TRACE_FILTERING();
+	DISABLE_ENGINE_ACTOR_TRACE_FILTERING();
 }
 
 void FTraceWorldFiltering::Destroy()
