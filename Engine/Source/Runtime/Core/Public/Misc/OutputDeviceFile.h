@@ -143,6 +143,8 @@ public:
 	/** Returns the filename associated with this output device */
 	const TCHAR* GetFilename() const { return Filename; }
 
+	bool IsOpened() const;
+
 private:
 
 	/** Writes to a file on a separate thread */
@@ -152,7 +154,6 @@ private:
 
 	TCHAR Filename[1024];
 	bool AppendIfExists;
-	bool Opened;
 	bool Dead;
 
 	/** Internal data for category inclusion. Must be declared inside CPP file as it uses a TSet<FName> */
