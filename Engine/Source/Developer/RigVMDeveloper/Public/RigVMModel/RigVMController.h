@@ -505,6 +505,8 @@ private:
 	void RewireLinks(URigVMPin* OldPin, URigVMPin* NewPin, bool bAsInput, bool bUndo, TArray<URigVMLink*> InLinks = TArray<URigVMLink*>());
 #endif
 
+	void DestroyObject(UObject* InObjectToDestroy);
+
 	UPROPERTY(transient)
 	URigVMGraph* Graph;
 
