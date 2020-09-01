@@ -987,7 +987,7 @@ public:
 		}
 		else
 		{
-			return EIoErrorCode::InvalidParameter;
+			return FIoStatus(EIoErrorCode::InvalidParameter, TEXT("Invalid TocEntryIndex"));
 		}
 	}
 
