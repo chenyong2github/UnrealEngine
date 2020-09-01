@@ -1239,7 +1239,7 @@ void FSlateRHIRenderer::DrawWindows_Private(FSlateDrawBuffer& WindowDrawBuffer)
 					}
 					else
 					{
-						UE_LOG(LogSlate, Error, TEXT("The ViewportInfo could not be found for Window '%s'"), *FReflectionMetaData::GetWidgetPath(Window));
+						UE_LOG(LogSlate, Error, TEXT("The ViewportInfo could not be found for Window."));
 						continue;
 					}
 				}
