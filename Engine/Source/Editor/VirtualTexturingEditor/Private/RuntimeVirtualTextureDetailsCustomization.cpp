@@ -108,33 +108,16 @@ void FRuntimeVirtualTextureDetailsCustomization::CustomizeDetails(IDetailLayoutB
 	IDetailCategoryBuilder& DetailsCategory = DetailBuilder.EditCategory("Details", FText::GetEmpty(), ECategoryPriority::Important);
 	static const FText RowText = LOCTEXT("Category_Details", "Details");
 	DetailsCategory.AddCustomRow(RowText)
-	.WholeRowContent()
+	.NameContent()
 	[
-		SNew(SVerticalBox)
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Center)
-		.Padding(4.0f)
-		[
-			SAssignNew(SizeText, STextBlock)
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Center)
-		.Padding(4.0f)
-		[
-			SAssignNew(PageTableTextureMemoryText, STextBlock)
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		.VAlign(VAlign_Center)
-		.Padding(4.0f)
-		[
-			SAssignNew(PhysicalTextureMemoryText, STextBlock)
-		]
+		SNew(STextBlock)
+		.Font(IDetailLayoutBuilder::GetDetailFont())
+		.Text(LOCTEXT("Details_Size", "Virtual Texture Size"))
+		.ToolTipText(LOCTEXT("Details_Size_Tooltip", "Virtual resolution derived from Size properties."))
+	]
+	.ValueContent()
+	[
+		SAssignNew(SizeText, STextBlock)
 	];
 
 	// Add refresh callback for all properties 
@@ -159,9 +142,7 @@ void FRuntimeVirtualTextureDetailsCustomization::RefreshDetails()
  	TileSizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetTileSize(), &SizeOptions)));
  	TileBorderSizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetTileBorderSize(), &SizeOptions)));
 
-	SizeText->SetText(FText::Format(LOCTEXT("Details_Size", "Virtual Texture Size: {0}"), FText::AsNumber(VirtualTexture->GetSize(), &SizeOptions)));
-	PageTableTextureMemoryText->SetText(FText::Format(LOCTEXT("Details_PageTableMemory", "Page Table Texture Memory (estimated): {0} KiB"), FText::AsNumber(VirtualTexture->GetEstimatedPageTableTextureMemoryKb(), &SizeOptions)));
-	PhysicalTextureMemoryText->SetText(FText::Format(LOCTEXT("Details_PhysicalMemory", "Physical Texture Memory (estimated): {0} KiB"), FText::AsNumber(VirtualTexture->GetEstimatedPhysicalTextureMemoryKb(), &SizeOptions)));
+	SizeText->SetText(FText::Format(LOCTEXT("Details_Number", "{0}"), FText::AsNumber(VirtualTexture->GetSize(), &SizeOptions)));
 }
 
 
@@ -189,11 +170,9 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		return;
 	}
 
-	// TransformFromBounds button.
-	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
-
-	BoundsCategory
-	.AddCustomRow(LOCTEXT("Button_SetBounds", "Set Bounds"))
+	// Apply custom widget for SetBounds.
+	TSharedRef<IPropertyHandle> SetBoundsPropertyHandle = DetailBuilder.GetProperty(TEXT("bSetBoundsButton"));
+	DetailBuilder.EditDefaultProperty(SetBoundsPropertyHandle)->CustomWidget()
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -213,11 +192,12 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.IsEnabled(this, &FRuntimeVirtualTextureComponentDetailsCustomization::IsSetBoundsEnabled)
 	];
 
-	// VirtualTextureBuild buttons.
-	IDetailCategoryBuilder& VirtualTextureCategory = DetailBuilder.EditCategory("VirtualTextureBuild", FText::GetEmpty());
-	
-	VirtualTextureCategory
-	.AddCustomRow(LOCTEXT("Button_BuildStreamingMips", "Build Streaming Mips"), true)
+	// Force TransformFromBounds to top (near the Transform that it applies to).
+	IDetailCategoryBuilder& BoundsCategory = DetailBuilder.EditCategory("TransformFromBounds", FText::GetEmpty(), ECategoryPriority::Important);
+
+	// Apply custom widget for BuildStreamingMips.
+	TSharedRef<IPropertyHandle> BuildStreamingMipsPropertyHandle = DetailBuilder.GetProperty(TEXT("bBuildStreamingMipsButton"));
+	DetailBuilder.EditDefaultProperty(BuildStreamingMipsPropertyHandle)->CustomWidget()
 	.NameContent()
 	[
 		SNew(STextBlock)
@@ -236,8 +216,9 @@ void FRuntimeVirtualTextureComponentDetailsCustomization::CustomizeDetails(IDeta
 		.OnClicked(this, &FRuntimeVirtualTextureComponentDetailsCustomization::BuildStreamedMips)
 	];
 
-	VirtualTextureCategory
-	.AddCustomRow(LOCTEXT("Button_BuildDebugStreamingMips", "Build Debug Streaming Mips"), true)
+	// Apply custom widget for BuildDebugStreamingMip.
+	TSharedRef<IPropertyHandle> BuildDebugStreamingMipsPropertyHandle = DetailBuilder.GetProperty(TEXT("bBuildDebugStreamingMipsButton"));
+	DetailBuilder.EditDefaultProperty(BuildDebugStreamingMipsPropertyHandle)->CustomWidget()
 	.NameContent()
 	[
 		SNew(STextBlock)
