@@ -513,7 +513,12 @@ void USynthComponent::Stop()
 
 		if (AudioComponent)
 		{
-			AudioComponent->Stop();
+			AudioComponent->Stop();		
+			
+			if (FAudioDevice* AudioDevice = AudioComponent->GetAudioDevice())
+			{
+				AudioDevice->StopSoundsUsingResource(Synth);
+			}
 		}
 
 		SetActiveFlag(false);
