@@ -33,6 +33,8 @@ public:
 	virtual void NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel = false) override;
 	virtual bool IsReplayReady() const override;
 
+	virtual void NotifyActorChannelCleanedUp(UActorChannel* Channel, EChannelCloseReason CloseReason) override;
+
 	void StartRecording();
 
 	void AddEvent(const FString& Group, const FString& Meta, const TArray<uint8>& Data);
