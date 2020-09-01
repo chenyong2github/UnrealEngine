@@ -9,7 +9,7 @@
 #include "Engine/Console.h"
 #include "ConsoleSettings.h"
 
-static const FName NAME_WorldPartitionRuntimeGrids("WorldPartitionRuntimeGrids");
+static const FName NAME_WorldPartitionRuntimeHash("WorldPartitionRuntimeHash");
 
 namespace WorldPartitionSubsystemConsole
 {
@@ -19,11 +19,17 @@ namespace WorldPartitionSubsystemConsole
 		AutoCompleteList.AddDefaulted();
 
 		FAutoCompleteCommand& AutoCompleteCommand = AutoCompleteList.Last();
-		AutoCompleteCommand.Command = FString::Printf(TEXT("showdebug %s"), *NAME_WorldPartitionRuntimeGrids.ToString());
-		AutoCompleteCommand.Desc = TEXT("Toggles display of world partition runtime grids");
+		AutoCompleteCommand.Command = FString::Printf(TEXT("showdebug %s"), *NAME_WorldPartitionRuntimeHash.ToString());
+		AutoCompleteCommand.Desc = TEXT("Toggles 2D debug display of world partition runtime hash.");
 		AutoCompleteCommand.Color = ConsoleSettings->AutoCompleteCommandColor;
 	}
 }
+
+static int32 GDrawRuntimeHash3D = 0;
+static FAutoConsoleCommand CVarDrawRuntimeHash3D(
+	TEXT("WorldPartition.ToggleDrawRuntimeHash3D"),
+	TEXT("Toggles 3D debug display of world partition runtime hash."),
+	FConsoleCommandDelegate::CreateLambda([] { GDrawRuntimeHash3D = !GDrawRuntimeHash3D; }));
 
 UWorldPartitionSubsystem::UWorldPartitionSubsystem()
 {}
@@ -103,6 +109,11 @@ void UWorldPartitionSubsystem::Tick(float DeltaSeconds)
 	for (UWorldPartition* Partition : RegisteredWorldPartitions)
 	{
 		Partition->Tick(DeltaSeconds);
+		
+		if (GDrawRuntimeHash3D && GetWorld()->IsGameWorld())
+		{
+			Partition->DrawRuntimeHash3D();
+		}
 	}
 }
 
@@ -144,7 +155,7 @@ void UWorldPartitionSubsystem::UpdateStreamingState()
 
 void UWorldPartitionSubsystem::OnShowDebugInfo(class AHUD* HUD, UCanvas* Canvas, const class FDebugDisplayInfo& DisplayInfo, float& YL, float& YPos)
 {
-	if (!Canvas || !HUD || !HUD->ShouldDisplayDebug(NAME_WorldPartitionRuntimeGrids))
+	if (!Canvas || !HUD || !HUD->ShouldDisplayDebug(NAME_WorldPartitionRuntimeHash))
 	{
 		return;
 	}
@@ -157,7 +168,7 @@ void UWorldPartitionSubsystem::OnShowDebugInfo(class AHUD* HUD, UCanvas* Canvas,
 	FVector2D TotalFootprint(ForceInitToZero);
 	for (UWorldPartition* Partition : RegisteredWorldPartitions)
 	{
-		FVector2D Footprint = Partition->GetShowDebugDesiredFootprint(CanvasMaxScreenSize);
+		FVector2D Footprint = Partition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
 		TotalFootprint.X += Footprint.X;
 	}
 
@@ -166,10 +177,10 @@ void UWorldPartitionSubsystem::OnShowDebugInfo(class AHUD* HUD, UCanvas* Canvas,
 		FVector2D PartitionCanvasOffset(CanvasTopLeftPadding);
 		for (UWorldPartition* Partition : RegisteredWorldPartitions)
 		{
-			FVector2D Footprint = Partition->GetShowDebugDesiredFootprint(CanvasMaxScreenSize);
+			FVector2D Footprint = Partition->GetDrawRuntimeHash2DDesiredFootprint(CanvasMaxScreenSize);
 			float FootprintRatio = Footprint.X / TotalFootprint.X;
 			FVector2D PartitionCanvasSize = FVector2D(CanvasMaxScreenSize.X * FootprintRatio, CanvasMaxScreenSize.Y);
-			Partition->ShowDebugInfo(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
+			Partition->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
 			PartitionCanvasOffset.X += PartitionCanvasSize.X;
 		}
 	}

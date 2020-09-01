@@ -1182,16 +1182,22 @@ void UWorldPartition::UpdateStreamingState()
 	}
 }
 
-FVector2D UWorldPartition::GetShowDebugDesiredFootprint(const FVector2D& CanvasSize)
+FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
 {
 	check(GetWorld()->IsGameWorld());
-	return GetStreamingPolicy()->GetShowDebugDesiredFootprint(CanvasSize);
+	return GetStreamingPolicy()->GetDrawRuntimeHash2DDesiredFootprint(CanvasSize);
 }
 
-void UWorldPartition::ShowDebugInfo(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
+void UWorldPartition::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
 {
 	check(GetWorld()->IsGameWorld());
-	GetStreamingPolicy()->ShowDebugInfo(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
+	GetStreamingPolicy()->DrawRuntimeHash2D(Canvas, PartitionCanvasOffset, PartitionCanvasSize);
+}
+
+void UWorldPartition::DrawRuntimeHash3D()
+{
+	check(GetWorld()->IsGameWorld());
+	GetStreamingPolicy()->DrawRuntimeHash3D();
 }
 
 #if WITH_EDITOR

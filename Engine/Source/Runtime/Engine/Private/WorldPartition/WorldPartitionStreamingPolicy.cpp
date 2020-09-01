@@ -138,16 +138,25 @@ void UWorldPartitionStreamingPolicy::UpdateStreamingState()
 	}
 }
 
-FVector2D UWorldPartitionStreamingPolicy::GetShowDebugDesiredFootprint(const FVector2D& CanvasSize)
+FVector2D UWorldPartitionStreamingPolicy::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
 {
-	return WorldPartition->RuntimeHash->GetShowDebugDesiredFootprint(CanvasSize);
+	return WorldPartition->RuntimeHash->GetDraw2DDesiredFootprint(CanvasSize);
 }
 
-void UWorldPartitionStreamingPolicy::ShowDebugInfo(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
+void UWorldPartitionStreamingPolicy::DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize)
 {
 	if (StreamingSources.Num() > 0)
 	{
-		WorldPartition->RuntimeHash->ShowDebugInfo(Canvas, StreamingSources, PartitionCanvasOffset, PartitionCanvasSize);
+		WorldPartition->RuntimeHash->Draw2D(Canvas, StreamingSources, PartitionCanvasOffset, PartitionCanvasSize);
+	}
+}
+
+void UWorldPartitionStreamingPolicy::DrawRuntimeHash3D()
+{
+	UWorld* World = WorldPartition->GetWorld();
+	if (World->GetNetMode() != NM_DedicatedServer && WorldPartition->IsInitialized())
+	{
+		WorldPartition->RuntimeHash->Draw3D(StreamingSources);
 	}
 }
 

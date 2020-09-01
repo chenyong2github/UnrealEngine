@@ -29,12 +29,13 @@ class ENGINE_API UWorldPartitionRuntimeHash : public UObject
 	virtual int32 GetStreamingCells(const TArray<FWorldPartitionStreamingSource>& Sources, TSet<const UWorldPartitionRuntimeCell*>& Cells) const { return 0; };
 	virtual void SortStreamingCellsByDistance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*>& OutSortedCells) {}
 
-	/* Returns desired footprint that ShowDebugInfo should take relative to given Canvas size (the value can exceed the given size).
-	 * UWorldPartitionSubSystem will re-adapt the size relative to all others UWorldPartitionRuntimeHash and provide the correct size to ShowDebugInfo.
+	/* Returns desired footprint that Draw2D should take relative to given Canvas size (the value can exceed the given size).
+	 * UWorldPartitionSubSystem will re-adapt the size relative to all others UWorldPartitionRuntimeHash and provide the correct size to Draw2D.
 	 *
-	 * Return ShowDebugInfo's desired footprint.
+	 * Return Draw2D's desired footprint.
 	 */
-	virtual FVector2D GetShowDebugDesiredFootprint(const FVector2D& CanvasSize) const { return FVector2D::ZeroVector; }
+	virtual FVector2D GetDraw2DDesiredFootprint(const FVector2D& CanvasSize) const { return FVector2D::ZeroVector; }
 
-	virtual void ShowDebugInfo(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize) const {}
+	virtual void Draw2D(class UCanvas* Canvas, const TArray<FWorldPartitionStreamingSource>& Sources, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize) const {}
+	virtual void Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const {}
 };

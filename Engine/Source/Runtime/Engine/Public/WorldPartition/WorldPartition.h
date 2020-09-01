@@ -163,8 +163,9 @@ public:
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
 
-	FVector2D GetShowDebugDesiredFootprint(const FVector2D& CanvasSize);
-	void ShowDebugInfo(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);
+	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
+	void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);
+	void DrawRuntimeHash3D();
 
 	virtual UWorld* GetWorld() const override;
 
