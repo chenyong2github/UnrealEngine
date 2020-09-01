@@ -7,8 +7,6 @@
 #include "Field/FieldSystemSimulationCoreAlgo.h"
 #include "Async/ParallelFor.h"
 
-DEFINE_LOG_CATEGORY_STATIC(FSCA_Log, Log, All);
-
 namespace FieldSystemAlgo
 {
 
