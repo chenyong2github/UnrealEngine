@@ -181,6 +181,13 @@ private:
 	bool CanCopyParameterReference() const;
 	void OnCopyParameterReference();
 
+	FText GetCopyParameterMetadataToolTip() const;
+	bool CanCopyParameterMetadata() const;
+	void OnCopyParameterMetadata();
+
+	bool CanPasteParameterMetadata() const;
+	void OnPasteParameterMetadata();
+
 	void RenameParameter(TSharedPtr<FNiagaraParameterAction> ParameterAction, FName NewName);
 
 	bool IsSystemToolkit() const;
