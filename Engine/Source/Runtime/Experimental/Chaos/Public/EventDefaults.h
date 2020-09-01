@@ -38,7 +38,7 @@ namespace Chaos
 
 	};
 
-#define EVOLUTION_TRAIT(Trait) extern template class CHAOSSOLVERS_TEMPLATE_API TEventDefaults<Trait>;
+#define EVOLUTION_TRAIT(Trait) extern template class CHAOS_TEMPLATE_API TEventDefaults<Trait>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT
 }
