@@ -2012,8 +2012,8 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 			UNiagaraNodeCustomHlsl* BaseCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(BaseDynamicValueFunction->GetFunctionCallNode());
 			UNiagaraNodeCustomHlsl* OtherCustomHlsl = Cast<UNiagaraNodeCustomHlsl>(OtherDynamicValueFunction->GetFunctionCallNode());
 
-			if (((BaseCustomHlsl != nullptr) && (OtherCustomHlsl == nullptr)) ||
-				((BaseCustomHlsl == nullptr) && (OtherCustomHlsl != nullptr)))
+			if ((BaseCustomHlsl != nullptr && OtherCustomHlsl == nullptr) ||
+				(BaseCustomHlsl == nullptr && OtherCustomHlsl != nullptr))
 			{
 				return false;
 			}
@@ -2028,8 +2028,8 @@ TOptional<bool> FNiagaraScriptMergeManager::DoFunctionInputOverridesMatch(TShare
 			int32 BaseScratchPadScriptIndex = BaseDynamicValueFunction->GetScratchPadScriptIndex();
 			int32 OtherScratchPadScriptIndex = OtherDynamicValueFunction->GetScratchPadScriptIndex();
 
-			if (((BaseScratchPadScriptIndex != INDEX_NONE) && (OtherScratchPadScriptIndex == INDEX_NONE)) ||
-				((BaseScratchPadScriptIndex == INDEX_NONE) && (OtherScratchPadScriptIndex != INDEX_NONE)))
+			if ((BaseScratchPadScriptIndex != INDEX_NONE && OtherScratchPadScriptIndex == INDEX_NONE) ||
+				(BaseScratchPadScriptIndex == INDEX_NONE && OtherScratchPadScriptIndex != INDEX_NONE))
 			{
 				return false;
 			}
