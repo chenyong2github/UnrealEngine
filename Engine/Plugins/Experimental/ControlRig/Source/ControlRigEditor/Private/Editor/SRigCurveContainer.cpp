@@ -148,6 +148,7 @@ void SRigCurveContainer::Construct(const FArguments& InArgs, TSharedRef<FControl
 	ControlRigBlueprint->HierarchyContainer.OnElementRemoved.AddRaw(this, &SRigCurveContainer::OnRigElementRemoved);
 	ControlRigBlueprint->HierarchyContainer.OnElementRenamed.AddRaw(this, &SRigCurveContainer::OnRigElementRenamed);
 	ControlRigBlueprint->HierarchyContainer.OnElementSelected.AddRaw(this, &SRigCurveContainer::OnRigElementSelected);
+	ControlRigBlueprint->OnRefreshEditor().AddRaw(this, &SRigCurveContainer::HandleRefreshEditorFromBlueprint);
 
 	// Register and bind all our menu commands
 	FCurveContainerCommands::Register();
@@ -211,6 +212,7 @@ SRigCurveContainer::~SRigCurveContainer()
 			ControlRigBlueprint->HierarchyContainer.OnElementRemoved.RemoveAll(this);
 			ControlRigBlueprint->HierarchyContainer.OnElementRenamed.RemoveAll(this);
 			ControlRigBlueprint->HierarchyContainer.OnElementSelected.RemoveAll(this);
+			ControlRigBlueprint->OnRefreshEditor().RemoveAll(this);
 		}
 	}
 }
@@ -430,12 +432,17 @@ void SRigCurveContainer::OnDeleteNameClicked()
 	FRigCurveContainer* Container = GetCurveContainer();
 	if (Container)
 	{
+		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
+
 		TArray< FDisplayedRigCurveInfoPtr > SelectedItems = RigCurveListView->GetSelectedItems();
 		for (auto Item : SelectedItems)
 		{
 			Container->Remove(Item->CurveName);
 		}
 	}
+
+	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
+	RefreshCurveList();
 }
 
 bool SRigCurveContainer::CanDelete()
@@ -521,6 +528,15 @@ void SRigCurveContainer::OnRigElementAdded(FRigHierarchyContainer* Container, co
 	{
 		return;
 	}
+
+	if (ControlRigBlueprint.IsValid())
+	{
+		if (ControlRigBlueprint->bSuspendAllNotifications)
+		{
+			return;
+		}
+	}
+
 	RefreshCurveList();
 }
 
@@ -530,6 +546,15 @@ void SRigCurveContainer::OnRigElementRemoved(FRigHierarchyContainer* Container, 
 	{
 		return;
 	}
+
+	if (ControlRigBlueprint.IsValid())
+	{
+		if (ControlRigBlueprint->bSuspendAllNotifications)
+		{
+			return;
+		}
+	}
+
 	RefreshCurveList();
 }
 
@@ -539,6 +564,15 @@ void SRigCurveContainer::OnRigElementRenamed(FRigHierarchyContainer* Container, 
 	{
 		return;
 	}
+
+	if (ControlRigBlueprint.IsValid())
+	{
+		if (ControlRigBlueprint->bSuspendAllNotifications)
+		{
+			return;
+		}
+	}
+
 	RefreshCurveList();
 }
 
@@ -549,6 +583,14 @@ void SRigCurveContainer::OnRigElementSelected(FRigHierarchyContainer* Container,
 		return;
 	}
 
+	if (ControlRigBlueprint.IsValid())
+	{
+		if (ControlRigBlueprint->bSuspendAllNotifications)
+		{
+			return;
+		}
+	}
+
 	for(const FDisplayedRigCurveInfoPtr& Item : RigCurveList)
 	{
 		if (Item->CurveName == InKey.Name)
@@ -557,6 +599,11 @@ void SRigCurveContainer::OnRigElementSelected(FRigHierarchyContainer* Container,
 			break;
 		}
 	}
+}
+
+void SRigCurveContainer::HandleRefreshEditorFromBlueprint(UControlRigBlueprint* InBlueprint)
+{
+	RefreshCurveList();
 }
 
 void SRigCurveContainer::CreateImportMenu(FMenuBuilder& MenuBuilder)
@@ -598,11 +645,13 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 	FRigCurveContainer* Container = GetCurveContainer();
 	if (Container)
 	{
+		TGuardValue<bool> SuspendBlueprintNotifs(ControlRigBlueprint->bSuspendAllNotifications, true);
+
 		const USkeleton* Skeleton = nullptr;
 		if (USkeletalMesh* Mesh = Cast<USkeletalMesh>(InAssetData.GetAsset()))
 		{
 			Skeleton = Mesh->Skeleton;
-			ControlRigBlueprint->SourceCurveImport = Mesh;
+			ControlRigBlueprint->SourceCurveImport = Skeleton;
 		}
 		else 
 		{
@@ -620,9 +669,11 @@ void SRigCurveContainer::ImportCurve(const FAssetData& InAssetData)
 			Container->ImportCurvesFromSkeleton(Skeleton, NAME_None, false, false, false /* notify */);
 
 			FSlateApplication::Get().DismissAllMenus();
-			RefreshCurveList();
 		}
 	}
+
+	RefreshCurveList();
+	ControlRigBlueprint->PropagateHierarchyFromBPToInstances(true);
 }
 
 FRigCurveContainer* SRigCurveContainer::GetInstanceCurveContainer() const

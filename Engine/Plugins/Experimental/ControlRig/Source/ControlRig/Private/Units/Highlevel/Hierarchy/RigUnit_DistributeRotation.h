@@ -36,19 +36,19 @@ struct FRigUnit_DistributeRotation_WorkData
 	GENERATED_BODY()
 
 	UPROPERTY()
-	TArray<int32> BoneIndices;
+	TArray<FCachedRigElement> CachedItems;
 
 	UPROPERTY()
-	TArray<int32> BoneRotationA;
+	TArray<int32> ItemRotationA;
 
 	UPROPERTY()
-	TArray<int32> BoneRotationB;
+	TArray<int32> ItemRotationB;
 
 	UPROPERTY()
-	TArray<float> BoneRotationT;
+	TArray<float> ItemRotationT;
 
 	UPROPERTY()
-	TArray<FTransform> BoneLocalTransforms;
+	TArray<FTransform> ItemLocalTransforms;
 };
 
 /**
@@ -56,7 +56,7 @@ struct FRigUnit_DistributeRotation_WorkData
  * Each rotation is expressed by a quaternion and a ratio, where the ratio is between 0.0 and 1.0
  * Note: This node adds rotation in local space of each bone!
  */
-USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones"))
+USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones", Deprecated = "4.25"))
 struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -65,16 +65,17 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 	{
 		StartBone = EndBone = NAME_None;
 		RotationEaseType = EControlRigAnimEasingType::Linear;
+		Weight = 1.f;
 		bPropagateToChildren = false;
 	}
 
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Rotations")))
 		{
-			return StartBone;
+			return FRigElementKey(StartBone, ERigElementType::Bone);
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -83,13 +84,13 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 	/** 
 	 * The name of the first bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName StartBone;
 
 	/** 
 	 * The name of the last bone to align
 	 */
-	UPROPERTY(meta = (Input, Constant, CustomWidget = "BoneName"))
+	UPROPERTY(meta = (Input))
 	FName EndBone;
 
 	/** 
@@ -105,12 +106,65 @@ struct FRigUnit_DistributeRotation : public FRigUnit_HighlevelBaseMutable
 	EControlRigAnimEasingType RotationEaseType;
 
 	/**
+	 * The weight of the solver - how much the rotation should be applied
+	 */	
+	UPROPERTY(meta = (Input))
+	float Weight;
+
+	/**
 	 * If set to true all of the global transforms of the children
 	 * of this bone will be recalculated based on their local transforms.
 	 * Note: This is computationally more expensive than turning it off.
 	 */
 	UPROPERTY(meta = (Input, Constant))
 	bool bPropagateToChildren;
+
+	UPROPERTY(transient)
+	FRigUnit_DistributeRotation_WorkData WorkData;
+};
+
+/**
+ * Distributes rotations provided across a collection of items.
+ * Each rotation is expressed by a quaternion and a ratio, where the ratio is between 0.0 and 1.0
+ * Note: This node adds rotation in local space of each item!
+ */
+USTRUCT(meta=(DisplayName="Distribute Rotation", Category="Hierarchy", Keywords="TwistBones"))
+struct FRigUnit_DistributeRotationForCollection : public FRigUnit_HighlevelBaseMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_DistributeRotationForCollection()
+	{
+		RotationEaseType = EControlRigAnimEasingType::Linear;
+		Weight = 1.f;
+	}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/** 
+	 * The items to use to distribute the rotation
+	 */
+	UPROPERTY(meta = (Input))
+	FRigElementKeyCollection Items;
+
+	/** 
+	 * The list of rotations to be applied
+	 */
+	UPROPERTY(meta = (Input))
+	TArray<FRigUnit_DistributeRotation_Rotation> Rotations;
+
+	/**
+	 * The easing to use between to rotations.
+	 */
+	UPROPERTY(meta = (Input, Constant))
+	EControlRigAnimEasingType RotationEaseType;
+
+	/**
+	 * The weight of the solver - how much the rotation should be applied
+	 */	
+	UPROPERTY(meta = (Input))
+	float Weight;
 
 	UPROPERTY(transient)
 	FRigUnit_DistributeRotation_WorkData WorkData;

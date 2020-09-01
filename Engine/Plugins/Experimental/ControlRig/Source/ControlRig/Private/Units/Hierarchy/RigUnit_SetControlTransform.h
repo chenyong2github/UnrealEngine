@@ -8,14 +8,14 @@
 /**
  * SetControlBool is used to perform a change in the hierarchy by setting a single control's bool value.
  */
-USTRUCT(meta=(DisplayName="Set Control Bool", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlBool", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Bool", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlBool,SetGizmoBool", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlBool : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
 	FRigUnit_SetControlBool()
 		: BoolValue(false)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -24,7 +24,7 @@ struct FRigUnit_SetControlBool : public FRigUnitMutable
 	/**
 	 * The name of the Control to set the bool for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -35,13 +35,13 @@ struct FRigUnit_SetControlBool : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * SetControlFloat is used to perform a change in the hierarchy by setting a single control's float value.
  */
-USTRUCT(meta=(DisplayName="Set Control Float", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlFloat", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Float", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlFloat,SetGizmoFloat", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlFloat : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -49,7 +49,7 @@ struct FRigUnit_SetControlFloat : public FRigUnitMutable
 	FRigUnit_SetControlFloat()
 		: Weight(1.f)
 		, FloatValue(0.f)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -58,7 +58,7 @@ struct FRigUnit_SetControlFloat : public FRigUnitMutable
 	/**
 	 * The name of the Control to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -75,21 +75,21 @@ struct FRigUnit_SetControlFloat : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
- * SetControlVector2D is used to perform a change in the hierarchy by setting a single control's Vector2D value.
+ * SetControlInteger is used to perform a change in the hierarchy by setting a single control's int32 value.
  */
-USTRUCT(meta=(DisplayName="Set Control Vector2D", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector2D", PrototypeName = "SetControlValue"))
-struct FRigUnit_SetControlVector2D : public FRigUnitMutable
+USTRUCT(meta=(DisplayName="Set Control Integer", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlInteger,SetGizmoInteger", PrototypeName = "SetControlValue"))
+struct FRigUnit_SetControlInteger : public FRigUnitMutable
 {
 	GENERATED_BODY()
 
-	FRigUnit_SetControlVector2D()
+	FRigUnit_SetControlInteger()
 		: Weight(1.f)
-		, Vector(FVector2D::ZeroVector)
-		, CachedControlIndex(INDEX_NONE)
+		, IntegerValue(0)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -98,7 +98,47 @@ struct FRigUnit_SetControlVector2D : public FRigUnitMutable
 	/**
 	 * The name of the Control to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
+	FName Control;
+
+	/**
+	 * The weight of the change - how much the change should be applied
+	 */
+	UPROPERTY(meta = (Input, UIMin = "0.0", UIMax = "1.0"))
+	int32 Weight;
+
+	/**
+	 * The transform value to set for the given Control.
+	 */
+	UPROPERTY(meta = (Input, Output))
+	int32 IntegerValue;
+
+	// Used to cache the internally used bone index
+	UPROPERTY()
+	FCachedRigElement CachedControlIndex;
+};
+
+/**
+ * SetControlVector2D is used to perform a change in the hierarchy by setting a single control's Vector2D value.
+ */
+USTRUCT(meta=(DisplayName="Set Control Vector2D", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector2D,SetGizmoVector2D", PrototypeName = "SetControlValue"))
+struct FRigUnit_SetControlVector2D : public FRigUnitMutable
+{
+	GENERATED_BODY()
+
+	FRigUnit_SetControlVector2D()
+		: Weight(1.f)
+		, Vector(FVector2D::ZeroVector)
+		, CachedControlIndex(FCachedRigElement())
+	{}
+
+	RIGVM_METHOD()
+	virtual void Execute(const FRigUnitContext& Context) override;
+
+	/**
+	 * The name of the Control to set the transform for.
+	 */
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -115,13 +155,13 @@ struct FRigUnit_SetControlVector2D : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * SetControlVector is used to perform a change in the hierarchy by setting a single control's Vector value.
  */
-USTRUCT(meta=(DisplayName="Set Control Vector", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Vector", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlVector,SetGizmoVector", PrototypeName = "SetControlValue", Deprecated = "4.25"))
 struct FRigUnit_SetControlVector : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -130,7 +170,7 @@ struct FRigUnit_SetControlVector : public FRigUnitMutable
 		: Weight(1.f)
 		, Vector(FVector::OneVector)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -139,7 +179,7 @@ struct FRigUnit_SetControlVector : public FRigUnitMutable
 	/**
 	 * The name of the Control to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -163,13 +203,13 @@ struct FRigUnit_SetControlVector : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * SetControlRotator is used to perform a change in the hierarchy by setting a single control's Rotator value.
  */
-USTRUCT(meta=(DisplayName="Set Control Rotator", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlRotator", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Rotator", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlRotator,SetGizmoRotator", PrototypeName = "SetControlValue"))
 struct FRigUnit_SetControlRotator : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -178,7 +218,7 @@ struct FRigUnit_SetControlRotator : public FRigUnitMutable
 		: Weight(1.f)
 		, Rotator(FRotator::ZeroRotator)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -187,7 +227,7 @@ struct FRigUnit_SetControlRotator : public FRigUnitMutable
 	/**
 	 * The name of the Control to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -211,13 +251,13 @@ struct FRigUnit_SetControlRotator : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };
 
 /**
  * SetControlTransform is used to perform a change in the hierarchy by setting a single control's transform.
  */
-USTRUCT(meta=(DisplayName="Set Control Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlTransform", PrototypeName = "SetControlValue"))
+USTRUCT(meta=(DisplayName="Set Control Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetControlTransform,SetGizmoTransform", PrototypeName = "SetControlValue", Deprecated = "4.25"))
 struct FRigUnit_SetControlTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -225,7 +265,7 @@ struct FRigUnit_SetControlTransform : public FRigUnitMutable
 	FRigUnit_SetControlTransform()
 		: Weight(1.f)
 		, Space(EBoneGetterSetterMode::GlobalSpace)
-		, CachedControlIndex(INDEX_NONE)
+		, CachedControlIndex(FCachedRigElement())
 	{}
 
 	RIGVM_METHOD()
@@ -234,7 +274,7 @@ struct FRigUnit_SetControlTransform : public FRigUnitMutable
 	/**
 	 * The name of the Control to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "ControlName", Constant))
+	UPROPERTY(meta = (Input, CustomWidget = "ControlName" ))
 	FName Control;
 
 	/**
@@ -258,5 +298,5 @@ struct FRigUnit_SetControlTransform : public FRigUnitMutable
 
 	// Used to cache the internally used bone index
 	UPROPERTY()
-	int32 CachedControlIndex;
+	FCachedRigElement CachedControlIndex;
 };

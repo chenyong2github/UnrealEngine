@@ -1580,7 +1580,7 @@ void ACharacter::StopAnimMontage(class UAnimMontage* AnimMontage)
 	}
 }
 
-class UAnimMontage * ACharacter::GetCurrentMontage()
+class UAnimMontage * ACharacter::GetCurrentMontage() const
 {
 	UAnimInstance * AnimInstance = (Mesh)? Mesh->GetAnimInstance() : nullptr; 
 	if ( AnimInstance )

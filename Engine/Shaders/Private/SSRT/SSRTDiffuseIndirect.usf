@@ -347,7 +347,7 @@ void MainCS(
 				float3 N = mul(float4(GBuffer.WorldNormal, 0), View.TranslatedWorldToView).xyz;
 				float DeviceZ = SceneDepthBuffer.SampleLevel(SceneDepthBufferSampler, BufferUV, 0).r;
 
-				bool bTraceRay = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT && GBuffer.ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE;
+				bool bTraceRay = GBuffer.ShadingModelID != SHADINGMODELID_UNLIT;// && GBuffer.ShadingModelID != SHADINGMODELID_SUBSURFACE_PROFILE;
 				
 				SharedMemory[TILE_PIXEL_COUNT * 0 | GroupPixelId] = CompressN(N);
 				SharedMemory[TILE_PIXEL_COUNT * 1 | GroupPixelId] = asuint(bTraceRay ? DeviceZ : -1.0);

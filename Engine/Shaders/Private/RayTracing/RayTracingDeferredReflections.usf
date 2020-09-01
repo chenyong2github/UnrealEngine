@@ -15,6 +15,7 @@
 	#define DIM_GENERATE_RAYS 0
 #endif
 
+#include "../HairStrands/HairStrandsVoxelPageCommonStruct.ush"
 #include "../Common.ush"
 
 #define SUPPORT_CONTACT_SHADOWS		0

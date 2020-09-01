@@ -21,6 +21,7 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 		Damp = 0.01;
 		Blend = 5.f;
 		Point = FCRSimPoint();
+		bInitialized = false;
 	}
 
 	RIGVM_METHOD()
@@ -50,7 +51,10 @@ struct FRigUnit_VerletIntegrateVector : public FRigUnit_SimBase
 	UPROPERTY(meta = (Output))
 	FVector Acceleration;
 
-	UPROPERTY()
+	UPROPERTY(transient)
 	FCRSimPoint Point;
+
+	UPROPERTY(transient)
+	bool bInitialized;
 };
 

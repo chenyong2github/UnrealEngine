@@ -2726,4 +2726,14 @@ void FAnimInstanceProxy::EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPos
 	}
 }
 
+void FAnimInstanceProxy::ResetCounterInputProxy(FAnimInstanceProxy* InputProxy)
+{
+	if (InputProxy)
+	{
+		InputProxy->UpdateCounter.Reset();
+		InputProxy->EvaluationCounter.Reset();
+		InputProxy->CachedBonesCounter.Reset();
+	}
+}
+
 #undef LOCTEXT_NAMESPACE

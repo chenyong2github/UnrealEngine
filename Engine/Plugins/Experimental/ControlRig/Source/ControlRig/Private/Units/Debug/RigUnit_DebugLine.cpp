@@ -5,6 +5,21 @@
 
 FRigUnit_DebugLine_Execute()
 {
+	FRigUnit_DebugLineItemSpace::StaticExecute(
+		RigVMExecuteContext, 
+		A,
+		B,
+		Color,
+		Thickness,
+		FRigElementKey(Space, ERigElementType::Bone), 
+		WorldOffset, 
+		bEnabled,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_DebugLineItemSpace_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	if (Context.State == EControlRigState::Init)
 	{
@@ -17,9 +32,9 @@ FRigUnit_DebugLine_Execute()
 	}
 
 	FVector DrawA = A, DrawB = B;
-	if (Space != NAME_None && Context.GetBones() != nullptr)
+	if (Space.IsValid())
 	{
-		FTransform Transform = Context.GetBones()->GetGlobalTransform(Space);
+		FTransform Transform = Context.Hierarchy->GetGlobalTransform(Space);
 		DrawA = Transform.TransformPosition(DrawA);
 		DrawB = Transform.TransformPosition(DrawB);
 	}

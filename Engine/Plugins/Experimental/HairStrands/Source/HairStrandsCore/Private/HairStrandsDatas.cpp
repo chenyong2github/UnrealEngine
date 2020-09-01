@@ -235,16 +235,16 @@ void FHairStrandsDatas::FRenderData::Serialize(FArchive& Ar)
 {
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
-	Ar << RenderingPositions;
-	Ar << RenderingAttributes;
+	Ar << Positions;
+	Ar << Attributes;
 	if (Ar.CustomVer(FReleaseObjectVersion::GUID) >= FReleaseObjectVersion::GroomAssetVersion2)
 	{
-		Ar << RenderingMaterials;
+		Ar << Materials;
 	}
 	else
 	{
-		const uint32 ElementCount = RenderingAttributes.Num();
-		RenderingMaterials.InsertZeroed(0, ElementCount);
+		const uint32 ElementCount = Attributes.Num();
+		Materials.InsertZeroed(0, ElementCount);
 	}
 }
 

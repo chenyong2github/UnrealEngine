@@ -318,7 +318,7 @@ void UPoseableMeshComponent::CopyPoseFromSkeletalComponent(USkeletalMeshComponen
 bool UPoseableMeshComponent::ShouldUpdateTransform(bool bLODHasChanged) const
 {
 	// we don't always update transform - each function when they changed will update
-	return Super::ShouldUpdateTransform(bLODHasChanged) && bNeedsRefreshTransform;
+	return Super::ShouldUpdateTransform(bLODHasChanged) || bNeedsRefreshTransform;
 }
 
 void UPoseableMeshComponent::MarkRefreshTransformDirty()

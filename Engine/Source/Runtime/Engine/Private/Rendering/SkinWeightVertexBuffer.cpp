@@ -910,7 +910,6 @@ FSkinWeightInfo FSkinWeightVertexBuffer::GetVertexSkinWeights(uint32 VertexIndex
 	}
 	return OutVertex;
 }
-
 void FSkinWeightVertexBuffer::CopySkinWeightInfoData(const TArrayView<const FSkinWeightInfo>& SkinWeightData)
 {
 	DataVertexBuffer.CopyDataFromBuffer(SkinWeightData);

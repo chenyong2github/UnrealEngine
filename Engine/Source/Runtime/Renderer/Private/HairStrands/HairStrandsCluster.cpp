@@ -67,8 +67,7 @@ static void AddHairMacroGroupAABBPass(
 		{
 			const uint32 PrimitiveIndex = PassIt * GroupPerPass + PassPrimitiveIt;
 			const FHairStrandsMacroGroupData::PrimitiveInfo& PrimitiveInfo = MacroGroup.PrimitivesInfos[PrimitiveIndex];
-			const FHairStrandsPrimitiveResources& Resources = GetHairStandsPrimitiveResources(PrimitiveInfo.ResourceId);
-			FShaderResourceViewRHIRef GroupAABBBufferSRV = Resources.Groups[PrimitiveInfo.GroupIndex].GroupAABBBuffer->SRV;
+			FShaderResourceViewRHIRef GroupAABBBufferSRV = PrimitiveInfo.PublicDataPtr->GetGroupAABBBuffer().SRV;
 
 			// Default value
 			if (PassPrimitiveIt == 0 && PassPrimitiveCount != GroupPerPass)
@@ -113,10 +112,10 @@ static void AddHairMacroGroupAABBPass(
 	}
 }
 
-static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStrandsMacroGroupData::TPrimitiveGroups& PrimitivesGroups)
+static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStrandsMacroGroupData::TPrimitiveInfos& PrimitivesGroups)
 {
 	// Simple linear search as the expected number of groups is supposed to be low (<10)
-	for (const FHairStrandsMacroGroupData::PrimitiveGroup& Group : PrimitivesGroups)
+	for (const FHairStrandsMacroGroupData::PrimitiveInfo& Group : PrimitivesGroups)
 	{
 		if (Group.GroupIndex == GroupIndex && Group.ResourceId == ResourceId)
 		{
@@ -126,6 +125,11 @@ static bool DoesGroupExists(uint32 ResourceId, uint32 GroupIndex, const FHairStr
 	return false;
 }
 
+inline const FHairGroupPublicData* GetHairStrandsPublicData(const FMeshBatchAndRelevance& InMeshBatchAndRelevance)
+{
+	 return reinterpret_cast<const FHairGroupPublicData*>(InMeshBatchAndRelevance.Mesh->Elements[0].VertexFactoryUserData);
+}
+
 static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int32& MaterialId, const FMeshBatchAndRelevance* MeshBatchAndRelevance, const FPrimitiveSceneProxy* Proxy)
 {
 	if (MeshBatchAndRelevance)
@@ -133,8 +137,8 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 		check(MeshBatchAndRelevance->Mesh);
 		check(MeshBatchAndRelevance->Mesh->Elements.Num() == 1);
 
-		const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(MeshBatchAndRelevance->Mesh->Elements[0].VertexFactoryUserData);
-		if (HairGroupPublicData->VFInput.bScatterSceneLighting)
+		FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<FHairGroupPublicData*>(MeshBatchAndRelevance->Mesh->Elements[0].VertexFactoryUserData);
+		if (HairGroupPublicData->VFInput.Strands.bScatterSceneLighting)
 		{
 			MacroGroup.bNeedScatterSceneLighting = true;
 		}
@@ -144,15 +148,8 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 		PrimitiveInfo.MaterialId = MaterialId++;
 		PrimitiveInfo.ResourceId = reinterpret_cast<uint64>(MeshBatchAndRelevance->Mesh->Elements[0].UserData);
 		PrimitiveInfo.GroupIndex = HairGroupPublicData->GetGroupIndex();
+		PrimitiveInfo.PublicDataPtr = HairGroupPublicData;
 		check(PrimitiveInfo.GroupIndex < 32); // Sanity check
-
-		const bool bAlreadyExists = DoesGroupExists(PrimitiveInfo.ResourceId, PrimitiveInfo.GroupIndex, MacroGroup.PrimitivesGroups);
-		if (!bAlreadyExists)
-		{
-			FHairStrandsMacroGroupData::PrimitiveGroup& PrimitiveGroup = MacroGroup.PrimitivesGroups.AddZeroed_GetRef();
-			PrimitiveGroup.GroupIndex = PrimitiveInfo.GroupIndex;
-			PrimitiveGroup.ResourceId = PrimitiveInfo.ResourceId;
-		}
 	}
 }
 
@@ -247,6 +244,6 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 
 bool FHairStrandsMacroGroupData::PrimitiveInfo::IsCullingEnable() const
 {
-	const FHairGroupPublicData* HairGroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(MeshBatchAndRelevance.Mesh->Elements[0].VertexFactoryUserData);
+	const FHairGroupPublicData* HairGroupPublicData = GetHairStrandsPublicData(MeshBatchAndRelevance);
 	return HairGroupPublicData->GetCullingResultAvailable();
 }

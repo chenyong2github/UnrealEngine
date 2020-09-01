@@ -43,7 +43,11 @@ private:
 	TWeakPtr<ISequencer> WeakSequencer;
 
 	/** The details view we do most of our work within */
-	TSharedPtr<IDetailsView> DetailsView;
+	TSharedPtr<IDetailsView> ControlDetailsView;
+
+	/** Expander to interact with the options of the rig  */
+	TSharedPtr<SExpandableArea> RigOptionExpander;
+	TSharedPtr<IDetailsView> RigOptionsDetailsView;
 
 	/** Hierarchy picker for controls*/
 	TSharedPtr<SControlHierarchy> ControlHierarchy;
@@ -51,6 +55,10 @@ private:
 	/** Special picker for controls, no longer used */
 	TSharedPtr<SControlPicker> ControlPicker;
 	TSharedPtr<SExpandableArea> PickerExpander;
+
+	/** Storage for both sequencer and viewport rigs */
+	TWeakObjectPtr<UControlRig> SequencerRig;
+	TWeakObjectPtr<UControlRig> ViewportRig;
 
 	/** Display or edit set up for property */
 	bool ShouldShowPropertyOnDetailCustomization(const struct FPropertyAndParent& InPropertyAndParent) const;
@@ -60,4 +68,8 @@ private:
 	void OnManipulatorsPicked(const TArray<FName>& Manipulators);
 
 	void HandleModifiedEvent(ERigVMGraphNotifType InNotifType, URigVMGraph* InGraph, UObject* InSubject);
+
+	EVisibility GetRigOptionExpanderVisibility() const;
+
+	void OnRigOptionFinishedChange(const FPropertyChangedEvent& PropertyChangedEvent);
 };

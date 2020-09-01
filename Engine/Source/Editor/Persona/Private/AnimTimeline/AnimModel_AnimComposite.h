@@ -17,9 +17,7 @@ public:
 	virtual UAnimSequenceBase* GetAnimSequenceBase() const override;
 	virtual void RecalculateSequenceLength() override;
 	virtual float CalculateSequenceLengthOfEditorObject() const override;
-
-	/** Refreshes snap times for segments */
-	void RefreshSegmentTimes();
+	virtual void RefreshSnapTimes() override;
 
 private:
 	/** The anim composite we wrap */

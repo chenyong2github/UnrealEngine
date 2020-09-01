@@ -160,6 +160,56 @@ bool TestQuatsEqual(const FQuat& Q0, const FQuat& Q1, float Tolerance)
 }
 
 /**
+ * Tests if a vector (xyz) is normalized (length 1) within a tolerance
+ *
+ * @param Vec0 Vector
+ * @param Tolerance Error allowed for the comparison
+ *
+ * @return true if normalized(ish)
+ */
+bool TestFVector3Normalized(const FVector& Vec0, float Tolerance)
+{
+	GScratch[0] = Vec0.X;
+	GScratch[1] = Vec0.Y;
+	GScratch[2] = Vec0.Z;
+	GScratch[3] = 0.0f;
+	GScratch[4] = 0.0f;
+	GScratch[5] = 0.0f;
+	GScratch[6] = 0.0f;
+	GScratch[7] = 0.0f;
+	GSum = FMath::Sqrt(Vec0.X * Vec0.X + Vec0.Y * Vec0.Y + Vec0.Z * Vec0.Z);
+
+	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
+	GPassing = GPassing && bNormalized;
+	return bNormalized;
+}
+
+/**
+ * Tests if a quaternion (xyzw) is normalized (length 1) within a tolerance
+ *
+ * @param Q0 Quaternion
+ * @param Tolerance Error allowed for the comparison
+ *
+ * @return true if normalized(ish)
+ */
+bool TestQuatNormalized(const FQuat& Q0, float Tolerance)
+{
+	GScratch[0] = Q0.X;
+	GScratch[1] = Q0.Y;
+	GScratch[2] = Q0.Z;
+	GScratch[3] = Q0.W;
+	GScratch[4] = 0.0f;
+	GScratch[5] = 0.0f;
+	GScratch[6] = 0.0f;
+	GScratch[7] = 0.0f;
+	GSum = FMath::Sqrt(Q0.X*Q0.X + Q0.Y*Q0.Y + Q0.Z*Q0.Z + Q0.W*Q0.W);
+
+	const bool bNormalized = FMath::IsNearlyEqual(GSum, 1.0f, Tolerance);
+	GPassing = GPassing && bNormalized;
+	return bNormalized;
+}
+
+/**
  * Tests if two matrices (4x4 xyzw) are equal within an optional tolerance
  *
  * @param Mat0 First Matrix
@@ -1323,6 +1373,31 @@ bool FVectorRegisterAbstractionTest::RunTest(const FString& Parameters)
 			FRotator Rotator1 = Q0.Rotator();
 			FRotator Rotator2 = TestQuaternionToRotator(Q0);
 			LogRotatorTest(TEXT("Rotator->Quat->Rotator"), Rotator1, Rotator2, Rotator1.Equals(Rotator2, 1e-4f));
+		}
+	}
+
+	// Quat -> Axis and Angle
+	{
+		FVector Axis;
+		float Angle;
+
+		// Identity -> X Axis
+		Axis = FQuat::Identity.GetRotationAxis();
+		LogTest(TEXT("FQuat::Identity.GetRotationAxis() == FVector::XAxisVector"), TestFVector3Equal(Axis, FVector::XAxisVector));
+
+		const FQuat QuatArray[] = {
+			FQuat(0.0f, 0.0f, 0.0f, 1.0f),
+			FQuat(1.0f, 0.0f, 0.0f, 0.0f),
+			FQuat(0.0f, 1.0f, 0.0f, 0.0f),
+			FQuat(0.0f, 0.0f, 1.0f, 0.0f),
+			FQuat(0.000046571717f, -0.000068426132f, 0.000290602446f, 0.999999881000f) // length = 0.99999992665
+		};
+
+		for (const FQuat& Q : QuatArray)
+		{
+			Q.ToAxisAndAngle(Axis, Angle);
+			LogTest(TEXT("Quat -> Axis and Angle: Q is Normalized"), TestQuatNormalized(Q, 1e-6f));
+			LogTest(TEXT("Quat -> Axis and Angle: Axis is Normalized"), TestFVector3Normalized(Axis, 1e-6f));
 		}
 	}
 

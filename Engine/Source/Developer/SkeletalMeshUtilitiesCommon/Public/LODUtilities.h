@@ -62,6 +62,13 @@ public:
 	*/
 	static void RemoveLOD( FSkeletalMeshUpdateContext& UpdateContext, int32 DesiredLOD );
 
+	/** Removes the specified LODs from the SkeletalMesh.
+	*
+	* @param UpdateContext - The skeletal mesh and actor components to operate on.
+	* @param DesiredLODs   - The array of LOD index to remove the LOD from. The order is irrelevant since the array will be sorted to be reverse iterate.
+	*/
+	static void RemoveLODs(FSkeletalMeshUpdateContext& UpdateContext, const TArray<int32>& DesiredLODs);
+
 	/**
 	*	Simplifies the static mesh based upon various user settings for DesiredLOD.
 	*
@@ -143,6 +150,16 @@ public:
 	 */
 	static void AdjustImportDataFaceMaterialIndex(const TArray<FSkeletalMaterial>& Materials, TArray<SkeletalMeshImportData::FMaterial>& RawMeshMaterials, TArray<SkeletalMeshImportData::FMeshFace>& LODFaces, int32 LODIndex);
 
+	/**
+	 * This function will strip all triangle in the specified LOD that don't have any UV area pointing on a black pixel in the TextureMask.
+	 * We use the UVChannel 0 to find the pixels in the texture.
+	 *
+	 * @Param SkeletalMesh: The skeletalmesh we want to optimize
+	 * @Param LODIndex: The LOD we want to optimize
+	 * @Param TextureMask: The texture containing the stripping mask. non black pixel strip triangle, black pixel keep them.
+	 * @Param Threshold: The threshold we want when comparing the texture value with zero.
+	 */
+	static bool StripLODGeometry(USkeletalMesh* SkeletalMesh, const int32 LODIndex, UTexture2D* TextureMask, const float Threshold);
 
 private:
 	FLODUtilities() {}

@@ -14,9 +14,7 @@ public:
 	virtual void ShutdownModule() override;
 
 public:
-#if WITH_EDITOR
 	UMaterial* ManipulatorMaterial;
-#endif
 	
 private:
 	FDelegateHandle OnCreateMovieSceneObjectSpawnerHandle;

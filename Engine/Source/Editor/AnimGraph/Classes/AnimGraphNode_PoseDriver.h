@@ -11,12 +11,12 @@
 
 class FCompilerResultsLog;
 
-UCLASS(Experimental)
+UCLASS(Experimental, BlueprintType)
 class ANIMGRAPH_API UAnimGraphNode_PoseDriver : public UAnimGraphNode_PoseHandler
 {
 	GENERATED_UCLASS_BODY()
 
-	UPROPERTY(EditAnywhere, Category = Settings)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FAnimNode_PoseDriver Node;
 
 	/** Length of axis in world units used for debug drawing */
@@ -69,6 +69,7 @@ public:
 	virtual FText GetNodeTitle(ENodeTitleType::Type TitleType) const override;
 	virtual FText GetTooltipText() const override;
 	virtual FText GetMenuCategory() const override;
+	virtual FLinearColor GetNodeBodyTintColor() const override;
 	// End of UEdGraphNode interface
 
 	// UAnimGraphNode_Base interface

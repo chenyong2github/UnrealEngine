@@ -55,18 +55,7 @@ FORCEINLINE void BlendTransform<ETransformBlendMode::Accumulate>(const FTransfor
 	Dest.AccumulateWithShortestRotation(Source, VBlendWeight);
 }
 
-FORCEINLINE void BlendCurves(const TArrayView<const FBlendedCurve> SourceCurves, const TArrayView<const float> SourceWeights, FBlendedCurve& OutCurve)
-{
-	if (SourceCurves.Num() > 0)
-	{
-		OutCurve.Override(SourceCurves[0], SourceWeights[0]);
-
-		for (int32 CurveIndex = 1; CurveIndex < SourceCurves.Num(); ++CurveIndex)
-		{
-			OutCurve.Accumulate(SourceCurves[CurveIndex], SourceWeights[CurveIndex]);
-		}
-	}
-}
+FORCEINLINE void BlendCurves(const TArrayView<const FBlendedCurve> SourceCurves, const TArrayView<const float> SourceWeights, FBlendedCurve& OutCurve);
 
 /////////////////////////////////////////////////////////
 /** Interface used to provide interpolation indices for per bone blends

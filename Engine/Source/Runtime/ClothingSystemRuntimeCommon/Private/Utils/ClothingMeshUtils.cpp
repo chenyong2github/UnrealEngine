@@ -6,6 +6,7 @@
 
 #include "Math/UnrealMathUtility.h"
 #include "Logging/LogMacros.h"
+#include "Async/ParallelFor.h"
 
 #if WITH_EDITOR
 #include "Framework/Notifications/NotificationManager.h"
@@ -27,9 +28,16 @@ namespace ClothingMeshUtils
 	void CLOTHINGSYSTEMRUNTIMECOMMON_API SkinPhysicsMesh<false, true>(const TArray<int32>& BoneMap, const FClothPhysicalMeshData& InMesh, const FTransform& RootBoneTransform,
 		const FMatrix* InBoneMatrices, const int32 InNumBoneMatrices, TArray<FVector>& OutPositions, TArray<FVector>& OutNormals, uint32 ArrayOffset);
 
+	// inline function used to force the unrolling of the skinning loop
+	FORCEINLINE void AddInfluence(FVector& OutPosition, FVector& OutNormal, const FVector& RefParticle, const FVector& RefNormal, const FMatrix& BoneMatrix, const float Weight)
+	{
+		OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
+		OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
+	}
+
 	template<bool bInPlaceOutput, bool bRemoveScaleAndInvertPostTransform>
 	void SkinPhysicsMesh(
-		const TArray<int32>& BoneMap,
+		const TArray<int32>& InBoneMap,
 		const FClothPhysicalMeshData& InMesh,
 		const FTransform& PostTransform,
 		const FMatrix* InBoneMatrices,
@@ -60,13 +68,18 @@ namespace ClothingMeshUtils
 		}
 
 		const int32 MaxInfluences = InMesh.MaxBoneWeights;
-		const FMatrix* RESTRICT BoneMatrices = InBoneMatrices;
+		UE_CLOG(MaxInfluences > 12, LogClothingMeshUtils, Warning, TEXT("The cloth physics mesh skinning code can't cope with more than 12 bone influences."));
 
-		for (uint32 VertIndex = 0; VertIndex < NumVerts; ++VertIndex)
+		const int32* const RESTRICT BoneMap = InBoneMap.GetData();  // Remove RangeCheck for faster skinning in development builds
+		const FMatrix* const RESTRICT BoneMatrices = InBoneMatrices;
+		
+		static const uint32 MinParallelVertices = 500;  // 500 seems to be the lowest threshold still giving gains even on profiled assets that are only using a small number of influences
+
+		ParallelFor(NumVerts, [&InMesh, &PostTransform, BoneMap, BoneMatrices, &OutPositions, &OutNormals, ArrayOffset](uint32 VertIndex)
 		{
 			// Fixed particle, needs to be skinned
-			const uint16* RESTRICT BoneIndices = InMesh.BoneData[VertIndex].BoneIndices;
-			const float* RESTRICT BoneWeights = InMesh.BoneData[VertIndex].BoneWeights;
+			const uint16* const RESTRICT BoneIndices = InMesh.BoneData[VertIndex].BoneIndices;
+			const float* const RESTRICT BoneWeights = InMesh.BoneData[VertIndex].BoneWeights;
 
 			// WARNING - HORRIBLE UNROLLED LOOP + JUMP TABLE BELOW
 			// done this way because this is a pretty tight and perf critical loop. essentially
@@ -78,71 +91,19 @@ namespace ClothingMeshUtils
 			FVector& OutNormal = OutNormals[bInPlaceOutput ? VertIndex + ArrayOffset : VertIndex];
 			switch (InMesh.BoneData[VertIndex].NumInfluences)
 			{
+			case 12: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[11]]], BoneWeights[11]);  // Intentional fall through
+			case 11: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[10]]], BoneWeights[10]);  // Intentional fall through
+			case 10: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 9]]], BoneWeights[ 9]);  // Intentional fall through
+			case  9: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 8]]], BoneWeights[ 8]);  // Intentional fall through
+			case  8: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 7]]], BoneWeights[ 7]);  // Intentional fall through
+			case  7: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 6]]], BoneWeights[ 6]);  // Intentional fall through
+			case  6: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 5]]], BoneWeights[ 5]);  // Intentional fall through
+			case  5: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 4]]], BoneWeights[ 4]);  // Intentional fall through
+			case  4: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 3]]], BoneWeights[ 3]);  // Intentional fall through
+			case  3: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 2]]], BoneWeights[ 2]);  // Intentional fall through
+			case  2: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 1]]], BoneWeights[ 1]);  // Intentional fall through
+			case  1: AddInfluence(OutPosition, OutNormal, RefParticle, RefNormal, BoneMatrices[BoneMap[BoneIndices[ 0]]], BoneWeights[ 0]);  // Intentional fall through
 			default: break;
-			case 8:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[7]]];
-				const float Weight = BoneWeights[7];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 7:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[6]]];
-				const float Weight = BoneWeights[6];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 6:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[5]]];
-				const float Weight = BoneWeights[5];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 5:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[4]]];
-				const float Weight = BoneWeights[4];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 4:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[3]]];
-				const float Weight = BoneWeights[3];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 3:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[2]]];
-				const float Weight = BoneWeights[2];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 2:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[1]]];
-				const float Weight = BoneWeights[1];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
-			case 1:
-			{
-				const FMatrix& BoneMatrix = BoneMatrices[BoneMap[BoneIndices[0]]];
-				const float Weight = BoneWeights[0];
-
-				OutPosition += BoneMatrix.TransformPosition(RefParticle) * Weight;
-				OutNormal += BoneMatrix.TransformVector(RefNormal) * Weight;
-			}
 			}
 
 			if (bRemoveScaleAndInvertPostTransform)
@@ -165,7 +126,7 @@ namespace ClothingMeshUtils
 			{
 				OutNormal = OutNormal.GetUnsafeNormal();
 			}
-		}
+		}, NumVerts > MinParallelVertices ? EParallelForFlags::None : EParallelForFlags::ForceSingleThread);
 	}
 
 	/** 

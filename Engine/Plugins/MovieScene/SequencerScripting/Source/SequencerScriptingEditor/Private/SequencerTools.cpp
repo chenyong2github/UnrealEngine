@@ -23,6 +23,7 @@
 #include "Components/SkeletalMeshComponent.h"
 #include "Animation/AnimSequenceBase.h"
 #include "ScopedTransaction.h"
+#include "Exporters/AnimSeqExportOption.h"
 
 #include "K2Node_CustomEvent.h"
 #include "BlueprintFunctionNodeSpawner.h"
@@ -251,7 +252,7 @@ static USkeletalMeshComponent* GetSkelMeshComponent(IMovieScenePlayer* Player, c
 	return nullptr;
 }
 
-bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, const FSequencerBindingProxy& Binding)
+bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSequence*  Sequence,  UAnimSequence* AnimSequence, UAnimSeqExportOption* ExportOptions,const FSequencerBindingProxy& Binding)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (Binding.Sequence != Sequence || !AnimSequence)
@@ -284,7 +285,7 @@ bool USequencerToolsFunctionLibrary::ExportAnimSequence(UWorld* World, ULevelSeq
 		if (SkeletalMeshComp && SkeletalMeshComp->SkeletalMesh && SkeletalMeshComp->SkeletalMesh->Skeleton)
 		{
 			AnimSequence->SetSkeleton(SkeletalMeshComp->SkeletalMesh->Skeleton);
-			bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
+			bResult = MovieSceneToolHelpers::ExportToAnimSequence(AnimSequence,ExportOptions, MovieScene, Player, SkeletalMeshComp, Template, RootToLocalTransform);
 		}
 	}
 	
@@ -464,6 +465,64 @@ bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Se
 	Player->Stop();
 	World->DestroyActor(OutActor);
 	return bResult;
+}
+
+bool USequencerToolsFunctionLibrary::ImportFBXToControlRig(UWorld* World, ULevelSequence* Sequence, const FString& ControlRigTrackName, const TArray<FString>& ControlRigNames,
+	UMovieSceneUserImportFBXControlRigSettings* ImportFBXControlRigSettings,
+	const FString& ImportFilename)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (!MovieScene || MovieScene->IsReadOnly())
+	{
+		return false;
+	}
+
+	bool bValid = false;
+
+	const TArray<FMovieSceneBinding>& Bindings =  MovieScene->GetBindings();
+	for (const FMovieSceneBinding& Binding : Bindings)
+	{
+		if (Binding.GetName() == ControlRigTrackName)
+		{
+			
+			ALevelSequenceActor* OutActor;
+			FMovieSceneSequencePlaybackSettings Settings;
+			FLevelSequenceCameraSettings CameraSettings;
+			ULevelSequencePlayer* Player = ULevelSequencePlayer::CreateLevelSequencePlayer(World, Sequence, Settings, OutActor);
+			Player->Initialize(Sequence, World->GetLevel(0), Settings, CameraSettings);
+			Player->State.AssignSequence(MovieSceneSequenceID::Root, *Sequence, *Player);
+
+			const TArray<UMovieSceneTrack*>& Tracks = Binding.GetTracks();
+			TArray<FName> SelectedControls;
+			for (UMovieSceneTrack* Track : Tracks)
+			{
+				INodeAndChannelMappings* ChannelMapping = Cast<INodeAndChannelMappings>(Track); 
+				if (ChannelMapping)
+				{
+					TArray<FFBXNodeAndChannels>* NodeAndChannels = ChannelMapping->GetNodeAndChannelMappings();
+					//use passed in controls for selected, actually selected controls should almost be empty anyway since we just loaded/set everything up.
+					for (const FString& StringName : ControlRigNames)
+					{
+						FName Name(*StringName);
+						SelectedControls.Add(Name);
+					}
+
+					bValid = MovieSceneToolHelpers::ImportFBXIntoControlRigChannels(MovieScene,ImportFilename, ImportFBXControlRigSettings,
+					NodeAndChannels, SelectedControls, MovieScene->GetTickResolution());
+
+					if (NodeAndChannels)
+					{
+						delete NodeAndChannels;
+					}
+				}
+			}
+			return bValid;
+		}
+	}
+	
+	return false;
+	
+
 }
 
 

@@ -6,7 +6,7 @@
 
 class FFbxHairImporter;
 
-class FFbxHairTranslator : public IHairStrandsTranslator
+class FFbxHairTranslator : public IGroomTranslator
 {
 public:
 	virtual bool Translate(const FString& FilePath, FHairDescription& OutHairDescription, const FGroomConversionSettings& ConversionSettings) override;

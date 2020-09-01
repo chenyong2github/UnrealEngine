@@ -1126,6 +1126,9 @@ public:
 	/** Get the currently selected tree nodes */
 	TArray<FSCSEditorTreeNodePtrType> GetSelectedNodes() const;
 
+	/** Get the number of currently selected tree nodes */
+	int32 GetNumSelectedNodes() const { return SCSTreeWidget->GetNumItemsSelected(); }
+
 	/**
 	 * Fills out an events section in ui.
 	 * @param Menu								the menu to add the events section into

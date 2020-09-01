@@ -4167,8 +4167,89 @@ void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin
 	NewPinType.bIsWeakPointer = false;
 	if (bInToMemberVariable)
 	{
-		VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewVar"));
+#if WITH_EDITORONLY_DATA
+		static const FName NAME_UIMin(TEXT("UIMin"));
+		static const FName NAME_UIMax(TEXT("UIMax"));
+		static const FName NAME_ClampMin(TEXT("ClampMin"));
+		static const FName NAME_ClampMax(TEXT("ClampMax"));
+
+		FString Meta_UIMin;
+		FString Meta_UIMax;
+		FString Meta_ClampMin;
+		FString Meta_ClampMax;
+
+		if (const UEdGraphSchema* Schema = InTargetPin->GetSchema())
+		{
+			// Name the variable to match its target blueprint pin name
+			FString IdealVarName = FText::TrimPrecedingAndTrailing(Schema->GetPinDisplayName(InTargetPin)).ToString();
+
+			// Ignore unnamed return values
+			if (IdealVarName == TEXT("Return Value"))
+			{
+				IdealVarName.Empty();
+			}
+
+			// Ignore names from compact nodes that don't usually display the pin names
+			if (const UK2Node* K2Node = Cast<UK2Node>(InTargetPin->GetOwningNode()))
+			{
+				if (K2Node->ShouldDrawCompact() || K2Node->ShouldDrawAsBead())
+				{
+					IdealVarName.Empty();
+				}
+			}
+
+			// Set the variable name to its ideal name (with an optional numeric suffix if there is a conflict)
+			if (!IdealVarName.IsEmpty())
+			{
+				TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(GetBlueprintObj(), NAME_None));
+				if (NameValidator->IsValid(IdealVarName) == EValidatorResult::Ok)
+				{
+					VarName = FName(*IdealVarName);
+				}
+				else
+				{
+					VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), IdealVarName);
+				}
+
+				if (UEdGraphNode* Node = InTargetPin->GetOwningNode())
+				{
+					// Extract the target pin's numeric limits so that we can copy them to the new variable
+					Meta_UIMin = Node->GetPinMetaData(InTargetPin->PinName, NAME_UIMin);
+					Meta_UIMax = Node->GetPinMetaData(InTargetPin->PinName, NAME_UIMax);
+					Meta_ClampMin = Node->GetPinMetaData(InTargetPin->PinName, NAME_ClampMin);
+					Meta_ClampMax = Node->GetPinMetaData(InTargetPin->PinName, NAME_ClampMax);
+				}
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+
+		if (VarName == NAME_None)
+		{
+			VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewVar"));
+		}
 		bWasSuccessful = FBlueprintEditorUtils::AddMemberVariable( GetBlueprintObj(), VarName, NewPinType, InTargetPin->GetDefaultAsString() );
+
+#if WITH_EDITORONLY_DATA
+		if (bWasSuccessful)
+		{
+			if (!Meta_UIMin.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_UIMin, Meta_UIMin);
+			}
+			if (!Meta_UIMax.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_UIMax, Meta_UIMax);
+			}
+			if (!Meta_ClampMin.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_ClampMin, Meta_ClampMin);
+			}
+			if (!Meta_ClampMax.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_ClampMax, Meta_ClampMax);
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
 	}
 	else
 	{

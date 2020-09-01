@@ -1326,7 +1326,9 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
 	bool bHandled = false;
-	for (UEdMode* Mode : ActiveScriptableModes)
+	//Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
+	TArray<UEdMode*> CopyActiveScriptableModes(ActiveScriptableModes);
+	for (UEdMode* Mode : CopyActiveScriptableModes)
 	{
 		bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
 	}

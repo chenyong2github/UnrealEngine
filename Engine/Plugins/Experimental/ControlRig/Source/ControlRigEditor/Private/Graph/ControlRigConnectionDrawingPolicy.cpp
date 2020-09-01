@@ -3,6 +3,7 @@
 #include "ControlRigConnectionDrawingPolicy.h"
 #include "Graph/ControlRigGraph.h"
 #include "Graph/ControlRigGraphNode.h"
+#include "ControlRig.h"
 #include "ControlRigBlueprint.h"
 #include "RigVMModel/RigVMController.h"
 #include "Kismet2/BlueprintEditorUtils.h"
@@ -156,7 +157,10 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 	if (OutputNode && InputNode)
 	{
 		bool bInjectionIsSelected = false;
-		if (URigVMPin* OutputModelPin = OutputNode->GetModelPinFromPinPath(OutputPin->GetName()))
+		URigVMPin* OutputModelPin = OutputNode->GetModelPinFromPinPath(OutputPin->GetName());
+		URigVMPin* InputModelPin = InputNode->GetModelPinFromPinPath(InputPin->GetName());
+
+		if (OutputModelPin)
 		{
 			OutputModelPin = OutputModelPin->GetPinForLink();
 			if (URigVMInjectionInfo* OutputInjection = OutputModelPin->GetNode()->GetInjectionInfo())
@@ -170,7 +174,7 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 
 		if (!bInjectionIsSelected)
 		{
-			if (URigVMPin* InputModelPin = InputNode->GetModelPinFromPinPath(InputPin->GetName()))
+			if (InputModelPin)
 			{
 				InputModelPin = InputModelPin->GetPinForLink();
 				if (URigVMInjectionInfo* InputInjection = InputModelPin->GetNode()->GetInjectionInfo())
@@ -187,6 +191,41 @@ void FControlRigConnectionDrawingPolicy::DetermineWiringStyle(UEdGraphPin* Outpu
 		{
 			Params.WireThickness = Settings->TraceAttackWireThickness;
 			Params.WireColor = Settings->TraceAttackColor;
+		}
+
+		if (OutputModelPin && InputModelPin)
+		{
+			int32 OutputInstructionIndex = OutputModelPin->GetNode()->GetInstructionIndex();
+			int32 InputInstructionIndex = InputModelPin->GetNode()->GetInstructionIndex();
+			bool bVisited = false;
+
+			if (OutputInstructionIndex != INDEX_NONE && InputInstructionIndex != INDEX_NONE)
+			{
+				if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(FBlueprintEditorUtils::FindBlueprintForNodeChecked(OutputNode)))
+				{
+					if (UControlRig* ControlRig = Cast<UControlRig>(RigBlueprint->GetObjectBeingDebugged()))
+					{
+						if (const URigVM* VM = ControlRig->GetVM())
+						{
+							if (VM->WasInstructionVisitedDuringLastRun(OutputInstructionIndex) &&
+								VM->WasInstructionVisitedDuringLastRun(InputInstructionIndex))
+							{
+								bVisited = true;
+							}
+						}
+					}
+				}
+			}
+
+			if (bVisited)
+			{
+				//Params.bDrawBubbles = true;
+				Params.WireThickness = Settings->DefaultExecutionWireThickness;
+			}
+			else
+			{
+				Params.WireColor = Params.WireColor * 0.5f;
+			}
 		}
 	}
 }

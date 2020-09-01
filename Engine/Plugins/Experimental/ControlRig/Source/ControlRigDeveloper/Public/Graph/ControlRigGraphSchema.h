@@ -72,7 +72,8 @@ public:
 	virtual void OnPinConnectionDoubleCicked(UEdGraphPin* PinA, UEdGraphPin* PinB, const FVector2D& GraphPosition) const override;
 	virtual bool MarkBlueprintDirtyFromNewNode(UBlueprint* InBlueprint, UEdGraphNode* InEdGraphNode) const override;
 	virtual bool SafeDeleteNodeFromGraph(UEdGraph* Graph, UEdGraphNode* Node) const override;
-
+	virtual bool CanVariableBeDropped(UEdGraph* InGraph, FProperty* InVariableToDrop) const override;
+	virtual bool RequestVariableDropOnPanel(UEdGraph* InGraph, FProperty* InVariableToDrop, const FVector2D& InDropPosition, const FVector2D& InScreenPosition) override;
 	virtual bool IsStructEditable(UStruct* InStruct) const;
 
 	/** Create a graph node for a rig */
@@ -90,11 +91,16 @@ public:
 	/** Returns all of the applicable pin types for variables within a control rig */
 	virtual void GetVariablePinTypes(TArray<FEdGraphPinType>& PinTypes) const;
 
+	void EndGraphNodeInteraction(UEdGraphNode* InNode) const;
+
 private:
 
 	const UEdGraphPin* LastPinForCompatibleCheck = nullptr;
 	bool bLastPinWasInput;
 
 	friend class UControlRigRerouteNodeSpawner;
+	friend class UControlRigIfNodeSpawner;
+	friend class UControlRigSelectNodeSpawner;
+	friend class UControlRigUnitNodeSpawner;
 };
 

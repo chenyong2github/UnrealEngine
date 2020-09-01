@@ -84,7 +84,7 @@ namespace MultiFABRIK
 	}
 
 	// Forward Evaluator
-	void SolveForwardRecursively(FRigUnit_MultiFABRIK_ChainGroup& InOutCurrentGroup, TArray<FRigUnit_MultiFABRIK_BoneWorkingData>& InBoneTree, const TArrayView<FRigUnit_MultiFABRIK_EndEffector>& InEffectors, float InPrecision)
+	void SolveForwardRecursively(FRigUnit_MultiFABRIK_ChainGroup& InOutCurrentGroup, TArray<FRigUnit_MultiFABRIK_BoneWorkingData>& InBoneTree, const FRigVMFixedArray<FRigUnit_MultiFABRIK_EndEffector>& InEffectors, float InPrecision)
 	{
 		const int32 ChildNum = InOutCurrentGroup.Children.Num();
 		// solve child first, and then follow
@@ -224,167 +224,180 @@ FRigUnit_MultiFABRIK_Execute()
 	// workdata reference
 	FRigUnit_MultiFABRIK_ChainGroup&				ChainGroup = WorkData.ChainGroup;
 	TArray<FRigUnit_MultiFABRIK_BoneWorkingData>&	BoneTree = WorkData.BoneTree;
-	TArray<int32>&				                    EffectorIndices = WorkData.EffectorBoneIndices;
+	TArray<FCachedRigElement>&				        EffectorIndices = WorkData.EffectorBoneIndices;
 	
 	if (Context.State == EControlRigState::Init)
 	{
 		EffectorIndices.Reset();
 		BoneTree.Reset();
 		ChainGroup.Reset();
+		return;
+	}
 
-		// verify the chain
-		const int32 RootBoneIndex = Hierarchy->GetIndex(RootBone);
-		if (RootBoneIndex != INDEX_NONE)
+	if (Context.State == EControlRigState::Update)
+	{
+		if(BoneTree.Num() == 0)
 		{
-			const FRigBone& RootRigBone = (*Hierarchy)[RootBoneIndex];
-			// fill up all effector indices
-			for (int32 Index = 0; Index < Effectors.Num(); ++Index)
+			// verify the chain
+			const int32 RootBoneIndex = Hierarchy->GetIndex(RootBone);
+			if (RootBoneIndex != INDEX_NONE)
 			{
-				EffectorIndices.Add(Hierarchy->GetIndex(Effectors[Index].Bone));
-			}
+				const FRigBone& RootRigBone = (*Hierarchy)[RootBoneIndex];
 
-			// go up to until you meet root
-			struct FLocalBoneData
-			{
-				FName BoneName;
-				int32 BoneIndex;
-				FName ParentBoneName;
-				int32 ParentIndex;
-
-				FLocalBoneData(const FName& InBoneName, int32 InBoneIndex, const FName& InParentBoneName, int32 InParentIndex)
-					: BoneName(InBoneName)
-					, BoneIndex(InBoneIndex)
-					, ParentBoneName(InParentBoneName)
-					, ParentIndex(InParentIndex)
-				{}
-
-				FLocalBoneData(const FRigBone& InRigBone)
-					: BoneName(InRigBone.Name)
-					, BoneIndex(InRigBone.Index)
-					, ParentBoneName(InRigBone.ParentName)
-					, ParentIndex(InRigBone.ParentIndex)
-				{}
-					
-			};
-
-			TMap<FName, int32> ExistingBoneList;
-			// now fill up data on bonedata_workdata
-			// get all list of joints to fill up BoneData array
-			for (int32 Index = 0; Index < EffectorIndices.Num(); ++Index)
-			{
-				const int32 EffectorIndex = EffectorIndices[Index];
-				if (EffectorIndex != INDEX_NONE)
+				// fill up all effector indices
+				for (int32 Index = 0; Index < Effectors.Num(); ++Index)
 				{
-					TArray<FLocalBoneData> BoneList;
+					EffectorIndices.Add(FCachedRigElement(Effectors[Index].Bone, Hierarchy));
+				}
 
-					int32 CurrentIndex = EffectorIndex;
-					do 
+				// go up to until you meet root
+				struct FLocalBoneData
+				{
+					FName BoneName;
+					int32 BoneIndex;
+					FName ParentBoneName;
+					int32 ParentIndex;
+
+					FLocalBoneData(const FName& InBoneName, int32 InBoneIndex, const FName& InParentBoneName, int32 InParentIndex)
+						: BoneName(InBoneName)
+						, BoneIndex(InBoneIndex)
+						, ParentBoneName(InParentBoneName)
+						, ParentIndex(InParentIndex)
+					{}
+
+					FLocalBoneData(const FRigBone& InRigBone)
+						: BoneName(InRigBone.Name)
+						, BoneIndex(InRigBone.Index)
+						, ParentBoneName(InRigBone.ParentName)
+						, ParentIndex(InRigBone.ParentIndex)
+					{}
+					
+				};
+
+				TMap<FName, int32> ExistingBoneList;
+				// now fill up data on bonedata_workdata
+				// get all list of joints to fill up BoneData array
+				for (int32 Index = 0; Index < EffectorIndices.Num(); ++Index)
+				{
+					const int32 EffectorIndex = EffectorIndices[Index];
+					if (EffectorIndex != INDEX_NONE)
 					{
-						const FRigBone& RigBone = (*Hierarchy)[CurrentIndex];
-						BoneList.Insert(FLocalBoneData(RigBone), 0);
-						CurrentIndex = RigBone.ParentIndex;
-					} while (CurrentIndex != RootRigBone.Index && CurrentIndex != INDEX_NONE);
+						TArray<FLocalBoneData> BoneList;
 
-					// if we haven't got to root, this is not valid chain
-					if (CurrentIndex == RootRigBone.Index)
-					{
-						// add root
-						BoneList.Insert(FLocalBoneData(RootRigBone), 0);
-
-						// go through all bone list collected
-						for (const FLocalBoneData& Bone : BoneList)
+						int32 CurrentIndex = EffectorIndex;
+						do 
 						{
-							// if it's not collected yet, add to the list
-							int32* FoundIndex = ExistingBoneList.Find(Bone.BoneName);
-							int32 TreeIndex = INDEX_NONE;
-							FRigUnit_MultiFABRIK_BoneWorkingData* Data = nullptr;
-							if (FoundIndex == nullptr)
-							{
-								TreeIndex = BoneTree.AddDefaulted();
-								Data = &BoneTree[TreeIndex];
+							const FRigBone& RigBone = (*Hierarchy)[CurrentIndex];
+							BoneList.Insert(FLocalBoneData(RigBone), 0);
+							CurrentIndex = RigBone.ParentIndex;
+						} while (CurrentIndex != RootRigBone.Index && CurrentIndex != INDEX_NONE);
 
-								Data->BoneName = Bone.BoneName;
-								Data->BoneIndex = Bone.BoneIndex;
-								Data->ParentIndex = Bone.ParentIndex;
-								// set bone length 
-								if (Data->ParentIndex != INDEX_NONE)
+						// if we haven't got to root, this is not valid chain
+						if (CurrentIndex == RootRigBone.Index)
+						{
+							// add root
+							BoneList.Insert(FLocalBoneData(RootRigBone), 0);
+
+							// go through all bone list collected
+							for (const FLocalBoneData& Bone : BoneList)
+							{
+								// if it's not collected yet, add to the list
+								int32* FoundIndex = ExistingBoneList.Find(Bone.BoneName);
+								int32 TreeIndex = INDEX_NONE;
+								FRigUnit_MultiFABRIK_BoneWorkingData* Data = nullptr;
+								if (FoundIndex == nullptr)
 								{
-									// save size - this is initial. we could do this in every frame instead
-									Data->BoneLength = Hierarchy->GetLocalTransform(Data->BoneIndex).GetTranslation().Size();
+									TreeIndex = BoneTree.AddDefaulted();
+									Data = &BoneTree[TreeIndex];
+
+									Data->BoneName = Bone.BoneName;
+									Data->BoneIndex = FCachedRigElement(Bone.BoneName, Hierarchy);
+									Data->ParentIndex = FCachedRigElement(Bone.ParentBoneName, Hierarchy);
+
+									// set bone length 
+									if (Data->ParentIndex.IsValid())
+									{
+										// save size - this is initial. we could do this in every frame instead
+										Data->BoneLength = Hierarchy->GetLocalTransform(Data->BoneIndex).GetTranslation().Size();
+									}
+									else
+									{
+										Data->BoneLength = 0.f;
+									}
+
+									// find tree index?
+									int32* FoundParent = ExistingBoneList.Find(Bone.ParentBoneName);
+									if (FoundParent)
+									{
+										Data->ParentTreeIndex = *FoundParent;
+									}
+
+									ExistingBoneList.Add(Data->BoneName, TreeIndex);
 								}
 								else
 								{
-									Data->BoneLength = 0.f;
+									TreeIndex = *FoundIndex;
+									Data = &BoneTree[TreeIndex];
 								}
 
-								// find tree index?
-								int32* FoundParent = ExistingBoneList.Find(Bone.ParentBoneName);
-								if (FoundParent)
+								if (Data->ParentTreeIndex != INDEX_NONE)
 								{
-									Data->ParentTreeIndex = *FoundParent;
+									// add my index to my parent
+									BoneTree[Data->ParentTreeIndex].ChildrenTreeIndices.AddUnique(TreeIndex);
 								}
-
-								ExistingBoneList.Add(Data->BoneName, TreeIndex);
-							}
-							else
-							{
-								TreeIndex = *FoundIndex;
-								Data = &BoneTree[TreeIndex];
-							}
-
-							if (Data->ParentTreeIndex != INDEX_NONE)
-							{
-								// add my index to my parent
-								BoneTree[Data->ParentTreeIndex].ChildrenTreeIndices.AddUnique(TreeIndex);
 							}
 						}
 					}
 				}
-			}
 
-			// create tree from BoneTree, this way it's easier for us to create chain per group
-			TArray<MultiFABRIK::FChainNode> ChainNodes;
+				// create tree from BoneTree, this way it's easier for us to create chain per group
+				TArray<MultiFABRIK::FChainNode> ChainNodes;
 
-			// first create all nodes
-			ChainNodes.AddZeroed(BoneTree.Num());
-			for (int32 Index = 0; Index < BoneTree.Num(); ++Index)
-			{
-				const int32 ParentTreeIndex = BoneTree[Index].ParentTreeIndex;
-				ChainNodes[Index].Parent = (ParentTreeIndex != INDEX_NONE)? &ChainNodes[ParentTreeIndex] : nullptr;
-				ChainNodes[Index].BoneTreeIndex = Index;
-			}
-
-			// then now add children
-			for (int32 Index = 0; Index < BoneTree.Num(); ++Index)
-			{
-				if (BoneTree[Index].ChildrenTreeIndices.Num() > 0)
+				// first create all nodes
+				ChainNodes.AddZeroed(BoneTree.Num());
+				for (int32 Index = 0; Index < BoneTree.Num(); ++Index)
 				{
-					ChainNodes[Index].Children.AddZeroed(BoneTree[Index].ChildrenTreeIndices.Num());
+					const int32 ParentTreeIndex = BoneTree[Index].ParentTreeIndex;
+					ChainNodes[Index].Parent = (ParentTreeIndex != INDEX_NONE)? &ChainNodes[ParentTreeIndex] : nullptr;
+					ChainNodes[Index].BoneTreeIndex = Index;
+				}
 
-					for (int32 ChildIndex = 0; ChildIndex < BoneTree[Index].ChildrenTreeIndices.Num(); ++ChildIndex)
+				// then now add children
+				for (int32 Index = 0; Index < BoneTree.Num(); ++Index)
+				{
+					if (BoneTree[Index].ChildrenTreeIndices.Num() > 0)
 					{
-						const int32 ChildTreeIndex = BoneTree[Index].ChildrenTreeIndices[ChildIndex];
-						ChainNodes[Index].Children[ChildIndex] = (ChildTreeIndex != INDEX_NONE) ? &ChainNodes[ChildTreeIndex] : nullptr;
+						ChainNodes[Index].Children.AddZeroed(BoneTree[Index].ChildrenTreeIndices.Num());
+
+						for (int32 ChildIndex = 0; ChildIndex < BoneTree[Index].ChildrenTreeIndices.Num(); ++ChildIndex)
+						{
+							const int32 ChildTreeIndex = BoneTree[Index].ChildrenTreeIndices[ChildIndex];
+							ChainNodes[Index].Children[ChildIndex] = (ChildTreeIndex != INDEX_NONE) ? &ChainNodes[ChildTreeIndex] : nullptr;
+						}
 					}
 				}
-			}
 
-			// now we have tree 
-			// add new link recursively
-			// now go from root to child, and create group if you have more children, you can always go back 
-			if (ChainNodes.Num() > 0)
-			{
-				ChainGroup.RootBoneTreeIndex = 0;
+				// now we have tree 
+				// add new link recursively
+				// now go from root to child, and create group if you have more children, you can always go back 
+				if (ChainNodes.Num() > 0)
+				{
+					ChainGroup.RootBoneTreeIndex = 0;
 
-				// add new links recursively
-				// we group per chain, and sub groups goes next
-				// when you have multiple children, we add new groups, and each group gets chain
-				MultiFABRIK::AddNewLinkRecursive(&ChainNodes[0], ChainGroup, BoneTree, EffectorIndices);
+					// add new links recursively
+					// we group per chain, and sub groups goes next
+					// when you have multiple children, we add new groups, and each group gets chain
+					TArray<int32> ResolvedEffectorIndices;
+					ResolvedEffectorIndices.Reserve(EffectorIndices.Num());
+					for (FCachedRigElement& EffectorIndex : EffectorIndices)
+					{
+						ResolvedEffectorIndices.Add(EffectorIndex);
+					}
+					MultiFABRIK::AddNewLinkRecursive(&ChainNodes[0], ChainGroup, BoneTree, ResolvedEffectorIndices);
+				}
 			}
 		}
-	}
-	else  if (Context.State == EControlRigState::Update)
-	{
+
 		if (BoneTree.Num() > 0)
 		{
 			// update bone tree data

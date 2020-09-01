@@ -16,9 +16,16 @@
 #include "Trace/StoreService.h"
 #include "Trace/StoreClient.h"
 #include "Stats/Stats.h"
+#include "ObjectPropertyTrace.h"
 
 #if WITH_EDITOR
 #include "IAnimationBlueprintEditorModule.h"
+#include "Editor.h"
+#include "ToolMenus.h"
+#include "LevelEditorMenuContext.h"
+#include "Engine/Selection.h"
+#include "SSCSEditorMenuContext.h"
+#include "SSCSEditor.h"
 #endif
 
 #if WITH_ENGINE
@@ -168,14 +175,24 @@ void FGameplayInsightsModule::StartupModule()
 
 	}
 
+	UToolMenus::RegisterStartupCallback(FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FGameplayInsightsModule::RegisterMenus));
+
 #else
 	FOnRegisterMajorTabExtensions& TimingProfilerExtension = UnrealInsightsModule.OnRegisterMajorTabExtension(FInsightsManagerTabs::TimingProfilerTabId);
 	TimingProfilerExtension.AddRaw(this, &FGameplayInsightsModule::RegisterTimingProfilerLayoutExtensions);
+#endif
+
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	FObjectPropertyTrace::Init();
 #endif
 }
 
 void FGameplayInsightsModule::ShutdownModule()
 {
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	FObjectPropertyTrace::Destroy();
+#endif
+
 #if WITH_EDITOR
 	IAnimationBlueprintEditorModule* AnimationBlueprintEditorModule = FModuleManager::GetModulePtr<IAnimationBlueprintEditorModule>("AnimationBlueprintEditor");
 	if(AnimationBlueprintEditorModule)
@@ -209,6 +226,215 @@ void FGameplayInsightsModule::RegisterTimingProfilerLayoutExtensions(FInsightsMa
 {
 	InOutExtender.GetLayoutExtender().ExtendLayout(FTimingProfilerTabs::TimersID, ELayoutExtensionPosition::Before, FTabManager::FTab(GameplayInsightsTabs::DocumentTab, ETabState::ClosedTab));
 }
+
+#if WITH_EDITOR
+void FGameplayInsightsModule::RegisterMenus()
+{
+	FToolMenuOwnerScoped OwnerScoped(this);
+
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	{
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("LevelEditor.ActorContextMenu");
+		FToolMenuSection& Section = Menu->AddSection("GameplayInsights", LOCTEXT("GameplayInsights", "Gameplay Insights"));
+
+		auto GetCheckState = []()
+		{
+			if ((GEditor->GetSelectedComponentCount() > 0 || GEditor->GetSelectedActorCount() > 0) && FObjectPropertyTrace::IsEnabled())
+			{
+				USelection* SelectedActors = GEditor->GetSelectedActors();
+
+				int32 TotalObjectCount = SelectedActors->Num();
+				int32 RegisteredObjectCount = 0;
+				
+				for(int32 ActorIndex = 0; ActorIndex < SelectedActors->Num(); ++ActorIndex)
+				{
+					UObject* SelectedActor = SelectedActors->GetSelectedObject(ActorIndex);
+					if(FObjectPropertyTrace::IsObjectRegistered(SelectedActor))
+					{
+						RegisteredObjectCount++;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if(RegisteredObjectCount == TotalObjectCount)
+				{
+					return ECheckBoxState::Checked;
+				}
+				else
+				{
+					return ECheckBoxState::Unchecked;
+				}
+			}
+
+			return ECheckBoxState::Unchecked;
+		};
+
+		FToolUIAction Action;
+		Action.ExecuteAction = FToolMenuExecuteAction::CreateLambda([GetCheckState](const FToolMenuContext& InContext)
+		{
+			if ((GEditor->GetSelectedComponentCount() > 0 || GEditor->GetSelectedActorCount() > 0) && FObjectPropertyTrace::IsEnabled())
+			{
+				ECheckBoxState CheckState = GetCheckState();
+
+				USelection* SelectedActors = GEditor->GetSelectedActors();
+				for(int32 ActorIndex = 0; ActorIndex < SelectedActors->Num(); ++ActorIndex)
+				{
+					UObject* SelectedActor = SelectedActors->GetSelectedObject(ActorIndex);
+					if(CheckState == ECheckBoxState::Unchecked)
+					{
+						FObjectPropertyTrace::RegisterObject(SelectedActor);
+					}
+					else
+					{
+						FObjectPropertyTrace::UnregisterObject(SelectedActor);
+					}
+				}
+			}
+		});
+		Action.CanExecuteAction = FToolMenuCanExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
+		{
+			return ((GEditor->GetSelectedActorCount() > 0) && FObjectPropertyTrace::IsEnabled());
+		});
+		Action.GetActionCheckState = FToolMenuGetActionCheckState::CreateLambda([GetCheckState](const FToolMenuContext& InContext)
+		{
+			return GetCheckState();
+		});
+
+		FToolMenuEntry& Entry = Section.AddMenuEntry(
+			"TraceObjectProperties",
+			LOCTEXT("TraceObjectProperties", "Trace Object Properties"),
+			LOCTEXT("TraceObjectPropertiesTooltip", "Trace the properties of this object to be viewed in Insights"),
+			FSlateIcon(),
+			Action,
+			EUserInterfaceActionType::ToggleButton);
+	}
+	{
+		UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("Kismet.SCSEditorContextMenu");
+
+		FToolMenuSection& Section = Menu->AddSection("GameplayInsights", LOCTEXT("GameplayInsights", "Gameplay Insights"));
+
+		auto GetCheckState = [](const TSharedPtr<SSCSEditor>& InSCSEditor)
+		{
+			if (InSCSEditor->GetNumSelectedNodes() > 0 && FObjectPropertyTrace::IsEnabled())
+			{
+				TArray<FSCSEditorTreeNodePtrType> SelectedNodes = InSCSEditor->GetSelectedNodes();
+				int32 TotalObjectCount = SelectedNodes.Num();
+				int32 RegisteredObjectCount = 0;
+
+				for (FSCSEditorTreeNodePtrType SCSNode : SelectedNodes)
+				{
+					const UObject* SelectedComponent = SCSNode->GetObject<UObject>();
+					if (FObjectPropertyTrace::IsObjectRegistered(SelectedComponent))
+					{
+						RegisteredObjectCount++;
+					}
+					else
+					{
+						break;
+					}
+				}
+
+				if (RegisteredObjectCount == TotalObjectCount)
+				{
+					return ECheckBoxState::Checked;
+				}
+				else
+				{
+					return ECheckBoxState::Unchecked;
+				}
+			}
+
+			return ECheckBoxState::Unchecked;
+		};
+
+		FToolUIAction Action;
+		Action.ExecuteAction = FToolMenuExecuteAction::CreateLambda([&GetCheckState](const FToolMenuContext& InContext)
+		{
+			if (FObjectPropertyTrace::IsEnabled())
+			{
+				USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+				if (ContextObject && ContextObject->SCSEditor.IsValid() && ContextObject->SCSEditor.Pin()->GetEditorMode() == EComponentEditorMode::ActorInstance)
+				{
+					TSharedPtr<SSCSEditor> SCSEditor = ContextObject->SCSEditor.Pin();
+					if(SCSEditor.IsValid())
+					{
+						ECheckBoxState CheckState = GetCheckState(SCSEditor);
+
+						for(FSCSEditorTreeNodePtrType SCSNode : SCSEditor->GetSelectedNodes())
+						{
+							const UObject* SelectedComponent = SCSNode->GetObject<UObject>();
+							if(CheckState == ECheckBoxState::Unchecked)
+							{
+								FObjectPropertyTrace::RegisterObject(SelectedComponent);
+							}
+							else
+							{
+								FObjectPropertyTrace::UnregisterObject(SelectedComponent);
+							}
+						}
+					}
+				}
+			}
+		});
+		Action.CanExecuteAction = FToolMenuCanExecuteAction::CreateLambda([](const FToolMenuContext& InContext)
+		{
+			if (FObjectPropertyTrace::IsEnabled())
+			{
+				USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+				if (ContextObject && ContextObject->SCSEditor.IsValid() && ContextObject->SCSEditor.Pin()->GetEditorMode() == EComponentEditorMode::ActorInstance)
+				{
+					TSharedPtr<SSCSEditor> SCSEditor = ContextObject->SCSEditor.Pin();
+					if (SCSEditor.IsValid())
+					{
+						return SCSEditor->GetNumSelectedNodes() > 0;
+					}
+				}
+			}
+
+			return false;
+		});
+		Action.GetActionCheckState = FToolMenuGetActionCheckState::CreateLambda([&GetCheckState](const FToolMenuContext& InContext)
+		{
+			USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+			if (ContextObject && ContextObject->SCSEditor.IsValid() && ContextObject->SCSEditor.Pin()->GetEditorMode() == EComponentEditorMode::ActorInstance)
+			{
+				TSharedPtr<SSCSEditor> SCSEditor = ContextObject->SCSEditor.Pin();
+				if (SCSEditor.IsValid())
+				{
+					return GetCheckState(SCSEditor);
+				}
+			}
+
+			return ECheckBoxState::Unchecked;
+		});
+		Action.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateLambda([](const FToolMenuContext& InContext)
+		{
+			if (FObjectPropertyTrace::IsEnabled())
+			{
+				USSCSEditorMenuContext* ContextObject = InContext.FindContext<USSCSEditorMenuContext>();
+				if (ContextObject && ContextObject->SCSEditor.IsValid() && ContextObject->SCSEditor.Pin()->GetEditorMode() == EComponentEditorMode::ActorInstance)
+				{
+					return true;
+				}
+			}
+
+			return false;
+		});
+
+		FToolMenuEntry& Entry = Section.AddMenuEntry(
+			"TraceComponentProperties",
+			LOCTEXT("TraceComponentProperties", "Trace Component Properties"),
+			LOCTEXT("TraceComponentPropertiesTooltip", "Trace the properties of this component to be viewed in Insights"),
+			FSlateIcon(),
+			Action,
+			EUserInterfaceActionType::ToggleButton);
+	}
+#endif
+}
+#endif
 
 IMPLEMENT_MODULE(FGameplayInsightsModule, GameplayInsights);
 

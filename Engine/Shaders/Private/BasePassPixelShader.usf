@@ -16,13 +16,12 @@
 
 // Material setting to allow forward shading (including mobile) to use preintegrated GF lut for simple IBL.
 #if MATERIAL_SHADINGMODEL_SINGLELAYERWATER || (FORWARD_SHADING && MATERIAL_USE_PREINTEGRATED_GF)
-	#define PreIntegratedGF	OpaqueBasePass.PreIntegratedGFTexture
-
-	#if SUPPORTS_INDEPENDENT_SAMPLERS
-		#define PreIntegratedGFSampler	View.SharedBilinearClampedSampler
-	#else
-		#define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
-	#endif
+#define PreIntegratedGF			OpaqueBasePass.PreIntegratedGFTexture
+#if SUPPORTS_INDEPENDENT_SAMPLERS
+#define PreIntegratedGFSampler	View.SharedBilinearClampedSampler
+#else
+#define PreIntegratedGFSampler	OpaqueBasePass.PreIntegratedGFSampler
+#endif
 #endif
 
 #include "SHCommon.ush"
@@ -101,7 +100,7 @@ float NormalCurvatureToRoughness(float3 WorldNormal)
 
 #endif
 
-#include "SingleLayerWaterShading.ush"
+#include "SingleLayerWaterCommon.ush"
 
 #endif // MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 
@@ -344,9 +343,15 @@ void GetSkyLighting(FMaterialPixelParameters MaterialParameters, VTPageTableResu
 #if SUPPORTS_INDEPENDENT_SAMPLERS
 	#define ILCSharedSampler1 View.SharedBilinearClampedSampler
 	#define ILCSharedSampler2 View.SharedBilinearClampedSampler
+
+	#define SingleLayerWaterSceneColorSampler View.SharedBilinearClampedSampler
+	#define SingleLayerWaterSceneDepthSampler View.SharedPointClampedSampler
 #else
 	#define ILCSharedSampler1 IndirectLightingCache.IndirectLightingCacheTextureSampler1
 	#define ILCSharedSampler2 IndirectLightingCache.IndirectLightingCacheTextureSampler2
+
+	#define SingleLayerWaterSceneColorSampler OpaqueBasePass.SceneColorWithoutSingleLayerWaterSampler
+	#define SingleLayerWaterSceneDepthSampler OpaqueBasePass.SceneDepthWithoutSingleLayerWaterSampler
 #endif
 
 /** Calculates indirect lighting contribution on this object from precomputed data. */

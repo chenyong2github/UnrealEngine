@@ -11,7 +11,23 @@
 
 #define LOCTEXT_NAMESPACE "FAnimModel"
 
-const FAnimModel::FSnapType FAnimModel::FSnapType::CompositeSegment("CompositeSegment", LOCTEXT("CompositeSegmentSnapName", "Composite Segments"), true);
+const FAnimModel::FSnapType FAnimModel::FSnapType::Frames("Frames", LOCTEXT("FramesSnapName", "Frames"), [](const FAnimModel& InModel, double InTime)
+{
+	// Round to nearest frame
+	double FrameRate = InModel.GetFrameRate();
+	if(FrameRate > 0)
+	{
+		return FMath::RoundToDouble(InTime * FrameRate) / FrameRate;
+	}
+	
+	return InTime;
+});
+
+const FAnimModel::FSnapType FAnimModel::FSnapType::Notifies("Notifies", LOCTEXT("NotifiesSnapName", "Notifies"));
+
+const FAnimModel::FSnapType FAnimModel::FSnapType::CompositeSegment("CompositeSegment", LOCTEXT("CompositeSegmentSnapName", "Composite Segments"));
+
+const FAnimModel::FSnapType FAnimModel::FSnapType::MontageSection("MontageSection", LOCTEXT("MontageSectionSnapName", "Montage Sections"));
 
 FAnimModel::FAnimModel(const TSharedRef<IPersonaPreviewScene>& InPreviewScene, const TSharedRef<IEditableSkeleton>& InEditableSkeleton, const TSharedRef<FUICommandList>& InCommandList)
 	: WeakPreviewScene(InPreviewScene)
@@ -71,6 +87,20 @@ FFrameNumber FAnimModel::GetScrubPosition() const
 	}
 
 	return FFrameNumber(0);
+}
+
+float FAnimModel::GetScrubTime() const
+{
+	if(WeakPreviewScene.IsValid())
+	{
+		UDebugSkelMeshComponent* PreviewMeshComponent = WeakPreviewScene.Pin()->GetPreviewMeshComponent();
+		if(PreviewMeshComponent && PreviewMeshComponent->IsPreviewOn())
+		{
+			return PreviewMeshComponent->PreviewInstance->GetCurrentTime();
+		}
+	}
+
+	return 0.0f;
 }
 
 void FAnimModel::SetScrubPosition(FFrameTime NewScrubPostion) const
@@ -211,44 +241,94 @@ void FAnimModel::SetEditableTime(int32 TimeIndex, double Time, bool bIsDragging)
 	OnSetEditableTime(TimeIndex, EditableTimes[TimeIndex], bIsDragging);
 }
 
-bool FAnimModel::Snap(float& InOutTime, float InSnapMargin) const
+bool FAnimModel::Snap(float& InOutTime, float InSnapMargin, TArrayView<const FName> InSkippedSnapTypes) const
 {
 	double DoubleTime = (double)InOutTime;
-	bool bResult = Snap(DoubleTime, (double)InSnapMargin);
+	bool bResult = Snap(DoubleTime, (double)InSnapMargin, InSkippedSnapTypes);
 	InOutTime = DoubleTime;
 	return bResult;
 }
 
-bool FAnimModel::Snap(double& InOutTime, double InSnapMargin) const
+bool FAnimModel::Snap(double& InOutTime, double InSnapMargin, TArrayView<const FName> InSkippedSnapTypes) const
 {
 	InSnapMargin = FMath::Max(InSnapMargin, (double)KINDA_SMALL_NUMBER);
 
-	// Find the closest in-range enabled snap time
-	const FSnapTime* ClosestSnapTime = nullptr;
 	double ClosestDelta = DBL_MAX;
-	for(const FSnapTime& SnapTime : SnapTimes)
+	double ClosestSnapTime = DBL_MAX;
+
+	// Check for enabled snap functions first
+	for(const TPair<FName, FSnapType>& SnapTypePair : SnapTypes)
 	{
-		double Delta = FMath::Abs(SnapTime.Time - InOutTime);
-		if(Delta < InSnapMargin && Delta < ClosestDelta)
+		if(SnapTypePair.Value.SnapFunction != nullptr)
 		{
-			if(const FSnapType* SnapType = SnapTypes.Find(SnapTime.Type))
+			if(IsSnapChecked(SnapTypePair.Value.Type))
 			{
-				if(SnapType->bEnabled)
+				if(!InSkippedSnapTypes.Contains(SnapTypePair.Value.Type))
 				{
-					ClosestDelta = Delta;
-					ClosestSnapTime = &SnapTime;
+					double SnappedTime = SnapTypePair.Value.SnapFunction(*this, InOutTime);
+					if(SnappedTime != InOutTime)
+					{
+						double Delta = FMath::Abs(SnappedTime - InOutTime);
+						if(Delta < InSnapMargin && Delta < ClosestDelta)
+						{
+							ClosestDelta = Delta;
+							ClosestSnapTime = SnappedTime;
+						}
+					}
 				}
 			}
 		}
 	}
 
-	if(ClosestSnapTime != nullptr)
+	// Find the closest in-range enabled snap time
+	for(const FSnapTime& SnapTime : SnapTimes)
 	{
-		InOutTime = ClosestSnapTime->Time;
+		double Delta = FMath::Abs(SnapTime.Time - InOutTime);
+		if(Delta < InSnapMargin && Delta < ClosestDelta)
+		{
+			if(!InSkippedSnapTypes.Contains(SnapTime.Type))
+			{
+				if(const FSnapType* SnapType = SnapTypes.Find(SnapTime.Type))
+				{
+					if(IsSnapChecked(SnapTime.Type))
+					{
+						ClosestDelta = Delta;
+						ClosestSnapTime = SnapTime.Time;
+					}
+				}
+			}
+		}
+	}
+
+	if(ClosestDelta != DBL_MAX)
+	{
+		InOutTime = ClosestSnapTime;
 		return true;
 	}
 
 	return false;
+}
+
+void FAnimModel::ToggleSnap(FName InSnapName)
+{
+	if(IsSnapChecked(InSnapName))
+	{
+		GetMutableDefault<UPersonaOptions>()->TimelineEnabledSnaps.Remove(InSnapName);
+	}
+	else
+	{
+		GetMutableDefault<UPersonaOptions>()->TimelineEnabledSnaps.AddUnique(InSnapName);
+	}
+}
+
+bool FAnimModel::IsSnapChecked(FName InSnapName) const
+{
+	return GetDefault<UPersonaOptions>()->TimelineEnabledSnaps.Contains(InSnapName);
+}
+
+bool FAnimModel::IsSnapAvailable(FName InSnapName) const
+{
+	return SnapTypes.Find(InSnapName) != nullptr;
 }
 
 void FAnimModel::BuildContextMenu(FMenuBuilder& InMenuBuilder)

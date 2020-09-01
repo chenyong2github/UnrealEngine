@@ -1187,7 +1187,7 @@ void FNiagaraEditorModule::OnPostEngineInit()
 	}
 	else
 	{
-		UE_LOG(LogNiagaraEditor, Warning, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
+		UE_LOG(LogNiagaraEditor, Log, TEXT("GEditor isn't valid! Particle reset commands will not work for Niagara components!"));
 	}
 }
 

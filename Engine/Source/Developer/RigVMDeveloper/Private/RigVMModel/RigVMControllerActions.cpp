@@ -384,7 +384,7 @@ FRigVMAddRerouteNodeAction::FRigVMAddRerouteNodeAction(URigVMRerouteNode* InNode
 	, CPPType(InNode->GetPins()[0]->GetCPPType())
 	, CPPTypeObjectPath(NAME_None)
 	, DefaultValue(InNode->GetPins()[0]->GetDefaultValue())
-	, bIsConstant(InNode->GetPins()[0]->IsConstant())
+	, bIsConstant(InNode->GetPins()[0]->IsDefinedAsConstant())
 	, CustomWidgetName(InNode->GetPins()[0]->GetCustomWidgetName())
 	, Position(InNode->GetPosition())
 	, NodePath(InNode->GetNodePath())
@@ -408,6 +408,195 @@ bool FRigVMAddRerouteNodeAction::Redo(URigVMController* InController)
 {
 #if WITH_EDITOR
 	if (URigVMRerouteNode* Node = InController->AddFreeRerouteNode(bShowAsFullNode, CPPType, CPPTypeObjectPath, bIsConstant, CustomWidgetName, DefaultValue, Position, NodePath, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMAddBranchNodeAction::FRigVMAddBranchNodeAction()
+	: Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMAddBranchNodeAction::FRigVMAddBranchNodeAction(URigVMBranchNode* InNode)
+	: Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+{
+}
+
+bool FRigVMAddBranchNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMAddBranchNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (URigVMBranchNode* Node = InController->AddBranchNode(Position, NodePath, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMAddIfNodeAction::FRigVMAddIfNodeAction()
+	: CPPType()
+	, CPPTypeObjectPath(NAME_None)
+	, Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMAddIfNodeAction::FRigVMAddIfNodeAction(URigVMIfNode* InNode)
+	: CPPType()
+	, CPPTypeObjectPath(NAME_None)
+	, Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+{
+	if(URigVMPin* ResultPin = InNode->FindPin(URigVMIfNode::ResultName))
+	{
+		CPPType = ResultPin->GetCPPType();
+		if (ResultPin->GetCPPTypeObject())
+		{
+			CPPTypeObjectPath = *ResultPin->GetCPPTypeObject()->GetPathName();
+		}
+	}
+}
+
+bool FRigVMAddIfNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMAddIfNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (URigVMIfNode* Node = InController->AddIfNode(CPPType, CPPTypeObjectPath, Position, NodePath, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMAddSelectNodeAction::FRigVMAddSelectNodeAction()
+	: CPPType()
+	, CPPTypeObjectPath(NAME_None)
+	, Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMAddSelectNodeAction::FRigVMAddSelectNodeAction(URigVMSelectNode* InNode)
+	: CPPType()
+	, CPPTypeObjectPath(NAME_None)
+	, Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+{
+	if(URigVMPin* ResultPin = InNode->FindPin(URigVMSelectNode::ResultName))
+	{
+		CPPType = ResultPin->GetCPPType();
+		if (ResultPin->GetCPPTypeObject())
+		{
+			CPPTypeObjectPath = *ResultPin->GetCPPTypeObject()->GetPathName();
+		}
+	}
+}
+
+bool FRigVMAddSelectNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMAddSelectNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (URigVMSelectNode* Node = InController->AddSelectNode(CPPType, CPPTypeObjectPath, Position, NodePath, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMAddEnumNodeAction::FRigVMAddEnumNodeAction()
+	: CPPTypeObjectPath(NAME_None)
+	, Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMAddEnumNodeAction::FRigVMAddEnumNodeAction(URigVMEnumNode* InNode)
+	: CPPTypeObjectPath(NAME_None)
+	, Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+{
+	CPPTypeObjectPath = *InNode->GetCPPTypeObject()->GetPathName();
+}
+
+bool FRigVMAddEnumNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMAddEnumNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (URigVMEnumNode* Node = InController->AddEnumNode(CPPTypeObjectPath, Position, NodePath, false))
+	{
+		return FRigVMBaseAction::Redo(InController);
+	}
+#endif
+	return false;
+}
+
+FRigVMAddPrototypeNodeAction::FRigVMAddPrototypeNodeAction()
+	: PrototypeNotation(NAME_None)
+	, Position(FVector2D::ZeroVector)
+	, NodePath()
+{
+}
+
+FRigVMAddPrototypeNodeAction::FRigVMAddPrototypeNodeAction(URigVMPrototypeNode* InNode)
+	: PrototypeNotation(InNode->GetNotation())
+	, Position(InNode->GetPosition())
+	, NodePath(InNode->GetNodePath())
+{
+}
+
+bool FRigVMAddPrototypeNodeAction::Undo(URigVMController* InController)
+{
+	if (!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->RemoveNodeByName(*NodePath, false);
+}
+
+bool FRigVMAddPrototypeNodeAction::Redo(URigVMController* InController)
+{
+#if WITH_EDITOR
+	if (URigVMPrototypeNode* Node = InController->AddPrototypeNode(PrototypeNotation, Position, NodePath, false))
 	{
 		return FRigVMBaseAction::Redo(InController);
 	}
@@ -504,6 +693,26 @@ FRigVMRemoveNodeAction::FRigVMRemoveNodeAction(URigVMNode* InNode)
 	else if (URigVMRerouteNode* RerouteNode = Cast<URigVMRerouteNode>(InNode))
 	{
 		InverseAction.AddAction(FRigVMAddRerouteNodeAction(RerouteNode));
+	}
+	else if (URigVMBranchNode* BranchNode = Cast<URigVMBranchNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddBranchNodeAction(BranchNode));
+	}
+	else if (URigVMIfNode* IfNode = Cast<URigVMIfNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddIfNodeAction(IfNode));
+	}
+	else if (URigVMSelectNode* SelectNode = Cast<URigVMSelectNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddSelectNodeAction(SelectNode));
+	}
+	else if (URigVMPrototypeNode* PrototypeNode = Cast<URigVMPrototypeNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddPrototypeNodeAction(PrototypeNode));
+	}
+	else if (URigVMEnumNode* EnumNode = Cast<URigVMEnumNode>(InNode))
+	{
+		InverseAction.AddAction(FRigVMAddEnumNodeAction(EnumNode));
 	}
 	else
 	{
@@ -994,6 +1203,37 @@ bool FRigVMBreakLinkAction::Undo(URigVMController* InController)
 bool FRigVMBreakLinkAction::Redo(URigVMController* InController)
 {
 	if(!InController->BreakLink(OutputPinPath, InputPinPath, false))
+	{
+		return false;
+	}
+	return FRigVMBaseAction::Redo(InController);
+}
+
+FRigVMChangePinTypeAction::FRigVMChangePinTypeAction(URigVMPin* InPin, const FString& InCppType, const FName& InCppTypeObjectPath)
+: PinPath(InPin->GetPinPath())
+, OldCPPType(InPin->GetCPPType())
+, OldCPPTypeObjectPath(NAME_None)
+, NewCPPType(InCppType)
+, NewCPPTypeObjectPath(InCppTypeObjectPath)
+{
+	if (UObject* CPPTypeObject = InPin->GetCPPTypeObject())
+	{
+		OldCPPTypeObjectPath = *CPPTypeObject->GetPathName();
+	}
+}
+
+bool FRigVMChangePinTypeAction::Undo(URigVMController* InController)
+{
+	if(!FRigVMBaseAction::Undo(InController))
+	{
+		return false;
+	}
+	return InController->ChangePinType(PinPath, OldCPPType, OldCPPTypeObjectPath, false);
+}
+
+bool FRigVMChangePinTypeAction::Redo(URigVMController* InController)
+{
+	if(!InController->ChangePinType(PinPath, NewCPPType, NewCPPTypeObjectPath, false))
 	{
 		return false;
 	}

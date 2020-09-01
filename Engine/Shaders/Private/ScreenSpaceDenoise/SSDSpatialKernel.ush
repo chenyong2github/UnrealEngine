@@ -299,8 +299,10 @@ void SetBilateralPreset(uint BilateralPresetId, inout FSSDKernelConfig KernelCon
 		UNROLL_N(SIGNAL_ARRAY_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < SIGNAL_ARRAY_SIZE; MultiplexId++)
 		{
+			// Change the bilarteral settings to use normal orientation in 
+			// order to not merge background / foreground sample, as otherwise this results into leaks
 			// Shadow masks are normal invarient, so only reject based on position.
-			KernelConfig.BilateralSettings[MultiplexId] = BILATERAL_POSITION_BASED(5);
+			KernelConfig.BilateralSettings[MultiplexId] = BILATERAL_POSITION_BASED(5) | BILATERAL_NORMAL;
 		}
 	}
 	else if (BilateralPresetId == BILATERAL_PRESET_POLYCHROMATIC_PENUMBRA)

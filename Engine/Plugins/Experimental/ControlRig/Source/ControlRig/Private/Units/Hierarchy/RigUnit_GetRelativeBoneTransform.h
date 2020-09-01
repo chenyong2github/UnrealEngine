@@ -8,25 +8,23 @@
 /**
  * GetBoneTransform is used to retrieve a single transform from a hierarchy.
  */
-USTRUCT(meta=(DisplayName="Get Relative Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "GetRelativeBoneTransform"))
+USTRUCT(meta=(DisplayName="Get Relative Transform", Category="Hierarchy", DocumentationPolicy = "Strict", Keywords = "GetRelativeBoneTransform", Deprecated = "4.25", Varying))
 struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 {
 	GENERATED_BODY()
 
 	FRigUnit_GetRelativeBoneTransform()
-		: CachedBoneIndex(INDEX_NONE)
-		, CachedSpaceIndex(INDEX_NONE)
+		: CachedBone(FCachedRigElement())
+		, CachedSpaceIndex(FCachedRigElement())
 	{}
 
-	virtual FString GetUnitLabel() const override;
-
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Transform")))
 		{
-			return Space;
+			return FRigElementKey(Space, ERigElementType::Bone);
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -35,13 +33,13 @@ struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 	/**
 	 * The name of the Bone to retrieve the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
 	 * The name of the Bone to retrieve the transform relative within.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	// The current transform of the given bone - or identity in case it wasn't found.
@@ -49,10 +47,10 @@ struct FRigUnit_GetRelativeBoneTransform : public FRigUnit
 	FTransform Transform;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	int32 CachedBoneIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedBone;
 
 	// Used to cache the internally used space index
-	UPROPERTY()
-	int32 CachedSpaceIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedSpaceIndex;
 };

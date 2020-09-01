@@ -156,7 +156,7 @@ public:
 	/**
 	* Run PIE
 	*/
-	static void RunPIE();
+	static void RunPIE(float PIEDuration = 3.f);
 	
 	/**
 	* Generates a list of assets from the ENGINE and the GAME by a specific type.

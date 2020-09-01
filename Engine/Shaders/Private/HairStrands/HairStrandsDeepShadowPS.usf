@@ -51,7 +51,7 @@ void MainDom(
 	const float FrontDepth = DeepRasterPass.FrontDepthTexture.Load(uint3(PixelCoord, 0));
 	const float DistanceToFrontDepth = GetDomDistanceToFrontDepth(FrontDepth, SvPosition.z);
 
-	OutColor = ComputeDOMWeights(DistanceToFrontDepth) * HairCoverage;
+	OutColor = ComputeDOMWeights(DistanceToFrontDepth, DeepRasterPass.LayerDepths) * HairCoverage;
 }
 
 #define DEBUG_OUTPUT 0

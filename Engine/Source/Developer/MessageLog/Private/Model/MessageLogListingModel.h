@@ -10,7 +10,7 @@
 typedef TArray< TSharedRef<FTokenizedMessage> > MessageContainer;
 
 /** This class represents a set of rich tokenized messages for a particular system */
-class FMessageLogListingModel : public TSharedFromThis< FMessageLogListingModel >
+class MESSAGELOG_API FMessageLogListingModel : public TSharedFromThis< FMessageLogListingModel >
 {
 protected:
 	struct FPage

@@ -23,6 +23,35 @@
 
 STRONG_TYPE Buffer<float4> BoneMatrices;
 
+uint VertexOffsetUsage;
+STRONG_TYPE Buffer<float> PreSkinOffsets;
+STRONG_TYPE Buffer<float> PostSkinOffsets;
+
+void GetVertexOffsets(uint VertexIndex, out float3 PreSkinOffset, out float3 PostSkinOffset)
+ {
+	uint Offset = VertexIndex * 3;
+
+	PreSkinOffset = 0;
+	if (VertexOffsetUsage & 1)
+	{
+		PreSkinOffset = float3(
+			PreSkinOffsets[Offset + 0],
+			PreSkinOffsets[Offset + 1],
+			PreSkinOffsets[Offset + 2]
+			);
+	}
+
+	PostSkinOffset = 0;
+	if (VertexOffsetUsage & 2)
+	{
+		PostSkinOffset = float3(
+			PostSkinOffsets[Offset + 0],
+			PostSkinOffsets[Offset + 1],
+			PostSkinOffsets[Offset + 2]
+			);
+	}
+}
+
 #if GPUSKIN_MORPH_BLEND
 // float3 DeltaPosition, PackedNormal, see FMorphGPUSkinVertex
 STRONG_TYPE Buffer<float> MorphBuffer;
@@ -91,6 +120,9 @@ struct FVertexUnpacked
 	// morph target, added to the TangentZ and then used to derive new TangentX and TangentY, -2..2
 	half3	DeltaTangentZ;
 #endif
+
+	float3 PreSkinOffset;
+	float3 PostSkinOffset;
 
 #if GPUSKIN_APEX_CLOTH
     float4  PositionBaryCoordsAndDist;
@@ -236,6 +268,9 @@ FVertexUnpacked UnpackedVertex(uint MorphIndex, uint ClothIndex, uint VertexInde
 #if GPUSKIN_MORPH_BLEND
 	GetMorphBuffer(MorphIndex, Unpacked.DeltaPosition, Unpacked.DeltaTangentZ);
 #endif
+
+	GetVertexOffsets(VertexIndex, Unpacked.PreSkinOffset, Unpacked.PostSkinOffset);
+
 #if GPUSKIN_APEX_CLOTH
     GetClothBuffer(ClothIndex, Unpacked.PositionBaryCoordsAndDist, Unpacked.NormalBaryCoordsAndDist, Unpacked.TangentBaryCoordsAndDist, Unpacked.SourceMeshVertIndices);
 #endif
@@ -352,7 +387,9 @@ void SkinCacheUpdateBatchCS(uint3 GroupID : SV_GroupID,
 #endif // GPUSKIN_APEX_CLOTH
 #endif // GPUSKIN_MORPH_BLEND
 
+	Intermediates.UnpackedPosition += Unpacked.PreSkinOffset;
 	float3 SPos = SkinPosition(Intermediates) * SkinCacheDebug;
+	SPos += Unpacked.PostSkinOffset;
 
 #if GPUSKIN_APEX_CLOTH
     float4 TransformedSkinPos = mul(float4(SPos, 1), ClothLocalToWorld);

@@ -26,6 +26,8 @@ struct CONTROLRIG_API FRigUnit : public FRigVMStruct
 
 	/** Execute logic for this rig unit */
 	virtual void Execute(const FRigUnitContext& Context) {}
+
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const { return FRigElementKey(); }
 };
 
 /** Base class for all rig units that can change data */

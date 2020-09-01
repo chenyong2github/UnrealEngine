@@ -13,14 +13,19 @@ FStringStore::FStringStore(FSlabAllocator& InAllocator)
 
 const TCHAR* FStringStore::Store(const TCHAR* String)
 {
+	return Store(FStringView(String));
+}
+
+const TCHAR* FStringStore::Store(const FStringView& String)
+{
 	uint32 Hash = GetTypeHash(String);
 	const TCHAR** AlreadyStored = StoredStrings.Find(Hash);
-	if (AlreadyStored && !FCString::Strcmp(String, *AlreadyStored))
+	if (AlreadyStored && !String.Compare(FStringView(*AlreadyStored)))
 	{
 		return *AlreadyStored;
 	}
 	
-	int32 StringLength = FCString::Strlen(String) + 1;
+	int32 StringLength = String.Len() + 1;
 	if (BufferLeft < StringLength)
 	{
 		BufferPtr = reinterpret_cast<TCHAR*>(Allocator.Allocate(BlockSize * sizeof(TCHAR)));
@@ -28,7 +33,8 @@ const TCHAR* FStringStore::Store(const TCHAR* String)
 		BufferLeft = BlockSize;
 	}
 	const TCHAR* Stored = BufferPtr;
-	memcpy(BufferPtr, String, StringLength * sizeof(TCHAR));
+	memcpy(BufferPtr, String.GetData(), (StringLength - 1) * sizeof(TCHAR));
+	BufferPtr[StringLength - 1] = TEXT('\0');
 	BufferLeft -= StringLength;
 	BufferPtr += StringLength;
 	if (!AlreadyStored)
@@ -37,5 +43,6 @@ const TCHAR* FStringStore::Store(const TCHAR* String)
 	}
 	return Stored;
 }
+
 
 }

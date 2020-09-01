@@ -94,7 +94,7 @@ void SScreenPositionCustomization::Construct( const FArguments& InArgs, IDetailL
 		.Padding( 4.0f, 0.0f, 0.0f, 0.0f )
 		.VAlign( VAlign_Bottom )
 		[
-			InWindowPositionProperty->CreatePropertyNameWidget( LOCTEXT( "CenterWindowLabel", "Always center window to screen" ) )
+			InWindowPositionProperty->CreatePropertyNameWidget( LOCTEXT( "CenterWindowLabel", "Always center first viewport window to screen" ) )
 		]
 		]
 		];
@@ -104,9 +104,7 @@ bool SScreenPositionCustomization::HandleNewWindowPositionPropertyIsEnabled() co
 {
 	bool CenterNewWindow;
 	CenterWindowProperty->GetValue( CenterNewWindow );
-
 	return !CenterNewWindow;
-
 }
 
 void SScreenResolutionCustomization::Construct( const FArguments& InArgs, IDetailLayoutBuilder* LayoutBuilder, const TSharedRef<IPropertyHandle>& InWindowHeightProperty, const TSharedRef<IPropertyHandle>& InWindowWidthProperty )

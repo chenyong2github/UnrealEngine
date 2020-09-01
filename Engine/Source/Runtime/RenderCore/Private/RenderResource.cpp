@@ -307,6 +307,9 @@ FString FTextureReference::GetFriendlyName() const
 /** The global null color vertex buffer, which is set with a stride of 0 on meshes without a color component. */
 TGlobalResource<FNullColorVertexBuffer> GNullColorVertexBuffer;
 
+/** The global null vertex buffer, which is set with a stride of 0 on meshes */
+TGlobalResource<FNullVertexBuffer> GNullVertexBuffer;
+
 /*------------------------------------------------------------------------------
 	FGlobalDynamicVertexBuffer implementation.
 ------------------------------------------------------------------------------*/

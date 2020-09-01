@@ -93,7 +93,13 @@ public:
 	ERichCurveTangentMode TangentMode;
 	/** Serializer, if set we also store data out incrementally while running*/
 	FAnimationSerializer* AnimationSerializer;
-
+	/** Whether or not to record transforms*/
+	uint8 bRecordTransforms : 1;
+	/** Whether or not to record curves*/
+	uint8 bRecordCurves : 1;
+public:
+	/** Helper function to get space bases depending on master pose component */
+	static void GetBoneTransforms(USkeletalMeshComponent* Component, TArray<FTransform>& BoneTransforms);
 
 private:
 	bool Record(USkeletalMeshComponent* Component, FTransform const& ComponentToWorld, const TArray<FTransform>& SpacesBases, const FBlendedHeapCurve& AnimationCurves, int32 FrameToAdd);

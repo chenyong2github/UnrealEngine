@@ -802,6 +802,7 @@ protected:
 	static void CacheBonesInputProxy(FAnimInstanceProxy* InputProxy);
 	static void UpdateInputProxy(FAnimInstanceProxy* InputProxy, const FAnimationUpdateContext& Context);
 	static void EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
+	static void ResetCounterInputProxy(FAnimInstanceProxy* InputProxy);
 
 private:
 	/** The component to world transform of the component we are running on */

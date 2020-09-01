@@ -74,6 +74,9 @@
 #include "MovieSceneEventUtils.h"
 
 #include "EntitySystem/MovieSceneEntityManager.h"
+#include "EditorModeManager.h"
+#include "EditModes/SkeletalAnimationTrackEditMode.h"
+
 
 #define LOCTEXT_NAMESPACE "FMovieSceneToolsModule"
 
@@ -200,6 +203,15 @@ void FMovieSceneToolsModule::StartupModule()
 			}
 		);
 	}
+
+	// EditorStyle must be initialized by now
+	FModuleManager::Get().LoadModule("EditorStyle");
+
+	FEditorModeRegistry::Get().RegisterMode<FSkeletalAnimationTrackEditMode>(
+		FSkeletalAnimationTrackEditMode::ModeName,
+		NSLOCTEXT("SkeletalAnimationTrackEditorMode", "SkelAnimTrackEditMode", "Skeletal Anim Track Mode"),
+		FSlateIcon(),
+		false);
 }
 
 void FMovieSceneToolsModule::ShutdownModule()
@@ -275,6 +287,9 @@ void FMovieSceneToolsModule::ShutdownModule()
 		PropertyModule.UnregisterCustomPropertyTypeLayout("MovieSceneObjectBindingID");
 		PropertyModule.UnregisterCustomPropertyTypeLayout("MovieSceneEvent");
 	}
+
+	FEditorModeRegistry::Get().UnregisterMode(FSkeletalAnimationTrackEditMode::ModeName);
+
 }
 
 void FMovieSceneToolsModule::PostDuplicateEventSection(UMovieSceneEventSectionBase* Section)

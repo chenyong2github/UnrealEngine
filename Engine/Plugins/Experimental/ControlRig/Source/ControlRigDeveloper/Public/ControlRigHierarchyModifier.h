@@ -58,6 +58,62 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	void SetControl(const FRigControl& InElement);
 
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	bool GetControlValueBool(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	int32 GetControlValueInt(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	float GetControlValueFloat(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	FVector2D GetControlValueVector2D(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	FVector GetControlValueVector(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	FRotator GetControlValueRotator(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	FTransform GetControlValueTransform(const FRigElementKey& InKey, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueBool(const FRigElementKey& InKey, bool InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueInt(const FRigElementKey& InKey, int32 InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueFloat(const FRigElementKey& InKey, float InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueVector2D(const FRigElementKey& InKey, FVector2D InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueVector(const FRigElementKey& InKey, FVector InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueRotator(const FRigElementKey& InKey, FRotator InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
+	// Sets a control value
+	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
+	void SetControlValueTransform(const FRigElementKey& InKey, FTransform InValue, ERigControlValueType InValueType = ERigControlValueType::Initial);
+
 	// Adds a new single space
 	UFUNCTION(BlueprintCallable, Category = "Hierarchy")
 	FRigElementKey AddSpace(
