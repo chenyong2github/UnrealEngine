@@ -50,6 +50,20 @@ void FEditorModeRegistry::Initialize()
 		AssetEditorSubsystem->OnEditorModeRegistered().Broadcast(ModeEntry.Key);
 	}
 
+	if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
+	{
+		// Add default editor modes
+		RegisterMode<FEdModeDefault>(
+			FBuiltinEditorModes::EM_Default,
+			NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
+			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
+			true, 0);
+	}
+	else
+	{
+		RegisterMode<FEdModeDefault>(FBuiltinEditorModes::EM_Default);
+	}
+
 	RegisterMode<FEdModeInterpEdit>(FBuiltinEditorModes::EM_InterpEdit);
 
 	FModuleManager::LoadModuleChecked<IPlacementModeModule>(TEXT("PlacementMode"));

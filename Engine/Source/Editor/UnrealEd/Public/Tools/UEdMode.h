@@ -304,20 +304,3 @@ protected:
 
 };
 
-/*------------------------------------------------------------------------------
-	Default.
-------------------------------------------------------------------------------*/
-
-/**
- * The default editing mode.
- */
-UCLASS()
-class UEdModeDefault : public UEdMode
-{
-	GENERATED_BODY()
-
-public:
-	UEdModeDefault();
-
-	virtual void CreateToolkit() override;
-};

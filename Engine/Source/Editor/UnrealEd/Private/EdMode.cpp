@@ -1115,3 +1115,16 @@ bool FEdMode::IsSnapRotationEnabled()
 {
 	return GetDefault<ULevelEditorViewportSettings>()->RotGridEnabled;
 }
+
+/*------------------------------------------------------------------------------
+	Default.
+------------------------------------------------------------------------------*/
+
+FEdModeDefault::FEdModeDefault()
+{
+	bDrawGrid = true;
+	bDrawPivot = false;
+	bDrawBaseInfo = false;
+	bDrawWorldBox = false;
+	bDrawKillZ = false;
+}

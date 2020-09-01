@@ -217,7 +217,7 @@ void UEdMode::Enter()
 	bPendingDeletion = false;
 
 	// initialize the adapter that attaches the ToolsContext to this FEdMode
-	ToolsContext = NewObject<UEdModeInteractiveToolsContext>(this, ToolsContextClass.Get(), NAME_None, RF_Transient);
+	ToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), ToolsContextClass.Get(), TEXT("ToolsContext"), RF_Transient);
 	ToolsContext->InitializeContextWithEditorModeManager(GetModeManager());
 
 
@@ -400,7 +400,7 @@ void UEdMode::DrawBrackets(FEditorViewportClient* ViewportClient, FViewport* Vie
 
 bool UEdMode::UsesToolkits() const
 {
-	return Toolkit.IsValid();
+	return true;
 }
 
 UWorld* UEdMode::GetWorld() const
@@ -449,10 +449,12 @@ void UEdMode::CreateToolkit()
 	{
 		Toolkit = MakeShareable(new FModeToolkit);
 		Toolkit->Init(Owner->GetToolkitHost());
+
+
 	}
 
 	UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();
-	SettingsObject = LoadedSettingsObject ? NewObject<UObject>(this, LoadedSettingsObject) : nullptr;
+	SettingsObject = NewObject<UObject>(this, LoadedSettingsObject);
 	if (SettingsObject)
 	{
 		Toolkit->SetModeSettingsObject(SettingsObject);
@@ -462,24 +464,4 @@ void UEdMode::CreateToolkit()
 bool UEdMode::IsSnapRotationEnabled()
 {
 	return GetDefault<ULevelEditorViewportSettings>()->RotGridEnabled;
-}
-
-UEdModeDefault::UEdModeDefault()
-{
-	bDrawGrid = true;
-	bDrawPivot = false;
-	bDrawBaseInfo = false;
-	bDrawWorldBox = false;
-	bDrawKillZ = false;
-
-	Info = FEditorModeInfo(FBuiltinEditorModes::EM_Default,
-		NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
-		true, 0);
-}
-
-void UEdModeDefault::CreateToolkit()
-{
-	// We don't need a toolkit for the default mode, since there isn't any UI or details to show.
-	// It's just a placeholder mode, so that the current implementation of the mode manager will always have at least one active mode.
 }
