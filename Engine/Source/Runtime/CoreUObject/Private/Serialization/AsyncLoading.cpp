@@ -7857,9 +7857,13 @@ void FAsyncArchive::StartReadingHeader()
 void FAsyncArchive::EndReadingHeader()
 {
 	LogItem(TEXT("End Header"));
-	check(LoadPhase == ELoadPhase::WaitingForHeader);
-	LoadPhase = ELoadPhase::WaitingForFirstExport;
-	FlushPrecacheBlock();
+	
+	if (!IsError())
+	{
+		check(LoadPhase == ELoadPhase::WaitingForHeader);
+		LoadPhase = ELoadPhase::WaitingForFirstExport;
+		FlushPrecacheBlock();
+	}
 }
 
 bool FAsyncArchive::ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit)

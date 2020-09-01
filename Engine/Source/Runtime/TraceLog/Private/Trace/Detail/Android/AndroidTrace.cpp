@@ -158,7 +158,7 @@ int32 TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 	Inner = accept(Inner, nullptr, nullptr);
 	if (Inner < 0)
 	{
-		return (Inner == EAGAIN || Inner == EWOULDBLOCK) - 1; // 0 if would block else -1
+		return (errno == EAGAIN || errno == EWOULDBLOCK) - 1; // 0 if would block else -1
 	}
 
 	if (!TcpSocketSetNonBlocking(Inner, false))

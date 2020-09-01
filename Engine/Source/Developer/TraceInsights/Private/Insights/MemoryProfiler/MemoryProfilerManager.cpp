@@ -9,6 +9,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/MemoryProfiler/ViewModels/MemorySharedState.h"
@@ -56,8 +57,8 @@ FMemoryProfilerManager::FMemoryProfilerManager(TSharedRef<FUICommandList> InComm
 	, CommandList(InCommandList)
 	, ActionManager(this)
 	, ProfilerWindow(nullptr)
-	, bIsTimingViewVisible(true)
-	, bIsMemTagTreeViewVisible(true)
+	, bIsTimingViewVisible(false)
+	, bIsMemTagTreeViewVisible(false)
 {
 }
 
@@ -123,12 +124,12 @@ void FMemoryProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsMo
 	{
 		// Register tab spawner for the Memory Insights.
 		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::MemoryProfilerTabId,
-			FOnSpawnTab::CreateRaw(this, &FMemoryProfilerManager::SpawnTab))
+			FOnSpawnTab::CreateRaw(this, &FMemoryProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FMemoryProfilerManager::CanSpawnTab))
 			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("MemoryProfilerTabTitle", "Memory Insights"))
 			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("MemoryProfilerTooltipText", "Open the Memory Insights tab."))
 			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "MemoryProfiler.Icon.Small"));
 
-		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 		TabSpawnerEntry.SetGroup(Group);
 	}
 }
@@ -157,6 +158,13 @@ TSharedRef<SDockTab> FMemoryProfilerManager::SpawnTab(const FSpawnTabArgs& Args)
 	AssignProfilerWindow(Window);
 
 	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FMemoryProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
+{
+	return bIsAvailable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -225,12 +233,13 @@ bool FMemoryProfilerManager::Tick(float DeltaTime)
 			if (TagCount > 0)
 			{
 				bIsAvailable = true;
-
+#if !WITH_EDITOR
 				const FName& TabId = FInsightsManagerTabs::MemoryProfilerTabId;
 				if (FGlobalTabmanager::Get()->HasTabSpawner(TabId))
 				{
 					FGlobalTabmanager::Get()->TryInvokeTab(TabId);
 				}
+#endif
 			}
 		}
 	}

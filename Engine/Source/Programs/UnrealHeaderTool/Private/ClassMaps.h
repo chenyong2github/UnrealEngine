@@ -23,14 +23,16 @@ class FUnrealTypeDefinitionInfo;
 
 enum class ESerializerArchiveType
 {
-	None,
-	Archive,
-	StructuredArchiveRecord
+	None = 0,
+
+	Archive                 = 1,
+	StructuredArchiveRecord = 2
 };
+ENUM_CLASS_FLAGS(ESerializerArchiveType)
 
 struct FArchiveTypeDefinePair
 {
-	ESerializerArchiveType ArchiveType;
+	ESerializerArchiveType ArchiveType = ESerializerArchiveType::None;
 	FString EnclosingDefine;
 };
 
@@ -69,14 +71,14 @@ private:
 // Wrapper class around SourceFiles map so we can quickly get a list of source files for a given package
 struct FUnrealSourceFiles
 {
-	void Add(FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
+	void AddByHash(uint32 Hash, FString&& Filename, TSharedRef<FUnrealSourceFile> SourceFile)
 	{
-		TSharedRef<FUnrealSourceFile>& Value = SourceFilesByString.FindOrAdd(MoveTemp(Filename), SourceFile);
-		if (Value != SourceFile)
-		{
-			FError::Throwf(TEXT("Duplicate filename found with different path '%s'."), *Value.Get().GetFilename());
-		}
+		SourceFilesByString.AddByHash(Hash, MoveTemp(Filename), MoveTemp(SourceFile));
 		SourceFilesByPackage.FindOrAdd(SourceFile->GetPackage()).Add(&SourceFile.Get());
+	}
+	const TSharedRef<FUnrealSourceFile>* FindByHash(uint32 Hash, const FString& Filename) const
+	{
+		return SourceFilesByString.FindByHash(Hash, Filename);
 	}
 	const TSharedRef<FUnrealSourceFile>* Find(const FString& Id) const { return SourceFilesByString.Find(Id); }
 	const TArray<FUnrealSourceFile*>* FindFilesForPackage(const UPackage* Package) const { return SourceFilesByPackage.Find(Package); }

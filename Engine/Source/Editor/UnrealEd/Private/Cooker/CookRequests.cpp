@@ -3,6 +3,7 @@
 #include "CookRequests.h"
 
 #include "Algo/Find.h"
+#include "CookPlatformManager.h"
 #include "HAL/Event.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/CoreMiscDefines.h"
@@ -138,13 +139,13 @@ namespace Cook
 		return Result;
 	}
 
+	void FFilePlatformRequest::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
+	{
+		RemapArrayElements(Platforms, Remap);
+	}
+
 	//////////////////////////////////////////////////////////////////////////
 	// FExternalRequests
-
-	FExternalRequests::FExternalRequests(FCriticalSection& InRequestLock)
-		:RequestLock(InRequestLock)
-	{
-	}
 
 	int32 FExternalRequests::GetNumRequests() const
 	{
@@ -167,11 +168,6 @@ namespace Cook
 	void FExternalRequests::EnqueueUnique(FFilePlatformRequest&& FileRequest, bool bForceFrontOfQueue)
 	{
 		FScopeLock ScopeLock(&RequestLock);
-		ThreadUnsafeEnqueueUnique(MoveTemp(FileRequest), bForceFrontOfQueue);
-	}
-
-	void FExternalRequests::ThreadUnsafeEnqueueUnique(FFilePlatformRequest&& FileRequest, bool bForceFrontOfQueue)
-	{
 		FName Filename = FileRequest.GetFilename();
 		FFilePlatformRequest* ExistingRequest = RequestMap.Find(Filename);
 		if (!ExistingRequest)
@@ -179,11 +175,11 @@ namespace Cook
 			RequestMap.Add(Filename, MoveTemp(FileRequest));
 			if (bForceFrontOfQueue)
 			{
-				Queue.PushFront(Filename);
+				Queue.AddFront(Filename);
 			}
 			else
 			{
-				Queue.PushBack(Filename);
+				Queue.Add(Filename);
 			}
 
 			++RequestCount;
@@ -205,7 +201,7 @@ namespace Cook
 			if (bForceFrontOfQueue)
 			{
 				FName* ExistingName = Algo::Find(Queue, Filename);
-				int32 Index = Queue.ConvertReferenceToIndex(*ExistingName);
+				int32 Index = Queue.ConvertPointerToIndex(ExistingName);
 				check(Index != INDEX_NONE);
 				if (Index != 0)
 				{
@@ -302,9 +298,12 @@ namespace Cook
 		}
 	}
 
-	FCriticalSection& FExternalRequests::GetRequestLock()
+	void FExternalRequests::RemapTargetPlatforms(const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
 	{
-		return RequestLock;
+		for (TPair<FName, FFilePlatformRequest>& KVPair : RequestMap)
+		{
+			KVPair.Value.RemapTargetPlatforms(Remap);
+		}
 	}
 
 }

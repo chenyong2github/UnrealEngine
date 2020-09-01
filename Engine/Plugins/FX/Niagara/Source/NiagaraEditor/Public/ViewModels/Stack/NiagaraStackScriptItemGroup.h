@@ -4,7 +4,7 @@
 
 #include "ViewModels/Stack/NiagaraStackItemGroup.h"
 #include "NiagaraCommon.h"
-#include "AssetRegistry/Public/AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "NiagaraStackScriptItemGroup.generated.h"
 
 class FNiagaraScriptViewModel;

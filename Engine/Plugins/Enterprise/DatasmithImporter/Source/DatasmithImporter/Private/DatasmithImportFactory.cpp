@@ -35,6 +35,7 @@
 #include "Templates/UniquePtr.h"
 
 #include "Editor/EditorEngine.h"
+#include "MeshUtilities.h"
 
 #if PLATFORM_WINDOWS
 #include "Windows/AllowWindowsPlatformTypes.h"

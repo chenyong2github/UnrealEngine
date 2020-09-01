@@ -16,23 +16,38 @@ public class TraceInsights : ModuleRules
 		PublicDependencyModuleNames.AddRange
 		(
 			new string[] {
-				"Core",
-				"Cbor",
+				"AppFramework", // for SColorPicker
 				"ApplicationCore",
-				"InputCore",
-				"RHI",
-				"RenderCore",
-				"Sockets",
-				"Slate",
-				"EditorStyle",
-				"TraceLog",
-				"TraceAnalysis",
-				"TraceServices",
+				"Cbor",
+				"Core",
+				"CoreUObject",
 				"DesktopPlatform",
+				"EditorStyle",
+				"InputCore",
+				"RenderCore",
+				"RHI",
+				"Slate",
+				"Sockets",
+				"TraceAnalysis",
+				"TraceLog",
+				"TraceServices",
 				"WorkspaceMenuStructure",
-				"XmlParser"
+				"XmlParser",
 			}
 		);
+
+		//Modules required for running automation in stand alone Insights
+		if (Target.Configuration != UnrealTargetConfiguration.Shipping && !Target.bBuildEditor)
+		{
+			PrivateDependencyModuleNames.AddRange(
+				new string[] {
+					"AutomationWorker",
+					"AutomationController",
+					"AutomationWindow",
+					"SessionServices",
+				}
+			);
+		}
 
 		if (Target.bBuildEditor)
 		{
@@ -52,7 +67,6 @@ public class TraceInsights : ModuleRules
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"Messaging",
-				"SessionServices",
 			}
 		);
 	}

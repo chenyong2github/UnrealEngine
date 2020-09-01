@@ -31,7 +31,7 @@ class alignas(8) UAlignedObject : public UObject
 };
 
 UCLASS()
-class UTestObject : public UObject, public ITestInterface
+class UTestObject : public UObject, public ITestInterface, public SomeNamespace::FSomeNonReflectedType
 {
 	GENERATED_BODY()
 

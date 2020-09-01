@@ -667,6 +667,7 @@ public:
 			// Early out as a failure case if we didn't write all of the data we expected
 			if (BytesToWrite32 != NumWritten)
 			{
+				TRACE_PLATFORMFILE_END_WRITE(this, TotalNumWritten);
 				return false;
 			}
 			

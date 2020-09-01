@@ -798,6 +798,11 @@ public:
 
 	/** Creates a new FField from existing UField */
 	static FField* CreateFromUField(UField* InField);
+	
+	DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnConvertCustomUFieldToFField, FFieldClass*, UField*, FField*&);
+	/** Gets a delegate to convert custom UField types to FFields */
+	static FOnConvertCustomUFieldToFField& GetConvertCustomUFieldToFFieldDelegate();
+
 #endif // WITH_EDITORONLY_DATA
 
 	/** Duplicates an FField */

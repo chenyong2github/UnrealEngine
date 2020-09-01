@@ -781,7 +781,7 @@ protected:
 	bool SkipDeclaration(FToken& Token);
 	/** Similar to MatchSymbol() but will return to the exact location as on entry if the symbol was not found. */
 	bool SafeMatchSymbol(const TCHAR Match);
-	void HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString InterfaceName);
+	void HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString&& InterfaceName);
 	FClass* ParseClassNameDeclaration(FClasses& AllClasses, FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent);
 
 	/** The property style of a variable declaration being parsed */

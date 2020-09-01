@@ -4513,7 +4513,7 @@ namespace UE4CodeGen_Private
 			EnumNames.Emplace(UTF8_TO_TCHAR(Enumerator->NameUTF8), Enumerator->Value);
 		}
 
-		NewEnum->SetEnums(EnumNames, (UEnum::ECppForm)Params.CppForm, Params.DynamicType == EDynamicType::NotDynamic);
+		NewEnum->SetEnums(EnumNames, (UEnum::ECppForm)Params.CppForm, Params.EnumFlags, Params.DynamicType == EDynamicType::NotDynamic);
 		NewEnum->CppType = UTF8_TO_TCHAR(Params.CppTypeUTF8);
 
 		if (Params.DisplayNameFunc)

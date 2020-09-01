@@ -434,7 +434,7 @@ void FScatterUploadBuffer::Init( uint32 NumElements, uint32 InNumBytesPerElement
 template<typename ResourceType>
 void FScatterUploadBuffer::ResourceUploadTo(FRHICommandList& RHICmdList, ResourceType& DstBuffer, bool bFlush)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE( "FScatterUploadBuffer::ResourceUploadTo" );
+	TRACE_CPUPROFILER_EVENT_SCOPE(FScatterUploadBuffer::ResourceUploadTo);
 	
 	RHIUnlockStructuredBuffer(ScatterBuffer.Buffer);
 	RHIUnlockStructuredBuffer(UploadBuffer.Buffer);

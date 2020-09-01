@@ -483,12 +483,6 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 		CurrentProfiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text)
@@ -502,12 +496,6 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 		CurrentProfiler->StartScopedEvent(Text);
 	}
 #endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FGenericPlatformMisc::EndNamedEvent()
@@ -519,12 +507,6 @@ void FGenericPlatformMisc::EndNamedEvent()
 	if (CurrentProfiler != NULL)
 	{
 		CurrentProfiler->EndScopedEvent();
-	}
-#endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputEndEvent();
 	}
 #endif
 }
@@ -1283,7 +1265,7 @@ void FGenericPlatformMisc::UpdateHotfixableEnsureSettings()
 	else
 	{
 		float HandleEnsurePercentOnCmdLine = 100.0f;
-		if (!FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
+		if (FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
 		{
 			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0f;
 		}

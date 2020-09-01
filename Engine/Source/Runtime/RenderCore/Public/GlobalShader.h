@@ -14,7 +14,7 @@
 
 class FShaderCommonCompileJob;
 class FShaderCompileJob;
-class TargetPlatform;
+class ITargetPlatform;
 
 /** Used to identify the global shader map in compile queues. */
 extern RENDERCORE_API const int32 GlobalShaderMapId;

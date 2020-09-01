@@ -8,6 +8,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
+#include "UObject/FastReferenceCollectorOptions.h"
 
 /**
  * TPersistentObjectPtr is a template base class for FLazyObjectPtr and FSoftObjectPtr
@@ -16,6 +17,9 @@ template<class TObjectID>
 struct TPersistentObjectPtr
 {
 public:	
+
+	template <typename ReferenceProcessorType, typename CollectorType, typename ArrayPoolType, EFastReferenceCollectorOptions Options>
+	friend class TFastReferenceCollector;
 
 	/** Default constructor, will be null */
 	FORCEINLINE TPersistentObjectPtr()

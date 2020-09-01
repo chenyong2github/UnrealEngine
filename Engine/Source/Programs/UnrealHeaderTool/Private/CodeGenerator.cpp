@@ -3054,7 +3054,9 @@ void FNativeClassHeaderGenerator::ExportClassFromSourceFileInner(
 	FString GeneratedSerializeFunctionCPP;
 	FString GeneratedSerializeFunctionHeaderMacroName;
 
-	if (const FArchiveTypeDefinePair* ArchiveTypeDefinePair = GClassSerializerMap.Find(Class))
+	// Only write out adapters if the user has provided one or the other of the Serialize overloads
+	const FArchiveTypeDefinePair* ArchiveTypeDefinePair = GClassSerializerMap.Find(Class);
+	if (ArchiveTypeDefinePair && FMath::CountBits((uint32)ArchiveTypeDefinePair->ArchiveType) == 1)
 	{
 		FString EnclosingDefines;
 		FUHTStringBuilder Boilerplate, BoilerPlateCPP;
@@ -4148,6 +4150,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t{\r\n"));
 
 	const TCHAR* UEnumObjectFlags = bIsDynamic ? TEXT("RF_Public|RF_Transient") : TEXT("RF_Public|RF_Transient|RF_MarkAsNative");
+	const TCHAR* EnumFlags        = Enum->HasAnyEnumFlags(EEnumFlags::Flags) ? TEXT("EEnumFlags::Flags") : TEXT("EEnumFlags::None");
 
 	const TCHAR* EnumFormStr = TEXT("");
 	switch (Enum->GetCppForm())
@@ -4179,6 +4182,7 @@ void FNativeClassHeaderGenerator::ExportGeneratedEnumInitCode(FOutputDevice& Out
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tEnumerators,\r\n"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE_ARRAY_COUNT(Enumerators),\r\n"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), UEnumObjectFlags);
+	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s,\r\n"), EnumFlags);
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\tUE4CodeGen_Private::EDynamicType::%s,\r\n"), bIsDynamic ? TEXT("Dynamic") : TEXT("NotDynamic"));
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t(uint8)%s,\r\n"), EnumFormStr);
 	GeneratedEnumRegisterFunctionText.Logf(TEXT("\t\t\t\t%s\r\n"), *MetaDataParams);
@@ -6769,7 +6773,22 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 					ProcessInitialClassParse(PerHeaderData[Index]);
 					TSharedRef<FUnrealSourceFile> UnrealSourceFile = PerHeaderData[Index].UnrealSourceFile.ToSharedRef();
 					FUnrealSourceFile* UnrealSourceFilePtr = &UnrealSourceFile.Get();
-					GUnrealSourceFilesMap.Add(FPaths::GetCleanFilename(RawFilename), UnrealSourceFile);
+					FString CleanFilename     = FPaths::GetCleanFilename(RawFilename);
+					uint32  CleanFilenameHash = GetTypeHash(CleanFilename);
+					if (const TSharedRef<FUnrealSourceFile>* ExistingSourceFile = GUnrealSourceFilesMap.FindByHash(CleanFilenameHash, CleanFilename))
+					{
+						FString NormalizedFullFilename     = FullFilename;
+						FString NormalizedExistingFilename = (*ExistingSourceFile)->GetFilename();
+
+						FPaths::NormalizeFilename(NormalizedFullFilename);
+						FPaths::NormalizeFilename(NormalizedExistingFilename);
+
+						if (NormalizedFullFilename != NormalizedExistingFilename)
+						{
+							FError::Throwf(TEXT("Duplicate leaf header name found: %s (original: %s)"), *NormalizedFullFilename, *NormalizedExistingFilename);
+						}
+					}
+					GUnrealSourceFilesMap.AddByHash(CleanFilenameHash, MoveTemp(CleanFilename), UnrealSourceFile);
 
 					if (CurrentlyProcessing == PublicClassesHeaders)
 					{
@@ -6782,7 +6801,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 						// Get the path relative to the module directory
 						const TCHAR* ModuleRelativePath = *FullFilename + Module.BaseDirectory.Len();
 
-						UnrealSourceFile->SetModuleRelativePath(ModuleRelativePath);
+						UnrealSourceFilePtr->SetModuleRelativePath(ModuleRelativePath);
 
 						// Calculate the include path
 						const TCHAR* IncludePath = ModuleRelativePath;
@@ -6813,7 +6832,7 @@ ECompilationResult::Type PreparseModules(const FString& ModuleInfoPath, int32& N
 						// Add the include path
 						if (*IncludePath != 0)
 						{
-							UnrealSourceFile->SetIncludePath(MoveTemp(IncludePath));
+							UnrealSourceFilePtr->SetIncludePath(MoveTemp(IncludePath));
 						}
 					}
 				}

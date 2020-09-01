@@ -23,6 +23,10 @@
 	extern CORE_API bool GIsHotReload;
 #endif
 
+#if WITH_ENGINE
+	extern CORE_API TMap<UClass*, UClass*>& GetClassesToReinstanceForHotReload(); 
+#endif
+
 
 /**
  * Enumerates reasons for failed module loads.
@@ -267,7 +271,7 @@ public:
 		FModuleManager& ModuleManager = FModuleManager::Get();
 
 		checkf(ModuleManager.IsModuleLoaded(ModuleName), TEXT("Tried to get module interface for unloaded module: '%s'"), *(ModuleName.ToString()));
-		return (TModuleInterface&)(*ModuleManager.GetModule(ModuleName));
+		return static_cast<TModuleInterface&>(*ModuleManager.GetModule(ModuleName));
 	}
 
 private:
@@ -302,7 +306,7 @@ public:
 	static TModuleInterface& LoadModuleChecked( const FName InModuleName)
 	{
 		IModuleInterface& ModuleInterface = FModuleManager::Get().LoadModuleChecked(InModuleName);
-		return (TModuleInterface&)(ModuleInterface);
+		return static_cast<TModuleInterface&>(ModuleInterface);
 	}
 
 	/**

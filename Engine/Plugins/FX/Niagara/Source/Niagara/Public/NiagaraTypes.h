@@ -467,14 +467,14 @@ public:
 	/**
 	Adds an string value to the hash.
 	*/
-	bool UpdateString(const TCHAR* InDebugName, const FString& InData)
+	bool UpdateString(const TCHAR* InDebugName, FStringView InData)
 	{
-		HashState.Update((const uint8 *)(*InData), sizeof(TCHAR)*InData.Len());
+		HashState.Update((const uint8 *)InData.GetData(), sizeof(TCHAR)*InData.Len());
 #if WITH_EDITORONLY_DATA
 		if (LogCompileIdGeneration != 0)
 		{
 			Values.Top().PropertyKeys.Push(InDebugName);
-			Values.Top().PropertyValues.Push(InData);
+			Values.Top().PropertyValues.Push(FString(InData));
 		}
 #endif
 		return true;
@@ -1555,32 +1555,7 @@ struct FNiagaraVariable : public FNiagaraVariableBase
 		return Ret;
 	}
 
-	static FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator = TEXT("."))
-	{
-		FNiagaraVariable OutVar = InVar;
-
-		FString OutVarStrName = InVar.GetName().ToString();
-		TArray<FString> SplitName;
-		OutVarStrName.ParseIntoArray(SplitName, TEXT("."));
-
-		for (int32 i = 0; i < SplitName.Num() - 1; i++)
-		{
-			TMap<FString, FString>::TConstIterator It = InAliases.CreateConstIterator();
-			while (It)
-			{
-				if (SplitName[i].Equals(It.Key()))
-				{
-					SplitName[i] = It.Value();
-				}
-				++It;
-			}
-		}
-
-		OutVarStrName = FString::Join(SplitName, InJoinSeparator);
-
-		OutVar.SetName(*OutVarStrName);
-		return OutVar;
-	}
+	static NIAGARA_API FNiagaraVariable ResolveAliases(const FNiagaraVariable& InVar, const TMap<FString, FString>& InAliases, const TCHAR* InJoinSeparator = TEXT("."));
 
 	static int32 SearchArrayForPartialNameMatch(const TArray<FNiagaraVariable>& Variables, const FName& VariableName)
 	{

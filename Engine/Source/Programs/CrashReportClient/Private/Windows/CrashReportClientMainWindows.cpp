@@ -116,7 +116,6 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 				}
 			}
 		}
-
 		RequestEngineExit(TEXT("Respawn instance."));
 		return 0; // Exit this intermediate instance, the Editor is waiting for it to continue.
 	}

@@ -59,6 +59,11 @@ public partial class Project : CommandUtils
 					COTFCommandLine += " -iterate -iteratehash";
 				}
 
+				if (Params.HasDDCGraph)
+				{
+					COTFCommandLine += " -ddc=" + Params.DDCGraph;
+				}
+
 				var ServerLogFile = CombinePaths(LogFolderOutsideOfSandbox, "Server.log");
 				Platform ClientPlatformInst = Params.ClientTargetPlatformInstances[0];
 				string TargetCook = ClientPlatformInst.GetCookPlatform(false, false); // cook on he fly doesn't support server cook platform... 
@@ -141,6 +146,11 @@ public partial class Project : CommandUtils
             try
             {
                 var CommandletParams = IsBuildMachine ? "-buildmachine -fileopenlog" : "-fileopenlog";
+
+                if (Params.HasDDCGraph)
+                {
+                    CommandletParams += " -ddc=" + Params.DDCGraph;
+                }
                 if (Params.UnversionedCookedContent)
                 {
                     CommandletParams += " -unversioned";

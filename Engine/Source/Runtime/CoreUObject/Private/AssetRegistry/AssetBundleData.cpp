@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetBundleData.h"
-#include "AssetData.h"
+#include "AssetRegistry/AssetBundleData.h"
+#include "AssetRegistry/AssetData.h"
 #include "UObject/PropertyPortFlags.h"
 
 bool FAssetBundleData::SetFromAssetData(const FAssetData& AssetData)
@@ -9,11 +9,12 @@ bool FAssetBundleData::SetFromAssetData(const FAssetData& AssetData)
 	FString TagValue;
 
 	// Register that we're reading string assets for a specific package
-	FSoftObjectPathSerializationScope SerializationScope(AssetData.PackageName, FAssetBundleData::StaticStruct()->GetFName(), ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
+	UScriptStruct* AssetBundleDataStruct = TBaseStructure<FAssetBundleData>::Get();
+	FSoftObjectPathSerializationScope SerializationScope(AssetData.PackageName, AssetBundleDataStruct->GetFName(), ESoftObjectPathCollectType::AlwaysCollect, ESoftObjectPathSerializeType::AlwaysSerialize);
 
-	if (AssetData.GetTagValue(FAssetBundleData::StaticStruct()->GetFName(), TagValue))
+	if (AssetData.GetTagValue(AssetBundleDataStruct->GetFName(), TagValue))
 	{
-		if (FAssetBundleData::StaticStruct()->ImportText(*TagValue, this, nullptr, PPF_None, (FOutputDevice*)GWarn, [&AssetData]() { return AssetData.AssetName.ToString(); }))
+		if (AssetBundleDataStruct->ImportText(*TagValue, this, nullptr, PPF_None, (FOutputDevice*)GWarn, [&AssetData]() { return AssetData.AssetName.ToString(); }))
 		{
 			FPrimaryAssetId FoundId = AssetData.GetPrimaryAssetId();
 

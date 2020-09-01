@@ -193,6 +193,8 @@ struct FSessionContext
 	TCHAR 					CrashReportClientRichText[CR_MAX_RICHTEXT_FIELD_CHARS];
 	TCHAR 					GameStateName[CR_MAX_GENERIC_FIELD_CHARS];
 	TCHAR 					CrashConfigFilePath[CR_MAX_DIRECTORY_CHARS];
+	char					PlatformName[CR_MAX_GENERIC_FIELD_CHARS];
+	char					PlatformNameIni[CR_MAX_GENERIC_FIELD_CHARS];
 	FPlatformMemoryStats	MemoryStats;
 };
 
@@ -414,6 +416,9 @@ public:
 
 	/** Attempts to create the output report directory. */
 	static bool CreateCrashReportDirectory(const TCHAR* CrashGUIDRoot, int32 CrashIndex, FString& OutCrashDirectoryAbsolute);
+
+	/** Notify the crash context exit has been requested. */
+	static void SetEngineExit(bool bIsRequestExit);
 
 	/** Sets the process id to that has crashed. On supported platforms this will analyze the given process rather than current. Default is current process. */
 	void SetCrashedProcess(const FProcHandle& Process) { ProcessHandle = Process; }

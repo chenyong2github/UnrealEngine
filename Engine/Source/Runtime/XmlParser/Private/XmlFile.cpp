@@ -3,7 +3,6 @@
 #include "XmlFile.h"
 #include "Misc/FileHelper.h"
 #include "Misc/ScopeExit.h"
-
 FXmlFile::FXmlFile(const FString& InFile, EConstructMethod::Type ConstructMethod)
 	: RootNode(nullptr), bFileLoaded(false)
 {
@@ -429,6 +428,7 @@ void FXmlFile::Tokenize(FStringView Input, TArray<FString>& Tokens)
 				Tokens.Add(MoveTemp(WorkingToken));
 				checkSlow(WorkingToken.Len() == 0);
 				WorkingToken += Ch;
+				bInQuote = false;
 
 				// Add the working token if it's final (ie: ends with '>')
 				if (Ch == TCHAR('>'))

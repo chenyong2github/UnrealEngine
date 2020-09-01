@@ -409,7 +409,8 @@ FReply SLocalizationTargetEditorCultureRow::EditText()
 			NativeCultureName = LocalizationTarget->Settings.SupportedCulturesStatistics[LocalizationTarget->Settings.NativeCultureIndex].CultureName;
 		}
 		
-		FModuleManager::LoadModuleChecked<ITranslationEditor>("TranslationEditor").OpenTranslationEditor(LocalizationTarget, Culture->GetName());
+		FModuleManager::Get().LoadModuleChecked("TranslationEditor");
+		ITranslationEditor::OpenTranslationEditor(LocalizationTarget, Culture->GetName());
 	}
 
 	return FReply::Handled();

@@ -127,14 +127,14 @@ const TCHAR* FFieldPathProperty::ImportText_Internal( const TCHAR* Buffer, void*
 	{		
 		// Advance to the next delimiter (comma) or the end of the buffer
 		int32 SeparatorIndex = 0;
-		while (Buffer[SeparatorIndex] != '\0' && Buffer[SeparatorIndex] != ',')
+		while (Buffer[SeparatorIndex] != '\0' && Buffer[SeparatorIndex] != ',' && Buffer[SeparatorIndex] != ')')
 		{
 			++SeparatorIndex;
 		}
 		// Copy the value string
 		PathName = FString(SeparatorIndex, Buffer);
 		// Advance the buffer to let the calling function know we succeeded
-		Buffer += SeparatorIndex + 1;
+		Buffer += SeparatorIndex;
 	}
 
 	if (PathName.Len())

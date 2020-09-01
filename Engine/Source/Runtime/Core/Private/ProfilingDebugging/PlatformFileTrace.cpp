@@ -102,7 +102,7 @@ void FPlatformFileTrace::FailOpen(const TCHAR* Path)
 	// TODO: Separate event for failure in the trace?
 	UE_TRACE_LOG(PlatformFile, EndOpen, FileChannel)
 		<< EndOpen.Cycle(FPlatformTime::Cycles64())
-		<< EndOpen.FileHandle(0);
+		<< EndOpen.FileHandle(uint64(-1));
 }
 
 void FPlatformFileTrace::BeginClose(uint64 FileHandle)
@@ -183,10 +183,6 @@ void FPlatformFileTrace::EndWrite(uint64 WriteHandle, uint64 SizeWritten)
 		<< EndWrite.Cycle(FPlatformTime::Cycles64())
 		<< EndWrite.WriteHandle(WriteHandle)
 		<< EndWrite.SizeWritten(SizeWritten);
-}
-
-void FPlatformFileTrace::Init(const TCHAR* CmdLine)
-{
 }
 
 uint32 FPlatformFileTrace::GetOpenFileHandleCount()

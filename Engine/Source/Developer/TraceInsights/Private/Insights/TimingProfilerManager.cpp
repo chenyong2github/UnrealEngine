@@ -8,9 +8,11 @@
 #include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerCommon.h"
+#include "Insights/ViewModels/TimerButterflyAggregation.h"
 #include "Insights/Widgets/SFrameTrack.h"
 #include "Insights/Widgets/SLogView.h"
 #include "Insights/Widgets/SStatsView.h"
@@ -69,6 +71,7 @@ FTimingProfilerManager::FTimingProfilerManager(TSharedRef<FUICommandList> InComm
 	, SelectionStartTime(0.0)
 	, SelectionEndTime(0.0)
 	, SelectedTimerId(InvalidTimerId)
+	, TimerButterflyAggregator(MakeShared<Insights::FTimerButterflyAggregator>())
 {
 }
 
@@ -138,12 +141,12 @@ void FTimingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& InsightsMo
 	{
 		// Register tab spawner for the Timing Insights.
 		FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(FInsightsManagerTabs::TimingProfilerTabId,
-			FOnSpawnTab::CreateRaw(this, &FTimingProfilerManager::SpawnTab))
+			FOnSpawnTab::CreateRaw(this, &FTimingProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FTimingProfilerManager::CanSpawnTab))
 			.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("TimingProfilerTabTitle", "Timing Insights"))
 			.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("TimingProfilerTooltipText", "Open the Timing Insights tab."))
 			.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "TimingProfiler.Icon.Small"));
 
-		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+		TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 		TabSpawnerEntry.SetGroup(Group);
 	}
 }
@@ -172,6 +175,17 @@ TSharedRef<SDockTab> FTimingProfilerManager::SpawnTab(const FSpawnTabArgs& Args)
 	AssignProfilerWindow(Window);
 
 	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FTimingProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
+{
+#if !WITH_EDITOR
+	return bIsAvailable;
+#else
+	return true;
+#endif
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -211,7 +225,7 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 {
 	if (!bIsAvailable)
 	{
-		// Check if session has Load Time events (to spawn the tab), but not too often.
+		// Check if session has Timing events (to spawn the tab), but not too often.
 		const uint64 Time = FPlatformTime::Cycles64();
 		if (Time > AvailabilityCheckNextTimestamp)
 		{
@@ -234,7 +248,36 @@ bool FTimingProfilerManager::Tick(float DeltaTime)
 		}
 	}
 
+	TimerButterflyAggregator->Tick(FInsightsManager::Get()->GetSession(), 0.0f, DeltaTime, [this]() { FinishTimerButterflyAggregation(); });
+
 	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FTimingProfilerManager::FinishTimerButterflyAggregation()
+{
+	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
+	if (Wnd)
+	{
+		TSharedPtr<STimerTreeView> CallersTreeView = Wnd->GetCallersTreeView();
+		if (CallersTreeView)
+		{
+			Trace::ITimingProfilerButterfly* TimingProfilerButterfly = TimerButterflyAggregator->GetResultButterfly();
+			const Trace::FTimingProfilerButterflyNode& Callers = TimingProfilerButterfly->GenerateCallersTree(SelectedTimerId);
+			CallersTreeView->SetTree(Callers);
+		}
+
+		TSharedPtr<STimerTreeView> CalleesTreeView = Wnd->GetCalleesTreeView();
+		if (CalleesTreeView)
+		{
+			Trace::ITimingProfilerButterfly* TimingProfilerButterfly = TimerButterflyAggregator->GetResultButterfly();
+			const Trace::FTimingProfilerButterflyNode& Callees = TimingProfilerButterfly->GenerateCalleesTree(SelectedTimerId);
+			CalleesTreeView->SetTree(Callees);
+		}
+	}
+
+	TimerButterflyAggregator->ResetResults();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -447,6 +490,9 @@ void FTimingProfilerManager::OnThreadFilterChanged()
 
 void FTimingProfilerManager::ResetCallersAndCallees()
 {
+	TimerButterflyAggregator->Cancel();
+	TimerButterflyAggregator->SetTimeInterval(0.0, 0.0);
+
 	TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
 	if (Wnd)
 	{
@@ -471,6 +517,9 @@ void FTimingProfilerManager::UpdateCallersAndCallees()
 {
 	if (SelectionStartTime < SelectionEndTime && SelectedTimerId != InvalidTimerId)
 	{
+		TimerButterflyAggregator->Cancel();
+		TimerButterflyAggregator->SetTimeInterval(SelectionStartTime, SelectionEndTime);
+
 		TSharedPtr<STimingProfilerWindow> Wnd = GetProfilerWindow();
 		if (Wnd)
 		{
@@ -487,36 +536,9 @@ void FTimingProfilerManager::UpdateCallersAndCallees()
 				CalleesTreeView->Reset();
 			}
 
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid() && Trace::ReadTimingProfilerProvider(*Session.Get()))
+			if (CallersTreeView || CalleesTreeView)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-				const Trace::ITimingProfilerProvider& TimingProfilerProvider = *Trace::ReadTimingProfilerProvider(*Session.Get());
-
-				TSharedPtr<STimingView> TimingView = Wnd->GetTimingView();
-
-				auto ThreadFilter = [&TimingView](uint32 ThreadId)
-				{
-					return !TimingView.IsValid() || TimingView->IsCpuTrackVisible(ThreadId);
-				};
-
-				const bool bIsGpuTrackVisible = TimingView.IsValid() && TimingView->IsGpuTrackVisible();
-
-				Trace::ITimingProfilerButterfly* TimingProfilerButterfly = TimingProfilerProvider.CreateButterfly(SelectionStartTime, SelectionEndTime, ThreadFilter, bIsGpuTrackVisible);
-
-				if (CallersTreeView.IsValid())
-				{
-					const Trace::FTimingProfilerButterflyNode& Callers = TimingProfilerButterfly->GenerateCallersTree(SelectedTimerId);
-					CallersTreeView->SetTree(Callers);
-				}
-
-				if (CalleesTreeView.IsValid())
-				{
-					const Trace::FTimingProfilerButterflyNode& Callees = TimingProfilerButterfly->GenerateCalleesTree(SelectedTimerId);
-					CalleesTreeView->SetTree(Callees);
-				}
-
-				delete TimingProfilerButterfly;
+				TimerButterflyAggregator->Start();
 			}
 		}
 	}

@@ -228,10 +228,6 @@ uint32 FCpuProfilerTrace::OutputEventType(const ANSICHAR* Name)
 	return SpecId;
 }
 
-void FCpuProfilerTrace::Init(const TCHAR* CmdLine)
-{
-}
-
 void FCpuProfilerTrace::Shutdown()
 {
 	if (FCpuProfilerTraceInternal::ThreadBuffer)

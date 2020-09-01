@@ -90,6 +90,8 @@ private:
 	/** Called to spawn the Networking Profiler major tab. */
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
+	bool CanSpawnTab(const FSpawnTabArgs& Args) const;
+
 	/** Callback called when the Networking Profiler major tab is closed. */
 	void OnTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 

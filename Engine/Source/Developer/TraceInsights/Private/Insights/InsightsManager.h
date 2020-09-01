@@ -25,6 +25,9 @@ namespace Trace
 
 class SStartPageWindow;
 class SSessionInfoWindow;
+class FInsightsMessageLogViewModel;
+class FInsightsTestRunner;
+class FInsightsMenuBuilder;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
@@ -157,14 +160,16 @@ public:
 	/**
 	 * Creates a new analysis session instance using specified trace id.
 	 * @param TraceId - The id of the trace to analyze
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	void LoadTrace(uint32 TraceId);
+	void LoadTrace(uint32 TraceId, bool InAutoQuit = false);
 
 	/**
 	 * Creates a new analysis session instance and loads a trace file from the specified location.
 	 * @param TraceFilename - The trace file to analyze
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	void LoadTraceFile(const FString& TraceFilename);
+	void LoadTraceFile(const FString& TraceFilename, bool InAutoQuit = false);
 
 	/** Opens the Settings dialog. */
 	void OpenSettings();
@@ -176,6 +181,10 @@ public:
 	double GetAnalysisDuration() const { return AnalysisDuration; }
 	double GetAnalysisSpeedFactor() const { return AnalysisSpeedFactor; }
 
+	TSharedPtr<FInsightsMessageLogViewModel> GetMessageLog() { return InsightsMessageLogViewModel; }
+
+	TSharedPtr<FInsightsMenuBuilder> GetInsightsMenuBuilder() { return InsightsMenuBuilder; }
+
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
 
@@ -186,6 +195,17 @@ public:
 private:
 	/** The event to execute when the session has changed. */
 	FSessionChangedEvent SessionChangedEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
+// SessionAnalysisComplete
+
+public:
+	/** The event to execute when session analysis is complete. */
+	DECLARE_EVENT(FTimingProfilerManager, FSessionAnalysisCompletedEvent);
+	FSessionAnalysisCompletedEvent& GetSessionAnalysisCompletedEvent() { return SessionAnalysisCompletedEvent; }
+private:
+	/** The event to execute when session analysis is completed. */
+	FSessionAnalysisCompletedEvent SessionAnalysisCompletedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -204,6 +224,9 @@ private:
 
 	/** Callback called when the Session Info major tab is closed. */
 	void OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	/** Called to spawn the Message Log major tab. */
+	TSharedRef<SDockTab> SpawnMessageLogTab(const FSpawnTabArgs& Args);
 
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
@@ -259,6 +282,9 @@ private:
 	/** A weak pointer to the Session Info window. */
 	TWeakPtr<class SSessionInfoWindow> SessionInfoWindow;
 
+	TSharedPtr<class SWidget> InsightsMessageLog;
+	TSharedPtr<FInsightsMessageLogViewModel> InsightsMessageLogViewModel;
+
 	/** If enabled, UI can display additional info for debugging purposes. */
 	bool bIsDebugInfoEnabled;
 
@@ -270,7 +296,14 @@ private:
 	double AnalysisDuration;
 	double AnalysisSpeedFactor;
 
+	bool bIsMainTabSet = false;
+
+	TSharedPtr<FInsightsMenuBuilder> InsightsMenuBuilder;
+	TSharedPtr<FInsightsTestRunner> TestRunner;
+
 private:
+	static const TCHAR* AutoQuitMsgOnFail;
+
 	/** A shared pointer to the global instance of the main manager. */
 	static TSharedPtr<FInsightsManager> Instance;
 };

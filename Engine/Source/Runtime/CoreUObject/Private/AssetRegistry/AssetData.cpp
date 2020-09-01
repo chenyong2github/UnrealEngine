@@ -1,6 +1,6 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "AssetData.h"
+#include "AssetRegistry/AssetData.h"
 #include "Serialization/CustomVersion.h"
 
 DEFINE_LOG_CATEGORY(LogAssetData);

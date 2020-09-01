@@ -24,7 +24,7 @@
 
 #if TRACING_PROFILER
 
-class FTracingProfiler
+class UE_DEPRECATED(4.26, "Please use Unreal Insights for profiling") FTracingProfiler
 {
 private:
 
@@ -151,6 +151,8 @@ private:
 
 	uint32 Pad[(PLATFORM_CACHE_LINE_SIZE / 4 - 2)];
 	volatile int32 EventAtomicConter = 0;
+
+	uint32 RenderThreadId = 0;
 };
 
 #endif //TRACING_PROFILER

@@ -32,10 +32,9 @@ void FThreadProvider::AddGameThread(uint32 Id)
 	check(!ThreadMap.Contains(Id));
 	FThreadInfoInternal* ThreadInfo = new FThreadInfoInternal();
 	ThreadInfo->Id = Id;
-	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(TPri_Normal);
+	ThreadInfo->PrioritySortOrder = -2;
 	ThreadInfo->Name = Session.StoreString(*FName(NAME_GameThread).GetPlainNameString());
 	ThreadInfo->FallbackSortOrder = SortedThreads.Num();
-	ThreadInfo->IsGameThread = true;
 	SortedThreads.Add(ThreadInfo);
 	ThreadMap.Add(Id, ThreadInfo);
 	++ModCount;
@@ -58,10 +57,16 @@ void FThreadProvider::AddThread(uint32 Id, const TCHAR* Name, EThreadPriority Pr
 	{
 		ThreadInfo = ThreadMap[Id];
 	}
-	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
 	if (Name != nullptr)
 	{
 		ThreadInfo->Name = Session.StoreString(Name);
+		if (!FCString::Strcmp(Name, TEXT("RHIThread")))
+		{
+			const TCHAR* GroupName = Session.StoreString(TEXT("Render"));
+			SetThreadGroup(Id, GroupName);
+		}
+
+		ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
 	}
 	SortThreads();
 	++ModCount;
@@ -73,6 +78,7 @@ void FThreadProvider::SetThreadPriority(uint32 Id, EThreadPriority Priority)
 
 	check(ThreadMap.Contains(Id));
 	FThreadInfoInternal* ThreadInfo = ThreadMap[Id];
+	ensure(ThreadInfo->PrioritySortOrder != -2);
 	ThreadInfo->PrioritySortOrder = GetPrioritySortOrder(Priority);
 	SortThreads();
 	++ModCount;
@@ -197,11 +203,6 @@ int32 FThreadProvider::GetPrioritySortOrder(EThreadPriority ThreadPriority)
 
 bool FThreadProvider::FThreadInfoInternal::operator<(const FThreadInfoInternal& Other) const
 {
-	if (IsGameThread != Other.IsGameThread)
-	{
-		return IsGameThread;
-	}
-
 	if (PrioritySortOrder < 0 || Other.PrioritySortOrder < 0)
 	{
 		return PrioritySortOrder < Other.PrioritySortOrder;

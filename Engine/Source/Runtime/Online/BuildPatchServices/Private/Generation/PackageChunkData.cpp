@@ -607,8 +607,7 @@ namespace BuildPatchServices
 
 	TFunction<void()> FPackageChunks::MakePromiseCompleteDelegate(PromiseCompleteFunc OnComplete)
 	{
-		typedef TMemberFunctionCaller<FPackageChunks, PromiseCompleteFunc> FPromiseCompleteCaller;
-		TFunction<void()> OnCompleteDelegate = [this, OnComplete]() { FPromiseCompleteCaller(this, OnComplete)(); };
+		TFunction<void()> OnCompleteDelegate = [this, OnComplete]() { (this->*OnComplete)(); };
 		TFunction<void()> GameThreadWrapper = [OnCompleteDelegate]() { AsyncHelpers::ExecuteOnGameThread<void>(OnCompleteDelegate); };
 		return GameThreadWrapper;
 	}
@@ -618,9 +617,8 @@ namespace BuildPatchServices
 		TFunction<void(const IOptimisedDelta::FResultValueOrError&)> GameThreadWrapper = [this, OnComplete](const IOptimisedDelta::FResultValueOrError& Result)
 		{
 			// This is boiler plate overcoming IOptimisedDelta::FResultValueOrError being non-copyable, and interface between async thread and main game thread.
-			typedef TMemberFunctionCaller<FPackageChunks, OptimiseCompleteFunc> FOptimiseCompleteCaller;
 			TSharedPtr<IOptimisedDelta::FResultValueOrError> NewResult = Result.IsValid() ? MakeShared<IOptimisedDelta::FResultValueOrError>(MakeValue(Result.GetValue())) : MakeShared<IOptimisedDelta::FResultValueOrError>(MakeError(Result.GetError()));
-			TFunction<void()> OnCompleteDelegate = [this, OnComplete, NewResult = MoveTemp(NewResult)]() { FOptimiseCompleteCaller(this, OnComplete)(*NewResult); };
+			TFunction<void()> OnCompleteDelegate = [this, OnComplete, NewResult = MoveTemp(NewResult)]() { (this->*OnComplete)(*NewResult); };
 			AsyncHelpers::ExecuteOnGameThread<void>(OnCompleteDelegate);
 		};
 		return GameThreadWrapper;

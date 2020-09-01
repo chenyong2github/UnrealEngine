@@ -203,20 +203,20 @@
  * @note: The last parameter is variadic and is used as the 'template args' for this delegate's classes (__VA_ARGS__)
  * @note: To avoid issues with macro expansion breaking code navigation, make sure the type/class name macro params are unique across all of these macros
  */
-#define FUNC_DECLARE_DELEGATE( DelegateName, ... ) \
-	typedef TBaseDelegate<__VA_ARGS__> DelegateName;
+#define FUNC_DECLARE_DELEGATE( DelegateName, ReturnType, ... ) \
+	typedef TDelegate<ReturnType(__VA_ARGS__)> DelegateName;
 
 /** Declares a broadcast delegate that can bind to multiple native functions simultaneously */
-#define FUNC_DECLARE_MULTICAST_DELEGATE( MulticastDelegateName, ... ) \
-	typedef TMulticastDelegate<__VA_ARGS__> MulticastDelegateName;
+#define FUNC_DECLARE_MULTICAST_DELEGATE( MulticastDelegateName, ReturnType, ... ) \
+	typedef TMulticastDelegate<ReturnType(__VA_ARGS__)> MulticastDelegateName;
 
 /**
  * Declares a multicast delegate that is meant to only be activated from OwningType
  *
  * @note: This behavior is not enforced and this type should be considered deprecated for new delegates, use normal multicast instead
  */
-#define FUNC_DECLARE_EVENT( OwningType, EventName, ... ) \
-	class EventName : public TBaseMulticastDelegate<__VA_ARGS__> \
+#define FUNC_DECLARE_EVENT( OwningType, EventName, ReturnType, ... ) \
+	class EventName : public TMulticastDelegate<ReturnType(__VA_ARGS__)> \
 	{ \
 		friend class OwningType; \
 	};
@@ -494,3 +494,12 @@ namespace UE4Delegates_Private
 // Simple delegate used by various utilities such as timers
 DECLARE_DELEGATE( FSimpleDelegate );
 DECLARE_MULTICAST_DELEGATE( FSimpleMulticastDelegate );
+
+// Legacy typedefs
+template <typename RetType, typename... ArgTypes>
+using TBaseDelegate UE_DEPRECATED(4.26, "TBaseDelegate<ReturnType, ArgTypes...> is deprecated - use TDelegate<ReturnType(ArgTypes...)> instead.")
+	= TDelegate<RetType(ArgTypes...)>;
+
+template <typename RetType, typename... ArgTypes>
+using TBaseMulticastDelegate UE_DEPRECATED(4.26, "TBaseMulticastDelegate<ReturnType, ArgTypes...> is deprecated - use TMulticastDelegate<ReturnType(ArgTypes...)> instead.")
+	= TMulticastDelegate<RetType(ArgTypes...)>;

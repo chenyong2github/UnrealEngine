@@ -5,9 +5,12 @@
 #include "CookTypes.h"
 #include "Containers/Array.h"
 #include "Containers/ArrayView.h"
+#include "Containers/Map.h"
 #include "HAL/CriticalSection.h"
 #include "HAL/Platform.h"
+#include "Templates/Atomic.h"
 #include "Templates/UniquePtr.h"
+#include "Templates/UnrealTemplate.h"
 #include "UObject/NameTypes.h"
 
 class ITargetPlatform;
@@ -21,144 +24,179 @@ namespace Cook
 	/*
 	 * Struct to hold data about each platform we have encountered in the cooker.
 	 * Fields in this struct persist across multiple CookByTheBook sessions.
-	 * Fields on this struct are used on multiple threads; see variable comments for thread synchronization rules.
+	 * All fields on this struct are readable only from either the scheduler thread or within a ReadLock on non-scheduler thread.
+	 * Some fields on this struct are SingleThreadWrite fields - written only from the scheduler thread. These are unsynchronized other than SingleThreadWrite readlocks.
+	 * The remaining fields are read/write from any thread, and are TAtomics.
 	 */
 	struct FPlatformData
 	{
+		FPlatformData();
+
 		/* Name of the Platform, a cache of FName(ITargetPlatform->PlatformName()) */
 		FName PlatformName;
 
-		/* Pointer to the platform-specific RegistryGenerator for this platform.  If already constructed we can take a faster refresh path on future sessions.
-		 * Read/Write on TickCookOnTheSide thread only
+		/**
+		 * The TargetPlatform returned from TargetPlatformManagerModule.
+		 * This may change to a different pointer if Invalidate is called on the TargetPlatformManagerModule, so it is only valid to dereference on the ScheduleThread since invalidation occurs on the ScheduleThread.
 		 */
+		ITargetPlatform* TargetPlatform;
+
+		/* Pointer to the platform-specific RegistryGenerator for this platform.  If already constructed we can take a faster refresh path on future sessions. */
 		TUniquePtr<FAssetRegistryGenerator> RegistryGenerator;
 
-		/*
-		 * Whether InitializeSandbox has been called for this platform.  If we have already initialized the sandbox we can take a faster refresh path on future sessions.
-		 * Threadsafe due to write-once.  Written only once after construction on the game thread.
-		 */
+		/* Whether InitializeSandbox has been called for this platform.  If we have already initialized the sandbox we can take a faster refresh path on future sessions. */
 		bool bIsSandboxInitialized = false;
 
 		/*
 		 * The last FPlatformTime::GetSeconds() at which this platform was requested in a CookOnTheFly request.
 		 * If equal to 0, the platform was not requested in a CookOnTheFly since the last clear.
-		 * Written only when SessionLock critical section is held.
 		 */
-		double LastReferenceTime = 0.0;
+		TAtomic<double> LastReferenceTime;
 
-		/*
-		 * The count of how many active CookOnTheFly requests are currently using the Platform.
-		 * Read/Write only when the SessionLock critical section is held.
-		 */
-		uint32 ReferenceCount = 0;
+		/* The count of how many active CookOnTheFly requests are currently using the Platform. */
+		TAtomic<uint32> ReferenceCount;
 	};
 
-	/* Information about the platforms (a) known and (b) active for the current cook session in the UCookOnTheFlyServer. */
+	typedef const ITargetPlatform* FPlatformId;
+
+	/*
+	 * Information about the platforms (a) known and (b) active for the current cook session in the UCookOnTheFlyServer.
+	 * This structure is SingleThreadWrite-ThreadSafe.  All read accesses from threads other than the SchedulerThread enter read locks (or require read locks held). 
+	 * Write accesses enter write locks, and assert if not on the SchedulerThread.
+	*/
 	struct FPlatformManager
 	{
 	public:
-		FPlatformManager(FCriticalSection& InSessionLock);
+		~FPlatformManager();
 
-		/** Return the CriticalSection this PlatformManager is using to synchronize multithreaded access to Session Platforms */
-		FCriticalSection& GetSessionLock();
-
-		/**
-		 * Returns the set of TargetPlatforms that is active for the CurrentCookByTheBook session or CookOnTheFly request.
-		 * This function can be called and its return value referenced only from the TickCookOnTheSide thread or when SessionLock is held.
-		 */
+		/** Returns the set of TargetPlatforms that is active for the CurrentCookByTheBook session or CookOnTheFly request. */
 		const TArray<const ITargetPlatform*>& GetSessionPlatforms() const;
 
-		/**
-		 * Return whether the platforms have been selected for the current session (may be empty if current session is a null session).
-		 * This function can be called from any thread, but is guaranteed thread-accurate only from the TickCookOnTheSide thread or when SessionLock is held.
-		 */
+		/** Return whether the platforms have been selected for the current session (may be empty if current session is a null session). */
 		bool HasSelectedSessionPlatforms() const;
 
-		/**
-		 * Return whether the given platform is already in the list of platforms for the current session.
-		 * This function can be called only from the TickCookOnTheSide thread or when SessionLock is held.
-		 */
-		bool HasSessionPlatform(const ITargetPlatform* TargetPlatform) const;
+		/** Return whether the given platform is already in the list of platforms for the current session. */
+		bool HasSessionPlatform(FPlatformId TargetPlatform) const;
 
-		/**
-		 * Specify the set of TargetPlatforms to use for the currently-initializing CookByTheBook session or CookOnTheFly request.
-		 * This function can be called only from the TickCookOnTheSide thread.
-		 */
-		void SelectSessionPlatforms(const TArrayView<const ITargetPlatform* const>& TargetPlatforms);
+		/** Specify the set of TargetPlatforms to use for the currently-initializing CookByTheBook session or CookOnTheFly request. */
+		void SelectSessionPlatforms(const TArrayView<FPlatformId const>& TargetPlatforms);
 
-		/**
-		 * Mark that the list of TargetPlatforms for the session has no longer been set; it will be an error to try to read them until SelectSessionPlatforms is called.
-		 * This function can be called only from the TickCookOnTheSide thread.
-		 */
+		/** Mark that the list of TargetPlatforms for the session has no longer been set; it will be an error to try to read them until SelectSessionPlatforms is called. */
 		void ClearSessionPlatforms();
 
-		/**
-		 * Add @param TargetPlatform to the session platforms if not already present.
-		 * This function can be called only from the TickCookOnTheSide thread.
-		 */
-		void AddSessionPlatform(const ITargetPlatform* TargetPlatform);
+		/** Add @param TargetPlatform to the session platforms if not already present. */
+		void AddSessionPlatform(FPlatformId TargetPlatform);
 
 		/**
 		 * Get The PlatformData for the given Platform.
 		 * Guaranteed to return non-null for any Platform in the current list of SessionPlatforms.
-		 * Can be called from any thread.
 		 */
-		FPlatformData* GetPlatformData(const ITargetPlatform* Platform);
+		FPlatformData* GetPlatformData(FPlatformId Platform);
 
-		/**
-		 * Create if not already created the necessary platform-specific data for the given platform.
-		 * This function can be called with new platforms only before multithreading begins (e.g. in StartNetworkFileServer or StartCookByTheBook).
-		 */
+		/** Get The PlatformData for the given Platform, looked up by name since NetworkThread does not have FPlatformId to start out with. */
+		FPlatformData* GetPlatformDataByName(FName PlatformName);
+
+		/** Create if not already created the necessary platform-specific data for the given platform. */
 		FPlatformData& CreatePlatformData(const ITargetPlatform* Platform);
 
-		/**
-		 * Return whether platform-specific setup steps have been executed for the given platform in the current UCookOnTheFlyServer.
-		 * This function can be called from any thread, but is guaranteed thread-accurate only from the TickCookOnTheSide thread.
-		 */
-		bool IsPlatformInitialized(const ITargetPlatform* Platform) const;
+		/** Return whether platform-specific setup steps have been executed for the given platform in the current UCookOnTheFlyServer. */
+		bool IsPlatformInitialized(FPlatformId Platform) const;
 
-		/** If and only if bFrozen is set to true, it is invalid to call CreatePlatformData with a Platform that does not already exist. */
-		void SetPlatformDataFrozen(bool bFrozen);
+		/** Get/Set for the Prepopulated flag. If platforms are prepopulated, then we need to repopulate the list whenever targetplatforms are invalidated. */
+		void SetArePlatformsPrepopulated(bool bValue);
+		bool GetArePlatformsPrepopulated() const;
 
 		/**
 		 * Platforms requested in CookOnTheFly requests are added to the list of SessionPlatforms, and some packages (e.g. unsolicited packages) are cooked against all session packages.
 		 * To have good performance in the case where multiple targetplatforms are being requested over time from the same CookOnTheFly server, we prune platforms from the list of
 		 * active session platforms if they haven't been requested in a while.
-		 * This function can be called only from the TickCookOnTheSide thread.
 		 */
 		void PruneUnreferencedSessionPlatforms(UCookOnTheFlyServer& CookOnTheFlyServer);
 
-		/**
-		 * Increment the counter indicating the current platform is requested in an active CookOnTheFly request.  Add it to the SessionPlatforms if not already present.
-		 * This function can be called only when the SessionLock is held.
-		 */
-		void AddRefCookOnTheFlyPlatform(const ITargetPlatform* TargetPlatform, UCookOnTheFlyServer& CookOnTheFlyServer);
+		/** Increment the counter indicating the current platform is requested in an active CookOnTheFly request.  Add it to the SessionPlatforms if not already present. */
+		void AddRefCookOnTheFlyPlatform(FName PlatformName, UCookOnTheFlyServer& CookOnTheFlyServer);
+
+		/** Decrement the counter indicating the current platform is being used in a CookOnTheFly request. */
+		void ReleaseCookOnTheFlyPlatform(FName TargetPlatform);
 
 		/**
-		 * Decrement the counter indicating the current platform is being used in a CookOnTheFly request.
-		 * This function can be called only when the SessionLock is held.
+		 * Called from CookOnTheFlyServer when TargetPlatformManagerModule reports that ITargetPlatform* have been invalided.
+		 * Constructs a map from the old ITargetPlatform* to the new ITargetPlatform* using the PlatformName that we cached from the old ITargetPlatform* to identify the matching new one.
+		 * Modifies all internal ITargetPlatform* values and returns the map to use for other stored copies of ITargetPlatform*.
 		 */
-		void ReleaseCookOnTheFlyPlatform(const ITargetPlatform* TargetPlatform);
+		TMap<ITargetPlatform*, ITargetPlatform*> RemapTargetPlatforms();
+
+		/* When using FPlatformManager from a thread other than the scheduler thread (e.g. HandleNetworkFileServer functions), callers must lock the list of PlatformDatas using ReadLockPlatforms */
+		struct FReadScopeLock
+		{
+			~FReadScopeLock();
+			FReadScopeLock(FReadScopeLock&& Other);
+
+		private:
+			FReadScopeLock(FPlatformManager& InPlatformManager);
+			FReadScopeLock(const FReadScopeLock& Other) = delete;
+
+			bool bAttached = false;
+			FPlatformManager& PlatformManager;
+			friend struct FPlatformManager;
+		};
+		FReadScopeLock ReadLockPlatforms();
+
+		/** Initialize storage for the global ThreadLocalStorage used by this class. */
+		static void InitializeTls();
 
 	private:
+		static bool IsInPlatformsLock();
+		static void SetIsInPlatformsLock(bool bValue);
+		static uint32 IsInPlatformsLockTLSSlot;
+
 		/** A collection of initialization flags and other data we maintain for each platform we have encountered in any session. */
-		TFastPointerMap<const ITargetPlatform*, FPlatformData> PlatformDatas;
+		TFastPointerMap<FPlatformId, FPlatformData*> PlatformDatas;
+		TMap<FName, FPlatformData*> PlatformDatasByName;
+
+		/*
+		 * RWLock used to guard PlatformDatas, PlatformDatasByName, and the validity of FPlatformIds. These fields are writable only on the SchedulerThread, so SchedulerThreadread operations can skip taking this lock.
+		 * To prevent deadlocks, if PlatformDatasLock and SessionLock are held at the same time in a block of code, then PlatformDatasLock must be entered before entering SessionLock.
+		 */
+		mutable FRWLock PlatformDatasLock;
 
 		/**
 		 * A collection of Platforms that are active for the current CookByTheBook session or CookOnTheFly request.  Used so we can refer to "all platforms" without having to store a list on every FileRequest.
 		 * Writing to the list of active session platforms requires a CriticalSection, because it is read (under critical section) on NetworkFileServer threads.
 		 */
-		TArray<const ITargetPlatform*> SessionPlatforms;
+		TArray<FPlatformId> SessionPlatforms;
 
-		/** A reference to the critical section used to guard SessionPlatforms. */
-		FCriticalSection& SessionLock;
-
-		/** If PlatformData is frozen, it is invalid to add new PlatformDatas. */
-		bool bPlatformDataFrozen = false;
+		/**
+		 * RWLock used to guard SessionPlatforms. SessionPlatforms can only be written from the SchedulerThread, so SchedulerThread read operations can skip taking this lock.
+		 * To prevent deadlocks, if PlatformDatasLock and SessionLock are held at the same time in a block of code, then PlatformDatasLock must be entered before entering SessionLock.
+		 */
+		mutable FRWLock SessionLock;
+		
+		bool bArePlatformsPrepopulated = false;
 
 		/** It is invalid to attempt to cook if session platforms have not been selected. */
 		bool bHasSelectedSessionPlatforms = false;
 	};
 
 }
+}
+
+template <typename Value>
+void RemapMapKeys(TFastPointerMap<const ITargetPlatform*, Value>& Map, const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
+{
+	TFastPointerMap<const ITargetPlatform*, Value> NewMap;
+	NewMap.Reserve(Map.Num());
+	for (TPair<const ITargetPlatform*, Value>& OldPair : Map)
+	{
+		NewMap.Add(Remap[OldPair.Key], MoveTemp(OldPair.Value));
+	}
+	Swap(Map, NewMap);
+}
+
+inline void RemapArrayElements(TArray<const ITargetPlatform*>& Array, const TMap<ITargetPlatform*, ITargetPlatform*>& Remap)
+{
+	for (const ITargetPlatform*& Old : Array)
+	{
+		Old = Remap[Old];
+	}
 }

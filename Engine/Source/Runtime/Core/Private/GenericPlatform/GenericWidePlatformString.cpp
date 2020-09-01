@@ -224,31 +224,31 @@ void RunGetVarArgsTests()
 	WIDECHAR OutputString[OUTPUT_SIZE];
 
 	TestGetVarArgs(OutputString, TEXT("Test A|%-20s|%20s|%10.2f|%-10.2f|"), TEXT("LEFT"), TEXT("RIGHT"), 33.333333, 66.666666);
-	check(FString(OutputString) == FString(TEXT("Test A|LEFT                |               RIGHT|     33.33|66.67     |")));
+	checkf(FString(OutputString) == FString(TEXT("Test A|LEFT                |               RIGHT|     33.33|66.67     |")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test B|Percents:%%%%%%%d|"), 3);
-	check(FString(OutputString) == FString(TEXT("Test B|Percents:%%%3|")));
+	checkf(FString(OutputString) == FString(TEXT("Test B|Percents:%%%3|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test C|%d|%i|%X|%x|%u|"), 12345, 54321, 0x123AbC, 15, 99);
-	check(FString(OutputString) == FString(TEXT("Test C|12345|54321|123ABC|f|99|")));
+	checkf(FString(OutputString) == FString(TEXT("Test C|12345|54321|123ABC|f|99|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test D|%p|"), 0x12345);
-	check(FString(OutputString) == FString(TEXT("Test D|0x12345|")));
+	checkf(FString(OutputString) == FString(TEXT("Test D|0x12345|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test E|%" INT64_FMT "|"), int64(12345678912345LL));
-	check(FString(OutputString) == FString(TEXT("Test E|12345678912345|")));
+	checkf(FString(OutputString) == FString(TEXT("Test E|12345678912345|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test F|%f|%e|%g|"), 123.456, 123.456, 123.456);
-	check(FString(OutputString) == FString(TEXT("Test F|123.456000|1.234560e+02|123.456|")));
+	checkf(FString(OutputString) == FString(TEXT("Test F|123.456000|1.234560e+02|123.456|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test G|%" UPTRINT_X_FMT"|"), UPTRINT(49374));
-	check(FString(OutputString) == FString(TEXT("Test G|C0DE|")));
+	checkf(FString(OutputString) == FString(TEXT("Test G|C0DE|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test H|%" UPTRINT_x_FMT "|"), UPTRINT(49374));
-	check(FString(OutputString) == FString(TEXT("Test H|c0de|")));
+	checkf(FString(OutputString) == FString(TEXT("Test H|c0de|")), OutputString);
 
 	TestGetVarArgs(OutputString, TEXT("Test I|%" UINT64_FMT "|"), MAX_uint64);
-	check(FString(OutputString) == FString(TEXT("Test I|18446744073709551615|")));
+	checkf(FString(OutputString) == FString(TEXT("Test I|18446744073709551615|")), OutputString);
 }
 #endif
 
@@ -342,6 +342,34 @@ namespace
 	static inline bool CharIsIntegerFormatSpecifier(TCHAR Char)
 	{
 		return (Char == 'i') | (Char == 'd') | (Char == 'u') | (Char == 'X') | (Char == 'x');
+	}
+
+	template <typename CharType, typename VaListType>
+	void ProcessStringArg(FSafeDestIterator& DestIter, const TCHAR*& Src, int FieldLen, int PrecisionLen, VaListType& ArgPtr)
+	{
+		// ArgPtr is taken as a templated parameter, despite being a va_list, because on some
+		// architectures it could be an array type, and when an array is used as a function parameter,
+		// the named value is treated as a pointer and won't bind to an array reference.
+
+		Src++;
+		static const CharType* Null = LITERAL(CharType, "(null)");
+		const CharType* Val = va_arg(ArgPtr, CharType*);
+		if (Val == nullptr)
+		{
+			Val = Null;
+		}
+
+		int RetCnt = PrecisionLen < 0 ? FGenericWidePlatformString::Strlen(Val) : FGenericWidePlatformString::Strnlen(Val, PrecisionLen);
+		int Spaces = FPlatformMath::Max(FPlatformMath::Abs(FieldLen) - RetCnt, 0);
+		if (Spaces > 0 && FieldLen > 0)
+		{
+			DestIter.Write(TEXT(' '), Spaces);
+		}
+		DestIter.Write(Val, RetCnt);
+		if (Spaces > 0 && FieldLen < 0)
+		{
+			DestIter.Write(TEXT(' '), Spaces);
+		}
 	}
 }
 
@@ -444,6 +472,14 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 		// Check for 'ls' field, change to 's'
 		if ((Src[0] == 'l' && Src[1] == 's'))
 		{
+			Src++;
+		}
+
+		// Check for 'hs' field, change to 's' and remember
+		bool bIsNarrowString = false;
+		if ((Src[0] == 'h' && Src[1] == 's'))
+		{
+			bIsNarrowString = true;
 			Src++;
 		}
 
@@ -763,24 +799,13 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 
 			case 's':
 			{
-				Src++;
-				static const TCHAR* Null = TEXT("(null)");
-				const TCHAR* Val = va_arg(ArgPtr, TCHAR*);
-				if (Val == nullptr)
+				if (bIsNarrowString)
 				{
-					Val = Null;
+					ProcessStringArg<ANSICHAR>(DestIter, Src, FieldLen, PrecisionLen, ArgPtr);
 				}
-
-				int RetCnt = PrecisionLen < 0 ? Strlen(Val) : Strnlen(Val, PrecisionLen);
-				int Spaces = FPlatformMath::Max(FPlatformMath::Abs(FieldLen) - RetCnt, 0);
-				if (Spaces > 0 && FieldLen > 0)
+				else
 				{
-					DestIter.Write(TEXT(' '), Spaces);
-				}
-				DestIter.Write(Val, RetCnt);
-				if (Spaces > 0 && FieldLen < 0)
-				{
-					DestIter.Write(TEXT(' '), Spaces);
+					ProcessStringArg<TCHAR>(DestIter, Src, FieldLen, PrecisionLen, ArgPtr);
 				}
 				if (!DestIter)
 				{
@@ -792,28 +817,9 @@ int32 FGenericWidePlatformString::GetVarArgs( WIDECHAR* Dest, SIZE_T DestSize, c
 			case 'S':
 			{
 				// The %S format represents a string which is the opposite of %s - wide if TCHAR is narrow, or narrow if TCHAR is wide
-
 				using OtherCharType = TChooseClass<TIsSame<TCHAR, ANSICHAR>::Value, WIDECHAR, ANSICHAR>::Result;
 
-				Src++;
-				static const OtherCharType* Null = LITERAL(OtherCharType, "(null)");
-				const OtherCharType* Val = va_arg(ArgPtr, OtherCharType*);
-				if (Val == nullptr)
-				{
-					Val = Null;
-				}
-
-				int RetCnt = PrecisionLen < 0 ? Strlen(Val) : Strnlen(Val, PrecisionLen);
-				int Spaces = FPlatformMath::Max(FPlatformMath::Abs(FieldLen) - RetCnt, 0);
-				if (Spaces > 0 && FieldLen > 0)
-				{
-					DestIter.Write(TEXT(' '), Spaces);
-				}
-				DestIter.Write(Val, RetCnt);
-				if (Spaces > 0 && FieldLen < 0)
-				{
-					DestIter.Write(TEXT(' '), Spaces);
-				}
+				ProcessStringArg<OtherCharType>(DestIter, Src, FieldLen, PrecisionLen, ArgPtr);
 				if (!DestIter)
 				{
 					return -1;

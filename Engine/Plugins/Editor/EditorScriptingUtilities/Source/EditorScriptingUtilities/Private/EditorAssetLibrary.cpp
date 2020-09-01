@@ -437,9 +437,8 @@ TArray<FString> UEditorAssetLibrary::FindPackageReferencersForAsset(const FStrin
 	// Find the reference in packages. Load them to confirm the reference.
 	TArray<FName> PackageReferencers;
 	{
-		EAssetRegistryDependencyType::Type ReferenceType = EAssetRegistryDependencyType::Packages;
 		FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
-		AssetRegistryModule.Get().GetReferencers(*FPackageName::ObjectPathToPackageName(AssetPath), PackageReferencers, ReferenceType);
+		AssetRegistryModule.Get().GetReferencers(*FPackageName::ObjectPathToPackageName(AssetPath), PackageReferencers, UE::AssetRegistry::EDependencyCategory::Package);
 	}
 
 	if (bLoadAssetsToConfirm)

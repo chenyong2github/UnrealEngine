@@ -1133,7 +1133,7 @@ FUNCTION_NON_NULL_RETURN_END
 {
 	if (Name == NAME_None)
 	{
-		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSuobject<> instead."));
+		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSubobject<> instead."));
 	}
 
 #if DO_CHECK
@@ -1158,7 +1158,7 @@ FUNCTION_NON_NULL_RETURN_START
 FUNCTION_NON_NULL_RETURN_END
 {
 	// Name is always None for this case
-	FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSuobject<> instead."));
+	FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSubobject<> instead."));
 
 	FStaticConstructObjectParameters Params(T::StaticClass());
 	Params.Outer = Outer;
@@ -1172,7 +1172,7 @@ FUNCTION_NON_NULL_RETURN_END
 {
 	if (Name == NAME_None)
 	{
-		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSuobject<> instead."));
+		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSubobject<> instead."));
 	}
 
 	FStaticConstructObjectParameters Params(T::StaticClass());
@@ -2537,6 +2537,7 @@ namespace UE4CodeGen_Private
 		const FEnumeratorParam*     EnumeratorParams;
 		int32                       NumEnumerators;
 		EObjectFlags                ObjectFlags;
+		EEnumFlags                  EnumFlags;
 		EDynamicType                DynamicType;
 		uint8                       CppForm; // this is of type UEnum::ECppForm
 #if WITH_METADATA

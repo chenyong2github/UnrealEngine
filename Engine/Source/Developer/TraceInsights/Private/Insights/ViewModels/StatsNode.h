@@ -195,7 +195,7 @@ public:
 
 	void ResetAggregatedStats();
 
-	void SetAggregatedStats(FAggregatedStats& AggregatedStats);
+	void SetAggregatedStats(const FAggregatedStats& AggregatedStats);
 
 	/**
 	 * @return the aggregated stats of this stats counter (if counter is an "integer number" type).
@@ -207,8 +207,8 @@ public:
 
 	void ResetAggregatedIntegerStats();
 
-	void SetAggregatedIntegerStats(FAggregatedIntegerStats& AggregatedIntegerStats);
-	
+	void SetAggregatedIntegerStats(const FAggregatedIntegerStats& AggregatedIntegerStats);
+
 	const FText FormatValue(double Value) const;
 	const FText FormatValue(int64 Value) const;
 

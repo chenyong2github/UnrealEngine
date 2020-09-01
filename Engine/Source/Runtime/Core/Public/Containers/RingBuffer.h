@@ -101,7 +101,7 @@ public:
 	{
 		for (const ElementType& Element : InitList)
 		{
-			PushBack(Element);
+			Add(Element);
 		}
 	}
 
@@ -128,10 +128,10 @@ public:
 
 	TRingBuffer& operator=(const TRingBuffer& Other)
 	{
-		Empty(Other.GetCapacity());
+		Empty(Other.Max());
 		for (const ElementType& Element : Other)
 		{
-			PushBack(Element);
+			Add(Element);
 		}
 		return *this;
 	}
@@ -154,7 +154,7 @@ public:
 	}
 
 	/** Current allocated Capacity, note this will always be a power of two, or the special case 0. */
-	IndexType GetCapacity() const
+	IndexType Max() const
 	{
 		return static_cast<SizeType>(IndexMask + 1);
 	}
@@ -163,7 +163,7 @@ public:
 	void Reserve(SizeType RequiredCapacity)
 	{
 		SizeType NewCapacity = NormalizeCapacity(RequiredCapacity);
-		if (NewCapacity <= static_cast<SizeType>(GetCapacity()))
+		if (NewCapacity <= static_cast<SizeType>(Max()))
 		{
 			return;
 		}
@@ -194,35 +194,35 @@ public:
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is move constructed from the argument. Returns the index of the added element. */
-	IndexType PushBack(ElementType&& Element)
+	IndexType Add(ElementType&& Element)
 	{
-		IndexType ResultIndex = PushBackUninitialized();
+		IndexType ResultIndex = AddUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(MoveTempIfPossible(Element));
 		return ResultIndex;
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is move constructed from the argument. Returns a reference to the added element. */
-	ElementType& PushBack_GetRef(ElementType&& Element)
+	ElementType& Add_GetRef(ElementType&& Element)
 	{
-		ElementType& Result = PushBackUninitialized_GetRef();
+		ElementType& Result = AddUninitialized_GetRef();
 		new (&Result) ElementType(MoveTempIfPossible(Element));
 		return Result;
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is copy constructed from the argument. Returns the index to the added element. */
-	IndexType PushBack(const ElementType& Element)
+	IndexType Add(const ElementType& Element)
 	{
-		IndexType ResultIndex = PushBackUninitialized();
+		IndexType ResultIndex = AddUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(Element);
 		return ResultIndex;
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is copy constructed from the argument. Returns a reference to the added element. */
-	ElementType& PushBack_GetRef(const ElementType& Element)
+	ElementType& Add_GetRef(const ElementType& Element)
 	{
-		IndexType ResultIndex = PushBackUninitialized();
+		IndexType ResultIndex = AddUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(Element);
 		return Result;
@@ -230,9 +230,9 @@ public:
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is constructed from the given arguments. Returns the index to the added element. */
 	template <typename... ArgsType>
-	IndexType EmplaceBack(ArgsType&&... Args)
+	IndexType Emplace(ArgsType&&... Args)
 	{
-		IndexType ResultIndex = PushBackUninitialized();
+		IndexType ResultIndex = AddUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(Forward<ArgsType>(Args)...);
 		return ResultIndex;
@@ -240,56 +240,56 @@ public:
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The new element is constructed from the given arguments. Returns a reference to the added element. */
 	template <typename... ArgsType>
-	ElementType& EmplaceBack_GetRef(ArgsType&&... Args)
+	ElementType& Emplace_GetRef(ArgsType&&... Args)
 	{
-		ElementType& Result = PushBackUninitialized_GetRef();
+		ElementType& Result = AddUninitialized_GetRef();
 		new (&Result) ElementType(Forward<ArgsType>(Args)...);
 		return Result;
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The constructor is not called on the new element and its values in memory are arbitrary. Returns the index to the added element. */
-	IndexType PushBackUninitialized()
+	IndexType AddUninitialized()
 	{
 		ConditionalIncrementCapacity();
 		return static_cast<IndexType>(AfterBack++ - Front); // Note this may overflow and set AfterBack = 0.  This overflow is legal; the constraint ((AfterBack - Front) == Num()) will still be true despite Front and AfterBack being on opposite sides of 0.
 	}
 
 	/** Add a new element after the back pointer of the RingBuffer, resizing if necessary.  The constructor is not called on the new element and its values in memory are arbitrary. Returns a reference to the added element. */
-	ElementType& PushBackUninitialized_GetRef()
+	ElementType& AddUninitialized_GetRef()
 	{
-		return GetAtIndexNoCheck(PushBackUninitialized());
+		return GetAtIndexNoCheck(AddUninitialized());
 	}
 
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The new element is move constructed from the argument. Returns the index of the added element. */
-	IndexType PushFront(ElementType&& Element)
+	IndexType AddFront(ElementType&& Element)
 	{
-		IndexType ResultIndex = PushFrontUninitialized();
+		IndexType ResultIndex = AddFrontUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(MoveTempIfPossible(Element));
 		return ResultIndex;
 	}
 
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The new element is move constructed from the argument. Returns a reference to the added element. */
-	ElementType& PushFront_GetRef(ElementType&& Element)
+	ElementType& AddFront_GetRef(ElementType&& Element)
 	{
-		ElementType& Result = PushFrontUninitialized_GetRef();
+		ElementType& Result = AddFrontUninitialized_GetRef();
 		new (&Result) ElementType(MoveTempIfPossible(Element));
 		return Result;
 	}
 
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The new element is copy constructed from the argument. Returns the index to the added element. */
-	IndexType PushFront(const ElementType& Element)
+	IndexType AddFront(const ElementType& Element)
 	{
-		IndexType ResultIndex = PushFrontUninitialized();
+		IndexType ResultIndex = AddFrontUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(Element);
 		return ResultIndex;
 	}
 
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The new element is copy constructed from the argument. Returns a reference to the added element. */
-	ElementType& PushFront_GetRef(const ElementType& Element)
+	ElementType& AddFront_GetRef(const ElementType& Element)
 	{
-		IndexType ResultIndex = PushFrontUninitialized();
+		IndexType ResultIndex = AddFrontUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(Element);
 		return Result;
@@ -299,7 +299,7 @@ public:
 	template <typename... ArgsType>
 	IndexType EmplaceFront(ArgsType&&... Args)
 	{
-		IndexType ResultIndex = PushFrontUninitialized();
+		IndexType ResultIndex = AddFrontUninitialized();
 		ElementType& Result = GetAtIndexNoCheck(ResultIndex);
 		new (&Result) ElementType(Forward<ArgsType>(Args)...);
 		return ResultIndex;
@@ -309,13 +309,13 @@ public:
 	template <typename... ArgsType>
 	ElementType& EmplaceFront_GetRef(ArgsType&&... Args)
 	{
-		ElementType& Result = PushFrontUninitialized_GetRef();
+		ElementType& Result = AddFrontUninitialized_GetRef();
 		new (&Result) ElementType(Forward<ArgsType>(Args)...);
 		return Result;
 	}
 
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The constructor is not called on the new element and its values in memory are arbitrary. Returns the index to the added element. */
-	IndexType PushFrontUninitialized()
+	IndexType AddFrontUninitialized()
 	{
 		ConditionalIncrementCapacity();
 		--Front; // Note this may underflow and set Front = 0xffffffff.  This underflow is legal; the constraint ((AfterBack - Front) == Num()) will still be true despite Front and AfterBack being on opposite sides of 0.
@@ -323,31 +323,31 @@ public:
 	}
 
 	/** Add a new element before the front pointer of the RingBuffer, resizing if necessary.  The constructor is not called on the new element and its values in memory are arbitrary. Returns a reference to the added element. */
-	ElementType& PushFrontUninitialized_GetRef()
+	ElementType& AddFrontUninitialized_GetRef()
 	{
-		return GetAtIndexNoCheck(PushFrontUninitialized());
+		return GetAtIndexNoCheck(AddFrontUninitialized());
 	}
 
 	/** Return a reference to the element at the front pointer of the RingBuffer.  Invalid to call on an empty RingBuffer. */
-	ElementType& GetFront()
+	ElementType& First()
 	{
 		return (*this)[0];
 	}
 
 	/** Return a const reference to the element at the front pointer of the RingBuffer.  Invalid to call on an empty RingBuffer. */
-	const ElementType& GetFront() const
+	const ElementType& First() const
 	{
 		return (*this)[0];
 	}
 
 	/** Return a reference to the element at the back pointer of the RingBuffer.  Invalid to call on an empty RingBuffer. */
-	ElementType& GetBack()
+	ElementType& Last()
 	{
 		return (*this)[Num() - 1];
 	}
 
 	/** Return a const reference to the element at the back pointer of the RingBuffer.  Invalid to call on an empty RingBuffer. */
-	const ElementType& GetBack() const
+	const ElementType& Last() const
 	{
 		return (*this)[Num() - 1];
 	}
@@ -355,10 +355,7 @@ public:
 	/** Pop the given number of elements (default: 1) from the front pointer of the RingBuffer.  Invalid to call with a number of elements greater than the current number of elements in the RingBuffer. */
 	void PopFront(SizeType PopCount=1)
 	{
-		if (!PopRangeCheck(PopCount))
-		{
-			return;
-		}
+		PopRangeCheck(PopCount);
 		PopFrontNoCheck(PopCount);
 	}
 
@@ -373,44 +370,38 @@ public:
 	ElementType PopFrontValue()
 	{
 		PopRangeCheck(1);
-		ElementType Result(MoveTemp(GetFront()));
+		ElementType Result(MoveTemp(First()));
 		PopFrontNoCheck(1);
 		return Result;
 	}
 
 	/** Pop the given number of arguments (default: 1) from the back pointer of the RingBuffer.  Invalid to call with a number of elements greater than the current number of elements in the RingBuffer. */
-	void PopBack(SizeType PopCount=1)
+	void Pop(SizeType PopCount=1)
 	{
-		if (!PopRangeCheck(PopCount))
-		{
-			return;
-		}
-		PopBackNoCheck(PopCount);
+		PopRangeCheck(PopCount);
+		PopNoCheck(PopCount);
 	}
 
 	/** Pop the given number of elements (default: 1) from the back pointer of the RingBuffer.  Invalid to call (and does not warn) with a number of elements greater than the current number of elements in the RingBuffer. */
-	void PopBackNoCheck(SizeType PopCount=1)
+	void PopNoCheck(SizeType PopCount=1)
 	{
 		DestructRange(AfterBack - PopCount, AfterBack);
 		AfterBack -= PopCount; // Note this may underflow (wrapping around to 0xffffffff) if Front has already underflowed; this is valid.
 	}
 
 	/* Pop one element from the back pointer of the RingBuffer and return the popped value. Invalid to call when the RingBuffer is empty. */
-	ElementType PopBackValue()
+	ElementType PopValue()
 	{
 		PopRangeCheck(1);
-		ElementType Result(MoveTemp(GetBack()));
-		PopBackNoCheck(1);
+		ElementType Result(MoveTemp(Last()));
+		PopNoCheck(1);
 		return Result;
 	}
 
 	/** Move the value at the given index into the front pointer of the RingBuffer, and shift all elements ahead of it down by one to make room for it.  Invalid to call with a negative index or index greater than the number of elements in the RingBuffer. */
 	void ShiftIndexToFront(IndexType Index)
 	{
-		if (!RangeCheck(Index))
-		{
-			return;
-		}
+		RangeCheck(Index);
 		if (Index == 0)
 		{
 			return;
@@ -423,10 +414,7 @@ public:
 	void ShiftIndexToBack(IndexType Index)
 	{
 		IndexType LocalNum = Num();
-		if (!RangeCheck(Index))
-		{
-			return;
-		}
+		RangeCheck(Index);
 		if (Index == LocalNum - 1)
 		{
 			return;
@@ -491,12 +479,11 @@ public:
 		return GetStorage()[(Front + Index) & IndexMask];
 	}
 
-	/** Given a reference to an Element anywhere in memory, return the index of the element in the RingBuffer, or INDEX_NONE if it is not present. */
-	IndexType ConvertReferenceToIndex(const ElementType& Element) const
+	/** Given a pointer to an Element anywhere in memory, return the index of the element in the RingBuffer, or INDEX_NONE if it is not present. */
+	IndexType ConvertPointerToIndex(const ElementType* Ptr) const
 	{
-		const ElementType* const Ptr = &Element;
 		const ElementType* const Data = GetStorage();
-		const ElementType* const DataEnd = Data + GetCapacity();
+		const ElementType* const DataEnd = Data + Max();
 		const ElementType* const FrontPtr = Data + (Front & IndexMask);
 		IndexType Index;
 		if (Ptr >= FrontPtr)
@@ -505,7 +492,7 @@ public:
 			{
 				return INDEX_NONE;
 			}
-			Index = Ptr - FrontPtr;
+			Index = static_cast<IndexType>(Ptr - FrontPtr);
 		}
 		else
 		{
@@ -513,7 +500,7 @@ public:
 			{
 				return INDEX_NONE;
 			}
-			Index = (Ptr - Data) + (DataEnd - FrontPtr);
+			Index = static_cast<IndexType>(Ptr - Data) + static_cast<IndexType>(DataEnd - FrontPtr);
 		}
 		if (Index >= Num())
 		{
@@ -525,12 +512,8 @@ public:
 	/** Remove the value at the given index from the RingBuffer, and shift values ahead or behind it into its location to fill the hole.  It is valid to call with Index outside of the range of the array; does nothing in that case. */
 	void RemoveAt(IndexType Index)
 	{
-		if (Index < 0 || Num() <= Index)
-		{
-			// We want to support RemoveAt(Algo::Find(...)), so we silently ignore out-of-range indexes
-			return;
-		}
-		const IndexType Capacity = GetCapacity();
+		RangeCheck(Index);
+		const IndexType Capacity = Max();
 		const StorageModuloType MaskedFront = Front & IndexMask;
 		const StorageModuloType MaskedIndex = (Front + Index) & IndexMask;
 		const StorageModuloType MaskedAfterBack = AfterBack & IndexMask;
@@ -544,7 +527,7 @@ public:
 		else
 		{
 			ShiftIndexToBack(Index);
-			PopBack();
+			Pop();
 		}
 	}
 
@@ -644,14 +627,14 @@ public:
 	  * Shift all elements so that the front pointer's location in memory is less than the back pointer's. 
 	  * Returns a temporary ArrayView for the RingBuffer's elements; the returned ArrayView will be invalid after the next write operation on the RingBuffer.
 	  */
-	TArrayView<T> MakeContiguous()
+	TArrayView<T> Compact()
 	{
 		StorageModuloType MaskedFront = Front & IndexMask;
 		const StorageModuloType MaskedAfterBack = AfterBack & IndexMask;
 		if ((MaskedFront > MaskedAfterBack) | // Non-empty, non-full RingBuffer, and back pointer wraps around to be before front
 			((MaskedFront == MaskedAfterBack) & (AfterBack != Front) & (MaskedFront != 0))) // Full, non-empty RingBuffer, and front is not at the beginning of the storage
 		{
-			Reallocate(GetCapacity());
+			Reallocate(Max());
 			MaskedFront = Front & IndexMask;
 		}
 		return TArrayView<T>(GetStorage() + MaskedFront, Num());
@@ -668,7 +651,7 @@ private:
 	void Reallocate(SizeType NewCapacity)
 	{
 		ElementType* SrcData = GetStorage();
-		const SizeType SrcCapacity = static_cast<SizeType>(GetCapacity());
+		const SizeType SrcCapacity = static_cast<SizeType>(Max());
 		const SizeType SrcNum = static_cast<SizeType>(Num());
 
 		check(NormalizeCapacity(NewCapacity) == NewCapacity);
@@ -736,7 +719,7 @@ private:
 	 */
 	void DestructRange(StorageModuloType RangeStart, StorageModuloType RangeEnd)
 	{
-		const IndexType Capacity = GetCapacity();
+		const IndexType Capacity = Max();
 		if (RangeEnd - RangeStart > static_cast<StorageModuloType>(Capacity))
 		{
 			check(false);
@@ -792,7 +775,7 @@ private:
 	{
 		// This check for Range constraint is made complicated by needing to handle overflow; only subtractions of x - y can be verified, we can't use x > y because they might be on opposite sides of unsigned 0.
 		// We also want to avoid doing a branch.  TODO: Is there a FMath::Select function that does this branch-less style select?
-		check((RangeLast - RangeFirst) * (RangeDirection == 1) + (RangeFirst - RangeLast) * (RangeDirection != -1) <= static_cast<StorageModuloType>(GetCapacity()));
+		check((RangeLast - RangeFirst) * (RangeDirection == 1) + (RangeFirst - RangeLast) * (RangeDirection != -1) <= static_cast<StorageModuloType>(Max()));
 
 		ElementType* Data = GetStorage();
 		ElementType Copy(MoveTemp(Data[RangeLast & IndexMask]));
@@ -835,25 +818,21 @@ private:
 	}
 
 	/* Check and return whether the given Index is within range. */
-	bool RangeCheck(IndexType Index) const
+	void RangeCheck(IndexType Index) const
 	{
-		bool Result = (Index >= 0) & (Index < Num()); // Used & instead of && to avoid a branch
 		if (Allocator::RequireRangeCheck) // Template property, branch will be optimized out
 		{
-			checkf(Result, TEXT("RingBuffer index out of bounds: %i from a RingBuffer of size %i"), Index, Num()); 
+			checkf((Index >= 0) & (Index < Num()), TEXT("RingBuffer index out of bounds: %i from a RingBuffer of size %i"), Index, Num());
 		}
-		return Result;
 	}
 
-	/* Check and return whether the given PopSize is within range. */
-	bool PopRangeCheck(SizeType PopCount) const
+	/* Check whether the given PopSize is within range. */
+	void PopRangeCheck(SizeType PopCount) const
 	{
-		bool Result = PopCount <= static_cast<SizeType>(Num());
 		if (Allocator::RequireRangeCheck) // Template property, branch will be optimized out
 		{
-			checkf(Result, TEXT("RingBuffer PopCount out of bounds: %i from a RingBuffer of size %i"), PopCount, Num());
+			checkf(PopCount <= static_cast<SizeType>(Num()), TEXT("RingBuffer PopCount out of bounds: %i from a RingBuffer of size %i"), PopCount, Num());
 		}
-		return Result;
 	}
 
 

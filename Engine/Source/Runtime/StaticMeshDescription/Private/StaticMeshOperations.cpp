@@ -128,7 +128,7 @@ static bool GetPolygonTangentsAndNormals(FMeshDescription& MeshDescription,
 
 void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("FStaticMeshOperations::ComputePolygonTangentsAndNormals_Selection"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ComputePolygonTangentsAndNormals_Selection);
 
 	FStaticMeshAttributes Attributes(MeshDescription);
 	Attributes.RegisterPolygonNormalAndTangentAttributes();

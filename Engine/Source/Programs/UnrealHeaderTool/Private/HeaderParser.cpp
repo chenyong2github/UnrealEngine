@@ -27,6 +27,7 @@
 #include "Misc/ScopeExit.h"
 
 #include "Specifiers/CheckedMetadataSpecifiers.h"
+#include "Specifiers/EnumSpecifiers.h"
 #include "Specifiers/FunctionSpecifiers.h"
 #include "Specifiers/InterfaceSpecifiers.h"
 #include "Specifiers/StructSpecifiers.h"
@@ -1568,17 +1569,12 @@ UEnum* FHeaderParser::CompileEnum()
 	TArray<FPropertySpecifier> SpecifiersFound;
 	ReadSpecifierSetInsideMacro(SpecifiersFound, TEXT("Enum"), EnumToken.MetaData);
 
-	// We don't handle any non-metadata enum specifiers at the moment
-	if (SpecifiersFound.Num() != 0)
-	{
-		FError::Throwf(TEXT("Unknown enum specifier '%s'"), *SpecifiersFound[0].Key);
-	}
-
 	FScriptLocation DeclarationPosition;
 
 	// Check enum type. This can be global 'enum', 'namespace' or 'enum class' enums.
 	bool            bReadEnumName = false;
 	UEnum::ECppForm CppForm       = UEnum::ECppForm::Regular;
+	EEnumFlags      Flags         = EEnumFlags::None;
 	if (!GetIdentifier(EnumToken))
 	{
 		FError::Throwf(TEXT("Missing identifier after UENUM()") );
@@ -1586,7 +1582,7 @@ UEnum* FHeaderParser::CompileEnum()
 
 	if (EnumToken.Matches(TEXT("namespace"), ESearchCase::CaseSensitive))
 	{
-		CppForm      = UEnum::ECppForm::Namespaced;
+		CppForm       = UEnum::ECppForm::Namespaced;
 		bReadEnumName = GetIdentifier(EnumToken);
 	}
 	else if (EnumToken.Matches(TEXT("enum"), ESearchCase::CaseSensitive))
@@ -1641,6 +1637,19 @@ UEnum* FHeaderParser::CompileEnum()
 	// Create enum definition.
 	UEnum* Enum = new(EC_InternalUseOnlyConstructor, CurrentSrcFile->GetPackage(), EnumToken.Identifier, RF_Public) UEnum(FObjectInitializer());
 	Scope->AddType(Enum);
+
+	for (const FPropertySpecifier& Specifier : SpecifiersFound)
+	{
+		switch ((EEnumSpecifier)Algo::FindSortedStringCaseInsensitive(*Specifier.Key, GEnumSpecifierStrings))
+		{
+		default:
+			FError::Throwf(TEXT("Unknown enum specifier '%s'"), *Specifier.Key);
+
+		case EEnumSpecifier::Flags:
+			Flags |= EEnumFlags::Flags;
+			break;
+		}
+	}
 
 	if (CompilerDirectiveStack.Num() > 0 && (CompilerDirectiveStack.Last() & ECompilerDirective::WithEditorOnlyData) != 0)
 	{
@@ -1707,6 +1716,13 @@ UEnum* FHeaderParser::CompileEnum()
 		}
 
 		GEnumUnderlyingTypes.Add(Enum, UnderlyingType);
+	}
+	else
+	{
+		if (EnumHasAnyFlags(Flags, EEnumFlags::Flags))
+		{
+			FError::Throwf(TEXT("The 'Flags' specifier can only be used on enum classes"));
+		}
 	}
 
 	if (UnderlyingType != EUnderlyingEnumType::uint8 && EnumToken.MetaData.Contains(NAME_BlueprintType))
@@ -1883,7 +1899,7 @@ UEnum* FHeaderParser::CompileEnum()
 	}
 
 	// Register the list of enum names.
-	if (!Enum->SetEnums(EnumNames, CppForm, false))
+	if (!Enum->SetEnums(EnumNames, CppForm, Flags, false))
 	{
 		const FName MaxEnumItem      = *(Enum->GenerateEnumPrefix() + TEXT("_MAX"));
 		const int32 MaxEnumItemIndex = Enum->GetIndexByName(MaxEnumItem);
@@ -5942,7 +5958,9 @@ bool FHeaderParser::CompileDeclaration(FClasses& AllClasses, TArray<UDelegateFun
 
 							UClass* CurrentClass = GetCurrentClass();
 
-							GClassSerializerMap.Add(CurrentClass, { ArchiveType, MoveTemp(EnclosingDefine) });
+							FArchiveTypeDefinePair& DefinePair = GClassSerializerMap.FindOrAdd(CurrentClass);
+							DefinePair.ArchiveType |= ArchiveType;
+							DefinePair.EnclosingDefine = MoveTemp(EnclosingDefine);
 						}
 						else
 						{
@@ -6151,40 +6169,60 @@ FClass* FHeaderParser::ParseClassNameDeclaration(FClasses& AllClasses, FString& 
 		{
 			RequireIdentifier(TEXT("public"), ESearchCase::CaseSensitive, TEXT("Interface inheritance must be public"));
 
+			FString InterfaceName;
+
 			FToken Token;
-			if (!GetIdentifier(Token, true))
-				FError::Throwf(TEXT("Failed to get interface class identifier"));
-
-			FString InterfaceName = Token.Identifier;
-
-			// Handle templated native classes
-			if (MatchSymbol(TEXT('<')))
+			for (;;)
 			{
-				InterfaceName += TEXT('<');
-
-				int32 NestedScopes = 1;
-				while (NestedScopes)
+				if (!GetIdentifier(Token, true))
 				{
-					if (!GetToken(Token))
-						FError::Throwf(TEXT("Unexpected end of file"));
-
-					if (Token.TokenType == TOKEN_Symbol)
-					{
-						if (Token.Matches(TEXT('<')))
-						{
-							++NestedScopes;
-						}
-						else if (Token.Matches(TEXT('>')))
-						{
-							--NestedScopes;
-						}
-					}
-
-					InterfaceName += Token.Identifier;
+					FError::Throwf(TEXT("Failed to get interface class identifier"));
 				}
+
+				InterfaceName += Token.Identifier;
+
+				// Handle templated native classes
+				if (MatchSymbol(TEXT('<')))
+				{
+					InterfaceName += TEXT('<');
+
+					int32 NestedScopes = 1;
+					while (NestedScopes)
+					{
+						if (!GetToken(Token))
+						{
+							FError::Throwf(TEXT("Unexpected end of file"));
+						}
+
+						if (Token.TokenType == TOKEN_Symbol)
+						{
+							if (Token.Matches(TEXT('<')))
+							{
+								++NestedScopes;
+							}
+							else if (Token.Matches(TEXT('>')))
+							{
+								--NestedScopes;
+							}
+						}
+
+						InterfaceName += Token.Identifier;
+					}
+				}
+
+				// Handle scoped native classes
+				if (MatchSymbol(TEXT("::")))
+				{
+					InterfaceName += TEXT("::");
+
+					// Keep reading nested identifiers
+					continue;
+				}
+
+				break;
 			}
 
-			HandleOneInheritedClass(AllClasses, FoundClass, *InterfaceName);
+			HandleOneInheritedClass(AllClasses, FoundClass, MoveTemp(InterfaceName));
 		}
 	}
 	else if (FoundClass->GetSuperClass())
@@ -6195,7 +6233,7 @@ FClass* FHeaderParser::ParseClassNameDeclaration(FClasses& AllClasses, FString& 
 	return FoundClass;
 }
 
-void FHeaderParser::HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString InterfaceName)
+void FHeaderParser::HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString&& InterfaceName)
 {
 	FUnrealSourceFile* CurrentSrcFile = GetCurrentSourceFile();
 	// Check for UInterface derived interface inheritance
@@ -6223,7 +6261,7 @@ void FHeaderParser::HandleOneInheritedClass(FClasses& AllClasses, UClass* Class,
 		// Non-UObject inheritance
 		FClassMetaData* ClassData = GScriptHelper.FindClassData(Class);
 		check(ClassData);
-		ClassData->AddInheritanceParent(InterfaceName, CurrentSrcFile);
+		ClassData->AddInheritanceParent(MoveTemp(InterfaceName), CurrentSrcFile);
 	}
 }
 

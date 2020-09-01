@@ -186,10 +186,11 @@ class BuildPlugin : BuildCommand
 		bool bCompilePlatform = false;
 		if (Plugin.Modules != null)
 		{
+			bool bBuildDeveloperTools = (TargetType == TargetType.Editor || TargetType == TargetType.Program || (Configuration != UnrealTargetConfiguration.Test && Configuration != UnrealTargetConfiguration.Shipping));
+			bool bBuildRequiresCookedData = (TargetType != TargetType.Editor && TargetType != TargetType.Program);
+
 			foreach (ModuleDescriptor Module in Plugin.Modules)
 			{
-				bool bBuildDeveloperTools = (TargetType == TargetType.Editor || TargetType == TargetType.Program);
-				bool bBuildRequiresCookedData = (TargetType != TargetType.Editor && TargetType != TargetType.Program);
 				if (Module.IsCompiledInConfiguration(Platform, Configuration, TargetName, TargetType, bBuildDeveloperTools, bBuildRequiresCookedData))
 				{
 					bCompilePlatform = true;

@@ -10490,6 +10490,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 #endif
 
 #if TRACING_PROFILER
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (FTracingProfiler::Get()->IsCapturing())
 		{
 			SmallTextItem.SetColor(FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
@@ -10500,6 +10501,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			MessageY += FontSizeY;
 
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 #if !(UE_BUILD_TEST)
@@ -15751,7 +15753,7 @@ static void SetupThreadAffinity(const TArray<FString>& Args)
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 		FSimpleDelegateGraphTask::FDelegate::CreateStatic(&SetAffinityOnThread),
 		TStatId(), NULL, ENamedThreads::GetRenderThread());
-	if (GRHIThread_InternalUseOnly)
+	if (IsRHIThreadRunning())
 	{
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 			FSimpleDelegateGraphTask::FDelegate::CreateStatic(&SetAffinityOnThread),

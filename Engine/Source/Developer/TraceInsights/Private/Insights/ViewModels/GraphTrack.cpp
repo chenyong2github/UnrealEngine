@@ -351,7 +351,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 					Indices,
 					nullptr,
 					0,
-					0, ESlateDrawEffect::PreMultipliedAlpha);
+					0, ESlateDrawEffect::None);
 				DrawContext.LayerId++;
 			}
 		}

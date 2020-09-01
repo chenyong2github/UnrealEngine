@@ -60,5 +60,24 @@ namespace Cook
 	float FCookerTimer::ZeroTimeSlice = 0.0f;
 	float FCookerTimer::ForeverTimeSlice = TNumericLimits<float>::Max();
 
+	static uint32 SchedulerThreadTlsSlot = 0;
+	void InitializeTls()
+	{
+		if (SchedulerThreadTlsSlot == 0)
+		{
+			SchedulerThreadTlsSlot = FPlatformTLS::AllocTlsSlot();
+			SetIsSchedulerThread(true);
+		}
+	}
+
+	bool IsSchedulerThread()
+	{
+		return FPlatformTLS::GetTlsValue(SchedulerThreadTlsSlot) != 0;
+	}
+
+	void SetIsSchedulerThread(bool bValue)
+	{
+		FPlatformTLS::SetTlsValue(SchedulerThreadTlsSlot, bValue ? (void*)0x1 : (void*)0x0);
+	}
 }
 }

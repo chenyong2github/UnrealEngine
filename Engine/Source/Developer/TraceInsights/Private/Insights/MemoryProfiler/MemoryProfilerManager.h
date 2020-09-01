@@ -108,6 +108,8 @@ private:
 	/** Called to spawn the Memory Profiler major tab. */
 	TSharedRef<SDockTab> SpawnTab(const FSpawnTabArgs& Args);
 
+	bool CanSpawnTab(const FSpawnTabArgs& Args) const;
+
 	/** Callback called when the Memory Profiler major tab is closed. */
 	void OnTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 

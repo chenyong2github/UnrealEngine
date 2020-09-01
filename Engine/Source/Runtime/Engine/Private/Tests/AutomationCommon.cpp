@@ -392,7 +392,7 @@ bool FExecStringLatentCommand::Update()
 
 bool FEngineWaitLatentCommand::Update()
 {
-	float NewTime = FPlatformTime::Seconds();
+	const double NewTime = FPlatformTime::Seconds();
 	if (NewTime - StartTime >= Duration)
 	{
 		return true;
@@ -403,11 +403,11 @@ bool FEngineWaitLatentCommand::Update()
 ENGINE_API uint32 GStreamAllResourcesStillInFlight = -1;
 bool FStreamAllResourcesLatentCommand::Update()
 {
-	float LocalStartTime = FPlatformTime::Seconds();
+	const double LocalStartTime = FPlatformTime::Seconds();
 
 	GStreamAllResourcesStillInFlight = IStreamingManager::Get().StreamAllResources(Duration);
 
-	float Time = FPlatformTime::Seconds();
+	const double Time = FPlatformTime::Seconds();
 
 	if(GStreamAllResourcesStillInFlight)
 	{

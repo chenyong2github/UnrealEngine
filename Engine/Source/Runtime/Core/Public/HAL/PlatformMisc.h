@@ -116,16 +116,26 @@ public:
 #define NAMED_EVENT_STR(x) L##x
 #endif
 
-#define SCOPED_NAMED_EVENT(Name, Color) \
-	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_##Name##_)(Color, NAMED_EVENT_STR(#Name));
+#define SCOPED_NAMED_EVENT(Name, Color)\
+	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_##Name##_)(Color, NAMED_EVENT_STR(#Name));\
+	TRACE_CPUPROFILER_EVENT_SCOPE(Name);
 
-#define SCOPED_NAMED_EVENT_FSTRING(Text, Color)  FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, *Text);
-#define SCOPED_NAMED_EVENT_TCHAR(Text, Color)    FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, Text);
+#define SCOPED_NAMED_EVENT_FSTRING(Text, Color)\
+	FScopedNamedEvent ANONYMOUS_VARIABLE(NamedEvent_)(Color, *Text);\
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*Text);
 
-#define SCOPED_NAMED_EVENT_TEXT(Text, Color) \
-	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_)         (Color, NAMED_EVENT_STR(Text));
+#define SCOPED_NAMED_EVENT_TCHAR(Text, Color)\
+	FScopedNamedEvent ANONYMOUS_VARIABLE(NamedEvent_)(Color, Text);\
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(Text);
 
-#define SCOPED_NAMED_EVENT_F(Format, Color, ...) FScopedNamedEvent       ANONYMOUS_VARIABLE(NamedEvent_)         (Color, *FString::Printf(Format, __VA_ARGS__));
+#define SCOPED_NAMED_EVENT_TEXT(Text, Color)\
+	FScopedNamedEventStatic ANONYMOUS_VARIABLE(NamedEvent_)(Color, NAMED_EVENT_STR(Text));\
+	TRACE_CPUPROFILER_EVENT_SCOPE_STR(Text);
+
+#define SCOPED_NAMED_EVENT_F(Format, Color, ...)\
+	FScopedNamedEvent ANONYMOUS_VARIABLE(NamedEvent_)(Color, *FString::Printf(Format, __VA_ARGS__));\
+	TRACE_CPUPROFILER_EVENT_SCOPE_TEXT(*FString::Printf(Format, __VA_ARGS__));
+
 #define SCOPED_PROFILER_COLOR(Color)			 FScopedProfilerColor    ANONYMOUS_VARIABLE(ProfilerColor_##Name##_)(Color);
 
 

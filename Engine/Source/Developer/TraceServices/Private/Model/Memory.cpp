@@ -16,7 +16,7 @@ FMemoryProvider::FMemoryProvider(IAnalysisSession& InSession)
 
 void FMemoryProvider::AddEventSpec(FMemoryTagId TagId, const TCHAR* Name, FMemoryTagId ParentTagId)
 {
-	if (TagId < 0)
+	if (TagId == FMemoryTag::InvalidTagId)
 	{
 		// invalid tag id
 		return;

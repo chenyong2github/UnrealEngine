@@ -8,6 +8,7 @@
 #include "WorkspaceMenuStructureModule.h"
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/NetworkingProfiler/Widgets/SNetworkingProfilerWindow.h"
@@ -124,13 +125,13 @@ void FNetworkingProfilerManager::RegisterMajorTabs(IUnrealInsightsModule& Insigh
 			FName TabId = FInsightsManagerTabs::NetworkingProfilerTabId;
 			//TabId.SetNumber(ReservedId);
 			FTabSpawnerEntry& TabSpawnerEntry = FGlobalTabmanager::Get()->RegisterNomadTabSpawner(TabId,
-				FOnSpawnTab::CreateRaw(this, &FNetworkingProfilerManager::SpawnTab))
+				FOnSpawnTab::CreateRaw(this, &FNetworkingProfilerManager::SpawnTab), FCanSpawnTab::CreateRaw(this, &FNetworkingProfilerManager::CanSpawnTab))
 				.SetReuseTabMethod(FOnFindTabToReuse::CreateStatic(&NeverReuse))
 				.SetDisplayName(Config.TabLabel.IsSet() ? Config.TabLabel.GetValue() : LOCTEXT("NetworkingProfilerTabTitle", "Networking Insights"))
 				.SetTooltipText(Config.TabTooltip.IsSet() ? Config.TabTooltip.GetValue() : LOCTEXT("NetworkingProfilerTooltipText", "Open the Networking Insights tab."))
 				.SetIcon(Config.TabIcon.IsSet() ? Config.TabIcon.GetValue() : FSlateIcon(FInsightsStyle::GetStyleSetName(), "NetworkingProfiler.Icon.Small"));
 
-			TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : WorkspaceMenu::GetMenuStructure().GetToolsCategory();
+			TSharedRef<FWorkspaceItem> Group = Config.WorkspaceGroup.IsValid() ? Config.WorkspaceGroup.ToSharedRef() : FInsightsManager::Get()->GetInsightsMenuBuilder()->GetInsightsToolsGroup();
 			TabSpawnerEntry.SetGroup(Group);
 		}
 	}
@@ -165,6 +166,13 @@ TSharedRef<SDockTab> FNetworkingProfilerManager::SpawnTab(const FSpawnTabArgs& A
 	AddProfilerWindow(Window);
 
 	return DockTab;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FNetworkingProfilerManager::CanSpawnTab(const FSpawnTabArgs& Args) const
+{
+	return bIsAvailable;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

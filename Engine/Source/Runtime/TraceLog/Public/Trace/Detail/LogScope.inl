@@ -6,8 +6,10 @@
 
 #if UE_TRACE_ENABLED
 
+#include "Atomic.h"
 #include "EventNode.h"
 #include "LogScope.h"
+#include "Protocol.h"
 #include "Writer.inl"
 
 namespace Trace {
@@ -27,12 +29,6 @@ inline void FLogScope::Commit() const
 {
 	FWriteBuffer* Buffer = Instance.Buffer;
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-inline const FLogScope& FLogScope::operator << (bool) const
-{
-	return *this;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -170,16 +166,27 @@ inline void FScopedStampedLogScope::SetActive()
 
 
 ////////////////////////////////////////////////////////////////////////////////
+template <bool>	struct TLogScopeSelector;
+template <>		struct TLogScopeSelector<false>	{ typedef FLogScope Type; };
+template <>		struct TLogScopeSelector<true>	{ typedef FImportantLogScope Type; };
+
+////////////////////////////////////////////////////////////////////////////////
 template <class T>
-auto TLogScope<T>::Enter(uint32 Uid, uint32 Size)
+auto TLogScope<T>::Enter(uint32 ExtraSize)
 {
-	return TLogScopeSelector<T::bIsImportant>::Type::template Enter<T::EventFlags>(Uid, Size);
+	uint32 Size = T::GetSize() + ExtraSize;
+	uint32 Uid = T::GetUid();
+
+	using LogScopeType = typename TLogScopeSelector<T::bIsImportant>::Type;
+	return LogScopeType::template Enter<T::EventFlags>(Uid, Size);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
-auto TLogScope<T>::ScopedEnter(uint32 Uid, uint32 Size)
+FLogScope TLogScope<T>::ScopedEnter(uint32 ExtraSize)
 {
+	static_assert(!T::bIsImportant, "Important events cannot be logged with scope");
+
 	uint8 EnterUid = uint8(EKnownEventUids::EnterScope << EKnownEventUids::_UidShift);
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
@@ -193,13 +200,15 @@ auto TLogScope<T>::ScopedEnter(uint32 Uid, uint32 Size)
 
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 
-	return Enter(Uid, Size);
+	return Enter(ExtraSize);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 template <class T>
-auto TLogScope<T>::ScopedStampedEnter(uint32 Uid, uint32 Size)
+FLogScope TLogScope<T>::ScopedStampedEnter(uint32 ExtraSize)
 {
+	static_assert(!T::bIsImportant, "Important events cannot be logged with scope");
+
 	uint64 Stamp;
 
 	FWriteBuffer* Buffer = Writer_GetBuffer();
@@ -216,7 +225,7 @@ auto TLogScope<T>::ScopedStampedEnter(uint32 Uid, uint32 Size)
 
 	AtomicStoreRelease((uint8**) &(Buffer->Committed), Buffer->Cursor);
 
-	return Enter(Uid, Size);
+	return Enter(ExtraSize);
 }
 
 } // namespace Private

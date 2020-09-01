@@ -22,10 +22,10 @@ struct FMessageAddress;
 class IMessagingModule
 	: public IModuleInterface
 {
+	using FMessageBusWeakPtr = TWeakPtr<IMessageBus, ESPMode::ThreadSafe>;
 
 public:
-	// delegate type, helper macro cannot be used due to comma in expansion can't be avoided with extra parenthesis.
-	typedef TMulticastDelegate<void, TWeakPtr<IMessageBus, ESPMode::ThreadSafe>> FOnMessageBusStartupOrShutdown;
+	DECLARE_MULTICAST_DELEGATE_OneParam(FOnMessageBusStartupOrShutdown, FMessageBusWeakPtr);
 	
 	/** Event triggered when a message bus is started. */
 	virtual FOnMessageBusStartupOrShutdown& OnMessageBusStartup() = 0;

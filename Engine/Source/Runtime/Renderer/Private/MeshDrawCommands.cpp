@@ -1094,7 +1094,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
 			&& CVarMeshDrawCommandsParallelPassSetup.GetValueOnRenderThread() > 0
-			&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+			&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
 
 		if (bExecuteInParallel)
 		{

@@ -96,7 +96,6 @@
 #include "Delegates/DelegateBase.h"
 #include "Delegates/IntegerSequence.h"
 #include "Templates/Tuple.h"
-#include "Templates/TypeWrapper.h"
 #include "UObject/ScriptDelegates.h"
 #include "CoreMinimal.h"
 #include "Math/UnrealMath.h"

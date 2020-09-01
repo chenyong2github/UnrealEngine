@@ -3565,7 +3565,7 @@ FString FHlslNiagaraTranslator::GetUniqueSymbolName(FName BaseName)
 	return RetString;
 }
 
-void FHlslNiagaraTranslator::EnterFunction(const FString& Name, FNiagaraFunctionSignature& Signature, TArray<int32>& Inputs, const FGuid& InGuid)
+void FHlslNiagaraTranslator::EnterFunction(const FString& Name, FNiagaraFunctionSignature& Signature, TArrayView<const int32> Inputs, const FGuid& InGuid)
 {
 	FunctionContextStack.Emplace(Name, Signature, Inputs, InGuid);
 	TArray<FName> Entries;
@@ -3861,13 +3861,14 @@ void FHlslNiagaraTranslator::UpdateStaticSwitchConstants(UEdGraphNode* Node)
 		TArray<UNiagaraNodeStaticSwitch*> NodesToUpdate;
 		NodesToUpdate.Add(SwitchNode);
 
+		FPinCollectorArray InPins;
 		for (int i = 0; i < NodesToUpdate.Num(); i++)
 		{
 			SwitchNode->UpdateCompilerConstantValue(this);
 			
 			// also check direct upstream static switches, because they are otherwise skipped during the compilation and
 			// might be evaluated without their values set correctly.
-			TArray<UEdGraphPin*> InPins;
+			InPins.Reset();
 			SwitchNode->GetInputPins(InPins);
 			for (UEdGraphPin* Pin : InPins)
 			{
@@ -4444,7 +4445,7 @@ void FHlslNiagaraTranslator::ParameterMapForEnd(UNiagaraNodeParameterMapFor* For
 	AddBodyChunk(TEXT(""), TEXT("}"), FNiagaraTypeDefinition::GetIntDef(), false, false);
 }
 
-void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNode, TArray<FCompiledPin>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNode, TArrayView<const FCompiledPin> Inputs, TArray<int32>& Outputs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_HlslTranslator_MapSet);
 
@@ -4913,7 +4914,7 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 	// Just pass through the input parameter map pin if the node isn't enabled...
 	if (!EmitterNode->IsNodeEnabled())
 	{
-		TArray<UEdGraphPin*> OutputPins;
+		FPinCollectorArray OutputPins;
 		EmitterNode->GetOutputPins(OutputPins);
 
 		Outputs.SetNum(OutputPins.Num());
@@ -4946,8 +4947,8 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 	FName StatName = *EmitterUniqueName;
 	EnterStatsScope(FNiagaraStatScope(StatName, StatName));
 
-	TArray<UEdGraphPin*> CallOutputs;
-	TArray<UEdGraphPin*> CallInputs;
+	FPinCollectorArray CallOutputs;
+	FPinCollectorArray CallInputs;
 	EmitterNode->GetOutputPins(CallOutputs);
 	EmitterNode->GetInputPins(CallInputs);
 
@@ -5003,11 +5004,11 @@ void FHlslNiagaraTranslator::Emitter(class UNiagaraNodeEmitter* EmitterNode, TAr
 	ExitStatsScope();
 }
 
-void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNode, TArrayView<const int32> Inputs, TArray<int32>& Outputs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_MapGet);
 
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetNode->GetOutputPins(OutputPins);
 
 	// Push out invalid values for all output pins if the node is disabled.
@@ -5021,7 +5022,7 @@ void FHlslNiagaraTranslator::ParameterMapGet(UNiagaraNodeParameterMapGet* GetNod
 		return;
 	}
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetNode->GetInputPins(InputPins);
 
 	int32 ParamMapHistoryIdx = Inputs[0];
@@ -5645,7 +5646,7 @@ void FHlslNiagaraTranslator::Operation(class UNiagaraNodeOp* Operation, TArray<i
 	// Use the pins to determine the output type here since they may have been changed due to numeric pin fix up.
 	const FNiagaraOpInfo* OpInfo = FNiagaraOpInfo::GetOpInfo(Operation->OpName);
 
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	Operation->GetOutputPins(OutputPins);
 	for (int32 OutputIndex = 0; OutputIndex < OutputPins.Num(); OutputIndex++)
 	{
@@ -5681,8 +5682,8 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_FunctionCall);
 
-	TArray<UEdGraphPin*> CallOutputs;
-	TArray<UEdGraphPin*> CallInputs;
+	FPinCollectorArray CallOutputs;
+	FPinCollectorArray CallInputs;
 	FunctionNode->GetOutputPins(CallOutputs);
 	FunctionNode->GetInputPins(CallInputs);
 
@@ -6358,7 +6359,8 @@ void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterface
 	}
 }
 
-void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, UNiagaraScriptSource* Source, FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, TArray<int32>& Inputs, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs,
+void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, UNiagaraScriptSource* Source,
+	FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
 	FNiagaraFunctionSignature& OutSignature)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_RegisterFunctionCall);
@@ -6401,7 +6403,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		// 		TArray<FNiagaraVariable> OrderedInputs;
 		// 		TArray<FNiagaraVariable> OrderedOutputs;
 		// 		SourceGraph->GetParameters(OrderedInputs, OrderedOutputs);
-		// 		TArray<UEdGraphPin*> InPins;
+		// 		FPinCollectorArray InPins;
 		// 		FunctionNode->GetInputPins(InPins);
 		// 
 		// 		TArray<int32> OrderedInputChunks;
@@ -6780,7 +6782,7 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 	}
 }
 
-void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArray<int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArrayView<const int32> Inputs, TArray<int32>& Outputs)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_NiagaraHLSLTranslator_GenerateFunctionCall);
 
@@ -7038,7 +7040,7 @@ FString FHlslNiagaraTranslator::GetFunctionSignature(const FNiagaraFunctionSigna
 	return SigStr + TEXT(")");
 }
 
-int32 GetPinIndexById(const TArray<UEdGraphPin*>& Pins, FGuid PinId)
+int32 GetPinIndexById(TArrayView<UEdGraphPin* const> Pins, FGuid PinId)
 {
 	for (int32 i = 0; i < Pins.Num(); ++i)
 	{
@@ -7196,17 +7198,17 @@ FString FHlslNiagaraTranslator::GenerateAssignment(const FNiagaraTypeDefinition&
 	return DestinationDefinition + " = " + SourceDefinition;
 }
 
-void FHlslNiagaraTranslator::Convert(class UNiagaraNodeConvert* Convert, TArray <int32>& Inputs, TArray<int32>& Outputs)
+void FHlslNiagaraTranslator::Convert(class UNiagaraNodeConvert* Convert, TArrayView<const int32> Inputs, TArray<int32>& Outputs)
 {
 	if (ValidateTypePins(Convert) == false)
 	{
 		return;
 	}
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	Convert->GetInputPins(InputPins);
 
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	Convert->GetOutputPins(OutputPins);
 
 	// Add input struct definitions if necessary.
@@ -7224,6 +7226,7 @@ void FHlslNiagaraTranslator::Convert(class UNiagaraNodeConvert* Convert, TArray 
 	}
 
 	// Generate outputs.
+	Outputs.Reserve(Outputs.Num() + OutputPins.Num() + 1);
 	for (UEdGraphPin* OutputPin : OutputPins)
 	{
 		if (OutputPin->PinType.PinCategory == UEdGraphSchema_Niagara::PinCategoryType ||
@@ -7422,7 +7425,7 @@ int32 FHlslNiagaraTranslator::CompileOutputPin(const UEdGraphPin* InPin)
 		if (ValidateTypePins(Node))
 		{
 			TArray<int32> Outputs;
-			TArray<UEdGraphPin*> OutputPins;
+			FPinCollectorArray OutputPins;
 			Node->GetOutputPins(OutputPins);
 			FHlslNiagaraTranslator* ThisTranslator = this;
 			Node->Compile(ThisTranslator, Outputs);

@@ -84,7 +84,12 @@ TArray<UObject*> FReferencerFinder::GetAllReferencers(const TSet<UObject*>& Refe
 		{
 			TSet<UObject*> ThreadResult;
 			FAllReferencesProcessor Processor(Referencees, Flags, ThreadResult);
-			TFastReferenceCollector<false, FAllReferencesProcessor, FAllReferencesCollector, FGCArrayPool, true> ReferenceCollector(Processor, FGCArrayPool::Get());
+			TFastReferenceCollector<
+				FAllReferencesProcessor, 
+				FAllReferencesCollector, 
+				FGCArrayPool, 
+				EFastReferenceCollectorOptions::AutogenerateTokenStream | EFastReferenceCollectorOptions::ProcessNoOpTokens
+			> ReferenceCollector(Processor, FGCArrayPool::Get());
 			FGCArrayStruct ArrayStruct;
 
 			ArrayStruct.ObjectsToSerialize.Reserve(NumberOfObjectsPerThread);
