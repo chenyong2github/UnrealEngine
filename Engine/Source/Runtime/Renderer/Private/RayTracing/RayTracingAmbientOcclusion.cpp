@@ -185,7 +185,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 
 	FIntPoint RayTracingResolution = View.ViewRect.Size();
 	GraphBuilder.AddPass(
-		RDG_EVENT_NAME("AmbientOcclusionRayTracing %dx%d", RayTracingResolution.X, RayTracingResolution.Y),
+		RDG_EVENT_NAME("AmbientOcclusionRayTracing(SamplePerPixels=%d) %dx%d", RayTracingConfig.RayCountPerPixel, RayTracingResolution.X, RayTracingResolution.Y),
 		PassParameters,
 		ERDGPassFlags::Compute,
 		[PassParameters, this, &View, RayGenerationShader, RayTracingResolution](FRHICommandList& RHICmdList)
