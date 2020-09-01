@@ -81,36 +81,42 @@ void FAnimNode_LayeredBoneBlend::ReinitializeBoneBlendWeights(const FBoneContain
 	TArray<uint16> const& CurveUIDFinder = RequiredBones.GetUIDToArrayLookupTable();
 	const int32 CurveUIDCount = CurveUIDFinder.Num();
 	const int32 TotalCount = FBlendedCurve::GetValidElementCount(&CurveUIDFinder);
-	CurvePoseSourceIndices.Reset(TotalCount);
-	// initialize with FF - which is default
-	CurvePoseSourceIndices.Init(DEFAULT_SOURCEINDEX, TotalCount);
-
-	// now go through point to correct source indices. Curve only picks one source index
-	for (int32 UIDIndex = 0; UIDIndex < CurveUIDCount; ++UIDIndex)
+	if (TotalCount > 0)
 	{
-		int32 CurrentPoseIndex = CurveUIDFinder[UIDIndex];
-		if (CurrentPoseIndex != MAX_uint16)
-		{
-			SmartName::UID_Type CurveUID = (SmartName::UID_Type)UIDIndex;
+		CurvePoseSourceIndices.Reset(TotalCount);
+		// initialize with FF - which is default
+		CurvePoseSourceIndices.Init(DEFAULT_SOURCEINDEX, TotalCount);
 
-			const FCurveMetaData* CurveMetaData = Skeleton->GetCurveMetaData(CurveUID);
-			if (CurveMetaData)
+		// now go through point to correct source indices. Curve only picks one source index
+		for (int32 UIDIndex = 0; UIDIndex < CurveUIDCount; ++UIDIndex)
+		{
+			int32 CurrentPoseIndex = CurveUIDFinder[UIDIndex];
+			if (CurrentPoseIndex != MAX_uint16)
 			{
-				const TArray<FBoneReference>& LinkedBones = CurveMetaData->LinkedBones;
-				const int32 NumLinkedBones = LinkedBones.Num();
-				for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < NumLinkedBones; ++LinkedBoneIndex)
+				SmartName::UID_Type CurveUID = (SmartName::UID_Type)UIDIndex;
+
+				const FCurveMetaData* CurveMetaData = Skeleton->GetCurveMetaData(CurveUID);
+				if (CurveMetaData)
 				{
-					FCompactPoseBoneIndex CompactPoseIndex = LinkedBones[LinkedBoneIndex].GetCompactPoseIndex(RequiredBones);
-					if (CompactPoseIndex != INDEX_NONE)
+					const TArray<FBoneReference>& LinkedBones = CurveMetaData->LinkedBones;
+					for (int32 LinkedBoneIndex = 0; LinkedBoneIndex < LinkedBones.Num(); ++LinkedBoneIndex)
 					{
-						if (DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].BlendWeight > 0.f)
+						FCompactPoseBoneIndex CompactPoseIndex = LinkedBones[LinkedBoneIndex].GetCompactPoseIndex(RequiredBones);
+						if (CompactPoseIndex != INDEX_NONE)
 						{
-							CurvePoseSourceIndices[CurrentPoseIndex] = DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].SourceIndex;
+							if (DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].BlendWeight > 0.f)
+							{
+								CurvePoseSourceIndices[CurrentPoseIndex] = DesiredBoneBlendWeights[CompactPoseIndex.GetInt()].SourceIndex;
+							}
 						}
 					}
 				}
 			}
 		}
+	}
+	else
+	{
+		CurvePoseSourceIndices.Reset();
 	}
 }
 
