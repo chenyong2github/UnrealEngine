@@ -95,6 +95,7 @@
 #include "UObject/ReferencerFinder.h"
 #include "Containers/Set.h"
 #include "UObject/StrongObjectPtr.h"
+#include "DistanceFieldAtlas.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -2518,6 +2519,13 @@ namespace ObjectTools
 			if (UWorld* World = Cast<UWorld>(ObjectToDelete))
 			{
 				World->CleanupWorld();
+			}
+
+			// Make sure the object is not still referenced by async tasks
+			UStaticMesh* StaticMesh = Cast<UStaticMesh>(ObjectToDelete);
+			if (StaticMesh != nullptr)
+			{
+				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
 			}
 		}
 
