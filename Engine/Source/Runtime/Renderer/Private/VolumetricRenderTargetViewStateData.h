@@ -51,7 +51,7 @@ public:
 	const uint32 GetVolumetricReconstructRTDownsampleFactor() const { return VolumetricReconstructRTDownsampleFactor; }
 	const uint32 GetVolumetricTracingRTDownsampleFactor() const { return VolumetricTracingRTDownsampleFactor; }
 
-	FUintVector4 GetTracingToFullResResolutionScaleBias() const;
+	FUintVector4 GetTracingCoordToZbufferCoordScaleBias() const;
 
 	float GetUvNoiseScale()		const { return UvNoiseScale; }
 	int32 GetMode()				const { return Mode; }
