@@ -213,10 +213,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	SendBunchHeader		( MAX_BUNCH_HEADER_BITS )
 
 ,	StatPeriod			( 1.f  )
-,	AvgLag				( 9999 )
-,   BestLag				( 9999 )
-,   BestLagAcc			( 9999 )
-,	LagAcc				( 9999 )
+,	AvgLag				( 0 )
+,	LagAcc				( 0 )
 ,	LagCount			( 0 )
 ,	LastTime			( 0 )
 ,	FrameTime			( 0 )
@@ -696,7 +694,7 @@ void UNetConnection::Serialize( FArchive& Ar )
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DormantReplicatorMap", DormantReplicatorMap.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibleLevelNames", ClientVisibleLevelNames.CountBytes(Ar));
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibileActorOuters", ClientVisibileActorOuters.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibileActorOuters", ClientVisibleActorOuters.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActorsStarvedByClassTimeMap",
 			ActorsStarvedByClassTimeMap.CountBytes(Ar);
@@ -958,7 +956,7 @@ void UNetConnection::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 	}
 
 	// ClientVisibileActorOuters acceleration map
-	for (auto& MapIt : This->ClientVisibileActorOuters)
+	for (auto& MapIt : This->ClientVisibleActorOuters)
 	{
 		Collector.AddReferencedObject(MapIt.Key, This);
 	}
@@ -1012,7 +1010,7 @@ bool UNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const
 
 	// Note: we are calling GetOuter() here instead of GetLevel() to avoid an unreal Cast<>: we justt need the memory address for the lookup.
 	UObject* ActorOuter = TestActor->GetOuter();
-	if (const bool* bIsVisible = ClientVisibileActorOuters.Find(ActorOuter))
+	if (const bool* bIsVisible = ClientVisibleActorOuters.Find(ActorOuter))
 	{
 		return *bIsVisible;
 	}
@@ -1038,14 +1036,14 @@ bool UNetConnection::UpdateCachedLevelVisibility(ULevel* Level) const
 		IsVisibile = ClientVisibleLevelNames.Contains(Level->GetOutermost()->GetFName());
 	}
 
-	ClientVisibileActorOuters.FindOrAdd(Level) = IsVisibile;
+	ClientVisibleActorOuters.FindOrAdd(Level) = IsVisibile;
 	return IsVisibile;
 }
 
 void UNetConnection::UpdateAllCachedLevelVisibility() const
 {
 	// Update our acceleration map
-	for (auto& MapIt : ClientVisibileActorOuters)
+	for (auto& MapIt : ClientVisibleActorOuters)
 	{
 		if (ULevel* Level = Cast<ULevel>(MapIt.Key))
 		{
@@ -1054,17 +1052,21 @@ void UNetConnection::UpdateAllCachedLevelVisibility() const
 	}
 }
 
-void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVisible)
+void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
-	FUpdateLevelVisibilityLevelInfo LevelVisibility;
-	LevelVisibility.PackageName = PackageName;
-	LevelVisibility.FileName = PackageName;
-	LevelVisibility.bIsVisible = bIsVisible;
-
-	UpdateLevelVisibility(LevelVisibility);
+	if (Driver && Driver->GetWorld())
+	{
+		// If we are doing seamless travel we need to defer visibility updates until after the server has completed loading the level
+		// otherwise we might end up in a situation where visibilty is not correctly updated
+		if (Driver->GetWorld()->IsInSeamlessTravel())
+		{
+			PendingUpdateLevelVisibility.FindOrAdd(LevelVisibility.PackageName) = LevelVisibility;
+		}
+	}
+	UpdateLevelVisibilityInternal(LevelVisibility);
 }
 
-void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
+void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
 	using namespace UE4_NetConnectionPrivate;
 
@@ -3434,7 +3436,6 @@ void UNetConnection::Tick(float DeltaSeconds)
 		{
 			AvgLag = LagAcc/LagCount;
 		}
-		BestLag = AvgLag;
 
 		InBytesPerSecond = FMath::TruncToInt(static_cast<float>(InBytes) / RealTime);
 		OutBytesPerSecond = FMath::TruncToInt(static_cast<float>(OutBytes) / RealTime);
@@ -3887,6 +3888,15 @@ void UNetConnection::ResetGameWorldState()
 	KeepProcessingActorChannelBunchesMap.Empty();
 	DormantReplicatorMap.Empty();
 	CleanupDormantActorState();
+	ClientVisibleActorOuters.Empty();
+
+	// Update any level visibility requests received during the transition
+	// This can occur if client loads faster than the server
+	for (const auto& Pending : PendingUpdateLevelVisibility)
+	{
+		UpdateLevelVisibilityInternal(Pending.Value);
+	}
+	PendingUpdateLevelVisibility.Empty();
 }
 
 void UNetConnection::CleanupDormantActorState()

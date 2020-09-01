@@ -87,13 +87,6 @@ namespace PlayerControllerCVars
 		TEXT("Whether to reset server prediction data for the possessed Pawn when the pawn ack handshake completes.\n")
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
-
-	static bool LevelVisibilityDontSerializeFileName = false;
-	FAutoConsoleVariableRef CVarLevelVisibilityDontSerializeFileName(
-		TEXT("PlayerController.LevelVisibilityDontSerializeFileName"),
-		LevelVisibilityDontSerializeFileName,
-		TEXT("When true, we'll always skip serializing FileName with FUpdateLevelVisibilityLevelInfo's. This will save bandwidth when games don't need both.")
-	);
 }
 
 const float RetryClientRestartThrottleTime = 0.5f;
@@ -103,41 +96,6 @@ const float RetryServerCheckSpectatorThrottleTime = 0.25f;
 // Note: This value should be sufficiently small such that it is considered to be in the past before RetryClientRestartThrottleTime and RetryServerAcknowledgeThrottleTime.
 const float ForceRetryClientRestartTime = -100.0f;
 
-FUpdateLevelVisibilityLevelInfo::FUpdateLevelVisibilityLevelInfo(const ULevel* const Level, const bool bInIsVisible)
-	: bIsVisible(bInIsVisible)
-	, bSkipCloseOnError(false)
-{
-	const UPackage* const LevelPackage = Level->GetOutermost();
-	PackageName = LevelPackage->GetFName();
-
-	// When packages are duplicated for PIE, they may not have a FileName.
-	// For now, just revert to the old behavior.
-	FileName = (LevelPackage->FileName == NAME_None) ? PackageName : LevelPackage->FileName;
-}
-
-bool FUpdateLevelVisibilityLevelInfo::NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess)
-{
-	bool bArePackageAndFileTheSame = !!((PlayerControllerCVars::LevelVisibilityDontSerializeFileName) || (FileName == PackageName) || (FileName == NAME_None));
-	bool bLocalIsVisible = !!bIsVisible;
-
-	Ar.SerializeBits(&bArePackageAndFileTheSame, 1);
-	Ar.SerializeBits(&bLocalIsVisible, 1);
-	Ar << PackageName;
-
-	if (!bArePackageAndFileTheSame)
-	{
-		Ar << FileName;
-	}
-	else if (Ar.IsLoading())
-	{
-		FileName = PackageName;
-	}
-
-	bIsVisible = bLocalIsVisible;
-
-	bOutSuccess = !Ar.IsError();
-	return true;
-}
 
 //////////////////////////////////////////////////////////////////////////
 // APlayerController
@@ -2928,6 +2886,12 @@ APlayerState* APlayerController::GetNextViewablePlayer(int32 dir)
 	// If we don't have a NextPlayerState, use our own.
 	// This will allow us to attempt to find another player to view or, if all else fails, makes sure we have a playerstate set for next time.
 	int32 NextIndex = (NextPlayerState ? GameState->PlayerArray.Find(NextPlayerState) : GameState->PlayerArray.Find(PlayerState));
+
+	//Check that NextIndex is a valid index, as Find() may return INDEX_NONE
+	if (!GameState->PlayerArray.IsValidIndex(NextIndex))
+	{
+		return nullptr;
+	}
 
 	// Cycle through the player states until we find a valid one.
 	for (int32 i = 0; i < GameState->PlayerArray.Num(); ++i)
