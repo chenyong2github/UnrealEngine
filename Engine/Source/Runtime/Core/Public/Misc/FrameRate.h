@@ -262,8 +262,12 @@ inline FFrameTime ConvertFrameTime(FFrameTime SourceTime, FFrameRate SourceRate,
 	}
 	//We want NewTime =SourceTime * (DestinationRate/SourceRate);
 	//And want to limit conversions and keep int precision as much as possible
-	int64 NewNumerator = static_cast<int64>(DestinationRate.Numerator) * SourceRate.Denominator;
-	int64 NewDenominator = static_cast<int64>(DestinationRate.Denominator) * SourceRate.Numerator;
+
+	//@todo: These integers should not need the volatile keyword here, but adding it works around
+	//       a compiler bug that results in an uninitialized vector register being used
+	volatile int64 NewNumerator = static_cast<int64>(DestinationRate.Numerator) * SourceRate.Denominator;
+	volatile int64 NewDenominator = static_cast<int64>(DestinationRate.Denominator) * SourceRate.Numerator;
+
 	double NewNumerator_d = double(NewNumerator);
 	double NewDenominator_d = double(NewDenominator);
 	//Now the IntegerPart may have a Float Part, and then the FloatPart may have an IntegerPart,
