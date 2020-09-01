@@ -1288,6 +1288,11 @@ struct FNiagaraTypeDefinitionHandle
 		return RegisteredTypeIndex != Other.RegisteredTypeIndex;
 	}
 
+	bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const
+	{
+		return Resolve().AppendCompileHash(InVisitor);
+	}
+
 private:
 	friend FArchive& operator<<(FArchive& Ar, FNiagaraTypeDefinitionHandle& Handle);
 
