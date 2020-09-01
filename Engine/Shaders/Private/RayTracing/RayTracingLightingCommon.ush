@@ -402,6 +402,9 @@ float3 ComputeDirectLighting(
 {
 	float3 DirectLighting = (float3)0;
 
+	// Preserve current custom data value from the material payload, as it will be overwritten during shadow ray tracing.
+	uint SavedPackedCustomData = Payload.PackedCustomData;
+
 
 #if DIM_MISS_SHADER_LIGHTING
 	// Repurpose some fields in the material payload to pass parameters into lighting miss shader.
