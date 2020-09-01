@@ -220,6 +220,18 @@ void UNiagaraComponentRendererProperties::CreateTemplateComponent()
 	TemplateComponent->SetAbsolute(IsWorldSpace, IsWorldSpace, IsWorldSpace);
 }
 
+bool UNiagaraComponentRendererProperties::HasPropertyBinding(FName PropertyName) const
+{
+	for (const FNiagaraComponentPropertyBinding& Binding : PropertyBindings)
+	{
+		if (Binding.PropertyName == PropertyName)
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
 #if WITH_EDITORONLY_DATA
 
 void UNiagaraComponentRendererProperties::PostEditChangeProperty(struct FPropertyChangedEvent& e)
@@ -269,15 +281,15 @@ void UNiagaraComponentRendererProperties::GetRendererTooltipWidgets(const FNiaga
 	OutWidgets.Add(Tooltip);
 }
 
-void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const
+void UNiagaraComponentRendererProperties::GetRendererFeedback(UNiagaraEmitter* InEmitter,	TArray<FNiagaraRendererFeedback>& OutErrors, TArray<FNiagaraRendererFeedback>& OutWarnings,	TArray<FNiagaraRendererFeedback>& OutInfo) const
 {
-	Super::GetRendererFeedback(InEmitter, OutErrors, OutWarnings, OutInfo);
-
-	OutInfo.Add(FText::FromString(TEXT("The component renderer is still a very experimental feature that offers great flexibility, \nbut is *not* optimized for performance or safety. \nWith great power comes great responsibility.")));
+	OutInfo.Add(FNiagaraRendererFeedback(FText::FromString(TEXT("The component renderer is still a very experimental feature that offers great flexibility, \nbut is *not* optimized for performance or safety. \nWith great power comes great responsibility."))));
 
 	if (ComponentType && !UNiagaraComponent::StaticClass()->IsChildOf(ComponentType->ClassWithin))
 	{
-		OutErrors.Add(FText::Format(LOCTEXT("NiagaraClassWithinComponentError", "The selected component type is not valid because it can only be attached to an object of type {0}."), FText::FromString(ComponentType->ClassWithin->GetName())));
+		FText ErrorDescription = FText::Format(LOCTEXT("NiagaraClassWithinComponentError", "The selected component type is not valid because it can only be attached to an object of type {0}."), FText::FromString(ComponentType->ClassWithin->GetName()));
+		FText ErrorSummary = LOCTEXT("NiagaraClassWithinComponentErrorSummary", "Invalid component type selected!");
+		OutErrors.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary));
 	}
 
 	if (InEmitter && TemplateComponent)
@@ -296,17 +308,27 @@ void UNiagaraComponentRendererProperties::GetRendererFeedback(const UNiagaraEmit
 		}
 
 		bool IsWorldSpace = !InEmitter->bLocalSpace;
-		if (TemplateComponent->IsUsingAbsoluteLocation() != IsWorldSpace)
+		FNiagaraRendererFeedbackFix LocalspaceFix = FNiagaraRendererFeedbackFix::CreateLambda([InEmitter]() {	InEmitter->bLocalSpace = !InEmitter->bLocalSpace; });
+		if (TemplateComponent->IsUsingAbsoluteLocation() != IsWorldSpace && !HasPropertyBinding(FName("bAbsoluteLocation")))
 		{
-			OutWarnings.Add(FText::FromString(TEXT("The component location is configured to use a different localspace setting than the emitter.")));
+			FText ErrorDescription = LOCTEXT("NiagaraComponentLocalspaceLocationWarning", "The component location is configured to use a different localspace setting than the emitter.");
+			FText ErrorSummary = LOCTEXT("NiagaraComponentLocalspaceLocationWarningSummary", "Component location and emitter localspace different!");
+			FText FixText = LOCTEXT("NiagaraComponentLocalspaceLocationWarningFix", "Change emitter localspace setting");
+			OutWarnings.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary, FixText, LocalspaceFix, true));
 		}
-		if (TemplateComponent->IsUsingAbsoluteRotation() != IsWorldSpace)
+		if (TemplateComponent->IsUsingAbsoluteRotation() != IsWorldSpace && !HasPropertyBinding(FName("bAbsoluteRotation")))
 		{
-			OutWarnings.Add(FText::FromString(TEXT("The component rotation is configured to use a different localspace setting than the emitter.")));
+			FText ErrorDescription = LOCTEXT("NiagaraComponentLocalspaceRotationWarning", "The component rotation is configured to use a different localspace setting than the emitter.");
+			FText ErrorSummary = LOCTEXT("NiagaraComponentLocalspaceRotationWarningSummary", "Component rotation and emitter localspace different!");
+			FText FixText = LOCTEXT("NiagaraComponentLocalspaceRotationWarningFix", "Change emitter localspace setting");
+			OutWarnings.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary, FixText, LocalspaceFix, true));
 		}
-		if (TemplateComponent->IsUsingAbsoluteScale() != IsWorldSpace)
+		if (TemplateComponent->IsUsingAbsoluteScale() != IsWorldSpace && !HasPropertyBinding(FName("bAbsoluteScale")))
 		{
-			OutWarnings.Add(FText::FromString(TEXT("The component scale is configured to use a different localspace setting than the emitter.")));
+			FText ErrorDescription = LOCTEXT("NiagaraComponentLocalspaceScaleWarning", "The component scale is configured to use a different localspace setting than the emitter.");
+			FText ErrorSummary = LOCTEXT("NiagaraComponentLocalspaceScaleWarningSummary", "Component scale and emitter localspace different!");
+			FText FixText = LOCTEXT("NiagaraComponentLocalspaceScaleWarningFix", "Change emitter localspace setting");
+			OutWarnings.Add(FNiagaraRendererFeedback(ErrorDescription, ErrorSummary, FixText, LocalspaceFix, true));
 		}
 	}
 
