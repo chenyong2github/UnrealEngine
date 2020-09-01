@@ -48,6 +48,8 @@ public:
 		, TrajectoryCache(InTrajectoryCache)
 	{}
 
+	virtual ~FTrajectoryDrawInfo() {}
+
 	struct FDisplayContext
 	{
 		FGuid YourNode;
