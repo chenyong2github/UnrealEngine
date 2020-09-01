@@ -11,6 +11,7 @@
 #include "ScopedTransaction.h"
 #include "AssetRegistryModule.h"
 #include "K2Node_Variable.h"
+#include "EdGraphSchema_K2.h"
 
 #define LOCTEXT_NAMESPACE "SGraphPinClass"
 
