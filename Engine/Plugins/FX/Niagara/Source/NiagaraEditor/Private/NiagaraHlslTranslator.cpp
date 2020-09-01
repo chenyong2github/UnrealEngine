@@ -1136,6 +1136,20 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimStageStartIndex += NumIterationsThisStage;
 					ParamMapHistories.AddDefaulted(1);
 
+					// If we allow partial writes we need to ensure that we are not reading from our own buffer, we ask our data interfaces if this is true or not
+					if (TranslationStages[Index].bPartialParticleUpdate)
+					{
+						for (auto it = InCompileData->CopiedDataInterfacesByName.CreateConstIterator(); it; ++it)
+						{
+							const UNiagaraDataInterface* DataInterface = it->Value;
+							if (DataInterface->ReadsEmitterParticleData(InCompileData->EmitterUniqueName))
+							{
+								TranslationStages[Index].bPartialParticleUpdate = false;
+								break;
+							}
+						}
+					}
+
 					// See if we write any "particle" attributes
 					for (int32 iVar = 0; iVar < FoundHistory.VariableMetaData.Num(); ++iVar)
 					{
@@ -5901,6 +5915,43 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 	// Split up the hlsl into constituent tokens
 	TArray<FString> Tokens;
 	CustomFunctionHlsl->GetTokens(Tokens);
+
+	// Look for tokens that should be replaced with a data interface or not used directly
+	if (CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
+	{
+		static const FString UseParticleReadTokens[] =
+		{
+			TEXT("InputDataFloat"),
+			TEXT("InputDataInt"),
+			TEXT("InputDataBool"),
+			TEXT("InputDataHalf"),
+		};
+
+		for (const FString& Token : Tokens)
+		{
+			bool bUsesInputData = false;
+			for (const FString& BannedToken : UseParticleReadTokens)
+			{
+				if (Token == BannedToken)
+				{
+					Warning(LOCTEXT("UseParticleReadsNotInputData", "Please convert usage of InputData methods to particle reads to avoid compatability issues."), CustomFunctionHlsl, nullptr);
+
+					bUsesInputData = true;
+					break;
+				}
+			}
+
+			if (bUsesInputData)
+			{
+				// Clear out the ability to use partial particle writes as we can't be sure how InputData is being used
+				for ( int i=0; i < CompileData->PartialParticleUpdatePerStage.Num(); ++i)
+				{
+					CompileData->PartialParticleUpdatePerStage[i] = false;
+				}
+				break;
+			}
+		}
+	}
 
 	int32 ParamMapHistoryIdx = INDEX_NONE;
 	bool bHasParamMapOutputs = false;

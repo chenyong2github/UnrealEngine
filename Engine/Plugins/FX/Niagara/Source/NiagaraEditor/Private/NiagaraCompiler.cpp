@@ -531,7 +531,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					NumIterationsPerStage.Add(GenericStage->Iterations);
 					IterationSourcePerStage.Add(GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName());
 					SpawnOnlyPerStage.Add(GenericStage->bSpawnOnly);
-					PartialParticleUpdatePerStage.Add(GenericStage->bPartialParticleUpdate);
+					PartialParticleUpdatePerStage.Add(GenericStage->bDisablePartialParticleUpdate == false);
 					StageGuids.Add(GenericStage->Script->GetUsageId());
 					StageNames.Add(GenericStage->SimulationStageName);
 				}
