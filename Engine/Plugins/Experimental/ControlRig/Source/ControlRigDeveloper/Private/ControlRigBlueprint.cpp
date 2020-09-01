@@ -163,7 +163,7 @@ void UControlRigBlueprint::PostLoad()
 
 #if WITH_EDITOR
 
-	if (!IsInAsyncLoadingThread())
+	if (!IsInAsyncLoadingThread() || IsRunningCommandlet())
 	{
 		Controller->DetachLinksFromPinObjects();
 		for (URigVMNode* Node : Model->GetNodes())
