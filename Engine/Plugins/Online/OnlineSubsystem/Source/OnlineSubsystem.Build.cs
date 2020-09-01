@@ -20,6 +20,8 @@ public class OnlineSubsystem : ModuleRules
         PublicDefinitions.Add("ONLINESUBSYSTEM_PACKAGE=1");
 		PublicDefinitions.Add("DEBUG_LAN_BEACON=0");
 
+		PublicDefinitions.Add("MAX_LOCAL_PLAYERS=" + GetMaxLocalPlayers(Target));
+
 		// OnlineSubsystem cannot depend on Engine!
 		PrivateDependencyModuleNames.AddRange(
 			new string[] { 
@@ -32,5 +34,14 @@ public class OnlineSubsystem : ModuleRules
 				"SignalProcessing",
 			}
 		);
+	}
+
+	protected virtual int GetMaxLocalPlayers(ReadOnlyTargetRules Target)
+	{
+		if (Target.Platform.IsInGroup(UnrealPlatformGroup.Windows))
+		{
+			return 4;
+		}
+		return 1;
 	}
 }
