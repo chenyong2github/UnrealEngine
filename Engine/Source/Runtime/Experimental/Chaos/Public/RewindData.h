@@ -449,17 +449,17 @@ public:
 		return Managers[Frame].DeltaTime;
 	}
 
-	bool CHAOSSOLVERS_API RewindToFrame(int32 Frame);
+	bool CHAOS_API RewindToFrame(int32 Frame);
 
-	void CHAOSSOLVERS_API RemoveParticle(const FUniqueIdx UniqueIdx);
+	void CHAOS_API RemoveParticle(const FUniqueIdx UniqueIdx);
 
-	TArray<FDesyncedParticleInfo> CHAOSSOLVERS_API ComputeDesyncInfo() const;
+	TArray<FDesyncedParticleInfo> CHAOS_API ComputeDesyncInfo() const;
 
 	/* Query the state of particles from the past. Once a rewind happens state captured must be queried using GetFutureStateAtFrame */
-	FGeometryParticleState CHAOSSOLVERS_API GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const;
+	FGeometryParticleState CHAOS_API GetPastStateAtFrame(const TGeometryParticle<FReal,3>& Particle,int32 Frame) const;
 
 	/* Query the state of particles in the future. This operation can fail for particles that are desynced or that we have not been tracking */
-	EFutureQueryResult CHAOSSOLVERS_API GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const;
+	EFutureQueryResult CHAOS_API GetFutureStateAtFrame(FGeometryParticleState& OutState,int32 Frame) const;
 
 	IResimCacheBase* GetCurrentStepResimCache() const
 	{
@@ -639,7 +639,7 @@ private:
 		bool bSet;
 	};
 
-	void CHAOSSOLVERS_API AdvanceFrameImp(IResimCacheBase* ResimCache);
+	void CHAOS_API AdvanceFrameImp(IResimCacheBase* ResimCache);
 
 	void CoalesceBack(TCircularBuffer<FFrameInfo>& Frames,int32 LatestIdx);
 	

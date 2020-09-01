@@ -29,7 +29,6 @@ namespace UnrealBuildTool.Rules
 					"InputCore",
 					"PhysicsCore",
 					"Chaos",
-					"ChaosSolvers",
 					"Engine"
 				}
 				);

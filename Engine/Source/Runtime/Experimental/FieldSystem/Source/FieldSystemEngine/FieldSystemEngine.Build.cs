@@ -17,7 +17,6 @@ namespace UnrealBuildTool.Rules
                     "RenderCore",
                     "RHI",
 					"Chaos",
-					"ChaosSolvers",
 					"ChaosSolverEngine",
                 }
                 );

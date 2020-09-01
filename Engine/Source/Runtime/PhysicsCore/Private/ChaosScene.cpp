@@ -27,9 +27,9 @@
 #include "PBDRigidActiveParticlesBuffer.h"
 #include "Chaos/GeometryParticlesfwd.h"
 #include "Chaos/Box.h"
-#include "ChaosSolvers/Public/EventsData.h"
-#include "ChaosSolvers/Public/EventManager.h"
-#include "ChaosSolvers/Public/RewindData.h"
+#include "EventsData.h"
+#include "EventManager.h"
+#include "RewindData.h"
 
 #include "ProfilingDebugging/CsvProfiler.h"
 

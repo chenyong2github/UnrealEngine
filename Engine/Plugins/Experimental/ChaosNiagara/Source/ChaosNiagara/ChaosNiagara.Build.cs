@@ -27,7 +27,6 @@ public class ChaosNiagara : ModuleRules
 				"RHI",
 				"ChaosSolverEngine",
                 "Chaos",
-                "ChaosSolvers",
                 "GeometryCollectionEngine",
 				"Chaos",
 				"PhysicsCore",

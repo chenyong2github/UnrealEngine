@@ -39,7 +39,6 @@ bool InitGamePhysCore()
 {
 	// If we're running with Chaos enabled, load its module
 	FModuleManager::Get().LoadModule("Chaos");
-	FModuleManager::Get().LoadModule("ChaosSolvers");
 
 #if WITH_ENGINE && WITH_CHAOS
 	// Loading this without Chaos gives warning, as no module depends on it.

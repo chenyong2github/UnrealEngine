@@ -1291,7 +1291,7 @@ void UWorld::RepairChaosActors()
 
 	if (!PhysicsScene_Chaos)
 	{
-		FChaosSolversModule* ChaosModule = FModuleManager::Get().GetModulePtr<FChaosSolversModule>("ChaosSolvers");
+		FChaosSolversModule* ChaosModule = FChaosSolversModule::GetModule();
 		check(ChaosModule);
 		bool bHasChaosActor = false;
 		for (int32 i = 0; i < PersistentLevel->Actors.Num(); ++i)

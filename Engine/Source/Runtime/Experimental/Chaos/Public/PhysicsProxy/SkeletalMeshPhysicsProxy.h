@@ -7,10 +7,10 @@
 
 #include "Chaos/PBDJointConstraints.h"
 #include "Chaos/PBDConstraintRule.h"
-#include "ChaosSolvers/Public/Framework/TripleBufferedData.h"
+#include "Framework/TripleBufferedData.h"
 
 
-struct CHAOSSOLVERS_API FSkeletalMeshPhysicsProxyParams
+struct CHAOS_API FSkeletalMeshPhysicsProxyParams
 {
 	FSkeletalMeshPhysicsProxyParams()
 		: Name("")
@@ -108,7 +108,7 @@ struct FSkeletalMeshPhysicsProxyOutputs : public Chaos::FParticleData
 };
 
 
-class CHAOSSOLVERS_API FSkeletalMeshPhysicsProxy : public TPhysicsProxy<FSkeletalMeshPhysicsProxy, FSkeletalMeshPhysicsProxyOutputs>
+class CHAOS_API FSkeletalMeshPhysicsProxy : public TPhysicsProxy<FSkeletalMeshPhysicsProxy, FSkeletalMeshPhysicsProxyOutputs>
 {
 	typedef TPhysicsProxy<FSkeletalMeshPhysicsProxy, FSkeletalMeshPhysicsProxyOutputs> Base;
 public:

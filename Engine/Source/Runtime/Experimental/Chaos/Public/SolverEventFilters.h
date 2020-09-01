@@ -9,7 +9,7 @@
 
 
 	USTRUCT(Blueprintable)
-	struct CHAOSSOLVERS_API FSolverTrailingFilterSettings
+	struct CHAOS_API FSolverTrailingFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -38,7 +38,7 @@
 	};
 
 	USTRUCT(BlueprintType)
-	struct CHAOSSOLVERS_API FSolverCollisionFilterSettings
+	struct CHAOS_API FSolverCollisionFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -68,7 +68,7 @@
 	};
 
 	USTRUCT(BlueprintType)
-	struct CHAOSSOLVERS_API FSolverBreakingFilterSettings
+	struct CHAOS_API FSolverBreakingFilterSettings
 	{
 		GENERATED_USTRUCT_BODY()
 
@@ -111,7 +111,7 @@ namespace Chaos
 
 
 
-	class CHAOSSOLVERS_API FSolverCollisionEventFilter
+	class CHAOS_API FSolverCollisionEventFilter
 	{
 	public:
 		FSolverCollisionEventFilter() {}
@@ -124,7 +124,7 @@ namespace Chaos
 		FSolverCollisionFilterSettings Settings;
 	};
 
-	class CHAOSSOLVERS_API FSolverTrailingEventFilter
+	class CHAOS_API FSolverTrailingEventFilter
 	{
 	public:
 		FSolverTrailingEventFilter() {}
@@ -137,7 +137,7 @@ namespace Chaos
 		FSolverTrailingFilterSettings Settings;
 	};
 
-	class CHAOSSOLVERS_API FSolverBreakingEventFilter
+	class CHAOS_API FSolverBreakingEventFilter
 	{
 	public:
 		FSolverBreakingEventFilter() {}

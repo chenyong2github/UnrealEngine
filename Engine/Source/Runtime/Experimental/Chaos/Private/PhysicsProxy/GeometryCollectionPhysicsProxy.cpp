@@ -2751,6 +2751,6 @@ void TGeometryCollectionPhysicsProxy<Traits>::ParameterUpdateCallback(FParticles
 	}
 }
 
-#define EVOLUTION_TRAIT(Traits) template class CHAOSSOLVERS_API TGeometryCollectionPhysicsProxy<Chaos::Traits>;
+#define EVOLUTION_TRAIT(Traits) template class CHAOS_API TGeometryCollectionPhysicsProxy<Chaos::Traits>;
 #include "Chaos/EvolutionTraits.inl"
 #undef EVOLUTION_TRAIT

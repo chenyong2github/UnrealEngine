@@ -62,18 +62,18 @@ public:
 	//
 
 	template <typename Traits>
-	void CHAOSSOLVERS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API InitializeOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	// Merge to perform a remote sync
 	template <typename Traits>
-	void CHAOSSOLVERS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API PushStateOnGameThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	template <typename Traits>
-	void CHAOSSOLVERS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API PushStateOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 	// Merge to perform a remote sync - END
 
 	template <typename Traits>
-	void CHAOSSOLVERS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
+	void CHAOS_API DestroyOnPhysicsThread(Chaos::TPBDRigidsSolver<Traits>* InSolver);
 
 	void SyncBeforeDestroy() {}
 	void OnRemoveFromScene() {}
@@ -130,7 +130,7 @@ public:
 	void BufferPhysicsResults();
 
 	/**/
-	bool CHAOSSOLVERS_API PullFromPhysicsState(const int32 SolverSyncTimestamp);
+	bool CHAOS_API PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	/**/
 	bool IsDirty() { return Constraint->IsDirty(); }
@@ -163,9 +163,9 @@ public:
 };
 
 
-template<> CHAOSSOLVERS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
-template<> CHAOSSOLVERS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();
-template<> CHAOSSOLVERS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
+template<> CHAOS_API EPhysicsProxyType TJointConstraintProxy<Chaos::FJointConstraint>::ConcreteType();
+template<> CHAOS_API void TJointConstraintProxy<Chaos::FJointConstraint>::BufferPhysicsResults();
+template<> CHAOS_API bool TJointConstraintProxy<Chaos::FJointConstraint>::PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 extern template class TJointConstraintProxy< Chaos::FJointConstraint >;
 typedef TJointConstraintProxy< Chaos::FJointConstraint > FJointConstraintPhysicsProxy;
