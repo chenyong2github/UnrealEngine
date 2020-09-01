@@ -701,8 +701,8 @@ FTAAOutputs AddTemporalAAPass(
 				SceneColorDesc.Extent / 2,
 				Inputs.DownsampleOverrideFormat != PF_Unknown ? Inputs.DownsampleOverrideFormat : Inputs.SceneColorInput->Desc.Format,
 				FClearValueBinding::Black,
-				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_Transient | TexCreate_UAV,
+				/* InFlags = */ GFastVRamConfig.Downsample,
+				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
 				/* bInForceSeparateTargetAndShaderResource = */ false);
 
 			Outputs.DownsampledSceneColor = GraphBuilder.CreateTexture(HalfResSceneColorDesc, TEXT("SceneColorHalfRes"));
