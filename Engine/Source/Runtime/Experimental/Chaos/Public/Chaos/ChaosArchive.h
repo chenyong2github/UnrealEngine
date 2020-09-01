@@ -173,7 +173,7 @@ public:
 				Context->TagToObject[Tag] = (void*)Obj.Get();
 			}
 		}
-		else if (InnerArchive.IsSaving())
+		else if (InnerArchive.IsSaving() || InnerArchive.IsCountingMemory())
 		{
 			void* ObjRaw = (void*)Obj.Get();
 			check(Context->PendingAdds.Contains(ObjRaw) == false);	//catch dependency cycles. Not supported
