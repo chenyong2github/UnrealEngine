@@ -109,6 +109,13 @@ struct FComponentMask
 		return Result;
 	}
 
+	FORCEINLINE static FComponentMask BitwiseNOT(const FComponentMask& A)
+	{
+		FComponentMask Result = A;
+		Result.Bits.BitwiseNOT();
+		return Result;
+	}
+
 	FORCEINLINE void BitwiseNOT()
 	{
 		Bits.BitwiseNOT();
@@ -116,6 +123,7 @@ struct FComponentMask
 
 	bool Contains(FComponentTypeID InComponentType) const;
 	bool ContainsAll(const FComponentMask& InComponentMask) const;
+	bool ContainsAny(const FComponentMask& InComponentMask) const;
 
 	void Set(FComponentTypeID InComponentType);
 	void SetAll(std::initializer_list<FComponentTypeID> InComponentTypes);
@@ -387,6 +395,11 @@ inline bool FComponentMask::Contains(FComponentTypeID InComponentType) const
 inline bool FComponentMask::ContainsAll(const FComponentMask& InComponentMask) const
 {
 	return FComponentMask::BitwiseAND(*this, InComponentMask, EBitwiseOperatorFlags::MinSize).CompareSetBits(InComponentMask);
+}
+
+inline bool FComponentMask::ContainsAny(const FComponentMask& InComponentMask) const
+{
+	return FComponentMask::BitwiseAND(*this, InComponentMask, EBitwiseOperatorFlags::MinSize).Find(true) != INDEX_NONE;
 }
 
 inline void FComponentMask::Set(FComponentTypeID InComponentType)
