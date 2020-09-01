@@ -188,7 +188,7 @@
 	// Denoise only AO.
 	#define MAX_SIGNAL_BATCH_SIZE 1
 
-	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+	#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
 
 	#if DIM_STAGE == STAGE_RECONSTRUCTION
 		#define SIGNAL_ARRAY_SIZE 1
@@ -201,8 +201,27 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
 
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_STACKOWIAK_4_SETS
-		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
 		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO
+
+	#elif DIM_STAGE == STAGE_PRE_CONVOLUTION
+		#define SIGNAL_ARRAY_SIZE 1 // first and second momment to measure variance in temporal accumulation.
+
+		// Input and output layout.
+		#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_AO_HISTORY
+		#define CONFIG_SIGNAL_OUTPUT_LAYOUT SIGNAL_BUFFER_LAYOUT_AO_HISTORY
+
+		#define CONFIG_INPUT_TEXTURE_COUNT 1
+		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
+
+		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
+
+		//#define CONFIG_MAX_WITH_REF_DISTANCE 1
+		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
+
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO
 
 	#elif DIM_STAGE == STAGE_REJECTION_PRE_CONVOLUTION
 		#define SIGNAL_ARRAY_SIZE 2 // first and second momment to measure variance in temporal accumulation.
@@ -214,7 +233,7 @@
 		#define CONFIG_INPUT_TEXTURE_COUNT 1
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
 
-		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO_HISTORY
 
 	#elif DIM_STAGE == STAGE_POST_FILTERING
 		#define SIGNAL_ARRAY_SIZE 1
@@ -227,9 +246,12 @@
 		#define CONFIG_OUTPUT_TEXTURE_COUNT 1
 
 		#define CONFIG_SAMPLE_SET           SAMPLE_SET_HEXAWEB
+		#define CONFIG_OUTPUT_MODE          OUTPUT_MODE_DRB
 		#define CONFIG_CUSTOM_SPREAD_FACTOR 1
 
 		#define CONFIG_SAMPLE_COUNT_POLICY  SAMPLE_COUNT_POLICY_SAMPLE_ACCUMULATION_BASED
+
+		#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_AO
 
 	#else
 		#error Unexpected stage.
@@ -766,6 +788,10 @@ void MainCS(
 				{
 					KernelConfig.RefBilateralDistance[MultiplexId] = RefFrequencies.Array[MultiplexId].WorldBluringRadius;
 				}
+				else if (KernelConfig.BilateralDistanceComputation == SIGNAL_WORLD_FREQUENCY_HIT_DISTANCE)
+				{
+					KernelConfig.RefBilateralDistance[MultiplexId] = RefFrequencies.Array[MultiplexId].ClosestHitDistance;
+				}
 				else
 				{
 					const uint BatchedSignalId = ComputeSignalBatchIdFromSignalMultiplexId(KernelConfig, MultiplexId);
@@ -798,7 +824,7 @@ void MainCS(
 
 			// Add a bit of jittering to hide low sample.
 			KernelConfig.bSampleKernelCenter = false;
-			KernelConfig.BufferUV += View.ViewSizeAndInvSize.zw * (E - 0.5) * (KernelConfig.KernelSpreadFactor * (0.5 * rcp(2)));
+			KernelConfig.BufferUV += View.ViewSizeAndInvSize.zw * (E - 0.5) * (KernelConfig.KernelSpreadFactor);
 		}
 		#endif
 
