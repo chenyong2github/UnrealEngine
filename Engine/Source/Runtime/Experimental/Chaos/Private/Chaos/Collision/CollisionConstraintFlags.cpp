@@ -86,6 +86,7 @@ namespace Chaos
 
 	void FIgnoreCollisionManager::ProcessPendingQueues()
 	{
+		/*
 		if (PendingActivations.Num())
 		{
 			TArray<FGeometryParticle*> DeletionList;
@@ -137,6 +138,10 @@ namespace Chaos
 				}
 			}
 		}
+		*/
+		PendingDeactivations.Empty();
+		PendingActivations.Empty();
+
 	}
 
 } // Chaos

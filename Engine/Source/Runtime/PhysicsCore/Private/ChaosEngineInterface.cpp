@@ -271,6 +271,7 @@ void FChaosEngineInterface::DetachShape(const FPhysicsActorHandle& InActor,FPhys
 
 void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > >& InMap)
 {
+	/*
 	for (auto Elem : InMap)
 	{
 		FPhysicsActorHandle& ActorReference = Elem.Key;
@@ -284,10 +285,12 @@ void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FP
 		}
 		PendingMap.Add(ActorReference, DisabledCollisions);
 	}
+	*/
 }
 
 void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FPhysicsActorHandle >& InPhysicsActors)
 {
+	/*
 	for (FPhysicsActorHandle& Handle : InPhysicsActors)
 	{
 		Chaos::FPhysicsSolver* Solver = Handle->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
@@ -298,6 +301,7 @@ void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FP
 			PendingMap.Add(Handle);
 		}
 	}
+	*/
 }
 
 
