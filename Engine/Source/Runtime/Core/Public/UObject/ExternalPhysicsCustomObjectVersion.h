@@ -129,6 +129,9 @@ struct CORE_API FExternalPhysicsCustomObjectVersion
 		// Remove extra representations of per shape sim and query enabled flags
 		RemoveShapeSimAndQueryDuplicateRepresentations,
 
+		// Removed unused full bounds from AABBTree
+		RemovedAABBTreeFullBounds,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

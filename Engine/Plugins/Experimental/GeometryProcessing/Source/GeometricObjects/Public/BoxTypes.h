@@ -41,6 +41,11 @@ struct TInterval1
 		return Max - Min;
 	}
 
+	RealType MaxAbsExtrema() const
+	{
+		return TMathUtil<RealType>::Max(TMathUtil<RealType>::Abs(Min), TMathUtil<RealType>::Abs(Max));
+	}
+
 	void Contain(const RealType& V)
 	{
 		if (V < Min)
@@ -306,6 +311,13 @@ struct TAxisAlignedBox3
 			FVector3<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()));
 	}
 
+	static TAxisAlignedBox3<RealType> Infinite()
+	{
+		return TAxisAlignedBox3(
+			FVector3<RealType>(-TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max(), -TNumericLimits<RealType>::Max()),
+			FVector3<RealType>(TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max(), TNumericLimits<RealType>::Max()) );
+	}
+
 	FVector3<RealType> Center() const
 	{
 		return FVector3<RealType>(
@@ -444,6 +456,11 @@ struct TAxisAlignedBox3
 	RealType MaxDim() const
 	{
 		return TMathUtil<RealType>::Max(Width(), TMathUtil<RealType>::Max(Height(), Depth()));
+	}
+
+	RealType MinDim() const
+	{
+		return TMathUtil<RealType>::Min(Width(), TMathUtil<RealType>::Min(Height(), Depth()));
 	}
 
 	FVector3<RealType> Diagonal() const

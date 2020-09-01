@@ -101,24 +101,30 @@ using namespace ChaosTest;
 		UnitTest.AddSimulationObject(Collection);
 		UnitTest.Initialize();
 
-		TManagedArray<int32>& SimulationType = Collection->DynamicCollection->SimulationType;
-		EXPECT_EQ(SimulationType[0], FGeometryCollection::ESimulationTypes::FST_Clustered);
-		EXPECT_EQ(SimulationType[1], FGeometryCollection::ESimulationTypes::FST_Clustered);
-		EXPECT_EQ(SimulationType[2], FGeometryCollection::ESimulationTypes::FST_Rigid);
+		FVector StartingClusterPosition;
+		TManagedArray<FTransform>* Transform;
+		float StartingRigidDistance;
 
-		TManagedArray<int32>& Parent = Collection->DynamicCollection->Parent;
-		EXPECT_EQ(Parent[0], 2);
-		EXPECT_EQ(Parent[1], 2);
-		EXPECT_EQ(Parent[2], -1);
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			TManagedArray<int32>& SimulationType = Collection->DynamicCollection->SimulationType;
+			EXPECT_EQ(SimulationType[0],FGeometryCollection::ESimulationTypes::FST_Clustered);
+			EXPECT_EQ(SimulationType[1],FGeometryCollection::ESimulationTypes::FST_Clustered);
+			EXPECT_EQ(SimulationType[2],FGeometryCollection::ESimulationTypes::FST_Rigid);
 
-		// Set the one cluster to disabled
-		Collection->PhysObject->GetSolverClusterHandles()[0]->SetDisabled(true);
+			TManagedArray<int32>& Parent = Collection->DynamicCollection->Parent;
+			EXPECT_EQ(Parent[0],2);
+			EXPECT_EQ(Parent[1],2);
+			EXPECT_EQ(Parent[2],-1);
 
-		TManagedArray<FTransform>& Transform = Collection->DynamicCollection->Transform;
-		float StartingRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
-		EXPECT_LT(StartingRigidDistance - 20.0f, SMALL_THRESHOLD);
+			// Set the one cluster to disabled
+			Collection->PhysObject->GetSolverClusterHandles()[0]->SetDisabled(true);
 
-		FVector StartingClusterPosition = Transform[2].GetTranslation();
+			Transform = &Collection->DynamicCollection->Transform;
+			StartingRigidDistance = ((*Transform)[1].GetTranslation() - (*Transform)[0].GetTranslation()).Size();
+			EXPECT_LT(StartingRigidDistance - 20.0f,SMALL_THRESHOLD);
+			StartingClusterPosition = (*Transform)[2].GetTranslation();
+		});
 
 		float CurrentRigidDistance = 0.f;
 
@@ -127,11 +133,11 @@ using namespace ChaosTest;
 			UnitTest.Advance();
 
 			// Distance between gc cubes remains the same
-			CurrentRigidDistance = (Transform[1].GetTranslation() - Transform[0].GetTranslation()).Size();
+			CurrentRigidDistance = ((*Transform)[1].GetTranslation() - (*Transform)[0].GetTranslation()).Size();
 			EXPECT_LT(StartingRigidDistance-CurrentRigidDistance, SMALL_THRESHOLD);
 
 			// Clustered particle doesn't move
-			EXPECT_LT((StartingClusterPosition - Transform[2].GetTranslation()).Size(), SMALL_THRESHOLD);
+			EXPECT_LT((StartingClusterPosition - (*Transform)[2].GetTranslation()).Size(), SMALL_THRESHOLD);
 		}
 		
 	}
@@ -363,32 +369,36 @@ using namespace ChaosTest;
 		Collection->PhysObject->SetCollisionParticlesPerObjectFraction(1.0);		
 
 		UnitTest.Initialize();
-
-	//	UnitTest.Advance();
-
+		TArray<Chaos::TPBDRigidClusteredParticleHandle<float,3>*> ParticleHandles;
 		float TestMass = 7.0f;
 
-		// setup breaking filter
-		FSolverBreakingFilterSettings BreakingFilterSettings;
-		BreakingFilterSettings.FilterEnabled = true;
-		BreakingFilterSettings.MinMass = TestMass;
-		BreakingFilterSettings.MinSpeed = 0;
-		BreakingFilterSettings.MinVolume = 0;
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
 
-		UnitTest.Solver->SetGenerateBreakingData(true);
-		UnitTest.Solver->SetBreakingFilterSettings(BreakingFilterSettings);
+
+			// setup breaking filter
+			FSolverBreakingFilterSettings BreakingFilterSettings;
+			BreakingFilterSettings.FilterEnabled = true;
+			BreakingFilterSettings.MinMass = TestMass;
+			BreakingFilterSettings.MinSpeed = 0;
+			BreakingFilterSettings.MinVolume = 0;
+
+			UnitTest.Solver->SetGenerateBreakingData(true);
+			UnitTest.Solver->SetBreakingFilterSettings(BreakingFilterSettings);
+
+			ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
+
+			ParticleHandles[0]->SetM(TestMass + 1.0f);
+			ParticleHandles[1]->SetM(TestMass - 1.0f);
+			ParticleHandles[2]->SetM(TestMass - 2.0f);
+			ParticleHandles[3]->SetM(TestMass + 2.0f);
+		});
+
 
 		TEventHarvester<Traits> Events(UnitTest.Solver);
 
-		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& ParticleHandles = Collection->PhysObject->GetSolverParticleHandles();
-		
-		ParticleHandles[0]->SetM(TestMass + 1.0f);
-		ParticleHandles[1]->SetM(TestMass - 1.0f);
-		ParticleHandles[2]->SetM(TestMass - 2.0f);
-		ParticleHandles[3]->SetM(TestMass + 2.0f);
-	
 		bool Impact = false;
-		for (int Loop=0; Loop<50; Loop++)
+		for(int Loop=0; Loop<50; Loop++)
 		{
 			// Events data on physics thread is appended until the game thread has had a chance to Tick & read it
 			UnitTest.Advance();
@@ -396,19 +406,19 @@ using namespace ChaosTest;
 			const auto& AllBreakingsArray = Events.BreakingEventData.BreakingData.AllBreakingsArray;
 			Impact = (AllBreakingsArray.Num() > 0);
 
-			if (Impact)
+			if(Impact)
 			{
-				EXPECT_EQ(ParticleHandles[0]->Disabled(), false); // piece1 active 6 mass
-				EXPECT_EQ(ParticleHandles[1]->Disabled(), false); // piece2 active 0.5 mass
-				EXPECT_EQ(ParticleHandles[2]->Disabled(), false); // piece3 active 0.5 mass
-				EXPECT_EQ(ParticleHandles[3]->Disabled(), false); // cluster active 7 mass
-				EXPECT_EQ(ParticleHandles[4]->Disabled(), true); // cluster
+				EXPECT_EQ(ParticleHandles[0]->Disabled(),false); // piece1 active 6 mass
+				EXPECT_EQ(ParticleHandles[1]->Disabled(),false); // piece2 active 0.5 mass
+				EXPECT_EQ(ParticleHandles[2]->Disabled(),false); // piece3 active 0.5 mass
+				EXPECT_EQ(ParticleHandles[3]->Disabled(),false); // cluster active 7 mass
+				EXPECT_EQ(ParticleHandles[4]->Disabled(),true); // cluster
 
 				// breaking data
-				EXPECT_EQ(AllBreakingsArray.Num(), 2); // 2 pieces filtered out of 4
+				EXPECT_EQ(AllBreakingsArray.Num(),2); // 2 pieces filtered out of 4
 
-				EXPECT_LT(AllBreakingsArray[0].Mass - (TestMass + 2.0f), SMALL_THRESHOLD);
-				EXPECT_LT(AllBreakingsArray[1].Mass - (TestMass + 1.0f), SMALL_THRESHOLD);
+				EXPECT_LT(AllBreakingsArray[0].Mass - (TestMass + 2.0f),SMALL_THRESHOLD);
+				EXPECT_LT(AllBreakingsArray[1].Mass - (TestMass + 1.0f),SMALL_THRESHOLD);
 				break;
 			}
 

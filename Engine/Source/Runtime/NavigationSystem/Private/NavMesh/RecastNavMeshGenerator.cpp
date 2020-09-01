@@ -4847,9 +4847,13 @@ void FRecastNavMeshGenerator::TickAsyncBuild(float DeltaSeconds)
 	}
 #endif//WITH_EDITOR
 
-	// Submit async tile build tasks in case we have dirty tiles and have room for them
 	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
-	check(NavSys);
+	if (!ensureMsgf(NavSys != nullptr, TEXT("FRecastNavMeshGenerator can't found valid navigation system: Owner=[%s] World=[%s]"), *GetFullNameSafe(GetOwner()), *GetFullNameSafe(GetWorld())))
+	{
+		return;
+	}
+
+	// Submit async tile build tasks in case we have dirty tiles and have room for them
 	const int32 NumRunningTasks = NavSys->GetNumRunningBuildTasks();
 	// this is a temp solution to enforce only one worker thread if GatherGeometryOnGameThread == false
 	// due to missing safety features

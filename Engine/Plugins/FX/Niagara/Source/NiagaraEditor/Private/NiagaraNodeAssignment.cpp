@@ -344,9 +344,11 @@ void UNiagaraNodeAssignment::CollectCreateNewActions(ENiagaraScriptUsage InUsage
 			const FText TypeText = AvailableType.GetNameText();
 			const FText TooltipDesc = FText::Format(LOCTEXT("NewParameterModuleDescriptionFormat", "Description: Create a new {0} parameter. {1}"), TypeText, VarDesc);
 			FText Category = LOCTEXT("NewParameterModuleCategory", "Create New Parameter");
+			FText SubCategory = FNiagaraEditorUtilities::GetVariableTypeCategory(NewParameter);
+			FText FullCategory = SubCategory.IsEmpty() ? Category : FText::Format(FText::FromString("{0}|{1}"), Category, SubCategory);
 
 			TSharedRef<FNiagaraMenuAction> CreateNewAction = MakeShareable<FNiagaraMenuAction>(new FNiagaraMenuAction(
-				Category, TypeText, TooltipDesc,
+				FullCategory, TypeText, TooltipDesc,
 				0, FText(),
 				FNiagaraMenuAction::FOnExecuteStackAction::CreateUObject(this, &UNiagaraNodeAssignment::AddParameter, NewParameter, VarDefaultValue)));
 			OutCreateNewActions.Add(CreateNewAction);

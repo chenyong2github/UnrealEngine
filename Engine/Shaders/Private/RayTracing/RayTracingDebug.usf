@@ -35,6 +35,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingDebugMainRGS)
 		InstanceInclusionMask,
 		Ray,
 		RayCone,
+		PixelCoord,
 		bEnableSkyLightContribution,
 		bIgnoreTranslucentMaterials);
 

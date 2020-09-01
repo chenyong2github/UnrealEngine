@@ -183,23 +183,22 @@ void UPolygonSelectionMechanic::NotifyMeshChanged(bool bTopologyModified)
 }
 
 
-bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit)
+bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, bool bUseOrthoSettings)
 {
 	FGroupTopologySelection Selection;
-	return TopologyHitTest(WorldRay, OutHit, Selection);
+	return TopologyHitTest(WorldRay, OutHit, Selection, bUseOrthoSettings);
 }
 
-bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection)
+bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection, bool bUseOrthoSettings)
 {
 	FRay3d LocalRay(TargetTransform.InverseTransformPosition(WorldRay.Origin),
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
-	UpdateTopoSelector();
-
 	FVector3d LocalPosition, LocalNormal;
 	int32 EdgeSegmentId; // Only used if hit is an edge
-	if (TopoSelector.FindSelectedElement(LocalRay, OutSelection, LocalPosition, LocalNormal, &EdgeSegmentId) == false)
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(bUseOrthoSettings);
+	if (TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, OutSelection, LocalPosition, LocalNormal, &EdgeSegmentId) == false)
 	{
 		return false;
 	}
@@ -244,28 +243,29 @@ bool UPolygonSelectionMechanic::TopologyHitTest(const FRay& WorldRay, FHitResult
 
 
 
-void UPolygonSelectionMechanic::UpdateTopoSelector(bool bUseOrthoSettings)
+FGroupTopologySelector::FSelectionSettings UPolygonSelectionMechanic::GetTopoSelectorSettings(bool bUseOrthoSettings)
 {
-	bool bFaces = Properties->bSelectFaces;
-	bool bEdges = Properties->bSelectEdges;
-	bool bVertices = Properties->bSelectVertices;
+	FGroupTopologySelector::FSelectionSettings Settings;
+
+	Settings.bEnableFaceHits = Properties->bSelectFaces;
+	Settings.bEnableEdgeHits = Properties->bSelectEdges;
+	Settings.bEnableCornerHits = Properties->bSelectVertices;
 
 	if (PersistentSelection.IsEmpty() == false && GetAddToSelectionModifierStateFunc() == true)
 	{
-		bFaces = bFaces && PersistentSelection.SelectedGroupIDs.Num() > 0;
-		bEdges = bEdges && PersistentSelection.SelectedEdgeIDs.Num() > 0;
-		bVertices = bVertices && PersistentSelection.SelectedCornerIDs.Num() > 0;
+		Settings.bEnableFaceHits = Settings.bEnableFaceHits && PersistentSelection.SelectedGroupIDs.Num() > 0;
+		Settings.bEnableEdgeHits = Settings.bEnableEdgeHits && PersistentSelection.SelectedEdgeIDs.Num() > 0;
+		Settings.bEnableCornerHits = Settings.bEnableCornerHits && PersistentSelection.SelectedCornerIDs.Num() > 0;
 	}
 
-	TopoSelector.UpdateEnableFlags(bFaces, bEdges, bVertices);
 	if (bUseOrthoSettings)
 	{
-		TopoSelector.UpdateSelectionModeFlags(Properties->bPreferProjectedElement, Properties->bSelectDownRay, Properties->bIgnoreOcclusion);
+		Settings.bPreferProjectedElement = Properties->bPreferProjectedElement;
+		Settings.bSelectDownRay = Properties->bSelectDownRay;
+		Settings.bIgnoreOcclusion = Properties->bIgnoreOcclusion;
 	}
-	else
-	{
-		TopoSelector.UpdateSelectionModeFlags(false, false, false);
-	}
+
+	return Settings;
 }
 
 
@@ -280,9 +280,14 @@ bool UPolygonSelectionMechanic::UpdateHighlight(const FRay& WorldRay)
 	LocalRay.Direction.Normalize();
 
 	HilightSelection.Clear();
-	UpdateTopoSelector(CameraState.bIsOrthographic);
 	FVector3d LocalPosition, LocalNormal;
-	bool bHit = TopoSelector.FindSelectedElement(LocalRay, HilightSelection, LocalPosition, LocalNormal);
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(CameraState.bIsOrthographic);
+	bool bHit = TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, HilightSelection, LocalPosition, LocalNormal);
+
+	if (HilightSelection.SelectedEdgeIDs.Num() > 0 && ShouldSelectEdgeLoopsFunc())
+	{
+		TopoSelector.ExpandSelectionByEdgeLoops(HilightSelection);
+	}
 
 	// Currently we draw highlighted edges/vertices differently from highlighted faces. Edges/vertices
 	// get drawn in the Render() call, so it is sufficient to just update HighlightSelection above.
@@ -343,23 +348,55 @@ bool UPolygonSelectionMechanic::UpdateSelection(const FRay& WorldRay, FVector3d&
 		TargetTransform.InverseTransformVector(WorldRay.Direction));
 	LocalRay.Direction.Normalize();
 
-	UpdateTopoSelector(CameraState.bIsOrthographic);
-
 	bool bSelectionModified = false;
 	FVector3d LocalPosition, LocalNormal;
 	FGroupTopologySelection Selection;
-	if (TopoSelector.FindSelectedElement(LocalRay, Selection, LocalPosition, LocalNormal))
+	FGroupTopologySelector::FSelectionSettings TopoSelectorSettings = GetTopoSelectorSettings(CameraState.bIsOrthographic);
+	if (TopoSelector.FindSelectedElement(TopoSelectorSettings, LocalRay, Selection, LocalPosition, LocalNormal))
 	{
 		LocalHitPositionOut = LocalPosition;
 		LocalHitNormalOut = LocalNormal;
+
+		bool bSelectedEdgeLoops = false;
+		if (Selection.SelectedEdgeIDs.Num() > 0 && ShouldSelectEdgeLoopsFunc())
+		{
+			bSelectedEdgeLoops = true;
+			TopoSelector.ExpandSelectionByEdgeLoops(Selection);
+		}
 		if (GetAddToSelectionModifierStateFunc())
 		{
-			PersistentSelection.Toggle(Selection);
+			if (bSelectedEdgeLoops)
+			{
+				// We don't want to toggle if we're adding loops to the selection
+				// unless the entire loop was selected to begin with.
+				bool bLoopsAlreadySelected = true;
+				for (int32 Eid : Selection.SelectedEdgeIDs)
+				{
+					if (!PersistentSelection.SelectedEdgeIDs.Contains(Eid))
+					{
+						bLoopsAlreadySelected = false;
+						break;
+					}
+				}
+				if (bLoopsAlreadySelected)
+				{
+					PersistentSelection.Remove(Selection);
+				}
+				else
+				{
+					PersistentSelection.Append(Selection);
+				}
+			}
+			else
+			{
+				PersistentSelection.Toggle(Selection);
+			}
 		}
 		else
 		{
 			PersistentSelection = Selection;
 		}
+
 		bSelectionModified = true;
 	}
 	else

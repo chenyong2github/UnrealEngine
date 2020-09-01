@@ -528,6 +528,8 @@ FPostProcessSettings::FPostProcessSettings()
 	AmbientOcclusionTemporalBlendWeight = 0.1f;
 	RayTracingAO = 1;
 	RayTracingAOSamplesPerPixel = 1;
+	RayTracingAOIntensity = 1.0;
+	RayTracingAORadius = 200.0f;
 	IndirectLightingColor = FLinearColor(1.0f, 1.0f, 1.0f);
 	IndirectLightingIntensity = 1.0f;
 	ColorGradingIntensity = 1.0f;
@@ -716,6 +718,8 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, bOverride_AmbientOcclusionTemporalBlendWeight(Settings.bOverride_AmbientOcclusionTemporalBlendWeight)
 	, bOverride_RayTracingAO(Settings.bOverride_RayTracingAO)
 	, bOverride_RayTracingAOSamplesPerPixel(Settings.bOverride_RayTracingAOSamplesPerPixel)
+	, bOverride_RayTracingAOIntensity(Settings.bOverride_RayTracingAOIntensity)
+	, bOverride_RayTracingAORadius(Settings.bOverride_RayTracingAORadius)
 	, bOverride_LPVIntensity(Settings.bOverride_LPVIntensity)
 	, bOverride_LPVDirectionalOcclusionIntensity(Settings.bOverride_LPVDirectionalOcclusionIntensity)
 	, bOverride_LPVDirectionalOcclusionRadius(Settings.bOverride_LPVDirectionalOcclusionRadius)
@@ -899,6 +903,8 @@ FPostProcessSettings::FPostProcessSettings(const FPostProcessSettings& Settings)
 	, AmbientOcclusionTemporalBlendWeight(Settings.AmbientOcclusionTemporalBlendWeight)
 	, RayTracingAO(Settings.RayTracingAO)
 	, RayTracingAOSamplesPerPixel(Settings.RayTracingAOSamplesPerPixel)
+	, RayTracingAOIntensity(Settings.RayTracingAOIntensity)
+	, RayTracingAORadius(Settings.RayTracingAORadius)
 	, IndirectLightingColor(Settings.IndirectLightingColor)
 	, IndirectLightingIntensity(Settings.IndirectLightingIntensity)
 	, RayTracingGIType(Settings.RayTracingGIType)

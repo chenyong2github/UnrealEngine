@@ -87,11 +87,13 @@ public:
 	static void InitCDOPropertiesAfterModuleStartup();
 
 	//UNiagaraRendererProperties interface
-	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) override;
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent) override;
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override;
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override;
-	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };
+	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return true; };	
+	virtual bool PopulateRequiredBindings(FNiagaraParameterStore& InParameterStore)  override;
 #if WITH_EDITOR
+	virtual void RenameEmitter(const FName& InOldName, const UNiagaraEmitter* InRenamedEmitter) override;
 	virtual bool IsMaterialValidForRenderer(UMaterial* Material, FText& InvalidMessage) override;
 	virtual void FixMaterial(UMaterial* Material) override;
 	virtual const TArray<FNiagaraVariable>& GetOptionalAttributes() override;
@@ -99,6 +101,8 @@ public:
 	virtual void GetRendererTooltipWidgets(const FNiagaraEmitterInstance* InEmitter, TArray<TSharedPtr<SWidget>>& OutWidgets, TSharedPtr<FAssetThumbnailPool> InThumbnailPool) const override;
 	virtual void GetRendererFeedback(const UNiagaraEmitter* InEmitter, TArray<FText>& OutErrors, TArray<FText>& OutWarnings, TArray<FText>& OutInfo) const override;
 #endif
+	virtual ENiagaraRendererSourceDataMode GetCurrentSourceMode() const override { return SourceMode; }
+
 	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
 	//UNiagaraMaterialRendererProperties interface END
 
@@ -108,6 +112,10 @@ public:
 	/** The material used to render the particle. Note that it must have the Use with Niagara Sprites flag checked.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
 	UMaterialInterface* Material;
+
+	/** Whether or not to draw a single element for the Emitter or to draw the particles.*/
+	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
+	ENiagaraRendererSourceDataMode SourceMode;
 
 	/** Use the UMaterialInterface bound to this user variable if it is set to a valid value. If this is bound to a valid value and Material is also set, UserParamBinding wins.*/
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering")
@@ -144,6 +152,14 @@ public:
 	/** If true, the particles are only sorted when using a translucent material. */
 	UPROPERTY(EditAnywhere, Category = "Sorting")
 	uint32 bSortOnlyWhenTranslucent : 1;
+
+	/**
+	If true and a GPU emitter, we will use the current frames data to render with regardless of where the batcher may execute the dispatches.
+	If you have other emitters that are not translucent and using data that forces it to be a frame latent (i.e. view uniform buffer) you may need to disable
+	on renderers with translucent materials if you need the frame they are reading to match exactly.
+	*/
+	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = "Rendering")
+	uint32 bGpuLowLatencyTranslucency : 1;
 
 	/** When FacingMode is FacingCameraDistanceBlend, the distance at which the sprite is fully facing the camera plane. */
 	UPROPERTY(EditAnywhere, Category = "Sprite Rendering", meta = (UIMin = "0"))
@@ -221,9 +237,17 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Bindings")
 	FNiagaraVariableAttributeBinding NormalizedAgeBinding;
 
+	/** If this array has entries, we will create a MaterialInstanceDynamic per Emitter instance from Material and set the Material parameters using the Niagara simulation variables listed.*/
+	UPROPERTY(EditAnywhere, Category = "Bindings")
+	TArray< FNiagaraMaterialAttributeBinding > MaterialParameterBindings;
+
 	void InitBindings();
 
+	virtual bool NeedsMIDsForMaterials() const { return MaterialParameterBindings.Num() > 0; }
+
+
 #if WITH_EDITORONLY_DATA
+	virtual bool IsSupportedVariableForBinding(const FNiagaraVariableBase& InSourceForBinding, const FName& InTargetBindingName) const override;
 
 	/** Use the cutout texture from the material opacity mask, or if none exist, from the material opacity.	*/
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = "Cutout")
@@ -260,7 +284,7 @@ public:
 	FNiagaraRendererLayout RendererLayoutWithCustomSort;
 	FNiagaraRendererLayout RendererLayoutWithoutCustomSort;
 	uint32 MaterialParamValidMask = 0;
-
+	
 private:
 	/** Derived data for this asset, generated off of SubUVTexture. */
 	FSubUVDerivedData DerivedData;

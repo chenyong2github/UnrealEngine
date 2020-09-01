@@ -69,6 +69,12 @@ public:
 	/** Insert a line with the given ID to the overlay */
 	void InsertLine(const int32 ID, const FRenderableLine& OverlayLine);
 
+	/** Changes the start coordinates of a line */
+	void SetLineStart(const int32 ID, const FVector& NewPostion);
+
+	/** Changes the end coordinates of a line */
+	void SetLineEnd(const int32 ID, const FVector& NewPostion);
+
 	/** Sets the color of a line */
 	void SetLineColor(const int32 ID, const FColor& NewColor);
 

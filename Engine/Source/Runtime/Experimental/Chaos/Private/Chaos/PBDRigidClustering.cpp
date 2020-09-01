@@ -623,7 +623,14 @@ namespace Chaos
 						if(!ActiveCluster->Disabled())
 						{
 							// If this is an external cluster (from the rest collection) we release its children and append them to the current group
-							TSet<TPBDRigidParticleHandle<T, 3>*> Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+							TSet<TPBDRigidParticleHandle<T, 3>*> Children;
+							
+							{
+								// First disable breaking data generation - this is not a break we're just reclustering under a dynamic parent.
+								TGuardValue<bool> BreakFlagGuard(DoGenerateBreakingData, false);
+								Children = ReleaseClusterParticles(ActiveCluster, nullptr, true);
+							}
+
 							NewClusterGroups[ClusterGroupID].Append(Children.Array());
 							
 							for(TPBDRigidParticleHandle<T, 3>* Child : Children)
@@ -1102,7 +1109,7 @@ namespace Chaos
 		TMap<TPBDRigidClusteredParticleHandle<T,d>*, TSet<TPBDRigidParticleHandle<T, d>*>> AllActivatedChildren;
 
 		auto NonDisabledClusteredParticles = MEvolution.GetNonDisabledClusteredArray(); //make copy because release cluster modifies active indices. We want to iterate over original active indices
-		for (auto ClusteredParticle : NonDisabledClusteredParticles)
+		for (Chaos::TPBDRigidClusteredParticleHandleImp<float, 3, true>* ClusteredParticle : NonDisabledClusteredParticles)
 		{
 			if (ClusteredParticle->ClusterIds().NumChildren)
 			{
@@ -1596,6 +1603,12 @@ namespace Chaos
 	float MinImpulseForStrainEval = 980 * 2 * 1.f / 30.f; //ignore impulses caused by just keeping object on ground. This is a total hack, we should not use accumulated impulse directly. Instead we need to look at delta v along constraint normal
 	FAutoConsoleVariableRef CVarMinImpulseForStrainEval(TEXT("p.chaos.MinImpulseForStrainEval"), MinImpulseForStrainEval, TEXT("Minimum accumulated impulse before accumulating for strain eval "));
 
+	bool bUseContactSpeedForStrainThreshold = true;
+	FAutoConsoleVariableRef CVarUseContactSpeedForStrainEval(TEXT("p.chaos.UseContactSpeedForStrainEval"), bUseContactSpeedForStrainThreshold, TEXT("Whether to use contact speed to discard contacts when updating cluster strain (true: use speed, false: use impulse)"));
+
+	float MinContactSpeedForStrainEval = 1.0f; // Ignore contacts where the two bodies are resting together
+	FAutoConsoleVariableRef CVarMinContactSpeedForStrainEval(TEXT("p.chaos.MinContactSpeedForStrainEval"), MinContactSpeedForStrainEval, TEXT("Minimum speed at the contact before accumulating for strain eval "));
+
 	DECLARE_CYCLE_STAT(TEXT("ComputeStrainFromCollision"), STAT_ComputeStrainFromCollision, STATGROUP_Chaos);
 	template<class T_FPBDRigidsEvolution, class T_FPBDCollisionConstraint, class T, int d>
 	void TPBDRigidClustering<T_FPBDRigidsEvolution, T_FPBDCollisionConstraint, T, d>::ComputeStrainFromCollision(
@@ -1608,7 +1621,25 @@ namespace Chaos
 
 		for (const Chaos::FPBDCollisionConstraintHandle* ContactHandle : CollisionRule.GetConstConstraintHandles())
 		{
-			if (ContactHandle->GetAccumulatedImpulse().Size() < MinImpulseForStrainEval)
+			TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
+			const TPBDRigidParticleHandle<T, d>* Rigid0 = ConstrainedParticles[0]->CastToRigidParticle();
+			const TPBDRigidParticleHandle<T, d>* Rigid1 = ConstrainedParticles[1]->CastToRigidParticle();
+
+			if(bUseContactSpeedForStrainThreshold)
+			{
+				// Get dV between the two particles and project onto the normal to get the approach speed (take PreV as V is the new velocity post-solve)
+				const TVector<T, d> V0 = Rigid0 ? Rigid0->PreV() : TVector<T, d>(0);
+				const TVector<T, d> V1 = Rigid1 ? Rigid1->PreV() : TVector<T, d>(0);
+				const TVector<T, d> DeltaV = V0 - V1;
+				const T SpeedAlongNormal = TVector<T, d>::DotProduct(DeltaV, ContactHandle->GetContact().GetNormal());
+
+				// If we're not approaching at more than the min speed, reject the contact
+				if(SpeedAlongNormal > -MinContactSpeedForStrainEval && ContactHandle->GetAccumulatedImpulse().SizeSquared() > T(0))
+				{
+					continue;
+				}
+			}
+			else if(ContactHandle->GetAccumulatedImpulse().Size() < MinImpulseForStrainEval)
 			{
 				continue;
 			}
@@ -1660,7 +1691,6 @@ namespace Chaos
 				}
 			};
 
-			TVector<const TGeometryParticleHandle<T, d>*, 2> ConstrainedParticles = ContactHandle->GetConstrainedParticles();
 			if (const TArray<TPBDRigidParticleHandle<T, d>*>* ChildrenPtr = MParentToChildren.Find(ConstrainedParticles[0]->CastToRigidParticle()))
 			{
 				ComputeStrainLambda(ConstrainedParticles[0]->CastToClustered(), *ChildrenPtr);

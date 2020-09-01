@@ -2,7 +2,7 @@
 
 #include "Sections/MovieSceneLevelVisibilitySection.h"
 #include "MovieSceneTracksComponentTypes.h"
-#include "Evaluation/MovieSceneLevelVisibilityTemplate.h"
+#include "Systems/MovieSceneLevelVisibilitySystem.h"
 
 
 UMovieSceneLevelVisibilitySection::UMovieSceneLevelVisibilitySection( const FObjectInitializer& ObjectInitializer )

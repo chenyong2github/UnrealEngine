@@ -174,7 +174,7 @@ void FNDIVelocityGridParametersCS::Set(FRHICommandList& RHICmdList, const FNiaga
 	FNDIVelocityGridProxy* InterfaceProxy =
 		static_cast<FNDIVelocityGridProxy*>(Context.DataInterface);
 	FNDIVelocityGridData* ProxyData =
-		InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
+		InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 	if (ProxyData != nullptr && ProxyData->CurrentGridBuffer != nullptr && ProxyData->DestinationGridBuffer != nullptr
 		&& ProxyData->CurrentGridBuffer->IsInitialized() && ProxyData->DestinationGridBuffer->IsInitialized())
@@ -264,7 +264,7 @@ bool UNiagaraDataInterfaceVelocityGrid::PerInstanceTick(void* PerInstanceData, F
 	bool RequireReset = false;
 	if (InstanceData)
 	{
-		InstanceData->WorldTransform = SystemInstance->GetComponent()->GetComponentToWorld().ToMatrixWithScale();
+		InstanceData->WorldTransform = SystemInstance->GetWorldTransform().ToMatrixWithScale();
 
 		if (InstanceData->NeedResize)
 		{
@@ -623,10 +623,10 @@ void FNDIVelocityGridProxy::ConsumePerInstanceDataFromGameThread(void* PerInstan
 	}
 }
 
-void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	FNDIVelocityGridData* ProxyData =
-		SystemInstancesToProxyData.Find(Context.SystemInstance);
+		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 	if (ProxyData != nullptr )
 	{
@@ -637,10 +637,10 @@ void FNDIVelocityGridProxy::PreStage(FRHICommandList& RHICmdList, const FNiagara
 	}
 }
 
-void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	FNDIVelocityGridData* ProxyData =
-		SystemInstancesToProxyData.Find(Context.SystemInstance);
+		SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 	if (ProxyData != nullptr)
 	{
@@ -651,9 +651,9 @@ void FNDIVelocityGridProxy::PostStage(FRHICommandList& RHICmdList, const FNiagar
 	}
 }
 
-void FNDIVelocityGridProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNDIVelocityGridProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-	FNDIVelocityGridData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstance);
+	FNDIVelocityGridData* ProxyData = SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 	if (ProxyData != nullptr && ProxyData->DestinationGridBuffer != nullptr && ProxyData->CurrentGridBuffer != nullptr)
 	{

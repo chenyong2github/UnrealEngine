@@ -15,6 +15,7 @@
 #include "UObject/CoreNet.h"
 #include "EngineLogs.h"
 #include "UObject/UnrealType.h"
+#include "Engine/EngineBaseTypes.h"
 
 class AActor;
 
@@ -45,6 +46,13 @@ typedef TMap<FString, TArray<uint8>> FDemoFrameDataMap;
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnWriteGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, FDemoFrameDataMap& /*Data*/);
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnProcessGameSpecificFrameData, UWorld* /*World*/, float /*FrameTime*/, const FDemoFrameDataMap& /*Data*/);
 
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayStartedDelegate, UWorld* /*World*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnReplayStartFailureDelegate, UWorld* /*World*/, EDemoPlayFailure::Type /*Error*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayScrubCompleteDelegate, UWorld* /*World*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayPlaybackCompleteDelegate, UWorld* /*World*/);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnReplayRecordingCompleteDelegate, UWorld* /*World*/);
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnPauseChannelsChangedDelegate, UWorld* /*World*/, bool /*bPaused*/);
+
 struct ENGINE_API FNetworkReplayDelegates
 {
 	/** global delegate called one time prior to scrubbing */
@@ -57,6 +65,24 @@ struct ENGINE_API FNetworkReplayDelegates
 	/** Game specific per frame data */
 	static FOnWriteGameSpecificFrameData OnWriteGameSpecificFrameData;
 	static FOnProcessGameSpecificFrameData OnProcessGameSpecificFrameData;
+
+	/** Public delegate for external systems to be notified when a replay begins */
+	static FOnReplayStartedDelegate OnReplayStarted;
+
+	/** Public delegate to be notified when a replay failed to start */
+	static FOnReplayStartFailureDelegate OnReplayStartFailure;
+
+	/** Public delegate for external systems to be notified when scrubbing is complete. Only called for successful scrub. */
+	static FOnReplayScrubCompleteDelegate OnReplayScrubComplete;
+
+	/** Delegate for external systems to be notified when playback ends */
+	static FOnReplayPlaybackCompleteDelegate OnReplayPlaybackComplete;
+
+	/** Public Delegate for external systems to be notified when replay recording is about to finish. */
+	static FOnReplayRecordingCompleteDelegate OnReplayRecordingComplete;
+
+	/** Delegate for external systems to be notified when channels are paused during playback, usually waiting for data to be available. */
+	static FOnPauseChannelsChangedDelegate OnPauseChannelsChanged;
 };
 
 /**

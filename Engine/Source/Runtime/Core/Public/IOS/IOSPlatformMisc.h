@@ -92,8 +92,6 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 	static int GetDefaultStackSize();
 	static void HandleLowMemoryWarning();
 	static bool IsPackagedForDistribution();
-	UE_DEPRECATED(4.14, "GetUniqueDeviceId is deprecated. Use GetDeviceId instead.")
-	static FString GetUniqueDeviceId();
 	/**
 	 * Implemented using UIDevice::identifierForVendor,
 	 * so all the caveats that apply to that API call apply here.
@@ -200,6 +198,8 @@ struct CORE_API FIOSPlatformMisc : public FApplePlatformMisc
 		OutputDevice = 7;
 		ColorGamut = 0;
 	}
+
+	static int32 GetMaxRefreshRate();
 
     // added these for now because Crashlytics doesn't properly break up different callstacks all ending in UE_LOG(LogXXX, Fatal, ...)
     static FORCENOINLINE CA_NO_RETURN void GPUAssert();

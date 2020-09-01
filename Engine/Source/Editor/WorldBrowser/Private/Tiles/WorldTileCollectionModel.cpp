@@ -2263,6 +2263,11 @@ bool FWorldTileCollectionModel::GenerateLODLevels(FLevelModelList InLevelList, i
 			// Destroy the new world we created and collect the garbage
 			LODWorld->ClearFlags(RF_Public | RF_Standalone);
 			LODWorld->DestroyWorld(false);
+			// Also, make sure to release generated assets
+			for (UObject* Asset : GeneratedAssets)
+			{
+				Asset->ClearFlags(RF_Standalone);
+			}
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 	}

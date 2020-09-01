@@ -886,7 +886,14 @@ bool FDeferredShadingSceneRenderer::RenderDistanceFieldLighting(
 
 bool FDeferredShadingSceneRenderer::ShouldRenderDistanceFieldAO() const
 {
-	return ViewFamily.EngineShowFlags.DistanceFieldAO 
+	bool bShouldRenderRTAO = false;
+	for (int ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
+	{
+		bShouldRenderRTAO = bShouldRenderRTAO || ShouldRenderRayTracingAmbientOcclusion(Views[ViewIndex]);
+	}
+
+	return ViewFamily.EngineShowFlags.DistanceFieldAO
+		&& !bShouldRenderRTAO
 		&& !ViewFamily.EngineShowFlags.VisualizeDistanceFieldAO
 		&& !ViewFamily.EngineShowFlags.VisualizeMeshDistanceFields
 		&& !ViewFamily.EngineShowFlags.VisualizeGlobalDistanceField;

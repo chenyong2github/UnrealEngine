@@ -12,7 +12,6 @@
 #include "NiagaraDataInterface.h"
 
 class FNiagaraWorldManager;
-class UNiagaraComponent;
 class FNiagaraSystemInstance;
 class FNiagaraSystemSimulation;
 class NiagaraEmitterInstanceBatcher;
@@ -24,10 +23,12 @@ class NIAGARA_API FNiagaraSystemInstance
 	friend class FNiagaraGPUSystemTick;
 
 public:
+	DECLARE_DELEGATE(FOnPostTick);
+
+#if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnInitialized);
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnComplete, FNiagaraSystemInstance*);
 	
-#if WITH_EDITOR
 	DECLARE_MULTICAST_DELEGATE(FOnReset);
 	DECLARE_MULTICAST_DELEGATE(FOnDestroyed);
 #endif
@@ -39,7 +40,7 @@ public:
 	{
 		/** Resets the System instance and simulations. */
 		ResetAll,
-		/** Resets the System instance but not the simualtions */
+		/** Resets the System instance but not the simulations */
 		ResetSystem,
 		/** Full reinitialization of the system and emitters.  */
 		ReInit,
@@ -49,8 +50,9 @@ public:
 
 	FORCEINLINE bool GetAreDataInterfacesInitialized() const { return bDataInterfacesInitialized; }
 
-	/** Creates a new niagara System instance with the supplied component. */
-	explicit FNiagaraSystemInstance(UNiagaraComponent* InComponent);
+	/** Creates a new Niagara system instance. */
+	FNiagaraSystemInstance(UWorld& InWorld, UNiagaraSystem& InAsset, FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr,
+		USceneComponent* InAttachComponent = nullptr, ENiagaraTickBehavior InTickBehavior = ENiagaraTickBehavior::UsePrereqs, bool bInPooled = false);
 
 	/** Cleanup*/
 	virtual ~FNiagaraSystemInstance();
@@ -64,7 +66,7 @@ public:
 	void Deactivate(bool bImmediate = false);
 	void Complete();
 
-	void OnPooledReuse();
+	void OnPooledReuse(UWorld& NewWorld);
 
 	void SetPaused(bool bInPaused);
 	FORCEINLINE bool IsPaused()const { return bPaused; }
@@ -109,7 +111,7 @@ public:
 	/** Requests the the simulation be reset on the next tick. */
 	void Reset(EResetMode Mode);
 
-	void ComponentTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
+	void ManualTick(float DeltaSeconds, const FGraphEventRef& MyCompletionGraphEvent);
 
 	/** Initial phase of system instance tick. Must be executed on the game thread. */
 	void Tick_GameThread(float DeltaSeconds);
@@ -165,8 +167,10 @@ public:
 	/** Gets the simulation for the supplied emitter handle. */
 	TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> GetSimulationForHandle(const FNiagaraEmitterHandle& EmitterHandle);
 
-	UNiagaraSystem* GetSystem()const;
-	FORCEINLINE UNiagaraComponent *GetComponent() { return Component; }
+	FORCEINLINE UWorld* GetWorld() const { return World; }
+	FORCEINLINE UNiagaraSystem* GetSystem() const { return Asset.Get(); }
+	FORCEINLINE USceneComponent* GetAttachComponent() { return AttachComponent.Get(); }
+	FORCEINLINE FNiagaraUserRedirectionParameterStore* GetOverrideParameters() { return OverrideParameters; }
 	FORCEINLINE TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > &GetEmitters() { return Emitters; }
 	FORCEINLINE const TArray<TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> >& GetEmitters() const { return Emitters; }
 	FORCEINLINE const FBox& GetLocalBounds() { return LocalBounds;  }
@@ -177,6 +181,9 @@ public:
 	FORCEINLINE bool IsSolo()const { return bSolo; }
 
 	FORCEINLINE bool NeedsGPUTick()const{ return ActiveGPUEmitterCount > 0 /*&& Component->IsRegistered()*/ && !IsComplete();}
+
+	/** Gets a multicast delegate which is called after this instance has finished ticking for the frame on the game thread */
+	FORCEINLINE void SetOnPostTick(const FOnPostTick& InPostTickDelegate) { OnPostTickDelegate = InPostTickDelegate; }
 
 #if WITH_EDITOR
 	/** Gets a multicast delegate which is called whenever this instance is initialized with an System asset. */
@@ -207,16 +214,23 @@ public:
 		return nullptr;
 	}
 
-	bool UsesEmitter(const UNiagaraEmitter* Emitter)const;
-	bool UsesScript(const UNiagaraScript* Script)const;
-	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
-	bool UsesCollection(const UNiagaraParameterCollection* Collection)const;
+	FORCEINLINE const FNiagaraPerInstanceDIFuncInfo& GetPerInstanceDIFunction(ENiagaraSystemSimulationScript ScriptType, int32 FuncIndex)const { return PerInstanceDIFunctions[(int32)ScriptType][FuncIndex]; }
 
-	FORCEINLINE bool IsPendingSpawn()const { return bPendingSpawn; }
+#if WITH_EDITORONLY_DATA
+	bool UsesEmitter(const UNiagaraEmitter* Emitter) const;
+	bool UsesScript(const UNiagaraScript* Script) const;
+	//bool UsesDataInterface(UNiagaraDataInterface* Interface);
+	bool UsesCollection(const UNiagaraParameterCollection* Collection) const;
+#endif
+
+	FORCEINLINE bool IsPendingSpawn() const { return bPendingSpawn; }
 	FORCEINLINE void SetPendingSpawn(bool bInValue) { bPendingSpawn = bInValue; }
 
-	FORCEINLINE float GetAge()const { return Age; }
+	FORCEINLINE float GetAge() const { return Age; }
 	FORCEINLINE int32 GetTickCount() const { return TickCount; }
+
+	FORCEINLINE float GetLastRenderTime() const { return LastRenderTime; }
+	FORCEINLINE void SetLastRenderTime(float TimeSeconds) { LastRenderTime = TimeSeconds; }
 	
 	FORCEINLINE TSharedPtr<FNiagaraSystemSimulation, ESPMode::ThreadSafe> GetSystemSimulation()const
 	{
@@ -262,8 +276,10 @@ public:
 
 	NiagaraEmitterInstanceBatcher* GetBatcher() const { return Batcher; }
 
-	static bool AllocateSystemInstance(class UNiagaraComponent* InComponent, TUniquePtr< FNiagaraSystemInstance >& OutSystemInstanceAllocation);
-	static bool DeallocateSystemInstance(TUniquePtr< FNiagaraSystemInstance >& SystemInstanceAllocation);
+	static bool AllocateSystemInstance(TUniquePtr<FNiagaraSystemInstance>& OutSystemInstanceAllocation, UWorld& InWorld, UNiagaraSystem& InAsset,
+		FNiagaraUserRedirectionParameterStore* InOverrideParameters = nullptr, USceneComponent* InAttachComponent = nullptr,
+		ENiagaraTickBehavior InTickBehavior = ENiagaraTickBehavior::UsePrereqs, bool bInPooled = false);
+	static bool DeallocateSystemInstance(TUniquePtr<FNiagaraSystemInstance>& SystemInstanceAllocation);
 	/*void SetHasGPUEmitters(bool bInHasGPUEmitters) { bHasGPUEmitters = bInHasGPUEmitters; }*/
 	bool HasGPUEmitters() { return bHasGPUEmitters;  }
 
@@ -287,6 +303,7 @@ public:
 
 #if WITH_EDITOR
 	void RaiseNeedsUIResync();
+	bool HandleNeedsUIResync();
 #endif
 
 	/** Get the current tick behavior */
@@ -300,6 +317,16 @@ public:
 	bool EnqueueComponentUpdateTask(const FNiagaraComponentUpdateTask& Task)
 	{
 		return ComponentTasks.Enqueue(Task);
+	}
+
+	/** Gets the current world transform of the system */
+	FORCEINLINE const FTransform& GetWorldTransform() const { return WorldTransform; }
+	/** Sets the world transform */
+	FORCEINLINE void SetWorldTransform(const FTransform& InTransform) { WorldTransform = InTransform; }
+
+	int32 GetSystemInstanceIndex() const 
+	{
+		return SystemInstanceIndex;
 	}
 
 private:
@@ -329,14 +356,21 @@ private:
 
 	TSharedPtr<class FNiagaraSystemSimulation, ESPMode::ThreadSafe> SystemSimulation;
 
-	UNiagaraComponent* Component;
-
+	UWorld* World;
+	TWeakObjectPtr<UNiagaraSystem> Asset;
+	FNiagaraUserRedirectionParameterStore* OverrideParameters;
+	TWeakObjectPtr<USceneComponent> AttachComponent;
 	UActorComponent* PrereqComponent;
+
+	FTransform WorldTransform;
 
 	ENiagaraTickBehavior TickBehavior;
 
 	/** The age of the System instance. */
 	float Age;
+
+	/** The last time this system rendered */
+	float LastRenderTime;
 
 	/** The tick count of the System instance. */
 	int32 TickCount;
@@ -346,6 +380,8 @@ private:
 	float MaxLODDistance;
 
 	TArray< TSharedRef<FNiagaraEmitterInstance, ESPMode::ThreadSafe> > Emitters;
+
+	FOnPostTick OnPostTickDelegate;
 
 #if WITH_EDITOR
 	FOnInitialized OnInitializedDelegate;
@@ -359,7 +395,7 @@ private:
 	TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe> CurrentCapture;
 	TSharedPtr<FGuid, ESPMode::ThreadSafe> CurrentCaptureGuid;
 	bool bWasSoloPriorToCaptureRequest;
-	TMap<FGuid, TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe> > CapturedFrames;
+	TMap<FGuid, TSharedPtr<TArray<TSharedPtr<struct FNiagaraScriptDebuggerInfo, ESPMode::ThreadSafe>>, ESPMode::ThreadSafe>> CapturedFrames;
 #endif
 
 	FNiagaraSystemInstanceID ID;
@@ -372,6 +408,11 @@ private:
 
 	/** Map of data interfaces to their instance data. */
 	TArray<TPair<TWeakObjectPtr<UNiagaraDataInterface>, int32>> DataInterfaceInstanceDataOffsets;
+
+	/** 
+	A set of function bindings for DI calls that must be made per system instance.
+	*/
+	TArray<FNiagaraPerInstanceDIFuncInfo> PerInstanceDIFunctions[(int32)ENiagaraSystemSimulationScript::Num];
 
 	/** Per system instance parameters. These can be fed by the component and are placed into a dataset for execution for the system scripts. */
 	FNiagaraParameterStore InstanceParameters;
@@ -405,9 +446,6 @@ private:
 	/** The system contains data interfaces that can have tick group prerequisites. */
 	uint32 bDataInterfacesHaveTickPrereqs : 1;
 
-	/** True if our bounds have changed and we require pushing that to the rendering thread. */
-	uint32 bIsTransformDirty : 1;
-
 	/** True if we require a call to FinalizeTick_GameThread(). Typically this is called from a GT task but can be called in WaitForAsync. */
 	uint32 bNeedsFinalize : 1;
 
@@ -416,6 +454,13 @@ private:
 	uint32 bAlreadyBound : 1;
 
 	uint32 bLODDistanceIsValid : 1;
+
+	/** True if the system instance is pooled. Prevents unbinding of parameters on completing the system */
+	uint32 bPooled : 1;
+
+#if WITH_EDITOR
+	uint32 bNeedsUIResync : 1;
+#endif
 
 	/** If async work was running when we request an Activate we will store the reset mode and perform in finalize to avoid stalling the GameThread. */
 	EResetMode DeferredResetMode = EResetMode::None;

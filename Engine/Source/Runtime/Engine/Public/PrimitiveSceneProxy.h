@@ -502,6 +502,7 @@ public:
 		return (LightingChannelMask & 0x6) | (~LightingChannelMask & 0x1); 
 	}
 	inline bool IsVisibleInReflectionCaptures() const { return bVisibleInReflectionCaptures; }
+	inline bool IsVisibleInRealTimeSkyCaptures() const { return bVisibleInRealTimeSkyCaptures; }
 	inline bool IsVisibleInRayTracing() const { return bVisibleInRayTracing; }
 	inline bool ShouldRenderInMainPass() const { return bRenderInMainPass; }
 	inline bool ShouldRenderInDepthPass() const { return bRenderInMainPass || bRenderInDepthPass; }
@@ -520,6 +521,7 @@ public:
 	inline float GetLpvBiasMultiplier() const { return LpvBiasMultiplier; }
 	inline EIndirectLightingCacheQuality GetIndirectLightingCacheQuality() const { return IndirectLightingCacheQuality; }
 	inline bool CastsVolumetricTranslucentShadow() const { return bCastVolumetricTranslucentShadow; }
+	inline bool CastsContactShadow() const { return bCastContactShadow; }
 	inline bool CastsCapsuleDirectShadow() const { return bCastCapsuleDirectShadow; }
 	inline bool CastsDynamicIndirectShadow() const { return bCastsDynamicIndirectShadow; }
 	inline float GetDynamicIndirectShadowMinVisibility() const { return DynamicIndirectShadowMinVisibility; }
@@ -817,6 +819,9 @@ private:
 	/** True if the primitive should be visible in reflection captures. */
 	uint8 bVisibleInReflectionCaptures : 1;
 
+	/** True if the primitive should be visible in real-time sky light reflection captures. */
+	uint8 bVisibleInRealTimeSkyCaptures : 1;
+
 	/** If true, this component will be visible in ray tracing effects. Turning this off will remove it from ray traced reflections, shadows, etc. */
 	uint8 bVisibleInRayTracing : 1;
 
@@ -874,6 +879,9 @@ protected:
 	 * But have artifacts when used on highly opaque surfaces.
 	 */
 	uint8 bCastVolumetricTranslucentShadow : 1;
+
+	/** Whether the object should cast a contact shadow */
+	uint8 bCastContactShadow : 1;
 
 	/** Whether the primitive should use capsules for direct shadowing, if present.  Forces inset shadows. */
 	uint8 bCastCapsuleDirectShadow : 1;

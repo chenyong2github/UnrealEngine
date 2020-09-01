@@ -12,7 +12,7 @@
 // The init function binds to the templated methods on UNetworkPredictionMAnager. This will "bring in" all the templated systems on NP, so this file should only be 
 // included in your .cpp file that is calling Init.
 template<typename ModelDef>
-void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& RepProxies, typename ModelDef::Simulation* Simulation, typename ModelDef::Driver* Driver, FPhysicsActorHandle PhysicsHandle)
+void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& RepProxies, typename ModelDef::Simulation* Simulation, typename ModelDef::Driver* Driver)
 {
 	using StateTypes = typename ModelDef::StateTypes;
 	using InputType = typename StateTypes::InputType;
@@ -37,7 +37,7 @@ void FNetworkPredictionProxy::Init(UWorld* World, const FReplicationProxySet& Re
 		ID = WorldManager->CreateSimulationID(World->GetNetMode() == NM_Client);
 	}
 
-	WorldManager->RegisterInstance<ModelDef>(ID, TNetworkPredictionModelInfo<ModelDef>(Simulation, Driver, &View, PhysicsHandle));
+	WorldManager->RegisterInstance<ModelDef>(ID, TNetworkPredictionModelInfo<ModelDef>(Simulation, Driver, &View));
 
 	ConfigFunc = [RepProxies](FNetworkPredictionProxy* const This, FNetworkPredictionID NewID, EConfigAction Action)
 	{

@@ -288,6 +288,8 @@ public sealed class BuildPhysX : BuildCommand
 		}
 
 		public abstract void BuildTargetLib(PhysXTargetLib TargetLib, string TargetConfiguration);
+
+		public virtual void Cleanup() {}
 	}
 
 	public abstract class MSBuildTargetPlatform : TargetPlatform
@@ -426,8 +428,8 @@ public sealed class BuildPhysX : BuildCommand
 			}
 			
 			RunAndLog(CmdEnv, "/usr/bin/xcodebuild", string.Format("-project \"{0}\" -target=\"ALL_BUILD\" -configuration {1} -quiet", ProjectFile, TargetConfiguration));
-			}
 		}
+	}
 
 	// Apex libs that do not have an APEX prefix in their name
 	private static string[] APEXSpecialLibs = { "NvParameterized", "RenderDebug" };
@@ -477,14 +479,14 @@ public sealed class BuildPhysX : BuildCommand
 		// Grab all the non-abstract subclasses of TargetPlatform from the executing assembly.
 		var AvailablePlatformTypes = from Assembly in AppDomain.CurrentDomain.GetAssemblies()
 									 from Type in Assembly.GetTypes()
-									 where !Type.IsAbstract && Type.IsSubclassOf(typeof(TargetPlatform))
+									 where !Type.IsAbstract && Type.IsSubclassOf(typeof(TargetPlatform)) && !Type.IsAbstract
 									 select Type;
 
 		var PlatformTypeMap = new Dictionary<string, Type>();
 
 		foreach (var Type in AvailablePlatformTypes)
 		{
-			int Index = Type.Name.LastIndexOf('_');
+			int Index = Type.Name.IndexOf('_');
 			if (Index == -1)
 			{
 				throw new BuildException("Invalid PhysX target platform type found: {0}", Type);
@@ -681,7 +683,9 @@ public sealed class BuildPhysX : BuildCommand
 		// Parse out the libs we want to build
 		List<PhysXTargetLib> TargetLibs = GetTargetLibs();
 
-		if (bBuildSolutions)
+		// Only generate solutions upfront if we aren't building libraries, otherwise we will generate them
+		// just before building (this is largely for xcode where the same project file is used for x64 and arm)
+		if (bBuildSolutions && !bBuildLibraries)
 		{
 			foreach (PhysXTargetLib TargetLib in TargetLibs)
 			{
@@ -711,29 +715,34 @@ public sealed class BuildPhysX : BuildCommand
 			{
 				foreach (TargetPlatform Platform in TargetPlatforms.Where(P => P.SupportsTargetLib(TargetLib)))
 				{
+					if (!Platform.SeparateProjectPerConfig)
+					{
+						Platform.SetupTargetLib(TargetLib, null);
+					}
+
 					foreach (string TargetConfiguration in TargetConfigurations)
 					{
+						if (Platform.SeparateProjectPerConfig)
+						{
+							Platform.SetupTargetLib(TargetLib, TargetConfiguration);
+						}
+
 						foreach (FileReference FileToDelete in Platform.EnumerateOutputFiles(TargetLib, TargetConfiguration).Distinct())
 						{
 							FilesToReconcile.Add(FileToDelete);
-	
+
 							// Also clean the output files
 							InternalUtils.SafeDeleteFile(FileToDelete.FullName);
 						}
+
+						Platform.BuildTargetLib(TargetLib, TargetConfiguration);
 					}
 				}
 			}
 
-			// Build each target lib, for each config and platform
-			foreach (PhysXTargetLib TargetLib in TargetLibs)
+			foreach (TargetPlatform Platform in TargetPlatforms)
 			{
-				foreach (TargetPlatform Platform in TargetPlatforms.Where(P => P.SupportsTargetLib(TargetLib)))
-				{
-					foreach (string TargetConfiguration in TargetConfigurations)
-					{
-						Platform.BuildTargetLib(TargetLib, TargetConfiguration);
-					}
-				}
+				Platform.Cleanup();
 			}
 		}
 
@@ -1133,7 +1142,9 @@ class BuildPhysX_Linux : BuildPhysX.MakefileTargetPlatform
 	}
 }
 
-class BuildPhysX_Mac : BuildPhysX.XcodeTargetPlatform
+// the factory code that creates these based on arguments uses the name not the properties so
+// this should only ever be instantiated by the real Mac class below
+abstract class BuildPhysX_MacBase : BuildPhysX.XcodeTargetPlatform
 {
 	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Mac;
 	public override bool HasBinaries => true;
@@ -1144,6 +1155,13 @@ class BuildPhysX_Mac : BuildPhysX.XcodeTargetPlatform
 	public override bool UseResponseFiles => false;
 	public override string TargetBuildPlatform => "mac";
 
+	string Arch;
+
+	public BuildPhysX_MacBase(string InArch)
+	{
+		Arch = InArch;
+	}
+
 	public override bool SupportsTargetLib(BuildPhysX.PhysXTargetLib Library)
 	{
 		switch (Library)
@@ -1152,6 +1170,145 @@ class BuildPhysX_Mac : BuildPhysX.XcodeTargetPlatform
 			case BuildPhysX.PhysXTargetLib.NvCloth: return true;
 			case BuildPhysX.PhysXTargetLib.PhysX: return true;
 			default: return false;
+		}
+	}
+
+	public override string GetAdditionalCMakeArguments(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration)
+	{ 
+		return string.Format(" -DCMAKE_OSX_ARCHITECTURES=\"{0}\"", Arch);
+	}
+}
+
+class BuildPhysX_Mac_x86_64 : BuildPhysX_MacBase
+{
+	public BuildPhysX_Mac_x86_64() : base("x86_64")
+	{
+	}
+}
+
+class BuildPhysX_Mac_arm64: BuildPhysX_MacBase
+{
+	public BuildPhysX_Mac_arm64() : base("arm64")
+	{
+	}
+}
+
+// Wrapper class that calls the base mac class to build for different architectures. The libs are
+// saved off and then lipo'd into a universal binary
+class BuildPhysX_Mac : BuildPhysX.TargetPlatform
+{
+	public override UnrealTargetPlatform Platform => UnrealTargetPlatform.Mac;
+	public override bool HasBinaries => true;
+	public override string DebugDatabaseExtension => null;
+	public override string DynamicLibraryExtension => "dylib";
+	public override string StaticLibraryExtension => "a";
+	public override bool IsPlatformExtension => false;
+	public override bool UseResponseFiles => false;
+	public override string TargetBuildPlatform => "mac";
+
+	public override bool SeparateProjectPerConfig => false;
+
+	public override string CMakeGeneratorName => x86Build.CMakeGeneratorName;
+
+	BuildPhysX_MacBase x86Build = new BuildPhysX_Mac_x86_64();
+	BuildPhysX_MacBase ArmBuild = new BuildPhysX_Mac_arm64();
+
+	List<FileReference> x86Slices = new List<FileReference>();
+	List<FileReference> ArmSlices = new List<FileReference>();
+
+	public override bool SupportsTargetLib(BuildPhysX.PhysXTargetLib Library)
+	{
+		switch (Library)
+		{
+			case BuildPhysX.PhysXTargetLib.APEX: return true;
+			case BuildPhysX.PhysXTargetLib.NvCloth: return true;
+			case BuildPhysX.PhysXTargetLib.PhysX: return true;
+			default:
+				return false;
+		}
+	}
+
+	public override void SetupTargetLib(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration)
+	{
+		// do nothing. We'll set things up just before we build them.
+	}
+
+	public override void BuildTargetLib(BuildPhysX.PhysXTargetLib TargetLib, string TargetConfiguration)
+	{
+		// build for x86
+		x86Build.SetupTargetLib(TargetLib, TargetConfiguration);
+		LogInformation("Building x86_64 lib slice");
+		x86Build.BuildTargetLib(TargetLib, TargetConfiguration);
+
+		IEnumerable<FileReference> x86Libs = x86Build.EnumerateOutputFiles(TargetLib, TargetConfiguration).Distinct();
+
+		// move x86 files to temp versions
+		foreach (FileReference LibFile in x86Libs)
+		{
+			string Extension = LibFile.GetExtension();
+			FileReference x86File = LibFile.ChangeExtension(Extension + "_x86_64");
+			LogInformation("Moving {0} to {1}", LibFile, x86File);
+			FileReference.Delete(x86File);
+			FileReference.Move(LibFile, x86File);
+
+			x86Slices.Add(x86File);
+		}
+
+		// build for arm
+		ArmBuild.SetupTargetLib(TargetLib, TargetConfiguration);
+		LogInformation("Building arm64 lib slice");
+		ArmBuild.BuildTargetLib(TargetLib, TargetConfiguration);
+
+		IEnumerable<FileReference> ArmLibs = ArmBuild.EnumerateOutputFiles(TargetLib, TargetConfiguration).Distinct();
+
+		// move arm files to temp versions and lipo the 
+		foreach (FileReference LibFile in ArmLibs)
+		{
+			string Extension = LibFile.GetExtension();
+			FileReference x86File = LibFile.ChangeExtension(Extension + "_x86_64");
+			FileReference ArmFile = LibFile.ChangeExtension(Extension + "_arm");
+			LogInformation("Moving {0} to {1}", LibFile, ArmFile);
+			FileReference.Delete(ArmFile);
+			FileReference.Move(LibFile, ArmFile);
+
+			ArmSlices.Add(ArmFile);
+		}
+	}
+
+	public override void Cleanup()
+	{
+		x86Slices = x86Slices.Distinct().ToList();
+		ArmSlices = ArmSlices.Distinct().ToList();
+
+		LogInformation("x86_64 slices generated: {0}", string.Join(", ", x86Slices));
+		LogInformation("arm64 slices generated: {0}", string.Join(", ", ArmSlices));
+
+		foreach (FileReference LibFile in x86Slices)
+		{ 
+			// from foo.a_x84_64 (or foo.dylib_x86_64) deduce the names of the arm and final libs
+			FileReference x86File = LibFile;
+			string x86Extension = LibFile.GetExtension();
+			string ArmExtension = x86Extension.Replace("_x86_64", "_arm");
+			string OutputExtension = x86Extension.Replace("_x86_64", "");
+			FileReference ArmFile = LibFile.ChangeExtension(ArmExtension);
+
+			FileReference OutputFile = LibFile.ChangeExtension(OutputExtension);
+
+			ProcessStartInfo StartInfo = new ProcessStartInfo();
+			StartInfo.FileName = "lipo";
+			StartInfo.Arguments = string.Format("-create {0} {1} -output {2}", ArmFile, x86File, OutputFile);
+			StartInfo.RedirectStandardError = true;
+
+			LogInformation("Running: 'lipo {0}'", StartInfo.Arguments);
+			if (Utils.RunLocalProcessAndLogOutput(StartInfo) != 0)
+			{
+				LogError("Failed to create universal binary for {0}", LibFile);
+			}
+			else
+			{
+				FileReference.Delete(x86File);
+				FileReference.Delete(ArmFile);
+			}
 		}
 	}
 }

@@ -48,6 +48,8 @@ protected:
 		void Serialize(FArchive& Ar);
 	};
 	FRepData DataPack;
+
+	bool WrapStringAccordingToViewport(const FString& iStr, FString& oStr, FGameplayDebuggerCanvasContext& CanvasContext, float ViewportWitdh);
 };
 
 #endif // WITH_GAMEPLAY_DEBUGGER

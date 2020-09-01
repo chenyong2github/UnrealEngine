@@ -93,7 +93,18 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 
 	// Define rejection criteria and evaluate
 	bool bShouldReject[MAXIMUM_GATHER_POINTS_PER_PIXEL];
-	FRejectionCriteria RejectionCriteria = CreateRejectionCriteria(WorldPosition, FinalGatherDistance);
+
+	// Create ray differential based on rejection distance (in pixels)
+	UV = (float2(PixelCoord) + 0.5 + float2(0.0, FinalGatherDistance * UpscaleFactor)) * InvBufferSize;
+	RayDesc Ray = CreatePrimaryRay(UV);
+
+	// Intersect ray differential with normal to find world-space distance
+	float d = -dot(WorldNormal, WorldPosition);
+	float T = -(d + dot(WorldNormal, Ray.Origin)) / dot(WorldNormal, Ray.Direction);
+	float3 WorldDeltaPosition = Ray.Origin + T * Ray.Direction;
+	float RejectionDistance = length(WorldDeltaPosition - WorldPosition);
+
+	FRejectionCriteria RejectionCriteria = CreateRejectionCriteria(WorldPosition, RejectionDistance);
 	CreateRejectionMask(RejectionCriteria, GatherPointsBuffer, GatherPointsIndex, 0, GatherPointsResolution.x * GatherPointsResolution.y, SamplesPerPixel, bShouldReject);
 
 	float3 ExitantRadiance = 0.0;
@@ -143,6 +154,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
+			PixelCoord,
 			Ray);
 
 		// No hit indicates successful next-event connection

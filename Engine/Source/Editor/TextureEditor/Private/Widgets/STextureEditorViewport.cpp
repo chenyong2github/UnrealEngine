@@ -11,6 +11,7 @@
 #include "Widgets/Input/SSlider.h"
 #include "Engine/Texture.h"
 #include "Engine/VolumeTexture.h"
+#include "Engine/TextureRenderTargetVolume.h"
 #include "Slate/SceneViewport.h"
 #include "TextureEditorConstants.h"
 #include "Widgets/STextureEditorViewportToolbar.h"
@@ -85,7 +86,7 @@ void STextureEditorViewport::Construct( const FArguments& InArgs, const TSharedR
 		FText FormattedText = InToolkit->HasValidTextureResource() ? FText::FromString(TEXT("{0}")) : LOCTEXT( "InvalidTexture", "{0} (Invalid Texture)");
 		TextureName = FText::Format(FormattedText, FText::FromName(InToolkit->GetTexture()->GetFName()));
 
-		bIsVolumeTexture = InToolkit->GetTexture()->IsA<UVolumeTexture>();
+		bIsVolumeTexture = InToolkit->GetTexture()->IsA<UVolumeTexture>() || InToolkit->GetTexture()->IsA<UTextureRenderTargetVolume>();
 	}
 
 

@@ -42,7 +42,7 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudDistanceToSampleMaxCount(
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<float> CVarVolumetricCloudViewRaySampleMaxCount(
-	TEXT("r.VolumetricCloud.ViewRaySampleCountMax"), 768,
+	TEXT("r.VolumetricCloud.ViewRaySampleMaxCount"), 768,
 	TEXT("The maximum number of samples taken while ray marching view primary rays."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
@@ -51,9 +51,9 @@ static TAutoConsoleVariable<float> CVarVolumetricCloudReflectionRaySampleMaxCoun
 	TEXT("The maximum number of samples taken while ray marching primary rays in reflections."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
-static TAutoConsoleVariable<int32> CVarVolumetricCloudIntersectWithOpaque(
-	TEXT("r.VolumetricCloud.IntersectWithOpaque"), 1,
-	TEXT("True if cloud will intersects with opaque and not be rendered behind opaques."),
+static TAutoConsoleVariable<int32> CVarVolumetricCloudOpaqueIntersectionMode(
+	TEXT("r.VolumetricCloud.OpaqueIntersectionMode"), 2,
+	TEXT("0: no intersection with opaque. 1: trace up to the far distance and interesect during composition (sharp transition, single layer). 2: trace up to the depth buffer and take into account HZB: softer but can have artefact at edges when flying in the cloud layer."),
 	ECVF_RenderThreadSafe | ECVF_Scalability);
 
 static TAutoConsoleVariable<int32> CVarVolumetricCloudHighQualityAerialPerspective(
@@ -181,10 +181,10 @@ bool ShouldRenderVolumetricCloud(const FScene* Scene, const FEngineShowFlags& En
 		const FVolumetricCloudRenderSceneInfo* VolumetricCloud = Scene->GetVolumetricCloudSceneInfo();
 		check(VolumetricCloud);
 
-		const bool ShadersCompiled = ShouldPipelineCompileVolumetricCloudShader(Scene->GetShaderPlatform());
+		const bool bShadersCompiled = ShouldPipelineCompileVolumetricCloudShader(Scene->GetShaderPlatform());
 
 		FLightSceneInfo* AtmosphericLight0 = Scene->AtmosphereLights[0];
-		return ShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr;
+		return bShadersCompiled && CVarVolumetricCloud.GetValueOnRenderThread() > 0 && AtmosphericLight0!=nullptr;
 	}
 	return false;
 }
@@ -398,18 +398,18 @@ FORCEINLINE bool IsMaterialCompatibleWithVolumetricCloud(const FMaterialShaderPa
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudGlobalParameters, )
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumetricCloudCommonShaderParameters, VolumetricCloud)
 	SHADER_PARAMETER_TEXTURE(Texture2D, SceneDepthTexture)
-	SHADER_PARAMETER_TEXTURE(Texture2D, CloudSkyAOTexture)
 	SHADER_PARAMETER_TEXTURE(Texture2D<float3>, CloudShadowTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, CloudBilinearTextureSampler)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FVolumeShadowingShaderParametersGlobal0, Light0Shadow)
 //	SHADER_PARAMETER_STRUCT(FBlueNoise, BlueNoise)
 	SHADER_PARAMETER(FUintVector4, SubSetCoordToFullResolutionScaleBias)
 	SHADER_PARAMETER(uint32, NoiseFrameIndexModPattern)
-	SHADER_PARAMETER(int32, IntersectWithOpaque)
+	SHADER_PARAMETER(int32, OpaqueIntersectionMode)
 	SHADER_PARAMETER(uint32, VolumetricRenderTargetMode)
 	SHADER_PARAMETER(uint32, SampleCountDebugMode)
 	SHADER_PARAMETER(uint32, IsReflectionRendering)
 	SHADER_PARAMETER(uint32, HasValidHZB)
+	SHADER_PARAMETER(uint32, ClampRayTToDepthBufferPostHZB)
 	SHADER_PARAMETER(uint32, TraceShadowmap)
 	SHADER_PARAMETER(FVector, HZBUvFactor)
 	SHADER_PARAMETER(FVector4, HZBSize)
@@ -433,7 +433,6 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRenderVolumetricCloudGlo
 	TRefCountPtr<IPooledRenderTarget> BlackDummy = GSystemTextures.BlackDummy;
 	VolumetricCloudParams.VolumetricCloud = CloudInfo.GetVolumetricCloudCommonShaderParameters();
 	VolumetricCloudParams.SceneDepthTexture = BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
-	VolumetricCloudParams.CloudSkyAOTexture = BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 	VolumetricCloudParams.CloudShadowTexture = BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 	VolumetricCloudParams.CloudBilinearTextureSampler = TStaticSamplerState<SF_Bilinear>::GetRHI();
 	// Light0Shadow
@@ -449,7 +448,8 @@ void SetupDefaultRenderVolumetricCloudGlobalParameters(FRenderVolumetricCloudGlo
 	VolumetricCloudParams.VolumetricRenderTargetMode = ViewInfo.ViewState ? ViewInfo.ViewState->VolumetricCloudRenderTarget.GetMode() : 0;
 	VolumetricCloudParams.SampleCountDebugMode = FMath::Clamp(CVarVolumetricCloudDebugSampleCountMode.GetValueOnAnyThread(), 0, 5);
 
-	VolumetricCloudParams.HasValidHZB = false;
+	VolumetricCloudParams.HasValidHZB = 0;
+	VolumetricCloudParams.ClampRayTToDepthBufferPostHZB = 0;
 	VolumetricCloudParams.HZBTexture = BlackDummy->GetRenderTargetItem().ShaderResourceTexture;
 	VolumetricCloudParams.HZBSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 
@@ -530,7 +530,6 @@ enum EVolumetricCloudRenderViewPsPermutations
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRenderVolumetricCloudRenderViewParametersPS, )
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudSkyAOTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, CloudShadowTexture)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
@@ -562,6 +561,9 @@ public:
 		OutEnvironment.SetDefine(TEXT("SHADER_RENDERVIEW_PS"), TEXT("1"));
 		OutEnvironment.SetDefine(TEXT("CLOUD_LAYER_PIXEL_SHADER"), TEXT("1"));
 
+		// Force texture fetches to not use automatic mip generation because the pixel shader is using a dynamic loop to evaluate the material multiple times.
+		OutEnvironment.SetDefine(TEXT("USE_FORCE_TEXTURE_MIP"), TEXT("1"));
+		
 		const bool bUseAtmosphereTransmittance =Permutation == VolumetricCloudRenderViewPs_PerSampleAtmosphereTransmittance1_SampleShadow0_SecondLight0 || Permutation == VolumetricCloudRenderViewPs_PerSampleAtmosphereTransmittance1_SampleShadow1_SecondLight0 ||
 												Permutation == VolumetricCloudRenderViewPs_PerSampleAtmosphereTransmittance1_SampleShadow0_SecondLight1 || Permutation == VolumetricCloudRenderViewPs_PerSampleAtmosphereTransmittance1_SampleShadow1_SecondLight1;
 		OutEnvironment.SetDefine(TEXT("CLOUD_PER_SAMPLE_ATMOSPHERE_TRANSMITTANCE"), bUseAtmosphereTransmittance ? TEXT("1") : TEXT("0"));
@@ -879,6 +881,9 @@ public:
 		FMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("SHADER_SHADOW_PS"), TEXT("1"));
 		OutEnvironment.SetDefine(TEXT("CLOUD_LAYER_PIXEL_SHADER"), TEXT("1"));
+
+		// Force texture fetches to not use automatic mip generation because the pixel shader is using a dynamic loop to evaluate the material multiple times.
+		OutEnvironment.SetDefine(TEXT("USE_FORCE_TEXTURE_MIP"), TEXT("1"));
 	}
 
 private:
@@ -1353,7 +1358,6 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 	FRenderVolumetricCloudRenderViewParametersPS* RenderViewPassParameters = GraphBuilder.AllocParameters<FRenderVolumetricCloudRenderViewParametersPS>();
 	RenderViewPassParameters->RenderTargets = CloudRC.RenderTargets;
 	RenderViewPassParameters->CloudShadowTexture = CloudRC.VolumetricCloudShadowTexture[0];	// only for experimental path sampling the texture to evaluate shadows
-	RenderViewPassParameters->CloudSkyAOTexture = RenderViewPassParameters->CloudShadowTexture;
 
 	FRDGTexture* RT0 = CloudRC.RenderTargets.Output[0].GetTexture();
 	FVector4 OutputSizeInvSize = FVector4(float(RT0->Desc.Extent.X), float(RT0->Desc.Extent.Y), 1.0f/float(RT0->Desc.Extent.X), 1.0f/float(RT0->Desc.Extent.Y));
@@ -1386,15 +1390,16 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		bShouldViewRenderVolumetricRenderTarget, CloudVolumeMaterialProxy, bIsReflectionRendering, bIsSkyRealTimeReflectionRendering, bSkipAtmosphericLightShadowmap, bSecondAtmosphereLightEnabled,
 		&CloudInfo, SceneDepthZ, LightShadowShaderParams0, SubSetCoordToFullResolutionScaleBias, NoiseFrameIndexModPattern, OutputSizeInvSize, bSkipAerialPerspective](FRHICommandListImmediate& RHICmdList)
 		{
+			int32 VolumetricCloudOpaqueIntersectionMode = CVarVolumetricCloudOpaqueIntersectionMode.GetValueOnAnyThread();
+
 			FRenderVolumetricCloudGlobalParameters VolumetricCloudParams;
 			SetupDefaultRenderVolumetricCloudGlobalParameters(VolumetricCloudParams, CloudInfo, MainView);
 			VolumetricCloudParams.SceneDepthTexture = SceneDepthZ->GetRenderTargetItem().ShaderResourceTexture;
 			VolumetricCloudParams.Light0Shadow = LightShadowShaderParams0;
-			VolumetricCloudParams.CloudSkyAOTexture = RenderViewPassParameters->CloudSkyAOTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 			VolumetricCloudParams.CloudShadowTexture = RenderViewPassParameters->CloudShadowTexture->GetPooledRenderTarget()->GetRenderTargetItem().ShaderResourceTexture;
 			VolumetricCloudParams.SubSetCoordToFullResolutionScaleBias = SubSetCoordToFullResolutionScaleBias;
 			VolumetricCloudParams.NoiseFrameIndexModPattern = NoiseFrameIndexModPattern;
-			VolumetricCloudParams.IntersectWithOpaque = CVarVolumetricCloudIntersectWithOpaque.GetValueOnAnyThread();
+			VolumetricCloudParams.OpaqueIntersectionMode = bShouldViewRenderVolumetricRenderTarget ? VolumetricCloudOpaqueIntersectionMode : (VolumetricCloudOpaqueIntersectionMode > 0 ? 2 : 0);	// When tracing per pixel and not in the volumetric render target, we can alway intersect with depth
 			VolumetricCloudParams.IsReflectionRendering = bIsReflectionRendering ? 1 : 0;
 
 			if (bIsReflectionRendering)
@@ -1415,9 +1420,11 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 			if (bIsSkyRealTimeReflectionRendering)
 			{
 				VolumetricCloudParams.FogStruct.ApplyVolumetricFog = 0;		// No valid camera froxel volume available.
-				VolumetricCloudParams.IntersectWithOpaque = 0;				// No depth buffer is available
+				VolumetricCloudParams.OpaqueIntersectionMode = 0;			// No depth buffer is available
 				VolumetricCloudParams.HasValidHZB = 0;						// No valid HZB is available
 			}
+
+			VolumetricCloudParams.ClampRayTToDepthBufferPostHZB = bShouldViewRenderVolumetricRenderTarget ? 0 : 1;
 
 			TUniformBufferRef<FRenderVolumetricCloudGlobalParameters> VolumetricCloudRenderViewParamsUB = TUniformBufferRef<FRenderVolumetricCloudGlobalParameters>::CreateUniformBufferImmediate(VolumetricCloudParams, UniformBuffer_SingleFrame);
 
@@ -1439,7 +1446,7 @@ void FSceneRenderer::RenderVolumetricCloudsInternal(FRDGBuilder& GraphBuilder, F
 		});
 }
 
-void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
+void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList, bool bSkipVolumetricRenderTarget, bool bSkipPerPixelTracing)
 {
 	check(ShouldRenderVolumetricCloud(Scene, ViewFamily.EngineShowFlags)); // This should not be called if we should not render SkyAtmosphere
 
@@ -1480,11 +1487,15 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 				CloudRC.MainView = &ViewInfo;
 
 				bool bShouldViewRenderVolumetricCloudRenderTarget = ShouldViewRenderVolumetricCloudRenderTarget(ViewInfo); // not used by reflection captures for instance
+				if ((bShouldViewRenderVolumetricCloudRenderTarget && bSkipVolumetricRenderTarget) || (!bShouldViewRenderVolumetricCloudRenderTarget && bSkipPerPixelTracing))
+				{
+					continue;
+				}
 				CloudRC.bShouldViewRenderVolumetricRenderTarget = bShouldViewRenderVolumetricCloudRenderTarget;
 				CloudRC.ViewUniformBuffer = bShouldViewRenderVolumetricCloudRenderTarget ? ViewInfo.VolumetricRenderTargetViewUniformBuffer : ViewInfo.ViewUniformBuffer;
 
-				const bool bShouldUseHighQualityAerialPerspective = Scene->HasSkyAtmosphere() && CVarVolumetricCloudHighQualityAerialPerspective.GetValueOnAnyThread() > 0 && !CloudRC.bIsReflectionRendering;
 				const bool bEnableAerialPerspectiveSampling = CVarVolumetricCloudEnableAerialPerspectiveSampling.GetValueOnAnyThread() > 0;
+				const bool bShouldUseHighQualityAerialPerspective = bEnableAerialPerspectiveSampling && Scene->HasSkyAtmosphere() && CVarVolumetricCloudHighQualityAerialPerspective.GetValueOnAnyThread() > 0 && !CloudRC.bIsReflectionRendering;
 				CloudRC.bSkipAerialPerspective = !bEnableAerialPerspectiveSampling || bShouldUseHighQualityAerialPerspective; // Skip AP on clouds if we are going to trace it separately in a second pass
 				CloudRC.bIsReflectionRendering = ViewInfo.bIsReflectionCapture;
 
@@ -1517,11 +1528,20 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 				else
 				{
 					DestinationRT = GraphBuilder.RegisterExternalTexture(SceneContext.GetSceneColor(), TEXT("SceneColor"));
-					FIntVector RtSize = SceneContext.GetSceneColor()->GetDesc().GetSize();
+					const FIntVector RtSize = SceneContext.GetSceneColor()->GetDesc().GetSize();
+
+					if (bShouldUseHighQualityAerialPerspective)
+					{
+						FIntPoint IntermadiateTargetResolution = FIntPoint(RtSize.X, RtSize.Y);
+						IntermediateRT = GraphBuilder.CreateTexture(
+							FRDGTextureDesc::Create2DDesc(IntermadiateTargetResolution, PF_FloatRGBA, FClearValueBinding(FLinearColor(0.0f, 0.0f, 0.0f, 1.0f)),
+								TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false, 1), TEXT("RGBCloudIntermediate"));
+					}
+
 					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2DDesc(FIntPoint(RtSize.X, RtSize.Y), PF_R16F, FClearValueBinding::Black,
 						TexCreate_None, TexCreate_ShaderResource | TexCreate_RenderTargetable, false, 1), TEXT("DummyDepth"));
-					CloudRC.RenderTargets[0] = FRenderTargetBinding(DestinationRT, ERenderTargetLoadAction::ELoad);
-					CloudRC.RenderTargets[1] = FRenderTargetBinding(DestinationRTDepth, ERenderTargetLoadAction::ENoAction);
+					CloudRC.RenderTargets[0] = FRenderTargetBinding(bShouldUseHighQualityAerialPerspective ? IntermediateRT : DestinationRT, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
+					CloudRC.RenderTargets[1] = FRenderTargetBinding(DestinationRTDepth, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
 				}
 
 
@@ -1550,7 +1570,7 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 				RenderVolumetricCloudsInternal(GraphBuilder, CloudRC);
 
 				// Render high quality sky light shaft on clouds.
-				if (bEnableAerialPerspectiveSampling && bShouldUseHighQualityAerialPerspective)
+				if (bShouldUseHighQualityAerialPerspective)
 				{
 					FSkyAtmosphereRenderSceneInfo& SkyInfo = *Scene->GetSkyAtmosphereSceneInfo();
 					const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
@@ -1567,7 +1587,7 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 					SkyRC.bUseDepthBoundTestIfPossible = false;
 					SkyRC.bForceRayMarching = true;				// We do not have any valid view LUT
 					SkyRC.bDepthReadDisabled = true;
-					SkyRC.bDisableBlending = true;
+					SkyRC.bDisableBlending = bShouldViewRenderVolumetricCloudRenderTarget ? true : false;
 
 					SkyRC.TransmittanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetTransmittanceLutTexture());
 					SkyRC.MultiScatteredLuminanceLut = GraphBuilder.RegisterExternalTexture(SkyInfo.GetMultiScatteredLuminanceLutTexture());
@@ -1579,7 +1599,7 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 					SkyRC.RenderTargets[0] = FRenderTargetBinding(DestinationRT, ERenderTargetLoadAction::ENoAction);
 
 					SkyRC.ViewMatrices = &ViewInfo.ViewMatrices;
-					SkyRC.ViewUniformBuffer = ViewInfo.VolumetricRenderTargetViewUniformBuffer;
+					SkyRC.ViewUniformBuffer = bShouldViewRenderVolumetricCloudRenderTarget ? ViewInfo.VolumetricRenderTargetViewUniformBuffer : ViewInfo.ViewUniformBuffer;
 
 					SkyRC.Viewport = ViewInfo.ViewRect;
 					SkyRC.bLightDiskEnabled = !ViewInfo.bIsReflectionCapture;
@@ -1589,8 +1609,16 @@ void FSceneRenderer::RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList)
 
 					SkyRC.bRenderSkyPixel = false;
 
-					SkyRC.SkyAtmosphereViewLutTexture = GraphBuilder.RegisterExternalTexture(ViewInfo.SkyAtmosphereViewLutTexture);
-					SkyRC.SkyAtmosphereCameraAerialPerspectiveVolume = GraphBuilder.RegisterExternalTexture(ViewInfo.SkyAtmosphereCameraAerialPerspectiveVolume);
+					if (ViewInfo.SkyAtmosphereViewLutTexture && ViewInfo.SkyAtmosphereCameraAerialPerspectiveVolume)
+					{
+						SkyRC.SkyAtmosphereViewLutTexture = GraphBuilder.RegisterExternalTexture(ViewInfo.SkyAtmosphereViewLutTexture);
+						SkyRC.SkyAtmosphereCameraAerialPerspectiveVolume = GraphBuilder.RegisterExternalTexture(ViewInfo.SkyAtmosphereCameraAerialPerspectiveVolume);
+					}
+					else
+					{
+						SkyRC.SkyAtmosphereViewLutTexture = GSystemTextures.GetBlackDummy(GraphBuilder);
+						SkyRC.SkyAtmosphereCameraAerialPerspectiveVolume = GSystemTextures.GetVolumetricBlackDummy(GraphBuilder);
+					}
 
 					GetSkyAtmosphereLightsUniformBuffers(SkyRC.LightShadowShaderParams0UniformBuffer, SkyRC.LightShadowShaderParams1UniformBuffer,
 						LightShadowData, ViewInfo, SkyRC.bShouldSampleOpaqueShadow, UniformBuffer_SingleDraw);

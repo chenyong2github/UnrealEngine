@@ -91,10 +91,10 @@ public class Engine : ModuleRules
 				"PakFile",
 				"NetworkReplayStreaming",
 				"PhysicsCore",
-                "SignalProcessing",
-                "AudioExtensions",
-				"DeveloperSettings"
-            }
+				"SignalProcessing",
+				"AudioExtensions",
+				"DeveloperSettings",
+			}
 		);
 
 		PublicIncludePathModuleNames.AddRange(
@@ -362,14 +362,14 @@ public class Engine : ModuleRules
 
 			PrivateIncludePathModuleNames.Add("PIEPreviewDeviceProfileSelector");
 
-            PrivateIncludePathModuleNames.Add("NaniteBuilder");
-            DynamicallyLoadedModuleNames.Add("NaniteBuilder");
+			PrivateIncludePathModuleNames.Add("NaniteBuilder");
+			DynamicallyLoadedModuleNames.Add("NaniteBuilder");
 
 			DynamicallyLoadedModuleNames.Add("LevelInstanceEditor");
-        }
+		}
 
 		SetupModulePhysicsSupport(Target);
-		
+
 		if (Target.bCompilePhysX && (Target.bBuildEditor || Target.bCompileAPEX))
 		{
 			DynamicallyLoadedModuleNames.Add("PhysXCooking");
@@ -432,7 +432,7 @@ public class Engine : ModuleRules
 		PublicDefinitions.Add("GPUPARTICLE_LOCAL_VF_ONLY=0");
 
 		// Add a reference to the stats HTML files referenced by UEngine::DumpFPSChartToHTML. Previously staged by CopyBuildToStagingDirectory.
-	if (Target.bBuildEditor || Target.Configuration != UnrealTargetConfiguration.Shipping)
+		if (Target.bBuildEditor || Target.Configuration != UnrealTargetConfiguration.Shipping)
 		{
 			RuntimeDependencies.Add("$(EngineDir)/Content/Stats/...", StagedFileType.UFS);
 		}

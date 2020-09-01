@@ -184,6 +184,10 @@ namespace Audio
 		void ClearStoppingSounds();
 		void MixOutputBuffers(const int32 SourceId, int32 InNumOutputChannels, const float InSendLevel, EMixerSourceSubmixSendStage InSubmixSendStage, AlignedFloatBuffer& OutWetBuffer) const;
 
+		// Retrieves a channel map for the given source ID for the given output channels
+		// can be used even when a source is 3D if the source is doing any kind of bus sending or otherwise needs a channel map
+		void Get2DChannelMap(const int32 SourceId, int32 InNumOutputChannels, Audio::AlignedFloatBuffer& OutChannelMap);
+
 		// Called by a soundfield submix to get encoded audio.
 		// If this source wasn't encoded (possibly because it is paused or finished playing),
 		// this returns nullptr.
@@ -193,6 +197,7 @@ namespace Audio
 		const FQuat GetListenerRotation(const int32 SourceId) const;
 
 		void SetSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& SubmixSend);
+		void ClearSubmixSendInfo(const int32 SourceId, const FMixerSourceSubmixSend& SubmixSend);
 
 		void SetBusSendInfo(const int32 SourceId, EBusSendType InAudioBusSendType, uint32 AudiobusId, float BusSendLevel);
 

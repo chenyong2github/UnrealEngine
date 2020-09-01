@@ -28,6 +28,7 @@ class UReimportFbxAnimSequenceFactory : public UFbxFactory, public FReimportHand
 
 	//~ Begin UFactory Interface
 	virtual bool FactoryCanImport(const FString& Filename) override;
+	virtual bool IsAutomatedImport() const override;
 	//~ End UFactory Interface
 };
 

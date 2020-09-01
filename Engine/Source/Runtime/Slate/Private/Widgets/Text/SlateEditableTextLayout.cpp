@@ -1294,9 +1294,10 @@ FReply FSlateEditableTextLayout::HandleMouseMove(const FGeometry& InMyGeometry, 
 
 FReply FSlateEditableTextLayout::HandleMouseButtonDoubleClick(const FGeometry& InMyGeometry, const FPointerEvent& InMouseEvent)
 {
-	if (InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
+	if (OwnerWidget->ShouldSelectWordOnMouseDoubleClick() && InMouseEvent.GetEffectingButton() == EKeys::LeftMouseButton)
 	{
 		SelectWordAt(InMyGeometry, InMouseEvent.GetScreenSpacePosition());
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();

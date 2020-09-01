@@ -10,7 +10,6 @@
 #include "Async/Async.h"
 #include "Misc/MonitoredProcess.h"
 
-
 namespace 
 {
 	TMap<FName, FDataDrivenPlatformInfo> DataDrivenPlatforms;
@@ -200,6 +199,55 @@ static void DDPIGetStringArray(const FConfigFile& IniFile, const TCHAR* Key, TAr
 	IniFile.GetArray(TEXT("DataDrivenPlatformInfo"), Key, OutArray);
 }
 
+// Gets a string from a section, or empty string if it didn't exist
+static FString GetSectionString(const FConfigSection& Section, FName Key)
+{
+	return Section.FindRef(Key).GetValue();
+}
+
+static void ParsePreviewPlatforms(const FConfigFile& IniFile, FDataDrivenPlatformInfo& Info)
+{
+	// walk over the file looking for PreviewPlatform sections
+	for (auto Section : IniFile)
+	{
+		if (Section.Key.StartsWith(TEXT("PreviewPlatform ")))
+		{
+			const FString& SectionName = Section.Key;
+			FName PreviewPlatformName = *SectionName.Mid(16);
+
+			// Early-out if enabled cvar is specified and not set
+			TArray<FString> Tokens;
+			GetSectionString(Section.Value, FName("EnabledCVar")).ParseIntoArray(Tokens, TEXT(":"));
+			if (Tokens.Num() == 5)
+			{
+				// now load a local version of the ini hierarchy
+				FConfigFile LocalIni;
+				FConfigCacheIni::LoadLocalIniFile(LocalIni, *Tokens[1], true, *Tokens[2]);
+
+				// and get the enabled cvar's value
+				bool bEnabled = false;
+				LocalIni.GetBool(*Tokens[3], *Tokens[4], bEnabled);
+				if (!bEnabled)
+				{
+					continue;
+				}
+			}
+
+			FName ShaderFormat = *GetSectionString(Section.Value, FName("ShaderFormat"));
+
+			FPreviewPlatformMenuItem& Item = Info.PreviewPlatformMenuItems.FindOrAdd(ShaderFormat);
+
+			Item.ActiveIconPath = GetSectionString(Section.Value, FName("ActiveIconPath"));
+			Item.ActiveIconName = *GetSectionString(Section.Value, FName("ActiveIconName"));
+			Item.InactiveIconPath = GetSectionString(Section.Value, FName("InactiveIconPath"));
+			Item.InactiveIconName = *GetSectionString(Section.Value, FName("InactiveIconName"));
+			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuText")), Item.MenuText);
+			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("MenuTooltip")), Item.MenuTooltip);
+			FTextStringHelper::ReadFromBuffer(*GetSectionString(Section.Value, FName("IconText")), Item.IconText);
+		}
+	}
+}
+
 static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformInfo& Info, FName PlatformName)
 {
 	DDPIGetBool(IniFile, TEXT("bIsConfidential"), Info.bIsConfidential);
@@ -214,7 +262,6 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	DDPIGetBool(IniFile, TEXT("Freezing_bWithRayTracing"), Info.Freezing_bWithRayTracing);
 
 	// NOTE: add more settings here!
-
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
 
@@ -257,8 +304,9 @@ static void LoadDDPIIniSettings(const FConfigFile& IniFile, FDataDrivenPlatformI
 	Info.bHasCompiledTargetSupport = FDataDrivenPlatformInfoRegistry::HasCompiledSupportForPlatform(PlatformName, FDataDrivenPlatformInfoRegistry::EPlatformNameType::TargetPlatform);
 
 #endif
-}
 
+	ParsePreviewPlatforms(IniFile, Info);
+}
 
 /**
 * Get the global set of data driven platform information

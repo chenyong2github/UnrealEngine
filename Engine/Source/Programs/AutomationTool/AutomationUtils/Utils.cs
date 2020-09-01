@@ -379,7 +379,7 @@ namespace AutomationTool
 						}
 						else
 						{
-							Log.TraceWarning("Skip copying file {0} because it doesn't exist.", SourceName);
+							Log.TraceInformation("Skip copying file {0} because it doesn't exist.", SourceName);
 						}
 					}
 					Retry = !File.Exists(TargetName);
@@ -403,7 +403,7 @@ namespace AutomationTool
 				}
 				catch (Exception Ex)
 				{
-					Log.TraceWarning("SafeCopyFile Exception was {0}", LogUtils.FormatException(Ex));
+					Log.TraceInformation("SafeCopyFile Exception was {0}", LogUtils.FormatException(Ex));
 					Retry = true;
 				}
 
@@ -420,7 +420,7 @@ namespace AutomationTool
 					}
 					else
 					{
-						Log.TraceWarning("Failed to copy {0} to {1}", SourceName, TargetName);
+						Log.TraceError("Failed to copy {0} to {1}", SourceName, TargetName);
 					}
 					Result = false;
 				}

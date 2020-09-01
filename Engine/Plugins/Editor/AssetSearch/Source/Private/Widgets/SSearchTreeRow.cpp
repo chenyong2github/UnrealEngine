@@ -11,6 +11,10 @@
 #include "IAssetRegistry.h"
 #include "AssetToolsModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Editor/MaterialEditor/Public/IMaterialEditor.h"
+
+#include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
 
 #define LOCTEXT_NAMESPACE "SObjectBrowserTableRow"
 
@@ -165,11 +169,35 @@ FReply SSearchTreeRow::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, c
 	}
 	else if (BrowserObject->GetType() == ESearchNodeType::Object || BrowserObject->GetType() == ESearchNodeType::Property)
 	{
-		FSoftObjectPath ReferencePath(BrowserObject->GetObjectPath());
+		FSoftObjectPath ReferencePath(BrowserObject->GetObjectPath()); 
 		UObject* Object = ReferencePath.TryLoad();
-		if (Object->GetTypedOuter<UBlueprint>())
+		if (Object->GetTypedOuter<UBlueprint>())  
 		{
-			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Object, false);
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(Object, false); 
+		}
+		if (Object->GetTypedOuter<UMaterial>() || Object->GetTypedOuter<UMaterialFunction>())
+		{
+			const FString& AssetPathName = ReferencePath.GetAssetPathString();
+			UPackage* Package = LoadPackage(NULL, *AssetPathName, LOAD_NoRedirects);
+
+			if (Package)
+			{
+				Package->FullyLoad();
+
+				FString AssetName = FPaths::GetBaseFilename(AssetPathName);
+				UObject* MaterialObject = FindObject<UObject>(Package, *AssetName);
+
+				if (MaterialObject != NULL)
+				{
+					UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
+					AssetEditorSubsystem->OpenEditorForAsset(MaterialObject);
+
+					if (IMaterialEditor* MaterialEditor = (IMaterialEditor*)(AssetEditorSubsystem->FindEditorForAsset(MaterialObject, true)))
+					{
+						MaterialEditor->JumpToExpression(Cast<UMaterialExpression>(Object));
+					}
+				}
+			}
 		}
 		else
 		{

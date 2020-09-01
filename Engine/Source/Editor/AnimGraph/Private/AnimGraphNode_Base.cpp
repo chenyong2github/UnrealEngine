@@ -17,6 +17,9 @@
 #include "UObject/UnrealType.h"
 #include "Kismet2/CompilerResultsLog.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "AnimBlueprintCompiler.h"
+#include "AnimBlueprintCompilerSubsystem_Base.h"
+#include "FindInBlueprintManager.h"
 
 #define LOCTEXT_NAMESPACE "UAnimGraphNode_Base"
 
@@ -26,6 +29,12 @@
 UAnimGraphNode_Base::UAnimGraphNode_Base(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+}
+
+void UAnimGraphNode_Base::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
+{
+	UAnimBlueprintCompilerSubsystem_Base* Subsystem = static_cast<FAnimBlueprintCompilerContext*>(&CompilerContext)->GetSubsystem<UAnimBlueprintCompilerSubsystem_Base>();
+	Subsystem->CreateEvaluationHandlerForNode(this);
 }
 
 void UAnimGraphNode_Base::PreEditChange(FProperty* PropertyThatWillChange)
@@ -329,6 +338,17 @@ void UAnimGraphNode_Base::GetPinHoverText(const UEdGraphPin& Pin, FString& Hover
 	}
 }
 
+void UAnimGraphNode_Base::ProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+{
+	UAnimBlueprintCompilerSubsystem_Base* SubsystemBase = InCompilerContext.GetSubsystem<UAnimBlueprintCompilerSubsystem_Base>();
+
+	// Record pose pins for later patchup and gather pins that have an associated evaluation handler
+	SubsystemBase->AddStructEvalHandlers(this);
+
+	// Call the override point
+	OnProcessDuringCompilation(InCompilerContext);
+}
+
 void UAnimGraphNode_Base::HandleAnimReferenceCollection(UAnimationAsset* AnimAsset, TArray<UAnimationAsset*>& AnimationAssets) const
 {
 	if(AnimAsset)
@@ -383,9 +403,9 @@ FAnimNode_Base* UAnimGraphNode_Base::FindDebugAnimNode(USkeletalMeshComponent * 
 			{
 				int32 AnimNodeIndex = *IndexPtr;
 				// reverse node index temporarily because of a bug in NodeGuidToIndexMap
-				AnimNodeIndex = AnimBlueprintClass->AnimNodeProperties.Num() - AnimNodeIndex - 1;
+				AnimNodeIndex = AnimBlueprintClass->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
 
-				DebugNode = AnimBlueprintClass->AnimNodeProperties[AnimNodeIndex]->ContainerPtrToValuePtr<FAnimNode_Base>(PreviewSkelMeshComp->GetAnimInstance());
+				DebugNode = AnimBlueprintClass->GetAnimNodeProperties()[AnimNodeIndex]->ContainerPtrToValuePtr<FAnimNode_Base>(PreviewSkelMeshComp->GetAnimInstance());
 			}
 		}
 	}
@@ -430,6 +450,17 @@ FString UAnimGraphNode_Base::GetPinMetaData(FName InPinName, FName InKey)
 		}
 	}
 	return MetaData;
+}
+
+void UAnimGraphNode_Base::AddSearchMetaDataInfo(TArray<struct FSearchTagDataPair>& OutTaggedMetaData) const
+{
+	Super::AddSearchMetaDataInfo(OutTaggedMetaData);
+
+	for(const TPair<FName, FAnimGraphNodePropertyBinding>& BindingPair : PropertyBindings)
+	{
+		OutTaggedMetaData.Add(FSearchTagDataPair(FFindInBlueprintSearchTags::FiB_Name, FText::FromName(BindingPair.Key)));
+		OutTaggedMetaData.Add(FSearchTagDataPair(LOCTEXT("Binding", "Binding"), BindingPair.Value.PathAsText));
+	}
 }
 
 bool UAnimGraphNode_Base::IsPinExposedAndLinked(const FString& InPinName, const EEdGraphPinDirection InDirection) const

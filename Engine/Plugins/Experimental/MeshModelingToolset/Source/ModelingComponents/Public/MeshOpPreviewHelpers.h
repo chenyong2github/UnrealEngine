@@ -94,6 +94,14 @@ public:
 	bool HaveValidResult() const { return bResultValid; }
 
 
+	/**
+	 * Read back a copy of current preview mesh.
+	 * @param bOnlyIfValid if true, then only create mesh copy if HaveValidResult() == true
+	 * @return true if MeshOut was initialized
+	 */
+	bool GetCurrentResultCopy(FDynamicMesh3& MeshOut, bool bOnlyIfValid = true);
+
+
 	//
 	// Optional configuration
 	// 

@@ -53,7 +53,7 @@ static FAutoConsoleVariableRef CVarNiagaraUsePostActorMark(
 static int GNiagaraSpawnPerTickGroup = 1;
 static FAutoConsoleVariableRef CVarNiagaraSpawnPerTickGroup(
 	TEXT("fx.Niagara.WorldManager.SpawnPerTickGroup"),
-	GNiagaraUsePostActorMark,
+	GNiagaraSpawnPerTickGroup,
 	TEXT("Will attempt to spawn new systems earlier (default enabled)."),
 	ECVF_Default
 );
@@ -398,6 +398,7 @@ void FNiagaraWorldManager::DestroySystemSimulation(UNiagaraSystem* System)
 			SystemSimulations[TG].Remove(System);
 		}
 	}
+	ComponentPool->RemoveComponentsBySystem(System);
 }
 
 void FNiagaraWorldManager::DestroySystemInstance(TUniquePtr<FNiagaraSystemInstance>& InPtr)
@@ -594,24 +595,40 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		// - Instances that were spawned and we need to ensure the async tick is complete
 		if (SimulationsWithPostActorWork.Num() > 0)
 		{
-			for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
+			for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i )
 			{
-				const auto& System = SimulationsWithPostActorWork[i];
-				if (System->GetSystem()->IsValid())
+				if (!SimulationsWithPostActorWork[i]->IsValid())
 				{
-					System->WaitForSystemTickComplete();
-					System->UpdateTickGroups_GameThread();
+					SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
+					--i;
+				}
+				else
+				{
+					SimulationsWithPostActorWork[i]->WaitForSystemTickComplete();
 				}
 			}
 
-			for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
+			for (int32 i=0; i < SimulationsWithPostActorWork.Num(); ++i)
 			{
-				const auto& System = SimulationsWithPostActorWork[i];
-				if (System->GetSystem()->IsValid())
+				if (!SimulationsWithPostActorWork[i]->IsValid())
 				{
-					System->Spawn_GameThread(DeltaSeconds, true);
+					SimulationsWithPostActorWork.RemoveAtSwap(i, 1, false);
+					--i;
+				}
+				else
+				{
+					SimulationsWithPostActorWork[i]->UpdateTickGroups_GameThread();
 				}
 			}
+
+			for (const auto& Simulation : SimulationsWithPostActorWork)
+			{
+				if (Simulation->IsValid())
+				{
+					Simulation->Spawn_GameThread(DeltaSeconds, true);
+				}
+			}
+
 			SimulationsWithPostActorWork.Reset();
 		}
 	}
@@ -620,6 +637,18 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 		SimulationsWithPostActorWork.Reset();
 
 		// Resolve tick groups for pending spawn instances
+		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+		{
+			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
+			{
+				FNiagaraSystemSimulation* Sim = &SystemSim.Value.Get();
+				if (Sim->IsValid())
+				{
+					Sim->WaitForSystemTickComplete();
+				}
+			}
+		}
+
 		for (int TG=0; TG < NiagaraNumTickGroups; ++TG)
 		{
 			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
@@ -632,7 +661,6 @@ void FNiagaraWorldManager::PostActorTick(float DeltaSeconds)
 			}
 		}
 
-		// Execute spawn game thread
 		for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
 		{
 			for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SystemSim : SystemSimulations[TG])
@@ -776,7 +804,7 @@ void FNiagaraWorldManager::Tick(ETickingGroup TickGroup, float DeltaSeconds, ELe
 		for (int32 i = 0; i < SimulationsWithPostActorWork.Num(); ++i)
 		{
 			const auto& Simulation = SimulationsWithPostActorWork[i];
-			if (Simulation->GetSystem()->IsValid() && (Simulation->GetTickGroup() < TickGroup))
+			if (Simulation->IsValid() && (Simulation->GetTickGroup() < TickGroup))
 			{
 				Simulation->Spawn_GameThread(DeltaSeconds, false);
 			}
@@ -983,7 +1011,13 @@ bool FNiagaraWorldManager::CanPreCull(UNiagaraEffectType* EffectType)
 void FNiagaraWorldManager::SortedSignificanceCull(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, float Significance, int32 Index, FNiagaraScalabilityState& OutState)
 {
 	//Cull all but the N most significance FX.
-	bool bCull = ScalabilitySettings.bCullMaxInstanceCount && Index >= ScalabilitySettings.MaxInstances;
+	bool bCull = false;
+	
+	if(GEnableNiagaraInstanceCountCulling)
+	{
+		bCull = ScalabilitySettings.bCullMaxInstanceCount && Index >= ScalabilitySettings.MaxInstances;
+	}
+
 	OutState.bCulled |= bCull;
 #if DEBUG_SCALABILITY_STATE
 	OutState.bCulledByInstanceCount = bCull;
@@ -1067,12 +1101,19 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 
 		return 1.0f - (LODDistance / ScalabilitySettings.MaxDistance);
 	}
+	else
+	{
+		//We still need a sensible significance value for sorted instance count culling.
+		//100 here purely to make 1m LODDistance = 1.0 significance.
+		return 100.0f / LODDistance;
+	}
+
 	return 1.0f;
 }
 
 float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType, const FNiagaraSystemScalabilitySettings& ScalabilitySettings, FVector Location)
 {
-	if (ScalabilitySettings.bCullByDistance && bCachedPlayerViewLocationsValid)
+	if (bCachedPlayerViewLocationsValid)
 	{
 		float ClosestDistSq = FLT_MAX;
 		for (FVector ViewLocation : CachedPlayerViewLocations)
@@ -1081,13 +1122,23 @@ float FNiagaraWorldManager::DistanceSignificance(UNiagaraEffectType* EffectType,
 		}
 
 		float ClosestDist = FMath::Sqrt(ClosestDistSq);
-		if (ClosestDist >= ScalabilitySettings.MaxDistance)
+		if (ScalabilitySettings.bCullByDistance)
 		{
-			return 0.0f;
-		}
+			if (ClosestDist >= ScalabilitySettings.MaxDistance)
+			{
+				return 0.0f;
+			}
 
-		return ClosestDist / ScalabilitySettings.MaxDistance;
+			return ClosestDist / ScalabilitySettings.MaxDistance;
+		}
+		else
+		{
+			//We still need a sensible significance value for sorted instance count culling.
+			//100 here purely to make 1m ClosestDist = 1.0 significance.
+			return 100.0f / ClosestDist;
+		}
 	}
+
 	return 1.0f;
 }
 
@@ -1107,7 +1158,7 @@ void FNiagaraWorldManager::PrimePoolForAllWorlds(UNiagaraSystem* System)
 
 void FNiagaraWorldManager::PrimePoolForAllSystems()
 {
-	if (GNigaraAllowPrimedPools)
+	if (GNigaraAllowPrimedPools && World && World->IsGameWorld())
 	{
 		//Prime the pool for all currently loaded systems.
 		for (TObjectIterator<UNiagaraSystem> It; It; ++It)
@@ -1122,7 +1173,7 @@ void FNiagaraWorldManager::PrimePoolForAllSystems()
 
 void FNiagaraWorldManager::PrimePool(UNiagaraSystem* System)
 {
-	if (GNigaraAllowPrimedPools)
+	if (GNigaraAllowPrimedPools && World && World->IsGameWorld())
 	{
 		ComponentPool->PrimePool(System, World);
 	}
@@ -1156,6 +1207,5 @@ FAutoConsoleCommandWithWorld GDumpNiagaraScalabilityData(
 	FNiagaraWorldManager* WorldMan = FNiagaraWorldManager::Get(World);
 	WorldMan->DumpScalabilityState();
 }));
-
 
 #endif

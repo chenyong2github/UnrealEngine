@@ -24,6 +24,29 @@ namespace LinkedAnimGraphGraphNodeConstants
 	FLinearColor TitleColor(0.2f, 0.2f, 0.8f);
 }
 
+void UAnimGraphNode_LinkedAnimGraphBase::AllocatePoseLinks()
+{
+	FAnimNode_LinkedAnimGraph& RuntimeNode = *GetLinkedAnimGraphNode();
+
+	RuntimeNode.InputPoses.Empty();
+	RuntimeNode.InputPoseNames.Empty();
+
+	for(UEdGraphPin* Pin : Pins)
+	{
+		if(!Pin->bOrphanedPin)
+		{
+			if (UAnimationGraphSchema::IsPosePin(Pin->PinType))
+			{
+				if(Pin->Direction == EGPD_Input)
+				{
+					RuntimeNode.InputPoses.AddDefaulted();
+					RuntimeNode.InputPoseNames.Add(Pin->GetFName());
+				}
+			}
+		}
+	}
+}
+
 FLinearColor UAnimGraphNode_LinkedAnimGraphBase::GetNodeTitleColor() const
 {
 	return LinkedAnimGraphGraphNodeConstants::TitleColor;

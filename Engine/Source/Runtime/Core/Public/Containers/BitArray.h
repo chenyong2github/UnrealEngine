@@ -284,6 +284,7 @@ public:
 		return *this;
 	}
 
+
 	template<typename OtherAllocator>
 	FORCEINLINE TBitArray& operator=(const TBitArray< OtherAllocator >& Copy)
 	{
@@ -388,8 +389,7 @@ private:
 		NumBits = Other.Num();
 		if (NumBits)
 		{
-			const int32 NumDWORDs = FMath::DivideAndRoundUp(MaxBits, NumBitsPerDWORD);
-			FMemory::Memcpy(GetData(), Other.GetData(), NumDWORDs * sizeof(uint32));
+			FMemory::Memcpy(GetData(), Other.GetData(), GetNumWords() * sizeof(uint32));
 		}
 	}
 

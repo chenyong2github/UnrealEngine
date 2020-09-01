@@ -121,6 +121,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,	ViewOwnerDepthPriorityGroup(InComponent->ViewOwnerDepthPriorityGroup)
 ,	bStaticLighting(InComponent->HasStaticLighting())
 ,	bVisibleInReflectionCaptures(InComponent->bVisibleInReflectionCaptures)
+,	bVisibleInRealTimeSkyCaptures(InComponent->bVisibleInRealTimeSkyCaptures)
 ,	bVisibleInRayTracing(InComponent->bVisibleInRayTracing)
 ,	bRenderInDepthPass(InComponent->bRenderInDepthPass)
 ,	bRenderInMainPass(InComponent->bRenderInMainPass)
@@ -139,6 +140,7 @@ FPrimitiveSceneProxy::FPrimitiveSceneProxy(const UPrimitiveComponent* InComponen
 ,   bAffectDistanceFieldLighting(InComponent->bAffectDistanceFieldLighting)
 ,	bCastStaticShadow(InComponent->CastShadow && InComponent->bCastStaticShadow)
 ,	bCastVolumetricTranslucentShadow(InComponent->bCastDynamicShadow && InComponent->CastShadow && InComponent->bCastVolumetricTranslucentShadow)
+,	bCastContactShadow(InComponent->CastShadow && InComponent->bCastContactShadow)
 ,	bCastCapsuleDirectShadow(false)
 ,	bCastsDynamicIndirectShadow(false)
 ,	bCastHiddenShadow(InComponent->bCastHiddenShadow)
@@ -397,7 +399,8 @@ void FPrimitiveSceneProxy::UpdateUniformBuffer()
 				PrimitiveSceneInfo ? PrimitiveSceneInfo->GetLightmapDataOffset() : 0,
 				SingleCaptureIndex,
 				bOutputVelocity || AlwaysHasVelocity(),
-				GetCustomPrimitiveData()
+				GetCustomPrimitiveData(),
+				CastsContactShadow()
 				);
 
 		if (UniformBuffer.GetReference())

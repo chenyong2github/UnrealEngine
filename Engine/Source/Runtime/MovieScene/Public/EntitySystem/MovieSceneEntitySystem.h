@@ -6,6 +6,7 @@
 #include "Templates/SubclassOf.h"
 #include "EntitySystem/MovieSceneEntityManager.h"
 #include "EntitySystem/MovieSceneSequenceInstanceHandle.h"
+#include "Misc/EnumClassFlags.h"
 
 #include "MovieSceneEntitySystem.generated.h"
 
@@ -18,6 +19,18 @@ namespace MovieScene
 
 	struct FSystemTaskPrerequisites;
 	struct FSystemSubsequentTasks;
+
+	enum class EEntitySystemContext : uint8 
+	{
+		None = 0,
+
+		/** This system is relevant to runtime */
+		Runtime = 1 << 0,
+
+		/** This system is relevant to interrogation */
+		Interrogation = 1 << 1,
+	};
+	ENUM_CLASS_FLAGS(EEntitySystemContext)
 
 } // namespace MovieScene
 } // namespace UE
@@ -73,6 +86,11 @@ public:
 
 public:
 
+	UE::MovieScene::EEntitySystemContext GetExclusionContext() const
+	{
+		return SystemExclusionContext;
+	}
+
 	UE::MovieScene::ESystemPhase GetPhase() const
 	{
 		return Phase;
@@ -103,7 +121,7 @@ public:
 
 	void Link(UMovieSceneEntitySystemLinker* InLinker);
 
-	bool Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
+	void Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents);
 
 	bool IsRelevant(UMovieSceneEntitySystemLinker* InLinker) const;
 
@@ -148,6 +166,8 @@ protected:
 
 	uint16 GraphID;
 	uint16 GlobalDependencyGraphID;
+
+	UE::MovieScene::EEntitySystemContext SystemExclusionContext;
 
 #if STATS
 	TStatId StatID;

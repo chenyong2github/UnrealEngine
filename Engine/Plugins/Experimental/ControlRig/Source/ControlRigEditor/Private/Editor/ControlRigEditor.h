@@ -161,6 +161,8 @@ protected:
 	virtual void CreateDefaultCommands() override;
 	virtual void OnCreateGraphEditorCommands(TSharedPtr<FUICommandList> GraphEditorCommandsList);
 	virtual void Compile() override;
+	virtual void SaveAsset_Execute() override;
+	virtual void SaveAssetAs_Execute() override;
 	virtual bool IsInAScriptingMode() const override { return true; }
 	virtual void CreateDefaultTabContents(const TArray<UBlueprint*>& InBlueprints) override;
 	virtual bool IsSectionVisible(NodeSectionID::Type InSectionID) const override;
@@ -335,6 +337,8 @@ protected:
 	void SetPinControlNameListText(const FText& NewTypeInValue, ETextCommit::Type /*CommitInfo*/);
 	void OnPinControlNameListChanged(TSharedPtr<FString> NewSelection, ESelectInfo::Type SelectInfo);
 	void OnPinControlNameListComboBox(const TArray<TSharedPtr<FString>>* InNameList);
+
+	FString LastDebuggedRig;
 
 	friend class FControlRigEditorMode;
 	friend class SControlRigStackView;

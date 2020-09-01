@@ -229,6 +229,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 	TotalBytesSent = 0;
 	TotalBytesReceived = 0;
 	RequestStartTimeSeconds.Reset();
+	RequestFinishTimeSeconds.Reset();
 	bRequestCancelled = false;
 
 	State = EHttpRequestStatus::Processing;
@@ -263,7 +264,7 @@ bool FWinHttpHttpRequest::ProcessRequest()
 		TSharedPtr<FWinHttpConnectionHttp, ESPMode::ThreadSafe> Connection = FWinHttpConnectionHttp::CreateHttpConnection(*SessionPtr, RequestData.Verb, RequestData.Url, RequestData.Headers, RequestData.Payload);
 		if (!Connection.IsValid())
 		{
-			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Session, failing request"));
+			UE_LOG(LogHttp, Warning, TEXT("Unable to create WinHttp Connection, failing request"));
 			StrongThis->FinishRequest();
 			return;
 		}
@@ -292,26 +293,6 @@ bool FWinHttpHttpRequest::ProcessRequest()
 	return true;
 }
 
-FHttpRequestCompleteDelegate& FWinHttpHttpRequest::OnProcessRequestComplete()
-{
-	return RequestCompleteDelegate;
-}
-
-FHttpRequestProgressDelegate& FWinHttpHttpRequest::OnRequestProgress()
-{
-	return RequestProgressDelegate;
-}
-
-FHttpRequestHeaderReceivedDelegate& FWinHttpHttpRequest::OnHeaderReceived()
-{
-	return HeaderReceivedDelegate;
-}
-
-FHttpRequestWillRetryDelegate& FWinHttpHttpRequest::OnRequestWillRetry()
-{
-	return RequestWillRetryDelegate;
-}
-
 void FWinHttpHttpRequest::CancelRequest()
 {
 	UE_LOG(LogHttp, Log, TEXT("FWinHttpHttpRequest::CancelRequest() FWinHttpHttpRequest=[%p]"), this);
@@ -337,7 +318,18 @@ void FWinHttpHttpRequest::CancelRequest()
 	}
 	else if (State == EHttpRequestStatus::NotStarted)
 	{
-		FinishRequest();
+		if (!IsInGameThread())
+		{
+			// Always finish on the game thread
+			FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FWinHttpHttpRequest>(AsShared())]()
+			{
+				StrongThis->FinishRequest();
+			});
+		}
+		else
+		{
+			FinishRequest();
+		}
 	}
 }
 
@@ -356,7 +348,7 @@ void FWinHttpHttpRequest::Tick(float DeltaSeconds)
 	if (Connection.IsValid())
 	{
 		Connection->PumpMessages();
-		// Connection is not gaurenteed to be valid anymore here, be sure to check again if it gets used again below
+		// Connection is not guaranteed to be valid anymore here, be sure to check again if it gets used again below
 	}
 }
 
@@ -438,10 +430,10 @@ void FWinHttpHttpRequest::FinishRequest()
 		}
 		Connection.Reset();
 	}
-	
+
 	TSharedRef<IHttpRequest, ESPMode::ThreadSafe> KeepAlive = AsShared();
 	FHttpModule::Get().GetHttpManager().RemoveRequest(KeepAlive);
-	OnProcessRequestComplete().ExecuteIfBound(KeepAlive, Response, Response.IsValid()); 
+	OnProcessRequestComplete().ExecuteIfBound(KeepAlive, Response, Response.IsValid());
 }
 
 #endif // WITH_WINHTTP

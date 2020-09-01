@@ -196,6 +196,8 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnConstructEvent);
 
 DECLARE_DYNAMIC_DELEGATE( FOnInputAction );
 
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnVisibilityChangedEvent, ESlateVisibility, InVisibility);
+
 /**
  * The user widget is extensible by users through the WidgetBlueprint.
  */
@@ -308,6 +310,9 @@ public:
 	/*  */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Appearance", meta=( DeprecatedFunction, DeprecationMessage="Use IsInViewport instead" ))
 	bool GetIsVisible() const;
+
+	/** Sets the visibility of the widget. */
+	virtual void SetVisibility(ESlateVisibility InVisibility) override;
 
 	/* @return true if the widget was added to the viewport using AddToViewport. */
 	UFUNCTION(BlueprintPure, BlueprintCosmetic, Category="Appearance")
@@ -1138,6 +1143,12 @@ public:
 	UPROPERTY()
 	FGetSlateColor ForegroundColorDelegate;
 
+	/** Called when the visibility has changed */
+	UPROPERTY(BlueprintAssignable, Category = "Appearance|Event")
+	FOnVisibilityChangedEvent OnVisibilityChanged;
+	DECLARE_EVENT_OneParam(UUserWidget, FNativeOnVisibilityChangedEvent, ESlateVisibility);
+	FNativeOnVisibilityChangedEvent OnNativeVisibilityChanged;
+
 	/** The padding area around the content. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category="Appearance")
 	FMargin Padding;
@@ -1313,7 +1324,7 @@ protected:
 	UE_DEPRECATED(4.21, "You now need to provide the reason you're invalidating.")
 	void Invalidate();
 
-	void Invalidate(EInvalidateWidget InvalidateReason);
+	void Invalidate(EInvalidateWidgetReason InvalidateReason);
 	
 	/**
 	 * Listens for a particular Player Input Action by name.  This requires that those actions are being executed, and
@@ -1387,6 +1398,8 @@ protected:
 
 private:
 	static void OnLatentActionsChanged(UObject* ObjectWhichChanged, ELatentActionChangeType ChangeType);
+
+	void InvalidateFullScreenWidget(EInvalidateWidgetReason InvalidateReason);
 
 	FAnchors ViewportAnchors;
 	FMargin ViewportOffsets;

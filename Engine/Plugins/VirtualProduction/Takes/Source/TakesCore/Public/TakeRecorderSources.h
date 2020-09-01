@@ -51,7 +51,7 @@ public:
 	 * @param InSourceType    The class type of the source to add
 	 * @return An instance of the specified source type
 	 */
-	UFUNCTION(BlueprintCallable, Category = "Take Recorder")
+	UFUNCTION(BlueprintCallable, Category = "Take Recorder", meta = (DeterminesOutputType = "InSourceType"))
 	UTakeRecorderSource* AddSource(TSubclassOf<UTakeRecorderSource> InSourceType);
 
 	/**

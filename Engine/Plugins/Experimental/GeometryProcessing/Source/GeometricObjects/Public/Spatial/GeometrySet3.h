@@ -26,6 +26,11 @@ public:
 	/** Add a polycurve with given CurveID and the give Polyline */
 	void AddCurve(int CurveID, const FPolyline3d& Polyline);
 
+	/** Remove a point with given PointID. */
+	void RemovePoint(int PointID);
+	/** Remove a curve with given CurveID. */
+	void RemoveCurve(int CurveID);
+
 	/** Update the Position of previously-added PointID */
 	void UpdatePoint(int PointID, const FVector3d& Position);
 	/** Update the Polyline of previously-added CurveID */

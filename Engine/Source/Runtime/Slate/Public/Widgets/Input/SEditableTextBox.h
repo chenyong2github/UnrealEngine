@@ -48,6 +48,7 @@ public:
 		, _AllowContextMenu(true)
 		, _MinDesiredWidth( 0.0f )
 		, _SelectAllTextOnCommit( false )
+		, _SelectWordOnMouseDoubleClick(true)
 		, _BackgroundColor()
 		, _Padding()
 		, _ErrorReporting()
@@ -122,6 +123,9 @@ public:
 
 		/** Whether to select all text when pressing enter to commit changes */
 		SLATE_ATTRIBUTE( bool, SelectAllTextOnCommit )
+
+		/** Whether to select word on mouse double click on the widget */
+		SLATE_ATTRIBUTE(bool, SelectWordOnMouseDoubleClick)
 
 		/** Callback delegate to have first chance handling of the OnKeyChar event */
 		SLATE_EVENT(FOnKeyChar, OnKeyCharHandler)
@@ -281,6 +285,13 @@ public:
 	 * @param  InSelectAllTextOnCommit		Select all text when pressing enter?
 	 */
 	void SetSelectAllTextOnCommit(const TAttribute<bool>& InSelectAllTextOnCommit);
+
+	/**
+	 * Sets whether to select select word on mouse double click
+	 *
+	 * @param  InSelectWordOnMouseDoubleClick		Select select word on mouse double click?
+	 */
+	void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
 
 	/** See Justification attribute */
 	void SetJustification(const TAttribute<ETextJustify::Type>& InJustification);

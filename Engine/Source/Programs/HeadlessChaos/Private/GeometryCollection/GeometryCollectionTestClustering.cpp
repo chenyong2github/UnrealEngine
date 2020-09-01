@@ -36,7 +36,7 @@ namespace GeometryCollectionTest
 {
 	using namespace ChaosTest;
 
-	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ClusterMap, TPBDRigidParticleHandle<float, 3>* Key, TArray<TPBDRigidParticleHandle<float, 3>*> Elements)
+	bool ClusterMapContains(const Chaos::TPBDRigidClustering<FPBDRigidsEvolution, FPBDCollisionConstraints, float, 3>::FClusterMap& ClusterMap, const TPBDRigidParticleHandle<float, 3>* Key, TArray<TPBDRigidParticleHandle<float, 3>*> Elements)
 	{
 		if (ClusterMap.Num())
 		{
@@ -618,10 +618,14 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
-		EXPECT_EQ(SovlerParticleHandles.Size(), 4);
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[2], { Collection1Handles[1],Collection1Handles[0] }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[3], { Collection1Handles[2] }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(SovlerParticleHandles.Size(),4);
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[2],{Collection1Handles[1],Collection1Handles[0]}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[3],{Collection1Handles[2]}));
+		});
+		
 
 		UnitTest.Advance();
 
@@ -697,7 +701,7 @@ namespace GeometryCollectionTest
 		Params.CollisionType = ECollisionTypeEnum::Chaos_Volumetric;
 		Params.Simulating = true;
 		Params.EnableClustering = true;
-		Params.DamageThreshold = { 50.0, 50.0, 50.0, FLT_MAX };
+		Params.DamageThreshold = { 30.0, 30.0, 30.0, FLT_MAX };
 		TGeometryCollectionWrapper<Traits>* Collection = TNewSimulationObject<GeometryType::GeometryCollectionWithSuppliedRestCollection>::Init<Traits>(Params)->template As<TGeometryCollectionWrapper<Traits>>();
 
 		UnitTest.AddSimulationObject(Collection);
@@ -1450,18 +1454,21 @@ namespace GeometryCollectionTest
 		TManagedArray<FTransform>& Transform = DynamicCollection->Transform;
 		TManagedArray<FTransform>& Transform2 = DynamicCollection2->Transform;
 
-
 		auto& Clustering = UnitTest.Solver->GetEvolution()->GetRigidClustering();
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		const auto& ParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(2)->CastToRigidParticle(), { ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle() }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(5)->CastToRigidParticle(), { ParticleHandles.Handle(4)->CastToRigidParticle(),ParticleHandles.Handle(3)->CastToRigidParticle() }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,ParticleHandles.Handle(2)->CastToRigidParticle(),{ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle()}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,ParticleHandles.Handle(5)->CastToRigidParticle(),{ParticleHandles.Handle(4)->CastToRigidParticle(),ParticleHandles.Handle(3)->CastToRigidParticle()}));
+		});
 
 		for (int Frame = 0; Frame < 100; Frame++)
 		{
 			UnitTest.Advance();
+
 
 			if (Frame == 0)
 			{
@@ -1560,9 +1567,12 @@ namespace GeometryCollectionTest
 		const auto& ClusterMap = Clustering.GetChildrenMap();
 		const auto& ParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(2)->CastToRigidParticle(), { ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle() }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(5)->CastToRigidParticle(), { ParticleHandles.Handle(4)->CastToRigidParticle(),ParticleHandles.Handle(3)->CastToRigidParticle() }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&Clustering,&ClusterMap,&ParticleHandles]()
+		{
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,ParticleHandles.Handle(2)->CastToRigidParticle(),{ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle()}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,ParticleHandles.Handle(5)->CastToRigidParticle(),{ParticleHandles.Handle(4)->CastToRigidParticle(),ParticleHandles.Handle(3)->CastToRigidParticle()}));
+		});
 
 		TArray<FTransform> PrevGlobalTransform;
 		GeometryCollectionAlgo::GlobalMatrices(DynamicCollection->Transform, DynamicCollection->Parent, PrevGlobalTransform);
@@ -1666,9 +1676,17 @@ namespace GeometryCollectionTest
 		//FilterData.Word3 = 0xFFFF;
 		//ParticleHandles.Handle(6)->ShapesArray()[0]->SetQueryData(FilterData);
 
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(2)->CastToRigidParticle(), { ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle() }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(5)->CastToRigidParticle(), { ParticleHandles.Handle(4)->CastToRigidParticle(),ParticleHandles.Handle(3)->CastToRigidParticle() }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(ClusterMap.Num(),2);
+			const auto& CollectionParticles = Collection->PhysObject->GetSolverParticleHandles();
+			EXPECT_EQ(CollectionParticles.Num(),3);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,CollectionParticles[2],{CollectionParticles[1],CollectionParticles[0]}));
+
+			const auto& CollectionParticles2 = Collection2->PhysObject->GetSolverParticleHandles();
+			EXPECT_EQ(CollectionParticles2.Num(),3);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,CollectionParticles2[2],{CollectionParticles2[1],CollectionParticles2[0]}));
+		});
 
 		for (int Frame = 0; Frame < 100; Frame++)
 		{
@@ -1680,8 +1698,15 @@ namespace GeometryCollectionTest
 			TArray<FTransform> GlobalTransform2;
 			GeometryCollectionAlgo::GlobalMatrices(DynamicCollection2->Transform, DynamicCollection2->Parent, GlobalTransform2);
 
+			const auto& CollectionParticles = Collection->PhysObject->GetSolverParticleHandles();
+			EXPECT_EQ(CollectionParticles.Num(),3);
+
+			const auto& CollectionParticles2 = Collection2->PhysObject->GetSolverParticleHandles();
+
+			const auto* Root = CollectionParticles[0]->ClusterIds().Id;
+
 			EXPECT_EQ(ClusterMap.Num(), 1);
-			EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles.Handle(7)->CastToRigidParticle(), { ParticleHandles.Handle(1)->CastToRigidParticle(),ParticleHandles.Handle(0)->CastToRigidParticle(),ParticleHandles.Handle(3)->CastToRigidParticle(),ParticleHandles.Handle(4)->CastToRigidParticle() }));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap, Root, { CollectionParticles[0],CollectionParticles[1], CollectionParticles2[0], CollectionParticles2[1] }));
 
 			EXPECT_TRUE(DynamicCollection->Parent[0] == INDEX_NONE);
 			EXPECT_TRUE(DynamicCollection->Parent[1] == INDEX_NONE);
@@ -1752,10 +1777,14 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 		
-		EXPECT_EQ(SovlerParticleHandles.Size(), 6);
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[2], { Collection1Handles[1],Collection1Handles[0]}));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection2Handles[2], { Collection2Handles[1],Collection2Handles[0]}));
+
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(SovlerParticleHandles.Size(), 6);
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[2],{Collection1Handles[1],Collection1Handles[0]}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection2Handles[2],{Collection2Handles[1],Collection2Handles[0]}));
+		});
 
 		UnitTest.Advance();
 
@@ -1845,10 +1874,13 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection2Handles = Collection2->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
-		EXPECT_EQ(SovlerParticleHandles.Size(), 6);
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[2], { Collection1Handles[1],Collection1Handles[0] }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection2Handles[2], { Collection2Handles[1],Collection2Handles[0] }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(SovlerParticleHandles.Size(),6);
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[2],{Collection1Handles[1],Collection1Handles[0]}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection2Handles[2],{Collection2Handles[1],Collection2Handles[0]}));
+		});
 
 		UnitTest.Advance();
 
@@ -1928,10 +1960,13 @@ namespace GeometryCollectionTest
 		TArray<Chaos::TPBDRigidClusteredParticleHandle<float, 3>*>& Collection1Handles = Collection1->PhysObject->GetSolverParticleHandles();
 		const auto& SovlerParticleHandles = UnitTest.Solver->GetParticles().GetParticleHandles();
 
-		EXPECT_EQ(SovlerParticleHandles.Size(), 4);
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[2], { Collection1Handles[1],Collection1Handles[0] }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, Collection1Handles[3], { Collection1Handles[2] }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(SovlerParticleHandles.Size(),4);
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[2],{Collection1Handles[1],Collection1Handles[0]}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,Collection1Handles[3],{Collection1Handles[2]}));
+		});
 
 		UnitTest.Advance();
 
@@ -2012,9 +2047,12 @@ namespace GeometryCollectionTest
 		const FClustering::FClusterMap& ClusterMap = Clustering.GetChildrenMap();
 		const Chaos::TArrayCollectionArray<Chaos::ClusterId>& ClusterIdsArray = Clustering.GetClusterIdsArray();
 
-		EXPECT_EQ(ClusterMap.Num(), 2);
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[2], { ParticleHandles[0], ParticleHandles[1] }));
-		EXPECT_TRUE(ClusterMapContains(ClusterMap, ParticleHandles[4], { ParticleHandles[2] }));
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(ClusterMap.Num(),2);
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,ParticleHandles[2],{ParticleHandles[0],ParticleHandles[1]}));
+			EXPECT_TRUE(ClusterMapContains(ClusterMap,ParticleHandles[4],{ParticleHandles[2]}));
+		});
 
 		// Test releasing a specific unioned cluster
 		// We end up with the following cluster tree

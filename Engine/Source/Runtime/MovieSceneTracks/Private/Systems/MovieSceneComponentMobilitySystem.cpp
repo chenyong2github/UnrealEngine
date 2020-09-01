@@ -37,7 +37,9 @@ struct FMobilityCacheHandler
 	}
 
 	static void UpdateOutput(UObject* Object, TArrayView<const FMovieSceneEntityID> Inputs, EComponentMobility::Type* OutMobility, FEntityOutputAggregate Aggregate)
-	{}
+	{
+		CastChecked<USceneComponent>(Object)->SetMobility(EComponentMobility::Movable);
+	}
 
 	void DestroyOutput(UObject* Object, EComponentMobility::Type* Output, FEntityOutputAggregate Aggregate)
 	{
@@ -49,6 +51,30 @@ struct FMobilityCacheHandler
 	}
 };
 
+/**
+ * Gets the flattened depth-first hierarchy of the scene component.
+ */
+static void GetFlattenedHierarchy(USceneComponent* SceneComponent, TArray<USceneComponent*, TInlineAllocator<4>>& OutFlatHierarchy)
+{
+	TArray<USceneComponent*, TInlineAllocator<4>> ChildrenStack;
+	ChildrenStack.Push(SceneComponent);
+	while (ChildrenStack.Num() > 0)
+	{
+		USceneComponent* Child(ChildrenStack.Pop());
+
+		OutFlatHierarchy.Add(Child);
+
+		const TArray<USceneComponent*>& ChildAttachChildren = Child->GetAttachChildren();
+		for (int32 Index = ChildAttachChildren.Num() - 1; Index >= 0; --Index)
+		{
+			USceneComponent* GrandChild = ChildAttachChildren[Index];
+			if (GrandChild)
+			{
+				ChildrenStack.Add(GrandChild);
+			}
+		}
+	}
+}
 
 } // namespace MovieScene
 } // namespace UE
@@ -58,6 +84,8 @@ UMovieSceneComponentMobilitySystem::UMovieSceneComponentMobilitySystem(const FOb
 	: Super(ObjInit)
 {
 	using namespace UE::MovieScene;
+
+	SystemExclusionContext |= EEntitySystemContext::Interrogation;
 
 	FBuiltInComponentTypes*          BuiltInComponents = FBuiltInComponentTypes::Get();
 	FMovieSceneTracksComponentTypes* TrackComponents   = FMovieSceneTracksComponentTypes::Get();
@@ -138,7 +166,20 @@ void UMovieSceneComponentMobilitySystem::SaveGlobalPreAnimatedState(FSystemTaskP
 	auto IterNewObjects = [Producer, InstanceRegistry](FInstanceHandle InstanceHandle, UObject* InObject)
 	{
 		IMovieScenePlayer* Player = InstanceRegistry->GetInstance(InstanceHandle).GetPlayer();
-		Player->SaveGlobalPreAnimatedState(*InObject, AnimType, Producer);
+		
+		if (USceneComponent* SceneComponent = Cast<USceneComponent>(InObject))
+		{
+			TArray<USceneComponent*, TInlineAllocator<4>> FlatHierarchy;
+			GetFlattenedHierarchy(SceneComponent, FlatHierarchy);
+			for (USceneComponent* CurrentSceneComponent : FlatHierarchy)
+			{
+				Player->SaveGlobalPreAnimatedState(*CurrentSceneComponent, AnimType, Producer);
+			}
+		}
+		else
+		{
+			Player->SaveGlobalPreAnimatedState(*InObject, AnimType, Producer);
+		}
 	};
 
 	FEntityTaskBuilder()

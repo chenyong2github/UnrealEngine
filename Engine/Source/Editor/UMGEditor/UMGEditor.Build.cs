@@ -71,7 +71,7 @@ public class UMGEditor : ModuleRules
 				"PropertyPath",
 				"ToolMenus",
 				"SlateReflector",
-				"DeveloperSettings"
+				"DeveloperSettings",
 			}
 			);
 	}

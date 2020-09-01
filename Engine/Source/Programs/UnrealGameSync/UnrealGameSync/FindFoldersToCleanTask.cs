@@ -54,6 +54,7 @@ namespace UnrealGameSync
 		int RemainingFoldersToScan;
 		ManualResetEvent FinishedScan = new ManualResetEvent(false);
 		bool bAbortScan;
+		string ScanError;
 
 		public List<string> FileNames = new List<string>();
 
@@ -80,19 +81,28 @@ namespace UnrealGameSync
 		{
 			if(!bAbortScan)
 			{
-				if((Folder.Directory.Attributes & FileAttributes.ReparsePoint) == 0)
+				try
 				{
-					foreach(DirectoryInfo SubDirectory in Folder.Directory.EnumerateDirectories())
+					if ((Folder.Directory.Attributes & FileAttributes.ReparsePoint) == 0)
 					{
-						FolderToClean SubFolder = new FolderToClean(SubDirectory);
-						Folder.NameToSubFolder[SubFolder.Name] = SubFolder;
-						QueueFolderToPopulate(SubFolder);
+						foreach (DirectoryInfo SubDirectory in Folder.Directory.EnumerateDirectories())
+						{
+							FolderToClean SubFolder = new FolderToClean(SubDirectory);
+							Folder.NameToSubFolder[SubFolder.Name] = SubFolder;
+							QueueFolderToPopulate(SubFolder);
+						}
+						foreach (FileInfo File in Folder.Directory.EnumerateFiles())
+						{
+							FileAttributes Attributes = File.Attributes; // Force the value to be cached.
+							Folder.NameToFile[File.Name] = File;
+						}
 					}
-					foreach(FileInfo File in Folder.Directory.EnumerateFiles())
-					{
-						FileAttributes Attributes = File.Attributes; // Force the value to be cached.
-						Folder.NameToFile[File.Name] = File;
-					}
+				}
+				catch (Exception Ex)
+				{
+					string NewError = String.Format("Unable to enumerate contents of {0} due to an error:\n\n{1}", Folder.Directory.FullName, Ex);
+					Interlocked.CompareExchange(ref ScanError, NewError, null);
+					bAbortScan = true;
 				}
 			}
 
@@ -201,6 +211,9 @@ namespace UnrealGameSync
 			Log.WriteLine("Finding files in workspace...");
 			Log.WriteLine();
 
+			// Clear the current error
+			ScanError = null;
+
 			// Start enumerating all the files that exist locally
 			foreach(string SyncPath in SyncPaths)
 			{
@@ -299,6 +312,13 @@ namespace UnrealGameSync
 
 			// Wait to finish scanning the directory
 			FinishedScan.WaitOne();
+
+			// Check if there was an error
+			if (ScanError != null)
+			{
+				ErrorMessage = ScanError;
+				return false;
+			}
 
 			// Find the value of the P4CONFIG variable
 			string PerforceConfigFile;

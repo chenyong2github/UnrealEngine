@@ -56,6 +56,8 @@ void UKismetRenderingLibrary::ClearRenderTarget2D(UObject* WorldContextObject, U
 			RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearRT"));
 			DrawClearQuad(RHICmdList, ClearColor);
 			RHICmdList.EndRenderPass();
+
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargetResource->GetRenderTargetTexture());
 		});
 	}
 }
@@ -93,6 +95,12 @@ void UKismetRenderingLibrary::ReleaseRenderTarget2D(UTextureRenderTarget2D* Text
 
 void UKismetRenderingLibrary::DrawMaterialToRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, UMaterialInterface* Material)
 {
+	if (!FApp::CanEverRender())
+	{
+		// Returning early to avoid warnings about missing resources that are expected when CanEverRender is false.
+		return;
+	}
+
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
 	if (!World)
@@ -530,11 +538,17 @@ UTexture2D* UKismetRenderingLibrary::ImportBufferAsTexture2D(UObject* WorldConte
 
 void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContextObject, UTextureRenderTarget2D* TextureRenderTarget, UCanvas*& Canvas, FVector2D& Size, FDrawToRenderTargetContext& Context)
 {
-	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
-
 	Canvas = NULL;
 	Size = FVector2D(0, 0);
 	Context = FDrawToRenderTargetContext();
+	
+	if (!FApp::CanEverRender())
+	{
+		// Returning early to avoid warnings about missing resources that are expected when CanEverRender is false.
+		return;
+	}
+
+	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
 	if (!World)
 	{
@@ -589,6 +603,12 @@ void UKismetRenderingLibrary::BeginDrawCanvasToRenderTarget(UObject* WorldContex
 
 void UKismetRenderingLibrary::EndDrawCanvasToRenderTarget(UObject* WorldContextObject, const FDrawToRenderTargetContext& Context)
 {
+	if (!FApp::CanEverRender())
+	{
+		// Returning early to avoid warnings about missing resources that are expected when CanEverRender is false.
+		return;
+	}
+
 	UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull);
 
 	if (World)

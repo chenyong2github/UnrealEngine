@@ -1683,18 +1683,11 @@ void SLevelEditor::HandleEditorMapChange( uint32 MapChangeFlags )
 
 void SLevelEditor::OnActorSelectionChanged(const TArray<UObject*>& NewSelection, bool bForceRefresh)
 {
-	for( auto It = AllActorDetailPanels.CreateIterator(); It; ++It )
+	for (TSharedRef<SActorDetails> ActorDetails : GetAllActorDetails())
 	{
-		TSharedPtr<SActorDetails> ActorDetails = It->Pin();
-		if( ActorDetails.IsValid() )
-		{
-			ActorDetails->SetObjects(NewSelection, bForceRefresh || bNeedsRefresh);
-		}
-		else
-		{
-			// remove stray entries here
-		}
+		ActorDetails->SetObjects(NewSelection, bForceRefresh || bNeedsRefresh);
 	}
+
 	bNeedsRefresh = false;
 }
 
@@ -1798,19 +1791,57 @@ TSharedRef<SWidget> SLevelEditor::CreateActorDetails( const FName TabIdentifier 
 		ActorDetails->SetObjects( SelectedActors, bForceRefresh );
 	}
 
+	ActorDetails->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
+	ActorDetails->SetSCSEditorUICustomization(ActorDetailsSCSEditorUICustomization);
+
 	AllActorDetailPanels.Add( ActorDetails );
 	return ActorDetails;
 }
 
-
-void SLevelEditor::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization)
+TArray<TSharedRef<SActorDetails>> SLevelEditor::GetAllActorDetails() const
 {
-	for (TWeakPtr<SActorDetails> Details : AllActorDetailPanels)
+	TArray<TSharedRef<SActorDetails>> AllValidActorDetails;
+	AllValidActorDetails.Reserve(AllActorDetailPanels.Num());
+
+	for (TWeakPtr<SActorDetails> ActorDetails : AllActorDetailPanels)
 	{
-		if (TSharedPtr<SActorDetails> DetailsPinned = Details.Pin())
+		if (TSharedPtr<SActorDetails> ActorDetailsPinned = ActorDetails.Pin())
 		{
-			DetailsPinned->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
+			AllValidActorDetails.Add(ActorDetailsPinned.ToSharedRef());
 		}
+	}
+
+	if (AllActorDetailPanels.Num() > AllValidActorDetails.Num())
+	{
+		TArray<TWeakPtr<SActorDetails>>& AllActorDetailPanelsNonConst = const_cast<TArray<TWeakPtr<SActorDetails>>&>(AllActorDetailPanels);
+		AllActorDetailPanelsNonConst.Reset(AllValidActorDetails.Num());
+		for (const TSharedRef<SActorDetails>& ValidActorDetails : AllValidActorDetails)
+		{
+			AllActorDetailPanelsNonConst.Add(ValidActorDetails);
+		}
+	}
+
+	return AllValidActorDetails;
+}
+
+void SLevelEditor::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> InActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> InActorDetailsRootCustomization)
+{
+	ActorDetailsObjectFilter = InActorDetailsObjectFilter;
+	ActorDetailsRootCustomization = InActorDetailsRootCustomization;
+
+	for (TSharedRef<SActorDetails> ActorDetails : GetAllActorDetails())
+	{
+		ActorDetails->SetActorDetailsRootCustomization(ActorDetailsObjectFilter, ActorDetailsRootCustomization);
+	}
+}
+
+void SLevelEditor::SetActorDetailsSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InActorDetailsSCSEditorUICustomization)
+{
+	ActorDetailsSCSEditorUICustomization = InActorDetailsSCSEditorUICustomization;
+
+	for (TSharedRef<SActorDetails> ActorDetails : GetAllActorDetails())
+	{
+		ActorDetails->SetSCSEditorUICustomization(ActorDetailsSCSEditorUICustomization);
 	}
 }
 

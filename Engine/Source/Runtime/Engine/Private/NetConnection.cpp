@@ -190,6 +190,7 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	MaxPacket			( 0 )
 ,	InternalAck			( false )
 ,	bInternalAck		( false )
+,	bReplay				( false )
 ,	RemoteAddr			( nullptr )
 ,	MaxPacketHandlerBits ( 0 )
 ,	State				( USOCK_Invalid )
@@ -1679,7 +1680,7 @@ int32 UNetConnection::IsNetReady( bool Saturate )
 void UNetConnection::ReadInput( float DeltaSeconds )
 {}
 
-void UNetConnection::ReceivedAck(int32 AckPacketId)
+void UNetConnection::ReceivedAck(int32 AckPacketId, FChannelsToClose& OutChannelsToClose)
 {
 	UE_LOG(LogNetTraffic, Verbose, TEXT("   Received ack %i"), AckPacketId);
 
@@ -1701,7 +1702,7 @@ void UNetConnection::ReceivedAck(int32 AckPacketId)
 		PackageMap->ReceivedAck( AckPacketId );
 	}
 
-	auto AckChannelFunc = [this](int32 AckedPacketId, uint32 ChannelIndex)
+	auto AckChannelFunc = [this, &OutChannelsToClose](int32 AckedPacketId, uint32 ChannelIndex)
 	{
 		UChannel* const Channel = Channels[ChannelIndex];
 
@@ -1727,7 +1728,12 @@ void UNetConnection::ReceivedAck(int32 AckPacketId)
 				}
 			}
 			Channel->ReceivedAck(AckedPacketId);
-			Channel->ReceivedAcks(); //warning: May destroy Channel.
+			EChannelCloseReason CloseReason;
+			if (Channel->ReceivedAcks(CloseReason))
+			{
+				const FChannelCloseInfo Info = {ChannelIndex, CloseReason};
+				OutChannelsToClose.Emplace(Info);
+			}	
 		}
 	};
 
@@ -2087,6 +2093,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 		LastReceiveRealtime = CurrentReceiveTimeInS;
 	}
 
+	FChannelsToClose ChannelsToClose;
+
 	if (IsInternalAck())
 	{
 		++InPacketId;
@@ -2217,9 +2225,8 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 			return;
 		}
 
-
 		// Lambda to dispatch delivery notifications, 
-		auto HandlePacketNotification = [&Header, this](FNetPacketNotify::SequenceNumberT AckedSequence, bool bDelivered)
+		auto HandlePacketNotification = [&Header, &ChannelsToClose, this](FNetPacketNotify::SequenceNumberT AckedSequence, bool bDelivered)
 		{
 			// Increase LastNotifiedPacketId, this is a full packet Id
 			++LastNotifiedPacketId;
@@ -2235,7 +2242,7 @@ void UNetConnection::ReceivedPacket( FBitReader& Reader, bool bIsReinjectedPacke
 
 			if (bDelivered)
 			{
-				ReceivedAck(LastNotifiedPacketId);
+				ReceivedAck(LastNotifiedPacketId, ChannelsToClose);
 			}
 			else
 			{
@@ -2326,6 +2333,59 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 				}
 
 				Bunch.ChIndex = ChIndex;
+			}
+
+			const int32 CachedChIndex = Bunch.ChIndex;
+
+			// if flag is set, remap channel index values, we're fast forwarding a replay checkpoint
+			// and there should be no bunches for existing channels
+			if (IsInternalAck() && bAllowExistingChannelIndex && (Bunch.EngineNetVer() >= HISTORY_REPLAY_DORMANCY))
+			{
+				if (ChannelIndexMap.Contains(Bunch.ChIndex))
+				{
+					Bunch.ChIndex = ChannelIndexMap[Bunch.ChIndex];
+				}
+				else
+				{
+					if (Channels[Bunch.ChIndex])
+					{
+						// this should be an open bunch if its the first time we've seen it
+						if (Bunch.bOpen && (!Bunch.bPartial || Bunch.bPartialInitial))
+						{
+							FBitReaderMark Mark(Reader);
+
+							Reader.ReadBit(); // bHasPackageMapExports
+							Reader.ReadBit(); // bHasMustBeMappedGUIDs
+
+							const uint8 bPartial = Reader.ReadBit(); // bPartial
+
+							if (bPartial)
+							{
+								Reader.ReadBit(); // bPartialInitial
+								Reader.ReadBit(); // bPartialFinal
+							}
+
+							FName ChName;
+							UPackageMap::StaticSerializeName(Reader, ChName);
+
+							Mark.Pop(Reader);
+
+							int32 FreeIndex = GetFreeChannelIndex(ChName);
+
+							if (FreeIndex != INDEX_NONE)
+							{
+								UE_LOG(LogNetTraffic, Verbose, TEXT("Adding channel mapping %d to %d"), Bunch.ChIndex, FreeIndex);
+								ChannelIndexMap.Add(Bunch.ChIndex, FreeIndex);
+								Bunch.ChIndex = FreeIndex;
+							}
+							else
+							{
+								UE_LOG(LogNetTraffic, Warning, TEXT("Unable to find free channel index"));
+								continue;
+							}
+						}
+					}
+				}
 			}
 
 			Bunch.bHasPackageMapExports	= Reader.ReadBit();
@@ -2514,48 +2574,66 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 			// We're on a 100% reliable connection and we are rolling back some data.
 			// In that case, we can generally ignore these bunches.
-			if (IsInternalAck() && Channel && bIgnoreAlreadyOpenedChannels)
+			if (IsInternalAck() && bAllowExistingChannelIndex)
 			{
-				// This was an open bunch for a channel that's already opened.
-				// We can ignore future bunches from this channel.
-				const bool bNewlyOpenedActorChannel = Bunch.bOpen && (Bunch.ChName == NAME_Actor) && (!Bunch.bPartial || Bunch.bPartialInitial);
-
-				if (bNewlyOpenedActorChannel)
+				if (Bunch.EngineNetVer() < HISTORY_REPLAY_DORMANCY)
 				{
-					FNetworkGUID ActorGUID = GetActorGUIDFromOpenBunch(Bunch);
+					if (Channel)
+					{
+						// This was an open bunch for a channel that's already opened.
+						// We can ignore future bunches from this channel.
+						const bool bNewlyOpenedActorChannel = Bunch.bOpen && (Bunch.ChName == NAME_Actor) && (!Bunch.bPartial || Bunch.bPartialInitial);
 
-					if (!Bunch.IsError())
-					{
-						IgnoringChannels.Add(Bunch.ChIndex, ActorGUID);
-					}
-					else
-					{
-						UE_LOG(LogNetTraffic, Error, TEXT("UNetConnection::ReceivedPacket: Unable to read actor GUID for ignored bunch. (Channel %d)"), Bunch.ChIndex);
-					}
-				}
-
-				if (IgnoringChannels.Contains(Bunch.ChIndex))
-				{
-					if (Bunch.bClose && (!Bunch.bPartial || Bunch.bPartialFinal))
-					{
-						FNetworkGUID ActorGUID = IgnoringChannels.FindAndRemoveChecked(Bunch.ChIndex);
-						if (ActorGUID.IsStatic())
+						if (bNewlyOpenedActorChannel)
 						{
-							UObject* FoundObject = Driver->GuidCache->GetObjectFromNetGUID(ActorGUID, false);
-							if (AActor* StaticActor = Cast<AActor>(FoundObject))
+							FNetworkGUID ActorGUID = GetActorGUIDFromOpenBunch(Bunch);
+
+							if (!Bunch.IsError())
 							{
-								DestroyIgnoredActor(StaticActor);
+								IgnoringChannels.Add(Bunch.ChIndex, ActorGUID);
 							}
 							else
 							{
-								ensure(FoundObject == nullptr);
-								UE_LOG(LogNetTraffic, Log, TEXT("UNetConnection::ReceivedPacket: Unable to find static actor to cleanup for ignored bunch. (Channel %d NetGUID %lu)"), Bunch.ChIndex, ActorGUID.Value);
+								UE_LOG(LogNetTraffic, Error, TEXT("UNetConnection::ReceivedPacket: Unable to read actor GUID for ignored bunch. (Channel %d)"), Bunch.ChIndex);
 							}
 						}
-					}
 
-					UE_LOG(LogNetTraffic, Log, TEXT("Ignoring bunch for already open channel: %i"), Bunch.ChIndex);
-					continue;
+						if (IgnoringChannels.Contains(Bunch.ChIndex))
+						{
+							if (Bunch.bClose && (!Bunch.bPartial || Bunch.bPartialFinal))
+							{
+								FNetworkGUID ActorGUID = IgnoringChannels.FindAndRemoveChecked(Bunch.ChIndex);
+								if (ActorGUID.IsStatic())
+								{
+									UObject* FoundObject = Driver->GuidCache->GetObjectFromNetGUID(ActorGUID, false);
+									if (AActor* StaticActor = Cast<AActor>(FoundObject))
+									{
+										DestroyIgnoredActor(StaticActor);
+									}
+									else
+									{
+										ensure(FoundObject == nullptr);
+										UE_LOG(LogNetTraffic, Log, TEXT("UNetConnection::ReceivedPacket: Unable to find static actor to cleanup for ignored bunch. (Channel %d NetGUID %lu)"), Bunch.ChIndex, ActorGUID.Value);
+									}
+								}
+							}
+
+							UE_LOG(LogNetTraffic, Log, TEXT("Ignoring bunch for already open channel: %i"), Bunch.ChIndex);
+							continue;
+						}
+					}
+				}
+				else
+				{
+					const bool bCloseBunch = Bunch.bClose && (!Bunch.bPartial || Bunch.bPartialFinal);
+
+					if (bCloseBunch && ChannelIndexMap.Contains(CachedChIndex))
+					{
+						check(ChannelIndexMap[CachedChIndex] == Bunch.ChIndex);
+
+						UE_LOG(LogNetTraffic, Verbose, TEXT("Removing channel mapping %d to %d"), CachedChIndex, Bunch.ChIndex);
+						ChannelIndexMap.Remove(CachedChIndex);
+					}
 				}
 			}
 
@@ -2707,8 +2785,17 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			{
 				UE_LOG( LogNetTraffic, Error, TEXT("Received corrupted packet data from client %s.  Disconnecting."), *LowLevelGetRemoteAddress() );
 				Close();
-				bSkipAck = true;
+				return;
 			}
+		}
+	}
+
+	// Close/clean-up channels pending close due to received acks.
+	for (FChannelCloseInfo& Info : ChannelsToClose)
+	{
+		if (UChannel* Channel = Channels[Info.Id])
+		{
+			Channel->ConditionalCleanUp(false, Info.CloseReason);
 		}
 	}
 
@@ -2770,11 +2857,33 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	UE_NET_TRACE_PACKET_RECV(NetTraceId, GetConnectionId(), InPacketId, Reader.GetNumBits());
 }
 
-void UNetConnection::SetIgnoreAlreadyOpenedChannels(bool bInIgnoreAlreadyOpenedChannels)
+void UNetConnection::SetAllowExistingChannelIndex(bool bAllow)
 {
-	check(IsInternalAck());
-	bIgnoreAlreadyOpenedChannels = bInIgnoreAlreadyOpenedChannels;
+	check(IsInternalAck() && IsReplay());
+
+	bAllowExistingChannelIndex = bAllow;
 	IgnoringChannels.Reset();
+
+	if (!bAllow)
+	{
+		// We could have remapped a channel that remained open because we were temporarily using its index before it was closed
+		// Go ahead and restore those indices now (Channels + InReliable)
+		ChannelIndexMap.KeySort(TLess<int32>());
+
+		for (auto& It : ChannelIndexMap)
+		{
+			// this channel should still exist, but the location we want to swap it back to should be empty
+			if (ensure(Channels[It.Value] && !Channels[It.Key]))
+			{
+				Channels[It.Value]->ChIndex = It.Key;
+
+				Swap(Channels[It.Key], Channels[It.Value]);
+				Swap(InReliable[It.Key], InReliable[It.Value]);
+			}
+		}
+	}
+
+	ChannelIndexMap.Reset();
 }
 
 void UNetConnection::SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNetworkGUID>&& InIgnoredBunchGuids)
@@ -2790,7 +2899,6 @@ void UNetConnection::SetIgnoreActorBunches(bool bInIgnoreActorBunches, TSet<FNet
 		IgnoredBunchGuids = MoveTemp(InIgnoredBunchGuids);
 	}
 }
-
 
 void UNetConnection::PrepareWriteBitsToSendBuffer(const int32 SizeInBits, const int32 ExtraSizeInBits)
 {
@@ -3059,50 +3167,71 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 		Driver->NetGUIDOutBytes += (SendBunchHeader.GetNumBits() + Bunch.GetNumBits()) >> 3;
 	}
 
+	if (bAutoFlush)
+	{
+		FlushNet();
+	}
+
 	return Bunch.PacketId;
 }
 
-UChannel* UNetConnection::CreateChannelByName( const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChIndex )
+int32 UNetConnection::GetFreeChannelIndex(const FName& ChName) const
 {
+	int32 ChIndex = INDEX_NONE;
+	int32 FirstChannel = 1;
+
+	const int32 StaticChannelIndex = Driver->ChannelDefinitionMap[ChName].StaticChannelIndex;
+	if (StaticChannelIndex != INDEX_NONE)
+	{
+		FirstChannel = StaticChannelIndex;
+	}
+
+	// Search the channel array for an available location
+	for (ChIndex = FirstChannel; ChIndex < Channels.Num(); ChIndex++)
+	{
+		if (!Channels[ChIndex])
+		{
+			break;
+		}
+	}
+
+	if (ChIndex == Channels.Num())
+	{
+		ChIndex = INDEX_NONE;
+	}
+
+	return ChIndex;
+}
+
+UChannel* UNetConnection::CreateChannelByName(const FName& ChName, EChannelCreateFlags CreateFlags, int32 ChIndex)
+{
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_NetConnection_CreateChannelByName);
+
 	check(Driver->IsKnownChannelName(ChName));
 	checkf(GetUChildConnection() == nullptr, TEXT("Creating channels on child connections is unsupported: ChName: %s ChIndex: %d Connection: %s"), *ChName.ToString(), ChIndex, *Describe());
 	AssertValid();
 
 	// If no channel index was specified, find the first available.
-	if( ChIndex==INDEX_NONE )
+	if (ChIndex == INDEX_NONE)
 	{
-		int32 FirstChannel = 1;
+		ChIndex = GetFreeChannelIndex(ChName);
 
-		int32 StaticChannelIndex = Driver->ChannelDefinitionMap[ChName].StaticChannelIndex;
-		if (StaticChannelIndex != INDEX_NONE)
-		{
-			FirstChannel = StaticChannelIndex;
-		}
-
-		// Search the channel array for an available location
-		for( ChIndex=FirstChannel; ChIndex < Channels.Num(); ChIndex++ )
-		{
-			if( !Channels[ChIndex] )
-			{
-				break;
-			}
-		}
-		
 		// Fail to create if the channel array is full
-		if( ChIndex == Channels.Num() )
+		if (ChIndex == INDEX_NONE)
 		{
 			if (!bHasWarnedAboutChannelLimit)
 			{
 				bHasWarnedAboutChannelLimit = true;
 				UE_LOG(LogNetTraffic, Warning, TEXT("No free channel could be found in the channel list (current limit is %d channels) for connection with owner %s. Consider increasing the max channels allowed using net.MaxChannelSize."), MaxChannelSize, *GetNameSafe(OwningActor));
 			}
-			return NULL;
+
+			return nullptr;
 		}
 	}
 
 	// Make sure channel is valid.
-	check(ChIndex < Channels.Num());
-	check(Channels[ChIndex] == NULL);
+	check(Channels.IsValidIndex(ChIndex));
+	check(Channels[ChIndex] == nullptr);
 
 	// Create channel.
 	UChannel* Channel = Driver->GetOrCreateChannelByName(ChName);
@@ -3175,7 +3304,7 @@ float UNetConnection::GetTimeoutValue()
 	return Timeout;
 }
 
-void UNetConnection::Tick()
+void UNetConnection::Tick(float DeltaSeconds)
 {
 	SCOPE_CYCLE_COUNTER(Stat_NetConnectionTick);
 
@@ -3264,7 +3393,7 @@ void UNetConnection::Tick()
 	}
 
 	// Pretend everything was acked, for 100% reliable connections or demo recording.
-	if(IsInternalAck())
+	if (IsInternalAck())
 	{
 		const bool bIsServer = Driver->IsServer();
 		OutAckPacketId = OutPacketId;
@@ -4198,6 +4327,12 @@ uint32 UNetConnection::GetParentConnectionId() const
 	}
 
 	return GetConnectionId();
+}
+
+void UNetConnection::NotifyActorDestroyed(AActor* Actor, bool IsSeamlessTravel /* = false */)
+{
+	// Remove it from any dormancy lists
+	CleanupDormantReplicatorsForActor(Actor);
 }
 
 /*-----------------------------------------------------------------------------

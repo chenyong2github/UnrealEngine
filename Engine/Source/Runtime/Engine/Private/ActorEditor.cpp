@@ -623,6 +623,14 @@ void AActor::PostEditUndo()
 	{
 		Super::PostEditUndo();
 	}
+
+	UWorld* World = GetWorld();
+	if (World && World->Scene)
+	{
+		ENQUEUE_RENDER_COMMAND(UpdateAllPrimitiveSceneInfosCmd)([Scene = World->Scene](FRHICommandListImmediate& RHICmdList) {
+			Scene->UpdateAllPrimitiveSceneInfos(RHICmdList);
+		});
+	}
 }
 
 void AActor::PostEditUndo(TSharedPtr<ITransactionObjectAnnotation> TransactionAnnotation)

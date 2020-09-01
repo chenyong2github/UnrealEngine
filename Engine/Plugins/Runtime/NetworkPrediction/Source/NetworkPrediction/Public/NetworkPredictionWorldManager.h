@@ -12,6 +12,7 @@
 #include "NetworkPredictionSerialization.h"
 #include "NetworkPredictionTrace.h"
 #include "NetworkPredictionSettings.h"
+#include "NetworkPredictionCues.h"
 
 #include "NetworkPredictionWorldManager.generated.h"
 
@@ -57,6 +58,8 @@ public:
 		TModelDataStore<ModelDef>* DataStore = Services.GetDataStore<ModelDef>();
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.FindOrAdd(ID);
 		InstanceData.Info = ModelInfo;
+		InstanceData.TraceID = ID.GetTraceID();
+		InstanceData.CueDispatcher->Driver = ModelInfo.Driver; // Awkward: we should convert Cues to a service so this isn't needed.
 	}
 
 	template<typename ModelDef>
@@ -96,6 +99,7 @@ private:
 	void SetUsingPhysics();
 	void InitPhysicsCapture();
 	void AdvancePhysicsResimFrame(int32& PhysicsFrame);
+	void EnsurePhysicsGTSync(const TCHAR* Context) const;
 
 	FNetworkPredictionSettings Settings;
 
@@ -335,6 +339,19 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 			{
 				InitPhysicsCapture();
 			}
+		}
+	}
+
+	// Net Cues: set which replicated cues we should accept based on if we are FP or interpolated
+	if (Role != ROLE_Authority)
+	{
+		if (EnumHasAnyFlags(ServiceMask, ENetworkPredictionService::FixedInterpolate | ENetworkPredictionService::IndependentInterpolate))
+		{
+			InstanceData.CueDispatcher->SetReceiveReplicationTarget(ENetSimCueReplicationTarget::Interpolators);
+		}
+		else
+		{
+			InstanceData.CueDispatcher->SetReceiveReplicationTarget( Role == ROLE_AutonomousProxy ? ENetSimCueReplicationTarget::AutoProxy : ENetSimCueReplicationTarget::SimulatedProxy);
 		}
 	}
 

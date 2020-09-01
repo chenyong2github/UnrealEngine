@@ -4,12 +4,43 @@
 #include "Chaos/Framework/PhysicsProxyBase.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "ChaosStats.h"
+#include "Chaos/PendingSpatialData.h"
 
 namespace Chaos
 {	
 	void FPhysicsSolverBase::ChangeBufferMode(EMultiBufferMode InBufferMode)
 	{
 		BufferMode = InBufferMode;
+	}
+
+	FDelegateHandle FPhysicsSolverBase::AddPreAdvanceCallback(FSolverPreAdvance::FDelegate InDelegate)
+	{
+		return EventPreSolve.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemovePreAdvanceCallback(FDelegateHandle InHandle)
+	{
+		return EventPreSolve.Remove(InHandle);
+	}
+
+	FDelegateHandle FPhysicsSolverBase::AddPreBufferCallback(FSolverPreBuffer::FDelegate InDelegate)
+	{
+		return EventPreBuffer.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemovePreBufferCallback(FDelegateHandle InHandle)
+	{
+		return EventPreBuffer.Remove(InHandle);
+	}
+
+	FDelegateHandle FPhysicsSolverBase::AddPostAdvanceCallback(FSolverPostAdvance::FDelegate InDelegate)
+	{
+		return EventPostSolve.Add(InDelegate);
+	}
+
+	bool FPhysicsSolverBase::RemovePostAdvanceCallback(FDelegateHandle InHandle)
+	{
+		return EventPostSolve.Remove(InHandle);
 	}
 
 	FAutoConsoleTaskPriority CPrio_FPhysicsTickTask(
@@ -20,9 +51,10 @@ namespace Chaos
 		ENamedThreads::HighTaskPriority // if we don't have hi pri threads, then use normal priority threads at high task priority instead
 	);
 
-	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, FReal InDt)
+	FPhysicsSolverAdvanceTask::FPhysicsSolverAdvanceTask(FPhysicsSolverBase& InSolver, TArray<TFunction<void()>>&& InQueue, TArray<FPushPhysicsData*>&& InPushData, FReal InDt)
 		: Solver(InSolver)
 		, Queue(MoveTemp(InQueue))
+		, PushData(MoveTemp(InPushData))
 		, Dt(InDt)
 	{
 	}
@@ -45,16 +77,18 @@ namespace Chaos
 
 	void FPhysicsSolverAdvanceTask::DoTask(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent)
 	{
-		FPhysicsSolverAdvanceTask::AdvanceSolver(Solver,MoveTemp(Queue),Dt);
+		AdvanceSolver();
 	}
 
-	void FPhysicsSolverAdvanceTask::AdvanceSolver(FPhysicsSolverBase& Solver, TArray<TFunction<void()>>&& Queue, const FReal Dt)
+	void FPhysicsSolverAdvanceTask::AdvanceSolver()
 	{
 		using namespace Chaos;
 
 		LLM_SCOPE(ELLMTag::Chaos);
 		SCOPE_CYCLE_COUNTER(STAT_ChaosTick);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Physics);
+
+		Solver.ProcessPushedData_Internal(PushData);
 
 		// Handle our solver commands
 		{
@@ -66,6 +100,33 @@ namespace Chaos
 		}
 
 		Solver.AdvanceSolverBy(Dt);
+	}
+
+	FPhysicsSolverBase::FPhysicsSolverBase(const EMultiBufferMode BufferingModeIn,const EThreadingModeTemp InThreadingMode,UObject* InOwner,ETraits InTraitIdx)
+		: BufferMode(BufferingModeIn)
+		, ThreadingMode(InThreadingMode)
+		, PendingSpatialOperations_External(MakeUnique<FPendingSpatialDataQueue>())
+		, Owner(InOwner)
+		, TraitIdx(InTraitIdx)
+	{
+	}
+
+	FPhysicsSolverBase::~FPhysicsSolverBase() = default;
+
+
+	void FPhysicsSolverBase::UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete)
+	{
+		//mark it as pending for async structure being built
+		TAccelerationStructureHandle<float,3> AccelerationHandle(Particle);
+		FPendingSpatialData& SpatialData = PendingSpatialOperations_External->FindOrAdd(Particle->UniqueIdx());
+
+		//make sure any new operations (i.e not currently being consumed by sim) are not acting on a deleted object
+		ensure(SpatialData.SyncTimestamp <= MarshallingManager.GetExternalTimestampConsumed_External() || !SpatialData.bDelete);
+
+		SpatialData.bDelete = bDelete;
+		SpatialData.SpatialIdx = Particle->SpatialIdx();
+		SpatialData.AccelerationHandle = AccelerationHandle;
+		SpatialData.SyncTimestamp = MarshallingManager.GetExternalTimestamp_External();
 	}
 
 	//////////////////////////////////////////////////////////////////////////

@@ -10,7 +10,6 @@ struct FNDIArrayImplHelper<int32> : public FNDIArrayImplHelperBase<int32>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("int");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("int");
 	static constexpr EPixelFormat PixelFormat = PF_R32_SINT;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyIntBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetIntDef(); }
 	static const int32 GetDefaultValue() { return 0; }
 };
@@ -22,7 +21,6 @@ struct FNDIArrayImplHelper<bool> : public FNDIArrayImplHelperBase<bool>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("bool");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("bool");
 	static constexpr EPixelFormat PixelFormat = PF_R8_UINT;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyIntBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetBoolDef(); }
 	static const bool GetDefaultValue() { return false; }
 };
@@ -31,7 +29,7 @@ UNiagaraDataInterfaceArrayInt32::UNiagaraDataInterfaceArrayInt32(FObjectInitiali
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<int32, UNiagaraDataInterfaceArrayInt32>(Proxy, IntData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<int32, UNiagaraDataInterfaceArrayInt32>(this, IntData));
 }
 
 UNiagaraDataInterfaceArrayBool::UNiagaraDataInterfaceArrayBool(FObjectInitializer const& ObjectInitializer)
@@ -40,5 +38,5 @@ UNiagaraDataInterfaceArrayBool::UNiagaraDataInterfaceArrayBool(FObjectInitialize
 	static_assert(sizeof(bool) == sizeof(uint8), "Bool != 1 byte this will mean the GPU array does not match in size");
 
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<bool, UNiagaraDataInterfaceArrayBool>(Proxy, BoolData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<bool, UNiagaraDataInterfaceArrayBool>(this, BoolData));
 }

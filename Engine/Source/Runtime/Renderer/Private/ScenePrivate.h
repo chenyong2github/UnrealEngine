@@ -1044,6 +1044,10 @@ public:
 	// Ray Traced Global Illumination Gather Point Data
 	TRefCountPtr<FPooledRDGBuffer> GatherPointsBuffer;
 	FIntVector GatherPointsResolution;
+
+	// Last valid RTPSO is saved, so it could be used as fallback in future frames if background PSO compilation is enabled.
+	// This RTPSO can be used only if the only difference from previous PSO is the material hit shaders.
+	FRayTracingPipelineStateSignature LastRayTracingMaterialPipelineSignature;
 #endif
 
 	TUniquePtr<FForwardLightingViewResources> ForwardLightingResources;
@@ -1489,6 +1493,15 @@ public:
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	virtual const FViewMatrices* GetFrozenViewMatrices() const override
+	{
+		if (bIsFrozen && bIsFrozenViewMatricesCached)
+		{
+			return &CachedViewMatrices;
+		}
+		return nullptr;
+	}
+
 	virtual void ActivateFrozenViewMatrices(FSceneView& SceneView) override
 	{
 		auto* ViewState = static_cast<FSceneViewState*>(SceneView.State);
@@ -2554,10 +2567,10 @@ public:
 
 	/** If sky light bRealTimeCaptureEnabled is true, used to render the sky env map (sky, sky dome mesh or clouds). */
 	TRefCountPtr<IPooledRenderTarget> CapturedSkyRenderTarget;	// Needs to be a IPooledRenderTarget because it must be created before the View uniform buffer is created.
-	/** If sky light bRealTimeCaptureEnabled is true, use to store the result of the sky env map GGX specular convolution. */
-	TRefCountPtr<IPooledRenderTarget> ConvolvedSkyRenderTarget;
-	/** If the real time sky capture is time sliced, this stores the currently processed/generated sky env map.*/
-	TRefCountPtr<IPooledRenderTarget> ProcessedSkyRenderTarget;
+	/** These store the result of the sky env map GGX specular convolution. */
+	TRefCountPtr<IPooledRenderTarget> ConvolvedSkyRenderTarget[2];
+	/** The index of the ConvolvedSkyRenderTarget to use when rendering meshes. -1 when not initialised. */
+	int32 ConvolvedSkyRenderTargetReadyIndex;
 
 	/** True if no real time reflection capture has been entirely processed. We always enforce a complete one the first frame even with time slicing for correct start up lighting.*/
 	bool bRealTimeSlicedReflectionCaptureFirstFrame;
@@ -2759,6 +2772,7 @@ public:
 	virtual void AllocateReflectionCaptures(const TArray<UReflectionCaptureComponent*>& NewCaptures, const TCHAR* CaptureReason, bool bVerifyOnlyCapturing) override;
 	virtual void UpdateSkyCaptureContents(const USkyLightComponent* CaptureComponent, bool bCaptureEmissiveOnly, UTextureCube* SourceCubemap, FTexture* OutProcessedTexture, float& OutAverageBrightness, FSHVectorRGB3& OutIrradianceEnvironmentMap, TArray<FFloat16Color>* OutRadianceMap) override; 
 	virtual void AllocateAndCaptureFrameSkyEnvMap(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud) override;
+	virtual void ValidateSkyLightRealTimeCapture(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView) override;
 	virtual void AddPrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual void RemovePrecomputedLightVolume(const class FPrecomputedLightVolume* Volume) override;
 	virtual bool HasPrecomputedVolumetricLightmap_RenderThread() const override;

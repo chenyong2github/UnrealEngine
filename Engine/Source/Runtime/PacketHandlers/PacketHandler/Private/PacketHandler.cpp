@@ -427,20 +427,18 @@ void HandlerComponent::CountBytes(FArchive& Ar) const
 	Ar.CountBytes(sizeof(*this), sizeof(*this));
 }
 
-
-const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 CountBytes, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address)
+EIncomingResult PacketHandler::Incoming_Internal(FReceivedPacketView& PacketView)
 {
 	SCOPE_CYCLE_COUNTER(Stat_PacketHandler_Incoming_Internal);
 
-	// @todo #JohnB: Try to optimize this function more, seeing as it will be a common codepath DoS attacks pass through
-	// @todo #JohnB: Clean up returns.
-
-	int32 CountBits = CountBytes * 8;
-	bool bError = false;
+	EIncomingResult ReturnVal = EIncomingResult::Success;
+	FPacketDataView& DataView = PacketView.DataView;
+	int32 CountBits = DataView.NumBits();
 
 	if (HandlerComponents.Num() > 0)
 	{
-		uint8 LastByte = Packet[CountBytes - 1];
+		const uint8* DataPtr = DataView.GetData();
+		uint8 LastByte = (UNLIKELY(DataPtr == nullptr)) ? 0 : DataPtr[DataView.NumBytes() - 1];
 
 		if (LastByte != 0)
 		{
@@ -454,7 +452,8 @@ const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 Coun
 		}
 		else
 		{
-			bError = true;
+			PacketView.DataView = {nullptr, 0, ECountUnits::Bits};
+			ReturnVal = EIncomingResult::Error;
 
 #if !UE_BUILD_SHIPPING
 			UE_CLOG((DDoS == nullptr || !DDoS->CheckLogRestrictions()), PacketHandlerLog, Error,
@@ -464,9 +463,10 @@ const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 Coun
 	}
 
 
-	if (!bError)
+	if (ReturnVal == EIncomingResult::Success)
 	{
-		FBitReader ProcessedPacketReader(Packet, CountBits);
+		FBitReader ProcessedPacketReader(DataView.GetMutableData(), CountBits);
+		FIncomingPacketRef PacketRef = {ProcessedPacketReader, PacketView.Address, PacketView.Traits};
 
 		FPacketAudit::CheckStage(TEXT("PostPacketHandler"), ProcessedPacketReader);
 
@@ -488,9 +488,9 @@ const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 Coun
 					RealignPacket(ProcessedPacketReader);
 				}
 
-				if (bConnectionless)
+				if (PacketView.Traits.bConnectionlessPacket)
 				{
-					CurComponent.IncomingConnectionless(Address, ProcessedPacketReader);
+					CurComponent.IncomingConnectionless(PacketRef);
 				}
 				else
 				{
@@ -508,17 +508,16 @@ const ProcessedPacket PacketHandler::Incoming_Internal(uint8* Packet, int32 Coun
 				FPacketAudit::CheckStage(TEXT("PrePacketHandler"), IncomingPacket, true);
 			}
 
-			return ProcessedPacket(IncomingPacket.GetData(), IncomingPacket.GetBitsLeft());
+			PacketView.DataView = {IncomingPacket.GetData(), (int32)IncomingPacket.GetBitsLeft(), ECountUnits::Bits};
 		}
 		else
 		{
-			return ProcessedPacket(nullptr, 0, true);
+			PacketView.DataView = {nullptr, 0, ECountUnits::Bits};
+			ReturnVal = EIncomingResult::Error;
 		}
 	}
-	else
-	{
-		return ProcessedPacket(nullptr, 0, true);
-	}
+
+	return ReturnVal;
 }
 
 const ProcessedPacket PacketHandler::Outgoing_Internal(uint8* Packet, int32 CountBits, FOutPacketTraits& Traits, bool bConnectionless, const TSharedPtr<const FInternetAddr>& Address)

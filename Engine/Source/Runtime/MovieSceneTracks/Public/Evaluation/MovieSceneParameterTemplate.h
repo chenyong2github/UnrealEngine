@@ -145,7 +145,7 @@ struct TMaterialTrackExecutionToken : IMovieSceneExecutionToken
 			{
 				FString DynamicName = Material->GetName() + "_Animated";
 				FName UniqueDynamicName = MakeUniqueObjectName( Object, UMaterialInstanceDynamic::StaticClass() , *DynamicName );
-				DynamicMaterialInstance = UMaterialInstanceDynamic::Create( Material, Object, UniqueDynamicName );
+				DynamicMaterialInstance = Accessor.CreateMaterialInstanceDynamic(*Object, *Material, UniqueDynamicName);
 
 				Accessor.SetMaterialForObject(*Object, *DynamicMaterialInstance);
 			}

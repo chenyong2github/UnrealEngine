@@ -954,7 +954,7 @@ private:
 	 * For example the material needs to support being rendered at different quality levels and feature levels within the same process.
 	 * These are always valid and non-null, but only the entries affected by CacheResourceShadersForRendering are actually valid for rendering.
 	 */
-	FMaterialResource* MaterialResources[EMaterialQualityLevel::Num][ERHIFeatureLevel::Num];
+	TArray<FMaterialResource*> MaterialResources;
 #if WITH_EDITOR
 	/** Material resources being cached for cooking. */
 	TMap<const class ITargetPlatform*, TArray<FMaterialResource*>> CachedMaterialResourcesForCooking;
@@ -1175,9 +1175,6 @@ private:
 
 	/** Sets the value associated with the given usage flag. */
 	void SetUsageByFlag(const EMaterialUsage Usage, const bool NewValue);
-
-	/** Sets up transient properties in MaterialResources. */
-	void UpdateResourceAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
 
 	/** to share code for PostLoad() and PostEditChangeProperty(), and UMaterialInstance::InitResources(), needs to be refactored */
 	void PropagateDataToMaterialProxy();
@@ -1446,8 +1443,14 @@ public:
 	* Or is required by the material quality setting overrides.
 	* @param	QualityLevelsUsed	output array of used quality levels.
 	* @param	ShaderPlatform	The shader platform to use for the quality settings.
+	* @param	bCooking		During cooking, certain quality levels may be discarded
 	*/
-	void GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform);
+	void GetQualityLevelUsage(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform, bool bCooking = false);
+	
+	inline void GetQualityLevelUsageForCooking(TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num> >& QualityLevelsUsed, EShaderPlatform ShaderPlatform)
+	{
+		GetQualityLevelUsage(QualityLevelsUsed, ShaderPlatform, true);
+	}
 
 #if WITH_EDITOR
 	ENGINE_API void UpdateCachedExpressionData();
@@ -1634,6 +1637,8 @@ public:
 #endif
 
 #if WITH_EDITORONLY_DATA
+	/* Returns any UMaterialExpressionFunctionOutput expressions */
+	ENGINE_API void GetAllFunctionOutputExpressions(TArray<class UMaterialExpressionFunctionOutput*>& OutFunctionOutputs) const;
 	/* Returns any UMaterialExpressionCustomOutput expressions */
 	ENGINE_API void GetAllCustomOutputExpressions(TArray<class UMaterialExpressionCustomOutput*>& OutCustomOutputs) const;
 	ENGINE_API void GetAllExpressionsForCustomInterpolators(TArray<class UMaterialExpression*>& OutExpressions) const;
@@ -1718,10 +1723,12 @@ public:
 #if WITH_EDITORONLY_DATA
 	bool HasBaseColorConnected() const { return BaseColor.IsConnected(); }
 	bool HasRoughnessConnected() const { return Roughness.IsConnected(); }
+	bool HasAmbientOcclusionConnected() const { return AmbientOcclusion.IsConnected(); }
 #else	
 	// Add to runtime data only if we need to call these at runtime
 	bool HasBaseColorConnected() const { check(0); return false; }
 	bool HasRoughnessConnected() const { check(0); return false; }
+	bool HasAmbientOcclusionConnected() const { check(0); return false; }
 #endif 	
 	bool HasNormalConnected() const { return Normal.IsConnected(); }
 	bool HasSpecularConnected() const { return Specular.IsConnected(); }

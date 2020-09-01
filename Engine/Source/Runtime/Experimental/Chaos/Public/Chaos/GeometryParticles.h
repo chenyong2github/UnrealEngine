@@ -495,6 +495,14 @@ namespace Chaos
 			check(!DynamicGeometry(Index));
 			check(!SharedGeometry(Index));
 			MGeometry[Index] = InGeometry;
+			if (InGeometry)
+			{
+				MHasBounds[Index] = InGeometry->HasBoundingBox();
+				MLocalBounds[Index] = InGeometry->BoundingBox();
+				// world space inflated bounds needs to take v into account - this is done in integrate for dynamics anyway, so
+				// this computation is mainly for statics
+				MWorldSpaceInflatedBounds[Index] = MLocalBounds[Index].TransformedAABB(TRigidTransform<FReal, 3>(X(Index), R(Index)));
+			}
 			UpdateShapesArray(Index);
 			MapImplicitShapes(Index);
 		}
@@ -682,6 +690,12 @@ public:
 
 			return nullptr;
 		}
+
+
+		FORCEINLINE TArray<TRotation<T, d>>& AllR() { return MR; }
+		FORCEINLINE TArray<TAABB<T, d>>& AllLocalBounds() { return MLocalBounds; }
+		FORCEINLINE TArray<TAABB<T, d>>& AllWorldSpaceInflatedBounds() { return MWorldSpaceInflatedBounds; }
+		FORCEINLINE TArray<bool>& AllHasBounds() { return MHasBounds; }
 
 	protected:
 		EParticleType MParticleType;

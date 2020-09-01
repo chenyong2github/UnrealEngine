@@ -311,8 +311,6 @@ public:
 
 		FNetworkPredictionDriver<ModelDef>::PhysicsNetRecv(P, ClientRecvState.Physics); // 3. Physics
 		
-		InstanceData.CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::AutoProxy, true); // 4. NetSimCues
-		
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, ClientRecvState.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, ClientRecvState.AuxState.Get());
 	}
@@ -324,9 +322,7 @@ public:
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.SyncState, P);	// 1. Sync
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.AuxState, P);	// 2. Aux
 
-		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData.Info.Physics); // 3. Physics
-
-		InstanceData.CueDispatcher->NetSerializeSavedCues(P.Ar, ENetSimCueReplicationTarget::AutoProxy, true); // 4. NetSimCues
+		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData.Info.Driver); // 3. Physics
 	}
 };
 
@@ -382,10 +378,12 @@ public:
 		ClientRecvState.ServerFrame = ServerFrame;
 		UE_NP_TRACE_NET_RECV(ServerFrame, ServerFrame * TickState->FixedStepMS);
 
-		npEnsureSlow(ClientRecvState.InstanceIdx != 0);
+		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
 		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
 
 		TCommonReplicator_AP<ModelDef>::NetRecv(P, InstanceData, ClientRecvState); // 3. Common
+
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, true, ServerFrame, 0); // 4. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -415,6 +413,8 @@ public:
 		FNetworkPredictionSerialization::WriteCompressedFrame(Ar, PendingFrame); // 2. PendingFrame (Server's frame)
 
 		TCommonReplicator_AP<ModelDef>::NetSend(P, *Instance, Frames->Buffer[PendingFrame]); // 3. Common
+
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::AutoProxy, true); // 4. NetSimCues
 	}
 };
 
@@ -480,7 +480,7 @@ public:
 	using ModelDef = InModelDef;
 
 	template<typename ClientRecvDataType>
-	static void NetRecv(const FNetSerializeParams& P, ClientRecvDataType& ClientRecvState, TModelDataStore<ModelDef>* DataStore, const bool bSerializeCueFrames)
+	static void NetRecv(const FNetSerializeParams& P, ClientRecvDataType& ClientRecvState, TModelDataStore<ModelDef>* DataStore)
 	{
 		FArchive& Ar = P.Ar;
 		NETSIM_CHECKSUM(Ar);
@@ -491,22 +491,17 @@ public:
 
 		FNetworkPredictionDriver<ModelDef>::PhysicsNetRecv(P, ClientRecvState.Physics); // 4. Physics
 
-		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
-		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
-		InstanceData.CueDispatcher->NetSerializeSavedCues(Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 5. NetSimCues
-
 		UE_NP_TRACE_USER_STATE_INPUT(ModelDef, ClientRecvState.InputCmd.Get());
 		UE_NP_TRACE_USER_STATE_SYNC(ModelDef, ClientRecvState.SyncState.Get());
 		UE_NP_TRACE_USER_STATE_AUX(ModelDef, ClientRecvState.AuxState.Get());
 	}
 	
-	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, int32 PendingFrame, const bool bSerializeCueFrames)
+	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, TInstanceData<ModelDef>* InstanceData, int32 PendingFrame)
 	{
+		npCheckSlow(InstanceData);
+
 		FArchive& Ar = P.Ar;
 		NETSIM_CHECKSUM(Ar);
-
-		TInstanceData<ModelDef>* Instance = DataStore->Instances.Find(ID);
-		npCheckSlow(Instance);
 
 		TInstanceFrameState<ModelDef>* Frames = DataStore->Frames.Find(ID);
 		npCheckSlow(Frames);
@@ -516,8 +511,7 @@ public:
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.SyncState, P);	// 2. Sync
 		FNetworkPredictionDriver<ModelDef>::NetSerialize(FrameData.AuxState, P);	// 3. Aux
 
-		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, Instance->Info.Physics); // 4. Physics
-		Instance->CueDispatcher->NetSerializeSavedCues(Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 5. NetSimCues		
+		FNetworkPredictionDriver<ModelDef>::PhysicsNetSend(P, InstanceData->Info.Driver); // 4. Physics
 	}
 };
 
@@ -537,9 +531,14 @@ public:
 		npEnsure(ClientRecvState.ServerFrame >= 0);
 
 		UE_NP_TRACE_NET_RECV(ClientRecvState.ServerFrame, ClientRecvState.ServerFrame * TickState->FixedStepMS);
+		
+		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore); // 2, Common
+
+		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
+		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
 
 		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
-		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore, bSerializeCueFrames); // 2, Common
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, bSerializeCueFrames, ClientRecvState.ServerFrame, 0); // 3. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -549,11 +548,16 @@ public:
 	{
 		const int32 PendingFrame = TickState->PendingFrame;
 		npEnsure(PendingFrame >= 0);
+
+		TInstanceData<ModelDef>* Instance = DataStore->Instances.Find(ID);
+		npCheckSlow(Instance);
 		
 		FNetworkPredictionSerialization::WriteCompressedFrame(P.Ar, PendingFrame); // 1. PendingFrame (Server's frame)
+		
+		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, Instance, PendingFrame); // 2. Common
 
 		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
-		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, PendingFrame, bSerializeCueFrames); // 2. Common
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 3. NetSimCues
 	}
 };
 
@@ -582,9 +586,14 @@ public:
 		npEnsure(TraceFrame >= 0);
 
 		UE_NP_TRACE_NET_RECV(TraceFrame, TickState->Frames[TickState->PendingFrame].TotalMS);
+		
+		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore); // 2. Common
 
-		const bool bSerializeCueFrames = false; // Independent tick cannot use Frame numbers for SP serialization (use time instead)
-		TCommonReplicator_SP<ModelDef>::NetRecv(P, ClientRecvState, DataStore, bSerializeCueFrames); // 2. Common
+		npEnsureSlow(ClientRecvState.InstanceIdx >= 0);
+		TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvState.InstanceIdx);
+
+		const bool bSerializeCueFrames = true; // Fixed tick can use Frame numbers for SP serialization
+		InstanceData.CueDispatcher->NetRecvSavedCues(P.Ar, bSerializeCueFrames, INDEX_NONE, ClientRecvState.SimTimeMS); // 3. NetSimCues
 	}
 
 	// ------------------------------------------------------------------------------------------------------------
@@ -616,12 +625,15 @@ private:
 
 	static void NetSend(const FNetSerializeParams& P, FNetworkPredictionID ID, TModelDataStore<ModelDef>* DataStore, int32 TotalSimTime, int32 PendingFrame)
 	{
-		const bool bSerializeCueFrames = false; // Independent tick cannot use Frame numbers for SP serialization (use time instead)
-		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, TotalSimTime); // 1. TotalSimTime
-		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, PendingFrame, bSerializeCueFrames); // 2. Common
-	}
+		TInstanceData<ModelDef>* Instance = DataStore->Instances.Find(ID);
+		npCheckSlow(Instance);
 
-	
+		FNetworkPredictionSerialization::SerializeTimeMS(P.Ar, TotalSimTime); // 1. TotalSimTime
+		TCommonReplicator_SP<ModelDef>::NetSend(P, ID, DataStore, Instance, PendingFrame); // 2. Common
+
+		const bool bSerializeCueFrames = false; // Independent tick cannot use Frame numbers for SP serialization (use time instead)
+		Instance->CueDispatcher->NetSendSavedCues(P.Ar, ENetSimCueReplicationTarget::SimulatedProxy | ENetSimCueReplicationTarget::Interpolators, bSerializeCueFrames); // 3. NetSimCues
+	}
 };
 
 // ---------------------------------------------------------------------------------------------------------------------------

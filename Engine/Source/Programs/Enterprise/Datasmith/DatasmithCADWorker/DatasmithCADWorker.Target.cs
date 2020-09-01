@@ -3,7 +3,7 @@
 using UnrealBuildTool;
 using System.Collections.Generic;
 
-[SupportedPlatforms(UnrealPlatformClass.Desktop)]
+[SupportedPlatforms("Win64")]
 public class DatasmithCADWorkerTarget : TargetRules
 {
 	public DatasmithCADWorkerTarget(TargetInfo Target) : base(Target)

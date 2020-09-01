@@ -28,7 +28,7 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase *GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitteride) const override;
 	virtual int32 GetDynamicDataSize()const override;
-	virtual bool IsMaterialValid(UMaterialInterface* Mat)const override;
+	virtual bool IsMaterialValid(const UMaterialInterface* Mat)const override;
 #if RHI_RAYTRACING
 	virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) final override;
 #endif
@@ -77,14 +77,8 @@ private:
 	FCPUSimParticleDataAllocation AllocateParticleDataIfCPUSim(struct FNiagaraDynamicDataRibbon* DynamicDataRibbon, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
 
 	ENiagaraRibbonFacingMode FacingMode;
-	float UV0TilingDistance;
-	FVector2D UV0Scale;
-	FVector2D UV0Offset;
-	ENiagaraRibbonAgeOffsetMode UV0AgeOffsetMode;
-	float UV1TilingDistance;
-	FVector2D UV1Scale;
-	FVector2D UV1Offset;
-	ENiagaraRibbonAgeOffsetMode UV1AgeOffsetMode;
+	FNiagaraRibbonUVSettings UV0Settings;
+	FNiagaraRibbonUVSettings UV1Settings;
 	ENiagaraRibbonDrawDirection DrawDirection;
 	ENiagaraRibbonTessellationMode TessellationMode;
 	float CustomCurveTension;

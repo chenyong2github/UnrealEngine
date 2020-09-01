@@ -6,11 +6,14 @@
 
 #include "DynamicMesh3.h"
 #include "DynamicMeshAttributeSet.h"
-#include "MeshNormals.h"
+#include "MeshTransforms.h"
 #include "MeshDescriptionToDynamicMesh.h"
-#include "Sampling/SphericalFibonacci.h"
-#include "Sampling/Gaussians.h"
-#include "Image/ImageOccupancyMap.h"
+#include "Sampling/MeshImageBakingCache.h"
+#include "Sampling/MeshNormalMapBaker.h"
+#include "Sampling/MeshOcclusionMapBaker.h"
+#include "Sampling/MeshCurvatureMapBaker.h"
+#include "Sampling/MeshPropertyMapBaker.h"
+#include "Sampling/MeshResampleImageBaker.h"
 #include "Util/IndexUtil.h"
 
 #include "SimpleDynamicMeshComponent.h"
@@ -27,8 +30,6 @@
 #include "Engine/Classes/Components/StaticMeshComponent.h"
 #include "Engine/Classes/Engine/StaticMesh.h"
 
-#include "Async/ParallelFor.h"
-
 #define LOCTEXT_NAMESPACE "UBakeMeshAttributeMapsTool"
 
 
@@ -40,8 +41,9 @@
 bool UBakeMeshAttributeMapsToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	// NOTE: currently can only bake for UStaticMeshComponent
-	return ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget) == 2 
-		&&(ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; }) == 2);
+	int32 NumTargets = ToolBuilderUtil::CountComponents(SceneState, CanMakeComponentTarget);
+	return (NumTargets == 1 || NumTargets == 2)
+		&& (ToolBuilderUtil::CountComponents(SceneState, [&](UActorComponent* Comp) { return Cast<UStaticMeshComponent>(Comp) != nullptr; }) == NumTargets);
 }
 
 UInteractiveTool* UBakeMeshAttributeMapsToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
@@ -51,12 +53,23 @@ UInteractiveTool* UBakeMeshAttributeMapsToolBuilder::BuildTool(const FToolBuilde
 
 	TArray<UActorComponent*> Components = ToolBuilderUtil::FindAllComponents(SceneState, CanMakeComponentTarget);
 	TArray<TUniquePtr<FPrimitiveComponentTarget>> MeshComponents;
-	MeshComponents.Add( MakeComponentTarget(Cast<UPrimitiveComponent>(Components[0])) );
-	MeshComponents.Add( MakeComponentTarget(Cast<UPrimitiveComponent>(Components[1])) );
+	for (int32 k = 0; k < Components.Num(); ++k)
+	{
+		MeshComponents.Add(MakeComponentTarget(Cast<UPrimitiveComponent>(Components[k])));
+	}
 
 	NewTool->SetSelection(MoveTemp(MeshComponents));
 	return NewTool;
 }
+
+
+
+
+TArray<FString> UBakeMeshAttributeMapsToolProperties::GetUVLayerNamesFunc()
+{
+	return UVLayerNamesList;
+}
+
 
 
 
@@ -104,11 +117,6 @@ void UBakeMeshAttributeMapsTool::Setup()
 	BaseMeshTangents = MakeShared<FMeshTangentsd>(&BaseMesh);
 	BaseMeshTangents->CopyTriVertexTangents(*DynamicMeshComponent->GetTangents());
 
-
-	FMeshDescriptionToDynamicMesh Converter;
-	Converter.Convert(ComponentTargets[1]->GetMesh(), DetailMesh);
-	DetailSpatial.SetMesh(&DetailMesh, true);
-
 	UMaterial* Material = LoadObject<UMaterial>(nullptr, TEXT("/MeshModelingToolset/Materials/BakePreviewMaterial"));
 	check(Material);
 	if (Material != nullptr)
@@ -117,31 +125,73 @@ void UBakeMeshAttributeMapsTool::Setup()
 		DynamicMeshComponent->SetOverrideRenderMaterial(PreviewMaterial);
 	}
 
+	bIsBakeToSelf = (ComponentTargets.Num() == 1);
+
 	// hide input StaticMeshComponent
 	ComponentTargets[0]->SetOwnerVisibility(false);
-	//ComponentTargets[1]->SetOwnerVisibility(false);
+
 
 	Settings = NewObject<UBakeMeshAttributeMapsToolProperties>(this);
 	Settings->RestoreProperties(this);
+	Settings->UVLayerNamesList.Reset();
+	int32 FoundIndex = -1;
+	for (int32 k = 0; k < BaseMesh.Attributes()->NumUVLayers(); ++k)
+	{
+		Settings->UVLayerNamesList.Add(FString::FromInt(k));
+		if (Settings->UVLayer == Settings->UVLayerNamesList.Last())
+		{
+			FoundIndex = k;
+		}
+	}
+	if (FoundIndex == -1)
+	{
+		Settings->UVLayer = Settings->UVLayerNamesList[0];
+	}
 	AddToolPropertySource(Settings);
 
-	OcclusionMapProps = NewObject<UBakedOcclusionMapToolProperties>(this);
-	OcclusionMapProps->RestoreProperties(this);
-	AddToolPropertySource(OcclusionMapProps);
+	Settings->WatchProperty(Settings->MapType, [this](EBakeMapType) { bResultValid = false; UpdateOnModeChange(); });
+	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { bResultValid = false; });
+	Settings->WatchProperty(Settings->UVLayer, [this](FString) { bResultValid = false; });
+	Settings->WatchProperty(Settings->bUseWorldSpace, [this](bool) { bDetailMeshValid = false; bResultValid = false; });
+
 
 	NormalMapProps = NewObject<UBakedNormalMapToolProperties>(this);
 	NormalMapProps->RestoreProperties(this);
 	AddToolPropertySource(NormalMapProps);
+	SetToolPropertySourceEnabled(NormalMapProps, false);
 
-	Settings->WatchProperty(Settings->Resolution, [this](EBakeTextureResolution) { InvalidateNormals(); InvalidateOcclusion(); });
-	Settings->WatchProperty(Settings->bNormalMap, [this](bool) { InvalidateNormals(); });
-	Settings->WatchProperty(Settings->bAmbientOcclusionMap, [this](bool) { InvalidateOcclusion(); });
 
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->OcclusionRays, [this](int32) { InvalidateOcclusion(); });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { InvalidateOcclusion(); });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->BlurRadius, [this](float) { InvalidateOcclusion(); });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->bGaussianBlur, [this](float) { InvalidateOcclusion(); });
-	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { InvalidateOcclusion(); });
+	OcclusionMapProps = NewObject<UBakedOcclusionMapToolProperties>(this);
+	OcclusionMapProps->RestoreProperties(this);
+	AddToolPropertySource(OcclusionMapProps);
+	SetToolPropertySourceEnabled(OcclusionMapProps, false);
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->OcclusionRays, [this](int32) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->MaxDistance, [this](float) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->BlurRadius, [this](float) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->bGaussianBlur, [this](float) { bResultValid = false; });
+	OcclusionMapProps->WatchProperty(OcclusionMapProps->BiasAngle, [this](float) { bResultValid = false; });
+
+
+	CurvatureMapProps = NewObject<UBakedCurvatureMapToolProperties>(this);
+	CurvatureMapProps->RestoreProperties(this);
+	AddToolPropertySource(CurvatureMapProps);
+	SetToolPropertySourceEnabled(CurvatureMapProps, false);
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->RangeMultiplier, [this](float) { bResultValid = false; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->MinRangeMultiplier, [this](float) { bResultValid = false; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->CurvatureType, [this](EBakedCurvatureTypeMode) { bResultValid = false; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->ColorMode, [this](EBakedCurvatureColorMode) { bResultValid = false; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->Clamping, [this](EBakedCurvatureClampMode) { bResultValid = false; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->BlurRadius, [this](float) { bResultValid = false; });
+	CurvatureMapProps->WatchProperty(CurvatureMapProps->bGaussianBlur, [this](float) { bResultValid = false; });
+
+
+	Texture2DProps = NewObject<UBakedTexture2DImageProperties>(this);
+	Texture2DProps->RestoreProperties(this);
+	AddToolPropertySource(Texture2DProps);
+	SetToolPropertySourceEnabled(Texture2DProps, false);
+	Texture2DProps->WatchProperty(Texture2DProps->UVLayer, [this](float) { bResultValid = false; });
+	Texture2DProps->WatchProperty(Texture2DProps->SourceTexture, [this](UTexture2D*) { bResultValid = false; });
+
 
 	VisualizationProps = NewObject<UBakedOcclusionMapVisualizationProperties>(this);
 	VisualizationProps->RestoreProperties(this);
@@ -150,10 +200,19 @@ void UBakeMeshAttributeMapsTool::Setup()
 	InitializeEmptyMaps();
 
 	bResultValid = false;
+	bDetailMeshValid = false;
 
 	GetToolManager()->DisplayMessage(
-		LOCTEXT("OnStartTool", "Bake Normal and AO Maps. Select Bake Mesh (LowPoly) first, then Detail Mesh second. Texture Assets will be created on Accept. "),
+		LOCTEXT("OnStartTool", "Bake Maps. Select Bake Mesh (LowPoly) first, then Detail Mesh second. Texture Assets will be created on Accept. "),
 		EToolMessageLevel::UserNotification);
+}
+
+
+
+
+bool UBakeMeshAttributeMapsTool::CanAccept() const
+{
+	return Settings->Result != nullptr;
 }
 
 
@@ -162,12 +221,13 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 	Settings->SaveProperties(this);
 	OcclusionMapProps->SaveProperties(this);
 	NormalMapProps->SaveProperties(this);
+	CurvatureMapProps->SaveProperties(this);
+	Texture2DProps->SaveProperties(this);
 	VisualizationProps->SaveProperties(this);
 
 	if (DynamicMeshComponent != nullptr)
 	{
 		ComponentTargets[0]->SetOwnerVisibility(true);
-		ComponentTargets[1]->SetOwnerVisibility(true);
 
 		if (ShutdownType == EToolShutdownType::Accept)
 		{
@@ -178,21 +238,56 @@ void UBakeMeshAttributeMapsTool::Shutdown(EToolShutdownType ShutdownType)
 
 			if (AssetAPI != nullptr)
 			{
-				if (Settings->bNormalMap && NormalMapProps->Result != nullptr)
+				bool bCreatedAssetOK = false;
+				switch (Settings->MapType)
 				{
-					FTexture2DBuilder::CopyPlatformDataToSourceData(NormalMapProps->Result, FTexture2DBuilder::ETextureType::NormalMap);
-					bool bOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, NormalMapProps->Result,
-						FString::Printf(TEXT("%s_Normals"), *BaseName), StaticMeshAsset);
-					check(bOK);
-				}
+				default:
+					check(false);
+					break;
 
-				if (Settings->bAmbientOcclusionMap && OcclusionMapProps->Result != nullptr)
-				{
-					FTexture2DBuilder::CopyPlatformDataToSourceData(OcclusionMapProps->Result, FTexture2DBuilder::ETextureType::AmbientOcclusion);
-					bool bOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, OcclusionMapProps->Result,
+				case EBakeMapType::TangentSpaceNormalMap:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::NormalMap);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+						FString::Printf(TEXT("%s_Normals"), *BaseName), StaticMeshAsset);
+					break;
+
+				case EBakeMapType::AmbientOcclusion:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::AmbientOcclusion);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
 						FString::Printf(TEXT("%s_Occlusion"), *BaseName), StaticMeshAsset);
-					check(bOK);
+					break;
+
+				case EBakeMapType::Curvature:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+						FString::Printf(TEXT("%s_Curvature"), *BaseName), StaticMeshAsset);
+					break;
+
+				case EBakeMapType::NormalImage:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+						FString::Printf(TEXT("%s_NormalImg"), *BaseName), StaticMeshAsset);
+					break;
+
+				case EBakeMapType::FaceNormalImage:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+						FString::Printf(TEXT("%s_FaceNormalImg"), *BaseName), StaticMeshAsset);
+					break;
+
+				case EBakeMapType::PositionImage:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+						FString::Printf(TEXT("%s_PositionImg"), *BaseName), StaticMeshAsset);
+					break;
+
+				case EBakeMapType::Texture2DImage:
+					FTexture2DBuilder::CopyPlatformDataToSourceData(Settings->Result, FTexture2DBuilder::ETextureType::Color);
+					bCreatedAssetOK = AssetGenerationUtil::SaveGeneratedTexture2D(AssetAPI, Settings->Result,
+						FString::Printf(TEXT("%s_TextureImg"), *BaseName), StaticMeshAsset);
+					break;
 				}
+				ensure(bCreatedAssetOK);
 			}
 
 		}
@@ -220,15 +315,26 @@ void UBakeMeshAttributeMapsTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 
 
-
-void UBakeMeshAttributeMapsTool::InvalidateOcclusion()
+void UBakeMeshAttributeMapsTool::UpdateDetailMesh()
 {
+	DetailMesh = MakeShared<FDynamicMesh3>();
+	FMeshDescriptionToDynamicMesh Converter;
+	TUniquePtr<FPrimitiveComponentTarget>& UseDetailTarget = (bIsBakeToSelf) ? ComponentTargets[0] : ComponentTargets[1];
+	Converter.Convert(UseDetailTarget->GetMesh(), *DetailMesh);
+
+	if (Settings->bUseWorldSpace && bIsBakeToSelf == false)
+	{
+		FTransform3d DetailToWorld(UseDetailTarget->GetWorldTransform());
+		MeshTransforms::ApplyTransform(*DetailMesh, DetailToWorld);
+		FTransform3d WorldToBase(ComponentTargets[0]->GetWorldTransform());
+		MeshTransforms::ApplyTransform(*DetailMesh, WorldToBase.Inverse());
+	}
+	
+	DetailSpatial = MakeShared<FDynamicMeshAABBTree3>();
+	DetailSpatial->SetMesh(DetailMesh.Get(), true);
+
 	bResultValid = false;
-}
-
-void UBakeMeshAttributeMapsTool::InvalidateNormals()
-{
-	bResultValid = false;
+	DetailMeshTimestamp++;
 }
 
 
@@ -236,365 +342,71 @@ void UBakeMeshAttributeMapsTool::InvalidateNormals()
 
 
 
-/**
- * Find point on Detail mesh that corresponds to point on Base mesh.
- * If nearest point on Detail mesh is within DistanceThreshold, uses that point (cleanly handles coplanar/etc).
- * Otherwise casts a ray in Normal direction.
- * If Normal-direction ray misses, use reverse direction.
- * If both miss, we return false, no correspondence found
- */
-static bool GetDetailTrianglePoint(
-	const FDynamicMesh3& DetailMesh,
-	const FDynamicMeshAABBTree3& DetailSpatial,
-	const FVector3d& BasePoint,
-	const FVector3d& BaseNormal,
-	int32& DetailTriangleOut,
-	FVector3d& DetailTriBaryCoords,
-	double DistanceThreshold = FMathf::ZeroTolerance * 100.0f)
-{
-	// check if we are within on-surface tolerance, if so we use nearest point
-	IMeshSpatial::FQueryOptions OnSurfQueryOptions;
-	OnSurfQueryOptions.MaxDistance = DistanceThreshold;
-	double NearDistSqr = 0;
-	int32 NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr, OnSurfQueryOptions);
-	if (DetailMesh.IsTriangle(NearestTriID))
-	{
-		DetailTriangleOut = NearestTriID;
-		FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
-		DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
-		return true;
-	}
-
-	// TODO: should we check normals here? inverse normal should probably not be considered valid
-
-	// shoot rays forwards and backwards
-	FRay3d Ray(BasePoint, BaseNormal), BackwardsRay(BasePoint, -BaseNormal);
-	int32 HitTID = IndexConstants::InvalidID, BackwardHitTID = IndexConstants::InvalidID;
-	double HitDist, BackwardHitDist;
-	bool bHitForward = DetailSpatial.FindNearestHitTriangle(Ray, HitDist, HitTID);
-	bool bHitBackward = DetailSpatial.FindNearestHitTriangle(BackwardsRay, BackwardHitDist, BackwardHitTID);
-
-	// use the backwards hit if it is closer than the forwards hit
-	if ( (bHitBackward && bHitForward == false) || (bHitForward && bHitBackward && BackwardHitDist < HitDist))
-	{
-		Ray = BackwardsRay;
-		HitTID = BackwardHitTID;
-		HitDist = BackwardHitDist;
-	}
-
-	// if we got a valid ray hit, use it
-	if (DetailMesh.IsTriangle(HitTID))
-	{
-		DetailTriangleOut = HitTID;
-		FIntrRay3Triangle3d IntrQuery = TMeshQueries<FDynamicMesh3>::TriangleIntersection(DetailMesh, HitTID, Ray);
-		DetailTriBaryCoords = IntrQuery.TriangleBaryCoords;
-		return true;
-	}
-
-	// if we get this far, both rays missed, so use absolute nearest point regardless of distance
-	//NearestTriID = DetailSpatial.FindNearestTriangle(BasePoint, NearDistSqr);
-	//if (DetailMesh.IsTriangle(NearestTriID))
-	//{
-	//	DetailTriangleOut = NearestTriID;
-	//	FDistPoint3Triangle3d DistQuery = TMeshQueries<FDynamicMesh3>::TriangleDistance(DetailMesh, NearestTriID, BasePoint);
-	//	DetailTriBaryCoords = DistQuery.TriangleBaryCoords;
-	//	return true;
-	//}
-
-	return false;
-}
 
 
-
-
-// Information about Base/Detail point correspondence
-struct FDetailPointSample
-{
-	FMeshUVSampleInfo BaseSample;
-	FVector3d BaseNormal;
-
-	int32 DetailTriID;
-	FVector3d DetailBaryCoords;
-};
 
 
 void UBakeMeshAttributeMapsTool::UpdateResult()
 {
-	if (bResultValid) 
+
+	if (bDetailMeshValid == false)
+	{
+		UpdateDetailMesh();
+		bDetailMeshValid = true;
+	}
+
+	if (bResultValid)
 	{
 		return;
 	}
+
+	// clear warning (ugh)
+	GetToolManager()->DisplayMessage(FText(), EToolMessageLevel::UserWarning);
 
 	int32 ImageSize = (int32)Settings->Resolution;
 	FImageDimensions Dimensions(ImageSize, ImageSize);
 
-	FNormalMapSettings NormalMapSettings;
-	NormalMapSettings.Dimensions = Dimensions;
-	bool bBakeNormals = Settings->bNormalMap &&  ! (CachedNormalMapSettings == NormalMapSettings);
+	FBakeCacheSettings BakeCacheSettings;
+	BakeCacheSettings.Dimensions = Dimensions;
+	BakeCacheSettings.UVLayer = FCString::Atoi(*Settings->UVLayer);
+	BakeCacheSettings.DetailTimestamp = this->DetailMeshTimestamp;
 
-
-	FOcclusionMapSettings OcclusionMapSettings;
-	OcclusionMapSettings.Dimensions = Dimensions;
-	OcclusionMapSettings.MaxDistance = (OcclusionMapProps->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionMapProps->MaxDistance;
-	OcclusionMapSettings.OcclusionRays = OcclusionMapProps->OcclusionRays;
-	OcclusionMapSettings.BlurRadius = (OcclusionMapProps->bGaussianBlur) ? OcclusionMapProps->BlurRadius : 0.0;
-	OcclusionMapSettings.BiasAngle = OcclusionMapProps->BiasAngle;
-	bool bBakeOcclusion = Settings->bAmbientOcclusionMap && ! (CachedOcclusionMapSettings == OcclusionMapSettings);
-	double BiasDotThreshold = FMathd::Cos( FMathd::Clamp(90.0-OcclusionMapSettings.BiasAngle, 0.0, 90.0) * FMathd::DegToRad );
-
-	// if we have nothing to do, we can early-out
-	if (bBakeNormals == false && bBakeOcclusion == false)
+	// rebuild bake cache if we need to
+	if (!(CachedBakeCacheSettings == BakeCacheSettings))
 	{
-		UpdateVisualization();
-		GetToolManager()->PostInvalidation();
-		bResultValid = true;
-		return;
+		BakeCache = MakePimpl<FMeshImageBakingCache>();
+		BakeCache->SetDetailMesh(DetailMesh.Get(), DetailSpatial.Get());
+		BakeCache->SetBakeTargetMesh(&BaseMesh);
+		BakeCache->SetDimensions(Dimensions);
+		BakeCache->SetUVLayer(BakeCacheSettings.UVLayer);
+		BakeCache->ValidateCache();
 	}
 
-	const FDynamicMesh3* Mesh = &BaseMesh;
-	const FDynamicMeshUVOverlay* UVOverlay = Mesh->Attributes()->GetUVLayer(0);
-	const FDynamicMeshNormalOverlay* NormalOverlay = Mesh->Attributes()->PrimaryNormals();
-
-	const FDynamicMeshNormalOverlay* DetailNormalOverlay = DetailMesh.Attributes()->GetNormalLayer(0);
-	check(DetailNormalOverlay);
-
-	// this sampler finds the correspondence between base surface and detail surface
-	TMeshSurfaceUVSampler<FDetailPointSample> DetailMeshSampler;
-	DetailMeshSampler.Initialize(Mesh, UVOverlay, EMeshSurfaceSamplerQueryType::TriangleAndUV, FDetailPointSample(),
-		[Mesh, NormalOverlay, this](const FMeshUVSampleInfo& SampleInfo, FDetailPointSample& ValueOut)
+	// rebuild select map type
+	switch (Settings->MapType)
 	{
-		//FVector3d BaseTriNormal = Mesh->GetTriNormal(SampleInfo.TriangleIndex);
-		NormalOverlay->GetTriBaryInterpolate<double>(SampleInfo.TriangleIndex, &SampleInfo.BaryCoords[0], &ValueOut.BaseNormal[0]);
-		ValueOut.BaseNormal.Normalize();
-		FVector3d RayDir = ValueOut.BaseNormal;
+		default:
+	case EBakeMapType::TangentSpaceNormalMap:
+			UpdateResult_Normal();
+			break;
+		case EBakeMapType::AmbientOcclusion:
+			UpdateResult_Occlusion();
+			break;
+		case EBakeMapType::Curvature:
+			UpdateResult_Curvature();
+			break;
 
-		ValueOut.BaseSample = SampleInfo;
+		case EBakeMapType::NormalImage:
+		case EBakeMapType::FaceNormalImage:
+		case EBakeMapType::PositionImage:
+			UpdateResult_MeshProperty();
+			break;
 
-		// find detail mesh triangle point
-		bool bFoundTri = GetDetailTrianglePoint(DetailMesh, DetailSpatial, SampleInfo.SurfacePoint, RayDir,
-			ValueOut.DetailTriID, ValueOut.DetailBaryCoords);
-		if (!bFoundTri)
-		{
-			ValueOut.DetailTriID = FDynamicMesh3::InvalidID;
-		}
-	});
-
-
-	// sample normal of detail surface in tangent-space of base surface
-	auto NormalSampleFunction = [&](const FDetailPointSample& SampleData)
-	{
-		int32 DetailTriID = SampleData.DetailTriID;
-		if (DetailMesh.IsTriangle(DetailTriID))
-		{
-			// get tangents on base mesh
-			FVector3d BaseTangentX, BaseTangentY;
-			BaseMeshTangents->GetInterpolatedTriangleTangent(SampleData.BaseSample.TriangleIndex, SampleData.BaseSample.BaryCoords, BaseTangentX, BaseTangentY);
-
-			FVector3d DetailNormal;
-			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailNormal.X);
-			DetailNormal.Normalize();
-			double dx = DetailNormal.Dot(BaseTangentX);
-			double dy = DetailNormal.Dot(BaseTangentY);
-			double dz = DetailNormal.Dot(SampleData.BaseNormal);
-			return FVector3f((float)dx, (float)dy, (float)dz);
-		}
-		return FVector3f::UnitZ();
-	};
-
-
-	// precompute ray directions for AO
-	TSphericalFibonacci<double> Points(2 * OcclusionMapSettings.OcclusionRays);
-	TArray<FVector3d> RayDirections;
-	for (int32 k = 0; k < Points.Num(); ++k)
-	{
-		FVector3d P = Points[k];
-		if (P.Z > 0)
-		{
-			RayDirections.Add(P.Normalized());
-		}
+		case EBakeMapType::Texture2DImage:
+			UpdateResult_Texture2DImage();
+			break;
 	}
 
-	// 
-	FRandomStream RotationGen(31337);
-	FCriticalSection RotationLock;
-	auto GetRandomRotation = [&RotationGen, &RotationLock]() {
-		RotationLock.Lock();
-		double Angle = RotationGen.GetFraction() * FMathd::TwoPi;
-		RotationLock.Unlock();
-		return Angle;
-	};
-
-
-	auto OcclusionSampleFunction = [&](const FDetailPointSample& SampleData)
-	{
-		int32 DetailTriID = SampleData.DetailTriID;
-		if (DetailMesh.IsTriangle(DetailTriID))
-		{
-			FIndex3i DetailTri = DetailMesh.GetTriangle(DetailTriID);
-			//FVector3d DetailTriNormal = DetailMesh.GetTriNormal(DetailTriID);
-			FVector3d DetailTriNormal;
-			DetailNormalOverlay->GetTriBaryInterpolate<double>(DetailTriID, &SampleData.DetailBaryCoords[0], &DetailTriNormal.X);
-			DetailTriNormal.Normalize();
-
-			FVector3d DetailBaryCoords = SampleData.DetailBaryCoords;
-			FVector3d DetailPos = DetailMesh.GetTriBaryPoint(DetailTriID, DetailBaryCoords.X, DetailBaryCoords.Y, DetailBaryCoords.Z);
-			DetailPos += 10.0f * FMathf::ZeroTolerance * DetailTriNormal;
-			FFrame3d SurfaceFrame(DetailPos, DetailTriNormal);
-
-			double RotationAngle = GetRandomRotation();
-			SurfaceFrame.Rotate(FQuaterniond(SurfaceFrame.Z(), RotationAngle, false));
-
-			IMeshSpatial::FQueryOptions QueryOptions;
-			QueryOptions.MaxDistance = OcclusionMapSettings.MaxDistance;
-
-			double AccumOcclusion = 0;
-			double TotalWeight = 0;
-			for (FVector3d SphereDir : RayDirections)
-			{
-				FRay3d OcclusionRay(DetailPos, SurfaceFrame.FromFrameVector(SphereDir));
-				check(OcclusionRay.Direction.Dot(DetailTriNormal) > 0);
-
-				// Have weight of point fall off as it becomes more coplanar with face. 
-				// This reduces faceting artifacts that we would otherwise see because geometry does not vary smoothly
-				double PointWeight = 1.0;
-				double BiasDot = OcclusionRay.Direction.Dot(DetailTriNormal);
-				if (BiasDot < BiasDotThreshold)
-				{
-					PointWeight = FMathd::Lerp(0.0, 1.0, FMathd::Clamp(BiasDot/BiasDotThreshold,0.0,1.0));
-					PointWeight *= PointWeight;
-				}
-				TotalWeight += PointWeight;
-
-				if (DetailSpatial.TestAnyHitTriangle(OcclusionRay, QueryOptions))
-				{
-					AccumOcclusion += PointWeight;
-				}
-			}
-
-			AccumOcclusion = (TotalWeight > 0.0001) ? (AccumOcclusion / TotalWeight) : 0.0;
-			return AccumOcclusion;
-		}
-		return 0.0;
-	};
-
-	// make UV-space version of mesh
-	FDynamicMesh3 FlatMesh(EMeshComponents::FaceGroups);
-	for (int32 tid : Mesh->TriangleIndicesItr())
-	{
-		if (UVOverlay->IsSetTriangle(tid))
-		{
-			FVector2f A, B, C;
-			UVOverlay->GetTriElements(tid, A, B, C);
-			int32 VertA = FlatMesh.AppendVertex(FVector3d(A.X, A.Y, 0));
-			int32 VertB = FlatMesh.AppendVertex(FVector3d(B.X, B.Y, 0));
-			int32 VertC = FlatMesh.AppendVertex(FVector3d(C.X, C.Y, 0));
-			int32 NewTriID = FlatMesh.AppendTriangle(VertA, VertB, VertC, tid);
-		}
-	}
-
-	// calculate occupancy map
-	FImageOccupancyMap Occupancy;
-	Occupancy.Initialize(Dimensions);
-	Occupancy.ComputeFromUVSpaceMesh(FlatMesh, [&](int32 TriangleID) { return FlatMesh.GetTriangleGroup(TriangleID); } );
-
-	// initialize the textures
-	//FTexture2DBuilder ColorBuilder;
-	//ColorBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
-	FTexture2DBuilder OcclusionBuilder;
-	if (bBakeOcclusion)
-	{
-		OcclusionBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, Dimensions);
-	}
-	FTexture2DBuilder NormalsBuilder;
-	if (bBakeNormals)
-	{
-		NormalsBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, Dimensions);
-	}
-
-	// calculate interior texels
-	ParallelFor(Dimensions.Num(), [&](int64 LinearIdx)
-	{
-		if (Occupancy.IsInterior(LinearIdx) == false)
-		{
-			return;
-		}
-
-		FVector2d UVPosition = (FVector2d)Occupancy.TexelQueryUV[LinearIdx];
-		int32 UVTriangleID = Occupancy.TexelQueryTriangle[LinearIdx];
-
-		FDetailPointSample DetailInfo;
-		DetailMeshSampler.SampleUV(UVTriangleID, UVPosition, DetailInfo);
-
-		// calculate normal
-		if (bBakeNormals)
-		{
-			FVector3f RelativeDetailNormal = NormalSampleFunction(DetailInfo);
-			FVector3f MapNormal = (RelativeDetailNormal + FVector3f::One()) * 0.5;
-			NormalsBuilder.SetTexel(LinearIdx, ((FLinearColor)MapNormal).ToFColor(false));
-		}
-
-		// todo: calculate color?
-		//ColorBuilder.SetTexel(LinearIdx, FColor(128, 128, 128));
-		//ColorBuilder.SetTexel(LinearIdx, FColor(192, 192, 192));
-
-		// calculate occlusion
-		if (bBakeOcclusion)
-		{
-			double Occlusion = OcclusionSampleFunction(DetailInfo);
-			FVector3d OcclusionColor = FMathd::Clamp(1.0 - Occlusion, 0.0, 1.0) * FVector3d::One();
-			OcclusionBuilder.SetTexel(LinearIdx, ((FLinearColor)OcclusionColor).ToFColor(false));
-		}
-	});
-
-
-	// fill in the gutter texels
-	for (int64 k = 0; k < Occupancy.GutterTexels.Num(); k++)
-	{
-		TPair<int64, int64> GutterTexel = Occupancy.GutterTexels[k];
-		//ColorBuilder.CopyTexel(GutterTexel.Value, GutterTexel.Key);
-		if (bBakeNormals)
-		{
-			NormalsBuilder.CopyTexel(GutterTexel.Value, GutterTexel.Key);
-			//NormalsBuilder.ClearTexel(GutterTexel.Key);
-		}
-		if (bBakeOcclusion)
-		{
-			OcclusionBuilder.CopyTexel(GutterTexel.Value, GutterTexel.Key);
-		}
-	}
-
-	// apply AO blur pass
-	if (bBakeOcclusion && OcclusionMapSettings.BlurRadius > 0.01)
-	{
-		TDiscreteKernel2f BlurKernel2d;
-		TGaussian2f::MakeKernelFromRadius(OcclusionMapSettings.BlurRadius, BlurKernel2d);
-		TArray<float> AOBlurBuffer;
-		Occupancy.ParallelProcessingPass<float>(
-			[&](int64 Index) { return 0.0f; },
-			[&](int64 LinearIdx, float Weight, float& CurValue) { CurValue += Weight * (float)OcclusionBuilder.GetTexel(LinearIdx).R; },
-			[&](int64 LinearIdx, float WeightSum, float& CurValue) { CurValue /= WeightSum; },
-			[&](int64 LinearIdx, float& CurValue) { uint8 Val = FMath::Clamp(CurValue, 0.0f, 255.0f); OcclusionBuilder.SetTexel(LinearIdx, FColor(Val,Val,Val)); },
-			[&](const FVector2i& TexelOffset) { return BlurKernel2d.EvaluateFromOffset(TexelOffset); },
-			BlurKernel2d.IntRadius,
-			AOBlurBuffer);
-	}
-
-
-	// Unlock the textures and update them
-	//ColorBuilder.Commit();
-	if (bBakeNormals)
-	{
-		NormalsBuilder.Commit(false);
-		CachedNormalMap = NormalsBuilder.GetTexture2D();
-		CachedNormalMapSettings = NormalMapSettings;
-	}
-
-	if (bBakeOcclusion)
-	{
-		OcclusionBuilder.Commit(false);
-		CachedOcclusionMap = OcclusionBuilder.GetTexture2D();
-		CachedOcclusionMapSettings = OcclusionMapSettings;
-	}
 
 	UpdateVisualization();
 	GetToolManager()->PostInvalidation();
@@ -604,64 +416,440 @@ void UBakeMeshAttributeMapsTool::UpdateResult()
 
 
 
+void UBakeMeshAttributeMapsTool::UpdateResult_Normal()
+{
+	check(BakeCache->IsCacheValid());
+
+	int32 ImageSize = (int32)Settings->Resolution;
+	FImageDimensions Dimensions(ImageSize, ImageSize);
+
+	FNormalMapSettings NormalMapSettings;
+	NormalMapSettings.Dimensions = Dimensions;
+
+	if (!(CachedNormalMapSettings == NormalMapSettings))
+	{
+		FMeshNormalMapBaker NormalBaker;
+		NormalBaker.SetCache(BakeCache.Get());
+		NormalBaker.BaseMeshTangents = BaseMeshTangents.Get();
+		NormalBaker.Bake();
+
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, Dimensions);
+		TextureBuilder.Copy(*NormalBaker.GetResult());
+		TextureBuilder.Commit(false);
+		CachedNormalMap = TextureBuilder.GetTexture2D();
+		CachedNormalMapSettings = NormalMapSettings;
+	}
+}
+
+
+void UBakeMeshAttributeMapsTool::UpdateResult_Occlusion()
+{
+	check(BakeCache->IsCacheValid());
+
+	int32 ImageSize = (int32)Settings->Resolution;
+	FImageDimensions Dimensions(ImageSize, ImageSize);
+
+	FOcclusionMapSettings OcclusionMapSettings;
+	OcclusionMapSettings.Dimensions = Dimensions;
+	OcclusionMapSettings.MaxDistance = (OcclusionMapProps->MaxDistance == 0) ? TNumericLimits<float>::Max() : OcclusionMapProps->MaxDistance;
+	OcclusionMapSettings.OcclusionRays = OcclusionMapProps->OcclusionRays;
+	OcclusionMapSettings.BlurRadius = (OcclusionMapProps->bGaussianBlur) ? OcclusionMapProps->BlurRadius : 0.0;
+	OcclusionMapSettings.BiasAngle = OcclusionMapProps->BiasAngle;
+
+	if ( !(CachedOcclusionMapSettings == OcclusionMapSettings) )
+	{
+		FMeshOcclusionMapBaker OcclusionBaker;
+		OcclusionBaker.SetCache(BakeCache.Get());
+		OcclusionBaker.NumOcclusionRays = OcclusionMapSettings.OcclusionRays;
+		OcclusionBaker.BlurRadius = OcclusionMapSettings.BlurRadius;
+		OcclusionBaker.BiasAngleDeg = OcclusionMapSettings.BiasAngle;
+		OcclusionBaker.MaxDistance = OcclusionMapSettings.MaxDistance;
+		OcclusionBaker.Bake();
+
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, Dimensions);
+		TextureBuilder.Copy(*OcclusionBaker.GetResult());
+		TextureBuilder.Commit(false);
+		CachedOcclusionMap = TextureBuilder.GetTexture2D();
+		CachedOcclusionMapSettings = OcclusionMapSettings;
+	}
+}
+
+
+
+void UBakeMeshAttributeMapsTool::UpdateResult_Curvature()
+{
+	check(BakeCache->IsCacheValid());
+
+	int32 ImageSize = (int32)Settings->Resolution;
+	FImageDimensions Dimensions(ImageSize, ImageSize);
+
+	FCurvatureMapSettings CurvatureMapSettings;
+	CurvatureMapSettings.Dimensions = Dimensions;
+	CurvatureMapSettings.RangeMultiplier = CurvatureMapProps->RangeMultiplier;
+	CurvatureMapSettings.MinRangeMultiplier = CurvatureMapProps->MinRangeMultiplier;
+	switch (CurvatureMapProps->CurvatureType)
+	{
+	default:
+	case EBakedCurvatureTypeMode::MeanAverage:
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::Mean;
+		break;
+	case EBakedCurvatureTypeMode::Gaussian:
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::Gaussian;
+		break;
+	case EBakedCurvatureTypeMode::Max:
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::MaxPrincipal;
+		break;
+	case EBakedCurvatureTypeMode::Min:
+		CurvatureMapSettings.CurvatureType = (int32)FMeshCurvatureMapBaker::ECurvatureType::MinPrincipal;
+		break;
+	}
+	switch (CurvatureMapProps->ColorMode)
+	{
+	default:
+	case EBakedCurvatureColorMode::Grayscale:
+		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapBaker::EColorMode::BlackGrayWhite;
+		break;
+	case EBakedCurvatureColorMode::RedBlue:
+		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapBaker::EColorMode::RedBlue;
+		break;
+	case EBakedCurvatureColorMode::RedGreenBlue:
+		CurvatureMapSettings.ColorMode = (int32)FMeshCurvatureMapBaker::EColorMode::RedGreenBlue;
+		break;
+	}
+	switch (CurvatureMapProps->Clamping)
+	{
+	default:
+	case EBakedCurvatureClampMode::None:
+		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapBaker::EClampMode::FullRange;
+		break;
+	case EBakedCurvatureClampMode::Positive:
+		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapBaker::EClampMode::Positive;
+		break;
+	case EBakedCurvatureClampMode::Negative:
+		CurvatureMapSettings.ClampMode = (int32)FMeshCurvatureMapBaker::EClampMode::Negative;
+		break;
+	}
+	CurvatureMapSettings.BlurRadius = (CurvatureMapProps->bGaussianBlur) ? CurvatureMapProps->BlurRadius : 0.0;
+
+	if (!(CachedCurvatureMapSettings == CurvatureMapSettings))
+	{
+		FMeshCurvatureMapBaker CurvatureBaker;
+		CurvatureBaker.SetCache(BakeCache.Get());
+		CurvatureBaker.RangeScale = FMathd::Clamp(CurvatureMapSettings.RangeMultiplier, 0.0001, 1000.0);
+		CurvatureBaker.MinRangeScale = FMathd::Clamp(CurvatureMapSettings.MinRangeMultiplier, 0.0, 1.0);
+		CurvatureBaker.UseCurvatureType = (FMeshCurvatureMapBaker::ECurvatureType)CurvatureMapSettings.CurvatureType;
+		CurvatureBaker.UseColorMode = (FMeshCurvatureMapBaker::EColorMode)CurvatureMapSettings.ColorMode;
+		CurvatureBaker.UseClampMode = (FMeshCurvatureMapBaker::EClampMode)CurvatureMapSettings.ClampMode;
+		CurvatureBaker.BlurRadius = CurvatureMapSettings.BlurRadius;
+		CurvatureBaker.Bake();
+
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
+		TextureBuilder.Copy(*CurvatureBaker.GetResult());
+		TextureBuilder.Commit(false);
+		CachedCurvatureMap = TextureBuilder.GetTexture2D();
+		CachedCurvatureMapSettings = CurvatureMapSettings;
+	}
+}
+
+
+
+void UBakeMeshAttributeMapsTool::UpdateResult_MeshProperty()
+{
+	check(BakeCache->IsCacheValid());
+
+	int32 ImageSize = (int32)Settings->Resolution;
+	FImageDimensions Dimensions(ImageSize, ImageSize);
+
+	FMeshPropertyMapSettings MeshPropertyMapSettings;
+	MeshPropertyMapSettings.Dimensions = Dimensions;
+	switch (Settings->MapType)
+	{
+		case EBakeMapType::NormalImage:
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::Normal;
+			break;
+		case EBakeMapType::FaceNormalImage:
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::FacetNormal;
+			break;
+		case EBakeMapType::PositionImage:
+			MeshPropertyMapSettings.PropertyTypeIndex = (int32)EMeshPropertyBakeType::Position;
+			break;
+		default:
+			check(false);		// should not be possible!
+	}
+	//MeshPropertyMapSettings.BlurRadius = (CurvatureMapProps->bGaussianBlur) ? CurvatureMapProps->BlurRadius : 0.0;
+
+	if (!(CachedMeshPropertyMapSettings == MeshPropertyMapSettings))
+	{
+		FMeshPropertyMapBaker MeshPropertyBaker;
+		MeshPropertyBaker.SetCache(BakeCache.Get());
+		MeshPropertyBaker.Property = (EMeshPropertyBakeType)MeshPropertyMapSettings.PropertyTypeIndex;
+		//MeshPropertyBaker.BlurRadius = CurvatureMapSettings.BlurRadius;
+		MeshPropertyBaker.Bake();
+
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
+		TextureBuilder.Copy(*MeshPropertyBaker.GetResult());
+		TextureBuilder.Commit(false);
+		CachedMeshPropertyMap = TextureBuilder.GetTexture2D();
+		CachedMeshPropertyMapSettings = MeshPropertyMapSettings;
+	}
+}
+
+
+
+
+
+
+
+
+class FTempTextureAccess
+{
+public:
+	FTempTextureAccess(UTexture2D* DisplacementMap)
+		: DisplacementMap(DisplacementMap)
+	{
+		check(DisplacementMap);
+		OldCompressionSettings = DisplacementMap->CompressionSettings;
+		bOldSRGB = DisplacementMap->SRGB;
+#if WITH_EDITOR
+		OldMipGenSettings = DisplacementMap->MipGenSettings;
+#endif
+		DisplacementMap->CompressionSettings = TextureCompressionSettings::TC_VectorDisplacementmap;
+		DisplacementMap->SRGB = false;
+#if WITH_EDITOR
+		DisplacementMap->MipGenSettings = TextureMipGenSettings::TMGS_NoMipmaps;
+#endif
+		DisplacementMap->UpdateResource();
+
+		FormattedImageData = reinterpret_cast<const FColor*>(DisplacementMap->PlatformData->Mips[0].BulkData.LockReadOnly());
+	}
+	FTempTextureAccess(const FTempTextureAccess&) = delete;
+	FTempTextureAccess(FTempTextureAccess&&) = delete;
+	void operator=(const FTempTextureAccess&) = delete;
+	void operator=(FTempTextureAccess&&) = delete;
+
+	~FTempTextureAccess()
+	{
+		DisplacementMap->PlatformData->Mips[0].BulkData.Unlock();
+
+		DisplacementMap->CompressionSettings = OldCompressionSettings;
+		DisplacementMap->SRGB = bOldSRGB;
+#if WITH_EDITOR
+		DisplacementMap->MipGenSettings = OldMipGenSettings;
+#endif
+
+		DisplacementMap->UpdateResource();
+	}
+
+	bool HasData() const
+	{
+		return FormattedImageData != nullptr;
+	}
+	const FColor* GetData() const
+	{
+		return FormattedImageData;
+	}
+
+	FImageDimensions GetDimensions() const
+	{
+		int32 Width = DisplacementMap->PlatformData->Mips[0].SizeX;
+		int32 Height = DisplacementMap->PlatformData->Mips[0].SizeY;
+		return FImageDimensions(Width, Height);
+	}
+
+
+	bool CopyTo(TImageBuilder<FVector4f>& DestImage) const
+	{
+		if (!HasData()) return false;
+
+		FImageDimensions TextureDimensions = GetDimensions();
+		if (ensure(DestImage.GetDimensions() == TextureDimensions) == false)
+		{
+			return false;
+		}
+
+		int64 Num = TextureDimensions.Num();
+		for (int32 i = 0; i < Num; ++i)
+		{
+			FColor ByteColor = FormattedImageData[i];
+			FLinearColor FloatColor(ByteColor);
+			DestImage.SetPixel(i, FVector4f(FloatColor));
+		}
+		return true;
+	}
+
+private:
+	UTexture2D* DisplacementMap{ nullptr };
+	TextureCompressionSettings OldCompressionSettings{};
+	TextureMipGenSettings OldMipGenSettings{};
+	bool bOldSRGB{ false };
+	const FColor* FormattedImageData{ nullptr };
+};
+
+
+
+
+
+
+
+void UBakeMeshAttributeMapsTool::UpdateResult_Texture2DImage()
+{
+	check(BakeCache->IsCacheValid());
+
+	int32 ImageSize = (int32)Settings->Resolution;
+	FImageDimensions Dimensions(ImageSize, ImageSize);
+
+	FTexture2DImageSettings NewSettings;
+	NewSettings.Dimensions = Dimensions;
+	NewSettings.UVLayer = 0;
+
+	const FDynamicMeshUVOverlay* UVOverlay = DetailMesh->Attributes()->GetUVLayer(NewSettings.UVLayer);
+	if (UVOverlay == nullptr)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidUVWarning", "The Source Mesh does not have the selected UV layer"), EToolMessageLevel::UserWarning);
+		return;
+	}
+	
+	if (Texture2DProps->SourceTexture == nullptr)
+	{
+		GetToolManager()->DisplayMessage(LOCTEXT("InvalidTextureWarning", "The Source Texture is not valid"), EToolMessageLevel::UserWarning);
+		return;
+	}
+
+
+	TImageBuilder<FVector4f> TextureImage;
+	{
+		FTempTextureAccess TextureAccess(Texture2DProps->SourceTexture);
+		TextureImage.SetDimensions(TextureAccess.GetDimensions());
+		if (!TextureAccess.CopyTo(TextureImage))
+		{
+			GetToolManager()->DisplayMessage(LOCTEXT("CannotReadTextureWarning", "Cannot read from the source texture"), EToolMessageLevel::UserWarning);
+			return;
+		}
+	}
+
+	if (!(CachedTexture2DImageSettings == NewSettings))
+	{
+		FMeshResampleImageBaker Baker;
+		Baker.SetCache(BakeCache.Get());
+		Baker.DetailUVOverlay = UVOverlay;
+		Baker.SampleFunction = [&](FVector2d UVCoord) { 
+			return TextureImage.BilinearSampleUV<float>(UVCoord, FVector4f(0,0,0,1));
+		};
+		Baker.Bake();
+
+		FTexture2DBuilder TextureBuilder;
+		TextureBuilder.Initialize(FTexture2DBuilder::ETextureType::Color, Dimensions);
+		TextureBuilder.Copy(*Baker.GetResult(), true);
+		TextureBuilder.Commit(false);
+		CachedTexture2DImageMap = TextureBuilder.GetTexture2D();
+		CachedTexture2DImageSettings = NewSettings;
+	}
+}
+
+
+
+
+
 
 void UBakeMeshAttributeMapsTool::UpdateVisualization()
 {
-	//if (BakeColor != nullptr)
-	//{
-	//	PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), BakeColor);
-	//}
-
-	if (Settings->bNormalMap)
+	switch (Settings->MapType)
 	{
-		NormalMapProps->Result = CachedNormalMap;
-		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), CachedNormalMap);
-	}
-	else
-	{
-		NormalMapProps->Result = nullptr;
+	default:
+		Settings->Result = nullptr;
 		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
-	}
-	
-	if (Settings->bAmbientOcclusionMap)
-	{
-		OcclusionMapProps->Result = CachedOcclusionMap;
+		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
+		break;
+	case EBakeMapType::TangentSpaceNormalMap:
+		Settings->Result = CachedNormalMap;
+		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), CachedNormalMap);
+		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
+		break;
+	case EBakeMapType::AmbientOcclusion:
+		Settings->Result = CachedOcclusionMap;
+		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
 		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), CachedOcclusionMap);
-		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedOcclusionMap);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyColorMapWhite);
+		break;
+	case EBakeMapType::Curvature:
+		Settings->Result = CachedCurvatureMap;
+		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedCurvatureMap);
+		break;
+
+	case EBakeMapType::NormalImage:
+	case EBakeMapType::FaceNormalImage:
+	case EBakeMapType::PositionImage:
+		Settings->Result = CachedMeshPropertyMap;
+		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedMeshPropertyMap);
+		break;
+
+	case EBakeMapType::Texture2DImage:
+		Settings->Result = CachedTexture2DImageMap;
+		PreviewMaterial->SetTextureParameterValue(TEXT("NormalMap"), EmptyNormalMap);
+		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyColorMapWhite);
+		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), CachedTexture2DImageMap);
+		break;
 	}
-	else
+}
+
+
+
+void UBakeMeshAttributeMapsTool::UpdateOnModeChange()
+{
+	SetToolPropertySourceEnabled(NormalMapProps, false);
+	SetToolPropertySourceEnabled(OcclusionMapProps, false);
+	SetToolPropertySourceEnabled(CurvatureMapProps, false);
+	SetToolPropertySourceEnabled(Texture2DProps, false);
+
+	switch (Settings->MapType)
 	{
-		OcclusionMapProps->Result = nullptr;
-		PreviewMaterial->SetTextureParameterValue(TEXT("OcclusionMap"), EmptyOcclusionMap);
-		PreviewMaterial->SetTextureParameterValue(TEXT("ColorMap"), EmptyOcclusionMap);
+	case EBakeMapType::TangentSpaceNormalMap:
+		SetToolPropertySourceEnabled(NormalMapProps, true);
+		break;
+	case EBakeMapType::AmbientOcclusion:
+		SetToolPropertySourceEnabled(OcclusionMapProps, true);
+		break;
+	case EBakeMapType::Curvature:
+		SetToolPropertySourceEnabled(CurvatureMapProps, true);
+		break;
+	case EBakeMapType::Texture2DImage:
+		SetToolPropertySourceEnabled(Texture2DProps, true);
+		break;
 	}
+
 }
 
-
-
-bool UBakeMeshAttributeMapsTool::HasAccept() const
-{
-	return true;
-}
-
-bool UBakeMeshAttributeMapsTool::CanAccept() const
-{
-	return true;
-}
 
 
 
 void UBakeMeshAttributeMapsTool::InitializeEmptyMaps()
 {
-	FTexture2DBuilder OcclusionBuilder;
-	OcclusionBuilder.Initialize(FTexture2DBuilder::ETextureType::AmbientOcclusion, FImageDimensions(16,16));
-	OcclusionBuilder.Commit(false);
-	EmptyOcclusionMap = OcclusionBuilder.GetTexture2D();
-
 	FTexture2DBuilder NormalsBuilder;
 	NormalsBuilder.Initialize(FTexture2DBuilder::ETextureType::NormalMap, FImageDimensions(16, 16));
 	NormalsBuilder.Commit(false);
 	EmptyNormalMap = NormalsBuilder.GetTexture2D();
+
+	FTexture2DBuilder ColorBuilderBlack;
+	ColorBuilderBlack.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
+	ColorBuilderBlack.Clear(FColor(0,0,0));
+	ColorBuilderBlack.Commit(false);
+	EmptyColorMapBlack = ColorBuilderBlack.GetTexture2D();
+
+	FTexture2DBuilder ColorBuilderWhite;
+	ColorBuilderWhite.Initialize(FTexture2DBuilder::ETextureType::Color, FImageDimensions(16, 16));
+	ColorBuilderWhite.Clear(FColor::White);
+	ColorBuilderWhite.Commit(false);
+	EmptyColorMapWhite = ColorBuilderWhite.GetTexture2D();
 }
 
 

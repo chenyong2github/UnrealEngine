@@ -87,7 +87,7 @@ void FMovieSceneTrackPropertyRecorder<bool>::AddKeyToSection(UMovieSceneSection*
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<bool>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<bool>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	// Reduce keys intentionally left blank
 }
@@ -263,7 +263,7 @@ void FMovieSceneTrackPropertyRecorder<uint8>::AddKeyToSection(UMovieSceneSection
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<uint8>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<uint8>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	// Reduce keys intentionally left blank
 }
@@ -417,10 +417,11 @@ void FMovieSceneTrackPropertyRecorder<float>::AddKeyToSection(UMovieSceneSection
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<float>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<float>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
+	Params.Tolerance = ReduceKeysTolerance;
 	UE::MovieScene::Optimize(InSection->GetChannelProxy().GetChannel<FMovieSceneFloatChannel>(0), Params);
 }
 
@@ -580,12 +581,13 @@ void FMovieSceneTrackPropertyRecorder<FColor>::AddKeyToSection(UMovieSceneSectio
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FColor>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<FColor>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
+	Params.Tolerance = ReduceKeysTolerance;
 	UE::MovieScene::Optimize(FloatChannels[0], Params);
 	UE::MovieScene::Optimize(FloatChannels[1], Params);
 	UE::MovieScene::Optimize(FloatChannels[2], Params);
@@ -780,12 +782,13 @@ void FMovieSceneTrackPropertyRecorder<FVector>::AddKeyToSection(UMovieSceneSecti
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<FVector>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	TArrayView<FMovieSceneFloatChannel*> FloatChannels = InSection->GetChannelProxy().GetChannels<FMovieSceneFloatChannel>();
 
 	FKeyDataOptimizationParams Params;
 	Params.bAutoSetInterpolation = true;
+	Params.Tolerance = ReduceKeysTolerance;
 	UE::MovieScene::Optimize(FloatChannels[0], Params);
 	UE::MovieScene::Optimize(FloatChannels[1], Params);
 	UE::MovieScene::Optimize(FloatChannels[2], Params);
@@ -958,7 +961,7 @@ void FMovieSceneTrackPropertyRecorder<int32>::AddKeyToSection(UMovieSceneSection
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<int32>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<int32>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	// Reduce keys intentionally left blank
 }
@@ -1124,7 +1127,7 @@ void FMovieSceneTrackPropertyRecorder<FString>::AddKeyToSection(UMovieSceneSecti
 }
 
 template <>
-void FMovieSceneTrackPropertyRecorder<FString>::ReduceKeys(UMovieSceneSection* InSection)
+void FMovieSceneTrackPropertyRecorder<FString>::ReduceKeys(UMovieSceneSection* InSection, float ReduceKeysTolerance)
 {
 	// Reduce keys intentionally left blank
 }

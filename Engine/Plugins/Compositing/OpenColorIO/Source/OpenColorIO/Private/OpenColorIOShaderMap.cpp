@@ -370,7 +370,7 @@ void FOpenColorIOShaderMap::Compile(FOpenColorIOTransformResource* InColorTransf
 	{
 		// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 		// Since it creates a temporary ref counted pointer.
-		check(GetNumRefs() > 0);
+		check(NumRefs > 0);
   
 		// Add this shader map and to OpenColorIOShaderMapsBeingCompiled
 		TArray<FOpenColorIOTransformResource*>* CorrespondingTransform = OpenColorIOShaderMapsBeingCompiled.Find(this);
@@ -528,7 +528,7 @@ bool FOpenColorIOShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FS
 
 bool FOpenColorIOShaderMap::TryToAddToExistingCompilationTask(FOpenColorIOTransformResource* InColorTransform)
 {
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	TArray<FOpenColorIOTransformResource*>* CorrespondingColorTransforms = FOpenColorIOShaderMap::OpenColorIOShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingColorTransforms)
@@ -565,7 +565,7 @@ bool FOpenColorIOShaderMap::IsComplete(const FOpenColorIOTransformResource* InCo
 {
 	// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 	// Since it creates a temporary ref counted pointer.
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	const TArray<FOpenColorIOTransformResource*>* CorrespondingColorTransforms = FOpenColorIOShaderMap::OpenColorIOShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingColorTransforms)
@@ -642,23 +642,34 @@ void FOpenColorIOShaderMap::Register(EShaderPlatform InShaderPlatform)
 	bRegistered = true;
 }
 
-void FOpenColorIOShaderMap::OnReleased()
+void FOpenColorIOShaderMap::AddRef()
 {
-	if (bRegistered)
-	{
-		DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
-
-		GIdToOpenColorIOShaderMap[GetShaderPlatform()].Remove(GetContent()->ShaderMapId);
-		bRegistered = false;
-	}
-
 	check(!bDeletedThroughDeferredCleanup);
-	bDeletedThroughDeferredCleanup = true;
-	BeginCleanup(this);
+	++NumRefs;
+}
+
+void FOpenColorIOShaderMap::Release()
+{
+	check(NumRefs > 0);
+	if(--NumRefs == 0)
+	{
+		if (bRegistered)
+		{
+			DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
+
+			GIdToOpenColorIOShaderMap[GetShaderPlatform()].Remove(GetContent()->ShaderMapId);
+			bRegistered = false;
+		}
+
+		check(!bDeletedThroughDeferredCleanup);
+		bDeletedThroughDeferredCleanup = true;
+		BeginCleanup(this);
+	}
 }
 
 FOpenColorIOShaderMap::FOpenColorIOShaderMap() :
 	CompilingId(1),
+	NumRefs(0),
 	bDeletedThroughDeferredCleanup(false),
 	bRegistered(false),
 	bCompilationFinalized(true),

@@ -33,9 +33,14 @@
 #include "FileHelpers.h"
 #include "Misc/MessageDialog.h"
 #include "Engine/CurveTable.h"
+#include "Materials/Material.h"
+#include "Materials/MaterialFunction.h"
+#include "Materials/MaterialParameterCollection.h"
+#include "Materials/MaterialInstance.h"
 #include "ISearchProvider.h"
+#include "Stats/Stats.h"
 
-#include "Indexers/DataAssetIndexer.h"
+#include "Indexers/GenericObjectIndexer.h"
 #include "Indexers/DataTableIndexer.h"
 #include "Indexers/BlueprintIndexer.h"
 #include "Indexers/WidgetBlueprintIndexer.h"
@@ -44,6 +49,7 @@
 #include "Indexers/LevelIndexer.h"
 #include "Indexers/ActorIndexer.h"
 #include "Indexers/SoundCueIndexer.h"
+#include "Indexers/MaterialExpressionIndexer.h"
 #include "Providers/AssetRegistrySearchProvider.h"
 
 #define LOCTEXT_NAMESPACE "FAssetSearchManager"
@@ -203,7 +209,7 @@ FAssetSearchManager::~FAssetSearchManager()
 
 void FAssetSearchManager::Start()
 {
-	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FDataAssetIndexer>());
+	RegisterAssetIndexer(UDataAsset::StaticClass(), MakeUnique<FGenericObjectIndexer>("DataAsset"));
 	RegisterAssetIndexer(UDataTable::StaticClass(), MakeUnique<FDataTableIndexer>());
 	RegisterAssetIndexer(UCurveTable::StaticClass(), MakeUnique<FCurveTableIndexer>());
 	RegisterAssetIndexer(UBlueprint::StaticClass(), MakeUnique<FBlueprintIndexer>());
@@ -212,6 +218,10 @@ void FAssetSearchManager::Start()
 	RegisterAssetIndexer(UWorld::StaticClass(), MakeUnique<FLevelIndexer>());
 	RegisterAssetIndexer(AActor::StaticClass(), MakeUnique<FActorIndexer>());
 	RegisterAssetIndexer(USoundCue::StaticClass(), MakeUnique<FSoundCueIndexer>());
+	RegisterAssetIndexer(UMaterial::StaticClass(), MakeUnique<FMaterialExpressionIndexer>("Material"));
+	RegisterAssetIndexer(UMaterialFunction::StaticClass(), MakeUnique<FMaterialExpressionIndexer>("MaterialFunction"));
+	RegisterAssetIndexer(UMaterialParameterCollection::StaticClass(), MakeUnique<FGenericObjectIndexer>("MaterialParameterCollection"));
+	RegisterAssetIndexer(UMaterialInstance::StaticClass(), MakeUnique<FGenericObjectIndexer>("MaterialInstance"));
 
 	RegisterSearchProvider(TEXT("AssetRegistry"), MakeUnique<FAssetRegistrySearchProvider>());
 
@@ -685,6 +695,8 @@ void FAssetSearchManager::AddOrUpdateAsset(const FAssetData& InAssetData, const 
 
 bool FAssetSearchManager::Tick_GameThread(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FAssetSearchManager_Tick);
+
 	check(IsInGameThread());
 
 	UpdateScanningAssets();

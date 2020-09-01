@@ -105,7 +105,7 @@ struct FSystemDependencyGraph
 	{
 		if (PrereqType)
 		{
-			if (UMovieSceneEntitySystem* TargetSystem = Linker->SystemGraph.FindSystemOfType(PrereqType))
+			if (UMovieSceneEntitySystem* TargetSystem = Linker->FindSystem(PrereqType))
 			{
 				Linker->SystemGraph.AddPrerequisite(TargetSystem, ThisSystem);
 			}
@@ -115,7 +115,7 @@ struct FSystemDependencyGraph
 	{
 		if (SubsequentType)
 		{
-			if (UMovieSceneEntitySystem* TargetSystem = Linker->SystemGraph.FindSystemOfType(SubsequentType))
+			if (UMovieSceneEntitySystem* TargetSystem = Linker->FindSystem(SubsequentType))
 			{
 				Linker->SystemGraph.AddPrerequisite(ThisSystem, TargetSystem);
 			}
@@ -175,6 +175,8 @@ UMovieSceneEntitySystem::UMovieSceneEntitySystem(const FObjectInitializer& ObjIn
 	: Super(ObjInit)
 {
 	using namespace UE::MovieScene;
+
+	SystemExclusionContext = EEntitySystemContext::None;
 
 	Phase = ESystemPhase::Evaluation;
 	GraphID = TNumericLimits<uint16>::Max();
@@ -242,6 +244,7 @@ void UMovieSceneEntitySystem::LinkRelevantSystems(UMovieSceneEntitySystemLinker*
 {
 	using namespace UE::MovieScene;
 
+	EEntitySystemContext LinkerContext = InLinker->GetSystemContext();
 	for (uint16 GraphID = 0; GraphID < GlobalDependencyGraph.NumGraphIDs(); ++GraphID)
 	{
 		if (InLinker->HasLinkedSystem(GraphID))
@@ -252,7 +255,7 @@ void UMovieSceneEntitySystem::LinkRelevantSystems(UMovieSceneEntitySystemLinker*
 		UClass* Class = GlobalDependencyGraph.ClassFromGraphID(GraphID);
 		UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
 
-		if (SystemCDO)
+		if (SystemCDO && !EnumHasAnyFlags(SystemCDO->SystemExclusionContext, LinkerContext))
 		{
 			SystemCDO->ConditionalLinkSystem(InLinker);
 		}
@@ -316,7 +319,7 @@ void UMovieSceneEntitySystem::FinishDestroy()
 	Super::FinishDestroy();
 }
 
-bool UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
+void UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)
 {
 #if STATS
 	FScopeCycleCounter Scope(StatID);
@@ -324,11 +327,16 @@ bool UMovieSceneEntitySystem::Run(FSystemTaskPrerequisites& InPrerequisites, FSy
 
 	checkf(Linker != nullptr, TEXT("Attempting to evaluate a system that has been unlinked!"));
 
+	// We may have erroneously linked a system we should have done, but we must not run it in this case
+	if (EnumHasAnyFlags(SystemExclusionContext, Linker->GetSystemContext()))
+	{
+		return;
+	}
+
 	Linker->EntityManager.IncrementSystemSerial();
 
 	UE_LOG(LogMovieScene, Verbose, TEXT("Running moviescene system for phase %d: %s"), (int32)Phase, *GetName());
 	OnRun(InPrerequisites, Subsequents);
-	return true;
 }
 
 void UMovieSceneEntitySystem::Link(UMovieSceneEntitySystemLinker* InLinker)

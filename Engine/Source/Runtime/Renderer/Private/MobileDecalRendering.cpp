@@ -61,7 +61,11 @@ void RenderDeferredDecalsMobile(FRHICommandList& RHICmdList, const FScene& Scene
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, DeferredDecals);
 		INC_DWORD_STAT_BY(STAT_Decals, SortedDecals.Num());
-		
+
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(RHICmdList, View.GetFeatureLevel(), ESceneTextureSetupMode::None, UniformBuffer_SingleDraw);
+		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+				
 		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1);
 		RHICmdList.SetStreamSource(0, GetUnitCubeVertexBuffer(), 0);
 

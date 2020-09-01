@@ -91,7 +91,8 @@ int32 UGameplayAbility::GetFunctionCallspace(UFunction* Function, FFrame* Stack)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject) || !IsSupportedForNetworking())
 	{
-		return FunctionCallspace::Local;
+		// This handles absorbing authority/cosmetic
+		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
 	}
 	check(GetOuter() != nullptr);
 	return GetOuter()->GetFunctionCallspace(Function, Stack);
@@ -538,7 +539,7 @@ void UGameplayAbility::CancelAbility(const FGameplayAbilitySpecHandle Handle, co
 		}
 
 		// Replicate the the server/client if needed
-		if (bReplicateCancelAbility && ActorInfo)
+		if (bReplicateCancelAbility && ActorInfo && ActorInfo->AbilitySystemComponent.IsValid())
 		{
 			ActorInfo->AbilitySystemComponent->ReplicateEndOrCancelAbility(Handle, ActivationInfo, this, true);
 		}
@@ -1216,9 +1217,11 @@ AActor* UGameplayAbility::GetGameplayTaskAvatar(const UGameplayTask* Task) const
 void UGameplayAbility::OnGameplayTaskInitialized(UGameplayTask& Task)
 {
 	UAbilityTask* AbilityTask = Cast<UAbilityTask>(&Task);
-	if (AbilityTask)
+	const FGameplayAbilityActorInfo* ActorInfo = GetCurrentActorInfo();
+
+	if (AbilityTask && ActorInfo)
 	{
-		AbilityTask->SetAbilitySystemComponent(GetCurrentActorInfo()->AbilitySystemComponent.Get());
+		AbilityTask->SetAbilitySystemComponent(ActorInfo->AbilitySystemComponent.Get());
 		AbilityTask->Ability = this;
 	}
 }

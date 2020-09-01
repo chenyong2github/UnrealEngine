@@ -21,11 +21,14 @@ namespace UnrealBuildTool
 		public List<string> Architectures = new List<string>();
 
 		/// <summary>
-		/// Whether to generate dSYM files.
-		/// Lists Architectures that you want to build.
+		/// Whether to generate dSYM files. Defaults to true for Shipping builds and false
+		/// for all other builds. -dsym will force generation of a dsym for other builds, 
+		/// -NoDsym will force it off for shipping.
 		/// </summary>
+		[CommandLine("-dSYM", Value = "true")]
+		[CommandLine("-NoDSYM", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration", Name = "bGeneratedSYMFile")]
-		public bool bGenerateDsymFile = true;
+		public bool? bGenerateDsymFile;
 
 		/// <summary>
 		/// Enables address sanitizer (ASan).
@@ -76,7 +79,7 @@ namespace UnrealBuildTool
 		#pragma warning disable CS1591
 		#endif
 
-		public bool bGenerateDsymFile
+		public bool? bGenerateDsymFile
 		{
 			get { return Inner.bGenerateDsymFile; }
 		}
@@ -153,7 +156,14 @@ namespace UnrealBuildTool
 				Target.GlobalDefinitions.Add("FORCE_ANSI_ALLOCATOR=1");
 			}
 
-			Target.bUsePDBFiles = !Target.bDisableDebugInfo && Target.Configuration != UnrealTargetConfiguration.Debug && Platform == UnrealTargetPlatform.Mac && Target.MacPlatform.bGenerateDsymFile;
+			Target.GlobalDefinitions.Add("GL_SILENCE_DEPRECATION=1");
+
+			bool IsBuildMachine = Environment.GetEnvironmentVariable("IsBuildMachine") == "1";
+
+			// If the user explicitly provided an option for dSYM's then do that. If they did not, then we want one for shipping builds or if we're a build machine
+			bool WantDsym = Target.MacPlatform.bGenerateDsymFile ?? (Target.Configuration == UnrealTargetConfiguration.Shipping || IsBuildMachine);
+
+			Target.bUsePDBFiles = !Target.bDisableDebugInfo && WantDsym;
 
 			// we always deploy - the build machines need to be able to copy the files back, which needs the full bundle
 			Target.bDeployAfterCompile = true;

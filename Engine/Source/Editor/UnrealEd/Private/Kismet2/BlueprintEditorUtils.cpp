@@ -695,34 +695,40 @@ void FBlueprintEditorUtils::PreloadMembers(UObject* InObject)
 
 void FBlueprintEditorUtils::PreloadConstructionScript(UBlueprint* Blueprint)
 {
-	if ( Blueprint )
+	if (Blueprint)
 	{
-		FLinkerLoad* TargetLinker = Blueprint->SimpleConstructionScript ? Blueprint->SimpleConstructionScript->GetLinker() : nullptr;
-		if (TargetLinker)
+		PreloadConstructionScript(Blueprint->SimpleConstructionScript);
+	}
+}
+
+void FBlueprintEditorUtils::PreloadConstructionScript(USimpleConstructionScript* SimpleConstructionScript)
+{
+	if (!SimpleConstructionScript)
+	{
+		return;
+	}
+
+	if (FLinkerLoad* TargetLinker = SimpleConstructionScript->GetLinker())
+	{
+		TargetLinker->Preload(SimpleConstructionScript);
+
+		if (USCS_Node* DefaultSceneRootNode = SimpleConstructionScript->GetDefaultSceneRootNode())
 		{
-			TargetLinker->Preload(Blueprint->SimpleConstructionScript);
-
-			if (USCS_Node* DefaultSceneRootNode = Blueprint->SimpleConstructionScript->GetDefaultSceneRootNode())
-			{
-				DefaultSceneRootNode->PreloadChain();
-			}
-
-			const TArray<USCS_Node*>& RootNodes = Blueprint->SimpleConstructionScript->GetRootNodes();
-			for (int32 NodeIndex = 0; NodeIndex < RootNodes.Num(); ++NodeIndex)
-			{
-				RootNodes[NodeIndex]->PreloadChain();
-			}
+			DefaultSceneRootNode->PreloadChain();
 		}
 
-		if (Blueprint->SimpleConstructionScript)
+		const TArray<USCS_Node*>& RootNodes = SimpleConstructionScript->GetRootNodes();
+		for (int32 NodeIndex = 0; NodeIndex < RootNodes.Num(); ++NodeIndex)
 		{
-			for (USCS_Node* SCSNode : Blueprint->SimpleConstructionScript->GetAllNodes())
-			{
-				if (SCSNode)
-				{
-					SCSNode->ValidateGuid();
-				}
-			}
+			RootNodes[NodeIndex]->PreloadChain();
+		}
+	}
+
+	for (USCS_Node* SCSNode : SimpleConstructionScript->GetAllNodes())
+	{
+		if (SCSNode)
+		{
+			SCSNode->ValidateGuid();
 		}
 	}
 }
@@ -3037,13 +3043,6 @@ bool FBlueprintEditorUtils::IsDataOnlyBlueprint(const UBlueprint* Blueprint)
 		return false;
 	}
 
-	// Note that the current implementation of IsChildOf will not crash when called on a nullptr, but
-	// I'm explicitly null checking because it seems unwise to rely on this behavior:
-	if (Blueprint->ParentClass && Blueprint->ParentClass->IsChildOf(UActorComponent::StaticClass()))
-	{
-		return false;
-	}
-
 	// No new variables defined
 	if (Blueprint->NewVariables.Num() > 0)
 	{
@@ -5031,19 +5030,19 @@ void FBlueprintEditorUtils::ChangeMemberVariableType(UBlueprint* Blueprint, cons
 	}
 }
 
-FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, FName InVariableToDuplicate)
+FName FBlueprintEditorUtils::DuplicateMemberVariable(UBlueprint* InFromBlueprint, UBlueprint* InToBlueprint, FName InVariableToDuplicate)
 {
-	FName DuplicatedVariableName = NAME_None;
+	FName DuplicatedVariableName;
 
 	if (InVariableToDuplicate != NAME_None)
 	{
 		const FScopedTransaction Transaction(LOCTEXT("DuplicateVariable", "Duplicate Variable"));
-		InBlueprint->Modify();
+		InToBlueprint->Modify();
 
 		FBPVariableDescription NewVar;
 
 		UBlueprint* SourceBlueprint;
-		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(InBlueprint, InVariableToDuplicate, SourceBlueprint);
+		const int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(InFromBlueprint, InVariableToDuplicate, SourceBlueprint);
 		if (VarIndex != INDEX_NONE)
 		{
 			FBPVariableDescription& Variable = SourceBlueprint->NewVariables[VarIndex];
@@ -5071,15 +5070,42 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 			}
 
 			// Add the new variable
-			InBlueprint->NewVariables.Add(NewVar);
+			InToBlueprint->NewVariables.Add(NewVar);
 		}
-		else
+
+		if (NewVar.VarGuid.IsValid())
+		{
+			DuplicatedVariableName = NewVar.VarName;
+
+			// Potentially adjust variable names for any child blueprints
+			FBlueprintEditorUtils::ValidateBlueprintChildVariables(InToBlueprint, NewVar.VarName);
+
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InToBlueprint);
+		}
+	}
+
+	return DuplicatedVariableName;
+}
+
+FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const UStruct* InScope, FName InVariableToDuplicate)
+{
+	FName DuplicatedVariableName;
+
+	if (InVariableToDuplicate != NAME_None)
+	{
+		const FScopedTransaction Transaction(LOCTEXT("DuplicateVariable", "Duplicate Variable"));
+		InBlueprint->Modify();
+
+		DuplicatedVariableName = FBlueprintEditorUtils::DuplicateMemberVariable(InBlueprint, InBlueprint, InVariableToDuplicate);
+		
+		if (DuplicatedVariableName == NAME_None && InScope)
 		{
 			// It's probably a local variable
 
 			UK2Node_FunctionEntry* FunctionEntry = nullptr;
 			FBPVariableDescription* LocalVariable = FBlueprintEditorUtils::FindLocalVariable(InBlueprint, InScope, InVariableToDuplicate, &FunctionEntry);
 
+			FBPVariableDescription NewVar;
 			if (LocalVariable)
 			{
 				FunctionEntry->Modify();
@@ -5089,17 +5115,18 @@ FName FBlueprintEditorUtils::DuplicateVariable(UBlueprint* InBlueprint, const US
 				// Add the new variable
 				FunctionEntry->LocalVariables.Add(NewVar);
 			}
+
+			if (NewVar.VarGuid.IsValid())
+			{
+				DuplicatedVariableName = NewVar.VarName;
+
+				// Potentially adjust variable names for any child blueprints
+				FBlueprintEditorUtils::ValidateBlueprintChildVariables(InBlueprint, NewVar.VarName);
+
+				FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
+			}
 		}
 
-		if (NewVar.VarGuid.IsValid())
-		{
-			DuplicatedVariableName = NewVar.VarName;
-
-			// Potentially adjust variable names for any child blueprints
-			FBlueprintEditorUtils::ValidateBlueprintChildVariables(InBlueprint, NewVar.VarName);
-
-			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(InBlueprint);
-		}
 	}
 
 	return DuplicatedVariableName;
@@ -8593,26 +8620,26 @@ bool FBlueprintEditorUtils::PropertyValueFromString_Direct(const FProperty* Prop
 		{
 			FVector V = FVector::ZeroVector;
 			bParseSucceeded = FDefaultValueHelper::ParseVector(StrValue, V);
-			Property->CopyCompleteValue(DirectValue, &V);
+			Property->CopySingleValue(DirectValue, &V);
 		}
 		else if (StructProperty->Struct == RotatorStruct)
 		{
 			FRotator R = FRotator::ZeroRotator;
 			bParseSucceeded = FDefaultValueHelper::ParseRotator(StrValue, R);
-			Property->CopyCompleteValue(DirectValue, &R);
+			Property->CopySingleValue(DirectValue, &R);
 		}
 		else if (StructProperty->Struct == TransformStruct)
 		{
 			FTransform T = FTransform::Identity;
 			bParseSucceeded = T.InitFromString(StrValue);
-			Property->CopyCompleteValue(DirectValue, &T);
+			Property->CopySingleValue(DirectValue, &T);
 		}
 		else if (StructProperty->Struct == LinearColorStruct)
 		{
 			FLinearColor Color;
 			// Color form: "(R=%f,G=%f,B=%f,A=%f)"
 			bParseSucceeded = Color.InitFromString(StrValue);
-			Property->CopyCompleteValue(DirectValue, &Color);
+			Property->CopySingleValue(DirectValue, &Color);
 		}
 		else if (StructProperty->Struct)
 		{
@@ -8652,25 +8679,25 @@ bool FBlueprintEditorUtils::PropertyValueToString_Direct(const FProperty* Proper
 		if (StructProperty->Struct == VectorStruct)
 		{
 			FVector Vector;
-			Property->CopyCompleteValue(&Vector, DirectValue);
+			Property->CopySingleValue(&Vector, DirectValue);
 			OutForm = FString::Printf(TEXT("%f,%f,%f"), Vector.X, Vector.Y, Vector.Z);
 		}
 		else if (StructProperty->Struct == RotatorStruct)
 		{
 			FRotator Rotator;
-			Property->CopyCompleteValue(&Rotator, DirectValue);
+			Property->CopySingleValue(&Rotator, DirectValue);
 			OutForm = FString::Printf(TEXT("%f,%f,%f"), Rotator.Pitch, Rotator.Yaw, Rotator.Roll);
 		}
 		else if (StructProperty->Struct == TransformStruct)
 		{
 			FTransform Transform;
-			Property->CopyCompleteValue(&Transform, DirectValue);
+			Property->CopySingleValue(&Transform, DirectValue);
 			OutForm = Transform.ToString();
 		}
 		else if (StructProperty->Struct == LinearColorStruct)
 		{
 			FLinearColor Color;
-			Property->CopyCompleteValue(&Color, DirectValue);
+			Property->CopySingleValue(&Color, DirectValue);
 			OutForm = Color.ToString();
 		}
 	}

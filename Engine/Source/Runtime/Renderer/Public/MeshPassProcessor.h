@@ -1794,6 +1794,7 @@ class FRayTracingMeshCommand
 public:
 	FMeshDrawShaderBindings ShaderBindings;
 
+	FRHIRayTracingShader* MaterialShader = nullptr;
 	uint32 MaterialShaderIndex = UINT_MAX;
 
 	uint8 GeometrySegmentIndex = 0xFF;

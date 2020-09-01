@@ -171,6 +171,8 @@ namespace Chaos
 		int32 DirtyValidationCount() const { return MDirtyValidationCount; }
 #endif
 
+		FORCEINLINE TArray<TVector<T, d>>& AllX() { return MX; }
+
 	private:
 		TArrayCollectionArray<TVector<T, d>> MX;
 

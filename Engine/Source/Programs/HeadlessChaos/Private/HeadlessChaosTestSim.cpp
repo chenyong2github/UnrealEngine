@@ -8,10 +8,55 @@
 #include "Chaos/Sphere.h"
 #include "Chaos/Utilities.h"
 #include "Modules/ModuleManager.h"
+#include "ChaosSolversModule.h"
+#include "PBDRigidsSolver.h"
+#include "GeometryCollection/GeometryCollectionTestFramework.h"
 
 namespace ChaosTest {
 
 	using namespace Chaos;
+
+	TYPED_TEST(AllTraits, SimTests_SphereSphereSimTest_StaticBoundsChange)
+	{
+		// This test spawns a dynamic and a static, then moves the static around a few times after initialization.
+		// The goal is to make sure that the bounds are updated correctly and the dynamic rests on top of the static
+		// in its final position.
+
+		auto Sphere = TSharedPtr<FImplicitObject, ESPMode::ThreadSafe>(new TSphere<float, 3>(TVector<float, 3>(0), 10));
+
+		// Create solver #TODO make TFramework a little more general instead of mostly geometry collection focused
+		GeometryCollectionTest::TFramework<TypeParam> Framework;
+		Framework.Solver->SetEnabled(true);
+
+		// Make a particle
+		TUniquePtr<Chaos::TPBDRigidParticle<FReal, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
+		Particle->SetGeometry(Sphere);
+		Particle->SetX(TVector<float, 3>(1000, 1000, 200));
+		Particle->SetGravityEnabled(true);
+		Framework.Solver->RegisterObject(Particle.Get());
+
+		TUniquePtr<Chaos::TGeometryParticle<FReal, 3>> Static = Chaos::TGeometryParticle<FReal, 3>::CreateParticle();
+		Static->SetGeometry(Sphere);
+		Static->SetX(TVector<float, 3>(0, 0, 0));
+		Framework.Solver->RegisterObject(Static.Get());
+
+		Static->SetX(TVector<float, 3>(2000, 1000, 0));
+		Static->SetX(TVector<float, 3>(3000, 1000, 0));
+
+		::ChaosTest::SetParticleSimDataToCollide({ Particle.Get(), Static.Get() });
+
+		for(int32 Iter = 0; Iter < 200; ++Iter)
+		{
+			Framework.Advance();
+
+			if(Iter == 0)
+			{
+				Static->SetX(TVector<float, 3>(1000, 1000, 0));
+			}
+		}
+
+		EXPECT_NEAR(Particle->X().Z, 20, 1);
+	}
 
 	TYPED_TEST(AllEvolutions, SimTests_SphereSphereSimTest)
 	{
@@ -25,9 +70,9 @@ namespace ChaosTest {
 		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
 		PhysicsMaterial->SleepCounterThreshold = 2;
 
-		TUniquePtr<FImplicitObject> Box(new TSphere<FReal, 3>(FVec3(0, 0, 0), 50));
-		Static->SetGeometry(MakeSerializable(Box));
-		Dynamic->SetGeometry(MakeSerializable(Box));
+		TUniquePtr<FImplicitObject> Sphere(new TSphere<FReal, 3>(FVec3(0, 0, 0), 50));
+		Static->SetGeometry(MakeSerializable(Sphere));
+		Dynamic->SetGeometry(MakeSerializable(Sphere));
 
 		Evolution.SetPhysicsMaterial(Dynamic, MakeSerializable(PhysicsMaterial));
 
@@ -35,6 +80,9 @@ namespace ChaosTest {
 		Dynamic->X() = FVec3(10, 10, 150);
 		Dynamic->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
+
+		// The position of the static has changed and statics don't automatically update bounds, so update explicitly
+		Static->SetWorldSpaceInflatedBounds(Sphere->BoundingBox().TransformedAABB(TRigidTransform<FReal, 3>(Static->X(), Static->R())));
 
 		::ChaosTest::SetParticleSimDataToCollide({ Static,Dynamic });
 
@@ -136,6 +184,11 @@ namespace ChaosTest {
 		TUniquePtr<FChaosPhysicsMaterial> PhysicsMaterial = MakeUnique<FChaosPhysicsMaterial>();
 		PhysicsMaterial->SleepingLinearThreshold = 20;
 		PhysicsMaterial->SleepingAngularThreshold = 20;
+		PhysicsMaterial->SleepCounterThreshold = 1;
+
+		Static->X() = FVec3(10, 10, 10);
+		Dynamic1->X() = FVec3(10, 10, 120);
+		Dynamic2->X() = FVec3(10, 10, 400);
 
 		TUniquePtr<FImplicitObject> StaticBox(new TBox<FReal, 3>(FVec3(-500, -500, -50), FVec3(500, 500, 50)));
 		TUniquePtr<FImplicitObject> DynamicBox(new TBox<FReal, 3>(FVec3(-50, -50, -50), FVec3(50, 50, 50)));
@@ -146,9 +199,6 @@ namespace ChaosTest {
 		Evolution.SetPhysicsMaterial(Dynamic1, MakeSerializable(PhysicsMaterial));
 		Evolution.SetPhysicsMaterial(Dynamic2, MakeSerializable(PhysicsMaterial));
 
-		Static->X() = FVec3(10, 10, 10);
-		Dynamic1->X() = FVec3(10, 10, 120);
-		Dynamic2->X() = FVec3(10, 10, 400);
 		Dynamic1->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);
 		Dynamic1->InvI() = FMatrix33(1.0f / 100000.0f, 1.0f / 100000.0f, 1.0f / 100000.0f);
 		Dynamic2->I() = FMatrix33(100000.0f, 100000.0f, 100000.0f);

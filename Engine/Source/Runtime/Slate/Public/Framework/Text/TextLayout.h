@@ -685,6 +685,8 @@ protected:
 		float Height;
 	};
 
+	int32 CachedLayoutGeneration = 0;
+
 	/** The models for the lines of text. A LineModel represents a single string with no manual breaks. */
 	TArray< FLineModel > LineModels;
 

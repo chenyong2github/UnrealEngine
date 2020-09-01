@@ -2237,14 +2237,15 @@ public:
 	};
 };
 
-class FRayTracingPipelineStateInitializer
+class FRayTracingPipelineStateSignature
 {
 public:
 
-	FRayTracingPipelineStateInitializer() {};
+	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
+	bool bAllowHitGroupIndexing = true;
 
 	// NOTE: GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer) should also be updated when changing this function
-	bool operator==(const FRayTracingPipelineStateInitializer& rhs) const
+	bool operator==(const FRayTracingPipelineStateSignature& rhs) const
 	{
 		return MaxPayloadSizeInBytes == rhs.MaxPayloadSizeInBytes
 			&& bAllowHitGroupIndexing == rhs.bAllowHitGroupIndexing
@@ -2254,7 +2255,7 @@ public:
 			&& CallableHash == rhs.CallableHash;
 	}
 
-	friend uint32 GetTypeHash(const FRayTracingPipelineStateInitializer& Initializer)
+	friend uint32 GetTypeHash(const FRayTracingPipelineStateSignature& Initializer)
 	{
 		return GetTypeHash(Initializer.MaxPayloadSizeInBytes) ^
 			GetTypeHash(Initializer.bAllowHitGroupIndexing) ^
@@ -2264,9 +2265,24 @@ public:
 			GetTypeHash(Initializer.GetCallableHash());
 	}
 
-	uint32 MaxPayloadSizeInBytes = 24; // sizeof FDefaultPayload declared in RayTracingCommon.ush
+	uint64 GetHitGroupHash() const { return HitGroupHash; }
+	uint64 GetRayGenHash()   const { return RayGenHash; }
+	uint64 GetRayMissHash()  const { return MissHash; }
+	uint64 GetCallableHash() const { return CallableHash; }
 
-	bool bAllowHitGroupIndexing = true;
+protected:
+
+	uint64 RayGenHash = 0;
+	uint64 MissHash = 0;
+	uint64 HitGroupHash = 0;
+	uint64 CallableHash = 0;
+};
+
+class FRayTracingPipelineStateInitializer : public FRayTracingPipelineStateSignature
+{
+public:
+
+	FRayTracingPipelineStateInitializer() = default;
 
 	// Partial ray tracing pipelines can be used for run-time asynchronous shader compilation, but not for rendering.
 	// Any number of shaders for any stage may be provided when creating partial pipelines, but 
@@ -2315,11 +2331,6 @@ public:
 		CallableHash = Hash ? Hash : ComputeShaderTableHash(CallableTable);
 	}
 
-	uint64 GetHitGroupHash() const { return HitGroupHash; }
-	uint64 GetRayGenHash()   const { return RayGenHash; }
-	uint64 GetRayMissHash()  const { return MissHash; }
-	uint64 GetCallableHash() const { return CallableHash; }
-
 private:
 
 	uint64 ComputeShaderTableHash(const TArrayView<FRHIRayTracingShader*>& ShaderTable, uint64 InitialHash = 5699878132332235837ull)
@@ -2341,11 +2352,6 @@ private:
 	TArrayView<FRHIRayTracingShader*> MissTable;
 	TArrayView<FRHIRayTracingShader*> HitGroupTable;
 	TArrayView<FRHIRayTracingShader*> CallableTable;
-
-	uint64 RayGenHash = 0;
-	uint64 MissHash = 0;
-	uint64 HitGroupHash = 0;
-	uint64 CallableHash = 0;
 };
 
 // This PSO is used as a fallback for RHIs that dont support PSOs. It is used to set the graphics state using the legacy state setting APIs

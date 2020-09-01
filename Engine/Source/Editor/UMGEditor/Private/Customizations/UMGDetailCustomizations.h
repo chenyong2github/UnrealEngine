@@ -31,6 +31,9 @@ public:
 	/** IDetailCustomization interface */
 	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailLayout ) override;
 
+	/** Make a property binding widget */
+	static TSharedRef<SWidget> MakePropertyBindingWidget(TWeakPtr<FWidgetBlueprintEditor> InEditor, FDelegateProperty* InProperty, TSharedRef<IPropertyHandle> InDelegatePropertyHandle, bool bInGeneratePureBindings);
+
 private:
 	void PerformBindingCustomization(IDetailLayoutBuilder& DetailLayout);
 

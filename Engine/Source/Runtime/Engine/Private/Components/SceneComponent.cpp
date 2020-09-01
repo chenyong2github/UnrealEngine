@@ -3342,9 +3342,13 @@ void USceneComponent::PostEditComponentMove(bool bFinished)
 
 	{
 		// Call on all attached children
-		for (USceneComponent* ChildComponent : GetAttachChildren())
+		TArray<USceneComponent*> AttachChildrenCopy(GetAttachChildren());
+		for (USceneComponent* ChildComponent : AttachChildrenCopy)
 		{
-			ChildComponent->PostEditComponentMove(bFinished);
+			if (ChildComponent)
+			{
+				ChildComponent->PostEditComponentMove(bFinished);
+			}
 		}
 	}
 }

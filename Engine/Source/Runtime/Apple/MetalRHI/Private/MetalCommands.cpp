@@ -114,7 +114,14 @@ void FMetalRHICommandContext::RHISetStreamSource(uint32 StreamIndex, FRHIVertexB
 {
 	@autoreleasepool {
 		FMetalVertexBuffer* VertexBuffer = ResourceCast(VertexBufferRHI);
-		Context->GetCurrentState().SetVertexStream(StreamIndex, VertexBuffer ? &VertexBuffer->Buffer : nil, VertexBuffer ? VertexBuffer->Data : nil, Offset, VertexBuffer ? VertexBuffer->GetSize() : 0);
+		
+		FMetalBuffer TheBuffer = nil;
+		if(VertexBuffer && !VertexBuffer->Data)
+		{
+			TheBuffer = VertexBuffer->GetCurrentBuffer();
+		}
+		
+		Context->GetCurrentState().SetVertexStream(StreamIndex, VertexBuffer ? &TheBuffer : nil, VertexBuffer ? VertexBuffer->Data : nil, Offset, VertexBuffer ? VertexBuffer->GetSize() : 0);
 	}
 }
 
@@ -541,7 +548,7 @@ void FMetalRHICommandContext::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBuff
 	RHI_DRAW_CALL_STATS(PrimitiveType,FMath::Max(NumInstances,1u)*NumPrimitives);
 
 	FMetalIndexBuffer* IndexBuffer = ResourceCast(IndexBufferRHI);
-	Context->DrawIndexedPrimitive(IndexBuffer->Buffer, IndexBuffer->GetStride(), IndexBuffer->IndexType, PrimitiveType, BaseVertexIndex, FirstInstance, NumVertices, StartIndex, NumPrimitives, NumInstances);
+	Context->DrawIndexedPrimitive(IndexBuffer->GetCurrentBuffer(), IndexBuffer->GetStride(), IndexBuffer->IndexType, PrimitiveType, BaseVertexIndex, FirstInstance, NumVertices, StartIndex, NumPrimitives, NumInstances);
 	}
 }
 

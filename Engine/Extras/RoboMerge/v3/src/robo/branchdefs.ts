@@ -96,6 +96,7 @@ type EdgeOptionFields = {
 
 	disallowSkip: boolean
 	incognitoMode: boolean
+	terminal: boolean // changes go along terminal edges but no further
 	doHackyOkForGithubThing: boolean
 
 	excludeAuthors: string[] // if present, completely overrides bot and node configs

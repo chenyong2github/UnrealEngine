@@ -418,7 +418,7 @@ AGameplayCueNotify_Actor* UGameplayCueManager::GetInstancedCueActor(AActor* Targ
 					}
 					
 					// outside of replays, this should not happen. GC Notifies should not be actually destroyed.
-					checkf(World->DemoNetDriver, TEXT("Spawned Cue is pending kill or null: %s."), *GetNameSafe(SpawnedCue));
+					checkf(World->IsPlayingReplay(), TEXT("Spawned Cue is pending kill or null: %s."), *GetNameSafe(SpawnedCue));
 
 					if (PreallocatedList->Num() <= 0)
 					{
@@ -496,7 +496,7 @@ void UGameplayCueManager::NotifyGameplayCueActorFinished(AGameplayCueNotify_Acto
 		{
 			if (Actor->IsPendingKill())
 			{
-				ensureMsgf(GetWorld()->DemoNetDriver, TEXT("GameplayCueNotify %s is pending kill in ::NotifyGameplayCueActorFinished (and not in network demo)"), *GetNameSafe(Actor));
+				ensureMsgf(GetWorld()->IsPlayingReplay(), TEXT("GameplayCueNotify %s is pending kill in ::NotifyGameplayCueActorFinished (and not in network demo)"), *GetNameSafe(Actor));
 				return;
 			}
 			Actor->bInRecycleQueue = true;
@@ -1408,7 +1408,7 @@ void UGameplayCueManager::FlushPendingCues()
 				{
 					if (bHasAuthority)
 					{
-						PendingCue.OwningComponent->ForceReplication();
+						RepInterface->ForceReplication();
 						if (PendingCue.GameplayCueTags.Num() > 1)
 						{
 							RepInterface->Call_InvokeGameplayCuesExecuted_WithParams(FGameplayTagContainer::CreateFromArray(PendingCue.GameplayCueTags), PendingCue.PredictionKey, PendingCue.CueParameters);
@@ -1653,7 +1653,7 @@ void UGameplayCueManager::OnPreReplayScrub(UWorld* World)
 	// among all level collections, this would clear all current preallocated instances from the list,
 	// but there's no need to, and the actor instances would still be around, causing a leak.
 	const FLevelCollection* const DuplicateLevelCollection = World ? World->FindCollectionByType(ELevelCollectionType::DynamicDuplicatedLevels) : nullptr;
-	if (DuplicateLevelCollection && DuplicateLevelCollection->GetDemoNetDriver() == World->DemoNetDriver)
+	if (DuplicateLevelCollection && DuplicateLevelCollection->GetDemoNetDriver() == World->GetDemoNetDriver())
 	{
 		return;
 	}

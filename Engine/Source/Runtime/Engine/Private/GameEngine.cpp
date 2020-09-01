@@ -62,6 +62,7 @@
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
+#include "CustomResourcePool.h"
 
 #if WITH_EDITOR
 #include "PIEPreviewDeviceProfileSelectorModule.h"
@@ -1200,6 +1201,81 @@ void UGameEngine::FinishDestroy()
 	Super::FinishDestroy();
 }
 
+//@todo: unify this and the driver version
+bool UGameEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading /*= true*/)
+{
+	if (Connection == nullptr)
+	{
+		return false;
+	}
+
+	UWorld* const World = Connection->GetWorld();
+
+	if (World == nullptr)
+	{
+		return false;
+	}
+
+	if (!bReading)
+	{
+		return false;
+	}
+
+	// Try to find the level script objects and remap them for when demos are being replayed.
+	if (Connection->IsInternalAck() && World->RemapCompiledScriptActor(Str))
+	{
+		return true;
+	}
+
+	// If the game has created multiple worlds, some of them may have prefixed package names,
+	// so we need to remap the world package and streaming levels for replay playback to work correctly.
+	FWorldContext& Context = GetWorldContextFromWorldChecked(World);
+	if (Context.PIEInstance == INDEX_NONE)
+	{
+		if (WorldList.Num() > 1)
+		{
+			// If this is not a PIE instance but sender is PIE, we need to strip the PIE prefix
+			const FString Stripped = UWorld::RemovePIEPrefix(Str);
+			if (!Stripped.Equals(Str, ESearchCase::CaseSensitive))
+			{
+				Str = Stripped;
+				return true;
+			}
+		}
+		return false;
+	}
+
+	// If the prefixed path matches the world package name or the name of a streaming level,
+	// return the prefixed name.
+	FString PackageNameOnly = Str;
+	FPackageName::TryConvertFilenameToLongPackageName(PackageNameOnly, PackageNameOnly);
+
+	const FString PrefixedFullName = UWorld::ConvertToPIEPackageName(Str, Context.PIEInstance);
+	const FString PrefixedPackageName = UWorld::ConvertToPIEPackageName(PackageNameOnly, Context.PIEInstance);
+	const FString WorldPackageName = World->GetOutermost()->GetName();
+
+	if (WorldPackageName == PrefixedPackageName)
+	{
+		Str = PrefixedFullName;
+		return true;
+	}
+
+	for (ULevelStreaming* StreamingLevel : World->GetStreamingLevels())
+	{
+		if (StreamingLevel != nullptr)
+		{
+			const FString StreamingLevelName = StreamingLevel->GetWorldAsset().GetLongPackageName();
+			if (StreamingLevelName == PrefixedPackageName)
+			{
+				Str = PrefixedFullName;
+				return true;
+			}
+		}
+	}
+
+	return false;
+}
+
 bool UGameEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading /*= true*/)
 {
 	if (Driver == nullptr)
@@ -1244,7 +1320,7 @@ bool UGameEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReadi
 	}
 
 	// Try to find the level script objects and remap them for when demos are being replayed.
-	if (World->DemoNetDriver == Driver && World->RemapCompiledScriptActor(Str))
+	if (World->GetDemoNetDriver() == Driver && World->RemapCompiledScriptActor(Str))
 	{
 		return true;
 	}
@@ -1818,6 +1894,7 @@ void UGameEngine::Tick( float DeltaSeconds, bool bIdleMode )
 			
 			GRenderTargetPool.TickPoolElements();
 			FRDGBuilder::TickPoolElements();
+			ICustomResourcePool::TickPoolElements();
 		});
 	}
 

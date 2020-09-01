@@ -553,7 +553,10 @@ void UNetDriver::CancelAdaptiveReplication(FNetworkObjectInfo& InNetworkActor)
 			if (UWorld* ActorWorld = Actor->GetWorld())
 			{
 				const float ExpectedNetDelay = (1.0f / Actor->NetUpdateFrequency);
-				Actor->SetNetUpdateTime( ActorWorld->GetTimeSeconds() + FMath::FRandRange( 0.5f, 1.0f ) * ExpectedNetDelay );
+				const float NewUpdateTime = ActorWorld->GetTimeSeconds() + FMath::FRandRange(0.5f, 1.0f) * ExpectedNetDelay;
+
+				// Only allow the next update to be sooner than the current one
+				InNetworkActor.NextUpdateTime = FMath::Min(InNetworkActor.NextUpdateTime, (double)NewUpdateTime);
 				InNetworkActor.OptimalNetUpdateDelta = ExpectedNetDelay;
 				// TODO: we really need a way to cancel the throttling completely. OptimalNetUpdateDelta is going to be recalculated based on LastNetReplicateTime.
 			}
@@ -590,7 +593,7 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 	}
 	FSimpleScopeSecondsCounter ScopedTimer(GTickFlushGameDriverTimeSeconds, bEnableTimer);
 
-	if ( IsServer() && ClientConnections.Num() > 0 && ClientConnections[0]->IsInternalAck() == false )
+	if (IsServer() && ClientConnections.Num() > 0 && !bSkipServerReplicateActors)
 	{
 		// Update all clients.
 #if WITH_SERVER_CODE
@@ -1004,7 +1007,7 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 	{
 		// Queue client voice packets in the server's voice channel
 		ProcessLocalClientPackets();
-		ServerConnection->Tick();
+		ServerConnection->Tick(DeltaSeconds);
 	}
 	else
 	{
@@ -1014,10 +1017,10 @@ void UNetDriver::TickFlush(float DeltaSeconds)
 	{
 		QUICK_SCOPE_CYCLE_COUNTER(STAT_NetDriver_TickClientConnections)
 
-	for( int32 i=0; i<ClientConnections.Num(); i++ )
-	{
-		ClientConnections[i]->Tick();
-	}
+		for (UNetConnection* Connection : ClientConnections)
+		{
+			Connection->Tick(DeltaSeconds);
+		}
 	}
 
 	if (ConnectionlessHandler.IsValid())
@@ -1980,7 +1983,7 @@ void UNetDriver::InternalProcessRemoteFunctionPrivate(
 
 			if (IsLevelInitializedForActor(Actor, Connection))
 			{
-				Ch = (UActorChannel*)Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally);
+				Ch = Cast<UActorChannel>(Connection->CreateChannelByName(NAME_Actor, EChannelCreateFlags::OpenedLocally));
 			}
 			else
 			{
@@ -2065,14 +2068,14 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 	{
 		if (!bIsServer)
 		{
-			DEBUG_REMOTEFUNCTION(TEXT("Initial channel replication has not occurred, not calling %s::%s"), *TargetObj->GetFullName(), *Function->GetName());
+			DEBUG_REMOTEFUNCTION(TEXT("Initial channel replication has not occurred, not calling %s::%s"), *GetFullNameSafe(TargetObj), *GetNameSafe(Function));
 			return;
 		}
 
 		// triggering replication of an Actor while already in the middle of replication can result in invalid data being sent and is therefore illegal
 		if (Ch->bIsReplicatingActor)
 		{
-			FString Error(FString::Printf(TEXT("Attempt to replicate function '%s' on Actor '%s' while it is in the middle of variable replication!"), *Function->GetName(), *TargetObj->GetFullName()));
+			FString Error(FString::Printf(TEXT("Attempt to replicate function '%s' on Actor '%s' while it is in the middle of variable replication!"), *GetNameSafe(Function), *GetFullNameSafe(TargetObj)));
 			UE_LOG(LogScript, Error, TEXT("%s"), *Error);
 			ensureMsgf(false, TEXT("%s"), *Error);
 			return;
@@ -2099,8 +2102,10 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 		return;
 	}
 
+	FScopedRepContext RepContext(Connection, Ch->GetActor());
+	
 	// Form the RPC preamble.
-	FOutBunch Bunch( Ch, 0 );
+	FOutBunch Bunch(Ch, 0);
 
 	// Reliability.
 	//warning: RPC's might overflow, preventing reliable functions from getting thorough.
@@ -2111,35 +2116,35 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 
 	// verify we haven't overflowed unacked bunch buffer (Connection is not net ready)
 	//@warning: needs to be after parameter evaluation for script stack integrity
-	if ( Bunch.IsError() )
+	if (Bunch.IsError())
 	{
-		if ( !Bunch.bReliable )
+		if (!Bunch.bReliable)
 		{
 			// Not reliable, so not fatal. This can happen a lot in debug builds at startup if client is slow to get in game
-			UE_LOG( LogNet, Warning, TEXT( "Can't send function '%s' on '%s': Reliable buffer overflow. FieldCache->FieldNetIndex: %d Max %d. Ch MaxPacket: %d" ), *Function->GetName(), *TargetObj->GetFullName(), FieldCache->FieldNetIndex, ClassCache->GetMaxIndex(), Ch->Connection->MaxPacket );
+			UE_LOG(LogNet, Warning, TEXT("Can't send function '%s' on '%s': Reliable buffer overflow. FieldCache->FieldNetIndex: %d Max %d. Ch MaxPacket: %d"), *GetNameSafe(Function), *GetFullNameSafe(TargetObj), FieldCache->FieldNetIndex, ClassCache->GetMaxIndex(), Ch->Connection->MaxPacket );
 		}
 		else
 		{
 			// The connection has overflowed the reliable buffer. We cannot recover from this. Disconnect this user.
-			UE_LOG( LogNet, Warning, TEXT( "Closing connection. Can't send function '%s' on '%s': Reliable buffer overflow. FieldCache->FieldNetIndex: %d Max %d. Ch MaxPacket: %d." ), *Function->GetName(), *TargetObj->GetFullName(), FieldCache->FieldNetIndex, ClassCache->GetMaxIndex(), Ch->Connection->MaxPacket );
+			UE_LOG(LogNet, Warning, TEXT("Closing connection. Can't send function '%s' on '%s': Reliable buffer overflow. FieldCache->FieldNetIndex: %d Max %d. Ch MaxPacket: %d."), *GetNameSafe(Function), *GetFullNameSafe(TargetObj), FieldCache->FieldNetIndex, ClassCache->GetMaxIndex(), Ch->Connection->MaxPacket );
 
-			FString ErrorMsg = NSLOCTEXT( "NetworkErrors", "ClientReliableBufferOverflow", "Outgoing reliable buffer overflow" ).ToString();
-			FNetControlMessage<NMT_Failure>::Send( Connection, ErrorMsg );
-			Connection->FlushNet( true );
+			FString ErrorMsg = NSLOCTEXT("NetworkErrors", "ClientReliableBufferOverflow", "Outgoing reliable buffer overflow").ToString();
+			FNetControlMessage<NMT_Failure>::Send(Connection, ErrorMsg);
+			Connection->FlushNet(true);
 			Connection->Close();
 #if USE_SERVER_PERF_COUNTERS
-			PerfCountersIncrement( TEXT( "ClosedConnectionsDueToReliableBufferOverflow" ) );
+			PerfCountersIncrement(TEXT("ClosedConnectionsDueToReliableBufferOverflow"));
 #endif
 		}
 		return;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-	extern TAutoConsoleVariable< int32 > CVarNetReliableDebug;
+	extern TAutoConsoleVariable<int32> CVarNetReliableDebug;
 
-	if ( CVarNetReliableDebug.GetValueOnAnyThread() > 0 )
+	if (CVarNetReliableDebug.GetValueOnAnyThread() > 0)
 	{
-		Bunch.DebugString = FString::Printf( TEXT( "%.2f RPC: %s - %s" ), Connection->Driver->GetElapsedTime(), *TargetObj->GetFullName(), *Function->GetName() );
+		Bunch.DebugString = FString::Printf(TEXT("%.2f RPC: %s - %s"), Connection->Driver->GetElapsedTime(), *GetFullNameSafe(TargetObj), *GetNameSafe(Function));
 	}
 #endif
 
@@ -2147,41 +2152,41 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 	SetTraceCollector(Bunch, UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace));
 #endif
 
-	TArray< FProperty * > LocalOutParms;
+	TArray<FProperty*> LocalOutParms;
 
-	if( Stack == nullptr )
+	if (Stack == nullptr)
 	{
 		// Look for CPF_OutParm's, we'll need to copy these into the local parameter memory manually
 		// The receiving side will pull these back out when needed
-		for ( TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & (CPF_Parm|CPF_ReturnParm))==CPF_Parm; ++It )
+		for (TFieldIterator<FProperty> It(Function); It && (It->PropertyFlags & (CPF_Parm|CPF_ReturnParm))==CPF_Parm; ++It)
 		{
-			if ( It->HasAnyPropertyFlags( CPF_OutParm ) )
+			if (It->HasAnyPropertyFlags(CPF_OutParm))
 			{
-				if ( OutParms == NULL )
+				if (OutParms == nullptr)
 				{
-					UE_LOG( LogNet, Warning, TEXT( "Missing OutParms. Property: %s, Function: %s, Actor: %s" ), *It->GetName(), *Function->GetName(), *TargetObj->GetFullName() );
+					UE_LOG(LogNet, Warning, TEXT("Missing OutParms. Property: %s, Function: %s, Actor: %s"), *It->GetName(), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
 					continue;
 				}
 
-				FOutParmRec * Out = OutParms;
+				FOutParmRec* Out = OutParms;
 
-				checkSlow( Out );
+				checkSlow(Out);
 
-				while ( Out->Property != *It )
+				while (Out->Property != *It)
 				{
 					Out = Out->NextOutParm;
-					checkSlow( Out );
+					checkSlow(Out);
 				}
 
-				void* Dest = It->ContainerPtrToValuePtr< void >( Parms );
+				void* Dest = It->ContainerPtrToValuePtr<void>(Parms);
 
 				const int32 CopySize = It->ElementSize * It->ArrayDim;
 
-				check( ( (uint8*)Dest - (uint8*)Parms ) + CopySize <= Function->ParmsSize );
+				check(((uint8*)Dest - (uint8*)Parms) + CopySize <= Function->ParmsSize);
 
-				It->CopyCompleteValue( Dest, Out->PropAddr );
+				It->CopyCompleteValue(Dest, Out->PropAddr);
 
-				LocalOutParms.Add( *It );
+				LocalOutParms.Add(*It);
 			}
 		}
 	}
@@ -2204,24 +2209,24 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 #endif // UE_NET_TRACE_ENABLED
 
 	// Use the replication layout to send the rpc parameter values
-	TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout( Function );
-	RepLayout->SendPropertiesForRPC( Function, Ch, TempWriter, Parms );
+	TSharedPtr<FRepLayout> RepLayout = GetFunctionRepLayout(Function);
+	RepLayout->SendPropertiesForRPC(Function, Ch, TempWriter, Parms);
 
 	if (TempWriter.IsError())
 	{
 		if (LogAsWarning)
 		{
-			UE_LOG(LogNet, Warning, TEXT("Error: Can't send function '%s' on '%s': Failed to serialize properties"), *Function->GetName(), *TargetObj->GetFullName());
+			UE_LOG(LogNet, Warning, TEXT("Error: Can't send function '%s' on '%s': Failed to serialize properties"), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
 		}
 		else
 		{
-			UE_LOG(LogNet, Log, TEXT("Error: Can't send function '%s' on '%s': Failed to serialize properties"), *Function->GetName(), *TargetObj->GetFullName());
+			UE_LOG(LogNet, Log, TEXT("Error: Can't send function '%s' on '%s': Failed to serialize properties"), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
 		}
 	}
 	else
 	{
 		// Make sure net field export group is registered
-		FNetFieldExportGroup* NetFieldExportGroup = Ch->GetOrCreateNetFieldExportGroupForClassNetCache( TargetObj );
+		FNetFieldExportGroup* NetFieldExportGroup = Ch->GetOrCreateNetFieldExportGroupForClassNetCache(TargetObj);
 
 		int32 HeaderBits	= 0;
 		int32 ParameterBits	= 0;
@@ -2240,16 +2245,16 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 				break;
 		}
 
-		if ( QueueBunch )
+		if (QueueBunch)
 		{
-			Ch->WriteFieldHeaderAndPayload( Bunch, ClassCache, FieldCache, NetFieldExportGroup, TempWriter );
+			Ch->WriteFieldHeaderAndPayload(Bunch, ClassCache, FieldCache, NetFieldExportGroup, TempWriter);
 			ParameterBits = Bunch.GetNumBits();
 		}
 		else
 		{
 			Ch->PrepareForRemoteFunction(TargetObj);
 
-			FNetBitWriter TempBlockWriter( Bunch.PackageMap, 0 );
+			FNetBitWriter TempBlockWriter(Bunch.PackageMap, 0);
 
 #if UE_NET_TRACE_ENABLED
 			UE_NET_TRACE_OBJECT_SCOPE(Ch->ActorNetGUID, Bunch, GetTraceCollector(Bunch), ENetTraceVerbosity::Trace);
@@ -2259,25 +2264,25 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			SetTraceCollector(TempBlockWriter, GetTraceCollector(Bunch) ? UE_NET_TRACE_CREATE_COLLECTOR(ENetTraceVerbosity::Trace) : nullptr);
 #endif
 			
-			Ch->WriteFieldHeaderAndPayload( TempBlockWriter, ClassCache, FieldCache, NetFieldExportGroup, TempWriter );
+			Ch->WriteFieldHeaderAndPayload(TempBlockWriter, ClassCache, FieldCache, NetFieldExportGroup, TempWriter);
 			ParameterBits = TempBlockWriter.GetNumBits();
-			HeaderBits = Ch->WriteContentBlockPayload( TargetObj, Bunch, false, TempBlockWriter );
+			HeaderBits = Ch->WriteContentBlockPayload(TargetObj, Bunch, false, TempBlockWriter);
 
 			UE_NET_TRACE_DESTROY_COLLECTOR(GetTraceCollector(TempBlockWriter));
 		}
 
 		// Destroy the memory used for the copied out parameters
-		for ( int32 i = 0; i < LocalOutParms.Num(); i++ )
+		for (int32 i=0; i < LocalOutParms.Num(); i++)
 		{
-			check( LocalOutParms[i]->HasAnyPropertyFlags( CPF_OutParm ) );
-			LocalOutParms[i]->DestroyValue_InContainer( Parms );
+			check(LocalOutParms[i]->HasAnyPropertyFlags(CPF_OutParm));
+			LocalOutParms[i]->DestroyValue_InContainer(Parms);
 		}
 
 		// Send the bunch.
 		if( Bunch.IsError() )
 		{
-			UE_LOG(LogNet, Log, TEXT("Error: Can't send function '%s' on '%s': RPC bunch overflowed (too much data in parameters?)"), *Function->GetName(), *TargetObj->GetFullName());
-			ensureMsgf(false,TEXT("Error: Can't send function '%s' on '%s': RPC bunch overflowed (too much data in parameters?)"), *Function->GetName(), *TargetObj->GetFullName());
+			UE_LOG(LogNet, Log, TEXT("Error: Can't send function '%s' on '%s': RPC bunch overflowed (too much data in parameters?)"), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
+			ensureMsgf(false,TEXT("Error: Can't send function '%s' on '%s': RPC bunch overflowed (too much data in parameters?)"), *GetNameSafe(Function), *GetFullNameSafe(TargetObj));
 		}
 		else if (Ch->Closing)
 		{
@@ -2293,11 +2298,11 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 				// Unreliable multicast functions are queued and sent out during property replication
 				if (LogAsWarning)
 				{
-					UE_LOG(LogNetTraffic, Warning,	TEXT("      Queing unreliable multicast RPC: %s::%s [%.1f bytes]"), *TargetObj->GetFullName(), *Function->GetName(), Bunch.GetNumBits() / 8.f );
+					UE_LOG(LogNetTraffic, Warning,	TEXT("      Queing unreliable multicast RPC: %s::%s [%.1f bytes]"), *GetFullNameSafe(TargetObj), *GetNameSafe(Function), Bunch.GetNumBits() / 8.f);
 				}
 				else
 				{
-					UE_LOG(LogNetTraffic, Log,		TEXT("      Queing unreliable multicast RPC: %s::%s [%.1f bytes]"), *TargetObj->GetFullName(), *Function->GetName(), Bunch.GetNumBits() / 8.f );
+					UE_LOG(LogNetTraffic, Log,		TEXT("      Queing unreliable multicast RPC: %s::%s [%.1f bytes]"), *GetFullNameSafe(TargetObj), *GetNameSafe(Function), Bunch.GetNumBits() / 8.f);
 				}
 
 				NETWORK_PROFILER(GNetworkProfiler.TrackQueuedRPC(Connection, TargetObj, Ch->Actor, Function, HeaderBits, ParameterBits, 0));
@@ -2307,20 +2312,20 @@ void UNetDriver::ProcessRemoteFunctionForChannelPrivate(
 			{
 				if (LogAsWarning)
 				{
-					UE_LOG(LogNetTraffic, Warning,	TEXT("      Sent RPC: %s::%s [%.1f bytes]"), *TargetObj->GetFullName(), *Function->GetName(), Bunch.GetNumBits() / 8.f );
+					UE_LOG(LogNetTraffic, Warning,	TEXT("      Sent RPC: %s::%s [%.1f bytes]"), *GetFullNameSafe(TargetObj), *GetNameSafe(Function), Bunch.GetNumBits() / 8.f);
 				}
 				else
 				{
-					UE_LOG(LogNetTraffic, Log,		TEXT("      Sent RPC: %s::%s [%.1f bytes]"), *TargetObj->GetFullName(), *Function->GetName(), Bunch.GetNumBits() / 8.f );
+					UE_LOG(LogNetTraffic, Log,		TEXT("      Sent RPC: %s::%s [%.1f bytes]"), *GetFullNameSafe(TargetObj), *GetNameSafe(Function), Bunch.GetNumBits() / 8.f);
 				}
 
 				NETWORK_PROFILER(GNetworkProfiler.TrackSendRPC(Ch->Actor, Function, HeaderBits, ParameterBits, 0, Connection));
-				Ch->SendBunch( &Bunch, 1 );
+				Ch->SendBunch(&Bunch, true);
 			}
 		}
 	}
 
-	if ( Connection->IsInternalAck() )
+	if (Connection->IsInternalAck())
 	{
 		Connection->FlushNet();
 	}
@@ -3114,7 +3119,7 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 		const bool bActorHasRole = ThisActor->GetRemoteRole() != ROLE_None;
 		const bool bShouldCreateDestructionInfo = bIsServer && bIsActorStatic && bActorHasRole && !IsSeamlessTravel;
 
-		if(bShouldCreateDestructionInfo)
+		if (bShouldCreateDestructionInfo)
 		{
 			UE_LOG(LogNet, VeryVerbose, TEXT("NotifyActorDestroyed %s - StartupActor"), *ThisActor->GetPathName() );
 			DestructionInfo = CreateDestructionInfo( this, ThisActor, DestructionInfo);
@@ -3145,19 +3150,18 @@ void UNetDriver::NotifyActorDestroyed( AActor* ThisActor, bool IsSeamlessTravel 
 					DestructionInfo = CreateDestructionInfo(this, ThisActor, DestructionInfo);
 					if (DestructionInfo)
 					{
-					Connection->AddDestructionInfo(DestructionInfo);
+						Connection->AddDestructionInfo(DestructionInfo);
+					}
 				}
 			}
-			}
 
-			// Remove it from any dormancy lists
-			Connection->CleanupDormantReplicatorsForActor(ThisActor);
+			Connection->NotifyActorDestroyed(ThisActor);
 		}
 	}
 
 	if (ServerConnection)
 	{
-		ServerConnection->CleanupDormantReplicatorsForActor(ThisActor);
+		ServerConnection->NotifyActorDestroyed(ThisActor);
 	}
 
 	// Remove this actor from the network object list
@@ -3799,6 +3803,28 @@ FNetViewer::FNetViewer(UNetConnection* InConnection, float DeltaSeconds) :
 		ViewDir = ViewRotation.Vector();
 	}
 }
+
+FNetViewer::FNetViewer(AController* InController)
+	: Connection(nullptr)
+	, InViewer(InController)
+	, ViewTarget(nullptr)
+	, ViewLocation(ForceInit)
+	, ViewDir(ForceInit)
+{
+	if (InController)
+	{
+		ViewTarget = InController->GetViewTarget();
+		if (ViewTarget)
+		{
+			ViewLocation = ViewTarget->GetActorLocation();
+		}
+
+		FRotator ViewRotation = InController->GetControlRotation();
+		InController->GetPlayerViewPoint(ViewLocation, ViewRotation);
+		ViewDir = ViewRotation.Vector();
+	}
+}
+
 
 FActorPriority::FActorPriority(UNetConnection* InConnection, UActorChannel* InChannel, FNetworkObjectInfo* InActorInfo, const TArray<struct FNetViewer>& Viewers, bool bLowBandwidth)
 	: ActorInfo(InActorInfo), Channel(InChannel), DestructionInfo(NULL)
@@ -4445,13 +4471,10 @@ int32 UNetDriver::ServerReplicateActors_ProcessPrioritizedActors( UNetConnection
 						if ( Channel->ReplicateActor() )
 						{
 #if USE_SERVER_PERF_COUNTERS
-							if (const FNetworkObjectInfo* const ObjectInfo = Actor->FindNetworkObjectInfo())
+							// A channel time of 0.0 means this is the first time the actor is being replicated, so we don't need to record it
+							if (ChannelLastNetUpdateTime > 0.0)
 							{
-								// A channel time of 0.0 means this is the first time the actor is being replicated, so we don't need to record it
-								if (ChannelLastNetUpdateTime > 0.0)
-								{
-									Connection->GetActorsStarvedByClassTimeMap().FindOrAdd(Actor->GetClass()->GetName()).Add((World->RealTimeSeconds - ChannelLastNetUpdateTime) * 1000.0f);
-								}
+								Connection->GetActorsStarvedByClassTimeMap().FindOrAdd(Actor->GetClass()->GetName()).Add((World->RealTimeSeconds - ChannelLastNetUpdateTime) * 1000.0f);
 							}
 #endif
 
@@ -4519,7 +4542,9 @@ int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestruct
 	checkf(Connection, TEXT("SendDestructionInfo called with invalid connection: %s"), *GetDescription());
 	checkf(DestructionInfo, TEXT("SendDestructionInfo called with invalid destruction info: %s"), *GetDescription());
 
-	if (GNetControlChannelDestructionInfo != 0)
+	FScopedRepContext RepContext(Connection, DestructionInfo->Level.Get());
+
+	if (GNetControlChannelDestructionInfo != 0 && !Connection->IsReplay())
 	{
 		if (UControlChannel* ControlChan = Cast<UControlChannel>(Connection->Channels[0]))
 		{
@@ -4533,7 +4558,7 @@ int64 UNetDriver::SendDestructionInfo(UNetConnection* Connection, FActorDestruct
 		{
 			// Send a close bunch on the new channel
 			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-				NumBits = Channel->SetChannelActorForDestroy(DestructionInfo);
+			NumBits = Channel->SetChannelActorForDestroy(DestructionInfo);
 			PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		}
 	}
@@ -5229,6 +5254,11 @@ void UNetDriver::AddClientConnection(UNetConnection * NewConnection)
 			NewConnection->AddDestructionInfo(It.Value().Get());
 		}
 	}
+
+	if (!bHasReplayConnection && NewConnection->IsReplay())
+	{
+		bHasReplayConnection = true;
+	}
 }
 
 void UNetDriver::CreateReplicatedStaticActorDestructionInfo(UNetDriver* NetDriver, ULevel* Level, const FReplicatedStaticActorDestructionInfo& Info)
@@ -5337,6 +5367,17 @@ void UNetDriver::RemoveClientConnection(UNetConnection* ClientConnectionToRemove
 	if (ReplicationDriver)
 	{
 		ReplicationDriver->RemoveClientConnection(ClientConnectionToRemove);
+	}
+
+	bHasReplayConnection = false;
+
+	for (UNetConnection* ClientConn : ClientConnections)
+	{
+		if (ClientConn && ClientConn->IsReplay())
+		{
+			bHasReplayConnection = true;
+			break;
+		}
 	}
 }
 
@@ -5538,8 +5579,9 @@ TSharedPtr<FRepChangedPropertyTracker> UNetDriver::FindOrCreateRepChangedPropert
 	if ( !GlobalPropertyTrackerPtr ) 
 	{
 		const UWorld* const LocalWorld = GetWorld();
-		const bool bIsReplay = LocalWorld != nullptr && static_cast<void*>(LocalWorld->DemoNetDriver) == static_cast<void*>(this);
+		const bool bIsReplay = LocalWorld != nullptr && static_cast<void*>(LocalWorld->GetDemoNetDriver()) == static_cast<void*>(this);
 		const bool bIsClientReplayRecording = LocalWorld != nullptr ? LocalWorld->IsRecordingClientReplay() : false;
+
 		FRepChangedPropertyTracker * Tracker = new FRepChangedPropertyTracker(bIsReplay, bIsClientReplayRecording);
 
 		GetObjectClassRepLayout( Obj->GetClass() )->InitChangedTracker( Tracker );

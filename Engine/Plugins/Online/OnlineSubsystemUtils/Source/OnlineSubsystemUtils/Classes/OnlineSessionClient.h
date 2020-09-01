@@ -35,6 +35,9 @@ protected:
 	FOnJoinSessionCompleteDelegate OnJoinSessionCompleteDelegate;
 	/** Delegate for accepting session invites */
 	FOnSessionUserInviteAcceptedDelegate OnSessionUserInviteAcceptedDelegate;
+	/** Delegate for handling the play together system event.  Will be removed. */
+	UE_DEPRECATED(4.26, "PlayTogether will no longer be supported and should be removed.")
+	FOnPlayTogetherEventReceivedDelegate OnPlayTogetherEventReceivedDelegate;
 
 	// Handles to the above delegates
 	FDelegateHandle OnSessionInviteAcceptedDelegateHandle;
@@ -42,6 +45,9 @@ protected:
 	FDelegateHandle OnDestroyForJoinSessionCompleteDelegateHandle;
 	FDelegateHandle OnDestroyForMainMenuCompleteDelegateHandle;
 	FDelegateHandle OnJoinSessionCompleteDelegateHandle;
+	/** Deprecated.  Will be removed. */
+	UE_DEPRECATED(4.26, "PlayTogether will no longer be supported and should be removed.")
+	FDelegateHandle OnPlayTogetherEventReceivedDelegateHandle;
 
 	/** Handle to outstanding start session call */
 	FDelegateHandle StartSessionCompleteHandle;

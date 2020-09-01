@@ -254,6 +254,22 @@ void ULineSetComponent::InsertLine(const int32 ID, const FRenderableLine& Overla
 	bBoundsDirty = true;
 }
 
+void ULineSetComponent::SetLineStart(const int32 ID, const FVector& NewPostion)
+{
+	FRenderableLine& OverlayLine = Lines[ID];
+	OverlayLine.Start = NewPostion;
+	MarkRenderStateDirty();
+	bBoundsDirty = true;
+}
+
+void ULineSetComponent::SetLineEnd(const int32 ID, const FVector& NewPostion)
+{
+	FRenderableLine& OverlayLine = Lines[ID];
+	OverlayLine.End = NewPostion;
+	MarkRenderStateDirty();
+	bBoundsDirty = true;
+}
+
 void ULineSetComponent::SetLineColor(const int32 ID, const FColor& NewColor)
 {
 	FRenderableLine& OverlayLine = Lines[ID];
@@ -316,7 +332,7 @@ void ULineSetComponent::RemoveLine(const int32 ID)
 
 bool ULineSetComponent::IsLineValid(const int32 ID) const
 {
-	return Lines.IsAllocated(ID);
+	return Lines.IsValidIndex(ID);
 }
 
 FPrimitiveSceneProxy* ULineSetComponent::CreateSceneProxy()

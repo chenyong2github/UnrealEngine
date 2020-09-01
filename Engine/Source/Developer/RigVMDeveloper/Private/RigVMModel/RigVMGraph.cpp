@@ -50,6 +50,11 @@ URigVMNode* URigVMGraph::FindNodeByName(const FName& InNodeName) const
 {
 	for (URigVMNode* Node : Nodes)
 	{
+		if (Node == nullptr)
+		{
+			continue;
+		}
+
 		if (Node->GetFName() == InNodeName)
 		{
 			return Node;

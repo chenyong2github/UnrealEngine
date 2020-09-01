@@ -25,6 +25,7 @@ const FName UNiagaraDataInterfaceGrid2DCollection::GetValueFunctionName("GetGrid
 
 const FName UNiagaraDataInterfaceGrid2DCollection::SampleGridFunctionName("SampleGrid");
 
+FNiagaraVariableBase UNiagaraDataInterfaceGrid2DCollection::ExposedRTVar;
 
 /*--------------------------------------------------------------------------------------------------------------------------*/
 struct FNiagaraDataInterfaceParametersCS_Grid2DCollection : public FNiagaraDataInterfaceParametersCS
@@ -54,7 +55,7 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyGrid2DCollectionProxy* VFDI = static_cast<FNiagaraDataInterfaceProxyGrid2DCollectionProxy*>(Context.DataInterface);
 		
-		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = VFDI->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		check(ProxyData);
 
 		int NumCellsTmp[2];
@@ -149,6 +150,7 @@ void UNiagaraDataInterfaceGrid2DCollection::PostInitProperties()
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		FNiagaraTypeRegistry::Register(FNiagaraTypeDefinition(GetClass()), /*bCanBeParameter*/ true, /*bCanBePayload*/ false, /*bIsUserDefined*/ false);
+		UNiagaraDataInterfaceGrid2DCollection::ExposedRTVar = FNiagaraVariableBase(FNiagaraTypeDefinition(UTexture::StaticClass()), TEXT("RenderTarget"));
 	}
 }
 
@@ -210,6 +212,7 @@ void UNiagaraDataInterfaceGrid2DCollection::GetFunctions(TArray<FNiagaraFunction
 // for sharing an instance data object with the super class
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetWorldBBoxSize);
 DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetCellSize);
+DEFINE_NDI_DIRECT_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetNumCells);
 void UNiagaraDataInterfaceGrid2DCollection::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	Super::GetVMExternalFunction(BindingInfo, InstanceData, OutFunc);
@@ -227,6 +230,13 @@ void UNiagaraDataInterfaceGrid2DCollection::GetVMExternalFunction(const FVMExter
 		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 2);
 		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetCellSize)::Bind(this, OutFunc);
 	}
+	else if (BindingInfo.Name == NumCellsFunctionName) 
+	{ 
+		// #todo(dmp): this will override the base class definition for GetCellSize because the data interface instance data computes cell size
+		// it would be nice to refactor this so it can be part of the super class
+		check(BindingInfo.GetNumInputs() == 1 && BindingInfo.GetNumOutputs() == 2);
+		NDI_FUNC_BINDER(UNiagaraDataInterfaceGrid2DCollection, GetNumCells)::Bind(this, OutFunc);
+	}
 	else if (BindingInfo.Name == GetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	else if (BindingInfo.Name == SetValueFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
 	else if (BindingInfo.Name == SampleGridFunctionName) { OutFunc = FVMExternalFunction::CreateUObject(this, &UNiagaraDataInterfaceRWBase::EmptyVMFunction); }
@@ -240,7 +250,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::Equals(const UNiagaraDataInterface* 
 	}
 	const UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<const UNiagaraDataInterfaceGrid2DCollection>(Other);
 
-	return OtherTyped != nullptr && OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter;		
+	return OtherTyped != nullptr && OtherTyped->RenderTargetUserParameter == RenderTargetUserParameter && OtherTyped->bCreateRenderTarget == bCreateRenderTarget;
 }
 
 void UNiagaraDataInterfaceGrid2DCollection::GetParameterDefinitionHLSL(const FNiagaraDataInterfaceGPUParamInfo& ParamInfo, FString& OutHLSL)
@@ -361,6 +371,7 @@ bool UNiagaraDataInterfaceGrid2DCollection::CopyToInternal(UNiagaraDataInterface
 
 	UNiagaraDataInterfaceGrid2DCollection* OtherTyped = CastChecked<UNiagaraDataInterfaceGrid2DCollection>(Destination);
 	OtherTyped->RenderTargetUserParameter = RenderTargetUserParameter;
+	OtherTyped->bCreateRenderTarget = bCreateRenderTarget;
 
 	return true;
 }
@@ -422,36 +433,48 @@ bool UNiagaraDataInterfaceGrid2DCollection::InitPerInstanceData(void* PerInstanc
 
 	FTextureResource* RT_Resource = NULL;
 
+	InstanceData->TargetTexture = nullptr;
+
 	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
 	{
-		if (UTextureRenderTarget2D* TargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
-		{
-			// resize RT to match what we need for the output
-			TargetTexture->RenderTargetFormat = RTF_R32f;
-			TargetTexture->ClearColor = FLinearColor(0, 0, 0, 0);
-			TargetTexture->bAutoGenerateMips = false;
-			TargetTexture->InitAutoFormat(NumCellsX * NumTilesX, NumCellsY * NumTilesY);
-			TargetTexture->UpdateResourceImmediate(true);
-			
-			if (TargetTexture->Resource)
-			{				
-				RT_Resource = TargetTexture->Resource;
-			}			
-		}
-		else
+		InstanceData->TargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject);
+		if (!InstanceData->TargetTexture)
 		{
 			UE_LOG(LogNiagara, Error, TEXT("Only UTextureRenderTarget2D are valid on %s"), *FNiagaraUtilities::SystemInstanceIDToString(SystemInstance->GetId()));
+		}
+	}
+
+	if (!InstanceData->TargetTexture && bCreateRenderTarget != 0)
+	{
+		InstanceData->TargetTexture =  NewObject<UTextureRenderTarget2D>(this);
+		FNiagaraSystemInstanceID SysID = SystemInstance->GetId();
+		ManagedRenderTargets.Add(SysID) = InstanceData->TargetTexture;
+	}
+
+	if (InstanceData->TargetTexture)
+	{
+		// resize RT to match what we need for the output
+		InstanceData->TargetTexture->RenderTargetFormat = RTF_R32f;
+		InstanceData->TargetTexture->ClearColor = FLinearColor(.5, 0, 0, 0);
+		InstanceData->TargetTexture->bAutoGenerateMips = false;
+		InstanceData->TargetTexture->InitAutoFormat(NumCellsX * NumTilesX, NumCellsY * NumTilesY);
+		InstanceData->TargetTexture->UpdateResourceImmediate(true);
+
+		if (InstanceData->TargetTexture->Resource)
+		{
+			RT_Resource = InstanceData->TargetTexture->Resource;
 		}
 	}
 
 	// Push Updates to Proxy.
 	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
+		[GridColl = this, TexPtr = InstanceData->TargetTexture, RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId(), RT_InstanceData=*InstanceData, RT_OutputShaderStages=OutputShaderStages, RT_IterationShaderStages= IterationShaderStages](FRHICommandListImmediate& RHICmdList)
 	{
 		check(!RT_Proxy->SystemInstancesToProxyData_RT.Contains(InstanceID));
 		FGrid2DCollectionRWInstanceData_RenderThread* TargetData = &RT_Proxy->SystemInstancesToProxyData_RT.Add(InstanceID);
 
+		TargetData->DebugTargetTexture = TexPtr;
 		TargetData->NumCells = RT_InstanceData.NumCells;
 		TargetData->NumTiles = RT_InstanceData.NumTiles;
 		TargetData->CellSize = RT_InstanceData.CellSize;
@@ -493,6 +516,10 @@ void UNiagaraDataInterfaceGrid2DCollection::DestroyPerInstanceData(void* PerInst
 			RT_Proxy->SystemInstancesToProxyData_RT.Remove(InstanceID);
 		}
 	);
+
+	// Make sure to clear out the reference to the render target if we created one.
+	FNiagaraSystemInstanceID SysId = SystemInstance->GetId();
+	ManagedRenderTargets.Remove(SysId);
 }
 
 bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds)
@@ -504,28 +531,9 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceDat
 	bool NeedsReset = false;
 	if (UObject* UserParamObject = InstanceData->RTUserParamBinding.Init(SystemInstance->GetInstanceParameters(), RenderTargetUserParameter.Parameter))
 	{
-		if (UTextureRenderTarget2D* TargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
+		if (UTextureRenderTarget2D* LocalTargetTexture = Cast<UTextureRenderTarget2D>(UserParamObject))
 		{
-			int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
-			int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
-
-			if (TargetTexture->SizeX != RTSizeX || TargetTexture->SizeY != RTSizeY || TargetTexture->RenderTargetFormat != RTF_R32f)
-			{
-				// resize RT to match what we need for the output
-				TargetTexture->RenderTargetFormat = RTF_R32f;
-				TargetTexture->ClearColor = FLinearColor(0,0,0,0);
-				TargetTexture->bAutoGenerateMips = false;
-				TargetTexture->InitAutoFormat(RTSizeX, RTSizeY);
-				TargetTexture->UpdateResourceImmediate(true);
-				//TargetTexture->InitCustomFormat(InstanceData->NumCells.X * InstanceData->NumTiles.X, InstanceData->NumCells.Y * InstanceData->NumTiles.Y, PF_R32_FLOAT, false);
-
-				if (TargetTexture->Resource)
-				{
-					NeedsReset = true;					
-				}				
-			}
-
-			RT_Resource = TargetTexture->Resource;
+			InstanceData->TargetTexture = LocalTargetTexture;	
 		}
 		else
 		{
@@ -533,12 +541,35 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceDat
 		}
 	}
 
+	if (InstanceData->TargetTexture)
+	{
+		int32 RTSizeX = InstanceData->NumCells.X * InstanceData->NumTiles.X;
+		int32 RTSizeY = InstanceData->NumCells.Y * InstanceData->NumTiles.Y;
+
+		if (InstanceData->TargetTexture->SizeX != RTSizeX || InstanceData->TargetTexture->SizeY != RTSizeY || InstanceData->TargetTexture->RenderTargetFormat != RTF_R32f)
+		{
+			// resize RT to match what we need for the output
+			InstanceData->TargetTexture->RenderTargetFormat = RTF_R32f;
+			InstanceData->TargetTexture->ClearColor = FLinearColor(0.5,0,0,0);
+			InstanceData->TargetTexture->bAutoGenerateMips = false;
+			InstanceData->TargetTexture->InitAutoFormat(RTSizeX, RTSizeY);
+			InstanceData->TargetTexture->UpdateResourceImmediate(true);
+			//TargetTexture->InitCustomFormat(InstanceData->NumCells.X * InstanceData->NumTiles.X, InstanceData->NumCells.Y * InstanceData->NumTiles.Y, PF_R32_FLOAT, false);
+
+			if (InstanceData->TargetTexture->Resource)
+			{
+				NeedsReset = true;					
+			}				
+		}
+		RT_Resource = InstanceData->TargetTexture->Resource;
+	}
+
 	FNiagaraDataInterfaceProxyGrid2DCollectionProxy* RT_Proxy = GetProxyAs<FNiagaraDataInterfaceProxyGrid2DCollectionProxy>();
 	ENQUEUE_RENDER_COMMAND(FUpdateData)(
-		[RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
+		[GridColl = this,TexPtr = InstanceData->TargetTexture, RT_Resource, RT_Proxy, InstanceID = SystemInstance->GetId()](FRHICommandListImmediate& RHICmdList)
 	{
 		FGrid2DCollectionRWInstanceData_RenderThread* TargetData = RT_Proxy->SystemInstancesToProxyData_RT.Find(InstanceID);
-
+		TargetData->DebugTargetTexture = TexPtr;
 		if (RT_Resource && RT_Resource->TextureRHI.IsValid())
 		{
 			TargetData->RenderTargetToCopyTo = RT_Resource->TextureRHI;
@@ -551,6 +582,23 @@ bool UNiagaraDataInterfaceGrid2DCollection::PerInstanceTick(void* PerInstanceDat
 	});
 
 	return NeedsReset;
+}
+
+void UNiagaraDataInterfaceGrid2DCollection::GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const
+{
+	OutVariables.Emplace(ExposedRTVar);
+}
+
+bool UNiagaraDataInterfaceGrid2DCollection::GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const
+{
+	FGrid2DCollectionRWInstanceData_GameThread* InstanceData = static_cast<FGrid2DCollectionRWInstanceData_GameThread*>(InPerInstanceData);
+	if (InVariable.IsValid() && InVariable == ExposedRTVar && InstanceData && InstanceData->TargetTexture)
+	{
+		UObject** Var = (UObject**)OutData;
+		*Var = InstanceData->TargetTexture;
+		return true;
+	}
+	return false;
 }
 
 UFUNCTION(BlueprintCallable, Category = Niagara)
@@ -756,6 +804,19 @@ void UNiagaraDataInterfaceGrid2DCollection::GetCellSize(FVectorVMContext& Contex
 	}
 }
 
+void UNiagaraDataInterfaceGrid2DCollection::GetNumCells(FVectorVMContext& Context)
+{
+	VectorVM::FUserPtrHandler<FGrid2DCollectionRWInstanceData_GameThread> InstData(Context);
+	VectorVM::FExternalFuncRegisterHandler<int> OutNumCellsX(Context);
+	VectorVM::FExternalFuncRegisterHandler<int> OutNumCellsY(Context);
+
+	for (int32 InstanceIdx = 0; InstanceIdx < Context.NumInstances; ++InstanceIdx)
+	{
+		*OutNumCellsX.GetDestAndAdvance() = InstData->NumCells.X;
+		*OutNumCellsY.GetDestAndAdvance() = InstData->NumCells.Y;
+	}
+}
+
 void FGrid2DCollectionRWInstanceData_RenderThread::BeginSimulate()
 {
 	for (TUniquePtr<FGrid2DBuffer>& Buffer : Buffers)
@@ -781,12 +842,12 @@ void FGrid2DCollectionRWInstanceData_RenderThread::EndSimulate()
 	DestinationData = nullptr;
 }
 
-void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	// #todo(dmp): Context doesnt need to specify if a stage is output or not since we moved pre/post stage to the DI itself.  Not sure which design is better for the future
 	if (Context.IsOutputStage)
 	{
-		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
 		ProxyData->BeginSimulate();
 
@@ -804,18 +865,18 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PreStage(FRHICommandList& 
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {	
 	if (Context.IsOutputStage)
 	{
-		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+		FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 		ProxyData->EndSimulate();
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {
-	FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+	FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 
 	if (ProxyData->RenderTargetToCopyTo != nullptr && ProxyData->CurrentData != nullptr && ProxyData->CurrentData->GridBuffer.Buffer != nullptr)
 	{
@@ -829,9 +890,9 @@ void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::PostSimulate(FRHICommandLi
 	}
 }
 
-void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNiagaraDataInterfaceProxyGrid2DCollectionProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context)
 {	
-	FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+	FGrid2DCollectionRWInstanceData_RenderThread* ProxyData = SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 	if (!ProxyData)
 	{
 		return;

@@ -3,6 +3,7 @@
 #include "RuntimeVirtualTextureBuildStreamingMips.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "ContentStreaming.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RendererInterface.h"
@@ -171,8 +172,9 @@ namespace RuntimeVirtualTexture
 		}
 
 		// Spin up slow task UI
-		const float TaskWorkRender = NumTilesY;
-		const float TaskWorkBuildBulkData = NumTilesY;
+		const float TaskWorkRender = NumTilesX * NumTilesY;
+		const float TextureBuildTaskMultiplier = InComponent->IsCrunchCompressed() ? 3.f : .25f; // Crunch compression is slow.
+		const float TaskWorkBuildBulkData = TaskWorkRender * TextureBuildTaskMultiplier;
 		FScopedSlowTask Task(TaskWorkRender + TaskWorkBuildBulkData, FText::AsCultureInvariant(InComponent->GetStreamingTexture()->GetName()));
 		Task.MakeDialog(true);
 
@@ -187,14 +189,21 @@ namespace RuntimeVirtualTexture
 		// Iterate over all tiles and render/store each one to the final image
 		for (int32 TileY = 0; TileY < NumTilesY && !Task.ShouldCancel(); TileY++)
 		{
-			Task.EnterProgressFrame();
-
 			for (int32 TileX = 0; TileX < NumTilesX; TileX++)
 			{
 				// Render tile
+				Task.EnterProgressFrame();
+
 				const FBox2D UVRange = FBox2D(
 					FVector2D((float)TileX / (float)NumTilesX, (float)TileY / (float)NumTilesY),
 					FVector2D((float)(TileX + 1) / (float)NumTilesX, (float)(TileY + 1) / (float)NumTilesY));
+
+				// Stream textures for this tile. This triggers a render flush internally.
+				//todo[vt]: Batch groups of streaming locations and render commands to reduce number of flushes.
+				const FVector StreamingWorldPos = Transform.TransformPosition(FVector(UVRange.GetCenter(), 0.5f));
+				IStreamingManager::Get().Tick(0.f);
+				IStreamingManager::Get().AddViewSlaveLocation(StreamingWorldPos);
+				IStreamingManager::Get().StreamAllResources(0);
 
 				ENQUEUE_RENDER_COMMAND(BakeStreamingTextureTileCommand)([
 					Scene, VirtualTextureSceneIndex, 
@@ -273,12 +282,10 @@ namespace RuntimeVirtualTexture
 					}
 				});
 			}
-
-			// (Increment FScopedSlowTask) and flush every row to keep progress UI responsive
-			FlushRenderingCommands();
 		}
 
 		BeginReleaseResource(&RenderTileResources);
+		FlushRenderingCommands();
 
 		if (Task.ShouldCancel())
 		{

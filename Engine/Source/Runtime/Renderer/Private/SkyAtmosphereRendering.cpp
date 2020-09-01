@@ -1238,6 +1238,8 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 		TextureSize.Z = 1;
 		const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderTransmittanceLutCS::GroupSize);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("TransmittanceLut"), ComputeShader, PassParameters, NumGroups);
+
+		GraphBuilder.QueueTextureExtraction(TransmittanceLut, &SkyInfo.GetTransmittanceLutTexture(), EResourceTransitionAccess::EReadable);
 	}
 	
 	// Multi-Scattering LUT
@@ -1259,6 +1261,8 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 		TextureSize.Z = 1;
 		const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderMultiScatteredLuminanceLutCS::GroupSize);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("MultiScatteringLut"), ComputeShader, PassParameters, NumGroups);
+
+		GraphBuilder.QueueTextureExtraction(MultiScatteredLuminanceLut, &SkyInfo.GetMultiScatteredLuminanceLutTexture(), EResourceTransitionAccess::EReadable);
 	}
 
 	// Distant Sky Light LUT
@@ -1299,6 +1303,8 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 		FIntVector TextureSize = FIntVector(1, 1, 1);
 		const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderDistantSkyLightLutCS::GroupSize);
 		FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("DistantSkyLightLut"), ComputeShader, PassParameters, NumGroups);
+
+		GraphBuilder.QueueTextureExtraction(DistantSkyLightLut, &SkyInfo.GetDistantSkyLightLutTexture(), EResourceTransitionAccess::EReadable);
 	}
 
 	SkyAtmosphereLightShadowData LightShadowData;
@@ -1545,6 +1551,9 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 			const FIntVector NumGroups = FIntVector::DivideAndRoundUp(TextureSize, FRenderCameraAerialPerspectiveVolumeCS::GroupSize);
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("CameraVolumeLut"), ComputeShader, PassParameters, NumGroups);
 		}
+
+		GraphBuilder.QueueTextureExtraction(SkyAtmosphereViewLutTexture, &View.SkyAtmosphereViewLutTexture, EResourceTransitionAccess::EReadable);
+		GraphBuilder.QueueTextureExtraction(SkyAtmosphereCameraAerialPerspectiveVolume, &View.SkyAtmosphereCameraAerialPerspectiveVolume, EResourceTransitionAccess::EReadable);
 	}
 	
 	GraphBuilder.Execute();

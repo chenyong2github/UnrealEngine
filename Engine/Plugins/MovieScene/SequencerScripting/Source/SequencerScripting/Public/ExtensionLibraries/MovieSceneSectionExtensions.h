@@ -25,6 +25,15 @@ public:
 	static FSequencerScriptingRange GetRange(UMovieSceneSection* Section);
 
 	/**
+	 * Has start frame
+	 *
+	 * @param Section        The section being queried
+	 * @return Whether this section has a valid start frame (else infinite)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Section", meta = (ScriptMethod))
+	static bool HasStartFrame(UMovieSceneSection* Section);
+
+	/**
 	 * Get start frame
 	 *
 	 * @param Section        The section within which to get the start frame
@@ -41,6 +50,15 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Section", meta = (ScriptMethod))
 	static float GetStartFrameSeconds(UMovieSceneSection* Section);
+
+	/**
+	 * Has end frame
+	 *
+	 * @param Section        The section being queried
+	 * @return Whether this section has a valid end frame (else infinite)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Section", meta = (ScriptMethod))
+	static bool HasEndFrame(UMovieSceneSection* Section);
 
 	/**
 	 * Get end frame
@@ -153,7 +171,7 @@ public:
 	* @param ChannelType	The class type to look for.
 	* @return An array containing any key channels that match the type specified
 	*/
-	UFUNCTION(BlueprintCallable, Category = Section, meta = (ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category = Section, meta = (ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneScriptingChannel*> FindChannelsByType(UMovieSceneSection* Section, TSubclassOf<UMovieSceneScriptingChannel> ChannelType);
 
 	/**

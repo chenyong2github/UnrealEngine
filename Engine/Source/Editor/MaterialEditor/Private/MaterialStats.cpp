@@ -131,7 +131,7 @@ void FShaderPlatformSettings::AllocateMaterialResources()
 	for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
 	{
 		PlatformData[QualityLevelIndex].MaterialResourcesStats = new FMaterialResourceStats();
-		PlatformData[QualityLevelIndex].MaterialResourcesStats->SetMaterial(Material, (EMaterialQualityLevel::Type)QualityLevelIndex, true, (ERHIFeatureLevel::Type)TargetFeatureLevel, MaterialInstance);
+		PlatformData[QualityLevelIndex].MaterialResourcesStats->SetMaterial(Material, MaterialInstance, (ERHIFeatureLevel::Type)TargetFeatureLevel, (EMaterialQualityLevel::Type)QualityLevelIndex);
 	}
 }
 

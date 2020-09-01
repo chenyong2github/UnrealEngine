@@ -304,12 +304,22 @@ void UMovieSceneSection::BuildDefaultComponents(UMovieSceneEntitySystemLinker* E
 	TComponentTypeID<FEasingComponentData> EasingComponentID = Components->Easing;
 	FComponentTypeID RestoreStateTag = Components->Tags.RestoreState;
 
+	const bool bHasForcedTime      = Params.EntityMetaData && Params.EntityMetaData->ForcedTime != TNumericLimits<int32>::Lowest();
+	const bool bHasSectionPreRoll  = Params.EntityMetaData && EnumHasAnyFlags(Params.EntityMetaData->Flags, ESectionEvaluationFlags::PreRoll | ESectionEvaluationFlags::PostRoll);
+	const bool bHasSequencePreRoll = Params.Sequence.bPreRoll || Params.Sequence.bPostRoll;
+
 	OutImportedEntity->AddBuilder(
 		FEntityBuilder()
-		.AddConditional(Components->Easing,  FEasingComponentData{ this }, bHasEasing)
-		.AddConditional(Components->HierarchicalBias, Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
-		.AddTagConditional(Components->Tags.RestoreState, bShouldRestoreState)
-		.AddTagConditional(BlendTag, BlendTag != FComponentTypeID::Invalid())
+		.AddConditional(Components->Easing,                     FEasingComponentData{ this }, bHasEasing)
+		.AddConditional(Components->HierarchicalEasingChannel, uint16(-1), Params.Sequence.bHasHierarchicalEasing)
+		.AddConditional(Components->HierarchicalBias,           Params.Sequence.HierarchicalBias, Params.Sequence.HierarchicalBias != 0)
+		.AddConditional(Components->Interrogation.InputKey,     Params.InterrogationKey, Params.InterrogationKey.IsValid())
+		.AddConditional(Components->EvalTime,                   Params.EntityMetaData ? Params.EntityMetaData->ForcedTime : 0, bHasForcedTime)
+		.AddTagConditional(Components->Tags.RestoreState,       bShouldRestoreState)
+		.AddTagConditional(Components->Tags.FixedTime,          bHasForcedTime)
+		.AddTagConditional(Components->Tags.SectionPreRoll,     bHasSectionPreRoll)
+		.AddTagConditional(Components->Tags.PreRoll,            bHasSequencePreRoll)
+		.AddTagConditional(BlendTag,                            BlendTag != FComponentTypeID::Invalid())
 	);
 }
 

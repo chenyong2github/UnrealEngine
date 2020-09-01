@@ -102,6 +102,8 @@ public:
 	/** Get if SnapBoundsToLandscape is set on this component. */
 	bool GetSnapBoundsToLandscape() const { return bSnapBoundsToLandscape; }
 #endif
+	/** Get a translation to account for any vertex sample offset from the use of bSnapBoundsToLandscape. */
+	FTransform GetTexelSnapTransform() const;
 
 protected:
 	//~ Begin UObject Interface

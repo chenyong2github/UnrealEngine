@@ -233,9 +233,9 @@ void UTextureLODSettings::GetMipGenSettings(const UTexture& Texture, TextureMipG
 
 	bOutBorderColorBlack = false;
 
-	// avoiding the color shift assumes we deal with colors which is not true for normalmaps
+	// avoiding the color shift assumes we deal with colors which is not true for normalmaps and masks
 	// or we blur where it's good to blur the color as well
-	bOutSharpenWithoutColorShift = !Texture.IsNormalMap();
+	bOutSharpenWithoutColorShift = ( !Texture.IsNormalMap() && Texture.CompressionSettings != TC_Masks );
 
 	bOutDownsampleWithAverage = true;
 

@@ -260,6 +260,15 @@ namespace Gauntlet
         Saved,
 		Platform
     }
+	
+	/// <summary>
+	/// What reaching the max duration of this test signifies.
+	/// </summary>
+	public enum EMaxDurationReachedResult
+	{ 
+		Failure,
+		Success
+	}
 
 	/// <summary>
 	/// Delegate for role device configuration
@@ -498,6 +507,11 @@ namespace Gauntlet
 		public float MaxDuration { get; set; }
 
 		/// <summary>
+		/// What the test result should be treated as if we reach max duration.
+		/// </summary>
+		public EMaxDurationReachedResult MaxDurationReachedResult { get; set; }
+
+		/// <summary>
 		/// Whether ensures are considered a failure
 		/// </summary>
 		[AutoParam(false)]
@@ -549,6 +563,8 @@ namespace Gauntlet
 			RequiredRoles = new Dictionary<UnrealTargetRole, List<UnrealTestRole>>();
 
 			HeartbeatOptions = new UnrealHeartbeatOptions();
+
+			MaxDurationReachedResult = EMaxDurationReachedResult.Failure;
 		}
 
 		/// <summary>

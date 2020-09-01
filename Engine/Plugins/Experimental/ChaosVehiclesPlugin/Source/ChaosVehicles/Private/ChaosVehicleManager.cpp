@@ -2,12 +2,10 @@
 
 #include "ChaosVehicleManager.h"
 #include "UObject/UObjectIterator.h"
-#include "ChaosTireConfig.h"
 
 #include "PhysicalMaterials/PhysicalMaterial.h"
 #include "Physics/PhysicsFiltering.h"
 #include "Physics/PhysicsInterfaceCore.h"
-#include "VehicleContactModification.h"
 
 
 DECLARE_STATS_GROUP(TEXT("ChaosVehicleManager"), STATGROUP_ChaosVehicleManager, STATGROUP_Advanced);
@@ -16,9 +14,6 @@ DECLARE_CYCLE_STAT(TEXT("UpdatePhysicsVehicles"), STAT_ChaosVehicleManager_Updat
 DECLARE_CYCLE_STAT(TEXT("TickVehicles"), STAT_ChaosVehicleManager_TickVehicles, STATGROUP_ChaosVehicleManager);
 DECLARE_CYCLE_STAT(TEXT("VehicleManagerUpdate"), STAT_ChaosVehicleManager_Update, STATGROUP_ChaosVehicleManager);
 DECLARE_CYCLE_STAT(TEXT("PretickVehicles"), STAT_ChaosVehicleManager_PretickVehicles, STATGROUP_Physics);
-
-int GSlowFrameRate = 0;
-FAutoConsoleVariableRef CVarChaosVehiclesFlowFrameRate(TEXT("p.Vehicle.SlowFrameRate"), GSlowFrameRate, TEXT("Enable/Disable Debug Slowing of the frame rate to under 30 FPS."));
 
 
 TMap<FPhysScene*, FChaosVehicleManager*> FChaosVehicleManager::SceneToVehicleManagerMap;
@@ -35,10 +30,6 @@ FChaosVehicleManager::FChaosVehicleManager(FPhysScene* PhysScene)
 
 	// Add to Scene-To-Manager map
 	FChaosVehicleManager::SceneToVehicleManagerMap.Add(PhysScene, this);
-
-#if WITH_CHAOS
-	FPhysScene::CollisionModifierCallback = FVehicleContactModificationFactory::Create();
-#endif
 }
 
 void FChaosVehicleManager::DetachFromPhysScene(FPhysScene* PhysScene)
@@ -100,17 +91,10 @@ void FChaosVehicleManager::Update(FPhysScene* PhysScene, float DeltaTime)
 		return;
 	}
 
-	// Debug slowing of frame rate so we can check handling is not affected
-	if (GSlowFrameRate)
-	{
-		FPlatformProcess::Sleep(1.f / (float)GSlowFrameRate);
-	}
-
 	//	Suspension raycasts
 	{
 		//SCOPE_CYCLE_COUNTER(STAT_ChaosVehicleManager_VehicleSuspensionRaycasts);
-		// #todo: batch all the vehicle raycasts here
-		// #todo: possibly cache raycasts. Seen x4 factor improvement in scene query perf in previous games
+		// possibly batch all the vehicle raycasts?
 	}
 	
 	// Tick vehicles

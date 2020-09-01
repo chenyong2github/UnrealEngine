@@ -833,8 +833,21 @@ public:
 	/** returns friendly signature name if possible or Removes any mangling to get the unmangled signature name of the function */
 	static FText GetFriendlySignatureName(const UFunction* Function);
 
+	/** Returns true if this enum is safe to be used as a variable in blueprints */
 	static bool IsAllowableBlueprintVariableType(const UEnum* InEnum);
-	static bool IsAllowableBlueprintVariableType(const UClass* InClass);
+
+	/** 
+	 * Returns true if this class is safe to be used as a variable in blueprints
+	 *
+	 * @param	bImpliedBlueprintType	If true, the class is implied to be a blueprint type and will be allowed unless it is specifically forbidden
+	 */
+	static bool IsAllowableBlueprintVariableType(const UClass* InClass, bool bAssumeBlueprintType = false);
+
+	/**
+	 * Returns true if this struct is safe to to be used as a variable in blueprints
+	 *
+	 * @param	bForInternalUse			If true, the struct is for internal usage so BlueprintInternalUseOnly is allowed
+	 */
 	static bool IsAllowableBlueprintVariableType(const UScriptStruct *InStruct, bool bForInternalUse = false);
 
 	static bool IsPropertyExposedOnSpawn(const FProperty* Property);

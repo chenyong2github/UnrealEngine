@@ -228,6 +228,9 @@ public:
 	UE_DEPRECATED(5.0, "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem")
 	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility", meta = (DeprecatedFunction, DeprecatedMessage = "The Editor Scripting Utilities Plugin is deprecated - Use the function in Unreal Editor Subsystem"))
 	static UWorld* GetGameWorld();
+	
+	UFUNCTION(BlueprintCallable, Category = "Editor Scripting | Level Utility")
+	static TArray<UWorld*> GetPIEWorlds(bool bIncludeDedicatedServer);
 
 public:
 	/**

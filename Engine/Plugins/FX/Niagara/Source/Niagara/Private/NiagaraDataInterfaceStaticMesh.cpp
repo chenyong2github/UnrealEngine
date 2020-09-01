@@ -66,10 +66,10 @@ void FStaticMeshFilteredAreaWeightedSectionSampler::Init(const FStaticMeshLODRes
 float FStaticMeshFilteredAreaWeightedSectionSampler::GetWeights(TArray<float>& OutWeights)
 {
 	float Total = 0.0f;
-	if (Owner && Owner->Mesh)
+	if (Owner && Owner->bMeshValid)
 	{
 		OutWeights.Empty(Owner->GetValidSections().Num());
-		if (Owner->Mesh->bSupportUniformlyDistributedSampling && Res->AreaWeightedSectionSamplers.Num() > 0)
+		if (Owner->StaticMesh->bSupportUniformlyDistributedSampling && Res->AreaWeightedSectionSamplers.Num() > 0)
 		{
 			for (int32 i = 0; i < Owner->GetValidSections().Num(); ++i)
 			{
@@ -231,11 +231,9 @@ void FNDIStaticMesh_InstanceData::InitVertexColorFiltering()
 bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interface, FNiagaraSystemInstance* SystemInstance)
 {
 	check(SystemInstance);
-	UStaticMesh* PrevMesh = Mesh;
-	SafeComponent_GT = nullptr;
-	SafeMesh_GT = nullptr;
+	SceneComponent = nullptr;
+	StaticMesh = nullptr;
 
-	Mesh = nullptr;
 	Transform = FMatrix::Identity;
 	TransformInverseTransposed = FMatrix::Identity;
 	PrevTransform = FMatrix::Identity;
@@ -243,21 +241,23 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	ChangeId = Interface->ChangeId;
 	bUsePhysicsVelocity = Interface->bUsePhysicsBodyVelocity;
 	PhysicsVelocity = FVector::ZeroVector;
+	bMeshValid = false;
+	bComponentValid = false;
+	bMeshAllowsCpuAccess = false;
+	bIsCpuUniformlyDistributedSampling = false;
+	bIsGpuUniformlyDistributedSampling = false;
+	ValidSections.Empty();
 
-	SafeMesh_GT = Interface->GetStaticMesh(SafeComponent_GT, SystemInstance);
-	if (!SafeComponent_GT.IsValid())
-	{
-		UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface has no valid component - %s"), *Interface->GetFullName());
-		return false;
-	}
-	Mesh = SafeMesh_GT.Get();
+	UStaticMesh* Mesh = Interface->GetStaticMesh(SceneComponent, SystemInstance);	
+	bComponentValid = SceneComponent.IsValid();
 
+	Transform = (bComponentValid ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
 	PrevTransform = Transform;
-	Transform = SafeComponent_GT->GetComponentToWorld().ToMatrixWithScale();
 	TransformInverseTransposed = Transform.Inverse().GetTransposed();
+
 	if (bUsePhysicsVelocity)
 	{
-		if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SafeComponent_GT))
+		if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 		{
 			PhysicsVelocity = MeshComponent->GetPhysicsLinearVelocity();
 		}
@@ -270,7 +270,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 	}
 
 	// Report missing or inaccessible meshes to the log
-	if (!Mesh)
+	if (Mesh == nullptr)
 	{
 		UE_LOG(LogNiagara, Log, TEXT("StaticMesh data interface has no valid mesh - %s"), *Interface->GetFullName());
 	}
@@ -281,19 +281,19 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		Mesh = nullptr; // Disallow usage of this mesh to prevent issues on cooked builds
 	}
 
-#if WITH_EDITOR
-	if (Mesh)
+	StaticMesh = Mesh;
+	bMeshValid = Mesh != nullptr;
+	
+	if (Mesh != nullptr)
 	{
-		Mesh->GetOnMeshChanged().AddUObject(SystemInstance->GetComponent(), &UNiagaraComponent::ReinitializeSystem);
-	}
+#if WITH_EDITOR
+		// HACK! This only works on systems created by a Niagara component...should maybe move somewhere else to cover non-component systems
+		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent()))
+		{
+			Mesh->GetOnMeshChanged().AddUObject(NiagaraComponent, &UNiagaraComponent::ReinitializeSystem);
+		}
 #endif
 
-	bMeshAllowsCpuAccess = false;
-	bIsCpuUniformlyDistributedSampling = false;
-	bIsGpuUniformlyDistributedSampling = false;
-	ValidSections.Empty();
-	if (Mesh)
-	{
 	    MinLOD = Mesh->MinLOD.GetValue();
 	    CachedLODIdx = Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD);
 
@@ -324,7 +324,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		{
 			if (NumMeshSockets > TNumericLimits<uint16>::Max())
 			{
-				UE_LOG(LogNiagara, Warning, TEXT("Static Mesh Data Interface '%s' requires more sockets '%d' than we currently support '%d' Mesh '%s' Component '%s'"), *GetFullNameSafe(Interface), NumMeshSockets, TNumericLimits<uint16>::Max(), *GetFullNameSafe(Mesh), *GetFullNameSafe(SafeComponent_GT.Get()));
+				UE_LOG(LogNiagara, Warning, TEXT("Static Mesh Data Interface '%s' requires more sockets '%d' than we currently support '%d' Mesh '%s' Component '%s'"), *GetFullNameSafe(Interface), NumMeshSockets, TNumericLimits<uint16>::Max(), *GetFullNameSafe(Mesh), *GetFullNameSafe(SceneComponent.Get()));
 				return false;
 			}
 
@@ -346,7 +346,7 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 					const int32 SocketIndex = Mesh->Sockets.IndexOfByPredicate([&](const UStaticMeshSocket* Socket) { return Socket->SocketName == FilteredSocketName; });
 					if (SocketIndex == INDEX_NONE)
 					{
-						UE_LOG(LogNiagara, Warning, TEXT("Static Mesh Data Interface '%s' could not find socket '%s' Mesh '%s' Component '%s'"), *GetFullNameSafe(Interface), *FilteredSocketName.ToString(), *GetFullNameSafe(Mesh), *GetFullNameSafe(SafeComponent_GT.Get()));
+						UE_LOG(LogNiagara, Warning, TEXT("Static Mesh Data Interface '%s' could not find socket '%s' Mesh '%s' Component '%s'"), *GetFullNameSafe(Interface), *FilteredSocketName.ToString(), *GetFullNameSafe(Mesh), *GetFullNameSafe(SceneComponent.Get()));
 						continue;
 					}
 					++NumFilteredSockets;
@@ -361,23 +361,34 @@ bool FNDIStaticMesh_InstanceData::Init(UNiagaraDataInterfaceStaticMesh* Interfac
 		}
 	}
 
-	SafeMesh_GT = Mesh;
 	return true;
 }
 
 bool FNDIStaticMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceStaticMesh* Interface) const
 {
-	if (!SafeComponent_GT.IsValid())
+	USceneComponent* Component = SceneComponent.Get();
+	if (bComponentValid && !Component)
 	{
-		//The component we were bound to is no longer valid so we have to trigger a reset.
+		// The component we were bound to is no longer valid so we have to trigger a reset.
 		return true;
 	}
 
-	UStaticMesh* MeshSafe = SafeMesh_GT.Get();
-	if (MeshSafe != Mesh)
+	UStaticMesh* Mesh = StaticMesh.Get();
+	if (bMeshValid)
 	{
-		//The static mesh we were bound to is no longer valid so we have to trigger a reset.
-		return true;
+		if (!Mesh)
+		{
+			// The static mesh we were bound to is no longer valid so we have to trigger a reset.
+			return true;
+		}
+		else if (UStaticMeshComponent* StaticMeshComp = Cast<UStaticMeshComponent>(Component))
+		{
+			if (Mesh != StaticMeshComp->GetStaticMesh())
+			{
+				// The mesh changed on the component we're attached to so we have to reset
+				return true;
+			}
+		}
 	}
 
 	if (Interface != nullptr && ChangeId != Interface->ChangeId)
@@ -385,28 +396,23 @@ bool FNDIStaticMesh_InstanceData::ResetRequired(UNiagaraDataInterfaceStaticMesh*
 		return true;
 	}
 
-	// Currently we only reset if the cached LOD was streamed out, to avoid performance hits. To revisit.
-	// We could probably just recache the data derived from the LOD instead of resetting everything.
-	if (Mesh && Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD) > CachedLODIdx)
+	if (Mesh != nullptr)
 	{
-		return true;
-	}
+		// Currently we only reset if the cached LOD was streamed out, to avoid performance hits. To revisit.
+		// We could probably just recache the data derived from the LOD instead of resetting everything.
+		if (Mesh->RenderData->GetCurrentFirstLODIdx(MinLOD) > CachedLODIdx)
+		{
+			return true;
+		}
 
-	// The following conditions look like they could only be triggered in Editor...
-	//bool bPrevVCSampling = bSupportingVertexColorSampling;//TODO: Vertex color filtering needs more work.
-	if (Mesh)
-	{
+		// The following conditions look like they could only be triggered in Editor...
+		//bool bPrevVCSampling = bSupportingVertexColorSampling;//TODO: Vertex color filtering needs more work.
 		const bool bNewMeshAllowsCpuAccess = Mesh->bAllowCPUAccess;
 		const bool bNewIsCpuAreaWeightedSampling = Mesh->bSupportUniformlyDistributedSampling;
 		const bool bNewIsGpuAreaWeightedSampling = bIsCpuUniformlyDistributedSampling && Mesh->bSupportGpuUniformlyDistributedSampling;
 
 		//bSupportingVertexColorSampling = bEnableVertexColorRangeSorting && MeshHasColors();
 		return bNewMeshAllowsCpuAccess != bMeshAllowsCpuAccess || bNewIsCpuAreaWeightedSampling != bIsCpuUniformlyDistributedSampling || bNewIsGpuAreaWeightedSampling != bIsGpuUniformlyDistributedSampling /* || bSupportingVertexColorSampling != bPrevVCSampling*/;
-	}
-	else if (bMeshAllowsCpuAccess || bIsCpuUniformlyDistributedSampling || bIsGpuUniformlyDistributedSampling)
-	{
-		// We previously had a CPU accessible mesh, but now have none
-		return true;
 	}
 	
 	return false;
@@ -421,30 +427,23 @@ bool FNDIStaticMesh_InstanceData::Tick(UNiagaraDataInterfaceStaticMesh* Interfac
 	else
 	{
 		DeltaSeconds = InDeltaSeconds;
-		if (SafeComponent_GT.IsValid() && SafeMesh_GT.IsValid())
+		
+		PrevTransform = Transform;
+		Transform = (SceneComponent.IsValid() ? SceneComponent->GetComponentToWorld() : SystemInstance->GetWorldTransform()).ToMatrixWithScale();
+		TransformInverseTransposed = Transform.Inverse().GetTransposed();
+			
+		if (bUsePhysicsVelocity)
 		{
-			PrevTransform = Transform;
-			Transform = SafeComponent_GT->GetComponentToWorld().ToMatrixWithScale();
-			TransformInverseTransposed = Transform.Inverse().GetTransposed();
-			if (bUsePhysicsVelocity)
+			if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SceneComponent))
 			{
-				if (UStaticMeshComponent* MeshComponent = Cast<UStaticMeshComponent>(SafeComponent_GT))
-				{
-					PhysicsVelocity = MeshComponent->GetPhysicsLinearVelocity();
-				}
-				else
-				{
-					PhysicsVelocity = FVector::ZeroVector;
-				}
+				PhysicsVelocity = MeshComponent->GetPhysicsLinearVelocity();
+			}
+			else
+			{
+				PhysicsVelocity = FVector::ZeroVector;
 			}
 		}
-		else
-		{
-			PrevTransform = FMatrix::Identity;
-			Transform = FMatrix::Identity;
-			TransformInverseTransposed = FMatrix::Identity;
-			PhysicsVelocity = FVector::ZeroVector;
-		}
+		
 		return false;
 	}
 }
@@ -606,8 +605,8 @@ public:
 		
 		{
 			FNiagaraDataInterfaceProxyStaticMesh* InterfaceProxy = static_cast<FNiagaraDataInterfaceProxyStaticMesh*>(Context.DataInterface);
-			FNiagaraStaticMeshData* Data = InterfaceProxy->SystemInstancesToMeshData.Find(Context.SystemInstance);
-			ensureMsgf(Data, TEXT("Failed to find data for instance %s"), *FNiagaraUtilities::SystemInstanceIDToString(Context.SystemInstance));
+			FNiagaraStaticMeshData* Data = InterfaceProxy->SystemInstancesToMeshData.Find(Context.SystemInstanceID);
+			ensureMsgf(Data, TEXT("Failed to find data for instance %s"), *FNiagaraUtilities::SystemInstanceIDToString(Context.SystemInstanceID));
 
 			if (Data)
 			{
@@ -1091,7 +1090,7 @@ struct TSampleModeBinder
 	{
 		FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
 		UNiagaraDataInterfaceStaticMesh* MeshInterface = CastChecked<UNiagaraDataInterfaceStaticMesh>(Interface);
-		if (InstData->Mesh == nullptr)
+		if (!InstData->bMeshValid)
 		{
 			NextBinder::template Bind<ParamTypes..., TSampleModeInvalid>(Interface, BindingInfo, InstanceData, OutFunc);
 		}
@@ -1140,7 +1139,7 @@ struct TTypedMeshAccessorBinder
 	static void Bind(UNiagaraDataInterface* Interface, const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 	{
 		FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
-		if (!InstData->Mesh)
+		if (!InstData->bMeshValid)
 		{
 			NextBinder::template Bind<ParamTypes..., TNullMeshVertexAccessor>(Interface, BindingInfo, InstanceData, OutFunc);
 			return;
@@ -1191,7 +1190,7 @@ DEFINE_NDI_FUNC_BINDER(UNiagaraDataInterfaceStaticMesh, GetVertexPosition);
 void UNiagaraDataInterfaceStaticMesh::GetVMExternalFunction(const FVMExternalFunctionBindingInfo& BindingInfo, void* InstanceData, FVMExternalFunction &OutFunc)
 {
 	FNDIStaticMesh_InstanceData* InstData = (FNDIStaticMesh_InstanceData*)InstanceData;
-	check(InstData && InstData->SafeComponent_GT.IsValid());
+	check(InstData);
 	
 	if (BindingInfo.Name == StaticMeshHelpers::IsValidName)
 	{
@@ -1384,11 +1383,11 @@ bool UNiagaraDataInterfaceStaticMesh::InitPerInstanceData(void* PerInstanceData,
 	if (bSuccess)
 	{
 		FStaticMeshGpuSpawnBuffer* MeshGpuSpawnBuffer = nullptr;
-		if (Inst->Mesh && SystemInstance->HasGPUEmitters())
+		if (Inst->bMeshValid && SystemInstance->HasGPUEmitters())
 		{
 			// Always allocate when bAllowCPUAccess (index buffer can only have SRV created in this case as of today)
 			// We do not know if this interface is allocated for CPU or GPU so we allocate for both case... TODO: have some cached data created in case a GPU version is needed?
-			ensure(Inst->Mesh->bAllowCPUAccess); // this should have been verified in Init()
+			ensure(Inst->StaticMesh->bAllowCPUAccess); // this should have been verified in Init()
 
 			MeshGpuSpawnBuffer = new FStaticMeshGpuSpawnBuffer;
 			TRefCountPtr<const FStaticMeshLODResources> Res = Inst->GetCurrentFirstLOD();
@@ -1421,9 +1420,12 @@ void UNiagaraDataInterfaceStaticMesh::DestroyPerInstanceData(void* PerInstanceDa
 	//UE_LOG(LogNiagara, Log, TEXT("GT: StaticMesh DI - DestroyPerInstanceData %s"), *SystemInstance->GetId().ToString());
 
 #if WITH_EDITOR
-	if (Inst->Mesh)
+	if (Inst->StaticMesh.IsValid())
 	{
-		Inst->Mesh->GetOnMeshChanged().RemoveAll(SystemInstance->GetComponent());
+		if (UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(SystemInstance->GetAttachComponent()))
+		{
+			Inst->StaticMesh->GetOnMeshChanged().RemoveAll(NiagaraComponent);
+		}
 	}
 #endif
 
@@ -1448,9 +1450,9 @@ bool UNiagaraDataInterfaceStaticMesh::PerInstanceTick(void* PerInstanceData, FNi
 }
 
 #if WITH_EDITOR	
-TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
+void UNiagaraDataInterfaceStaticMesh::GetFeedback(UNiagaraSystem* Asset, UNiagaraComponent* Component, TArray<FNiagaraDataInterfaceError>& OutErrors,
+	TArray<FNiagaraDataInterfaceFeedback>& OutWarnings, TArray<FNiagaraDataInterfaceFeedback>& OutInfo)
 {
-	TArray<FNiagaraDataInterfaceError> Errors;
 	if (Source == nullptr && DefaultMesh != nullptr && !DefaultMesh->bAllowCPUAccess)
 	{
 		FNiagaraDataInterfaceError CPUAccessNotAllowedError(FText::Format(LOCTEXT("CPUAccessNotAllowedError", "This mesh needs CPU access in order to be used properly.({0})"), FText::FromString(DefaultMesh->GetName())),
@@ -1462,14 +1464,14 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
 			return true;
 		}));
 
-		Errors.Add(CPUAccessNotAllowedError);
+		OutErrors.Add(CPUAccessNotAllowedError);
 	}
 
-	bool bHasNoMeshAssignedError = (Source == nullptr && DefaultMesh == nullptr);
+	bool bHasNoMeshAssignedWarning = (Source == nullptr && DefaultMesh == nullptr);
 #if WITH_EDITORONLY_DATA
-	if (bHasNoMeshAssignedError && PreviewMesh != nullptr)
+	if (bHasNoMeshAssignedWarning && PreviewMesh != nullptr)
 	{
-		bHasNoMeshAssignedError = false;
+		bHasNoMeshAssignedWarning = false;
 
 		if (!PreviewMesh->bAllowCPUAccess)
 		{
@@ -1482,30 +1484,31 @@ TArray<FNiagaraDataInterfaceError> UNiagaraDataInterfaceStaticMesh::GetErrors()
 				return true;
 			}));
 
-			Errors.Add(CPUAccessNotAllowedError);
+			OutErrors.Add(CPUAccessNotAllowedError);
 		}
 	}
 #endif
 
-	if (bHasNoMeshAssignedError)
+	if (bHasNoMeshAssignedWarning)
 	{
-		FNiagaraDataInterfaceError NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface must be assigned a skeletal mesh to operate."),
-			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned error"),
+		FNiagaraDataInterfaceFeedback NoMeshAssignedError(LOCTEXT("NoMeshAssignedError", "This Data Interface should be assigned a static mesh to operate correctly."),
+			LOCTEXT("NoMeshAssignedErrorSummary", "No mesh assigned warning"),
 			FNiagaraDataInterfaceFix());
 
-		Errors.Add(NoMeshAssignedError);
+		OutWarnings.Add(NoMeshAssignedError);
 	}
-
-	return Errors;
 }
 #endif
 
-TWeakObjectPtr<UStaticMesh> UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, FNiagaraSystemInstance* SystemInstance)
+UStaticMesh* UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeakObjectPtr<USceneComponent>& OutComponent, FNiagaraSystemInstance* SystemInstance)
 {
-	TWeakObjectPtr<UStaticMesh> OutMesh;
+	UStaticMesh* OutMesh = nullptr;
+	UStaticMeshComponent* FoundMeshComponent = nullptr;
+	OutComponent = nullptr;
+
 	if (SourceComponent)
 	{
-		OutComponent = SourceComponent;
+		FoundMeshComponent = SourceComponent;
 		OutMesh = SourceComponent->GetStaticMesh();
 	}
 	else if (Source)
@@ -1523,7 +1526,7 @@ TWeakObjectPtr<UStaticMesh> UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeak
 
 		if (SourceComp)
 		{
-			OutComponent = SourceComp;
+			FoundMeshComponent = SourceComp;
 			OutMesh = SourceComp->GetStaticMesh();
 		}
 		else
@@ -1533,70 +1536,72 @@ TWeakObjectPtr<UStaticMesh> UNiagaraDataInterfaceStaticMesh::GetStaticMesh(TWeak
 	}
 	else if (SystemInstance != nullptr)
 	{
-		if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+		if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 		{
-			if (UStaticMeshComponent* ParentComp = Cast<UStaticMeshComponent>(SimComp->GetAttachParent()))
+			// First, try to find the mesh component up the attachment hierarchy
+			for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 			{
-				OutComponent = ParentComp;
-				OutMesh = ParentComp->GetStaticMesh();
-			}
-			else if (UStaticMeshComponent* OuterComp = SimComp->GetTypedOuter<UStaticMeshComponent>())
-			{
-				OutComponent = OuterComp;
-				OutMesh = OuterComp->GetStaticMesh();
-			}
-			else if (AActor* Owner = SimComp->GetAttachmentRootActor())
-			{
-				for (UActorComponent* ActorComp : Owner->GetComponents())
+				if (UStaticMeshComponent* ParentComp = Cast<UStaticMeshComponent>(Curr))
 				{
-					UStaticMeshComponent* SourceComp = Cast<UStaticMeshComponent>(ActorComp);
-					if (SourceComp)
-					{
-						UStaticMesh* PossibleMesh = SourceComp->GetStaticMesh();
-						if (PossibleMesh != nullptr && PossibleMesh->bAllowCPUAccess)
-						{
-							OutComponent = SourceComp;
-							OutMesh = PossibleMesh;
-							break;
-						}
-					}
+					FoundMeshComponent = ParentComp;
+					OutMesh = ParentComp->GetStaticMesh();
+					break;
 				}
 			}
 
-			if (!OutComponent.IsValid())
+			if (!OutMesh)
 			{
-				OutComponent = SimComp;
+				// Next, try to find one in our outer chain
+				if (UStaticMeshComponent* OuterComp = AttachComponent->GetTypedOuter<UStaticMeshComponent>())
+				{
+					FoundMeshComponent = OuterComp;
+					OutMesh = OuterComp->GetStaticMesh();
+				}
+				else if (AActor* Owner = AttachComponent->GetAttachmentRootActor())
+				{
+					// Final fall-back, look for any mesh component on our root actor or any of its parents					
+					while (Owner && !OutMesh)
+					{
+						for (UActorComponent* ActorComp : Owner->GetComponents())
+						{
+							UStaticMeshComponent* SourceComp = Cast<UStaticMeshComponent>(ActorComp);
+							if (SourceComp)
+							{
+								FoundMeshComponent = SourceComp;
+								UStaticMesh* PossibleMesh = SourceComp->GetStaticMesh();
+								if (PossibleMesh != nullptr && PossibleMesh->bAllowCPUAccess)
+								{
+									OutMesh = PossibleMesh;
+									break;
+								}
+							}
+						}
+
+						// Iterate on the actor hierarchy.
+						Owner = Owner->GetParentActor();
+					}
+				}
 			}
 		}
 	}
 
-	if (!OutMesh.IsValid() && DefaultMesh)
+	if (!OutComponent.IsValid())
+	{
+		OutComponent = FoundMeshComponent;
+	}
+
+	if (!OutMesh)
 	{
 		OutMesh = DefaultMesh;
 	}
 
 #if WITH_EDITORONLY_DATA
-	if (!OutMesh.IsValid() && PreviewMesh)
+	if (!OutMesh && !FoundMeshComponent && (!SystemInstance || !SystemInstance->GetWorld()->IsGameWorld()))
 	{
-		bool bUsePreviewMesh = true;
-		if (SystemInstance != nullptr)
-		{
-			UNiagaraComponent*  OwningComponent = SystemInstance->GetComponent();
-			if (OwningComponent != nullptr)
-			{
-				if (UWorld* World = OwningComponent->GetWorld())
-				{
-					bUsePreviewMesh = !World->IsGameWorld();
-				}
-			}
-		}
-
-		if (bUsePreviewMesh)
-		{
-			OutMesh = PreviewMesh;
-		}
+		OutMesh = PreviewMesh;		
 	}
 #endif
+
 	return OutMesh;
 }
 
@@ -1607,7 +1612,7 @@ void UNiagaraDataInterfaceStaticMesh::IsValid(FVectorVMContext& Context)
 	VectorVM::FExternalFuncRegisterHandler<FNiagaraBool> OutValid(Context);
 	
 	FNiagaraBool Valid;
-	Valid.SetValue(InstData->Mesh != nullptr);
+	Valid.SetValue(InstData->bMeshValid);
 	for (int32 i = 0; i < Context.NumInstances; ++i)
 	{
 		*OutValid.GetDest() = Valid;
@@ -1754,7 +1759,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoord(FVectorVMContext& Context)
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
 
-	check(InstData->Mesh);
+	check(InstData->StaticMesh.IsValid());
 	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 	for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -1791,7 +1796,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordVertexColorFiltered(FVectorV
 	
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -1868,7 +1873,7 @@ void UNiagaraDataInterfaceStaticMesh::RandomTriCoordOnSection(FVectorVMContext& 
 	FNDIOutputParam<int32> OutTri(Context);
 	FNDIOutputParam<FVector> OutBary(Context);
 
-	check(InstData->Mesh);
+	check(InstData->bMeshValid);
 	TRefCountPtr<const FStaticMeshLODResources> Res = InstData->GetCurrentFirstLOD();
 	FIndexArrayView Indices = Res->IndexBuffer.GetArrayView();
 	const int32 MaxSection = Res->Sections.Num() - 1;
@@ -1909,7 +1914,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPosition(FVectorVMContext& Cont
 
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		FVector Pos(0.0f);
 		TransformHandler.TransformPosition(Pos, InstData->Transform);
@@ -1954,7 +1959,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordNormal(FVectorVMContext& Contex
 
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -1998,7 +2003,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordTangents(FVectorVMContext& Cont
 
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -2039,7 +2044,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordColor(FVectorVMContext& Context
 	FNDIOutputParam<FLinearColor> OutColor(Context);
 
 	TRefCountPtr<const FStaticMeshLODResources> Res;
-	if (InstData->Mesh)
+	if (InstData->bMeshValid)
 	{
 		Res = InstData->GetCurrentFirstLOD();
 	}
@@ -2086,7 +2091,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordUV(FVectorVMContext& Context)
 
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		for (int32 i = 0; i < Context.NumInstances; ++i)
 		{
@@ -2126,7 +2131,7 @@ void UNiagaraDataInterfaceStaticMesh::GetTriCoordPositionAndVelocity(FVectorVMCo
 
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		FVector WSPos = InstData->Transform.TransformPosition(FVector(0.0f));
 		for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -2260,7 +2265,7 @@ void UNiagaraDataInterfaceStaticMesh::GetVertexPosition(FVectorVMContext& Contex
 
 	// Handle no mesh case
 	//TODO: Maybe figure out a good way to stub this in bindings to prevent the branch
-	if (!InstData->Mesh)
+	if (!InstData->bMeshValid)
 	{
 		FVector WSPos = InstData->Transform.TransformPosition(FVector(0.0f));
 		for (int32 i = 0; i < Context.NumInstances; ++i)
@@ -3247,13 +3252,12 @@ bool FDynamicVertexColorFilterData::Init(FNDIStaticMesh_InstanceData* Owner)
 {
 	TrianglesSortedByVertexColor.Empty();
 	VertexColorToTriangleStart.AddDefaulted(256);
-	check(Owner->Mesh);
+	check(Owner->bMeshValid);
 
 	TRefCountPtr<const FStaticMeshLODResources> Res = Owner->GetCurrentFirstLOD();
-
 	if (Res->VertexBuffers.ColorVertexBuffer.GetNumVertices() == 0)
 	{
-		UE_LOG(LogNiagara, Log, TEXT("Cannot initialize vertex color filter data for a mesh with no color data - %s"), *Owner->Mesh->GetFullName());
+		UE_LOG(LogNiagara, Log, TEXT("Cannot initialize vertex color filter data for a mesh with no color data - %s"), *GetFullNameSafe(Owner->StaticMesh.Get()));
 		return false;
 	}
 
@@ -3296,11 +3300,11 @@ TSharedPtr<FDynamicVertexColorFilterData> FNDI_StaticMesh_GeneratedData::GetDyna
 	FScopeLock Lock(&CriticalSection);
 
 	check(Instance);
-	check(Instance->Mesh);
+	check(Instance->bMeshValid);
 
 	TSharedPtr<FDynamicVertexColorFilterData> Ret = nullptr;
 
-	uint32 FilterDataHash = GetTypeHash(Instance->Mesh);
+	uint32 FilterDataHash = GetTypeHash(Instance->StaticMesh.Get());
 	for (int32 ValidSec : Instance->GetValidSections())
 	{
 		FilterDataHash = HashCombine(GetTypeHash(ValidSec), FilterDataHash);

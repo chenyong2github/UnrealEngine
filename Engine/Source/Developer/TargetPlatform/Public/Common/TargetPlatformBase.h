@@ -55,6 +55,8 @@ public:
 
 	TARGETPLATFORM_API virtual bool UsesRayTracing() const override;
 
+	TARGETPLATFORM_API virtual bool ForcesSimpleSkyDiffuse() const override;
+
 	TARGETPLATFORM_API virtual float GetDownSampleMeshDistanceFieldDivider() const override;
 
 	TARGETPLATFORM_API virtual int32 GetHeightFogModeForOpaque() const override;

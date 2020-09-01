@@ -15,8 +15,8 @@
 #include "SoundModulationPatchProxy.h"
 #include "SoundModulationProxy.h"
 #include "SoundModulationValue.h"
-#include "SoundModulatorLFO.h"
-#include "SoundModulatorLFOProxy.h"
+#include "SoundModulationGeneratorLFO.h"
+#include "SoundModulationGeneratorLFOProxy.h"
 #include "Templates/Function.h"
 
 #if WITH_AUDIOMODULATION
@@ -32,7 +32,7 @@ namespace AudioModulation
 	class FModulationInputProxy;
 	class FModulationPatchProxy;
 	class FModulationPatchRefProxy;
-	class FModulatorBusMixChannelProxy;
+	class FModulatorBusMixStageProxy;
 
 	struct FReferencedProxies
 	{
@@ -56,19 +56,19 @@ namespace AudioModulation
 
 		void Initialize(const FAudioPluginInitializationParams& InitializationParams);
 
-		void ActivateBus(const USoundControlBusBase& InBus);
+		void ActivateBus(const USoundControlBus& InBus);
 		void ActivateBusMix(const FModulatorBusMixSettings& InSettings);
 		void ActivateBusMix(const USoundControlBusMix& InBusMix);
-		void ActivateLFO(const USoundBusModulatorLFO& InLFO);
+		void ActivateLFO(const USoundModulationGeneratorLFO& InLFO);
 
 		/**
 		 * Deactivates respectively typed (i.e. BusMix, Bus, etc.) object proxy if no longer referenced.
 		 * If still referenced, will wait until references are finished before destroying.
 		 */
-		void DeactivateBus(const USoundControlBusBase& InBus);
+		void DeactivateBus(const USoundControlBus& InBus);
 		void DeactivateBusMix(const USoundControlBusMix& InBusMix);
 		void DeactivateAllBusMixes();
-		void DeactivateLFO(const USoundBusModulatorLFO& InLFO);
+		void DeactivateLFO(const USoundModulationGeneratorLFO& InLFO);
 
 		Audio::FModulationParameter GetParameter(FName InParamName) const;
 
@@ -84,26 +84,28 @@ namespace AudioModulation
 		void SaveMixToProfile(const USoundControlBusMix& InBusMix, const int32 InProfileIndex);
 
 		/* Loads mix from .ini profile for iterative development that does not require re-cooking a mix. Returns copy
-		 * of mix channel values saved in profile. */
-		TArray<FSoundControlBusMixChannel> LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix);
+		 * of mix stage values saved in profile. */
+		TArray<FSoundControlBusMixStage> LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix);
 
 		/*
 		 * Updates mix/mix by filter, modifying the mix instance if it is active. If bInUpdateObject is true,
 		 * updates UObject definition in addition to proxy.
 		 */
-		void UpdateMix(const TArray<FSoundControlBusMixChannel>& InChannels, USoundControlBusMix& InOutMix, bool bInUpdateObject = false);
-		void UpdateMixByFilter(const FString& InAddressFilter, const TSubclassOf<USoundControlBusBase>& InClassFilter, const FSoundModulationValue& InValue, USoundControlBusMix& InOutMix, bool bInUpdateObject = false);
+		void UpdateMix(const TArray<FSoundControlBusMixStage>& InStages, USoundControlBusMix& InOutMix, bool bInUpdateObject = false, float InFadeTime = -1.0f);
+		void UpdateMixByFilter(const FString& InAddressFilter, const TSubclassOf<USoundModulationParameter>& InParamClassFilter, USoundModulationParameter* InParamFilter, float Value, float FadeTime, USoundControlBusMix& InOutMix, bool bInUpdateObject = false);
 
 		/*
 		 * Commits any changes from a mix applied to a UObject definition to mix instance if active.
 		 */
-		void UpdateMix(const USoundControlBusMix& InMix);
+		void UpdateMix(const USoundControlBusMix& InMix, float InFadeTime = -1.0f);
 
 		/*
 		 * Commits any changes from a modulator type applied to a UObject definition
 		 * to modulator instance if active (i.e. Control Bus, Control Bus Modulator)
 		 */
 		void UpdateModulator(const USoundModulatorBase& InModulator);
+
+		void OnAuditionEnd();
 
 	private:
 		/* Calculates modulation value, storing it in the provided float reference and returns if value changed */
@@ -194,7 +196,7 @@ namespace AudioModulation
 		friend FModulationInputProxy;
 		friend FModulationPatchProxy;
 		friend FModulationPatchRefProxy;
-		friend FModulatorBusMixChannelProxy;
+		friend FModulatorBusMixStageProxy;
 	};
 
 	static void IterateModSystems(TUniqueFunction<void(FAudioModulationSystem&)> InFunction)
@@ -229,21 +231,23 @@ namespace AudioModulation
 		void SoloBusMix(const USoundControlBusMix& InBusMix) { }
 #endif // WITH_EDITOR
 
+		void OnAuditionEnd() { }
+
 #if !UE_BUILD_SHIPPING
 		bool OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
 		int OnRenderStat(FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const UFont& Font, const FVector* ViewLocation, const FRotator* ViewRotation) { return Y; }
 		bool OnToggleStat(FCommonViewportClient* ViewportClient, const TCHAR* Stream) { return false; }
 #endif // !UE_BUILD_SHIPPING
 
-		void ActivateBus(const USoundControlBusBase& InBus) { }
+		void ActivateBus(const USoundControlBus& InBus) { }
 		void ActivateBusMix(const FModulatorBusMixSettings& InSettings) { }
 		void ActivateBusMix(const USoundControlBusMix& InBusMix) { }
-		void ActivateLFO(const USoundBusModulatorLFO& InLFO) { }
+		void ActivateLFO(const USoundModulationGeneratorLFO& InLFO) { }
 
 		void DeactivateAllBusMixes() { }
-		void DeactivateBus(const USoundControlBusBase& InBus) { }
-		void DeactivateBusMix(const USoundControlBusBase& InBusMix) { }
-		void DeactivateLFO(const USoundBusModulatorLFO& InLFO) { }
+		void DeactivateBus(const USoundControlBus& InBus) { }
+		void DeactivateBusMix(const USoundControlBus& InBusMix) { }
+		void DeactivateLFO(const USoundModulationGeneratorLFO& InLFO) { }
 
 		void SaveMixToProfile(const USoundControlBusMix& InBusMix, const int32 InProfileIndex) { }
 		void LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix) { }
@@ -255,9 +259,9 @@ namespace AudioModulation
 		bool GetModulatorValue(const Audio::FModulatorHandle& ModulatorHandle, float& OutValue) const { return false; }
 		void UnregisterModulator(const Audio::FModulatorHandle& InHandle) { }
 
-		void UpdateMix(const USoundControlBusMix& InMix) { }
-		void UpdateMix(const TArray<FSoundControlBusMixChannel>& InChannels, USoundControlBusMix& InOutMix, bool bUpdateObject = false) { }
-		void UpdateMixByFilter(const FString& InAddressFilter, const TSubclassOf<USoundControlBusBase>& InClassFilter, const FSoundModulationValue& InValue, USoundControlBusMix& InOutMix, bool bUpdateObject = false) { }
+		void UpdateMix(const USoundControlBusMix& InMix, float InFadeTime) { }
+		void UpdateMix(const TArray<FSoundControlBusMixStage>& InStages, USoundControlBusMix& InOutMix, bool bUpdateObject = false) { }
+		void UpdateMixByFilter(const FString& InAddressFilter, const TSubclassOf<USoundModulationParameter>& InParamClassFilter, USoundModulationParameter* InParamFilter, float InValue, float InFadeTime, USoundControlBusMix& InOutMix, bool bUpdateObject = false) { }
 		void UpdateModulator(const USoundModulatorBase& InModulator) { }
 	};
 } // namespace AudioModulation

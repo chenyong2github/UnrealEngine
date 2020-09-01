@@ -690,7 +690,7 @@ void FVulkanViewport::CreateSwapchain(FVulkanSwapChainRecreateInfo* RecreateInfo
 		{
 			if(RecreateInfo->SwapChain)
 			{
-				VulkanRHI::vkDestroySwapchainKHR(Device->GetInstanceHandle(), RecreateInfo->SwapChain, VULKAN_CPU_ALLOCATOR);
+				FVulkanPlatform::DestroySwapchainKHR(Device->GetInstanceHandle(), RecreateInfo->SwapChain, VULKAN_CPU_ALLOCATOR);
 				RecreateInfo->SwapChain = VK_NULL_HANDLE;
 			}
 			if (RecreateInfo->Surface)

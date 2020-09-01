@@ -194,6 +194,13 @@ void FLevelSequenceEditorSpawnRegister::SaveDefaultSpawnableStateImpl(FMovieScen
 	{
 		TrackedState->bHasBeenModified = false;
 	}
+
+	TSharedPtr<ISequencer> Sequencer = WeakSequencer.Pin();
+	if (Sequencer.IsValid())
+	{
+		Sequencer->RequestInvalidateCachedData();
+		Sequencer->RequestEvaluate();
+	}
 }
 
 /* FLevelSequenceEditorSpawnRegister implementation

@@ -752,7 +752,7 @@ void ALODActor::CheckForErrors()
 		Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
 		MapCheck.Warning()
 			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_StaticMeshComponent", "{ActorName} : Static mesh actor has NULL StaticMeshComponent property - please delete."), Arguments)))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_StaticMeshComponent", "{ActorName} : LODActor has no StaticMeshComponent. Please rebuild HLODs for this level."), Arguments)))
 			->AddToken(FMapErrorToken::Create(FMapErrors::StaticMeshComponent));
 	}
 
@@ -760,19 +760,19 @@ void ALODActor::CheckForErrors()
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
-		FMessageLog("MapCheck").Error()
+		FMessageLog("MapCheck").Warning()
 			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorMissingMesh", "{ActorName} : Static mesh is missing for the built LODActor.  Did you remove the asset? Please delete it and build LOD again. "), Arguments)))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorMissingMesh", "{ActorName} : LODActor has no static mesh. Please rebuild HLODs for this level."), Arguments)))
 			->AddToken(FMapErrorToken::Create(FMapErrors::LODActorMissingStaticMesh));
 	}
-	
+
 	if (SubActors.Num() == 0)
 	{
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
-		FMessageLog("MapCheck").Error()
+		FMessageLog("MapCheck").Warning()
 			->AddToken(FUObjectToken::Create(this))
-			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorEmptyActor", "{ActorName} : NoActor is assigned. We recommend you to delete this actor. "), Arguments)))
+			->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorEmptyActor", "{ActorName} : No sub actors are assigned. Please rebuild HLODs for this level."), Arguments)))
 			->AddToken(FMapErrorToken::Create(FMapErrors::LODActorNoActorFound));
 	}
 	else
@@ -780,13 +780,13 @@ void ALODActor::CheckForErrors()
 		for (AActor* Actor : SubActors)
 		{
 			// see if it's null, if so it is not good
-			if(Actor == nullptr)
+			if (Actor == nullptr)
 			{
 				FFormatNamedArguments Arguments;
 				Arguments.Add(TEXT("ActorName"), FText::FromString(GetPathName()));
-				FMessageLog("MapCheck").Error()
+				FMessageLog("MapCheck").Warning()
 					->AddToken(FUObjectToken::Create(this))
-					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorNullActor", "{ActorName} : Actor is missing. The actor might have been removed. We recommend you to build LOD again. "), Arguments)))
+					->AddToken(FTextToken::Create(FText::Format(LOCTEXT("MapCheck_Message_InvalidLODActorNullActor", "{ActorName} : Actor is missing. The actor might have been removed. Please rebuild HLODs for this level."), Arguments)))
 					->AddToken(FMapErrorToken::Create(FMapErrors::LODActorMissingActor));
 			}
 		}

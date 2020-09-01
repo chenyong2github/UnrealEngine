@@ -1468,7 +1468,7 @@ public:
 	 * 
 	 * @param InWorld the world to associate with this netdriver
 	 */
-	ENGINE_API void SetWorld(class UWorld* InWorld);
+	ENGINE_API virtual void SetWorld(class UWorld* InWorld);
 
 	/**
 	 * Get the world associated with this net driver
@@ -1688,10 +1688,15 @@ public:
 	/** Unmap all references to this object, so that if later we receive this object again, we can remap the original references */
 	void MoveMappedObjectToUnmapped(const UObject* Object);
 
+	/** Whether or not this driver has an IsReplay() connection, updated in Add/RemoveClientConnection */
+	bool HasReplayConnection() const { return bHasReplayConnection; }
+
 protected:
 
 	bool bMaySendProperties;
 
+	bool bSkipServerReplicateActors = false;
+	
 	/** Stream of random numbers to be used by this instance of UNetDriver */
 	FRandomStream UpdateDelayRandomStream;
 
@@ -1740,4 +1745,7 @@ private:
 #endif 
 
 	bool bDidHitchLastFrame = false;
+
+	/** cache whether or not we have a replay connection, updated when a connection is added or removed */
+	bool bHasReplayConnection;
 };

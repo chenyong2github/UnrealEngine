@@ -149,6 +149,7 @@ struct FStreamingLevelActorListCollection
 {
 	void AddActor(const FNewReplicatedActorInfo& ActorInfo);
 	bool RemoveActor(const FNewReplicatedActorInfo& ActorInfo, bool bWarnIfNotFound, UReplicationGraphNode* Outer);
+	bool RemoveActorFast(const FNewReplicatedActorInfo& ActorInfo, UReplicationGraphNode* Outer);
 	void Reset();
 	void Gather(const FConnectionGatherActorListParameters& Params);
 	void DeepCopyFrom(const FStreamingLevelActorListCollection& Source);
@@ -198,6 +199,9 @@ public:
 	virtual void LogNode(FReplicationGraphDebugInfo& DebugInfo, const FString& NodeName) const override;
 
 	virtual void GetAllActorsInNode_Debugging(TArray<FActorRepListType>& OutArray) const;
+
+	/** Removes the actor very quickly but breaks the list order */
+	bool RemoveNetworkActorFast(const FNewReplicatedActorInfo& ActorInfo);
 
 	/** Copies the contents of Source into this node. Note this does not copy child nodes, just the ReplicationActorList/StreamingLevelCollection lists on this node. */
 	void DeepCopyActorListsFrom(const UReplicationGraphNode_ActorList* Source);
@@ -383,8 +387,6 @@ protected:
 	virtual void GatherActors_DistanceOnly(const FActorRepListRefView& RepList, FGlobalActorReplicationInfoMap& GlobalMap, FPerConnectionActorInfoMap& ConnectionMap, const FConnectionGatherActorListParameters& Params);
 
 	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FNetViewerArray& Viewers, const uint32 FrameNum, int32 ExistingItemIndex);
-	UE_DEPRECATED(4.23, "Use the other function to allow for multiple viewers")
-	void CalcFrequencyForActor(AActor* Actor, UReplicationGraph* RepGraph, UNetConnection* NetConnection, FGlobalActorReplicationInfo& GlobalInfo, FConnectionReplicationActorInfo& ConnectionInfo, FSettings& MySettings, const FVector& ConnectionViewLocation, const FVector& ConnectionViewDir, const uint32 FrameNum, int32 ExistingItemIndex);
 };
 
 
@@ -727,14 +729,6 @@ public:
 	/** List of previously (or currently if nothing changed last tick) focused actor data per connection */
 	UPROPERTY()
 	TArray<FAlwaysRelevantActorInfo> PastRelevantActors;
-
-	UE_DEPRECATED(4.23, "ViewTargets are now handled inside the PastRelevantActorMap")
-	UPROPERTY()
-	AActor* LastViewer = nullptr;
-	
-	UE_DEPRECATED(4.23, "ViewTargets are now handled inside the PastRelevantActorMap")
-	UPROPERTY()
-	AActor* LastViewTarget = nullptr;
 };
 
 // -----------------------------------
@@ -986,16 +980,18 @@ protected:
 
 	/** Default Replication Path */
 	void ReplicateActorListsForConnections_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
-	UE_DEPRECATED(4.23, "Use the array format to support subconnections as well")
-	void ReplicateActorListsForConnection_Default(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewer& Viewer);
 
 	/** "FastShared" Replication Path */
 	void ReplicateActorListsForConnections_FastShared(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewerArray& Viewers);
-	UE_DEPRECATED(4.23, "Use the array format to support subconnections as well")
-	void ReplicateActorListsForConnection_FastShared(UNetReplicationGraphConnection* ConnectionManager, FGatheredReplicationActorLists& GatheredReplicationListsForConnection, FNetViewer& Viewer);
 
 	/** Connections needing a FlushNet in PostTickDispatch */
 	TArray<UNetConnection*> ConnectionsNeedingsPostTickDispatchFlush;
+
+	virtual void AddReplayViewers(UNetConnection* NetConnection, FNetViewerArray& Viewers) {}
+
+private:
+
+	UNetReplicationGraphConnection* FixGraphConnectionList(TArray<UNetReplicationGraphConnection*>& OutList, int32& ConnectionId, UNetConnection* RemovedNetConnection);
 
 private:
 
@@ -1079,11 +1075,12 @@ public:
 
 	bool bEnableDebugging;
 
-	// ID that is assigned by the replication graph. Will be reassigned/compacted as clients disconnect. Useful for spacing out connection operations. E.g., not stable but always compact.
-	int32 ConnectionId; 
+	/** Index of the connection in the global list. Will be reassigned when any client disconnects so it is a key that can be referenced only during a single tick */
+	int32 ConnectionOrderNum;
 
-	UE_DEPRECATED(4.23, "Use the LastGatherLocations to have support for subconnection lookups")
-	FVector LastGatherLocation;
+	// ID that is assigned by the replication graph. Will be reassigned/compacted as clients disconnect. Useful for spacing out connection operations. E.g., not stable but always compact.
+	UE_DEPRECATED(4.26, "This variable was renamed to ConnectionOrderNum to better reflect that it is not persistent and should not be considered an ID.")
+	int32 ConnectionId; 
 
 	UPROPERTY()
 	TArray<FLastLocationGatherInfo> LastGatherLocations;

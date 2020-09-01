@@ -17,14 +17,14 @@
 #include "Engine/DemoNetConnection.h"
 #include "Net/RepLayout.h"
 #include "Templates/Atomic.h"
+#include "Net/UnrealNetwork.h"
+#include "ReplayHelper.h"
 
 #include "DemoNetDriver.generated.h"
 
 class FNetworkNotify;
 class FRepState;
 class UDemoNetDriver;
-
-DECLARE_LOG_CATEGORY_EXTERN(LogDemo, Log, All);
 
 DECLARE_MULTICAST_DELEGATE(FOnGotoTimeMCDelegate);
 DECLARE_DELEGATE_OneParam(FOnGotoTimeDelegate, const bool /* bWasSuccessful */);
@@ -54,239 +54,6 @@ public:
 	virtual bool ShouldPausePlayback() const { return true; }
 
 	TWeakObjectPtr<UDemoNetDriver> Driver;
-};
-
-class FReplayExternalData
-{
-public:
-	FReplayExternalData() : TimeSeconds(0.0f)
-	{
-	}
-
-	FReplayExternalData(FBitReader&& InReader, const float InTimeSeconds) : TimeSeconds(InTimeSeconds)
-	{
-		Reader = MoveTemp(InReader);
-	}
-
-	FBitReader	Reader;
-	float		TimeSeconds;
-
-	void CountBytes(FArchive& Ar) const
-	{
-		Reader.CountMemory(Ar);
-	}
-};
-
-// Using an indirect array here since FReplayExternalData stores an FBitReader, and it's not safe to store an FArchive directly in a TArray.
-typedef TIndirectArray<FReplayExternalData> FReplayExternalDataArray;
-
-struct FPlaybackPacket
-{
-	TArray<uint8>		Data;
-	float				TimeSeconds;
-	int32				LevelIndex;
-	uint32				SeenLevelIndex;
-
-	void CountBytes(FArchive& Ar) const
-	{
-		Data.CountBytes(Ar);
-	}
-};
-
-enum ENetworkVersionHistory
-{
-	HISTORY_REPLAY_INITIAL					= 1,
-	HISTORY_SAVE_ABS_TIME_MS				= 2,			// We now save the abs demo time in ms for each frame (solves accumulation errors)
-	HISTORY_INCREASE_BUFFER					= 3,			// Increased buffer size of packets, which invalidates old replays
-	HISTORY_SAVE_ENGINE_VERSION				= 4,			// Now saving engine net version + InternalProtocolVersion
-	HISTORY_EXTRA_VERSION					= 5,			// We now save engine/game protocol version, checksum, and changelist
-	HISTORY_MULTIPLE_LEVELS					= 6,			// Replays support seamless travel between levels
-	HISTORY_MULTIPLE_LEVELS_TIME_CHANGES	= 7,			// Save out the time that level changes happen
-	HISTORY_DELETED_STARTUP_ACTORS			= 8,			// Save DeletedNetStartupActors inside checkpoints
-	HISTORY_HEADER_FLAGS					= 9,			// Save out enum flags with demo header
-	HISTORY_LEVEL_STREAMING_FIXES			= 10,			// Optional level streaming fixes.
-	HISTORY_SAVE_FULL_ENGINE_VERSION		= 11,			// Now saving the entire FEngineVersion including branch name
-	HISTORY_HEADER_GUID						= 12,			// Save guid to demo header
-	HISTORY_CHARACTER_MOVEMENT				= 13,			// Change to using replicated movement and not interpolation
-	HISTORY_CHARACTER_MOVEMENT_NOINTERP		= 14,			// No longer recording interpolated movement samples
-	
-	// -----<new versions can be added before this line>-------------------------------------------------
-	HISTORY_PLUS_ONE,
-	HISTORY_LATEST 							= HISTORY_PLUS_ONE - 1
-};
-
-static const uint32 MIN_SUPPORTED_VERSION = HISTORY_EXTRA_VERSION;
-
-static const uint32 NETWORK_DEMO_MAGIC				= 0x2CF5A13D;
-static const uint32 NETWORK_DEMO_VERSION			= HISTORY_LATEST;
-static const uint32 MIN_NETWORK_DEMO_VERSION		= HISTORY_EXTRA_VERSION;
-
-static const uint32 NETWORK_DEMO_METADATA_MAGIC		= 0x3D06B24E;
-static const uint32 NETWORK_DEMO_METADATA_VERSION	= 0;
-
-USTRUCT()
-struct FLevelNameAndTime
-{
-	GENERATED_BODY()
-
-	FLevelNameAndTime()
-		: LevelChangeTimeInMS(0)
-	{}
-
-	FLevelNameAndTime(const FString& InLevelName, uint32 InLevelChangeTimeInMS)
-		: LevelName(InLevelName)
-		, LevelChangeTimeInMS(InLevelChangeTimeInMS)
-	{}
-
-	UPROPERTY()
-	FString LevelName;
-
-	UPROPERTY()
-	uint32 LevelChangeTimeInMS;
-
-	friend FArchive& operator<<(FArchive& Ar, FLevelNameAndTime& LevelNameAndTime)
-	{
-		Ar << LevelNameAndTime.LevelName;
-		Ar << LevelNameAndTime.LevelChangeTimeInMS;
-		return Ar;
-	}
-
-	void CountBytes(FArchive& Ar) const
-	{
-		LevelName.CountBytes(Ar);
-	}
-};
-
-enum class EReplayHeaderFlags : uint32
-{
-	None					= 0,
-	ClientRecorded			= (1 << 0),
-	HasStreamingFixes		= (1 << 1),
-	DeltaCheckpoints		= (1 << 2),
-	GameSpecificFrameData	= (1 << 3),
-};
-
-ENUM_CLASS_FLAGS(EReplayHeaderFlags);
-
-struct FNetworkDemoHeader
-{
-	uint32	Magic;									// Magic to ensure we're opening the right file.
-	uint32	Version;								// Version number to detect version mismatches.
-	uint32	NetworkChecksum;						// Network checksum
-	uint32	EngineNetworkProtocolVersion;			// Version of the engine internal network format
-	uint32	GameNetworkProtocolVersion;				// Version of the game internal network format
-	FGuid	Guid;									// Unique identifier
-
-	FEngineVersion EngineVersion;					// Full engine version on which the replay was recorded
-	EReplayHeaderFlags HeaderFlags;					// Replay flags
-	TArray<FLevelNameAndTime> LevelNamesAndTimes;	// Name and time changes of levels loaded for demo
-	TArray<FString> GameSpecificData;				// Area for subclasses to write stuff
-
-	FNetworkDemoHeader() :
-		Magic(NETWORK_DEMO_MAGIC),
-		Version(NETWORK_DEMO_VERSION),
-		NetworkChecksum(FNetworkVersion::GetLocalNetworkVersion()),
-		EngineNetworkProtocolVersion(FNetworkVersion::GetEngineNetworkProtocolVersion()),
-		GameNetworkProtocolVersion(FNetworkVersion::GetGameNetworkProtocolVersion()),
-		Guid(),
-		EngineVersion(FEngineVersion::Current()),
-		HeaderFlags(EReplayHeaderFlags::None)
-	{
-	}
-
-	friend FArchive& operator << (FArchive& Ar, FNetworkDemoHeader& Header)
-	{
-		Ar << Header.Magic;
-
-		// Check magic value
-		if (Header.Magic != NETWORK_DEMO_MAGIC)
-		{
-			UE_LOG(LogDemo, Error, TEXT("Header.Magic != NETWORK_DEMO_MAGIC"));
-			Ar.SetError();
-			return Ar;
-		}
-
-		Ar << Header.Version;
-
-		// Check version
-		if (Header.Version < MIN_NETWORK_DEMO_VERSION)
-		{
-			UE_LOG(LogDemo, Error, TEXT("Header.Version < MIN_NETWORK_DEMO_VERSION. Header.Version: %i, MIN_NETWORK_DEMO_VERSION: %i"), Header.Version, MIN_NETWORK_DEMO_VERSION);
-			Ar.SetError();
-			return Ar;
-		}
-
-		Ar << Header.NetworkChecksum;
-		Ar << Header.EngineNetworkProtocolVersion;
-		Ar << Header.GameNetworkProtocolVersion;
-
-		if (Header.Version >= HISTORY_HEADER_GUID)
-		{
-			Ar << Header.Guid;
-		}
-
-		if (Header.Version >= HISTORY_SAVE_FULL_ENGINE_VERSION)
-		{
-			Ar << Header.EngineVersion;
-		}
-		else
-		{
-			// Previous versions only stored the changelist
-			uint32 Changelist = 0;
-			Ar << Changelist;
-			
-			if (Ar.IsLoading())
-			{
-				// We don't have any valid information except the changelist.
-				Header.EngineVersion.Set(0, 0, 0, Changelist, FString());
-			}
-		}
-
-		if (Header.Version < HISTORY_MULTIPLE_LEVELS)
-		{
-			FString LevelName;
-			Ar << LevelName;
-			Header.LevelNamesAndTimes.Add(FLevelNameAndTime(LevelName, 0));
-		}
-		else if (Header.Version == HISTORY_MULTIPLE_LEVELS)
-		{
-			TArray<FString> LevelNames;
-			Ar << LevelNames;
-
-			for (const FString& LevelName : LevelNames)
-			{
-				Header.LevelNamesAndTimes.Add(FLevelNameAndTime(LevelName, 0));
-			}
-		}
-		else
-		{
-			Ar << Header.LevelNamesAndTimes;
-		}
-
-		if (Header.Version >= HISTORY_HEADER_FLAGS)
-		{
-			Ar << Header.HeaderFlags;
-		}
-
-		Ar << Header.GameSpecificData;
-
-		return Ar;
-	}
-
-	void CountBytes(FArchive& Ar) const
-	{
-		LevelNamesAndTimes.CountBytes(Ar);
-		for (const FLevelNameAndTime& LevelNameAndTime : LevelNamesAndTimes)
-		{
-			LevelNameAndTime.CountBytes(Ar);
-		}
-
-		GameSpecificData.CountBytes(Ar);
-		for (const FString& Datum : GameSpecificData)
-		{
-			Datum.CountBytes(Ar);
-		}
-	}
 };
 
 /** Information about net startup actors that need to be rolled back by being destroyed and re-created */
@@ -374,14 +141,6 @@ struct FMulticastRecordOptions
 	bool bClientSkip;
 };
 
-enum class EWriteDemoFrameFlags : uint32
-{
-	None				= 0,
-	SkipGameSpecific	= (1 << 0),
-};
-
-ENUM_CLASS_FLAGS(EWriteDemoFrameFlags);
-
 /**
  * Simulated network driver for recording and playing back game sessions.
  */
@@ -391,39 +150,75 @@ class ENGINE_API UDemoNetDriver : public UNetDriver
 	GENERATED_BODY()
 
 public:
-
 	UDemoNetDriver(const FObjectInitializer& ObjectInitializer);
 	UDemoNetDriver(FVTableHelper& Helper);
 	~UDemoNetDriver();
 
+	virtual void SetWorld(class UWorld* InWorld) override;
+
 	/** Current record/playback frame number */
+	UE_DEPRECATED(4.26, "Please use GetDemoFrameNum instead.")
 	int32 DemoFrameNum;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	int32 GetDemoFrameNum() const { return ReplayHelper.DemoFrameNum; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Total time of demo in seconds */
+	UE_DEPRECATED(4.26, "Please use GetDemoTotalTime/SetDemoTotalTime instead.")
 	float DemoTotalTime;
 
 	/** Current record/playback position in seconds */
+	UE_DEPRECATED(4.26, "Please use GetDemoCurrentTime/SetDemoCurrentTime instead.")
 	float DemoCurrentTime;
 
 	/** Old current record/playback position in seconds (so we can restore on checkpoint failure) */
+	UE_DEPRECATED(4.26, "No longer used.")
 	float OldDemoCurrentTime;
 
 	/** Total number of frames in the demo */
+	UE_DEPRECATED(4.26, "No longer used.")
 	int32 DemoTotalFrames;
 
 	/** True if as have paused all of the channels */
+	UE_DEPRECATED(4.26, "Please use GetChannelsArePaused instead.")
 	bool bChannelsArePaused;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	bool GetChannelsArePaused() const { return bChannelsArePaused; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Index of LevelNames that is currently loaded */
+	UE_DEPRECATED(4.26, "Please use GetCurrentLevelIndex/SetCurrentLevelIndex instead.")
 	int32 CurrentLevelIndex;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	double GetCurrentLevelIndex() const { return ReplayHelper.CurrentLevelIndex; }
+
+	void SetCurrentLevelIndex(int32 Index)
+	{
+		ReplayHelper.CurrentLevelIndex = Index;
+		CurrentLevelIndex = Index;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** This is the main spectator controller that is used to view the demo world from */
+	UE_DEPRECATED(4.26, "Please use GetSpectatorController() instead.")
 	APlayerController* SpectatorController;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	APlayerController* GetSpectatorController() const { return SpectatorController; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
 	/** Our network replay streamer */
+	UE_DEPRECATED(4.26, "Please use GetReplayStreamer() instead.")
 	TSharedPtr<class INetworkReplayStreamer> ReplayStreamer;
 
-	uint32 GetDemoCurrentTimeInMS() const { return (uint32)((double)DemoCurrentTime * 1000); }
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	TSharedPtr<class INetworkReplayStreamer> GetReplayStreamer() const { return ReplayStreamer; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	uint32 GetDemoCurrentTimeInMS() const { return (uint32)((double)GetDemoCurrentTime() * 1000); }
 
 	/** Internal debug timing/tracking */
 	double AccumulatedRecordTime;
@@ -432,25 +227,43 @@ public:
 	int32 RecordCountSinceFlush;
 
 	/** Net startup actors that need to be destroyed after checkpoints are loaded */
+	UE_DEPRECATED(4.26, "Moved into FReplayHelper")
 	TSet<FString> DeletedNetStartupActors;
 
 	/** Keeps track of NetGUIDs that were deleted, so we can skip them when saving checkpoints. Only used while recording. */
+	UE_DEPRECATED(4.26, "Moved into FReplayHelper")
 	TSet<FNetworkGUID> DeletedNetStartupActorGUIDs;
 
 	/** 
 	 * Net startup actors that need to be rolled back during scrubbing by being destroyed and re-spawned 
 	 * NOTE - DeletedNetStartupActors will take precedence here, and destroy the actor instead
 	 */
+	UE_DEPRECATED(4.26, "Will be made private in a future release.")
 	UPROPERTY(transient)
 	TMap<FString, FRollbackNetStartupActorInfo> RollbackNetStartupActors;
 
+	UE_DEPRECATED(4.26, "Please use GetLastCheckpointTime/SetLastCheckpointTime instead.")
 	double LastCheckpointTime;					// Last time a checkpoint was saved
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	double GetLastCheckpointTime() const { return ReplayHelper.LastCheckpointTime; }
+
+	void SetLastCheckpointTime(double CheckpointTime)
+	{
+		ReplayHelper.LastCheckpointTime = CheckpointTime;
+		LastCheckpointTime = CheckpointTime;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 	void RespawnNecessaryNetStartupActors(TArray<AActor*>& SpawnedActors, ULevel* Level = nullptr);
 
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	virtual bool ShouldSaveCheckpoint() const;
 
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	void SaveCheckpoint();
+	
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	void TickCheckpoint();
 
 private:
@@ -458,26 +271,7 @@ private:
 	void InitDefaults();
 
 	bool LoadCheckpoint(const FGotoResult& GotoResult);
-
-	struct FDeltaCheckpointData
-	{
-		/** Net startup actors that were destroyed */
-		TSet<FString> DestroyedNetStartupActors;
-		/** Destroyed dynamic actors that were active in the previous checkpoint */
-		TSet<FNetworkGUID> DestroyedDynamicActors;	
-		/** Channels closed that were open in the previous checkpoint, and the reason why */
-		TMap<FNetworkGUID, EChannelCloseReason> ChannelsToClose;
-
-		void CountBytes(FArchive& Ar) const
-		{
-			DestroyedNetStartupActors.CountBytes(Ar);
-			DestroyedDynamicActors.CountBytes(Ar);
-			ChannelsToClose.CountBytes(Ar);
-		}
-	};
 	
-	FDeltaCheckpointData RecordingDeltaCheckpointData;
-
 	TArray<TUniquePtr<FDeltaCheckpointData>> PlaybackDeltaCheckpointData;
 	
 	TSharedPtr<struct FReplayPlaylistTracker> PlaylistTracker;
@@ -494,50 +288,53 @@ public:
 	/** Returns true if we're in the process of saving a checkpoint. */
 	bool IsSavingCheckpoint() const;
 
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	void SaveExternalData(FArchive& Ar);
+	
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	void LoadExternalData(FArchive& Ar, const float TimeSeconds);
 
 	/** Public delegate for external systems to be notified when a replay begins. UDemoNetDriver is passed as a param */
+	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
 	static FOnDemoStartedDelegate OnDemoStarted;
 
 	/** Public delegate to be notified when a replay failed to start. UDemoNetDriver and FailureType are passed as params */
+	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
 	static FOnDemoFailedToStartDelegate OnDemoFailedToStart;
 
 	/** Public delegate for external systems to be notified when scrubbing is complete. Only called for successful scrub. */
+	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
 	FOnGotoTimeMCDelegate OnGotoTimeDelegate;
 
 	/** Delegate for external systems to be notified when demo playback ends */
+	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
 	FOnDemoFinishPlaybackDelegate OnDemoFinishPlaybackDelegate;
 
 	/** Public Delegate for external systems to be notified when replay recording is about to finish. */
+	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
 	FOnDemoFinishRecordingDelegate OnDemoFinishRecordingDelegate;
 
 	/** Delegate for external systems to be notified when channels are paused during playback, usually waiting for data to be available. */
+	UE_DEPRECATED(4.26, "Moving to FNetworkReplayDelegates.")
 	FOnPauseChannelsDelegate OnPauseChannelsDelegate;
 
-	bool IsLoadingCheckpoint() const { return bIsLoadingCheckpoint; }
+	bool IsLoadingCheckpoint() const { return ReplayHelper.bIsLoadingCheckpoint; }
 	
 	bool IsPlayingClientReplay() const;
 
 	/** ExternalDataToObjectMap is used to map a FNetworkGUID to the proper FReplayExternalDataArray */
+	UE_DEPRECATED(4.26, "Moved to FReplayHelper.")
 	TMap<FNetworkGUID, FReplayExternalDataArray> ExternalDataToObjectMap;
 		
 	/** PlaybackPackets are used to buffer packets up when we read a demo frame, which we can then process when the time is right */
 	TArray<FPlaybackPacket> PlaybackPackets;
 
-	/**
-	 * During recording, all unique streaming levels since recording started.
-	 * During playback, all streaming level instances we've created.
-	 */
-	TSet<TWeakObjectPtr<UObject>> UniqueStreamingLevels;
-
-	/**
-	 * During recording, streaming levels waiting to be saved next frame.
-	 * During playback, streaming levels that have recently become visible.
-	 */
-	TSet<TWeakObjectPtr<UObject>> NewStreamingLevelsThisFrame;
-
+	UE_DEPRECATED(4.26, "Please use IsRecordingMapChanges() instead.")
 	bool bRecordMapChanges;
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	bool IsRecordingMapChanges() const { return ReplayHelper.bRecordMapChanges; }
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 private:
 	struct FDemoActorPriority
@@ -549,7 +346,6 @@ private:
 	bool bIsFastForwarding;
 	bool bIsFastForwardingForCheckpoint;
 	bool bWasStartStreamingSuccessful;
-	bool bIsLoadingCheckpoint;
 	bool bIsFinalizingFastForward;
 
 	TArray<FNetworkGUID> NonQueuedGUIDsForScrubbing;
@@ -568,14 +364,8 @@ private:
 	/** Saved fast-forward time, used for correcting world time after the fast-forward is complete */
 	float SavedSecondsToSkip;
 
-	/** Cached replay URL, so that the driver can access the map name and any options later */
-	FURL DemoURL;
-
 	/** The unique identifier for the lifetime of this object. */
 	FString DemoSessionID;
-
-	/** This header is valid during playback (so we know what version to pass into serializers, etc */
-	FNetworkDemoHeader PlaybackDemoHeader;
 
 	/** Optional time quota for actor replication during recording. Going over this limit effectively lowers the net update frequency of the remaining actors. Negative values are considered unlimited. */
 	float MaxDesiredRecordTimeMS;
@@ -596,12 +386,6 @@ private:
 	/** If true, recording will prioritize replicating actors based on the value that AActor::GetReplayPriority returns. */
 	bool bPrioritizeActors;
 
-	/** If true, will skip recording, but leaves the replay open so that recording can be resumed again. */
-	bool bPauseRecording;
-
-	/** List of levels used in the current replay */
-	TArray<FLevelNameAndTime> LevelNamesAndTimes;
-
 	/** Does the actual work of TickFlush, either on the main thread or in a task thread in parallel with Slate. */
 	void TickFlushInternal(float DeltaSeconds);
 
@@ -609,10 +393,7 @@ private:
 	float GetCheckpointSaveMaxMSPerFrame() const;
 
 	/** Returns the last checkpoint time in integer milliseconds. */
-	uint32 GetLastCheckpointTimeInMS() const { return (uint32)( (double)LastCheckpointTime * 1000 ); }
-
-	/** Adds a new level to the level list */
-	void AddNewLevel(const FString& NewLevelName);
+	uint32 GetLastCheckpointTimeInMS() const { return ReplayHelper.GetLastCheckpointTimeInMS(); }
 
 	/** Called during a normal demoFrame*/
 	void TickDemoRecordFrame(float DeltaSeconds);
@@ -620,9 +401,6 @@ private:
 	/** Config data for multicast RPCs we might want to skip recording. */
 	UPROPERTY(config)
 	TArray<FMulticastRecordOptions> MulticastRecordOptions;
-
-	/** PlaybackFrames are used to buffer per frame data up when we read a demo frame, which we can then process when the time is right */
-	TMap<float, TMap<FString, TArray<uint8>>> PlaybackFrames;
 
 public:
 
@@ -679,13 +457,27 @@ public:
 	bool IsRecording() const;
 	bool IsPlaying() const;
 
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	/** Total time of demo in seconds */
 	float GetDemoTotalTime() const { return DemoTotalTime; }
 
-	/** Current record/playback position in seconds */
-	float GetDemoCurrentTime() const { return DemoCurrentTime; }
+	void SetDemoTotalTime(float TotalTime)
+	{
+		DemoTotalTime = TotalTime;
+		ReplayHelper.DemoTotalTime = TotalTime;
+	}
 
-	FString GetDemoURL() const { return DemoURL.ToString(); }
+	/** Current record/playback position in seconds */
+	float GetDemoCurrentTime() const { return ReplayHelper.DemoCurrentTime; }
+
+	void SetDemoCurrentTime(float CurrentTime)
+	{
+		DemoCurrentTime = CurrentTime;
+		ReplayHelper.DemoCurrentTime = CurrentTime;
+	}
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+	FString GetDemoURL() const { return ReplayHelper.DemoURL.ToString(); }
 
 	/** Sets the desired maximum recording time in milliseconds. */
 	void SetMaxDesiredRecordTimeMS(const float InMaxDesiredRecordTimeMS) { MaxDesiredRecordTimeMS = InMaxDesiredRecordTimeMS; }
@@ -697,12 +489,16 @@ public:
 	void SetActorPrioritizationEnabled(const bool bInPrioritizeActors) { bPrioritizeActors = bInPrioritizeActors; }
 
 	/** Sets CheckpointSaveMaxMSPerFrame. */
-	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame) { CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame; }
+	void SetCheckpointSaveMaxMSPerFrame(const float InCheckpointSaveMaxMSPerFrame)
+	{ 
+		CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame; 
+		ReplayHelper.CheckpointSaveMaxMSPerFrame = InCheckpointSaveMaxMSPerFrame;
+	}
 
 	/** Called by a task thread if the engine is doing async end of frame tasks in parallel with Slate. */
 	void TickFlushAsyncEndOfFrame(float DeltaSeconds);
 
-	const TArray<FLevelNameAndTime>& GetLevelNameAndTimeList() { return LevelNamesAndTimes; }
+	const TArray<FLevelNameAndTime>& GetLevelNameAndTimeList();
 
 	/** Returns the replicated state of every object on a current actor channel. Use the result to compare in DiffReplicatedProperties. */
 	FDemoSavedPropertyState SavePropertyState() const;
@@ -712,6 +508,7 @@ public:
 
 public:
 
+	UE_DEPRECATED(4.26, "No longer used")
 	UPROPERTY()
 	bool bIsLocalReplay;
 
@@ -720,42 +517,11 @@ public:
 
 	void TickDemoRecord(float DeltaSeconds);
 	void PauseChannels(const bool bPause);
-	void PauseRecording(const bool bInPauseRecording) { bPauseRecording = bInPauseRecording; }
-	bool IsRecordingPaused() const { return bPauseRecording; }
+	void PauseRecording(const bool bInPauseRecording);
+	bool IsRecordingPaused() const;
 
 	bool ConditionallyProcessPlaybackPackets();
 	void ProcessAllPlaybackPackets();
-
-private:
-
-	// Possible values returned by ReadPacket.
-	enum class EReadPacketState
-	{
-		Success,	// A packet was read successfully and there may be more in the frame archive.
-		End,		// No more data is present in the archive.
-		Error,		// An error occurred while reading.
-	};
-
-	enum class EReadPacketMode
-	{
-		Default,	// Read the packet normally
-		SkipData	// Skip packet data.
-	};
-
-	/**
-	 * Reads a formatted Demo Packet from the given archive (which is expected to be in Demo Frame format).
-	 *
-	 * @param Archive			The archive from which to read.
-	 * @param OutBuffer			Data used to store the read packet data.
-	 *							Note, this will stomp on existing memory instead of appending.
-	 * @param MaxBufferSize		Largest expected packet buffer size. Used to detect corruption.
-	 * @param Mode				How to handle packet data
-	 *
-	 * @return EReadPacketState
-	 */
-	const EReadPacketState ReadPacket(FArchive& Archive, TArray<uint8>& OutBuffer, const EReadPacketMode Mode);
-
-public:
 
 	bool ConditionallyReadDemoFrameIntoPlaybackPackets(FArchive& Ar);
 
@@ -821,10 +587,6 @@ public:
 	bool RemoveSplitscreenViewer(APlayerController* RemovePlayer, bool bMarkOwnerForDeletion=false);
 
 private:
-
-	// Internal player spawning
-	APlayerController* CreateDemoPlayerController(UNetConnection* Connection, const FURL& ListenURL);
-
 	// Internal splitscreen management
 
 	/** An array of all the spectator controllers (the main one and all splitscreen ones) that currently exist */
@@ -904,6 +666,7 @@ public:
 	void NotifyGotoTimeFinished(bool bWasSuccessful);
 
 	/** Read the streaming level information from the metadata after the level is loaded */
+	UE_DEPRECATED(4.26, "No longer used.")
 	void PendingNetGameLoadMapCompleted();
 	
 	virtual void NotifyActorDestroyed(AActor* ThisActor, bool IsSeamlessTravel=false) override;
@@ -915,6 +678,7 @@ public:
 
 	/** Called when seamless travel begins when recording a replay. */
 	void OnSeamlessTravelStartDuringRecording(const FString& LevelName);
+
 	/** @return the unique identifier for the lifetime of this object. */
 	const FString& GetDemoSessionID() const { return DemoSessionID; }
 
@@ -924,19 +688,19 @@ public:
 	/** Returns whether or not this replay was recorded / is playing with Level Streaming fixes. */
 	bool HasLevelStreamingFixes() const
 	{
-		return bHasLevelStreamingFixes;
+		return ReplayHelper.HasLevelStreamingFixes();
 	}
 
 	/** Returns whether or not this replay was recorded / is playing with delta checkpoints. */
-	FORCEINLINE bool HasDeltaCheckpoints() const 
+	bool HasDeltaCheckpoints() const 
 	{
-		return bHasDeltaCheckpoints;
+		return ReplayHelper.HasDeltaCheckpoints();
 	}
 
 	/** Returns whether or not this replay was recorded / is playing with the game specific per frame data feature. */
 	bool HasGameSpecificFrameData() const
 	{
-		return bHasGameSpecificFrameData;
+		return ReplayHelper.HasGameSpecificFrameData();
 	}
 
 	/**
@@ -945,15 +709,12 @@ public:
 	 */
 	const FString& GetActiveReplayName() const
 	{
-		return ActiveReplayName;
+		return ReplayHelper.ActiveReplayName;
 	}
 
-	uint32 GetPlaybackDemoVersion() const { return PlaybackDemoHeader.Version; }
+	uint32 GetPlaybackDemoVersion() const { return ReplayHelper.PlaybackDemoHeader.Version; }
 
 	FString GetDemoPath() const;
-
-	// The type we use to store offsets in the archive
-	typedef int64 FArchivePos;
 
 private:
 
@@ -970,7 +731,7 @@ private:
 	void BuildSortedLevelPriorityOnLevels(const TArray<FDemoActorPriority>& PrioritizedActorList, TArray<FLevelnterval>& OutLevelIntervals);
 
 	/** Called when the downloading header request from the replay streamer completes. */
-	void OnDownloadHeaderCompletePrivate(const FDownloadHeaderResult& Result, int32 LevelIndex);
+	void OnRefreshHeaderCompletePrivate(const FDownloadHeaderResult& Result, int32 LevelIndex);
 
 	void CleanupOutstandingRewindActors();
 
@@ -978,196 +739,14 @@ private:
 	// This list should always be empty outside of scrubbing.
 	TSet<FNetworkGUID> TrackedRewindActorsByGUID;
 
-	/**
-	 * Helps keeps tabs on what levels are Ready, Have Seen data, Level Name, and Index into the main status list.
-	 *
-	 * A Level is not considered ready until the following criteria are met:
-	 *	- UWorld::AddToWorld has been called, signifying the level is both Loaded and Visible (in the streaming sense).
-	 *	- Either:
-	 *		No packets of data have been processed for the level (yet),
-	 *		OR The level has been fully fast-forwarded.
-	 *
-	 * A level is marked as Seen once the replay has seen a packet marked for the level.
-	 */
-	struct FLevelStatus
-	{
-		FLevelStatus(const FString& LevelPackageName) :
-			LevelName(LevelPackageName),
-			LevelIndex(INDEX_NONE),
-			bIsReady(false),
-			bHasBeenSeen(false)
-		{
-		}
-
-		// Level name.
-		FString LevelName;
-
-		// Level index (in AllLevelStatuses).
-		int32 LevelIndex;
-
-		// Whether or not the level is ready to receive streaming data.
-		bool bIsReady;
-
-		// Whether or not we've seen replicated data for the level. Only set during playback.
-		bool bHasBeenSeen;
-
-		void CountBytes(FArchive& Ar) const
-		{
-			LevelName.CountBytes(Ar);
-		}
-	};
-
-	// Tracks all available level statuses.
-	// When Recording, this will be in order of replication, and all statuses will be assumed Seen and Visible (even if unmarked).
-	// During Playback, there's no guaranteed order. Levels will be added either when they are added to the world, or when we handle the first
-	// frame containing replicated data.
-	// Use SeenLevelStatuses and LevelStatusesByName for querying.
-	TArray<FLevelStatus> AllLevelStatuses;
-
-	// Since Arrays are dynamically allocated, we can't just hold onto pointers.
-	// If we tried, the underlying memory could be moved without us knowing.
-	// Therefore, we track the Index into the array which should be independent of allocation.
-
-	// Index of level status (in AllLevelStatuses list).
-	TMap<FString, int32> LevelStatusesByName;
-
-	// Maintain a quick lookup for loaded levels directly to LevelStatus
-	TMap<const ULevel*, int32> LevelStatusIndexByLevel;
-
-	// List of seen level statuses indices (in AllLevelStatuses).
-	TArray<int32> SeenLevelStatuses;
-
 	// Time of the last packet we've processed (in seconds).
 	float LastProcessedPacketTime;
-
-	// Time of the last frame we've read (in seconds).
-	float LatestReadFrameTime;
-
-	// Whether or not the Streaming Level Fixes are enabled for capture or playback.
-	bool bHasLevelStreamingFixes;
-
-	// Checkpoints are delta compressed
-	bool bHasDeltaCheckpoints;
-
-	// Allow appending per frame game specific data
-	bool bHasGameSpecificFrameData;
-
-	// Levels that are currently pending for fast forward.
-	// Using raw pointers, because we manually keep when levels are added and removed.
-	TSet<class ULevel*> LevelsPendingFastForward;
-
-	// Only used during recording.
-	uint32 NumLevelsAddedThisFrame;
 
 	// Index into PlaybackPackets array. Used so we can process many packets in one frame and avoid removing them individually.
 	int32 PlaybackPacketIndex;
 
-	struct FReplayExternalOutData
-	{
-		TWeakObjectPtr<UObject> Object;
-		FNetworkGUID GUID;
-	};
-	TArray< FReplayExternalOutData > ObjectsWithExternalData;
-
-	/** When we save a checkpoint, we remember all of the actors that need a checkpoint saved out by adding them to this list */
-	struct FPendingCheckPointActor
-	{
-		TWeakObjectPtr< AActor > Actor;
-		int32 LevelIndex;
-	};
-
-	enum ECheckpointSaveState
-	{
-		ECheckpointSaveState_Idle,
-		ECheckpointSaveState_ProcessCheckpointActors,
-		ECheckpointSaveState_SerializeDeletedStartupActors,
-		ECheckpointSaveState_CacheNetGuids,
-		ECheckpointSaveState_SerializeGuidCache,
-		ECheckpointSaveState_SerializeNetFieldExportGroupMap,
-		ECheckpointSaveState_SerializeDemoFrameFromQueuedDemoPackets,
-		ECheckpointSaveState_Finalize,		
-	};
-
-	/** Checkpoint state */
-	struct FCheckpointSaveStateContext
-	{
-		ECheckpointSaveState CheckpointSaveState;						// Current state of checkpoint SaveState
-		FPackageMapAckState CheckpointAckState;							// Current ack state of packagemap for the current checkpoint being saved
-		TArray<FPendingCheckPointActor> PendingCheckpointActors;		// Actors to be serialized by pending checkpoint
-		double				TotalCheckpointSaveTimeSeconds;				// Total time it took to save checkpoint including the finaling part across all frames
-		double				TotalCheckpointReplicationTimeSeconds;		// Total time it took to write all replicated objects across all frames
-		bool				bWriteCheckpointOffset;
-		int32				TotalCheckpointSaveFrames;					// Total number of frames used to save a checkpoint
-		FArchivePos			CheckpointOffset;
-		uint32				GuidCacheSize;
-
-		FDeltaCheckpointData DeltaCheckpointData;
-
-		void CountBytes(FArchive& Ar) const
-		{
-			CheckpointAckState.CountBytes(Ar);
-			PendingCheckpointActors.CountBytes(Ar);
-			DeltaCheckpointData.CountBytes(Ar);
-		}
-	};
-
-	FCheckpointSaveStateContext CheckpointSaveContext;
-
-	FLevelStatus& FindOrAddLevelStatus(const ULevel& Level)
-	{	
-		// see if we can find it in the cache
-		int32* LevelStatusIndex = LevelStatusIndexByLevel.Find(&Level);
-
-		if (LevelStatusIndex)
-		{
-			return AllLevelStatuses[*LevelStatusIndex];
-		}
-
-		FLevelStatus& LevelStatus = FindOrAddLevelStatus(GetLevelPackageName(Level));
-		LevelStatusIndexByLevel.Add(&Level, LevelStatus.LevelIndex);
-
-		return LevelStatus;
-	}
-
-	FLevelStatus& FindOrAddLevelStatus(const FString& LevelPackageName)
-	{
-		if (int32* LevelStatusIndex = LevelStatusesByName.Find(LevelPackageName))
-		{
-			return AllLevelStatuses[*LevelStatusIndex];
-		}
-
-		const int32 Index = AllLevelStatuses.Emplace(LevelPackageName);
-		AllLevelStatuses[Index].LevelIndex = Index;
-
-		LevelStatusesByName.Add(LevelPackageName, Index);
-		NumLevelsAddedThisFrame++;
-
-		return AllLevelStatuses[Index];
-	}
-
-	FLevelStatus& GetLevelStatus(const int32 SeenLevelIndex)
-	{
-		return AllLevelStatuses[SeenLevelStatuses[SeenLevelIndex - 1]];
-	}
-
-	FLevelStatus& GetLevelStatus(const FString& LevelPackageName)
-	{
-		return AllLevelStatuses[LevelStatusesByName[LevelPackageName]];
-	}
-
 	// Determines whether or not a packet should be skipped, based on it's level association.
 	bool ShouldSkipPlaybackPacket(const FPlaybackPacket& Packet);
-
-	void ResetLevelStatuses();
-	void ClearLevelStreamingState()
-	{
-		AllLevelStatuses.Empty();
-		LevelStatusesByName.Empty();
-		SeenLevelStatuses.Empty();
-		LevelsPendingFastForward.Empty();
-		NumLevelsAddedThisFrame = 0;
-		LevelStatusIndexByLevel.Reset();
-	}
 
 	/**
 	 * Replicates the given prioritized actors, so their packets can be captured for recording.
@@ -1182,18 +761,6 @@ private:
 	bool ReplicatePrioritizedActors(const FDemoActorPriority* ActorsToReplicate, uint32 Count, class FRepActorsParams& Params);
 	bool ReplicatePrioritizedActor(const FActorPriority& ActorPriority, const class FRepActorsParams& Params);
 
-	/**
-	* Replicates the given prioritized actors, so their packets can be captured for recording.
-	* This should be used for normal frame recording.
-	* @see ReplicateCheckpointActor for recording during checkpoints.
-	*
-	* @param ToReplicate	The actors to replicate.
-	* @param RepStartTime	The start time for replication.
-	*
-	* @return True if there is time remaining to replicate more Actors, False otherwise.
-	*/
-	bool ReplicateCheckpointActor(AActor* ToReplicate, UDemoNetConnection* ClientConnection, class FRepActorsCheckpointParams& Params);
-
 	friend class FPendingTaskHelper;
 
 	// Manages basic setup of newly visible levels, and queuing a FastForward task if necessary.
@@ -1202,38 +769,13 @@ private:
 	// Performs the logic for actually fast-forwarding a level.
 	bool FastForwardLevels(const FGotoResult& GotoResult);
 
-	// Hooks used to determine when levels are streamed in, streamed out, or if there's a map change.
-	virtual void OnLevelAddedToWorld(ULevel* Level, UWorld* World) override;
-	virtual void OnLevelRemovedFromWorld(ULevel* Level, UWorld* World) override;
 	void OnPostLoadMapWithWorld(UWorld* World);
 
-	// These should only ever be called when recording.
-	TUniquePtr<class FScopedPacketManager> ConditionallyCreatePacketManager(ULevel& Level);
-	TUniquePtr<class FScopedPacketManager> ConditionallyCreatePacketManager(int32 LevelIndex);
-
-	FString GetLevelPackageName(const ULevel& InLevel);
-
-	bool UpdateExternalDataForActor(AActor* Actor);
-
 protected:
-	/** allows subclasses to write game specific data to demo header which is then handled by ProcessGameSpecificDemoHeader */
-	virtual void WriteGameSpecificDemoHeader(TArray<FString>& GameSpecificData);
-	
-	/** allows subclasses to read game specific data from demo
-	 * return false to cancel playback
-	 */
-	virtual bool ProcessGameSpecificDemoHeader(const TArray<FString>& GameSpecificData, FString& Error);
-
-	bool WriteNetworkDemoHeader(FString& Error);
 
 	void ProcessSeamlessTravel(int32 LevelIndex);
 
-	bool ReadPlaybackDemoHeader(FString& Error);
-
 	bool DemoReplicateActor(AActor* Actor, UNetConnection* Connection, bool bMustReplicate);
-
-	void CacheNetGuids();
-	bool SerializeGuidCache(const FRepActorsCheckpointParams& Params, FArchive* CheckpointArchive);
 
 	void NotifyDemoPlaybackFailure(EDemoPlayFailure::Type FailureType);
 
@@ -1246,8 +788,6 @@ protected:
 
 private:
 
-	FString ActiveReplayName;
-	
 	// Max percent of time to spend building consider lists / prioritizing actors
 	// for demo recording. Only used if MaxDesiredRecordTimeMS > 0.
 	float RecordBuildConsiderAndPrioritizeTimeSlice;
@@ -1279,18 +819,7 @@ public:
 private:
 	TAtomic<float> LastReplayFrameFidelity{ 0 };
 
-//////////////////////////////////////////////////////////////////////////
-// Time boxing for net guid cache serialization
-private:
-	struct FNetGuidCacheItem
-	{
-		FNetworkGUID NetGuid;
-		FNetGuidCacheObject NetGuidCacheObject;
-	};
+	FReplayHelper ReplayHelper;
 
-	TArray<FNetGuidCacheItem> NetGuidCacheSnapshot;
-	int32 NextNetGuidForRecording;
-	int32 NumNetGuidsForRecording;
-	FArchivePos NetGuidsCountPos;
-/////////////////////////////////////////////////////////////////////////
+	friend class UDemoNetConnection;
 };

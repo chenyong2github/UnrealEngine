@@ -56,17 +56,13 @@ void UMockPhysicsComponent::InitializeNetworkPredictionProxy()
 	// We need valid UpdatedPrimitive and PhysicsHandle to register
 	// This code does not handle any "not ready yet" cases
 	if (npEnsure(UpdatedPrimitive))
-	{
-		 FPhysicsActorHandle Handle = UpdatedPrimitive->BodyInstance.GetPhysicsActorHandle();
-		 if (npEnsure(Handle))
-		 {
-			 OwnedSimulation = MakePimpl<FMockPhysicsSimulation>();
-			 InitMockPhysicsSimulation(OwnedSimulation.Get());
-			 npCheckSlow(ActiveSimulation);
+	{		 
+		OwnedSimulation = MakePimpl<FMockPhysicsSimulation>();
+		InitMockPhysicsSimulation(OwnedSimulation.Get());
+		npCheckSlow(ActiveSimulation);
 
-			 ActiveSimulation->PhysicsActorHandle = Handle;
-			 NetworkPredictionProxy.Init<FMockPhysicsModelDef>(GetWorld(), GetReplicationProxies(), ActiveSimulation, this, Handle);
-		 }
+		ActiveSimulation->PrimitiveComponent = UpdatedPrimitive;
+		NetworkPredictionProxy.Init<FMockPhysicsModelDef>(GetWorld(), GetReplicationProxies(), ActiveSimulation, this);
 	}	
 }
 

@@ -5,8 +5,10 @@
 #include "Engine/Texture2D.h"
 #include "EditorStyleSet.h"
 #include "Engine/TextureCube.h"
+#include "Engine/VolumeTexture.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"
+#include "Engine/TextureRenderTargetVolume.h"
 #include "AssetRegistryModule.h"
 
 #define LOCTEXT_NAMESPACE "AssetTypeActions"
@@ -43,10 +45,15 @@ void FAssetTypeActions_TextureRenderTarget::ExecuteCreateStatic(TArray<TWeakObje
 			UObject* NewObj = NULL;
 			UTextureRenderTarget2D* TexRT = Cast<UTextureRenderTarget2D>(Object);
 			UTextureRenderTargetCube* TexRTCube = Cast<UTextureRenderTargetCube>(Object);
+			UTextureRenderTargetVolume* TexRTVolume = Cast<UTextureRenderTargetVolume>(Object);
 			if( TexRTCube )
 			{
 				// create a static cube texture as well as its 6 faces
 				NewObj = TexRTCube->ConstructTextureCube( CreatePackage(NULL,*PackageName), Name, Object->GetMaskedFlags() );
+			}
+			else if (TexRTVolume)
+			{
+				NewObj = TexRTVolume->ConstructTextureVolume(CreatePackage(NULL, *PackageName), Name, Object->GetMaskedFlags());
 			}
 			else if( TexRT )
 			{

@@ -11,6 +11,9 @@
 #include "ChaosSolversModule.h"
 #include "ChaosSolvers/Public/RewindData.h"
 
+// Do extra checks to make sure Physics and GameThread (PrimitiveComponent) are in sync at verious points in the rollback process
+#define NP_ENSURE_PHYSICS_GT_SYNC !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+
 UNetworkPredictionWorldManager* UNetworkPredictionWorldManager::ActiveInstance=nullptr;
 
 // -----------------------------------------------------------------------------------------------
@@ -150,6 +153,9 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 
 			Chaos::EThreadingModeTemp PreThreading = Chaos::EThreadingModeTemp::SingleThread;
 
+			// ---------------------------------------------------
+			//	Rollback physics to local historic state (corrections not injected yet)
+			// ---------------------------------------------------
 			if (bDoPhysics)
 			{
 				PhysicsFrame = RollbackFrame + FixedTickState.PhysicsOffset;
@@ -159,16 +165,9 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 				Physics.Solver->SetThreadingMode_External(Chaos::EThreadingModeTemp::SingleThread);
 			}
 
-			FixedTickState.PendingFrame = RollbackFrame;
-			const int32 ServerRollbackFrame = RollbackFrame + FixedTickState.Offset;
-			const int32 BeginRollbackTimeMS = ServerRollbackFrame * FixedTickState.FixedStepMS;
-		
-			for (TUniquePtr<IFixedRollbackService>& Ptr : Services.FixedRollback.Array)
-			{
-				Ptr->BeginRollback(RollbackFrame, BeginRollbackTimeMS, ServerRollbackFrame);
-			}
+			bool bFirstStep = true;
 
-			// Do rollback if necessary
+			// Do rollback as necessary
 			for (int32 Frame=RollbackFrame; Frame < EndFrame; ++Frame)
 			{
 				FixedTickState.PendingFrame = Frame;
@@ -178,15 +177,33 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 				const int32 ServerInputFrame = Frame + FixedTickState.Offset;
 				UE_NP_TRACE_PUSH_TICK(Step.TotalSimulationTime, FixedTickState.FixedStepMS, Step.Frame);
 
+				// Everyone must apply corrections and flush as necessary before anyone runs the next sim tick
+				// bFirstStep will indicate that even if they don't have a correction, they need to rollback their historic state
 				for (TUniquePtr<IFixedRollbackService>& Ptr : Services.FixedRollback.Array)
 				{
-					Ptr->StepRollback(Step, ServiceStep, FixedTickState.Offset);
+					Ptr->PreStepRollback(Step, ServiceStep, FixedTickState.Offset, bFirstStep);
 				}
+				EnsurePhysicsGTSync(TEXT("PreStepRollback"));
 
+				// Run Sim ticks
+				for (TUniquePtr<IFixedRollbackService>& Ptr : Services.FixedRollback.Array)
+				{
+					Ptr->StepRollback(Step, ServiceStep);
+				}
+				EnsurePhysicsGTSync(TEXT("PreResimPhysics"));
+
+				// Advance physics 
 				if (bDoPhysics)
 				{
 					AdvancePhysicsResimFrame(PhysicsFrame);
+					for (TUniquePtr<IPhysicsService>& Ptr : Services.FixedPhysics.Array)
+					{
+						Ptr->PostResimulate(&FixedTickState);
+					}
 				}
+
+				EnsurePhysicsGTSync(TEXT("PostResimulate"));
+				bFirstStep = false;
 			}
 
 			FixedTickState.PendingFrame = EndFrame;
@@ -194,11 +211,6 @@ void UNetworkPredictionWorldManager::ReconcileSimulationsPostNetworkUpdate()
 			if (bDoPhysics)
 			{
 				Physics.Solver->SetThreadingMode_External(PreThreading);
-				
-				for (TUniquePtr<IPhysicsService>& Ptr : Services.FixedPhysics.Array)
-				{
-					Ptr->PostResimulate(&FixedTickState);
-				}
 			}
 		}
 		else if (RollbackFrame == FixedTickState.PendingFrame)
@@ -460,18 +472,16 @@ void UNetworkPredictionWorldManager::BeginNewSimulationFrame(UWorld* InWorld, EL
 	// -------------------------------------------------------------------------
 	const int32 FixedTotalSimTimeMS = FixedTickState.GetTotalSimTimeMS();
 	const int32 FixedServerFrame = FixedTickState.PendingFrame + FixedTickState.Offset;
-	const int32 FixedServerConfirmedFrame = FixedTickState.ConfirmedFrame + FixedTickState.Offset;;
 	for (TUniquePtr<IFinalizeService>& Ptr : Services.FixedFinalize.Array)
 	{
-		Ptr->FinalizeFrame(DeltaTimeSeconds, FixedServerFrame, FixedTotalSimTimeMS, FixedServerConfirmedFrame);
+		Ptr->FinalizeFrame(DeltaTimeSeconds, FixedServerFrame, FixedTotalSimTimeMS, FixedTickState.FixedStepMS);
 	}
 
 	const int32 IndependentTotalSimTimeMS = VariableTickState.Frames[VariableTickState.PendingFrame].TotalMS;
 	const int32 IndependentFrame = VariableTickState.PendingFrame;
-	const int32 IndependentConfirmedFrame = VariableTickState.ConfirmedFrame;
 	for (TUniquePtr<IFinalizeService>& Ptr : Services.IndependentLocalFinalize.Array)
 	{
-		Ptr->FinalizeFrame(DeltaTimeSeconds, IndependentFrame, IndependentTotalSimTimeMS, IndependentConfirmedFrame);
+		Ptr->FinalizeFrame(DeltaTimeSeconds, IndependentFrame, IndependentTotalSimTimeMS, 0);
 	}
 	
 	for (TUniquePtr<IRemoteFinalizeService>& Ptr : Services.IndependentRemoteFinalize.Array)
@@ -552,6 +562,16 @@ void UNetworkPredictionWorldManager::SetUsingPhysics()
 			GEngine->FixedFrameRate = Settings.FixedTickFrameRate;
 		}
 	}
+}
+
+void UNetworkPredictionWorldManager::EnsurePhysicsGTSync(const TCHAR* Context) const
+{
+#if NP_ENSURE_PHYSICS_GT_SYNC
+	for (const TUniquePtr<IPhysicsService>& Ptr : Services.FixedPhysics.Array)
+	{
+		Ptr->EnsureDataInSync(Context);
+	}
+#endif
 }
 
 ENetworkPredictionTickingPolicy UNetworkPredictionWorldManager::PreferredDefaultTickingPolicy() const

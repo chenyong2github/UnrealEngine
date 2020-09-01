@@ -365,9 +365,9 @@ void FSequenceRecorder::Tick(float DeltaSeconds)
 	}
 
 	// if a replay recording is in progress and channels are paused, wait until we have data again before recording
-	if(CurrentReplayWorld.IsValid() && CurrentReplayWorld->DemoNetDriver != nullptr)
+	if (UDemoNetDriver* DemoNetDriver = CurrentReplayWorld.IsValid() ? CurrentReplayWorld->GetDemoNetDriver() : nullptr)
 	{
-		if(CurrentReplayWorld->DemoNetDriver->bChannelsArePaused)
+		if (DemoNetDriver->GetChannelsArePaused())
 		{
 			return;
 		}

@@ -574,6 +574,8 @@ namespace Audio
 	{
 		PumpDecoderCommandQueue();
 
+		FScopeLock Lock(&DecodingSourcesCritSec);
+
 		DecodingSources.Reset();
 		InitializingDecodingSources.Reset();
 		PrecachingSources.Reset();
@@ -586,6 +588,7 @@ namespace Audio
 
 	void FSoundSourceDecoder::SetSourceVolumeScale(const FDecodingSoundSourceHandle& InHandle, float InVolumeScale)
 	{
+		FScopeLock Lock(&DecodingSourcesCritSec);
 		FDecodingSoundSourcePtr* DecodingSoundWaveDataPtr = DecodingSources.Find(InHandle.Id);
 		if (!DecodingSoundWaveDataPtr)
 		{
@@ -647,6 +650,8 @@ namespace Audio
 
 	bool FSoundSourceDecoder::IsFinished(const FDecodingSoundSourceHandle& InHandle) const
 	{
+		FScopeLock Lock(&DecodingSourcesCritSec);
+
 		const FDecodingSoundSourcePtr* DecodingSoundWaveDataPtr = DecodingSources.Find(InHandle.Id);
 		if (!DecodingSoundWaveDataPtr || !DecodingSoundWaveDataPtr->IsValid())
 		{
@@ -658,6 +663,8 @@ namespace Audio
 
 	bool FSoundSourceDecoder::IsInitialized(const FDecodingSoundSourceHandle& InHandle) const
 	{
+		FScopeLock Lock(&DecodingSourcesCritSec);
+
 		const FDecodingSoundSourcePtr* DecodingSoundWaveDataPtr = DecodingSources.Find(InHandle.Id);
 		if (!DecodingSoundWaveDataPtr)
 		{
@@ -671,6 +678,7 @@ namespace Audio
 	bool FSoundSourceDecoder::GetSourceBuffer(const FDecodingSoundSourceHandle& InHandle, const int32 NumOutFrames, const int32 NumOutChannels, AlignedFloatBuffer& OutAudioBuffer)
 	{
 		check(InHandle.Id != INDEX_NONE);
+		FScopeLock Lock(&DecodingSourcesCritSec);
 
 		FDecodingSoundSourcePtr DecodingSoundWaveDataPtr = DecodingSources.FindRef(InHandle.Id);
 		if (DecodingSoundWaveDataPtr.IsValid())

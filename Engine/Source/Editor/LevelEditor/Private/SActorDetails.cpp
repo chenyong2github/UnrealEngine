@@ -29,12 +29,8 @@
 #include "ScopedTransaction.h"
 #include "SourceCodeNavigation.h"
 #include "Widgets/Docking/SDockTab.h"
-#include "Subsystems/PanelExtensionSubsystem.h"
 #include "DetailsViewObjectFilter.h"
 #include "IDetailRootObjectCustomization.h"
-#include "ActorDetailsExtensionContext.h"
-
-IConsoleVariable* SActorDetails::ShowComponents = IConsoleManager::Get().RegisterConsoleVariable(TEXT("ShowFlag.DetailsPanelComponents"), true, TEXT("Show components in editor details panel."), ECVF_Cheat);
 
 
 class SActorDetailsUneditableComponentWarning : public SCompoundWidget
@@ -142,10 +138,6 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		
 	ComponentsBox->SetContent(SCSEditor.ToSharedRef());
 
-	UActorDetailsExtensionContext* ExtensionContext = NewObject<UActorDetailsExtensionContext>();
-	ExtensionContext->GetSelectedObjectsDelegate.BindSP(this, &SActorDetails::GetDetailsViewSelectedObjects);
-	ExtensionContext->AddToRoot();
-
 	TSharedRef<SWidget> ButtonBox = SCSEditor->GetToolButtonsBox().ToSharedRef();
 	DetailsView->SetNameAreaCustomContent( ButtonBox );
 	
@@ -158,14 +150,6 @@ void SActorDetails::Construct(const FArguments& InArgs, const FName TabIdentifie
 		.AutoHeight()
 		[
 			DetailsView->GetNameAreaWidget().ToSharedRef()
-		]
-		+ SVerticalBox::Slot()
-		.Padding(0.0f, 0.0f, 0.0f, 0.0f)
-		.AutoHeight()
-		[
-			SAssignNew(ExtensionPanel, SExtensionPanel)
-			.ExtensionPanelID("ActorDetailsPanel")
-			.ExtensionContext(ExtensionContext)
 		]
 		+SVerticalBox::Slot()
 		[
@@ -238,11 +222,6 @@ SActorDetails::~SActorDetails()
 	{
 		LevelEditor->OnComponentsEdited().RemoveAll(this);
 	}
-
-	if (UObject* ExtensionContext = ExtensionPanel->GetExtensionContext())
-	{
-		ExtensionContext->RemoveFromRoot();
-	}
 }
 
 void SActorDetails::OnDetailsViewObjectArrayChanged(const FString& InTitle, const TArray<UObject*>& InObjects)
@@ -259,8 +238,6 @@ void SActorDetails::SetObjects(const TArray<UObject*>& InObjects, bool bForceRef
 	if (!DetailsView->IsLocked())
 	{
 		DetailsView->SetObjects(InObjects, bForceRefresh);
-
-		ExtensionPanel->SetVisibility(InObjects.Num() > 0 ? EVisibility::Visible : EVisibility::Collapsed);
 
 		bHasComponentsToShow = false;
 
@@ -335,6 +312,14 @@ void SActorDetails::SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObje
 	DetailsView->ForceRefresh();
 }
 
+void SActorDetails::SetSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization)
+{
+	if (SCSEditor.IsValid())
+	{
+		SCSEditor->SetUICustomization(ActorDetailsSCSEditorUICustomization);
+	}
+}
+
 void SActorDetails::OnComponentsEditedInWorld()
 {
 	if (GetSelectedActorInEditor() == GetActorContext())
@@ -398,11 +383,6 @@ AActor* SActorDetails::GetActorContext() const
 	{
 		return SelectedActorInEditor;
 	}
-}
-
-const TArray<TWeakObjectPtr<UObject>>& SActorDetails::GetDetailsViewSelectedObjects() const
-{
-	return DetailsView->GetSelectedObjects();
 }
 
 void SActorDetails::OnSCSEditorTreeViewSelectionChanged(const TArray<FSCSEditorTreeNodePtrType>& SelectedNodes)
@@ -715,7 +695,7 @@ void SActorDetails::OnNativeComponentWarningHyperlinkClicked(const FSlateHyperli
 
 EVisibility SActorDetails::GetComponentsBoxVisibility() const
 {
-	return (bHasComponentsToShow && ShowComponents->GetBool()) ? EVisibility::Visible : EVisibility::Collapsed;
+	return bHasComponentsToShow ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 EVisibility SActorDetails::GetUCSComponentWarningVisibility() const

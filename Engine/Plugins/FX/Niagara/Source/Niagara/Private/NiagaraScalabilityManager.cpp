@@ -188,7 +188,7 @@ void FNiagaraScalabilityManager::Update(FNiagaraWorldManager* WorldMan)
 		const FNiagaraSystemScalabilitySettings& ScalabilitySettings = System->GetScalabilitySettings();
 
 		SignificanceSortedIndices.Add(i);
-		bNeedSortedSignificanceCull = ScalabilitySettings.bCullMaxInstanceCount && ScalabilitySettings.MaxInstances > 0;
+		bNeedSortedSignificanceCull |= ScalabilitySettings.bCullMaxInstanceCount && ScalabilitySettings.MaxInstances > 0;
 
 		WorldMan->CalculateScalabilityState(System, ScalabilitySettings, EffectType, Component, false, CompState);
 

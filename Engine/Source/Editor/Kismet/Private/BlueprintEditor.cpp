@@ -619,6 +619,13 @@ bool FBlueprintEditor::OnRequestClose()
 		FindResultsTab->RequestCloseTab();
 	}
 
+	// Close the Replace References Tab so it doesn't open the next time we do
+	TSharedPtr<SDockTab> ReplaceRefsTab = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::ReplaceNodeReferencesID);
+	if (ReplaceRefsTab.IsValid())
+	{
+		ReplaceRefsTab->RequestCloseTab();
+	}
+
 	bEditorMarkedAsClosed = true;
 	return FWorkflowCentricApplication::OnRequestClose();
 }
@@ -976,15 +983,17 @@ void FBlueprintEditor::OnSelectionUpdated(const TArray<FSCSEditorTreeNodePtrType
 			{
 				if (NodePtr->IsActorNode())
 				{
-					AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj());
-					InspectorObjects.Add(DefaultActor);
-					
-					FString Title; 
-					DefaultActor->GetName(Title);
-					InspectorTitle = FText::FromString(Title);
-					bShowComponents = false;
+					if (AActor* DefaultActor = NodePtr->GetEditableObjectForBlueprint<AActor>(GetBlueprintObj()))
+					{
+						InspectorObjects.Add(DefaultActor);
 
-					TryInvokingDetailsTab();
+						FString Title;
+						DefaultActor->GetName(Title);
+						InspectorTitle = FText::FromString(Title);
+						bShowComponents = false;
+
+						TryInvokingDetailsTab();
+					}
 				}
 				else
 				{
@@ -1272,8 +1281,8 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 				);
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Paste,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::PasteNodes ),
-				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanPasteNodes )
+				FExecuteAction::CreateSP( this, &FBlueprintEditor::PasteGeneric ),
+				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanPasteGeneric )
 				);
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Duplicate,
@@ -2368,10 +2377,25 @@ void FBlueprintEditor::PostLayoutBlueprintEditorInitialization()
 			LogSimpleMessage( FText::Format( LOCTEXT("Blueprint Modified Long", "Blueprint \"{BlueprintName}\" was updated to fix issues detected on load. Please resave."), Args ) );
 		}
 
-		// If we have a warning/error, open output log.
-		if (!Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings))
+		// Determine if the current "mode" supports invoking the Compiler Results tab.
+		const bool bCanInvokeCompilerResultsTab = TabManager->HasTabSpawner(FBlueprintEditorTabs::CompilerResultsID);
+
+		// If we have a warning/error, open output log if the current mode allows us to invoke it.
+		const bool bIsBlueprintInWarningOrErrorState = !Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings);
+		if (bIsBlueprintInWarningOrErrorState && bCanInvokeCompilerResultsTab)
 		{
 			TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
+		}
+		else
+		{
+			// Toolkit modes that don't include this tab may have been incorrectly saved with layout information for restoring it
+			// as an "unrecognized" tab, due to having previously invoked it above without checking to see if the layout can open
+			// it first. To correct this, we check if the tab was restored from a saved layout here, and close it if not supported.
+			TSharedPtr<SDockTab> TabPtr = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::CompilerResultsID);
+			if (TabPtr.IsValid() && !bCanInvokeCompilerResultsTab)
+			{
+				TabPtr->RequestCloseTab();
+			}
 		}
 	}
 
@@ -2558,17 +2582,7 @@ void FBlueprintEditor::CreateSCSEditors()
 		.PreviewActor(this, &FBlueprintEditor::GetPreviewActor)
 		.AllowEditing(this, &FBlueprintEditor::InEditingMode)
 		.OnSelectionUpdated(this, &FBlueprintEditor::OnSelectionUpdated)
-		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked)
-		.HideComponentClassCombo_Lambda([]()
-		{
-			const UBlueprintEditorProjectSettings* Settings = GetDefault<UBlueprintEditorProjectSettings>();
-			return !!Settings->bDisallowAddingNewComponents;
-		})
-		.ComponentTypeFilter_Lambda([]()
-		{
-			const UBlueprintEditorProjectSettings* Settings = GetDefault<UBlueprintEditorProjectSettings>();
-			return Settings->DefaultComponentsTreeViewTypeFilter;
-		});
+		.OnItemDoubleClicked(this, &FBlueprintEditor::OnComponentDoubleClicked);
 
 	SCSViewport = SAssignNew(SCSViewport, SSCSEditorViewport)
 		.BlueprintEditor(SharedThis(this));
@@ -6851,6 +6865,33 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 	FocusedGraphEd->NotifyGraphChanged();
 }
 
+void FBlueprintEditor::PasteGeneric()
+{
+	if (CanPasteNodes())
+	{
+		PasteNodes();
+	}
+	else if (MyBlueprintWidget.IsValid())
+	{
+		if (MyBlueprintWidget->CanPasteGeneric())
+		{
+			MyBlueprintWidget->OnPasteGeneric();
+		}
+	}
+}
+
+bool FBlueprintEditor::CanPasteGeneric() const
+{
+	if (CanPasteNodes())
+	{
+		return true;
+	}
+	else
+	{
+		return MyBlueprintWidget.IsValid() && MyBlueprintWidget->CanPasteGeneric();
+	}
+}
+
 
 bool FBlueprintEditor::CanPasteNodes() const
 {
@@ -7038,6 +7079,27 @@ UEdGraphPin* FBlueprintEditor::GetCurrentlySelectedPin() const
 	}
 
 	return NULL;
+}
+
+void FBlueprintEditor::SetDetailsCustomization(TSharedPtr<FDetailsViewObjectFilter> DetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> DetailsRootCustomization)
+{
+	if (Inspector.IsValid())
+	{
+		if (TSharedPtr<IDetailsView> DetailsView = Inspector->GetPropertyView())
+		{
+			DetailsView->SetObjectFilter(DetailsObjectFilter);
+			DetailsView->SetRootObjectCustomizationInstance(DetailsRootCustomization);
+			DetailsView->ForceRefresh();
+		}
+	}
+}
+
+void FBlueprintEditor::SetSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> SCSEditorUICustomization)
+{
+	if (SCSEditor.IsValid())
+	{
+		SCSEditor->SetUICustomization(SCSEditorUICustomization);
+	}
 }
 
 void FBlueprintEditor::RegisterSCSEditorCustomization(const FName& InComponentName, TSharedPtr<ISCSEditorCustomization> InCustomization)

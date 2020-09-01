@@ -69,6 +69,7 @@ extern int32 GDX12NVAfterMathEnabled;
 #include "../Public/D3D12Viewport.h"
 #include "../Public/D3D12ConstantBuffer.h"
 #include "D3D12Query.h"
+#include "D3D12TimedIntervalQuery.h"
 #include "D3D12DescriptorCache.h"
 #include "D3D12StateCachePrivate.h"
 typedef FD3D12StateCacheBase FD3D12StateCache;

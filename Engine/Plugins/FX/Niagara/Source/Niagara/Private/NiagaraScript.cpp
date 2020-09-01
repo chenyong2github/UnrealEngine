@@ -181,6 +181,7 @@ bool FNiagaraVMExecutableDataId::operator==(const FNiagaraVMExecutableDataId& Re
 		BaseScriptCompileHash != ReferenceSet.BaseScriptCompileHash ||
 #endif
 		bUsesRapidIterationParams != ReferenceSet.bUsesRapidIterationParams ||
+		bUseShaderPermutations != ReferenceSet.bUseShaderPermutations ||
 		bInterpolatedSpawn != ReferenceSet.bInterpolatedSpawn ||
 		bRequiresPersistentIDs != ReferenceSet.bRequiresPersistentIDs )
 	{
@@ -251,7 +252,6 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 		KeyString += TEXT("[AdditionalDefines]") + Delimiter;
 	}
 
-
 	if (bUsesRapidIterationParams)
 	{
 		KeyString += TEXT("USESRI") + Delimiter;
@@ -259,6 +259,15 @@ void FNiagaraVMExecutableDataId::AppendKeyString(FString& KeyString, const FStri
 	else
 	{
 		KeyString += TEXT("NORI") + Delimiter;
+	}
+
+	if (bUseShaderPermutations)
+	{
+		KeyString += TEXT("USEPERM_");
+	}
+	else
+	{
+		KeyString += TEXT("NOPERM_");
 	}
 
 	for (int32 Idx = 0; Idx < AdditionalDefines.Num(); Idx++)
@@ -296,6 +305,7 @@ UNiagaraScript::UNiagaraScript(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, UsageIndex_DEPRECATED(0)
 	, ModuleUsageBitmask( (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSpawnScriptInterpolated) | (1 << (int32)ENiagaraScriptUsage::ParticleUpdateScript) | (1 << (int32)ENiagaraScriptUsage::ParticleEventScript) | (1 << (int32)ENiagaraScriptUsage::ParticleSimulationStageScript))
+	, LibraryVisibility(ENiagaraScriptLibraryVisibility::Unexposed)
 	, NumericOutputTypeSelectionMode(ENiagaraNumericOutputTypeSelectionMode::Largest)
 #endif
 {
@@ -349,6 +359,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 	Id = FNiagaraVMExecutableDataId();
 
 	Id.bUsesRapidIterationParams = true;
+	Id.bUseShaderPermutations = true;
 	Id.bInterpolatedSpawn = false;
 	Id.bRequiresPersistentIDs = false;
 	
@@ -364,6 +375,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			if (EmitterOwner->bBakeOutRapidIteration)
 			{
 				Id.bUsesRapidIterationParams = false;
+			}
+			if (!EmitterOwner->bUseShaderPermutations)
+			{
+				Id.bUseShaderPermutations = false;
 			}
 			if (EmitterOwner->bCompressAttributes)
 			{
@@ -403,12 +418,29 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			{
 				Id.AdditionalDefines.Add(TEXT("TrimAttributes"));
 
+				TArray<FString> PreserveAttributes;
+				
 				// preserve the attributes that have been defined on the emitter directly
 				for (const FString& Attribute : Emitter->AttributesToPreserve)
 				{
 					const FString PreserveDefine = TEXT("PreserveAttribute=") + Attribute;
-					Id.AdditionalDefines.Add(PreserveDefine);
+					PreserveAttributes.AddUnique(PreserveDefine);
 				}
+
+				// Now preserve the attributes that have been defined on the renderers in use
+				for (UNiagaraRendererProperties* RendererProperty : Emitter->GetRenderers())
+				{
+					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
+					{
+						const FString PreserveDefine = TEXT("PreserveAttribute=") + BoundAttribute.GetName().ToString();
+						PreserveAttributes.AddUnique(PreserveDefine);
+					}
+				}
+
+				// We sort the keys so that it doesn't matter what order they were defined in.
+				PreserveAttributes.Sort([](const FString& A, const FString& B) -> bool { return A < B; });
+
+				Id.AdditionalDefines.Append(PreserveAttributes);
 			}
 		}
 
@@ -451,7 +483,7 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 			for (UNiagaraSimulationStageBase* Base : Emitter->GetSimulationStages())
 			{
 				// bool AppendCompileHash(FNiagaraCompileHashVisitor* InVisitor) const;
-				if (Base)
+				if (Base && Base->bEnabled)
 				{
 					Base->AppendCompileHash(&Visitor);
 				}
@@ -484,6 +516,10 @@ void UNiagaraScript::ComputeVMCompilationId(FNiagaraVMExecutableDataId& Id) cons
 		if (System->bBakeOutRapidIteration)
 		{
 			Id.bUsesRapidIterationParams = false;
+		}
+		if (!System->bUseShaderPermutations)
+		{
+			Id.bUseShaderPermutations = false;
 		}
 		if (System->bCompressAttributes)
 		{
@@ -1056,7 +1092,6 @@ void UNiagaraScript::PostLoad()
 		}
 	}
 
-	bool bNeedsRecompile = false;
 	const int32 NiagaraVer = GetLinkerCustomVersion(FNiagaraCustomVersion::GUID);
 
 #if WITH_EDITORONLY_DATA
@@ -1140,9 +1175,10 @@ void UNiagaraScript::PostLoad()
 			InvalidateCompileResults(RebuildReason);
 		}
 
-		if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty)
+		// Convert visibility of old assets
+		if (NiagaraVer < FNiagaraCustomVersion::AddLibraryAssetProperty || (NiagaraVer < FNiagaraCustomVersion::AddLibraryVisibilityProperty && bExposeToLibrary_DEPRECATED))
 		{
-			bExposeToLibrary = true;
+			LibraryVisibility = ENiagaraScriptLibraryVisibility::Library;
 		}
 	}
 #endif
@@ -1827,6 +1863,27 @@ void UNiagaraScript::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) co
 #endif
 }
 
+void UNiagaraScript::BeginDestroy()
+{
+	Super::BeginDestroy();
+
+	if (!HasAnyFlags(RF_ClassDefaultObject) && ScriptResource)
+	{
+		ScriptResource->QueueForRelease(ReleasedByRT);
+	}
+	else
+	{
+		ReleasedByRT = true;
+	}
+}
+
+bool UNiagaraScript::IsReadyForFinishDestroy()
+{
+	const bool bIsReady = Super::IsReadyForFinishDestroy();
+
+	return bIsReady && ReleasedByRT;
+}
+
 bool UNiagaraScript::IsEditorOnly() const
 {
 #if WITH_EDITOR
@@ -1960,7 +2017,7 @@ void UNiagaraScript::CacheResourceShadersForCooking(EShaderPlatform ShaderPlatfo
 
 			NewResource->SetScript(this, TargetFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash,	CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
+				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.bUseShaderPermutations, GetFriendlyName());
 			ResourceToCache = NewResource;
 
 			check(ResourceToCache);
@@ -2029,7 +2086,7 @@ void UNiagaraScript::CacheResourceShadersForRendering(bool bRegenerateId, bool b
 
 			ScriptResource->SetScript(this, CacheFeatureLevel, ShaderPlatform, CachedScriptVMId.CompilerVersionID, CachedScriptVMId.AdditionalDefines,
 				CachedScriptVMId.BaseScriptCompileHash, CachedScriptVMId.ReferencedCompileHashes, 
-				CachedScriptVMId.bUsesRapidIterationParams, GetFriendlyName());
+				CachedScriptVMId.bUsesRapidIterationParams, CachedScriptVMId.bUseShaderPermutations, GetFriendlyName());
 
 			if (FNiagaraUtilities::SupportsGPUParticles(ShaderPlatform))
 			{
@@ -2216,8 +2273,7 @@ NIAGARA_API bool UNiagaraScript::IsScriptCompilationPending(bool bGPUScript) con
 	{
 		if (ScriptResource.IsValid())
 		{
-			FNiagaraShaderRef Shader = ScriptResource->GetShaderGameThread();
-			if (Shader.IsValid())
+			if (ScriptResource->IsShaderMapComplete())
 			{
 				return false;
 			}
@@ -2238,8 +2294,7 @@ NIAGARA_API bool UNiagaraScript::DidScriptCompilationSucceed(bool bGPUScript) co
 	{
 		if (ScriptResource.IsValid())
 		{
-			FNiagaraShaderRef Shader = ScriptResource->GetShaderGameThread();
-			if (Shader.IsValid())
+			if (ScriptResource->IsShaderMapComplete())
 			{
 				return true;
 			}
@@ -2436,6 +2491,17 @@ TArray<ENiagaraScriptUsage> UNiagaraScript::GetSupportedUsageContextsForBitmask(
 	}
 	return Supported;
 }
+
+bool UNiagaraScript::IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext)
+{
+	int32 TargetBit = (InModuleUsageBitmask >> (int32)InUsageContext) & 1;
+	if (TargetBit == 1)
+	{
+		return true;
+	}
+	return false;
+}
+
 #endif
 
 bool UNiagaraScript::CanBeRunOnGpu()const

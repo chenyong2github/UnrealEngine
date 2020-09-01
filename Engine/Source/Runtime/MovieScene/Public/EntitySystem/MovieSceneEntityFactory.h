@@ -258,12 +258,18 @@ struct FEntityFactories
 		MutualInitializers.Add(MoveTemp(InInitializer));
 	}
 
-	void ComputeChildComponents(const FComponentMask& ParentComponentMask, FComponentMask& ChildComponentMask)
+	int32 ComputeChildComponents(const FComponentMask& ParentComponentMask, FComponentMask& ChildComponentMask)
 	{
+		int32 NumNewComponents = 0;
+
 		// Any child components keyed off an invalid parent component type are always relevant
 		for (auto Child = ParentToChildComponentTypes.CreateConstKeyIterator(FComponentTypeID::Invalid()); Child; ++Child)
 		{
-			ChildComponentMask.Set(Child.Value());
+			if (!ChildComponentMask.Contains(Child.Value()))
+			{
+				ChildComponentMask.Set(Child.Value());
+				++NumNewComponents;
+			}
 		}
 
 		for (FComponentMaskIterator It = ParentComponentMask.Iterate(); It; ++It)
@@ -271,14 +277,22 @@ struct FEntityFactories
 			FComponentTypeID ParentComponent = FComponentTypeID::FromBitIndex(It.GetIndex());
 			for (auto Child = ParentToChildComponentTypes.CreateConstKeyIterator(ParentComponent); Child; ++Child)
 			{
-				ChildComponentMask.Set(Child.Value());
+				if (!ChildComponentMask.Contains(Child.Value()))
+				{
+					ChildComponentMask.Set(Child.Value());
+					++NumNewComponents;
+				}
 			}
 		}
+
+		return NumNewComponents;
 	}
 
-	void ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask)
+	int32 ComputeMutuallyInclusiveComponents(FComponentMask& ComponentMask)
 	{
 		FMovieSceneEntitySystemDirectedGraph::FBreadthFirstSearch BFS(&MutualInclusivityGraph);
+
+		int32 NumNewComponents = 0;
 
 		for (FComponentMaskIterator It = ComponentMask.Iterate(); It; ++It)
 		{
@@ -292,8 +306,14 @@ struct FEntityFactories
 		// Ideally would do a bitwise OR here
 		for (TConstSetBitIterator<> It(BFS.GetVisited()); It; ++It)
 		{
-			ComponentMask.Set(FComponentTypeID::FromBitIndex(It.GetIndex()));
+			FComponentTypeID ComponentType = FComponentTypeID::FromBitIndex(It.GetIndex());
+			if (!ComponentMask.Contains(ComponentType))
+			{
+				ComponentMask.Set(ComponentType);
+				++NumNewComponents;
+			}
 		}
+		return NumNewComponents;
 	}
 
 	void RunInitializers(const FComponentMask& ParentType, const FComponentMask& ChildType, const FEntityAllocation* ParentAllocation, TArrayView<const int32> ParentAllocationOffsets, const FEntityRange& InChildEntityRange);

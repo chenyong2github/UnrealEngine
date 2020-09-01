@@ -53,12 +53,17 @@ public:
 		}
 	}
 
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
 	{
-		InOutFormatArgs.Arguments.Add(TEXT("tile_count"), TileCount);
-		InOutFormatArgs.Arguments.Add(TEXT("overlap_percent"), OverlapRatio);
+		Super::GetFormatArguments(InOutFormatArgs);
+
+		InOutFormatArgs.FilenameArguments.Add(TEXT("tile_count"), TileCount);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("overlap_percent"), OverlapRatio);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/tileCount"), TileCount);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/highres/overlapPercent"), OverlapRatio);
 	}
 
+#if WITH_EDITOR
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override
 	{
 		if (!InJob || !InJob->GetConfiguration())
@@ -106,7 +111,7 @@ public:
 
 		return FText();
 	}
-
+#endif
 
 	virtual void SetupForPipelineImpl(UMoviePipeline* InPipeline) override
 	{
@@ -138,7 +143,7 @@ public:
 	* resolution which may help with gpu timeouts. Requires at least 1 tile. Tiling is applied evenly to
 	* both X and Y.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", ClampMin = "1", UIMax = "16"), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "1", ClampMin = "1", UIMax = "16"), Category = "Render Settings")
 	int32 TileCount;
 	
 	/**
@@ -147,7 +152,7 @@ public:
 	* (up to the detail resolution of your texture). Too much sharpness will cause visual grain/noise in the
 	* resulting image, but this can be mitigated with more spatial samples.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "-1", UIMax = "0"), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "-1", UIMax = "0"), Category = "Render Settings")
 	float TextureSharpnessBias;
 	
 	/**
@@ -155,27 +160,27 @@ public:
 	* tiles (which means faster renders) but increases the likelyhood of edge-of-screen artifacts showing up which
 	* will become visible in the final image as a "grid" of repeated problem areas.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", ClampMin = "0", UIMax = "0.5", ClampMax = "1"), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "0", ClampMin = "0", UIMax = "0.5", ClampMax = "1"), Category = "Render Settings")
 	float OverlapRatio;
 
 	/**
 	* Sub Surface Scattering relies on history which is not available when using tiling. This can be overriden to use more samples
 	* to improve the quality.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Render Settings")
 	bool bOverrideSubSurfaceScattering;
 
 	/*
 	* How many samples should the Burley Sub Surface Scattering use?
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "64", ClampMin = "0", UIMax = "1024", EditCondition="bOverrideSubSurfaceScattering"), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = "64", ClampMin = "0", UIMax = "1024", EditCondition="bOverrideSubSurfaceScattering"), Category = "Render Settings")
 	int32 BurleySampleCount;
 	
 	/**
 	* If true, we will write all samples that get generated to disk individually. This can be useful for debugging or if you need to accumulate
 	* render passes differently than provided.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, Category = "Render Settings")
 	bool bWriteAllSamples;
 
 

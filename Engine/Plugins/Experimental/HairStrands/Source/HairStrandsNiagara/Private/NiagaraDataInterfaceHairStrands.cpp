@@ -384,7 +384,7 @@ void FNDIHairStrandsData::Update(UNiagaraDataInterfaceHairStrands* Interface, FN
 	if (Interface != nullptr)
 	{
 		WorldTransform = Interface->IsComponentValid() ? Interface->SourceComponent->GetComponentToWorld() :
-			SystemInstance ? SystemInstance->GetComponent()->GetComponentToWorld() : FTransform::Identity;
+			SystemInstance ? SystemInstance->GetWorldTransform() : FTransform::Identity;
 
 		GlobalInterpolation = (Interface->IsComponentValid() && Interface->SourceComponent->BindingAsset && Interface->SourceComponent->GroomAsset) ?
 			Interface->SourceComponent->GroomAsset->EnableGlobalInterpolation : false;
@@ -579,7 +579,7 @@ struct FNDIHairStrandsParametersCS : public FNiagaraDataInterfaceParametersCS
 		FNDIHairStrandsProxy* InterfaceProxy =
 			static_cast<FNDIHairStrandsProxy*>(Context.DataInterface);
 		FNDIHairStrandsData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
+			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		const bool IsHairValid = ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr && ProxyData->HairStrandsBuffer->IsInitialized();
 		const bool IsRootValid = IsHairValid && ProxyData->HairStrandsBuffer->SourceDeformedRootResources != nullptr;//&& ProxyData->HairStrandsBuffer->SourceRootResources->IsInitialized();
@@ -838,31 +838,43 @@ void UNiagaraDataInterfaceHairStrands::ExtractSourceComponent(FNiagaraSystemInst
 			SourceComponent = SourceActor->FindComponentByClass<UGroomComponent>();
 		}
 	}
-	else if(SystemInstance)
+	else if (SystemInstance)
 	{
-		if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+		if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 		{
-			if (UGroomComponent* ParentComp = Cast<UGroomComponent>(SimComp->GetAttachParent()))
+			// First, look to our attachment hierarchy for the source component
+			for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 			{
-				SourceComponent = ParentComp;
-			}
-			else if (UGroomComponent* OuterComp = SimComp->GetTypedOuter<UGroomComponent>())
-			{
-				SourceComponent = OuterComp;
-			}
-			else if (AActor* Owner = SimComp->GetAttachmentRootActor())
-			{
-				for (UActorComponent* ActorComp : Owner->GetComponents())
+				UGroomComponent* SourceComp = Cast<UGroomComponent>(Curr);
+				if (SourceComp && SourceComp->GroomAsset)
 				{
-					UGroomComponent* SourceComp = Cast<UGroomComponent>(ActorComp);
-					if (SourceComp && SourceComp->GroomAsset)
+					SourceComponent = SourceComp;
+					break;
+				}
+			}
+
+			if (!SourceComponent.IsValid())
+			{
+				// Next, check out outer chain to look for the component
+				if (UGroomComponent* OuterComp = AttachComponent->GetTypedOuter<UGroomComponent>())
+				{
+					SourceComponent = OuterComp;
+				}
+				else if (AActor* Owner = AttachComponent->GetAttachmentRootActor())
+				{
+					// Lastly, look through all our root actor's components for a sibling component
+					for (UActorComponent* ActorComp : Owner->GetComponents())
 					{
-						SourceComponent = SourceComp;
-						break;
+						UGroomComponent* SourceComp = Cast<UGroomComponent>(ActorComp);
+						if (SourceComp && SourceComp->GroomAsset)
+						{
+							SourceComponent = SourceComp;
+							break;
+						}
 					}
 				}
 			}
-		}
+		}		
 	}
 }
 
@@ -889,10 +901,13 @@ void UNiagaraDataInterfaceHairStrands::ExtractDatasAndResources(
 	{
 		for (int32 NiagaraIndex = 0, NiagaraCount = SourceComponent->NiagaraComponents.Num(); NiagaraIndex < NiagaraCount; ++NiagaraIndex)
 		{
-			if (SourceComponent->NiagaraComponents[NiagaraIndex] == SystemInstance->GetComponent())
+			if (UNiagaraComponent* NiagaraComponent = SourceComponent->NiagaraComponents[NiagaraIndex])
 			{
-				OutGroupIndex = NiagaraIndex;
-				break;
+				if (NiagaraComponent->GetSystemInstance() == SystemInstance)
+				{
+					OutGroupIndex = NiagaraIndex;
+					break;
+				}
 			}
 		}
 		if (OutGroupIndex >= 0 && OutGroupIndex < SourceComponent->NiagaraComponents.Num())
@@ -3848,12 +3863,12 @@ void UNiagaraDataInterfaceHairStrands::ProvidePerInstanceDataForRenderThread(voi
 	}
 }
 
-void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
+void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context)
 {
 	if (Context.SimulationStageIndex == 0)
 	{
 		FNDIHairStrandsData* ProxyData =
-			SystemInstancesToProxyData.Find(Context.SystemInstance);
+			SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		if (ProxyData != nullptr && ProxyData->HairStrandsBuffer != nullptr)
 		{
@@ -3867,12 +3882,5 @@ void FNDIHairStrandsProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraD
 		}
 	}
 }
-
-void FNDIHairStrandsProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{}
-
-void FNDIHairStrandsProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{}
-
 
 #undef LOCTEXT_NAMESPACE

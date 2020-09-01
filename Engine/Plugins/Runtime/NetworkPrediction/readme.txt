@@ -2,11 +2,44 @@
 //	Network Prediction Plugin
 // --------------------------------------------------------------------------------------------------------------------
 
-7-6-2020:
+8-10-2020:
 
-There are some issues with physics integration in the main branch (IsGameThread ensures). We will fix these asap
-but may take a week due to summer vacations. Hold off on using physics with NP until then.
+Initial mock root motion checked in. This is the begining of root motion networking which will find its way into the new movement system.
+Initial focus is just on having montage-based root motion support back in, plus non animation based sources like curves (more to come here).
+The animation team is planning for other animation based root motion sources.
 
+
+7-31-2020:
+
+Couple notable changes related to physics and UPrimitiveComponents
+
+The system now defaults to "UPrimitiveComponents are always in sync with their physics data when NP SimulationTick functions run".
+If you look at the previous version of FMockPhysicsSimulation::SimulationTick, we had to be very careful to interface directly
+with the underlying PhysicsActorHandle, rather than reading data off of any UPrimitiveComponents. This causes some pretty
+nasty anti-patterns, especially around scene queries.
+
+The cost is that we have to take a seperate pass during rollback for everyone to "RestoreFrame" prior to *anyone* resimulating
+a tick step. So, an extra pass through the registered instances and touching more memory than we did before.
+
+It would be possible to allow users to opt out of this: to say "I know what I'm doing and I am confident I can write all
+of my NP Code to interface directly with the physics engine". 
+
+We will see if this shows up in profiles as the system continues to mature and we build real stuff with it. For now we think
+its wiser to error on the side of being user friendly and less error prone.
+
+
+The specific changes here are:
+-PhysicsActorHandle is no longer a side cart of data registered with the Driver/Simulation. 
+-We now require FNetworkPredictionDriver<ModelDef>::GetPhysicsPrimitiveComponent() to get to the physics data.
+-"RestoreFrame" is a driver-level function similiar to FinalizeFrame but is called only during resims where we want to push
+	the given sync/aux state to the physics scene (Whatever that means for you).	
+	The default implementation is provided for physics and doesn't need the user to implement anything.
+
+
+
+7-24-2020:
+
+Physics issues should be fixed. Still tracking down a few more bugs in the cue and interpolation systems.
 
 7-2-2020: Big Update
 

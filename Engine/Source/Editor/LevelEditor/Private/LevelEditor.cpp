@@ -33,6 +33,7 @@
 #include "PixelInspectorModule.h"
 #include "CommonMenuExtensionsModule.h"
 #include "ProjectDescriptor.h"
+#include "PlatformInfo.h"
 
 // @todo Editor: remove this circular dependency
 #include "Interfaces/IMainFrameModule.h"
@@ -1786,6 +1787,11 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FExecuteAction::CreateStatic( &FLevelEditorActionCallbacks::SetMaterialQualityLevel, (EMaterialQualityLevel::Type)EMaterialQualityLevel::High ),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic( &FLevelEditorActionCallbacks::IsMaterialQualityLevelChecked, (EMaterialQualityLevel::Type)EMaterialQualityLevel::High ) );
+	ActionList.MapAction(
+		Commands.MaterialQualityLevel_Epic,
+		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetMaterialQualityLevel, (EMaterialQualityLevel::Type)EMaterialQualityLevel::Epic),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsMaterialQualityLevelChecked, (EMaterialQualityLevel::Type)EMaterialQualityLevel::Epic));
 
 	ActionList.MapAction(
 		Commands.ToggleFeatureLevelPreview,
@@ -1800,23 +1806,16 @@ void FLevelEditorModule::BindGlobalLevelEditorCommands()
 		FCanExecuteAction(),
 		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::SM5, NAME_None)));
 
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_AndroidGLES31,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES3_1_ANDROID), true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_OPENGL_ES3_1_ANDROID))));
+	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
+	{
+		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(It.Key()));
 
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_AndroidVulkanES31,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_VULKAN_ES3_1_ANDROID), true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_VULKAN_ES3_1_ANDROID))));
-
-	ActionList.MapAction(
-		Commands.PreviewPlatformOverride_IOSMetalES31,
-		FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_METAL), true)),
-		FCanExecuteAction(),
-		FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(ERHIFeatureLevel::ES3_1, LegacyShaderPlatformToShaderFormat(SP_METAL))));
+		ActionList.MapAction(
+			*Commands.PreviewPlatformOverrides.Find(It.Key()),
+			FExecuteAction::CreateStatic(&FLevelEditorActionCallbacks::SetPreviewPlatform, FPreviewPlatformInfo(FeatureLevel, It.Key(), true)),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateStatic(&FLevelEditorActionCallbacks::IsPreviewPlatformChecked, FPreviewPlatformInfo(FeatureLevel, It.Key())));
+	}
 
 	ActionList.MapAction(
 		Commands.OpenMergeActor,

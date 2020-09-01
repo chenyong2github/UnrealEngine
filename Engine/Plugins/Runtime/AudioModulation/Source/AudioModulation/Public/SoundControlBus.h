@@ -7,7 +7,7 @@
 #include "CoreMinimal.h"
 #include "IAudioModulation.h"
 #include "SoundModulationParameter.h"
-#include "SoundModulatorLFO.h"
+#include "SoundModulationGeneratorLFO.h"
 #include "UObject/Object.h"
 #include "UObject/ObjectMacros.h"
 
@@ -20,8 +20,8 @@ class USoundModulatorBase;
 struct FPropertyChangedEvent;
 
 
-UCLASS(BlueprintType, hidecategories = Object, abstract, MinimalAPI)
-class USoundControlBusBase : public USoundModulatorBase
+UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
+class USoundControlBus : public USoundModulatorBase
 {
 	GENERATED_UCLASS_BODY()
 
@@ -40,8 +40,11 @@ public:
 	UPROPERTY(EditAnywhere, Category = Mix, BlueprintReadWrite, meta = (EditCondition = "bOverrideAddress"))
 	FString Address;
 
-	UPROPERTY(EditAnywhere, Category = Modulation, BlueprintReadWrite)
-	TArray<USoundBusModulatorBase*> Modulators;
+	UPROPERTY(EditAnywhere, Category = Generators, BlueprintReadWrite, meta = (DisplayName = "Generators"))
+	TArray<USoundModulationGenerator*> Modulators;
+
+	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
+	USoundModulationParameter* Parameter;
 
 #if WITH_EDITOR
 	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
@@ -52,23 +55,8 @@ public:
 
 	virtual void BeginDestroy() override;
 	virtual const Audio::FModulationMixFunction& GetMixFunction() const;
-	virtual float GetDefaultValue() const { return 1.0f; }
-	virtual float GetMin() const { return 0.0f; }
-	virtual float GetMax() const { return 1.0f; }
-};
 
-UCLASS(BlueprintType, hidecategories = Object, editinlinenew, MinimalAPI)
-class USoundControlBus : public USoundControlBusBase
-{
-	GENERATED_UCLASS_BODY()
-
-public:
-	UPROPERTY(EditAnywhere, Category = General, BlueprintReadOnly)
-	USoundModulationParameter* Parameter;
-
-	virtual float GetDefaultValue() const { return Parameter ? Parameter->ConvertLinearToUnit(Parameter->Settings.ValueLinear) : 1.0f; }
-	virtual float GetMin() const override { return 0.0f; }
-	virtual float GetMax() const override { return 1.0f; }
+	virtual float GetDefaultLinearValue() const { return Parameter ? Parameter->Settings.ValueLinear : 1.0f; }
 
 	virtual FName GetOutputParameterName() const override
 	{
@@ -78,8 +66,4 @@ public:
 		}
 		return Super::GetOutputParameterName();
 	}
-
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& InPropertyChangedEvent) override;
-#endif // WITH_EDITOR
 };

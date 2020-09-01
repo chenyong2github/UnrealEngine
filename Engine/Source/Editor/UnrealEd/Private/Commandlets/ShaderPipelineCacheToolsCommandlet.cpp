@@ -14,6 +14,7 @@
 #include "Serialization/MemoryReader.h"
 #include "Serialization/MemoryWriter.h"
 #include "String/ParseLines.h"
+#include "HAL/PlatformFileManager.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogShaderPipelineCacheTools, Log, All);
 
@@ -21,7 +22,16 @@ const TCHAR* STABLE_CSV_EXT = TEXT("stablepc.csv");
 const TCHAR* STABLE_CSV_COMPRESSED_EXT = TEXT("stablepc.csv.compressed");
 const TCHAR* STABLE_COMPRESSED_EXT = TEXT(".compressed");
 const int32  STABLE_COMPRESSED_EXT_LEN = 11; // len of ".compressed";
-const int32  STABLE_COMPRESSED_VER = 1;
+const int32  STABLE_COMPRESSED_VER = 2;
+const int64  STABLE_MAX_CHUNK_SIZE = MAX_int32 - 100 * 1024 * 1024;
+
+struct FSCDataChunk
+{
+	FSCDataChunk() : UncomressedOutputLines(), OutputLinesAr(UncomressedOutputLines) {}
+
+	TArray<uint8> UncomressedOutputLines;
+	FMemoryWriter OutputLinesAr;
+};
 
 
 void ExpandWildcards(TArray<FString>& Parts)
@@ -124,7 +134,7 @@ static void LoadStableSCLs(TMultiMap<int32, FSHAHash>& StableMap, TArray<FStable
 	}
 }
 
-static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<uint8>& UncompressedData)
+static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<FString>& OutputLines)
 {
 	bool bResult = false;
 	FArchive* Ar = IFileManager::Get().CreateFileReader(*Filename);
@@ -133,29 +143,48 @@ static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<uint8>& U
 		if (Ar->TotalSize() > 8)
 		{
 			int32 CompressedVersion = 0;
-			int32 UncompressedSize = 0;
-			int32 CompressedSize = 0;
-			
-			Ar->Serialize(&CompressedVersion, sizeof(int32));
-			Ar->Serialize(&UncompressedSize, sizeof(int32));
-			Ar->Serialize(&CompressedSize, sizeof(int32));
-			
-			TArray<uint8> CompressedData;
-			CompressedData.SetNumUninitialized(CompressedSize);
-			Ar->Serialize(CompressedData.GetData(), CompressedSize);
+			int32 NumChunks = 1;
 
-			UncompressedData.SetNumUninitialized(UncompressedSize);
-			bResult = FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, CompressedData.GetData(), CompressedSize);
-			if (!bResult)
+			Ar->Serialize(&CompressedVersion, sizeof(int32));
+			if (CompressedVersion > 1)
 			{
-				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Failed to decompress file %s"), *Filename);
+				Ar->Serialize(&NumChunks, sizeof(int32));
+			}
+
+			for (int32 Index = 0; Index < NumChunks; ++Index)
+			{
+				int32 UncompressedSize = 0;
+				int32 CompressedSize = 0;
+
+				Ar->Serialize(&UncompressedSize, sizeof(int32));
+				Ar->Serialize(&CompressedSize, sizeof(int32));
+
+				TArray<uint8> CompressedData;
+				CompressedData.SetNumUninitialized(CompressedSize);
+				Ar->Serialize(CompressedData.GetData(), CompressedSize);
+
+				TArray<uint8> UncompressedData;
+				UncompressedData.SetNumUninitialized(UncompressedSize);
+				bResult = FCompression::UncompressMemory(NAME_Zlib, UncompressedData.GetData(), UncompressedSize, CompressedData.GetData(), CompressedSize);
+				if (!bResult)
+				{
+					UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Failed to decompress file %s"), *Filename);
+				}
+
+				FMemoryReader MemArchive(UncompressedData);
+				FString LineCSV;
+				while (!MemArchive.AtEnd())
+				{
+					MemArchive << LineCSV;
+					OutputLines.Add(LineCSV);
+				}
 			}
 		}
 		else
 		{
 			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Corrupted file %s"), *Filename);
 		}
-	
+
 		delete Ar;
 	}
 	else
@@ -166,89 +195,95 @@ static bool LoadAndDecompressStableCSV(const FString& Filename, TArray<uint8>& U
 	return bResult;
 }
 
-struct FRawStableCSV
+static void ReadStableCSV(const TArray<FString>& CSVLines, const TFunctionRef<void(FStringView)>& LineVisitor)
 {
-	TArray<uint8> SerializedData;
-	FString CSV;
-};
-
-static bool LoadStableCSV(const FString& FileName, FRawStableCSV& RawStableCSV)
-{
-	if (FileName.EndsWith(STABLE_CSV_COMPRESSED_EXT))
+	for (const FString& LineCSV : CSVLines)
 	{
-		return LoadAndDecompressStableCSV(FileName, RawStableCSV.SerializedData);
-	}
-	else
-	{
-		return FFileHelper::LoadFileToString(RawStableCSV.CSV, *FileName);
+		LineVisitor(LineCSV);
 	}
 }
 
-static void ReadStableCSV(const FRawStableCSV& RawStableCSV, const TFunctionRef<void(FStringView)>& LineVisitor)
+static bool LoadStableCSV(const FString& Filename, TArray<FString>& OutputLines)
 {
-	if (RawStableCSV.SerializedData.Num())
+	bool bResult = false;
+	if (Filename.EndsWith(STABLE_CSV_COMPRESSED_EXT))
 	{
-		FMemoryReader MemArchive(RawStableCSV.SerializedData);
-		FString LineCSV;
-		while (!MemArchive.AtEnd())
+		if (LoadAndDecompressStableCSV(Filename, OutputLines))
 		{
-			MemArchive << LineCSV;
-			LineVisitor(LineCSV);
+			bResult = true;
 		}
 	}
 	else
 	{
-		UE::String::ParseLines(RawStableCSV.CSV, LineVisitor);
+		bResult = FFileHelper::LoadFileToStringArray(OutputLines, *Filename);
 	}
+
+	return bResult;
 }
 
-static bool LoadStableCSV(const FString& FileName, TArray<FString>& OutputLines)
-{
-	FRawStableCSV RawStableCSV;
-	if (LoadStableCSV(FileName, RawStableCSV))
-	{
-		ReadStableCSV(RawStableCSV, [&OutputLines](FStringView Line) { OutputLines.Emplace(Line); });
-		return true;
-	}
-	return false;
-}
-
-static int64 SaveStableCSV(const FString& Filename, const TArray<uint8>& UncompressedData)
+static int64 SaveStableCSV(const FString& Filename, const FSCDataChunk* DataChunks, int32 NumChunks)
 {
 	if (Filename.EndsWith(STABLE_CSV_COMPRESSED_EXT))
 	{
-		int32 UncompressedSize = UncompressedData.Num();
-		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Compressing output, size = %.1fKB"), UncompressedSize/1024.f);
-		int32 CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedSize);
-		TArray<uint8> CompressedData;
-		CompressedData.SetNumZeroed(CompressedSize);
+		UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Compressing output, %d chunks"), NumChunks);
 
-		if (FCompression::CompressMemory(NAME_Zlib, CompressedData.GetData(), CompressedSize, UncompressedData.GetData(), UncompressedSize))
+		struct FSCCompressedChunk
 		{
-			FArchive* Ar = IFileManager::Get().CreateFileWriter(*Filename);
-			if (!Ar)
+			FSCCompressedChunk(int32 UncompressedSize)
 			{
-				UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to open %s"), *Filename);
-				return -1;
+				CompressedSize = FCompression::CompressMemoryBound(NAME_Zlib, UncompressedSize);
+				CompressedData.SetNumZeroed(CompressedSize);
 			}
-			
-			int32 CompressedVersion = STABLE_COMPRESSED_VER;
-			
-			Ar->Serialize(&CompressedVersion, sizeof(int32));
-			Ar->Serialize(&UncompressedSize, sizeof(int32));
-			Ar->Serialize(&CompressedSize, sizeof(int32));
-			Ar->Serialize(CompressedData.GetData(), CompressedSize);
-			delete Ar;
-		}
-		else
+
+			TArray<uint8> CompressedData;
+			int32 CompressedSize;
+		};
+
+		TArray<FSCCompressedChunk> CompressedChunks;
+
+		for (int32 Index = 0; Index < NumChunks; ++Index)
 		{
-			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to compress (%.1f KB)"), UncompressedSize/1024.f);
+			const FSCDataChunk& Chunk = DataChunks[Index];
+			CompressedChunks.Add(FSCCompressedChunk(Chunk.UncomressedOutputLines.Num()));
+
+			UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Compressing chunk %d, size = %.1fKB"), Index, Chunk.UncomressedOutputLines.Num() / 1024.f);
+			if (FCompression::CompressMemory(NAME_Zlib, CompressedChunks[Index].CompressedData.GetData(), CompressedChunks[Index].CompressedSize, Chunk.UncomressedOutputLines.GetData(), Chunk.UncomressedOutputLines.Num()) == false)
+			{
+				UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to compress chunk %d (%.1f KB)"), Index, Chunk.UncomressedOutputLines.Num() / 1024.f);
+			}
+		}
+
+		FArchive* Ar = IFileManager::Get().CreateFileWriter(*Filename);
+		if (!Ar)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Failed to open %s"), *Filename);
 			return -1;
 		}
+
+		int32 CompressedVersion = STABLE_COMPRESSED_VER;
+
+		Ar->Serialize(&CompressedVersion, sizeof(int32));
+		Ar->Serialize(&NumChunks, sizeof(int32));
+
+		for (int32 Index = 0; Index < NumChunks; ++Index)
+		{
+			int32 UncompressedSize = DataChunks[Index].UncomressedOutputLines.Num();
+			int32 CompressedSize = CompressedChunks[Index].CompressedSize;
+			Ar->Serialize(&UncompressedSize, sizeof(int32));
+			Ar->Serialize(&CompressedSize, sizeof(int32));
+			Ar->Serialize(CompressedChunks[Index].CompressedData.GetData(), CompressedSize);
+		}
+
+		delete Ar;
 	}
 	else
 	{
-		FMemoryReader MemArchive(UncompressedData);
+		if (NumChunks > 1)
+		{
+			UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("SaveStableCSV does not support saving uncompressed files larger than 2GB."));
+		}
+
+		FMemoryReader MemArchive(DataChunks[0].UncomressedOutputLines);
 		FString CombinedCSV;
 		FString LineCSV;
 		while (!MemArchive.AtEnd())
@@ -260,7 +295,7 @@ static int64 SaveStableCSV(const FString& Filename, const TArray<uint8>& Uncompr
 
 		FFileHelper::SaveStringToFile(CombinedCSV, *Filename);
 	}
-	
+
 	int64 Size = IFileManager::Get().FileSize(*Filename);
 	if (Size < 1)
 	{
@@ -927,9 +962,9 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 	}
 
 	int32 NumLines = 0;
-	TArray<uint8> UncomressedOutputLines;
-	FMemoryWriter OutputLinesAr(UncomressedOutputLines);
-	TSet<FString> DeDup;
+	FSCDataChunk DataChunks[16];
+	int32 CurrentChunk = 0;
+	TSet<uint32> DeDup;
 
 	{
 		FString PSOLine = FString::Printf(TEXT("\"%s\""), *FPipelineCacheFileFormatPSO::CommonHeaderLine());
@@ -939,7 +974,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 			PSOLine += FString::Printf(TEXT(",\"shaderslot%d: %s\""), SlotIndex, *FStableShaderKeyAndValue::HeaderLine());
 		}
 
-		OutputLinesAr << PSOLine;
+		DataChunks[CurrentChunk].OutputLinesAr << PSOLine;
 		NumLines++;
 	}
 
@@ -1065,10 +1100,15 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 				UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Unexpected pipeline cache descriptor type %d"), int32(Item.PSO->Type));
 			}
 
-			if (!DeDup.Contains(PSOLine))
+			const uint32 PSOLineHash = FCrc::MemCrc32(PSOLine.GetCharArray().GetData(), sizeof(TCHAR) * PSOLine.Len());
+			if (!DeDup.Contains(PSOLineHash))
 			{
-				DeDup.Add(PSOLine);
-				OutputLinesAr << PSOLine;
+				DeDup.Add(PSOLineHash);
+				if (DataChunks[CurrentChunk].OutputLinesAr.TotalSize() + (int64)((PSOLine.Len() + 1) * sizeof(TCHAR)) >= STABLE_MAX_CHUNK_SIZE)
+				{
+					++CurrentChunk;
+				}
+				DataChunks[CurrentChunk].OutputLinesAr << PSOLine;
 				NumLines++;
 			}
 		}
@@ -1108,7 +1148,7 @@ int32 ExpandPSOSC(const TArray<FString>& Tokens)
 		}
 	}
 
-	int64 FileSize = SaveStableCSV(OutputFilename, UncomressedOutputLines);
+	int64 FileSize = SaveStableCSV(OutputFilename, DataChunks, CurrentChunk + 1);
 	if (FileSize < 1)
 	{
 		return 1;
@@ -1139,13 +1179,13 @@ static void ParseQuoteComma(const FStringView& InLine, TArray<FStringView, TInli
 	}
 }
 
-static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName, const FRawStableCSV& RawStableCSV, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap, FName& TargetPlatform)
+static TSet<FPipelineCacheFileFormatPSO> ParseStableCSV(const FString& FileName, const TArray<FString>& CSVLines, const TMultiMap<FStableShaderKeyAndValue, FSHAHash>& StableMap, FName& TargetPlatform)
 {
 	TSet<FPipelineCacheFileFormatPSO> PSOs;
 
 	int32 LineIndex = 0;
 	bool bParsed = true;
-	ReadStableCSV(RawStableCSV, [&FileName, &StableMap, &TargetPlatform, &PSOs, &LineIndex, &bParsed](FStringView Line)
+	ReadStableCSV(CSVLines, [&FileName, &StableMap, &TargetPlatform, &PSOs, &LineIndex, &bParsed](FStringView Line)
 	{
 		// Skip the header line.
 		if (LineIndex++ == 0)
@@ -1810,14 +1850,14 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 
 	// Read the stable PSO sets in parallel with the stable shaders.
 	FGraphEventArray LoadPSOTasks;
-	TArray<FRawStableCSV> RawStableCSVs;
+	TArray<TArray<FString>> StableCSVs;
 	LoadPSOTasks.Reserve(StablePipelineCacheFiles.Num());
-	RawStableCSVs.AddDefaulted(StablePipelineCacheFiles.Num());
+	StableCSVs.AddDefaulted(StablePipelineCacheFiles.Num());
 	for (int32 FileIndex = 0; FileIndex < StablePipelineCacheFiles.Num(); ++FileIndex)
 	{
-		LoadPSOTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([&RawStableCSV = RawStableCSVs[FileIndex], &FileName = StablePipelineCacheFiles[FileIndex]]
+		LoadPSOTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady([&StableCSV = StableCSVs[FileIndex], &FileName = StablePipelineCacheFiles[FileIndex]]
 		{
-			if (!LoadStableCSV(FileName, RawStableCSV))
+			if (!LoadStableCSV(FileName, StableCSV))
 			{
 				UE_LOG(LogShaderPipelineCacheTools, Fatal, TEXT("Could not load %s"), *FileName);
 			}
@@ -1837,12 +1877,12 @@ int32 BuildPSOSC(const TArray<FString>& Tokens)
 		ParsePSOTasks.Add(FFunctionGraphTask::CreateAndDispatchWhenReady(
 			[&PSOs = PSOsByFile[FileIndex],
 			 &FileName = StablePipelineCacheFiles[FileIndex],
-			 &RawStableCSV = RawStableCSVs[FileIndex],
+			 &StableCSV = StableCSVs[FileIndex],
 			 &StableMap,
 			 &TargetPlatform = TargetPlatformByFile[FileIndex]]
 			{
-				PSOs = ParseStableCSV(FileName, RawStableCSV, StableMap, TargetPlatform);
-				RawStableCSV = FRawStableCSV();
+				PSOs = ParseStableCSV(FileName, StableCSV, StableMap, TargetPlatform);
+				StableCSV.Empty();
 				UE_LOG(LogShaderPipelineCacheTools, Display, TEXT("Loaded %d stable PSO lines from %s."), PSOs.Num(), *FileName);
 			}, TStatId(), &PreReqs));
 	}
@@ -2104,7 +2144,7 @@ int32 DiffStable(const TArray<FString>& Tokens)
 
 int32 DecompressCSV(const TArray<FString>& Tokens)
 {
-	TArray<uint8> DecompressedData;
+	TArray<FString> DecompressedData;
 	for (int32 TokenIndex = 0; TokenIndex < Tokens.Num(); TokenIndex++)
 	{
 		const FString& CompressedFilename = Tokens[TokenIndex];
@@ -2112,22 +2152,27 @@ int32 DecompressCSV(const TArray<FString>& Tokens)
 		{
 			continue;
 		}
-		
+
 		FString CombinedCSV;
 		DecompressedData.Reset();
 		if (LoadAndDecompressStableCSV(CompressedFilename, DecompressedData))
 		{
-			FMemoryReader MemArchive(DecompressedData);
-			FString LineCSV;
-			while (!MemArchive.AtEnd())
+			FString FilenameCSV = CompressedFilename.LeftChop(STABLE_COMPRESSED_EXT_LEN);
+			FPlatformFileManager::Get().GetPlatformFile().DeleteFile(*FilenameCSV);
+
+			for (const FString& LineCSV : DecompressedData)
 			{
-				MemArchive << LineCSV;
 				CombinedCSV.Append(LineCSV);
 				CombinedCSV.Append(LINE_TERMINATOR);
+
+				if ((int64)(CombinedCSV.Len() * sizeof(TCHAR)) >= (int64)(MAX_int32 - 1024 * 1024))
+				{
+					FFileHelper::SaveStringToFile(CombinedCSV, *FilenameCSV, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
+					CombinedCSV.Empty();
+				}
 			}
 
-			FString FilenameCSV = CompressedFilename.LeftChop(STABLE_COMPRESSED_EXT_LEN);
-			FFileHelper::SaveStringToFile(CombinedCSV, *FilenameCSV);
+			FFileHelper::SaveStringToFile(CombinedCSV, *FilenameCSV, FFileHelper::EEncodingOptions::AutoDetect, &IFileManager::Get(), FILEWRITE_Append);
 		}
 	}
 

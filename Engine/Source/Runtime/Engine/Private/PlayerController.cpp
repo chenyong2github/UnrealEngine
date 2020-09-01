@@ -280,7 +280,7 @@ FName APlayerController::NetworkRemapPath(FName InPackageName, bool bReading)
 {
 	// For PIE Networking: remap the packagename to our local PIE packagename
 	FString PackageNameStr = InPackageName.ToString();
-	GEngine->NetworkRemapPath(GetNetDriver(), PackageNameStr, bReading);
+	GEngine->NetworkRemapPath(GetNetConnection(), PackageNameStr, bReading);
 	return FName(*PackageNameStr);
 }
 
@@ -665,22 +665,22 @@ void APlayerController::ForceSingleNetUpdateFor(AActor* Target)
 	}
 	else
 	{
-		UNetConnection* Conn = Cast<UNetConnection>(Player);
-		if (Conn != NULL)
+		if (UNetConnection* Conn = Cast<UNetConnection>(Player))
 		{
 			if (Conn->GetUChildConnection() != NULL)
 			{
 				Conn = ((UChildConnection*)Conn)->Parent;
 				checkSlow(Conn != NULL);
 			}
-			UActorChannel* Channel = Conn->FindActorChannelRef(Target);
-			if (Channel != NULL)
-			{
-				FNetworkObjectInfo* NetActor = Target->FindOrAddNetworkObjectInfo();
 
-				if (NetActor != nullptr)
+			if (UActorChannel* Channel = Conn->FindActorChannelRef(Target))
+			{
+				if (UNetDriver* NetDriver = Conn->GetDriver())
 				{
-					NetActor->bPendingNetUpdate = true; // will cause some other clients to do lesser checks too, but that's unavoidable with the current functionality
+					if (FNetworkObjectInfo* NetActor = NetDriver->FindOrAddNetworkObjectInfo(Target))
+					{
+						NetActor->bPendingNetUpdate = true; // will cause some other clients to do lesser checks too, but that's unavoidable with the current functionality
+					}
 				}
 			}
 		}
@@ -860,14 +860,6 @@ void APlayerController::OnPossess(APawn* PawnToPossess)
 		{
 			AutoManageActiveCameraTarget(GetPawn());
 			ResetCameraMode();
-		}
-		// not calling UpdateNavigationComponents() anymore. The
-		// PathFollowingComponent is now observing newly possessed
-		// pawns (via OnNewPawn)
-		// need to broadcast here since we don't call Super::OnPossess
-		if (bNewPawn)
-		{
-			OnNewPawn.Broadcast(GetPawn());
 		}
 	}
 }

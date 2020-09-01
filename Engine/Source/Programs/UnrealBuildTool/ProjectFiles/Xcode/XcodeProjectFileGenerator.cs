@@ -5,6 +5,7 @@ using System.Collections.Generic;
 using System.Text;
 using System.IO;
 using Tools.DotNETCommon;
+using System.Linq;
 
 namespace UnrealBuildTool
 {
@@ -155,6 +156,8 @@ namespace UnrealBuildTool
 			return WriteFileIfChanged(Path, WorkspaceSettingsContent.ToString(), new UTF8Encoding());
 		}
 
+		
+
 		private bool WriteXcodeWorkspace()
 		{
 			bool bSuccess = true;
@@ -165,47 +168,73 @@ namespace UnrealBuildTool
 			WorkspaceDataContent.Append("<Workspace" + ProjectFileGenerator.NewLine);
 			WorkspaceDataContent.Append("   version = \"1.0\">" + ProjectFileGenerator.NewLine);
 
+			List<XcodeProjectFile> BuildableProjects = new List<XcodeProjectFile>();
+
 			System.Action< List<MasterProjectFolder> /* Folders */, string /* Ident */ > AddProjectsFunction = null;
 			AddProjectsFunction = (FolderList, Ident) =>
 				{
-					int SchemeIndex = 0;
 					foreach (XcodeProjectFolder CurFolder in FolderList)
 					{
 						WorkspaceDataContent.Append(Ident + "   <Group" + ProjectFileGenerator.NewLine);
 						WorkspaceDataContent.Append(Ident + "      location = \"container:\"      name = \"" + CurFolder.FolderName + "\">" + ProjectFileGenerator.NewLine);
 
 						AddProjectsFunction(CurFolder.SubFolders, Ident + "   ");
+				
+						// Filter out anything that isn't an XC project, and that shouldn't be in the workspace
+						IEnumerable<XcodeProjectFile> SupportedProjects =
+								CurFolder.ChildProjects
+									.Where(P => P is XcodeProjectFile)
+									.Select(P => P as XcodeProjectFile)
+									.Where(P => P.ShouldIncludeProjectInWorkspace())
+									.OrderBy(P => P.ProjectFilePath.GetFileName());
 
-						List<ProjectFile> ChildProjects = new List<ProjectFile>(CurFolder.ChildProjects);
-						ChildProjects.Sort((ProjectFile A, ProjectFile B) => { return A.ProjectFilePath.GetFileName().CompareTo(B.ProjectFilePath.GetFileName()); });
 
-						foreach (ProjectFile CurProject in ChildProjects)
+						foreach (XcodeProjectFile XcodeProject in SupportedProjects)
 						{
-							XcodeProjectFile XcodeProject = CurProject as XcodeProjectFile;
-							if (XcodeProject != null)
-							{
-								WorkspaceDataContent.Append(Ident + "      <FileRef" + ProjectFileGenerator.NewLine);
-								WorkspaceDataContent.Append(Ident + "         location = \"group:" + XcodeProject.ProjectFilePath.MakeRelativeTo(ProjectFileGenerator.MasterProjectPath) + "\">" + ProjectFileGenerator.NewLine);
-								WorkspaceDataContent.Append(Ident + "      </FileRef>" + ProjectFileGenerator.NewLine);
-
-								// Also, update project's schemes index so that the schemes list order match projects order in the navigator
-								FileReference SchemeManagementFile = XcodeProject.ProjectFilePath + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes/xcschememanagement.plist";
-								if (FileReference.Exists(SchemeManagementFile))
-								{
-									string SchemeManagementContent = FileReference.ReadAllText(SchemeManagementFile);
-									SchemeManagementContent = SchemeManagementContent.Replace("<key>orderHint</key>\n\t\t\t<integer>1</integer>", "<key>orderHint</key>\n\t\t\t<integer>" + SchemeIndex.ToString() + "</integer>");
-									FileReference.WriteAllText(SchemeManagementFile, SchemeManagementContent);
-									SchemeIndex++;
-								}
-							}
+							WorkspaceDataContent.Append(Ident + "      <FileRef" + ProjectFileGenerator.NewLine);
+							WorkspaceDataContent.Append(Ident + "         location = \"group:" + XcodeProject.ProjectFilePath.MakeRelativeTo(ProjectFileGenerator.MasterProjectPath) + "\">" + ProjectFileGenerator.NewLine);
+							WorkspaceDataContent.Append(Ident + "      </FileRef>" + ProjectFileGenerator.NewLine);							
 						}
+
+						BuildableProjects.AddRange(SupportedProjects);
 
 						WorkspaceDataContent.Append(Ident + "   </Group>" + ProjectFileGenerator.NewLine);
 					}
 				};
 			AddProjectsFunction(RootFolder.SubFolders, "");
-
+			
 			WorkspaceDataContent.Append("</Workspace>" + ProjectFileGenerator.NewLine);
+
+			// Also, update project's schemes index so that the schemes are in a sensible order
+			// (Game, Editor, Client, Server, Programs)
+			int SchemeIndex = 0;
+			BuildableProjects.Sort((ProjA, ProjB) => {
+
+				var TargetA = ProjA.ProjectTargets.OrderBy(T => T.TargetRules.Type).FirstOrDefault();
+				var TargetB = ProjB.ProjectTargets.OrderBy(T => T.TargetRules.Type).FirstOrDefault();
+
+				var TypeA = TargetA != null ? TargetA.TargetRules.Type : TargetType.Program;
+				var TypeB = TargetB != null ? TargetB.TargetRules.Type : TargetType.Program;
+
+				if (TypeA != TypeB)
+				{
+					return TypeA.CompareTo(TypeB);
+				}
+
+				return TargetA.Name.CompareTo(TargetB.Name);
+			});
+
+			foreach (XcodeProjectFile XcodeProject in BuildableProjects)
+			{
+				FileReference SchemeManagementFile = XcodeProject.ProjectFilePath + "/xcuserdata/" + Environment.UserName + ".xcuserdatad/xcschemes/xcschememanagement.plist";
+				if (FileReference.Exists(SchemeManagementFile))
+				{
+					string SchemeManagementContent = FileReference.ReadAllText(SchemeManagementFile);
+					SchemeManagementContent = SchemeManagementContent.Replace("<key>orderHint</key>\n\t\t\t<integer>1</integer>", "<key>orderHint</key>\n\t\t\t<integer>" + SchemeIndex.ToString() + "</integer>");
+					FileReference.WriteAllText(SchemeManagementFile, SchemeManagementContent);
+					SchemeIndex++;
+				}
+			}
 
 			string ProjectName = MasterProjectName;
 			if (ProjectFilePlatform != XcodeProjectFilePlatform.All)

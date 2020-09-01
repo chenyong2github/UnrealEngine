@@ -40,6 +40,11 @@ float3 SampleAlbedo(in FPixelMaterialInputs PixelMaterialInputs)
 	return saturate(GetMaterialBaseColor(PixelMaterialInputs));
 }
 
+float3 SampleAmbientOcclusion(in FPixelMaterialInputs PixelMaterialInputs)
+{
+	return GetMaterialAmbientOcclusion(PixelMaterialInputs);
+}
+
 #endif
 
 #endif
@@ -58,7 +63,7 @@ bool ViewHierarchicalZBufferMinDepth(float4 ScreenUVMinMax, const float MaxZDept
 	float4 Rect = saturate(ScreenUVMinMax);
 	float4 RectPixels = Rect * RenderVolumetricCloudParameters.HZBSize.xyxy;
 
-	float2 RectSize = (RectPixels.zw - RectPixels.xy) * 0.5;	// 0.5 for 4x4
+	float2 RectSize = (RectPixels.zw - RectPixels.xy);
 	float Level = max(ceil(log2(max(RectSize.x, RectSize.y))), RenderVolumetricCloudParameters.HZBUvFactor.z);
 
 	// Check if we can drop one level lower
@@ -208,7 +213,7 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 	MaterialParameters.CloudSampleNormAltitudeInLayer = saturate(MaterialParameters.CloudSampleAltitudeInLayer * CloudLayerParams.ToNormAltitude);
 
 	const float DefaultConservativeDensity = 1.0f;
-	MaterialParameters.VolumeSampleConservativeDensity = DefaultConservativeDensity;								// This should not be used when evaluating density. But it still is initialised.
+	MaterialParameters.VolumeSampleConservativeDensity = DefaultConservativeDensity;								// Defaults to "medium is potentially present" in case it is not fed by the user.
 #if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 	MaterialParameters.VolumeSampleConservativeDensity = GetVolumetricAdvancedMaterialOutput6(MaterialParameters);	// Evaluate conservative density
 #endif
@@ -247,6 +252,9 @@ void UpdateMaterialCloudParam(inout FMaterialPixelParameters MaterialParameters,
 #endif
 #ifndef MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL
 #define MATERIAL_VOLUMETRIC_ADVANCED_GRAYSCALE_MATERIAL 0
+#endif
+#ifndef MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
+#define MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION 0
 #endif
 
 
@@ -469,8 +477,11 @@ bool TraceClouds(
 	float3 DepthBufferWorldPos = SvPositionToWorld(float4(SvPosition.xy, DeviceZ, 1.0));
 	float TDepthBuffer = length(DepthBufferWorldPos - RayOrigin);
 
-	if (RenderVolumetricCloudParameters.IntersectWithOpaque > 0)
+	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 2)
 	{
+		//float CloudSampleAltitudeKm = length(RayOriginKm - RenderVolumetricCloudParameters.CloudLayerCenterKm);
+		//const bool bIsOutsideCloudLayer = CloudSampleAltitudeKm < RenderVolumetricCloudParameters.BottomRadiusKm || CloudSampleAltitudeKm > RenderVolumetricCloudParameters.TopRadiusKm;
+
 		if (TDepthBuffer < TMin)
 		{
 			// If there is an opaque object in front of the cloud layer, we wantto try to keep tracing near the edges to help with reprojection and upsampling quality.
@@ -482,17 +493,18 @@ bool TraceClouds(
 			float4 CloudLayerFrontClipPosition = mul(float4((CloudLayerFrontPosition + ResolvedView.PreViewTranslation).xyz, 1.0f), ResolvedView.TranslatedWorldToClip);
 			float CloudLayerFrontZDepth = (CloudLayerFrontClipPosition / CloudLayerFrontClipPosition.w).z;
 		
-			const float DistanceInFrontOfLayerCullingTracing = 50000.0f; // 500 meters
-			float4 ScreenUVMinMax = saturate((SvPosition.xyxy + float4(-1.0f, -1.0f, 1.0f, 1.0f)) * RenderVolumetricCloudParameters.OutputSizeInvSize.zwzw);
+			const float2 BufferToTextureUVRatio = View.BufferSizeAndInvSize.xy * View.ViewSizeAndInvSize.zw;
+			const float TestedTileSize = 2.0f;
+			float4 ScreenUVMinMax = saturate((SvPosition.xyxy + TestedTileSize*float4(-1.0f, -1.0f, 1.0f, 1.0f)) * RenderVolumetricCloudParameters.OutputSizeInvSize.zwzw * BufferToTextureUVRatio.xyxy);
 			if (
 				RenderVolumetricCloudParameters.HasValidHZB &&
 				(
 					// We are not conservatively being an opaque mesh (we are still going to trace around opaque mesh edges)
-					!ViewHierarchicalZBufferMinDepth(ScreenUVMinMax, CloudLayerFrontZDepth) ||
-					// Under the cloud layer, at the intersection between opaque and to the cloud bottom layer, we do not want to see through opaque object.
-					// This is a bit arbitrary and assumes we are at the top of the planet but it helps a lot with quality.
-					((CloudLayerFrontPosition.z - DepthBufferPosition.z) < DistanceInFrontOfLayerCullingTracing && CloudLayerFrontPosition.z > DepthBufferPosition.z)
+					!ViewHierarchicalZBufferMinDepth(ScreenUVMinMax, CloudLayerFrontZDepth) 
 				)
+
+				// In this case we always want to early exit
+				|| !RenderVolumetricCloudParameters.HasValidHZB
 			)
 			{
 				// The sky is not visible when using conservative furthest depth so we do not trace cloud.
@@ -502,6 +514,9 @@ bool TraceClouds(
 		
 				return false; 
 			}
+
+			// We still need to do that in case after the conservative test in order to not see the tile when rendering at high quality and full resolution for instance.
+			TMax = RenderVolumetricCloudParameters.ClampRayTToDepthBufferPostHZB ? min(TMax, TDepthBuffer) : TMax;
 		}
 		else
 		{
@@ -653,7 +668,7 @@ bool TraceClouds(
 		UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition, ResolvedView, CloudLayerParams);
 
 	#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-		if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+		if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 		{
 			t += StepT;
 			continue; // Conservative density is 0 so skip and go to the next sample
@@ -706,10 +721,17 @@ bool TraceClouds(
 		ParticipatingMediaContext PMC = SetupParticipatingMediaContext(Albedo, ExtinctionCoefficients, MsScattFactor, MsExtinFactor, AtmosphereTransmittanceToLight0, AtmosphereTransmittanceToLight1);
 
 
-		// We always apply the sky distant luminance as computed by the SkyAtmosphere component for a given altitude. TODO: this should be spatially varying accoring to height and sun angle.
-		// We also reduce the sky contibution at the bottom of the cloud using a cheap gradient that is super fast to apply and artist controlable.
-		float3 DistantLightLuminance = DistantSkyLightLuminance * saturate(RenderVolumetricCloudParameters.SkyLightCloudBottomVisibility + MaterialParameters.CloudSampleNormAltitudeInLayer);
-
+		// We always apply the sky distant luminance as computed by the SkyAtmosphere component for a given altitude. 
+		// TODO: this should be spatially varying accoring to height and sun angle.
+		float3 DistantLightLuminance = DistantSkyLightLuminance;
+	#if MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION
+		// We reduce the sky contibution as specified by the user instead of the default behavior.
+		DistantLightLuminance *= SampleAmbientOcclusion(PixelMaterialInputs);
+	#else
+		// We reduce the sky contibution at the bottom of the cloud using a cheap gradient that is super fast to apply and artist controlable.
+		DistantLightLuminance *= saturate(RenderVolumetricCloudParameters.SkyLightCloudBottomVisibility + MaterialParameters.CloudSampleNormAltitudeInLayer);
+	#endif
+		
 
 		//////////////////////////////
 		// Evaluate some data if there is medium causing scattering, e.g. shadow, ground lighting
@@ -748,7 +770,7 @@ bool TraceClouds(
 					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (CurrentNormT - 0.5 * DetlaNormT), ResolvedView, CloudLayerParams);
 					PreviousNormT = CurrentNormT;
 				#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-					if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 					{
 						continue; // Conservative density is 0 so skip and go to the next sample
 					}
@@ -765,7 +787,7 @@ bool TraceClouds(
 				{
 					UpdateMaterialCloudParam(MaterialParameters, SampleWorldPosition + float3(0.0f, 0.0f, -1.0f) * ShadowLengthTest * (ShadowT * InvShadowStepCount), ResolvedView, CloudLayerParams);
 				#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-					if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+					if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 					{
 						continue; // Conservative density is 0 so skip and go to the next sample
 					}
@@ -840,7 +862,7 @@ bool TraceClouds(
 		#endif
 
 			#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-				if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+				if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 				{
 					continue; // Conservative density is 0 so skip and go to the next sample
 				}
@@ -894,7 +916,7 @@ bool TraceClouds(
 				PreviousNormT = CurrentNormT;
 
 			#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-				if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+				if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 				{
 					continue; // Conservative density is 0 so skip and go to the next sample
 				}
@@ -1108,7 +1130,7 @@ void MainPS(
 	// This is the default depth when no cloud has been intersected. 
 	// It is better to limit depth to a close distance instead of max float to smooth out cloud edges when intersecting opaque meshes.
 	// No visual issues have been noticed with reprojection+TAA so far.
-	const float NoCloudDepth = TMax * CENTIMETER_TO_KILOMETER;
+	const float NoCloudDepth = TMax;
 
 	const float tAP = tAPWeightsSum==0.0f ? NoCloudDepth : tAPWeightedSum / max(0.0000000001f, tAPWeightsSum);
 	float3 AbsoluteWorldPosition = RayOrigin + tAP * Raydir;
@@ -1166,9 +1188,9 @@ void MainPS(
 	OutColor0 = float4(Luminance * OutputPreExposure, GrayScaleTransmittance);
 
 	OutColor1 = MaxHalfFloat; // Default to far away depth to be flat and not intersect with any geometry.
-	if (RenderVolumetricCloudParameters.IntersectWithOpaque > 0)
+	if (RenderVolumetricCloudParameters.OpaqueIntersectionMode >= 1)
 	{
-		OutColor1 = (GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
+		OutColor1 = ((GrayScaleTransmittance > 0.99) ? NoCloudDepth : tAP) * CENTIMETER_TO_KILOMETER; // using a small threshold on transmittance
 	}
 
 #if 0
@@ -1334,7 +1356,7 @@ void MainPS(
 			UpdateMaterialCloudParam(MaterialParameters, WorldPosOnLayer + Light0Direction * SampleT, ResolvedView, CloudLayerParams);
 
 		#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
-			if (MaterialParameters.VolumeSampleConservativeDensity <= 0.0f)
+			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
 			{
 				continue; // Conservative density is 0 so skip and go to the next sample
 			}

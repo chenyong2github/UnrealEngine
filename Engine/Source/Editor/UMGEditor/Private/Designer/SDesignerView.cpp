@@ -1585,6 +1585,7 @@ FVector2D SDesignerView::GetExtensionSize(TSharedRef<FDesignerSurfaceElement> Ex
 
 void SDesignerView::ClearDropPreviews()
 {
+	UWidgetBlueprint* BP = GetBlueprint();
 	for (const auto& DropPreview : DropPreviews)
 	{
 		if (DropPreview.Parent)
@@ -1592,7 +1593,6 @@ void SDesignerView::ClearDropPreviews()
 			DropPreview.Parent->RemoveChild(DropPreview.Widget);
 		}
 
-		UWidgetBlueprint* BP = GetBlueprint();
 		BP->WidgetTree->RemoveWidget(DropPreview.Widget);
 
 		// Since the widget has been removed from the widget tree, move it into the transient package. Otherwise,
@@ -2954,18 +2954,18 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 			if (Target && Target->IsA(UPanelWidget::StaticClass()))
 			{
 				bWidgetMoved = true;
-				UPanelWidget* NewParent = Cast<UPanelWidget>(Target);
 
 				UWidget* Widget = bIsPreview ? DraggedWidget.Preview : DraggedWidget.Template;
-				UWidget* ParentWidget = bIsPreview ? (DraggedWidget.ParentWidget.GetPreview()) : (DraggedWidget.ParentWidget.GetTemplate());
+				UWidget* ParentWidget = bIsPreview ? DraggedWidget.ParentWidget.GetPreview() : DraggedWidget.ParentWidget.GetTemplate();
 				if (ensure(Widget))
 				{
-					bool bIsChangingParent = ParentWidget != NewParent;
-					UBlueprint* OriginalBP = nullptr;
+					UPanelWidget* NewParent = Cast<UPanelWidget>(Target);
 
+					const bool bIsChangingParent = ParentWidget != Target;
 					if (bIsChangingParent)
 					{
 						check(ParentWidget != nullptr);
+						UBlueprint* OriginalBP = nullptr;
 
 						// If this isn't a preview operation we need to modify a few things to properly undo the operation.
 						if (!bIsPreview)
@@ -3045,9 +3045,9 @@ void SDesignerView::ProcessDropAndAddWidget(const FGeometry& MyGeometry, const F
 					{
 						Slot = NewParent->AddChild(Widget);
 					}
-					else if (UPanelWidget* ParentwidgetAsPanel = Cast<UPanelWidget>(ParentWidget))
+					else if (UPanelWidget* ParentWidgetAsPanel = Cast<UPanelWidget>(ParentWidget))
 					{
-						Slot = ParentwidgetAsPanel->InsertChildAt(ParentwidgetAsPanel->GetChildIndex(Widget), Widget);
+						Slot = ParentWidgetAsPanel->InsertChildAt(ParentWidgetAsPanel->GetChildIndex(Widget), Widget);
 					}
 
 					if (Slot != nullptr)

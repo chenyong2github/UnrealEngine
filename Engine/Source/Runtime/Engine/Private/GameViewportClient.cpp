@@ -1226,6 +1226,10 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 	}
 
 	UWorld* MyWorld = GetWorld();
+	if (MyWorld == nullptr)
+	{
+		return;
+	}
 
 	// Force path tracing view mode, and extern code set path tracer show flags
 	const bool bForcePathTracing = InViewport->GetClient()->GetEngineShowFlags()->PathTracing;
@@ -1375,7 +1379,7 @@ void UGameViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCanvas)
 		}
 		#endif
 
-		if (GCustomStaticScreenPercentage)
+		if (GCustomStaticScreenPercentage && ViewFamily.ViewMode == EViewModeIndex::VMI_Lit)
 		{
 			GCustomStaticScreenPercentage->SetupMainGameViewFamily(ViewFamily);
 		}

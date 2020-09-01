@@ -15,6 +15,7 @@ namespace RuntimeVirtualTexture
 	void SetBounds(URuntimeVirtualTextureComponent* InComponent)
 	{
 		URuntimeVirtualTexture const* VirtualTexture = InComponent->GetVirtualTexture();
+		check(VirtualTexture != nullptr);
 
 		// Calculate bounds in our desired local space.
 		AActor* Owner = InComponent->GetOwner();

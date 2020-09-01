@@ -14,6 +14,7 @@
 #include "Misc/FileHelper.h"
 #include "HAL/PlatformFileManager.h"
 #include "Serialization/JsonSerializerMacros.h"
+#include "Stats/Stats.h"
 
 namespace InstallBundleUtil
 {
@@ -869,6 +870,7 @@ namespace InstallBundleUtil
 
 		bool FPersistentStatContainerBase::Tick(float dt)
 		{
+			QUICK_SCOPE_CYCLE_COUNTER(STAT_FPersistentStatContainerBase_Tick);
 			if (bShouldAutoUpdateTimersInTick)
 			{
 				//Only update all active timers every TimerStat_ResetTimerValue seconds

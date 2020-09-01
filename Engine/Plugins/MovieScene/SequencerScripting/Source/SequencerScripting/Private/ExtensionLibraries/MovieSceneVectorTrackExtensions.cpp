@@ -5,6 +5,8 @@
 
 void UMovieSceneVectorTrackExtensions::SetNumChannelsUsed(UMovieSceneVectorTrack* Track, int32 InNumChannelsUsed)
 {
+	Track->Modify();
+
 	Track->SetNumChannelsUsed(InNumChannelsUsed);
 }
 

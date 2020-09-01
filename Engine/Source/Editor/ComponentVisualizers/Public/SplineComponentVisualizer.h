@@ -126,6 +126,9 @@ protected:
 	/** Determine if any selected key index is out of range (perhaps because something external has modified the spline) */
 	bool IsAnySelectedKeyIndexOutOfRange(const USplineComponent* Comp) const;
 
+	/** Whether a single spline key is currently selected */
+	bool IsSingleKeySelected() const;
+	
 	/** Transforms selected tangent by given translation */
 	bool TransformSelectedTangent(const FVector& DeltaTranslate);
 
@@ -159,6 +162,9 @@ protected:
 	/** Alt-drag: duplicates the selected spline key */
 	virtual void ResetAllowDuplication();
 
+	/** Snapping: snap keys to axis position of last selected key */
+	void SnapToLastSelectedAxisPosition(const EAxis::Type InAxis, TArray<int32> InSnapKeys);
+
 	void OnDeleteKey();
 	bool CanDeleteKey() const;
 
@@ -172,12 +178,15 @@ protected:
 	void OnSnapToNearestSplinePoint(ESplineComponentSnapMode::Type InSnapMode);
 	bool CanSnapToNearestSplinePoint() const;
 
-	void OnSnapAll(EAxis::Type InAxis);
-	bool CanSnapAll() const;
+	void OnSnapAllToAxis(EAxis::Type InAxis);
+	bool CanSnapAllToAxis() const;
+
+	void OnSnapSelectedToAxis(EAxis::Type InAxis);
+	bool CanSnapSelectedToAxis() const;
 
 	void OnLockAxis(EAxis::Type InAxis);
 	bool IsLockAxisSet(EAxis::Type InAxis) const; 
-	
+
 	void OnResetToAutomaticTangent(EInterpCurveMode Mode);
 	bool CanResetToAutomaticTangent(EInterpCurveMode Mode) const;
 

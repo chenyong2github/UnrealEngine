@@ -525,6 +525,8 @@ public:
 
 	/** Cache what volume settings we had last time so we don't have to search again if we didn't move */
 	FInteriorSettings InteriorSettings;
+	TArray<FAudioVolumeSubmixSendSettings> AudioVolumeSubmixSendSettings;
+	TArray<FAudioVolumeSubmixSendSettings> PreviousAudioVolumeSubmixSendSettings;
 
 	uint32 AudioVolumeID;
 

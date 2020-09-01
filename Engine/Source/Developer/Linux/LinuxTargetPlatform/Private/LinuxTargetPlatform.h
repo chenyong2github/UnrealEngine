@@ -297,7 +297,7 @@ public:
 		if (!TProperties::IsServerOnly())
 		{
 			// just use the standard texture format name for this texture
-			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, EngineSettings, false);
+			GetDefaultTextureFormatNamePerLayer(OutFormats.AddDefaulted_GetRef(), this, InTexture, EngineSettings, true);
 		}
 	}
 
@@ -307,7 +307,7 @@ public:
 		if (!TProperties::IsServerOnly())
 		{
 			// just use the standard texture format name for this texture
-			GetAllDefaultTextureFormats(this, OutFormats, false);
+			GetAllDefaultTextureFormats(this, OutFormats, true);
 		}
 	}
 

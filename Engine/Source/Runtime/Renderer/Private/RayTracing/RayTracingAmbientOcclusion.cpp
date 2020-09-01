@@ -168,8 +168,8 @@ void FDeferredShadingSceneRenderer::RenderRayTracingAmbientOcclusion(
 	// Build RTAO parameters
 	FRayTracingAmbientOcclusionRGS::FParameters *PassParameters = GraphBuilder.AllocParameters<FRayTracingAmbientOcclusionRGS::FParameters>();
 	PassParameters->SamplesPerPixel = RayTracingConfig.RayCountPerPixel;
-	PassParameters->MaxRayDistance = View.FinalPostProcessSettings.AmbientOcclusionRadius;
-	PassParameters->Intensity = View.FinalPostProcessSettings.AmbientOcclusionIntensity;
+	PassParameters->MaxRayDistance = View.FinalPostProcessSettings.RayTracingAORadius;
+	PassParameters->Intensity = View.FinalPostProcessSettings.RayTracingAOIntensity;
 	PassParameters->MaxNormalBias = GetRaytracingMaxNormalBias();
 	PassParameters->TLAS = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	PassParameters->RWOcclusionMaskUAV = GraphBuilder.CreateUAV(DenoiserInputs.Mask);

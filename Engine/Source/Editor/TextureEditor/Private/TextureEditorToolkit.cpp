@@ -25,6 +25,7 @@
 #include "Engine/TextureRenderTarget.h"
 #include "Engine/TextureRenderTarget2D.h"
 #include "Engine/TextureRenderTargetCube.h"
+#include "Engine/TextureRenderTargetVolume.h"
 #include "Interfaces/ITextureEditorModule.h"
 #include "TextureEditor.h"
 #include "Slate/SceneViewport.h"
@@ -273,6 +274,7 @@ void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& H
 	if (CurrentZoomMode == ETextureEditorZoomMode::Fit || CurrentZoomMode == ETextureEditorZoomMode::Fill)
 	{
 		const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
+		const UTextureRenderTargetVolume* VolumeTextureRT = Cast< UTextureRenderTargetVolume>(Texture);
 
 		// Subtract off the viewport space devoted to padding (2 * PreviewPadding)
 		// so that the texture is padded on all sides
@@ -286,7 +288,7 @@ void FTextureEditorToolkit::CalculateTextureDimensions( uint32& Width, uint32& H
 			const bool bNoSourceImage = Texture->Source.GetNumSlices() == 0;
 			Width *= (bNoSourceImage || bMultipleSourceImages) ? 2 : 1;
 		}
-		else if (VolumeTexture)
+		else if (VolumeTexture || VolumeTextureRT)
 		{
 			UTextureEditorSettings& Settings = *GetMutableDefault<UTextureEditorSettings>();
 			if (Settings.VolumeViewMode == ETextureEditorVolumeViewMode::TextureEditorVolumeViewMode_VolumeTrace)
@@ -438,19 +440,31 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 
 	UTexture2D* Texture2D = Cast<UTexture2D>(Texture);
 	UTextureRenderTarget2D* Texture2DRT = Cast<UTextureRenderTarget2D>(Texture);
-	UTextureRenderTargetCube* TextureCubeRT = Cast<UTextureRenderTargetCube>(Texture);
 	UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
 	UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
 	UTexture2DDynamic* Texture2DDynamic = Cast<UTexture2DDynamic>(Texture);
 	UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
+	UTextureRenderTargetVolume* VolumeTextureRT = Cast<UTextureRenderTargetVolume>(Texture);
 
 	const uint32 SurfaceWidth = (uint32)Texture->GetSurfaceWidth();
 	const uint32 SurfaceHeight = (uint32)Texture->GetSurfaceHeight();
-	const uint32 SurfaceDepth =  VolumeTexture ? (uint32)VolumeTexture->GetSizeZ() : 1;
+	const uint32 SurfaceDepth =
+		[&]() -> uint32
+		{
+			if (VolumeTexture)
+			{
+				return (uint32)VolumeTexture->GetSizeZ();
+			}
+			else if (VolumeTextureRT)
+			{
+				return (uint32)VolumeTextureRT->SizeZ;
+			}
+			return 1;
+		}();
 
 	const uint32 ImportedWidth = FMath::Max<uint32>(SurfaceWidth, Texture->Source.GetSizeX());
 	const uint32 ImportedHeight =  FMath::Max<uint32>(SurfaceHeight, Texture->Source.GetSizeY());
-	const uint32 ImportedDepth =  FMath::Max<uint32>(SurfaceDepth, VolumeTexture ? Texture->Source.GetNumSlices() : 1);
+	const uint32 ImportedDepth = FMath::Max<uint32>(SurfaceDepth, VolumeTexture || VolumeTextureRT ? Texture->Source.GetNumSlices() : 1);
 
 	const int32 ActualMipBias = Texture2D ? (Texture2D->GetNumMips() - Texture2D->GetNumResidentMips())	: Texture->GetCachedLODBias();
 	const uint32 ActualWidth = FMath::Max<uint32>(SurfaceWidth >> ActualMipBias, 1);
@@ -484,7 +498,7 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	Options.UseGrouping = false;
 
 
-	if (VolumeTexture)
+	if (VolumeTexture || VolumeTextureRT)
 	{
 		ImportedText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Imported_3x", "Imported: {0}x{1}x{2}"), FText::AsNumber(ImportedWidth, &Options), FText::AsNumber(ImportedHeight, &Options), FText::AsNumber(ImportedDepth, &Options)));
 		CurrentText->SetText(FText::Format( NSLOCTEXT("TextureEditor", "QuickInfo_Displayed_3x", "Displayed: {0}x{1}x{2}"), FText::AsNumber(PreviewEffectiveTextureWidth, &Options ), FText::AsNumber(PreviewEffectiveTextureHeight, &Options), FText::AsNumber(PreviewEffectiveTextureDepth, &Options)));
@@ -552,6 +566,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	{
 		TextureFormatIndex = VolumeTexture->GetPixelFormat();
 	}
+	else if (VolumeTextureRT)
+	{
+		TextureFormatIndex = VolumeTextureRT->GetFormat();
+	}
 
 	if (TextureFormatIndex != PF_MAX)
 	{
@@ -582,6 +600,10 @@ void FTextureEditorToolkit::PopulateQuickInfo( )
 	else if (VolumeTexture)
 	{
 		NumMips = VolumeTexture->GetNumMips();
+	}
+	else if (VolumeTextureRT)
+	{
+		NumMips = VolumeTextureRT->GetNumMips();
 	}
 
 	NumMipsText->SetText(FText::Format(NSLOCTEXT("TextureEditor", "QuickInfo_NumMips", "Number of Mips: {0}"), FText::AsNumber(NumMips)));
@@ -1174,6 +1196,7 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 	const UTextureCube* TextureCube = Cast<UTextureCube>(Texture);
 	const UTexture2DArray* Texture2DArray = Cast<UTexture2DArray>(Texture);
 	const UTextureRenderTargetCube* RTTextureCube = Cast<UTextureRenderTargetCube>(Texture);
+	const UTextureRenderTargetVolume* RTTextureVolume = Cast<UTextureRenderTargetVolume>(Texture);
 	const UTextureRenderTarget2D* RTTexture2D = Cast<UTextureRenderTarget2D>(Texture);
 	const UVolumeTexture* VolumeTexture = Cast<UVolumeTexture>(Texture);
 
@@ -1195,6 +1218,11 @@ TOptional<int32> FTextureEditorToolkit::GetMaxMipLevel( ) const
 	if (RTTextureCube)
 	{
 		return RTTextureCube->GetNumMips() - 1;
+	}
+
+	if (RTTextureVolume)
+	{
+		return RTTextureVolume->GetNumMips() - 1;
 	}
 
 	if (RTTexture2D)

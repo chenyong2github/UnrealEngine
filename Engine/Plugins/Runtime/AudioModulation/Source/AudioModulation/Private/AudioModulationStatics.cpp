@@ -109,7 +109,7 @@ UAudioModulationStatics::UAudioModulationStatics(const FObjectInitializer& Objec
 {
 }
 
-void UAudioModulationStatics::ActivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus)
+void UAudioModulationStatics::ActivateBus(const UObject* WorldContextObject, USoundControlBus* Bus)
 {
 	if (!Bus)
 	{
@@ -135,12 +135,12 @@ void UAudioModulationStatics::ActivateBusMix(const UObject* WorldContextObject, 
 	}
 }
 
-void UAudioModulationStatics::ActivateBusModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator)
+void UAudioModulationStatics::ActivateBusModulator(const UObject* WorldContextObject, USoundModulationGenerator* Modulator)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (AudioModulation::FAudioModulationSystem* ModSystem = GetModulationSystem(World))
 	{
-		if (USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
+		if (USoundModulationGeneratorLFO* LFO = Cast<USoundModulationGeneratorLFO>(Modulator))
 		{
 			ModSystem->ActivateLFO(*LFO);
 		}
@@ -212,7 +212,7 @@ USoundControlBus* UAudioModulationStatics::CreateBus(const UObject* WorldContext
 	return NewBus;
 }
 
-USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldContextObject, FName Name, float Amplitude, float Frequency, float Offset, bool Activate)
+USoundModulationGeneratorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldContextObject, FName Name, float Amplitude, float Frequency, float Offset, bool Activate)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (!World)
@@ -220,7 +220,7 @@ USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldCo
 		return nullptr;
 	}
 
-	USoundBusModulatorLFO* NewLFO = NewObject<USoundBusModulatorLFO>(GetTransientPackage(), Name);
+	USoundModulationGeneratorLFO* NewLFO = NewObject<USoundModulationGeneratorLFO>(GetTransientPackage(), Name);
 	NewLFO->Amplitude = Amplitude;
 	NewLFO->Frequency = Frequency;
 	NewLFO->Offset    = Offset;
@@ -236,15 +236,15 @@ USoundBusModulatorLFO* UAudioModulationStatics::CreateLFO(const UObject* WorldCo
 	return NewLFO;
 }
 
-FSoundControlBusMixChannel UAudioModulationStatics::CreateBusMixChannel(const UObject* WorldContextObject, USoundControlBusBase* Bus, float Value, float AttackTime, float ReleaseTime)
+FSoundControlBusMixStage UAudioModulationStatics::CreateBusMixStage(const UObject* WorldContextObject, USoundControlBus* Bus, float Value, float AttackTime, float ReleaseTime)
 {
-	FSoundControlBusMixChannel MixChannel;
-	MixChannel.Bus = Bus;
-	MixChannel.Value = FSoundModulationValue(Value, AttackTime, ReleaseTime);
-	return MixChannel;
+	FSoundControlBusMixStage MixStage;
+	MixStage.Bus = Bus;
+	MixStage.Value = FSoundModulationMixValue(Value, AttackTime, ReleaseTime);
+	return MixStage;
 }
 
-USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<FSoundControlBusMixChannel> Channels, bool Activate)
+USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldContextObject, FName Name, TArray<FSoundControlBusMixStage> Stages, bool Activate)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (!World)
@@ -253,16 +253,16 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 	}
 
 	USoundControlBusMix* NewBusMix = NewObject<USoundControlBusMix>(GetTransientPackage(), Name);
-	for (FSoundControlBusMixChannel& Channel : Channels)
+	for (FSoundControlBusMixStage& Stage : Stages)
 	{
-		if (Channel.Bus)
+		if (Stage.Bus)
 		{
-			NewBusMix->Channels.Emplace(Channel);
+			NewBusMix->MixStages.Emplace(Stage);
 		}
 		else
 		{
 			UE_LOG(LogAudioModulation, Warning,
-				TEXT("USoundControlBusMix '%s' was created but bus provided is null. Channel not added to mix."),
+				TEXT("USoundControlBusMix '%s' was created but bus provided is null. Stage not added to mix."),
 				*Name.ToString());
 		}
 	}
@@ -278,7 +278,7 @@ USoundControlBusMix* UAudioModulationStatics::CreateBusMix(const UObject* WorldC
 	return NewBusMix;
 }
 
-void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, USoundControlBusBase* Bus)
+void UAudioModulationStatics::DeactivateBus(const UObject* WorldContextObject, USoundControlBus* Bus)
 {
 	if (Bus)
 	{
@@ -302,12 +302,12 @@ void UAudioModulationStatics::DeactivateBusMix(const UObject* WorldContextObject
 	}
 }
 
-void UAudioModulationStatics::DeactivateBusModulator(const UObject* WorldContextObject, USoundBusModulatorBase* Modulator)
+void UAudioModulationStatics::DeactivateBusModulator(const UObject* WorldContextObject, USoundModulationGenerator* Modulator)
 {
 	UWorld* World = GetAudioWorld(WorldContextObject);
 	if (AudioModulation::FAudioModulationSystem* ModSystem = GetModulationSystem(World))
 	{
-		if (USoundBusModulatorLFO* LFO = Cast<USoundBusModulatorLFO>(Modulator))
+		if (USoundModulationGeneratorLFO* LFO = Cast<USoundModulationGeneratorLFO>(Modulator))
 		{
 			ModSystem->DeactivateLFO(*LFO);
 		}
@@ -326,7 +326,7 @@ void UAudioModulationStatics::SaveMixToProfile(const UObject* WorldContextObject
 	}
 }
 
-TArray<FSoundControlBusMixChannel> UAudioModulationStatics::LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate, int32 ProfileIndex)
+TArray<FSoundControlBusMixStage> UAudioModulationStatics::LoadMixFromProfile(const UObject* WorldContextObject, USoundControlBusMix* BusMix, bool bActivate, int32 ProfileIndex)
 {
 	if (BusMix)
 	{
@@ -341,10 +341,10 @@ TArray<FSoundControlBusMixChannel> UAudioModulationStatics::LoadMixFromProfile(c
 		}
 	}
 
-	return TArray<FSoundControlBusMixChannel>();
+	return TArray<FSoundControlBusMixStage>();
 }
 
-void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixChannel> Channels)
+void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoundControlBusMix* Mix, TArray<FSoundControlBusMixStage> Stages, float InFadeTime)
 {
 	if (Mix)
 	{
@@ -353,42 +353,40 @@ void UAudioModulationStatics::UpdateMix(const UObject* WorldContextObject, USoun
 		{
 			// UObject representation is not updated in this form of the call as doing so from
 			// PIE can result in an unstable state where UObject is modified but not properly dirtied.
-			ModSystem->UpdateMix(Channels, *Mix, false /* bUpdateObject */);
+			ModSystem->UpdateMix(Stages, *Mix, false /* bUpdateObject */, InFadeTime);
 		}
 	}
 }
 
 void UAudioModulationStatics::UpdateMixByFilter(
-	const UObject*						WorldContextObject,
-	USoundControlBusMix*				Mix,
-	FString								AddressFilter,
-	TSubclassOf<USoundControlBusBase>	BusClassFilter,
-	float								Value,
-	float								AttackTime,
-	float								ReleaseTime)
+	const UObject* WorldContextObject,
+	USoundControlBusMix* Mix,
+	FString AddressFilter,
+	TSubclassOf<USoundModulationParameter> ParamClassFilter,
+	USoundModulationParameter* ParamFilter,
+	float Value,
+	float FadeTime)
 {
 	if (Mix)
 	{
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationSystem* ModSystem = GetModulationSystem(World))
 		{
-			FSoundModulationValue ModValue(Value, AttackTime, ReleaseTime);
-
 			// UObject representation is not updated in this form of the call as doing so from
 			// PIE can result in an unstable state where UObject is modified but not properly dirtied.
-			ModSystem->UpdateMixByFilter(AddressFilter, BusClassFilter, ModValue, *Mix, false /* bUpdateObject */);
+			ModSystem->UpdateMixByFilter(AddressFilter, ParamClassFilter, ParamFilter, Value, FadeTime, *Mix, false /* bUpdateObject */);
 		}
 	}
 }
 
-void UAudioModulationStatics::UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix)
+void UAudioModulationStatics::UpdateMixFromObject(const UObject* WorldContextObject, USoundControlBusMix* Mix, float InFadeTime)
 {
 	if (Mix)
 	{
 		UWorld* World = GetAudioWorld(WorldContextObject);
 		if (AudioModulation::FAudioModulationSystem* ModSystem = GetModulationSystem(World))
 		{
-			ModSystem->UpdateMix(*Mix);
+			ModSystem->UpdateMix(*Mix, InFadeTime);
 		}
 	}
 }

@@ -113,6 +113,26 @@ UMovieSceneTrack* UMovieSceneSequenceExtensions::AddMasterTrack(UMovieSceneSeque
 	return nullptr;
 }
 
+bool UMovieSceneSequenceExtensions::RemoveMasterTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* MasterTrack)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		if (MasterTrack->IsA(UMovieSceneCameraCutTrack::StaticClass()))
+		{
+			MovieScene->RemoveCameraCutTrack();
+			return true;
+		}
+		else
+		{
+			return MovieScene->RemoveMasterTrack(*MasterTrack);
+		}
+	}
+
+	return false;
+}
+
+
 FFrameRate UMovieSceneSequenceExtensions::GetDisplayRate(UMovieSceneSequence* Sequence)
 {
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
@@ -124,6 +144,8 @@ void UMovieSceneSequenceExtensions::SetDisplayRate(UMovieSceneSequence* Sequence
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
+		MovieScene->Modify();
+
 		MovieScene->SetDisplayRate(DisplayRate);
 	}
 }
@@ -139,6 +161,8 @@ void UMovieSceneSequenceExtensions::SetTickResolution(UMovieSceneSequence* Seque
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
 	if (MovieScene)
 	{
+		MovieScene->Modify();
+
 		MovieScene->SetTickResolutionDirectly(TickResolution);
 	}
 }
@@ -514,6 +538,24 @@ FMovieSceneObjectBindingID UMovieSceneSequenceExtensions::MakeBindingID(UMovieSc
 	return FMovieSceneObjectBindingID(InBinding.BindingID, SequenceID, Space);
 }
 
+FSequencerBindingProxy UMovieSceneSequenceExtensions::ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID)
+{
+	UMovieSceneSequence* Sequence = MasterSequence;
+
+	FMovieSceneCompiledDataID DataID = UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(MasterSequence);
+
+	const FMovieSceneSequenceHierarchy* Hierarchy = UMovieSceneCompiledDataManager::GetPrecompiledData()->FindHierarchy(DataID);
+	if (Hierarchy)
+	{
+		if (UMovieSceneSequence* SubSequence = Hierarchy->FindSubSequence(InObjectBindingID.GetSequenceID()))
+		{
+			Sequence = SubSequence;
+		}
+	}
+
+	return FSequencerBindingProxy(InObjectBindingID.GetGuid(), Sequence);
+}
+
 TArray<UMovieSceneFolder*> UMovieSceneSequenceExtensions::GetRootFoldersInSequence(UMovieSceneSequence* Sequence)
 {
 	TArray<UMovieSceneFolder*> Result;
@@ -539,6 +581,7 @@ UMovieSceneFolder* UMovieSceneSequenceExtensions::AddRootFolderToSequence(UMovie
 		UMovieScene* MovieScene = Sequence->GetMovieScene();
 		if (MovieScene)
 		{
+			MovieScene->Modify();
 			NewFolder = NewObject<UMovieSceneFolder>(MovieScene);
 			NewFolder->SetFolderName(FName(*NewFolderName));
 			MovieScene->GetRootFolders().Add(NewFolder);
@@ -564,6 +607,8 @@ int32 UMovieSceneSequenceExtensions::AddMarkedFrame(UMovieSceneSequence* Sequenc
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
+		MovieScene->Modify();
+
 		return MovieScene->AddMarkedFrame(InMarkedFrame);
 	}
 	return INDEX_NONE;
@@ -574,6 +619,8 @@ void UMovieSceneSequenceExtensions::DeleteMarkedFrame(UMovieSceneSequence* Seque
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
+		MovieScene->Modify();
+
 		MovieScene->DeleteMarkedFrame(DeleteIndex);
 	}
 }
@@ -583,6 +630,8 @@ void UMovieSceneSequenceExtensions::DeleteMarkedFrames(UMovieSceneSequence* Sequ
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
 	if (MovieScene)
 	{
+		MovieScene->Modify();
+
 		MovieScene->DeleteMarkedFrames();
 	}
 }

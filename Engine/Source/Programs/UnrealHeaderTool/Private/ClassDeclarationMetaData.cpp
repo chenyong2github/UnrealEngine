@@ -184,6 +184,12 @@ void FClassDeclarationMetaData::ParseClassProperties(TArray<FPropertySpecifier>&
 				ClassFlags |= CLASS_GlobalUserConfig;
 				break;
 
+			case EClassMetadataSpecifier::ProjectUserConfig:
+
+				// Save object config only to project user overrides, never to INIs that are checked in
+				ClassFlags |= CLASS_ProjectUserConfig;
+				break;
+
 			case EClassMetadataSpecifier::ShowCategories:
 
 				FHeaderParser::RequireSpecifierValue(PropSpecifier);

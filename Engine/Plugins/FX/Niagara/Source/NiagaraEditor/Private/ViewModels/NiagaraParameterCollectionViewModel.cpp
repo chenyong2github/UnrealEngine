@@ -26,6 +26,17 @@ void INiagaraParameterCollectionViewModel::SortViewModels(TArray<TSharedRef<INia
 	InOutViewModels.Sort(SortVars);
 }
 
+TArray<TSharedPtr<FNiagaraTypeDefinition>> INiagaraParameterCollectionViewModel::GetAvailableTypesSorted()
+{
+	TArray<TSharedPtr<FNiagaraTypeDefinition>> AvailableTypes = GetAvailableTypes();
+	FText::FSortPredicate SortPredicate;
+	AvailableTypes.Sort([SortPredicate](const TSharedPtr<FNiagaraTypeDefinition>& A, const TSharedPtr<FNiagaraTypeDefinition>& B)
+    {
+        return SortPredicate(A->GetNameText(), B->GetNameText());
+    });
+	return AvailableTypes;
+}
+
 FNiagaraParameterCollectionViewModel::FNiagaraParameterCollectionViewModel(ENiagaraParameterEditMode InParameterEditMode)
 	: ParameterEditMode(InParameterEditMode)
 	, bNeedsRefresh(false)

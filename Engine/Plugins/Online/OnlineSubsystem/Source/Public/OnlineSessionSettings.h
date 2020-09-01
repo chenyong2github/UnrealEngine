@@ -307,6 +307,9 @@ public:
 	/** Array of custom session settings */
 	FSessionSettings Settings;
 
+	/** Map of custom settings per session member (Not currently used by every OSS) */
+	TUniqueNetIdMap<FSessionSettings> MemberSettings;
+
 public:
 	/** Default constructor, used when serializing a network packet */
 	FOnlineSessionSettings()
@@ -623,12 +626,18 @@ public:
 #define SEARCH_USER FName(TEXT("SEARCHUSER"))
 /** Keywords to match in session search */
 #define SEARCH_KEYWORDS FName(TEXT("SEARCHKEYWORDS"))
+/** The matchmaking queue name to matchmake in, e.g. "TeamDeathmatch" (value is string) */
+#define SEARCH_MATCHMAKING_QUEUE FName(TEXT("MATCHMAKINGQUEUE"))
 /** If set, use the named Xbox Live hopper to find a session via matchmaking (value is a string) */
 #define SEARCH_XBOX_LIVE_HOPPER_NAME FName(TEXT("LIVEHOPPERNAME"))
 /** Which session template from the service configuration to use */
 #define SEARCH_XBOX_LIVE_SESSION_TEMPLATE_NAME FName(TEXT("LIVESESSIONTEMPLATE"))
 /** Selection method used to determine which match to join when multiple are returned (valid only on Switch) */
 #define SEARCH_SWITCH_SELECTION_METHOD FName(TEXT("SWITCHSELECTIONMETHOD"))
+
+// User attributes for searching (FSessionMatchmakingUser::Attributes)
+/** Team a user is searching for */
+#define SEARCH_USER_ATTRIBUTE_TEAM TEXT("TEAM")
 
 /**
  * Encapsulation of a search for sessions request.

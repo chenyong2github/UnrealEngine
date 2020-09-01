@@ -451,8 +451,17 @@ public:
 class FMetalRHIBuffer
 {
 public:
+	// Matches other RHIs
+	static constexpr const uint32 MetalMaxNumBufferedFrames = 4;
+	
 	using LinearTextureMapKey = TTuple<EPixelFormat, FMetalLinearTextureDescriptor>;
 	using LinearTextureMap = TMap<LinearTextureMapKey, FMetalTexture>;
+	
+	struct FMetalBufferAndViews
+	{
+		FMetalBuffer Buffer;
+		LinearTextureMap Views;
+	};
 	
 	FMetalRHIBuffer(uint32 InSize, uint32 InUsage, ERHIResourceType InType);
 	virtual ~FMetalRHIBuffer();
@@ -475,22 +484,12 @@ public:
 	/**
 	 * Allocate the buffer backing store.
 	 */
-	void Alloc(uint32 InSize, EResourceLockMode LockMode);
-	
-	/**
-	 * Allocate the CPU accessible buffer for data transfer.
-	 */
-	void AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode);
-	
-	/**
-	 * Allocate a linear texture for given format.
-	 */
-	FMetalTexture AllocLinearTexture(EPixelFormat InFormat, const FMetalLinearTextureDescriptor& InLinearTextureDescriptor);
+//	void Alloc(uint32 InSize, EResourceLockMode LockMode);
 	
 	/**
 	 * Get a linear texture for given format.
 	 */
-	ns::AutoReleased<FMetalTexture> CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor = nullptr);
+	void CreateLinearTexture(EPixelFormat InFormat, FRHIResource* InParent, const FMetalLinearTextureDescriptor* InLinearTextureDescriptor = nullptr);
 	
 	/**
 	 * Get a linear texture for given format.
@@ -509,25 +508,53 @@ public:
 	
 	void Swap(FMetalRHIBuffer& Other);
 	
+	const FMetalBufferAndViews& GetCurrentBacking()
+	{
+		check(NumberOfBuffers > 0);
+		return BufferPool[CurrentIndex];
+	}
+	
+	const FMetalBuffer& GetCurrentBuffer()
+	{
+		return BufferPool[CurrentIndex].Buffer;
+	}
+	
+	FMetalBuffer GetCurrentBufferOrNil()
+	{
+		if(NumberOfBuffers > 0)
+		{
+			return GetCurrentBuffer();
+		}
+		return nil;
+	}
+	
+	void AdvanceBackingIndex()
+	{
+		CurrentIndex = (CurrentIndex + 1) % NumberOfBuffers;
+	}
+	
 	/**
 	 * Whether to allocate the resource from private memory.
 	 */
 	bool UsePrivateMemory() const;
 	
-	// balsa buffer memory
-	FMetalBuffer Buffer;
-	
 	// A temporary shared/CPU accessible buffer for upload/download
-	FMetalBuffer CPUBuffer;
+	FMetalBuffer TransferBuffer;
 	
-	// The map of linear textures for this vertex buffer - may be more than one due to type conversion.
-	LinearTextureMap LinearTextures;
+	TArray<FMetalBufferAndViews> BufferPool;
 	
 	/** Buffer for small buffers < 4Kb to avoid heap fragmentation. */
 	FMetalBufferData* Data;
 	
-	// Frame of last upload, if there was one.
-	uint32 LastUpdate;
+	// Frame we last locked (for debugging, mainly)
+	uint32 LastLockFrame;
+	
+	// The active buffer.
+	uint32 CurrentIndex		: 8;
+	// How many buffers are actually allocated
+	uint32 NumberOfBuffers	: 8;
+	// Current lock mode. RLM_Num indicates this buffer is not locked.
+	uint32 CurrentLockMode	: 16;
 	
 	// offset into the buffer (for lock usage)
 	uint32 LockOffset;
@@ -546,6 +573,30 @@ public:
 	
 	// Resource type
 	ERHIResourceType Type;
+	
+	static_assert((1 << 16) > RLM_Num, "Lock mode does not fit in bitfield");
+	static_assert((1 << 8) > MetalMaxNumBufferedFrames, "Buffer count does not fit in bitfield");
+	
+private:
+	FMetalBufferAndViews& GetCurrentBackingInternal()
+	{
+		return BufferPool[CurrentIndex];
+	}
+	
+	FMetalBuffer& GetCurrentBufferInternal()
+	{
+		return BufferPool[CurrentIndex].Buffer;
+	}
+	
+	/**
+	 * Allocate the CPU accessible buffer for data transfer.
+	 */
+	void AllocTransferBuffer(bool bOnRHIThread, uint32 InSize, EResourceLockMode LockMode);
+	
+	/**
+	 * Allocate a linear texture for given format.
+	 */
+	void AllocLinearTextures(const LinearTextureMapKey& InLinearTextureMapKey);
 };
 
 /** Index buffer resource class that stores stride information. */

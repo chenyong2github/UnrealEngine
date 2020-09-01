@@ -121,7 +121,8 @@ public:
 	virtual void OnToolkitHostingFinished( const TSharedRef< class IToolkit >& Toolkit ) override;
 	virtual UWorld* GetWorld() const override;
 	virtual TSharedRef<SWidget> CreateActorDetails( const FName TabIdentifier ) override;
-	virtual void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization) override;
+	virtual void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> InActorDetailsObjectFilter, TSharedPtr<IDetailRootObjectCustomization> InActorDetailsRootCustomization) override;
+	virtual void SetActorDetailsSCSEditorUICustomization(TSharedPtr<ISCSEditorUICustomization> InActorDetailsSCSEditorUICustomization) override;
 	virtual TSharedRef<SWidget> CreateToolBox() override;
 	virtual FEditorModeTools& GetEditorModeManager() const override;
 
@@ -228,6 +229,10 @@ private:
 
 	/** Registers toolbar options for the level editor status bar */
 	void RegisterStatusBarTools();
+
+	/** @return All valid actor details panels */
+	TArray<TSharedRef<SActorDetails>> GetAllActorDetails() const;
+
 private:
 
 	// Tracking the active viewports in this level editor.
@@ -285,6 +290,15 @@ private:
 
 	/** Handle to the registered OnLevelActorOuterChanged delegate */
 	FDelegateHandle LevelActorOuterChangedHandle;
+
+	/** Actor details object filters */
+	TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter;
+
+	/** Actor details root customization */
+	TSharedPtr<IDetailRootObjectCustomization> ActorDetailsRootCustomization;
+
+	/** Actor details SCS editor customization */
+	TSharedPtr<ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization;
 		
 	/** If this flag is raised we will force refresh on next selection update. */
 	bool bNeedsRefresh : 1;

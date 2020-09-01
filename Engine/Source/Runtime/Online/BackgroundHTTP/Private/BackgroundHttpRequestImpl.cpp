@@ -65,6 +65,9 @@ void FBackgroundHttpRequestImpl::OnBackgroundDownloadComplete()
 	//whatever kicked this off doesn't want to react to this download complete before we send this notification (IE: Kick off another download
 	//using the same NotificationObject, etc.)
 	NotifyNotificationObjectOfComplete(bWasSuccess);
+	
+	//Now that we have called our completion delegates and done everything else for this request, allow us to clean up data for it
+	FBackgroundHttpModule::Get().GetBackgroundHttpManager()->CleanUpDataAfterCompletingRequest(SharedThis(this));
 }
 
 void FBackgroundHttpRequestImpl::NotifyNotificationObjectOfComplete(bool bWasSuccess)

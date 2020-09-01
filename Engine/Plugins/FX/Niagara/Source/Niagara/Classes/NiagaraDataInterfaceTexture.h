@@ -50,11 +50,11 @@ public:
 	static const FString TextureName;
 	static const FString SamplerName;
 	static const FString DimensionsBaseName;
+
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 
 	void PushToRenderThread();
-
 
 	static const FName SampleTexture2DName;
 	static const FName SampleVolumeTextureName;
@@ -64,8 +64,8 @@ protected:
 
 struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
 {
+	FTextureReferenceRHIRef TextureReferenceRHI;
 	FSamplerStateRHIRef SamplerStateRHI;
-	FTextureRHIRef	TextureRHI;
 	FVector2D TexDims;
 
 	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override { check(false); }

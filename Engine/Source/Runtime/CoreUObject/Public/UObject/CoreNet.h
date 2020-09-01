@@ -485,6 +485,7 @@ class IRepChangedPropertyTracker
 {
 public:
 	IRepChangedPropertyTracker() { }
+	virtual ~IRepChangedPropertyTracker() { }
 
 	virtual void SetCustomIsActiveOverride(
 		UObject* OwningObject,
@@ -493,6 +494,7 @@ public:
 
 	virtual void SetExternalData(const uint8* Src, const int32 NumBits) = 0;
 
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	virtual bool IsReplay() const = 0;
 
 	/**

@@ -18,6 +18,10 @@ UMovieScenePropertyInstantiatorSystem::UMovieScenePropertyInstantiatorSystem(con
 
 	BuiltInComponents = FBuiltInComponentTypes::Get();
 
+	RecomposerImpl.OnGetPropertyInfo = FOnGetPropertyRecomposerPropertyInfo::CreateUObject(
+				this, &UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource);
+
+	SystemExclusionContext = EEntitySystemContext::Interrogation;
 	RelevantComponent = BuiltInComponents->PropertyBinding;
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -122,13 +126,17 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 		for (int32 Index = 0; Index < Allocation->Num(); ++Index)
 		{
 			const int32 PropertyIndex = this->ResolveProperty(CustomAccessors, ObjectPtrs[Index], PropertyPtrs[Index]);
+			
+			// If the property did not resolve, we still add it to the LUT
+			// So that the ensure inside VisitExpiredEntities only fires
+			// for genuine link/unlink disparities
+			this->EntityToProperty.Add(EntityIDs[Index], PropertyIndex);
 
 			if (PropertyIndex != INDEX_NONE)
 			{
 				++PropertyStats[PropertyDefinitionIndex].NumProperties;
 
 				this->ResolvedProperties[PropertyIndex].PropertyDefinitionIndex = PropertyDefinitionIndex;
-				this->EntityToProperty.Add(EntityIDs[Index], PropertyIndex);
 				this->Contributors.Add(PropertyIndex, EntityIDs[Index]);
 				this->NewContributors.Add(PropertyIndex, EntityIDs[Index]);
 
@@ -155,14 +163,18 @@ void UMovieScenePropertyInstantiatorSystem::DiscoverInvalidatedProperties(TBitAr
 	auto VisitExpiredEntities = [this, &OutInvalidatedProperties](FMovieSceneEntityID EntityID)
 	{
 		const int32* PropertyIndexPtr = this->EntityToProperty.Find(EntityID);
-		if (ensureMsgf(PropertyIndexPtr, TEXT("Could not find entity to clean up from linker entity ID - this indicates either FindOrCreatePropertyEntity failed for this entity, or a garbage collection issue.")))
+		if (ensureMsgf(PropertyIndexPtr, TEXT("Could not find entity to clean up from linker entity ID - this indicates VisitNewProperties never got called for this entity, or a garbage collection has somehow destroyed the entity without flushing the ecs.")))
 		{
 			const int32 PropertyIndex = *PropertyIndexPtr;
+			if (PropertyIndex != INDEX_NONE)
+			{
+				OutInvalidatedProperties.PadToNum(PropertyIndex + 1, false);
+				OutInvalidatedProperties[PropertyIndex] = true;
 
-			OutInvalidatedProperties.PadToNum(PropertyIndex + 1, false);
-			OutInvalidatedProperties[PropertyIndex] = true;
+				this->Contributors.Remove(PropertyIndex, EntityID);
+			}
 
-			this->Contributors.Remove(PropertyIndex, EntityID);
+			// Always remove the entity ID from the LUT
 			this->EntityToProperty.Remove(EntityID);
 		}
 	};
@@ -627,23 +639,24 @@ int32 UMovieScenePropertyInstantiatorSystem::ResolveProperty(UE::MovieScene::FCu
 	return NewPropertyIndex;
 }
 
-const UMovieScenePropertyInstantiatorSystem::FObjectPropertyInfo* UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
+UE::MovieScene::FPropertyRecomposerPropertyInfo UMovieScenePropertyInstantiatorSystem::FindPropertyFromSource(FMovieSceneEntityID EntityID, UObject* Object) const
 {
 	using namespace UE::MovieScene;
 
 	TComponentPtr<const FMovieScenePropertyBinding> PropertyBinding = Linker->EntityManager.ReadComponent(EntityID, BuiltInComponents->PropertyBinding);
 	if (!PropertyBinding)
 	{
-		return nullptr;
+		return FPropertyRecomposerPropertyInfo::Invalid();
 	}
 
 	TTuple<UObject*, FName> Key = MakeTuple(Object, PropertyBinding->PropertyPath);
 	if (const int32* PropertyIndex = ObjectPropertyToResolvedIndex.Find(Key))
 	{
-		return &ResolvedProperties[*PropertyIndex];
+		const FObjectPropertyInfo& PropertyInfo = ResolvedProperties[*PropertyIndex];
+		return FPropertyRecomposerPropertyInfo { PropertyInfo.BlendChannel, PropertyInfo.Blender.Get(), PropertyInfo.PropertyEntityID };
 	}
 
-	return nullptr;
+	return FPropertyRecomposerPropertyInfo::Invalid();
 }
 
 void UMovieScenePropertyInstantiatorSystem::AssignInitialValues(FSystemTaskPrerequisites& InPrerequisites, FSystemSubsequentTasks& Subsequents)

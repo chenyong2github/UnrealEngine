@@ -91,7 +91,7 @@ struct FNCPool
 public:
 
 	FNCPool();
-	void Cleanup();
+	void Cleanup(bool bFreeOnly);
 
 	/** Gets a component from the pool ready for use. */
 	UNiagaraComponent* Acquire(UWorld* World, UNiagaraSystem* Template, ENCPoolMethod PoolingMethod, bool bForceNew=false);
@@ -124,7 +124,10 @@ public:
 
 	~UNiagaraComponentPool();
 
-	void Cleanup();
+	void Cleanup(bool bFreeOnly=false);
+
+	/** Clear all free entires of the specified system. */
+	void ClearPool(UNiagaraSystem* System);
 
 	void PrimePool(UNiagaraSystem* Template, UWorld* World);
 	UNiagaraComponent* CreateWorldParticleSystem(UNiagaraSystem* Template, UWorld* World, ENCPoolMethod PoolingMethod);
@@ -137,6 +140,9 @@ public:
 	
 	/** Notification that the component is being destroyed but has relevance to the component pool. */
 	void PooledComponentDestroyed(UNiagaraComponent* Component);
+
+	/** Remove any components that are using this system. */
+	void RemoveComponentsBySystem(UNiagaraSystem* System);
 
 	/** Dumps the current state of the pool to the log. */
 	void Dump();

@@ -92,6 +92,17 @@ void UMeshOpPreviewWithBackgroundCompute::InvalidateResult()
 }
 
 
+bool UMeshOpPreviewWithBackgroundCompute::GetCurrentResultCopy(FDynamicMesh3& MeshOut, bool bOnlyIfValid)
+{
+	if ( HaveValidResult() || bOnlyIfValid == false)
+	{
+		MeshOut.Copy( *PreviewMesh->GetMesh() );
+		return true;
+	}
+	return false;
+}
+
+
 void UMeshOpPreviewWithBackgroundCompute::ConfigureMaterials(UMaterialInterface* StandardMaterialIn, UMaterialInterface* WorkingMaterialIn)
 {
 	TArray<UMaterialInterface*> Materials;

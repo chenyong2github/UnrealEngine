@@ -183,9 +183,12 @@ public:
 			FieldPathSerialNumber = GetFieldPathSerialNumber(Owner);
 #endif // WITH_EDITORONLY_DATA
 		}
-		else
+		else if (ResolvedField)
 		{
-			ClearCachedField();
+			// In case this field has been previously resolved, clear the owner as well as it's impossible the original field
+			// will ever come back (it's most likely been deleted) and we don't want to resolve to a newly created one even if its name and class match
+			ResolvedOwner.Reset();
+			ResolvedField = nullptr;
 		}
 	}
 

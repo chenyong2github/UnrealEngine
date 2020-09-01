@@ -4216,9 +4216,12 @@ void FEditorFileUtils::GetDirtyWorldPackages(TArray<UPackage*>& OutDirtyPackages
 				{
 					if (WorldPackage->IsDirty() && !BuiltDataPackage->IsDirty())
 					{
-						// Must become dirty because new prompts to save should not be brought up after each individual map saves
-						// We also cannot bring up a second prompt to save because a recursion guard blocks it
-						BuiltDataPackage->MarkPackageDirty();
+						// Mark built data package dirty if has not been given name yet
+						// Otherwise SaveDirtyPackages will fail to create built data file on disk due to re-entrance guard in PromptForCheckoutAndSave preventing a second pop-up window
+						if (!FPackageName::IsValidLongPackageName(BuiltDataPackage->GetName(), /*bIncludeReadOnlyRoots= */ false))
+						{
+							BuiltDataPackage->MarkPackageDirty();
+						}
 					}
 
 					if (BuiltDataPackage->IsDirty())

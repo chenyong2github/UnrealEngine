@@ -142,6 +142,19 @@ static TAutoConsoleVariable<int32> CVarCachePreshadows(
 	TEXT("Whether preshadows can be cached as an optimization"),
 	ECVF_RenderThreadSafe
 	);
+
+/**
+ * NOTE: This flag is intended to be kept only as long as deemed neccessary to be sure that no artifacts were introduced.
+ *       This allows a quick hot-fix to disable the change if need be.
+ */
+static TAutoConsoleVariable<int32> CVarResolutionScaleZeroDisablesSm(
+	TEXT("r.Shadow.ResolutionScaleZeroDisablesSm"),
+	1,
+	TEXT("DEPRECATED: If 1 (default) then setting Shadow Resolution Scale to zero disables shadow maps for the light."),
+	ECVF_RenderThreadSafe
+);
+
+
 bool ShouldUseCachePreshadows()
 {
 	return CVarCachePreshadows.GetValueOnRenderThread() != 0;
@@ -3036,6 +3049,12 @@ void FSceneRenderer::CreateWholeSceneProjectedShadow(
 {
 	SCOPE_CYCLE_COUNTER(STAT_CreateWholeSceneProjectedShadow);
 	FVisibleLightInfo& VisibleLightInfo = VisibleLightInfos[LightSceneInfo->Id];
+
+	// early out if shadow resoluion scale is zero
+	if (CVarResolutionScaleZeroDisablesSm.GetValueOnRenderThread() != 0 && LightSceneInfo->Proxy->GetShadowResolutionScale() <= 0.0f)
+	{
+		return;
+	}
 
 	// Determine if we want a virtual shadow map for this light
 	// TODO: Base this off of a light/editor parameter; for now just all spot lights get virtual shadow maps when the CVar is enabled

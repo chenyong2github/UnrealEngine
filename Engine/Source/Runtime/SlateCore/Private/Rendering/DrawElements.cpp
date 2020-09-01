@@ -197,7 +197,7 @@ void FSlateDrawElement::MakeDebugQuad( FSlateWindowElementList& ElementList, uin
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
 	FSlateBoxPayload& BoxPayload = ElementList.CreatePayload<FSlateBoxPayload>(Element);
-	
+
 	BoxPayload.SetTint(Tint);
 	Element.Init(ElementList, EElementType::ET_DebugQuad, InLayer, PaintGeometry, ESlateDrawEffect::None);
 }
@@ -218,8 +218,6 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();
 
-	const FMargin& Margin = InBrush->GetMargin();
-
 	FSlateBoxPayload* BoxPayload;
 	if ( ElementType == EElementType::ET_RoundedBox )
 	{
@@ -238,10 +236,10 @@ FSlateDrawElement& FSlateDrawElement::MakeBoxInternal(
 		BoxPayload = &ElementList.CreatePayload<FSlateBoxPayload>(Element);
 	}
 
-	Element.Init(ElementList, ElementType, InLayer, PaintGeometry, InDrawEffects);
-
 	BoxPayload->SetTint(InTint);
 	BoxPayload->SetBrush(InBrush, PaintGeometry.GetLocalSize(), PaintGeometry.DrawScale);
+
+	Element.Init(ElementList, ElementType, InLayer, PaintGeometry, InDrawEffects);
 
 	return Element;
 }
@@ -355,6 +353,43 @@ void FSlateDrawElement::MakeText( FSlateWindowElementList& ElementList, uint32 I
 	Element.Init(ElementList, EElementType::ET_Text, InLayer, PaintGeometry, InDrawEffects);
 }
 
+namespace SlateDrawElement
+{
+#if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
+	const FName MaterialInterfaceClassName = "MaterialInterface";
+	void CheckInvalidUMaterial(const UObject* InMaterialResource, const TCHAR* MaterialMessage)
+	{
+		if (InMaterialResource && GSlateCheckUObjectRenderResources)
+		{
+			bool bIsValidLowLevel = InMaterialResource->IsValidLowLevelFast(false);
+			if (!bIsValidLowLevel || InMaterialResource->IsPendingKill() || InMaterialResource->GetClass()->GetFName() == MaterialInterfaceClassName)
+			{
+				UE_LOG(LogSlate, Error, TEXT("Material '%s' is not valid. PendingKill:'%d'. ValidLowLevelFast:'%d'. InvalidClass:'%d'")
+					, MaterialMessage
+					, (bIsValidLowLevel ? InMaterialResource->IsPendingKill() : false)
+					, bIsValidLowLevel
+					, (bIsValidLowLevel ? InMaterialResource->GetClass()->GetFName() == MaterialInterfaceClassName : false));
+
+				if (bIsValidLowLevel)
+				{
+					UE_LOG(LogSlate, Error, TEXT("Material name: '%s'"), *InMaterialResource->GetFullName());
+				}
+
+				const TCHAR* Message = TEXT("We detected an invalid resource in FSlateDrawElement. Check the log for more detail.");
+				if (GSlateCheckUObjectRenderResourcesShouldLogFatal)
+				{
+					UE_LOG(LogSlate, Fatal, TEXT("%s"), Message);
+				}
+				else
+				{
+					ensureAlwaysMsgf(false, TEXT("%s"), Message);
+				}
+			}
+		}
+	}
+#endif
+}
+
 void FSlateDrawElement::MakeShapedText(FSlateWindowElementList& ElementList, uint32 InLayer, const FPaintGeometry& PaintGeometry, const FShapedGlyphSequenceRef& InShapedGlyphSequence, ESlateDrawEffect InDrawEffects, const FLinearColor& BaseTint, const FLinearColor& OutlineTint)
 {
 	SCOPE_CYCLE_COUNTER(STAT_SlateDrawElementMakeTime)
@@ -378,15 +413,8 @@ void FSlateDrawElement::MakeShapedText(FSlateWindowElementList& ElementList, uin
 	}
 
 #if SLATE_CHECK_UOBJECT_RENDER_RESOURCES
-	if (const UObject* FontMaterial = InShapedGlyphSequence->GetFontMaterial())
-	{
-		ensureMsgf(!FontMaterial->IsPendingKill(), TEXT("Font Material %s Is Marked Pending Kill"), *FontMaterial->GetName());
-	}
-
-	if (const UObject* OutlineMaterial = InShapedGlyphSequence->GetFontOutlineSettings().OutlineMaterial)
-	{
-		ensureMsgf(!OutlineMaterial->IsPendingKill(), TEXT("Outline Material %s Is Marked Pending Kill"), *OutlineMaterial->GetName());
-	}
+	SlateDrawElement::CheckInvalidUMaterial(InShapedGlyphSequence->GetFontMaterial(), TEXT("Font Material"));
+	SlateDrawElement::CheckInvalidUMaterial(InShapedGlyphSequence->GetFontOutlineSettings().OutlineMaterial, TEXT("Outline Material"));
 #endif
 
 	FSlateDrawElement& Element = ElementList.AddUninitialized();

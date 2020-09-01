@@ -86,7 +86,7 @@ namespace UnrealBuildTool
 			return true;
 		}
 
-		protected override string GetRequiredSDKString()
+		public override string GetRequiredSDKString()
 		{
 			return GetDesiredVersion();
 		}

@@ -14,8 +14,10 @@
 #include "Particles/ParticleModuleRequired.h"
 #include "Particles/Orbit/ParticleModuleOrbit.h"
 #include "Particles/Collision/ParticleModuleCollisionBase.h"
+#include "Particles/TypeData/ParticleModuleTypeDataGpu.h"
 #include "Particles/TypeData/ParticleModuleTypeDataMesh.h"
 #include "Particles/TypeData/ParticleModuleTypeDataRibbon.h"
+#include "Curves/RichCurve.h"
 #include "NiagaraStackGraphUtilitiesAdapterLibrary.generated.h"
 
 class UNiagaraSystem;
@@ -89,6 +91,9 @@ enum class ENiagaraScriptInputType : uint8
 	Vec4,
 	LinearColor,
 	Quaternion,
+	Struct,
+	Enum,
+	DataInterface,
 
 	NONE
 };
@@ -222,7 +227,12 @@ struct FParticleBurstBlueprint
 {
 	GENERATED_USTRUCT_BODY()
 
-	FParticleBurstBlueprint() {};
+	FParticleBurstBlueprint()
+	{
+		Count = 0;
+		CountLow = 0;
+		Time = 0.0f;
+	};
 
 	FParticleBurstBlueprint(const FParticleBurst& InParticleBurst)
 		: Count(InParticleBurst.Count)
@@ -252,6 +262,25 @@ struct FParameterSetIndices
 	UPROPERTY()
 	TArray<int32> Indices;
 };
+
+USTRUCT(BlueprintInternalUseOnly)
+struct FRichCurveKeyBP : public FRichCurveKey
+{
+	GENERATED_BODY()
+
+	FRichCurveKeyBP()
+		:FRichCurveKey()
+	{};
+
+	FRichCurveKeyBP(const FRichCurveKey& Other) 
+		:FRichCurveKey(Other) 
+	{};
+
+	FRichCurveKey ToBase() const { return FRichCurveKey(Time, Value, ArriveTangent, LeaveTangent, InterpMode); };
+
+	static TArray<FRichCurveKey> KeysToBase(const TArray<FRichCurveKeyBP>& InKeyBPs);
+};
+
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	Logging Framework																						  /////
@@ -481,6 +510,10 @@ private:
 	UPROPERTY()
 	TArray<FGenericConverterMessage> StackMessages;
 
+	// Map of input variable names to their type defs for verifying inputs.
+	UPROPERTY()
+	TMap<FString, FNiagaraTypeDefinition> InputNameToTypeDefMap;
+
 	UPROPERTY()
 	bool bEnabled;
 };
@@ -495,24 +528,19 @@ public:
 	UNiagaraScriptConversionContextInput() {};
 
 	UFUNCTION()
-	void Init(UNiagaraClipboardFunctionInput* InClipboardFunctionInput, const FNiagaraTypeDefinition& InTargetTypeDefinition);
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	bool TryGetValueRangeFloat(float& OutMinValue, float& OutMaxValue);
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	bool TryGetValueRangeVector(FVector& OutMinValue, FVector& OutMaxValue);
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	bool ValueIsAlwaysEqual(TArray<float> ConstValues);
+	void Init(UNiagaraClipboardFunctionInput* InClipboardFunctionInput, const ENiagaraScriptInputType InInputType, const FNiagaraTypeDefinition& InTypeDefinition);
 
 	UPROPERTY()
 	UNiagaraClipboardFunctionInput* ClipboardFunctionInput;
 
-	UPROPERTY()
-	FNiagaraTypeDefinition TargetTypeDefinition;
-};
+	UPROPERTY(BlueprintReadOnly, Category = StaticValue)
+	ENiagaraScriptInputType InputType;
 
+	UPROPERTY()
+	FNiagaraTypeDefinition TypeDefinition;
+
+	TArray<FGenericConverterMessage> StackMessages;
+};
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 /////	UFXConverterUtilitiesLibrary																			  /////
@@ -529,9 +557,6 @@ public:
 	// Generic Utilities
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static FString GetLongPackagePath(const FString& InLongPackageName) { return FPackageName::GetLongPackagePath(InLongPackageName); }
-	
-	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static bool ObjectIsA(UObject* Object, UClass* Class) { return Object->IsA(Class); };
 
 
 	// Cascade Emitter and ParticleLodLevel Getters
@@ -571,6 +596,9 @@ public:
 	static UNiagaraScriptConversionContextInput* CreateScriptInputFloat(float Value);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
+	static UNiagaraScriptConversionContextInput* CreateScriptInputVec2(FVector2D Value);
+
+	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
 	static UNiagaraScriptConversionContextInput* CreateScriptInputVector(FVector Value);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
@@ -599,105 +627,33 @@ public:
 
 	// Niagara DI Helpers
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UNiagaraDataInterfaceCurve* CreateFloatCurveDI();
+	static UNiagaraDataInterfaceCurve* CreateFloatCurveDI(TArray<FRichCurveKeyBP> Keys);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UNiagaraDataInterfaceVector2DCurve* CreateVec2CurveDI();
+	static UNiagaraDataInterfaceVector2DCurve* CreateVec2CurveDI(TArray<FRichCurveKeyBP> X_Keys, TArray<FRichCurveKeyBP> Y_Keys);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UNiagaraDataInterfaceVectorCurve* CreateVec3CurveDI();
+	static UNiagaraDataInterfaceVectorCurve* CreateVec3CurveDI(
+		TArray<FRichCurveKeyBP> X_Keys,
+		TArray<FRichCurveKeyBP> Y_Keys,
+		TArray<FRichCurveKeyBP> Z_Keys
+	);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UNiagaraDataInterfaceVector4Curve* CreateVec4CurveDI();
+	static UNiagaraDataInterfaceVector4Curve* CreateVec4CurveDI(
+	TArray<FRichCurveKeyBP> X_Keys,
+	TArray<FRichCurveKeyBP> Y_Keys,
+	TArray<FRichCurveKeyBP> Z_Keys,
+	TArray<FRichCurveKeyBP> W_Keys
+	);
 
 
 	// Niagara System and Emitter Helpers
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static UNiagaraSystemConversionContext* CreateSystemConversionContext(UNiagaraSystem* InSystem);
 
-
-	// Cascade Particle Module Getters
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleSpawnClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleRequiredClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleColorClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleColorOverLifeClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleLifetimeClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleSizeClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleVelocityClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleTypeDataGPUClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleTypeDataMeshClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleConstantAccelerationClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleLocationPrimitiveSphereClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleMeshRotationClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleCollisionClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleSizeScaleBySpeedClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleVectorFieldLocalClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleVectorFieldRotationRateClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleOrbitClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleSizeMultipleLifeClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleColorScaleOverLifeClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleRotationClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleRotationRateClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleSubUVClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleCameraOffsetClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleSubUVMovieClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleParameterDynamicClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleAccelerationDragClass();
-
-	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static UClass* GetParticleModuleAccelerationClass();
-
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetParticleModuleTypeDataGpuProps(UParticleModuleTypeDataGpu* ParticleModule);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetParticleModuleTypeDataMeshProps(
@@ -777,6 +733,7 @@ public:
 		, UTexture2D*& OutCutoutTexture
 		, TEnumAsByte<ESubUVBoundingVertexCount>& OutBoundingMode
 		, TEnumAsByte<EOpacitySourceMode>& OutOpacitySourceMode
+		, float& OutAlphaThreshold
 	);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
@@ -860,12 +817,12 @@ public:
 	);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
-	static void GetParticleModuleSizeMultipleLifeProps(
+	static void GetParticleModuleSizeMultiplyLifeProps(
 		UParticleModuleSizeMultiplyLife* ParticleModule
 		, UDistribution*& OutLifeMultiplier
-		, int32& OutMultiplyX
-		, int32& OutMultiplyY
-		, int32& OutMultiplyZ
+		, bool& OutMultiplyX
+		, bool& OutMultiplyY
+		, bool& OutMultiplyZ
 	);
 
 	UFUNCTION(BlueprintCallable, Category = "FXConverterUtilities")
@@ -918,6 +875,13 @@ public:
 
 	// Cascade Distribution Getters
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
+	static void GetDistributionMinMaxValues(
+		UDistribution* Distribution,
+		bool& bOutSuccess,
+		FVector& OutMinValue,
+		FVector& OutMaxValue);
+
+	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
 	static void GetDistributionType(
 		UDistribution* Distribution
 		, EDistributionType& OutDistributionType
@@ -956,16 +920,16 @@ public:
 
 	// Cascade curve helpers
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static void CopyCascadeFloatCurveToNiagaraCurveDI(UNiagaraDataInterfaceCurve* CurveDI, FInterpCurveFloat InterpCurveFloat);
+	static TArray<FRichCurveKeyBP> KeysFromInterpCurveFloat(FInterpCurveFloat Curve);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static void CopyCascadeVectorCurveToNiagaraCurveDI(UNiagaraDataInterfaceVectorCurve* CurveDI, FInterpCurveVector InterpCurveVector);
+	static TArray<FRichCurveKeyBP> KeysFromInterpCurveVector(FInterpCurveVector Curve, int32 ComponentIdx);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static void CopyCascadeVector2DCurveToNiagaraCurveDI(UNiagaraDataInterfaceVector2DCurve* CurveDI, FInterpCurveVector2D InterpCurveVector2D);
+	static TArray<FRichCurveKeyBP> KeysFromInterpCurveVector2D(FInterpCurveVector2D Curve, int32 ComponentIdx);
 
 	UFUNCTION(BlueprintCallable, meta = (ScriptMethod), Category = "FXConverterUtilities")
-	static void CopyCascadeTwoVectorCurveToNiagaraCurveDI(UNiagaraDataInterfaceVector4Curve* CurveDI, FInterpCurveTwoVectors InterpCurveTwoVectors);
+	static TArray<FRichCurveKeyBP> KeysFromInterpCurveTwoVectors(FInterpCurveTwoVectors Curve, int32 ComponentIdx);
 
 
 	// Maps from python addressable FGuid to non-blueprint types

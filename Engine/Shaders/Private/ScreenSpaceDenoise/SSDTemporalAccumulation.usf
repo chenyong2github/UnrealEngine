@@ -44,6 +44,8 @@
 
 	#define CONFIG_HISTORY_REJECTION HISTORY_REJECTION_VAR_BOUNDARIES
 
+	#define CONFIG_REJECTION_SAMPLE_SET SAMPLE_SET_3X3_PLUS
+
 	// Uses nearest to not leak informations on geometric edges by bilateral. This is OK because just blury greyscale details.
 	// TODO(Denoiser): a bit hacky, need find better solution.
 	// TODO(Denoiser): cause a regression on spot light for some reasons.
@@ -111,6 +113,7 @@
 
 	#define CONFIG_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
 	#define CONFIG_HISTORY_BILATERAL_PRESET BILATERAL_PRESET_DIFFUSE
+	#define CONFIG_PATCH_PREV_SCENE_DEPTH 1
 
 	// Use pre transformed rejection buffer that contains pre transformed momment 1 & 2.
 	#if 1
@@ -632,8 +635,8 @@ void TemporallyAccumulate(
 			#if CONFIG_PATCH_PREV_SCENE_DEPTH
 			{
 				KernelConfig.RefBufferUV = HistoryBufferUV;
-				KernelConfig.RefSceneMetadataLayout = METADATA_BUFFER_LAYOUT_WORLD_POS_SHADINGMODEL;
-				//KernelConfig.RefSceneMetadataLayout = CONFIG_METADATA_BUFFER_LAYOUT;
+				KernelConfig.RefSceneMetadataLayout = CONFIG_METADATA_BUFFER_LAYOUT;
+				KernelConfig.bPreviousFrameRefMetadata = true;
 
 				FSSDSampleSceneInfos PrevRefInfo = UncompressSampleSceneInfo(
 					CONFIG_METADATA_BUFFER_LAYOUT, /* bIsPrevFrame = */ false,

@@ -227,6 +227,8 @@ protected:
 	// snap measurement functions
 	// 
 
+	int32 FindIndexOfBestSnapInSet(const TArray<FSnapTargetPoint>& TestTargets, double& MinMetric, int& MinPriority,
+		const TFunction<FVector3d(const FVector3d&)>& GetSnapPointFromFunc);
 	const FSnapTargetPoint* FindBestSnapInSet(const TArray<FSnapTargetPoint>& TestTargets, double& MinMetric, int& MinPriority,
 		const TFunction<FVector3d(const FVector3d&)>& GetSnapPointFromFunc);
 

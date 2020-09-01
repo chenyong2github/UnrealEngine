@@ -77,6 +77,7 @@
 
 #include "UObject/TextProperty.h"
 #include "Subsystems/AssetEditorSubsystem.h"
+#include "SupportedRangeTypes.h"	// StructsSupportingRangeVisibility
 
 #define LOCTEXT_NAMESPACE "BlueprintDetailsCustomization"
 
@@ -98,7 +99,10 @@ void FBlueprintDetails::AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, F
 	// Check for Ed Graph vars that can generate events
 	if ( PropertyClass && BlueprintObj->AllowsDynamicBinding() )
 	{
-		if ( FBlueprintEditorUtils::CanClassGenerateEvents(PropertyClass) )
+		// If the object property can't be resolved for the property, than we can't use it's events.
+		FObjectProperty* VariableProperty = FindFProperty<FObjectProperty>(BlueprintObj->SkeletonGeneratedClass, PropertyName);
+
+		if ( FBlueprintEditorUtils::CanClassGenerateEvents(PropertyClass) && VariableProperty )
 		{
 			for ( TFieldIterator<FMulticastDelegateProperty> PropertyIt(PropertyClass, EFieldIteratorFlags::IncludeSuper); PropertyIt; ++PropertyIt )
 			{
@@ -358,7 +362,7 @@ void FBlueprintVarActionDetails::CustomizeDetails( IDetailLayoutBuilder& DetailL
 	[
 		SNew(SEditableTextBox)
 		.Text( this, &FBlueprintVarActionDetails::OnGetTooltipText )
-		.ToolTip(ToolTipTooltip)
+		.ToolTipText( this, &FBlueprintVarActionDetails::OnGetTooltipText )
 		.OnTextCommitted( this, &FBlueprintVarActionDetails::OnTooltipTextCommitted, CachedVariableName )
 		.IsEnabled(IsVariableInBlueprint())
 		.Font( DetailFontInfo )
@@ -2111,10 +2115,16 @@ EVisibility FBlueprintVarActionDetails::RangeVisibility() const
 	if (VariableProperty)
 	{
 		const bool bIsInteger = VariableProperty->IsA(FIntProperty::StaticClass());
-		const bool bIsNonEnumByte = (VariableProperty->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(VariableProperty)->Enum == NULL);
+		const bool bIsNonEnumByte = (VariableProperty->IsA(FByteProperty::StaticClass()) && CastField<const FByteProperty>(VariableProperty)->Enum == nullptr);
 		const bool bIsFloat = VariableProperty->IsA(FFloatProperty::StaticClass());
 
-		if (IsABlueprintVariable(VariableProperty) && (bIsInteger || bIsNonEnumByte || bIsFloat))
+		// If this is a struct property than we must check the name of the struct it points to, so we can check
+		// if it supports the editing of the UIMin/UIMax metadata
+		const FStructProperty* StructProp = CastField<FStructProperty>(VariableProperty);
+		const UStruct* InnerStruct = StructProp ? StructProp->Struct : nullptr;
+		const bool bIsSupportedStruct = InnerStruct ? RangeVisibilityUtils::StructsSupportingRangeVisibility.Contains(InnerStruct->GetFName()) : false;
+
+		if (IsABlueprintVariable(VariableProperty) && (bIsInteger || bIsNonEnumByte || bIsFloat || bIsSupportedStruct))
 		{
 			return EVisibility::Visible;
 		}

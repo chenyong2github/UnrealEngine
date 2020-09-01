@@ -37,6 +37,9 @@ namespace UnrealGameSync
 		void ModifyApplicationSettings();
 		void UpdateAlertWindows();
 		void UpdateTintColors();
+
+		IssueMonitor CreateIssueMonitor(string ApiUrl, string UserName);
+		void ReleaseIssueMonitor(IssueMonitor IssueMonitor);
 	}
 
 	delegate void WorkspaceStartupCallback(WorkspaceControl Workspace, bool bCancel);
@@ -309,7 +312,7 @@ namespace UnrealGameSync
 		System.Threading.Timer StartupTimer;
 		List<WorkspaceStartupCallback> StartupCallbacks;
 
-		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, IssueMonitor InIssueMonitor, LineBasedTextWriter InLog, UserSettings InSettings)
+		public WorkspaceControl(IWorkspaceControlOwner InOwner, string InApiUrl, string InOriginalExecutableFileName, bool bInUnstable, DetectProjectSettingsTask DetectSettings, LineBasedTextWriter InLog, UserSettings InSettings)
 		{
 			InitializeComponent();
 
@@ -320,7 +323,6 @@ namespace UnrealGameSync
 			DataFolder = DetectSettings.DataFolder;
 			OriginalExecutableFileName = InOriginalExecutableFileName;
 			bUnstable = bInUnstable;
-			IssueMonitor = InIssueMonitor;
 			Log = InLog;
 			Settings = InSettings;
 			WorkspaceSettings = InSettings.FindOrAddWorkspace(DetectSettings.BranchClientPath);
@@ -374,6 +376,13 @@ namespace UnrealGameSync
 				CurrentSyncFilterHash = WorkspaceSettings.CurrentSyncFilterHash;
 			}
 
+			// Figure out which API server to use
+			string NewApiUrl;
+			if (TryGetProjectSetting(DetectSettings.LatestProjectConfigFile, "ApiUrl", out NewApiUrl))
+			{
+				ApiUrl = NewApiUrl;
+			}
+
 			string TelemetryProjectIdentifier = PerforceUtils.GetClientOrDepotDirectoryName(DetectSettings.NewSelectedProjectIdentifier);
 
 			Workspace = new Workspace(PerforceClient, BranchDirectoryName, SelectedFileName, DetectSettings.BranchClientPath, DetectSettings.NewSelectedClientFileName, CurrentChangeNumber, CurrentSyncFilterHash, WorkspaceSettings.LastBuiltChangeNumber, TelemetryProjectIdentifier, DetectSettings.bIsEnterpriseProject, new LogControlTextWriter(SyncLog));
@@ -410,6 +419,8 @@ namespace UnrealGameSync
 			StartupTimer = new System.Threading.Timer(x => MainThreadSynchronizationContext.Post((o) => { if (!IsDisposed) { StartupTimerElapsed(false); } }, null), null, TimeSpan.FromSeconds(20.0), TimeSpan.FromMilliseconds(-1.0));
 			StartupCallbacks = new List<WorkspaceStartupCallback>();
 
+			string IssuesApiUrl = GetIssuesApiUrl();
+			IssueMonitor = InOwner.CreateIssueMonitor(IssuesApiUrl, DetectSettings.PerforceClient.UserName);
 			IssueMonitor.OnIssuesChanged += IssueMonitor_OnIssuesChangedAsync;
 
 			if (SelectedFileName.EndsWith(".uproject", StringComparison.OrdinalIgnoreCase))
@@ -700,6 +711,7 @@ namespace UnrealGameSync
 			if (IssueMonitor != null)
 			{
 				IssueMonitor.OnIssuesChanged -= IssueMonitor_OnIssuesChangedAsync;
+				Owner.ReleaseIssueMonitor(IssueMonitor);
 				IssueMonitor = null;
 			}
 			if (StartupTimer != null)
@@ -874,23 +886,26 @@ namespace UnrealGameSync
 
 		void StartSync(int ChangeNumber)
 		{
-			StartSync(ChangeNumber, null);
+			StartSync(ChangeNumber, false, null);
 		}
 
-		void StartSync(int ChangeNumber, WorkspaceUpdateCallback Callback)
+		void StartSync(int ChangeNumber, bool bSyncOnly, WorkspaceUpdateCallback Callback)
 		{
 			WorkspaceUpdateOptions Options = WorkspaceUpdateOptions.Sync | WorkspaceUpdateOptions.SyncArchives | WorkspaceUpdateOptions.GenerateProjectFiles;
-			if (Settings.bBuildAfterSync)
+			if (!bSyncOnly)
 			{
-				Options |= WorkspaceUpdateOptions.Build;
-			}
-			if ((Settings.bBuildAfterSync || ShouldSyncPrecompiledEditor) && Settings.bRunAfterSync)
-			{
-				Options |= WorkspaceUpdateOptions.RunAfterSync;
-			}
-			if (Settings.bOpenSolutionAfterSync)
-			{
-				Options |= WorkspaceUpdateOptions.OpenSolutionAfterSync;
+				if (Settings.bBuildAfterSync)
+				{
+					Options |= WorkspaceUpdateOptions.Build;
+				}
+				if ((Settings.bBuildAfterSync || ShouldSyncPrecompiledEditor) && Settings.bRunAfterSync)
+				{
+					Options |= WorkspaceUpdateOptions.RunAfterSync;
+				}
+				if (Settings.bOpenSolutionAfterSync)
+				{
+					Options |= WorkspaceUpdateOptions.OpenSolutionAfterSync;
+				}
 			}
 			StartWorkspaceUpdate(ChangeNumber, Options, Callback);
 		}
@@ -1441,8 +1456,28 @@ namespace UnrealGameSync
 			}
 		}
 
+		string GetIssuesApiUrl()
+		{
+			string IssuesApiUrl;
+			if (!TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "IssuesApiUrl", out IssuesApiUrl))
+			{
+				IssuesApiUrl = ApiUrl;
+			}
+			return IssuesApiUrl;
+		}
+
 		void UpdateBuildMetadata()
 		{
+			// Refresh the issue monitor if it's changed
+			string IssuesApiUrl = GetIssuesApiUrl();
+			if (IssuesApiUrl != IssueMonitor.ApiUrl)
+			{
+				Log.WriteLine("Changing issues API url from {0} to {1}", IssueMonitor.ApiUrl, IssuesApiUrl);
+				IssueMonitor NewIssueMonitor = Owner.CreateIssueMonitor(IssuesApiUrl, Workspace.Perforce.UserName);
+				Owner.ReleaseIssueMonitor(IssueMonitor);
+				IssueMonitor = NewIssueMonitor;
+			}
+
 			// Update the column settings first, since this may affect the badges we hide
 			UpdateColumnSettings();
 
@@ -2792,7 +2827,7 @@ namespace UnrealGameSync
 						}
 						else
 						{
-							StartSync(Change.Number, null);
+							StartSync(Change.Number, false, null);
 						}
 					}
 				}
@@ -3281,7 +3316,7 @@ namespace UnrealGameSync
 			bool bHasOtherAssignedIssue = false;
 			foreach (IssueData Issue in IssueMonitor.GetIssues())
 			{
-				if (Issue.Project == BuildHealthProject)
+				if (Issue.Projects.Contains(BuildHealthProject))
 				{
 					Issues.Add(Issue);
 				}
@@ -3377,7 +3412,10 @@ namespace UnrealGameSync
 
 		private void BuildHealthContextMenu_Settings_Click(object sender, EventArgs e)
 		{
-			IssueSettingsWindow IssueSettings = new IssueSettingsWindow(Settings);
+			string BuildHealthProject;
+			TryGetProjectSetting(PerforceMonitor.LatestProjectConfigFile, "BuildHealthProject", out BuildHealthProject);
+
+			IssueSettingsWindow IssueSettings = new IssueSettingsWindow(Settings, BuildHealthProject ?? "");
 			if (IssueSettings.ShowDialog(this) == DialogResult.OK)
 			{
 				Owner.UpdateAlertWindows();
@@ -3691,7 +3729,7 @@ namespace UnrealGameSync
 							Rectangle SyncBadgeRectangle = GetSyncBadgeRectangle(HitTest.Item.SubItems[StatusColumn.Index].Bounds);
 							if (SyncBadgeRectangle.Contains(Args.Location) && CanSyncChange(Change.Number))
 							{
-								StartSync(Change.Number, null);
+								StartSync(Change.Number, false, null);
 							}
 						}
 
@@ -4158,6 +4196,32 @@ namespace UnrealGameSync
 			BadgeFont = new Font(BuildFont.FontFamily, BuildFont.SizeInPoints - 2, FontStyle.Bold);
 		}
 
+		public void ExecCommand(string Description, string StatusText, string FileName, string Arguments, string WorkingDir, bool bUseLogWindow)
+		{
+			if (Workspace != null && !Workspace.IsBusy())
+			{
+				Guid Id = Guid.NewGuid();
+
+				BuildStep CustomBuildStep = new BuildStep(Guid.NewGuid(), 0, Description, StatusText, 1, FileName, Arguments, WorkingDir, bUseLogWindow);
+
+				List<ConfigObject> UserBuildSteps = new List<ConfigObject>();
+				UserBuildSteps.Add(CustomBuildStep.ToConfigObject());
+
+				WorkspaceUpdateContext Context = new WorkspaceUpdateContext(Workspace.CurrentChangeNumber, WorkspaceUpdateOptions.Build, null, GetDefaultBuildStepObjects(), UserBuildSteps, new HashSet<Guid> { CustomBuildStep.UniqueId }, GetWorkspaceVariables(Workspace.CurrentChangeNumber));
+				StartWorkspaceUpdate(Context, null);
+			}
+		}
+
+		public void SyncChange(int ChangeNumber, bool bSyncOnly, WorkspaceUpdateCallback Callback)
+		{
+			if(Workspace != null)
+			{
+				Owner.ShowAndActivate();
+				SelectChange(ChangeNumber);
+				StartSync(ChangeNumber, bSyncOnly, Callback);
+			}
+		}
+
 		public void SyncLatestChange()
 		{
 			SyncLatestChange(null);
@@ -4178,9 +4242,7 @@ namespace UnrealGameSync
 				}
 				else if (ChangeNumber >= PerforceMonitor.LastChangeByCurrentUser || MessageBox.Show(String.Format("The changelist that would be synced is before the last change you submitted.\n\nIf you continue, your changes submitted after CL {0} will be locally removed from your workspace until you can sync past them again.\n\nAre you sure you want to continue?", ChangeNumber), "Local changes will be removed", MessageBoxButtons.YesNo) == DialogResult.Yes)
 				{
-					Owner.ShowAndActivate();
-					SelectChange(ChangeNumber);
-					StartSync(ChangeNumber, Callback);
+					SyncChange(ChangeNumber, false, Callback);
 				}
 			}
 		}
@@ -4254,6 +4316,11 @@ namespace UnrealGameSync
 			{
 				MessageBox.Show("Swarm URL is not configured.");
 			}
+		}
+
+		private void BuildListContextMenu_CopyChangelistNumber_Click(object sender, EventArgs e)
+		{
+			System.Windows.Forms.Clipboard.SetText(ContextMenuChange.Number.ToString());
 		}
 
 		private void BuildListContextMenu_AddStar_Click(object sender, EventArgs e)
@@ -4955,6 +5022,7 @@ namespace UnrealGameSync
 			}
 			DiagnosticsText.AppendFormat("Perforce monitor: {0}\n", (PerforceMonitor == null) ? "(inactive)" : PerforceMonitor.LastStatusMessage);
 			DiagnosticsText.AppendFormat("Event monitor: {0}\n", (EventMonitor == null) ? "(inactive)" : EventMonitor.LastStatusMessage);
+			DiagnosticsText.AppendFormat("Issue monitor: {0}\n", (IssueMonitor == null) ? "(inactive)" : IssueMonitor.LastStatusMessage);
 
 			DiagnosticsWindow Diagnostics = new DiagnosticsWindow(DataFolder, DiagnosticsText.ToString());
 			Diagnostics.ShowDialog(this);

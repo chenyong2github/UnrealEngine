@@ -562,6 +562,12 @@ public:
 	/** Update Node Creation mechanisms for analytics */
 	void UpdateNodeCreationStats(const ENodeCreateAction::Type CreateAction);
 
+	/** Sets customizations for the BP editor details panel. */
+	void SetDetailsCustomization(TSharedPtr<class FDetailsViewObjectFilter> DetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> DetailsRootCustomization);
+
+	/** Sets SCS editor UI customization */
+	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> SCSEditorUICustomization);
+
 	/**
 	 * Register a customization for interacting with the SCS editor
 	 * @param	InComponentName			The name of the component to customize behavior for
@@ -641,6 +647,9 @@ public:
 
 	/** Removes the bookmark node with the given ID. */
 	void RemoveBookmark(const FGuid& BookmarkNodeId, bool bRefreshUI = true);
+
+	/** Gets the default schema for this editor */
+	TSubclassOf<UEdGraphSchema> GetDefaultSchema() const { return GetDefaultSchemaClass(); }
 
 protected:
 	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
@@ -924,6 +933,10 @@ protected:
 
 	/** Paste on graph at specific location */
 	virtual void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation) override;
+
+	/** Paste Variable Definition or Nodes */
+	virtual void PasteGeneric();
+	virtual bool CanPasteGeneric() const;
 
 	virtual void PasteNodes();
 	virtual bool CanPasteNodes() const override;

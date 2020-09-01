@@ -40,6 +40,7 @@
 #include "HairStrands/HairStrandsRendering.h"
 #include "RectLightSceneProxy.h"
 #include "Math/Halton.h"
+#include "ProfilingDebugging/DiagnosticTable.h"
 
 /*------------------------------------------------------------------------------
 	Globals
@@ -248,6 +249,14 @@ static TAutoConsoleVariable<float> CVarFreezeTemporalHistories(
 	TEXT("r.Test.FreezeTemporalHistories"), 0,
 	TEXT("Freezes all temporal histories as well as the temporal sequence."),
 	ECVF_RenderThreadSafe);
+
+static bool bDumpPrimitivesNextFrame = false;
+
+static FAutoConsoleCommand CVarDumpPrimitives(
+	TEXT("DumpPrimitives"),
+	TEXT("Writes out all scene primitive names to a CSV file in the Logs directory"),
+	FConsoleCommandDelegate::CreateStatic([] { bDumpPrimitivesNextFrame = true; }),
+	ECVF_Default);
 
 #endif
 
@@ -509,6 +518,7 @@ static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
 				uint32 Mask = 0x1;
 				uint32 VisBits = 0;
 				uint32 FadingBits = 0;
+				uint32 DistanceCulledBits = 0;
 				for (int32 BitSubIndex = 0; BitSubIndex < NumBitsPerDWORD && WordIndex * NumBitsPerDWORD + BitSubIndex < BitArrayNumInner; BitSubIndex++, Mask <<= 1)
 				{
 					int32 Index = WordIndex * NumBitsPerDWORD + BitSubIndex;
@@ -550,6 +560,14 @@ static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
 						}
 					}
 
+					const bool bDistanceCulled = DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) || (DistanceSquared < MinDrawDistanceSq);
+
+					// Store distane culled primitives so it can correctly culled when collecting RT primitives
+					if (bDistanceCulled)
+					{
+						DistanceCulledBits |= Mask;
+					}
+
 					// Handle primitives that are always visible.
 					if (Scene->PrimitivesAlwaysVisible[Index])
 					{
@@ -559,8 +577,7 @@ static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
 							FadingBits |= Mask;
 						}
 					}
-					else if (DistanceSquared > FMath::Square(MaxDrawDistance + FadeRadius) ||
-						(DistanceSquared < MinDrawDistanceSq) ||
+					else if (bDistanceCulled ||
 						(UseCustomCulling && !View.CustomVisibilityQuery->IsVisible(VisibilityId, FBoxSphereBounds(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent, Bounds.BoxSphereBounds.SphereRadius))) ||
 						(bAlsoUseSphereTest && View.ViewFrustum.IntersectSphere(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.SphereRadius) == false) ||
 						(bUseFastIntersect ? IntersectBox8Plane(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent, PermutedPlanePtr) : View.ViewFrustum.IntersectBox(Bounds.BoxSphereBounds.Origin, Bounds.BoxSphereBounds.BoxExtent)) == false)
@@ -599,6 +616,11 @@ static int32 FrustumCull(const FScene* RESTRICT Scene, FViewInfo& View)
 				{
 					checkSlow(!View.PrimitiveVisibilityMap.GetData()[WordIndex]); // this should start at zero
 					View.PrimitiveVisibilityMap.GetData()[WordIndex] = VisBits;
+				}
+				if (DistanceCulledBits)
+				{
+					checkSlow(!View.DistanceCullingPrimitiveMap.GetData()[WordIndex]); // this should start at zero
+					View.DistanceCullingPrimitiveMap.GetData()[WordIndex] = DistanceCulledBits;
 				}
 			}
 
@@ -1902,7 +1924,7 @@ struct FRelevancePacket
 
 	TArray<FMeshDecalBatch> MeshDecalBatches;
 	TArray<FVolumetricMeshBatch> VolumetricMeshBatches;
-	TArray<FVolumetricMeshBatch> SkyMesheBatches;
+	TArray<FSkyMeshBatch> SkyMeshBatches;
 	FDrawCommandRelevancePacket DrawCommandPacket;
 
 	struct FPrimitiveLODMask
@@ -2401,10 +2423,12 @@ struct FRelevancePacket
 
 						if (ViewRelevance.bUsesSkyMaterial)
 						{
-							SkyMesheBatches.AddUninitialized(1);
-							FVolumetricMeshBatch& BatchAndProxy = SkyMesheBatches.Last();
+							SkyMeshBatches.AddUninitialized(1);
+							FSkyMeshBatch& BatchAndProxy = SkyMeshBatches.Last();
 							BatchAndProxy.Mesh = &StaticMesh;
 							BatchAndProxy.Proxy = PrimitiveSceneInfo->Proxy;
+							BatchAndProxy.bVisibleInMainPass = ViewRelevance.bRenderInMainPass;
+							BatchAndProxy.bVisibleInRealTimeSkyCapture = PrimitiveSceneInfo->bVisibleInRealTimeSkyCapture;
 						}
 
 						if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
@@ -2484,7 +2508,7 @@ struct FRelevancePacket
 
 		WriteView.MeshDecalBatches.Append(MeshDecalBatches);
 		WriteView.VolumetricMeshBatches.Append(VolumetricMeshBatches);
-		WriteView.SkyMesheBatches.Append(SkyMesheBatches);
+		WriteView.SkyMeshBatches.Append(SkyMeshBatches);
 
 		for (int32 Index = 0; Index < RecachedReflectionCapturePrimitives.NumPrims; ++Index)
 		{
@@ -2847,10 +2871,12 @@ void ComputeDynamicMeshRelevance(EShadingPath ShadingPath, bool bAddLightmapDens
 
 	if (ViewRelevance.bUsesSkyMaterial)
 	{
-		View.SkyMesheBatches.AddUninitialized(1);
-		FVolumetricMeshBatch& BatchAndProxy = View.SkyMesheBatches.Last();
+		View.SkyMeshBatches.AddUninitialized(1);
+		FSkyMeshBatch& BatchAndProxy = View.SkyMeshBatches.Last();
 		BatchAndProxy.Mesh = MeshBatch.Mesh;
 		BatchAndProxy.Proxy = MeshBatch.PrimitiveSceneProxy;
+		BatchAndProxy.bVisibleInMainPass = ViewRelevance.bRenderInMainPass;
+		BatchAndProxy.bVisibleInRealTimeSkyCapture = PrimitiveSceneInfo->bVisibleInRealTimeSkyCapture;
 	}
 
 	if (ViewRelevance.bRenderInMainPass && ViewRelevance.bDecal)
@@ -3658,6 +3684,53 @@ void UpdateReflectionSceneData(FScene* Scene)
 	}
 }
 
+#if !UE_BUILD_SHIPPING
+ void FSceneRenderer::DumpPrimitives(const FViewCommands& ViewCommands)
+{
+	if (!bDumpPrimitivesNextFrame)
+	{
+		return;
+	}
+
+	bDumpPrimitivesNextFrame = false;
+
+	TArray<FString> Names;
+	Names.Reserve(ViewCommands.MeshCommands[EMeshPass::BasePass].Num() + ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass].Num());
+	
+	for (const FVisibleMeshDrawCommand& Mesh : ViewCommands.MeshCommands[EMeshPass::BasePass])
+	{
+		int32 PrimitiveId = Mesh.DrawPrimitiveId;
+		if (PrimitiveId < Scene->Primitives.Num())
+		{
+			const FPrimitiveSceneInfo* PrimitiveSceneInfo = Scene->Primitives[PrimitiveId];
+			FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
+
+			Names.Add(MoveTemp(FullName));
+		}
+	}
+
+	for (const FStaticMeshBatch* StaticMeshBatch : ViewCommands.DynamicMeshCommandBuildRequests[EMeshPass::BasePass])
+	{
+		const FPrimitiveSceneInfo* PrimitiveSceneInfo = StaticMeshBatch->PrimitiveSceneInfo;
+		FString FullName = PrimitiveSceneInfo->ComponentForDebuggingOnly->GetFullName();
+
+		Names.Add(MoveTemp(FullName));
+	}
+
+	Names.Sort();
+
+	FDiagnosticTableViewer DrawViewer(*FDiagnosticTableViewer::GetUniqueTemporaryFilePath(TEXT("Primitives")), true);
+	DrawViewer.AddColumn(TEXT("Name"));
+	DrawViewer.CycleRow();
+
+	for (const FString& FullName : Names)
+	{
+		DrawViewer.AddColumn(*FullName);
+		DrawViewer.CycleRow();
+	}
+}
+#endif
+
 #if WITH_EDITOR
 static void UpdateEditorSelectedHitProxyIds(
 	TArray<FViewInfo>& Views
@@ -3790,6 +3863,7 @@ void FSceneRenderer::ComputeViewVisibility(
 		View.StaticMeshFadeOutDitheredLODMap.Init(false,Scene->StaticMeshes.GetMaxIndex());
 		View.StaticMeshFadeInDitheredLODMap.Init(false,Scene->StaticMeshes.GetMaxIndex());
 		View.PrimitivesLODMask.Init(FLODMask(), Scene->Primitives.Num());
+		View.DistanceCullingPrimitiveMap.Init(false, Scene->Primitives.Num());
 		View.VisibleLightInfos.Empty(Scene->Lights.GetMaxIndex());
 
 		// The dirty list allocation must take into account the max possible size because when GILCUpdatePrimTaskEnabled is true,
@@ -4082,6 +4156,11 @@ void FSceneRenderer::ComputeViewVisibility(
 		}
 
 		FViewCommands& ViewCommands = ViewCommandsPerView[ViewIndex];
+
+#if !UE_BUILD_SHIPPING
+		DumpPrimitives(ViewCommands);
+#endif
+
 		SetupMeshPass(View, BasePassDepthStencilAccess, ViewCommands);
 	}
 

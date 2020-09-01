@@ -15,7 +15,7 @@ namespace MovieScene
 {
 
 
-void FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities)
+void FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntitySet& NewEntities)
 {
 	FInstanceRegistry* InstanceRegistry = Linker->GetInstanceRegistry();
 	if (NewEntities.Num() != 0)
@@ -29,9 +29,9 @@ void FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const 
 			{
 				if (!NewEntities.Contains(It.Key()))
 				{
-					if (It.Value())
+					if (It.Value().EntityID)
 					{
-						Linker->EntityManager.AddComponents(It.Value(), FinishedMask, EEntityRecursion::Full);
+						Linker->EntityManager.AddComponents(It.Value().EntityID, FinishedMask, EEntityRecursion::Full);
 					}
 					It.RemoveCurrent();
 				}
@@ -41,16 +41,17 @@ void FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const 
 		// If we've invalidated or we haven't imported anything yet, we can simply (re)import everything
 		if (ImportedEntities.Num() == 0 || bInvalidated)
 		{
-			for (FMovieSceneEvaluationFieldEntityPtr Entity : NewEntities)
+			for (const FMovieSceneEvaluationFieldEntityQuery& Query : NewEntities)
 			{
-				ImportEntity(Linker, ImportParams, EntityField, Entity);
+				ImportEntity(Linker, ImportParams, EntityField, Query);
 			}
 		}
-		else for (FMovieSceneEvaluationFieldEntityPtr Entity : NewEntities)
+		else for (const FMovieSceneEvaluationFieldEntityQuery& Query : NewEntities)
 		{
-			if (!HasImportedEntity(Entity))
+			FImportedEntityData Existing = ImportedEntities.FindRef(Query.Entity.Key);
+			if (!Existing.EntityID || Existing.MetaDataIndex != Query.MetaDataIndex)
 			{
-				ImportEntity(Linker, ImportParams, EntityField, Entity);
+				ImportEntity(Linker, ImportParams, EntityField, Query);
 			}
 		}
 	}
@@ -63,7 +64,7 @@ void FEntityLedger::UpdateEntities(UMovieSceneEntitySystemLinker* Linker, const 
 	bInvalidated = false;
 }
 
-void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const TSet<FMovieSceneEvaluationFieldEntityPtr>& NewEntities)
+void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntitySet& NewEntities)
 {
 	checkf(OneShotEntities.Num() == 0, TEXT("One shot entities should not be updated multiple times per-evaluation. They must not have gotten cleaned up correctly."));
 	if (NewEntities.Num() == 0)
@@ -74,18 +75,26 @@ void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker,
 	FEntityImportParams Params;
 	Params.Sequence = ImportParams;
 
-	for (FMovieSceneEvaluationFieldEntityPtr Entity : NewEntities)
+	for (const FMovieSceneEvaluationFieldEntityQuery& Query : NewEntities)
 	{
-		IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(Entity.EntityOwner);
+		UObject* EntityOwner = Query.Entity.Key.EntityOwner.Get();
+		IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
 		if (!Provider)
 		{
 			continue;
 		}
 
-		Params.EntityID = Entity.EntityID;
-		if (EntityField)
+		Params.EntityID = Query.Entity.Key.EntityID;
+		Params.EntityMetaData = EntityField->FindMetaData(Query);
+		Params.SharedMetaData = EntityField->FindSharedMetaData(Query);
+
+		if (ImportParams.bPreRoll && (Params.EntityMetaData == nullptr || Params.EntityMetaData->bEvaluateInSequencePreRoll == false))
 		{
-			Params.ObjectBindingID = EntityField->EntityOwnerToObjectBinding.FindRef(Entity.EntityOwner);
+			return;
+		}
+		if (ImportParams.bPostRoll && (Params.EntityMetaData == nullptr || Params.EntityMetaData->bEvaluateInSequencePostRoll == false))
+		{
+			return;
 		}
 
 		FImportedEntity ImportedEntity;
@@ -93,7 +102,7 @@ void FEntityLedger::UpdateOneShotEntities(UMovieSceneEntitySystemLinker* Linker,
 
 		if (!ImportedEntity.IsEmpty())
 		{
-			if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(Entity.EntityOwner))
+			if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(EntityOwner))
 			{
 				Section->BuildDefaultComponents(Linker, Params, &ImportedEntity);
 			}
@@ -114,24 +123,23 @@ bool FEntityLedger::IsEmpty() const
 	return ImportedEntities.Num() == 0;
 }
 
-bool FEntityLedger::HasImportedEntity(const FMovieSceneEvaluationFieldEntityPtr& Entity) const
+bool FEntityLedger::HasImportedEntity(const FMovieSceneEvaluationFieldEntityKey& EntityKey) const
 {
-	return ImportedEntities.Contains(Entity);
+	return ImportedEntities.Contains(EntityKey);
 }
 
-FMovieSceneEntityID FEntityLedger::FindImportedEntity(const FMovieSceneEvaluationFieldEntityPtr& Entity) const
+FMovieSceneEntityID FEntityLedger::FindImportedEntity(const FMovieSceneEvaluationFieldEntityKey& EntityKey) const
 {
-	return ImportedEntities.FindRef(Entity);
+	return ImportedEntities.FindRef(EntityKey).EntityID;
 }
 
-void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityPtr& Entity)
+void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FEntityImportSequenceParams& ImportParams, const FMovieSceneEntityComponentField* EntityField, const FMovieSceneEvaluationFieldEntityQuery& Query)
 {
-	check(!HasImportedEntity(Entity) || bInvalidated);
-
 	// We always add an entry even if no entity was imported by the provider to ensure that we do not repeatedly try and import the same entity every frame
-	FMovieSceneEntityID& RefEntityID = ImportedEntities.FindOrAdd(Entity);
+	FMovieSceneEntityID& RefEntityID = ImportedEntities.FindOrAdd(Query.Entity.Key).EntityID;
 
-	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(Entity.EntityOwner);
+	UObject* EntityOwner = Query.Entity.Key.EntityOwner.Get();
+	IMovieSceneEntityProvider* Provider = Cast<IMovieSceneEntityProvider>(EntityOwner);
 	if (!Provider)
 	{
 		return;
@@ -139,10 +147,17 @@ void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FE
 
 	FEntityImportParams Params;
 	Params.Sequence = ImportParams;
-	Params.EntityID = Entity.EntityID;
-	if (EntityField)
+	Params.EntityID = Query.Entity.Key.EntityID;
+	Params.EntityMetaData = EntityField->FindMetaData(Query);
+	Params.SharedMetaData = EntityField->FindSharedMetaData(Query);
+
+	if (ImportParams.bPreRoll && (Params.EntityMetaData == nullptr || Params.EntityMetaData->bEvaluateInSequencePreRoll == false))
 	{
-		Params.ObjectBindingID = EntityField->EntityOwnerToObjectBinding.FindRef(Entity.EntityOwner);
+		return;
+	}
+	if (ImportParams.bPostRoll && (Params.EntityMetaData == nullptr || Params.EntityMetaData->bEvaluateInSequencePostRoll == false))
+	{
+		return;
 	}
 
 	FImportedEntity ImportedEntity;
@@ -150,7 +165,7 @@ void FEntityLedger::ImportEntity(UMovieSceneEntitySystemLinker* Linker, const FE
 
 	if (!ImportedEntity.IsEmpty())
 	{
-		if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(Entity.EntityOwner))
+		if (UMovieSceneSection* Section = Cast<UMovieSceneSection>(EntityOwner))
 		{
 			Section->BuildDefaultComponents(Linker, Params, &ImportedEntity);
 		}
@@ -165,11 +180,11 @@ void FEntityLedger::UnlinkEverything(UMovieSceneEntitySystemLinker* Linker)
 {
 	FComponentMask FinishedMask = FBuiltInComponentTypes::Get()->FinishedMask;
 
-	for (TPair<FMovieSceneEvaluationFieldEntityPtr, FMovieSceneEntityID>& Pair : ImportedEntities)
+	for (TPair<FMovieSceneEvaluationFieldEntityKey, FImportedEntityData>& Pair : ImportedEntities)
 	{
-		if (Pair.Value)
+		if (Pair.Value.EntityID)
 		{
-			Linker->EntityManager.AddComponents(Pair.Value, FinishedMask, EEntityRecursion::Full);
+			Linker->EntityManager.AddComponents(Pair.Value.EntityID, FinishedMask, EEntityRecursion::Full);
 		}
 	}
 	ImportedEntities.Empty();
@@ -197,7 +212,8 @@ void FEntityLedger::CleanupLinkerEntities(const TSet<FMovieSceneEntityID>& Linke
 	}
 	for (auto It = ImportedEntities.CreateIterator(); It; ++It)
 	{
-		if (It.Value() && LinkerEntities.Contains(It.Value()))
+		FMovieSceneEntityID EntityID = It.Value().EntityID;
+		if (EntityID && LinkerEntities.Contains(EntityID))
 		{
 			It.RemoveCurrent();
 		}
@@ -212,9 +228,9 @@ void FEntityLedger::TagGarbage(UMovieSceneEntitySystemLinker* Linker)
 	{
 		if (It.Key().EntityOwner == nullptr)
 		{
-			if (It.Value())
+			if (It.Value().EntityID)
 			{
-				Linker->EntityManager.AddComponent(It.Value(), NeedsUnlink, EEntityRecursion::Full);
+				Linker->EntityManager.AddComponent(It.Value().EntityID, NeedsUnlink, EEntityRecursion::Full);
 			}
 			It.RemoveCurrent();
 		}

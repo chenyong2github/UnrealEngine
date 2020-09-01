@@ -167,6 +167,7 @@ public:
 	virtual uint32 PurgeOutdatedVideoSamples(const FMediaTimeStamp & ReferenceTime, bool bReversed) override;
 
 	virtual bool CanReceiveVideoSamples(uint32 Num) const override;
+	virtual bool CanReceiveAudioSamples(uint32 Num) const override;
 
 private:
 

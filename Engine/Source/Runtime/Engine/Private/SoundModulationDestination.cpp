@@ -89,8 +89,14 @@ namespace Audio
 	{
 		checkf(bIsBuffered, TEXT("Cannot call this 'ProcessControl' overload with 'bIsBuffered' set to 'false'."));
 
+		bHasProcessed = 1;
 		float LastTarget = ValueTarget;
 		float NewTargetLinear = Parameter.DefaultValue;
+
+		if (Parameter.bRequiresConversion)
+		{
+			Parameter.LinearFunction(&NewTargetLinear, 1);
+		}
 
 		FScopeLock Lock(&SettingsCritSection);
 		{
@@ -136,8 +142,14 @@ namespace Audio
 
 	bool FModulationDestination::ProcessControl(float InValueUnitBase, int32 InNumSamples)
 	{
+		bHasProcessed = 1;
 		float LastTarget = ValueTarget;
 		float NewTargetLinear = Parameter.DefaultValue;
+
+		if (Parameter.bRequiresConversion)
+		{
+			Parameter.LinearFunction(&NewTargetLinear, 1);
+		}
 
 		FScopeLock Lock(&SettingsCritSection);
 		{
@@ -145,16 +157,6 @@ namespace Audio
 			if (bIsActive)
 			{
 				Handle.GetValue(NewTargetLinear);
-			}
-		}
-
-		// If not active, ensure default value is converted
-		// that NewTargetLinear was set to is linearized
-		if (!bIsActive)
-		{
-			if (Parameter.bRequiresConversion)
-			{
-				Parameter.LinearFunction(&NewTargetLinear, 1);
 			}
 		}
 

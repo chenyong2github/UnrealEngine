@@ -16,6 +16,7 @@
 #include "Misc/Guid.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Containers/BackgroundableTicker.h"
+#include "Stats/Stats.h"
 
 #if WITH_XMPP_STROPHE
 
@@ -194,6 +195,8 @@ bool FXmppMessagesStrophe::SendMessage(const FXmppUserJid& RecipientId, const FS
 
 bool FXmppMessagesStrophe::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FXmppMessagesStrophe_Tick);
+
 	while (!IncomingMessages.IsEmpty())
 	{
 		TUniquePtr<FXmppMessage> Message;

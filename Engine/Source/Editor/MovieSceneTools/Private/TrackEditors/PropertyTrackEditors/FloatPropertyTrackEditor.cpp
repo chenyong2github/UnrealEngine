@@ -71,7 +71,9 @@ float FFloatPropertyTrackEditor::RecomposeFloat(float InCurrentValue, UObject* A
 
 	if (EntityLinker && EntityID)
 	{
-		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		TGuardValue<FEntityManager*> DebugVizGuard(GEntityManagerForDebuggingVisualizers, &EntityLinker->EntityManager);
+
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>();
 		if (System)
 		{
 			FDecompositionQuery Query;

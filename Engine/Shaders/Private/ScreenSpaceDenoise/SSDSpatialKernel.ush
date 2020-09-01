@@ -107,6 +107,9 @@ struct FSSDKernelConfig
 	// Compile time whether sampling previous frame or current frame metadata.
 	bool bPreviousFrameMetadata;
 
+	// Compile time whether reference metadata is current frame or previous frame.
+	bool bPreviousFrameRefMetadata;
+
 	// The sample should be accumulated starting from the further away.
 	bool bDescOrder;
 
@@ -218,6 +221,7 @@ FSSDKernelConfig CreateKernelConfig()
 	KernelConfig.bUnroll = false;
 	KernelConfig.bSampleKernelCenter = false;
 	KernelConfig.bPreviousFrameMetadata = false;
+	KernelConfig.bPreviousFrameRefMetadata = false;
 	KernelConfig.BilateralDistanceComputation = SIGNAL_WORLD_FREQUENCY_MIN_METADATA;
 	KernelConfig.bDescOrder = false;
 	KernelConfig.bNormalizeSample = false;
@@ -426,7 +430,7 @@ FSSDSampleSceneInfos UncompressRefSceneMetadata(FSSDKernelConfig KernelConfig)
 	float2 RefBufferUV = ComputeRefBufferUV(KernelConfig);
 
 	float2 ScreenPos;
-	if (KernelConfig.bPreviousFrameMetadata)
+	if (KernelConfig.bPreviousFrameMetadata) // TODO(Denoiser): should be bPreviousFrameRefMetadata instead?
 	{
 		ScreenPos = RefBufferUV * PrevSceneBufferUVToScreenPosition.xy + PrevSceneBufferUVToScreenPosition.zw;
 	}
@@ -437,7 +441,7 @@ FSSDSampleSceneInfos UncompressRefSceneMetadata(FSSDKernelConfig KernelConfig)
 
 	// Uncompress the reference scene metadata to keep a low VGPR pressure.
 	return UncompressSampleSceneInfo(
-		KernelConfig.RefSceneMetadataLayout, /* bIsPrevFrame = */ false,
+		KernelConfig.RefSceneMetadataLayout, KernelConfig.bPreviousFrameRefMetadata,
 		ScreenPos,
 		KernelConfig.CompressedRefSceneMetadata);
 }

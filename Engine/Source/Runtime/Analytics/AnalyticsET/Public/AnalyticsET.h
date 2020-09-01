@@ -33,12 +33,16 @@ public:
 	// Configuration functionality
 	//--------------------------------------------------------------------------
 public:
-	/** Defines required configuration values for ET analytics provider. */
+	/**
+	 * Defines required configuration values for ET analytics provider. 
+	 * APIKeyET MUST be set.
+	 * Set APIServerET to an empty string to create a "NULL" analytics provider that will be a valid instance but will suppress sending any events.
+	*/
 	struct Config
 	{
 		/** ET APIKey - Get from your account manager */
 		FString APIKeyET;
-		/** ET API Server - Base URL to send events. */
+		/** ET API Server - Base URL to send events. Set this to an empty string to essentially create a NULL analytics provider that will be non-null, but won't actually send events. */
 		FString APIServerET;
 		/** ET Alt API Servers - Base URLs to send events on retry. */
 		TArray<FString> AltAPIServersET;

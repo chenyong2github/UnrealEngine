@@ -24,6 +24,10 @@ namespace
 	// How large to make the constraint arrows.
 	// The factor of 60 was found experimentally, to look reasonable in comparison with the rest of the constraint visuals.
 	constexpr float ConstraintArrowScale = 60.0f;
+
+	bool bDebugViewportClicks = false;
+	FAutoConsoleVariableRef CVarChaosImmPhysStepTime(TEXT("p.PhAT.DebugViewportClicks"), bDebugViewportClicks, TEXT("Set to 1 to show mouse click results in PhAT"));
+
 }
 
 UPhysicsAssetEditorSkeletalMeshComponent::UPhysicsAssetEditorSkeletalMeshComponent(const FObjectInitializer& ObjectInitializer)
@@ -87,10 +91,13 @@ void UPhysicsAssetEditorSkeletalMeshComponent::RenderAssetTools(const FSceneView
 
 	EPhysicsAssetEditorRenderMode CollisionViewMode = SharedData->GetCurrentCollisionViewMode(SharedData->bRunningSimulation);
 
-#if DEBUG_CLICK_VIEWPORT
-	PDI->DrawLine(SharedData->LastClickOrigin, SharedData->LastClickOrigin + SharedData->LastClickDirection * 5000.0f, FLinearColor(1, 1, 0, 1), SDPG_Foreground);
-	PDI->DrawPoint(SharedData->LastClickOrigin, FLinearColor(1, 0, 0), 5, SDPG_Foreground);
-#endif
+	if (bDebugViewportClicks)
+	{
+		PDI->DrawLine(SharedData->LastClickOrigin, SharedData->LastClickOrigin + SharedData->LastClickDirection * 5000.0f, FLinearColor(1, 1, 0, 1), SDPG_Foreground);
+		PDI->DrawPoint(SharedData->LastClickOrigin, FLinearColor(1, 1, 0), 5, SDPG_Foreground);
+		PDI->DrawLine(SharedData->LastClickHitPos, SharedData->LastClickHitPos + SharedData->LastClickHitNormal * 10.0f, FLinearColor(1, 0, 0, 1), SDPG_Foreground);
+		PDI->DrawPoint(SharedData->LastClickHitPos, FLinearColor(1, 0, 0), 5, SDPG_Foreground);
+	}
 
 	// set opacity of our materials
 	static FName OpacityName(TEXT("Opacity"));
@@ -514,6 +521,18 @@ void UPhysicsAssetEditorSkeletalMeshComponent::AddImpulseAtLocation(FVector Impu
 	}
 #endif
 }
+
+bool UPhysicsAssetEditorSkeletalMeshComponent::ShouldCreatePhysicsState() const
+{
+#if !WITH_CHAOS
+	return Super::ShouldCreatePhysicsState();
+#else
+	// Chaos uses a RigidBody AnimNode to run the simulation in the PhysicsAsset Editor.
+	// See FPhysicsAssetEditorAnimInstanceProxy
+	return false;
+#endif
+}
+
 
 void UPhysicsAssetEditorSkeletalMeshComponent::Grab(FName InBoneName, const FVector& Location, const FRotator& Rotation, bool bRotationConstrained)
 {

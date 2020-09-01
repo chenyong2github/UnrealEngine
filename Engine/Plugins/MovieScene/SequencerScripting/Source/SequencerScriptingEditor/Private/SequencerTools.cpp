@@ -404,7 +404,7 @@ void ImportFBXCamera(UnFbx::FFbxImporter* FbxImporter, UWorld* World, UMovieScen
 		}
 	}
 	//everything created now import it in.
-	MovieSceneToolHelpers::ImportFBXCameraToExisting(FbxImporter,  InMovieScene, Player, TemplateID, InObjectBindingMap, bMatchByNameOnly, true);
+	MovieSceneToolHelpers::ImportFBXCameraToExisting(FbxImporter, Sequence, Player, TemplateID, InObjectBindingMap, bMatchByNameOnly, true);
 }
 
 bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Sequence, const TArray<FSequencerBindingProxy>& InBindings, UMovieSceneUserImportFBXSettings* ImportFBXSettings, const FString&  ImportFilename)
@@ -452,7 +452,7 @@ bool USequencerToolsFunctionLibrary::ImportFBX(UWorld* World, ULevelSequence* Se
 
 		ImportFBXCamera(FbxImporter, World, Sequence, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, bMatchByNameOnly, ImportFBXSettings->bCreateCameras);
 
-		bResult = MovieSceneToolHelpers::ImportFBXIfReady(World, MovieScene, Player, MovieSceneSequenceID::Root, ObjectBindingMap, ImportFBXSettings, InOutParams);
+		bResult = MovieSceneToolHelpers::ImportFBXIfReady(World, Sequence, Player, MovieSceneSequenceID::Root, ObjectBindingMap, ImportFBXSettings, InOutParams);
 	}
 	
 	Player->Stop();

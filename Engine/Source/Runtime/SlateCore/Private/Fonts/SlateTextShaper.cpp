@@ -256,7 +256,7 @@ FShapedGlyphSequenceRef FSlateTextShaper::FinalizeTextShaping(TArray<FShapedGlyp
 		const FFontData& FontData = CompositeFontCache->GetDefaultFontData(InFontInfo);
 		const FFreeTypeFaceGlyphData FaceGlyphData = FontRenderer->GetFontFaceForCodepoint(FontData, Char, InFontInfo.FontFallback);
 
-		if (FaceGlyphData.FaceAndMemory.IsValid())
+		if (FaceGlyphData.FaceAndMemory.IsValid() && FaceGlyphData.FaceAndMemory->IsFaceValid())
 		{
 			FreeTypeUtils::ApplySizeAndScale(FaceGlyphData.FaceAndMemory->GetFace(), InFontInfo.Size, InFontScale);
 			
@@ -314,7 +314,9 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 			const FFontData* FontDataPtr = &CompositeFontCache->GetFontDataForCodepoint(InFontInfo, CurrentChar, SubFontScalingFactor);
 			FFreeTypeFaceGlyphData FaceGlyphData = FontRenderer->GetFontFaceForCodepoint(*FontDataPtr, CurrentChar, bShouldRenderAsWhitespace ? EFontFallback::FF_NoFallback : InFontInfo.FontFallback);
 
-			// If none of our fonts can render that character (as the fallback font may be missing), try again with the fallback character, or a normal space if this character was supposed to be whitespace (as we don't render whitespace anyway)
+			// If none of our fonts can render that character (as the fallback font may be missing), 
+			// try again with the fallback character, or a normal space if this character was supposed to 
+			// be whitespace (as we don't render whitespace anyway)
 			if (!FaceGlyphData.FaceAndMemory.IsValid())
 			{
 				const TCHAR FallbackChar = bShouldRenderAsWhitespace ? TEXT(' ') : SlateFontRendererUtils::InvalidSubChar;

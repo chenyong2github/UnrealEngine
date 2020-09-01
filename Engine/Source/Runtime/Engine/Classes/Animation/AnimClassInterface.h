@@ -11,6 +11,7 @@
 #include "Animation/AnimTypes.h"
 #include "Animation/AnimStateMachineTypes.h"
 #include "UObject/FieldPath.h"
+#include "AnimBlueprintClassSubsystem.h"
 
 #include "AnimClassInterface.generated.h"
 
@@ -162,8 +163,11 @@ public:
 	virtual const TMap<FName, FGraphAssetPlayerInformation>& GetGraphAssetPlayerInformation() const = 0;
 	virtual const TMap<FName, FAnimGraphBlendOptions>& GetGraphBlendOptions() const = 0;
 	virtual USkeleton* GetTargetSkeleton() const = 0;
-
 	virtual int32 GetSyncGroupIndex(FName SyncGroupName) const = 0;
+	virtual const TArray<UAnimBlueprintClassSubsystem*>& GetSubsystems() const = 0;
+	virtual UAnimBlueprintClassSubsystem* GetSubsystem(TSubclassOf<UAnimBlueprintClassSubsystem> InClass) const = 0;
+	virtual UAnimBlueprintClassSubsystem* FindSubsystemWithInterface(TSubclassOf<UInterface> InClassInterface) const = 0;
+	virtual const TArray<FStructProperty*>& GetSubsystemProperties() const = 0;
 
 	static IAnimClassInterface* GetFromClass(UClass* InClass)
 	{
@@ -225,6 +229,23 @@ public:
 		}
 		return false;
 	}
+
+	/** Get a subsystem */
+	template <typename TSubsystemClass>
+	static TSubsystemClass* GetSubsystem(IAnimClassInterface* InAnimClassInterface)
+	{
+		return Cast<TSubsystemClass>(InAnimClassInterface->GetSubsystem(TSubsystemClass::StaticClass()));
+	}
+
+	/** Find the first subsystem with the specified interface */
+	template <typename TInterfaceClass>
+	static TInterfaceClass* FindSubsystemWithInterface(IAnimClassInterface* InAnimClassInterface)
+	{
+		return Cast<TInterfaceClass>(InAnimClassInterface->FindSubsystemWithInterface(TInterfaceClass::UClassType::StaticClass()));
+	}
+
+	/** Run a function on each subsystem's instance data */
+	static void ForEachAnimInstanceSubsystemData(UAnimInstance* InAnimInstance, TFunctionRef<void(UAnimBlueprintClassSubsystem*, FAnimInstanceSubsystemData&)> InFunction);
 
 	UE_DEPRECATED(4.23, "Please use GetAnimBlueprintFunctions()")
 	virtual int32 GetRootAnimNodeIndex() const { return INDEX_NONE; }

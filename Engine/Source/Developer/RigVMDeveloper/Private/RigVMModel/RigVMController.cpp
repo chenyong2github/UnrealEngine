@@ -3587,11 +3587,17 @@ int32 URigVMController::DetachLinksFromPinObjects()
 		URigVMPin* SourcePin = Link->GetSourcePin();
 		URigVMPin* TargetPin = Link->GetTargetPin();
 
-		Link->SourcePinPath = SourcePin->GetPinPath();
-		Link->TargetPinPath = TargetPin->GetPinPath();
+		if (SourcePin)
+		{
+			Link->SourcePinPath = SourcePin->GetPinPath();
+			SourcePin->Links.Remove(Link);
+		}
 
-		SourcePin->Links.Remove(Link);
-		TargetPin->Links.Remove(Link);
+		if (TargetPin)
+		{
+			Link->TargetPinPath = TargetPin->GetPinPath();
+			TargetPin->Links.Remove(Link);
+		}
 
 		Link->SourcePin = nullptr;
 		Link->TargetPin = nullptr;
@@ -3636,6 +3642,16 @@ int32 URigVMController::ReattachLinksToPinObjects()
 	}
 	Graph->Links = NewLinks;
 	return NewLinks.Num();
+}
+
+void URigVMController::RemoveStaleNodes()
+{
+	if (!IsValidGraph())
+	{
+		return;
+	}
+
+	Graph->Nodes.Remove(nullptr);
 }
 
 #if WITH_EDITOR

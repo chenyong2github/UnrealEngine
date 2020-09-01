@@ -41,6 +41,7 @@ RAY_TRACING_ENTRY_RAYGEN(OcclusionMainRG)
 		TLAS,
 		RayFlags,
 		InstanceInclusionMask,
+		uint2(RayIndex & 0xFFFF, RayIndex >> 16),
 		Ray);
 
 	OcclusionOutput[RayIndex] = MinimalPayload.IsHit() ? ~0 : 0;

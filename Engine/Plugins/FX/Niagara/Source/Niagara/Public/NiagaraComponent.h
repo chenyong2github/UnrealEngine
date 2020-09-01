@@ -29,6 +29,21 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE_OneParam(FOnNiagaraSystemFinished, class UNia
 
 #define WITH_NIAGARA_COMPONENT_PREVIEW_DATA (!UE_BUILD_SHIPPING)
 
+USTRUCT()
+struct FNiagaraMaterialOverride
+{
+	GENERATED_USTRUCT_BODY();
+
+	UPROPERTY()
+	class UMaterialInterface* Material;
+
+	UPROPERTY()
+	uint32 MaterialSubIndex;
+
+	UPROPERTY()
+	UNiagaraRendererProperties* EmitterRendererProperty;
+};
+
 /**
 * UNiagaraComponent is the primitive component for a Niagara System.
 * @see ANiagaraActor
@@ -122,6 +137,7 @@ private:
 	UPROPERTY()
 	uint32 bRenderingEnabled : 1;
 
+
 	//~ Begin UActorComponent Interface.
 protected:
 	virtual void OnRegister() override;
@@ -131,6 +147,8 @@ protected:
 	virtual void SendRenderDynamicData_Concurrent() override;
 	virtual void BeginDestroy() override;
 	//virtual void OnAttachmentChanged() override;
+
+	void UpdateEmitterMaterials();
 public:
 	/**
 	* True if we should automatically attach to AutoAttachParent when activated, and detach from our parent when completed.
@@ -156,6 +174,10 @@ public:
 	UPROPERTY()
 	float MaxTimeBeforeForceUpdateTransform;
 
+
+	UPROPERTY(transient, duplicatetransient)
+	TArray<FNiagaraMaterialOverride> EmitterMaterials;
+
 	/** How to handle pooling for this component instance. */
 	ENCPoolMethod PoolingMethod;
 
@@ -180,6 +202,8 @@ public:
 	bool ShouldPreCull();
 	void RegisterWithScalabilityManager();
 	void UnregisterWithScalabilityManager();
+
+	void PostSystemTick_GameThread();
 
 	public:
 
@@ -549,6 +573,10 @@ public:
 
 	FORCEINLINE bool IsRegisteredWithScalabilityManager()const { return ScalabilityManagerHandle != INDEX_NONE; }
 	FORCEINLINE int32 GetScalabilityManagerHandle()const { return ScalabilityManagerHandle; }
+
+	FORCEINLINE void BeginUpdateContextReset(){ bDuringUpdateContextReset = true; }
+	FORCEINLINE void EndUpdateContextReset(){ bDuringUpdateContextReset = false; }
+
 private:
 	/** Did we try and activate but fail due to the asset being not yet ready. Keep looping.*/
 	uint32 bAwaitingActivationDueToNotReady : 1;
@@ -567,6 +595,9 @@ private:
 	/** Flag to mark us as currently changing auto attachment as part of Activate/Deactivate so we don't reset in the OnAttachmentChanged() callback. */
 	//uint32 bIsChangingAutoAttachment : 1;
 
+	/** True if we're currently inside an update context reset. This will prevent us from doing some completion work such as releaseing to the pool or auto destroy etc during a reset. */
+	uint32 bDuringUpdateContextReset : 1;
+
 	/** Restore relative transform from auto attachment and optionally detach from parent (regardless of whether it was an auto attachment). */
 	void CancelAutoAttachment(bool bDetachFromParent);
 
@@ -579,6 +610,9 @@ private:
 	FDelegateHandle AssetExposedParametersChangedHandle;
 
 	int32 ScalabilityManagerHandle;
+
+	float ForceUpdateTransformTime;
+	FBox CurrLocalBounds;
 };
 
 #if WITH_NIAGARA_COMPONENT_PREVIEW_DATA

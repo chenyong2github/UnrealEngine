@@ -279,6 +279,12 @@ void UPointSetComponent::InsertPoint(const int32 ID, const FRenderablePoint& Ove
 }
 
 
+const FRenderablePoint& UPointSetComponent::GetPoint(const int32 ID)
+{
+	return Points[ID];
+}
+
+
 void UPointSetComponent::SetPointColor(const int32 ID, const FColor& NewColor)
 {
 	FRenderablePoint& OverlayPoint = Points[ID];
@@ -295,6 +301,24 @@ void UPointSetComponent::SetPointSize(const int32 ID, const float NewSize)
 }
 
 
+void UPointSetComponent::SetPointPosition(const int32 ID, const FVector& NewPosition)
+{
+	FRenderablePoint& OverlayPoint = Points[ID];
+	OverlayPoint.Position = NewPosition;
+	MarkRenderStateDirty();
+	bBoundsDirty = true;
+}
+
+void UPointSetComponent::SetAllPointsColor(const FColor& NewColor)
+{
+	for (FRenderablePoint& Point : Points)
+	{
+		Point.Color = NewColor;
+	}
+	MarkRenderStateDirty();
+}
+
+
 void UPointSetComponent::RemovePoint(const int32 ID)
 {
 	Points.RemoveAt(ID);
@@ -305,7 +329,7 @@ void UPointSetComponent::RemovePoint(const int32 ID)
 
 bool UPointSetComponent::IsPointValid(const int32 ID) const
 {
-	return ID < Points.GetMaxIndex() && Points.IsAllocated(ID);
+	return Points.IsValidIndex(ID);
 }
 
 
@@ -337,6 +361,19 @@ FBoxSphereBounds UPointSetComponent::CalcBounds(const FTransform& LocalToWorld) 
 		}
 		Bounds = FBoxSphereBounds(Box);
 		bBoundsDirty = false;
+
+		// TODO: This next bit is not ideal because the point size is specified in onscreen pixels,
+		// so the true amount by which we would need to expand bounds depends on camera location, FOV, etc.
+		// We mainly do this as a hack against a problem in ortho viewports, which cull small items
+		// based on their bounds, and a set consisting of a single point will always be culled due
+		// to having 0-sized bounds. It's worth noting that when zooming out sufficiently far, the
+		// point will still be culled even with this hack, however.
+		// The proper solution is to be able to opt out of the ortho culling behavior, which is something
+		// we need to add.
+		if (Points.Num() > 0)
+		{
+			Bounds = Bounds.ExpandBy(Points[0].Size);
+		}
 	}
 	return Bounds.TransformBy(LocalToWorld);
 }

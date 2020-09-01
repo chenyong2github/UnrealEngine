@@ -472,4 +472,23 @@ uint32 FEnumProperty::GetValueTypeHashInternal(const void* Src) const
 	return UnderlyingProp->GetValueTypeHash(Src);
 }
 
+FField* FEnumProperty::GetInnerFieldByName(const FName& InName)
+{
+	if (UnderlyingProp && UnderlyingProp->GetFName() == InName)
+	{
+		return UnderlyingProp;
+	}
+	return nullptr;
+}
+
+
+void FEnumProperty::GetInnerFields(TArray<FField*>& OutFields)
+{
+	if (UnderlyingProp)
+	{
+		OutFields.Add(UnderlyingProp);
+		UnderlyingProp->GetInnerFields(OutFields);
+	}
+}
+
 #include "UObject/DefineUPropertyMacros.h"

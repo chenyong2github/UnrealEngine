@@ -27,6 +27,11 @@ enum class ESimulationSpace : uint8
 };
 
 
+/**
+ * Settings for the system which passes motion of the simulation's space into the simulation. This allows the simulation to pass a 
+ * fraction of the world space motion onto the bodies which allows Bone-Space and Component-Space simulations to react to world-space 
+ * movement in a controllable way.
+ */
 USTRUCT(BlueprintType)
 struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 {
@@ -34,48 +39,77 @@ struct ANIMGRAPHRUNTIME_API FSimSpaceSettings
 
 	FSimSpaceSettings();
 
-	// Global multipler on the effects of simulation space movement
+	// Global multipler on the effects of simulation space movement. Must be in range [0, 1]. If MasterAlpha = 0.0, the system is disabled and the simulation will
+	// be fully local (i.e., world-space actor movement and rotation does not affect the simulation). When MasterAlpha = 1.0 the simulation effectively acts as a 
+	// world-space sim, but with the ability to apply limits using the other parameters.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0", ClampMax = "1.0"))
 	float MasterAlpha;
 
-	// Multiplier on the Z-component of velocity and acceleration that is passed to the solver
+	// Multiplier on the Z-component of velocity and acceleration that is passed to the simulation. Usually from 0.0 to 1.0 to 
+	// reduce the effects of jumping and crouching on the simulation, but it can be higher than 1.0 if you need to exaggerate this motion for some reason.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float VelocityScaleZ;
 
-	// A clamp on the effective simulation-space velocity that is passed to the solver
+	// A clamp on the effective world-space velocity that is passed to the simulation. Units are cm/s. The default value effectively means "unlimited". It is not usually required to
+	// change this but you would reduce this to limit the effects of drag on the bodies in the simulation (if you have bodies that have LinearDrag set to non-zero in the physics asset). 
+	// Expected values in this case would be somewhat less than the usual velocities of your object which is commonly a few hundred for a character.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxLinearVelocity;
 
-	// A clamp on the effective simulation-space angular velocity that is passed to the solver
+	// A clamp on the effective world-space angular velocity that is passed to the simulation. Units are radian/s, so a value of about 6.0 is one rotation per second.
+	// The default value effectively means "unlimited". You would reduce this (and MaxAngularAcceleration) to limit how much bodies "fly out" when the actor spins on the spot. 
+	// This is especially useful if you have characters than can rotate very quickly and you would probably want values around or less than 10 in this case.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxAngularVelocity;
 	
-	// A clamp on the effective simulation-space acceleration that is passed to the solver
+	// A clamp on the effective world-space acceleration that is passed to the simulation. Units are cm/s/s. The default value effectively means "unlimited". 
+	// This property is used to stop the bodies of the simulation flying out when suddenly changing linear speed. It is useful when you have characters than can 
+	// changes from stationary to running very quickly such as in an FPS. A common value for a character might be in the few hundreds.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxLinearAcceleration;
 	
-	// A clamp on the effective simulation-space angular accleration that is passed to the solver
+	// A clamp on the effective world-space angular accleration that is passed to the simulation. Units are radian/s/s. The default value effectively means "unlimited". 
+	// This has a similar effect to MaxAngularVelocity, except that it is related to the flying out of bodies when the rotation speed suddenly changes. Typical limist for
+	// a character might be around 100.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
 	float MaxAngularAcceleration;
 
-	// Can be used to simulate freefall
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
-	float Freefall;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "ExternalLinearDrag is deprecated. Please use ExternalLinearDragV instead."))
+	float ExternalLinearDrag_DEPRECATED;
 
-	// Additional linear drag applied to every body (in addition to linear drag in the physics asset).
-	// Useful when combined with ExternalLinearVelocity to add a temporart wind-blown effect without
-	// having to set up the physics asset with linear drag.
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings, meta = (ClampMin = "0.0"))
-	float ExternalLinearDrag;
+	// Additional linear drag applied to every body in addition to linear drag specified on them in the physics asset. 
+	// When combined with ExternalLinearVelocity, this can be used to add a temporary wind-blown effect without having to tune linear drag on 
+	// all the bodies in the physics asset. The result is that each body has a force equal to -ExternalLinearDragV * ExternalLinearVelocity applied to it, in 
+	// additional to all other forces. The vector is in simulation local space.
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
+	FVector ExternalLinearDragV;
 
-	// Additional velocity to pass into the solver - for wind etc
+	// Additional velocity that is added to the component velocity so the simulation acts as if the actor is moving at speed, even when stationary. 
+	// Vector is in world space. Units are cm/s. Could be used for a wind effects etc. Typical values are similar to the velocity of the object or effect, 
+	// and usually around or less than 1000 for characters/wind.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FVector ExternalLinearVelocity;
 
-	// Additional angular velocity to pass into the solver
+	// Additional angular velocity that is added to the component angular velocity. This can be used to make the simulation act as if the actor is rotating
+	// even when it is not. E.g., to apply physics to a character on a podium as the camera rotates around it, to emulate the podium itself rotating.
+	// Vector is in world space. Units are rad/s.
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Settings)
 	FVector ExternalAngularVelocity;
+
+	void PostSerialize(const FArchive& Ar);
 };
+
+#if WITH_EDITORONLY_DATA
+template<>
+struct TStructOpsTypeTraits<FSimSpaceSettings> : public TStructOpsTypeTraitsBase2<FSimSpaceSettings>
+{
+	enum
+	{
+		WithPostSerialize = true
+	};
+};
+#endif
+
 
 /**
  *	Controller that simulates physics based on the physics asset of the skeletal mesh component
@@ -144,13 +178,15 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	FVector	ComponentAppliedLinearAccClamp;
 
-	/** 
-	 * Settings for the system which passes motion of the simulations space
-	 * into the simulation. This allows the simulation to pass some fraction
-	 * of the world space motion onto the bodies.
+	/**
+	 * Settings for the system which passes motion of the simulation's space
+	 * into the simulation. This allows the simulation to pass a
+	 * fraction of the world space motion onto the bodies which allows Bone-Space
+	 * and Component-Space simulations to react to world-space movement in a
+	 * controllable way.
 	 * This system is a superset of the functionality provided by ComponentLinearAccScale,
 	 * ComponentLinearVelScale, and ComponentAppliedLinearAccClamp. In general
-	 * you would not have both systems enabled.
+	 * you should not have both systems enabled.
 	 */
 	UPROPERTY(EditAnywhere, Category = Settings, meta = (PinHiddenByDefault))
 	FSimSpaceSettings SimSpaceSettings;
@@ -219,6 +255,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Settings)
 	float WorldSpaceMinimumScale;
 
+	/**
+		If the node is not evaluated for this amount of time (seconds), either because a lower LOD was in use for a while or the component was
+		not visible, reset the simulation to the default pose on the next evaluation. Set to 0 to disable time-based reset.
+	*/
+	UPROPERTY(EditAnywhere, Category = Settings)
+	float EvaluationResetTime;
+
 private:
 	uint8 bEnabled : 1;
 	uint8 bSimulationStarted : 1;
@@ -274,6 +317,9 @@ private:
 	void UpdateWorldObjects(const FTransform& SpaceTransform);
 
 private:
+
+	float WorldTimeSeconds;
+	float LastEvalTimeSeconds;
 
 	float AccumulatedDeltaTime;
 	float AnimPhysicsMinDeltaTime;
@@ -358,9 +404,6 @@ private:
 	FCollisionQueryParams QueryParams;
 
 	FPhysScene* PhysScene;
-
-	// Evaluation counter, to detect when we haven't be evaluated in a while.
-	FGraphTraversalCounter EvalCounter;
 
 	// Used by CollectWorldObjects and UpdateWorldGeometry in Task Thread
 	// Typically, World should never be accessed off the Game Thread.

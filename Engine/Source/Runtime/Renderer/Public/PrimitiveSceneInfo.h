@@ -333,9 +333,14 @@ public:
 	/** The number of movable point lights for mobile */
 	int32 NumMobileMovablePointLights;
 
+	/** Set to true for the primitive to be rendered in the main pass to be visible in a view. */
+	bool bShouldRenderInMainPass : 1;
+
+	/** Set to true for the primitive to be rendered into the real-time sky light reflection capture. */
+	bool bVisibleInRealTimeSkyCapture : 1;
+
 #if RHI_RAYTRACING
 	bool bDrawInGame : 1;
-	bool bShouldRenderInMainPass : 1;
 	bool bIsVisibleInReflectionCaptures : 1;
 	bool bIsRayTracingRelevant : 1;
 	bool bIsRayTracingStaticRelevant : 1;

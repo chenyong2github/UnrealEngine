@@ -9,6 +9,7 @@
 #include "Engine/LODActor.h"
 #include "Engine/HLODProxy.h"
 #include "Editor.h"
+#include "UnrealEngine.h"
 #include "HierarchicalLOD.h"
 #include "Modules/ModuleManager.h"
 #include "IHierarchicalLODUtilities.h"
@@ -17,6 +18,8 @@
 
 void UHLODEngineSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
+	bDisableHLODCleanupOnLoad = false;
+
 	Super::Initialize(Collection);
 	RegisterRecreateLODActorsDelegates();
 }
@@ -25,6 +28,11 @@ void UHLODEngineSubsystem::Deinitialize()
 {
 	UnregisterRecreateLODActorsDelegates();
 	Super::Deinitialize();
+}
+
+void UHLODEngineSubsystem::DisableHLODCleanupOnLoad(bool bInDisableHLODCleanup)
+{
+	bDisableHLODCleanupOnLoad = bInDisableHLODCleanup;
 }
 
 void UHLODEngineSubsystem::OnSaveLODActorsToHLODPackagesChanged()
@@ -70,15 +78,9 @@ void UHLODEngineSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* In
 	IHierarchicalLODUtilities* Utilities = Module.GetUtilities();
 
 	// First, destroy LODActors that were previously constructed from HLODDesc... If needed, they will be recreated below.
-	for (AActor* Actor : InLevel->Actors)
+	if (!bDisableHLODCleanupOnLoad)
 	{
-		if (ALODActor* LODActor = Cast<ALODActor>(Actor))
-		{
-			if (LODActor->WasBuiltFromHLODDesc())
-			{
-				InLevel->GetWorld()->EditorDestroyActor(LODActor, true);
-			}
-		}
+		CleanupHLODs(InLevel);
 	}
 
 	// Look for HLODProxy packages associated with this level
@@ -93,6 +95,63 @@ void UHLODEngineSubsystem::RecreateLODActorsForLevel(ULevel* InLevel, UWorld* In
 			HLODProxy->SpawnLODActors(InLevel);
 		}
 	}
+}
+
+bool UHLODEngineSubsystem::CleanupHLODs(ULevel* InLevel)
+{
+	bool bPerformedCleanup = false;
+
+	for (AActor* Actor : InLevel->Actors)
+	{
+		if (ALODActor* LODActor = Cast<ALODActor>(Actor))
+		{
+			bPerformedCleanup |= CleanupHLOD(LODActor);
+		}
+	}
+
+	return bPerformedCleanup;
+}
+
+bool UHLODEngineSubsystem::CleanupHLODs(UWorld* InWorld)
+{
+	bool bPerformedCleanup = false;
+
+	for (TActorIterator<ALODActor> It(InWorld); It; ++It)
+	{
+		bPerformedCleanup |= CleanupHLOD(*It);
+	}
+
+	return bPerformedCleanup;
+}
+
+bool UHLODEngineSubsystem::CleanupHLOD(ALODActor* InLODActor)
+{
+	bool bShouldDestroyActor = false;
+
+	UWorld* World = InLODActor->GetWorld();
+
+	if (InLODActor->GetLevel()->GetWorldSettings()->GetHierarchicalLODSetup().Num() == 0)
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s found in map with no HLOD setup or disabled HLOD system. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
+		bShouldDestroyActor = true;
+	}
+	else if (!InLODActor->GetProxy() || InLODActor->GetProxy()->GetMap() != TSoftObjectPtr<UWorld>(World))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Deleting LODActor %s with invalid HLODProxy. Resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
+		bShouldDestroyActor = true;
+	}
+	else if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages && !InLODActor->HasAnyFlags(RF_Transient))
+	{
+		UE_LOG(LogEngine, Warning, TEXT("Deleting non-transient LODActor %s. Rebuild HLOD & resave %s to silence warning."), *InLODActor->GetName(), *InLODActor->GetOutermost()->GetPathName());
+		bShouldDestroyActor = true;
+	}
+
+	if (bShouldDestroyActor)
+	{
+		World->EditorDestroyActor(InLODActor, true);
+	}
+
+	return bShouldDestroyActor;
 }
 
 void UHLODEngineSubsystem::OnPreSaveWorld(uint32 InSaveFlags, UWorld* InWorld)

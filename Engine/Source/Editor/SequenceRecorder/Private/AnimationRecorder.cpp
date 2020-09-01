@@ -322,9 +322,9 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 					for (int32 FrameIndex = 0; FrameIndex < NumFrames; ++FrameIndex)
 					{
 						const float TimeToRecord = FrameIndex*IntervalTime;
-						if(RecordedCurves[FrameIndex].IsValidIndex(CurveIndex))
+						if(RecordedCurves[FrameIndex].ValidCurveWeights[CurveIndex])
 						{
-							FCurveElement& CurCurve = RecordedCurves[FrameIndex][CurveIndex];
+							float CurCurveValue = RecordedCurves[FrameIndex].CurveWeights[CurveIndex];
 							if (!bSeenThisCurve)
 							{
 								bSeenThisCurve = true;
@@ -334,7 +334,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 								if (SkeletonObj->GetSmartNameByUID(USkeleton::AnimCurveMappingName, CurveUID, CurveName))
 								{
 									// give default curve flag for recording 
-									AnimationObject->RawCurveData.AddFloatCurveKey(CurveName, AACF_DefaultCurve, TimeToRecord, CurCurve.Value);
+									AnimationObject->RawCurveData.AddFloatCurveKey(CurveName, AACF_DefaultCurve, TimeToRecord, CurCurveValue);
 									FloatCurveData = static_cast<FFloatCurve*>(AnimationObject->RawCurveData.GetCurveData(CurveUID, ERawCurveTrackTypes::RCT_Float));
 								}
 							}
@@ -342,7 +342,7 @@ UAnimSequence* FAnimationRecorder::StopRecord(bool bShowMessage)
 							if (FloatCurveData)
 							{
 								TimesToRecord[FrameIndex] = TimeToRecord;
-								ValuesToRecord[FrameIndex] = CurCurve.Value;
+								ValuesToRecord[FrameIndex] = CurCurveValue;
 							}
 						}
 					}
@@ -516,7 +516,7 @@ void FAnimationRecorder::UpdateRecord(USkeletalMeshComponent* Component, float D
 			BlendedComponentToWorld.Blend(PreviousComponentToWorld, Component->GetComponentTransform(), BlendAlpha);
 
 			FBlendedHeapCurve BlendedCurve;
-			if (AnimCurves.Elements.Num() > 0 && PreviousAnimCurves.Elements.Num() == AnimCurves.Elements.Num() && PreviousAnimCurves.IsValid() && AnimCurves.IsValid())
+			if (AnimCurves.CurveWeights.Num() > 0 && PreviousAnimCurves.CurveWeights.Num() == AnimCurves.CurveWeights.Num() && PreviousAnimCurves.IsValid() && AnimCurves.IsValid())
 			{
 				BlendedCurve.Lerp(PreviousAnimCurves, AnimCurves, BlendAlpha);
 			}
@@ -640,9 +640,9 @@ bool FAnimationRecorder::Record(USkeletalMeshComponent* Component, FTransform co
 			AnimationSerializer->WriteFrameData(AnimationSerializer->FramesWritten, SerializedAnimation);
 		}
 		// each RecordedCurves contains all elements
-		if (AnimationCurves.Elements.Num() > 0)
+		if (AnimationCurves.CurveWeights.Num() > 0)
 		{
-			RecordedCurves.Add(AnimationCurves.Elements);
+			RecordedCurves.Emplace(AnimationCurves.CurveWeights, AnimationCurves.ValidCurveWeights);
 			if (UIDToArrayIndexLUT == nullptr)
 			{
 				UIDToArrayIndexLUT = AnimationCurves.UIDToArrayIndexLUT;

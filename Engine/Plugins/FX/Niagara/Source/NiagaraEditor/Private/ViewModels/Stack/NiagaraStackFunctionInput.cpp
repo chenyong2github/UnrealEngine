@@ -22,7 +22,6 @@
 #include "NiagaraScriptGraphViewModel.h"
 #include "NiagaraStackEditorData.h"
 #include "NiagaraComponent.h"
-#include "NiagaraScriptSource.h"
 #include "NiagaraConstants.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraScriptMergeManager.h"
@@ -43,7 +42,6 @@
 #include "Editor.h"
 #include "UObject/StructOnScope.h"
 #include "AssetRegistryModule.h"
-#include "ARFilter.h"
 #include "EdGraph/EdGraphPin.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "ViewModels/Stack/NiagaraStackInputCategory.h"
@@ -130,7 +128,7 @@ void UNiagaraStackFunctionInput::Initialize(
 	UNiagaraSystem& ParentSystem = GetSystemViewModel()->GetSystem();
 	UNiagaraEmitter* ParentEmitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
 
-	FNiagaraStackGraphUtilities::FindAffectedScripts(ParentSystem, ParentEmitter, *OwningModuleNode.Get(), AffectedScripts);
+	FNiagaraStackGraphUtilities::FindAffectedScripts(&ParentSystem, ParentEmitter, *OwningModuleNode.Get(), AffectedScripts);
 
 	UNiagaraNodeOutput* OutputNode = FNiagaraStackGraphUtilities::GetEmitterOutputNodeForStackNode(*OwningModuleNode.Get());
 	for (TWeakObjectPtr<UNiagaraScript> AffectedScript : AffectedScripts)
@@ -345,6 +343,73 @@ void UNiagaraStackFunctionInput::Paste(const UNiagaraClipboardContent* Clipboard
 	{
 		SetValueFromClipboardFunctionInput(*ClipboardInput);
 	}
+}
+
+TArray<UNiagaraStackFunctionInput*> UNiagaraStackFunctionInput::GetChildInputs() const
+{
+	TArray<UNiagaraStackFunctionInputCollection*> DynamicInputCollections;
+	GetUnfilteredChildrenOfType(DynamicInputCollections);
+	TArray<UNiagaraStackFunctionInput*> ChildInputs;
+	for (UNiagaraStackFunctionInputCollection* DynamicInputCollection : DynamicInputCollections)
+	{
+		DynamicInputCollection->GetChildInputs(ChildInputs);
+	}
+	
+	return ChildInputs;
+}
+
+FText UNiagaraStackFunctionInput::GetCollapsedStateText() const
+{
+	if (IsFinalized())
+	{
+		return FText();
+	}
+	
+	if (CollapsedTextCache.IsSet() == false)
+	{
+		switch (InputValues.Mode)
+		{
+		case EValueMode::Local:
+			{
+				FNiagaraEditorModule& EditorModule = FNiagaraEditorModule::Get();
+				auto TypeUtilityValue = EditorModule.GetTypeUtilities(InputType);
+				FNiagaraVariable Var(InputType, NAME_None);
+				Var.SetData(InputValues.LocalStruct->GetStructMemory());
+				CollapsedTextCache = TypeUtilityValue->GetStackDisplayText(Var);
+			}
+			break;
+		case EValueMode::Dynamic:
+			if (InputValues.DynamicNode->FunctionScript != nullptr)
+			{
+				FFormatOrderedArguments Arguments;
+				for (const auto& Child : GetChildInputs())
+				{
+					FText ChildText;
+					if (Child)
+					{
+						ChildText = Child->GetCollapsedStateText();
+					}
+					if (ChildText.IsEmptyOrWhitespace())
+					{
+						ChildText = FText::FromString("[?]");
+					}
+					Arguments.Add(ChildText);
+				}
+				CollapsedTextCache = FText::Format(InputValues.DynamicNode->FunctionScript->CollapsedViewFormat, Arguments);
+			}
+			break;
+		case EValueMode::Linked:
+			CollapsedTextCache = FText::FromString(InputValues.LinkedHandle.GetParameterHandleString().ToString());
+			break;
+		case EValueMode::Expression:
+			CollapsedTextCache = FText::Format(FText::FromString("({0})"), FText::FromString(InputValues.ExpressionNode->GetCustomHlsl()));
+			break;
+		default:
+			CollapsedTextCache = FText();
+			break;
+		}
+	}
+	return CollapsedTextCache.GetValue();
 }
 
 FText UNiagaraStackFunctionInput::GetValueToolTip() const
@@ -770,6 +835,7 @@ void UNiagaraStackFunctionInput::RefreshValues()
 	bCanResetToBaseCache.Reset();
 	ValueToolTipCache.Reset();
 	bIsScratchDynamicInputCache.Reset();
+	CollapsedTextCache.Reset();
 	ValueChangedDelegate.Broadcast();
 }
 
@@ -1678,7 +1744,7 @@ void UNiagaraStackFunctionInput::ReassignDynamicInputScript(UNiagaraScript* Dyna
 		const FString NewName = InputValues.DynamicNode->GetFunctionName();
 		UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 		UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-		FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
+		FNiagaraStackGraphUtilities::RenameReferencingParameters(&System, Emitter, *InputValues.DynamicNode.Get(), OldName, NewName);
 
 		InputValues.DynamicNode->RefreshFromExternalChanges();
 

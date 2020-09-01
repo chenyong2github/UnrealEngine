@@ -872,7 +872,7 @@ private:
 	void SanatizeReflectionCaptureResolution();
 };
 
-UCLASS(config = Engine, globaluserconfig, meta = (DisplayName = "Rendering Overrides (Local)"))
+UCLASS(config = Engine, projectuserconfig, meta = (DisplayName = "Rendering Overrides (Local)"))
 class ENGINE_API URendererOverrideSettings : public UDeveloperSettings
 {
 	GENERATED_UCLASS_BODY()

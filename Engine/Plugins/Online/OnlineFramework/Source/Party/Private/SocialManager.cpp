@@ -1246,6 +1246,15 @@ bool USocialManager::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice
 		{
 			return true;
 		}
+
+		for (USocialToolkit* Toolkit : SocialToolkits)
+		{
+			if (Toolkit && 
+				Toolkit->Exec(InWorld, Cmd, Out))
+			{
+				return true;
+			}
+		}
 		return true;
 	}
 	return false;

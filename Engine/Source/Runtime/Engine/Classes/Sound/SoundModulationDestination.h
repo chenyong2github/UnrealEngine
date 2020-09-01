@@ -80,9 +80,10 @@ namespace Audio
 
 			float ValueTarget = 1.0f;
 
-			uint8 bIsBuffered  = 0;
-			uint8 bValueLinear = 0;
-			uint8 bIsActive    = 0;
+			uint8 bIsBuffered   = 0;
+			uint8 bValueLinear  = 0;
+			uint8 bIsActive     = 0;
+			uint8 bHasProcessed = 0;
 
 			AlignedFloatBuffer OutputBuffer;
 			AlignedFloatBuffer TempBufferLinear;
@@ -99,6 +100,13 @@ namespace Audio
 			{
 				check(bIsBuffered);
 				return OutputBuffer;
+			}
+
+			/** Returns whether or not the destination has requested to 
+			  * process the control or not. */
+			FORCEINLINE bool GetHasProcessed() const
+			{
+				return bHasProcessed != 0;
 			}
 
 			/** Returns sample value last reported by modulator. Returns value in unit space, unless 

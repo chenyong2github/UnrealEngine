@@ -19,7 +19,7 @@ struct FComputeKernelCompilationResults
 class FComputeKernelResource
 {
 public:
-	uint32 GetKernelFlags() const { return 0; }
+	uint32 GetKernelFlags() const { return Flags; }
 
 	const FComputeKernelCompilationResults& GetCompilationResults() const { return CompilationResults; }
 
@@ -52,6 +52,8 @@ private:
 	 * This can be used to access the shader map during async compiling.
 	 */
 	TArray<uint32> InFlightCompilationIds;
+
+	uint32 Flags = 0;
 
 	void CreateShaderMapId(
 		FComputeKernelShaderMapId* OutShaderMapId

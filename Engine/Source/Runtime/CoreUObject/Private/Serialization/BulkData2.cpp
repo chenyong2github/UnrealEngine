@@ -315,7 +315,7 @@ public:
 			}
 		};
 
-		FBulkDataBase::GetIoDispatcher()->ReadWithCallback(InChunkId, Options, OnRequestLoaded);
+		FBulkDataBase::GetIoDispatcher()->ReadWithCallback(InChunkId, Options, IoDispatcherPriority_Low, OnRequestLoaded);
 	}
 
 	virtual ~FReadChunkIdRequest()
@@ -532,7 +532,7 @@ public:
 		FIoBatchReadOptions BatchReadOptions;
 		BatchReadOptions.SetTargetVa(UserSuppliedMemory);
 
-		FIoStatus Status = IoBatch.IssueWithCallback(BatchReadOptions, Callback);
+		FIoStatus Status = IoBatch.IssueWithCallback(BatchReadOptions, IoDispatcherPriority_Low, Callback);
 		CHECK_IOSTATUS(Status, TEXT("FIoBatch::IssueWithCallback"));
 	}
 
@@ -1519,7 +1519,7 @@ void FBulkDataBase::InternalLoadFromIoStore(void** DstBuffer)
 	FIoBatch NewBatch = GetIoDispatcher()->NewBatch();
 	FIoRequest Request = NewBatch.Read(CreateChunkId(), Options);
 
-	NewBatch.Issue();
+	NewBatch.Issue(IoDispatcherPriority_High);
 	NewBatch.Wait(); // Blocking wait until all requests in the batch are done
 
 	CHECK_IOSTATUS(Request.Status(), TEXT("FIoRequest"));
@@ -1539,12 +1539,7 @@ void FBulkDataBase::InternalLoadFromIoStoreAsync(void** DstBuffer, AsyncCallback
 	FIoReadOptions Options;
 	Options.SetTargetVa(*DstBuffer);
 
-	auto OnRequestLoaded = [Callback](TIoStatusOr<FIoBuffer> Result)
-	{
-		Callback(Result);
-	};
-
-	GetIoDispatcher()->ReadWithCallback(CreateChunkId(), Options, MoveTemp(Callback));
+	GetIoDispatcher()->ReadWithCallback(CreateChunkId(), Options, IoDispatcherPriority_Low, MoveTemp(Callback));
 }
 
 void FBulkDataBase::ProcessDuplicateData(FArchive& Ar, const UPackage* Package, const FString* Filename, int64& InOutOffsetInFile)

@@ -296,9 +296,9 @@ public:
 
 		FNiagaraDataInterfaceProxyLandscape* RT_Proxy = static_cast<FNiagaraDataInterfaceProxyLandscape*>(Context.DataInterface);
 
-		if (RT_Proxy && RT_Proxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstance))
+		if (RT_Proxy && RT_Proxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID))
 		{
-			FNDILandscapeData_RenderThread* ProxyData = RT_Proxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstance);
+			FNDILandscapeData_RenderThread* ProxyData = RT_Proxy->SystemInstancesToProxyData_RT.Find(Context.SystemInstanceID);
 			
 			if (ProxyData->LandscapeTextureBuffer)
 			{

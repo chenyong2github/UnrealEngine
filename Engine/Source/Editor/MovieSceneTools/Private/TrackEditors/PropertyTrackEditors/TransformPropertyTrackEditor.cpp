@@ -82,7 +82,7 @@ UE::MovieScene::FIntermediate3DTransform FTransformPropertyTrackEditor::Recompos
 
 	if (EntityLinker && EntityID)
 	{
-		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>();
 		if (System)
 		{
 			FDecompositionQuery Query;

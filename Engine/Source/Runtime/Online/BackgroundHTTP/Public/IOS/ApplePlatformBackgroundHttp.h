@@ -47,20 +47,6 @@ public:
 	 * @return response object
 	 */
 	static FBackgroundHttpResponsePtr ConstructBackgroundResponse(int32 ResponseCode, const FString& TempFilePath);
-
-	/**
-	* Function that takes in a URL and figures out the location we should use as the temp storage URL
-	*
-	* @return FString to use as the TempFilePath
-	*/
-	static const FString GetTemporaryFilePathFromURL(const FString& URL);
-
-    /**
-     * Function that returns the root path where all our temporary files are stored on this platform
-     *
-     * @return FString File path that is the root path of our temp files for background http work on this platform.
-     */
-    static const FString& GetTemporaryRootPath();
 };
 
 //Setup Platform Implementation calls to point here at the Apple Implementation

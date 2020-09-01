@@ -68,6 +68,13 @@ FPhysicsAssetEditorSharedData::FPhysicsAssetEditorSharedData()
 	bNoGravitySimulation = false;
 
 	bManipulating = false;
+
+	LastClickPos = FIntPoint::ZeroValue;
+	LastClickOrigin = FVector::ZeroVector;
+	LastClickDirection = FVector::UpVector;
+	LastClickHitPos = FVector::ZeroVector;
+	LastClickHitNormal = FVector::UpVector;
+	bLastClickHit = false;
 	
 	// Construct mouse handle
 	MouseHandle = NewObject<UPhysicsAssetEditorPhysicsHandleComponent>();

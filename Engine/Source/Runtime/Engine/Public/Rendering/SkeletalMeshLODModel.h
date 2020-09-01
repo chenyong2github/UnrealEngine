@@ -89,10 +89,6 @@ struct FSkelMeshSection
 	*/
 	int16 CorrespondClothSectionIndex_DEPRECATED;
 
-	/** Decide whether enabling clothing LOD for this section or not, just using skelmesh LOD_0's one to decide */
-	/** no need anymore because each clothing LOD will be assigned to each mesh LOD  */
-	uint8 bEnableClothLOD_DEPRECATED;
-
 	/** The offset into the LOD's vertex buffer of this section's vertices. */
 	uint32 BaseVertexIndex;
 

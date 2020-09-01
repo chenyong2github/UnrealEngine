@@ -18,6 +18,9 @@
 #include "Sections/MovieSceneCameraCutSection.h"
 #include "MovieSceneTimeHelpers.h"
 #include "MoviePipelineQueue.h"
+#include "MoviePipelineOutputSetting.h"
+#include "HAL/FileManager.h"
+#include "Internationalization/Regex.h"
 
 EMovieRenderPipelineState UMoviePipelineBlueprintLibrary::GetPipelineState(const UMoviePipeline* InPipeline)
 {
@@ -78,18 +81,17 @@ void UMoviePipelineBlueprintLibrary::GetOverallOutputFrames(const UMoviePipeline
 	}
 }
 
-FText UMoviePipelineBlueprintLibrary::GetCurrentSegmentName(UMoviePipeline* InMoviePipeline)
+void UMoviePipelineBlueprintLibrary::GetCurrentSegmentName(UMoviePipeline* InMoviePipeline, FText& OutOuterName, FText& OutInnerName)
 {
 	if (InMoviePipeline)
 	{
 		int32 ShotIndex = InMoviePipeline->GetCurrentShotIndex();
 		if (ShotIndex < InMoviePipeline->GetActiveShotList().Num())
 		{
-			return FText::FromString(InMoviePipeline->GetActiveShotList()[ShotIndex]->InnerName);
+			OutOuterName = FText::FromString(InMoviePipeline->GetActiveShotList()[ShotIndex]->OuterName);
+			OutInnerName = FText::FromString(InMoviePipeline->GetActiveShotList()[ShotIndex]->InnerName);
 		}
 	}
-
-	return FText();
 }
 
 FDateTime UMoviePipelineBlueprintLibrary::GetJobInitializationTime(const UMoviePipeline* InMoviePipeline)
@@ -508,4 +510,78 @@ void UMoviePipelineBlueprintLibrary::UpdateJobShotListFromSequence(ULevelSequenc
 	// Now that we've read the job's shot mask we will clear it and replace it with only things still valid.
 	InJob->ShotInfo.Reset();
 	InJob->ShotInfo = NewShots;
+}
+
+int32 UMoviePipelineBlueprintLibrary::ResolveVersionNumber(const UMoviePipeline* InMoviePipeline)
+{
+	if (!InMoviePipeline)
+	{
+		return -1;
+	}
+
+	UMoviePipelineOutputSetting* OutputSettings = InMoviePipeline->GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	if (!OutputSettings->bAutoVersion)
+	{
+		return OutputSettings->VersionNumber;
+	}
+
+	// Calculate a version number by looking at the output path and then scanning for a version token.
+	FString FileNameFormatString = OutputSettings->OutputDirectory.Path / OutputSettings->FileNameFormat;
+
+	FString FinalPath;
+	FMoviePipelineFormatArgs FinalFormatArgs;
+	FStringFormatNamedArguments Overrides;
+	Overrides.Add(TEXT("version"), TEXT("{version}")); // Force the Version string to stay as {version} so we can substring based on it later.
+
+	InMoviePipeline->ResolveFilenameFormatArguments(FileNameFormatString, Overrides, FinalPath, FinalFormatArgs);
+	FinalPath = FPaths::ConvertRelativePathToFull(FinalPath);
+	FPaths::NormalizeFilename(FinalPath);
+
+	// If they're using the version token, try to resolve the directory that the files are in.
+	if (FinalPath.Contains(TEXT("{version}")))
+	{
+		int32 HighestVersion = 0;
+
+		// FinalPath can have {version} either in a folder name or in a file name. We need to find the 'parent' of either the file or folder that contains it. We can do this by substringing
+		// for {version} and then finding the last "/" character, which will be the containing folder.
+		int32 VersionStringIndex = FinalPath.Find(TEXT("{version}"), ESearchCase::Type::IgnoreCase, ESearchDir::Type::FromStart);
+		if (VersionStringIndex >= 0)
+		{
+			int32 LastParentFolder = FinalPath.Find(TEXT("/"), ESearchCase::Type::IgnoreCase, ESearchDir::Type::FromEnd, VersionStringIndex);
+			FinalPath.LeftInline(LastParentFolder + 1);
+
+			// Now that we have the parent folder of either the folder with the version token, or the file with the version token, we will
+			// look through all immediate children and scan for version tokens so we can find the highest one.
+			const FRegexPattern VersionSearchPattern(TEXT("v([0-9]{3})"));
+			TArray<FString> FilesAndFoldersInDirectory;
+			IFileManager& FileManager = IFileManager::Get();
+			FileManager.FindFiles(FilesAndFoldersInDirectory, *(FinalPath / TEXT("*.*")), true, true);
+
+			for (const FString& Path : FilesAndFoldersInDirectory)
+			{
+				FRegexMatcher Regex(VersionSearchPattern, *Path);
+				if (Regex.FindNext())
+				{
+					FString Result = Regex.GetCaptureGroup(0);
+					if (Result.Len() > 0)
+					{
+						// Strip the "v" token off, expected pattern is vXXX
+						Result.RightChopInline(1);
+					}
+
+					int32 VersionNumber = 0;
+					LexFromString(VersionNumber, *Result);
+					if (VersionNumber > HighestVersion)
+					{
+						HighestVersion = VersionNumber;
+					}
+				}
+			}
+
+		}
+
+		return  HighestVersion + 1;
+	}
+
+	return 0;
 }

@@ -231,11 +231,11 @@ struct FNiagaraDataInterfaceProxy : TSharedFromThis<FNiagaraDataInterfaceProxy, 
 	virtual bool IsOutputStage_DEPRECATED(uint32 CurrentStage) const { return OutputSimulationStages_DEPRECATED.Contains(CurrentStage); }
 	virtual bool IsIterationStage_DEPRECATED(uint32 CurrentStage) const { return IterationSimulationStages_DEPRECATED.Contains(CurrentStage); }
 
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) { }
+	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) { }
 
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}	
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}
-	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) {}
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) {}
+	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) {}
+	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) {}
 };
 
 //////////////////////////////////////////////////////////////////////////
@@ -381,6 +381,10 @@ public:
 
 	FSimpleMulticastDelegate& OnErrorsRefreshed();
 #endif
+	virtual bool CanExposeVariables() const { return false; }
+	virtual void GetExposedVariables(TArray<FNiagaraVariableBase>& OutVariables) const {}
+	virtual bool GetExposedVariableValue(const FNiagaraVariableBase& InVariable, void* InPerInstanceData, FNiagaraSystemInstance* InSystemInstance, void* OutData) const { return false; }
+
 
 	FNiagaraDataInterfaceProxy* GetProxy()
 	{
@@ -669,7 +673,7 @@ struct FNDIInputParam<FLinearColor>
 	VectorVM::FExternalFuncInputHandler<float> B;
 	VectorVM::FExternalFuncInputHandler<float> A;
 	FORCEINLINE FNDIInputParam(FVectorVMContext& Context) : R(Context), G(Context), B(Context), A(Context) {}
-	FORCEINLINE FVector4 GetAndAdvance() { return FLinearColor(R.GetAndAdvance(), G.GetAndAdvance(), B.GetAndAdvance(), A.GetAndAdvance()); }
+	FORCEINLINE FLinearColor GetAndAdvance() { return FLinearColor(R.GetAndAdvance(), G.GetAndAdvance(), B.GetAndAdvance(), A.GetAndAdvance()); }
 };
 
 template<>
@@ -763,6 +767,50 @@ struct FNDIOutputParam<FQuat>
 		*Y.GetDestAndAdvance() = Val.Y;
 		*Z.GetDestAndAdvance() = Val.Z;
 		*W.GetDestAndAdvance() = Val.W;
+	}
+};
+
+template<>
+struct FNDIOutputParam<FMatrix>
+{
+	VectorVM::FExternalFuncRegisterHandler<float> Out00;
+	VectorVM::FExternalFuncRegisterHandler<float> Out01;
+	VectorVM::FExternalFuncRegisterHandler<float> Out02;
+	VectorVM::FExternalFuncRegisterHandler<float> Out03;
+	VectorVM::FExternalFuncRegisterHandler<float> Out04;
+	VectorVM::FExternalFuncRegisterHandler<float> Out05;
+	VectorVM::FExternalFuncRegisterHandler<float> Out06;
+	VectorVM::FExternalFuncRegisterHandler<float> Out07;
+	VectorVM::FExternalFuncRegisterHandler<float> Out08;
+	VectorVM::FExternalFuncRegisterHandler<float> Out09;
+	VectorVM::FExternalFuncRegisterHandler<float> Out10;
+	VectorVM::FExternalFuncRegisterHandler<float> Out11;
+	VectorVM::FExternalFuncRegisterHandler<float> Out12;
+	VectorVM::FExternalFuncRegisterHandler<float> Out13;
+	VectorVM::FExternalFuncRegisterHandler<float> Out14;
+	VectorVM::FExternalFuncRegisterHandler<float> Out15;
+
+	FORCEINLINE FNDIOutputParam(FVectorVMContext& Context) : Out00(Context), Out01(Context), Out02(Context), Out03(Context), Out04(Context), Out05(Context),
+		Out06(Context), Out07(Context), Out08(Context), Out09(Context), Out10(Context), Out11(Context), Out12(Context), Out13(Context), Out14(Context), Out15(Context)	{}
+	FORCEINLINE bool IsValid() const { return Out00.IsValid(); }
+	FORCEINLINE void SetAndAdvance(const FMatrix& Val)
+	{
+		*Out00.GetDestAndAdvance() = Val.M[0][0];
+		*Out01.GetDestAndAdvance() = Val.M[0][1];
+		*Out02.GetDestAndAdvance() = Val.M[0][2];
+		*Out03.GetDestAndAdvance() = Val.M[0][3];
+		*Out04.GetDestAndAdvance() = Val.M[1][0];
+		*Out05.GetDestAndAdvance() = Val.M[1][1];
+		*Out06.GetDestAndAdvance() = Val.M[1][2];
+		*Out07.GetDestAndAdvance() = Val.M[1][3];
+		*Out08.GetDestAndAdvance() = Val.M[2][0];
+		*Out09.GetDestAndAdvance() = Val.M[2][1];
+		*Out10.GetDestAndAdvance() = Val.M[2][2];
+		*Out11.GetDestAndAdvance() = Val.M[2][3];
+		*Out12.GetDestAndAdvance() = Val.M[3][0];
+		*Out13.GetDestAndAdvance() = Val.M[3][1];
+		*Out14.GetDestAndAdvance() = Val.M[3][2];
+		*Out15.GetDestAndAdvance() = Val.M[3][3];
 	}
 };
 

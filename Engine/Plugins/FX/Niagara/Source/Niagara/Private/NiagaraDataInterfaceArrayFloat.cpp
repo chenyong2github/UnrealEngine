@@ -10,7 +10,6 @@ struct FNDIArrayImplHelper<float> : public FNDIArrayImplHelperBase<float>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float");
 	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloatBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetFloatDef(); }
 	static const float GetDefaultValue() { return 0.0f; }
 };
@@ -21,7 +20,6 @@ struct FNDIArrayImplHelper<FVector2D> : public FNDIArrayImplHelperBase<FVector2D
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float2");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float2");
 	static constexpr EPixelFormat PixelFormat = PF_G32R32F;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat2Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec2Def(); }
 	static const FVector2D GetDefaultValue() { return FVector2D::ZeroVector; }
 };
@@ -32,7 +30,6 @@ struct FNDIArrayImplHelper<FVector> : public FNDIArrayImplHelperBase<FVector>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float3");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float");	//-OPT: Current we have no float3 pixel format, when we add one update this to use it
 	static constexpr EPixelFormat PixelFormat = PF_R32_FLOAT;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloatBuffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec3Def(); }
 	static const FVector GetDefaultValue() { return FVector::ZeroVector; }
 
@@ -54,7 +51,6 @@ struct FNDIArrayImplHelper<FVector4> : public FNDIArrayImplHelperBase<FVector4>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetVec4Def(); }
 	static const FVector4 GetDefaultValue() { return FVector4(ForceInitToZero); }
 };
@@ -65,7 +61,6 @@ struct FNDIArrayImplHelper<FLinearColor> : public FNDIArrayImplHelperBase<FLinea
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetColorDef(); }
 	static const FLinearColor GetDefaultValue() { return FLinearColor::White; }
 };
@@ -76,7 +71,6 @@ struct FNDIArrayImplHelper<FQuat> : public FNDIArrayImplHelperBase<FQuat>
 	static constexpr TCHAR const* HLSLValueTypeName = TEXT("float4");
 	static constexpr TCHAR const* HLSLBufferTypeName = TEXT("float4");
 	static constexpr EPixelFormat PixelFormat = PF_A32B32G32R32F;
-	static FRHIShaderResourceView* GetDummyBuffer() { return FNiagaraRenderer::GetDummyFloat4Buffer(); }
 	static const FNiagaraTypeDefinition& GetTypeDefinition() { return FNiagaraTypeDefinition::GetQuatDef(); }
 	static const FQuat GetDefaultValue() { return FQuat::Identity; }
 };
@@ -85,40 +79,40 @@ UNiagaraDataInterfaceArrayFloat::UNiagaraDataInterfaceArrayFloat(FObjectInitiali
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<float, UNiagaraDataInterfaceArrayFloat>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<float, UNiagaraDataInterfaceArrayFloat>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayFloat2::UNiagaraDataInterfaceArrayFloat2(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector2D, UNiagaraDataInterfaceArrayFloat2>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector2D, UNiagaraDataInterfaceArrayFloat2>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayFloat3::UNiagaraDataInterfaceArrayFloat3(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector, UNiagaraDataInterfaceArrayFloat3>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector, UNiagaraDataInterfaceArrayFloat3>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayFloat4::UNiagaraDataInterfaceArrayFloat4(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector4, UNiagaraDataInterfaceArrayFloat4>(Proxy, FloatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FVector4, UNiagaraDataInterfaceArrayFloat4>(this, FloatData));
 }
 
 UNiagaraDataInterfaceArrayColor::UNiagaraDataInterfaceArrayColor(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FLinearColor, UNiagaraDataInterfaceArrayColor>(Proxy, ColorData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FLinearColor, UNiagaraDataInterfaceArrayColor>(this, ColorData));
 }
 
 UNiagaraDataInterfaceArrayQuat::UNiagaraDataInterfaceArrayQuat(FObjectInitializer const& ObjectInitializer)
 	: UNiagaraDataInterfaceArray(ObjectInitializer)
 {
 	Proxy.Reset(new FNiagaraDataInterfaceProxyArrayImpl());
-	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FQuat, UNiagaraDataInterfaceArrayQuat>(Proxy, QuatData, ArrayRWGuard));
+	Impl.Reset(new FNiagaraDataInterfaceArrayImpl<FQuat, UNiagaraDataInterfaceArrayQuat>(this, QuatData));
 }

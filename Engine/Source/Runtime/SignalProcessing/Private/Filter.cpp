@@ -255,6 +255,40 @@ namespace Audio
 				b2 = 1.0f - Alpha;
 			}
 			break;
+
+			case EBiquadFilter::ButterworthLowPass:
+			{
+				float Lambda = 1.f / FMath::Tan(PI * Frequency / SampleRate);
+				float OneOverQ = 2.f * Alpha / Sn;
+				float LambdaScaled = UE_SQRT_2 * Lambda * OneOverQ;
+				float LambdaSq = Lambda * Lambda;
+
+				a0 = 1.f / (1.f + LambdaScaled + LambdaSq);
+				a1 = 2.f * a0;
+				a2 = a0;
+
+				b0 = 1.f;
+				b1 = a1 * (1.f - LambdaSq);
+				b2 = a0 * (1.f - LambdaScaled + LambdaSq);
+			}
+			break;
+
+			case EBiquadFilter::ButterworthHighPass:
+			{
+				float Lambda = FMath::Tan(PI * Frequency / SampleRate);
+				float OneOverQ = 2.f * Alpha / Sn;
+				float LambdaScaled = UE_SQRT_2 * Lambda * OneOverQ;
+				float LambdaSq = Lambda * Lambda;
+
+				a0 = 1.f / (1.f + LambdaScaled + LambdaSq);
+				a1 = -2.f * a0;
+				a2 = a0;
+
+				b0 = 1.f;
+				b1 = -a1 * (LambdaSq - 1.f);
+				b2 = a0 * (1.f - LambdaScaled + LambdaSq);
+			}
+			break;
 		}
 
 		a0 /= b0;

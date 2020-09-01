@@ -249,6 +249,9 @@ FD3D12Resource::FD3D12Resource(FD3D12Device* ParentDevice,
 	, bRequiresResourceStateTracking(true)
 	, bDepthStencil(false)
 	, bDeferDelete(true)
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	, bBackBuffer(false)
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	, HeapType(InHeapType)
 	, GPUVirtualAddress(0)
 	, ResourceBaseAddress(nullptr)
@@ -709,4 +712,58 @@ void FD3D12ResourceLocation::SetResource(FD3D12Resource* Value)
 
 	UnderlyingResource = Value;
 	ResidencyHandle = UnderlyingResource->GetResidencyHandle();
+}
+
+/////////////////////////////////////////////////////////////////////
+//	FD3D12 Resource Barrier Batcher
+/////////////////////////////////////////////////////////////////////
+
+void FD3D12ResourceBarrierBatcher::Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax)
+{
+	if (Barriers.Num())
+	{
+		check(pCommandList);
+		if (Barriers.Num() > BarrierBatchMax)
+		{
+			int Num = Barriers.Num();
+			D3D12_RESOURCE_BARRIER* Ptr = Barriers.GetData();
+			while (Num > 0)
+			{
+				int DispatchNum = FMath::Min(Num, BarrierBatchMax);
+				pCommandList->ResourceBarrier(DispatchNum, Ptr);
+				Ptr += BarrierBatchMax;
+				Num -= BarrierBatchMax;
+			}
+		}
+		else
+		{
+			pCommandList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
+		}
+	}
+
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	if (BackBufferBarriers.Num())
+	{
+		check(pCommandList);
+		FD3D12ScopedTimedIntervalQuery BarrierScopeTimer(Device->GetBackBufferWriteBarrierTracker(), pCommandList);
+		if (BackBufferBarriers.Num() > BarrierBatchMax)
+		{
+			int Num = BackBufferBarriers.Num();
+			D3D12_RESOURCE_BARRIER* Ptr = BackBufferBarriers.GetData();
+			while (Num > 0)
+			{
+				int DispatchNum = FMath::Min(Num, BarrierBatchMax);
+				pCommandList->ResourceBarrier(DispatchNum, Ptr);
+				Ptr += BarrierBatchMax;
+				Num -= BarrierBatchMax;
+			}
+		}
+		else
+		{
+			pCommandList->ResourceBarrier(BackBufferBarriers.Num(), BackBufferBarriers.GetData());
+		}
+	}
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
+	Reset();
 }

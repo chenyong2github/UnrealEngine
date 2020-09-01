@@ -15,6 +15,7 @@
 #include "Evaluation/Blending/BlendableTokenStack.h"
 #include "Evaluation/Blending/MovieSceneBlendingActuatorID.h"
 #include "TransformNoScale.h"
+#include "SkeletalMeshRestoreState.h"
 
 //#include "Particles/ParticleSystemComponent.h"
 
@@ -416,17 +417,12 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 		{
 			FToken(FMovieSceneSequenceIDRef InSequenceID)
 				: SequenceID(InSequenceID)
-#if WITH_EDITOR
-				,bUpdateAnimationInEditor(true)
-#endif
 			{
 
 			}
 			void SetSkelMesh(USkeletalMeshComponent* InComponent)
 			{
-#if WITH_EDITOR
-				bUpdateAnimationInEditor = InComponent->GetUpdateAnimationInEditor();
-#endif
+				SkeletalMeshRestoreState.SaveState(InComponent);
 			}
 
 			virtual void RestoreState(UObject& InObject, IMovieScenePlayer& Player) override
@@ -438,9 +434,7 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 					{
 						if (USkeletalMeshComponent* SkeletalMeshComponent = Cast<USkeletalMeshComponent>(ControlRig->GetObjectBinding()->GetBoundObject()))
 						{
-#if WITH_EDITOR
-							SkeletalMeshComponent->SetUpdateAnimationInEditor(bUpdateAnimationInEditor);
-#endif
+							SkeletalMeshRestoreState.RestoreState(SkeletalMeshComponent);
 						}
 						FControlRigBindingHelper::UnBindFromSequencerInstance(ControlRig);
 						for (TNameAndValue<float>& Value : ScalarValues)
@@ -493,9 +487,8 @@ struct FControlRigParameterPreAnimatedTokenProducer : IMovieScenePreAnimatedToke
 			TArray< TNameAndValue<FVector> > VectorValues;
 			TArray< TNameAndValue<FVector2D> > Vector2DValues;
 			TArray< TNameAndValue<FTransform> > TransformValues;
-#if WITH_EDITOR
-			bool bUpdateAnimationInEditor;
-#endif
+			FSkeletalMeshRestoreState SkeletalMeshRestoreState;
+
 		};
 
 

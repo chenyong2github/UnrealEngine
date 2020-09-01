@@ -265,6 +265,58 @@ private:																		\
 public:
 
 /**
+ * Raw struct to serialize for network. We need to custom netserialize to optimize
+ * the vector serialize as much as possible and rather than have the property system
+ * iterate an array of reflected structs we handle everything in the NetSerialize for
+ * the container (FGeometryCollectionRepData)
+ */
+struct FGeometryCollectionRepPose
+{
+	FVector Position;
+	FVector LinearVelocity;
+	FVector AngularVelocity;
+	FQuat Rotation;
+	uint16 ParticleIndex;
+};
+
+/**
+ * Replicated data for a geometry collection when bEnableReplication is true for
+ * that component. See UGeomtryCollectionComponent::UpdateRepData
+ */
+USTRUCT()
+struct FGeometryCollectionRepData
+{
+	GENERATED_BODY()
+
+	FGeometryCollectionRepData()
+		: Version(0)
+	{
+
+	}
+
+	// Array of per-particle data required to synchronize clients
+	TArray<FGeometryCollectionRepPose> Poses;
+
+	// Version counter, every write to the rep data is a new state so Identical only references this version
+	// as there's no reason to compare the Poses array.
+	int32 Version;
+
+	// Just test version to skip having to traverse the whole pose array for replication
+	bool Identical(const FGeometryCollectionRepData* Other, uint32 PortFlags) const;
+	bool NetSerialize(FArchive& Ar, class UPackageMap* Map, bool& bOutSuccess);
+};
+
+template<>
+struct TStructOpsTypeTraits<FGeometryCollectionRepData> : public TStructOpsTypeTraitsBase2<FGeometryCollectionRepData>
+{
+	enum
+	{
+		WithNetSerializer = true,
+		WithIdentical = true,
+	};
+};
+
+/**
 *	GeometryCollectionComponent
 */
 UCLASS(meta = (BlueprintSpawnableComponent))
@@ -285,7 +337,8 @@ public:
 	FORCEINLINE void SetRenderStateDirty() { bRenderStateDirty = true; }
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
-
+	virtual void GetLifetimeReplicatedProps(TArray<FLifetimeProperty>& OutLifetimeProps) const override;
+	virtual void InitializeComponent() override;
 	//~ Begin UActorComponent Interface. 
 
 
@@ -438,7 +491,7 @@ public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Initial Velocity")
 	FVector InitialAngularVelocity;
 
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|Caching", meta=(ShowOnlyInnerProperties))
+	UPROPERTY()
 	FGeomComponentCacheParameters CacheParameters;
 
 	UFUNCTION(BlueprintCallable, Category = "Field")
@@ -482,7 +535,9 @@ public:
 
 	FPhysScene_Chaos* GetInnerChaosScene() const;
 	AChaosSolverActor* GetPhysicsSolverActor() const;
+
 	const FGeometryCollectionPhysicsProxy* GetPhysicsProxy() const { return PhysicsProxy; }
+	FGeometryCollectionPhysicsProxy* GetPhysicsProxy() { return PhysicsProxy; }
 
 #if GEOMETRYCOLLECTION_EDITOR_SELECTION
 	/** Enable/disable the scene proxy per transform selection mode. When disabled the per material id default selection is used instead. */
@@ -574,7 +629,45 @@ protected:
 	void UpdateRBCollisionEventRegistration();
 	void UpdateBreakEventRegistration();
 
+	/* Per-instance override to enable/disable replication for the geometry collection */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category=Network)
+	bool bEnableReplication;
+
+	/** 
+	 * Enables use of ReplicationAbandonClusterLevel to stop providing network updates to
+	 * clients when the updated particle is of a level higher then specified.
+	 */
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Network)
+	bool bEnableAbandonAfterLevel;
+
+	/**
+	 * If replicating - the cluster level to stop sending corrections for geometry collection chunks.
+	 * recommended for smaller leaf levels when the size of the objects means they are no longer
+	 * gameplay relevant to cut down on required bandwidth to update a collection.
+	 * @see bEnableAbandonAfterLevel
+	 */ 
+	UPROPERTY(EditInstanceOnly, BlueprintReadOnly, Category = Network)
+	int32 ReplicationAbandonClusterLevel;
+
+	UPROPERTY(ReplicatedUsing=OnRep_RepData)
+	FGeometryCollectionRepData RepData;
+
+	/** Called on non-authoritative clients when receiving new repdata from the server */
+	UFUNCTION()
+	void OnRep_RepData(const FGeometryCollectionRepData& OldData);
+
+	/** Called post solve to allow authoritative components to update their replication data */
+	void UpdateRepData();
+
 private:
+
+	/** 
+	 * Notifies all clients that a server has abandoned control of a particle, clients should restore the strain
+	 * values on abandoned particles and their children then fracture them before continuing
+	 */
+	UFUNCTION(NetMulticast, Reliable)
+	void NetAbandonCluster(int32 TransformIndex);
+
 	bool bRenderStateDirty;
 	bool bShowBoneColors;
 	bool bEnableBoneSelection;

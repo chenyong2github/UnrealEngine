@@ -688,9 +688,9 @@ void UChildActorComponent::CreateChildActor()
 void UChildActorComponent::DestroyChildActor()
 {
 	// If we own an Actor, kill it now unless we don't have authority on it, for that we rely on the server
-	// If the level that the child actor is being removed then don't destory the child actor so re-adding it doesn't
+	// If the level is being removed then don't destroy the child actor so re-adding it doesn't
 	// need to create a new actor
-	if (ChildActor && ChildActor->HasAuthority() && !GetOwner()->GetLevel()->bIsBeingRemoved)
+	if (ChildActor && ChildActor->HasAuthority() && GetOwner() && GetOwner()->GetLevel() && !GetOwner()->GetLevel()->bIsBeingRemoved)
 	{
 		if (!GExitPurge)
 		{

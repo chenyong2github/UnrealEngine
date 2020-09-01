@@ -959,8 +959,7 @@ private:
 				}
 				++Idx;
 			}
-
-			Dx /= NumObjectsWithBounds;
+			Dx = NumObjectsWithBounds > 0 ? Dx / NumObjectsWithBounds : (T)0;
 			return Dx;
 		};
 

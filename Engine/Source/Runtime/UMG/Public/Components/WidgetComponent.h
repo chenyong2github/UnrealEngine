@@ -66,6 +66,19 @@ enum class EWindowVisibility : uint8
 	SelfHitTestInvisible
 };
 
+UENUM(BlueprintType)
+enum class ETickMode : uint8
+{
+	/** The component tick is disabled until re-enabled. */
+	Disabled,
+
+	/** The component is always ticked */
+	Enabled,
+
+	/** The component is ticked only when needed. i.e. when visible.*/
+	Automatic
+};
+
 
 /**
  * The widget component provides a surface in the 3D environment on which to render widgets normally rendered to the screen.
@@ -178,6 +191,13 @@ public:
 
 	/** Returns the window containing the user widget content */
 	TSharedPtr<SWindow> GetSlateWindow() const;
+
+	/**  
+	 *  Sets the widget to use directly. This function will keep track of the widget till the next time it's called
+	 *	with either a newer widget or a nullptr
+	 */ 
+	UFUNCTION(BlueprintCallable, Category=UserInterface)
+	virtual UUserWidget* GetWidget() const;
 
 	/**  
 	 *  Sets the widget to use directly. This function will keep track of the widget till the next time it's called
@@ -371,6 +391,14 @@ public:
 	UFUNCTION(BlueprintCallable, Category = UserInterface)
 	void SetWindowVisibility(EWindowVisibility InVisibility);
 
+	/** Sets the Tick mode of the Widget Component.*/
+	UFUNCTION(BlueprintCallable, Category = UserInterface)
+	void SetTickMode(ETickMode InTickMode);
+
+	/** Returns true if the the Slate window is visible and that the widget is also visible, false otherwise. */
+	UFUNCTION(BlueprintCallable, Category = UserInterface)
+	bool IsWidgetVisible() const;
+
 	/** Hook to allow this component modify the local position of the widget after it has been projected from world space to screen space. */
 	virtual FVector2D ModifyProjectedLocalPosition(const FGeometry& ViewportGeometry, const FVector2D& LocalPosition) { return LocalPosition; }
 
@@ -517,16 +545,6 @@ protected:
 	UPROPERTY(EditAnywhere, Category=Animation)
 	bool TickWhenOffscreen;
 
-	/** The User Widget object displayed and managed by this component */
-	UPROPERTY(Transient, DuplicateTransient)
-	UUserWidget* Widget;
-	
-	/** The Slate widget to be displayed by this component.  Only one of either Widget or SlateWidget can be used */
-	TSharedPtr<SWidget> SlateWidget;
-
-	/** The slate widget currently being drawn. */
-	TWeakPtr<SWidget> CurrentSlateWidget;
-
 	/** The body setup of the displayed quad */
 	UPROPERTY(Transient, DuplicateTransient)
 	class UBodySetup* BodySetup;
@@ -590,6 +608,9 @@ protected:
 	UPROPERTY(EditAnywhere, Category=UserInterface, meta=(ClampMin=1.0f, ClampMax=180.0f))
 	float CylinderArcAngle;
 
+	UPROPERTY(EditAnywhere, Category = UserInterface)
+	ETickMode TickMode;
+
 	/** The slate window that contains the user widget content */
 	TSharedPtr<class SVirtualWindow> SlateWindow;
 
@@ -603,9 +624,23 @@ protected:
 	class FWidgetRenderer* WidgetRenderer;
 
 private: 
+
+	/** The User Widget object displayed and managed by this component */
+	UPROPERTY(Transient, DuplicateTransient)
+	UUserWidget* Widget;
+
+	/** The Slate widget to be displayed by this component.  Only one of either Widget or SlateWidget can be used */
+	TSharedPtr<SWidget> SlateWidget;
+
+	/** The slate widget currently being drawn. */
+	TWeakPtr<SWidget> CurrentSlateWidget;
+
 	static EVisibility ConvertWindowVisibilityToVisibility(EWindowVisibility visibility);
+
+	void OnWidgetVisibilityChanged(ESlateVisibility InVisibility);
 	/** Set to true after a draw of an empty component.*/
 	bool bRenderCleared;
+	bool bOnWidgetVisibilityChangedRegistered;
 };
 
 USTRUCT()

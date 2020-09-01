@@ -497,23 +497,9 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 			}
 			else
 			{
-				int32 NumRigidsInIsland = 0, NumRigidsInNewIsland = 0;
+				int32 NumRigidsInNewIsland = 0;
 				if (NewIslandParticles.IsValidIndex(OtherIsland))
 				{
-					for (TGeometryParticleHandle<FReal, 3>* Particle : IslandToParticles[Island])
-					{
-						if (Particle)
-						{
-							if (TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle())
-							{
-								if (PBDRigid->ObjectState() != EObjectStateType::Kinematic)
-								{
-									NumRigidsInIsland++;
-								}
-							}
-						}
-					}
-
 					for (TGeometryParticleHandle<FReal, 3>* Particle : NewIslandParticles[OtherIsland])
 					{
 						if (Particle)
@@ -533,9 +519,10 @@ void FPBDConstraintGraph::ComputeIslands(const TParticleView<TPBDRigidParticles<
 						TPBDRigidParticleHandle<FReal, 3>* PBDRigid = Particle->CastToRigidParticle();
 						if (PBDRigid && PBDRigid->ObjectState() != EObjectStateType::Kinematic)
 						{
-							//this condition is a hack to ensure we don't immediately wake up particles that were put to sleep due to them getting into a new island. 
-							//we should probably fix island generation code to not move particles to their own islands when sleeping.
-							if (!(NumRigidsInIsland == 1 && NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()))
+							// this hack is necessary for particles in islands that have been put to sleep to continue sleeping. Without it, once the island is put to
+							// sleep, an optimization made in ProduceParticleOverlaps ignores sleeping-sleeping cases for generating constraints, so each
+							// sleeping particle goes into its own island, then immediately wakes up here.
+							if (!(NumRigidsInNewIsland == 1 && PBDRigid->Sleeping()))
 							{
 								Particles.ActivateParticle(Particle);
 							}

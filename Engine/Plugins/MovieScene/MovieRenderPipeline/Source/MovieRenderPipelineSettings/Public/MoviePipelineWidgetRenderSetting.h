@@ -22,7 +22,6 @@ protected:
 	virtual void TeardownImpl() override;
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
 	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
-	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
 	// ~UMoviePipelineRenderPass Interface
 
 
@@ -30,6 +29,7 @@ public:
 #if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "WidgetRendererSettingDisplayName", "UI Renderer (Non-Composited)"); }
 	virtual FText GetCategoryText() const { return NSLOCTEXT("MovieRenderPipeline", "WidgetRendererSettingCategoryName", "Rendering"); }
+	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
 #endif
 	virtual bool IsValidOnShots() const override { return false; }
 	virtual bool IsValidOnMaster() const override { return true; }

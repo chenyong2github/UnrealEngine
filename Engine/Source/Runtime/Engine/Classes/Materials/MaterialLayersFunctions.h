@@ -53,6 +53,8 @@ struct ENGINE_API FMaterialParameterInfo
 	{
 	}
 
+	explicit FMaterialParameterInfo(const struct FMemoryImageMaterialParameterInfo& Rhs);
+
 	FString ToString() const
 	{
 		return *Name.ToString() + FString::FromInt(Association) + FString::FromInt(Index);
@@ -65,53 +67,56 @@ struct ENGINE_API FMaterialParameterInfo
 	}
 };
 
-struct FHashedMaterialParameterInfo
+struct FMemoryImageMaterialParameterInfo
 {
-	DECLARE_TYPE_LAYOUT(FHashedMaterialParameterInfo, NonVirtual);
+	DECLARE_TYPE_LAYOUT(FMemoryImageMaterialParameterInfo, NonVirtual);
 public:
-	FHashedMaterialParameterInfo(const FHashedName& InName = FHashedName(), EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+	FMemoryImageMaterialParameterInfo(const TCHAR* InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(NameToScriptName(FName(InName)))
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FMemoryImageMaterialParameterInfo(const FName& InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
+		: Name(NameToScriptName(InName))
+		, Index(InIndex)
+		, Association(InAssociation)
+	{}
+
+	FMemoryImageMaterialParameterInfo(const FScriptName& InName = FScriptName(), EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
 		: Name(InName)
 		, Index(InIndex)
 		, Association(InAssociation)
 	{}
 
-	FHashedMaterialParameterInfo(const TCHAR* InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
-		: Name(InName)
-		, Index(InIndex)
-		, Association(InAssociation)
-	{}
-
-	FHashedMaterialParameterInfo(const FName& InName, EMaterialParameterAssociation InAssociation = EMaterialParameterAssociation::GlobalParameter, int32 InIndex = INDEX_NONE)
-		: Name(InName)
-		, Index(InIndex)
-		, Association(InAssociation)
-	{}
-
-	FHashedMaterialParameterInfo(const FMaterialParameterInfo& Rhs)
-		: Name(Rhs.Name)
+	FMemoryImageMaterialParameterInfo(const FMaterialParameterInfo& Rhs)
+		: Name(NameToScriptName(Rhs.Name))
 		, Index(Rhs.Index)
 		, Association(Rhs.Association)
 	{}
 
-	FHashedMaterialParameterInfo(const FHashedMaterialParameterInfo& Rhs) = default;
+	FMemoryImageMaterialParameterInfo(const FMemoryImageMaterialParameterInfo& Rhs) = default;
 
-	friend FArchive& operator<<(FArchive& Ar, FHashedMaterialParameterInfo& Ref)
+	FORCEINLINE FName GetName() const { return ScriptNameToName(Name); }
+
+	friend FArchive& operator<<(FArchive& Ar, FMemoryImageMaterialParameterInfo& Ref)
 	{
-		Ar << Ref.Name << Ref.Association << Ref.Index;
+		FName RefName = ScriptNameToName(Ref.Name);
+		Ar << RefName << Ref.Association << Ref.Index;
+		Ref.Name = NameToScriptName(RefName);
 		return Ar;
 	}
 
-	LAYOUT_FIELD(FHashedName, Name);
+	LAYOUT_FIELD(FScriptName, Name);
 	LAYOUT_FIELD(int32, Index);
 	LAYOUT_FIELD(TEnumAsByte<EMaterialParameterAssociation>, Association);
 };
 
-// For sorting/searching
-FORCEINLINE bool operator<(const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+FORCEINLINE FMaterialParameterInfo::FMaterialParameterInfo(const struct FMemoryImageMaterialParameterInfo& Rhs)
+	: Name(ScriptNameToName(Rhs.Name))
+	, Association(Rhs.Association)
+	, Index(Rhs.Association)
 {
-	if (Lhs.Association != Rhs.Association) return Lhs.Association < Rhs.Association;
-	else if (Lhs.Index != Rhs.Index) return Lhs.Index < Rhs.Index;
-	return Lhs.Name < Rhs.Name;
 }
 
 FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
@@ -124,25 +129,43 @@ FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FMaterialPa
 	return !operator==(Lhs, Rhs);
 }
 
-FORCEINLINE bool operator==(const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+FORCEINLINE bool operator==(const FMemoryImageMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
 {
 	return Lhs.Name == Rhs.Name && Lhs.Association == Rhs.Association && Lhs.Index == Rhs.Index;
 }
 
-FORCEINLINE bool operator!=(const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+FORCEINLINE bool operator!=(const FMemoryImageMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
 {
 	return !operator==(Lhs, Rhs);
 }
 
-FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+FORCEINLINE bool operator==(const FMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
 {
-	return FHashedName(Lhs.Name) == Rhs.Name && Lhs.Index == Rhs.Index && Lhs.Association == Rhs.Association;
+	return Lhs.Name == Rhs.Name && Lhs.Index == Rhs.Index && Lhs.Association == Rhs.Association;
 }
 
-FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
+FORCEINLINE bool operator!=(const FMaterialParameterInfo& Lhs, const FMemoryImageMaterialParameterInfo& Rhs)
 {
 	return !operator==(Lhs, Rhs);
 }
+
+FORCEINLINE bool operator==(const FMemoryImageMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return Lhs.Name == Rhs.Name && Lhs.Index == Rhs.Index && Lhs.Association == Rhs.Association;
+}
+
+FORCEINLINE bool operator!=(const FMemoryImageMaterialParameterInfo& Lhs, const FMaterialParameterInfo& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE uint32 GetTypeHash(const FMemoryImageMaterialParameterInfo& Value)
+{
+	return HashCombine(HashCombine(GetTypeHash(Value.Name), Value.Index), (uint32)Value.Association);
+}
+
+// Backwards compat
+using FHashedMaterialParameterInfo = FMemoryImageMaterialParameterInfo;
 
 USTRUCT()
 struct ENGINE_API FMaterialLayersFunctions

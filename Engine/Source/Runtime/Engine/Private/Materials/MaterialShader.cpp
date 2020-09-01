@@ -40,6 +40,7 @@ FCriticalSection FMaterialShaderMap::GIdToMaterialShaderMapCS;
 TMap<FMaterialShaderMapId,FMaterialShaderMap*> FMaterialShaderMap::GIdToMaterialShaderMap[SP_NumPlatforms];
 #if ALLOW_SHADERMAP_DEBUG_DATA
 TArray<FMaterialShaderMap*> FMaterialShaderMap::AllMaterialShaderMaps;
+FCriticalSection FMaterialShaderMap::AllMaterialShaderMapsGuard;
 #endif
 
 /** 
@@ -1004,6 +1005,7 @@ TRefCountPtr<FMaterialShaderMap> FMaterialShaderMap::FindId(const FMaterialShade
 /** Flushes the given shader types from any loaded FMaterialShaderMap's. */
 void FMaterialShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush, TArray<const FShaderPipelineType*>& ShaderPipelineTypesToFlush, TArray<const FVertexFactoryType*>& VFTypesToFlush)
 {
+	FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
 	for (int32 ShaderMapIndex = 0; ShaderMapIndex < AllMaterialShaderMaps.Num(); ShaderMapIndex++)
 	{
 		FMaterialShaderMap* CurrentShaderMap = AllMaterialShaderMaps[ShaderMapIndex];
@@ -1028,6 +1030,7 @@ void FMaterialShaderMap::FlushShaderTypes(TArray<const FShaderType*>& ShaderType
 void FMaterialShaderMap::GetAllOutdatedTypes(TArray<const FShaderType*>& OutdatedShaderTypes, TArray<const FShaderPipelineType*>& OutdatedShaderPipelineTypes, TArray<const FVertexFactoryType*>& OutdatedFactoryTypes)
 {
 #if ALLOW_SHADERMAP_DEBUG_DATA
+	FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
 	for (const FMaterialShaderMap* ShaderMap : AllMaterialShaderMaps)
 	{
 		ShaderMap->GetOutdatedTypes(OutdatedShaderTypes, OutdatedShaderPipelineTypes, OutdatedFactoryTypes);
@@ -1306,7 +1309,7 @@ void FMaterialShaderMap::Compile(
   
 		// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 		// Since it creates a temporary ref counted pointer.
-		check(GetNumRefs() > 0);
+		check(NumRefs > 0);
   
 		// Add this shader map and material resource to ShaderMapsBeingCompiled
 		TArray<FMaterial*>* CorrespondingMaterials = ShaderMapsBeingCompiled.Find(this);
@@ -1782,7 +1785,7 @@ bool FMaterialShaderMap::ProcessCompilationResults(const TArray<TSharedRef<FShad
 
 bool FMaterialShaderMap::TryToAddToExistingCompilationTask(FMaterial* Material)
 {
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	TArray<FMaterial*>* CorrespondingMaterials = FMaterialShaderMap::ShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingMaterials)
@@ -1958,7 +1961,7 @@ bool FMaterialShaderMap::IsComplete(const FMaterial* Material, bool bSilent)
 
 	// Make sure we are operating on a referenced shader map or the below Find will cause this shader map to be deleted,
 	// Since it creates a temporary ref counted pointer.
-	check(GetNumRefs() > 0);
+	check(NumRefs > 0);
 	const TArray<FMaterial*>* CorrespondingMaterials = FMaterialShaderMap::ShaderMapsBeingCompiled.Find(this);
 
 	if (CorrespondingMaterials)
@@ -2267,39 +2270,52 @@ void FMaterialShaderMap::Register(EShaderPlatform InShaderPlatform)
 	}
 }
 
-void FMaterialShaderMap::OnReleased()
+void FMaterialShaderMap::AddRef()
 {
 	//#todo-mw: re-enable to try to find potential corruption of the global shader map ID array
 	//check(IsInGameThread());
+	FScopeLock ScopeLock(&GIdToMaterialShaderMapCS);
+	check(!bDeletedThroughDeferredCleanup);
+	++NumRefs;
+}
+
+void FMaterialShaderMap::Release()
+{
+	//#todo-mw: re-enable to try to find potential corruption of the global shader map ID array
+	//check(IsInGameThread());
+
 	{
 		FScopeLock ScopeLock(&GIdToMaterialShaderMapCS);
 
-		if (bRegistered)
+		check(NumRefs > 0);
+		if (--NumRefs == 0)
 		{
-			bRegistered = false;
-			DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
-
-			FMaterialShaderMap* CachedMap = GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId);
-
-			// Map is marked as registered therefore we do expect it to be in the cache
-			// If this does not happen there's bug in code causing ShaderMapID to be the same for two different objects.
-			check(CachedMap == this);
-
-			if (CachedMap == this)
+			if (bRegistered)
 			{
-				GIdToMaterialShaderMap[GetShaderPlatform()].Remove(ShaderMapId);
+				bRegistered = false;
+				DEC_DWORD_STAT(STAT_Shaders_NumShaderMaps);
+
+				FMaterialShaderMap *CachedMap = GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId);
+
+				// Map is marked as registered therefore we do expect it to be in the cache
+				// If this does not happen there's bug in code causing ShaderMapID to be the same for two different objects.
+				check(CachedMap == this);
+				
+				if (CachedMap == this)
+				{
+					GIdToMaterialShaderMap[GetShaderPlatform()].Remove(ShaderMapId);
+				}
 			}
-		}
-		else
-		{
-			//sanity check - the map has not been registered and therefore should not appear in the cache
-			check(GetShaderPlatform() >= EShaderPlatform::SP_NumPlatforms || GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId) != this);
-		}
+			else
+			{
+				//sanity check - the map has not been registered and therefore should not appear in the cache
+				check(GetShaderPlatform()>= EShaderPlatform::SP_NumPlatforms || GIdToMaterialShaderMap[GetShaderPlatform()].FindRef(ShaderMapId) != this);
+			}
 
-		check(!bDeletedThroughDeferredCleanup);
-		bDeletedThroughDeferredCleanup = true;
+			check(!bDeletedThroughDeferredCleanup);
+			bDeletedThroughDeferredCleanup = true;
+		}
 	}
-
 	if (bDeletedThroughDeferredCleanup)
 	{
 		BeginCleanup(this);
@@ -2309,6 +2325,7 @@ void FMaterialShaderMap::OnReleased()
 FMaterialShaderMap::FMaterialShaderMap() :
 	CompilingTargetPlatform(nullptr),
 	CompilingId(1),
+	NumRefs(0),
 	bDeletedThroughDeferredCleanup(false),
 	bRegistered(false),
 	bCompilationFinalized(true),
@@ -2317,8 +2334,11 @@ FMaterialShaderMap::FMaterialShaderMap() :
 {
 	checkSlow(IsInGameThread() || IsAsyncLoading());
 #if ALLOW_SHADERMAP_DEBUG_DATA
-	AllMaterialShaderMaps.Add(this);
 	CompileTime = 0.f;
+	{
+		FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
+		AllMaterialShaderMaps.Add(this);
+	}
 #endif
 }
 
@@ -2337,7 +2357,10 @@ FMaterialShaderMap::~FMaterialShaderMap()
 		}
 		GShaderCompilerStats->RegisterCookedShaders(GetShaderNum(), CompileTime, GetShaderPlatform(), Path, GetDebugDescription());
 	}
-	AllMaterialShaderMaps.RemoveSwap(this);
+	{
+		FScopeLock AllMatSMAccess(&AllMaterialShaderMapsGuard);
+		AllMaterialShaderMaps.RemoveSwap(this);
+	}
 #endif
 }
 
@@ -2592,6 +2615,7 @@ void DumpMaterialStats(EShaderPlatform Platform)
 	TSet<FString> MaterialNames;
 
 	// Look at in-memory shader use.
+	FScopeLock AllMatSMAccess(&FMaterialShaderMap::AllMaterialShaderMapsGuard);
 	for (int32 ShaderMapIndex = 0; ShaderMapIndex < FMaterialShaderMap::AllMaterialShaderMaps.Num(); ShaderMapIndex++)
 	{
 		FMaterialShaderMap* MaterialShaderMap = FMaterialShaderMap::AllMaterialShaderMaps[ShaderMapIndex];

@@ -8,6 +8,7 @@
 #include "MovieScene.h"
 #include "MovieSceneSection.h"
 #include "MovieSceneSequence.h"
+#include "MovieSceneSpawnable.h"
 #include "Sections/MovieSceneSubSection.h"
 #include "Algo/Sort.h"
 #include "Sound/SoundWave.h"
@@ -391,6 +392,26 @@ float MovieSceneHelpers::CalculateWeightForBlending(UMovieSceneSection* SectionT
 		}
 	}
 	return Weight;
+}
+
+FString MovieSceneHelpers::MakeUniqueSpawnableName(UMovieScene* MovieScene, const FString& InName)
+{
+	FString NewName = InName;
+
+	auto DuplName = [&](FMovieSceneSpawnable& InSpawnable)
+	{
+		return InSpawnable.GetName() == NewName;
+	};
+
+	int32 Index = 2;
+	FString UniqueString;
+	while (MovieScene->FindSpawnable(DuplName))
+	{
+		NewName.RemoveFromEnd(UniqueString);
+		UniqueString = FString::Printf(TEXT(" (%d)"), Index++);
+		NewName += UniqueString;
+	}
+	return NewName;
 }
 
 FTrackInstancePropertyBindings::FTrackInstancePropertyBindings( FName InPropertyName, const FString& InPropertyPath )

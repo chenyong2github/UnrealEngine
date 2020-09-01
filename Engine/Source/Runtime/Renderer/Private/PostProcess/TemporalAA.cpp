@@ -79,11 +79,6 @@ TAutoConsoleVariable<int32> CVarTAAR11G11B10History(
 	TEXT("Select the bitdepth of the history."),
 	ECVF_RenderThreadSafe);
 
-TAutoConsoleVariable<int32> CVarTAANyquistHistory(
-	TEXT("r.TemporalAA.NyquistHistory"), 0,
-	TEXT(""),
-	ECVF_RenderThreadSafe);
-
 inline bool DoesPlatformSupportTemporalHistoryUpscale(EShaderPlatform Platform)
 {
 	return (IsPCPlatform(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsTemporalHistoryUpscale(Platform))
@@ -99,7 +94,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FTAA2CommonParameters, )
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, InputInfo)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, LowFrequencyInfo)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, RejectionInfo)
-	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, OutputInfo)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, HistoryInfo)
 
 	SHADER_PARAMETER(FVector2D, InputJitter)
@@ -988,6 +982,7 @@ static void AddGen5MainTemporalAAPasses(
 
 	FIntPoint OutputExtent;
 	FIntRect OutputRect;
+	if (View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::TemporalUpscale)
 	{
 		OutputRect.Min = FIntPoint(0, 0);
 		OutputRect.Max = View.GetSecondaryViewRectSize();
@@ -999,14 +994,28 @@ static void AddGen5MainTemporalAAPasses(
 			FMath::Max(InputExtent.X, QuantizedPrimaryUpscaleViewSize.X),
 			FMath::Max(InputExtent.Y, QuantizedPrimaryUpscaleViewSize.Y));
 	}
+	else
+	{
+		OutputRect.Min = FIntPoint(0, 0);
+		OutputRect.Max = View.ViewRect.Size();
+		OutputExtent = InputExtent;
+	}
 
 	FIntPoint HistoryExtent;
 	FIntPoint HistorySize;
 	{
-		int32 OutputHistoryResulitionMultiplier = CVarTAANyquistHistory.GetValueOnRenderThread() ? 2 : 1;
+		float UpscaleFactor = FMath::Clamp(CVarTemporalAAHistorySP.GetValueOnRenderThread() / 100.0f, 1.0f, 2.0f);
 
-		HistoryExtent = OutputExtent * OutputHistoryResulitionMultiplier;
-		HistorySize = OutputRect.Size() * OutputHistoryResulitionMultiplier;
+		HistorySize = FIntPoint(
+			FMath::CeilToInt(OutputRect.Width() * UpscaleFactor),
+			FMath::CeilToInt(OutputRect.Height() * UpscaleFactor));
+
+		FIntPoint QuantizedHistoryViewSize;
+		QuantizeSceneBufferSize(HistorySize, QuantizedHistoryViewSize);
+
+		HistoryExtent = FIntPoint(
+			FMath::Max(InputExtent.X, QuantizedHistoryViewSize.X),
+			FMath::Max(InputExtent.Y, QuantizedHistoryViewSize.Y));
 	}
 
 	RDG_EVENT_SCOPE(GraphBuilder, "TAAU %dx%d -> %dx%d", InputRect.Width(), InputRect.Height(), OutputRect.Width(), OutputRect.Height());
@@ -1024,9 +1033,6 @@ static void AddGen5MainTemporalAAPasses(
 
 		CommonParameters.RejectionInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			RejectionExtent, RejectionRect));
-
-		CommonParameters.OutputInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-			OutputExtent, OutputRect));
 
 		CommonParameters.HistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
 			HistoryExtent, FIntRect(FIntPoint(0, 0), HistorySize)));
@@ -1153,13 +1159,9 @@ static void AddGen5MainTemporalAAPasses(
 	}
 	else
 	{
-		bool bIsNyquistInputHistory = InputHistory.RT[0]->GetDesc().Extent.X > InputHistory.ReferenceBufferSize.X;
-
-		int32 ResolutionMultiplier = bIsNyquistInputHistory ? 2 : 1;
-
 		PrevHistoryInfo = GetScreenPassTextureViewportParameters(FScreenPassTextureViewport(
-			InputHistory.ReferenceBufferSize * ResolutionMultiplier,
-			FIntRect(FIntPoint(0, 0), InputHistory.ViewportRect.Size() * ResolutionMultiplier)));
+			InputHistory.ReferenceBufferSize,
+			InputHistory.ViewportRect));
 
 		for (int32 i = 0; i < kHistoryTextures; i++)
 		{
@@ -1339,7 +1341,7 @@ static void AddGen5MainTemporalAAPasses(
 		// Allocate output
 		{
 			FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
-				OutputExtent,
+				HistoryExtent,
 				PF_FloatR11G11B10,
 				FClearValueBinding::None,
 				/* InFlags = */ TexCreate_None,
@@ -1412,8 +1414,17 @@ static void AddGen5MainTemporalAAPasses(
 			}
 		}
 
-		OutputHistory->ViewportRect = OutputRect;
-		OutputHistory->ReferenceBufferSize = OutputExtent;
+		OutputHistory->ViewportRect = FIntRect(FIntPoint(0, 0), HistorySize);
+		OutputHistory->ReferenceBufferSize = HistoryExtent;
+	}
+
+	// If we upscaled the history buffer, downsize back to the secondary screen percentage size.
+	if (HistorySize != OutputRect.Size())
+	{
+		SceneColorOutputTexture = ComputeMitchellNetravaliDownsample(
+			GraphBuilder, View,
+			/* InputViewport = */ FScreenPassTexture(SceneColorOutputTexture, FIntRect(FIntPoint(0, 0), HistorySize)),
+			/* OutputViewport = */ FScreenPassTextureViewport(OutputExtent, OutputRect));
 	}
 
 	*OutSceneColorTexture = SceneColorOutputTexture;

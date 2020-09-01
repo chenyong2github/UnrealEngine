@@ -222,8 +222,7 @@ FMaterialParameterInfo UMaterialInterface::GetParameterInfo(EMaterialParameterAs
 	int32 Index = 0;
 	if (Association != GlobalParameter)
 	{
-		check(LayerFunction);
-		Index = GetLayerParameterIndex(Association, LayerFunction);
+		Index = LayerFunction ? GetLayerParameterIndex(Association, LayerFunction) : INDEX_NONE;
 		if (Index == INDEX_NONE)
 		{
 			return FMaterialParameterInfo();

@@ -827,6 +827,12 @@ struct TMovieSceneEvaluationTreeDataIterator
 		return Tree->GetDataForSingleNode(*CurrentNode)[DataIndex];
 	}
 
+	/** Access the data for the current iteration */
+	const DataType* operator->() const
+	{
+		return &Tree->GetDataForSingleNode(*CurrentNode)[DataIndex];
+	}
+
 	/** Check the iterator for validity */
 	bool IsValid() const
 	{

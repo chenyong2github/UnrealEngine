@@ -418,6 +418,12 @@ EVisibility SMoviePipelineConfigEditor::IsValidationWarningVisible() const
 	EMoviePipelineValidationState ValidationResult = EMoviePipelineValidationState::Valid;
 	for (const UMoviePipelineSetting* Setting : SelectedSettings)
 	{
+		// Don't show warnings for disabled settings as the invalid setting won't be used when rendering.
+		if (!Setting->IsEnabled() && Setting->GetIsUserCustomized())
+		{
+			continue;
+		}
+
 		if ((int32)Setting->GetValidationState() > (int32)ValidationResult)
 		{
 			ValidationResult = Setting->GetValidationState();

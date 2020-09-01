@@ -1771,6 +1771,14 @@ protected:
 template<typename ElementType, typename OctreeSemantics>
 class UE_DEPRECATED(4.26, "The old Octree is deprecated use TOctree2.") TOctree : public TOctree_DEPRECATED<ElementType, OctreeSemantics>
 {
+public:
+	TOctree(const FVector& InOrigin, float InExtent) : TOctree_DEPRECATED<ElementType, OctreeSemantics>(InOrigin, InExtent)
+	{
+	}
+
+	TOctree() : TOctree_DEPRECATED<ElementType, OctreeSemantics>()
+	{
+	}
 };
 
 #include "GenericOctree.inl"

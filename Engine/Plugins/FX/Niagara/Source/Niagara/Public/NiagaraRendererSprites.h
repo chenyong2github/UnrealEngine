@@ -27,7 +27,7 @@ public:
 	virtual void GetDynamicMeshElements(const TArray<const FSceneView*>& Views, const FSceneViewFamily& ViewFamily, uint32 VisibilityMap, FMeshElementCollector& Collector, const FNiagaraSceneProxy *SceneProxy) const override;
 	virtual FNiagaraDynamicDataBase* GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter) const override;
 	virtual int GetDynamicDataSize()const override;
-	virtual bool IsMaterialValid(UMaterialInterface* Mat)const override;
+	virtual bool IsMaterialValid(const UMaterialInterface* Mat)const override;
 
 #if RHI_RAYTRACING
 		virtual void GetDynamicRayTracingInstances(FRayTracingMaterialGatheringContext& Context, TArray<FRayTracingInstance>& OutRayTracingInstances, const FNiagaraSceneProxy* Proxy) final override;
@@ -42,7 +42,7 @@ private:
 	};
 
 	FCPUSimParticleDataAllocation ConditionalAllocateCPUSimParticleData(FNiagaraDynamicDataSprites *DynamicDataSprites, const FNiagaraRendererLayout* RendererLayout, FGlobalDynamicReadBuffer& DynamicReadBuffer) const;
-	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy, const FNiagaraRendererLayout* RendererLayout) const;
+	TUniformBufferRef<class FNiagaraSpriteUniformParameters> CreatePerViewUniformBuffer(const FSceneView* View, const FSceneViewFamily& ViewFamily, const FNiagaraSceneProxy *SceneProxy, const FNiagaraRendererLayout* RendererLayout, const FNiagaraDynamicDataSprites* DynamicDataSprites) const;
 	void SetVertexFactoryParticleData(
 		class FNiagaraSpriteVertexFactory& VertexFactory,
 		FNiagaraDynamicDataSprites *DynamicDataSprites,
@@ -65,6 +65,7 @@ private:
 	) const;
 
 	//Cached data from the properties struct.
+	ENiagaraRendererSourceDataMode SourceMode;
 	ENiagaraSpriteAlignment Alignment;
 	ENiagaraSpriteFacingMode FacingMode;
 	FVector2D PivotInUVSpace;
@@ -73,11 +74,15 @@ private:
 	uint32 bSubImageBlend : 1;
 	uint32 bRemoveHMDRollInVR : 1;
 	uint32 bSortOnlyWhenTranslucent : 1;
+	uint32 bGpuLowLatencyTranslucency : 1;
 	float MinFacingCameraBlendDistance;
 	float MaxFacingCameraBlendDistance;
 	FNiagaraCutoutVertexBuffer CutoutVertexBuffer;
 	int32 NumCutoutVertexPerSubImage = 0;
 	uint32 MaterialParamValidMask = 0;
+
+	int32 VFBoundOffsetsInParamStore[ENiagaraSpriteVFLayout::Type::Num];
+	uint32 bSetAnyBoundVars : 1;
 
 	const FNiagaraRendererLayout* RendererLayoutWithCustomSort;
 	const FNiagaraRendererLayout* RendererLayoutWithoutCustomSort;

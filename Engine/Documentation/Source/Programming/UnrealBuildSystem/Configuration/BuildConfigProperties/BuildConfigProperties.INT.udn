@@ -6,7 +6,8 @@ Version: 4.26
 
 ### BuildConfiguration
 
-$ bGeneratedSYMFile : Whether to generate dSYM files. Lists Architectures that you want to build.
+$ bGeneratedSYMFile : Whether to generate dSYM files. Defaults to true for Shipping builds and false for all other builds. -dsym will force generation of a dsym for other builds,
+        * NoDsym will force it off for shipping.
 
 $ bEnableAddressSanitizer : Enables address sanitizer (ASan)
 

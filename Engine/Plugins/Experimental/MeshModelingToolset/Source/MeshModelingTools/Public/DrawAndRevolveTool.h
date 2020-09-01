@@ -17,6 +17,7 @@
 
 class UCollectSurfacePathMechanic;
 class UConstructionPlaneMechanic;
+class UCurveControlPointsMechanic;
 class FCurveSweepOp;
 
 UCLASS()
@@ -44,16 +45,20 @@ public:
 	bool bConnectOpenProfileToAxis = true;
 
 	/** Determines the draw plane and the rotation axis (X in the plane). Can only be edited until the first point is added. */
-	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (EditCondition = "AllowedToEditDrawPlane != 0"))
+	UPROPERTY(EditAnywhere, Category = DrawPlane, meta = (EditCondition = "bAllowedToEditDrawPlane", HideEditConditionToggle))
 	FTransform DrawPlaneAndAxis = FTransform(FRotator(90, 0, 0));
 	
 	/** Determines whether plane control widget snaps to world grid (only relevant if world coordinate mode is active in viewport) .*/
 	UPROPERTY(EditAnywhere, Category = DrawPlane)
 	bool bSnapToWorldGrid = false;
 
+	/** Enables/disables snapping while editing the profile curve. */
+	UPROPERTY(EditAnywhere, Category = ProfileCurve)
+	bool bEnableSnapping = true;
+
 	// Not user visible- used to disallow draw plane modification.
-	UPROPERTY()
-	int AllowedToEditDrawPlane = 1; // Using an int instead of a bool because the editor adds a user-editable checkbox otherwise
+	UPROPERTY(meta = (TransientToolProperty))
+	bool bAllowedToEditDrawPlane = true;
 };
 
 UCLASS()
@@ -72,13 +77,16 @@ public:
 
 /** Draws a profile curve and revolves it around an axis. */
 UCLASS()
-class MESHMODELINGTOOLS_API UDrawAndRevolveTool : public UInteractiveTool, public IClickBehaviorTarget, public IHoverBehaviorTarget
+class MESHMODELINGTOOLS_API UDrawAndRevolveTool : public UInteractiveTool
 {
 	GENERATED_BODY()
 
 public:
 	virtual void SetWorld(UWorld* World) { TargetWorld = World; }
 	virtual void SetAssetAPI(IToolsContextAssetAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
+
+	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
+	void OnBackspacePress();
 
 	virtual bool HasCancel() const override { return true; }
 	virtual bool HasAccept() const override { return true; }
@@ -91,16 +99,6 @@ public:
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
 
 	virtual void OnPropertyModified(UObject* PropertySet, FProperty* Property) override;
-
-	// IClickBehaviorTarget API
-	virtual FInputRayHit IsHitByClick(const FInputDeviceRay& ClickPos) override;
-	virtual void OnClicked(const FInputDeviceRay& ClickPos) override;
-
-	// IHoverBehaviorTarget API
-	virtual FInputRayHit BeginHoverSequenceHitTest(const FInputDeviceRay& PressPos) override;
-	virtual bool OnUpdateHover(const FInputDeviceRay& DevicePos) override;
-	virtual void OnBeginHover(const FInputDeviceRay& DevicePos) override {} //do nothing
-	virtual void OnEndHover() override {} // do nothing
 
 protected:
 
@@ -118,10 +116,8 @@ protected:
 
 	void UpdateRevolutionAxis(const FTransform& PlaneTransform);
 
-	void UndoCurrentOperation();
-
 	UPROPERTY()
-	UCollectSurfacePathMechanic* DrawProfileCurveMechanic = nullptr;
+	UCurveControlPointsMechanic* ControlPointsMechanic = nullptr;
 
 	UPROPERTY()
 	UConstructionPlaneMechanic* PlaneMechanic = nullptr;
@@ -139,22 +135,5 @@ protected:
 
 	void GenerateAsset(const FDynamicMeshOpResult& Result);
 
-	friend class FRevolveToolStateChange;
 	friend class URevolveOperatorFactory;
-};
-
-/** Used to support undo while drawing the profile curve. 
-*/
-class MESHMODELINGTOOLS_API FRevolveToolStateChange : public FToolCommandChange
-{
-public:
-	bool bHaveDoneUndo = false;
-
-	FRevolveToolStateChange()
-	{}
-
-	virtual void Apply(UObject* Object) override {}
-	virtual void Revert(UObject* Object) override;
-	virtual bool HasExpired(UObject* Object) const override;
-	virtual FString ToString() const override;
 };

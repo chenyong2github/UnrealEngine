@@ -52,12 +52,15 @@ public:
 	static int RetryResumeDataLimitSetting;
 
 protected:
+	virtual BackgroundHttpFileHashHelperRef GetFileHashHelper() override;
+	virtual const BackgroundHttpFileHashHelperRef GetFileHashHelper() const override;
+	
 	bool AssociateWithAnyExistingUnAssociatedTasks(const FBackgroundHttpRequestPtr Request);
         
 	bool CheckForExistingUnAssociatedTask(const FAppleBackgroundHttpRequestPtr Request);
 
     void DeletePendingRemoveRequests();
-    
+	
 protected:
 	//This dictionary is used to hold tasks that already existed on our Background Session when our BackgroundHttpManager was initialized. See PopulateUnAssociatedTasks and CheckForExistingUnAssociatedTask
 	NSMutableDictionary<NSString*, NSURLSessionDownloadTask*>* UnAssociatedTasks;

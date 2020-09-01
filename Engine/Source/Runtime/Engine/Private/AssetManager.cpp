@@ -8,6 +8,7 @@
 #include "Containers/StringView.h"
 #include "Engine/Engine.h"
 #include "Engine/BlueprintGeneratedClass.h"
+#include "Interfaces/IPluginManager.h"
 #include "UObject/ConstructorHelpers.h"
 #include "UObject/UObjectHash.h"
 #include "Misc/FileHelper.h"
@@ -118,6 +119,7 @@ UAssetManager::UAssetManager()
 	bIsPrimaryAssetDirectoryCurrent = false;
 	bUpdateManagementDatabaseAfterScan = false;
 	bIncludeOnlyOnDiskAssets = true;
+	bHasCompletedInitialScan = false;
 	NumberOfSpawnedNotifications = 0;
 }
 
@@ -372,6 +374,141 @@ bool UAssetManager::IsAssetDataBlueprintOfClassSet(const FAssetData& AssetData, 
 	return false;
 }
 
+void UAssetManager::SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, TSet<FName>& OutDerivedClassNames, const TArray<FString>& Directories, const TArray<FString>& PackageNames, UClass* BaseClass, bool bHasBlueprintClasses) const
+{
+	FARFilter ARFilter;
+	TArray<FName> ClassNames;
+
+	IAssetRegistry& AssetRegistry = GetAssetRegistry();
+
+	if (BaseClass)
+	{
+		// Class check
+		if (!bHasBlueprintClasses)
+		{
+			// For base classes, can do the filter before hand
+			ARFilter.ClassNames.Add(BaseClass->GetFName());
+
+#if WITH_EDITOR
+			// Add any old names to the list in case things haven't been resaved
+			TArray<FName> OldNames = FLinkerLoad::FindPreviousNamesForClass(BaseClass->GetPathName(), false);
+			ARFilter.ClassNames.Append(OldNames);
+#endif
+
+			ARFilter.bRecursiveClasses = true;
+		}
+		else
+		{
+			TArray<UClass*> BlueprintCoreDerivedClasses;
+			GetDerivedClasses(UBlueprintCore::StaticClass(), BlueprintCoreDerivedClasses);
+			for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
+			{
+				ARFilter.ClassNames.Add(BPCoreClass->GetFName());
+			}
+
+			ClassNames.Add(BaseClass->GetFName());
+			GetAssetRegistry().GetDerivedClassNames(ClassNames, TSet<FName>(), OutDerivedClassNames);
+		}
+	}
+
+	const bool bBothDirectoriesAndPackageNames = (Directories.Num() > 0 && PackageNames.Num() > 0);
+	for (const FString& Directory : Directories)
+	{
+		ARFilter.PackagePaths.Add(FName(*Directory));
+	}
+
+	if (!bBothDirectoriesAndPackageNames)
+	{
+		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
+		for (const FString& PackageName : PackageNames)
+		{
+			ARFilter.PackageNames.Add(FName(*PackageName));
+		}
+	}
+
+	ARFilter.bRecursivePaths = true;
+	ARFilter.bIncludeOnlyOnDiskAssets = !GIsEditor; // In editor check in memory, otherwise don't
+
+	if (bBothDirectoriesAndPackageNames)
+	{
+		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
+		AssetRegistry.GetAssets(ARFilter, OutAssetDataList);
+
+		for (const FString& PackageName : PackageNames)
+		{
+			ARFilter.PackageNames.Add(FName(*PackageName));
+		}
+		ARFilter.PackagePaths.Empty();
+	}
+	AssetRegistry.GetAssets(ARFilter, OutAssetDataList);
+}
+
+void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) const
+{
+	TArray<FString> Directories;
+	TArray<FString> PackageFilenames;
+
+	for (const FString& Path : PathsToScan)
+	{
+		bool bAlreadyScanned = false;
+		int32 DotIndex = INDEX_NONE;
+		if (Path.FindChar('.', DotIndex))
+		{
+			FString PackageName = FPackageName::ObjectPathToPackageName(Path);
+
+			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
+			{
+				if (PackageName == AlreadyScanned || PackageName.StartsWith(AlreadyScanned + TEXT("/")))
+				{
+					bAlreadyScanned = true;
+					break;
+				}
+			}
+
+			if (!bAlreadyScanned)
+			{
+				FString AssetFilename;
+				// Try both extensions
+				if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, AssetFilename, FPackageName::GetAssetPackageExtension()))
+				{
+					PackageFilenames.AddUnique(AssetFilename);
+				}
+
+				if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, AssetFilename, FPackageName::GetMapPackageExtension()))
+				{
+					PackageFilenames.AddUnique(AssetFilename);
+				}
+			}
+		}
+		else
+		{
+			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
+			{
+				if (Path == AlreadyScanned || Path.StartsWith(AlreadyScanned + TEXT("/")))
+				{
+					bAlreadyScanned = true;
+					break;
+				}
+			}
+
+			if (!bAlreadyScanned)
+			{
+				AlreadyScannedDirectories.Add(Path);
+				Directories.AddUnique(Path);
+			}
+		}
+	}
+
+	if (Directories.Num() > 0)
+	{
+		GetAssetRegistry().ScanPathsSynchronous(Directories);
+	}
+	if (PackageFilenames.Num() > 0)
+	{
+		GetAssetRegistry().ScanFilesSynchronous(PackageFilenames);
+	}
+}
+
 int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetType, const TArray<FString>& Paths, UClass* BaseClass, bool bHasBlueprintClasses, bool bIsEditorOnly, bool bForceSynchronousScan)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(UAssetManager::ScanPathsForPrimaryAssets)
@@ -421,8 +558,6 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 		}
 	}
 
-	IAssetRegistry& AssetRegistry = GetAssetRegistry();
-
 #if WITH_EDITOR
 	// Cooked data has the asset data already set up
 	const bool bShouldDoSynchronousScan = !bIsGlobalAsyncScanEnvironment || bForceSynchronousScan;
@@ -432,7 +567,7 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 	}
 	else
 	{
-		if (AssetRegistry.IsLoadingAssets())
+		if (GetAssetRegistry().IsLoadingAssets())
 		{
 			// Keep track of the paths we asked for so once assets are discovered we will refresh the list
 			for (const FString& Path : Paths)
@@ -443,73 +578,10 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 	}
 #endif
 
-	FARFilter ARFilter;
-
-	TSet<FName> DerivedClassNames;
-	TArray<FName> ClassNames;
-
-	if (BaseClass)
-	{
-		// Class check
-		if (!bHasBlueprintClasses)
-		{
-			// For base classes, can do the filter before hand
-			ARFilter.ClassNames.Add(BaseClass->GetFName());
-
-#if WITH_EDITOR
-			// Add any old names to the list in case things haven't been resaved
-			TArray<FName> OldNames = FLinkerLoad::FindPreviousNamesForClass(BaseClass->GetPathName(), false);
-			ARFilter.ClassNames.Append(OldNames);
-#endif
-
-			ARFilter.bRecursiveClasses = true;
-		}
-		else
-		{
-			TArray<UClass*> BlueprintCoreDerivedClasses;
-			GetDerivedClasses(UBlueprintCore::StaticClass(), BlueprintCoreDerivedClasses);
-			for (UClass* BPCoreClass : BlueprintCoreDerivedClasses)
-			{
-				ARFilter.ClassNames.Add(BPCoreClass->GetFName());
-			}
-
-			// Make sure this works, if it does remove post load check
-			ClassNames.Add(BaseClass->GetFName());
-			AssetRegistry.GetDerivedClassNames(ClassNames, TSet<FName>(), DerivedClassNames);
-		}
-	}
-
-	const bool bBothDirectoriesAndPackageNames = (Directories.Num() > 0 && PackageNames.Num() > 0);
-	for (const FString& Directory : Directories)
-	{
-		ARFilter.PackagePaths.Add(FName(*Directory));
-	}
-
-	if (!bBothDirectoriesAndPackageNames)
-	{
-		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
-		for (const FString& PackageName : PackageNames)
-		{
-			ARFilter.PackageNames.Add(FName(*PackageName));
-		}
-	}
-
-	ARFilter.bRecursivePaths = true;
-	ARFilter.bIncludeOnlyOnDiskAssets = !GIsEditor; // In editor check in memory, otherwise don't
-
 	TArray<FAssetData> AssetDataList;
-	if (bBothDirectoriesAndPackageNames)
-	{
-		// To get both the directories and package names we have to do two queries, since putting both in the same query only returns assets of those package names AND are in those directories.
-		AssetRegistry.GetAssets(ARFilter, AssetDataList);
+	TSet<FName> DerivedClassNames;
 
-		for (const FString& PackageName : PackageNames)
-		{
-			ARFilter.PackageNames.Add(FName(*PackageName));
-		}
-		ARFilter.PackagePaths.Empty();
-	}
-	AssetRegistry.GetAssets(ARFilter, AssetDataList);
+	SearchAssetRegistryPaths(AssetDataList, DerivedClassNames, Directories, PackageNames, BaseClass, bHasBlueprintClasses);
 
 	int32 NumAdded = 0;
 	// Now add to map or update as needed
@@ -529,7 +601,6 @@ int32 UAssetManager::ScanPathsForPrimaryAssets(FPrimaryAssetType PrimaryAssetTyp
 				continue;
 			}
 		}
-
 
 		FPrimaryAssetId PrimaryAssetId = ExtractPrimaryAssetIdFromData(Data, PrimaryAssetType);
 
@@ -2727,6 +2798,27 @@ bool UAssetManager::DoesPrimaryAssetMatchCustomOverride(FPrimaryAssetId PrimaryA
 	return true;
 }
 
+void UAssetManager::CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate Delegate)
+{
+	if (bHasCompletedInitialScan)
+	{
+		Delegate.Execute();
+	}
+	else
+	{
+		bool bAlreadyBound = Delegate.GetUObject() != nullptr ? OnCompletedInitialScanDelegate.IsBoundToObject(Delegate.GetUObject()) : false;
+		if (!bAlreadyBound)
+		{
+			OnCompletedInitialScanDelegate.Add(Delegate);
+		}
+	}
+}
+
+bool UAssetManager::HasInitialScanCompleted() const
+{
+	return bHasCompletedInitialScan;
+}
+
 void UAssetManager::PostInitialAssetScan()
 {
 	// Don't apply rules until scanning is done
@@ -2741,6 +2833,14 @@ void UAssetManager::PostInitialAssetScan()
 		UpdateManagementDatabase(true);
 	}
 #endif
+
+	if (!bHasCompletedInitialScan)
+	{
+		// Done with initial scan, fire delegate exactly once. This does not happen on editor refreshes
+		bHasCompletedInitialScan = true;
+		OnCompletedInitialScanDelegate.Broadcast();
+		OnCompletedInitialScanDelegate.Clear();
+	}
 }
 
 bool UAssetManager::GetManagedPackageList(FPrimaryAssetId PrimaryAssetId, TArray<FName>& PackagePathList) const
@@ -2899,72 +2999,6 @@ EAssetSetManagerResult::Type UAssetManager::ShouldSetManager(const FAssetIdentif
 		}
 	}
 	return EAssetSetManagerResult::SetAndRecurse;
-}
-
-void UAssetManager::ScanPathsSynchronous(const TArray<FString>& PathsToScan) const
-{
-	TArray<FString> Directories;
-	TArray<FString> PackageFilenames;
-
-	for (const FString& Path : PathsToScan)
-	{
-		bool bAlreadyScanned = false;
-		int32 DotIndex = INDEX_NONE;
-		if (Path.FindChar('.', DotIndex))
-		{
-			FString PackageName = FPackageName::ObjectPathToPackageName(Path);
-
-			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
-			{
-				if (PackageName == AlreadyScanned || PackageName.StartsWith(AlreadyScanned + TEXT("/")))
-				{
-					bAlreadyScanned = true;
-					break;
-				}
-			}
-
-			if (!bAlreadyScanned)
-			{
-				FString AssetFilename;
-				// Try both extensions
-				if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, AssetFilename, FPackageName::GetAssetPackageExtension()))
-				{
-					PackageFilenames.AddUnique(AssetFilename);
-				}
-
-				if (FPackageName::TryConvertLongPackageNameToFilename(PackageName, AssetFilename, FPackageName::GetMapPackageExtension()))
-				{
-					PackageFilenames.AddUnique(AssetFilename);
-				}
-			}
-		}
-		else
-		{
-			for (const FString& AlreadyScanned : AlreadyScannedDirectories)
-			{
-				if (Path == AlreadyScanned || Path.StartsWith(AlreadyScanned + TEXT("/")))
-				{
-					bAlreadyScanned = true;
-					break;
-				}
-			}
-
-			if (!bAlreadyScanned)
-			{
-				AlreadyScannedDirectories.Add(Path);
-				Directories.AddUnique(Path);
-			}
-		}
-	}
-
-	if (Directories.Num() > 0)
-	{
-		GetAssetRegistry().ScanPathsSynchronous(Directories);
-	}
-	if (PackageFilenames.Num() > 0)
-	{
-		GetAssetRegistry().ScanFilesSynchronous(PackageFilenames);
-	}
 }
 
 void UAssetManager::OnAssetRegistryFilesLoaded()
@@ -3301,6 +3335,37 @@ void UAssetManager::ModifyCook(TArray<FName>& PackagesToCook, TArray<FName>& Pac
 				// If this package cannot be cooked, add to exclusion list
 				PackagesToNeverCook.AddUnique(PackageName);
 			}
+		}
+	}
+}
+
+void UAssetManager::ModifyDLCCook(const FString& DLCName, TArray<FName>& PackagesToCook, TArray<FName>& PackagesToNeverCook)
+{
+	UE_LOG(LogAssetManager, Display, TEXT("ModifyDLCCook: Scanning Plugin Directory %s for assets, and adding them to the cook list"), *DLCName);
+	FString DLCPath;
+	FString ExternalMountPointName;
+	if (TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(DLCName))
+	{
+		DLCPath = Plugin->GetContentDir();
+		ExternalMountPointName = Plugin->GetMountedAssetPath();
+	}
+	else
+	{
+		DLCPath = FPaths::ProjectPluginsDir() / DLCName / TEXT("Content");
+		ExternalMountPointName = FString::Printf(TEXT("/%s/"), *DLCName);
+	}
+
+	TArray<FString> Files;
+	IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
+	IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
+	for (const FString& CurrentFile : Files)
+	{
+		const FString StdFile = FPaths::CreateStandardFilename(CurrentFile);
+		PackagesToCook.AddUnique(FName(StdFile));
+		FString LongPackageName;
+		if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
+		{
+			FPackageName::RegisterMountPoint(ExternalMountPointName, DLCPath);
 		}
 	}
 }

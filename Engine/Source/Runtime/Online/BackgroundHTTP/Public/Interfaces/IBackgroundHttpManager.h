@@ -42,7 +42,7 @@ public:
 	* but are still on disk.
 	*
 	*/
-	virtual void CleanUpTemporaryFiles() = 0;
+	virtual void DeleteAllTemporaryFiles() = 0;
 
 	/** Returns whether or not this is a platform specific implementation */
 	virtual bool IsGenericImplementation() const = 0;
@@ -61,6 +61,18 @@ public:
 	*/
 	virtual void SetMaxActiveDownloads(int MaxActiveDownloads) = 0;
 
+	/**
+	 * Function that returns an FString fullpath where we would expect the given URL's temp file to be located
+	 *
+	 */
+	virtual FString GetTempFileLocationForURL(const FString& URL) = 0;
+	
+	/**
+	 * Function that cleans up any persistent data after we have completed a reqeust.
+	 * Should really never be calling this outside of a BackgroundHTTP class
+	 */
+	virtual void CleanUpDataAfterCompletingRequest(const FBackgroundHttpRequestPtr Request) = 0;
+	
 protected:
 	/**
 	* Designed to be called internally by AddRequest to associate our incoming request with any 

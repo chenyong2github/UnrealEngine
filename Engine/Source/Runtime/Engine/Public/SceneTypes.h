@@ -138,6 +138,7 @@ namespace EMaterialQualityLevel
 		Low,
 		High,
 		Medium,
+		Epic,
 		Num
 	};
 }

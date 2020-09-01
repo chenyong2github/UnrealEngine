@@ -1013,7 +1013,11 @@ void FRenderTargetPool::FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In
 	{
 		FPooledRenderTarget* Element = PooledRenderTargets[Index];
 
-		if (Element && Element->IsFree())
+		// Ref count will always be at least 2
+		ensure(Element->GetRefCount() >= 2);
+		In = nullptr;
+
+		if (Element->IsFree())
 		{
 			check(!Element->IsSnapshot());
 			AllocationLevelInKB -= ComputeSizeInKB(*Element);
@@ -1021,8 +1025,6 @@ void FRenderTargetPool::FreeUnusedResource(TRefCountPtr<IPooledRenderTarget>& In
 			// we don't use Remove() to not shuffle around the elements for better transparency on RenderTargetPoolEvents
 			DeferredDeleteArray.Add(PooledRenderTargets[Index]);
 			PooledRenderTargets[Index] = 0;
-
-			In.SafeRelease();
 
 			VerifyAllocationLevel();
 		}

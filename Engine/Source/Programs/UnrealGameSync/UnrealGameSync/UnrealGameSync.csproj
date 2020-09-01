@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
   <PropertyGroup>
     <OutputType>WinExe</OutputType>
     <TargetFramework>netcoreapp3.1</TargetFramework>
@@ -17,22 +17,16 @@
     <DefineConstants>TRACE;WITH_TELEMETRY</DefineConstants>
   </PropertyGroup>
   <ItemGroup>
+    <PackageReference Include="EnvDTE" Version="16.7.30328.74" />
+  </ItemGroup>
+  <ItemGroup>
     <Reference Include="Ionic.Zip.Reduced">
       <HintPath>ThirdParty\Ionic.Zip.Reduced.dll</HintPath>
     </Reference>
-    <!--<Reference Include="System" />
-    <Reference Include="System.Activities" />
-    <Reference Include="System.Core" />
-    <Reference Include="System.Web" />
-    <Reference Include="System.Web.Extensions" />
-    <Reference Include="System.Xml.Linq" />
-    <Reference Include="System.Data.DataSetExtensions" />
-    <Reference Include="Microsoft.CSharp" />
-    <Reference Include="System.Data" />
-    <Reference Include="System.Deployment" />
-    <Reference Include="System.Drawing" />
-    <Reference Include="System.Windows.Forms" />
-    <Reference Include="System.Xml" />-->
+    <Reference Include="Microsoft.VisualStudio.Setup.Configuration.Interop">
+      <HintPath>..\..\..\..\Binaries\ThirdParty\VisualStudio\Microsoft.VisualStudio.Setup.Configuration.Interop.dll</HintPath>
+      <EmbedInteropTypes>true</EmbedInteropTypes>
+    </Reference>
   </ItemGroup>
   <ItemGroup>
     <Compile Update="Properties\Settings.Designer.cs">
@@ -56,4 +50,5 @@
       </ItemGroup>
     </When>
   </Choose>
+  <Import Project="..\..\..\..\Restricted\NotForLicensees\Source\Programs\UnrealGameSync\UnrealGameSync\UnrealGameSync.csproj" Condition="Exists('..\..\..\..\Restricted\NotForLicensees\Source\Programs\UnrealGameSync\UnrealGameSync\UnrealGameSync.csproj')" />
 </Project>

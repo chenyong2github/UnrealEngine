@@ -123,8 +123,25 @@ struct FNiagaraVariableWithOffset : public FNiagaraVariableBase
 	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableWithOffset& InRef) : FNiagaraVariableBase(InRef.GetType(), InRef.GetName()), Offset(InRef.Offset) {}
 	FORCEINLINE FNiagaraVariableWithOffset(const FNiagaraVariableBase& InVariable, int32 InOffset) : FNiagaraVariableBase(InVariable.GetType(), InVariable.GetName()), Offset(InOffset) {}
 
+	bool Serialize(FArchive& Ar);
+#if WITH_EDITORONLY_DATA
+	void PostSerialize(const FArchive& Ar);
+#endif
+
 	UPROPERTY()
 	int32 Offset;
+};
+
+template<>
+struct TStructOpsTypeTraits<FNiagaraVariableWithOffset> : public TStructOpsTypeTraitsBase2<FNiagaraVariableWithOffset>
+{
+	enum
+	{
+		WithSerializer = true,
+#if WITH_EDITORONLY_DATA
+		WithPostSerialize = true,
+#endif
+	};
 };
 
 /** Base storage class for Niagara parameter values. */
@@ -285,6 +302,9 @@ public:
 	FORCEINLINE const TArray<UNiagaraDataInterface*>& GetDataInterfaces()const { return DataInterfaces; }
 	FORCEINLINE const TArray<uint8>& GetParameterDataArray()const { return ParameterData; }
 
+	FORCEINLINE int32 Num() const {return SortedParameterOffsets.Num(); }
+	FORCEINLINE bool IsEmpty() const { return SortedParameterOffsets.Num() == 0; }
+
 	virtual void SanityCheckData(bool bInitInterfaces = true);
 
 	// Called to initially set up the parameter store to *exactly* match the input store (other than any bindings and the internal name of it).
@@ -394,7 +414,21 @@ public:
 			if (Parameter.IsDataInterface())
 			{
 				ensure(DestStore.DataInterfaces.IsValidIndex(DestIndex));
-				DataInterfaces[SrcIndex]->CopyTo(DestStore.DataInterfaces[DestIndex]);
+				UNiagaraDataInterface* DestDataInterface = DestStore.DataInterfaces[DestIndex];
+				if (DestDataInterface == nullptr)
+				{
+					if (ensureMsgf(DestStore.Owner != nullptr, TEXT("Destination data interface pointer was null and a new one couldn't be created because the destination store's owner pointer was also null.")))
+					{
+						UE_LOG(LogNiagara, Warning, TEXT("While trying to copy parameter data the destination data interface was null, creating a new one.  Parameter: %s Destination Store Owner: %s"), *Parameter.GetName().ToString(), *DestStore.Owner->GetPathName());
+						DestDataInterface = NewObject<UNiagaraDataInterface>(DestStore.Owner, Parameter.GetType().GetClass());
+						DestStore.DataInterfaces[DestIndex] = DestDataInterface;
+					}
+					else
+					{
+						return;
+					}
+				}
+				DataInterfaces[SrcIndex]->CopyTo(DestDataInterface);
 				DestStore.OnInterfaceChange();
 			}
 			else if (Parameter.IsUObject())

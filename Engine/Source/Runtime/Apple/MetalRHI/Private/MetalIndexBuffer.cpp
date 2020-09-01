@@ -78,21 +78,6 @@ FIndexBufferRHIRef FMetalDynamicRHI::RHICreateIndexBuffer(uint32 Stride, uint32 
 		// Discard the resource array's contents.
 		CreateInfo.ResourceArray->Discard();
 	}
-	else if (IndexBuffer->Mode == mtlpp::StorageMode::Private)
-	{
-		check (!IndexBuffer->CPUBuffer);
-
-		if (GMetalBufferZeroFill && !FMetalCommandQueue::SupportsFeature(EMetalFeaturesFences))
-		{
-			GetMetalDeviceContext().FillBuffer(IndexBuffer->Buffer, ns::Range(0, IndexBuffer->Buffer.GetLength()), 0);
-		}
-	}
-#if PLATFORM_MAC
-	else if (GMetalBufferZeroFill && IndexBuffer->Mode == mtlpp::StorageMode::Managed)
-	{
-		MTLPP_VALIDATE(mtlpp::Buffer, IndexBuffer->Buffer, SafeGetRuntimeDebuggingLevel() >= EMetalDebugLevelValidation, DidModify(ns::Range(0, IndexBuffer->Buffer.GetLength())));
-	}
-#endif
 
 	return IndexBuffer;
 	}

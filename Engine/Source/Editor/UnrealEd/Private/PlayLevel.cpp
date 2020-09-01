@@ -492,8 +492,7 @@ void UEditorEngine::EndPlayMap()
 	const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
 	RemoveViewportsRealtimeOverride(SystemDisplayName);
 
-	// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
-	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
+	EnableWorldSwitchCallbacks(false);
 
 	// Set the autosave timer to have at least 10 seconds remaining before autosave
 	const static float SecondsWarningTillAutosave = 10.0f;
@@ -537,9 +536,6 @@ void UEditorEngine::EndPlayMap()
 
 		PlaySettingsConfig->PostEditChange();
 		PlaySettingsConfig->SaveConfig();
-
-		// Now that we're shutting down, we'll no longer need the instance of the EditorPlaySettings.
-		PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings->RemoveFromRoot();
 	}
 	PlayInEditorSessionInfo.Reset();
 
@@ -834,10 +830,9 @@ void UEditorEngine::RequestPlaySession(const FRequestPlaySessionParams& InParams
 	// Now we duplicate their Editor Play Settings so that we can mutate it as part of startup
 	// to help rule out invalid configuration combinations.
 	FObjectDuplicationParameters DuplicationParams(PlaySessionRequest->EditorPlaySettings, GetTransientPackage());
+	// Kept alive by AddReferencedObjects
 	PlaySessionRequest->EditorPlaySettings = CastChecked<ULevelEditorPlaySettings>(StaticDuplicateObjectEx(DuplicationParams));
 
-	// Add the duplicated object to the root, as it's fairly likely an in-process startup will GC it.
-	PlaySessionRequest->EditorPlaySettings->AddToRoot();
 
 	// ToDo: Allow the CDO for the Game Instance to modify the settings after we copy them
 	// so that they can validate user settings before attempting a launch.
@@ -2014,31 +2009,29 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 	FEditorDelegates::OnSwitchBeginPIEAndSIE.Broadcast( bIsSimulatingInEditor );
 }
 
-int32 UEditorEngine::OnSwitchWorldForSlatePieWindow( int32 WorldID )
+int32 UEditorEngine::OnSwitchWorldForSlatePieWindow(int32 WorldID, int32 WorldPIEInstance)
 {
 	static const int32 EditorWorldID = 0;
 	static const int32 PieWorldID = 1;
 
+	// PlayWorld cannot be depended on as it only points to the first instance
 	int32 RestoreID = -1;
-	if( WorldID == -1 && GWorld != PlayWorld && PlayWorld != NULL)
+	if (WorldID == -1 && !GIsPlayInEditorWorld)
 	{
 		// When we have an invalid world id we always switch to the pie world in the PIE window
-		const bool bSwitchToPIE = true; 
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
 		// The editor world was active restore it later
 		RestoreID = EditorWorldID;
 	}
-	else if( WorldID == PieWorldID && GWorld != PlayWorld)
+	else if(WorldID == PieWorldID && !GIsPlayInEditorWorld)
 	{
-		const bool bSwitchToPIE = true;
 		// Want to restore the PIE world and the current world is not already the pie world
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
 	}
-	else if( WorldID == EditorWorldID && GWorld != EditorWorld)
+	else if(WorldID == EditorWorldID && GWorld != EditorWorld)
 	{
-		const bool bSwitchToPIE = false;
 		// Want to restore the editor world and the current world is not already the editor world
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(-1);
 	}
 	else
 	{
@@ -2057,6 +2050,85 @@ void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* Overri
 	else
 	{
 		RestoreEditorWorld( OverrideWorld ? OverrideWorld : EditorWorld );
+	}
+}
+
+void UEditorEngine::OnSwitchWorldsForPIEInstance(int32 WorldPIEInstance)
+{
+	if (WorldPIEInstance < 0)
+	{
+		RestoreEditorWorld(EditorWorld);
+	}
+	else
+	{
+		FWorldContext* PIEContext = GetPIEWorldContext(WorldPIEInstance);
+		if (PIEContext && PIEContext->World())
+		{
+			SetPlayInEditorWorld(PIEContext->World());
+		}
+	}
+}
+
+void UEditorEngine::EnableWorldSwitchCallbacks(bool bEnable)
+{
+	if (bEnable)
+	{
+		// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
+		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
+		ScriptExecutionStartHandle = FBlueprintContextTracker::OnEnterScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionStart);
+		ScriptExecutionEndHandle = FBlueprintContextTracker::OnExitScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionEnd);
+	}
+	else
+	{
+		// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
+		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
+
+		// There should never be an active function context when pie is ending!
+		check(!FunctionStackWorldSwitcher);
+
+		FBlueprintContextTracker::OnEnterScriptContext.Remove(ScriptExecutionStartHandle);
+		FBlueprintContextTracker::OnExitScriptContext.Remove(ScriptExecutionEndHandle);
+	}
+}
+
+void UEditorEngine::OnScriptExecutionStart(const FBlueprintContextTracker& ContextTracker, const UObject* ContextObject, const UFunction* ContextFunction)
+{
+	// Only do world switching for game thread callbacks, this is only bound at all in PIE so no need to check GIsEditor
+	if (IsInGameThread())
+	{
+		// See if we should create a world switcher, which is true if we don't have one and our PIE info is missing
+		if (!FunctionStackWorldSwitcher && (!GIsPlayInEditorWorld || GPlayInEditorID == -1))
+		{
+			check(FunctionStackWorldSwitcherTag == -1);
+			UWorld* ContextWorld = GetWorldFromContextObject(ContextObject, EGetWorldErrorMode::ReturnNull);
+
+			if (ContextWorld && ContextWorld->WorldType == EWorldType::PIE)
+			{
+				FunctionStackWorldSwitcher = new FScopedConditionalWorldSwitcher(ContextWorld);
+				FunctionStackWorldSwitcherTag = ContextTracker.GetScriptEntryTag();
+			}
+		}
+	}
+}
+
+void UEditorEngine::OnScriptExecutionEnd(const struct FBlueprintContextTracker& ContextTracker)
+{
+	if (IsInGameThread())
+	{
+		if (FunctionStackWorldSwitcher)
+		{
+			int32 CurrentScriptEntryTag = ContextTracker.GetScriptEntryTag();
+
+			// Tag starts at 1 for first function on stack
+			check(CurrentScriptEntryTag >= 1 && FunctionStackWorldSwitcherTag >= 1);
+
+			if (CurrentScriptEntryTag == FunctionStackWorldSwitcherTag)
+			{
+				FunctionStackWorldSwitcherTag = -1;
+				delete FunctionStackWorldSwitcher;
+				FunctionStackWorldSwitcher = nullptr;
+			}
+		}
 	}
 }
 
@@ -2844,8 +2916,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		return nullptr;
 	}
 
-	// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
-	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
+	EnableWorldSwitchCallbacks(true);
 
 	if (PIEViewport.IsValid())
 	{
@@ -2876,7 +2947,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 
 	if (InNetMode == PIE_Client)
 	{
-		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Client %d"), ClientIndex + 1)));
+		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Client %d"), ClientIndex)));
 	}
 	else if (InNetMode == PIE_ListenServer)
 	{
@@ -2973,7 +3044,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// If they haven't provided a Slate Window (common), we will create one.
 	if (!bHasCustomWindow)
 	{
-		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams,InViewportIndex, InWorldContext.PIEFixedTickSeconds);
+		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
 			.ScreenPosition(FVector2D(WindowPosition.X, WindowPosition.Y))
@@ -2988,7 +3059,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 
 	// Setup a delegate for switching to the play world on slate input events, drawing and ticking
-	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow);
+	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow, InWorldContext.PIEInstance);
 	PieWindow->SetOnWorldSwitchHack(OnWorldSwitch);
 
 	if (!bHasCustomWindow)

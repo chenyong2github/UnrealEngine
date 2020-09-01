@@ -33,7 +33,7 @@ struct FNiagaraDynamicDataBase
 	FNiagaraDynamicDataBase(FNiagaraDynamicDataBase& Other) = delete;
 	FNiagaraDynamicDataBase& operator=(const FNiagaraDynamicDataBase& Other) = delete;
 
-	FNiagaraDataBuffer* GetParticleDataToRender(bool bUseTranslucent = false) const;
+	FNiagaraDataBuffer* GetParticleDataToRender(bool bIsLowLatencyTranslucent = false) const;
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 	FORCEINLINE FMaterialRelevance GetMaterialRelevance() const { return MaterialRelevance; }
 
@@ -76,7 +76,7 @@ public:
 	FNiagaraRenderer(const FNiagaraRenderer& Other) = delete;
 	FNiagaraRenderer& operator=(const FNiagaraRenderer& Other) = delete;
 
-	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter);
+	virtual void Initialize(const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent);
 	virtual void CreateRenderThreadResources(NiagaraEmitterInstanceBatcher* Batcher);
 	virtual void ReleaseRenderThreadResources();
 
@@ -86,7 +86,7 @@ public:
 
 	virtual void GatherSimpleLights(FSimpleLightArray& OutParticleLights)const {}
 	virtual int32 GetDynamicDataSize()const { return 0; }
-	virtual bool IsMaterialValid(UMaterialInterface* Mat)const { return Mat != nullptr; }
+	virtual bool IsMaterialValid(const UMaterialInterface* Mat)const { return Mat != nullptr; }
 
 	static void SortIndices(const struct FNiagaraGPUSortInfo& SortInfo, const FNiagaraRendererVariableInfo& SortVariable, const FNiagaraDataBuffer& Buffer, FGlobalDynamicReadBuffer::FAllocation& OutIndices);
 
@@ -112,7 +112,11 @@ public:
 
 	FORCEINLINE ENiagaraSimTarget GetSimTarget() const { return SimTarget; }
 
+	virtual void GetUsedMaterials(TArray<UMaterialInterface*>& UsedMaterials, bool bGetDebugMaterials) { UsedMaterials.Append(BaseMaterials_GT); }
 protected:
+
+	virtual void ProcessMaterialParameterBindings(TConstArrayView< FNiagaraMaterialAttributeBinding > InMaterialParameterBindings, const FNiagaraEmitterInstance* InEmitter, TConstArrayView<UMaterialInterface*> InMaterials) const;
+
 
 	struct FNiagaraDynamicDataBase *DynamicDataRender;
 	

@@ -44,6 +44,8 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 	using namespace UE::MovieScene;
 
 	LastSystemLinkVersion = 0;
+	AutoLinkMode = EAutoLinkRelevantSystems::Enabled;
+	SystemContext = EEntitySystemContext::Runtime;
 
 	if (!HasAnyFlags(RF_ClassDefaultObject))
 	{
@@ -56,6 +58,15 @@ UMovieSceneEntitySystemLinker::UMovieSceneEntitySystemLinker(const FObjectInitia
 
 		InstanceRegistry.Reset(new FInstanceRegistry(this));
 	}
+}
+
+void UMovieSceneEntitySystemLinker::Reset()
+{
+	Events.AbandonLinker.Broadcast(this);
+	SystemGraph.Shutdown();
+	EntitySystemsByGlobalGraphID.Reset();
+
+	EntityManager.Destroy();
 }
 
 UMovieSceneEntitySystemLinker* UMovieSceneEntitySystemLinker::FindOrCreateLinker(UObject* PreferredOuter, const TCHAR* Name)
@@ -274,31 +285,54 @@ void UMovieSceneEntitySystemLinker::AddReferencedObjects(UObject* Object, FRefer
 
 UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType)
 {
-	UClass* Class = InClassType.Get();
-	UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
-	check(SystemCDO);
-
-	const uint16 GlobalID = SystemCDO->GetGlobalDependencyGraphID();
-
-	if (EntitySystemsByGlobalGraphID.IsValidIndex(GlobalID))
+	UMovieSceneEntitySystem* Existing = FindSystem(InClassType);
+	if (Existing)
 	{
-		return EntitySystemsByGlobalGraphID[GlobalID];
+		return Existing;
 	}
 
 	UMovieSceneEntitySystem* NewSystem = NewObject<UMovieSceneEntitySystem>(this, InClassType.Get());
+
+	// If a system implements a hard depdency on another (through direct use of LinkSystem<>), we can't break the client code by returning null, but we can still warn that it should have checked whether it can call LinkSystem first
+	ensureMsgf(!EnumHasAnyFlags(NewSystem->GetExclusionContext(), SystemContext), TEXT("Attempting to link a system that should have been excluded - this is probably an explicit call to Link a system that should have been excluded."));
 
 	SystemGraph.AddSystem(NewSystem);
 	NewSystem->Link(this);
 	return NewSystem;
 }
 
+UMovieSceneEntitySystem* UMovieSceneEntitySystemLinker::FindSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType) const
+{
+	UClass* Class = InClassType.Get();
+	UMovieSceneEntitySystem* SystemCDO = Class ? Cast<UMovieSceneEntitySystem>(Class->GetDefaultObject()) : nullptr;
+	if (SystemCDO)
+	{
+		const uint16 GlobalID = SystemCDO->GetGlobalDependencyGraphID();
+		if (EntitySystemsByGlobalGraphID.IsValidIndex(GlobalID))
+		{
+			return EntitySystemsByGlobalGraphID[GlobalID];
+		}
+	}
+
+	return nullptr;
+}
+
 void UMovieSceneEntitySystemLinker::LinkRelevantSystems()
 {
+	// If the structure has not changed there's no way that there are any other relevant systems still
 	if (EntityManager.HasStructureChangedSince(LastSystemLinkVersion))
 	{
 		UMovieSceneEntitySystem::LinkRelevantSystems(this);
 
 		LastSystemLinkVersion = EntityManager.GetSystemSerial();
+	}
+}
+
+void UMovieSceneEntitySystemLinker::AutoLinkRelevantSystems()
+{
+	if (AutoLinkMode == UE::MovieScene::EAutoLinkRelevantSystems::Enabled)
+	{
+		LinkRelevantSystems();
 	}
 }
 

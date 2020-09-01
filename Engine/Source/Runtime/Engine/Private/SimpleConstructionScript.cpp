@@ -132,7 +132,16 @@ void USimpleConstructionScript::PostLoad()
 {
 	Super::PostLoad();
 
+	// Get the BlueprintGeneratedClass that owns the SCS
+	const UClass* BPGeneratedClass = GetOwnerClass();
+
 #if WITH_EDITOR
+	// Skip fixup logic in the editor context if the owner class is already cooked.
+	if (BPGeneratedClass && BPGeneratedClass->bCooked)
+	{
+		return;
+	}
+
 	// Get the Blueprint that owns the SCS
 	UBlueprint* Blueprint = GetBlueprint();
 	if (!Blueprint)
@@ -234,8 +243,6 @@ void USimpleConstructionScript::PostLoad()
 	// way older, existing Blueprint actor instances won't start unexpectedly getting scaled.
 	if(GetLinkerUE4Version() < VER_UE4_BLUEPRINT_USE_SCS_ROOTCOMPONENT_SCALE)
 	{
-		// Get the BlueprintGeneratedClass that owns the SCS
-		UClass* BPGeneratedClass = GetOwnerClass();
 		if(BPGeneratedClass != nullptr)
 		{
 			// Get the Blueprint class default object
@@ -985,7 +992,7 @@ USCS_Node* USimpleConstructionScript::FindSCSNodeByGuid(const FGuid Guid) const
 }
 
 #if WITH_EDITOR
-USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(bool bShouldUseDefautRoot, USCS_Node** OutSCSNode) const
+USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(bool bShouldUseDefaultRoot, USCS_Node** OutSCSNode) const
 {
 	UClass* GeneratedClass = GetOwnerClass();
 	UClass* ParentClass = GetParentClass();
@@ -1059,7 +1066,7 @@ USceneComponent* USimpleConstructionScript::GetSceneRootComponentTemplate(bool b
 		{
 			const TArray<USCS_Node*>& SCSRootNodes = SCSStack[StackIndex]->GetRootNodes();
 
-			const bool bCanUseDefaultSceneRoot = bShouldUseDefautRoot && DefaultSceneRootNode && DefaultSceneRootNode->ComponentTemplate && SCSRootNodes.Contains(DefaultSceneRootNode);
+			const bool bCanUseDefaultSceneRoot = bShouldUseDefaultRoot && DefaultSceneRootNode && DefaultSceneRootNode->ComponentTemplate && SCSRootNodes.Contains(DefaultSceneRootNode);
 			// Check for any scene component nodes in the root set that are not the default scene root
 			for (int32 RootNodeIndex = 0; RootNodeIndex < SCSRootNodes.Num() && RootComponentTemplate == nullptr; ++RootNodeIndex)
 			{

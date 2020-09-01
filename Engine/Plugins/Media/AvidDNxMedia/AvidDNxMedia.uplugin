@@ -19,5 +19,12 @@
 			"WhitelistPlatforms": [ "Win64" ],
 			"BlacklistTargets": [ "Server" ]
 		}
+	],
+	"Plugins":
+	[
+		{
+			"Name": "MovieRenderPipeline",
+			"Enabled": true
+		}
 	]
 }

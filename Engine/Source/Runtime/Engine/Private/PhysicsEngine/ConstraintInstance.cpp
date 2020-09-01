@@ -178,9 +178,22 @@ void FConstraintInstance::UpdateDriveTarget()
 }
 
 /** Constructor **/
+FConstraintInstanceBase::FConstraintInstanceBase()
+{
+	Reset();
+}
+
+void FConstraintInstanceBase::Reset()
+{
+	ConstraintIndex = 0;
+	ConstraintHandle.Reset();
+	PhysScene = nullptr;
+}
+
+
+/** Constructor **/
 FConstraintInstance::FConstraintInstance()
-	: ConstraintIndex(0)
-	, PhysScene(nullptr)
+	: FConstraintInstanceBase()
 	, AngularRotationOffset(ForceInitToZero)
 	, bScaleLinearLimits(true)
 	, AverageMass(0.f)
@@ -391,7 +404,11 @@ void FConstraintProfileProperties::UpdateConstraintFlags_AssumesLocked(const FPh
 #endif
 
 	FPhysicsInterface::SetCollisionEnabled(InConstraintRef, !bDisableCollision);
+#if WITH_CHAOS
+	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearAlpha, ProjectionAngularAlpha);
+#else
 	FPhysicsInterface::SetProjectionEnabled_AssumesLocked(InConstraintRef, bEnableProjection, ProjectionLinearTolerance, ProjectionAngularTolerance);
+#endif
 	FPhysicsInterface::SetParentDominates_AssumesLocked(InConstraintRef, bParentDominates);
 }
 

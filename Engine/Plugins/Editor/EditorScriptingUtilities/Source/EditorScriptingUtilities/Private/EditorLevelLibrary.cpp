@@ -235,6 +235,7 @@ AActor* UEditorLevelLibrary::SpawnActorFromClass(TSubclassOf<class AActor> Actor
 	return EditorActorSubsystem ? EditorActorSubsystem->SpawnActorFromClass(ActorClass, Location, Rotation, bTransient) : nullptr;
 }
 
+
 bool UEditorLevelLibrary::DestroyActor(class AActor* ToDestroyActor)
 {
 	UEditorActorSubsystem* EditorActorSubsystem = GEditor->GetEditorSubsystem<UEditorActorSubsystem>();
@@ -255,6 +256,29 @@ UWorld* UEditorLevelLibrary::GetGameWorld()
 	UUnrealEditorSubsystem* UnrealEditorSubsystem = GEditor->GetEditorSubsystem<UUnrealEditorSubsystem>();
 
 	return UnrealEditorSubsystem ? UnrealEditorSubsystem->GetEditorWorld() : nullptr;
+}
+
+TArray<UWorld*> UEditorLevelLibrary::GetPIEWorlds(bool bIncludeDedicatedServer)
+{
+	TGuardValue<bool> UnattendedScriptGuard(GIsRunningUnattendedScript, true);
+
+	TArray<UWorld*> PIEWorlds;
+
+	if (GEditor)
+	{
+		for (const FWorldContext& WorldContext : GEngine->GetWorldContexts())
+		{
+			if (WorldContext.WorldType == EWorldType::PIE)
+			{
+				if (bIncludeDedicatedServer || !WorldContext.RunAsDedicated)
+				{
+					PIEWorlds.Add(WorldContext.World());
+				}
+			}
+		}
+	}
+
+	return PIEWorlds;
 }
 
 bool UEditorLevelLibrary::NewLevel(const FString& AssetPath)

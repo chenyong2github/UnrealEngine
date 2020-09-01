@@ -852,6 +852,9 @@ struct FPlatformTypeLayoutParameters
 	inline bool WithEditorOnly() const { return (Flags & Flag_WithEditorOnly) != 0u; }
 	inline bool WithRaytracing() const { return (Flags & Flag_WithRaytracing) != 0u; }
 
+	// May need dedicated flag for this, if we need to support case-preserving names in non-editor builds
+	inline bool WithCasePreservingFName() const { return WithEditorOnly(); }
+
 	inline bool Has32BitMemoryImagePointers() const { return Is32Bit() && !HasForce64BitMemoryImagePointers(); }
 	inline bool Has64BitMemoryImagePointers() const { return !Has32BitMemoryImagePointers(); }
 

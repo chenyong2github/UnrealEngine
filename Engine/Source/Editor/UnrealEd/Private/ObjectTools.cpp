@@ -96,6 +96,8 @@
 #include "UObject/ReferencerFinder.h"
 #include "DistanceFieldAtlas.h"
 #include "MeshCardRepresentation.h"
+#include "Containers/Set.h"
+#include "UObject/StrongObjectPtr.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -193,10 +195,28 @@ namespace ObjectTools
 		if (!CVarUseLegacyGetReferencersForDeletion.GetValueOnAnyThread())
 		{
 			const UTransactor* Transactor = GEditor ? GEditor->Trans : nullptr;
+			bool bIsGatheringPackageRef = InObject->IsA<UPackage>();
 
 			// Get the cluster of objects that are going to be deleted
 			TArray<UObject*> ObjectsToDelete;
 			GetObjectsWithOuter(InObject, ObjectsToDelete);
+			
+			TSet<UObject*> InternalReferences;
+			// The old behavior of GatherObjectReferencersForDeletion will find anything that prevents 
+			// InObject from being garbage collected, including internal sub objects.
+			// it does make an exception with very specific package metadata case.
+			for (UObject* ObjectToDelete : ObjectsToDelete)
+			{
+				if ((ObjectToDelete->HasAnyFlags(GARBAGE_COLLECTION_KEEPFLAGS) ||
+					ObjectToDelete->HasAnyInternalFlags(EInternalObjectFlags::GarbageCollectionKeepFlags)) &&
+					(bIsGatheringPackageRef && !ObjectToDelete->IsA<UMetaData>()))
+				{
+					InternalReferences.Add(ObjectToDelete);
+					bOutIsReferenced = true;
+				}
+			}
+			
+			// Only add the main object to the list once we have finished checking sub-objects.
 			ObjectsToDelete.Add(InObject);
 
 			// If it's a blueprint, we also want to find anything with a reference to it's generated class
@@ -211,7 +231,7 @@ namespace ObjectTools
 			{
 				if (Referencer->IsIn(InObject))
 				{
-					References.InternalReferences.Emplace(Referencer);
+					InternalReferences.Add(Referencer);
 				}
 				else
 				{
@@ -226,6 +246,8 @@ namespace ObjectTools
 					}
 				}
 			}
+
+			References.InternalReferences.Append(InternalReferences.Array());
 
 			// If the object itself isn't in the transaction buffer, check to see if it's a Blueprint asset. We might have instances of the
 			// Blueprint in the transaction buffer, in which case we also want to both alert the user and clear it prior to deleting the asset.
@@ -1291,96 +1313,108 @@ namespace ObjectTools
 
 			if (bShouldDeleteAfterConsolidate)
 			{
-			// With all references to the objects to consolidate to eliminated from objects that are currently loaded, it should now be safe to delete
-			// the objects to be consolidated themselves, leaving behind a redirector in their place to fix up objects that were not currently loaded at the time
-			// of this operation.
-			for ( TArray<UObject*>::TConstIterator ConsolIter( ReplaceInfo.ReplaceableObjects ); ConsolIter; ++ConsolIter )
-			{
-				GWarn->StatusUpdate( ConsolIter.GetIndex(), ReplaceInfo.ReplaceableObjects.Num(), NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_DeletingObjects", "Deleting Assets...") );
-
-				UObject* CurObjToConsolidate = *ConsolIter;
-				UObject* CurObjOuter = CurObjToConsolidate->GetOuter();
-				UPackage* CurObjPackage = CurObjToConsolidate->GetOutermost();
-				const FName CurObjName = CurObjToConsolidate->GetFName();
-				const FString CurObjPath = CurObjToConsolidate->GetPathName();
-				UBlueprint* BlueprintToConsolidate = Cast<UBlueprint>(CurObjToConsolidate);
-
-				// Attempt to delete the object that was consolidated
-				if ( DeleteSingleObject( CurObjToConsolidate ) )
+				// With all references to the objects to consolidate to eliminated from objects that are currently loaded, it should now be safe to delete
+				// the objects to be consolidated themselves, leaving behind a redirector in their place to fix up objects that were not currently loaded at the time
+				// of this operation.
+				for ( TArray<UObject*>::TConstIterator ConsolIter( ReplaceInfo.ReplaceableObjects ); ConsolIter; ++ConsolIter )
 				{
-					// DONT GC YET!!! we still need these objects around to notify other tools that they are gone and to create redirectors
-					ConsolidatedObjects.Add(CurObjToConsolidate);
+					GWarn->StatusUpdate( ConsolIter.GetIndex(), ReplaceInfo.ReplaceableObjects.Num(), NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_DeletingObjects", "Deleting Assets...") );
 
-					if ( AlreadyMappedObjectPaths.Contains(CurObjPath) )
+					UObject* CurObjToConsolidate = *ConsolIter;
+					UObject* CurObjOuter = CurObjToConsolidate->GetOuter();
+					UPackage* CurObjPackage = CurObjToConsolidate->GetOutermost();
+					const FName CurObjName = CurObjToConsolidate->GetFName();
+					const FString CurObjPath = CurObjToConsolidate->GetPathName();
+					UBlueprint* BlueprintToConsolidate = Cast<UBlueprint>(CurObjToConsolidate);
+
+					// Attempt to delete the object that was consolidated
+					if ( DeleteSingleObject( CurObjToConsolidate ) )
 					{
-						continue;
+						// DONT GC YET!!! we still need these objects around to notify other tools that they are gone and to create redirectors
+						ConsolidatedObjects.Add(CurObjToConsolidate);
+
+						if ( AlreadyMappedObjectPaths.Contains(CurObjPath) )
+						{
+							continue;
+						}
+
+						// Create a redirector with a unique name
+						// It will have the same name as the object that was consolidated after the garbage collect
+						UObjectRedirector* Redirector = NewObject<UObjectRedirector>(CurObjOuter, NAME_None, RF_Standalone | RF_Public);
+						check( Redirector );
+
+						// Set the redirector to redirect to the object to consolidate to
+						Redirector->DestinationObject = ObjectToConsolidateTo;
+
+						// Keep track of the object name so we can rename the redirector later
+						RedirectorToObjectNameMap.Add(Redirector, CurObjName);
+						AlreadyMappedObjectPaths.Add(CurObjPath);
+
+						// If consolidating blueprints, make sure redirectors are created for the consolidated blueprint class and CDO
+						if ( BlueprintToConsolidateTo != NULL && BlueprintToConsolidate != NULL )
+						{
+							// One redirector for the class
+							UObjectRedirector* ClassRedirector = NewObject<UObjectRedirector>(CurObjOuter, NAME_None, RF_Standalone | RF_Public);
+							check( ClassRedirector );
+							ClassRedirector->DestinationObject = BlueprintToConsolidateTo->GeneratedClass;
+							RedirectorToObjectNameMap.Add(ClassRedirector, BlueprintToConsolidate->GeneratedClass->GetFName());
+							AlreadyMappedObjectPaths.Add(BlueprintToConsolidate->GeneratedClass->GetPathName());
+
+							// One redirector for the CDO
+							UObjectRedirector* CDORedirector = NewObject<UObjectRedirector>(CurObjOuter, NAME_None, RF_Standalone | RF_Public);
+							check( CDORedirector );
+							CDORedirector->DestinationObject = BlueprintToConsolidateTo->GeneratedClass->GetDefaultObject();
+							RedirectorToObjectNameMap.Add(CDORedirector, BlueprintToConsolidate->GeneratedClass->GetDefaultObject()->GetFName());
+							AlreadyMappedObjectPaths.Add(BlueprintToConsolidate->GeneratedClass->GetDefaultObject()->GetPathName());
+						}
+
+						DirtiedPackages.AddUnique( CurObjPackage );
 					}
-
-					// Create a redirector with a unique name
-					// It will have the same name as the object that was consolidated after the garbage collect
-					UObjectRedirector* Redirector = NewObject<UObjectRedirector>(CurObjOuter, NAME_None, RF_Standalone | RF_Public);
-					check( Redirector );
-
-					// Set the redirector to redirect to the object to consolidate to
-					Redirector->DestinationObject = ObjectToConsolidateTo;
-
-					// Keep track of the object name so we can rename the redirector later
-					RedirectorToObjectNameMap.Add(Redirector, CurObjName);
-					AlreadyMappedObjectPaths.Add(CurObjPath);
-
-					// If consolidating blueprints, make sure redirectors are created for the consolidated blueprint class and CDO
-					if ( BlueprintToConsolidateTo != NULL && BlueprintToConsolidate != NULL )
+					// If the object couldn't be deleted, store it in the array that will be used to show the user which objects had errors
+					else
 					{
-						// One redirector for the class
-						UObjectRedirector* ClassRedirector = NewObject<UObjectRedirector>(CurObjOuter, NAME_None, RF_Standalone | RF_Public);
-						check( ClassRedirector );
-						ClassRedirector->DestinationObject = BlueprintToConsolidateTo->GeneratedClass;
-						RedirectorToObjectNameMap.Add(ClassRedirector, BlueprintToConsolidate->GeneratedClass->GetFName());
-						AlreadyMappedObjectPaths.Add(BlueprintToConsolidate->GeneratedClass->GetPathName());
-
-						// One redirector for the CDO
-						UObjectRedirector* CDORedirector = NewObject<UObjectRedirector>(CurObjOuter, NAME_None, RF_Standalone | RF_Public);
-						check( CDORedirector );
-						CDORedirector->DestinationObject = BlueprintToConsolidateTo->GeneratedClass->GetDefaultObject();
-						RedirectorToObjectNameMap.Add(CDORedirector, BlueprintToConsolidate->GeneratedClass->GetDefaultObject()->GetFName());
-						AlreadyMappedObjectPaths.Add(BlueprintToConsolidate->GeneratedClass->GetDefaultObject()->GetPathName());
+						CriticalFailureObjects.Add( CurObjToConsolidate );
 					}
-
-					DirtiedPackages.AddUnique( CurObjPackage );
 				}
-				// If the object couldn't be deleted, store it in the array that will be used to show the user which objects had errors
-				else
+
+				// Prevent newly created redirectors from being GC'ed before we can rename them
+				TArray<TStrongObjectPtr<UObjectRedirector>> Redirectors;
+				Redirectors.Reserve(RedirectorToObjectNameMap.Num());
+				for (TMap<UObjectRedirector*, FName>::TIterator RedirectIt(RedirectorToObjectNameMap); RedirectIt; ++RedirectIt)
 				{
-					CriticalFailureObjects.Add( CurObjToConsolidate );
+					UObjectRedirector* Redirector = RedirectIt.Key();
+					Redirectors.Add(TStrongObjectPtr<UObjectRedirector>(Redirector));
 				}
-			}
 
-			TArray<UPackage*> PotentialPackagesToDelete;
-			for ( int32 ObjIdx = 0; ObjIdx < ConsolidatedObjects.Num(); ++ObjIdx )
-			{
-				PotentialPackagesToDelete.AddUnique(ConsolidatedObjects[ObjIdx]->GetOutermost());
-			}
-
-			CleanupAfterSuccessfulDelete(PotentialPackagesToDelete);
-
-			// Now that the old objects have been garbage collected, give the redirectors a proper name
-			for (TMap<UObjectRedirector*, FName>::TIterator RedirectIt(RedirectorToObjectNameMap); RedirectIt; ++RedirectIt)
-			{
-				UObjectRedirector* Redirector = RedirectIt.Key();
-				const FName ObjName = RedirectIt.Value();
-
-				if ( Redirector->Rename(*ObjName.ToString(), NULL, REN_Test) )
+				TArray<UPackage*> PotentialPackagesToDelete;
+				for ( int32 ObjIdx = 0; ObjIdx < ConsolidatedObjects.Num(); ++ObjIdx )
 				{
-					Redirector->Rename(*ObjName.ToString(), NULL, REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
-					FAssetRegistryModule::AssetCreated(Redirector);
+					PotentialPackagesToDelete.AddUnique(ConsolidatedObjects[ObjIdx]->GetOutermost());
 				}
-				else
+
+				CleanupAfterSuccessfulDelete(PotentialPackagesToDelete);
+
+				// Now that the old objects have been garbage collected, give the redirectors a proper name
+				for (TMap<UObjectRedirector*, FName>::TIterator RedirectIt(RedirectorToObjectNameMap); RedirectIt; ++RedirectIt)
 				{
-					// Could not rename the redirector back to the original object's name. This indicates the original
-					// object could not be garbage collected even though DeleteSingleObject returned true.
-					CriticalFailureObjects.AddUnique(Redirector);
+					UObjectRedirector* Redirector = RedirectIt.Key();
+					const FName ObjName = RedirectIt.Value();
+
+					if ( Redirector->Rename(*ObjName.ToString(), NULL, REN_Test) )
+					{
+						Redirector->Rename(*ObjName.ToString(), NULL, REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);
+						FAssetRegistryModule::AssetCreated(Redirector);
+					}
+					else
+					{
+						// Could not rename the redirector back to the original object's name. This indicates the original
+						// object could not be garbage collected even though DeleteSingleObject returned true.
+						CriticalFailureObjects.AddUnique(Redirector);
+					}
 				}
-			}
+
+				Redirectors.Empty();
+
 			}
 
 			// Empty the provided array so it's not full of pointers to deleted objects
@@ -4244,6 +4278,11 @@ namespace ThumbnailTools
 	/** Renders a thumbnail for the specified object */
 	void RenderThumbnail( UObject* InObject, const uint32 InImageWidth, const uint32 InImageHeight, EThumbnailTextureFlushMode::Type InFlushMode, FTextureRenderTargetResource* InTextureRenderTargetResource, FObjectThumbnail* OutThumbnail )
 	{
+		if (!FApp::CanEverRender())
+		{
+			return;
+		}
+
 		// Renderer must be initialized before generating thumbnails
 		check( GIsRHIInitialized );
 
@@ -4430,7 +4469,11 @@ namespace ThumbnailTools
 				SlowTask.MakeDialog();
 
 				// Block until the shader maps that we will save have finished being compiled
-				InMaterial->GetMaterialResource(GMaxRHIFeatureLevel)->FinishCompilation();
+				FMaterialResource* CurrentResource = InMaterial->GetMaterialResource(GMaxRHIFeatureLevel);
+				if (CurrentResource)
+				{
+					CurrentResource->FinishCompilation();
+				}
 			}
 
 			// Generate the thumbnail

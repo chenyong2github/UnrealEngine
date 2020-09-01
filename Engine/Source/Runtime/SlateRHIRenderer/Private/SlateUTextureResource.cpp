@@ -45,13 +45,23 @@ void FSlateBaseUTextureResource::UpdateDebugName()
 
 void FSlateBaseUTextureResource::CheckForStaleResources() const
 {
-	if (DebugName != NAME_None)
+	if (DebugName != NAME_None && GSlateCheckUObjectRenderResources)
 	{
 		// pending kill objects may still be rendered for a frame so it is valid for the check to pass
 		const bool bEvenIfPendingKill = true;
 		// This test needs to be thread safe.  It doesn't give us as many chances to trap bugs here but it is still useful
 		const bool bThreadSafe = true;
-		checkf(ObjectWeakPtr.IsValid(bEvenIfPendingKill, bThreadSafe), TEXT("Texture %s has become invalid.  This means the resource was garbage collected while slate was using it"), *DebugName.ToString());
+		if (!ObjectWeakPtr.IsValid(bEvenIfPendingKill, bThreadSafe))
+		{
+			if (GSlateCheckUObjectRenderResourcesShouldLogFatal)
+			{
+				UE_LOG(LogSlate, Fatal, TEXT("%s"), TEXT("Texture %s has become invalid. This means the resource was garbage collected while slate was using it"), *DebugName.ToString());
+			}
+			else
+			{
+				checkf(false, TEXT("Texture %s has become invalid. This means the resource was garbage collected while slate was using it"), *DebugName.ToString());
+			}
+		}
 	}
 }
 #endif

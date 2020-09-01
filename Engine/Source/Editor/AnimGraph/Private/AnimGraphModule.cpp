@@ -23,6 +23,7 @@
 #include "BlueprintEditorModule.h"
 #include "AnimGraphDetails.h"
 #include "AnimationGraphSchema.h"
+#include "AnimBlueprintCompiler.h"
 
 IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 
@@ -31,6 +32,11 @@ IMPLEMENT_MODULE(FAnimGraphModule, AnimGraph);
 void FAnimGraphModule::StartupModule()
 {
 	FAnimGraphCommands::Register();
+
+	FKismetCompilerContext::RegisterCompilerForBP(UAnimBlueprint::StaticClass(), [](UBlueprint* InBlueprint, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
+	{
+		return MakeShared<FAnimBlueprintCompilerContext>(CastChecked<UAnimBlueprint>(InBlueprint), InMessageLog, InCompileOptions);
+	});
 
 	// Register the editor modes
 	FEditorModeRegistry::Get().RegisterMode<FAnimNodeEditMode>(AnimNodeEditModes::AnimNode, LOCTEXT("AnimNodeEditMode", "Anim Node"), FSlateIcon(), false);
@@ -49,9 +55,15 @@ void FAnimGraphModule::StartupModule()
 
 	PropertyModule.RegisterCustomPropertyTypeLayout("AnimBlueprintFunctionPinInfo", FOnGetPropertyTypeCustomizationInstance::CreateStatic(&FAnimBlueprintFunctionPinInfoDetails::MakeInstance));
 
-	// Register BP-editor function customization
-	FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
-	BlueprintEditorModule.RegisterGraphCustomization(GetDefault<UAnimationGraphSchema>(), FOnGetGraphCustomizationInstance::CreateStatic(&FAnimGraphDetails::MakeInstance));
+	FModuleManager::Get().OnModulesChanged().AddLambda([](FName InModuleName, EModuleChangeReason InReason)
+	{
+		if(InReason == EModuleChangeReason::ModuleLoaded && InModuleName == "Kismet")
+		{
+			// Register BP-editor function customization
+			FBlueprintEditorModule& BlueprintEditorModule = FModuleManager::LoadModuleChecked<FBlueprintEditorModule>("Kismet");
+			BlueprintEditorModule.RegisterGraphCustomization(GetDefault<UAnimationGraphSchema>(), FOnGetGraphCustomizationInstance::CreateStatic(&FAnimGraphDetails::MakeInstance));	
+		}
+	});
 }
 
 void FAnimGraphModule::ShutdownModule()

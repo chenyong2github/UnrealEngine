@@ -1539,7 +1539,7 @@ void FPostProcessing::ProcessES2(FRHICommandListImmediate& RHICmdList, FScene* S
 					Pass->SetInput(ePId_Input0, Context.FinalOutput);
 					Pass->SetInput(ePId_Input1, PostProcessSunShaftAndDof);
 
-					bool bIsValidVariation = IsValidBloomSetupVariation(bUseBloom, bUseSun, bUseDof, bHasEyeAdaptationPass);
+					bool bIsValidVariation = IsValidBloomSetupVariation(bUseBloom, bUseSun, bUseMobileDof, bHasEyeAdaptationPass);
 
 					if (!bIsValidVariation || bUseBloom)
 					{

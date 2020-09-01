@@ -1119,6 +1119,8 @@ void FSlateFontCache::UpdateCache()
 
 	UpdateFontAtlasTextures(GrayscaleFontAtlasIndices);
 	UpdateFontAtlasTextures(ColorFontAtlasIndices);
+
+	CompositeFontCache->Update();
 }
 
 void FSlateFontCache::ReleaseResources()

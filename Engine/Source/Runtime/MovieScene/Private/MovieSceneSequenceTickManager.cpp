@@ -46,7 +46,7 @@ void UMovieSceneSequenceTickManager::TickSequenceActors(float DeltaSeconds)
 	// things (e.g. start/stop, loop, etc.), but in 95% of cases, they will just queue up a normal evaluation
 	// request...
 	//
-	bool bHasTasks = false;
+	bool bHasTasks = Runner.HasQueuedUpdates();
 	UWorld* World = GetTypedOuter<UWorld>();
 
 	check(World != nullptr);

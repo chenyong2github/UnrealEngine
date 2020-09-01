@@ -100,6 +100,7 @@ void SLogWidget::Construct(const FArguments& InArgs)
 		        .Marshaller(MessagesTextMarshaller)
 		        .IsReadOnly(true)
 		        .AlwaysShowScrollbars(true)
+				.SelectWordOnMouseDoubleClick(false)
 		        .OnHScrollBarUserScrolled(this, &SLogWidget::OnScrollX)
 		        .OnVScrollBarUserScrolled(this, &SLogWidget::OnScrollY)
 			]
@@ -193,6 +194,8 @@ FReply SLogWidget::OnMouseButtonDoubleClick(const FGeometry& InMyGeometry, const
 			ISourceCodeAccessModule& SourceCodeAccessModule = FModuleManager::LoadModuleChecked<ISourceCodeAccessModule>("SourceCodeAccess");
 			SourceCodeAccessModule.GetAccessor().OpenFileAtLine(PotentialCodeFilePath, LineNumber);
 		}
+
+		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();

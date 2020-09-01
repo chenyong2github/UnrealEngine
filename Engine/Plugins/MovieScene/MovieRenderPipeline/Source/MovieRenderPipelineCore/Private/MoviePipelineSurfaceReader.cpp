@@ -165,19 +165,42 @@ void FMoviePipelineSurfaceReader::CopyReadbackTexture_RenderThread(TUniqueFuncti
 
 		int32 ActualSizeX = 0, ActualSizeY = 0;
 		RHICmdList.MapStagingSurface(ReadbackTexture, ColorDataBuffer, ActualSizeX, ActualSizeY);
-
-
-		TArray<FFloat16Color> OutputPixels;
-
 		int32 ExpectedSizeX = Size.X;
 		int32 ExpectedSizeY = Size.Y;
-		OutputPixels.SetNumUninitialized(ExpectedSizeX * ExpectedSizeY);
+
+		TUniquePtr<FImagePixelData> PixelData;
+		uint8* TypeErasedPixels = nullptr;
+		int32 SizeOfColor = 0;
+		switch (PixelFormat)
+		{
+		case EPixelFormat::PF_FloatRGBA:
+		{
+			TUniquePtr<TImagePixelData<FFloat16Color>> NewPixelData = MakeUnique < TImagePixelData<FFloat16Color>>(FIntPoint(Size.X, Size.Y), InFramePayload);
+			NewPixelData->Pixels.SetNumUninitialized(ExpectedSizeX * ExpectedSizeY);
+			SizeOfColor = sizeof(FFloat16Color);
+			TypeErasedPixels = reinterpret_cast<uint8*>(NewPixelData->Pixels.GetData());
+			PixelData = MoveTemp(NewPixelData);
+			break;
+		}
+		case EPixelFormat::PF_B8G8R8A8:
+		{
+			TUniquePtr<TImagePixelData<FColor>> NewPixelData = MakeUnique < TImagePixelData<FColor>>(FIntPoint(Size.X, Size.Y), InFramePayload);
+			NewPixelData->Pixels.SetNumUninitialized(ExpectedSizeX * ExpectedSizeY);
+			SizeOfColor = sizeof(FColor);
+			TypeErasedPixels = reinterpret_cast<uint8*>(NewPixelData->Pixels.GetData());
+			PixelData = MoveTemp(NewPixelData);
+			break;
+		}
+		default:
+			check(0); // Unsupported, add a new switch statement.
+		}
+
 
 		// Due to padding, the actual size might be larger than the expected size. If they are the same, do a block copy. Otherwise copy
 		// line by line.
 		if (ExpectedSizeX == ActualSizeX && ExpectedSizeY == ActualSizeY)
 		{
-			FMemory::BigBlockMemcpy(OutputPixels.GetData(), ColorDataBuffer, (ExpectedSizeX * ExpectedSizeY) * sizeof(FFloat16Color));
+			FMemory::BigBlockMemcpy(TypeErasedPixels, ColorDataBuffer, (ExpectedSizeX * ExpectedSizeY) * SizeOfColor);
 		}
 		else
 		{
@@ -193,22 +216,20 @@ void FMoviePipelineSurfaceReader::CopyReadbackTexture_RenderThread(TUniqueFuncti
 			int32 SrcPitchElem = ActualSizeX;
 			int32 DstPitchElem = ExpectedSizeX;
 
-			const FFloat16Color* SrcColorData = (const FFloat16Color*)ColorDataBuffer;
-			FFloat16Color* DstColorData = (FFloat16Color*)OutputPixels.GetData();
+			const uint8* SrcColorData = reinterpret_cast<const uint8*>(ColorDataBuffer);
 
 			// Copy one line at a time
 			for (int32 RowIndex = 0; RowIndex < ExpectedSizeY; RowIndex++)
 			{
-				const FFloat16Color* SrcPtr = &SrcColorData[RowIndex * SrcPitchElem];
-				FFloat16Color* DstPtr = &DstColorData[RowIndex * DstPitchElem];
-				FMemory::Memcpy(DstPtr, SrcPtr, DstPitchElem * sizeof(FFloat16Color));
+				const void* SrcPtr = SrcColorData + RowIndex * SrcPitchElem * SizeOfColor;
+				void* DstPtr = TypeErasedPixels + RowIndex * DstPitchElem * SizeOfColor;
+				FMemory::Memcpy(DstPtr, SrcPtr, DstPitchElem * SizeOfColor);
 			}
 		}
 
 		// Enqueue the Unmap before we broadcast the resulting pixels, though the broadcast shouldn't do anything blocking.
 		RHICmdList.UnmapStagingSurface(ReadbackTexture);
 
-		TUniquePtr<TImagePixelData<FFloat16Color>> PixelData = MakeUnique<TImagePixelData<FFloat16Color>>(FIntPoint(ExpectedSizeX, ExpectedSizeY), TArray64<FFloat16Color>(MoveTemp(OutputPixels)), InFramePayload);
 		InFunctionCallback(MoveTemp(PixelData));
 
 		// Now that we've successfully used the surface, we trigger the Available event so that we can reuse this surface. This

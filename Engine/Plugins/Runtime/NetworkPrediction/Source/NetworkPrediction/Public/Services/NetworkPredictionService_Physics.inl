@@ -17,6 +17,8 @@ public:
 	virtual void PostResimulate(const FFixedTickState* TickState) = 0;
 	virtual void PostNetworkPredictionFrame(const FFixedTickState* TickState) = 0;
 	virtual void PostPhysics() = 0; // todo
+
+	virtual void EnsureDataInSync(const TCHAR* ContextStr) = 0;
 };
 
 template<typename InModelDef>
@@ -54,7 +56,7 @@ public:
 		{
 			TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(BitIt.GetIndex());
 
-			FNetworkPredictionDriver<ModelDef>::PostPhysicsResimulate(InstanceData.Info.Driver, InstanceData.Info.Physics);
+			FNetworkPredictionDriver<ModelDef>::PostPhysicsResimulate(InstanceData.Info.Driver);
 		}
 	}
 
@@ -93,7 +95,7 @@ public:
 				}
 			}
 
-			UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, InstanceData.Info.Physics);
+			UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, InstanceData.Info.Driver);
 		}
 	}
 
@@ -102,6 +104,22 @@ public:
 		// Not implemented yet but the idea would be to do anything we need to do after physics run for the frame
 		// Tracing is the obvious example though it complicates the general tracing system a bit since it adds
 		// another point in the frame that we need to sample (pre NP tick (Net Recv/Rollback), post NP tick, post Physics tick)
+	}
+
+	void EnsureDataInSync(const TCHAR* ContextStr)
+	{
+		for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
+		{
+			TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(BitIt.GetIndex());
+
+			if (!FNetworkPredictionDriver<ModelDef>::PhysicsStateIsConsistent(InstanceData.Info.Driver))
+			{
+				TStringBuilder<128> Builder;
+				FNetworkPredictionDriver<ModelDef>::GetDebugString(InstanceData.Info.Driver, Builder);
+				UE_LOG(LogNetworkPrediction, Warning, TEXT("Physics State out of sync on %s (Context: %s)"), Builder.ToString(),  ContextStr);
+				npEnsure(false);
+			}
+		}
 	}
 	
 private:

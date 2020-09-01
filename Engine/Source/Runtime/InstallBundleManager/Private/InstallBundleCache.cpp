@@ -20,6 +20,7 @@ void FInstallBundleCache::AddOrUpdateBundle(EInstallBundleSourceType Source, con
 	FPerSourceBundleCacheInfo& Info = PerSourceCacheInfo.FindOrAdd(AddInfo.BundleName).FindOrAdd(Source);
 	Info.FullInstallSize = AddInfo.FullInstallSize;
 	Info.CurrentInstallSize = AddInfo.CurrentInstallSize;
+	Info.TimeStamp = AddInfo.TimeStamp;
 
 	UpdateCacheInfoFromSourceInfo(AddInfo.BundleName);
 
@@ -119,8 +120,15 @@ FInstallBundleCacheReserveResult FInstallBundleCache::Reserve(FName BundleName)
 
 	Result.Result = EInstallBundleCacheReserveResult::Fail_NeedsEvict;
 
-	// TODO: Should search in LRU order
-	// TODO: LRU sort should consider bHintReqeusted
+	CacheInfo.ValueSort([](const FBundleCacheInfo& A, const FBundleCacheInfo& B)
+	{
+		if (A.bHintReqeusted == B.bHintReqeusted)
+		{
+			return A.TimeStamp < B.TimeStamp;
+		}
+		
+		return !A.bHintReqeusted && B.bHintReqeusted;
+	});
 
 	uint64 CanFreeSpace = FreeSpace;
 	for (const TPair<FName, FBundleCacheInfo>& Pair : CacheInfo)
@@ -257,12 +265,17 @@ void FInstallBundleCache::UpdateCacheInfoFromSourceInfo(FName BundleName)
 		return;
 	}
 
+	FDateTime TimeStamp = FDateTime::MinValue();
 	uint64 FullInstallSize = 0;
 	uint64 CurrentInstallSize = 0;
 	for (const TPair<EInstallBundleSourceType, FPerSourceBundleCacheInfo>& Pair : *SourcesMap)
 	{
 		FullInstallSize += Pair.Value.FullInstallSize;
 		CurrentInstallSize += Pair.Value.CurrentInstallSize;
+		if (Pair.Value.CurrentInstallSize > 0 && Pair.Value.TimeStamp > TimeStamp)
+		{
+			TimeStamp = Pair.Value.TimeStamp;
+		}
 	}
 
 	FBundleCacheInfo& BundleCacheInfo = CacheInfo.FindOrAdd(BundleName);
@@ -270,4 +283,5 @@ void FInstallBundleCache::UpdateCacheInfoFromSourceInfo(FName BundleName)
 
 	BundleCacheInfo.FullInstallSize = FullInstallSize;
 	BundleCacheInfo.CurrentInstallSize = CurrentInstallSize;
+	BundleCacheInfo.TimeStamp = TimeStamp;
 }

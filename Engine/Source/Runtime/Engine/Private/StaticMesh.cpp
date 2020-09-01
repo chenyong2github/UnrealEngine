@@ -264,6 +264,8 @@ FArchive& operator<<(FArchive& Ar, FStaticMeshSection& Section)
 	}
 #endif
 
+	Ar << Section.bVisibleInRayTracing;
+
 	return Ar;
 }
 
@@ -2249,7 +2251,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("8A1DEAA415B140E48506E88E3BF897D0")
+#define STATICMESH_DERIVEDDATA_VER TEXT("8F2B4B5DB7F34B12B2982CF1F0241931")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -2529,7 +2531,7 @@ void FStaticMeshRenderData::BuildAreaWeighedSamplingData()
 
 void FStaticMeshRenderData::Cache(const ITargetPlatform* TargetPlatform, UStaticMesh* Owner, const FStaticMeshLODSettings& LODSettings)
 {
-	if (Owner->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (Owner->GetOutermost()->bIsCookedForEditor)
 	{
 		// Don't cache for cooked packages
 		return;
@@ -3519,7 +3521,7 @@ void UStaticMesh::BeginDestroy()
 	// Remove from the list of tracked assets if necessary
 	TrackRenderAssetEvent(nullptr, this, false, nullptr);
 
-	if (bRenderingResourcesInitialized)
+	if (!UpdateStreamingStatus() && bRenderingResourcesInitialized)
 	{
 		ReleaseResources();
 	}
@@ -3527,7 +3529,15 @@ void UStaticMesh::BeginDestroy()
 
 bool UStaticMesh::IsReadyForFinishDestroy()
 {
-	return ReleaseResourcesFence.IsFenceComplete() && !UpdateStreamingStatus();
+	if (UpdateStreamingStatus())
+	{
+		return false;
+	}
+	if (bRenderingResourcesInitialized)
+	{
+		ReleaseResources();
+	}
+	return ReleaseResourcesFence.IsFenceComplete();
 }
 
 void UStaticMesh::FinishDestroy()
@@ -3965,7 +3975,7 @@ static FStaticMeshRenderData& GetPlatformStaticMeshRenderData(UStaticMesh* Mesh,
 		BuildStaticMeshDerivedDataKeySuffix(Platform, Mesh, PlatformLODSettings.GetLODGroup(Mesh->LODGroup)));
 	FStaticMeshRenderData* PlatformRenderData = Mesh->RenderData.Get();
 
-	if (Mesh->GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (Mesh->GetOutermost()->bIsCookedForEditor)
 	{
 		check(PlatformRenderData);
 		return *PlatformRenderData;
@@ -4869,7 +4879,7 @@ void UStaticMesh::PostLoad()
 		}
 	}
 
-	if (!GetOutermost()->HasAnyPackageFlags(PKG_FilterEditorOnly))
+	if (!GetOutermost()->bIsCookedForEditor)
 	{
 		// Needs to happen before 'CacheDerivedData'
 		if (GetLinkerUE4Version() < VER_UE4_BUILD_SCALE_VECTOR)
@@ -5880,10 +5890,16 @@ static int32 GetCollisionVertIndexForMeshVertIndex(int32 MeshVertIndex, TMap<int
 
 bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionData, bool bInUseAllTriData)
 {
+	bool bInCheckComplexCollisionMesh = true;
+	return GetPhysicsTriMeshDataCheckComplex(CollisionData, bInUseAllTriData, bInCheckComplexCollisionMesh);
+}
+
+bool UStaticMesh::GetPhysicsTriMeshDataCheckComplex(struct FTriMeshCollisionData* CollisionData, bool bInUseAllTriData, bool bInCheckComplexCollisionMesh)
+{
 #if WITH_EDITORONLY_DATA
-	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
 	{
-		return ComplexCollisionMesh->GetPhysicsTriMeshData(CollisionData, bInUseAllTriData);
+		return ComplexCollisionMesh->GetPhysicsTriMeshDataCheckComplex(CollisionData, bInUseAllTriData, false); // Only one level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA
 	// the static mesh needs to be tagged for CPUAccess in order to access TriMeshData in runtime mode : 
@@ -5949,12 +5965,18 @@ bool UStaticMesh::GetPhysicsTriMeshData(struct FTriMeshCollisionData* CollisionD
 	return CollisionData->Vertices.Num() > 0 && CollisionData->Indices.Num() > 0;
 }
 
-bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const 
+bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
+{
+	bool bInCheckComplexCollisionMesh = true;
+	return ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, bInCheckComplexCollisionMesh);
+}
+
+bool UStaticMesh::ContainsPhysicsTriMeshDataCheckComplex(bool bInUseAllTriData, bool bInCheckComplexCollisionMesh) const
 {
 #if WITH_EDITORONLY_DATA
-	if (ComplexCollisionMesh && ComplexCollisionMesh != this)
+	if (ComplexCollisionMesh && ComplexCollisionMesh != this && bInCheckComplexCollisionMesh)
 	{
-		return ComplexCollisionMesh->ContainsPhysicsTriMeshData(bInUseAllTriData);
+		return ComplexCollisionMesh->ContainsPhysicsTriMeshDataCheckComplex(bInUseAllTriData, false); // One level of recursion
 	}
 #else // #if WITH_EDITORONLY_DATA
 	// without editor data, we can't selectively generate a physics mesh for a given LOD index (we're missing access to GetSectionInfoMap()) so force bInUseAllTriData in order to use LOD index 0
@@ -5994,9 +6016,14 @@ bool UStaticMesh::ContainsPhysicsTriMeshData(bool bInUseAllTriData) const
 void UStaticMesh::GetMeshId(FString& OutMeshId)
 {
 #if WITH_EDITORONLY_DATA
+	OutMeshId.Reset();
+	if (ComplexCollisionMesh && ComplexCollisionMesh->RenderData)
+	{
+		OutMeshId = ComplexCollisionMesh->RenderData->DerivedDataKey;
+	}
 	if (RenderData)
 	{
-		OutMeshId = RenderData->DerivedDataKey;
+		OutMeshId.Append(RenderData->DerivedDataKey);
 	}
 #endif
 }

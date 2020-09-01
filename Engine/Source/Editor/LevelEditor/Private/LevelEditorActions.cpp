@@ -91,6 +91,8 @@
 #include "LevelUtils.h"
 #include "ISceneOutliner.h"
 #include "ISettingsModule.h"
+#include "PlatformInfo.h"
+#include "Misc/CoreMisc.h"
 
 #if WITH_LIVE_CODING
 #include "ILiveCodingModule.h"
@@ -600,7 +602,7 @@ bool FLevelEditorActionCallbacks::IsFeatureLevelPreviewActive()
 
 bool FLevelEditorActionCallbacks::IsPreviewModeButtonVisible()
 {
-	return GEditor->PreviewPlatform.PreviewFeatureLevel != ERHIFeatureLevel::SM5;
+	return GEditor->IsFeatureLevelPreviewEnabled();
 }
 
 void FLevelEditorActionCallbacks::SetPreviewPlatform(FPreviewPlatformInfo NewPreviewPlatform)
@@ -3358,14 +3360,26 @@ void FLevelEditorCommands::RegisterCommands()
 	UI_COMMAND(MaterialQualityLevel_Low, "Low", "Sets material quality in the scene to low.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(MaterialQualityLevel_Medium, "Medium", "Sets material quality in the scene to medium.", EUserInterfaceActionType::RadioButton, FInputChord());
 	UI_COMMAND(MaterialQualityLevel_High, "High", "Sets material quality in the scene to high.", EUserInterfaceActionType::RadioButton, FInputChord());
+	UI_COMMAND(MaterialQualityLevel_Epic, "Epic", "Sets material quality in the scene to Epic.", EUserInterfaceActionType::RadioButton, FInputChord());
 
 	UI_COMMAND(ToggleFeatureLevelPreview, "Preview Mode Toggle", "Toggles the Preview Mode on or off for the currently selected Preview target", EUserInterfaceActionType::ToggleButton, FInputChord());
 
 	UI_COMMAND(PreviewPlatformOverride_SM5, "Shader Model 5", "DirectX 11, OpenGL 4.3+, PS4, XB1", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(PreviewPlatformOverride_AndroidGLES31, "Android ES 3.1", "Mobile preview using Android ES3.1 quality settings.", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(PreviewPlatformOverride_AndroidVulkanES31, "Android Vulkan", "Mobile preview using Android Vulkan quality settings.", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(PreviewPlatformOverride_AndroidVulkanSM5, "Android Vulkan SM5", "Mobile preview using Android Vulkan SM5 quality settings.", EUserInterfaceActionType::Check, FInputChord());
-	UI_COMMAND(PreviewPlatformOverride_IOSMetalES31, "iOS", "Mobile preview using iOS material quality settings.", EUserInterfaceActionType::Check, FInputChord());
+
+	// Add preview platforms
+	for (auto It = PlatformInfo::GetPreviewPlatformMenuItems().CreateConstIterator(); It; ++It)
+	{
+		PreviewPlatformOverrides.Add(
+			It.Key(),
+			FUICommandInfoDecl(
+				this->AsShared(),
+				FName(*(FString(TEXT("PreviewPlatformOverrides"))+It.Key().ToString())),
+				It.Value().MenuText,
+				It.Value().MenuTooltip)
+			.UserInterfaceType(EUserInterfaceActionType::Check)
+			.DefaultChord(FInputChord())
+		);
+	}
 
 	UI_COMMAND(GeometryCollectionSelectAllGeometry, "Select All Geometry In Hierarchy", "Select all geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(GeometryCollectionSelectNone, "Deselect All Geometry In Hierarchy", "Deselect all geometry in hierarchy", EUserInterfaceActionType::Button, FInputChord());

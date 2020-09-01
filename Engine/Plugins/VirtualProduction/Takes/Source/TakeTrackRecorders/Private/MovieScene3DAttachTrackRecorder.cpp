@@ -22,11 +22,11 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 	AActor* ActorToRecord = Cast<AActor>(ObjectToRecord.Get());
 	if (ActorToRecord)
 	{
+		FFrameRate TickResolution = MovieScene->GetTickResolution();
+		FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
+
 		if (MovieSceneSection.IsValid())
 		{
-			FFrameRate TickResolution = MovieSceneSection->GetTypedOuter<UMovieScene>()->GetTickResolution();
-			FFrameNumber CurrentFrame = CurrentTime.ConvertTo(TickResolution).FloorToFrame();
-
 			MovieSceneSection->SetEndFrame(CurrentFrame);
 		}
 
@@ -52,10 +52,12 @@ void UMovieScene3DAttachTrackRecorder::RecordSampleImpl(const FQualifiedFrameTim
 				MovieSceneSection->AttachSocketName = SocketName;
 				MovieSceneSection->AttachComponentName = ComponentName;
 
-				// Newly created attach sections should match the parent movie scene. This is effectively an infinite attach section, 
-				// but clamped to the bounds of the parent movie scene
 				MovieSceneSection->TimecodeSource = MovieScene->TimecodeSource;
-				MovieSceneSection->SetRange(MovieScene->GetPlaybackRange());
+				MovieSceneSection->SetRange(TRange<FFrameNumber>(CurrentFrame, CurrentFrame));
+
+				FMovieSceneSequenceID SequenceID;
+				SequenceID = OwningTakeRecorderSource->GetLevelSequenceID(AttachedToActor);
+				MovieSceneSection->SetConstraintId(Guid, SequenceID);
 			}
 
 			ActorAttachedTo = AttachedToActor;

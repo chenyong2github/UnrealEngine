@@ -6,27 +6,21 @@
 #include "NiagaraGraph.h"
 #include "NiagaraEditorModule.h"
 #include "NiagaraComponent.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/IShaderFormat.h"
 #include "ShaderFormatVectorVM.h"
-#include "NiagaraConstants.h"
 #include "NiagaraSystem.h"
 #include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraFunctionLibrary.h"
-#include "NiagaraScriptSource.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraDataInterfaceStaticMesh.h"
-#include "NiagaraDataInterfaceCurlNoise.h"
 #include "ViewModels/Stack/NiagaraStackGraphUtilities.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
-#include "NiagaraNodeEmitter.h"
 #include "NiagaraNodeOutput.h"
 #include "ShaderCore.h"
 #include "EdGraphSchema_Niagara.h"
+#include "EdGraphUtilities.h"
 #include "Misc/FileHelper.h"
 #include "ShaderCompiler.h"
 #include "NiagaraShader.h"
@@ -34,7 +28,6 @@
 #include "NiagaraRendererProperties.h"
 #include "NiagaraSimulationStageBase.h"
 #include "Serialization/MemoryReader.h"
-#include "HAL/ThreadSafeBool.h"
 #include "../../Niagara/Private/NiagaraPrecompileContainer.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraCompiler"
@@ -143,7 +136,6 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 	{
 		return;
 	}
-	UPackage* OwningPackage = InGraph->GetOutermost();
 
 	TArray<UNiagaraNode*> Nodes;
 	InGraph->GetNodesOfClass(Nodes);
@@ -182,8 +174,11 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 						bool bHasNumericParams = FunctionGraph->HasNumericParameters();
 						bool bHasNumericInputs = false;
 
-						UPackage* FunctionPackage = FunctionGraph->GetOutermost();
-						bool bFromDifferentPackage = OwningPackage != FunctionPackage;
+						// Any function which is not directly owned by it's outer function call node must be cloned since its graph
+						// will be modified in some way with it's internals function calls replaced with cloned references, or with
+						// numeric fixup.  Currently the only scripts which don't need cloning are scripts used by UNiagaraNodeAssignment
+						// module nodes and UNiagaraNodeCustomHlsl expression dynamic input nodes.
+						bool bRequiresClonedScript = FunctionScript->GetOuter()->IsA<UNiagaraNodeFunctionCall>() == false;
 
 						TArray<UEdGraphPin*> CallOutputs;
 						TArray<UEdGraphPin*> CallInputs;
@@ -216,40 +211,7 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 						if (!PreprocessedFunctions.Contains(FunctionGraph))
 						{
 							UNiagaraScript* DupeScript = nullptr;
-							bool bNeedsDuplicateAndPreprocess = false;
-							if (bFromDifferentPackage || bHasNumericParams)
-							{
-								bNeedsDuplicateAndPreprocess = true;
-							}
-							else
-							{
-								// If the script isn't in a separate asset (e.g. scratch pad), and it doesn't have numeric inputs or outputs then we need to check the internal pins for numerics
-								// since those scripts need to be duplicated and preprocessed as well.
-								auto NodeHasNumericPins = [Schema](UEdGraphNode* Node)
-								{
-									UNiagaraNode* NiagaraNode = Cast<UNiagaraNode>(Node);
-									if (NiagaraNode == nullptr)
-									{
-										return false;
-									}
-
-									for (UEdGraphPin* Pin : NiagaraNode->Pins)
-									{
-										if (Schema->PinToTypeDefinition(Pin) == FNiagaraTypeDefinition::GetGenericNumericDef())
-										{
-											return true;
-										}
-									}
-									return false;
-								};
-
-								if(FunctionGraph->Nodes.ContainsByPredicate(NodeHasNumericPins))
-								{
-									bNeedsDuplicateAndPreprocess = true;
-								}
-							}
-
-							if (bNeedsDuplicateAndPreprocess == false)
+							if (bRequiresClonedScript == false)
 							{
 								DupeScript = FunctionScript;
 								ProcessedGraph = FunctionGraph;
@@ -312,7 +274,7 @@ void FNiagaraCompileRequestData::VisitReferencedGraphsRecursive(UNiagaraGraph* I
 							FoundArray->Add(Data);
 							VisitReferencedGraphsRecursive(ProcessedGraph, ConstantResolver, bNeedsCompilation);
 						}
-						else if (bFromDifferentPackage)
+						else if(bRequiresClonedScript)
 						{
 							TArray<FunctionData>* FoundArray = PreprocessedFunctions.Find(FunctionGraph);
 							check(FoundArray != nullptr && FoundArray->Num() != 0);
@@ -524,10 +486,9 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
 			Builder.BuildParameterMaps(FoundOutputNode, true);
 			
-			TArray<FNiagaraParameterMapHistory> Histories = Builder.Histories;
-			ensure(Histories.Num() <= 1);
+			ensure(Builder.Histories.Num() <= 1);
 
-			for (FNiagaraParameterMapHistory& History : Histories)
+			for (FNiagaraParameterMapHistory& History : Builder.Histories)
 			{
 				History.OriginatingScriptUsage = FoundOutputNode->GetUsage();
 				for (FNiagaraVariable& Var : History.Variables)
@@ -543,31 +504,36 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 				NumSimStageNodes++;
 			}
 
-			PrecompiledHistories.Append(Histories);
+			PrecompiledHistories.Append(Builder.Histories);
 			Builder.EndTranslation(TranslationName);
 		}
 
 		if (SimStages && NumSimStageNodes)
 		{
-			SpawnOnlyPerStage.AddZeroed(NumSimStageNodes);
-			NumIterationsPerStage.AddZeroed(NumSimStageNodes);
-			IterationSourcePerStage.AddZeroed(NumSimStageNodes);
-			StageGuids.AddDefaulted(NumSimStageNodes);
-			StageNames.AddDefaulted(NumSimStageNodes);
-			int32 NumProvidedStages = SimStages->Num();
+			SpawnOnlyPerStage.Reserve(NumSimStageNodes);
+			PartialParticleUpdatePerStage.Reserve(NumSimStageNodes);
+			NumIterationsPerStage.Reserve(NumSimStageNodes);
+			IterationSourcePerStage.Reserve(NumSimStageNodes);
+			StageGuids.Reserve(NumSimStageNodes);
+			StageNames.Reserve(NumSimStageNodes);
+			const int32 NumProvidedStages = SimStages->Num();
 
-			for (int32 i = 0; i < NumSimStageNodes && i < NumProvidedStages; i++)
+			for (int32 i=0; i < NumSimStageNodes && i < NumProvidedStages; ++i)
 			{
-				UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>((*SimStages)[i]);
-
-				if (GenericStage)
+				UNiagaraSimulationStageBase* SimStage = (*SimStages)[i];
+				if (SimStage == nullptr || !SimStage->bEnabled)
 				{
-					NumIterationsPerStage[i] = GenericStage->Iterations;
-					IterationSourcePerStage[i] = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
-					SpawnOnlyPerStage[i] = GenericStage->bSpawnOnly;
-					StageGuids[i] = GenericStage->Script->GetUsageId();
-					StageNames[i] = GenericStage->SimulationStageName;
+					continue;
+				}
 
+				if ( UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage) )
+				{
+					NumIterationsPerStage.Add(GenericStage->Iterations);
+					IterationSourcePerStage.Add(GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName());
+					SpawnOnlyPerStage.Add(GenericStage->bSpawnOnly);
+					PartialParticleUpdatePerStage.Add(GenericStage->bPartialParticleUpdate);
+					StageGuids.Add(GenericStage->Script->GetUsageId());
+					StageNames.Add(GenericStage->SimulationStageName);
 				}
 			}
 		}
@@ -751,8 +717,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 				{
 					for (const FNiagaraVariable& BoundAttribute : RendererProperty->GetBoundAttributes())
 					{
-						const int32 OrigCount = BasePtr->EmitterData[i]->RequiredRendererVariables.Num();
-
 						BasePtr->EmitterData[i]->RequiredRendererVariables.AddUnique(BoundAttribute);
 					}
 				}
@@ -937,8 +901,6 @@ TSharedPtr<FNiagaraCompileRequestDataBase, ESPMode::ThreadSafe> FNiagaraEditorMo
 int32 FNiagaraEditorModule::CompileScript(const FNiagaraCompileRequestDataBase* InCompileRequest, const FNiagaraCompileOptions& InCompileOptions)
 {
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraEditor_Module_CompileScript);
-
-	double StartTime = FPlatformTime::Seconds();
 
 	check(InCompileRequest != NULL);
 	const FNiagaraCompileRequestData* CompileRequest = (const FNiagaraCompileRequestData*)InCompileRequest;
@@ -1356,6 +1318,11 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 		Results.Data->NumTempRegisters = CompilationOutput.MaxTempRegistersUsed + 1;
 		Results.Data->LastAssemblyTranslation = CompilationOutput.AssemblyAsString;
 		Results.Data->LastOpCount = CompilationOutput.NumOps;
+
+		if (GbForceNiagaraVMBinaryDump != 0 && Results.Data.IsValid())
+		{
+			DumpHLSLText(Results.Data->LastAssemblyTranslation, CompilationJob->CompileResults.DumpDebugInfoPath);
+		}
 
 		Results.Data->InternalParameters.Empty();
 		for (int32 i = 0; i < CompilationOutput.InternalConstantOffsets.Num(); ++i)

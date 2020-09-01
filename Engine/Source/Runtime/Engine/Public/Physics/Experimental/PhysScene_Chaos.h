@@ -63,6 +63,9 @@ namespace Chaos
 
 }
 
+
+extern int32 GEnableKinematicDeferralStartPhysicsCondition;
+
 /**
 * Low level Chaos scene used when building custom simulations that don't exist in the main world physics scene.
 */
@@ -260,7 +263,7 @@ private:
 	bool IsOwningWorldEditor() const;
 #endif
 
-	virtual void OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
+	virtual void OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor) override;
 
 #if 0
 	void SetKinematicTransform(FPhysicsActorHandle& InActorReference,const Chaos::TRigidTransform<float,3>& NewTransform)

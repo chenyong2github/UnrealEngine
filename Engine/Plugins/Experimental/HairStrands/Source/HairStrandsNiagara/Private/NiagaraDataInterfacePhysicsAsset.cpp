@@ -395,8 +395,7 @@ bool FNDIPhysicsAssetData::Init(UNiagaraDataInterfacePhysicsAsset* Interface, FN
 		Interface->ExtractSourceComponent(SystemInstance);
 
 		PhysicsAssetBuffer = new FNDIPhysicsAssetBuffer();
-		PhysicsAssetBuffer->Initialize(Interface->PhysicsAssets, Interface->SourceComponents,
-			SystemInstance->GetComponent()->GetComponentTransform());
+		PhysicsAssetBuffer->Initialize(Interface->PhysicsAssets, Interface->SourceComponents, SystemInstance->GetWorldTransform());
 
 		BeginInitResource(PhysicsAssetBuffer);
 
@@ -485,7 +484,7 @@ public:
 		FNDIPhysicsAssetProxy* InterfaceProxy =
 			static_cast<FNDIPhysicsAssetProxy*>(Context.DataInterface);
 		FNDIPhysicsAssetData* ProxyData =
-			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstance);
+			InterfaceProxy->SystemInstancesToProxyData.Find(Context.SystemInstanceID);
 
 		if (ProxyData != nullptr && ProxyData->PhysicsAssetBuffer && ProxyData->PhysicsAssetBuffer->IsInitialized())
 		{
@@ -580,18 +579,6 @@ void FNDIPhysicsAssetProxy::DestroyPerInstanceData(NiagaraEmitterInstanceBatcher
 	SystemInstancesToProxyData.Remove(SystemInstance);
 }
 
-void FNDIPhysicsAssetProxy::PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
-void FNDIPhysicsAssetProxy::PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
-void FNDIPhysicsAssetProxy::ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context)
-{
-}
-
 //------------------------------------------------------------------------------------------------------------
 
 UNiagaraDataInterfacePhysicsAsset::UNiagaraDataInterfacePhysicsAsset(FObjectInitializer const& ObjectInitializer)
@@ -606,6 +593,7 @@ UNiagaraDataInterfacePhysicsAsset::UNiagaraDataInterfacePhysicsAsset(FObjectInit
 
 void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemInstance* SystemInstance)
 {
+	// Track down the source component
 	TWeakObjectPtr<USkeletalMeshComponent> SourceComponent;
 	if (SourceActor)
 	{
@@ -619,51 +607,41 @@ void UNiagaraDataInterfacePhysicsAsset::ExtractSourceComponent(FNiagaraSystemIns
 			SourceComponent = SourceActor->FindComponentByClass<USkeletalMeshComponent>();
 		}
 	}
-	else
+	else if (USceneComponent* AttachComponent = SystemInstance->GetAttachComponent())
 	{
-		if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
+		// Try to find the component by walking the attachment hierarchy
+		for (USceneComponent* Curr = AttachComponent; Curr; Curr = Curr->GetAttachParent())
 		{
-			if (USkeletalMeshComponent* ParentComp = Cast<USkeletalMeshComponent>(SimComp->GetAttachParent()))
+			USkeletalMeshComponent* SkelMeshComp = Cast<USkeletalMeshComponent>(Curr);
+			if (SkelMeshComp && SkelMeshComp->SkeletalMesh)
 			{
-				SourceComponent = ParentComp;
-			}
-			else if (USkeletalMeshComponent* OuterComp = SimComp->GetTypedOuter<USkeletalMeshComponent>())
-			{
-				SourceComponent = OuterComp;
-			}
-			else
-			{
-				TArray<USceneComponent*> SceneComponents;
-				SimComp->GetParentComponents(SceneComponents);
-
-				for (USceneComponent* ActorComp : SceneComponents)
-				{
-					USkeletalMeshComponent* SourceComp = Cast<USkeletalMeshComponent>(ActorComp);
-					if (SourceComp && SourceComp->SkeletalMesh)
-					{
-						SourceComponent = SourceComp;
-						break;
-					}
-				}
-			}
-		}
-	}
-	UPhysicsAsset* GroomPhysicsAsset = DefaultSource;
-	if (UNiagaraComponent* SimComp = SystemInstance->GetComponent())
-	{
-		TArray<USceneComponent*> SceneComponents;
-		SimComp->GetParentComponents(SceneComponents);
-
-		for (USceneComponent* ActorComp : SceneComponents)
-		{
-			UGroomComponent* SourceComp = Cast<UGroomComponent>(ActorComp);
-			if (SourceComp && SourceComp->PhysicsAsset)
-			{
-				GroomPhysicsAsset = SourceComp->PhysicsAsset;
+				SourceComponent = SkelMeshComp;
 				break;
 			}
 		}
+
+		if (!SourceComponent.IsValid())
+		{
+			// Fall back on the attach component's outer chain if we aren't attached to the skeletal mesh 
+			if (USkeletalMeshComponent* OuterComp = AttachComponent->GetTypedOuter<USkeletalMeshComponent>())
+			{
+				SourceComponent = OuterComp;
+			}
+		}
 	}
+
+	// Try to find the groom physics asset by walking the attachment hierarchy
+	UPhysicsAsset* GroomPhysicsAsset = DefaultSource;
+	for (USceneComponent* Curr = SystemInstance->GetAttachComponent(); Curr; Curr = Curr->GetAttachParent())
+	{
+		UGroomComponent* GroomComponent = Cast<UGroomComponent>(Curr);
+		if (GroomComponent && GroomComponent->PhysicsAsset)
+		{
+			GroomPhysicsAsset = GroomComponent->PhysicsAsset;
+			break;
+		}
+	}
+
 	const bool IsAssetMatching = (SourceComponent != nullptr) && (GroomPhysicsAsset != nullptr) &&
 		(GroomPhysicsAsset->GetPreviewMesh() == SourceComponent->SkeletalMesh);
 
@@ -742,7 +720,7 @@ bool UNiagaraDataInterfacePhysicsAsset::PerInstanceTick(void* PerInstanceData, F
 	FNDIPhysicsAssetData* InstanceData = static_cast<FNDIPhysicsAssetData*>(PerInstanceData);
 	if (InstanceData->PhysicsAssetBuffer && SystemInstance)
 	{
-		InstanceData->PhysicsAssetBuffer->Update(SystemInstance->GetComponent()->GetComponentTransform());
+		InstanceData->PhysicsAssetBuffer->Update(SystemInstance->GetWorldTransform());
 	}
 	return false;
 }

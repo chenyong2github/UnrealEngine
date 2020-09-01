@@ -14,10 +14,42 @@
 #include "UObject/Class.h"
 #include "UObject/ObjectMacros.h"
 
+#include "Sound/SoundSubmixSend.h"
+
 #include "AudioVolume.generated.h"
 
 class AAudioVolume;
 struct FBodyInstance;
+
+// Enum describing the state of checking audio volume location
+UENUM(BlueprintType)
+enum class EAudioVolumeLocationState : uint8
+{
+	// A send based on linear interpolation between a distance range and send-level range
+	InsideTheVolume,
+
+	// A send based on a supplied curve
+	OutsideTheVolume,
+};
+
+/** Struct to determine dynamic submix send data for use with audio volumes. */
+USTRUCT(BlueprintType)
+struct FAudioVolumeSubmixSendSettings
+{
+	GENERATED_USTRUCT_BODY()
+
+	// The state the listener needs to be in, relative to the audio volume, for this submix send list to be used for a given sound
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
+	EAudioVolumeLocationState ListenerLocationState = EAudioVolumeLocationState::InsideTheVolume;
+
+	// The state the source needs to be in, relative to the audio volume, for this submix send list to be used for a given sound
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
+	EAudioVolumeLocationState SourceLocationState = EAudioVolumeLocationState::InsideTheVolume;
+
+	// Submix send array for sounds that are outside the audio volume when the listener is inside the volume
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = AudioVolumeSubmixSends)
+	TArray<FSoundSubmixSendInfo> SubmixSends;
+};
 
 /** Struct encapsulating settings for interior areas. */
 USTRUCT(BlueprintType)
@@ -99,6 +131,7 @@ struct FAudioVolumeProxy
 	float Priority;
 	FReverbSettings ReverbSettings;
 	FInteriorSettings InteriorSettings;
+	TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
 	FBodyInstance* BodyInstance; // This is scary
 };
 
@@ -127,6 +160,10 @@ private:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=AmbientZone, meta=(AllowPrivateAccess="true"))
 	FInteriorSettings AmbientZoneSettings;
 
+	/** Submix send settings to use for this volume. Allows audio to dynamically send to submixes based on source and listener locations relative to this volume. */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SubmixSends, meta = (AllowPrivateAccess = "true"))
+	TArray<FAudioVolumeSubmixSendSettings> SubmixSendSettings;
+
 public:
 
 	float GetPriority() const { return Priority; }
@@ -148,6 +185,11 @@ public:
 
 	UFUNCTION(BlueprintCallable, Category=AudioVolume)
 	void SetInteriorSettings(const FInteriorSettings& NewInteriorSettings);
+
+	const TArray<FAudioVolumeSubmixSendSettings>& GetSubmixSendSettings() const { return SubmixSendSettings; }
+
+	UFUNCTION(BlueprintCallable, Category = AudioVolume)
+	void SetSubmixSendSettings(const TArray<FAudioVolumeSubmixSendSettings>& NewSubmixSendSettings);
 
 private:
 

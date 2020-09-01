@@ -231,6 +231,14 @@ public:
 			if (AnimInstance)
 			{
 				AnimInstance->Montage_Stop(0.0f);
+
+				const TArray<UAnimInstance*>& LinkedInstances = const_cast<const USkeletalMeshComponent*>(InSkeletalMeshComponent)->GetLinkedAnimInstances();
+				for (UAnimInstance* LinkedInstance : LinkedInstances)
+				{
+					// Sub anim instances are always forced to do a parallel update 
+					LinkedInstance->UpdateAnimation(0.0f, false, UAnimInstance::EUpdateAnimationFlag::ForceParallelUpdate);
+				}
+
 				AnimInstance->UpdateAnimation(0.0f, false);
 			}
 

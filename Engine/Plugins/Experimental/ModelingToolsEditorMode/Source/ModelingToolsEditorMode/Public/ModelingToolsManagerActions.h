@@ -9,7 +9,7 @@
 /**
  * TInteractiveToolCommands implementation for this module that provides standard Editor hotkey support
  */
-class FModelingToolsManagerCommands : public TCommands<FModelingToolsManagerCommands>
+class MODELINGTOOLSEDITORMODE_API FModelingToolsManagerCommands : public TCommands<FModelingToolsManagerCommands>
 {
 public:
 	FModelingToolsManagerCommands();
@@ -36,6 +36,7 @@ public:
 
 	TSharedPtr<FUICommandInfo> BeginSculptMeshTool;
 	TSharedPtr<FUICommandInfo> BeginPolyEditTool;
+	TSharedPtr<FUICommandInfo> BeginEdgeLoopInsertionTool;
 	TSharedPtr<FUICommandInfo> BeginTriEditTool;
 	TSharedPtr<FUICommandInfo> BeginPolyDeformTool;
 	TSharedPtr<FUICommandInfo> BeginSmoothMeshTool;
@@ -74,6 +75,11 @@ public:
 	TSharedPtr<FUICommandInfo> BeginMeshToVolumeTool;
 	TSharedPtr<FUICommandInfo> BeginVolumeToMeshTool;
 
+	TSharedPtr<FUICommandInfo> BeginPhysicsInspectorTool;
+	TSharedPtr<FUICommandInfo> BeginSetCollisionGeometryTool;
+	TSharedPtr<FUICommandInfo> BeginEditCollisionGeometryTool;
+	TSharedPtr<FUICommandInfo> BeginExtractCollisionGeometryTool;
+
 	TSharedPtr<FUICommandInfo> BeginMeshInspectorTool;
 	TSharedPtr<FUICommandInfo> BeginGlobalUVGenerateTool;
 	TSharedPtr<FUICommandInfo> BeginGroupUVGenerateTool;
@@ -88,7 +94,7 @@ public:
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
 	TSharedPtr<FUICommandInfo> CompleteActiveTool;
-
+	TSharedPtr<FUICommandInfo> CancelOrCompleteActiveTool;
 
 	/**
 	 * Initialize commands

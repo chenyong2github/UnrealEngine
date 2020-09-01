@@ -69,7 +69,7 @@ public:
 		return Parent->IsEncryptionEnabled();
 	}
 
-	virtual void Tick() override
+	virtual void Tick(float DeltaSeconds) override
 	{
 		State = Parent->State;
 	}

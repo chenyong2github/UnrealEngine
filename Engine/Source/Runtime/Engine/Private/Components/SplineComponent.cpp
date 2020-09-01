@@ -11,6 +11,10 @@
 #include "SceneManagement.h"
 #include "UnrealEngine.h"
 
+#if WITH_EDITOR
+#include "Settings/LevelEditorViewportSettings.h"
+#endif
+
 #define SPLINE_FAST_BOUNDS_CALCULATION 0
 
 const FInterpCurvePointVector USplineComponent::DummyPointPosition(0.0f, FVector::ZeroVector, FVector::ForwardVector, FVector::ForwardVector, CIM_Constant);
@@ -38,6 +42,7 @@ USplineComponent::USplineComponent(const FObjectInitializer& ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 	, EditorUnselectedSplineSegmentColor(FLinearColor(1.0f, 1.0f, 1.0f))
 	, EditorSelectedSplineSegmentColor(FLinearColor(0.828f, 0.364f, 0.003f))
+	, EditorTangentColor(FLinearColor(1.0f, 1.0f, 1.0f))
 	, bAllowDiscontinuousSpline(false)
 	, bShouldVisualizeScale(false)
 	, ScaleVisualizationWidth(30.0f)
@@ -530,6 +535,13 @@ void USplineComponent::SetSelectedSplineSegmentColor(const FLinearColor& Color)
 #endif
 }
 
+void USplineComponent::SetTangentColor(const FLinearColor& Color)
+{
+#if WITH_EDITORONLY_DATA
+	EditorTangentColor = Color;
+#endif
+}
+
 
 void USplineComponent::SetDrawDebug(bool bShow)
 {
@@ -871,6 +883,38 @@ void USplineComponent::SetUpVectorAtSplinePoint(int32 PointIndex, const FVector&
 	}
 }
 
+void USplineComponent::SetRotationAtSplinePoint(int32 PointIndex, const FRotator& InRotation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline /*= true*/)
+{
+	if (SplineCurves.Rotation.Points.IsValidIndex(PointIndex))
+	{
+		const FQuat Quat = (CoordinateSpace == ESplineCoordinateSpace::World) ?
+			GetComponentTransform().InverseTransformRotation(InRotation.Quaternion()) : InRotation.Quaternion();
+
+		FVector UpVector = Quat.GetUpVector();
+		SetUpVectorAtSplinePoint(PointIndex, UpVector, CoordinateSpace, false);
+
+		FVector Direction = Quat.GetForwardVector();
+		SetTangentAtSplinePoint(PointIndex, Direction, CoordinateSpace, false);
+
+		if (bUpdateSpline)
+		{
+			UpdateSpline();
+		}
+	}
+}
+
+void USplineComponent::SetScaleAtSplinePoint(int32 PointIndex, const FVector& InScaleVector, bool bUpdateSpline /*= true*/)
+{
+	if (SplineCurves.Rotation.Points.IsValidIndex(PointIndex))
+	{
+		SplineCurves.Scale.Points[PointIndex].OutVal = InScaleVector;
+
+		if (bUpdateSpline)
+		{
+			UpdateSpline();
+		}
+	}
+}
 
 ESplinePointType::Type USplineComponent::GetSplinePointType(int32 PointIndex) const
 {
@@ -1591,12 +1635,19 @@ void USplineComponent::Draw(FPrimitiveDrawInterface* PDI, const FSceneView* View
 
 				// Then draw a line for each substep.
 				const int32 NumSteps = 20;
+#if WITH_EDITOR
+				const float SegmentLineThickness = GetDefault<ULevelEditorViewportSettings>()->SplineLineThicknessAdjustment;
+#endif
 
 				for (int32 StepIdx = 1; StepIdx <= NumSteps; StepIdx++)
 				{
 					const float Key = (KeyIdx - 1) + (StepIdx / static_cast<float>(NumSteps));
 					const FVector NewPos = LocalToWorld.TransformPosition(SplineInfo.Eval(Key, FVector(0)));
+#if WITH_EDITOR
+					PDI->DrawLine(OldPos, NewPos, LineColor, DepthPriorityGroup, SegmentLineThickness);
+#else
 					PDI->DrawLine(OldPos, NewPos, LineColor, DepthPriorityGroup);
+#endif
 					OldPos = NewPos;
 				}
 			}

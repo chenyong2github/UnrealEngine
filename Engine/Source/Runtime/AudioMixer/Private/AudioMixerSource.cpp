@@ -193,14 +193,14 @@ namespace Audio
 						InitParams.SourceBusDuration = WaveInstance->WaveData->GetDuration();
 					}
 				}
-
-				// Toggle muting the source if sending only to output bus.
-				// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
-				InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
-				DynamicBusSendInfos.Reset();
-
-				InitBusSends(WaveInstance, InitParams);
 			}
+
+			// Toggle muting the source if sending only to output bus.
+			// This can get set even if the source doesn't have bus sends since bus sends can be dynamically enabled.
+			InitParams.bOutputToBusOnly = WaveInstance->bOutputToBusOnly;
+			DynamicBusSendInfos.Reset();
+
+			InitBusSends(WaveInstance, InitParams);
 
 			// Don't set up any submixing if we're set to output to bus only
 			if (!InitParams.bOutputToBusOnly)
@@ -1043,6 +1043,34 @@ namespace Audio
 				}
 			}
 		}
+
+		// Clear submix sends if they need clearing.
+		if (PreviousSubmixSendSettings.Num() > 0)
+		{
+			// Loop through every previous send setting
+			for (FSoundSubmixSendInfo& PreviousSendSetting : PreviousSubmixSendSettings)
+			{
+				bool bFound = false;
+
+				// See if it's in the current send list
+				for (const FSoundSubmixSendInfo& CurrentSendSettings : WaveInstance->SoundSubmixSends)
+				{
+					if (CurrentSendSettings.SoundSubmix == PreviousSendSetting.SoundSubmix)
+					{
+						bFound = true;
+						break;
+					}
+				}
+
+				// If it's not in the current send list, add to submixes to clear
+				if (!bFound)
+				{
+					FMixerSubmixPtr SubmixPtr = MixerDevice->GetSubmixInstance(PreviousSendSetting.SoundSubmix).Pin();
+					MixerSourceVoice->ClearSubmixSendInfo(SubmixPtr);
+				}
+			}
+		}
+		PreviousSubmixSendSettings = WaveInstance->SoundSubmixSends;
 
 		// Update submix send levels
 		for (FSoundSubmixSendInfo& SendInfo : WaveInstance->SoundSubmixSends)

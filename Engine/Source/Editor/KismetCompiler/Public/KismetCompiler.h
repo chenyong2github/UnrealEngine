@@ -139,9 +139,6 @@ public:
 	// CreateClassVariablesFromBlueprint:
 	bool bAssignDelegateSignatureFunction;
 
-	// Flag to trigger ProcessLinkedGraph in CreateClassVariablesFromBlueprint:
-	bool bGenerateLinkedAnimGraphVariables;
-
 	static FSimpleMulticastDelegate OnPreCompile;
 	static FSimpleMulticastDelegate OnPostCompile;
 
@@ -354,6 +351,9 @@ protected:
 	 */
 	void CheckConnectionResponse(const FPinConnectionResponse &Response, const UEdGraphNode *Node);
 
+	/** Prune isolated nodes given the specified graph */
+	void PruneIsolatedNodes(UEdGraph* InGraph, bool bInIncludeNodesThatCouldBeExpandedToRootSet);
+
 protected:
 	// FGraphCompilerContext interface
 	virtual void ValidateLink(const UEdGraphPin* PinA, const UEdGraphPin* PinB) const override;
@@ -386,6 +386,9 @@ protected:
 	// Gives derived classes a chance to hook up any custom logic
 	virtual void PreCompile() { OnPreCompile.Broadcast(); }
 	virtual void PostCompile() { OnPostCompile.Broadcast(); }
+
+	// Gives derived classes a chance to process post-node expansion
+	virtual void PostExpansionStep(UEdGraph* Graph) {}
 
 	/** Determines if a node is pure */
 	virtual bool IsNodePure(const UEdGraphNode* Node) const;

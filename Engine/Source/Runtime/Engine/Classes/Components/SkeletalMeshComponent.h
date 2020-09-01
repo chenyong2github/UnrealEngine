@@ -637,6 +637,9 @@ protected:
 	uint8 bUpdateAnimationInEditor : 1;
 #endif
 
+	/** If true, OnSyncComponentToRBPhysics() notify will be called */
+	uint8 bNotifySyncComponentToRBPhysics : 1;
+
 private:
 
 	UPROPERTY(Transient)
@@ -696,6 +699,12 @@ public:
 	
 	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "This property is deprecated, please set it on the Clothing Asset / ClothConfig instead."))
 	float ShapeTargetStiffness_DEPRECATED;
+
+	/** Whether we should stall the Cloth tick task until the cloth simulation is complete. This is required if we want up-to-date
+	 * cloth data on the game thread, for example if we want to generate particles at cloth vertices.
+	 */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Clothing)
+	bool bWaitForParallelClothTask;
 
 private:
 
@@ -1275,11 +1284,11 @@ public:
 	/** Callback when the parallel clothing task finishes, copies needed data back to component for gamethread */
 	void CompleteParallelClothSimulation();
 
-	/** Get the current simulation data map for the clothing on this component. Only valid on the game thread */
-	const TMap<int32, FClothSimulData>& GetCurrentClothingData_GameThread() const
-	{
-		return CurrentSimulationData_GameThread;
-	}
+	/** Get the current simulation data map for the clothing on this component. For use on the game thread and only valid if bWaitForParallelClothTask is true. */
+	const TMap<int32, FClothSimulData>& GetCurrentClothingData_GameThread() const;
+
+	/** Get the current simulation data map for the clothing on this component. This will stall until the cloth simulation is complete. */
+	const TMap<int32, FClothSimulData>& GetCurrentClothingData_AnyThread() const;
 
 private:
 
@@ -1346,7 +1355,13 @@ private:
 	/** Ref for the clothing parallel task, so we can detect whether or not a sim is running */
 	FGraphEventRef ParallelClothTask;
 
-	/** Stalls on any currently running clothing simulations, needed when changing core sim state */
+	/** Whether we should stall the Cloth tick task until the cloth simulation is complete. This is required if we want up-to-date
+	 * cloth data on the game thread, for example if we want to generate particles at cloth vertices. When the data is not required
+	 * except for rendering, we can set this to false to eliminate a potential game thread stall while we wait for the cloth sim 
+	 */
+	bool ShouldWaitForParallelClothTask() const;
+
+	/** Stalls on any currently running clothing simulations, needed when changing core sim state, or to access the clothing data */
 	void HandleExistingParallelClothSimulation();
 
 	/** Called by the clothing completion event to perform a writeback of the simulation data 
@@ -1360,11 +1375,12 @@ private:
 
 protected:
 
-	/** Simulation data written back to the component after the simulation has taken place
-	* This should only ever be written to during the clothing completion task. Then subsequently
-	* only ever read on the game thread
-	*/
-	TMap<int32, FClothSimulData> CurrentSimulationData_GameThread;
+	/** Simulation data written back to the component after the simulation has taken place. If this data is required
+	 * by any system other than rendering, bWaitForParallelClothTask must be true. If bWaitForParallelClothTask is false,
+	 * this data cannot be read on the game thread, and there must be a call to HandleExistingParallelClothSimulation() prior
+	 * to accessing it. 
+	 */
+	TMap<int32, FClothSimulData> CurrentSimulationData;
 
 private:
 
@@ -2060,6 +2076,9 @@ protected:
 
 	/** Extract collisions for cloth from this component (given a component we want to apply the data to) */
 	static void ExtractCollisionsForCloth(USkeletalMeshComponent* SourceComponent,  UPhysicsAsset* PhysicsAsset, USkeletalMeshComponent* DestClothComponent, FClothCollisionData& OutCollisions, FClothCollisionSource& ClothCollisionSource);
+
+	/** Notify called just before syncing physics update, called only if bNotifySyncComponentToRBPhysics flag is set */
+	virtual void OnSyncComponentToRBPhysics() { }
 
 	FSkeletalMeshComponentEndPhysicsTickFunction EndPhysicsTickFunction;
 

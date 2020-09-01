@@ -18,9 +18,12 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 		FImagePixelDataPayload* Payload = RenderPassData.Value->GetPayload<FImagePixelDataPayload>();
 
 		// We need to resolve the filename format string. We combine the folder and file name into one long string first
+		FMoviePipelineFormatArgs FinalFormatArgs;
 		FString FinalFilePath;
+		FString FinalVideoFileName;
+		FString ClipName;
 		{
-			FString FileNameFormatString = OutputDirectory / OutputSettings->FileNameFormat;
+			FString FileNameFormatString = OutputSettings->FileNameFormat;
 
 			// If we're writing more than one render pass out, we need to ensure the file name has the format string in it so we don't
 			// overwrite the same file multiple times. Burn In overlays don't count because they get composited on top of an existing file.
@@ -37,7 +40,15 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 			FormatOverrides.Add(TEXT("render_pass"), RenderPassData.Key.Name);
 			FormatOverrides.Add(TEXT("ext"), GetFilenameExtension());
 
-			FinalFilePath = GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, InMergedOutputFrame->FrameOutputState, FormatOverrides);
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, FinalVideoFileName, FinalFormatArgs, &InMergedOutputFrame->FrameOutputState);
+
+			FinalFilePath = OutputDirectory / FinalVideoFileName;
+
+			// Create a deterministic clipname by file extension, and any trailing .'s
+			FMoviePipelineFormatArgs TempFormatArgs;
+			GetPipeline()->ResolveFilenameFormatArguments(FileNameFormatString, FormatOverrides, ClipName, TempFormatArgs, &InMergedOutputFrame->FrameOutputState);
+			ClipName.RemoveFromEnd(GetFilenameExtension());
+			ClipName.RemoveFromEnd(".");
 		}
 
 
@@ -62,6 +73,7 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 			{
 				AllWriters.Add(MoveTemp(NewWriter));
 				OutputWriter = AllWriters.Last().Get();
+				OutputWriter->FormatArgs = FinalFormatArgs;
 
 				Initialize_EncodeThread(OutputWriter);
 			}
@@ -82,6 +94,10 @@ void UMoviePipelineVideoOutputBase::OnRecieveImageDataImpl(FMoviePipelineMergerO
 				this->WriteFrame_EncodeThread(OutputWriter, RawRenderPassData);
 		//	});
 		//OutstandingTasks.Add(Event);
+		
+#if WITH_EDITOR
+		GetPipeline()->AddFrameToOutputMetadata(ClipName, FinalVideoFileName, InMergedOutputFrame->FrameOutputState, GetFilenameExtension(), Payload->bRequireTransparentOutput);
+#endif
 	}
 }
 
@@ -133,6 +149,7 @@ void UMoviePipelineVideoOutputBase::FinalizeImpl()
 	AllWriters.Empty();
 }
 
+#if WITH_EDITOR
 FText UMoviePipelineVideoOutputBase::GetFooterText(UMoviePipelineExecutorJob* InJob) const
 {
 	if (!IsAudioSupported())
@@ -142,3 +159,4 @@ FText UMoviePipelineVideoOutputBase::GetFooterText(UMoviePipelineExecutorJob* In
 
 	return FText();
 }
+#endif

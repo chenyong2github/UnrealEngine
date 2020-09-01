@@ -24,7 +24,7 @@ class USkeleton;
 class IEditableSkeleton;
 struct FAnimParentNodeAssetOverride;
 
-class FAnimGraphNodeShowAsPinExtension : public IDetailPropertyExtensionHandler
+class FAnimGraphNodeBindingExtension : public IDetailPropertyExtensionHandler
 {
 public:
 	// IDetailPropertyExtensionHandler interface

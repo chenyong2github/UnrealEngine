@@ -216,8 +216,7 @@ public:
 	typedef TFunction<void()> OnPauseCallBackType;
 	static OnPauseCallBackType GetOnPauseCallback();
 	static void SetOnPauseCallback(OnPauseCallBackType InOnPauseCallback);
-	static void TriggerCrashHandler(const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack);
-	static void TriggerNonFatalCrashHandler(enum class ECrashContextType InType, const FString& Message);
+	static void TriggerCrashHandler(enum class ECrashContextType InType, const TCHAR* InErrorMessage, const TCHAR* OverrideCallstack = nullptr);
 
 	// To help track down issues with failing crash handler.
 	static FString GetFatalSignalMessage(int Signal, siginfo* Info);
@@ -274,12 +273,22 @@ public:
 	};
 
 	static uint32 GetCoreFrequency(int32 CoreIndex, ECoreFrequencyProperty CoreFrequencyProperty);
+
+	// Returns CPU temperature read from one of the configurable CPU sensors via android.CPUThermalSensorFilePath CVar or AndroidEngine.ini, [ThermalSensors] section.
+	// Doesn't guarantee to work on all devices. Some devices require root access rights to read sensors information, in that case 0.0 will be returned
+	static float GetCPUTemperature();
     
     static void SetDeviceOrientation(EDeviceScreenOrientation NewDeviceOrentation) { DeviceOrientation = NewDeviceOrentation; }
 
 	// Window access is locked by the game thread before preinit and unlocked here after RHIInit (PlatformCreateDynamicRHI). 
 	static void UnlockAndroidWindow();
 	
+	static TArray<int32> GetSupportedNativeDisplayRefreshRates();
+
+	static bool SetNativeDisplayRefreshRate(int32 RefreshRate);
+
+	static int32 GetNativeDisplayRefreshRate();
+
 	/**
 	 * Returns whether or not a 16 bit index buffer should be promoted to 32 bit on load, needed for some Android devices
 	 */

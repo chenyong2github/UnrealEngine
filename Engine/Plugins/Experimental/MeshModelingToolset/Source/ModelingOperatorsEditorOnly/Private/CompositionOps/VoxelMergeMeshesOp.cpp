@@ -157,9 +157,9 @@ float FVoxelMergeMeshesOp::ComputeVoxelSize() const
 		FVector Extents(BBoxMax.X - BBoxMin.X, BBoxMax.Y - BBoxMin.Y, BBoxMax.Z - BBoxMin.Z);
 
 		// Scale with the local space scale.
-		Extents.X = Extents.X * Scale.X;
-		Extents.Y = Extents.Y * Scale.Y;
-		Extents.Z = Extents.Z * Scale.Z;
+		Extents.X = Extents.X * FMath::Abs(Scale.X);
+		Extents.Y = Extents.Y * FMath::Abs(Scale.Y);
+		Extents.Z = Extents.Z * FMath::Abs(Scale.Z);
 
 		float MajorAxisSize = FMath::Max3(Extents.X, Extents.Y, Extents.Z);
 

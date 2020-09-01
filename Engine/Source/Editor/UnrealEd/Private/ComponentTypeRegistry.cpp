@@ -209,6 +209,7 @@ FComponentTypeRegistryData::FComponentTypeRegistryData()
 
 void FComponentTypeRegistryData::ForceRefreshComponentList()
 {
+	bNeedsRefreshNextTick = false;
 	ComponentClassList.Empty();
 	ComponentTypeList.Empty();
 
@@ -409,7 +410,6 @@ void FComponentTypeRegistryData::ForceRefreshComponentList()
 void FComponentTypeRegistryData::Tick(float)
 {
 	bool bRequiresRefresh = bNeedsRefreshNextTick;
-	bNeedsRefreshNextTick = false;
 
 	if (PendingAssetData.Num() != 0)
 	{

@@ -128,14 +128,14 @@ struct FNiagaraDynamicDataRibbon : public FNiagaraDynamicDataBase
 	/** Ribbon perperties required for sorting. */
 	TArray<FMultiRibbonInfo> MultiRibbonInfos;
 
-	void PackPerRibbonData(float U0Scale, float U0Offset, float U1Scale, float U1Offset, uint32 NumSegments, uint32 FirstParticleId)
+	void PackPerRibbonData(float U0Scale, float U0Offset, float U0DistributionScaler, float U1Scale, float U1Offset, float U1DistributionScaler, uint32 FirstParticleId)
 	{
-		const float OneOverNumSegments = 1 / (float)FMath::Max<uint32>(1, NumSegments);
 		PackedPerRibbonDataByIndex.Add(U0Scale);
 		PackedPerRibbonDataByIndex.Add(U0Offset);
+		PackedPerRibbonDataByIndex.Add(U0DistributionScaler);
 		PackedPerRibbonDataByIndex.Add(U1Scale);
 		PackedPerRibbonDataByIndex.Add(U1Offset);
-		PackedPerRibbonDataByIndex.Add(OneOverNumSegments);
+		PackedPerRibbonDataByIndex.Add(U1DistributionScaler);
 		PackedPerRibbonDataByIndex.Add(*(float*)&FirstParticleId);
 	}
 };
@@ -155,12 +155,6 @@ public:
 FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureLevel, const UNiagaraRendererProperties *InProps, const FNiagaraEmitterInstance* Emitter)
 	: FNiagaraRenderer(FeatureLevel, InProps, Emitter)
 	, FacingMode(ENiagaraRibbonFacingMode::Screen)
-	, UV0TilingDistance(0.0f)
-	, UV0Scale(FVector2D(1.0f, 1.0f))
-	, UV0AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
-	, UV1TilingDistance(0.0f)
-	, UV1Scale(FVector2D(1.0f, 1.0f))
-	, UV1AgeOffsetMode(ENiagaraRibbonAgeOffsetMode::Scale)
 	, TessellationMode(ENiagaraRibbonTessellationMode::Automatic)
 	, CustomCurveTension(0.f)
 	, CustomTessellationFactor(16)
@@ -170,14 +164,8 @@ FNiagaraRendererRibbons::FNiagaraRendererRibbons(ERHIFeatureLevel::Type FeatureL
 {
 	const UNiagaraRibbonRendererProperties* Properties = CastChecked<const UNiagaraRibbonRendererProperties>(InProps);
 	FacingMode = Properties->FacingMode;
-	UV0TilingDistance = Properties->UV0TilingDistance;
-	UV0Scale = Properties->UV0Scale;
-	UV0Offset = Properties->UV0Offset;
-	UV0AgeOffsetMode = Properties->UV0AgeOffsetMode;
-	UV1TilingDistance = Properties->UV1TilingDistance;
-	UV1Scale = Properties->UV1Scale;
-	UV1Offset = Properties->UV1Offset;
-	UV1AgeOffsetMode = Properties->UV1AgeOffsetMode;
+	UV0Settings = Properties->UV0Settings;
+	UV1Settings = Properties->UV1Settings;
 	DrawDirection = Properties->DrawDirection;
 	TessellationMode = Properties->TessellationMode;
 	CustomCurveTension = FMath::Clamp<float>(Properties->CurveTension, 0.f, 0.9999f);
@@ -366,57 +354,98 @@ int FNiagaraRendererRibbons::GetDynamicDataSize()const
 }
 
 void CalculateUVScaleAndOffsets(
-	const FNiagaraDataSetReaderFloat<float>& SortKeyReader, const TArray<int32>& RibbonIndices,
-	bool bSortKeyIsAge, int32 StartIndex, int32 EndIndex, int32 NumSegments,
-	float InUTilingDistance, float InUScale, float InUOffset, ENiagaraRibbonAgeOffsetMode InAgeOffsetMode,
-	float& OutUScale, float& OutUOffset)
+	const FNiagaraRibbonUVSettings& UVSettings,
+	const TArray<int32>& RibbonIndices,
+	const TArray<FVector4>& RibbonTangentsAndDistances,
+	const FNiagaraDataSetReaderFloat<float>& SortKeyReader,
+	int32 StartIndex, int32 EndIndex,
+	int32 NumSegments, float TotalLength,
+	float& OutUScale, float& OutUOffset, float& OutUDistributionScaler)
 {
-	if (EndIndex - StartIndex > 0 && bSortKeyIsAge && InUTilingDistance == 0)
+	float NormalizedLeadingSegmentOffset;
+	if (UVSettings.LeadingEdgeMode == ENiagaraRibbonUVEdgeMode::SmoothTransition)
 	{
-		float AgeUScale;
-		float AgeUOffset;
-		if (InAgeOffsetMode == ENiagaraRibbonAgeOffsetMode::Scale)
-		{
-			// In scale mode we scale and offset the UVs so that no part of the texture is clipped. In order to prevent
-			// clipping at the ends we'll have to move the UVs in up to the size of a single segment of the ribbon since
-			// that's the distance we'll need to to smoothly interpolate when a new segment is added, or when an old segment
-			// is removed.  We calculate the end offset when the end of the ribbon is within a single time step of 0 or 1
-			// which is then normalized to the range of a single segment.  We can then calculate how many segments we actually
-			// have to draw the scaled ribbon, and can offset the start by the correctly scaled offset.
-			float FirstAge = SortKeyReader[RibbonIndices[StartIndex]];
-			float SecondAge = SortKeyReader[RibbonIndices[StartIndex + 1]];
-			float SecondToLastAge = SortKeyReader[RibbonIndices[EndIndex - 1]];
-			float LastAge = SortKeyReader[RibbonIndices[EndIndex]];
+		float FirstAge = SortKeyReader[RibbonIndices[StartIndex]];
+		float SecondAge = SortKeyReader[RibbonIndices[StartIndex + 1]];
 
-			float StartTimeStep = SecondAge - FirstAge;
-			float StartTimeOffset = FirstAge < StartTimeStep ? StartTimeStep - FirstAge : 0;
-			float StartSegmentOffset = StartTimeOffset / StartTimeStep;
+		float StartTimeStep = SecondAge - FirstAge;
+		float StartTimeOffset = FirstAge < StartTimeStep ? StartTimeStep - FirstAge : 0;
 
-			float EndTimeStep = LastAge - SecondToLastAge;
-			float EndTimeOffset = 1 - LastAge < EndTimeStep ? EndTimeStep - (1 - LastAge) : 0;
-			float EndSegmentOffset = EndTimeOffset / EndTimeStep;
-
-			float AvailableSegments = NumSegments - (StartSegmentOffset + EndSegmentOffset);
-			AgeUScale = NumSegments / AvailableSegments;
-			AgeUOffset = -((StartSegmentOffset / NumSegments) * AgeUScale);
-		}
-		else
-		{
-			float FirstAge = SortKeyReader[RibbonIndices[StartIndex]];
-			float LastAge = SortKeyReader[RibbonIndices[EndIndex]];
-
-			AgeUScale = LastAge - FirstAge;
-			AgeUOffset = FirstAge;
-		}
-
-		OutUScale = AgeUScale * InUScale;
-		OutUOffset = (AgeUOffset * InUScale) + InUOffset;
+		NormalizedLeadingSegmentOffset = StartTimeOffset / StartTimeStep;
+	}
+	else if (UVSettings.LeadingEdgeMode == ENiagaraRibbonUVEdgeMode::Locked)
+	{
+		NormalizedLeadingSegmentOffset = 0;
 	}
 	else
 	{
-		OutUScale = InUScale;
-		OutUOffset = InUOffset;
+		NormalizedLeadingSegmentOffset = 0;
+		checkf(false, TEXT("Unsupported ribbon uv edge mode"));
 	}
+
+	float NormalizedTrailingSegmentOffset;
+	if (UVSettings.TrailingEdgeMode == ENiagaraRibbonUVEdgeMode::SmoothTransition)
+	{
+		float SecondToLastAge = SortKeyReader[RibbonIndices[EndIndex - 1]];
+		float LastAge = SortKeyReader[RibbonIndices[EndIndex]];
+
+		float EndTimeStep = LastAge - SecondToLastAge;
+		float EndTimeOffset = 1 - LastAge < EndTimeStep ? EndTimeStep - (1 - LastAge) : 0;
+
+		NormalizedTrailingSegmentOffset = EndTimeOffset / EndTimeStep;
+	}
+	else if (UVSettings.TrailingEdgeMode == ENiagaraRibbonUVEdgeMode::Locked)
+	{
+		NormalizedTrailingSegmentOffset = 0;
+	}
+	else
+	{
+		NormalizedTrailingSegmentOffset = 0;
+		checkf(false, TEXT("Unsupported ribbon uv edge mode"));
+	}
+
+	float CalculatedUOffset;
+	float CalculatedUScale;
+	if (UVSettings.DistributionMode == ENiagaraRibbonUVDistributionMode::ScaledUniformly)
+	{
+		float AvailableSegments = NumSegments - (NormalizedLeadingSegmentOffset + NormalizedTrailingSegmentOffset);
+		CalculatedUScale = NumSegments / AvailableSegments;
+		CalculatedUOffset = -((NormalizedLeadingSegmentOffset / NumSegments) * CalculatedUScale);
+		OutUDistributionScaler = 1.0f / NumSegments;
+	}
+	else if (UVSettings.DistributionMode == ENiagaraRibbonUVDistributionMode::ScaledUsingRibbonSegmentLength)
+	{
+		float SecondDistance = RibbonTangentsAndDistances[StartIndex + 1].W;
+		float LeadingDistanceOffset = SecondDistance * NormalizedLeadingSegmentOffset;
+
+		float SecondToLastDistance = RibbonTangentsAndDistances[EndIndex - 1].W;
+		float LastDistance = RibbonTangentsAndDistances[EndIndex].W;
+		float TrailingDistanceOffset = (LastDistance - SecondToLastDistance) * NormalizedTrailingSegmentOffset;
+
+		float AvailableLength = TotalLength - (LeadingDistanceOffset + TrailingDistanceOffset);
+
+		CalculatedUScale = TotalLength / AvailableLength;
+		CalculatedUOffset = -((LeadingDistanceOffset / TotalLength) * CalculatedUScale);
+		OutUDistributionScaler = 1.0f / TotalLength;
+	}
+	else if (UVSettings.DistributionMode == ENiagaraRibbonUVDistributionMode::TiledOverRibbonLength)
+	{
+		float SecondDistance = RibbonTangentsAndDistances[StartIndex + 1].W;
+		float LeadingDistanceOffset = SecondDistance * NormalizedLeadingSegmentOffset;
+
+		CalculatedUScale = TotalLength / UVSettings.TilingLength;
+		CalculatedUOffset = -(LeadingDistanceOffset / UVSettings.TilingLength);
+		OutUDistributionScaler = 1.0f / TotalLength;
+	}
+	else
+	{
+		CalculatedUScale = 1;
+		CalculatedUOffset = 0;
+		checkf(false, TEXT("Unsupported ribbon distribution mode"));
+	}
+
+	OutUScale = CalculatedUScale * UVSettings.Scale.X;
+	OutUOffset = (CalculatedUOffset * UVSettings.Scale.X) + UVSettings.Offset.X;
 }
 
 FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNiagaraSceneProxy* Proxy, const UNiagaraRendererProperties* InProperties, const FNiagaraEmitterInstance* Emitter)const
@@ -449,6 +478,9 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 	const auto MaterialParam1Data = Properties->MaterialParam1DataSetAccessor.GetReader(Data);
 	const auto MaterialParam2Data = Properties->MaterialParam2DataSetAccessor.GetReader(Data);
 	const auto MaterialParam3Data = Properties->MaterialParam3DataSetAccessor.GetReader(Data);
+
+	bool U0OverrideIsBound = Properties->U0OverrideIsBound;
+	bool U1OverrideIsBound = Properties->U1OverrideIsBound;
 
 	const auto RibbonIdData = Properties->RibbonIdDataSetAccessor.GetReader(Data);
 	const auto RibbonFullIDData = Properties->RibbonFullIDDataSetAccessor.GetReader(Data);
@@ -614,19 +646,50 @@ FNiagaraDynamicDataBase* FNiagaraRendererRibbons::GenerateDynamicData(const FNia
 			{
 				SegmentData.Add(SegmentIndex);
 			}
+			
+			float U0Offset;
+			float U0Scale;
+			float U0DistributionScaler;
+			if(UV0Settings.bEnablePerParticleUOverride && U0OverrideIsBound)
+			{ 
+				U0Offset = 0;
+				U0Scale = 1.0f;
+				U0DistributionScaler = 1;
+			}
+			else
+			{
+				CalculateUVScaleAndOffsets(
+					UV0Settings, DynamicData->SortedIndices, DynamicData->TangentAndDistances,
+					SortKeyReader,
+					StartIndex, DynamicData->SortedIndices.Num() - 1,
+					NumSegments, TotalDistance,
+					U0Scale, U0Offset, U0DistributionScaler);
+			}
 
-			float U0Offset, U0Scale, U1Offset, U1Scale;
+			float U1Offset;
+			float U1Scale;
+			float U1DistributionScaler;
+			if (UV1Settings.bEnablePerParticleUOverride && U1OverrideIsBound)
+			{
+				U1Offset = 0;
+				U1Scale = 1.0f;
+				U1DistributionScaler = 1;
+			}
+			else
+			{
+				CalculateUVScaleAndOffsets(
+					UV1Settings, DynamicData->SortedIndices, DynamicData->TangentAndDistances,
+					SortKeyReader,
+					StartIndex, DynamicData->SortedIndices.Num() - 1,
+					NumSegments, TotalDistance,
+					U1Scale, U1Offset, U1DistributionScaler);
+			}
 
-			CalculateUVScaleAndOffsets(SortKeyReader, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
-				Properties->UV0TilingDistance, Properties->UV0Scale.X, Properties->UV0Offset.X, Properties->UV0AgeOffsetMode, U0Scale, U0Offset);
-			CalculateUVScaleAndOffsets(SortKeyReader, DynamicData->SortedIndices, bSortKeyIsAge, StartIndex, DynamicData->SortedIndices.Num() - 1, NumSegments,
-				Properties->UV1TilingDistance, Properties->UV1Scale.X, Properties->UV1Offset.X, Properties->UV1AgeOffsetMode, U1Scale, U1Offset);
-
-			DynamicData->PackPerRibbonData(U0Scale, U0Offset, U1Scale, U1Offset, NumSegments, StartIndex);
+			DynamicData->PackPerRibbonData(U0Scale, U0Offset, U0DistributionScaler, U1Scale, U1Offset, U1DistributionScaler, StartIndex);
 		}
 		else
 		{
-			DynamicData->PackPerRibbonData(0, 0, 0, 0, 0, 0);
+			DynamicData->PackPerRibbonData(0, 0, 0, 0, 0, 0, 0);
 		}
 	};
 
@@ -748,7 +811,7 @@ void FNiagaraRendererRibbons::AddDynamicParam(TArray<FNiagaraRibbonVertexDynamic
 	ParamData.Add(Param);
 }
 
-bool FNiagaraRendererRibbons::IsMaterialValid(UMaterialInterface* Mat)const
+bool FNiagaraRendererRibbons::IsMaterialValid(const UMaterialInterface* Mat)const
 {
 	return Mat && Mat->CheckMaterialUsage_Concurrent(MATUSAGE_NiagaraRibbons);
 }
@@ -1006,18 +1069,19 @@ void FNiagaraRendererRibbons::CreatePerViewResources(
 	PerViewUniformParameters.MaterialParam1DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam1].GetGPUOffset();
 	PerViewUniformParameters.MaterialParam2DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam2].GetGPUOffset();
 	PerViewUniformParameters.MaterialParam3DataOffset = VFVariables[ENiagaraRibbonVFLayout::MaterialParam3].GetGPUOffset();
+	PerViewUniformParameters.U0OverrideDataOffset = UV0Settings.bEnablePerParticleUOverride ? VFVariables[ENiagaraRibbonVFLayout::U0Override].GetGPUOffset() : -1;
+	PerViewUniformParameters.V0RangeOverrideDataOffset = UV0Settings.bEnablePerParticleVRangeOverride ? VFVariables[ENiagaraRibbonVFLayout::V0RangeOverride].GetGPUOffset() : -1;
+	PerViewUniformParameters.U1OverrideDataOffset = UV1Settings.bEnablePerParticleUOverride ? VFVariables[ENiagaraRibbonVFLayout::U1Override].GetGPUOffset() : -1;
+	PerViewUniformParameters.V1RangeOverrideDataOffset = UV1Settings.bEnablePerParticleVRangeOverride ? VFVariables[ENiagaraRibbonVFLayout::V1RangeOverride].GetGPUOffset() : -1;
 
 	PerViewUniformParameters.MaterialParamValidMask = MaterialParamValidMask;
 
 	bool bShouldDoFacing = FacingMode == ENiagaraRibbonFacingMode::Custom || FacingMode == ENiagaraRibbonFacingMode::CustomSideVector;
 	PerViewUniformParameters.FacingDataOffset = bShouldDoFacing ? VFVariables[ENiagaraRibbonVFLayout::Facing].GetGPUOffset() : -1;
-	PerViewUniformParameters.OneOverUV0TilingDistance = UV0TilingDistance ? 1.f / (UV0TilingDistance) : 0.f;
-	PerViewUniformParameters.OneOverUV1TilingDistance = UV1TilingDistance ? 1.f / (UV1TilingDistance) : 0.f;
-	PerViewUniformParameters.PackedVData = FVector4(UV0Scale.Y, UV0Offset.Y, UV1Scale.Y, UV1Offset.Y);
 
-	PerViewUniformParameters.OneOverUV0TilingDistance = UV0TilingDistance ? 1.f / (UV0TilingDistance) : 0.f;
-	PerViewUniformParameters.OneOverUV1TilingDistance = UV1TilingDistance ? 1.f / (UV1TilingDistance) : 0.f;
-	PerViewUniformParameters.PackedVData = FVector4(UV0Scale.Y, UV0Offset.Y, UV1Scale.Y, UV1Offset.Y);
+	PerViewUniformParameters.U0DistributionMode = (int32)UV0Settings.DistributionMode;
+	PerViewUniformParameters.U1DistributionMode = (int32)UV1Settings.DistributionMode;
+	PerViewUniformParameters.PackedVData = FVector4(UV0Settings.Scale.Y, UV0Settings.Offset.Y, UV1Settings.Scale.Y, UV1Settings.Offset.Y);
 
 	OutUniformBuffer = FNiagaraRibbonUniformBufferRef::CreateUniformBufferImmediate(PerViewUniformParameters, UniformBuffer_SingleFrame);
 

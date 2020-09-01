@@ -13,7 +13,7 @@
 	"CanContainContent": true,
 	"IsBetaVersion": true,
 	"Installed": false,
-	"EnabledByDefault": true,
+	"EnabledByDefault": false,
 	"Plugins": [
 		{
 			"Name": "EditorScriptingUtilities",
@@ -28,23 +28,32 @@
 	"Modules": [
 		{
 			"Name": "MovieRenderPipelineCore",
-			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Mac", "Win32", "Win64", "Linux" ]
 		},
 		{
 			"Name": "MovieRenderPipelineSettings",
-			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
-		}, 
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Mac", "Win32", "Win64", "Linux" ]
+		},
 		{
-			"Name" : "MovieRenderPipelineRenderPasses",
-			"Type": "UncookedOnly",
-			"LoadingPhase": "Default"
+			"Name": "MovieRenderPipelineRenderPasses",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Mac", "Win32", "Win64", "Linux" ]
 		},
 		{
 			"Name": "MovieRenderPipelineEditor",
 			"Type": "Editor",
 			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "UEOpenExrRTTI",
+			"Type": "Runtime",
+			"LoadingPhase": "Default",
+			"WhitelistPlatforms": [ "Mac", "Win32", "Win64", "Linux" ]
 		}
 	]
 }

@@ -228,9 +228,13 @@ public:
 class PHYSICSCORE_API FPhysicsConstraintReference_Chaos
 {
 public:
-	FPhysicsConstraintReference_Chaos() : Constraint(nullptr) {};
+	FPhysicsConstraintReference_Chaos() { Reset(); }
+	void Reset() { Constraint = nullptr; }
 
 	bool IsValid() const;
+
+	Chaos::FJointConstraint* operator->() { return Constraint; }
+	const Chaos::FJointConstraint* operator->() const { return Constraint; }
 
 	Chaos::FJointConstraint* Constraint;
 };
@@ -461,7 +465,7 @@ public:
 
 	static void SetCanVisualize(const FPhysicsConstraintHandle& InConstraintRef,bool bInCanVisualize);
 	static void SetCollisionEnabled(const FPhysicsConstraintHandle& InConstraintRef,bool bInCollisionEnabled);
-	static void SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearTolerance = 0.0f,float InAngularToleranceDegrees = 0.0f);
+	static void SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearAlpah = 1.0f,float InAngularAlpha = 0.0f);
 	static void SetParentDominates_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInParentDominates);
 	static void SetBreakForces_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,float InLinearBreakForce,float InAngularBreakForce);
 	static void SetLocalPose(const FPhysicsConstraintHandle& InConstraintRef,const FTransform& InPose,EConstraintFrame::Type InFrame);

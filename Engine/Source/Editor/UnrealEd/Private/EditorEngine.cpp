@@ -84,6 +84,7 @@
 #include "BSPOps.h"
 #include "EditorCommandLineUtils.h"
 #include "Engine/NetDriver.h"
+#include "Engine/NetConnection.h"
 #include "Net/NetworkProfiler.h"
 #include "Interfaces/IPluginManager.h"
 #include "UObject/PackageReload.h"
@@ -216,6 +217,7 @@
 #include "ComponentRecreateRenderStateContext.h"
 #include "RenderTargetPool.h"
 #include "RenderGraphBuilder.h"
+#include "CustomResourcePool.h"
 #include "ToolMenus.h"
 #include "IToolMenusEditorModule.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -1296,6 +1298,12 @@ void UEditorEngine::AddReferencedObjects(UObject* InThis, FReferenceCollector& C
 		Collector.AddReferencedObject( This->ActorFactories[ Index ], This );
 	}
 
+	// If we're in a PIE session, ensure we keep the current settings object alive.
+	if (This->PlayInEditorSessionInfo.IsSet() && This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings)
+	{
+		Collector.AddReferencedObject(This->PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, This);
+	}
+
 	Super::AddReferencedObjects( This, Collector );
 }
 
@@ -1957,6 +1965,7 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 				GRenderTargetPool.TickPoolElements();
 				FRDGBuilder::TickPoolElements();
+				ICustomResourcePool::TickPoolElements();
 			});
 	}
 
@@ -7105,6 +7114,18 @@ FORCEINLINE bool NetworkRemapPath_local(FWorldContext& Context, FString& Str, bo
 	return false;
 }
 
+bool UEditorEngine::NetworkRemapPath(UNetConnection* Connection, FString& Str, bool bReading)
+{
+	if (Connection == nullptr)
+	{
+		return false;
+	}
+
+	// Pretty sure there's no case where you can't have a world by this point.
+	FWorldContext& Context = GetWorldContextFromWorldChecked(Connection->GetWorld());
+	return NetworkRemapPath_local(Context, Str, bReading, Connection->IsReplay());
+}
+
 bool UEditorEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bReading)
 {
 	if (Driver == nullptr)
@@ -7113,15 +7134,15 @@ bool UEditorEngine::NetworkRemapPath(UNetDriver* Driver, FString& Str, bool bRea
 	}
 
 	// Pretty sure there's no case where you can't have a world by this point.
-	bool bIsAReplay = (Driver->GetWorld()) ? (Driver->GetWorld()->DemoNetDriver != NULL) : false;
+	const bool bIsReplay = Driver->GetWorld() ? (Driver->GetWorld()->GetDemoNetDriver() != nullptr) : false;
 	FWorldContext& Context = GetWorldContextFromWorldChecked(Driver->GetWorld());
-	return NetworkRemapPath_local(Context, Str, bReading, bIsAReplay);
+	return NetworkRemapPath_local(Context, Str, bReading, bIsReplay);
 }
 
 bool UEditorEngine::NetworkRemapPath( UPendingNetGame *PendingNetGame, FString& Str, bool bReading)
 {
 	FWorldContext& Context = GetWorldContextFromPendingNetGameChecked(PendingNetGame);
-	return NetworkRemapPath_local(Context, Str, bReading, PendingNetGame->DemoNetDriver != NULL);
+	return NetworkRemapPath_local(Context, Str, bReading, PendingNetGame->GetDemoNetDriver() != nullptr);
 }
 
 void UEditorEngine::VerifyLoadMapWorldCleanup()
@@ -7247,11 +7268,11 @@ FWorldContext& UEditorEngine::GetEditorWorldContext(bool bEnsureIsGWorld)
 	return CreateNewWorldContext(EWorldType::Editor);
 }
 
-FWorldContext* UEditorEngine::GetPIEWorldContext()
+FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
 {
-	for(auto& WorldContext : WorldList)
+	for (FWorldContext& WorldContext : WorldList)
 	{
-		if(WorldContext.WorldType == EWorldType::PIE)
+		if (WorldContext.WorldType == EWorldType::PIE && WorldContext.PIEInstance == WorldPIEInstance)
 		{
 			return &WorldContext;
 		}
@@ -7594,9 +7615,9 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 #endif
 
 	// If we have specified a MaterialQualityPlatform ensure its feature level matches the requested feature level.
-	check(NewPreviewPlatform.PreviewShaderPlatformName.IsNone() || GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderPlatformName)) == NewPreviewPlatform.PreviewFeatureLevel);
+	check(NewPreviewPlatform.PreviewShaderFormatName.IsNone() || GetMaxSupportedFeatureLevel(ShaderFormatToLegacyShaderPlatform(NewPreviewPlatform.PreviewShaderFormatName)) == NewPreviewPlatform.PreviewFeatureLevel);
 
-	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.PreviewShaderPlatformName != PreviewPlatform.PreviewShaderPlatformName;
+	const bool bChangedPreviewShaderPlatform = NewPreviewPlatform.PreviewShaderFormatName != PreviewPlatform.PreviewShaderFormatName;
 	const bool bChangedFeatureLevel = NewPreviewPlatform.PreviewFeatureLevel != PreviewPlatform.PreviewFeatureLevel ||
 		NewPreviewPlatform.bPreviewFeatureLevelActive != PreviewPlatform.bPreviewFeatureLevelActive;
 	const ERHIFeatureLevel::Type EffectiveFeatureLevel = NewPreviewPlatform.GetEffectivePreviewFeatureLevel();
@@ -7609,7 +7630,7 @@ void UEditorEngine::SetPreviewPlatform(const FPreviewPlatformInfo& NewPreviewPla
 	if (bChangedPreviewShaderPlatform)
 	{
 		UMaterialShaderQualitySettings* MaterialShaderQualitySettings = UMaterialShaderQualitySettings::Get();
-		MaterialShaderQualitySettings->SetPreviewPlatform(PreviewPlatform.PreviewShaderPlatformName);
+		MaterialShaderQualitySettings->SetPreviewPlatform(PreviewPlatform.PreviewShaderFormatName);
 	}
 
 	if (bChangedFeatureLevel)
@@ -7691,7 +7712,7 @@ void UEditorEngine::ToggleFeatureLevelPreview()
 
 bool UEditorEngine::IsFeatureLevelPreviewEnabled() const
 {
-	return PreviewPlatform.PreviewFeatureLevel != GMaxRHIFeatureLevel || PreviewPlatform.PreviewShaderPlatformName != NAME_None;
+	return PreviewPlatform.PreviewFeatureLevel != GMaxRHIFeatureLevel || PreviewPlatform.PreviewShaderFormatName != NAME_None;
 }
 
 bool UEditorEngine::IsFeatureLevelPreviewActive() const
@@ -7717,7 +7738,7 @@ void UEditorEngine::SaveEditorFeatureLevel()
 {
 	auto* Settings = GetMutableDefault<UEditorPerProjectUserSettings>();
 	Settings->PreviewFeatureLevel = (int32)PreviewPlatform.PreviewFeatureLevel;
-	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderPlatformName;
+	Settings->PreviewShaderFormatName = PreviewPlatform.PreviewShaderFormatName;
 	Settings->bPreviewFeatureLevelActive = PreviewPlatform.bPreviewFeatureLevelActive;
 	Settings->PostEditChange();
 }
@@ -7733,14 +7754,5 @@ bool UEditorEngine::GetPreviewPlatformName(FName& PlatformName) const
 
 	return false;
 }
-
-void UEditorEngine::AddReferencedObjects(FReferenceCollector& Collector)
-{
-	if (PlayInEditorSessionInfo.IsSet())
-	{
-		Collector.AddReferencedObject(PlayInEditorSessionInfo->OriginalRequestParams.EditorPlaySettings, this);
-	}
-}
-
 
 #undef LOCTEXT_NAMESPACE 

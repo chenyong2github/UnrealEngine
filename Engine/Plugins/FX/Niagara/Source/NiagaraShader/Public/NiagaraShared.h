@@ -29,7 +29,7 @@ class FNiagaraShaderScript;
 class FNiagaraShaderMap;
 class FNiagaraShader;
 class FNiagaraShaderMapId;
-class UNiagaraScript;
+class UNiagaraScriptBase;
 struct FNiagaraVMExecutableDataId;
 
 #define MAX_CONCURRENT_EVENT_DATASETS 4
@@ -236,6 +236,9 @@ public:
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	LAYOUT_FIELD_INITIALIZED(bool, bUsesRapidIterationParams, true);
 
+	/** Should we use shader permutations to reduce the cost of simulation stages or not */
+	LAYOUT_FIELD_INITIALIZED(bool, bUseShaderPermutations, true);
+
 	FNiagaraShaderMapId()
 		: CompilerVersionID()
 		, FeatureLevel(GMaxRHIFeatureLevel)
@@ -387,8 +390,8 @@ public:
 	static void FlushShaderTypes(TArray<const FShaderType*>& ShaderTypesToFlush);
 
 	// ShaderMap interface
-	template<typename ShaderType> TNiagaraShaderRef<ShaderType> GetShader() const { return GetContent() ? TNiagaraShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(), *this) : TNiagaraShaderRef<ShaderType>(); }
-	TNiagaraShaderRef<FShader> GetShader(FShaderType* ShaderType) const { return GetContent() ? TNiagaraShaderRef<FShader>(GetContent()->GetShader(ShaderType), *this) : TNiagaraShaderRef<FShader>(); }
+	template<typename ShaderType> TNiagaraShaderRef<ShaderType> GetShader(int32 PermutationId) const { return TNiagaraShaderRef<ShaderType>(GetContent()->GetShader<ShaderType>(PermutationId), *this); }
+	TNiagaraShaderRef<FShader> GetShader(FShaderType* ShaderType, int32 PermutationId) const { return TNiagaraShaderRef<FShader>(GetContent()->GetShader(ShaderType, PermutationId), *this); }
 
 	//static void FixupShaderTypes(EShaderPlatform Platform, const TMap<FShaderType*, FString>& ShaderTypeNames);
 
@@ -401,8 +404,7 @@ public:
 	FNiagaraShaderMap();
 
 	// Destructor.
-	virtual ~FNiagaraShaderMap();
-	virtual void OnReleased() override;
+	~FNiagaraShaderMap();
 
 	/**
 	* Compiles the shaders for a script and caches them in this shader map.
@@ -450,6 +452,10 @@ public:
 	/** Registers a niagara shader map in the global map so it can be used by Niagara scripts. */
 	void Register(EShaderPlatform InShaderPlatform);
 
+	// Reference counting.
+	NIAGARASHADER_API  void AddRef();
+	NIAGARASHADER_API  void Release();
+
 	/**
 	* Removes all entries in the cache with exceptions based on a shader type
 	* @param ShaderType - The shader type to flush
@@ -476,10 +482,6 @@ public:
 	/** Recreates FShaders from the passed in memory, handling shader key changes. */
 	void RestoreShadersFromMemory(const TArray<uint8>& ShaderData);
 
-	/** Returns the maximum number of texture samplers used by any shader in this shader map. */
-	uint32 GetMaxTextureSamplers() const;
-
-
 	// Accessors.
 	const FNiagaraShaderMapId& GetShaderMapId() const		{ return GetContent()->ShaderMapId; }
 	EShaderPlatform GetShaderPlatform() const				{ return GetContent()->GetShaderPlatform(); }
@@ -496,6 +498,7 @@ public:
 
 	//const FUniformExpressionSet& GetUniformExpressionSet() const { return NiagaraCompilationOutput.UniformExpressionSet; }
 
+	int32 GetNumRefs() const { return NumRefs; }
 	uint32 GetCompilingId()  { return CompilingId; }
 	static TMap<TRefCountPtr<FNiagaraShaderMap>, TArray<FNiagaraShaderScript*> > &GetInFlightShaderMaps() 
 	{
@@ -526,6 +529,8 @@ private:
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
 	uint32 CompilingId;
 
+	mutable int32 NumRefs;
+
 	/** Used to catch errors where the shader map is deleted directly. */
 	bool bDeletedThroughDeferredCleanup;
 
@@ -547,10 +552,8 @@ private:
 
 	bool IsNiagaraShaderComplete(const FNiagaraShaderScript* Script, const FNiagaraShaderType* ShaderType, bool bSilent);
 
-	friend NIAGARASHADER_API  void DumpNiagaraStats(EShaderPlatform Platform);
 	friend class FShaderCompilingManager;
 };
-
 
 DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNiagaraScriptCompilationComplete);
 
@@ -559,6 +562,31 @@ DECLARE_DYNAMIC_MULTICAST_DELEGATE(FOnNiagaraScriptCompilationComplete);
  */
 class FNiagaraShaderScript
 {
+	struct FNiagaraShaderMapCachedData
+	{
+		FNiagaraShaderMapCachedData()
+		{
+			NumPermutations = 0;
+			bIsComplete = 0;
+			bGlobalConstantBufferUsed = 0;
+			bSystemConstantBufferUsed = 0;
+			bOwnerConstantBufferUsed = 0;
+			bEmitterConstantBufferUsed = 0;
+			bExternalConstantBufferUsed = 0;
+			bViewUniformBufferUsed = 0;
+		}
+
+		TArray<TPair<int32, int32>> ShaderStageToPermutation;
+		int32 NumPermutations;
+		uint32 bIsComplete : 1;
+		uint32 bGlobalConstantBufferUsed : 2;
+		uint32 bSystemConstantBufferUsed : 2;
+		uint32 bOwnerConstantBufferUsed : 2;
+		uint32 bEmitterConstantBufferUsed : 2;
+		uint32 bExternalConstantBufferUsed : 2;
+		uint32 bViewUniformBufferUsed : 1;
+	};
+
 public:
 
 	/**
@@ -572,6 +600,7 @@ public:
 		, ShaderPlatform(SP_NumPlatforms)
 		, bLoadedCookedShaderMapId(false)
 		, bLoadedFromCookedMaterial(false)
+		, bQueuedForRelease(false)
 	{}
 
 	/**
@@ -639,14 +668,6 @@ public:
 	 */
 	NIAGARASHADER_API  bool IsCompilationFinished() const;
 
-	/**
-	* Checks if there is a valid GameThreadShaderMap, that is, the script can be run
-	*
-	* @return returns true if there is a GameThreadShaderMap.
-	*/
-	NIAGARASHADER_API  bool HasValidGameThreadShaderMap() const;
-
-
 	// Accessors.
 	const TArray<FString>& GetCompileErrors() const { return CompileErrors; }
 	void SetCompileErrors(const TArray<FString>& InCompileErrors) { CompileErrors = InCompileErrors; }
@@ -670,7 +691,10 @@ public:
 	}
 
 	/** Note: SetGameThreadShaderMap must also be called with the same value, but from the game thread. */
-	NIAGARASHADER_API  void SetRenderingThreadShaderMap(FNiagaraShaderMap* InShaderMap);
+	NIAGARASHADER_API void SetRenderingThreadShaderMap(FNiagaraShaderMap* InShaderMap);
+	void SetRenderThreadCachedData(const FNiagaraShaderMapCachedData& CachedData);
+
+	NIAGARASHADER_API void QueueForRelease(FThreadSafeBool& Fence);
 
 	void AddCompileId(uint32 Id) 
 	{
@@ -687,18 +711,9 @@ public:
 
 	}
 
-	NIAGARASHADER_API  class FNiagaraShaderMap* GetRenderingThreadShaderMap() const;
-
-
 	NIAGARASHADER_API void RemoveOutstandingCompileId(const int32 OldOutstandingCompileShaderMapId);
 
 	NIAGARASHADER_API  virtual void AddReferencedObjects(FReferenceCollector& Collector);
-
-	//virtual const TArray<UTexture*>& GetReferencedTextures() const = 0;
-
-
-	/** Returns true if this script is allowed to make development shaders via the global CVar CompileShadersForDevelopment. */
-	//virtual bool GetAllowDevelopmentShaderCompile()const{ return true; }
 
 	/**
 	* Get user source code for the shader
@@ -713,15 +728,14 @@ public:
 
 	const FString& GetFriendlyName()	const { return FriendlyName; }
 
-
-	NIAGARASHADER_API void SetScript(UNiagaraScript* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
+	NIAGARASHADER_API void SetScript(UNiagaraScriptBase* InScript, ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FGuid& InCompilerVersion, const TArray<FString>& InAdditionalDefines,
 		const FNiagaraCompileHash& InBaseCompileHash, const TArray<FNiagaraCompileHash>& InReferencedCompileHashes, 
-		bool bInUsesRapidIterationParams, FString InFriendlyName);
+		bool bInUsesRapidIterationParams, bool bInUseShaderPermutations, FString InFriendlyName);
 #if WITH_EDITOR
 	NIAGARASHADER_API bool MatchesScript(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, const FNiagaraVMExecutableDataId& ScriptId) const;
 #endif
 
-	UNiagaraScript *GetBaseVMScript()
+	UNiagaraScriptBase* GetBaseVMScript()
 	{
 		return BaseVMScript;
 	}
@@ -735,8 +749,8 @@ public:
 	
 	FString HlslOutput;
 
-	NIAGARASHADER_API  FNiagaraShaderRef GetShader() const;
-	NIAGARASHADER_API  FNiagaraShaderRef GetShaderGameThread() const;
+	NIAGARASHADER_API  FNiagaraShaderRef GetShader(int32 PermutationId) const;
+	NIAGARASHADER_API  FNiagaraShaderRef GetShaderGameThread(int32 PermutationId) const;
 	
 	NIAGARASHADER_API void SetDataInterfaceParamInfo(const TArray< FNiagaraDataInterfaceGPUParamInfo >& InDIParamInfo);
 
@@ -751,25 +765,41 @@ public:
 	}
 
 	bool IsSame(const FNiagaraShaderMapId& InId) const;
-protected:
 
-	// shared code needed for GetUniformScalarParameterExpressions, GetUniformVectorParameterExpressions, GetUniformCubeTextureExpressions..
-	// @return can be 0
-	const FNiagaraShaderMap* GetShaderMapToUse() const;
+	bool GetUseShaderPermutations() const { return bUseShaderPermutations; }
+	NIAGARASHADER_API int32 GetNumPermutations() const { return NumPermutations; }
+	NIAGARASHADER_API int32 PermutationIdToShaderStageIndex(int32 PermutationId) const;
+
+	NIAGARASHADER_API bool IsShaderMapComplete() const;
+
+	FORCEINLINE bool IsShaderMapComplete_RenderThread() const { check(IsInRenderingThread()); return CachedData_RenderThread.bIsComplete != 0; }
+	FORCEINLINE int32 GetNumPermutations_RenderThread() const { check(IsInRenderingThread()); return CachedData_RenderThread.NumPermutations; }
+	FORCEINLINE bool IsGlobalConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bGlobalConstantBufferUsed & (1 << Index)) != 0; }
+	FORCEINLINE bool IsSystemConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bSystemConstantBufferUsed & (1 << Index)) != 0; }
+	FORCEINLINE bool IsOwnerConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bOwnerConstantBufferUsed & (1 << Index)) != 0; }
+	FORCEINLINE bool IsEmitterConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bEmitterConstantBufferUsed & (1 << Index)) != 0; }
+	FORCEINLINE bool IsExternalConstantBufferUsed_RenderThread(int32 Index) const { return (CachedData_RenderThread.bExternalConstantBufferUsed & (1 << Index)) != 0; }
+	FORCEINLINE bool IsViewUniformBufferUsed_RenderThread() const { return CachedData_RenderThread.bViewUniformBufferUsed != 0; }
+	NIAGARASHADER_API int32 ShaderStageIndexToPermutationId_RenderThread(int32 ShaderStageIndex) const;
+
+protected:
 
 	/**
 	* Fills the passed array with IDs of shader maps unfinished compilation jobs.
 	*/
 	void GetShaderMapIDsWithUnfinishedCompilation(TArray<int32>& ShaderMapIds);
 
-
 	void SetFeatureLevel(ERHIFeatureLevel::Type InFeatureLevel)
 	{
 		FeatureLevel = InFeatureLevel;
 	}
 
+	void UpdateCachedData_All();
+	void UpdateCachedData_PreCompile();
+	void UpdateCachedData_PostCompile(bool bCalledFromSerialize = false);
+
 private:
-	UNiagaraScript* BaseVMScript;
+	UNiagaraScriptBase* BaseVMScript;
 
 	TArray<FString> CompileErrors;
 
@@ -799,6 +829,9 @@ private:
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	bool bUsesRapidIterationParams = true;
 
+	/** Should we use shader permutations to reduce the cost of simulation stages or not */
+	bool bUseShaderPermutations = true;
+
 	/** Compile hash for the base script. */
 	FNiagaraCompileHash BaseCompileHash;
 
@@ -820,6 +853,12 @@ private:
 
 	uint32 bLoadedCookedShaderMapId : 1;
 	uint32 bLoadedFromCookedMaterial : 1;
+	uint32 bQueuedForRelease : 1;
+
+	int32 NumPermutations = 0;
+	TArray<TPair<int32, int32>> ShaderStageToPermutation;
+
+	FNiagaraShaderMapCachedData CachedData_RenderThread;
 
 	FNiagaraShaderMapId CookedShaderMapId;
 

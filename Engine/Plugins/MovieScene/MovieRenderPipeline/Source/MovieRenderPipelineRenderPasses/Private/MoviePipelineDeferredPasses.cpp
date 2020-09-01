@@ -33,7 +33,6 @@ DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableAccumulator"), STAT_
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_AccumulateSample_TT"), STAT_AccumulateSample_TaskThread, STATGROUP_MoviePipeline);
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_WaitForAvailableSurface"), STAT_MoviePipeline_WaitForAvailableSurface, STATGROUP_MoviePipeline);
 
-
 // Forward Declare
 namespace MoviePipeline
 {
@@ -41,17 +40,18 @@ namespace MoviePipeline
 	static bool GetAnyOutputWantsAlpha(UMoviePipelineConfigBase* InConfig);
 }
 
-void UMoviePipelineDeferredPassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const
+void UMoviePipelineImagePassBase::GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const
 {
 	OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 	OutViewModeIndex = EViewModeIndex::VMI_Lit;
 }
 
-void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
+void UMoviePipelineImagePassBase::RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState)
 {
 	Super::RenderSample_GameThreadImpl(InSampleState);
-
-	const FMoviePipelineFrameOutputState::FTimeData& TimeData = InSampleState.OutputState.TimeData;
+	 
+	FMoviePipelineRenderPassMetrics InOutSampleState = InSampleState;
+	const FMoviePipelineFrameOutputState::FTimeData& TimeData = InOutSampleState.OutputState.TimeData;
 
 	FEngineShowFlags ShowFlags = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
 	EViewModeIndex  ViewModeIndex;
@@ -66,15 +66,15 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		.SetWorldTimes(TimeData.WorldSeconds, TimeData.FrameDeltaTime, TimeData.WorldSeconds)
 		.SetRealtimeUpdate(true));
 
-	ViewFamily.SceneCaptureSource = InSampleState.SceneCaptureSource;
-	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, InSampleState.GlobalScreenPercentageFraction, true));
-	ViewFamily.bWorldIsPaused = InSampleState.bWorldIsPaused;
+	ViewFamily.SceneCaptureSource = InOutSampleState.SceneCaptureSource;
+	ViewFamily.SetScreenPercentageInterface(new FLegacyScreenPercentageDriver(ViewFamily, IsScreenPercentageSupported() ? InOutSampleState.GlobalScreenPercentageFraction : 1.f, IsScreenPercentageSupported()));
+	ViewFamily.bWorldIsPaused = InOutSampleState.bWorldIsPaused;
 	ViewFamily.ViewMode = ViewModeIndex;
 	EngineShowFlagOverride(ESFIM_Game, ViewFamily.ViewMode, ViewFamily.EngineShowFlags, false);
 
 
-	// View is added as a child of the ViewFamily
-	FSceneView* View = GetSceneViewForSampleState(&ViewFamily, InSampleState);
+	// View is added as a child of the ViewFamily. 
+	FSceneView* View = GetSceneViewForSampleState(&ViewFamily, /*InOut*/ InOutSampleState);
 #if RHI_RAYTRACING
 	View->SetupRayTracedRendering();
 #endif
@@ -83,23 +83,26 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 
 	// Override the view's FrameIndex to be based on our progress through the sequence. This greatly increases
 	// determinism with things like TAA.
-	View->OverrideFrameIndexValue = InSampleState.FrameIndex;
-	View->bCameraCut = InSampleState.bCameraCut;
+	View->OverrideFrameIndexValue = InOutSampleState.FrameIndex;
+	View->bCameraCut = InOutSampleState.bCameraCut;
 	View->bIsOfflineRender = true;
-	View->AntiAliasingMethod = InSampleState.AntiAliasingMethod;
+	View->AntiAliasingMethod = InOutSampleState.AntiAliasingMethod;
 
 	// Override the Motion Blur settings since these are controlled by the movie pipeline.
 	{
 		FFrameRate OutputFrameRate = GetPipeline()->GetPipelineMasterConfig()->GetEffectiveFrameRate(GetPipeline()->GetTargetSequence());
-		View->FinalPostProcessSettings.MotionBlurTargetFPS = FMath::RoundToInt(OutputFrameRate.AsDecimal());
-		View->FinalPostProcessSettings.MotionBlurAmount = InSampleState.OutputState.TimeData.MotionBlurFraction;
+
+		// We need to inversly scale the target FPS by time dilation to counteract slowmo. If scaling isn't applied then motion blur length
+		// stays the same length despite the smaller delta time and the blur ends up too long.
+		View->FinalPostProcessSettings.MotionBlurTargetFPS = FMath::RoundToInt(OutputFrameRate.AsDecimal() / FMath::Max(SMALL_NUMBER, InOutSampleState.OutputState.TimeData.TimeDilation));
+		View->FinalPostProcessSettings.MotionBlurAmount = InOutSampleState.OutputState.TimeData.MotionBlurFraction;
 		View->FinalPostProcessSettings.MotionBlurMax = 100.f;
 		View->FinalPostProcessSettings.bOverride_MotionBlurAmount = true;
 		View->FinalPostProcessSettings.bOverride_MotionBlurTargetFPS = true;
 		View->FinalPostProcessSettings.bOverride_MotionBlurMax = true;
 
 		// Skip the whole pass if they don't want motion blur.
-		if (FMath::IsNearlyZero(InSampleState.OutputState.TimeData.MotionBlurFraction))
+		if (FMath::IsNearlyZero(InOutSampleState.OutputState.TimeData.MotionBlurFraction))
 		{
 			ViewFamily.EngineShowFlags.SetMotionBlur(false);
 		}
@@ -107,12 +110,12 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 
 	// Locked Exposure
 	{
-		if (InSampleState.ExposureCompensation.IsSet())
+		if (InOutSampleState.ExposureCompensation.IsSet())
 		{
 			View->FinalPostProcessSettings.AutoExposureMethod = EAutoExposureMethod::AEM_Manual;
-			View->FinalPostProcessSettings.AutoExposureBias = InSampleState.ExposureCompensation.GetValue();
+			View->FinalPostProcessSettings.AutoExposureBias = InOutSampleState.ExposureCompensation.GetValue();
 		}
-		else if (InSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
+		else if (InOutSampleState.GetTileCount() > 1 && (View->FinalPostProcessSettings.AutoExposureMethod != EAutoExposureMethod::AEM_Manual))
 		{
 			// Auto exposure is not allowed
 			UE_LOG(LogMovieRenderPipeline, Warning, TEXT("AutoExposure Method should always be Manual when using tiling!"));
@@ -126,7 +129,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 		// inside FSceneRenderer::PreVisibilityFrameSetup..
 		if (View->AntiAliasingMethod != EAntiAliasingMethod::AAM_TemporalAA)
 		{
-			View->ViewMatrices.HackAddTemporalAAProjectionJitter(InSampleState.ProjectionMatrixJitterAmount);
+			View->ViewMatrices.HackAddTemporalAAProjectionJitter(InOutSampleState.ProjectionMatrixJitterAmount);
 		}
 	}
 
@@ -134,7 +137,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 	{
 		// If we're using tiling, we force the reset of histories each frame so that we don't use the previous tile's
 		// object occlusion queries, as that causes things to disappear from some views.
-		if (InSampleState.GetTileCount() > 1)
+		if (InOutSampleState.GetTileCount() > 1)
 		{
 			View->bForceCameraVisibilityReset = true;
 		}
@@ -143,12 +146,12 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 	// Bias all mip-mapping to pretend to be working at our target resolution and not our tile resolution
 	// so that the images don't end up soft.
 	{
-		float EffectivePrimaryResolutionFraction = 1.f / InSampleState.TileCounts.X;
+		float EffectivePrimaryResolutionFraction = 1.f / InOutSampleState.TileCounts.X;
 		View->MaterialTextureMipBias = FMath::Log2(EffectivePrimaryResolutionFraction);
 
 		// Add an additional bias per user settings. This allows them to choose to make the textures sharper if it
 		// looks better with their particular settings.
-		View->MaterialTextureMipBias += InSampleState.TextureSharpnessBias;
+		View->MaterialTextureMipBias += InOutSampleState.TextureSharpnessBias;
 	}
 
 	// Wait for a surface to be available to write to. This will stall the game thread while the RHI/Render Thread catch up.
@@ -162,7 +165,7 @@ void UMoviePipelineDeferredPassBase::RenderSample_GameThreadImpl(const FMoviePip
 	// Draw the world into this View Family
 	GetRendererModule().BeginRenderingViewFamily(&Canvas, &ViewFamily);
 
-	PostRendererSubmission(InSampleState, Canvas);
+	PostRendererSubmission(InOutSampleState, Canvas);
 }
 
 void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas)
@@ -297,7 +300,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 		});
 }
 
-void UMoviePipelineDeferredPassBase::SetupViewForViewModeOverride(FSceneView* View)
+void UMoviePipelineImagePassBase::SetupViewForViewModeOverride(FSceneView* View)
 {
 	if (View->Family->EngineShowFlags.Wireframe)
 	{
@@ -344,6 +347,14 @@ void UMoviePipelineDeferredPassBase::MoviePipelineRenderShowFlagOverride(FEngine
 	OutShowFlag.SetBloom(!bDisableBloom);
 }
 
+void UMoviePipelineImagePassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
+{
+	Super::SetupImpl(InPassInitSettings);
+
+	// Allocate 
+	ViewState.Allocate();
+}
+
 void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings)
 {
 	Super::SetupImpl(InPassInitSettings);
@@ -355,19 +366,29 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 	// Initialize to the tile size (not final size) and use a 16 bit back buffer to avoid precision issues when accumulating later
 	TileRenderTarget->InitCustomFormat(InPassInitSettings.BackbufferResolution.X, InPassInitSettings.BackbufferResolution.Y, EPixelFormat::PF_FloatRGBA, false);
 
-	GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
-
-	// Allocate 
-	ViewState.Allocate();
+	if (GetPipeline()->GetPreviewTexture() == nullptr)
+	{
+		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
+	}
 
 	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
 	AccumulatorPool = MakeShared<FAccumulatorPool, ESPMode::ThreadSafe>(6);
 }
 
+void UMoviePipelineImagePassBase::TeardownImpl()
+{
+	FSceneViewStateInterface* Ref = ViewState.GetReference();
+	if (Ref)
+	{
+		Ref->ClearMIDPool();
+	}
+	ViewState.Destroy();
+
+	Super::TeardownImpl();
+}
+
 void UMoviePipelineDeferredPassBase::TeardownImpl()
 {
-	Super::TeardownImpl();
-
 	GetPipeline()->SetPreviewTexture(nullptr);
 
 	// This may call FlushRenderingCommands if there are outstanding readbacks that need to happen.
@@ -376,20 +397,16 @@ void UMoviePipelineDeferredPassBase::TeardownImpl()
 	// Stall until the task graph has completed any pending accumulations.
 	FTaskGraphInterface::Get().WaitUntilTasksComplete(OutstandingTasks, ENamedThreads::GameThread);
 	OutstandingTasks.Reset();
-	
-	FSceneViewStateInterface* Ref = ViewState.GetReference();
-	if (Ref)
-	{
-		Ref->ClearMIDPool();
-	}
-	ViewState.Destroy();
+
+	// Preserve our view state until the rendering thread has been flushed.
+	Super::TeardownImpl();
 }
 
-void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
+void UMoviePipelineImagePassBase::AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector)
 {
 	Super::AddReferencedObjects(InThis, Collector);
 
-	UMoviePipelineDeferredPassBase& This = *CastChecked<UMoviePipelineDeferredPassBase>(InThis);
+	UMoviePipelineImagePassBase& This = *CastChecked<UMoviePipelineImagePassBase>(InThis);
 	FSceneViewStateInterface* Ref = This.ViewState.GetReference();
 	if (Ref)
 	{
@@ -397,24 +414,24 @@ void UMoviePipelineDeferredPassBase::AddReferencedObjects(UObject* InThis, FRefe
 	}
 }
 
-void UMoviePipelineDeferredPassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
+void UMoviePipelineImagePassBase::GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses)
 {
 	Super::GatherOutputPassesImpl(ExpectedRenderPasses);
 	ExpectedRenderPasses.Add(PassIdentifier);
 }
 
-FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState)
+FSceneView* UMoviePipelineImagePassBase::GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState)
 {
 	APlayerController* LocalPlayerController = GetPipeline()->GetWorld()->GetFirstPlayerController();
 
-	int32 TileSizeX = InSampleState.BackbufferSize.X;
-	int32 TileSizeY = InSampleState.BackbufferSize.Y;
+	int32 TileSizeX = InOutSampleState.BackbufferSize.X;
+	int32 TileSizeY = InOutSampleState.BackbufferSize.Y;
 
 	FSceneViewInitOptions ViewInitOptions;
 	ViewInitOptions.ViewFamily = ViewFamily;
-	ViewInitOptions.ViewOrigin = InSampleState.FrameInfo.CurrViewLocation;
+	ViewInitOptions.ViewOrigin = InOutSampleState.FrameInfo.CurrViewLocation;
 	ViewInitOptions.SetViewRectangle(FIntRect(FIntPoint(0, 0), FIntPoint(TileSizeX, TileSizeY)));
-	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(InSampleState.FrameInfo.CurrViewRotation);
+	ViewInitOptions.ViewRotationMatrix = FInverseRotationMatrix(InOutSampleState.FrameInfo.CurrViewRotation);
 
 	// Rotate the view 90 degrees (reason: unknown)
 	ViewInitOptions.ViewRotationMatrix = ViewInitOptions.ViewRotationMatrix * FMatrix(
@@ -516,22 +533,22 @@ FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneVie
 			float PadRatioX = 1.0f;
 			float PadRatioY = 1.0f;
 
-			if (InSampleState.OverlappedPad.X > 0 && InSampleState.OverlappedPad.Y > 0)
+			if (InOutSampleState.OverlappedPad.X > 0 && InOutSampleState.OverlappedPad.Y > 0)
 			{
-				PadRatioX = float(InSampleState.OverlappedPad.X * 2 + InSampleState.TileSize.X) / float(InSampleState.TileSize.X);
-				PadRatioY = float(InSampleState.OverlappedPad.Y * 2 + InSampleState.TileSize.Y) / float(InSampleState.TileSize.Y);
+				PadRatioX = float(InOutSampleState.OverlappedPad.X * 2 + InOutSampleState.TileSize.X) / float(InOutSampleState.TileSize.X);
+				PadRatioY = float(InOutSampleState.OverlappedPad.Y * 2 + InOutSampleState.TileSize.Y) / float(InOutSampleState.TileSize.Y);
 			}
 
-			float ScaleX = PadRatioX / float(InSampleState.TileCounts.X);
-			float ScaleY = PadRatioY / float(InSampleState.TileCounts.Y);
+			float ScaleX = PadRatioX / float(InOutSampleState.TileCounts.X);
+			float ScaleY = PadRatioY / float(InOutSampleState.TileCounts.Y);
 
 			BaseProjMatrix.M[0][0] /= ScaleX;
 			BaseProjMatrix.M[1][1] /= ScaleY;
 			DofSensorScale = ScaleX;
 
 			// this offset would be correct with no pad
-			float OffsetX = -((float(InSampleState.TileIndexes.X) + 0.5f - float(InSampleState.TileCounts.X) / 2.0f) * 2.0f);
-			float OffsetY = ((float(InSampleState.TileIndexes.Y) + 0.5f - float(InSampleState.TileCounts.Y) / 2.0f) * 2.0f);
+			float OffsetX = -((float(InOutSampleState.TileIndexes.X) + 0.5f - float(InOutSampleState.TileCounts.X) / 2.0f) * 2.0f);
+			float OffsetY = ((float(InOutSampleState.TileIndexes.Y) + 0.5f - float(InOutSampleState.TileCounts.Y) / 2.0f) * 2.0f);
 
 			BaseProjMatrix.M[2][0] += OffsetX / PadRatioX;
 			BaseProjMatrix.M[2][1] += OffsetY / PadRatioX;
@@ -545,10 +562,10 @@ FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneVie
 
 	FSceneView* View = new FSceneView(ViewInitOptions);
 	ViewFamily->Views.Add(View);
-	View->ViewLocation = InSampleState.FrameInfo.CurrViewLocation;
-	View->ViewRotation = InSampleState.FrameInfo.CurrViewRotation;
+	View->ViewLocation = InOutSampleState.FrameInfo.CurrViewLocation;
+	View->ViewRotation = InOutSampleState.FrameInfo.CurrViewRotation;
 	// Override previous/current view transforms so that tiled renders don't use the wrong occlusion/motion blur information.
-	View->PreviousViewTransform = FTransform(InSampleState.FrameInfo.PrevViewRotation, InSampleState.FrameInfo.PrevViewLocation);
+	View->PreviousViewTransform = FTransform(InOutSampleState.FrameInfo.PrevViewRotation, InOutSampleState.FrameInfo.PrevViewLocation);
 
 	View->StartFinalPostprocessSettings(View->ViewLocation);
 	BlendPostProcessSettings(View);
@@ -562,20 +579,20 @@ FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneVie
 		// Starting with a single tile, the middle of the tile in offset screen space is:
 		FVector2D TilePrincipalPointOffset;
 
-		TilePrincipalPointOffset.X = (float(InSampleState.TileIndexes.X) + 0.5f - (0.5f * float(InSampleState.TileCounts.X))) * 2.0f;
-		TilePrincipalPointOffset.Y = (float(InSampleState.TileIndexes.Y) + 0.5f - (0.5f * float(InSampleState.TileCounts.Y))) * 2.0f;
+		TilePrincipalPointOffset.X = (float(InOutSampleState.TileIndexes.X) + 0.5f - (0.5f * float(InOutSampleState.TileCounts.X))) * 2.0f;
+		TilePrincipalPointOffset.Y = (float(InOutSampleState.TileIndexes.Y) + 0.5f - (0.5f * float(InOutSampleState.TileCounts.Y))) * 2.0f;
 
 		// For the tile size ratio, we have to multiply by (1.0 + overlap) and then divide by tile num
 		FVector2D OverlapScale;
-		OverlapScale.X = (1.0f + float(2 * InSampleState.OverlappedPad.X) / float(InSampleState.TileSize.X));
-		OverlapScale.Y = (1.0f + float(2 * InSampleState.OverlappedPad.Y) / float(InSampleState.TileSize.Y));
+		OverlapScale.X = (1.0f + float(2 * InOutSampleState.OverlappedPad.X) / float(InOutSampleState.TileSize.X));
+		OverlapScale.Y = (1.0f + float(2 * InOutSampleState.OverlappedPad.Y) / float(InOutSampleState.TileSize.Y));
 
 		TilePrincipalPointOffset.X /= OverlapScale.X;
 		TilePrincipalPointOffset.Y /= OverlapScale.Y;
 
 		FVector2D TilePrincipalPointScale;
-		TilePrincipalPointScale.X = OverlapScale.X / float(InSampleState.TileCounts.X);
-		TilePrincipalPointScale.Y = OverlapScale.Y / float(InSampleState.TileCounts.Y);
+		TilePrincipalPointScale.X = OverlapScale.X / float(InOutSampleState.TileCounts.X);
+		TilePrincipalPointScale.Y = OverlapScale.Y / float(InOutSampleState.TileCounts.Y);
 
 		TilePrincipalPointOffset.X *= TilePrincipalPointScale.X;
 		TilePrincipalPointOffset.Y *= TilePrincipalPointScale.Y;
@@ -585,10 +602,27 @@ FSceneView* UMoviePipelineDeferredPassBase::GetSceneViewForSampleState(FSceneVie
 
 	View->EndFinalPostprocessSettings(ViewInitOptions);
 
+
+	// This metadata is per-file and not per-view, but we need the blended result from the view to actually match what we rendered.
+	// To solve this, we'll insert metadata per renderpass, separated by render pass name.
+	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/fstop"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFstop);
+	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/focalLength"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFocalRegion);
+	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/focusDistance"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldFocalDistance);
+	InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorWidth"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldSensorWidth);
+
+	if (GetWorld()->GetFirstPlayerController()->PlayerCameraManager)
+	{
+		const FMinimalViewInfo CameraCache = GetWorld()->GetFirstPlayerController()->PlayerCameraManager->GetCameraCachePOV();
+		float AspectRatio = CameraCache.bConstrainAspectRatio ? CameraCache.AspectRatio : (InOutSampleState.BackbufferSize.X / (float)InOutSampleState.BackbufferSize.Y);
+		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorAspectRatio"), *PassIdentifier.Name), AspectRatio);
+		InOutSampleState.OutputState.FileMetadata.Add(FString::Printf(TEXT("unreal/camera/%s/sensorHeight"), *PassIdentifier.Name), View->FinalPostProcessSettings.DepthOfFieldSensorWidth / AspectRatio);
+	}
+
+
 	return View;
 }
 
-void UMoviePipelineDeferredPassBase::BlendPostProcessSettings(FSceneView* InView)
+void UMoviePipelineImagePassBase::BlendPostProcessSettings(FSceneView* InView)
 {
 	check(InView);
 

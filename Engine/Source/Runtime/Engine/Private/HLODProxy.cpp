@@ -112,7 +112,10 @@ void UHLODProxy::Clean()
 	if (GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages)
 	{
 		UWorld* World = Cast<UWorld>(OwningMap.ToSoftObjectPath().ResolveObject());
-		UpdateHLODDescs(World->PersistentLevel);
+		if (World)
+		{
+			UpdateHLODDescs(World->PersistentLevel);
+		}
 	}
 	else if (HLODActors.Num() > 0)
 	{
@@ -411,7 +414,7 @@ uint32 UHLODProxy::GetCRC(UStaticMeshComponent* InComponent, uint32 InCRC, const
 }
 
 // Key that forms the basis of the HLOD proxy key. Bump this key (i.e. generate a new GUID) when you want to force a rebuild of ALL HLOD proxies
-#define HLOD_PROXY_BASE_KEY		TEXT("B5646FCCCB2846D8A82A3A8480C7C2DF")
+#define HLOD_PROXY_BASE_KEY		TEXT("174C29B19AB34A21894058E058F253B3")
 
 FName UHLODProxy::GenerateKeyForActor(const ALODActor* LODActor, bool bMustUndoLevelTransform)
 {

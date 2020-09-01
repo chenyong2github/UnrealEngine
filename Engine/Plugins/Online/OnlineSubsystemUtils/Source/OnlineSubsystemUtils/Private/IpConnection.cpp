@@ -157,7 +157,7 @@ void UIpConnection::InitRemoteConnection(UNetDriver* InDriver, class FSocket* In
 	SetExpectedClientLoginMsgType( NMT_Hello );
 }
 
-void UIpConnection::Tick()
+void UIpConnection::Tick(float DeltaSeconds)
 {
 	if (CVarNetIpConnectionUseSendTasks.GetValueOnGameThread() != 0)
 	{
@@ -245,7 +245,7 @@ void UIpConnection::Tick()
 		Close();
 	}
 
-	Super::Tick();
+	Super::Tick(DeltaSeconds);
 }
 
 void UIpConnection::CleanUp()

@@ -11,8 +11,8 @@
 #include "Templates/SubclassOf.h"
 #include "BlueprintGameplayTagLibrary.generated.h"
 
-UCLASS(MinimalAPI, meta=(ScriptName="GameplayTagLibrary"))
-class UBlueprintGameplayTagLibrary : public UBlueprintFunctionLibrary
+UCLASS(meta=(ScriptName="GameplayTagLibrary"))
+class GAMEPLAYTAGS_API UBlueprintGameplayTagLibrary : public UBlueprintFunctionLibrary
 {
 	GENERATED_UCLASS_BODY()
 

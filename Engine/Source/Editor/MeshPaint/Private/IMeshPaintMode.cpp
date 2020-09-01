@@ -43,6 +43,10 @@ IMeshPaintEdMode::IMeshPaintEdMode()
 
 IMeshPaintEdMode::~IMeshPaintEdMode()
 {
+	if (GEditor)
+	{
+		GEditor->OnEditorClose().RemoveAll(this);
+	}
 }
 
 /** FGCObject interface */

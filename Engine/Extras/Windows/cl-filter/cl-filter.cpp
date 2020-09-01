@@ -21,6 +21,7 @@ void PrintUsage()
 	wprintf(L"Usage: cl-filter.exe -dependencies=<dependencies-file> -compiler=<compiler-file> [Optional Args] -- <child command line>\n");
 	wprintf(L"Optional Args:\n");
 	wprintf(L"\t-timing=<timing-file>\tThe file to write any timing data to.\n");
+	wprintf(L"\t-stderronly\tProcess output from StdErr only and use the default pipe for StdOut.\n");
 }
 
 bool ParseArgumentValue(const wchar_t* Argument, const wchar_t* Prefix, size_t PrefixLen, const wchar_t** OutValue)
@@ -46,6 +47,7 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	const wchar_t* TimingFileName = nullptr;
 	const wchar_t* CompilerFileName = nullptr;
 	bool bShowIncludes = false;
+	bool bUseStdErrOnly = false;
 
 	for (int Idx = 1; Idx < ArgC; Idx++)
 	{
@@ -76,6 +78,11 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 		if (_wcsicmp(Arg, L"-showincludes") == 0)
 		{
 			bShowIncludes = true;
+			continue;
+		}
+		if (_wcsicmp(Arg, L"-stderronly") == 0)
+		{
+			bUseStdErrOnly = true;
 			continue;
 		}
 
@@ -120,19 +127,22 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	ZeroMemory(&SecurityAttributes, sizeof(SecurityAttributes));
 	SecurityAttributes.bInheritHandle = TRUE;
 
-	HANDLE StdOutReadHandle;
-	HANDLE StdOutWriteHandle;
-	if (CreatePipe(&StdOutReadHandle, &StdOutWriteHandle, &SecurityAttributes, 0) == 0)
+	HANDLE ReadPipeHandle;
+	HANDLE WritePipeHandle;
+	if (CreatePipe(&ReadPipeHandle, &WritePipeHandle, &SecurityAttributes, 0) == 0)
 	{
 		wprintf(L"ERROR: Unable to create output pipe for child process\n");
 		return EXIT_CODE_FAILURE;
 	}
 
-	HANDLE StdErrWriteHandle;
-	if (DuplicateHandle(GetCurrentProcess(), StdOutWriteHandle, GetCurrentProcess(), &StdErrWriteHandle, 0, true, DUPLICATE_SAME_ACCESS) == 0)
+	HANDLE AdditionalWritePipeHandle = INVALID_HANDLE_VALUE;
+	if (!bUseStdErrOnly)
 	{
-		wprintf(L"ERROR: Unable to create stderr pipe handle for child process\n");
-		return EXIT_CODE_FAILURE;
+		if (DuplicateHandle(GetCurrentProcess(), WritePipeHandle, GetCurrentProcess(), &AdditionalWritePipeHandle, 0, true, DUPLICATE_SAME_ACCESS) == 0)
+		{
+			wprintf(L"ERROR: Unable to create stderr pipe handle for child process\n");
+			return EXIT_CODE_FAILURE;
+		}
 	}
 
 	// Create the new process as suspended, so we can modify it before it starts executing (and potentially preempting us)
@@ -140,8 +150,8 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	ZeroMemory(&StartupInfo, sizeof(StartupInfo));
 	StartupInfo.cb = sizeof(StartupInfo);
 	StartupInfo.hStdInput = NULL;
-	StartupInfo.hStdOutput = StdOutWriteHandle;
-	StartupInfo.hStdError = StdErrWriteHandle;
+	StartupInfo.hStdOutput = bUseStdErrOnly ? GetStdHandle(STD_OUTPUT_HANDLE) : WritePipeHandle;
+	StartupInfo.hStdError = bUseStdErrOnly ? WritePipeHandle : AdditionalWritePipeHandle;
 	StartupInfo.dwFlags = STARTF_USESTDHANDLES;
 
 	DWORD ProcessCreationFlags = GetPriorityClass(GetCurrentProcess());
@@ -155,8 +165,11 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 	CloseHandle(ProcessInfo.hThread);
 
 	// Close the write ends of the handle. We don't want any other process to be able to inherit these.
-	CloseHandle(StdOutWriteHandle);
-	CloseHandle(StdErrWriteHandle);
+	CloseHandle(WritePipeHandle);
+	if (AdditionalWritePipeHandle != INVALID_HANDLE_VALUE)
+	{
+		CloseHandle(AdditionalWritePipeHandle);
+	}
 
 	// Delete the output file.
 	DeleteFileW(OutputFileName);
@@ -207,7 +220,7 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 		DWORD BytesRead = 0;
 		if (BufferSize < sizeof(Buffer))
 		{
-			if (ReadFile(StdOutReadHandle, Buffer + BufferSize, (DWORD)(sizeof(Buffer) - BufferSize), &BytesRead, NULL))
+			if (ReadFile(ReadPipeHandle, Buffer + BufferSize, (DWORD)(sizeof(Buffer) - BufferSize), &BytesRead, NULL))
 			{
 				BufferSize += BytesRead;
 			}
@@ -260,7 +273,7 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 
 					if (bShowIncludes)
 					{
-						WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), Buffer + LineStart, (DWORD)(LineEnd - LineStart), &BytesWritten, NULL);
+						WriteFile(GetStdHandle(bUseStdErrOnly ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE), Buffer + LineStart, (DWORD)(LineEnd - LineStart), &BytesWritten, NULL);
 					}
 
 					LineStart = LineEnd;
@@ -293,7 +306,7 @@ int wmain(int ArgC, const wchar_t* ArgV[])
 			if(LineStart < LineEnd)
 			{
 				DWORD BytesWritten;
-				WriteFile(GetStdHandle(STD_OUTPUT_HANDLE), Buffer + LineStart, (DWORD)(LineEnd - LineStart), &BytesWritten, NULL);
+				WriteFile(GetStdHandle(bUseStdErrOnly ? STD_ERROR_HANDLE : STD_OUTPUT_HANDLE), Buffer + LineStart, (DWORD)(LineEnd - LineStart), &BytesWritten, NULL);
 			}
 
 			// Move to the next line

@@ -116,9 +116,14 @@
 #define SYS_PARAM_PARTICLES_RIBBONTWIST                  INiagaraModule::GetVar_Particles_RibbonTwist()
 #define SYS_PARAM_PARTICLES_RIBBONFACING                 INiagaraModule::GetVar_Particles_RibbonFacing()
 #define SYS_PARAM_PARTICLES_RIBBONLINKORDER              INiagaraModule::GetVar_Particles_RibbonLinkOrder()
+#define SYS_PARAM_PARTICLES_RIBBONU0OVERRIDE             INiagaraModule::GetVar_Particles_RibbonU0Override()
+#define SYS_PARAM_PARTICLES_RIBBONV0RANGEOVERRIDE        INiagaraModule::GetVar_Particles_RibbonV0RangeOverride()
+#define SYS_PARAM_PARTICLES_RIBBONU1OVERRIDE             INiagaraModule::GetVar_Particles_RibbonU1Override()
+#define SYS_PARAM_PARTICLES_RIBBONV1RANGEOVERRIDE        INiagaraModule::GetVar_Particles_RibbonV1RangeOverride()
 
 #define SYS_PARAM_INSTANCE_ALIVE                         INiagaraModule::GetVar_DataInstance_Alive()
 #define SYS_PARAM_SCRIPT_USAGE                           INiagaraModule::GetVar_ScriptUsage()
+#define SYS_PARAM_SCRIPT_CONTEXT                         INiagaraModule::GetVar_ScriptContext()
 #define TRANSLATOR_PARAM_BEGIN_DEFAULTS                  INiagaraModule::GetVar_BeginDefaults()
 
 struct NIAGARA_API FNiagaraConstants
@@ -135,7 +140,8 @@ struct NIAGARA_API FNiagaraConstants
 	static FText GetAttributeDescription(const FNiagaraVariable& InVar);
 	static FString GetAttributeDefaultValue(const FNiagaraVariable& InVar);
 	static FNiagaraVariable GetAttributeWithDefaultValue(const FNiagaraVariable& InAttribute);
-	static FNiagaraVariable GetAttributeAsDataSetKey(const FNiagaraVariable& InAttribute);
+	static FNiagaraVariable GetAttributeAsParticleDataSetKey(const FNiagaraVariable& InAttribute);
+	static FNiagaraVariable GetAttributeAsEmitterDataSetKey(const FNiagaraVariable& InAttribute);
 	static FNiagaraVariableAttributeBinding GetAttributeDefaultBinding(const FNiagaraVariable& InAttribute);
 
 	static bool IsNiagaraConstant(const FNiagaraVariable& InVar);

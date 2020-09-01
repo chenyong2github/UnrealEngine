@@ -26,6 +26,7 @@
 #include "K2Node_FunctionEntry.h"
 #include "K2Node_EventNodeInterface.h"
 #include "ScopedTransaction.h"
+#include "HAL/PlatformApplicationMisc.h"
 
 #include "DetailLayoutBuilder.h"
 
@@ -54,9 +55,18 @@
 
 #include "BlueprintEditorSettings.h"
 #include "SReplaceNodeReferences.h"
+#include "ReplaceNodeReferencesHelper.h"
 #include "Animation/AnimClassInterface.h"
 
+#include "BPFunctionClipboardData.h"
+
 #define LOCTEXT_NAMESPACE "MyBlueprint"
+
+//////////////////////////////////////////////////////////////////////////
+
+// Magic values to differentiate Variables and Functions on the clipboard
+static const TCHAR* VAR_PREFIX = TEXT("BPVar");
+static const TCHAR* FUNC_PREFIX = TEXT("BPFunc");
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -66,9 +76,13 @@ void FMyBlueprintCommands::RegisterCommands()
 	UI_COMMAND( OpenGraphInNewTab, "Open in New Tab", "Opens up this function, macro, or event graph's graph panel up in a new tab. Hold down Ctrl and double click for shortcut.", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( FocusNode, "Focus", "Focuses on the associated node", EUserInterfaceActionType::Button, FInputChord() );
 	UI_COMMAND( FocusNodeInNewTab, "Focus in New Tab", "Focuses on the associated node in a new tab", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( ImplementFunction, "Implement Function", "Implements this overridable function as a new function.", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND(DeleteEntry, "Delete", "Deletes this function or variable from this blueprint.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
+	UI_COMMAND( ImplementFunction, "Implement event", "Implements this overridable function as a new event.", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( DeleteEntry, "Delete", "Deletes this function or variable from this blueprint.", EUserInterfaceActionType::Button, FInputChord(EKeys::Platform_Delete));
+	UI_COMMAND( PasteVariable, "Paste Variable", "Pastes the variable to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND( PasteLocalVariable, "Paste Local Variable", "Pastes the variable to this scope.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND( PasteFunction, "Paste Function", "Pastes the function to this blueprint.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND( GotoNativeVarDefinition, "Goto Code Definition", "Goto the native code definition of this variable", EUserInterfaceActionType::Button, FInputChord() );
+	UI_COMMAND( MoveToParent, "Move to Parent Class", "Moves the variable to its parent class", EUserInterfaceActionType::Button, FInputChord() );
 }
 
 //////////////////////////////////////////////////////////////////////////
@@ -246,65 +260,101 @@ void SMyBlueprint::Construct(const FArguments& InArgs, TWeakPtr<FBlueprintEditor
 	{
 		Blueprint = BlueprintEditorPtr.Pin()->GetBlueprintObj();
 
-		TSharedPtr<FUICommandList> ToolKitCommandList = InBlueprintEditor.Pin()->GetToolkitCommands();
+		CommandList = MakeShareable(new FUICommandList);
+		
+		CommandList->Append(InBlueprintEditor.Pin()->GetToolkitCommands());
 
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().OpenGraph,
+		CommandList->MapAction( FMyBlueprintCommands::Get().OpenGraph,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnOpenGraph),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanOpenGraph) );
 	
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().OpenGraphInNewTab,
+		CommandList->MapAction( FMyBlueprintCommands::Get().OpenGraphInNewTab,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnOpenGraphInNewTab),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanOpenGraph) );
 
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().FocusNode,
+		CommandList->MapAction( FMyBlueprintCommands::Get().FocusNode,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnFocusNode),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanFocusOnNode) );
 
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().FocusNodeInNewTab,
+		CommandList->MapAction( FMyBlueprintCommands::Get().FocusNodeInNewTab,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnFocusNodeInNewTab),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanFocusOnNode) );
 
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().ImplementFunction,
+		CommandList->MapAction( FMyBlueprintCommands::Get().ImplementFunction,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnImplementFunction),
 			FCanExecuteAction(), FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanImplementFunction) );
 	
-		ToolKitCommandList->MapAction( FGraphEditorCommands::Get().FindReferences,
+		CommandList->MapAction( FGraphEditorCommands::Get().FindReferences,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnFindReference),
 			FCanExecuteAction(),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanFindReference) );
 
-		ToolKitCommandList->MapAction( FGraphEditorCommands::Get().FindAndReplaceReferences,
+		CommandList->MapAction( FGraphEditorCommands::Get().FindAndReplaceReferences,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnFindAndReplaceReference),
 			FCanExecuteAction(),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanFindAndReplaceReference) );
 	
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().DeleteEntry,
+		CommandList->MapAction( FMyBlueprintCommands::Get().DeleteEntry,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnDeleteEntry),
 			FCanExecuteAction::CreateSP(this, &SMyBlueprint::CanDeleteEntry) );
 
-		ToolKitCommandList->MapAction( FGenericCommands::Get().Duplicate,
+		CommandList->MapAction( FGenericCommands::Get().Duplicate,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnDuplicateAction),
 			FCanExecuteAction::CreateSP(this, &SMyBlueprint::CanDuplicateAction),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::IsDuplicateActionVisible) );
 
-		ToolKitCommandList->MapAction( FMyBlueprintCommands::Get().GotoNativeVarDefinition,
+		CommandList->MapAction( FMyBlueprintCommands::Get().MoveToParent,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnMoveToParent),
+			FCanExecuteAction(),
+			FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanMoveToParent) );
+
+		CommandList->MapAction( FMyBlueprintCommands::Get().GotoNativeVarDefinition,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::GotoNativeCodeVarDefinition),
 			FCanExecuteAction(),
 			FIsActionChecked(),
 			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::IsNativeVariable) );
 		ToolbarBuilderWidget = SNullWidget::NullWidget;
 	
-		ToolKitCommandList->MapAction(FGenericCommands::Get().Rename,
+		CommandList->MapAction(FGenericCommands::Get().Rename,
 			FExecuteAction::CreateSP(this, &SMyBlueprint::OnRequestRenameOnActionNode),
 			FCanExecuteAction::CreateSP(this, &SMyBlueprint::CanRequestRenameOnActionNode));
+
+		CommandList->MapAction(FGenericCommands::Get().Copy,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnCopy),
+			FCanExecuteAction::CreateSP(this, &SMyBlueprint::CanCopy));
+		
+		CommandList->MapAction(FGenericCommands::Get().Cut,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnCut),
+			FCanExecuteAction::CreateSP(this, &SMyBlueprint::CanCut));
+
+		CommandList->MapAction(FGenericCommands::Get().Paste,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteGeneric),
+			FCanExecuteAction(), FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteGeneric));
+
+		CommandList->MapAction(FMyBlueprintCommands::Get().PasteVariable,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteVariable),
+			FCanExecuteAction(), FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteVariable));
+
+		CommandList->MapAction(FMyBlueprintCommands::Get().PasteLocalVariable,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteLocalVariable),
+			FCanExecuteAction(), FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteLocalVariable));
+
+		CommandList->MapAction(FMyBlueprintCommands::Get().PasteFunction,
+			FExecuteAction::CreateSP(this, &SMyBlueprint::OnPasteFunction),
+			FCanExecuteAction(), FIsActionChecked(),
+			FIsActionButtonVisible::CreateSP(this, &SMyBlueprint::CanPasteFunction));
 	}
 	else
 	{
@@ -548,6 +598,15 @@ void SMyBlueprint::Tick(const FGeometry& AllottedGeometry, const double InCurren
 	{
 		Refresh();
 	}
+}
+
+FReply SMyBlueprint::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (CommandList->ProcessCommandBindings(InKeyEvent))
+	{
+		return FReply::Handled();
+	}
+	return FReply::Unhandled();
 }
 
 void SMyBlueprint::OnCategoryNameCommitted(const FText& InNewText, ETextCommit::Type InTextCommit, TWeakPtr< FGraphActionNode > InAction )
@@ -801,22 +860,22 @@ FReply SMyBlueprint::OnAddButtonClickedOnSection(int32 InSectionID)
 	switch ( InSectionID )
 	{
 	case NodeSectionID::VARIABLE:
-		BlueprintEditor->GetToolkitCommands()->ExecuteAction(FBlueprintEditorCommands::Get().AddNewVariable.ToSharedRef());
+		CommandList->ExecuteAction(FBlueprintEditorCommands::Get().AddNewVariable.ToSharedRef());
 		break;
 	case NodeSectionID::FUNCTION:
-		BlueprintEditor->GetToolkitCommands()->ExecuteAction(FBlueprintEditorCommands::Get().AddNewFunction.ToSharedRef());
+		CommandList->ExecuteAction(FBlueprintEditorCommands::Get().AddNewFunction.ToSharedRef());
 		break;
 	case NodeSectionID::MACRO:
-		BlueprintEditor->GetToolkitCommands()->ExecuteAction(FBlueprintEditorCommands::Get().AddNewMacroDeclaration.ToSharedRef());
+		CommandList->ExecuteAction(FBlueprintEditorCommands::Get().AddNewMacroDeclaration.ToSharedRef());
 		break;
 	case NodeSectionID::DELEGATE:
-		BlueprintEditor->GetToolkitCommands()->ExecuteAction(FBlueprintEditorCommands::Get().AddNewDelegate.ToSharedRef());
+		CommandList->ExecuteAction(FBlueprintEditorCommands::Get().AddNewDelegate.ToSharedRef());
 		break;
 	case NodeSectionID::GRAPH:
-		BlueprintEditor->GetToolkitCommands()->ExecuteAction(FBlueprintEditorCommands::Get().AddNewEventGraph.ToSharedRef());
+		CommandList->ExecuteAction(FBlueprintEditorCommands::Get().AddNewEventGraph.ToSharedRef());
 		break;
 	case NodeSectionID::ANIMLAYER:
-		BlueprintEditor->GetToolkitCommands()->ExecuteAction(FBlueprintEditorCommands::Get().AddNewAnimationLayer.ToSharedRef());
+		CommandList->ExecuteAction(FBlueprintEditorCommands::Get().AddNewAnimationLayer.ToSharedRef());
 		break;
 	case NodeSectionID::LOCAL_VARIABLE:
 		OnAddNewLocalVariable();
@@ -881,7 +940,7 @@ EVisibility SMyBlueprint::OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget
 TSharedRef<SWidget> SMyBlueprint::OnGetFunctionListMenu()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, BlueprintEditorPtr.Pin()->GetToolkitCommands());
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	BuildOverridableFunctionsMenu(MenuBuilder);
 
@@ -979,6 +1038,12 @@ bool SMyBlueprint::CanRequestRenameOnActionNode(TWeakPtr<FGraphActionNode> InSel
 void SMyBlueprint::Refresh()
 {
 	bNeedsRefresh = false;
+
+	// If there's a valid replace helper and it needs to be deleted, get rid of it
+	if (ReplaceHelper.IsValid() && ReplaceHelper->IsCompleted())
+	{
+		ReplaceHelper.Reset();
+	}
 
 	// Conform to our interfaces here to ensure we catch any newly added functions
 	FBlueprintEditorUtils::ConformImplementedInterfaces(GetBlueprintObj());
@@ -1824,13 +1889,7 @@ void SMyBlueprint::OnActionSelectedHelper(TSharedPtr<FEdGraphSchemaAction> InAct
 			SKismetInspector::FShowDetailsOptions Options(FText::FromName(VarAction->GetVariableName()));
 			Options.bForceRefresh = true;
 
-			FProperty* Prop = VarAction->GetProperty();
-			UPropertyWrapper* PropWrap = (Prop ? Prop->GetUPropertyWrapper() : nullptr);
-			Inspector->ShowDetailsForSingleObject(PropWrap, Options);
-			if (InBlueprintEditor.IsValid())
-			{
-				InBlueprintEditor.Pin()->GetReplaceReferencesWidget()->SetSourceVariable(VarAction->GetProperty());
-			}
+			Inspector->ShowDetailsForSingleObject(VarAction->GetProperty()->GetUPropertyWrapper(), Options);
 		}
 		else if (InAction->GetTypeId() == FEdGraphSchemaAction_K2LocalVar::StaticGetTypeId())
 		{
@@ -2075,7 +2134,7 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 	}
 
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection,BlueprintEditorPtr.Pin()->GetToolkitCommands());
+	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, CommandList);
 	
 	// Check if the selected action is valid for a context menu
 	if (SelectionHasContextMenu())
@@ -2091,7 +2150,10 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 			MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().FindReferences);
 			MenuBuilder.AddMenuEntry(FGraphEditorCommands::Get().FindAndReplaceReferences);
 			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().GotoNativeVarDefinition);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Cut);
+			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Copy);
 			MenuBuilder.AddMenuEntry(FGenericCommands::Get().Duplicate);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().MoveToParent);
 			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().DeleteEntry);
 		}
 		MenuBuilder.EndSection();
@@ -2123,16 +2185,20 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 			}
 		}
 		// If this is a function graph than we should add the option to convert it to an event if possible
-		else if( Graph )
+		else if( Graph && Graph->EdGraph )
 		{
 			// The first function entry node will have all the information that the conversion needs
+			// (the interface method entry in the tree might not have a real graph though, if it comes from a parent unchanged or is an event that hasn't been implemented yet)
 			UK2Node_FunctionEntry* EntryNode = nullptr;
-			for(UEdGraphNode* Node : Graph->EdGraph->Nodes)
+			if (Graph->EdGraph != nullptr)
 			{
-				if (UK2Node_FunctionEntry* TypedNode = Cast<UK2Node_FunctionEntry>(Node))
+				for( UEdGraphNode* Node : Graph->EdGraph->Nodes)
 				{
-					EntryNode = TypedNode;
-					break;
+					if (UK2Node_FunctionEntry* TypedNode = Cast<UK2Node_FunctionEntry>(Node))
+					{
+						EntryNode = TypedNode;
+						break;
+					}
 				}
 			}
 
@@ -2180,7 +2246,7 @@ TSharedPtr<SWidget> SMyBlueprint::OnContextMenuOpening()
 TSharedRef<SWidget> SMyBlueprint::CreateAddNewMenuWidget()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, BlueprintEditorPtr.Pin()->GetToolkitCommands());
+	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, CommandList);
 
 	BuildAddNewMenu(MenuBuilder);
 
@@ -2196,14 +2262,17 @@ void SMyBlueprint::BuildAddNewMenu(FMenuBuilder& MenuBuilder)
 		if (CurrentBlueprint->SupportsGlobalVariables())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewVariable);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().PasteVariable);
 		}
 		if (CurrentBlueprint->SupportsLocalVariables())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewLocalVariable);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().PasteLocalVariable);
 		}
 		if (CurrentBlueprint->SupportsFunctions())
 		{
 			MenuBuilder.AddMenuEntry(FBlueprintEditorCommands::Get().AddNewFunction);
+			MenuBuilder.AddMenuEntry(FMyBlueprintCommands::Get().PasteFunction);
 
 			// If we cannot handle Function Graphs, we cannot handle function overrides
 			if (OverridableFunctionActions.Num() > 0 && BlueprintEditorPtr.Pin()->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph))
@@ -2528,16 +2597,34 @@ bool SMyBlueprint::CanFindReference() const
 
 void SMyBlueprint::OnFindAndReplaceReference()
 {
-	BlueprintEditorPtr.Pin()->SummonFindAndReplaceUI();
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid())
+	{
+		if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+		{
+			PinnedEditor->SummonFindAndReplaceUI();
+			if (PinnedEditor->GetReplaceReferencesWidget().IsValid())
+			{
+				PinnedEditor->GetReplaceReferencesWidget()->SetSourceVariable(VarAction->GetProperty());
+			}
+		}
+	}
 }
 
 bool SMyBlueprint::CanFindAndReplaceReference() const
 {
-	if (SelectionAsVar() && GetDefault<UEditorExperimentalSettings>()->bEnableFindAndReplaceReferences)
+	if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
 	{
-		return true;
+		// If this variable was introduced in this class
+		// note: this also disallows SCS component variables because they won't be found in the NewVariables list
+		UBlueprint* SourceBlueprint;
+		int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(Blueprint, VarAction->GetVariableName(), SourceBlueprint);
+		if (VarIndex != INDEX_NONE)
+		{
+			return SourceBlueprint == Blueprint;
+		}
 	}
-
+	
 	return false;
 }
 
@@ -2975,6 +3062,7 @@ void SMyBlueprint::OnDuplicateAction()
 	if(DuplicateActionName != NAME_None)
 	{
 		SelectItemByName(DuplicateActionName);
+		Refresh();
 		OnRequestRenameOnActionNode();
 	}
 }
@@ -3001,6 +3089,375 @@ bool SMyBlueprint::IsNativeVariable() const
 			return true;
 		}
 	}
+	return false;
+}
+
+void SMyBlueprint::OnMoveToParent()
+{
+	if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+	{
+		if (UBlueprint* ParentBlueprint = UBlueprint::GetBlueprintFromClass(Blueprint->ParentClass))
+		{
+			TSharedPtr<FScopedTransaction> Transaction = MakeShared<FScopedTransaction>(LOCTEXT("MoveToParent", "Move To Parent"));
+
+			FName VarCopyName = FBlueprintEditorUtils::DuplicateMemberVariable(Blueprint, ParentBlueprint, VarAction->GetVariableName());
+
+			if (VarCopyName != NAME_None)
+			{
+				// If properties are not found, these will be nullptr
+				const FProperty* SourceProperty = FindFProperty<FProperty>(Blueprint->SkeletonGeneratedClass, VarAction->GetVariableName());
+				const FProperty* ReplacementProperty = FindFProperty<FProperty>(ParentBlueprint->SkeletonGeneratedClass, VarCopyName);
+				if (SourceProperty && ReplacementProperty)
+				{
+					// ReplaceAllReferences
+					FMemberReference OldVar;
+					FMemberReference NewVar;
+					OldVar.SetFromField<FProperty>(SourceProperty, true, SourceProperty->GetOwnerClass());
+					NewVar.SetFromField<FProperty>(ReplacementProperty, true, ReplacementProperty->GetOwnerClass());
+					ReplaceHelper = MakeShared<FReplaceNodeReferencesHelper>(MoveTemp(OldVar), MoveTemp(NewVar), Blueprint);
+					ReplaceHelper->SetTransaction(Transaction);
+
+					FSimpleDelegate OnCompleted = FSimpleDelegate::CreateSP(this, &SMyBlueprint::OnMoveToParentCompleted);
+
+					// This starts an FSlowTask, so we don't need to worry about anything breaking while the task is completed
+					ReplaceHelper->BeginFindAndReplace(OnCompleted);
+				}
+			}
+		}
+	}
+}
+
+void SMyBlueprint::OnMoveToParentCompleted()
+{
+	if (UBlueprint* ParentBlueprint = UBlueprint::GetBlueprintFromClass(Blueprint->ParentClass))
+	{
+		// Remove old var
+		FName OldName = ReplaceHelper->GetSource().GetMemberName();
+		Blueprint->Modify();
+		FBlueprintEditorUtils::RemoveMemberVariable(Blueprint, ReplaceHelper->GetSource().GetMemberName());
+
+		// Rename new var
+		FBlueprintEditorUtils::RenameMemberVariable(ParentBlueprint, ReplaceHelper->GetReplacement().GetMemberName(), OldName);
+	}
+	
+	// We need to defer destroying the helper until the next refresh because helper is currently ticking
+	bNeedsRefresh = true;
+}
+
+bool SMyBlueprint::CanMoveToParent() const
+{
+	bool bCanMove = false;
+
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && PinnedEditor->IsParentClassABlueprint())
+	{
+		if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+		{
+			// If this variable is new to this class
+			UBlueprint* SourceBlueprint;
+			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(Blueprint, VarAction->GetVariableName(), SourceBlueprint);
+			bCanMove = (VarIndex != INDEX_NONE) && (SourceBlueprint == Blueprint);
+		}
+		else if (SelectionAsGraph())
+		{
+			// TODO : add support for functions
+		}
+	}
+
+	return bCanMove;
+}
+
+void SMyBlueprint::OnCopy()
+{
+	FString OutputString;
+
+	if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+	{
+		UBlueprint* SourceBlueprint;
+		int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndexAndBlueprint(Blueprint, VarAction->GetVariableName(), SourceBlueprint);
+		if (VarIndex != INDEX_NONE)
+		{
+			// make a copy of the Variable description so we can set the default value
+			FBPVariableDescription Description = SourceBlueprint->NewVariables[VarIndex];
+
+			//Grab property of blueprint's current CDO
+			UClass* GeneratedClass = SourceBlueprint->GeneratedClass;
+			UObject* GeneratedCDO = GeneratedClass->GetDefaultObject();
+			FProperty* TargetProperty = FindFProperty<FProperty>(GeneratedClass, Description.VarName);
+
+			if (TargetProperty)
+			{
+				// Grab the address of where the property is actually stored (UObject* base, plus the offset defined in the property)
+				void* OldPropertyAddr = TargetProperty->ContainerPtrToValuePtr<void>(GeneratedCDO);
+				if (OldPropertyAddr)
+				{
+					TargetProperty->ExportTextItem(Description.DefaultValue, OldPropertyAddr, OldPropertyAddr, nullptr, PPF_SerializedAsImportText);
+				}
+			}
+
+			FBPVariableDescription::StaticStruct()->ExportText(OutputString, &Description, nullptr, nullptr, 0, nullptr, false);
+			OutputString = VAR_PREFIX + OutputString;
+		}
+	}
+	else if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
+	{
+		FBPVariableDescription* Description = FBlueprintEditorUtils::FindLocalVariable(Blueprint, LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName());
+
+		if (Description)
+		{
+			FBPVariableDescription::StaticStruct()->ExportText(OutputString, Description, nullptr, nullptr, 0, nullptr, false);
+			OutputString = VAR_PREFIX + OutputString;
+		}
+	}
+	else if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	{
+		if (GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function)
+		{
+			FBPFunctionClipboardData FuncData(GraphAction->EdGraph);
+			FBPFunctionClipboardData::StaticStruct()->ExportText(OutputString, &FuncData, nullptr, nullptr, 0, nullptr, false);
+			OutputString = FUNC_PREFIX + OutputString;
+		}
+	}
+
+	if (!OutputString.IsEmpty())
+	{
+		FPlatformApplicationMisc::ClipboardCopy(OutputString.GetCharArray().GetData());
+	}
+}
+
+bool SMyBlueprint::CanCopy() const
+{
+	if (FEdGraphSchemaAction_K2Var* VarAction = SelectionAsVar())
+	{
+		return FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, VarAction->GetVariableName()) != INDEX_NONE;
+	}
+	if (FEdGraphSchemaAction_K2LocalVar* LocalVarAction = SelectionAsLocalVar())
+	{
+		return FBlueprintEditorUtils::FindLocalVariable(Blueprint, LocalVarAction->GetVariableScope(), LocalVarAction->GetVariableName()) != nullptr;
+	}
+	if (FEdGraphSchemaAction_K2Graph* GraphAction = SelectionAsGraph())
+	{
+		return GraphAction->GraphType == EEdGraphSchemaAction_K2Graph::Function;
+	}
+
+	return false;
+}
+
+void SMyBlueprint::OnCut()
+{
+	OnCopy();
+	OnDeleteEntry();
+}
+
+bool SMyBlueprint::CanCut() const
+{
+	return CanCopy() && CanDeleteEntry();
+}
+
+void SMyBlueprint::OnPasteGeneric()
+{
+	// prioritize pasting as a member variable if possible
+	if (CanPasteVariable())
+	{
+		OnPasteVariable();
+	}
+	else if (CanPasteLocalVariable())
+	{
+		OnPasteLocalVariable();
+	}
+	else if (CanPasteFunction())
+	{
+		OnPasteFunction();
+	}
+}
+
+bool SMyBlueprint::CanPasteGeneric()
+{
+	return CanPasteVariable() || CanPasteLocalVariable() || CanPasteFunction();
+}
+
+void SMyBlueprint::OnPasteVariable()
+{
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (!ensure(ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive)))
+	{
+		return;
+	}
+
+	FBPVariableDescription Description;
+	FStringOutputDevice Errors;
+	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+	FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+	if (Errors.IsEmpty())
+	{
+		FBPVariableDescription NewVar = FBlueprintEditorUtils::DuplicateVariableDescription(Blueprint, Description);
+		if (NewVar.VarGuid.IsValid())
+		{
+			FScopedTransaction Transaction(FText::Format(LOCTEXT("PasteVariable", "Paste Variable: {0}"), FText::FromName(NewVar.VarName)));
+			Blueprint->Modify();
+
+			Blueprint->NewVariables.Add(NewVar);
+
+			// Potentially adjust variable names for any child blueprints
+			FBlueprintEditorUtils::ValidateBlueprintChildVariables(Blueprint, NewVar.VarName);
+			FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+			SelectItemByName(NewVar.VarName);
+		}
+	}
+}
+
+void SMyBlueprint::OnPasteLocalVariable()
+{
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid())
+	{
+		UEdGraph* FocusedGraph = PinnedEditor->GetFocusedGraph();
+		if (FocusedGraph)
+		{
+			TArray<UK2Node_FunctionEntry*> FunctionEntry;
+			FocusedGraph->GetNodesOfClass<UK2Node_FunctionEntry>(FunctionEntry);
+
+			if (FunctionEntry.Num() == 1)
+			{
+				FString ClipboardText;
+				FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+				if (!ensure(ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive)))
+				{
+					return;
+				}
+
+				FBPVariableDescription Description;
+				FStringOutputDevice Errors;
+				const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+				FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+				if (Errors.IsEmpty())
+				{
+					FBPVariableDescription NewVar = FBlueprintEditorUtils::DuplicateVariableDescription(Blueprint, Description);
+					if (NewVar.VarGuid.IsValid())
+					{
+						FScopedTransaction Transaction(FText::Format(LOCTEXT("PasteLocalVariable", "Paste Local Variable: {0}"), FText::FromName(NewVar.VarName)));
+
+						FunctionEntry[0]->Modify();
+						FunctionEntry[0]->LocalVariables.Add(NewVar);
+
+						// Potentially adjust variable names for any child blueprints
+						FBlueprintEditorUtils::ValidateBlueprintChildVariables(Blueprint, NewVar.VarName);
+						FBlueprintEditorUtils::MarkBlueprintAsStructurallyModified(Blueprint);
+
+						SelectItemByName(NewVar.VarName);
+					}
+				}
+			}
+		}
+	}
+}
+
+bool SMyBlueprint::CanPasteVariable() const
+{
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewVariable))
+	{
+		return false;
+	}
+
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive))
+	{
+		FBPVariableDescription Description;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+		FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+
+		return Errors.IsEmpty();
+	}
+
+	return false;
+}
+
+bool SMyBlueprint::CanPasteLocalVariable() const
+{
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewLocalVariable))
+	{
+		return false;
+	}
+
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (ClipboardText.StartsWith(VAR_PREFIX, ESearchCase::CaseSensitive))
+	{
+		FBPVariableDescription Description;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(VAR_PREFIX);
+		FBPVariableDescription::StaticStruct()->ImportText(Import, &Description, nullptr, 0, &Errors, FBPVariableDescription::StaticStruct()->GetName());
+
+		return Errors.IsEmpty();
+	}
+	
+	return false;
+}
+
+void SMyBlueprint::OnPasteFunction()
+{
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (!ensure(ClipboardText.StartsWith(FUNC_PREFIX, ESearchCase::CaseSensitive)))
+	{
+		return;
+	}
+
+	FBPFunctionClipboardData FuncData;
+	FStringOutputDevice Errors;
+	const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(FUNC_PREFIX);
+	FBPFunctionClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPFunctionClipboardData::StaticStruct()->GetName());
+	if (Errors.IsEmpty() && FuncData.IsValid())
+	{
+		FScopedTransaction Transaction(LOCTEXT("PasteFunction", "Paste Function"));
+
+		TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+		if (PinnedEditor.IsValid())
+		{
+			Blueprint->Modify();
+			UEdGraph* Graph = FuncData.CreateAndPopulateGraph(Blueprint, PinnedEditor->GetDefaultSchema());
+
+			if (Graph)
+			{
+				PinnedEditor->OpenDocument(Graph, FDocumentTracker::OpenNewDocument);
+				SelectItemByName(Graph->GetFName());
+				Refresh();
+				OnRequestRenameOnActionNode();
+			}
+			else
+			{
+				Transaction.Cancel();
+			}
+		}
+	}
+}
+
+bool SMyBlueprint::CanPasteFunction() const
+{
+	TSharedPtr<FBlueprintEditor> PinnedEditor = BlueprintEditorPtr.Pin();
+	if (PinnedEditor.IsValid() && !PinnedEditor->NewDocument_IsVisibleForType(FBlueprintEditor::CGT_NewFunctionGraph))
+	{
+		return false;
+	}
+
+	FString ClipboardText;
+	FPlatformApplicationMisc::ClipboardPaste(ClipboardText);
+	if (ClipboardText.StartsWith(FUNC_PREFIX, ESearchCase::CaseSensitive))
+	{
+		FBPFunctionClipboardData FuncData;
+		FStringOutputDevice Errors;
+		const TCHAR* Import = ClipboardText.GetCharArray().GetData() + FCString::Strlen(FUNC_PREFIX);
+		FBPFunctionClipboardData::StaticStruct()->ImportText(Import, &FuncData, nullptr, 0, &Errors, FBPFunctionClipboardData::StaticStruct()->GetName());
+
+		return Errors.IsEmpty();
+	}
+
 	return false;
 }
 

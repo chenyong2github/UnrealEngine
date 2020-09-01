@@ -679,12 +679,11 @@ void UTexture2D::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEv
 	}
 #endif // #if WITH_EDITORONLY_DATA
 
-	if (VirtualTextureStreaming &&
-		(PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UTexture2D, AddressX)
-		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UTexture2D, AddressY) )
-		)
+	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UTexture2D, AddressX)
+		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UTexture2D, AddressY))
 	{
-		//When using VT, changing the address mode should trigger a recompile
+		// VT need to recompile shaders when address mode changes
+		// Non-VT still needs to potentially update sampler state in the materials
 		NotifyMaterials();
 	}
 

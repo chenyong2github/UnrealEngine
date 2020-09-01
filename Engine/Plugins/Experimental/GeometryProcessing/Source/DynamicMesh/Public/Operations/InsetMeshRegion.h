@@ -6,7 +6,7 @@
 #include "VectorTypes.h"
 #include "GeometryTypes.h"
 #include "MeshRegionBoundaryLoops.h"
-
+#include "ProjectionTargets.h"
 
 class FDynamicMesh3;
 class FDynamicMeshChangeTracker;
@@ -42,6 +42,22 @@ public:
 
 	/** quads on the stitch loop are planar-projected and scaled by this amount */
 	float UVScaleFactor = 1.0f;
+
+	/** reproject positions onto input surface */
+	bool bReproject = true;
+
+
+	/** update positions of any non-boundary vertices in inset regions (via laplacian solve) */
+	bool bSolveRegionInteriors = true;
+
+	/** determines how strongly laplacian solve constraints are enforced. 0 means hard constraint. Valid range [0,1] */
+	float Softness = 0.0;
+
+	/** Linear attenuation of area correction factor, valid range [0,1], 0 means ignore area correction entirely */
+	float AreaCorrection = 1.0;
+
+	/** projection target */
+	FMeshProjectionTarget* ProjectionTarget;
 
 	/** If set, change tracker will be updated based on edit */
 	TUniquePtr<FDynamicMeshChangeTracker> ChangeTracker;

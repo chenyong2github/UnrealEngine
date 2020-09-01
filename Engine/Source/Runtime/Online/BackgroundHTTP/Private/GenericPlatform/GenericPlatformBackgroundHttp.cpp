@@ -29,16 +29,3 @@ FBackgroundHttpResponsePtr FGenericPlatformBackgroundHttp::ConstructBackgroundRe
 {
 	return MakeShared<FGenericPlatformBackgroundHttpResponse, ESPMode::ThreadSafe>(ResponseCode, TempFilePath);
 }
-
-const FString FGenericPlatformBackgroundHttp::GetTemporaryFilePathFromURL(const FString& URL)
-{
-	//For now, just save any file in the root BackgroundHttp Tempt directory under the sanitized URL
-	const FString FileName = FPaths::MakeValidFileName(URL);
-	return FPaths::Combine(GetTemporaryRootPath(), FileName);
-}
-
-const FString& FGenericPlatformBackgroundHttp::GetTemporaryRootPath()
-{
-	static FString BackgroundHttpDir = FPaths::Combine(FPlatformMisc::GamePersistentDownloadDir(), TEXT("BackgroundHttpTemp"));
-	return BackgroundHttpDir;
-}

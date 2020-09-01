@@ -12,6 +12,8 @@
 #include "Misc/CoreDelegates.h"
 #include "Misc/ScopeRWLock.h"
 
+#include "Stats/Stats.h"
+
 #include "IOS/IOSBackgroundURLSessionHandler.h"
 
 #include "PlatformBackgroundHttp.h"
@@ -54,8 +56,8 @@ void FApplePlatformBackgroundHttpManager::Initialize()
 	//This has its own lock when needed, so not included above
 	PopulateUnAssociatedTasks();
 	
-    GConfig->GetFloat(TEXT("BackgroundHttp.iOSSettings"), TEXT("BackgroundHttp.ActiveReceiveTimeout"), ActiveTimeOutSetting, GEngineIni);
-	GConfig->GetInt(TEXT("BackgroundHttp.iOSSettings"), TEXT("BackgroundHttp.RetryResumeDataLimit"), RetryResumeDataLimitSetting, GEngineIni);
+    GConfig->GetFloat(TEXT("BackgroundHttp.iOSSettings"), TEXT("ActiveReceiveTimeout"), ActiveTimeOutSetting, GEngineIni);
+	GConfig->GetInt(TEXT("BackgroundHttp.iOSSettings"), TEXT("RetryResumeDataLimit"), RetryResumeDataLimitSetting, GEngineIni);
 
 	SetupNSURLSessionResponseDelegates();
 
@@ -820,11 +822,15 @@ void FApplePlatformBackgroundHttpManager::OnSession_SessionDidFinishAllEvents(NS
 
 bool FApplePlatformBackgroundHttpManager::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FApplePlatformBackgroundHttpManager_Tick);
+
     ensureAlwaysMsgf(IsInGameThread(), TEXT("Called from un-expected thread! Potential error in an implementation of background downloads!"));
     
     TickRequests(DeltaTime);
     TickUnassociatedTasks(DeltaTime);
     
+	GetFileHashHelper()->SaveData();
+	
     //Always keep ticking
     return true;
 }
@@ -940,4 +946,15 @@ void FApplePlatformBackgroundHttpManager::TickUnassociatedTasks(float DeltaTime)
         //we have something queued, lets pause unassociated tasks
         PauseAllUnassociatedTasks();
     }
+}
+
+//Make sure we are using the FBackgroundURLSessionHandler's version so that both our results are synced
+BackgroundHttpFileHashHelperRef FApplePlatformBackgroundHttpManager::GetFileHashHelper()
+{
+	return FBackgroundURLSessionHandler::GetFileHashHelper();
+}
+
+const BackgroundHttpFileHashHelperRef FApplePlatformBackgroundHttpManager::GetFileHashHelper() const
+{
+	return FBackgroundURLSessionHandler::GetFileHashHelper();
 }

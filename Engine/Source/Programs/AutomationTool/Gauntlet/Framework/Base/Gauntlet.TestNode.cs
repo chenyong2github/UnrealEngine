@@ -68,6 +68,11 @@ namespace Gauntlet
 		float MaxDuration { get; }
 
 		/// <summary>
+		/// What the test result should be treated as if we reach max duration.
+		/// </summary>
+		EMaxDurationReachedResult MaxDurationReachedResult { get; }
+
+		/// <summary>
 		/// Priority of this test in relation to any others that are running
 		/// </summary>
 		TestPriority Priority { get;  }

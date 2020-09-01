@@ -38,6 +38,7 @@ void SMultiLineEditableText::Construct( const FArguments& InArgs )
 	bClearTextSelectionOnFocusLoss = InArgs._ClearTextSelectionOnFocusLoss;
 	bClearKeyboardFocusOnCommit = InArgs._ClearKeyboardFocusOnCommit;
 	bAllowContextMenu = InArgs._AllowContextMenu;
+	bSelectWordOnMouseDoubleClick = InArgs._SelectWordOnMouseDoubleClick;
 	OnContextMenuOpening = InArgs._OnContextMenuOpening;
 	bRevertTextOnEscape = InArgs._RevertTextOnEscape;
 	VirtualKeyboardOptions = InArgs._VirtualKeyboardOptions;
@@ -211,6 +212,11 @@ void SMultiLineEditableText::SetSelectAllTextWhenFocused(const TAttribute<bool>&
 	bSelectAllTextWhenFocused = InSelectAllTextWhenFocused;
 }
 
+void SMultiLineEditableText::SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick)
+{
+	bSelectWordOnMouseDoubleClick = InSelectWordOnMouseDoubleClick;
+}
+
 void SMultiLineEditableText::SetClearTextSelectionOnFocusLoss(const TAttribute<bool>& InClearTextSelectionOnFocusLoss)
 {
 	bClearTextSelectionOnFocusLoss = InClearTextSelectionOnFocusLoss;
@@ -281,6 +287,11 @@ bool SMultiLineEditableText::ShouldClearKeyboardFocusOnCommit() const
 bool SMultiLineEditableText::ShouldSelectAllTextOnCommit() const
 {
 	return false;
+}
+
+bool SMultiLineEditableText::ShouldSelectWordOnMouseDoubleClick() const
+{
+	return bSelectWordOnMouseDoubleClick.Get(true);
 }
 
 bool SMultiLineEditableText::CanInsertCarriageReturn() const

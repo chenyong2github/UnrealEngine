@@ -1476,7 +1476,7 @@ bool FConfigFile::Write(const FString& Filename, bool bDoRemoteWrite, TMap<FStri
 		return true;
 
 	bool bAcquiredIniCombineThreshold = false;	// avoids extra work when writing multiple properties
-	int32 IniCombineThreshold = -1;
+	int32 IniCombineThreshold = MAX_int32;
 
 	FString Text;
 	// Estimate max size to reduce re-allocations (does not inspect actual properties for performance)
@@ -1922,6 +1922,22 @@ void FConfigFile::SetInt64( const TCHAR* Section, const TCHAR* Key, int64 Value 
 	SetString( Section, Key, Text );
 }
 
+
+void FConfigFile::SetArray(const TCHAR* Section, const TCHAR* Key, const TArray<FString>& Value)
+{
+	FConfigSection* Sec = FindOrAddSection(Section);
+
+	if (Sec->Remove(Key) > 0)
+	{
+		Dirty = true;
+	}
+
+	for (int32 i = 0; i < Value.Num(); i++)
+	{
+		Sec->Add(Key, *Value[i]);
+		Dirty = true;
+	}
+}
 
 void FConfigFile::SaveSourceToBackupFile()
 {
@@ -2961,17 +2977,8 @@ void FConfigCacheIni::SetArray
 	{
 		return;
 	}
-	
-	FConfigSection* Sec  = File->FindOrAddSection( Section );
 
-	if ( Sec->Remove(Key) > 0 )
-		File->Dirty = 1;
-
-	for ( int32 i = 0; i < Value.Num(); i++ )
-	{
-		Sec->Add(Key, *Value[i]);
-		File->Dirty = 1;
-	}
+	File->SetArray(Section, Key, Value);
 }
 /** Saves a "delimited" list of strings
  * @param Section - Section of the ini file to save to

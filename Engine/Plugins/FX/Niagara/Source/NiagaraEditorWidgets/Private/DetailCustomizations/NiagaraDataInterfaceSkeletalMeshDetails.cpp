@@ -11,92 +11,95 @@
 #include "Engine/SkeletalMeshSocket.h"
 #include "SNiagaraNamePropertySelector.h"
 
- #define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceSkeletalMeshDetails"
+#define LOCTEXT_NAMESPACE "FNiagaraDataInterfaceSkeletalMeshDetails"
 
 void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBuilder& DetailBuilder)
 {
-	 LayoutBuilder = &DetailBuilder;
-	 static const FName MeshCategoryName = TEXT("Mesh");
-	 static const FName SkelCategoryName = TEXT("Skeleton");
+	LayoutBuilder = &DetailBuilder;
+	static const FName MeshCategoryName = TEXT("Mesh");
+	static const FName SkelCategoryName = TEXT("Skeleton");
 
-	 TArray<TWeakObjectPtr<UObject>> SelectedObjects;
-	 DetailBuilder.GetObjectsBeingCustomized(SelectedObjects);
-	 if(SelectedObjects.Num() != 1 || SelectedObjects[0]->IsA<UNiagaraDataInterfaceSkeletalMesh>() == false)
-	 {
-	 	return;
-	 }
+	TArray<TWeakObjectPtr<UObject>> SelectedObjects;
+	DetailBuilder.GetObjectsBeingCustomized(SelectedObjects);
+	if(SelectedObjects.Num() != 1 || SelectedObjects[0]->IsA<UNiagaraDataInterfaceSkeletalMesh>() == false)
+	{
+		return;
+	}
 
-	 MeshInterface = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(SelectedObjects[0].Get());
-	 MeshInterface->OnChanged().RemoveAll(this);
-	 MeshInterface->OnChanged().AddSP(this, &FNiagaraDataInterfaceSkeletalMeshDetails::OnInterfaceChanged);
+	UNiagaraDataInterfaceSkeletalMesh* Interface = CastChecked<UNiagaraDataInterfaceSkeletalMesh>(SelectedObjects[0].Get());
+	MeshInterface = Interface;
+	 
+	Interface->OnChanged().RemoveAll(this);
+	Interface->OnChanged().AddSP(this, &FNiagaraDataInterfaceSkeletalMeshDetails::OnInterfaceChanged);
 
-	 TWeakObjectPtr<USceneComponent> SceneComponent;
-	 USkeletalMeshComponent* FoundSkelComp = nullptr;
-	 UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
-	 MeshObject = Interface->GetSkeletalMesh(Cast<UNiagaraComponent>(MeshInterface->GetOuter()), SceneComponent, FoundSkelComp);
-	 if (MeshObject.IsValid())
-	 {
-		 MeshObject->GetOnMeshChanged().RemoveAll(this);
-		 MeshObject->GetOnMeshChanged().AddSP(this, &FNiagaraDataInterfaceSkeletalMeshDetails::OnDataChanged);
-	 }
+	UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Interface->GetOuter());
+	FNiagaraSystemInstance* SystemInstance = NiagaraComponent ? NiagaraComponent->GetSystemInstance() : nullptr;		
+	TWeakObjectPtr<USceneComponent> SceneComponent;
+	USkeletalMeshComponent* FoundSkelComp = nullptr;
+	MeshObject = Interface->GetSkeletalMesh(SystemInstance, SceneComponent, FoundSkelComp);
+	if (MeshObject.IsValid())
+	{
+		MeshObject->GetOnMeshChanged().RemoveAll(this);
+		MeshObject->GetOnMeshChanged().AddSP(this, &FNiagaraDataInterfaceSkeletalMeshDetails::OnDataChanged);
+	}
 
-	 MeshCategory = &DetailBuilder.EditCategory(MeshCategoryName, LOCTEXT("Mesh", "Mesh"));
-	 {
-		 TArray<TSharedRef<IPropertyHandle>> MeshProperties;
-		 MeshCategory->GetDefaultProperties(MeshProperties, true, true);
+	MeshCategory = &DetailBuilder.EditCategory(MeshCategoryName, LOCTEXT("Mesh", "Mesh"));
+	{
+		TArray<TSharedRef<IPropertyHandle>> MeshProperties;
+		MeshCategory->GetDefaultProperties(MeshProperties, true, true);
 
-		 TSharedPtr<IPropertyHandle> RegionsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, SamplingRegions));
+		TSharedPtr<IPropertyHandle> RegionsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, SamplingRegions));
 		
-		 for (TSharedPtr<IPropertyHandle> Property : MeshProperties)
-		 {
-			 FProperty* PropertyPtr = Property->GetProperty();
-			 TArray<TSharedPtr<FName>> PossibleNames;
-			 if (PropertyPtr == RegionsProperty->GetProperty())
-			 {
-				 GenerateRegionsArray(PossibleNames);
-				 RegionsBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
-				 MeshCategory->AddCustomBuilder(RegionsBuilder.ToSharedRef());
-			 }
-			 else
-			 {
-				 MeshCategory->AddProperty(Property);
-			 }
-		 }
-	 }
+		for (TSharedPtr<IPropertyHandle> Property : MeshProperties)
+		{
+			FProperty* PropertyPtr = Property->GetProperty();
+			TArray<TSharedPtr<FName>> PossibleNames;
+			if (PropertyPtr == RegionsProperty->GetProperty())
+			{
+				GenerateRegionsArray(PossibleNames);
+				RegionsBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
+				MeshCategory->AddCustomBuilder(RegionsBuilder.ToSharedRef());
+			}
+			else
+			{
+				MeshCategory->AddProperty(Property);
+			}
+		}
+	}
 
-	 SkelCategory = &DetailBuilder.EditCategory(SkelCategoryName, LOCTEXT("SkeletonCat", "Skeleton"));
-	 {
-		 TArray<TSharedRef<IPropertyHandle>> SkelProperties;
-		 SkelCategory->GetDefaultProperties(SkelProperties, true, true);
+	SkelCategory = &DetailBuilder.EditCategory(SkelCategoryName, LOCTEXT("SkeletonCat", "Skeleton"));
+	{
+		TArray<TSharedRef<IPropertyHandle>> SkelProperties;
+		SkelCategory->GetDefaultProperties(SkelProperties, true, true);
 
-		 TSharedPtr<IPropertyHandle> BonesProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, FilteredBones));
-		 TSharedPtr<IPropertyHandle> SocketsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, FilteredSockets));
-		 TSharedPtr<IPropertyHandle> ExcludeBoneProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, ExcludeBoneName));
+		TSharedPtr<IPropertyHandle> BonesProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, FilteredBones));
+		TSharedPtr<IPropertyHandle> SocketsProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, FilteredSockets));
+		TSharedPtr<IPropertyHandle> ExcludeBoneProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UNiagaraDataInterfaceSkeletalMesh, ExcludeBoneName));
 
-		 for (TSharedPtr<IPropertyHandle> Property : SkelProperties)
-		 {
-			 FProperty* PropertyPtr = Property->GetProperty();
-			 TArray<TSharedPtr<FName>> PossibleNames;
+		for (TSharedPtr<IPropertyHandle> Property : SkelProperties)
+		{
+			FProperty* PropertyPtr = Property->GetProperty();
+			TArray<TSharedPtr<FName>> PossibleNames;
 
-			 if (PropertyPtr == BonesProperty->GetProperty())
-			 {
+			if (PropertyPtr == BonesProperty->GetProperty())
+			{
 				GenerateBonesArray(PossibleNames);
 				BonesBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
 				SkelCategory->AddCustomBuilder(BonesBuilder.ToSharedRef());
-			 }
-			 else if (PropertyPtr == SocketsProperty->GetProperty())
-			 {
-				 GenerateSocketsArray(PossibleNames);
-				 SocketsBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
-				 SkelCategory->AddCustomBuilder(SocketsBuilder.ToSharedRef());
-			 }
-			 else if (PropertyPtr == ExcludeBoneProperty->GetProperty())
-			 {
-				 GenerateBonesArray(PossibleNames);
-				 ExcludeBoneWidget = SNew(SNiagaraNamePropertySelector, Property.ToSharedRef(), PossibleNames);
+			}
+			else if (PropertyPtr == SocketsProperty->GetProperty())
+			{
+				GenerateSocketsArray(PossibleNames);
+				SocketsBuilder = TSharedPtr<FNiagaraDetailSourcedArrayBuilder>(new FNiagaraDetailSourcedArrayBuilder(Property.ToSharedRef(), PossibleNames));
+				SkelCategory->AddCustomBuilder(SocketsBuilder.ToSharedRef());
+			}
+			else if (PropertyPtr == ExcludeBoneProperty->GetProperty())
+			{
+				GenerateBonesArray(PossibleNames);
+				ExcludeBoneWidget = SNew(SNiagaraNamePropertySelector, Property.ToSharedRef(), PossibleNames);
 
-				 IDetailPropertyRow& ExcludeBoneRow = SkelCategory->AddProperty(Property);
-				 ExcludeBoneRow.CustomWidget(false)
+				IDetailPropertyRow& ExcludeBoneRow = SkelCategory->AddProperty(Property);
+				ExcludeBoneRow.CustomWidget(false)
 					.NameContent()
 					[
 						Property->CreatePropertyNameWidget()
@@ -106,40 +109,44 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 					[
 						ExcludeBoneWidget.ToSharedRef()
 					];
-			 }
-			 else
-			 {
-				 SkelCategory->AddProperty(Property);
-			 }			 
-		 }
-	 }
+			}
+			else
+			{
+				SkelCategory->AddProperty(Property);
+			}			 
+		}
+	}
 }
 
- TSharedRef<IDetailCustomization> FNiagaraDataInterfaceSkeletalMeshDetails::MakeInstance()
- {
-	 return MakeShared<FNiagaraDataInterfaceSkeletalMeshDetails>();
- }
+TSharedRef<IDetailCustomization> FNiagaraDataInterfaceSkeletalMeshDetails::MakeInstance()
+{
+	return MakeShared<FNiagaraDataInterfaceSkeletalMeshDetails>();
+}
 
- void FNiagaraDataInterfaceSkeletalMeshDetails::OnInterfaceChanged()
- {
-	 // Rebuild the data changed listener
-	 TWeakObjectPtr<USceneComponent> SceneComponent;
-	 USkeletalMeshComponent* FoundSkelComp = nullptr;
-	 if (MeshObject.IsValid())
-	 {
-		 MeshObject->GetOnMeshChanged().RemoveAll(this);
-	 }
-	 UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
-	 MeshObject = Interface->GetSkeletalMesh(Cast<UNiagaraComponent>(MeshInterface->GetOuter()), SceneComponent, FoundSkelComp);
-	 if (MeshObject.IsValid())
-	 {
-		 MeshObject->GetOnMeshChanged().AddSP(this, &FNiagaraDataInterfaceSkeletalMeshDetails::OnDataChanged);
-	 }
-	 OnDataChanged();
- }
+void FNiagaraDataInterfaceSkeletalMeshDetails::OnInterfaceChanged()
+{
+	// Rebuild the data changed listener
+	if (MeshObject.IsValid())
+	{
+		MeshObject->GetOnMeshChanged().RemoveAll(this);
+	}
+	
+	UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
+	UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Interface->GetOuter());
+	FNiagaraSystemInstance* SystemInstance = NiagaraComponent ? NiagaraComponent->GetSystemInstance() : nullptr;		
+	TWeakObjectPtr<USceneComponent> SceneComponent;
+	USkeletalMeshComponent* FoundSkelComp = nullptr;
+	MeshObject = Interface->GetSkeletalMesh(SystemInstance, SceneComponent, FoundSkelComp);
+	if (MeshObject.IsValid())
+	{
+		MeshObject->GetOnMeshChanged().AddSP(this, &FNiagaraDataInterfaceSkeletalMeshDetails::OnDataChanged);
+	}
 
- void FNiagaraDataInterfaceSkeletalMeshDetails::OnDataChanged()
- {
+	OnDataChanged();
+}
+
+void FNiagaraDataInterfaceSkeletalMeshDetails::OnDataChanged()
+{
 	if (RegionsBuilder)
 	{
 		TArray<TSharedPtr<FName>> PossibleNames;
@@ -167,79 +174,77 @@ void FNiagaraDataInterfaceSkeletalMeshDetails::CustomizeDetails(IDetailLayoutBui
 		GenerateBonesArray(PossibleNames);
 		ExcludeBoneWidget->SetSourceArray(PossibleNames);
 	}
- }
+}
 
 void FNiagaraDataInterfaceSkeletalMeshDetails::GenerateRegionsArray(TArray<TSharedPtr<FName>>& SourceArray)
- {
+{
 	SourceArray.Reset();
-	 if (MeshInterface.IsValid())
-	 {
-		 TWeakObjectPtr<USceneComponent> SceneComponent;
-		 USkeletalMeshComponent* FoundSkelComp = nullptr;
-		 UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
-		 USkeletalMesh* Mesh = Interface->GetSkeletalMesh(Cast<UNiagaraComponent>(MeshInterface->GetOuter()), SceneComponent, FoundSkelComp);
-
-		 if (Mesh != nullptr)
-		 {
-			 for (FSkeletalMeshSamplingRegion Region : Mesh->GetSamplingInfo().Regions)
-			 {
-				 SourceArray.Add(MakeShared<FName>(Region.Name));
-			 }
-		 }
-	 }
- }
+	if (UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get())
+	{
+		UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Interface->GetOuter());
+		FNiagaraSystemInstance* SystemInstance = NiagaraComponent ? NiagaraComponent->GetSystemInstance() : nullptr;
+		TWeakObjectPtr<USceneComponent> SceneComponent;
+		USkeletalMeshComponent* FoundSkelComp = nullptr;
+		if (USkeletalMesh* Mesh = Interface->GetSkeletalMesh(SystemInstance, SceneComponent, FoundSkelComp))
+		{
+			for (FSkeletalMeshSamplingRegion Region : Mesh->GetSamplingInfo().Regions)
+			{
+				SourceArray.Add(MakeShared<FName>(Region.Name));
+			}
+		}
+	}
+}
 
  void FNiagaraDataInterfaceSkeletalMeshDetails::GenerateBonesArray(TArray<TSharedPtr<FName>>& SourceArray)
  {
-	 SourceArray.Reset();
-	 if (MeshInterface.IsValid())
-	 {
-		 TWeakObjectPtr<USceneComponent> SceneComponent;
-		 USkeletalMeshComponent* FoundSkelComp = nullptr;
-		 UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
-		 USkeletalMesh* Mesh = Interface->GetSkeletalMesh(Cast<UNiagaraComponent>(MeshInterface->GetOuter()), SceneComponent, FoundSkelComp);
-
-		 if (Mesh != nullptr)
-		 {
-			 for (const FMeshBoneInfo& Bone : Mesh->RefSkeleton.GetRefBoneInfo())
-			 {
-				 SourceArray.Add(MakeShared<FName>(Bone.Name));
-			 }
-		 }
-	 }
- }
+	SourceArray.Reset();
+	if (UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get())
+	{
+		UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Interface->GetOuter());
+		FNiagaraSystemInstance* SystemInstance = NiagaraComponent ? NiagaraComponent->GetSystemInstance() : nullptr;
+		TWeakObjectPtr<USceneComponent> SceneComponent;
+		USkeletalMeshComponent* FoundSkelComp = nullptr;
+		if (USkeletalMesh* Mesh = Interface->GetSkeletalMesh(SystemInstance, SceneComponent, FoundSkelComp))
+		{
+			for (const FMeshBoneInfo& Bone : Mesh->RefSkeleton.GetRefBoneInfo())
+			{
+				SourceArray.Add(MakeShared<FName>(Bone.Name));
+			}
+		}
+	}
+}
 
 void FNiagaraDataInterfaceSkeletalMeshDetails::GenerateSocketsArray(TArray<TSharedPtr<FName>>& SourceArray)
- {
+{
 	SourceArray.Reset();
-	 if (MeshInterface.IsValid())
-	 {
-		 TWeakObjectPtr<USceneComponent> SceneComponent;
-		 USkeletalMeshComponent* FoundSkelComp = nullptr;
-		 UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
-		 USkeletalMesh* Mesh = Interface->GetSkeletalMesh(Cast<UNiagaraComponent>(MeshInterface->GetOuter()), SceneComponent, FoundSkelComp);
-
-		 if (Mesh != nullptr)
-		 {
-			 for (int32 SocketIdx = 0; SocketIdx < Mesh->NumSockets(); ++SocketIdx)
-			 {
-				 const USkeletalMeshSocket* SocketInfo = Mesh->GetSocketByIndex(SocketIdx);
-				 SourceArray.Add(MakeShared<FName>(SocketInfo->SocketName));
-			 }
-		 }
-	 }
+	if (MeshInterface.IsValid())
+	{
+		UNiagaraDataInterfaceSkeletalMesh* Interface = MeshInterface.Get();
+		UNiagaraComponent* NiagaraComponent = Cast<UNiagaraComponent>(Interface->GetOuter());
+		FNiagaraSystemInstance* SystemInstance = NiagaraComponent ? NiagaraComponent->GetSystemInstance() : nullptr;
+		TWeakObjectPtr<USceneComponent> SceneComponent;
+		USkeletalMeshComponent* FoundSkelComp = nullptr;
+		if (USkeletalMesh* Mesh = Interface->GetSkeletalMesh(SystemInstance, SceneComponent, FoundSkelComp))
+		{
+			for (int32 SocketIdx = 0; SocketIdx < Mesh->NumSockets(); ++SocketIdx)
+			{
+				const USkeletalMeshSocket* SocketInfo = Mesh->GetSocketByIndex(SocketIdx);
+				SourceArray.Add(MakeShared<FName>(SocketInfo->SocketName));
+			}
+		}
+	}
  }
 
- FNiagaraDataInterfaceSkeletalMeshDetails::~FNiagaraDataInterfaceSkeletalMeshDetails()
- {
-	 if (MeshInterface.IsValid())
-	 {
-		 MeshInterface->OnChanged().RemoveAll(this);
-	 }
-	 if (MeshObject.IsValid())
-	 {
+FNiagaraDataInterfaceSkeletalMeshDetails::~FNiagaraDataInterfaceSkeletalMeshDetails()
+{
+	if (MeshInterface.IsValid())
+	{
+		MeshInterface->OnChanged().RemoveAll(this);
+	}
+	if (MeshObject.IsValid())
+	{
 		MeshObject->GetOnMeshChanged().RemoveAll(this);
-	 }
- }
+	}
+}
 
 #undef LOCTEXT_NAMESPACE

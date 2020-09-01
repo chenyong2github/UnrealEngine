@@ -466,7 +466,7 @@ private:
 	 * There need to be as many entries in this array as can be used simultaneously for rendering.  
 	 * For example the material instance needs to support being rendered at different quality levels and feature levels within the same process.
 	 */
-	FMaterialResource* StaticPermutationMaterialResources[EMaterialQualityLevel::Num][ERHIFeatureLevel::Num];
+	TArray<FMaterialResource*> StaticPermutationMaterialResources;
 #if WITH_EDITOR
 	/** Material resources being cached for cooking. */
 	TMap<const class ITargetPlatform*, TArray<FMaterialResource*>> CachedMaterialResourcesForCooking;
@@ -737,12 +737,8 @@ protected:
 
 	void GetTextureExpressionValues(const FMaterialResource* MaterialResource, TArray<UTexture*>& OutTextures, TArray< TArray<int32> >* OutIndices = nullptr) const;
 
-	/**
-	 * Updates StaticPermutationMaterialResources based on the value of bHasStaticPermutationResource
-	 * This is a helper used when recompiling MI's with static parameters.  
-	 * Assumes that the rendering thread command queue has been flushed by the caller.
-	 */
-	void UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr);
+	UE_DEPRECATED(4.26, "Calling UpdatePermutationAllocations is no longer necessary")
+	inline void UpdatePermutationAllocations(FMaterialResourceDeferredDeletionArray* ResourcesToFree = nullptr) {}
 
 #if WITH_EDITOR
 	/**

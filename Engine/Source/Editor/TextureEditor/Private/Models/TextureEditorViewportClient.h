@@ -27,6 +27,7 @@ public:
 	virtual bool InputAxis(FViewport* Viewport,int32 ControllerId,FKey Key,float Delta,float DeltaTime,int32 NumSamples=1,bool bGamepad=false) override;
 	virtual bool InputGesture(FViewport* Viewport, EGestureEvent GestureType, const FVector2D& GestureDelta, bool bIsDirectionInvertedFromDevice) override;
 	virtual UWorld* GetWorld() const override { return nullptr; }
+	virtual EMouseCursor::Type GetCursor(FViewport* Viewport, int32 X, int32 Y) override;
 
 	/** FGCObject interface */
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
@@ -50,6 +51,9 @@ private:
 
 	/** Destroy the checkerboard texture if one exists */
 	void DestroyCheckerboardTexture();
+
+	/** TRUE if right clicking and dragging for panning a texture 2D */
+	bool ShouldUseMousePanning(FViewport* Viewport) const;
 
 private:
 	/** Pointer back to the Texture editor tool that owns us */

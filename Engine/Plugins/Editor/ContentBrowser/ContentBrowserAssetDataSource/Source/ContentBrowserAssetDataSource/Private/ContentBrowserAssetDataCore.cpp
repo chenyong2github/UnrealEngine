@@ -250,18 +250,15 @@ bool EditOrPreviewAssetFileItems(TArrayView<const TSharedRef<const FContentBrows
 		}
 
 		SlowTask.EnterProgressFrame(75.0f / InAssetPayloads.Num(), FText::Format(LOCTEXT("LoadingAssetName", "Loading {0}..."), FText::FromName(AssetData.AssetName)));
-
-		if (UObject* Asset = AssetData.GetAsset())
+		
+		TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetPayload->GetAssetTypeActions();
+		bool bShouldLoadAsset = AssetTypeActions.IsValid() ? AssetTypeActions->CanLoadAssetForPreviewOrEdit(AssetData) : true;
+		if (bShouldLoadAsset)
 		{
-			if (TSharedPtr<IAssetTypeActions> AssetTypeActions = AssetPayload->GetAssetTypeActions())
+			if (UObject* Asset = AssetData.GetAsset())
 			{
-				// Add this asset to the list associated with the asset type action object
-				TArray<UObject*>& ObjList = TypeActionsToObjects.FindOrAdd(AssetTypeActions.ToSharedRef());
+				TArray<UObject*>& ObjList = AssetTypeActions.IsValid() ? TypeActionsToObjects.FindOrAdd(AssetTypeActions.ToSharedRef()) : ObjectsWithoutTypeActions;
 				ObjList.AddUnique(Asset);
-			}
-			else
-			{
-				ObjectsWithoutTypeActions.AddUnique(Asset);
 			}
 		}
 	}
@@ -655,7 +652,7 @@ bool CanRenameItem(IAssetTools* InAssetTools, const UContentBrowserDataSource* I
 
 	if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InOwnerDataSource, InItem))
 	{
-		return CanRenameAssetFileItem(InAssetTools, *AssetPayload, InNewName, OutErrorMsg);
+		return CanRenameAssetFileItem(InAssetTools, *AssetPayload, InNewName, InItem.IsTemporary(), OutErrorMsg);
 	}
 
 	return false;
@@ -689,7 +686,7 @@ bool CanRenameAssetFolderItem(IAssetTools* InAssetTools, const FContentBrowserAs
 	return true;
 }
 
-bool CanRenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, const FString* InNewName, FText* OutErrorMsg)
+bool CanRenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAssetFileItemDataPayload& InAssetPayload, const FString* InNewName, const bool InIsTempoarary, FText* OutErrorMsg)
 {
 	if (!CanModifyAssetFileItem(InAssetTools, InAssetPayload, OutErrorMsg))
 	{
@@ -708,7 +705,7 @@ bool CanRenameAssetFileItem(IAssetTools* InAssetTools, const FContentBrowserAsse
 		return false;
 	}
 
-	if (InNewName)
+	if (InNewName && (InIsTempoarary || InAssetPayload.GetAssetData().AssetName != FName(**InNewName))) // Deliberately ignore case here to allow case-only renames of existing assets
 	{
 		const FString PackageName = InAssetPayload.GetAssetData().PackagePath.ToString() / *InNewName;
 		const FString ObjectPath = FString::Printf(TEXT("%s.%s"), *PackageName, **InNewName);
@@ -736,7 +733,7 @@ bool RenameItem(IAssetTools* InAssetTools, IAssetRegistry* InAssetRegistry, cons
 
 	if (TSharedPtr<const FContentBrowserAssetFileItemDataPayload> AssetPayload = GetAssetFileItemPayload(InOwnerDataSource, InItem))
 	{
-		if (CanRenameAssetFileItem(InAssetTools, *AssetPayload, &InNewName, nullptr))
+		if (CanRenameAssetFileItem(InAssetTools, *AssetPayload, &InNewName, InItem.IsTemporary(), nullptr))
 		{
 			return RenameAssetFileItem(InAssetTools, *AssetPayload, InNewName);
 		}

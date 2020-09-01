@@ -1899,10 +1899,7 @@ protected:
 class RENDERCORE_API FShaderMapBase
 {
 public:
-	uint32 AddRef();
-	uint32 Release();
-	inline uint32 GetRefCount() const { return NumRefs.GetValue(); }
-	inline uint32 GetNumRefs() const { return NumRefs.GetValue(); }
+	virtual ~FShaderMapBase();
 
 	FShaderMapResourceCode* GetResourceCode();
 
@@ -1950,8 +1947,6 @@ protected:
 	void DestroyContent();
 
 protected:
-	virtual ~FShaderMapBase();
-	virtual void OnReleased();
 	virtual FShaderMapPointerTable* CreatePointerTable() const = 0;
 
 private:
@@ -1966,7 +1961,6 @@ private:
 	FShaderMapContent* Content;
 	uint32 FrozenContentSize;
 	uint32 NumFrozenShaders;
-	FThreadSafeCounter NumRefs;
 };
 
 template<typename ContentType, typename PointerTableType = FShaderMapPointerTable>

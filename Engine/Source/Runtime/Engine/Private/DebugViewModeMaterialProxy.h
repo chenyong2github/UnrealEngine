@@ -36,7 +36,7 @@ public:
 		, bIsDefaultMaterial(false)
 		, bSynchronousCompilation(true)
 	{
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
+		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 	}
 
 	FDebugViewModeMaterialProxy(

@@ -7,7 +7,6 @@
 #include "Engine/StaticMesh.h"
 #include "Vehicles/TireType.h"
 #include "GameFramework/PawnMovementComponent.h"
-#include "ChaosTireConfig.h"
 #include "ChaosVehicleManager.h"
 #include "ChaosWheeledVehicleMovementComponent.h"
 

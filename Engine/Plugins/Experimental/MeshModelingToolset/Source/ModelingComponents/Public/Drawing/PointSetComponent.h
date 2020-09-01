@@ -61,11 +61,17 @@ public:
 	/** Reserve enough memory for up to the given ID */
 	void ReservePoints(const int32 MaxID);
 
-	/** Add a point to the overlay */
+	/** Add a point to the set */
 	int32 AddPoint(const FRenderablePoint& OverlayPoint);
 
-	/** Insert a point with the given ID to the overlay */
+	/** Insert a point with the given ID into the set. */
 	void InsertPoint(const int32 ID, const FRenderablePoint& OverlayPoint);
+
+	/** Retrieve a point with the given id. */
+	const FRenderablePoint& GetPoint(const int32 ID);
+
+	/** Sets the position of a point (assumes its existence). */
+	void SetPointPosition(const int32 ID, const FVector& NewPosition);
 
 	/** Sets the color of a point */
 	void SetPointColor(const int32 ID, const FColor& NewColor);
@@ -73,7 +79,10 @@ public:
 	/** Sets the size of a point */
 	void SetPointSize(const int32 ID, const float NewSize);
 
-	/** Remove a point from the overlay */
+	/** Sets the color of all points currently in the set. */
+	void SetAllPointsColor(const FColor& NewColor);
+
+	/** Remove a point from the set. */
 	void RemovePoint(const int32 ID);
 
 	/** Queries whether a point with the given ID exists */

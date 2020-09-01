@@ -226,7 +226,7 @@ class FLightmassMaterialProxy : public FMaterial, public FMaterialRenderProxy
 public:
 	FLightmassMaterialProxy(): FMaterial()
 	{
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
+		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 	}
 
 	/** Initializes the material proxy and kicks off async shader compiling. */
@@ -819,6 +819,14 @@ public:
 		if (Material)
 		{
 			Material->GetAllExpressionsForCustomInterpolators(OutExpressions);
+		}
+	}
+
+	virtual void GetStaticParameterSet(EShaderPlatform Platform, FStaticParameterSet& OutSet) const override
+	{
+		if (const FMaterialResource* Resource = MaterialInterface->GetMaterialResource(GMaxRHIFeatureLevel))
+		{
+			Resource->GetStaticParameterSet(Platform, OutSet);
 		}
 	}
 

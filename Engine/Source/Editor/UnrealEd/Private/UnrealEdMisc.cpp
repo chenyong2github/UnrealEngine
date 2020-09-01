@@ -258,7 +258,7 @@ void FUnrealEdMisc::OnInit()
 
 	/** Delegate that gets called when a script exception occurs */
 	FBlueprintCoreDelegates::OnScriptException.AddStatic(&FKismetDebugUtilities::OnScriptException);
-	FBlueprintCoreDelegates::OnScriptExecutionEnd.AddStatic(&FKismetDebugUtilities::EndOfScriptExecution);
+	FBlueprintContextTracker::OnExitScriptContext.AddStatic(&FKismetDebugUtilities::EndOfScriptExecution);
 	
 	FEditorDelegates::ChangeEditorMode.AddRaw(this, &FUnrealEdMisc::OnEditorChangeMode);
 	FCoreDelegates::PreModal.AddRaw(this, &FUnrealEdMisc::OnEditorPreModal);
@@ -558,12 +558,17 @@ void FUnrealEdMisc::InitEngineAnalytics()
 
 			FGameProjectGenerationModule& GameProjectModule = FModuleManager::LoadModuleChecked<FGameProjectGenerationModule>(TEXT("GameProjectGeneration"));
 			
-			int32 SourceFileCount = 0;
-			int64 SourceFileDirectorySize = 0;
-			GameProjectModule.Get().GetProjectSourceDirectoryInfo(SourceFileCount, SourceFileDirectorySize);
+			bool bShouldIncludeSourceFileCountAndSize = true;
+			GConfig->GetBool(TEXT("EngineAnalytics"), TEXT("IncludeSourceFileCountAndSize"), bShouldIncludeSourceFileCountAndSize, GEditorIni);
+			if (bShouldIncludeSourceFileCountAndSize)
+			{
+				int32 SourceFileCount = 0;
+				int64 SourceFileDirectorySize = 0;
+				GameProjectModule.Get().GetProjectSourceDirectoryInfo(SourceFileCount, SourceFileDirectorySize);
 
-			ProjectAttributes.Add( FAnalyticsEventAttribute( FString( "SourceFileCount" ), SourceFileCount ));
-			ProjectAttributes.Add(FAnalyticsEventAttribute(FString("SourceFileDirectorySize"), SourceFileDirectorySize));
+				ProjectAttributes.Add( FAnalyticsEventAttribute( FString( "SourceFileCount" ), SourceFileCount ));
+				ProjectAttributes.Add(FAnalyticsEventAttribute(FString("SourceFileDirectorySize"), SourceFileDirectorySize));
+			}
 			ProjectAttributes.Add( FAnalyticsEventAttribute( FString( "ModuleCount" ), FModuleManager::Get().GetModuleCount() ));
 
 			// UObject class count

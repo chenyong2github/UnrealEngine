@@ -655,19 +655,18 @@ UMovieSceneEntitySystem* FMovieSceneEntitySystemGraph::FindSystemOfType(TSubclas
 	return nullptr;
 }
 
-bool FMovieSceneEntitySystemGraph::ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks)
+void FMovieSceneEntitySystemGraph::ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks)
 {
 	UpdateCache();
 
 	switch (Phase)
 	{
-	case UE::MovieScene::ESystemPhase::Spawn:         return ExecutePhase(SpawnPhase,         Linker, OutTasks);
-	case UE::MovieScene::ESystemPhase::Instantiation: return ExecutePhase(InstantiationPhase, Linker, OutTasks);
-	case UE::MovieScene::ESystemPhase::Evaluation:    return ExecutePhase(EvaluationPhase,    Linker, OutTasks);
-	case UE::MovieScene::ESystemPhase::Finalization:  return ExecutePhase(FinalizationPhase,  Linker, OutTasks);
+	case UE::MovieScene::ESystemPhase::Spawn:         ExecutePhase(SpawnPhase,         Linker, OutTasks); break;
+	case UE::MovieScene::ESystemPhase::Instantiation: ExecutePhase(InstantiationPhase, Linker, OutTasks); break;
+	case UE::MovieScene::ESystemPhase::Evaluation:    ExecutePhase(EvaluationPhase,    Linker, OutTasks); break;
+	case UE::MovieScene::ESystemPhase::Finalization:  ExecutePhase(FinalizationPhase,  Linker, OutTasks); break;
 	default: ensureMsgf(false, TEXT("Invalid phase specified for execution.")); break;
 	}
-	return false;
 }
 
 void FMovieSceneEntitySystemGraph::IteratePhase(UE::MovieScene::ESystemPhase Phase, TFunctionRef<void(UMovieSceneEntitySystem*)> InIter)
@@ -691,7 +690,7 @@ void FMovieSceneEntitySystemGraph::IteratePhase(UE::MovieScene::ESystemPhase Pha
 }
 
 template<typename ArrayType>
-bool FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks)
+void FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks)
 {
 	using namespace UE::MovieScene;
 
@@ -699,7 +698,6 @@ bool FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 
 	FSystemTaskPrerequisites NoPrerequisites;
 
-	bool bAnyAwake = false;
 	const bool bStructureCanChange = !Linker->EntityManager.IsLockedDown();
 
 	for (int32 CurrentIndex = 0; CurrentIndex < SortedEntries.Num(); ++CurrentIndex)
@@ -713,14 +711,11 @@ bool FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 		DownstreamTasks.ResetNode(NodeID);
 
 		TSharedPtr<FSystemTaskPrerequisites> Prerequisites = Nodes.Array[NodeID].Prerequisites;
-		if (System->Run(Prerequisites ? *Prerequisites : NoPrerequisites, DownstreamTasks))
-		{
-			bAnyAwake = true;
-		}
+		System->Run(Prerequisites ? *Prerequisites : NoPrerequisites, DownstreamTasks);
 
 		if (bStructureCanChange)
 		{
-			Linker->LinkRelevantSystems();
+			Linker->AutoLinkRelevantSystems();
 		}
 
 		// If we linked any new systems, we may have to move our current offset
@@ -767,8 +762,6 @@ bool FMovieSceneEntitySystemGraph::ExecutePhase(const ArrayType& SortedEntries, 
 			}
 		}
 	}
-
-	return bAnyAwake;
 }
 
 void FMovieSceneEntitySystemGraph::Shutdown()

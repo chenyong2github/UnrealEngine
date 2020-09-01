@@ -249,7 +249,6 @@ public:
 	~FNiagaraSystemSimulation();
 	bool Init(UNiagaraSystem* InSystem, UWorld* InWorld, bool bInIsSolo, ETickingGroup TickGroup);
 	void Destroy();
-	bool Tick(float DeltaSeconds);
 
 	bool IsValid()const { return WeakSystem.Get() != nullptr && bCanExecute && World != nullptr; }
 
@@ -294,8 +293,8 @@ public:
 
 	bool GetIsSolo() const { return bIsSolo; }
 
-	FNiagaraScriptExecutionContext& GetSpawnExecutionContext() { return SpawnExecContext; }
-	FNiagaraScriptExecutionContext& GetUpdateExecutionContext() { return UpdateExecContext; }
+	FNiagaraScriptExecutionContextBase* GetSpawnExecutionContext() { return SpawnExecContext.Get(); }
+	FNiagaraScriptExecutionContextBase* GetUpdateExecutionContext() { return UpdateExecContext.Get(); }
 
 	void AddTickGroupPromotion(FNiagaraSystemInstance* Instance);
 	int32 AddPendingSystemInstance(FNiagaraSystemInstance* Instance);
@@ -307,6 +306,10 @@ public:
 	FORCEINLINE NiagaraEmitterInstanceBatcher* GetBatcher()const { return Batcher; }
 
 	ENiagaraGPUTickHandlingMode GetGPUTickHandlingMode()const;
+
+	/** If true we use legacy simulation contexts that could not handle per instance DI calls in the system scripts and would force the whole simulation solo. */
+	static bool UseLegacySystemSimulationContexts();
+	static void OnChanged_UseLegacySystemSimulationContexts(class IConsoleVariable* CVar);
 
 protected:
 	/** Sets constant parameter values */
@@ -323,13 +326,8 @@ protected:
 	/** Builds the constant buffer table for a given script execution */
 	void BuildConstantBufferTable(
 		const FNiagaraGlobalParameters& GlobalParameters,
-		FNiagaraScriptExecutionContext& ExecContext,
+		TUniquePtr<FNiagaraScriptExecutionContextBase>& ExecContext,
 		FScriptExecutionConstantBufferTable& ConstantBufferTable) const;
-
-	/** Should we push the system sim tick off the game thread. */
-	FORCEINLINE bool ShouldTickAsync(const FNiagaraSystemSimulationTickContext& Context);
-	/** Should we push the system instance ticks off the game thread. */
-	FORCEINLINE bool ShouldTickInstancesAsync(const FNiagaraSystemSimulationTickContext& Context);
 
 	void AddSystemToTickBatch(FNiagaraSystemInstance* Instance, FNiagaraSystemSimulationTickContext& Context);
 	void FlushTickBatch(FNiagaraSystemSimulationTickContext& Context);
@@ -361,8 +359,8 @@ protected:
 	FNiagaraDataSet SpawnInstanceParameterDataSet;
 	FNiagaraDataSet UpdateInstanceParameterDataSet;
 
-	FNiagaraScriptExecutionContext SpawnExecContext;
-	FNiagaraScriptExecutionContext UpdateExecContext;
+	TUniquePtr<FNiagaraScriptExecutionContextBase> SpawnExecContext;
+	TUniquePtr<FNiagaraScriptExecutionContextBase> UpdateExecContext;
 
 	/** Bindings that pull per component parameters into the spawn parameter dataset. */
 	FNiagaraParameterStoreToDataSetBinding SpawnInstanceParameterToDataSetBinding;
@@ -377,6 +375,8 @@ protected:
 	TArray<TArray<FNiagaraParameterStoreToDataSetBinding>> DataSetToEmitterEventParameters;
 	/** Binding to push system attributes into each emitter gpu parameters. */
 	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterGPUParameters;
+	/** Binding to push system attributes into each emitter renderer parameters. */
+	TArray<FNiagaraParameterStoreToDataSetBinding> DataSetToEmitterRendererParameters;
 
 
 	/** Direct bindings for Engine variables in System Spawn and Update scripts. */
@@ -423,4 +423,6 @@ protected:
 	mutable FString CrashReporterTag;
 
 	NiagaraEmitterInstanceBatcher* Batcher = nullptr;
+
+	static bool bUseLegacyExecContexts;
 };

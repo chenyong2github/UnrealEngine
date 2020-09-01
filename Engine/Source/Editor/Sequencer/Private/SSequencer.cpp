@@ -2434,32 +2434,6 @@ TSharedRef<SWidget> SSequencer::MakePlaybackMenu()
 		}
 		
 		MenuBuilder.AddMenuEntry(FSequencerCommands::Get().ToggleLinkCurveEditorTimeRange);
-
-		// Menu entry for zero padding
-		auto OnZeroPadChanged = [=](uint8 NewValue){
-			GetSequencerSettings()->SetZeroPadFrames(NewValue);
-		};
-
-		MenuBuilder.AddWidget(
-			SNew(SHorizontalBox)	
-			+ SHorizontalBox::Slot()
-				[
-					SNew(SSpacer)
-				]
-			+ SHorizontalBox::Slot()
-				.AutoWidth()
-				[
-					SNew(SSpinBox<uint8>)
-					.Style(&FEditorStyle::GetWidgetStyle<FSpinBoxStyle>("Sequencer.HyperlinkSpinBox"))
-					.OnValueCommitted_Lambda([=](uint8 Value, ETextCommit::Type){ OnZeroPadChanged(Value); })
-					.OnValueChanged_Lambda(OnZeroPadChanged)
-					.MinValue(0)
-					.MaxValue(8)
-					.Value_Lambda([=]() -> uint8 {
-						return GetSequencerSettings()->GetZeroPadFrames();
-					})
-				],
-			LOCTEXT("ZeroPaddingText", "Zero Pad Frame Numbers"));
 	}
 	MenuBuilder.EndSection();
 

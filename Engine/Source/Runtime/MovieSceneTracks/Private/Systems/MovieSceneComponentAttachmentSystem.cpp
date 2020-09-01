@@ -167,6 +167,8 @@ UMovieSceneComponentAttachmentSystem::UMovieSceneComponentAttachmentSystem(const
 {
 	using namespace UE::MovieScene;
 
+	SystemExclusionContext |= EEntitySystemContext::Interrogation;
+
 	FMovieSceneTracksComponentTypes* TrackComponents = FMovieSceneTracksComponentTypes::Get();
 	RelevantComponent = TrackComponents->AttachParentBinding;
 

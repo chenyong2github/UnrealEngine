@@ -31,7 +31,7 @@ public:
 	/** Get the settings class to use for this burn in */
 	UFUNCTION(BlueprintNativeEvent, Category="Burn In")
 	TSubclassOf<ULevelSequenceBurnInInitSettings> GetSettingsClass() const;
-	TSubclassOf<ULevelSequenceBurnInInitSettings> GetSettingsClass_Implementation() const { return nullptr; }
+	virtual TSubclassOf<ULevelSequenceBurnInInitSettings> GetSettingsClass_Implementation() const { return nullptr; }
 
 protected:
 

@@ -39,7 +39,6 @@ struct FOptionalVulkanDeviceExtensions
 			uint32 HasEXTValidationCache : 1;
 			uint32 HasAMDBufferMarker : 1;
 			uint32 HasNVDiagnosticCheckpoints : 1;
-			uint32 HasGoogleDisplayTiming : 1;
 			uint32 HasYcbcrSampler : 1;
 			uint32 HasMemoryPriority : 1;
 			uint32 HasDriverProperties : 1;

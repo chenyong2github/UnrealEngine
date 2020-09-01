@@ -1241,7 +1241,7 @@ void MainCS(
 		UNROLL_N(CONFIG_SIGNAL_BATCH_SIZE)
 		for (uint MultiplexId = 0; MultiplexId < CONFIG_SIGNAL_BATCH_SIZE; MultiplexId++)
 		{
-			float CurrentSampleCount = OutputSamples.Array[MultiplexId].SampleCount;
+			float CurrentSampleCount = RefSamples.Array[MultiplexId].SampleCount;
 			float NewSampleCount = min(CurrentSampleCount, TARGETED_SAMPLE_COUNT);
 
 			OutputSamples.Array[MultiplexId] = MulSignal(OutputSamples.Array[MultiplexId], CurrentSampleCount > 0 ? NewSampleCount / CurrentSampleCount : 0);
@@ -1279,7 +1279,7 @@ void MainCS(
 		OutputPixelPostion = ViewportMin + DispatchThreadId;
 	#endif 
 	
-	#if 0 && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && DIM_STAGE == STAGE_RECONSTRUCTION
+	#if DEBUG_OUTPUT && CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK && DIM_STAGE == STAGE_RECONSTRUCTION
 		DebugOutput[DispatchThreadId] = float4(OutputSamples.Array[0].SampleCount, 0, 0, 0);
 	#endif
 
@@ -1303,7 +1303,15 @@ void MainCS(
 				float FadedSSSShadow = lerp(1.0f, Square(SSSTransmission), ShadowFadeFraction);
 
 				// the channel assignment is documented in ShadowRendering.cpp (look for Light Attenuation channel assignment)
-				float4 OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
+				float4 OutColor;
+				if (LightType[MultiplexId] == LIGHT_TYPE_DIRECTIONAL)
+				{
+					OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, 1.0, FadedSSSShadow));
+				}
+				else
+				{
+					OutColor = EncodeLightAttenuation(half4(FadedShadow, FadedSSSShadow, FadedShadow, FadedSSSShadow));
+				}
 
 				if (MultiplexId == 0)
 					SignalOutput_UAVs_0[OutputPixelPostion] = OutColor;

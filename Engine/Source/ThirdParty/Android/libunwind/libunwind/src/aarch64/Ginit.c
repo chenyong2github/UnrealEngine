@@ -53,6 +53,35 @@ uc_addr (ucontext_t *uc, int reg)
 
 # ifdef UNW_LOCAL_ONLY
 
+#ifdef PREVENT_MAP_ACCESS
+// Attempt to avoid building the whole mem map table..
+// Try to msync the page that contains address, if it succeeds page it lives in is valid.
+static bool is_pointer_valid(unw_word_t Address)
+{
+	size_t PageSize = sysconf(_SC_PAGESIZE);
+	void* PageBase = (void*)((((size_t)Address) / PageSize) * PageSize);
+	return msync(PageBase, PageSize, MS_ASYNC) == 0;
+}
+#endif
+
+static bool MemLocal_IsReadable(unw_word_t p, size_t bytes)
+{
+#ifdef PREVENT_MAP_ACCESS
+	return is_pointer_valid(p);
+#else
+	return map_local_is_readable(p, bytes);
+#endif
+}
+
+static bool MemLocal_IsWriteable(unw_word_t p, size_t bytes)
+{
+#ifdef PREVENT_MAP_ACCESS
+	return is_pointer_valid(p);
+#else
+	return map_local_is_writable(p, bytes);
+#endif
+}
+
 HIDDEN void *
 tdep_uc_addr (ucontext_t *uc, int reg)
 {
@@ -89,13 +118,13 @@ access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
   if (write)
     {
       /* ANDROID support update. */
-#if defined(UNW_LOCAL_ONLY) && !defined(PREVENT_MAP_ACCESS)
-      if (map_local_is_writable (addr, sizeof(unw_word_t)))
+#ifdef UNW_LOCAL_ONLY
+	  if( MemLocal_IsWriteable(addr, sizeof(unw_word_t)))
         {
 #endif
           Debug (16, "mem[%lx] <- %lx\n", addr, *val);
           *(unw_word_t *) addr = *val;
-#if defined(UNW_LOCAL_ONLY) && !defined(PREVENT_MAP_ACCESS)
+#ifdef UNW_LOCAL_ONLY
         }
       else
         {
@@ -108,13 +137,13 @@ access_mem (unw_addr_space_t as, unw_word_t addr, unw_word_t *val, int write,
   else
     {
       /* ANDROID support update. */
-#if defined(UNW_LOCAL_ONLY) && !defined(PREVENT_MAP_ACCESS)
-      if (map_local_is_readable (addr, sizeof(unw_word_t)))
-        {
+#ifdef UNW_LOCAL_ONLY
+	  if (MemLocal_IsReadable(addr, sizeof(unw_word_t)))
+	  {
 #endif
-          *val = *(unw_word_t *) addr;
+		  *val = *(unw_word_t *) addr;
           Debug (16, "mem[%lx] -> %lx\n", addr, *val);
-#if defined(UNW_LOCAL_ONLY) && !defined(PREVENT_MAP_ACCESS)
+#ifdef UNW_LOCAL_ONLY
         }
       else
         {

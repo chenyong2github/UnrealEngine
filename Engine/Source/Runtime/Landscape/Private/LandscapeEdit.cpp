@@ -4536,12 +4536,12 @@ bool ALandscapeProxy::CanEditChange(const FProperty* InProperty) const
 		return false;
 	}
 
-	FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
-
 	// Don't allow edition of properties that are shared with the parent landscape properties
 	// See  ALandscapeProxy::FixupSharedData(ALandscape* Landscape)
-	if (GetLandscapeActor())
+	if (GetLandscapeActor() != this)
 	{
+		FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
+
 		if (PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, MaxLODLevel) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, TessellationComponentScreenSize) ||
 			PropertyName == GET_MEMBER_NAME_CHECKED(ALandscapeProxy, ComponentScreenSizeToUseSubSections) ||

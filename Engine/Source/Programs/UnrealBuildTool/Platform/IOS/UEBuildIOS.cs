@@ -1127,7 +1127,7 @@ namespace UnrealBuildTool
 			// if the project has an Oodle compression Dll, enable the decompressor on IOS
 			if (Target.ProjectFile != null)
 			{
-				DirectoryReference ProjectDir = DirectoryReference.GetParentDirectory(Target.ProjectFile);
+				DirectoryReference ProjectDir = Target.ProjectFile.Directory;
 				string OodleDllPath = DirectoryReference.Combine(ProjectDir, "Binaries/ThirdParty/Oodle/Mac/libUnrealPakPlugin.dylib").FullName;
 				if (File.Exists(OodleDllPath))
 				{

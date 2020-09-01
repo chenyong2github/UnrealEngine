@@ -15,8 +15,8 @@ ANIMGRAPH_API UClass* GetNodeClassForAsset(const UClass* AssetClass);
 ANIMGRAPH_API bool SupportNodeClassForAsset(const UClass* AssetClass, UClass* NodeClass);
 
 /** Helper / intermediate for asset player graphical nodes */
-UCLASS(Abstract, MinimalAPI)
-class UAnimGraphNode_AssetPlayerBase : public UAnimGraphNode_Base
+UCLASS(Abstract)
+class ANIMGRAPH_API UAnimGraphNode_AssetPlayerBase : public UAnimGraphNode_Base
 {
 	GENERATED_BODY()
 public:
@@ -25,8 +25,11 @@ public:
 	FAnimationGroupReference SyncGroup;
 
 	/** UEdGraphNode interface */
-	ANIMGRAPH_API virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
-	ANIMGRAPH_API virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
+	virtual void PinConnectionListChanged(UEdGraphPin* Pin) override;
+	virtual void PinDefaultValueChanged(UEdGraphPin* Pin) override;
+
+	/** UAnimGraphNode_Base interface */
+	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
 
 	virtual void SetAnimationAsset(UAnimationAsset* Asset) { check(false); /*Base function called*/ }
 };

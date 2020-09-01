@@ -756,44 +756,20 @@ void FCSPose<PoseType>::LocalBlendCSBoneTransforms(const TArray<struct FBoneTran
 		TArray<struct FBoneTransform> LocalBoneTransforms;
 		LocalBoneTransforms.SetNumUninitialized(BoneTransforms.Num());
 
-		// First, convert BoneTransforms to local space for blending.
+		// First, save the current local-space poses for the modified bones
 		for (int32 Index = 0; Index < BoneTransforms.Num(); Index++)
 		{
 			const BoneIndexType BoneIndex = BoneTransforms[Index].BoneIndex;
-			const BoneIndexType ParentIndex = Pose.GetParentBoneIndex(BoneIndex);
 
-			if (ParentIndex != INDEX_NONE)
-			{
-				// if BoneTransforms(modified by controllers) contains ParentIndex, it should use that as ParentTransform, not the one from input
-				int32 LocalParentIndex = INDEX_NONE;
-				for (int32 LocalIndex = 0; LocalIndex < BoneTransforms.Num(); ++LocalIndex)
-				{
-					if (ParentIndex == BoneTransforms[LocalIndex].BoneIndex)
-					{
-						LocalParentIndex = LocalIndex;
-						break;
-					}
-				}
+			// save current local pose - we will blend it back in later
+			LocalBoneTransforms[Index].Transform = GetLocalSpaceTransform(BoneIndex);
+			LocalBoneTransforms[Index].BoneIndex = BoneIndex;
 
-				// saves Parent Transform
-				const bool bNoParent = LocalParentIndex == INDEX_NONE;
-				const FTransform& ParentTransform = bNoParent ? GetComponentSpaceTransform(ParentIndex) : BoneTransforms[LocalParentIndex].Transform;
-
-				LocalBoneTransforms[Index].Transform = BoneTransforms[Index].Transform.GetRelativeTransform(ParentTransform);
-				LocalBoneTransforms[Index].BoneIndex = BoneIndex;
-
-				// Mark those bones in Mesh Pose as being required to be in Local Space.
-				BoneMask[BoneIndex] = 1;
-			}
-			else
-			{
-				// when root is entered as to modify, we don't need to adjust parent index, just clear it
-				LocalBoneTransforms[Index].Transform = BoneTransforms[Index].Transform;
-				LocalBoneTransforms[Index].BoneIndex = BoneIndex;
-
-				BoneMask[BoneIndex] = 1;
-			}
+			BoneMask[BoneIndex] = 1;
 		}
+
+		// Next, update the pose as if Alpha = 1.0
+		SafeSetCSBoneTransforms(BoneTransforms);
 
 		// Then, convert MeshPose Bones from BoneTransforms list, and their children, to local space if they are not already.
 		for (const BoneIndexType BoneIndex : Pose.ForEachBoneIndex())
@@ -828,7 +804,8 @@ void FCSPose<PoseType>::LocalBlendCSBoneTransforms(const TArray<struct FBoneTran
 			check((ComponentSpaceFlags[BoneIndex] == 0) || (BoneIndex == 0));
 
 			// No need to normalize rotation since BlendWith() does it.
-			Pose[BoneIndex].BlendWith(LocalBoneTransforms[Index].Transform, Alpha);
+			const float AlphaInv = 1.0f - Alpha;
+			Pose[BoneIndex].BlendWith(LocalBoneTransforms[Index].Transform, AlphaInv);
 		}
 	}
 }

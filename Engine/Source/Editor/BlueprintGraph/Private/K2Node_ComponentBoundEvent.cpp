@@ -122,18 +122,13 @@ void UK2Node_ComponentBoundEvent::ValidateNodeDuringCompilation(FCompilerResults
 
 bool UK2Node_ComponentBoundEvent::IsDelegateValid() const
 {
-	// If there is a property with the correct name, then we are valid
-	for (TFieldIterator<FObjectProperty> It(GetBlueprint()->GeneratedClass); It; ++It)
-	{
-		FObjectProperty* Prop = *It;
-		if (Prop && Prop->GetFName() == ComponentPropertyName)
-		{
-			return true;
-		}
-	}
-	
-	// Otherwise, the property that we were bound to has been deleted
-	return false;
+	const UBlueprint* const BP = GetBlueprint();
+	// Validate that the property has not been renamed or deleted via the SCS tree
+	return BP && FindFProperty<FObjectProperty>(BP->GeneratedClass, ComponentPropertyName)
+		// Validate that the actual declaration for this event has not been deleted 
+		// either from a native base class or a BP multicast delegate. The Delegate could have been 
+		// renamed/redirected, so also check for a remapped field if we need to
+		&& (GetTargetDelegateProperty() || FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName));
 }
 
 bool UK2Node_ComponentBoundEvent::IsUsedByAuthorityOnlyDelegate() const

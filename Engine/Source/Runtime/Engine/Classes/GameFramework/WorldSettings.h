@@ -253,15 +253,18 @@ struct ENGINE_API FNetViewer
 	FVector ViewDir;
 
 	FNetViewer()
-		: Connection(NULL)
-		, InViewer(NULL)
-		, ViewTarget(NULL)
+		: Connection(nullptr)
+		, InViewer(nullptr)
+		, ViewTarget(nullptr)
 		, ViewLocation(ForceInit)
 		, ViewDir(ForceInit)
 	{
 	}
 
 	FNetViewer(UNetConnection* InConnection, float DeltaSeconds);
+
+	/** For use by replication graph, connection likely null */
+	FNetViewer(AController* InController);
 };
 
 USTRUCT()

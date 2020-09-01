@@ -269,11 +269,11 @@ static void LogBreadcrumbData(ID3D12Device* Device)
 	// Check all the devices
 	FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
 	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
-	{
+		{
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCommandListManager());
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetAsyncCommandListManager());
 		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCopyCommandListManager());
-	});
+		});
 
 	if (!bValidData)
 	{
@@ -297,11 +297,13 @@ struct FDred_1_1
 {
 	FDred_1_1(ID3D12Device* Device)
 	{
-		Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()));
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
-		if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+		if (SUCCEEDED(Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()))))
 		{
-			BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT DredAutoBreadcrumbsOutput;
+			if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput(&DredAutoBreadcrumbsOutput)))
+			{
+				BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			}
 		}
 	}
 	TRefCountPtr<ID3D12DeviceRemovedExtendedData> Data;
@@ -312,11 +314,13 @@ struct FDred_1_2
 {
 	FDred_1_2(ID3D12Device* Device)
 	{
-		Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()));
-		D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput;
-		if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput)))
+		if (SUCCEEDED(Device->QueryInterface(IID_PPV_ARGS(Data.GetInitReference()))))
 		{
-			BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			D3D12_DRED_AUTO_BREADCRUMBS_OUTPUT1 DredAutoBreadcrumbsOutput;
+			if (SUCCEEDED(Data->GetAutoBreadcrumbsOutput1(&DredAutoBreadcrumbsOutput)))
+			{
+				BreadcrumbHead = DredAutoBreadcrumbsOutput.pHeadAutoBreadcrumbNode;
+			}
 		}
 	}
 	TRefCountPtr<ID3D12DeviceRemovedExtendedData1> Data;
@@ -632,22 +636,13 @@ namespace D3D12RHI
 			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
 			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
 		}
-		else
 #endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
-		{
-			// Make sure the log is flushed!
-			GLog->PanicFlushThreadedLogs();
-			GLog->Flush();
-		}
 
 		// hard break here when the debugger is attached
 		if (IsDebuggerPresent())
 		{
 			UE_DEBUG_BREAK();
 		}
-
-		// Force shutdown, we can't do anything useful anymore.
-		FPlatformMisc::RequestExit(true);
 	}
 
 	void VerifyD3D12Result(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device, FString Message)
@@ -657,8 +652,8 @@ namespace D3D12RHI
 		const FString& ErrorString = GetD3D12ErrorString(D3DResult, Device);
 		UE_LOG(LogD3D12RHI, Error, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
 
-		// Terminate with device removed but we don't have any GPU crash dump information
-		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
+		// Terminate with device removed or hung then try and get the current GPU state and dump to log
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG)
 		{	 
 			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
@@ -667,11 +662,14 @@ namespace D3D12RHI
 			TerminateOnOutOfMemory(D3DResult, false);
 		}
 
-		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
-
 		// Make sure the log is flushed!
 		GLog->PanicFlushThreadedLogs();
 		GLog->Flush();
+
+		UE_LOG(LogD3D12RHI, Fatal, TEXT("%s failed \n at %s:%u \n with error %s\n%s"), ANSI_TO_TCHAR(Code), ANSI_TO_TCHAR(Filename), Line, *ErrorString, *Message);
+
+		// Force shutdown, we can't do anything useful anymore.
+		FPlatformMisc::RequestExit(true);
 	}
 
 	void VerifyD3D12CreateTextureResult(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, const D3D12_RESOURCE_DESC& TextureDesc, ID3D12Device* Device)
@@ -696,7 +694,7 @@ namespace D3D12RHI
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
 
 		// Terminate with device removed but we don't have any GPU crash dump information
-		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED)
+		if (D3DResult == DXGI_ERROR_DEVICE_REMOVED || D3DResult == DXGI_ERROR_DEVICE_HUNG)
 		{
 			TerminateOnGPUCrash(Device, nullptr, 0);
 		}
@@ -708,6 +706,10 @@ namespace D3D12RHI
 			GetRendererModule().DebugLogOnCrash();
 #endif // STATS
 		}
+
+		// Make sure the log is flushed!
+		GLog->PanicFlushThreadedLogs();
+		GLog->Flush();
 
 		UE_LOG(LogD3D12RHI, Fatal,
 			TEXT("%s failed \n at %s:%u \n with error %s, \n Size=%ix%ix%i Format=%s(0x%08X), NumMips=%i, Flags=%s"),
@@ -723,9 +725,8 @@ namespace D3D12RHI
 			TextureDesc.MipLevels,
 			*GetD3D12TextureFlagString(TextureDesc.Flags));
 
-		// Make sure the log is flushed!
-		GLog->PanicFlushThreadedLogs();
-		GLog->Flush();
+		// Force shutdown, we can't do anything useful anymore.
+		FPlatformMisc::RequestExit(true);
 	}
 
 	void VerifyComRefCount(IUnknown* Object, int32 ExpectedRefs, const TCHAR* Code, const TCHAR* Filename, int32 Line)
@@ -1296,6 +1297,7 @@ DEFINE_STAT(STAT_D3D12CreateTextureTime);
 DEFINE_STAT(STAT_D3D12LockTextureTime);
 DEFINE_STAT(STAT_D3D12UnlockTextureTime);
 DEFINE_STAT(STAT_D3D12CreateBufferTime);
+DEFINE_STAT(STAT_D3D12CopyToStagingBufferTime);
 DEFINE_STAT(STAT_D3D12LockBufferTime);
 DEFINE_STAT(STAT_D3D12UnlockBufferTime);
 DEFINE_STAT(STAT_D3D12CommitTransientResourceTime);

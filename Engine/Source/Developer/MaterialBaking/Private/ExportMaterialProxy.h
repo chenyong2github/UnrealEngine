@@ -228,7 +228,7 @@ public:
 		, PropertyToCompile(InPropertyToCompile)
 		, bSynchronousCompilation(bInSynchronousCompilation)
 	{
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
+		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 		Material = InMaterialInterface->GetMaterial();
 		ReferencedTextures = InMaterialInterface->GetReferencedTextures();
 

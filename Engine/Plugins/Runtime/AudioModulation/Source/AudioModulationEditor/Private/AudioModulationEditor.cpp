@@ -1,30 +1,30 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "AudioModulationEditor.h"
 
+#include "AssetRegistryModule.h"
 #include "AssetTypeActions/AssetTypeActions_SoundControlBus.h"
 #include "AssetTypeActions/AssetTypeActions_SoundControlBusMix.h"
+#include "AssetTypeActions/AssetTypeActions_SoundModulationGeneratorLFO.h"
 #include "AssetTypeActions/AssetTypeActions_SoundModulationParameter.h"
 #include "AssetTypeActions/AssetTypeActions_SoundModulationPatch.h"
-#include "AssetTypeActions/AssetTypeActions_SoundModulatorLFO.h"
 #include "Editors/ModulationPatchCurveEditorViewStacked.h"
 #include "Framework/Commands/UIAction.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Framework/MultiBox/MultiBoxExtender.h"
+#include "IAssetRegistry.h"
 #include "ICurveEditorModule.h"
 #include "Internationalization/Internationalization.h"
-#include "Layouts/SoundControlBusMixChannelLayout.h"
+#include "Layouts/SoundControlBusMixStageLayout.h"
 #include "Layouts/SoundControlModulationPatchLayout.h"
 #include "Layouts/SoundModulationParameterSettingsLayout.h"
 #include "Layouts/SoundModulationTransformLayout.h"
 #include "LevelEditor.h"
+#include "Sound/SoundBase.h"
 #include "SoundModulationParameter.h"
 #include "SoundModulationTransform.h"
 #include "Templates/SharedPointer.h"
 #include "Textures/SlateIcon.h"
 #include "UObject/UObjectIterator.h"
-#include "AssetRegistryModule.h"
-#include "IAssetRegistry.h"
-#include "Sound/SoundBase.h"
 
 
 DEFINE_LOG_CATEGORY(LogAudioModulationEditor);
@@ -84,13 +84,13 @@ void FAudioModulationEditorModule::StartupModule()
 
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundControlBus>(AssetTools, AssetActions);
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundControlBusMix>(AssetTools, AssetActions);
-	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulatorLFO>(AssetTools, AssetActions);
+	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationGeneratorLFO>(AssetTools, AssetActions);
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationParameter>(AssetTools, AssetActions);
 	AudioModulationEditor::AddAssetAction<FAssetTypeActions_SoundModulationPatch>(AssetTools, AssetActions);
 
-	SetIcon(TEXT("SoundBusModulatorLFO"));
 	SetIcon(TEXT("SoundControlBus"));
 	SetIcon(TEXT("SoundControlBusMix"));
+	SetIcon(TEXT("SoundModulationGeneratorLFO"));
 	SetIcon(TEXT("SoundModulationPatch"));
 	SetIcon(TEXT("SoundModulationParameter"));
 
@@ -132,18 +132,18 @@ void FAudioModulationEditorModule::StartupModule()
 void FAudioModulationEditorModule::RegisterCustomPropertyLayouts()
 {
 	FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
-	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationOutputTransform",
+	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationTransform",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
-			&FSoundModulationOutputTransformLayoutCustomization::MakeInstance));
+			&FSoundModulationTransformLayoutCustomization::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("SoundModulationParameterSettings",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
 			&FSoundModulationParameterSettingsLayoutCustomization::MakeInstance));
 	PropertyModule.RegisterCustomPropertyTypeLayout("SoundControlModulationPatch",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
 			&FSoundControlModulationPatchLayoutCustomization::MakeInstance));
-	PropertyModule.RegisterCustomPropertyTypeLayout("SoundControlBusMixChannel",
+	PropertyModule.RegisterCustomPropertyTypeLayout("SoundControlBusMixStage",
 		FOnGetPropertyTypeCustomizationInstance::CreateStatic(
-			&FSoundControlBusMixChannelLayoutCustomization::MakeInstance));
+			&FSoundControlBusMixStageLayoutCustomization::MakeInstance));
 }
 
 void FAudioModulationEditorModule::ShutdownModule()

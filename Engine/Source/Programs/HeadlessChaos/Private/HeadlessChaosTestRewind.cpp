@@ -640,12 +640,21 @@ namespace ChaosTest {
 
 			// Throw out the proxy
 			Solver->UnregisterObject(Particle.Get());
-
-			// State should be the same as being at head because we removed it from solver
+			
+			//Unregister enqueues commands which won't run until next tick.
+			//Use this callback to inspect state after commands, but before sim of next step
+			Solver->RegisterSimOneShotCallback([&]()
 			{
-				const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,5);
-				EXPECT_EQ(Particle->X(), State.X());
-			}
+				// State should be the same as being at head because we removed it from solver
+				{
+					const FGeometryParticleState State = RewindData->GetPastStateAtFrame(*Particle,5);
+					EXPECT_EQ(Particle->X(),State.X());
+				}
+			});
+
+			TickSolverHelper(Module,Solver);
+
+			
 
 			Module->DestroySolver(Solver);
 		}

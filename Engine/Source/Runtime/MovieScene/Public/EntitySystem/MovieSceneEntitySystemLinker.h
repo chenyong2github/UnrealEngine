@@ -20,7 +20,20 @@ class FMovieSceneEntitySystemRunner;
 class UMovieSceneEntitySystem;
 class UMovieSceneCompiledDataManager;
 
-namespace UE { namespace MovieScene { struct FComponentRegistry; }}
+namespace UE
+{
+namespace MovieScene
+{
+	struct FComponentRegistry;
+	enum class EEntitySystemContext : uint8;
+
+	enum class EAutoLinkRelevantSystems : uint8
+	{
+		Enabled,
+		Disable,
+	};
+}
+}
 
 DECLARE_MULTICAST_DELEGATE_OneParam(FMovieSceneEntitySystemLinkerEvent, UMovieSceneEntitySystemLinker*);
 DECLARE_MULTICAST_DELEGATE_TwoParams(FMovieSceneEntitySystemLinkerAROEvent, UMovieSceneEntitySystemLinker*, FReferenceCollector&);
@@ -80,10 +93,11 @@ public:
 	template<typename SystemType>
 	SystemType* FindSystem() const
 	{
-		return static_cast<SystemType*>(SystemGraph.FindSystemOfType(SystemType::StaticClass()));
+		return CastChecked<SystemType>(FindSystem(SystemType::StaticClass()), ECastCheckedType::NullAllowed);
 	}
 
 	UMovieSceneEntitySystem* LinkSystem(TSubclassOf<UMovieSceneEntitySystem> InClassType);
+	UMovieSceneEntitySystem* FindSystem(TSubclassOf<UMovieSceneEntitySystem> Class) const;
 
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 
@@ -93,6 +107,32 @@ public:
 	}
 
 	TSharedRef<bool> CaptureGlobalState();
+
+
+	/**
+	 * Retrieve this linker's context, specifying what kinds of systems should be allowed or disallowed
+	 */
+	UE::MovieScene::EEntitySystemContext GetSystemContext() const
+	{
+		return SystemContext;
+	}
+
+
+	/**
+	 * Set the system context for this linker allowing some systems to be excluded based on the context.
+	 *
+	 * @param InSystemContext    The new system context for this linker
+	 */
+	void SetSystemContext(UE::MovieScene::EEntitySystemContext InSystemContext)
+	{
+		SystemContext = InSystemContext;
+	}
+
+
+	/**
+	 * Completely reset this linker back to its default state, abandoning all systems and destroying all entities
+	 */
+	void Reset();
 
 public:
 
@@ -104,6 +144,7 @@ public:
 	bool HasLinkedSystem(const uint16 GlobalDependencyGraphID);
 
 	void LinkRelevantSystems();
+	void AutoLinkRelevantSystems();
 
 	void InvalidateObjectBinding(const FGuid& ObjectBindingID, FInstanceHandle InstanceHandle);
 	void CleanupInvalidBoundObjects();
@@ -154,6 +195,11 @@ private:
 	uint64 LastSystemLinkVersion;
 
 	TWeakPtr<bool> GlobalStateCaptureToken;
+
+protected:
+
+	UE::MovieScene::EAutoLinkRelevantSystems AutoLinkMode;
+	UE::MovieScene::EEntitySystemContext SystemContext;
 };
 
 /**

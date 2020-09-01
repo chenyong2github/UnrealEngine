@@ -147,10 +147,17 @@ void FDTLSHandlerComponent::Incoming(FBitReader& Packet)
 			const int32 HandshakeBit = Packet.ReadBit();
 			const int32 PayloadBytes = Packet.GetBytesLeft();
 
-			check(PayloadBytes > 0);
-			check(PayloadBytes <= sizeof(TempBuffer));
+			if (PayloadBytes > 0 && PayloadBytes <= sizeof(TempBuffer))
+			{
+				TempBuffer[PayloadBytes - 1] = 0;
+			}
+			else
+			{
+				UE_LOG(LogDTLSHandler, Log, TEXT("FAESHandlerComponent::Incoming: invalid payload size"));
+				Packet.SetError();
+				return;
+			}
 
-			TempBuffer[PayloadBytes - 1] = 0;
 			Packet.SerializeBits(TempBuffer, Packet.GetBitsLeft());
 
 			if (InternalState == EDTLSHandlerState::Handshaking)

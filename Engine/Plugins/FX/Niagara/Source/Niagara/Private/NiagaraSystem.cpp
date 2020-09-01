@@ -62,12 +62,21 @@ static FAutoConsoleVariableRef CVarLogDDCStatusForSystems(
 	ECVF_Default
 );
 
+static float GNiagaraScalabiltiyMinumumMaxDistance = 1.0f;
+static FAutoConsoleVariableRef CVarNiagaraScalabiltiyMinumumMaxDistance(
+	TEXT("fx.Niagara.Scalability.MinMaxDistance"),
+	GNiagaraScalabiltiyMinumumMaxDistance,
+	TEXT("Minimum value for Niagara's Max distance value. Primariy to prevent divide by zero issues and ensure a sensible distance value for sorted significance culling."),
+	ECVF_Default
+);
+
 //////////////////////////////////////////////////////////////////////////
 
 UNiagaraSystem::UNiagaraSystem(const FObjectInitializer& ObjectInitializer)
 : Super(ObjectInitializer)
 #if WITH_EDITORONLY_DATA
 , bBakeOutRapidIterationOnCook(true)
+, bUseShaderPermutations(true)
 , bTrimAttributes(false)
 , bTrimAttributesOnCook(true)
 #endif
@@ -122,21 +131,6 @@ void UNiagaraSystem::PreSave(const class ITargetPlatform * TargetPlatform)
 #if WITH_EDITORONLY_DATA
 	WaitForCompilationComplete();
 #endif
-}
-
-bool UNiagaraSystem::NeedsLoadForTargetPlatform(const ITargetPlatform* TargetPlatform)const
-{
-	bool bHasAnyEnabledEmitters = false;
-	for (const FNiagaraEmitterHandle& EmitterHandle : GetEmitterHandles())
-	{
-		if (EmitterHandle.GetIsEnabled() && EmitterHandle.GetInstance()->Platforms.IsEnabledForPlatform(TargetPlatform->IniPlatformName()))
-		{
-			bHasAnyEnabledEmitters = true;
-			break;
-		}
-	}
-
-	return bHasAnyEnabledEmitters;
 }
 
 #if WITH_EDITOR
@@ -1150,7 +1144,8 @@ void UNiagaraSystem::UpdateDITickFlags()
 		{
 			for (FNiagaraScriptDataInterfaceCompileInfo& Info : Script->GetVMExecutableData().DataInterfaceInfo)
 			{
-				if (Info.GetDefaultDataInterface()->HasPostSimulateTick())
+				UNiagaraDataInterface* DefaultDataInterface = Info.GetDefaultDataInterface();
+				if (DefaultDataInterface && DefaultDataInterface->HasPostSimulateTick())
 				{
 					bHasDIsWithPostSimulateTick |= true;
 				}
@@ -1219,6 +1214,24 @@ bool UNiagaraSystem::IsValidInternal() const
 	}
 
 	return true;
+}
+
+
+bool UNiagaraSystem::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
+{
+	if (SystemSpawnScript)
+		return SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVarWithUniqueNameNamespace);
+	return false;
+}
+bool UNiagaraSystem::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
+{
+	if (SystemSpawnScript)
+		return SystemSpawnScript->GetVMExecutableData().Attributes.Contains(InVar);
+	return false;
+}
+bool UNiagaraSystem::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
+{
+	return ExposedParameters.IndexOf(InVar) != INDEX_NONE;
 }
 
 #if WITH_EDITORONLY_DATA
@@ -2140,6 +2153,8 @@ void UNiagaraSystem::ResolveScalabilitySettings()
 			break;//These overrides *should* be for orthogonal platform sets so we can exit after we've found a match.
 		}
 	}
+
+	CurrentScalabilitySettings.MaxDistance = FMath::Max(GNiagaraScalabiltiyMinumumMaxDistance, CurrentScalabilitySettings.MaxDistance);
 }
 
 void UNiagaraSystem::OnQualityLevelChanged()
@@ -2154,10 +2169,19 @@ void UNiagaraSystem::OnQualityLevelChanged()
 		}
 	}
 
-	FNiagaraSystemUpdateContext UpdateCtx;
-	UpdateCtx.SetDestroyOnAdd(true);
-	UpdateCtx.SetOnlyActive(true);
-	UpdateCtx.Add(this, true);
+	// Update components
+	{
+		FNiagaraSystemUpdateContext UpdateCtx;
+		UpdateCtx.SetDestroyOnAdd(true);
+		UpdateCtx.SetOnlyActive(true);
+		UpdateCtx.Add(this, true);
+	}
+
+	// Re-prime the component pool
+	if (PoolPrimeSize > 0 && MaxPoolSize > 0)
+	{
+		FNiagaraWorldManager::PrimePoolForAllWorlds(this);
+	}
 }
 
 const FString& UNiagaraSystem::GetCrashReporterTag()const

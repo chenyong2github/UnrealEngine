@@ -23,9 +23,10 @@
 // UK2Node_MakeStruct
 
 
-UK2Node_MakeStruct::FMakeStructPinManager::FMakeStructPinManager(const uint8* InSampleStructMemory)
+UK2Node_MakeStruct::FMakeStructPinManager::FMakeStructPinManager(const uint8* InSampleStructMemory, UBlueprint* InOwningBP)
 	: FStructOperationOptionalPinManager()
 	, SampleStructMemory(InSampleStructMemory)
+	, OwningBP(InOwningBP)
 	, bHasAdvancedPins(false)
 {
 }
@@ -83,14 +84,19 @@ void UK2Node_MakeStruct::FMakeStructPinManager::CustomizePinData(UEdGraphPin* Pi
 	}
 }
 
-static bool CanBeExposed(const FProperty* Property)
+static bool CanBeExposed(const FProperty* Property, UBlueprint* BP)
 {
 	if (Property)
 	{
 		const UEdGraphSchema_K2* Schema = GetDefault<UEdGraphSchema_K2>();
 		check(Schema);
 
-		if (!Property->HasAllPropertyFlags(CPF_BlueprintReadOnly))
+		const bool bIsEditorBP = IsEditorOnlyObject(BP);
+		const bool bIsEditAnywhereProperty = Property->HasAllPropertyFlags(CPF_Edit) &&
+			!Property->HasAnyPropertyFlags(CPF_EditConst);
+
+		if (!Property->HasAllPropertyFlags(CPF_BlueprintReadOnly) || 
+			(bIsEditorBP && bIsEditAnywhereProperty) )
 		{
 			if (Property->HasAllPropertyFlags(CPF_BlueprintVisible) && !(Property->ArrayDim > 1))
 			{
@@ -107,7 +113,7 @@ static bool CanBeExposed(const FProperty* Property)
 
 bool UK2Node_MakeStruct::FMakeStructPinManager::CanTreatPropertyAsOptional(FProperty* TestProperty) const
 {
-	return CanBeExposed(TestProperty);
+	return CanBeExposed(TestProperty, OwningBP);
 }
 
 UK2Node_MakeStruct::UK2Node_MakeStruct(const FObjectInitializer& ObjectInitializer)
@@ -126,7 +132,7 @@ void UK2Node_MakeStruct::AllocateDefaultPins()
 		bool bHasAdvancedPins = false;
 		{
 			FStructOnScope StructOnScope(StructType);
-			FMakeStructPinManager OptionalPinManager(StructOnScope.GetStructMemory());
+			FMakeStructPinManager OptionalPinManager(StructOnScope.GetStructMemory(), GetBlueprint());
 			OptionalPinManager.RebuildPropertyList(ShowPinForProperties, StructType);
 			OptionalPinManager.CreateVisiblePins(ShowPinForProperties, StructType, EGPD_Input, this);
 
@@ -176,10 +182,11 @@ void UK2Node_MakeStruct::ValidateNodeDuringCompilation(class FCompilerResultsLog
 	}
 	else
 	{
+		UBlueprint* BP = GetBlueprint();
 		for (TFieldIterator<FProperty> It(StructType); It; ++It)
 		{
 			const FProperty* Property = *It;
-			if (CanBeExposed(Property))
+			if (CanBeExposed(Property, BP))
 			{
 				if (Property->ArrayDim > 1)
 				{
@@ -253,13 +260,13 @@ bool UK2Node_MakeStruct::CanBeMade(const UScriptStruct* Struct, const bool bForI
 	return (Struct && !Struct->HasMetaData(FBlueprintMetadata::MD_NativeMakeFunction) && UEdGraphSchema_K2::IsAllowableBlueprintVariableType(Struct, bForInternalUse));
 }
 
-bool UK2Node_MakeStruct::CanBeSplit(const UScriptStruct* Struct)
+bool UK2Node_MakeStruct::CanBeSplit(const UScriptStruct* Struct, UBlueprint* InBP)
 {
 	if (CanBeMade(Struct))
 	{
 		for (TFieldIterator<FProperty> It(Struct); It; ++It)
 		{
-			if (CanBeExposed(*It))
+			if (CanBeExposed(*It, InBP))
 			{
 				return true;
 			}

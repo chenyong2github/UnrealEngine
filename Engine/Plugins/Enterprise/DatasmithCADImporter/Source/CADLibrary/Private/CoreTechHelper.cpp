@@ -503,7 +503,7 @@ TSharedPtr<IDatasmithUEPbrMaterialElement> CreateUEPbrMaterialFromColor(const FC
 	TSharedRef<IDatasmithUEPbrMaterialElement> MaterialElement = FDatasmithSceneFactory::CreateUEPbrMaterial(*Name);
 	MaterialElement->SetLabel(*Label);
 
-	FLinearColor LinearColor = FLinearColor::FromPow22Color(InColor);
+	FLinearColor LinearColor = FLinearColor::FromSRGBColor(InColor);
 
 	IDatasmithMaterialExpressionColor* ColorExpression = MaterialElement->AddMaterialExpression<IDatasmithMaterialExpressionColor>();
 	ColorExpression->SetName(TEXT("Base Color"));

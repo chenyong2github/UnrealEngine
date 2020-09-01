@@ -300,6 +300,7 @@ static void DoRenderHitProxies(
 
 	const bool bNeedToSwitchVerticalAxis = RHINeedsToSwitchVerticalAxis(GShaderPlatformForFeatureLevel[SceneRenderer->FeatureLevel]);
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	
 
 	FUniformBufferStaticBindings GlobalUniformBuffers(SceneRenderer->Scene->UniformBuffers.HitProxyPassUniformBuffer);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
@@ -565,6 +566,8 @@ void FMobileSceneRenderer::RenderHitProxies(FRHICommandListImmediate& RHICmdList
 		NaniteRasterResults.AddDefaulted(Views.Num());
 
 		::DoRenderHitProxies(RHICmdList, this, HitProxyRT, HitProxyDepthRT, NaniteRasterResults);
+
+		GEngine->GetPostRenderDelegate().Broadcast();
 	}
 
 	check(RHICmdList.IsOutsideRenderPass());
@@ -694,6 +697,8 @@ void FDeferredShadingSceneRenderer::RenderHitProxies(FRHICommandListImmediate& R
 		{
 			ShaderPrint::EndView(Views[ViewIndex]);
 		}
+
+		GEngine->GetPostRenderDelegate().Broadcast();
 	}
 	check(RHICmdList.IsOutsideRenderPass());
 #endif

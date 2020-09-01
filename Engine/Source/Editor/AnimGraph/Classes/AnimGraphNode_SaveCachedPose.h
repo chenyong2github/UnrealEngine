@@ -30,6 +30,7 @@ class UAnimGraphNode_SaveCachedPose : public UAnimGraphNode_Base
 	virtual void OnRenameNode(const FString& NewName) override;
 	virtual TSharedPtr<class INameValidatorInterface> MakeNameValidator() const override;
 	virtual bool IsCompatibleWithGraph(const UEdGraph* TargetGraph) const override;
+	virtual bool IsNodeRootSet() const override { return true; }
 	// End of UEdGraphNode interface
 
 	// UK2Node interface.

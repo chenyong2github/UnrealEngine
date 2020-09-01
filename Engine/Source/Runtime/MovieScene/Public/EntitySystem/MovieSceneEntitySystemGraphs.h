@@ -139,7 +139,7 @@ struct MOVIESCENE_API FMovieSceneEntitySystemGraph
 
 	void Shutdown();
 
-	bool ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
+	void ExecutePhase(UE::MovieScene::ESystemPhase Phase, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
 
 	void IteratePhase(UE::MovieScene::ESystemPhase Phase, TFunctionRef<void(UMovieSceneEntitySystem*)> InIter);
 
@@ -165,7 +165,7 @@ private:
 	void UpdateCache();
 
 	template<typename ArrayType>
-	bool ExecutePhase(const ArrayType& RetrieveEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
+	void ExecutePhase(const ArrayType& RetrieveEntries, UMovieSceneEntitySystemLinker* Linker, FGraphEventArray& OutTasks);
 
 private:
 	friend UE::MovieScene::FSystemSubsequentTasks;

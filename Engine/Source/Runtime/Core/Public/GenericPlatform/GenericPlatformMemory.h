@@ -149,6 +149,19 @@ struct CORE_API FGenericPlatformMemoryStats : public FPlatformMemoryConstants
 	
 	/** Default constructor, clears all variables. */
 	FGenericPlatformMemoryStats();
+
+	struct FPlatformSpecificStat
+	{
+		const TCHAR* Name;
+		uint64 Value;
+
+		FPlatformSpecificStat(const TCHAR* InName, uint64 InValue)
+			: Name(InName)
+			, Value(InValue)
+		{}
+	};
+
+	TArray<FPlatformSpecificStat> GetPlatformSpecificStats() const;
 };
 
 

@@ -118,7 +118,7 @@ void DecodeMultiplexedSignalsFromFloat4(
 			{
 				OutSampleFrequencies.Array[MultiplexId].ClosestHitDistance = DENOISER_INVALID_HIT_DISTANCE;
 			}
-			else if (OutSamples.Array[MultiplexId].MissCount != 0)
+			else if (OutSamples.Array[MultiplexId].MissCount > 0.999)
 			{
 				OutSampleFrequencies.Array[MultiplexId].ClosestHitDistance = DENOISER_MISS_HIT_DISTANCE;
 			}

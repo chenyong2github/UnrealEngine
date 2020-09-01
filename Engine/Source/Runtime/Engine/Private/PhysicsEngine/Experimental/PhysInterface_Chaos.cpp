@@ -31,14 +31,16 @@
 #include "ChaosCheck.h"
 #include "Chaos/Particle/ParticleUtilities.h"
 #include "Chaos/PBDJointConstraints.h"
+#include "Chaos/PBDJointConstraintData.h"
 
 #include "Async/ParallelFor.h"
-#include "Components/PrimitiveComponent.h"
-#include "Physics/PhysicsFiltering.h"
 #include "Collision/CollisionConversions.h"
-#include "PhysicsInterfaceUtilsCore.h"
+#include "Components/PrimitiveComponent.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Math/UnrealMathUtility.h"
 #include "PBDRigidsSolver.h"
+#include "Physics/PhysicsFiltering.h"
+#include "PhysicsInterfaceUtilsCore.h"
 #include "PhysicalMaterials/PhysicalMaterialMask.h"
 #include "PhysicalMaterials/PhysicalMaterial.h"
 
@@ -321,6 +323,13 @@ void FPhysInterface_Chaos::UpdateLinearLimitParams_AssumesLocked(const FPhysicsC
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
 			Constraint->SetLinearLimit(InLimit); 
+
+			Constraint->SetSoftLinearLimitsEnabled(InParams.bSoftConstraint);
+			Constraint->SetSoftLinearStiffness(InParams.Stiffness);
+			Constraint->SetSoftLinearDamping(InParams.Damping);
+			Constraint->SetLinearContactDistance(InParams.ContactDistance);
+			Constraint->SetLinearRestitution(InParams.Restitution);
+			//Constraint->SetAngularSoftForceMode( InParams.NOT_QUITE_SURE ); // @todo(chaos) 
 		}
 	}
 }
@@ -331,9 +340,17 @@ void FPhysInterface_Chaos::UpdateConeLimitParams_AssumesLocked(const FPhysicsCon
 	{
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
-			// @todo(Chaos) :  Joint Constraints : Limits
 			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(InParams.Swing1LimitDegrees);
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(InParams.Swing2LimitDegrees);
 			Constraint->SetAngularLimits(Limit);
+
+			Constraint->SetSoftSwingLimitsEnabled(InParams.bSoftConstraint);
+			Constraint->SetSoftSwingStiffness(InParams.Stiffness);
+			Constraint->SetSoftSwingDamping(InParams.Damping);
+			Constraint->SetSwingContactDistance(InParams.ContactDistance);
+			Constraint->SetSwingRestitution(InParams.Restitution);
+			//Constraint->SetAngularSoftForceMode( InParams.NOT_QUITE_SURE ); // @todo(chaos) 
 		}
 	}
 }
@@ -344,9 +361,17 @@ void FPhysInterface_Chaos::UpdateTwistLimitParams_AssumesLocked(const FPhysicsCo
 	{
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
-			// @todo(Chaos) :  Joint Constraints : Limits
 			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(InParams.TwistLimitDegrees);
 			Constraint->SetAngularLimits(Limit);
+
+			Constraint->SetSoftTwistLimitsEnabled(InParams.bSoftConstraint);
+			Constraint->SetSoftTwistStiffness(InParams.Stiffness);
+			Constraint->SetSoftTwistDamping(InParams.Damping);
+			Constraint->SetTwistContactDistance(InParams.ContactDistance);
+			Constraint->SetTwistRestitution(InParams.Restitution);
+			//Constraint->SetAngularSoftForceMode( InParams.NOT_QUITE_SURE ); // @todo(chaos) 
+
 		}
 	}
 }
@@ -384,7 +409,6 @@ void FPhysInterface_Chaos::UpdateLinearDrive_AssumesLocked(const FPhysicsConstra
 			}
 
 			Constraint->SetLinearDriveForceMode(Chaos::EJointForceMode::Acceleration);
-			// @todo(chaos) : Joint Constraints : support channel stiffness,damping
 			Constraint->SetLinearDriveStiffness(FMath::Max3(InDriveParams.XDrive.Stiffness, InDriveParams.YDrive.Stiffness, InDriveParams.ZDrive.Stiffness));
 			Constraint->SetLinearDriveDamping(FMath::Max3(InDriveParams.XDrive.Damping, InDriveParams.YDrive.Damping, InDriveParams.ZDrive.Damping));
 		}
@@ -438,7 +462,6 @@ void FPhysInterface_Chaos::UpdateAngularDrive_AssumesLocked(const FPhysicsConstr
 			}
 
 			Constraint->SetAngularDriveForceMode(Chaos::EJointForceMode::Acceleration);
-			// @todo(chaos) : support channel stiffness,damping
 			Constraint->SetAngularDriveStiffness(FMath::Max3(InDriveParams.SlerpDrive.Stiffness, InDriveParams.TwistDrive.Stiffness, InDriveParams.SwingDrive.Stiffness));
 			Constraint->SetAngularDriveDamping(FMath::Max3(InDriveParams.SlerpDrive.Damping, InDriveParams.TwistDrive.Damping, InDriveParams.SwingDrive.Damping));
 		}
@@ -493,11 +516,21 @@ struct FScopedSceneLock_Chaos
 		LockScene();
 	}
 
-	FScopedSceneLock_Chaos(FPhysicsConstraintHandle const * InHandle, EPhysicsInterfaceScopedLockType InLockType)
+	FScopedSceneLock_Chaos(FPhysicsConstraintHandle const * InConstraintHandle, EPhysicsInterfaceScopedLockType InLockType)
 		: Scene(nullptr)
 		, LockType(InLockType)
 	{
-		UE_LOG(LogPhysics, Warning, TEXT("Constraint instance attempted scene lock, Constraints currently unimplemented"));
+		if (InConstraintHandle)
+		{
+			Scene = GetSceneForActor(InConstraintHandle);
+		}
+#if CHAOS_CHECKED
+		if (!Scene)
+		{
+			UE_LOG(LogPhysics, Warning, TEXT("Failed to find Scene for constraint. Skipping lock"));
+		}
+#endif
+		LockScene();
 	}
 
 	FScopedSceneLock_Chaos(USkeletalMeshComponent* InSkelMeshComp, EPhysicsInterfaceScopedLockType InLockType)
@@ -579,6 +612,18 @@ private:
 			return ActorInstance->GetPhysicsScene();
 		}
 
+		return nullptr;
+	}
+
+	FPhysScene_Chaos* GetSceneForActor(FPhysicsConstraintHandle const* InConstraintHandle)
+	{		
+		FConstraintInstanceBase* ConstraintInstance = (InConstraintHandle && InConstraintHandle->IsValid()) ? FPhysicsUserData_Chaos::Get<FConstraintInstanceBase>((*InConstraintHandle)->GetUserData()) : nullptr;
+
+		if( ConstraintInstance )
+		{
+				return ConstraintInstance->GetPhysicsScene();
+		}
+	
 		return nullptr;
 	}
 

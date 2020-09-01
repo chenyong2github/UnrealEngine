@@ -56,8 +56,9 @@ FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompLinVel(TEXT("p.RigidBodyNod
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngVel(TEXT("p.RigidBodyNode.Space.MaxAngularVelocity"), RBAN_SimSpaceOverride.MaxAngularVelocity, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompLinAcc(TEXT("p.RigidBodyNode.Space.MaxLinearAcceleration"), RBAN_SimSpaceOverride.MaxLinearAcceleration, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceMaxCompAngAcc(TEXT("p.RigidBodyNode.Space.MaxAngularAcceleration"), RBAN_SimSpaceOverride.MaxAngularAcceleration, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
-FAutoConsoleVariableRef CVarRigidBodyNodeSpaceFreefall(TEXT("p.RigidBodyNode.Space.Freefall"), RBAN_SimSpaceOverride.Freefall, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
-FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDrag(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag"), RBAN_SimSpaceOverride.ExternalLinearDrag, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragX(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.X"), RBAN_SimSpaceOverride.ExternalLinearDragV.X, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragY(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.Y"), RBAN_SimSpaceOverride.ExternalLinearDragV.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
+FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearDragZ(TEXT("p.RigidBodyNode.Space.ExternalLinearDrag.Z"), RBAN_SimSpaceOverride.ExternalLinearDragV.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityX(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.X"), RBAN_SimSpaceOverride.ExternalLinearVelocity.X, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityY(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Y"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Y, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
 FAutoConsoleVariableRef CVarRigidBodyNodeSpaceExternalLinearVelocityZ(TEXT("p.RigidBodyNode.Space.ExternalLinearVelocity.Z"), RBAN_SimSpaceOverride.ExternalLinearVelocity.Z, TEXT("RBAN SimSpaceSettings overrides"), ECVF_Default);
@@ -70,17 +71,30 @@ FSimSpaceSettings::FSimSpaceSettings()
 	, MaxAngularVelocity(10000)
 	, MaxLinearAcceleration(10000)
 	, MaxAngularAcceleration(10000)
-	, Freefall(0)
-	, ExternalLinearDrag(0)
+	, ExternalLinearDrag_DEPRECATED(0)
+	, ExternalLinearDragV(FVector::ZeroVector)
 	, ExternalLinearVelocity(FVector::ZeroVector)
 	, ExternalAngularVelocity(FVector::ZeroVector)
 {
+}
+
+void FSimSpaceSettings::PostSerialize(const FArchive& Ar)
+{
+	if (Ar.IsLoading())
+	{
+		if (ExternalLinearDrag_DEPRECATED != 0.0f)
+		{
+			ExternalLinearDragV = FVector(ExternalLinearDrag_DEPRECATED, ExternalLinearDrag_DEPRECATED, ExternalLinearDrag_DEPRECATED);
+		}
+	}
 }
 
 
 FAnimNode_RigidBody::FAnimNode_RigidBody():
 	QueryParams(NAME_None, FCollisionQueryParams::GetUnknownStatId())
 {
+	WorldTimeSeconds = 0.0f;
+	LastEvalTimeSeconds = 0.0f;
 	AccumulatedDeltaTime = 0.0f;
 	ResetSimulatedTeleportType = ETeleportType::None;
 	PhysicsSimulation = nullptr;
@@ -116,6 +130,8 @@ FAnimNode_RigidBody::FAnimNode_RigidBody():
 	ComponentLinearVelScale = FVector::ZeroVector;
 	ComponentAppliedLinearAccClamp = FVector(10000,10000,10000);
 	bForceDisableCollisionBetweenConstraintBodies = false;
+
+	EvaluationResetTime = 0.01f;
 }
 
 FAnimNode_RigidBody::~FAnimNode_RigidBody()
@@ -330,7 +346,6 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 	{
 		SpaceLinearVel = Settings.ExternalLinearVelocity;
 		SpaceAngularVel = Settings.ExternalAngularVelocity;
-		SpaceLinearAcc = Settings.Freefall * WorldSpaceGravity;
 		return;
 	}
 
@@ -350,7 +365,7 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 
 		SpaceLinearVel = CompLinVel.GetClampedToMaxSize(Settings.MaxLinearVelocity) + Settings.ExternalLinearVelocity;
 		SpaceAngularVel = CompAngVel.GetClampedToMaxSize(Settings.MaxAngularVelocity) + Settings.ExternalAngularVelocity;
-		SpaceLinearAcc = CompLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration) + Settings.Freefall * WorldSpaceGravity;
+		SpaceLinearAcc = CompLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration);
 		SpaceAngularAcc = CompAngAcc.GetClampedToMaxSize(Settings.MaxAngularAcceleration);
 		return;
 	}
@@ -391,7 +406,7 @@ void FAnimNode_RigidBody::CalculateSimulationSpace(
 
 		SpaceLinearVel = NetLinVel.GetClampedToMaxSize(Settings.MaxLinearVelocity) + Settings.ExternalLinearVelocity;
 		SpaceAngularVel = NetAngVel.GetClampedToMaxSize(Settings.MaxAngularVelocity) + Settings.ExternalAngularVelocity;
-		SpaceLinearAcc = NetLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration) + Settings.Freefall * WorldSpaceGravity;
+		SpaceLinearAcc = NetLinAcc.GetClampedToMaxSize(Settings.MaxLinearAcceleration);
 		SpaceAngularAcc = NetAngAcc.GetClampedToMaxSize(Settings.MaxAngularAcceleration);
 		return;
 	}
@@ -416,31 +431,43 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 		return;
 	}
 
-	// Update our eval counter, and decide whether we need to reset simulated bodies, if our anim instance hasn't updated in a while.
-	if(EvalCounter.HasEverBeenUpdated())
-	{
-		// Always propagate skip rate as it can go up and down between updates
-		EvalCounter.SetMaxSkippedFrames(Output.AnimInstanceProxy->GetEvaluationCounter().GetMaxSkippedFrames());
-		if(!EvalCounter.WasSynchronizedLastFrame(Output.AnimInstanceProxy->GetEvaluationCounter())  && bRBAN_EnableTimeBasedReset)
-		{
-			UE_LOG(LogRBAN, Verbose, TEXT("%s Time-Based Reset"), *Output.AnimInstanceProxy->GetAnimInstanceName());
-
-			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
-		}
-	}
-	EvalCounter.SynchronizeWith(Output.AnimInstanceProxy->GetEvaluationCounter());
-
 	const float DeltaSeconds = AccumulatedDeltaTime;
 	AccumulatedDeltaTime = 0.f;
 
 	if (bEnabled && PhysicsSimulation)	
 	{
+
 		const FBoneContainer& BoneContainer = Output.Pose.GetPose().GetBoneContainer();
 		const FTransform CompWorldSpaceTM = Output.AnimInstanceProxy->GetComponentTransform();
-		if(!EvalCounter.HasEverBeenUpdated())
+
+		bool bFirstEvalSinceReset = !Output.AnimInstanceProxy->GetEvaluationCounter().HasEverBeenUpdated();
+
+		// First-frame initialization
+		if (bFirstEvalSinceReset)
 		{
 			PreviousCompWorldSpaceTM = CompWorldSpaceTM;
+			ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
 		}
+
+		// See if we need to reset physics because too much time passed since our last update (e.g., because we we off-screen for a while), 
+		// in which case the current sim state may be too far from the current anim pose. This is mostly a problem with world-space 
+		// simulation, whereas bone- and component-space sims can be fairly robust against missing updates.
+		// Don't do this on first frame or if time-based reset is disabled. 
+		if ((EvaluationResetTime > 0.0f) && !bFirstEvalSinceReset)
+		{
+			// NOTE: under normal conditions, when this anim node is being serviced at the usual rate (which may not be every frame
+			// if URO is enabled), we expect that WorldTimeSeconds == (LastEvalTimeSeconds + DeltaSeconds). DeltaSeconds is the 
+			// accumulated time since the last update, including frames dropped by URO, but not frames dropped because of
+			// being off-screen or LOD changes.
+			if (WorldTimeSeconds - (LastEvalTimeSeconds + DeltaSeconds) > EvaluationResetTime)
+			{
+				UE_LOG(LogRBAN, Verbose, TEXT("%s Time-Based Reset"), *Output.AnimInstanceProxy->GetAnimInstanceName());
+				ResetSimulatedTeleportType = ETeleportType::ResetPhysics;
+			}
+		}
+
+		// Update the evaluation time to the current time
+		LastEvalTimeSeconds = WorldTimeSeconds;
 
 		// Disable simulation below minimum scale in world space mode. World space sim doesn't play nice with scale anyway - we do not scale joint offets or collision shapes.
 		if ((SimulationSpace == ESimulationSpace::WorldSpace) && (CompWorldSpaceTM.GetScale3D().SizeSquared() < WorldSpaceMinimumScale * WorldSpaceMinimumScale))
@@ -702,7 +729,7 @@ void FAnimNode_RigidBody::EvaluateSkeletalControl_AnyThread(FComponentSpacePoseC
 
 			PhysicsSimulation->SetSimulationSpaceSettings(
 				UseSimSpaceSettings->MasterAlpha, 
-				UseSimSpaceSettings->ExternalLinearDrag);
+				UseSimSpaceSettings->ExternalLinearDragV);
 
 			PhysicsSimulation->SetSolverIterations(
 				SolverIterations.FixedTimeStep,
@@ -1235,8 +1262,12 @@ void FAnimNode_RigidBody::PreUpdate(const UAnimInstance* InAnimInstance)
 	if (World)
 	{
 		WorldSpaceGravity = bOverrideWorldGravity ? OverrideWorldGravity : (MovementComp ? FVector(0.f, 0.f, MovementComp->GetGravityZ()) : FVector(0.f, 0.f, World->GetGravityZ()));
+
 		if(SKC)
 		{
+			// Store game time for use in parallel evaluation. This may be the totol time (inc pauses) or the time the game has been unpaused.
+			WorldTimeSeconds = SKC->PrimaryComponentTick.bTickEvenWhenPaused ? World->UnpausedTimeSeconds : World->TimeSeconds;
+
 			if (PhysicsSimulation && bEnableWorldGeometry)
 			{
 				UpdateWorldGeometry(*World, *SKC);

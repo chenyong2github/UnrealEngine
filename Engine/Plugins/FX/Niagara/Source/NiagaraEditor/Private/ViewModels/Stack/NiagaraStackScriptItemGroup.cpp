@@ -69,8 +69,9 @@ public:
 			Category = LOCTEXT("ModuleNotCategorized", "Uncategorized Modules");
 		}
 
-		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleScript->GetFName(), ModuleScript->bExposeToLibrary);
-		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ModuleScript->Description, *ModuleScript->GetPathName(), ModuleScript->bExposeToLibrary);
+		bool bIsInLibrary = ModuleScript->LibraryVisibility == ENiagaraScriptLibraryVisibility::Library;
+		FText DisplayName = FNiagaraEditorUtilities::FormatScriptName(ModuleScript->GetFName(), bIsInLibrary);
+		FText Description = FNiagaraEditorUtilities::FormatScriptDescription(ModuleScript->Description, *ModuleScript->GetPathName(), bIsInLibrary);
 		FText Keywords = ModuleScript->Keywords;
 
 		return MakeShareable(new FScriptGroupAddAction(Category, DisplayName, Description, Keywords, FNiagaraVariable(), false, FAssetData(), ModuleScript, false, false));
@@ -907,7 +908,7 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackScriptItemGroup
 	{
 		// Only allow dropping in the overview stacks.
 		return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterOnStack", 
-			"Parameters can only be dropped onto 'Set Variables' modules, or correctly\ntyped inputs in the selection view.  If you want to add a new 'Set Variables' module for\n this parameter, you can drop it into one of the nodes in the System Overview graph."));
+			"Parameters can only be dropped onto 'Set Parameters' modules, or correctly\ntyped inputs in the selection view.  If you want to add a new 'Set Parameters' module for\n this parameter, you can drop it into one of the nodes in the System Overview graph."));
 	}
 	if (ParameterAction.IsValid())
 	{

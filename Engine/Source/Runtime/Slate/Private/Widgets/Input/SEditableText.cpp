@@ -38,6 +38,7 @@ void SEditableText::Construct( const FArguments& InArgs )
 	OnTextCommittedCallback = InArgs._OnTextCommitted;
 	MinDesiredWidth = InArgs._MinDesiredWidth;
 	bSelectAllTextOnCommit = InArgs._SelectAllTextOnCommit;
+	bSelectWordOnMouseDoubleClick = InArgs._SelectWordOnMouseDoubleClick;
 	VirtualKeyboardType = InArgs._VirtualKeyboardType;
 	VirtualKeyboardOptions = InArgs._VirtualKeyboardOptions;
 	VirtualKeyboardTrigger = InArgs._VirtualKeyboardTrigger;
@@ -338,6 +339,11 @@ void SEditableText::SetSelectAllTextOnCommit(const TAttribute<bool>& InSelectAll
 	bSelectAllTextOnCommit = InSelectAllTextOnCommit;
 }
 
+void SEditableText::SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick)
+{
+	bSelectWordOnMouseDoubleClick = InSelectWordOnMouseDoubleClick;
+}
+
 void SEditableText::SetJustification(const TAttribute<ETextJustify::Type>& InJustification)
 {
 	EditableTextLayout->SetJustification(InJustification);
@@ -502,6 +508,11 @@ bool SEditableText::ShouldClearKeyboardFocusOnCommit() const
 bool SEditableText::ShouldSelectAllTextOnCommit() const
 {
 	return bSelectAllTextOnCommit.Get(false);
+}
+
+bool SEditableText::ShouldSelectWordOnMouseDoubleClick() const
+{
+	return bSelectWordOnMouseDoubleClick.Get(true);
 }
 
 bool SEditableText::CanInsertCarriageReturn() const

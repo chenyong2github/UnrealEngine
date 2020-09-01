@@ -2,6 +2,8 @@
 
 #include "D3D12RHIPrivate.h"
 #include "D3D12CommandList.h"
+#include "D3D12RHIBridge.h"
+#include "RHIValidation.h"
 
 static int64 GCommandListIDCounter = 0;
 static uint64 GenerateCommandListID()
@@ -14,7 +16,7 @@ void FD3D12CommandListHandle::AddTransitionBarrier(FD3D12Resource* pResource, D3
 	check(CommandListData);
 	if (Before != After)
 	{
-		int32 NumAdded = CommandListData->ResourceBarrierBatcher.AddTransition(pResource->GetResource(), Before, After, Subresource);
+		int32 NumAdded = CommandListData->ResourceBarrierBatcher.AddTransition(pResource, Before, After, Subresource);
 		CommandListData->CurrentOwningContext->numBarriers += NumAdded;
 
 		pResource->UpdateResidency(*this);
@@ -150,6 +152,27 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Close()
 	}
 }
 
+void FD3D12CommandListHandle::FD3D12CommandListData::FlushResourceBarriers()
+{
+#if DEBUG_RESOURCE_STATES
+	// Keep track of all the resource barriers that have been submitted to the current command list.
+	const TArray<D3D12_RESOURCE_BARRIER>& Barriers = ResourceBarrierBatcher.GetBarriers();
+	if (Barriers.Num())
+	{
+		ResourceBarriers.Append(Barriers.GetData(), Barriers.Num());
+	}
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	const TArray<D3D12_RESOURCE_BARRIER>& BackBufferBarriers = ResourceBarrierBatcher.GetBackBufferBarriers();
+	if (BackBufferBarriers.Num())
+	{
+		ResourceBarriers.Append(BackBufferBarriers.GetData(), BackBufferBarriers.Num());
+	}
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+#endif // #if DEBUG_RESOURCE_STATES
+
+	ResourceBarrierBatcher.Flush(GetParentDevice(), CommandList, FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit());
+}
+
 void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocator& CommandAllocator, bool bTrackExecTime)
 {
 	VERIFYD3D12RESULT(CommandList->Reset(CommandAllocator, nullptr));
@@ -174,6 +197,9 @@ void FD3D12CommandListHandle::FD3D12CommandListData::Reset(FD3D12CommandAllocato
 
 	// If this fails then some previous resource barriers were never submitted.
 	check(ResourceBarrierBatcher.GetBarriers().Num() == 0);
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	check(ResourceBarrierBatcher.GetBackBufferBarriers().Num() == 0);
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 #if DEBUG_RESOURCE_STATES
 	ResourceBarriers.Reset();
@@ -265,4 +291,39 @@ void FD3D12CommandAllocator::Init(ID3D12Device* InDevice, const D3D12_COMMAND_LI
 	check(CommandAllocator.GetReference() == nullptr);
 	VERIFYD3D12RESULT(InDevice->CreateCommandAllocator(InType, IID_PPV_ARGS(CommandAllocator.GetInitReference())));
 	INC_DWORD_STAT(STAT_D3D12NumCommandAllocators);
+}
+
+
+namespace D3D12RHI
+{
+	void GetGfxCommandListAndQueue(FRHICommandList& RHICmdList, void*& OutGfxCmdList, void*& OutCommandQueue)
+	{
+		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
+		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)RHICmdContext;
+		check(BaseCmdContext.IsDefaultContext());
+		FD3D12CommandContext& CmdContext = (FD3D12CommandContext&)BaseCmdContext;
+		FD3D12CommandListHandle& NativeCmdList = CmdContext.CommandListHandle;
+		/*
+				FD3D12DynamicRHI* RHI = GetDynamicRHI<FD3D12DynamicRHI>();
+				FD3D12Device* Device = RHI->GetAdapter(0).GetDevice(0);
+				FD3D12CommandListManager& CommandListManager = Device->GetCommandListManager();
+				FD3D12CommandAllocatorManager& CommandAllocatorManager = Device->GetTextureStreamingCommandAllocatorManager();
+				FD3D12CommandAllocator* CurrentCommandAllocator = CommandAllocatorManager.ObtainCommandAllocator();
+				FD3D12CommandListHandle hCommandList = Device->GetCopyCommandListManager().ObtainCommandList(*CurrentCommandAllocator);
+		*/
+		OutGfxCmdList = NativeCmdList.GraphicsCommandList();
+
+		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue();
+		OutCommandQueue = CommandQueue;
+	}
+
+	void GetCopyCommandQueue(FRHICommandList& RHICmdList, void*& OutCommandQueue)
+	{
+		IRHICommandContext& RHICmdContext = RHICmdList.GetContext();
+		FD3D12CommandContextBase& BaseCmdContext = (FD3D12CommandContextBase&)RHICmdContext;
+		check(BaseCmdContext.IsDefaultContext());
+
+		ID3D12CommandQueue* CommandQueue = BaseCmdContext.GetParentAdapter()->GetDevice(0)->GetD3DCommandQueue(ED3D12CommandQueueType::Copy);
+		OutCommandQueue = CommandQueue;
+	}
 }

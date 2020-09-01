@@ -80,6 +80,7 @@ FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader)
 	Ar << ContainerHeader.PackageIds;
 	Ar << ContainerHeader.StoreEntries;
 	Ar << ContainerHeader.CulturePackageMap;
+	Ar << ContainerHeader.PackageRedirects;
 
 	return Ar;
 }
@@ -281,6 +282,9 @@ if ((Condition)) \
 #define UE_ASYNC_PACKAGE_CLOG_VERBOSE(Condition, Verbosity, PackageDesc, LogDesc, Format, ...)
 #endif
 
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, Basic);
+CSV_DECLARE_CATEGORY_MODULE_EXTERN(CORE_API, FileIO);
+
 TRACE_DECLARE_INT_COUNTER(PendingBundleIoRequests, TEXT("AsyncLoading/PendingBundleIoRequests"));
 
 struct FAsyncPackage2;
@@ -457,7 +461,7 @@ public:
 		FIoBatch Batch = IoDispatcher.NewBatch();
 		FIoRequest NameRequest = Batch.Read(NamesId, FIoReadOptions());
 		FIoRequest HashRequest = Batch.Read(HashesId, FIoReadOptions());
-		Batch.Issue();
+		Batch.Issue(IoDispatcherPriority_High);
 
 		ReserveNameBatch(	IoDispatcher.GetSizeForChunk(NamesId).ValueOrDie(),
 							IoDispatcher.GetSizeForChunk(HashesId).ValueOrDie());
@@ -780,14 +784,14 @@ public:
 
 	FIoDispatcher& IoDispatcher;
 	FNameMap& GlobalNameMap;
-	TMap<FIoContainerId, FLoadedContainer> LoadedContainers;
+	TMap<FIoContainerId, TUniquePtr<FLoadedContainer>> LoadedContainers;
 
 	FString CurrentCulture;
 
 	FCriticalSection PackageNameMapsCritical;
 
 	TMap<FPackageId, FPackageStoreEntry*> StoreEntriesMap;
-	TMap<FPackageId, FPackageId> LocalizedPackageMap; // SourceId->LocalizedId for CurrentCulture
+	TMap<FPackageId, FPackageId> RedirectsPackageMap;
 	int32 NextCustomPackageIndex = 0;
 
 	FGlobalImportStore ImportStore;
@@ -808,9 +812,6 @@ public:
 			FScopeLock Lock(&PackageNameMapsCritical);
 			return StoreEntriesMap.Contains(PackageId);
 		});
-
-		LoadContainers(IoDispatcher.GetMountedContainers());
-		IoDispatcher.OnContainerMounted().AddRaw(this, &FPackageStore::OnContainerMounted);
 	}
 
 	void SetupInitialLoadData()
@@ -823,6 +824,7 @@ public:
 		IoDispatcher.ReadWithCallback(
 			CreateIoChunkId(0, 0, EIoChunkType::LoaderInitialLoadMeta),
 			FIoReadOptions(),
+			IoDispatcherPriority_High,
 			[InitialLoadEvent, &InitialLoadIoBuffer](TIoStatusOr<FIoBuffer> Result)
 			{
 				InitialLoadIoBuffer = Result.ConsumeValueOrDie();
@@ -879,7 +881,12 @@ public:
 				continue;
 			}
 
-			FLoadedContainer& LoadedContainer = LoadedContainers.FindOrAdd(ContainerId);
+			TUniquePtr<FLoadedContainer>& LoadedContainerPtr = LoadedContainers.FindOrAdd(ContainerId);
+			if (!LoadedContainerPtr)
+			{
+				LoadedContainerPtr.Reset(new FLoadedContainer);
+			}
+			FLoadedContainer& LoadedContainer = *LoadedContainerPtr;
 			if (LoadedContainer.bValid && LoadedContainer.Order >= Container.Environment.GetOrder())
 			{
 				UE_LOG(LogStreaming, Log, TEXT("Skipping loading mounted container ID '0x%llX', already loaded with higher order"), ContainerId.Value());
@@ -895,7 +902,7 @@ public:
 			LoadedContainer.Order = Container.Environment.GetOrder();
 
 			FIoChunkId HeaderChunkId = CreateIoChunkId(ContainerId.Value(), 0, EIoChunkType::ContainerHeader);
-			IoDispatcher.ReadWithCallback(HeaderChunkId, FIoReadOptions(), [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
+			IoDispatcher.ReadWithCallback(HeaderChunkId, FIoReadOptions(), IoDispatcherPriority_High, [this, &Remaining, Event, &LoadedContainer](TIoStatusOr<FIoBuffer> Result)
 			{
 				// Execution method Thread will run the async block synchronously when multithreading is NOT supported
 				const EAsyncExecution ExecutionMethod = FPlatformProcess::SupportsMultithreading() ? EAsyncExecution::TaskGraph : EAsyncExecution::Thread;
@@ -948,8 +955,16 @@ public:
 								{
 									const FPackageId& SourceId = Pair.Key;
 									const FPackageId& LocalizedId = Pair.Value;
-									LocalizedPackageMap.Emplace(SourceId, LocalizedId);
+									RedirectsPackageMap.Emplace(SourceId, LocalizedId);
 								}
+							}
+						}
+
+						{
+							TRACE_CPUPROFILER_EVENT_SCOPE(LoadPackageStoreRedirects);
+							for (const TPair<FPackageId, FPackageId>& Redirect : ContainerHeader.PackageRedirects)
+							{
+								RedirectsPackageMap.Emplace(Redirect.Key, Redirect.Value);
 							}
 						}
 					}
@@ -965,7 +980,7 @@ public:
 		Event->Wait();
 		FPlatformProcess::ReturnSynchEventToPool(Event);
 
-		ApplyLocalization();
+		ApplyRedirects(RedirectsPackageMap);
 	}
 
 	void OnContainerMounted(const FIoDispatcherMountedContainer& Container)
@@ -974,30 +989,28 @@ public:
 		LoadContainers(MakeArrayView(&Container, 1));
 	}
 
-	void ApplyLocalization()
+	void ApplyRedirects(const TMap<FPackageId, FPackageId>& Redirects)
 	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ApplyLocalization);
+		TRACE_CPUPROFILER_EVENT_SCOPE(ApplyRedirects);
 
 		FScopeLock Lock(&PackageNameMapsCritical);
 
-		if (LocalizedPackageMap.Num() == 0)
+		if (Redirects.Num() == 0)
 		{
 			return;
 		}
 
-		// Mark already localized entries if this becomes a performance problem
-
-		for (auto It = LocalizedPackageMap.CreateIterator(); It; ++It)
+		for (auto It = Redirects.CreateConstIterator(); It; ++It)
 		{
 			const FPackageId& SourceId = It.Key();
-			const FPackageId& LocalizedId = It.Value();
-			check(LocalizedId.IsValid());
-			FPackageStoreEntry* LocalizedEntry = StoreEntriesMap.FindRef(LocalizedId);
-			check(LocalizedEntry);
+			const FPackageId& RedirectId = It.Value();
+			check(RedirectId.IsValid());
+			FPackageStoreEntry* RedirectEntry = StoreEntriesMap.FindRef(RedirectId);
+			check(RedirectEntry);
 			FPackageStoreEntry*& PackageEntry = StoreEntriesMap.FindOrAdd(SourceId);
-			if (LocalizedEntry && PackageEntry)
+			if (RedirectEntry && PackageEntry)
 			{
-				PackageEntry = LocalizedEntry;
+				PackageEntry = RedirectEntry;
 			}
 		}
 
@@ -1007,9 +1020,9 @@ public:
 
 			for (FPackageId& ImportedPackageId : StoreEntry->ImportedPackages)
 			{
-				if (FPackageId* LocalizedId = LocalizedPackageMap.Find(ImportedPackageId))
+				if (const FPackageId* RedirectId = Redirects.Find(ImportedPackageId))
 				{
-					ImportedPackageId = *LocalizedId;
+					ImportedPackageId = *RedirectId;
 				}
 			}
 		}
@@ -1034,10 +1047,10 @@ public:
 		FPackageId PackageId = Package->GetPackageId();
 		if (!LoadedPackageStore.Remove(PackageId))
 		{
-			FPackageId* LocalizedId = LocalizedPackageMap.Find(PackageId);
-			if (LocalizedId)
+			FPackageId* RedirectedId = RedirectsPackageMap.Find(PackageId);
+			if (RedirectedId)
 			{
-				LoadedPackageStore.Remove(*LocalizedId);
+				LoadedPackageStore.Remove(*RedirectedId);
 			}
 		}
 	}
@@ -2115,8 +2128,7 @@ private:
 
 	TQueue<FAsyncPackage2*, EQueueMode::Mpsc> ExternalReadQueue;
 	FThreadSafeCounter WaitingForIoBundleCounter;
-	FThreadSafeCounter WaitingForPostLoadCounter;
-
+	
 	/** List of all pending package requests */
 	TSet<int32> PendingRequests;
 	/** Synchronization object for PendingRequests list */
@@ -2439,15 +2451,18 @@ private:
 			auto It = PendingCDOs.CreateIterator();
 			UClass* Class = It.Key();
 			TArray<FEventLoadNode2*> Nodes = MoveTemp(It.Value());
+			It.RemoveCurrent();
 
+			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Creating CDO for %s. %d entries remaining."), *Class->GetFullName(), PendingCDOs.Num());
 			UObject* CDO = Class->GetDefaultObject();
-			checkf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
+
+			ensureMsgf(CDO, TEXT("Failed to create CDO for %s"), *Class->GetFullName());
+			UE_LOG(LogStreaming, Verbose, TEXT("ProcessPendingCDOs: Created CDO for %s."), *Class->GetFullName());
+
 			for (FEventLoadNode2* Node : Nodes)
 			{
 				Node->ReleaseBarrier();
 			}
-
-			It.RemoveCurrent();
 			return true;
 		}
 		return false;
@@ -2699,6 +2714,7 @@ void FAsyncLoadingThread2::StartBundleIoRequests()
 		FIoReadOptions ReadOptions;
 		IoDispatcher.ReadWithCallback(CreateIoChunkId(Package->Desc.DiskPackageId.Value(), 0, EIoChunkType::ExportBundleData),
 			ReadOptions,
+			IoDispatcherPriority_Medium,
 			[Package](TIoStatusOr<FIoBuffer> Result)
 		{
 			if (Result.IsOk())
@@ -3106,25 +3122,26 @@ static UObject* GFindExistingScriptImport(FPackageObjectIndex GlobalImportIndex,
 	TMap<FPackageObjectIndex, UObject*>& ScriptObjects,
 	const TMap<FPackageObjectIndex, FScriptObjectEntry*>& ScriptObjectEntriesMap)
 {
-	UObject*& Object = ScriptObjects.FindOrAdd(GlobalImportIndex);
-	if (!Object)
+	UObject** Object = &ScriptObjects.FindOrAdd(GlobalImportIndex);
+	if (!*Object)
 	{
 		const FScriptObjectEntry* Entry = ScriptObjectEntriesMap.FindRef(GlobalImportIndex);
 		check(Entry);
 		if (Entry->OuterIndex.IsNull())
 		{
-			Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
+			*Object = StaticFindObjectFast(UPackage::StaticClass(), nullptr, MinimalNameToName(Entry->ObjectName), true);
 		}
 		else
 		{
 			UObject* Outer = GFindExistingScriptImport(Entry->OuterIndex, ScriptObjects, ScriptObjectEntriesMap);
+			Object = &ScriptObjects.FindChecked(GlobalImportIndex);
 			if (Outer)
 			{
-				Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
+				*Object = StaticFindObjectFast(UObject::StaticClass(), Outer, MinimalNameToName(Entry->ObjectName), false, true);
 			}
 		}
 	}
-	return Object;
+	return *Object;
 }
 
 UObject* FGlobalImportStore::FindScriptImportObjectFromIndex(FPackageObjectIndex GlobalImportIndex)
@@ -3962,6 +3979,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_PostLoadExportBundle(FAsyncPackag
 
 EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsyncPackage2* Package, int32 ExportBundleIndex)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_PostLoadObjectsGameThread);
 	TRACE_CPUPROFILER_EVENT_SCOPE(Event_DeferredPostLoad);
 	UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 
@@ -4011,6 +4029,7 @@ EAsyncPackageState::Type FAsyncPackage2::Event_DeferredPostLoadExportBundle(FAsy
 						PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = Object;
 						{
 							TRACE_LOADTIME_POSTLOAD_EXPORT_SCOPE(Object);
+							FScopeCycleCounterUObject ConstructorScope(Object, GET_STATID(STAT_FAsyncPackage_PostLoadObjectsGameThread));
 							Object->ConditionalPostLoad();
 						}
 						PackageScope.ThreadContext.CurrentlyPostLoadedObjectByALT = nullptr;
@@ -4382,6 +4401,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 				bool bSafeToDelete = false;
 				if (Package->HasClusterObjects())
 				{
+					SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_CreateClustersGameThread);
 					// This package will create GC clusters but first check if all dependencies of this package have been fully loaded
 					if (Package->AreAllDependenciesFullyLoaded(VisistedPackages))
 					{
@@ -4409,7 +4429,6 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 					UE_ASYNC_PACKAGE_DEBUG(Package->Desc);
 					CompletedPackages.RemoveAtSwap(PackageIndex--);
 					Package->ClearImportedPackages();
-					Package->AsyncLoadingThread.WaitingForPostLoadCounter.Decrement();
 					Package->ReleaseRef();
 				}
 			}
@@ -4443,6 +4462,7 @@ EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadedPackagesFromGameThre
 
 EAsyncPackageState::Type FAsyncLoadingThread2::TickAsyncLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit, int32 FlushRequestID)
 {
+	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_TickAsyncLoadingGameThread);
 	//TRACE_INT_VALUE(QueuedPackagesCounter, QueuedPackagesCounter);
 	//TRACE_INT_VALUE(GraphNodeCount, GraphAllocator.TotalNodeCount);
 	//TRACE_INT_VALUE(GraphArcCount, GraphAllocator.TotalArcCount);
@@ -4631,6 +4651,8 @@ void FAsyncLoadingThread2::LazyInitializeFromLoadPackage()
 	{
 		GlobalPackageStore.SetupInitialLoadData();
 	}
+	GlobalPackageStore.LoadContainers(IoDispatcher.GetMountedContainers());
+	IoDispatcher.OnContainerMounted().AddRaw(&GlobalPackageStore, &FPackageStore::OnContainerMounted);
 }
 
 
@@ -4735,10 +4757,7 @@ uint32 FAsyncLoadingThread2::Run()
 							{
 								TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExternalReads);
 
-								FAsyncPackage2::EExternalReadAction Action =
-									bDidSomething ?
-									FAsyncPackage2::ExternalReadAction_Poll :
-									FAsyncPackage2::ExternalReadAction_Wait;
+								FAsyncPackage2::EExternalReadAction Action = FAsyncPackage2::ExternalReadAction_Poll;
 
 								EAsyncPackageState::Type Result = Package->ProcessExternalReads(Action);
 								if (Result == EAsyncPackageState::Complete)
@@ -4780,17 +4799,21 @@ uint32 FAsyncLoadingThread2::Run()
 
 			if (!bDidSomething)
 			{
+				FAsyncPackage2* Package = nullptr;
 				if (WaitingForIoBundleCounter.GetValue() > 0)
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
 					TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForIo);
 					Waiter.Wait();
 				}
-				else if (WaitingForPostLoadCounter.GetValue() > 0)
+				else if (ExternalReadQueue.Peek(Package))
 				{
 					TRACE_CPUPROFILER_EVENT_SCOPE(AsyncLoadingTime);
-					TRACE_CPUPROFILER_EVENT_SCOPE(WaitingForPostLoad);
-					Waiter.Wait();
+					TRACE_CPUPROFILER_EVENT_SCOPE(ProcessExternalReads);
+
+					EAsyncPackageState::Type Result = Package->ProcessExternalReads(FAsyncPackage2::ExternalReadAction_Wait);
+					check(Result == EAsyncPackageState::Complete);
+					ExternalReadQueue.Pop();
 				}
 				else
 				{
@@ -5626,6 +5649,13 @@ int32 FAsyncLoadingThread2::LoadPackage(const FString& InName, const FGuid* InGu
 
 EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingFromGameThread(bool bUseTimeLimit, bool bUseFullTimeLimit, float TimeLimit)
 {
+	SCOPE_CYCLE_COUNTER(STAT_AsyncLoadingTime);
+	CSV_SCOPED_TIMING_STAT_EXCLUSIVE(AsyncLoading);
+
+	CSV_CUSTOM_STAT(FileIO, EDLEventQueueDepth, (int32)GraphAllocator.TotalNodeCount, ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(FileIO, QueuedPackagesQueueDepth, GetNumQueuedPackages(), ECsvCustomStatOp::Set);
+	CSV_CUSTOM_STAT(FileIO, ExistingQueuedPackagesQueueDepth, GetNumAsyncPackages(), ECsvCustomStatOp::Set);
+
 	TickAsyncLoadingFromGameThread(bUseTimeLimit, bUseFullTimeLimit, TimeLimit);
 	return IsAsyncLoading() ? EAsyncPackageState::TimeOut : EAsyncPackageState::Complete;
 }
@@ -5636,6 +5666,8 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 	{
 		// Flushing async loading while loading is suspend will result in infinite stall
 		UE_CLOG(bSuspendRequested, LogStreaming, Fatal, TEXT("Cannot Flush Async Loading while async loading is suspended"));
+
+		SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
 		if (RequestId != INDEX_NONE && !ContainsRequestID(RequestId))
 		{
@@ -5677,11 +5709,13 @@ void FAsyncLoadingThread2::FlushLoading(int32 RequestId)
 
 EAsyncPackageState::Type FAsyncLoadingThread2::ProcessLoadingUntilCompleteFromGameThread(TFunctionRef<bool()> CompletionPredicate, float TimeLimit)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessLoadingUntilComplete);
 	if (!IsAsyncLoading())
 	{
 		return EAsyncPackageState::Complete;
 	}
+
+	TRACE_CPUPROFILER_EVENT_SCOPE(ProcessLoadingUntilComplete);
+	SCOPE_CYCLE_COUNTER(STAT_FAsyncPackage_FlushAsyncLoadingGameThread);
 
 	// Flushing async loading while loading is suspend will result in infinite stall
 	UE_CLOG(bSuspendRequested, LogStreaming, Fatal, TEXT("Cannot Flush Async Loading while async loading is suspended"));

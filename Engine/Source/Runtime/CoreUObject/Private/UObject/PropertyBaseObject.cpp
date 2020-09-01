@@ -78,18 +78,43 @@ bool FObjectPropertyBase::Identical( const void* A, const void* B, uint32 PortFl
 	if (!bResult && ObjectA->GetClass() == ObjectB->GetClass())
 	{
 		bool bPerformDeepComparison = (PortFlags&PPF_DeepComparison) != 0;
-		if ((PortFlags&PPF_DeepCompareInstances) && !bPerformDeepComparison)
+		if (((PortFlags&PPF_DeepCompareInstances) != 0) && !bPerformDeepComparison)
 		{
-			bPerformDeepComparison = ObjectA->IsTemplate() != ObjectB->IsTemplate();
+			bPerformDeepComparison = !(ObjectA->IsTemplate() && ObjectB->IsTemplate());
 		}
 
-		if (!bResult && bPerformDeepComparison)
+		if (bPerformDeepComparison)
 		{
-			// In order for deep comparison to be match they both need to have the same name and that name needs to be included in the instancing table for the class
-			if (ObjectA->GetFName() == ObjectB->GetFName() && ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()))
+			// In order for a deep comparison match both objects must have the same name
+			// and the two objects must have the same archetype or one object is the other's archetype
+			if (ObjectA->GetFName() == ObjectB->GetFName())
 			{
-				checkSlow(ObjectA->IsDefaultSubobject() && ObjectB->IsDefaultSubobject() && ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()) == ObjectB->GetClass()->GetDefaultSubobjectByName(ObjectB->GetFName())); // equivalent
-				bResult = AreInstancedObjectsIdentical(ObjectA,ObjectB,PortFlags);
+				if ((PortFlags&PPF_DeepCompareDSOsOnly) != 0)
+				{
+					if (UObject* DSO = ObjectA->GetClass()->GetDefaultSubobjectByName(ObjectA->GetFName()))
+					{
+						checkSlow(ObjectA->IsDefaultSubobject() && ObjectB->IsDefaultSubobject() && DSO == ObjectB->GetClass()->GetDefaultSubobjectByName(ObjectB->GetFName()));
+					}
+					else
+					{
+						bPerformDeepComparison = false;
+					}
+				}
+
+				if (bPerformDeepComparison)
+				{
+					UObject* ArchetypeA = ObjectA->GetArchetype();
+					bPerformDeepComparison = (ArchetypeA == ObjectB);
+					if (!bPerformDeepComparison)
+					{
+						UObject* ArchetypeB = ObjectB->GetArchetype();
+						bPerformDeepComparison = ((ArchetypeA == ArchetypeB) || (ArchetypeB == ObjectA));
+					}
+					if (bPerformDeepComparison)
+					{
+						bResult = AreInstancedObjectsIdentical(ObjectA, ObjectB, PortFlags);
+					}
+				}
 			}
 		}
 	}

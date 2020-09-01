@@ -50,8 +50,11 @@ enum class ELocalFrameMode
 };
 
 
+/** 
+ * These are properties that do not get enabled/disabled based on the action 
+ */
 UCLASS()
-class MESHMODELINGTOOLS_API UPolyEditTransformProperties : public UInteractiveToolPropertySet
+class MESHMODELINGTOOLS_API UPolyEditCommonProperties : public UInteractiveToolPropertySet
 {
 	GENERATED_BODY()
 
@@ -59,7 +62,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Options)
 	bool bShowWireframe = false;
 
-UPROPERTY(EditAnywhere, Category = Gizmo)
+	UPROPERTY(EditAnywhere, Category = Options)
+	bool bSelectEdgeLoops = false;
+
+	UPROPERTY(EditAnywhere, Category = Gizmo)
 	ELocalFrameMode LocalFrameMode = ELocalFrameMode::FromGeometry;
 
 	UPROPERTY(EditAnywhere, Category = Gizmo)
@@ -67,7 +73,6 @@ UPROPERTY(EditAnywhere, Category = Gizmo)
 
 	UPROPERTY(EditAnywhere, Category = Gizmo)
 	bool bSnapToWorldGrid = false;
-
 };
 
 
@@ -318,6 +323,56 @@ public:
 };
 
 
+/**
+ * Settings for Inset operation
+ */
+UCLASS()
+class MESHMODELINGTOOLS_API UPolyEditInsetProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Determines whether vertices in inset region should be projected back onto input surface */
+	UPROPERTY(EditAnywhere, Category = Inset)
+	bool bReproject = true;
+
+	/** Amount of smoothing applied to inset boundary */
+	UPROPERTY(EditAnywhere, Category = Inset, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
+	float Softness = 0.5;
+
+	/** Controls whether inset operation will move interior vertices as well as border vertices */
+	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay)
+	bool bBoundaryOnly = false;
+
+	/** Tweak area scaling when solving for interior vertices */
+	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
+	float AreaScale = true;
+};
+
+
+
+UCLASS()
+class MESHMODELINGTOOLS_API UPolyEditOutsetProperties : public UInteractiveToolPropertySet
+{
+	GENERATED_BODY()
+
+public:
+	/** Amount of smoothing applied to outset boundary */
+	UPROPERTY(EditAnywhere, Category = Inset, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
+	float Softness = 0.5;
+
+	/** Controls whether outset operation will move interior vertices as well as border vertices */
+	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay)
+	bool bBoundaryOnly = false;
+
+	/** Tweak area scaling when solving for interior vertices */
+	UPROPERTY(EditAnywhere, Category = Inset, AdvancedDisplay, meta = (UIMin = "0.0", UIMax = "1.0", EditCondition = "bBoundaryOnly == false"))
+	float AreaScale = true;
+};
+
+
+
+
 
 
 UENUM()
@@ -412,7 +467,7 @@ protected:
 	USimpleDynamicMeshComponent* DynamicMeshComponent = nullptr;
 
 	UPROPERTY()
-	UPolyEditTransformProperties* TransformProps;
+	UPolyEditCommonProperties* CommonProps;
 
 	UPROPERTY()
 	UEditMeshPolygonsToolActions* EditActions;
@@ -429,6 +484,12 @@ protected:
 
 	UPROPERTY()
 	UPolyEditExtrudeProperties* ExtrudeProperties;
+
+	UPROPERTY()
+	UPolyEditInsetProperties* InsetProperties;
+
+	UPROPERTY()
+	UPolyEditOutsetProperties* OutsetProperties;
 
 	UPROPERTY()
 	UPolyEditCutProperties* CutProperties;

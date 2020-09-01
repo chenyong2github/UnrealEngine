@@ -167,10 +167,15 @@ public:
 	void DumpScalabilityState();
 #endif
 
+	template<typename TAction>
+	void ForAllSystemSimulations(TAction Func);
+
+	template<typename TAction>
+	static void ForAllWorldManagers(TAction Func);
+
 	static void PrimePoolForAllWorlds(UNiagaraSystem* System);
 	void PrimePoolForAllSystems();
 	void PrimePool(UNiagaraSystem* System);
-
 private:
 	// Callback function registered with global world delegates to instantiate world manager when a game world is created
 	static void OnWorldInit(UWorld* World, const UWorld::InitializationValues IVS);
@@ -257,3 +262,27 @@ private:
 	bool bAppHasFocus;
 };
 
+
+template<typename TAction>
+void FNiagaraWorldManager::ForAllSystemSimulations(TAction Func)
+{
+	for (int TG = 0; TG < NiagaraNumTickGroups; ++TG)
+	{
+		for (TPair<UNiagaraSystem*, TSharedRef<FNiagaraSystemSimulation, ESPMode::ThreadSafe>>& SimPair : SystemSimulations[TG])
+		{
+			Func(SimPair.Value.Get());
+		}
+	}
+}
+
+template<typename TAction>
+void FNiagaraWorldManager::ForAllWorldManagers(TAction Func)
+{
+	for (auto& Pair : WorldManagers)
+	{
+		if (Pair.Value)
+		{
+			Func(*Pair.Value);
+		}
+	}
+}

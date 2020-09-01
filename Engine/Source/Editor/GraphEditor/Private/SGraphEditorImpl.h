@@ -349,6 +349,7 @@ private:
 	void GetPinContextMenuActionsForSchema(UToolMenu* InMenu) const;
 	void ExecuteBreakPinLinks(const FToolMenuContext& InContext) const;
 	bool IsBreakPinLinksVisible(const FToolMenuContext& InContext) const;
+	bool HasAnyLinkedPins(const FToolMenuContext& InContext) const;
 
 	void ExecuteSelectConnectedNodesFromPin(const FToolMenuContext& InContext) const;
 	void SelectAllNodesInDirection(const UEdGraphPin* InGraphPin) const;

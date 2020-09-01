@@ -93,6 +93,11 @@ public:
 		TFunction<bool(void)> GetAddToSelectionModifierStateFunc = []() {return false; }
 	);
 
+	void SetShouldSelectEdgeLoopsFunc(TFunction<bool(void)> Func)
+	{
+		ShouldSelectEdgeLoopsFunc = Func;
+	}
+
 	/**
 	 * Notify internal data structures that the associated MeshComponent has been modified.
 	 * @param bTopologyModified if true, the underlying mesh topology has been changed. This clears the current selection.
@@ -106,9 +111,11 @@ public:
 	 *   OutHit.ImpactPoint: closest point on the ray to the hit element (Note: not a point on the element!)
 	 *   OutHit.Distance: distance along the ray to ImpactPoint
 	 *   OutHit.Item: if hit item was an edge, index of the segment within the edge polyline. Otherwise undefined.
+	 *
+	 * @param bUseOrthoSettings If true, the ortho-relevant settings for selection are used (selecting down the view ray, etc)
 	 */
-	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection);
-	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit);
+	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, FGroupTopologySelection& OutSelection, bool bUseOrthoSettings = false);
+	bool TopologyHitTest(const FRay& WorldRay, FHitResult& OutHit, bool bUseOrthoSettings = false);
 
 	//
 	// Hover API
@@ -196,18 +203,19 @@ protected:
 	TFunction<FDynamicMeshAABBTree3*()> GetSpatialFunc;
 
 	TFunction<bool(void)> GetAddToSelectionModifierStateFunc;
+	TFunction<bool(void)> ShouldSelectEdgeLoopsFunc = []() {return false; };
 
 	FTransform3d TargetTransform;
 
 	FGroupTopologySelector TopoSelector;
 
-	/** 
-	 * Update the topology selector given the current selection settings.
-	 *
+	/**
+	 * Get the topology selector settings to use given the current selection settings.
+	 * 
 	 * @param bUseOrthoSettings If true, the topology selector will be configured to use ortho settings,
 	 *  which are generally different to allow for selection of projected elements, etc.
 	 */
-	void UpdateTopoSelector(bool bUseOrthoSettings = false);
+	FGroupTopologySelector::FSelectionSettings GetTopoSelectorSettings(bool bUseOrthoSettings = false);
 
 	FGroupTopologySelection HilightSelection;
 	FGroupTopologySelection PersistentSelection;

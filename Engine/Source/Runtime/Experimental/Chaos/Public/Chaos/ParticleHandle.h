@@ -1036,14 +1036,15 @@ FString TGeometryParticleHandleImp<T, d, bPersistent>::ToString() const
 	{
 	case EParticleType::Static:
 		return FString::Printf(TEXT("Static[%d]"), ParticleIdx);
-		break;
 	case EParticleType::Kinematic:
 		return FString::Printf(TEXT("Kinemmatic[%d]"), ParticleIdx);
-		break;
 	case EParticleType::Rigid:
 		return FString::Printf(TEXT("Dynamic[%d]"), ParticleIdx);
 	case EParticleType::GeometryCollection:
 		return FString::Printf(TEXT("GeometryCollection[%d]"), ParticleIdx);
+	case EParticleType::Clustered:
+		return FString::Printf(TEXT("Clustered[%d]"), ParticleIdx);
+	default:
 		break;
 	}
 	return FString();

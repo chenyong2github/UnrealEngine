@@ -103,7 +103,6 @@ public:
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, OwnerConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, EmitterConstantBufferParam, 2);
 	LAYOUT_ARRAY(FShaderUniformBufferParameter, ExternalConstantBufferParam, 2);
-	LAYOUT_FIELD(FShaderUniformBufferParameter, DataInterfaceUniformBufferParam);
 	LAYOUT_FIELD(FShaderUniformBufferParameter, ViewUniformBufferParam);
 	LAYOUT_FIELD(FShaderParameter, SimStartParam);
 	LAYOUT_FIELD(FShaderParameter, EmitterTickCounterParam);
@@ -116,7 +115,10 @@ public:
 	LAYOUT_FIELD(FShaderParameter, UpdateStartInstanceParam);
 	LAYOUT_FIELD(FShaderParameter, DefaultSimulationStageIndexParam);
 	LAYOUT_FIELD(FShaderParameter, SimulationStageIndexParam);
-	LAYOUT_FIELD(FShaderParameter, IterationInterfaceCount);
+
+	LAYOUT_FIELD(FShaderParameter, SimulationStageIterationInfoParam);
+	LAYOUT_FIELD(FShaderParameter, SimulationStageNormalizedIterationIndexParam);
+
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeReadParam);
 	LAYOUT_FIELD(FShaderParameter, ComponentBufferSizeWriteParam);
 	LAYOUT_ARRAY(FRWShaderParameter, EventIntUAVParams, MAX_CONCURRENT_EVENT_DATASETS);

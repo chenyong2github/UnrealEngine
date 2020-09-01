@@ -62,6 +62,13 @@ struct FPropertyDefinition
 	/** The number of channels that this property comprises */
 	uint16 CompositeSize;
 
+	/** Operational type meta-data */
+	struct
+	{
+		uint16 Sizeof;
+		uint16 Alignof;
+	} OperationalType;
+
 	/** The component type or tag of the property itself */
 	FComponentTypeID PropertyType;
 
@@ -113,12 +120,9 @@ public:
 	template<typename PropertyType, typename OperationalType>
 	TCompositePropertyDefinitionBuilder<PropertyType, OperationalType> DefineCompositeProperty(TPropertyComponents<PropertyType, OperationalType>& InOutPropertyComponents)
 	{
-		checkf(!InOutPropertyComponents.CompositeID, TEXT("Property already defined"));
-
-		FCompositePropertyTypeID CompositeID = DefineCompositeProperty(InOutPropertyComponents.PropertyTag,InOutPropertyComponents.InitialValue,InOutPropertyComponents.PreAnimatedValue);
-		static_cast<FCompositePropertyTypeID&>(InOutPropertyComponents.CompositeID) = CompositeID;
-
-		return TCompositePropertyDefinitionBuilder<PropertyType, OperationalType>(&Properties[CompositeID.TypeIndex], this);
+		DefinePropertyImpl(InOutPropertyComponents);
+		FPropertyDefinition* Property = &Properties[InOutPropertyComponents.CompositeID.AsIndex()];
+		return TCompositePropertyDefinitionBuilder<PropertyType, OperationalType>(Property, this);
 	}
 
 	/**
@@ -130,12 +134,9 @@ public:
 	template<typename PropertyType, typename OperationalType>
 	TPropertyDefinitionBuilder<PropertyType, OperationalType> DefineProperty(TPropertyComponents<PropertyType, OperationalType>& InOutPropertyComponents)
 	{
-		checkf(!InOutPropertyComponents.CompositeID, TEXT("Property already defined"));
-
-		FCompositePropertyTypeID CompositeID = DefineCompositeProperty(InOutPropertyComponents.PropertyTag,InOutPropertyComponents.InitialValue,InOutPropertyComponents.PreAnimatedValue);
-		static_cast<FCompositePropertyTypeID&>(InOutPropertyComponents.CompositeID) = CompositeID;
-
-		return TPropertyDefinitionBuilder<PropertyType, OperationalType>(&Properties[CompositeID.TypeIndex], this);
+		DefinePropertyImpl(InOutPropertyComponents);
+		FPropertyDefinition* Property = &Properties[InOutPropertyComponents.CompositeID.AsIndex()];
+		return TPropertyDefinitionBuilder<PropertyType, OperationalType>(Property, this);
 	}
 
 	/**
@@ -180,7 +181,36 @@ private:
 	template<typename PropertyType, typename OperationalType, typename... Composites>
 	friend struct TCompositePropertyDefinitionBuilder;
 
-	FCompositePropertyTypeID DefineCompositeProperty(FComponentTypeID PropertyType, FComponentTypeID InitialValueType, FComponentTypeID PreAnimatedValueType);
+	/**
+	 * Define a new animatable property type from its components.
+	 * 
+	 * @param InOutPropertyComponents  The property's components that are used for animating this property. TPropertyComponents::CompositeID is written to.
+	 * @return A builder class that should be used to define the composites that contribute to this property
+	 */
+	template<typename PropertyType, typename OperationalType>
+	void DefinePropertyImpl(TPropertyComponents<PropertyType, OperationalType>& InOutPropertyComponents)
+	{
+		static_assert( TIsBitwiseConstructible<OperationalType, OperationalType>::Value && TIsTriviallyDestructible<OperationalType>::Value, TEXT("OperationalType must be trivially TIsTriviallyCopyConstructible") );
+
+		const int32 CompositeOffset = CompositeDefinitions.Num();
+		checkf(CompositeOffset <= MAX_uint16, TEXT("Maximum number of composite definitions reached"));
+
+		FPropertyDefinition NewDefinition = {
+			nullptr,
+			0,
+			static_cast<uint16>(CompositeOffset),
+			0,
+			{ sizeof(OperationalType), alignof(OperationalType) },
+			InOutPropertyComponents.PropertyTag,
+			InOutPropertyComponents.PreAnimatedValue,
+			InOutPropertyComponents.InitialValue,
+		};
+
+		const int32 NewPropertyIndex = Properties.Add(MoveTemp(NewDefinition));
+
+		checkf(!InOutPropertyComponents.CompositeID, TEXT("Property already defined"));
+		static_cast<FCompositePropertyTypeID&>(InOutPropertyComponents.CompositeID) = FCompositePropertyTypeID::FromIndex(NewPropertyIndex);
+	}
 
 	TArray<FPropertyDefinition> Properties;
 

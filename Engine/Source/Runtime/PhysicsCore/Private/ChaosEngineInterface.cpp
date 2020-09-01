@@ -19,7 +19,7 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "Chaos/PBDJointConstraintData.h"
 #include "PBDRigidsSolver.h"
 
-bool bEnableChaosJointConstraints = false;
+bool bEnableChaosJointConstraints = true;
 FAutoConsoleVariableRef CVarEnableChaosJointConstraints(TEXT("p.ChaosSolverEnableJointConstraints"), bEnableChaosJointConstraints, TEXT("Enable Joint Constraints defined within the Physics Asset Editor"));
 
 bool FPhysicsConstraintReference_Chaos::IsValid() const
@@ -191,6 +191,7 @@ void FChaosEngineInterface::UpdateMaterial(FPhysicsMaterialHandle& InHandle,UPhy
 	if(Chaos::FChaosPhysicsMaterial* Material = InHandle.Get())
 	{
 		Material->Friction = InMaterial->Friction;
+		Material->StaticFriction = InMaterial->StaticFriction;
 		Material->FrictionCombineMode = UToCCombineMode(InMaterial->FrictionCombineMode);
 		Material->Restitution = InMaterial->Restitution;
 		Material->RestitutionCombineMode = UToCCombineMode(InMaterial->RestitutionCombineMode);
@@ -379,7 +380,13 @@ void FChaosEngineInterface::SetIsKinematic_AssumesLocked(const FPhysicsActorHand
 		break;
 
 		case Chaos::EObjectStateType::Sleeping:
-		// from sleeping we can't change state without waking first
+		// this case was not allowed from CL 10506092, but it needs to in order for
+		// FBodyInstance::SetInstanceSimulatePhysics to work on dynamic bodies which
+		// have fallen asleep.
+		if (NewState == Chaos::EObjectStateType::Kinematic)
+		{
+			AllowedToChangeToNewState = true;
+		}
 		break;
 		}
 
@@ -939,19 +946,45 @@ FVector FChaosEngineInterface::GetLocation(const FPhysicsConstraintHandle& InCon
 
 }
 
-void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinForce,FVector& OutAngForce)
+void FChaosEngineInterface::GetForce(const FPhysicsConstraintHandle& InConstraintRef, FVector& OutLinForce, FVector& OutAngForce)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
+	OutLinForce = FVector::ZeroVector;
+	OutAngForce = FVector::ZeroVector;
+
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			OutLinForce = Constraint->GetOutputData().Force;
+			OutAngForce = Constraint->GetOutputData().Torque;
+		}
+	}
 }
 
 void FChaosEngineInterface::GetDriveLinearVelocity(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutLinVelocity)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
+	OutLinVelocity = FVector::ZeroVector;
+
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			OutLinVelocity = Constraint->GetLinearDriveVelocityTarget();
+		}
+	}
 }
 
 void FChaosEngineInterface::GetDriveAngularVelocity(const FPhysicsConstraintHandle& InConstraintRef,FVector& OutAngVelocity)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
+	OutAngVelocity = FVector::ZeroVector;
+
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			OutAngVelocity = Constraint->GetAngularDriveVelocityTarget();
+		}
+	}
 }
 
 float FChaosEngineInterface::GetCurrentSwing1(const FPhysicsConstraintHandle& InConstraintRef)
@@ -985,20 +1018,15 @@ void FChaosEngineInterface::SetCollisionEnabled(const FPhysicsConstraintHandle& 
 	}
 }
 
-void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearTolerance,float InAngularToleranceDegrees)
+void FChaosEngineInterface::SetProjectionEnabled_AssumesLocked(const FPhysicsConstraintHandle& InConstraintRef,bool bInProjectionEnabled,float InLinearAlpha,float InAngularAlpha)
 {
 	if(InConstraintRef.IsValid())
 	{
 		if(Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
 			Constraint->SetProjectionEnabled(bInProjectionEnabled);
-
-			// @todo(chaos) : Solver Settings 
-			// ... Constraint tolerances are solver specific, so it needs to use the interface 
-			// ... against the solver not the constraint handle. 
-			//
-			//Constraint->SetSolverPositionTolerance(InLinearTolerance);
-			//Constraint->SetSolverAngularTolerance(InAngularToleranceDegrees);
+			Constraint->SetProjectionLinearAlpha(InLinearAlpha);
+			Constraint->SetProjectionAngularAlpha(InAngularAlpha);
 		}
 	}
 }
@@ -1087,9 +1115,10 @@ void FChaosEngineInterface::SetTwistLimit(const FPhysicsConstraintHandle& InCons
 	{
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
-			// @todo(chaos) :  Joint Constraints : Limits
-			Chaos::FVec3 AngularLimits = Constraint->GetAngularLimits();
-			Constraint->SetAngularDriveVelocityTarget(AngularLimits);
+			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Twist] = FMath::DegreesToRadians(InUpperLimit - InLowerLimit);
+			Constraint->SetAngularLimits(Limit);
+			Constraint->SetTwistContactDistance(InContactDistance);
 		}
 	}
 }
@@ -1100,9 +1129,11 @@ void FChaosEngineInterface::SetSwingLimit(const FPhysicsConstraintHandle& InCons
 	{
 		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
 		{
-			// @todo(chaos) :  Joint Constraints : Limits
-			Chaos::FVec3 AngularLimits = Constraint->GetAngularLimits();
-			Constraint->SetAngularDriveVelocityTarget(AngularLimits);
+			Chaos::FVec3 Limit = Constraint->GetAngularLimits();
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing1] = FMath::DegreesToRadians(InYLimit);
+			Limit[(int32)Chaos::EJointAngularConstraintIndex::Swing2] = FMath::DegreesToRadians(InZLimit);
+			Constraint->SetAngularLimits(Limit);
+			Constraint->SetSwingContactDistance(InContactDistance);
 		}
 	}
 }
@@ -1120,8 +1151,14 @@ void FChaosEngineInterface::SetLinearLimit(const FPhysicsConstraintHandle& InCon
 
 bool FChaosEngineInterface::IsBroken(const FPhysicsConstraintHandle& InConstraintRef)
 {
-	// @todo(chaos) :  Joint Constraints : Buffered Solver Output
-	return true;
+	if (InConstraintRef.IsValid())
+	{
+		if (Chaos::FJointConstraint* Constraint = InConstraintRef.Constraint)
+		{
+			return Constraint->GetOutputData().bIsBroken;
+		}
+	}
+	return false;
 }
 
 // @todo(chaos): We probably need to actually duplicate the data here, add virtual TImplicitObject::NewCopy()
@@ -1264,9 +1301,9 @@ void FChaosEngineInterface::CreateActor(const FActorCreationParams& InParams,FPh
 		Chaos::TPBDRigidParticle<float,3>* RigidHandle = Chaos::TPBDRigidParticle<float,3>::CreateParticle().Release(); //todo: should BodyInstance use a unique ptr to manage this memory?
 		Handle = RigidHandle;
 		RigidHandle->SetGravityEnabled(InParams.bEnableGravity);
-		if(InParams.BodyInstance && InParams.BodyInstance->ShouldInstanceSimulatingPhysics())
+		if(InParams.bSimulatePhysics)
 		{
-			if(InParams.BodyInstance->bStartAwake)
+			if(InParams.bStartAwake)
 			{
 				RigidHandle->SetObjectState(Chaos::EObjectStateType::Dynamic);
 			} else

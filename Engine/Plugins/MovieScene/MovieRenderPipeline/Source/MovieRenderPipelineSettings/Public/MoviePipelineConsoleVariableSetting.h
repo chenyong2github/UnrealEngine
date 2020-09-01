@@ -38,8 +38,11 @@ protected:
 			return;
 		}
 
-		PreviousConsoleVariableValues.Reset();
-		PreviousConsoleVariableValues.SetNumZeroed(ConsoleVariables.Num());
+		if (bOverrideValues)
+		{
+			PreviousConsoleVariableValues.Reset();
+			PreviousConsoleVariableValues.SetNumZeroed(ConsoleVariables.Num());
+		}
 
 		int32 Index = 0;
 		for(const TPair<FString, float>& KVP : ConsoleVariables)
@@ -93,7 +96,7 @@ public:
 	* An array of key/value pairs for console variable name and the value you wish to set for that cvar.
 	* The existing value will automatically be cached and restored afterwards.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	TMap<FString, float> ConsoleVariables;
 
 	/**
@@ -101,14 +104,14 @@ public:
 	* after the shot, add a matching entry in the EndConsoleCommands array. Because they are commands
 	* and not values we cannot save the preivous value automatically.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	TArray<FString> StartConsoleCommands;
 
 	/**
 	* An array of console commands to execute when this shot is finished. Used to restore changes made by
 	* StartConsoleCommands.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Game")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Settings")
 	TArray<FString> EndConsoleCommands;
 
 private:

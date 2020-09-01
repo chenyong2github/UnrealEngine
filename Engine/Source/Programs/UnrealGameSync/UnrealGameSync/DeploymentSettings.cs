@@ -32,6 +32,11 @@ namespace UnrealGameSync
 		public static readonly string ApiUrl = null;
 
 		/// <summary>
+		/// Servers to connect to for issue details by default
+		/// </summary>
+		public static readonly List<string> DefaultIssueApiUrls = new List<string>();
+
+		/// <summary>
 		/// Specifies the depot path to sync down the stable version of UGS from, without a trailing slash (eg. //depot/UnrealGameSync/bin). This is a site-specific setting. 
 		/// The UnrealGameSync executable should be located at Release/UnrealGameSync.exe under this path, with any dependent DLLs.
 		/// </summary>
@@ -42,6 +47,22 @@ namespace UnrealGameSync
 		/// Delegate used to create a new telemetry sink
 		/// </summary>
 		public static readonly CreateTelemetrySinkDelegate CreateTelemetrySink = (UserName, SessionId, Log) => new NullTelemetrySink();
+#endif
+
+#if !UGS_LAUNCHER
+		/// <summary>
+		/// Delegate to allow validating a project being opened
+		/// </summary>
+		/// <param name="Task">The detected settings for the project</param>
+		/// <param name="Log">The logger</param>
+		/// <param name="Error">Receives an error on failure</param>
+		/// <returns></returns>
+		public delegate bool DetectProjectSettingsEvent(DetectProjectSettingsTask Task, TextWriter Log, out string Error);
+
+		/// <summary>
+		/// Called to validate the project settings
+		/// </summary>
+		public static DetectProjectSettingsEvent OnDetectProjectSettings = null;
 #endif
 	}
 }

@@ -24,7 +24,11 @@ public:
 	virtual ~FNiagaraUserRedirectionParameterStore() = default;
 
 	void RecreateRedirections();
-	FNiagaraVariableBase FindRedirection(const FNiagaraVariableBase& InVar) const;
+
+	/** If necessary it will replace the supplied variable with the fully qualified namespace (User.) appropriate for a user variable.
+		Will return false if the variable wasn't able to be converted into a valid user namespaced variable.
+	*/
+	bool RedirectUserVariable(FNiagaraVariableBase& UserVar) const;
 
 	/** Get the list of FNiagaraVariables that are exposed to the user. Note that the values will be stale and are not to be trusted directly. Get the Values using the offset specified by IndexOf or GetParameterValue.*/
 	FORCEINLINE void GetUserParameters(TArray<FNiagaraVariable>& OutParameters) const { return UserParameterRedirects.GenerateKeyArray(OutParameters); }
@@ -63,13 +67,13 @@ public:
 
 	/** Turn the input NiagaraVariable into the User namespaced version if needed, independent of whether or not it is in a redirection table.*/
 	static void MakeUserVariable(FNiagaraVariableBase& InVar);
+	static bool IsUserParameter(const FNiagaraVariableBase& InVar);
+
 private:
 
 	/** Map from the variables with shortened display names to the original variables with the full namespace */
 	UPROPERTY()
 	TMap<FNiagaraVariable, FNiagaraVariable> UserParameterRedirects;
-
-	static bool IsUserParameter(const FNiagaraVariableBase& InVar);
 
 	FNiagaraVariable GetUserRedirection(const FNiagaraVariable& InVar) const;
 };

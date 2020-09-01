@@ -534,14 +534,19 @@ namespace Gauntlet
 				return false;
 			}
 
-			Dictionary<UnrealTargetPlatform, string> DeviceMap = new Dictionary<UnrealTargetPlatform, string>()
+			Dictionary<UnrealTargetPlatform, string> DeviceMap = new Dictionary<UnrealTargetPlatform, string>();
+
+			foreach (string Platform in UnrealTargetPlatform.GetValidPlatformNames())
 			{
-				// todo: add other platforms and externalize this mapping
-				{ UnrealTargetPlatform.PS4 , "PS4-DevKit" },
-				{ UnrealTargetPlatform.XboxOne , "XboxOne-DevKit" },
-				{ UnrealTargetPlatform.Android , "Android" },
-				{ UnrealTargetPlatform.Switch , "Switch" }
-			};
+				if (Platform == "PS4" || Platform == "XboxOne")
+				{
+					DeviceMap.Add(UnrealTargetPlatform.Parse(Platform), string.Format("{0}-DevKit", Platform));
+				}
+				else
+				{
+					DeviceMap.Add(UnrealTargetPlatform.Parse(Platform), Platform);
+				}
+			}
 
 			List<string> Devices = new List<string>();
 
@@ -1002,7 +1007,7 @@ namespace Gauntlet
 			}
 
 			var Devices = TooFewTotalDevices.Concat(TooFewCurrentDevices);
-			var UnsupportedPlatforms = Devices.Where(D => !ServicePlatforms.Contains(D.Platform.Value));
+			var UnsupportedPlatforms = Devices.Where(D => !ServicePlatforms.Contains(D.Platform.Value) && !D.Platform.Value.ToString().StartsWith("XboxOne"));
 
 			// Request devices from the service if we need them
 			if (UseServiceDevices && !String.IsNullOrEmpty(DeviceURL) && UnsupportedPlatforms.Count() == 0 && (TooFewTotalDevices.Count() > 0 || TooFewCurrentDevices.Count() > 0))

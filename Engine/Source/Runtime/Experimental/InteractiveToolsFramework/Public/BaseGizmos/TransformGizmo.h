@@ -275,6 +275,13 @@ public:
 	ATransformGizmoActor* GetGizmoActor() const { return GizmoActor; }
 
 	/**
+	 * Repositions the gizmo without issuing undo/redo changes, triggering callbacks, 
+	 * or moving any components. Useful for resetting the gizmo to a new location without
+	 * it being viewed as a gizmo manipulation.
+	 */
+	void ReinitializeGizmoTransform(const FTransform& NewTransform);
+
+	/**
 	 * Set a new position for the Gizmo. This is done via the same mechanisms as the sub-gizmos,
 	 * so it generates the same Change/Modify() events, and hence works with Undo/Redo
 	 */

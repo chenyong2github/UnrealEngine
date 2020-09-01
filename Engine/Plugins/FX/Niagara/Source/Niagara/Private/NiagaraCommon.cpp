@@ -1,17 +1,14 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "NiagaraCommon.h"
-#include "NiagaraDataSet.h"
 #include "NiagaraComponent.h"
 #include "NiagaraSystemInstance.h"
 #include "NiagaraParameterCollection.h"
-#include "NiagaraComponent.h"
+#include "NiagaraConstants.h"
+#include "NiagaraCustomVersion.h"
 #include "NiagaraScriptSourceBase.h"
 #include "NiagaraStats.h"
-#include "UObject/Linker.h"
 #include "UObject/Class.h"
-#include "UObject/Package.h"
-#include "Modules/ModuleManager.h"
 #include "NiagaraWorldManager.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - Utilities - PrepareRapidIterationParameters"), STAT_Niagara_Utilities_PrepareRapidIterationParameters, STATGROUP_Niagara);
@@ -119,6 +116,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		if (Comp)
 		{
 			Comp->ReinitializeSystem();
+			Comp->EndUpdateContextReset();
 		}
 	}
 	ComponentsToReInit.Empty();
@@ -128,6 +126,7 @@ void FNiagaraSystemUpdateContext::CommitUpdate()
 		if (Comp)
 		{
 			Comp->ResetSystem();
+			Comp->EndUpdateContextReset();
 		}
 	}
 	ComponentsToReset.Empty();
@@ -140,7 +139,15 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 		UNiagaraComponent* Comp = *It;
 		check(Comp);
 
-		bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+		Comp->BeginUpdateContextReset();
+
+		bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+		if (bReInit)
+		{
+			//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+			SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+		}
 
 		if (bDestroyOnAdd)
 		{
@@ -150,6 +157,10 @@ void FNiagaraSystemUpdateContext::AddAll(bool bReInit)
 		if (bIsActive || bOnlyActive == false)
 		{
 			AddInternal(Comp, bReInit);
+		}
+		else
+		{
+			Comp->EndUpdateContextReset();
 		}
 	}
 }
@@ -162,7 +173,15 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 		check(Comp);
 		if (Comp->GetAsset() == System)
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -172,6 +191,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraSystem* System, bool bReInit
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -187,7 +210,15 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesEmitter(Emitter))
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -197,6 +228,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraEmitter* Emitter, bool bReIn
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -211,7 +246,15 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 		UNiagaraSystem* System = Comp->GetAsset();
 		if (System && System->UsesScript(Script))
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -221,6 +264,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraScript* Script, bool bReInit
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -251,7 +298,14 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 		FNiagaraSystemInstance* SystemInst = Comp->GetSystemInstance();
 		if (SystemInst && SystemInst->UsesCollection(Collection))
 		{
-			bool bIsActive = Comp->IsActive() || Comp->IsRegisteredWithScalabilityManager();
+			Comp->BeginUpdateContextReset();
+			bool bIsActive = (Comp->IsActive() && Comp->GetRequestedExecutionState() == ENiagaraExecutionState::Active) || Comp->IsRegisteredWithScalabilityManager();
+
+			if (bReInit)
+			{
+				//Always destroy the system sims on a reinit, even if we're not reactivating the component.
+				SystemSimsToDestroy.AddUnique(Comp->GetAsset());
+			}
 
 			if (bDestroyOnAdd)
 			{
@@ -261,6 +315,10 @@ void FNiagaraSystemUpdateContext::Add(const UNiagaraParameterCollection* Collect
 			if (bIsActive || bOnlyActive == false)
 			{
 				AddInternal(Comp, bReInit);
+			}
+			else
+			{
+				Comp->EndUpdateContextReset();
 			}
 		}
 	}
@@ -272,12 +330,228 @@ void FNiagaraSystemUpdateContext::AddInternal(UNiagaraComponent* Comp, bool bReI
 	if (bReInit)
 	{
 		ComponentsToReInit.AddUnique(Comp);
-		SystemSimsToDestroy.AddUnique(Comp->GetAsset());
 	}
 	else
 	{
 		ComponentsToReset.AddUnique(Comp);
 	}
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void  FNiagaraVariableAttributeBinding::SetValue(const FName& InValue, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	RootVariable.SetName(InValue);
+
+	bool bIsRootParticleValue = RootVariable.IsInNameSpace(FNiagaraConstants::ParticleAttributeNamespace);
+	bool bIsRootUnaliasedEmitterValue = RootVariable.IsInNameSpace(FNiagaraConstants::EmitterNamespace);
+	bool bIsAliasedEmitterValue = InEmitter ? RootVariable.IsInNameSpace(InEmitter->GetUniqueEmitterName()) : false;
+	bool bIsRootSystemValue = RootVariable.IsInNameSpace(FNiagaraConstants::SystemNamespace);
+	bool bIsRootUserValue = RootVariable.IsInNameSpace(FNiagaraConstants::UserNamespace);
+
+	// We clear out the namespace for the sourcemode so that we can keep the values up-to-date if you change the source mode.
+	if (bIsRootParticleValue && InSourceMode == ENiagaraRendererSourceDataMode::Particles)
+	{
+		RootVariable.SetName(FNiagaraConstants::GetAttributeAsParticleDataSetKey(RootVariable).GetName());
+		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
+	}
+	else if (bIsRootUnaliasedEmitterValue && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
+	{
+		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
+		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
+	}
+	else if ((InEmitter && bIsAliasedEmitterValue) && InSourceMode == ENiagaraRendererSourceDataMode::Emitter)
+	{
+		// First, replace unaliased emitter namespace with "Emitter" namespace
+		TMap<FString, FString> Aliases;
+		Aliases.Add(InEmitter->GetUniqueEmitterName(), FNiagaraConstants::EmitterNamespace.ToString());
+		RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+
+		// Now strip out "Emitter"
+		RootVariable.SetName(FNiagaraConstants::GetAttributeAsEmitterDataSetKey(RootVariable).GetName());
+		BindingSourceMode = ENiagaraBindingSource::ImplicitFromSource;
+	}
+	else if (bIsRootParticleValue)
+	{
+		BindingSourceMode = ENiagaraBindingSource::ExplicitParticles;
+	}
+	else if (bIsRootUnaliasedEmitterValue || bIsAliasedEmitterValue)
+	{
+		if (bIsRootUnaliasedEmitterValue && InEmitter)
+		{
+			TMap<FString, FString> Aliases;
+			Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
+			RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+		}
+		BindingSourceMode = ENiagaraBindingSource::ExplicitEmitter;
+	}
+	else if (bIsRootSystemValue)
+	{
+		BindingSourceMode = ENiagaraBindingSource::ExplicitSystem;
+	}
+	else if (bIsRootUserValue)
+	{
+		BindingSourceMode = ENiagaraBindingSource::ExplicitUser;
+	}
+
+	CacheValues(InEmitter, InSourceMode);	
+}
+
+void FNiagaraVariableAttributeBinding::Setup(const FNiagaraVariableBase& InRootVar, const FNiagaraVariableBase& InDataSetVar, const FNiagaraVariable& InDefaultValue, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	RootVariable = InRootVar;
+	if (InDefaultValue.IsDataAllocated() && InDefaultValue.GetType() == InRootVar.GetType())
+	{
+		RootVariable.SetData(InDefaultValue.GetData());
+	}
+	SetValue(InRootVar.GetName(), nullptr, InSourceMode);
+}
+
+#if WITH_EDITORONLY_DATA
+FString FNiagaraVariableAttributeBinding::GetDefaultValueString() const
+{
+	FString DefaultValueStr = RootVariable.GetName().ToString();
+
+	if (!RootVariable.GetName().IsValid() || RootVariable.IsDataAllocated() == true)
+	{
+		DefaultValueStr = RootVariable.GetType().ToString(RootVariable.GetData());
+		DefaultValueStr.TrimEndInline();
+	}
+	return DefaultValueStr;
+}
+
+const FName& FNiagaraVariableAttributeBinding::GetName(ENiagaraRendererSourceDataMode InSourceMode) const
+{
+	return CachedDisplayName;
+}
+#endif
+
+void FNiagaraVariableAttributeBinding::PostLoad(ENiagaraRendererSourceDataMode InSourceMode)
+{
+#if WITH_EDITORONLY_DATA
+	if (BoundVariable.IsValid())
+	{
+		RootVariable.SetType(DataSetVariable.GetType()); //Sometimes the BoundVariable was bogus in the past. THe DataSet shouldn't be though.
+		SetValue(BoundVariable.GetName(), nullptr, InSourceMode);
+		BoundVariable = FNiagaraVariable();
+	}
+#endif
+
+}
+
+void FNiagaraVariableAttributeBinding::Dump() const
+{
+	UE_LOG(LogNiagara, Log, TEXT("PostLoad for FNiagaraVariableAttributeBinding...."));
+	UE_LOG(LogNiagara, Log, TEXT("ParamMapVariable: %s %s"), *ParamMapVariable.GetName().ToString(), *ParamMapVariable.GetType().GetName());
+	UE_LOG(LogNiagara, Log, TEXT("DataSetVariable: %s %s"), *DataSetVariable.GetName().ToString(), *DataSetVariable.GetType().GetName());
+	UE_LOG(LogNiagara, Log, TEXT("RootVariable: %s %s"), *RootVariable.GetName().ToString(), *RootVariable.GetType().GetName());
+#if WITH_EDITORONLY_DATA
+	UE_LOG(LogNiagara, Log, TEXT("BoundVariable: %s %s"), *BoundVariable.GetName().ToString(), *BoundVariable.GetType().GetName());
+	UE_LOG(LogNiagara, Log, TEXT("CachedDisplayName: %s"), *CachedDisplayName.ToString());
+#endif
+	UE_LOG(LogNiagara, Log, TEXT("BindingSourceMode: %d     bBindingExistsOnSource: %d     bIsCachedParticleValue: %d"), (int32)BindingSourceMode.GetValue(),
+		bBindingExistsOnSource ? 1 : 0, bIsCachedParticleValue ? 1 : 0 );
+}
+
+void FNiagaraVariableAttributeBinding::ResetToDefault(const FNiagaraVariableAttributeBinding& InOther, const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	if (InOther.BindingSourceMode == ImplicitFromSource)
+	{
+		// The default may have been set with a different source mode, so we can't copy values over directly. Instead, we need to copy the implicit values over.
+		FNiagaraVariable TempVar = InOther.RootVariable;
+		if (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && InOther.BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+		{
+			TempVar.SetName(*(FNiagaraConstants::EmitterNamespace.ToString() + TEXT(".") + InOther.DataSetVariable.GetName().ToString()));
+		}
+		else if (InSourceMode == ENiagaraRendererSourceDataMode::Particles && InOther.BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+		{
+			TempVar.SetName(*(FNiagaraConstants::ParticleAttributeNamespace.ToString() + TEXT(".") + InOther.DataSetVariable.GetName().ToString()));
+		}
+
+		SetValue(TempVar.GetName(), nullptr, InSourceMode);
+	}
+	else
+	{
+		SetValue(InOther.RootVariable.GetName(), InEmitter, InSourceMode);
+	}
+}
+
+bool FNiagaraVariableAttributeBinding::MatchesDefault(const FNiagaraVariableAttributeBinding& InOther, ENiagaraRendererSourceDataMode InSourceMode) const
+{
+	if (DataSetVariable.GetName() != InOther.DataSetVariable.GetName())
+		return false;
+	if (RootVariable.GetName() != InOther.RootVariable.GetName())
+		return false;
+	return true;
+}
+
+void FNiagaraVariableAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter, ENiagaraRendererSourceDataMode InSourceMode)
+{
+	DataSetVariable = ParamMapVariable = (const FNiagaraVariableBase&)RootVariable;
+	bBindingExistsOnSource = false;
+
+	// Decide if this is going to be bound to a particle attribute (needed for use by the renderers, for instance)
+	if (BindingSourceMode == ENiagaraBindingSource::ExplicitParticles || (InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
+	{
+		bIsCachedParticleValue = true;
+	}
+	else
+	{
+		bIsCachedParticleValue = false;
+	}
+
+	// If this is an implicit variable, go ahead and expand the full namespace. RootVariable should be non-namespaced at this point.
+	if (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+	{
+		ParamMapVariable.SetName(*(FNiagaraConstants::EmitterNamespace.ToString() + TEXT(".") + DataSetVariable.GetName().ToString()));
+	}
+	else if (InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource)
+	{
+		ParamMapVariable.SetName(*(FNiagaraConstants::ParticleAttributeNamespace.ToString() + TEXT(".") + DataSetVariable.GetName().ToString()));
+	}
+
+#if WITH_EDITORONLY_DATA
+	CachedDisplayName = ParamMapVariable.GetName();
+#endif
+
+	// Now resolve if this variable actually exists.
+	if (InEmitter)
+	{
+		if (BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
+		{
+			// Replace  "Emitter" namespace with unaliased emitter namespace 
+			TMap<FString, FString> Aliases;
+			Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
+			ParamMapVariable = FNiagaraVariable::ResolveAliases(ParamMapVariable, Aliases);
+			RootVariable = FNiagaraVariable::ResolveAliases(RootVariable, Aliases);
+			DataSetVariable = FNiagaraVariable::ResolveAliases(DataSetVariable, Aliases);
+		}
+
+		if (BindingSourceMode == ENiagaraBindingSource::ExplicitParticles || (InSourceMode == ENiagaraRendererSourceDataMode::Particles && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
+			bBindingExistsOnSource = InEmitter->CanObtainParticleAttribute(DataSetVariable);
+		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitEmitter || (InSourceMode == ENiagaraRendererSourceDataMode::Emitter && BindingSourceMode == ENiagaraBindingSource::ImplicitFromSource))
+			bBindingExistsOnSource = InEmitter->CanObtainEmitterAttribute(ParamMapVariable);
+		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitSystem)
+			bBindingExistsOnSource = InEmitter->CanObtainSystemAttribute(ParamMapVariable);
+		else if (BindingSourceMode == ENiagaraBindingSource::ExplicitUser)
+			bBindingExistsOnSource = InEmitter->CanObtainUserVariable(ParamMapVariable);
+	}
+
+}
+
+
+//////////////////////////////////////////////////////////////////////////
+const FNiagaraVariableBase& FNiagaraMaterialAttributeBinding::GetParamMapBindableVariable() const
+{
+	return ResolvedNiagaraVariable;
+}
+
+
+void FNiagaraMaterialAttributeBinding::CacheValues(const UNiagaraEmitter* InEmitter) 
+{
+	TMap<FString, FString> Aliases;
+	Aliases.Add(FNiagaraConstants::EmitterNamespace.ToString(), InEmitter->GetUniqueEmitterName());
+	ResolvedNiagaraVariable = FNiagaraVariable::ResolveAliases(NiagaraVariable, Aliases);
 }
 
 
@@ -387,16 +661,49 @@ bool FNiagaraScriptDataInterfaceCompileInfo::CanExecuteOnTarget(ENiagaraSimTarge
 	{
 		return Obj->CanExecuteOnTarget(SimTarget);
 	}
-	check(false);
+	UE_LOG(LogNiagara, Error, TEXT("Failed to call CanExecuteOnTarget for DataInterface \"%s\". Perhaps missing a plugin for your project?"), *Name.ToString());
 	return false;
 }
 
 UNiagaraDataInterface* FNiagaraScriptDataInterfaceCompileInfo::GetDefaultDataInterface() const
 {
 	// Note that this can be called on non-game threads. We ensure that the data interface CDO object is already in existence at application init time, so we don't allow this to be auto-created.
-	UNiagaraDataInterface* Obj = CastChecked<UNiagaraDataInterface>(const_cast<UClass*>(Type.GetClass())->GetDefaultObject(false));
-	return Obj;
+	if (Type.IsDataInterface())
+	{
+		const UClass* TargetClass = const_cast<UClass*>(Type.GetClass());
+		if (TargetClass)
+		{
+			UNiagaraDataInterface* Obj = Cast<UNiagaraDataInterface>(TargetClass->GetDefaultObject(false));
+			if (Obj)
+				return Obj;
+
+			UE_LOG(LogNiagara, Error, TEXT("Failed to create default object for class \"%s\". Perhaps missing a plugin for your project?"), *TargetClass->GetName());
+			return nullptr;
+		}
+
+	}
+	UE_LOG(LogNiagara, Error, TEXT("Failed to create default object for compiled variable \"%s\". Perhaps missing a plugin for your project?"), *this->Name.ToString());
+	return nullptr;
 }
+
+bool FNiagaraScriptDataInterfaceCompileInfo::NeedsPerInstanceBinding()const
+{
+	if (Name.ToString().StartsWith(TEXT("User.")))
+		return true;
+	UNiagaraDataInterface* Obj = GetDefaultDataInterface();
+	if (Obj && Obj->PerInstanceDataSize() > 0)
+		return true;
+	return false;
+}
+
+bool FNiagaraScriptDataInterfaceCompileInfo::MatchesClass(const UClass* InClass) const
+{
+	UNiagaraDataInterface* Obj = GetDefaultDataInterface();
+	if (Obj && Obj->GetClass() == InClass)
+		return true;
+	return false;
+}
+
 
 void FNiagaraUtilities::DumpHLSLText(const FString& SourceCode, const FString& DebugName)
 {

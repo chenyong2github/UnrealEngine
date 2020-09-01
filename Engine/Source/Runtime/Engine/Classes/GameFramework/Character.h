@@ -531,6 +531,16 @@ public:
     UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category=Character)
     int32 JumpCurrentCount;
 
+	/**
+	 * Represents the current number of jumps performed before CheckJumpInput modifies JumpCurrentCount.
+	 * This is set in CheckJumpInput and is used in SetMoveFor and PrepMoveFor instead of JumpCurrentCount
+	 * since CheckJumpInput can modify JumpCurrentCount.
+	 * When providing overrides for these methods, it's recommended to either manually
+	 * set this value, or call the Super:: method.
+	*/
+	UPROPERTY(VisibleInstanceOnly, BlueprintReadOnly, Category = Character)
+	int32 JumpCurrentCountPreJump;
+
 	/** Incremented every time there is an Actor overlap event (start or stop) on this actor. */
 	uint32 NumActorOverlapEventsCounter;
 
@@ -941,5 +951,5 @@ public:
 	 * Called on the actor right before replication occurs.
 	 * Called for everyone when recording a Client Replay, including Simulated Proxies.
 	 */
-	virtual void PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPropertyTracker) override;
+	virtual void PreReplicationForReplay(IRepChangedPropertyTracker& ChangedPropertyTracker) override;
 };

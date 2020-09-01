@@ -513,10 +513,24 @@ void UTransformGizmo::SetActiveTarget(UTransformProxy* Target, IToolContextTrans
 		ActiveComponents.Add(GizmoActor->PlaneScaleXY);
 		NonuniformScaleComponents.Add(GizmoActor->PlaneScaleXY);
 	}
-
 }
 
+void UTransformGizmo::ReinitializeGizmoTransform(const FTransform& NewTransform)
+{
+	// To update the gizmo location without triggering any callbacks, we temporarily
+	// store a copy of the callback list, detach them, reposition, and then reattach
+	// the callbacks.
+	USceneComponent* GizmoComponent = GizmoActor->GetRootComponent();
+	auto temp = GizmoComponent->TransformUpdated;
+	GizmoComponent->TransformUpdated.Clear();
+	GizmoComponent->SetWorldTransform(NewTransform);
+	GizmoComponent->TransformUpdated = temp;
 
+	// The underlying proxy has an existing way to reinitialize its transform without callbacks.
+	ActiveTarget->bSetPivotMode = true;
+	ActiveTarget->SetTransform(NewTransform);
+	ActiveTarget->bSetPivotMode = false;
+}
 
 void UTransformGizmo::SetNewGizmoTransform(const FTransform& NewTransform)
 {

@@ -207,13 +207,12 @@ bool UMovieScene::RemoveSpawnable( const FGuid& Guid )
 	return bAnythingRemoved;
 }
 
+#endif //WITH_EDITOR
+
 FMovieSceneSpawnable* UMovieScene::FindSpawnable( const TFunctionRef<bool(FMovieSceneSpawnable&)>& InPredicate )
 {
 	return Spawnables.FindByPredicate(InPredicate);
 }
-
-#endif //WITH_EDITOR
-
 
 FMovieSceneSpawnable& UMovieScene::GetSpawnable(int32 Index)
 {
@@ -1255,7 +1254,6 @@ void UMovieScene::RemoveBinding(const FGuid& Guid)
 	}
 }
 
-
 void UMovieScene::ReplaceBinding(const FGuid& OldGuid, const FGuid& NewGuid, const FString& Name)
 {
 	for (auto& Binding : ObjectBindings)
@@ -1264,6 +1262,13 @@ void UMovieScene::ReplaceBinding(const FGuid& OldGuid, const FGuid& NewGuid, con
 		{
 			Binding.SetObjectGuid(NewGuid);
 			Binding.SetName(Name);
+
+			// Changing a binding guid invalidates any tracks contained within the binding
+			// Make sure they are written into the transaction buffer by calling modify
+			for (UMovieSceneTrack* Track : Binding.GetTracks())
+			{
+				Track->Modify();
+			}
 			break;
 		}
 	}

@@ -289,8 +289,17 @@ public:
 	 * @param Users The list of unique ids of the users to query for presence information.
 	 * @param Delegate The delegate to be executed when the potentially asynchronous query operation completes.
 	 */
-	//@todo samz - interface should be QueryPresence(const FUniqueNetId& User,  const TArray<TSharedRef<const FUniqueNetId> >& UserIds, const FOnPresenceTaskCompleteDelegate& Delegate)
 	virtual void QueryPresence(const FUniqueNetId& User, const FOnPresenceTaskCompleteDelegate& Delegate = FOnPresenceTaskCompleteDelegate()) = 0;
+
+	/**
+	 * Starts an async operation that will update the cache with presence data from all users in the Users array.
+	 * On platforms that support multiple keys, this function will query all keys.
+	 *
+	 * @param Users The unique id of the user initiating the query for presence information.
+	 * @param UserIds The list of unique ids of the users to query for presence information.
+	 * @param Delegate The delegate to be executed when the potentially asynchronous query operation completes.
+	 */
+	virtual void QueryPresence(const FUniqueNetId& LocalUserId, const TArray<TSharedRef<const FUniqueNetId>>& UserIds, const FOnPresenceTaskCompleteDelegate& Delegate) {};
 
 	/**
 	 * Delegate executed when new presence data is available for a user.

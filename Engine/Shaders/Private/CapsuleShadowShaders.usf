@@ -10,6 +10,7 @@
 #include "DistanceFieldLightingShared.ush"
 #include "SHCommon.ush"
 #include "VolumetricLightmapShared.ush"
+#include "ReflectionEnvironmentShared.ush"
 
 #ifndef THREADGROUP_SIZEX
 #define THREADGROUP_SIZEX 1
@@ -103,9 +104,9 @@ void ComputeLightDirectionFromVolumetricLightmapCS(
 		{
 			FTwoBandSHVectorRGB SkyIrradianceSH;
 			// See ComputeSkyEnvMapDiffuseIrradianceCS for the coefficient and sign adaptation. N need to rescale the coefficients, direction is preserve.
-			SkyIrradianceSH.R.V = View.SkyIrradianceEnvironmentMap[0].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
-			SkyIrradianceSH.G.V = View.SkyIrradianceEnvironmentMap[1].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
-			SkyIrradianceSH.B.V = View.SkyIrradianceEnvironmentMap[2].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
+			SkyIrradianceSH.R.V = SkyIrradianceEnvironmentMap[0].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
+			SkyIrradianceSH.G.V = SkyIrradianceEnvironmentMap[1].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
+			SkyIrradianceSH.B.V = SkyIrradianceEnvironmentMap[2].wyzx * float4(1.0f, -1.0f, 1.0f, -1.0f);
 			LightDirection = GetMaximumDirection(GetLuminance(SkyIrradianceSH));
 			LightAngle = CapsuleIndirectConeAngle;
 		}

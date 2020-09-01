@@ -1191,4 +1191,18 @@ FField* FMapProperty::GetInnerFieldByName(const FName& InName)
 	return nullptr;
 }
 
+void FMapProperty::GetInnerFields(TArray<FField*>& OutFields)
+{
+	if (KeyProp)
+	{
+		OutFields.Add(KeyProp);
+		KeyProp->GetInnerFields(OutFields);
+	}
+	if (ValueProp)
+	{
+		OutFields.Add(ValueProp);
+		ValueProp->GetInnerFields(OutFields);
+	}
+}
+
 #include "UObject/DefineUPropertyMacros.h"

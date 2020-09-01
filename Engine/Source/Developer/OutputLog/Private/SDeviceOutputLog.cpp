@@ -310,6 +310,7 @@ void SDeviceOutputLog::OnDeviceSelectionChanged(FTargetDeviceEntryPtr DeviceEntr
 		{
 			CurrentDeviceOutputPtr = PinnedPtr->CreateDeviceOutputRouter(this);
 		}
+		OnSelectedDeviceChangedDelegate.ExecuteIfBound(GetSelectedTargetDevice());
 	}
 }
 

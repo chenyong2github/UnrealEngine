@@ -30,6 +30,7 @@
 #include "Materials/MaterialInstanceDynamic.h"
 #include "Materials/MaterialInstanceConstant.h"
 #include "Materials/MaterialParameterCollection.h"
+#include "StaticParameterSet.h"
 #include "Engine/TextureCube.h"
 #include "Engine/Texture2DArray.h"
 #include "Dialogs/Dialogs.h"
@@ -61,6 +62,7 @@
 #include "Materials/MaterialExpressionRuntimeVirtualTextureSampleParameter.h"
 #include "Materials/MaterialExpressionScalarParameter.h"
 #include "Materials/MaterialExpressionStaticComponentMaskParameter.h"
+#include "Materials/MaterialExpressionStaticSwitchParameter.h"
 #include "Materials/MaterialExpressionTextureSampleParameter.h"
 #include "Materials/MaterialExpressionTextureObjectParameter.h"
 #include "Materials/MaterialExpressionTextureObject.h"
@@ -436,6 +438,7 @@ void FMaterialEditor::InitMaterialEditor( const EToolkitMode::Type Mode, const T
 	
 	NodeQualityLevel = EMaterialQualityLevel::Num;
 	NodeFeatureLevel = ERHIFeatureLevel::Num;
+	bPreviewStaticSwitches = false;
 	bPreviewFeaturesChanged = true;
 
 	// Register our commands. This will only register them if not previously registered
@@ -1233,7 +1236,15 @@ void FMaterialEditor::RegisterToolBar()
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
 				"HideUnrelatedNodesOptions",
 				FUIAction(),
-				FOnGetContent::CreateSP(this, &FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+					{
+						TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(SubMenuContext->MaterialEditor.Pin());
+						MaterialEditor->MakeHideUnrelatedNodesOptionsMenu(InSubMenu);
+					}
+				}),
 				LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"),
 				LOCTEXT("HideUnrelatedNodesOptionsMenu", "Hide Unrelated Nodes options menu"),
 				TAttribute<FSlateIcon>(),
@@ -1248,7 +1259,15 @@ void FMaterialEditor::RegisterToolBar()
 			Section.AddEntry(FToolMenuEntry::InitComboButton(
 				"NodePreview",
 				FUIAction(),
-				FOnGetContent::CreateSP(this, &FMaterialEditor::GeneratePreviewMenuContent),
+				FNewToolMenuDelegate::CreateLambda([](UToolMenu* InSubMenu)
+				{
+					UMaterialEditorMenuContext* SubMenuContext = InSubMenu->FindContext<UMaterialEditorMenuContext>();
+					if (SubMenuContext && SubMenuContext->MaterialEditor.IsValid())
+					{
+						TSharedPtr<FMaterialEditor> MaterialEditor = StaticCastSharedPtr<FMaterialEditor>(SubMenuContext->MaterialEditor.Pin());
+						MaterialEditor->GeneratePreviewMenuContent(InSubMenu);
+					}
+				}),
 				LOCTEXT("NodePreview_Label", "Preview Nodes"),
 				LOCTEXT("NodePreviewToolTip", "Preview the nodes for a given feature level and/or material quality."),
 				FSlateIcon(FEditorStyle::GetStyleSetName(), "FullBlueprintEditor.SwitchToScriptingMode"),
@@ -1401,32 +1420,53 @@ void FMaterialEditor::GenerateInheritanceMenu(UToolMenu* Menu)
 	}
 }
 
-TSharedRef< SWidget > FMaterialEditor::GeneratePreviewMenuContent()
+void FMaterialEditor::GeneratePreviewMenuContent(UToolMenu* Menu)
 {
-	bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder(bShouldCloseWindowAfterMenuSelection, GetToolkitCommands());
+	Menu->bShouldCloseWindowAfterMenuSelection = true;
 
-	MenuBuilder.BeginSection("MaterialEditorQualityPreview", LOCTEXT("MaterialQualityHeading", "Quality Level"));
+	FToolMenuSection& QualityLevelSection = Menu->AddSection("MaterialEditorQualityPreview", LOCTEXT("MaterialQualityHeading", "Quality Level"));
 	{
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_All);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_High);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Medium);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Low);
-	}
-	MenuBuilder.EndSection();
-
-	MenuBuilder.BeginSection("MaterialEditorFeaturePreview", LOCTEXT("MaterialFeatureHeading", "Feature Level"));
-	{
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM4);
-		MenuBuilder.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_All);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Epic);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_High);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Medium);
+		QualityLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().QualityLevel_Low);
 	}
 
-	MenuBuilder.EndSection();
+	FToolMenuSection& FeatureLevelSection = Menu->AddSection("MaterialEditorFeaturePreview", LOCTEXT("MaterialFeatureHeading", "Feature Level"));
+	{
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_All);
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_ES31);
+		FeatureLevelSection.AddMenuEntry(FMaterialEditorCommands::Get().FeatureLevel_SM5);
+	}
 
-	return MenuBuilder.MakeWidget();
+	FToolMenuSection& StaticSwitchSection = Menu->AddSection("StaticSwitchPreview", LOCTEXT("StaticSwitchHeading", "Switch Params"));
+	TSharedRef<SWidget> StaticSwitchCheckbox = SNew(SBox)
+	[
+		SNew(SCheckBox)
+			.IsChecked(bPreviewStaticSwitches ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+			.OnCheckStateChanged_Lambda(
+				[this](ECheckBoxState NewState) 
+				{
+					bPreviewStaticSwitches = (NewState == ECheckBoxState::Checked);
+					bPreviewFeaturesChanged = true;
+				}
+			)
+			.Style(FEditorStyle::Get(), "Menu.CheckBox")
+			.ToolTipText(LOCTEXT("StaticSwitchCheckBoxToolTip", "Hide disabled nodes in the graph, according to switch params."))
+			.Content()
+			[
+				SNew(SHorizontalBox)
 
+				+SHorizontalBox::Slot()
+				.Padding(2.0f, 0.0f, 0.0f, 0.0f)
+				[
+					SNew(STextBlock)
+						.Text(LOCTEXT("DisableInactiveSwitch", "Hide Disabled"))
+				]
+			]
+	];
+	StaticSwitchSection.AddEntry(FToolMenuEntry::InitMenuEntry("StaticSwitchCheckbox", FUIAction(), StaticSwitchCheckbox));
 }
 
 UMaterialInterface* FMaterialEditor::GetMaterialInterface() const
@@ -1925,7 +1965,8 @@ bool FMaterialEditor::UpdateOriginalMaterial()
 	for (int32 i = ERHIFeatureLevel::SM5; i >= 0; --i)
 	{
 		ERHIFeatureLevel::Type FeatureLevel = (ERHIFeatureLevel::Type)i;
-		if( Material->GetMaterialResource(FeatureLevel)->GetCompileErrors().Num() > 0 )
+		FMaterialResource* CurrentResource = Material->GetMaterialResource(FeatureLevel);
+		if(CurrentResource && CurrentResource->GetCompileErrors().Num() > 0 )
 		{
 			FString FeatureLevelName;
 			GetFeatureLevelName(FeatureLevel, FeatureLevelName);
@@ -2203,7 +2244,11 @@ void FMaterialEditor::UpdateMaterialinfoList_Old()
 				else
 				{
 					// Add a compile error message for functions missing an output
-					CompileErrors = ExpressionPreviewMaterial->GetMaterialResource(FeatureLevel)->GetCompileErrors();
+					FMaterialResource* CurrentResource = ExpressionPreviewMaterial->GetMaterialResource(FeatureLevel);
+					if (CurrentResource)
+					{
+						CompileErrors = CurrentResource->GetCompileErrors();
+					}
 
 					bool bFoundFunctionOutput = false;
 					for (int32 ExpressionIndex = 0; ExpressionIndex < Material->Expressions.Num(); ExpressionIndex++)
@@ -2466,10 +2511,25 @@ void FMaterialEditor::UpdateGraphNodeStates()
 
 	TArray<UMaterialExpression*> VisibleExpressions;
 
+	FStaticParameterSet StaticSwitchSet;
+	if (bPreviewFeaturesChanged && bPreviewStaticSwitches)
+	{
+		for (UMaterialExpression* Expression : Material->Expressions)
+		{
+			if (UMaterialExpressionStaticSwitchParameter* StaticSwitch = Cast<UMaterialExpressionStaticSwitchParameter>(Expression))
+			{
+				FStaticSwitchParameter SwitchParam;
+				SwitchParam.Value = StaticSwitch->DefaultValue;
+				SwitchParam.ExpressionGUID = StaticSwitch->ExpressionGUID;
+				StaticSwitchSet.StaticSwitchParameters.Add(SwitchParam);
+			}
+		}
+	}
+
 	if (bPreviewFeaturesChanged)
 	{
-		Material->GetAllReferencedExpressions(VisibleExpressions, nullptr, NodeFeatureLevel, NodeQualityLevel);
-		if (NodeFeatureLevel != ERHIFeatureLevel::Num || NodeQualityLevel != EMaterialQualityLevel::Num)
+		Material->GetAllReferencedExpressions(VisibleExpressions, StaticSwitchSet.IsEmpty() ? nullptr : &StaticSwitchSet, NodeFeatureLevel, NodeQualityLevel);
+		if (NodeFeatureLevel != ERHIFeatureLevel::Num || NodeQualityLevel != EMaterialQualityLevel::Num || !StaticSwitchSet.IsEmpty())
 		{
 			bShowAllNodes = false;
 		}
@@ -2482,7 +2542,7 @@ void FMaterialEditor::UpdateGraphNodeStates()
 		if (MaterialNode)
 		{
 			MaterialNode->bIsPreviewExpression = (PreviewExpression == MaterialNode->MaterialExpression);
-			MaterialNode->bIsErrorExpression = (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
+			MaterialNode->bIsErrorExpression = (ErrorMaterialResource != nullptr) && (ErrorMaterialResource->GetErrorExpressions().Find(MaterialNode->MaterialExpression) != INDEX_NONE);
 
 			if (MaterialNode->bIsErrorExpression && !MaterialNode->bHasCompilerMessage)
 			{
@@ -2665,6 +2725,11 @@ void FMaterialEditor::BindCommands()
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetQualityPreview, EMaterialQualityLevel::Num),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsQualityPreviewChecked, EMaterialQualityLevel::Num));
+	ToolkitCommands->MapAction(
+		Commands.QualityLevel_Epic,
+		FExecuteAction::CreateSP(this, &FMaterialEditor::SetQualityPreview, EMaterialQualityLevel::Epic),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateSP(this, &FMaterialEditor::IsQualityPreviewChecked, EMaterialQualityLevel::Epic));
 	ToolkitCommands->MapAction(
 		Commands.QualityLevel_High,
 		FExecuteAction::CreateSP(this, &FMaterialEditor::SetQualityPreview, EMaterialQualityLevel::High),
@@ -2879,23 +2944,9 @@ void FMaterialEditor::HideUnrelatedNodes()
 	GraphEditor->FocusCommentNodes(CommentNodes, RelatedNodes);
 }
 
-TSharedRef<SWidget> FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu()
+void FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu(UToolMenu* Menu)
 {
-	const bool bShouldCloseWindowAfterMenuSelection = true;
-	FMenuBuilder MenuBuilder( bShouldCloseWindowAfterMenuSelection, GetToolkitCommands() );
-
-	TSharedRef<SWidget> OptionsHeading = SNew(SBox)
-		.Padding(2.0f)
-		[
-			SNew(SHorizontalBox)
-
-			+SHorizontalBox::Slot()
-			[
-				SNew(STextBlock)
-					.Text(LOCTEXT("HideUnrelatedOptions", "Hide Unrelated Options"))
-					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
-			]
-		];
+	Menu->bShouldCloseWindowAfterMenuSelection = true;
 
 	TSharedRef<SWidget> LockNodeStateCheckBox = SNew(SBox)
 		[
@@ -2937,13 +2988,9 @@ TSharedRef<SWidget> FMaterialEditor::MakeHideUnrelatedNodesOptionsMenu()
 				]
 		];
 
-	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
-
-	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
-
-	MenuBuilder.AddMenuEntry(FUIAction(), FocusWholeChainCheckBox);
-
-	return MenuBuilder.MakeWidget();
+	FToolMenuSection& OptionsSection = Menu->AddSection("OptionsSection", LOCTEXT("HideUnrelatedOptions", "Hide Unrelated Options"));
+	OptionsSection.AddEntry(FToolMenuEntry::InitMenuEntry("LockNodeStateCheckBox", FUIAction(), LockNodeStateCheckBox));
+	OptionsSection.AddEntry(FToolMenuEntry::InitMenuEntry("FocusWholeChainCheckBox", FUIAction(), FocusWholeChainCheckBox));
 }
 
 void FMaterialEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState)
@@ -4137,6 +4184,44 @@ void FMaterialEditor::AddToSelection(UMaterialExpression* Expression)
 	GraphEditor->SetNodeSelection(Expression->GraphNode, true);
 }
 
+void FMaterialEditor::JumpToExpression(UMaterialExpression* Expression)
+{
+	check(Expression);
+	UEdGraphNode* ExpressionNode = nullptr;
+
+	// Note: 'Expression' may be from a serialized material with no graph, we compare to our material with a graph if this occurs
+	if (Expression->GraphNode)
+	{
+		ExpressionNode = Expression->GraphNode;
+	}
+	else if (Expression->bIsParameterExpression)
+	{
+		TArray<UMaterialExpression*>* GraphExpressions = Material->EditorParameters.Find(Expression->GetParameterName());
+		if (GraphExpressions && GraphExpressions->Num() == 1)
+		{
+			ExpressionNode = GraphExpressions->Last()->GraphNode;
+		}
+		else
+		{
+			UMaterialExpressionParameter* GraphExpression = Material->FindExpressionByGUID<UMaterialExpressionParameter>(Expression->GetParameterExpressionId());
+			ExpressionNode = GraphExpression ? GraphExpression->GraphNode : nullptr;
+		}
+	}
+	else if (UMaterialExpressionFunctionOutput* ExpressionOutput = Cast<UMaterialExpressionFunctionOutput>(Expression))
+	{
+		TArray<UMaterialExpressionFunctionOutput*> FunctionOutputExpressions;
+		Material->GetAllFunctionOutputExpressions(FunctionOutputExpressions);
+		UMaterialExpressionFunctionOutput** GraphExpression = FunctionOutputExpressions.FindByPredicate(
+			[&](const UMaterialExpressionFunctionOutput* GraphExpressionOutput) 
+			{
+				return GraphExpressionOutput->Id == ExpressionOutput->Id;
+			});
+		ExpressionNode = GraphExpression ? (*GraphExpression)->GraphNode : nullptr;
+	}
+
+	JumpToNode(ExpressionNode);
+}
+
 void FMaterialEditor::SelectAllNodes()
 {
 	GraphEditor->SelectAllNodes();
@@ -4527,6 +4612,12 @@ void FMaterialEditor::UpdateMaterialAfterGraphChange()
 	RefreshExpressionPreviews();
 	SetMaterialDirty();
 	UpdateGenerator();
+
+	if (NodeFeatureLevel != ERHIFeatureLevel::Num || NodeQualityLevel != EMaterialQualityLevel::Num || bPreviewStaticSwitches)
+	{
+		bPreviewFeaturesChanged = true;
+	}
+
 	if (bHideUnrelatedNodes && !bLockNodeFadeState && bSelectRegularNode)
 	{
 		GraphEditor->ResetAllNodesUnrelatedStates();
@@ -4738,6 +4829,12 @@ void FMaterialEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyCha
 			}
 
 			UpdatePreviewViewportsVisibility();
+		}
+		else if (bPreviewStaticSwitches &&
+				 PropertyThatChanged->GetOwnerClass() == UMaterialExpressionStaticBoolParameter::StaticClass() &&
+				 NameOfPropertyThatChanged == GET_MEMBER_NAME_CHECKED(UMaterialExpressionStaticBoolParameter, DefaultValue))
+		{
+			bPreviewFeaturesChanged = true;
 		}
 
 		FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();

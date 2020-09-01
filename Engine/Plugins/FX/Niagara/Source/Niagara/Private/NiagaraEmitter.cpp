@@ -350,6 +350,10 @@ void UNiagaraEmitter::PostLoad()
 		{
 			RendererProperties.RemoveAt(RendererIndex);
 		}
+		else
+		{
+			RendererProperties[RendererIndex]->ConditionalPostLoad();
+		}
 	}
 
 	for (int32 SimulationStageIndex = SimulationStages.Num() - 1; SimulationStageIndex >= 0; --SimulationStageIndex)
@@ -357,6 +361,10 @@ void UNiagaraEmitter::PostLoad()
 		if (ensureMsgf(SimulationStages[SimulationStageIndex] != nullptr && SimulationStages[SimulationStageIndex]->Script != nullptr, TEXT("Null simulation stage, or simulation stage with a null script found in %s at index %i, removing it to prevent crashes."), *GetPathName(), SimulationStageIndex) == false)
 		{
 			SimulationStages.RemoveAt(SimulationStageIndex);
+		}
+		else
+		{
+			SimulationStages[SimulationStageIndex]->ConditionalPostLoad();
 		}
 	}
 
@@ -576,7 +584,13 @@ void UNiagaraEmitter::PostLoad()
 	ResolveScalabilitySettings();
 
 #if !UE_BUILD_SHIPPING
-	DebugSimName = GetFullName();
+	DebugSimName.Empty();
+	if (const UNiagaraSystem* SystemOwner = Cast<const UNiagaraSystem>(GetOuter()))
+	{
+		DebugSimName = SystemOwner->GetName();
+		DebugSimName.AppendChar(':');
+	}
+	DebugSimName.Append(GetName());
 #endif
 }
 
@@ -1015,14 +1029,19 @@ void UNiagaraEmitter::CacheFromCompiledData(const FNiagaraDataSetCompiledData* C
 
 void UNiagaraEmitter::CacheFromShaderCompiled()
 {
+	bRequiresViewUniformBuffer = false;
 	if (GPUComputeScript && (SimTarget == ENiagaraSimTarget::GPUComputeSim))
 	{
 		if (const FNiagaraShaderScript* NiagaraShaderScript = GPUComputeScript->GetRenderThreadScript())
 		{
-			FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread();
-			if (NiagaraShaderRef.IsValid())
+			for (int i=0; i < NiagaraShaderScript->GetNumPermutations(); ++i)
 			{
-				bRequiresViewUniformBuffer = NiagaraShaderRef->ViewUniformBufferParam.IsBound();
+				FNiagaraShaderRef NiagaraShaderRef = NiagaraShaderScript->GetShaderGameThread(i);
+				if (NiagaraShaderRef.IsValid() && NiagaraShaderRef->ViewUniformBufferParam.IsBound())
+				{
+					bRequiresViewUniformBuffer = true;
+					break;
+				}
 			}
 		}
 	}
@@ -1285,6 +1304,41 @@ bool UNiagaraEmitter::UsesCollection(const class UNiagaraParameterCollection* Co
 	return false;
 }
 
+
+bool UNiagaraEmitter::CanObtainParticleAttribute(const FNiagaraVariableBase& InVar) const
+{
+	if (SpawnScriptProps.Script)
+		return SpawnScriptProps.Script->GetVMExecutableData().Attributes.Contains(InVar);
+	return false;
+}
+bool UNiagaraEmitter::CanObtainEmitterAttribute(const FNiagaraVariableBase& InVarWithUniqueNameNamespace) const
+{
+	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
+	if (Sys)
+	{
+		return Sys->CanObtainEmitterAttribute(InVarWithUniqueNameNamespace);
+	}
+	return false;
+}
+bool UNiagaraEmitter::CanObtainSystemAttribute(const FNiagaraVariableBase& InVar) const
+{
+	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
+	if (Sys)
+	{
+		return Sys->CanObtainSystemAttribute(InVar);
+	}
+	return false;
+}
+bool UNiagaraEmitter::CanObtainUserVariable(const FNiagaraVariableBase& InVar) const
+{
+	const UNiagaraSystem* Sys = GetTypedOuter<UNiagaraSystem>();
+	if (Sys)
+	{
+		return Sys->CanObtainUserVariable(InVar);
+	}
+	return false;
+}
+
 FString UNiagaraEmitter::GetUniqueEmitterName()const
 {
 	return UniqueEmitterName;
@@ -1394,13 +1448,20 @@ void UNiagaraEmitter::UpdateFromMergedCopy(const INiagaraMergeManager& MergeMana
 		MergedRenderer->OnChanged().AddUObject(this, &UNiagaraEmitter::RendererChanged);
 	}
 
-	// Copy parent scratch pad scripts.
+	// Copy scratch pad scripts.
 	ParentScratchPadScripts.Empty();
+	ScratchPadScripts.Empty();
 
 	for (UNiagaraScript* MergedParentScratchPadScript : MergedEmitter->ParentScratchPadScripts)
 	{
 		ReouterMergedObject(this, MergedParentScratchPadScript);
 		ParentScratchPadScripts.Add(MergedParentScratchPadScript);
+	}
+
+	for (UNiagaraScript* MergedScratchPadScript : MergedEmitter->ScratchPadScripts)
+	{
+		ReouterMergedObject(this, MergedScratchPadScript);
+		ScratchPadScripts.Add(MergedScratchPadScript);
 	}
 
 	SetEditorData(MergedEmitter->GetEditorData());
@@ -1423,6 +1484,14 @@ void UNiagaraEmitter::SyncEmitterAlias(const FString& InOldName, const FString& 
 		// due to compilation, in cases where the package should be marked dirty an previous modify would have already done this.
 		Script->Modify(false);
 		Script->SyncAliases(RenameMap);
+	}
+
+	for (UNiagaraRendererProperties* Renderer : RendererProperties)
+	{
+		if (Renderer)
+		{
+			Renderer->RenameEmitter(*InOldName, this);
+		}
 	}
 }
 #endif

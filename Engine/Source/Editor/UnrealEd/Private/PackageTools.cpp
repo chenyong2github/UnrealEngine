@@ -805,7 +805,9 @@ UPackageTools::UPackageTools(const FObjectInitializer& ObjectInitializer)
 			else if (UGameEngine* GameEngine = Cast<UGameEngine>(GEngine))
 			{
 				FString LoadMapError;
-				GameEngine->LoadMap(GameEngine->GetWorldContextFromWorldChecked(GameEngine->GetGameWorld()), FURL(*WorldNameToReload.ToString()), nullptr, LoadMapError);
+				// FURL requires a package name and not an asset path
+				FString WorldPackage = FPackageName::ObjectPathToPackageName(WorldNameToReload.ToString());
+				GameEngine->LoadMap(GameEngine->GetWorldContextFromWorldChecked(GameEngine->GetGameWorld()), FURL(*WorldPackage), nullptr, LoadMapError);
 			}
 		}
 		// Update the rendering resources for the levels of the current world if their map build data has changed (we skip this if reloading the current world).

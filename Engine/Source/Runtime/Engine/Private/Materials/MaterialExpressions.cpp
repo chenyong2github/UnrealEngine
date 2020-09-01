@@ -8258,8 +8258,6 @@ UMaterialExpressionQualitySwitch::UMaterialExpressionQualitySwitch(const FObject
 int32 UMaterialExpressionQualitySwitch::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
 {
 	const EMaterialQualityLevel::Type QualityLevelToCompile = Compiler->GetQualityLevel();
-	check(QualityLevelToCompile < UE_ARRAY_COUNT(Inputs));
-	FExpressionInput QualityInput = Inputs[QualityLevelToCompile].GetTracedInput();
 	FExpressionInput DefaultTraced = Default.GetTracedInput();
 
 	if (!DefaultTraced.Expression)
@@ -8267,9 +8265,14 @@ int32 UMaterialExpressionQualitySwitch::Compile(class FMaterialCompiler* Compile
 		return Compiler->Errorf(TEXT("Quality switch missing default input"));
 	}
 
-	if (QualityInput.Expression)
+	if (QualityLevelToCompile != EMaterialQualityLevel::Num)
 	{
-		return QualityInput.Compile(Compiler);
+		check(QualityLevelToCompile < UE_ARRAY_COUNT(Inputs));
+		FExpressionInput QualityInput = Inputs[QualityLevelToCompile].GetTracedInput();
+		if (QualityInput.Expression)
+		{
+			return QualityInput.Compile(Compiler);
+		}
 	}
 
 	return DefaultTraced.Compile(Compiler);
@@ -17804,7 +17807,7 @@ int32 UMaterialExpressionVolumetricAdvancedMaterialOutput::Compile(class FMateri
 	}
 	else if (OutputIndex == 6)
 	{
-		CodeInput = ConservativeDensity.IsConnected() ? ConservativeDensity.Compile(Compiler) : Compiler->Constant(1.0f);
+		CodeInput = ConservativeDensity.IsConnected() ? ConservativeDensity.Compile(Compiler) : Compiler->Constant3(1.0f, 1.0f, 1.0f);
 	}
 
 	return Compiler->CustomOutput(this, OutputIndex, CodeInput);

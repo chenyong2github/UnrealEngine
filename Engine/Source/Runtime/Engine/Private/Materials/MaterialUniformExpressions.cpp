@@ -56,7 +56,7 @@ TMap<FName,FMaterialUniformExpressionType*>& FMaterialUniformExpressionType::Get
 	return TypeMap;
 }
 
-static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, const FGuid& ExternalTextureGuid, const FHashedName& ParameterName, int32 SourceTextureIndex)
+static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, const FGuid& ExternalTextureGuid, const FName& ParameterName, int32 SourceTextureIndex)
 {
 	FGuid GuidToLookup;
 	if (ExternalTextureGuid.IsValid())
@@ -124,76 +124,94 @@ void FMaterialUniformExpression::WriteNumberOpcodes(FMaterialPreshaderData& OutD
 	OutData.WriteOpcode(EMaterialPreshaderOpcode::ConstantZero);
 }
 
-void FUniformParameterOverrides::SetScalarOverride(int32 Index, float Value, bool bOverride)
+void FUniformParameterOverrides::SetScalarOverride(const FHashedMaterialParameterInfo& ParameterInfo, float Value, bool bOverride)
 {
-	if (Index >= ScalarOverrides.Num()) ScalarOverrides.SetNumZeroed(Index + 1);
-	ScalarOverrides[Index].Value = Value;
-	ScalarOverrides[Index].bOverride = bOverride;
-}
-
-void FUniformParameterOverrides::SetVectorOverride(int32 Index, const FLinearColor& Value, bool bOverride)
-{
-	if (Index >= VectorOverrides.Num()) VectorOverrides.SetNumZeroed(Index + 1);
-	VectorOverrides[Index].Value = Value;
-	VectorOverrides[Index].bOverride = bOverride;
-}
-
-bool FUniformParameterOverrides::GetScalarOverride(int32 Index, float& OutValue) const
-{
-	if (ScalarOverrides.IsValidIndex(Index) && ScalarOverrides[Index].bOverride)
+	if (bOverride)
 	{
-		OutValue = ScalarOverrides[Index].Value;
+		ScalarOverrides.FindOrAdd(ParameterInfo) = Value;
+	}
+	else
+	{
+		ScalarOverrides.Remove(ParameterInfo);
+	}
+}
+
+void FUniformParameterOverrides::SetVectorOverride(const FHashedMaterialParameterInfo& ParameterInfo, const FLinearColor& Value, bool bOverride)
+{
+	if (bOverride)
+	{
+		VectorOverrides.FindOrAdd(ParameterInfo) = Value;
+	}
+	else
+	{
+		VectorOverrides.Remove(ParameterInfo);
+	}
+}
+
+bool FUniformParameterOverrides::GetScalarOverride(const FHashedMaterialParameterInfo& ParameterInfo, float& OutValue) const
+{
+	const float* Result = ScalarOverrides.Find(ParameterInfo);
+	if (Result)
+	{
+		OutValue = *Result;
 		return true;
 	}
 	return false;
 }
 
-bool FUniformParameterOverrides::GetVectorOverride(int32 Index, FLinearColor& OutValue) const
+bool FUniformParameterOverrides::GetVectorOverride(const FHashedMaterialParameterInfo& ParameterInfo, FLinearColor& OutValue) const
 {
-	if (VectorOverrides.IsValidIndex(Index) && VectorOverrides[Index].bOverride)
+	const FLinearColor* Result = VectorOverrides.Find(ParameterInfo);
+	if (Result)
 	{
-		OutValue = VectorOverrides[Index].Value;
+		OutValue = *Result;
 		return true;
 	}
 	return false;
 }
 
-void FUniformParameterOverrides::SetTextureOverride(EMaterialTextureParameterType Type, int32 Index, UTexture* Texture)
+void FUniformParameterOverrides::SetTextureOverride(EMaterialTextureParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo, UTexture* Texture)
 {
 	check(IsInGameThread());
 	const uint32 TypeIndex = (uint32)Type;
-	if (Index >= GameThreadTextureOverides[TypeIndex].Num()) GameThreadTextureOverides[TypeIndex].SetNumZeroed(Index + 1);
-	GameThreadTextureOverides[TypeIndex][Index] = Texture;
+	if (Texture)
+	{
+		GameThreadTextureOverides[TypeIndex].FindOrAdd(ParameterInfo) = Texture;
+	}
+	else
+	{
+		GameThreadTextureOverides[TypeIndex].Remove(ParameterInfo);
+	}
 
 	FUniformParameterOverrides* Self = this;
 	ENQUEUE_RENDER_COMMAND(SetTextureOverrideCommand)(
-		[Self, TypeIndex, Index, Texture](FRHICommandListImmediate& RHICmdList)
+		[Self, TypeIndex, ParameterInfo, Texture](FRHICommandListImmediate& RHICmdList)
 	{
-		if (Index >= Self->RenderThreadTextureOverrides[TypeIndex].Num()) Self->RenderThreadTextureOverrides[TypeIndex].SetNumZeroed(Index + 1);
-		Self->RenderThreadTextureOverrides[TypeIndex][Index] = Texture;
+		if (Texture)
+		{
+			Self->RenderThreadTextureOverrides[TypeIndex].FindOrAdd(ParameterInfo) = Texture;
+		}
+		else
+		{
+			Self->RenderThreadTextureOverrides[TypeIndex].Remove(ParameterInfo);
+		}
 	});
 }
 
-UTexture* FUniformParameterOverrides::GetTextureOverride_GameThread(EMaterialTextureParameterType Type, int32 Index) const
+UTexture* FUniformParameterOverrides::GetTextureOverride_GameThread(EMaterialTextureParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const
 {
 	check(IsInGameThread());
 	const uint32 TypeIndex = (uint32)Type;
-	if (GameThreadTextureOverides[TypeIndex].IsValidIndex(Index))
-	{
-		return GameThreadTextureOverides[TypeIndex][Index];
-	}
-	return nullptr;
+	UTexture* const* Result = GameThreadTextureOverides[TypeIndex].Find(ParameterInfo);
+	return Result ? *Result : nullptr;
 }
 
-UTexture* FUniformParameterOverrides::GetTextureOverride_RenderThread(EMaterialTextureParameterType Type, int32 Index) const
+UTexture* FUniformParameterOverrides::GetTextureOverride_RenderThread(EMaterialTextureParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const
 {
 	check(IsInParallelRenderingThread());
 	const uint32 TypeIndex = (uint32)Type;
-	if (RenderThreadTextureOverrides[TypeIndex].IsValidIndex(Index))
-	{
-		return RenderThreadTextureOverrides[TypeIndex][Index];
-	}
-	return nullptr;
+	UTexture* const* Result = RenderThreadTextureOverrides[TypeIndex].Find(ParameterInfo);
+	return Result ? *Result : nullptr;
 }
 
 bool FUniformExpressionSet::IsEmpty() const
@@ -529,7 +547,7 @@ void FMaterialPreshaderData::WriteData(const void* Value, uint32 Size)
 	Data.Append((uint8*)Value, Size);
 }
 
-void FMaterialPreshaderData::WriteName(const FHashedName& Name)
+void FMaterialPreshaderData::WriteName(const FScriptName& Name)
 {
 	int32 Index = Names.Find(Name);
 	if (Index == INDEX_NONE)
@@ -560,7 +578,7 @@ namespace
 
 		const uint8* RESTRICT Ptr;
 		const uint8* RESTRICT EndPtr;
-		const FHashedName* RESTRICT Names;
+		const FScriptName* RESTRICT Names;
 		int32 NumNames;
 	};
 
@@ -582,7 +600,7 @@ namespace
 	}
 
 	template<>
-	FHashedName ReadPreshaderValue<FHashedName>(FPreshaderDataContext& RESTRICT Data)
+	FScriptName ReadPreshaderValue<FScriptName>(FPreshaderDataContext& RESTRICT Data)
 	{
 		const int32 Index = ReadPreshaderValue<uint16>(Data);
 		check(Index >= 0 && Index < Data.NumNames);
@@ -590,9 +608,12 @@ namespace
 	}
 
 	template<>
+	FName ReadPreshaderValue<FName>(FPreshaderDataContext& RESTRICT Data) = delete;
+
+	template<>
 	FHashedMaterialParameterInfo ReadPreshaderValue<FHashedMaterialParameterInfo>(FPreshaderDataContext& RESTRICT Data)
 	{
-		const FHashedName Name = ReadPreshaderValue<FHashedName>(Data);
+		const FScriptName Name = ReadPreshaderValue<FScriptName>(Data);
 		const int32 Index = ReadPreshaderValue<int32>(Data);
 		const TEnumAsByte<EMaterialParameterAssociation> Association = ReadPreshaderValue<TEnumAsByte<EMaterialParameterAssociation>>(Data);
 		return FHashedMaterialParameterInfo(Name, Association, Index);
@@ -626,7 +647,7 @@ static void GetVectorParameter(const FUniformExpressionSet& UniformExpressionSet
 	if (bNeedsDefaultValue)
 	{
 #if WITH_EDITOR
-		if (!Context.Material.TransientOverrides.GetVectorOverride(ParameterIndex, OutValue))
+		if (!Context.Material.TransientOverrides.GetVectorOverride(Parameter.ParameterInfo, OutValue))
 #endif // WITH_EDITOR
 		{
 			Parameter.GetDefaultValue(OutValue);
@@ -662,7 +683,7 @@ static void GetScalarParameter(const FUniformExpressionSet& UniformExpressionSet
 	if (bNeedsDefaultValue)
 	{
 #if WITH_EDITOR
-		if (!Context.Material.TransientOverrides.GetScalarOverride(ParameterIndex, OutValue.A))
+		if (!Context.Material.TransientOverrides.GetScalarOverride(Parameter.ParameterInfo, OutValue.A))
 #endif // WITH_EDITOR
 		{
 			Parameter.GetDefaultValue(OutValue.A);
@@ -821,10 +842,10 @@ static void EvaluateTexelSize(const FMaterialRenderContext& Context, FPreshaderS
 
 static FGuid GetExternalTextureGuid(const FMaterialRenderContext& Context, FPreshaderDataContext& RESTRICT Data)
 {
-	const FHashedName ParameterName = ReadPreshaderValue<FHashedName>(Data);
+	const FScriptName ParameterName = ReadPreshaderValue<FScriptName>(Data);
 	const FGuid ExternalTextureGuid = ReadPreshaderValue<FGuid>(Data);
 	const int32 TextureIndex = ReadPreshaderValue<int32>(Data);
-	return GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName, TextureIndex);
+	return GetExternalTextureGuid(Context, ExternalTextureGuid, ScriptNameToName(ParameterName), TextureIndex);
 }
 
 static void EvaluateExternalTextureCoordinateScaleRotation(const FMaterialRenderContext& Context, FPreshaderStack& Stack, FPreshaderDataContext& RESTRICT Data)
@@ -1012,12 +1033,12 @@ const FMaterialScalarParameterInfo* FUniformExpressionSet::FindScalarParameter(c
 void FUniformExpressionSet::GetGameThreadTextureValue(EMaterialTextureParameterType Type, int32 Index, const UMaterialInterface* MaterialInterface, const FMaterial& Material, UTexture*& OutValue, bool bAllowOverride) const
 {
 	check(IsInGameThread());
-
 	OutValue = NULL;
+	const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(Type, Index);
 #if WITH_EDITOR
 	if (bAllowOverride)
 	{
-		UTexture* OverrideTexture = Material.TransientOverrides.GetTextureOverride_GameThread(Type, Index);
+		UTexture* OverrideTexture = Material.TransientOverrides.GetTextureOverride_GameThread(Type, Parameter.ParameterInfo);
 		if (OverrideTexture)
 		{
 			OutValue = OverrideTexture;
@@ -1025,16 +1046,16 @@ void FUniformExpressionSet::GetGameThreadTextureValue(EMaterialTextureParameterT
 		}
 	}
 #endif // WITH_EDITOR
-	const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(Type, Index);
 	Parameter.GetGameThreadTextureValue(MaterialInterface, Material, OutValue);
 }
 
 void FUniformExpressionSet::GetTextureValue(EMaterialTextureParameterType Type, int32 Index, const FMaterialRenderContext& Context, const FMaterial& Material, const UTexture*& OutValue) const
 {
 	check(IsInParallelRenderingThread());
+	const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(Type, Index);
 #if WITH_EDITOR
 	{
-		UTexture* OverrideTexture = Material.TransientOverrides.GetTextureOverride_RenderThread(Type, Index);
+		UTexture* OverrideTexture = Material.TransientOverrides.GetTextureOverride_RenderThread(Type, Parameter.ParameterInfo);
 		if (OverrideTexture)
 		{
 			OutValue = OverrideTexture;
@@ -1042,8 +1063,6 @@ void FUniformExpressionSet::GetTextureValue(EMaterialTextureParameterType Type, 
 		}
 	}
 #endif // WITH_EDITOR
-
-	const FMaterialTextureParameterInfo& Parameter = GetTextureParameter(Type, Index);
 	GetTextureParameterValue(Parameter.ParameterInfo, Parameter.TextureIndex, Context, OutValue);
 }
 
@@ -1198,7 +1217,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				// gmartin: Trying to locate UE-23902
 				if (!Value->IsValidLowLevel())
 				{
-					ensureMsgf(false, TEXT("Texture not valid! UE-23902! Parameter (%s)"), *Parameter.ParameterName);
+					ensureMsgf(false, TEXT("Texture not valid! UE-23902! Parameter (%s)"), *Parameter.ParameterInfo.Name.ToString());
 				}
 
 				// Trying to track down a dangling pointer bug.
@@ -1206,7 +1225,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 					Value->IsA<UTexture>(),
 					TEXT("Expecting a UTexture! Name(%s), Type(%s), TextureParameter(%s), Expression(%d), Material(%s)"),
 					*Value->GetName(), *Value->GetClass()->GetName(),
-					*Parameter.ParameterName,
+					*Parameter.ParameterInfo.Name.ToString(),
 					ExpressionIndex,
 					*MaterialRenderContext.Material.GetFriendlyName());
 
@@ -1215,7 +1234,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 				{
 					FText MessageText = FText::Format(
 						NSLOCTEXT("MaterialExpressions", "IncompatibleExternalTexture", " applied to a non-external Texture2D sampler. This may work by chance on some platforms but is not portable. Please change sampler type to 'External'. Parameter '{0}' (slot {1}) in material '{2}'"),
-						FText::FromString(*Parameter.ParameterName),
+						FText::FromName(Parameter.ParameterInfo.GetName()),
 						ExpressionIndex,
 						FText::FromString(*MaterialRenderContext.Material.GetFriendlyName()));
 
@@ -1652,8 +1671,7 @@ bool FMaterialUniformExpressionExternalTextureBase::IsIdentical(const FMaterialU
 
 FGuid FMaterialUniformExpressionExternalTextureBase::ResolveExternalTextureGUID(const FMaterialRenderContext& Context, TOptional<FName> ParameterName) const
 {
-	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	return GetExternalTextureGuid(Context, ExternalTextureGuid, HashedParameterName, SourceTextureIndex);
+	return GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName.IsSet() ? ParameterName.GetValue() : FName(), SourceTextureIndex);
 }
 
 void FMaterialUniformExpressionExternalTexture::GetExternalTextureParameterInfo(FMaterialExternalTextureParameterInfo& OutParameter) const
@@ -1667,13 +1685,12 @@ FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionEx
 
 FMaterialUniformExpressionExternalTextureParameter::FMaterialUniformExpressionExternalTextureParameter(FName InParameterName, int32 InTextureIndex)
 	: Super(InTextureIndex)
-	, ParameterName(InParameterName)
 {}
 
 void FMaterialUniformExpressionExternalTextureParameter::GetExternalTextureParameterInfo(FMaterialExternalTextureParameterInfo& OutParameter) const
 {
 	Super::GetExternalTextureParameterInfo(OutParameter);
-	OutParameter.ParameterName = *ParameterName.ToString();
+	OutParameter.ParameterName = NameToScriptName(ParameterName);
 }
 
 bool FMaterialUniformExpressionExternalTextureParameter::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
@@ -1772,7 +1789,7 @@ void FMaterialTextureParameterInfo::GetGameThreadTextureValue(const UMaterialInt
 bool FMaterialExternalTextureParameterInfo::GetExternalTexture(const FMaterialRenderContext& Context, FTextureRHIRef& OutTextureRHI, FSamplerStateRHIRef& OutSamplerStateRHI) const
 {
 	check(IsInParallelRenderingThread());
-	const FGuid GuidToLookup = GetExternalTextureGuid(Context, ExternalTextureGuid, ParameterName, SourceTextureIndex);
+	const FGuid GuidToLookup = GetExternalTextureGuid(Context, ExternalTextureGuid, ScriptNameToName(ParameterName), SourceTextureIndex);
 	return FExternalTextureRegistry::Get().GetExternalTexture(Context.MaterialRenderProxy, GuidToLookup, OutTextureRHI, OutSamplerStateRHI);
 }
 
@@ -1789,8 +1806,8 @@ bool FMaterialUniformExpressionExternalTextureCoordinateScaleRotation::IsIdentic
 
 void FMaterialUniformExpressionExternalTextureCoordinateScaleRotation::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
-	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateScaleRotation).Write(HashedParameterName).Write(ExternalTextureGuid).Write((int32)SourceTextureIndex);
+	const FScriptName Name = ParameterName.IsSet() ? NameToScriptName(ParameterName.GetValue()) : FScriptName();
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateScaleRotation).Write(Name).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
 }
 
 bool FMaterialUniformExpressionExternalTextureCoordinateOffset::IsIdentical(const FMaterialUniformExpression* OtherExpression) const
@@ -1806,8 +1823,8 @@ bool FMaterialUniformExpressionExternalTextureCoordinateOffset::IsIdentical(cons
 
 void FMaterialUniformExpressionExternalTextureCoordinateOffset::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
-	const FHashedName HashedParameterName = ParameterName.IsSet() ? FHashedName(ParameterName.GetValue()) : FHashedName();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateOffset).Write(HashedParameterName).Write(ExternalTextureGuid).Write((int32)SourceTextureIndex);
+	const FScriptName Name = ParameterName.IsSet() ? NameToScriptName(ParameterName.GetValue()) : FScriptName();
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::ExternalTextureCoordinateOffset).Write(Name).Write(ExternalTextureGuid).Write<int32>(SourceTextureIndex);
 }
 
 FMaterialUniformExpressionRuntimeVirtualTextureUniform::FMaterialUniformExpressionRuntimeVirtualTextureUniform()

@@ -116,6 +116,7 @@ struct FContainerHeader
 	TArray<FPackageId> PackageIds;
 	TArray<uint8> StoreEntries; //FPackageStoreEntry[PackageCount]
 	FCulturePackageMap CulturePackageMap;
+	TArray<TPair<FPackageId, FPackageId>> PackageRedirects;
 
 	COREUOBJECT_API friend FArchive& operator<<(FArchive& Ar, FContainerHeader& ContainerHeader);
 };

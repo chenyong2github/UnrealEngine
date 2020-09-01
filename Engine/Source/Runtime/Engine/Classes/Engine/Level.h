@@ -589,6 +589,9 @@ public:
 	 */
 	UPROPERTY()
 	uint8 										bLocked:1;
+
+	/** Whether the level has been saved after introducing actor GUIDs */
+	uint8										bContainsStableActorGUIDs:1;
 #endif
 	
 	/** The below variables are used temporarily while making a level visible.				*/

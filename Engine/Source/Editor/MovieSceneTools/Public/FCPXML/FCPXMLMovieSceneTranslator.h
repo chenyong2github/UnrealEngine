@@ -83,7 +83,9 @@ public:
 	 * @param InSaveFilename The file path to save to.
 	 * @param OutError The return error message
 	 * @param MovieExtension The movie extension for the shot filenames (ie. .avi, .mov, .mp4)
+	 * @param InMetadata (optional) Metadata from export to override movie output file list
 	 * @return Whether the export was successful
 	 */
-	virtual bool Export(const UMovieScene* InMovieScene, FString InFilenameFormat, FFrameRate InFrameRate, uint32 InResX, uint32 InResY, int32 InHandleFrames, FString InSaveFilename, TSharedRef<FMovieSceneTranslatorContext> InContext, FString InMovieExtension);
+	
+	virtual bool Export(const UMovieScene* InMovieScene, FString InFilenameFormat, FFrameRate InFrameRate, uint32 InResX, uint32 InResY, int32 InHandleFrames, FString InSaveFilename, TSharedRef<FMovieSceneTranslatorContext> InContext, FString InMovieExtension, const FMovieSceneExportMetadata* InMetadata=nullptr);
 };

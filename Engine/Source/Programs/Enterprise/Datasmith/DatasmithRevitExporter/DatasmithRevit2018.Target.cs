@@ -3,6 +3,7 @@
 using UnrealBuildTool;
 using System.IO;
 
+[SupportedPlatforms("Win64")]
 public abstract class DatasmithRevitBaseTarget : TargetRules
 {
 	public DatasmithRevitBaseTarget(TargetInfo Target)

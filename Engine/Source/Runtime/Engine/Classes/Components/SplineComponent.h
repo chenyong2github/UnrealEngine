@@ -272,6 +272,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = Editor)
 	FLinearColor EditorSelectedSplineSegmentColor;
 
+	/** Color of spline point tangent in the editor */
+	UPROPERTY(EditAnywhere, Category = Editor)
+	FLinearColor EditorTangentColor;
+
 	/** Whether the spline's leave and arrive tangents can be different */
 	UPROPERTY(EditAnywhere, Category = Editor)
 	bool bAllowDiscontinuousSpline;
@@ -324,7 +328,7 @@ public:
 
 	/** Update the spline tangents and SplineReparamTable */
 	UFUNCTION(BlueprintCallable, Category = Spline)
-	void UpdateSpline();
+	virtual void UpdateSpline();
 
 	/** Get location along spline at the provided input key value */
 	UFUNCTION(BlueprintCallable, Category = Spline)
@@ -380,6 +384,10 @@ public:
 	/** Specify selected spline component segment color in the editor */
 	UFUNCTION(BlueprintCallable, Category = Editor)
 	void SetSelectedSplineSegmentColor(const FLinearColor& SegmentColor);
+
+	/** Specify selected spline component segment color in the editor */
+	UFUNCTION(BlueprintCallable, Category = Editor)
+	void SetTangentColor(const FLinearColor& TangentColor);
 
 	/** Specify whether this spline should be rendered when the Editor/Game spline show flag is set */
 	UFUNCTION(BlueprintCallable, Category = Spline)
@@ -460,6 +468,14 @@ public:
 	/** Specify the up vector at a given spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
 	void SetUpVectorAtSplinePoint(int32 PointIndex, const FVector& InUpVector, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+
+	/** Set the rotation of an existing spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	void SetRotationAtSplinePoint(int32 PointIndex, const FRotator& InRotation, ESplineCoordinateSpace::Type CoordinateSpace, bool bUpdateSpline = true);
+
+	/** Set the scale at a given spline point */
+	UFUNCTION(BlueprintCallable, Category = Spline)
+	void SetScaleAtSplinePoint(int32 PointIndex, const FVector& InScaleVector, bool bUpdateSpline = true); 
 
 	/** Get the type of a spline point */
 	UFUNCTION(BlueprintCallable, Category = Spline)
@@ -678,7 +694,7 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Spline)
 	FVector FindLocationClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 
-	/** Given a location, in world spcae, return a unit direction vector of the spline tangent closest to the location. */
+	/** Given a location, in world space, return a unit direction vector of the spline tangent closest to the location. */
 	UFUNCTION(BlueprintCallable, Category=Spline)
 	FVector FindDirectionClosestToWorldLocation(const FVector& WorldLocation, ESplineCoordinateSpace::Type CoordinateSpace) const;
 

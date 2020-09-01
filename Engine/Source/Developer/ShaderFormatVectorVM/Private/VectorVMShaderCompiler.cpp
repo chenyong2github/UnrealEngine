@@ -184,10 +184,12 @@ bool CompileShader_VectorVM(const FShaderCompilerInput& Input, FShaderCompilerOu
 		TArray<FString> OutputByLines;
 		PreprocessedShader.ParseIntoArrayLines(OutputByLines, false);
 
+		UE_LOG(LogVectorVMShaderCompiler, Warning, TEXT("Warnings while processing %s"), *Input.DebugGroupName);
+
 		FString OutputHlsl;
 		for (int32 i = 0; i < OutputByLines.Num(); i++)
 		{
-			UE_LOG(LogVectorVMShaderCompiler, Warning, TEXT("/*%d*/%s"), i, *OutputByLines[i]);
+			UE_LOG(LogVectorVMShaderCompiler, Display, TEXT("/*%d*/%s"), i, *OutputByLines[i]);
 		}
 	}
 	else

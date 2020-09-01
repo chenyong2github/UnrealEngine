@@ -49,10 +49,12 @@ private:
 
 struct FAndroidVulkanFramePacer : public IAndroidFramePacer
 {
-	// Temporary stub until we enable Swappy on Vulkan
 	virtual void Init() override {}
 	virtual ~FAndroidVulkanFramePacer() {}
-	virtual bool SupportsFramePace(int32 QueryFramePace) override { return FGenericPlatformRHIFramePacer::SupportsFramePace(QueryFramePace); }
+	virtual bool SupportsFramePace(int32 QueryFramePace) override;
+private:
+	bool SupportsFramePaceInternal(int32 QueryFramePace, int32& OutRefreshRate, int32& OutSyncInterval);
+	friend class FVulkanAndroidPlatform;
 };
 
 struct FAndroidPlatformRHIFramePacer : public FGenericPlatformRHIFramePacer

@@ -2,6 +2,7 @@
 
 #include "MagicLeapNetworkingPlugin.h"
 #include "Async/Async.h"
+#include "Stats/Stats.h"
 
 DEFINE_LOG_CATEGORY(LogMagicLeapNetworking);
 
@@ -23,6 +24,8 @@ void FMagicLeapNetworkingPlugin::ShutdownModule()
 
 bool FMagicLeapNetworkingPlugin::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapNetworkingPlugin_Tick);
+
 	FConnectionQuery ConnectionQuery;
 	if (ConnectionQueries.Peek(ConnectionQuery))
 	{

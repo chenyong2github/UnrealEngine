@@ -71,12 +71,14 @@ DEFINE_LOG_CATEGORY(LogContentCommandlet);
 #include "HierarchicalLODUtilitiesModule.h"
 #include "HierarchicalLOD.h"
 #include "HierarchicalLODProxyProcessor.h"
+#include "HLOD/HLODEngineSubsystem.h"
 #include "GenericPlatform/GenericPlatformProcess.h"
 #include "HAL/ThreadManager.h"
 #include "ShaderCompiler.h"
 #include "ICollectionManager.h"
 #include "CollectionManagerModule.h"
 #include "UObject/UObjectThreadContext.h"
+#include "Engine/LODActor.h"
 
 /**-----------------------------------------------------------------------------
  *	UResavePackages commandlet.
@@ -93,6 +95,7 @@ DEFINE_LOG_CATEGORY(LogContentCommandlet);
 
 UResavePackagesCommandlet::UResavePackagesCommandlet(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, bForceUATEnvironmentVariableSet(false)
 {
 }
 
@@ -941,43 +944,47 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		}
 	}
 
-	/** determine if we are building lighting for the map packages on the pass. **/
+	/** determine if we are building HLODs for the map packages on the pass. **/
 	bShouldBuildHLOD = Switches.Contains(TEXT("BuildHLOD"));
-	FString HLODOptions;
-	FParse::Value(*Params, TEXT("BuildOptions="), HLODOptions);	
-	bGenerateClusters = HLODOptions.Contains("Clusters");
-	bGenerateMeshProxies = HLODOptions.Contains("Proxies");
-	bForceClusterGeneration = HLODOptions.Contains("ForceClusters");
-	bForceProxyGeneration = HLODOptions.Contains("ForceProxies");
-	bForceSingleClusterForLevel = HLODOptions.Contains("ForceSingleCluster");
-
 	if (bShouldBuildHLOD)
 	{
+		FString HLODOptions;
+		FParse::Value(*Params, TEXT("BuildOptions="), HLODOptions);
+		bGenerateClusters = HLODOptions.Contains("Clusters");
+		bGenerateMeshProxies = HLODOptions.Contains("Proxies");
+		bForceClusterGeneration = HLODOptions.Contains("ForceClusters");
+		bForceProxyGeneration = HLODOptions.Contains("ForceProxies");
+		bForceSingleClusterForLevel = HLODOptions.Contains("ForceSingleCluster");
+		bHLODMapCleanup = HLODOptions.Contains("MapCleanup");
+
+		ForceHLODSetupAsset = FString();
+		FParse::Value(*Params, TEXT("ForceHLODSetupAsset="), ForceHLODSetupAsset);
+		
+		HLODSkipToMap = FString();
+		FParse::Value(*Params, TEXT("SkipToMap="), HLODSkipToMap);
+
 		UE_LOG(LogContentCommandlet, Display, TEXT("Rebuilding HLODs... Options are:"));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] Clusters"), bGenerateClusters ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] Proxies"), bGenerateMeshProxies ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceClusters"), bForceClusterGeneration ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceProxies"), bForceProxyGeneration ? TEXT("X") : TEXT(" "));
 		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] ForceSingleCluster"), bForceSingleClusterForLevel ? TEXT("X") : TEXT(" "));
-	}
+		UE_LOG(LogContentCommandlet, Display, TEXT("  [%s] Map Cleanup"), bHLODMapCleanup ? TEXT("X") : TEXT(" "));
 
-	ForceHLODSetupAsset = FString();
-	FParse::Value(*Params, TEXT("ForceHLODSetupAsset="), ForceHLODSetupAsset);
-
-	HLODSkipToMap = FString();
-	FParse::Value(*Params, TEXT("SkipToMap="), HLODSkipToMap);
-
-	bForceUATEnvironmentVariableSet = false;
-	if (bShouldBuildHLOD)
-	{
+		// Allow multiple instances when building HLODs
 		FString MutexVariableValue = FPlatformMisc::GetEnvironmentVariable(TEXT("uebp_UATMutexNoWait"));
 		if (MutexVariableValue != TEXT("1"))
 		{
 			FPlatformMisc::SetEnvironmentVar(TEXT("uebp_UATMutexNoWait"), TEXT("1"));
 			bForceUATEnvironmentVariableSet = true;
 		}
-	}
 
+		if (bHLODMapCleanup)
+		{
+			GEngine->GetEngineSubsystem<UHLODEngineSubsystem>()->DisableHLODCleanupOnLoad(true);
+		}
+	}
+		
 	if (bShouldBuildLighting || bShouldBuildHLOD || bShouldBuildReflectionCaptures)
 	{
 		check( Switches.Contains(TEXT("AllowCommandletRendering")) );
@@ -1285,7 +1292,14 @@ bool UResavePackagesCommandlet::CheckoutFile(const FString& Filename, bool bAddF
 				}
 				else
 				{
-					UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s could not be added!"), *Filename);
+					if (!bIgnoreAlreadyCheckedOut)
+					{
+						UE_LOG(LogContentCommandlet, Error, TEXT("[REPORT] %s could not be added!"), *Filename);
+					}
+					else
+					{
+						UE_LOG(LogContentCommandlet, Warning, TEXT("[REPORT] %s could not be added!"), *Filename);
+					}
 				}
 			}
 		}
@@ -1618,6 +1632,20 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 					World->GetWorldSettings()->bGenerateSingleClusterForLevel = true;
 				}
 
+				bool bHLODLeaveMapUntouched = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages && !bHLODMapCleanup;
+
+				// Maintain a list of packages that needs to be saved after cluster rebuilding.
+				TSet<UPackage*> PackagesToSave;
+
+				if (bHLODMapCleanup)
+				{
+					bool bPerformedCleanup = GEngine->GetEngineSubsystem<UHLODEngineSubsystem>()->CleanupHLODs(World);
+					if (bPerformedCleanup)
+					{
+						PackagesToSave.Add(World->GetOutermost());
+					}
+				}
+
 				FHierarchicalLODBuilder Builder(World);
 
 				if (bForceClusterGeneration)
@@ -1628,21 +1656,6 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 				else if (bGenerateClusters)
 				{
 					Builder.PreviewBuild();
-				}
-
-				bool bSaveHLODActorsToProxyPackage = GetDefault<UHierarchicalLODSettings>()->bSaveLODActorsToHLODPackages;
-
-				// Get the list of packages that needs to be saved after cluster rebuilding.
-				TSet<UPackage*> PackagesToSave;
-				if (!bSaveHLODActorsToProxyPackage || bForceClusterGeneration)
-				{
-					for (ULevel* Level : World->GetLevels())
-					{
-						if (Level->bIsVisible)
-						{
-							PackagesToSave.Add(Level->GetOutermost());
-						}
-					}
 				}
 
 				if (bGenerateMeshProxies || bForceProxyGeneration)
@@ -1690,7 +1703,7 @@ void UResavePackagesCommandlet::PerformAdditionalOperations(class UWorld* World,
 
 				// If the only operation performed by this commandlet is to update HLOD proxy packages,
 				// avoid saving the level files.
-				if (bSaveHLODActorsToProxyPackage && !bBuildingNonHLODData && !bShouldBuildNavigationData)
+				if (bHLODLeaveMapUntouched && !bBuildingNonHLODData && !bShouldBuildNavigationData)
 				{
 					bRevertCheckedOutFilesIfNotSaving  = false;
 					bShouldProceedWithRebuild = false;

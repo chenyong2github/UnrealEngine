@@ -103,7 +103,11 @@ public:
 		HeightTextureParameter.Bind(ParameterMap, TEXT("HeightTexture"));
 		HeightSamplerParameter.Bind(ParameterMap, TEXT("HeightSampler"));
 		PageTableSizeParameter.Bind(ParameterMap, TEXT("PageTableSize"));
-		LocalToWorldParameter.Bind(ParameterMap, TEXT("LocalToWorld"));
+		MaxLodParameter.Bind(ParameterMap, TEXT("MaxLod"));
+		VirtualHeightfieldToLocalParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToLocal"));
+		VirtualHeightfieldToWorldParameter.Bind(ParameterMap, TEXT("VirtualHeightfieldToWorld"));
+		LodViewOriginParameter.Bind(ParameterMap, TEXT("LodViewOrigin"));
+		LodDistancesParameter.Bind(ParameterMap, TEXT("LodDistances"));
 	}
 
 	void GetElementShaderBindings(
@@ -136,9 +140,25 @@ public:
 			{
 				ShaderBindings.Add(PageTableSizeParameter, UserData->PageTableSize);
 			}
-			if (LocalToWorldParameter.IsBound())
+			if (MaxLodParameter.IsBound())
 			{
-				ShaderBindings.Add(LocalToWorldParameter, UserData->LocalToWorld);
+				ShaderBindings.Add(MaxLodParameter, UserData->MaxLod);
+			}
+			if (VirtualHeightfieldToLocalParameter.IsBound())
+			{
+				ShaderBindings.Add(VirtualHeightfieldToLocalParameter, UserData->VirtualHeightfieldToLocal);
+			}
+			if (VirtualHeightfieldToWorldParameter.IsBound())
+			{
+				ShaderBindings.Add(VirtualHeightfieldToWorldParameter, UserData->VirtualHeightfieldToWorld);
+			}
+			if (LodViewOriginParameter.IsBound())
+			{
+				ShaderBindings.Add(LodViewOriginParameter, UserData->LodViewOrigin);
+			}
+			if (LodDistancesParameter.IsBound())
+			{
+				ShaderBindings.Add(LodDistancesParameter, UserData->LodDistances);
 			}
 		}
 	}
@@ -148,7 +168,11 @@ protected:
 	LAYOUT_FIELD(FShaderResourceParameter, HeightTextureParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, HeightSamplerParameter);
 	LAYOUT_FIELD(FShaderParameter, PageTableSizeParameter);
-	LAYOUT_FIELD(FShaderParameter, LocalToWorldParameter);
+	LAYOUT_FIELD(FShaderParameter, MaxLodParameter);
+	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToLocalParameter);
+	LAYOUT_FIELD(FShaderParameter, VirtualHeightfieldToWorldParameter);
+	LAYOUT_FIELD(FShaderParameter, LodViewOriginParameter);
+	LAYOUT_FIELD(FShaderParameter, LodDistancesParameter);
 };
 
 IMPLEMENT_VERTEX_FACTORY_PARAMETER_TYPE(FVirtualHeightfieldMeshVertexFactory, SF_Vertex, FVirtualHeightfieldMeshVertexFactoryShaderParameters);
@@ -219,15 +243,19 @@ void FVirtualHeightfieldMeshVertexFactory::ReleaseRHI()
 
 bool FVirtualHeightfieldMeshVertexFactory::ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters)
 {
+	//todo[vhm]: Fallback path for mobile.
+	if (!IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5))
+	{
+		return false;
+	}
 	return (Parameters.MaterialParameters.MaterialDomain == MD_Surface && Parameters.MaterialParameters.bIsUsedWithVirtualHeightfieldMesh) || Parameters.MaterialParameters.bIsSpecialEngineMaterial;
 }
 
 void FVirtualHeightfieldMeshVertexFactory::ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 {
-	OutEnvironment.SetDefine(TEXT("VIRTUAL_HEIGHTFIELD_MESH_FACTORY"), 1);
-	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_DISPLACEMENT"), 1);
+	OutEnvironment.SetDefine(TEXT("VF_VIRTUAL_HEIGHFIELD_MESH"), 1);
 #if 0
-	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Platform, GetMaxSupportedFeatureLevel(Platform)));
+	OutEnvironment.SetDefine(TEXT("VF_SUPPORTS_PRIMITIVE_SCENE_DATA"), Parameters.VertexFactoryType->SupportsPrimitiveIdStream() && UseGPUScene(Parameters.Platform, GetMaxSupportedFeatureLevel(Parameters.Platform)));
 #endif
 }
 
@@ -243,9 +271,4 @@ void FVirtualHeightfieldMeshVertexFactory::ValidateCompiledResult(const FVertexF
 #endif
 }
 
-FVertexFactoryShaderParameters* FVirtualHeightfieldMeshVertexFactory::ConstructShaderParameters(EShaderFrequency ShaderFrequency)
-{
-	return ShaderFrequency == SF_Vertex ? new FVirtualHeightfieldMeshVertexFactoryShaderParameters() : nullptr;
-}
-
-IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FVirtualHeightfieldMeshVertexFactory, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMeshVertexFactory.ush", true, false, true, true, false, false, true, false);
+IMPLEMENT_VERTEX_FACTORY_TYPE_EX(FVirtualHeightfieldMeshVertexFactory, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMeshVertexFactory.ush", true, false, true, false, false, false, true, false);

@@ -1217,6 +1217,7 @@ void FLevelEditorSequencerIntegration::AddSequencer(TSharedRef<ISequencer> InSeq
 
 	ActivateRealtimeViewports();
 	AttachOutlinerColumn();
+	OnSequencersChanged.Broadcast();
 }
 
 void FLevelEditorSequencerIntegration::OnSequencerReceivedFocus(TSharedRef<ISequencer> InSequencer)
@@ -1251,6 +1252,20 @@ void FLevelEditorSequencerIntegration::RemoveSequencer(TSharedRef<ISequencer> In
 	{
 		AcquiredResources.Release();
 	}
+
+	OnSequencersChanged.Broadcast();
+}
+
+TArray<TWeakPtr<ISequencer>> FLevelEditorSequencerIntegration::GetSequencers()
+{
+	TArray<TWeakPtr<ISequencer>> SequencerPtrs;
+	SequencerPtrs.Reserve(BoundSequencers.Num());
+	for (FSequencerAndOptions& SequencerAndOption : BoundSequencers)
+	{
+		SequencerPtrs.Add(SequencerAndOption.Sequencer);
+	}
+
+	return SequencerPtrs;
 }
 
 void AddActorsToBindingsMapRecursive(FSequencer& Sequencer, UMovieSceneSequence* Sequence, FMovieSceneSequenceIDRef SequenceID, const FMovieSceneSequenceHierarchy* Hierarchy, TMap<FObjectKey, FString>& ActorBindingsMap)

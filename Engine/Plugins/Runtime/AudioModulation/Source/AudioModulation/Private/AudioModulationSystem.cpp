@@ -14,7 +14,7 @@
 #include "Misc/CoreDelegates.h"
 #include "SoundControlBusProxy.h"
 #include "SoundControlBusMixProxy.h"
-#include "SoundModulatorLFOProxy.h"
+#include "SoundModulationGeneratorLFOProxy.h"
 #include "SoundModulationPatchProxy.h"
 #include "SoundModulationProxy.h"
 #include "UObject/UObjectIterator.h"
@@ -42,12 +42,12 @@ namespace AudioModulation
 		COUNT
 	};
 
-	struct FProfileChannelInfo
+	struct FProfileStageInfo
 	{
-		USoundControlBusBase* Bus;
-		FSoundModulationValue Value;
+		USoundControlBus* Bus;
+		FSoundModulationMixValue Value;
 
-		FProfileChannelInfo(const FModulatorBusMixChannelProxy& InProxy)
+		FProfileStageInfo(const FModulatorBusMixStageProxy& InProxy)
 			: Bus(nullptr)
 			, Value(InProxy.Value)
 		{
@@ -63,6 +63,11 @@ namespace AudioModulation
 	}
 
 #if !UE_BUILD_SHIPPING
+	void FAudioModulationSystem::OnAuditionEnd()
+	{
+		DeactivateAllBusMixes();
+	}
+
 	bool FAudioModulationSystem::OnPostHelp(FCommonViewportClient* ViewportClient, const TCHAR* Stream)
 	{
 		check(IsInGameThread());
@@ -82,7 +87,7 @@ namespace AudioModulation
 	}
 #endif // !UE_BUILD_SHIPPING
 
-	void FAudioModulationSystem::ActivateBus(const USoundControlBusBase& InBus)
+	void FAudioModulationSystem::ActivateBus(const USoundControlBus& InBus)
 	{
 		RunCommandOnProcessingThread([this, Settings = FControlBusSettings(InBus)]()
 		{
@@ -114,7 +119,7 @@ namespace AudioModulation
 		ActivateBusMix(FModulatorBusMixSettings(InBusMix));
 	}
 
-	void FAudioModulationSystem::ActivateLFO(const USoundBusModulatorLFO& InLFO)
+	void FAudioModulationSystem::ActivateLFO(const USoundModulationGeneratorLFO& InLFO)
 	{
 		RunCommandOnProcessingThread([this, Settings = FModulatorLFOSettings(InLFO)]()
 		{
@@ -137,7 +142,7 @@ namespace AudioModulation
 		return !FMath::IsNearlyEqual(InitValue, OutValue);
 	}
 
-	void FAudioModulationSystem::DeactivateBus(const USoundControlBusBase& InBus)
+	void FAudioModulationSystem::DeactivateBus(const USoundControlBus& InBus)
 	{
 		RunCommandOnProcessingThread([this, BusId = static_cast<FBusId>(InBus.GetUniqueID())]()
 		{
@@ -173,7 +178,7 @@ namespace AudioModulation
 		});
 	}
 
-	void FAudioModulationSystem::DeactivateLFO(const USoundBusModulatorLFO& InLFO)
+	void FAudioModulationSystem::DeactivateLFO(const USoundModulationGeneratorLFO& InLFO)
 	{
 		RunCommandOnProcessingThread([this, LFOId = static_cast<FLFOId>(InLFO.GetUniqueID())]()
 		{
@@ -403,36 +408,36 @@ namespace AudioModulation
 
 			UE_LOG(LogAudioModulation, Display, TEXT("Mix '%s' is active, saving current mix proxy state to profile '%i'."), *MixName, InProfileIndex);
 			AudioModulation::FModulatorBusMixProxy& MixProxy = MixHandle.FindProxy();
-			TMap<FBusId, FSoundModulationValue> PassedChannelInfo;
-			for (TPair<FBusId, FModulatorBusMixChannelProxy>& Pair : MixProxy.Channels)
+			TMap<FBusId, FSoundModulationMixValue> PassedStageInfo;
+			for (TPair<FBusId, FModulatorBusMixStageProxy>& Pair : MixProxy.Stages)
 			{
-				FModulatorBusMixChannelProxy& Channel = Pair.Value;
-				PassedChannelInfo.Add(Pair.Key, Channel.Value);
+				FModulatorBusMixStageProxy& Stage = Pair.Value;
+				PassedStageInfo.Add(Pair.Key, Stage.Value);
 			}
 
-			AsyncTask(ENamedThreads::GameThread, [this, PassedChannelInfo, MixToSerialize, InProfileIndex]()
+			AsyncTask(ENamedThreads::GameThread, [this, PassedStageInfo, MixToSerialize, InProfileIndex]()
 			{
 				if (!MixToSerialize.IsValid())
 				{
 					return;
 				}
 						
-				TMap<FBusId, FSoundModulationValue> ChannelInfo = PassedChannelInfo;
+				TMap<FBusId, FSoundModulationMixValue> StageInfo = PassedStageInfo;
 				USoundControlBusMix* TempMix = NewObject<USoundControlBusMix>(GetTransientPackage(), *FGuid().ToString(EGuidFormats::Short));
 
 				// Buses on proxy may differ than those on uobject definition, so iterate and find by cached ids
 				// and add to temp mix to be serialized.
-				for (TObjectIterator<USoundControlBusBase> Itr; Itr; ++Itr)
+				for (TObjectIterator<USoundControlBus> Itr; Itr; ++Itr)
 				{
-					if (USoundControlBusBase* Bus = *Itr)
+					if (USoundControlBus* Bus = *Itr)
 					{
 						FBusId ItrBusId = static_cast<FBusId>(Bus->GetUniqueID());
-						if (FSoundModulationValue* Value = ChannelInfo.Find(ItrBusId))
+						if (FSoundModulationMixValue* Value = StageInfo.Find(ItrBusId))
 						{
-							FSoundControlBusMixChannel BusMixChannel;
-							BusMixChannel.Bus = Bus;
-							BusMixChannel.Value = *Value;
-							TempMix->Channels.Add(MoveTemp(BusMixChannel));
+							FSoundControlBusMixStage BusMixStage;
+							BusMixStage.Bus = Bus;
+							BusMixStage.Value = *Value;
+							TempMix->MixStages.Add(MoveTemp(BusMixStage));
 						}
 					}
 				}
@@ -443,18 +448,18 @@ namespace AudioModulation
 		});
 	}
 
-	TArray<FSoundControlBusMixChannel> FAudioModulationSystem::LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix)
+	TArray<FSoundControlBusMixStage> FAudioModulationSystem::LoadMixFromProfile(const int32 InProfileIndex, USoundControlBusMix& OutBusMix)
 	{
 		const FString TempName = FGuid::NewGuid().ToString(EGuidFormats::Short);
 		if (USoundControlBusMix* TempMix = NewObject<USoundControlBusMix>(GetTransientPackage(), *TempName))
 		{
 			const FString MixPath = OutBusMix.GetPathName();
 			AudioModulation::FProfileSerializer::Deserialize(InProfileIndex, *TempMix, &MixPath);
-			UpdateMix(TempMix->Channels, OutBusMix);
-			return TempMix->Channels;
+			UpdateMix(TempMix->MixStages, OutBusMix);
+			return TempMix->MixStages;
 		}
 
-		return TArray<FSoundControlBusMixChannel>();
+		return TArray<FSoundControlBusMixStage>();
 	}
 
 	void FAudioModulationSystem::RunCommandOnProcessingThread(TUniqueFunction<void()> Cmd)
@@ -483,12 +488,12 @@ namespace AudioModulation
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Patch);
 		}
 			
-		if (RegisterModulator<FBusHandle, USoundControlBusBase, FControlBusSettings, FBusProxyMap>(InHandleId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap, OutParameter))
+		if (RegisterModulator<FBusHandle, USoundControlBus, FControlBusSettings, FBusProxyMap>(InHandleId, InModulatorBase, RefProxies.Buses, RefModulators.BusMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::Bus);
 		}
 
-		if (RegisterModulator<FLFOHandle, USoundBusModulatorLFO, FModulatorLFOSettings, FLFOProxyMap>(InHandleId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap, OutParameter))
+		if (RegisterModulator<FLFOHandle, USoundModulationGeneratorLFO, FModulatorLFOSettings, FLFOProxyMap>(InHandleId, InModulatorBase, RefProxies.LFOs, RefModulators.LFOMap, OutParameter))
 		{
 			return static_cast<Audio::FModulatorTypeId>(EModulatorType::LFO);
 		}
@@ -578,30 +583,30 @@ namespace AudioModulation
 		});
 	}
 
-	void FAudioModulationSystem::UpdateMix(const TArray<FSoundControlBusMixChannel>& InChannels, USoundControlBusMix& InOutMix, bool bInUpdateObject)
+	void FAudioModulationSystem::UpdateMix(const TArray<FSoundControlBusMixStage>& InStages, USoundControlBusMix& InOutMix, bool bInUpdateObject, float InFadeTime)
 	{
 		if (bInUpdateObject)
 		{
-			TMap<uint32, const FSoundControlBusMixChannel*> UpdatedChannelBusses;
-			for (const FSoundControlBusMixChannel& Channel : InChannels)
+			TMap<uint32, const FSoundControlBusMixStage*> UpdatedStageBusses;
+			for (const FSoundControlBusMixStage& Stage : InStages)
 			{
-				if (Channel.Bus)
+				if (Stage.Bus)
 				{
-					UpdatedChannelBusses.Add(Channel.Bus->GetUniqueID(), &Channel);
+					UpdatedStageBusses.Add(Stage.Bus->GetUniqueID(), &Stage);
 				}
 			}
 
 			bool bMarkDirty = false;
-			for (FSoundControlBusMixChannel& Channel : InOutMix.Channels)
+			for (FSoundControlBusMixStage& Stage : InOutMix.MixStages)
 			{
-				if (!Channel.Bus)
+				if (!Stage.Bus)
 				{
 					continue;
 				}
 
-				if (const FSoundControlBusMixChannel* BusChannel = UpdatedChannelBusses.FindRef(Channel.Bus->GetUniqueID()))
+				if (const FSoundControlBusMixStage* BusStage = UpdatedStageBusses.FindRef(Stage.Bus->GetUniqueID()))
 				{
-					Channel = *BusChannel;
+					Stage = *BusStage;
 					bMarkDirty = true;
 				}
 			}
@@ -610,62 +615,66 @@ namespace AudioModulation
 
 		const FBusMixId MixId = static_cast<FBusMixId>(InOutMix.GetUniqueID());
 
-		TArray<FModulatorBusMixChannelSettings> ChannelSettings;
-		for (const FSoundControlBusMixChannel& Channel : InChannels)
+		TArray<FModulatorBusMixStageSettings> StageSettings;
+		for (const FSoundControlBusMixStage& Stage : InStages)
 		{
-			ChannelSettings.Emplace(Channel);
+			StageSettings.Emplace(Stage);
 		}
 	
-		RunCommandOnProcessingThread([this, MixId, ChannelSettings]()
+		RunCommandOnProcessingThread([this, MixId, StageSettings, InFadeTime]()
 		{
 			if (FModulatorBusMixProxy* BusMixes = RefProxies.BusMixes.Find(MixId))
 			{
-				BusMixes->SetMix(ChannelSettings);
+				BusMixes->SetMix(StageSettings, InFadeTime);
 			}
 		});
 	}
 
 	void FAudioModulationSystem::UpdateMixByFilter(
-		const FString&							 InAddressFilter,
-		const TSubclassOf<USoundControlBusBase>& InBusClass,
-		const FSoundModulationValue&			 InValue,
-		USoundControlBusMix&					 InOutMix,
-		bool									 bInUpdateObject)
+		const FString& InAddressFilter,
+		const TSubclassOf<USoundModulationParameter>& InParamClassFilter,
+		USoundModulationParameter* InParamFilter,
+		float InValue,
+		float InFadeTime,
+		USoundControlBusMix& InOutMix,
+		bool bInUpdateObject)
 	{
-		const uint32 ClassId = InBusClass ? InBusClass->GetUniqueID() : USoundControlBusBase::StaticClass()->GetUniqueID();
+		const uint32 ParamClassId = InParamClassFilter ? InParamClassFilter->GetUniqueID() : INDEX_NONE;
+		const uint32 ParamId = InParamFilter ? InParamFilter->GetUniqueID() : INDEX_NONE;
 
 		if (bInUpdateObject)
 		{
 			bool bMarkDirty = false;
-			static const uint32 BaseBusClassId = USoundControlBusBase::StaticClass()->GetUniqueID();
-			for (FSoundControlBusMixChannel& Channel : InOutMix.Channels)
+			for (FSoundControlBusMixStage& Stage : InOutMix.MixStages)
 			{
-				if (!Channel.Bus)
+				if (!Stage.Bus)
 				{
 					continue;
 				}
 
-				if (ClassId != BaseBusClassId && Channel.Bus->GetClass()->GetUniqueID() != ClassId)
+				if (USoundModulationParameter* Parameter = Stage.Bus->Parameter)
+				{
+					if (ParamId != INDEX_NONE && ParamId != Parameter->GetUniqueID())
+					{
+						continue;
+					}
+
+					if (UClass* Class = Parameter->GetClass())
+					{
+						if (ParamClassId != INDEX_NONE && ParamClassId != Class->GetUniqueID())
+						{
+							continue;
+						}
+					}
+				}
+
+				if (!FAudioAddressPattern::PartsMatch(InAddressFilter, Stage.Bus->Address))
 				{
 					continue;
 				}
 
-				if (!FAudioAddressPattern::PartsMatch(InAddressFilter, Channel.Bus->Address))
-				{
-					continue;
-				}
-
-				Channel.Value.TargetValue = InValue.TargetValue;
-
-				if (InValue.AttackTime >= 0.0f)
-				{
-					Channel.Value.AttackTime = InValue.AttackTime;
-				}
-
-				if (InValue.ReleaseTime >= 0.0f)
-				{
-					Channel.Value.ReleaseTime = InValue.ReleaseTime;
-				}
+				Stage.Value.TargetValue = InValue;
+				Stage.Value.SetActiveFade(FSoundModulationMixValue::EActiveFade::Override, InFadeTime);
 				bMarkDirty = true;
 			}
 
@@ -677,23 +686,31 @@ namespace AudioModulation
 
 		const FString	AddressFilter = InAddressFilter;
 		const FBusMixId MixId = static_cast<FBusMixId>(InOutMix.GetUniqueID());
-		RunCommandOnProcessingThread([this, ClassId, MixId, AddressFilter, InValue]()
+		RunCommandOnProcessingThread([this, ParamClassId, ParamId, MixId, AddressFilter, InValue, InFadeTime]()
 		{
 			if (FModulatorBusMixProxy* MixProxy = RefProxies.BusMixes.Find(MixId))
 			{
-				MixProxy->SetMixByFilter(AddressFilter, ClassId, InValue);
+				MixProxy->SetMixByFilter(AddressFilter, ParamClassId, ParamId, InValue, InFadeTime);
 			}
 		});
 	}
 
-	void FAudioModulationSystem::UpdateMix(const USoundControlBusMix& InMix)
+	void FAudioModulationSystem::UpdateMix(const USoundControlBusMix& InMix, float InFadeTime)
 	{
-		RunCommandOnProcessingThread([this, MixSettings = FModulatorBusMixSettings(InMix)]()
+		RunCommandOnProcessingThread([this, MixSettings = FModulatorBusMixSettings(InMix), InFadeTime]()
 		{
 			FBusMixHandle BusMixHandle = FBusMixHandle::Get(MixSettings.GetId(), RefProxies.BusMixes);
 			if (BusMixHandle.IsValid())
 			{
-				BusMixHandle.FindProxy() = MixSettings;
+				FModulatorBusMixProxy& MixProxy = BusMixHandle.FindProxy();
+				if (MixProxy.GetStatus() == FModulatorBusMixProxy::EStatus::Enabled)
+				{
+					MixProxy = MixSettings;
+					for (TPair<FBusId, FModulatorBusMixStageProxy>& Stage : MixProxy.Stages)
+					{
+						Stage.Value.Value.SetActiveFade(FSoundModulationMixValue::EActiveFade::Override, InFadeTime);
+					}
+				}
 			}
 #if !UE_BUILD_SHIPPING
 			else
@@ -706,7 +723,7 @@ namespace AudioModulation
 
 	void FAudioModulationSystem::UpdateModulator(const USoundModulatorBase& InModulator)
 	{
-		if (const USoundBusModulatorLFO* InLFO = Cast<USoundBusModulatorLFO>(&InModulator))
+		if (const USoundModulationGeneratorLFO* InLFO = Cast<USoundModulationGeneratorLFO>(&InModulator))
 		{
 			RunCommandOnProcessingThread([this, LFOSettings = FModulatorLFOSettings(*InLFO)]()
 			{
@@ -724,7 +741,7 @@ namespace AudioModulation
 			});
 		}
 
-		if (const USoundControlBusBase* InBus = Cast<USoundControlBusBase>(&InModulator))
+		if (const USoundControlBus* InBus = Cast<USoundControlBus>(&InModulator))
 		{
 			RunCommandOnProcessingThread([this, BusSettings = FControlBusSettings(*InBus)]()
 			{

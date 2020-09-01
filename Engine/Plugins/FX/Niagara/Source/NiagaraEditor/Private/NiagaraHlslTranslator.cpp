@@ -5,14 +5,11 @@
 #include "NiagaraGraph.h"
 #include "NiagaraScriptSource.h"
 #include "EdGraphUtilities.h"
-#include "UObject/UObjectHash.h"
 #include "NiagaraNode.h"
 #include "NiagaraNodeFunctionCall.h"
 #include "NiagaraNodeIf.h"
 #include "NiagaraNodeInput.h"
 #include "NiagaraNodeOutput.h"
-#include "NiagaraNodeReadDataSet.h"
-#include "NiagaraNodeWriteDataSet.h"
 #include "NiagaraNodeParameterMapGet.h"
 #include "NiagaraNodeParameterMapSet.h"
 #include "NiagaraNodeParameterMapFor.h"
@@ -20,16 +17,11 @@
 #include "NiagaraNodeOp.h"
 #include "NiagaraNodeConvert.h"
 #include "EdGraphSchema_Niagara.h"
-#include "Interfaces/ITargetPlatformManagerModule.h"
-#include "Interfaces/IShaderFormat.h"
-#include "ShaderFormatVectorVM.h"
 #include "NiagaraConstants.h"
-#include "NiagaraSystem.h"
 #include "NiagaraNodeEmitter.h"
 #include "INiagaraEditorTypeUtilities.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraEditorModule.h"
-#include "NiagaraNodeReroute.h"
 #include "NiagaraSimulationStageBase.h"
 
 #include "NiagaraFunctionLibrary.h"
@@ -46,7 +38,6 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraEditorTickables.h"
 #include "ShaderCore.h"
-#include "NiagaraShaderCompilationManager.h"
 
 #include "NiagaraEditorSettings.h"
 #include "NiagaraNodeStaticSwitch.h"
@@ -109,7 +100,7 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 			UE_LOG(LogNiagaraEditor, Log, TEXT("GPU shader compile skipped. Id %d"), NewShaderMap->GetCompilingId());
 			continue;
 		}
-		UNiagaraScript* CompilableScript = ShaderScript->GetBaseVMScript();
+		UNiagaraScript* CompilableScript = CastChecked<UNiagaraScript>(ShaderScript->GetBaseVMScript());
 
 		// For now System scripts don't generate HLSL and go through a special pass...
 		// [OP] thinking they'll likely never run on GPU anyways
@@ -139,8 +130,8 @@ void FNiagaraShaderQueueTickable::ProcessQueue()
 			TRefCountPtr<FShaderCompilerEnvironment> CompilerEnvironment = new FShaderCompilerEnvironment();
 
 			FString ShaderCode = CompilableScript->GetVMExecutableData().LastHlslTranslationGPU;
-			// When not running in the editor, the shaders are created in-sync in the postload.
-			const bool bSynchronousCompile = !GIsEditor || GIsAutomationTesting;
+			// Shaders are created in-sync in the postload when running the automated tests.
+			const bool bSynchronousCompile = GIsAutomationTesting;
 
 			// Compile the shaders for the script.
 			NewShaderMap->Compile(ShaderScript, Item.ShaderMapId, CompilerEnvironment, NewCompilationOutput, Item.Platform, bSynchronousCompile, Item.bApply);
@@ -877,10 +868,11 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 			}
 
 			// or are required by the renderer
-			if (CompileData->RequiredRendererVariables.Contains(Var))
+			// Commenting this out for now as we explicitly add these to the preserve list
+			/*if (CompileData->RequiredRendererVariables.Contains(Var))
 			{
 				return false;
-			}
+			}*/
 
 			// or are special?
 			if (Var == SYS_PARAM_PARTICLES_UNIQUE_ID)
@@ -910,6 +902,7 @@ void FHlslNiagaraTranslator::TrimAttributes(const FNiagaraCompileOptions& InComp
 				}
 			}
 
+			//UE_LOG(LogNiagaraEditor, Warning, TEXT("Trimming variable %s"), *Var.GetName().ToString())
 			return true;
 		}));
 	}
@@ -1056,6 +1049,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].SimulationStageIndexMax = 1;
 		TranslationStages[1].SimulationStageIndexMin = 0;
 		TranslationStages[1].SimulationStageIndexMax = 1;
+		TranslationStages[0].bWritesParticles = true;
+		TranslationStages[1].bWritesParticles = true;
 		ParamMapHistories.AddDefaulted(2);
 		ParamMapSetVariablesToChunks.AddDefaulted(2);
 		break;
@@ -1073,6 +1068,8 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].SimulationStageIndexMax = 1;
 		TranslationStages[1].SimulationStageIndexMin = 0;
 		TranslationStages[1].SimulationStageIndexMax = 1;
+		TranslationStages[0].bWritesParticles = true;
+		TranslationStages[1].bWritesParticles = true;
 		ParamMapHistories.AddDefaulted(2);
 		ParamMapSetVariablesToChunks.AddDefaulted(2);
 
@@ -1130,27 +1127,50 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].SimulationStageIndexMax = SimStageStartIndex + NumIterationsThisStage;
 					TranslationStages[Index].NumIterationsThisStage = NumIterationsThisStage;
 					TranslationStages[Index].bSpawnOnly = bSpawnOnly;
+					TranslationStages[Index].bPartialParticleUpdate = InCompileData->PartialParticleUpdatePerStage.IsValidIndex(SimStageIndex) ? InCompileData->PartialParticleUpdatePerStage[SimStageIndex] : false;
 					TranslationStages[Index].IterationSource = IterationSrc;
 					TranslationStages[Index].SourceSimStage = SimStageIndex;
 					SimStageStartIndex += NumIterationsThisStage;
 					ParamMapHistories.AddDefaulted(1);
 
-					// Set up the compile output for the shader stages so that we can properly execute at runtime.
-					int32 IterationMetaIdx = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted();
-					CompilationOutput.ScriptData.SimulationStageMetaData[IterationMetaIdx].bSpawnOnly = bSpawnOnly;
-					CompilationOutput.ScriptData.SimulationStageMetaData[IterationMetaIdx].IterationSource = IterationSrc;
-					CompilationOutput.ScriptData.SimulationStageMetaData[IterationMetaIdx].MinStage = TranslationStages[Index].SimulationStageIndexMin;
-					CompilationOutput.ScriptData.SimulationStageMetaData[IterationMetaIdx].MaxStage = TranslationStages[Index].SimulationStageIndexMax;
-
 					// See if we write any "particle" attributes
-					for (const FNiagaraVariable& Var : FoundHistory.Variables)
+					for (int32 iVar = 0; iVar < FoundHistory.VariableMetaData.Num(); ++iVar)
 					{
-						if (FNiagaraParameterMapHistory::IsAttribute(Var))
+						// Particle attribute?
+						if (!FNiagaraParameterMapHistory::IsAttribute(FoundHistory.Variables[iVar]))
 						{
-							CompilationOutput.ScriptData.SimulationStageMetaData[IterationMetaIdx].bWritesParticles = true;
-							break;
+							continue;
 						}
+
+						// Is this an output?
+						const bool bIsOutput = FoundHistory.PerVariableWriteHistory[iVar].ContainsByPredicate([](const UEdGraphPin* InPin) -> bool { return Cast<UNiagaraNodeParameterMapSet>(InPin->GetOwningNode()) != nullptr; });
+						if (!bIsOutput)
+						{
+							continue;
+						}
+
+						//-TODO: Temporarily skip the IGNORE variable, this needs to be cleaned up
+						static const FName Name_IGNORE("IGNORE");
+						FName ParameterName;
+						if (FoundHistory.VariableMetaData[iVar].GetParameterName(ParameterName) && (ParameterName == Name_IGNORE))
+						{
+							continue;
+						}
+
+						// We write particle attributes at this stage, store list off so we can potentially selectivly write them later
+						TranslationStages[Index].bWritesParticles = true;
+						TranslationStages[Index].SetParticleAttributes.Add(FoundHistory.Variables[iVar]);
 					}
+
+					// Set up the compile output for the shader stages so that we can properly execute at runtime.
+					FSimulationStageMetaData& SimulationStageMetaData = CompilationOutput.ScriptData.SimulationStageMetaData.AddDefaulted_GetRef();
+					SimulationStageMetaData.SimulationStageName = InCompileData->StageNames.IsValidIndex(SimStageIndex) ? InCompileData->StageNames[SimStageIndex] : FName();
+					SimulationStageMetaData.bSpawnOnly = bSpawnOnly;
+					SimulationStageMetaData.IterationSource = IterationSrc;
+					SimulationStageMetaData.MinStage = TranslationStages[Index].SimulationStageIndexMin;
+					SimulationStageMetaData.MaxStage = TranslationStages[Index].SimulationStageIndexMax;
+					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
+					SimulationStageMetaData.bPartialParticleUpdate = TranslationStages[Index].bPartialParticleUpdate;
 
 					// Other outputs are written to as appropriate data interfaces are found. See HandleDataInterfaceCall for details.
 
@@ -1167,6 +1187,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		TranslationStages[0].ChunkModeIndex = ENiagaraCodeChunkMode::Body;
 		TranslationStages[0].SimulationStageIndexMin = 0;
 		TranslationStages[0].SimulationStageIndexMax = 0;
+		TranslationStages[0].bWritesParticles = true;
 		ParamMapHistories.AddDefaulted(1);
 		ParamMapSetVariablesToChunks.AddDefaulted(1);
 		break;
@@ -1697,12 +1718,14 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 		
 		for (int32 i = 0; i < CompilationOutput.ScriptData.SimulationStageMetaData.Num(); i++)
 		{
-			Preamble += FString::Printf(TEXT("// SimStage[%d]\n//\t Iteration Src: \"%s\"\n//\tMinIndex: %d  MaxIndex: %d\n//\tbSpawnOnly: %s\n//\tWritesParticles: %s\n"), i,
+			Preamble += FString::Printf(TEXT("// SimStage[%d]\n//\t Iteration Src: \"%s\"\n//\tMinIndex: %d  MaxIndex: %d\n//\tbSpawnOnly: %s\n//\tWritesParticles: %s\n//\tPartialParticleUpdate: %s\n"), i,
 				*CompilationOutput.ScriptData.SimulationStageMetaData[i].IterationSource.ToString(),
 				CompilationOutput.ScriptData.SimulationStageMetaData[i].MinStage,
 				CompilationOutput.ScriptData.SimulationStageMetaData[i].MaxStage,
 				CompilationOutput.ScriptData.SimulationStageMetaData[i].bSpawnOnly ? TEXT("True") : TEXT("False"),
-				CompilationOutput.ScriptData.SimulationStageMetaData[i].bWritesParticles ? TEXT("True") : TEXT("False"));
+				CompilationOutput.ScriptData.SimulationStageMetaData[i].bWritesParticles ? TEXT("True") : TEXT("False"),
+				CompilationOutput.ScriptData.SimulationStageMetaData[i].bPartialParticleUpdate ? TEXT("True") : TEXT("False")
+			);
 			for (const FName& Dest : CompilationOutput.ScriptData.SimulationStageMetaData[i].OutputDestinations)
 			{
 				Preamble += FString::Printf(TEXT("//\tOutputs to: \"%s\"\n"), *Dest.ToString());
@@ -2347,7 +2370,14 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					}
 					else
 					{
-						VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
+						if (TranslationStages[i].bPartialParticleUpdate)
+						{
+							VarFmt = VarName + TEXT("{0} = RWInputData{1}({2}, {3}, InstanceIdx);\n");
+						}
+						else
+						{
+							VarFmt = VarName + TEXT("{0} = InputData{1}({2}, {3}, InstanceIdx);\n");
+						}
 
 						if (bUseSimulationStages)
 						{
@@ -2489,6 +2519,13 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				continue;
 			}
 
+			// If we do not write particle data or kill particles we can avoid the write altogether which will allow us to also cull attribute reads to the ones that are only 'required'
+			if (!TranslationStages[i].bWritesParticles)
+			{
+				ensure(TranslationStages[i].bWritesAlive == false);
+				continue;
+			}
+
 			if (TranslationStages.Num() > 2)
 			{
 				if (StartIdx == i)
@@ -2504,6 +2541,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 					"	{\n"), TranslationStages[i].SimulationStageIndexMin, TranslationStages[i].SimulationStageIndexMax);
 			}
 
+			bool bWriteInstanceCount = !TranslationStages[i].bPartialParticleUpdate;
 			if (TranslationStages[i].bWritesAlive || (i == 1 && TranslationStages[0].bWritesAlive))
 			{
 				// This stage kills particles, so we must skip the dead ones when writing out the data.
@@ -2511,7 +2549,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				// if we could only do this for newly spawned particles, but unfortunately that would mean placing thread sync operations
 				// under dynamic flow control, which is not allowed. Therefore, we must always use the more expensive path when the spawn phase
 				// can kill particles.
-				HlslOutput += TEXT("\t\tGStageWritesAlive = true;\n");
+				bWriteInstanceCount = false;
 				HlslOutput += TEXT("\t\tconst bool bValid = Context.") + TranslationStages[i].PassNamespace + TEXT(".DataInstance.Alive;\n");
 				HlslOutput += TEXT("\t\tconst int WriteIndex = OutputIndex(0, true, bValid);\n");
 			}
@@ -2541,9 +2579,11 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 				const TArray<FNiagaraVariable>& NiagaraVariables = DataSetVariables[DataSetWrites[DataSetID]];
 				for (const FNiagaraVariable& Var : NiagaraVariables)
 				{
+					const bool bWriteToHLSL = !TranslationStages[i].bPartialParticleUpdate || TranslationStages[i].SetParticleAttributes.Contains(Var);
+
 					// If coming from a parameter map, use the one on the context, otherwise use the output.
 					FString VarFmt = TEXT("\t\t\tOutputData{1}(0, {2}, {3}, ") + ContextName + GetSanitizedSymbolName(Var.GetName().ToString()) + TEXT("{0});\n");
-					GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, HalfCounter, -1, TEXT("WriteIndex"), HlslOutput);
+					GatherVariableForDataSetAccess(Var, VarFmt, IntCounter, FloatCounter, HalfCounter, -1, TEXT("WriteIndex"), HlslOutput, bWriteToHLSL);
 				}
 			}
 
@@ -2551,6 +2591,18 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 
 			if (TranslationStages.Num() > 2)
 			{
+				if (bWriteInstanceCount)
+				{
+					HlslOutput += TEXT(
+						"\t\t// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
+						"\t\t// count isn't updated. In that case we must manually copy the original count here.\n"
+						"\t\tif (WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
+						"\t\t{\n"
+						"\t\t	RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
+						"\t\t}\n"
+					);
+				}
+
 				HlslOutput += TEXT("\t}\n");
 			}
 
@@ -2663,10 +2715,11 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	}\n"
 			"	bool bRunUpdateLogic, bRunSpawnLogic;\n"
 			"	#if USE_SIMULATION_STAGES\n"
-			"	if (IterationInterfaceCount > 0)\n"
+			"	int IterationInterfaceInstanceCount = SimulationStage_GetInstanceCount();\n"
+			"	if (IterationInterfaceInstanceCount > 0)\n"
 			"	{\n"
-			"		bRunUpdateLogic = InstanceID < IterationInterfaceCount && GSimStart != 1;\n"
-			"		bRunSpawnLogic = InstanceID < IterationInterfaceCount && GSimStart == 1;\n"
+			"		bRunUpdateLogic = InstanceID < IterationInterfaceInstanceCount && GSimStart != 1;\n"
+			"		bRunSpawnLogic = InstanceID < IterationInterfaceInstanceCount && GSimStart == 1;\n"
 			"	}\n"
 			"	else\n"
 			"	#endif // USE_SIMULATION_STAGES\n"
@@ -2694,7 +2747,7 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"		GCurrentPhase = GSpawnPhase; \n"
 			"	#if USE_SIMULATION_STAGES\n"
 			"		// Only process the spawn info for particle-based stages. Stages with an iteration interface expect the exec index to simply be the thread index.\n"
-			"		if (IterationInterfaceCount > 0)\n"
+			"		if (IterationInterfaceInstanceCount > 0)\n"
 			"		{\n"
 			"			SetupExecIndexForGPU();\n"
 			"		}\n"
@@ -2727,18 +2780,16 @@ void FHlslNiagaraTranslator::DefineMainGPUFunctions(
 			"	StoreUpdateVariables(Context);\n\n"
 		);
 
-	if (bUseSimulationStages)
+	if (GetUsesOldShaderStages())
 	{
 		HlslOutput += TEXT(
-			"	// If a stage doesn't kill particles, StoreUpdateVariables() never calls AcquireIndex(), so the\n"
-			"   // count isn't updated. In that case we must manually copy the original count here.\n"
-			"	if (!GStageWritesAlive && WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
+			"	if (WriteInstanceCountOffset != 0xFFFFFFFF && GDispatchThreadId.x == 0) \n"
 			"	{ \n"
 			"		RWInstanceCounts[WriteInstanceCountOffset] = GSpawnStartInstance + SpawnedInstances; \n"
 			"	} \n"
 		);
 	}
-
+		
 	HlslOutput += TEXT("}\n");
 }
 
@@ -4348,6 +4399,14 @@ void FHlslNiagaraTranslator::ParameterMapSet(UNiagaraNodeParameterMapSet* SetNod
 			{
 				if (Var == FNiagaraVariable(FNiagaraTypeDefinition::GetBoolDef(), TEXT("DataInstance.Alive")))
 				{
+					const int32 OutputStageIndex = ActiveStageIdx - 2;
+					if (CompilationOutput.ScriptData.SimulationStageMetaData.IsValidIndex(OutputStageIndex))
+					{
+						CompilationOutput.ScriptData.SimulationStageMetaData[OutputStageIndex].bWritesParticles = true;
+						CompilationOutput.ScriptData.SimulationStageMetaData[OutputStageIndex].bPartialParticleUpdate = false;
+					}
+					TranslationStages[ActiveStageIdx].bWritesParticles = true;
+					TranslationStages[ActiveStageIdx].bPartialParticleUpdate = false;
 					TranslationStages[ActiveStageIdx].bWritesAlive = true;
 				}
 				AddBodyChunk(ParameterMapInstanceName + TEXT(".") + GetSanitizedSymbolName(Var.GetName().ToString()), TEXT("{0}"), Var.GetType(), Input, false);
@@ -4453,6 +4512,25 @@ bool FHlslNiagaraTranslator::GetLiteralConstantVariable(FNiagaraVariable& OutVar
 		else
 		{
 			EnumValue.Value = (uint8)ENiagaraCompileUsageStaticSwitch::Default;
+		}
+		OutVar.SetValue(EnumValue);
+		return true;
+	}
+	else if (OutVar == FNiagaraVariable(FNiagaraTypeDefinition::GetScriptContextEnum(), TEXT("Script.Context")))
+	{
+		ENiagaraScriptUsage Usage = GetCurrentUsage();
+		FNiagaraInt32 EnumValue;
+		if (Usage == ENiagaraScriptUsage::SystemSpawnScript || Usage == ENiagaraScriptUsage::SystemUpdateScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::System;
+		}
+		else if (Usage == ENiagaraScriptUsage::EmitterSpawnScript || Usage == ENiagaraScriptUsage::EmitterUpdateScript)
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Emitter;
+		}
+		else
+		{
+			EnumValue.Value = (uint8)ENiagaraScriptContextStaticSwitch::Particle;
 		}
 		OutVar.SetValue(EnumValue);
 		return true;
@@ -5558,6 +5636,18 @@ void FHlslNiagaraTranslator::FunctionCall(UNiagaraNodeFunctionCall* FunctionNode
 		Source = CastChecked<UNiagaraScriptSource>(FunctionNode->FunctionScript->GetSource());
 		check(Source->GetOutermost() == GetTransientPackage());
 	}
+	else if (Signature.bRequiresExecPin)
+	{
+		if (CallInputs.Num() == 0 || Schema->PinToTypeDefinition(CallInputs[0]) != FNiagaraTypeDefinition::GetParameterMapDef())
+		{
+			Error(LOCTEXT("FunctionCallInvalidSignatureExecIn", "The first input pin must be a parameter map pin because the signature RequiresExecPin!"), FunctionNode, nullptr);
+		}
+		if (CallOutputs.Num() == 0 || Schema->PinToTypeDefinition(CallOutputs[0]) != FNiagaraTypeDefinition::GetParameterMapDef())
+		{
+			Error(LOCTEXT("FunctionCallInvalidSignatureExecOut", "The first output pin must be a parameter map pin because the signature RequiresExecPin!"), FunctionNode, nullptr);
+		}
+	}
+
 	UNiagaraNodeCustomHlsl* CustomFunctionHlsl = Cast<UNiagaraNodeCustomHlsl>(FunctionNode);
 	if (CustomFunctionHlsl != nullptr)
 	{
@@ -6032,6 +6122,23 @@ void FHlslNiagaraTranslator::HandleDataInterfaceCall(FNiagaraScriptDataInterface
 	{
 		Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceGPUMissing", "Function call \"{0}\" does not work on GPU sims."), FText::FromName(InMatchingSignature.Name)), CurNode, nullptr);
 	}
+
+	if (InMatchingSignature.ModuleUsageBitmask != 0 && !UNiagaraScript::IsSupportedUsageContextForBitmask(InMatchingSignature.ModuleUsageBitmask, TranslationStages[ActiveStageIdx].ScriptUsage))
+	{
+		FString AllowedContexts;
+		TArray<ENiagaraScriptUsage> Usages = UNiagaraScript::GetSupportedUsageContextsForBitmask(InMatchingSignature.ModuleUsageBitmask);
+		for (ENiagaraScriptUsage Usage : Usages)
+		{
+			if (AllowedContexts.Len() > 0)
+			{
+				AllowedContexts.Append(TEXT(", "));
+			}
+			UEnum* EnumClass = StaticEnum<ENiagaraScriptUsage>();
+			check(EnumClass != nullptr);
+			AllowedContexts.Append(EnumClass->GetNameByValue((int64)Usage).ToString());
+		}
+		Error(FText::Format(LOCTEXT("FunctionCallDataInterfaceWrongContext", "Function call \"{0}\" is not allowed for this stack context. Allowed: {1}"), FText::FromName(InMatchingSignature.Name), FText::FromString(AllowedContexts)), CurNode, nullptr);
+	}
 	
 	//UE_LOG(LogNiagaraEditor, Log, TEXT("HandleDataInterfaceCall %d %s %s %s"), ActiveStageIdx, *InMatchingSignature.Name.ToString(), InMatchingSignature.bWriteFunction ? TEXT("true") : TEXT("False"), *Info.Name.ToString());
 
@@ -6388,13 +6495,21 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 		}
 		else
 		{
-			int32 OwnerIdx = Inputs[0];
-			if (OwnerIdx < 0 || OwnerIdx >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
+
+			// Usually the DataInterface is the zeroth entry in the signature inputs, unless we are using the exec pin, in which case it is at index 1.
+			int32 DataInterfaceOwnerIdx = Inputs[0]; 
+			if (InSignature.bRequiresExecPin)
+			{
+				ensure(Inputs.IsValidIndex(1));
+				DataInterfaceOwnerIdx = Inputs[1]; 
+			}
+
+			if (DataInterfaceOwnerIdx < 0 || DataInterfaceOwnerIdx >= CompilationOutput.ScriptData.DataInterfaceInfo.Num())
 			{
 				Error(LOCTEXT("FunctionCallDataInterfaceMissingRegistration", "Function call signature does not match to a registered DataInterface. Valid DataInterfaces should be wired into a DataInterface function call."), nullptr, nullptr);
 				return;
 			}
-			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[OwnerIdx];
+			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[DataInterfaceOwnerIdx];
 
 			// Double-check to make sure that the signature matches those specified by the data 
 			// interface. It could be that the existing node has been removed and the graph
@@ -6426,6 +6541,11 @@ void FHlslNiagaraTranslator::RegisterFunctionCall(ENiagaraScriptUsage ScriptUsag
 					HandleDataInterfaceCall(Info, DataInterfaceFunctions[FoundMatch]);
 				}
 
+				if (DataInterfaceFunctions[FoundMatch].bRequiresExecPin)
+				{
+					OutSignature.Inputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("InExecPin")), 0);
+					OutSignature.Outputs.Insert(FNiagaraVariable(FNiagaraTypeDefinition::GetParameterMapDef(), TEXT("OutExecPin")), 0);
+				}
 				if (Info.UserPtrIdx != INDEX_NONE && CompilationTarget != ENiagaraSimTarget::GPUComputeSim)
 				{
 					//This interface requires per instance data via a user ptr so place the index as the first input.
@@ -6610,6 +6730,11 @@ FString FHlslNiagaraTranslator::GetFunctionSignatureSymbol(const FNiagaraFunctio
 	{
 		SigStr += TEXT("_Func_");
 	}
+	if (Sig.bRequiresExecPin)
+	{
+		SigStr += TEXT("_UEImpureCall_"); // Let the cross compiler know that we intend to keep this.
+	}
+
 	for (const TTuple<FName, FName>& Specifier : Sig.FunctionSpecifiers)
 	{
 		SigStr += TEXT("_") + Specifier.Key.ToString() + Specifier.Value.ToString().Replace(TEXT("."), TEXT(""));

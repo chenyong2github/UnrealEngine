@@ -54,7 +54,6 @@
 #include "Engine/InheritableComponentHandler.h"
 #include "BlueprintCompilerCppBackendInterface.h"
 #include "Serialization/ArchiveScriptReferenceCollector.h"
-#include "AnimBlueprintCompiler.h"
 #include "UObject/UnrealTypePrivate.h"
 
 static bool bDebugPropertyPropagation = false;
@@ -140,7 +139,6 @@ FKismetCompilerContext::FKismetCompilerContext(UBlueprint* SourceSketch, FCompil
 	, OldLinker(nullptr)
 	, TargetClass(nullptr)
 	, bAssignDelegateSignatureFunction(false)
-	, bGenerateLinkedAnimGraphVariables(false)
 {
 	MacroRowMaxHeight = 0;
 
@@ -1481,6 +1479,16 @@ bool FKismetCompilerContext::ShouldForceKeepNode(const UEdGraphNode* Node) const
 	}
 }
 
+void FKismetCompilerContext::PruneIsolatedNodes(UEdGraph* InGraph, bool bInIncludeNodesThatCouldBeExpandedToRootSet)
+{
+	TArray<UEdGraphNode*> RootSet;
+	// Find any all entry points caused by special nodes
+	GatherRootSet(InGraph, RootSet, bInIncludeNodesThatCouldBeExpandedToRootSet);
+
+	// Find the connected subgraph starting at the root node and prune out unused nodes
+	PruneIsolatedNodes(RootSet, InGraph->Nodes);
+}
+
 /** Prunes any nodes that weren't visited from the graph, printing out a warning */
 void FKismetCompilerContext::PruneIsolatedNodes(const TArray<UEdGraphNode*>& RootSet, TArray<UEdGraphNode*>& GraphNodes)
 {
@@ -1685,15 +1693,9 @@ void FKismetCompilerContext::PrecompileFunction(FKismetFunctionContext& Context,
 			);
 		}
 
-		{
-			TArray<UEdGraphNode*> RootSet;
-			const bool bIncludePotentialRootNodes = false;
-			// Find any all entry points caused by special nodes
-			GatherRootSet(Context.SourceGraph, RootSet, bIncludePotentialRootNodes);
-
-			// Find the connected subgraph starting at the root node and prune out unused nodes
-			PruneIsolatedNodes(RootSet, Context.SourceGraph->Nodes);
-		}
+		// Find the connected subgraph starting at the root node and prune out unused nodes
+		const bool bIncludePotentialRootNodes = false;
+		PruneIsolatedNodes(Context.SourceGraph, bIncludePotentialRootNodes);
 
 		if (bIsFullCompile)
 		{
@@ -3132,13 +3134,9 @@ void FKismetCompilerContext::ExpansionStep(UEdGraph* Graph, bool bAllowUbergraph
 {
 	auto PruneInner = [=]()
 	{
-		TArray<UEdGraphNode*> RootSet;
-		const bool bIncludePotentialRootNodes = true;
-		// Find any all entry points caused by special nodes
-		GatherRootSet(Graph, RootSet, bIncludePotentialRootNodes);
-
 		// Find the connected subgraph starting at the root node and prune out unused nodes
-		PruneIsolatedNodes(RootSet, Graph->Nodes);
+		const bool bIncludePotentialRootNodes = true;
+		PruneIsolatedNodes(Graph, bIncludePotentialRootNodes);
 	};
 
 	// Node expansion may affect the signature of a static function
@@ -3183,6 +3181,8 @@ void FKismetCompilerContext::ExpansionStep(UEdGraph* Graph, bool bAllowUbergraph
 		// Expand timeline nodes, in skeleton classes only the events will be generated
 		ExpandTimelineNodes(Graph);
 	}
+
+	PostExpansionStep(Graph);
 }
 
 void FKismetCompilerContext::DetermineNodeExecLinks(UEdGraphNode* SourceNode, TMap<UEdGraphPin*, UEdGraphPin*>& SourceNodeLinks) const
@@ -4835,14 +4835,7 @@ TMap< UClass*, CompilerContextFactoryFunction> CustomCompilerMap;
 
 TSharedPtr<FKismetCompilerContext> FKismetCompilerContext::GetCompilerForBP(UBlueprint* BP, FCompilerResultsLog& InMessageLog, const FKismetCompilerOptions& InCompileOptions)
 {
-	// Typically whatever loads the compiler module can also register it (or the module can self register). Due to load order
-	// issues anim blueprint is part of Engine and so there is no obvious place to register FAnimBlueprintCompilerContext,
-	// so I have simply hard-coded it:
-	if(UAnimBlueprint* AnimBP = Cast<UAnimBlueprint>(BP))
-	{
-		return TSharedPtr<FKismetCompilerContext>(new FAnimBlueprintCompilerContext(AnimBP, InMessageLog, InCompileOptions));
-	}
-	else if(CompilerContextFactoryFunction* FactoryFunction = CustomCompilerMap.Find(BP->GetClass()))
+	if(CompilerContextFactoryFunction* FactoryFunction = CustomCompilerMap.Find(BP->GetClass()))
 	{
 		return (*FactoryFunction)(BP, InMessageLog, InCompileOptions);
 	}

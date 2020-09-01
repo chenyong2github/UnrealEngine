@@ -1037,6 +1037,7 @@ class FSSDInjestCS : public FGlobalShader
 
 		SHADER_PARAMETER_STRUCT(FSSDSignalTextures, SignalInput)
 		SHADER_PARAMETER_STRUCT(FSSDSignalUAVs, SignalOutput)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, DebugOutput)
 	END_SHADER_PARAMETER_STRUCT()
 };
 
@@ -1680,7 +1681,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 			ConvolutionMetaData.LightDirectionAndLength[BatchedSignalId] = FVector4(
 				Parameters.Direction, Parameters.SourceLength);
 			ConvolutionMetaData.HitDistanceToWorldBluringRadius[BatchedSignalId] =
-				FMath::Tan(0.5 * FMath::DegreesToRadians(LightSceneProxy->GetLightSourceAngle()));
+				FMath::Tan(0.5 * FMath::DegreesToRadians(LightSceneProxy->GetLightSourceAngle()) * LightSceneProxy->GetShadowSourceAngleFactor());
 			ConvolutionMetaData.LightType[BatchedSignalId] = LightSceneProxy->GetLightType();
 		}
 	}
@@ -1749,6 +1750,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 		PassParameters->ConvolutionMetaData = ConvolutionMetaData;
 		PassParameters->SignalInput = SignalHistory;
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, NewSignalOutput);
+		PassParameters->DebugOutput = CreateDebugUAV(TEXT("DebugDenoiserInjest"));
 
 		FSSDInjestCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FSignalProcessingDim>(Settings.SignalProcessing);
@@ -2271,6 +2273,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		FSSDSpatialAccumulationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSSDSpatialAccumulationCS::FParameters>();
 		PassParameters->CommonParameters = CommonParameters;
+		PassParameters->ConvolutionMetaData = ConvolutionMetaData;
 		PassParameters->SignalInput = SignalHistory;
 		PassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, *OutputSignal);
 

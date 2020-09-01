@@ -26,10 +26,7 @@ void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLi
 	const FSequenceInstance& ThisInstance   = EntityLinker->GetInstanceRegistry()->GetInstance(Params.Sequence.InstanceHandle);
 	FMovieSceneContext       Context        = ThisInstance.GetContext();
 
-	// Don't allow events to fire when playback is in a stopped state. This can occur when stopping 
-	// playback and returning the current position to the start of playback. It's not desireable to have 
-	// all the events from the last playback position to the start of playback be fired.
-	if (Context.GetStatus() == EMovieScenePlayerStatus::Stopped || Context.IsSilent())
+	if (Context.IsSilent())
 	{
 		return;
 	}
@@ -63,7 +60,7 @@ void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLi
 
 	FMovieSceneEventTriggerData TriggerData = {
 		Event.Ptrs,
-		Params.ObjectBindingID,
+		Params.GetObjectBindingID(),
 		ThisInstance.GetSequenceID(),
 		Context.GetTime() * Context.GetSequenceToRootTransform()
 	};
@@ -74,8 +71,8 @@ void UMovieSceneEventRepeaterSection::ImportEntityImpl(UMovieSceneEntitySystemLi
 	EntityLinker->EntityManager.MimicStructureChanged();
 }
 
-bool UMovieSceneEventRepeaterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, FMovieSceneEntityComponentField* OutField)
+bool UMovieSceneEventRepeaterSection::PopulateEvaluationFieldImpl(const TRange<FFrameNumber>& EffectiveRange, const FMovieSceneEvaluationFieldEntityMetaData& InMetaData, FMovieSceneEntityComponentFieldBuilder* OutFieldBuilder)
 {
-	OutField->OneShotEntities.Populate(EffectiveRange, this, NAME_None);
+	OutFieldBuilder->AddOneShotEntity(EffectiveRange, this, 0, OutFieldBuilder->AddMetaData(InMetaData));
 	return true;
 }

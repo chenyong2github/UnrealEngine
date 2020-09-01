@@ -107,13 +107,14 @@ protected:
 	/** Filter packages based on a collection **/
 	TSet<FName> CollectionFilter;
 
-	/** Should we generated HLOD proxy meshes */
+	/** Should we update HLODs */
 	bool bShouldBuildHLOD;
 	bool bGenerateClusters;
 	bool bGenerateMeshProxies;
 	bool bForceClusterGeneration;
 	bool bForceProxyGeneration;
 	bool bForceSingleClusterForLevel;
+	bool bHLODMapCleanup;
 	FString ForceHLODSetupAsset;
 	FString HLODSkipToMap;
 	bool bForceUATEnvironmentVariableSet;

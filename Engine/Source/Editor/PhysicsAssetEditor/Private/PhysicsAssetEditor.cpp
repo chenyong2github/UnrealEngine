@@ -112,6 +112,7 @@ FPhysicsAssetEditor::~FPhysicsAssetEditor()
 	}
 
 	GEditor->UnregisterForUndo(this);
+	GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.Remove(OnAssetReimportDelegateHandle);
 }
 
 void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UPhysicsAsset* ObjectToEdit)
@@ -161,6 +162,9 @@ void FPhysicsAssetEditor::InitPhysicsAssetEditor(const EToolkitMode::Type Mode, 
 	bSelecting = false;
 
 	GEditor->RegisterForUndo(this);
+
+	// If any assets we care about get reimported, we need to rebuild some stuff
+	OnAssetReimportDelegateHandle = GEditor->GetEditorSubsystem<UImportSubsystem>()->OnAssetReimport.AddSP(this, &FPhysicsAssetEditor::OnAssetReimport);
 
 	// Register our commands. This will only register them if not previously registered
 	FPhysicsAssetEditorCommands::Register();
@@ -389,6 +393,21 @@ void FPhysicsAssetEditor::PostRedo( bool bSuccess )
 	}
 
 	PostUndo(bSuccess);
+}
+
+void FPhysicsAssetEditor::OnAssetReimport(UObject* Object)
+{
+	RecreatePhysicsState();
+	RefreshHierachyTree();
+	RefreshPreviewViewport();
+
+	if (SharedData->EditorSkelComp && SharedData->EditorSkelComp->SkeletalMesh)
+	{
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		// Update various infos based on the mesh
+		MeshUtilities.CalcBoneVertInfos(SharedData->EditorSkelComp->SkeletalMesh, SharedData->DominantWeightBoneInfos, true);
+		MeshUtilities.CalcBoneVertInfos(SharedData->EditorSkelComp->SkeletalMesh, SharedData->AnyWeightBoneInfos, false);
+	}
 }
 
 void FPhysicsAssetEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)

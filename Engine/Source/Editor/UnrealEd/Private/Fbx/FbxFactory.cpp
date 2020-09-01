@@ -229,8 +229,9 @@ UObject* UFbxFactory::FactoryCreateFile
 				//Set the new fbx source path before starting the re-import
 				FReimportManager::Instance()->UpdateReimportPaths(ObjectToReimport, Filenames);
 				//Do the re-import and exit
-				const bool bShowNotification = !(AssetImportTask && AssetImportTask->bAutomated);
-				FReimportManager::Instance()->ValidateAllSourceFileAndReimport(ToReimportObjects, bShowNotification);
+				const bool bIsAutomated = IsAutomatedImport();
+				const bool bShowNotification = !bIsAutomated;
+				FReimportManager::Instance()->ValidateAllSourceFileAndReimport(ToReimportObjects, bShowNotification, /*SourceFileIndex= */ INDEX_NONE, /*bForceNewFile= */ false, bIsAutomated);
 				return ObjectToReimport;
 			}
 		}

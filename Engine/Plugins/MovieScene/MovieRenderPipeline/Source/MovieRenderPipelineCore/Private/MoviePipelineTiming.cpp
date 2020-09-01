@@ -470,7 +470,6 @@ void UMoviePipeline::TickProducingFrames()
 		// Now that we've calculated our delta ticks, we need to multiply it by
 		// time dilation so that we advance through the sequence as slow as we
 		// advance through the world.
-		bool bWasAffectedByTimeDilation = false;
 		if (!FMath::IsNearlyEqual(WorldTimeDilation, 1.f))
 		{
 			UE_LOG(LogMovieRenderPipeline, VeryVerbose, TEXT("[%d] Modified FrameDeltaTime by a factor of %f to account for World Time Dilation."), GFrameCounter, WorldTimeDilation);
@@ -478,7 +477,6 @@ void UMoviePipeline::TickProducingFrames()
 			// This is technically always a frame behind as this function executes before Sequencer evaluates slow-mo tracks
 			// and sets the World Time Dilation, but it is close enough for now.
 			DeltaFrameTime = DeltaFrameTime * WorldTimeDilation;
-			bWasAffectedByTimeDilation = true;
 		}
 
 		/*
@@ -548,7 +546,7 @@ void UMoviePipeline::TickProducingFrames()
 		double FrameDeltaTime = FrameMetrics.TickResolution.AsSeconds(FFrameTime(DeltaFrameTime.GetFrame()));
 		CachedOutputState.TimeData.FrameDeltaTime = FrameDeltaTime;
 		CachedOutputState.TimeData.WorldSeconds = CachedOutputState.TimeData.WorldSeconds + FrameDeltaTime;
-		CachedOutputState.TimeData.bWasAffectedByTimeDilation = bWasAffectedByTimeDilation;
+		CachedOutputState.TimeData.TimeDilation = WorldTimeDilation;
 
 		// The combination of shutter angle percentage, non-uniform render frame delta times and dividing by sample
 		// count produce the correct length for motion blur in all cases.

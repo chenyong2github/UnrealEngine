@@ -6,6 +6,10 @@
 #include "HAL/PlatformFileManager.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/IConsoleManager.h"
+#include "Misc/FileHelper.h"
+#include "Application/SlateApplicationBase.h"
+#include "Async/Async.h"
+#include "HAL/PlatformProcess.h"
 
 #if WITH_FREETYPE
 
@@ -323,18 +327,44 @@ FFreeTypeLibrary::~FFreeTypeLibrary()
 #endif // WITH_FREETYPE
 }
 
-
 FFreeTypeFace::FFreeTypeFace(const FFreeTypeLibrary* InFTLibrary, FFontFaceDataConstRef InMemory, const int32 InFaceIndex, const EFontLayoutMethod InLayoutMethod)
 #if WITH_FREETYPE
 	: FTFace(nullptr)
-	, Memory(MoveTemp(InMemory))
+	, bPendingAsyncLoad(true)
 #endif // WITH_FREETYPE
 {
 	LayoutMethod = InLayoutMethod;
+	CompleteAsyncLoad(InFTLibrary, InMemory, InFaceIndex);
+}
 
+FFreeTypeFace::FFreeTypeFace(const EFontLayoutMethod InLayoutMethod)
 #if WITH_FREETYPE
+	: FTFace(nullptr)
+	, bPendingAsyncLoad(true)
+#endif // WITH_FREETYPE
+{
+	LayoutMethod = InLayoutMethod;
+}
+
+void FFreeTypeFace::FailAsyncLoad()
+{
+#if WITH_FREETYPE
+	ensure(bPendingAsyncLoad);
+	bPendingAsyncLoad = false;
+#endif
+}
+
+void FFreeTypeFace::CompleteAsyncLoad(const FFreeTypeLibrary* InFTLibrary, FFontFaceDataConstRef InMemory, const int32 InFaceIndex)
+{
+#if WITH_FREETYPE
+	ensure(bPendingAsyncLoad);
+	bPendingAsyncLoad = false;
+
+	FTFace = nullptr;
+	Memory = MoveTemp(InMemory);
+
 	FT_Error Error = FT_New_Memory_Face(InFTLibrary->GetLibrary(), Memory->GetData().GetData(), static_cast<FT_Long>(Memory->GetData().Num()), InFaceIndex, &FTFace);
-	
+
 	if (Error)
 	{
 		// You can look these error codes up in the FreeType docs: https://www.freetype.org/freetype2/docs/reference/ft2-error_code_values.html

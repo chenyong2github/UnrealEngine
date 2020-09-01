@@ -104,7 +104,8 @@ public:
 	float FeatureSizeRatio = .25;
 
 	/** Extrusion Distance in non-interactive mode */
-	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000"))
+	UPROPERTY(EditAnywhere, NonTransactional, Category = Polygon, meta = (UIMin = "-1000", UIMax = "1000", ClampMin = "-10000", ClampMax = "10000",
+									EditCondition = "OutputMode == EDrawPolygonOutputMode::ExtrudedConstant"))
 	float ExtrudeHeight = 100.0f;
 
 	/** Extrusion Distance in non-interactive mode */

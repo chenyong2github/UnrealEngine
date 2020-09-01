@@ -94,6 +94,8 @@ namespace Gauntlet
 		/// </summary>
 		public override float MaxDuration { get; protected set; }
 
+
+
 		/// <summary>
 		/// Priority of this test
 		/// </summary>
@@ -600,6 +602,7 @@ namespace Gauntlet
 			{
 				// Update these for the executor
 				MaxDuration = Config.MaxDuration;
+				MaxDurationReachedResult = Config.MaxDurationReachedResult;
 				UnrealTestResult = TestResult.Invalid;
 				MarkTestStarted();
 			}

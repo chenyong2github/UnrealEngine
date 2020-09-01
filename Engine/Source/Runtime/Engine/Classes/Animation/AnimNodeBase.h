@@ -31,6 +31,7 @@ class UAnimInstance;
 struct FAnimInstanceProxy;
 struct FAnimNode_Base;
 class UProperty;
+class IPropertyAccess;
 
 /**
  * Utility container for tracking a stack of ancestor nodes by node type during graph traversal
@@ -711,105 +712,25 @@ enum class EPostCopyOperation : uint8
 	LogicalNegateBool,
 };
 
-UENUM()
-enum class ECopyType : uint8
-{
-	// For plain old data types, we do a simple memcpy.
-	PlainProperty,
-
-	// Read and write properties using bool property helpers, as source/dest could be bitfield or boolean
-	BoolProperty,
-	
-	// Use struct copy operation, as this needs to correctly handle CPP struct ops
-	StructProperty,
-
-	// Read and write properties using object property helpers, as source/dest could be regular/weak/lazy etc.
-	ObjectProperty,
-
-	// FName needs special case because its size changes between editor/compiler and runtime.
-	NameProperty,
-};
-
-
 USTRUCT()
 struct FExposedValueCopyRecord
 {
-	GENERATED_USTRUCT_BODY()
+	GENERATED_BODY()
 
-	FExposedValueCopyRecord()
-		:
-#if WITH_EDITORONLY_DATA
-		  SourceProperty_DEPRECATED(nullptr), 
-#endif
-		  SourcePropertyName(NAME_None)
-		, SourceSubPropertyName(NAME_None)
-		, SourceArrayIndex(0)
-		, bInstanceIsTarget(false)
-		, PostCopyOperation(EPostCopyOperation::None)
-		, CopyType(ECopyType::PlainProperty)
-		, DestProperty(nullptr)
-		, DestArrayIndex(0)
-		, Size(0)
-		, CachedSourceProperty(nullptr)
-		, CachedSourceStructSubProperty(nullptr)
-	{}
+	FExposedValueCopyRecord() = default;
 
-	void* GetDestAddr(FAnimInstanceProxy* Proxy, const FProperty* NodeProperty) const;
-	const void* GetSourceAddr(FAnimInstanceProxy* Proxy) const;
-
-#if WITH_EDITORONLY_DATA
-	void PostSerialize(const FArchive& Ar);
-
-	UPROPERTY()
-	UProperty* SourceProperty_DEPRECATED;
-#endif
-
-	UPROPERTY()
-	FName SourcePropertyName;
-
-	UPROPERTY()
-	FName SourceSubPropertyName;
-
-	UPROPERTY()
-	int32 SourceArrayIndex;
-
-	// Whether or not the anim instance object is the target for the copy instead of a node.
-	UPROPERTY()
-	bool bInstanceIsTarget;
-
-	UPROPERTY()
-	EPostCopyOperation PostCopyOperation;
-
-	UPROPERTY(Transient)
-	ECopyType CopyType;
-
-	UPROPERTY()
-	TFieldPath<FProperty> DestProperty;
-
-	UPROPERTY()
-	int32 DestArrayIndex;
-
-	UPROPERTY()
-	int32 Size;
-
-	// cached source property
-	UPROPERTY()
-	TFieldPath<FProperty> CachedSourceProperty;
-
-	UPROPERTY()
-	TFieldPath<FProperty> CachedSourceStructSubProperty;
-};
-
-#if WITH_EDITORONLY_DATA
-template<>
-struct TStructOpsTypeTraits< FExposedValueCopyRecord > : public TStructOpsTypeTraitsBase2< FExposedValueCopyRecord >
-{
-	enum
+	FExposedValueCopyRecord(int32 InCopyIndex, EPostCopyOperation InPostCopyOperation)
+		: CopyIndex(InCopyIndex)
+		, PostCopyOperation(InPostCopyOperation)
 	{
-		WithPostSerialize = true,
-	};
+	}
+
+	UPROPERTY()
+	int32 CopyIndex = INDEX_NONE;
+
+	UPROPERTY()
+	EPostCopyOperation PostCopyOperation = EPostCopyOperation::None;
 };
-#endif
 
 // An exposed value updater
 USTRUCT()
@@ -821,6 +742,7 @@ struct ENGINE_API FExposedValueHandler
 		: BoundFunction(NAME_None)
 		, Function(nullptr)
 		, ValueHandlerNodeProperty(nullptr)
+		, PropertyAccess(nullptr)
 		, bInitialized(false)
 	{
 	}
@@ -843,14 +765,22 @@ struct ENGINE_API FExposedValueHandler
 	UPROPERTY()
 	TFieldPath<FStructProperty> ValueHandlerNodeProperty;
 
+	// Cached property access system ptr
+	IPropertyAccess* PropertyAccess;
+
 	// Prevent multiple initialization
 	bool bInitialized;
 
-	// Helper function to bind an array of handlers:
-	static void Initialize(TArray<FExposedValueHandler>& Handlers, UObject* ClassDefaultObject );
+	// Helper function to bind an array of handlers.
+	// This is called for nativized builds to initialize against a dynamic class
+	static void DynamicClassInitialization(TArray<FExposedValueHandler>& Handlers, UDynamicClass* InDynamicClass);
+
+	// Helper function to bind an array of handlers.
+	// This is called for non-nativized builds to initialize against a UAnimBlueprintGeneratedClass
+	static void ClassInitialization(TArray<FExposedValueHandler>& Handlers, UObject* ClassDefaultObject);
 
 	// Bind copy records and cache UFunction if necessary
-	void Initialize(UObject* AnimInstanceObject, int32 NodeOffset);
+	void Initialize(UClass* InClass, IPropertyAccess* InPropertyAccess);
 
 	// Execute the function and copy records
 	void Execute(const FAnimationBaseContext& Context) const;

@@ -98,7 +98,7 @@ public:
 	void ClearAccumulatedData() {}
 	void BufferPhysicsResults();
 	void FlipBuffer();
-	void PullFromPhysicsState();
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 	bool IsDirty() { return false; }
 	FStubSkeletalMeshData* NewData() { return nullptr; }
 	EPhysicsProxyType ConcreteType() { return EPhysicsProxyType::StaticMeshType; }

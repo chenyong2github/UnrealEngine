@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/UnrealString.h"
 #include "Internationalization/Text.h"
+#include "Templates/SharedPointer.h"
 
 
 /**
@@ -14,7 +15,13 @@ class IMediaOptions
 {
 public:
 
-/**
+	class FDataContainer : public TSharedFromThis<FDataContainer, ESPMode::ThreadSafe>
+	{
+	public:
+		virtual ~FDataContainer() {}
+	};
+
+	/**
 	 * Get the name of the desired native player.
 	 *
 	 * @return Native player name, or NAME_None to auto select.
@@ -65,6 +72,19 @@ public:
 	 * @return The option value.
 	 */
 	virtual FText GetMediaOption(const FName& Key, const FText& DefaultValue) const = 0;
+
+
+	/**
+	 * Get a complex data type media option.
+	 *
+	 * @param Key The name of the option to get.
+	 * @param DefaultValue The default value to return if the option is not set.
+	 * @return The option value.
+	 */
+	virtual TSharedPtr<FDataContainer, ESPMode::ThreadSafe> GetMediaOption(const FName& Key, const TSharedPtr<FDataContainer, ESPMode::ThreadSafe>& DefaultValue) const
+	{
+		return DefaultValue;
+	}
 
 	/**
 	 * Check whether the specified option is set.

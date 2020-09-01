@@ -338,6 +338,20 @@ namespace UnrealBuildTool
 				// Get all the actions that are prerequisites for these targets. This forms the list of actions that we want executed.
 				List<Action> PrerequisiteActions = ActionGraph.GatherPrerequisiteActions(MergedActions, MergedOutputItems);
 
+				// Create the action history
+				ActionHistory History = new ActionHistory();
+				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
+				{
+					using (Timeline.ScopeEvent("Reading action history"))
+					{
+						TargetDescriptor TargetDescriptor = TargetDescriptors[TargetIdx];
+						if(TargetDescriptor.ProjectFile != null)
+						{
+							History.Mount(TargetDescriptor.ProjectFile.Directory);
+						}
+					}
+				}
+
 				// Figure out which actions need to be built
 				Dictionary<Action, bool> ActionToOutdatedFlag = new Dictionary<Action, bool>();
 				for (int TargetIdx = 0; TargetIdx < TargetDescriptors.Count; TargetIdx++)
@@ -349,13 +363,6 @@ namespace UnrealBuildTool
 					using (Timeline.ScopeEvent("Reading dependency cache"))
 					{
 						CppDependencies = CppDependencyCache.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, TargetDescriptor.Configuration, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
-					}
-
-					// Create the action history
-					ActionHistory History;
-					using (Timeline.ScopeEvent("Reading action history"))
-					{
-						History = ActionHistory.CreateHierarchy(TargetDescriptor.ProjectFile, TargetDescriptor.Name, TargetDescriptor.Platform, Makefiles[TargetIdx].TargetType, TargetDescriptor.Architecture);
 					}
 
 					// Plan the actions to execute for the build. For single file compiles, always rebuild the source file regardless of whether it's out of date.
@@ -428,7 +435,7 @@ namespace UnrealBuildTool
 
 				// Save all the action histories now that files have been removed. We have to do this after deleting produced items to ensure that any
 				// items created during the build don't have the wrong command line.
-				ActionHistory.SaveAll();
+				History.Save();
 
 				// Create directories for the outdated produced items.
 				ActionGraph.CreateDirectoriesForProducedItems(MergedActionsToExecute);

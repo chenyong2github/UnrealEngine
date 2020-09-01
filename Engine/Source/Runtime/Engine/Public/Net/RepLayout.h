@@ -144,10 +144,10 @@ public:
  * TODO: This class (and arguably IRepChangedPropertyTracker) should be renamed to reflect
  *			what they actually do now.
  */
+PRAGMA_DISABLE_DEPRECATION_WARNINGS	// IsReplay()
 class FRepChangedPropertyTracker : public IRepChangedPropertyTracker
 {
 public:
-
 	FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording);
 
 	virtual ~FRepChangedPropertyTracker();
@@ -179,7 +179,7 @@ public:
 	virtual void SetExternalData(const uint8* Src, const int32 NumBits) override;
 
 	/** Whether or not this is being used for a replay (may be recording or playback). */
-	virtual bool IsReplay() const override;
+	virtual bool IsReplay() const override { return bIsReplay; }
 
 	virtual void CountBytes(FArchive& Ar) const override;
 	//~ End IRepChangedPropertyTracker Interface
@@ -188,14 +188,17 @@ public:
 	TArray<FRepChangedParent>	Parents;
 
 	/** Whether or not this is being used for a replay (may be recording or playback). */
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	bool bIsReplay;
 
 	/** Whether or not this is being used for a client replay recording. */
+	UE_DEPRECATED(4.26, "Will be removed in a future release.")
 	bool bIsClientReplayRecording;
 
 	TArray<uint8> ExternalData;
 	uint32 ExternalDataNumBits;
 };
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 class FRepLayout;
 class FRepLayoutCmd;

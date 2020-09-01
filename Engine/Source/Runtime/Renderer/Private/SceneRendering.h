@@ -46,9 +46,12 @@ class FRaytracingLightDataPacked;
 class FRayTracingLocalShaderBindingWriter;
 struct FExposureBufferData;
 struct FCloudRenderContext;
+struct FSingleLayerWaterPassData;
 class FVirtualShadowMapClipmap;
 
 DECLARE_STATS_GROUP(TEXT("Command List Markers"), STATGROUP_CommandListMarkers, STATCAT_Advanced);
+
+DECLARE_GPU_DRAWCALL_STAT_EXTERN(VirtualTextureUpdate);
 
 
 /** Mobile only. Information used to determine whether static meshes will be rendered with CSM shaders or not. */
@@ -692,6 +695,14 @@ struct FVolumetricMeshBatch
 	const FPrimitiveSceneProxy* Proxy;
 };
 
+struct FSkyMeshBatch
+{
+	const FMeshBatch* Mesh;
+	const FPrimitiveSceneProxy* Proxy;
+	bool bVisibleInMainPass : 1;
+	bool bVisibleInRealTimeSkyCapture : 1;
+};
+
 struct FMeshDecalBatch
 {
 	const FMeshBatch* Mesh;
@@ -936,6 +947,24 @@ struct FRayTracingMeshBatchWorkItem
 	FPrimitiveSceneProxy* SceneProxy;
 	uint32 InstanceIndex;
 };
+
+/** Convenience struct for all lighting data used by ray tracing effects using RayTracingLightingCommon.ush */
+struct FRayTracingLightData
+{
+	/** Uniform buffer with all lighting data */
+	TUniformBufferRef<FRaytracingLightDataPacked>	UniformBuffer;
+
+	/** Structured buffer containing all light data */
+	FStructuredBufferRHIRef							LightBuffer;
+	FShaderResourceViewRHIRef						LightBufferSRV;
+
+	/** Buffer of light indices reference by the culling volume */
+	FRWBuffer										LightIndices;
+
+	/** Camera-centered volume used to cull lights to cells */
+	FStructuredBufferRHIRef							LightCullVolume;
+	FShaderResourceViewRHIRef						LightCullVolumeSRV;
+};
 #endif
 
 /** A FSceneView with additional state used by the scene renderer. */
@@ -963,6 +992,9 @@ public:
 
 	/** A map from primitive ID to a boolean is fading value. */
 	FSceneBitArray PotentiallyFadingPrimitiveMap;
+
+	/** A map from primitive ID to a boolean is distance culled */
+	FSceneBitArray DistanceCullingPrimitiveMap;
 
 	/** Primitive fade uniform buffers, indexed by packed primitive index. */
 	TArray<FRHIUniformBuffer*,SceneRenderingAllocator> PrimitiveFadeUniformBuffers;
@@ -1025,7 +1057,7 @@ public:
 	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> VolumetricMeshBatches;
 
 	/** Mesh batches with a sky material. */
-	TArray<FVolumetricMeshBatch, SceneRenderingAllocator> SkyMesheBatches;
+	TArray<FSkyMeshBatch, SceneRenderingAllocator> SkyMeshBatches;
 
 	/** A map from light ID to a boolean visibility value. */
 	TArray<FVisibleLightViewInfo,SceneRenderingAllocator> VisibleLightInfos;
@@ -1276,9 +1308,7 @@ public:
 	// Common resources used for lighting in ray tracing effects
 	TRefCountPtr<IPooledRenderTarget>				RayTracingSubSurfaceProfileTexture;
 	FShaderResourceViewRHIRef						RayTracingSubSurfaceProfileSRV;
-	FStructuredBufferRHIRef							RayTracingLightingDataBuffer;
-	TUniformBufferRef<FRaytracingLightDataPacked>	RayTracingLightingDataUniformBuffer;
-	FShaderResourceViewRHIRef						RayTracingLightingDataSRV;
+	FRayTracingLightData							RayTracingLightData;
 
 #endif // RHI_RAYTRACING
 
@@ -1905,7 +1935,7 @@ protected:
 	/** Initialise volumetric cloud resources.*/
 	void InitVolumetricCloudsForViews(FRHICommandListImmediate& RHICmdList);
 	/** Render volumetric cloud. */
-	void RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList);
+	void RenderVolumetricCloud(FRHICommandListImmediate& RHICmdList, bool bSkipVolumetricRenderTarget, bool bSkipPerPixelTracing);
 
 	/** Render notification to artist when a sky material is used but it might comtains the camera (and then the sky/background would look black).*/
 	void RenderSkyAtmosphereEditorNotifications(FRHICommandListImmediate& RHICmdList);
@@ -1918,11 +1948,18 @@ protected:
 	void ReconstructVolumetricRenderTarget(FRHICommandListImmediate& RHICmdList);
 	/** Compose the volumetric render target over the scene.*/
 	void ComposeVolumetricRenderTargetOverScene(FRHICommandListImmediate& RHICmdList);
+	/** Compose the volumetric render target over the scene from a view under water, in the water render target.*/
+	void ComposeVolumetricRenderTargetOverSceneUnderWater(FRHICommandListImmediate& RHICmdList, FSingleLayerWaterPassData& WaterPassData);
 
 	void ResolveSceneColor(FRHICommandList& RHICmdList);
 
 private:
 	void ComputeFamilySize();
+
+#if !UE_BUILD_SHIPPING
+	/** Dump all UPrimitiveComponents in the Scene to a CSV file */
+	void DumpPrimitives(const FViewCommands& ViewCommands);
+#endif
 };
 
 /**

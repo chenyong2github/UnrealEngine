@@ -70,7 +70,8 @@ struct FMemoryImageResult
 {
 	TArray<uint8> Bytes;
 	TArray<FMemoryImageVTablePointer> VTables;
-	TArray<FMemoryImageNamePointer> Names;
+	TArray<FMemoryImageNamePointer> ScriptNames;
+	TArray<FMemoryImageNamePointer> MinimalNames;
 
 	CORE_API void SaveToArchive(FArchive& Ar) const;
 	CORE_API void ApplyPatches(void* FrozenObject) const;
@@ -126,6 +127,8 @@ public:
 	uint32 WriteRawPointerSizedBytes(uint64 PointerValue);
 	uint32 WriteVTable(const FTypeLayoutDesc& TypeDesc, const FTypeLayoutDesc& DerivedTypeDesc);
 	uint32 WriteFName(const FName& Name);
+	uint32 WriteFMinimalName(const FMinimalName& Name);
+	uint32 WriteFScriptName(const FScriptName& Name);
 	uint32 Flatten(FMemoryImageResult& OutResult) const;
 
 	void ComputeHash();
@@ -135,7 +138,8 @@ public:
 	TArray<uint8> Bytes;
 	TArray<FSectionPointer> Pointers;
 	TArray<FMemoryImageVTablePointer> VTables;
-	TArray<FMemoryImageNamePointer> Names;
+	TArray<FMemoryImageNamePointer> ScriptNames;
+	TArray<FMemoryImageNamePointer> MinimalNames;
 	FSHAHash Hash;
 	uint32 MaxAlignment;
 };

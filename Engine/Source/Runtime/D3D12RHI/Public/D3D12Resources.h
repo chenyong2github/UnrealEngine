@@ -9,6 +9,11 @@
 #include "BoundShaderStateCache.h"
 #include "D3D12ShaderResources.h"
 
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+constexpr D3D12_RESOURCE_STATES BackBufferBarrierWriteTransitionTargets = D3D12_RESOURCE_STATE_RENDER_TARGET | D3D12_RESOURCE_STATE_UNORDERED_ACCESS |
+	D3D12_RESOURCE_STATE_STREAM_OUT | D3D12_RESOURCE_STATE_COPY_DEST | D3D12_RESOURCE_STATE_RESOLVE_DEST;
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
 // Forward Decls
 class FD3D12Resource;
 class FD3D12StateCacheBase;
@@ -119,9 +124,12 @@ private:
 	D3D12_RESOURCE_STATES CompressedState;
 #endif
 
-	bool bRequiresResourceStateTracking;
-	bool bDepthStencil;
-	bool bDeferDelete;
+	bool bRequiresResourceStateTracking : 1;
+	bool bDepthStencil : 1;
+	bool bDeferDelete : 1;
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	bool bBackBuffer : 1;
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	D3D12_HEAP_TYPE HeapType;
 	D3D12_GPU_VIRTUAL_ADDRESS GPUVirtualAddress;
 	void* ResourceBaseAddress;
@@ -196,6 +204,10 @@ public:
 	void SetCompressedState(D3D12_RESOURCE_STATES State) { CompressedState = State; }
 #endif
 	bool RequiresResourceStateTracking() const { return bRequiresResourceStateTracking; }
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	inline bool IsBackBuffer() const { return bBackBuffer; }
+	inline void SetIsBackBuffer(bool bBackBufferIn) { bBackBuffer = bBackBufferIn; }
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 	void SetName(const TCHAR* Name)
 	{
@@ -1017,7 +1029,7 @@ public:
 	}
 
 	// Add a transition resource barrier to the batch. Returns the number of barriers added, which may be negative if an existing barrier was cancelled.
-	int32 AddTransition(ID3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
+	int32 AddTransition(FD3D12Resource* pResource, D3D12_RESOURCE_STATES Before, D3D12_RESOURCE_STATES After, uint32 Subresource)
 	{
 		check(Before != After);
 
@@ -1028,7 +1040,7 @@ public:
 			// Instead of ping-ponging that underlying resource between COPY_DEST and GENERIC_READ, several copies can happen without a ResourceBarrier() in between.
 			// Doing this check also eliminates a D3D debug layer warning about multiple transitions of the same subresource.
 			const D3D12_RESOURCE_BARRIER& Last = Barriers.Last();
-			if (pResource == Last.Transition.pResource &&
+			if (pResource->GetResource() == Last.Transition.pResource &&
 				Subresource == Last.Transition.Subresource &&
 				Before == Last.Transition.StateAfter &&
 				After  == Last.Transition.StateBefore &&
@@ -1041,14 +1053,26 @@ public:
 
 		check(IsValidD3D12ResourceState(Before) && IsValidD3D12ResourceState(After));
 
-		Barriers.AddUninitialized();
-		D3D12_RESOURCE_BARRIER& Barrier = Barriers.Last();
-		Barrier.Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
-		Barrier.Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
-		Barrier.Transition.StateBefore = Before;
-		Barrier.Transition.StateAfter = After;
-		Barrier.Transition.Subresource = Subresource;
-		Barrier.Transition.pResource = pResource;
+		D3D12_RESOURCE_BARRIER* Barrier = nullptr;
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+		if (pResource->IsBackBuffer() && (After & BackBufferBarrierWriteTransitionTargets))
+		{
+			BackBufferBarriers.AddUninitialized();
+			Barrier = &BackBufferBarriers.Last();
+		}
+		else
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+		{
+			Barriers.AddUninitialized();
+			Barrier = &Barriers.Last();
+		}
+
+		Barrier->Type = D3D12_RESOURCE_BARRIER_TYPE_TRANSITION;
+		Barrier->Flags = D3D12_RESOURCE_BARRIER_FLAG_NONE;
+		Barrier->Transition.StateBefore = Before;
+		Barrier->Transition.StateAfter = After;
+		Barrier->Transition.Subresource = Subresource;
+		Barrier->Transition.pResource = pResource->GetResource();
 		return 1;
 	}
 
@@ -1063,39 +1087,18 @@ public:
 	}
 
 	// Flush the batch to the specified command list then reset.
-	void Flush(ID3D12GraphicsCommandList* pCommandList)
-	{
-		if (Barriers.Num())
-		{
-			check(pCommandList);
-#if USE_PIX && PLATFORM_XBOXONE 
-			//there was a bug in the instrumented driver that corrupts the cmdBuffer if more than 2000 Barrieres are submitted at once
-			if (Barriers.Num() > 1900)
-			{
-				int Num = Barriers.Num();
-				D3D12_RESOURCE_BARRIER* Ptr = Barriers.GetData();
-				while (Num > 0)
-				{
-					int DispatchNum = FMath::Min(Num, 1900);
-					pCommandList->ResourceBarrier(DispatchNum, Ptr);
-					Ptr += 1900;
-					Num -= 1900;
-				}
-			}
-			else
-#endif
-			{
-				pCommandList->ResourceBarrier(Barriers.Num(), Barriers.GetData());
-			}
-			Reset();
-		}
-	}
+	void Flush(FD3D12Device* Device, ID3D12GraphicsCommandList* pCommandList, int32 BarrierBatchMax);
 
 	// Clears the batch.
 	void Reset()
 	{
-		Barriers.SetNumUnsafeInternal(0);	// Reset the array without shrinking (Does not destruct items, does not de-allocate memory).
+		// Reset the arrays without shrinking (Does not destruct items, does not de-allocate memory).
+		Barriers.SetNumUnsafeInternal(0);
 		check(Barriers.Num() == 0);
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+		BackBufferBarriers.SetNumUnsafeInternal(0);
+		check(BackBufferBarriers.Num() == 0);
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	}
 
 	const TArray<D3D12_RESOURCE_BARRIER>& GetBarriers() const
@@ -1103,8 +1106,18 @@ public:
 		return Barriers;
 	}
 
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	const TArray<D3D12_RESOURCE_BARRIER>& GetBackBufferBarriers() const
+	{
+		return BackBufferBarriers;
+	}
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
 private:
 	TArray<D3D12_RESOURCE_BARRIER> Barriers;
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+	TArray<D3D12_RESOURCE_BARRIER> BackBufferBarriers;
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 };
 
 class FD3D12StagingBuffer final : public FRHIStagingBuffer

@@ -1127,6 +1127,23 @@ namespace UnrealBuildTool
 								}
 							}
 						}
+
+						// Check for LLVM_PATH environment variable.
+						string LLVMPath = Environment.GetEnvironmentVariable("LLVM_PATH");
+						if (!String.IsNullOrEmpty(LLVMPath))
+						{
+							DirectoryReference LLVMPathDir = new DirectoryReference(LLVMPath);
+							if (IsValidToolChainDirClang(LLVMPathDir))
+							{
+								FileReference CompilerFile = FileReference.Combine(LLVMPathDir, "bin", "clang-cl.exe");
+								if (FileReference.Exists(CompilerFile))
+								{
+									FileVersionInfo VersionInfo = FileVersionInfo.GetVersionInfo(CompilerFile.FullName);
+									VersionNumber Version = new VersionNumber(VersionInfo.FileMajorPart, VersionInfo.FileMinorPart, VersionInfo.FileBuildPart);
+									ToolChainInstallations[Version] = new ToolChainInstallation(LLVMPathDir, false);
+								}
+							}
+						}
 					}
 					else if(Compiler == WindowsCompiler.Intel)
 					{

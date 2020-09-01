@@ -16,6 +16,7 @@
 #include "Math/Vector.h"
 #include "Misc/EmbeddedCommunication.h"
 #include "Async/TaskGraphInterfaces.h"
+#include "Android/AndroidStats.h"
 
 THIRD_PARTY_INCLUDES_START
 #include <android/asset_manager.h>
@@ -157,6 +158,11 @@ void FJavaWrapper::FindClassesAndMethods(JNIEnv* Env)
 	SetNameMethod = FindMethod(Env, ThreadClass, "setName", "(Ljava/lang/String;)V", bIsOptional);
 
 	AndroidThunkJava_RestartApplication = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_RestartApplication", "(Ljava/lang/String;)V", bIsOptional);
+
+	// display refresh rates
+	AndroidThunkJava_GetNativeDisplayRefreshRate = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetNativeDisplayRefreshRate", "()I", bIsOptional);
+	AndroidThunkJava_SetNativeDisplayRefreshRate = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_SetNativeDisplayRefreshRate", "(I)Z", bIsOptional);
+	AndroidThunkJava_GetSupportedNativeDisplayRefreshRates = FindMethod(Env, GameActivityClassID, "AndroidThunkJava_GetSupportedNativeDisplayRefreshRates", "()[I", bIsOptional);
 
 	// the rest are optional
 	bIsOptional = true;
@@ -444,6 +450,10 @@ jmethodID FJavaWrapper::AndroidThunkJava_SetDesiredViewSize;
 jmethodID FJavaWrapper::AndroidThunkJava_VirtualInputIgnoreClick;
 
 jmethodID FJavaWrapper::AndroidThunkJava_RestartApplication;
+
+jmethodID FJavaWrapper::AndroidThunkJava_GetSupportedNativeDisplayRefreshRates;
+jmethodID FJavaWrapper::AndroidThunkJava_GetNativeDisplayRefreshRate;
+jmethodID FJavaWrapper::AndroidThunkJava_SetNativeDisplayRefreshRate;
 
 jclass FJavaWrapper::LaunchNotificationClass;
 jfieldID FJavaWrapper::LaunchNotificationUsed;
@@ -1743,6 +1753,51 @@ FString AndroidThunkCpp_ClipboardPaste()
     return PasteStringResult;
 }
 
+TArray<int32> AndroidThunkCpp_GetSupportedNativeDisplayRefreshRates()
+{
+	TArray<int32> Result;
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		jintArray JavaIntArray = (jintArray)FJavaWrapper::CallObjectMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_GetSupportedNativeDisplayRefreshRates);
+		if (JavaIntArray != nullptr)
+		{
+			jint* JavaInts = Env->GetIntArrayElements(JavaIntArray, 0);
+			if (JavaInts)
+			{
+				jsize IntsLen = Env->GetArrayLength(JavaIntArray);
+				Result.Empty(IntsLen);
+				for (int32 Idx = 0; Idx < IntsLen; Idx++)
+				{
+					Result.Add(JavaInts[Idx]);
+				}
+				Env->ReleaseIntArrayElements(JavaIntArray, JavaInts, 0);
+			}
+			Env->DeleteLocalRef(JavaIntArray);
+		}
+	}
+	return Result;
+}
+
+bool AndroidThunkCpp_SetNativeDisplayRefreshRate(int32 RefreshRate)
+{
+	bool Result = false;
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		Result = FJavaWrapper::CallBooleanMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_SetNativeDisplayRefreshRate, RefreshRate);
+	}
+	return Result;
+}
+
+int32 AndroidThunkCpp_GetNativeDisplayRefreshRate()
+{
+	int32 Result = 60;
+	if (JNIEnv* Env = FAndroidApplication::GetJavaEnv())
+	{
+		Result = FJavaWrapper::CallIntMethod(Env, FJavaWrapper::GameActivityThis, FJavaWrapper::AndroidThunkJava_GetNativeDisplayRefreshRate);
+	}
+	return Result;
+}
+
 JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnSafetyNetAttestationSucceeded(JNIEnv* jenv, jobject thiz, jstring jwsData)
 {
 	FString JwsString = FJavaHelper::FStringFromParam(jenv, jwsData);
@@ -1974,6 +2029,16 @@ JNI_METHOD void Java_com_epicgames_ue4_NativeCalls_RouteServiceIntent(JNIEnv* je
 			FJavaWrapper::OnRouteServiceIntentDelegate.Broadcast(Action, Payload);
 		}, TStatId(), NULL, ENamedThreads::GameThread);
 	}
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnThermalStatusChangedListener(JNIEnv* jenv, jobject thiz, jint status)
+{
+	FAndroidStats::OnThermalStatusChanged(status);
+}
+
+JNI_METHOD void Java_com_epicgames_ue4_GameActivity_nativeOnMemoryWarningChanged(JNIEnv* jenv, jobject thiz, jint status)
+{
+	FAndroidStats::OnMemoryWarningChanged(status);
 }
 
 class FAndroidEmbeddedExec : public FSelfRegisteringExec

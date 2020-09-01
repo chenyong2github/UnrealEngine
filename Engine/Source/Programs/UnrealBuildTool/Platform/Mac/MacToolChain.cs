@@ -225,7 +225,7 @@ namespace UnrealBuildTool
 			Result += " -c";
 
 			// Pass through the list of architectures			
-			Result += string.Format(" -arch {0}", string.Join(" ", Architectures));				
+			Result += string.Format(" -arch {0}", string.Join(" -arch ", Architectures));				
 
 			Result += " -isysroot " + Settings.BaseSDKDir + "/MacOSX" + Settings.MacOSSDKVersion + ".sdk";
 			Result += " -mmacosx-version-min=" + (CompileEnvironment.bEnableOSX109Support ? "10.9" : Settings.MacOSVersion);

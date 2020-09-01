@@ -57,7 +57,7 @@ struct FParametricInputCmd
 	{
 		if (PlayRate.IsSet())
 		{
-			Out.Appendf("PlatRate: %.2f\n");
+			Out.Appendf("PlatRate: %.2f\n", PlayRate.GetValue());
 		}
 		else
 		{
@@ -153,6 +153,7 @@ public:
 
 	void InitializeSimulationState(FParametricSyncState* SyncState, FParametricAuxState* AuxState);
 	void ProduceInput(const int32 SimTimeMS, FParametricInputCmd* Cmd);
+	void RestoreFrame(const FParametricSyncState* SyncState, const FParametricAuxState* AuxState);
 	void FinalizeFrame(const FParametricSyncState* SyncState, const FParametricAuxState* AuxState);
 
 	UFUNCTION(BlueprintCallable, Category="Networking")

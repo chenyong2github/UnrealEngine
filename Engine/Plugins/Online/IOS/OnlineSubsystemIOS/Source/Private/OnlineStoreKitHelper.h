@@ -14,6 +14,7 @@
 
 #include "OnlineSubsystemTypes.h"
 #include "OnlineStoreIOS.h"
+#include "IOS/IOSPaymentTransactionObserver.h"
 
 /**
  * Holds in a common format the data that comes out of an SKPaymentTransaction
@@ -132,7 +133,7 @@ typedef FOnProductsRequestResponse::FDelegate FOnProductsRequestResponseDelegate
  * Helper class, which allows us to manage IAP product information requests, AND transactions
  * (legacy version, used by OnlineStoreInterface.h, mutually exclusive with FStoreKitHelperV2)
  */
-@interface FStoreKitHelper : NSObject<SKProductsRequestDelegate, SKPaymentTransactionObserver, SKRequestDelegate>
+@interface FStoreKitHelper : NSObject<SKProductsRequestDelegate, SKRequestDelegate, FPaymentTransactionObserverEventReceivedDelegate>
 {
 };
 
@@ -140,6 +141,9 @@ typedef FOnProductsRequestResponse::FDelegate FOnProductsRequestResponseDelegate
 @property (nonatomic, strong) SKRequest *Request;
 /** collection of available products attaced through a store kit request */
 @property (nonatomic, strong) NSArray *AvailableProducts;
+
+/** Pump any events that are enqueued on the observer. */
+-(void)pumpObserverEventQueue;
 
 /** Helper fn to start a store kit purchase request */
 -(void)makePurchase:(NSMutableSet*)productIDs;

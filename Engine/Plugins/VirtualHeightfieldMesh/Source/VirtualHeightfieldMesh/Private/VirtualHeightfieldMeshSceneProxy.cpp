@@ -4,6 +4,7 @@
 
 #include "CommonRenderResources.h"
 #include "EngineModule.h"
+#include "Engine/Engine.h"
 #include "GlobalShader.h"
 #include "HAL/IConsoleManager.h"
 #include "Materials/Material.h"
@@ -14,11 +15,6 @@
 #include "VirtualHeightfieldMeshVertexFactory.h"
 #include "VT/RuntimeVirtualTexture.h"
 #include "VT/VirtualTextureFeedbackBuffer.h"
-
-//#include "ShaderPrintParameters.h"
-//#include "GpuDebugRendering.h"
-
-PRAGMA_DISABLE_OPTIMIZATION
 
 DECLARE_STATS_GROUP(TEXT("Virtual Heightfield Mesh"), STATGROUP_VirtualHeightfieldMesh, STATCAT_Advanced);
 
@@ -32,17 +28,38 @@ static TAutoConsoleVariable<float> CVarVHMLodScale(
 	ECVF_RenderThreadSafe
 );
 
-static TAutoConsoleVariable<int32> CVarVHMFixCullingCamera(
-	TEXT("r.VHM.FixCullingCamera"),
-	0,
-	TEXT("Disable update of Virtual Heightfield Mesh culling camera."),
-	ECVF_RenderThreadSafe
-);
-
 static TAutoConsoleVariable<int32> CVarVHMOcclusion(
 	TEXT("r.VHM.Occlusion"),
 	1,
 	TEXT("Enable occlusion queries."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarVHMMaxRenderItems(
+	TEXT("r.VHM.MaxRenderInstances"),
+	1024 * 4,
+	TEXT("Size of buffers used to collect render instances."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarVHMMaxFeedbackItems(
+	TEXT("r.VHM.MaxFeedbackItems"),
+	1024,
+	TEXT("Size of buffer used by virtual texture feedback."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarVHMMaxPersistentQueueItems(
+	TEXT("r.VHM.MaxPersistentQueueItems"),
+	1024 * 4,
+	TEXT("Size of queue used in the collect pass. This is rounded to the nearest power of 2."),
+	ECVF_RenderThreadSafe
+);
+
+static TAutoConsoleVariable<int32> CVarVHMCollectPassWavefronts(
+	TEXT("r.VHM.CollectPassWavefronts"),
+	16,
+	TEXT("Number of wavefronts to use for collect pass."),
 	ECVF_RenderThreadSafe
 );
 
@@ -103,8 +120,25 @@ struct FOcclusionResultsKey
 /** */
 TMap< FOcclusionResultsKey, FOcclusionResults > GOcclusionResults;
 
+namespace VirtualHeightfieldMesh
+{
+	/** Calculate distances used for LODs in a given view for a given scene proxy. */
+	FVector4 CalculateLodRanges(FSceneView const* InView, FVirtualHeightfieldMeshSceneProxy const* InProxy)
+	{
+		const uint32 MaxLevel = InProxy->AllocatedVirtualTexture->GetMaxLevel();
+		const float Lod0UVSize = 1.f / (float)(1 << MaxLevel);
+		const FVector2D Lod0WorldSize = FVector2D(InProxy->UVToWorldScale.X, InProxy->UVToWorldScale.Y) * Lod0UVSize;
+		const float Lod0WorldRadius = Lod0WorldSize.Size();
+		const float ScreenMultiple = FMath::Max(0.5f * InView->ViewMatrices.GetProjectionMatrix().M[0][0], 0.5f * InView->ViewMatrices.GetProjectionMatrix().M[1][1]);
+		const float Lod0Distance = Lod0WorldRadius * ScreenMultiple / InProxy->Lod0ScreenSize;
+		const float LodScale = InView->LODDistanceFactor * CVarVHMLodScale.GetValueOnRenderThread();
+		
+		return FVector4(Lod0Distance, InProxy->Lod0Distribution, InProxy->LodDistribution, LodScale);
+	}
+}
+
 /** Renderer extension to manage the buffer pool and add hooks for GPU culling passes. */
-class FVirtualHeightfieldMeshRendererExtension : public IPersistentViewUniformBufferExtension
+class FVirtualHeightfieldMeshRendererExtension : public FRenderResource
 {
 public:
 	FVirtualHeightfieldMeshRendererExtension()
@@ -124,12 +158,16 @@ public:
 	void SubmitWork(FRHICommandListImmediate& InRHICmdList);
 
 protected:
-	//~ Begin IPersistentViewUniformBufferExtension Interface
-	virtual void BeginFrame() override;
-	virtual void EndFrame() override;
-	//~ End IPersistentViewUniformBufferExtension Interface
+	//~ Begin FRenderResource Interface
+	virtual void ReleaseRHI() override;
+	//~ End FRenderResource Interface
 
 private:
+	/** Called by renderer at start of render frame. */
+	void BeginFrame();
+	/** Called by renderer at end of render frame. */
+	void EndFrame();
+
 	/** Flag for frame validation. */
 	bool bInFrame;
 
@@ -174,17 +212,23 @@ private:
 	};
 };
 
-/** Single global instance of the VirtualHeightfieldMesh extension. */
-FVirtualHeightfieldMeshRendererExtension GVirtualHeightfieldMeshViewUniformBufferExtension;
+/** Single global instance of the VirtualHeightfieldMesh renderer extension. */
+TGlobalResource< FVirtualHeightfieldMeshRendererExtension > GVirtualHeightfieldMeshViewRendererExtension;
 
 void FVirtualHeightfieldMeshRendererExtension::RegisterExtension()
 {
 	static bool bInit = false;
 	if (!bInit)
 	{
-		GetRendererModule().RegisterPersistentViewUniformBufferExtension(this);
+		GEngine->GetPreRenderDelegate().AddRaw(this, &FVirtualHeightfieldMeshRendererExtension::BeginFrame);
+		GEngine->GetPostRenderDelegate().AddRaw(this, &FVirtualHeightfieldMeshRendererExtension::EndFrame);
 		bInit = true;
 	}
+}
+
+void FVirtualHeightfieldMeshRendererExtension::ReleaseRHI()
+{
+	Buffers.Empty();
 }
 
 VirtualHeightfieldMesh::FDrawInstanceBuffers& FVirtualHeightfieldMeshRendererExtension::AddWork(FVirtualHeightfieldMeshSceneProxy const* InProxy, FSceneView const* InMainView, FSceneView const* InCullView)
@@ -256,7 +300,7 @@ void FVirtualHeightfieldMeshRendererExtension::BeginFrame()
 
 void FVirtualHeightfieldMeshRendererExtension::EndFrame()
 {
-	check(bInFrame);
+	ensure(bInFrame);
 	bInFrame = false;
 
 	SceneProxies.Reset();
@@ -294,19 +338,29 @@ FVirtualHeightfieldMeshSceneProxy::FVirtualHeightfieldMeshSceneProxy(UVirtualHei
 	, bCallbackRegistered(false)
 	, NumQuadsPerTileSide(0)
 	, VertexFactory(nullptr)
-	, LODScale(InComponent->GetLODDistanceScale())
+	, Lod0ScreenSize(InComponent->GetLod0ScreenSize())
+	, Lod0Distribution(InComponent->GetLod0Distribution())
+	, LodDistribution(InComponent->GetLodDistribution())
+	, NumSubdivisionLODs(InComponent->GetNumSubdivisionLods())
+	, NumTailLods(InComponent->GetNumTailLods())
 	, OcclusionData(InComponent->GetOcclusionData())
 	, NumOcclusionLods(InComponent->GetNumOcclusionLods())
 	, OcclusionGridSize(0, 0)
 {
-	GVirtualHeightfieldMeshViewUniformBufferExtension.RegisterExtension();
+	GVirtualHeightfieldMeshViewRendererExtension.RegisterExtension();
 
 	const bool bValidMaterial = InComponent->GetMaterial(0) != nullptr && InComponent->GetMaterial(0)->CheckMaterialUsage_Concurrent(MATUSAGE_VirtualHeightfieldMesh);
 	Material = bValidMaterial ? InComponent->GetMaterial(0)->GetRenderProxy() : UMaterial::GetDefaultMaterial(MD_Surface)->GetRenderProxy();
 
-	UVToWorld = GetLocalToWorld();
+	const FTransform VirtualTextureTransform = InComponent->GetVirtualTextureTransform();
+
+	UVToWorldScale = VirtualTextureTransform.GetScale3D();
+	UVToWorld = VirtualTextureTransform.ToMatrixWithScale();
+
 	WorldToUV = UVToWorld.Inverse();
 	WorldToUVTransposeAdjoint = WorldToUV.TransposeAdjoint();
+
+	UVToLocal = UVToWorld * GetLocalToWorld().Inverse();
 
 	BuildOcclusionVolumes();
 }
@@ -324,11 +378,9 @@ uint32 FVirtualHeightfieldMeshSceneProxy::GetMemoryFootprint() const
 
 void FVirtualHeightfieldMeshSceneProxy::OnTransformChanged()
 {
-	UVToWorld = GetLocalToWorld();
-	WorldToUV = UVToWorld.Inverse();
-	WorldToUVTransposeAdjoint = WorldToUV.TransposeAdjoint();
+	UVToLocal = UVToWorld * GetLocalToWorld().Inverse();
 
-	BuildOcclusionVolumes();
+	// BuildOcclusionVolumes();
 }
 
 void FVirtualHeightfieldMeshSceneProxy::CreateRenderThreadResources()
@@ -401,7 +453,7 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 	{
 		if (VisibilityMap & (1 << ViewIndex))
 		{
-			VirtualHeightfieldMesh::FDrawInstanceBuffers& Buffers = GVirtualHeightfieldMeshViewUniformBufferExtension.AddWork(this, ViewFamily.Views[0], Views[ViewIndex]);
+			VirtualHeightfieldMesh::FDrawInstanceBuffers& Buffers = GVirtualHeightfieldMeshViewRendererExtension.AddWork(this, ViewFamily.Views[0], Views[ViewIndex]);
 
 			FMeshBatch& Mesh = Collector.AllocateMesh();
 			Mesh.bWireframe = AllowDebugViewmodes() && ViewFamily.EngineShowFlags.Wireframe;
@@ -430,15 +482,36 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				BatchElement.MaxVertexIndex = 0;
 
 				FVirtualHeightfieldMeshUserData* UserData = &Collector.AllocateOneFrameResource<FVirtualHeightfieldMeshUserData>();
-				UserData->InstanceBufferSRV = Buffers.InstanceBufferSRV;
-				UserData->HeightPhysicalTexture = AllocatedVirtualTexture->GetPhysicalTexture(0);
-				UserData->PageTableSize = FIntPoint(AllocatedVirtualTexture->GetWidthInTiles(), AllocatedVirtualTexture->GetHeightInTiles());
-				UserData->LocalToWorld = GetLocalToWorld();
 				BatchElement.UserData = (void*)UserData;
 
-				//todo: use primitive buffer
+				UserData->InstanceBufferSRV = Buffers.InstanceBufferSRV;
+				UserData->HeightPhysicalTexture = AllocatedVirtualTexture->GetPhysicalTexture(0);
+
+				const float PageTableSizeX = AllocatedVirtualTexture->GetWidthInTiles();
+				const float PageTableSizeY = AllocatedVirtualTexture->GetHeightInTiles();
+				UserData->PageTableSize = FVector4(PageTableSizeX, PageTableSizeY, 1.f / PageTableSizeX, 1.f / PageTableSizeY);
+
+				UserData->MaxLod = AllocatedVirtualTexture->GetMaxLevel() + NumTailLods;
+				UserData->VirtualHeightfieldToLocal = UVToLocal;
+				UserData->VirtualHeightfieldToWorld = UVToWorld;
+
+				FSceneView const* MainView = ViewFamily.Views[0];
+				
+				UserData->LodViewOrigin = MainView->ViewMatrices.GetViewOrigin();
+
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+				// Support the freezerendering mode. Use any frozen view state for culling.
+				const FViewMatrices* FrozenViewMatrices = MainView->State != nullptr ? MainView->State->GetFrozenViewMatrices() : nullptr;
+				if (FrozenViewMatrices != nullptr)
+				{
+					UserData->LodViewOrigin = FrozenViewMatrices->GetViewOrigin();
+				}
+#endif
+				
+				UserData->LodDistances = VirtualHeightfieldMesh::CalculateLodRanges(MainView, this);
+				
 				BatchElement.PrimitiveIdMode = PrimID_ForceZero;
-				BatchElement.PrimitiveUniformBufferResource = &GIdentityPrimitiveUniformBuffer;
+				BatchElement.PrimitiveUniformBuffer = GetUniformBuffer();
 			}
 			Collector.AddMesh(ViewIndex, Mesh);
 		}
@@ -466,7 +539,7 @@ void FVirtualHeightfieldMeshSceneProxy::BuildOcclusionVolumes()
 
 		OcclusionVolumes.Reserve(OcclusionData.Num());
 
-		const FMatrix Transform = GetLocalToWorld();
+		const FMatrix Transform = UVToWorld;
 
 		int32 OcclusionDataIndex = 0;
 		for (int32 LodIndex = 0; LodIndex < NumOcclusionLods; ++LodIndex)
@@ -543,16 +616,11 @@ void FVirtualHeightfieldMeshSceneProxy::AcceptOcclusionResults(FSceneView const*
 
 namespace VirtualHeightfieldMesh
 {
-	// todo: make these console configurable (or even track per frame and make dynamic)
-	static const int32 MaxRenderItems = 1024 * 4;
-	static const int32 MaxPersistentQueueItems = 1024 * 4;
-	static const int32 MaxFeedbackItems = 1024 * 4;
-
 	/* Keep indirect args offsets in sync with VirtualHeightfieldMesh.usf. */
 	static const int32 IndirectArgsByteOffset_RenderLodMap = 0;
 	static const int32 IndirectArgsByteOffset_FetchNeighborLod = 5 * sizeof(uint32);
-	static const int32 IndirectArgsByteOffset_FinalCull = 9 * sizeof(uint32);
-	static const int32 IndirectArgsByteSize = 13 * sizeof(uint32);
+	static const int32 IndirectArgsByteOffset_FinalCull = 5 * sizeof(uint32);
+	static const int32 IndirectArgsByteSize = 9 * sizeof(uint32);
 
 	/** Shader structure used for tracking work queues in persistent wave style shaders. Keep in sync with VirtualHeightfieldMesh.ush. */
 	struct WorkerQueueInfo
@@ -562,34 +630,12 @@ namespace VirtualHeightfieldMesh
 		int32 NumActive;
 	};
 
-	/** Item description used when traversing the virtual page table quad tree. Keep in sync with VirtualHeightfieldMesh.ush. */
-	struct QuadItem
-	{
-		uint32 Address;
-		uint32 Level;
-	};
-
-	/** Description for items that are kept by the quad tree traversal stage. Keep in sync with VirtualHeightfieldMesh.ush. */
-	struct QuadRenderItem
-	{
-		uint32 Address;
-		uint32 Level;
-		FVector LocalToPhysicalUV;
-		float Lod;
-	};
-
-	/** Description of neighbor items. We fill 4 of these for each QuadRenderItem. Keep in sync with VirtualHeightfieldMesh.ush. */
-	struct QuadNeighborItem
-	{
-		FVector LocalToPhysicalUV;
-		float Lod;
-	};
-
 	/** Final render instance description used by the DrawInstancedIndirect(). Keep in sync with VirtualHeightfieldMesh.ush. */
 	struct QuadRenderInstance
 	{
-		QuadRenderItem Quad;
-		QuadNeighborItem Neighbor[4];
+		uint32 AddressLevelPacked;
+		float UVTransform[3];
+		float NeigborUVTransform[4][3];
 	};
 
 	/** Compute shader to initialize all buffers, including adding the lowest mip page(s) to the QuadBuffer. */
@@ -600,16 +646,17 @@ namespace VirtualHeightfieldMesh
 		SHADER_USE_PARAMETER_STRUCT(FInitBuffersCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER(FVector, PageTableSize)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadRenderItem>, RWQuadBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWFeedbackBuffer)
+			SHADER_PARAMETER(uint32, MaxLevel)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<WorkerQueueInfo>, RWQueueInfo)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadItem>, RWQueueBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQueueBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWQuadBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWFeedbackBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -623,60 +670,31 @@ namespace VirtualHeightfieldMesh
 		SHADER_USE_PARAMETER_STRUCT(FCollectQuadsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderDrawDebug::FShaderDrawDebugParameters, ShaderDrawParameters)
 			SHADER_PARAMETER_TEXTURE(Texture2D, MinMaxTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, MinMaxTextureSampler)
 			SHADER_PARAMETER_TEXTURE(Texture2D<float>, OcclusionTexture)
 			SHADER_PARAMETER(int32, OcclusionLevelOffset)
 			SHADER_PARAMETER_TEXTURE(Texture2D<uint>, PageTableTexture)
-			SHADER_PARAMETER(FVector, PageTableSize)
-			SHADER_PARAMETER(uint32, PageTableFeedbackId)
-			SHADER_PARAMETER(FMatrix, UVToWorld)
-			SHADER_PARAMETER(FVector, CameraPosition)
-			SHADER_PARAMETER(float, ProjectionScale)
+			SHADER_PARAMETER(FVector4, PageTableSize)
+			SHADER_PARAMETER(FVector4, LodDistances)
+			SHADER_PARAMETER(FVector, ViewOrigin)
 			SHADER_PARAMETER_ARRAY(FVector4, FrustumPlanes, [5])
-			SHADER_PARAMETER(float, LodThreshold)
-			SHADER_PARAMETER(FUintVector4, PageTablePackedUniform)
+			SHADER_PARAMETER(FMatrix, UVToWorld)
+			SHADER_PARAMETER(FVector, UVToWorldScale)
+			SHADER_PARAMETER(uint32, QueueBufferSizeMask)
 			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<WorkerQueueInfo>, RWQueueInfo)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadItem>, RWQueueBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadRenderItem>, RWQuadBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWFeedbackBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQueueBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint2>, RWQuadBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
-		}
-
-		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-		{
-			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-			OutEnvironment.SetDefine(TEXT("COMPUTE_SHADER"), 1);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
 	IMPLEMENT_GLOBAL_SHADER(FCollectQuadsCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "CollectQuadsCS", SF_Compute);
-
-	/** Compute shader to build indirect args buffer used by subsequent LOD and culling steps. */
-	class FBuildIndirectArgsForLodAndCullCS : public FGlobalShader
-	{
-	public:
-		DECLARE_GLOBAL_SHADER(FBuildIndirectArgsForLodAndCullCS);
-		SHADER_USE_PARAMETER_STRUCT(FBuildIndirectArgsForLodAndCullCS, FGlobalShader);
-
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<QuadRenderItem>, QuadBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWIndirectArgsBuffer)
-		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
-		{
-			return RHISupportsComputeShaders(Parameters.Platform);
-		}
-	};
-
-	IMPLEMENT_GLOBAL_SHADER(FBuildIndirectArgsForLodAndCullCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "BuildIndirectArgsForLodAndCullCS", SF_Compute);
 
 	/** Shader that draws to a render target the Lod info for the quads output by the Collect pass. */
 	class FRenderLodMap : public FGlobalShader
@@ -686,14 +704,14 @@ namespace VirtualHeightfieldMesh
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 			RENDER_TARGET_BINDING_SLOTS()
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<QuadRenderItem>, QuadBuffer)
-			SHADER_PARAMETER(FVector, PageTableSize)
+			SHADER_PARAMETER(FVector4, PageTableSize)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, QuadBuffer)
 			SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return true;
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
@@ -730,30 +748,31 @@ namespace VirtualHeightfieldMesh
 	IMPLEMENT_GLOBAL_SHADER(FRenderLodMapPS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "RenderLodMapPS", SF_Pixel);
 
 	/** */
-	class FReadNeighborLodsCS : public FGlobalShader
+	class FResolveNeighborLodsCS : public FGlobalShader
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FReadNeighborLodsCS);
-		SHADER_USE_PARAMETER_STRUCT(FReadNeighborLodsCS, FGlobalShader);
+		DECLARE_GLOBAL_SHADER(FResolveNeighborLodsCS);
+		SHADER_USE_PARAMETER_STRUCT(FResolveNeighborLodsCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
-			SHADER_PARAMETER(FVector, PageTableSize)
+			SHADER_PARAMETER(FVector4, PageTableSize)
 			SHADER_PARAMETER_TEXTURE(Texture2D, PageTableTexture)
-			SHADER_PARAMETER(FUintVector4, PageTablePackedUniform)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<QuadRenderItem>, QuadBuffer)
+			SHADER_PARAMETER(uint32, PageTableFeedbackId)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, QuadBuffer)
 			SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float2>, LodTexture)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadNeighborItem>, RWQuadNeighborBuffer)
 			SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, IndirectArgsBufferSRV)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadNeighborBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWFeedbackBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FReadNeighborLodsCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "ReadNeighborLodsCS", SF_Compute);
+	IMPLEMENT_GLOBAL_SHADER(FResolveNeighborLodsCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "ResolveNeighborLodsCS", SF_Compute);
 
 	/** */
 	class FInitInstanceBufferCS : public FGlobalShader
@@ -763,66 +782,70 @@ namespace VirtualHeightfieldMesh
 		SHADER_USE_PARAMETER_STRUCT(FInitInstanceBufferCS, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadRenderInstance>, RWInstanceBuffer)
+			SHADER_PARAMETER(int32, NumIndices)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 		}
 	};
 
 	IMPLEMENT_GLOBAL_SHADER(FInitInstanceBufferCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "InitInstanceBufferCS", SF_Compute);
 
 	/** */
-	class FCullInstancesCS : public FGlobalShader
+	class FCullInstances : public FGlobalShader
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FCullInstancesCS);
-		SHADER_USE_PARAMETER_STRUCT(FCullInstancesCS, FGlobalShader);
+		SHADER_USE_PARAMETER_STRUCT(FCullInstances, FGlobalShader);
 
 		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			//SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintParameters)
 			SHADER_PARAMETER_TEXTURE(Texture2D, MinMaxTexture)
 			SHADER_PARAMETER_SAMPLER(SamplerState, MinMaxTextureSampler)
 			SHADER_PARAMETER_TEXTURE(Texture2D, PageTableTexture)
-			SHADER_PARAMETER(FVector, PageTableSize)
-			SHADER_PARAMETER(FMatrix, UVToWorld)
+			SHADER_PARAMETER(FVector4, PageTableSize)
 			SHADER_PARAMETER_ARRAY(FVector4, FrustumPlanes, [5])
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<QuadRenderItem>, QuadBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<QuadNeighborItem>, QuadNeighborBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadRenderInstance>, RWInstanceBuffer)
+			SHADER_PARAMETER(FVector4, PhysicalPageTransform)
+			SHADER_PARAMETER(uint32, NumPhysicalAddressBits)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint2>, QuadBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadNeighborBuffer)
 			SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgsBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, IndirectArgsBufferSRV)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<QuadRenderInstance>, RWInstanceBuffer)
+			SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWIndirectArgsBuffer)
 		END_SHADER_PARAMETER_STRUCT()
-
-		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
-		{
-			return RHISupportsComputeShaders(Parameters.Platform);
-		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FCullInstancesCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "CullInstancesCS", SF_Compute);
-	
-	/** */
-	class FBuildIndirectArgsForDrawCS : public FGlobalShader
+	template< bool bReuseCull >
+	class TCullInstancesCS : public FCullInstances
 	{
 	public:
-		DECLARE_GLOBAL_SHADER(FBuildIndirectArgsForDrawCS);
-		SHADER_USE_PARAMETER_STRUCT(FBuildIndirectArgsForDrawCS, FGlobalShader);
+		typedef TCullInstancesCS< bReuseCull > ClassName;
+		DECLARE_GLOBAL_SHADER(ClassName);
 
-		BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-			SHADER_PARAMETER(int, NumIndices)
-			SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<QuadRenderInstance>, InstanceBuffer)
-			SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<uint>, RWIndirectArgsBuffer)
-		END_SHADER_PARAMETER_STRUCT()
+		TCullInstancesCS()
+		{}
+
+		TCullInstancesCS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+			: FCullInstances(Initializer)
+		{}
 
 		static bool ShouldCompilePermutation(FGlobalShaderPermutationParameters const& Parameters)
 		{
-			return RHISupportsComputeShaders(Parameters.Platform);
+			return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		}
+
+		static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+		{
+			FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+			OutEnvironment.SetDefine(TEXT("REUSE_CULL"), bReuseCull ? 1 : 0);
 		}
 	};
 
-	IMPLEMENT_GLOBAL_SHADER(FBuildIndirectArgsForDrawCS, "/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf", "BuildIndirectArgsForDrawCS", SF_Compute);
+	IMPLEMENT_SHADER_TYPE(template<>, TCullInstancesCS<true>, TEXT("/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf"), TEXT("CullInstancesCS"), SF_Compute);
+	IMPLEMENT_SHADER_TYPE(template<>, TCullInstancesCS<false>, TEXT("/Plugin/VirtualHeightfieldMesh/Private/VirtualHeightfieldMesh.usf"), TEXT("CullInstancesCS"), SF_Compute);
+
 
 	/** Default Min/Max texture has the fixed maximum [0,1]. */
 	class FMinMaxDefaultTexture : public FTexture
@@ -852,10 +875,49 @@ namespace VirtualHeightfieldMesh
 	/** Single global instance of default Min/Max texture. */
 	FTexture* GMinMaxDefaultTexture = new TGlobalResource<FMinMaxDefaultTexture>;
 
+	/** */
+	struct FViewData
+	{
+		FVector ViewOrigin;
+		FMatrix ProjectionMatrix;
+		FConvexVolume ViewFrustum;
+		bool bViewFrozen;
+	};
+
+	/** Fill the FViewData from an FSceneView respecting the freezerendering mode. */
+	void GetViewData(FSceneView const* InSceneView, FViewData& OutViewData)
+	{
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		const FViewMatrices* FrozenViewMatrices = InSceneView->State != nullptr ? InSceneView->State->GetFrozenViewMatrices() : nullptr;
+		if (FrozenViewMatrices != nullptr)
+		{
+			OutViewData.ViewOrigin = FrozenViewMatrices->GetViewOrigin();
+			OutViewData.ProjectionMatrix = FrozenViewMatrices->GetProjectionMatrix();
+			GetViewFrustumBounds(OutViewData.ViewFrustum, FrozenViewMatrices->GetViewProjectionMatrix(), true);
+			OutViewData.bViewFrozen = true;
+		}
+		else
+#endif
+		{
+			OutViewData.ViewOrigin = InSceneView->ViewMatrices.GetViewOrigin();
+			OutViewData.ProjectionMatrix = InSceneView->ViewMatrices.GetProjectionMatrix();
+			OutViewData.ViewFrustum = InSceneView->ViewFrustum;
+			OutViewData.bViewFrozen = false;
+		}
+	}
+
 	/** Convert FPlane to Xx+Yy+Zz+W=0 form for simpler use in shader. */
 	FVector4 ConvertPlane(FPlane const& Plane)
 	{
 		return FVector4(-Plane.X, -Plane.Y, -Plane.Z, Plane.W);
+	}
+
+	/** Translate a plane. This is a simpler case than the full TransformPlane(). */
+	FPlane TranslatePlane(FPlane const& Plane, FVector const& Translation)
+	{
+		FPlane OutPlane = Plane / Plane.Size();
+		OutPlane.W -= FVector::DotProduct(FVector(OutPlane),  Translation);
+		return OutPlane;
 	}
 
 	/** Transform a plane using a transform matrix. Precalculate and pass in transpose adjoint to avoid work when transforming multiple planes.  */
@@ -875,24 +937,28 @@ namespace VirtualHeightfieldMesh
 	{
 		FRHITexture* PageTableTexture;
 		FRHITexture* MinMaxTexture;
-		FVector PageTableSize;
-		FUintVector4 PageTablePackedUniform;
+
+		uint32 MaxLevel;
 		uint32 PageTableFeedbackId;
+		uint32 NumPhysicalAddressBits;
+		FVector4 PageTableSize;
+		FVector4 PhysicalPageTransform;
 		FMatrix UVToWorld;
+		FVector UVToWorldScale;
 		uint32 NumQuadsPerTileSide;
-		float LodScale;
 
 		int32 MaxPersistentQueueItems;
+		int32 MaxRenderItems;
 		int32 MaxFeedbackItems;
+		int32 NumCollectPassWavefronts;
 	};
 
 	/** View description used for LOD calculation in the main view. */
 	struct FMainViewDesc
 	{
 		FSceneView const* ViewDebug;
-		FVector CameraPosition;
-		float ProjectionScale;
-		float LodThreshold;
+		FVector ViewOrigin;
+		FVector4 LodDistances;
 		FVector4 Planes[5];
 		FTextureRHIRef OcclusionTexture;
 		int32 OcclusionLevelOffset;
@@ -902,6 +968,7 @@ namespace VirtualHeightfieldMesh
 	struct FChildViewDesc
 	{
 		FSceneView const* ViewDebug;
+		bool bIsMainView;
 		FVector4 Planes[5];
 	};
 
@@ -922,6 +989,7 @@ namespace VirtualHeightfieldMesh
 
 		FRDGBufferRef IndirectArgsBuffer;
 		FRDGBufferUAVRef IndirectArgsBufferUAV;
+		FRDGBufferSRVRef IndirectArgsBufferSRV;
 
 		FRDGTextureRef LodTexture;
 
@@ -953,7 +1021,8 @@ namespace VirtualHeightfieldMesh
 		// An alternative is use standard RHI allocation, but then we need to be manage resource transitions.
 		FRDGBuilder GraphBuilder(InRHICmdList);
 
-		FRDGBufferRef InstanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(VirtualHeightfieldMesh::QuadRenderInstance), VirtualHeightfieldMesh::MaxRenderItems + 1), TEXT("QuadBuffer"));
+		int32 InstanceBufferSize = CVarVHMMaxRenderItems.GetValueOnRenderThread();
+		FRDGBufferRef InstanceBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(VirtualHeightfieldMesh::QuadRenderInstance), InstanceBufferSize), TEXT("InstanceBuffer"));
 		FRDGBufferRef IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(5), TEXT("IndirectArgsBuffer"));
 
 		FCreateBufferParameters* Parameters = GraphBuilder.AllocParameters<FCreateBufferParameters>();
@@ -984,12 +1053,12 @@ namespace VirtualHeightfieldMesh
 	{
 		OutResources.QueueInfo = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(WorkerQueueInfo), 1), TEXT("QueueInfo"));
 		OutResources.QueueInfoUAV = GraphBuilder.CreateUAV(OutResources.QueueInfo);
-		OutResources.QueueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(QuadItem), InDesc.MaxPersistentQueueItems), TEXT("QuadQueue"));
-		OutResources.QueueBufferUAV = GraphBuilder.CreateUAV(OutResources.QueueBuffer);
+		OutResources.QueueBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InDesc.MaxPersistentQueueItems), TEXT("QuadQueue"));
+		OutResources.QueueBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutResources.QueueBuffer, PF_R32_UINT));
 
-		OutResources.QuadBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(VirtualHeightfieldMesh::QuadRenderItem), VirtualHeightfieldMesh::MaxRenderItems + 1), TEXT("QuadBuffer"));
-		OutResources.QuadBufferUAV = GraphBuilder.CreateUAV(OutResources.QuadBuffer);
-		OutResources.QuadBufferSRV = GraphBuilder.CreateSRV(OutResources.QuadBuffer);
+		OutResources.QuadBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32) * 2, InDesc.MaxRenderItems), TEXT("QuadBuffer"));
+		OutResources.QuadBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutResources.QuadBuffer, PF_R32G32_UINT));
+		OutResources.QuadBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(OutResources.QuadBuffer, PF_R32G32_UINT));
 
 		FRDGBufferDesc FeedbackBufferDesc = FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InDesc.MaxFeedbackItems + 1);
 		FeedbackBufferDesc.Usage = EBufferUsageFlags(FeedbackBufferDesc.Usage | BUF_SourceCopy);
@@ -998,6 +1067,7 @@ namespace VirtualHeightfieldMesh
 
 		OutResources.IndirectArgsBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateIndirectDesc(IndirectArgsByteSize), TEXT("IndirectArgsBuffer"));
 		OutResources.IndirectArgsBufferUAV = GraphBuilder.CreateUAV(OutResources.IndirectArgsBuffer);
+		OutResources.IndirectArgsBufferSRV = GraphBuilder.CreateSRV(OutResources.IndirectArgsBuffer);
 
 		FPooledRenderTargetDesc LodTextureDesc = FPooledRenderTargetDesc::Create2DDesc(
 			FIntPoint(InDesc.PageTableSize.X, InDesc.PageTableSize.Y),
@@ -1006,9 +1076,9 @@ namespace VirtualHeightfieldMesh
 			TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false);
 		OutResources.LodTexture = GraphBuilder.CreateTexture(LodTextureDesc, TEXT("LodTexture"));
 
-		OutResources.QuadNeighborBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(sizeof(VirtualHeightfieldMesh::QuadNeighborItem), VirtualHeightfieldMesh::MaxRenderItems * 4), TEXT("QuadNeighborBuffer"));
-		OutResources.QuadNeighborBufferUAV = GraphBuilder.CreateUAV(OutResources.QuadNeighborBuffer);
-		OutResources.QuadNeighborBufferSRV = GraphBuilder.CreateSRV(OutResources.QuadNeighborBuffer);
+		OutResources.QuadNeighborBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InDesc.MaxRenderItems * 4), TEXT("QuadNeighborBuffer"));
+		OutResources.QuadNeighborBufferUAV = GraphBuilder.CreateUAV(FRDGBufferUAVDesc(OutResources.QuadNeighborBuffer, PF_R32_UINT));
+		OutResources.QuadNeighborBufferSRV = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(OutResources.QuadNeighborBuffer, PF_R32_UINT));
 	}
 
 	/** Initialize the output resources used in the render graph. */
@@ -1028,11 +1098,12 @@ namespace VirtualHeightfieldMesh
 		TShaderMapRef<FInitBuffersCS> ComputeShader(InGlobalShaderMap);
 
 		FInitBuffersCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitBuffersCS::FParameters>();
-		PassParameters->PageTableSize = InDesc.PageTableSize;
-		PassParameters->RWQuadBuffer = InVolatileResources.QuadBufferUAV;
-		PassParameters->RWFeedbackBuffer = InVolatileResources.FeedbackBufferUAV;
+		PassParameters->MaxLevel = InDesc.MaxLevel;
 		PassParameters->RWQueueInfo = InVolatileResources.QueueInfoUAV;
 		PassParameters->RWQueueBuffer = InVolatileResources.QueueBufferUAV;
+		PassParameters->RWQuadBuffer = InVolatileResources.QuadBufferUAV;
+		PassParameters->RWIndirectArgsBuffer = InVolatileResources.IndirectArgsBufferUAV;
+		PassParameters->RWFeedbackBuffer = InVolatileResources.FeedbackBufferUAV;
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("InitBuffers"),
@@ -1054,48 +1125,30 @@ namespace VirtualHeightfieldMesh
 		TShaderMapRef<FCollectQuadsCS> ComputeShader(InGlobalShaderMap);
 
 		FCollectQuadsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCollectQuadsCS::FParameters>();
-		//ShaderPrint::SetParameters(*InViewDesc.ViewDebug, PassParameters->ShaderPrintParameters);
-		//ShaderDrawDebug::SetParameters(GraphBuilder, *InViewDesc.ViewDebug, PassParameters->ShaderDrawParameters);
 		PassParameters->MinMaxTexture = InDesc.MinMaxTexture;
 		PassParameters->MinMaxTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->OcclusionTexture = InViewDesc.OcclusionTexture;
 		PassParameters->OcclusionLevelOffset = InViewDesc.OcclusionLevelOffset;
 		PassParameters->PageTableTexture = InDesc.PageTableTexture;
 		PassParameters->PageTableSize = InDesc.PageTableSize;
-		PassParameters->PageTableFeedbackId = InDesc.PageTableFeedbackId;
 		PassParameters->UVToWorld = InDesc.UVToWorld;
-		PassParameters->CameraPosition = InViewDesc.CameraPosition;
-		PassParameters->ProjectionScale = InViewDesc.ProjectionScale;
+		PassParameters->UVToWorldScale = InDesc.UVToWorldScale;
+		PassParameters->ViewOrigin = InViewDesc.ViewOrigin;
+		PassParameters->LodDistances = InViewDesc.LodDistances;
 		for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 		{
 			PassParameters->FrustumPlanes[PlaneIndex] = InViewDesc.Planes[PlaneIndex];
 		}
-		PassParameters->LodThreshold = InDesc.LodScale * InViewDesc.LodThreshold;
-		PassParameters->PageTablePackedUniform = InDesc.PageTablePackedUniform;
+		PassParameters->QueueBufferSizeMask = InDesc.MaxPersistentQueueItems - 1; // Assumes MaxPersistentQueueItems is a power of 2 so that we can wrap with a mask.
 		PassParameters->RWQueueInfo = InVolatileResources.QueueInfoUAV;
 		PassParameters->RWQueueBuffer = InVolatileResources.QueueBufferUAV;
 		PassParameters->RWQuadBuffer = InVolatileResources.QuadBufferUAV;
-		PassParameters->RWFeedbackBuffer = InVolatileResources.FeedbackBufferUAV;
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("CollectQuads"),
-			ComputeShader, PassParameters, FIntVector(128, 1, 1));
-	}
-
-	/** */
-	void AddPass_BuildIndirectArgsForLodAndCull(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources)
-	{
-		TShaderMapRef<FBuildIndirectArgsForLodAndCullCS> ComputeShader(InGlobalShaderMap);
-
-		FBuildIndirectArgsForLodAndCullCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildIndirectArgsForLodAndCullCS::FParameters>();
-		PassParameters->QuadBuffer = InVolatileResources.QuadBufferSRV;
 		PassParameters->RWIndirectArgsBuffer = InVolatileResources.IndirectArgsBufferUAV;
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("BuildIndirectArgs"),
-			ComputeShader, PassParameters, FIntVector(1, 1, 1));
+			RDG_EVENT_NAME("CollectQuads"),
+			ComputeShader, PassParameters, FIntVector(InDesc.NumCollectPassWavefronts, 1, 1));
 	}
 
 	/**  */
@@ -1138,22 +1191,23 @@ namespace VirtualHeightfieldMesh
 	}
 
 	/** */
-	void AddPass_ReadNeighborLods(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources, FMainViewDesc const& InViewDesc)
+	void AddPass_ResolveNeighborLods(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources, FMainViewDesc const& InViewDesc)
 	{
-		TShaderMapRef<FReadNeighborLodsCS> ComputeShader(InGlobalShaderMap);
+		TShaderMapRef<FResolveNeighborLodsCS> ComputeShader(InGlobalShaderMap);
 
-		FReadNeighborLodsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FReadNeighborLodsCS::FParameters>();
-		//ShaderPrint::SetParameters(*InViewDesc.ViewDebug, PassParameters->ShaderPrintParameters);
+		FResolveNeighborLodsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FResolveNeighborLodsCS::FParameters>();
 		PassParameters->PageTableSize = InDesc.PageTableSize;
+		PassParameters->PageTableFeedbackId = InDesc.PageTableFeedbackId;
 		PassParameters->PageTableTexture = InDesc.PageTableTexture;
-		PassParameters->PageTablePackedUniform = InDesc.PageTablePackedUniform;
 		PassParameters->QuadBuffer = InVolatileResources.QuadBufferSRV;
 		PassParameters->LodTexture = InVolatileResources.LodTexture;
-		PassParameters->RWQuadNeighborBuffer = InVolatileResources.QuadNeighborBufferUAV;
 		PassParameters->IndirectArgsBuffer = InVolatileResources.IndirectArgsBuffer;
+		PassParameters->IndirectArgsBufferSRV = InVolatileResources.IndirectArgsBufferSRV;
+		PassParameters->RWQuadNeighborBuffer = InVolatileResources.QuadNeighborBufferUAV;
+		PassParameters->RWFeedbackBuffer = InVolatileResources.FeedbackBufferUAV;
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("ReadNeighborLods"),
+			RDG_EVENT_NAME("ResolveNeighborLods"),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[PassParameters, ComputeShader, IndirectArgsBuffer = InVolatileResources.IndirectArgsBuffer](FRHICommandList& RHICmdList)
@@ -1170,7 +1224,8 @@ namespace VirtualHeightfieldMesh
 		TShaderMapRef<FInitInstanceBufferCS> ComputeShader(InGlobalShaderMap);
 
 		FInitInstanceBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FInitInstanceBufferCS::FParameters>();
-		PassParameters->RWInstanceBuffer = InOutputResources.InstanceBufferUAV;
+		PassParameters->NumIndices = InDesc.NumQuadsPerTileSide * InDesc.NumQuadsPerTileSide * 6;
+		PassParameters->RWIndirectArgsBuffer = InOutputResources.IndirectArgsBufferUAV;
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
@@ -1181,23 +1236,33 @@ namespace VirtualHeightfieldMesh
 	/** */
 	void AddPass_CullInstances(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources, FOutputResources& InOutputResources, FChildViewDesc const& InViewDesc)
 	{
-		TShaderMapRef<FCullInstancesCS> ComputeShader(InGlobalShaderMap);
-
-		FCullInstancesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullInstancesCS::FParameters>();
-		//ShaderPrint::SetParameters(*InViewDesc.ViewDebug, PassParameters->ShaderPrintParameters);
+		FCullInstances::FParameters* PassParameters = GraphBuilder.AllocParameters<FCullInstances::FParameters>();
 		PassParameters->MinMaxTexture = InDesc.MinMaxTexture;
 		PassParameters->MinMaxTextureSampler = TStaticSamplerState<SF_Point>::GetRHI();
 		PassParameters->PageTableTexture = InDesc.PageTableTexture;
 		PassParameters->PageTableSize = InDesc.PageTableSize;
-		PassParameters->UVToWorld = InDesc.UVToWorld;
 		for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 		{
 			PassParameters->FrustumPlanes[PlaneIndex] = InViewDesc.Planes[PlaneIndex];
 		}
+		PassParameters->PhysicalPageTransform = InDesc.PhysicalPageTransform;
+		PassParameters->NumPhysicalAddressBits = InDesc.NumPhysicalAddressBits;
 		PassParameters->QuadBuffer = InVolatileResources.QuadBufferSRV;
 		PassParameters->QuadNeighborBuffer = InVolatileResources.QuadNeighborBufferSRV;
-		PassParameters->RWInstanceBuffer = InOutputResources.InstanceBufferUAV;
 		PassParameters->IndirectArgsBuffer = InVolatileResources.IndirectArgsBuffer;
+		PassParameters->IndirectArgsBufferSRV = InVolatileResources.IndirectArgsBufferSRV;
+		PassParameters->RWInstanceBuffer = InOutputResources.InstanceBufferUAV;
+		PassParameters->RWIndirectArgsBuffer = InOutputResources.IndirectArgsBufferUAV;
+
+		TShaderRef<FCullInstances> ComputeShader;
+		if (InViewDesc.bIsMainView)
+		{
+			ComputeShader = InGlobalShaderMap->GetShader< TCullInstancesCS<true> >();
+		}
+		else
+		{
+			ComputeShader = InGlobalShaderMap->GetShader< TCullInstancesCS<false> >();
+		}
 
 		GraphBuilder.AddPass(
 			RDG_EVENT_NAME("CullInstances"),
@@ -1212,31 +1277,14 @@ namespace VirtualHeightfieldMesh
 	}
 
 	/** */
-	void AddPass_BuildFinalIndirectArgsForDraw(FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources, FOutputResources& InOutputResources)
-	{
-		TShaderMapRef<FBuildIndirectArgsForDrawCS> ComputeShader(InGlobalShaderMap);
-
-		FBuildIndirectArgsForDrawCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBuildIndirectArgsForDrawCS::FParameters>();
-		PassParameters->NumIndices = InDesc.NumQuadsPerTileSide * InDesc.NumQuadsPerTileSide * 6;
-		PassParameters->InstanceBuffer = InOutputResources.InstanceBufferSRV;
-		PassParameters->RWIndirectArgsBuffer = InOutputResources.IndirectArgsBufferUAV;
-
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("BuildIndirectArgs"),
-			ComputeShader, PassParameters, FIntVector(1, 1, 1));
-	}
-
-	/** */
 	void GPUCullMainView( FRDGBuilder& GraphBuilder, FGlobalShaderMap* InGlobalShaderMap, FProxyDesc const& InDesc, FVolatileResources& InVolatileResources, FMainViewDesc const& InViewDesc)
 	{
 		RDG_EVENT_SCOPE(GraphBuilder, "MainView");
 
 		AddPass_InitBuffers(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources);
 		AddPass_CollectQuads(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InViewDesc);
-		AddPass_BuildIndirectArgsForLodAndCull(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources);
 		AddPass_RenderLodMap(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources);
-		AddPass_ReadNeighborLods(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InViewDesc);
+		AddPass_ResolveNeighborLods(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InViewDesc);
 	}
 
 	/** */
@@ -1246,7 +1294,6 @@ namespace VirtualHeightfieldMesh
 
 		AddPass_InitInstanceBuffer(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InOutputResources);
 		AddPass_CullInstances(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InOutputResources, InViewDesc);
-		AddPass_BuildFinalIndirectArgsForDraw(GraphBuilder, InGlobalShaderMap, InDesc, InVolatileResources, InOutputResources);
 	}
 }
 
@@ -1272,60 +1319,66 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 			FVirtualHeightfieldMeshSceneProxy const* Proxy = SceneProxies[WorkDescs[WorkIndex].ProxyIndex];
 			IAllocatedVirtualTexture* AllocatedVirtualTexture = Proxy->AllocatedVirtualTexture;
 			
-			FUintVector4 PageTablePackedUniform;
-			AllocatedVirtualTexture->GetPackedUniform(&PageTablePackedUniform, 0);
+			const float PageSize = AllocatedVirtualTexture->GetVirtualTileSize();
+			const float PageBorderSize = AllocatedVirtualTexture->GetTileBorderSize();
+			const float PageAndBorderSize = PageSize + PageBorderSize * 2.f;
+			const float HalfTexelSize = 0.5f;
+			const float PhysicalTextureSize = AllocatedVirtualTexture->GetPhysicalTextureSize(0);
+			const FVector4 PhysicalPageTransform = FVector4(PageAndBorderSize, PageSize, PageBorderSize, HalfTexelSize) * (1.f / PhysicalTextureSize);
+
+			const float PageTableSizeX = AllocatedVirtualTexture->GetWidthInTiles();
+			const float PageTableSizeY = AllocatedVirtualTexture->GetHeightInTiles();
+			const FVector4 PageTableSize = FVector4(PageTableSizeX, PageTableSizeY, 1.f / PageTableSizeX, 1.f / PageTableSizeY);
 
 			VirtualHeightfieldMesh::FProxyDesc ProxyDesc;
 			ProxyDesc.PageTableTexture = AllocatedVirtualTexture->GetPageTableTexture(0);
 			ProxyDesc.MinMaxTexture = Proxy->MinMaxTexture ? Proxy->MinMaxTexture->Resource->TextureRHI : VirtualHeightfieldMesh::GMinMaxDefaultTexture->TextureRHI;;
-			ProxyDesc.PageTableSize = FVector(AllocatedVirtualTexture->GetWidthInTiles(), AllocatedVirtualTexture->GetHeightInTiles(), AllocatedVirtualTexture->GetMaxLevel());
-			ProxyDesc.PageTablePackedUniform = PageTablePackedUniform;
+			ProxyDesc.MaxLevel = AllocatedVirtualTexture->GetMaxLevel();
+			ProxyDesc.PageTableSize = PageTableSize;
+			ProxyDesc.PhysicalPageTransform = PhysicalPageTransform;
+			ProxyDesc.NumPhysicalAddressBits = AllocatedVirtualTexture->GetPageTableFormat() == EVTPageTableFormat::UInt16 ? 6 : 8; // See packing in PageTableUpdate.usf
 			ProxyDesc.PageTableFeedbackId = AllocatedVirtualTexture->GetSpaceID() << 28;
 			ProxyDesc.UVToWorld = Proxy->UVToWorld;
+			ProxyDesc.UVToWorldScale = Proxy->UVToWorldScale;
 			ProxyDesc.NumQuadsPerTileSide = Proxy->NumQuadsPerTileSide;
-			ProxyDesc.LodScale = FMath::Max(Proxy->LODScale * CVarVHMLodScale.GetValueOnRenderThread(), 0.01f);
-			ProxyDesc.MaxPersistentQueueItems = VirtualHeightfieldMesh::MaxPersistentQueueItems;
-			ProxyDesc.MaxFeedbackItems = VirtualHeightfieldMesh::MaxFeedbackItems;
+			ProxyDesc.MaxPersistentQueueItems = 1 << FMath::CeilLogTwo(CVarVHMMaxPersistentQueueItems.GetValueOnRenderThread());
+			ProxyDesc.MaxRenderItems = CVarVHMMaxRenderItems.GetValueOnRenderThread();
+			ProxyDesc.MaxFeedbackItems = CVarVHMMaxFeedbackItems.GetValueOnRenderThread();
+			ProxyDesc.NumCollectPassWavefronts = CVarVHMCollectPassWavefronts.GetValueOnRenderThread();
 
 			while (WorkIndex < NumWorkItems && SceneProxies[WorkDescs[WorkIndex].ProxyIndex] == Proxy)
 			{
 				// Gather data per main view
 				FSceneView const* MainView = MainViews[WorkDescs[WorkIndex].MainViewIndex];
-
-				static FMatrix ProjectionMatrix;
-				static FConvexVolume ViewFrustum;
-				static FVector CameraPosition;
-				if (CVarVHMFixCullingCamera.GetValueOnRenderThread() == 0)
-				{
-					ProjectionMatrix = MainView->ViewMatrices.GetProjectionMatrix();
-					ViewFrustum = MainView->ViewFrustum;
-					CameraPosition = MainView->ViewMatrices.GetViewOrigin();
-				}
-
-				const float TargetPixelsPerTri = 64.f;
+				
+				VirtualHeightfieldMesh::FViewData MainViewData;
+				VirtualHeightfieldMesh::GetViewData(MainView, MainViewData);
 
 				VirtualHeightfieldMesh::FMainViewDesc MainViewDesc;
 				MainViewDesc.ViewDebug = MainView;
-				MainViewDesc.CameraPosition = CameraPosition;
-				MainViewDesc.ProjectionScale = FMath::Max(0.5f * ProjectionMatrix.M[0][0], 0.5f * ProjectionMatrix.M[1][1]);
-				MainViewDesc.LodThreshold = MainView->LODDistanceFactor * TargetPixelsPerTri * (Proxy->NumQuadsPerTileSide * Proxy->NumQuadsPerTileSide * 2) / MainView->UnconstrainedViewRect.Area();
-				
+
+				// ViewOrigin and Frustum Planes are all converted to UV space for the shader.
+				MainViewDesc.ViewOrigin = Proxy->WorldToUV.TransformPosition(MainViewData.ViewOrigin);
+				MainViewDesc.LodDistances = VirtualHeightfieldMesh::CalculateLodRanges(MainView, Proxy);
+
 				for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 				{
-					const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, ViewFrustum.Planes.Num() - 1);
-					MainViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(VirtualHeightfieldMesh::TransformPlane(ViewFrustum.Planes[CopyPlaneIndex], Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint));
+					const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, MainViewData.ViewFrustum.Planes.Num() - 1);
+					FPlane Plane = MainViewData.ViewFrustum.Planes[CopyPlaneIndex];
+					Plane = VirtualHeightfieldMesh::TransformPlane(Plane, Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint);
+					MainViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(Plane);
 				}
 
 				FOcclusionResults* OcclusionResults = GOcclusionResults.Find(FOcclusionResultsKey(Proxy, MainView));
 				if (OcclusionResults == nullptr)
 				{
 					MainViewDesc.OcclusionTexture = GBlackTexture->TextureRHI;
-					MainViewDesc.OcclusionLevelOffset = ProxyDesc.PageTableSize.Z;
+					MainViewDesc.OcclusionLevelOffset = (int32)ProxyDesc.MaxLevel;
 				}
 				else
 				{
 					MainViewDesc.OcclusionTexture = OcclusionResults->OcclusionTexture;
-					MainViewDesc.OcclusionLevelOffset = ProxyDesc.PageTableSize.Z - OcclusionResults->NumTextureMips + 1;
+					MainViewDesc.OcclusionLevelOffset = (int32)ProxyDesc.MaxLevel - OcclusionResults->NumTextureMips + 1;
 				}
 
 				// Build volatile graph resources
@@ -1344,15 +1397,20 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 					// Gather data per child view
 					FSceneView const* CullView = CullViews[WorkDescs[WorkIndex].CullViewIndex];
 					FConvexVolume const* ShadowFrustum = CullView->GetDynamicMeshElementsShadowCullFrustum();
-					FConvexVolume const& Frustum = ShadowFrustum != nullptr && ShadowFrustum->Planes.Num() > 0 ? *ShadowFrustum : (CVarVHMFixCullingCamera.GetValueOnRenderThread() == 0) ? CullView->ViewFrustum : ViewFrustum;
+					FConvexVolume const& Frustum = ShadowFrustum != nullptr && ShadowFrustum->Planes.Num() > 0 ? *ShadowFrustum : CullView->ViewFrustum;
+					const FVector PreShadowTranslation = ShadowFrustum != nullptr ? CullView->GetPreShadowTranslation() : FVector::ZeroVector;
 
 					VirtualHeightfieldMesh::FChildViewDesc ChildViewDesc;
 					ChildViewDesc.ViewDebug = MainView;
+					ChildViewDesc.bIsMainView = CullView == MainView;
 					
 					for (int32 PlaneIndex = 0; PlaneIndex < 5; ++PlaneIndex)
 					{
 						const int32 CopyPlaneIndex = FMath::Min(PlaneIndex, Frustum.Planes.Num() - 1);
-						ChildViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(VirtualHeightfieldMesh::TransformPlane(Frustum.Planes[CopyPlaneIndex], Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint));
+						FPlane Plane = Frustum.Planes[CopyPlaneIndex];
+						Plane = VirtualHeightfieldMesh::TranslatePlane(Plane, PreShadowTranslation);
+						Plane = VirtualHeightfieldMesh::TransformPlane(Plane, Proxy->WorldToUV, Proxy->WorldToUVTransposeAdjoint);
+						ChildViewDesc.Planes[PlaneIndex] = VirtualHeightfieldMesh::ConvertPlane(Plane);
 					}
 
 					// Build output graph resources
@@ -1377,10 +1435,8 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 		for (int32 FeedbackIndex = 0; FeedbackIndex < FeedbackBuffers.Num(); ++FeedbackIndex)
 		{
 			FVirtualTextureFeedbackBufferDesc Desc;
-			Desc.Init(VirtualHeightfieldMesh::MaxFeedbackItems + 1);
+			Desc.Init(CVarVHMMaxFeedbackItems.GetValueOnRenderThread() + 1);
 			SubmitVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList, FeedbackBuffers[0].GetReference()->VertexBuffer, Desc);
 		}
 	}
 }
-
-PRAGMA_ENABLE_OPTIMIZATION

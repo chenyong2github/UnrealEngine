@@ -172,6 +172,7 @@ public class UnrealEd : ModuleRules
 				"PixelInspectorModule",
 				"MovieScene",
 				"MovieSceneTracks",
+				"Sequencer",
 				"ViewportInteraction",
 				"VREditor",
 				"ClothingSystemEditor",

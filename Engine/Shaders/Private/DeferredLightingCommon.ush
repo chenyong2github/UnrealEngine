@@ -32,6 +32,8 @@ struct FDeferredLightData
 	float SourceLength;
 	float SpecularScale;
 	float ContactShadowLength;
+	/** Intensity of non-shadow-casting contact shadows */
+	float ContactShadowNonShadowCastingIntensity;
 	float2 DistanceFadeMAD;
 	float4 ShadowMapChannelMask;
 	/** Whether ContactShadowLength is in World Space or in Screen Space. */
@@ -72,10 +74,11 @@ float DistanceFromCameraFade(float SceneDepth, FDeferredLightData LightData, flo
 	return Fade * Fade;
 }
 
+// Returns distance along ray that the first hit occurred, or negative on miss
+// Sets bOutHitCastDynamicShadow if the hit point is marked as a dynamic shadow caster
 float ShadowRayCast(
 	float3 RayOriginTranslatedWorld, float3 RayDirection, float RayLength,
-	int NumSteps, float StepOffset
-)
+	int NumSteps, float StepOffset, out bool bOutHitCastContactShadow )
 {
 	float4 RayStartClip	= mul( float4( RayOriginTranslatedWorld, 1 ), View.TranslatedWorldToClip );
 	float4 RayDirClip	= mul( float4( RayDirection * RayLength, 0 ), View.TranslatedWorldToClip );
@@ -115,13 +118,22 @@ float ShadowRayCast(
 		SampleTime += Step;
 	}
 
-	float Shadow = FirstHitTime > 0.0 ? 1.0 : 0.0;
+	float HitDistance = -1.0;
+	bOutHitCastContactShadow = false;
+	if ( FirstHitTime > 0.0 )
+	{
+		// Ignore hits that come from non-shadow-casting pixels
+		float3 SampleUVz = RayStartUVz + RayStepUVz * FirstHitTime;
+		FGBufferData SampleGBuffer = GetGBufferData( SampleUVz.xy );
+		bOutHitCastContactShadow = CastContactShadow( SampleGBuffer );
 
-	// Off screen masking
-	float2 Vignette = max(6.0 * abs(RayStartScreen.xy + RayStepScreen.xy * FirstHitTime) - 5.0, 0.0);
-	Shadow *= saturate( 1.0 - dot( Vignette, Vignette ) );
-
-	return 1 - Shadow;
+		// Off screen masking
+		float3 HitUVz = RayStartUVz + RayStepUVz * FirstHitTime;
+		bool bValidUV = all( 0.0 < HitUVz.xy && HitUVz.xy < 1.0 );
+		HitDistance = bValidUV ? ( FirstHitTime * RayLength ) : -1.0;
+	}	
+	
+	return HitDistance;
 }
 
 #ifndef SUPPORT_CONTACT_SHADOWS
@@ -196,23 +208,45 @@ void GetShadowTerms(FGBufferData GBuffer, FDeferredLightData LightData, float3 W
 	if (ContactShadowLength > 0.0)
 	{
 		float StepOffset = Dither - 0.5;
-		float ContactShadow = ShadowRayCast( WorldPosition + View.PreViewTranslation, L, ContactShadowLength, 8, StepOffset );
-		
-		Shadow.SurfaceShadow *= ContactShadow;
-
-		FLATTEN
-		if( GBuffer.ShadingModelID == SHADINGMODELID_HAIR ||  GBuffer.ShadingModelID == SHADINGMODELID_EYE  )
+		bool bHitCastContactShadow = false;
+		float HitDistance = ShadowRayCast( WorldPosition + View.PreViewTranslation, L, ContactShadowLength, 8, StepOffset, bHitCastContactShadow );
+				
+		if ( HitDistance > 0.0 )
 		{
-			// If hair transmittance is enabled, sharp shadowing should already be handled by 
-			// the dedicated deep shadow maps. Thus no need for contact shadow
-			const bool bUseComplexTransmittance = (LightData.HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER) > 0;
-			if (!bUseComplexTransmittance)
+			float ContactShadowOcclusion = bHitCastContactShadow ? 1.0 : LightData.ContactShadowNonShadowCastingIntensity;
+
+			BRANCH
+			if ( ContactShadowOcclusion > 0.0 && IsSubsurfaceModel( GBuffer.ShadingModelID ) )
+			{
+				// Reduce the intensity of the shadow similar to the subsurface approximation used by the shadow maps path
+				// Note that this is imperfect as we don't really have the "nearest occluder to the light", but this should at least
+				// ensure that we don't darken-out the subsurface term with the contact shadows
+				float Opacity = GBuffer.CustomData.a;
+				float Density = SubsurfaceDensityFromOpacity( Opacity );
+				ContactShadowOcclusion *= 1.0 - saturate( exp( -Density * HitDistance ) );
+			}
+
+			float ContactShadow = 1.0 - ContactShadowOcclusion;
+
+			Shadow.SurfaceShadow *= ContactShadow;
+
+			FLATTEN
+			if( GBuffer.ShadingModelID == SHADINGMODELID_HAIR ||  GBuffer.ShadingModelID == SHADINGMODELID_EYE  )
+			{
+				// If hair transmittance is enabled, sharp shadowing should already be handled by 
+				// the dedicated deep shadow maps. Thus no need for contact shadow
+				const bool bUseComplexTransmittance = (LightData.HairTransmittance.ScatteringComponent & HAIR_COMPONENT_MULTISCATTER) > 0;
+				if (!bUseComplexTransmittance)
+				{
+					Shadow.TransmissionShadow *= ContactShadow;
+				}
+			}
+			else
 			{
 				Shadow.TransmissionShadow *= ContactShadow;
 			}
 		}
-		else
-			Shadow.TransmissionShadow *= ContactShadow * 0.5 + 0.5;
+		
 	}
 #endif
 

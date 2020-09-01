@@ -118,8 +118,9 @@ FPrimitiveSceneShaderData::FPrimitiveSceneShaderData(const FPrimitiveSceneProxy*
 		Proxy->GetLpvBiasMultiplier(),
 		Proxy->GetPrimitiveSceneInfo()->GetLightmapDataOffset(),
 		SingleCaptureIndex,
-		bOutputVelocity,
-		Proxy->GetCustomPrimitiveData()
+        bOutputVelocity,
+		Proxy->GetCustomPrimitiveData(),
+		Proxy->CastsContactShadow()
 		));
 }
 

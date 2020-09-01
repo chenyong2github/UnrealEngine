@@ -13,26 +13,34 @@ struct SYNTHESIS_API FSourceEffectBitCrusherSettings
 {
 	GENERATED_USTRUCT_BODY()
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (PropertyDeprecated))
 	float CrushedSampleRate;
+#endif // if WITH_EDITORONLY_DATA
 
 	// The reduced frequency to use for the audio stream. 
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Sample Rate", AudioParam = "SampleRate", UIMin = "500.0", UIMax = "16000.0"))
 	FSoundModulationDestinationSettings SampleRateModulation;
 
+#if WITH_EDITORONLY_DATA
 	UPROPERTY(meta = (PropertyDeprecated))
 	float CrushedBits;
+#endif // if WITH_EDITORONLY_DATA
 
 	// The reduced bit depth to use for the audio stream
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "SourceEffect|Preset", meta = (DisplayName = "Bit Depth", AudioParam = "BitDepth", ClampMin = "1.0", ClampMax = "24.0", UIMin = "1.0", UIMax = "16.0"))
 	FSoundModulationDestinationSettings BitModulation;
 
 	FSourceEffectBitCrusherSettings()
+#if WITH_EDITORONLY_DATA
 		: CrushedSampleRate(8000.0f)
 		, CrushedBits(8.0f)
+#endif // if WITH_EDITORONLY_DATA
 	{
+#if WITH_EDITORONLY_DATA
 		SampleRateModulation.Value = CrushedSampleRate;
 		BitModulation.Value = CrushedBits;
+#endif // WITH_EDITORONLY_DATA
 	}
 };
 

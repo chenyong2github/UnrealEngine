@@ -61,8 +61,19 @@ public:
 	}
 protected:
 
+	class FMergeInfo
+	{
+		FMergeInfo();
+	public:
+		enum class EMergeType { Threads, PlatformProperties };
+		FMergeInfo(FString MergeNameIn, EMergeType MergeTypeIn) : MergeName(MergeNameIn), MergeType(MergeTypeIn)
+		{}
+
+		EMergeType MergeType;
+		FString MergeName;
+	};
 	/**
-	 * Filename of the renamed threads context file. Empty if no such file exists.
+	 * Filenames and merge info type of mergeable source files.
 	 */
-	FString ThreadContextsPathName;
+	TArray<FMergeInfo> MergeSources;
 };

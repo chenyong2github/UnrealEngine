@@ -137,6 +137,11 @@ namespace EpicGames.MCP.Automation
 		PS4,
 
 		/// <summary>
+		/// PS5 platform
+		/// </summary>
+		PS5,
+
+		/// <summary>
 		/// Switch platform
 		/// </summary>
 		Switch,
@@ -146,7 +151,15 @@ namespace EpicGames.MCP.Automation
 		/// </summary>
 		XboxOne,
 
+		/// <summary>
+		/// Xbox One with GDK Platform
+		/// </summary>
+		XboxOneGDK,
 
+		/// <summary>
+		/// XSX platform
+		/// </summary>
+		XSX,
 	}
 
 	/// <summary>
@@ -276,9 +289,21 @@ namespace EpicGames.MCP.Automation
 			{
 				return MCPPlatform.PS4;
 			}
+			else if (TargetPlatform.ToString() == "PS5")
+			{
+				return MCPPlatform.PS5;
+			}
 			else if (TargetPlatform == UnrealTargetPlatform.XboxOne)
 			{
 				return MCPPlatform.XboxOne;
+			}
+			else if (TargetPlatform.ToString() == "XboxOneGDK")
+			{
+				return MCPPlatform.XboxOneGDK;
+			}
+			else if (TargetPlatform.ToString() == "XSX")
+			{
+				return MCPPlatform.XSX;
 			}
 			else if (TargetPlatform == UnrealTargetPlatform.Switch)
 			{
@@ -327,6 +352,24 @@ namespace EpicGames.MCP.Automation
 			else if (TargetPlatform == MCPPlatform.Switch)
 			{
 				return UnrealTargetPlatform.Switch;
+			}
+			else if (TargetPlatform == MCPPlatform.XboxOneGDK)
+			{
+				UnrealTargetPlatform ReturnValue;
+				UnrealTargetPlatform.TryParse("XboxOneGDK", out ReturnValue);
+				return ReturnValue;
+			}
+			else if (TargetPlatform == MCPPlatform.XSX)
+			{
+				UnrealTargetPlatform ReturnValue;
+				UnrealTargetPlatform.TryParse("XSX", out ReturnValue);
+				return ReturnValue;
+			}
+			else if (TargetPlatform == MCPPlatform.PS5)
+			{
+				UnrealTargetPlatform ReturnValue;
+				UnrealTargetPlatform.TryParse("PS5", out ReturnValue);
+				return ReturnValue;
 			}
 			throw new AutomationException("Platform {0} is not properly supported by the MCP backend yet", TargetPlatform);
         }

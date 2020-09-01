@@ -66,109 +66,27 @@ namespace AudioModulationEditorUtils
 	}
 } // namespace AudioModulationEditorUtils
 
-void FSoundModulationPatchLayoutCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
-{
-}
-
-void FSoundModulationPatchLayoutCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
+void FSoundControlModulationPatchLayoutCustomization::CustomizeChildren(TSharedRef<IPropertyHandle> StructPropertyHandle, IDetailChildrenBuilder& ChildBuilder, IPropertyTypeCustomizationUtils& StructCustomizationUtils)
 {
 	TMap<FName, TSharedPtr<IPropertyHandle>> PropertyHandles;
 	AudioModulationEditorUtils::GetPropertyHandleMap(StructPropertyHandle, PropertyHandles);
-	CustomizeControl(PropertyHandles, ChildBuilder);
-}
 
-TAttribute<EVisibility> FSoundModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>> &PropertyHandles, IDetailChildrenBuilder &ChildBuilder)
-{
-	TSharedRef<IPropertyHandle>BypassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationPatchBase, bBypass)).ToSharedRef();
+	TSharedRef<IPropertyHandle> BypassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, bBypass)).ToSharedRef();
+	TSharedRef<IPropertyHandle> InputsHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, Inputs)).ToSharedRef();
+	TSharedRef<IPropertyHandle> ParameterHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, OutputParameter)).ToSharedRef();
+
 	ChildBuilder.AddProperty(BypassHandle);
-
-	TAttribute<EVisibility> VisibilityAttribute = TAttribute<EVisibility>::Create([this, BypassHandle]()
-	{
-		bool bIsBypassed = false;
-		BypassHandle->GetValue(bIsBypassed);
-		return bIsBypassed ? EVisibility::Hidden : EVisibility::Visible;
-	});
-
-	return VisibilityAttribute;
-}
-
-TAttribute<EVisibility> FSoundControlModulationPatchLayoutCustomization::CustomizeControl(TMap<FName, TSharedPtr<IPropertyHandle>>& PropertyHandles, IDetailChildrenBuilder& ChildBuilder)
-{
-	TSharedRef<IPropertyHandle>BypassHandle = PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundModulationPatchBase, bBypass)).ToSharedRef();
-	ChildBuilder.AddProperty(BypassHandle);
-
-	TAttribute<EVisibility> BypassedVisibilityAttribute = TAttribute<EVisibility>::Create([this, BypassHandle]()
-	{
-		bool bIsBypassed = false;
-		BypassHandle->GetValue(bIsBypassed);
-		return bIsBypassed ? EVisibility::Hidden : EVisibility::Visible;
-	});
-
-	TSharedRef<IPropertyHandle> InputsHandle			= PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, Inputs)).ToSharedRef();
-	TSharedRef<IPropertyHandle> InputParameterHandle	= PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, InputParameter)).ToSharedRef();
-	TSharedRef<IPropertyHandle> OutputParameterHandle	= PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, OutputParameter)).ToSharedRef();
-	TSharedRef<IPropertyHandle> TransformHandle			= PropertyHandles.FindChecked(GET_MEMBER_NAME_CHECKED(FSoundControlModulationPatch, Transform)).ToSharedRef();
-
-	ChildBuilder.AddProperty(InputParameterHandle)
-		.Visibility(BypassedVisibilityAttribute);
-
-	ChildBuilder.AddCustomRow(LOCTEXT("ModulationPatchLayout_UnitMismatchHeadingWarning", "Bus Unit Mismatch Warning"))
-		.ValueContent()
-		.MinDesiredWidth(150.0f)
-		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-				.FillWidth(1.0f)
-				.Padding(1.0f, 0.0f, 0.0f, 0.0f)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.Font(IDetailLayoutBuilder::GetDetailFontBold())
-					.Text(TAttribute<FText>::Create([InputsHandle, InputParameterHandle]()
-					{
-						UObject* Object = nullptr;
-						InputParameterHandle->GetValue(Object);
-
-						if (USoundModulationParameter* Parameter = Cast<USoundModulationParameter>(Object))
-						{
-							return FText::Format(
-								LOCTEXT("ModulationPatchLayout_UnitMismatchHeading", "{0} bus(es) with parameter mismatch"),
-								FText::AsNumber(AudioModulationEditorUtils::GetMismatchedBuses(InputsHandle, Parameter).Num())
-							);
-						}
-
-						return FText();
-					}))
-				]
-		]
-		.Visibility(TAttribute<EVisibility>::Create([BypassHandle, InputsHandle, InputParameterHandle]()
+	ChildBuilder.AddProperty(ParameterHandle);
+	ChildBuilder.AddProperty(InputsHandle)
+		.Visibility(TAttribute<EVisibility>::Create([this, BypassHandle]()
 		{
 			bool bIsBypassed = false;
 			BypassHandle->GetValue(bIsBypassed);
-			if (bIsBypassed)
-			{
-				return EVisibility::Hidden;
-			}
-
-			UObject* Object = nullptr;
-			InputParameterHandle->GetValue(Object);
-
-			if (USoundModulationParameter* Parameter = Cast<USoundModulationParameter>(Object))
-			{
-				const int32 NumMismatched = AudioModulationEditorUtils::GetMismatchedBuses(InputsHandle, Parameter).Num();
-				return NumMismatched > 0 ? EVisibility::Visible : EVisibility::Hidden;
-			}
-
-			return EVisibility::Hidden;
+			return bIsBypassed ? EVisibility::Hidden : EVisibility::Visible;
 		}));
+}
 
-	ChildBuilder.AddProperty(InputsHandle)
-	.Visibility(BypassedVisibilityAttribute);
-
-	ChildBuilder.AddProperty(TransformHandle)
-	.Visibility(BypassedVisibilityAttribute);
-
-	ChildBuilder.AddProperty(OutputParameterHandle);
-	return BypassedVisibilityAttribute;
+void FSoundControlModulationPatchLayoutCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> StructPropertyHandle, FDetailWidgetRow& HeaderRow, IPropertyTypeCustomizationUtils& CustomizationUtils)
+{
 }
 #undef LOCTEXT_NAMESPACE

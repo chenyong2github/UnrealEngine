@@ -24,8 +24,12 @@ struct FVirtualHeightfieldMeshUserData : public FOneFrameResource
 {
 	FRHIShaderResourceView* InstanceBufferSRV;
 	FRHITexture* HeightPhysicalTexture;
-	FVector2D PageTableSize;
-	FMatrix LocalToWorld;
+	FVector4 PageTableSize;
+	float MaxLod;
+	FMatrix VirtualHeightfieldToLocal;
+	FMatrix VirtualHeightfieldToWorld;
+	FVector LodViewOrigin;
+	FVector4 LodDistances;
 };
 
 /**
@@ -66,8 +70,6 @@ public:
 	static bool ShouldCompilePermutation(const FVertexFactoryShaderPermutationParameters& Parameters);
 	static void ModifyCompilationEnvironment(const FVertexFactoryShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment);
 	static void ValidateCompiledResult(const FVertexFactoryType* Type, EShaderPlatform Platform, const FShaderParameterMap& ParameterMap, TArray<FString>& OutErrors);
-
-	static FVertexFactoryShaderParameters* ConstructShaderParameters(EShaderFrequency ShaderFrequency);
 
 	inline const FUniformBufferRHIRef GetVirtualHeightfieldMeshVertexFactoryUniformBuffer() const
 	{

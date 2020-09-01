@@ -171,6 +171,7 @@ void SFindInMaterial::Construct(const FArguments& InArgs, TSharedPtr<FMaterialEd
 				.OnGenerateRow(this, &SFindInMaterial::OnGenerateRow)
 				.OnGetChildren(this, &SFindInMaterial::OnGetChildren)
 				.OnSelectionChanged(this, &SFindInMaterial::OnTreeSelectionChanged)
+				.OnMouseButtonDoubleClick(this, &SFindInMaterial::OnTreeSelectionDoubleClick)
 				.SelectionMode(ESelectionMode::Multi)
 			]
 		]
@@ -273,9 +274,10 @@ void SFindInMaterial::MatchTokens(const TArray<FString> &Tokens)
 		UEdGraphNode* Node = *It;
 
 		const FString NodeName = Node->GetNodeTitle(ENodeTitleType::FullTitle).ToString();
-		FSearchResult NodeResult(new FFindInMaterialResult(NodeName, RootSearchResult, Node));
+		const FString NodeType = Node->GetNodeTitle(ENodeTitleType::ListView).ToString();
+		FSearchResult NodeResult(new FFindInMaterialResult(NodeName == NodeType ? NodeName : NodeName + " - " + NodeType, RootSearchResult, Node));
 
-		FString NodeSearchString = NodeName + Node->NodeComment;
+		FString NodeSearchString = NodeName + NodeType + Node->NodeComment;
 		NodeSearchString = NodeSearchString.Replace(TEXT(" "), TEXT(""));
 
 		bool bNodeMatchesSearch = StringMatchesSearchTokens(Tokens, NodeSearchString);
@@ -412,6 +414,14 @@ void SFindInMaterial::OnGetChildren(FSearchResult InItem, TArray< FSearchResult 
 }
 
 void SFindInMaterial::OnTreeSelectionChanged(FSearchResult Item, ESelectInfo::Type)
+{
+	if (Item.IsValid())
+	{
+		Item->OnClick(MaterialEditorPtr);
+	}
+}
+
+void SFindInMaterial::OnTreeSelectionDoubleClick(FSearchResult Item)
 {
 	if (Item.IsValid())
 	{

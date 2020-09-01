@@ -98,6 +98,10 @@ struct FMovieSceneSubSequenceData
 	UPROPERTY()
 	int16 HierarchicalBias;
 
+	/** Whether this sub-sequence has hierarchical easing. */
+	UPROPERTY()
+	bool bHasHierarchicalEasing;
+
 	/** Instance data that should be used for any tracks contained immediately within this sub sequence */
 	UPROPERTY()
 	FMovieSceneSequenceInstanceDataPtr InstanceData;
@@ -107,6 +111,7 @@ struct FMovieSceneSubSequenceData
 	/** This sequence's path within its movie scene */
 	UPROPERTY()
 	FName SectionPath;
+
 #endif
 
 private:

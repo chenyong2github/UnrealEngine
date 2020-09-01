@@ -84,6 +84,14 @@ FAutoConsoleVariableRef CVarSkylightIntensityMultiplier(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
+int32 GSkylightRealTimeReflectionCapture = 1;
+FAutoConsoleVariableRef CVarSkylightRealTimeReflectionCapture(
+	TEXT("r.SkyLight.RealTimeReflectionCapture"),
+	GSkylightRealTimeReflectionCapture,
+	TEXT("Make sure the sky light real time capture is not run on platform where it is considered out of budget. Cannot be changed at runtime."),
+	ECVF_Scalability
+	);
+
 constexpr EPixelFormat SKYLIGHT_CUBEMAP_FORMAT = PF_FloatRGBA;
 
 void FSkyTextureCubeResource::InitRHI()
@@ -985,7 +993,11 @@ bool USkyLightComponent::IsOcclusionSupported() const
 
 bool USkyLightComponent::IsRealTimeCaptureEnabled() const
 {
-	return bRealTimeCapture && Mobility == EComponentMobility::Movable;
+	FSceneInterface* LocalScene = GetScene();
+	// We currently disable realtime capture on mobile, OGL requires an additional texture to read SkyIrradianceEnvironmentMap which can break materials already at the texture limit.
+	// See FORT-301037, FORT-302324	
+	const bool bIsMobile = LocalScene && LocalScene->GetFeatureLevel() <= ERHIFeatureLevel::ES3_1;
+	return bRealTimeCapture && Mobility == EComponentMobility::Movable && GSkylightRealTimeReflectionCapture >0 && !bIsMobile;
 }
 
 void USkyLightComponent::OnVisibilityChanged()

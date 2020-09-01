@@ -53,6 +53,7 @@ namespace Chaos
 		void Update(FRigidBodySweptPointContactConstraint& Constraint, const FReal CullDistance)
 		{
 			// Update as a point constraint (base class).
+			Constraint.bShouldTreatAsSinglePoint = true;
 			Update(*Constraint.As<FRigidBodyPointContactConstraint>(), CullDistance);
 		}
 
@@ -700,7 +701,10 @@ namespace Chaos
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
 				{
-					Constraint.SetDisabled(true);
+					if (ParticleParameters.bCanDisableContacts)
+					{
+						Constraint.SetDisabled(true);
+					}
 					return;
 				}
 
@@ -755,7 +759,7 @@ namespace Chaos
 			TGenericParticleHandle<FReal, 3> Particle0 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[0]);
 			TGenericParticleHandle<FReal, 3> Particle1 = TGenericParticleHandle<FReal, 3>(Constraint.Particle[1]);
 
-			if (IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
+			if (Constraint.bShouldTreatAsSinglePoint || IterationParameters.Iteration > 0 || Constraint.TimeOfImpact == 1)
 			{
 				// If not on first iteration, or at TOI = 1 (normal constraint) we don't want to split timestep at TOI.
 				ApplyImpl(Constraint, IterationParameters, ParticleParameters);
@@ -770,7 +774,7 @@ namespace Chaos
 			const int32 PartialPairIterations = FMath::Max(IterationParameters.NumPairIterations, 2); // Do at least 2 pair iterations
 			const FContactIterationParameters IterationParametersPartialDT{ PartialDT, FakeIteration, IterationParameters.NumIterations, PartialPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
 			const FContactIterationParameters IterationParametersRemainingDT{ RemainingDT, FakeIteration, IterationParameters.NumIterations, IterationParameters.NumPairIterations, IterationParameters.ApplyType, IterationParameters.NeedsAnotherIteration };
-			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.Collided};
+			const FContactParticleParameters CCDParticleParamaters{ ParticleParameters.CullDistance + TimeOfImpactErrorMargin, ParticleParameters.ShapePadding + TimeOfImpactErrorMargin, ParticleParameters.RestitutionVelocityThreshold, ParticleParameters.bCanDisableContacts, ParticleParameters.Collided };
 
 			// Rewind P to TOI and Apply
 			Particle0->P() = FMath::Lerp(Particle0->X(), Particle0->P(), Constraint.TimeOfImpact);
@@ -822,8 +826,17 @@ namespace Chaos
 			TPBDRigidParticleHandle<FReal, 3>* PBDRigid1 = Particle1->CastToRigidParticle();
 			const bool bIsRigidDynamic0 = PBDRigid0 && PBDRigid0->ObjectState() == EObjectStateType::Dynamic;
 			const bool bIsRigidDynamic1 = PBDRigid1 && PBDRigid1->ObjectState() == EObjectStateType::Dynamic;
-			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
-			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
+			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			// In the case of two objects which are at the same level in shock propagation which end
+			// up in contact with each other, treat each object as not temporarily static. This can
+			// happen, for example, at the center of an arch, or between objects which are sliding into
+			// each other on a static surface.
+			if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+			{
+				IsTemporarilyStatic0 = false;
+				IsTemporarilyStatic1 = false;
+			}
 
 			if ((!bIsRigidDynamic0 || IsTemporarilyStatic0) && (!bIsRigidDynamic1 || IsTemporarilyStatic1))
 			{
@@ -911,8 +924,17 @@ namespace Chaos
 			FVec3 P1 = FParticleUtilities::GetCoMWorldPosition(Particle1);
 			FRotation3 Q0 = FParticleUtilities::GetCoMWorldRotation(Particle0);
 			FRotation3 Q1 = FParticleUtilities::GetCoMWorldRotation(Particle1);
-			const bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
-			const bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			bool IsTemporarilyStatic0 = IsTemporarilyStatic.Contains(Particle0->GeometryParticleHandle());
+			bool IsTemporarilyStatic1 = IsTemporarilyStatic.Contains(Particle1->GeometryParticleHandle());
+			// In the case of two objects which are at the same level in shock propagation which end
+			// up in contact with each other, treat each object as not temporarily static. This can
+			// happen, for example, at the center of an arch, or between objects which are sliding into
+			// each other on a static surface.
+			if (IsTemporarilyStatic0 && IsTemporarilyStatic1)
+			{
+				IsTemporarilyStatic0 = false;
+				IsTemporarilyStatic1 = false;
+			}
 
 			if (Contact.Phi >= ParticleParameters.ShapePadding)
 			{
@@ -1016,7 +1038,10 @@ namespace Chaos
 				// Permanently disable a constraint that is beyond the cull distance
 				if (Constraint.GetPhi() >= ParticleParameters.CullDistance)
 				{
-					Constraint.SetDisabled(true);
+					if (ParticleParameters.bCanDisableContacts)
+					{
+						Constraint.SetDisabled(true);
+					}
 					return;
 				}
 

@@ -100,6 +100,7 @@ Audio::FModulationUnitConvertFunction USoundModulationParameterScaled::GetUnitCo
 		}
 	};
 }
+
 Audio::FModulationLinearConversionFunction USoundModulationParameterScaled::GetLinearConversionFunction() const
 {
 	return [InUnitMin = UnitMin, InUnitMax = UnitMax](float* RESTRICT OutValueBuffer, int32 InNumSamples)

@@ -43,8 +43,20 @@ enum class EEntityRecursion : uint8
 	/** Perform the action on this entity and all its children recursively */
 	Full      = This | Children,
 };
-ENUM_CLASS_FLAGS(EEntityRecursion)
+ENUM_CLASS_FLAGS(EEntityRecursion);
 
+
+/**
+ * Enumeration that defines a threading model for this entity manager
+ */
+enum class EEntityThreadingModel : uint8
+{
+	/** Specified when the data contained within an entity manager does not satisfy the requirements to justify using threaded evaluation */
+	NoThreading,
+
+	/** Specified when the data contained within an entity manager is large or complex enough to justify threaded evaluation  */
+	TaskGraph,
+};
 
 
 /**
@@ -182,6 +194,11 @@ public:
 	 */
 	bool IsHandleValid(FEntityHandle EntityID) const;
 
+
+	/**
+	 * Compute and retrieve this entity manager's threading model
+	 */
+	EEntityThreadingModel GetThreadingModel() const;
 
 public:
 
@@ -348,19 +365,6 @@ public:
 		return InstancedChildInitializers.Add(MoveTemp(InInitializer));
 	}
 
-
-	/**
-	 * Defines a new mutual initializer that applies only to entities factoried within this entity manager
-	 *
-	 * @param InInitializer        The initializer to insert
-	 * @return An index into the array of initializers that should be used for removal
-	 */
-	int32 DefineInstancedMutualInitializer(TInlineValue<FMutualEntityInitializer>&& InInitializer)
-	{
-		check(InInitializer.IsValid());
-		return InstancedMutualInitializers.Add(MoveTemp(InInitializer));
-	}
-
 	/**
 	 * Runs all initializers for the specified parent/child allocation
 	 */
@@ -380,12 +384,9 @@ public:
 	}
 
 	/**
-	 * Destroy a previously registered instanced mutual initializer using its index
+	 * Run through all entities in this entity manager, ensuring that all mutual components exist
 	 */
-	void DestroyInstancedMutualInitializer(int32 Index)
-	{
-		InstancedMutualInitializers.RemoveAt(Index);
-	}
+	void AddMutualComponents();
 
 public:
 
@@ -912,8 +913,6 @@ private:
 	TMultiMap<FMovieSceneEntityID, FMovieSceneEntityID> ParentToChild;
 
 	TSparseArray<TInlineValue<FChildEntityInitializer>> InstancedChildInitializers;
-
-	TSparseArray<TInlineValue<FMutualEntityInitializer>> InstancedMutualInitializers;
 
 	/** Map of entity ID to the generation its handle was created in. FEntityHandle::HandleGeneration matches the value if it is still valid */
 	TMap<FMovieSceneEntityID, uint32> EntityGenerationMap;

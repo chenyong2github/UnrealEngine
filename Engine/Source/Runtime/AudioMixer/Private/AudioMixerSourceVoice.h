@@ -118,6 +118,9 @@ namespace Audio
 		// Sets the submix send levels
 		void SetSubmixSendInfo(FMixerSubmixWeakPtr Submix, const float SendLevel);
 
+		// Clears the submix send to the given submix
+		void ClearSubmixSendInfo(FMixerSubmixWeakPtr Submix);
+
 		// Set the source bus send levels
 		void SetAudioBusSendInfo(EBusSendType InBusSendType, uint32 AudioBusId, float BusSendLevel);
 

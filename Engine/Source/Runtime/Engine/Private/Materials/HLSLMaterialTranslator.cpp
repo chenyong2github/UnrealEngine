@@ -884,9 +884,9 @@ bool FHLSLMaterialTranslator::Translate()
 			Errorf(TEXT("Only unlit materials can output negative emissive color."));
 		}
 
-		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || BlendMode!=BLEND_Opaque))
+		if (Material->IsSky() && (!MaterialShadingModels.IsUnlit() || !(BlendMode == BLEND_Opaque || BlendMode == BLEND_Masked)))
 		{
-			Errorf(TEXT("Sky materials must be opaque and unlit. They are expected to completely replace the background."));
+			Errorf(TEXT("Sky materials must be opaque or masked, and unlit. They are expected to completely replace the background."));
 		}
 
 		if (MaterialShadingModels.HasShadingModel(MSM_SingleLayerWater))
@@ -1399,6 +1399,9 @@ void FHLSLMaterialTranslator::GetMaterialEnvironment(EShaderPlatform InPlatform,
 
 			OutEnvironment.SetDefine(TEXT("MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY"),
 				VolumetricAdvancedNode->ConservativeDensity.IsConnected() ? TEXT("1") : TEXT("0"));
+
+			OutEnvironment.SetDefine(TEXT("MATERIAL_VOLUMETRIC_ADVANCED_OVERRIDE_AMBIENT_OCCLUSION"),
+				Material->HasAmbientOcclusionConnected() ? TEXT("1") : TEXT("0"));
 
 			OutEnvironment.SetDefine(TEXT("MATERIAL_VOLUMETRIC_ADVANCED_GROUND_CONTRIBUTION"),
 				VolumetricAdvancedNode->bGroundContribution ? TEXT("1") : TEXT("0"));
@@ -2964,7 +2967,6 @@ int32 FHLSLMaterialTranslator::ScalarParameter(FName ParameterName, float Defaul
 		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.Num();
 		FMaterialScalarParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformScalarParameters.AddDefaulted_GetRef();
 		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.ParameterName = ParameterName.ToString();
 		Parameter.DefaultValue = DefaultValue;
 	}
 
@@ -2991,7 +2993,6 @@ int32 FHLSLMaterialTranslator::VectorParameter(FName ParameterName, const FLinea
 		ParameterIndex = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.Num();
 		FMaterialVectorParameterInfo& Parameter = MaterialCompilationOutput.UniformExpressionSet.UniformVectorParameters.AddDefaulted_GetRef();
 		Parameter.ParameterInfo = ParameterInfo;
-		Parameter.ParameterName = ParameterName.ToString();
 		Parameter.DefaultValue = DefaultValue;
 	}
 
@@ -6995,7 +6996,7 @@ int32 FHLSLMaterialTranslator::GetCloudSampleNormAltitudeInLayer()
 
 int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
 {
-	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type)

@@ -608,7 +608,12 @@ public:
 	{
 		Ar.UsingCustomVersion(FExternalPhysicsCustomObjectVersion::GUID);
 
-		TBox<FReal, 3>::SerializeAsAABB(Ar, FullBounds);
+		if (Ar.CustomVer(FExternalPhysicsCustomObjectVersion::GUID) < FExternalPhysicsCustomObjectVersion::RemovedAABBTreeFullBounds)
+		{
+			// Serialize out unused aabb for earlier versions
+			TAABB<T, 3> Dummy(TVector<T, 3>((T)0), TVector<T, 3>((T)0));
+			TBox<FReal, 3>::SerializeAsAABB(Ar, Dummy);
+		}
 		Ar << Nodes;
 		Ar << Leaves;
 		Ar << DirtyElements;
@@ -1208,7 +1213,6 @@ private:
 
 	TAABBTree(const TAABBTree<TPayloadType, TLeafType, T, bMutable>& Other)
 		: ISpatialAcceleration<TPayloadType, T, 3>(StaticType)
-		, FullBounds(Other.FullBounds)
 		, Nodes(Other.Nodes)
 		, Leaves(Other.Leaves)
 		, DirtyElements(Other.DirtyElements)
@@ -1233,7 +1237,6 @@ private:
 		WorkPoolFreeList.Empty();
 		if(this != &Rhs)
 		{
-			FullBounds = Rhs.FullBounds;
 			Nodes = Rhs.Nodes;
 			Leaves = Rhs.Leaves;
 			DirtyElements = Rhs.DirtyElements;
@@ -1249,7 +1252,6 @@ private:
 		return *this;
 	}
 
-	TAABB<T, 3> FullBounds;
 	TArray<FNode> Nodes;
 	TArray<TLeafType> Leaves;
 	TArray<FElement> DirtyElements;

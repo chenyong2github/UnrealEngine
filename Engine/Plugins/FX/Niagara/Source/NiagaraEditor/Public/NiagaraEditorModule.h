@@ -29,6 +29,7 @@ struct FNiagaraScriptHighlight;
 class FNiagaraClipboard;
 class UNiagaraScratchPadViewModel;
 class FHlslNiagaraCompiler;
+class FNiagaraComponentBroker;
 
 DECLARE_STATS_GROUP(TEXT("Niagara Editor"), STATGROUP_NiagaraEditor, STATCAT_Advanced);
 
@@ -158,7 +159,7 @@ private:
 	};
 
 	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
-	void OnNiagaraSettingsChangedEvent(const FString& PropertyName, const UNiagaraSettings* Settings);
+	void OnNiagaraSettingsChangedEvent(const FName& PropertyName, const UNiagaraSettings* Settings);
 	void OnPreGarbageCollection();
 	void OnExecParticleInvoked(const TCHAR* InStr);
 	void OnPostEngineInit();
@@ -218,6 +219,8 @@ private:
 	TSharedPtr<FNiagaraScriptMergeManager> ScriptMergeManager;
 
 	TSharedPtr<INiagaraEditorOnlyDataUtilities> EditorOnlyDataUtilities;
+
+	TSharedPtr<FNiagaraComponentBroker> NiagaraComponentBroker;
 
 	TMap<const UScriptStruct*, FOnCreateMovieSceneTrackForParameter> TypeToParameterTrackCreatorMap;
 

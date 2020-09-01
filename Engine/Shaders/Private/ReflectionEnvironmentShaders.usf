@@ -175,7 +175,7 @@ uint NumMips;
 #ifdef USE_COMPUTE
 int FaceThreadGroupSize;
 int2 ValidDispatchCoord;
-RWTexture2DArray<float4> OutTextureMipColor;	// All slices, i.e. faces, of a cube map mip level
+RWTextureCube<float4> OutTextureMipColor;	// All slices, i.e. faces, of a cube map mip level
 #endif 
 
 #ifdef USE_COMPUTE
@@ -314,6 +314,7 @@ void DownsamplePS_Mobile(
 }
 
 #ifdef USE_COMPUTE
+int CubeFaceOffset;
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
 void FilterCS(uint3 ThreadId : SV_DispatchThreadID)
 {
@@ -322,7 +323,7 @@ void FilterCS(uint3 ThreadId : SV_DispatchThreadID)
 	{
 		return;
 	}
-	const int SelectedCubeFace = int(ThreadId.x) / FaceThreadGroupSize;
+	const int SelectedCubeFace = CubeFaceOffset + int(ThreadId.x) / FaceThreadGroupSize;
 	float2 ScaledUVs = ((float2(FaceCoord) + 0.5f) / float2(ValidDispatchCoord)) * 2.0f - 1.0f;
 	float4 OutColor;
 #else // USE_COMPUTE
@@ -538,7 +539,7 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 #if 1
 
 	// For a 128x128 cubemap, sampling mip level 2 with only 8x8 samples matches closely the super sampled version.
-	const float3 SampleDirection = UniformSampleSphere(float2(ThreadId.xy) / float2(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y)).xyz;
+	const float3 SampleDirection = UniformSampleSphere((float2(ThreadId.xy)+0.5f) / float2(THREADGROUP_SIZE_X, THREADGROUP_SIZE_Y)).xyz;
 	IrradianceSHShared[LinearIndex] = SampleSHRGB(SampleDirection, UniformSampleSolidAngle, MipIndex);
 
 #else
@@ -659,6 +660,10 @@ void ComputeSkyEnvMapDiffuseIrradianceCS(uint3 ThreadId : SV_DispatchThreadID)
 
 #include "HeightFogCommon.ush"
 
+#if PERMUTATION_DEPTHTEXTURE
+Texture2D DepthTexture;
+#endif
+
 void RenderRealTimeReflectionHeightFogVS(
 	in uint VertexId : SV_VertexID,
 	out float4 Position : SV_POSITION,
@@ -682,8 +687,13 @@ void RenderRealTimeReflectionHeightFogPS(
 
 	float4 WorldVector = mul(float4((SVPos.xy / 128.0f) * float2(2.0, -2.0) + float2(1.0, -1.0), 0.0, 0), ResolvedView.ScreenToTranslatedWorld);
 
-	const float HeightFogFarDistance = 100000.0f * 10.0f;	// 10 kilometers
-	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(normalize(ScreenVector)* HeightFogFarDistance);
+#if PERMUTATION_DEPTHTEXTURE
+	float DeviceZ = DepthTexture.Load(int3(SVPos.xy, 0));
+	const float HeightFogDistance = ConvertFromDeviceZ(DeviceZ);
+#else
+	const float HeightFogDistance = 100000.0f * 10.0f;	// 10 kilometers
+#endif
+	float4 HeightFogInscatteringAndOpacity = CalculateHeightFog(normalize(ScreenVector)* HeightFogDistance);
 
 	const float OutputPreExposure = (ResolvedView.RealTimeReflectionCapture ? ResolvedView.RealTimeReflectionCapturePreExposure : ResolvedView.PreExposure);
 	HeightFogInscatteringAndOpacity.rgb *= OutputPreExposure;

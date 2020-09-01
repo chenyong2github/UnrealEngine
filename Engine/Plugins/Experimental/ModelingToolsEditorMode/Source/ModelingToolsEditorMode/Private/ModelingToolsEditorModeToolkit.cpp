@@ -464,6 +464,8 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
 		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEdgeLoopInsertionTool);
+		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
@@ -491,6 +493,11 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Standard(FName PaletteInd
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshToVolumeTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPhysicsInspectorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSetCollisionGeometryTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginExtractCollisionGeometryTool);
 	}
 
 }
@@ -597,6 +604,8 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyEditTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginPolyDeformTool);
 		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginEdgeLoopInsertionTool);
+		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginAttributeEditorTool);
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshInspectorTool);
 	}
@@ -624,6 +633,11 @@ void FModelingToolsEditorModeToolkit::BuildToolPalette_Experimental(FName Palett
 		ToolbarBuilder.AddToolBarButton(Commands.BeginMeshToVolumeTool);
 		ToolbarBuilder.AddSeparator();
 		ToolbarBuilder.AddToolBarButton(Commands.BeginBspConversionTool);
+		ToolbarBuilder.AddSeparator();
+		ToolbarBuilder.AddToolBarButton(Commands.BeginPhysicsInspectorTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginSetCollisionGeometryTool);
+		//ToolbarBuilder.AddToolBarButton(Commands.BeginEditCollisionGeometryTool);
+		ToolbarBuilder.AddToolBarButton(Commands.BeginExtractCollisionGeometryTool);
 	}
 	else if (PaletteIndex == PrototypesTabName)
 	{

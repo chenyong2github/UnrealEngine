@@ -79,9 +79,6 @@ struct TInstanceFrameState
 
 	TNetworkPredictionBuffer<FFrame> Buffer;
 
-	// If >= 0, this frame should be preserved. E.g, do not write at a frame >= TailFrame + Buffer.Capacity().
-	int32 TailFrame = INDEX_NONE; 
-
 	TInstanceFrameState()
 		: Buffer(64) { } // fixme
 };

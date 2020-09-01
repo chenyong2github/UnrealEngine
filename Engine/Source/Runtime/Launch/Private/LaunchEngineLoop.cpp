@@ -28,6 +28,7 @@
 #include "HAL/PlatformFileManager.h"
 #include "HAL/FileManagerGeneric.h"
 #include "HAL/ExceptionHandling.h"
+#include "HAL/IPlatformFileManagedStorageWrapper.h"
 #include "Stats/StatsMallocProfilerProxy.h"
 #include "Trace/Trace.inl"
 #include "ProfilingDebugging/TraceAuxiliary.h"
@@ -2279,6 +2280,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 #endif
 		FPlatformMemory::Init();
 	}
+
+#if !(IS_PROGRAM || WITH_EDITOR)
+	if (FIoDispatcher::IsInitialized())
+	{
+		SCOPED_BOOT_TIMING("InitIoDispatcher");
+		FIoDispatcher::InitializePostSettings();
+	}
+#endif
 
 	// Let LogConsole know what ini file it should use to save its setting on exit.
 	// We can't use GGameIni inside log console because it's destroyed in the global
@@ -4921,7 +4930,7 @@ void FEngineLoop::Tick()
 
 		const UGameViewportClient* const GameViewport = GEngine->GameViewport;
 		const UWorld* const GameViewportWorld = GameViewport ? GameViewport->GetWorld() : nullptr;
-		UDemoNetDriver* const CurrentDemoNetDriver = GameViewportWorld ? GameViewportWorld->DemoNetDriver : nullptr;
+		UDemoNetDriver* const CurrentDemoNetDriver = GameViewportWorld ? GameViewportWorld->GetDemoNetDriver() : nullptr;
 
 		// Optionally validate that Slate has not modified any replicated properties for client replay recording.
 		FDemoSavedPropertyState PreSlateObjectStates;
@@ -5651,6 +5660,11 @@ bool FEngineLoop::AppInit( )
 		SCOPED_BOOT_TIMING("FApp::InitializeSession");
 		FApp::InitializeSession();
 	}
+#endif
+
+#if PLATFORM_USE_PLATFORM_FILE_MANAGED_STORAGE_WRAPPER
+	// Delay initialization of FPersistentStorageManager to a point where GConfig is initialized
+	FPersistentStorageManager::Get().Initialize();
 #endif
 
 	// Checks.

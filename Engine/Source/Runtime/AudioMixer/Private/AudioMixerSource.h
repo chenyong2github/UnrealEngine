@@ -165,6 +165,9 @@ namespace Audio
 		// source may need to live-update during its lifespan
 		TArray<FDynamicBusSendInfo> DynamicBusSendInfos;
 
+		// An array of submix sends from previous update. Allows us to clear out submix sends if they are no longer being sent.
+		TArray<FSoundSubmixSendInfo> PreviousSubmixSendSettings;
+
 		// Whether or not we're currently releasing our resources. Prevents recycling the source until release is finished.
 		FThreadSafeBool bIsReleasing;
 

@@ -73,7 +73,7 @@ enum class ECookByTheBookOptions
 	FullLoadAndSave =					0x00004000, // Load all packages into memory and save them all at once in one tick for speed reasons. This requires a lot of RAM for large games.
 	PackageStore =						0x00008000, // Cook package header information into a global package store
 	CookAgainstFixedBase =				0x00010000, // If cooking DLC, assume that the base content can not be modified. 
-	DLCNoCookAllAssets =				0x00020000, // If cooking DLC, do not include all assets and maps in the cook. You will be relying on other methods to add these files to the cook.
+	DlcLoadMainAssetRegistry =			0x00020000, // If cooking DLC, populate the main game asset registry
 
 	// Deprecated flags
 	DisableUnsolicitedPackages UE_DEPRECATED(4.26, "Use SkipSoftReferences and/or SkipHardReferences instead") = SkipSoftReferences | SkipHardReferences,
@@ -926,6 +926,11 @@ private:
 	* Returns true if we're cooking against a fixed release version
 	*/
 	bool IsCookingAgainstFixedBase() const;
+
+	/**
+	* Returns whether or not we should populate the Asset Registry using the main game content
+	*/
+	bool ShouldPopulateFullAssetRegistry() const;
 
 	/**
 	* GetBaseDirectoryForDLC

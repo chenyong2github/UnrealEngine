@@ -60,8 +60,11 @@ namespace GeometryCollectionTest
 
 		UnitTest.Initialize();
 
-		EXPECT_EQ(CollectionOther->DynamicCollection->DynamicState[0], (int32)EObjectStateTypeEnum::Chaos_Object_Kinematic);
-		EXPECT_EQ(Collection->DynamicCollection->DynamicState[0], (int32)EObjectStateTypeEnum::Chaos_Object_Dynamic);
+		UnitTest.Solver->RegisterSimOneShotCallback([&]()
+		{
+			EXPECT_EQ(CollectionOther->DynamicCollection->DynamicState[0],(int32)EObjectStateTypeEnum::Chaos_Object_Kinematic);
+			EXPECT_EQ(Collection->DynamicCollection->DynamicState[0],(int32)EObjectStateTypeEnum::Chaos_Object_Dynamic);
+		});
 	}
 
 	TYPED_TEST(AllTraits, GeometryCollection_RigidBodies_Field_KinematicActivationOnProxyDuringUpdate)

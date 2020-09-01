@@ -2,7 +2,9 @@
 
 #include "MeshCurvature.h"
 #include "MeshWeights.h"
+#include "MeshNormals.h"
 #include "VectorUtil.h"
+#include "Async/ParallelFor.h"
 
 
 
@@ -120,7 +122,7 @@ double TGaussianCurvature(const FDynamicMesh3& mesh, int32 v_i, GetPositionFuncT
 	}
 	else
 	{
-		return (FMathd::TwoPi - AngleSum);// / MixedAreaSum;
+		return (FMathd::TwoPi - AngleSum) / MixedAreaSum;
 	}
 }
 
@@ -136,3 +138,63 @@ double UE::MeshCurvature::GaussianCurvature(const FDynamicMesh3& Mesh, int32 Ver
 	return TGaussianCurvature(Mesh, VertexIndex, VertexPositionFunc);
 }
 
+
+
+
+
+void FMeshVertexCurvatureCache::BuildAll(const FDynamicMesh3& Mesh)
+{
+	int32 NumVertices = Mesh.MaxVertexID();
+	Curvatures.SetNum(NumVertices);
+
+	TArray<bool> IsValidFlag;
+	IsValidFlag.Init(false, NumVertices);
+
+	ParallelFor(NumVertices, [&](int32 vid)
+	{
+		if (Mesh.IsVertex(vid))
+		{
+			if (Mesh.IsBoundaryVertex(vid))
+			{
+				Curvatures[vid] = FVertexCurvature();
+				return;
+			}
+
+			FVector3d VertexNormal = FMeshNormals::ComputeVertexNormal(Mesh, vid);
+
+			//double Area = FMeshWeights::VoronoiArea(Mesh, vid);
+			//double GaussCurvature = UE::MeshCurvature::GaussianCurvature(Mesh, vid) / Area;
+
+			double GaussCurvature = UE::MeshCurvature::GaussianCurvature(Mesh, vid);
+
+			FVector3d MeanCurvatureNormal = UE::MeshCurvature::MeanCurvatureNormal(Mesh, vid);
+			double MeanCurvature = 0.5 * MeanCurvatureNormal.Length();
+			double Dot = MeanCurvatureNormal.Dot(VertexNormal);
+			MeanCurvature  *= FMathd::Sign(Dot);
+
+			double DeltaCurvature = FMathd::Max(0, MeanCurvature * MeanCurvature - GaussCurvature);
+			DeltaCurvature = FMathd::Sqrt(DeltaCurvature);
+			double PrincipalCurvature1 = MeanCurvature + DeltaCurvature;
+			double PrincipalCurvature2 = MeanCurvature - DeltaCurvature;
+
+			Curvatures[vid] = { MeanCurvature, GaussCurvature, PrincipalCurvature1, PrincipalCurvature2 };
+			IsValidFlag[vid] = true;
+		}
+	});
+
+
+	MeanRange = FInterval1d::Empty();
+	GaussianRange = FInterval1d::Empty();
+	MaxPrincipalRange = FInterval1d::Empty();
+	MinPrincipalRange = FInterval1d::Empty();
+	for (int32 k = 0; k < NumVertices; ++k)
+	{
+		if (IsValidFlag[k])
+		{
+			MeanRange.Contain(Curvatures[k].Mean);
+			GaussianRange.Contain(Curvatures[k].Gaussian);
+			MaxPrincipalRange.Contain(Curvatures[k].MaxPrincipal);
+			MinPrincipalRange.Contain(Curvatures[k].MinPrincipal);
+		}
+	}
+}

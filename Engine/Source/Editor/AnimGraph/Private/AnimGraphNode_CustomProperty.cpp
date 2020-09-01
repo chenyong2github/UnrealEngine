@@ -14,8 +14,71 @@
 #include "Widgets/SBoxPanel.h"
 #include "DetailWidgetRow.h"
 #include "PropertyCustomizationHelpers.h"
+#include "KismetCompilerMisc.h"
+#include "KismetCompiler.h"
 
 #define LOCTEXT_NAMESPACE "CustomPropNode"
+
+void UAnimGraphNode_CustomProperty::CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext)
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (!Pin->bOrphanedPin && !UAnimationGraphSchema::IsPosePin(Pin->PinType))
+		{
+			// avoid to add properties which already exist on the custom node.
+			// for example the ControlRig_CustomNode has a pin called "alpha" which is not custom.
+			if (FStructProperty* NodeProperty = CastField<FStructProperty>(GetClass()->FindPropertyByName(TEXT("Node"))))
+			{
+				if(NodeProperty->Struct->FindPropertyByName(Pin->GetFName()))
+				{
+					continue;
+				}
+			}
+
+			// Add prefix to avoid collisions
+			FString PrefixedName = GetPinTargetVariableName(Pin);
+
+			// Create a property on the new class to hold the pin data
+			FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(InCompilerContext.NewClass, FName(*PrefixedName), Pin->PinType, InCompilerContext.NewClass, CPF_None, CastChecked<UEdGraphSchema_K2>(GetSchema()), InCompilerContext.MessageLog);
+			if (NewProperty)
+			{
+				FKismetCompilerUtilities::LinkAddedProperty(InCompilerContext.NewClass, NewProperty);
+			}
+		}
+	}
+}
+
+void UAnimGraphNode_CustomProperty::OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext)
+{
+	for (UEdGraphPin* Pin : Pins)
+	{
+		if (!Pin->bOrphanedPin && !UAnimationGraphSchema::IsPosePin(Pin->PinType))
+		{
+			// avoid to add properties which already exist on the custom node.
+			// for example the ControlRig_CustomNode has a pin called "alpha" which is not custom.
+			if (FStructProperty* NodeProperty = CastField<FStructProperty>(GetClass()->FindPropertyByName(TEXT("Node"))))
+			{
+				if(NodeProperty->Struct->FindPropertyByName(Pin->GetFName()))
+				{
+					continue;
+				}
+			}
+			
+			FString PrefixedName = GetPinTargetVariableName(Pin);
+
+			// Add mappings to the node
+			UClass* InstClass = GetTargetSkeletonClass();
+			if (FProperty* FoundProperty = FindFProperty<FProperty>(InstClass, Pin->PinName))
+			{
+				AddSourceTargetProperties(*PrefixedName, FoundProperty->GetFName());
+			}
+			else
+			{
+				AddSourceTargetProperties(*PrefixedName, Pin->GetFName());
+			}
+		}
+	}
+}
 
 void UAnimGraphNode_CustomProperty::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)
 {

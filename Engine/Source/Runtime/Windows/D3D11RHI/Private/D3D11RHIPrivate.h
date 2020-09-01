@@ -344,7 +344,7 @@ struct FD3DGPUProfiler : public FGPUProfiler
 
 	void EndFrame();
 
-	bool CheckGpuHeartbeat() const;
+	bool CheckGpuHeartbeat(bool bShowActiveStatus) const;
 
 private:
 	TMap<uint32, FString> CachedStrings;
@@ -693,7 +693,7 @@ public:
 
 	bool CheckGpuHeartbeat() const override
 	{
-		return GPUProfilingData.CheckGpuHeartbeat();
+		return GPUProfilingData.CheckGpuHeartbeat(false);
 	}
 
 	void AddLockedData(const FD3D11LockedKey& Key, const FD3D11LockedData& LockedData)

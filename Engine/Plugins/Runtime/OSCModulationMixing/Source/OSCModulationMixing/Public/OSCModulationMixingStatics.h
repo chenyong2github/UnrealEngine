@@ -49,9 +49,9 @@ class OSCMODULATIONMIXING_API UOSCModulationMixingStatics : public UBlueprintFun
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "Get Save Profile Path")
 	static FOSCAddress GetProfileSavePath();
 
-	/** Converts channel array to OSCBundle representation to send over network via OSC protocol */
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "Copy Mix Channels to OSC Bundle", meta = (WorldContext = "WorldContextObject"))
-	static void CopyChannelsToOSCBundle(UObject* WorldContextObject, const FOSCAddress& PathAddress, const TArray<FSoundControlBusMixChannel>& Channels, UPARAM(ref) FOSCBundle& Bundle);
+	/** Converts stage array to OSCBundle representation to send over network via OSC protocol */
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "Copy Mix Stages to OSC Bundle", meta = (WorldContext = "WorldContextObject"))
+	static void CopyStagesToOSCBundle(UObject* WorldContextObject, const FOSCAddress& PathAddress, const TArray<FSoundControlBusMixStage>& Stages, UPARAM(ref) FOSCBundle& Bundle);
 
 	/** Converts Control Bus Mix to OSCBundle representation to send over network via OSC protocol */
 	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "Copy Mix State to OSC Bundle", meta = (WorldContext = "WorldContextObject"))
@@ -66,6 +66,6 @@ class OSCMODULATIONMIXING_API UOSCModulationMixingStatics : public UBlueprintFun
 	static void RequestMix(UObject* WorldContextObject, UOSCClient* Client, const FOSCAddress& MixPath);
 
 	/** Converts OSCBundle to Control Bus Values & Mix Path from which it came */
-	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "OSCBundle To Channel Values", meta = (WorldContext = "WorldContextObject"))
-	static UPARAM(DisplayName = "Bus Values") TArray<FSoundModulationValue> OSCBundleToChannelValues(UObject* WorldContextObject, const FOSCBundle& Bundle, FOSCAddress& MixPath, TArray<FOSCAddress>& BusPaths, TArray<FString>& BusClassNames);
+	UFUNCTION(BlueprintCallable, Category = "Audio|OSC|Modulation", DisplayName = "OSCBundle To Stage Values", meta = (WorldContext = "WorldContextObject"))
+	static UPARAM(DisplayName = "Bus Values") TArray<FSoundModulationMixValue> OSCBundleToStageValues(UObject* WorldContextObject, const FOSCBundle& Bundle, FOSCAddress& MixPath, TArray<FOSCAddress>& BusPaths, TArray<FString>& BusClassNames);
 };

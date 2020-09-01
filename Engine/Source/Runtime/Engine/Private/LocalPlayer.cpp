@@ -57,6 +57,13 @@ static TAutoConsoleVariable<int32> CVarViewportTest(
 
 #endif // !UE_BUILD_SHIPPING
 
+int32 GCalcLocalPlayerCachedLODDistanceFactor = 1;
+static FAutoConsoleVariableRef CVarCalcLocalPlayerCachedLODDistanceFactor(
+	TEXT("r.CalcLocalPlayerCachedLODDistanceFactor"),
+	GCalcLocalPlayerCachedLODDistanceFactor,
+	TEXT("Should we calculate a LOD Distance Factor based on the current FOV.  Should not be necessary since LOD is already based on screen size.\n")
+	);
+
 DECLARE_CYCLE_STAT(TEXT("CalcSceneView"), STAT_CalcSceneView, STATGROUP_Engine);
 
 //////////////////////////////////////////////////////////////////////////
@@ -1086,7 +1093,14 @@ bool ULocalPlayer::GetProjectionData(FViewport* Viewport, EStereoscopicPass Ster
 	}
 
 	// scale distances for cull distance purposes by the ratio of our current FOV to the default FOV
-	PlayerController->LocalPlayerCachedLODDistanceFactor = ViewInfo.FOV / FMath::Max<float>(0.01f, (PlayerController->PlayerCameraManager != NULL) ? PlayerController->PlayerCameraManager->DefaultFOV : 90.f);
+	if (GCalcLocalPlayerCachedLODDistanceFactor != 0)
+	{
+		PlayerController->LocalPlayerCachedLODDistanceFactor = ViewInfo.FOV / FMath::Max<float>(0.01f, (PlayerController->PlayerCameraManager != NULL) ? PlayerController->PlayerCameraManager->DefaultFOV : 90.f);
+	}
+	else // This should be removed in the final version. Leaving in so this can be toggled on and off in order to evaluate it.
+	{
+		PlayerController->LocalPlayerCachedLODDistanceFactor = 1.f;
+	}
 
     FVector StereoViewLocation = ViewInfo.Location;
     if (bNeedStereo || bIsHeadTrackingAllowed)

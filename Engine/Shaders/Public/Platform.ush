@@ -835,3 +835,7 @@ uint2 UnpackUlongType(UlongType Value)
 		#define INFINITE_FLOAT 1.#INF
 	#endif
 #endif
+
+#ifndef RWTextureCube
+#define RWTextureCube RWTexture2DArray
+#endif

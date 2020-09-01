@@ -53,7 +53,7 @@
 
 #define LOCTEXT_NAMESPACE "GameplayStatics"
 
-static const int UE4_SAVEGAME_FILE_TYPE_TAG = 0x53415647;		// "sAvG"
+static const int UE4_SAVEGAME_FILE_TYPE_TAG = 0x53415647;		// "SAVG"
 
 struct FSaveGameFileVersion
 {

@@ -1,5 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
-const FIELD_RE = /^\.\.\. ([a-z][a-zA-Z]*)(\d*) (.*)/
+const FIELD_RE = /^\.\.\. ([a-zA-Z]*)(\d*) (.*)/
 
 type ZtagProperties = {[key: string]: string | number}[]
 

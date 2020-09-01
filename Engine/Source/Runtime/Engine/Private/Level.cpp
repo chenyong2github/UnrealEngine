@@ -325,6 +325,7 @@ ULevel::ULevel( const FObjectInitializer& ObjectInitializer )
 	FixupOverrideVertexColorsTime = 0;
 	FixupOverrideVertexColorsCount = 0;
 	bUseExternalActors = false;
+	bContainsStableActorGUIDs = true;
 #endif	
 	bActorClusterCreated = false;
 	bIsPartitioned = false;
@@ -393,6 +394,7 @@ void ULevel::Serialize( FArchive& Ar )
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 	Ar.UsingCustomVersion(FRenderingObjectVersion::GUID);
+	Ar.UsingCustomVersion(FFortniteMainBranchObjectVersion::GUID);
 
 	if (Ar.IsLoading())
 	{
@@ -410,6 +412,10 @@ void ULevel::Serialize( FArchive& Ar )
 		{
 			Ar << Actors;
 		}
+
+#if WITH_EDITORONLY_DATA
+		bContainsStableActorGUIDs = Ar.CustomVer(FFortniteMainBranchObjectVersion::GUID) >= FFortniteMainBranchObjectVersion::ContainsStableActorGUIDs;
+#endif
 	}
 	else if (Ar.IsSaving() && Ar.IsPersistent())
 	{
@@ -450,6 +456,10 @@ void ULevel::Serialize( FArchive& Ar )
 		});
 
 		Ar << EmbeddedActors;
+
+#if WITH_EDITORONLY_DATA
+		bContainsStableActorGUIDs = true;
+#endif
 	}
 	else
 	{

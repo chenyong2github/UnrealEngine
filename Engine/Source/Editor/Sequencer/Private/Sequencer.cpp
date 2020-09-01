@@ -539,6 +539,7 @@ FSequencer::FSequencer()
 	, bUpdatingSequencerSelection( false )
 	, bUpdatingExternalSelection( false )
 	, bNeedsEvaluate(false)
+	, bNeedsInvalidateCachedData(false)
 	, bHasPreAnimatedInfo(false)
 {
 	Selection.GetOnOutlinerNodeSelectionChanged().AddRaw(this, &FSequencer::OnSelectedOutlinerNodesChanged);
@@ -613,6 +614,12 @@ void FSequencer::Tick(float InDeltaTime)
 	{
 		const int32 SequencerRefCount = AsShared().GetSharedReferenceCount() - 1;
 		ensureAlwaysMsgf(SequencerRefCount == 1, TEXT("Multiple persistent shared references detected for Sequencer. There should only be one persistent authoritative reference. Found %d additional references which will result in FSequencer not being released correctly."), SequencerRefCount - 1);
+	}
+
+	if (bNeedsInvalidateCachedData)
+	{
+		InvalidateCachedData();
+		bNeedsInvalidateCachedData = false;
 	}
 
 	// Ensure the time bases for our playback position are kept up to date with the root sequence
@@ -2108,7 +2115,7 @@ void FSequencer::BakeTransform()
 					CameraComponent->GetAdditiveOffset(AdditiveOffset, AdditiveFOVOffset);
 
 					FTransform Transform(Actor->GetActorRotation(), Actor->GetActorLocation());
-					FTransform TransformWithAdditiveOffset = Transform * AdditiveOffset;
+					FTransform TransformWithAdditiveOffset = AdditiveOffset * Transform;
 					FVector LocalTranslation = TransformWithAdditiveOffset.GetTranslation();
 					FRotator LocalRotation = TransformWithAdditiveOffset.GetRotation().Rotator();
 
@@ -3752,26 +3759,28 @@ void FSequencer::UpdateCameraCut(UObject* CameraObject, const EMovieSceneCameraC
 			continue;
 		}
 
-		if ((CameraObject != nullptr) || LevelVC->IsLockedToActor(UnlockIfCameraActor))
+		if (CameraObject == nullptr && UnlockIfCameraActor != nullptr && !LevelVC->IsLockedToActor(UnlockIfCameraActor))
 		{
-			if (bShouldCachePreAnimatedViewportInfo)
-			{
-				PreAnimatedViewportLocation = LevelVC->GetViewLocation();
-				PreAnimatedViewportRotation = LevelVC->GetViewRotation();
-				PreAnimatedViewportFOV = LevelVC->ViewFOV;
-				bHasPreAnimatedInfo = true;
-
-				// We end-up only caching the first cinematic viewport's info, which means that
-				// if we are previewing the sequence on 2 different viewports, the second viewport
-				// will blend back to the same camera position as the first viewport, even if they
-				// started at different positions (which is very likely). It's a small downside to
-				// pay for a much simpler piece of code, and for a use-case that is frankly 
-				// probably very uncommon.
-				bShouldCachePreAnimatedViewportInfo = false;
-			}
-
-			UpdatePreviewLevelViewportClientFromCameraCut(*LevelVC, CameraObject, CameraCutParams);
+			continue;
 		}
+
+		if (bShouldCachePreAnimatedViewportInfo)
+		{
+			PreAnimatedViewportLocation = LevelVC->GetViewLocation();
+			PreAnimatedViewportRotation = LevelVC->GetViewRotation();
+			PreAnimatedViewportFOV = LevelVC->ViewFOV;
+			bHasPreAnimatedInfo = true;
+
+			// We end-up only caching the first cinematic viewport's info, which means that
+			// if we are previewing the sequence on 2 different viewports, the second viewport
+			// will blend back to the same camera position as the first viewport, even if they
+			// started at different positions (which is very likely). It's a small downside to
+			// pay for a much simpler piece of code, and for a use-case that is frankly 
+			// probably very uncommon.
+			bShouldCachePreAnimatedViewportInfo = false;
+		}
+
+		UpdatePreviewLevelViewportClientFromCameraCut(*LevelVC, CameraObject, CameraCutParams);
 	}
 
 	// Clear pre-animated info when we exit any sequencer camera.
@@ -5164,21 +5173,9 @@ FGuid FSequencer::AddSpawnable(UObject& Object, UActorFactory* ActorFactory)
 	}
 
 	FNewSpawnable& NewSpawnable = Result.GetValue();
-
-	auto DuplName = [&](FMovieSceneSpawnable& InSpawnable)
-	{
-		return InSpawnable.GetName() == NewSpawnable.Name;
-	};
-
-	int32 Index = 2;
-	FString UniqueString;
-	while (OwnerMovieScene->FindSpawnable(DuplName))
-	{
-		NewSpawnable.Name.RemoveFromEnd(UniqueString);
-		UniqueString = FString::Printf(TEXT(" (%d)"), Index++);
-		NewSpawnable.Name += UniqueString;
-	}
-
+	
+	NewSpawnable.Name = MovieSceneHelpers::MakeUniqueSpawnableName(OwnerMovieScene, NewSpawnable.Name);
+	
 	FGuid NewGuid = OwnerMovieScene->AddSpawnable(NewSpawnable.Name, *NewSpawnable.ObjectTemplate);
 
 	ForceEvaluate();
@@ -5607,7 +5604,10 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 
 				if (bAddSpawnable)
 				{
+					FString NewCameraName = MovieSceneHelpers::MakeUniqueSpawnableName(OwnerMovieScene, FName::NameToDisplayString(ACineCameraActor::StaticClass()->GetFName().ToString(), false));
+										
 					FMovieSceneSpawnable* Spawnable = ConvertToSpawnableInternal(NewCameraGuid)[0];
+					Spawnable->SetName(NewCameraName);
 
 					for (TWeakObjectPtr<> WeakObject : FindBoundObjects(Spawnable->GetGuid(), ActiveTemplateIDs.Top()))
 					{
@@ -5617,6 +5617,8 @@ void FSequencer::OnNewActorsDropped(const TArray<UObject*>& DroppedObjects, cons
 							break;
 						}
 					}
+
+					NewCamera->SetActorLabel(NewCameraName, false);
 
 					NewCameraGuid = Spawnable->GetGuid();
 
@@ -10451,17 +10453,14 @@ void FSequencer::AddSelectedActors()
 
 void FSequencer::SetKey()
 {
-	using namespace UE::Sequencer;
-
-	FScopedTransaction SetKeyTransaction( NSLOCTEXT("Sequencer", "SetKey_Transaction", "Set Key") );
-
-	const FFrameNumber KeyTime = GetLocalTime().Time.FrameNumber;
-	if (Selection.GetSelectedOutlinerNodes().Num() == 0)
+	if (Selection.GetSelectedOutlinerNodes().Num() > 0)
 	{
-		FAddKeyOperation::FromNode(NodeTree->GetRootNode()).Commit(KeyTime, *this);
-	}
-	else
-	{
+		using namespace UE::Sequencer;
+
+		FScopedTransaction SetKeyTransaction( NSLOCTEXT("Sequencer", "SetKey_Transaction", "Set Key") );
+
+		const FFrameNumber KeyTime = GetLocalTime().Time.FrameNumber;
+
 		FAddKeyOperation::FromNodes(Selection.GetSelectedOutlinerNodes()).Commit(KeyTime, *this);
 	}
 }
@@ -11155,14 +11154,17 @@ void FSequencer::CreateCamera()
 
 	if (bCreateAsSpawnable)
 	{
+		FString NewName = MovieSceneHelpers::MakeUniqueSpawnableName(FocusedMovieScene, FName::NameToDisplayString(ACineCameraActor::StaticClass()->GetFName().ToString(), false));
+
 		CameraGuid = MakeNewSpawnable(*NewCamera);
-		Spawnable = GetFocusedMovieSceneSequence()->GetMovieScene()->FindSpawnable(CameraGuid);
+		Spawnable = FocusedMovieScene->FindSpawnable(CameraGuid);
 
 		if (ensure(Spawnable))
 		{
 			// Override spawn ownership during this process to ensure it never gets destroyed
 			SavedOwnership = Spawnable->GetSpawnOwnership();
 			Spawnable->SetSpawnOwnership(ESpawnOwnership::External);
+			Spawnable->SetName(NewName);			
 		}
 
 		// Destroy the old actor
@@ -11177,6 +11179,8 @@ void FSequencer::CreateCamera()
 			}
 		}
 		ensure(NewCamera);
+
+		NewCamera->SetActorLabel(NewName, false);
 	}
 	else
 	{
@@ -11352,8 +11356,6 @@ void FSequencer::RebindPossessableReferences()
 
 void FSequencer::ImportFBX()
 {
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
 	TMap<FGuid, FString> ObjectBindingNameMap;
 
 	TArray<TSharedRef<FSequencerObjectBindingNode>> RootObjectBindingNodes;
@@ -11366,13 +11368,11 @@ void FSequencer::ImportFBX()
 		ObjectBindingNameMap.Add(ObjectBinding, RootObjectBindingNode.Get().GetDisplayName().ToString());
 	}
 
-	MovieSceneToolHelpers::ImportFBXWithDialog(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>());
+	MovieSceneToolHelpers::ImportFBXWithDialog(GetFocusedMovieSceneSequence(), *this, ObjectBindingNameMap, TOptional<bool>());
 }
 
 void FSequencer::ImportFBXOntoSelectedNodes()
 {
-	UMovieScene* MovieScene = GetFocusedMovieSceneSequence()->GetMovieScene();
-
 	// The object binding and names to match when importing from fbx
 	TMap<FGuid, FString> ObjectBindingNameMap;
 
@@ -11388,7 +11388,7 @@ void FSequencer::ImportFBXOntoSelectedNodes()
 		}
 	}
 
-	MovieSceneToolHelpers::ImportFBXWithDialog(MovieScene, *this, ObjectBindingNameMap, TOptional<bool>(false));
+	MovieSceneToolHelpers::ImportFBXWithDialog(GetFocusedMovieSceneSequence(), *this, ObjectBindingNameMap, TOptional<bool>(false));
 }
 
 void FSequencer::ExportFBX()

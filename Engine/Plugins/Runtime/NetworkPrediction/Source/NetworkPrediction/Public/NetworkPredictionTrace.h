@@ -67,8 +67,8 @@
 #define UE_NP_TRACE_USER_STATE_SYNC(ModelDef, UserState) FNetworkPredictionTrace::TraceUserState<ModelDef>(UserState, FNetworkPredictionTrace::ETraceUserState::Sync)
 #define UE_NP_TRACE_USER_STATE_AUX(ModelDef, UserState) FNetworkPredictionTrace::TraceUserState<ModelDef>(UserState, FNetworkPredictionTrace::ETraceUserState::Aux)
 
-#define UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, ActorHandle) FNetworkPredictionTrace::TracePhysicsStateCurrent<ModelDef>(ActorHandle)
-#define UE_NP_TRACE_PHYSICS_STATE_AT_FRAME(ModelDef, Frame, RewindData, ActorHandle) FNetworkPredictionTrace::TracePhysicsStateAtFrame<ModelDef>(Frame, RewindData, ActorHandle)
+#define UE_NP_TRACE_PHYSICS_STATE_CURRENT(ModelDef, Driver) FNetworkPredictionTrace::TracePhysicsStateCurrent<ModelDef>(Driver)
+#define UE_NP_TRACE_PHYSICS_STATE_AT_FRAME(ModelDef, Frame, RewindData, Driver) FNetworkPredictionTrace::TracePhysicsStateAtFrame<ModelDef>(Frame, RewindData, Driver)
 #define UE_NP_TRACE_PHYSICS_STATE_RECV(ModelDef, NpPhysicsState) FNetworkPredictionTrace::TracePhysicsStateReceived<ModelDef>(NpPhysicsState)
 
 #else
@@ -220,11 +220,12 @@ public:
 #endif
 	}
 
-	template<typename ModelDef>
-	static void TracePhysicsStateCurrent(const FConditionalPhysicsActorHandle<ModelDef>& Handle)
+	template<typename ModelDef, typename DriverType>
+	static void TracePhysicsStateCurrent(DriverType* Driver)
 	{
 #if UE_NP_TRACE_USER_STATES_ENABLED
-		if (!FConditionalPhysicsActorHandle<ModelDef>::Valid)
+
+		if (!FNetworkPredictionDriver<ModelDef>::HasPhysics())
 		{
 			return;
 		}
@@ -232,27 +233,27 @@ public:
 		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(NetworkPredictionChannel))
 		{
 			TAnsiStringBuilder<512> Builder;
-			FNetworkPredictionDriver<ModelDef>::TracePhysicsState(Handle, Builder);
+			FNetworkPredictionDriver<ModelDef>::TracePhysicsState(Driver, Builder);
 			TraceUserState_Internal(ETraceUserState::Physics, Builder);
 		}
 #endif
 	}
 
-	template<typename ModelDef>
-	static void TracePhysicsStateAtFrame(int32 PhysicsFrame, Chaos::FRewindData* RewindData, const FConditionalPhysicsActorHandle<ModelDef>& Handle)
+	template<typename ModelDef, typename DriverType>
+	static void TracePhysicsStateAtFrame(int32 PhysicsFrame, Chaos::FRewindData* RewindData, DriverType* Driver)
 	{
 #if UE_NP_TRACE_USER_STATES_ENABLED
-		if (!FConditionalPhysicsActorHandle<ModelDef>::Valid)
+		
+		
+		if (!FNetworkPredictionDriver<ModelDef>::HasPhysics())
 		{
 			return;
 		}
 
 		if (UE_TRACE_CHANNELEXPR_IS_ENABLED(NetworkPredictionChannel))
 		{
-			npCheckSlow((FPhysicsActorHandle)Handle);
-
 			TAnsiStringBuilder<512> Builder;
-			FNetworkPredictionDriver<ModelDef>::TracePhysicsState(PhysicsFrame, RewindData, Handle, Builder);
+			FNetworkPredictionDriver<ModelDef>::TracePhysicsState(PhysicsFrame, RewindData, Driver, Builder);
 			TraceUserState_Internal(ETraceUserState::Physics, Builder);
 		}
 #endif
@@ -262,7 +263,8 @@ public:
 	static void TracePhysicsStateRecv(const PhysicsStateType* State)
 	{
 #if UE_NP_TRACE_USER_STATES_ENABLED
-		if (!PhysicsStateType::Valid)
+
+		if (!FNetworkPredictionDriver<ModelDef>::HasPhysics())
 		{
 			return;
 		}

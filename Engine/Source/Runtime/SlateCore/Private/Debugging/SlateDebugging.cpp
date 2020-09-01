@@ -333,6 +333,68 @@ FText FSlateDebuggingCursorQueryEventArgs::ToText() const
 	return EventText;
 }
 
+FSlateDebuggingInvalidateArgs::FSlateDebuggingInvalidateArgs(
+	const SWidget* InWidgetInvalidated,
+	const SWidget* InWidgetInvalidateInvestigator,
+	EInvalidateWidgetReason InInvalidateReason)
+	: WidgetInvalidated(InWidgetInvalidated)
+	, WidgetInvalidateInvestigator(InWidgetInvalidateInvestigator)
+	, InvalidateWidgetReason(InInvalidateReason)
+	, InvalidateInvalidationRootReason(ESlateDebuggingInvalidateRootReason::None)
+{
+}
+
+FSlateDebuggingInvalidateArgs::FSlateDebuggingInvalidateArgs(
+	const SWidget* InWidgetInvalidated,
+	const SWidget* InWidgetInvalidateInvestigator,
+	ESlateDebuggingInvalidateRootReason InInvalidateReason)
+	: WidgetInvalidated(InWidgetInvalidated)
+	, WidgetInvalidateInvestigator(InWidgetInvalidateInvestigator)
+	, InvalidateWidgetReason(EInvalidateWidgetReason::None)
+	, InvalidateInvalidationRootReason(InInvalidateReason)
+{
+}
+
+FSlateDebuggingWidgetUpdatedEventArgs::FSlateDebuggingWidgetUpdatedEventArgs(
+	const SWidget* InWidget,
+	EWidgetUpdateFlags InUpdateFlags,
+	bool bInFromPaint)
+	: Widget(InWidget)
+	, UpdateFlags(InUpdateFlags)
+	, bFromPaint(bInFromPaint)
+{
+}
+
+FText FSlateDebuggingWidgetUpdatedEventArgs::ToText() const
+{
+	TArray<FText> UpdateText;
+	if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsVolatilePaint))
+	{
+		UpdateText.Add( LOCTEXT("NeedsVolatilePaint", "Volatile Repaint"));
+	}
+	else if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsRepaint))
+	{
+		UpdateText.Add(LOCTEXT("NeedsRepaint", "Repaint"));
+	}
+	else if (EnumHasAllFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate|EWidgetUpdateFlags::NeedsTick ))
+	{
+		UpdateText.Add(LOCTEXT("NeedsTickNeedsActiveTimerUpdate", "Active Timer and Tick"));
+	}
+	else if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsActiveTimerUpdate))
+	{
+		UpdateText.Add(LOCTEXT("NeedsActiveTimerUpdate", "Active Timer"));
+	}
+	else if (EnumHasAnyFlags(UpdateFlags, EWidgetUpdateFlags::NeedsTick))
+	{
+		UpdateText.Add(LOCTEXT("NeedsTick", "Tick"));
+	}
+
+	return FText::Format(
+		LOCTEXT("WidgetUpdatedEventFormat", "{0} {1}"),
+		FText::Join(FText::FromString(TEXT("|")), UpdateText),
+		FText::FromString(FReflectionMetaData::GetWidgetDebugInfo(Widget)));
+}
+
 FSlateDebugging::FBeginWindow FSlateDebugging::BeginWindow;
 
 FSlateDebugging::FEndWindow FSlateDebugging::EndWindow;
@@ -358,6 +420,10 @@ FSlateDebugging::FWidgetExecuteNavigationEvent FSlateDebugging::ExecuteNavigatio
 FSlateDebugging::FWidgetMouseCaptureEvent FSlateDebugging::MouseCaptureEvent;
 
 FSlateDebugging::FWidgetCursorQuery FSlateDebugging::CursorChangedEvent;
+
+FSlateDebugging::FWidgetInvalidate FSlateDebugging::WidgetInvalidateEvent;
+ 
+FSlateDebugging::FWidgetUpdatedEvent FSlateDebugging::WidgetUpdatedEvent;
 
 FSlateDebugging::FUICommandRun FSlateDebugging::CommandRun;
 
@@ -581,6 +647,38 @@ void FSlateDebugging::BroadcastCursorQuery(TSharedPtr<const SWidget> InWidgetOve
 		LastCursorQuery.CursorWidget = InReply.GetCursorWidget();
 
 		CursorChangedEvent.Broadcast(FSlateDebuggingCursorQueryEventArgs(InWidgetOverridingCursor, InReply));
+	}
+}
+
+void FSlateDebugging::BroadcastWidgetInvalidate(const SWidget* InWidgetInvalidated, const SWidget* InWidgetInvalidateInvestigator, EInvalidateWidgetReason InInvalidateReason)
+{
+	if (WidgetInvalidateEvent.IsBound())
+	{
+		WidgetInvalidateEvent.Broadcast(FSlateDebuggingInvalidateArgs(InWidgetInvalidated, InWidgetInvalidateInvestigator, InInvalidateReason));
+	}
+}
+
+void FSlateDebugging::BroadcastInvalidationRootInvalidate(const SWidget* InWidgetInvalidated, const SWidget* InWidgetInvalidateInvestigator, ESlateDebuggingInvalidateRootReason InInvalidateReason)
+{
+	if (WidgetInvalidateEvent.IsBound())
+	{
+		WidgetInvalidateEvent.Broadcast(FSlateDebuggingInvalidateArgs(InWidgetInvalidated, InWidgetInvalidateInvestigator, InInvalidateReason));
+	}
+}
+
+void FSlateDebugging::BroadcastWidgetUpdated(const SWidget* Invalidated, EWidgetUpdateFlags UpdateFlags)
+{
+	if (WidgetUpdatedEvent.IsBound())
+	{
+		WidgetUpdatedEvent.Broadcast(FSlateDebuggingWidgetUpdatedEventArgs(Invalidated, UpdateFlags, false));
+	}
+}
+
+void FSlateDebugging::BroadcastWidgetUpdatedByPaint(const SWidget* Invalidated, EWidgetUpdateFlags UpdateFlags)
+{
+	if (WidgetUpdatedEvent.IsBound())
+	{
+		WidgetUpdatedEvent.Broadcast(FSlateDebuggingWidgetUpdatedEventArgs(Invalidated, UpdateFlags, true));
 	}
 }
 

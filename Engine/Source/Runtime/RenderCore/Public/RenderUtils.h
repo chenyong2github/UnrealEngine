@@ -129,6 +129,9 @@ extern RENDERCORE_API class FTexture* GBlackTexture;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithSRV;
 extern RENDERCORE_API class FTextureWithSRV* GBlackTextureWithUAV;
 
+extern RENDERCORE_API class FTexture* GTransparentBlackTexture;
+extern RENDERCORE_API class FTextureWithSRV* GTransparentBlackTextureWithSRV;
+
 extern RENDERCORE_API class FVertexBufferWithSRV* GEmptyVertexBufferWithUAV;
 
 extern RENDERCORE_API class FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
@@ -568,6 +571,12 @@ inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatu
 		&& !IsVulkanMobileSM5Platform(Platform)
 		// we only check DDSPI for platforms that have been read in - IsValid() can go away once ALL platforms are converted over to this system
 		&& (!FDataDrivenShaderPlatformInfo::IsValid(Platform) || FDataDrivenShaderPlatformInfo::GetSupportsGPUScene(Platform));
+}
+
+inline bool ForceSimpleSkyDiffuse(const FStaticShaderPlatform Platform)
+{
+	extern RENDERCORE_API uint64 GSimpleSkyDiffusePlatformMask;
+	return !!(GSimpleSkyDiffusePlatformMask & (1ull << Platform));
 }
 
 /** Unit cube vertex buffer (VertexDeclarationFVector4) */

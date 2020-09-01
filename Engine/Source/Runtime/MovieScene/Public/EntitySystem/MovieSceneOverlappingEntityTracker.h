@@ -75,6 +75,21 @@ struct TOverlappingEntityTracker
 		.Iterate_PerAllocation(&Linker->EntityManager, [this](const FEntityAllocation* Allocation){ this->VisitUnlinkedAllocation(Allocation); });
 	}
 
+	/**
+	 * Update this tracker by (re)linking the specified allocation
+	 */
+	void VisitLinkedAllocation(const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys)
+	{
+		VisitLinkedAllocationImpl(Allocation, ReadKeys);
+	}
+
+	/**
+	 * Update this tracker by unlinking the specified allocation
+	 */
+	void VisitUnlinkedAllocation(const FEntityAllocation* Allocation)
+	{
+		VisitUnlinkedAllocationImpl(Allocation);
+	}
 
 	/**
 	 * Process any outputs that were invalidated as a result of Update being called using a custom handler.
@@ -164,9 +179,33 @@ struct TOverlappingEntityTracker
 		NewOutputs.Empty();
 	}
 
+	const OutputType* FindOutput(FMovieSceneEntityID EntityID) const
+	{
+		if (const uint16* OutputIndex = EntityToOutput.Find(EntityID))
+		{
+			if (ensure(Outputs.IsValidIndex(*OutputIndex)))
+			{
+				return &Outputs[*OutputIndex].OutputData;
+			}
+		}
+		return nullptr;
+	}
+
+	OutputType* FindOutput(FMovieSceneEntityID EntityID)
+	{
+		if (const uint16* OutputIndex = EntityToOutput.Find(EntityID))
+		{
+			if (ensure(Outputs.IsValidIndex(*OutputIndex)))
+			{
+				return &Outputs[*OutputIndex].OutputData;
+			}
+		}
+		return nullptr;
+	}
+
 protected:
 
-	void VisitLinkedAllocation(const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys)
+	void VisitLinkedAllocationImpl(const FEntityAllocation* Allocation, TRead<KeyType> ReadKeys)
 	{
 		const int32 Num = Allocation->Num();
 
@@ -190,7 +229,7 @@ protected:
 		}
 	}
 
-	void VisitUnlinkedAllocation(const FEntityAllocation* Allocation)
+	void VisitUnlinkedAllocationImpl(const FEntityAllocation* Allocation)
 	{
 		const int32 Num = Allocation->Num();
 		const FMovieSceneEntityID* EntityIDs = Allocation->GetRawEntityIDs();

@@ -9,6 +9,8 @@
 #include "GameplayEffect.h"
 #include "AbilitySystemGlobals.h"
 #include "AbilitySystemComponent.h"
+#include "Engine/Canvas.h"
+
 
 FGameplayDebuggerCategory_Abilities::FGameplayDebuggerCategory_Abilities()
 {
@@ -108,9 +110,55 @@ void FGameplayDebuggerCategory_Abilities::CollectData(APlayerController* OwnerPC
 	}
 }
 
+bool FGameplayDebuggerCategory_Abilities::WrapStringAccordingToViewport(const FString& StrIn, FString& StrOut, FGameplayDebuggerCanvasContext& CanvasContext, float ViewportWitdh)
+{
+	if (!StrIn.IsEmpty())
+	{
+		// Clamp the Width
+		ViewportWitdh = FMath::Max(ViewportWitdh, 10.0f);
+
+		float StrWidth = 0.0f, StrHeight = 0.0f;
+		// Calculate the length(in pixel) of the tags
+		CanvasContext.MeasureString(StrIn, StrWidth, StrHeight);
+
+		int32 SubDivision = FMath::CeilToInt(StrWidth / ViewportWitdh);
+		if (SubDivision > 1)
+		{
+			// Copy the string
+			StrOut = StrIn;
+			const int32 Step = StrOut.Len() / SubDivision;
+			// Start sub divide if needed
+			for (int32 i = SubDivision - 1; i > 0; --i)
+			{
+				// Insert Line Feed
+				StrOut.InsertAt(i * Step - 1, '\n');
+			}
+			return true;
+		}
+	}
+	// No need to wrap the text 
+	return false;
+}
+
 void FGameplayDebuggerCategory_Abilities::DrawData(APlayerController* OwnerPC, FGameplayDebuggerCanvasContext& CanvasContext)
 {
-	CanvasContext.Printf(TEXT("Owned Tags: {yellow}%s"), *DataPack.OwnedTags);
+	FVector2D ViewPortSize;
+	GEngine->GameViewport->GetViewportSize( /*out*/ViewPortSize);
+
+	const float BackgroundPadding = 5.0f;
+	const FVector2D BackgroundSize(ViewPortSize.X - 2 * BackgroundPadding, ViewPortSize.Y);
+	const FLinearColor BackgroundColor(0.1f, 0.1f, 0.1f, 0.8f);
+
+	// Draw a transparent background so that the text is easier to look at
+	FCanvasTileItem Background(FVector2D(0.0f, 0.0f), BackgroundSize, BackgroundColor);
+	Background.BlendMode = SE_BLEND_Translucent;
+	CanvasContext.DrawItem(Background, CanvasContext.DefaultX - BackgroundPadding, CanvasContext.DefaultY - BackgroundPadding);
+
+	FString WrappedOwnedTagsStr;
+	// If need to wrap string, use the wrapped string, else use the DataPack one, avoid string copying.
+	const FString& OwnedTagsRef = WrapStringAccordingToViewport(DataPack.OwnedTags, WrappedOwnedTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnedTagsStr : DataPack.OwnedTags;
+
+	CanvasContext.Printf(TEXT("Owned Tags: \n{yellow}%s"), *OwnedTagsRef);
 
 	AActor* LocalDebugActor = FindLocalDebugActor();
 	UAbilitySystemComponent* AbilityComp = UAbilitySystemGlobals::GetAbilitySystemComponentFromActor(LocalDebugActor);
@@ -120,7 +168,12 @@ void FGameplayDebuggerCategory_Abilities::DrawData(APlayerController* OwnerPC, F
 		OwnerTags.Reset();
 		AbilityComp->GetOwnedGameplayTags(OwnerTags);
 
-		CanvasContext.Printf(TEXT("Local Tags: {cyan}%s"), *OwnerTags.ToStringSimple());
+		TArray<FString> OwnerTagsStrArray = OwnerTags.ToStringsMaxLen(1024);
+		FString OwnerTagsStr = OwnerTagsStrArray.Num() > 0 ? OwnerTagsStrArray[0] : TEXT("");
+		FString WrappedOwnerTagsStr;
+
+		const FString& OwnerTagsStrRef = WrapStringAccordingToViewport(OwnerTagsStr, WrappedOwnerTagsStr, CanvasContext, BackgroundSize.X) ? WrappedOwnerTagsStr : OwnerTagsStr;
+		CanvasContext.Printf(TEXT("Local Tags: \n{cyan}%s"), *OwnerTagsStrRef);
 	}
 
 	CanvasContext.Printf(TEXT("Gameplay Effects: {yellow}%d"), DataPack.GameplayEffects.Num());
@@ -150,12 +203,41 @@ void FGameplayDebuggerCategory_Abilities::DrawData(APlayerController* OwnerPC, F
 	}
 
 	CanvasContext.Printf(TEXT("Gameplay Abilities: {yellow}%d"), DataPack.Abilities.Num());
-	for (int32 Idx = 0; Idx < DataPack.Abilities.Num(); Idx++)
+	int32 HalfNum = FMath::CeilToInt(DataPack.Abilities.Num() / 2.f);
+	for (int32 Idx = 0; Idx < HalfNum; Idx++)
 	{
-		const FRepData::FGameplayAbilityDebug& ItemData = DataPack.Abilities[Idx];
+		if (2 * Idx + 1 < DataPack.Abilities.Num())
+		{
+			const FRepData::FGameplayAbilityDebug* ItemData[2] = { &DataPack.Abilities[2 * Idx], &DataPack.Abilities[2 * Idx + 1] };
+			FString Abilities[2];
+			float WidthSum = 0.0f;
+			for (size_t j = 0; j < 2; ++j)
+			{
+				Abilities[j] = FString::Printf(TEXT("\t{yellow}%s {grey}source:{white}%s {grey}level:{white}%d {grey}active:{white}%s"),
+					*ItemData[j]->Ability, *ItemData[j]->Source, ItemData[j]->Level, ItemData[j]->bIsActive ? TEXT("YES") : TEXT("NO"));
+				float TempWidth = 0.0f; 
+				float TempHeight = 0.0f;
+				CanvasContext.MeasureString(Abilities[j], TempWidth, TempHeight);
+				WidthSum += TempWidth;
+			}
 
-		CanvasContext.Printf(TEXT("\t{yellow}%s {grey}source:{white}%s {grey}level:{white}%d {grey}active:{white}%s"),
-			*ItemData.Ability, *ItemData.Source, ItemData.Level, ItemData.bIsActive ? TEXT("YES") : TEXT("no"));
+			if (WidthSum < BackgroundSize.X)
+			{
+				CanvasContext.Print(Abilities[0].Append(Abilities[1]));
+			}
+			else
+			{
+				CanvasContext.Print(Abilities[0]);
+				CanvasContext.Print(Abilities[1]);
+			}
+		}
+		else
+		{
+			const FRepData::FGameplayAbilityDebug& ItemData = DataPack.Abilities[2 * Idx];
+			// Only display one
+			CanvasContext.Printf(TEXT("\t{yellow}%s {grey}source:{white}%s {grey}level:{white}%d {grey}active:{white}%s"),
+				*ItemData.Ability, *ItemData.Source, ItemData.Level, ItemData.bIsActive ? TEXT("YES") : TEXT("NO"));
+		}
 	}
 }
 

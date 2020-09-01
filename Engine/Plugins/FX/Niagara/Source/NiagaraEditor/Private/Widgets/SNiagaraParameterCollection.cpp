@@ -12,7 +12,6 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SExpandableArea.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
-#include "Widgets/Input/SComboBox.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Layout/SSplitter.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -22,7 +21,6 @@
 #include "Framework/Commands/GenericCommands.h"
 #include "Editor/PropertyEditor/Public/PropertyEditorModule.h"
 #include "IDetailsView.h"
-#include "Widgets/Input/SButton.h"
 #include "Widgets/SNullWidget.h"
 #include "Widgets/Input/SSpinBox.h"
 #include "ScopedTransaction.h"
@@ -376,20 +374,44 @@ EVisibility SNiagaraParameterCollection::GetAddButtonTextVisibility() const
 TSharedRef<SWidget> SNiagaraParameterCollection::GetAddMenuContent()
 {
 	FMenuBuilder AddMenuBuilder(true, nullptr);
-	for (TSharedPtr<FNiagaraTypeDefinition> AvailableType : Collection->GetAvailableTypes())
+	TSortedMap<FString, TArray<TSharedPtr<FNiagaraTypeDefinition>>> SubmenusToAdd;
+	for (TSharedPtr<FNiagaraTypeDefinition> AvailableType : Collection->GetAvailableTypesSorted())
 	{
 		if (AvailableType->GetStruct() != nullptr || AvailableType->GetEnum() != nullptr)
 		{
-			const FText DisplayName = AvailableType->GetEnum() != nullptr ? 
-				FText::FromName(AvailableType->GetEnum()->GetFName()) : AvailableType->GetStruct()->GetDisplayNameText();
-			AddMenuBuilder.AddMenuEntry
-			(
-				DisplayName,
-				FText(),
-				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(Collection.ToSharedRef(), &INiagaraParameterCollectionViewModel::AddParameter, AvailableType))
-			);
+			FText SubmenuText = FNiagaraEditorUtilities::GetTypeDefinitionCategory(*AvailableType);
+			if (SubmenuText.IsEmptyOrWhitespace())
+			{
+				AddMenuBuilder.AddMenuEntry
+	            (
+	                AvailableType->GetNameText(),
+	                FText(),
+	                FSlateIcon(),
+					FUIAction(FExecuteAction::CreateSP(Collection.ToSharedRef(), &INiagaraParameterCollectionViewModel::AddParameter, AvailableType))
+	            );
+			}
+			else
+			{
+				SubmenusToAdd.FindOrAdd(SubmenuText.ToString()).Add(AvailableType);
+			}
 		}
+	}
+	for (const auto& Entry : SubmenusToAdd)
+	{
+		TArray<TSharedPtr<FNiagaraTypeDefinition>> SubmenuEntries = Entry.Value;
+		AddMenuBuilder.AddSubMenu(FText::FromString(Entry.Key), FText(), FNewMenuDelegate::CreateLambda([SubmenuEntries, this](FMenuBuilder& InSubMenuBuilder)
+        {
+			for (TSharedPtr<FNiagaraTypeDefinition> AvailableType : SubmenuEntries)
+			{
+				InSubMenuBuilder.AddMenuEntry
+                (
+                    AvailableType->GetNameText(),
+                    FText(),
+                    FSlateIcon(),
+                    FUIAction(FExecuteAction::CreateSP(Collection.ToSharedRef(), &INiagaraParameterCollectionViewModel::AddParameter, AvailableType))
+                );
+			}
+        }));
 	}
 	return AddMenuBuilder.MakeWidget();
 }

@@ -323,7 +323,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 					{
 						// Basic verification - check node count is the same
 						// @TODO: could add some form of node hash/CRC to the class to improve this
-						if(InMessage.NodeCount == InstanceClass.Get()->AnimNodeProperties.Num())
+						if(InMessage.NodeCount == InstanceClass.Get()->GetAnimNodeProperties().Num())
 						{
 							AnimationProvider->ReadAnimNodesTimeline(GetGameplayTrack().GetObjectId(), [InGraphStartTime, InGraphEndTime, &DebugData](const FAnimationProvider::AnimNodesTimeline& InNodesTimeline)
 							{

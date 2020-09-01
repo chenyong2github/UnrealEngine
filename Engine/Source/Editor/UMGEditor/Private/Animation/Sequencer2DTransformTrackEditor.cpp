@@ -114,7 +114,7 @@ FWidgetTransform F2DTransformTrackEditor::RecomposeTransform(const FWidgetTransf
 
 	if (EntityLinker && EntityID)
 	{
-		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->SystemGraph.FindSystemOfType<UMovieScenePropertyInstantiatorSystem>();
+		UMovieScenePropertyInstantiatorSystem* System = EntityLinker->FindSystem<UMovieScenePropertyInstantiatorSystem>();
 		if (System)
 		{
 			FDecompositionQuery Query;

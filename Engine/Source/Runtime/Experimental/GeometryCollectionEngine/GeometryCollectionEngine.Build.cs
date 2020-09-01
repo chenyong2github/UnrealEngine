@@ -25,6 +25,7 @@ namespace UnrealBuildTool.Rules
                     "GeometryCollectionCore", 
                     "GeometryCollectionSimulationCore",
 	                "ChaosSolverEngine",
+					"NetCore",
                     "IntelISPC"
                 }
                 );
@@ -46,8 +47,8 @@ namespace UnrealBuildTool.Rules
 				DynamicallyLoadedModuleNames.Add("NaniteBuilder");
 				PrivateIncludePathModuleNames.Add("NaniteBuilder");
 
-				PrivateDependencyModuleNames.Add("EditorFramework");
-				PrivateDependencyModuleNames.Add("UnrealEd");
+				PublicDependencyModuleNames.Add("EditorFramework");
+                PublicDependencyModuleNames.Add("UnrealEd");
 			}
 
 			PrivateDefinitions.Add("CHAOS_INCLUDE_LEVEL_1=1");

@@ -3,6 +3,7 @@
 #include "RuntimeVirtualTextureBuildMinMaxHeight.h"
 
 #include "Components/RuntimeVirtualTextureComponent.h"
+#include "ContentStreaming.h"
 #include "Engine/Texture2D.h"
 #include "Misc/ScopedSlowTask.h"
 #include "RendererInterface.h"
@@ -136,7 +137,7 @@ namespace RuntimeVirtualTexture
 		BeginInitResource(&RenderTileResources);
 
 		// Spin up slow task UI
-		const float TaskWorkRender = NumTilesY;
+		const float TaskWorkRender = NumTilesX * NumTilesY;
 		const float TaskWorkDownsample = 2;
 		const float TaskWorkBuildBulkData = 2;
 		FScopedSlowTask Task(TaskWorkRender + TaskWorkDownsample + TaskWorkBuildBulkData, FText::AsCultureInvariant(VirtualTexture->GetName()));
@@ -147,16 +148,23 @@ namespace RuntimeVirtualTexture
 		FinalPixels.SetNumUninitialized(RenderTileResources.GetNumFinalTexels() * 4);
 
 		// Iterate over all mip0 tiles and downsample/store each one to the final image
-		for (int32 TileY = 0; TileY < NumTilesX && !Task.ShouldCancel(); TileY++)
+		for (int32 TileY = 0; TileY < NumTilesY && !Task.ShouldCancel(); TileY++)
 		{
-			Task.EnterProgressFrame();
-
-			for (int32 TileX = 0; TileX < NumTilesY; TileX++)
+			for (int32 TileX = 0; TileX < NumTilesX; TileX++)
 			{
 				// Render tile
+				Task.EnterProgressFrame();
+
 				const FBox2D UVRange = FBox2D(
 					FVector2D((float)TileX / (float)NumTilesX, (float)TileY / (float)NumTilesY),
 					FVector2D((float)(TileX + 1) / (float)NumTilesX, (float)(TileY + 1) / (float)NumTilesY));
+
+				// Stream textures for this tile. This triggers a render flush internally.
+				//todo[vt]: Batch groups of streaming locations and render commands to reduce number of flushes.
+				const FVector StreamingWorldPos = Transform.TransformPosition(FVector(UVRange.GetCenter(), 0.5f));
+				IStreamingManager::Get().Tick(0.f);
+				IStreamingManager::Get().AddViewSlaveLocation(StreamingWorldPos);
+				IStreamingManager::Get().StreamAllResources(0);
 
 				ENQUEUE_RENDER_COMMAND(MinMaxTextureTileCommand)([
 					Scene, VirtualTextureSceneIndex,
@@ -203,9 +211,6 @@ namespace RuntimeVirtualTexture
 					GraphBuilder.Execute();
 				});
 			}
-
-			// (Increment FScopedSlowTask) and flush every row to keep progress UI responsive
-			FlushRenderingCommands();
 		}
 
 		// Downsample and copy to staging
@@ -265,6 +270,7 @@ namespace RuntimeVirtualTexture
 		}
 
 		BeginReleaseResource(&RenderTileResources);
+		FlushRenderingCommands();
 
 		if (Task.ShouldCancel())
 		{

@@ -32,7 +32,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FPrimitiveUniformShaderParameters,ENGINE_AP
 	SHADER_PARAMETER(float,LpvBiasMultiplier)
 
 	SHADER_PARAMETER_EX(float,DecalReceiverMask,EShaderPrecisionModifier::Half)
-	SHADER_PARAMETER_EX(float,PerObjectGBufferData,EShaderPrecisionModifier::Half)		// 0..1, 2 bits, bDistanceFieldRepresentation, bHeightfieldRepresentation
+	SHADER_PARAMETER_EX(float,PerObjectGBufferData,EShaderPrecisionModifier::Half)		// 0..1, 2 bits, bCastContactShadow, bHeightfieldRepresentation
 	SHADER_PARAMETER_EX(float,UseVolumetricLightmapShadowFromStationaryLights,EShaderPrecisionModifier::Half)		
 	SHADER_PARAMETER_EX(float,DrawsVelocity,EShaderPrecisionModifier::Half)
 
@@ -59,7 +59,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	const FBoxSphereBounds& LocalBounds,
 	const FBoxSphereBounds& PreSkinnedLocalBounds,
 	bool bReceivesDecals,
-	bool bHasDistanceFieldRepresentation,
+	bool bHasDistanceFieldRepresentation,		// Currently unused
 	bool bHasCapsuleRepresentation,
 	bool bUseSingleSampleShadowFromStationaryLights,
 	bool bUseVolumetricLightmap,
@@ -69,7 +69,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	uint32 LightmapDataIndex,
 	int32 SingleCaptureIndex,
 	bool bOutputVelocity,
-	const FCustomPrimitiveData* CustomPrimitiveData
+	const FCustomPrimitiveData* CustomPrimitiveData,
+	bool bCastContactShadow = true
 )
 {
 	FPrimitiveUniformShaderParameters Result;
@@ -105,7 +106,7 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 			);
 	}
 	Result.DecalReceiverMask = bReceivesDecals ? 1 : 0;
-	Result.PerObjectGBufferData = (2 * (int32)bHasCapsuleRepresentation + (int32)bHasDistanceFieldRepresentation) / 3.0f;
+	Result.PerObjectGBufferData = (2 * (int32)bHasCapsuleRepresentation + (int32)bCastContactShadow) / 3.0f;
 	Result.UseSingleSampleShadowFromStationaryLights = bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.UseVolumetricLightmapShadowFromStationaryLights = bUseVolumetricLightmap && bUseSingleSampleShadowFromStationaryLights ? 1.0f : 0.0f;
 	Result.DrawsVelocity = bDrawsVelocity ? 1 : 0;
@@ -144,7 +145,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 	float LpvBiasMultiplier,
 	uint32 LightmapDataIndex,
 	int32 SingleCaptureIndex,
-	bool bOutputVelocity
+    bool bOutputVelocity,
+	bool bCastContactShadow = true
 )
 {
 	// Pass through call
@@ -166,7 +168,8 @@ inline FPrimitiveUniformShaderParameters GetPrimitiveUniformShaderParameters(
 		LightmapDataIndex, 
 		SingleCaptureIndex,
 		bOutputVelocity,
-		nullptr
+		nullptr,
+		bCastContactShadow
 		);
 }
 
@@ -226,7 +229,8 @@ inline FPrimitiveUniformShaderParameters GetIdentityPrimitiveParameters()
 		1.0f,		// LPV bias
 		INDEX_NONE,
 		INDEX_NONE,
-		false
+		false,
+		/* bCastContactShadow = */ true
 		);
 }
 

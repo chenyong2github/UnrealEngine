@@ -18,6 +18,8 @@ THIRD_PARTY_INCLUDES_END
 #pragma warning(pop)
 #endif
 
+#include "GteUtil.h"
+
 template <typename RealType>
 struct TMinVolumeBox3Internal
 {
@@ -69,6 +71,14 @@ struct TMinVolumeBox3Internal
 			gte::MinimumVolumeBox3<double, double> DoubleCompute;
 			MinimalBox = DoubleCompute(DoubleInput.Num(), &DoubleInput[0], true);
 			bSolutionOK = true;
+		}
+
+		// if resulting box is not finite, something went wrong, just return an empty box
+		FVector3d Extents = Convert(MinimalBox.extent);
+		if (!FMathd::IsFinite(Extents.SquaredLength()))
+		{
+			bSolutionOK = false;
+			MinimalBox = gte::OrientedBox3<double>();
 		}
 
 		Result.Frame = TFrame3<RealType>(

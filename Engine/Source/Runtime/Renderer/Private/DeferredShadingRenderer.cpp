@@ -204,6 +204,29 @@ static FAutoConsoleVariableRef CRayTracingParallelMeshBatchSize(
 	TEXT("Batch size for ray tracing materials parallel jobs."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance(
+	TEXT("r.RayTracing.DynamicGeometryLastRenderTimeUpdateDistance"),
+	5000.0f,
+	TEXT("Dynamic geometries within this distance will have their LastRenderTime updated, so that visibility based ticking (like skeletal mesh) can work when the component is not directly visible in the view (but reflected)."));
+
+static TAutoConsoleVariable<int32> CVarRayTracingCulling(
+	TEXT("r.RayTracing.Culling"),
+	0,
+	TEXT("Enable culling in ray tracing for objects that are behind the camera\n")
+	TEXT(" 0: Culling disabled (default)\n")
+	TEXT(" 1: Culling by distance and solid angle enabled"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<float> CVarRayTracingCullingRadius(
+	TEXT("r.RayTracing.Culling.Radius"),
+	10000.0f, 
+	TEXT("Do camera culling for objects behind the camera outside of this radius in ray tracing effects (default = 10000 (100m))"));
+
+static TAutoConsoleVariable<float> CVarRayTracingCullingAngle(
+	TEXT("r.RayTracing.Culling.Angle"),
+	1.0f, 
+	TEXT("Do camera culling for objects behind the camera with a projected angle smaller than this threshold in ray tracing effects (default = 5 degrees )"));
+
 #if !UE_BUILD_SHIPPING
 static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	TEXT("r.Test.ForceBlackVelocityBuffer"), 0,
@@ -265,7 +288,7 @@ DECLARE_GPU_STAT(HZB);
 DECLARE_GPU_STAT_NAMED(Unaccounted, TEXT("[unaccounted]"));
 DECLARE_GPU_DRAWCALL_STAT(WaterRendering);
 DECLARE_GPU_STAT(HairRendering);
-DECLARE_GPU_DRAWCALL_STAT(VirtualTextureUpdate);
+DEFINE_GPU_DRAWCALL_STAT(VirtualTextureUpdate);
 DECLARE_GPU_STAT(UploadDynamicBuffers);
 DECLARE_GPU_STAT(PostOpaqueExtensions);
 
@@ -756,6 +779,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		*ReferenceView.RayTracingMeshResourceCollector
 	};
 
+	float CurrentWorldTime = ReferenceView.Family->CurrentWorldTime;
+
 	struct FRelevantPrimitive
 	{
 		FRHIRayTracingGeometry* RayTracingGeometryRHI = nullptr;
@@ -778,6 +803,12 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 		TRACE_CPUPROFILER_EVENT_SCOPE(GatherRayTracingWorldInstances_RelevantPrimitives);
 
 		int32 BroadIndex = 0;
+		const int32 CullInRayTracing = CVarRayTracingCulling.GetValueOnRenderThread();
+		const float CullingRadius = CVarRayTracingCullingRadius.GetValueOnRenderThread();
+		const float CullAngleThreshold = CVarRayTracingCullingAngle.GetValueOnRenderThread();
+		const float AngleThresholdRatio = FMath::Tan(CullAngleThreshold * PI / 180.0f);
+		const FVector ViewOrigin = ReferenceView.ViewMatrices.GetViewOrigin();
+		const FVector ViewDirection = ReferenceView.GetViewDirection();
 
 		for (int PrimitiveIndex = 0; PrimitiveIndex < Scene->PrimitiveSceneProxies.Num(); PrimitiveIndex++)
 		{
@@ -803,6 +834,35 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			if (!(SceneInfo->bShouldRenderInMainPass && SceneInfo->bDrawInGame))
 			{
 				continue;
+			}
+
+			if (CullInRayTracing > 0)
+			{
+				FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
+
+				const FBoxSphereBounds ObjectBounds = SceneProxy->GetBounds();
+				const float ObjectRadius = ObjectBounds.SphereRadius;
+				const FVector ObjectCenter = ObjectBounds.Origin + 0.5*ObjectBounds.BoxExtent;
+				const FVector CameraToObjectCenter = FVector(ObjectCenter - ViewOrigin);
+
+				const bool bIsBehindCamera = FVector::DotProduct(ViewDirection, CameraToObjectCenter) < -ObjectRadius;
+
+				if (bIsBehindCamera)
+				{
+					const float CameraToObjectCenterLength = CameraToObjectCenter.Size();
+					const bool bIsFarEnoughToCull = CameraToObjectCenterLength > (CullingRadius + ObjectRadius);
+
+					if (bIsFarEnoughToCull) 
+					{
+						// Cull by solid angle: check the radius of bounding sphere against angle threshold
+						const bool bAngleIsSmallEnoughToCull = ObjectRadius / CameraToObjectCenterLength < AngleThresholdRatio;
+
+						if (bAngleIsSmallEnoughToCull)
+						{
+							continue;
+						}					
+					}
+				}
 			}
 
 			bool bIsDynamic = false;
@@ -839,11 +899,8 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 					continue;
 				}
 				
-				FSceneViewState* ViewState = (FSceneViewState*)View.State;
-				const bool bHLODActive = Scene->SceneLODHierarchy.IsActive();
-				const FHLODVisibilityState* const HLODState = bHLODActive && ViewState ? &ViewState->HLODVisibilityState : nullptr;
-
-				if (HLODState && HLODState->IsNodeForcedHidden(PrimitiveIndex))
+				// Check if the primitive has been distance culled already during frustum culling
+				if (View.DistanceCullingPrimitiveMap[PrimitiveIndex])
 				{
 					continue;
 				}
@@ -987,7 +1044,7 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 			}
 
 			const int32 PrimitiveIndex = RelevantPrimitive.PrimitiveIndex;
-			const FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
+			FPrimitiveSceneInfo* SceneInfo = Scene->Primitives[PrimitiveIndex];
 
 			FPrimitiveSceneProxy* SceneProxy = Scene->PrimitiveSceneProxies[PrimitiveIndex];
 			RayTracingInstances.Reset();
@@ -1063,6 +1120,17 @@ bool FDeferredShadingSceneRenderer::GatherRayTracingWorldInstances(FRHICommandLi
 
 							RayTracingMeshProcessor.AddMeshBatch(MeshBatch, 1, SceneProxy);
 						}
+					}
+				}
+
+				if (CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread() > 0.0f)
+				{
+					if (FVector::Distance(SceneProxy->GetActorPosition(), ReferenceView.ViewMatrices.GetViewOrigin()) < CVarRayTracingDynamicGeometryLastRenderTimeUpdateDistance.GetValueOnRenderThread())
+					{
+						// Update LastRenderTime for components so that visibility based ticking (like skeletal meshes) can get updated
+						// We are only doing this for dynamic geometries now
+						SceneInfo->LastRenderTime = CurrentWorldTime;
+						SceneInfo->UpdateComponentLastRenderTime(CurrentWorldTime, /*bUpdateLastRenderTimeOnScreen=*/true);
 					}
 				}
 			}
@@ -1281,10 +1349,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 
 		View.RayTracingSubSurfaceProfileSRV = RHICreateShaderResourceView(View.RayTracingSubSurfaceProfileTexture->GetRenderTargetItem().ShaderResourceTexture, 0);
 
-		View.RayTracingLightingDataUniformBuffer = CreateLightDataPackedUniformBuffer(Scene->Lights, View,
-			EUniformBufferUsage::UniformBuffer_SingleFrame,
-			View.RayTracingLightingDataBuffer,
-			View.RayTracingLightingDataSRV);
+		View.RayTracingLightData = CreateRayTracingLightData(RHICmdList, Scene->Lights, View,
+			EUniformBufferUsage::UniformBuffer_SingleFrame);
 	}
 
 	if (!bAsyncUpdateGeometry)
@@ -2232,7 +2298,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	// Capture the SkyLight using the SkyAtmosphere and VolumetricCloud component if available.
-	if (Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0)
+	const bool bRealTimeSkyCaptureEnabled = Scene->SkyLight && Scene->SkyLight->bRealTimeCaptureEnabled && Views.Num() > 0;
+	if (bRealTimeSkyCaptureEnabled)
 	{
 		FViewInfo& MainView = Views[0];
 		Scene->AllocateAndCaptureFrameSkyEnvMap(RHICmdList, *this, MainView, bShouldRenderSkyAtmosphere, bShouldRenderVolumetricCloud);
@@ -2527,6 +2594,11 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		SceneContext.BeginRenderingSceneColor(RHICmdList);
 		DrawClearQuad(RHICmdList, FLinearColor(0, 0, 0, 0));
 		SceneContext.FinishRenderingSceneColor(RHICmdList);
+	}
+
+	if (bRealTimeSkyCaptureEnabled)
+	{
+		Scene->ValidateSkyLightRealTimeCapture(RHICmdList, *this, Views[0]);
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -2887,6 +2959,16 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 	checkSlow(RHICmdList.IsOutsideRenderPass());
 
+	if (bShouldRenderVolumetricCloud)
+	{
+		// Generate the volumetric cloud render target
+		bool bSkipVolumetricRenderTarget = false;
+		bool bSkipPerPixelTracing = true;
+		RenderVolumetricCloud(RHICmdList, bSkipVolumetricRenderTarget, bSkipPerPixelTracing);
+		// Reconstruct the volumetric cloud render target to be ready to compose it over the scene
+		ReconstructVolumetricRenderTarget(RHICmdList);
+	}
+
 	const bool bShouldRenderSingleLayerWater = ShouldRenderSingleLayerWater(Views, ViewFamily.EngineShowFlags);
 	// All views are considered above water if we don't render any water materials
 	bool bHasAnyViewsAbovewater = !bShouldRenderSingleLayerWater;
@@ -2930,7 +3012,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		// Render heightfog over the color buffer if it is allocated, e.g. SingleLayerWaterUsesSimpleShading is true which is not the case on Switch.
 		if (bCanOverlayRayTracingOutput && ShouldRenderFog(ViewFamily) && SingleLayerWaterPassData.SceneColorWithoutSingleLayerWater.IsValid())
 		{
-			RenderUnderWaterFog(RHICmdList, SingleLayerWaterPassData);
+			RenderUnderWaterFog(RHICmdList, SingleLayerWaterPassData); 
+		}
+		if (bShouldRenderVolumetricCloud)
+		{
+			// This path is only taken when rendering the clouds in a render target that can be composited
+			ComposeVolumetricRenderTargetOverSceneUnderWater(RHICmdList, SingleLayerWaterPassData);
 		}
 
 		// Make the Depth texture writable since the water GBuffer pass will update it
@@ -3006,10 +3093,12 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		RenderSkyAtmosphere(RHICmdList);
 	}
 
-	// Draw volumetric clouds
+	// Draw volumetric clouds when using per pixel tracing
 	if (bShouldRenderVolumetricCloud)
 	{
-		RenderVolumetricCloud(RHICmdList);
+		bool bSkipVolumetricRenderTarget = true;
+		bool bSkipPerPixelTracing = false;
+		RenderVolumetricCloud(RHICmdList, bSkipVolumetricRenderTarget, bSkipPerPixelTracing);
 	}
 
 	checkSlow(RHICmdList.IsOutsideRenderPass());
@@ -3083,7 +3172,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 	if (bVolumetricRenderTargetRequired)
 	{
-		ReconstructVolumetricRenderTarget(RHICmdList);
+		ComposeVolumetricRenderTargetOverScene(RHICmdList);
 	}
 
 	if (bShouldRenderSkyAtmosphere)
@@ -3373,6 +3462,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			ShaderDrawDebug::EndView(Views[ViewIndex]);
 		}
 
+		GEngine->GetPostRenderDelegate().Broadcast();
+
 #if WITH_MGPU
 		DoCrossGPUTransfers(RHICmdList, RenderTargetGPUMask);
 #endif
@@ -3397,11 +3488,15 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 			}
 
 			// Release common lighting resources
-			View.RayTracingLightingDataSRV.SafeRelease();
 			View.RayTracingSubSurfaceProfileSRV.SafeRelease();
 			View.RayTracingSubSurfaceProfileTexture.SafeRelease();
-			View.RayTracingLightingDataBuffer.SafeRelease();
-			View.RayTracingLightingDataUniformBuffer.SafeRelease();
+
+			View.RayTracingLightData.LightBufferSRV.SafeRelease();
+			View.RayTracingLightData.LightBuffer.SafeRelease();
+			View.RayTracingLightData.LightCullVolumeSRV.SafeRelease();
+			View.RayTracingLightData.LightCullVolume.SafeRelease();
+			View.RayTracingLightData.LightIndices.Release();
+			View.RayTracingLightData.UniformBuffer.SafeRelease();
 		}
 #endif //  RHI_RAYTRACING
 	}

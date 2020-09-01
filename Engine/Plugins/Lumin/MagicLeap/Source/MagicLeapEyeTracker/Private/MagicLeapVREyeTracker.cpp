@@ -16,6 +16,7 @@
 #include "IMagicLeapPlugin.h"
 #include "MagicLeapCFUID.h"
 #include "Lumin/CAPIShims/LuminAPI.h"
+#include "Stats/Stats.h"
 
 #if WITH_MLSDK
 EMagicLeapEyeTrackingCalibrationStatus MLToUnrealEyeCalibrationStatus(MLEyeTrackingCalibrationStatus InStatus)
@@ -85,6 +86,8 @@ void FMagicLeapVREyeTracker::SetActivePlayerController(APlayerController* NewAct
 
 bool FMagicLeapVREyeTracker::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapVREyeTracker_Tick);
+
 	bool bSuccess = true;
 #if WITH_MLSDK
 	//assume we're in a bad state

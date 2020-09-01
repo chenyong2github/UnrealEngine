@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
+#include "Stats/Stats.h"
 
 namespace NetworkPredictionCVars
 {
@@ -14,8 +15,9 @@ public:
 
 	virtual ~IFixedRollbackService() = default;
 	virtual int32 QueryRollback(const FFixedTickState* TickState) = 0;
-	virtual void BeginRollback(const int32 LocalFrame, const int32 StartTimeMS, const int32 ServerFrame) = 0;
-	virtual void StepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep, const int32 Offset) = 0;
+
+	virtual void PreStepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep, const int32 Offset, const bool bFirstStepInResim) = 0;
+	virtual void StepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep) = 0;
 };
 
 template<typename InModelDef>
@@ -27,7 +29,7 @@ public:
 	using StateTypes = typename ModelDef::StateTypes;
 	using SyncAuxType = TSyncAuxPair<StateTypes>;
 
-	static constexpr bool bNeedsTickTickService = FNetworkPredictionDriver<ModelDef>::HasSimulation();
+	static constexpr bool bNeedsTickService = FNetworkPredictionDriver<ModelDef>::HasSimulation();
 
 	TFixedRollbackService(TModelDataStore<ModelDef>* InDataStore)
 		: DataStore(InDataStore), InternalTickService(InDataStore) { }
@@ -37,7 +39,7 @@ public:
 		const int32 ClientRecvIdx = DataStore->ClientRecv.GetIndexChecked(ID);
 		NpResizeAndSetBit(InstanceBitArray, ClientRecvIdx);
 
-		if (bNeedsTickTickService)
+		if (bNeedsTickService)
 		{
 			InternalTickService.RegisterInstance(ID);
 		}
@@ -48,7 +50,7 @@ public:
 		const int32 ClientRecvIdx = DataStore->ClientRecv.GetIndexChecked(ID);
 		InstanceBitArray[ClientRecvIdx] = false;
 		
-		if (bNeedsTickTickService)
+		if (bNeedsTickService)
 		{
 			InternalTickService.UnregisterInstance(ID);
 		}
@@ -100,7 +102,7 @@ public:
 				// Maybe consider putting a copy of PhysicsActor on TClientRecvData if this lookup ever shows up in profiler
 				TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
 
-				if (FNetworkPredictionDriver<ModelDef>::ShouldReconcilePhysics(PhysicsFrame, TickState->PhysicsRewindData, InstanceData.Info.Physics, ClientRecvData.Physics))
+				if (FNetworkPredictionDriver<ModelDef>::ShouldReconcilePhysics(PhysicsFrame, TickState->PhysicsRewindData, InstanceData.Info.Driver, ClientRecvData.Physics))
 				{
 					UE_NP_TRACE_SHOULD_RECONCILE(ClientRecvData.TraceID); // TODO: need a way to trace physics state
 					bDoRollback = true;
@@ -113,7 +115,7 @@ public:
 						FNetworkPredictionDriver<ModelDef>::LogPhysicsState(ClientRecvData.Physics);
 
 						UE_LOG(LogNetworkPrediction, Warning, TEXT("Local:"));
-						FNetworkPredictionDriver<ModelDef>::LogPhysicsState(PhysicsFrame, TickState->PhysicsRewindData, InstanceData.Info.Physics);
+						FNetworkPredictionDriver<ModelDef>::LogPhysicsState(PhysicsFrame, TickState->PhysicsRewindData, InstanceData.Info.Driver);
 					}
 				}
 			}
@@ -146,15 +148,50 @@ public:
 		return RollbackFrame;
 	}
 
-	void BeginRollback(const int32 LocalFrame, const int32 StartTimeMS, const int32 ServerFrame)
+	void PreStepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep, const int32 Offset, const bool bFirstStepInResim)
 	{
-		InternalTickService.BeginRollback(LocalFrame, StartTimeMS, ServerFrame);
-	}
-	
-	void StepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep, const int32 Offset)
-	{
-		const int32 InputFrame = ServiceStep.LocalInputFrame;
+		if (bFirstStepInResim)
+		{
+			// Apply corrections for the instances that have corrections on this frame
+			ApplyCorrection<false>(ServiceStep.LocalInputFrame, Offset);
 
+			// Everyone must rollback Cue dispatcher and flush
+			InternalTickService.BeginRollback(ServiceStep.LocalInputFrame, Step.TotalSimulationTime, Step.Frame);
+			
+			// Everyone we are managing needs to rollback to this frame, even if they don't have a correction 
+			// (this frame or this rollback - they will need to restore their collision data since we are about to retick everyone in step)
+
+			QUICK_SCOPE_CYCLE_COUNTER(NP_Rollback_RestoreFrame);
+
+			for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
+			{
+				TClientRecvData<ModelDef>& ClientRecvData = DataStore->ClientRecv.GetByIndexChecked(BitIt.GetIndex());
+				TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
+				TInstanceFrameState<ModelDef>& Frames = DataStore->Frames.GetByIndexChecked(ClientRecvData.FramesIdx);
+				typename TInstanceFrameState<ModelDef>::FFrame& LocalFrameData = Frames.Buffer[ServiceStep.LocalInputFrame];
+
+				FNetworkPredictionDriver<ModelDef>::RestoreFrame(InstanceData.Info.Driver, LocalFrameData.SyncState.Get(), LocalFrameData.AuxState.Get());
+			}
+		}
+		else
+		{
+			ApplyCorrection<true>(ServiceStep.LocalInputFrame, Offset);
+		}
+	}
+
+	void StepRollback(const FNetSimTimeStep& Step, const FServiceTimeStep& ServiceStep) final override
+	{
+		if (bNeedsTickService)
+		{
+			InternalTickService.TickResim(Step, ServiceStep);
+		}
+	}	
+
+private:
+
+	template<bool FlushCorrection>
+	void ApplyCorrection(const int32 LocalInputFrame, const int32 Offset)
+	{
 		// Insert correction data on the right frame
 		for (TConstSetBitIterator<> BitIt(RollbackBitArray); BitIt; ++BitIt)
 		{
@@ -162,7 +199,7 @@ public:
 			TClientRecvData<ModelDef>& ClientRecvData = DataStore->ClientRecv.GetByIndexChecked(ClientRecvIdx);
 
 			const int32 LocalFrame = ClientRecvData.ServerFrame - Offset;
-			if (LocalFrame == InputFrame)
+			if (LocalFrame == LocalInputFrame)
 			{
 				// Time to inject
 				TInstanceFrameState<ModelDef>& Frames = DataStore->Frames.GetByIndexChecked(ClientRecvData.FramesIdx);
@@ -170,13 +207,14 @@ public:
 
 				LocalFrameData.SyncState = ClientRecvData.SyncState;
 				LocalFrameData.AuxState = ClientRecvData.AuxState;
-				
+
+				TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
+
 				if (FNetworkPredictionDriver<ModelDef>::HasPhysics())
 				{
-					TInstanceData<ModelDef>& InstanceData = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
-					FNetworkPredictionDriver<ModelDef>::PerformPhysicsRollback(InstanceData.Info.Physics, ClientRecvData.Physics);
+					FNetworkPredictionDriver<ModelDef>::PerformPhysicsRollback(InstanceData.Info.Driver, ClientRecvData.Physics);
 				}
-				
+
 				// Copy input cmd if SP
 				if (ClientRecvData.NetRole == ROLE_SimulatedProxy)
 				{
@@ -185,16 +223,15 @@ public:
 
 				RollbackBitArray[ClientRecvIdx] = false;
 				UE_NP_TRACE_ROLLBACK_INJECT(ClientRecvData.TraceID);
+
+				if (FlushCorrection)
+				{
+					// Push to component/collision scene immediately (we aren't garunteed to tick next, so get our collision right)
+					FNetworkPredictionDriver<ModelDef>::RestoreFrame(InstanceData.Info.Driver, LocalFrameData.SyncState.Get(), LocalFrameData.AuxState.Get());
+				}
 			}
 		}
-
-		if (bNeedsTickTickService)
-		{
-			InternalTickService.TickResim(Step, ServiceStep);
-		}
-	}	
-
-private:
+	}
 	
 	TBitArray<> InstanceBitArray; // Indices into DataStore->ClientRecv that we are managing
 	TBitArray<> RollbackBitArray; // Indices into DataStore->ClientRecv that we should rollback
@@ -272,12 +309,14 @@ public:
 				LocalFrameData.SyncState = ClientRecvData.SyncState;
 				LocalFrameData.AuxState = ClientRecvData.AuxState;
 
+				TInstanceData<ModelDef>& Instance = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
+
+				FNetworkPredictionDriver<ModelDef>::RestoreFrame(Instance.Info.Driver, LocalFrameData.SyncState.Get(), LocalFrameData.AuxState.Get());
+
 				// Do rollback
 				const int32 EndFrame = TickState->PendingFrame;
 				for (int32 Frame = LocalFrame; Frame < EndFrame; ++Frame)
 				{
-					TInstanceData<ModelDef>& Instance = DataStore->Instances.GetByIndexChecked(ClientRecvData.InstanceIdx);
-
 					const int32 InputFrame = Frame;
 					const int32 OutputFrame = Frame+1;
 

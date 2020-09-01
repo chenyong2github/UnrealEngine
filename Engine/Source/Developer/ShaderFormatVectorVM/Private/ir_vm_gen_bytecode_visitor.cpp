@@ -1388,6 +1388,13 @@ struct op_external_func : public op_base
 
 	bool should_cull_function(unsigned int op_idx)
 	{
+		FString FuncName = FString::Printf(TEXT("%s"), ANSI_TO_TCHAR(sig->function_name()));
+		bool bPotentiallyHasSideEffects = FuncName.Contains(TEXT("_UEImpureCall_"));
+		if (bPotentiallyHasSideEffects)
+		{
+			return false;
+		}
+
 		//If the outputs of this call are never used after the current op then we cull this function.
 		bool func_is_used = false;
 		for (variable_info_node* output : outputs)

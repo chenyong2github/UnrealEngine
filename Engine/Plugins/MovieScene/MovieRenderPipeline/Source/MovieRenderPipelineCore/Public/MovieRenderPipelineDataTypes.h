@@ -447,7 +447,7 @@ public:
 			: MotionBlurFraction(0.f)
 			, FrameDeltaTime(0.0)
 			, WorldSeconds(0.0)
-			, bWasAffectedByTimeDilation(false)
+			, TimeDilation(1.f)
 		{
 		}
 
@@ -461,17 +461,19 @@ public:
 		double WorldSeconds;
 
 		/**
-		* If true, there was a non-1.0 Time Dilation in effect when this frame was produced. This indicates that there
+		* Check if there was a non-1.0 Time Dilation in effect when this frame was produced. This indicates that there
 		* may be duplicate frame Source/Effective frame numbers as they find the closest ideal time to the current.
 		*/
-		bool bWasAffectedByTimeDilation;
+		float TimeDilation;
 
 		void ResetPerFrameData()
 		{
 			MotionBlurFraction = 0.f;
 			FrameDeltaTime = 0.0;
-			bWasAffectedByTimeDilation = false;
+			TimeDilation = 1.f;
 		}
+
+		FORCEINLINE bool IsTimeDilated() const { return !FMath::IsNearlyEqual(TimeDilation, 1.f); }
 	};
 
 	FMoviePipelineFrameOutputState()
@@ -545,6 +547,7 @@ public:
 		EffectiveTimeCode = FTimecode();
 		CurrentShotSourceFrameNumber = 0;
 		CurrentShotSourceTimeCode = FTimecode();
+		FileMetadata.Reset();
 	}
 
 	void ResetPerShotData()
@@ -586,6 +589,9 @@ public:
 	/** The closest time code version of the EffectiveFrameNumber. May be a duplicate in the event of Play Rate tracks. */
 	FTimecode EffectiveTimeCode;
 
+	/** Metadata to attach to the output file (if supported by the output container) */
+	FStringFormatNamedArguments FileMetadata;
+
 
 	int32 CurrentShotSourceFrameNumber;
 	
@@ -619,7 +625,7 @@ public:
 	{
 		return GetTypeHash(OutputState.OutputFrameNumber);
 	}
-	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset) const;
+	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const int32 InZeroPadCount, const int32 InFrameNumberOffset, const bool bForceRelFrameNumbers) const;
 };
 
 struct FMoviePipelineFormatArgs
@@ -629,8 +635,11 @@ struct FMoviePipelineFormatArgs
 	{
 	}
 
-	/** A set of Key/Value pairs for format strings (without {}) and their values. */
-	FStringFormatNamedArguments Arguments;
+	/** A set of Key/Value pairs for output filename format strings (without {}) and their values. */
+	FStringFormatNamedArguments FilenameArguments;
+
+	/** A set of Key/Value pairs for file metadata for file formats that support metadata. */
+	FStringFormatNamedArguments FileMetadata;
 
 	/** Which job is this for? Some settings are specific to the level sequence being rendered. */
 	class UMoviePipelineExecutorJob* InJob;

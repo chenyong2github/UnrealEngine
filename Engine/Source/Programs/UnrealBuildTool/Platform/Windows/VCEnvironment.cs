@@ -191,7 +191,7 @@ namespace UnrealBuildTool
 		/// <param name="VCToolChainDir">Base directory for the VC toolchain</param>
 		/// <param name="Architecture">Target Architecture</param>
 		/// <returns>Directory containing the 32-bit toolchain binaries</returns>
-		static DirectoryReference GetVCToolPath(WindowsCompiler Compiler, DirectoryReference VCToolChainDir, WindowsArchitecture Architecture)
+		public static DirectoryReference GetVCToolPath(WindowsCompiler Compiler, DirectoryReference VCToolChainDir, WindowsArchitecture Architecture)
 		{
 			if (Compiler >= WindowsCompiler.VisualStudio2017)
 			{

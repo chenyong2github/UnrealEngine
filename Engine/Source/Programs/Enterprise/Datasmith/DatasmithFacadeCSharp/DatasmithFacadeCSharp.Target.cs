@@ -4,6 +4,7 @@ using UnrealBuildTool;
 using System;
 using System.IO;
 
+[SupportedPlatforms("Win64")]
 public class DatasmithFacadeCSharpTarget : TargetRules
 {
 	public DatasmithFacadeCSharpTarget(TargetInfo Target)

@@ -7,24 +7,22 @@
 #include "NiagaraSystemInstance.h"
 #include "NiagaraEmitterInstance.h"
 #include "MeshBatch.h"
-#include "SceneUtils.h"
-#include "ComponentReregisterContext.h"
 #include "NiagaraConstants.h"
 #include "NiagaraStats.h"
 #include "NiagaraCommon.h"
-#include "NiagaraEmitterInstance.h"
 #include "NiagaraDataInterface.h"
-#include "NiagaraDataInterfaceStaticMesh.h"
 #include "UObject/NameTypes.h"
-#include "NiagaraParameterCollection.h"
 #include "NiagaraWorldManager.h"
 #include "EngineUtils.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "Engine/CollisionProfile.h"
 #include "PrimitiveSceneInfo.h"
+#include "NiagaraCrashReporterHandler.h"
 #include "NiagaraEmitterInstanceBatcher.h"
 #include "NiagaraDataSetAccessor.h"
 #include "NiagaraComponentSettings.h"
+#include "NiagaraCustomVersion.h"
+#include "Materials/MaterialInstanceDynamic.h"
 
 DECLARE_CYCLE_STAT(TEXT("Sceneproxy create (GT)"), STAT_NiagaraCreateSceneProxy, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("Component Tick (GT)"), STAT_NiagaraComponentTick, STATGROUP_Niagara);
@@ -217,7 +215,7 @@ void FNiagaraSceneProxy::CreateRenderers(const UNiagaraComponent* Component)
 					FNiagaraRenderer* NewRenderer = nullptr;
 					if (Properties->GetIsActive() && EmitterInst->GetData().IsInitialized() && !EmitterInst->IsDisabled())
 					{
-						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get());
+						NewRenderer = Properties->CreateEmitterRenderer(FeatureLevel, &EmitterInst.Get(), Component);
 						bAlwaysHasVelocity |= Properties->bMotionBlurEnabled;
 					}
 					EmitterRenderers.Add(NewRenderer);
@@ -456,8 +454,11 @@ UNiagaraComponent::UNiagaraComponent(const FObjectInitializer& ObjectInitializer
 	, bDidAutoAttach(false)
 	, bAllowScalability(true)
 	, bIsCulledByScalability(false)
+	, bDuringUpdateContextReset(false)
 	//, bIsChangingAutoAttachment(false)
 	, ScalabilityManagerHandle(INDEX_NONE)
+	, ForceUpdateTransformTime(0.0f)
+	, CurrLocalBounds(ForceInit)
 {
 	OverrideParameters.SetOwner(this);
 
@@ -614,7 +615,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 
 		if (AgeUpdateMode == ENiagaraAgeUpdateMode::TickDeltaTime)
 		{
-			SystemInstance->ComponentTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
+			SystemInstance->ManualTick(DeltaSeconds, ThisTickFunction->IsCompletionHandleValid() ? ThisTickFunction->GetCompletionHandle() : nullptr);
 		}
 		else if(AgeUpdateMode == ENiagaraAgeUpdateMode::DesiredAge)
 		{
@@ -645,7 +646,7 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 						{
 							//Cannot do multiple tick off the game thread here without additional work. So we pass in null for the completion event which will force GT execution.
 							//If this becomes a perf problem I can add a new path for the tick code to handle multiple ticks.
-							SystemInstance->ComponentTick(SeekDelta, nullptr);
+							SystemInstance->ManualTick(SeekDelta, nullptr);
 							CurrentTime = FPlatformTime::Seconds();
 						}
 					}
@@ -668,19 +669,19 @@ void UNiagaraComponent::TickComponent(float DeltaSeconds, enum ELevelTick TickTy
 					// When going back in time for a frame or more, reset and simulate a single frame.  We ignore small negative changes to delta
 					// time which can happen when controlling time with the timeline and the time snaps to a previous time when paused.
 					SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-					SystemInstance->ComponentTick(SeekDelta, nullptr);
+					SystemInstance->ManualTick(SeekDelta, nullptr);
 				}
 			}
 			else if (AgeDiff < MaxForwardFrames * SeekDelta)
 			{
 				// Allow ticks between 0 and MaxForwardFrames, but don't ever send more then 2 x the seek delta.
-				SystemInstance->ComponentTick(FMath::Min(AgeDiff, 2 * SeekDelta), nullptr);
+				SystemInstance->ManualTick(FMath::Min(AgeDiff, 2 * SeekDelta), nullptr);
 			}
 			else
 			{
 				// When going forward in time for more than MaxForwardFrames, reset and simulate a single frame.
 				SystemInstance->Reset(FNiagaraSystemInstance::EResetMode::ResetAll);
-				SystemInstance->ComponentTick(SeekDelta, nullptr);
+				SystemInstance->ManualTick(SeekDelta, nullptr);
 			}
 			LastHandledDesiredAge = DesiredAge;
 		}
@@ -815,12 +816,19 @@ bool UNiagaraComponent::InitializeSystem()
 	{
 		LLM_SCOPE(ELLMTag::Niagara);
 		CSV_SCOPED_TIMING_STAT_EXCLUSIVE(Effects);
-		FNiagaraSystemInstance::AllocateSystemInstance(this, SystemInstance);
+		
+		UWorld* World = GetWorld();
+		check(World);
+		check(Asset);
+
+		const bool bPooled = PoolingMethod != ENCPoolMethod::None;
+		FNiagaraSystemInstance::AllocateSystemInstance(SystemInstance, *World, *Asset, &OverrideParameters, this, TickBehavior, bPooled);
 		//UE_LOG(LogNiagara, Log, TEXT("Create System: %p | %s\n"), SystemInstance.Get(), *GetAsset()->GetFullName());
 #if WITH_EDITORONLY_DATA
 		OnSystemInstanceChangedDelegate.Broadcast();
 #endif
 		SystemInstance->Init(bForceSolo);
+		SystemInstance->SetOnPostTick(FNiagaraSystemInstance::FOnPostTick::CreateUObject(this, &UNiagaraComponent::PostSystemTick_GameThread));
 		MarkRenderStateDirty();
 		return true;
 	}
@@ -835,6 +843,12 @@ void UNiagaraComponent::Activate(bool bReset /* = false */)
 void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScalabilityCull)
 {
 	bAwaitingActivationDueToNotReady = false;
+
+	// Reset our local bounds on reset
+	if (bReset)
+	{
+		CurrLocalBounds.Init();
+	}
 
 	if (GbSuppressNiagaraSystems != 0)
 	{
@@ -868,7 +882,7 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	}
 
 	// Should we force activation to fail?
-	if (UNiagaraComponentSettings::ShouldSupressActivation(Asset))
+	if (UNiagaraComponentSettings::ShouldSuppressActivation(Asset))
 	{
 		return;
 	}
@@ -966,7 +980,12 @@ void UNiagaraComponent::ActivateInternal(bool bReset /* = false */, bool bIsScal
 	}
 	
 #if WITH_EDITOR
-	ApplyOverridesToParameterStore();
+	//TODO: Do this else where. I get needing to ensure params are correct from the component but these are stomping over runtime changes to the params in editor builds.
+	//For now we can bypass the worst of the impact by disallowing in game worlds.
+	if(!World->IsGameWorld())
+	{
+		ApplyOverridesToParameterStore();
+	}
 #endif
 
 	FNiagaraSystemInstance::EResetMode ResetMode = FNiagaraSystemInstance::EResetMode::ResetSystem;
@@ -1063,7 +1082,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraComponentDeactivate);
 	Super::Deactivate();
 
-	bool bWasCulledByScalabiltiy = bIsCulledByScalability;
+	bool bWasCulledByScalability = bIsCulledByScalability;
 
 	//UE_LOG(LogNiagara, Log, TEXT("DeactivateImmediate: %p - %s - %s"), this, *Asset->GetName(), bIsScalabilityCull ? TEXT("Scalability") : TEXT(""));
 
@@ -1086,7 +1105,7 @@ void UNiagaraComponent::DeactivateImmediateInternal(bool bIsScalabilityCull)
 	{
 		SystemInstance->Deactivate(true);
 	}
-	else if (bWasCulledByScalabiltiy && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
+	else if (bWasCulledByScalability && !bIsCulledByScalability)//We were culled by scalability but no longer, ensure we've handled completion correctly. E.g. returned to the pool etc.
 	{
 		OnSystemComplete();
 	}
@@ -1145,6 +1164,43 @@ void UNiagaraComponent::UnregisterWithScalabilityManager()
 	ScalabilityManagerHandle = INDEX_NONE;//Just to be sure our state is unregistered.
 }
 
+void UNiagaraComponent::PostSystemTick_GameThread()
+{
+	check(SystemInstance.IsValid()); // sanity
+
+#if WITH_EDITOR
+	if (SystemInstance->HandleNeedsUIResync())
+	{
+		OnSynchronizedWithAssetParametersDelegate.Broadcast();
+	}
+#endif
+
+	// Check if the system got completed
+	if (IsActive() && SystemInstance->IsComplete())
+	{
+		OnSystemComplete();
+		return;
+	}
+
+	// NOTE: Since this is happening before scene visibility calculation, it's likely going to be off by a frame
+	SystemInstance->SetLastRenderTime(GetLastRenderTime());
+
+	MarkRenderDynamicDataDirty();
+
+	// Check to force update our transform based on a timer or bounds expanding beyond their previous local boundaries
+	const FBox NewLocalBounds = SystemInstance->GetLocalBounds();
+	ForceUpdateTransformTime += GetWorld()->GetDeltaSeconds();
+	if (!CurrLocalBounds.IsValid ||
+		!CurrLocalBounds.IsInsideOrOn(NewLocalBounds.Min) ||
+		!CurrLocalBounds.IsInsideOrOn(NewLocalBounds.Max) ||
+		(ForceUpdateTransformTime > MaxTimeBeforeForceUpdateTransform))
+	{
+		CurrLocalBounds = NewLocalBounds;
+		ForceUpdateTransformTime = 0.0f;
+		UpdateComponentToWorld();
+	}
+}
+
 void UNiagaraComponent::OnSystemComplete()
 {
 	//UE_LOG(LogNiagara, Log, TEXT("OnSystemComplete: %p - %s"), SystemInstance.Get(), *Asset->GetName());
@@ -1158,7 +1214,8 @@ void UNiagaraComponent::OnSystemComplete()
 
 	//Don't really complete if we're being culled by scalability.
 	//We want to stop ticking but not be reclaimed by the pools etc.
-	if (bIsCulledByScalability == false)
+	//We also want to skip this work if we're destroying during and update context reset.
+	if (bIsCulledByScalability == false && bDuringUpdateContextReset == false)
 	{		
 		//UE_LOG(LogNiagara, Log, TEXT("OnSystemFinished.Broadcast(this);: { %p -  %p - %s"), this, SystemInstance.Get(), *Asset->GetName());
 		OnSystemFinished.Broadcast(this);
@@ -1249,7 +1306,7 @@ void UNiagaraComponent::OnPooledReuse(UWorld* NewWorld)
 
 	if (SystemInstance != nullptr)
 	{
-		SystemInstance->OnPooledReuse();
+		SystemInstance->OnPooledReuse(*NewWorld);
 	}
 }
 
@@ -1439,6 +1496,8 @@ void UNiagaraComponent::SendRenderDynamicData_Concurrent()
 
 	if (SystemInstance.IsValid() && SceneProxy)
 	{
+		FNiagaraCrashReporterScope CRScope(SystemInstance.Get());
+
 #if STATS
 		TStatId SystemStatID = GetAsset() ? GetAsset()->GetStatID(true, true) : TStatId();
 		FScopeCycleCounter SystemStatCounter(SystemStatID);
@@ -1554,9 +1613,9 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	}
 
 	FBoxSphereBounds SystemBounds;
-	if (SystemInstance.IsValid())
+	if (CurrLocalBounds.IsValid)
 	{
-		SystemBounds = SystemInstance->GetLocalBounds();
+		SystemBounds = CurrLocalBounds;
 		SystemBounds.BoxExtent *= BoundsScale;
 		SystemBounds.SphereRadius *= BoundsScale;
 	}
@@ -1569,11 +1628,76 @@ FBoxSphereBounds UNiagaraComponent::CalcBounds(const FTransform& LocalToWorld) c
 	return SystemBounds.TransformBy(LocalToWorld);
 }
 
+void UNiagaraComponent::UpdateEmitterMaterials()
+{
+	TArray<FNiagaraMaterialOverride> NewEmitterMaterials;
+	
+	if (SystemInstance)
+	{
+		for (int32 i = 0; i < SystemInstance->GetEmitters().Num(); i++)
+		{
+			FNiagaraEmitterInstance* EmitterInst = &SystemInstance->GetEmitters()[i].Get();
+			if (UNiagaraEmitter* Emitter = EmitterInst->GetCachedEmitter())
+			{
+
+				Emitter->ForEachEnabledRenderer(
+					[&](UNiagaraRendererProperties* Properties)
+					{
+						TArray<UMaterialInterface*> UsedMaterials;
+						Properties->GetUsedMaterials(EmitterInst, UsedMaterials);
+						bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
+
+						uint32 Index = 0;
+						for (UMaterialInterface*& Mat : UsedMaterials)
+						{
+							if (Mat && bCreateMidsForUsedMaterials && !Mat->IsA<UMaterialInstanceDynamic>())
+							{
+								bool bFoundMatch = false;
+								for (int32 i = 0; i < EmitterMaterials.Num(); i++)
+								{
+									if (EmitterMaterials[i].EmitterRendererProperty == Properties && EmitterMaterials[i].Material )
+									{
+										UMaterialInstanceDynamic* MatDyn = Cast< UMaterialInstanceDynamic>(EmitterMaterials[i].Material);
+										if (MatDyn && MatDyn->Parent == Mat)
+										{
+											bFoundMatch = true;
+											Mat = MatDyn;
+											NewEmitterMaterials.Add(EmitterMaterials[i]);
+											break;
+										}
+									}
+								}
+
+								if (!bFoundMatch)
+								{
+									UE_LOG(LogNiagara, Log, TEXT("Create Dynamic Material for component %s"), *GetPathName());
+									Mat = UMaterialInstanceDynamic::Create(Mat, this);
+									FNiagaraMaterialOverride Override;
+									Override.Material = Mat;
+									Override.EmitterRendererProperty = Properties;
+									Override.MaterialSubIndex = Index;
+
+									NewEmitterMaterials.Add(Override);
+								}
+							}
+							Index++;
+						}
+					}
+				);				
+			}
+		}
+	}
+
+	EmitterMaterials = NewEmitterMaterials;
+}
+
 FPrimitiveSceneProxy* UNiagaraComponent::CreateSceneProxy()
 {
 	LLM_SCOPE(ELLMTag::Niagara);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraCreateSceneProxy);
 	SCOPE_CYCLE_COUNTER(STAT_NiagaraOverview_GT);
+
+	UpdateEmitterMaterials();
 	
 	// The constructor will set up the System renderers from the component.
 	FNiagaraSceneProxy* Proxy = new FNiagaraSceneProxy(this);
@@ -1597,11 +1721,35 @@ void UNiagaraComponent::GetUsedMaterials(TArray<UMaterialInterface*>& OutMateria
 			Emitter->ForEachEnabledRenderer(
 				[&](UNiagaraRendererProperties* Properties)
 				{
-					Properties->GetUsedMaterials(&Sim.Get(), OutMaterials);
+
+					bool bCreateMidsForUsedMaterials = Properties->NeedsMIDsForMaterials();
+					TArray<UMaterialInterface*> Mats;
+					Properties->GetUsedMaterials(&Sim.Get(), Mats);
+
+					if (bCreateMidsForUsedMaterials)
+					{
+						for (const FNiagaraMaterialOverride& Override : EmitterMaterials)
+						{
+							if (Override.EmitterRendererProperty == Properties)
+							{
+								for (int32 i = 0; i < Mats.Num(); i++)
+								{
+									if (i == Override.MaterialSubIndex)
+									{
+										Mats[i] = Override.Material;
+										continue;
+									}
+								}
+							}
+						}
+					}
+
+					OutMaterials.Append(Mats);
 				}
 			);
 		}
 	}
+
 }
 
 void UNiagaraComponent::SetComponentTickEnabled(bool bEnabled)
@@ -2002,10 +2150,10 @@ void UNiagaraComponent::PostLoad()
 
 				for (const FNiagaraVariableBase& Var : ToAddNonUser)
 				{
-					const FNiagaraVariant* FoundVar = InstanceParameterOverrides.Find(Var);
+					const FNiagaraVariant FoundVar = InstanceParameterOverrides.FindRef(Var);
 					FNiagaraVariableBase UserVar = Var;
 					FNiagaraUserRedirectionParameterStore::MakeUserVariable(UserVar);
-					InstanceParameterOverrides.Add(UserVar) = *FoundVar;
+					InstanceParameterOverrides.Emplace(UserVar, FoundVar);
 				}
 
 				for (const FNiagaraVariableBase& Var : ToRemoveNonUser)
@@ -2295,6 +2443,11 @@ void UNiagaraComponent::ApplyOverridesToParameterStore()
 
 	for (const auto& Pair : TemplateParameterOverrides)
 	{ 
+		if (!FNiagaraUserRedirectionParameterStore::IsUserParameter(Pair.Key))
+		{
+			continue;
+		}
+
 		const int32* ExistingParam = OverrideParameters.FindParameterOffset(Pair.Key);
 		if (ExistingParam != nullptr)
 		{
@@ -2306,6 +2459,11 @@ void UNiagaraComponent::ApplyOverridesToParameterStore()
 	{
 		for (const auto& Pair : InstanceParameterOverrides)
 		{ 
+			if (!FNiagaraUserRedirectionParameterStore::IsUserParameter(Pair.Key))
+			{
+				continue;
+			}
+
 			const int32* ExistingParam = OverrideParameters.FindParameterOffset(Pair.Key);
 			if (ExistingParam != nullptr)
 			{
@@ -2385,14 +2543,28 @@ void UNiagaraComponent::AssetExposedParametersChanged()
 
 bool UNiagaraComponent::HasParameterOverride(const FNiagaraVariableBase& InKey) const 
 {
+	FNiagaraVariableBase UserVariable = InKey;
+
+	if (Asset)
+	{
+		if (!Asset->GetExposedParameters().RedirectUserVariable(UserVariable))
+		{
+			return false;
+		}
+	}
+	else if (!FNiagaraUserRedirectionParameterStore::IsUserParameter(UserVariable))
+	{
+		return false;
+	}
+
 	if (IsTemplate())
 	{
-		const FNiagaraVariant* ThisValue = TemplateParameterOverrides.Find(InKey);
+		const FNiagaraVariant* ThisValue = TemplateParameterOverrides.Find(UserVariable);
 
 		const FNiagaraVariant* ArchetypeValue = nullptr;
 		if (const UNiagaraComponent* Archetype = Cast<UNiagaraComponent>(GetArchetype()))
 		{
-			ArchetypeValue = Archetype->TemplateParameterOverrides.Find(InKey);
+			ArchetypeValue = Archetype->TemplateParameterOverrides.Find(UserVariable);
 		}
 
 		if (ThisValue != nullptr && ArchetypeValue != nullptr)
@@ -2408,7 +2580,7 @@ bool UNiagaraComponent::HasParameterOverride(const FNiagaraVariableBase& InKey) 
 	}
 	else
 	{
-		if (InstanceParameterOverrides.Contains(InKey))
+		if (InstanceParameterOverrides.Contains(UserVariable))
 		{
 			return true;
 		}
@@ -2424,42 +2596,31 @@ FNiagaraVariant UNiagaraComponent::FindParameterOverride(const FNiagaraVariableB
 		return FNiagaraVariant();
 	}
 
-	if (Asset->GetExposedParameters().FindParameterOffset(InKey) == nullptr)
+	FNiagaraVariableBase UserVariable = InKey;
+
+	const FNiagaraUserRedirectionParameterStore& ParameterStore = Asset->GetExposedParameters();
+
+	if (!ParameterStore.RedirectUserVariable(UserVariable))
 	{
 		return FNiagaraVariant();
 	}
 
-	FNiagaraVariableBase RedirectedVar = Asset->GetExposedParameters().FindRedirection(InKey);
+	if (ParameterStore.FindParameterOffset(UserVariable) == nullptr)
+	{
+		return FNiagaraVariant();
+	}
 
 	if (!IsTemplate())
 	{
-		// Check both user and non-user keys
-		{
-			const FNiagaraVariant* Value = InstanceParameterOverrides.Find(InKey);
-			if (Value != nullptr)
-			{
-				return *Value;
-			}
-		}
-		{
-			const FNiagaraVariant* Value = InstanceParameterOverrides.Find(RedirectedVar);
-			if (Value != nullptr)
-			{
-				return *Value;
-			}
-		}
-	}
-
-	// Check both user and non-user keys
-	{
-		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(InKey);
+		const FNiagaraVariant* Value = InstanceParameterOverrides.Find(UserVariable);
 		if (Value != nullptr)
 		{
 			return *Value;
 		}
 	}
+
 	{
-		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(RedirectedVar);
+		const FNiagaraVariant* Value = TemplateParameterOverrides.Find(UserVariable);
 		if (Value != nullptr)
 		{
 			return *Value;
@@ -2494,49 +2655,57 @@ void UNiagaraComponent::SetParameterOverride(const FNiagaraVariableBase& InKey, 
 	}
 
 	// we want to be sure we're storing data based on the fully qualified key name (i.e. taking the user redirection into account)
-	const FNiagaraVariableBase ParameterKey = OverrideParameters.FindRedirection(InKey);
+	FNiagaraVariableBase UserVariable = InKey;
+	if (!OverrideParameters.RedirectUserVariable(UserVariable))
+	{
+		return;
+	}
 
 	if (IsTemplate())
 	{
-		TemplateParameterOverrides.Add(ParameterKey, InValue);
+		TemplateParameterOverrides.Add(UserVariable, InValue);
 	}
 	else
 	{
-		InstanceParameterOverrides.Add(ParameterKey, InValue);
+		InstanceParameterOverrides.Add(UserVariable, InValue);
 	}
 
-	SetOverrideParameterStoreValue(ParameterKey, InValue);
+	SetOverrideParameterStoreValue(UserVariable, InValue);
 }
 
 void UNiagaraComponent::RemoveParameterOverride(const FNiagaraVariableBase& InKey)
 {
 	// we want to be sure we're storing data based on the fully qualified key name (i.e. taking the user redirection into account)
-	const FNiagaraVariableBase ParameterKey = OverrideParameters.FindRedirection(InKey);
+	FNiagaraVariableBase UserVariable = InKey;
+	if (!OverrideParameters.RedirectUserVariable(UserVariable))
+	{
+		return;
+	}
 
 	if (!IsTemplate())
 	{
-		InstanceParameterOverrides.Remove(ParameterKey);
+		InstanceParameterOverrides.Remove(UserVariable);
 	}
 	else
 	{
-		TemplateParameterOverrides.Remove(ParameterKey);
+		TemplateParameterOverrides.Remove(UserVariable);
 
 		// we are an archetype, but check if we have an archetype and inherit the value from there
 		const UNiagaraComponent* Archetype = Cast<UNiagaraComponent>(GetArchetype());
 		if (Archetype != nullptr)
 		{
-			FNiagaraVariant ArchetypeValue = Archetype->FindParameterOverride(ParameterKey);
+			FNiagaraVariant ArchetypeValue = Archetype->FindParameterOverride(UserVariable);
 			if (ArchetypeValue.IsValid())
 			{
 				// defined in archetype, reset value to that
-				if (ParameterKey.IsDataInterface())
+				if (UserVariable.IsDataInterface())
 				{
 					UNiagaraDataInterface* DataInterface = DuplicateObject(ArchetypeValue.GetDataInterface(), this);
-					TemplateParameterOverrides.Add(ParameterKey, FNiagaraVariant(DataInterface));
+					TemplateParameterOverrides.Add(UserVariable, FNiagaraVariant(DataInterface));
 				}
 				else
 				{
-					TemplateParameterOverrides.Add(ParameterKey, ArchetypeValue);
+					TemplateParameterOverrides.Add(UserVariable, ArchetypeValue);
 				}
 			}
 		}
@@ -2659,6 +2828,9 @@ void UNiagaraComponent::SetAsset(UNiagaraSystem* InAsset)
 		Asset->GetExposedParameters().RemoveOnChangedHandler(AssetExposedParametersChangedHandle);
 	}
 #endif
+
+	UnregisterWithScalabilityManager();
+
 	Asset = InAsset;
 
 #if WITH_EDITOR

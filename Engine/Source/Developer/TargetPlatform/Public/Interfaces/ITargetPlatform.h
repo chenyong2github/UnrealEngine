@@ -423,6 +423,11 @@ public:
 	virtual bool UsesRayTracing() const = 0;
 
 	/**
+	* Gets whether the platform will use SH2 instead of SH3 for sky irradiance.
+	*/
+	virtual bool ForcesSimpleSkyDiffuse() const = 0;
+
+	/**
 	* Gets down sample mesh distance field divider.
 	*
 	* @return 1 if platform does not need to downsample mesh distance fields

@@ -28,7 +28,7 @@ struct FGameplayDebuggerPlayerData
 };
 
 UCLASS(NotBlueprintable, NotBlueprintType, notplaceable, noteditinlinenew, hidedropdown, Transient)
-class AGameplayDebuggerPlayerManager : public AActor
+class GAMEPLAYDEBUGGER_API AGameplayDebuggerPlayerManager : public AActor
 {
 	GENERATED_UCLASS_BODY()
 

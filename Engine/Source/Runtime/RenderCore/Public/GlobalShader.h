@@ -203,7 +203,7 @@ public:
 #endif // WITH_EDITOR
 
 private:
-	TMap<FHashedName, TRefCountPtr<FGlobalShaderMapSection>> SectionMap;
+	TMap<FHashedName, FGlobalShaderMapSection*> SectionMap;
 	EShaderPlatform Platform;
 };
 

@@ -49,6 +49,8 @@ UMovieScenePreAnimatedComponentTransformSystem::UMovieScenePreAnimatedComponentT
 {
 	using namespace UE::MovieScene;
 
+	SystemExclusionContext |= EEntitySystemContext::Interrogation;
+
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
 		DefineComponentConsumer(GetClass(), FBuiltInComponentTypes::Get()->SymbolicTags.CreatesEntities);
@@ -134,6 +136,9 @@ void UMovieScenePreAnimatedComponentTransformSystem::SaveGlobalPreAnimatedState(
 UMovieSceneComponentTransformSystem::UMovieSceneComponentTransformSystem(const FObjectInitializer& ObjInit)
 	: Super(ObjInit)
 {
+	// This system can be used for interrogation
+	SystemExclusionContext = UE::MovieScene::EEntitySystemContext::None;
+
 	BindToProperty(UE::MovieScene::FMovieSceneTracksComponentTypes::Get()->ComponentTransform);
 
 	if (HasAnyFlags(RF_ClassDefaultObject))

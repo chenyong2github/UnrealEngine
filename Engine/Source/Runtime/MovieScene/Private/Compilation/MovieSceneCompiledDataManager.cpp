@@ -122,6 +122,7 @@ struct FGatherParameters
 		, LocalClampRange(RootClampRange)
 		, Flags(ESectionEvaluationFlags::None)
 		, HierarchicalBias(0)
+		, bHasHierarchicalEasing(false)
 	{}
 
 	FGatherParameters CreateForSubData(const FMovieSceneSubSequenceData& SubData, FMovieSceneSequenceID InSubSequenceID) const
@@ -164,6 +165,9 @@ struct FGatherParameters
 
 	/** Current accumulated hierarchical bias */
 	int16 HierarchicalBias;
+
+	/** Whether the current sequence is receiving hierarchical easing from some parent sequence */
+	bool bHasHierarchicalEasing;
 };
 
 /** Parameter structure used for gathering entities for a given time or range */
@@ -241,6 +245,11 @@ FMovieSceneCompiledDataEntry::FMovieSceneCompiledDataEntry()
 	: AccumulatedFlags(EMovieSceneSequenceFlags::None)
 	, AccumulatedMask(EMovieSceneSequenceCompilerMask::None)
 {}
+
+UMovieSceneSequence* FMovieSceneCompiledDataEntry::GetSequence() const
+{
+	return CastChecked<UMovieSceneSequence>(SequenceKey.ResolveObjectPtr(), ECastCheckedType::NullAllowed);
+}
 
 UMovieSceneCompiledData::UMovieSceneCompiledData()
 {
@@ -414,7 +423,7 @@ FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::GetDataID(UMovieSceneS
 	ExistingDataID = FMovieSceneCompiledDataID { Index };
 	FMovieSceneCompiledDataEntry& NewEntry = CompiledDataEntries[Index];
 
-	NewEntry.WeakSequence = Sequence;
+	NewEntry.SequenceKey = Sequence;
 	NewEntry.DataID = ExistingDataID;
 	NewEntry.AccumulatedFlags = Sequence->GetFlags();
 
@@ -447,6 +456,8 @@ FMovieSceneCompiledDataID UMovieSceneCompiledDataManager::GetSubDataID(FMovieSce
 
 UMovieSceneCompiledDataManager* UMovieSceneCompiledDataManager::GetPrecompiledData()
 {
+	ensureMsgf(!GExitPurge, TEXT("Attempting to access precompiled data manager during shutdown - this is undefined behavior since the manager may have already been destroyed, or could be unconstrictible"));
+
 	static UMovieSceneCompiledDataManager* GPrecompiledDataManager = NewObject<UMovieSceneCompiledDataManager>(GetTransientPackage(), "PrecompiledDataManager", RF_MarkAsRootSet);
 	return GPrecompiledDataManager;
 }
@@ -458,10 +469,7 @@ void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID D
 
 	const FMovieSceneCompiledDataEntry& Entry = CompiledDataEntries[DataID.Value];
 
-	UMovieSceneSequence* Sequence = Entry.WeakSequence.Get();
-	check(Sequence);
-
-	SequenceToDataIDs.Remove(Sequence);
+	SequenceToDataIDs.Remove(Entry.SequenceKey);
 
 	Hierarchies.Remove(DataID.Value);
 	TrackTemplates.Remove(DataID.Value);
@@ -475,7 +483,7 @@ void UMovieSceneCompiledDataManager::DestroyTemplate(FMovieSceneCompiledDataID D
 
 bool UMovieSceneCompiledDataManager::IsDirty(const FMovieSceneCompiledDataEntry& Entry) const
 {
-	if (Entry.CompiledSignature != Entry.WeakSequence.Get()->GetSignature())
+	if (Entry.CompiledSignature != Entry.GetSequence()->GetSignature())
 	{
 		return true;
 	}
@@ -525,7 +533,7 @@ void UMovieSceneCompiledDataManager::Compile(FMovieSceneCompiledDataID DataID)
 {
 	check(DataID.IsValid());
 
-	UMovieSceneSequence* Sequence = CompiledDataEntries[DataID.Value].WeakSequence.Get();
+	UMovieSceneSequence* Sequence = CompiledDataEntries[DataID.Value].GetSequence();
 	check(Sequence);
 	Compile(DataID, Sequence);
 }
@@ -696,6 +704,7 @@ void UMovieSceneCompiledDataManager::CompileSubSequences(const FMovieSceneSequen
 			if (SubSequence)
 			{
 				FTrackGatherParameters SubSectionGatherParams = Params.CreateForSubData(*SubData, SubSequenceEntry.SequenceID);
+				SubSectionGatherParams.Flags |= SubSequenceEntry.Flags;
 				SubSectionGatherParams.SetClampRange(SubSequenceIt.Range());
 
 				// Access the sub entry data after compilation
@@ -900,7 +909,7 @@ void UMovieSceneCompiledDataManager::CompileTrack(FMovieSceneCompiledDataEntry* 
 		return;
 	}
 
-	UMovieSceneSequence* Sequence = OutEntry->WeakSequence.Get();
+	UMovieSceneSequence* Sequence = OutEntry->GetSequence();
 	check(Sequence);
 
 	// -------------------------------------------------------------------------------------------------------------------------------------
@@ -966,6 +975,13 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 	// Step 1 - Handle any entity producers that exist within the field
 	if (OutCompilerData->EntityField)
 	{
+		FMovieSceneEntityComponentFieldBuilder FieldBuilder(OutCompilerData->EntityField);
+
+		if (ObjectBinding)
+		{
+			FieldBuilder.GetSharedMetaData().ObjectBindingID = ObjectBinding->GetObjectGuid();
+		}
+
 		for (const FMovieSceneTrackEvaluationFieldEntry& Entry : EvaluationField.Entries)
 		{
 			IMovieSceneEntityProvider* EntityProvider = Cast<IMovieSceneEntityProvider>(Entry.Section);
@@ -978,15 +994,20 @@ void UMovieSceneCompiledDataManager::GatherTrack(const FMovieSceneBinding* Objec
 			TRange<FFrameNumber> EffectiveRange = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, Entry.Range);
 			if (!EffectiveRange.IsEmpty())
 			{
-				if (!EntityProvider->PopulateEvaluationField(EffectiveRange, OutCompilerData->EntityField))
-				{
-					OutCompilerData->EntityField->Entities.Populate(EffectiveRange, Entry.Section, 0);
-				}
-			}
+				FMovieSceneEvaluationFieldEntityMetaData MetaData;
 
-			if (ObjectBinding)
-			{
-				OutCompilerData->EntityField->EntityOwnerToObjectBinding.Add(Entry.Section, ObjectBinding->GetObjectGuid());
+				MetaData.ForcedTime = Entry.ForcedTime;
+				MetaData.Flags      = Entry.Flags;
+				MetaData.bEvaluateInSequencePreRoll  = Track->EvalOptions.bEvaluateInPreroll;
+				MetaData.bEvaluateInSequencePostRoll = Track->EvalOptions.bEvaluateInPostroll;
+
+				if (!EntityProvider->PopulateEvaluationField(EffectiveRange, MetaData, &FieldBuilder))
+				{
+					const int32 EntityIndex   = FieldBuilder.FindOrAddEntity(Entry.Section, 0);
+					const int32 MetaDataIndex = FieldBuilder.AddMetaData(MetaData);
+
+					FieldBuilder.AddPersistentEntity(EffectiveRange, EntityIndex, MetaDataIndex);
+				}
 			}
 		}
 	}
@@ -1130,6 +1151,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 		NewSubData.PlayRange               = TRange<FFrameNumber>::Intersection(Params.LocalClampRange, NewSubData.PlayRange.Value);
 		NewSubData.RootToSequenceTransform = NewSubData.RootToSequenceTransform * Params.RootToSequenceTransform;
 		NewSubData.HierarchicalBias        = Params.HierarchicalBias + NewSubData.HierarchicalBias;
+		NewSubData.bHasHierarchicalEasing  = Params.bHasHierarchicalEasing || NewSubData.bHasHierarchicalEasing;
 
 		// Add the sub data to the root hierarchy
 		InOutHierarchy->Add(NewSubData, InnerSequenceID, ParentSequenceID);
@@ -1169,6 +1191,7 @@ bool UMovieSceneCompiledDataManager::CompileSubTrackHierarchy(UMovieSceneSubTrac
 
 			// Iterate into the sub sequence
 			FGatherParameters SubParams = Params.CreateForSubData(*SubData, SubSequenceID);
+			SubParams.Flags |= Entry.Flags;
 
 			RootPath->Push(SubData->DeterministicSequenceID);
 			CompileHierarchyImpl(SubData->GetSequence(), SubParams, Operand, RootPath, InOutHierarchy);

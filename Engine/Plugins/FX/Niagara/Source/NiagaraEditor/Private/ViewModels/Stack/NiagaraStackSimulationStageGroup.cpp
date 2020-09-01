@@ -155,6 +155,29 @@ UNiagaraSimulationStageBase* UNiagaraStackSimulationStageGroup::GetSimulationSta
 	return SimulationStage.Get();
 }
 
+bool UNiagaraStackSimulationStageGroup::GetIsEnabled() const
+{
+	bool bEnabled = true;
+	if (UNiagaraSimulationStageBase* SimStage = SimulationStage.Get())
+	{
+		bEnabled &= SimStage->bEnabled;
+	}
+	bEnabled &= Super::GetIsEnabled();
+	return bEnabled;
+}
+
+void UNiagaraStackSimulationStageGroup::SetIsEnabled(bool bEnabled)
+{
+	if (UNiagaraSimulationStageBase* SimStage = SimulationStage.Get())
+	{
+		static FText TEXT_Enabled(LOCTEXT("Enabled", "Enabled"));
+		static FText TEXT_Disabled(LOCTEXT("Disabled", "Disabled"));
+		FScopedTransaction Transaction(FText::Format(LOCTEXT("SetSimulationStageEnable", "Set Simulation Stage {1} {0}"), bEnabled ? TEXT_Enabled : TEXT_Disabled, GetDisplayName()));
+		SimStage->Modify();
+		SimStage->SetEnabled(bEnabled);
+	}
+}
+
 void UNiagaraStackSimulationStageGroup::FinalizeInternal()
 {
 	if (SimulationStage.IsValid())

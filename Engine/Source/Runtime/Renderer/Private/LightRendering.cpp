@@ -97,6 +97,29 @@ static TAutoConsoleVariable<int32> CVarAllowClearLightSceneExtentsOnly(
 	TEXT(""),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingShadowsDirectionalLight(
+	TEXT("r.RayTracing.Shadows.Lights.Directional"),
+	1,
+	TEXT("Enables ray tracing shadows for directional lights (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingShadowsPointLight(
+	TEXT("r.RayTracing.Shadows.Lights.Point"),
+	1,
+	TEXT("Enables ray tracing shadows for point lights (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingShadowsSpotLight(
+	TEXT("r.RayTracing.Shadows.Lights.Spot"),
+	1,
+	TEXT("Enables ray tracing shadows for spot lights (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingShadowsRectLight(
+	TEXT("r.RayTracing.Shadows.Lights.Rect"),
+	1,
+	TEXT("Enables ray tracing shadows for rect light (default = 1)"),
+	ECVF_RenderThreadSafe);
 
 #if ENABLE_DEBUG_DISCARD_PROP
 static float GDebugLightDiscardProp = 0.0f;
@@ -110,12 +133,31 @@ static FAutoConsoleVariableRef CVarDebugLightDiscardProp(
 
 
 #if RHI_RAYTRACING
+
+static bool ShouldRenderRayTracingShadowsForLightType(ELightComponentType LightType)
+{
+	switch(LightType)
+	{
+	case LightType_Directional:
+		return !!CVarRayTracingShadowsDirectionalLight.GetValueOnRenderThread();
+	case LightType_Point:
+		return !!CVarRayTracingShadowsPointLight.GetValueOnRenderThread();
+	case LightType_Spot:
+		return !!CVarRayTracingShadowsSpotLight.GetValueOnRenderThread();
+	case LightType_Rect:
+		return !!CVarRayTracingShadowsRectLight.GetValueOnRenderThread();
+	default:
+		return true;	
+	}	
+}
+
 bool ShouldRenderRayTracingShadows(const FLightSceneProxy& LightProxy)
 {
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
 	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
 
-	return IsRayTracingEnabled() && bRTShadowsEnabled && LightProxy.CastsRaytracedShadow();
+	return IsRayTracingEnabled() && bRTShadowsEnabled && LightProxy.CastsRaytracedShadow() 
+		&& ShouldRenderRayTracingShadowsForLightType((ELightComponentType)LightProxy.GetLightType());
 }
 
 bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
@@ -123,7 +165,8 @@ bool ShouldRenderRayTracingShadows(const FLightSceneInfoCompact& LightInfo)
 	const int32 ForceAllRayTracingEffects = GetForceRayTracingEffectsCVarValue();
 	const bool bRTShadowsEnabled = (ForceAllRayTracingEffects > 0 || (GRayTracingShadows > 0 && ForceAllRayTracingEffects < 0));
 
-	return IsRayTracingEnabled() && bRTShadowsEnabled && LightInfo.bCastRaytracedShadow;
+	return IsRayTracingEnabled() && bRTShadowsEnabled && LightInfo.bCastRaytracedShadow
+		&& ShouldRenderRayTracingShadowsForLightType((ELightComponentType)LightInfo.LightType);
 }
 #endif // RHI_RAYTRACING
 
@@ -198,6 +241,7 @@ void GetDeferredLightParameters(const FLightSceneInfo* LightSceneInfo, const FSc
 
 	static auto* ContactShadowsCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.ContactShadows"));
 	DeferredLightUniforms.ContactShadowLength = 0;
+	DeferredLightUniforms.ContactShadowNonShadowCastingIntensity = 0.0f;
 
 	if (ContactShadowsCVar && ContactShadowsCVar->GetValueOnRenderThread() != 0 && View.Family->EngineShowFlags.ContactShadows)
 	{
@@ -205,6 +249,9 @@ void GetDeferredLightParameters(const FLightSceneInfo* LightSceneInfo, const FSc
 		// Sign indicates if contact shadow length is in world space or screen space.
 		// Multiply by 2 for screen space in order to preserve old values after introducing multiply by View.ClipToView[1][1] in shader.
 		DeferredLightUniforms.ContactShadowLength *= LightSceneInfo->Proxy->IsContactShadowLengthInWS() ? -1.0f : 2.0f;
+
+		static auto* IntensityCVar = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.ContactShadows.NonShadowCastingIntensity"));
+		DeferredLightUniforms.ContactShadowNonShadowCastingIntensity = IntensityCVar ? IntensityCVar->GetValueOnRenderThread() : 0.0f;
 	}
 
 	// When rendering reflection captures, the direct lighting of the light is actually the indirect specular from the main view

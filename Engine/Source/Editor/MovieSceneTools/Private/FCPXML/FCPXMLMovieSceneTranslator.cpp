@@ -4,6 +4,7 @@
 #include "FCPXML/FCPXMLFile.h"
 #include "FCPXML/FCPXMLImport.h"
 #include "FCPXML/FCPXMLExport.h"
+#include "FCPXML/FCPXMLMetadataExport.h"
 #include "MovieScene.h"
 #include "MovieSceneTranslator.h"
 #include "Misc/FileHelper.h"
@@ -176,7 +177,7 @@ FText FFCPXMLExporter::GetMessageLogLabel() const
 	return LOCTEXT("FCPXMLExportLogLabel", "FCP 7 XML Export Log");
 }
 
-bool FFCPXMLExporter::Export(const UMovieScene* InMovieScene, FString InFilenameFormat, FFrameRate InFrameRate, uint32 InResX, uint32 InResY, int32 InHandleFrames, FString InSaveFilename, TSharedRef<FMovieSceneTranslatorContext> InContext, FString InMovieExtension)
+bool FFCPXMLExporter::Export(const UMovieScene* InMovieScene, FString InFilenameFormat, FFrameRate InFrameRate, uint32 InResX, uint32 InResY, int32 InHandleFrames, FString InSaveFilename, TSharedRef<FMovieSceneTranslatorContext> InContext, FString InMovieExtension, const FMovieSceneExportMetadata* InMetadata)
 {
 	// add warning message if filename format is not "{shot}"
 	FString AcceptedFormat = TEXT("{shot}");
@@ -195,8 +196,18 @@ bool FFCPXMLExporter::Export(const UMovieScene* InMovieScene, FString InFilename
 	TSharedRef<FMovieSceneExportData> ExportData = MakeShared<FMovieSceneExportData>(InMovieScene, InFrameRate, InResX, InResY, InHandleFrames, InSaveFilename, InContext, InMovieExtension);
 
 	// Export sequencer movie scene, merging with existing Xml structure.
-	FFCPXMLExportVisitor ExportVisitor(InSaveFilename, ExportData, InContext);
-	bool bSuccess = FCPXMLFile->Accept(ExportVisitor);
+	FFCPXMLExportVisitor* ExportVisitor;
+
+	if (InMetadata)
+	{
+		ExportVisitor = new FFCPXMLMetadataExportVisitor(InSaveFilename, ExportData, InContext, InMetadata);
+	}
+	else
+	{
+		ExportVisitor = new FFCPXMLExportVisitor(InSaveFilename, ExportData, InContext);
+	}
+
+	bool bSuccess = FCPXMLFile->Accept(*ExportVisitor);
 	if (bSuccess && FCPXMLFile->IsValidFile())
 	{
 		// Save the Xml structure to a file
@@ -214,6 +225,8 @@ bool FFCPXMLExporter::Export(const UMovieScene* InMovieScene, FString InFilename
 
 		InContext->AddMessage(EMessageSeverity::Error, Message);
 	}
+
+	delete ExportVisitor;
 
 	return bSuccess;
 }

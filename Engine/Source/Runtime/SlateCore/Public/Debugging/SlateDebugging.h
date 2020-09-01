@@ -4,8 +4,10 @@
 
 #include "CoreMinimal.h"
 #include "Delegates/Delegate.h"
+#include "FastUpdate/WidgetUpdateFlags.h"
 #include "Input/Reply.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "Widgets/InvalidateWidgetReason.h"
 
 #include "SlateDebugging.generated.h"
 
@@ -195,6 +197,51 @@ public:
 	FText ToText() const;
 };
 
+enum class ESlateDebuggingInvalidateRootReason
+{
+	None = 0,
+	ChildOrder = 1 << 0,
+	Root = 1 << 1,
+	ScreenPosition = 1 << 2,
+};
+
+ENUM_CLASS_FLAGS(ESlateDebuggingInvalidateRootReason)
+
+struct SLATECORE_API FSlateDebuggingInvalidateArgs
+{
+	FSlateDebuggingInvalidateArgs(
+		const SWidget* WidgetInvalidated,
+		const SWidget* WidgetInvalidateInvestigator,
+		EInvalidateWidgetReason InvalidateReason);
+
+	FSlateDebuggingInvalidateArgs(
+		const SWidget* WidgetInvalidated,
+		const SWidget* WidgetInvalidateInvestigator,
+		ESlateDebuggingInvalidateRootReason InvalidateReason);
+
+	const SWidget* WidgetInvalidated;
+	const SWidget* WidgetInvalidateInvestigator;
+	EInvalidateWidgetReason InvalidateWidgetReason;
+	ESlateDebuggingInvalidateRootReason InvalidateInvalidationRootReason;
+};
+
+struct SLATECORE_API FSlateDebuggingWidgetUpdatedEventArgs
+{
+public:
+	FSlateDebuggingWidgetUpdatedEventArgs(
+		const SWidget* Widget,
+		EWidgetUpdateFlags UpdateFlags,
+		bool bFromPaint
+	);
+
+	const SWidget* Widget;
+	/** Flag that was set by an invalidation or on the widget directly. */
+	EWidgetUpdateFlags UpdateFlags;
+	/** The widget got painted as a side effect of another widget that got painted */
+	bool bFromPaint;
+
+	FText ToText() const;
+};
 
 /**
  * 
@@ -319,10 +366,25 @@ public:
 	static void BroadcastCursorQuery(TSharedPtr<const SWidget> InWidgetOverridingCursor, const FCursorReply& InReply);
 
 public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetInvalidate, const FSlateDebuggingInvalidateArgs& /*EventArgs*/);
+	static FWidgetInvalidate WidgetInvalidateEvent;
+
+	static void BroadcastWidgetInvalidate(const SWidget* WidgetInvalidated, const SWidget* WidgetInvalidateInvestigator, EInvalidateWidgetReason InvalidateReason);
+	static void BroadcastInvalidationRootInvalidate(const SWidget* WidgetInvalidated, const SWidget* WidgetInvalidateInvestigator, ESlateDebuggingInvalidateRootReason InvalidateReason);
+
+public:
+	DECLARE_MULTICAST_DELEGATE_OneParam(FWidgetUpdatedEvent, const FSlateDebuggingWidgetUpdatedEventArgs& /*Args*/);
+	static FWidgetUpdatedEvent WidgetUpdatedEvent;
+
+	static void BroadcastWidgetUpdated(const SWidget* Invalidated, EWidgetUpdateFlags UpdateFlags);
+	static void BroadcastWidgetUpdatedByPaint(const SWidget* Invalidated, EWidgetUpdateFlags UpdateFlags);
+
+public:
 	/**  */
 	DECLARE_MULTICAST_DELEGATE_TwoParams(FUICommandRun, const FName& /*CommandName*/, const FText& /*CommandLabel*/);
 	static FUICommandRun CommandRun;
 
+public:
 	static void WidgetInvalidated(FSlateInvalidationRoot& InvalidationRoot, const class FWidgetProxy& WidgetProxy, const FLinearColor* CustomInvalidationColor = nullptr);
 
 	static void DrawInvalidationRoot(const SWidget& RootWidget, int32 LayerId, FSlateWindowElementList& OutDrawElements);

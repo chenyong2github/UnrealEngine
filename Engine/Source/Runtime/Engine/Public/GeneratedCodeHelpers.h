@@ -122,6 +122,12 @@ public:
 	}
 
 	template<typename T>
+	static void Array_Swap(const TArray<T>& TargetArray, int32 FirstIndex, int32 SecondIndex)
+	{
+		const_cast<TArray<T>*>(&TargetArray)->Swap(FirstIndex, SecondIndex);
+	}
+
+	template<typename T>
 	static bool Array_Identical(const TArray<T>& ArrayA, const TArray<T>& ArrayB)
 	{
 		return (ArrayA == ArrayB);

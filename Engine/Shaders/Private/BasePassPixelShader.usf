@@ -256,7 +256,7 @@ float3 GetTranslucencyVolumeLighting(
 
 #endif
 
-#if SIMPLE_FORWARD_SHADING
+#if SIMPLE_FORWARD_SHADING || PLATFORM_FORCE_SIMPLE_SKY_DIFFUSE
 	#define GetEffectiveSkySHDiffuse GetSkySHDiffuseSimple
 #else
 	#define GetEffectiveSkySHDiffuse GetSkySHDiffuse

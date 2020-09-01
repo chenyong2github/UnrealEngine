@@ -1551,8 +1551,10 @@ void ShowSyncDependenciesDialog(const TArray<FString>& InDependencies, TArray<FS
 
 		for (const FString& DependencyName : InDependencies)
 		{
-			UPackage* Package = FindPackage(nullptr, *DependencyName);
-			PackagesDialogModule.AddPackageItem(Package, ECheckBoxState::Checked);
+			if (UPackage* Package = FindPackage(nullptr, *DependencyName))
+			{
+				PackagesDialogModule.AddPackageItem(Package, ECheckBoxState::Checked);
+			}
 		}
 
 		const EDialogReturnType UserResponse = PackagesDialogModule.ShowPackagesDialog();

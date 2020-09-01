@@ -338,7 +338,7 @@ void UTimeSynthComponent::TickComponent(float DeltaTime, enum ELevelTick TickTyp
 				}
 				else
 				{
-					UE_LOG(LogTimeSynth, Warning, TEXT("Could not find clip %s "), *(ClipHandle.ClipName.GetPlainNameString()));
+					UE_LOG(LogTimeSynth, Verbose, TEXT("Could not find clip %s "), *(ClipHandle.ClipName.GetPlainNameString()));
 				}
 			});
 		}

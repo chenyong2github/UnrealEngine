@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "Delegates/DelegateCombinations.h"
 #include "EntitySystem/MovieSceneEntityIDs.h"
 #include "EntitySystem/MovieScenePropertyRegistry.h"
 #include "EntitySystem/MovieScenePartialProperties.inl"
@@ -227,7 +228,7 @@ struct TPropertyComponentHandlerImpl<TIntegerSequence<int, Indices...>, Property
 			FTaskGraphInterface::Get().WaitUntilTasksComplete(Tasks, ENamedThreads::GameThread);
 		}
 
-		// Get the initial value in case we a value without a full-weighted absolute channel.
+		// Get the initial value in case we have a value without a full-weighted absolute channel.
 		TComponentPtr<const OperationalType> InitialValueComponent;
 		if (InParams.PropertyEntityID)
 		{
@@ -262,6 +263,56 @@ struct TPropertyComponentHandlerImpl<TIntegerSequence<int, Indices...>, Property
 				float* RecomposedComposite = reinterpret_cast<float*>(Result + Composites[CompositeIndex].CompositeOffset);
 				*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, NewComposite, InitialValueComposite);
 			}
+		}
+	}
+
+	virtual void RecomposeBlendChannel(const FPropertyDefinition& PropertyDefinition, const FPropertyCompositeDefinition& Composite, const FFloatDecompositionParams& InParams, UMovieSceneBlenderSystem* Blender, float InCurrentValue, TArrayView<float> OutResults) override
+	{
+		check(OutResults.Num() == InParams.Query.Entities.Num());
+
+		IMovieSceneFloatDecomposer* FloatDecomposer = Cast<IMovieSceneFloatDecomposer>(Blender);
+		if (!FloatDecomposer)
+		{
+			return;
+		}
+
+		FAlignedDecomposedFloat AlignedOutput;
+
+		FFloatDecompositionParams LocalParams = InParams;
+
+		LocalParams.ResultComponentType = Composite.ComponentTypeID.ReinterpretCast<float>();
+		FGraphEventRef Task = FloatDecomposer->DispatchDecomposeTask(LocalParams, &AlignedOutput);
+		if (Task)
+		{
+			FTaskGraphInterface::Get().WaitUntilTaskCompletes(Task, ENamedThreads::GameThread);
+		}
+
+		// Get the initial value in case we have a value without a full-weighted absolute channel.
+		TComponentPtr<const OperationalType> InitialValueComponent;
+		if (InParams.PropertyEntityID)
+		{
+			const FEntityManager& EntityManager = Blender->GetLinker()->EntityManager;
+			TComponentTypeID<OperationalType> InitialValueType = PropertyDefinition.InitialValueType.ReinterpretCast<OperationalType>();
+			InitialValueComponent = EntityManager.ReadComponent(InParams.PropertyEntityID, InitialValueType);
+		}
+
+		for (int32 Index = 0; Index < LocalParams.Query.Entities.Num(); ++Index)
+		{
+			FMovieSceneEntityID EntityID = LocalParams.Query.Entities[Index];
+
+			uint8* Result = reinterpret_cast<uint8*>(&OutResults[Index]);
+
+			const float* InitialValueComposite = nullptr;
+			if (InitialValueComponent)
+			{
+				const OperationalType& InitialValue = (*InitialValueComponent);
+				InitialValueComposite = reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(&InitialValue) + Composite.CompositeOffset);
+			}
+
+			const float NewComposite = *reinterpret_cast<const float*>(reinterpret_cast<const uint8*>(&InCurrentValue) + Composite.CompositeOffset);
+
+			float* RecomposedComposite = reinterpret_cast<float*>(Result + Composite.CompositeOffset);
+			*RecomposedComposite = AlignedOutput.Value.Recompose(EntityID, NewComposite, InitialValueComposite);
 		}
 	}
 };
@@ -381,6 +432,116 @@ private:
 	FPropertyDefinition* Definition;
 	FPropertyRegistry* Registry;
 };
+
+
+struct FPropertyRecomposerPropertyInfo
+{
+	static constexpr uint16 INVALID_BLEND_CHANNEL = uint16(-1);
+
+	uint16 BlendChannel = INVALID_BLEND_CHANNEL;
+	UMovieSceneBlenderSystem* BlenderSystem = nullptr;
+	FMovieSceneEntityID PropertyEntityID;
+
+	static FPropertyRecomposerPropertyInfo Invalid()
+	{ 
+		return FPropertyRecomposerPropertyInfo { INVALID_BLEND_CHANNEL, nullptr, FMovieSceneEntityID::Invalid() };
+	}
+};
+
+DECLARE_DELEGATE_RetVal_TwoParams(FPropertyRecomposerPropertyInfo, FOnGetPropertyRecomposerPropertyInfo, FMovieSceneEntityID, UObject*);
+
+struct FPropertyRecomposerImpl
+{
+	template<typename PropertyType, typename OperationalType>
+	TRecompositionResult<PropertyType> RecomposeBlendFinal(const TPropertyComponents<PropertyType, OperationalType>& InComponents, const FDecompositionQuery& InQuery, const PropertyType& InCurrentValue);
+
+	template<typename PropertyType, typename OperationalType>
+	TRecompositionResult<OperationalType> RecomposeBlendOperational(const TPropertyComponents<PropertyType, OperationalType>& InComponents, const FDecompositionQuery& InQuery, const OperationalType& InCurrentValue);
+
+	FOnGetPropertyRecomposerPropertyInfo OnGetPropertyInfo;
+};
+
+template<typename PropertyType, typename OperationalType>
+TRecompositionResult<PropertyType> FPropertyRecomposerImpl::RecomposeBlendFinal(const TPropertyComponents<PropertyType, OperationalType>& Components, const FDecompositionQuery& InQuery, const PropertyType& InCurrentValue)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(Components.CompositeID);
+
+	TRecompositionResult<PropertyType> Result(InCurrentValue, InQuery.Entities.Num());
+
+	if (InQuery.Entities.Num() == 0)
+	{
+		return Result;
+	}
+
+	const FPropertyRecomposerPropertyInfo Property = OnGetPropertyInfo.Execute(InQuery.Entities[0], InQuery.Object);
+
+	if (Property.BlendChannel == FPropertyRecomposerPropertyInfo::INVALID_BLEND_CHANNEL)
+	{
+		return Result;
+	}
+
+	UMovieSceneBlenderSystem* Blender = Property.BlenderSystem;
+	if (!Blender)
+	{
+		return Result;
+	}
+
+	FFloatDecompositionParams Params;
+	Params.Query = InQuery;
+	Params.PropertyEntityID = Property.PropertyEntityID;
+	Params.DecomposeBlendChannel = Property.BlendChannel;
+	Params.PropertyTag = PropertyDefinition.PropertyType;
+
+	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
+
+	PropertyDefinition.Handler->RecomposeBlendFinal(PropertyDefinition, Composites, Params, Blender, InCurrentValue, Result.Values);
+
+	return Result;
+}
+
+template<typename PropertyType, typename OperationalType>
+TRecompositionResult<OperationalType> FPropertyRecomposerImpl::RecomposeBlendOperational(const TPropertyComponents<PropertyType, OperationalType>& Components, const FDecompositionQuery& InQuery, const OperationalType& InCurrentValue)
+{
+	using namespace UE::MovieScene;
+
+	const FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
+	const FPropertyDefinition& PropertyDefinition = BuiltInComponents->PropertyRegistry.GetDefinition(Components.CompositeID);
+
+	TRecompositionResult<OperationalType> Result(InCurrentValue, InQuery.Entities.Num());
+
+	if (InQuery.Entities.Num() == 0)
+	{
+		return Result;
+	}
+
+	const FPropertyRecomposerPropertyInfo Property = OnGetPropertyInfo.Execute(InQuery.Entities[0], InQuery.Object);
+
+	if (Property.BlendChannel == FPropertyRecomposerPropertyInfo::INVALID_BLEND_CHANNEL)
+	{
+		return Result;
+	}
+
+	UMovieSceneBlenderSystem* Blender = Property.BlenderSystem;
+	if (!Blender)
+	{
+		return Result;
+	}
+
+	FFloatDecompositionParams Params;
+	Params.Query = InQuery;
+	Params.PropertyEntityID = Property.PropertyEntityID;
+	Params.DecomposeBlendChannel = Property.BlendChannel;
+	Params.PropertyTag = PropertyDefinition.PropertyType;
+
+	TArrayView<const FPropertyCompositeDefinition> Composites = BuiltInComponents->PropertyRegistry.GetComposites(PropertyDefinition);
+
+	PropertyDefinition.Handler->RecomposeBlendOperational(PropertyDefinition, Composites, Params, Blender, InCurrentValue, Result.Values);
+
+	return Result;
+}
 
 
 } // namespace MovieScene

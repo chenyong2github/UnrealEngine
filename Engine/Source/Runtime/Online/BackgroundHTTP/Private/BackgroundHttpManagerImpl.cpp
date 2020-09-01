@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "BackgroundHttpManagerImpl.h"
+
+#include "CoreTypes.h"
 #include "PlatformBackgroundHttp.h"
 
 #include "HAL/FileManager.h"
@@ -8,7 +10,10 @@
 #include "HAL/PlatformFile.h"
 
 #include "Misc/ConfigCacheIni.h"
+#include "Misc/Paths.h"
 #include "Misc/ScopeRWLock.h"
+#include "Stats/Stats.h"
+
 
 DEFINE_LOG_CATEGORY(LogBackgroundHttpManager);
 
@@ -19,6 +24,7 @@ FBackgroundHttpManagerImpl::FBackgroundHttpManagerImpl()
 	, ActiveRequestLock()
 	, NumCurrentlyActiveRequests(0)
 	, MaxActiveDownloads(4)
+	, FileHashHelper(MakeShared<FBackgroundHttpFileHashHelper, ESPMode::ThreadSafe>())
 {
 }
 
@@ -28,11 +34,14 @@ FBackgroundHttpManagerImpl::~FBackgroundHttpManagerImpl()
 
 void FBackgroundHttpManagerImpl::Initialize()
 {
-	ClearAnyTempFilesFromTimeOut();
-
+	//Make sure we have attempted to load data at initialize
+	GetFileHashHelper()->LoadData();
+	
+	DeleteStaleTempFiles();
+	
 	// Can't read into an atomic int directly
 	int MaxActiveDownloadsConfig = 4;
-	ensureAlwaysMsgf(GConfig->GetInt(TEXT("BackgroundHttp"), TEXT("BackgroundHttp.MaxActiveDownloads"), MaxActiveDownloadsConfig, GEngineIni), TEXT("No value found for MaxActiveDownloads! Defaulting to 4!"));
+	ensureAlwaysMsgf(GConfig->GetInt(TEXT("BackgroundHttp"), TEXT("MaxActiveDownloads"), MaxActiveDownloadsConfig, GEngineIni), TEXT("No value found for MaxActiveDownloads! Defaulting to 4!"));
 	MaxActiveDownloads = MaxActiveDownloadsConfig;
 }
 
@@ -52,53 +61,204 @@ void FBackgroundHttpManagerImpl::Shutdown()
 	}
 }
 
-void FBackgroundHttpManagerImpl::ClearAnyTempFilesFromTimeOut()
+void FBackgroundHttpManagerImpl::DeleteStaleTempFiles()
 {
-	const FString DirectoryToCheck = FPlatformBackgroundHttp::GetTemporaryRootPath();
-
-	//Find all files in our temp folder
-	TArray<FString> FilesToCheck;
-	IFileManager::Get().FindFiles(FilesToCheck, *DirectoryToCheck, nullptr);
-
+	//Parse our .ini values to determine how much we clean in this fuction
 	double FileAgeTimeOutSettings = -1;
-	GConfig->GetDouble(TEXT("BackgroundHttp"), TEXT("BackgroundHttp.TempFileTimeOutSeconds"), FileAgeTimeOutSettings, GEngineIni);
-
-	UE_LOG(LogBackgroundHttpManager, Log, TEXT("Checking for BackgroundHTTP temp files that should be deleted due to time out. NumTempFilesFound:%d | TempFileTimeOutSeconds:%lf"), FilesToCheck.Num(), FileAgeTimeOutSettings);
-
-	if (FileAgeTimeOutSettings >= 0)
+	bool bDeleteTimedOutFiles = (FileAgeTimeOutSettings >= 0);
+	bool bDeleteTempFilesWithoutURLMappings = false;
+	bool bRemoveURLMappingEntriesWithoutPhysicalTempFiles = false;
 	{
-		for (const FString& File : FilesToCheck)
+		GConfig->GetDouble(TEXT("BackgroundHttp"), TEXT("TempFileTimeOutSeconds"), FileAgeTimeOutSettings, GEngineIni);
+		bDeleteTimedOutFiles = (FileAgeTimeOutSettings >= 0);
+		
+		GConfig->GetBool(TEXT("BackgroundHttp"), TEXT("DeleteTempFilesWithoutURLMappingEntries"), bDeleteTempFilesWithoutURLMappings, GEngineIni);
+		
+		GConfig->GetBool(TEXT("BackgroundHttp"), TEXT("RemoveURLMappingEntriesWithoutPhysicalTempFiles"), bRemoveURLMappingEntriesWithoutPhysicalTempFiles, GEngineIni);
+		
+		UE_LOG(LogBackgroundHttpManager, Log, TEXT("Stale Settings -- TempFileTimeOutSeconds:%f DeleteTempFilesWithoutURLMappingEntries:%d RemoveURLMappingEntriesWithoutPhysicalTempFiles:%d"), static_cast<float>(FileAgeTimeOutSettings),static_cast<int>(bDeleteTempFilesWithoutURLMappings),static_cast<int>(bRemoveURLMappingEntriesWithoutPhysicalTempFiles));
+	}
+	const bool bWillDoAnyWork = bDeleteTimedOutFiles || bDeleteTempFilesWithoutURLMappings || bRemoveURLMappingEntriesWithoutPhysicalTempFiles;
+	
+	//Only bother gathering temp files if we will actually be doing something with them
+	TArray<FString> AllTempFilesToCheck;
+	if (bWillDoAnyWork)
+	{
+		GatherAllTempFilenames(AllTempFilesToCheck);
+		UE_LOG(LogBackgroundHttpManager, Display, TEXT("Found %d temp download files."), AllTempFilesToCheck.Num());
+	}
+	
+	//Handle all timed out files based on the .ini time out settings
+	//can be turned off by setting
+	if (bDeleteTimedOutFiles)
+	{
+		TArray<FString> TimedOutFiles;
+		GatherTempFilesOlderThen(TimedOutFiles, FileAgeTimeOutSettings, &AllTempFilesToCheck);
+	
+		TArray<FString> TimeOutDeleteFullPaths;
+		ConvertAllTempFilenamesToFullPaths(TimeOutDeleteFullPaths, TimedOutFiles);
+		
+		for (const FString& FullFilePath : TimeOutDeleteFullPaths)
 		{
-			const FString FullFilePath = FPaths::Combine(DirectoryToCheck, File);
-			
+			if (IFileManager::Get().Delete(*FullFilePath))
+			{
+				UE_LOG(LogBackgroundHttpManager, Log, TEXT("Successfully deleted %s due to time out settings"), *FullFilePath);
+			}
+			else
+			{
+				UE_LOG(LogBackgroundHttpManager, Error, TEXT("Failed to delete timed out file %s"), *FullFilePath);
+			}
+		}
+		
+		//Should remove these files from the list of files we are checking as we know they are already invalid from timing out, so we shouldn't check them twice
+		for(const FString& RemovedFile : TimedOutFiles)
+		{
+			AllTempFilesToCheck.Remove(RemovedFile);
+		}
+	}
+	
+	//Handle all temp files that should be removed because they are missing a corresponding URL mapping
+	if (bDeleteTempFilesWithoutURLMappings)
+	{
+		TArray<FString> MissingURLMappingFiles;
+		GatherTempFilesWithoutURLMappings(MissingURLMappingFiles, &AllTempFilesToCheck);
+		
+		TArray<FString> MissingURLDeleteFullPaths;
+		ConvertAllTempFilenamesToFullPaths(MissingURLDeleteFullPaths, MissingURLMappingFiles);
+		
+		for (const FString& FullFilePath : MissingURLDeleteFullPaths)
+		{
+			if (IFileManager::Get().Delete(*FullFilePath))
+			{
+				UE_LOG(LogBackgroundHttpManager, Log, TEXT("Successfully deleted %s due to missing a URL mapping for this temp data"), *FullFilePath);
+			}
+			else
+			{
+				UE_LOG(LogBackgroundHttpManager, Error, TEXT("Failed to delete file %s that was being deleted due to a missing URL mapping"), *FullFilePath);
+			}
+		}
+		
+		//Should remove these files from the list of files we are checking as we know they are already invalid from timing out, so we shouldn't check them twice
+		for(const FString& RemovedFile : MissingURLMappingFiles)
+		{
+			AllTempFilesToCheck.Remove(RemovedFile);
+		}
+	}
+	
+	if (bRemoveURLMappingEntriesWithoutPhysicalTempFiles)
+	{
+		//Remove all URL map entries that don't correspond to a physical file on disk
+		GetFileHashHelper()->DeleteURLMappingsWithoutTempFiles();
+	}
+	
+	UE_LOG(LogBackgroundHttpManager, Log, TEXT("Kept %d temp download files:"), AllTempFilesToCheck.Num());
+	for (const FString& ValidFile : AllTempFilesToCheck)
+	{
+		UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Kept: %s"), *ValidFile);
+	}
+}
+
+void FBackgroundHttpManagerImpl::GatherTempFilesOlderThen(TArray<FString>& OutTimedOutTempFilenames,double SecondsToConsiderOld, TArray<FString>* OptionalFileList /* = nullptr */) const
+{
+	OutTimedOutTempFilenames.Empty();
+	
+	TArray<FString> GatheredFullFilePathFiles;
+	
+	//OptionalFileList was not supplied so we need to gather all temp files to check as full file paths
+	if (nullptr == OptionalFileList)
+	{
+		GatherAllTempFilenames(GatheredFullFilePathFiles, true);
+	}
+	//We supplied an OptionalFileList, but we still need a full file path list for this operation
+	else
+	{
+		ConvertAllTempFilenamesToFullPaths(GatheredFullFilePathFiles, *OptionalFileList);
+	}
+
+	if (SecondsToConsiderOld >= 0)
+	{
+		UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("Checking for BackgroundHTTP temp files that are older then: %lf"), SecondsToConsiderOld);
+		
+		for (const FString& FullFilePath : GatheredFullFilePathFiles)
+		{
 			FFileStatData FileData = IFileManager::Get().GetStatData(*FullFilePath);
 			FTimespan TimeSinceCreate = FDateTime::UtcNow() - FileData.CreationTime;
 
 			const double FileAge = TimeSinceCreate.GetTotalSeconds();
-			const bool bShouldDelete = (FileAge > FileAgeTimeOutSettings);
-
-			UE_LOG(LogBackgroundHttpManager, Log, TEXT("FoundTempFile: %s with age %lf -- bShouldDelete:%d"), *FullFilePath, FileAge, (int)bShouldDelete);
-
-			if (bShouldDelete)
+			const bool bShouldReturn = (FileAge > SecondsToConsiderOld);
+			if (bShouldReturn)
 			{
-				if (IFileManager::Get().Delete(*FullFilePath))
-				{
-					UE_LOG(LogBackgroundHttpManager, Log, TEXT("Successfully deleted %s due to time out settings"), *FullFilePath);
-				}
-				else
-				{
-					UE_LOG(LogBackgroundHttpManager, Error, TEXT("File %s failed to delete, but should have as as it is %lld seconds old!"), *FullFilePath, FileAge);
-				}
-			}
-			else
-			{
-				UE_LOG(LogBackgroundHttpManager, Log, TEXT("SKipping Delete of %s as it is more recent then the time out settings."), *FullFilePath);
+				UE_LOG(LogBackgroundHttpManager, Verbose, TEXT("FoundTempFile: %s with age %lf"), *FullFilePath, FileAge);
+				
+				//Need to save output as just filename to be consistent with other functions
+				OutTimedOutTempFilenames.Add(FPaths::GetCleanFilename(FullFilePath));
 			}
 		}
 	}
 }
 
-void FBackgroundHttpManagerImpl::CleanUpTemporaryFiles()
+void FBackgroundHttpManagerImpl::GatherTempFilesWithoutURLMappings(TArray<FString>& OutTempFilesMissingURLMappings, TArray<FString>* OptionalFileList /*= nullptr */) const
+{
+	OutTempFilesMissingURLMappings.Empty();
+
+	TArray<FString>* FileListToCheckPtr = OptionalFileList;
+
+	//OptionalFileList was not supplied so we need to gather all temp files to check
+	TArray<FString> GatheredFiles;
+	if (nullptr == FileListToCheckPtr)
+	{
+		GatherAllTempFilenames(GatheredFiles, false);
+		FileListToCheckPtr = &GatheredFiles;
+	}
+	
+	TArray<FString>& FilesToCheckRef = *FileListToCheckPtr;
+	for (const FString& File : FilesToCheckRef)
+	{
+		const FString* FoundURL = GetFileHashHelper()->FindMappedURLForTempFilename(File);
+		if (nullptr == FoundURL)
+		{
+			OutTempFilesMissingURLMappings.Add(File);
+		}
+	}
+}
+
+void FBackgroundHttpManagerImpl::GatherAllTempFilenames(TArray<FString>& OutAllTempFilenames, bool bOutputAsFullPaths /* = false */) const
+{
+	OutAllTempFilenames.Empty();
+	
+	const FString DirectoryToCheck = GetFileHashHelper()->GetTemporaryRootPath();
+	
+	TArray<FString> AllFilenames;
+	IFileManager::Get().FindFiles(AllFilenames, *DirectoryToCheck, *FBackgroundHttpFileHashHelper::GetTempFileExtension());
+	
+	//Make into full paths for output
+	for (const FString& Filename : AllFilenames)
+	{
+		if (bOutputAsFullPaths)
+		{
+			OutAllTempFilenames.Add(FPaths::Combine(DirectoryToCheck, Filename));
+		}
+		else
+		{
+			OutAllTempFilenames.Add(Filename);
+		}
+	}
+}
+
+void FBackgroundHttpManagerImpl::ConvertAllTempFilenamesToFullPaths(TArray<FString>& OutFilenamesAsFullPaths, const TArray<FString>& FilenamesToConvertToFullPaths) const
+{
+	//Store this separetly so we don't get bad behavior if the same Array is supplied for both parameters
+	TArray<FString> FilenamesToOutput;
+	
+	for(const FString& ExistingFilename : FilenamesToConvertToFullPaths)
+	{
+		FilenamesToOutput.Add(FBackgroundHttpFileHashHelper::GetFullPathOfTempFilename(ExistingFilename));
+	}
+	
+	OutFilenamesAsFullPaths = FilenamesToOutput;
+}
+
+void FBackgroundHttpManagerImpl::DeleteAllTemporaryFiles()
 {
 	UE_LOG(LogBackgroundHttpManager, Log, TEXT("Cleaning Up Temporary Files"));
 
@@ -106,7 +266,7 @@ void FBackgroundHttpManagerImpl::CleanUpTemporaryFiles()
 
 	//Default implementation is to just delete everything in the Root Folder non-recursively.
 	IPlatformFile& PlatformFile = FPlatformFileManager::Get().GetPlatformFile();
-	PlatformFile.FindFiles(FilesToDelete, *FPlatformBackgroundHttp::GetTemporaryRootPath(), nullptr);
+	PlatformFile.FindFiles(FilesToDelete, *FBackgroundHttpFileHashHelper::GetTemporaryRootPath(), *FBackgroundHttpFileHashHelper::GetTempFileExtension());
 
 	for (const FString& File : FilesToDelete)
 	{
@@ -166,8 +326,19 @@ void FBackgroundHttpManagerImpl::RemoveRequest(const FBackgroundHttpRequestPtr R
 		FRWScopeLock ScopeLock(PendingRequestLock, SLT_Write);
 		NumRequestsRemoved = PendingStartRequests.Remove(Request);
 	}
-
+	
 	UE_LOG(LogBackgroundHttpManager, Log, TEXT("FGenericPlatformBackgroundHttpManager::RemoveRequest Called - RequestID:%s | NumRequestsActuallyRemoved:%d | NumCurrentlyActiveRequests:%d"), *Request->GetRequestID(), NumRequestsRemoved, NumCurrentlyActiveRequests);
+}
+
+void FBackgroundHttpManagerImpl::CleanUpDataAfterCompletingRequest(const FBackgroundHttpRequestPtr Request)
+{
+	//Need to free up all these URL's hashes in FileHashHelper so that future URLs can use those temp files
+	BackgroundHttpFileHashHelperRef OurFileHashHelper = GetFileHashHelper();
+	const TArray<FString>& URLList = Request->GetURLList();
+	for (const FString& URL : URLList)
+	{
+		OurFileHashHelper->RemoveURLMapping(URL);
+	}
 }
 
 bool FBackgroundHttpManagerImpl::AssociateWithAnyExistingRequest(const FBackgroundHttpRequestPtr Request)
@@ -204,14 +375,18 @@ bool FBackgroundHttpManagerImpl::CheckForExistingCompletedDownload(const FBackgr
 	const TArray<FString>& URLList = Request->GetURLList();
 	for (const FString& URL : URLList)
 	{
-		const FString& FileDestination = FPlatformBackgroundHttp::GetTemporaryFilePathFromURL(URL);
-		if (PlatformFile.FileExists(*FileDestination))
+		const FString* FoundTempFilename = GetFileHashHelper()->FindTempFilenameMappingForURL(URL);
+		if (nullptr != FoundTempFilename)
 		{
-			bDidFindExistingDownload = true;
-			ExistingFilePathOut = FileDestination;
+			const FString& FileDestination = FBackgroundHttpFileHashHelper::GetFullPathOfTempFilename(*FoundTempFilename);
+			if (PlatformFile.FileExists(*FileDestination))
+			{
+				bDidFindExistingDownload = true;
+				ExistingFilePathOut = FileDestination;
 
-			ExistingFileSizeOut = PlatformFile.FileSize(*FileDestination);
-			break;
+				ExistingFileSizeOut = PlatformFile.FileSize(*FileDestination);
+				break;
+			}
 		}
 	}	
 
@@ -220,8 +395,15 @@ bool FBackgroundHttpManagerImpl::CheckForExistingCompletedDownload(const FBackgr
 
 bool FBackgroundHttpManagerImpl::Tick(float DeltaTime)
 {
-	ActivatePendingRequests();
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FBackgroundHttpManagerImpl_Tick);
 
+	ensureAlwaysMsgf(IsInGameThread(), TEXT("Called from un-expected thread! Potential error in an implementation of background downloads!"));
+	
+	ActivatePendingRequests();
+	
+	//for now we are saving data every tick, could change this to be on an interval later if required
+	GetFileHashHelper()->SaveData();
+	
 	//Keep ticking in all cases, so just return true
 	return true;
 }
@@ -279,4 +461,10 @@ void FBackgroundHttpManagerImpl::ActivatePendingRequests()
 		//Call Handle for that task to now kick itself off
 		HighestPriorityRequestToStart->HandleDelayedProcess();
 	}
+}
+
+FString FBackgroundHttpManagerImpl::GetTempFileLocationForURL(const FString& URL)
+{
+	const FString& TempLocation = GetFileHashHelper()->FindOrAddTempFilenameMappingForURL(URL);
+	return FBackgroundHttpFileHashHelper::GetFullPathOfTempFilename(TempLocation);
 }

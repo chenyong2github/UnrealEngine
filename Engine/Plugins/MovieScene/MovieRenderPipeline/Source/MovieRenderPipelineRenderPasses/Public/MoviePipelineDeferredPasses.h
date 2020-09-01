@@ -46,39 +46,82 @@ public:
 	}
 };
 
-UCLASS(BlueprintType)
-class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineDeferredPassBase : public UMoviePipelineRenderPass
+UCLASS(BlueprintType, Abstract)
+class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImagePassBase : public UMoviePipelineRenderPass
 {
 	GENERATED_BODY()
 
 public:
-	UMoviePipelineDeferredPassBase()
+	UMoviePipelineImagePassBase()
 		: UMoviePipelineRenderPass()
 	{
-		PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
+		PassIdentifier = FMoviePipelinePassIdentifier("ImagePassBase");
 	}
 protected:
 
 	// UMoviePipelineRenderPass API
 	virtual void GatherOutputPassesImpl(TArray<FMoviePipelinePassIdentifier>& ExpectedRenderPasses) override;
+	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
 	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
 	virtual void TeardownImpl() override;
-	virtual void RenderSample_GameThreadImpl(const FMoviePipelineRenderPassMetrics& InSampleState) override;
-	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Lit", "Deferred Rendering"); }
 	// ~UMovieRenderPassAPI
 
 	// FGCObject Interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	// ~FGCObject Interface
 
-	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, const FMoviePipelineRenderPassMetrics& InSampleState);
+	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState);
 	void OnBackbufferSampleReady(TArray<FFloat16Color>& InPixelData, FMoviePipelineRenderPassMetrics InSampleState);
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
 	virtual void BlendPostProcessSettings(FSceneView* InView);
 	virtual void SetupViewForViewModeOverride(FSceneView* View);
-	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag);
-	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas);
+	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
+	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) {}
+	virtual bool IsScreenPercentageSupported() const { return true; }
+public:
+	
+
+protected:
+	/** A temporary render target that we render the view to. */
+	TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
+
+	/** The history for the view */
+	FSceneViewStateReference ViewState;
+
+	/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
+	TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
+
+	FMoviePipelinePassIdentifier PassIdentifier;
+
+	/** Accessed by the Render Thread when starting up a new task. */
+	FGraphEventArray OutstandingTasks;
+
+	FGraphEventRef TaskPrereq;
+};
+
+UCLASS(BlueprintType)
+class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineDeferredPassBase : public UMoviePipelineImagePassBase
+{
+	GENERATED_BODY()
+
+public:
+	UMoviePipelineDeferredPassBase() : UMoviePipelineImagePassBase()
+	{
+		PassIdentifier = FMoviePipelinePassIdentifier("FinalImage");
+	}
+	
+protected:
+	// UMoviePipelineRenderPass API
+	virtual void SetupImpl(const MoviePipeline::FMoviePipelineRenderPassInitSettings& InPassInitSettings) override;
+	virtual void TeardownImpl() override;
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Lit", "Deferred Rendering"); }
+#endif
+	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) override;
+	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) override;
+	// ~UMoviePipelineRenderPass
+
 public:
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Show Flags")
 	bool bDisableAntiAliasing;
@@ -94,23 +137,9 @@ public:
 
 protected:
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
-
-	/** A queue of surfaces that the render targets can be copied to. If no surface is available the game thread should hold off on submitting more samples. */
-	TSharedPtr<FMoviePipelineSurfaceQueue> SurfaceQueue;
-
-	/** A temporary render target that we render the view to. */
-	TWeakObjectPtr<UTextureRenderTarget2D> TileRenderTarget;
-
-	/** The history for the view */
-	FSceneViewStateReference ViewState;
-
-	FMoviePipelinePassIdentifier PassIdentifier;
-
-	/** Accessed by the Render Thread when starting up a new task. */
-	FGraphEventArray OutstandingTasks;
-
-	FGraphEventRef TaskPrereq;
 };
+
+
 
 UCLASS(BlueprintType)
 class UMoviePipelineDeferredPass_Unlit : public UMoviePipelineDeferredPassBase
@@ -122,7 +151,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("Unlit");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_Unlit", "Deferred Rendering (Unlit)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -140,7 +171,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("DetailLightingOnly");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_DetailLighting", "Deferred Rendering (Detail Lighting)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -159,7 +192,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("LightingOnly");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_LightingOnly", "Deferred Rendering (Lighting Only)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -178,7 +213,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("ReflectionsOnly");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_ReflectionsOnly", "Deferred Rendering (Reflections Only)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);
@@ -198,7 +235,9 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("PathTracer");
 	}
+#if WITH_EDITOR
 	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "DeferredBasePassSetting_DisplayName_PathTracer", "Deferred Rendering (Path Tracer)"); }
+#endif
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const override
 	{
 		OutShowFlag = FEngineShowFlags(EShowFlagInitMode::ESFIM_Game);

@@ -384,7 +384,8 @@ public:
 		FRHIComputeShader* ComputeShaderRHI = Context.Shader.GetComputeShader();
 		FNiagaraDataInterfaceProxyTexture* TextureDI = static_cast<FNiagaraDataInterfaceProxyTexture*>(Context.DataInterface);
 
-		if (TextureDI && TextureDI->TextureRHI)
+		
+		if (TextureDI && TextureDI->TextureReferenceRHI.IsValid())
 		{
 			FRHISamplerState* SamplerStateRHI = TextureDI->SamplerStateRHI;
 			if (!SamplerStateRHI)
@@ -393,13 +394,14 @@ public:
 				// are initalized in UNiagaraDataInterfaceTexture::PushToRenderThread().
 				SamplerStateRHI = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 			}
+
 			SetTextureParameter(
 				RHICmdList,
 				ComputeShaderRHI,
 				TextureParam,
 				SamplerParam,
 				SamplerStateRHI,
-				TextureDI->TextureRHI
+				TextureDI->TextureReferenceRHI->GetReferencedTexture()
 			);
 			SetShaderValue(RHICmdList, ComputeShaderRHI, Dimensions, TextureDI->TexDims);
 		}
@@ -442,10 +444,18 @@ void UNiagaraDataInterfaceTexture::PushToRenderThread()
 
 	ENQUEUE_RENDER_COMMAND(FPushDITextureToRT)
 	(
-		[RT_Proxy, RT_Resource=Texture ? Texture->Resource : nullptr, RT_TexDims](FRHICommandListImmediate& RHICmdList)
+		[RT_Proxy, RT_Texture=Texture, RT_TexDims](FRHICommandListImmediate& RHICmdList)
 		{
-			RT_Proxy->TextureRHI = RT_Resource ? RT_Resource->TextureRHI : nullptr;
-			RT_Proxy->SamplerStateRHI = RT_Resource ? RT_Resource->SamplerStateRHI : nullptr;
+			if (RT_Texture)
+			{
+				RT_Proxy->TextureReferenceRHI = RT_Texture->TextureReference.TextureReferenceRHI;
+				RT_Proxy->SamplerStateRHI = RT_Texture->Resource ? RT_Texture->Resource->SamplerStateRHI : nullptr;
+			}
+			else
+			{
+				RT_Proxy->TextureReferenceRHI = nullptr;
+				RT_Proxy->SamplerStateRHI = nullptr;
+			}
 			RT_Proxy->TexDims = RT_TexDims;
 		}
 	);

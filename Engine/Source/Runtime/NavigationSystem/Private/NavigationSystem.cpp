@@ -3567,7 +3567,7 @@ void UNavigationSystemV1::OnPIEStart()
 	if (MyWorld && !MyWorld->IsGameWorld())
 	{
 		bAsyncBuildPaused = true;
-		AddNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor);
+		AddNavigationBuildLock(ENavigationBuildLock::NoUpdateInPIE);
 	}
 }
 
@@ -3579,7 +3579,7 @@ void UNavigationSystemV1::OnPIEEnd()
 	{
 		bAsyncBuildPaused = false;
 		// there's no need to request while navigation rebuilding just because PIE has ended
-		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInEditor, ELockRemovalRebuildAction::RebuildIfNotInEditor);
+		RemoveNavigationBuildLock(ENavigationBuildLock::NoUpdateInPIE, ELockRemovalRebuildAction::RebuildIfNotInEditor);
 	}
 }
 
@@ -3652,6 +3652,9 @@ void UNavigationSystemV1::RebuildAll(bool bIsLoadTime)
 		{
 			UE_LOG(LogNavigationDataBuild, Display, TEXT("   Building NavData:  %s."), *NavData->GetConfig().GetDescription());
 
+#if	WITH_EDITOR
+			NavData->SetIsBuildingOnLoad(bIsLoadTime);
+#endif
 			NavData->RebuildAll();
 		}
 	}
@@ -3701,10 +3704,13 @@ void UNavigationSystemV1::OnNavigationGenerationFinished(ANavigationData& NavDat
 	OnNavigationGenerationFinishedDelegate.Broadcast(&NavData);
 
 #if WITH_EDITOR
-	if (!GetWorld()->IsGameWorld())
+	if (GetWorld()->IsGameWorld() == false && NavData.IsBuildingOnLoad() == false)
 	{
 		NavData.MarkPackageDirty();
 	}
+
+	// Reset bIsBuildingOnLoad
+	NavData.SetIsBuildingOnLoad(false);
 #endif //WITH_EDITOR
 }
 
@@ -3748,15 +3754,15 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 	if ((IsNavigationSystemStatic() == false))
 	{
 		AddLevelCollisionToOctree(InLevel);
+	}
 
-		if (!InLevel->IsPersistentLevel())
+	if (!InLevel->IsPersistentLevel())
+	{
+		for (ANavigationData* NavData : NavDataSet)
 		{
-			for (ANavigationData* NavData : NavDataSet)
+			if (NavData)
 			{
-				if (NavData)
-				{
-					NavData->OnStreamingLevelAdded(InLevel, InWorld);
-				}
+				NavData->OnStreamingLevelAdded(InLevel, InWorld);
 			}
 		}
 	}
@@ -3794,9 +3800,12 @@ void UNavigationSystemV1::OnLevelAddedToWorld(ULevel* InLevel, UWorld* InWorld)
 
 void UNavigationSystemV1::OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld)
 {
-	if ((IsNavigationSystemStatic() == false) && (InWorld == GetWorld()) && (InLevel != nullptr))
+	if ((InWorld == GetWorld()) && (InLevel != nullptr))
 	{
-		RemoveLevelCollisionFromOctree(InLevel);
+		if (IsNavigationSystemStatic() == false)
+		{
+			RemoveLevelCollisionFromOctree(InLevel);
+		}
 
 		if (InLevel && !InLevel->IsPersistentLevel())
 		{

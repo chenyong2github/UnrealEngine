@@ -158,7 +158,7 @@ void FNiagaraComponentRendererPropertiesDetails::CustomizeDetails(IDetailLayoutB
 					NameWidget.ToSharedRef()
 				];
 
-				bool IsConvertingValue = Binding->PropertyType.IsValid() && Binding->PropertyType != Binding->AttributeBinding.BoundVariable.GetType();
+				bool IsConvertingValue = Binding->PropertyType.IsValid() && Binding->PropertyType != Binding->AttributeBinding.GetType();
 				FName StyleName = IsConvertingValue ? FName("FlatButton.Warning") : FName("FlatButton.Success");
 				FText Tooltip = IsConvertingValue ? LOCTEXT("NiagaraPropertyBindingToolTipConverting", "Bind to a particle attribute to update this parameter each tick. \nThe currently bound value is auto-converted to fit the target type, which costs some performance.")
 												  : LOCTEXT("NiagaraPropertyBindingToolTip", "Bind to a particle attribute to update this parameter each tick.");
@@ -283,8 +283,7 @@ void FNiagaraComponentRendererPropertiesDetails::ChangePropertyBinding(TSharedPt
 	{
 		FScopedTransaction Transaction(FText::Format(LOCTEXT("ChangePropertyBinding", "Change component property binding to \"{0}\" "), FText::FromName(BindingVar.GetName())));
 		FNiagaraComponentPropertyBinding NewBinding = ToPropertyBinding(PropertyHandle, ComponentProperties);
-		NewBinding.AttributeBinding.BoundVariable = BindingVar;
-		NewBinding.AttributeBinding.DataSetVariable = FNiagaraConstants::GetAttributeAsDataSetKey(NewBinding.AttributeBinding.BoundVariable);
+		NewBinding.AttributeBinding.Setup(BindingVar, FNiagaraConstants::GetAttributeAsParticleDataSetKey(BindingVar), BindingVar);
 
 		ComponentProperties->Modify();
 		PropertyHandle->NotifyPreChange();
@@ -374,7 +373,7 @@ FText FNiagaraComponentRendererPropertiesDetails::GetCurrentBindingText(TSharedP
 		const FNiagaraComponentPropertyBinding* PropertyBinding = FindBinding(PropertyHandle);
 		if (PropertyBinding)
 		{
-			return FText::FromName(PropertyBinding->AttributeBinding.BoundVariable.GetName());
+			return FText::FromName(PropertyBinding->AttributeBinding.GetName(ENiagaraRendererSourceDataMode::Particles));
 		}
 	}
 	return FText::FromString(TEXT("Missing"));

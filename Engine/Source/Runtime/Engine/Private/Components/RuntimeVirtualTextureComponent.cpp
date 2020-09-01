@@ -84,6 +84,17 @@ FBoxSphereBounds URuntimeVirtualTextureComponent::CalcBounds(const FTransform& L
 	return FBoxSphereBounds(FBox(FVector(0.f, 0.f, 0.f), FVector(1.f, 1.f, 1.f))).TransformBy(LocalToWorld);
 }
 
+FTransform URuntimeVirtualTextureComponent::GetTexelSnapTransform() const
+{
+	FVector Offset(ForceInitToZero);
+	if (bSnapBoundsToLandscape && VirtualTexture != nullptr)
+	{
+		Offset = GetRelativeScale3D() * -0.5f / VirtualTexture->GetSize();
+		Offset.Z = 0.f;
+	}
+	return FTransform(Offset);
+}
+
 uint64 URuntimeVirtualTextureComponent::CalculateStreamingTextureSettingsHash() const
 {
 	// Shouldn't need to call this when there is VirtualTexture == nullptr

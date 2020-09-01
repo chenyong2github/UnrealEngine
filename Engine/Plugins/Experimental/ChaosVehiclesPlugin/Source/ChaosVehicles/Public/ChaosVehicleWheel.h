@@ -149,10 +149,6 @@ using namespace Chaos;
 		UPROPERTY(EditAnywhere, Category = Wheel)
 		bool bTractionControlEnabled;
 
-		/** Tire type for the wheel. Determines friction */
-		UPROPERTY(EditAnywhere, Category = Tire)
-		class UChaosTireConfig* TireConfig;
-
 		///** Max normalized tire load at which the tire can deliver no more lateral stiffness no matter how much extra load is applied to the tire. */
 		//UPROPERTY(EditAnywhere, Category = Tire, meta = (ClampMin = "0.01", UIMin = "0.01"))
 		//float LatStiffMaxLoad;
@@ -238,7 +234,6 @@ using namespace Chaos;
 		UPROPERTY(EditAnywhere, Category = Brakes)
 		float MaxHandBrakeTorque;
 
-		//#todo: make sure everything from here down is actually implemented
 		/** The vehicle that owns us */
 		UPROPERTY(transient)
 		class UChaosWheeledVehicleMovementComponent* VehicleSim;
@@ -383,8 +378,6 @@ using namespace Chaos;
 			// These are calculated later from the PSuspensionConfig.DampingRatio
 			//		PSuspensionConfig.ReboundDamping
 			//		PSuspensionConfig.CompressionDamping
-
-			//	SuspensionConfig.Swaybar; #todo: best way to configure this? Not yet implemented
 		}
 
 		Chaos::FSimpleWheelConfig PWheelConfig;

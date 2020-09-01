@@ -33,7 +33,7 @@ public class Persona : ModuleRules
                 "MeshReductionInterface",
                 "SequenceRecorder",
                 "AnimationBlueprintEditor",
-            }
+			}
         );
 
         PrivateDependencyModuleNames.AddRange(
@@ -73,7 +73,7 @@ public class Persona : ModuleRules
 				"SequencerWidgets",
 				"TimeManagement",
                 "Sequencer",
-            }
+			}
         );
 
         DynamicallyLoadedModuleNames.AddRange(
@@ -87,7 +87,7 @@ public class Persona : ModuleRules
                 "AnimationEditor",
                 "MeshReductionInterface",
                 "SequenceRecorder",
-            }
+			}
         );
     }
 }

@@ -747,6 +747,9 @@ public:
 
 		int32 CooldownTicksEnabled = 0;
 		{
+			// Make sure all scheduled Tick Functions that are ready are put into the cooling down state
+			ScheduleTickFunctionCooldowns();
+
 			// Determine which cooled down ticks will be enabled this frame
 			float CumulativeCooldown = 0.f;
 			FTickFunction* TickFunction = AllCoolingDownTickFunctions.Head;
@@ -782,14 +785,16 @@ public:
 		Context.World = InContext.World;
 		bTickNewlySpawned = true;
 
+		for (TSet<FTickFunction*>::TIterator It(AllEnabledTickFunctions); It; ++It)
 		{
-			for (TSet<FTickFunction*>::TIterator It(AllEnabledTickFunctions); It; ++It)
-			{
-				FTickFunction* TickFunction = *It;
-				AllTickFunctions.Add(TickFunction);
-			}
+			FTickFunction* TickFunction = *It;
+			AllTickFunctions.Add(TickFunction);
 		}
+		
 		{
+			// Make sure all scheduled Tick Functions that are ready are put into the cooling down state
+			ScheduleTickFunctionCooldowns();
+
 			// Determine which cooled down ticks will be enabled this frame
 			float CumulativeCooldown = 0.f;
 			FTickFunction* TickFunction = AllCoolingDownTickFunctions.Head;

@@ -130,7 +130,7 @@ EChildActorComponentTreeViewVisualizationMode FChildActorComponentEditorUtils::G
 	return EditorProjectSettings->DefaultChildActorTreeViewMode;
 }
 
-EChildActorComponentTreeViewVisualizationMode FChildActorComponentEditorUtils::GetChildActorTreeViewVisualizationMode(UChildActorComponent* ChildActorComponent)
+EChildActorComponentTreeViewVisualizationMode FChildActorComponentEditorUtils::GetChildActorTreeViewVisualizationMode(UChildActorComponent* ChildActorComponent, EChildActorComponentTreeViewVisualizationMode DefaultVisOverride)
 {
 	if (ChildActorComponent)
 	{
@@ -141,33 +141,33 @@ EChildActorComponentTreeViewVisualizationMode FChildActorComponentEditorUtils::G
 		}
 	}
 
-	return GetProjectDefaultTreeViewVisualizationMode();
+	return DefaultVisOverride == EChildActorComponentTreeViewVisualizationMode::UseDefault ? GetProjectDefaultTreeViewVisualizationMode() : DefaultVisOverride;
 }
 
-bool FChildActorComponentEditorUtils::ShouldExpandChildActorInTreeView(UChildActorComponent* ChildActorComponent)
+bool FChildActorComponentEditorUtils::ShouldExpandChildActorInTreeView(UChildActorComponent* ChildActorComponent, EChildActorComponentTreeViewVisualizationMode DefaultVisOverride)
 {
 	if (!ChildActorComponent)
 	{
 		return false;
 	}
 
-	if (!IsChildActorTreeViewExpansionEnabled())
+	if ((DefaultVisOverride == EChildActorComponentTreeViewVisualizationMode::UseDefault) && !IsChildActorTreeViewExpansionEnabled())
 	{
 		return false;
 	}
 
-	EChildActorComponentTreeViewVisualizationMode CurrentMode = GetChildActorTreeViewVisualizationMode(ChildActorComponent);
+	EChildActorComponentTreeViewVisualizationMode CurrentMode = GetChildActorTreeViewVisualizationMode(ChildActorComponent, DefaultVisOverride);
 	return CurrentMode != EChildActorComponentTreeViewVisualizationMode::ComponentOnly;
 }
 
-bool FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(UChildActorComponent* ChildActorComponent)
+bool FChildActorComponentEditorUtils::ShouldShowChildActorNodeInTreeView(UChildActorComponent* ChildActorComponent, EChildActorComponentTreeViewVisualizationMode DefaultVisOverride)
 {
-	if (!ShouldExpandChildActorInTreeView(ChildActorComponent))
+	if (!ShouldExpandChildActorInTreeView(ChildActorComponent, DefaultVisOverride))
 	{
 		return false;
 	}
 
-	EChildActorComponentTreeViewVisualizationMode CurrentMode = GetChildActorTreeViewVisualizationMode(ChildActorComponent);
+	EChildActorComponentTreeViewVisualizationMode CurrentMode = GetChildActorTreeViewVisualizationMode(ChildActorComponent, DefaultVisOverride);
 	return CurrentMode == EChildActorComponentTreeViewVisualizationMode::ComponentWithChildActor;
 }
 

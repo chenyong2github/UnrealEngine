@@ -549,7 +549,8 @@ void FTextureRenderTarget2DResource::ReleaseDynamicRHI()
 
 	RHIUpdateTextureReference(Owner->TextureReference.TextureReferenceRHI, nullptr);
 	Texture2DRHI.SafeRelease();
-	RenderTargetTextureRHI.SafeRelease();	
+	RenderTargetTextureRHI.SafeRelease();
+	CachedMipsGenParams = nullptr;
 
 	// remove grom global list of deferred clears
 	RemoveFromDeferredUpdateList();
@@ -565,6 +566,8 @@ void FTextureRenderTarget2DResource::UpdateDeferredResource( FRHICommandListImme
 {
 	SCOPED_DRAW_EVENT(RHICmdList, GPUResourceUpdate)
 	RemoveFromDeferredUpdateList();
+
+	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToGfx, RenderTargetTextureRHI);
 
  	// clear the target surface to green
 	if (bClearRenderTarget)

@@ -20,6 +20,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 	uint32 PhysXSum = 0;
 	uint32 ChaosSum = 0;
 	double NumIterations = bHasPhysX ? 100 : 10000;
+	FPendingSpatialDataQueue Empty;
 	//double NumIterations = 1000000;
 
 	const FSQCapture& CapturedSQ = *Serializer.GetSQCapture();
@@ -41,7 +42,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 #endif
 
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-		Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
 		{
@@ -68,7 +69,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 #endif
 
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-		Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
 		{
@@ -95,7 +96,7 @@ void SQPerfComparisonHelper(const FString& TestName, FPhysTestSerializer& Serial
 #endif
 
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-		Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		for (double i = 0; i < NumIterations; ++i)
 		{
@@ -135,6 +136,7 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 	bool bTestPassed = true;
 	const float DistanceTolerance = 1e-1f;
 	const float NormalTolerance = 1e-2f;
+	FPendingSpatialDataQueue Empty;
 
 	const FSQCapture& CapturedSQ = *Serializer.GetSQCapture();
 	switch (CapturedSQ.SQType)
@@ -162,7 +164,7 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 
 		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit>>();
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-		Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator); SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 		
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->HasBlockingHit() == CapturedSQ.PhysXRaycastBuffer.hasBlock);
@@ -204,7 +206,7 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 
 		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit>>();
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-		Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator); SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, *ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 		
 		bTestPassed &= SQ_REPLAY_TEST(ChaosHitBuffer->HasBlockingHit() == CapturedSQ.PhysXSweepBuffer.hasBlock);
@@ -232,7 +234,7 @@ bool SQComparisonHelper(FPhysTestSerializer& Serializer, bool bEnsureOnMismatch 
 
 		auto ChaosHitBuffer = MakeUnique<ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit>>();
 		TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-		Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+		Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 		FChaosSQAccelerator SQAccelerator(*Accelerator);
 		SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, *ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 		
@@ -255,6 +257,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 	bool bTestPassed = true;
 	const float DistanceTolerance = 1e-1f;
 	const float NormalTolerance = 1e-2f;
+	FPendingSpatialDataQueue Empty;
 
 	const FSQCapture& CapturedSQ = *Serializer.GetSQCapture();
 	switch (CapturedSQ.SQType)
@@ -263,7 +266,8 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FRaycastHit> ChaosHitBuffer;
 			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-			Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+			
+			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Raycast(CapturedSQ.StartPoint, CapturedSQ.Dir, CapturedSQ.DeltaMag, ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			
@@ -279,7 +283,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FSweepHit> ChaosHitBuffer;
 			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-			Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Sweep(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, CapturedSQ.Dir, CapturedSQ.DeltaMag, ChaosHitBuffer, CapturedSQ.OutputFlags.HitFlags, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			
@@ -302,7 +306,7 @@ bool SQValidityHelper(FPhysTestSerializer& Serializer)
 		{
 			ChaosInterface::FSQHitBuffer<ChaosInterface::FOverlapHit> ChaosHitBuffer;
 			TUniquePtr<ISpatialAccelerationCollection<TAccelerationStructureHandle<float, 3>, float, 3>> Accelerator;
-			Serializer.GetChaosData()->UpdateExternalAccelerationStructure(Accelerator);
+			Serializer.GetChaosData()->UpdateExternalAccelerationStructure_External(Accelerator, Empty);
 			FChaosSQAccelerator SQAccelerator(*Accelerator);
 			SQAccelerator.Overlap(*CapturedSQ.ChaosGeometry, CapturedSQ.StartTM, ChaosHitBuffer, CapturedSQ.QueryFilterData, *CapturedSQ.FilterCallback);
 			break;

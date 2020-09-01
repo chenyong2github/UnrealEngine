@@ -53,10 +53,10 @@ void FMaterialCachedExpressionData::Reset()
 	bHasSceneColor = false;
 }
 
-static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& Entry, const FHashedMaterialParameterInfo& HashedParameterInfo)
+static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& Entry, const FHashedName& HashedName, const FHashedMaterialParameterInfo& ParameterInfo)
 {
 	// Parameters are first sorted by name hash
-	const uint64 NameHash = HashedParameterInfo.Name.GetHash();
+	const uint64 NameHash = HashedName.GetHash();
 	const int32 LowerIndex = Algo::LowerBound(Entry.NameHashes, NameHash);
 	if (LowerIndex < Entry.NameHashes.Num())
 	{
@@ -67,7 +67,7 @@ static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& E
 			// more than 1 entry with the same name, next sort by Association/Index
 			auto ProjectionFunc = [](const FMaterialParameterInfo& InParameterInfo)
 			{
-				return FHashedMaterialParameterInfo(FHashedName(), InParameterInfo.Association, InParameterInfo.Index);
+				return FHashedMaterialParameterInfo(FScriptName(), InParameterInfo.Association, InParameterInfo.Index);
 			};
 			auto CompareFunc = [](const FHashedMaterialParameterInfo& Lhs, const FHashedMaterialParameterInfo& Rhs)
 			{
@@ -76,7 +76,7 @@ static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& E
 			};
 
 			const TConstArrayView<FMaterialParameterInfo> ParameterInfos = MakeArrayView(&Entry.ParameterInfos[LowerIndex], UpperIndex - LowerIndex);
-			return LowerIndex + Algo::LowerBoundBy(ParameterInfos, HashedParameterInfo, ProjectionFunc, CompareFunc);
+			return LowerIndex + Algo::LowerBoundBy(ParameterInfos, ParameterInfo, ProjectionFunc, CompareFunc);
 		}
 	}
 	return LowerIndex;
@@ -89,12 +89,12 @@ static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMater
 													CachedParameters.EditorOnlyEntries[static_cast<int32>(Type) - static_cast<int32>(EMaterialParameterType::RuntimeCount)] :
 													CachedParameters.RuntimeEntries[static_cast<int32>(Type)];
 
-	const FHashedMaterialParameterInfo HashedParameterInfo(ParameterInfo);
-	int32 Index = FindParameterLowerBoundIndex(Entry, HashedParameterInfo);
+	const FHashedName HashedName(ParameterInfo.Name);
+	int32 Index = FindParameterLowerBoundIndex(Entry, HashedName, ParameterInfo);
 
 	if (Index >= Entry.NameHashes.Num() || Entry.ParameterInfos[Index] != ParameterInfo)
 	{
-		Entry.NameHashes.Insert(HashedParameterInfo.Name.GetHash(), Index);
+		Entry.NameHashes.Insert(HashedName.GetHash(), Index);
 		Entry.ParameterInfos.Insert(ParameterInfo, Index);
 		Entry.ExpressionGuids.Insert(ExpressionGuid, Index);
 		Entry.Overrides.Insert(bOverride, Index);
@@ -212,36 +212,29 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 	// This is important so we add parameters in the proper order (parameter values are latched the first time a given parameter name is encountered)
 	FMaterialCachedExpressionContext LocalContext(Context);
 	LocalContext.bUpdateFunctionExpressions = false; // we update functions explicitly
+	
+	FMaterialCachedExpressionData* Self = this;
+	auto ProcessFunction = [Self, &LocalContext, Association, ParameterIndex, &bResult](UMaterialFunctionInterface* InFunction) -> bool
 	{
-		FMaterialCachedExpressionData* Self = this;
-		auto DependentFunctionLamba = [Self, &LocalContext, Association, ParameterIndex, &bResult](UMaterialFunctionInterface* DepFunction) -> bool
+		const TArray<UMaterialExpression*>* FunctionExpressions = InFunction->GetFunctionExpressions();
+		if (FunctionExpressions)
 		{
-			const TArray<UMaterialExpression*>* FunctionExpressions = DepFunction->GetFunctionExpressions();
-			if (FunctionExpressions)
+			if (!Self->UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
 			{
-				if (!Self->UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
-				{
-					bResult = false;
-				}
+				bResult = false;
 			}
-			return true;
-		};
-		Function->IterateDependentFunctions(MoveTemp(DependentFunctionLamba));
-	}
-
-	const TArray<UMaterialExpression*>* FunctionExpressions = Function->GetFunctionExpressions();
-	if (FunctionExpressions)
-	{
-		if (!UpdateForExpressions(LocalContext, *FunctionExpressions, Association, ParameterIndex))
-		{
-			bResult = false;
 		}
-	}
 
-	FMaterialFunctionInfo NewFunctionInfo;
-	NewFunctionInfo.Function = Function;
-	NewFunctionInfo.StateId = Function->StateId;
-	FunctionInfos.Add(NewFunctionInfo);
+		FMaterialFunctionInfo NewFunctionInfo;
+		NewFunctionInfo.Function = InFunction;
+		NewFunctionInfo.StateId = InFunction->StateId;
+		Self->FunctionInfos.Add(NewFunctionInfo);
+
+		return true;
+	};
+	Function->IterateDependentFunctions(ProcessFunction);
+
+	ProcessFunction(Function);
 
 	return bResult;
 }
@@ -559,18 +552,23 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 		}
 		else if (UMaterialExpressionQualitySwitch* QualitySwitchNode = Cast<UMaterialExpressionQualitySwitch>(Expression))
 		{
+			const FExpressionInput DefaultInput = QualitySwitchNode->Default.GetTracedInput();
+
 			for (int32 InputIndex = 0; InputIndex < EMaterialQualityLevel::Num; InputIndex++)
 			{
 				if (QualitySwitchNode->Inputs[InputIndex].IsConnected())
 				{
-					QualityLevelsUsed[InputIndex] = true;
+					// We can ignore quality levels that are defined the same way as 'Default'
+					// This avoids compiling a separate explicit quality level resource, that will end up exactly the same as the default resource
+					const FExpressionInput Input = QualitySwitchNode->Inputs[InputIndex].GetTracedInput();
+					if (Input.Expression != DefaultInput.Expression ||
+						Input.OutputIndex != DefaultInput.OutputIndex)
+					{
+						QualityLevelsUsed[InputIndex] = true;
+					}
 				}
 			}
 
-			if (QualitySwitchNode->Default.IsConnected())
-			{
-				QualityLevelsUsed[EMaterialQualityLevel::High] = true;
-			}
 		}
 		else if (Expression->IsA(UMaterialExpressionRuntimeVirtualTextureOutput::StaticClass()))
 		{
@@ -667,14 +665,15 @@ int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type,
 	return INDEX_NONE;
 }
 
-int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& HashedParameterInfo) const
+int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const
 {
 	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
-	const int32 Index = FindParameterLowerBoundIndex(Entry, HashedParameterInfo);
+	const FHashedName HashedName(ParameterInfo.GetName());
+	const int32 Index = FindParameterLowerBoundIndex(Entry, HashedName, ParameterInfo);
 	if (Index < Entry.NameHashes.Num() &&
-		Entry.NameHashes[Index] == HashedParameterInfo.Name.GetHash() &&
-		Entry.ParameterInfos[Index].Association == HashedParameterInfo.Association &&
-		Entry.ParameterInfos[Index].Index == HashedParameterInfo.Index)
+		Entry.NameHashes[Index] == HashedName.GetHash() &&
+		Entry.ParameterInfos[Index].Association == ParameterInfo.Association &&
+		Entry.ParameterInfos[Index].Index == ParameterInfo.Index)
 	{
 		return Index;
 	}

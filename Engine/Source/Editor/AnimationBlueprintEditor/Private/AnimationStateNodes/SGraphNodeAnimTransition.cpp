@@ -282,7 +282,7 @@ FLinearColor SGraphNodeAnimTransition::StaticGetTransitionColor(UAnimStateTransi
 			{
 				const int32 TransIndex = *pTransIndex;
 
-				if (Class->AnimNodeProperties.Num())
+				if (Class->GetAnimNodeProperties().Num())
 				{
 					UAnimationStateMachineGraph* TypedGraph = CastChecked<UAnimationStateMachineGraph>(StateMachineGraph);
 

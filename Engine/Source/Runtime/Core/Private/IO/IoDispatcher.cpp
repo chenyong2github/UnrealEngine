@@ -15,6 +15,7 @@
 #include "GenericPlatform/GenericPlatformChunkInstall.h"
 #include "HAL/Event.h"
 #include "Async/MappedFileHandle.h"
+#include "ProfilingDebugging/CountersTrace.h"
 
 DEFINE_LOG_CATEGORY(LogIoDispatcher);
 
@@ -25,6 +26,8 @@ TUniquePtr<FIoDispatcher> GIoDispatcher;
 #if UE_BUILD_DEVELOPMENT || UE_BUILD_DEBUG
 //PRAGMA_DISABLE_OPTIMIZATION
 #endif
+
+TRACE_DECLARE_INT_COUNTER(PendingIoRequests, TEXT("IoDispatcher/PendingIoRequests"));
 
 /** A utility function to convert a EIoStoreResolveResult to the corresponding FIoStatus.*/
 FIoStatus ToStatus(EIoStoreResolveResult Result)
@@ -151,15 +154,13 @@ class FIoDispatcherImpl
 public:
 	FIoDispatcherImpl(bool bInIsMultithreaded)
 		: bIsMultithreaded(bInIsMultithreaded)
-		, FileIoStore(EventQueue, SignatureErrorEvent) 
+		, FileIoStore(EventQueue, SignatureErrorEvent, bIsMultithreaded) 
 	{
 		FCoreDelegates::GetMemoryTrimDelegate().AddLambda([this]()
 		{
 			RequestAllocator.Trim();
 			BatchAllocator.Trim();
 		});
-
-		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal);
 	}
 
 	~FIoDispatcherImpl()
@@ -170,6 +171,13 @@ public:
 	FIoStatus Initialize()
 	{
 		return FIoStatus::Ok;
+	}
+
+	bool InitializePostSettings()
+	{
+		FileIoStore.Initialize();
+		Thread = FRunnableThread::Create(this, TEXT("IoDispatcher"), 0, TPri_AboveNormal);
+		return true;
 	}
 
 	FIoRequestImpl* AllocRequest(const FIoChunkId& ChunkId, FIoReadOptions Options)
@@ -202,6 +210,7 @@ public:
 		}
 
 		check(Batch->TailRequest->BatchNextRequest == nullptr);
+		++Batch->UnfinishedRequestsCount;
 
 		return Request;
 	}
@@ -236,13 +245,30 @@ public:
 		}
 	}
 
-	void ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, FIoReadCallback&& Callback)
+	void OnNewWaitingRequestsAdded()
+	{
+		if (bIsMultithreaded)
+		{
+			EventQueue.DispatcherNotify();
+		}
+		else
+		{
+			ProcessIncomingRequests();
+			while (PendingIoRequestsCount > 0)
+			{
+				ProcessCompletedRequests();
+			}
+		}
+	}
+
+	void ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback)
 	{
 		FIoRequestImpl* Request = AllocRequest(ChunkId, Options);
 		Request->Callback = MoveTemp(Callback);
+		Request->Priority = Priority;
+		Request->NextRequest = nullptr;
 		{
 			FScopeLock _(&WaitingLock);
-			Request->NextRequest = nullptr;
 			if (!WaitingRequestsTail)
 			{
 				WaitingRequestsHead = WaitingRequestsTail = Request;
@@ -253,11 +279,7 @@ public:
 				WaitingRequestsTail = Request;
 			}
 		}
-		EventQueue.Notify();
-		if (!bIsMultithreaded)
-		{
-			ProcessRequests();
-		}
+		OnNewWaitingRequestsAdded();
 	}
 
 	TIoStatusOr<FIoMappedRegion> OpenMapped(const FIoChunkId& ChunkId, const FIoReadOptions& Options)
@@ -340,7 +362,7 @@ public:
 		}
 	}
 
-	void IssueBatch(const FIoBatchImpl* Batch)
+	void IssueBatch(const FIoBatchImpl* Batch, EIoDispatcherPriority Priority)
 	{
 		{
 			FScopeLock _(&WaitingLock);
@@ -352,20 +374,16 @@ public:
 			{
 				WaitingRequestsTail->NextRequest = Batch->HeadRequest;
 			}
-
-			WaitingRequestsTail = Batch->HeadRequest;
-			while (WaitingRequestsTail->BatchNextRequest)
+			WaitingRequestsTail = Batch->TailRequest;
+			FIoRequestImpl* Request = Batch->HeadRequest;
+			while (Request)
 			{
-				WaitingRequestsTail->NextRequest = WaitingRequestsTail->BatchNextRequest;
-				WaitingRequestsTail = WaitingRequestsTail->BatchNextRequest;
+				Request->NextRequest = Request->BatchNextRequest;
+				Request->Priority = Priority;
+				Request = Request->BatchNextRequest;
 			}
-			WaitingRequestsTail->NextRequest = nullptr;
 		}
-		EventQueue.Notify();
-		if (!bIsMultithreaded)
-		{
-			ProcessRequests();
-		}
+		OnNewWaitingRequestsAdded();
 	}
 
 	FIoStatus SetupBatchForContiguousRead(FIoBatchImpl* Batch, void* InTargetVa, FIoReadCallback&& InCallback)
@@ -420,24 +438,18 @@ public:
 private:
 	friend class FIoBatch;
 
-	void ProcessCompletedBlocks()
-	{
-		FileIoStore.ProcessCompletedBlocks(bIsMultithreaded);
-		ProcessCompletedRequests();
-	}
-
 	void ProcessCompletedRequests()
 	{
 		//TRACE_CPUPROFILER_EVENT_SCOPE(ProcessCompletedRequests);
-		while (SubmittedRequestsHead && SubmittedRequestsHead->UnfinishedReadsCount == 0)
+
+		FIoRequestImpl* CompletedRequestsHead = FileIoStore.GetCompletedRequests();
+		while (CompletedRequestsHead)
 		{
-			FIoRequestImpl* NextRequest = SubmittedRequestsHead->NextRequest;
-			CompleteRequest(SubmittedRequestsHead);
-			SubmittedRequestsHead = NextRequest;
-		}
-		if (!SubmittedRequestsHead)
-		{
-			SubmittedRequestsTail = nullptr;
+			FIoRequestImpl* NextRequest = CompletedRequestsHead->NextRequest;
+			CompleteRequest(CompletedRequestsHead);
+			CompletedRequestsHead = NextRequest;
+			--PendingIoRequestsCount;
+			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
 		}
 	}
 
@@ -463,7 +475,11 @@ private:
 
 		if (Request->Batch)
 		{
-			InvokeCallbackIfBatchCompleted(Request->Batch);
+			check(Request->Batch->UnfinishedRequestsCount);
+			if (--Request->Batch->UnfinishedRequestsCount == 0)
+			{
+				InvokeCallback(Request->Batch);
+			}
 		}
 		else
 		{
@@ -471,7 +487,7 @@ private:
 		}
 	}
 
-	void InvokeCallbackIfBatchCompleted(FIoBatchImpl* Batch)
+	void InvokeCallback(FIoBatchImpl* Batch)
 	{	
 		if (!Batch->Callback)
 		{
@@ -483,25 +499,24 @@ private:
 		check(Batch->TailRequest != nullptr); 
 
 		// Since the requests will be processed in order we can just check the tail request
-		if (Batch->TailRequest->Status.IsCompleted())
-		{
-			FIoStatus Status = EIoErrorCode::Ok;
-			// Check the requests in the batch to see if we need to report an error status
-			for (FIoRequestImpl* Request = Batch->HeadRequest; Request != NULL && Status.IsOk(); Request = Request->BatchNextRequest)
-			{
-				Status = Request->Status;
-			}
+		check(Batch->TailRequest->Status.IsCompleted());
 
-			// Return the buffer if there are no errors, or the failed status if there were
-			if (Status.IsOk())
-			{
-				Batch->Callback(Batch->IoBuffer);
-			}
-			else
-			{
-				Batch->Callback(Status);
-			}
-		}		
+		FIoStatus Status = EIoErrorCode::Ok;
+		// Check the requests in the batch to see if we need to report an error status
+		for (FIoRequestImpl* Request = Batch->HeadRequest; Request != NULL && Status.IsOk(); Request = Request->BatchNextRequest)
+		{
+			Status = Request->Status;
+		}
+
+		// Return the buffer if there are no errors, or the failed status if there were
+		if (Status.IsOk())
+		{
+			Batch->Callback(Batch->IoBuffer);
+		}
+		else
+		{
+			Batch->Callback(Status);
+		}
 	}
 
 	void ProcessIncomingRequests()
@@ -540,57 +555,29 @@ private:
 				RequestsToSubmitTail = nullptr;
 			}
 
+			TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
+
+			// Make sure that the FIoChunkId in the request is valid before we try to do anything with it.
+			if (Request->ChunkId.IsValid())
 			{
-				TRACE_CPUPROFILER_EVENT_SCOPE(ResolveRequest);
-
-				// Make sure that the FIoChunkId in the request is valid before we try to do anything with it.
-				if (Request->ChunkId.IsValid())
+				EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
+				if (Result != IoStoreResolveResult_OK)
 				{
-					EIoStoreResolveResult Result = FileIoStore.Resolve(Request);
-					if (Result != IoStoreResolveResult_OK)
-					{
-						Request->Status = ToStatus(Result);
-					}
-				}
-				else
-				{
-					Request->Status = FIoStatus(EIoErrorCode::InvalidParameter, TEXT("FIoChunkId is not valid"));
-				}
-
-				if (!SubmittedRequestsTail)
-				{
-					SubmittedRequestsHead = SubmittedRequestsTail = Request;
-				}
-				else
-				{
-					SubmittedRequestsTail->NextRequest = Request;
-					SubmittedRequestsTail = Request;
-				}
-				Request->NextRequest = nullptr;
-			}
-
-			if (!bIsMultithreaded)
-			{
-				while (FileIoStore.ReadPendingBlock())
-				{
-					FileIoStore.FlushReads();
-					ProcessCompletedBlocks();
+					Request->Status = ToStatus(Result);
 				}
 			}
 			else
 			{
-				ProcessCompletedBlocks();
+				Request->Status = FIoStatus(EIoErrorCode::InvalidParameter, TEXT("FIoChunkId is not valid"));
+				continue;
 			}
+			
+			++PendingIoRequestsCount;
+			TRACE_COUNTER_SET(PendingIoRequests, PendingIoRequestsCount);
+			Request->NextRequest = nullptr;
+			
+			ProcessCompletedRequests();
 		}
-	}
-
-	void ProcessRequests()
-	{
-		TRACE_CPUPROFILER_EVENT_SCOPE(ProcessEventQueue);
-
-		ProcessIncomingRequests();
-		ProcessCompletedBlocks();
-		ProcessCompletedRequests();
 	}
 
 	virtual bool Init()
@@ -603,16 +590,17 @@ private:
 		FMemory::SetupTLSCachesOnCurrentThread();
 		while (!bStopRequested)
 		{
-			if (SubmittedRequestsHead)
+			if (PendingIoRequestsCount)
 			{
 				TRACE_CPUPROFILER_EVENT_SCOPE(IoDispatcherWaitForIo);
-				EventQueue.WaitForIo();
+				EventQueue.DispatcherWaitForIo();
 			}
 			else
 			{
-				EventQueue.Wait();
+				EventQueue.DispatcherWait();
 			}
-			ProcessRequests();
+			ProcessIncomingRequests();
+			ProcessCompletedRequests();
 		}
 		return 0;
 	}
@@ -620,7 +608,7 @@ private:
 	virtual void Stop()
 	{
 		bStopRequested = true;
-		EventQueue.Notify();
+		EventQueue.DispatcherNotify();
 	}
 
 	using FRequestAllocator = TBlockAllocator<FIoRequestImpl, 4096>;
@@ -637,12 +625,11 @@ private:
 	FCriticalSection WaitingLock;
 	FIoRequestImpl* WaitingRequestsHead = nullptr;
 	FIoRequestImpl* WaitingRequestsTail = nullptr;
-	FIoRequestImpl* SubmittedRequestsHead = nullptr;
-	FIoRequestImpl* SubmittedRequestsTail = nullptr;
 	TAtomic<bool> bStopRequested { false };
 	mutable FCriticalSection MountedContainersCritical;
 	TArray<FIoDispatcherMountedContainer> MountedContainers;
 	FIoDispatcher::FIoContainerMountedEvent ContainerMountedEvent;
+	uint64 PendingIoRequestsCount = 0;
 };
 
 FIoDispatcher::FIoDispatcher()
@@ -675,9 +662,9 @@ FIoDispatcher::FreeBatch(FIoBatch& Batch)
 }
 
 void
-FIoDispatcher::ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, FIoReadCallback&& Callback)
+FIoDispatcher::ReadWithCallback(const FIoChunkId& ChunkId, const FIoReadOptions& Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback)
 {
-	Impl->ReadWithCallback(ChunkId, Options, MoveTemp(Callback));
+	Impl->ReadWithCallback(ChunkId, Options, Priority, MoveTemp(Callback));
 }
 
 TIoStatusOr<FIoMappedRegion>
@@ -739,6 +726,16 @@ FIoDispatcher::Initialize()
 }
 
 void
+FIoDispatcher::InitializePostSettings()
+{
+	LLM_SCOPE(ELLMTag::FileSystem);
+
+	check(GIoDispatcher);
+	bool bSuccess = GIoDispatcher->Impl->InitializePostSettings();
+	UE_CLOG(!bSuccess, LogIoDispatcher, Fatal, TEXT("Failed to initialize IoDispatcher"));
+}
+
+void
 FIoDispatcher::Shutdown()
 {
 	GIoDispatcher.Reset();
@@ -780,19 +777,19 @@ FIoBatch::ForEachRequest(TFunction<bool(FIoRequest&)>&& Callback)
 }
 
 void
-FIoBatch::Issue()
+FIoBatch::Issue(EIoDispatcherPriority Priority)
 {
-	Dispatcher->IssueBatch(Impl);
+	Dispatcher->IssueBatch(Impl, Priority);
 }
 
 FIoStatus
-FIoBatch::IssueWithCallback(FIoBatchReadOptions Options, FIoReadCallback&& Callback)
+FIoBatch::IssueWithCallback(FIoBatchReadOptions Options, EIoDispatcherPriority Priority, FIoReadCallback&& Callback)
 {
 	FIoStatus Status = Dispatcher->SetupBatchForContiguousRead(Impl, Options.GetTargetVa(), MoveTemp(Callback));
 
 	if (Status.IsOk())
 	{
-		Dispatcher->IssueBatch(Impl);
+		Dispatcher->IssueBatch(Impl, Priority);
 	}
 	
 	return Status;
@@ -801,12 +798,9 @@ FIoBatch::IssueWithCallback(FIoBatchReadOptions Options, FIoReadCallback&& Callb
 void
 FIoBatch::Wait()
 {
-	for (FIoRequestImpl* Request = Impl->HeadRequest; Request; Request = Request->BatchNextRequest)
+	while (Impl->UnfinishedRequestsCount.Load() > 0)
 	{
-		while (!Request->Status.IsCompleted())
-		{
-			FPlatformProcess::Sleep(0);
-		}
+		FPlatformProcess::Sleep(0);
 	}
 }
 

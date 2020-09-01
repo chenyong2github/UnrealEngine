@@ -6,7 +6,6 @@
 #include "Engine/World.h"
 #include "EngineUtils.h"
 #include "ChaosVehicles.h"
-#include "SimpleCarActor.h"
 #include "Logging/LogMacros.h"
 #include "Editor.h"
 

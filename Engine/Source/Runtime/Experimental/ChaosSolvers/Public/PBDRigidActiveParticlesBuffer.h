@@ -6,6 +6,9 @@
 #include "Chaos/ParticleHandle.h"
 #include "Chaos/PBDRigidsEvolutionFwd.h"
 
+template <typename T>
+class FSingleParticlePhysicsProxy;
+
 namespace Chaos
 {
 	/**
@@ -13,7 +16,7 @@ namespace Chaos
 	 */
 	struct CHAOSSOLVERS_API FPBDRigidDirtyParticlesBufferOut
 	{
-		TArray<TGeometryParticle<float, 3>*> DirtyGameThreadParticles;
+		TArray<FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >*> DirtyGameThreadParticles;
 		// Some particle types (clustered) only exist on the game thread, but we
 		// still need to pull data over via their proxies.
 		TSet<IPhysicsProxyBase*> PhysicsParticleProxies;
@@ -28,8 +31,6 @@ namespace Chaos
 		FPBDRigidDirtyParticlesBuffer(const Chaos::EMultiBufferMode& InBufferMode, bool bInSingleThreaded);
 
 		void CaptureSolverData(FPBDRigidsSolver* Solver);
-
-		void RemoveDirtyParticleFromConsumerBuffer(TGeometryParticle<FReal, 3>* Particle);
 
 		void ReadLock();
 		void ReadUnlock();

@@ -10,10 +10,10 @@
 class FToolDataVisualizer;
 struct FViewCameraState;
 
-
 /**
  * FGroupTopologySelector implements selection behavior for a FGroupTopology mesh.
- * Groups, Group Edges, and Corners can be selected (optionally configurable via UpdateEnableFlags).
+ * Groups, Group Edges, and Corners can be selected dependings on the settings passed in.
+ *
  * Internally a FGeometrySet3 is constructed to support ray-hit testing against the edges and corners.
  * 
  * Note that to hit-test against the mesh you have to provide a your own FDynamicMeshAABBTree3.
@@ -33,6 +33,28 @@ public:
 	//
 	// Configuration variables
 	// 
+
+	/**
+	 * Determines the behavior of a FindSelectedElement() call.
+	 */
+	struct FSelectionSettings
+	{
+		bool bEnableFaceHits = true;
+		bool bEnableEdgeHits = true;
+		bool bEnableCornerHits = true;
+		
+		// The following are mainly useful for ortho viewport selection:
+
+		// Prefer an edge projected to a point rather than the point, and a face projected to an edge
+		// rather than the edge.
+		bool bPreferProjectedElement = false;
+
+		// If the first element is valid, select all elements behind it that are aligned with it.
+		bool bSelectDownRay = false;
+
+		//Do not check whether the closest element is occluded.
+		bool bIgnoreOcclusion = false;
+	};
 
 	/** 
 	 * This is the function we use to determine if a point on a corner/edge is close enough
@@ -72,31 +94,32 @@ public:
 	const FGeometrySet3& GetGeometrySet();
 
 	/**
-	 * Configure whether faces, edges, and corners will be returned by hit-tests
-	 */
-	void UpdateEnableFlags(bool bFaceHits, bool bEdgeHits, bool bCornerHits);
-
-	/**
-	 * Configure the selection mode.
+	 * Find which element was selected for a given ray.
 	 *
-	 * @param bPreferProjectedElement Prefer an edge projected to a point rather than the point, and a face projected to an edge
-	 *   rather than the edge.
-	 * @param bSelectDownRay If the first element is valid, select all elements behind it that are aligned with it.
-	 * @param bIgnoreOcclusion Do not check whether the closest element is occluded.
-	 */
-	void UpdateSelectionModeFlags(bool bPreferProjectedElement, bool bSelectDownRay, bool bIgnoreOcclusion);
-
-	/**
-	 * Find which element was selected for a given ray
+	 * @param Settings settings that determine what can be selected.
 	 * @param Ray hit-test ray
-	 * @param ResultOut resulting selection. At most one of the Groups/Corners/Edges members will contain one element.
+	 * @param ResultOut resulting selection. Will not be cleared before use. At most one of the Groups/Corners/Edges
+	 *  members will be added to.
 	 * @param SelectedPositionOut The point on the ray nearest to the selected element
 	 * @param SelectedNormalOut the normal at that point if ResultOut contains a selected face, otherwise uninitialized
 	 * @param EdgeSegmentIdOut When not null, if the selected element is a group edge, the segment id of the segment
 	 *   that was actually clicked within the edge polyline will be stored here.
+	 *
+	 * @return true if something was selected
 	 */
-	bool FindSelectedElement(const FRay3d& Ray, FGroupTopologySelection& ResultOut, 
+	bool FindSelectedElement(const FSelectionSettings& Settings, const FRay3d& Ray, FGroupTopologySelection& ResultOut,
 		FVector3d& SelectedPositionOut, FVector3d& SelectedNormalOut, int32* EdgeSegmentIdOut = nullptr);
+
+	/**
+	 * Using the edges in the given selection as starting points, add any "edge loops" containing the edges. An 
+	 * edge loop is a sequence of edges that passes through valence-4 corners through the opposite edge, and may
+	 * not actually form a complete loop if they hit a non-valence-4 corner.
+	 *
+	 * @param Selection Selection to expand.
+	 * @param bool true if selection was modified (i.e., were the already selected edges part of any edge loops whose
+	 *  member edges were not yet all selected).
+	 */
+	bool ExpandSelectionByEdgeLoops(FGroupTopologySelection& Selection);
 
 	/**
 	 * Render the given selection with the default settings of the FToolDataVisualizer.
@@ -121,16 +144,10 @@ protected:
 	bool bGeometryUpToDate = false;
 	FGeometrySet3 GeometrySet;
 
-	bool bEnableFaceHits = true;
-	bool bEnableEdgeHits = true;
-	bool bEnableCornerHits = true;
-
-	bool bPreferAlignedElement = false;
-	bool bSelectDownRay = false;
-	bool bIgnoreOcclusion = false;
-
-	bool DoCornerBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial, 
+	bool DoCornerBasedSelection(const FSelectionSettings& Settings, const FRay3d& Ray,
+		FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial, 
 		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32 *EdgeSegmentIdOut) const;
-	bool DoEdgeBasedSelection(const FRay3d& Ray, FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
+	bool DoEdgeBasedSelection(const FSelectionSettings& Settings, const FRay3d& Ray,
+		FDynamicMeshAABBTree3* Spatial, const FGeometrySet3& TopoSpatial,
 		FGroupTopologySelection& ResultOut, FVector3d& SelectedPositionOut, int32 *EdgeSegmentIdOut) const;
 };

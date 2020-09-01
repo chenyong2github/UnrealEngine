@@ -9,6 +9,7 @@
 #include "LevelSequenceDirector.h"
 #include "Engine/Engine.h"
 #include "MovieScene.h"
+#include "MovieSceneCommonHelpers.h"
 #include "UObject/Package.h"
 #include "UObject/UObjectHash.h"
 #include "Animation/AnimInstance.h"
@@ -590,20 +591,7 @@ FGuid ULevelSequence::CreateSpawnable(UObject* ObjectToSpawn)
 		{
 			FNewSpawnable& NewSpawnable = Result.GetValue();
 
-			// Ensure it has a unique name
-			auto DuplName = [&NewSpawnable](const FMovieSceneSpawnable& InSpawnable)
-			{
-				return InSpawnable.GetName() == NewSpawnable.Name;
-			};
-
-			int32 Index = 2;
-			FString UniqueString;
-			while (MovieScene->FindSpawnable(DuplName))
-			{
-				NewSpawnable.Name.RemoveFromEnd(UniqueString);
-				UniqueString = FString::Printf(TEXT(" (%d)"), Index++);
-				NewSpawnable.Name += UniqueString;
-			}
+			NewSpawnable.Name = MovieSceneHelpers::MakeUniqueSpawnableName(MovieScene, NewSpawnable.Name);			
 
 			FGuid NewGuid = MovieScene->AddSpawnable(NewSpawnable.Name, *NewSpawnable.ObjectTemplate);
 

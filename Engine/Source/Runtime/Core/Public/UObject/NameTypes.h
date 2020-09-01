@@ -380,6 +380,13 @@ struct FScriptName
 	{
 	}
 
+	FORCEINLINE bool IsNone() const
+	{
+		return !ComparisonIndex && Number == NAME_NO_NUMBER_INTERNAL;
+	}
+
+	CORE_API FString ToString() const;
+
 	/** Index into the Names array (used to find String portion of the string/number pair used for comparison) */
 	FNameEntryId	ComparisonIndex;
 	/** Index into the Names array (used to find String portion of the string/number pair used for display) */
@@ -944,13 +951,28 @@ Expose_TNameOf(FName)
 namespace Freeze
 {
 	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FName& Object, const FTypeLayoutDesc&);
+	CORE_API uint32 IntrinsicAppendHash(const FName* DummyObject, const FTypeLayoutDesc& TypeDesc, const FPlatformTypeLayoutParameters& LayoutParams, FSHA1& Hasher);
+	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FMinimalName& Object, const FTypeLayoutDesc&);
+	CORE_API void IntrinsicWriteMemoryImage(FMemoryImageWriter& Writer, const FScriptName& Object, const FTypeLayoutDesc&);
 }
 
 DECLARE_INTRINSIC_TYPE_LAYOUT(FName);
+DECLARE_INTRINSIC_TYPE_LAYOUT(FMinimalName);
+DECLARE_INTRINSIC_TYPE_LAYOUT(FScriptName);
 
 FORCEINLINE uint32 GetTypeHash(FName Name)
 {
 	return GetTypeHash(Name.GetComparisonIndex()) + Name.GetNumber();
+}
+
+FORCEINLINE uint32 GetTypeHash(FMinimalName Name)
+{
+	return GetTypeHash(Name.Index) + Name.Number;
+}
+
+FORCEINLINE uint32 GetTypeHash(FScriptName Name)
+{
+	return GetTypeHash(Name.ComparisonIndex) + Name.Number;
 }
 
 FORCEINLINE FString LexToString(const FName& Name)
@@ -1050,6 +1072,66 @@ struct FNameLexicalLess
 		return A.LexicalLess(B);
 	}
 };
+
+FORCEINLINE bool operator==(const FMinimalName& Lhs, const FMinimalName& Rhs)
+{
+	return Lhs.Number == Rhs.Number && Lhs.Index == Rhs.Index;
+}
+
+FORCEINLINE bool operator!=(const FMinimalName& Lhs, const FMinimalName& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FScriptName& Lhs, const FScriptName& Rhs)
+{
+	return Lhs.Number == Rhs.Number && Lhs.ComparisonIndex == Rhs.ComparisonIndex;
+}
+
+FORCEINLINE bool operator!=(const FScriptName& Lhs, const FScriptName& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FName& Lhs, const FMinimalName& Rhs)
+{
+	return Lhs.GetNumber() == Rhs.Number && Lhs.GetComparisonIndex() == Rhs.Index;
+}
+
+FORCEINLINE bool operator!=(const FName& Lhs, const FMinimalName& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FMinimalName& Lhs, const FName& Rhs)
+{
+	return Lhs.Number == Rhs.GetNumber() && Lhs.Index == Rhs.GetComparisonIndex();
+}
+
+FORCEINLINE bool operator!=(const FMinimalName& Lhs, const FName& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FName& Lhs, const FScriptName& Rhs)
+{
+	return Lhs.GetNumber() == Rhs.Number && Lhs.GetComparisonIndex() == Rhs.ComparisonIndex;
+}
+
+FORCEINLINE bool operator!=(const FName& Lhs, const FScriptName& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
+
+FORCEINLINE bool operator==(const FScriptName& Lhs, const FName& Rhs)
+{
+	return Lhs.Number == Rhs.GetNumber() && Lhs.ComparisonIndex == Rhs.GetComparisonIndex();
+}
+
+FORCEINLINE bool operator!=(const FScriptName& Lhs, const FName& Rhs)
+{
+	return !operator==(Lhs, Rhs);
+}
 
 #ifndef WITH_CUSTOM_NAME_ENCODING
 inline void FNameEntry::Encode(ANSICHAR*, uint32) {}

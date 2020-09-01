@@ -7,6 +7,7 @@
 #include "Styling/WidgetStyle.h"
 #include "Misc/MemStack.h"
 #include "FastUpdate/SlateInvalidationRootHandle.h"
+#include "FastUpdate/WidgetUpdateFlags.h"
 #include "Layout/Clipping.h"
 #include "Layout/FlowDirection.h"
 #include "Rendering/DrawElements.h"
@@ -17,29 +18,6 @@ struct FFastPathPerFrameData;
 struct FSlateWidgetPersistentState;
 struct FWidgetUpdateList;
 class FSlateInvalidationRoot;
-
-
-/** Widget update flags for fast path.  Work in progress, do not modify */
-enum class EWidgetUpdateFlags : uint8
-{
-	None = 0,
-
-	/** Widget has a tick function */
-	NeedsTick = 1 << 2,
-
-	/** Widget has an active timer that needs to update */
-	NeedsActiveTimerUpdate = 1 << 3,
-
-	/** Needs repaint because the widget is dirty */
-	NeedsRepaint = 1 << 4,
-
-	/** Needs repaint because the widget is volatile */
-	NeedsVolatilePaint = 1 << 6,
-	
-	AnyUpdate = 0xff,
-};
-
-ENUM_CLASS_FLAGS(EWidgetUpdateFlags)
 
 enum class EInvalidateWidgetReason : uint8;
 
@@ -55,7 +33,7 @@ public:
 
 	bool ProcessInvalidation(FWidgetUpdateList& UpdateList, TArray<FWidgetProxy>& FastPathWidgetList, FSlateInvalidationRoot& Root);
 
-	static void MarkProxyUpdatedThisFrame(FWidgetProxy& Proxy, FWidgetUpdateList& UpdateList);
+	void MarkProxyUpdatedThisFrame(FWidgetUpdateList& UpdateList);
 
 private:
 	int32 Repaint(const FPaintArgs& PaintArgs, int32 MyIndex, FSlateWindowElementList& OutDrawElements) const;

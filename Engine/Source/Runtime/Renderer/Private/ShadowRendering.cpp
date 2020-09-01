@@ -2022,6 +2022,12 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 	{
 		return;
 	}
+
+	SCOPED_NAMED_EVENT(FMobileSceneRenderer_RenderModulatedShadowProjections, FColor::Emerald);
+	SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
+	SCOPED_DRAW_EVENT(RHICmdList, ShadowProjectionOnOpaque);
+	SCOPED_GPU_STAT(RHICmdList, ShadowProjection);
+
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 
 	// render shadowmaps for relevant lights.
@@ -2032,7 +2038,6 @@ void FMobileSceneRenderer::RenderModulatedShadowProjections(FRHICommandListImmed
 		if(LightSceneInfo->ShouldRenderLightViewIndependent() && LightSceneInfo->Proxy && LightSceneInfo->Proxy->CastsModulatedShadows())
 		{
 			TArray<FProjectedShadowInfo*, SceneRenderingAllocator> Shadows;
-			SCOPE_CYCLE_COUNTER(STAT_ProjectedShadowDrawTime);
 			FSceneRenderer::RenderShadowProjections(RHICmdList, LightSceneInfo, nullptr, nullptr, false, true, nullptr);
 		}
 	}

@@ -33,6 +33,7 @@ struct TStructOpsTypeTraits<FVector> : public TStructOpsTypeTraitsBase2<FVector>
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithNetSerializer = true,
@@ -47,6 +48,7 @@ struct TStructOpsTypeTraits<FIntPoint> : public TStructOpsTypeTraitsBase2<FIntPo
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
@@ -59,6 +61,7 @@ struct TStructOpsTypeTraits<FIntVector> : public TStructOpsTypeTraitsBase2<FIntV
 {
 	enum
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
@@ -71,6 +74,7 @@ struct TStructOpsTypeTraits<FVector2D> : public TStructOpsTypeTraitsBase2<FVecto
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithNetSerializer = true,
@@ -85,6 +89,7 @@ struct TStructOpsTypeTraits<FVector4> : public TStructOpsTypeTraitsBase2<FVector
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
@@ -97,6 +102,7 @@ struct TStructOpsTypeTraits<FPlane> : public TStructOpsTypeTraitsBase2<FPlane>
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithNetSerializer = true,
@@ -111,6 +117,7 @@ struct TStructOpsTypeTraits<FRotator> : public TStructOpsTypeTraitsBase2<FRotato
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithNetSerializer = true,
@@ -125,6 +132,7 @@ struct TStructOpsTypeTraits<FBox> : public TStructOpsTypeTraitsBase2<FBox>
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
@@ -137,6 +145,7 @@ struct TStructOpsTypeTraits<FBox2D> : public TStructOpsTypeTraitsBase2<FBox2D>
 {
 	enum
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 	};
@@ -148,6 +157,7 @@ struct TStructOpsTypeTraits<FMatrix> : public TStructOpsTypeTraitsBase2<FMatrix>
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
@@ -160,6 +170,7 @@ struct TStructOpsTypeTraits<FBoxSphereBounds> : public TStructOpsTypeTraitsBase2
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 	};
@@ -177,6 +188,7 @@ struct TStructOpsTypeTraits<FLinearColor> : public TStructOpsTypeTraitsBase2<FLi
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithStructuredSerializer = true,
@@ -189,6 +201,7 @@ struct TStructOpsTypeTraits<FColor> : public TStructOpsTypeTraitsBase2<FColor>
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithNoInitConstructor = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
@@ -206,6 +219,7 @@ struct TStructOpsTypeTraits<FQuat> : public TStructOpsTypeTraitsBase2<FQuat>
 		WithNoInitConstructor = true,
 		WithNetSerializer = true,
 		WithNetSharedSerialization = true,
+		WithIdentical = true,
 	};
 };
 IMPLEMENT_STRUCT(Quat);
@@ -215,6 +229,7 @@ struct TStructOpsTypeTraits<FTwoVectors> : public TStructOpsTypeTraitsBase2<FTwo
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithZeroConstructor = true,
 		WithSerializer = true,
 		WithNoDestructor = true,
@@ -227,6 +242,7 @@ struct TStructOpsTypeTraits<FGuid> : public TStructOpsTypeTraitsBase2<FGuid>
 {
 	enum 
 	{
+		WithIdenticalViaEquality = true,
 		WithExportTextItem = true,
 		WithImportTextItem = true,
 		WithZeroConstructor = true,
@@ -239,6 +255,10 @@ IMPLEMENT_STRUCT(Guid);
 template<>
 struct TStructOpsTypeTraits<FTransform> : public TStructOpsTypeTraitsBase2<FTransform>
 {
+	enum
+	{
+		WithIdentical = true,
+	};
 };
 IMPLEMENT_STRUCT(Transform);
 
@@ -383,22 +403,8 @@ FORCEINLINE constexpr FStringView ParsePropertyToken(const TCHAR* Str, bool Dott
 	constexpr FAsciiSet DottedTokenChars = RegularTokenChars + '.' + '/' + SUBOBJECT_DELIMITER_CHAR;
 	FAsciiSet CurrentTokenChars = DottedNames ? DottedTokenChars : RegularTokenChars;
 
-	const TCHAR* It = Str;
-	while (true)
-	{
-		// Include allowed ASCII characters
-		It = FAsciiSet::Skip(It, CurrentTokenChars);
-
-		if (*It <= 255)
-		{
-			return FStringView(Str, It - Str);
-		}
-		else
-		{
-			// Include wide characters
-			for (++It; *It > 255; ++It);
-		}
-	} 
+	const TCHAR* TokenEnd = FAsciiSet::Skip(Str, CurrentTokenChars);
+	return FStringView(Str, TokenEnd - Str);
 }
 
 //

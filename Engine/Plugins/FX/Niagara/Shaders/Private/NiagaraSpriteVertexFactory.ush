@@ -46,16 +46,36 @@ struct FVertexFactoryInput
 #if COMPUTESHADER || RAYHITGROUPSHADER
 FVertexFactoryInput LoadVertexFactoryInputForHGS(uint TriangleIndex, int VertexIndex)
 {
-	FVertexFactoryInput Input;
+	// Different numbers of cutout vertices correspond to different index buffers
+	// For 8 verts, use GSixTriangleParticleIndexBuffer
+	if (NiagaraSpriteVFLooseParameters.NumCutoutVerticesPerFrame == 8)
+	{		
+		FVertexFactoryInput Input;
+		
+		// Hard coded GSixTriangleParticleIndexBuffer
+		uint IndexBuffer[18] = { 0, 1, 2, 0, 2, 3, 0, 3, 4, 0, 4, 5, 0, 5, 6, 0, 6, 7 };
+		uint VertexId = IndexBuffer[(TriangleIndex * 3 + VertexIndex) % 18];
+		float2 TexCoords[4] = { float2(0.0f, 0.0f), float2(0.0f, 1.0f), float2(1.0f, 1.0f), float2(1.0f, 0.0f) };
+		Input.TexCoord = TexCoords[VertexId];
+		Input.VertexId = VertexId;
+		Input.InstanceId = TriangleIndex / 6;
 	
-	uint IndexBuffer[6] = { 0, 2, 3, 0, 1, 2 };
-	uint VertexId = IndexBuffer[(TriangleIndex * 3 + VertexIndex) % 6];
-	float2 TexCoords[4] = { float2(0.0f, 0.0f), float2(0.0f, 1.0f), float2(1.0f, 1.0f), float2(1.0f, 0.0f) };
-	Input.TexCoord = TexCoords[VertexId];
-	Input.VertexId = VertexId;
-	Input.InstanceId = TriangleIndex / 2;
-
-	return Input;
+		return Input;
+	}
+	else
+	{
+		// For 4 verts cutout geometry and normal particle geometry, use the typical 6 indices
+		FVertexFactoryInput Input;
+		
+		uint IndexBuffer[6] = { 0, 2, 3, 0, 1, 2 };
+		uint VertexId = IndexBuffer[(TriangleIndex * 3 + VertexIndex) % 6];
+		float2 TexCoords[4] = { float2(0.0f, 0.0f), float2(0.0f, 1.0f), float2(1.0f, 1.0f), float2(1.0f, 0.0f) };
+		Input.TexCoord = TexCoords[VertexId];
+		Input.VertexId = VertexId;
+		Input.InstanceId = TriangleIndex / 2;
+	
+		return Input;
+	}
 }
 
 FVertexFactoryInput LoadVertexFactoryInputForDynamicUpdate(uint TriangleIndex, int VertexIndex, uint PrimitiveId)
@@ -651,7 +671,7 @@ float3 GetNiagaraParticleVelocity(uint InstanceID)
 	if(NiagaraSpriteVF.VelocityDataOffset  == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return TransformVector(float3(0.0f,0.0f,0.0f));
+		return TransformVector(NiagaraSpriteVF.DefaultVelocity.xyz); 
 	}
 	return TransformVector(GetVec3(NiagaraSpriteVF.VelocityDataOffset, InstanceID));
 }
@@ -660,7 +680,7 @@ float2 GetNiagaraParticleSize(uint InstanceID)
 	if(NiagaraSpriteVF.SizeDataOffset  == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return float2(50.0f, 50.0f);
+		return NiagaraSpriteVF.DefaultSize.xy;
 	}
 	return GetVec2(NiagaraSpriteVF.SizeDataOffset, InstanceID);
 }
@@ -669,7 +689,7 @@ float GetNiagaraParticleRotation(uint InstanceID)
 	if(NiagaraSpriteVF.RotationDataOffset  == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return 0.0f;
+		return  (NiagaraSpriteVF.DefaultRotation / 180.0f) * PI;
 	}
 	return (GetFloat(NiagaraSpriteVF.RotationDataOffset, InstanceID) / 180.0f) * PI;
 }
@@ -678,7 +698,7 @@ float4 GetNiagaraParticleColor(uint InstanceID)
 	if(NiagaraSpriteVF.ColorDataOffset  == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return float4(1.0f, 1.0f, 1.0f, 1.0f);
+		return NiagaraSpriteVF.DefaultColor;
 	}
 	return GetVec4(NiagaraSpriteVF.ColorDataOffset, InstanceID);
 }
@@ -688,7 +708,7 @@ float2 GetNiagaraUVScale(uint InstanceID)
 	if(NiagaraSpriteVF.UVScaleDataOffset  == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return float2(1.0f, 1.0f);
+		return NiagaraSpriteVF.DefaultUVScale.xy;
 	}
 	return GetVec2(NiagaraSpriteVF.UVScaleDataOffset, InstanceID);	
 }
@@ -698,7 +718,7 @@ float GetNiagaraParticleRandom(uint InstanceID)
 	if(NiagaraSpriteVF.MaterialRandomDataOffset  == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return 0.0f;
+		return  NiagaraSpriteVF.DefaultMatRandom;
 	}
 	return GetFloat(NiagaraSpriteVF.MaterialRandomDataOffset, InstanceID);	
 }
@@ -708,7 +728,7 @@ float GetNiagaraCameraOffset(uint InstanceID)
 	if (NiagaraSpriteVF.CameraOffsetDataOffset == -1)
 	{
 		// See FNiagaraConstants for a synchronized value...
-		return 0.0f;
+		return NiagaraSpriteVF.DefaultCamOffset;
 	}
 	return GetFloat(NiagaraSpriteVF.CameraOffsetDataOffset, InstanceID);
 }
@@ -718,7 +738,7 @@ float GetNiagaraNormalizedAge(uint InstanceID)
 {
 	if (NiagaraSpriteVF.NormalizedAgeDataOffset == -1)
 	{
-		return 0;
+		return NiagaraSpriteVF.DefaultNormAge;
 	}
 	return GetFloat(NiagaraSpriteVF.NormalizedAgeDataOffset, InstanceID);
 }
@@ -733,7 +753,7 @@ float4 GetNiagaraParticleDynamicParameters(uint InstanceID)
 	}
 	else
 	{
-		return float4(1.0f, 1.0f, 1.0f, 1.0f);;
+		return NiagaraSpriteVF.DefaultDynamicMaterialParameter0;
 	}
 }
 #endif
@@ -746,7 +766,7 @@ float4 GetNiagaraParticleDynamicParameters1(uint InstanceID)
 	}
 	else
 	{
-		return float4(1.0f, 1.0f, 1.0f, 1.0f);
+		return  NiagaraSpriteVF.DefaultDynamicMaterialParameter1;
 	}
 }
 #endif
@@ -759,7 +779,7 @@ float4 GetNiagaraParticleDynamicParameters2(uint InstanceID)
 	}
 	else
 	{
-		return float4(1.0f, 1.0f, 1.0f, 1.0f);
+		return NiagaraSpriteVF.DefaultDynamicMaterialParameter2;
 	}
 }
 #endif
@@ -772,7 +792,7 @@ float4 GetNiagaraParticleDynamicParameters3(uint InstanceID)
 	}
 	else
 	{
-		return float4(1.0f, 1.0f, 1.0f, 1.0f);
+		return NiagaraSpriteVF.DefaultDynamicMaterialParameter3;
 	}
 }
 #endif
@@ -781,7 +801,7 @@ float4 GetNiagaraParticleDynamicParameters3(uint InstanceID)
 float GetNiagaraParticleSubimage(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	float Val = 0.0f;
+	float Val = NiagaraSpriteVF.DefaultSubImage;
     if(NiagaraSpriteVF.SubimageDataOffset != -1)
 	{
 		Val = GetFloat(NiagaraSpriteVF.SubimageDataOffset, InstanceID);
@@ -792,7 +812,7 @@ float GetNiagaraParticleSubimage(uint InstanceID)
 float3 GetNiagaraParticleFacingVector(uint InstanceID)
 {
 	// See FNiagaraConstants for a synchronized value...
-	float3 Val = float3(1.0f, 0.0f, 0.0f);
+	float3 Val = NiagaraSpriteVF.DefaultFacing.xyz;
     if(NiagaraSpriteVF.FacingDataOffset != -1)
 	{
 		Val = GetVec3(NiagaraSpriteVF.FacingDataOffset, InstanceID);
@@ -802,7 +822,7 @@ float3 GetNiagaraParticleFacingVector(uint InstanceID)
 
 float3 GetNiagaraParticleAlignmentVector(uint InstanceID)
 {
-	float3 Val = float3(1.0f, 0.0f, 0.0f);
+	float3 Val = NiagaraSpriteVF.DefaultAlignment.xyz;
     if(NiagaraSpriteVF.AlignmentDataOffset != -1)
 	{
 		Val = GetVec3(NiagaraSpriteVF.AlignmentDataOffset, InstanceID);

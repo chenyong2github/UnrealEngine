@@ -3675,7 +3675,7 @@ void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable)
 			}
 			else
 			{
-				Viewport.RemoveRealtimeOverride(SystemDisplayName);
+				Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
 			}
 		}
 	}

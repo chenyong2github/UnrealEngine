@@ -739,17 +739,17 @@ bool FHierarchicalLODBuilder::ShouldGenerateCluster(AActor* Actor, const int32 H
 		{			
 			if (Component->bHiddenInGame)
 			{
-				return false;
+				continue;
 			}
 
 			if (Component->bIsEditorOnly)
 			{
-				return false;
+				continue;
 			}
 
 			if (!Component->GetStaticMesh())
 			{
-				return false;
+				continue;
 			}
 
 			// see if we should generate it

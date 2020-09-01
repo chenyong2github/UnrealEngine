@@ -131,6 +131,7 @@ FName MaterialQualityLevelNames[] =
 	FName(TEXT("Low")),
 	FName(TEXT("High")),
 	FName(TEXT("Medium")),
+	FName(TEXT("Epic")),
 	FName(TEXT("Num"))
 };
 
@@ -149,16 +150,6 @@ FName GetMaterialQualityLevelFName(EMaterialQualityLevel::Type InQualityLevel)
 }
 
 #if STORE_ONLY_ACTIVE_SHADERMAPS
-bool HasMaterialResource(
-	UMaterial* Material,
-	ERHIFeatureLevel::Type FeatureLevel,
-	EMaterialQualityLevel::Type QualityLevel)
-{
-	TArray<bool, TInlineAllocator<EMaterialQualityLevel::Num>> QualityLevelsUsed;
-	Material->GetQualityLevelUsage(QualityLevelsUsed, GShaderPlatformForFeatureLevel[FeatureLevel]);
-	return QualityLevelsUsed[QualityLevel];
-}
-
 const FMaterialResourceLocOnDisk* FindMaterialResourceLocOnDisk(
 	const TArray<FMaterialResourceLocOnDisk>& DiskLocations,
 	ERHIFeatureLevel::Type FeatureLevel,
@@ -221,7 +212,7 @@ bool ReloadMaterialResource(
 	UE_LOG(LogMaterial, Warning, TEXT("Failed to reload material resources for package %s (file name: %s)."), *PackageName, *Filename);
 	return false;
 }
-#endif
+#endif // STORE_ONLY_ACTIVE_SHADERMAPS
 
 int32 FMaterialCompiler::Errorf(const TCHAR* Format,...)
 {
@@ -546,7 +537,7 @@ void FMaterial::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* 
 
 		OutId.Usage = GetShaderMapUsage();
 		OutId.BaseMaterialId = GetMaterialId();
-		OutId.QualityLevel = GetQualityLevelForShaderMapId();
+		OutId.QualityLevel = GetQualityLevel();
 		OutId.FeatureLevel = GetFeatureLevel();
 		OutId.SetShaderDependencies(ShaderTypes, ShaderPipelineTypes, VFTypes, Platform);
 		GetReferencedTexturesHash(Platform, OutId.TextureReferencesHash);
@@ -560,7 +551,7 @@ void FMaterial::GetShaderMapId(EShaderPlatform Platform, const ITargetPlatform* 
 			OutId.LayoutParams.InitializeForCurrent();
 		}
 #else
-		OutId.QualityLevel = GetQualityLevelForShaderMapId();
+		OutId.QualityLevel = GetQualityLevel();
 		OutId.FeatureLevel = GetFeatureLevel();
 
 		if (TargetPlatform != nullptr)
@@ -1392,6 +1383,11 @@ bool FMaterialResource::HasSpecularConnected() const
 bool FMaterialResource::HasEmissiveColorConnected() const
 {
 	return HasMaterialAttributesConnected() || Material->HasEmissiveColorConnected();
+}
+
+bool FMaterialResource::HasAmbientOcclusionConnected() const
+{
+	return HasMaterialAttributesConnected() || Material->HasAmbientOcclusionConnected();
 }
 
 bool FMaterialResource::RequiresSynchronousCompilation() const
@@ -3232,18 +3228,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 		for (TSet<UMaterial*>::TConstIterator It(UpdatedMaterials); It; ++It)
 		{
 			UMaterial* Material = *It;
-
-			for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
-			{
-				for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-				{
-					FMaterialResource* CurrentResource = Material->MaterialResources[QualityLevelIndex][FeatureLevelIndex];
-					if (CurrentResource)
-					{
-						MaterialResourcesToUpdate.Add(CurrentResource);
-					}
-				}
-			}
+			MaterialResourcesToUpdate.Append(Material->MaterialResources);
 		}
 	}
 
@@ -3295,17 +3280,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 			// Collect FMaterial's that have been recompiled
 			if (bUpdateStaticDrawLists)
 			{
-				for (int32 QualityLevelIndex = 0; QualityLevelIndex < EMaterialQualityLevel::Num; QualityLevelIndex++)
-				{
-					for (int32 FeatureLevelIndex = 0; FeatureLevelIndex < ERHIFeatureLevel::Num; FeatureLevelIndex++)
-					{
-						FMaterialResource* CurrentResource = MI->StaticPermutationMaterialResources[QualityLevelIndex][FeatureLevelIndex];
-						if (CurrentResource)
-						{
-							MaterialResourcesToUpdate.Add(CurrentResource);
-						}
-					}
-				}
+				MaterialResourcesToUpdate.Append(MI->StaticPermutationMaterialResources);
 			}
 		}
 		InstancesToUpdate.Remove(MI);
@@ -4058,8 +4033,7 @@ static inline void AdjustForSingleRead(
 			FindMaterialResourceLocOnDisk(Locs, FeatureLevel, QualityLevel);
 		if (!Loc)
 		{
-			QualityLevel = EMaterialQualityLevel::High;
-			Loc = FindMaterialResourceLocOnDisk(Locs, FeatureLevel, QualityLevel);
+			Loc = FindMaterialResourceLocOnDisk(Locs, FeatureLevel, EMaterialQualityLevel::Num);
 			check(Loc);
 		}
 		if (Loc->Offset)

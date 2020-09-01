@@ -7,6 +7,7 @@
 #include "Misc/Guid.h"
 #include "AnimGraphNode_Base.h"
 #include "Animation/AnimNode_CustomProperty.h"
+#include "IClassVariableCreator.h"
 
 #include "AnimGraphNode_CustomProperty.generated.h"
 
@@ -15,11 +16,14 @@ class IDetailLayoutBuilder;
 class IPropertyHandle;
 
 UCLASS(Abstract)
-class ANIMGRAPH_API UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base
+class ANIMGRAPH_API UAnimGraphNode_CustomProperty : public UAnimGraphNode_Base, public IClassVariableCreator
 {
 	GENERATED_BODY()
 
 public:
+
+	// IClassVariableCreator interface
+	virtual void CreateClassVariablesFromBlueprint(FKismetCompilerContext& InCompilerContext) override;
 
 	//~ Begin UEdGraphNode Interface.
 	virtual void ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog) override;
@@ -30,6 +34,8 @@ public:
 
 	// UAnimGraphNode_Base interface
 	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override;
+	virtual void OnProcessDuringCompilation(FAnimBlueprintCompilerContext& InCompilerContext) override;
+
 	// Gets the property on InOwnerInstanceClass that corresponds to InInputPin
 	void GetInstancePinProperty(const UClass* InOwnerInstanceClass, UEdGraphPin* InInputPin, FProperty*& OutProperty);
 	// Gets the unique name for the property linked to a given pin

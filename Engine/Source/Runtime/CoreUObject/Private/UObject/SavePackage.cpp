@@ -3538,7 +3538,7 @@ FSavePackageResultStruct UPackage::Save(UPackage* InOuter, UObject* Base, EObjec
 			// TODO: Require a SavePackageContext and move to EditorEngine
 			FPackageNameMapSaver NameMapSaver;
 
-			uint32 ComparisonFlags = PPF_DeepCompareInstances;
+			uint32 ComparisonFlags = PPF_DeepCompareInstances | PPF_DeepCompareDSOsOnly;
 
 			// Export objects (tags them as OBJECTMARK_TagExp).
 			FArchiveSaveTagExports ExportTaggerArchive( InOuter );

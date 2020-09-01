@@ -1,0 +1,137 @@
+// Copyright Epic Games, Inc. All Rights Reserved.
+#pragma once
+
+#include "ImageWriteTask.h"
+#include "ImagePixelData.h"
+#include "MoviePipelineImageSequenceOutput.h"
+#include "Misc/StringFormatArg.h"
+
+#if WITH_UNREALEXR
+THIRD_PARTY_INCLUDES_START
+#include "OpenEXR/include/ImfIO.h"
+#include "OpenEXR/include/ImathBox.h"
+#include "OpenEXR/include/ImfChannelList.h"
+#include "OpenEXR/include/ImfInputFile.h"
+#include "OpenEXR/include/ImfOutputFile.h"
+#include "OpenEXR/include/ImfArray.h"
+#include "OpenEXR/include/ImfHeader.h"
+#include "OpenEXR/include/ImfStdIO.h"
+#include "OpenEXR/include/ImfChannelList.h"
+#include "OpenEXR/include/ImfRgbaFile.h"
+THIRD_PARTY_INCLUDES_END
+#endif // WITH_UNREALEXR
+
+#include "MoviePipelineEXROutput.generated.h"
+
+UENUM(BlueprintType)
+enum class EEXRCompressionFormat : uint8
+{
+	/** No compression is applied. */
+	None,
+	/** Good compression quality for grainy images. Lossless.*/
+	PIZ,
+	/** Good compression quality for images with low amounts of noise. Lossless. */
+	ZIP
+};
+
+#if WITH_UNREALEXR
+class FEXRImageWriteTask : public IImageWriteTaskBase
+{
+public:
+
+	/** The filename to write to */
+	FString Filename;
+
+	/** True if this task is allowed to overwrite an existing file, false otherwise. */
+	bool bOverwriteFile;
+	
+	/** Compression method used for the resulting EXR files. */
+	EEXRCompressionFormat Compression;
+
+	/** A function to invoke on the game thread when the task has completed */
+	TFunction<void(bool)> OnCompleted;
+	
+	/** Width/Height of the image data. All samples should match this. */
+	int32 Width;
+
+	int32 Height;
+
+	/** A set of key/value pairs to write into the exr file as metadata. */
+	FStringFormatNamedArguments FileMetadata;
+
+	/** The image data to write. Supports multiple layers of different bitdepths. */
+	TArray<TUniquePtr<FImagePixelData>> Layers;
+
+	/** Optional. A mapping between the FImagePixelData and a name. The standard is that the default layer is nameless (at which point it would be omitted) and other layers are prefixed. */
+	TMap<FImagePixelData*, FString> LayerNames;
+
+	FEXRImageWriteTask()
+		: bOverwriteFile(true)
+		, Compression(EEXRCompressionFormat::PIZ)
+	{}
+
+public:
+
+	virtual bool RunTask() override final;
+	virtual void OnAbandoned() override final;
+
+private:
+
+	/**
+	 * Run the task, attempting to write out the raw data using the currently specified parameters
+	 *
+	 * @return true on success, false on any failure
+	 */
+	bool WriteToDisk();
+
+	/**
+	 * Ensures that the desired output filename is writable, deleting an existing file if bOverwriteFile is true
+	 *
+	 * @return True if the file is writable and the task can proceed, false otherwise
+	 */
+	bool EnsureWritableFile();
+
+	/**
+	* Adds arbitrary key/value pair metadata to the header of the file.
+	*/
+	void AddFileMetadata(Imf::Header& InHeader);
+
+	template <Imf::PixelType OutputFormat>
+	int64 CompressRaw(Imf::Header& InHeader, Imf::FrameBuffer& InFrameBuffer, FImagePixelData* InLayer);
+};
+#endif // WITH_UNREALEXR
+
+UCLASS()
+class MOVIERENDERPIPELINERENDERPASSES_API UMoviePipelineImageSequenceOutput_EXR : public UMoviePipelineImageSequenceOutputBase
+{
+	GENERATED_BODY()
+public:
+#if WITH_EDITOR
+	virtual FText GetDisplayText() const override { return NSLOCTEXT("MovieRenderPipeline", "ImgSequenceEXRSettingDisplayName", ".exr Sequence [16bit]"); }
+#endif
+public:
+	UMoviePipelineImageSequenceOutput_EXR()
+	{
+		OutputFormat = EImageFormat::EXR;
+		Compression = EEXRCompressionFormat::PIZ;
+	}
+
+	virtual bool IsAlphaSupportedImpl() const override { return bOutputAlpha; }
+	virtual void OnRecieveImageDataImpl(FMoviePipelineMergerOutputFrame* InMergedOutputFrame) override;
+
+public:
+	/**
+	* Should we accumulate the alpha channel and write it into the resulting image? This requires r.PostProcessing.PropagateAlpha
+	* to be set to 1 or 2 (see "Enable Alpha Channel Support in Post Processing" under Project Settings > Rendering). This adds
+	* ~30% cost to the accumulation so you should not enable it unless necessary. You must delete both the sky and fog to ensure
+	* that they do not make all pixels opaque.
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EXR")
+	bool bOutputAlpha;
+
+	/**
+	* Which compression method should the resulting EXR file be compressed with
+	*/
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "EXR")
+	EEXRCompressionFormat Compression;
+};

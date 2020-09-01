@@ -60,6 +60,8 @@ struct FSkeletalMeshCustomVersion
 		SectionIgnoreByReduceAdded = 16,
 		// Adding skin weight profile support
 		SkinWeightProfiles = 17,
+		// Remove uninitialized/deprecated enable cloth LOD flag
+		RemoveEnableClothLOD = 18,
 
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,

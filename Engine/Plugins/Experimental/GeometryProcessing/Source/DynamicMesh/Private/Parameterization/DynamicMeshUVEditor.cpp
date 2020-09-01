@@ -46,6 +46,51 @@ void FDynamicMeshUVEditor::CreateUVLayer(int32 LayerIndex)
 
 
 
+template<typename EnumerableType>
+void InternalSetPerTriangleUVs(EnumerableType TriangleIDs, const FDynamicMesh3* Mesh, FDynamicMeshUVOverlay* UVOverlay, double ScaleFactor, FUVEditResult* Result)
+{
+	TMap<int32, int32> BaseToOverlayVIDMap;
+	TArray<int32> NewUVIndices;
+
+	for (int32 TriangleID : TriangleIDs)
+	{
+		FIndex3i MeshTri = Mesh->GetTriangle(TriangleID);
+		FFrame3d TriProjFrame = Mesh->GetTriFrame(TriangleID, 0);
+
+		FIndex3i ElemTri;
+		for (int32 j = 0; j < 3; ++j)
+		{
+			FVector2f UV = (FVector2f)TriProjFrame.ToPlaneUV(Mesh->GetVertex(MeshTri[j]), 2);
+			UV *= ScaleFactor;
+			ElemTri[j] = UVOverlay->AppendElement(UV);
+			NewUVIndices.Add(ElemTri[j]);
+		}
+		UVOverlay->SetTriangle(TriangleID, ElemTri);
+	}
+
+	if (Result != nullptr)
+	{
+		Result->NewUVElements = MoveTemp(NewUVIndices);
+	}
+}
+
+
+void FDynamicMeshUVEditor::SetPerTriangleUVs(const TArray<int32>& Triangles, double ScaleFactor, FUVEditResult* Result)
+{
+	if (ensure(UVOverlay) == false) return;
+	if (!Triangles.Num()) return;
+
+	InternalSetPerTriangleUVs(Triangles, Mesh, UVOverlay, ScaleFactor, Result);
+}
+
+
+void FDynamicMeshUVEditor::SetPerTriangleUVs(double ScaleFactor, FUVEditResult* Result)
+{
+	if (ensure(UVOverlay) == false) return;
+	if (Mesh->TriangleCount() <= 0) return;
+
+	InternalSetPerTriangleUVs(Mesh->TriangleIndicesItr(), Mesh, UVOverlay, ScaleFactor, Result);
+}
 
 
 void FDynamicMeshUVEditor::SetTriangleUVsFromProjection(const TArray<int32>& Triangles, const FFrame3d& ProjectionFrame, FUVEditResult* Result)

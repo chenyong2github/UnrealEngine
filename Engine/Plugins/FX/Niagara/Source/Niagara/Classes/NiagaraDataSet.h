@@ -396,7 +396,6 @@ private:
 	void BuildLayout();
 
 	void ResetBuffersInternal();
-	void ReleaseBuffers();
 
 	FORCEINLINE void CheckCorrectThread()const
 	{

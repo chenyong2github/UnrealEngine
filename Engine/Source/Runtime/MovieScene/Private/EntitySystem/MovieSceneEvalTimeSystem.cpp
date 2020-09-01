@@ -54,6 +54,11 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 
 		void DoTask(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 		{
+			Run();
+		}
+
+		void Run()
+		{
 			FrameTimes->SetNum(InstanceRegistry->GetSparseInstances().GetMaxIndex());
 			for (auto It = InstanceRegistry->GetSparseInstances().CreateConstIterator(); It; ++It)
 			{
@@ -62,19 +67,26 @@ void UMovieSceneEvalTimeSystem::OnRun(FSystemTaskPrerequisites& InPrerequisites,
 		}
 	};
 
-	FGraphEventRef GatherEvalTimesEvent = TGraphTask<FGatherTimes>::CreateTask(InPrerequisites.All(), Linker->EntityManager.GetDispatchThread())
-		.ConstructAndDispatchWhenReady(Linker->GetInstanceRegistry(), &FrameTimes);
-
+	FSystemTaskPrerequisites EvalPrereqs;
 	FBuiltInComponentTypes* BuiltInComponents = FBuiltInComponentTypes::Get();
 
-	// The only thing we depend on is the gather task
-	FSystemTaskPrerequisites EvalPrereqs;
-	EvalPrereqs.AddComponentTask(BuiltInComponents->EvalTime, GatherEvalTimesEvent);
+	if (Linker->EntityManager.GetThreadingModel() == EEntityThreadingModel::NoThreading)
+	{
+		FGatherTimes(Linker->GetInstanceRegistry(), &FrameTimes).Run();
+	}
+	else
+	{
+		// The only thing we depend on is the gather task
+		FGraphEventRef GatherEvalTimesEvent = TGraphTask<FGatherTimes>::CreateTask(nullptr, Linker->EntityManager.GetDispatchThread())
+		.ConstructAndDispatchWhenReady(Linker->GetInstanceRegistry(), &FrameTimes);
 
-	// Kick off the evaluate channels task immediately
-	FGraphEventRef Task = FEntityTaskBuilder()
-		.Read(BuiltInComponents->InstanceHandle)
-		.Write(BuiltInComponents->EvalTime)
-		.SetStat(GET_STATID(MovieSceneEval_EvalTimes))
-		.Dispatch_PerEntity<FAssignEvalTimesTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, &FrameTimes);
+		EvalPrereqs.AddComponentTask(BuiltInComponents->EvalTime, GatherEvalTimesEvent);
+	}
+
+	FEntityTaskBuilder()
+	.Read(BuiltInComponents->InstanceHandle)
+	.Write(BuiltInComponents->EvalTime)
+	.FilterNone({ FBuiltInComponentTypes::Get()->Tags.FixedTime })
+	.SetStat(GET_STATID(MovieSceneEval_EvalTimes))
+	.Dispatch_PerEntity<FAssignEvalTimesTask>(&Linker->EntityManager, EvalPrereqs, &Subsequents, &FrameTimes);
 }

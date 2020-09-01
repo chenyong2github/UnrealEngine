@@ -182,6 +182,16 @@ FDetailWidgetRow& FDetailPropertyRow::CustomWidget( bool bShowChildren )
 	return *CustomPropertyWidget;
 }
 
+FDetailWidgetDecl* FDetailPropertyRow::CustomNameWidget()
+{
+	return CustomPropertyWidget.IsValid() ? &CustomPropertyWidget->NameContent() : nullptr;
+}
+
+FDetailWidgetDecl* FDetailPropertyRow::CustomValueWidget()
+{
+	return CustomPropertyWidget.IsValid() ? &CustomPropertyWidget->ValueContent() : nullptr;
+}
+
 TSharedPtr<FAssetThumbnailPool> FDetailPropertyRow::GetThumbnailPool() const
 {
 	TSharedPtr<FDetailCategoryImpl> ParentCategoryPinned = ParentCategory.Pin();

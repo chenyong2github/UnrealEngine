@@ -14,6 +14,10 @@
 #define USE_PARTICLE_RANDOM (NEEDS_PARTICLE_RANDOM)
 #define USE_PARTICLE_INTERPOLATION 1
 
+#define U_DISTRIBUTION_SCALED_UNIFORMLY 0
+#define U_DISTRIBUTION_SCALED_USING_RIBBON_LENGTH 1
+#define U_DISTRIBUTION_TILED_OVER_RIBBON_LENGTH 2
+
 float3 TransformPosition(float3 InPosition)
 {
 	if (NiagaraRibbonVF.bLocalSpace)
@@ -90,7 +94,8 @@ struct FSegmentData
 	float2 UV0Offset;
 	float2 UV1Scale;
 	float2 UV1Offset;
-	float OneOverNumSegments;
+	float U0DistributionScaler;
+	float U1DistributionScaler;
 	uint StartParticleId;
 };
 
@@ -228,32 +233,62 @@ void GetNiagaraParticleDynamicParameters(in FInterpVtxData InterpVtxData, in out
 
 void GetNiagaraParticleTextureCoords(in FVertexFactoryInput Input, in FInterpVtxData InterpVtxData, in FSegmentData SegmentData,  in out FVertexFactoryIntermediates Intermediates)
 {
-	float U0ForSegment;
+	float U0ForSegment = 0;
 	BRANCH
-	if(NiagaraRibbonVF.OneOverUV0TilingDistance != 0.0f)
+	if(NiagaraRibbonVF.U0OverrideDataOffset != -1)
 	{
-		U0ForSegment = Intermediates.DistanceOnSegment * NiagaraRibbonVF.OneOverUV0TilingDistance;
+		U0ForSegment = lerp(GetFloat(NiagaraRibbonVF.U0OverrideDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.U0OverrideDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+	else if (NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_SCALED_UNIFORMLY)
+	{
+		U0ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.U0DistributionScaler;
+	}
+	else if (NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_SCALED_USING_RIBBON_LENGTH || NiagaraRibbonVF.U0DistributionMode == U_DISTRIBUTION_TILED_OVER_RIBBON_LENGTH)
+	{
+		U0ForSegment = Intermediates.DistanceOnSegment * SegmentData.U0DistributionScaler;
+	}
+
+	float U1ForSegment = 0;
+	BRANCH
+	if(NiagaraRibbonVF.U1OverrideDataOffset != -1)
+	{
+		U1ForSegment = lerp(GetFloat(NiagaraRibbonVF.U1OverrideDataOffset, InterpVtxData.ParticleId0), GetFloat(NiagaraRibbonVF.U1OverrideDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+	}
+	else if (NiagaraRibbonVF.U1DistributionMode == U_DISTRIBUTION_SCALED_UNIFORMLY)
+	{
+		U1ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.U1DistributionScaler;
+	}
+	else if (NiagaraRibbonVF.U1DistributionMode == U_DISTRIBUTION_SCALED_USING_RIBBON_LENGTH || NiagaraRibbonVF.U1DistributionMode == U_DISTRIBUTION_TILED_OVER_RIBBON_LENGTH)
+	{
+		U1ForSegment = Intermediates.DistanceOnSegment * SegmentData.U1DistributionScaler;
+	}
+
+	float V0ForSegment;
+	BRANCH
+	if(NiagaraRibbonVF.V0RangeOverrideDataOffset != -1)
+	{
+		float2 V0RangeForSegment = lerp(GetVec2(NiagaraRibbonVF.V0RangeOverrideDataOffset, InterpVtxData.ParticleId0), GetVec2(NiagaraRibbonVF.V0RangeOverrideDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		V0ForSegment = ((1 - (Input.InterpVtxId & 0x1)) * V0RangeForSegment.x) + ((Input.InterpVtxId & 0x1) * V0RangeForSegment.y);
 	}
 	else
 	{
-		U0ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.OneOverNumSegments;
+		V0ForSegment = Input.InterpVtxId & 0x1;
 	}
-
-	float U1ForSegment;
-	BRANCH
-	if(NiagaraRibbonVF.OneOverUV1TilingDistance != 0.0f)
-	{
-		U1ForSegment = Intermediates.DistanceOnSegment * NiagaraRibbonVF.OneOverUV1TilingDistance;
-	}
-	else
-	{
-		U1ForSegment = ((float)(InterpVtxData.RawParticleId0 - SegmentData.StartParticleId) + InterpVtxData.Alpha) * SegmentData.OneOverNumSegments;
-	}
-
-	float VForSegment = Input.InterpVtxId & 0x1;
 	
-	float2 UV0ForSegment = float2(U0ForSegment, VForSegment);
-	float2 UV1ForSegment = float2(U1ForSegment, VForSegment);
+	float V1ForSegment;
+	BRANCH
+	if(NiagaraRibbonVF.V1RangeOverrideDataOffset != -1)
+	{
+		float2 V1RangeForSegment = lerp(GetVec2(NiagaraRibbonVF.V1RangeOverrideDataOffset, InterpVtxData.ParticleId0), GetVec2(NiagaraRibbonVF.V1RangeOverrideDataOffset, InterpVtxData.ParticleId1), InterpVtxData.Alpha);
+		V1ForSegment = ((1 - (Input.InterpVtxId & 0x1)) * V1RangeForSegment.x) + ((Input.InterpVtxId & 0x1) * V1RangeForSegment.y);
+	}
+	else
+	{
+		V1ForSegment = Input.InterpVtxId & 0x1;
+	}
+	
+	float2 UV0ForSegment = float2(U0ForSegment, V0ForSegment);
+	float2 UV1ForSegment = float2(U1ForSegment, V1ForSegment);
 	
 	Intermediates.TexCoord.xy = UV0ForSegment * SegmentData.UV0Scale + SegmentData.UV0Offset;
 	Intermediates.TexCoord.zw = UV1ForSegment * SegmentData.UV1Scale + SegmentData.UV1Offset;
@@ -419,14 +454,17 @@ FInterpVtxData GetInterpVtxData(FVertexFactoryInput Input)
 FSegmentData UnpackPerRibbonDataByIndex(int RibbonIndex)
 {
 	FSegmentData SegmentData = (FSegmentData)0;
-	const int Index = RibbonIndex * 6;
+	const int Index = RibbonIndex * 7;
 
 	SegmentData.UV0Scale = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index], NiagaraRibbonVF.PackedVData.x);
 	SegmentData.UV0Offset = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 1], NiagaraRibbonVF.PackedVData.y);
-	SegmentData.UV1Scale = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 2], NiagaraRibbonVF.PackedVData.z);
-	SegmentData.UV1Offset = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 3], NiagaraRibbonVF.PackedVData.w);
-	SegmentData.OneOverNumSegments = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 4];
-	SegmentData.StartParticleId = asuint(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 5]);
+	SegmentData.U0DistributionScaler = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 2];
+	
+	SegmentData.UV1Scale = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 3], NiagaraRibbonVF.PackedVData.z);
+	SegmentData.UV1Offset = float2(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 4], NiagaraRibbonVF.PackedVData.w);
+	SegmentData.U1DistributionScaler = NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 5];
+
+	SegmentData.StartParticleId = asuint(NiagaraRibbonVFLooseParameters.PackedPerRibbonDataByIndex[Index + 6]);
 
 	return SegmentData;
 }

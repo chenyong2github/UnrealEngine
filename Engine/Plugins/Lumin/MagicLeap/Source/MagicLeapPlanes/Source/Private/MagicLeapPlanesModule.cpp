@@ -6,6 +6,7 @@
 #include "Engine/Engine.h"
 #include "Components/BoxComponent.h"
 #include "MagicLeapHandle.h"
+#include "Stats/Stats.h"
 
 //PRAGMA_DISABLE_OPTIMIZATION
 using namespace MagicLeap;
@@ -135,6 +136,8 @@ void FMagicLeapPlanesModule::DestroyEntityTracker()
 
 bool FMagicLeapPlanesModule::Tick(float DeltaTime)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FMagicLeapPlanesModule_Tick);
+
 #if WITH_MLSDK
 	if (!(IMagicLeapPlugin::Get().IsMagicLeapHMDValid()))
 	{

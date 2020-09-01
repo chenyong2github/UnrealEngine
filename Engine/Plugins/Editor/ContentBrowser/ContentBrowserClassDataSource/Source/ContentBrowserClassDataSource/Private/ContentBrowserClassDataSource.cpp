@@ -29,9 +29,6 @@ void UContentBrowserClassDataSource::Initialize(const FName InMountRoot, const b
 
 	CollectionManager = &FCollectionManagerModule::GetModule().Get();
 
-	NativeClassHierarchy = MakeShared<FNativeClassHierarchy>();
-	NativeClassHierarchy->OnClassHierarchyUpdated().AddUObject(this, &UContentBrowserClassDataSource::NotifyItemDataRefreshed);
-
 	// Bind the class specific menu extensions
 	{
 		if (UToolMenu* Menu = UToolMenus::Get()->ExtendMenu("ContentBrowser.AddNewContextMenu"))
@@ -83,6 +80,8 @@ void UContentBrowserClassDataSource::CompileFilter(const FName InPath, const FCo
 	{
 		return;
 	}
+
+	ConditionalCreateNativeClassHierarchy();
 
 	FNativeClassHierarchyFilter ClassHierarchyFilter;
 	ClassHierarchyFilter.ClassPaths.Add(InternalPath);
@@ -212,6 +211,8 @@ void UContentBrowserClassDataSource::EnumerateItemsAtPath(const FName InPath, co
 		return;
 	}
 	
+	ConditionalCreateNativeClassHierarchy();
+
 	if (EnumHasAnyFlags(InItemTypeFilter, EContentBrowserItemTypeFilter::IncludeFolders))
 	{
 		if (TSharedPtr<const FNativeClassHierarchyNode> FolderNode = NativeClassHierarchy->FindNode(InternalPath, ENativeClassHierarchyNodeType::Folder))
@@ -241,6 +242,8 @@ bool UContentBrowserClassDataSource::IsFolderVisibleIfHidingEmpty(const FName In
 	{
 		return false;
 	}
+
+	ConditionalCreateNativeClassHierarchy();
 
 	return ContentBrowserClassData::IsTopLevelFolder(InternalPath) 
 		|| NativeClassHierarchy->HasClasses(InternalPath, /*bRecursive*/true);
@@ -406,6 +409,8 @@ FContentBrowserItemData UContentBrowserClassDataSource::CreateClassFolderItem(co
 
 FContentBrowserItemData UContentBrowserClassDataSource::CreateClassFileItem(UClass* InClass)
 {
+	ConditionalCreateNativeClassHierarchy();
+
 	FName ClassPath;
 	{
 		FString ClassPathStr;
@@ -462,6 +467,8 @@ void UContentBrowserClassDataSource::PopulateAddNewContextMenu(UToolMenu* InMenu
 
 void UContentBrowserClassDataSource::OnNewClassRequested(const FName InSelectedPath)
 {
+	ConditionalCreateNativeClassHierarchy();
+
 	// Parse out the on disk location for the currently selected path, this will then be used as the default location for the new class (if a valid project module location)
 	FString ExistingFolderPath;
 	if (!InSelectedPath.IsNone())
@@ -474,6 +481,15 @@ void UContentBrowserClassDataSource::OnNewClassRequested(const FName InSelectedP
 		.InitialPath(ExistingFolderPath)
 		.ParentWindow(FGlobalTabmanager::Get()->GetRootWindow())
 		);
+}
+
+void UContentBrowserClassDataSource::ConditionalCreateNativeClassHierarchy()
+{
+	if (!NativeClassHierarchy)
+	{
+		NativeClassHierarchy = MakeShared<FNativeClassHierarchy>();
+		NativeClassHierarchy->OnClassHierarchyUpdated().AddUObject(this, &UContentBrowserClassDataSource::NotifyItemDataRefreshed);
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

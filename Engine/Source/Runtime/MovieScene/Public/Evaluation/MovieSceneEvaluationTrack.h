@@ -13,11 +13,10 @@
 #include "Compilation/MovieSceneSegmentCompiler.h"
 #include "Evaluation/MovieSceneTrackImplementation.h"
 #include "Evaluation/MovieSceneEvaluationField.h"
+#include "MovieSceneTrack.h"
 #include "MovieSceneEvaluationTrack.generated.h"
 
 struct FMovieSceneInterrogationData;
-
-class UMovieSceneTrack;
 
 /** Enumeration to determine how a track should be evaluated */
 UENUM()
@@ -309,7 +308,7 @@ public:
 	 */
 	UMovieSceneTrack* GetSourceTrack() const
 	{
-		return SourceTrack;
+		return SourceTrack.Get();
 	}
 
 	/**
@@ -384,7 +383,7 @@ private:
 
 	/** The movie scene track that created this evaluation track. */
 	UPROPERTY()
-	UMovieSceneTrack* SourceTrack;
+	TWeakObjectPtr<UMovieSceneTrack> SourceTrack;
 
 	/** Domain-specific evaluation templates (normally 1 per section) */
 	UPROPERTY()

@@ -182,6 +182,9 @@ public:
 	virtual void ClearMIDPool() = 0;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+	/** If frozen view matrices are available, return a pointer to them */
+	virtual const FViewMatrices* GetFrozenViewMatrices() const = 0;
+
 	/** If frozen view matrices are available, set those as active on the SceneView */
 	virtual void ActivateFrozenViewMatrices(FSceneView& SceneView) = 0;
 
@@ -1235,6 +1238,7 @@ public:
 	virtual bool IsRectLight() const { return false; }
 	virtual bool HasSourceTexture() const { return false; }
 	virtual float GetLightSourceAngle() const { return 0.0f; }
+	virtual float GetShadowSourceAngleFactor() const { return 1.0f; }
 	virtual float GetTraceDistance() const { return 0.0f; }
 	virtual float GetEffectiveScreenRadius(const FViewMatrices& ShadowViewMatrices) const { return 0.0f; }
 

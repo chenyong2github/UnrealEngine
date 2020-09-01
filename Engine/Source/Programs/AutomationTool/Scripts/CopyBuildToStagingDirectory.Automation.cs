@@ -171,12 +171,13 @@ public partial class Project : CommandUtils
 		EncryptionAndSigning.CryptoSettings CryptoSettings,
 		string EncryptionKeyGuid,
 		string PatchSourceContentPath,
-		bool bGenerateDiffPatch)
+		bool bGenerateDiffPatch,
+		bool bIsDLC)
 	{
 		StringBuilder CmdLine = new StringBuilder();
 		CmdLine.AppendFormat("-Output={0}", MakePathSafeToUseWithCommandLine(Path.ChangeExtension(PakOutputLocation.FullName, ".utoc")));
 		CmdLine.AppendFormat("-ContainerName={0}", ContainerName);
-		if (!String.IsNullOrEmpty(PatchSourceContentPath))
+		if (!bIsDLC && !String.IsNullOrEmpty(PatchSourceContentPath))
 		{
 			CmdLine.AppendFormat(" -PatchSource={0}", CommandUtils.MakePathSafeToUseWithCommandLine(PatchSourceContentPath));
 		}
@@ -2406,7 +2407,8 @@ public partial class Project : CommandUtils
 							CryptoSettings,
 							PakParams.EncryptionKeyGuid,
 							ContainerPatchSourcePath,
-							bGenerateDiffPatch));
+							bGenerateDiffPatch,
+							Params.HasDLCName));
 					}
 
 					Commands.Add(GetUnrealPakArguments(
@@ -2490,6 +2492,8 @@ public partial class Project : CommandUtils
 					AdditionalArgs += String.Format(" -sign");
 				}
 			}
+
+			AdditionalArgs += " " + Params.AdditionalIoStoreOptions;
 
 			RunIoStore(Params, SC, IoStoreCommandsFileName, GameOpenOrderFileLocation, CookerOpenOrderFileLocation, AdditionalArgs);
 		}
@@ -2662,9 +2666,44 @@ public partial class Project : CommandUtils
 		GlobalContainerOutputRelativeLocation = SC.StageTargetPlatform.Remap(GlobalContainerOutputRelativeLocation);
 		FileReference GlobalContainerOutputLocation = FileReference.Combine(SC.RuntimeRootDir, GlobalContainerOutputRelativeLocation.Name);
 
-		string CommandletParams = Params.HasDLCName
-			? String.Format("-DLCFile={0}", MakePathSafeToUseWithCommandLine(Params.DLCFile.FullName))
-			: String.Format("-CreateGlobalContainer={0}", MakePathSafeToUseWithCommandLine(GlobalContainerOutputLocation.FullName));
+		string CommandletParams = String.Empty;
+
+		if (Params.HasDLCName)
+		{
+			CommandletParams += String.Format("-DLCFile={0}", MakePathSafeToUseWithCommandLine(Params.DLCFile.FullName));
+
+			DirectoryReference DLCRoot = Params.DLCFile.Directory;
+			string DLCName = Params.DLCFile.GetFileNameWithoutExtension();
+
+			//TODO: Find a better way. Create Plugin ConfigType and interate all ini files in plugin?
+			bool bRemapPluginContentToGame = false;
+			FileReference PluginConfigFile = FileReference.Combine(DLCRoot, "Config", String.Format("Default{0}.ini", DLCName));
+			if (FileReference.Exists(PluginConfigFile))
+			{
+				ConfigFile File = new ConfigFile(PluginConfigFile);
+				ConfigFileSection PluginSettings;
+				if (File.TryGetSection("PluginSettings", out PluginSettings))
+				{
+					foreach (ConfigLine Line in PluginSettings.Lines)
+					{
+						if (Line.Key == "RemapPluginContentToGame")
+						{
+							bool.TryParse(Line.Value, out bRemapPluginContentToGame);
+							break;
+						}
+					}
+				}
+			}
+
+			if (bRemapPluginContentToGame)
+			{
+				CommandletParams += " -RemapPluginContentToGame";
+			}
+		}
+		else
+		{
+			CommandletParams += String.Format("-CreateGlobalContainer={0}", MakePathSafeToUseWithCommandLine(GlobalContainerOutputLocation.FullName));
+		}
 
 		CommandletParams += String.Format(" -CookedDirectory={0} -Commands={1}", MakePathSafeToUseWithCommandLine(SC.PlatformCookDir.ToString()), MakePathSafeToUseWithCommandLine(CommandsFileName));
 		if (GameOpenOrderFileLocation != null)
@@ -2681,6 +2720,11 @@ public partial class Project : CommandUtils
 		}
 
 		CommandletParams += String.Format(" -TargetPlatform={0}", SC.StageTargetPlatform.GetCookPlatform(Params.DedicatedServer, Params.Client));
+
+		if (Params.HasBasedOnReleaseVersion)
+		{
+			CommandletParams += String.Format(" -BasedOnReleaseVersionPath={0}", Params.GetBasedOnReleaseVersionPath(SC, Params.Client));
+		}
 
 		LogInformation("Running IoStore commandlet with arguments: {0}", CommandletParams);
 		RunCommandlet(SC.RawProjectPath, Params.UE4Exe, "IoStore", CommandletParams);
@@ -2909,6 +2953,7 @@ public partial class Project : CommandUtils
 
 			var ChunkListFilename = GetChunkPakManifestListFilename(Params, SC);
 			List<string> ChunkList = new List<string>(ReadAllLines(ChunkListFilename));
+			Log.TraceInformation("Reading chunk list file {0} which contains {1} entries", ChunkListFilename, ChunkList.Count);
 
 			for (int Index = 0; Index < ChunkList.Count; ++Index)
 			{
@@ -2941,14 +2986,15 @@ public partial class Project : CommandUtils
 					}
 				}
 				CD.Manifest = ReadPakChunkManifest(ChunkManifestFilename);
+				Log.TraceInformation("Reading chunk manifest {0} which contains {1} entries", ChunkManifestFilename, CD.Manifest.Count);
 				ChunkDefinitions.Add(CD);
 			}
 
 			const string OptionalBulkDataFileExtension = ".uptnl";
-			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>();
+			Dictionary<string, ChunkDefinition> OptionalChunks = new Dictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 			ChunkDefinition DefaultChunk = ChunkDefinitions[DefaultChunkIndex];
 
-			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>();
+			Dictionary<string, List<ChunkDefinition>> FileNameToChunks = new Dictionary<string, List<ChunkDefinition>>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (ChunkDefinition Chunk in ChunkDefinitions)
 			{
 				foreach (string FileName in Chunk.Manifest)
@@ -2963,7 +3009,7 @@ public partial class Project : CommandUtils
 				}
 			}
 
-			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>();
+			Dictionary<string, ChunkDefinition> ChunkNameToDefinition = new Dictionary<string, ChunkDefinition>(StringComparer.InvariantCultureIgnoreCase);
 			foreach (ChunkDefinition Chunk in ChunkDefinitions)
 			{
 				ChunkNameToDefinition.Add(Chunk.ChunkName, Chunk);

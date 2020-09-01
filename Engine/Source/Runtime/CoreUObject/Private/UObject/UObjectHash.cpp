@@ -784,10 +784,9 @@ FORCEINLINE static void RemoveFromOuterMap(FUObjectHashTables& ThreadHash, UObje
 {
 	FHashBucket& Bucket = ThreadHash.ObjectOuterMap.FindOrAdd(Object->GetOuter());
 	int32 NumRemoved = Bucket.Remove(Object);
-	if (NumRemoved != 1)
-	{
-		UE_LOG(LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromOuterMap NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
-	}
+
+	UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromOuterMap NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
+
 	if (!Bucket.Num())
 	{
 		ThreadHash.ObjectOuterMap.Remove(Object->GetOuter());
@@ -802,11 +801,10 @@ FORCEINLINE static void RemoveFromClassMap(FUObjectHashTables& ThreadHash, UObje
 	{
 		FHashBucket& ObjectList = ThreadHash.ClassToObjectListMap.FindOrAdd(Object->GetClass());
 		int32 NumRemoved = ObjectList.Remove(Object);
-		if (NumRemoved != 1)
-		{
-			UE_LOG(LogUObjectHash, Error, TEXT("Internal Error: RemoveFromClassMap NumRemoved = %d from object list for %s"), NumRemoved, *GetFullNameSafe(ObjectWithUtility));
-		}
-		check(NumRemoved == 1); // must have existed, else something is wrong with the external code
+
+		// must have existed, else something is wrong with the external code
+		UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromClassMap NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe(ObjectWithUtility));
+
 		if (!ObjectList.Num())
 		{
 			ThreadHash.ClassToObjectListMap.Remove(Object->GetClass());
@@ -822,11 +820,10 @@ FORCEINLINE static void RemoveFromClassMap(FUObjectHashTables& ThreadHash, UObje
 			// Remove the class from the SuperClass' child list
 			TSet<UClass*>& ChildList = ThreadHash.ClassToChildListMap.FindOrAdd(SuperClass);
 			int32 NumRemoved = ChildList.Remove(Class);
-			if (NumRemoved != 1)
-			{
-				UE_LOG(LogUObjectHash, Error, TEXT("Internal Error: RemoveFromClassMap NumRemoved = %d from child list for %s"), NumRemoved, *GetFullNameSafe(ObjectWithUtility));
-			}
-			check(NumRemoved == 1); // must have existed, else something is wrong with the external code
+
+			// must have existed, else something is wrong with the external code
+			UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromClassMap NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe(ObjectWithUtility));
+
 			if (!ChildList.Num())
 			{
 				ThreadHash.ClassToChildListMap.Remove(SuperClass);
@@ -842,10 +839,9 @@ FORCEINLINE static void RemoveFromPackageMap(FUObjectHashTables& ThreadHash, UOb
 	check(Package != nullptr);
 	FHashBucket& Bucket = ThreadHash.PackageToObjectListMap.FindOrAdd(Package);
 	int32 NumRemoved = Bucket.Remove(Object);
-	if (NumRemoved != 1)
-	{
-		UE_LOG(LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromPackageMap NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
-	}
+
+	UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromPackageMap NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
+
 	if (!Bucket.Num())
 	{
 		ThreadHash.PackageToObjectListMap.Remove(Package);
@@ -1312,13 +1308,17 @@ void UnhashObject(UObjectBase* Object)
 
 		Hash = GetObjectHash(Name);
 		NumRemoved = ThreadHash.RemoveFromHash(Hash, Object);
-		check(NumRemoved == 1); // must have existed, else something is wrong with the external code
+
+		// must have existed, else something is wrong with the external code
+		UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: RemoveFromHash NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
 
 		if (PTRINT Outer = (PTRINT)Object->GetOuter())
 		{
 			Hash = GetObjectOuterHash(Name, Outer);
 			NumRemoved = ThreadHash.HashOuter.RemoveSingle(Hash, Object);
-			check(NumRemoved == 1); // must have existed, else something is wrong with the external code
+
+			// must have existed, else something is wrong with the external code
+			UE_CLOG(NumRemoved != 1, LogUObjectHash, Fatal, TEXT("Internal Error: Remove from HashOuter NumRemoved = %d  for %s"), NumRemoved, *GetFullNameSafe((UObjectBaseUtility*)Object));
 
 			RemoveFromOuterMap(ThreadHash, Object);
 		}

@@ -381,33 +381,36 @@ void FTransitionAndLayoutManager::BeginRealRenderPass(FVulkanCommandListContext&
 		FExclusiveDepthStencil RequestedDSAccess = RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil;
 		VkImageLayout FinalLayout = VulkanRHI::GetDepthStencilLayout(RequestedDSAccess, InDevice);
 
-		
-		const FVulkanSurface* QCOMDepthStencilSurface = Context.GetSwapChain()->GetQCOMDepthStencilSurface();
-		
-		if (RTLayout.GetQCOMRenderPassTransform() != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR && QCOMDepthStencilSurface)
+		FVulkanSwapChain* SwapChain = Context.GetSwapChain();
+		if (SwapChain)
 		{
-			VkImage QCOMDepthStencilImage = QCOMDepthStencilSurface->Image;
-			VkImageLayout QCOMDepthStencilImageLayout = FindOrAddLayout(QCOMDepthStencilImage, VK_IMAGE_LAYOUT_UNDEFINED);
-			VulkanSetImageLayout(CmdBuffer->GetHandle(), QCOMDepthStencilImage, QCOMDepthStencilImageLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, SetupImageSubresourceRange(QCOMDepthStencilSurface->GetFullAspectMask()));
-			Layouts[QCOMDepthStencilImage] = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-		}
-		else if (DSLayout != FinalLayout) // Check if we need to transition the depth stencil texture(s) based on the current layout and the requested access mode for the render target
-		{
-			int32 BarrierIndex = Barrier.AddImageBarrier(Surface.Image, Surface.GetFullAspectMask(), 1);
-			VulkanRHI::EImageLayoutBarrier SrcLayout = VulkanRHI::GetImageLayoutFromVulkanLayout(DSLayout);
-			VulkanRHI::EImageLayoutBarrier DstLayout = VulkanRHI::GetImageLayoutFromVulkanLayout(FinalLayout);
-			Barrier.SetTransition(BarrierIndex, SrcLayout, DstLayout);
-			DSLayout = FinalLayout;
-		}
+			const FVulkanSurface* QCOMDepthStencilSurface = SwapChain->GetQCOMDepthStencilSurface();
 
-		if (DSTexture->HasClearValue() && bNeedsClearValues)
-		{
-			float Depth = 0;
-			uint32 Stencil = 0;
-			DSTexture->GetDepthStencilClearValue(Depth, Stencil);
-			ClearValues[ClearValueIndex].depthStencil.depth = Depth;
-			ClearValues[ClearValueIndex].depthStencil.stencil = Stencil;
-			++ClearValueIndex;
+			if (RTLayout.GetQCOMRenderPassTransform() != VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR && QCOMDepthStencilSurface)
+			{
+				VkImage QCOMDepthStencilImage = QCOMDepthStencilSurface->Image;
+				VkImageLayout QCOMDepthStencilImageLayout = FindOrAddLayout(QCOMDepthStencilImage, VK_IMAGE_LAYOUT_UNDEFINED);
+				VulkanSetImageLayout(CmdBuffer->GetHandle(), QCOMDepthStencilImage, QCOMDepthStencilImageLayout, VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL, SetupImageSubresourceRange(QCOMDepthStencilSurface->GetFullAspectMask()));
+				Layouts[QCOMDepthStencilImage] = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+			}
+			else if (DSLayout != FinalLayout) // Check if we need to transition the depth stencil texture(s) based on the current layout and the requested access mode for the render target
+			{
+				int32 BarrierIndex = Barrier.AddImageBarrier(Surface.Image, Surface.GetFullAspectMask(), 1);
+				VulkanRHI::EImageLayoutBarrier SrcLayout = VulkanRHI::GetImageLayoutFromVulkanLayout(DSLayout);
+				VulkanRHI::EImageLayoutBarrier DstLayout = VulkanRHI::GetImageLayoutFromVulkanLayout(FinalLayout);
+				Barrier.SetTransition(BarrierIndex, SrcLayout, DstLayout);
+				DSLayout = FinalLayout;
+			}
+
+			if (DSTexture->HasClearValue() && bNeedsClearValues)
+			{
+				float Depth = 0;
+				uint32 Stencil = 0;
+				DSTexture->GetDepthStencilClearValue(Depth, Stencil);
+				ClearValues[ClearValueIndex].depthStencil.depth = Depth;
+				ClearValues[ClearValueIndex].depthStencil.stencil = Stencil;
+				++ClearValueIndex;
+			}
 		}
 	}
 
@@ -902,6 +905,13 @@ void FVulkanDynamicRHI::RHIMapStagingSurface(FRHITexture* TextureRHI, FRHIGPUFen
 	FRHITexture2D* TextureRHI2D = TextureRHI->GetTexture2D();
 	check(TextureRHI2D);
 	FVulkanTexture2D* Texture2D = ResourceCast(TextureRHI2D);
+
+	if (FenceRHI && !FenceRHI->Poll())
+	{
+		Device->SubmitCommandsAndFlushGPU();
+		FVulkanGPUFence* Fence = ResourceCast(FenceRHI);
+		Device->GetImmediateContext().GetCommandBufferManager()->WaitForCmdBuffer(Fence->GetCmdBuffer());
+	}
 
 	int32 Pitch = Texture2D->GetSizeX();
 	if (ensureMsgf(Texture2D->Surface.GetTiling() == VK_IMAGE_TILING_LINEAR, TEXT("RHIMapStagingSurface() called with a %d x %d texture in non-linear tiling %d, the result will likely be garbled."), static_cast<int32>(Texture2D->GetSizeX()), static_cast<int32>(Texture2D->GetSizeY()), static_cast<int32>(Texture2D->Surface.GetTiling())))

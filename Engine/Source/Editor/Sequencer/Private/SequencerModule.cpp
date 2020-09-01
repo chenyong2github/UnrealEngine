@@ -23,6 +23,11 @@
 #include "LevelSequence.h"
 #include "AssetRegistryModule.h"
 
+#if !IS_MONOLITHIC
+	UE::MovieScene::FEntityManager*& GEntityManagerForDebugging = UE::MovieScene::GEntityManagerForDebuggingVisualizers;
+#endif
+
+
 
 #define LOCTEXT_NAMESPACE "SequencerEditor"
 

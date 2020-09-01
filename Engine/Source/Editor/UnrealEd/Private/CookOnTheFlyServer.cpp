@@ -344,7 +344,7 @@ const FString& GetDevelopmentAssetRegistryFilename()
  */
 void LogCookerMessage( const FString& MessageText, EMessageSeverity::Type Severity)
 {
-	FMessageLog MessageLog("CookResults");
+	FMessageLog MessageLog("LogCook");
 
 	TSharedRef<FTokenizedMessage> Message = FTokenizedMessage::Create(Severity);
 
@@ -397,7 +397,7 @@ public:
 	bool							bFullLoadAndSave = false;
 	bool							bPackageStore = false;
 	bool							bCookAgainstFixedBase = false;
-	bool							bDLCNoCookAllAssets = true;
+	bool							bDlcLoadMainAssetRegistry = false;
 	TArray<FName>					StartupPackages;
 
 	/** Mapping from source packages to their localized variants (based on the culture list in FCookByTheBookStartupOptions) */
@@ -647,7 +647,6 @@ bool UCookOnTheFlyServer::BroadcastFileserverPresence( const FGuid &InstanceId )
 		if ((NetworkFileServer == NULL || !NetworkFileServer->IsItReadyToAcceptConnections() || !NetworkFileServer->GetAddressList(AddressList)))
 		{
 			LogCookerMessage( FString(TEXT("Failed to create network file server")), EMessageSeverity::Error );
-			UE_LOG(LogCook, Error, TEXT("Failed to create network file server"));
 			continue;
 		}
 
@@ -845,7 +844,6 @@ void UCookOnTheFlyServer::GetDependentPackages( const TSet<FName>& RootPackages,
 					FText::FromString(PackageDependencyString), OutReason);
 
 				LogCookerMessage(FailMessage.ToString(), EMessageSeverity::Warning);
-				UE_LOG(LogCook, Warning, TEXT("%s"), *( FailMessage.ToString() ));
 				continue;
 			}
 			else if (FPackageName::IsScriptPackage(PackageDependencyString) || FPackageName::IsMemoryPackage(PackageDependencyString))
@@ -1014,6 +1012,11 @@ bool UCookOnTheFlyServer::IsCookingDLC() const
 bool UCookOnTheFlyServer::IsCookingAgainstFixedBase() const
 {
 	return IsCookingDLC() && CookByTheBookOptions && CookByTheBookOptions->bCookAgainstFixedBase;
+}
+
+bool UCookOnTheFlyServer::ShouldPopulateFullAssetRegistry() const
+{
+	return !IsCookingDLC() || (CookByTheBookOptions && CookByTheBookOptions->bDlcLoadMainAssetRegistry);
 }
 
 FString UCookOnTheFlyServer::GetBaseDirectoryForDLC() const
@@ -2103,7 +2106,6 @@ bool UCookOnTheFlyServer::LoadPackageForCooking(UE::Cook::FPackageData& PackageD
 		if ((!IsCookOnTheFlyMode()) || (!IsCookingInEditor()))
 		{
 			LogCookerMessage(FString::Printf(TEXT("Error loading %s!"), *FileName), EMessageSeverity::Error);
-			UE_LOG(LogCook, Error, TEXT("Error loading %s!"), *FileName);
 		}
 	}
 	GOutputCookingWarnings = false;
@@ -3453,7 +3455,6 @@ void UCookOnTheFlyServer::SaveCookedPackage(UE::Cook::FPackageData& PackageData,
 				if (FullFilename.Len() >= FPlatformMisc::GetMaxPathLength())
 				{
 					LogCookerMessage(FString::Printf(TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename), EMessageSeverity::Error);
-					UE_LOG(LogCook, Error, TEXT("Couldn't save package, filename is too long (%d >= %d): %s"), FullFilename.Len(), FPlatformMisc::GetMaxPathLength(), *PlatFilename);
 					Result = ESavePackageResult::Error;
 				}
 				else
@@ -4945,7 +4946,16 @@ void UCookOnTheFlyServer::GenerateAssetRegistry()
 		if (!bCanDelayAssetregistryProcessing)
 		{
 			TArray<FString> ScanPaths;
-			if (GConfig->GetArray(TEXT("AssetRegistry"), TEXT("PathsToScanForCook"), ScanPaths, GEngineIni) > 0 && !AssetRegistry->IsLoadingAssets())
+			if (ShouldPopulateFullAssetRegistry())
+			{
+				GConfig->GetArray(TEXT("AssetRegistry"), TEXT("PathsToScanForCook"), ScanPaths, GEngineIni);
+			}
+			else if (IsCookingDLC())
+			{
+				ScanPaths.Add(FString::Printf(TEXT("/%s/"), *CookByTheBookOptions->DlcName));
+			}
+
+			if (ScanPaths.Num() > 0 && !AssetRegistry->IsLoadingAssets())
 			{
 				AssetRegistry->ScanPathsSynchronous(ScanPaths);
 			}
@@ -5017,7 +5027,6 @@ void UCookOnTheFlyServer::GenerateLongPackageNames(TArray<FName>& FilesInPath)
 			else
 			{
 				LogCookerMessage(FString::Printf(TEXT("Unable to generate long package name for %s because %s"), *FileInPath, *FailureReason), EMessageSeverity::Warning);
-				UE_LOG(LogCook, Warning, TEXT("Unable to generate long package name for %s because %s"), *FileInPath, *FailureReason);
 			}
 		}
 	}
@@ -5200,7 +5209,6 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			if (FPackageName::SearchForPackageOnDisk(CurrEntry, NULL, &OutFilename) == false)
 			{
 				LogCookerMessage( FString::Printf(TEXT("Unable to find package for map %s."), *CurrEntry), EMessageSeverity::Warning);
-				UE_LOG(LogCook, Warning, TEXT("Unable to find package for map %s."), *CurrEntry);
 			}
 			else
 			{
@@ -5212,38 +5220,18 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 			AddFileToCook( FilesInPath,CurrEntry);
 		}
 	}
-
-	const FString ExternalMountPointName(TEXT("/Game/"));
 	if (IsCookingDLC())
 	{
-		// get the dlc and make sure we cook that directory 
-		FString DLCPath = FPaths::Combine(*GetBaseDirectoryForDLC(), TEXT("Content"));
+		TArray<FName> PackagesToNeverCook;
+		UAssetManager::Get().ModifyDLCCook(CookByTheBookOptions->DlcName, FilesInPath, PackagesToNeverCook);
 
-		FString MountPoint = ExternalMountPointName;
-		TSharedPtr<IPlugin> Plugin = IPluginManager::Get().FindPlugin(CookByTheBookOptions->DlcName);
-		if (Plugin.IsValid())
+		for (FName NeverCookPackage : PackagesToNeverCook)
 		{
-			MountPoint = Plugin->GetMountedAssetPath();
-		}
+			const FName* StandardPackageFilename = GetPackageNameCache().GetCachedPackageNameFromStandardFileName(NeverCookPackage);
 
-		if (!CookByTheBookOptions->bDLCNoCookAllAssets)
-		{
-			TArray<FString> Files;
-			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetAssetPackageExtension()), true, false, false);
-			IFileManager::Get().FindFilesRecursive(Files, *DLCPath, *(FString(TEXT("*")) + FPackageName::GetMapPackageExtension()), true, false, false);
-
-			for (int32 Index = 0; Index < Files.Num(); Index++)
+			if (StandardPackageFilename && *StandardPackageFilename != NAME_None)
 			{
-				FString StdFile = Files[Index];
-				FPaths::MakeStandardFilename(StdFile);
-				AddFileToCook(FilesInPath, StdFile);
-
-				// this asset may not be in our currently mounted content directories, so try to mount a new one now
-				FString LongPackageName;
-				if (!FPackageName::IsValidLongPackageName(StdFile) && !FPackageName::TryConvertFilenameToLongPackageName(StdFile, LongPackageName))
-				{
-					FPackageName::RegisterMountPoint(MountPoint, DLCPath);
-				}
+				PackageTracker->NeverCookPackageList.Add(*StandardPackageFilename);
 			}
 		}
 	}
@@ -5251,6 +5239,7 @@ void UCookOnTheFlyServer::CollectFilesToCook(TArray<FName>& FilesInPath, const T
 
 	if (!(FilesToCookFlags & ECookByTheBookOptions::SkipSoftReferences))
 	{
+		const FString ExternalMountPointName(TEXT("/Game/"));
 		for (const FString& CurrEntry : CookDirectories)
 		{
 			TArray<FString> Files;
@@ -6485,9 +6474,12 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	CookByTheBookOptions->bFullLoadAndSave = !!(CookOptions & ECookByTheBookOptions::FullLoadAndSave);
 	CookByTheBookOptions->bPackageStore = !!(CookOptions & ECookByTheBookOptions::PackageStore);
 	CookByTheBookOptions->bCookAgainstFixedBase = !!(CookOptions & ECookByTheBookOptions::CookAgainstFixedBase);
-	CookByTheBookOptions->bDLCNoCookAllAssets = !!(CookOptions & ECookByTheBookOptions::DLCNoCookAllAssets);
+	CookByTheBookOptions->bDlcLoadMainAssetRegistry = !!(CookOptions & ECookByTheBookOptions::DlcLoadMainAssetRegistry);
 	CookByTheBookOptions->bErrorOnEngineContentUse = CookByTheBookStartupOptions.bErrorOnEngineContentUse;
 
+	// if we are going to change the state of dlc, we need to clean out our package filename cache (the generated filename cache is dependent on this key). This has to happen later on, but we want to set the DLC State earlier.
+	const bool bDlcStateChanged = CookByTheBookOptions->DlcName != DLCName;
+	CookByTheBookOptions->DlcName = DLCName;
 	if (CookByTheBookOptions->bSkipHardReferences && !CookByTheBookOptions->bSkipSoftReferences)
 	{
 		UE_LOG(LogCook, Warning, TEXT("Setting bSkipSoftReferences to true since bSkipHardReferences is true and skipping hard references requires skipping soft references."));
@@ -6657,11 +6649,9 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		DiscoverPlatformSpecificNeverCookPackages(TargetPlatforms, UBTPlatformStrings);
 	}
 
-	if ( CookByTheBookOptions->DlcName != DLCName )
+	if (bDlcStateChanged)
 	{
-		// we are going to change the state of dlc we need to clean out our package filename cache (the generated filename cache is dependent on this key)
-		CookByTheBookOptions->DlcName = DLCName;
-
+		// If we changed the DLC State earlier on, we must clear out the package name cache
 		TermSandbox();
 	}
 
@@ -6721,44 +6711,63 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		// if we are cooking dlc we must be based on a release version cook
 		check( !BasedOnReleaseVersion.IsEmpty() );
 
-		for ( const ITargetPlatform* TargetPlatform : TargetPlatforms )
+		auto ReadDevelopmentAssetRegistry = [this, &BasedOnReleaseVersion, bVerifyPackagesExist](TArray<FName>& OutPackageList, const FString& InPlatformName)
 		{
-			FString PlatformNameString = TargetPlatform->PlatformName();
-			FName PlatformName(*PlatformNameString);
-			FString OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformNameString ) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
+			FString OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName ) / TEXT("Metadata") / GetDevelopmentAssetRegistryFilename();
 
-			TArray<FName> PackageList;
 			// if this check fails probably because the asset registry can't be found or read
-			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
+			bool bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 			if (!bSucceeded)
 			{
-				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformNameString) / GetAssetRegistryFilename();
-				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
+				OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, InPlatformName) / GetAssetRegistryFilename();
+				bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 			}
 
 			if (!bSucceeded)
 			{
-				// Check all possible flavors 
-				// For example release version could be cooked as Android_ASTC flavor, but DLC can be made as Android_ETC2
-				for (const PlatformInfo::FTargetPlatformInfo* PlatformFlavorInfo : TargetPlatform->GetTargetPlatformInfo().Flavors)
+				const PlatformInfo::FTargetPlatformInfo* PlatformInfo = PlatformInfo::FindPlatformInfo(*InPlatformName);
+				for (const PlatformInfo::FTargetPlatformInfo* PlatformFlavor : PlatformInfo->Flavors)
 				{
-					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavorInfo->Name.ToString()) / GetAssetRegistryFilename();
-					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, PackageList);
+					OriginalSandboxRegistryFilename = GetBasedOnReleaseVersionAssetRegistryPath(BasedOnReleaseVersion, PlatformFlavor->Name.ToString()) / GetAssetRegistryFilename();
+					bSucceeded = GetAllPackageFilenamesFromAssetRegistry(OriginalSandboxRegistryFilename, bVerifyPackagesExist, OutPackageList);
 					if (bSucceeded)
 					{
 						break;
 					}
 				}
 			}
-			check( bSucceeded );
 
-			if ( bSucceeded )
+			check(bSucceeded);
+		};
+
+		TArray<FName> OverridePackageList;
+		FString DevelopmentAssetRegistryPlatformOverride;
+		if (FParse::Value(FCommandLine::Get(), TEXT("DevelopmentAssetRegistryPlatformOverride="), DevelopmentAssetRegistryPlatformOverride))
+		{
+			// Read the contents of the asset registry for the overriden platform. We'll use this for all requested platforms so we can just keep one copy of it here
+			ReadDevelopmentAssetRegistry(OverridePackageList, *DevelopmentAssetRegistryPlatformOverride);
+			checkf(OverridePackageList.Num() != 0, TEXT("DevelopmentAssetRegistry platform override is empty! An override is expected to exist and contain some valid data"));
+		}
+
+		for ( const ITargetPlatform* TargetPlatform: TargetPlatforms )
+		{
+			TArray<FName> PackageList;
+			FString PlatformNameString = TargetPlatform->PlatformName();
+			FName PlatformName(*PlatformNameString);
+
+			if (OverridePackageList.Num() == 0)
+			{
+				ReadDevelopmentAssetRegistry(PackageList, PlatformNameString);
+			}
+
+			TArray<FName>& ActivePackageList = OverridePackageList.Num() > 0 ? OverridePackageList : PackageList;
+			if (ActivePackageList.Num() > 0)
 			{
 				TArray<const ITargetPlatform*> ResultPlatforms;
 				ResultPlatforms.Add(TargetPlatform);
 				TArray<bool> Succeeded;
 				Succeeded.Add(true);
-				for (const FName& PackageFilename : PackageList)
+				for (const FName& PackageFilename : ActivePackageList)
 				{
 					UE::Cook::FPackageData* PackageData = PackageDatas->TryAddPackageDataByFileName(PackageFilename);
 					if (PackageData)
@@ -6767,7 +6776,16 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 					}
 				}
 			}
-			CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, MoveTemp(PackageList));
+
+			if (OverridePackageList.Num() > 0)
+			{
+				// This is the override list, so we can't give the memory away because we will need it for the other platforms
+				CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, OverridePackageList);
+			}
+			else
+			{
+				CookByTheBookOptions->BasedOnReleaseCookedPackages.Add(PlatformName, MoveTemp(PackageList));
+			}
 		}
 
 		PackageNameCache.SetAssetRegistry(CacheAssetRegistry);
@@ -6827,7 +6845,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 	if (FilesInPath.Num() == 0)
 	{
 		LogCookerMessage(FString::Printf(TEXT("No files found to cook.")), EMessageSeverity::Warning);
-		UE_LOG(LogCook, Warning, TEXT("No files found."));
 	}
 
 	if (FParse::Param(FCommandLine::Get(), TEXT("RANDOMPACKAGEORDER")) || 
@@ -6863,7 +6880,6 @@ void UCookOnTheFlyServer::StartCookByTheBook( const FCookByTheBookStartupOptions
 		{
 			const FString FileName = FileFName.ToString();
 			LogCookerMessage( FString::Printf(TEXT("Unable to find package for cooking %s"), *FileName), EMessageSeverity::Warning );
-			UE_LOG(LogCook, Warning, TEXT("Unable to find package for cooking %s"), *FileName)
 		}	
 	}
 
@@ -7247,11 +7263,11 @@ void UCookOnTheFlyServer::HandleNetworkFileServerRecompileShaders(const FShaderR
 bool UCookOnTheFlyServer::GetAllPackageFilenamesFromAssetRegistry( const FString& AssetRegistryPath, bool bVerifyPackagesExist, TArray<FName>& OutPackageFilenames ) const
 {
 	UE_SCOPED_COOKTIMER(GetAllPackageFilenamesFromAssetRegistry);
-	FArrayReader SerializedAssetData;
-	if (FFileHelper::LoadFileToArray(SerializedAssetData, *AssetRegistryPath))
+	TUniquePtr<FArchive> Reader(IFileManager::Get().CreateFileReader(*AssetRegistryPath));
+	if (Reader)
 	{
 		FAssetRegistryState TempState;
-		TempState.Serialize(SerializedAssetData, FAssetRegistrySerializationOptions());
+		TempState.Serialize(*Reader.Get(), FAssetRegistrySerializationOptions());
 
 		const TMap<FName, const FAssetData*>& RegistryDataMap = TempState.GetObjectPathToAssetDataMap();
 

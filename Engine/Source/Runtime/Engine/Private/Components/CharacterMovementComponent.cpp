@@ -639,8 +639,9 @@ void UCharacterMovementComponent::OnRegister()
 	if (bIsReplay)
 	{
 		// At least one of these conditions will be true
-		const bool bHasInterpolationData = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT_NOINTERP);
-		const bool bHasRepMovement = MyWorld && MyWorld->DemoNetDriver && (MyWorld->DemoNetDriver->GetPlaybackDemoVersion() >= HISTORY_CHARACTER_MOVEMENT);
+		const UDemoNetDriver* DemoNetDriver = MyWorld ? MyWorld->GetDemoNetDriver() : nullptr;
+		const bool bHasInterpolationData = DemoNetDriver && (DemoNetDriver->GetPlaybackDemoVersion() < HISTORY_CHARACTER_MOVEMENT_NOINTERP);
+		const bool bHasRepMovement = DemoNetDriver && (DemoNetDriver->GetPlaybackDemoVersion() >= HISTORY_CHARACTER_MOVEMENT);
 
 		if (CharacterMovementCVars::ReplayUseInterpolation == 1)
 		{
@@ -7464,13 +7465,14 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 		else if ( NetworkSmoothingMode == ENetworkSmoothingMode::Replay )
 		{
 			const UWorld* MyWorld = GetWorld();
+			UDemoNetDriver* DemoNetDriver = MyWorld ? MyWorld->GetDemoNetDriver() : nullptr;
 
-			if ( !MyWorld || !MyWorld->DemoNetDriver )
+			if ( !MyWorld || !DemoNetDriver )
 			{
 				return;
 			}
 
-			const float CurrentTime = MyWorld->DemoNetDriver->DemoCurrentTime;
+			const float CurrentTime = DemoNetDriver->GetDemoCurrentTime();
 
 			// Remove old samples
 			while ( ClientData->ReplaySamples.Num() > 0 )
@@ -7483,7 +7485,7 @@ void UCharacterMovementComponent::SmoothClientPosition_Interpolate(float DeltaSe
 				ClientData->ReplaySamples.RemoveAt( 0 );
 			}
 
-			FReplayExternalDataArray* ExternalReplayData = MyWorld->DemoNetDriver->GetExternalDataArrayForObject( CharacterOwner );
+			FReplayExternalDataArray* ExternalReplayData = DemoNetDriver->GetExternalDataArrayForObject( CharacterOwner );
 
 			// Grab any samples available, deserialize them, then clear originals
 			if ( ExternalReplayData && ExternalReplayData->Num() > 0 )
@@ -11301,10 +11303,7 @@ void FSavedMove_Character::SetMoveFor(ACharacter* Character, float InDeltaTime, 
 	
 	MaxSpeed = Character->GetCharacterMovement()->GetMaxSpeed();
 
-	// CheckJumpInput will increment JumpCurrentCount.
-	// Therefore, for replicated moves we want it to set it at 1 less to properly
-	// handle the change.
-	JumpCurrentCount = Character->JumpCurrentCount > 0 ? Character->JumpCurrentCount - 1 : 0;
+	JumpCurrentCount = Character->JumpCurrentCountPreJump;
 	bWantsToCrouch = Character->GetCharacterMovement()->bWantsToCrouch;
 	bForceMaxAccel = Character->GetCharacterMovement()->bForceMaxAccel;
 	StartPackedMovementMode = Character->GetCharacterMovement()->PackNetworkMovementMode();
@@ -11802,9 +11801,9 @@ void FSavedMove_Character::CombineWith(const FSavedMove_Character* OldMove, ACha
 	DeltaTime += OldMove->DeltaTime;
 
 	// Roll back jump force counters. SetInitialPosition() below will copy them to the saved move.
-	// Changes in certain counters like JumpCurrentCount don't allow move combining, so no need to roll those back (they are the same).
 	InCharacter->JumpForceTimeRemaining = OldMove->JumpForceTimeRemaining;
 	InCharacter->JumpKeyHoldTime = OldMove->JumpKeyHoldTime;
+	InCharacter->JumpCurrentCountPreJump = OldMove->JumpCurrentCount;
 }
 
 void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
@@ -11868,6 +11867,8 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 	Character->JumpForceTimeRemaining = JumpForceTimeRemaining;
 	Character->JumpMaxCount = JumpMaxCount;
 	Character->JumpCurrentCount = JumpCurrentCount;
+	Character->JumpCurrentCountPreJump = JumpCurrentCount;
+
 	StartPackedMovementMode = Character->GetCharacterMovement()->PackNetworkMovementMode();
 }
 

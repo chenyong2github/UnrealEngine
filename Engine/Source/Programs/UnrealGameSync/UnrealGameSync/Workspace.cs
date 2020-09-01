@@ -616,6 +616,7 @@ namespace UnrealGameSync
 
 							SyncRecords.AddRange(OpenRecords.Where(x => x.Action != "add" && x.Action != "branch" && x.Action != "move/add"));
 
+							// Enumerate all the files to be synced. NOTE: depotPath is escaped, whereas clientPath is not.
 							foreach (PerforceFileRecord SyncRecord in SyncRecords)
 							{
 								// If it doesn't exist locally, just add a sync command for it
@@ -651,12 +652,12 @@ namespace UnrealGameSync
 								string RelativePath = FullName.Substring(LocalRootPrefix.Length).Replace('\\', '/');
 								if (Filter.Matches(RelativePath))
 								{
-									SyncTree.IncludeFile(RelativePath, SyncRecord.FileSize);
+									SyncTree.IncludeFile(PerforceUtils.EscapePath(RelativePath), SyncRecord.FileSize);
 									SyncDepotPaths.Add(SyncRecord.DepotPath);
 								}
 								else
 								{
-									SyncTree.ExcludeFile(RelativePath);
+									SyncTree.ExcludeFile(PerforceUtils.EscapePath(RelativePath));
 								}
 							}
 						}

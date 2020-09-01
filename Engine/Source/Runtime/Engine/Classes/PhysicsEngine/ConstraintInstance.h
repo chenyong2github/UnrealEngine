@@ -121,12 +121,15 @@ struct ENGINE_API FConstraintProfileProperties
 #endif
 };
 
-
-/** Container for a physics representation of an object. */
 USTRUCT()
-struct ENGINE_API FConstraintInstance
+struct ENGINE_API FConstraintInstanceBase
 {
 	GENERATED_USTRUCT_BODY()
+
+	/** Constructor **/
+	FConstraintInstanceBase();
+	void Reset();
+
 
 	/** Indicates position of this constraint within the array in SkeletalMeshComponent. */
 	int32 ConstraintIndex;
@@ -134,7 +137,18 @@ struct ENGINE_API FConstraintInstance
 	// Internal physics constraint representation
 	FPhysicsConstraintHandle ConstraintHandle;
 
-	FPhysScene*	PhysScene;
+	// Scene thats using the constraint
+	FPhysScene* PhysScene;
+
+	FPhysScene* GetPhysicsScene() { return PhysScene; }
+	const FPhysScene* GetPhysicsScene() const { return PhysScene; }
+};
+
+/** Container for a physics representation of an object. */
+USTRUCT()
+struct ENGINE_API FConstraintInstance : public FConstraintInstanceBase
+{
+	GENERATED_USTRUCT_BODY()
 
 	/** Name of bone that this joint is associated with. */
 	UPROPERTY(VisibleAnywhere, Category=Constraint)

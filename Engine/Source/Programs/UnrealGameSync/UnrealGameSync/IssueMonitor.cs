@@ -1,13 +1,19 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using EnvDTE;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Globalization;
 using System.Linq;
+using System.Security.Policy;
 using System.Text;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
+
+using Thread = System.Threading.Thread;
 
 namespace UnrealGameSync
 {
@@ -54,6 +60,51 @@ namespace UnrealGameSync
 		public DateTime? ResolvedAt { get; set; }
 		public bool bNotify { get; set; }
 		public List<IssueBuildData> Builds { get; set; }
+		public List<string> Streams { get;set; }
+
+		HashSet<string> CachedProjects;
+
+		public HashSet<string> Projects
+		{
+			get
+			{
+				// HACK to infer project names from streams
+				if(CachedProjects == null)
+				{
+					HashSet<string> NewProjects = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+					if (!String.IsNullOrEmpty(Project))
+					{
+						NewProjects.Add(Project);
+					}
+					if (Streams != null)
+					{
+						foreach (string Stream in Streams)
+						{
+							Match Match = Regex.Match(Stream, "^//([^/]+)/");
+							if (Match.Success)
+							{
+								string Project = Match.Groups[1].Value;
+								if (Project.StartsWith("UE", StringComparison.OrdinalIgnoreCase))
+								{
+									Project = "UE" + Project.Substring(2);
+								}
+								else if (Char.IsLower(Project[0]))
+								{
+									Project = Char.ToUpper(Project[0], CultureInfo.InvariantCulture) + Project.Substring(1);
+								}
+								NewProjects.Add(Project);
+							}
+						}
+					}
+					if (NewProjects.Count == 0)
+					{
+						NewProjects.Add("Default");
+					}
+					CachedProjects = NewProjects;
+				}
+				return CachedProjects;
+			}
+		}
 	}
 
 	public class IssueUpdateData
@@ -276,9 +327,9 @@ namespace UnrealGameSync
 			{
 				// Check if there's any pending update
 				IssueUpdateData PendingUpdate;
-				lock(LockObject)
+				lock (LockObject)
 				{
-					if(PendingUpdates.Count > 0)
+					if (PendingUpdates.Count > 0)
 					{
 						PendingUpdate = PendingUpdates[0];
 					}
@@ -289,9 +340,9 @@ namespace UnrealGameSync
 				}
 
 				// If we have an update, try to post it to the backend and check for another
-				if(PendingUpdate != null)
+				if (PendingUpdate != null)
 				{
-					if(SendUpdate(PendingUpdate))
+					if (SendUpdate(PendingUpdate))
 					{
 						lock (LockObject) { PendingUpdates.RemoveAt(0); }
 					}

@@ -61,12 +61,15 @@ protected:
 
 	}
 
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const override
 	{
-		Super::GetFilenameFormatArguments(InOutFormatArgs);
+		Super::GetFormatArguments(InOutFormatArgs);
 
-		InOutFormatArgs.Arguments.Add(TEXT("ts_count"), TemporalSampleCount);
-		InOutFormatArgs.Arguments.Add(TEXT("ss_count"), SpatialSampleCount);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("ts_count"), TemporalSampleCount);
+		InOutFormatArgs.FilenameArguments.Add(TEXT("ss_count"), SpatialSampleCount);
+
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/temporalSampleCount"), TemporalSampleCount);
+		InOutFormatArgs.FileMetadata.Add(TEXT("unreal/aa/spatialSampleCount"), SpatialSampleCount);
 	}
 
 public:
@@ -76,7 +79,7 @@ public:
 	* increase the anti-aliasing quality of an sample, or have high quality anti-aliasing if you don't want
 	* any motion blur due to accumulation over time in SampleCount.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Render Settings")
 	int32 SpatialSampleCount;
 
 	/**
@@ -86,20 +89,20 @@ public:
 	* samples we average together to produce a sub-step. (This means rendering complexity is
 	* SampleCount * TileCount^2 * SpatialSampleCount * NumPasses).
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 1, ClampMin = 1), Category = "Render Settings")
 	int32 TemporalSampleCount;
 
 	/**
 	* Should we override the Project's anti-aliasing setting during a movie render? This can be useful to have
 	* TAA on during normal work in the editor but force it off for high quality renders /w many spatial samples.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Render Settings")
 	bool bOverrideAntiAliasing;
 
 	/**
 	* If we are overriding the AA method, what do we use? None will turn off anti-aliasing.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition="bOverrideAntiAliasing"), Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (EditCondition="bOverrideAntiAliasing"), Category = "Render Settings")
 	TEnumAsByte<EAntiAliasingMethod> AntiAliasingMethod;
 
 	/**
@@ -109,7 +112,7 @@ public:
 	*
 	* This is more expensive than EngineWarmUpCount (which should be used for particle warm-ups, etc.)
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0), AdvancedDisplay, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0), AdvancedDisplay, Category = "Render Settings")
 	int32 RenderWarmUpCount;
 
 	/**
@@ -118,7 +121,7 @@ public:
 	* warmup frames is based on how much excess there is in the camera cut track outside of the playback range AND
 	* the sequence is evaluated for each frame which can allow time for skeletal meshes to animate from a bind pose, etc.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "Render Settings")
 	bool bUseCameraCutForWarmUp;
 
 	/**
@@ -128,7 +131,7 @@ public:
 	*
 	* This is more cheaper than RenderWarmUpCount and is the preferred way to have time pass at the start of a shot.
 	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, EditCondition = "!bUseCameraCutForWarmUp"), AdvancedDisplay, Category = "Movie Pipeline")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, meta = (UIMin = 0, ClampMin = 0, EditCondition = "!bUseCameraCutForWarmUp"), AdvancedDisplay, Category = "Render Settings")
 	int32 EngineWarmUpCount;
 
 	/**

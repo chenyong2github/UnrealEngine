@@ -66,6 +66,9 @@ public:
 	/** Allows overriding asset activation to perform asset type specific activation for the supplied assets. This happens when the user double clicks, presses enter, or presses space. Return true if you have overridden the behavior. */
 	virtual bool AssetsActivatedOverride(const TArray<UObject*>& InObjects, EAssetTypeActivationMethod::Type ActivationType) = 0;
 
+	/** Returns true if we should load this asset for previewing or editing. */
+	virtual bool CanLoadAssetForPreviewOrEdit(const struct FAssetData& InAssetData) = 0;
+
 	/** Returns true if this class can be used as a filter in the content browser */
 	virtual bool CanFilter() = 0;
 

@@ -31,7 +31,7 @@ FDebugViewModeMaterialProxy::FDebugViewModeMaterialProxy(
 	, bIsDefaultMaterial(InMaterialInterface->GetMaterial()->IsDefaultMaterial())
 	, bSynchronousCompilation(InSynchronousCompilation)
 {
-	SetQualityLevelProperties(QualityLevel, false, FeatureLevel);
+	SetQualityLevelProperties(FeatureLevel);
 	const EShaderPlatform ShaderPlatform = GetFeatureLevelShaderPlatform(FeatureLevel);
 
 	Material = InMaterialInterface->GetMaterial();

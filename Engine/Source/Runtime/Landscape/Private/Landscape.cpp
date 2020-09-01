@@ -1374,7 +1374,11 @@ TArray<URuntimeVirtualTexture*> const& ULandscapeComponent::GetRuntimeVirtualTex
 
 ERuntimeVirtualTextureMainPassType ULandscapeComponent::GetVirtualTextureRenderPassType() const
 {
-	return GetLandscapeProxy()->VirtualTextureRenderPassType;
+	//hack[vhm]: Don't draw landscape with VirtualHeightfieldMesh enabled. Remove when VHM can control this directly.
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.VHM.Enable"));
+	bool bVHMEnable = CVar != nullptr && CVar->GetValueOnAnyThread() != 0;
+
+	return bVHMEnable ? ERuntimeVirtualTextureMainPassType::Exclusive : GetLandscapeProxy()->VirtualTextureRenderPassType;
 }
 
 ULandscapeInfo* ULandscapeComponent::GetLandscapeInfo() const

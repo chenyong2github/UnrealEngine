@@ -36,6 +36,10 @@ class PHYSICSCORE_API UPhysicalMaterial : public UObject
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=PhysicalMaterial, meta=(ClampMin=0))
 	float Friction;
 
+	/** Static Friction value of surface, controls how easily things can slide on this surface (0 is frictionless, higher values increase the amount of friction) */
+	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalMaterial, meta = (ClampMin = 0))
+	float StaticFriction;
+
 	/** Friction combine mode, controls how friction is computed for multiple materials. */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = PhysicalMaterial, meta = (editcondition = "bOverrideFrictionCombineMode"))
 	TEnumAsByte<EFrictionCombineMode::Type> FrictionCombineMode;

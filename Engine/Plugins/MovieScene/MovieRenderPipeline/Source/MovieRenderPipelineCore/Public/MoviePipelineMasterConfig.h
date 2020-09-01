@@ -62,7 +62,7 @@ public:
 	/** Returns a pointer to the config specified for the shot, otherwise the default for this pipeline. */
 	UMoviePipelineShotConfig* GetConfigForShot(const FString& ShotName) const;
 
-	void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const;
+	void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs, const bool bIncludeAllSettings = false) const;
 
 
 	/**

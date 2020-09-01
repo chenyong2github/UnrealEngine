@@ -32,7 +32,6 @@ struct CORE_API FUnixPlatformMisc : public FGenericPlatformMisc
 
 	static FString GetEnvironmentVariable(const TCHAR* VariableName);
 	static void SetEnvironmentVar(const TCHAR* VariableName, const TCHAR* Value);
-	UE_DEPRECATED(4.14, "GetMacAddress is deprecated. It is not reliable on all platforms")
 	static TArray<uint8> GetMacAddress();
 	static bool IsRunningOnBattery();
 

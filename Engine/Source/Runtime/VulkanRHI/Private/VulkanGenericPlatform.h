@@ -12,7 +12,7 @@ struct FOptionalVulkanDeviceExtensions;
 class FVulkanDevice;
 
 // the platform interface, and empty implementations for platforms that don't need em
-class FVulkanGenericPlatform 
+class FVulkanGenericPlatform
 {
 public:
 	static void SetupMaxRHIFeatureLevelAndShaderPlatform(ERHIFeatureLevel::Type InRequestedFeatureLevel);
@@ -101,9 +101,18 @@ public:
 	static void EnablePhysicalDeviceFeatureExtensions(VkDeviceCreateInfo& DeviceInfo) {}
 
 	static bool RequiresSwapchainGeneralInitialLayout() { return false; }
-	
+
+	// Allow platforms to perform their own frame pacing, called before Present. Returns true if the platform has done framepacing, false otherwise.
+	static bool FramePace(FVulkanDevice& Device, VkSwapchainKHR Swapchain, uint32 PresentID, VkPresentInfoKHR& Info) { return false; }
+
 	// Allow platforms to do extra work on present
 	static VkResult Present(VkQueue Queue, VkPresentInfoKHR& PresentInfo);
+
+	// Allow platforms to track swapchain creation
+	static VkResult CreateSwapchainKHR(VkDevice Device, const VkSwapchainCreateInfoKHR* CreateInfo, const VkAllocationCallbacks* Allocator, VkSwapchainKHR* Swapchain);
+	
+	// Allow platforms to track swapchain destruction
+	static void DestroySwapchainKHR(VkDevice Device, VkSwapchainKHR Swapchain, const VkAllocationCallbacks* Allocator);
 
 	// Ensure the last frame completed on the GPU
 	static bool RequiresWaitingForFrameCompletionEvent() { return true; }

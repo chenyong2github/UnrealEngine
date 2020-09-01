@@ -7,6 +7,7 @@
 #include "BlueprintCompilerCppBackendUtils.h"
 #include "Animation/AnimClassData.h"
 #include "Animation/AnimNodeBase.h"
+#include "Animation/AnimBlueprintClassSubsystem.h"
 
 void FBackendHelperAnim::AddHeaders(FEmitterLocalContext& Context)
 {
@@ -21,11 +22,22 @@ void FBackendHelperAnim::CreateAnimClassData(FEmitterLocalContext& Context)
 {
 	if (UAnimBlueprintGeneratedClass* AnimClass = Cast<UAnimBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
 	{
-		const FString LocalNativeName = Context.GenerateUniqueLocalName();
-		Context.AddLine(FString::Printf(TEXT("UAnimClassData* %s = NewObject<UAnimClassData>(InDynamicClass, TEXT(\"AnimClassData\"));"), *LocalNativeName));
-
-		UAnimClassData* AnimClassData = NewObject<UAnimClassData>(GetTransientPackage(), TEXT("AnimClassData"));
+		UAnimClassData* AnimClassData = NewObject<UAnimClassData>(AnimClass, TEXT("AnimClassData"));
 		AnimClassData->CopyFrom(AnimClass);
+		FEmitDefaultValueHelper::HandleClassSubobject(Context, AnimClassData, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, true, false);
+
+		const FString LocalNativeName = Context.ClassSubobjectsMap.FindChecked(AnimClassData);
+
+		auto CreateClassSubobjects = [&Context, &AnimClassData](bool bCreate, bool bInitialize)
+		{
+			for(UAnimBlueprintClassSubsystem* Subsystem : AnimClassData->GetSubsystems())
+			{
+				FEmitDefaultValueHelper::HandleClassSubobject(Context, Subsystem, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
+			}
+		};
+
+		CreateClassSubobjects(true, false);
+		CreateClassSubobjects(false, true);
 
 		UObject* ObjectArchetype = AnimClassData->GetArchetype();
 		for (const FProperty* Property : TFieldRange<const FProperty>(UAnimClassData::StaticClass()))
@@ -37,8 +49,11 @@ void FBackendHelperAnim::CreateAnimClassData(FEmitterLocalContext& Context)
 				, FEmitDefaultValueHelper::EPropertyGenerationControlFlags::AllowTransient);
 		}
 
-		Context.AddLine(FString::Printf(TEXT("%s->ResolvePropertyPaths();"), *LocalNativeName));
 		Context.AddLine(FString::Printf(TEXT("InDynamicClass->%s = %s;"), GET_MEMBER_NAME_STRING_CHECKED(UDynamicClass, AnimClassImplementation), *LocalNativeName));
+		Context.AddLine(FString::Printf(TEXT("%s->DynamicClassInitialization(InDynamicClass);"), *LocalNativeName));
+
+		// rename the temp anim class data out of the way
+		AnimClassData->Rename(nullptr, GetTransientPackage());
 	}
 }
 
@@ -83,9 +98,9 @@ void FBackendHelperAnim::AddAnimNodeInitializationFunction(FEmitterLocalContext&
 			// anim nodes constructed, finish anim node initialization:
 			if (UAnimBlueprintGeneratedClass* AnimClass = Cast<UAnimBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
 			{
-				for (int32 i = 0; i < AnimClass->EvaluateGraphExposedInputs.Num(); ++i)
+				for (int32 i = 0; i < AnimClass->GetExposedValueHandlers().Num(); ++i)
 				{
-					if (AnimClass->EvaluateGraphExposedInputs[i].ValueHandlerNodeProperty == InProperty)
+					if (AnimClass->GetExposedValueHandlers()[i].ValueHandlerNodeProperty == InProperty)
 					{
 						const FString ClassName = FEmitHelper::GetCppName(Context.GetCurrentlyGeneratedClass());
 						const FString MemberName = FEmitHelper::GetCppName(const_cast<FProperty*>(InProperty));

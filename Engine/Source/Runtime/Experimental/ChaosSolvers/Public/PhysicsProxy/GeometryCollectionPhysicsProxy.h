@@ -129,7 +129,7 @@ public:
 	 * Pulls data out of the PhysToGameInterchange and updates \c GTDynamicCollection. 
 	 * Called from FPhysScene_ChaosInterface::SyncBodies(), NOT the solver.
 	 */
-	void PullFromPhysicsState();
+	bool PullFromPhysicsState(const int32 SolverSyncTimestamp);
 
 	bool IsDirty() { return false; }
 
@@ -170,6 +170,31 @@ public:
 	void AddForceCallback(FParticlesType& InParticles, const float InDt, const int32 InIndex) {}
 
 	bool IsGTCollectionDirty() const { return GameThreadCollection.IsDirty(); }
+
+	const TArray<FClusterHandle*> GetParticles() const
+	{
+		return SolverParticleHandles;
+	}
+
+	const FSimulationParameters& GetSimParameters() const
+	{
+		return Parameters;
+	}
+
+	FSimulationParameters& GetSimParameters()
+	{
+		return Parameters;
+	}
+
+	FGeometryDynamicCollection& GetPhysicsCollection()
+	{
+		return PhysicsThreadCollection;
+	}
+
+	TManagedArray<TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>>>& GetExternalParticles()
+	{
+		return GTParticles;
+	}
 
 protected:
 	/**

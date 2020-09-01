@@ -19,7 +19,7 @@ DECLARE_CYCLE_STAT(TEXT("Rebind DInterface Func Table"), STAT_NiagaraRebindDataI
 	
 	//Internal constants - only needed for non-GPU sim
 
-uint32 FNiagaraScriptExecutionContext::TickCounter = 0;
+uint32 FNiagaraScriptExecutionContextBase::TickCounter = 0;
 
 static int32 GbExecVMScripts = 1;
 static FAutoConsoleVariableRef CVarNiagaraExecVMScripts(
@@ -29,17 +29,17 @@ static FAutoConsoleVariableRef CVarNiagaraExecVMScripts(
 	ECVF_Default
 );
 
-FNiagaraScriptExecutionContext::FNiagaraScriptExecutionContext()
+FNiagaraScriptExecutionContextBase::FNiagaraScriptExecutionContextBase()
 	: Script(nullptr)
 {
 
 }
 
-FNiagaraScriptExecutionContext::~FNiagaraScriptExecutionContext()
+FNiagaraScriptExecutionContextBase::~FNiagaraScriptExecutionContextBase()
 {
 }
 
-bool FNiagaraScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)
+bool FNiagaraScriptExecutionContextBase::Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)
 {
 	Script = InScript;
 
@@ -47,7 +47,133 @@ bool FNiagaraScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimT
 
 	HasInterpolationParameters = Script && Script->GetComputedVMCompilationId().HasInterpolatedParameters();
 
+	return true;
+}
+
+void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts)
+{
+	FNiagaraDataBuffer* Input = DataSet.GetCurrentData();
+	FNiagaraDataBuffer* Output = DataSet.GetDestinationData();
+
+	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
+	DataSetInfo[Index].Init(&DataSet, Input, Output, StartInstance, bUpdateInstanceCounts);
+
+	//Would be nice to roll this and DataSetInfo into one but currently the VM being in it's own Engine module prevents this. Possibly should move the VM into Niagara itself.
+	TArrayView<uint8 const* RESTRICT const> InputRegisters = Input ? Input->GetRegisterTable() : TArrayView<uint8 const* RESTRICT const>();
+	TArrayView<uint8 const* RESTRICT const> OutputRegisters = Output ? Output->GetRegisterTable() : TArrayView<uint8 const* RESTRICT const>();
+
+	DataSetMetaTable.SetNum(FMath::Max(DataSetMetaTable.Num(), Index + 1));
+	DataSetMetaTable[Index].Init(InputRegisters, OutputRegisters, StartInstance,
+		Output ? &Output->GetIDTable() : nullptr, &DataSet.GetFreeIDTable(), &DataSet.GetNumFreeIDs(), &DataSet.GetMaxUsedID(), DataSet.GetIDAcquireTag(), &DataSet.GetSpawnedIDsTable());
+
+	if (InputRegisters.Num() > 0)
+	{
+		static_assert(sizeof(DataSetMetaTable[Index].InputRegisterTypeOffsets) == sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType), "ArraySizes do not match");
+		memcpy(DataSetMetaTable[Index].InputRegisterTypeOffsets, Input->GetRegisterTypeOffsets(), sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType));
+	}
+
+	if (OutputRegisters.Num() > 0)
+	{
+		static_assert(sizeof(DataSetMetaTable[Index].OutputRegisterTypeOffsets) == sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType), "ArraySizes do not match");
+		memcpy(DataSetMetaTable[Index].OutputRegisterTypeOffsets, Output->GetRegisterTypeOffsets(), sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType));
+	}
+}
+
+void FNiagaraScriptExecutionContextBase::BindData(int32 Index, FNiagaraDataBuffer* Input, int32 StartInstance, bool bUpdateInstanceCounts)
+{
+	check(Input && Input->GetOwner());
+	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
+	FNiagaraDataSet* DataSet = Input->GetOwner();
+	DataSetInfo[Index].Init(DataSet, Input, nullptr, StartInstance, bUpdateInstanceCounts);
+
+	TArrayView<uint8 const* RESTRICT const> InputRegisters = Input->GetRegisterTable();
+
+	DataSetMetaTable.SetNum(FMath::Max(DataSetMetaTable.Num(), Index + 1));
+	DataSetMetaTable[Index].Init(InputRegisters, TArrayView<uint8 const* RESTRICT const>(), StartInstance, nullptr, nullptr, &DataSet->GetNumFreeIDs(), &DataSet->GetMaxUsedID(), DataSet->GetIDAcquireTag(), &DataSet->GetSpawnedIDsTable());
+
+	if (InputRegisters.Num() > 0)
+	{
+		static_assert(sizeof(DataSetMetaTable[Index].InputRegisterTypeOffsets) == sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType), "ArraySizes do not match");
+		memcpy(DataSetMetaTable[Index].InputRegisterTypeOffsets, Input->GetRegisterTypeOffsets(), sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType));
+	}
+}
+
+bool FNiagaraScriptExecutionContextBase::Execute(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable)
+{
+	if (NumInstances == 0)
+	{
+		DataSetInfo.Reset();
+		return true;
+	}
+
+	++TickCounter;//Should this be per execution?
+
+	if (GbExecVMScripts != 0)
+	{
+		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
+		VectorVM::Exec(
+			ExecData.ByteCode.GetData(),
+			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
+			ExecData.NumTempRegisters,
+			ConstantBufferTable.Buffers.Num(),
+			ConstantBufferTable.Buffers.GetData(),
+			ConstantBufferTable.BufferSizes.GetData(),
+			DataSetMetaTable,
+			FunctionTable.GetData(),
+			UserPtrTable.GetData(),
+			NumInstances
+#if STATS
+			, Script->GetStatScopeIDs()
+#elif ENABLE_STATNAMEDEVENTS
+			, Script->GetStatNamedEvents()
+#endif
+		);
+	}
+
+	// Tell the datasets we wrote how many instances were actually written.
+	for (int Idx = 0; Idx < DataSetInfo.Num(); Idx++)
+	{
+		FNiagaraDataSetExecutionInfo& Info = DataSetInfo[Idx];
+
+#if NIAGARA_NAN_CHECKING
+		Info.DataSet->CheckForNaNs();
+#endif
+
+		if (Info.bUpdateInstanceCount)
+		{
+			Info.Output->SetNumInstances(Info.StartInstance + DataSetMetaTable[Idx].DataSetAccessIndex + 1);
+		}
+	}
+
+	//Can maybe do without resetting here. Just doing it for tidiness.
+	for (int32 DataSetIdx = 0; DataSetIdx < DataSetInfo.Num(); ++DataSetIdx)
+	{
+		DataSetInfo[DataSetIdx].Reset();
+		DataSetMetaTable[DataSetIdx].Reset();
+	}
+
 	return true;//TODO: Error cases?
+}
+
+bool FNiagaraScriptExecutionContextBase::CanExecute()const
+{
+	return Script && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() > 0;
+}
+
+TArrayView<const uint8> FNiagaraScriptExecutionContextBase::GetScriptLiterals() const
+{
+#if WITH_EDITORONLY_DATA
+	return Parameters.GetScriptLiterals();
+#else
+	return MakeArrayView(Script->GetVMExecutableData().ScriptLiterals);
+#endif
+}
+
+//////////////////////////////////////////////////////////////////////////
+
+void FNiagaraScriptExecutionContextBase::DirtyDataInterfaces()
+{
+	Parameters.MarkInterfacesDirty();
 }
 
 bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemInstance, ENiagaraSimTarget SimTarget)
@@ -56,7 +182,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 	if (Parameters.GetInterfacesDirty())
 	{
 		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
-		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
+		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim) && SimTarget == ENiagaraSimTarget::CPUSim)//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
 		{
 			const FNiagaraVMExecutableData& ScriptExecutableData = Script->GetVMExecutableData();
 			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
@@ -77,7 +203,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 			//Fill the instance data table.
 			if (ParentSystemInstance)
 			{
-				DataInterfaceInstDataTable.SetNumZeroed(ScriptExecutableData.NumUserPtrs, false);
+				UserPtrTable.SetNumZeroed(ScriptExecutableData.NumUserPtrs, false);
 				for (int32 i = 0; i < DataInterfaces.Num(); i++)
 				{
 					UNiagaraDataInterface* Interface = DataInterfaces[i];
@@ -86,7 +212,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 					if (UserPtrIdx != INDEX_NONE)
 					{
 						void* InstData = ParentSystemInstance->FindDataInterfaceInstanceData(Interface);
-						DataInterfaceInstDataTable[UserPtrIdx] = InstData;
+						UserPtrTable[UserPtrIdx] = InstData;
 					}
 				}
 			}
@@ -140,7 +266,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 							}
 						}
 
-						void* InstData = ScriptInfo.UserPtrIdx == INDEX_NONE ? nullptr : DataInterfaceInstDataTable[ScriptInfo.UserPtrIdx];
+						void* InstData = ScriptInfo.UserPtrIdx == INDEX_NONE ? nullptr : UserPtrTable[ScriptInfo.UserPtrIdx];
 						FVMExternalFunction& LocalFunction = LocalFunctionTable.AddDefaulted_GetRef();
 						LocalFunctionTableIndices.Add(FunctionIt);
 
@@ -187,7 +313,7 @@ bool FNiagaraScriptExecutionContext::Tick(FNiagaraSystemInstance* ParentSystemIn
 	return true;
 }
 
-void FNiagaraScriptExecutionContext::PostTick()
+void FNiagaraScriptExecutionContextBase::PostTick()
 {
 	//If we're for interpolated spawn, copy over the previous frame's parameters into the Prev parameters.
 	if (HasInterpolationParameters)
@@ -196,129 +322,218 @@ void FNiagaraScriptExecutionContext::PostTick()
 	}
 }
 
-void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataSet& DataSet, int32 StartInstance, bool bUpdateInstanceCounts)
+//////////////////////////////////////////////////////////////////////////
+
+void FNiagaraSystemScriptExecutionContext::PerInstanceFunctionHook(FVectorVMContext& Context, int32 PerInstFunctionIndex, int32 UserPtrIndex)
 {
-	FNiagaraDataBuffer* Input = DataSet.GetCurrentData();
-	FNiagaraDataBuffer* Output = DataSet.GetDestinationData();
+	check(SystemInstances);
+	
+	//This is a bit of a hack. We grab the base offset into the instance data from the primary dataset.
+	//TODO: Find a cleaner way to do this.
+	int32 InstanceOffset = Context.GetDataSetMeta(0).InstanceOffset;
 
-	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
-	DataSetInfo[Index].Init(&DataSet, Input, Output, StartInstance, bUpdateInstanceCounts);
+	//Cache context state.
+	int32 CachedContextStartInstance = Context.StartInstance;
+	int32 CachedContextNumInstances = Context.NumInstances;
+	uint8 const* CachedCodeLocation = Context.Code;
 
-	//Would be nice to roll this and DataSetInfo into one but currently the VM being in it's own Engine module prevents this. Possibly should move the VM into Niagara itself.
-	TArrayView<uint8 const* RESTRICT const> InputRegisters = Input ? Input->GetRegisterTable() : TArrayView<uint8 const* RESTRICT const>();
-	TArrayView<uint8 const* RESTRICT const> OutputRegisters = Output ? Output->GetRegisterTable() : TArrayView<uint8 const* RESTRICT const>();
+	//Hack context so we can run the DI calls one by one.
+	Context.NumInstances = 1;
 
-	DataSetMetaTable.SetNum(FMath::Max(DataSetMetaTable.Num(), Index + 1));
-	DataSetMetaTable[Index].Init(InputRegisters, OutputRegisters, StartInstance,
-		Output ? &Output->GetIDTable() : nullptr, &DataSet.GetFreeIDTable(), &DataSet.GetNumFreeIDs(), &DataSet.GetMaxUsedID(), DataSet.GetIDAcquireTag(), &DataSet.GetSpawnedIDsTable());
-
-	if (InputRegisters.Num() > 0)
+	for (int32 i = 0; i < CachedContextNumInstances; ++i)
 	{
-		static_assert(sizeof(DataSetMetaTable[Index].InputRegisterTypeOffsets) == sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType), "ArraySizes do not match");
-		memcpy(DataSetMetaTable[Index].InputRegisterTypeOffsets, Input->GetRegisterTypeOffsets(), sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType));
-	}
+		//Reset the code each iteration.
+		Context.Code = CachedCodeLocation;
+		//Offset buffer I/O to the correct instance's data.
+		Context.ExternalFunctionInstanceOffset = i;
 
-	if (OutputRegisters.Num() > 0)
-	{
-		static_assert(sizeof(DataSetMetaTable[Index].OutputRegisterTypeOffsets) == sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType), "ArraySizes do not match");
-		memcpy(DataSetMetaTable[Index].OutputRegisterTypeOffsets, Output->GetRegisterTypeOffsets(), sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType));
-	}
-}
-
-void FNiagaraScriptExecutionContext::BindData(int32 Index, FNiagaraDataBuffer* Input, int32 StartInstance, bool bUpdateInstanceCounts)
-{
-	check(Input && Input->GetOwner());
-	DataSetInfo.SetNum(FMath::Max(DataSetInfo.Num(), Index + 1));
-	FNiagaraDataSet* DataSet = Input->GetOwner();
-	DataSetInfo[Index].Init(DataSet, Input, nullptr, StartInstance, bUpdateInstanceCounts);
-
-	TArrayView<uint8 const* RESTRICT const> InputRegisters = Input->GetRegisterTable();
-
-	DataSetMetaTable.SetNum(FMath::Max(DataSetMetaTable.Num(), Index + 1));
-	DataSetMetaTable[Index].Init(InputRegisters, TArrayView<uint8 const* RESTRICT const>(), StartInstance, nullptr, nullptr, &DataSet->GetNumFreeIDs(), &DataSet->GetMaxUsedID(), DataSet->GetIDAcquireTag(), &DataSet->GetSpawnedIDsTable());
-
-	if (InputRegisters.Num() > 0)
-	{
-		static_assert(sizeof(DataSetMetaTable[Index].InputRegisterTypeOffsets) == sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType), "ArraySizes do not match");
-		memcpy(DataSetMetaTable[Index].InputRegisterTypeOffsets, Input->GetRegisterTypeOffsets(), sizeof(FNiagaraDataBuffer::RegisterTypeOffsetType));
-	}
-}
-
-bool FNiagaraScriptExecutionContext::Execute(uint32 NumInstances, const FScriptExecutionConstantBufferTable& ConstantBufferTable)
-{
-	if (NumInstances == 0)
-	{
-		DataSetInfo.Reset();
-		return true;
-	}
-
-	++TickCounter;//Should this be per execution?
-
-	if (GbExecVMScripts != 0)
-	{
-		const FNiagaraVMExecutableData& ExecData = Script->GetVMExecutableData();
-		VectorVM::Exec(
-			ExecData.ByteCode.GetData(),
-			ExecData.OptimizedByteCode.Num() > 0 ? ExecData.OptimizedByteCode.GetData() : nullptr,
-			ExecData.NumTempRegisters,
-			ConstantBufferTable.Buffers.Num(),
-			ConstantBufferTable.Buffers.GetData(),
-			ConstantBufferTable.BufferSizes.GetData(),
-			DataSetMetaTable,
-			FunctionTable.GetData(),
-			DataInterfaceInstDataTable.GetData(),
-			NumInstances
-#if STATS
-			, Script->GetStatScopeIDs()
-#elif ENABLE_STATNAMEDEVENTS
-			, Script->GetStatNamedEvents()
-#endif
-		);
-	}
-
-	// Tell the datasets we wrote how many instances were actually written.
-	for (int Idx = 0; Idx < DataSetInfo.Num(); Idx++)
-	{
-		FNiagaraDataSetExecutionInfo& Info = DataSetInfo[Idx];
-
-#if NIAGARA_NAN_CHECKING
-		Info.DataSet->CheckForNaNs();
-#endif
-
-		if (Info.bUpdateInstanceCount)
+		int32 InstanceIndex = InstanceOffset + CachedContextStartInstance + i;
+		FNiagaraSystemInstance* Instance = (*SystemInstances)[InstanceIndex];
+		const FNiagaraPerInstanceDIFuncInfo& FuncInfo = Instance->GetPerInstanceDIFunction(ScriptType, PerInstFunctionIndex);
+		
+		//TODO: We can embed the instance data inside the function lambda. No need for the user ptr table at all.
+		//Do this way for now to reduce overall complexity of the initial change. Doing this needs extensive boiler plate changes to most DI classes and a script recompile.
+		if(UserPtrIndex != INDEX_NONE)
 		{
-			Info.Output->SetNumInstances(Info.StartInstance + DataSetMetaTable[Idx].DataSetAccessIndex + 1);
+			Context.UserPtrTable[UserPtrIndex] = FuncInfo.InstData;
+		}
+
+		Context.StartInstance = InstanceIndex;
+
+		//TODO: In future for DIs where more perf is needed here we could split the DI func into an args gen and a execution.
+		//The this path could gen args from the bytecode once and just run the execution func per instance.
+		//I wonder if we could auto generate the args gen in a template func and just pass them into the DI for perf and reduced end user/author complexity.
+		FuncInfo.Function.Execute(Context);
+	}
+
+	//Restore the context state.
+	Context.ExternalFunctionInstanceOffset = 0;
+	Context.StartInstance = CachedContextStartInstance;
+	Context.NumInstances = CachedContextNumInstances;
+}
+
+bool FNiagaraSystemScriptExecutionContext::Init(UNiagaraScript* InScript, ENiagaraSimTarget InTarget)
+{
+	return FNiagaraScriptExecutionContextBase::Init(InScript, InTarget);
+}
+
+bool FNiagaraSystemScriptExecutionContext::Tick(class FNiagaraSystemInstance* Instance, ENiagaraSimTarget SimTarget)
+{
+	//Bind data interfaces if needed.
+	if (Parameters.GetInterfacesDirty())
+	{
+		SCOPE_CYCLE_COUNTER(STAT_NiagaraScriptExecContextTick);
+		if (Script && Script->IsReadyToRun(ENiagaraSimTarget::CPUSim))//TODO: Remove. Script can only be null for system instances that currently don't have their script exec context set up correctly.
+		{
+			const FNiagaraVMExecutableData& ScriptExecutableData = Script->GetVMExecutableData();
+			const TArray<UNiagaraDataInterface*>& DataInterfaces = GetDataInterfaces();
+
+			const int32 FunctionCount = ScriptExecutableData.CalledVMExternalFunctions.Num();
+			FunctionTable.Reset();
+			FunctionTable.SetNum(FunctionCount);
+			ExtFunctionInfo.AddDefaulted(FunctionCount);
+
+			const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = Script->GetExecutionReadyParameterStore(ENiagaraSimTarget::CPUSim);
+			check(ScriptParameterStore != nullptr);
+			const auto& ScriptDataInterfaces = ScriptParameterStore->GetDataInterfaces();
+			int32 NumPerInstanceFunctions = 0;
+			for (int32 FunctionIndex = 0; FunctionIndex < FunctionCount; ++FunctionIndex)
+			{
+				const FVMExternalFunctionBindingInfo& BindingInfo = ScriptExecutableData.CalledVMExternalFunctions[FunctionIndex];
+
+				FExternalFuncInfo& FuncInfo = ExtFunctionInfo[FunctionIndex];
+
+				// First check to see if we can pull from the fast path library..		
+				if (UNiagaraFunctionLibrary::GetVectorVMFastPathExternalFunction(BindingInfo, FuncInfo.Function) && FuncInfo.Function.IsBound())
+				{
+					continue;
+				}
+
+				//TODO: Remove use of userptr table here and just embed the instance data in the function lambda.
+				UserPtrTable.SetNumZeroed(ScriptExecutableData.NumUserPtrs, false);
+
+				//Next check DI functions.
+				for (int32 i = 0; i < ScriptExecutableData.DataInterfaceInfo.Num(); i++)
+				{
+					const FNiagaraScriptDataInterfaceCompileInfo& ScriptDIInfo = ScriptExecutableData.DataInterfaceInfo[i];
+					UNiagaraDataInterface* ScriptInterface = ScriptDataInterfaces[i];
+					UNiagaraDataInterface* ExternalInterface = GetDataInterfaces()[i];
+
+					if (ScriptDIInfo.Name == BindingInfo.OwnerName)
+					{
+						//Currently we must assume that any User DI is overridden but maybe we can be less conservative with this in future.
+						if (ScriptDIInfo.NeedsPerInstanceBinding())
+						{
+							//This DI needs a binding per instance so we just bind to the external function hook which will call the correct binding for each instance.
+							auto PerInstFunctionHookLambda = [ExecContext = this, NumPerInstanceFunctions, UserPtrIndex = ScriptDIInfo.UserPtrIdx](FVectorVMContext& Context)
+							{
+								ExecContext->PerInstanceFunctionHook(Context, NumPerInstanceFunctions, UserPtrIndex);
+							};
+
+							++NumPerInstanceFunctions;
+							FuncInfo.Function = FVMExternalFunction::CreateLambda(PerInstFunctionHookLambda);
+						}
+						else
+						{
+							// first check to see if we should just use the one from the script
+							if (ScriptExecutableData.CalledVMExternalFunctionBindings.IsValidIndex(FunctionIndex)
+								&& ScriptInterface
+								&& ExternalInterface == ScriptDataInterfaces[i])
+							{
+								const FVMExternalFunction& ScriptFuncBind = ScriptExecutableData.CalledVMExternalFunctionBindings[FunctionIndex];
+								if (ScriptFuncBind.IsBound())
+								{
+									FuncInfo.Function = ScriptFuncBind;
+									check(ScriptDIInfo.UserPtrIdx == INDEX_NONE);
+									break;
+								}
+							}
+
+							//If we don't need a call per instance we can just bind directly to the DI function call;
+							check(ExternalInterface);
+							ExternalInterface->GetVMExternalFunction(BindingInfo, nullptr, FuncInfo.Function);
+						}
+						break;
+					}
+				}
+
+				for (int32 FunctionIt = 0; FunctionIt < FunctionCount; ++FunctionIt)
+				{
+					FunctionTable[FunctionIt] = &ExtFunctionInfo[FunctionIt].Function;
+				}
+
+				if (FuncInfo.Function.IsBound() == false)
+				{
+					UE_LOG(LogNiagara, Warning, TEXT("Error building data interface function table for system script!"));
+					FunctionTable.Empty();
+					return false;
+				}
+			}
 		}
 	}
 
-	//Can maybe do without resetting here. Just doing it for tidiness.
-	for (int32 DataSetIdx = 0; DataSetIdx < DataSetInfo.Num(); ++DataSetIdx)
+	Parameters.Tick();
+
+	return true;
+}
+
+bool FNiagaraSystemScriptExecutionContext::GeneratePerInstanceDIFunctionTable(FNiagaraSystemInstance* Inst, TArray<FNiagaraPerInstanceDIFuncInfo>& OutFunctions)
+{
+	const FNiagaraScriptExecutionParameterStore* ScriptParameterStore = Script->GetExecutionReadyParameterStore(ENiagaraSimTarget::CPUSim);
+	const auto& ScriptDataInterfaces = ScriptParameterStore->GetDataInterfaces();
+	const FNiagaraVMExecutableData& ScriptExecutableData = Script->GetVMExecutableData();
+
+	for (int32 FunctionIndex = 0; FunctionIndex < ScriptExecutableData.CalledVMExternalFunctions.Num(); ++FunctionIndex)
 	{
-		DataSetInfo[DataSetIdx].Reset();
-		DataSetMetaTable[DataSetIdx].Reset();
+		const FVMExternalFunctionBindingInfo& BindingInfo = ScriptExecutableData.CalledVMExternalFunctions[FunctionIndex];
+
+		for (int32 i = 0; i < ScriptExecutableData.DataInterfaceInfo.Num(); i++)
+		{
+			const FNiagaraScriptDataInterfaceCompileInfo& ScriptDIInfo = ScriptExecutableData.DataInterfaceInfo[i];
+			//UNiagaraDataInterface* ScriptInterface = ScriptDataInterfaces[i];
+			UNiagaraDataInterface* ExternalInterface = GetDataInterfaces()[i];
+
+			if (ScriptDIInfo.Name == BindingInfo.OwnerName && ScriptDIInfo.NeedsPerInstanceBinding())
+			{
+				UNiagaraDataInterface* DIToBind = nullptr;
+				FNiagaraPerInstanceDIFuncInfo& NewFuncInfo = OutFunctions.AddDefaulted_GetRef();
+				void* InstData = nullptr;
+
+				if (const int32* DIIndex = Inst->GetInstanceParameters().FindParameterOffset(FNiagaraVariable(ScriptDIInfo.Type, ScriptDIInfo.Name)))
+				{
+					//If this is a User DI we bind to the user DI and find instance data with it.
+					if (UNiagaraDataInterface* UserInterface = Inst->GetInstanceParameters().GetDataInterface(*DIIndex))
+					{
+						DIToBind = UserInterface;
+						InstData = Inst->FindDataInterfaceInstanceData(UserInterface);
+					}
+				}
+				else
+				{
+					//Otherwise we use the script DI and search for instance data with that.
+					DIToBind = ExternalInterface;
+					InstData = Inst->FindDataInterfaceInstanceData(ExternalInterface);
+				}
+
+				if (DIToBind)
+				{
+					check(ExternalInterface->PerInstanceDataSize() == 0 || InstData);
+					DIToBind->GetVMExternalFunction(BindingInfo, InstData, NewFuncInfo.Function);
+					NewFuncInfo.InstData = InstData;
+				}
+
+				if (NewFuncInfo.Function.IsBound() == false)
+				{
+					return false;
+				}
+				break;
+			}
+		}
 	}
+	return true;
+};
 
-	return true;//TODO: Error cases?
-}
-
-void FNiagaraScriptExecutionContext::DirtyDataInterfaces()
-{
-	Parameters.MarkInterfacesDirty();
-}
-
-bool FNiagaraScriptExecutionContext::CanExecute()const
-{
-	return Script && Script->GetVMExecutableData().IsValid() && Script->GetVMExecutableData().ByteCode.Num() > 0;
-}
-
-TArrayView<const uint8> FNiagaraScriptExecutionContext::GetScriptLiterals() const
-{
-#if WITH_EDITORONLY_DATA
-	return Parameters.GetScriptLiterals();
-#else
-	return MakeArrayView(Script->GetVMExecutableData().ScriptLiterals);
-#endif
-}
+//////////////////////////////////////////////////////////////////////////
 
 void FNiagaraGPUSystemTick::Init(FNiagaraSystemInstance* InSystemInstance)
 {
@@ -581,7 +796,6 @@ FNiagaraComputeExecutionContext::FNiagaraComputeExecutionContext()
 	: MainDataSet(nullptr)
 	, GPUScript(nullptr)
 	, GPUScript_RT(nullptr)
-	, DataToRender(nullptr)
 	, TranslucentDataToRender(nullptr)
 {
 	ExternalCBufferLayout = new FNiagaraRHIUniformBufferLayout(TEXT("Niagara GPU External CBuffer"));
@@ -617,6 +831,29 @@ void FNiagaraComputeExecutionContext::Reset(NiagaraEmitterInstanceBatcher* Batch
 	);
 }
 
+void FNiagaraComputeExecutionContext::BakeVariableNamesForIterationLookup()
+{
+	// We need to store the name of each DI source variable here so that we can look it up later when looking for the 
+			// iteration interface.
+	TArray<FNiagaraVariable> Params;
+	CombinedParamStore.GetParameters(Params);
+	for (FNiagaraVariable& Var : Params)
+	{
+		if (!Var.IsDataInterface())
+			continue;
+
+		UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
+		if (DI)
+		{
+			FNiagaraDataInterfaceProxy* Proxy = DI->GetProxy();
+			if (Proxy)
+			{
+				Proxy->SourceDIName = Var.GetName();
+			}
+		}
+	}
+}
+
 void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScript, ENiagaraSimTarget InSimTarget, const uint32 InDefaultSimulationStageIndex, const int32 InMaxUpdateIterations, const TSet<uint32> InSpawnStages)
 {
 	GPUScript = InGPUComputeScript;
@@ -634,7 +871,6 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 		FNiagaraVMExecutableData& VMData = InGPUComputeScript->GetVMExecutableData();
 		if (VMData.IsValid() && VMData.SimulationStageMetaData.Num() > 0)
 		{
-
 			SimStageInfo = VMData.SimulationStageMetaData;
 
 			int32 FoundMaxUpdateIterations = SimStageInfo[SimStageInfo.Num() - 1].MaxStage;
@@ -713,31 +949,14 @@ void FNiagaraComputeExecutionContext::InitParams(UNiagaraScript* InGPUComputeScr
 				}
 			}
 
-			// We need to store the name of each DI source variable here so that we can look it up later when looking for the 
-			// iteration interface.
-			TArray<FNiagaraVariable> Params;
-			CombinedParamStore.GetParameters(Params);
-			for (FNiagaraVariable& Var : Params)
-			{
-				if (!Var.IsDataInterface())
-					continue;
-
-				UNiagaraDataInterface* DI = CombinedParamStore.GetDataInterface(Var);
-				if (DI)
-				{
-					FNiagaraDataInterfaceProxy* Proxy = DI->GetProxy();
-					if (Proxy)
-					{
-						Proxy->SourceDIName = Var.GetName();
-					}
-				}
-			}
+			
 		}
 	}
 
 	
 #if DO_CHECK
-	FNiagaraShaderRef Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread();
+	// DI Parameters are the same between all shader permutations so we can just get the first one
+	FNiagaraShaderRef Shader = InGPUComputeScript->GetRenderThreadScript()->GetShaderGameThread(0);
 	if (Shader.IsValid())
 	{
 		DIClassNames.Empty(Shader->GetDIParameters().Num());
@@ -915,18 +1134,32 @@ void FNiagaraComputeExecutionContext::SetDataToRender(FNiagaraDataBuffer* InData
 
 	DataToRender = InDataToRender;
 
-
 	if (DataToRender)
 	{
 		DataToRender->AddReadRef();
 	}
 
-	// Clear out translucent data to render as we should be equal now
+	// This call the DataToRender should be equal to the TranslucentDataToRender so we can release the read ref
 	if (TranslucentDataToRender)
 	{
-		ensure(DataToRender == TranslucentDataToRender);
+		ensure((DataToRender == nullptr) || (DataToRender == TranslucentDataToRender));
 		TranslucentDataToRender->ReleaseReadRef();
 		TranslucentDataToRender = nullptr;
+	}
+}
+
+void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuffer* InTranslucentDataToRender)
+{
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->ReleaseReadRef();
+	}
+
+	TranslucentDataToRender = InTranslucentDataToRender;
+
+	if (TranslucentDataToRender)
+	{
+		TranslucentDataToRender->AddReadRef();
 	}
 }
 
@@ -985,19 +1218,4 @@ FNiagaraDataInterfaceProxy* FNiagaraComputeInstanceData::FindIterationInterface(
 		return Context->FindIterationInterface(DataInterfaceProxies, SimulationStageIndex);
 	}
 	return nullptr;
-}
-
-void FNiagaraComputeExecutionContext::SetTranslucentDataToRender(FNiagaraDataBuffer* InDataToRender)
-{
-	if (TranslucentDataToRender)
-	{
-		TranslucentDataToRender->ReleaseReadRef();
-	}
-
-	TranslucentDataToRender = InDataToRender;
-
-	if (TranslucentDataToRender)
-	{
-		TranslucentDataToRender->AddReadRef();
-	}
 }

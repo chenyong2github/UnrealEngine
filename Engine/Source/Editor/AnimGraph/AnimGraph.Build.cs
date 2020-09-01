@@ -38,6 +38,8 @@ public class AnimGraph : ModuleRules
                 "ContentBrowser",
 				"KismetWidgets",
 				"ToolMenus",
+				"KismetCompiler",
+				"Kismet",
 				"EditorWidgets",
 			}
 		);
@@ -57,5 +59,5 @@ public class AnimGraph : ModuleRules
                 "AnimationBlueprintEditor",
             }
         );
-    }
+	}
 }

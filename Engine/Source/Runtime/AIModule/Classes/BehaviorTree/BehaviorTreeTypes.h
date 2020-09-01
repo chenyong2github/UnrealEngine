@@ -39,8 +39,8 @@ DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Execution Time"),STAT_AI_BehaviorTree_Executi
 DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Auxiliary Update Time"),STAT_AI_BehaviorTree_AuxUpdateTime,STATGROUP_AIBehaviorTree, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Cleanup Time"), STAT_AI_BehaviorTree_Cleanup, STATGROUP_AIBehaviorTree, );
 DECLARE_CYCLE_STAT_EXTERN(TEXT("BT Stop Tree Time"), STAT_AI_BehaviorTree_StopTree, STATGROUP_AIBehaviorTree, );
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Templates"),STAT_AI_BehaviorTree_NumTemplates,STATGROUP_AIBehaviorTree, );
-DECLARE_DWORD_COUNTER_STAT_EXTERN(TEXT("Num Instances"),STAT_AI_BehaviorTree_NumInstances,STATGROUP_AIBehaviorTree, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Templates"),STAT_AI_BehaviorTree_NumTemplates,STATGROUP_AIBehaviorTree, );
+DECLARE_DWORD_ACCUMULATOR_STAT_EXTERN(TEXT("Num Instances"),STAT_AI_BehaviorTree_NumInstances,STATGROUP_AIBehaviorTree, );
 DECLARE_MEMORY_STAT_EXTERN(TEXT("Instance memory"),STAT_AI_BehaviorTree_InstanceMemory,STATGROUP_AIBehaviorTree, AIMODULE_API);
 
 namespace FBlackboard
@@ -320,22 +320,19 @@ struct FBehaviorTreeInstance
 	/** delegate sending a notify when tree instance is removed from active stack */
 	FBTInstanceDeactivation DeactivationNotify;
 
-	FBehaviorTreeInstance() { IncMemoryStats(); }
-	FBehaviorTreeInstance(const FBehaviorTreeInstance& Other) { *this = Other; IncMemoryStats(); }
-	FBehaviorTreeInstance(int32 MemorySize) { InstanceMemory.AddZeroed(MemorySize); IncMemoryStats(); }
-	~FBehaviorTreeInstance() { DecMemoryStats(); }
+	AIMODULE_API FBehaviorTreeInstance();
+	AIMODULE_API FBehaviorTreeInstance(const FBehaviorTreeInstance& Other);
+	AIMODULE_API FBehaviorTreeInstance(int32 MemorySize);
+	AIMODULE_API ~FBehaviorTreeInstance();
 
 #if STATS
-	FORCEINLINE void IncMemoryStats() { INC_MEMORY_STAT_BY(STAT_AI_BehaviorTree_InstanceMemory, GetAllocatedSize()); }
-	FORCEINLINE void DecMemoryStats() { DEC_MEMORY_STAT_BY(STAT_AI_BehaviorTree_InstanceMemory, GetAllocatedSize()); }
-	FORCEINLINE uint32 GetAllocatedSize() const 
-	{
-		return sizeof(*this) + ActiveAuxNodes.GetAllocatedSize() + ParallelTasks.GetAllocatedSize() + InstanceMemory.GetAllocatedSize(); 
-	}
+	void IncMemoryStats() const;
+	void DecMemoryStats() const;
+	uint32 GetAllocatedSize() const;
 #else
 	FORCEINLINE uint32 GetAllocatedSize() const { return 0; }
-	FORCEINLINE void IncMemoryStats() {}
-	FORCEINLINE void DecMemoryStats() {}
+	FORCEINLINE void IncMemoryStats() const {}
+	FORCEINLINE void DecMemoryStats() const {}
 #endif // STATS
 
 	/** initialize memory and create node instances */
@@ -350,10 +347,62 @@ struct FBehaviorTreeInstance
 	/** deactivate all active aux nodes and remove their requests from SearchData */
 	void DeactivateNodes(FBehaviorTreeSearchData& SearchData, uint16 InstanceIndex);
 
+	/** get list of all active auxiliary nodes */
+	TArrayView<UBTAuxiliaryNode* const> GetActiveAuxNodes() const { return ActiveAuxNodes; }
+
+	/** add specified node to the active nodes list */
+	void AddToActiveAuxNodes(UBTAuxiliaryNode* AuxNode);
+
+	/** remove specified node from the active nodes list */
+	void RemoveFromActiveAuxNodes(UBTAuxiliaryNode* AuxNode);
+
+	/** remove all auxiliary nodes from active nodes list */
+	void ResetActiveAuxNodes();
+
+	/** iterate on auxiliary nodes and call ExecFunc on each of them. Nodes can not be added or removed during the iteration */
+	void ExecuteOnEachAuxNode(TFunctionRef<void(const UBTAuxiliaryNode&)> ExecFunc);
+
+	/** get list of all active parallel tasks */
+	TArrayView<const FBehaviorTreeParallelTask> GetParallelTasks() const { return ParallelTasks; }
+
+	/** add new parallel task */
+	void AddToParallelTasks(FBehaviorTreeParallelTask&& ParallelTask);
+
+	/** remove parallel task at given index */
+	void RemoveParallelTaskAt(int32 TaskIndex);
+
+	/** mark parallel task at given index as pending abort */
+	void MarkParallelTaskAsAbortingAt(int32 TaskIndex);
+
+	/** indicates if the provided index is a valid parallel task index */
+	bool IsValidParallelTaskIndex(const int32 Index) const { return ParallelTasks.IsValidIndex(Index); }
+
+	/** iterate on parallel tasks and call ExecFunc on each of them. Supports removing the iterated task while processed */
+	void ExecuteOnEachParallelTask(TFunctionRef<void(const FBehaviorTreeParallelTask&, const int32)> ExecFunc);
+
+	/** set instance memory */
+	void SetInstanceMemory(const TArray<uint8>& Memory);
+
+	/** get instance memory */
+	TArrayView<const uint8> GetInstanceMemory() const { return InstanceMemory; }
+
 protected:
 
 	/** worker for updating all nodes */
 	void CleanupNodes(UBehaviorTreeComponent& OwnerComp, UBTCompositeNode& Node, EBTMemoryClear::Type CleanupType);
+
+private:
+#if DO_ENSURE
+	/** debug flag to detect modifications to the array of nodes while iterating through it */
+	bool bIteratingNodes = false;
+
+	/**
+	 * debug flag to detect forbidden modifications to the array of parallel tasks while iterating through it
+	 * the only allowed modification is to unregister the task on which the exec function is executed
+	 * @see ExecuteOnEachParallelTask
+	 */
+	int32 ParallelTaskIndex = INDEX_NONE;
+#endif // DO_ENSURE
 };
 
 struct FBTNodeIndex

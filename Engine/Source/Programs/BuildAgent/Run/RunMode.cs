@@ -269,7 +269,8 @@ namespace BuildAgent.Run
 			LineBuffer Buffer = new LineBuffer(ReadLine, 50);
 			ReadOnlyLineBuffer ReadOnlyBuffer = new ReadOnlyLineBuffer(Buffer);
 
-			while (Buffer[0] != null)
+			string FirstLine;
+			while (Buffer.TryGetLine(0, out FirstLine))
 			{
 				// Try to match an error
 				ErrorMatch Error = null;

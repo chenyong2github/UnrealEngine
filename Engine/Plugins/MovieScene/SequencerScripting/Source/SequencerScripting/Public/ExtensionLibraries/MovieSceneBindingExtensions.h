@@ -51,7 +51,7 @@ public:
 	 * @param InName The display name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
-	static void SetDisplayName(const FSequencerBindingProxy& InBinding, const FText& InName);
+	static void SetDisplayName(const FSequencerBindingProxy& InBinding, const FText& InDisplayName);
 
 	/**
 	 * Get this binding's object non-display name
@@ -87,7 +87,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type specifying which types of track to return
 	 * @return An array containing any tracks that match the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneTrack*> FindTracksByType(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
@@ -97,7 +97,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type specifying the exact types of track to return
 	 * @return An array containing any tracks that are exactly the same as the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneTrack*> FindTracksByExactType(const FSequencerBindingProxy& InBinding, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
@@ -171,4 +171,13 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = Sequence, meta = (ScriptMethod))
 	static void SetParent(const FSequencerBindingProxy& InBinding, const FSequencerBindingProxy& InParentBinding);
+
+	/**
+     * Move all the contents (tracks, child bindings) of the specified binding ID onto another
+	 *
+	 * @param SourceBindingId The identifier of the binding ID to move all tracks and children from
+	 * @param DestinationBindingId The identifier of the binding ID to move the contents to	 
+	 */
+	UFUNCTION(BlueprintCallable, Category = Sequence, meta = (ScriptMethod))
+	static void MoveBindingContents(const FSequencerBindingProxy& SourceBindingId, const FSequencerBindingProxy& DestinationBindingId);
 };

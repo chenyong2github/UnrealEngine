@@ -106,6 +106,7 @@ RAY_TRACING_ENTRY_RAYGEN(AmbientOcclusionRGS)
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
+			PixelCoord,
 			Ray);
 
 		RayCount += 1;

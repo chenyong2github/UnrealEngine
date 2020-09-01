@@ -58,6 +58,9 @@ TAutoConsoleVariable<int32> CVar_ChaosUpdateKinematicsOnDeferredSkelMeshes(TEXT(
 
 #endif
 
+int32 GEnableKinematicDeferralStartPhysicsCondition = 1;
+FAutoConsoleVariableRef CVar_EnableKinematicDeferralStartPhysicsCondition(TEXT("p.EnableKinematicDeferralStartPhysicsCondition"), GEnableKinematicDeferralStartPhysicsCondition, TEXT("If is 1, allow kinematics to be deferred in start physics (probably only called from replication tick). If 0, no deferral in startphysics."));
+
 DECLARE_CYCLE_STAT(TEXT("Update Kinematics On Deferred SkelMeshes"), STAT_UpdateKinematicsOnDeferredSkelMeshesChaos, STATGROUP_Physics);
 
 #if WITH_EDITOR
@@ -371,7 +374,7 @@ FPhysScene_Chaos::FPhysScene_Chaos(AActor* InSolverActor
 )
 	: Super(InSolverActor ? InSolverActor->GetWorld() : nullptr
 #if CHAOS_CHECKED
-		DebugName
+		, DebugName
 #endif
 	)
 	, PhysicsReplication(nullptr)
@@ -700,7 +703,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 
 	TMap<IPhysicsProxyBase*, TArray<int32>> const& PhysicsProxyToCollisionIndicesMap = Event.PhysicsProxyToCollisionIndices.PhysicsProxyToIndicesMap;
 	Chaos::FCollisionDataArray const& CollisionData = Event.CollisionData.AllCollisionsArray;
-
+	const float MinDeltaVelocityThreshold = UPhysicsSettings::Get()->MinDeltaVelocityForHitEvents;
 	int32 NumCollisions = CollisionData.Num();
 	if (NumCollisions > 0)
 	{
@@ -747,6 +750,7 @@ void FPhysScene_Chaos::HandleCollisionEvents(const Chaos::FCollisionEventData& E
 							NewContact.ContactNormal = CollisionDataItem.Normal;
 							NewContact.ContactPosition = CollisionDataItem.Location;
 							NewContact.ContactPenetration = CollisionDataItem.PenetrationDepth;
+							NotifyInfo.RigidCollisionData.bIsVelocityDeltaUnderThreshold = CollisionDataItem.DeltaVelocity1.IsNearlyZero(MinDeltaVelocityThreshold) && CollisionDataItem.DeltaVelocity2.IsNearlyZero(MinDeltaVelocityThreshold);
 							// NewContact.PhysMaterial[1] UPhysicalMaterial required here
 						}
 					}
@@ -1387,6 +1391,14 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 
 	TArray<FPhysicsActorHandle, TInlineAllocator<64>>TeleportActorsPool;
 	TArray<IPhysicsProxyBase*, TInlineAllocator<64>> ProxiesToDirty;
+
+	struct BodyInstanceScalePair
+	{
+		FBodyInstance* BodyInstance;
+		FVector Scale;
+	};
+	TQueue<BodyInstanceScalePair, EQueueMode::Mpsc> BodiesUpdatingScale;
+
 	
 	// Count max number of bodies to determine actor pool size.
 	{
@@ -1494,11 +1506,11 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 								const FVector& MeshScale3D = CurrentLocalToWorld.GetScale3D();
 								if (MeshScale3D.IsUniform())
 								{
-									BodyInst->UpdateBodyScale(BoneTransform.GetScale3D());
+									BodiesUpdatingScale.Enqueue(BodyInstanceScalePair({ BodyInst, BoneTransform.GetScale3D() }));
 								}
 								else
 								{
-									BodyInst->UpdateBodyScale(MeshScale3D);
+									BodiesUpdatingScale.Enqueue(BodyInstanceScalePair({ BodyInst, MeshScale3D }));
 								}
 							}
 						}
@@ -1507,6 +1519,16 @@ void FPhysScene_Chaos::UpdateKinematicsOnDeferredSkelMeshes()
 			}
 		});
 	}
+
+	// Process bodies updating scale
+	BodyInstanceScalePair BodyScalePair;
+	while(BodiesUpdatingScale.Dequeue(BodyScalePair))
+	{
+		// TODO: Add optional arg to prevent UpdateBodyScale from updating acceleration structure.
+		// We already do this below. May not actually matter.
+		BodyScalePair.BodyInstance->UpdateBodyScale(BodyScalePair.Scale);
+	}
+
 
 	UpdateActorsInAccelerationStructure(TeleportActorsPool);
 
@@ -1560,12 +1582,23 @@ float FPhysScene_Chaos::OnStartFrame(float InDeltaTime)
 
 	ProcessDeferredCreatePhysicsState();
 
-	// Update any skeletal meshes that need their bone transforms sent to physics sim
-	UpdateKinematicsOnDeferredSkelMeshes();
-
+	// CVar determines if this happens before or after phys replication.
+	if (GEnableKinematicDeferralStartPhysicsCondition == 0)
+	{
+		// Update any skeletal meshes that need their bone transforms sent to physics sim
+		UpdateKinematicsOnDeferredSkelMeshes();
+	}
+	
 	if (PhysicsReplication)
 	{
 		PhysicsReplication->Tick(UseDeltaTime);
+	}
+
+	// CVar determines if this happens before or after phys replication.
+	if (GEnableKinematicDeferralStartPhysicsCondition)
+	{
+		// Update any skeletal meshes that need their bone transforms sent to physics sim
+		UpdateKinematicsOnDeferredSkelMeshes();
 	}
 
 	OnPhysScenePreTick.Broadcast(this,UseDeltaTime);
@@ -1625,77 +1658,65 @@ void FPhysScene_Chaos::KillVisualDebugger()
 
 }
 
-void FPhysScene_Chaos::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
+void FPhysScene_Chaos::OnSyncBodies(const int32 SolverSyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
 {
+	using namespace Chaos;
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"), STAT_SyncBodies, STATGROUP_Physics);
 	TArray<FPhysScenePendingComponentTransform_Chaos> PendingTransforms;
 	TSet<FGeometryCollectionPhysicsProxy*> GCProxies;
 
 	{
-		const Chaos::FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
-		for (Chaos::TGeometryParticle<float, 3>* DirtyParticle : DirtyParticleBuffer->DirtyGameThreadParticles)
+		const FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
+		for (FSingleParticlePhysicsProxy<TPBDRigidParticle<float, 3>>* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
 		{
-			if (IPhysicsProxyBase* ProxyBase = DirtyParticle->GetProxy())
+			if(Proxy->PullFromPhysicsState(SolverSyncTimestamp))
 			{
-				if (ProxyBase->GetType() == EPhysicsProxyType::SingleRigidParticleType)
+				TPBDRigidParticle<float,3>* DirtyParticle = Proxy->GetParticle();
+
+				if(FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
 				{
-					FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> > * Proxy = static_cast<FSingleParticlePhysicsProxy< Chaos::TPBDRigidParticle<float, 3> >*>(ProxyBase);
-					Proxy->PullFromPhysicsState();
-
-					if (FBodyInstance* BodyInstance = FPhysicsUserData::Get<FBodyInstance>(DirtyParticle->UserData()))
+					if(BodyInstance->OwnerComponent.IsValid())
 					{
-						if (BodyInstance->OwnerComponent.IsValid())
+						UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
+						if(OwnerComponent != nullptr)
 						{
-							UPrimitiveComponent* OwnerComponent = BodyInstance->OwnerComponent.Get();
-							if (OwnerComponent != nullptr)
+							bool bPendingMove = false;
+							if(BodyInstance->InstanceBodyIndex == INDEX_NONE)
 							{
-								bool bPendingMove = false;
-								if (BodyInstance->InstanceBodyIndex == INDEX_NONE)
-								{
-									Chaos::TRigidTransform<float, 3> NewTransform(DirtyParticle->X(), DirtyParticle->R());
+								TRigidTransform<float,3> NewTransform(DirtyParticle->X(),DirtyParticle->R());
 
-									if (!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
-									{
-										bPendingMove = true;
-										const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
-										const FQuat NewRotation = NewTransform.GetRotation();
-										PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, MoveBy, NewRotation, Proxy->GetWakeEvent()));
-									}
-								}
-
-								if (Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
+								if(!NewTransform.EqualsNoScale(OwnerComponent->GetComponentTransform()))
 								{
-									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent, Proxy->GetWakeEvent()));
+									bPendingMove = true;
+									const FVector MoveBy = NewTransform.GetLocation() - OwnerComponent->GetComponentTransform().GetLocation();
+									const FQuat NewRotation = NewTransform.GetRotation();
+									PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,MoveBy,NewRotation,Proxy->GetWakeEvent()));
 								}
-								Proxy->ClearEvents();
 							}
+
+							if(Proxy->GetWakeEvent() != Chaos::EWakeEventEntry::None && !bPendingMove)
+							{
+								PendingTransforms.Add(FPhysScenePendingComponentTransform_Chaos(OwnerComponent,Proxy->GetWakeEvent()));
+							}
+							Proxy->ClearEvents();
 						}
 					}
 				}
-				else if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
-				{
-					FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-					GCProxies.Add(Proxy);
-				}
 			}
 		}
+
 		for (IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies) 
 		{
 			if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
 			{
-				FGeometryCollectionPhysicsProxy* Proxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
-				GCProxies.Add(Proxy);
+				FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+				GCProxy->PullFromPhysicsState(SolverSyncTimestamp);
 			}
 			else
 			{
 				ensure(false); // Unhandled physics only particle proxy!
 			}
 		}
-	}
-	
-	for (FGeometryCollectionPhysicsProxy* GCProxy : GCProxies)
-	{
-		GCProxy->PullFromPhysicsState();
 	}
 
 	for (const FPhysScenePendingComponentTransform_Chaos& ComponentTransform : PendingTransforms)
@@ -1719,7 +1740,7 @@ void FPhysScene_Chaos::OnSyncBodies(Chaos::FPBDRigidDirtyParticlesBufferAccessor
 		{
 			if (ComponentTransform.WakeEvent != Chaos::EWakeEventEntry::None)
 			{
-				ComponentTransform.OwningComp->DispatchWakeEvents(ComponentTransform.WakeEvent == Chaos::EWakeEventEntry::Awake ? ESleepEvent::SET_Wakeup : ESleepEvent::SET_Sleep, NAME_None);
+				ComponentTransform.OwningComp->DispatchWakeEvents(ComponentTransform.WakeEvent == EWakeEventEntry::Awake ? ESleepEvent::SET_Wakeup : ESleepEvent::SET_Sleep, NAME_None);
 			}
 		}
 	}

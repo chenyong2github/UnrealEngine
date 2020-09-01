@@ -19,6 +19,7 @@ struct FSingleLayerWaterPassData
 {
 	TRefCountPtr<IPooledRenderTarget> SceneColorWithoutSingleLayerWater;
 	TRefCountPtr<IPooledRenderTarget> SceneDepthWithoutSingleLayerWater;
+	float RefractionDownsampleFactor;
 
 	struct FSingleLayerWaterPassViewData
 	{

@@ -2206,7 +2206,7 @@ png_do_write_interlace(png_row_infop row_info, png_bytep row, int pass)
 #define PNG_LOMASK ((png_uint_32)0xffffL)
 #define PNG_HIMASK ((png_uint_32)(~PNG_LOMASK >> PNG_HISHIFT))
 
-#if PNG_EPICGAMES_MODIFICATION_ENABLE
+#if PNG_EPICGAMES_MODIFICATION_ENABLE && defined(__clang__)
 // We want to compile this function for different micro-architecture without
 // copy pasting any code, using forceinline will provide that functionality.
 static __forceinline void /* PRIVATE */
@@ -2214,7 +2214,7 @@ png_write_find_filter_inline(png_structp png_ptr, png_row_infop row_info)
 #else
 void /* PRIVATE */
 png_write_find_filter(png_structp png_ptr, png_row_infop row_info)
-#endif // PNG_EPICGAMES_MODIFICATION_ENABLE
+#endif // PNG_EPICGAMES_MODIFICATION_ENABLE && defined(__clang__)
 {
    png_bytep best_row;
 #ifdef PNG_WRITE_FILTER_SUPPORTED

@@ -11,12 +11,6 @@ DEFINE_LOG_CATEGORY_STATIC(LogEditCondition, Log, All);
 FEditConditionContext::FEditConditionContext(FPropertyNode& InPropertyNode)
 {
 	PropertyNode = InPropertyNode.AsShared();
-
-	FComplexPropertyNode* ComplexParentNode = InPropertyNode.FindComplexParent();
-	check(ComplexParentNode);
-
-	const FProperty* Property = InPropertyNode.GetProperty();
-	check(Property);
 }
 
 const FBoolProperty* FEditConditionContext::GetSingleBoolProperty(const TSharedPtr<FEditConditionExpression>& Expression) const
@@ -137,6 +131,10 @@ TOptional<bool> FEditConditionContext::GetBoolValue(const FString& PropertyName)
 	}
 
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+	if (ComplexParentNode == nullptr)
+	{
+		return TOptional<bool>();
+	}
 
 	TOptional<bool> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
@@ -188,6 +186,10 @@ TOptional<int64> FEditConditionContext::GetIntegerValue(const FString& PropertyN
 	}
 
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+	if (ComplexParentNode == nullptr)
+	{
+		return TOptional<int64>();
+	}
 
 	TOptional<int64> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
@@ -234,6 +236,10 @@ TOptional<double> FEditConditionContext::GetNumericValue(const FString& Property
 	}
 
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+	if (ComplexParentNode == nullptr)
+	{
+		return TOptional<double>();
+	}
 
 	TOptional<double> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
@@ -312,6 +318,10 @@ TOptional<FString> FEditConditionContext::GetEnumValue(const FString& PropertyNa
 	}
 
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+	if (ComplexParentNode == nullptr)
+	{
+		return TOptional<FString>();
+	}
 
 	TOptional<int64> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)
@@ -369,6 +379,10 @@ TOptional<UObject*> FEditConditionContext::GetPointerValue(const FString& Proper
 	}
 
 	FComplexPropertyNode* ComplexParentNode = PinnedNode->FindComplexParent();
+	if (ComplexParentNode == nullptr)
+	{
+		return TOptional<UObject*>();
+	}
 
 	TOptional<UObject*> Result;
 	for (int32 Index = 0; Index < ComplexParentNode->GetInstancesNum(); ++Index)

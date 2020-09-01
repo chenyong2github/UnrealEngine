@@ -249,7 +249,8 @@ FNavHeightfieldSamples::FNavHeightfieldSamples()
 const FNavAgentProperties FNavAgentProperties::DefaultProperties;
 
 FNavAgentProperties::FNavAgentProperties(const FNavAgentProperties& Other)
-	: AgentRadius(Other.AgentRadius)
+	: Super(Other)
+	, AgentRadius(Other.AgentRadius)
 	, AgentHeight(Other.AgentHeight)
 	, AgentStepHeight(Other.AgentStepHeight)
 	, NavWalkingSearchHeightScale(Other.NavWalkingSearchHeightScale)

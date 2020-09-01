@@ -607,6 +607,15 @@ void FObjectReplicator::StartReplicating(class UActorChannel * InActorChannel)
 				// SetNum now constructs, so this is safe
 
 				SendingRepState->Retirement.SetNum(ObjectClass->ClassReps.Num());
+
+				if (OwningChannel->SpawnAcked)
+				{
+					// Since SpawnAcked is already true, this should be true as well - this helps prevent an issue where actors can't go dormant if this object replicator is created after the actor's spawn has
+					// been acked by the client
+					SendingRepState->bOpenAckedCalled = true;
+					UE_LOG(LogRep, Verbose, TEXT("FObjectReplicator::InitRecentProperties -  OwningChannel->SpawnAcked is true, also setting SendingRepState->bOpenAckedCalled to true. Object = %s. Channel actor = %s."),
+						*GetFullNameSafe(Object), *GetFullNameSafe(InActorChannel->GetActor()));
+				}
 			}
 		}
 

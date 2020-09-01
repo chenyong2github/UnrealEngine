@@ -17,6 +17,7 @@ struct FInstallBundleCacheBundleInfo
 	FName BundleName;
 	uint64 FullInstallSize = 0; // Total disk footprint when this bundle is fully installed
 	uint64 CurrentInstallSize = 0; // Disk footprint of the bundle in it's current state
+	FDateTime TimeStamp = FDateTime::MinValue(); // Last access time for the bundle.  Used for eviction order
 };
 
 enum class EInstallBundleCacheReserveResult : int8
@@ -73,6 +74,7 @@ private:
 	{
 		uint64 FullInstallSize = 0;
 		uint64 CurrentInstallSize = 0;
+		FDateTime TimeStamp = FDateTime::MinValue();
 	};
 
 	enum class ECacheState : uint8
@@ -86,6 +88,7 @@ private:
 	{
 		uint64 FullInstallSize = 0;
 		uint64 CurrentInstallSize = 0;
+		FDateTime TimeStamp = FDateTime::MinValue();
 		ECacheState State = ECacheState::Released;
 		bool bHintReqeusted = false; // Hint to the cache that this bundle is requested, and we should prefer to evict non-requested bundles if possible
 
@@ -95,7 +98,7 @@ private:
 				return CurrentInstallSize;
 
 			// Just consider any pending evictions to be 0 size.
-			// We will still wait on them if necessary when reserving.
+			// Bundle Manager will still wait on them if necessary when reserving.
 			if (State == ECacheState::PendingEvict)
 				return 0;
 

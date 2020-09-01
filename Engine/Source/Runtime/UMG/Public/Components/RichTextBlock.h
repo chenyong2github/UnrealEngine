@@ -194,6 +194,7 @@ protected:
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=Appearance, meta=(DisplayName="Transform Policy"))
 	ETextTransformPolicy TextTransformPolicy;
 
+	UPROPERTY(Transient)
 	FTextBlockStyle DefaultTextStyle;
 
 	UPROPERTY(Transient)

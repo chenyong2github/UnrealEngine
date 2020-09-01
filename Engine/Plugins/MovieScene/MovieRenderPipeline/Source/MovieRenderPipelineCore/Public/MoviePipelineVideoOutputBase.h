@@ -2,6 +2,7 @@
 #pragma once
 
 #include "MoviePipelineOutputBase.h"
+#include "MovieRenderPipelineDataTypes.h"
 #include "ImagePixelData.h"
 #include "Async/AsyncWork.h"
 #include "Async/TaskGraphInterfaces.h"
@@ -14,6 +15,7 @@ namespace MovieRenderPipeline
 	struct IVideoCodecWriter
 	{
 		FString FileName;
+		FMoviePipelineFormatArgs FormatArgs;
 	};
 }
 
@@ -62,7 +64,9 @@ protected:
 	virtual bool HasFinishedProcessingImpl() override;
 	virtual void BeginFinalizeImpl() override;
 	virtual void FinalizeImpl() override;
+#if WITH_EDITOR
 	virtual FText GetFooterText(UMoviePipelineExecutorJob* InJob) const override;
+#endif
 	// ~UMoviePipelineOutputBase Interface
 
 	// UMoviePipelineVideoOutputBase Interface

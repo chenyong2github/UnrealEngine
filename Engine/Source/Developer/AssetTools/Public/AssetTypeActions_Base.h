@@ -51,6 +51,11 @@ public:
 		return false;
 	}
 
+	virtual bool CanLoadAssetForPreviewOrEdit(const FAssetData& InAssetData) override
+	{
+		return true;
+	}
+
 	virtual bool CanFilter() override
 	{
 		return true;

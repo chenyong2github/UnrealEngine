@@ -14,6 +14,8 @@
 #include "SceneRendering.h"
 #include "VolumeRendering.h"
 
+DECLARE_GPU_DRAWCALL_STAT_EXTERN(Translucency);
+
 bool UseNearestDepthNeighborUpsampleForSeparateTranslucency(const FSceneRenderTargets& SceneContext);
 
 EMeshPass::Type TranslucencyPassToMeshPass(ETranslucencyPass::Type TranslucencyPass);

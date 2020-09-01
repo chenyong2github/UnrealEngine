@@ -94,7 +94,7 @@ bool SGraphNodeBlendSpacePlayer::GetBlendSpaceInfo(TWeakObjectPtr<const UBlendSp
 					{
 						int32 AnimNodeIndex = *NodeIndexPtr;
 						// reverse node index temporarily because of a bug in NodeGuidToIndexMap
-						AnimNodeIndex = Class->AnimNodeProperties.Num() - AnimNodeIndex - 1;
+						AnimNodeIndex = Class->GetAnimNodeProperties().Num() - AnimNodeIndex - 1;
 
 						if (FAnimBlueprintDebugData::FBlendSpacePlayerRecord* DebugInfo = Class->GetAnimBlueprintDebugData().BlendSpacePlayerRecordsThisFrame.FindByPredicate([AnimNodeIndex](const FAnimBlueprintDebugData::FBlendSpacePlayerRecord& InRecord){ return InRecord.NodeID == AnimNodeIndex; }))
 						{

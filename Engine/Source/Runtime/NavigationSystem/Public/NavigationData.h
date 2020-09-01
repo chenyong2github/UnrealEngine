@@ -552,6 +552,8 @@ public:
 #if WITH_EDITOR
 	virtual void PostEditUndo() override;
 	virtual bool SupportsExternalPackaging() const override { return false; }
+	bool IsBuildingOnLoad() const { return bIsBuildingOnLoad; }
+	void SetIsBuildingOnLoad(bool bValue) { bIsBuildingOnLoad = bValue; }
 #endif // WITH_EDITOR
 	virtual void Destroyed() override;
 	virtual void EndPlay(const EEndPlayReason::Type EndPlayReason) override;
@@ -997,6 +999,10 @@ protected:
 	 *	passed over to the generator instantly or cached in SuspendedDirtyAreas 
 	 *	to be applied at later date with SetRebuildingSuspended(false) call */
 	uint32 bRebuildingSuspended : 1;
+
+#if WITH_EDITORONLY_DATA
+	uint32 bIsBuildingOnLoad : 1;
+#endif
 
 private:
 	uint16 NavDataUniqueID;

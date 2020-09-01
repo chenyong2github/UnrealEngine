@@ -2098,11 +2098,16 @@ void FFindInBlueprintSearchManager::OnAssetAdded(const FAssetData& InAssetData)
 
 	if (InAssetData.IsAssetLoaded())
 	{
-		UObject*    AssetObject = InAssetData.GetAsset();
-		UBlueprint* Blueprint   = Handler->RetrieveBlueprint(AssetObject);
-		if (Blueprint)
+		if (UObject* AssetObject = InAssetData.GetAsset())
 		{
-			AddOrUpdateBlueprintSearchMetadata(Blueprint);
+			if (ensureMsgf(AssetObject->IsA(AssetClass), TEXT("AssetClass (%s) matched handler, but does not match actual object type (%s) for asset: %s."), *AssetClass->GetName(), *AssetObject->GetClass()->GetName(), *AssetObject->GetPathName()))
+			{
+				UBlueprint* Blueprint = Handler->RetrieveBlueprint(AssetObject);
+				if (Blueprint)
+				{
+					AddOrUpdateBlueprintSearchMetadata(Blueprint);
+				}
+			}
 		}
 	}
 	else if (Handler->AssetContainsBlueprint(InAssetData))
@@ -3589,10 +3594,11 @@ void FFindInBlueprintSearchManager::Tick(float DeltaTime)
 
 bool FFindInBlueprintSearchManager::IsTickable() const
 {
-	const bool bHasPendingAssets = PendingAssets.Num() > 0 || (bHasFirstSearchOccurred && AssetsToIndexOnFirstSearch.Num() > 0);
+	const bool bHasPendingAssets = PendingAssets.Num() > 0;
+	const bool bNeedsFirstIndex = bHasFirstSearchOccurred && AssetsToIndexOnFirstSearch.Num() > 0;
 
-	// Tick only if we have an active caching operation or if we have pending assets and an open FiB context
-	return IsCacheInProgress() || (bHasPendingAssets && GlobalFindResults.Num() > 0);
+	// Tick only if we have an active caching operation or if a search has occured before we're ready or if we have pending assets and an open FiB context
+	return IsCacheInProgress() || bNeedsFirstIndex || (bHasPendingAssets && IsGlobalFindResultsOpen());
 }
 
 TStatId FFindInBlueprintSearchManager::GetStatId() const

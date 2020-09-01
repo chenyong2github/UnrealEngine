@@ -1191,7 +1191,7 @@ bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UEnum* InEnum)
 	return InEnum && (InEnum->GetBoolMetaData(FBlueprintMetadata::MD_AllowableBlueprintVariableType) || InEnum->IsA<UUserDefinedEnum>());
 }
 
-bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass)
+bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass, bool bAssumeBlueprintType)
 {
 	if (InClass)
 	{
@@ -1237,7 +1237,7 @@ bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass)
 		}
 	}
 	
-	return false;
+	return bAssumeBlueprintType;
 }
 
 bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UScriptStruct* InStruct, const bool bForInternalUse)
@@ -1332,7 +1332,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 		{
 			if (InGraphPin->Direction == EGPD_Input)
 			{
-				bCanSplit = UK2Node_MakeStruct::CanBeSplit(StructType);
+				UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForNodeChecked(InGraphPin->GetOwningNode());
+				bCanSplit = UK2Node_MakeStruct::CanBeSplit(StructType, Blueprint);
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);

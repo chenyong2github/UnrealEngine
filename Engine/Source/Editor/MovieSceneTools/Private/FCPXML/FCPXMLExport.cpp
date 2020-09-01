@@ -114,7 +114,12 @@ bool FFCPXMLExportVisitor::ConstructProjectNode(TSharedRef<FFCPXMLNode> InParent
 
 	TSharedRef<FFCPXMLNode> ChildrenNode = ProjectNode->CreateChildNode(TEXT("children"));
 
-	if (!ConstructMasterClipNodes(ChildrenNode))
+	if (!ConstructMasterVideoClipNodes(ChildrenNode))
+	{
+		return false;
+	}
+
+	if (!ConstructMasterAudioClipNodes(ChildrenNode))
 	{
 		return false;
 	}
@@ -127,8 +132,7 @@ bool FFCPXMLExportVisitor::ConstructProjectNode(TSharedRef<FFCPXMLNode> InParent
 	return true;
 }
 
-/** Creates master clip node. */
-bool FFCPXMLExportVisitor::ConstructMasterClipNodes(TSharedRef<FFCPXMLNode> InParentNode)
+bool FFCPXMLExportVisitor::ConstructMasterVideoClipNodes(TSharedRef<FFCPXMLNode> InParentNode)
 {
 	if (!ExportData->IsExportDataValid() || !ExportData->MovieSceneData.IsValid() || !ExportData->MovieSceneData->CinematicMasterTrack.IsValid())
 	{
@@ -159,6 +163,16 @@ bool FFCPXMLExportVisitor::ConstructMasterClipNodes(TSharedRef<FFCPXMLNode> InPa
 		{
 			return false;
 		}
+	}
+
+	return true;
+}
+
+bool FFCPXMLExportVisitor::ConstructMasterAudioClipNodes(TSharedRef<FFCPXMLNode> InParentNode)
+{
+	if (!ExportData->IsExportDataValid() || !ExportData->MovieSceneData.IsValid() || !ExportData->MovieSceneData->CinematicMasterTrack.IsValid())
+	{
+		return false;
 	}
 
 	for (TSharedPtr<FMovieSceneExportAudioMasterTrackData> AudioMasterTrack : ExportData->MovieSceneData->AudioMasterTracks)
@@ -236,12 +250,12 @@ bool FFCPXMLExportVisitor::ConstructMasterClipNode(TSharedRef<FFCPXMLNode> InPar
 		return false;
 	}
 
-	if (!ConstructLoggingInfoNode(ClipNode, InCinematicSectionData))
+	if (!ConstructLoggingInfoNode(ClipNode, InCinematicSectionData->MovieSceneSection))
 	{
 		return false;
 	}
 
-	if (!ConstructColorInfoNode(ClipNode, InCinematicSectionData))
+	if (!ConstructColorInfoNode(ClipNode))
 	{
 		return false;
 	}
@@ -326,15 +340,15 @@ bool FFCPXMLExportVisitor::ConstructMasterClipNode(TSharedRef<FFCPXMLNode> InPar
 
 
 /** Creates logginginfo node. */
-bool FFCPXMLExportVisitor::ConstructLoggingInfoNode(TSharedRef<FFCPXMLNode> InParentNode, const TSharedPtr<FMovieSceneExportCinematicSectionData> InSectionData)
+bool FFCPXMLExportVisitor::ConstructLoggingInfoNode(TSharedRef<FFCPXMLNode> InParentNode, const UMovieSceneSection* InMovieSceneSection)
 {
-	if (!InSectionData.IsValid() || InSectionData->MovieSceneSection == nullptr)
+	if (!IsValid(InMovieSceneSection))
 	{
 		return false;
 	}
 
 	TSharedRef<FFCPXMLNode> LoggingInfoNode = InParentNode->CreateChildNode(TEXT("logginginfo"));
-	ConstructLoggingInfoElements(LoggingInfoNode, InSectionData->MovieSceneSection);
+	ConstructLoggingInfoElements(LoggingInfoNode, InMovieSceneSection);
 
 	TSharedPtr<FFCPXMLNode> LogNoteNode = LoggingInfoNode->GetChildNode(TEXT("lognote"), ENodeInherit::NoInherit, ENodeReference::NoReferences);
 	if (!LogNoteNode.IsValid())
@@ -343,7 +357,7 @@ bool FFCPXMLExportVisitor::ConstructLoggingInfoNode(TSharedRef<FFCPXMLNode> InPa
 	}
 
 	FString Metadata{ TEXT("") };
-	const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(InSectionData->MovieSceneSection);
+	const UMovieSceneCinematicShotSection* ShotSection = Cast<UMovieSceneCinematicShotSection>(InMovieSceneSection);
 	if (ShotSection == nullptr)
 	{
 		return false;
@@ -462,7 +476,7 @@ void FFCPXMLExportVisitor::SetLoggingInfoElementValue(TSharedPtr<FFCPXMLNode> In
 }
 
 /** Creates colorinfo node. */
-bool FFCPXMLExportVisitor::ConstructColorInfoNode(TSharedRef<FFCPXMLNode> InParentNode, const TSharedPtr<FMovieSceneExportSectionData> InSectionData)
+bool FFCPXMLExportVisitor::ConstructColorInfoNode(TSharedRef<FFCPXMLNode> InParentNode)
 {
 	TSharedPtr<FFCPXMLNode> ColorInfoNode = InParentNode->CreateChildNode(TEXT("colorinfo"));
 	ColorInfoNode->CreateChildNode(TEXT("lut"));

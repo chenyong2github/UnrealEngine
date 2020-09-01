@@ -28,5 +28,6 @@ class UReimportFbxStaticMeshFactory : public UFbxFactory, public FReimportHandle
 
 	//~ Begin UFactory Interface
 	virtual bool FactoryCanImport(const FString& Filename) override;
+	virtual bool IsAutomatedImport() const override;
 	//~ End UFactory Interface
 };

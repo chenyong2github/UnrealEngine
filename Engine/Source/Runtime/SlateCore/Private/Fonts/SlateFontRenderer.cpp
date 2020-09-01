@@ -189,7 +189,7 @@ uint16 FSlateFontRenderer::GetMaxHeight(const FSlateFontInfo& InFontInfo, const 
 	const FFontData& FontData = CompositeFontCache->GetDefaultFontData(InFontInfo);
 	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCodepoint(FontData, Char, InFontInfo.FontFallback);
 
-	if (FaceGlyphData.FaceAndMemory.IsValid())
+	if (FaceGlyphData.FaceAndMemory.IsValid() && FaceGlyphData.FaceAndMemory->IsFaceValid())
 	{
 		FreeTypeUtils::ApplySizeAndScale(FaceGlyphData.FaceAndMemory->GetFace(), InFontInfo.Size, InScale);
 
@@ -212,7 +212,7 @@ int16 FSlateFontRenderer::GetBaseline(const FSlateFontInfo& InFontInfo, const fl
 	const FFontData& FontData = CompositeFontCache->GetDefaultFontData(InFontInfo);
 	const FFreeTypeFaceGlyphData FaceGlyphData = GetFontFaceForCodepoint(FontData, Char, InFontInfo.FontFallback);
 
-	if (FaceGlyphData.FaceAndMemory.IsValid())
+	if (FaceGlyphData.FaceAndMemory.IsValid() && FaceGlyphData.FaceAndMemory->IsFaceValid())
 	{
 		FreeTypeUtils::ApplySizeAndScale(FaceGlyphData.FaceAndMemory->GetFace(), InFontInfo.Size, InScale);
 
@@ -342,6 +342,17 @@ FFreeTypeFaceGlyphData FSlateFontRenderer::GetFontFaceForCodepoint(const FFontDa
 		}
 	}
 
+	// If we have valid face and memory but it just hasn't finished loading,
+	// return like we found it, so that we don't immediately trigger falling back to yet another font
+	// when it may have the glyph once it's actually done loading.
+	if (ReturnVal.FaceAndMemory.IsValid() && ReturnVal.FaceAndMemory->IsFaceLoading())
+	{
+		ReturnVal.FaceAndMemory.Reset();
+		ReturnVal.GlyphIndex = 0;
+		ReturnVal.CharFallbackLevel = EFontFallback::FF_NoFallback;
+		return ReturnVal;
+	}
+
 	// If the requested glyph doesn't exist, use the last resort fallback font
 	if (!ReturnVal.FaceAndMemory.IsValid() || (InCodepoint != 0 && ReturnVal.GlyphIndex == 0))
 	{
@@ -390,12 +401,15 @@ bool FSlateFontRenderer::GetRenderData(const FShapedGlyphEntry& InShapedGlyph, c
 
 	if (FaceGlyphData.FaceAndMemory.IsValid())
 	{
-		check(FaceGlyphData.FaceAndMemory->IsValid());
+		ensure(FaceGlyphData.FaceAndMemory->IsFaceValid());
 
-		FT_Error Error = FreeTypeUtils::LoadGlyph(FaceGlyphData.FaceAndMemory->GetFace(), FaceGlyphData.GlyphIndex, FaceGlyphData.GlyphFlags, InShapedGlyph.FontFaceData->FontSize, InShapedGlyph.FontFaceData->FontScale);
-		if (Error == 0)
+		if (FaceGlyphData.FaceAndMemory->IsFaceValid())
 		{
-			return GetRenderDataInternal(FaceGlyphData, InShapedGlyph.FontFaceData->FontScale, InOutlineSettings, OutRenderData);
+			FT_Error Error = FreeTypeUtils::LoadGlyph(FaceGlyphData.FaceAndMemory->GetFace(), FaceGlyphData.GlyphIndex, FaceGlyphData.GlyphFlags, InShapedGlyph.FontFaceData->FontSize, InShapedGlyph.FontFaceData->FontScale);
+			if (Error == 0)
+			{
+				return GetRenderDataInternal(FaceGlyphData, InShapedGlyph.FontFaceData->FontScale, InOutlineSettings, OutRenderData);
+			}
 		}
 	}
 #endif // WITH_FREETYPE

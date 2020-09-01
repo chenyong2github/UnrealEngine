@@ -35,8 +35,10 @@ DECLARE_CYCLE_STAT(TEXT("RepLayout DeltaSerializeFastArray"), STAT_RepLayout_Del
 // test and shipping builds.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 DEFINE_LOG_CATEGORY_STATIC(LogRepProperties, Warning, All);
+DEFINE_LOG_CATEGORY_STATIC(LogRepPropertiesBackCompat, Warning, All);
 #else
 DEFINE_LOG_CATEGORY_STATIC(LogRepProperties, Warning, Warning);
+DEFINE_LOG_CATEGORY_STATIC(LogRepPropertiesBackCompat, Warning, Warning);
 #endif
 
 int32 GDoPropertyChecksum = 0;
@@ -920,11 +922,13 @@ struct FNetPrivatePushIdHelper
 };
 #endif // (WITH_PUSH_MODEL)
 
-FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording):
-		bIsReplay(InbIsReplay),
-		bIsClientReplayRecording(InbIsClientReplayRecording),
-		ExternalDataNumBits(0)
-	{}
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+FRepChangedPropertyTracker::FRepChangedPropertyTracker(const bool InbIsReplay, const bool InbIsClientReplayRecording) :
+	bIsReplay(InbIsReplay),
+	bIsClientReplayRecording(InbIsClientReplayRecording),
+	ExternalDataNumBits(0)
+{}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 FRepChangedPropertyTracker::~FRepChangedPropertyTracker() {}
 
@@ -933,7 +937,9 @@ void FRepChangedPropertyTracker::SetCustomIsActiveOverride(UObject* OwningObject
 	FRepChangedParent& Parent = Parents[RepIndex];
 
 	Parent.OldActive = Parent.Active;
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	Parent.Active = (bIsActive || bIsClientReplayRecording) ? 1 : 0;
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 #if WITH_PUSH_MODEL
 	if (!Parent.OldActive && Parent.Active)
@@ -951,11 +957,6 @@ void FRepChangedPropertyTracker::SetExternalData(const uint8* Src, const int32 N
 	ExternalData.Reset(NumBytes);
 	ExternalData.AddUninitialized(NumBytes);
 	FMemory::Memcpy(ExternalData.GetData(), Src, NumBytes);
-}
-
-bool FRepChangedPropertyTracker::IsReplay() const
-{
-	return bIsReplay;
 }
 
 void FRepChangedPropertyTracker::CountBytes(FArchive& Ar) const
@@ -1788,6 +1789,20 @@ bool FRepLayout::ReplicateProperties(
 	if (OwningChannel->Connection->ResendAllDataState != EResendAllDataState::None)
 	{
 		check(OwningChannel->Connection->IsInternalAck());
+
+		if (RepState->LifetimeChangelist.Num() == 0)
+		{
+			// If this object was dormant, the lifetime list will be empty if the replicator was discarded, so rebuild it from the changelist state.
+			for (int32 i = RepChangelistState->HistoryStart; i < RepChangelistState->HistoryEnd; ++i)
+			{
+				const int32 HistoryIndex = i % FRepChangelistState::MAX_CHANGE_HISTORY;
+
+				FRepChangedHistory& HistoryItem = RepChangelistState->ChangeHistory[HistoryIndex];
+
+				TArray<uint16> Temp = MoveTemp(RepState->LifetimeChangelist);
+				MergeChangeList(Data, HistoryItem.Changed, Temp, RepState->LifetimeChangelist);
+			}
+		}
 
 		// If we are resending data since open, we don't want to affect the current state of channel/replication, so just do the minimum and send the data, and return
 		if (RepState->LifetimeChangelist.Num() > 0)
@@ -2710,7 +2725,7 @@ static FORCEINLINE void WritePropertyHandle_BackwardsCompatible(
 	const int NumStartingBits = Writer.GetNumBits();
 
 	Writer.SerializeIntPacked(NetFieldExportHandle);
-	UE_LOG(LogRepProperties, VeryVerbose, TEXT("WritePropertyHandle_BackwardsCompatible: %d"), NetFieldExportHandle);
+	UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("WritePropertyHandle_BackwardsCompatible: %d"), NetFieldExportHandle);
 
 #ifdef ENABLE_PROPERTY_CHECKSUMS
 	if (bDoChecksum)
@@ -2763,12 +2778,12 @@ static FORCEINLINE void WriteProperty_BackwardsCompatible(
 
 	// This property changed, so send it
 	Cmd.Property->NetSerializeItem(TempWriter, TempWriter.PackageMap, const_cast<uint8*>(Data.Data));
-	UE_LOG(LogRepProperties, VeryVerbose, TEXT("WriteProperty_BackwardsCompatible: (Temp) NetSerializeItem"));
+	UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("WriteProperty_BackwardsCompatible: (Temp) NetSerializeItem"));
 
 	uint32 NumBits = TempWriter.GetNumBits();
 	Writer.SerializeIntPacked(NumBits);
 	Writer.SerializeBits(TempWriter.GetData(), NumBits);
-	UE_LOG(LogRepProperties, VeryVerbose, TEXT("WriteProperty_BackwardsComptaible: Write Temp, NumBits=%d"), NumBits);
+	UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("WriteProperty_BackwardsComptaible: Write Temp, NumBits=%d"), NumBits);
 
 	const int32 NumEndBits = Writer.GetNumBits();
 
@@ -2808,7 +2823,7 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 		const FRepLayoutCmd& Cmd = Cmds[HandleIterator.CmdIndex];
 		const FRepParentCmd& ParentCmd = Parents[Cmd.ParentIndex];
 
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: Parent=%d, Cmd=%d, ArrayIndex=%d"), Cmd.ParentIndex, HandleIterator.CmdIndex, HandleIterator.ArrayIndex);
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: Parent=%d, Cmd=%d, ArrayIndex=%d"), Cmd.ParentIndex, HandleIterator.CmdIndex, HandleIterator.ArrayIndex);
 
 		FConstRepObjectDataBuffer Data = (SourceData + Cmd) + HandleIterator.ArrayOffset;
 
@@ -2821,7 +2836,7 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 				WritePropertyHandle_BackwardsCompatible(Writer, 0, bDoChecksum);
 			}
 
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: WriteArrayIndex=%d"), HandleIterator.ArrayIndex)
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: WriteArrayIndex=%d"), HandleIterator.ArrayIndex)
 			uint32 Index = HandleIterator.ArrayIndex + 1;
 			Writer.SerializeIntPacked(Index);
 			OldIndex = HandleIterator.ArrayIndex;
@@ -2853,23 +2868,23 @@ void FRepLayout::SendProperties_BackwardsCompatible_r(
 			TempWriter.Reset();
 
 			// Write array num
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: (Temp) ArrayNum=%d"), ArrayNum);
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: (Temp) ArrayNum=%d"), ArrayNum);
 			TempWriter.SerializeIntPacked(ArrayNum);
 
 			if (ArrayNum> 0)
 			{
-				UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: (Temp) Array Recurse Properties"), ArrayNum);
+				UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: (Temp) Array Recurse Properties"), ArrayNum);
 				SendProperties_BackwardsCompatible_r(RepState, PackageMapClient, NetFieldExportGroup, ChangedTracker, TempWriter, bDoChecksum, ArrayHandleIterator, ArrayData);
 			}
 
 			uint32 EndArrayIndex = 0;
 			TempWriter.SerializeIntPacked(EndArrayIndex);
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: (Temp) Array Footer"), ArrayNum);
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: (Temp) Array Footer"), ArrayNum);
 
 			uint32 NumBits = TempWriter.GetNumBits();
 			Writer.SerializeIntPacked(NumBits);
 			Writer.SerializeBits(TempWriter.GetData(), NumBits);
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: Write Temp, NumBits=%d"), NumBits);
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible_r: Write Temp, NumBits=%d"), NumBits);
 
 			check(HandleIterator.ChangelistIterator.ChangedIndex - OldChangedIndex == ArrayChangedCount);				// Make sure we read correct amount
 			check(HandleIterator.ChangelistIterator.Changed[HandleIterator.ChangelistIterator.ChangedIndex] == 0);	// Make sure we are at the end
@@ -2900,7 +2915,7 @@ void FRepLayout::SendAllProperties_BackwardsCompatible_r(
 	{
 		const FRepLayoutCmd& Cmd = Cmds[CmdIndex];
 
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: Parent=%d, Cmd=%d"), Cmd.ParentIndex, CmdIndex);
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: Parent=%d, Cmd=%d"), Cmd.ParentIndex, CmdIndex);
 
 		check(Cmd.Type != ERepLayoutCmdType::Return);
 
@@ -2921,26 +2936,26 @@ void FRepLayout::SendAllProperties_BackwardsCompatible_r(
 			uint32 ArrayNum = Array->Num();
 			TempWriter.SerializeIntPacked(ArrayNum);
 
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: (Temp) ArrayNum=%d"), ArrayNum);
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: (Temp) ArrayNum=%d"), ArrayNum);
 
 			for (int32 i = 0; i < Array->Num(); i++)
 			{
 				uint32 ArrayIndex = i + 1;
 				TempWriter.SerializeIntPacked(ArrayIndex);
 
-				UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: (Temp) ArrayIndex=%d"), ArrayIndex);
+				UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: (Temp) ArrayIndex=%d"), ArrayIndex);
 				const int32 ArrayElementOffset = Cmd.ElementSize * i;
 				SendAllProperties_BackwardsCompatible_r(RepState, TempWriter, bDoChecksum, PackageMapClient, NetFieldExportGroup, CmdIndex + 1, Cmd.EndCmd - 1, ArrayData + ArrayElementOffset);
 			}
 
 			uint32 EndArrayIndex = 0;
 			TempWriter.SerializeIntPacked(EndArrayIndex);
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: (Temp) ArrayFooter"));
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: (Temp) ArrayFooter"));
 
 			uint32 NumBits = TempWriter.GetNumBits();
 			Writer.SerializeIntPacked(NumBits);
 			Writer.SerializeBits(TempWriter.GetData(), NumBits);
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: Write Temp, NumBits=%d"), NumBits);
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendAllProperties_BackwardsCompatible_r: Write Temp, NumBits=%d"), NumBits);
 
 			CmdIndex = Cmd.EndCmd - 1;		// The -1 to handle the ++ in the for loop
 			continue;
@@ -2973,13 +2988,13 @@ void FRepLayout::SendProperties_BackwardsCompatible(
 
 	UPackageMapClient* PackageMapClient = (UPackageMapClient*)Connection->PackageMap;
 	const FString OwnerPathName = Owner->GetPathName();
-	UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: Owner=%s, LastChangelistIndex=%d"), *OwnerPathName, RepState ? RepState->LastChangelistIndex : INDEX_NONE);
+	UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: Owner=%s, LastChangelistIndex=%d"), *OwnerPathName, RepState ? RepState->LastChangelistIndex : INDEX_NONE);
 
 	TSharedPtr<FNetFieldExportGroup> NetFieldExportGroup = PackageMapClient->GetNetFieldExportGroup(OwnerPathName);
 
 	if (!NetFieldExportGroup.IsValid())
 	{
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: Create Netfield Export Group."))
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: Create Netfield Export Group."))
 		NetFieldExportGroup = CreateNetfieldExportGroup();
 
 		PackageMapClient->AddNetFieldExportGroup(OwnerPathName, NetFieldExportGroup);
@@ -2993,12 +3008,12 @@ void FRepLayout::SendProperties_BackwardsCompatible(
 
 	if (Changed.Num() == 0)
 	{
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: SendAllProperties."));
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: SendAllProperties."));
 		SendAllProperties_BackwardsCompatible_r(RepState, Writer, bDoChecksum, PackageMapClient, NetFieldExportGroup.Get(), 0, Cmds.Num() - 1, Data);
 	}
 	else
 	{
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: SendProperties."));
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("SendProperties_BackwardsCompatible: SendProperties."));
 		FChangelistIterator ChangelistIterator(Changed, 0);
 		FRepHandleIterator HandleIterator(Owner, ChangelistIterator, Cmds, BaseHandleToCmdIndex, 0, 1, 0, Cmds.Num() - 1);
 
@@ -3536,7 +3551,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible(
 	const FString OwnerPathName = Owner->GetPathName();
 	TSharedPtr<FNetFieldExportGroup> NetFieldExportGroup = ((UPackageMapClient*)Connection->PackageMap)->GetNetFieldExportGroup(OwnerPathName);
 
-	UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible: Owner=%s, NetFieldExportGroupFound=%d"), *OwnerPathName, !!NetFieldExportGroup.IsValid());
+	UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible: Owner=%s, NetFieldExportGroupFound=%d"), *OwnerPathName, !!NetFieldExportGroup.IsValid());
 
 	return ReceiveProperties_BackwardsCompatible_r(RepState, NetFieldExportGroup.Get(), InBunch, 0, Cmds.Num() - 1, (bEnableRepNotifies && RepState) ? RepState->StaticBuffer.GetData() : nullptr, Data, Data, RepState ? &RepState->GuidReferencesMap : nullptr, bOutHasUnmapped, bOutGuidsChanged);
 }
@@ -3590,7 +3605,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 			return false;
 		}
 
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: NetFieldExportHandle=%d"), Handle);
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: NetFieldExportHandle=%d"), Handle);
 		return true;
 	};
 
@@ -3648,7 +3663,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 		uint32 NumBits = 0;
 		Reader.SerializeIntPacked(NumBits);
 
-		UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: NumBits=%d"), NumBits);
+		UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: NumBits=%d"), NumBits);
 
 		if (Reader.IsError())
 		{
@@ -3691,7 +3706,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 			uint32 ArrayNum = 0;
 			TempReader.SerializeIntPacked(ArrayNum);
 
-			UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: ArrayNum=%d"), ArrayNum);
+			UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: ArrayNum=%d"), ArrayNum);
 
 			if (TempReader.IsError())
 			{
@@ -3726,7 +3741,7 @@ bool FRepLayout::ReceiveProperties_BackwardsCompatible_r(
 				uint32 Index = 0;
 				TempReader.SerializeIntPacked(Index);
 
-				UE_LOG(LogRepProperties, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: ArrayIndex=%d"), Index);
+				UE_LOG(LogRepPropertiesBackCompat, VeryVerbose, TEXT("ReceiveProperties_BackwardsCompatible_r: ArrayIndex=%d"), Index);
 
 				if (TempReader.IsError())
 				{

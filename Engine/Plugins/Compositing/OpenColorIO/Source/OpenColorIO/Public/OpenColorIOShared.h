@@ -151,8 +151,7 @@ public:
 	FOpenColorIOShaderMap();
 
 	// Destructor.
-	virtual ~FOpenColorIOShaderMap();
-	virtual void OnReleased() override;
+	~FOpenColorIOShaderMap();
 
 	/**
 	 * Compiles the shaders for a color transform and caches them in this shader map.
@@ -197,6 +196,10 @@ public:
 	/** Registers a OpenColorIO shader map in the global map so it can be used by OpenColorIO ColorTransform. */
 	void Register(EShaderPlatform InShaderPlatform);
 
+	// Reference counting.
+	OPENCOLORIO_API  void AddRef();
+	OPENCOLORIO_API  void Release();
+
 	/**
 	 * Removes all entries in the cache with exceptions based on a shader type
 	 * @param ShaderType - The shader type to flush
@@ -232,6 +235,7 @@ public:
 		return bCompilationFinalized && bCompiledSuccessfully && !bDeletedThroughDeferredCleanup;
 	}
 
+	int32 GetNumRefs() const { return NumRefs; }
 	uint32 GetCompilingId()  { return CompilingId; }
 	static TMap<TRefCountPtr<FOpenColorIOShaderMap>, TArray<FOpenColorIOTransformResource*> > &GetInFlightShaderMaps() { return OpenColorIOShaderMapsBeingCompiled; }
 
@@ -259,6 +263,8 @@ private:
 
 	/** Uniquely identifies this shader map during compilation, needed for deferred compilation where shaders from multiple shader maps are compiled together. */
 	uint32 CompilingId;
+
+	mutable int32 NumRefs;
 
 	/** Used to catch errors where the shader map is deleted directly. */
 	bool bDeletedThroughDeferredCleanup;

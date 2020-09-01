@@ -639,7 +639,7 @@ void CalculateTransforms(int InstanceId, in FVertexFactoryIntermediates Intermed
 	float3 CameraOffsetWorldPosition = WorldParticlePosition;
 	if (NiagaraMeshVF.bLocalSpace)
 	{
-		CameraOffsetWorldPosition = TransformLocalToWorld(WorldParticlePosition);
+		CameraOffsetWorldPosition = TransformLocalToWorld(WorldParticlePosition).xyz;
 	}
 	WorldParticlePosition += CalculateCameraOffset(CameraOffsetWorldPosition, InstanceId);
 

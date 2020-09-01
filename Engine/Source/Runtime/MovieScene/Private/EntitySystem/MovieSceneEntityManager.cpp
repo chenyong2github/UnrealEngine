@@ -33,6 +33,23 @@ namespace UE
 namespace MovieScene
 {
 
+// @todo: this is a very rough initial guess at the break even point for when threaded evaluation becomes beneficial, and will vary highly between platforms and hardware.
+// We may wish to make this more flexible in future (such as only threading hot paths such as float channel evaluation) by enabling threading per-task, but more data is required to make such decisions
+int32 GThreadedEvaluationAllocationThreshold = 32;
+FAutoConsoleVariableRef CVarThreadedEvaluationAllocationThreshold(
+	TEXT("Sequencer.ThreadedEvaluation.AllocationThreshold"),
+	GThreadedEvaluationAllocationThreshold,
+	TEXT("(Default: 32) Defines the entity allocation fragmentation threshold above which threaded evaluation will be used.\n"),
+	ECVF_Default
+);
+int32 GThreadedEvaluationEntityThreshold = 256;
+FAutoConsoleVariableRef CVarThreadedEvaluationEntityThreshold(
+	TEXT("Sequencer.ThreadedEvaluation.EntityThreshold"),
+	GThreadedEvaluationEntityThreshold,
+	TEXT("(Default: 256) Defines the number of entities that need to exist to justify threaded evaluation.\n"),
+	ECVF_Default
+);
+
 FEntityManager* GEntityManagerForDebuggingVisualizers = nullptr;
 
 static bool IsValidUint16(int32 Test)
@@ -518,6 +535,15 @@ bool FEntityManager::IsHandleValid(FEntityHandle InEntityHandle) const
 
 	const uint32* Generation = EntityGenerationMap.Find(InEntityHandle.ID);
 	return Generation && *Generation == InEntityHandle.HandleGeneration;
+}
+
+EEntityThreadingModel FEntityManager::GetThreadingModel() const
+{
+	const bool bShouldThread = 
+		EntityAllocations.Num() >= GThreadedEvaluationAllocationThreshold ||
+		EntityLocations.Num() >= GThreadedEvaluationEntityThreshold;
+
+	return bShouldThread ? EEntityThreadingModel::TaskGraph : EEntityThreadingModel::NoThreading;
 }
 
 const FComponentMask& FEntityManager::GetAccumulatedMask() const
@@ -1679,14 +1705,6 @@ void FEntityManager::InitializeChildAllocation(const FComponentMask& ParentType,
 			ChildInit->Run(InChildEntityRange, ParentAllocation, ParentAllocationOffsets);
 		}
 	}
-
-	for (TInlineValue<FMutualEntityInitializer>& MutualInit : InstancedMutualInitializers)
-	{
-		if (MutualInit->IsRelevant(ChildType))
-		{
-			MutualInit->Run(InChildEntityRange);
-		}
-	}
 }
 
 void FEntityManager::InitializeMutualComponents(FMovieSceneEntityID EntityID)
@@ -1709,13 +1727,78 @@ void FEntityManager::InitializeMutualComponents(FMovieSceneEntityID EntityID)
 			MutualInit->Run(Range);
 		}
 	}
-	for (TInlineValue<FMutualEntityInitializer>& MutualInit : InstancedMutualInitializers)
+}
+
+void FEntityManager::AddMutualComponents()
+{
+	CheckCanChangeStructure();
+
+	TMap<int32, FComponentMask> AllocationMutations;
+
+	for (int32 AllocationIndex = 0; AllocationIndex < EntityAllocations.GetMaxIndex(); ++AllocationIndex)
 	{
-		if (MutualInit->IsRelevant(EntityType))
+		if (!EntityAllocations.IsValidIndex(AllocationIndex))
 		{
-			MutualInit->Run(Range);
+			continue;
+		}
+
+		FComponentMask NewAllocationType = EntityAllocationMasks[AllocationIndex];
+
+		const int32 NumNewComponents = ComponentRegistry->Factories.ComputeMutuallyInclusiveComponents(NewAllocationType);
+		if (NumNewComponents != 0)
+		{
+			AllocationMutations.Add(AllocationIndex, NewAllocationType);
 		}
 	}
+
+	if (AllocationMutations.Num() == 0)
+	{
+		return;
+	}
+
+	for (TTuple<int32, FComponentMask>& Pair : AllocationMutations)
+	{
+		int32 AllocationIndex = Pair.Key;
+		FEntityAllocation* SourceAllocation = EntityAllocations[AllocationIndex];
+
+		// When adding a component to an entire allocation we just reallocate within the same allocation entry to avoid having to fix up 
+		// Specific entity entry indices
+		FEntityAllocation* NewAllocation = MigrateAllocation(AllocationIndex, Pair.Value);
+
+		FComponentMask NewComponents = FComponentMask::BitwiseXOR(Pair.Value, EntityAllocationMasks[AllocationIndex], EBitwiseOperatorFlags::MaxSize);
+
+		for (FComponentMaskIterator Component = NewComponents.Iterate(); Component; ++Component)
+		{
+			FComponentTypeID ComponentTypeID = FComponentTypeID::FromBitIndex(Component.GetIndex());
+
+			const FComponentHeader& ComponentHeader = NewAllocation->GetComponentHeaderChecked(ComponentTypeID);
+			if (!ComponentHeader.IsTag())
+			{
+				const FComponentTypeInfo& ComponentTypeInfo = ComponentRegistry->GetComponentTypeChecked(ComponentTypeID);
+
+				void* Components = ComponentHeader.GetValuePtr(0);
+				ComponentTypeInfo.ConstructItems(Components, NewAllocation->Num());
+			}
+		}
+
+		FEntityRange Range = { NewAllocation, 0, NewAllocation->Num() };
+		for (const TInlineValue<FMutualEntityInitializer>& MutualInit : ComponentRegistry->Factories.MutualInitializers)
+		{
+			// Only run mutual initializers for _new_ component types (ie, ones that were actually added)
+			if (NewComponents.Contains(MutualInit->GetComponentA()) && Pair.Value.Contains(MutualInit->GetComponentB()))
+			{
+				MutualInit->Run(Range);
+			}
+		}
+
+		EntityAllocationMasks[Pair.Key] = Pair.Value;
+		EntityAllocations[Pair.Key] = NewAllocation;
+
+		DestroyAllocation(SourceAllocation);
+	}
+
+	CheckInvariants();
+	OnStructureChanged();
 }
 
 FEntityAllocation* FEntityManager::MigrateAllocation(int32 AllocationIndex, const FComponentMask& NewComponentMask)

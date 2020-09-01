@@ -46,7 +46,7 @@ struct FWriteOptional : FOptionalComponentAccessor
 
 struct FErasedIterState
 {
-	uint8* ComponentPtr;
+	const uint8* ComponentPtr;
 	int32 Sizeof;
 
 	void operator++()
@@ -54,9 +54,14 @@ struct FErasedIterState
 		ComponentPtr += Sizeof;
 	}
 
-	void* operator*()
+	const void* operator*()
 	{
 		return ComponentPtr;
+	}
+
+	const void* operator[](const int32 Index)
+	{
+		return ComponentPtr += Index*Sizeof;
 	}
 };
 

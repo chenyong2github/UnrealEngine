@@ -20,6 +20,11 @@ namespace Gauntlet
 		public abstract float MaxDuration { get; protected set; }
 
 		/// <summary>
+		/// What the test result should be treated as if we reach max duration.
+		/// </summary>
+		public virtual EMaxDurationReachedResult MaxDurationReachedResult { get; set; }
+
+		/// <summary>
 		/// Override this to set the priority of this test
 		/// </summary>
 		public virtual TestPriority Priority { get { return TestPriority.Normal; } }

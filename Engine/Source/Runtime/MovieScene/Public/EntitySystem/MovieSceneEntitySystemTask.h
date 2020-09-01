@@ -74,6 +74,28 @@ struct TEntityTaskTraits : TDefaultEntityTaskTraits<T>
 {
 };
 
+/** Utility that promotes callbacks that return void to always return 'true' when iterating entities*/
+struct FEntityIterationResult
+{
+	template<typename T>
+	friend FORCEINLINE FEntityIterationResult operator,(T, FEntityIterationResult)
+	{
+		return FEntityIterationResult { true };
+	}
+
+	friend FORCEINLINE FEntityIterationResult operator,(bool In, FEntityIterationResult)
+	{
+		return FEntityIterationResult{ In };
+	}
+
+	FORCEINLINE explicit operator bool() const
+	{
+		return Value;
+	}
+
+	bool Value = true;
+};
+
 /**
  * Defines the accessors for each desired component of an entity task
  */
@@ -222,7 +244,7 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 	 * @param Prerequisites    Prerequisite tasks that must run before this one
 	 * @param Subsequents      (Optional) Subsequent task tracking that this task should be added to for each writable component type
 	 * @param InArgs           Optional arguments that are forwarded to the constructor of TaskImpl
-	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run)
+	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run), or threading is disabled
 	 */
 	template<typename TaskImpl, typename... TaskConstructionArgs>
 	FGraphEventRef Dispatch_PerAllocation(FEntityManager* EntityManager, const FSystemTaskPrerequisites& Prerequisites, FSystemSubsequentTasks* Subsequents, TaskConstructionArgs&&... InArgs) const
@@ -234,21 +256,31 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 			return nullptr;
 		}
 
-		FGraphEventArray GatheredPrereqs;
-		this->PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
-
-		ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
-		checkSlow(ThisThread != ENamedThreads::AnyThread);
-
-		FGraphEventRef NewTask = TGraphTask< TEntityAllocationTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
-			.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
-
-		if (Subsequents)
+		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
-			this->PopulateSubsequents(NewTask, *Subsequents);
+			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
+			TEntityAllocationTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
+			return nullptr;
 		}
+		else
+		{
 
-		return NewTask;
+			FGraphEventArray GatheredPrereqs;
+			this->PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
+
+			ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
+			checkSlow(ThisThread != ENamedThreads::AnyThread);
+
+			FGraphEventRef NewTask = TGraphTask< TEntityAllocationTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
+				.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
+
+			if (Subsequents)
+			{
+				this->PopulateSubsequents(NewTask, *Subsequents);
+			}
+
+			return NewTask;
+		}
 	}
 
 	template<typename TaskImpl>
@@ -283,7 +315,7 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 	 * @param Prerequisites    Prerequisite tasks that must run before this one, or nullptr if there are no prerequisites
 	 * @param Subsequents      (Optional) Subsequent task tracking that this task should be added to for each writable component type
 	 * @param InArgs           Optional arguments that are forwarded to the constructor of TaskImpl
-	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run)
+	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run), or threading is disabled
 	 */
 	template<typename TaskImpl, typename... TaskConstructionArgs>
 	FGraphEventRef Dispatch_PerEntity(FEntityManager* EntityManager, const FSystemTaskPrerequisites& Prerequisites, FSystemSubsequentTasks* Subsequents, TaskConstructionArgs&&... InArgs) const
@@ -295,21 +327,31 @@ struct TEntityTaskComponents : TEntityTaskComponentsImpl<TMakeIntegerSequence<in
 			return nullptr;
 		}
 
-		FGraphEventArray GatheredPrereqs;
-		this->PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
-
-		ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
-		checkSlow(ThisThread != ENamedThreads::AnyThread);
-
-		FGraphEventRef NewTask = TGraphTask< TEntityTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
-			.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
-
-		if (Subsequents)
+		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
-			this->PopulateSubsequents(NewTask, *Subsequents);
+			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
+			TEntityTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
+			return nullptr;
 		}
+		else
+		{
 
-		return NewTask;
+			FGraphEventArray GatheredPrereqs;
+			this->PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
+
+			ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
+			checkSlow(ThisThread != ENamedThreads::AnyThread);
+
+			FGraphEventRef NewTask = TGraphTask< TEntityTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
+				.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
+
+			if (Subsequents)
+			{
+				this->PopulateSubsequents(NewTask, *Subsequents);
+			}
+
+			return NewTask;
+		}
 	}
 
 	template<typename TaskImpl>
@@ -622,15 +664,18 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 			const uint64 SystemSerial = EntityManager->GetSystemSerial();
 			for (FEntityAllocation* Allocation : EntityManager->Iterate(&Filter))
 			{
+				FEntityIterationResult Result;
+
 				// Lock on the components we want to access
 				Lock(Allocation);
 
 				auto IterState = MakeTuple( Accessors.template Get<Indices>().CreateIterState(Allocation)... );
 
 				const int32 Num = Allocation->Num();
-				for (int32 ComponentOffset = 0; ComponentOffset < Num; ++ComponentOffset )
+				for (int32 ComponentOffset = 0; ComponentOffset < Num && Result.Value; ++ComponentOffset )
 				{
-					InCallback( *IterState.template Get<Indices>()... );
+					Result = (InCallback( *IterState.template Get<Indices>()... ), Result);
+
 					int Temp[] = { (++IterState.template Get<Indices>(), 0)..., 0 };
 					(void)Temp;
 				}
@@ -659,10 +704,15 @@ struct TEntityTaskComponentsImpl<TIntegerSequence<int, Indices...>, T...>
 				// Lock on the components we want to access
 				Lock(Allocation);
 
-				InCallback(Allocation, Accessors.template Get<Indices>()...);
+				FEntityIterationResult Result = (InCallback(Allocation, Accessors.template Get<Indices>()...), FEntityIterationResult{});
 
 				// Unlock from the components we wanted to access
 				Unlock(Allocation, SystemSerial);
+
+				if (!Result)
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -890,7 +940,7 @@ struct TFilteredEntityTask
 	 * @param Prerequisites    Prerequisite tasks that must run before this one, or nullptr if there are no prerequisites
 	 * @param Subsequents      (Optional) Subsequent task tracking that this task should be added to for each writable component type
 	 * @param InArgs           Optional arguments that are forwarded to the constructor of TaskImpl
-	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run)
+	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run), or threading is disabled
 	 */
 	template<typename TaskImpl, typename... TaskConstructionArgs>
 	FGraphEventRef Dispatch_PerAllocation(FEntityManager* EntityManager, const FSystemTaskPrerequisites& Prerequisites, FSystemSubsequentTasks* Subsequents, TaskConstructionArgs&&... InArgs) const
@@ -902,21 +952,30 @@ struct TFilteredEntityTask
 			return nullptr;
 		}
 
-		FGraphEventArray GatheredPrereqs;
-		Components.PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
-
-		ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
-		checkSlow(ThisThread != ENamedThreads::AnyThread);
-
-		FGraphEventRef NewTask = TGraphTask< TEntityAllocationTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
-			.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
-
-		if (Subsequents)
+		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
-			Components.PopulateSubsequents(NewTask, *Subsequents);
+			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
+			TEntityAllocationTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
+			return nullptr;
 		}
+		else
+		{
+			FGraphEventArray GatheredPrereqs;
+			Components.PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
 
-		return NewTask;
+			ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
+			checkSlow(ThisThread != ENamedThreads::AnyThread);
+
+			FGraphEventRef NewTask = TGraphTask< TEntityAllocationTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
+				.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
+
+			if (Subsequents)
+			{
+				Components.PopulateSubsequents(NewTask, *Subsequents);
+			}
+
+			return NewTask;
+		}
 	}
 
 	template<typename TaskImpl>
@@ -951,7 +1010,7 @@ struct TFilteredEntityTask
 	 * @param Prerequisites    Prerequisite tasks that must run before this one, or nullptr if there are no prerequisites
 	 * @param Subsequents      (Optional) Subsequent task tracking that this task should be added to for each writable component type
 	 * @param InArgs           Optional arguments that are forwarded to the constructor of TaskImpl
-	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run)
+	 * @return A pointer to the graph event for the task, or nullptr if this task is not valid (ie contains invalid component types that would be necessary for the task to run), or threading is disabled
 	 */
 	template<typename TaskImpl, typename... TaskConstructionArgs>
 	FGraphEventRef Dispatch_PerEntity(FEntityManager* EntityManager, const FSystemTaskPrerequisites& Prerequisites, FSystemSubsequentTasks* Subsequents, TaskConstructionArgs&&... InArgs) const
@@ -963,21 +1022,30 @@ struct TFilteredEntityTask
 			return nullptr;
 		}
 
-		FGraphEventArray GatheredPrereqs;
-		Components.PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
-
-		ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
-		checkSlow(ThisThread != ENamedThreads::AnyThread);
-
-		FGraphEventRef NewTask = TGraphTask< TEntityTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
-			.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
-
-		if (Subsequents)
+		if (EntityManager->GetThreadingModel() == EEntityThreadingModel::NoThreading)
 		{
-			Components.PopulateSubsequents(NewTask, *Subsequents);
+			TaskImpl Task{ Forward<TaskConstructionArgs>(InArgs)... };
+			TEntityTaskBase<TaskImpl, T...>(EntityManager, *this).Run(Task);
+			return nullptr;
 		}
+		else
+		{
+			FGraphEventArray GatheredPrereqs;
+			Components.PopulatePrerequisites(Prerequisites, &GatheredPrereqs);
 
-		return NewTask;
+			ENamedThreads::Type ThisThread = CurrentThread == ENamedThreads::AnyThread ? EntityManager->GetDispatchThread() : CurrentThread;
+			checkSlow(ThisThread != ENamedThreads::AnyThread);
+
+			FGraphEventRef NewTask = TGraphTask< TEntityTask<TaskImpl, T...> >::CreateTask(GatheredPrereqs.Num() != 0 ? &GatheredPrereqs : nullptr, ThisThread)
+				.ConstructAndDispatchWhenReady( EntityManager, *this, DesiredThread, StatId, bBreakOnRun, Forward<TaskConstructionArgs>(InArgs)... );
+
+			if (Subsequents)
+			{
+				Components.PopulateSubsequents(NewTask, *Subsequents);
+			}
+
+			return NewTask;
+		}
 	}
 
 	template<typename TaskImpl>
@@ -1317,6 +1385,7 @@ struct TEntityTaskCaller<TaskImpl, NumComponents, false>
 		TaskImplInstance.ForEachAllocation(Allocation, Components);
 	}
 };
+
 
 } // namespace MovieScene
 } // namespace UE

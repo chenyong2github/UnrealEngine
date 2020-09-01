@@ -64,6 +64,7 @@ ACharacter::ACharacter(const FObjectInitializer& ObjectInitializer)
 	JumpMaxHoldTime = 0.0f;
     JumpMaxCount = 1;
     JumpCurrentCount = 0;
+	JumpCurrentCountPreJump = 0;
     bWasJumping = false;
 
 	AnimRootMotionTranslationScale = 1.0f;
@@ -305,6 +306,7 @@ void ACharacter::ResetJumpState()
 	if (CharacterMovement && !CharacterMovement->IsFalling())
 	{
 		JumpCurrentCount = 0;
+		JumpCurrentCountPreJump = 0;
 	}
 }
 
@@ -806,6 +808,7 @@ void ACharacter::Restart()
 	Super::Restart();
 
     JumpCurrentCount = 0;
+	JumpCurrentCountPreJump = 0;
 
 	bPressedJump = false;
 	ResetJumpState();
@@ -1007,6 +1010,8 @@ void ACharacter::StopJumping()
 
 void ACharacter::CheckJumpInput(float DeltaTime)
 {
+	JumpCurrentCountPreJump = JumpCurrentCount;
+
 	if (CharacterMovement)
 	{
 		if (bPressedJump)
@@ -1473,7 +1478,7 @@ void ACharacter::PreReplication( IRepChangedPropertyTracker & ChangedPropertyTra
 	}
 }
 
-void ACharacter::PreReplicationForReplay(IRepChangedPropertyTracker & ChangedPropertyTracker)
+void ACharacter::PreReplicationForReplay(IRepChangedPropertyTracker& ChangedPropertyTracker)
 {
 	Super::PreReplicationForReplay(ChangedPropertyTracker);
 

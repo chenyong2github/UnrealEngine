@@ -200,7 +200,7 @@ void TestCues()
 	// -------------------------------------
 
 	FNetBitWriter TempWriter(1024 << 3);
-	ServerDispatcher.NetSerializeSavedCues(TempWriter, ENetSimCueReplicationTarget::All, true);
+	ServerDispatcher.NetSendSavedCues(TempWriter, ENetSimCueReplicationTarget::All, true);
 
 	// -------------------------------------
 	// Receive
@@ -208,7 +208,8 @@ void TestCues()
 
 	FNetBitReader TempReader(nullptr, TempWriter.GetData(), TempWriter.GetNumBits());
 	TNetSimCueDispatcher<void> ClientDispatcher;
-	ClientDispatcher.NetSerializeSavedCues(TempReader, ENetSimCueReplicationTarget::All, true);
+	ClientDispatcher.SetReceiveReplicationTarget(ENetSimCueReplicationTarget::All);
+	ClientDispatcher.NetRecvSavedCues(TempReader, true, 0, 0);
 
 	TestHandlerChild MyObject;
 

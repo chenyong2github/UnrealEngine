@@ -33,7 +33,7 @@ DECLARE_DELEGATE_OneParam(FUserDependentAction, USocialUser&);
 
 /** Represents the full suite of social functionality available to a given LocalPlayer */
 UCLASS(Within = SocialManager)
-class PARTY_API USocialToolkit : public UObject
+class PARTY_API USocialToolkit : public UObject, public FExec
 {
 	GENERATED_BODY()
 
@@ -68,6 +68,9 @@ public:
 	USocialManager& GetSocialManager() const;
 	ULocalPlayer& GetOwningLocalPlayer() const;
 	const TArray<USocialUser*>& GetAllUsers() const { return AllUsers; }
+
+	// FExec
+	virtual bool Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out) override;
 
 	/** Finds a SocialUser given a unique net ID from any OSS */
 	USocialUser* FindUser(const FUniqueNetIdRepl& UserId) const;

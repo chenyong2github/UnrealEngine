@@ -9,7 +9,7 @@
 #include "NiagaraDataInterfaceGrid3DCollection.generated.h"
 
 class FNiagaraSystemInstance;
-class UTextureRenderTarget2D;
+class UTextureRenderTargetVolume;
 
 class FGrid3DBuffer
 {
@@ -28,6 +28,9 @@ struct FGrid3DCollectionRWInstanceData_GameThread
 	FIntVector NumTiles = FIntVector::ZeroValue;
 	FVector CellSize = FVector::ZeroVector;
 	FVector WorldBBoxSize = FVector::ZeroVector;
+
+	/** A binding to the user ptr we're reading the RT from (if we are). */
+	FNiagaraParameterDirectBinding<UObject*> RTUserParamBinding;
 };
 
 struct FGrid3DCollectionRWInstanceData_RenderThread
@@ -41,6 +44,8 @@ struct FGrid3DCollectionRWInstanceData_RenderThread
 	FGrid3DBuffer* CurrentData = nullptr;
 	FGrid3DBuffer* DestinationData = nullptr;
 
+	FTextureRHIRef RenderTargetToCopyTo;
+
 	void BeginSimulate();
 	void EndSimulate();
 };
@@ -49,9 +54,10 @@ struct FNiagaraDataInterfaceProxyGrid3DCollectionProxy : public FNiagaraDataInte
 {
 	FNiagaraDataInterfaceProxyGrid3DCollectionProxy() {}
 
-	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
-	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
-	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) override;
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PostStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override;
+	virtual void PostSimulate(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
+	virtual void ResetData(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceArgs& Context) override;
 
 	/* List of proxy data for each system instances*/
 	// #todo(dmp): this should all be refactored to avoid duplicate code
@@ -70,6 +76,10 @@ public:
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
+	/** Reference to a user parameter if we're reading one. */
+	UPROPERTY(EditAnywhere, Category = "Grid3DCollection")
+	FNiagaraUserParameterBinding RenderTargetUserParameter;
+
 	virtual void PostInitProperties() override;
 	
 	//~ UNiagaraDataInterface interface
@@ -86,7 +96,7 @@ public:
 	virtual void ProvidePerInstanceDataForRenderThread(void* DataForRenderThread, void* PerInstanceData, const FNiagaraSystemInstanceID& SystemInstance) override {}
 	virtual bool InitPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
 	virtual void DestroyPerInstanceData(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance) override;
-	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override { return false; }
+	virtual bool PerInstanceTick(void* PerInstanceData, FNiagaraSystemInstance* SystemInstance, float DeltaSeconds) override;
 	virtual int32 PerInstanceDataSize()const override { return sizeof(FGrid3DCollectionRWInstanceData_GameThread); }
 	virtual bool HasPreSimulateTick() const override { return true; }
 	//~ UNiagaraDataInterface interface END
@@ -95,10 +105,10 @@ public:
 	// #todo(dmp): this will eventually go away when we formalize how data makes it out of Niagara
 	// #todo(dmp): reimplement for 3d
 
-	UFUNCTION(BlueprintCallable, Category = Niagara)
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by object user variables on the emitter to specify render targets to fill with data."))
 	virtual bool FillVolumeTexture(const UNiagaraComponent *Component, UVolumeTexture *dest, int AttributeIndex);
 	
-	UFUNCTION(BlueprintCallable, Category = Niagara)
+	UFUNCTION(BlueprintCallable, Category = Niagara, meta = (DeprecatedFunction, DeprecationMessage = "This function has been replaced by object user variables on the emitter to specify render targets to fill with data."))
 	virtual bool FillRawVolumeTexture(const UNiagaraComponent *Component, UVolumeTexture*Dest, int &TilesX, int &TilesY, int &TileZ);
 	
 	UFUNCTION(BlueprintCallable, Category = Niagara)

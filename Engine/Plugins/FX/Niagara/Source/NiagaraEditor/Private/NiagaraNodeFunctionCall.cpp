@@ -265,11 +265,22 @@ void UNiagaraNodeFunctionCall::AllocateDefaultPins()
 	}
 	else
 	{
+		if (Signature.bRequiresExecPin)
+		{
+			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT(""));
+			NewPin->bDefaultValueIsIgnored = true;
+		}
 		
 		for (FNiagaraVariable& Input : Signature.Inputs)
 		{
 			UEdGraphPin* NewPin = CreatePin(EGPD_Input, Schema->TypeDefinitionToPinType(Input.GetType()), Input.GetName());
 			NewPin->bDefaultValueIsIgnored = false;
+		}
+
+		if (Signature.bRequiresExecPin)
+		{
+			UEdGraphPin* NewPin = CreatePin(EGPD_Output, Schema->TypeDefinitionToPinType(FNiagaraTypeDefinition::GetParameterMapDef()), TEXT(""));
+			NewPin->bDefaultValueIsIgnored = true;
 		}
 
 		for (FNiagaraVariable& Output : Signature.Outputs)
@@ -880,7 +891,7 @@ void UNiagaraNodeFunctionCall::BuildParameterMapHistory(FNiagaraParameterMapHist
 			OutHistory.RegisterParameterMapPin(MatchedPairs[i].Value, MatchedPairs[i].Key);
 		}
 	}
-	else if (!ScriptIsValid())
+	else if (!ScriptIsValid() || Signature.bRequiresExecPin)
 	{
 		RouteParameterMapAroundMe(OutHistory, bRecursive);
 	}

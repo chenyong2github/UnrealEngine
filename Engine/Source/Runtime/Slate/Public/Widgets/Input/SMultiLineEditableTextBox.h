@@ -61,6 +61,7 @@ public:
 		, _AutoWrapText(false)
 		, _WrappingPolicy(ETextWrappingPolicy::DefaultWrapping)
 		, _SelectAllTextOnCommit( false )
+		, _SelectWordOnMouseDoubleClick( true )
 		, _BackgroundColor()		
 		, _Padding()
 		, _Margin()
@@ -197,6 +198,9 @@ public:
 		/** Whether to select all text when pressing enter to commit changes */
 		SLATE_ATTRIBUTE( bool, SelectAllTextOnCommit )
 
+		/** Whether to select word on mouse double click on the widget */
+		SLATE_ATTRIBUTE(bool, SelectWordOnMouseDoubleClick)
+
 		/** The color of the background/border around the editable text (overrides Style) */
 		SLATE_ATTRIBUTE( FSlateColor, BackgroundColor )
 
@@ -320,6 +324,13 @@ public:
 	 * @param  InReadOnlyForegroundColor 	The read-only text color and opacity
 	 */
 	void SetReadOnlyForegroundColor(const TAttribute<FSlateColor>& InReadOnlyForegroundColor);
+
+	/**
+	 * Sets whether to select word on the mouse double click
+	 *
+	 * @param  InSelectWordOnMouseDoubleClick		Select word on the mouse double click
+	 */
+	void SetSelectWordOnMouseDoubleClick(const TAttribute<bool>& InSelectWordOnMouseDoubleClick);
 
 	/** See TextShapingMethod attribute */
 	void SetTextShapingMethod(const TOptional<ETextShapingMethod>& InTextShapingMethod);
@@ -477,6 +488,9 @@ protected:
 
 	/** Whether to disable the context menu */
 	TAttribute< bool > AllowContextMenu;
+
+	/** Whether to select work on mouse double click */
+	TAttribute<bool> bSelectWordOnMouseDoubleClick;
 
 	/** Allows for inserting additional widgets that extend the functionality of the text box */
 	TSharedPtr<SHorizontalBox> Box;

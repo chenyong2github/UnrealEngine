@@ -26,6 +26,7 @@ public class BackgroundHTTP : ModuleRules
                 "ApplicationCore",
                 "Engine",
                 "HTTP",
+                "BackgroundHTTPFileHash",
             }
         );
     }

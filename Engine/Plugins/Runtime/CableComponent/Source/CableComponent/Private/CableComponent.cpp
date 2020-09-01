@@ -623,12 +623,24 @@ void UCableComponent::GetEndPositions(FVector& OutStartPosition, FVector& OutEnd
 
 }
 
+void UCableComponent::OnVisibilityChanged()
+{
+	Super::OnVisibilityChanged();
+
+	// Does not interact well with any other states that would be blocking tick
+	if (bSkipCableUpdateWhenNotVisible)
+	{
+		SetComponentTickEnabled(IsVisible());
+	}
+}
+
 void UCableComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction *ThisTickFunction)
 {
 	Super::TickComponent(DeltaTime, TickType, ThisTickFunction);
 
 	if (bSkipCableUpdateWhenNotVisible && !IsVisible())
 	{
+		SetComponentTickEnabled(false);
 		return;
 	}
 

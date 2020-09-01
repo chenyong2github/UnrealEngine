@@ -131,7 +131,17 @@ bool FNullHttpRequest::ProcessRequest()
 
 void FNullHttpRequest::CancelRequest()
 {
-	FinishedRequest();
+	if (!IsInGameThread())
+	{
+		FHttpModule::Get().GetHttpManager().AddGameThreadTask([StrongThis = StaticCastSharedRef<FNullHttpRequest>(AsShared())]()
+		{
+			StrongThis->FinishedRequest();
+		});
+	}
+	else
+	{
+		FinishedRequest();
+	}
 }
 
 EHttpRequestStatus::Type FNullHttpRequest::GetStatus() const
@@ -149,7 +159,7 @@ void FNullHttpRequest::Tick(float DeltaSeconds)
 	if (CompletionStatus == EHttpRequestStatus::Processing)
 	{
 		ElapsedTime += DeltaSeconds;
-		const float HttpTimeout = FHttpModule::Get().GetHttpTimeout();
+		const float HttpTimeout = GetTimeoutOrDefault();
 		if (HttpTimeout > 0 && ElapsedTime >= HttpTimeout)
 		{
 			UE_LOG(LogHttp, Warning, TEXT("Timeout processing Http request. %p"),

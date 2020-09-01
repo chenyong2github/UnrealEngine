@@ -569,7 +569,7 @@ namespace ChaosTest {
 			Constraints.AddConstraint(ConstrainedParticleIndices);
 		}
 
-		SOAs.ClearPutToSleepThisFrame();
+		SOAs.ClearTransientDirty();
 		Graph.InitializeGraph(SOAs.GetNonDisabledView());
 
 		Graph.ReserveConstraints(Constraints.NumConstraints());

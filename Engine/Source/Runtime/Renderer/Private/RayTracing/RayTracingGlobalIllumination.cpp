@@ -146,7 +146,7 @@ static float GRayTracingGlobalIlluminationFinalGatherDistance = 10.0;
 static FAutoConsoleVariableRef CVarRayTracingGlobalIlluminationFinalGatherDistance(
 	TEXT("r.RayTracing.GlobalIllumination.FinalGather.Distance"),
 	GRayTracingGlobalIlluminationFinalGatherDistance,
-	TEXT("Maximum world-space distance for valid, reprojected final gather points (default = 10)")
+	TEXT("Maximum screen-space distance for valid, reprojected final gather points (default = 10)")
 );
 
 static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSortMaterials(
@@ -175,6 +175,36 @@ static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationFinalGatherSo
 	TEXT("5: 4096 Elements (Default)\n"),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationDirectionalLight(
+	TEXT("r.RayTracing.GlobalIllumination.Lights.DirectionalLight"),
+	1,
+	TEXT("Enables DirectionalLight sampling for global illumination (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationSkyLight(
+	TEXT("r.RayTracing.GlobalIllumination.Lights.SkyLight"),
+	1,
+	TEXT("Enables SkyLight sampling for global illumination (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationPointLight(
+	TEXT("r.RayTracing.GlobalIllumination.Lights.PointLight"),
+	1,
+	TEXT("Enables PointLight sampling for global illumination (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationSpotLight(
+	TEXT("r.RayTracing.GlobalIllumination.Lights.SpotLight"),
+	1,
+	TEXT("Enables SpotLight sampling for global illumination (default = 1)"),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRayTracingGlobalIlluminationRectLight(
+	TEXT("r.RayTracing.GlobalIllumination.Lights.RectLight"),
+	1,
+	TEXT("Enables RectLight sampling for global illumination (default = 1)"),
+	ECVF_RenderThreadSafe);
+
 DECLARE_GPU_STAT_NAMED(RayTracingGIBruteForce, TEXT("Ray Tracing GI: Brute Force"));
 DECLARE_GPU_STAT_NAMED(RayTracingGIFinalGather, TEXT("Ray Tracing GI: Final Gather"));
 DECLARE_GPU_STAT_NAMED(RayTracingGICreateGatherPoints, TEXT("Ray Tracing GI: Create Gather Points"));
@@ -193,7 +223,7 @@ RENDERER_API void SetupLightParameters(
 	uint32 SkyLightTransmission = 0;
 	// SkyLight does not have a LightingChannelMask
 	uint8 SkyLightLightingChannelMask = 0xFF;
-	if (SkyLight && SkyLight->bAffectGlobalIllumination)
+	if (SkyLight && SkyLight->bAffectGlobalIllumination && CVarRayTracingGlobalIlluminationSkyLight.GetValueOnRenderThread())
 	{
 		SkyLightColor = FVector(SkyLight->GetEffectiveLightColor());
 		SkyLightTransmission = SkyLight->bTransmission;
@@ -230,6 +260,8 @@ RENDERER_API void SetupLightParameters(
 		{
 		case LightType_Directional:
 		{
+			if (CVarRayTracingGlobalIlluminationDirectionalLight.GetValueOnRenderThread() == 0) continue;
+
 			LightParameters->Type[LightParameters->Count] = 2;
 			LightParameters->Normal[LightParameters->Count] = LightShaderParameters.Direction;
 			LightParameters->Color[LightParameters->Count] = LightShaderParameters.Color;
@@ -238,6 +270,8 @@ RENDERER_API void SetupLightParameters(
 		}
 		case LightType_Rect:
 		{
+			if (CVarRayTracingGlobalIlluminationRectLight.GetValueOnRenderThread() == 0) continue;
+
 			LightParameters->Type[LightParameters->Count] = 3;
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
@@ -253,6 +287,8 @@ RENDERER_API void SetupLightParameters(
 		case LightType_Point:
 		default:
 		{
+			if (CVarRayTracingGlobalIlluminationPointLight.GetValueOnRenderThread() == 0) continue;
+			
 			LightParameters->Type[LightParameters->Count] = 1;
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
 			// #dxr_todo: UE-72556 define these differences from Lit..
@@ -264,6 +300,8 @@ RENDERER_API void SetupLightParameters(
 		}
 		case LightType_Spot:
 		{
+			if (CVarRayTracingGlobalIlluminationSpotLight.GetValueOnRenderThread() == 0) continue;
+
 			LightParameters->Type[LightParameters->Count] = 4;
 			LightParameters->Position[LightParameters->Count] = LightShaderParameters.Position;
 			LightParameters->Normal[LightParameters->Count] = -LightShaderParameters.Direction;
@@ -276,6 +314,7 @@ RENDERER_API void SetupLightParameters(
 		}
 		};
 
+		LightParameters->Color[LightParameters->Count] *= Light.LightSceneInfo->Proxy->GetIndirectLightingScale();
 		LightParameters->Count++;
 	}
 }

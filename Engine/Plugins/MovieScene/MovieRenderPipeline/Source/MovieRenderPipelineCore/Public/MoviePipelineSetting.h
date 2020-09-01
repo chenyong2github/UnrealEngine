@@ -106,8 +106,8 @@ public:
 	/** Get a human-readable text describing what validation errors (if any) the call to ValidateState() produced. */
 	virtual TArray<FText> GetValidationResults() const;
 
-	/** Return Key/Value pairs that you wish to be usable in the Output File Name format string. This allows settings to add format strings based on their values. */
-	virtual void GetFilenameFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const {}
+	/** Return Key/Value pairs that you wish to be usable in the Output File Name format string or file metadata. This allows settings to add format strings based on their values. */
+	virtual void GetFormatArguments(FMoviePipelineFormatArgs& InOutFormatArgs) const {}
 	
 	/** Modify the Unreal URL and Command Line Arguments when preparing the setting to be run in a new process. */
 	virtual void BuildNewProcessCommandLineImpl(FString& InOutUnrealURLParams, FString& InOutCommandLineArgs) const { }

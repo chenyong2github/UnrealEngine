@@ -13,21 +13,27 @@ public class ChaosNiagara : ModuleRules
 		PrivateDependencyModuleNames.AddRange(
 			new string[]
 			{
+				"Core",
 				"CoreUObject",
 				"Engine",
+				"Projects",
 				"Slate",
 				"SlateCore",
 				"NiagaraCore",
 				"Niagara",
 				"NiagaraShader",
 				"RenderCore",
-                "ChaosSolverEngine",
+				"VectorVM",
+				"RHI",
+				"ChaosSolverEngine",
                 "Chaos",
                 "ChaosSolvers",
                 "GeometryCollectionEngine",
                 "GeometryCollectionCore",
-				"PhysicsCore"
-            }
+				"PhysicsCore",
+				"FieldSystemCore",
+				"FieldSystemEngine",
+			}
         );
 					
 		PublicDependencyModuleNames.AddRange(
@@ -43,7 +49,9 @@ public class ChaosNiagara : ModuleRules
 				"NiagaraVertexFactories",
                 "ChaosSolverEngine",
                 "GeometryCollectionEngine",
-                "GeometryCollectionCore"
+                "GeometryCollectionCore",
+				"FieldSystemCore",
+				"FieldSystemEngine"
             }
         );
 

@@ -93,6 +93,11 @@ public:
 
 
 
+	uint32 AddRef() { return 0; }
+	uint32 Release() { return 0; }
+	uint32 GetRefCount() const { return NumRefs.GetValue(); }
+	uint32 GetNumRefs() const { return NumRefs.GetValue(); }
+
 	bool IsValid() { return false; }
 
 #if WITH_EDITORONLY_DATA
@@ -113,6 +118,8 @@ public:
 private:
 	/* Tracks resources and their shader map compilations that are in flight. */
 	static TMap<TRefCountPtr<FComputeKernelShaderMap>, TArray<const FComputeKernelResource*>> ComputeKernelShaderMapsBeingCompiled;
+
+	FThreadSafeCounter NumRefs;
 
 	/* 
 	 * Uniquely identifies this shader map during compilation. Needed for deferred compilation

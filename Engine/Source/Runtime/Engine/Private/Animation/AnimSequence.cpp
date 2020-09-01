@@ -2621,9 +2621,9 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 			int32 ArrayIndex = Curve.GetArrayIndexByUID(CurveUID);
 			if (ArrayIndex != INDEX_NONE)
 			{
-				FCurveElement& CurveEL = Curve.Elements[ArrayIndex];
+				float CurveWeight = Curve.CurveWeights[ArrayIndex];
 				FFloatCurve* RawCurve = GetFloatCurve(NewCurveTracks, CurveUID);
-				if (!RawCurve && CurveEL.Value != 0.f) //Only make a new curve if we are going to give it data
+				if (!RawCurve && CurveWeight != 0.f) //Only make a new curve if we are going to give it data
 				{
 					FSmartName NewCurveName;
 					// if we don't have name, there is something wrong here. 
@@ -2647,9 +2647,9 @@ void UAnimSequence::BakeOutAdditiveIntoRawData(TArray<FRawAnimSequenceTrack>& Ne
 
 					}
 
-					if (!bHasKeys || IsNewKeyDifferent(RawCurve->FloatCurve.GetLastKey(), CurveEL.Value))
+					if (!bHasKeys || IsNewKeyDifferent(RawCurve->FloatCurve.GetLastKey(), CurveWeight))
 					{
-						RawCurve->UpdateOrAddKey(CurveEL.Value, CurrentFrameTime);
+						RawCurve->UpdateOrAddKey(CurveWeight, CurrentFrameTime);
 						TArray<FRichCurveKey>& CurveKeys = RawCurve->FloatCurve.Keys;
 						if (CurveKeys.Num() > 1)
 						{

@@ -78,7 +78,12 @@ public:
 		// ViewTransform rotation is only initialized for perspective!
 		if (CachedViewState.bIsOrthographic == false)
 		{
-			CachedViewState.Orientation = ViewTransform.GetRotation().Quaternion();
+			// if using Orbit camera, the rotation in the ViewTransform is not the current camera rotation, it
+			// is set to a different rotation based on the Orbit. So we have to convert back to camera rotation.
+			FRotator ViewRotation = (ViewportClient->bUsingOrbitCamera) ? 
+				ViewTransform.ComputeOrbitMatrix().InverseFast().Rotator()  :   ViewTransform.GetRotation();
+
+			CachedViewState.Orientation = ViewRotation.Quaternion();
 		}
 		else
 		{
@@ -662,7 +667,12 @@ public:
 		// ViewTransform rotation is only initialized for perspective!
 		if (ViewCameraState.bIsOrthographic == false)
 		{
-			ViewCameraState.Orientation = ViewTransform.GetRotation().Quaternion();
+			// if using Orbit camera, the rotation in the ViewTransform is not the current camera rotation, it
+			// is set to a different rotation based on the Orbit. So we have to convert back to camera rotation.
+			FRotator ViewRotation = (ViewportClient->bUsingOrbitCamera) ?
+				ViewTransform.ComputeOrbitMatrix().InverseFast().Rotator() : ViewTransform.GetRotation();
+
+			ViewCameraState.Orientation = ViewRotation.Quaternion();
 		}
 		else
 		{
@@ -799,7 +809,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	{
 		if (ToolManager->HasAnyActiveTool())
 		{
-			if (ToolManager->HasActiveTool(EToolSide::Mouse) && ToolManager->CanCancelActiveTool(EToolSide::Mouse))
+			if (ToolManager->HasActiveTool(EToolSide::Mouse))
 			{
 				DeactivateActiveTool(EToolSide::Mouse, EToolShutdownType::Cancel);
 			}

@@ -16,6 +16,8 @@ public:
 
 	virtual void Initialize() = 0;
 
+	virtual void SetEnabled(bool bInEnabled) = 0;
+	virtual bool GetEnabled() = 0;
 	virtual void SetGameLatencyMarkerStart(uint64 FrameNumber) = 0;
 	virtual void SetGameLatencyMarkerEnd(uint64 FrameNumber) = 0;
 	virtual void SetRenderLatencyMarkerStart(uint64 FrameNumber) = 0;

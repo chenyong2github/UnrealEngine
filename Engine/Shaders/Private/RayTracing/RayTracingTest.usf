@@ -29,6 +29,7 @@ RAY_TRACING_ENTRY_RAYGEN(TestMainRGS)
 		TLAS,
 		RayFlags,
 		InstanceInclusionMask,
+		uint2(RayIndex & 0xFFFF, RayIndex >> 16),
 		Ray);
 
 	Output[RayIndex] = MinimalPayload.IsHit() ? ~0 : 0;

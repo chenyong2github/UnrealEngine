@@ -421,14 +421,14 @@ TRefCountPtr<FRHIShader> FShaderMapResource_InlineCode::CreateRHIShader(int32 Sh
 	case SF_Domain: RHIShader = RHICreateDomainShader(ShaderCodeView, ShaderHash); break;
 	case SF_Geometry: RHIShader = RHICreateGeometryShader(ShaderCodeView, ShaderHash); break;
 	case SF_Compute: RHIShader = RHICreateComputeShader(ShaderCodeView, ShaderHash); break;
-#if RHI_RAYTRACING
 	case SF_RayGen: case SF_RayMiss: case SF_RayHitGroup: case SF_RayCallable:
+#if RHI_RAYTRACING
 		if (GRHISupportsRayTracing)
 		{
 			RHIShader = RHICreateRayTracingShader(ShaderCodeView, ShaderHash, Frequency);
 		}
-		break;
 #endif // RHI_RAYTRACING
+		break;
 	default:
 		checkNoEntry();
 		break;

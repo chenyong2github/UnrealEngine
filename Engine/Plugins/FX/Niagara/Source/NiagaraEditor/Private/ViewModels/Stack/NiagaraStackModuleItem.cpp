@@ -288,19 +288,26 @@ void UNiagaraStackModuleItem::RefreshChildrenInternal(const TArray<UNiagaraStack
 
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::CanDropInternal(const FDropRequest& DropRequest)
 {
-	if (DropRequest.DragDropOperation->IsOfType<FNiagaraParameterDragOperation>() && DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview && FunctionCallNode->IsA<UNiagaraNodeAssignment>())
+	if ((DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview || DropRequest.DropZone == EItemDropZone::OntoItem) &&
+		DropRequest.DragDropOperation->IsOfType<FNiagaraParameterDragOperation>() &&
+		FunctionCallNode->IsA<UNiagaraNodeAssignment>())
 	{
 		TSharedRef<const FNiagaraParameterDragOperation> ParameterDragDropOp = StaticCastSharedRef<const FNiagaraParameterDragOperation>(DropRequest.DragDropOperation);
+		UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(FunctionCallNode);
 		TSharedPtr<const FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<const FNiagaraParameterAction>(ParameterDragDropOp->GetSourceAction());
 		if (ParameterAction.IsValid())
 		{
-			if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(ParameterAction->GetParameter(), OutputNode->GetUsage()))
+			if (AssignmentNode->GetAssignmentTargets().Contains(ParameterAction->GetParameter()))
 			{
-				return FDropRequestResponse(EItemDropZone::OntoItem, LOCTEXT("DropParameterToAdd", "Add this parameter to this 'Set Variables' node."));
+				return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropDuplicateParameter", "Can not drop this parameter here because\nit's already set by this module."));
+			}
+			else if (FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(ParameterAction->GetParameter(), OutputNode->GetUsage()) == false)
+			{
+				return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit can't be written in this usage context."));
 			}
 			else
 			{
-				return FDropRequestResponse(TOptional<EItemDropZone>(), LOCTEXT("CantDropParameterByUsage", "Can not drop this parameter here because\nit can't be written in this usage context."));
+				return FDropRequestResponse(EItemDropZone::OntoItem, LOCTEXT("DropParameterToAdd", "Add this parameter to this 'Set Parameters' node."));
 			}
 		}
 	}
@@ -309,11 +316,20 @@ TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::Can
 
 TOptional<UNiagaraStackEntry::FDropRequestResponse> UNiagaraStackModuleItem::DropInternal(const FDropRequest& DropRequest)
 {
-	// If the drop was allowed from the can drop just return the drop zone here since it will be handled by the drop target in the stack control.
-	// TODO: Unify the drop target dropping with the existing drag/drop code.
-	if (DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview)
+	if ((DropRequest.DropOptions != UNiagaraStackEntry::EDropOptions::Overview || DropRequest.DropZone == EItemDropZone::OntoItem) &&
+		DropRequest.DragDropOperation->IsOfType<FNiagaraParameterDragOperation>() &&
+		FunctionCallNode->IsA<UNiagaraNodeAssignment>())
 	{
-		return FDropRequestResponse(DropRequest.DropZone);
+		TSharedRef<const FNiagaraParameterDragOperation> ParameterDragDropOp = StaticCastSharedRef<const FNiagaraParameterDragOperation>(DropRequest.DragDropOperation);
+		UNiagaraNodeAssignment* AssignmentNode = CastChecked<UNiagaraNodeAssignment>(FunctionCallNode);
+		TSharedPtr<const FNiagaraParameterAction> ParameterAction = StaticCastSharedPtr<const FNiagaraParameterAction>(ParameterDragDropOp->GetSourceAction());
+		if (ParameterAction.IsValid() && 
+			AssignmentNode->GetAssignmentTargets().Contains(ParameterAction->GetParameter()) == false &&
+			FNiagaraStackGraphUtilities::CanWriteParameterFromUsage(ParameterAction->GetParameter(), OutputNode->GetUsage()))
+		{
+			AddInput(ParameterAction->GetParameter());
+			return FDropRequestResponse(DropRequest.DropZone);
+		}
 	}
 	return TOptional<FDropRequestResponse>();
 }
@@ -515,7 +531,7 @@ void UNiagaraStackModuleItem::RefreshIssues(TArray<FStackIssue>& NewIssues)
 					FStackIssue DuplicateAssignmentTargetError(
 						EStackIssueSeverity::Error,
 						LOCTEXT("DuplicateAssignmentTargetErrorSummary", "Duplicate variables detected."),
-						LOCTEXT("DuplicateAssignmentTargetError", "This 'Set Variables' module is attempting to set the same variable more than once, which is unsupported."),
+						LOCTEXT("DuplicateAssignmentTargetError", "This 'Set Parameters' module is attempting to set the same variable more than once, which is unsupported."),
 						GetStackEditorDataKey(),
 						false,
 						RemoveDuplicateFix);
@@ -1034,7 +1050,7 @@ void UNiagaraStackModuleItem::ReassignModuleScript(UNiagaraScript* ModuleScript)
 		{
 			UNiagaraSystem& System = GetSystemViewModel()->GetSystem();
 			UNiagaraEmitter* Emitter = GetEmitterViewModel().IsValid() ? GetEmitterViewModel()->GetEmitter() : nullptr;
-			FNiagaraStackGraphUtilities::RenameReferencingParameters(System, Emitter, *FunctionCallNode, OldName, NewName);
+			FNiagaraStackGraphUtilities::RenameReferencingParameters(&System, Emitter, *FunctionCallNode, OldName, NewName);
 			FunctionCallNode->RefreshFromExternalChanges();
 			FunctionCallNode->MarkNodeRequiresSynchronization(TEXT("Module script reassigned."), true);
 			RefreshChildren();

@@ -46,7 +46,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type specifying which types of track to return
 	 * @return An array containing any tracks that match the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneTrack*> FindMasterTracksByType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
@@ -56,7 +56,7 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type specifying the exact types of track to return
 	 * @return An array containing any tracks that are exactly the same as the type specified
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static TArray<UMovieSceneTrack*> FindMasterTracksByExactType(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
 
 	/**
@@ -66,8 +66,18 @@ public:
 	 * @param TrackType     A UMovieSceneTrack class type to create
 	 * @return The newly created track, if successful
 	 */
-	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod, DeterminesOutputType="TrackType"))
 	static UMovieSceneTrack* AddMasterTrack(UMovieSceneSequence* Sequence, TSubclassOf<UMovieSceneTrack> TrackType);
+
+	/**
+	 * Removes a master track
+	 *
+	 * @param Sequence        The sequence to use
+	 * @param MasterTrack     The master track to remove
+	 * @return Whether the master track was successfully removed
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	static bool RemoveMasterTrack(UMovieSceneSequence* Sequence, UMovieSceneTrack* MasterTrack);
 
 	/**
 	 * Gets this sequence's display rate
@@ -388,6 +398,18 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
 	static FMovieSceneObjectBindingID MakeBindingID(UMovieSceneSequence* MasterSequence, const FSequencerBindingProxy& InBinding, EMovieSceneObjectBindingSpace Space = EMovieSceneObjectBindingSpace::Root);
+
+
+	/**
+	 * Make a binding for the given binding ID
+	 *
+	 * @param MasterSequence  The master sequence that contains the sequence
+	 * @param ObjectBindingID The object binding id that has the guid and the sequence id
+	 * @return The new binding proxy
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static FSequencerBindingProxy ResolveBindingID(UMovieSceneSequence* MasterSequence, FMovieSceneObjectBindingID InObjectBindingID);
+
 
 	/**
 	 * Get the root folders in the provided sequence

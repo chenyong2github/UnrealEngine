@@ -13,6 +13,11 @@ namespace UE
 namespace MovieScene
 {
 
+FGuid FEntityImportParams::GetObjectBindingID() const
+{
+	return SharedMetaData ? SharedMetaData->ObjectBindingID : FGuid();
+}
+
 FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Params, FEntityManager* EntityManager)
 {
 	using namespace MovieScene;
@@ -22,7 +27,7 @@ FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Para
 	auto BaseBuilder = FEntityBuilder()
 	.AddTag(Components->Tags.NeedsLink)
 	.AddTag(Components->Tags.ImportedEntity)
-	.Add(Components->InstanceHandle, Params.Sequence.InstanceHandle);
+	.AddConditional(Components->InstanceHandle, Params.Sequence.InstanceHandle, Params.Sequence.InstanceHandle.IsValid());
 
 	FComponentMask NewMask;
 	BaseBuilder.GenerateType(EntityManager, NewMask);
@@ -48,4 +53,9 @@ FMovieSceneEntityID FImportedEntity::Manufacture(const FEntityImportParams& Para
 void IMovieSceneEntityProvider::ImportEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
 	ImportEntityImpl(EntityLinker, Params, OutImportedEntity);
+}
+
+void IMovieSceneEntityProvider::InterrogateEntity(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	InterrogateEntityImpl(EntityLinker, Params, OutImportedEntity);
 }

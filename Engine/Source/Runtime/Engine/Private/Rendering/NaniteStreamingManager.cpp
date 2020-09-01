@@ -1517,7 +1517,7 @@ void FStreamingManager::AsyncUpdate()
 				// Requests are processed in submission order, so once the last request has been processed it is safe to free the batch.
 				// Last request in batch owns it and is responsible for freeing it.
 				TRACE_CPUPROFILER_EVENT_SCOPE(FIoBatch::Issue);
-				Batch.Issue();
+				Batch.Issue(IoDispatcherPriority_Low);
 				LastPendingPage->Batch = Batch;
 				LastPendingPage->bFreeBatchWhenDone = true;
 			}

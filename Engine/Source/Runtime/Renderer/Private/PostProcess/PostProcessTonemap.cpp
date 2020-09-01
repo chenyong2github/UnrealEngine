@@ -887,7 +887,7 @@ void FRCPassPostProcessTonemap::Process(FRenderingCompositePassContext& Context)
 	FRDGTextureRef SceneColorTexture = CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
 	const FIntRect SceneColorViewRect = Context.SceneColorViewRect;
 
-	FRDGTextureRef BloomTexture = CreateRDGTextureForInputWithFallback(GraphBuilder, ePId_Input1, TEXT("Bloom"), eFC_0000);
+	FRDGTextureRef BloomTexture = CreateRDGTextureForInputWithFallback(GraphBuilder, ePId_Input1, TEXT("Bloom"), eFC_0001);
 	const FIntRect BloomViewRect = Context.GetDownsampledSceneColorViewRectFromInputExtent(BloomTexture->Desc.Extent);
 
 	FRDGTextureRef ColorGradingTexture = CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input3, TEXT("ColorGrading"));

@@ -96,7 +96,7 @@ void SGraphNodeAnimState::GetStateInfoPopup(UEdGraphNode* GraphNode, TArray<FGra
 		// Display various types of debug data
 		if ((ActiveObject != NULL) && (Class != NULL))
 		{
-			if (Class->AnimNodeProperties.Num())
+			if (Class->GetAnimNodeProperties().Num())
 			{
 				if (FStateMachineDebugData* DebugInfo = Class->GetAnimBlueprintDebugData().StateMachineDebugData.Find(GraphNode->GetGraph()))
 				{

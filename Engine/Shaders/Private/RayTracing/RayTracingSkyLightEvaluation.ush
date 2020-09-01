@@ -40,6 +40,7 @@ float3 EvaluateSkyLightRadiance(float3 Direction)
 // bDecoupleSampleGeneration - Indicates weather or not to use decoupled sample generation for generating visibility rays, requires that the visibility ray buffer has been populated by the GenerateSkyLightVisibilityRaysCS pass.
 void SkyLightEvaluate(
 	in const uint2 SampleCoord,
+	in const uint2 PixelCoord,
 	in const uint SamplesPerPixel,
 	in const float3 WorldPosition,
 	in const float3 WorldNormal,
@@ -148,7 +149,7 @@ void SkyLightEvaluate(
 		{
 			if (bGBufferSampleOrigin)
 			{
-				ApplyCameraRelativeDepthBias(Ray, SampleCoord, DeviceZ, CurrentWorldNormal, SkyLight.MaxNormalBias);
+				ApplyCameraRelativeDepthBias(Ray, PixelCoord, DeviceZ, CurrentWorldNormal, SkyLight.MaxNormalBias);
 			}
 			else
 			{
@@ -176,12 +177,13 @@ void SkyLightEvaluate(
 			TLAS,
 			RayFlags,
 			InstanceInclusionMask,
+			PixelCoord,
 			Ray);
 
 		#if USE_HAIR_LIGHTING
 		if (GBufferData.ShadingModelID != SHADINGMODELID_HAIR)
 		{
-			MinimalPayload.HitT = TraverseHair(SampleCoord, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
+			MinimalPayload.HitT = TraverseHair(PixelCoord, Ray.Origin, Ray.Direction, MinimalPayload.HitT);
 		}
 		#endif
 
@@ -283,6 +285,7 @@ void SkyLightEvaluate(
 				TLAS,
 				RayFlagsLocal,
 				InstanceInclusionMaskLocal,
+				PixelCoord,
 				RayLocal);
 
 			float3 P = RayLocal.Origin + RayLocal.Direction * MinimalPayloadLocal.HitT;
@@ -293,4 +296,40 @@ void SkyLightEvaluate(
 
 		DiffuseExitantRadiance += SkySHDiffuseIrradiance * ScatterThroughput * (1.0 - AmbientOcclusion);
 	}
+}
+
+
+// special case of pixel coord == sample coord
+void SkyLightEvaluate(
+	in const uint2 SampleCoord,
+	in const uint SamplesPerPixel,
+	in const float3 WorldPosition,
+	in const float3 WorldNormal,
+	in const float3 ViewDirection,
+	in const FGBufferData GBufferData,
+	in const RaytracingAccelerationStructure TLAS,
+	in const bool bGBufferSampleOrigin,
+	in const float DeviceZ,
+	in const bool bDecoupleSampleGeneration,
+	inout float3 ExitantRadiance,
+	inout float3 DiffuseExitantRadiance,
+	inout float AmbientOcclusion,
+	inout float HitDistance)
+{
+	SkyLightEvaluate(
+		SampleCoord,
+		SampleCoord,
+		SamplesPerPixel,
+		WorldPosition,
+		WorldNormal,
+		ViewDirection,
+		GBufferData,
+		TLAS,
+		bGBufferSampleOrigin,
+		DeviceZ,
+		bDecoupleSampleGeneration,
+		ExitantRadiance,
+		DiffuseExitantRadiance,
+		AmbientOcclusion,
+		HitDistance);
 }

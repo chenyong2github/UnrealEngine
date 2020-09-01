@@ -351,6 +351,25 @@ namespace Audio
 		}
 	}
 
+	void FMixerSourceVoice::ClearSubmixSendInfo(FMixerSubmixWeakPtr Submix)
+	{
+		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);
+
+		if (!bOutputToBusOnly)
+		{
+			FMixerSubmixPtr SubmixPtr = Submix.Pin();
+			if (SubmixPtr.IsValid())
+			{
+				FMixerSourceSubmixSend* SubmixSend = SubmixSends.Find(SubmixPtr->GetId());
+				if (SubmixSend)
+				{
+					SourceManager->ClearSubmixSendInfo(SourceId, *SubmixSend);
+					SubmixSends.Remove(SubmixPtr->GetId());
+				}
+			}
+		}
+	}
+
 	void FMixerSourceVoice::SetAudioBusSendInfo(EBusSendType InBusSendType, uint32 AudioBusId, float BusSendLevel)
 	{
 		AUDIO_MIXER_CHECK_GAME_THREAD(MixerDevice);

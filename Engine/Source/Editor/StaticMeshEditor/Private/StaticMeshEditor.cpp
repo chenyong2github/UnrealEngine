@@ -178,25 +178,10 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 
 	BindCommands();
 
-  	TWeakPtr<IStaticMeshEditor> WeakSharedThis(SharedThis(this));
-	MakeViewportFunc = [ObjectToEdit, WeakSharedThis](const FAssetEditorViewportConstructionArgs& InArgs)
-	{
-		return SNew(SStaticMeshEditorViewport)
-			.StaticMeshEditor(WeakSharedThis)
-			.ObjectToEdit(ObjectToEdit);
-	};
-
 	// The tab must be created before the viewport layout because the layout needs them
 	TSharedRef< SDockTab > DockableTab =
 		SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"));
-
-	// Create a new tab
-	ViewportTabContent = MakeShareable(new FEditorViewportTabContent());
-	ViewportTabContent->OnViewportTabContentLayoutChanged().AddRaw(this, &FStaticMeshEditor::OnEditorLayoutChanged);
-
-	const FString LayoutId = FString("StaticMeshEditorViewport");
-	ViewportTabContent->Initialize(MakeViewportFunc, DockableTab, LayoutId);
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::LoadModuleChecked<FPropertyEditorModule>(TEXT("PropertyEditor"));
 
@@ -212,33 +197,11 @@ void FStaticMeshEditor::InitEditorForStaticMesh(UStaticMesh* ObjectToEdit)
 	FOnGetDetailCustomizationInstance LayoutCustomStaticMeshProperties = FOnGetDetailCustomizationInstance::CreateSP( this, &FStaticMeshEditor::MakeStaticMeshDetails );
 	StaticMeshDetailsView->RegisterInstancedCustomPropertyLayout( UStaticMesh::StaticClass(), LayoutCustomStaticMeshProperties );
 
- 	SetEditorMesh(ObjectToEdit);
-
-	bool LocalDrawGrids = false;
-	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> CheckShowGridFunc =
-		[this, &LocalDrawGrids](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
-	{
-		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
-		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
-		LocalDrawGrids |= StaticMeshEditorViewportClient.IsSetShowGridChecked();
-	};
-
-	ViewportTabContent->PerformActionOnViewports(CheckShowGridFunc);
-
-	bDrawGrids = LocalDrawGrids;
+	StaticMesh = ObjectToEdit;
 }
 
 void FStaticMeshEditor::InitStaticMeshEditor( const EToolkitMode::Type Mode, const TSharedPtr< class IToolkitHost >& InitToolkitHost, UStaticMesh* ObjectToEdit )
 {
-	if (StaticMesh != ObjectToEdit)
-	{
-		// InitEditorForStaticMesh() should always be called first, otherwise plugins can't register themselved before the editor is built.
-		check(false);
-		InitEditorForStaticMesh(ObjectToEdit);
-	}
-
-	BuildSubTools();
-
 	TSharedRef<FTabManager::FStack> ExtentionTabStack(
 		FTabManager::NewStack()
 		->SetSizeCoefficient(0.3f)
@@ -510,8 +473,19 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_Viewport( const FSpawnTabArgs& 
 		SNew(SDockTab)
 		.Icon(FEditorStyle::GetBrush("LevelEditor.Tabs.Viewports"));
 
+	TWeakPtr<IStaticMeshEditor> WeakSharedThis(SharedThis(this));
+	MakeViewportFunc = [WeakSharedThis](const FAssetEditorViewportConstructionArgs& InArgs)
+	{
+		return SNew(SStaticMeshEditorViewport)
+			.StaticMeshEditor(WeakSharedThis);
+	};
+
+	// Create a new tab
+	ViewportTabContent = MakeShareable(new FEditorViewportTabContent());
+	ViewportTabContent->OnViewportTabContentLayoutChanged().AddRaw(this, &FStaticMeshEditor::OnEditorLayoutChanged);
+
 	const FString LayoutId = FString("StaticMeshEditorViewport");
- 	ViewportTabContent->Initialize(MakeViewportFunc, DockableTab, LayoutId);
+	ViewportTabContent->Initialize(MakeViewportFunc, DockableTab, LayoutId);
 
 	return DockableTab;
 }
@@ -584,14 +558,36 @@ TSharedRef<SDockTab> FStaticMeshEditor::SpawnTab_SecondaryToolbar( const FSpawnT
 	return SpawnedTab;
 }
 
-TSharedPtr<class SStaticMeshEditorViewport> FStaticMeshEditor::GetStaticMeshViewport() const
+TSharedPtr<SStaticMeshEditorViewport> FStaticMeshEditor::GetStaticMeshViewport() const
 {
-	// we can use static cast here b/c we know in this editor we will have a static mesh viewport 
-	return StaticCastSharedPtr<SStaticMeshEditorViewport>(ViewportTabContent->GetFirstViewport());
+	if (ViewportTabContent.IsValid())
+	{
+		// we can use static cast here b/c we know in this editor we will have a static mesh viewport 
+		return StaticCastSharedPtr<SStaticMeshEditorViewport>(ViewportTabContent->GetFirstViewport());
+	}
+
+	return TSharedPtr<SStaticMeshEditorViewport>();
 }
 
 void FStaticMeshEditor::OnEditorLayoutChanged()
 {
+	SetEditorMesh(StaticMesh);
+
+	BuildSubTools();
+
+	bool LocalDrawGrids = false;
+	TFunction<void(FName, TSharedPtr<IEditorViewportLayoutEntity>)> CheckShowGridFunc =
+		[this, &LocalDrawGrids](FName Name, TSharedPtr<IEditorViewportLayoutEntity> Entity)
+	{
+		TSharedRef<SStaticMeshEditorViewport> StaticMeshEditorViewport = StaticCastSharedRef<SStaticMeshEditorViewport>(Entity->AsWidget());
+		FStaticMeshEditorViewportClient& StaticMeshEditorViewportClient = StaticMeshEditorViewport->GetViewportClient();
+		LocalDrawGrids |= StaticMeshEditorViewportClient.IsSetShowGridChecked();
+	};
+
+	ViewportTabContent->PerformActionOnViewports(CheckShowGridFunc);
+
+	bDrawGrids = LocalDrawGrids;
+
 	OnPreviewSceneChangedDelegate.Broadcast(GetStaticMeshViewport()->GetPreviewScene());
 }
 
@@ -926,7 +922,7 @@ FLinearColor FStaticMeshEditor::GetWorldCentricTabColorScale() const
 
 UStaticMeshComponent* FStaticMeshEditor::GetStaticMeshComponent() const
 {
-	return GetStaticMeshViewport()->GetStaticMeshComponent();
+	return GetStaticMeshViewport().IsValid() ? GetStaticMeshViewport()->GetStaticMeshComponent() : nullptr;
 }
 
 void FStaticMeshEditor::SetSelectedSocket(UStaticMeshSocket* InSelectedSocket)
@@ -1406,7 +1402,10 @@ void FStaticMeshEditor::RefreshTool()
 
 void FStaticMeshEditor::RefreshViewport()
 {
-	GetStaticMeshViewport()->RefreshViewport();
+	if (GetStaticMeshViewport().IsValid())
+	{
+		GetStaticMeshViewport()->RefreshViewport();
+	}
 }
 
 TSharedRef<SWidget> FStaticMeshEditor::GenerateUVChannelComboList()
@@ -1914,8 +1913,11 @@ void FStaticMeshEditor::SetEditorMesh(UStaticMesh* InStaticMesh, bool bResetCame
 	// Set the details view.
 	StaticMeshDetailsView->SetObject(StaticMesh);
 
- 	GetStaticMeshViewport()->UpdatePreviewMesh(StaticMesh, bResetCamera);
- 	GetStaticMeshViewport()->RefreshViewport();
+	if (GetStaticMeshViewport().IsValid())
+	{
+		GetStaticMeshViewport()->UpdatePreviewMesh(StaticMesh, bResetCamera);
+		GetStaticMeshViewport()->RefreshViewport();
+	}
 }
 
 void FStaticMeshEditor::OnChangeMesh()

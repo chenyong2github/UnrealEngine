@@ -1338,7 +1338,8 @@ int32 UMovieSceneSequencePlayer::GetFunctionCallspace(UFunction* Function, FFram
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		return FunctionCallspace::Local;
+		// Try to use the same logic as function libraries for static functions, will try to use the global context to check authority only/cosmetic
+		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
 	}
 
 	check(GetOuter());

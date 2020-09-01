@@ -351,7 +351,7 @@ struct FMaterialPixelParameters
 	float CloudSampleAltitude;
 	float CloudSampleAltitudeInLayer;
 	float CloudSampleNormAltitudeInLayer;
-	float VolumeSampleConservativeDensity;
+	float3 VolumeSampleConservativeDensity;
 #endif
 };
 
@@ -1304,12 +1304,12 @@ float MaterialExpressionCloudSampleNormAltitudeInLayer(FMaterialPixelParameters 
 #endif
 }
 
-float MaterialExpressionVolumeSampleConservativeDensity(FMaterialPixelParameters Parameters)
+float3 MaterialExpressionVolumeSampleConservativeDensity(FMaterialPixelParameters Parameters)
 {
 #if CLOUD_LAYER_PIXEL_SHADER
 	return Parameters.VolumeSampleConservativeDensity;
 #else
-	return 0.0f;
+	return float3(0.0f, 0.0f, 0.0f);
 #endif
 }
 

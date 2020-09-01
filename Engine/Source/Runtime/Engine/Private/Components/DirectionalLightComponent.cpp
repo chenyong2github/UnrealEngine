@@ -167,6 +167,9 @@ public:
 	/** Light source angle in degrees. */
 	float LightSourceSoftAngle;
 
+	/** Shadow source angle factor. */
+	float ShadowSourceAngleFactor;
+
 	/** Determines how far shadows can be cast, in world units.  Larger values increase the shadowing cost. */
 	float TraceDistance;
 
@@ -198,6 +201,7 @@ public:
 		DistanceFieldShadowDistance(Component->bUseRayTracedDistanceFieldShadows ? Component->DistanceFieldShadowDistance : 0),
 		LightSourceAngle(Component->LightSourceAngle),
 		LightSourceSoftAngle(Component->LightSourceSoftAngle),
+		ShadowSourceAngleFactor(Component->ShadowSourceAngleFactor),
 		TraceDistance(FMath::Clamp(Component->TraceDistance, 1000.0f, 1000000.0f)),
 		bCastShadowsOnClouds(Component->bCastShadowsOnClouds),
 		bCastShadowsOnAtmosphere(Component->bCastShadowsOnAtmosphere),
@@ -275,6 +279,11 @@ public:
 	virtual float GetLightSourceAngle() const override
 	{
 		return LightSourceAngle;
+	}
+
+	virtual float GetShadowSourceAngleFactor() const override
+	{
+		return ShadowSourceAngleFactor;
 	}
 
 	virtual float GetTraceDistance() const override
@@ -922,6 +931,7 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 	FarShadowDistance = 300000.0f;
 	LightSourceAngle = 0.5357f;		// Angle of earth's sun
 	LightSourceSoftAngle = 0.0f;
+	ShadowSourceAngleFactor = 1.0f;
 
 	DynamicShadowCascades = 3;
 	CascadeDistributionExponent = 3.0f;

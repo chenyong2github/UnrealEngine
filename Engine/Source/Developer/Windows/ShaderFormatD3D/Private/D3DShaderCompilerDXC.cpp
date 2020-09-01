@@ -262,8 +262,10 @@ static bool RemoveContainerReflection(dxc::DxcDllSupport& DxcDllHelper, TRefCoun
 	VERIFYHRESULT(DxcDllHelper.CreateInstance(CLSID_DxcContainerBuilder, Builder.GetInitReference()));
 	VERIFYHRESULT(Builder->Load(Dxil));
 	
-	bool bRemoved = false;
-	if (SUCCEEDED(Builder->RemovePart(DXC_PART_PDB)) || SUCCEEDED(Builder->RemovePart(DXC_PART_REFLECTION_DATA)))
+	// Try and remove both the PDB & Reflection Data
+	bool bPDBRemoved = SUCCEEDED(Builder->RemovePart(DXC_PART_PDB));
+	bool bReflectionDataRemoved = SUCCEEDED(Builder->RemovePart(DXC_PART_REFLECTION_DATA));
+	if (bPDBRemoved || bReflectionDataRemoved)
 	{
 		VERIFYHRESULT(Builder->SerializeContainer(Result.GetInitReference()));
 		if (SUCCEEDED(Result->GetResult(StrippedDxil.GetInitReference())))
@@ -624,6 +626,8 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	FString RayIntersectionEntryPoint; // Optional for hit group shaders
 	FString RayTracingExports;
 
+	bool bEnable16BitTypes = false;
+
 	if (bIsRayTracingShader)
 	{
 		ParseRayTracingEntryPoint(Input.EntryPointName, RayEntryPoint, RayAnyHitEntryPoint, RayIntersectionEntryPoint);
@@ -641,6 +645,9 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 			RayTracingExports += TEXT(";");
 			RayTracingExports += RayIntersectionEntryPoint;
 		}
+
+		// Enable 16bit_types to reduce DXIL size (compiler bug - will be fixed)
+		bEnable16BitTypes = true;
 	}
 
 	// Write out the preprocessed file and a batch file to compile it if requested (DumpDebugInfoPath is valid)
@@ -673,7 +680,7 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	const bool bKeepDebugInfo = Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo);
 
 	FDxcArguments Args(EntryPointName, ShaderProfile, RayTracingExports,
-		Input.DumpDebugInfoPath, Filename, bKeepDebugInfo, DXCFlags, AutoBindingSpace);
+		Input.DumpDebugInfoPath, Filename, bEnable16BitTypes, bKeepDebugInfo, DXCFlags, AutoBindingSpace);
 
 	if (bDumpDebugInfo)
 	{

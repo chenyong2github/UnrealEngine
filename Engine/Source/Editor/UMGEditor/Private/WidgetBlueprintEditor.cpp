@@ -1377,6 +1377,7 @@ void FWidgetBlueprintEditor::AddWidgetsToTrack(const TArray<FWidgetReference> Wi
 	UWidgetAnimation* WidgetAnimation = Cast<UWidgetAnimation>(Sequencer->GetFocusedMovieSceneSequence());
 	UMovieScene* MovieScene = WidgetAnimation->GetMovieScene();
 
+	FText ExistingBindingName;
 	TArray<FWidgetReference> WidgetsToAdd;
 	for (const FWidgetReference& Widget : Widgets)
 	{
@@ -1388,11 +1389,15 @@ void FWidgetBlueprintEditor::AddWidgetsToTrack(const TArray<FWidgetReference> Wi
 		{
 			WidgetsToAdd.Add(Widget);
 		}
+		else if (ExistingBindingName.IsEmpty())
+		{
+			ExistingBindingName = MovieScene->GetObjectDisplayName(SelectedWidgetId);
+		}
 	}
 
 	if (WidgetsToAdd.Num() == 0)
 	{
-		FNotificationInfo Info(LOCTEXT("Widgetalreadybound", "Widget already bound"));
+		FNotificationInfo Info(FText::Format(LOCTEXT("WidgetAlreadyBound", "Widget already bound to {0}"), ExistingBindingName));
 		Info.FadeInDuration = 0.1f;
 		Info.FadeOutDuration = 0.5f;
 		Info.ExpireDuration = 2.5f;
@@ -1528,35 +1533,29 @@ void FWidgetBlueprintEditor::RemoveMissingWidgetsFromTrack(FGuid ObjectId)
 
 void FWidgetBlueprintEditor::ReplaceTrackWithWidgets(TArray<FWidgetReference> Widgets, FGuid ObjectId)
 {
-	const FScopedTransaction Transaction( LOCTEXT( "ReplaceTrackWithSelectedWidgets", "Replace Track with Selected Widgets" ) );
-
 	UWidgetAnimation* WidgetAnimation = Cast<UWidgetAnimation>(Sequencer->GetFocusedMovieSceneSequence());
 	UMovieScene* MovieScene = WidgetAnimation->GetMovieScene();
 
-	WidgetAnimation->Modify();
-	MovieScene->Modify();
-
-	// Remove everything from the track
-	RemoveAllWidgetsFromTrack(ObjectId);
-
 	// Filter out anything in the input array that is currently bound to another object in the animation
+	FText ExistingBindingName;
 	for (int32 Index = Widgets.Num()-1; Index >= 0; --Index)
 	{
 		UWidget* PreviewWidget = Widgets[Index].GetPreview();
 		FGuid WidgetId = Sequencer->FindObjectId(*PreviewWidget, MovieSceneSequenceID::Root);
-		if (WidgetId.IsValid())
+		if (WidgetId.IsValid() && WidgetId != ObjectId)
 		{
 			Widgets.RemoveAt(Index, 1, false);
+
+			if (ExistingBindingName.IsEmpty())
+			{
+				ExistingBindingName = MovieScene->GetObjectDisplayName(WidgetId);
+			}
 		}
 	}
 
-	if (Widgets.Num() > 0)
+	if (Widgets.Num() == 0)
 	{
-		AddWidgetsToTrack(Widgets, ObjectId);
-	}
-	else
-	{
-		FNotificationInfo Info(LOCTEXT("Widgetalreadybound", "Widget already bound"));
+		FNotificationInfo Info(FText::Format(LOCTEXT("WidgetAlreadyBound", "Widget already bound to {0}"), ExistingBindingName));
 		Info.FadeInDuration = 0.1f;
 		Info.FadeOutDuration = 0.5f;
 		Info.ExpireDuration = 2.5f;
@@ -1564,9 +1563,22 @@ void FWidgetBlueprintEditor::ReplaceTrackWithWidgets(TArray<FWidgetReference> Wi
 
 		NotificationItem->SetCompletionState(SNotificationItem::CS_Success);
 		NotificationItem->ExpireAndFadeout();
+		return;
 	}
 
+	const FScopedTransaction Transaction( LOCTEXT( "ReplaceTrackWithSelectedWidgets", "Replace Track with Selected Widgets" ) );
+
+
+	WidgetAnimation->Modify();
+	MovieScene->Modify();
+
+	// Remove everything from the track
+	RemoveAllWidgetsFromTrack(ObjectId);
+
+	AddWidgetsToTrack(Widgets, ObjectId);
+
 	UpdateTrackName(ObjectId);
+
 	Sequencer->NotifyMovieSceneDataChanged(EMovieSceneDataChangeType::MovieSceneStructureItemsChanged);
 }
 
@@ -1728,19 +1740,36 @@ void FWidgetBlueprintEditor::SyncSequencerSelectionToSelectedWidgets()
 
 void FWidgetBlueprintEditor::UpdateTrackName(FGuid ObjectId)
 {
+	UUserWidget* PreviewRoot = GetPreview();
+	UObject* BindingContext = GetAnimationPlaybackContext();
+
 	UWidgetAnimation* WidgetAnimation = Cast<UWidgetAnimation>(Sequencer->GetFocusedMovieSceneSequence());
 	UMovieScene* MovieScene = WidgetAnimation->GetMovieScene();
 
 	const TArray<FWidgetAnimationBinding>& WidgetBindings = WidgetAnimation->GetBindings();
-	if (WidgetBindings.Num() > 0)
+	
+	for (FWidgetAnimationBinding& Binding : WidgetAnimation->AnimationBindings)
 	{
-		FString NewLabel = WidgetBindings[0].WidgetName.ToString();
-		if (WidgetBindings.Num() > 1)
+		if (Binding.AnimationGuid != ObjectId)
 		{
-			NewLabel.Append(FString::Printf(TEXT(" (%d)"), WidgetBindings.Num()));
+			continue;
 		}
 
-		MovieScene->SetObjectDisplayName(ObjectId, FText::FromString(NewLabel));
+		TArray<UObject*, TInlineAllocator<1>> BoundObjects;
+		WidgetAnimation->LocateBoundObjects(ObjectId, BindingContext, BoundObjects);
+
+		if (BoundObjects.Num() > 0)
+		{
+			FString NewLabel = Binding.WidgetName.ToString();
+			if (BoundObjects.Num() > 1)
+			{
+				NewLabel.Append(FString::Printf(TEXT(" (%d)"), BoundObjects.Num()));
+			}
+
+			MovieScene->SetObjectDisplayName(ObjectId, FText::FromString(NewLabel));
+			break;
+		}
 	}
 }
+
 #undef LOCTEXT_NAMESPACE

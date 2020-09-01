@@ -43,8 +43,6 @@ public:
 	/** FEditorUndoClient Interface */
 	virtual void PostUndo(bool bSuccess) override;
 	virtual void PostRedo(bool bSuccess) override;
-
-	static LEVELEDITOR_API IConsoleVariable* ShowComponents;
 	
 	/**
 	 * Sets the filter that should be used to filter incoming actors in or out of the details panel
@@ -53,11 +51,13 @@ public:
 	 */
 	void SetActorDetailsRootCustomization(TSharedPtr<FDetailsViewObjectFilter> ActorDetailsObjectFilter, TSharedPtr<class IDetailRootObjectCustomization> ActorDetailsRootCustomization);
 
+	/** Sets the UI customization of the SCSEditor inside this details panel. */
+	void SetSCSEditorUICustomization(TSharedPtr<class ISCSEditorUICustomization> ActorDetailsSCSEditorUICustomization);
+
 private:
 	AActor* GetSelectedActorInEditor() const;
 	AActor* GetActorContext() const;
 	bool GetAllowComponentTreeEditing() const;
-	const TArray<TWeakObjectPtr<UObject>>& GetDetailsViewSelectedObjects() const;
 
 	void OnComponentsEditedInWorld();
 	void OnEditorSelectionChanged(UObject* Object);
@@ -84,7 +84,6 @@ private:
 	TSharedPtr<class IDetailsView> DetailsView;
 	TSharedPtr<SBox> ComponentsBox;
 	TSharedPtr<class SSCSEditor> SCSEditor;
-	TSharedPtr<class SExtensionPanel> ExtensionPanel;
 
 	// The actor selected when the details panel was locked
 	TWeakObjectPtr<AActor> LockedActorSelection;

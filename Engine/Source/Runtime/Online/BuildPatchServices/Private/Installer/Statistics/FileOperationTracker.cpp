@@ -9,6 +9,7 @@
 #include "Common/StatsCollector.h"
 #include "BuildPatchManifest.h"
 #include "IBuildManifestSet.h"
+#include "Stats/Stats.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogFileOperationTracker, Warning, All);
 DEFINE_LOG_CATEGORY(LogFileOperationTracker);
@@ -143,6 +144,8 @@ namespace BuildPatchServices
 
 	bool FFileOperationTracker::Tick(float Delta)
 	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FFileOperationTracker_Tick);
+
 		const double TimeLimitSeconds = 1.0 / 120.0;
 		// Use a time limit as setting huge file state can take a while. We will catch up easily over a handful of ticks.
 		uint64 TimeLimitCycles = FStatsCollector::GetCycles() + FStatsCollector::SecondsToCycles(TimeLimitSeconds);

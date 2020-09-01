@@ -12,8 +12,9 @@ const TCHAR* LexToString(EInstallBundleSourceType Type)
 	{
 		TEXT("Bulk"),
 		TEXT("BuildPatchServices"),
-		TEXT("PlayGo"),
-		TEXT("IntelligentDelivery"),
+#if WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
+		TEXT("Platform"),
+#endif // WITH_PLATFORM_INSTALL_BUNDLE_SOURCE
 		TEXT("GameCustom"),
 	};
 
@@ -98,6 +99,7 @@ const TCHAR* LexToString(EInstallBundleReleaseResult Result)
 	static const TCHAR* Strings[] =
 	{
 		TEXT("OK"),
+		TEXT("ManifestArchiveError"),
 	};
 
 	static_assert(InstallBundleUtil::CastToUnderlying(EInstallBundleReleaseResult::Count) == UE_ARRAY_COUNT(Strings), "");

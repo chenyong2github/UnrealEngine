@@ -239,6 +239,7 @@ void UMovieScene3DTransformTrackRecorder::FinalizeTrackImpl()
 	{
 		FKeyDataOptimizationParams Params;
 		Params.bAutoSetInterpolation = true;
+		Params.Tolerance = TrackRecorderSettings.ReduceKeysTolerance;
 		for (FMovieSceneFloatChannel* Channel : FloatChannels)
 		{
 			Channel->Optimize(Params);

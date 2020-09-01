@@ -72,7 +72,6 @@ namespace Chaos
 	class CHAOSVEHICLESCORE_API FVehicleUtility
 	{
 	public:
-
 		/** clamp value between 0 and 1 */
 		FORCEINLINE static void ClampNormalRange(float& InOutValue)
 		{
@@ -100,6 +99,16 @@ namespace Chaos
 		/** Calculate turn radius from three points. Note: this function is quite inaccurate for large radii. Return 0 if there is no answer, i.e. points lie on a line */
 		static float TurnRadiusFromThreePoints(const FVector& PtA, const FVector& PtB, const FVector& PtC);
 	};
+
+	FORCEINLINE float MToCmScaling()
+	{
+		return 100.f;
+	}
+
+	FORCEINLINE float CmToMScaling()
+	{
+		return 0.01f;
+	}
 
 	/** revolutions per minute to radians per second */
 	FORCEINLINE float RPMToOmega(float RPM)

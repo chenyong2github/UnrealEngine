@@ -36,16 +36,16 @@ namespace Chaos
 
 		float FinalLongitudinalForce = 0.f;
 
-		// IMPORTANT - The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
+		// The physics system is mostly unit-less i.e. can work in meters or cm, however there are 
 		// a couple of places where the results are wrong if Cm is used. This is one of them, the simulated radius
-		// for torque must be real size to obtain the correct output values. Meter vs Cm test appears in HeadessChaos
+		// for torque must be real size to obtain the correct output values.
 		AppliedLinearDriveForce = DriveTorque / CmToM(Re);
 		AppliedLinearBrakeForce = BrakeTorque / CmToM(Re);
 
-		// #todo: currently just letting the brake override the throttle
+		// currently just letting the brake override the throttle
 		bool Braking = BrakeTorque > FMath::Abs(DriveTorque);
 		float BrakeFactor = 1.0f;
-		static float fHACK = 0.25f;
+		float K = 0.4f;
 		
 		// are we actually touching the ground
 		if (ForceIntoSurface > SMALL_NUMBER)
@@ -58,7 +58,7 @@ namespace Chaos
 
 				// whether the velocity is +ve or -ve when we brake we are slowing the vehicle down
 				// so force is opposing current direction of travel.
-				float ForceRequiredToBringToStop = MassPerWheel * fHACK * (GroundVelocityVector.X) / DeltaTime;
+				float ForceRequiredToBringToStop = MassPerWheel * K * (GroundVelocityVector.X) / DeltaTime;
 				FinalLongitudinalForce = AppliedLinearBrakeForce;
 
 				// check we are not applying more force than required so we end up overshooting 
@@ -81,7 +81,7 @@ namespace Chaos
 			}
 
 			// lateral grip
-			float FinalLateralForce = -(MassPerWheel * fHACK * GroundVelocityVector.Y) / DeltaTime;
+			float FinalLateralForce = -(MassPerWheel * K * GroundVelocityVector.Y) / DeltaTime;
 
 			ForceFromFriction.X = FinalLongitudinalForce;
 

@@ -5,66 +5,23 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "Engine/NetConnection.h"
+#include "ReplayTypes.h"
 #include "DemoNetConnection.generated.h"
 
 class APlayerController;
 class FObjectReplicator;
 class UDemoNetDriver;
 
-struct FQueuedDemoPacket
-{
-	/** The packet data to send */
-	TArray<uint8> Data;
-
-	/** The size of the packet in bits */
-	int32 SizeBits;
-
-	/** The traits applied to the packet, if applicable */
-	FOutPacketTraits Traits;
-
-	/** Index of the level this packet is associated with. 0 indicates no association. */
-	uint32 SeenLevelIndex;
-
-public:
-	FORCEINLINE FQueuedDemoPacket(uint8* InData, int32 InSizeBytes, int32 InSizeBits) 
-		: Data()
-		, SizeBits(InSizeBits)
-		, Traits()
-		, SeenLevelIndex(0)
-	{
-		Data.AddUninitialized(InSizeBytes);
-		FMemory::Memcpy(Data.GetData(), InData, InSizeBytes);
-	}
-
-	FORCEINLINE FQueuedDemoPacket(uint8* InData, int32 InSizeBits, FOutPacketTraits& InTraits)
-		: Data()
-		, SizeBits(InSizeBits)
-		, Traits(InTraits)
-		, SeenLevelIndex(0)
-	{
-		int32 SizeBytes = FMath::DivideAndRoundUp(InSizeBits, 8);
-
-		Data.AddUninitialized(SizeBytes);
-		FMemory::Memcpy(Data.GetData(), InData, SizeBytes);
-	}
-
-	void CountBytes(FArchive& Ar) const
-	{
-		Data.CountBytes(Ar);
-	}
-};
-
-
 /**
  * Simulated network connection for recording and playing back game sessions.
  */
 UCLASS(transient, config=Engine)
-class ENGINE_API UDemoNetConnection
-	: public UNetConnection
+class ENGINE_API UDemoNetConnection : public UNetConnection
 {
-	GENERATED_UCLASS_BODY()
+	GENERATED_BODY()
 
 public:
+	UDemoNetConnection(const FObjectInitializer& ObjectInitializer);
 
 	// UNetConnection interface.
 
@@ -98,16 +55,15 @@ public:
 		return (UDemoNetDriver*)Driver;
 	}
 
+	UE_DEPRECATED(4.26, "Moved to FReplayHelper")
 	TArray<FQueuedDemoPacket> QueuedDemoPackets;
+	UE_DEPRECATED(4.26, "Moved to FReplayHelper")
 	TArray<FQueuedDemoPacket> QueuedCheckpointPackets;
 
 	TMap<FNetworkGUID, UActorChannel*>& GetOpenChannelMap() { return OpenChannelMap; }
 
 protected:
 	virtual void DestroyIgnoredActor(AActor* Actor) override;
-
-	UE_DEPRECATED(4.21, "Deprecated in favor of QueueNetStartupActorForRewind that does not check dormancy")
-	void QueueInitialDormantStartupActorForRewind(AActor* Actor);
 
 	void QueueNetStartupActorForRewind(AActor* Actor);
 

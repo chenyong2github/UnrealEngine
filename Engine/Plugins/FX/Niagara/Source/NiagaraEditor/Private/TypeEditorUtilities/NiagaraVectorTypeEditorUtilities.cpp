@@ -181,6 +181,12 @@ FText FNiagaraEditorVector2TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
+FText FNiagaraEditorVector2TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FVector2D Value = Variable.GetValue<FVector2D>();
+	return FText::Format(FText::FromString("({0}, {1})"), Value.X, Value.Y);
+}
+
 class SNiagaraVector3ParameterEditor : public SNiagaraVectorParameterEditorBase
 {
 public:
@@ -257,6 +263,12 @@ FText FNiagaraEditorVector3TypeUtilities::GetSearchTextFromValue(const FNiagaraV
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
+FText FNiagaraEditorVector3TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FVector Value = Variable.GetValue<FVector>();
+	return FText::Format(FText::FromString("({0}, {1}, {2})"), Value.X, Value.Y, Value.Z);
+}
+
 class SNiagaraVector4ParameterEditor : public SNiagaraVectorParameterEditorBase
 {
 public:
@@ -331,6 +343,12 @@ bool FNiagaraEditorVector4TypeUtilities::SetValueFromPinDefaultString(const FStr
 FText FNiagaraEditorVector4TypeUtilities::GetSearchTextFromValue(const FNiagaraVariable& AllocatedVariable) const
 {
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
+}
+
+FText FNiagaraEditorVector4TypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FVector4 Value = Variable.GetValue<FVector4>();
+	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
 }
 
 class SNiagaraQuatParameterEditor : public SNiagaraVectorParameterEditorBase
@@ -438,8 +456,53 @@ FText FNiagaraEditorQuatTypeUtilities::GetSearchTextFromValue(const FNiagaraVari
 	return FText::FromString(GetPinDefaultStringFromValue(AllocatedVariable));
 }
 
+FText FNiagaraEditorQuatTypeUtilities::GetStackDisplayText(FNiagaraVariable& Variable) const
+{
+	FQuat Value = Variable.GetValue<FQuat>();
+	return FText::Format(FText::FromString("({0}, {1}, {2}, {3})"), Value.X, Value.Y, Value.Z, Value.W);
+}
+
 void FNiagaraEditorQuatTypeUtilities::UpdateVariableWithDefaultValue(FNiagaraVariable& Variable) const
 {
 	checkf(Variable.GetType().GetStruct() == FNiagaraTypeDefinition::GetQuatStruct(), TEXT("Struct type not supported."));
 	Variable.SetValue<FQuat>(FQuat(0, 0, 0, 1));
+}
+
+bool FNiagaraEditorNiagaraIDTypeUtilities::CanHandlePinDefaults() const
+{
+	return true;
+}
+
+FString FNiagaraEditorNiagaraIDTypeUtilities::GetPinDefaultStringFromValue(const FNiagaraVariable& AllocatedVariable) const
+{
+	checkf(AllocatedVariable.IsDataAllocated(), TEXT("Can not generate a default value string for an unallocated variable."));
+	FNiagaraID Value = AllocatedVariable.GetValue<FNiagaraID>();
+	return FString::Printf(TEXT("%i,%i"), Value.Index, Value.AcquireTag);
+}
+
+bool FNiagaraEditorNiagaraIDTypeUtilities::SetValueFromPinDefaultString(const FString& StringValue, FNiagaraVariable& Variable) const
+{
+	if (StringValue == TEXT("0"))
+	{
+		// Special case handling of 0 default which is specified in niagara constants and is already present in assets.
+		Variable.SetValue(FNiagaraID());
+		return true;
+	}
+	else
+	{
+		TArray<FString> ValueParts;
+		StringValue.ParseIntoArray(ValueParts, TEXT(","));
+		if (ValueParts.Num() == 2)
+		{
+			int32 Index;
+			int32 AcquireTag;
+			if (LexTryParseString(Index, *ValueParts[0]) && LexTryParseString(AcquireTag, *ValueParts[1]))
+			{
+				FNiagaraID Value(Index, AcquireTag);
+				Variable.SetValue(Value);
+				return true;
+			}
+		}
+	}
+	return false;
 }

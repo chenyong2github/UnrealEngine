@@ -271,9 +271,42 @@ void UTriangleSetComponent::RemoveTriangle(const int32 ID)
 	bBoundsDirty = true;
 }
 
+
+
+int32 UTriangleSetComponent::AddTriangle(const FVector& A, const FVector& B, const FVector& C, const FVector& Normal, const FColor& Color, UMaterialInterface* Material)
+{
+	FRenderableTriangle NewTriangle;
+	NewTriangle.Material = Material;
+
+	NewTriangle.Vertex0 = { A, FVector2D(0,0), Normal, Color };
+	NewTriangle.Vertex1 = { B, FVector2D(1,0), Normal, Color };
+	NewTriangle.Vertex2 = { C, FVector2D(1,1), Normal, Color };
+
+	return AddTriangle(NewTriangle);
+}
+
+FIndex2i UTriangleSetComponent::AddQuad(const FVector& A, const FVector& B, const FVector& C, const FVector& D, const FVector& Normal, const FColor& Color, UMaterialInterface* Material)
+{
+	FRenderableTriangle NewTriangle0;
+	NewTriangle0.Material = Material;
+
+	NewTriangle0.Vertex0 = { A, FVector2D(0,0), Normal, Color };
+	NewTriangle0.Vertex1 = { B, FVector2D(1,0), Normal, Color };
+	NewTriangle0.Vertex2 = { C, FVector2D(1,1), Normal, Color };
+
+	FRenderableTriangle NewTriangle1 = NewTriangle0;
+	NewTriangle1.Vertex1 = NewTriangle1.Vertex2;
+	NewTriangle1.Vertex2 = { D, FVector2D(0,1), Normal, Color };
+
+	int32 Index0 = AddTriangle(NewTriangle0);
+	int32 Index1 = AddTriangle(NewTriangle1);
+	return FIndex2i(Index0, Index1);
+}
+
+
 bool UTriangleSetComponent::IsTriangleValid(const int32 ID) const
 {
-	return Triangles.IsAllocated(ID);
+	return Triangles.IsValidIndex(ID);
 }
 
 FPrimitiveSceneProxy* UTriangleSetComponent::CreateSceneProxy()

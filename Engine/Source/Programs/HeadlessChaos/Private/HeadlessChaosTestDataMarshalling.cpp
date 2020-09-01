@@ -91,4 +91,77 @@ namespace ChaosTest
 			EXPECT_EQ(BuffersSeen.Num(),Step == 0 ? 2 : 3);	//we should only ever use three buffers
 		}
 	}
+
+	TYPED_TEST(AllTraits, DataMarshalling_Callbacks)
+	{
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr, EThreadingMode::SingleThread);
+		Solver->SetEnabled(true);
+
+		int Count = 0;
+		float Time = 0;
+		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time](const TArray<FSimCallbackData*>& Data)
+		{
+			EXPECT_EQ(Data.Num(),1);
+			EXPECT_EQ(Data[0]->Data.Int, Count);
+			++Count;
+			EXPECT_EQ(Time,Data[0]->GetStartTime());
+		});
+
+		const float Dt = 1/30.f;
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			Solver->FindOrCreateCallbackProducerData(*Callback).Data.Int = Step;
+			Solver->AdvanceAndDispatch_External(Dt);
+			Time += Dt;
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
+		}
+		
+		EXPECT_EQ(Count,10);
+
+		Solver->UnregisterSimCallback(*Callback);
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			Solver->AdvanceAndDispatch_External(Dt);
+			Time += Dt;
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
+		}
+
+		EXPECT_EQ(Count,10);
+	}
+
+	TYPED_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
+	{
+		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr,EThreadingMode::SingleThread);
+		Solver->SetEnabled(true);
+
+		int Count = 0;
+		Solver->RegisterSimOneShotCallback([&Count]()
+		{
+			EXPECT_EQ(Count,0);
+			++Count;
+		});
+
+		for(int Step = 0; Step < 10; ++Step)
+		{
+			Solver->RegisterSimOneShotCallback([Step, &Count]()
+			{
+				EXPECT_EQ(Count,Step+1);	//at step plus first one we registered
+				++Count;
+			});
+
+			Solver->AdvanceAndDispatch_External(1/30.f);
+
+			Solver->BufferPhysicsResults();
+			Solver->FlipBuffers();
+		}
+
+		EXPECT_EQ(Count,11);
+
+	}
 }

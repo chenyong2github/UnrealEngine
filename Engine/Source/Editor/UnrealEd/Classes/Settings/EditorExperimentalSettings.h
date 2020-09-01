@@ -64,10 +64,6 @@ public:
 	/** Break on Exceptions allows you to trap Access Nones and other exceptional events in Blueprints. */
 	UPROPERTY(EditAnywhere, config, Category=Blueprints, meta=(DisplayName="Blueprint Break on Exceptions"))
 	bool bBreakOnExceptions;
-
-	/** Enables "Find and Replace All" tool in the MyBlueprint window for variables */
-	UPROPERTY(EditAnywhere, config, Category = Blueprints, meta = (DisplayName = "Find and Replace All References Tool"))
-	bool bEnableFindAndReplaceReferences;
 	
 protected:
 	/** Any blueprint deriving from one of these base classes will be allowed to recompile during Play-in-Editor */

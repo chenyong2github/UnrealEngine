@@ -15,7 +15,12 @@
 #include "VolumetricCloudRendering.h"
 #include "VolumetricCloudProxy.h"
 #include "FogRendering.h"
+#include "GPUScene.h"
 
+#if WITH_EDITOR
+#include "CanvasTypes.h"
+#include "RenderTargetTemp.h"
+#endif
 
 extern float GReflectionCaptureNearPlane;
 
@@ -24,13 +29,18 @@ DECLARE_GPU_STAT(CaptureConvolveSkyEnvMap);
 
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureTimeSlicing(
-	TEXT("r.RealTimeReflectionCapture.TimeSlice"), 0,
-	TEXT("SkyAtmosphere components are rendered when this is not 0, otherwise ignored.\n"),
+	TEXT("r.SkyLight.RealTimeReflectionCapture.TimeSlice"), 1,
+	TEXT("When enabled, the real-time sky light capture and convolutions will by distributed over several frames to lower the per-frame cost."),
 	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureShadowFromOpaque(
-	TEXT("r.RealTimeReflectionCapture.ShadowFromOpaque"), 0,
-	TEXT("Opaque meshes cast shadow from directional lights when enabled.\n"),
+	TEXT("r.SkyLight.RealTimeReflectionCapture.ShadowFromOpaque"), 0,
+	TEXT("Opaque meshes cast shadow from directional lights when enabled."),
+	ECVF_RenderThreadSafe);
+
+static TAutoConsoleVariable<int32> CVarRealTimeReflectionCaptureDepthBuffer(
+	TEXT("r.SkyLight.RealTimeReflectionCapture.DepthBuffer"), 1,
+	TEXT("When enabled, the real-time sky light capture will have a depth buffer, this is for multiple meshes to be cover each other correctly. The height fog wil lalso be applied according to the depth buffer."),
 	ECVF_RenderThreadSafe);
 
 
@@ -79,6 +89,7 @@ class FConvolveSpecularFaceCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(uint32, MipIndex)
 		SHADER_PARAMETER(uint32, NumMips)
+		SHADER_PARAMETER(int32, CubeFaceOffset)
 		SHADER_PARAMETER(int32, CubeFace)
 		SHADER_PARAMETER(int32, FaceThreadGroupSize)
 		SHADER_PARAMETER(FIntPoint, ValidDispatchCoord)
@@ -198,9 +209,13 @@ class FRenderRealTimeReflectionHeightFogPS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FRenderRealTimeReflectionHeightFogPS);
 	SHADER_USE_PARAMETER_STRUCT(FRenderRealTimeReflectionHeightFogPS, FGlobalShader);
 
+	class FDepthTexture : SHADER_PERMUTATION_BOOL("PERMUTATION_DEPTHTEXTURE");
+	using FPermutationDomain = TShaderPermutationDomain<FDepthTexture>;
+
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 		SHADER_PARAMETER_STRUCT_REF(FFogUniformParameters, FogStruct)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DepthTexture)
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -223,6 +238,48 @@ class FRenderRealTimeReflectionHeightFogPS : public FGlobalShader
 IMPLEMENT_GLOBAL_SHADER(FRenderRealTimeReflectionHeightFogPS, "/Engine/Private/ReflectionEnvironmentShaders.usf", "RenderRealTimeReflectionHeightFogPS", SF_Pixel);
 
 
+void FScene::ValidateSkyLightRealTimeCapture(FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView)
+{
+#if WITH_EDITOR
+	auto GetMaterialDebugName = [&](const FMaterialRenderProxy* MaterialRenderProxy)
+	{
+		return MaterialRenderProxy ? MaterialRenderProxy->GetMaterial(MainView.GetFeatureLevel())->GetFriendlyName() : FString(TEXT("Could not find name"));
+	};
+
+	bool bSkyMeshInMainPassExist = false;
+	bool bSkyMeshInRealTimeSkyCaptureExtist = false;
+
+	const int32 SkyRealTimeReflectionOnlyMeshBatcheCount = MainView.SkyMeshBatches.Num();
+	for (int32 MeshBatchIndex = 0; MeshBatchIndex < SkyRealTimeReflectionOnlyMeshBatcheCount; ++MeshBatchIndex)
+	{
+		FSkyMeshBatch& SkyMeshBatch = MainView.SkyMeshBatches[MeshBatchIndex];
+		bSkyMeshInMainPassExist |= SkyMeshBatch.bVisibleInMainPass;
+		bSkyMeshInRealTimeSkyCaptureExtist |= SkyMeshBatch.bVisibleInRealTimeSkyCapture;
+	}
+
+	if (!bSkyMeshInMainPassExist || !bSkyMeshInRealTimeSkyCaptureExtist)
+	{
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		const float ViewPortWidth = float(MainView.ViewRect.Width());
+		const float ViewPortHeight = float(MainView.ViewRect.Height());
+		FRenderTargetTemp TempRenderTarget(MainView, (const FTexture2DRHIRef&)SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture);
+		FCanvas Canvas(&TempRenderTarget, NULL, MainView.Family->CurrentRealTime, SceneRenderer.ViewFamily.CurrentWorldTime, SceneRenderer.ViewFamily.DeltaWorldTime, MainView.GetFeatureLevel());
+		FLinearColor TextColor(1.0f, 0.5f, 0.0f);
+
+		if (MainView.bSceneHasSkyMaterial && !bSkyMeshInMainPassExist)
+		{
+			Canvas.DrawShadowedString(100.0f, 100.0f, TEXT("At least one mesh with a sky material is in the scene but none are rendered in main view."), GetStatsFont(), TextColor);
+		}
+		if (MainView.bSceneHasSkyMaterial && !bSkyMeshInRealTimeSkyCaptureExtist && SkyLight && SkyLight->bRealTimeCaptureEnabled)
+		{
+			Canvas.DrawShadowedString(100.0f, 110.0f, TEXT("At least one mesh with a sky material is in the scene but none are rendered in the real-time sky light reflection."), GetStatsFont(), TextColor);
+		}
+		Canvas.Flush_RenderThread(RHICmdList);
+	}
+#endif
+}
+
+
 void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	FRHICommandListImmediate& RHICmdList, FSceneRenderer& SceneRenderer, FViewInfo& MainView, 
 	bool bShouldRenderSkyAtmosphere, bool bShouldRenderVolumetricCloud)
@@ -239,7 +296,16 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 	// Note: cube view is not meant to be sent to lambdas because we only create a single one. You should only send the ViewUniformBuffer around.
 	FViewInfo& CubeView = *MainView.CreateSnapshot();
 	CubeView.FOV = 90.0f;
-	// We cannot override exposure because sky input texture are using exposure
+	// Note: We cannot override exposure because sky input texture are using exposure
+
+	// DYNAMIC PRIMITIVES - We empty the CubeView dynamic primitive list to make sure UploadDynamicPrimitiveShaderDataForViewInternal is going through the cheap fast path only updating unfirm buffer.
+	// This means we cannot render procedurally animated meshes into the real-time sky capture as of today.
+	CubeView.DynamicPrimitiveShaderData.Empty();
+
+	// Other view data clean up
+	CubeView.StereoPass = eSSP_FULL;
+	CubeView.DrawDynamicFlags = EDrawDynamicFlags::ForceLowestLOD;
+	CubeView.MaterialTextureMipBias = 0;
 
 	FViewMatrices::FMinimalInitializer SceneCubeViewInitOptions;
 	SceneCubeViewInitOptions.ConstrainedViewRect = FIntRect(FIntPoint(0, 0), FIntPoint(CubeWidth, CubeWidth));
@@ -258,23 +324,25 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 
 	FPooledRenderTargetDesc SkyCubeTexDesc = FPooledRenderTargetDesc::CreateCubemapDesc(CubeWidth, 
 		PF_FloatR11G11B10, FClearValueBinding::Black, TexCreate_TargetArraySlicesIndependently,
-		TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable, false, 1, CubeMipCount);
+		TexCreate_ShaderResource | TexCreate_UAV | TexCreate_RenderTargetable, false, 1, CubeMipCount, false);
 
 	const bool bTimeSlicedRealTimeCapture = CVarRealTimeReflectionCaptureTimeSlicing.GetValueOnRenderThread() > 0;
 
-	const bool CubeResolutionInvalidated = ConvolvedSkyRenderTarget.IsValid() && ConvolvedSkyRenderTarget->GetDesc().GetSize().X != CubeWidth;
-	if (!ConvolvedSkyRenderTarget.IsValid() || CubeResolutionInvalidated)
+	const bool CubeResolutionInvalidated = ConvolvedSkyRenderTargetReadyIndex < 0 || (ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex].IsValid() && ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]->GetDesc().GetSize().X != CubeWidth);
+	if (!ConvolvedSkyRenderTarget[0].IsValid() || CubeResolutionInvalidated)
 	{
-		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget, TEXT("ConvolvedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
+		// Always allocated
+		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[0], TEXT("ConvolvedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
 		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, CapturedSkyRenderTarget, TEXT("CapturedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
 	}
-	if (bTimeSlicedRealTimeCapture && (!ProcessedSkyRenderTarget.IsValid() || CubeResolutionInvalidated))
+	if (bTimeSlicedRealTimeCapture && (CubeResolutionInvalidated || !ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex].IsValid()))
 	{
-		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, ProcessedSkyRenderTarget, TEXT("CapturedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
+		// Additional allocation for time slicing
+		GRenderTargetPool.FindFreeElement(RHICmdList, SkyCubeTexDesc, ConvolvedSkyRenderTarget[1], TEXT("ConvolvedSkyRenderTarget"), true, ERenderTargetTransience::NonTransient);
 	}
 
 
-	auto RenderCubeFaces_SkyCloud = [&](bool bExecuteSky, bool bExecuteCloud, TRefCountPtr<IPooledRenderTarget> SkyRenderTarget)
+	auto RenderCubeFaces_SkyCloud = [&](bool bExecuteSky, bool bExecuteCloud, TRefCountPtr<IPooledRenderTarget>& SkyRenderTarget)
 	{
 		FScene* Scene = MainView.Family->Scene->GetRenderScene();
 
@@ -422,9 +490,16 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				{
 					CubeView.CachedViewUniformShaderParameters->CameraAerialPerspectiveVolume = RealTimeReflectionCaptureCamera360APLutTexture->GetRenderTargetItem().ShaderResourceTexture;
 				}
-				// Else we do nothing as we assum the MainView one will not be used
+				// Else we do nothing as we assume the MainView one will not be used
 
 				TUniformBufferRef<FViewUniformShaderParameters> CubeViewUniformBuffer = TUniformBufferRef<FViewUniformShaderParameters>::CreateUniformBufferImmediate(*CubeView.CachedViewUniformShaderParameters, UniformBuffer_SingleFrame);
+				CubeView.ViewUniformBuffer = CubeViewUniformBuffer;
+				if (CubeView.bSceneHasSkyMaterial)
+				{
+					// DYNAMIC PRIMITIVES - This will hit the fast path not updating the GPU scene, but only setting the GPUSCene resources on the view uniform buffer.
+					UploadDynamicPrimitiveShaderDataForView(RHICmdList, *this, CubeView);
+				}
+
 				SkyRC.ViewUniformBuffer = CubeViewUniformBuffer;
 				SkyRC.ViewMatrices = &CubeViewMatrices;
 
@@ -448,6 +523,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				SkyRC.bShouldSampleCloudSkyAO = HasVolumetricCloud() && MainView.VolumetricCloudSkyAO.IsValid();
 				SkyRC.VolumetricCloudSkyAO = GraphBuilder.RegisterExternalTexture(SkyRC.bShouldSampleCloudSkyAO ? MainView.VolumetricCloudSkyAO : GSystemTextures.BlackDummy);
 
+				const bool bUseDepthBuffer = CVarRealTimeReflectionCaptureDepthBuffer.GetValueOnRenderThread() > 0;
+				FRDGTextureRef CubeDepthTexture = nullptr;
+
 				if (bExecuteSky)
 				{
 					if (MainView.bSceneHasSkyMaterial)
@@ -455,28 +533,45 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						FRenderTargetParameters* RenderTargetPassParameter = GraphBuilder.AllocParameters<FRenderTargetParameters>();
 						RenderTargetPassParameter->RenderTargets = SkyRC.RenderTargets;
 
+						// Setup the depth buffer
+						if (bUseDepthBuffer)
+						{
+							FRDGTextureDesc CubeDepthTextureDesc = FRDGTextureDesc::Create2DDesc(FIntPoint(CubeWidth, CubeWidth), PF_DepthStencil, SceneContext.GetDefaultDepthClear(), 
+								TexCreate_None, TexCreate_DepthStencilTargetable | TexCreate_ShaderResource, false);
+							CubeDepthTexture = GraphBuilder.CreateTexture(CubeDepthTextureDesc, TEXT("CubeDepthTexture"));
+							RenderTargetPassParameter->RenderTargets.DepthStencil = FDepthStencilBinding(CubeDepthTexture, ERenderTargetLoadAction::EClear, FExclusiveDepthStencil::DepthWrite_StencilNop);
+						}
+
 						GraphBuilder.AddPass(
 							RDG_EVENT_NAME("CaptureSkyMeshReflection"),
 							RenderTargetPassParameter,
 							ERDGPassFlags::Raster,
-							[&MainView, CubeViewUniformBuffer](FRHICommandListImmediate& RHICmdList)
+							[&MainView, CubeViewUniformBuffer, bUseDepthBuffer](FRHICommandListImmediate& RHICmdList)
 							{
 								DrawDynamicMeshPass(MainView, RHICmdList,
-									[&MainView, &CubeViewUniformBuffer](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
+									[&MainView, &CubeViewUniformBuffer, bUseDepthBuffer](FDynamicPassMeshDrawListContext* DynamicMeshPassContext)
 									{
 										FScene* Scene = MainView.Family->Scene->GetRenderScene();
 
 										FMeshPassProcessorRenderState DrawRenderState(CubeViewUniformBuffer, Scene->UniformBuffers.OpaqueBasePassUniformBuffer);
 										DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
 
-										FExclusiveDepthStencil::Type BasePassDepthStencilAccess_NoDepthWrite = FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess & ~FExclusiveDepthStencil::DepthWrite);
-										SetupBasePassState(BasePassDepthStencilAccess_NoDepthWrite, false, DrawRenderState);
+										FExclusiveDepthStencil::Type BasePassDepthStencilAccess_Sky = bUseDepthBuffer ? FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess | FExclusiveDepthStencil::DepthWrite)
+											: FExclusiveDepthStencil::Type(Scene->DefaultBasePassDepthStencilAccess & ~FExclusiveDepthStencil::DepthWrite);
+										SetupBasePassState(BasePassDepthStencilAccess_Sky, false, DrawRenderState);
 
 										FSkyPassMeshProcessor PassMeshProcessor(Scene, nullptr, DrawRenderState, DynamicMeshPassContext);
-										for (int32 MeshBatchIndex = 0; MeshBatchIndex < MainView.SkyMesheBatches.Num(); ++MeshBatchIndex)
+										const int32 SkyRealTimeReflectionOnlyMeshBatcheCount = MainView.SkyMeshBatches.Num();
+										for (int32 MeshBatchIndex = 0; MeshBatchIndex < SkyRealTimeReflectionOnlyMeshBatcheCount; ++MeshBatchIndex)
 										{
-											const FMeshBatch* MeshBatch = MainView.SkyMesheBatches[MeshBatchIndex].Mesh;
-											const FPrimitiveSceneProxy* PrimitiveSceneProxy = MainView.SkyMesheBatches[MeshBatchIndex].Proxy;
+											FSkyMeshBatch& SkyMeshBatch = MainView.SkyMeshBatches[MeshBatchIndex];
+											if (!SkyMeshBatch.bVisibleInRealTimeSkyCapture)
+											{
+												continue;
+											}
+
+											const FMeshBatch* MeshBatch = SkyMeshBatch.Mesh;
+											const FPrimitiveSceneProxy* PrimitiveSceneProxy = SkyMeshBatch.Proxy;
 											const FPrimitiveSceneInfo* PrimitiveSceneInfo = PrimitiveSceneProxy->GetPrimitiveSceneInfo();
 
 											const uint64 DefaultBatchElementMask = ~0ull;
@@ -489,55 +584,58 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 					{
 						SceneRenderer.RenderSkyAtmosphereInternal(GraphBuilder, SkyRC);
 					}
-				}
 
-				if (Scene && Scene->ExponentialFogs.Num() > 0)
-				{
-					FRenderRealTimeReflectionHeightFogVS::FPermutationDomain VsPermutationVector;
-					TShaderMapRef<FRenderRealTimeReflectionHeightFogVS> VertexShader(GetGlobalShaderMap(SkyRC.FeatureLevel), VsPermutationVector);
-
-					FRenderRealTimeReflectionHeightFogPS::FPermutationDomain PsPermutationVector;
-					TShaderMapRef<FRenderRealTimeReflectionHeightFogPS> PixelShader(GetGlobalShaderMap(SkyRC.FeatureLevel), PsPermutationVector);
-
-					FRenderRealTimeReflectionHeightFogPS::FParameters* PsPassParameters = GraphBuilder.AllocParameters<FRenderRealTimeReflectionHeightFogPS::FParameters>();
-					PsPassParameters->ViewUniformBuffer = CubeViewUniformBuffer;
-					PsPassParameters->RenderTargets = SkyRC.RenderTargets;
-
-					FFogUniformParameters FogUniformParameters;
-					SetupFogUniformParameters(CubeView, FogUniformParameters);
-					PsPassParameters->FogStruct = TUniformBufferRef<FFogUniformParameters>::CreateUniformBufferImmediate(FogUniformParameters, UniformBuffer_SingleDraw);
-
-					ClearUnusedGraphResources(PixelShader, PsPassParameters);
-
-					// Render height fog at an infinite distance since real time reflections does not have a depth buffer for now.
-					// Volumetric fog is not supported in such reflections.
-					GraphBuilder.AddPass(
-						RDG_EVENT_NAME("DistantHeightFog"),
-						PsPassParameters,
-						ERDGPassFlags::Raster,
-						[PsPassParameters, VertexShader, PixelShader, CubeWidth](FRHICommandList& RHICmdListLambda)
+					// Also render the height fog as part of the sky render pass when time slicing is enabled.
+					if (Scene && Scene->ExponentialFogs.Num() > 0)
 					{
-						RHICmdListLambda.SetViewport(0.0f, 0.0f, 0.0f, CubeWidth, CubeWidth, 1.0f);
+						FRenderRealTimeReflectionHeightFogVS::FPermutationDomain VsPermutationVector;
+						TShaderMapRef<FRenderRealTimeReflectionHeightFogVS> VertexShader(GetGlobalShaderMap(SkyRC.FeatureLevel), VsPermutationVector);
 
-						FGraphicsPipelineStateInitializer GraphicsPSOInit;
-						RHICmdListLambda.ApplyCachedRenderTargets(GraphicsPSOInit);
+						FRenderRealTimeReflectionHeightFogPS::FPermutationDomain PsPermutationVector;
+						PsPermutationVector.Set<FRenderRealTimeReflectionHeightFogPS::FDepthTexture>(CubeDepthTexture != nullptr);
+						TShaderMapRef<FRenderRealTimeReflectionHeightFogPS> PixelShader(GetGlobalShaderMap(SkyRC.FeatureLevel), PsPermutationVector);
 
-						GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
-						GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-						GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
-						GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
-						GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-						GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-						GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-						SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit);
+						FRenderRealTimeReflectionHeightFogPS::FParameters* PsPassParameters = GraphBuilder.AllocParameters<FRenderRealTimeReflectionHeightFogPS::FParameters>();
+						PsPassParameters->ViewUniformBuffer = CubeViewUniformBuffer;
+						PsPassParameters->RenderTargets = SkyRC.RenderTargets;
+						PsPassParameters->DepthTexture = CubeDepthTexture != nullptr ? CubeDepthTexture : BlackDummy2dTex;
 
-						FRenderRealTimeReflectionHeightFogVS::FParameters VsPassParameters;
-						VsPassParameters.ViewUniformBuffer = PsPassParameters->ViewUniformBuffer;
-						SetShaderParameters(RHICmdListLambda, VertexShader, VertexShader.GetVertexShader(), VsPassParameters);
-						SetShaderParameters(RHICmdListLambda, PixelShader, PixelShader.GetPixelShader(), *PsPassParameters);
+						FFogUniformParameters FogUniformParameters;
+						SetupFogUniformParameters(CubeView, FogUniformParameters);
+						PsPassParameters->FogStruct = TUniformBufferRef<FFogUniformParameters>::CreateUniformBufferImmediate(FogUniformParameters, UniformBuffer_SingleDraw);
 
-						RHICmdListLambda.DrawPrimitive(0, 1, 1);
-					});
+						ClearUnusedGraphResources(PixelShader, PsPassParameters);
+
+						// Render height fog at an infinite distance since real time reflections does not have a depth buffer for now.
+						// Volumetric fog is not supported in such reflections.
+						GraphBuilder.AddPass(
+							RDG_EVENT_NAME("DistantHeightFog"),
+							PsPassParameters,
+							ERDGPassFlags::Raster,
+							[PsPassParameters, VertexShader, PixelShader, CubeWidth](FRHICommandList& RHICmdListLambda)
+						{
+							RHICmdListLambda.SetViewport(0.0f, 0.0f, 0.0f, CubeWidth, CubeWidth, 1.0f);
+
+							FGraphicsPipelineStateInitializer GraphicsPSOInit;
+							RHICmdListLambda.ApplyCachedRenderTargets(GraphicsPSOInit);
+
+							GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGB, BO_Add, BF_One, BF_SourceAlpha, BO_Add, BF_Zero, BF_One>::GetRHI();
+							GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
+							GraphicsPSOInit.RasterizerState = TStaticRasterizerState<FM_Solid, CM_None>::GetRHI();
+							GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GEmptyVertexDeclaration.VertexDeclarationRHI;
+							GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+							GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+							GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+							SetGraphicsPipelineState(RHICmdListLambda, GraphicsPSOInit);
+
+							FRenderRealTimeReflectionHeightFogVS::FParameters VsPassParameters;
+							VsPassParameters.ViewUniformBuffer = PsPassParameters->ViewUniformBuffer;
+							SetShaderParameters(RHICmdListLambda, VertexShader, VertexShader.GetVertexShader(), VsPassParameters);
+							SetShaderParameters(RHICmdListLambda, PixelShader, PixelShader.GetPixelShader(), *PsPassParameters);
+
+							RHICmdListLambda.DrawPrimitive(0, 1, 1);
+						});
+					}
 				}
 
 				if (bShouldRenderVolumetricCloud && bExecuteCloud)
@@ -580,8 +678,8 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 				FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("ApplyLowerHemisphereColor"), ComputeShader, PassParameters, NumGroups);
 			}
 
+			GraphBuilder.QueueTextureExtraction(SkyCubeTexture, &SkyRenderTarget);
 			GraphBuilder.Execute();
-		//	GraphBuilder.QueueTextureExtraction(SkyCubeTexture, &SkyRenderTarget); // Not needed because SkyRenderTarget is not transient
 		}
 		else
 		{
@@ -603,14 +701,14 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 						DrawClearQuad(RHICmdList, ClearColor);
 					});
 			}
+			GraphBuilder.QueueTextureExtraction(SkyCubeTexture, &SkyRenderTarget);
 			GraphBuilder.Execute();
-			//	GraphBuilder.QueueTextureExtraction(SkyCubeTexture, &SkyRenderTarget); // Not needed because SkyRenderTarget is not transient
 		}
 	};
 
 
 
-	auto RenderCubeFaces_GenCubeMips = [&](uint32 CubeMipStart, uint32 CubeMipEnd, TRefCountPtr<IPooledRenderTarget> SkyRenderTarget)
+	auto RenderCubeFaces_GenCubeMips = [&](uint32 CubeMipStart, uint32 CubeMipEnd, TRefCountPtr<IPooledRenderTarget>& SkyRenderTarget)
 	{
 		check(CubeMipStart > 0);	// Never write to mip0 as it has just been redered into
 
@@ -655,16 +753,15 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			});
 		}
 
+		GraphBuilder.QueueTextureExtraction(SkyCubeTexture, &SkyRenderTarget);
 		GraphBuilder.Execute();
-
-		FSceneRenderTargetItem& SkyRenderTargetItem = SkyRenderTarget->GetRenderTargetItem();
-		RHICmdList.CopyToResolveTarget(SkyRenderTargetItem.TargetableTexture, SkyRenderTargetItem.ShaderResourceTexture, FResolveParams());
 	};
 
 
 
-	auto RenderCubeFaces_SpecularConvolution = [&](uint32 CubeMipStart, uint32 CubeMipEnd, TRefCountPtr<IPooledRenderTarget> DstRenderTarget, TRefCountPtr<IPooledRenderTarget> SrcRenderTarget)
+	auto RenderCubeFaces_SpecularConvolution = [&](uint32 CubeMipStart, uint32 CubeMipEnd, uint32 FaceStart, uint32 FaceCount, TRefCountPtr<IPooledRenderTarget>& DstRenderTarget, TRefCountPtr<IPooledRenderTarget>& SrcRenderTarget)
 	{
+		check((FaceStart + FaceCount) <= 6);
 		FRDGBuilder GraphBuilder(RHICmdList);// , RDG_EVENT_NAME("ConvolveSpecular"));
 		FRDGTextureRef RDGSrcRenderTarget = GraphBuilder.RegisterExternalTexture(SrcRenderTarget, TEXT("CapturedSkyRenderTarget"));
 		FRDGTextureRef RDGDstRenderTarget = GraphBuilder.RegisterExternalTexture(DstRenderTarget, TEXT("CapturedSkyRenderTarget"));
@@ -681,6 +778,7 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			PassParameters->MipIndex = MipIndex;
 			PassParameters->NumMips = CubeMipCount;
 			PassParameters->CubeFace = 0; // unused
+			PassParameters->CubeFaceOffset = int(FaceStart);
 			PassParameters->ValidDispatchCoord = FIntPoint(MipResolution, MipResolution);
 			PassParameters->SourceCubemapSampler = TStaticSamplerState<SF_Point>::GetRHI();
 
@@ -693,20 +791,18 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 			PassParameters->FaceThreadGroupSize = NumGroups.X * FConvolveSpecularFaceCS::ThreadGroupSize;
 
 			// We are going to dispatch once for all faces 
-			NumGroups.X *= 6;
+			NumGroups.X *= FaceCount;
 
 			FComputeShaderUtils::AddPass(GraphBuilder, RDG_EVENT_NAME("Convolve"), ComputeShader, PassParameters, NumGroups);
 		}
 
+		GraphBuilder.QueueTextureExtraction(RDGDstRenderTarget, &DstRenderTarget);
 		GraphBuilder.Execute();
-
-		FSceneRenderTargetItem& DstRenderTargetItem = DstRenderTarget->GetRenderTargetItem();
-		RHICmdList.CopyToResolveTarget(DstRenderTargetItem.TargetableTexture, DstRenderTargetItem.ShaderResourceTexture, FResolveParams());
 	};
 
 
 
-	auto RenderCubeFaces_DiffuseIrradiance = [&](TRefCountPtr<IPooledRenderTarget> SourceCubemap)
+	auto RenderCubeFaces_DiffuseIrradiance = [&](TRefCountPtr<IPooledRenderTarget>& SourceCubemap)
 	{
 		// ComputeDiffuseIrradiance using N uniform samples
 		{
@@ -750,6 +846,9 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		// Generate a full cube map in a single frame for the first frame.
 		// Perf number are for a 128x128x6 a cubemap on PS4 with sky and cloud and default settings
 
+		// Since it is entirely generated each frame when time slicing is not enabled, we always use cubemap index 0 always allocated above
+		ConvolvedSkyRenderTargetReadyIndex = 0;
+
 		// 0.60ms (0.12ms for faces with the most clouds)
 		RenderCubeFaces_SkyCloud(true, true, CapturedSkyRenderTarget);
 
@@ -757,10 +856,10 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		RenderCubeFaces_GenCubeMips(1, LastMipLevel, CapturedSkyRenderTarget);
 
 		// 0.80ms total (0.30ms for mip0, 0.20ms for mip1+2, 0.30ms for remaining mips)
-		RenderCubeFaces_SpecularConvolution(0, LastMipLevel, ConvolvedSkyRenderTarget, CapturedSkyRenderTarget);
+		RenderCubeFaces_SpecularConvolution(0, LastMipLevel, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex], CapturedSkyRenderTarget);
 
 		// 0.015ms
-		RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget);
+		RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetReadyIndex]);
 
 		// Reset Scene time slicing state if time slicing is disabled
 		if (!bTimeSlicedRealTimeCapture)
@@ -778,54 +877,110 @@ void FScene::AllocateAndCaptureFrameSkyEnvMap(
 		// Each frame we capture the sky and work in ProcessedSkyRenderTarget to generate the specular convolution.
 		// Once done, we copy the result into ConvolvedSkyRenderTarget and generate the sky irradiance SH from there.
 
+		// On the first frame, we always fully initialise the convolution so ConvolvedSkyRenderTargetReadyIndex should alreayd be valid.
+		check(ConvolvedSkyRenderTargetReadyIndex >= 0 && ConvolvedSkyRenderTargetReadyIndex <= 1);
+		const int32 ConvolvedSkyRenderTargetWorkIndex = 1 - ConvolvedSkyRenderTargetReadyIndex;
+		const int32 TimeSliceCount = 12;
+
+#define DEBUG_TIME_SLICE 0
+#if DEBUG_TIME_SLICE
+		RealTimeSlicedReflectionCaptureState = 0;
+		for(int i=0; i<TimeSliceCount; ++i)
+		{
+#endif 
+
 		if (RealTimeSlicedReflectionCaptureState == 0)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, RenderSky);
 			RenderCubeFaces_SkyCloud(true, false, CapturedSkyRenderTarget);
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 1)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, RenderCloud);
 			RenderCubeFaces_SkyCloud(false, true, CapturedSkyRenderTarget);
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 2)
 		{
+			SCOPED_DRAW_EVENT(RHICmdList, GenCubeMips);
 			RenderCubeFaces_GenCubeMips(1, LastMipLevel, CapturedSkyRenderTarget);
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 3)
 		{
-			RenderCubeFaces_SpecularConvolution(0, 0, ProcessedSkyRenderTarget, CapturedSkyRenderTarget);
+			SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip0Face01);
+			RenderCubeFaces_SpecularConvolution(0, 0, 0, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget); // convolution of mip0, face 0, 1
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 4)
 		{
-			if (LastMipLevel >= 2)
-			{
-				RenderCubeFaces_SpecularConvolution(1, 2, ProcessedSkyRenderTarget, CapturedSkyRenderTarget);
-			}
-			else if (LastMipLevel >= 1)
-			{
-				RenderCubeFaces_SpecularConvolution(1, 1, ProcessedSkyRenderTarget, CapturedSkyRenderTarget);
-			}
+			SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip0Face23);
+			RenderCubeFaces_SpecularConvolution(0, 0, 2, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget); // convolution of mip0, face 2, 3
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 5)
 		{
-			if (LastMipLevel >= 3)
-			{
-				RenderCubeFaces_SpecularConvolution(3, LastMipLevel, ProcessedSkyRenderTarget, CapturedSkyRenderTarget);
-			}
+			SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip0Face45);
+			RenderCubeFaces_SpecularConvolution(0, 0, 4, 2, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget); // convolution of mip0, face 4, 5
 		}
 		else if (RealTimeSlicedReflectionCaptureState == 6)
 		{
-			// Copy last result to the texture bound when rendering reflection. This is 0.065ms on PS4 for a 128x128x6 cubemap.
-			FRHICopyTextureInfo CopyInfo;
-			CopyInfo.NumMips = ProcessedSkyRenderTarget->GetDesc().NumMips;
-			CopyInfo.NumSlices = 6;
-			RHICmdList.CopyTexture(ProcessedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture, ConvolvedSkyRenderTarget->GetRenderTargetItem().ShaderResourceTexture, CopyInfo);
+			if (LastMipLevel >= 1)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip1);
+				RenderCubeFaces_SpecularConvolution(1, 1, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 7)
+		{
+			if (LastMipLevel >= 2)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip2);
+				RenderCubeFaces_SpecularConvolution(2, 2, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 8)
+		{
+			if (LastMipLevel >= 3)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip3);
+				RenderCubeFaces_SpecularConvolution(3, 3, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 9)
+		{
+			if (LastMipLevel >= 5)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip45);
+				RenderCubeFaces_SpecularConvolution(4, 5, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+			else if (LastMipLevel >= 4)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip4);
+				RenderCubeFaces_SpecularConvolution(4, 4, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 10)
+		{
+			if (LastMipLevel >= 6)
+			{
+				SCOPED_DRAW_EVENT(RHICmdList, ConvolutionMip6Etc);
+				RenderCubeFaces_SpecularConvolution(6, LastMipLevel, 0, 6, ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex], CapturedSkyRenderTarget);
+			}
+		}
+		else if (RealTimeSlicedReflectionCaptureState == 11)
+		{
+			SCOPED_DRAW_EVENT(RHICmdList, DiffuseIrradiance);
 
 			// Update the sky irradiance SH buffer.
-			RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget);
+			RenderCubeFaces_DiffuseIrradiance(ConvolvedSkyRenderTarget[ConvolvedSkyRenderTargetWorkIndex]);
+
+			// Now use the new cubemap
+			ConvolvedSkyRenderTargetReadyIndex = ConvolvedSkyRenderTargetWorkIndex;
 		}
 
 		RealTimeSlicedReflectionCaptureState++;
-		RealTimeSlicedReflectionCaptureState = RealTimeSlicedReflectionCaptureState == 7 ? 0 : RealTimeSlicedReflectionCaptureState;
+		RealTimeSlicedReflectionCaptureState = RealTimeSlicedReflectionCaptureState == TimeSliceCount ? 0 : RealTimeSlicedReflectionCaptureState;
+
+#if DEBUG_TIME_SLICE
+		}
+#endif
 	}
 }
 

@@ -4,14 +4,22 @@
 #include "NiagaraCommon.h"
 #include "NiagaraShared.h"
 #include "NiagaraDataInterface.h"
-#include "Camera/PlayerCameraManager.h"
 #include "NiagaraDataInterfaceCamera.generated.h"
+
+struct FDistanceData
+{
+	FNiagaraID ParticleID;
+	float DistanceSquared;
+};
 
 struct CameraDataInterface_InstanceData
 {
 	FVector CameraLocation;
 	FRotator CameraRotation;
 	float CameraFOV;
+
+	TQueue<FDistanceData, EQueueMode::Mpsc> DistanceSortQueue;
+	TArray<FDistanceData> ParticlesSortedByDistance;	
 };
 
 UCLASS(EditInlineNew, Category = "Camera", meta = (DisplayName = "Camera Query"))
@@ -56,6 +64,8 @@ public:
 #endif
 	//UNiagaraDataInterface Interface
 
+	void CalculateParticleDistances(FVectorVMContext& Context);
+	void GetClosestParticles(FVectorVMContext& Context);
 	void GetCameraFOV(FVectorVMContext& Context);
 	void GetCameraProperties(FVectorVMContext& Context);
 	void GetViewPropertiesGPU(FVectorVMContext& Context);
@@ -66,6 +76,8 @@ public:
 protected:
 	virtual bool CopyToInternal(UNiagaraDataInterface* Destination) const override;
 private:
+	static const FName CalculateDistancesName;
+	static const FName QueryClosestName;
 	static const FName GetViewPropertiesName;
 	static const FName GetClipSpaceTransformsName;
 	static const FName GetViewSpaceTransformsName;

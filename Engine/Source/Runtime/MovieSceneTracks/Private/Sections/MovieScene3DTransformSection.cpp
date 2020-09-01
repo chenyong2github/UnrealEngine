@@ -331,8 +331,10 @@ UMovieScene3DTransformSection::UMovieScene3DTransformSection(const FObjectInitia
 	Scale[2].SetDefault(1.f);
 }
 
-void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+template<typename BaseBuilderType>
+void UMovieScene3DTransformSection::BuildEntity(BaseBuilderType& InBaseBuilder, UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
 {
+
 	using namespace UE::MovieScene;
 
 	FBuiltInComponentTypes*          BuiltInComponentTypes = FBuiltInComponentTypes::Get();
@@ -353,11 +355,6 @@ void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLink
 	{
 		PropertyTag = TrackComponents->EulerTransform.PropertyTag;
 	}
-
-	// 3D Transform tracks use a scene component binding by default. Every other transform property track must be bound directly to the object.
-	const TComponentTypeID<FGuid>& ObjectBinding = Track->IsA<UMovieScene3DTransformTrack>()
-		? BuiltInComponentTypes->SceneComponentBinding
-		: BuiltInComponentTypes->GenericObjectBinding;
 
 	EMovieSceneTransformChannel Channels = TransformMask.GetChannels();
 
@@ -393,9 +390,7 @@ void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLink
 	}
 
 	OutImportedEntity->AddBuilder(
-		FEntityBuilder()
-		.Add(BuiltInComponentTypes->PropertyBinding,            Track->GetPropertyBinding())
-		.AddConditional(ObjectBinding,                          Params.ObjectBindingID,   Params.ObjectBindingID.IsValid())
+		InBaseBuilder
 		.AddConditional(BuiltInComponentTypes->FloatChannel[0], &Translation[0],          ActiveChannelsMask[0])
 		.AddConditional(BuiltInComponentTypes->FloatChannel[1], &Translation[1],          ActiveChannelsMask[1])
 		.AddConditional(BuiltInComponentTypes->FloatChannel[2], &Translation[2],          ActiveChannelsMask[2])
@@ -408,6 +403,39 @@ void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLink
 		.AddConditional(BuiltInComponentTypes->WeightChannel,   &ManualWeight,            EnumHasAnyFlags(Channels, EMovieSceneTransformChannel::Weight) && ManualWeight.HasAnyData())
 		.AddTag(PropertyTag)
 	);
+}
+
+void UMovieScene3DTransformSection::ImportEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes*   BuiltInComponentTypes = FBuiltInComponentTypes::Get();
+	UMovieScenePropertyTrack* Track                 = GetTypedOuter<UMovieScenePropertyTrack>();
+
+	check(Track);
+
+	// 3D Transform tracks use a scene component binding by default. Every other transform property track must be bound directly to the object.
+	const TComponentTypeID<FGuid>& ObjectBinding = Track->IsA<UMovieScene3DTransformTrack>()
+		? BuiltInComponentTypes->SceneComponentBinding
+		: BuiltInComponentTypes->GenericObjectBinding;
+
+	FGuid ObjectBindingID = Params.GetObjectBindingID();
+
+	auto BaseBuilder = FEntityBuilder()
+		.Add(BuiltInComponentTypes->PropertyBinding, Track->GetPropertyBinding())
+		.AddConditional(ObjectBinding,               ObjectBindingID, ObjectBindingID.IsValid());
+
+	BuildEntity(BaseBuilder, EntityLinker, Params, OutImportedEntity);
+}
+
+void UMovieScene3DTransformSection::InterrogateEntityImpl(UMovieSceneEntitySystemLinker* EntityLinker, const FEntityImportParams& Params, FImportedEntity* OutImportedEntity)
+{
+	using namespace UE::MovieScene;
+
+	FBuiltInComponentTypes* BuiltInComponentTypes = FBuiltInComponentTypes::Get();
+
+	auto BaseBuilder = FEntityBuilder().AddDefaulted(BuiltInComponentTypes->EvalTime);
+	BuildEntity(BaseBuilder, EntityLinker, Params, OutImportedEntity);
 }
 
 FMovieSceneTransformMask UMovieScene3DTransformSection::GetMask() const
@@ -637,10 +665,19 @@ bool UMovieScene3DTransformSection::ShowCurveForChannel(const void *ChannelPtr) 
 void UMovieScene3DTransformSection::SetBlendType(EMovieSceneBlendType InBlendType)
 {
 	Super::SetBlendType(InBlendType);
-	if (GetSupportedBlendTypes().Contains(InBlendType) && InBlendType == EMovieSceneBlendType::Absolute)
+	if (GetSupportedBlendTypes().Contains(InBlendType))
 	{
-		Scale[0].SetDefault(1.f);
-		Scale[1].SetDefault(1.f);
-		Scale[2].SetDefault(1.f);
+		if (InBlendType == EMovieSceneBlendType::Absolute)
+		{
+			Scale[0].SetDefault(1.f);
+			Scale[1].SetDefault(1.f);
+			Scale[2].SetDefault(1.f);
+		}
+		else if (InBlendType == EMovieSceneBlendType::Additive || InBlendType == EMovieSceneBlendType::Relative)
+		{
+			Scale[0].SetDefault(0.f);
+			Scale[1].SetDefault(0.f);
+			Scale[2].SetDefault(0.f);
+		}
 	}
 }

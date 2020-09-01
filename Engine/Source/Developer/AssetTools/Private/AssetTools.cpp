@@ -98,6 +98,7 @@
 #include "AssetTypeActions/AssetTypeActions_TextureCube.h"
 #include "AssetTypeActions/AssetTypeActions_VolumeTexture.h"
 #include "AssetTypeActions/AssetTypeActions_TextureRenderTargetCube.h"
+#include "AssetTypeActions/AssetTypeActions_TextureRenderTargetVolume.h"
 #include "AssetTypeActions/AssetTypeActions_TextureLightProfile.h"
 #include "AssetTypeActions/AssetTypeActions_TouchInterface.h"
 #include "AssetTypeActions/AssetTypeActions_VectorFieldAnimated.h"
@@ -277,6 +278,7 @@ UAssetToolsImpl::UAssetToolsImpl(const FObjectInitializer& ObjectInitializer)
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTarget2D));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetCube));
+	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureRenderTargetVolume));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TextureLightProfile));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_TouchInterface));
 	RegisterAssetTypeActions(MakeShareable(new FAssetTypeActions_VectorField));

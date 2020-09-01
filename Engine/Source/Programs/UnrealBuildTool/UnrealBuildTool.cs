@@ -39,7 +39,7 @@ namespace UnrealBuildTool
 		/// Whether we're running with an installed project
 		/// </summary>
 		static private bool? bIsProjectInstalled;
-		
+
 		/// <summary>
 		/// If we are running with an installed project, specifies the path to it
 		/// </summary>
@@ -174,7 +174,7 @@ namespace UnrealBuildTool
 					IEnumerable<DirectoryReference> RestrictedDirs = DirectoryReference.EnumerateDirectories(RestrictedBaseDir);
 					CachedDirs.Item2.AddRange(RestrictedDirs);
 
-					// also look for nested platforms in the restricted 
+					// also look for nested platforms in the restricted
 					foreach (DirectoryReference RestrictedDir in RestrictedDirs)
 					{
 						DirectoryReference RestrictedPlatformExtensionBaseDir = DirectoryReference.Combine(RestrictedDir, "Platforms");
@@ -403,6 +403,7 @@ namespace UnrealBuildTool
 			[CommandLine("-VSCode", Value="GenerateProjectFiles")]
 			[CommandLine("-VSMac", Value="GenerateProjectFiles")]
 			[CommandLine("-CLion", Value="GenerateProjectFiles")]
+			[CommandLine("-Rider", Value="GenerateProjectFiles")]
 			public string Mode = null;
 
 			/// <summary>
@@ -581,7 +582,7 @@ namespace UnrealBuildTool
 			}
 			catch (Exception Ex)
 			{
-				// Unhandled exception. 
+				// Unhandled exception.
 				Log.TraceError("Unhandled exception: {0}", ExceptionUtils.FormatException(Ex));
 				Log.TraceLog(ExceptionUtils.FormatExceptionDetails(Ex));
 				return (int)CompilationResult.OtherCompilationError;

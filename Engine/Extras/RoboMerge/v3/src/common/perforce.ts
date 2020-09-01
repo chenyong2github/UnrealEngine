@@ -185,88 +185,6 @@ class CommandRecord {
 	}
 }
 
-////////////
-// new -ztag parsing - use with care. Initially using for p4.changes
-const FIELD_RE = /^\.\.\. ([a-z]+)\d* (.*)/
-
-export function parseZtagOutput(ztagOutput: string, expected?: string[], opt?: string[]) {
-	const result: any[] = []
-
-	const fields = new Set<string>()
-	let first = true
-	let currentField = ''
-	let multiline: string[] = []
-	let entry: any = {}
-
-	const storeCurrentField = (newObject: boolean) => {
-		if (currentField) {
-			if (newObject) {
-				if (multiline[multiline.length - 1]) {
-					console.log(lines.join('\n'), [...fields], entry)
-					throw new Error('Expected line break between objects')
-				}
-				multiline.pop()
-			}
-
-			entry[currentField] = multiline.join('\n')
-			multiline = []
-		}
-	}
-
-	const lines = ztagOutput.trim().split('\n')
-	for (const line of lines) {
-		const fieldMatch = line.match(FIELD_RE)
-		if (fieldMatch) {
-			const nextField = fieldMatch[1]
-
-			// is this a new object?
-			storeCurrentField(first ? fields.has(nextField) : nextField in entry)
-
-			currentField = nextField
-			multiline.push(fieldMatch[2])
-
-			if (first) {
-				if (fields.has(currentField)) {
-					first = false
-					result.push(entry)
-					entry = {}
-				}
-				else {
-					fields.add(currentField)
-				}
-			}
-			else if (!fields.has(currentField)) {
-				if (opt && opt.indexOf(currentField) >= 0) {
-					continue
-				}
-				console.log(entry, line)
-				throw new Error('unknown field ' + currentField)
-			}
-			else if (currentField in entry) {
-				result.push(entry)
-				entry = {}
-			}
-		}
-		else {
-			multiline.push(line)
-		}
-	}
-
-	storeCurrentField(false)
-	if (Object.keys(entry).length > 0) {
-		result.push(entry)
-
-		if (expected) {
-			for (const expectedField of expected) {
-				if (!fields.has(expectedField)) {
-					console.log(result)
-					throw new Error(`Expected field '${expectedField}' missing in output (${[...fields]}`)
-				}
-			}
-		}
-	}
-	return result
-}
 
 export interface Change {
 	// from Perforce (ztag)
@@ -555,7 +473,7 @@ export class PerforceContext {
 
 		return this.execAndParse(null, args, {quiet: true}, {
 			expected: {change: 'integer', client: 'string', user: 'string', desc: 'string'},
-			optional: {shelved: 'integer', oldChange: 'integer'}
+			optional: {shelved: 'integer', oldChange: 'integer', IsPromoted: 'integer'}
 		}) as unknown as Promise<Change[]>
 	}
 

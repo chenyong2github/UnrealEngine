@@ -7,6 +7,7 @@
 #include "User/SocialUser.h"
 #include "User/SocialUserList.h"
 #include "Chat/SocialChatManager.h"
+#include "Stats/Stats.h"
 
 #include "OnlineSubsystem.h"
 #include "OnlineSubsystemUtils.h"
@@ -1098,6 +1099,11 @@ void USocialToolkit::HandleExistingPartyInvites(ESocialSubsystem SubsystemType)
 	}
 }
 
+bool USocialToolkit::Exec(class UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Out)
+{
+	return false;
+}
+
 #if WITH_EDITOR
 void USocialToolkit::Debug_OnStartRandomizeUserPresence(uint8 NumRandomUser, float TickerTimer)
 {
@@ -1136,6 +1142,7 @@ void USocialToolkit::Debug_OnStopRandomizeUserPresence(bool bClearGeneratedPrese
 
 bool USocialToolkit::Debug_HandleRandomizeUserPresenceTick(float DeltaTime, uint8 NumRandomUser)
 {
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_USocialToolkit_Debug_HandleRandomizeUserPresenceTick);
 	Debug_ChangeRandomUserPresence(NumRandomUser);
 	return true;
 }

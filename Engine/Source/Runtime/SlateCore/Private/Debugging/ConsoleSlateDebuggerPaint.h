@@ -39,6 +39,7 @@ public:
 
 private:
 	void HandleLogOnce();
+	void HandleToggleWidgetNameList();
 	void HandleEndFrame();
 	void HandleEndWidgetPaint(const SWidget* Widget, const FSlateWindowElementList& OutDrawElements, int32 LayerId);
 	void HandlePaintDebugInfo(const FPaintArgs& InArgs, const FGeometry& InAllottedGeometry, FSlateWindowElementList& InOutDrawElements, int32& InOutLayerId);
@@ -55,6 +56,7 @@ private:
 	bool bLogWidgetNameOnce;
 	bool bLogWarningIfWidgetIsPaintedMoreThanOnce;
 	FLinearColor DrawBoxColor;
+	FLinearColor DrawQuadColor;
 	FLinearColor DrawWidgetNameColor;
 	int32 MaxNumberOfWidgetInList;
 	float CacheDuration;
@@ -63,11 +65,8 @@ private:
 	FAutoConsoleCommand ShowPaintWidgetCommand;
 	FAutoConsoleCommand HidePaintWidgetCommand;
 	FAutoConsoleCommand LogPaintedWidgetOnceCommand;
-	FAutoConsoleVariableRef DisplayWidgetsNameListRefCVar;
+	FAutoConsoleCommand DisplayWidgetsNameListCommand;
 	FAutoConsoleVariableRef MaxNumberOfWidgetInListtRefCVar;
-	FAutoConsoleVariableRef DrawBoxRefCVar;
-	FAutoConsoleVariableRef DrawQuadRefCVar;
-	FAutoConsoleVariableRef CacheDurationRefCVar;
 	FAutoConsoleVariableRef LogWarningIfWidgetIsPaintedMoreThanOnceRefCVar;
 
 	using TSWidgetId = UPTRINT;

@@ -51,7 +51,7 @@ public:
 	{
 		// Register this FMaterial derivative with AddEditorLoadedMaterialResource since it does not have a corresponding UMaterialInterface
 		FMaterial::AddEditorLoadedMaterialResource(this);
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
+		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 	}
 
 	FMatExpressionPreview(UMaterialExpression* InExpression)
@@ -64,7 +64,7 @@ public:
 
 		check(InExpression->Material && InExpression->Material->Expressions.Contains(InExpression));
 		ReferencedTextures = InExpression->Material->GetReferencedTextures();
-		SetQualityLevelProperties(EMaterialQualityLevel::High, false, GMaxRHIFeatureLevel);
+		SetQualityLevelProperties(GMaxRHIFeatureLevel);
 	}
 
 	~FMatExpressionPreview()
@@ -384,6 +384,7 @@ public:
 	virtual UMaterialExpressionComment* CreateNewMaterialExpressionComment(const FVector2D& NodePos) override;
 	virtual void ForceRefreshExpressionPreviews() override;
 	virtual void AddToSelection(UMaterialExpression* Expression) override;
+	virtual void JumpToExpression(UMaterialExpression* Expression) override;
 	virtual void DeleteSelectedNodes() override;
 	virtual FText GetOriginalObjectName() const override;
 	virtual void UpdateMaterialAfterGraphChange() override;
@@ -563,9 +564,7 @@ private:
 	/** Creates the toolbar buttons. Bound by ExtendToolbar*/
 	void FillToolbar(FToolBarBuilder& ToolbarBuilder);
 
-	TSharedRef<SWidget> GenerateInheritanceMenu();
-
-	TSharedRef< SWidget > GeneratePreviewMenuContent();
+	void GeneratePreviewMenuContent(class UToolMenu* Menu);
 
 	/** Allows editor to veto the setting of a preview asset */
 	virtual bool ApproveSetPreviewAsset(UObject* InAsset) override;
@@ -639,7 +638,7 @@ private:
 	void HideUnrelatedNodes();
 
 	/** Make a drop down menu to control the opacity of unrelated nodes */
-	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();
+	void MakeHideUnrelatedNodesOptionsMenu(class UToolMenu* Menu);
 	TOptional<float> HandleUnrelatedNodesOpacityBoxValue() const;
 	void HandleUnrelatedNodesOpacityBoxChanged(float NewOpacity);
 	void OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState);
@@ -892,6 +891,9 @@ private:
 
 	/** Stores the feature level used to preview the material graph */
 	ERHIFeatureLevel::Type NodeFeatureLevel;
+
+	/** True if we want to preview static switches, disabling inactive nodes in the graph */
+	bool bPreviewStaticSwitches;
 
 	/** True if the quality level or feature level to preview has been changed */
 	bool bPreviewFeaturesChanged;

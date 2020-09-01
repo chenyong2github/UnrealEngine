@@ -879,6 +879,9 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 		// Reserve space for the descs
 		TArray<D3D12_RESOURCE_BARRIER> BarrierDescs;
 		BarrierDescs.Reserve(NumPendingResourceBarriers);
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+		TArray<D3D12_RESOURCE_BARRIER> BackBufferBarrierDescs;
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 
 		// Fill out the descs
 		D3D12_RESOURCE_BARRIER Desc = {};
@@ -905,7 +908,16 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 				Desc.Transition.StateAfter = After;
 
 				// Add the desc
-				BarrierDescs.Add(Desc);
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+				if (PRB.Resource->IsBackBuffer() && (After & BackBufferBarrierWriteTransitionTargets))
+				{
+					BackBufferBarrierDescs.Add(Desc);
+				}
+				else
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+				{
+					BarrierDescs.Add(Desc);
+				}
 			}
 
 			// Update the state to the what it will be after hList executes
@@ -918,7 +930,14 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 			}
 		}
 
-		if (BarrierDescs.Num() > 0)
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+		const uint32 BarrierCount = BarrierDescs.Num() + BackBufferBarrierDescs.Num();
+		if (BarrierDescs.Num() > 0 || BackBufferBarrierDescs.Num() > 0)
+#else // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+		const uint32 BarrierCount = BarrierDescs.Num();
+#endif // #else // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+
+		if (BarrierCount > 0)
 		{
 			// Get a new resource barrier command allocator if we don't already have one.
 			if (ResourceBarrierCommandAllocator == nullptr)
@@ -935,30 +954,61 @@ uint32 FD3D12CommandListManager::GetResourceBarrierCommandList(FD3D12CommandList
 				const FD3D12PendingResourceBarrier& PRB = PendingResourceBarriers[i];
 				hResourceBarrierList.UpdateResidency(PRB.Resource);
 			}
-#endif
+#endif // #if ENABLE_RESIDENCY_MANAGEMENT
 #if DEBUG_RESOURCE_STATES
 			LogResourceBarriers(BarrierDescs.Num(), BarrierDescs.GetData(), hResourceBarrierList.CommandList());
-#endif
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+			LogResourceBarriers(BackBufferBarrierDescs.Num(), BackBufferBarrierDescs.GetData(), BackBufferBarrierDescs.CommandList());
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+#endif // #if DEBUG_RESOURCE_STATES
 			const int32 BarrierBatchMax = FD3D12DynamicRHI::GetResourceBarrierBatchSizeLimit();
-			if (BarrierDescs.Num() > BarrierBatchMax)
+
+#if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
+			if (BackBufferBarrierDescs.Num())
 			{
-				int Num = BarrierDescs.Num();
-				D3D12_RESOURCE_BARRIER* Ptr = BarrierDescs.GetData();
-				while (Num > 0)
+				check(hList.GetCurrentOwningContext());
+				FD3D12ScopedTimedIntervalQuery BarrierScopeTimer(GetParentDevice()->GetBackBufferWriteBarrierTracker(), hResourceBarrierList.GraphicsCommandList());
+				if (BackBufferBarrierDescs.Num() > BarrierBatchMax)
 				{
-					const int DispatchNum = FMath::Min(Num, BarrierBatchMax);
-					hResourceBarrierList->ResourceBarrier(DispatchNum, Ptr);
-					Ptr += BarrierBatchMax;
-					Num -= BarrierBatchMax;
+					int Num = BackBufferBarrierDescs.Num();
+					D3D12_RESOURCE_BARRIER* Ptr = BackBufferBarrierDescs.GetData();
+					while (Num > 0)
+					{
+						const int DispatchNum = FMath::Min(Num, BarrierBatchMax);
+						hResourceBarrierList->ResourceBarrier(DispatchNum, Ptr);
+						Ptr += BarrierBatchMax;
+						Num -= BarrierBatchMax;
+					}
+				}
+				else
+				{
+					hResourceBarrierList->ResourceBarrier(BackBufferBarrierDescs.Num(), BackBufferBarrierDescs.GetData());
 				}
 			}
-			else
+
+			if (BarrierDescs.Num())
+#endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 			{
-				hResourceBarrierList->ResourceBarrier(BarrierDescs.Num(), BarrierDescs.GetData());
+				if (BarrierDescs.Num() > BarrierBatchMax)
+				{
+					int Num = BarrierDescs.Num();
+					D3D12_RESOURCE_BARRIER* Ptr = BarrierDescs.GetData();
+					while (Num > 0)
+					{
+						const int DispatchNum = FMath::Min(Num, BarrierBatchMax);
+						hResourceBarrierList->ResourceBarrier(DispatchNum, Ptr);
+						Ptr += BarrierBatchMax;
+						Num -= BarrierBatchMax;
+					}
+				}
+				else
+				{
+					hResourceBarrierList->ResourceBarrier(BarrierDescs.Num(), BarrierDescs.GetData());
+				}
 			}
 		}
 
-		return BarrierDescs.Num();
+		return BarrierCount;
 	}
 
 	return 0;

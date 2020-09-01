@@ -202,7 +202,7 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 		);
 	}
 
-	auto GetMenuEntryForPin = [](const UEdGraphPin* TargetPin, const FUIAction& Action, const FText& SingleDescFormat, const FText& MultiDescFormat, TMap< FString, uint32 >& LinkTitleCount)
+	auto GetMenuEntryForPin = [](const UEdGraphPin* TargetPin, const FToolUIAction& Action, const FText& SingleDescFormat, const FText& MultiDescFormat, TMap< FString, uint32 >& LinkTitleCount)
 	{
 		FText Title = TargetPin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
 		FString TitleString = Title.ToString();
@@ -260,136 +260,125 @@ void SGraphEditorImpl::GetPinContextMenuActionsForSchema(UToolMenu* InMenu) cons
 	}
 
 	// Break Specific Links
-	InMenu->AddDynamicSection("BreakLinkTo", FNewToolMenuDelegate::CreateLambda([GetMenuEntryForPin](UToolMenu* InMenu)
 	{
-		UGraphNodeContextMenuContext* NodeContext = InMenu->FindContext<UGraphNodeContextMenuContext>();
-		FToolMenuSection& Section = InMenu->FindOrAddSection("EdGraphSchemaPinActions");
+		FToolUIAction BreakLinksMenuVisibility;
+		BreakLinksMenuVisibility.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &SGraphEditorImpl::IsBreakPinLinksVisible);
 
-		const int32 LinkedToCount = NodeContext->Pin->LinkedTo.Num();
-		if (LinkedToCount > 1)
-		{
-			FText SingleDescFormat = LOCTEXT("BreakDesc", "Break link to {NodeTitle}");
-			FText MultiDescFormat = LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})");
-			Section.AddSubMenu(
-				"BreakLinkTo",
-				LOCTEXT("BreakLinkTo", "Break Link To..."),
-				LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-				FNewToolMenuDelegate::CreateLambda([NodeContext, GetMenuEntryForPin, SingleDescFormat, MultiDescFormat](UToolMenu* InToolMenu)
+		Section.AddSubMenu("BreakLinkTo",
+			LOCTEXT("BreakLinkTo", "Break Link To..."),
+			LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
+			FNewToolMenuDelegate::CreateLambda([this, GetMenuEntryForPin](UToolMenu* InToolMenu)
+			{
+				UGraphNodeContextMenuContext* NodeContext = InToolMenu->FindContext<UGraphNodeContextMenuContext>();
+				if (NodeContext && NodeContext->Pin)
 				{
+					FText SingleDescFormat = LOCTEXT("BreakDesc", "Break link to {NodeTitle}");
+					FText MultiDescFormat = LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})");
+
 					TMap< FString, uint32 > LinkTitleCount;
 					for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
 					{
-						FUIAction BreakSpecificLinkAction;
-						BreakSpecificLinkAction.ExecuteAction = FExecuteAction::CreateLambda([NodeContext, TargetPin]()
+						FToolUIAction BreakSpecificLinkAction;
+						BreakSpecificLinkAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda([this, TargetPin](const FToolMenuContext& InMenuContext)
 						{
+							UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
+							check(NodeContext && NodeContext->Pin);
 							NodeContext->Pin->GetSchema()->BreakSinglePinLink(const_cast<UEdGraphPin*>(NodeContext->Pin), TargetPin);
-						});
-						BreakSpecificLinkAction.IsActionVisibleDelegate = FIsActionButtonVisible::CreateLambda([NodeContext, TargetPin]()
-						{
-							return !NodeContext->bIsDebugging;
 						});
 
 						InToolMenu->AddMenuEntry(NAME_None, GetMenuEntryForPin(TargetPin, BreakSpecificLinkAction, SingleDescFormat, MultiDescFormat, LinkTitleCount));
 					}
 				}
-			));
-		}
-	}));
+			}),
+			BreakLinksMenuVisibility,
+			EUserInterfaceActionType::Button);
+	}
 
-	InMenu->AddDynamicSection("JumpToConnection", FNewToolMenuDelegate::CreateLambda([this, GetMenuEntryForPin](UToolMenu* InToolMenu)
+	FToolUIAction PinActionSubMenuVisibiliity;
+	PinActionSubMenuVisibiliity.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &SGraphEditorImpl::HasAnyLinkedPins);
+	
+	// Jump to specific connections
 	{
-		UGraphNodeContextMenuContext* NodeContext = InToolMenu->FindContext<UGraphNodeContextMenuContext>();
-		FToolMenuSection& Section = InToolMenu->FindOrAddSection("EdGraphSchemaPinActions");
-
-		if (NodeContext && NodeContext->Pin)
-		{
-			const int32 LinkedToCount = NodeContext->Pin->LinkedTo.Num();
-			if (LinkedToCount > 0)
+		Section.AddSubMenu("JumpToConnection",
+			LOCTEXT("JumpToConnection", "Jump To Connection..."),
+			LOCTEXT("JumpToSpecificConnection", "Jump to specific connection..."),
+			FNewToolMenuDelegate::CreateLambda([this, GetMenuEntryForPin](UToolMenu* InToolMenu)
 			{
-				Section.AddSubMenu(
-					"JumpToConnection",
-					LOCTEXT("JumpToConnection", "Jump To Connection..."),
-					LOCTEXT("JumpToSpecificConnection", "Jump to specific connection..."),
-					FNewToolMenuDelegate::CreateLambda([this, NodeContext, GetMenuEntryForPin](UToolMenu* InToolMenu)
-					{
-						FText SingleDescFormat = LOCTEXT("JumpDesc", "Jump to {NodeTitle}");
-						FText MultiDescFormat = LOCTEXT("JumpDescMulti", "Jump to {NodeTitle} ({NumberOfNodes})");
-						TMap< FString, uint32 > LinkTitleCount;
-						for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
-						{
-							FUIAction JumpToConnectionAction;
-							JumpToConnectionAction.ExecuteAction = FExecuteAction::CreateLambda([this, TargetPin, GetMenuEntryForPin]()
-							{
-								const SGraphEditor* ThisAsGraphEditor = this;
-								const_cast<SGraphEditor*>(ThisAsGraphEditor)->JumpToPin(TargetPin);
-							});
+				UGraphNodeContextMenuContext* NodeContext = InToolMenu->FindContext<UGraphNodeContextMenuContext>();
+				check(NodeContext&& NodeContext->Pin);
 
-							InToolMenu->AddMenuEntry(NAME_None, GetMenuEntryForPin(TargetPin, JumpToConnectionAction, SingleDescFormat, MultiDescFormat, LinkTitleCount));
-						}
-					}
-				));
-			}
-		}
-	}));
+				const SGraphEditor* ThisAsGraphEditor = this;
+				FText SingleDescFormat = LOCTEXT("JumpDesc", "Jump to {NodeTitle}");
+				FText MultiDescFormat = LOCTEXT("JumpDescMulti", "Jump to {NodeTitle} ({NumberOfNodes})");
+				TMap< FString, uint32 > LinkTitleCount;
+				for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
+				{
+					FToolUIAction JumpToConnectionAction;
+					JumpToConnectionAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda([ThisAsGraphEditor, TargetPin](const FToolMenuContext& InMenuContext)
+					{
+						const_cast<SGraphEditor*>(ThisAsGraphEditor)->JumpToPin(TargetPin);
+					});
+
+					InToolMenu->AddMenuEntry(NAME_None, GetMenuEntryForPin(TargetPin, JumpToConnectionAction, SingleDescFormat, MultiDescFormat, LinkTitleCount));
+				}
+			}),
+			PinActionSubMenuVisibiliity,
+			EUserInterfaceActionType::Button);
+	}
 
 	// Straighten Connections menu items
 	{
-		FToolUIAction StraightenConnectionsAction;
-		StraightenConnectionsAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& Context)
-		{
-			UGraphNodeContextMenuContext* NodeContext = Context.FindContext<UGraphNodeContextMenuContext>();
-			StraightenConnections(const_cast<UEdGraphPin*>(NodeContext->Pin), nullptr);
-		});
-		StraightenConnectionsAction.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateLambda([](const FToolMenuContext& Context)
-		{
-			UGraphNodeContextMenuContext* NodeContext = Context.FindContext<UGraphNodeContextMenuContext>();
-			return (NodeContext->Pin->LinkedTo.Num() > 0);
-		});
-
-		Section.AddMenuEntry(
-			NAME_None,
-			LOCTEXT("StraightenAllConnections", "Straighten All Pin Connections"),
-			LOCTEXT("StraightenAllConnectionsTooltip", "Straightens all connected pins"),
-			FSlateIcon(NAME_None, NAME_None, NAME_None),
-			StraightenConnectionsAction
-		);
-	}
-
-	InMenu->AddDynamicSection("StraightenPinConnection", FNewToolMenuDelegate::CreateLambda([this, GetMenuEntryForPin](UToolMenu* InToolMenu)
-	{
-		UGraphNodeContextMenuContext* NodeContext = InToolMenu->FindContext<UGraphNodeContextMenuContext>();
-		FToolMenuSection& Section = InToolMenu->FindOrAddSection("EdGraphSchemaPinActions");
-
-		if (NodeContext && NodeContext->Pin)
-		{
-			const int32 LinkedToCount = NodeContext->Pin->LinkedTo.Num();
-			if (LinkedToCount > 0)
+		Section.AddSubMenu("StraightenPinConnection",
+			LOCTEXT("StraightenConnection", "Straighten Connection..."),
+			LOCTEXT("StraightenSpecificConnection", "Straighten specific connection..."),
+			FNewToolMenuDelegate::CreateLambda([this, GetMenuEntryForPin](UToolMenu* InToolMenu)
 			{
-				Section.AddSubMenu(
-					"StriaghtenConnection",
-					LOCTEXT("StraightenConnection", "Straighten Connection..."),
-					LOCTEXT("StraightenSpecificConnection", "Straighten specific connection..."),
-					FNewToolMenuDelegate::CreateLambda([this, NodeContext, GetMenuEntryForPin](UToolMenu* InToolMenu)
+				const UGraphNodeContextMenuContext* NodeContext = InToolMenu->FindContext<UGraphNodeContextMenuContext>();
+				
+				// Add straighten all connected pins
+				{
+					FToolUIAction StraightenConnectionsAction;
+					StraightenConnectionsAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda([this](const FToolMenuContext& Context)
 					{
-						FText SingleDescFormat = LOCTEXT("StraightenDesc", "Straighten Connection to {NodeTitle}");
-						FText MultiDescFormat = LOCTEXT("StraightenDescMulti", "Straigten Connection to {NodeTitle} ({NumberOfNodes})");
-						TMap< FString, uint32 > LinkTitleCount;
-						for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
+						UGraphNodeContextMenuContext* NodeContext = Context.FindContext<UGraphNodeContextMenuContext>();
+						StraightenConnections(const_cast<UEdGraphPin*>(NodeContext->Pin), nullptr);
+					});
+					StraightenConnectionsAction.IsActionVisibleDelegate = FToolMenuIsActionButtonVisible::CreateSP(this, &SGraphEditorImpl::HasAnyLinkedPins);
+
+					InToolMenu->AddMenuEntry(
+						NAME_None,
+						FToolMenuEntry::InitMenuEntry(NAME_None,
+							LOCTEXT("StraightenAllConnections", "Straighten All Pin Connections"),
+							LOCTEXT("StraightenAllConnectionsTooltip", "Straightens all connected pins"),
+							FGraphEditorCommands::Get().StraightenConnections->GetIcon(),
+							StraightenConnectionsAction)
+					);
+				}
+
+				check(NodeContext && NodeContext->Pin);
+
+				// Add individual pin connections
+				FText SingleDescFormat = LOCTEXT("StraightenDesc", "Straighten Connection to {NodeTitle}");
+				FText MultiDescFormat = LOCTEXT("StraightenDescMulti", "Straigten Connection to {NodeTitle} ({NumberOfNodes})");
+				TMap< FString, uint32 > LinkTitleCount;
+				for (UEdGraphPin* TargetPin : NodeContext->Pin->LinkedTo)
+				{
+					FToolUIAction StraightenConnectionAction;
+					StraightenConnectionAction.ExecuteAction = FToolMenuExecuteAction::CreateLambda([this, TargetPin](const FToolMenuContext& InMenuContext)
 						{
-							FUIAction StraightenConnectionAction;
-
-							StraightenConnectionAction.ExecuteAction = FExecuteAction::CreateLambda([this, TargetPin, NodeContext]()
+							UGraphNodeContextMenuContext* NodeContext = InMenuContext.FindContext<UGraphNodeContextMenuContext>();
+							if (NodeContext && NodeContext->Pin)
 							{
-								StraightenConnections(const_cast<UEdGraphPin*>(NodeContext->Pin), const_cast<UEdGraphPin*>(TargetPin));
-							});
+								this->StraightenConnections(const_cast<UEdGraphPin*>(NodeContext->Pin), const_cast<UEdGraphPin*>(TargetPin));
+							}
+						});
 
-							InToolMenu->AddMenuEntry(NAME_None, GetMenuEntryForPin(TargetPin, StraightenConnectionAction, SingleDescFormat, MultiDescFormat, LinkTitleCount));
-						}
-					}
-				));
-			}
-		}
-	}));
+					InToolMenu->AddMenuEntry(NAME_None, GetMenuEntryForPin(TargetPin, StraightenConnectionAction, SingleDescFormat, MultiDescFormat, LinkTitleCount));
+				}
+			}),
+			PinActionSubMenuVisibiliity,
+			EUserInterfaceActionType::Button);
+	}
 
 	// Add any additional menu options from the asset toolkit that owns this graph editor
 	UAssetEditorToolkitMenuContext* AssetToolkitContext = InMenu->FindContext<UAssetEditorToolkitMenuContext>();
@@ -415,6 +404,17 @@ bool SGraphEditorImpl::IsBreakPinLinksVisible(const FToolMenuContext& InContext)
 	if (NodeContext && NodeContext->Pin)
 	{
 		return !NodeContext->bIsDebugging && (NodeContext->Pin->LinkedTo.Num() > 0);
+	}
+
+	return false;
+}
+
+bool SGraphEditorImpl::HasAnyLinkedPins(const FToolMenuContext& InContext) const
+{
+	UGraphNodeContextMenuContext* NodeContext = InContext.FindContext<UGraphNodeContextMenuContext>();
+	if (NodeContext && NodeContext->Pin)
+	{
+		return (NodeContext->Pin->LinkedTo.Num() > 0);
 	}
 
 	return false;
@@ -610,6 +610,10 @@ void SGraphEditorImpl::Construct( const FArguments& InArgs )
 		Commands->MapAction(FGraphEditorCommands::Get().SummonCreateNodeMenu,
 			FExecuteAction::CreateSP(this, &SGraphEditorImpl::SummonCreateNodeMenu),
 			FCanExecuteAction::CreateSP(this, &SGraphEditorImpl::CanSummonCreateNodeMenu)
+		);
+
+		Commands->MapAction(FGraphEditorCommands::Get().StraightenConnections,
+			FExecuteAction::CreateSP(this, &SGraphEditorImpl::StraightenConnections)
 		);
 
 		// Append any additional commands that a consumer of GraphEditor wants us to be aware of.
@@ -984,10 +988,12 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 		ToolMenus->RegisterMenu(CommonRootMenuName);
 	}
 
+	bool bDidRegisterGraphSchemaMenu = false;
 	const FName EdGraphSchemaContextMenuName = UEdGraphSchema::GetContextMenuName(UEdGraphSchema::StaticClass());
 	if (!ToolMenus->IsMenuRegistered(EdGraphSchemaContextMenuName))
 	{
 		ToolMenus->RegisterMenu(EdGraphSchemaContextMenuName);
+		bDidRegisterGraphSchemaMenu = true;
 	}
 
 	// Menus for subclasses of EdGraphSchema
@@ -1020,6 +1026,7 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 	}
 
 	// Now register node menus, which will belong to their schemas
+	bool bDidRegisterNodeMenu = false;
 	if (Context->Node)
 	{
 		for (UClass* CurrentClass = Context->Node->GetClass(); CurrentClass && CurrentClass->IsChildOf(UEdGraphNode::StaticClass()); CurrentClass = CurrentClass->GetSuperClass())
@@ -1037,16 +1044,8 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 					ParentNameToUse = EdGraphSchemaContextMenuName;
 				}
 
-				UToolMenu* NodeMenu = ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
-
-				NodeMenu->AddDynamicSection("GetNodeContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
-				{
-					UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
-					if (Context && Context->Node)
-					{
-						Context->Node->GetNodeContextMenuActions(InMenu, Context);
-					}
-				}));
+				ToolMenus->RegisterMenu(CheckMenuName, ParentNameToUse);
+				bDidRegisterNodeMenu = true;
 			}
 
 			if (CheckParentName == NAME_None)
@@ -1057,29 +1056,46 @@ void SGraphEditorImpl::RegisterContextMenu(const UEdGraphSchema* Schema, FToolMe
 	}
 
 	// Now that all the possible sections have been registered, we can add the dynamic section for the custom schema node actions to override
-	UToolMenu* Menu = ToolMenus->FindMenu(EdGraphSchemaContextMenuName);
+	if (bDidRegisterGraphSchemaMenu)
+	{
+		UToolMenu* Menu = ToolMenus->FindMenu(EdGraphSchemaContextMenuName);
 
-	Menu->AddDynamicSection("EdGraphSchemaPinActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
-		{
-			UGraphNodeContextMenuContext* NodeContext = InMenu->FindContext<UGraphNodeContextMenuContext>();
-			if (NodeContext && NodeContext->Pin)
+		Menu->AddDynamicSection("EdGraphSchemaPinActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
 			{
-				GetPinContextMenuActionsForSchema(InMenu);
+				UGraphNodeContextMenuContext* NodeContext = InMenu->FindContext<UGraphNodeContextMenuContext>();
+				if (NodeContext && NodeContext->Pin)
+				{
+					GetPinContextMenuActionsForSchema(InMenu);
+				}
+			}));
+
+		Menu->AddDynamicSection("GetContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
+		{
+			if (UGraphNodeContextMenuContext* ContextObject = InMenu->FindContext<UGraphNodeContextMenuContext>())
+			{
+				if (const UEdGraphSchema* GraphSchema = ContextObject->Graph->GetSchema())
+				{
+					GraphSchema->GetContextMenuActions(InMenu, ContextObject);
+				}
 			}
 		}));
 
-	Menu->AddDynamicSection("GetContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
-	{
-		if (UGraphNodeContextMenuContext* ContextObject = InMenu->FindContext<UGraphNodeContextMenuContext>())
-		{
-			if (const UEdGraphSchema* GraphSchema = ContextObject->Graph->GetSchema())
-			{
-				GraphSchema->GetContextMenuActions(InMenu, ContextObject);
-			}
-		}
-	}));
+		Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateStatic(&SGraphEditorImpl::AddContextMenuCommentSection));
+	}
 
-	Menu->AddDynamicSection("EdGraphSchema", FNewToolMenuDelegate::CreateStatic(&SGraphEditorImpl::AddContextMenuCommentSection));
+	if (bDidRegisterNodeMenu)
+	{
+		UToolMenu* Menu = ToolMenus->FindMenu(GetNodeContextMenuName(Context->Node->GetClass()));
+		 
+		Menu->AddDynamicSection("GetNodeContextMenuActions", FNewToolMenuDelegate::CreateLambda([this](UToolMenu* InMenu)
+		{
+			UGraphNodeContextMenuContext* Context = InMenu->FindContext<UGraphNodeContextMenuContext>();
+			if (Context && Context->Node)
+			{
+				Context->Node->GetNodeContextMenuActions(InMenu, Context);
+			}
+		}));
+	}
 }
 
 UToolMenu* SGraphEditorImpl::GenerateContextMenu(const UEdGraphSchema* Schema, FToolMenuContext& MenuContext) const

@@ -372,12 +372,10 @@ void ReconstructVolumetricRenderTargetPS(
 			DepthBoxMinCross = min(DepthBoxMinCross, MiddlePointDepth);
 			DepthBoxMaxCross = max(DepthBoxMaxCross, MiddlePointDepth);
 
-			//float DepthBoxMin = 0.5f * (DepthBoxMinPlus + DepthBoxMinCross);
-			//float DepthBoxMax = 0.5f * (DepthBoxMaxPlus + DepthBoxMaxCross);
-			//FilteredDepth = clamp(PrevDepth, DepthBoxMin, DepthBoxMax); // simple depth range clamp
-			// Doing some mean + clamp of depth as above does not have any justification really.
-			// So instead we simply take the min.
-			FilteredDepth = min(DepthBoxMinPlus, DepthBoxMinCross); 
+			// This reconstruction must be done for now to get proper depth matching the particpating media extent on screen
+			float DepthBoxMin = 0.5f * (DepthBoxMinPlus + DepthBoxMinCross);
+			float DepthBoxMax = 0.5f * (DepthBoxMaxPlus + DepthBoxMaxCross);
+			FilteredDepth = clamp(PrevDepth, DepthBoxMin, DepthBoxMax); // simple depth range clamp
 
 			float FinalTemporalFactor = TemporalFactor;
 #if 1
@@ -465,6 +463,12 @@ Texture2D<float> VolumetricDepthTexture;
 uint4 VolumetricTextureValidCoordRect;
 float4 VolumetricTextureValidUvRect;
 
+#if PERMUTATION_LINEARDEPTH
+Texture2D WaterLinearDepthTexture;
+float4 SceneWithoutSingleLayerWaterViewRect;
+float2 FullResolutionToWaterBufferScale;
+#endif
+
 float4 SafeLoadVolumetricTexture(uint2 Coord)
 {
 	return VolumetricTexture.Load(uint3(clamp(Coord, VolumetricTextureValidCoordRect.xy, VolumetricTextureValidCoordRect.zw), 0));
@@ -484,7 +488,7 @@ float SafeSampleVolumetricDepthTexture(float2 UV)
 
 float4 VolumetricTextureSizeAndInvSize;
 float UvOffsetScale;
-float2 FullResolutionToVolumetricBufferResolution;
+float2 FullResolutionToVolumetricBufferResolutionScale;
 
 #define DynamicResToFullResolutionCoord (View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw)
 
@@ -515,20 +519,19 @@ void Sample(
 }
 
 
-
 void ComposeVolumetricRTOverScenePS(
 	in float4 SVPos : SV_POSITION,
 	out float4 OutputRt0 : SV_Target0)
 {
 	float2 CurResPixelCoord = SVPos.xy;
 	float2 ScreenUV = CurResPixelCoord * View.BufferSizeAndInvSize.zw;
-	float2 VolumeUV = FullResolutionToVolumetricBufferResolution.x * (ScreenUV * View.BufferSizeAndInvSize.xy * VolumetricTextureSizeAndInvSize.zw);
+	float2 VolumeUV = FullResolutionToVolumetricBufferResolutionScale.x * (ScreenUV * View.BufferSizeAndInvSize.xy * VolumetricTextureSizeAndInvSize.zw);
 
 
 	//Make the offset be independent of aspect ratio, resolution scale, downsampling
 	const float2 FullResOffsetUVScale =	float2(1.0f,View.BufferSizeAndInvSize.x * View.BufferSizeAndInvSize.w)	// Aspect ratio correction
 										* View.BufferSizeAndInvSize.zw											// Pixel size
-										* FullResolutionToVolumetricBufferResolution.y;							// Volumetric buffer downsample factor
+										* FullResolutionToVolumetricBufferResolutionScale.y;					// Volumetric buffer downsample factor
 	
 	float2 Offset0 = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8     )).xy) * rcp(65536.0)) * 2.0f - 1.0f;
 	float2 Offset1 = (float2(Rand3DPCG16(int3(CurResPixelCoord, View.StateFrameIndexMod8 + 8 )).xy) * rcp(65536.0)) * 2.0f - 1.0f;
@@ -563,8 +566,27 @@ void ComposeVolumetricRTOverScenePS(
 	float2 VolumeCoord = (VolumeUV - VolumetricTextureSizeAndInvSize.zw * 0.5f);	// 0.5 is the scale between upsampled and fullres, we want to offset down one full res pixel
 	VolumeCoord = (floor(VolumeCoord * VolumetricTextureSizeAndInvSize.xy) + 0.5f); // bottom left of the squere of texels to consider, at texel center
 
+#if PERMUTATION_LINEARDEPTH
+	// Adapt the UV to the relative water buffer size
+	VolumeUV *= FullResolutionToWaterBufferScale.y;
+	// Offset the uv to the view buffer region and take into account dynamic resolution scaling.
+	float2 DepthScreenUV = SceneWithoutSingleLayerWaterViewRect.xy + VolumeUV * (View.ViewSizeAndInvSize.xy * View.BufferSizeAndInvSize.zw);
+
+	const float UseWaterLinearDepthTexture = 100.0f;	// This must match SINGLE_LAYER_WATER_DEPTH_SCALE from SingleLayerWaterCommon.ush and SingleLayerWaterComposite.usf
+	float PixelLinearDepth = WaterLinearDepthTexture.SampleLevel(LinearTextureSampler, DepthScreenUV, 0).r * UseWaterLinearDepthTexture;
+
+	float3 WorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, 0.5, 1.0)), 1.0).xyz;
+	WorldPosition = normalize(WorldPosition - View.WorldCameraOrigin) * PixelLinearDepth + View.WorldCameraOrigin;
+
+	float4 ClipPosition = mul(float4(WorldPosition,1.0), View.WorldToClip);
+	ClipPosition /= ClipPosition.w;
+
+	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, ClipPosition.z, 1.0)), 1.0).xyz;
+#else
 	float PixelDeviceZ = SampleDeviceZFromSceneTextures(ScreenUV);
 	float3 ScreenWorldPosition = float4(SvPositionToWorld(float4(SVPos.xy, PixelDeviceZ, 1.0)), 1.0).xyz;
+#endif 
+
 	float PixelFrontDepthFromViewKm = length(View.WorldCameraOrigin - ScreenWorldPosition) * (1.0f / 100000.0f); // centimeter to kilometer
 
 #if PERMUTATION_UPSAMPLINGMODE==2

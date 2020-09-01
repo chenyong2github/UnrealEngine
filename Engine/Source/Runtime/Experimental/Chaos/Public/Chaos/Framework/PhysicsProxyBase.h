@@ -30,6 +30,7 @@ public:
 		: Solver(nullptr)
 		, DirtyIdx(INDEX_NONE)
 		, Type(InType)
+		, SyncTimestamp(-1)
 	{}
 
 	virtual UObject* GetOwner() const = 0;
@@ -49,6 +50,7 @@ public:
 	int32 GetDirtyIdx() const { return DirtyIdx; }
 	void SetDirtyIdx(const int32 Idx) { DirtyIdx = Idx; }
 	void ResetDirtyIdx() { DirtyIdx = INDEX_NONE; }
+	void SetSyncTimestamp(int32 InTimestamp) { SyncTimestamp = InTimestamp; }
 
 protected:
 	// Ensures that derived classes can successfully call this destructor
@@ -63,6 +65,7 @@ private:
 protected:
 	/** Proxy type */
 	EPhysicsProxyType Type;
+	int32 SyncTimestamp;
 };
 
 struct PhysicsProxyWrapper

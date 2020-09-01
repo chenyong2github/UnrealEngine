@@ -106,6 +106,7 @@ public:
 	 */
 	TSharedRef<class FShaderCommonCompileJob, ESPMode::ThreadSafe> BeginCompileShader(
 			uint32 ShaderMapId,
+			int32 PermutationId,
 			const FNiagaraShaderScript* Script,
 			FShaderCompilerEnvironment* CompilationEnvironment,
 			EShaderPlatform Platform,

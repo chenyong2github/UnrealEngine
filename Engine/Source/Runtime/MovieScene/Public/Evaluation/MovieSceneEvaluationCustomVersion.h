@@ -20,6 +20,9 @@ namespace FMovieSceneEvaluationCustomVersion
 		// Added ECS evaluation
 		EntityManager,
 
+		// Removed GUID references to blueprint graphs and replaced with direct weak ptrs
+		DeprecateEventGUIDs,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

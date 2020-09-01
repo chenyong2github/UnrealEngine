@@ -7,6 +7,7 @@
 #include "Containers/Map.h"
 #include "Containers/Array.h"
 #include "UObject/NameTypes.h"
+#include "Internationalization/Text.h"
 
 #define DDPI_HAS_EXTENDED_PLATFORMINFO_DATA (WITH_EDITOR || IS_PROGRAM)
 
@@ -94,6 +95,18 @@ struct FPlatformIconPaths
 
 #endif
 
+/** Information for feature level menu item added by this platform */
+struct FPreviewPlatformMenuItem
+{
+	FString ActiveIconPath;
+	FName ActiveIconName;
+	FString InactiveIconPath;
+	FName InactiveIconName;
+	FText MenuText;
+	FText MenuTooltip;
+	FText IconText;
+};
+
 // Information about a platform loaded from disk
 struct FDataDrivenPlatformInfo
 {
@@ -121,6 +134,9 @@ struct FDataDrivenPlatformInfo
 	bool Freezing_bForce64BitMemoryImagePointers = false;
 	bool Freezing_bAlignBases = false;
 	bool Freezing_bWithRayTracing = false;
+
+	// PreviewPlatform menu items added in this DDPI ini
+	TMap<FName, struct FPreviewPlatformMenuItem> PreviewPlatformMenuItems;
 
 	// NOTE: add more settings here (and read them in in the LoadDDPIIniSettings() function in the .cpp)
 

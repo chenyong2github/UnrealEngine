@@ -112,41 +112,20 @@ void FChaosScene::AddPieModifiedObject(UObject* InObj)
 
 const Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration() const
 {
-	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
-	{
-		if(GetSolver() && GetSolver()->GetEvolution())
-		{
-			return GetSolver()->GetEvolution()->GetSpatialAcceleration();
-		}
-
-		return nullptr;
-	}
-
 	return SolverAccelerationStructure.Get();
 }
 
 Chaos::ISpatialAcceleration<Chaos::TAccelerationStructureHandle<float,3>,float,3>* FChaosScene::GetSpacialAcceleration()
 {
-	if(SceneSolver && SceneSolver->GetThreadingMode() == Chaos::EThreadingModeTemp::SingleThread)
-	{
-		if(SceneSolver->GetEvolution())
-		{
-			return SceneSolver->GetEvolution()->GetSpatialAcceleration();
-		}
-
-		return nullptr;
-	}
-
 	return SolverAccelerationStructure.Get();
 }
 
 void FChaosScene::CopySolverAccelerationStructure()
 {
-	if(SceneSolver && SceneSolver->GetThreadingMode() != Chaos::EThreadingModeTemp::SingleThread)
+	if(SceneSolver)
 	{
 		ExternalDataLock.WriteLock();
-		SceneSolver->FlushCommands_External();	//make sure any pending commands are flushed so that scene query structure is up to date
-		SceneSolver->GetEvolution()->UpdateExternalAccelerationStructure(SolverAccelerationStructure);
+		SceneSolver->UpdateExternalAccelerationStructure_External(SolverAccelerationStructure);
 		ExternalDataLock.WriteUnlock();
 	}
 }
@@ -214,6 +193,7 @@ void FChaosScene::UpdateActorInAccelerationStructure(const FPhysicsActorHandle& 
 			SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
 		}
 
+		GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
 		ExternalDataLock.WriteUnlock();
 	}
 #endif
@@ -249,6 +229,15 @@ void FChaosScene::UpdateActorsInAccelerationStructure(const TArrayView<FPhysicsA
 					Chaos::TAccelerationStructureHandle<float,3> AccelerationHandle(Actor);
 					SpatialAcceleration->UpdateElementIn(AccelerationHandle,WorldBounds,bHasBounds,Actor->SpatialIdx());
 				}
+			}
+		}
+
+		for(int32 ActorIndex = 0; ActorIndex < Actors.Num(); ++ActorIndex)
+		{
+			const FPhysicsActorHandle& Actor = Actors[ActorIndex];
+			if(Actor != nullptr)
+			{
+				GetSolver()->UpdateParticleInAccelerationStructure_External(Actor,/*bDelete=*/false);
 			}
 		}
 
@@ -339,17 +328,65 @@ void FChaosScene::StartFrame()
 		CompletionTaskPrerequisites.Add(Solver->AdvanceAndDispatch_External(UseDeltaTime));
 	}
 
-	// Setup post simulate tasks
+	// For unit testing in single threaded mode we have no task graph, so call complete directly if possible
+	bool bCallDirectly = true;
+	for(const auto& Prereq : CompletionTaskPrerequisites)
 	{
+		if(Prereq && !Prereq->IsComplete())
+		{
+			bCallDirectly = false;
+			break;
+		}
+	}
+
+	if(bCallDirectly)
+	{
+		CompleteSceneSimulationImp();
+	}
+	else
+	{
+		// Setup post simulate tasks
+
 		DECLARE_CYCLE_STAT(TEXT("FDelegateGraphTask.CompletePhysicsSimulation"),STAT_FDelegateGraphTask_CompletePhysicsSimulation,STATGROUP_TaskGraphTasks);
 
 		// Completion event runs in parallel and will flip out our buffers, gamethread work can be done in EndFrame (Called by world after this completion event finishes)
 		CompletionEvent = FDelegateGraphTask::CreateAndDispatchWhenReady(FDelegateGraphTask::FDelegate::CreateRaw(this,&FChaosScene::CompleteSceneSimulation),GET_STATID(STAT_FDelegateGraphTask_CompletePhysicsSimulation),&CompletionTaskPrerequisites,ENamedThreads::GameThread,ENamedThreads::AnyHiPriThreadHiPriTask);
 	}
+	
 #endif
 }
 
+void FChaosScene::OnSyncBodies(int32 SyncTimestamp, Chaos::FPBDRigidDirtyParticlesBufferAccessor& Accessor)
+{
+	using namespace Chaos;
+	//simple implementation that pulls data over. Used for unit testing, engine has its own version of this
+	const FPBDRigidDirtyParticlesBufferOut* DirtyParticleBuffer = Accessor.GetSolverOutData();
+
+	for(FSingleParticlePhysicsProxy<TPBDRigidParticle<float,3> >* Proxy : DirtyParticleBuffer->DirtyGameThreadParticles)
+	{
+		Proxy->PullFromPhysicsState(SyncTimestamp);
+	}
+
+	for(IPhysicsProxyBase* ProxyBase : DirtyParticleBuffer->PhysicsParticleProxies)
+	{
+		if(ProxyBase->GetType() == EPhysicsProxyType::GeometryCollectionType)
+		{
+			FGeometryCollectionPhysicsProxy* GCProxy = static_cast<FGeometryCollectionPhysicsProxy*>(ProxyBase);
+			GCProxy->PullFromPhysicsState(SyncTimestamp);
+		} else
+		{
+			ensure(false); // Unhandled physics only particle proxy!
+		}
+	}
+
+}
+
 void FChaosScene::CompleteSceneSimulation(ENamedThreads::Type CurrentThread,const FGraphEventRef& MyCompletionGraphEvent)
+{
+	CompleteSceneSimulationImp();
+}
+
+void FChaosScene::CompleteSceneSimulationImp()
 {
 #if WITH_CHAOS
 	using namespace Chaos;
@@ -376,7 +413,7 @@ void FChaosScene::CompleteSceneSimulation(ENamedThreads::Type CurrentThread,cons
 			{
 				Solver->CastHelper([&ActiveSolvers](auto& Concrete)
 				{
-					if(Concrete.HasActiveParticles())
+					if(Concrete.Enabled() && Concrete.HasActiveParticles())
 					{
 						ActiveSolvers.Add(&Concrete);
 					}
@@ -384,7 +421,7 @@ void FChaosScene::CompleteSceneSimulation(ENamedThreads::Type CurrentThread,cons
 			}
 		}
 
-		if(SceneSolver && SceneSolver->HasActiveParticles())
+		if(SceneSolver && SceneSolver->Enabled() && SceneSolver->HasActiveParticles())
 		{
 			ActiveSolvers.AddUnique(SceneSolver);
 		}
@@ -408,9 +445,21 @@ template <typename TSolver>
 void FChaosScene::SyncBodies(TSolver* Solver)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("SyncBodies"),STAT_SyncBodies,STATGROUP_Physics);
-
+	const int32 SolverSyncTimestamp = Solver->GetMarshallingManager().GetExternalTimestampConsumed_External();
 	Chaos::FPBDRigidDirtyParticlesBufferAccessor Accessor(Solver->GetDirtyParticlesBuffer());
-	OnSyncBodies(Accessor);
+	OnSyncBodies(SolverSyncTimestamp, Accessor);
+	//
+	// @todo(chaos) : Add Dirty Constraints Support
+	//
+	// This is temporary constraint code until the DirtyParticleBuffer
+	// can be updated to support constraints. In summary : The 
+	// FDirtyPropertiesManager is going to be updated to support a 
+	// FDirtySet that is specific to a TConstraintProperties class.
+	//
+	for (FJointConstraintPhysicsProxy* Proxy : Solver->GetJointConstraintPhysicsProxy())
+	{
+		Proxy->PullFromPhysicsState(SolverSyncTimestamp);
+	}
 }
 
 
@@ -452,83 +501,62 @@ void FChaosScene::EndFrame()
 	int32 DirtyElements = DirtyElementCount(GetSpacialAcceleration()->AsChecked<SpatialAccelerationCollection>());
 	CSV_CUSTOM_STAT(ChaosPhysics,AABBTreeDirtyElementCount,DirtyElements,ECsvCustomStatOp::Set);
 
-	switch(GetSolver()->GetThreadingMode())	//todo: this should be per solver, only syncing one
-	{
-	case EThreadingModeTemp::SingleThread:
-	{
-		SyncBodies(SceneSolver);
-		SceneSolver->SyncEvents_GameThread();
+	check(!CompletionEvent || CompletionEvent->IsComplete());	//CompletionEvent being null means we were able to schedule completion immediately
+	//check(PhysicsTickTask->IsComplete());
+	CompletionEvent = nullptr;
 
-		OnPhysScenePostTick.Broadcast(this);
+	// Make a list of solvers to process. This is a list of all solvers registered to our world
+	// And our internal base scene solver.
+	TArray<FPhysicsSolverBase*> SolverList;
+	ChaosModule->GetSolversMutable(Owner,SolverList);
+
+	{
+		// Make sure our solver is in the list
+		SolverList.AddUnique(GetSolver());
 	}
-	break;
-	case EThreadingModeTemp::TaskGraph:
+
+	// Flip the buffers over to the game thread and sync
 	{
-		check(CompletionEvent->IsComplete());
-		//check(PhysicsTickTask->IsComplete());
-		CompletionEvent = nullptr;
+		SCOPE_CYCLE_COUNTER(STAT_FlipResults);
 
-		// Make a list of solvers to process. This is a list of all solvers registered to our world
-		// And our internal base scene solver.
-		TArray<FPhysicsSolverBase*> SolverList;
-		ChaosModule->GetSolversMutable(Owner,SolverList);
+		//update external SQ structure
+		//for now just copy the whole thing, stomping any changes that came from GT
+		CopySolverAccelerationStructure();
 
+		TArray<FPhysicsSolverBase*> ActiveSolvers;
+		ActiveSolvers.Reserve(SolverList.Num());
+
+		// #BG calculate active solver list once as we dispatch our first task
+		for(FPhysicsSolverBase* Solver : SolverList)
 		{
-			// Make sure our solver is in the list
-			SolverList.AddUnique(GetSolver());
+			Solver->CastHelper([&ActiveSolvers](auto& Concrete)
+			{
+				if(Concrete.HasActiveParticles())
+				{
+					ActiveSolvers.Add(&Concrete);
+				}
+			});
+
 		}
 
-		// Flip the buffers over to the game thread and sync
+		const int32 NumActiveSolvers = ActiveSolvers.Num();
+
+		for(FPhysicsSolverBase* Solver : ActiveSolvers)
 		{
-			SCOPE_CYCLE_COUNTER(STAT_FlipResults);
-
-			//update external SQ structure
-			//for now just copy the whole thing, stomping any changes that came from GT
-			CopySolverAccelerationStructure();
-
-			TArray<FPhysicsSolverBase*> ActiveSolvers;
-			ActiveSolvers.Reserve(SolverList.Num());
-
-			// #BG calculate active solver list once as we dispatch our first task
-			for(FPhysicsSolverBase* Solver : SolverList)
+			Solver->CastHelper([&ActiveSolvers,this](auto& Concrete)
 			{
-				Solver->CastHelper([&ActiveSolvers](auto& Concrete)
+				SyncBodies(&Concrete);
+				Concrete.SyncEvents_GameThread();
+
 				{
-					if(Concrete.HasActiveParticles())
-					{
-						ActiveSolvers.Add(&Concrete);
-					}
-				});
-
-			}
-
-			const int32 NumActiveSolvers = ActiveSolvers.Num();
-
-			for(FPhysicsSolverBase* Solver : ActiveSolvers)
-			{
-				Solver->CastHelper([&ActiveSolvers,this](auto& Concrete)
-				{
-					SyncBodies(&Concrete);
-					Concrete.SyncEvents_GameThread();
-
-					{
-						SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
-						Concrete.SyncQueryMaterials();
-					}
-				});
-			}
+					SCOPE_CYCLE_COUNTER(STAT_SqUpdateMaterials);
+					Concrete.SyncQueryMaterials();
+				}
+			});
 		}
-
-		OnPhysScenePostTick.Broadcast(this);
 	}
-	break;
 
-	// No action for dedicated thread, the module will sync independently from the scene in
-	// this case. (See FChaosSolversModule::SyncTask and FPhysicsThreadSyncCaller)
-	case EThreadingModeTemp::DedicatedThread:
-	default:
-	break;
-	}
+	OnPhysScenePostTick.Broadcast(this);
 #endif
 }
 

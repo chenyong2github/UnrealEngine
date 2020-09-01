@@ -74,7 +74,8 @@ public class LevelEditor : ModuleRules
 				"StatusBar",
 				"AppFramework",
 				"EditorSubsystem",
-				"EnvironmentLightingViewer"
+				"EnvironmentLightingViewer",
+				"DesktopPlatform",
 			}
 		);
 

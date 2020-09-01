@@ -890,9 +890,9 @@ static void BlueprintActionDatabaseImpl::AddAnimBlueprintGraphActions(UAnimBluep
 {
 	if (UAnimBlueprintGeneratedClass* GeneratedClass = AnimBlueprint->GetAnimBlueprintGeneratedClass())
 	{
-		for (int32 NotifyIdx = 0; NotifyIdx < GeneratedClass->AnimNotifies.Num(); NotifyIdx++)
+		for (int32 NotifyIdx = 0; NotifyIdx < GeneratedClass->GetAnimNotifies().Num(); NotifyIdx++)
 		{
-			FName NotifyName = GeneratedClass->AnimNotifies[NotifyIdx].NotifyName;
+			FName NotifyName = GeneratedClass->GetAnimNotifies()[NotifyIdx].NotifyName;
 			if (NotifyName != NAME_None)
 			{
 				FString Label = NotifyName.ToString();

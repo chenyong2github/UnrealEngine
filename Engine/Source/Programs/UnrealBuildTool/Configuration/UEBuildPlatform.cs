@@ -163,6 +163,15 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Returns SDK string as required by the platform
+		/// </summary>
+		/// <returns>Valid SDK string</returns>
+		public string GetRequiredSDKString()
+		{
+			return UEBuildPlatform.GetSDK(Platform).GetRequiredSDKString();
+		}
+
+		/// <summary>
 		/// Whether this platform requires specific Visual Studio version.
 		/// </summary>
 		public virtual VCProjectFileFormat GetRequiredVisualStudioVersion()

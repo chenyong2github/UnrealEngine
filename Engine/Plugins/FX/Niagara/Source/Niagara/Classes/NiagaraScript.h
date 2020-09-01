@@ -3,18 +3,17 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "HAL/ThreadSafeBool.h"
 #include "UObject/ObjectMacros.h"
 #include "UObject/Object.h"
 #include "NiagaraCommon.h"
+#include "NiagaraScriptBase.h"
 #include "NiagaraShared.h"
 #include "NiagaraShader.h"
 #include "NiagaraParameters.h"
 #include "NiagaraDataSet.h"
-#include "NiagaraShared.h"
 #include "NiagaraScriptExecutionParameterStore.h"
 #include "NiagaraScriptHighlight.h"
-#include "NiagaraCustomVersion.h"
-#include "NiagaraMessageDataBase.h"
 
 #include "NiagaraScript.generated.h"
 
@@ -60,6 +59,21 @@ enum class ENiagaraModuleDependencyScriptConstraint : uint8
 	AllScripts
 };
 
+UENUM()
+enum class ENiagaraScriptLibraryVisibility : uint8
+{
+	Invalid = 0 UMETA(Hidden),
+	
+	/** The script is not visible by default to the user, but can be made visible by disabling the "Library only" filter option. */
+	Unexposed UMETA(DisplayName = "Unexposed"),
+
+	/** The script is exposed to the asset library and always visible to the user. */
+	Library UMETA(DisplayName = "Exposed"),
+
+	/** The script is never visible to the user. This is useful to "soft deprecate" assets that should not be shown to a user, but should also not generate errors for existing usages. */
+	Hidden UMETA(DisplayName = "Hidden")
+};
+
 USTRUCT()
 struct FNiagaraModuleDependency
 {
@@ -73,7 +87,7 @@ public:
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	ENiagaraModuleDependencyType Type; // e.g. PreDependency
 
-	/** Specifies constraints related to the source script a modules provising a depency. */
+	/** Specifies constraints related to the source script a modules provides as dependency. */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	ENiagaraModuleDependencyScriptConstraint ScriptConstraint;
 	
@@ -110,38 +124,6 @@ struct FNiagaraScriptDebuggerInfo
 	TAtomic<bool> bWritten;
 };
 
-USTRUCT()
-struct NIAGARA_API FSimulationStageMetaData
-{
-	GENERATED_USTRUCT_BODY()
-public:
-
-	/** The Data Interface that we iterate over for this stage. If None, then use particles.*/
-	UPROPERTY()
-	FName IterationSource;
-
-	/** Is this stage a spawn-only stage? */
-	UPROPERTY()
-	uint32 bSpawnOnly : 1;
-
-	/** Do we write to particles this stage?*/
-	UPROPERTY()
-	uint32 bWritesParticles : 1;
-
-	/** DataInterfaces that we write to in this stage.*/
-	UPROPERTY()
-	TArray<FName> OutputDestinations;
-
-	/** Index of the simulation stage where we begin iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
-	UPROPERTY()
-	int32 MinStage;
-
-	/** Index of the simulation stage where we end iterating. This is meant to encompass iteration count without having an entry for each iteration.*/
-	UPROPERTY()
-	int32 MaxStage;
-};
-
-
 /** Struct containing all of the data necessary to look up a NiagaraScript's VM executable results from the Derived Data Cache.*/
 USTRUCT()
 struct NIAGARA_API FNiagaraVMExecutableDataId
@@ -169,6 +151,10 @@ public:
 	/** Whether or not we need to bake Rapid Iteration params. True to keep params, false to bake.*/
 	UPROPERTY()
 	uint32 bUsesRapidIterationParams : 1;
+
+	/** Should we use shader permutations to reduce the cost of simulation stages or not */
+	UPROPERTY()
+	uint32 bUseShaderPermutations : 1;
 
 	/** Do we require interpolated spawning */
 	UPROPERTY()
@@ -203,6 +189,7 @@ public:
 		: CompilerVersionID()
 		, ScriptUsageType(ENiagaraScriptUsage::Function)
 		, bUsesRapidIterationParams(true)
+		, bUseShaderPermutations(true)
 		, bInterpolatedSpawn(false)
 		, bRequiresPersistentIDs(false)
 		, BaseScriptID_DEPRECATED(0, 0, 0, 0)
@@ -383,7 +370,7 @@ public:
 
 /** Runtime script for a Niagara system */
 UCLASS(MinimalAPI)
-class UNiagaraScript : public UObject
+class UNiagaraScript : public UNiagaraScriptBase
 {
 	GENERATED_UCLASS_BODY()
 public:
@@ -447,9 +434,13 @@ public:
 	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "bExperimental", MultiLine = true))
 	FText ExperimentalMessage;
 
-	/* If this script is exposed to the library. */
+	/* Deprecated, use LibraryVisibility instead. */
+	UPROPERTY(AssetRegistrySearchable, meta = (DeprecatedProperty))
+	uint32 bExposeToLibrary_DEPRECATED : 1;
+	
+	/* Defines if this script is visible to the user when searching for modules to add to an emitter.  */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
-	uint32 bExposeToLibrary : 1;
+	ENiagaraScriptLibraryVisibility LibraryVisibility;
 #endif
 
 	/** Contains all of the top-level values that are iterated on in the UI. These are usually "Module" variables in the graph. They don't necessarily have to be in the order that they are expected in the uniform table.*/
@@ -467,6 +458,11 @@ public:
 	/** A list of space separated keywords which can be used to find this script in editor menus. */
 	UPROPERTY(AssetRegistrySearchable, EditAnywhere, Category = Script)
 	FText Keywords;
+
+	/** The format for the text to display in the stack if the value is collapsed.
+	 *  This supports formatting placeholders for the function inputs, for example "myfunc({0}, {1})" will be converted to "myfunc(1.23, Particles.Position)". */
+	UPROPERTY(EditAnywhere, Category = Script, meta = (EditCondition = "Usage == ENiagaraScriptUsage::DynamicInput"))
+	FText CollapsedViewFormat;
 
 	UPROPERTY(EditAnywhere, Category = Script)
 	TArray<FNiagaraScriptHighlight> Highlights;
@@ -548,6 +544,7 @@ public:
 	NIAGARA_API TArray<ENiagaraParameterScope> GetUnsupportedParameterScopes() const;
 	NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContexts() const;
 	static NIAGARA_API TArray<ENiagaraScriptUsage> GetSupportedUsageContextsForBitmask(int32 InModuleUsageBitmask);
+	static NIAGARA_API bool IsSupportedUsageContextForBitmask(int32 InModuleUsageBitmask, ENiagaraScriptUsage InUsageContext);
 #endif
 
 	NIAGARA_API bool CanBeRunOnGpu() const;
@@ -576,7 +573,14 @@ public:
 	virtual void GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const override;
 
 	virtual bool IsEditorOnly() const override;
+
+	virtual NIAGARA_API void BeginDestroy() override;
+	virtual NIAGARA_API bool IsReadyForFinishDestroy() override;
 	//~ End UObject interface
+
+	//~ Begin UNiagaraScriptBase interface
+	virtual TConstArrayView<FSimulationStageMetaData> GetSimulationStageMetaData() const override { return MakeArrayView(CachedScriptVM.SimulationStageMetaData); }
+	//~ End UNiagaraScriptBase interface
 
 	// Infrastructure for GPU compute Shaders
 #if WITH_EDITOR
@@ -597,26 +601,6 @@ public:
 	{
 		return ScriptResource.Get();
 	}
-#if WITH_EDITORONLY_DATA
-
-	FComputeShaderRHIRef GetScriptShader() 
-	{
-		if (!ScriptShader && ScriptResource.IsValid())
-		{
-			ScriptShader = ScriptResource->GetShader().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
-		}
-		return ScriptShader; 
-	}
-
-	FComputeShaderRHIRef GetScriptShaderGameThread()
-	{
-		if (!ScriptShader && ScriptResource.IsValid())
-		{
-			ScriptShader = ScriptResource->GetShaderGameThread().GetComputeShader();	// NIAGARATODO: need to put this caching somewhere else, as it wont' know when we update the resource
-		}
-		return ScriptShader;
-	}
-#endif
 
 	NIAGARA_API void GenerateStatIDs();
 
@@ -683,9 +667,9 @@ public:
 	void RaiseOnGPUCompilationComplete();
 
 
-	NIAGARA_API FNiagaraVMExecutableData& GetVMExecutableData() { return CachedScriptVM; }
-	NIAGARA_API const FNiagaraVMExecutableData& GetVMExecutableData() const { return CachedScriptVM; }
-	NIAGARA_API const FNiagaraVMExecutableDataId& GetVMExecutableDataCompilationId() const { return CachedScriptVMId; }
+	NIAGARA_API FORCEINLINE FNiagaraVMExecutableData& GetVMExecutableData() { return CachedScriptVM; }
+	NIAGARA_API FORCEINLINE const FNiagaraVMExecutableData& GetVMExecutableData() const { return CachedScriptVM; }
+	NIAGARA_API FORCEINLINE const FNiagaraVMExecutableDataId& GetVMExecutableDataCompilationId() const { return CachedScriptVMId; }
 
 	TArray<UNiagaraParameterCollection*>& GetCachedParameterCollectionReferences() { return CachedParameterCollectionReferences; }
 	TArray<FNiagaraScriptDataInterfaceInfo>& GetCachedDefaultDataInterfaces() { return CachedDefaultDataInterfaces; }
@@ -800,4 +784,6 @@ private:
 
 	static UNiagaraDataInterface* CopyDataInterface(UNiagaraDataInterface* Src, UObject* Owner);
 
+	/** Flag used to guarantee that the RT isn't accessing the FNiagaraScriptResource before cleanup. */
+	FThreadSafeBool ReleasedByRT;
 };

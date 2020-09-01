@@ -7,6 +7,12 @@ FOnWriteGameSpecificDemoHeader FNetworkReplayDelegates::OnWriteGameSpecificDemoH
 FOnProcessGameSpecificDemoHeader FNetworkReplayDelegates::OnProcessGameSpecificDemoHeader;
 FOnWriteGameSpecificFrameData FNetworkReplayDelegates::OnWriteGameSpecificFrameData;
 FOnProcessGameSpecificFrameData FNetworkReplayDelegates::OnProcessGameSpecificFrameData;
+FOnReplayStartedDelegate FNetworkReplayDelegates::OnReplayStarted;
+FOnReplayStartFailureDelegate FNetworkReplayDelegates::OnReplayStartFailure;
+FOnReplayScrubCompleteDelegate FNetworkReplayDelegates::OnReplayScrubComplete;
+FOnReplayPlaybackCompleteDelegate FNetworkReplayDelegates::OnReplayPlaybackComplete;
+FOnReplayRecordingCompleteDelegate FNetworkReplayDelegates::OnReplayRecordingComplete;
+FOnPauseChannelsChangedDelegate FNetworkReplayDelegates::OnPauseChannelsChanged;
 
 // ----------------------------------------------------------------
 

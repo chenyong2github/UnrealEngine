@@ -39,13 +39,20 @@ public:
 
 	uint32 NumQuadsPerTileSide;
 	
+	FVector UVToWorldScale;
+	FMatrix UVToLocal;
 	FMatrix UVToWorld;
 	FMatrix WorldToUV;
 	FMatrix WorldToUVTransposeAdjoint;
 
 	class FVirtualHeightfieldMeshVertexFactory* VertexFactory;
 
-	float LODScale;
+	float Lod0ScreenSize;
+	float Lod0Distribution;
+	float LodDistribution;
+	
+	int32 NumSubdivisionLODs;
+	int32 NumTailLods;
 
 	TArray<FVector2D> OcclusionData;
 	int32 NumOcclusionLods;

@@ -347,6 +347,7 @@ namespace AutomationTool
 			this.NumClients = InParams.NumClients;
             this.Compressed = InParams.Compressed;
 			this.AdditionalPakOptions = InParams.AdditionalPakOptions;
+			this.AdditionalIoStoreOptions = InParams.AdditionalIoStoreOptions;
 			this.Archive = InParams.Archive;
 			this.ArchiveDirectoryParam = InParams.ArchiveDirectoryParam;
 			this.ArchiveMetaData = InParams.ArchiveMetaData;
@@ -408,6 +409,7 @@ namespace AutomationTool
 			bool? Clean = null,
             bool? Compressed = null,
 			string AdditionalPakOptions = null,
+			string AdditionalIoStoreOptions = null,
             bool? IterativeCooking = null,
 			string IterateSharedCookedBuild = null,
 			bool? IterateSharedBuildUsePrecompiledExe = null,
@@ -635,7 +637,7 @@ namespace AutomationTool
 			this.Pak = GetParamValueIfNotSpecified(Command, Pak, this.Pak, "pak");
 			this.IgnorePaksFromDifferentCookSource = GetParamValueIfNotSpecified(Command, IgnorePaksFromDifferentCookSource, this.IgnorePaksFromDifferentCookSource, "IgnorePaksFromDifferentCookSource");
 			this.IoStore = GetParamValueIfNotSpecified(Command, IoStore, this.IoStore, "iostore");
-			this.SkipIoStore = GetParamValueIfNotSpecified(Command, IoStore, this.SkipIoStore, "skipiostore");
+			this.SkipIoStore = GetParamValueIfNotSpecified(Command, SkipIoStore, this.SkipIoStore, "skipiostore");
 			this.SkipPak = GetParamValueIfNotSpecified(Command, SkipPak, this.SkipPak, "skippak");
 			if (this.SkipPak)
 			{
@@ -666,6 +668,7 @@ namespace AutomationTool
             }
             this.Compressed = GetParamValueIfNotSpecified(Command, Compressed, this.Compressed, "compressed");
 			this.AdditionalPakOptions = ParseParamValueIfNotSpecified(Command, AdditionalPakOptions, "AdditionalPakOptions");
+			this.AdditionalIoStoreOptions = ParseParamValueIfNotSpecified(Command, AdditionalIoStoreOptions, "AdditionalIoStoreOptions");
 			this.IterativeCooking = GetParamValueIfNotSpecified(Command, IterativeCooking, this.IterativeCooking, new string[] { "iterativecooking", "iterate" });
 			this.IterateSharedCookedBuild = GetParamValueIfNotSpecified(Command, false, false, "iteratesharedcookedbuild") ? "usesyncedbuild" : null;
 			this.IterateSharedCookedBuild = ParseParamValueIfNotSpecified(Command, IterateSharedCookedBuild, "IterateSharedCookedBuild", String.Empty);
@@ -1620,6 +1623,11 @@ namespace AutomationTool
 		/// </summary>
 		public string AdditionalPakOptions;
 
+		/// <summary>
+		/// Additional parameters when generating iostore container files
+		/// </summary>
+		public string AdditionalIoStoreOptions;
+
         /// <summary>
         /// Cook: Do not include a version number in the cooked content
         /// </summary>
@@ -2455,10 +2463,20 @@ namespace AutomationTool
 		private Dictionary<UnrealTargetPlatform, FileReference> ProjectExePaths;
 
 		/// <summary>
+		/// Override for the computed based on release version path
+		/// </summary>
+		public string BasedOnReleaseVersionPathOverride = null;
+
+		/// <summary>
 		/// Get the path to the directory of the version we are basing a diff or a patch on.  
 		/// </summary>				
 		public String GetBasedOnReleaseVersionPath(DeploymentContext SC, bool bIsClientOnly)
 		{
+			if (!string.IsNullOrEmpty(BasedOnReleaseVersionPathOverride))
+			{
+				return BasedOnReleaseVersionPathOverride;
+			}
+
 			String BasePath = BasedOnReleaseVersionBasePath;
 			String Platform = SC.StageTargetPlatform.GetCookPlatform(SC.DedicatedServer, bIsClientOnly);
 			if (String.IsNullOrEmpty(BasePath))
@@ -2786,6 +2804,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("ClientTargetPlatform={0}", string.Join(",", ClientTargetPlatforms));
 				CommandUtils.LogLog("Compressed={0}", Compressed);
 				CommandUtils.LogLog("AdditionalPakOptions={0}", AdditionalPakOptions);
+				CommandUtils.LogLog("AdditionalIoStoreOptions={0}", AdditionalIoStoreOptions);
 				CommandUtils.LogLog("CookOnTheFly={0}", CookOnTheFly);
 				CommandUtils.LogLog("CookOnTheFlyStreaming={0}", CookOnTheFlyStreaming);
 				CommandUtils.LogLog("UnversionedCookedContent={0}", UnversionedCookedContent);

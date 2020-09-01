@@ -32,6 +32,9 @@ struct FNiagaraComponentPropertyBinding
 	UPROPERTY()
 	FName MetadataSetterName;
 
+	UPROPERTY(Transient)
+	FNiagaraVariable WritableValue;
+
 	UFunction* SetterFunction = nullptr;
 };
 
@@ -44,6 +47,7 @@ public:
 	UNiagaraComponentRendererProperties();
 
 	//UObject Interface
+	virtual void PostLoad() override;
 	virtual void PostInitProperties() override;
 	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	//UObject Interface END
@@ -51,7 +55,7 @@ public:
 	static void InitCDOPropertiesAfterModuleStartup();
 
 	//~ UNiagaraRendererProperties interface
-	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter) override;
+	virtual FNiagaraRenderer* CreateEmitterRenderer(ERHIFeatureLevel::Type FeatureLevel, const FNiagaraEmitterInstance* Emitter, const UNiagaraComponent* InComponent) override;
 	virtual class FNiagaraBoundsCalculator* CreateBoundsCalculator() override { return nullptr; }
 	virtual bool IsSimTargetSupported(ENiagaraSimTarget InSimTarget) const override { return (InSimTarget == ENiagaraSimTarget::CPUSim); };
 	virtual void GetUsedMaterials(const FNiagaraEmitterInstance* InEmitter, TArray<UMaterialInterface*>& OutMaterials) const override {};
@@ -104,6 +108,11 @@ public:
 	NIAGARA_API static FNiagaraTypeDefinition ToNiagaraType(FProperty* Property);
 	static FNiagaraTypeDefinition GetFColorDef();
 	static FNiagaraTypeDefinition GetFRotatorDef();
+
+	virtual void CacheFromCompiledData(const FNiagaraDataSetCompiledData* CompiledData) override;
+
+protected:
+	virtual void UpdateSourceModeDerivates(ENiagaraRendererSourceDataMode InSourceMode, bool bFromPropertyEdit = false) override;
 
 private:
 	static TArray<TWeakObjectPtr<UNiagaraComponentRendererProperties>> ComponentRendererPropertiesToDeferredInit;

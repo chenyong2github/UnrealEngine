@@ -980,5 +980,13 @@ extern void SerializeInlineShaderMaps(
 	TArray<FMaterialResource>& OutLoadedResources,
 	uint32* OutOffsetToFirstResource = nullptr);
 /** Helper function to process (register) serialized inline shader maps for the given material resources. */
-extern void ProcessSerializedInlineShaderMaps(UMaterialInterface* Owner, TArray<FMaterialResource>& LoadedResources, FMaterialResource* (&OutMaterialResourcesLoaded)[EMaterialQualityLevel::Num][ERHIFeatureLevel::Num]);
+extern void ProcessSerializedInlineShaderMaps(UMaterialInterface* Owner, TArray<FMaterialResource>& LoadedResources, TArray<FMaterialResource*>& OutMaterialResourcesLoaded);
 
+extern FMaterialResource* FindMaterialResource(const TArray<FMaterialResource*>& MaterialResources, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, bool bAllowDefaultQuality);
+extern FMaterialResource* FindMaterialResource(TArray<FMaterialResource*>& MaterialResources, ERHIFeatureLevel::Type InFeatureLevel, EMaterialQualityLevel::Type QualityLevel, bool bAllowDefaultQuality);
+
+extern FMaterialResource* FindOrCreateMaterialResource(TArray<FMaterialResource*>& MaterialResources,
+	UMaterial* OwnerMaterial,
+	UMaterialInstance* OwnerMaterialInstance,
+	ERHIFeatureLevel::Type InFeatureLevel,
+	EMaterialQualityLevel::Type QualityLevel);

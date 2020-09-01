@@ -134,6 +134,9 @@ RHI_API bool RHIGetPreviewFeatureLevel(ERHIFeatureLevel::Type& PreviewFeatureLev
 // helper to check if preferred EPixelFormat is supported, return one if it is not
 RHI_API EPixelFormat RHIPreferredPixelFormatHint(EPixelFormat PreferredPixelFormat);
 
+// helper to check which resource type should be used for clear (UAV) replacement shaders.
+RHI_API int32 RHIGetPreferredClearUAVRectPSResourceType(const FStaticShaderPlatform Platform);
+
 inline bool RHISupportsInstancedStereo(const FStaticShaderPlatform Platform)
 {
 	// Only D3D SM5, PS4 and Metal SM5 supports Instanced Stereo

@@ -962,6 +962,9 @@ extern RHI_API void SetDepthBoundsTest(FRHICommandList& RHICmdList, float WorldS
 /** Returns the value of the rhi.SyncInterval CVar. */
 extern RHI_API uint32 RHIGetSyncInterval();
 
+/** Returns the value of the rhi.SyncSlackMS CVar or length of a full frame interval if the frame offset system is disabled. */
+extern RHI_API float RHIGetSyncSlackMS();
+
 /** Returns the top and bottom vsync present thresholds (the values of rhi.PresentThreshold.Top and rhi.PresentThreshold.Bottom) */
 extern RHI_API void RHIGetPresentThresholds(float& OutTopPercent, float& OutBottomPercent);
 
