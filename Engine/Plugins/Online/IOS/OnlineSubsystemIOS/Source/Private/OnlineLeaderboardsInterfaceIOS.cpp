@@ -91,7 +91,7 @@ bool FOnlineLeaderboardsIOS::ReadLeaderboardCompletionDelegate(NSArray* players,
 #ifdef __IPHONE_8_0
 						if ([score respondsToSelector:@selector(player)] == YES)
 						{
-                            PlayerIDString = FString(score.player.playerID);
+							PlayerIDString = FString(FOnlineSubsystemIOS::GetPlayerId(score.player));
                         }
                         else
 #endif

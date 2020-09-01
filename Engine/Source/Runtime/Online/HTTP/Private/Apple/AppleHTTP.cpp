@@ -17,6 +17,12 @@
 #include "Ssl.h"
 #endif
 
+#if !defined(__MAC_10_14) || (defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_12_0) || (defined(__TV_OS_VERSION_MIN_REQUIRED) && __TV_OS_VERSION_MIN_REQUIRED < __TVOS_12_0)
+#define USE_DEPRECATED_SECTRUST 1
+#else
+#define USE_DEPRECATED_SECTRUST 0
+#endif
+
 /****************************************************************************
  * FAppleHttpRequest implementation
  ***************************************************************************/
@@ -688,21 +694,31 @@ static const unsigned char ecdsaSecp384r1Asn1Header[] =
                 [challenge.sender cancelAuthenticationChallenge: challenge];
                 return;
             }
-            // we check the default trust to verify against the system roots before we dig deeper
-            SecTrustResultType DefaultTrustResult;
-            if (SecTrustEvaluate(RemoteTrust, &DefaultTrustResult) != errSecSuccess)
-            {
-                UE_LOG(LogHttp, Error, TEXT("failed certificate pinning validation: could not evaluate default trust parameters for domain '%s'"), *RemoteHost);
-                [challenge.sender cancelAuthenticationChallenge: challenge];
-                return;
-            }
-            if ((DefaultTrustResult != kSecTrustResultProceed) && (DefaultTrustResult != kSecTrustResultUnspecified))
-            {
-                UE_LOG(LogHttp, Error, TEXT("failed certificate pinning validation: default certificate trust evaluation failed for domain '%s'"), *RemoteHost);
-                [challenge.sender cancelAuthenticationChallenge: challenge];
-                return;
-            }
-            
+
+#if USE_DEPRECATED_SECTRUST
+			// we check the default trust to verify against the system roots before we dig deeper
+			SecTrustResultType DefaultTrustResult;
+			if (SecTrustEvaluate(RemoteTrust, &DefaultTrustResult) != errSecSuccess)
+			{
+				UE_LOG(LogHttp, Error, TEXT("failed certificate pinning validation: could not evaluate default trust parameters for domain '%s'"), *RemoteHost);
+				[challenge.sender cancelAuthenticationChallenge: challenge];
+				return;
+			}
+
+			if ((DefaultTrustResult != kSecTrustResultProceed) && (DefaultTrustResult != kSecTrustResultUnspecified))
+			{
+				UE_LOG(LogHttp, Error, TEXT("failed certificate pinning validation: default certificate trust evaluation failed for domain '%s'"), *RemoteHost);
+				[challenge.sender cancelAuthenticationChallenge: challenge];
+				return;
+			}
+#else
+			if (!SecTrustEvaluateWithError(RemoteTrust, nil))
+			{
+				UE_LOG(LogHttp, Error, TEXT("failed certificate pinning validation: default certificate trust evaluation failed for domain '%s'"), *RemoteHost);
+				[challenge.sender cancelAuthenticationChallenge: challenge];
+				return;
+			}
+#endif            
             // look at all certs in the remote chain and calculate the SHA256 hash of their DER-encoded SPKI
             // the chain starts with the server's cert itself, so walk backwards to optimize for roots first
             TArray<TArray<uint8, TFixedAllocator<ISslCertificateManager::PUBLIC_KEY_DIGEST_SIZE>>> CertDigests;
@@ -718,8 +734,12 @@ static const unsigned char ecdsaSecp384r1Asn1Header[] =
                 TCFRef<SecTrustRef> CertTrust;
                 TCFRef<SecPolicyRef> TrustPolicy = SecPolicyCreateBasicX509();
                 SecTrustCreateWithCertificates(Cert, TrustPolicy, CertTrust.GetForAssignment());
+#if USE_DEPRECATED_SECTRUST
                 SecTrustResultType CertEvalResult;
                 SecTrustEvaluate(CertTrust, &CertEvalResult);
+#else
+                SecTrustEvaluateWithError(CertTrust, nil);
+#endif
                 TCFRef<SecKeyRef> CertPubKey = SecTrustCopyPublicKey(CertTrust);
 				TCFRef<CFDataRef> CertPubKeyData = SecKeyCopyExternalRepresentation(CertPubKey, NULL);
                 if (!CertPubKeyData)

@@ -108,8 +108,8 @@ void FOnlineExternalUIIOS::OnLoginComplete(int ControllerIndex, bool bWasSuccess
     TSharedPtr<FUniqueNetIdIOS> UniqueNetId;
     if (bWasSuccessful)
     {
-        const FString PlayerId(IdentityInterface->GetLocalGameCenterUser().playerID);
-        UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
+		const FString PlayerId(FOnlineSubsystemIOS::GetPlayerId(IdentityInterface->GetLocalGameCenterUser()));
+	    UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
     }
     CopiedDelegate.ExecuteIfBound(UniqueNetId, ControllerIndex, Error);
 
