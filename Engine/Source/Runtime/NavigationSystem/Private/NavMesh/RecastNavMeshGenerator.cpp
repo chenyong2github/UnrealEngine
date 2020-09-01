@@ -2045,6 +2045,8 @@ bool FRecastTileGenerator::HasDataToBuild() const
 
 ETimeSliceWorkResult FRecastTileGenerator::DoWorkTimeSliced()
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_DoWork);
+
 	TSharedPtr<FNavDataGenerator, ESPMode::ThreadSafe> ParentGenerator = ParentGeneratorWeakPtr.Pin();
 	ETimeSliceWorkResult WorkResult = ETimeSliceWorkResult::Succeeded;
 
@@ -2099,6 +2101,8 @@ ETimeSliceWorkResult FRecastTileGenerator::DoWorkTimeSliced()
 
 bool FRecastTileGenerator::DoWork()
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_DoWork);
+
 	TSharedPtr<FNavDataGenerator, ESPMode::ThreadSafe> ParentGenerator = ParentGeneratorWeakPtr.Pin();
 	bool bSucceess = true;
 
@@ -5711,6 +5715,8 @@ void FRecastNavMeshGenerator::GetSeedLocations(UWorld& World, TArray<FVector2D>&
 
 TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGenerator(const FIntPoint& Coord, const TArray<FBox>& DirtyAreas)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_CreateTileGenerator);
+
 	TSharedRef<FRecastTileGenerator> TileGenerator = MakeShareable(new FRecastTileGenerator(*this, Coord));
 	TileGenerator->Setup(*this, DirtyAreas);
 	return TileGenerator;
@@ -5718,6 +5724,8 @@ TSharedRef<FRecastTileGenerator> FRecastNavMeshGenerator::CreateTileGenerator(co
 
 void FRecastNavMeshGenerator::RemoveLayers(const FIntPoint& Tile, TArray<uint32>& UpdatedTiles)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_RemoveLayers);
+
 	// If there is nothing to generate remove all tiles from navmesh at specified grid coordinates
 	UpdatedTiles.Append(
 		RemoveTileLayers(Tile.X, Tile.Y)
@@ -5727,10 +5735,11 @@ void FRecastNavMeshGenerator::RemoveLayers(const FIntPoint& Tile, TArray<uint32>
 
 void FRecastNavMeshGenerator::StoreCompressedTileCacheLayers(const FRecastTileGenerator& TileGenerator, int32 TileX, int32 TileY)
 {
+	SCOPE_CYCLE_COUNTER(STAT_Navigation_StoringCompressedLayers);
+
 	// Store compressed tile cache layers so it can be reused later
 	if (TileGenerator.GetCompressedLayers().Num())
 	{
-		SCOPE_CYCLE_COUNTER(STAT_RecastNavMeshGenerator_StoringCompressedLayers);
 		DestNavMesh->AddTileCacheLayers(TileX, TileY, TileGenerator.GetCompressedLayers());
 	}
 	else
