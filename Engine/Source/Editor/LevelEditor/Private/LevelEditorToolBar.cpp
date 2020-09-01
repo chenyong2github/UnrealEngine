@@ -1365,7 +1365,7 @@ void FLevelEditorToolBar::RegisterLevelEditorToolBar( const TSharedRef<FUIComman
 
 			static FText GetPreviewModeText()
 			{
-				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewShaderFormatName);
+				const PlatformInfo::FPreviewPlatformMenuItem* Item = PlatformInfo::GetPreviewPlatformMenuItems().Find(GEditor->PreviewPlatform.PreviewPlatformName);
 				return Item ? Item->IconText : FText();
 			}
 
