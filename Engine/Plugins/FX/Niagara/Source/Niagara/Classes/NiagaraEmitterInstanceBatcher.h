@@ -272,4 +272,6 @@ private:
 
 	TArray<FNiagaraComputeExecutionContext*> ContextsPerStage[(int)ETickStage::Max];
 	TArray<FNiagaraGPUSystemTick*> TicksPerStage[(int)ETickStage::Max];
+
+	TArray<uint32> CountsToRelease[(int)ETickStage::Max];
 };

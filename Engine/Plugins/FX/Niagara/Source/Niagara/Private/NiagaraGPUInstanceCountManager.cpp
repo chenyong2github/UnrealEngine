@@ -127,6 +127,17 @@ void FNiagaraGPUInstanceCountManager::FreeEntry(uint32& BufferOffset)
 	}
 }
 
+void FNiagaraGPUInstanceCountManager::FreeEntryArray(TConstArrayView<uint32> EntryArray)
+{
+	checkSlow(IsInRenderingThread());
+
+	const int32 NumToFree = EntryArray.Num();
+	if (NumToFree > 0)
+	{
+		InstanceCountClearTasks.Append(EntryArray.GetData(), NumToFree);
+	}
+}
+
 FRWBuffer* FNiagaraGPUInstanceCountManager::AcquireCulledCountsBuffer(FRHICommandListImmediate& RHICmdList, ERHIFeatureLevel::Type FeatureLevel)
 {
 	if (RequiredCulledCounts > 0)
