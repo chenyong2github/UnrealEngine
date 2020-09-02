@@ -1129,8 +1129,9 @@ FSlateColor SDockingTabStack::GetUnhideTabWellButtonOpacity() const
 
 const FSlateBrush* SDockingTabStack::GetTabStackBorderImage() const
 {
-	static const FSlateColorBrush MajorTabBackgroundBrush(FAppStyle::Get().GetSlateColor("Colors.Title"));
-	return bShowingTitleBarArea ? &MajorTabBackgroundBrush : FStyleDefaults::GetNoBrush();
+	static const FSlateBrush* MajorTabBackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Title");
+	static const FSlateBrush* MinorTabBackgroundBrush = FAppStyle::Get().GetBrush("Brushes.Recessed");
+	return bShowingTitleBarArea ? MajorTabBackgroundBrush : MinorTabBackgroundBrush;
 }
 
 int32 SDockingTabStack::OpenPersistentTab( const FTabId& TabId, int32 OpenLocationAmongActiveTabs )

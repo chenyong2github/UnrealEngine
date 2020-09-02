@@ -36,6 +36,7 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 			[
 				SAssignNew(LeftSidebar, STabSidebar)
 				.Location(ESidebarLocation::Left)
+				.Visibility(EVisibility::Collapsed)
 			]
 			+ SHorizontalBox::Slot()
 			[
@@ -47,6 +48,7 @@ void SDockingArea::Construct( const FArguments& InArgs, const TSharedRef<FTabMan
 			[
 				SAssignNew(RightSidebar, STabSidebar)
 				.Location(ESidebarLocation::Right)
+				.Visibility(EVisibility::Collapsed)
 			]
 		]
 		
@@ -618,12 +620,10 @@ void SDockingArea::UpdateWindowChromeAndSidebar()
 
 			bCanHaveSidebar = !bContainsMajorTabs;
 
-			if (!bCanHaveSidebar)
-			{
-				LeftSidebar->SetVisibility(EVisibility::Collapsed);
-				RightSidebar->SetVisibility(EVisibility::Collapsed);
-			}
-			else
+			LeftSidebar->SetVisibility(EVisibility::Collapsed);
+			RightSidebar->SetVisibility(EVisibility::Collapsed);
+
+			if (bCanHaveSidebar)
 			{
 				if (bAccountForMenuBarPadding)
 				{
