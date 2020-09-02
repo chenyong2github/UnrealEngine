@@ -342,7 +342,7 @@ int32 SWorldPartitionEditorGrid2D::PaintGrid(const FGeometry& AllottedGeometry, 
 		FLinearColor YAxisColor = FLinearColor::Green;
 		YAxisColor.A = 0.4f;
 		
-		FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, YAxisColor);
+		FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, YAxisColor, true, 2.0f);
 	}
 
 	// World X-axis
@@ -354,7 +354,7 @@ int32 SWorldPartitionEditorGrid2D::PaintGrid(const FGeometry& AllottedGeometry, 
 		FLinearColor XAxisColor = FLinearColor::Red;
 		XAxisColor.A = 0.4f;
 		
-		FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, XAxisColor);
+		FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, XAxisColor, true, 2.0f);
 	}
 
 	return LayerId + 1;
@@ -722,6 +722,25 @@ uint32 SWorldPartitionEditorGrid2D::PaintSelection(const FGeometry& AllottedGeom
 		LinePoints[2] = BottomRight;
 		LinePoints[3] = BottomLeft;
 		LinePoints[4] = TopLeft;
+
+		{
+			FSlateColorBrush CellBrush(FLinearColor::White);
+			FLinearColor CellColor(FLinearColor(1, 1, 1, 0.25f));
+
+			FPaintGeometry CellGeometry = AllottedGeometry.ToPaintGeometry(
+				TopLeft,
+				BottomRight - TopLeft
+			);
+
+			FSlateDrawElement::MakeBox(
+				OutDrawElements,
+				LayerId,
+				CellGeometry,
+				&CellBrush,
+				ESlateDrawEffect::None,
+				CellColor
+			);
+		}
 
 		FSlateDrawElement::MakeLines(OutDrawElements, LayerId, AllottedGeometry.ToPaintGeometry(), LinePoints, ESlateDrawEffect::None, FLinearColor::White, false, 1.0f);
 	}

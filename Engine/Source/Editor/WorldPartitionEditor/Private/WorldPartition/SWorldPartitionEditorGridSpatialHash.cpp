@@ -84,7 +84,7 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 	// Shadow whole grid area
 	{
 		FSlateColorBrush ShadowBrush(FLinearColor::Black);
-		FLinearColor ShadowColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.5f));
+		FLinearColor ShadowColor(FLinearColor(0.0f, 0.0f, 0.0f, 0.25f));
 
 		FPaintGeometry GridGeometry = AllottedGeometry.ToPaintGeometry(
 			WorldToScreen.TransformPoint(FVector2D(VisibleGridRectWorld.Min)),
@@ -169,8 +169,21 @@ int32 SWorldPartitionEditorGridSpatialHash::PaintGrid(const FGeometry& AllottedG
 					WorldToScreen.TransformPoint(Cell.Bounds.Max) - WorldToScreen.TransformPoint(Cell.Bounds.Min)
 				);
 
+				FLinearColor CellColor;
+				if(Cell.bEmpty)
+				{
+					CellColor = FLinearColor(0, 0, 0, 1.0f);
+				}
+				else if (Cell.bSelected)
+				{
+					CellColor = FLinearColor(1, 1, 1, 0.25f);
+				}
+				else // !Cell.bLoaded
+				{
+					 CellColor = FLinearColor(0, 0, 0, 0.5f);
+				}
+
 				FSlateColorBrush CellBrush(FLinearColor::White);
-				FLinearColor CellColor(Cell.bSelected ? FLinearColor(1, 1, 1, 0.25f) : FLinearColor(0, 0, 0, Cell.bEmpty ? 1.0f : 0.5f));
 
 				FSlateDrawElement::MakeBox(
 					OutDrawElements,

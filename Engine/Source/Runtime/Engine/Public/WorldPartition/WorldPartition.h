@@ -97,9 +97,6 @@ private:
 	TArray<const FWorldPartitionActorDesc*> GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const;
 	// UActorPartitionSubsystem interface-
 
-	void AddActor(AActor* InActor);
-	void RemoveActor(AActor* InActor);
-
 	void ApplyActorTransform(AActor* InActor, const FTransform& InTransform);
 
 	static void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);

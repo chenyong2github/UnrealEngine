@@ -125,7 +125,6 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 	{
 		FCellNode()
 			: ChildNodesMask(0)
-			, Cell(nullptr)
 		{}
 
 		inline bool HasChildNodes() const
@@ -171,7 +170,6 @@ class ENGINE_API UWorldPartitionEditorSpatialHash : public UWorldPartitionEditor
 		}
 
 		uint8 ChildNodesMask;
-		UWorldPartitionEditorCell* Cell;
 	};
 
 public:
@@ -192,12 +190,14 @@ public:
 #if WITH_EDITORONLY_DATA
 private:
 	FBox GetActorBounds(FWorldPartitionActorDesc* InActorDesc) const;
+	bool IsActorAlwaysLoaded(FWorldPartitionActorDesc* InActorDesc) const;
 	int32 ForEachIntersectingCellInner(const FBox& Box, const FCellCoord& CellCoord, TFunctionRef<void(UWorldPartitionEditorCell*)> InOperation);
 
 	UPROPERTY(Config)
 	int32 CellSize;
 
-	TMap<FCellCoord, FCellNode> HashCells;
+	TMap<FCellCoord, FCellNode> HashNodes;
+	TMap<FCellCoord, UWorldPartitionEditorCell*> HashCells;
 
 	UPROPERTY(Transient)
 	TSet<UWorldPartitionEditorCell*> Cells;

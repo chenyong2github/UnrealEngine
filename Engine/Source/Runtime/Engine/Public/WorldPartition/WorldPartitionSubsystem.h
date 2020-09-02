@@ -47,8 +47,6 @@ public:
 	TArray<const FWorldPartitionActorDesc*> GetIntersectingActorDescs(const FBox& Box, TSubclassOf<AActor> ActorClass) const;
 
 	void UpdateActorDesc(AActor* Actor);
-	void AddActor(AActor* Actor);
-	void RemoveActor(AActor* Actor);
 
 	void RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory);
 

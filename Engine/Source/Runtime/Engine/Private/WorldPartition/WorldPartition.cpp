@@ -506,33 +506,6 @@ void UWorldPartition::UpdateActorDesc(AActor* InActor)
 	}
 }
 
-void UWorldPartition::AddActor(AActor* InActor)
-{
-	check(!InActor->IsPendingKill());
-	
-	if (InActor->GetLevel() == World->PersistentLevel && InActor->IsPackageExternal() && !InActor->IsChildActor())
-	{
-		check(!GetActorDesc(InActor->GetActorGuid()))
-		verify(InActor->GetLevel()->Actors.Find(InActor) != INDEX_NONE);
-
-		FWorldPartitionActorDesc* NewDesc = GetActorDescFactory(InActor)->Create(InActor);
-
-		Actors.Add(InActor->GetActorGuid(), TUniquePtr<FWorldPartitionActorDesc>(NewDesc));
-		
-		HashActorDesc(NewDesc);
-		RefreshLoadedCells();
-	}
-}
-
-void UWorldPartition::RemoveActor(AActor* InActor)
-{
-	if (FWorldPartitionActorDesc* ActorDesc = GetActorDesc(InActor->GetActorGuid()))
-	{
-		UnhashActorDesc(ActorDesc);
-		Actors.Remove(ActorDesc->GetGuid());
-	}
-}
-
 void UWorldPartition::ApplyActorTransform(AActor* InActor, const FTransform& InTransform)
 {
 	if (!InTransform.Equals(FTransform::Identity))

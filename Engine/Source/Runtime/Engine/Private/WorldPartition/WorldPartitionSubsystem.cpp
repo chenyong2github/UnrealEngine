@@ -199,22 +199,6 @@ void UWorldPartitionSubsystem::UpdateActorDesc(AActor* Actor)
 	}
 }
 
-void UWorldPartitionSubsystem::AddActor(AActor* Actor)
-{
-	if (UWorldPartition* MainPartition = GetMainWorldPartition())
-	{
-		MainPartition->AddActor(Actor);
-	}
-}
-
-void UWorldPartitionSubsystem::RemoveActor(AActor* Actor)
-{
-	if (UWorldPartition* MainPartition = GetMainWorldPartition())
-	{
-		MainPartition->RemoveActor(Actor);
-	}
-}
-
 void UWorldPartitionSubsystem::RegisterActorDescFactory(TSubclassOf<AActor> Class, FWorldPartitionActorDescFactory* Factory)
 {
 	if (IsEnabled())
