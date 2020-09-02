@@ -2940,11 +2940,12 @@ typedef TArray<FConvexVolume, TInlineAllocator<8>> FLightViewFrustumConvexHulls;
 // Based on: https://udn.unrealengine.com/questions/410475/improved-culling-of-shadow-casters-for-spotlights.html
 void BuildLightViewFrustumConvexHull(const FVector& LightOrigin, const FConvexVolume& Frustum, FConvexVolume& ConvexHull)
 {
-	// This function assumes that there are 4 planes
-	// If this isn't the case, we should really know about it, so assert.
+	// This function works with 4 frustum planes
+	// We may occasionally see a 5th if OverrideFarClippingPlaneDistance is used such as in the Editor, but we ignore that 
+	// virtual plane (which we assume is the last in the list) for the purposes of culling here.
 	const int32 EdgeCount = 4;
 	const int32 PlaneCount = 4;
-	check(Frustum.Planes.Num() == PlaneCount);
+	check(Frustum.Planes.Num() == 4 || Frustum.Planes.Num() == 5);
 
 	enum EFrustumPlanes
 	{

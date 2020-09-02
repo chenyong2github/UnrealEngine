@@ -451,6 +451,9 @@ void GetViewFrustumBoundsInternal(FConvexVolume& OutResult, const FMatrix& ViewP
 	OutResult.Planes.Empty(6);
 	FPlane Temp;
 
+	// NOTE: Be careful changing anything here! Some callers make assumptions about the order of the planes returned.
+	// See for instance BuildLightViewFrustumConvexHull in ShadowSetup.cpp
+
 	// Near clipping plane.
 	if (bUseNearPlane && ViewProjectionMatrix.GetFrustumNearPlane(Temp))
 	{
