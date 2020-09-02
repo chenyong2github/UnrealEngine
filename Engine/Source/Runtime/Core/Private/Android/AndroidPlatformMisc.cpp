@@ -145,7 +145,7 @@ static void OverrideCpuThermalSensorFileFromCVar(IConsoleVariable* Var)
 	if (Len < UE_ARRAY_COUNT(AndroidCpuThermalSensorFileBuf))
 	{
 		FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, TCHAR_TO_ANSI(*Override));
-		UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath was set to `%s`"), AndroidCpuThermalSensorFileBuf);
+		UE_LOG(LogAndroid, Display, TEXT("Thermal sensor's filepath was set to `%s`"), *Override);
 		return;
 	}
 
@@ -166,8 +166,14 @@ static void InitCpuThermalSensor()
 		{
 			fgets(Buf, UE_ARRAY_COUNT(Buf), File);
 			fclose(File);
-			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), Buf, Counter);
-			*Buf = 0;
+			char* Ptr = Buf;
+			while (!iscntrl(*Ptr))		// it appears that zone type string ends up with \n symbol
+			{
+				++Ptr;
+			}
+			*Ptr = 0;
+
+			UE_LOG(LogAndroid, Display, TEXT("Detected thermal sensor `%s` at /sys/devices/virtual/thermal/thermal_zone%u/temp"), ANSI_TO_TCHAR(Buf), Counter);
 			++Counter;
 		}
 		else
@@ -185,7 +191,7 @@ static void InitCpuThermalSensor()
 		if (FILE* File = fopen(SensorFilePath, "r"))
 		{
 			FCStringAnsi::Strcpy(AndroidCpuThermalSensorFileBuf, SensorFilePath);
-			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), AndroidCpuThermalSensorFileBuf);
+			UE_LOG(LogAndroid, Display, TEXT("Selecting thermal sensor located at `%s`"), ANSI_TO_TCHAR(AndroidCpuThermalSensorFileBuf));
 			fclose(File);
 			return;
 		}
