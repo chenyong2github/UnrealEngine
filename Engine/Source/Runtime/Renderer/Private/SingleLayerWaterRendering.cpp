@@ -928,6 +928,9 @@ bool FDeferredShadingSceneRenderer::RenderSingleLayerWaterPass(FRHICommandListIm
 			{
 				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
 
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture->GetTexture2D());
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, PassData.SceneDepthWithoutSingleLayerWater->GetRenderTargetItem().TargetableTexture->GetTexture2D());
+
 				bDirty |= RenderSingleLayerWaterPassView(RHICmdList, View, DrawRenderState, bParallel);
 			}
 		}

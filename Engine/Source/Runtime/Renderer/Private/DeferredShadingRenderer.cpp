@@ -3322,6 +3322,8 @@ void FDeferredShadingSceneRenderer::UpdateHalfResDepthSurfaceCheckerboardMinMax(
 		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, View.HalfResDepthSurfaceCheckerboardMinMax, TEXT("HalfResDepthSurfaceCheckerboardMinMax"), true, ERenderTargetTransience::Transient);
 
 		DownsampleDepthSurface(RHICmdList, View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture->GetTexture2D(), View, DownsampleFactor, EDepthDownsampleMode::Checkerboard);
+
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, View.HalfResDepthSurfaceCheckerboardMinMax->GetRenderTargetItem().TargetableTexture->GetTexture2D());
 	}
 }
 
