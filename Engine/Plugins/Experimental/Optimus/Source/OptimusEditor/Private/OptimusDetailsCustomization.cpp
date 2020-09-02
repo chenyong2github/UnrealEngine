@@ -9,7 +9,7 @@
 #include "DetailWidgetRow.h"
 #include "IPropertyTypeCustomization.h"
 #include "IDetailChildrenBuilder.h"
-#include "Widgets/Input/SMultilineEditableTextBox.h"
+#include "Widgets/Input/SMultiLineEditableTextBox.h"
 
 
 #define LOCTEXT_NAMESPACE "OptimusDetailCustomization"
