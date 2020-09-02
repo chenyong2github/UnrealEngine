@@ -19,51 +19,52 @@
 
 FInputRayHit UMeshPaintSelectionMechanic::IsHitByClick(const FInputDeviceRay& ClickPos)
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetParentTool()->GetToolManager()))
+	IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
+	if (!bAddToSelectionSet || !Interface->AllowsMultiselect())
 	{
-		IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
-		if (!bAddToSelectionSet || !Interface->AllowsMultiselect())
-		{
-			CachedClickedComponents.Empty();
-			CachedClickedActors.Empty();
-		}
-		return FindClickedComponentsAndCacheAdapters(ClickPos, MeshToolManager) ? FInputRayHit(0.0f) : FInputRayHit();
+		CachedClickedComponents.Empty();
+		CachedClickedActors.Empty();
 	}
-	return FInputRayHit();
+	return FindClickedComponentsAndCacheAdapters(ClickPos) ? FInputRayHit(0.0f) : FInputRayHit();
 }
 
 void UMeshPaintSelectionMechanic::OnClicked(const FInputDeviceRay& ClickPos)
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetParentTool()->GetToolManager()))
+	if (SharedMeshToolData.IsValid())
 	{
 		for (UMeshComponent* MeshComponent : CachedClickedComponents)
 		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(MeshComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = SharedMeshToolData->GetAdapterForComponent(MeshComponent);
 			IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
 			if (MeshComponent && MeshComponent->IsVisible() && MeshAdapter.IsValid() && MeshAdapter->IsValid() && Interface->IsMeshAdapterSupported(MeshAdapter))
 			{
-				MeshToolManager->AddPaintableMeshComponent(MeshComponent);
+				SharedMeshToolData->AddPaintableMeshComponent(MeshComponent);
 				MeshAdapter->OnAdded();
 			}
 
-			MeshToolManager->BeginUndoTransaction(LOCTEXT("MeshSelection", "Select Mesh"));
+			GetParentTool()->GetToolManager()->BeginUndoTransaction(LOCTEXT("MeshSelection", "Select Mesh"));
 
 
 			FSelectedOjectsChangeList NewSelection;
 			// TODO add CTRL handling
 			NewSelection.ModificationType = bAddToSelectionSet ? ESelectedObjectsModificationType::Add : ESelectedObjectsModificationType::Replace;
 			NewSelection.Actors.Append(CachedClickedActors);
-			MeshToolManager->RequestSelectionChange(NewSelection);
-			MeshToolManager->EndUndoTransaction();
+			GetParentTool()->GetToolManager()->RequestSelectionChange(NewSelection);
+			GetParentTool()->GetToolManager()->EndUndoTransaction();
 		}
 	}
 }
 
-bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos, class UMeshToolManager* MeshToolManager)
+bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos)
 {
 	bool bFoundValidComponents = false;
 #if WITH_EDITOR
-	if (HHitProxy* HitProxy = MeshToolManager->GetContextQueriesAPI()->GetHitProxy(ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y))
+	if (!SharedMeshToolData.IsValid())
+	{
+		return bFoundValidComponents;
+	}
+
+	if (HHitProxy* HitProxy = GetParentTool()->GetToolManager()->GetContextQueriesAPI()->GetHitProxy(ClickPos.ScreenPosition.X, ClickPos.ScreenPosition.Y))
 	{
 		if (HitProxy->IsA(HActor::StaticGetType()))
 		{
@@ -77,7 +78,7 @@ bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FI
 				IMeshPaintSelectionInterface* Interface = Cast<IMeshPaintSelectionInterface>(GetParentTool());
 				if (MeshAdapter.IsValid() && Interface->IsMeshAdapterSupported(MeshAdapter))
 				{
-					MeshToolManager->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
+					SharedMeshToolData->AddToComponentToAdapterMap(MeshComponent, MeshAdapter);
 					CachedClickedComponents.AddUnique(MeshComponent);
 					CachedClickedActors.AddUnique(Cast<AActor>(MeshComponent->GetOuter()));
 					bFoundValidComponents = true;
@@ -88,4 +89,10 @@ bool UMeshPaintSelectionMechanic::FindClickedComponentsAndCacheAdapters(const FI
 #endif
 	return bFoundValidComponents;
 }
+
+void UMeshPaintSelectionMechanic::SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData)
+{
+	SharedMeshToolData = InMeshToolData;
+}
+
 #undef LOCTEXT_NAMESPACE

@@ -10,7 +10,7 @@
 
 // single material case
 AActor* AssetGenerationUtil::GenerateStaticMeshActor(
-	IToolsContextAssetAPI* AssetAPI,
+	IAssetGenerationAPI* AssetAPI,
 	UWorld* TargetWorld,
 	const FDynamicMesh3* Mesh,
 	const FTransform3d& Transform,
@@ -23,7 +23,7 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 
 // N-material case
 AActor* AssetGenerationUtil::GenerateStaticMeshActor(
-	IToolsContextAssetAPI* AssetAPI,
+	IAssetGenerationAPI* AssetAPI,
 	UWorld* TargetWorld,
 	const FDynamicMesh3* Mesh,
 	const FTransform3d& Transform,
@@ -50,7 +50,7 @@ AActor* AssetGenerationUtil::GenerateStaticMeshActor(
 
 
 bool AssetGenerationUtil::SaveGeneratedTexture2D(
-	IToolsContextAssetAPI* AssetAPI,
+	IAssetGenerationAPI* AssetAPI,
 	UTexture2D* TransientTexture,
 	FString ObjectName,
 	const UObject* RelativeToAsset)

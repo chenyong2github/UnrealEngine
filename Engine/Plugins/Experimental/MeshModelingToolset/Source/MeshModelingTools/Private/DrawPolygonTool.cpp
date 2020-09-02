@@ -80,7 +80,7 @@ void UDrawPolygonTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UDrawPolygonTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UDrawPolygonTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

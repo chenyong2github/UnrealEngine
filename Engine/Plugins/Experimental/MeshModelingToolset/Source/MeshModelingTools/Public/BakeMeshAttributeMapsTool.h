@@ -17,6 +17,7 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class UMaterialInstanceDynamic;
 class UTexture2D;
+class IAssetGenerationAPI;
 template<typename RealType> class TMeshTangents;
 class FMeshImageBakingCache;
 
@@ -29,7 +30,7 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsToolBuilder : public UInteract
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -234,7 +235,7 @@ class MESHMODELINGTOOLS_API UBakeMeshAttributeMapsTool : public UMultiSelectionT
 public:
 	UBakeMeshAttributeMapsTool();
 
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -270,7 +271,7 @@ protected:
 
 
 protected:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	USimpleDynamicMeshComponent* DynamicMeshComponent;
 

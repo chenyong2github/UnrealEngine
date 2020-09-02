@@ -19,6 +19,7 @@
 // predeclarations
 struct FMeshDescription;
 class USimpleDynamicMeshComponent;
+class IAssetGenerationAPI;
 
 
 /**
@@ -30,7 +31,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UUVLayoutToolBuilder : public UInteractive
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -124,7 +125,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -150,7 +151,7 @@ protected:
 	TArray<TSharedPtr<FDynamicMesh3>> OriginalDynamicMeshes;
 
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 

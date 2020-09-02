@@ -11,6 +11,8 @@
 #include "Properties/MeshMaterialProperties.h"
 #include "AddPatchTool.generated.h"
 
+class IAssetGenerationAPI;
+
 class FDynamicMesh3;
 
 /**
@@ -22,7 +24,7 @@ class MESHMODELINGTOOLS_API UAddPatchToolBuilder : public UInteractiveToolBuilde
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	UAddPatchToolBuilder() 
 	{
@@ -76,7 +78,7 @@ class MESHMODELINGTOOLS_API UAddPatchTool : public USingleClickTool, public IHov
 
 public:
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -114,7 +116,7 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	FBox WorldBounds;
 

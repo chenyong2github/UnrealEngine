@@ -405,7 +405,7 @@ class FEdMode* FAssetEditorToolkit::GetEditorMode() const
 	return nullptr;
 }
 
-class UEdMode* FAssetEditorToolkit::GetScriptableEditorMode() const
+TWeakObjectPtr<UEdMode> FAssetEditorToolkit::GetScriptableEditorMode() const
 {
 	return nullptr;
 }

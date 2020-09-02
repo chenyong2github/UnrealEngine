@@ -52,7 +52,7 @@ void UAddPatchTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UAddPatchTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UAddPatchTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

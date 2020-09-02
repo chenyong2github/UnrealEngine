@@ -50,7 +50,7 @@ void UShapeSprayTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UShapeSprayTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UShapeSprayTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

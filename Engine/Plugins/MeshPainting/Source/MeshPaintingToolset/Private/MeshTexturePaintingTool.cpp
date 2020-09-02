@@ -31,9 +31,8 @@
 bool UMeshTexturePaintingToolBuilder::CanBuildTool(const FToolBuilderState& SceneState) const
 {
 	UActorComponent* ActorComponent = ToolBuilderUtil::FindFirstComponent(SceneState, UMeshPaintingToolset::HasPaintableMesh);
-	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(SceneState.ToolManager);
 	TArray<FPaintableTexture> PaintableTextures;
-	if (ActorComponent && MeshToolManager)
+	if (ActorComponent && SharedMeshToolData.IsValid())
 	{
 		UMeshComponent* MeshComponent = Cast<UMeshComponent>(ActorComponent);
 		if (MeshComponent)
@@ -49,6 +48,7 @@ bool UMeshTexturePaintingToolBuilder::CanBuildTool(const FToolBuilderState& Scen
 UInteractiveTool* UMeshTexturePaintingToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UMeshTexturePaintingTool* NewTool = NewObject<UMeshTexturePaintingTool>(SceneState.ToolManager);
+	NewTool->SetMeshToolData(SharedMeshToolData);
 	return NewTool;
 }
 
@@ -109,10 +109,9 @@ void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 
 	// Remove any existing texture targets
 	TexturePaintTargetList.Empty();
-	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
-	if (MeshToolManager)
+	if (SharedMeshToolData.IsValid())
 	{
-		MeshToolManager->Refresh();
+		SharedMeshToolData->Refresh();
 	}
 
 	BrushProperties->SaveProperties(this);
@@ -121,11 +120,11 @@ void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 
 void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
-	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
-		Super::Render(RenderAPI);
-		FToolDataVisualizer Draw;
-		Draw.BeginFrame(RenderAPI);
-	if (MeshToolManager && LastBestHitResult.Component != nullptr)
+	Super::Render(RenderAPI);
+	FToolDataVisualizer Draw;
+	Draw.BeginFrame(RenderAPI);
+
+	if (SharedMeshToolData.IsValid() && LastBestHitResult.Component != nullptr)
 	{
 		BrushStampIndicator->bDrawIndicatorLines = true;
 		static float WidgetLineThickness = 1.0f;
@@ -139,9 +138,9 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 		const FVector NormalLineEnd(LastBestHitResult.Location + LastBestHitResult.Normal * NormalLineSize);
 		Draw.DrawLine(FVector(LastBestHitResult.Location), NormalLineEnd, NormalLineColor, WidgetLineThickness);
 
-		for (UMeshComponent* CurrentComponent : MeshToolManager->GetPaintableMeshComponents())
+		for (UMeshComponent* CurrentComponent : SharedMeshToolData->GetPaintableMeshComponents())
 		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = MeshToolManager->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = SharedMeshToolData->GetAdapterForComponent(Cast<UMeshComponent>(CurrentComponent));
 
 			if (MeshAdapter->IsValid() && MeshAdapter->SupportsVertexPaint())
 			{
@@ -168,9 +167,9 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 
 void UMeshTexturePaintingTool::OnTick(float DeltaTime)
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	if (SharedMeshToolData.IsValid())
 	{
-		if (MeshToolManager->bNeedsRecache)
+		if (SharedMeshToolData->bNeedsRecache)
 		{
 			CacheSelectionData();
 			CacheTexturePaintData();
@@ -200,15 +199,14 @@ void UMeshTexturePaintingTool::OnPropertyModified(UObject* PropertySet, FPropert
 
 double UMeshTexturePaintingTool::EstimateMaximumTargetDimension()
 {
-	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
 	bool bFoundComponentToUse = false;
 	FBoxSphereBounds Bounds = FBoxSphereBounds(0.0);
-	if (MeshToolManager)
+	if (SharedMeshToolData.IsValid())
 	{
 		bool bFirstItem = true;
 
 		FBoxSphereBounds Extents;
-		for (UMeshComponent* SelectedComponent : MeshToolManager->GetSelectedMeshComponents())
+		for (UMeshComponent* SelectedComponent : SharedMeshToolData->GetSelectedMeshComponents())
 		{
 			if (bFirstItem)
 			{
@@ -258,30 +256,30 @@ bool UMeshTexturePaintingTool::Paint(const TArrayView<TPair<FVector, FVector>>& 
 
 void UMeshTexturePaintingTool::CacheSelectionData()
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	if (SharedMeshToolData.IsValid())
 	{
-		MeshToolManager->ClearPaintableMeshComponents();
+		SharedMeshToolData->ClearPaintableMeshComponents();
 
 		//Determine LOD level to use for painting(can only paint on LODs in vertex mode)
 		const int32 PaintLODIndex = 0;
 		//Determine UV channel to use while painting textures
 		const int32 UVChannel = 0;
 
-		MeshToolManager->CacheSelectionData(PaintLODIndex, UVChannel);
+		SharedMeshToolData->CacheSelectionData(PaintLODIndex, UVChannel);
 	}
 }
 
 void UMeshTexturePaintingTool::CacheTexturePaintData()
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	if (SharedMeshToolData.IsValid())
 	{
-		TArray<UMeshComponent*> PaintableComponents = MeshToolManager->GetPaintableMeshComponents();
+		TArray<UMeshComponent*> PaintableComponents = SharedMeshToolData->GetPaintableMeshComponents();
 		
 		PaintableTextures.Empty();
 		if (PaintableComponents.Num() == 1 && PaintableComponents[0])
 		{
 			const UMeshComponent* Component = PaintableComponents[0];
-			TSharedPtr<IMeshPaintComponentAdapter> Adapter = MeshToolManager->GetAdapterForComponent(Component);
+			TSharedPtr<IMeshPaintComponentAdapter> Adapter = SharedMeshToolData->GetAdapterForComponent(Component);
 			UTexturePaintToolset::RetrieveTexturesForComponent(Component, Adapter.Get(), PaintableTextures);
 		}
 
@@ -528,9 +526,9 @@ void UMeshTexturePaintingTool::OnEndDrag(const FRay& Ray)
 bool UMeshTexturePaintingTool::HitTest(const FRay& Ray, FHitResult& OutHit)
 {
 	bool bUsed = false;
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	if (SharedMeshToolData.IsValid())
 	{
-		MeshToolManager->FindHitResult(Ray, OutHit);
+		SharedMeshToolData->FindHitResult(Ray, OutHit);
 		LastBestHitResult = OutHit;
 		bUsed = OutHit.bBlockingHit;
 	}
@@ -1303,6 +1301,11 @@ void UMeshTexturePaintingTool::PaintTextureChanged(const FAssetData& AssetData)
 			}
 		}
 	}
+}
+
+void UMeshTexturePaintingTool::SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InToolData)
+{
+	SharedMeshToolData = InToolData;
 }
 
 #undef LOCTEXT_NAMESPACE

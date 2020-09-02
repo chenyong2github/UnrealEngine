@@ -22,6 +22,7 @@ class UMeshTexturePaintingToolProperties;
 class UMeshPaintModeSettings;
 class IMeshPaintComponentAdapter;
 class UMeshComponent;
+class UMeshToolManager;
 
 /**
  * Mesh paint Mode.  Extends editor viewports with the ability to paint data on meshes
@@ -62,10 +63,12 @@ public:
 		return CachedVertexDataSize;
 	}
 
+	TWeakObjectPtr<UMeshToolManager> GetMeshToolData() const;
+
 protected:
 
 	/** Binds UI commands to actions for the mesh paint mode */
-	virtual void BindCommands();
+	virtual void BindCommands() override;
 
 	// UEdMode interface
 	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
@@ -100,9 +103,14 @@ protected:
 	void CommitAllPaintedTextures();
 	int32 GetNumberOfPendingPaintChanges();
 	void OnVertexPaintFinished();
+
 protected:
 	UPROPERTY(Transient)
 	UMeshPaintModeSettings* ModeSettings;
+
+	UPROPERTY(Transient)
+	UMeshToolManager* SharedMeshToolData;
+
 	// End vertex paint state
 	FGetSelectedMeshComponents MeshComponentDelegate;
 	uint32 CachedVertexDataSize;

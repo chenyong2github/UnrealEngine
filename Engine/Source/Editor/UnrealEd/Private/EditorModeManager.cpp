@@ -32,6 +32,7 @@
 #include "Widgets/Images/SImage.h"
 #include "InputRouter.h"
 #include "InteractiveGizmoManager.h"
+#include "EdModeInteractiveToolsContext.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -62,6 +63,9 @@ FEditorModeTools::FEditorModeTools()
 {
 	DefaultModeIDs.Add( FBuiltinEditorModes::EM_Default );
 
+	InteractiveToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), UEdModeInteractiveToolsContext::StaticClass(), TEXT("ToolsContext"), RF_Transient);
+	InteractiveToolsContext->InitializeContextWithEditorModeManager(this);
+
 	// Load the last used settings
 	LoadConfig();
 
@@ -86,6 +90,9 @@ FEditorModeTools::~FEditorModeTools()
 
 	DeactivateAllModes();
 	RecycledScriptableModes.Empty();
+
+	InteractiveToolsContext->ShutdownContext();
+	InteractiveToolsContext = nullptr;
 }
 
 void FEditorModeTools::LoadConfig(void)
@@ -1557,6 +1564,7 @@ void FEditorModeTools::AddReferencedObjects( FReferenceCollector& Collector )
 {
 	Collector.AddReferencedObjects(ActiveScriptableModes);
 	Collector.AddReferencedObjects(RecycledScriptableModes);
+	Collector.AddReferencedObject(InteractiveToolsContext);
 }
 
 FEdMode* FEditorModeTools::GetActiveMode( FEditorModeID InID )
@@ -1644,4 +1652,9 @@ bool FEditorModeTools::CanAutoSave() const
 	}
 
 	return true;
+}
+
+UEdModeInteractiveToolsContext* FEditorModeTools::GetInteractiveToolsContext() const
+{
+	return InteractiveToolsContext;
 }

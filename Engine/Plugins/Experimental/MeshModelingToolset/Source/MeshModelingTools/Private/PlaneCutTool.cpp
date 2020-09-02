@@ -319,7 +319,7 @@ void UPlaneCutTool::Shutdown(EToolShutdownType ShutdownType)
 	GizmoManager->DestroyAllGizmosByOwner(this);
 }
 
-void UPlaneCutTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UPlaneCutTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

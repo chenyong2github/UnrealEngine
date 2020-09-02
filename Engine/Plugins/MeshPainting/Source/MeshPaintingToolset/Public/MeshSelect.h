@@ -11,6 +11,7 @@ class IMeshPaintComponentAdapter;
 class AActor;
 class UMeshComponent;
 class UMeshPaintSelectionMechanic;
+class UMeshToolManager;
 
 /**
  * Builder for UVertexAdapterClickTool
@@ -23,6 +24,8 @@ class MESHPAINTINGTOOLSET_API UVertexAdapterClickToolBuilder : public USingleCli
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 
@@ -37,6 +40,8 @@ class MESHPAINTINGTOOLSET_API UTextureAdapterClickToolBuilder : public USingleCl
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 
@@ -75,6 +80,8 @@ public:
 		return true;
 	}
 
+	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData);
+
 protected:
 	// flags used to identify modifier keys/buttons
 	static const int AdditiveSelectionModifier = 1;
@@ -82,6 +89,8 @@ protected:
 
 	UPROPERTY(Transient)
 	UMeshPaintSelectionMechanic* SelectionMechanic;
+
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 UCLASS()

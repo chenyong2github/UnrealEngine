@@ -111,7 +111,7 @@ void UAddPrimitiveTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UAddPrimitiveTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UAddPrimitiveTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

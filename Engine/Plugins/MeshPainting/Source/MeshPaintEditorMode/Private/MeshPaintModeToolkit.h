@@ -15,13 +15,14 @@ public:
 	FMeshPaintModeToolkit(  )
 	{}
 
+	~FMeshPaintModeToolkit();
+
 	/** FModeToolkit interface */
-	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
 	
 	// IToolkit overrides
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual class UEdMode* GetScriptableEditorMode() const override;
 	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const override;
 	virtual FText GetToolPaletteDisplayName(FName Palette) const override;
 

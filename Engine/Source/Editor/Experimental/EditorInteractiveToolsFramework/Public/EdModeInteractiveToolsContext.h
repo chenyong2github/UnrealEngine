@@ -26,14 +26,14 @@ class FViewportClient;
  * conversions and forwarding calls necessary to operate the ToolsContext
  */
 UCLASS(Transient)
-class EDITORINTERACTIVETOOLSFRAMEWORK_API UEdModeInteractiveToolsContext : public UInteractiveToolsContext
+class EDITORINTERACTIVETOOLSFRAMEWORK_API UEdModeInteractiveToolsContext final : public UInteractiveToolsContext
 {
 	GENERATED_BODY()
 
 public:
 	UEdModeInteractiveToolsContext();
 
-
+	UE_DEPRECATED(5.0, "You should no longer create your own EdModeInteractiveToolsContext; use the one in the FEditorModeTools::GetInteractiveToolsContext insetead.")
 	virtual void InitializeContextFromEdMode(FEdMode* EditorModeIn,
 		IToolsContextAssetAPI* UseAssetAPI = nullptr);
 	virtual void InitializeContextWithEditorModeManager(FEditorModeTools* InEditorModeManager,

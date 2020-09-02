@@ -121,7 +121,7 @@ void UCombineMeshesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void UCombineMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UCombineMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

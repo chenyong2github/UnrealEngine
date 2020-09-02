@@ -23,15 +23,4 @@ public:
 	virtual void InteractiveSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) override;
 	virtual void AutoSaveGeneratedAsset(UObject* Asset, UPackage* AssetPackage) override;
 	virtual void NotifyGeneratedAssetModified(UObject* Asset, UPackage* AssetPackage) override;
-
-	virtual AActor* GenerateStaticMeshActor(
-		UWorld* TargetWorld,
-		FTransform Transform,
-		FString ObjectBaseName,
-		FGeneratedStaticMeshAssetConfig&& AssetConfig) override
-	{
-		check(false);		// currently not supported in default editor tool API. 
-							// ModelingModeAssetAPI contains an experimental implementation
-		return nullptr;
-	}
 };

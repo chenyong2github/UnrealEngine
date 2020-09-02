@@ -63,6 +63,8 @@ class MESHPAINTINGTOOLSET_API UMeshColorPaintingToolBuilder : public UInteractiv
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+	
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 UCLASS()
@@ -73,6 +75,8 @@ class MESHPAINTINGTOOLSET_API UMeshWeightPaintingToolBuilder : public UInteracti
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 
@@ -200,6 +204,8 @@ public:
 		return true;
 	}
 
+	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData);
+
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
 	virtual void FinishPainting();
@@ -225,12 +231,15 @@ protected:
 	UPROPERTY(Transient)
 	UMeshPaintSelectionMechanic* SelectionMechanic;
 
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
+
 private:
 	bool PaintInternal(const TArrayView<TPair<FVector, FVector>>& Rays, EMeshPaintModeAction PaintAction, float PaintStrength);
 	
 private:
 	UPROPERTY(Transient)
 	UMeshVertexPaintingToolProperties* VertexProperties;
+
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;
 	bool bDoRestoreRenTargets;
@@ -268,6 +277,7 @@ protected:
 private:
 	UPROPERTY(Transient)
 	UMeshColorPaintingToolProperties* ColorProperties;
+
 	/** Current LOD index used for painting / forcing */
 	int32 CachedLODIndex;
 	/** Whether or not a specific LOD level should be forced */

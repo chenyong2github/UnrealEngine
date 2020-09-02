@@ -14,6 +14,7 @@
 #include "AddPrimitiveTool.generated.h"
 
 class FDynamicMesh3;
+class IAssetGenerationAPI;
 
 /**
  * Builder
@@ -39,7 +40,7 @@ public:
 		Sphere
 	};
 
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	UAddPrimitiveToolBuilder()
 	{
@@ -376,7 +377,7 @@ public:
 	UAddPrimitiveTool(const FObjectInitializer&);
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -436,7 +437,7 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	void UpdatePreviewPosition(const FInputDeviceRay& ClickPos);
 	FFrame3f ShapeFrame;

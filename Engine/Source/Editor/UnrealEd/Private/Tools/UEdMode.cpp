@@ -20,7 +20,7 @@
 #include "Toolkits/ToolkitManager.h"
 #include "Materials/Material.h"
 #include "Materials/MaterialInterface.h"
-#include "LevelEditorViewport.h"
+#include "EditorViewportClient.h"
 #include "InteractiveToolManager.h"
 #include "InteractiveToolObjects.h"
 #include "Editor/EditorEngine.h"
@@ -67,7 +67,6 @@ UEdMode::UEdMode()
 {
 	bDrawKillZ = true;
 	ToolsContext = nullptr;
-	ToolsContextClass = UEdModeInteractiveToolsContext::StaticClass();
 	ToolCommandList = MakeShareable(new FUICommandList);
 }
 
@@ -216,16 +215,30 @@ void UEdMode::Enter()
 
 	bPendingDeletion = false;
 
-	// initialize the adapter that attaches the ToolsContext to this FEdMode
-	ToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), ToolsContextClass.Get(), TEXT("ToolsContext"), RF_Transient);
-	ToolsContext->InitializeContextWithEditorModeManager(GetModeManager());
-
+	ToolsContext = Owner->GetInteractiveToolsContext();
+	check(ToolsContext.IsValid());
 
 	GetToolManager()->OnToolStarted.AddUObject(this, &UEdMode::OnToolStarted);
 	GetToolManager()->OnToolEnded.AddUObject(this, &UEdMode::OnToolEnded);
 
 	// Now that the context is ready, make the toolkit
 	CreateToolkit();
+	check(Toolkit.IsValid());
+
+	Toolkit->Init(Owner->GetToolkitHost(), this);
+
+	BindCommands();
+
+	if (SettingsClass.IsValid())
+	{
+		UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();
+		SettingsObject = NewObject<UObject>(this, LoadedSettingsObject);
+	}
+
+	if (SettingsObject)
+	{
+		Toolkit->SetModeSettingsObject(SettingsObject);
+	}
 
 	FEditorDelegates::EditorModeIDEnter.Broadcast(GetID());
 
@@ -239,6 +252,8 @@ void UEdMode::RegisterTool(TSharedPtr<FUICommandInfo> UICommand, FString ToolIde
 		FExecuteAction::CreateLambda([this, ToolIdentifier]() { this->ToolsContext->StartTool(ToolIdentifier); }),
 		FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return this->ToolsContext->ToolManager->CanActivateTool(EToolSide::Mouse, ToolIdentifier); }),
 		FIsActionChecked::CreateLambda([this, Builder]() { return this->ToolsContext->IsToolBuilderActive(EToolSide::Mouse, Builder); }));
+
+	RegisteredTools.Emplace(UICommand, ToolIdentifier);
 }
 
 void UEdMode::Exit()
@@ -246,14 +261,21 @@ void UEdMode::Exit()
 	GetToolManager()->OnToolStarted.RemoveAll(this);
 	GetToolManager()->OnToolEnded.RemoveAll(this);
 
-	ToolsContext->ShutdownContext();
-	ToolsContext = nullptr;
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+	for (auto& RegisteredTool : RegisteredTools)
+	{
+		CommandList->UnmapAction(RegisteredTool.Key);
+		ToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
+	}
+	RegisteredTools.SetNum(0);
 
 	if (Toolkit.IsValid())
 	{
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
+
+	ToolsContext = nullptr;
 
 	FEditorDelegates::EditorModeIDExit.Broadcast(GetID());
 }
@@ -266,7 +288,7 @@ UTexture2D* UEdMode::GetVertexTexture()
 void UEdMode::Render(const FSceneView* View, FViewport* Viewport, FPrimitiveDrawInterface* PDI)
 {
 	// give ToolsContext a chance to render
-	if (ToolsContext != nullptr)
+	if (ToolsContext.IsValid())
 	{
 		ToolsContext->Render(View, Viewport, PDI);
 	}
@@ -440,25 +462,23 @@ AActor* UEdMode::GetFirstSelectedActorInstance() const
 
 UInteractiveToolManager* UEdMode::GetToolManager() const
 {
-	return ToolsContext->ToolManager;
+	if (ToolsContext.IsValid())
+	{
+		return ToolsContext->ToolManager;
+	}
+
+	return nullptr;
+}
+
+TWeakObjectPtr<UEdModeInteractiveToolsContext> UEdMode::GetInteractiveToolsContext() const
+{
+	return ToolsContext;
 }
 
 void UEdMode::CreateToolkit()
 {
-	if (!Toolkit.IsValid())
-	{
-		Toolkit = MakeShareable(new FModeToolkit);
-		Toolkit->Init(Owner->GetToolkitHost());
-
-
-	}
-
-	UClass* LoadedSettingsObject = SettingsClass.LoadSynchronous();
-	SettingsObject = NewObject<UObject>(this, LoadedSettingsObject);
-	if (SettingsObject)
-	{
-		Toolkit->SetModeSettingsObject(SettingsObject);
-	}
+	check(!Toolkit.IsValid())
+	Toolkit = MakeShareable(new FModeToolkit);
 }
 
 bool UEdMode::IsSnapRotationEnabled()

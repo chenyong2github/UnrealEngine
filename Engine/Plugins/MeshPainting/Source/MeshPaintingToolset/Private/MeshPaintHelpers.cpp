@@ -1395,14 +1395,6 @@ UMeshToolManager::UMeshToolManager()
 	bNeedsRecache = true;
 }
 
-void UMeshToolManager::Shutdown()
-{
-	UInteractiveToolManager::Shutdown();
-
-	ComponentToAdapterMap.Empty();
-	SelectedMeshComponents.Empty();
-}
-
 TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> UMeshToolManager::GetComponentToAdapterMap() const
 {
 	return ComponentToAdapterMap;
@@ -1558,10 +1550,4 @@ int32 UMeshToolManager::GetMaxUVIndexToPaint() const
 	}
 
 	return 0;
-}
-
-UMeshToolsContext::UMeshToolsContext()
-	:Super()
-{
-	ToolManagerClass = UMeshToolManager::StaticClass();
 }

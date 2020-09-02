@@ -18,6 +18,7 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class UMaterialInterface;
 class UMaterialInstanceDynamic;
+class IAssetGenerationAPI;
 
 
 
@@ -45,7 +46,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UParameterizeMeshToolBuilder : public UInt
 
 public:
 
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 	bool bDoAutomaticGlobalUnwrap = false;
 
 	UParameterizeMeshToolBuilder()
@@ -143,7 +144,7 @@ public:
 	UParameterizeMeshTool();
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 	virtual void SetUseAutoGlobalParameterizationMode(bool bEnable);
 
 	virtual void Setup() override;
@@ -186,7 +187,7 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	TSharedPtr<FMeshDescription> InputMesh;
 

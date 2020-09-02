@@ -125,7 +125,7 @@ void UMirrorTool::SetWorld(UWorld* World)
 	TargetWorld = World;
 }
 
-void UMirrorTool::SetAssetAPI(IToolsContextAssetAPI* NewAssetApi)
+void UMirrorTool::SetAssetAPI(IAssetGenerationAPI* NewAssetApi)
 {
 	AssetAPI = NewAssetApi;
 }

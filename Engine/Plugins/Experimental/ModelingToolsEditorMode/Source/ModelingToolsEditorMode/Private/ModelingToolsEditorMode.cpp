@@ -100,11 +100,7 @@ FModelingToolsEditorMode::FModelingToolsEditorMode()
 
 FModelingToolsEditorMode::~FModelingToolsEditorMode()
 {
-	if (ToolsContext != nullptr)
-	{
-		ToolsContext->ShutdownContext();
-		ToolsContext = nullptr;
-	}
+	ToolsContext = nullptr;
 }
 
 
@@ -417,19 +413,8 @@ void FModelingToolsEditorMode::Enter()
 	FEdMode::Enter();
 
 	// initialize FEdMode ToolsContext adapter
-
-	//ToolsContext = NewObject<UEdModeInteractiveToolsContext>(GetTransientPackage(), TEXT("ToolsContext"), RF_Transient);
-	ToolsContext = NewObject<UEdModeInteractiveToolsContext>();
-	ToolsContext->InitializeContextFromEdMode(this, new FModelingModeAssetAPI);
-
-	ToolsContext->OnToolNotificationMessage.AddLambda([this](const FText& Message)
-	{
-		this->OnToolNotificationMessage.Broadcast(Message);
-	});
-	ToolsContext->OnToolWarningMessage.AddLambda([this](const FText& Message)
-	{
-		this->OnToolWarningMessage.Broadcast(Message);
-	});
+	ToolsContext = Owner->GetInteractiveToolsContext();
+	ModelingModeAssetGenerationAPI = MakeShareable(new FModelingModeAssetAPI(ToolsContext->GetAssetAPI()));
 
 	// register stylus event handler
 	StylusStateTracker = MakeUnique<FStylusStateTracker>();
@@ -491,6 +476,8 @@ void FModelingToolsEditorMode::Enter()
 		CommandList->MapAction( UICommand,
 			FExecuteAction::CreateLambda([this, ToolIdentifier]() { ToolsContext->StartTool(ToolIdentifier); }),
 			FCanExecuteAction::CreateLambda([this, ToolIdentifier]() { return ToolsContext->CanStartTool(ToolIdentifier); }));
+
+		RegisteredTools.Emplace(UICommand, ToolIdentifier);
 	};
 
 
@@ -505,7 +492,7 @@ void FModelingToolsEditorMode::Enter()
 								  UAddPrimitiveToolBuilder::EMakeMeshShapeType ShapeTypeIn)
 	{
 		auto AddPrimitiveToolBuilder = NewObject<UAddPrimitiveToolBuilder>();
-		AddPrimitiveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+		AddPrimitiveToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 		AddPrimitiveToolBuilder->ShapeType = ShapeTypeIn;
 		RegisterToolFunc(UICommand, ToolIdentifier, AddPrimitiveToolBuilder);
 	};
@@ -547,27 +534,27 @@ void FModelingToolsEditorMode::Enter()
 	// make shape tools
 	//
 	auto AddPatchToolBuilder = NewObject<UAddPatchToolBuilder>();
-	AddPatchToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	AddPatchToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginAddPatchTool, TEXT("AddPatchTool"), AddPatchToolBuilder);
 
 	auto RevolveBoundaryToolBuilder = NewObject<URevolveBoundaryToolBuilder>();
-	RevolveBoundaryToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RevolveBoundaryToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginRevolveBoundaryTool, TEXT("RevolveBoundaryTool"), RevolveBoundaryToolBuilder);
 
 	auto DrawPolygonToolBuilder = NewObject<UDrawPolygonToolBuilder>();
-	DrawPolygonToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	DrawPolygonToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginDrawPolygonTool, TEXT("DrawPolygonTool"), DrawPolygonToolBuilder);
 
 	auto DrawPolyPathToolBuilder = NewObject<UDrawPolyPathToolBuilder>();
-	DrawPolyPathToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	DrawPolyPathToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginDrawPolyPathTool, TEXT("DrawPolyPath"), DrawPolyPathToolBuilder);
 
 	auto DrawAndRevolveToolBuilder = NewObject<UDrawAndRevolveToolBuilder>();
-	DrawAndRevolveToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	DrawAndRevolveToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginDrawAndRevolveTool, TEXT("RevolveTool"), DrawAndRevolveToolBuilder);
 
 	auto ShapeSprayToolBuilder = NewObject<UShapeSprayToolBuilder>();
-	ShapeSprayToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	ShapeSprayToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginShapeSprayTool, TEXT("ShapeSprayTool"), ShapeSprayToolBuilder);
 
 
@@ -595,11 +582,11 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginTransformUVIslandsTool, TEXT("EditUVIslands"), NewObject<UEditUVIslandsToolBuilder>());
 
 	UCombineMeshesToolBuilder* CombineMeshesToolBuilder = NewObject<UCombineMeshesToolBuilder>();
-	CombineMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	CombineMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginCombineMeshesTool, TEXT("CombineMeshesTool"), CombineMeshesToolBuilder);
 
 	UCombineMeshesToolBuilder* DuplicateMeshesToolBuilder = NewObject<UCombineMeshesToolBuilder>();
-	DuplicateMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	DuplicateMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	DuplicateMeshesToolBuilder->bIsDuplicateTool = true;
 	RegisterToolFunc(ToolManagerCommands.BeginDuplicateMeshesTool, TEXT("DuplicateMeshesTool"), DuplicateMeshesToolBuilder);
 
@@ -621,100 +608,100 @@ void FModelingToolsEditorMode::Enter()
 	RegisterToolFunc(ToolManagerCommands.BeginEdgeLoopInsertionTool, TEXT("EdgeLoopInsertionTool"), EdgeLoopInsertionToolBuilder);
 
 	auto EditNormalsToolBuilder = NewObject<UEditNormalsToolBuilder>();
-	EditNormalsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	EditNormalsToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginEditNormalsTool, TEXT("EditNormalsTool"), EditNormalsToolBuilder);
 
 	auto TangentsToolBuilder = NewObject<UMeshTangentsToolBuilder>();
 	RegisterToolFunc(ToolManagerCommands.BeginEditTangentsTool, TEXT("MeshTangentsTool"), TangentsToolBuilder);
 
 	auto RemoveOccludedTrianglesToolBuilder = NewObject<URemoveOccludedTrianglesToolBuilder>();
-	RemoveOccludedTrianglesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	RemoveOccludedTrianglesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginRemoveOccludedTrianglesTool, TEXT("RemoveOccludedTrianglesTool"), RemoveOccludedTrianglesToolBuilder);
 
 	auto HoleFillToolBuilder = NewObject<UHoleFillToolBuilder>();
 	RegisterToolFunc(ToolManagerCommands.BeginHoleFillTool, TEXT("HoleFillTool"), HoleFillToolBuilder);
 
 	auto UVProjectionToolBuilder = NewObject<UUVProjectionToolBuilder>();
-	UVProjectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	UVProjectionToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginUVProjectionTool, TEXT("UVProjectionTool"), UVProjectionToolBuilder);
 
 	auto UVLayoutToolBuilder = NewObject<UUVLayoutToolBuilder>();
-	UVLayoutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	UVLayoutToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginUVLayoutTool, TEXT("UVLayoutTool"), UVLayoutToolBuilder);
 
 	auto MergeMeshesToolBuilder = NewObject<UMergeMeshesToolBuilder>();
-	MergeMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	MergeMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelMergeTool, TEXT("MergeMeshesTool"), MergeMeshesToolBuilder);
 
 	auto VoxelCSGMeshesToolBuilder = NewObject<UVoxelCSGMeshesToolBuilder>();
-	VoxelCSGMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	VoxelCSGMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelBooleanTool, TEXT("VoxelCSGMeshesTool"), VoxelCSGMeshesToolBuilder);
 
 	auto VoxelSolidifyMeshesToolBuilder = NewObject<UVoxelSolidifyMeshesToolBuilder>();
-	VoxelSolidifyMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	VoxelSolidifyMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelSolidifyTool, TEXT("VoxelSolidifyMeshesTool"), VoxelSolidifyMeshesToolBuilder);
 
 	auto VoxelBlendMeshesToolBuilder = NewObject<UVoxelBlendMeshesToolBuilder>();
-	VoxelBlendMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	VoxelBlendMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelBlendTool, TEXT("VoxelBlendMeshesTool"), VoxelBlendMeshesToolBuilder);
 
 	auto VoxelMorphologyMeshesToolBuilder = NewObject<UVoxelMorphologyMeshesToolBuilder>();
-	VoxelMorphologyMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	VoxelMorphologyMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginVoxelMorphologyTool, TEXT("VoxelMorphologyMeshesTool"), VoxelMorphologyMeshesToolBuilder);
 
 	auto SelfUnionMeshesToolBuilder = NewObject<USelfUnionMeshesToolBuilder>();
-	SelfUnionMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	SelfUnionMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginSelfUnionTool, TEXT("SelfUnionMeshesTool"), SelfUnionMeshesToolBuilder);
 
 	auto CSGMeshesToolBuilder = NewObject<UCSGMeshesToolBuilder>();
-	CSGMeshesToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	CSGMeshesToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginMeshBooleanTool, TEXT("CSGMeshesTool"), CSGMeshesToolBuilder);
 
 	auto BspConversionToolBuilder = NewObject<UBspConversionToolBuilder>();
-	BspConversionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	BspConversionToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginBspConversionTool, TEXT("BspConversionTool"), BspConversionToolBuilder);
 
 	auto MeshToVolumeToolBuilder = NewObject<UMeshToVolumeToolBuilder>();
-	MeshToVolumeToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	MeshToVolumeToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginMeshToVolumeTool, TEXT("MeshToVolumeTool"), MeshToVolumeToolBuilder);
 
 	auto VolumeToMeshToolBuilder = NewObject<UVolumeToMeshToolBuilder>();
-	VolumeToMeshToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	VolumeToMeshToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginVolumeToMeshTool, TEXT("VolumeToMeshTool"), VolumeToMeshToolBuilder);
 
 	auto PlaneCutToolBuilder = NewObject<UPlaneCutToolBuilder>();
-	PlaneCutToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	PlaneCutToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginPlaneCutTool, TEXT("PlaneCutTool"), PlaneCutToolBuilder);
 
 	auto MirrorToolBuilder = NewObject<UMirrorToolBuilder>();
-	MirrorToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	MirrorToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginMirrorTool, TEXT("MirrorTool"), MirrorToolBuilder);
 
 	auto PolygonCutToolBuilder = NewObject<UPolygonOnMeshToolBuilder>();
 	RegisterToolFunc(ToolManagerCommands.BeginPolygonCutTool, TEXT("PolyCutTool"), PolygonCutToolBuilder);
 
 	auto GlobalUVGenerateToolBuilder = NewObject<UParameterizeMeshToolBuilder>();
-	GlobalUVGenerateToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	GlobalUVGenerateToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	GlobalUVGenerateToolBuilder->bDoAutomaticGlobalUnwrap = true;
 	RegisterToolFunc(ToolManagerCommands.BeginGlobalUVGenerateTool, TEXT("GlobalParameterizeMeshTool"), GlobalUVGenerateToolBuilder);
 
 	auto GroupUVGenerateToolBuilder = NewObject<UParameterizeMeshToolBuilder>();
-	GroupUVGenerateToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	GroupUVGenerateToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	GroupUVGenerateToolBuilder->bDoAutomaticGlobalUnwrap = false;
 	RegisterToolFunc(ToolManagerCommands.BeginGroupUVGenerateTool, TEXT("GroupParameterizeMeshTool"), GroupUVGenerateToolBuilder);
 
 	auto MeshSelectionToolBuilder = NewObject<UMeshSelectionToolBuilder>();
-	MeshSelectionToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	MeshSelectionToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginMeshSelectionTool, TEXT("MeshSelectionTool"), MeshSelectionToolBuilder);
 
 	auto EditMeshMaterialsToolBuilder = NewObject<UEditMeshMaterialsToolBuilder>();
-	EditMeshMaterialsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	EditMeshMaterialsToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginEditMeshMaterialsTool, TEXT("EditMaterialsTool"), EditMeshMaterialsToolBuilder);
 	
 	RegisterToolFunc(ToolManagerCommands.BeginMeshAttributePaintTool, TEXT("MeshAttributePaintTool"), NewObject<UMeshAttributePaintToolBuilder>());
 
 	auto BakeMeshAttributeMapsToolBuilder = NewObject<UBakeMeshAttributeMapsToolBuilder>();
-	BakeMeshAttributeMapsToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	BakeMeshAttributeMapsToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginBakeMeshAttributeMapsTool, TEXT("BakeMeshMapsTool"), BakeMeshAttributeMapsToolBuilder);
 
 	// analysis tools
@@ -732,7 +719,7 @@ void FModelingToolsEditorMode::Enter()
 	//RegisterToolFunc(ToolManagerCommands.BeginEditCollisionGeometryTool, TEXT("EditCollisionGeoTool"), NewObject<UEditCollisionGeometryToolBuilder>());
 
 	auto ExtractCollisionGeoToolBuilder = NewObject<UExtractCollisionGeometryToolBuilder>();
-	ExtractCollisionGeoToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();
+	ExtractCollisionGeoToolBuilder->AssetAPI = ModelingModeAssetGenerationAPI.Get();
 	RegisterToolFunc(ToolManagerCommands.BeginExtractCollisionGeometryTool, TEXT("ExtractCollisionGeoTool"), ExtractCollisionGeoToolBuilder);
 
 
@@ -762,14 +749,15 @@ void FModelingToolsEditorMode::Enter()
 
 void FModelingToolsEditorMode::Exit()
 {
-	OnToolNotificationMessage.Clear();
-	OnToolWarningMessage.Clear();
-
-
 	StylusStateTracker = nullptr;
 
-	ToolsContext->ShutdownContext();
-	ToolsContext = nullptr;
+	const TSharedRef<FUICommandList>& CommandList = Toolkit->GetToolkitCommands();
+	for (auto& RegisteredTool : RegisteredTools)
+	{
+		CommandList->UnmapAction(RegisteredTool.Key);
+		ToolsContext->ToolManager->UnregisterToolType(RegisteredTool.Value);
+	}
+	RegisteredTools.SetNum(0);
 
 	if (Toolkit.IsValid())
 	{
@@ -783,6 +771,9 @@ void FModelingToolsEditorMode::Exit()
 		FToolkitManager::Get().CloseToolkit(Toolkit.ToSharedRef());
 		Toolkit.Reset();
 	}
+
+	ToolsContext = nullptr;
+	ModelingModeAssetGenerationAPI.Reset();
 
 	FModelingModeActionCommands::UnRegisterCommandBindings(UICommandList);
 

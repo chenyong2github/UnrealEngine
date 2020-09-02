@@ -167,7 +167,7 @@ void UDrawPolyPathTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UDrawPolyPathTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UDrawPolyPathTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

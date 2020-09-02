@@ -22,7 +22,7 @@ bool UVertexAdapterClickToolBuilder::CanBuildTool(const FToolBuilderState& Scene
 UInteractiveTool* UVertexAdapterClickToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UVertexAdapterClickTool* NewTool = NewObject<UVertexAdapterClickTool>(SceneState.ToolManager);
-
+	NewTool->SetMeshToolData(SharedMeshToolData);
 	return NewTool;
 }
 
@@ -34,6 +34,7 @@ bool UTextureAdapterClickToolBuilder::CanBuildTool(const FToolBuilderState& Scen
 UInteractiveTool* UTextureAdapterClickToolBuilder::BuildTool(const FToolBuilderState& SceneState) const
 {
 	UTextureAdapterClickTool* NewTool = NewObject<UTextureAdapterClickTool>(SceneState.ToolManager);
+	NewTool->SetMeshToolData(SharedMeshToolData);
 
 	return NewTool;
 }
@@ -60,6 +61,7 @@ void UMeshClickTool::Setup()
 	// Set up selection mechanic to select valid meshes
 	SelectionMechanic = NewObject<UMeshPaintSelectionMechanic>(this);
 	SelectionMechanic->Setup(this);
+	SelectionMechanic->SetMeshToolData(SharedMeshToolData);
 }
 
 void UMeshClickTool::OnUpdateModifierState(int ModifierID, bool bIsOn)
@@ -80,6 +82,10 @@ void UMeshClickTool::OnClicked(const FInputDeviceRay& ClickPos)
 	SelectionMechanic->OnClicked(ClickPos);
 }
 
+void UMeshClickTool::SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData)
+{
+	SharedMeshToolData = InMeshToolData;
+}
 
 
 UVertexAdapterClickTool::UVertexAdapterClickTool()

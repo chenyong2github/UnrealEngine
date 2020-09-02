@@ -118,7 +118,6 @@ UMeshPaintMode::UMeshPaintMode()
 	: Super()
 {
 	SettingsClass = UMeshPaintModeSettings::StaticClass();
-	ToolsContextClass = UMeshToolsContext::StaticClass();
 	// Don't be a visible mode unless legacy mesh paint mode is not on.
 	const bool bVisible = !GetDefault<ULevelEditorMiscSettings>()->bEnableLegacyMeshPaintMode;
 	FModuleManager::Get().LoadModule("EditorStyle");
@@ -139,11 +138,29 @@ void UMeshPaintMode::Enter()
 	ModeSettings = Cast<UMeshPaintModeSettings>(SettingsObject);
 	
 	FMeshPaintEditorModeCommands ToolManagerCommands = FMeshPaintEditorModeCommands::Get();
-	RegisterTool(ToolManagerCommands.VertexSelect, VertexSelectToolName, NewObject<UVertexAdapterClickToolBuilder>());
-	RegisterTool(ToolManagerCommands.TextureSelect, TextureSelectToolName, NewObject<UTextureAdapterClickToolBuilder>());
-	RegisterTool(ToolManagerCommands.ColorPaint, ColorPaintToolName, NewObject<UMeshColorPaintingToolBuilder>());
-	RegisterTool(ToolManagerCommands.WeightPaint, WeightPaintToolName, NewObject<UMeshWeightPaintingToolBuilder>());
-	RegisterTool(ToolManagerCommands.TexturePaint, TexturePaintToolName, NewObject<UMeshTexturePaintingToolBuilder>());
+
+	SharedMeshToolData = NewObject<UMeshToolManager>(this);
+
+	UVertexAdapterClickToolBuilder* VertexClickToolBuilder = NewObject<UVertexAdapterClickToolBuilder>(this);
+	VertexClickToolBuilder->SharedMeshToolData = SharedMeshToolData;
+	RegisterTool(ToolManagerCommands.VertexSelect, VertexSelectToolName, VertexClickToolBuilder);
+
+	UTextureAdapterClickToolBuilder* TextureClickToolBuilder = NewObject<UTextureAdapterClickToolBuilder>(this);
+	TextureClickToolBuilder->SharedMeshToolData = SharedMeshToolData;
+	RegisterTool(ToolManagerCommands.TextureSelect, TextureSelectToolName, TextureClickToolBuilder);
+
+
+	UMeshColorPaintingToolBuilder* MeshColorPaintingToolBuilder = NewObject<UMeshColorPaintingToolBuilder>(this);
+	MeshColorPaintingToolBuilder->SharedMeshToolData = SharedMeshToolData;
+	RegisterTool(ToolManagerCommands.ColorPaint, ColorPaintToolName, MeshColorPaintingToolBuilder);
+
+	UMeshWeightPaintingToolBuilder* WeightPaintingToolBuilder = NewObject<UMeshWeightPaintingToolBuilder>(this);
+	WeightPaintingToolBuilder->SharedMeshToolData = SharedMeshToolData;
+	RegisterTool(ToolManagerCommands.WeightPaint, WeightPaintToolName, WeightPaintingToolBuilder);
+
+	UMeshTexturePaintingToolBuilder* TexturePaintingToolBuilder = NewObject<UMeshTexturePaintingToolBuilder>(this);
+	TexturePaintingToolBuilder->SharedMeshToolData = SharedMeshToolData;
+	RegisterTool(ToolManagerCommands.TexturePaint, TexturePaintToolName, TexturePaintingToolBuilder);
 	UpdateSelectedMeshes();
 
 
@@ -176,24 +193,17 @@ void UMeshPaintMode::Exit()
 	{
 		CommandList->UnmapAction(Action);
 	}
+
 	Super::Exit();
+
+	// Cleanup the SharedMeshToolData after the parent class exits, because the tools using it are closed out in UEdMode::Exit
+	SharedMeshToolData->ResetState();
+	SharedMeshToolData = nullptr;
 }
 
 void UMeshPaintMode::CreateToolkit()
 {
-	if (!Toolkit.IsValid())
-	{
-		FMeshPaintModeToolkit* PaintToolkit = new FMeshPaintModeToolkit;
-		Toolkit = MakeShareable(PaintToolkit);
-		Toolkit->Init(Owner->GetToolkitHost());
-
-		ToolsContext->OnToolNotificationMessage.AddSP(PaintToolkit, &FMeshPaintModeToolkit::SetActiveToolMessage);
-	}
-
-	// Register UI commands
-	BindCommands();
-
-	Super::CreateToolkit();
+	Toolkit = MakeShareable(new FMeshPaintModeToolkit);
 }
 
 void UMeshPaintMode::Tick(FEditorViewportClient* ViewportClient, float DeltaTime)
@@ -257,7 +267,9 @@ void UMeshPaintMode::BindCommands()
 	CommandList->MapAction(Commands.CycleToNextLOD, FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleMeshLODs, 1));
 	CommandList->MapAction(Commands.CycleToPreviousLOD, FExecuteAction::CreateUObject(this, &UMeshPaintMode::CycleMeshLODs, -1));
 
-	auto IsInValidPaintMode = [this]() -> bool { return (GetVertexToolProperties() != nullptr) && Cast<UMeshToolManager>(GetToolManager())->SelectionContainsValidAdapters(); };
+	auto IsInValidPaintMode = [this]() -> bool {
+		return (GetVertexToolProperties() != nullptr) && SharedMeshToolData && SharedMeshToolData->SelectionContainsValidAdapters();
+	};
 	CommandList->MapAction(Commands.Fill, 
 		FUIAction(FExecuteAction::CreateUObject(this, &UMeshPaintMode::FillWithVertexColor),
 		FCanExecuteAction::CreateLambda(IsInValidPaintMode)));
@@ -268,7 +280,9 @@ void UMeshPaintMode::BindCommands()
 			FCanExecuteAction::CreateUObject(this, &UMeshPaintMode::CanPropagateVertexColors)
 		));
 
-	auto IsAValidMeshComponentSelected = [this]() -> bool { return (GetSelectedComponents<UMeshComponent>().Num() == 1) && Cast<UMeshToolManager>(GetToolManager())->SelectionContainsValidAdapters(); };
+	auto IsAValidMeshComponentSelected = [this]() -> bool {
+		return (GetSelectedComponents<UMeshComponent>().Num() == 1) && SharedMeshToolData && SharedMeshToolData->SelectionContainsValidAdapters();
+	};
 	CommandList->MapAction(Commands.Import,
 		FUIAction(
 			FExecuteAction::CreateUObject(this, &UMeshPaintMode::ImportVertexColors),
@@ -348,9 +362,9 @@ void UMeshPaintMode::OnVertexPaintFinished()
 		}
 		else
 		{
-			if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+			if (SharedMeshToolData)
 			{
-				MeshToolManager->Refresh();
+				SharedMeshToolData->Refresh();
 			}
 		}
 	}
@@ -371,12 +385,12 @@ void UMeshPaintMode::ActorSelectionChangeNotify()
 
 void UMeshPaintMode::UpdateSelectedMeshes()
 {
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	if (SharedMeshToolData)
 	{
-		MeshToolManager->ResetState();
+		SharedMeshToolData->ResetState();
 		const TArray<UMeshComponent*> CurrentMeshComponents = GetSelectedComponents<UMeshComponent>();
-		MeshToolManager->AddSelectedMeshComponents(CurrentMeshComponents);
-		MeshToolManager->bNeedsRecache = true;
+		SharedMeshToolData->AddSelectedMeshComponents(CurrentMeshComponents);
+		SharedMeshToolData->bNeedsRecache = true;
 	}
 	bRecacheVertexDataSize = true;
 }
@@ -411,7 +425,7 @@ void UMeshPaintMode::FillWithVertexColor()
 		Component->Modify();
 		ComponentReregisterContext = MakeUnique<FComponentReregisterContext>(Component);
 
-		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = Cast<UMeshToolManager>(GetToolManager())->GetAdapterForComponent(Component);
+		TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = SharedMeshToolData->GetAdapterForComponent(Component);
 		if (MeshAdapter)
 		{
 			MeshAdapter->PreEdit();
@@ -569,7 +583,7 @@ bool UMeshPaintMode::CanRemoveInstanceColors() const
 bool UMeshPaintMode::CanPasteInstanceVertexColors() const
 {
 	const TArray<UStaticMeshComponent*> StaticMeshComponents = GetSelectedComponents<UStaticMeshComponent>();
-	const TArray<FPerComponentVertexColorData> CopiedColorsByComponent = Cast<UMeshToolManager>(GetToolManager())->GetCopiedColorsByComponent();
+	const TArray<FPerComponentVertexColorData> CopiedColorsByComponent = SharedMeshToolData->GetCopiedColorsByComponent();
 	return UMeshPaintModeHelpers::CanPasteInstanceVertexColors(StaticMeshComponents, CopiedColorsByComponent);
 }
 
@@ -594,7 +608,7 @@ bool UMeshPaintMode::CanPropagateVertexColorsToLODs() const
 		bPaintOnSpecificLOD = ColorProperties ? ColorProperties->bPaintOnSpecificLOD : false;
 	}
 	// Can propagate when the mesh contains per-lod vertex colors or when we are not painting to a specific lod
-	const bool bSelectionContainsPerLODColors = Cast<UMeshToolManager>(GetToolManager())->SelectionContainsPerLODColors();
+	const bool bSelectionContainsPerLODColors = SharedMeshToolData->SelectionContainsPerLODColors();
 	return bSelectionContainsPerLODColors || !bPaintOnSpecificLOD;
 }
 
@@ -603,7 +617,7 @@ void UMeshPaintMode::CopyVertexColors()
 	const TArray<UStaticMeshComponent*> StaticMeshComponents = GetSelectedComponents<UStaticMeshComponent>();
 	TArray<FPerComponentVertexColorData> CopiedColorsByComponent;
 	UMeshPaintModeHelpers::CopyVertexColors(StaticMeshComponents, CopiedColorsByComponent);
-	Cast<UMeshToolManager>(GetToolManager())->SetCopiedColorsByComponent(CopiedColorsByComponent);
+	SharedMeshToolData->SetCopiedColorsByComponent(CopiedColorsByComponent);
 
 }
 
@@ -611,7 +625,7 @@ void UMeshPaintMode::PasteVertexColors()
 {
 	FScopedTransaction Transaction(LOCTEXT("LevelMeshPainter_TransactionPasteInstColors", "Pasting Per-Instance Vertex Colors"));
 	const TArray<UStaticMeshComponent*> StaticMeshComponents = GetSelectedComponents<UStaticMeshComponent>();
-	TArray<FPerComponentVertexColorData> CopiedColorsByComponent = Cast<UMeshToolManager>(GetToolManager())->GetCopiedColorsByComponent();
+	TArray<FPerComponentVertexColorData> CopiedColorsByComponent = SharedMeshToolData->GetCopiedColorsByComponent();
 	UMeshPaintModeHelpers::PasteVertexColors(StaticMeshComponents, CopiedColorsByComponent);
 	UpdateCachedVertexDataSize();
 }
@@ -656,9 +670,8 @@ void UMeshPaintMode::PropagateVertexColorsToLODs()
 {
 	//Only show the lost data warning if there is actually some data to lose
 	bool bAbortChange = false;
-	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
-	TArray<UMeshComponent*> PaintableComponents = MeshToolManager->GetPaintableMeshComponents();
-	const bool bSelectionContainsPerLODColors = MeshToolManager->SelectionContainsPerLODColors();
+	TArray<UMeshComponent*> PaintableComponents = SharedMeshToolData->GetPaintableMeshComponents();
+	const bool bSelectionContainsPerLODColors = SharedMeshToolData->SelectionContainsPerLODColors();
 	if (bSelectionContainsPerLODColors)
 	{
 		//Warn the user they will lose custom painting data
@@ -679,7 +692,7 @@ void UMeshPaintMode::PropagateVertexColorsToLODs()
 		else
 		{
 			// Reset the state flag as we'll be removing all per-lod colors 
-			MeshToolManager->ClearSelectionLODColors();
+			SharedMeshToolData->ClearSelectionLODColors();
 			UMeshPaintModeHelpers::RemovePerLODColors(PaintableComponents);
 		}
 	}
@@ -694,13 +707,13 @@ void UMeshPaintMode::PropagateVertexColorsToLODs()
 	{
 		if (SelectedComponent)
 		{
-			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = Cast<UMeshToolManager>(GetToolManager())->GetAdapterForComponent(SelectedComponent);
+			TSharedPtr<IMeshPaintComponentAdapter> MeshAdapter = SharedMeshToolData->GetAdapterForComponent(SelectedComponent);
 			UMeshPaintingToolset::ApplyVertexColorsToAllLODs(*MeshAdapter, SelectedComponent);
 			FComponentReregisterContext ReregisterContext(SelectedComponent);
 		}
 	}
 
-	MeshToolManager->Refresh();
+	SharedMeshToolData->Refresh();
 }
 
 template<typename ComponentClass>
@@ -746,6 +759,10 @@ template TArray<UStaticMeshComponent*> UMeshPaintMode::GetSelectedComponents<USt
 template TArray<USkeletalMeshComponent*> UMeshPaintMode::GetSelectedComponents<USkeletalMeshComponent>() const;
 template TArray<UMeshComponent*> UMeshPaintMode::GetSelectedComponents<UMeshComponent>() const;
 
+TWeakObjectPtr<UMeshToolManager> UMeshPaintMode::GetMeshToolData() const
+{
+	return SharedMeshToolData;
+}
 
 
 
@@ -754,9 +771,9 @@ void UMeshPaintMode::UpdateCachedVertexDataSize()
 	CachedVertexDataSize = 0;
 
 	const bool bInstance = true;
-	if (UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager()))
+	if (SharedMeshToolData)
 	{
-		for (UMeshComponent* SelectedComponent : MeshToolManager->GetPaintableMeshComponents())
+		for (UMeshComponent* SelectedComponent : SharedMeshToolData->GetPaintableMeshComponents())
 		{
 			int32 NumLODs = UMeshPaintingToolset::GetNumberOfLODs(SelectedComponent);
 			for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)

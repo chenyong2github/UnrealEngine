@@ -173,12 +173,12 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 
 	if (Toolkit.IsValid())
 	{
-		if(Toolkit->GetEditorMode() || Toolkit->GetScriptableEditorMode())
+		if(Toolkit->GetEditorMode() || Toolkit->GetScriptableEditorMode().IsValid())
 		{
 			TabName = Toolkit->GetEditorModeDisplayName();
 			TabIcon = Toolkit->GetEditorModeIcon().GetSmallIcon();
 
-			TSharedPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
+			TWeakPtr<FModeToolkit> ModeToolkit = StaticCastSharedPtr<FModeToolkit>(Toolkit);
 
 			TSharedRef< SUniformWrapPanel> PaletteTabBox = SNew(SUniformWrapPanel)
 				.SlotPadding( FMargin(1.f, 2.f) )
@@ -189,15 +189,16 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 
 			// Also build the toolkit here 
 			TArray<FName> PaletteNames;
-			ModeToolkit->GetToolPaletteNames(PaletteNames);
+			ModeToolkit.Pin()->GetToolPaletteNames(PaletteNames);
 
 			TSharedPtr<FUICommandList> CommandList;
-			CommandList = ModeToolkit->GetToolkitCommands();
+			CommandList = ModeToolkit.Pin()->GetToolkitCommands();
 
 			TSharedRef< SWidgetSwitcher > PaletteSwitcher = SNew(SWidgetSwitcher)
 			.WidgetIndex_Lambda( [PaletteNames, ModeToolkit] () -> int32 { 
 				int32 FoundIndex;
-				if (PaletteNames.Find(ModeToolkit->GetCurrentPalette(), FoundIndex))
+				TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+				if (PinnedToolkit.IsValid() && PaletteNames.Find(PinnedToolkit->GetCurrentPalette(), FoundIndex))
 				{
 					return FoundIndex;	
 				}
@@ -206,11 +207,11 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 			
 			for(auto Palette : PaletteNames)
 			{
-				FName ToolbarCustomizationName = ModeToolkit->GetEditorMode() ? ModeToolkit->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : ModeToolkit->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
+				FName ToolbarCustomizationName = ModeToolkit.Pin()->GetEditorMode() ? ModeToolkit.Pin()->GetEditorMode()->GetModeInfo().ToolbarCustomizationName : ModeToolkit.Pin()->GetScriptableEditorMode()->GetModeInfo().ToolbarCustomizationName;
 				FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ToolbarCustomizationName));
 				ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 
-				ModeToolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
+				ModeToolkit.Pin()->BuildToolPalette(Palette, ModeToolbarBuilder);
 
 				TSharedRef<SWidget> PaletteWidget = ModeToolbarBuilder.MakeWidget();
 
@@ -219,16 +220,27 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 					SNew(SCheckBox)
 					.Padding(FMargin(8.f, 4.f, 8.f, 5.f))
 					.Style( FEditorStyle::Get(),  "PaletteToolBar.Tab" )
-					.OnCheckStateChanged_Lambda( [/*PaletteSwitcher, PaletteWidget, */ModeToolkit, Palette] (const ECheckBoxState) { 
-							ModeToolkit->SetCurrentPalette(Palette);
+					.OnCheckStateChanged_Lambda([/*PaletteSwitcher, PaletteWidget, */ModeToolkit, Palette](const ECheckBoxState) {
+							TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+							if (PinnedToolkit.IsValid())
+							{
+								PinnedToolkit->SetCurrentPalette(Palette);
+							}
 						} 
 					)
 					// .IsChecked_Lambda( [PaletteSwitcher, PaletteWidget] () -> ECheckBoxState { return PaletteSwitcher->GetActiveWidget() == PaletteWidget ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; })
-					.IsChecked_Lambda( [ModeToolkit, Palette] () -> ECheckBoxState { return ModeToolkit->GetCurrentPalette() == Palette ? ECheckBoxState::Checked : ECheckBoxState::Unchecked; } )
+					.IsChecked_Lambda([ModeToolkit, Palette]() -> ECheckBoxState {
+						TSharedPtr<FModeToolkit> PinnedToolkit = ModeToolkit.Pin();
+						if (PinnedToolkit.IsValid() && (PinnedToolkit->GetCurrentPalette() == Palette))
+						{
+							return ECheckBoxState::Checked;
+						}
+						return ECheckBoxState::Unchecked;
+					})
 					[
 						SNew(STextBlock)
 						.TextStyle(FAppStyle::Get(), "NormalText")
-						.Text(ModeToolkit->GetToolPaletteDisplayName(Palette))
+						.Text(ModeToolkit.Pin()->GetToolPaletteDisplayName(Palette))
 						.Justification(ETextJustify::Center)
 					]
 				];
@@ -264,7 +276,7 @@ void SLevelEditorToolBox::UpdateInlineContent(const TSharedPtr<IToolkit>& Toolki
 			}
 
 			StatusBarMessageHandle = GEditor->GetEditorSubsystem<UStatusBarSubsystem>()->PushStatusBarMessage(LevelEditorStatusBarName, TAttribute<FText>::Create(
-				TAttribute<FText>::FGetter::CreateSP(ModeToolkit.Get(), &FModeToolkit::GetActiveToolDisplayName))
+				TAttribute<FText>::FGetter::CreateSP(ModeToolkit.Pin().ToSharedRef(), &FModeToolkit::GetActiveToolDisplayName))
 			);
 		}
 	}

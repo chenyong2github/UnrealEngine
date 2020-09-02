@@ -251,22 +251,12 @@ void UMeshPaintingToolset::ApplyBrushToVertex(const FVector& VertexPosition, con
 };
 
 UCLASS()
-class MESHPAINTINGTOOLSET_API UMeshToolsContext : public UEdModeInteractiveToolsContext
-{
-	GENERATED_BODY()
-
-public:
-	UMeshToolsContext();
-};
-
-UCLASS()
-class MESHPAINTINGTOOLSET_API UMeshToolManager : public UInteractiveToolManager
+class MESHPAINTINGTOOLSET_API UMeshToolManager : public UObject
 {
 	GENERATED_BODY()
 
 public:
 	UMeshToolManager();
-	virtual void Shutdown() override;
 
 	/** Map of geometry adapters for each selected mesh component */
 	TMap<UMeshComponent*, TSharedPtr<IMeshPaintComponentAdapter>> GetComponentToAdapterMap() const;

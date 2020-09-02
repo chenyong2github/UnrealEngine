@@ -102,7 +102,7 @@ void UBaseCreateFromSelectedTool::SetWorld(UWorld* World)
 }
 
 
-void UBaseCreateFromSelectedTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UBaseCreateFromSelectedTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

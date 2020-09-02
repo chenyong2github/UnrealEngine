@@ -10,6 +10,7 @@
 #include "PropertySets/OnAcceptProperties.h"
 #include "BaseCreateFromSelectedTool.generated.h"
 
+class IAssetGenerationAPI;
 
 /**
  * ToolBuilder for UBaseCreateFromSelectedTool
@@ -24,7 +25,7 @@ public:
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 	
 	virtual TOptional<int32> MaxComponentsSupported() const { return TOptional<int32>(); }
 	virtual int32 MinComponentsSupported() const { return 1; }
@@ -67,7 +68,7 @@ public:
 	UBaseCreateFromSelectedTool() = default;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	//
 	// InteractiveTool API - generally does not need to be modified by subclasses
@@ -162,7 +163,7 @@ protected:
 	TArray<UTransformGizmo*> TransformGizmos;
 
 	UWorld* TargetWorld = nullptr;
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 };
 

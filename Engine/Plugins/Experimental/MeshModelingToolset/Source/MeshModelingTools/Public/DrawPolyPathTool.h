@@ -16,6 +16,7 @@
 class FMeshVertexChangeBuilder;
 class UTransformGizmo;
 class UTransformProxy;
+class IAssetGenerationAPI;
 
 /**
  * ToolBuilder
@@ -25,7 +26,7 @@ class MESHMODELINGTOOLS_API UDrawPolyPathToolBuilder : public UMeshSurfacePointT
 {
 	GENERATED_BODY()
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 
@@ -129,7 +130,7 @@ public:
 	virtual void RegisterActions(FInteractiveToolActionSet& ActionSet) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -155,7 +156,7 @@ public:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	UPROPERTY()
 	UDrawPolyPathProperties* TransformProps;

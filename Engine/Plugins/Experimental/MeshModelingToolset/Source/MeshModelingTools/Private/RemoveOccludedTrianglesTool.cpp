@@ -265,7 +265,7 @@ void URemoveOccludedTrianglesTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void URemoveOccludedTrianglesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void URemoveOccludedTrianglesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

@@ -216,7 +216,7 @@ void UUVProjectionTool::Shutdown(EToolShutdownType ShutdownType)
 	TransformGizmos.Empty();
 }
 
-void UUVProjectionTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UUVProjectionTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

@@ -39,6 +39,8 @@ FModelingToolsEditorModeToolkit::~FModelingToolsEditorModeToolkit()
 {
 	UModelingToolsEditorModeSettings* Settings = GetMutableDefault<UModelingToolsEditorModeSettings>();
 	Settings->OnModified.Remove(AssetSettingsModifiedHandle);
+	GetToolsEditorMode()->GetToolsContext()->OnToolNotificationMessage.RemoveAll(this);
+	GetToolsEditorMode()->GetToolsContext()->OnToolWarningMessage.RemoveAll(this);
 }
 
 void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
@@ -121,35 +123,8 @@ void FModelingToolsEditorModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitT
 	ActiveToolName = FText::GetEmpty();
 	ActiveToolMessage = FText::GetEmpty();
 
-	GetToolsEditorMode()->GetToolManager()->OnToolStarted.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
-	{
-		UpdateActiveToolProperties();
-
-		UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
-		CurTool->OnPropertySetsModified.AddLambda([this]() { UpdateActiveToolProperties(); });
-
-		ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
-		ActiveToolName = CurTool->GetToolInfo().ToolDisplayName;
-	});
-	GetToolsEditorMode()->GetToolManager()->OnToolEnded.AddLambda([this](UInteractiveToolManager* Manager, UInteractiveTool* Tool)
-	{
-		DetailsView->SetObject(nullptr);
-		ActiveToolName = FText::GetEmpty();
-		ModeHeaderArea->SetVisibility(EVisibility::Visible);
-		ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
-		ClearNotification();
-		ClearWarning();
-	});
-
-
-	GetToolsEditorMode()->OnToolNotificationMessage.AddLambda([this](const FText& Message)
-	{
-		PostNotification(Message);
-	});
-	GetToolsEditorMode()->OnToolWarningMessage.AddLambda([this](const FText& Message)
-	{
-		PostWarning(Message);
-	});
+	GetToolsEditorMode()->GetToolsContext()->OnToolNotificationMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostNotification);
+	GetToolsEditorMode()->GetToolsContext()->OnToolWarningMessage.AddSP(this, &FModelingToolsEditorModeToolkit::PostWarning);
 }
 
 
@@ -665,6 +640,29 @@ void FModelingToolsEditorModeToolkit::EnableShowRealtimeWarning(bool bEnable)
 		bShowRealtimeWarning = bEnable;
 		UpdateShowWarnings();
 	}
+}
+
+void FModelingToolsEditorModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	UpdateActiveToolProperties();
+
+	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	CurTool->OnPropertySetsModified.AddSP(this, &FModelingToolsEditorModeToolkit::UpdateActiveToolProperties);
+
+	ModeHeaderArea->SetVisibility(EVisibility::Collapsed);
+	ActiveToolName = CurTool->GetToolInfo().ToolDisplayName;
+}
+
+void FModelingToolsEditorModeToolkit::OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
+{
+	DetailsView->SetObject(nullptr);
+	UInteractiveTool* CurTool = GetToolsEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	ActiveToolName = FText::GetEmpty();
+	ModeHeaderArea->SetVisibility(EVisibility::Visible);
+	ModeHeaderArea->SetText(LOCTEXT("SelectToolLabel", "Select a Tool from the Toolbar"));
+	ClearNotification();
+	ClearWarning();
+	CurTool->OnPropertySetsModified.RemoveAll(this);
 }
 
 void FModelingToolsEditorModeToolkit::UpdateShowWarnings()

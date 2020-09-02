@@ -8,6 +8,7 @@
 #include "DynamicMeshBrushTool.h"
 #include "ShapeSprayTool.generated.h"
 
+class IAssetGenerationAPI;
 
 /**
  * UMeshSurfacePointToolBuilder override for UShapeSprayTool
@@ -18,7 +19,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UShapeSprayToolBuilder : public UMeshSurfa
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual UMeshSurfacePointTool* CreateNewTool(const FToolBuilderState& SceneState) const override;
 };
@@ -70,7 +71,7 @@ public:
 	UShapeSprayTool();
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	// UInteractiveTool API
 
@@ -99,7 +100,7 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	FDynamicMesh3 ShapeMesh;
 	void UpdateShapeMesh();

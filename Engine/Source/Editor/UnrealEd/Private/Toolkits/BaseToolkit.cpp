@@ -124,15 +124,21 @@ FEditorModeTools& FBaseToolkit::GetEditorModeManager() const
 
 void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 {
+	Init(InitToolkitHost, TWeakObjectPtr<UEdMode>());
+}
+
+void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
+{
 	check( InitToolkitHost.IsValid() );
 	
 	ToolkitMode = EToolkitMode::WorldCentric;
 	ToolkitHost = InitToolkitHost;
+	OwningEditorMode = InOwningMode;
 
-	if (UEdMode* ScriptableEditorMode = GetScriptableEditorMode())
+	if (OwningEditorMode.IsValid())
 	{
-		ScriptableEditorMode->GetToolManager()->OnToolStarted.AddSP(this, &FModeToolkit::OnToolStarted);
-		ScriptableEditorMode->GetToolManager()->OnToolEnded.AddSP(this, &FModeToolkit::OnToolEnded);
+		OwningEditorMode->GetToolManager()->OnToolStarted.AddSP(this, &FModeToolkit::OnToolStarted);
+		OwningEditorMode->GetToolManager()->OnToolEnded.AddSP(this, &FModeToolkit::OnToolEnded);
 	}
 
 	FPropertyEditorModule& PropertyEditorModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
@@ -174,14 +180,13 @@ void FModeToolkit::Init(const TSharedPtr< class IToolkitHost >& InitToolkitHost)
 
 FModeToolkit::~FModeToolkit()
 {
-	if (UEdMode* ScriptableEditorMode = GetScriptableEditorMode())
+	if (OwningEditorMode.IsValid())
 	{
-		if (ScriptableEditorMode->GetToolManager())
-		{
-			ScriptableEditorMode->GetToolManager()->OnToolStarted.RemoveAll(this);
-			ScriptableEditorMode->GetToolManager()->OnToolEnded.RemoveAll(this);
-		}
+		OwningEditorMode->GetToolManager()->OnToolStarted.RemoveAll(this);
+		OwningEditorMode->GetToolManager()->OnToolEnded.RemoveAll(this);
 	}
+
+	OwningEditorMode.Reset();
 }
 
 FName FModeToolkit::GetToolkitFName() const
@@ -218,7 +223,12 @@ FLinearColor FModeToolkit::GetWorldCentricTabColorScale() const
 
 bool FModeToolkit::CanStartTool(const FString& ToolTypeIdentifier)
 {
-	UInteractiveToolManager* Manager = GetScriptableEditorMode()->GetToolManager();
+	if (!OwningEditorMode.IsValid())
+	{
+		return false;
+	}
+
+	UInteractiveToolManager* Manager = OwningEditorMode->GetToolManager();
 
 	return (Manager->HasActiveTool(EToolSide::Left) == false) &&
 		(Manager->CanActivateTool(EToolSide::Left, ToolTypeIdentifier) == true);
@@ -226,24 +236,44 @@ bool FModeToolkit::CanStartTool(const FString& ToolTypeIdentifier)
 
 bool FModeToolkit::CanAcceptActiveTool()
 {
-	return GetScriptableEditorMode()->GetToolManager()->CanAcceptActiveTool(EToolSide::Left);
+	if (!OwningEditorMode.IsValid())
+	{
+		return false;
+	}
+
+	return OwningEditorMode->GetToolManager()->CanAcceptActiveTool(EToolSide::Left);
 }
 
 bool FModeToolkit::CanCancelActiveTool()
 {
-	return GetScriptableEditorMode()->GetToolManager()->CanCancelActiveTool(EToolSide::Left);
+	if (!OwningEditorMode.IsValid())
+	{
+		return false;
+	}
+
+	return OwningEditorMode->GetToolManager()->CanCancelActiveTool(EToolSide::Left);
 }
 
 bool FModeToolkit::CanCompleteActiveTool()
 {
-	return GetScriptableEditorMode()->GetToolManager()->HasActiveTool(EToolSide::Left) && CanCancelActiveTool() == false;
+	if (!OwningEditorMode.IsValid())
+	{
+		return false;
+	}
+
+	return OwningEditorMode->GetToolManager()->HasActiveTool(EToolSide::Left) && CanCancelActiveTool() == false;
 }
 
 
 void FModeToolkit::OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool)
 {
 	// Update properties panel
-	UInteractiveTool* CurTool = GetScriptableEditorMode()->GetToolManager()->GetActiveTool(EToolSide::Left);
+	if (!OwningEditorMode.IsValid())
+	{
+		return;
+	}
+
+	UInteractiveTool* CurTool = OwningEditorMode->GetToolManager()->GetActiveTool(EToolSide::Left);
 	if (CurTool)
 	{
 		DetailsView->SetObjects(CurTool->GetToolProperties());
@@ -266,9 +296,9 @@ FText FModeToolkit::GetEditorModeDisplayName() const
 	{
 		return EdMode->GetModeInfo().Name;
 	}
-	else if (UEdMode* ScriptableMode = GetScriptableEditorMode())
+	else if (OwningEditorMode.IsValid())
 	{
-		return ScriptableMode->GetModeInfo().Name;
+		return OwningEditorMode->GetModeInfo().Name;
 	}
 
 	return FText::GetEmpty();
@@ -280,17 +310,17 @@ FSlateIcon FModeToolkit::GetEditorModeIcon() const
 	{
 		return EdMode->GetModeInfo().IconBrush;
 	}
-	else if (UEdMode* ScriptableMode = GetScriptableEditorMode())
+	else if (OwningEditorMode.IsValid())
 	{
-		return ScriptableMode->GetModeInfo().IconBrush;
+		return OwningEditorMode->GetModeInfo().IconBrush;
 	}
 
 	return FSlateIcon();
 }
 
-UEdMode* FModeToolkit::GetScriptableEditorMode() const
+TWeakObjectPtr<UEdMode> FModeToolkit::GetScriptableEditorMode() const
 {
-	return nullptr;
+	return OwningEditorMode;
 }
 
 TSharedPtr<SWidget> FModeToolkit::GetInlineContent() const
@@ -309,18 +339,19 @@ TSharedPtr<SWidget> FModeToolkit::GetInlineContent() const
 
 void FModeToolkit::BuildToolPalette(FName PaletteName, class FToolBarBuilder& ToolbarBuilder)
 {
-	if (UEdMode* EditorMode = GetScriptableEditorMode())
+	if (!OwningEditorMode.IsValid())
 	{
-		TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> CommandLists = EditorMode->GetModeCommands();
-		TArray<TSharedPtr<FUICommandInfo>>* CurrentCommandListPtr = CommandLists.Find(PaletteName);
-		if (CurrentCommandListPtr)
+		return;
+	}
+
+	TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> CommandLists = OwningEditorMode->GetModeCommands();
+	TArray<TSharedPtr<FUICommandInfo>>* CurrentCommandListPtr = CommandLists.Find(PaletteName);
+	if (CurrentCommandListPtr)
+	{
+		TArray<TSharedPtr<FUICommandInfo>> CurrentCommandList = *CurrentCommandListPtr;
+		for (TSharedPtr<FUICommandInfo> Command : CurrentCommandList)
 		{
-			TArray<TSharedPtr<FUICommandInfo>> CurrentCommandList = *CurrentCommandListPtr;
-			for (TSharedPtr<FUICommandInfo> Command : CurrentCommandList)
-			{
-				ToolbarBuilder.AddToolBarButton(Command);
-			}
-			
+			ToolbarBuilder.AddToolBarButton(Command);
 		}
 
 	}

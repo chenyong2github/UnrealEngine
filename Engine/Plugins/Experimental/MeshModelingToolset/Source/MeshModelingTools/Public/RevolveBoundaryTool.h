@@ -17,6 +17,8 @@
 
 #include "RevolveBoundaryTool.generated.h"
 
+class IAssetGenerationAPI;
+
 // Tool Builder
 
 UCLASS()
@@ -25,7 +27,7 @@ class MESHMODELINGTOOLS_API URevolveBoundaryToolBuilder : public UInteractiveToo
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -73,7 +75,7 @@ class MESHMODELINGTOOLS_API URevolveBoundaryTool : public UMeshBoundaryToolBase
 	GENERATED_BODY()
 
 public:
-	virtual void SetAssetAPI(IToolsContextAssetAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
+	virtual void SetAssetAPI(IAssetGenerationAPI* NewAssetApi) { AssetAPI = NewAssetApi; }
 
 	virtual bool CanAccept() const override;
 
@@ -91,7 +93,7 @@ protected:
 	bool bAlignAxisOnClick = false;
 	int32 AlignAxisModifier = 2;
 
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	UPROPERTY()
 	URevolveBoundaryToolProperties* Settings = nullptr;

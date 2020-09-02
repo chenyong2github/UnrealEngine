@@ -67,7 +67,7 @@ void UMergeMeshesTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UMergeMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UMergeMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

@@ -5,11 +5,16 @@
 
 #define LOCTEXT_NAMESPACE "MeshPaintModeToolkit"
 
-void FMeshPaintModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost)
+FMeshPaintModeToolkit::~FMeshPaintModeToolkit()
 {
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.RemoveAll(this);
+}
 
-	FModeToolkit::Init(InitToolkitHost);
-	// ToolsContextClass = UMeshToolsContext::StaticClass();
+void FMeshPaintModeToolkit::Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode)
+{
+	FModeToolkit::Init(InitToolkitHost, InOwningMode);
+
+	GetScriptableEditorMode()->GetInteractiveToolsContext()->OnToolNotificationMessage.AddSP(this, &FMeshPaintModeToolkit::SetActiveToolMessage);
 }
 
 FName FMeshPaintModeToolkit::GetToolkitFName() const
@@ -21,12 +26,6 @@ FName FMeshPaintModeToolkit::GetToolkitFName() const
 FText FMeshPaintModeToolkit::GetBaseToolkitName() const
 {
 	return LOCTEXT( "ToolkitName", "Mesh Paint Mode" );
-}
-
-
-class UEdMode* FMeshPaintModeToolkit::GetScriptableEditorMode() const
-{
-	return GLevelEditorModeTools().GetActiveScriptableMode( "MeshPaintMode" );
 }
 
 void FMeshPaintModeToolkit::GetToolPaletteNames(TArray<FName>& PaletteNames) const

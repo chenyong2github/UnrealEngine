@@ -19,28 +19,10 @@ public:
 	FSampleToolsEditorModeToolkit();
 	
 	// FModeToolkit interface 
-	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost) override;
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode) override;
+	virtual void GetToolPaletteNames(TArray<FName>& PaletteNames) const override;
 
 	// IToolkit interface 
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual class FEdMode* GetEditorMode() const override;
-	virtual TSharedPtr<class SWidget> GetInlineContent() const override { return ToolkitWidget; }
-
-	virtual FSampleToolsEditorMode* GetToolsEditorMode() const;
-
-private:
-
-	TSharedPtr<SWidget> ToolkitWidget;
-	TSharedPtr<IDetailsView> DetailsView;
-
-	// these functions just forward calls to the ToolsContext / ToolManager
-
-	bool CanStartTool(const FString& ToolTypeIdentifier);
-	bool CanAcceptActiveTool();
-	bool CanCancelActiveTool();
-	bool CanCompleteActiveTool();
-
-	FReply StartTool(const FString& ToolTypeIdentifier);
-	FReply EndTool(EToolShutdownType ShutdownType);
 };

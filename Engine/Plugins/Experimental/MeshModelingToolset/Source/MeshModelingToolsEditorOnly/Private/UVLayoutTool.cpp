@@ -192,7 +192,7 @@ void UUVLayoutTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void UUVLayoutTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UUVLayoutTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

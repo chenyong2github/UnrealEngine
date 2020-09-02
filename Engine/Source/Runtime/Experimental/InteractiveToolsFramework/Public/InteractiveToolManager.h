@@ -94,6 +94,13 @@ public:
 	virtual void RegisterToolType(const FString& Identifier, UInteractiveToolBuilder* Builder);
 
 	/**
+	 * Unregisters a ToolBuilder
+	 * @param Identifier string used to identify this Builder
+	 * @param Builder new ToolBuilder instance
+	 */
+	virtual void UnregisterToolType(const FString& Identifier);
+
+	/**
 	 * Set active ToolBuilder for a ToolSide via string identifier
 	 * @param Side which "side" should we set this Builder on
 	 * @param Identifier name of ToolBuilder that was passed to RegisterToolType()

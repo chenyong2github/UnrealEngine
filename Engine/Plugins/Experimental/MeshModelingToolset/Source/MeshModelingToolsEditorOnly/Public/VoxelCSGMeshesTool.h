@@ -13,6 +13,8 @@
 
 #include "VoxelCSGMeshesTool.generated.h"
 
+class IAssetGenerationAPI;
+
 
 /**
  *
@@ -23,7 +25,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UVoxelCSGMeshesToolBuilder : public UInter
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	UVoxelCSGMeshesToolBuilder()
 	{
@@ -98,7 +100,7 @@ public:
 	UVoxelCSGMeshesTool();
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -131,7 +133,7 @@ protected:
 
 protected:
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	TSharedPtr<TArray<IVoxelBasedCSG::FPlacedMesh>> InputMeshes;
 	/** stash copies of the transforms and pointers to the meshes for consumption by the CSG Op*/

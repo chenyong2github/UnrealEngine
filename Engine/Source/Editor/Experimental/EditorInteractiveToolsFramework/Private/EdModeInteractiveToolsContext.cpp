@@ -1075,7 +1075,7 @@ FRay UEdModeInteractiveToolsContext::GetRayFromMousePos(FEditorViewportClient* V
 		ViewportClient->EngineShowFlags).SetRealtimeUpdate(ViewportClient->IsRealtime()));		// why SetRealtimeUpdate here??
 	// this View is deleted by the FSceneViewFamilyContext destructor
 	FSceneView* View = ViewportClient->CalcSceneView(&ViewFamily);
-	FViewportCursorLocation MouseViewportRay(View, (FEditorViewportClient*)Viewport->GetClient(), MouseX, MouseY);
+	FViewportCursorLocation MouseViewportRay(View, ViewportClient, MouseX, MouseY);
 
 	FVector RayOrigin = MouseViewportRay.GetOrigin();
 	FVector RayDirection = MouseViewportRay.GetDirection();

@@ -3,15 +3,20 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Tools/EditorToolAssetAPI.h"
+#include "AssetGenerationUtil.h"
+
+class IToolsContextAssetAPI;
+struct FGeneratedStaticMeshAssetConfig;
 
 /**
  * Implementation of ToolsContext Asset management API that is suitable for use
  * inside Modeling Tools Mode. 
  */
-class MODELINGTOOLSEDITORMODE_API FModelingModeAssetAPI : public FEditorToolAssetAPI
+class MODELINGTOOLSEDITORMODE_API FModelingModeAssetAPI : public IAssetGenerationAPI
 {
 public:
+	FModelingModeAssetAPI(IToolsContextAssetAPI* InAssetAPI);
+
 	/**
 	 * Generate static mesh actor
 	 */
@@ -39,4 +44,7 @@ public:
 		FString& PackageFolderPathOut,
 		FString& ObjectBaseNameOut
 		);
+
+protected:
+	IToolsContextAssetAPI* AssetAPI;
 };

@@ -15,6 +15,7 @@ class FEditorComponentSourceFactory;
 class FEditorToolAssetAPI;
 class FUICommandList;
 class FStylusStateTracker;		// for stylus events
+class FModelingModeAssetAPI;
 
 class FModelingToolsEditorMode : public FEdMode
 {
@@ -134,14 +135,6 @@ public:
 	// End of FEdMode interface
 	//////////////////
 
-
-
-public:
-	DECLARE_MULTICAST_DELEGATE_OneParam(FOnModelingModeToolNotification, const FText&);
-	FOnModelingModeToolNotification OnToolNotificationMessage;
-	FOnModelingModeToolNotification OnToolWarningMessage;
-
-
 public:
 	virtual UEdModeInteractiveToolsContext* GetToolsContext() const
 	{
@@ -160,7 +153,11 @@ protected:
 	/** Command list lives here so that the key bindings on the commands can be processed in the viewport. */
 	TSharedPtr<FUICommandList> UICommandList;
 
+	TSharedPtr<FModelingModeAssetAPI> ModelingModeAssetGenerationAPI;
+
 	TUniquePtr<FStylusStateTracker> StylusStateTracker;
+
+	TArray<TPair<TSharedPtr<FUICommandInfo>, FString>> RegisteredTools;
 
 	void ModelingModeShortcutRequested(EModelingModeActionCommands Command);
 	void FocusCameraAtCursorHotkey();

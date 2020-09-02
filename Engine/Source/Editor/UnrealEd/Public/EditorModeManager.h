@@ -25,6 +25,7 @@ struct FViewportClick;
 class UEdMode;
 class UInteractiveGizmoManager;
 class UInputRouter;
+class UEdModeInteractiveToolsContext;
 
 /**
  * A helper class to store the state of the various editor modes.
@@ -482,6 +483,8 @@ public:
 
 	void RemoveAllDelegateHandlers();
 
+	UEdModeInteractiveToolsContext* GetInteractiveToolsContext() const;
+
 protected:
 	/** 
 	 * Delegate handlers
@@ -515,6 +518,7 @@ protected:
 
 	/** if true the current selection has a scene component */
 	bool bSelectionHasSceneComponent;
+
 private:
 	struct FEdModeToolbarRow
 	{
@@ -556,6 +560,8 @@ private:
 
 	/** Flag set between calls to StartTracking() and EndTracking() */
 	bool bIsTracking;
+
+	UEdModeInteractiveToolsContext* InteractiveToolsContext;
 
 	FEditorViewportClient* HoveredViewportClient = nullptr;
 	FEditorViewportClient* FocusedViewportClient = nullptr;

@@ -57,7 +57,7 @@ void UParameterizeMeshTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UParameterizeMeshTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UParameterizeMeshTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

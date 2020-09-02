@@ -179,7 +179,7 @@ void UEditNormalsTool::Shutdown(EToolShutdownType ShutdownType)
 	}
 }
 
-void UEditNormalsTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UEditNormalsTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

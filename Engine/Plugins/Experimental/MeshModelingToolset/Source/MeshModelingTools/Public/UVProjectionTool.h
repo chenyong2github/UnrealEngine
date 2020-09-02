@@ -21,6 +21,7 @@ struct FMeshDescription;
 class USimpleDynamicMeshComponent;
 class UTransformGizmo;
 class UTransformProxy;
+class IAssetGenerationAPI;
 
 
 /**
@@ -32,7 +33,7 @@ class MESHMODELINGTOOLS_API UUVProjectionToolBuilder : public UInteractiveToolBu
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -134,7 +135,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World, UInteractiveGizmoManager* GizmoManagerIn);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void OnTick(float DeltaTime) override;
 	virtual void Render(IToolsContextRenderAPI* RenderAPI) override;
@@ -180,7 +181,7 @@ protected:
 	TArray<FDynamicMesh3> ReferencePrimitives;
 
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 	UInteractiveGizmoManager* GizmoManager;
 
 	FViewCameraState CameraState;

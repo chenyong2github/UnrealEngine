@@ -13,6 +13,7 @@
 #include "BaseTools/SingleClickTool.h"
 #include "RemoveOccludedTrianglesTool.generated.h"
 
+class IAssetGenerationAPI;
 
 /**
  *
@@ -23,7 +24,7 @@ class MESHMODELINGTOOLS_API URemoveOccludedTrianglesToolBuilder : public UIntera
 	GENERATED_BODY()
 
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
@@ -144,7 +145,7 @@ public:
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
 
 	virtual void SetWorld(UWorld* World);
-	virtual void SetAssetAPI(IToolsContextAssetAPI* AssetAPI);
+	virtual void SetAssetAPI(IAssetGenerationAPI* AssetAPI);
 
 	virtual void OnTick(float DeltaTime) override;
 
@@ -186,7 +187,7 @@ protected:
 	TArray<int32> TargetToPreviewIdx;
 
 	UWorld* TargetWorld;
-	IToolsContextAssetAPI* AssetAPI;
+	IAssetGenerationAPI* AssetAPI;
 
 	FViewCameraState CameraState;
 

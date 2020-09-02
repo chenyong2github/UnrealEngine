@@ -101,6 +101,7 @@ public:
 
 	/** Initializes the mode toolkit */
 	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost);
+	virtual void Init(const TSharedPtr<IToolkitHost>& InitToolkitHost, TWeakObjectPtr<UEdMode> InOwningMode);
 	~FModeToolkit();
 
 public:
@@ -125,7 +126,7 @@ public:
 	virtual FText GetEditorModeDisplayName() const override;
 	virtual FSlateIcon GetEditorModeIcon() const override;
 
-	virtual UEdMode* GetScriptableEditorMode() const;
+	virtual TWeakObjectPtr<UEdMode> GetScriptableEditorMode() const final;
 	virtual TSharedPtr<SWidget> GetInlineContent() const override;
 
 	/** Returns the number of Mode specific tabs in the mode toolbar **/
@@ -167,6 +168,8 @@ protected:
 	TSharedPtr<SWidget> ToolkitWidget;
 	TSharedPtr<IDetailsView> ModeDetailsView;
 	TSharedPtr<IDetailsView> DetailsView;
+
+	TWeakObjectPtr<UEdMode> OwningEditorMode;
 
 	FName CurrentPaletteName;
 	FOnPaletteChanged OnPaletteChangedDelegate;

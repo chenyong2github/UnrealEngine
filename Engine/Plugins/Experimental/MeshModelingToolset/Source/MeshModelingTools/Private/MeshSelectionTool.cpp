@@ -55,7 +55,7 @@ void UMeshSelectionTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UMeshSelectionTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UMeshSelectionTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

@@ -13,6 +13,8 @@
 #include "PropertySets/OnAcceptProperties.h"
 #include "MeshToVolumeTool.generated.h"
 
+class IAssetGenerationAPI;
+
 /**
  *
  */
@@ -21,7 +23,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeToolBuilder : public UInterac
 {
 	GENERATED_BODY()
 public:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	virtual bool CanBuildTool(const FToolBuilderState & SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState & SceneState) const override;
@@ -79,7 +81,7 @@ class MESHMODELINGTOOLSEDITORONLY_API UMeshToVolumeTool : public USingleSelectio
 public:
 	UMeshToVolumeTool();
 
-	virtual void SetAssetAPI(IToolsContextAssetAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
+	virtual void SetAssetAPI(IAssetGenerationAPI* InAssetAPI) { this->AssetAPI = InAssetAPI; }
 
 	virtual void Setup() override;
 	virtual void Shutdown(EToolShutdownType ShutdownType) override;
@@ -105,7 +107,7 @@ protected:
 	ULineSetComponent* VolumeEdgesSet;
 
 protected:
-	IToolsContextAssetAPI* AssetAPI = nullptr;
+	IAssetGenerationAPI* AssetAPI = nullptr;
 
 	FDynamicMesh3 InputMesh;
 

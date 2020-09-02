@@ -62,7 +62,7 @@ void UVoxelCSGMeshesTool::SetWorld(UWorld* World)
 	this->TargetWorld = World;
 }
 
-void UVoxelCSGMeshesTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UVoxelCSGMeshesTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	this->AssetAPI = AssetAPIIn;
 }

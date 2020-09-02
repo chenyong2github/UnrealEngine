@@ -275,7 +275,8 @@ public:
 	/**
 	 * @return active ToolManager
 	 */
-	virtual UInteractiveToolManager* GetToolManager() const;
+	UInteractiveToolManager* GetToolManager() const;
+	TWeakObjectPtr<UEdModeInteractiveToolsContext> GetInteractiveToolsContext() const;
 
 	virtual TMap<FName, TArray<TSharedPtr<FUICommandInfo>>> GetModeCommands() const
 	{
@@ -284,17 +285,19 @@ public:
 
 protected:
 	virtual void CreateToolkit();
-	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
-	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {};
-	virtual void ActivateDefaultTool() {};
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) {}
+	virtual void ActivateDefaultTool() {}
+	virtual void BindCommands() {}
 
 protected:
 
-	UPROPERTY()
-	UEdModeInteractiveToolsContext* ToolsContext;
-	TSoftClassPtr<UEdModeInteractiveToolsContext> ToolsContextClass;
+	TWeakObjectPtr<UEdModeInteractiveToolsContext> ToolsContext;
+
 	/** Command list lives here so that the key bindings on the commands can be processed in the viewport. */
 	TSharedPtr<FUICommandList> ToolCommandList;
+
+	TArray<TPair<TSharedPtr<FUICommandInfo>, FString>> RegisteredTools;
 
 	UPROPERTY()
 	TSoftClassPtr<UObject> SettingsClass;

@@ -35,6 +35,8 @@ class MESHPAINTINGTOOLSET_API UMeshTexturePaintingToolBuilder : public UInteract
 public:
 	virtual bool CanBuildTool(const FToolBuilderState& SceneState) const override;
 	virtual UInteractiveTool* BuildTool(const FToolBuilderState& SceneState) const override;
+
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 };
 
 
@@ -133,6 +135,9 @@ public:
 
 	bool ShouldFilterTextureAsset(const FAssetData& AssetData) const;
 	void PaintTextureChanged(const FAssetData& AssetData);
+
+	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InToolData);
+
 protected:
 	virtual void SetAdditionalPaintParameters(FMeshPaintParameters& InPaintParameters) {};
 	virtual void FinishPainting();
@@ -165,6 +170,8 @@ private:
 
 	UPROPERTY(Transient)
 	TArray<const UTexture*> Textures;
+
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 
 	/** Flag for whether or not we are currently painting */
 	bool bArePainting;

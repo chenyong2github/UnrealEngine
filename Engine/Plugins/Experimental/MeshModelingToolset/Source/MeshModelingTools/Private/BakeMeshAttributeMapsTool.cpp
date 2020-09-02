@@ -82,7 +82,7 @@ UBakeMeshAttributeMapsTool::UBakeMeshAttributeMapsTool()
 }
 
 
-void UBakeMeshAttributeMapsTool::SetAssetAPI(IToolsContextAssetAPI* AssetAPIIn)
+void UBakeMeshAttributeMapsTool::SetAssetAPI(IAssetGenerationAPI* AssetAPIIn)
 {
 	AssetAPI = AssetAPIIn;
 }

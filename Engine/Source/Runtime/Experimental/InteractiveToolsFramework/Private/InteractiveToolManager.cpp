@@ -61,6 +61,19 @@ void UInteractiveToolManager::RegisterToolType(const FString& Identifier, UInter
 	ToolBuilders.Add(Identifier, Builder );
 }
 
+void UInteractiveToolManager::UnregisterToolType(const FString& Identifier)
+{
+	if (ActiveLeftToolName == Identifier)
+	{
+		DeactivateTool(EToolSide::Left, EToolShutdownType::Cancel);
+	}
+	if (ActiveRightToolName == Identifier)
+	{
+		DeactivateTool(EToolSide::Right, EToolShutdownType::Cancel);
+	}
+	ToolBuilders.Remove(Identifier);
+}
+
 
 bool UInteractiveToolManager::SelectActiveToolType(EToolSide Side, const FString& Identifier)
 {

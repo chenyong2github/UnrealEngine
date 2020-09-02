@@ -10,6 +10,7 @@
 class IMeshPaintComponentAdapter;
 class AActor;
 class UMeshComponent;
+class UMeshToolManager;
 
 UINTERFACE()
 class MESHPAINTINGTOOLSET_API UMeshPaintSelectionInterface : public UInterface
@@ -38,13 +39,16 @@ public:
 	{
 		bAddToSelectionSet = bInNewSelectionType;
 	}
+	void SetMeshToolData(TWeakObjectPtr<UMeshToolManager> InMeshToolData);
 protected:
-	bool FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos, class UMeshToolManager* MeshToolManager);
+	bool FindClickedComponentsAndCacheAdapters(const FInputDeviceRay& ClickPos);
 
 protected:
 	UPROPERTY(Transient)
 	TArray<UMeshComponent*> CachedClickedComponents;
 	UPROPERTY(Transient)
 	TArray<AActor*> CachedClickedActors;
+
+	TWeakObjectPtr<UMeshToolManager> SharedMeshToolData;
 	bool bAddToSelectionSet;
 };

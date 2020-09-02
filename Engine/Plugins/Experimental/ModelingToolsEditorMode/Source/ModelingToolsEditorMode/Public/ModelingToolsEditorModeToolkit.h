@@ -57,6 +57,8 @@ public:
 
 	virtual void EnableShowRealtimeWarning(bool bEnable);
 
+	virtual void OnToolStarted(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
+	virtual void OnToolEnded(UInteractiveToolManager* Manager, UInteractiveTool* Tool) override;
 
 
 
