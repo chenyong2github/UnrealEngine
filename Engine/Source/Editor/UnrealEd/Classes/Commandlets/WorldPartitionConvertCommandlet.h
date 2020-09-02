@@ -43,6 +43,7 @@ public:
 
 private:
 	void GatherAndPrepareSubLevelsToConvert(const UWorldPartition* WorldPartition, ULevel* Level, TArray<ULevel*>& SubLevels);
+	EActorGridPlacement GetLevelGridPlacement(ULevel* Level, EActorGridPlacement DefaultGridPlacement);
 
 protected:
 	virtual bool GetAdditionalLevelsToConvert(ULevel* Level, TArray<ULevel*>& SubLevels);
@@ -92,6 +93,9 @@ protected:
 
 	UPROPERTY(Config)
 	TSubclassOf<UWorldPartitionRuntimeHash> RuntimeHashClass;
+
+	UPROPERTY(Config)
+	TMap<FName, EActorGridPlacement> LevelsGridPlacement;
 
 	UPROPERTY(Config)
 	FString HLODLayerAssetsPath;
