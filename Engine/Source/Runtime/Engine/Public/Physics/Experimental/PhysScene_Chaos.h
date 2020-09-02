@@ -173,9 +173,6 @@ public:
 	void SetKinematicTarget_AssumesLocked(FBodyInstance* BodyInstance, const FTransform& TargetTM, bool bAllowSubstepping);
 	bool GetKinematicTarget_AssumesLocked(const FBodyInstance* BodyInstance, FTransform& OutTM) const;
 
-	void DeferredAddCollisionDisableTable(uint32 SkelMeshCompID, TMap<struct FRigidBodyIndexPair, bool> * CollisionDisableTable);
-	void DeferredRemoveCollisionDisableTable(uint32 SkelMeshCompID);
-
 	bool MarkForPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp, ETeleportType InTeleport, bool bNeedsSkinning);
 	void ClearPreSimKinematicUpdate(USkeletalMeshComponent* InSkelComp);
 
