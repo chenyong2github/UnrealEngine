@@ -129,18 +129,23 @@ class NIAGARA_API UNiagaraDataInterfaceGrid3D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
+	// Number of cells
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FIntVector NumCells;
 
+	// World space size of a cell
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	float CellSize;
 
+	// Number of cells on the longest axis
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumCellsMaxAxis;
 
+	// Method for setting the grid resolution
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	ESetResolutionMethod SetResolutionMethod;
 	
+	// World size of the grid
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector WorldBBoxSize;
 
@@ -193,22 +198,27 @@ class NIAGARA_API UNiagaraDataInterfaceGrid2D : public UNiagaraDataInterfaceRWBa
 	GENERATED_UCLASS_BODY()
 
 public:
+	// Number of cells in X
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
 	int32 NumCellsX;
 
+	// Number of cells in Y
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "!SetGridFromMaxAxis"))
 	int32 NumCellsY;
 	
+	// Number of cells on the longest axis
 	UPROPERTY(EditAnywhere, Category = "Grid", meta = (EditCondition = "SetGridFromMaxAxis"))
 	int32 NumCellsMaxAxis;
 
-	// #todo(dmp): maybe this should be on child classes since not all grids have arbitrary numbers of attributes
+	// Number of Attributes
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	int32 NumAttributes;
 
+	// Set grid resolution according to longest axis
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	bool SetGridFromMaxAxis;	
 
+	// World size of the grid
 	UPROPERTY(EditAnywhere, Category = "Grid")
 	FVector2D WorldBBoxSize;
 
