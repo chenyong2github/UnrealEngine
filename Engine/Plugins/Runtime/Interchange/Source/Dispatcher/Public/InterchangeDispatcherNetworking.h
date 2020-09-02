@@ -5,6 +5,7 @@
 #include "InterchangeCommands.h"
 
 #include "CoreMinimal.h"
+#include "Containers/Queue.h"
 #include "Sockets.h"
 
 
