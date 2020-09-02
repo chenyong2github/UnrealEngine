@@ -757,11 +757,12 @@ void FThreadHeartBeat::SetDurationMultiplier(double NewMultiplier)
 
 FGameThreadHitchHeartBeatThreaded::FGameThreadHitchHeartBeatThreaded()
 	: Thread(nullptr)
-	, HangDuration(-1.f)
+#if USE_HITCH_DETECTION
 	, bWalkStackOnHitch(false)
 	, FirstStartTime(0.0)
 	, FrameStartTime(0.0)
 	, SuspendedCount(0)
+#endif
 	, Clock(HitchDetectorClock_MaxTimeStep_MS / 1000.0)
 {
 	// We don't care about programs for now so no point in spawning the extra thread
@@ -1053,7 +1054,11 @@ void FGameThreadHitchHeartBeatThreaded::ResumeHeartBeat()
 
 double FGameThreadHitchHeartBeatThreaded::GetFrameStartTime()
 {
+#if USE_HITCH_DETECTION
 	return FrameStartTime;
+#else
+	return 0.0;
+#endif
 }
 
 double FGameThreadHitchHeartBeatThreaded::GetCurrentTime()
