@@ -21,7 +21,6 @@ public:
 
 	FUdpMessageTransportTestState(FAutomationTestBase& InTest, const FIPv4Endpoint& UnicastEndpoint, const FIPv4Endpoint& MulticastEndpoint, uint8 MulticastTimeToLive)
 		: NumReceivedMessages(0)
-		, Test(InTest)
 	{
 		TArray<FIPv4Endpoint> StaticEndpoints;
 		Transport = MakeShared<FUdpMessageTransport, ESPMode::ThreadSafe>(UnicastEndpoint, MulticastEndpoint, MoveTemp(StaticEndpoints), MulticastTimeToLive);
@@ -83,7 +82,6 @@ private:
 	TArray<FGuid> DiscoveredNodes;
 	TArray<FGuid> LostNodes;
 	int32 NumReceivedMessages;
-	FAutomationTestBase& Test;
 	TSharedPtr<IMessageTransport, ESPMode::ThreadSafe> Transport;
 };
 

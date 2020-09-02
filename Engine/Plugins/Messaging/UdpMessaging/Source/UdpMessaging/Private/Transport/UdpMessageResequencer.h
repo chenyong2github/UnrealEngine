@@ -25,7 +25,6 @@ public:
 	 */
 	FUdpMessageResequencer(uint16 InWindowSize)
 		: NextSequence(1)
-		, WindowSize(InWindowSize)
 	{ }
 
 public:
@@ -94,12 +93,6 @@ private:
 	/** Holds the next expected sequence number. */
 	uint64 NextSequence;
 
-	/** Holds the highest received sequence number. */
-	uint64 HighestReceivedSequence;
-
 	/** Holds the messages that need to be resequenced. */
 	TArray<TSharedPtr<FUdpReassembledMessage, ESPMode::ThreadSafe>> MessageHeap;
-
-	/** Holds the maximum resequence window size. */
-	uint16 WindowSize;
 };

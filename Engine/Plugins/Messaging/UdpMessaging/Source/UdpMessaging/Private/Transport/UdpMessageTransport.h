@@ -115,9 +115,6 @@ private:
 	/** Holds the message processor. */
 	FUdpMessageProcessor* MessageProcessor;
 
-	/** Holds the message processor thread. */
-	FRunnableThread* MessageProcessorThread;
-
 	/** Holds the multicast endpoint. */
 	FIPv4Endpoint MulticastEndpoint;
 
