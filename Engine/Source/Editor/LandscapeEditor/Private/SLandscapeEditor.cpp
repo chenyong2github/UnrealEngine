@@ -227,6 +227,7 @@ void FLandscapeToolKit::BuildToolPalette(FName PaletteName, class FToolBarBuilde
 		ToolBarBuilder.AddToolBarButton(Commands.HydroErosionTool);
 		ToolBarBuilder.AddToolBarButton(Commands.NoiseTool);
 		ToolBarBuilder.AddToolBarButton(Commands.RetopologizeTool);
+		ToolBarBuilder.AddToolBarButton(Commands.VisibilityTool);
 		ToolBarBuilder.AddToolBarButton(Commands.BlueprintBrushTool);
 		ToolBarBuilder.AddToolBarButton(Commands.MirrorTool);
 
