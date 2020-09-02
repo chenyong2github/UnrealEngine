@@ -7,6 +7,7 @@
 #include "WorldPartition/WorldPartition.h"
 #include "WorldPartition/HLOD/HLODActor.h"
 #include "WorldPartition/HLOD/HLODLayer.h"
+#include "WorldPartition/WorldPartitionEditorCellPreviewActor.h"
 
 #include "Algo/ForEach.h"
 #include "Algo/Transform.h"
@@ -17,6 +18,16 @@
 #include "Modules/ModuleManager.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
+
+#include "Engine/StaticMesh.h"
+#include "Engine/StaticMeshActor.h"
+#include "IMeshDescriptionModule.h"
+#include "Materials/Material.h"
+#include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
+#include "StaticMeshComponentAdapter.h"
+#include "MeshDescription.h"
+#include "Async/ParallelFor.h"
 
 /**
  * Base class for all HLODBuilders
@@ -265,6 +276,179 @@ void FHLODBuilderUtilities::BuildHLODs(UWorldPartition* InWorldPartition, FName 
 			HLODBuilder->Build(InSubActors);
 		}
 	}
+}
+
+AWorldPartitionEditorCellPreview* FHLODBuilderUtilities::BuildCellPreviewMesh(const TArray<AActor*>& InCellActors, const FBox& InCellBounds)
+{
+	TRACE_CPUPROFILER_EVENT_SCOPE(FHLODBuilderUtilities::BuildCellPreviewMesh);
+
+	TMap<UHLODLayer*, TArray<UStaticMeshComponent*>> CellLODPrimitives;
+
+	// Gather all components that will be used to create the preview mesh
+	for (AActor* Actor : InCellActors)
+	{
+		UHLODLayer* ActorHLODLayer = UHLODLayer::GetHLODLayer(Actor);
+
+		if (ActorHLODLayer && UHLODLayer::ShouldIncludeInHLOD(Actor))
+		{
+			TArray<UStaticMeshComponent*> StaticMeshComponent;
+			Actor->GetComponents(StaticMeshComponent);
+
+			for (UStaticMeshComponent* Component : StaticMeshComponent)
+			{
+				if (UHLODLayer::ShouldIncludeInHLOD(Component, ActorHLODLayer->GetLevels().Num() - 1))
+				{
+					CellLODPrimitives.FindOrAdd(ActorHLODLayer).Add(Component);
+				}
+			}
+		}
+	}
+
+	if (CellLODPrimitives.IsEmpty())
+	{
+		return nullptr;
+	}
+
+	UWorld* World = InCellActors[0]->GetWorld();
+
+	const IMeshDescriptionModule& MeshDescriptionModule = IMeshDescriptionModule::Get();
+	const IMeshMergeUtilities& MergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
+
+	// Spawn a cell preview actor
+	FActorSpawnParameters SpawnParams;
+	SpawnParams.bDeferConstruction = true;
+	SpawnParams.bCreateActorPackage = true;
+	AWorldPartitionEditorCellPreview* CellPreviewActor = World->SpawnActor<AWorldPartitionEditorCellPreview>(AWorldPartitionEditorCellPreview::StaticClass(), FTransform(InCellBounds.GetCenter()), SpawnParams);
+	CellPreviewActor->SetCellBounds(InCellBounds);
+	
+	TArray<UStaticMeshComponent*> ComponentsToAdd;
+
+	for (const auto& Primitives : CellLODPrimitives)
+	{
+		const UHLODLayer* HLODLayer = Primitives.Key;
+		const TArray<UStaticMeshComponent*>& StaticMeshComponents = Primitives.Value;
+
+		for (const FHLODLevelSettings& LevelSettings : HLODLayer->GetLevels())
+		{
+			switch (LevelSettings.LevelType)
+			{
+			case EHLODLevelType::Instancing:
+			{
+				// Gather all meshes to instantiate along with transforms
+				TMap<UStaticMesh*, TArray<UStaticMeshComponent*>> Instances;
+				for (UStaticMeshComponent* SMC : StaticMeshComponents)
+				{
+					Instances.FindOrAdd(SMC->GetStaticMesh()).Add(SMC);
+				}
+
+				for (const auto& Entry : Instances)
+				{
+					// Get or create preview mesh
+					UInstancedStaticMeshComponent* Component = NewObject<UInstancedStaticMeshComponent>(CellPreviewActor);
+					Component->SetStaticMesh(Entry.Key);
+					Component->SetForcedLodModel(Entry.Key->GetNumLODs());
+
+					for (UStaticMeshComponent* SMC : Entry.Value)
+					{
+						Component->AddInstanceWorldSpace(SMC->GetComponentTransform());
+					}
+
+					ComponentsToAdd.Add(Component);
+				}
+			}
+			break;
+
+			default:
+			{
+				FMeshDescription MergedMeshDescription;
+				FStaticMeshAttributes(MergedMeshDescription).Register();
+
+				TArray<FMeshDescription> SourceMeshesDescriptions;
+				SourceMeshesDescriptions.SetNum(StaticMeshComponents.Num());
+
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(Gather Meshes);
+					ParallelFor(SourceMeshesDescriptions.Num(), [&MergeUtilities, &StaticMeshComponents, &SourceMeshesDescriptions](uint32 Index)
+					{
+						FMeshDescription& SourceMeshDescription = SourceMeshesDescriptions[Index];
+						FStaticMeshAttributes(SourceMeshDescription).Register();
+
+						UStaticMeshComponent* SMComponent = StaticMeshComponents[Index];
+					
+						MergeUtilities.RetrieveMeshDescription(SMComponent, SMComponent->GetStaticMesh()->GetNumLODs() - 1, SourceMeshDescription, false);
+					});
+				}
+
+				{
+					TRACE_CPUPROFILER_EVENT_SCOPE(Merge Meshes);
+
+					FStaticMeshOperations::FAppendSettings AppendSettings;
+					AppendSettings.bMergeVertexColor = false;
+					for (int32 ChannelIdx = 0; ChannelIdx < FStaticMeshOperations::FAppendSettings::MAX_NUM_UV_CHANNELS; ++ChannelIdx)
+					{
+						AppendSettings.bMergeUVChannels[ChannelIdx] = false;
+					}
+				
+					MergedMeshDescription.CreatePolygonGroupWithID(FPolygonGroupID(0));
+
+					AppendSettings.PolygonGroupsDelegate = FAppendPolygonGroupsDelegate::CreateLambda([](const FMeshDescription& SourceMesh, FMeshDescription& TargetMesh, PolygonGroupMap& RemapPolygonGroups)
+					{
+						for (FPolygonGroupID SourcePolygonGroupID : SourceMesh.PolygonGroups().GetElementIDs())
+						{
+							RemapPolygonGroups.Add(SourcePolygonGroupID, FPolygonGroupID(0));
+						}
+					});
+
+					for (const FMeshDescription& SourceMeshDescription : SourceMeshesDescriptions)
+					{
+						FStaticMeshOperations::AppendMeshDescription(SourceMeshDescription, MergedMeshDescription, AppendSettings);
+					}
+				}
+
+				FStaticMeshComponentRecreateRenderStateContext RecreateRenderStateContext(FindObject<UStaticMesh>(CellPreviewActor->GetPackage(), TEXT("EditorCellPreviewMesh")));
+
+				UStaticMesh* StaticMesh = NewObject<UStaticMesh>(CellPreviewActor->GetPackage(), TEXT("EditorCellPreviewMesh"));
+				StaticMesh->BuildFromMeshDescriptions( { &MergedMeshDescription } );
+				
+				UStaticMeshComponent* Component = NewObject<UStaticMeshComponent>(CellPreviewActor);
+				Component->SetStaticMesh(StaticMesh);
+
+				ComponentsToAdd.Add(Component);
+			}
+			
+			}
+		}
+	}
+
+	// If for some reason no components were created, delete the actor.
+	if (ComponentsToAdd.IsEmpty())
+	{
+		World->DestroyActor(CellPreviewActor);
+		return nullptr;
+	}
+
+	// Setup the newly created components
+	for (UPrimitiveComponent* ComponentToAdd : ComponentsToAdd)
+	{
+		ComponentToAdd->AttachToComponent(CellPreviewActor->GetRootComponent(), FAttachmentTransformRules::KeepWorldTransform);
+
+		// Setup custom depth rendering to achieve a red tint using a post process material
+		// Temporary until a cleaner solution is implemented
+		const int32 CellPreviewStencilValue = 180;
+		ComponentToAdd->bRenderCustomDepth = true;
+		ComponentToAdd->CustomDepthStencilValue = CellPreviewStencilValue;
+
+		ComponentToAdd->SetMobility(EComponentMobility::Static);
+		ComponentToAdd->SetCollisionEnabled(ECollisionEnabled::NoCollision);
+
+		ComponentToAdd->RegisterComponent();
+		ComponentToAdd->MarkRenderStateDirty();
+
+		CellPreviewActor->AddInstanceComponent(ComponentToAdd);
+	}
+
+	CellPreviewActor->SetVisibility(false);
+	return CellPreviewActor;
 }
 
 #endif

@@ -6,6 +6,7 @@
 
 class FWorldPartitionActorDesc;
 class UWorldPartition;
+class AWorldPartitionEditorCellPreview;
 
 /**
  * Represents an editing cell (editor-only)
@@ -38,5 +39,7 @@ public:
 
 	TSet<FWorldPartitionActorDesc*> Actors;
 	TSet<FWorldPartitionActorDesc*> LoadedActors;
+
+	AWorldPartitionEditorCellPreview* CellPreviewActor;
 #endif
 };

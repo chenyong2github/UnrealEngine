@@ -128,10 +128,11 @@ public:
 	bool IsPreCooked() const { return bIsPreCooked; }
 	void SetIsPreCooked(bool bInIsPreCooked) { bIsPreCooked = bInIsPreCooked; }
 
-	bool GenerateStreaming(EWorldPartitionStreamingMode Mode);
 	FBox GetWorldBounds() const;
 
+	bool GenerateStreaming(EWorldPartitionStreamingMode Mode);
 	void GenerateHLOD();
+	void UpdateCellsPreviewMesh(const TArray<UWorldPartitionEditorCell*>& Cells);
 
 	// Clustering
 	struct FActorCluster

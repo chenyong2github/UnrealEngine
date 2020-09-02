@@ -33,6 +33,7 @@ void SWorldPartitionEditorGrid2D::FEditorCommands::RegisterCommands()
 	UI_COMMAND(LoadSelectedCells, "Load Selected Cells", "Load the selected cells.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(UnloadSelectedCells, "Unload Selected Cells", "Unload the selected cells.", EUserInterfaceActionType::Button, FInputChord());
 	UI_COMMAND(MoveCameraHere, "Move Camera Here", "MOve the camera to the selected position.", EUserInterfaceActionType::Button, FInputChord());
+	UI_COMMAND(UpdateSelectedCellsPreviewMesh, "Update Cells Preview Mesh", "Update the selected cells preview mesh.", EUserInterfaceActionType::Button, FInputChord());
 }
 
 SWorldPartitionEditorGrid2D::SWorldPartitionEditorGrid2D()
@@ -156,6 +157,7 @@ void SWorldPartitionEditorGrid2D::Construct(const FArguments& InArgs)
 	ActionList.MapAction(Commands.LoadSelectedCells, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::LoadSelectedCells), FCanExecuteAction::CreateLambda(HasSelectedCells));
 	ActionList.MapAction(Commands.UnloadSelectedCells, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::UnloadSelectedCells), FCanExecuteAction::CreateLambda(HasSelectedCells));
 	ActionList.MapAction(Commands.MoveCameraHere, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::MoveCameraHere));
+	ActionList.MapAction(Commands.UpdateSelectedCellsPreviewMesh, FExecuteAction::CreateSP(this, &SWorldPartitionEditorGrid2D::UpdateSelectedCellsPreviewMesh), FCanExecuteAction::CreateLambda(HasSelectedCells));
 }
 
 void SWorldPartitionEditorGrid2D::LoadSelectedCells()
@@ -170,6 +172,12 @@ void SWorldPartitionEditorGrid2D::UnloadSelectedCells()
 	WorldPartition->UnloadEditorCells(SelectedCells.Array());
 	GEditor->RedrawLevelEditingViewports();
 	RefreshSceneOutliner();
+}
+
+void SWorldPartitionEditorGrid2D::UpdateSelectedCellsPreviewMesh()
+{
+	WorldPartition->UpdateCellsPreviewMesh(SelectedCells.Array());
+	GEditor->RedrawLevelEditingViewports();
 }
 
 void SWorldPartitionEditorGrid2D::MoveCameraHere()
@@ -244,6 +252,7 @@ FReply SWorldPartitionEditorGrid2D::OnMouseButtonUp(const FGeometry& MyGeometry,
 				MenuBuilder.AddMenuEntry(Commands.LoadSelectedCells);
 				MenuBuilder.AddMenuEntry(Commands.UnloadSelectedCells);
 				MenuBuilder.AddMenuEntry(Commands.MoveCameraHere);
+				MenuBuilder.AddMenuEntry(Commands.UpdateSelectedCellsPreviewMesh);
 			}
 			MenuBuilder.EndSection();
 
