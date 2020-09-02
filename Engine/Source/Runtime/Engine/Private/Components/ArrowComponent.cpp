@@ -129,8 +129,9 @@ public:
 					const float ZoomFactor = FMath::Min<float>(View->ViewMatrices.GetProjectionMatrix().M[0][0], View->ViewMatrices.GetProjectionMatrix().M[1][1]);
 					if (ZoomFactor != 0.0f)
 					{
-						const float Radius = View->WorldToScreen(Origin).W * (ScreenSize / ZoomFactor);
-						if (Radius < 1.0f && Radius > 0)
+						// Note: we can't just ignore the perspective scaling here if the object's origin is behind the camera, so preserve the scale minus its sign.
+						const float Radius = FMath::Abs(View->WorldToScreen(Origin).W * (ScreenSize / ZoomFactor));
+						if (Radius < 1.0f)
 						{
 							ViewScale *= Radius;
 						}
