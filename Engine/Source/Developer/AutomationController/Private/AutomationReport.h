@@ -88,9 +88,6 @@ private:
 	/** Number of responses from network commands */
 	uint32 NumberNetworkResponsesReceived;
 
-	/** Number of required devices for this test */
-	uint32 RequiredDeviceCount;
-	
 	/** All child tests */
 	TArray<TSharedPtr<IAutomationReport> >ChildReports;
 

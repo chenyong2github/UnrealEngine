@@ -78,7 +78,6 @@ private:
 	int32 CurrentTest;
 	int32 RemainingTrial;
 	int32 RemainingPrint;
-	int32 SampleIndex;
 
 	int32 HistoryNum;
 	int32 ReportNum;

@@ -151,7 +151,6 @@ public:
 		: FSceneViewExtensionBase(AutoRegister)
 		, WorldPtr(InWorld)
 		, Options(InOptions)
-		, CurrentTime(InCurrentTimeToSimulate)
 	{
 	}
 	
@@ -246,7 +245,6 @@ public:
 private:
 	TWeakObjectPtr<UWorld> WorldPtr;
 	FAutomationScreenshotOptions Options;
-	float CurrentTime;
 };
 
 FAutomationTestScreenshotEnvSetup::FAutomationTestScreenshotEnvSetup()

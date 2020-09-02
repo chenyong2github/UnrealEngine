@@ -707,9 +707,6 @@ private:
 	/** The current state of the automation process */
 	EAutomationTestState AutomationTestState;
 
-	/** The priority flags we would like to run */
-	EAutomationTestFlags::Type AutomationPriority;
-
 	/** What work was requested */
 	TArray<EAutomationCommand> AutomationCommandQueue;
 
@@ -739,9 +736,6 @@ private:
 
 	//Dictionary that maps flag names to flag values.
 	TMap<FString, int32> FilterMaps;
-
-	//Test pass checkpoint backup file.
-	FArchive* CheckpointFile;
 
 	FString CheckpointCommand;
 
