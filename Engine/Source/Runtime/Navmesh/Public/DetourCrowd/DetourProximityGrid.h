@@ -26,7 +26,6 @@
 
 class dtProximityGrid
 {
-	int m_maxItems;
 	float m_cellSize;
 	float m_invCellSize;
 	

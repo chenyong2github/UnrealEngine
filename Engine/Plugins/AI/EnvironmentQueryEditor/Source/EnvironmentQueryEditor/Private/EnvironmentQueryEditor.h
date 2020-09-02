@@ -65,8 +65,6 @@ private:
 	TSharedPtr<class IDetailsView> DetailsView;
 	TSharedPtr<SEnvQueryProfiler> ProfilerView;
 
-	uint32 SelectedNodesCount;
-
 	/**	Graph editor tab */
 	static const FName EQSUpdateGraphTabId;
 	static const FName EQSPropertiesTabId;

@@ -143,7 +143,6 @@ private:
 	FDebugDrawDelegate DebugTextDrawingDelegate;
 	FDelegateHandle DebugTextDrawingDelegateHandle;
 	TWeakObjectPtr<UNavMeshRenderingComponent> RenderingComponent;
-	uint32 bRequestedData : 1;
 	uint32 bForceRendering : 1;
 	uint32 bSkipDistanceCheck : 1;
 	uint32 bUseThickLines : 1;

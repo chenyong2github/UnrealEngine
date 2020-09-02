@@ -33,8 +33,4 @@ private:
 	TArray<AVolume const*> InclusionVolumes;
 
 	FCriticalSection GraphChangingLock;
-
-	ANavigationGraph* DestNavGraph;
-
-	uint32 bInitialized:1;
 };
