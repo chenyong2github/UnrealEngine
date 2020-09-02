@@ -4977,8 +4977,9 @@ void FStarshipEditorStyle::FStyle::SetupPersonaStyle()
 		Set("AnimTimeline.Outliner.DefaultBorder", new FSlateColorBrush(FLinearColor::White));
 
 		const FSplitterStyle OutlinerSplitterStyle = FSplitterStyle()
-			.SetHandleNormalBrush( FSlateNoResource() )
-			.SetHandleHighlightBrush( FSlateNoResource() );
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))
+			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Secondary));
+
 		Set("AnimTimeline.Outliner.Splitter", OutlinerSplitterStyle);
 
 		Set("AnimTimeline.Outliner.Label", FTextBlockStyle(NormalText)
@@ -5945,10 +5946,6 @@ void FStarshipEditorStyle::FStyle::SetupContentBrowserStyle()
 		Set( "ContentBrowser.AssetTreeFolderClosedCode", new IMAGE_BRUSH( "Icons/FolderClosed_Code", FVector2D(18, 16) ) );
 
 		Set("ContentBrowser.DefaultFolderColor", FStyleColors::AccentFolder);
-
-		Set( "ContentBrowser.Splitter", FSplitterStyle(FStarshipCoreStyle::GetCoreStyle().GetWidgetStyle<FSplitterStyle>("Splitter"))
-			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))
-			);
 
 		// Asset list view
 		Set( "ContentBrowser.AssetListViewNameFont", DEFAULT_FONT( "Regular", 12 ) );

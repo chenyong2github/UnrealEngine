@@ -237,7 +237,6 @@ namespace HLODOutliner
 				[
 					SNew(SSplitter)
 					.Orientation(Orient_Horizontal)
-					.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
 					+ SSplitter::Slot()
 					.Value(0.5)
 					[
@@ -253,7 +252,6 @@ namespace HLODOutliner
 				[
 					SNew(SSplitter)
 					.Orientation(Orient_Vertical)
-					.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
 					+ SSplitter::Slot()
 					.Value(0.5)
 					[

@@ -316,22 +316,13 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 				]
 			]
 		]
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew(SSeparator)
-			.SeparatorImage(FAppStyle::Get().GetBrush("Brushes.Recessed"))
-			.Thickness(2.0f)
-		]
-
 		// Assets/tree
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
-		.Padding(0)
+		.Padding(0.0f,2.0f, 0.0f, 0.0f)
 		[
 			// The tree/assets splitter
 			SAssignNew(PathAssetSplitterPtr, SSplitter)
-			.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
 			.PhysicalSplitterHandleSize(2.0f)
 
 			// Sources View
@@ -350,7 +341,6 @@ void SContentBrowser::Construct( const FArguments& InArgs, const FName& InInstan
 					+SWidgetSwitcher::Slot()
 					[
 						SAssignNew(PathFavoriteSplitterPtr, SSplitter)
-						.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
 						.PhysicalSplitterHandleSize(3.0f)
 						.HitDetectionSplitterHandleSize(3.0f)
 						.Orientation(EOrientation::Orient_Vertical)
@@ -622,7 +612,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 	return
 		SNew(SVerticalBox)
 		+ SVerticalBox::Slot()
-		.Padding(0.0f, 2.0f, 0.0f, 0.0f)
+		.Padding(0.0f)
 		.AutoHeight()
 		[
 			SNew(SBorder)
@@ -704,7 +694,7 @@ TSharedRef<SWidget> SContentBrowser::CreateAssetView(const FContentBrowserConfig
 		// Assets
 		+ SVerticalBox::Slot()
 		.FillHeight( 1.0f )
-		.Padding( 0 )
+		.Padding( 0, 0 )
 		[
 			AssetViewPtr.ToSharedRef()
 		];

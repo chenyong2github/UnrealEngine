@@ -553,8 +553,8 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 	// SSplitter
 	{
 		Style->Set("Splitter", FSplitterStyle()
-			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Title))
-			.SetHandleHighlightBrush(IMAGE_BRUSH("Common/SplitterHandleHighlight", Icon8x8, FLinearColor::White))
+			.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))
+			.SetHandleHighlightBrush(FSlateColorBrush(FStyleColors::Secondary))
 		);
 	}
 
@@ -609,7 +609,7 @@ TSharedRef<ISlateStyle> FStarshipCoreStyle::Create()
 
 	// SSeparator defaults...
 	{
-		Style->Set("Separator", new BOX_BRUSH("Common/Separator", 1 / 4.0f, FLinearColor(1, 1, 1, 0.5f)));
+		Style->Set("Separator", new FSlateColorBrush(FStyleColors::Recessed));
 	}
 
 	// SHeader defaults...
@@ -1428,7 +1428,7 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
-		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetTabWellBrush(FSlateNoResource())
 		.SetFlashColor(TabFlashColor)
 
@@ -1453,7 +1453,7 @@ void FStarshipCoreStyle::SetupDockingStyles(TSharedRef<FStyle>& Style)
 
 		.SetColorOverlayTabBrush(FSlateNoResource())
 		.SetColorOverlayIconBrush(FSlateNoResource())
-		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Background))
+		.SetContentAreaBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetTabWellBrush(FSlateNoResource())
 
 		.SetTabPadding(FMargin(10, 7, 10, 8))
@@ -1635,7 +1635,7 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 		.SetMenuDropdownHoveredBorderBrush(FSlateNoResource());
 
 	const FSplitterStyle TableHeaderSplitterStyle = FSplitterStyle()
-		.SetHandleNormalBrush(FSlateNoResource())
+		.SetHandleNormalBrush(FSlateColorBrush(FStyleColors::Recessed))
 		.SetHandleHighlightBrush(IMAGE_BRUSH("Common/HeaderSplitterGrip", Icon8x8));
 
 	Style->Set("TableView.Header", FHeaderRowStyle()

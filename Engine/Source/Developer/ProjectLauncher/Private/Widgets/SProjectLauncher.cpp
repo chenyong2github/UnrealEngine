@@ -94,7 +94,6 @@ void SProjectLauncher::Construct(const FArguments& InArgs, const TSharedRef<SDoc
 		+ SWidgetSwitcher::Slot()
 		[
 			SNew(SSplitter)
-			.Style(FEditorStyle::Get(), "ContentBrowser.Splitter")
 			.Orientation(Orient_Vertical)
 
 			// Simple SProjectLauncher

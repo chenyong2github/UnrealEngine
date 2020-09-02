@@ -327,7 +327,7 @@ void SAssetView::Construct( const FArguments& InArgs )
 	TSharedRef<SVerticalBox> VerticalBox = SNew(SVerticalBox);
 
 	ChildSlot
-	.Padding(0.0f, 1.0f, 0.0f, 0.0f)
+	.Padding(0.0f)
 	[
 		SNew(SBorder)
 		.Padding(0)

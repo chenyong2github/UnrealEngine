@@ -385,8 +385,7 @@ TSharedRef<SDockTab> FUserDefinedStructureEditor::SpawnStructureTab(const FSpawn
 		.Orientation(Orient_Vertical)
 		.PhysicalSplitterHandleSize(2.0f)
 		.HitDetectionSplitterHandleSize(8.f)
-		.ResizeMode(ESplitterResizeMode::FixedPosition)
-		.Style(FEditorStyle::Get(), "ContentBrowser.Splitter");
+		.ResizeMode(ESplitterResizeMode::FixedPosition);
 	{
 		// Create a property view
 		FPropertyEditorModule& EditModule = FModuleManager::Get().GetModuleChecked<FPropertyEditorModule>("PropertyEditor");

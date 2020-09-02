@@ -203,7 +203,6 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 	TSharedPtr<SLevelEditor> LevelEditorTmp;
 	if (OwnerWindow.IsValid())
 	{
-
 		LevelEditorTab->SetContent(SAssignNew(LevelEditorTmp, SLevelEditor));
 		SetLevelEditorInstance(LevelEditorTmp);
 		LevelEditorTmp->Initialize(LevelEditorTab, OwnerWindow.ToSharedRef());
