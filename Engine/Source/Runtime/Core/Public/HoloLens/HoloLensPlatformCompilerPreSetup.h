@@ -84,6 +84,16 @@
 		__pragma(warning(pop))
 #endif // PRAGMA_ENABLE_REGISTER_WARNINGS
 
+#ifndef PRAGMA_DISABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+#define PRAGMA_DISABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+	 // MSVC doesn't seem to have a warning similar to -Wunused-private-field
+#endif // PRAGMA_DISABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+
+#ifndef PRAGMA_ENABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+#define PRAGMA_ENABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+		// MSVC doesn't seem to have a warning similar to -Wunused-private-field
+#endif // PRAGMA_ENABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+
 #ifndef PRAGMA_POP
 	#define PRAGMA_POP \
 		__pragma(warning(pop))

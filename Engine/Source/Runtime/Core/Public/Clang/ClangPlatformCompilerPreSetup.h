@@ -149,6 +149,17 @@
 		_Pragma("clang diagnostic ignored \"-Wmacro-redefined\"")
 #endif // PRAGMA_DISABLE_MACRO_REDEFINED_WARNINGS
 
+#ifndef PRAGMA_DISABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+#define PRAGMA_DISABLE_UNUSED_PRIVATE_FIELDS_WARNINGS \
+		_Pragma("clang diagnostic push") \
+		_Pragma("clang diagnostic ignored \"-Wunused-private-field\"")
+#endif // PRAGMA_DISABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+
+#ifndef PRAGMA_ENABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+#define PRAGMA_ENABLE_UNUSED_PRIVATE_FIELDS_WARNINGS \
+		_Pragma("clang diagnostic pop")
+#endif // PRAGMA_ENABLE_UNUSED_PRIVATE_FIELDS_WARNINGS
+
 #ifndef PRAGMA_ENABLE_MACRO_REDEFINED_WARNINGS
 	#define PRAGMA_ENABLE_MACRO_REDEFINED_WARNINGS \
 		_Pragma("clang diagnostic pop")
