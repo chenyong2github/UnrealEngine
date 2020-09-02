@@ -589,6 +589,10 @@ public:
 	DECLARE_MULTICAST_DELEGATE_OneParam(FOnGCFinishDestroyTimeExtended, const FString&);
 	static FOnGCFinishDestroyTimeExtended OnGCFinishDestroyTimeExtended;
 
+	/** Called when the application's network initializes or shutdowns on platforms where the network stack is not always available */
+	DECLARE_MULTICAST_DELEGATE_OneParam(FApplicationNetworkInitializationChanged, bool /*bIsNetworkInitialized*/);
+	static FApplicationNetworkInitializationChanged ApplicationNetworkInitializationChanged;
+
 private:
 
 	// Callbacks for hotfixes
