@@ -3,7 +3,10 @@
 #pragma once
 
 #include "CoreMinimal.h"
+#include "Misc/ScopeLock.h"
 #include "Misc/ScopeRWLock.h"
+#include "HAL/PlatformStackWalk.h"
+#include "Containers/SparseArray.h"
 #include "Containers/ChunkedArray.h"
 #include "TypedElementLimits.h"
 
@@ -23,6 +26,53 @@
 #define UE_DEFINE_TYPED_ELEMENT_DATA_RTTI(ELEMENT_DATA_TYPE)						\
 	FTypedHandleTypeId ELEMENT_DATA_TYPE::Private_RegisteredTypeId = 0;
 
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+/**
+ * Debugging information used to locate reference leaks.
+ */
+class FTypedElementReference
+{
+public:
+	FTypedElementReference()
+	{
+		CallstackDepth = FPlatformStackWalk::CaptureStackBackTrace(Callstack, UE_ARRAY_COUNT(Callstack));
+	}
+
+	FTypedElementReference(const FTypedElementReference&) = default;
+	FTypedElementReference& operator=(const FTypedElementReference&) = default;
+
+	FTypedElementReference(FTypedElementReference&&) = default;
+	FTypedElementReference& operator=(FTypedElementReference&&) = default;
+
+	void AppendString(FString& OutStr) const
+	{
+		ANSICHAR CallstackText[4096];
+		for (uint32 CallstackIndex = TypedHandleRefTrackingSkipCount; CallstackIndex < CallstackDepth; ++CallstackIndex)
+		{
+			if (CallstackIndex > TypedHandleRefTrackingSkipCount)
+			{
+				OutStr.Append(LINE_TERMINATOR);
+			}
+
+			CallstackText[0] = 0;
+			FPlatformStackWalk::ProgramCounterToHumanReadableString(CallstackIndex - TypedHandleRefTrackingSkipCount, Callstack[CallstackIndex], CallstackText, UE_ARRAY_COUNT(CallstackText));
+			OutStr.Append(CallstackText);
+		}
+	}
+
+	FString ToString() const
+	{
+		FString Str;
+		AppendString(Str);
+		return Str;
+	}
+
+private:
+	uint64 Callstack[TypedHandleRefTrackingDepth + TypedHandleRefTrackingSkipCount];
+	uint32 CallstackDepth = 0;
+};
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+
 /**
  * Base class for the internal payload data associated with elements.
  */
@@ -34,29 +84,90 @@ public:
 	FTypedElementInternalData(const FTypedElementInternalData&) = delete;
 	FTypedElementInternalData& operator=(const FTypedElementInternalData&) = delete;
 	
-	FTypedElementInternalData(FTypedElementInternalData&& InOther) = default;
-	FTypedElementInternalData& operator=(FTypedElementInternalData&&) = default;
+	FTypedElementInternalData(FTypedElementInternalData&& InOther) = delete;
+	FTypedElementInternalData& operator=(FTypedElementInternalData&&) = delete;
 
 	virtual ~FTypedElementInternalData() = default;
 
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
-	FORCEINLINE void AddRef() const
+	virtual void Reset()
 	{
-		checkSlow(RefCount < TNumericLimits<FTypedHandleRefCount>::Max());
-		FPlatformAtomics::InterlockedIncrement(&RefCount);
+#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
+		FPlatformAtomics::InterlockedExchange(&RefCount, 0);
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		{
+			FScopeLock ReferencesLock(&ReferencesCS);
+			References.Reset();
+		}
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
 
-	FORCEINLINE void ReleaseRef() const
+	FORCEINLINE FTypedElementReferenceId AddRef(const bool bCanTrackReference) const
 	{
+		FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
+		checkSlow(RefCount < TNumericLimits<FTypedElementRefCount>::Max());
+		FPlatformAtomics::InterlockedIncrement(&RefCount);
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		if (bCanTrackReference)
+		{
+			FScopeLock ReferencesLock(&ReferencesCS);
+			ReferenceId = References.Add(FTypedElementReference());
+		}
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+		return ReferenceId;
+	}
+
+	FORCEINLINE void ReleaseRef(const FTypedElementReferenceId InReferenceId) const
+	{
+#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
 		checkSlow(RefCount > 0);
 		FPlatformAtomics::InterlockedDecrement(&RefCount);
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		if (InReferenceId != INDEX_NONE)
+		{
+			FScopeLock ReferencesLock(&ReferencesCS);
+			References.RemoveAt(InReferenceId);
+		}
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
 
-	FORCEINLINE FTypedHandleRefCount GetRefCount() const
+	FORCEINLINE FTypedElementRefCount GetRefCount() const
 	{
+#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
 		return FPlatformAtomics::AtomicRead(&RefCount);
+#else	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
+		return 0;
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
 	}
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+
+	void AppendRefString(FString& OutStr) const
+	{
+#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
+		OutStr.Appendf(TEXT("Ref-count: %d"), FPlatformAtomics::AtomicRead(&RefCount));
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		{
+			FScopeLock ReferencesLock(&ReferencesCS);
+			OutStr.Append(LINE_TERMINATOR TEXT("References:") LINE_TERMINATOR);
+			for (const FTypedElementReference& Reference : References)
+			{
+				OutStr.Append(TEXT("-----------------------------------------------") LINE_TERMINATOR);
+				Reference.AppendString(OutStr);
+			}
+			OutStr.Append(LINE_TERMINATOR TEXT("==============================================="));
+		}
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
+	}
+
+	FString GetRefString() const
+	{
+		FString Str;
+		AppendRefString(Str);
+		return Str;
+	}
 
 	virtual const void* GetUntypedData() const
 	{
@@ -64,9 +175,13 @@ public:
 	}
 
 private:
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
-	mutable FTypedHandleRefCount RefCount = 0;
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFCOUNTING
+	mutable FTypedElementRefCount RefCount = 0;
+#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNTING
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+	mutable FCriticalSection ReferencesCS;
+	mutable TSparseArray<FTypedElementReference> References;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 };
 
 /**
@@ -76,12 +191,11 @@ template <typename ElementDataType>
 class TTypedElementInternalData : public FTypedElementInternalData
 {
 public:
-	TTypedElementInternalData() = default;
-
-	TTypedElementInternalData(TTypedElementInternalData&& InOther) = default;
-	TTypedElementInternalData& operator=(TTypedElementInternalData&&) = default;
-
-	virtual ~TTypedElementInternalData() = default;
+	virtual void Reset() override
+	{
+		FTypedElementInternalData::Reset();
+		Data = ElementDataType();
+	}
 
 	FORCEINLINE const ElementDataType& GetData() const
 	{
@@ -108,13 +222,6 @@ private:
 template <>
 class TTypedElementInternalData<void> : public FTypedElementInternalData
 {
-public:
-	TTypedElementInternalData() = default;
-
-	TTypedElementInternalData(TTypedElementInternalData&& InOther) = default;
-	TTypedElementInternalData& operator=(TTypedElementInternalData&&) = default;
-
-	virtual ~TTypedElementInternalData() = default;
 };
 
 /**
@@ -148,7 +255,7 @@ public:
 		
 		TTypedElementInternalData<ElementDataType>& InternalData = InternalDataArray[InElementId];
 		checkf(InExpectedDataPtr == &InternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
-		InternalData = TTypedElementInternalData<ElementDataType>();
+		InternalData.Reset();
 		InternalDataFreeIndices.Add(InElementId);
 	}
 
@@ -194,7 +301,7 @@ public:
 
 	TTypedElementInternalData<void>& AddDataForElement(FTypedHandleElementId& InOutElementId)
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFERENCING
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
 		checkSlow(InOutElementId >= 0);
@@ -206,14 +313,14 @@ public:
 
 		ElementIdToArrayIndex.Add(InOutElementId, InternalDataArrayIndex);
 		return InternalDataArray[InternalDataArrayIndex];
-#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
 		return SharedInternalData;
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 	}
 
 	void RemoveDataForElement(const FTypedHandleElementId InElementId, const FTypedElementInternalData* InExpectedDataPtr)
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFERENCING
 		FWriteScopeLock InternalDataLock(InternalDataRW);
 
 		int32 InternalDataArrayIndex = INDEX_NONE;
@@ -223,24 +330,24 @@ public:
 
 		TTypedElementInternalData<void>& InternalData = InternalDataArray[InElementId];
 		checkf(InExpectedDataPtr == &InternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
-		InternalData = TTypedElementInternalData<void>();
+		InternalData.Reset();
 		InternalDataFreeIndices.Add(InternalDataArrayIndex);
-#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
 		checkf(InExpectedDataPtr == &SharedInternalData, TEXT("Internal data pointer did not match the expected value! Does this handle belong to a different element registry?"));
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 	}
 
 	const TTypedElementInternalData<void>& GetDataForElement(const FTypedHandleElementId InElementId) const
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFERENCING
 		FReadScopeLock InternalDataLock(InternalDataRW);
 
 		const int32* InternalDataArrayIndexPtr = ElementIdToArrayIndex.Find(InElementId);
 		checkSlow(InternalDataArrayIndexPtr && InternalDataArray.IsValidIndex(*InternalDataArrayIndexPtr));
 		return InternalDataArray[*InternalDataArrayIndexPtr];
-#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
 		return SharedInternalData;
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 	}
 
 	static FORCEINLINE void SetStaticDataTypeId(const FTypedHandleTypeId InTypeId)
@@ -258,12 +365,12 @@ public:
 	}
 
 private:
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
+#if UE_TYPED_ELEMENT_HAS_REFERENCING
 	mutable FRWLock InternalDataRW;
 	TChunkedArray<TTypedElementInternalData<void>> InternalDataArray;
 	TArray<int32> InternalDataFreeIndices;
 	TMap<FTypedHandleElementId, int32> ElementIdToArrayIndex;
-#else	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#else	// UE_TYPED_ELEMENT_HAS_REFERENCING
 	TTypedElementInternalData<void> SharedInternalData;
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+#endif	// UE_TYPED_ELEMENT_HAS_REFERENCING
 };

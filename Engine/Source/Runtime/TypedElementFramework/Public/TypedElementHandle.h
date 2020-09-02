@@ -177,8 +177,14 @@ public:
 	FTypedElementHandle(FTypedElementHandle&& InOther)
 		: Id(MoveTemp(InOther.Id))
 		, DataPtr(InOther.DataPtr)
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		, ReferenceId(InOther.ReferenceId)
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	{
 		InOther.DataPtr = nullptr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		InOther.ReferenceId = INDEX_NONE;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 		checkSlow(!InOther.IsSet());
 	}
 
@@ -190,8 +196,14 @@ public:
 
 			Id = MoveTemp(InOther.Id);
 			DataPtr = InOther.DataPtr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+			ReferenceId = InOther.ReferenceId;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 
 			InOther.DataPtr = nullptr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+			InOther.ReferenceId = INDEX_NONE;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 			checkSlow(!InOther.IsSet());
 		}
 		return *this;
@@ -284,7 +296,7 @@ public:
 		FTypedElementId ElementId;
 		if (IsSet())
 		{
-			AddRef();
+			DataPtr->AddRef(/*bCanTrackReference*/false); // Cannot track element ID references as we have no space to store the reference ID
 			ElementId.Private_InitializeNoRef(Id.GetTypeId(), Id.GetElementId());
 		}
 		return ElementId;
@@ -299,7 +311,7 @@ public:
 		checkf(InOutElementId == Id, TEXT("Element ID does not match this handle!"));
 		if (InOutElementId)
 		{
-			ReleaseRef();
+			DataPtr->ReleaseRef(INDEX_NONE); // Cannot track element ID references as we have no space to store the reference ID
 			InOutElementId.Private_DestroyNoRef();
 		}
 	}
@@ -328,18 +340,21 @@ public:
 	FORCEINLINE void Private_InitializeAddRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, const FTypedElementInternalData& InData)
 	{
 		Private_InitializeNoRef(InTypeId, InElementId, InData);
-		AddRef();
+		RegisterRef();
 	}
 
 	FORCEINLINE void Private_DestroyNoRef()
 	{
 		Id.Private_DestroyNoRef();
 		DataPtr = nullptr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		ReferenceId = INDEX_NONE;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
 
 	FORCEINLINE void Private_DestroyReleaseRef()
 	{
-		ReleaseRef();
+		UnregisterRef();
 		Private_DestroyNoRef();
 	}
 
@@ -349,28 +364,33 @@ public:
 	}
 
 private:
-	FORCEINLINE void AddRef() const
+	FORCEINLINE void RegisterRef()
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
-			DataPtr->AddRef();
+#if !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#endif	// !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			ReferenceId = DataPtr->AddRef(/*bCanTrackReference*/true);
 		}
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
-	FORCEINLINE void ReleaseRef() const
+	FORCEINLINE void UnregisterRef()
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
-			DataPtr->ReleaseRef();
+#if !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#endif	// !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			DataPtr->ReleaseRef(ReferenceId);
 		}
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	FTypedElementId Id;
 	const FTypedElementInternalData* DataPtr = nullptr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+	FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 };
 
 /**
@@ -720,7 +740,7 @@ public:
 		FTypedElementId ElementId;
 		if (IsSet())
 		{
-			AddRef();
+			DataPtr->AddRef(/*bCanTrackReference*/false); // Cannot track element ID references as we have no space to store the reference ID
 			ElementId.Private_InitializeNoRef(Id.GetTypeId(), Id.GetElementId());
 		}
 		return ElementId;
@@ -735,7 +755,7 @@ public:
 		checkf(InOutElementId == Id, TEXT("Element ID does not match this owner!"));
 		if (InOutElementId)
 		{
-			ReleaseRef();
+			DataPtr->ReleaseRef(INDEX_NONE); // Cannot track element ID references as we have no space to store the reference ID
 			InOutElementId.Private_DestroyNoRef();
 		}
 	}
@@ -788,18 +808,21 @@ public:
 	FORCEINLINE void Private_InitializeAddRef(const FTypedHandleTypeId InTypeId, const FTypedHandleElementId InElementId, TTypedElementInternalData<ElementDataType>& InData)
 	{
 		Private_InitializeNoRef(InTypeId, InElementId, InData);
-		AddRef();
+		RegisterRef();
 	}
 
 	FORCEINLINE void Private_DestroyNoRef()
 	{
 		Id.Private_DestroyNoRef();
 		DataPtr = nullptr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+		ReferenceId = INDEX_NONE;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 	}
 
 	FORCEINLINE void Private_DestroyReleaseRef()
 	{
-		ReleaseRef();
+		UnregisterRef();
 		Private_DestroyNoRef();
 	}
 
@@ -809,27 +832,32 @@ public:
 	}
 
 private:
-	FORCEINLINE void AddRef() const
+	FORCEINLINE void RegisterRef()
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
-			DataPtr->AddRef();
+#if !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#endif	// !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			ReferenceId = DataPtr->AddRef(/*bCanTrackReference*/true);
 		}
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
-	FORCEINLINE void ReleaseRef() const
+	FORCEINLINE void UnregisterRef()
 	{
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
 		if (DataPtr)
 		{
-			DataPtr->ReleaseRef();
+#if !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#endif	// !UE_TYPED_ELEMENT_HAS_REFTRACKING
+			DataPtr->ReleaseRef(ReferenceId);
 		}
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
 	}
 
 	FTypedElementId Id;
 	TTypedElementInternalData<ElementDataType>* DataPtr = nullptr;
+#if UE_TYPED_ELEMENT_HAS_REFTRACKING
+	FTypedElementReferenceId ReferenceId = INDEX_NONE;
+#endif	// UE_TYPED_ELEMENT_HAS_REFTRACKING
 };
 using FTypedElementOwner = TTypedElementOwner<void>;

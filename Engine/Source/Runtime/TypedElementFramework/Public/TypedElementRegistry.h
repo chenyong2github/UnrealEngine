@@ -311,12 +311,13 @@ private:
 		FRegisteredElementType* RegisteredElementType = GetRegisteredElementTypeFromId(InOutElementOwner.GetId().GetTypeId());
 		checkf(RegisteredElementType, TEXT("Element type ID '%d' has not been registered!"), InOutElementOwner.GetId().GetTypeId());
 
-#if DO_CHECK && UE_TYPED_ELEMENT_HAS_REFCOUNT
+#if DO_CHECK
 		{
-			const FTypedHandleRefCount RefCount = RegisteredElementType->GetDataForElement(InOutElementOwner.GetId().GetElementId()).GetRefCount();
-			checkf(RefCount == 1, TEXT("Element is still externally referenced when being destroyed (ref-count: %d)!"), RefCount);
+			const FTypedElementInternalData& ElementData = RegisteredElementType->GetDataForElement(InOutElementOwner.GetId().GetElementId());
+			const FTypedElementRefCount RefCount = ElementData.GetRefCount();
+			checkf(RefCount <= 1, TEXT("Element is still externally referenced when being destroyed! %s"), *ElementData.GetRefString());
 		}
-#endif	// DO_CHECK && UE_TYPED_ELEMENT_HAS_REFCOUNT
+#endif	// DO_CHECK
 
 		RegisteredElementType->RemoveDataForElement(InOutElementOwner.GetId().GetElementId(), InOutElementOwner.Private_GetInternalData());
 		InOutElementOwner.Private_DestroyNoRef();

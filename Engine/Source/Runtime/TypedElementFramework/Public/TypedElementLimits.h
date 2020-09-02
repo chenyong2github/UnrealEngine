@@ -5,7 +5,9 @@
 #include "CoreTypes.h"
 #include "Math/NumericLimits.h"
 
-#define UE_TYPED_ELEMENT_HAS_REFCOUNT (1)
+#define UE_TYPED_ELEMENT_HAS_REFCOUNTING (1)
+#define UE_TYPED_ELEMENT_HAS_REFTRACKING (0)
+#define UE_TYPED_ELEMENT_HAS_REFERENCING (UE_TYPED_ELEMENT_HAS_REFCOUNTING || UE_TYPED_ELEMENT_HAS_REFTRACKING)
 
 /**
  * Handle ID limits, as used by FTypedElementId.
@@ -21,12 +23,15 @@ constexpr SIZE_T TypedHandleElementIdBytes = TypedHandleElementIdBits >> 3;
 constexpr SIZE_T TypedHandleMaxTypeId = ((SIZE_T)1 << TypedHandleTypeIdBits) - 1;
 constexpr SIZE_T TypedHandleMaxElementId = ((SIZE_T)1 << TypedHandleElementIdBits) - 1;
 
+constexpr SIZE_T TypedHandleRefTrackingSkipCount = 1;
+constexpr SIZE_T TypedHandleRefTrackingDepth = 15;
+
 using FTypedHandleTypeId = uint8;
 using FTypedHandleElementId = int32;
 using FTypedHandleCombinedId = uint32;
-#if UE_TYPED_ELEMENT_HAS_REFCOUNT
-using FTypedHandleRefCount = int32;
-#endif	// UE_TYPED_ELEMENT_HAS_REFCOUNT
+
+using FTypedElementRefCount = int32;
+using FTypedElementReferenceId = int32;
 
 static_assert(sizeof(FTypedHandleCombinedId) >= (TypedHandleTypeIdBytes + TypedHandleElementIdBytes), "FTypedHandleCombinedId is not large enough to hold the combination of TypedHandleTypeIdBytes and TypedHandleElementIdBytes!");
 
