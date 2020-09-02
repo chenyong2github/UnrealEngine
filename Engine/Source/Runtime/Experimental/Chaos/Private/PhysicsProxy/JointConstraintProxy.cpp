@@ -268,47 +268,33 @@ void TJointConstraintProxy<Chaos::FJointConstraint>::PushStateOnPhysicsThread(Ch
 			FConstraintData& ConstraintSettings = Handle->GetSettings();
 			if (DirtyFlagsBuffer.IsDirty(Chaos::EJointConstraintFlags::CollisionEnabled))
 			{
-				auto Particles = Constraint->GetParticles();
-
-				// Three pieces of state to update on the physics thread. 
-				// .. Mask on the particle array
-				// .. Constraint collisions enabled array
-				// .. IgnoreCollisionsManager
-				if (Particles[0]->Handle() && Particles[1]->Handle())
+				if (!JointSettingsBuffer.bCollisionEnabled)
 				{
-					Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Particles[0]->Handle()->CastToRigidParticle();
-					Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle1 = Particles[1]->Handle()->CastToRigidParticle();
+					auto Particles = Constraint->GetParticles();
 
-					if (ParticleHandle0 && ParticleHandle1)
+					// Three pieces of state to update on the physics thread. 
+					// .. Mask on the particle array
+					// .. Constraint collisions enabled array
+					// .. IgnoreCollisionsManager
+					if (Particles[0]->Handle() && Particles[1]->Handle())
 					{
-						Chaos::FIgnoreCollisionManager& IgnoreCollisionManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
-						Chaos::FUniqueIdx ID0 = ParticleHandle0->UniqueIdx();
-						Chaos::FUniqueIdx ID1 = ParticleHandle1->UniqueIdx();
+						Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle0 = Particles[0]->Handle()->CastToRigidParticle();
+						Chaos::TPBDRigidParticleHandle<FReal, 3>* ParticleHandle1 = Particles[1]->Handle()->CastToRigidParticle();
 
-
-						if (JointSettingsBuffer.bCollisionEnabled)
+						if (ParticleHandle0 && ParticleHandle1)
 						{
-							IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID0, ID1);
-							if (IgnoreCollisionManager.NumIgnoredCollision(ID0))
-							{
-								ParticleHandle0->RemoveCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-							}
+							Chaos::FIgnoreCollisionManager& IgnoreCollisionManager = InSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+							Chaos::FUniqueIdx ID0 = ParticleHandle0->UniqueIdx();
+							Chaos::FUniqueIdx ID1 = ParticleHandle1->UniqueIdx();
 
-							IgnoreCollisionManager.RemoveIgnoreCollisionsFor(ID1, ID0);
-							if (IgnoreCollisionManager.NumIgnoredCollision(ID1))
-							{
-								ParticleHandle1->RemoveCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
-							}
-						}
-						else
-						{
+
 							ParticleHandle0->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 							IgnoreCollisionManager.AddIgnoreCollisionsFor(ID0, ID1);
 
 							ParticleHandle1->AddCollisionConstraintFlag(Chaos::ECollisionConstraintFlags::CCF_BroadPhaseIgnoreCollisions);
 							IgnoreCollisionManager.AddIgnoreCollisionsFor(ID1, ID0);
+							ConstraintSettings.bCollisionEnabled = JointSettingsBuffer.bCollisionEnabled;
 						}
-						ConstraintSettings.bCollisionEnabled = JointSettingsBuffer.bCollisionEnabled;
 					}
 				}
 			}
