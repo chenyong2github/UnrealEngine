@@ -350,7 +350,7 @@ public:
 	 * @param	OutVertices		The skinned vertices
 	 * @param	InLODIndex		The LOD we want to export
 	 */
-	void GetCPUSkinnedVertices(TArray<struct FFinalSkinVertex>& OutVertices, int32 InLODIndex);
+	void GetCPUSkinnedVertices(TArray<struct FFinalSkinVertex>& OutVertices, int32 InLODIndex) const;
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 	/** Get whether to draw this mesh's debug skeleton */
