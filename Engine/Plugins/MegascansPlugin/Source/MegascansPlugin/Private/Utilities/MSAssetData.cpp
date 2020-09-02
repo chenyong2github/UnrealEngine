@@ -5,18 +5,18 @@
 #include "EditorAssetLibrary.h"
 
 
-TSharedPtr<FAssetImportParams> FAssetImportParams::ImportParamsInst;
-TSharedPtr<FAssetImportParams> FAssetImportParams::Get()
+TSharedPtr<FMSImportParams> FMSImportParams::ImportParamsInst;
+TSharedPtr<FMSImportParams> FMSImportParams::Get()
 {
 	if (!ImportParamsInst.IsValid())
 	{
-		ImportParamsInst = MakeShareable(new FAssetImportParams);
+		ImportParamsInst = MakeShareable(new FMSImportParams);
 	}
 	return ImportParamsInst;
 }
 
 
-TSharedPtr<ImportParams3DAsset> FAssetImportParams::Get3DAssetsParams(TSharedPtr<FAssetTypeData> AssetImportData)
+TSharedPtr<ImportParams3DAsset> FMSImportParams::Get3DAssetsParams(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	TSharedPtr<ImportParams3DAsset> AssetParams = MakeShareable(new ImportParams3DAsset);
 	AssetParams->BaseParams = GetAssetImportParams(AssetImportData);
@@ -51,7 +51,7 @@ TSharedPtr<ImportParams3DAsset> FAssetImportParams::Get3DAssetsParams(TSharedPtr
 	return AssetParams;
 }
 
-ES3DMasterMaterialType FAssetImportParams::GetS3DMasterMaterialType(TSharedPtr<FAssetTypeData> AssetImportData)
+ES3DMasterMaterialType FMSImportParams::GetS3DMasterMaterialType(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	const UMegascansSettings* MegascansSettings = GetDefault<UMegascansSettings>();	
 	const UMaterialAssetSettings* MatAssetPathsSettings = GetDefault<UMaterialAssetSettings>();
@@ -87,7 +87,7 @@ ES3DMasterMaterialType FAssetImportParams::GetS3DMasterMaterialType(TSharedPtr<F
 	return ES3DMasterMaterialType::NORMAL;
 }
 
-E3DPlantBillboardMaterial FAssetImportParams::GetBillboardMaterialType(TSharedPtr<FAssetTypeData> AssetImportData)
+E3DPlantBillboardMaterial FMSImportParams::GetBillboardMaterialType(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	// Type of master material for billboards
 	
@@ -95,7 +95,7 @@ E3DPlantBillboardMaterial FAssetImportParams::GetBillboardMaterialType(TSharedPt
 }
 
 
-TSharedPtr<ImportParamsSurfaceAsset> FAssetImportParams::GetSurfaceParams(TSharedPtr<FAssetTypeData> AssetImportData)
+TSharedPtr<ImportParamsSurfaceAsset> FMSImportParams::GetSurfaceParams(TSharedPtr<FAssetTypeData> AssetImportData)
 {	
 	TSharedPtr< ImportParamsSurfaceAsset> AssetParams = MakeShareable(new ImportParamsSurfaceAsset);
 	AssetParams->BaseParams = GetAssetImportParams(AssetImportData);
@@ -119,7 +119,7 @@ TSharedPtr<ImportParamsSurfaceAsset> FAssetImportParams::GetSurfaceParams(TShare
 	return AssetParams;
 }
 
-TSharedPtr<ImportParams3DPlantAsset> FAssetImportParams::Get3DPlantParams(TSharedPtr<FAssetTypeData> AssetImportData)
+TSharedPtr<ImportParams3DPlantAsset> FMSImportParams::Get3DPlantParams(TSharedPtr<FAssetTypeData> AssetImportData)
 {	
 	TSharedPtr<ImportParams3DPlantAsset>  AssetParams = MakeShareable(new ImportParams3DPlantAsset);
 	AssetParams->BaseParams = GetAssetImportParams(AssetImportData);
@@ -164,7 +164,7 @@ TSharedPtr<ImportParams3DPlantAsset> FAssetImportParams::Get3DPlantParams(TShare
 
 }
 
-TSharedPtr<AssetImportParams> FAssetImportParams::GetAssetImportParams(TSharedPtr<FAssetTypeData> AssetImportData)
+TSharedPtr<AssetImportParams> FMSImportParams::GetAssetImportParams(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	TSharedPtr<AssetImportParams>  AssetImportparameters = MakeShareable(new AssetImportParams);	
 	FString AssetType = AssetImportData->AssetMetaInfo->Type;
@@ -175,7 +175,7 @@ TSharedPtr<AssetImportParams> FAssetImportParams::GetAssetImportParams(TSharedPt
 	return AssetImportparameters;
 }
 
-TSharedPtr<ImportParamsSurfaceAsset> FAssetImportParams::GetAtlasBrushParams(TSharedPtr<FAssetTypeData> AssetImportData)
+TSharedPtr<ImportParamsSurfaceAsset> FMSImportParams::GetAtlasBrushParams(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	TSharedPtr< ImportParamsSurfaceAsset> AssetParams = MakeShareable(new ImportParamsSurfaceAsset);
 	AssetParams->BaseParams = GetAssetImportParams(AssetImportData);	
@@ -191,7 +191,7 @@ TSharedPtr<ImportParamsSurfaceAsset> FAssetImportParams::GetAtlasBrushParams(TSh
 	return AssetParams;
 }
 
-FString FAssetImportParams::GetAssetTypePath(const FString& RootDestination, const FString& AssetType)
+FString FMSImportParams::GetAssetTypePath(const FString& RootDestination, const FString& AssetType)
 {
 	TMap<FString, FString> TypeNames = {
 		{TEXT("3d"),TEXT("3D_Assets")},
@@ -204,24 +204,24 @@ FString FAssetImportParams::GetAssetTypePath(const FString& RootDestination, con
 	return FPaths::Combine(RootDestination, TypeNames[AssetType]);
 }
 
-EAtlasSubType FAssetImportParams::GetAtlasSubtype(TSharedPtr<FAssetTypeData> AssetImportData)
+EAtlasSubType FMSImportParams::GetAtlasSubtype(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	auto& TagsList = AssetImportData->AssetMetaInfo->Tags;
 	return (!TagsList.Contains(TEXT("decal"))) ? EAtlasSubType::ATLAS: EAtlasSubType::DECAL;
 }
-ESurfaceSubType FAssetImportParams::GetSurfaceSubtype(TSharedPtr<FAssetTypeData> AssetImportData)
+ESurfaceSubType FMSImportParams::GetSurfaceSubtype(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	auto& TagsList = AssetImportData->AssetMetaInfo->Tags;
 	return (TagsList.Contains(TEXT("metal"))) ? ESurfaceSubType::METAL : (TagsList.Contains(TEXT("surface imperfection"))) ? ESurfaceSubType::IMPERFECTION : (TagsList.Contains(TEXT("tileable displacement"))) ? ESurfaceSubType::DISPLACEMENT : ESurfaceSubType::SURFACE;
 }
 
-EAsset3DSubtype FAssetImportParams::Get3DSubtype(TSharedPtr<FAssetTypeData> AssetImportData)
+EAsset3DSubtype FMSImportParams::Get3DSubtype(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	return (AssetImportData->AssetMetaInfo->Categories.Contains(TEXT("scatter")) || AssetImportData->AssetMetaInfo->Tags.Contains(TEXT("scatter")) || AssetImportData->AssetMetaInfo->Categories.Contains(TEXT("cmb_asset")) || AssetImportData->AssetMetaInfo->Tags.Contains(TEXT("cmb_asset"))) ? EAsset3DSubtype::MULTI_MESH : EAsset3DSubtype::NORMAL_3D;
 	
 }
 
-FString FAssetImportParams::GetMasterMaterial(const FString& SelectedMaterial)
+FString FMSImportParams::GetMasterMaterial(const FString& SelectedMaterial)
 {
 	CopyPresetTextures();
 	FString MaterialPath = GetMaterial(SelectedMaterial);

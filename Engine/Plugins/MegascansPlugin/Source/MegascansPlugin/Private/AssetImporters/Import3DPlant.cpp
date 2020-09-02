@@ -32,7 +32,7 @@ void FImportPlant::ImportAsset(TSharedPtr<FAssetTypeData> AssetImportData)
 {
 	if (AssetImportData->MeshList.Num() == 0) return;
 	const UMegascansSettings* MegascansSettings = GetDefault<UMegascansSettings>();
-	TSharedPtr<FAssetImportParams> AssetSetupParameters = FAssetImportParams::Get();
+	TSharedPtr<FMSImportParams> AssetSetupParameters = FMSImportParams::Get();
 	TSharedPtr<ImportParams3DPlantAsset> AssetPlantParameters = AssetSetupParameters->Get3DPlantParams(AssetImportData);	
 	PlantImportType ImportType = GetImportType(AssetImportData);
 	TMap<FString, FString> ImportedPlants = ImportPlants(AssetImportData, AssetPlantParameters);

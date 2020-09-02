@@ -32,7 +32,7 @@ TSharedPtr<FImport3d> FImport3d::Get()
 void FImport3d::ImportAsset(TSharedPtr<FAssetTypeData> AssetImportData)
 {	
 	const UMegascansSettings* MegascansSettings = GetDefault<UMegascansSettings>();
-	TSharedPtr<FAssetImportParams> AssetSetupParameters = FAssetImportParams::Get();
+	TSharedPtr<FMSImportParams> AssetSetupParameters = FMSImportParams::Get();
 	TSharedPtr<ImportParams3DAsset> Asset3DParameters = AssetSetupParameters->Get3DAssetsParams(AssetImportData);	
 
 	if (AssetImportData->MeshList.Num() == 0) return;

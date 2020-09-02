@@ -96,9 +96,9 @@ struct ImportParamsSurfaceAsset
 
 
 
-class FAssetImportParams {
+class FMSImportParams {
 private:
-	FAssetImportParams() = default;
+	FMSImportParams() = default;
 
 	const TMap<EAtlasSubType, FString> AtlasSubTypeMaterials = {
 		{EAtlasSubType::ATLAS,"Atlas_Material"},
@@ -129,7 +129,7 @@ private:
 
 	const FString PlantsMasterMaterial = TEXT("Foliage_Material");
 	
-	static TSharedPtr<FAssetImportParams> ImportParamsInst;
+	static TSharedPtr<FMSImportParams> ImportParamsInst;
 	FString GetAssetTypePath(const FString& RootDestination, const FString& AssetType);
 	EAtlasSubType GetAtlasSubtype(TSharedPtr<FAssetTypeData> AssetImportData);
 	ESurfaceSubType GetSurfaceSubtype(TSharedPtr<FAssetTypeData> AssetImportData);
@@ -139,7 +139,7 @@ private:
 	FString GetMasterMaterial(const FString& SelectedMaterial);
 
 public:
-	static TSharedPtr<FAssetImportParams> Get();	
+	static TSharedPtr<FMSImportParams> Get();	
 //Asset related data
 	TSharedPtr<ImportParams3DAsset> Get3DAssetsParams(TSharedPtr<FAssetTypeData> AssetImportData);
 	TSharedPtr<ImportParamsSurfaceAsset> GetSurfaceParams(TSharedPtr<FAssetTypeData> AssetImportData);

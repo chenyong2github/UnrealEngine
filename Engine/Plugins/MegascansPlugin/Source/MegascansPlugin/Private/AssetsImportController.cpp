@@ -75,8 +75,8 @@ void FAssetsImportController::ImportAssets(const FString& AssetsImportJson)
 	for (TSharedPtr<FAssetTypeData> AssetImportData : AssetsImportData->AllAssetsData)
 	{	
 		//AssetImportData->AssetMetaInfo->bSavePackages = bSavePackages;
-		AssetImportData->AssetMetaInfo->bSavePackages = false;
-		TSharedPtr<FAssetImportParams> AssetSetupParameters = FAssetImportParams::Get();
+		AssetImportData->AssetMetaInfo->bSavePackages = true;
+		TSharedPtr<FMSImportParams> AssetSetupParameters = FMSImportParams::Get();
 		AssetRecord Record;
 		if (FAssetsDatabase::Get()->RecordExists(AssetImportData->AssetMetaInfo->Id, Record) && FPaths::DirectoryExists(FPaths::Combine(FPaths::ProjectContentDir(), Record.Path.Replace(TEXT("/Game"), TEXT("")))))
 		{

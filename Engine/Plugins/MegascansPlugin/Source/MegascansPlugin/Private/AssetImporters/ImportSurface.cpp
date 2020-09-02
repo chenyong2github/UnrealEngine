@@ -24,7 +24,7 @@ TSharedPtr<FImportSurface> FImportSurface::ImportSurfaceInst;
 
 void FImportSurface::ImportAsset(TSharedPtr<FAssetTypeData> AssetImportData)
 {
-	TSharedPtr<FAssetImportParams> AssetSetupParameters = FAssetImportParams::Get();	
+	TSharedPtr<FMSImportParams> AssetSetupParameters = FMSImportParams::Get();	
 	TSharedPtr<ImportParamsSurfaceAsset> SurfaceImportParams = (AssetImportData->AssetMetaInfo->Type == TEXT("surface")) ? AssetSetupParameters->GetSurfaceParams(AssetImportData) : AssetSetupParameters->GetAtlasBrushParams(AssetImportData);
 	UMaterialInstanceConstant* MaterialInstance = ImportSurface(AssetImportData, SurfaceImportParams->ParamsAssetType);
 	AssetUtils::FocusOnSelected(SurfaceImportParams->ParamsAssetType->MaterialInstanceDestination);
