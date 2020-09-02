@@ -47,6 +47,7 @@ public:
 
 	void DrawInstructionCounts(UNiagaraSystem* ParticleSystem, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 	void DrawParticleCounts(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
+	void DrawEmitterExecutionOrder(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight);
 
 	TWeakPtr<SNiagaraSystemViewport> NiagaraViewportPtr;
 	bool bCaptureScreenShot;
@@ -134,6 +135,10 @@ void FNiagaraSystemViewportClient::Draw(FViewport* InViewport, FCanvas* Canvas)
 		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::ParticleCounts) && Component)
 		{
 			DrawParticleCounts(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
+		}
+		if (NiagaraViewport->GetDrawElement(SNiagaraSystemViewport::EDrawElements::EmitterExecutionOrder) && Component)
+		{
+			DrawEmitterExecutionOrder(Component, Canvas, CurrentX, CurrentY, Font, FontHeight);
 		}
 	}
 
@@ -285,8 +290,28 @@ void FNiagaraSystemViewportClient::DrawParticleCounts(UNiagaraComponent* Compone
 			CurrentY += FontHeight;
 		}
 	}
+}
 
-	return;
+void FNiagaraSystemViewportClient::DrawEmitterExecutionOrder(UNiagaraComponent* Component, FCanvas* Canvas, float& CurrentX, float& CurrentY, UFont* Font, const float FontHeight)
+{
+	UNiagaraSystem* NiagaraSystem = Component->GetAsset();
+	if (NiagaraSystem == nullptr)
+		return;
+
+	Canvas->DrawShadowedString(CurrentX, CurrentY, TEXT("Emitter Execution Order"), Font, FLinearColor::White);
+	CurrentY += FontHeight;
+
+	TConstArrayView<int32> ExecutionOrder = NiagaraSystem->GetEmitterExecutionOrder();
+	int32 DisplayIndex = 0;
+	for (int32 EmitterIndex : ExecutionOrder)
+	{
+		const FNiagaraEmitterHandle& EmitterHandle = NiagaraSystem->GetEmitterHandle(EmitterIndex);
+		if (UNiagaraEmitter* NiagaraEmitter = EmitterHandle.GetInstance())
+		{
+			Canvas->DrawShadowedString(CurrentX, CurrentY, *FString::Printf(TEXT("%d - %s"), ++DisplayIndex, NiagaraEmitter->GetDebugSimName()), Font, FLinearColor::White);
+			CurrentY += FontHeight;
+		}
+	}
 }
 
 bool FNiagaraSystemViewportClient::ShouldOrbitCamera() const
@@ -477,6 +502,13 @@ void SNiagaraSystemViewport::BindCommands()
 		FExecuteAction::CreateLambda([Viewport = this]() { Viewport->ToggleDrawElement(EDrawElements::ParticleCounts); Viewport->RefreshViewport(); }),
 		FCanExecuteAction(),
 		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::ParticleCounts); })
+	);
+
+	CommandList->MapAction(
+		Commands.ToggleEmitterExecutionOrder,
+		FExecuteAction::CreateLambda([Viewport = this]() { Viewport->ToggleDrawElement(EDrawElements::EmitterExecutionOrder); Viewport->RefreshViewport(); }),
+		FCanExecuteAction(),
+		FIsActionChecked::CreateLambda([Viewport = this]() -> bool { return Viewport->GetDrawElement(EDrawElements::EmitterExecutionOrder); })
 	);
 
 	CommandList->MapAction(

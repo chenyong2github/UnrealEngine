@@ -73,6 +73,7 @@ public:
 		Bounds = 0x020,
 		InstructionCounts = 0x040,
 		ParticleCounts = 0x080,
+		EmitterExecutionOrder = 0x100,
 	};
 
 	bool GetDrawElement(EDrawElements Element) const;
