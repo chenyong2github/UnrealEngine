@@ -65,7 +65,7 @@ public:
 
 
 	TSharedPtr<SDockTab> GetParentTab() const;
-	void FocusDebugConsole();
+	bool FocusDebugConsole();
 	bool IsDebugConsoleFocused() const;
 
 	bool IsContentBrowserOpened() const;

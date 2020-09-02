@@ -62,8 +62,8 @@ void SDebugConsole::Construct( const FArguments& InArgs, const EDebugConsoleStyl
 			[
 				SNew( SBorder )
 				.VAlign( VAlign_Center )
-				.Padding( FMargin(5.0f, 2.0f) )
-				.BorderImage( FEditorStyle::GetBrush( "DebugConsole.Background" ) )
+				.Padding( FMargin(3.0f, 3.0f) )
+				.BorderImage(FAppStyle::Get().GetBrush("Brushes.Background"))
 				.ColorAndOpacity( this, &SDebugConsole::GetAnimatedColorAndOpacity )
 				.BorderBackgroundColor( this, &SDebugConsole::GetAnimatedSlateColor )
 				[

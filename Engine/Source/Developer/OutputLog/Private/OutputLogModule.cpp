@@ -153,6 +153,12 @@ void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Wi
 		TSharedPtr< SWindow > WindowForExistingConsole = FSlateApplication::Get().FindWidgetWindow(PinnedDebugConsole.ToSharedRef());
 		if (WindowForExistingConsole.IsValid())
 		{
+			if (PreviousKeyboardFocusedWidget.IsValid())
+			{
+				FSlateApplication::Get().SetKeyboardFocus(PreviousKeyboardFocusedWidget.Pin());
+				PreviousKeyboardFocusedWidget.Reset();
+			}
+
 			WindowForExistingConsole->RemoveOverlaySlot(PinnedDebugConsole.ToSharedRef());
 			DebugConsole.Reset();
 		}
@@ -186,6 +192,8 @@ void FOutputLogModule::ToggleDebugConsoleForWindow(const TSharedRef<SWindow>& Wi
 				DebugConsoleRef
 			];
 
+		PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
+	
 		// Force keyboard focus
 		DebugConsoleRef->SetFocusToEditableText();
 	}

@@ -50,7 +50,9 @@ public:
 	virtual void ClearOnPIE(const bool bIsSimulating);
 
 private:
-
 	/** Weak pointer to a debug console that's currently open, if any */
-	TWeakPtr< SWidget > DebugConsole;
+	TWeakPtr<SWidget> DebugConsole;
+
+	/** Weak pointer to the widget to focus once they console window closes */
+	TWeakPtr<SWidget> PreviousKeyboardFocusedWidget;
 };

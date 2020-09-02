@@ -386,9 +386,9 @@ TSharedPtr<SDockTab> SStatusBar::GetParentTab() const
 	return ParentTab.Pin();
 }
 
-void SStatusBar::FocusDebugConsole()
+bool SStatusBar::FocusDebugConsole()
 {
-	FSlateApplication::Get().SetKeyboardFocus(ConsoleEditBox, EFocusCause::SetDirectly);
+	return FSlateApplication::Get().SetKeyboardFocus(ConsoleEditBox, EFocusCause::SetDirectly);
 }
 
 bool SStatusBar::IsDebugConsoleFocused() const

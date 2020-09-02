@@ -43,9 +43,7 @@ bool UStatusBarSubsystem::FocusDebugConsole(TSharedRef<SWindow> ParentWindow)
 			{
 				// Cache off the previously focused widget so we can restore focus if the user hits the focus key again
 				PreviousKeyboardFocusedWidget = FSlateApplication::Get().GetKeyboardFocusedWidget();
-				StatusBarPinned->FocusDebugConsole();
-
-				bFocusedSuccessfully = true;
+				bFocusedSuccessfully = StatusBarPinned->FocusDebugConsole();
 				break;
 			}
 		}
