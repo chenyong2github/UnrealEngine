@@ -18,6 +18,7 @@ FPhysicsDelegatesCore::FOnUpdatePhysXMaterial FPhysicsDelegatesCore::OnUpdatePhy
 #include "CollisionShape.h"
 #include "Chaos/PBDJointConstraintData.h"
 #include "Chaos/PBDSuspensionConstraintData.h"
+#include "Chaos/Collision/CollisionConstraintFlags.h"
 #include "PBDRigidsSolver.h"
 
 bool bEnableChaosJointConstraints = true;
@@ -267,6 +268,38 @@ void FChaosEngineInterface::DetachShape(const FPhysicsActorHandle& InActor,FPhys
 	// #todo : Implement
 	CHAOS_ENSURE(false);
 }
+
+void FChaosEngineInterface::AddDisabledCollisionsFor_AssumesLocked(const TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > >& InMap)
+{
+	for (auto Elem : InMap)
+	{
+		FPhysicsActorHandle& ActorReference = Elem.Key;
+		TArray< FPhysicsActorHandle >& DisabledCollisions = Elem.Value;
+		Chaos::FPhysicsSolver* Solver = ActorReference->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+		Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		Chaos::FIgnoreCollisionManager::FPendingMap& PendingMap = CollisionManager.GetPendingActivationsForGameThread();
+		if (PendingMap.Contains(ActorReference))
+		{
+			PendingMap.Remove(ActorReference);
+		}
+		PendingMap.Add(ActorReference, DisabledCollisions);
+	}
+}
+
+void FChaosEngineInterface::RemoveDisabledCollisionsFor_AssumesLocked(TArray< FPhysicsActorHandle >& InPhysicsActors)
+{
+	for (FPhysicsActorHandle& Handle : InPhysicsActors)
+	{
+		Chaos::FPhysicsSolver* Solver = Handle->GetProxy()->GetSolver<Chaos::FPhysicsSolver>();
+		Chaos::FIgnoreCollisionManager& CollisionManager = Solver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager();
+		Chaos::FIgnoreCollisionManager::FParticleArray& PendingMap = CollisionManager.GetPendingDeactivationsForGameThread();
+		if (!PendingMap.Contains(Handle))
+		{
+			PendingMap.Add(Handle);
+		}
+	}
+}
+
 
 void FChaosEngineInterface::SetActorUserData_AssumesLocked(FPhysicsActorHandle& InActorReference,FPhysicsUserData* InUserData)
 {

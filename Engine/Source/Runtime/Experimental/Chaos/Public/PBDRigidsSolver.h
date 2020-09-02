@@ -256,6 +256,9 @@ namespace Chaos
 		void Reset();
 
 		/**/
+		void StartingSceneSimulation();
+
+		/**/
 		void BufferPhysicsResults();
 
 		/**/
@@ -266,6 +269,7 @@ namespace Chaos
 
 		/**/
 		void UpdateGameThreadStructures();
+
 
 
 		/**/

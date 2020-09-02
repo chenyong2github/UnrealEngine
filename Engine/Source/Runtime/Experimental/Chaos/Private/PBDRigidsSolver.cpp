@@ -78,6 +78,7 @@ namespace Chaos
 		{
 			LLM_SCOPE(ELLMTag::Chaos);
 			UE_LOG(LogPBDRigidsSolver, Verbose, TEXT("AdvanceOneTimeStepTask::DoWork()"));
+			MSolver->StartingSceneSimulation();
 
 			MSolver->ApplyCallbacks_Internal();
 			MSolver->GetEvolution()->GetRigidClustering().ResetAllClusterBreakings();
@@ -103,6 +104,7 @@ namespace Chaos
 					Obj->ParameterUpdateCallback(MSolver->GetEvolution()->GetParticles().GetGeometryCollectionParticles(), MSolver->GetSolverTime());
 				}
 
+				MSolver->GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().ProcessPendingQueues();
 			}
 
 			{
@@ -633,6 +635,18 @@ namespace Chaos
 		BufferMode = InBufferMode;
 
 		SetThreadingMode_External(BufferMode == EMultiBufferMode::Single ? EThreadingModeTemp::SingleThread : EThreadingModeTemp::TaskGraph);
+	}
+
+	template <typename Traits>
+	void TPBDRigidsSolver<Traits>::StartingSceneSimulation()
+	{
+		LLM_SCOPE(ELLMTag::Chaos);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_StartedSceneSimulation);
+
+		if (HasActiveParticles())
+		{
+			GetEvolution()->GetBroadPhase().GetIgnoreCollisionManager().FlipBufferPreSolve();
+		}
 	}
 
 	template <typename Traits>
