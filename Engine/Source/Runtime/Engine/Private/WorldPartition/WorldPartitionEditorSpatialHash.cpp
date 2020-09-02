@@ -298,7 +298,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 	int32 NumIntersecting = 0;
 
 	const FBox SearchBox = Box.Overlap(Bounds);
-	const int32 SearchLevel = GetLevelForBox(SearchBox);
+	const int32 SearchLevel = 0;
 
 	ForEachIntersectingCells(Box, SearchLevel, [&](const FCellCoord& CellCoord)
 	{
