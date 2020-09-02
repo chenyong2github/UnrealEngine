@@ -19,6 +19,7 @@
 #include "Chaos/PBDSphericalConstraint.h"
 #include "Chaos/PBDAnimDriveConstraint.h"
 #include "Chaos/PBDLongRangeConstraints.h"
+#include "Chaos/VelocityField.h"
 #endif  // #if WITH_EDITOR || CHAOS_DEBUG_DRAW
 
 #if WITH_EDITOR
@@ -51,7 +52,7 @@ namespace ChaosClothingSimulationConsoleVariables
 	TAutoConsoleVariable<bool> CVarDebugMaxDistances        (TEXT("p.ChaosCloth.DebugDrawMaxDistances"        ), false, TEXT("Whether to debug draw the Chaos Cloth max distances"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugAnimDrive           (TEXT("p.ChaosCloth.DebugDrawAnimDrive"           ), false, TEXT("Whether to debug draw the Chaos Cloth anim drive"), ECVF_Cheat);
 	TAutoConsoleVariable<bool> CVarDebugLongRangeConstraint (TEXT("p.ChaosCloth.DebugDrawLongRangeConstraint" ), false, TEXT("Whether to debug draw the Chaos Cloth long range constraint (aka tether constraint)"), ECVF_Cheat);
-	TAutoConsoleVariable<bool> CVarDebugWindDragForces      (TEXT("p.ChaosCloth.DebugDrawWindDragForces"      ), false, TEXT("Whether to debug draw the Chaos Cloth wind drag forces"), ECVF_Cheat);
+	TAutoConsoleVariable<bool> CVarDebugWindForces          (TEXT("p.ChaosCloth.DebugDrawWindForces"          ), false, TEXT("Whether to debug draw the Chaos Cloth wind forces"), ECVF_Cheat);
 }
 #endif  // #if CHAOS_DEBUG_DRAW
 
@@ -195,6 +196,7 @@ void FClothingSimulation::CreateActor(USkeletalMeshComponent* InOwnerComponent, 
 		ClothConfig->LinearVelocityScale,
 		ClothConfig->AngularVelocityScale,
 		ClothConfig->DragCoefficient,
+		ClothConfig->LiftCoefficient,
 		ClothConfig->DampingCoefficient,
 		ClothConfig->CollisionThickness,
 		ClothConfig->FrictionCoefficient,
@@ -242,6 +244,18 @@ void FClothingSimulation::UpdateSimulationFromSharedSimConfig()
 		Solver->SetNumSubsteps(ClothSharedSimConfig->SubdivisionCount);
 		Solver->SetNumIterations(ClothSharedSimConfig->IterationCount);
 	}
+}
+
+bool FClothingSimulation::ShouldSimulate() const
+{
+	for (const TUniquePtr<FClothingSimulationCloth>& Cloth : Cloths)
+	{
+		if (Cloth->GetLODIndex(Solver.Get()) != INDEX_NONE && Cloth->GetOffset(Solver.Get()) != INDEX_NONE)
+		{
+			return true;
+		}
+	}
+	return false;
 }
 
 void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
@@ -305,7 +319,7 @@ void FClothingSimulation::Simulate(IClothingSimulationContext* InContext)
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugMaxDistances        .GetValueOnAnyThread()) { DebugDrawMaxDistances        (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugAnimDrive           .GetValueOnAnyThread()) { DebugDrawAnimDrive           (); }
 	if (ChaosClothingSimulationConsoleVariables::CVarDebugLongRangeConstraint .GetValueOnAnyThread()) { DebugDrawLongRangeConstraint (); }
-	if (ChaosClothingSimulationConsoleVariables::CVarDebugWindDragForces      .GetValueOnAnyThread()) { DebugDrawWindDragForces      (); }
+	if (ChaosClothingSimulationConsoleVariables::CVarDebugWindForces          .GetValueOnAnyThread()) { DebugDrawWindForces          (); }
 #endif  // #if CHAOS_DEBUG_DRAW
 }
 
@@ -340,8 +354,8 @@ void FClothingSimulation::GetSimulationData(
 
 		for (int32 Index = 0; Index < Data.Positions.Num(); ++Index)
 		{
-			Data.Positions[Index] = OwnerTransform.InverseTransformPositionNoScale(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
-			Data.Normals[Index] = OwnerTransform.InverseTransformVectorNoScale(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
+			Data.Positions[Index] = OwnerTransform.InverseTransformPosition(Data.Positions[Index] + LocalSpaceLocation);  // Move into world space first
+			Data.Normals[Index] = OwnerTransform.InverseTransformVector(-Data.Normals[Index]);  // Normals are inverted due to how barycentric coordinates are calculated (see GetPointBaryAndDist in ClothingMeshUtils.cpp)
 		}
     }
 }
@@ -444,6 +458,7 @@ void FClothingSimulation::RefreshClothConfig(const IClothingSimulationContext* I
 			ClothConfig->LinearVelocityScale,
 			ClothConfig->AngularVelocityScale,
 			ClothConfig->DragCoefficient,
+			ClothConfig->LiftCoefficient,
 			ClothConfig->DampingCoefficient,
 			ClothConfig->CollisionThickness,
 			ClothConfig->FrictionCoefficient,
@@ -1394,32 +1409,38 @@ void FClothingSimulation::DebugDrawLongRangeConstraint(FPrimitiveDrawInterface* 
 	}
 }
 
-void FClothingSimulation::DebugDrawWindDragForces(FPrimitiveDrawInterface* PDI) const
+void FClothingSimulation::DebugDrawWindForces(FPrimitiveDrawInterface* PDI) const
 {
-	// TODO: Add lift and re-enable debug draw code
-	//const TPBDParticles<float, 3>& Particles = Evolution->Particles();
+	check(Solver);
 
-	//for (int32 Index = 0; Index < Assets.Num(); ++Index)
-	//{
-	//	const UClothingAssetCommon* const Asset = Assets[Index];
-	//	if (!Asset) { continue; }
+	const TVector<float, 3>& LocalSpaceLocation = Solver->GetLocalSpaceLocation();
 
-	//	const FVelocityField& VelocityField = Evolution->GetVelocityField(Index);
+	for (const FClothingSimulationCloth* const Cloth : Solver->GetCloths())
+	{
+		const int32 Offset = Cloth->GetOffset(Solver.Get());
+		if (Offset == INDEX_NONE)
+		{
+			continue;
+		}
 
-	//	const TArrayView<TVector<int32, 3>>& Elements = VelocityField.GetElements();
-	//	const TArray<TVector<float, 3>>& Forces = VelocityField.GetForces();
+		const TVelocityField<float, 3>& VelocityField = Solver->GetWindVelocityField(Cloth->GetGroupId());
 
-	//	for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
-	//	{
-	//		const TVector<int32, 3>& Element = Elements[ElementIndex];
-	//		const TVector<float, 3> Position = LocalSpaceLocation + (
-	//			Particles.X(Element[0]) +
-	//			Particles.X(Element[1]) +
-	//			Particles.X(Element[2])) / 3.f;
-	//		const TVector<float, 3>& Force = Forces[ElementIndex];
-	//		DrawLine(PDI, Position, Position + Force, FColor::Green);
-	//	}
-	//}
+		const TConstArrayView<TVector<int32, 3>>& Elements = VelocityField.GetElements();
+		const TConstArrayView<TVector<float, 3>> Forces = VelocityField.GetForces();
+
+		const TConstArrayView<TVector<float, 3>> Positions = Cloth->GetParticlePositions(Solver.Get());
+
+		for (int32 ElementIndex = 0; ElementIndex < Elements.Num(); ++ElementIndex)
+		{
+			const TVector<int32, 3>& Element = Elements[ElementIndex];
+			const TVector<float, 3> Position = LocalSpaceLocation + (
+				Positions[Element[0]] +
+				Positions[Element[1]] +
+				Positions[Element[2]]) / 3.f;
+			const TVector<float, 3>& Force = Forces[ElementIndex] * 10.f;
+			DrawLine(PDI, Position, Position + Force, FColor::Green);
+		}
+	}
 }
 
 void FClothingSimulation::DebugDrawLocalSpace(FPrimitiveDrawInterface* PDI) const

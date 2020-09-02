@@ -830,14 +830,17 @@ void UClothingAssetCommon::PostLoad()
 	if (ClothSimConfig_DEPRECATED)
 	{
 		ClothSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
+		ClothSimConfig_DEPRECATED->Rename(nullptr, nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);  // Rename the config so that the name doesn't collide with the new config map name
 	}
 	if (ChaosClothSimConfig_DEPRECATED)
 	{
 		ChaosClothSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
+		ChaosClothSimConfig_DEPRECATED->Rename(nullptr, nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);  // Rename the config so that the name doesn't collide with the new config map name
 	}
 	if (ClothSharedSimConfig_DEPRECATED)
 	{
 		ClothSharedSimConfig_DEPRECATED->ConditionalPostLoad();  // PostLoad old configs before replacing them
+		ClothSharedSimConfig_DEPRECATED->Rename(nullptr, nullptr, REN_DoNotDirty | REN_DontCreateRedirectors | REN_ForceNoResetLoaders | REN_NonTransactional);  // Rename the config so that the name doesn't collide with the new config map name
 	}
 	AddClothConfigs();
 
@@ -931,6 +934,7 @@ void UClothingAssetCommon::AddClothConfigs()
 				if (!ClothConfigs.Find(ClothConfigName))
 				{
 					// Create new config object
+					check(!StaticFindObject(ClothConfigClass, this, *ClothConfigClass->GetName(), true));
 					UClothConfigBase* const ClothConfig = NewObject<UClothConfigBase>(this, ClothConfigClass, ClothConfigClass->GetFName(), RF_Transactional);
 
 					// Use the legacy config struct to try find a common config as an acceptable migration source

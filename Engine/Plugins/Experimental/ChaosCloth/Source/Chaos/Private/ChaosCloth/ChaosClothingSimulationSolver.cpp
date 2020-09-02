@@ -558,11 +558,16 @@ void FClothingSimulationSolver::SetWindVelocity(const TVector<float, 3>& InWindV
 	WindVelocity = InWindVelocity * ChaosClothingSimulationSolverConstant::WorldScale;
 }
 
-void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragCoefficient, const TTriangleMesh<float>* TriangleMesh)
+void FClothingSimulationSolver::SetWindVelocityField(uint32 GroupId, float DragCoefficient, float LiftCoefficient, const TTriangleMesh<float>* TriangleMesh)
 {
 	TVelocityField<float, 3>& VelocityField = Evolution->GetVelocityField(GroupId);
 	VelocityField.SetGeometry(TriangleMesh);
-	VelocityField.SetDragCoefficient(DragCoefficient);
+	VelocityField.SetCoefficients(DragCoefficient, LiftCoefficient);
+}
+
+const TVelocityField<float, 3>& FClothingSimulationSolver::GetWindVelocityField(uint32 GroupId)
+{
+	return Evolution->GetVelocityField(GroupId);
 }
 
 void FClothingSimulationSolver::SetSelfCollisions(uint32 GroupId, float SelfCollisionThickness, const TTriangleMesh<float>* TriangleMesh)

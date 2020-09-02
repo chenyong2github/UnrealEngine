@@ -80,7 +80,7 @@ public:
 					.MinValue(0)
 					.AllowSpin(true)
 					.MinSliderValue(0)
-					.MaxSliderValue(2)
+					.MaxSliderValue(10)
 					.Value(AnimViewportPtr.Pin().ToSharedRef(), &SAnimationEditorViewportTabBody::GetWindStrengthSliderValue)
 					.OnValueChanged(SSpinBox<float>::FOnValueChanged::CreateSP(AnimViewportPtr.Pin().ToSharedRef(), &SAnimationEditorViewportTabBody::SetWindStrength))
 				]

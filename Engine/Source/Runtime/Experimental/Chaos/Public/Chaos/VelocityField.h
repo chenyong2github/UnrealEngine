@@ -22,6 +22,7 @@ namespace Chaos
 			const TTriangleMesh<T>& TriangleMesh,
 			const TVector<T, d>& InVelocity,
 			const T InDragCoefficient = (T)0.5,
+			const T InLiftCoefficient = (T)0.1,
 			const T InFluidDensity = (T)1.225e-6)
 			: PointToTriangleMap(TriangleMesh.GetPointToTriangleMap())
 			, Elements(TriangleMesh.GetElements())
@@ -29,7 +30,8 @@ namespace Chaos
 			, Range(TriangleMesh.GetVertexRange())
 		{
 			Forces.SetNumUninitialized(Elements.Num());
-			SetProperties(InDragCoefficient, InFluidDensity);
+			SetCoefficients(InDragCoefficient, InLiftCoefficient);
+			SetFluidDensity(InFluidDensity);
 		}
 
 		// Construct a vector field.
@@ -37,6 +39,7 @@ namespace Chaos
 			const TTriangleMesh<T>& TriangleMesh,
 			TFunction<TVector<T, d>(const TVector<T, d>&)> InGetVelocity,
 			const T InDragCoefficient = (T)0.5,
+			const T InLiftCoefficient = (T)0.1,
 			const T InFluidDensity = (T)1.225e-6)
 			: PointToTriangleMap(TriangleMesh.GetPointToTriangleMap())
 			, Elements(TriangleMesh.GetElements())
@@ -45,7 +48,8 @@ namespace Chaos
 			, Range(TriangleMesh.GetVertexRange())
 		{
 			Forces.SetNumUninitialized(Elements.Num());
-			SetProperties(InDragCoefficient, InFluidDensity);
+			SetCoefficients(InDragCoefficient, InLiftCoefficient);
+			SetFluidDensity(InFluidDensity);
 		}
 
 		virtual ~TVelocityField() {}
@@ -87,15 +91,16 @@ namespace Chaos
 			}
 		}
 
-		void SetProperties(const T InDragCoefficient, const T InFluidDensity)
+		void SetFluidDensity(const T InFluidDensity)
 		{
-			DragCoefficient = InDragCoefficient;
-			FluidDensity = InFluidDensity;
-			QuarterRhoDragCoefficient = (T)0.25 * FluidDensity * DragCoefficient;
+			QuarterRho = (T)0.25 * InFluidDensity;
 		}
 
-		void SetDragCoefficient(const T InDragCoefficient) { SetProperties(InDragCoefficient, FluidDensity); }
-		void SetFluidDensity(const T InFluidDensity) { SetProperties(DragCoefficient, InFluidDensity); }
+		void SetCoefficients(const T InDragCoefficient, const T InLiftCoefficient)
+		{
+			Cd = InDragCoefficient;
+			Cl = InLiftCoefficient;
+		}
 
 		void SetGeometry(const TTriangleMesh<T>* TriangleMesh)
 		{
@@ -127,31 +132,33 @@ namespace Chaos
 		}
 
 		const TConstArrayView<TVector<int32, 3>>& GetElements() const { return Elements; }
-		const TArray<TVector<T, d>>& GetForces() const { return Forces; }
+		TConstArrayView<TVector<T, d>> GetForces() const { return TConstArrayView<TVector<T, d>>(Forces); }
 
 	private:
 		inline void UpdateField(const TPBDParticles<T, d>& InParticles, int32 ElementIndex, const TVector<T, d>& InVelocity) const
 		{
 			const TVector<int32, 3>& Element = Elements[ElementIndex];
 
-			// Calculate direction and the relative velocity of the triangle to the flow
+			// Calculate the normal and the area of the surface exposed to the flow
+			TVector<T, d> N = TVector<T, d>::CrossProduct(
+				InParticles.X(Element[1]) - InParticles.X(Element[0]),
+				InParticles.X(Element[2]) - InParticles.X(Element[0]));
+			const T DoubleArea = N.SafeNormalize();
+
+			// Calculate the direction and the relative velocity of the triangle to the flow
 			const TVector<T, d>& SurfaceVelocity = (T)(1. / 3.) * (
 				InParticles.V(Element[0]) +
 				InParticles.V(Element[1]) +
 				InParticles.V(Element[2]));
-			TVector<T, d> Direction = InVelocity - SurfaceVelocity;
-			const T RelVelocity = Direction.SafeNormalize();
+			const TVector<T, d> V = InVelocity - SurfaceVelocity;
 
-			// Calculate the cross sectional area of the surface exposed to the flow
-			TVector<T, d> Normal = TVector<T, d>::CrossProduct(
-				InParticles.X(Element[1]) - InParticles.X(Element[0]),
-				InParticles.X(Element[2]) - InParticles.X(Element[0]));
-			const T DoubleArea = Normal.SafeNormalize();
-			const T DoubleCrossSectionalArea = DoubleArea * FMath::Abs(TVector<T, d>::DotProduct(Direction, Normal));
+			// Set the aerodynamic forces
+			const T VDotN = TVector<T, d>::DotProduct(V, N);
+			const T VSquare = TVector<T, d>::DotProduct(V, V);
 
-			// Calculate the drag force
-			const T Drag = QuarterRhoDragCoefficient * FMath::Square(RelVelocity) * DoubleCrossSectionalArea;
-			Forces[ElementIndex] = Direction * Drag;
+			Forces[ElementIndex] = QuarterRho * DoubleArea * (VDotN >= (T)0. ?  // The flow can hit either side of the triangle, so the normal might need to be reversed
+				(Cd - Cl) * VDotN * V + Cl * VSquare * N :
+				(Cl - Cd) * VDotN * V - Cl * VSquare * N);
 		}
 
 	private:
@@ -160,9 +167,9 @@ namespace Chaos
 		TVector<T, d> Velocity;
 		TFunction<TVector<T, d>(const TVector<T, d>&)> GetVelocity;
 		mutable TArray<TVector<T, 3>> Forces;
-		float QuarterRhoDragCoefficient;
-		float DragCoefficient;
-		float FluidDensity;
+		float QuarterRho;
+		float Cd;
+		float Cl;
 		TVector<int32, 2> Range;  // TODO: Remove? It is used by the check only
 	};
 }
