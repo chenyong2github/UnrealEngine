@@ -208,7 +208,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 		RayDesc Ray;
 		Ray.Origin = WorldPosition;
 		Ray.Direction = normalize(GPPosition - WorldPosition);
-		Ray.TMin = 0.01;
+		Ray.TMin = 0.05;
 		float RayLength = length(GPPosition - WorldPosition);
 		Ray.TMax = max(RayLength - 0.01, Ray.TMin);
 
@@ -246,6 +246,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 	}
 #endif
 
+	int GatherFilterWidth2 = GatherFilterWidth * GatherFilterWidth;
 #if USE_NEIGHBOR_SAMPLES
 	// Gather from local neighborhood if confidence in temporal history is low
 	{
@@ -261,9 +262,9 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 			int2 GatherPointCentroid = int2(ScreenUVTime * GatherPointsResolution + View.ViewRectMin);
 #endif
 
-			for (uint LocalSampleIndex0 = 0; LocalSampleIndex0 < GatherFilterWidth * GatherFilterWidth; ++LocalSampleIndex0)
+			for (uint LocalSampleIndex0 = 0; LocalSampleIndex0 < GatherFilterWidth2; ++LocalSampleIndex0)
 			{
-				uint Midpoint = (GatherFilterWidth * GatherFilterWidth - 1) / 2;
+				uint Midpoint = (GatherFilterWidth2 - 1) / 2;
 				if (LocalSampleIndex0 == Midpoint) continue;
 
 				int2 LocalIndex = int2(LocalSampleIndex0 % GatherFilterWidth, LocalSampleIndex0 / GatherFilterWidth);
@@ -352,10 +353,10 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingFinalGatherRGS)
 #endif
 
 	float AmbientOcclusion = 0.0;
-#if 0
-	if (ValidSamplesPerPixel > 1)
+#if 1
+	// Remove worst outlier when using neighbor sampling
+	if (GatherFilterWidth > 1)
 	{
-		// Remove worst outlier
 		ExitantRadiance -= MaxExitantRadianceSample;
 		ValidSamplesPerPixel--;
 	}
