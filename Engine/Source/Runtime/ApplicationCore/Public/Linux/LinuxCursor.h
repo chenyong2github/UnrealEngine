@@ -74,8 +74,6 @@ private:
 
 	SDL_Rect CursorClipRect;
 
-	uint32 CursorEvent;
-
 	/** Cached global X position */
 	mutable int32 CachedGlobalXPosition;
 

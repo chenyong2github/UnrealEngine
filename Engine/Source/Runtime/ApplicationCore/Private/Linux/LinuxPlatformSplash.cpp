@@ -77,13 +77,13 @@ private:
 	Rect SplashTextRects[ SplashTextType::NumTextTypes ];
 
 	unsigned char *ScratchSpace = nullptr;
+	bool bStringsChanged = false;
 #endif // WITH_EDITOR
 
 	SDL_Surface *SplashSurface = nullptr;
 	SDL_Window *SplashWindow = nullptr;
 
 	bool bNeedsRedraw = false;
-	bool bStringsChanged = false;
 };
 
 static FLinuxSplashState *GSplashState = nullptr;

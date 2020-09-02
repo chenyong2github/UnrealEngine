@@ -41,7 +41,4 @@ public:
 	}
 
 	virtual ISlateFileDialogsModule* Get() { return nullptr; }
-
-private:
-	ISlateFileDialogsModule *SlateFileDialog;
 };
