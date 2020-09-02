@@ -4,7 +4,7 @@
 #include "SampleToolsEditorModeToolkit.h"
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveToolManager.h"
-#include "SampleToolseditorModeCommands.h"
+#include "SampleToolsEditorModeCommands.h"
 
 
 //////////////////////////////////////////////////////////////////////////
