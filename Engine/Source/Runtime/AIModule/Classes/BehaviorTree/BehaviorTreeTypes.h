@@ -510,10 +510,16 @@ struct FBehaviorTreeSearchData
 	int32 RollbackInstanceIdx;
 
 	/** start index of the deactivated branch */
-	uint16 DeactivatedBranchStartIndex;
+	FBTNodeIndex DeactivatedBranchStart;
 
 	/** end index of the deactivated branch */
-	uint16 DeactivatedBranchEndIndex;
+	FBTNodeIndex DeactivatedBranchEnd;
+
+	/** saved start index of the deactivated branch for rollback */
+	FBTNodeIndex RollbackDeactivatedBranchStart;
+
+	/** saved end index of the deactivated branch for rollback */
+	FBTNodeIndex RollbackDeactivatedBranchEnd;
 
 	/** if set, execution request from node in the deactivated branch will be skipped */
 	uint32 bFilterOutRequestFromDeactivatedBranch : 1;
@@ -538,8 +544,6 @@ struct FBehaviorTreeSearchData
 
 	FBehaviorTreeSearchData(UBehaviorTreeComponent& InOwnerComp) 
 		: OwnerComp(InOwnerComp), RollbackInstanceIdx(INDEX_NONE)
-		, DeactivatedBranchStartIndex(INDEX_NONE)
-		, DeactivatedBranchEndIndex(INDEX_NONE)
 		, bFilterOutRequestFromDeactivatedBranch(false)
 		, bPostponeSearch(false)
 		, bSearchInProgress(false)
