@@ -1197,9 +1197,11 @@ struct CloudShadowTraceContext
 	float		DepthBias;
 	float		SampleClount;
 	float4		SizeInvSize;
+	float4		TracingPixelScaleOffset;
+	float4		TracingSizeInvSize;
 	float4x4	WorldToLightClipMatrix;
 	float4x4	WorldToLightClipMatrixInv;
-	float3		Trace0Dir;
+	float3		TraceDir;
 };
 
 void MainPS(
@@ -1219,9 +1221,11 @@ void MainPS(
 		TraceContext.DepthBias					= RenderVolumetricCloudParameters.CloudShadowmapDepthBias[LightIndex];
 		TraceContext.SampleClount				= RenderVolumetricCloudParameters.CloudShadowmapSampleClount[LightIndex];
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudShadowmapSizeInvSize[LightIndex];
+		TraceContext.TracingSizeInvSize			= RenderVolumetricCloudParameters.CloudShadowmapTracingSizeInvSize[LightIndex];
+		TraceContext.TracingPixelScaleOffset	= RenderVolumetricCloudParameters.CloudShadowmapTracingPixelScaleOffset[LightIndex];
 		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrix[LightIndex];
 		TraceContext.WorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudShadowmapWorldToLightClipMatrixInv[LightIndex];
-		TraceContext.Trace0Dir					= RenderVolumetricCloudParameters.CloudShadowmapLight0Dir[LightIndex];
+		TraceContext.TraceDir					= RenderVolumetricCloudParameters.CloudShadowmapLightDir[LightIndex];
 	}
 	else
 	{
@@ -1230,9 +1234,11 @@ void MainPS(
 		TraceContext.DepthBias					= 0.0f;
 		TraceContext.SampleClount				= RenderVolumetricCloudParameters.CloudSkyAOSampleClount;
 		TraceContext.SizeInvSize				= RenderVolumetricCloudParameters.CloudSkyAOSizeInvSize;
+		TraceContext.TracingSizeInvSize			= TraceContext.SizeInvSize;
+		TraceContext.TracingPixelScaleOffset    = float4(1.0f, 1.0f, 0.0f, 0.0f);
 		TraceContext.WorldToLightClipMatrix		= RenderVolumetricCloudParameters.CloudSkyAOWorldToLightClipMatrix;
 		TraceContext.WorldToLightClipMatrixInv	= RenderVolumetricCloudParameters.CloudSkyAOWorldToLightClipMatrixInv;
-		TraceContext.Trace0Dir					= RenderVolumetricCloudParameters.CloudSkyAOTrace0Dir;
+		TraceContext.TraceDir					= RenderVolumetricCloudParameters.CloudSkyAOTraceDir;
 	}
 
 	FMaterialPixelParameters MaterialParameters = GetMaterialPixelParameters(FactoryInterpolants, SvPosition);
@@ -1240,11 +1246,11 @@ void MainPS(
 	CalcMaterialParameters(MaterialParameters, PixelMaterialInputs, SvPosition, true);
 
 	FCloudLayerParameters CloudLayerParams = GetCloudLayerParams();
-	float2 UV = float2(SvPosition.xy) * TraceContext.SizeInvSize.zw;
+	float2 UV = float2(SvPosition.xy * TraceContext.TracingPixelScaleOffset.xy + TraceContext.TracingPixelScaleOffset.zw) * TraceContext.SizeInvSize.zw;
 
 	const float NearZDepth = 1.0f; // using FReversedZOrthoMatrix
 	float3 NearClipPlaneWorldPos = CloudShadowUvToWorldSpace(NearZDepth, UV, TraceContext.WorldToLightClipMatrixInv);
-	const float3 Light0Direction = TraceContext.Trace0Dir; // It points from light to surface
+	const float3 LightDirection = TraceContext.TraceDir; // It points from light to surface
 
 
 	// Compute the min and max distance to trace (in the cloud layer)
@@ -1254,11 +1260,11 @@ void MainPS(
 	float3 RayOriginKm = RayOrigin * CENTIMETER_TO_KILOMETER;
 	float2 tTop2 = 0.0f;
 	bool bTraceTop = false;
-	if (RayIntersectSphereSolution(RayOriginKm, Light0Direction, float4(RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.TopRadiusKm), tTop2))
+	if (RayIntersectSphereSolution(RayOriginKm, LightDirection, float4(RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.TopRadiusKm), tTop2))
 	{
 		bTraceTop = true;
 		float2 tBottom2 = 0.0f;
-		if (RayIntersectSphereSolution(RayOriginKm, Light0Direction, float4(RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.BottomRadiusKm), tBottom2))
+		if (RayIntersectSphereSolution(RayOriginKm, LightDirection, float4(RenderVolumetricCloudParameters.CloudLayerCenterKm, RenderVolumetricCloudParameters.BottomRadiusKm), tBottom2))
 		{
 			// If we see both intersection in front of us, keep the min/closest, otherwise the max/furthest
 			float TempTop = all(tTop2 > 0.0f) ? min(tTop2.x, tTop2.y) : max(tTop2.x, tTop2.y);
@@ -1296,7 +1302,7 @@ void MainPS(
 	TMin = max(0.0f, TMin) * KILOMETER_TO_CENTIMETER;
 	TMax = max(0.0f, TMax) * KILOMETER_TO_CENTIMETER;
 	float ClosestIntersection = TMin; // Stay on the near clip plane if we are under the top layer.
-	float3 WorldPosOnLayer = NearClipPlaneWorldPos + Light0Direction * ClosestIntersection;
+	float3 WorldPosOnLayer = NearClipPlaneWorldPos + LightDirection * ClosestIntersection;
 
 
 
@@ -1317,7 +1323,7 @@ void MainPS(
 		for (float ShadowT = 0.5; ShadowT < ShadowStepCount; ShadowT += 1.0f)
 		{
 			const float SampleT = ShadowLengthTest * (ShadowT * InvShadowStepCount);
-			UpdateMaterialCloudParam(MaterialParameters, WorldPosOnLayer + Light0Direction * SampleT, ResolvedView, CloudLayerParams);
+			UpdateMaterialCloudParam(MaterialParameters, WorldPosOnLayer + LightDirection * SampleT, ResolvedView, CloudLayerParams);
 
 		#if MATERIAL_VOLUMETRIC_ADVANCED_CONSERVATIVE_DENSITY
 			if (MaterialParameters.VolumeSampleConservativeDensity.x <= 0.0f)
@@ -1409,6 +1415,8 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const int2 CenterCoord = int2(DispatchThreadId.xy);
 		const float2 CenterUV  = (float2(DispatchThreadId.xy) + 0.5f) * CloudTextureSizeInvSize.zw;
 
+#if PERMUTATION_SKYAO
+
 		CloudShadowData Center = CloudShadowData_LoadSrc(CenterCoord);
 
 		float DepthKm = 0.0f;
@@ -1417,7 +1425,6 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		float MinTransmittance = 0.0f;
 		float SampleCount = 0.0f;
 
-#if PERMUTATION_SKYAO
 		// SkyAO filter is not a 2d bluer of the volumetric cloud top/bottom shadow map but an integration over the hemisphere at the ground level.
 		// It does not take into account the planet curvature.
 		// We filter transmittance to control the max extinction. Because visibility is the important value to integrate over the hemisphere (not extinction).
@@ -1460,57 +1467,22 @@ void MainShadowFilterCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 
 #else
 
-		float GaussianBlur[5][5] =
-		{
-			{1.0f / 256.0f,  4.0f / 256.0f,  6.0f / 256.0f,  4.0f / 256.0f, 1.0f / 256.0f},
-			{4.0f / 256.0f, 16.0f / 256.0f, 24.0f / 256.0f, 16.0f / 256.0f, 4.0f / 256.0f},
-			{6.0f / 256.0f, 24.0f / 256.0f, 36.0f / 256.0f, 24.0f / 256.0f, 6.0f / 256.0f},
-			{4.0f / 256.0f, 16.0f / 256.0f, 24.0f / 256.0f, 16.0f / 256.0f, 4.0f / 256.0f},
-			{1.0f / 256.0f,  4.0f / 256.0f,  6.0f / 256.0f,  4.0f / 256.0f, 1.0f / 256.0f}
-		};
+		CloudShadowData Data0 = CloudShadowData_LoadSrc(CenterCoord * 2 + int2(0, 0));
+		CloudShadowData Data1 = CloudShadowData_LoadSrc(CenterCoord * 2 + int2(1, 0));
+		CloudShadowData Data2 = CloudShadowData_LoadSrc(CenterCoord * 2 + int2(1, 1));
+		CloudShadowData Data3 = CloudShadowData_LoadSrc(CenterCoord * 2 + int2(0, 1));
+		
+		float Mean				= Data0.DepthKm + Data1.DepthKm + Data2.DepthKm + Data3.DepthKm;
+		float StandardDeviation = (abs(Data0.DepthKm - Mean) + abs(Data1.DepthKm - Mean) + abs(Data2.DepthKm - Mean) + abs(Data3.DepthKm - Mean)) * 0.25;
+		Data0.DepthKm			= Mean - StandardDeviation; // Filtered front depth instead of only mean
 
-		if (Center.MeanExtinction > 0.0f)
-		{
-			const float Weight = GaussianBlur[2][2]; // center
-			DepthKm = Weight * Center.DepthKm;
-			MeanExtinction = Weight * Center.MeanExtinction;
-			MinTransmittance = Weight * exp(-Center.MaxOpticalDepth); // We blur in transmittance space for a softer look
-			SampleCount = Weight;
+		Data0.MeanExtinction	+= Data1.MeanExtinction + Data2.MeanExtinction + Data3.MeanExtinction;
+		Data0.MaxOpticalDepth	+= Data1.MaxOpticalDepth + Data2.MaxOpticalDepth + Data3.MaxOpticalDepth;
 
-			const float CloudTextureTexelWorldSizeKm = CloudTextureTexelWorldSizeInvSize.x * CENTIMETER_TO_KILOMETER;
-			//const float BilateralBlurthresholdKm = CloudTextureTexelWorldSizeKm * 10.0f; // we accept texel in a range of three texel in distance appart
+		Data0.MeanExtinction	*= 1.0f / 4.0f;
+		Data0.MaxOpticalDepth	*= 1.0f / 4.0f;
 
-			// 5x5 Gaussian blur
-			UNROLL
-			for (int i = -2; i <= 2; ++i)
-			{
-				for (int j = -2; j <= 2; ++j)
-				{
-					if (i == 0 && j == 0)
-						continue;
-
-					CloudShadowData Data = CloudShadowData_LoadSrc(CenterCoord + int2(i, j));
-					if (Data.MeanExtinction > 0.0f)// && abs(Data.DepthKm - Center.DepthKm) < BilateralBlurthresholdKm)
-					{
-						const float Weight = GaussianBlur[2 + i][2 + j];
-						DepthKm += Data.DepthKm * Weight;
-						MeanExtinction += Data.MeanExtinction * Weight;
-						MinTransmittance += exp(-Data.MaxOpticalDepth) * Weight;
-						SampleCount += Weight;
-					}
-				}
-			}
-		}
-
-		if (SampleCount > 0.0f)
-		{
-			const float rescale = 1.0 / SampleCount;
-			Center.DepthKm = DepthKm * rescale;
-			Center.MeanExtinction = MeanExtinction * rescale;
-			Center.MaxOpticalDepth = MinTransmittance > 0.0f ? -log(MinTransmittance * rescale) : 100.0f;
-		}
-
-		CloudShadowData_WriteDst(Center, CenterCoord);
+		CloudShadowData_WriteDst(Data0, CenterCoord);
 
 #endif
 	}
@@ -1579,7 +1551,15 @@ RWTexture2D<float3> OutCloudShadowTexture;
 float4x4 CurrFrameCloudShadowmapWorldToLightClipMatrixInv;
 float4x4 PrevFrameCloudShadowmapWorldToLightClipMatrix;
 
+float3 CurrFrameLightPos;
+float3 PrevFrameLightPos;
+float3 CurrFrameLightDir;
+float3 PrevFrameLightDir;
+uint CloudShadowMapAnchorPointMoved;
+
 float4 CloudTextureSizeInvSize;
+float4 CloudTextureTracingSizeInvSize;
+float4 CloudTextureTracingPixelScaleOffset;
 float TemporalFactor;
 uint PreviousDataIsValid;
 
@@ -1593,25 +1573,49 @@ void MainShadowTemporalProcessCS(uint3 DispatchThreadId : SV_DispatchThreadID)
 		const int2 CenterCoord = int2(DispatchThreadId.xy);
 		const float2 CenterUV = (float2(DispatchThreadId.xy) + 0.5f) * CloudTextureSizeInvSize.zw;
 
-		float3 CurrCloudShadowData = CurrCloudShadowTexture.Load(uint3(CenterCoord, 0));
+		// Source coord from half resolution
+		const int2 NewTracedDataCoord = CenterCoord / int2(CloudTextureTracingPixelScaleOffset.xy);
+		// Destination coord for full resolution
+		const int2 NewDataCoord = int2(NewTracedDataCoord * int2(CloudTextureTracingPixelScaleOffset.xy) + int2(CloudTextureTracingPixelScaleOffset.zw));
+		// Sampel data for this frame
+		float3 CurrCloudShadowData = CurrCloudShadowTexture.Load(uint3(NewTracedDataCoord, 0));
 
 		float3 FilteredData = CurrCloudShadowData;
+
 		if (PreviousDataIsValid)
 		{
-			const float DummyDepth = 0.5f;
-			float4 ClipCoord = float4(CenterUV * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), DummyDepth, 1.0f);
+			const float DummyDepth = 0.0f;
+			float4 ClipCoord = float4(CenterUV * float2(2.0f, -2.0f) + float2(-1.0f, 1.0f), DummyDepth, 1.0f); 
 			float4 HomogeneousCoord = mul(ClipCoord, CurrFrameCloudShadowmapWorldToLightClipMatrixInv);
 			float3 WorldPos = HomogeneousCoord.xyz / HomogeneousCoord.www;
 			ClipCoord = mul(float4(WorldPos, 1.0f), PrevFrameCloudShadowmapWorldToLightClipMatrix);
 			ClipCoord /= ClipCoord.wwww;
-			float2 PreviousUVs = 0.5f + float2(0.5f, -0.5f) * ClipCoord;
+			float2 PreviousUVs = 0.5f + float2(0.5f, -0.5f) * ClipCoord.xy;
 
+			// We have a new shadow data to blending with history
 			float3 PrevCloudShadowData = PrevCloudShadowTexture.SampleLevel(BilinearSampler, PreviousUVs, 0);
 
-			// A very simple filter for now that does work well for reasonable atmospheric light rotations.
-			FilteredData = PrevCloudShadowData + TemporalFactor * (CurrCloudShadowData - PrevCloudShadowData);
-			FilteredData.x = CurrCloudShadowData.x; // Do not filter depth otherwise we have trouble converging. This will need to be fixed
+			if (CloudShadowMapAnchorPointMoved > 0) 
+			{
+				// Approximated reprojection of previous depth into current orthographic volume, to make sure nothing pops when the orthographic projection is translated around on the planet
+				// Only when the anchor poitn as moved, to have light rotation still smoothed out
+				float3 PrevPos = PrevFrameLightPos + PrevFrameLightDir * PrevCloudShadowData.r * KILOMETER_TO_CENTIMETER;
+				PrevCloudShadowData.r = dot(PrevPos - CurrFrameLightPos, CurrFrameLightDir) * CENTIMETER_TO_KILOMETER;
+			}
+
+			if (all(NewDataCoord == CenterCoord))
+			{
+				// A very simple filter for now that does work well for reasonable atmospheric light rotations.
+				FilteredData = PrevCloudShadowData + TemporalFactor * (CurrCloudShadowData - PrevCloudShadowData);
+				FilteredData.x = CurrCloudShadowData.x; // Do not filter depth otherwise we have trouble converging due to precision issue. This will need to be fixed
+			}
+			else
+			{
+				// Simple reproject history
+				FilteredData = PrevCloudShadowData;
+			}
 		}
+
 		OutCloudShadowTexture[CenterCoord] = max(0.0, FilteredData);
 	}
 }

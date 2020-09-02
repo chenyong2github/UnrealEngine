@@ -1053,8 +1053,20 @@ public:
 
 	FVolumetricRenderTargetViewStateData VolumetricCloudRenderTarget;
 	FTemporalRenderTargetState VolumetricCloudShadowRenderTarget[NUM_ATMOSPHERE_LIGHTS];
+	TRefCountPtr<IPooledRenderTarget> VolumetricCloudShadowFilteredRenderTarget[NUM_ATMOSPHERE_LIGHTS];
 	FMatrix VolumetricCloudShadowmapPreviousWorldToLightClipMatrix[NUM_ATMOSPHERE_LIGHTS];
-	FVector PreviousFrameAtmosphericLightDirection[NUM_ATMOSPHERE_LIGHTS];
+	FVector VolumetricCloudShadowmapPreviousAtmosphericLightPos[NUM_ATMOSPHERE_LIGHTS];
+	FVector VolumetricCloudShadowmapPreviousAnchorPoint[NUM_ATMOSPHERE_LIGHTS];
+	FVector VolumetricCloudShadowmapPreviousAtmosphericLightDir[NUM_ATMOSPHERE_LIGHTS];
+
+	TRefCountPtr<IPooledRenderTarget> GetVolumetricCloudShadowRenderTarget(uint32 LightIndex)
+	{
+		if (VolumetricCloudShadowFilteredRenderTarget[LightIndex].IsValid())
+		{
+			return VolumetricCloudShadowFilteredRenderTarget[LightIndex];
+		}
+		return VolumetricCloudShadowRenderTarget[LightIndex].CurrentRenderTarget();
+	}
 
 	// call after OnFrameRenderingSetup()
 	virtual uint32 GetCurrentTemporalAASampleIndex() const

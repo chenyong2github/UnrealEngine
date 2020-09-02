@@ -2212,14 +2212,14 @@ void FDeferredShadingSceneRenderer::RenderLight(FRHICommandList& RHICmdList, con
 				const bool bLight1CloudPerPixelTransmittance = CloudInfo && VolumetricCloudShadowMap1Valid && AtmosphereLight1Proxy == LightSceneInfo->Proxy && AtmosphereLight1Proxy && AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength() > 0.0f;
 				if (bLight0CloudPerPixelTransmittance)
 				{
-					RenderLightParams.Cloud_ShadowmapTexture = View.ViewState->VolumetricCloudShadowRenderTarget[0].CurrentRenderTarget();
+					RenderLightParams.Cloud_ShadowmapTexture = View.ViewState->GetVolumetricCloudShadowRenderTarget(0);
 					RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[0];
 					RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[0];
 					RenderLightParams.Cloud_ShadowmapStrength = AtmosphereLight0Proxy->GetCloudShadowOnSurfaceStrength();
 				}
 				else if(bLight1CloudPerPixelTransmittance)
 				{
-					RenderLightParams.Cloud_ShadowmapTexture = View.ViewState->VolumetricCloudShadowRenderTarget[1].CurrentRenderTarget();
+					RenderLightParams.Cloud_ShadowmapTexture = View.ViewState->GetVolumetricCloudShadowRenderTarget(1);
 					RenderLightParams.Cloud_ShadowmapFarDepthKm = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapFarDepthKm[1];
 					RenderLightParams.Cloud_WorldToLightClipShadowMatrix = CloudInfo->GetVolumetricCloudCommonShaderParameters().CloudShadowmapWorldToLightClipMatrix[1];
 					RenderLightParams.Cloud_ShadowmapStrength = AtmosphereLight1Proxy->GetCloudShadowOnSurfaceStrength();
