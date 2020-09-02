@@ -1550,8 +1550,7 @@ TArray<FName> URigVMController::ImportNodesFromText(const FString& InText, bool 
 			}
 
 			ReportErrorf(TEXT("Cannot import link '%s -> %s'."), *CreatedLink->SourcePinPath, *CreatedLink->TargetPinPath);
-			CreatedLink->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-			CreatedLink->MarkPendingKill();
+			DestroyObject(CreatedLink);
 		}
 
 		if (bUndo)
@@ -1662,12 +1661,10 @@ bool URigVMController::RemoveNode(URigVMNode* InNode, bool bUndo, bool bRecursiv
 
 	if (URigVMInjectionInfo* InjectionInfo = InNode->GetInjectionInfo())
 	{
-		InjectionInfo->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-		InjectionInfo->MarkPendingKill();
+		DestroyObject(InjectionInfo);
 	}
 
-	InNode->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-	InNode->MarkPendingKill();
+	DestroyObject(InNode);
 
 	if (bUndo)
 	{
@@ -2822,8 +2819,7 @@ bool URigVMController::RemovePin(URigVMPin* InPinToRemove, bool bUndo)
 		Node->Pins.Remove(InPinToRemove);
 	}
 
-	InPinToRemove->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-	InPinToRemove->MarkPendingKill();
+	DestroyObject(InPinToRemove);
 
 	TArray<URigVMPin*> SubPins = InPinToRemove->GetSubPins();
 	for (URigVMPin* SubPin : SubPins)
@@ -3108,8 +3104,7 @@ bool URigVMController::BreakLink(URigVMPin* OutputPin, URigVMPin* InputPin, bool
 			}
 			Notify(ERigVMGraphNotifType::LinkRemoved, Link);
 
-			Link->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders);
-			Link->MarkPendingKill();
+			DestroyObject(Link);
 
 			UpdateRerouteNodeAfterChangingLinks(OutputPin, bUndo);
 			UpdateRerouteNodeAfterChangingLinks(InputPin, bUndo);
@@ -4417,9 +4412,8 @@ void URigVMController::RepopulatePinsOnNode(URigVMNode* InNode)
 		{
 			for (URigVMInjectionInfo* InjectionInfo : InjectionPair.Value)
 			{
-				InjectionInfo->Rename(nullptr, GetTransientPackage());
-				InjectionInfo->MarkPendingKill();
 				InjectionInfo->StructNode->Rename(nullptr, InNode->GetGraph());
+				DestroyObject(InjectionInfo);
 			}
 		}
 	}
@@ -4749,3 +4743,9 @@ void URigVMController::RewireLinks(URigVMPin* InOldPin, URigVMPin* InNewPin, boo
 }
 
 #endif
+
+void URigVMController::DestroyObject(UObject* InObjectToDestroy)
+{
+	InObjectToDestroy->Rename(nullptr, GetTransientPackage(), REN_ForceNoResetLoaders | REN_DoNotDirty | REN_DontCreateRedirectors | REN_NonTransactional);
+	InObjectToDestroy->RemoveFromRoot();
+}
