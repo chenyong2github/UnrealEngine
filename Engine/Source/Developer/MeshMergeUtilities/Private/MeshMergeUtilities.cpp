@@ -1619,7 +1619,7 @@ void FMeshMergeUtilities::CreateProxyMesh(const TArray<UStaticMeshComponent*>& I
 			MergeData.RawMesh = MeshDescriptionData[Index];
 			MergeData.bIsClippingMesh = false;
 
-			FMeshMergeHelpers::CalculateTextureCoordinateBoundsForRawMesh(*MergeData.RawMesh, MergeData.TexCoordBounds);
+			FMeshMergeHelpers::CalculateTextureCoordinateBoundsForMesh(*MergeData.RawMesh, MergeData.TexCoordBounds);
 
 			FMeshData* MeshData = GlobalMeshSettings.FindByPredicate([&](const FMeshData& Entry)
 			{
@@ -1785,6 +1785,21 @@ bool FMeshMergeUtilities::IsValidBaseMaterial(const UMaterialInterface* InBaseMa
 	}
 
 	return false;
+}
+
+void FMeshMergeUtilities::RetrieveMeshDescription(const UStaticMeshComponent* InStaticMeshComponent, int32 LODIndex, FMeshDescription& InOutMeshDescription, bool bPropagateMeshData) const
+{
+	FMeshMergeHelpers::RetrieveMesh(InStaticMeshComponent, LODIndex, InOutMeshDescription, bPropagateMeshData);
+}
+
+void FMeshMergeUtilities::RetrieveMeshDescription(const USkeletalMeshComponent* InSkeletalMeshComponent, int32 LODIndex, FMeshDescription& InOutMeshDescription, bool bPropagateMeshData) const
+{
+	FMeshMergeHelpers::RetrieveMesh(InSkeletalMeshComponent, LODIndex, InOutMeshDescription, bPropagateMeshData);
+}
+
+void FMeshMergeUtilities::RetrieveMeshDescription(const UStaticMesh* InStaticMesh, int32 LODIndex, FMeshDescription& InOutMeshDescription) const
+{
+	FMeshMergeHelpers::RetrieveMesh(InStaticMesh, LODIndex, InOutMeshDescription);
 }
 
 void FMeshMergeUtilities::RegisterExtension(IMeshMergeExtension* InExtension)
@@ -2735,7 +2750,7 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 				if (bContainsImposters)
 				{
 					// Merge imposter meshes to rawmesh
-					FMeshMergeHelpers::MergeImpostersToRawMesh(ImposterComponents, MergedMeshLOD, MergedAssetPivot, UniqueMaterials.Num(), ImposterMaterials);					
+					FMeshMergeHelpers::MergeImpostersToMesh(ImposterComponents, MergedMeshLOD, MergedAssetPivot, UniqueMaterials.Num(), ImposterMaterials);					
 
 					const FTransform PivotTransform = FTransform(MergedAssetPivot);
 					for (const UStaticMeshComponent* Component : ImposterComponents)
@@ -2863,12 +2878,6 @@ void FMeshMergeUtilities::MergeComponentsToStaticMesh(const TArray<UPrimitiveCom
 		OutAssetsToSync.Add(StaticMesh);
 		OutMergedActorLocation = MergedAssetPivot;
 	}
-}
-
-void FMeshMergeUtilities::ExtractImposterToRawMesh(const UStaticMeshComponent* InImposterComponent, FMeshDescription& InImposterMesh) const
-{
-	check(InImposterComponent->bUseMaxLODAsImposter);
-	FMeshMergeHelpers::ExtractImposterToRawMesh(InImposterComponent, InImposterMesh);
 }
 
 void FMeshMergeUtilities::CreateMergedRawMeshes(FMeshMergeDataTracker& InDataTracker, const FMeshMergingSettings& InSettings, const TArray<UStaticMeshComponent*>& InStaticMeshComponentsToMerge, const TArray<UMaterialInterface*>& InUniqueMaterials, const TMap<UMaterialInterface*, UMaterialInterface*>& InCollapsedMaterialMap, const TMultiMap<FMeshLODKey, MaterialRemapPair>& InOutputMaterialsMap, bool bInMergeAllLODs, bool bInMergeMaterialData, const FVector& InMergedAssetPivot, TArray<FMeshDescription>& OutMergedRawMeshes) const

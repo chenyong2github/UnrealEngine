@@ -319,7 +319,7 @@ UStaticMesh* CreateImposterStaticMesh(UStaticMeshComponent* InComponent, UMateri
 
 		FMeshDescription* ImposterMesh = StaticMesh->CreateMeshDescription(0);
 		const IMeshMergeUtilities& MeshMergeUtilities = FModuleManager::Get().LoadModuleChecked<IMeshMergeModule>("MeshMergeUtilities").GetUtilities();
-		MeshMergeUtilities.ExtractImposterToRawMesh(InComponent, *ImposterMesh);
+		MeshMergeUtilities.RetrieveMeshDescription(InComponent->GetStaticMesh(), InComponent->GetStaticMesh()->GetNumLODs() - 1, *ImposterMesh);
 
 		// Disable collisions on imposters
 		FMeshSectionInfo Info = StaticMesh->GetSectionInfoMap().Get(0, 0);

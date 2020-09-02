@@ -248,7 +248,7 @@ void FProxyGenerationProcessor::ProcessJob(const FGuid& JobGuid, FProxyGeneratio
 
 		// Merge imposter meshes to rawmesh
 		// The base material index is always one here as we assume we only have one HLOD material
-		FMeshMergeHelpers::MergeImpostersToRawMesh(Data->MergeData->ImposterComponents, Data->RawMesh, FVector::ZeroVector, 1, ImposterMaterials);
+		FMeshMergeHelpers::MergeImpostersToMesh(Data->MergeData->ImposterComponents, Data->RawMesh, FVector::ZeroVector, 1, ImposterMaterials);
 
 		for (const UStaticMeshComponent* Component : Data->MergeData->ImposterComponents)
 		{
