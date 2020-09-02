@@ -173,8 +173,12 @@ bool UConvertLevelsToExternalActorsCommandlet::AddPackageToSourceControl(UPackag
 
 bool UConvertLevelsToExternalActorsCommandlet::SavePackage(UPackage* Package)
 {
+	// Use GEditor save as it does some UWorld specific shenanigans such as handle level offsets
 	FString PackageFileName = SourceControlHelpers::PackageFilename(Package);
-	if (!UPackage::SavePackage(Package, nullptr, RF_Standalone, *PackageFileName, GError, nullptr, false, true, SAVE_None))
+	FSavePackageResultStruct SaveResult = GEditor->Save(Package, nullptr, RF_Standalone, *PackageFileName,
+		GError, nullptr, false, true, SAVE_None);
+
+	if (SaveResult.Result != ESavePackageResult::Success)
 	{
 		UE_LOG(LogConvertLevelsToExternalActorsCommandlet, Error, TEXT("Error saving %s"), *PackageFileName);
 		return false;
