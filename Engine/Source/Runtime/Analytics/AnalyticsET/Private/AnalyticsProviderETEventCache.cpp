@@ -32,63 +32,6 @@ namespace EventCacheStatic
 	/** Used for testing below to ensure stable output */
 	bool bUseZeroDateOffset = false;
 
-	struct Tests
-	{
-		Tests()
-		{
-			TGuardValue<bool> GuardTestSetting(bUseZeroDateOffset, true);
-
-			FAnalyticsProviderETEventCache cache;
-			cache.AddToCache(TEXT("BasicStrings"), MakeAnalyticsEventAttributeArray(
-				TEXT("ConstantStringAttribute"), TEXT("ConstantStringValue"),
-				TEXT("FStringStringAttribute"), FString(TEXT("FStringValue"))
-			));
-
-			double kINF = MAX_dbl * MAX_dbl;
-			double kNAN = kINF * 0.0;
-
-			FString Unicodestring(TEXT("\u0639\u0627\u0631\u0643\u0646\u064A\u0020\u0628\u0627\u0644\u0628\u0646\u0627\u0621\u0020\u6226\u3044"));
-			cache.AddToCache(TEXT("UnicodeEvent"), MakeAnalyticsEventAttributeArray(TEXT("UnicodeAttr"), Unicodestring));
-
-			cache.AddToCache(FString(TEXT("NumericalAttributes")), MakeAnalyticsEventAttributeArray(
-				TEXT("IntAttr"), MIN_int32,
-				TEXT("LongAttr"), MIN_int64,
-				TEXT("UIntAttr"), MAX_uint32,
-				TEXT("ULongAttr"), MAX_uint64,
-				TEXT("FloatAttr"), MAX_flt,
-				TEXT("DoubleAttr"), MAX_dbl,
-				TEXT("IntAttr2"), 0,
-				TEXT("FloatAttr2"), 0.0f,
-				TEXT("DoubleAttr2"), 0.0,
-				TEXT("BoolTrueAttr"), true,
-				TEXT("BoolFalseAttr"), false,
-				TEXT("INFAttr"), kINF,
-				TEXT("NANAttr"), kNAN
-				));
-			cache.AddToCache(FString(TEXT("JsonAttributes")), MakeAnalyticsEventAttributeArray
-			(
-				TEXT("NullAttr"), FJsonNull(),
-				TEXT("FragmentAttr"), FJsonFragment(TEXT("{\"Key\":\"Value\",\"Key2\":\"Value2\"}"))
-			));
-
-			PRAGMA_DISABLE_DEPRECATION_WARNINGS
-			FString Payload = cache.FlushCache();
-			PRAGMA_ENABLE_DEPRECATION_WARNINGS
-			FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"BasicStrings\",\"DateOffset\":\"+00:00:00.000\",\"ConstantStringAttribute\":\"ConstantStringValue\",\"FStringStringAttribute\":\"FStringValue\"},{\"EventName\":\"UnicodeEvent\",\"DateOffset\":\"+00:00:00.000\",\"UnicodeAttr\":\"\u0639\u0627\u0631\u0643\u0646\u064A\u0020\u0628\u0627\u0644\u0628\u0646\u0627\u0621\u0020\u6226\u3044\"},{\"EventName\":\"NumericalAttributes\",\"DateOffset\":\"+00:00:00.000\",\"IntAttr\":-2147483648,\"LongAttr\":-9223372036854775808,\"UIntAttr\":4294967295,\"ULongAttr\":18446744073709551615,\"FloatAttr\":3.402823466e+38,\"DoubleAttr\":1.797693135e+308,\"IntAttr2\":0,\"FloatAttr2\":0.0,\"DoubleAttr2\":0.0,\"BoolTrueAttr\":true,\"BoolFalseAttr\":false,\"INFAttr\":null,\"NANAttr\":null},{\"EventName\":\"JsonAttributes\",\"DateOffset\":\"+00:00:00.000\",\"NullAttr\":null,\"FragmentAttr\":{\"Key\":\"Value\",\"Key2\":\"Value2\"}}]}");
-			if (Payload != ExpectedResult)
-			{
-				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest Failed. Expect:%s"), *ExpectedResult);
-				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest Failed. Actual:%s"), *Payload);
-				UE_LOG(LogAnalytics, Warning, TEXT("EventCacheTest expected array size:%d. Actual array size:%d"), ExpectedResult.GetCharArray().Num(), Payload.GetCharArray().Num());
-				// WRH HACK - on Mac, MAX_dbl seems to fail FPlatformMath::IsFinite(). Need to investigate.
-				//check(Payload == ExpectedResult);
-			}
-		}
-	};
-
-	bool bHasRunTests = false;
-
-
 	inline int ComputeAttributeSize(const FAnalyticsEventAttribute& Attribute)
 	{
 		return 
@@ -255,13 +198,6 @@ FAnalyticsProviderETEventCache::FAnalyticsProviderETEventCache(int32 InMaximumPa
 	FlushQueue.Reserve(4);
 	// reserve space for a few entries to build up.
 	CachedEventEntries.Reserve(100);
-
-	// #WRHTODO - move this to EngineTests
-	if (!EventCacheStatic::bHasRunTests)
-	{
-		EventCacheStatic::bHasRunTests = true;
-		EventCacheStatic::Tests Tests;
-	}
 
 	if (MaximumPayloadSize < 0)
 	{
@@ -508,3 +444,81 @@ int32 FAnalyticsProviderETEventCache::GetSetPreallocatedPayloadSize() const
 {
 	return PreallocatedPayloadSize;
 }
+
+// Automation tests
+#if WITH_DEV_AUTOMATION_TESTS
+#include "Misc/AutomationTest.h"
+#include <limits>
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FAnalyticsProviderETEventCacheTest, "System.Analytics.AnalyticsETEventCache", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FAnalyticsProviderETEventCacheTest::RunTest(const FString& Parameters)
+{
+	// Zero out the DateOffset so we can test against constant strings.
+	TGuardValue<bool> GuardTestSetting(EventCacheStatic::bUseZeroDateOffset, true);
+
+	PRAGMA_DISABLE_DEPRECATION_WARNINGS
+	{
+		FString TheTestName = TEXT("BasicStrings");
+		FAnalyticsProviderETEventCache cache;
+		cache.AddToCache(TheTestName, MakeAnalyticsEventAttributeArray(
+			TEXT("ConstantStringAttribute"), TEXT("ConstantStringValue"),
+			TEXT("FStringStringAttribute"), FString(TEXT("FStringValue"))
+		));
+
+		FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"BasicStrings\",\"DateOffset\":\"+00:00:00.000\",\"ConstantStringAttribute\":\"ConstantStringValue\",\"FStringStringAttribute\":\"FStringValue\"}]}");
+		TestEqual(TheTestName, cache.FlushCache(), ExpectedResult);
+	}
+
+	{
+		FString TheTestName = TEXT("UnicodeEvent");
+		FAnalyticsProviderETEventCache cache;
+		FString Unicodestring(TEXT("\u0639\u0627\u0631\u0643\u0646\u064A\u0020\u0628\u0627\u0644\u0628\u0646\u0627\u0621\u0020\u6226\u3044"));
+		cache.AddToCache(TheTestName, MakeAnalyticsEventAttributeArray(TEXT("UnicodeAttr"), Unicodestring));
+
+		FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"UnicodeEvent\",\"DateOffset\":\"+00:00:00.000\",\"UnicodeAttr\":\"\u0639\u0627\u0631\u0643\u0646\u064A\u0020\u0628\u0627\u0644\u0628\u0646\u0627\u0621\u0020\u6226\u3044\"}]}");
+		TestEqual(TheTestName, cache.FlushCache(), ExpectedResult);
+	}
+
+	{
+		FString TheTestName = TEXT("NumericalEvent");
+		FAnalyticsProviderETEventCache cache;
+		cache.AddToCache(TheTestName, MakeAnalyticsEventAttributeArray(
+			TEXT("IntAttr"), std::numeric_limits<int32>::min(),
+			TEXT("LongAttr"), std::numeric_limits<int64>::min(),
+			TEXT("UIntAttr"), std::numeric_limits<uint32>::max(),
+			TEXT("ULongAttr"), std::numeric_limits<uint64>::max(),
+			TEXT("FloatAttr"), std::numeric_limits<float>::max(),
+			TEXT("DoubleAttr"), std::numeric_limits<double>::max(),
+			TEXT("IntAttr2"), 0,
+			TEXT("FloatAttr2"), 0.0f,
+			TEXT("DoubleAttr2"), 0.0,
+			TEXT("BoolTrueAttr"), true,
+			TEXT("BoolFalseAttr"), false,
+			// these need to end up null because json can't represent them.
+			TEXT("INFAttr"), std::numeric_limits<double>::infinity(),
+			TEXT("NANAttr"), std::numeric_limits<double>::quiet_NaN()
+		));
+
+		FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"NumericalEvent\",\"DateOffset\":\"+00:00:00.000\",\"IntAttr\":-2147483648,\"LongAttr\":-9223372036854775808,\"UIntAttr\":4294967295,\"ULongAttr\":18446744073709551615,\"FloatAttr\":3.402823466e+38,\"DoubleAttr\":1.797693135e+308,\"IntAttr2\":0,\"FloatAttr2\":0.0,\"DoubleAttr2\":0.0,\"BoolTrueAttr\":true,\"BoolFalseAttr\":false,\"INFAttr\":null,\"NANAttr\":null}]}");
+		TestEqual(TheTestName, cache.FlushCache(), ExpectedResult);
+	}
+
+	{
+		FString TheTestName = TEXT("JsonEvent");
+		FAnalyticsProviderETEventCache cache;
+		cache.AddToCache(TheTestName, MakeAnalyticsEventAttributeArray
+		(
+			TEXT("NullAttr"), FJsonNull(),
+			TEXT("FragmentAttr"), FJsonFragment(TEXT("{\"Key\":\"Value\",\"Key2\":\"Value2\"}"))
+		));
+
+		FString ExpectedResult = TEXT("{\"Events\":[{\"EventName\":\"JsonEvent\",\"DateOffset\":\"+00:00:00.000\",\"NullAttr\":null,\"FragmentAttr\":{\"Key\":\"Value\",\"Key2\":\"Value2\"}}]}");
+		TestEqual(TheTestName, cache.FlushCache(), ExpectedResult);
+
+		return true;
+	}
+
+	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+}
+
+#endif
