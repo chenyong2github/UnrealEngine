@@ -8,8 +8,6 @@
 
 #define LOCTEXT_NAMESPACE "FFrameRate"
 
-PRAGMA_DISABLE_UNSAFE_TYPECAST_WARNINGS
-
 namespace
 {
 	struct FSeconds         { static const TCHAR* const Moniker; };
@@ -190,7 +188,7 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 		return false;
 	}
 
-	const int32 RoundedFPS = FMath::RoundToInt(AsDecimal());
+	const int32 RoundedFPS = static_cast<int32>(FMath::Clamp(FMath::RoundToDouble(AsDecimal()), 0.0, static_cast<double>(TNumericLimits<int32>::Max())));
 
 	// Start showing time on second boundaries after we can represent 0.5s (60 ^ -0.169 ~= 0.5)
 	static float TimeDisplayThresholdExponent = -0.169f;
@@ -198,20 +196,20 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 
 	if (TimeExponent >= TimeDisplayThresholdExponent)
 	{
-		const float TimeOrder = FMath::Pow(60.f, FMath::FloorToInt(FMath::LogX(60.f, DesiredMajorTickPx / PixelsPerSecond)));
+		const float TimeOrder = FMath::Pow(60.f, FMath::FloorToFloat(FMath::LogX(60.f, DesiredMajorTickPx / PixelsPerSecond)));
 
 		// Showing hours, minutes or seconds
 		static const int32 DesirableBases[]  = { 1, 2, 5, 10, 30, 60 };
-		static const SIZE_T NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
+		static const int32 NumDesirableBases = UE_ARRAY_COUNT(DesirableBases);
 
 		const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond / TimeOrder);
-		const int32 BaseIndex = FMath::Min(Algo::LowerBound(DesirableBases, Scale), NumDesirableBases-1);
+		const int32 BaseIndex = FMath::Min(static_cast<int32>(Algo::LowerBound(DesirableBases, Scale)), NumDesirableBases-1);
 
 		const int32 Base = DesirableBases[BaseIndex];
-		const int32 MajorIntervalSeconds = FMath::Pow(Base, FMath::CeilToInt(FMath::LogX(Base, Scale)));
+		const int32 MajorIntervalSeconds = FMath::RoundToInt(FMath::Pow(static_cast<float>(Base), FMath::CeilToFloat(FMath::LogX(static_cast<float>(Base), static_cast<float>(Scale)))));
 
 		OutMajorInterval  = TimeOrder * MajorIntervalSeconds;
-		OutMinorDivisions = FMath::RoundUpToPowerOfTwo(OutMajorInterval / (MinTickPx / PixelsPerSecond));
+		OutMinorDivisions = static_cast<int32>(FMath::Min(FMath::RoundUpToPowerOfTwo(static_cast<uint32>(OutMajorInterval / (MinTickPx / PixelsPerSecond))), static_cast<uint32>(TNumericLimits<int32>::Max())));
 
 		// Find the lowest number of divisions we can show that's larger than the minimum tick size
 		OutMinorDivisions = 0;
@@ -249,7 +247,7 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 
 		Algo::Reverse(CommonBases);
 
-		const int32 Scale     = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond * AsDecimal());
+		const int32 Scale     = FMath::CeilToInt(static_cast<float>(DesiredMajorTickPx / PixelsPerSecond * AsDecimal()));
 		const int32 BaseIndex = FMath::Min(Algo::LowerBound(CommonBases, Scale), CommonBases.Num()-1);
 		const int32 Base      = CommonBases[BaseIndex];
 
@@ -274,12 +272,12 @@ bool FFrameRate::ComputeGridSpacing(float PixelsPerSecond, double& OutMajorInter
 	else
 	{
 		// Showing ms etc
-		const float TimeOrder = FMath::Pow(10.f, FMath::FloorToInt(FMath::LogX(10.f, DesiredMajorTickPx / PixelsPerSecond)));
-		const int32 Scale = FMath::CeilToInt(DesiredMajorTickPx / PixelsPerSecond / TimeOrder);
+		const float TimeOrder = FMath::Pow(10.f, FMath::FloorToFloat(FMath::LogX(10.f, DesiredMajorTickPx / PixelsPerSecond)));
+		const float Scale = FMath::CeilToFloat(DesiredMajorTickPx / PixelsPerSecond / TimeOrder);
 
 		static float RoundToBase = 5.f;
-		OutMajorInterval  = TimeOrder * FMath::Pow(RoundToBase, FMath::CeilToInt(FMath::LogX(RoundToBase, Scale)));
-		OutMinorDivisions = FMath::RoundUpToPowerOfTwo(OutMajorInterval / (MinTickPx / PixelsPerSecond));
+		OutMajorInterval  = TimeOrder * FMath::Pow(RoundToBase, FMath::CeilToFloat(FMath::LogX(RoundToBase, Scale)));
+		OutMinorDivisions = FMath::RoundUpToPowerOfTwo(static_cast<uint32>(OutMajorInterval / (MinTickPx / PixelsPerSecond)));
 	}
 
 	return OutMajorInterval != 0;
@@ -303,7 +301,5 @@ bool TryParseString(FFrameRate& OutFrameRate, const TCHAR* InString)
 
 	return false;
 }
-
-PRAGMA_ENABLE_UNSAFE_TYPECAST_WARNINGS
 
 #undef LOCTEXT_NAMESPACE
