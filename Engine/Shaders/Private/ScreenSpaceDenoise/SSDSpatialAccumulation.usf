@@ -109,7 +109,15 @@
 		#define CONFIG_INPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
 		#define CONFIG_OUTPUT_TEXTURE_COUNT CONFIG_SIGNAL_BATCH_SIZE
 
-		#define CONFIG_SAMPLE_SET           SAMPLE_SET_1X1
+		#define CONFIG_MAX_WITH_REF_DISTANCE 1
+		#define CONFIG_BILATERAL_DISTANCE_COMPUTATION SIGNAL_WORLD_FREQUENCY_PRECOMPUTED_BLURING_RADIUS
+
+		#if CONFIG_SIGNAL_BATCH_SIZE == 1
+			#define CONFIG_NORMALIZE_INPUT 1
+			#define CONFIG_SAMPLE_SET           SAMPLE_SET_DIRECTIONAL_ELLIPSE
+		#else
+			#define CONFIG_SAMPLE_SET           SAMPLE_SET_1X1
+		#endif
 
 	#else
 		#error Unexpected stage.
@@ -907,7 +915,39 @@ void MainCS(
 		}
 		#elif CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_RECT || CONFIG_SAMPLE_SET == SAMPLE_SET_DIRECTIONAL_ELLIPSE
 		{
-			#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
+			#if CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_SHADOW_VISIBILITY_MASK
+			{
+				float RefPixelWorldBluringRadius = ComputeWorldBluringRadiusCausedByPixelSize(RefSceneMetadata);
+
+				FSSDSignalDomainKnowledge DomainKnowledge = GetSignalDomainKnowledge(/* BatchedSignalId = */ 0);
+
+				float3 L = ComputeMajorLightRayDirection(RefSceneMetadata, DomainKnowledge);
+
+				float3 N = GetWorldNormal(RefSceneMetadata);
+
+				float NoL = dot(L, N);
+
+				float MajorPixelRadius = lerp(6, 0.5, abs(NoL));
+
+				// Project light dir onto horizon plane
+				float3 WorldBlurDir = normalize(L - dot(L, N) * N);
+
+				float3 TranslatedWorldOffset = GetTranslatedWorldPosition(RefSceneMetadata) + WorldBlurDir * (RefPixelWorldBluringRadius * MajorPixelRadius);
+				float4 ClipOffset = mul(float4(TranslatedWorldOffset, 1.0), View.TranslatedWorldToClip);
+				float2 ScreenOffset = ClipOffset.xy * rcp(ClipOffset.w);
+
+				float2 ScreenDirection = ScreenOffset - RefSceneMetadata.ScreenPosition;
+				float2 ViewportDirection = ScreenDirection * float2(0.5, -0.5);
+				float2 PixelDirection = normalize(ViewportDirection * View.ViewSizeAndInvSize.xy);
+				float PixelDirectionLength = length(ViewportDirection * View.ViewSizeAndInvSize.xy);
+
+				KernelConfig.MajorAxis = PixelDirection;
+				KernelConfig.MajorPixelRadius = MajorPixelRadius;
+				KernelConfig.MinorPixelRadius = 0.5;
+
+				KernelConfig.SampleCount = 2 * KernelConfig.MajorPixelRadius;
+			}
+			#elif CONFIG_SIGNAL_PROCESSING == SIGNAL_PROCESSING_REFLECTIONS
 			{
 				const float TargetSamplePerPixel = 0.25;
 				const float MinimalPixelRadius = 0.5 * rsqrt(2.0);
