@@ -225,6 +225,35 @@ bool FEditorSessionSummaryWriter::UpdateUserIdleTime(double CurrTimeSecs, bool b
 	return bSessionUpdated; // True if the idle timers were updated.
 }
 
+bool FEditorSessionSummaryWriter::UpdateOutOfProcessMonitorState(bool bQuickCheck)
+{
+	if (CurrentSession->MonitorProcessID == 0)
+	{
+		return false; // Nothing to update, monitor is not running in background (not supported/not in monitor mode/failed to launch)
+	}
+	else if (CurrentSession->MonitorExitCode.IsSet() && *CurrentSession->MonitorExitCode != ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly)
+	{
+		return false; // Already have to the real exit code set.
+	}
+	else if (TOptional<int32> ExitCode = FGenericCrashContext::GetOutOfProcessCrashReporterExitCode())
+	{
+		CurrentSession->MonitorExitCode = MoveTemp(ExitCode); // Just acquired the real exit code from the engine.
+		return true;
+	}
+	else if (bQuickCheck)
+	{
+		return false; // All the code above is pretty fast and can run every tick. IsApplicationRunning() is very slow, so exit here.
+	}
+	else if (!CurrentSession->MonitorExitCode.IsSet() && !FPlatformProcess::IsApplicationRunning(CurrentSession->MonitorProcessID))
+	{
+		// Set a rather unique, but known exit code as place holder, hoping that next update, the engine will report the real one.
+		CurrentSession->MonitorExitCode.Emplace(ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly);
+		return true;
+	}
+	// else -> either CrashReportClientEditor is still running or we already flagged it as dead.
+	return false;
+}
+
 void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 {
 	if (bShutdown)
@@ -247,6 +276,11 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 	if (FPlatformTime::GetCPUTime().CPUTimePct > EditorSessionWriterDefs::IdleCpuUsagePercent)
 	{
 		UpdateEditorIdleTime(CurrentTimeSecs, /*bReset*/true);
+	}
+
+	if (UpdateOutOfProcessMonitorState(/*bQuickCheck*/true))
+	{
+		TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs);
 	}
 
 	// Update other session stats approximatively every minute.
@@ -274,21 +308,12 @@ void FEditorSessionSummaryWriter::Tick(float DeltaTime)
 	{
 		HeartbeatTimeElapsed = 0.0f;
 
-		// Check if the out of process monitor is running.
-		if (CurrentSession->MonitorProcessID != 0 && !CurrentSession->MonitorExceptCode.IsSet())
-		{
-			// The out-of-process application reporting our crash shouldn't die before this process.
-			if (!FPlatformProcess::IsApplicationRunning(CurrentSession->MonitorProcessID))
-			{
-				CurrentSession->MonitorExceptCode.Emplace(ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly);
-			}
-		}
-
 		extern ENGINE_API float GAverageFPS;
 		CurrentSession->AverageFPS = GAverageFPS;
 		CurrentSession->bIsInVRMode = IVREditorModule::Get().IsVREditorModeActive();
 		CurrentSession->bIsInPIE = FPlayWorldCommandCallbacks::IsInPIE();
 
+		UpdateOutOfProcessMonitorState(/*bQuickCheck*/false);
 		TrySaveCurrentSession(FDateTime::UtcNow(), CurrentTimeSecs); // Saving also updates session duration/timestamp/userIdle/editorIdle
 	}
 }
@@ -440,12 +465,6 @@ TUniquePtr<FEditorAnalyticsSession> FEditorSessionSummaryWriter::CreateCurrentSe
 
 	Session->Plugins.Sort();
 
-	// The out-of-process application reporting our crash shouldn't die before this process.
-	if (Session->MonitorProcessID != 0 && !FPlatformProcess::IsApplicationRunning(Session->MonitorProcessID))
-	{
-		Session->MonitorExceptCode.Emplace(ECrashExitCodes::OutOfProcessReporterExitedUnexpectedly);
-	}
-
 	return Session;
 }
 
@@ -574,6 +593,7 @@ bool FEditorSessionSummaryWriter::TrySaveCurrentSession(const FDateTime& CurrTim
 	{
 		if (SaveSessionLock.TryLock()) // Intra-process lock to grant the calling thread exclusive access to the key-store file/registry.
 		{
+			UpdateOutOfProcessMonitorState(/*bQuickCheck*/true);
 			UpdateUserIdleTime(CurrTimeSecs, /*bReset*/false);
 			UpdateEditorIdleTime(CurrTimeSecs, /*bReset*/false);
 			UpdateSessionDuration(CurrTimeSecs);

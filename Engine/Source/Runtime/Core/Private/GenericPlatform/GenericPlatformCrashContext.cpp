@@ -71,6 +71,7 @@ const TCHAR* const FGenericCrashContext::EngineModeExVanilla = TEXT("Vanilla");
 
 bool FGenericCrashContext::bIsInitialized = false;
 uint32 FGenericCrashContext::OutOfProcessCrashReporterPid = 0;
+volatile int64 FGenericCrashContext::OutOfProcessCrashReporterExitCode = 0;
 int32 FGenericCrashContext::StaticCrashContextIndex = 0;
 
 const FGuid FGenericCrashContext::ExecutionGuid = FGuid::NewGuid();
@@ -436,6 +437,23 @@ FGenericCrashContext::FGenericCrashContext(ECrashContextType InType, const TCHAR
 FString FGenericCrashContext::GetTempSessionContextFilePath(uint64 ProcessID)
 {
 	return FPlatformProcess::UserTempDir() / FString::Printf(TEXT("UECrashContext-%u.xml"), ProcessID);
+}
+
+TOptional<int32> FGenericCrashContext::GetOutOfProcessCrashReporterExitCode()
+{
+	TOptional<int32> ExitCode;
+	int64 ExitCodeData = FPlatformAtomics::AtomicRead(&OutOfProcessCrashReporterExitCode);
+	if (ExitCodeData & 0xFFFFFFFF00000000) // If one bit in the 32 MSB is set, the out of process exit code is set in the 32 LSB.
+	{
+		ExitCode.Emplace(static_cast<int32>(ExitCodeData)); // Truncate the 32 MSB.
+	}
+	return ExitCode;
+}
+
+void FGenericCrashContext::SetOutOfProcessCrashReporterExitCode(int32 ExitCode)
+{
+	int64 ExitCodeData = (1ll << 32) | ExitCode; // Set a bit in the 32 MSB to signal that the exit code is set
+	FPlatformAtomics::AtomicStore(&OutOfProcessCrashReporterExitCode, ExitCodeData);
 }
 
 void FGenericCrashContext::SerializeTempCrashContextToFile()

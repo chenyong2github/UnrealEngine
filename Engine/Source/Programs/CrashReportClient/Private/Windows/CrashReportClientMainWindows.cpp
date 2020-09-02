@@ -114,6 +114,8 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 				{
 					*Ar << RespawnPid;
 				}
+				
+				FPlatformProcess::CloseProc(Handle);
 			}
 		}
 		RequestEngineExit(TEXT("Respawn instance."));
