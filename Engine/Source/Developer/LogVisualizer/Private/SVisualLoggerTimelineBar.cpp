@@ -86,6 +86,16 @@ FReply SVisualLoggerTimelineBar::OnMouseMove(const FGeometry& MyGeometry, const 
 	return TimeSliderController->OnMouseMove(*this, MyGeometry, MouseEvent);
 }
 
+FReply SVisualLoggerTimelineBar::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (MouseEvent.IsLeftControlDown() || MouseEvent.IsLeftShiftDown())
+	{
+		return TimeSliderController->OnMouseWheel(*this, MyGeometry, MouseEvent);
+	}
+
+	return FReply::Unhandled();
+}
+
 FReply SVisualLoggerTimelineBar::OnMouseButtonDoubleClick(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
 	FName RowName = TimelineOwner.Pin()->GetName();
