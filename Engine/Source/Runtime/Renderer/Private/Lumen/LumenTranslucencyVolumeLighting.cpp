@@ -143,10 +143,10 @@ const static uint32 MaxTranslucencyVolumeConeDirections = 64;
 FLumenTranslucencyLightingParameters GetLumenTranslucencyLightingParameters(const FLumenTranslucencyGIVolume& LumenTranslucencyGIVolume)
 {
 	FLumenTranslucencyLightingParameters Parameters;
-	Parameters.TranslucencyGIVolume0 = (LumenTranslucencyGIVolume.Texture0 ? LumenTranslucencyGIVolume.Texture0 : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolume1 = (LumenTranslucencyGIVolume.Texture1 ? LumenTranslucencyGIVolume.Texture1 : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolumeHistory0 = (LumenTranslucencyGIVolume.HistoryTexture0 ? LumenTranslucencyGIVolume.HistoryTexture0 : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
-	Parameters.TranslucencyGIVolumeHistory1 = (LumenTranslucencyGIVolume.HistoryTexture1 ? LumenTranslucencyGIVolume.HistoryTexture1 : GSystemTextures.BlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
+	Parameters.TranslucencyGIVolume0 = (LumenTranslucencyGIVolume.Texture0 ? LumenTranslucencyGIVolume.Texture0 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
+	Parameters.TranslucencyGIVolume1 = (LumenTranslucencyGIVolume.Texture1 ? LumenTranslucencyGIVolume.Texture1 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
+	Parameters.TranslucencyGIVolumeHistory0 = (LumenTranslucencyGIVolume.HistoryTexture0 ? LumenTranslucencyGIVolume.HistoryTexture0 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
+	Parameters.TranslucencyGIVolumeHistory1 = (LumenTranslucencyGIVolume.HistoryTexture1 ? LumenTranslucencyGIVolume.HistoryTexture1 : GSystemTextures.VolumetricBlackDummy)->GetRenderTargetItem().ShaderResourceTexture;
 	Parameters.TranslucencyGIVolumeSampler = TStaticSamplerState<SF_Trilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 	Parameters.TranslucencyGIGridZParams = LumenTranslucencyGIVolume.GridZParams;
 	Parameters.TranslucencyGIGridPixelSizeShift = LumenTranslucencyGIVolume.GridPixelSizeShift;
