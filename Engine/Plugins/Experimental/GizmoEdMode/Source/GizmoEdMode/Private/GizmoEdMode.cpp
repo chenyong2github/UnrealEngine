@@ -23,7 +23,6 @@ UGizmoEdMode::UGizmoEdMode()
 		600
 	);
 	SettingsClass = UGizmoEdModeSettings::StaticClass();
-	ToolsContextClass = UEdModeInteractiveToolsContext::StaticClass();
 
 	AddFactory(NewObject<UDefaultAssetEditorGizmoFactory>());
 }

@@ -17,7 +17,6 @@ public:
 	/** IToolkit interface */
 	virtual FName GetToolkitFName() const override;
 	virtual FText GetBaseToolkitName() const override;
-	virtual class UEdMode* GetScriptableEditorMode() const override;
 
 private:
 

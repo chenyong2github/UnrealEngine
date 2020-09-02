@@ -93,13 +93,8 @@ void UMotionTrailEditorMode::Exit()
 
 void UMotionTrailEditorMode::CreateToolkit()
 {
-	if (!Toolkit.IsValid())
-	{
-		FMotionTrailEditorModeToolkit* MotionTrailToolkit = new FMotionTrailEditorModeToolkit;
-		Toolkit = MakeShareable(MotionTrailToolkit);
-		Toolkit->Init(Owner->GetToolkitHost());
-	}
-	Super::CreateToolkit();
+	FMotionTrailEditorModeToolkit* MotionTrailToolkit = new FMotionTrailEditorModeToolkit;
+	Toolkit = MakeShareable(MotionTrailToolkit);
 }
 
 

@@ -53,7 +53,7 @@ void USampleToolsEditorMode::Enter()
 	// The string name you pass to the ToolManager is used to select/activate your ToolBuilder later.
 	//////////////////////////////////////////////////////////////////////////
 	////////////////////////////////////////////////////////////////////////// 
-	FSampleToolsEditorModeCommands SampleToolCommands = FSampleToolsEditorModeCommands::Get();
+	const FSampleToolsEditorModeCommands& SampleToolCommands = FSampleToolsEditorModeCommands::Get();
 
 	auto CreateActorSampleToolBuilder = NewObject< UCreateActorSampleToolBuilder>(this);
 	CreateActorSampleToolBuilder->AssetAPI = ToolsContext->GetAssetAPI();

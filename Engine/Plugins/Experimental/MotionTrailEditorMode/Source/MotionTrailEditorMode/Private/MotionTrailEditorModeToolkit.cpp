@@ -33,9 +33,4 @@ FText FMotionTrailEditorModeToolkit::GetBaseToolkitName() const
 	return NSLOCTEXT("MotionTrailEditorModeToolkit", "DisplayName", "Motion Trail Editor Tool");
 }
 
-class UEdMode* FMotionTrailEditorModeToolkit::GetScriptableEditorMode() const
-{
-	return GLevelEditorModeTools().GetActiveScriptableMode("MotionTrailEditorMode");
-}
-
 #undef LOCTEXT_NAMESPACE
