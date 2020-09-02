@@ -687,6 +687,14 @@ void FD3D12CommandListManager::ExecuteCommandListInteral(TArray<FD3D12CommandLis
 			check(0);
 		}
 #endif
+		
+		// If not direct queue, then make sure the direct queue is done executing commands 
+		// before trying to use the barrier command list from it
+		if (CommandListType != D3D12_COMMAND_LIST_TYPE_DIRECT)
+		{
+			DirectCommandListManager.WaitOnExecuteTask();
+		}
+
 		FScopeLock Lock(&ResourceStateCS);
 
 		for (int32 i = 0; i < Lists.Num(); i++)
