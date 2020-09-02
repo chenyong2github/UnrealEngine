@@ -1293,6 +1293,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].NumIterationsThisStage = NumIterationsThisStage;
 					TranslationStages[Index].bSpawnOnly = bSpawnOnly;
 					TranslationStages[Index].bPartialParticleUpdate = InCompileData->PartialParticleUpdatePerStage.IsValidIndex(SimStageIndex) ? InCompileData->PartialParticleUpdatePerStage[SimStageIndex] : false;
+					TranslationStages[Index].InstanceDivisor = InCompileData->InstanceDivisor.IsValidIndex(SimStageIndex) ? InCompileData->InstanceDivisor[SimStageIndex] : false;
 					TranslationStages[Index].IterationSource = IterationSrc;
 					TranslationStages[Index].SourceSimStage = SimStageIndex;
 					SimStageStartIndex += NumIterationsThisStage;
@@ -1353,6 +1354,7 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.MaxStage = TranslationStages[Index].SimulationStageIndexMax;
 					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
 					SimulationStageMetaData.bPartialParticleUpdate = TranslationStages[Index].bPartialParticleUpdate;
+					SimulationStageMetaData.InstanceDivisor = TranslationStages[Index].InstanceDivisor;
 
 					// Other outputs are written to as appropriate data interfaces are found. See HandleDataInterfaceCall for details.
 
@@ -6109,6 +6111,9 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 			FNiagaraScriptDataInterfaceCompileInfo& Info = CompilationOutput.ScriptData.DataInterfaceInfo[OwnerIdx];
 			TArray<FNiagaraFunctionSignature> Funcs;
 			CDO->GetFunctions(Funcs);
+
+			bool bPermuteSignatureByDataInterface = false;
+
 			for (int32 FuncIdx = 0; FuncIdx < Funcs.Num(); FuncIdx++)
 			{
 				FString DIMethodInvocation = Input.GetName().ToString() + TEXT(".") + GetSanitizedDIFunctionName(Funcs[FuncIdx].GetName());
@@ -6117,6 +6122,8 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 				{
 					if (Tokens[TokenIndex].Compare(DIMethodInvocation, ESearchCase::CaseSensitive) == 0)
 					{
+						bPermuteSignatureByDataInterface = true;
+
 						// We can't replace the method-style call with the actual function name yet, because function specifiers
 						// are part of the name, and we haven't determined them yet. Just store a pointer to the token for now.
 						FString& FunctionNameToken = Tokens[TokenIndex];
@@ -6181,6 +6188,12 @@ void FHlslNiagaraTranslator::HandleCustomHlslNode(UNiagaraNodeCustomHlsl* Custom
 					}
 				}
 			}
+
+			if (bPermuteSignatureByDataInterface)
+			{
+				OutSignature.Name = FName(OutSignature.Name.ToString() + GetSanitizedSymbolName(Info.Name.ToString(), true));
+			}
+
 			SigInputs.Add(Input);
 		}
 		else
