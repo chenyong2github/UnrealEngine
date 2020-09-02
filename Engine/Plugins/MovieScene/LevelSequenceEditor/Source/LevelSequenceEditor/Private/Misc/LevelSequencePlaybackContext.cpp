@@ -66,7 +66,7 @@ private:
 		}
 		else
 		{
-			return FEditorStyle::GetBrush("LevelViewport.NoViewportBorder");
+			return FStyleDefaults::GetNoBrush();
 		}
 	}
 
