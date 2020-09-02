@@ -107,8 +107,10 @@ private:
 
 	/** Whether noticeable network traffic has occured in this session. Used to discard it.			*/
 	bool									bHasNoticeableNetworkTrafficOccured;
-	/** Whether tracking is enabled.																*/
+	/** Whether tracking is enabled. Set after a session change.									*/
 	bool									bIsTrackingEnabled;	
+	/** Whether tracking should be enabled.															*/
+	bool									bShouldTrackingBeEnabled;
 
 	/** Header for the current session.																*/
 	FNetworkProfilerHeader					CurrentHeader;
@@ -478,8 +480,8 @@ public:
 	 */
 	ENGINE_API bool Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice & Ar );
 
-	bool FORCEINLINE IsTrackingEnabled() const { return bIsTrackingEnabled; }
-	bool IsComparisonTrackingEnabled() const { return bIsTrackingEnabled && bIsComparisonTrackingEnabled;  }
+	bool FORCEINLINE IsTrackingEnabled() const { return bIsTrackingEnabled || bShouldTrackingBeEnabled; }
+	bool IsComparisonTrackingEnabled() const { return (bIsTrackingEnabled || bShouldTrackingBeEnabled) && bIsComparisonTrackingEnabled;  }
 
 	/** Return the network profile finished delegate */
 	FOnNetworkProfileFinished& OnNetworkProfileFinished() { return OnNetworkProfileFinishedDelegate; }

@@ -133,6 +133,7 @@ FNetworkProfiler::FNetworkProfiler()
 :	FileWriter( nullptr )
 ,	bHasNoticeableNetworkTrafficOccured(false)
 ,	bIsTrackingEnabled(false)
+,	bShouldTrackingBeEnabled(false)
 ,	LastAddress( nullptr )
 ,	IgnorePropertyCount(0)
 {
@@ -212,6 +213,8 @@ int32 FNetworkProfiler::GetAddressTableIndex( const FString& Address )
  */
 void FNetworkProfiler::EnableTracking( bool bShouldEnableTracking )
 {
+	bShouldTrackingBeEnabled = bShouldEnableTracking;
+
 	if( bShouldEnableTracking )
 	{
 		UE_LOG(LogNet, Log, TEXT("Network Profiler: ENABLED"));
@@ -222,8 +225,6 @@ void FNetworkProfiler::EnableTracking( bool bShouldEnableTracking )
 	{
 		TrackSessionChange(false,FURL());
 	}
-	// Important to not change bIsTrackingEnabled till after we flushed as it's used during flushing.
-	bIsTrackingEnabled = bShouldEnableTracking;
 }
 
 /**
@@ -669,7 +670,7 @@ void FNetworkProfiler::TrackEvent( const FString& EventName, const FString& Even
  */
 void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const FURL& InURL )
 {
-	if ( bIsTrackingEnabled )
+	if ( bIsTrackingEnabled || bShouldTrackingBeEnabled )
 	{
 		UE_LOG( LogNet, Log, TEXT( "Network Profiler: TrackSessionChange.  InURL: %s" ), *InURL.ToString() );
 
@@ -728,6 +729,14 @@ void FNetworkProfiler::TrackSessionChange( bool bShouldContinueTracking, const F
 
 			// Serialize a header of the proper size, overwritten when session ends.
 			(*FileWriter) << CurrentHeader;
+
+			//Mark that tracking truly is enabled now
+			bIsTrackingEnabled = bShouldTrackingBeEnabled = true;
+		}
+		else
+		{
+			//Mark that tracking should not be enabled
+			bIsTrackingEnabled = bShouldTrackingBeEnabled = false;
 		}
 	}
 }
@@ -863,7 +872,7 @@ bool FNetworkProfiler::Exec( UWorld * InWorld, const TCHAR* Cmd, FOutputDevice &
 	}
 
 	// If we are tracking, and we don't have a file writer, force one now 
-	if ( bIsTrackingEnabled && FileWriter == nullptr ) 
+	if ( bShouldTrackingBeEnabled && FileWriter == nullptr ) 
 	{
 		TrackSessionChange( true, InWorld != nullptr ? InWorld->URL : FURL() );
 		if ( FileWriter == nullptr )
