@@ -35,9 +35,6 @@ STimerTreeView::STimerTreeView()
 	, CurrentSorter(nullptr)
 	, ColumnBeingSorted(GetDefaultColumnBeingSorted())
 	, ColumnSortMode(GetDefaultColumnSortMode())
-	, StatsStartTime(0.0)
-	, StatsEndTime(0.0)
-	, StatsTimerId(0)
 {
 }
 

@@ -64,7 +64,6 @@ class FFrameTimingTrack : public FTimingEventsTrack
 public:
 	explicit FFrameTimingTrack(FFrameSharedState& InSharedState, const FString& InName, uint32 InFrameType)
 		: FTimingEventsTrack(InName)
-		, SharedState(InSharedState)
 		, FrameType(InFrameType)
 		, Header(*this)
 	{
@@ -121,8 +120,6 @@ private:
 	bool FindFrame(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const Trace::FFrame&)> InFoundPredicate) const;
 
 private:
-	FFrameSharedState& SharedState;
-
 	uint32 FrameType; // ETraceFrameType
 
 	FTrackHeader Header;

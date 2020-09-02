@@ -95,7 +95,6 @@ class FThreadTimingTrack : public FTimingEventsTrack
 public:
 	explicit FThreadTimingTrack(FThreadTimingSharedState& InSharedState, const FString& InName, const TCHAR* InGroupName, uint32 InTimelineIndex, uint32 InThreadId)
 		: FTimingEventsTrack(InName)
-		, SharedState(InSharedState)
 		, GroupName(InGroupName)
 		, TimelineIndex(InTimelineIndex)
 		, ThreadId(InThreadId)
@@ -139,8 +138,6 @@ private:
 						  Trace::FTimingProfilerEvent& OutRootEvent) const;
 
 private:
-	FThreadTimingSharedState& SharedState;
-
 	const TCHAR* GroupName;
 	uint32 TimelineIndex;
 	uint32 ThreadId;

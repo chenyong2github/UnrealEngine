@@ -211,8 +211,6 @@ private:
 	FPacketContentViewport Viewport;
 	bool bIsViewportDirty;
 
-	float NetEventsOffsetY;
-
 	uint32 GameInstanceIndex;
 	uint32 ConnectionIndex;
 	Trace::ENetProfilerConnectionMode ConnectionMode;

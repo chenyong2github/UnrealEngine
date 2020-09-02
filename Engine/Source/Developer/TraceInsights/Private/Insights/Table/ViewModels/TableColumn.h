@@ -56,7 +56,6 @@ public:
 	/** Initialization constructor. */
 	FTableColumn(const FName InId)
 		: Id(InId)
-		, Order(0)
 		, Index(-1)
 		, ShortName()
 		, TitleName()
@@ -190,9 +189,6 @@ public:
 private:
 	/** Id of the column. */
 	FName Id;
-
-	/** Order value, to sort columns in the list/tree view. */
-	int32 Order;
 
 	/** Column index in source table. */
 	int32 Index;
