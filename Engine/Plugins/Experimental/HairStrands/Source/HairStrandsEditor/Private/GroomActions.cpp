@@ -309,7 +309,7 @@ void FGroomActions::ExecuteCreateFollicleTexture(TArray<TWeakObjectPtr<UGroomAss
 		}
 	}
 
-	if (!CurrentOptions->Grooms.Num() == 0)
+	if (CurrentOptions->Grooms.Num() == 0)
 	{
 		return;
 	}
