@@ -162,57 +162,75 @@ void SPlacementAssetEntry::Construct(const FArguments& InArgs, const TSharedPtr<
 	}
 
 	ChildSlot
+	.Padding(FMargin(8.f, 2.f, 12.f, 2.f))
 	[
-		SNew( SBorder )
-		.BorderImage( this, &SPlacementAssetEntry::GetBorder )
-		.Cursor( EMouseCursor::GrabHand )
-		.ToolTip( AssetEntryToolTip )
-		[
-			SNew( SHorizontalBox )
 
-			+ SHorizontalBox::Slot()
-			.Padding( 0 )
-			.AutoWidth()
+		SNew(SOverlay)
+
+		+SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage( FAppStyle::Get().GetBrush("PlacementBrowser.Asset.Background"))
+			.Cursor( EMouseCursor::GrabHand )
+			.ToolTip( AssetEntryToolTip )
+			.Padding(0)
 			[
-				// Drop shadow border
-				SNew( SBorder )
-				.Padding( 4 )
-				.BorderImage( FEditorStyle::GetBrush( "ContentBrowser.ThumbnailShadow" ) )
+
+				SNew( SHorizontalBox )
+
+				+ SHorizontalBox::Slot()
+				.Padding(8.0f, 4.f)
+				.AutoWidth()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				[
 					SNew( SBox )
-					.WidthOverride( 35 )
-					.HeightOverride( 35 )
+					.WidthOverride(40)
+					.HeightOverride(40)
 					[
 						SNew( SPlacementAssetThumbnail, Item->AssetData )
 						.ClassThumbnailBrushOverride( Item->ClassThumbnailBrushOverride )
 						.AlwaysUseGenericThumbnail( Item->bAlwaysUseGenericThumbnail )
-						.AssetTypeColorOverride( Item->AssetTypeColorOverride )
+						.AssetTypeColorOverride( FLinearColor::Transparent )
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.Padding(0)
+				[
+
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("PlacementBrowser.Asset.LabelBack"))
+					[
+						SNew( SHorizontalBox)
+						+SHorizontalBox::Slot()
+						.Padding(9, 0, 0, 1)
+						.VAlign(VAlign_Center)
+						[
+							SNew( STextBlock )
+							.TextStyle( FEditorStyle::Get(), "PlacementBrowser.Asset.Name" )
+							.Text( Item->DisplayName )
+							.HighlightText(InArgs._HighlightText)
+						]
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.AutoWidth()
+						[
+							DocWidget
+						]
 					]
 				]
 			]
+		]
 
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.Padding(2, 0, 4, 0)
-			[
-				SNew( SVerticalBox )
-				+SVerticalBox::Slot()
-				.Padding(0, 0, 0, 1)
-				.AutoHeight()
-				[
-					SNew( STextBlock )
-					.TextStyle( FEditorStyle::Get(), "PlacementBrowser.Asset.Name" )
-					.Text( Item->DisplayName )
-					.HighlightText(InArgs._HighlightText)
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.AutoWidth()
-			[
-				DocWidget
-			]
+		+SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage( this, &SPlacementAssetEntry::GetBorder )
+			.Cursor( EMouseCursor::GrabHand )
+			.ToolTip( AssetEntryToolTip )
 		]
 	];
 }
@@ -312,20 +330,19 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 		FPlacementAssetEntryTextFilter::FItemToStringArray::CreateStatic(&PlacementViewFilter::GetBasicStrings)
 		));
 
-	TSharedRef<SVerticalBox> Tabs = SNew(SVerticalBox).Visibility(this, &SPlacementModeTools::GetTabsVisibility);
+	SAssignNew(CategoryFilterPtr, SSegmentedControl<FName>)
+	.Style(&FAppStyle::Get(), "PlacementBrowser.CategoryControl")
+    .OnValueChanged(this, &SPlacementModeTools::OnCategoryChanged)
+    .Value_Lambda( [this] { return ActiveTabName; } );
 
-	// Populate the tabs and body from the defined placeable items
+	// Populate the categories and body from the defined placeable items
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 
 	TArray<FPlacementCategoryInfo> Categories;
 	PlacementModeModule.GetSortedCategories(Categories);
 	for (const FPlacementCategoryInfo& Category : Categories)
 	{
-		Tabs->AddSlot()
-		.AutoHeight()
-		[
-			CreatePlacementGroupTab(Category)
-		];
+		CategoryFilterPtr->AddSlot(Category.UniqueHandle).Icon(Category.DisplayIcon.GetIcon());// .Text(Category.DisplayName);
 	}
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
@@ -336,68 +353,87 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 		SNew( SVerticalBox )
 
 		+ SVerticalBox::Slot()
-		.Padding(4)
 		.AutoHeight()
 		[
-			SAssignNew( SearchBoxPtr, SSearchBox )
-			.HintText(NSLOCTEXT("PlacementMode", "SearchPlaceables", "Search Classes"))
-			.OnTextChanged(this, &SPlacementModeTools::OnSearchChanged)
-			.OnTextCommitted(this, &SPlacementModeTools::OnSearchCommitted)
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(8)
+			[
+				SAssignNew( SearchBoxPtr, SSearchBox )
+				.HintText(NSLOCTEXT("PlacementMode", "SearchPlaceables", "Search Classes"))
+				.OnTextChanged(this, &SPlacementModeTools::OnSearchChanged)
+				.OnTextCommitted(this, &SPlacementModeTools::OnSearchCommitted)
+			]
 		]
 
 		+ SVerticalBox::Slot()
-		.Padding( 0 )
+		.AutoHeight()
 		[
-			SNew(SHorizontalBox)
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(FMargin(8.f, 6.f, 8.f, 8.f))
+			.HAlign(HAlign_Center)
+			.Visibility(this, &SPlacementModeTools::GetTabsVisibility)
 			[
-				Tabs
+				CategoryFilterPtr.ToSharedRef()
+			]
+		]
+
+
+		+ SVerticalBox::Slot()
+		.AutoHeight()
+		[
+			SNew(SBorder)
+			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
+			.Padding(FMargin(8.f, 6.f, 8.f, 8.f))
+			.HAlign(HAlign_Center)
+			.Visibility(this, &SPlacementModeTools::GetTabsVisibility)
+			[
+				SAssignNew(FilterLabelPtr, STextBlock)
+				.Text(NSLOCTEXT("PlacementMode", "CategoryLabel", "CategoryLabel"))
+				.Font(FAppStyle::Get().GetFontStyle("SmallFontBold"))
+				.TransformPolicy(ETextTransformPolicy::ToUpper)
+			]
+		]
+
+		+ SVerticalBox::Slot()
+		.Padding(FMargin(0.0f, 3.f))
+		[
+			SNew(SOverlay)
+
+			+ SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Fill)
+			.Padding(12.f)
+			[
+				SNew(STextBlock)
+				.Text(NSLOCTEXT("PlacementMode", "NoResultsFound", "No Results Found"))
+				.Visibility(this, &SPlacementModeTools::GetFailedSearchVisibility)
 			]
 
-			+ SHorizontalBox::Slot()
+			+ SOverlay::Slot()
 			[
-				SNew(SBorder)
-				.Padding(FMargin(3))
-				.BorderImage(FEditorStyle::GetBrush("ToolPanel.DarkGroupBorder"))
+				SAssignNew(CustomContent, SBox)
+			]
+
+			+ SOverlay::Slot()
+			[
+				SAssignNew(DataDrivenContent, SBox)
 				[
-					SNew(SOverlay)
+					SNew(SHorizontalBox)
 
-					+ SOverlay::Slot()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Fill)
+					+ SHorizontalBox::Slot()
 					[
-						SNew(STextBlock)
-						.Text(NSLOCTEXT("PlacementMode", "NoResultsFound", "No Results Found"))
-						.Visibility(this, &SPlacementModeTools::GetFailedSearchVisibility)
+						SAssignNew(ListView, SListView<TSharedPtr<FPlaceableItem>>)
+						.ListItemsSource(&FilteredItems)
+						.OnGenerateRow(this, &SPlacementModeTools::OnGenerateWidgetForItem)
+						.ExternalScrollbar(ScrollBar)
 					]
 
-					+ SOverlay::Slot()
+					+ SHorizontalBox::Slot()
+					.AutoWidth()
 					[
-						SAssignNew(CustomContent, SBox)
-					]
-
-					+ SOverlay::Slot()
-					[
-						SAssignNew(DataDrivenContent, SBox)
-						[
-							SNew(SHorizontalBox)
-
-							+ SHorizontalBox::Slot()
-							[
-								SAssignNew(ListView, SListView<TSharedPtr<FPlaceableItem>>)
-								.ListItemsSource(&FilteredItems)
-								.OnGenerateRow(this, &SPlacementModeTools::OnGenerateWidgetForItem)
-								.ExternalScrollbar(ScrollBar)
-							]
-
-							+ SHorizontalBox::Slot()
-							.AutoWidth()
-							[
-								ScrollBar
-							]
-						]
+						ScrollBar
 					]
 				]
 			]
@@ -468,32 +504,28 @@ void SPlacementModeTools::UpdateFilteredItems()
 
 		CustomContent->SetVisibility(EVisibility::Visible);
 		DataDrivenContent->SetVisibility(EVisibility::Collapsed);
+
+		FilterLabelPtr->SetText(Category->DisplayName);
 	}
 	else
 	{
 		FilteredItems.Reset();
 
-		const FPlacementCategoryInfo* CategoryInfo = PlacementModeModule.GetRegisteredPlacementCategory(GetActiveTab());
-		if (!ensure(CategoryInfo))
-		{
-			return;
-		}
-		
 		if (IsSearchActive())
 		{
 			auto Filter = [&](const TSharedPtr<FPlaceableItem>& Item) { return SearchTextFilter->PassesFilter(*Item); };
-			PlacementModeModule.GetFilteredItemsForCategory(CategoryInfo->UniqueHandle, FilteredItems, Filter);
+			PlacementModeModule.GetFilteredItemsForCategory(Category->UniqueHandle, FilteredItems, Filter);
 			
-			if (CategoryInfo->bSortable)
+			if (Category->bSortable)
 			{
 				FilteredItems.Sort(&FSortPlaceableItems::SortItemsByName);
 			}
 		}
 		else
 		{
-			PlacementModeModule.GetItemsForCategory(CategoryInfo->UniqueHandle, FilteredItems);
+			PlacementModeModule.GetItemsForCategory(Category->UniqueHandle, FilteredItems);
 
-			if (CategoryInfo->bSortable)
+			if (Category->bSortable)
 			{
 				FilteredItems.Sort(&FSortPlaceableItems::SortItemsByOrderThenName);
 			}
@@ -502,6 +534,7 @@ void SPlacementModeTools::UpdateFilteredItems()
 		CustomContent->SetVisibility(EVisibility::Collapsed);
 		DataDrivenContent->SetVisibility(EVisibility::Visible);
 		ListView->RequestListRefresh();
+		FilterLabelPtr->SetText(Category->DisplayName);
 	}
 }
 
@@ -532,10 +565,22 @@ EVisibility SPlacementModeTools::GetTabsVisibility() const
 TSharedRef<ITableRow> SPlacementModeTools::OnGenerateWidgetForItem(TSharedPtr<FPlaceableItem> InItem, const TSharedRef<STableViewBase>& OwnerTable)
 {
 	return SNew(STableRow<TSharedPtr<FPlaceableItem>>, OwnerTable)
+		.Style(&FAppStyle::Get(), "PlacementBrowser.PlaceableItemRow")
 		[
 			SNew(SPlacementAssetEntry, InItem.ToSharedRef())
 			.HighlightText(this, &SPlacementModeTools::GetHighlightText)
 		];
+}
+
+void SPlacementModeTools::OnCategoryChanged(FName InCategory)
+{
+	if (InCategory != ActiveTabName)
+	{
+		ActiveTabName = InCategory;
+		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
+
+		bNeedsUpdate = true;
+	}
 }
 
 void SPlacementModeTools::OnPlacementTabChanged( ECheckBoxState NewState, FName CategoryName )

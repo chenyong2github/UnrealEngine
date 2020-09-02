@@ -47,7 +47,7 @@ void FBspModeModule::StartupModule()
 
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 
-	FPlacementCategoryInfo CategoryInfo(LOCTEXT("PlacementMode_Geometry", "Geometry"), "Geometry", TEXT("PMGeometry"), 35);
+	FPlacementCategoryInfo CategoryInfo(LOCTEXT("PlacementMode_Geometry", "Geometry"), FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlacementBrowser.Icons.BSP"), "Geometry", TEXT("PMGeometry"), 35);
 	CategoryInfo.CustomGenerator = []() -> TSharedRef<SWidget> { return SNew(SBspPalette); };
 	PlacementModeModule.RegisterPlacementCategory(CategoryInfo);
 }

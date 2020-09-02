@@ -8,6 +8,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Styling/SlateTypes.h"
 #include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SButton.h"
 #include "Widgets/Layout/SBox.h"
 #include "Widgets/Layout/SScrollBorder.h"
 #include "Widgets/Layout/SBorder.h"
@@ -34,19 +35,68 @@ public:
 	}
 };
 
+class SBspButton: public SButton
+{
+	SLATE_BEGIN_ARGS(SBspButton) {}
+	SLATE_END_ARGS()
+
+	void Construct(const FArguments& InArgs, const TSharedPtr<FBspBuilderType>& InBspBuilder)
+	{
+		BspBuilder = InBspBuilder;	
+		SButton::Construct( SButton::FArguments()
+			.ButtonStyle(&FAppStyle::Get(), "PlacementBrowser.Asset")
+			.Cursor( EMouseCursor::GrabHand )
+		);
+	}
+
+	virtual FReply OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton )
+		{
+			bIsPressed = true;
+
+			return FReply::Handled().DetectDrag( SharedThis( this ), MouseEvent.GetEffectingButton() );
+		}
+
+		return FReply::Unhandled();
+	}
+
+	virtual FReply OnMouseButtonUp(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+		SButton::OnMouseButtonUp(MyGeometry, MouseEvent);
+		return FReply::Unhandled();	
+	}
+
+	virtual FReply OnDragDetected(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent) override
+	{
+
+		if ( MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ) )
+		{
+			if(BspBuilder.IsValid())
+			{
+				TWeakObjectPtr<UBrushBuilder> ActiveBrushBuilder = GEditor->FindBrushBuilder(BspBuilder->BuilderClass.Get());
+				if (ActiveBrushBuilder.IsValid())
+				{
+					return FReply::Handled().BeginDragDrop(FBrushBuilderDragDropOp::New(ActiveBrushBuilder, BspBuilder->Icon, true /*IsAdditive*/));
+				}
+			}
+		}
+
+		return FReply::Unhandled();
+	}
+
+	TSharedPtr<FBspBuilderType> BspBuilder;
+};
+
 BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void SBspPalette::Construct( const FArguments& InArgs )
 {
-	bIsAdditive = true;
-
 	FBspModeModule& BspModeModule = FModuleManager::GetModuleChecked<FBspModeModule>("BspMode");
 
-	TSharedRef<SBspBuilderListView> ListViewWidget = 
+	ListViewWidget = 
 		SNew(SBspBuilderListView)
-		.SelectionMode(ESelectionMode::Single)
 		.ListItemsSource(&BspModeModule.GetBspBuilderTypes())
 		.OnGenerateRow(this, &SBspPalette::MakeListViewWidget)
-		.OnSelectionChanged(this, &SBspPalette::OnSelectionChanged)
 		.ItemHeight(35);
 
 	ChildSlot
@@ -56,89 +106,9 @@ void SBspPalette::Construct( const FArguments& InArgs )
 		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		[
-			SNew(SScrollBorder, ListViewWidget)
+			SNew(SScrollBorder, ListViewWidget.ToSharedRef())
 			[
-				ListViewWidget
-			]
-		]
-
-		+ SVerticalBox::Slot()
-		.AutoHeight()
-		[
-			SNew( SHorizontalBox )
-
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.Padding( 3.0f )
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SCheckBox)
-				.Style(FEditorStyle::Get(), "Toolbar.RadioButton")
-				.ToolTipText(LOCTEXT("BspModeAdditiveTooltip", "Place brushes in additive mode."))
-				.OnCheckStateChanged(this, &SBspPalette::OnAdditiveModeButtonClicked)
-				.IsChecked(this, &SBspPalette::IsAdditiveModeChecked)
-				.ForegroundColor(FCoreStyle::Get().GetSlateColor("Foreground"))
-				.Content()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage)
-						.Image(this, &SBspPalette::GetAdditiveModeImage)
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Center)
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("BspModeAdd", "Add"))
-						.Font(FCoreStyle::Get().GetFontStyle("Toolbar.Label.Font"))
-						.ShadowOffset(FVector2D::UnitVector)
-					]
-				]
-			]
-
-			+ SHorizontalBox::Slot()
-			.Padding( 3.0f )
-			.AutoWidth()
-			.HAlign(HAlign_Right)
-			.VAlign(VAlign_Center)
-			[
-				SNew(SCheckBox)
-				.Style(FEditorStyle::Get(), "Toolbar.RadioButton")
-				.ToolTipText(LOCTEXT("BspModeSubtractiveTooltip", "Place brushes in subtractive mode."))
-				.OnCheckStateChanged(this, &SBspPalette::OnSubtractiveModeButtonClicked)
-				.IsChecked(this, &SBspPalette::IsSubtractiveModeChecked)
-				.ForegroundColor(FCoreStyle::Get().GetSlateColor("Foreground"))
-				.Content()
-				[
-					SNew(SHorizontalBox)
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					[
-						SNew(SImage)
-						.Image(this, &SBspPalette::GetSubtractiveModeImage)
-					]
-					+SHorizontalBox::Slot()
-					.AutoWidth()
-					.HAlign(HAlign_Left)
-					.VAlign(VAlign_Center)
-					.Padding(2.0f)
-					[
-						SNew(STextBlock)
-						.Text(LOCTEXT("BspModeSubtract", "Subtract"))
-						.Font(FCoreStyle::Get().GetFontStyle("Toolbar.Label.Font"))
-						.ShadowOffset(FVector2D::UnitVector)
-					]
-				]
+				ListViewWidget.ToSharedRef()
 			]
 		]
 	];
@@ -152,113 +122,67 @@ TSharedRef<ITableRow> SBspPalette::MakeListViewWidget(TSharedPtr<FBspBuilderType
 
 	TSharedRef< STableRow<TSharedPtr<FBspBuilderType>> > TableRowWidget = 
 		SNew( STableRow<TSharedPtr<FBspBuilderType>>, OwnerTable )
-		.Style( FBspModeStyle::Get(), "BspMode.TableRow" )
-		.OnDragDetected( this, &SBspPalette::OnDraggingListViewWidget );
+		.Style(&FAppStyle::Get(), "PlacementBrowser.PlaceableItemRow")
+		.Padding(FMargin(8.f, 2.f, 12.f, 2.f));
+
 
 	TSharedRef<SWidget> Content = 
-		SNew(SBorder)
-		.BorderImage(FCoreStyle::Get().GetBrush("NoBorder"))
-		.Padding(0)
-		.ToolTip(FEditorClassUtils::GetTooltip(ABrush::StaticClass(), BspBuilder->ToolTipText))
-		.Cursor( EMouseCursor::GrabHand )
-		[
-			SNew(SHorizontalBox)
+		SNew(SOverlay)
 
-			// Icon
-			+SHorizontalBox::Slot()
-			.AutoWidth()
+		+SOverlay::Slot()
+		[
+			SNew(SBorder)
+			.BorderImage( FAppStyle::Get().GetBrush("PlacementBrowser.Asset.Background"))
+			.Cursor( EMouseCursor::GrabHand )
+			.Padding(0)
 			[
-				SNew(SBorder)
-				.Padding(4.0f)
-				.BorderImage(FBspModeStyle::Get().GetBrush("BspMode.ThumbnailShadow"))
+
+				SNew( SHorizontalBox )
+
+				+ SHorizontalBox::Slot()
+				.Padding(8.0f, 4.f)
+				.AutoWidth()
+				.HAlign(HAlign_Center)
+				.VAlign(VAlign_Center)
 				[
-					SNew(SBox)
-					.WidthOverride(35.0f)
-					.HeightOverride(35.0f)
+					SNew( SBox )
+					.WidthOverride(40)
+					.HeightOverride(40)
 					[
-						SNew(SBorder)
-						.BorderImage(FBspModeStyle::Get().GetBrush("BspMode.ThumbnailBackground"))
-						.HAlign(HAlign_Center)
-						.VAlign(VAlign_Center)
-						[
-							SNew(SImage)
-							.Image(BspBuilder->Icon)
-						]
+
+						SNew(SImage)
+						.Image(BspBuilder->Icon)
+					]
+				]
+
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Fill)
+				.Padding(0)
+				[
+
+					SNew(SBorder)
+					.BorderImage(FAppStyle::Get().GetBrush("PlacementBrowser.Asset.LabelBack"))
+					.Padding(FMargin(9, 0, 0, 1))
+					.VAlign(VAlign_Center)
+					[
+							SNew( STextBlock )
+							.TextStyle( FEditorStyle::Get(), "PlacementBrowser.Asset.Name" )
+							.Text(BspBuilder->Text)
 					]
 				]
 			]
+		]
 
-			+SHorizontalBox::Slot()
-			.HAlign(HAlign_Left)
-			.VAlign(VAlign_Center)
-			.FillWidth(1.f)
-			[
-				SNew(STextBlock)
-				.TextStyle(FBspModeStyle::Get(), "BspMode.ThumbnailText")
-				.Text(BspBuilder->Text)
-			]
+
+		+SOverlay::Slot()
+		[
+			SNew(SBspButton, BspBuilder)
+			.ToolTip(FEditorClassUtils::GetTooltip(ABrush::StaticClass(), BspBuilder->ToolTipText))
 		];
 
 	TableRowWidget->SetContent(Content);
 
 	return TableRowWidget;
-}
-
-void SBspPalette::OnSelectionChanged(TSharedPtr<FBspBuilderType> BspBuilder, ESelectInfo::Type SelectionType)
-{
-	if(BspBuilder.IsValid())
-	{
-		ActiveBrushBuilder = GEditor->FindBrushBuilder(BspBuilder->BuilderClass.Get());
-	}
-}
-
-FReply SBspPalette::OnDraggingListViewWidget(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	if ( MouseEvent.IsMouseButtonDown( EKeys::LeftMouseButton ) )
-	{
-		if (ActiveBrushBuilder.IsValid())
-		{
-			FBspModeModule& BspModeModule = FModuleManager::GetModuleChecked<FBspModeModule>("BspMode");
-			TSharedPtr<FBspBuilderType> BspBuilder = BspModeModule.FindBspBuilderType(ActiveBrushBuilder.Get()->GetClass());
-			if(BspBuilder.IsValid())
-			{
-				// We have an active brush builder, start a drag-drop
-				return FReply::Handled().BeginDragDrop(FBrushBuilderDragDropOp::New(ActiveBrushBuilder, BspBuilder->Icon, bIsAdditive));
-			}
-		}
-	}
-
-	return FReply::Unhandled();
-}
-
-void SBspPalette::OnAdditiveModeButtonClicked(ECheckBoxState CheckType)
-{
-	bIsAdditive = CheckType == ECheckBoxState::Checked;
-}
-
-void SBspPalette::OnSubtractiveModeButtonClicked(ECheckBoxState CheckType)
-{
-	bIsAdditive = CheckType != ECheckBoxState::Checked;
-}
-
-ECheckBoxState SBspPalette::IsAdditiveModeChecked() const
-{
-	return bIsAdditive ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-ECheckBoxState SBspPalette::IsSubtractiveModeChecked() const
-{
-	return !bIsAdditive ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
-}
-
-const FSlateBrush* SBspPalette::GetAdditiveModeImage() const
-{
-	return FBspModeStyle::Get().GetBrush("BspMode.CSGAdd.Small");
-}
-
-const FSlateBrush* SBspPalette::GetSubtractiveModeImage() const
-{
-	return FBspModeStyle::Get().GetBrush("BspMode.CSGSubtract.Small");
 }
 
 #undef LOCTEXT_NAMESPACE

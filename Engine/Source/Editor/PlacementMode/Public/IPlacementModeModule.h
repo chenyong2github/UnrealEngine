@@ -42,13 +42,16 @@ private:
  */
 struct FPlacementCategoryInfo
 {
-	FPlacementCategoryInfo(FText InDisplayName, FName InHandle, FString InTag, int32 InSortOrder = 0, bool bInSortable = true)
-		: DisplayName(InDisplayName), UniqueHandle(InHandle), SortOrder(InSortOrder), TagMetaData(MoveTemp(InTag)), bSortable(bInSortable)
+	FPlacementCategoryInfo(FText InDisplayName, FSlateIcon InDisplayIcon, FName InHandle, FString InTag, int32 InSortOrder = 0, bool bInSortable = true)
+		: DisplayName(InDisplayName), DisplayIcon(InDisplayIcon), UniqueHandle(InHandle), SortOrder(InSortOrder), TagMetaData(MoveTemp(InTag)), bSortable(bInSortable)
 	{
 	}
 
 	/** This category's display name */
 	FText DisplayName;
+
+	/** This category's representative icon */
+	FSlateIcon DisplayIcon;
 
 	/** A unique name for this category */
 	FName UniqueHandle;
