@@ -43,6 +43,4 @@ private:
 	TArray<FExcerpt> StoredExcerpts;
 	/** The UDN meta data contained in this page */
 	FUDNPageMetadata StoredMetadata;
-	/** Signals if the page has been loaded */
-	bool IsLoaded;
 };

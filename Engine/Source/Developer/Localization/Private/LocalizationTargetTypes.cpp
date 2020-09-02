@@ -347,7 +347,6 @@ namespace
 
 	private:
 		FWordCountCSVParser(FLocalizationTargetSettings& InTarget)
-			: Target(InTarget)
 		{
 			MandatoryColumnNames.Add( TEXT("Date/Time") );
 			MandatoryColumnNames.Add( TEXT("Word Count") );
@@ -425,7 +424,6 @@ namespace
 		}
 
 	private:
-		FLocalizationTargetSettings& Target;
 		TArray<FString> MandatoryColumnNames;
 		TArray<FString> CultureNames;
 	};

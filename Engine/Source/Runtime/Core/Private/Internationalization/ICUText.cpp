@@ -123,8 +123,7 @@ class FText::FSortPredicate::FSortPredicateImplementation
 {
 public:
 	FSortPredicateImplementation(const ETextComparisonLevel::Type InComparisonLevel)
-		: ComparisonLevel(InComparisonLevel)
-		, ICUCollator(FInternationalization::Get().GetCurrentLanguage()->Implementation->GetCollator(InComparisonLevel))
+		: ICUCollator(FInternationalization::Get().GetCurrentLanguage()->Implementation->GetCollator(InComparisonLevel))
 	{
 	}
 
@@ -147,7 +146,6 @@ public:
 	}
 
 private:
-	const ETextComparisonLevel::Type ComparisonLevel;
 	const TSharedRef<const icu::Collator, ESPMode::ThreadSafe> ICUCollator;
 };
 
