@@ -767,6 +767,30 @@ FString FNiagaraUtilities::SystemInstanceIDToString(FNiagaraSystemInstanceID ID)
 	return FString(Buffer);
 }
 
+EPixelFormat FNiagaraUtilities::BufferFormatToPixelFormat(ENiagaraGpuBufferFormat NiagaraFormat)
+{
+	switch (NiagaraFormat)
+	{
+		case ENiagaraGpuBufferFormat::Float:					return EPixelFormat::PF_R32_FLOAT;
+		case ENiagaraGpuBufferFormat::HalfFloat:				return EPixelFormat::PF_R16F;
+		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:	return EPixelFormat::PF_R8;
+	}
+	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), NiagaraFormat);
+	return EPixelFormat::PF_R32_FLOAT;
+}
+
+ETextureRenderTargetFormat FNiagaraUtilities::BufferFormatToRenderTargetFormat(ENiagaraGpuBufferFormat NiagaraFormat)
+{
+	switch (NiagaraFormat)
+	{
+		case ENiagaraGpuBufferFormat::Float:					return ETextureRenderTargetFormat::RTF_R32f;
+		case ENiagaraGpuBufferFormat::HalfFloat:				return ETextureRenderTargetFormat::RTF_R16f;
+		case ENiagaraGpuBufferFormat::UnsignedNormalizedByte:	return ETextureRenderTargetFormat::RTF_R8;
+	}
+	UE_LOG(LogNiagara, Error, TEXT("NiagaraFormat(%d) is invalid, returning float format"), NiagaraFormat);
+	return ETextureRenderTargetFormat::RTF_R32f;
+}
+
 #if WITH_EDITORONLY_DATA
 void FNiagaraUtilities::PrepareRapidIterationParameters(const TArray<UNiagaraScript*>& Scripts, const TMap<UNiagaraScript*, UNiagaraScript*>& ScriptDependencyMap, const TMap<UNiagaraScript*, const UNiagaraEmitter*>& ScriptToEmitterMap)
 {
