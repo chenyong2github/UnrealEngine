@@ -15,6 +15,7 @@
 #include "IMediaTimeSource.h"
 #include "RHIResources.h"
 #include "Async/Async.h"
+#include "RenderingThread.h"
 
 class FMediaPlayerFacade;
 class IMediaPlayer;
@@ -235,7 +236,14 @@ private:
 	{
 		~TGPUsyncedDataDeleter()
 		{
-			Flush();
+			ENQUEUE_RENDER_COMMAND(DestroyElectraTextureSample)([this](FRHICommandListImmediate& RHICmdList)
+			{
+				RHICmdList.EnqueueLambda([this](FRHICommandListImmediate& CmdList)
+				{
+					Flush();
+				});
+			});
+			FlushRenderingCommands();
 		}
 
 		void Retire(const ObjectRefType& Object)
