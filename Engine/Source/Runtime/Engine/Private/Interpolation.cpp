@@ -8941,6 +8941,7 @@ AMaterialInstanceActor::AMaterialInstanceActor(const FObjectInitializer& ObjectI
 		SpriteComponent->Sprite = ConstructorStatics.MaterialInstanceSpriteObject.Get();
 		SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_Materials;
 		SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_Materials;
+		SpriteComponent->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 		SpriteComponent->SetupAttachment(SceneComponent);
 		SpriteComponent->bIsScreenSizeScaled = true;
 	}

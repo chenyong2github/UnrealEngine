@@ -247,11 +247,29 @@ ABoxReflectionCapture::ABoxReflectionCapture(const FObjectInitializer& ObjectIni
 	if (GetSpriteComponent())
 	{
 		GetSpriteComponent()->SetupAttachment(BoxComponent);
+
+
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			FName NAME_ReflectionCapture;
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> Texture;
+			FConstructorStatics()
+				: NAME_ReflectionCapture(TEXT("ReflectionCapture"))
+				, Texture(TEXT("/Engine/EditorResources/S_BoxReflectionCapture"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
+		GetSpriteComponent()->Sprite = ConstructorStatics.Texture.Get();
 	}
+
 	if (GetCaptureOffsetComponent())
 	{
 		GetCaptureOffsetComponent()->SetupAttachment(BoxComponent);
 	}
+
 #endif	//WITH_EDITORONLY_DATA
 	UBoxComponent* DrawInfluenceBox = CreateDefaultSubobject<UBoxComponent>(TEXT("DrawBox0"));
 	DrawInfluenceBox->SetupAttachment(GetCaptureComponent());
@@ -949,6 +967,14 @@ void UReflectionCaptureComponent::UpdatePreviewShape()
 	if (CaptureOffsetComponent)
 	{
 		CaptureOffsetComponent->SetRelativeLocation_Direct(CaptureOffset / GetComponentTransform().GetScale3D());
+		if (CaptureOffset.IsNearlyZero())
+		{
+			CaptureOffsetComponent->SetVisibility(false);
+		}
+		else
+		{
+			CaptureOffsetComponent->SetVisibility(true);
+		}
 	}
 }
 

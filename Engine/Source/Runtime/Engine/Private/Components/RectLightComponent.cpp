@@ -30,8 +30,8 @@ URectLightComponent::URectLightComponent(const FObjectInitializer& ObjectInitial
 #if WITH_EDITORONLY_DATA
 	if (!IsRunningCommandlet())
 	{
-		static ConstructorHelpers::FObjectFinder<UTexture2D> StaticTexture(TEXT("/Engine/EditorResources/LightIcons/S_LightPoint"));
-		static ConstructorHelpers::FObjectFinder<UTexture2D> DynamicTexture(TEXT("/Engine/EditorResources/LightIcons/S_LightPointMove"));
+		static ConstructorHelpers::FObjectFinder<UTexture2D> StaticTexture(TEXT("/Engine/EditorResources/LightIcons/S_LightRect"));
+		static ConstructorHelpers::FObjectFinder<UTexture2D> DynamicTexture(TEXT("/Engine/EditorResources/LightIcons/S_LightRect"));
 
 		StaticEditorTexture = StaticTexture.Object;
 		StaticEditorTextureScale = 0.5f;

@@ -14,6 +14,7 @@
 #include "Components/BoxComponent.h"
 #include "Components/SphereComponent.h"
 #include "Components/CapsuleComponent.h"
+#include "UObject/ConstructorHelpers.h"
 namespace
 {
 	static const FColor TriggerBaseColor(100, 255, 100, 255);
@@ -33,6 +34,26 @@ ATriggerCapsule::ATriggerCapsule(const FObjectInitializer& ObjectInitializer)
 	if (UBillboardComponent* TriggerSpriteComponent = GetSpriteComponent())
 	{
 		TriggerSpriteComponent->SetupAttachment(CapsuleCollisionComponent);
+	}
+
+	if (GetSpriteComponent())
+	{
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> TriggerTextureObject;
+			FName ID_Triggers;
+			FText NAME_Triggers;
+			FConstructorStatics()
+				: TriggerTextureObject(TEXT("/Engine/EditorResources/S_TriggerCapsule"))
+				, ID_Triggers(TEXT("Triggers"))
+				, NAME_Triggers(NSLOCTEXT("SpriteCategory", "Triggers", "Triggers"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
+		GetSpriteComponent()->Sprite = ConstructorStatics.TriggerTextureObject.Get();
 	}
 #endif
 }
@@ -100,6 +121,26 @@ ATriggerBox::ATriggerBox(const FObjectInitializer& ObjectInitializer)
 	{
 		TriggerSpriteComponent->SetupAttachment(BoxCollisionComponent);
 	}
+
+	if (GetSpriteComponent())
+	{
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> TriggerTextureObject;
+			FName ID_Triggers;
+			FText NAME_Triggers;
+			FConstructorStatics()
+				: TriggerTextureObject(TEXT("/Engine/EditorResources/S_TriggerBox"))
+					, ID_Triggers(TEXT("Triggers"))
+					, NAME_Triggers(NSLOCTEXT("SpriteCategory", "Triggers", "Triggers"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
+		GetSpriteComponent()->Sprite = ConstructorStatics.TriggerTextureObject.Get();
+	}
 #endif
 }
 
@@ -141,6 +182,26 @@ ATriggerSphere::ATriggerSphere(const FObjectInitializer& ObjectInitializer)
 	if (UBillboardComponent* TriggerSpriteComponent = GetSpriteComponent())
 	{
 		TriggerSpriteComponent->SetupAttachment(SphereCollisionComponent);
+	}
+
+	if (GetSpriteComponent())
+	{
+		// Structure to hold one-time initialization
+		struct FConstructorStatics
+		{
+			ConstructorHelpers::FObjectFinderOptional<UTexture2D> TriggerTextureObject;
+			FName ID_Triggers;
+			FText NAME_Triggers;
+			FConstructorStatics()
+				: TriggerTextureObject(TEXT("/Engine/EditorResources/S_TriggerSphere"))
+				, ID_Triggers(TEXT("Triggers"))
+				, NAME_Triggers(NSLOCTEXT("SpriteCategory", "Triggers", "Triggers"))
+			{
+			}
+		};
+		static FConstructorStatics ConstructorStatics;
+
+		GetSpriteComponent()->Sprite = ConstructorStatics.TriggerTextureObject.Get();
 	}
 #endif
 }

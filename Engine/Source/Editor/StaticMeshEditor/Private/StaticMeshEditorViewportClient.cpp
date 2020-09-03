@@ -51,8 +51,6 @@ FStaticMeshEditorViewportClient::FStaticMeshEditorViewportClient(TWeakPtr<IStati
 	, StaticMeshEditorPtr(InStaticMeshEditor)
 	, StaticMeshEditorViewportPtr(InStaticMeshEditorViewport)
 {
-	SimplygonLogo = LoadObject<UTexture2D>(NULL, TEXT("/Engine/EditorResources/SimplygonLogo.SimplygonLogo"), NULL, LOAD_None, NULL);
-
 	// Setup defaults for the common draw helper.
 	DrawHelper.bDrawPivot = false;
 	DrawHelper.bDrawWorldBox = false;
@@ -731,30 +729,6 @@ static void DrawAngles(FCanvas* Canvas, int32 XPos, int32 YPos, EAxisList::Type 
 
 void FStaticMeshEditorViewportClient::DrawCanvas( FViewport& InViewport, FSceneView& View, FCanvas& Canvas )
 {
-#ifdef TODO_STATICMESH
-	if ( StaticMesh->bHasBeenSimplified && SimplygonLogo && SimplygonLogo->Resource )
-	{
-		const float LogoSizeX = 64.0f;
-		const float LogoSizeY = 40.65f;
-		const float Padding = 6.0f;
-		const float LogoX = Viewport->GetSizeXY().X - Padding - LogoSizeX;
-		const float LogoY = Viewport->GetSizeXY().Y - Padding - LogoSizeY;
-
-		Canvas->DrawTile(
-			LogoX,
-			LogoY,
-			LogoSizeX,
-			LogoSizeY,
-			0.0f,
-			0.0f,
-			1.0f,
-			1.0f,
-			FLinearColor::White,
-			SimplygonLogo->Resource,
-			SE_BLEND_Opaque );
-	}
-#endif // #if TODO_STATICMESH
-
 	auto StaticMeshEditor = StaticMeshEditorPtr.Pin();
 	auto StaticMeshEditorViewport = StaticMeshEditorViewportPtr.Pin();
 	if (!StaticMeshEditor.IsValid() || !StaticMeshEditorViewport.IsValid())

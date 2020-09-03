@@ -711,6 +711,7 @@ void USceneComponent::CreateSpriteComponent(UTexture2D* SpriteTexture)
 		SpriteComponent->CreationMethod = CreationMethod;
 		SpriteComponent->bIsScreenSizeScaled = true;
 		SpriteComponent->bUseInEditorScaling = true;
+		SpriteComponent->OpacityMaskRefVal = .3f;
 
 		SpriteComponent->SetupAttachment(this);
 		SpriteComponent->RegisterComponent();

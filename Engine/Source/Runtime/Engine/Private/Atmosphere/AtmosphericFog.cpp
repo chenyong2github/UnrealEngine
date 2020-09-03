@@ -37,7 +37,7 @@ AAtmosphericFog::AAtmosphericFog(const FObjectInitializer& ObjectInitializer)
 			FName ID_Fog;
 			FText NAME_Fog;
 			FConstructorStatics()
-				: FogTextureObject(TEXT("/Engine/EditorResources/S_ExpoHeightFog"))
+				: FogTextureObject(TEXT("/Engine/EditorResources/S_AtmosphericHeightFog"))
 				, ID_Fog(TEXT("Fog"))
 				, NAME_Fog(NSLOCTEXT("SpriteCategory", "Fog", "Fog"))
 			{

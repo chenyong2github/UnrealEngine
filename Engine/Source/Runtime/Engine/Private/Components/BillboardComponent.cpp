@@ -15,6 +15,7 @@
 #include "Engine/Engine.h"
 #include "Engine/LevelStreaming.h"
 #include "LevelUtils.h"
+#include "TextureCompiler.h"
 
 namespace BillboardConstants
 {
@@ -66,6 +67,10 @@ public:
 		if(InComponent->Sprite)
 		{
 			Texture = InComponent->Sprite;
+
+			// Finish the compilation as we rely on the actual size of the texture to function properly
+			FTextureCompilingManager::Get().FinishCompilation({(UTexture*)Texture});
+
 			// Set UL and VL to the size of the texture if they are set to 0.0, otherwise use the given value
 			UL = InComponent->UL == 0.0f ? InComponent->Sprite->GetSurfaceWidth() : InComponent->UL;
 			VL = InComponent->VL == 0.0f ? InComponent->Sprite->GetSurfaceHeight() : InComponent->VL;	

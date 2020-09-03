@@ -1063,6 +1063,7 @@ ASkyLight::ASkyLight(const FObjectInitializer& ObjectInitializer)
 			GetSpriteComponent()->Sprite = ConstructorStatics.SkyLightTextureObject.Get();
 			GetSpriteComponent()->SpriteInfo.Category = ConstructorStatics.ID_Sky;
 			GetSpriteComponent()->SpriteInfo.DisplayName = ConstructorStatics.NAME_Sky;
+			GetSpriteComponent()->SetRelativeScale3D(FVector(0.5f, 0.5f, 0.5f));
 			GetSpriteComponent()->SetupAttachment(LightComponent);
 		}
 	}

@@ -28,7 +28,7 @@ ATargetPoint::ATargetPoint(const FObjectInitializer& ObjectInitializer)
 			FText NAME_TargetPoint;
 			FConstructorStatics()
 				: TargetIconSpawnObject(TEXT("/Engine/EditorMaterials/TargetIconSpawn"))
-				, TargetIconObject(TEXT("/Engine/EditorMaterials/TargetIcon"))
+				, TargetIconObject(TEXT("/Engine/EditorResources/S_TargetPoint"))
 				, ID_TargetPoint(TEXT("TargetPoint"))
 				, NAME_TargetPoint(NSLOCTEXT("SpriteCategory", "TargetPoint", "Target Points"))
 			{
@@ -39,7 +39,7 @@ ATargetPoint::ATargetPoint(const FObjectInitializer& ObjectInitializer)
 		if (SpriteComponent)
 		{
 			SpriteComponent->Sprite = ConstructorStatics.TargetIconObject.Get();
-			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.35f, 0.35f, 0.35f));
+			SpriteComponent->SetRelativeScale3D_Direct(FVector(0.5f, 0.5f, 0.5f));
 			SpriteComponent->SpriteInfo.Category = ConstructorStatics.ID_TargetPoint;
 			SpriteComponent->SpriteInfo.DisplayName = ConstructorStatics.NAME_TargetPoint;
 			SpriteComponent->bIsScreenSizeScaled = true;
