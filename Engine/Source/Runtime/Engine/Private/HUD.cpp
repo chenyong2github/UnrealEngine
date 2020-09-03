@@ -349,7 +349,6 @@ void AHUD::ShowHUD()
 namespace ShowDebugNames
 {
 	static const FName Reset(TEXT("Reset"));
-	static const FName TargetActor(TEXT("TargetActor"));
 	static const FName HitBox(TEXT("HitBox"));
 	static const FName Animation(TEXT("Animation"));
 	static const FName Physics(TEXT("Physics"));
@@ -439,34 +438,31 @@ void AHUD::ShowDebugInfo(float& YL, float& YPos)
 		FDebugDisplayInfo DisplayInfo(DebugDisplay, ToggledDebugCategories);
 		ShowDebugTargetActor = GetCurrentDebugTargetActor();
 
-		if (ShouldDisplayDebug(ShowDebugNames::TargetActor))
+		// Draw Header.
 		{
-			// Draw Header.
-			{
-				FDisplayDebugManager& DisplayDebugManager = DebugCanvas->DisplayDebugManager;
-				DisplayDebugManager.SetDrawColor(FColor(255, 0, 0));
-				DisplayDebugManager.DrawString(FString::Printf(TEXT("Showing Debug for %s, Press [PageUp] and [PageDown] to cycle between targets."), *GetNameSafe(ShowDebugTargetActor)));
-			}
+			FDisplayDebugManager& DisplayDebugManager = DebugCanvas->DisplayDebugManager;
+			DisplayDebugManager.SetDrawColor(FColor(255, 0, 0));
+			DisplayDebugManager.DrawString(FString::Printf(TEXT("Showing Debug for %s, Press [PageUp] and [PageDown] to cycle between targets."), *GetNameSafe(ShowDebugTargetActor)));
+		}
 
-			if (ShowDebugTargetActor && !ShowDebugTargetActor->IsPendingKill())
-			{
-				// Draw box around Actor being debugged.
+		if (ShowDebugTargetActor && !ShowDebugTargetActor->IsPendingKill())
+		{
+			// Draw box around Actor being debugged.
 #if ENABLE_DRAW_DEBUG
-				{
-					FVector BoundsOrigin, BoundsExtent;
-					ShowDebugTargetActor->GetActorBounds(true, BoundsOrigin, BoundsExtent);
+			{
+				FVector BoundsOrigin, BoundsExtent;
+				ShowDebugTargetActor->GetActorBounds(true, BoundsOrigin, BoundsExtent);
 
-					// Expand extent a little bit
-					BoundsExtent *= 1.1f;
-					DrawDebugBox(GetWorld(), BoundsOrigin, BoundsExtent, FColor::Green, false, -1.f, 0, 2.f);
-				}
+				// Expand extent a little bit
+				BoundsExtent *= 1.1f;
+				DrawDebugBox(GetWorld(), BoundsOrigin, BoundsExtent, FColor::Green, false, -1.f, 0, 2.f);
+			}
 #endif
-				ShowDebugTargetActor->DisplayDebug(DebugCanvas, DisplayInfo, YL, YPos);
+			ShowDebugTargetActor->DisplayDebug(DebugCanvas, DisplayInfo, YL, YPos);
 
-				if (!bShowDebugForReticleTarget && ShowDebugTargetActor->GetLocalRole() == ROLE_SimulatedProxy)
-				{
-					PlayerOwner->DisplayDebug(DebugCanvas, DisplayInfo, YL, YPos);
-				}
+			if (!bShowDebugForReticleTarget && ShowDebugTargetActor->GetLocalRole() == ROLE_SimulatedProxy)
+			{
+				PlayerOwner->DisplayDebug(DebugCanvas, DisplayInfo, YL, YPos);
 			}
 		}
 
