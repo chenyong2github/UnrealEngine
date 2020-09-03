@@ -577,6 +577,8 @@ const FTableColumnHeaderStyle& FTableColumnHeaderStyle::GetDefault()
 
 
 FHeaderRowStyle::FHeaderRowStyle()
+	: HorizontalSeparatorBrush(FSlateNoResource())
+	, HorizontalSeparatorThickness(0)
 {
 }
 
@@ -585,7 +587,8 @@ void FHeaderRowStyle::GetResources( TArray< const FSlateBrush* >& OutBrushes ) c
 	ColumnStyle.GetResources(OutBrushes);
 	LastColumnStyle.GetResources(OutBrushes);
 	ColumnSplitterStyle.GetResources(OutBrushes);
-	OutBrushes.Add( &BackgroundBrush );
+	OutBrushes.Add(&BackgroundBrush);
+	OutBrushes.Add(&HorizontalSeparatorBrush);
 }
 
 const FName FHeaderRowStyle::TypeName( TEXT("FHeaderRowStyle") );

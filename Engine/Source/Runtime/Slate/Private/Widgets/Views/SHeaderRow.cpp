@@ -16,6 +16,7 @@
 #include "Widgets/Layout/SScrollBar.h"
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Input/SComboButton.h"
+#include "Widgets/Layout/SSeparator.h"
 
 #define LOCTEXT_NAMESPACE "SHeaderRow"
 
@@ -660,7 +661,7 @@ void SHeaderRow::RegenerateWidgets()
 
 	TSharedPtr<SSplitter> Splitter;
 
-	TSharedRef< SHorizontalBox > Box = 
+	TSharedRef< SHorizontalBox > HeaderContent = 
 		SNew(SHorizontalBox)
 		+SHorizontalBox::Slot()
 		.FillWidth( 1.0f )
@@ -856,8 +857,27 @@ void SHeaderRow::RegenerateWidgets()
 		}
 	}
 
-	// Create a box to contain widgets for each column
-	SetContent( Box );
+	if(Style->HorizontalSeparatorBrush.GetDrawType() != ESlateBrushDrawType::NoDrawType && Style->HorizontalSeparatorThickness > 0)
+	{
+		// Create a box to contain widgets for each column
+		SetContent(
+			SNew(SVerticalBox)
+			+ SVerticalBox::Slot()
+			[
+				HeaderContent
+			]
+			+ SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SNew(SSeparator)
+				.Thickness(Style->HorizontalSeparatorThickness)
+				.SeparatorImage(&Style->HorizontalSeparatorBrush)
+			]);
+	}
+	else
+	{
+		SetContent(HeaderContent);
+	}
 }
 
 void SHeaderRow::OnGenerateSelectColumnsSubMenu(FMenuBuilder& InSubMenuBuilder)

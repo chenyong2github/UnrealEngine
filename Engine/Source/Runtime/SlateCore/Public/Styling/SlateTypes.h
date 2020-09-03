@@ -1622,6 +1622,17 @@ struct SLATECORE_API FHeaderRowStyle : public FSlateWidgetStyle
 	UPROPERTY(EditAnywhere, Category=Appearance)
 	FSlateColor ForegroundColor;
 	FHeaderRowStyle& SetForegroundColor( const FSlateColor& InForegroundColor ){ ForegroundColor = InForegroundColor; return *this; }
+
+	/** Brush used to draw the splitter between the header and the contents below it*/
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	FSlateBrush HorizontalSeparatorBrush;
+	FHeaderRowStyle& SetHorizontalSeparatorBrush(const FSlateBrush& InHorizontalSeparatorBrush) { HorizontalSeparatorBrush = InHorizontalSeparatorBrush; return *this; }
+
+	UPROPERTY(EditAnywhere, Category=Appearance)
+	float HorizontalSeparatorThickness;
+	FHeaderRowStyle& SetHorizontalSeparatorThickness(const float InHorizontalSeparatorThickness) { HorizontalSeparatorThickness = InHorizontalSeparatorThickness; return *this; }
+
+
 };
 
 

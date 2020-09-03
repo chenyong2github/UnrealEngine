@@ -1644,6 +1644,8 @@ void FStarshipCoreStyle::SetupTableViewStyles(TSharedRef<FStyle>& Style)
 		.SetColumnSplitterStyle(TableHeaderSplitterStyle)
 		.SetBackgroundBrush(FSlateColorBrush(FStyleColors::Background))
 		.SetForegroundColor(FStyleColors::Foreground)
+		.SetHorizontalSeparatorBrush(FSlateColorBrush(FStyleColors::Recessed))
+		.SetHorizontalSeparatorThickness(2.0f)
 	);
 }
 
