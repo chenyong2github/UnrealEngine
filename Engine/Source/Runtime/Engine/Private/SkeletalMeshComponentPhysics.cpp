@@ -537,27 +537,35 @@ void USkeletalMeshComponent::InitCollisionRelationships()
 		{
 			TMap<FPhysicsActorHandle, TArray< FPhysicsActorHandle > > DisabledCollisions;
 			for (auto& Elem : PhysicsAsset->CollisionDisableTable)
-			{
+			{		
+				// @question : PhysicsAsset->CollisionDisableTable should contain direct indices into the Bodies list?
+				//             I saw some OOB errors in a baked build that seemed to indicate that is not the case.
+
 				int32 SourceIndex = Elem.Key.Indices[0];
 				int32 TargetIndex = Elem.Key.Indices[1];
 				bool bDoCollide = !Elem.Value;
-
-				if (auto* SourceBody = Bodies[SourceIndex])
+				if (0 <= SourceIndex && SourceIndex < Bodies.Num())
 				{
-					if (auto* TargetBody = Bodies[TargetIndex])
+					if (auto* SourceBody = Bodies[SourceIndex])
 					{
-						if (FPhysicsActorHandle SourceHandle = SourceBody->GetPhysicsActorHandle())
+						if (0 <= TargetIndex && TargetIndex < Bodies.Num())
 						{
-							if (FPhysicsActorHandle TargetHandle = TargetBody->GetPhysicsActorHandle())
+							if (auto* TargetBody = Bodies[TargetIndex])
 							{
-								if (!DisabledCollisions.Contains(SourceHandle))
+								if (FPhysicsActorHandle SourceHandle = SourceBody->GetPhysicsActorHandle())
 								{
-									DisabledCollisions.Add(SourceHandle, TArray<FPhysicsActorHandle>());
-									DisabledCollisions[SourceHandle].Reserve(NumDisabledCollisions);
-								}
+									if (FPhysicsActorHandle TargetHandle = TargetBody->GetPhysicsActorHandle())
+									{
+										if (!DisabledCollisions.Contains(SourceHandle))
+										{
+											DisabledCollisions.Add(SourceHandle, TArray<FPhysicsActorHandle>());
+											DisabledCollisions[SourceHandle].Reserve(NumDisabledCollisions);
+										}
 
-								checkSlow(!DisabledCollisions[SourceHandle].Contains(TargetHandle));
-								DisabledCollisions[SourceHandle].Add(TargetHandle);
+										checkSlow(!DisabledCollisions[SourceHandle].Contains(TargetHandle));
+										DisabledCollisions[SourceHandle].Add(TargetHandle);
+									}
+								}
 							}
 						}
 					}
@@ -574,6 +582,7 @@ void USkeletalMeshComponent::InitCollisionRelationships()
 
 void USkeletalMeshComponent::TermCollisionRelationships()
 {
+#if WITH_CHAOS
 	if (UPhysicsAsset* const PhysicsAsset = GetPhysicsAsset())
 	{
 		int32 NumDisabledCollisions = PhysicsAsset->CollisionDisableTable.Num();
@@ -599,6 +608,8 @@ void USkeletalMeshComponent::TermCollisionRelationships()
 			});
 		}
 	}
+#endif
+
 }
 
 
