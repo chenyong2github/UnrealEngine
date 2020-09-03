@@ -155,8 +155,22 @@ bool FXAudio2Device::InitializeHardware()
 	Flags |= XAUDIO2_DO_NOT_USE_SHAPE;
 #endif
 
+	XAUDIO2_PROCESSOR ProcessorsToUse = (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask();
+	// https://docs.microsoft.com/en-us/windows/win32/api/xaudio2/nf-xaudio2-xaudio2create
+	// Warning If you specify XAUDIO2_ANY_PROCESSOR, the system will use all of the device's processors and, as noted above, create a worker thread for each processor.
+	// We certainly don't want to use all available CPU. XAudio threads are time critical priority and wake up every 10 ms, they may cause lots of unwarranted context switches.
+	// In case no specific affinity is specified, let XAudio choose the default processor. It should allocate a single thread and should be enough.
+	if (ProcessorsToUse == XAUDIO2_ANY_PROCESSOR)
+	{
+#ifdef XAUDIO2_USE_DEFAULT_PROCESSOR
+		ProcessorsToUse = XAUDIO2_USE_DEFAULT_PROCESSOR;
+#else
+		ProcessorsToUse = XAUDIO2_DEFAULT_PROCESSOR;
+#endif
+	}
+
 	// Create a new XAudio2 device object instance
-	if (XAudio2Create(&DeviceProperties->XAudio2, Flags, (XAUDIO2_PROCESSOR)FPlatformAffinity::GetAudioThreadMask()) != S_OK)
+	if (XAudio2Create(&DeviceProperties->XAudio2, Flags, ProcessorsToUse) != S_OK)
 	{
 		UE_LOG(LogInit, Log, TEXT("Failed to create XAudio2 interface"));
 		return(false);
