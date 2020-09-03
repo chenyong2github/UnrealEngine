@@ -32,7 +32,7 @@ inline bool operator==(const FOnlineActivityPlayerLocation& Location1, const FOn
 /**
  * Outcome representation of ending an activity.
  */
-enum EOnlineActivityOutcome
+enum class EOnlineActivityOutcome
 {
 	/** Activity has been completed successfully */
 	Completed,
