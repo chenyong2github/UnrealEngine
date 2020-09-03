@@ -1166,6 +1166,18 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 	{
 		FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("Monitor/Start:%d"), FPlatformProcess::GetCurrentProcessId()));
 
+		// Log any termination occurring in CRC (no sub-system should terminate CRC)
+		FDelegateHandle TerminateHandle = FCoreDelegates::ApplicationWillTerminateDelegate.AddLambda([]()
+		{
+			FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("CRC/Terminate:%s"), *FDateTime::UtcNow().ToString()));
+		});
+
+		// Log any system error occurring in CRC.
+		FDelegateHandle SystemErrorHandle = FCoreDelegates::OnHandleSystemError.AddLambda([]()
+		{
+			FDiagnosticLogger::Get().LogEvent(FString::Printf(TEXT("CRC/SysError:%s"), *FDateTime::UtcNow().ToString()));
+		});
+
 		const int32 IdealFramerate = 10;
 		double PrevLoopStartTime = FPlatformTime::Seconds();
 		const float IdealFrameTime = 1.0f / IdealFramerate;
@@ -1403,6 +1415,9 @@ void RunCrashReportClient(const TCHAR* CommandLine)
 		DeleteTempCrashContextFile(MonitorPid);
 
 		FPlatformProcess::CloseProc(MonitoredProcess);
+
+		FCoreDelegates::ApplicationWillTerminateDelegate.Remove(TerminateHandle);
+		FCoreDelegates::OnHandleSystemError.Remove(SystemErrorHandle);
 	}
 
 	GLog->RemoveOutputDevice(&FDiagnosticLogger::Get());
