@@ -780,26 +780,35 @@ struct FAITest_BTAbortDuringLatentAbort : public FAITest_SimpleBT
 		{
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
-				FBTBuilder::AddTask(Comp1Node, 0, EBTNodeResult::Succeeded);
-				{
-					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::Set, EBTFlowAbortMode::LowerPriority, TEXT("Bool2"));
-				}
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::LowerPriority, TEXT("Bool1"));
 
-				FBTBuilder::AddTaskLatentFlags(Comp1Node, EBTNodeResult::Succeeded,
-					1, TEXT("Bool1"), 1, 2,
-					1, TEXT("Bool2"), 3, 4);
+				FBTBuilder::AddTask(Comp1Node, 1, EBTNodeResult::Succeeded);
 				{
-					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool1"));
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::Set, EBTFlowAbortMode::None, TEXT("Bool3"));
 				}
 			}
 
-			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+			UBTCompositeNode& Comp2Node = FBTBuilder::AddSelector(CompNode);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool1"));
+
+				FBTBuilder::AddTaskLatentFlags(Comp2Node, EBTNodeResult::Succeeded,
+					1, TEXT("Bool2"), 2, 3,
+					1, TEXT("Bool1"), 4, 5);
+				{
+					FBTBuilder::WithDecoratorBlackboard(Comp2Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool2"));
+				}
+
+				FBTBuilder::AddTask(Comp2Node, 6, EBTNodeResult::Succeeded);
+			}
+
+			FBTBuilder::AddTask(CompNode, 7, EBTNodeResult::Succeeded);
 		}
 
-		ExpectedResult.Add(1);
-		ExpectedResult.Add(3);
+		ExpectedResult.Add(2);
 		ExpectedResult.Add(4);
-		ExpectedResult.Add(0);
+		ExpectedResult.Add(5);
+		ExpectedResult.Add(7);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringLatentAbort, "System.AI.Behavior Trees.Abort: during latent task abort (lower pri)")
@@ -813,26 +822,100 @@ struct FAITest_BTAbortDuringLatentAbort2 : public FAITest_SimpleBT
 			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode);
 			{
 				FBTBuilder::AddTaskLatentFlags(Comp1Node, EBTNodeResult::Succeeded,
-					1, TEXT("Bool1"), 1, 2,
-					1, TEXT("Bool2"), 3, 4);
+					1, TEXT("Bool1"), 0, 1,
+					1, TEXT("Bool2"), 2, 3);
 				{
 					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool1"));
-					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool2"));
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2"));
 				}
 
-				FBTBuilder::AddTask(Comp1Node, 5, EBTNodeResult::Succeeded);
+				FBTBuilder::AddTask(Comp1Node, 4, EBTNodeResult::Succeeded);
+				{
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool3"));
+				}
 			}
 
-			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded);
+			FBTBuilder::AddTask(CompNode, 5, EBTNodeResult::Succeeded);
 		}
 
-		ExpectedResult.Add(1);
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(2);
 		ExpectedResult.Add(3);
 		ExpectedResult.Add(4);
-		ExpectedResult.Add(5);
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringLatentAbort2, "System.AI.Behavior Trees.Abort: during latent task abort (self)")
+
+struct FAITest_BTAbortDuringLatentAbort3 : public FAITest_SimpleBT
+{
+	FAITest_BTAbortDuringLatentAbort3()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			FBTBuilder::AddTask(CompNode, 4, EBTNodeResult::Succeeded); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool1")); // 1
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 4
+				1, TEXT("Bool1"), 0, 1,
+				1, TEXT("Bool2"), 2, 3);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2")); // 3
+			}
+
+			FBTBuilder::AddTask(CompNode, 5, EBTNodeResult::Succeeded); // 5
+		}
+
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringLatentAbort3, "System.AI.Behavior Trees.Abort: during latent task abort (high pri)")
+
+struct FAITest_BTAbortDuringLatentAbort4 : public FAITest_SimpleBT
+{
+	FAITest_BTAbortDuringLatentAbort4()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool2")); // 1
+				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded); // 4
+				{
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool3")); // 3
+				}
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 6
+				1, TEXT("Bool1"), 0, 1,
+				1, TEXT("Bool2"), 2, 3);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1")); // 5
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 8
+				1, TEXT("Bool3"), 4, 5,
+				0, NAME_None, 6, 7);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool4")); // 7
+			}
+		}
+
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(6);
+		ExpectedResult.Add(7);
+		ExpectedResult.Add(8);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringLatentAbort4, "System.AI.Behavior Trees.Abort: during latent task abort (high pri 2)")
+
 
 struct FAITest_BTAbortDuringInstantAbort : public FAITest_SimpleBT
 {
@@ -892,6 +975,9 @@ struct FAITest_BTAbortDuringInstantAbort2 : public FAITest_SimpleBT
 				}
 
 				FBTBuilder::AddTask(Comp1Node, 4, EBTNodeResult::Succeeded);
+				{
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool3"));
+				}
 			}
 
 			FBTBuilder::AddTask(CompNode, 5, EBTNodeResult::Succeeded);
@@ -904,6 +990,76 @@ struct FAITest_BTAbortDuringInstantAbort2 : public FAITest_SimpleBT
 	}
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringInstantAbort2, "System.AI.Behavior Trees.Abort: during instant task abort (self)")
+
+struct FAITest_BTAbortDuringInstantAbort3 : public FAITest_SimpleBT
+{
+	FAITest_BTAbortDuringInstantAbort3()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			FBTBuilder::AddTask(CompNode, 4, EBTNodeResult::Succeeded); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool1")); // 1
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 4
+				1, TEXT("Bool1"), 0, 1,
+				0, TEXT("Bool2"), 2, 3);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool2")); // 3
+			}
+
+			FBTBuilder::AddTask(CompNode, 5, EBTNodeResult::Succeeded); // 5
+		}
+
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringInstantAbort3, "System.AI.Behavior Trees.Abort: during instant task abort (high pri)")
+
+struct FAITest_BTAbortDuringInstantAbort4 : public FAITest_SimpleBT
+{
+	FAITest_BTAbortDuringInstantAbort4()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool2")); // 1
+				FBTBuilder::AddTask(Comp1Node, 8, EBTNodeResult::Succeeded); // 4
+				{
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool3")); // 3
+				}
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 6
+				1, TEXT("Bool1"), 0, 1,
+				0, TEXT("Bool2"), 2, 3);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool1")); // 5
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 8
+				1, TEXT("Bool3"), 4, 5,
+				0, NAME_None, 6, 7);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool4")); // 7
+			}
+		}
+
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(2);
+		ExpectedResult.Add(3);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(6);
+		ExpectedResult.Add(7);
+		ExpectedResult.Add(8);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTAbortDuringInstantAbort4, "System.AI.Behavior Trees.Abort: during instant task abort (high pri 2)")
 
 struct FAITest_BTAbortOnValueChangePass : public FAITest_SimpleBT
 {
@@ -1188,4 +1344,85 @@ struct FAITest_BTServiceAbortingTask : public FAITest_SimpleBT
 };
 IMPLEMENT_AI_LATENT_TEST(FAITest_BTServiceAbortingTask, "System.AI.Behavior Trees.Service: abort task")
 
+
+struct FAITest_BTPostponeDuringSearch : public FAITest_SimpleBT
+{
+	FAITest_BTPostponeDuringSearch()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			FBTBuilder::AddTask(CompNode, 6, EBTNodeResult::Succeeded); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool2")); // 1
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 4
+				1, TEXT("Bool1"), 0, 1, 
+				0, NAME_None, 2, 3);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool1")); // 3
+			}
+
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode); // 7
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Both, TEXT("Bool3")); // 5
+				FBTBuilder::WithServiceLog(Comp1Node, INDEX_NONE, INDEX_NONE, 4, TEXT("Bool2"), true); // 6
+				FBTBuilder::AddTask(Comp1Node, 5, EBTNodeResult::Succeeded); // 8
+			}
+
+			FBTBuilder::AddTask(CompNode, 7, EBTNodeResult::Succeeded); // 9
+		}
+
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(6);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTPostponeDuringSearch, "System.AI.Behavior Trees.Service: Postpone during search (high pri)")
+
+
+struct FAITest_BTPostponeDuringSearch2 : public FAITest_SimpleBT
+{
+	FAITest_BTPostponeDuringSearch2()
+	{
+		UBTCompositeNode& CompNode = FBTBuilder::AddSelector(*BTAsset); // 0
+		{
+			UBTCompositeNode& Comp1Node = FBTBuilder::AddSelector(CompNode); // 2
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool2")); // 1
+				FBTBuilder::AddTask(Comp1Node, 9, EBTNodeResult::Succeeded); // 4
+				{
+					FBTBuilder::WithDecoratorBlackboard(Comp1Node, EBasicKeyOperation::Set, EBTFlowAbortMode::Both, TEXT("Bool3")); // 3
+				}
+			}
+
+			FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 6
+				1, TEXT("Bool1"), 0, 1,
+				0, NAME_None, 2, 3);
+			{
+				FBTBuilder::WithDecoratorBlackboard(CompNode, EBasicKeyOperation::NotSet, EBTFlowAbortMode::Self, TEXT("Bool1")); // 5
+			}
+
+			UBTCompositeNode& Comp2Node = FBTBuilder::AddSelector(CompNode); // 8
+			{
+				FBTBuilder::WithServiceLog(Comp2Node, INDEX_NONE, INDEX_NONE, 4, TEXT("Bool2"), true); // 7
+				FBTBuilder::AddTaskLatentFlags(CompNode, EBTNodeResult::Succeeded, // 9
+					1, TEXT("Bool3"), 5, 6,
+					0, NAME_None, 7, 8);
+			}
+
+		}
+
+		ExpectedResult.Add(0);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(1);
+		ExpectedResult.Add(4);
+		ExpectedResult.Add(5);
+		ExpectedResult.Add(7);
+		ExpectedResult.Add(8);
+		ExpectedResult.Add(9);
+	}
+};
+IMPLEMENT_AI_LATENT_TEST(FAITest_BTPostponeDuringSearch2, "System.AI.Behavior Trees.Service: Postpone during search (lower pri)")
 #undef LOCTEXT_NAMESPACE

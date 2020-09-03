@@ -950,31 +950,18 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 		return;
 	}
 
-	if (SearchData.bFilterOutRequestFromDeactivatedBranch)
+    // Not only checking against deactivated branch upon applying search data or while aborting task, 
+    // but also while waiting after a latent task to abort
+	if (SearchData.bFilterOutRequestFromDeactivatedBranch || bWaitingForAbortingTasks)
 	{
 		// request on same node or with higher priority doesn't require additional checks
-		FBTNodeIndex RequestedOnNodeIdx(InstanceIdx, RequestedOn->GetExecutionIndex());
-		if (SearchData.SearchRootNode != RequestedOnNodeIdx && SearchData.SearchRootNode.TakesPriorityOver(RequestedOnNodeIdx))
+		if (SearchData.SearchRootNode != ExecutionIdx && SearchData.SearchRootNode.TakesPriorityOver(ExecutionIdx))
 		{
-			// for requests inside the same instance, perform range check to skip node from the branch deactivated by applying the search data
-			if (InstanceIdx == SearchData.SearchRootNode.InstanceIndex)
+			if (ExecutionIdx == SearchData.DeactivatedBranchStart ||
+				(SearchData.DeactivatedBranchStart.TakesPriorityOver(ExecutionIdx) && ExecutionIdx.TakesPriorityOver(SearchData.DeactivatedBranchEnd)))
 			{
-				const uint16 StartIndex = SearchData.DeactivatedBranchStartIndex;
-				const uint16 EndIndex = SearchData.DeactivatedBranchEndIndex;
-				const bool bCheckDeactivatedBranch = (StartIndex != INDEX_NONE && EndIndex != INDEX_NONE);
-				if (bCheckDeactivatedBranch && (StartIndex <= RequestedOnNodeIdx.ExecutionIndex && RequestedOnNodeIdx.ExecutionIndex < EndIndex))
-				{
-					UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated branch [%d..%d[ (applying search data for %s)"),
-						*RequestedOnNodeIdx.Describe(), StartIndex, EndIndex, *SearchData.SearchRootNode.Describe());
-					StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
-					return;
-				}
-			}
-			// for other instances (subtree), perform check to skip removed subtree
-			else if (SearchData.PendingNotifies.FindByPredicate([InstanceIdx](const FBehaviorTreeSearchUpdateNotify& Item) { return (Item.InstanceIndex == InstanceIdx); }))
-			{
-				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s from a tree instance in a deactivated branch (applying search data for %s)"),
-					*RequestedOnNodeIdx.Describe(), *SearchData.SearchRootNode.Describe());
+				UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> skip: node index %s in a deactivated branch [%s..%s[ (applying search data for %s)"),
+					*ExecutionIdx.Describe(), *SearchData.DeactivatedBranchStart.Describe(), *SearchData.DeactivatedBranchEnd.Describe(), *SearchData.SearchRootNode.Describe());
 				StoreDebuggerRestart(DebuggerNode, InstanceIdx, false);
 				return;
 			}
@@ -1112,6 +1099,13 @@ void UBehaviorTreeComponent::RequestExecution(UBTCompositeNode* RequestedOn, int
 
 	if (bInvalidateCurrentSearch)
 	{
+        // We are aborting the current search, but in the case we were searching to a next child, we cannot look for only higher priority as sub decorator might still fail
+		// Previous search might have been a different range, so just open it up to cover all cases
+		if (ExecutionRequest.SearchEnd.IsSet())
+		{
+			UE_VLOG(GetOwner(), LogBehaviorTree, Log, TEXT("> removing limit from end of search range because of request during task abortion!"));
+			ExecutionRequest.SearchEnd = FBTNodeIndex();
+		}
 		RollbackSearchChanges();
 	}
 	
@@ -1233,6 +1227,8 @@ void UBehaviorTreeComponent::ApplySearchData(UBTNode* NewActiveNode)
 {
 	// search is finalized, can't rollback anymore at this point
 	SearchData.RollbackInstanceIdx = INDEX_NONE;
+	SearchData.RollbackDeactivatedBranchStart = FBTNodeIndex();
+	SearchData.RollbackDeactivatedBranchEnd = FBTNodeIndex();
 
 	// send all deactivation notifies for bookkeeping
 	for (int32 Idx = 0; Idx < SearchData.PendingNotifies.Num(); Idx++)
@@ -1276,29 +1272,12 @@ void UBehaviorTreeComponent::ApplySearchData(UBTNode* NewActiveNode)
 	// nothing should be added during application or tick - all changes are supposed to go to ExecutionRequest accumulator first
 	SearchData.PendingUpdates.Reset();
 	SearchData.PendingNotifies.Reset();
+	SearchData.DeactivatedBranchStart = FBTNodeIndex();
+	SearchData.DeactivatedBranchEnd = FBTNodeIndex();
 }
 
 void UBehaviorTreeComponent::ApplyDiscardedSearch()
 {
-	TArray<FBehaviorTreeSearchUpdate> UpdateList;
-	for (int32 Idx = 0; Idx < SearchData.PendingUpdates.Num(); Idx++)
-	{
-		const FBehaviorTreeSearchUpdate& UpdateInfo = SearchData.PendingUpdates[Idx];
-		if (UpdateInfo.Mode != EBTNodeUpdateMode::Remove && 
-			UpdateInfo.AuxNode && UpdateInfo.AuxNode->IsA(UBTDecorator::StaticClass()))
-		{
-			const FBTNodeIndex UpdateIdx(UpdateInfo.InstanceIndex, UpdateInfo.AuxNode->GetExecutionIndex());
-			if (UpdateIdx.TakesPriorityOver(SearchData.SearchEnd))
-			{
-				UpdateList.Add(UpdateInfo);
-			}
-		}
-	}
-
-	// apply new observing decorators
-	// use MAX_uint16 to ignore execution index checks, building UpdateList checks if observer should be relevant
-	ApplySearchUpdates(UpdateList, MAX_uint16);
-
 	// remove everything else
 	SearchData.PendingUpdates.Reset();
 
@@ -1489,6 +1468,7 @@ void UBehaviorTreeComponent::TickComponent(float DeltaTime, enum ELevelTick Tick
 						ErrorMsg += TEXT("\\");
 					}
 
+					UE_VLOG(GetOwner(), LogBehaviorTree, Error, TEXT("%s"), *ErrorMsg);
 					ensureMsgf(false, TEXT("%s"), *ErrorMsg);
 					bWarnOnce = true;
 					break;
@@ -1558,6 +1538,8 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 
 	bool bIsSearchValid = true;
 	SearchData.RollbackInstanceIdx = ActiveInstanceIdx;
+	SearchData.RollbackDeactivatedBranchStart = SearchData.DeactivatedBranchStart;
+	SearchData.RollbackDeactivatedBranchEnd = SearchData.DeactivatedBranchEnd;
 
 	EBTNodeResult::Type NodeResult = ExecutionRequest.ContinueWithResult;
 	UBTTaskNode* NextTask = NULL;
@@ -1576,9 +1558,6 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 		CopyInstanceMemoryToPersistent();
 
 		// deactivate up to ExecuteNode
-		SearchData.DeactivatedBranchStartIndex = INDEX_NONE;
-		SearchData.DeactivatedBranchEndIndex = INDEX_NONE;
-
 		if (InstanceStack[ActiveInstanceIdx].ActiveNode != ExecutionRequest.ExecuteNode)
 		{
 			int32 LastDeactivatedChildIndex = INDEX_NONE;
@@ -1597,8 +1576,16 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 			}
 			else if (LastDeactivatedChildIndex != INDEX_NONE)
 			{
-				SearchData.DeactivatedBranchStartIndex = ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex);
-				SearchData.DeactivatedBranchEndIndex = ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex + 1);
+				// Calculating/expanding the deactivated branch for filtering execution request while applying changes.
+				FBTNodeIndex NewDeactivatedBranchStart(ExecutionRequest.ExecuteInstanceIdx, ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex, EBTChildIndex::FirstNode));
+				FBTNodeIndex NewDeactivatedBranchEnd(ExecutionRequest.ExecuteInstanceIdx, ExecutionRequest.ExecuteNode->GetChildExecutionIndex(LastDeactivatedChildIndex + 1, EBTChildIndex::FirstNode));
+
+				if (NewDeactivatedBranchStart.TakesPriorityOver(SearchData.DeactivatedBranchStart))
+				{
+					SearchData.DeactivatedBranchStart = NewDeactivatedBranchStart;
+				}
+				ensureMsgf( !SearchData.DeactivatedBranchEnd.IsSet() || SearchData.DeactivatedBranchEnd == NewDeactivatedBranchEnd, TEXT("There should not be a case of an exiting dead branch with a different end index (Previous end:%s, New end:%s"), *SearchData.DeactivatedBranchEnd.Describe(), *NewDeactivatedBranchEnd.Describe() );
+				SearchData.DeactivatedBranchEnd = NewDeactivatedBranchEnd;
 			}
 		}
 
@@ -1763,7 +1750,7 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 			// abort task if needed
 			if (InstanceStack.Last().ActiveNodeType == EBTActiveNode::ActiveTask)
 			{
-				// prevent new execution requests for nodes inside the deativated branch 
+				// prevent new execution requests for nodes inside the deactivated branch 
 				// that may result from the aborted task.
 				SearchData.bFilterOutRequestFromDeactivatedBranch = true;
 
@@ -1772,9 +1759,12 @@ void UBehaviorTreeComponent::ProcessExecutionRequest()
 				SearchData.bFilterOutRequestFromDeactivatedBranch = false;
 			}
 
-			// set next task to execute
-			PendingExecution.NextTask = NextTask;
-			PendingExecution.bOutOfNodes = (NextTask == NULL);
+			// set next task to execute only when not lock for execution as everything has been cancelled/rollback
+			if (!PendingExecution.IsLocked())
+			{
+				PendingExecution.NextTask = NextTask;
+				PendingExecution.bOutOfNodes = (NextTask == NULL);
+			}
 		}
 
 		ProcessPendingExecution();
@@ -1834,7 +1824,12 @@ void UBehaviorTreeComponent::RollbackSearchChanges()
 	if (SearchData.RollbackInstanceIdx >= 0)
 	{
 		ActiveInstanceIdx = SearchData.RollbackInstanceIdx;
+		SearchData.DeactivatedBranchStart = SearchData.RollbackDeactivatedBranchStart;
+		SearchData.DeactivatedBranchEnd = SearchData.RollbackDeactivatedBranchEnd;
+
 		SearchData.RollbackInstanceIdx = INDEX_NONE;
+		SearchData.RollbackDeactivatedBranchStart = FBTNodeIndex();
+		SearchData.RollbackDeactivatedBranchEnd = FBTNodeIndex();
 
 		if (SearchData.bPreserveActiveNodeMemoryOnRollback)
 		{
