@@ -1293,7 +1293,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					TranslationStages[Index].NumIterationsThisStage = NumIterationsThisStage;
 					TranslationStages[Index].bSpawnOnly = bSpawnOnly;
 					TranslationStages[Index].bPartialParticleUpdate = InCompileData->PartialParticleUpdatePerStage.IsValidIndex(SimStageIndex) ? InCompileData->PartialParticleUpdatePerStage[SimStageIndex] : false;
-					TranslationStages[Index].InstanceDivisor = InCompileData->InstanceDivisor.IsValidIndex(SimStageIndex) ? InCompileData->InstanceDivisor[SimStageIndex] : false;
 					TranslationStages[Index].IterationSource = IterationSrc;
 					TranslationStages[Index].SourceSimStage = SimStageIndex;
 					SimStageStartIndex += NumIterationsThisStage;
@@ -1354,7 +1353,6 @@ const FNiagaraTranslateResults &FHlslNiagaraTranslator::Translate(const FNiagara
 					SimulationStageMetaData.MaxStage = TranslationStages[Index].SimulationStageIndexMax;
 					SimulationStageMetaData.bWritesParticles = TranslationStages[Index].bWritesParticles;
 					SimulationStageMetaData.bPartialParticleUpdate = TranslationStages[Index].bPartialParticleUpdate;
-					SimulationStageMetaData.InstanceDivisor = TranslationStages[Index].InstanceDivisor;
 
 					// Other outputs are written to as appropriate data interfaces are found. See HandleDataInterfaceCall for details.
 
