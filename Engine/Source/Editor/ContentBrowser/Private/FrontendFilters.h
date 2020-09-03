@@ -363,4 +363,22 @@ private:
 	bool bIsCurrentlyActive;
 };
 
+/** A filter that displays only assets that are not read only */
+class FFrontendFilter_Writable : public FFrontendFilter
+{
+public:
+	FFrontendFilter_Writable(TSharedPtr<FFrontendFilterCategory> InCategory);
+	~FFrontendFilter_Writable();
+
+	// FFrontendFilter implementation
+	virtual FString GetName() const override { return TEXT("Writable"); }
+	virtual FText GetDisplayName() const override { return LOCTEXT("FrontendFilter_Writable", "Writable"); }
+	virtual FText GetToolTipText() const override { return LOCTEXT("FrontendFilter_WritableTooltip", "Show only assets that are not read only."); }
+
+	// IFilter implementation
+	virtual bool PassesFilter(FAssetFilterType InItem) const override;
+
+private:
+};
+
 #undef LOCTEXT_NAMESPACE
