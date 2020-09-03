@@ -159,7 +159,7 @@ void UWorldPartitionEditorSpatialHash::HashActor(FWorldPartitionActorDesc* InAct
 		{
 			ForEachIntersectingCells(Bounds, CurrentLevel, [&](const FCellCoord& CellCoord)
 			{
-				if (HashCells.Contains(CellCoord))
+				if (CurrentLevel ? HashNodes.Contains(CellCoord) : HashCells.Contains(CellCoord))
 				{
 					UpdateHigherLevels(CellCoord, NewLevel);
 				}
@@ -178,9 +178,10 @@ void UWorldPartitionEditorSpatialHash::UnhashActor(FWorldPartitionActorDesc* InA
 	}
 	else
 	{
-		int32 CurrentLevel = GetLevelForBox(Bounds);
+		const FBox ActorBounds = GetActorBounds(InActorDesc);
+		const int32 CurrentLevel = GetLevelForBox(Bounds);
 
-		ForEachIntersectingCells(InActorDesc->GetBounds(), 0, [&](const FCellCoord& CellCoord)
+		ForEachIntersectingCells(ActorBounds, 0, [&](const FCellCoord& CellCoord)
 		{
 			UWorldPartitionEditorCell* EditorCell = HashCells.FindChecked(CellCoord);
 
@@ -298,7 +299,7 @@ int32 UWorldPartitionEditorSpatialHash::ForEachIntersectingCell(const FBox& Box,
 	int32 NumIntersecting = 0;
 
 	const FBox SearchBox = Box.Overlap(Bounds);
-	const int32 SearchLevel = 0;
+	const int32 SearchLevel = GetLevelForBox(SearchBox);
 
 	ForEachIntersectingCells(Box, SearchLevel, [&](const FCellCoord& CellCoord)
 	{
