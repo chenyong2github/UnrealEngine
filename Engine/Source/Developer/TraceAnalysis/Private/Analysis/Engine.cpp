@@ -1440,12 +1440,12 @@ bool FAnalysisEngine::OnDataProtocol2()
 			break;
 		}
 
+		TArrayView<FRotaItem> ActiveRota(Rota.GetData(), ActiveCount);
+		Algo::Sort(ActiveRota);
+
 		int32 MinLogSerial = Rota[0].Serial;
 		if (ActiveCount > 1)
 		{
-			TArrayView<FRotaItem> ActiveRota(Rota.GetData(), ActiveCount);
-			Algo::Sort(ActiveRota);
-
 			int32 MaxLogSerial = Rota[ActiveCount - 1].Serial;
 
 			if ((uint32(MinLogSerial - Serial.Value) & Serial.Mask) == 0)
