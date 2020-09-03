@@ -73,7 +73,7 @@ struct TMockRootMotionSourceProxy
 	// Write a new source and encode the params into the generic param block
 	void WriteParams(TFunctionRef<void(FBitWriter&)> WriteFunc)
 	{
-		static constexpr int64 MaxBits = MaxSize << 3;
+		static constexpr int64 MaxBits = (int64)MaxSize << 3;
 		Params.Reset();
 
 		// Unfortunate we cannot just create bit writer to our Params
