@@ -871,8 +871,8 @@ void UBodySetup::AddShapesToRigidActor_AssumesLocked(
 
 void UBodySetup::RemoveSimpleCollision()
 {
-	AggGeom.EmptyElements();
 	InvalidatePhysicsData();
+	AggGeom.EmptyElements();
 }
 
 void UBodySetup::RescaleSimpleCollision( FVector BuildScale )
