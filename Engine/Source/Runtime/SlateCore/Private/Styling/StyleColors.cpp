@@ -16,6 +16,7 @@ const FSlateColor FStyleColors::Title = EStyleColor::Title;
 const FSlateColor FStyleColors::WindowBorder = EStyleColor::WindowBorder;
 const FSlateColor FStyleColors::Foldout = EStyleColor::Foldout;
 const FSlateColor FStyleColors::Input = EStyleColor::Input;
+const FSlateColor FStyleColors::InputOutline = EStyleColor::InputOutline;
 const FSlateColor FStyleColors::Recessed = EStyleColor::Recessed;
 const FSlateColor FStyleColors::Background = EStyleColor::Background;
 const FSlateColor FStyleColors::Header = EStyleColor::Header;
@@ -71,6 +72,7 @@ void USlateThemeManager::InitalizeDefaults()
 	SetDefaultColor(EStyleColor::WindowBorder, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Foldout, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Input, COLOR("0F0F0FFF"));
+	SetDefaultColor(EStyleColor::InputOutline, COLOR("0F0F0FFF"));
 	SetDefaultColor(EStyleColor::Recessed, COLOR("#1A1A1AFF"));
 	SetDefaultColor(EStyleColor::Background, COLOR("#242424FF"));
 	SetDefaultColor(EStyleColor::Header, COLOR("#2F2F2FFF"));

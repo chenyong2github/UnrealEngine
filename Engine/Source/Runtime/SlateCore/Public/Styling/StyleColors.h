@@ -23,6 +23,7 @@ enum class EStyleColor : uint8
 	WindowBorder,
 	Foldout,
 	Input,
+	InputOutline,
 	Recessed,
 	Background,
 	Header,
@@ -282,6 +283,7 @@ struct SLATECORE_API FStyleColors
 	static const FSlateColor WindowBorder;
 	static const FSlateColor Foldout;
 	static const FSlateColor Input;
+	static const FSlateColor InputOutline;
 	static const FSlateColor Recessed;
 	static const FSlateColor Background;
 	static const FSlateColor Header;
