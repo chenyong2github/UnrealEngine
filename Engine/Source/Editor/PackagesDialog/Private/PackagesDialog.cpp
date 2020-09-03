@@ -196,13 +196,15 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	bool InDisabled/*=false*/, FString InIconName/*=TEXT("SavePackages.SCC_DlgNoIcon")*/, FString InIconToolTip/*=TEXT("")*/)
 {
 	FName AssetName;
+	FName OwnerName;
 
 	// Lookup for the first asset in the package
-	ForEachObjectWithPackage(InPackage, [&AssetName](UObject* InnerObject)
+	ForEachObjectWithPackage(InPackage, [&AssetName, &OwnerName](UObject* InnerObject)
 	{
 		if (InnerObject->IsAsset())
 		{
 			AssetName = InnerObject->GetFName();
+			OwnerName = InnerObject->GetOutermostObject()->GetFName();
 			return false;
 		}
 		return true;
@@ -215,7 +217,7 @@ void FPackagesDialogModule::AddPackageItem(UPackage* InPackage, ECheckBoxState I
 	}
 
 	FString FileName = FPaths::ConvertRelativePathToFull(FPackageName::LongPackageNameToFilename(InPackage->GetName()));
-	PackagesDialogWidget.Get()->Add(MakeShareable(new FPackageItem(InPackage, AssetName.ToString(), FileName, InChecked, InDisabled, InIconName, InIconToolTip)));
+	PackagesDialogWidget.Get()->Add(MakeShareable(new FPackageItem(InPackage, AssetName.ToString(), FileName, OwnerName.ToString(), InChecked, InDisabled, InIconName, InIconToolTip)));
 }
 
 /**

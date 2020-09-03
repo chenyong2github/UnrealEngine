@@ -23,6 +23,7 @@ namespace SPackagesDialogDefs
 	const FName ColumnID_CheckBoxLabel( "CheckBox" );
 	const FName ColumnID_IconLabel( "Icon" );
 	const FName ColumnID_AssetLabel( "Asset" );
+	const FName ColumnID_OwnerLabel( "Owner" );
 	const FName ColumnID_PackageLabel( "Package" );
 	const FName ColumnID_TypeLabel( "Type" );
 	const FName ColumnID_CheckedOutByLabel( "CheckedOutBy" );
@@ -190,6 +191,14 @@ void SPackagesDialog::Construct(const FArguments& InArgs)
 		.SortMode( this, &SPackagesDialog::GetColumnSortMode, SPackagesDialogDefs::ColumnID_AssetLabel )
 		.OnSort( this, &SPackagesDialog::OnColumnSortModeChanged )
 		.FillWidth( 5.0f )
+	);
+
+	HeaderRowWidget->AddColumn(
+		SHeaderRow::Column( SPackagesDialogDefs::ColumnID_OwnerLabel )
+		.DefaultLabel( LOCTEXT("OwnerColumnLabel", "Owner" ) )
+		.SortMode( this, &SPackagesDialog::GetColumnSortMode, SPackagesDialogDefs::ColumnID_OwnerLabel )
+		.OnSort( this, &SPackagesDialog::OnColumnSortModeChanged )
+		.FillWidth( 7.0f )
 	);
 
 	HeaderRowWidget->AddColumn(
@@ -468,6 +477,7 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 	}
 
 	const FString AssetName = Item->GetAssetName();
+	const FString OwnerName = Item->GetOwnerName();
 	const FString PackageName = Item->GetPackageName();
 	const FString FileName = Item->GetFileName();
 
@@ -505,6 +515,18 @@ TSharedRef<SWidget> SPackagesDialog::GenerateWidgetForItemAndColumn( TSharedPtr<
 			[
 				SNew(STextBlock)
 				.Text(FText::FromString(AssetName))
+				.IsEnabled(!Item->IsDisabled())
+			];
+	}
+	else if (ColumnID == SPackagesDialogDefs::ColumnID_OwnerLabel)
+	{
+		ItemContentWidget = SNew(SHorizontalBox)
+			+SHorizontalBox::Slot()
+			.Padding(RowPadding)
+			[
+				SNew(STextBlock)
+				.Text(FText::FromString(OwnerName))
+				.ToolTipText(FText::FromString(OwnerName))
 				.IsEnabled(!Item->IsDisabled())
 			];
 	}
@@ -807,6 +829,19 @@ void SPackagesDialog::SortTree()
 		{
 			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
 				return A->GetAssetName() >= B->GetAssetName(); } );
+		}
+	}
+	else if (SortByColumn == SPackagesDialogDefs::ColumnID_OwnerLabel)
+	{
+		if (SortMode == EColumnSortMode::Ascending)
+		{
+			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
+				return A->GetOwnerName() < B->GetOwnerName(); } );
+		}
+		else if (SortMode == EColumnSortMode::Descending)
+		{
+			Items.Sort([](const TSharedPtr<FPackageItem>& A, const TSharedPtr<FPackageItem>& B) {
+				return A->GetOwnerName() >= B->GetOwnerName(); } );
 		}
 	}
 	else if (SortByColumn == SPackagesDialogDefs::ColumnID_PackageLabel)
