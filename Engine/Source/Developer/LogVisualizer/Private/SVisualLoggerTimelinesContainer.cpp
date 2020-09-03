@@ -156,15 +156,6 @@ FReply SVisualLoggerTimelinesContainer::OnMouseMove(const FGeometry& MyGeometry,
 	return FReply::Unhandled();
 }
 
-FReply SVisualLoggerTimelinesContainer::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
-{
-	if (MouseEvent.IsLeftControlDown() || MouseEvent.IsLeftShiftDown())
-	{
-		return TimeSliderController->OnMouseWheel(*this, MyGeometry, MouseEvent);
-	}
-	return FReply::Unhandled();
-}
-
 FReply SVisualLoggerTimelinesContainer::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
 {
 	if (InKeyEvent.GetKey() == EKeys::A && InKeyEvent.IsLeftControlDown())
