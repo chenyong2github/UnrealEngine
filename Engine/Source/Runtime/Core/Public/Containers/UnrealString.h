@@ -1464,41 +1464,14 @@ public:
 	 * Splits this string at given string position case sensitive.
 	 *
 	 * @param InStr The string to search and split at
-	 * @param LeftS out the string to the left of InStr, not updated if return is false. LeftS must not point to the same location as RightS or this.
-	 * @param RightS out the string to the right of InStr, not updated if return is false. RightS must not point to the same location as LeftS or this.
+	 * @param LeftS out the string to the left of InStr, not updated if return is false. LeftS must not point to the same location as RightS, but can point to this.
+	 * @param RightS out the string to the right of InStr, not updated if return is false. RightS must not point to the same location as LeftS, but can point to this.
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return true if string is split, otherwise false
 	 */
 	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
 		ESearchDir::Type SearchDir = ESearchDir::FromStart) const
-	{
-		check(this != LeftS);
-		check(this != RightS);
-		check(LeftS != RightS || LeftS == nullptr);
-
-		int32 InPos = Find(InS, SearchCase, SearchDir);
-
-		if (InPos < 0)	{ return false; }
-
-		if (LeftS)		{ *LeftS = Left(InPos); }
-		if (RightS)	{ *RightS = Mid(InPos + InS.Len()); }
-
-		return true;
-	}
-
-	/**
-	 * Splits this string at given string position case sensitive.
-	 *
-	 * @param InStr The string to search and split at
-	 * @param LeftS out the string to the left of InStr, not updated if return is false. LeftS must not point to the same location as RightS.
-	 * @param RightS out the string to the right of InStr, not updated if return is false. RightS must not point to the same location as LeftS.
-	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
-	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
-	 * @return true if string is split, otherwise false
-	 */
-	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
-		ESearchDir::Type SearchDir = ESearchDir::FromStart)
 	{
 		check(LeftS != RightS || LeftS == nullptr);
 
