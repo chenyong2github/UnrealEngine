@@ -10,6 +10,11 @@ struct FNetworkPredictionStateView
 	// buffer storage. Local frame numbers are stored on the NetworkPredictionWorldManager's internal tick states.
 	int32 PendingFrame = 0;
 
+	// Latest Simulation time. Like PendingFrame this is the "server time" and is synchronized.
+	// This is redundant in fixed tick scenerios but is needed for independent ticking
+	// (Consider: maybe this is rarely used enough that a more expensive lookup would be better than cacheing it in the view?)
+	int32 SimTimeMS = 0;
+
 	// ::SimulationTick is in progress
 	bool bTickInProgress = false;
 		
@@ -25,9 +30,11 @@ struct FNetworkPredictionStateView
 	void* PresentationSyncState = nullptr;
 	void* PresentationAuxState = nullptr;
 
-	void UpdateView(int32 Frame, void* Input, void* Sync, void* Aux)
+	void UpdateView(int32 Frame, int32 InSimTimMS, void* Input, void* Sync, void* Aux)
 	{
 		PendingFrame = Frame;
+		SimTimeMS = InSimTimMS;
+
 		PendingInputCmd = Input;
 		PendingSyncState = Sync;
 		PendingAuxState = Aux;

@@ -151,7 +151,6 @@ void FFlyingMovementSimulation::SimulationTick(const FNetSimTimeStep& TimeStep, 
 
 	const FQuat OutputQuat = Output.Sync->Rotation.Quaternion();
 
-
 	const FVector LocalSpaceMovementInput = Output.Sync->Rotation.RotateVector( Input.Cmd->MovementInput );
 	   	
 	// --------------------------------------------------------------

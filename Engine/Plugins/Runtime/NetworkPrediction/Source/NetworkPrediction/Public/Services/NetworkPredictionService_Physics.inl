@@ -69,10 +69,10 @@ public:
 			// This is needed so that we can UE_NP_TRACE_SIM_TICK to tell the trace system the sim ticked this frame
 			// Right now this is under the assumption that physics is fixed tick once per engine/physics frame.
 			// When that changes, this will need to change. We will probably just want another function on IPhysicsService
-			// that is called after every Np fixed tick / Physics ticked frame, however that neds up looking.
+			// that is called after every Np fixed tick / Physics ticked frame, however that ends up looking.
 			// For now this gets us traced physics state which is super valuable.
 			const int32 ServerFrame = (TickState->PendingFrame-1) + TickState->Offset; // -1 because PendingFrame was already ++ this frame
-			UE_NP_TRACE_PUSH_TICK(ServerFrame * TickState->FixedStepMS, TickState->FixedStepMS, ServerFrame+1);
+			UE_NP_TRACE_PUSH_TICK(ServerFrame * TickState->FixedStepMS, TickState->FixedStepMS, ServerFrame+1, TickState->Offset);
 		}
 
 		for (TConstSetBitIterator<> BitIt(InstanceBitArray); BitIt; ++BitIt)
