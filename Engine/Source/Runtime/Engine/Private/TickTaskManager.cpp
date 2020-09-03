@@ -728,6 +728,10 @@ public:
 			CoolingDownNode->InternalData->bRegistered = false;
 			CoolingDownNode = CoolingDownNode->InternalData->Next;
 		}
+		for (FTickScheduleDetails& TickDetails : TickFunctionsToReschedule)
+		{
+			TickDetails.TickFunction->InternalData->bRegistered = false;
+		}
 	}
 
 	/**
