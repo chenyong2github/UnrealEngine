@@ -397,11 +397,7 @@ void UAnimGraphNode_ControlRig::GetVariables(bool bInput, TMap<FName, FRigVMExte
 				const TArray<FRigVMExternalVariable>& PublicVariables = ControlRig->GetPublicVariables();
 				for (const FRigVMExternalVariable& PublicVariable : PublicVariables)
 				{
-					if (bInput && !PublicVariable.bIsReadOnly)
-					{
-						OutVariables.Add(PublicVariable.Name, PublicVariable);
-					}
-					else
+					if (!bInput || !PublicVariable.bIsReadOnly)
 					{
 						OutVariables.Add(PublicVariable.Name, PublicVariable);
 					}
