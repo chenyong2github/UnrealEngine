@@ -5,6 +5,7 @@
 #include "Styling/SlateStyleRegistry.h"
 #include "Styling/SlateTypes.h"
 #include "Interfaces/IPluginManager.h"
+#include "Styling/SlateStyleMacros.h"
 
 TSharedPtr<FSlateStyleSet> FDataChartsStyle::StyleSet;
 
@@ -24,9 +25,12 @@ void FDataChartsStyle::Initialize()
 	FString IconPathBar = IconFolder + TEXT("/Resources/Bar.png");
 	FString IconPathPie = IconFolder + TEXT("/Resources/Pie.png");
 	FString IconPathLine = IconFolder + TEXT("/Resources/Line.png");
+	FString VPIcon = IconFolder + TEXT("/Resources/VirtualProduction.svg");
 	StyleSet->Set("DataCharts.BarIcon", new FSlateImageBrush(IconPathBar, FVector2D(40.0f, 40.0f)));
 	StyleSet->Set("DataCharts.PieIcon", new FSlateImageBrush(IconPathPie, FVector2D(40.0f, 40.0f)));
 	StyleSet->Set("DataCharts.LineIcon", new FSlateImageBrush(IconPathLine, FVector2D(40.0f, 40.0f)));
+	StyleSet->Set("Icons.VirtualProduction", new FSlateVectorImageBrush(VPIcon, FVector2D(16.f, 16.f)));
+
 
 	FSlateStyleRegistry::RegisterSlateStyle(*StyleSet.Get());
 }

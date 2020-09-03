@@ -2,6 +2,8 @@
 
 #include "DataChartsPlacement.h"
 #include "IPlacementModeModule.h"
+#include "DataChartsStyle.h"
+
 #include "ActorFactories/ActorFactoryBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "FDataChartsEditorModule"
@@ -10,7 +12,9 @@ void FDataChartsPlacement::RegisterPlacement()
 {
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
 	FName CategoryName = "DataCharts";
-	FPlacementCategoryInfo Info(LOCTEXT("PlacementMode_DataCharts", "Data Charts"), CategoryName, TEXT("PMDataCharts"),45);
+	FPlacementCategoryInfo Info(LOCTEXT("PlacementMode_DataCharts", "Data Charts"), 
+		FSlateIcon(FDataChartsStyle::Get()->GetStyleSetName(), "Icons.VirtualProduction"),
+		CategoryName, TEXT("PMDataCharts"),45);
 	PlacementModeModule.RegisterPlacementCategory(Info);
 
 	TMap<const FName, UBlueprint*> MCharts;
