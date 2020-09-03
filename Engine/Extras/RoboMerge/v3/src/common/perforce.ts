@@ -1365,14 +1365,14 @@ export class PerforceContext {
 	async execAndParse(roboWorkspace: RoboWorkspace, args: string[], opts: ExecOpts, options?: ztag.ParseOptions) {
 		const workspace = coercePerforceWorkspace(roboWorkspace);
 		const rawOutput = await PerforceContext._execP4(this.logger, workspace, ['-ztag', ...args], opts)
-		return ztag.parseZtagOutput(rawOutput, options)
+		return ztag.parseZtagOutput(rawOutput, this.logger, options)
 
 	}
 
 	async execAndParseArray(roboWorkspace: RoboWorkspace, args: string[], opts: ExecOpts, headerOptions?: ztag.ParseOptions, arrayEntryOptions?: ztag.ParseOptions) {
 		const workspace = coercePerforceWorkspace(roboWorkspace);
 		const rawOutput = await PerforceContext._execP4(this.logger, workspace, ['-ztag', ...args], opts)
-		return ztag.parseHeaderAndArray(rawOutput, headerOptions, arrayEntryOptions)
+		return ztag.parseHeaderAndArray(rawOutput, this.logger, headerOptions, arrayEntryOptions)
 	}
 }
 
