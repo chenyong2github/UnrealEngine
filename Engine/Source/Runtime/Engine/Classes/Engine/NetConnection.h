@@ -1315,7 +1315,7 @@ protected:
 	void CleanupDormantActorState();
 
 	/** During cleanup this will destroy the actor owned by this connection (generally a PlayerController) */
-	virtual void DestroyOwningActor();
+	ENGINE_API virtual void DestroyOwningActor();
 
 	/** Called internally to destroy an actor during replay fast-forward when the actor channel index will be recycled */
 	ENGINE_API virtual void DestroyIgnoredActor(AActor* Actor);
