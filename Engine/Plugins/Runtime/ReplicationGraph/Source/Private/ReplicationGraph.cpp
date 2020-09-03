@@ -1777,8 +1777,6 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 
 	const bool bWantsToGoDormant = GlobalActorInfo.bWantsToBeDormant;
 
-	const FActorRepListRefView& DependentActorList = GlobalActorInfo.GetDependentActorList();
-
 	bool bOpenActorChannel = (ActorInfo.Channel == nullptr);
 
 	if (bOpenActorChannel)
@@ -1842,7 +1840,8 @@ int64 UReplicationGraph::ReplicateSingleActor(AActor* Actor, FConnectionReplicat
 	// ----------------------------
 	//	Dependent actors
 	// ----------------------------
-	if (DependentActorList.IsValid())
+	const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalActorInfo.GetDependentActorList();
+	if (DependentActorList.Num() > 0)
 	{
 		RG_QUICK_SCOPE_CYCLE_COUNTER(NET_ReplicateActors_DependentActors);
 
@@ -1901,9 +1900,9 @@ void UReplicationGraph::HandleStarvedActorList(const FPrioritizedRepList& List, 
 		// Update dependent actor's timeout frame
 		FGlobalActorReplicationInfo& GlobalActorInfo = GlobalActorReplicationInfoMap.Get(RepItem.Actor);
 
-		const FActorRepListRefView& DependentActorList = GlobalActorInfo.GetDependentActorList();
+		const FGlobalActorReplicationInfo::FDependantListType& DependentActorList = GlobalActorInfo.GetDependentActorList();
 
-		if (DependentActorList.IsValid())
+		if (DependentActorList.Num() > 0)
 		{
 			const uint32 CloseFrameNum = ActorInfo.ActorChannelCloseFrameNum;
 			for (AActor* DependentActor : DependentActorList)
