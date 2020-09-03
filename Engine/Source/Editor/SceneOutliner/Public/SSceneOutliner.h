@@ -715,6 +715,9 @@ private:
 		item set has changed in some way. */
 	uint8 bNeedsRefresh : 1;
 
+	/** Processing a full refresh until pending items are processed */
+	uint8 bProcessingFullRefresh : 1;
+
 	/** true if the Scene Outliner should do a full refresh. */
 	uint8 bFullRefresh : 1;
 

@@ -59,6 +59,7 @@ void SSceneOutliner::Construct(const FArguments& InArgs, const FSceneOutlinerIni
 	Mode = InInitOptions.ModeFactory.Execute(this);
 	check(Mode);
 
+	bProcessingFullRefresh = false;
 	bFullRefresh = true;
 	bNeedsRefresh = true;
 	bNeedsColumRefresh = true;
@@ -462,6 +463,22 @@ void SSceneOutliner::Populate()
 	bool bFinalSort = false;
 	if (PendingOperations.Num() == 0)
 	{
+		// When done processing a FullRefresh Scroll to First item in selection as it may have been
+		// scrolled out of view by the Refresh
+		if (bProcessingFullRefresh)
+		{
+			FSceneOutlinerItemSelection ItemSelection(*OutlinerTreeView);
+			if (ItemSelection.Num() > 0)
+			{
+				FSceneOutlinerTreeItemPtr ItemToScroll = ItemSelection.SelectedItems[0].Pin();
+				if (ItemToScroll)
+				{
+					ScrollItemIntoView(ItemToScroll);
+				}
+			}
+		}
+
+		bProcessingFullRefresh = false;
 		// We're fully refreshed now.
 		NewItemActions.Empty();
 		bNeedsRefresh = false;
@@ -535,6 +552,7 @@ void SSceneOutliner::RepopulateEntireTree()
 	{
 		AddPendingItem(Item);
 	}
+	bProcessingFullRefresh = PendingOperations.Num() > 0;
 
 	Refresh();
 }
