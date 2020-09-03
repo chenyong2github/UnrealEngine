@@ -523,16 +523,17 @@ struct FGlobalActorReplicationInfo
 		}
 	}
 
-	const FActorRepListRefView& GetDependentActorList() { return DependentActorList; }
+	typedef TArray<FActorRepListType> FDependantListType;
+	const FGlobalActorReplicationInfo::FDependantListType& GetDependentActorList() { return DependentActorList; }
 
 	friend struct FGlobalActorReplicationInfoMap;
 
 private:
 	/** When this actor replicates, we replicate these actors immediately afterwards (they are not gathered/prioritized/etc) */
-	FActorRepListRefView DependentActorList;
+	FDependantListType DependentActorList;
 
 	/** When this actor is added to the dependent list of a parent, track the parent here */
-	FActorRepListRefView ParentActorList;
+	FDependantListType ParentActorList;
 };
 
 /** Templatd struct for mapping UClasses to some data type. The main things this provides is that if a UClass* was not explicitly added, it will climb the class heirachy and find the best match (and then store this for faster lookup next time) */
@@ -723,20 +724,14 @@ struct FGlobalActorReplicationInfoMap
 	{
 		if (FGlobalActorReplicationInfo* ActorInfo = Find(Actor))
 		{
-			if (ActorInfo->DependentActorList.IsValid())
+			for (AActor* ChildActor : ActorInfo->DependentActorList)
 			{
-				for (AActor* ChildActor : ActorInfo->DependentActorList)
-				{
-					RemoveDependentActor(Actor, ChildActor);
-				}
+				RemoveDependentActor(Actor, ChildActor);
 			}
 
-			if (ActorInfo->ParentActorList.IsValid())
+			for (AActor* ParentActor : ActorInfo->ParentActorList)
 			{
-				for (AActor* ParentActor : ActorInfo->ParentActorList)
-				{
-					RemoveDependentActor(ParentActor, Actor);
-				}
+				RemoveDependentActor(ParentActor, Actor);
 			}
 		}
 
@@ -786,14 +781,12 @@ struct FGlobalActorReplicationInfoMap
 		{
 			if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 			{
-				ParentInfo->DependentActorList.PrepareForWrite();
-				ParentInfo->DependentActorList.Remove(Child);
+				ParentInfo->DependentActorList.RemoveSingleSwap(Child);
 			}
 
 			if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
 			{
-				ChildInfo->ParentActorList.PrepareForWrite();
-				ChildInfo->ParentActorList.Remove(Parent);
+				ChildInfo->ParentActorList.RemoveSingleSwap(Parent);
 			}
 		}
 	}
@@ -806,33 +799,25 @@ struct FGlobalActorReplicationInfoMap
 			return;
 		}
 		
-		if (MainActorInfo->ParentActorList.IsValid())
+		// Remove this actor from all his parents
+		for (FActorRepListType ParentActor : MainActorInfo->ParentActorList)
 		{
-			// Remove this actor from all his parents
-			for (FActorRepListType ParentActor : MainActorInfo->ParentActorList)
+			if (FGlobalActorReplicationInfo* ParentInfo = Find(ParentActor))
 			{
-				if (FGlobalActorReplicationInfo* ParentInfo = Find(ParentActor))
-				{
-					ParentInfo->DependentActorList.PrepareForWrite();
-					ParentInfo->DependentActorList.Remove(MainActor);
-				}
+				ParentInfo->DependentActorList.RemoveSingleSwap(MainActor);
 			}
-			MainActorInfo->ParentActorList.Reset();
 		}
+		MainActorInfo->ParentActorList.Reset();
 
-		if (MainActorInfo->DependentActorList.IsValid())
+        // Remove all dependant childs from this actor
+		for (FActorRepListType ChildActor : MainActorInfo->DependentActorList)
 		{
-            // Remove all dependant childs from this actor
-			for (FActorRepListType ChildActor : MainActorInfo->DependentActorList)
+			if (FGlobalActorReplicationInfo* ChildInfo = Find(ChildActor))
 			{
-				if (FGlobalActorReplicationInfo* ChildInfo = Find(ChildActor))
-				{
-					ChildInfo->ParentActorList.PrepareForWrite();
-					ChildInfo->ParentActorList.Remove(MainActor);
-				}
+				ChildInfo->ParentActorList.RemoveSingleSwap(MainActor);
 			}
-			MainActorInfo->DependentActorList.Reset();
 		}
+		MainActorInfo->DependentActorList.Reset();
 	}
 
 private:

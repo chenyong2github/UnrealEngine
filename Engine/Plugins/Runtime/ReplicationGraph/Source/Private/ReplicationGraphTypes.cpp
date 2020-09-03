@@ -476,22 +476,26 @@ void FGlobalActorReplicationInfoMap::AddDependentActor(AActor* Parent, AActor* C
 		bool bChildIsAlreadyDependant(false);
 		if (FGlobalActorReplicationInfo* ParentInfo = Find(Parent))
 		{
-			bChildIsAlreadyDependant = ParentInfo->DependentActorList.IsValid() && ParentInfo->DependentActorList.Contains(Child);
+			bChildIsAlreadyDependant = ParentInfo->DependentActorList.Find(Child) != INDEX_NONE;
 			if (bChildIsAlreadyDependant == false)
 			{
-				ParentInfo->DependentActorList.PrepareForWrite();
-				ParentInfo->DependentActorList.ConditionalAdd(Child);
+				if (IsActorValidForReplicationGather(Child))
+				{
+					ParentInfo->DependentActorList.Add(Child);
+				}
 			}
 		}
 
 		bool bChildHadParentAlready(false);
 		if (FGlobalActorReplicationInfo* ChildInfo = Find(Child))
 		{
-			bChildHadParentAlready = ChildInfo->ParentActorList.IsValid() && ChildInfo->ParentActorList.Contains(Parent);
+			bChildHadParentAlready = ChildInfo->ParentActorList.Find(Parent) != INDEX_NONE;
 			if (bChildHadParentAlready == false)
 			{
-				ChildInfo->ParentActorList.PrepareForWrite();
-				ChildInfo->ParentActorList.ConditionalAdd(Parent);
+				if (IsActorValidForReplicationGather(Parent))
+				{ 
+					ChildInfo->ParentActorList.Add(Parent);
+				}
 			}
 		}
 
