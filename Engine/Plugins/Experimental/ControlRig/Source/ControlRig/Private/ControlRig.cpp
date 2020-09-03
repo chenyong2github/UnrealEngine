@@ -1945,7 +1945,7 @@ FRigVMExternalVariable UControlRig::GetExternalVariableFromPinType(const FName& 
 FRigVMExternalVariable UControlRig::GetExternalVariableFromDescription(const FBPVariableDescription& InVariableDescription)
 {
 	bool bIsPublic = !((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_DisableEditOnInstance);
-	bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_DisableEditOnInstance) == CPF_BlueprintReadOnly);
+	bool bIsReadOnly = ((InVariableDescription.PropertyFlags & CPF_BlueprintReadOnly) == CPF_BlueprintReadOnly);
 	return GetExternalVariableFromPinType(InVariableDescription.VarName, InVariableDescription.VarType, bIsPublic, bIsReadOnly);
 }
 

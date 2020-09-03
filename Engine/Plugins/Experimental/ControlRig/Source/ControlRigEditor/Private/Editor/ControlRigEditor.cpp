@@ -685,10 +685,13 @@ void FControlRigEditor::ToggleSetupMode()
 		RigBlueprint->Validator->SetControlRig(ControlRig);
 
 		// need to copy here since the removal changes the iterator
-		TArray<FRigControl> TransientControls = ControlRig->TransientControls;
-		for (FRigControl TransientControl : TransientControls)
+		if (ControlRig)
 		{
-			RigBlueprint->RemoveTransientControl(TransientControl.GetElementKey());
+			TArray<FRigControl> TransientControls = ControlRig->TransientControls;
+			for (FRigControl TransientControl : TransientControls)
+			{
+				RigBlueprint->RemoveTransientControl(TransientControl.GetElementKey());
+			}
 		}
 
 		PreviousSelection = RigBlueprint->HierarchyContainer.CurrentSelection();
