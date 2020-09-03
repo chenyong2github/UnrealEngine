@@ -10,7 +10,6 @@
 class AActor;
 class UWorldPartition;
 class UHLODLayer;
-class AWorldPartitionEditorCellPreview;
 
 /**
  * Tools for building HLODs in WorldPartition
@@ -28,15 +27,6 @@ public:
 	 * @param 	InSubActors			The actors from which we'll gather geometry to generate an HLOD mesh
 	 */
 	static void BuildHLODs(UWorldPartition* InWorldPartition, FName InCellName, const UHLODLayer* InHLODLayer, const TArray<AActor*>& InSubActors);
-
-	/**
-	 * Generate a cell preview mesh from the given actors.
-	 * 
-	 * @param	InCellActors		Actors from which meshes will be gathered
-	 * @param	InCellBounds		Bounds of the cell
-	 * @return A new cell preview actor
-	 */
-	static AWorldPartitionEditorCellPreview* BuildCellPreviewMesh(const TArray<AActor*>& InCellActors, const FBox& InCellBounds);
 };
 
 #endif

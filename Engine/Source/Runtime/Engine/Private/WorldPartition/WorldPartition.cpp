@@ -4,6 +4,7 @@
 	WorldPartition.cpp: UWorldPartition implementation
 =============================================================================*/
 #include "WorldPartition/WorldPartition.h"
+#include "WorldPartition/WorldPartitionEditorCell.h"
 #include "WorldPartition/WorldPartitionRuntimeCell.h"
 #include "WorldPartition/WorldPartitionStreamingPolicy.h"
 #include "WorldPartition/WorldPartitionLevelStreamingPolicy.h"
@@ -32,12 +33,9 @@
 #include "UnrealEdMisc.h"
 #include "WorldPartition/WorldPartitionActorDescFactory.h"
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
-#include "WorldPartition/WorldPartitionEditorCell.h"
-#include "WorldPartition/WorldPartitionEditorCellPreviewActor.h"
 #include "WorldPartition/WorldPartitionEditorHash.h"
 #include "WorldPartition/WorldPartitionEditorSpatialHash.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
-#include "WorldPartition/HLOD/HLODBuilder.h"
 #endif
 
 DEFINE_LOG_CATEGORY(LogWorldPartition);
@@ -320,24 +318,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 					UpdateLoadingEditorCell(Cell, true);
 				});
 			}
-
-			// Bind editor cells to their preview actors
-			EditorHash->ForEachCell([this](UWorldPartitionEditorCell* Cell)
-			{
-				TArray<const FWorldPartitionActorDesc*> ActorsDescs = GetIntersectingActorDescs(Cell->Bounds, AWorldPartitionEditorCellPreview::StaticClass());
-				
-				for(const FWorldPartitionActorDesc* ActorDesc : ActorsDescs)
-				{
-					if (ActorDesc->GetBounds() == Cell->Bounds)
-					{
-						AWorldPartitionEditorCellPreview* CellPreviewActor = CastChecked<AWorldPartitionEditorCellPreview>(ActorDesc->GetActor());
-						Cell->CellPreviewActor = CellPreviewActor;
-
-						CellPreviewActor->SetVisibility(true);
-						break;
-					}
-				}
-			});
 		}
 	}
 #endif
@@ -354,9 +334,6 @@ void UWorldPartition::Initialize(UWorld* InWorld, const FTransform& InTransform)
 	{
 		PrepareForPIE();
 	}
-	
-	// Ensure editor cells preview meshes are rendered with a red tint
-	World->SpawnActor<AWorldPartitionUnloadedCellPreviewPostProcessVolume>();
 #endif
 }
 
@@ -927,35 +904,6 @@ void UWorldPartition::UpdateLoadingEditorCell(UWorldPartitionEditorCell* Cell, b
 	}
 
 	Cell->bLoaded = bShouldBeLoaded;
-
-	if (Cell->CellPreviewActor)
-	{
-		Cell->CellPreviewActor->SetVisibility(!Cell->bLoaded);
-	}
-}
-
-void UWorldPartition::UpdateCellsPreviewMesh(const TArray<UWorldPartitionEditorCell*>& CellsToUpdate)
-{
-	TRACE_CPUPROFILER_EVENT_SCOPE(UWorldPartition::UpdateCellsPreviewMesh);
-
-	LoadEditorCells(CellsToUpdate);
-
-	for (UWorldPartitionEditorCell* Cell : CellsToUpdate)
-	{
-		TArray<AActor*> CellActors;
-		Algo::Transform(Cell->LoadedActors, CellActors, [](FWorldPartitionActorDesc* ActorDesc) { return ActorDesc->GetActor(); });
-
-		if (!CellActors.IsEmpty())
-		{
-			if (Cell->CellPreviewActor)
-			{
-				World->DestroyActor(Cell->CellPreviewActor);
-				Cell->CellPreviewActor = nullptr;
-			}
-
-			Cell->CellPreviewActor = FHLODBuilderUtilities::BuildCellPreviewMesh(CellActors, Cell->Bounds);
-		}
-	}
 }
 
 void UWorldPartition::CreateLayers(const TSet<FName>& LayerNames)

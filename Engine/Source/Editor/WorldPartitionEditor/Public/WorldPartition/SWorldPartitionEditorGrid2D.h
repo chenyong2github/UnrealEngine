@@ -21,7 +21,6 @@ protected:
 		TSharedPtr<FUICommandInfo> LoadSelectedCells;
 		TSharedPtr<FUICommandInfo> UnloadSelectedCells;
 		TSharedPtr<FUICommandInfo> MoveCameraHere;
-		TSharedPtr<FUICommandInfo> UpdateSelectedCellsPreviewMesh;
 
 		/**
 		 * Initialize commands
@@ -38,7 +37,6 @@ public:
 	void LoadSelectedCells();
 	void UnloadSelectedCells();
 	void MoveCameraHere();
-	void UpdateSelectedCellsPreviewMesh();
 
 	// IWorldPartitionEditor interface
 	virtual void InvalidatePartition() override;
