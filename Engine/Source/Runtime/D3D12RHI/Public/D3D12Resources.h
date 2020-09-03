@@ -1063,7 +1063,7 @@ public:
 		else
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 		{
-		Barriers.AddUninitialized();
+			Barriers.AddUninitialized();
 			Barrier = &Barriers.Last();
 		}
 
