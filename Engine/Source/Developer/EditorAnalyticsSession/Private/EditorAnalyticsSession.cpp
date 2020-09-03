@@ -25,7 +25,7 @@ namespace EditorAnalyticsDefs
 	//   Version 1_0 : Used from creation up to 4.25.0 release (included).
 	//   Version 1_1 : To avoid public API changes in 4.25.1, TotalUserInactivitySeconds was repurposed to contain the SessionDuration read from FPlatformTime::Seconds() to detect cases where the user system date time is unreliable.
 	//   Version 1_2 : Removed TotalUserInactivitySeconds and added SessionDuration.
-	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
+	//   Version 1_3 : Added SessionTickCount, UserInteractionCount, IsCrcExeMissing, IsUserLoggingOut, MonitorExitCode and readded lost code to save/load/delete IsLowDriveSpace for 4.26.0.
 	static const FString StoreId(TEXT("Epic Games"));
 	static const FString SessionSummaryRoot(TEXT("Unreal Engine/Session Summary"));
 	static const FString SessionSummarySection_1_0 = SessionSummaryRoot / TEXT("1_0"); // The session format used by older versions.
@@ -50,6 +50,7 @@ namespace EditorAnalyticsDefs
 	static const FString MonitorProcessIDStoreKey(TEXT("MonitorProcessID"));
 	static const FString ExitCodeStoreKey(TEXT("ExitCode"));
 	static const FString MonitorExceptCodeStoreKey(TEXT("MonitorExceptCode"));
+	static const FString MonitorExitCodeStoreKey(TEXT("MonitorExitCode"));
 	static const FString SessionTickCountStoreKey(TEXT("SessionTickCount"));
 	static const FString UserInteractionCountStoreKey(TEXT("UserInteractionCount"));
 
@@ -288,6 +289,14 @@ namespace EditorAnalyticsUtils
 			if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorExceptCodeStoreKey, MonitorExceptCodeString))
 			{
 				Session.MonitorExceptCode.Emplace(FCString::Atoi(*MonitorExceptCodeString));
+			}
+		}
+
+		{
+			FString MonitorExitCodeString;
+			if (FPlatformMisc::GetStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorExitCodeStoreKey, MonitorExitCodeString))
+			{
+				Session.MonitorExitCode.Emplace(FCString::Atoi(*MonitorExitCodeString));
 			}
 		}
 
@@ -547,6 +556,11 @@ bool FEditorAnalyticsSession::Save()
 			KeyValues.Emplace(EditorAnalyticsDefs::MonitorExceptCodeStoreKey, FString::FromInt(MonitorExceptCode.GetValue()));
 		}
 
+		if (MonitorExitCode.IsSet())
+		{
+			KeyValues.Emplace(EditorAnalyticsDefs::MonitorExitCodeStoreKey, FString::FromInt(MonitorExitCode.GetValue()));
+		}
+
 		FPlatformMisc::SetStoredValues(EditorAnalyticsDefs::StoreId, StorageLocation, KeyValues);
 	}
 
@@ -588,6 +602,7 @@ bool FEditorAnalyticsSession::Delete() const
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorProcessIDStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::ExitCodeStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorExceptCodeStoreKey);
+	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::MonitorExitCodeStoreKey);
 
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::StartupTimestampStoreKey);
 	FPlatformMisc::DeleteStoredValue(EditorAnalyticsDefs::StoreId, SectionName, EditorAnalyticsDefs::TimestampStoreKey);
