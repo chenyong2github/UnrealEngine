@@ -691,18 +691,6 @@ void MainCS(
 	uint2 GroupThreadId : SV_GroupThreadID,
 	uint GroupThreadIndex : SV_GroupIndex)
 {
-#if CONFIG_SIGNAL_INPUT_TEXTURE_TYPE == SIGNAL_TEXTURE_TYPE_FLOAT4
-	Texture2D Signal_Textures_0 = SignalInput_Textures_0;
-	Texture2D Signal_Textures_1 = SignalInput_Textures_1;
-	Texture2D Signal_Textures_2 = SignalInput_Textures_2;
-	Texture2D Signal_Textures_3 = SignalInput_Textures_3;
-#else
-	FSSDTexture2D Signal_Textures_0 = SignalInput_Textures_0;
-	FSSDTexture2D Signal_Textures_1 = SignalInput_Textures_1;
-	FSSDTexture2D Signal_Textures_2 = SignalInput_Textures_2;
-	FSSDTexture2D Signal_Textures_3 = SignalInput_Textures_3;
-#endif
-
 	// Find out scene buffer UV.
 	float2 SceneBufferUV = DispatchThreadId * ThreadIdToBufferUV.xy + ThreadIdToBufferUV.zw;
 	if (true)
@@ -730,10 +718,10 @@ void MainCS(
 		FSSDSignalArray RefSamples;
 		FSSDSignalFrequencyArray RefFrequencies;
 		SampleMultiplexedSignals(
-			Signal_Textures_0,
-			Signal_Textures_1,
-			Signal_Textures_2,
-			Signal_Textures_3,
+			SignalInput_Textures_0,
+			SignalInput_Textures_1,
+			SignalInput_Textures_2,
+			SignalInput_Textures_3,
 			GlobalPointClampedSampler,
 			CONFIG_SIGNAL_INPUT_LAYOUT,
 			/* MultiplexedSampleId = */ 0,
@@ -1068,10 +1056,10 @@ void MainCS(
 		{
 			AccumulateKernel(
 				KernelConfig,
-				Signal_Textures_0,
-				Signal_Textures_1,
-				Signal_Textures_2,
-				Signal_Textures_3,
+				SignalInput_Textures_0,
+				SignalInput_Textures_1,
+				SignalInput_Textures_2,
+				SignalInput_Textures_3,
 				/* inout */ UncompressedAccumulators,
 				/* inout */ CompressedAccumulators);
 		}
@@ -1089,10 +1077,10 @@ void MainCS(
 			
 				AccumulateKernel(
 					KernelConfig,
-					Signal_Textures_0,
-					Signal_Textures_1,
-					Signal_Textures_2,
-					Signal_Textures_3,
+					SignalInput_Textures_0,
+					SignalInput_Textures_1,
+					SignalInput_Textures_2,
+					SignalInput_Textures_3,
 					/* inout */ UncompressedAccumulators,
 					/* inout */ CompressedAccumulators);
 			}
@@ -1108,10 +1096,10 @@ void MainCS(
 
 			SampleAndAccumulateCenterSampleAsItsOwnCluster(
 				KernelConfig,
-				Signal_Textures_0,
-				Signal_Textures_1,
-				Signal_Textures_2,
-				Signal_Textures_3,
+				SignalInput_Textures_0,
+				SignalInput_Textures_1,
+				SignalInput_Textures_2,
+				SignalInput_Textures_3,
 				/* inout */ UncompressedAccumulators,
 				/* inout */ CompressedAccumulators);
 		}

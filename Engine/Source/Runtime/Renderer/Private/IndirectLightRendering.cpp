@@ -137,6 +137,10 @@ class FDiffuseIndirectCompositePS : public FGlobalShader
 
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, PassDebugOutput)
 
+		SHADER_PARAMETER(FVector2D, BufferUVToOutputPixelPosition)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+		SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CompressedMetadata, [2])
+
 		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 };
@@ -1059,6 +1063,26 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 				PassParameters->ApplyAOToDynamicDiffuseIndirect = 1.0f;
 			}
 
+			const FIntPoint BufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+
+			{
+				// Placeholder texture for textures pulled in from SSDCommon.ush
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+					FIntPoint(1),
+					PF_R32_UINT,
+					FClearValueBinding::Black,
+					/* InFlags = */ TexCreate_None,
+					/* InTargetableFlags = */ TexCreate_ShaderResource,
+					/* bInForceSeparateTargetAndShaderResource = */ false);
+				FRDGTextureRef CompressedMetadataPlaceholder = GraphBuilder.CreateTexture(Desc, TEXT("CompressedMetadataPlaceholder"));
+
+				PassParameters->CompressedMetadata[0] = CompressedMetadataPlaceholder;
+				PassParameters->CompressedMetadata[1] = CompressedMetadataPlaceholder;
+			}
+
+			PassParameters->BufferUVToOutputPixelPosition = BufferExtent;
+			PassParameters->EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+
 			PassParameters->bVisualizeDiffuseIndirect = bIsVisualizePass;
 
 			PassParameters->DiffuseIndirect = DenoiserOutputs;
@@ -1087,7 +1111,6 @@ void FDeferredShadingSceneRenderer::RenderDiffuseIndirectAndAmbientOcclusion(
 			PassParameters->RenderTargets[0] = FRenderTargetBinding(
 				SceneColor, ERenderTargetLoadAction::ELoad);
 
-			if (1)
 			{
 				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
 					SceneColor->Desc.Extent,

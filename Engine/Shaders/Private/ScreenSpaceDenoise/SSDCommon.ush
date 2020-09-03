@@ -277,12 +277,18 @@ FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
 {
 	FSSDCompressedSceneInfos CompressedMetadata = CreateCompressedSceneInfos();
 
-	Texture2D<float> CompressedMetadata0 = bPrevFrame ? PrevCompressedMetadata_0 : CompressedMetadata_0;
-	Texture2D<uint>  CompressedMetadata1 = bPrevFrame ? PrevCompressedMetadata_1 : CompressedMetadata_1;
-
 	int3 Coord = int3(PixelCoord, /* MipLevel = */ 0);
-	CompressedMetadata.VGPR[0] = asuint(CompressedMetadata0.Load(Coord));
-	CompressedMetadata.VGPR[1] = CompressedMetadata1.Load(Coord);
+
+	if (bPrevFrame)
+	{
+		CompressedMetadata.VGPR[0] = asuint(PrevCompressedMetadata_0.Load(Coord));
+		CompressedMetadata.VGPR[1] = PrevCompressedMetadata_1.Load(Coord);
+	}
+	else
+	{
+		CompressedMetadata.VGPR[0] = asuint(CompressedMetadata_0.Load(Coord));
+		CompressedMetadata.VGPR[1] = CompressedMetadata_1.Load(Coord);
+	}
 
 	return CompressedMetadata;
 }
@@ -290,10 +296,16 @@ FSSDCompressedSceneInfos SampleCompressedSceneMetadata(
 {
 	FSSDCompressedSceneInfos CompressedMetadata = CreateCompressedSceneInfos();
 
-	Texture2D<uint> CompressedMetadata0 = bPrevFrame ? PrevCompressedMetadata_0 : CompressedMetadata_0; 
-
 	int3 Coord = int3(PixelCoord, /* MipLevel = */ 0);
-	CompressedMetadata.VGPR[0] = CompressedMetadata0.Load(Coord);
+
+	if (bPrevFrame)
+	{
+		CompressedMetadata.VGPR[0] = PrevCompressedMetadata_0.Load(Coord);
+	}
+	else
+	{
+		CompressedMetadata.VGPR[0] = CompressedMetadata_0.Load(Coord);
+	}
 	
 	return CompressedMetadata;
 }
