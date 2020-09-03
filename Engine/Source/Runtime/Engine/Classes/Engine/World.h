@@ -1234,6 +1234,9 @@ public:
 #if WITH_EDITOR
 	/** Hierarchical LOD System. */
 	struct FHierarchicalLODBuilder*				HierarchicalLODBuilder;
+
+	/** Original World Name before PostLoad rename. Used to get external actors on disk. */
+	FName OriginalWorldName;
 #endif // WITH_EDITOR
 
 	/** Called from DemoNetDriver when playing back a replay and the timeline is successfully scrubbed */
