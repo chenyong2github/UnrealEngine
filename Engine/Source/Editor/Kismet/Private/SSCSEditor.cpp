@@ -1947,6 +1947,9 @@ TSharedRef<SToolTip> SSCS_RowWidget::CreateToolTipWidget() const
 				InfoBox->AddSlot()[SNew(SSpacer).Size(FVector2D(1.0f, 8.0f))];
 				AddToToolTipInfoBox(InfoBox, LOCTEXT("TooltipAsset", "Asset"), SNullWidget::NullWidget, TAttribute<FText>(this, &SSCS_RowWidget::GetAssetName), false);
 			}
+
+			// If the component is marked as editor only, then display that info here
+			AddToToolTipInfoBox(InfoBox, LOCTEXT("TooltipEditorOnly", "Editor Only"), SNullWidget::NullWidget, TAttribute<FText>::Create(TAttribute<FText>::FGetter::CreateSP(this, &SSCS_RowWidget::GetComponentEditorOnlyTooltipText)), false);
 		}
 	}
 
@@ -2085,6 +2088,29 @@ FText SSCS_RowWidget::GetComponentAddSourceToolTipText() const
 	}
 
 	return NodeType;
+}
+
+FText SSCS_RowWidget::GetComponentEditorOnlyTooltipText() const
+{
+	FText ComponentType = LOCTEXT("ComponentEditorOnlyFalse", "False");
+	if (FSCSEditorTreeNode* TreeNode = GetNode().Get())
+	{
+		if (TreeNode->IsComponentNode())
+		{
+			if (const UActorComponent* Template = TreeNode->GetComponentTemplate())
+			{
+				UBlueprint* Blueprint = GetBlueprint();
+				FObjectProperty* Prop = Blueprint ? FindFProperty<FObjectProperty>(Blueprint->SkeletonGeneratedClass, TreeNode->GetVariableName()) : nullptr;
+
+				if(Template->bIsEditorOnly || (Prop && Prop->HasAnyPropertyFlags(CPF_EditorOnly)))
+				{
+					ComponentType = LOCTEXT("ComponentEditorOnlyTrue", "True");
+				}
+			}
+		}
+	}
+	
+	return ComponentType;
 }
 
 FText SSCS_RowWidget::GetIntroducedInToolTipText() const

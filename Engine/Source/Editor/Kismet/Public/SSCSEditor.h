@@ -818,6 +818,13 @@ private:
 	 */
 	FText GetComponentAddSourceToolTipText() const;
 
+	/**
+	 * Retrieves a tooltip text describing if the component is marked Editor only or not
+	 *
+	 * @returns An FText object containing a description of if the component is marked Editor only or not
+	 */
+	FText GetComponentEditorOnlyTooltipText() const;
+
 public:
 	/** Pointer back to owning SCSEditor 2 tool */
 	TWeakPtr<SSCSEditor> SCSEditor;
