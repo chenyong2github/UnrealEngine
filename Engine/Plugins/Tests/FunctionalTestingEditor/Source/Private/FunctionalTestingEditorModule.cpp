@@ -188,6 +188,7 @@ class FFunctionalTestingEditorModule : public IFunctionalTestingEditorModule
 		{
 			FPlacementCategoryInfo Info(
 				LOCTEXT("FunctionalTestingCategoryName", "Testing"),
+				FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlacementBrowser.Icons.Testing"),
 				"Testing",
 				TEXT("PMTesting"),
 				25

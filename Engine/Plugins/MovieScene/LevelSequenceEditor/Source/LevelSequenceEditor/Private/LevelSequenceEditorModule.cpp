@@ -175,6 +175,7 @@ protected:
 	{
 		FPlacementCategoryInfo Info(
 			LOCTEXT("CinematicCategoryName", "Cinematic"),
+			FSlateIcon(FAppStyle::GetAppStyleSetName(), "PlacementBrowser.Icons.Cinematics"),
 			"Cinematic",
 			TEXT("PMCinematic"),
 			25
