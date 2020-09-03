@@ -17,12 +17,16 @@ public class InterchangeWorker : ModuleRules
 				"ApplicationCore",
 				"Core",
 				"InterchangeDispatcher",
-				"InterchangeFbxParser",
 				"Json",
 				"Projects",
 				"Sockets",
 			}
 		);
+
+		if (Target.Platform == UnrealTargetPlatform.Win64)
+		{
+			PrivateDependencyModuleNames.Add("InterchangeFbxParser");
+		}
 
 		PublicDelayLoadDLLs.Add("kernel_io.dll");
 	}
