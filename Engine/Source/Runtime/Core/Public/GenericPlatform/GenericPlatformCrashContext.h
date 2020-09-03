@@ -25,7 +25,7 @@ enum ECrashExitCodes : int32
 	/** Used by the application when the crash handler crashed itself (crash in the __except() clause for example).*/
 	CrashHandlerCrashed = 777004,
 
-	/** Used by the application to flag when it detects that its out-of-process applicate supposed to report the bugs died (ex if CrashReportClientEditor dies before the Editor).*/
+	/** Used by the application to flag when it detects that its out-of-process application supposed to report the bugs died (ex if the Editor detects that CrashReportClientEditor is not running anymore as expected).*/
 	OutOfProcessReporterExitedUnexpectedly = 777005,
 
 	/** Application crashed during static initialization. It may or may not have been able to have sent a crash report. */
@@ -302,7 +302,8 @@ public:
 	}
 
 	/**
-	 * @return true if crash reporting is being handled out-of-process.
+	 * @return true if walking the crashed call stack and writing the minidump is being handled out-of-process.
+	 * @note The reporting itself (showing the crash UI and sending the report is always done out of process)
 	 */
 	static bool IsOutOfProcessCrashReporter()
 	{
@@ -310,18 +311,38 @@ public:
 	}
 
 	/**
-	 * @return a non-zero value if crash reporter process is used to monitor the session or zero for in-process reporting.
+	 * @return a non-zero value if crash reporter process is used to monitor the session, capture the call stack and write the minidump, otherwise, this is done inside the crashing process.
 	 */
 	static uint32 GetOutOfProcessCrashReporterProcessId()
 	{
 		return OutOfProcessCrashReporterPid;
 	}
 
-	/** Set whether or not the out-of-process crash reporter is running. */
+	/**
+	 * Set whether or not the out-of-process crash reporter is running. A non-zero process id means that crash artifacts like the call stack and then minidump are
+	 * built in a separated background process. The reporting itself, i.e. packaging and sending the crash artifacts is always done out of process.
+	 * @note CrashReportClient (CrashReportClientEditor for the Editor) can be configured to wait for crash, capture the crashed process callstack, write the minidump, collect all crash artifacts
+	 *       and send them (out-of-process reporting) or just collect and send them (in-process reporting because the crashing process creates all crash artifacts itself).
+	 */
 	static void SetOutOfProcessCrashReporterPid(uint32 ProcessId)
 	{
 		OutOfProcessCrashReporterPid = ProcessId;
 	}
+
+	/**
+	 * Set the out of process crash reporter exit code if known. The out of process reporter is expected to run in background, waiting for a signal to handle a
+	 * crashes/ensures/assert, but sometimes it crashes. If the engine detects that its associated out of process crash reporter died and if the child process exit
+	 * code can be retrieved, it can be exposed through this function.
+	 * @see GetOutOfProcessCrashReporterExitCode
+	 */
+	static void SetOutOfProcessCrashReporterExitCode(int32 ExitCode);
+
+	/**
+	 * Return the out-of-process crash reporter exit code if available. The exit code is available if crash reporter process died while the application it monitors was still running.
+	 * Then engine periodically poll the health of the crash reporter process and try to read its exit code if it unexpectedly died.
+	 * @note This function is useful to try diagnose why the crash reporter died (crashed/killed/asserted) and gather data for the analytics.
+	 */
+	static TOptional<int32> GetOutOfProcessCrashReporterExitCode();
 
 	/** Default constructor. Optionally pass a process handle if building a crash context for a process other then current. */
 	FGenericCrashContext(ECrashContextType InType, const TCHAR* ErrorMessage);
@@ -527,6 +548,9 @@ private:
 
 	/** The ID of the external process reporting crashes if the platform supports it and was configured to use it, zero otherwise (0 is a reserved system process ID, invalid for the out of process reporter). */
 	static uint32 OutOfProcessCrashReporterPid;
+
+	/** The out of process crash reporter exit code, if available. The 32 MSB indicates if the exit code is set and the 32 LSB contains the exit code. The value can be read/write from different threads. */
+	static volatile int64 OutOfProcessCrashReporterExitCode;
 
 	/**	Static counter records how many crash contexts have been constructed */
 	static int32 StaticCrashContextIndex;

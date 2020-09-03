@@ -38,6 +38,7 @@ private:
 	void UpdateSessionDuration(double InCurrTimeSecs);
 	bool UpdateEditorIdleTime(double InCurrTimeSecs, bool bReset);
 	bool UpdateUserIdleTime(double InCurrTimeSecs, bool bReset);
+	bool UpdateOutOfProcessMonitorState(bool bQuickCheck);
 	bool TrySaveCurrentSession(const FDateTime& CurrTimeUtc, double CurrTimeSecs);
 
 private:

@@ -33,7 +33,8 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	uint32 PlatformProcessID;
 	uint32 MonitorProcessID; // Set to the CrashReportClientEditor PID when out-of-process reporting is used.
 	TOptional<int32> ExitCode; // Set by CrashReportClientEditor after the Editor process exit when out-of-process reporting is used and reading the exit code is supported.
-	TOptional<int32> MonitorExceptCode; // Set by CrashReportClientEditor if an exception is caught by monitoring the Editor. This is to detect if CRC crashes itself.
+	TOptional<int32> MonitorExceptCode; // Set in CrashReportClientEditor process when an exception or an error is caught.
+	TOptional<int32> MonitorExitCode; // Set in the Editor process when the Editor detects that CrashReportClientEditor process unexpectedly died.
 
 	FDateTime StartupTimestamp; // Wall time (UTC) when the session started.
 	FDateTime Timestamp; // Wall time (UTC) when the session was ended.

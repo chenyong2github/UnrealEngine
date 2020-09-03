@@ -436,6 +436,11 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 
 	void *PipeChildInRead, *PipeChildInWrite, *PipeChildOutRead, *PipeChildOutWrite;
 
+	if (OutCrashReportClientProcessId)
+	{
+		*OutCrashReportClientProcessId = 0;
+	}
+
 	if (!CreatePipeWrite(PipeChildInRead, PipeChildInWrite) || !FPlatformProcess::CreatePipe(PipeChildOutRead, PipeChildOutWrite))
 	{
 		return FProcHandle();
@@ -446,10 +451,18 @@ FProcHandle LaunchCrashReportClient(void** OutWritePipe, void** OutReadPipe, uin
 	*OutReadPipe = PipeChildOutRead;
 	
 	// ... and the other ends to the child
-	FCString::Sprintf(CrashReporterClientArgs, TEXT(" -READ=%0u -WRITE=%0u"), PipeChildInRead, PipeChildOutWrite);
+	{
+		TCHAR PipeChildInReadStr[64];
+		FCString::Sprintf(PipeChildInReadStr, TFormatSpecifier<uintptr_t>::GetFormatSpecifier(), reinterpret_cast<uintptr_t>(PipeChildInRead));
+
+		TCHAR PipeChildOutWriteStr[64];
+		FCString::Sprintf(PipeChildOutWriteStr, TFormatSpecifier<uintptr_t>::GetFormatSpecifier(), reinterpret_cast<uintptr_t>(PipeChildOutWrite));
+		
+		FCString::Sprintf(CrashReporterClientArgs, TEXT(" -READ=%s -WRITE=%s"), PipeChildInReadStr, PipeChildOutWriteStr);
+	}
 
 	{
-		TCHAR PidStr[256] = { 0 };
+		TCHAR PidStr[128] = { 0 };
 		FCString::Sprintf(PidStr, TEXT(" -MONITOR=%u"), FPlatformProcess::GetCurrentProcessId());
 		FCString::Strncat(CrashReporterClientArgs, PidStr, CR_CLIENT_MAX_ARGS_LEN);
 	}
@@ -1083,6 +1096,18 @@ private:
 
 					break;
 				}
+				
+				if (CrashClientHandle.IsValid() && !FPlatformProcess::IsProcRunning(CrashClientHandle))
+				{
+					// The crash monitor (CrashReportClient) died unexpectedly. Collect the exit code for analytic purpose.
+					int32 CrashMonitorExitCode = 0;
+					if (FPlatformProcess::GetProcReturnCode(CrashClientHandle, &CrashMonitorExitCode))
+					{
+						FGenericCrashContext::SetOutOfProcessCrashReporterExitCode(CrashMonitorExitCode);
+						FPlatformProcess::CloseProc(CrashClientHandle);
+						CrashClientHandle.Reset();
+					}
+				}
 			}
 		}
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
@@ -1176,6 +1201,9 @@ public:
 
 		CloseHandle(CrashHandledEvent);
 		CrashHandledEvent = nullptr;
+
+		FPlatformProcess::CloseProc(CrashClientHandle);
+		CrashClientHandle.Reset();
 	}
 
 	void RegisterUnhandledExceptionHandler()

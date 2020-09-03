@@ -232,6 +232,12 @@ void FEditorSessionSummarySender::SendSessionSummaryEvent(const FEditorAnalytics
 		bShouldAttachMonitorLog = true; // Try to figure out why exit code could not be set.
 	}
 
+	if (Session.MonitorExitCode.IsSet())
+	{
+		AnalyticsAttributes.Emplace(TEXT("MonitorExitCode"), Session.MonitorExitCode.GetValue());
+		bShouldAttachMonitorLog = true; // Try to figure out why CRC exited prematurely.
+	}
+
 	// Add the monitor exception code in case the out-of-process monitor (CrashReportClientEditor) crashed itself, caught the exception and was able to store it in the session before dying.
 	TOptional<int32> MonitorExceptCode = Session.MonitorExceptCode;
 	bShouldAttachMonitorLog |= MonitorExceptCode.IsSet();
