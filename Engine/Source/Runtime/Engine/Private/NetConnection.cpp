@@ -866,25 +866,7 @@ void UNetConnection::CleanUp()
 
 	if (GIsRunning)
 	{
-		if (OwningActor != NULL)
-		{	
-			// Cleanup/Destroy the connection actor & controller
-			if (!OwningActor->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
-			{
-				// UNetConnection::CleanUp can be called from UNetDriver::FinishDestroyed that is called from GC.
-				OwningActor->OnNetCleanup(this);
-			}
-			OwningActor = NULL;
-			PlayerController = NULL;
-		}
-		else
-		{
-			if (ClientLoginState < EClientLoginState::ReceivedJoin)
-			{
-				UE_LOG(LogNet, Log, TEXT("UNetConnection::PendingConnectionLost. %s bPendingDestroy=%d "), *Describe(), bPendingDestroy);
-				FGameDelegates::Get().GetPendingConnectionLostDelegate().Broadcast(PlayerId);
-			}
-		}
+		DestroyOwningActor();
 	}
 
 	CleanupDormantActorState();
@@ -901,6 +883,29 @@ void UNetConnection::CleanUp()
 	InTraceCollector = nullptr;
 	OutTraceCollector = nullptr;
 #endif
+}
+
+void UNetConnection::DestroyOwningActor()
+{
+	if (OwningActor != nullptr)
+	{
+		// Cleanup/Destroy the connection actor & controller
+		if (!OwningActor->HasAnyFlags(RF_BeginDestroyed | RF_FinishDestroyed))
+		{
+			// UNetConnection::CleanUp can be called from UNetDriver::FinishDestroyed that is called from GC.
+			OwningActor->OnNetCleanup(this);
+		}
+		OwningActor = nullptr;
+		PlayerController = nullptr;
+	}
+	else
+	{
+		if (ClientLoginState < EClientLoginState::ReceivedJoin)
+		{
+			UE_LOG(LogNet, Log, TEXT("UNetConnection::PendingConnectionLost. %s bPendingDestroy=%d "), *Describe(), bPendingDestroy);
+			FGameDelegates::Get().GetPendingConnectionLostDelegate().Broadcast(PlayerId);
+		}
+	}
 }
 
 UChildConnection::UChildConnection(const FObjectInitializer& ObjectInitializer)
@@ -4429,7 +4434,53 @@ static void	AddSimulatedNetConnections(const TArray<FString>& Args, UWorld* Worl
 	}	
 }
 
+static void	RemoveSimulatedNetConnections(const TArray<FString>& Args, UWorld* World)
+{
+	int32 ConnectionCount = -1;
+	if (Args.Num() > 0)
+	{
+		LexFromString(ConnectionCount, *Args[0]);
+	}
+
+	// Search for server game net driver. Do it this way so we can cheat in PIE
+	UNetDriver* BestNetDriver = nullptr;
+	for (TObjectIterator<UNetDriver> NetDriverIt; NetDriverIt; ++NetDriverIt)
+	{
+		if (NetDriverIt->NetDriverName == NAME_GameNetDriver && NetDriverIt->IsServer())
+		{
+			BestNetDriver = *NetDriverIt;
+			break;
+		}
+	}
+
+	if (!BestNetDriver)
+	{
+		return;
+	}
+
+	int32 RemovedConnections(0);
+	for (TObjectIterator<USimulatedClientNetConnection> SimulatedNetConnectionIt; SimulatedNetConnectionIt; ++SimulatedNetConnectionIt)
+	{
+		USimulatedClientNetConnection* Connection = *SimulatedNetConnectionIt;
+		if (Connection && !Connection->IsPendingKillOrUnreachable())
+		{
+			Connection->Close();
+			Connection->MarkPendingKill();
+
+			RemovedConnections++;
+			if (ConnectionCount > 0 && RemovedConnections >= ConnectionCount)
+			{
+				break;
+			}
+		}
+	}
+
+	UE_LOG(LogNet, Display, TEXT("Removed %d Simulated Connections..."), RemovedConnections);
+}
+
 FAutoConsoleCommandWithWorldAndArgs AddimulatedConnectionsCmd(TEXT("net.SimulateConnections"), TEXT("Starts a Simulated Net Driver"),	FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(AddSimulatedNetConnections) );
+
+FAutoConsoleCommandWithWorldAndArgs RemoveSimulatedConnectionsCmd(TEXT("net.DisconnectSimulatedConnections"), TEXT("Disconnects some simulated connections (0 = all)"), FConsoleCommandWithWorldAndArgsDelegate::CreateStatic(RemoveSimulatedNetConnections));
 
 // ----------------------------------------------------------------
 
