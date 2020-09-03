@@ -145,7 +145,7 @@ public:
 		if (!SkipSpeedTest && !RunSpeedTest(ConsiderSlowAtMS * 2, SeekTimeMS, ReadSpeedMBs, WriteSpeedMBs))
 		{
 			bDisabled = true;
-			UE_LOG(LogDerivedDataCache, Error, TEXT("No read or write access to %s"), *CachePath);
+			UE_LOG(LogDerivedDataCache, Warning, TEXT("No read or write access to %s"), *CachePath);
 		}
 		else
 		{
