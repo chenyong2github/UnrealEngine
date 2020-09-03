@@ -240,7 +240,7 @@ public:
 				}
 
 				// Update SimulationView with the frame we are interpolating to
-				InstanceData.Info.View->UpdateView(ToFrame, ToFrameData.InputCmd, ToFrameData.SyncState, ToFrameData.AuxState);
+				InstanceData.Info.View->UpdateView(ToFrame, InterpolatedTimeMS, ToFrameData.InputCmd, ToFrameData.SyncState, ToFrameData.AuxState);
 
 				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolatedTimeMS, 0);
 			}
@@ -491,7 +491,7 @@ public:
 				
 				FNetworkPredictionDriver<ModelDef>::FinalizeFrame(InstanceData.Info.Driver, Instance.SyncState, Instance.AuxState);
 
-				InstanceData.Info.View->UpdateView(ToFrame, nullptr, ToFromData.SyncState, ToFromData.AuxState);
+				InstanceData.Info.View->UpdateView(ToFrame, InterpolationTimeMS, nullptr, ToFromData.SyncState, ToFromData.AuxState);
 
 				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, InterpolationTimeMS, 0);
 				
@@ -533,7 +533,7 @@ public:
 				typename FInstance::FFrame& FrameData = Instance.ClientRecvFrames[FromFrame];
 				FNetworkPredictionDriver<ModelDef>::FinalizeFrame(InstanceData.Info.Driver, FrameData.SyncState, FrameData.AuxState);
 
-				InstanceData.Info.View->UpdateView(FromFrame, nullptr, FrameData.SyncState, FrameData.AuxState);
+				InstanceData.Info.View->UpdateView(FromFrame, ActualTimeMS, nullptr, FrameData.SyncState, FrameData.AuxState);
 
 				FNetworkPredictionDriver<ModelDef>::DispatchCues(&InstanceData.CueDispatcher.Get(), InstanceData.Info.Driver, FromFrame, ActualTimeMS, 0);
 
