@@ -973,11 +973,11 @@ void FLandscapeRenderSystem::FetchHeightmapLODBiases()
 	for (int32 EntityIndex = 0; EntityIndex < SceneProxies.Num(); EntityIndex++)
 	{
 		FLandscapeComponentSceneProxy* SceneProxy = SceneProxies[EntityIndex];
-		if (SceneProxy)
+		if (SceneProxy && SceneProxy->HeightmapTexture)
 		{
-			if (SceneProxy->HeightmapTexture)
+			if (const FTexture2DResource* TextureResource = (const FTexture2DResource*)SceneProxy->HeightmapTexture->GetResource())
 			{
-				float SectionLODBias = ((FTexture2DResource*)SceneProxy->HeightmapTexture->Resource)->GetCurrentFirstMip();
+				float SectionLODBias = TextureResource->GetCurrentFirstMip();
 				SectionLODBiases[EntityIndex] = SectionLODBias;
 
 				// TODO: support mipmap LOD bias of XY offset map
