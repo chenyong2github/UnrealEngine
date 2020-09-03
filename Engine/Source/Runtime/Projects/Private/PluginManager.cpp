@@ -822,7 +822,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 				// Build the list of content folders
 				if (Plugin.Descriptor.bCanContainContent)
 				{
-					if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni, false))
+					if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni))
 					{
 						if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
 						{
@@ -868,7 +868,7 @@ bool FPluginManager::ConfigureEnabledPlugins()
 						FString PlaformName = FPlatformProperties::PlatformName();
 						// Use GetDestIniFilename to find the proper config file to combine into, since it manages command line overrides and path sanitization
 						PluginConfigFilename = FConfigCacheIni::GetDestIniFilename(*FPaths::GetBaseFilename(ConfigFile), *PlaformName, *FPaths::GeneratedConfigDir());
-						FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename, false);
+						FConfigFile* FoundConfig = GConfig->Find(PluginConfigFilename);
 						if (FoundConfig != nullptr)
 						{
 							UE_LOG(LogPluginManager, Log, TEXT("Found config from plugin[%s] %s"), *Plugin.GetName(), *PluginConfigFilename);
@@ -1598,7 +1598,7 @@ void FPluginManager::MountPluginFromExternalSource(const TSharedRef<FPlugin>& Pl
 		RegisterMountPointDelegate.Execute(Plugin->GetMountedAssetPath(), ContentDir);
 
 		// Register this plugin's path with the list of content directories that the editor will search
-		if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni, false))
+		if (FConfigFile* EngineConfigFile = GConfig->Find(GEngineIni))
 		{
 			if (FConfigSection* CoreSystemSection = EngineConfigFile->Find(TEXT("Core.System")))
 			{

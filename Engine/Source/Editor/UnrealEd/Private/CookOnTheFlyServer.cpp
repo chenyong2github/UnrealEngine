@@ -4343,7 +4343,7 @@ bool UCookOnTheFlyServer::IniSettingsOutOfDate(const ITargetPlatform* TargetPlat
 		}
 		else
 		{
-			ConfigFile = GConfig->Find(Filename, false);
+			ConfigFile = GConfig->Find(Filename);
 		}
 		FName FileFName = FName(*Filename);
 		if ( !ConfigFile )

@@ -842,7 +842,7 @@ FConfigFile* UOnlineHotfixManager::GetConfigFile(const FString& IniName)
 		const FString IniNameWithPath = GetConfigFileNamePath(StrippedIniName);
 		FConfigFile Empty;
 		GConfig->SetFile(IniNameWithPath, &Empty);
-		ConfigFile = GConfig->Find(IniNameWithPath, false);
+		ConfigFile = GConfig->Find(IniNameWithPath);
 	}
 	check(ConfigFile);
 	// We never want to save these merged files

@@ -431,7 +431,7 @@ UDeviceProfile* UDeviceProfileManager::CreateProfile(const FString& ProfileName,
 		FConfigFile LocalConfigFile;
 		if (FPlatformProperties::RequiresCookedData())
 		{
-			PlatformConfigFile = GConfig->Find(GDeviceProfilesIni, false);
+			PlatformConfigFile = GConfig->Find(GDeviceProfilesIni);
 		}
 		else
 		{

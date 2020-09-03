@@ -2077,7 +2077,7 @@ FConfigFile* FConfigCacheIni::FindConfigFile( const FString& Filename )
 	return TMap<FString,FConfigFile>::Find( Filename );
 }
 
-FConfigFile* FConfigCacheIni::Find( const FString& Filename, bool CreateIfNotFound )
+FConfigFile* FConfigCacheIni::Find(const FString& Filename)
 {	
 	// check for non-filenames
 	if(Filename.Len() == 0)
@@ -2086,15 +2086,25 @@ FConfigFile* FConfigCacheIni::Find( const FString& Filename, bool CreateIfNotFou
 	}
 
 	// Get file.
-	FConfigFile* Result = TMap<FString,FConfigFile>::Find( Filename );
+	FConfigFile* Result = TMap<FString,FConfigFile>::Find(Filename);
 	// this is || filesize so we load up .int files if file IO is allowed
-	if( !Result && !bAreFileOperationsDisabled && (CreateIfNotFound || DoesConfigFileExistWrapper(*Filename) ) )
+	if (!Result && !bAreFileOperationsDisabled)
 	{
-		Result = &Add( Filename, FConfigFile() );
-		Result->Read( Filename );
-		UE_LOG(LogConfig, Verbose, TEXT( "GConfig::Find has loaded file:  %s" ), *Filename );
+		Result = &Add(Filename, FConfigFile());
+		UE_LOG(LogConfig, Verbose, TEXT("GConfig::Find is looking for file:  %s"), *Filename);
+		if (DoesConfigFileExistWrapper(*Filename))
+		{
+			Result->Read(Filename);
+			UE_LOG(LogConfig, Verbose, TEXT("GConfig::Find has loaded file:  %s"), *Filename);
+		}
 	}
 	return Result;
+}
+
+FConfigFile* FConfigCacheIni::Find(const FString& Filename, bool CreateIfNotFound)
+{
+	UE_LOG(LogConfig, Verbose, TEXT("GConfig::Find is ignoring deprecated parameter CreateIfNotFound for file:  %s"), *Filename);
+	return Find(Filename);
 }
 
 FConfigFile* FConfigCacheIni::FindConfigFileWithBaseName(FName BaseName)
@@ -2193,7 +2203,7 @@ bool FConfigCacheIni::AreFileOperationsDisabled()
 void FConfigCacheIni::Parse1ToNSectionOfNames(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FName, TArray<FName> >& OutMap, const FString& Filename)
 {
 	// find the config file object
-	FConfigFile* ConfigFile = Find(Filename, 0);
+	FConfigFile* ConfigFile = Find(Filename);
 	if (!ConfigFile)
 	{
 		return;
@@ -2258,7 +2268,7 @@ void FConfigCacheIni::Parse1ToNSectionOfNames(const TCHAR* Section, const TCHAR*
 void FConfigCacheIni::Parse1ToNSectionOfStrings(const TCHAR* Section, const TCHAR* KeyOne, const TCHAR* KeyN, TMap<FString, TArray<FString> >& OutMap, const FString& Filename)
 {
 	// find the config file object
-	FConfigFile* ConfigFile = Find(Filename, 0);
+	FConfigFile* ConfigFile = Find(Filename);
 	if (!ConfigFile)
 	{
 		return;
@@ -2334,14 +2344,14 @@ void FConfigCacheIni::SetFile( const FString& Filename, const FConfigFile* NewCo
 
 void FConfigCacheIni::UnloadFile(const FString& Filename)
 {
-	FConfigFile* File = Find(Filename, 0);
+	FConfigFile* File = Find(Filename);
 	if( File )
 		Remove( Filename );
 }
 
 void FConfigCacheIni::Detach(const FString& Filename)
 {
-	FConfigFile* File = Find(Filename, 1);
+	FConfigFile* File = Find(Filename);
 	if( File )
 		File->NoSave = 1;
 }
@@ -2349,7 +2359,7 @@ void FConfigCacheIni::Detach(const FString& Filename)
 bool FConfigCacheIni::GetString( const TCHAR* Section, const TCHAR* Key, FString& Value, const FString& Filename )
 {
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
-	FConfigFile* File = Find( Filename, 0 );
+	FConfigFile* File = Find(Filename);
 	if( !File )
 	{
 		return false;
@@ -2377,7 +2387,7 @@ bool FConfigCacheIni::GetString( const TCHAR* Section, const TCHAR* Key, FString
 bool FConfigCacheIni::GetText( const TCHAR* Section, const TCHAR* Key, FText& Value, const FString& Filename )
 {
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
-	FConfigFile* File = Find( Filename, 0 );
+	FConfigFile* File = Find(Filename);
 	if( !File )
 	{
 		return false;
@@ -2409,7 +2419,7 @@ bool FConfigCacheIni::GetSection( const TCHAR* Section, TArray<FString>& Result,
 {
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
 	Result.Reset();
-	FConfigFile* File = Find( Filename, false );
+	FConfigFile* File = Find(Filename);
 	if (!File)
 	{
 		return false;
@@ -2433,7 +2443,7 @@ bool FConfigCacheIni::GetSection( const TCHAR* Section, TArray<FString>& Result,
 FConfigSection* FConfigCacheIni::GetSectionPrivate( const TCHAR* Section, bool Force, bool Const, const FString& Filename )
 {
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
-	FConfigFile* File = Find( Filename, Force );
+	FConfigFile* File = Find(Filename);
 	if (!File)
 	{
 		return nullptr;
@@ -2461,7 +2471,7 @@ bool FConfigCacheIni::DoesSectionExist(const TCHAR* Section, const FString& File
 	bool bReturnVal = false;
 
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
-	FConfigFile* File = Find(Filename, false);
+	FConfigFile* File = Find(Filename);
 
 	bReturnVal = (File != nullptr && File->Find(Section) != nullptr);
 
@@ -2475,7 +2485,7 @@ bool FConfigCacheIni::DoesSectionExist(const TCHAR* Section, const FString& File
 
 void FConfigCacheIni::SetString( const TCHAR* Section, const TCHAR* Key, const TCHAR* Value, const FString& Filename )
 {
-	FConfigFile* File = Find( Filename, 1 );
+	FConfigFile* File = Find(Filename);
 
 	if ( !File )
 	{
@@ -2499,7 +2509,7 @@ void FConfigCacheIni::SetString( const TCHAR* Section, const TCHAR* Key, const T
 
 void FConfigCacheIni::SetText( const TCHAR* Section, const TCHAR* Key, const FText& Value, const FString& Filename )
 {
-	FConfigFile* File = Find( Filename, 1 );
+	FConfigFile* File = Find(Filename);
 
 	if ( !File )
 	{
@@ -2526,7 +2536,7 @@ void FConfigCacheIni::SetText( const TCHAR* Section, const TCHAR* Key, const FTe
 
 bool FConfigCacheIni::RemoveKey( const TCHAR* Section, const TCHAR* Key, const FString& Filename )
 {
-	FConfigFile* File = Find( Filename, 1 );
+	FConfigFile* File = Find(Filename);
 	if( File )
 	{
 		FConfigSection* Sec = File->Find( Section );
@@ -2544,7 +2554,7 @@ bool FConfigCacheIni::RemoveKey( const TCHAR* Section, const TCHAR* Key, const F
 
 bool FConfigCacheIni::EmptySection( const TCHAR* Section, const FString& Filename )
 {
-	FConfigFile* File = Find( Filename, 0 );
+	FConfigFile* File = Find(Filename);
 	if( File )
 	{
 		FConfigSection* Sec = File->Find( Section );
@@ -2577,7 +2587,7 @@ bool FConfigCacheIni::EmptySection( const TCHAR* Section, const FString& Filenam
 bool FConfigCacheIni::EmptySectionsMatchingString( const TCHAR* SectionString, const FString& Filename )
 {
 	bool bEmptied = false;
-	FConfigFile* File = Find( Filename, 0 );
+	FConfigFile* File = Find(Filename);
 	if (File)
 	{
 		bool bSaveOpsDisabled = bAreFileOperationsDisabled;
@@ -2620,7 +2630,7 @@ bool FConfigCacheIni::GetSectionNames( const FString& Filename, TArray<FString>&
 {
 	bool bResult = false;
 
-	FConfigFile* File = Find(Filename, false);
+	FConfigFile* File = Find(Filename);
 	if ( File != nullptr )
 	{
 		out_SectionNames.Empty(Num());
@@ -2651,7 +2661,7 @@ bool FConfigCacheIni::GetPerObjectConfigSections( const FString& Filename, const
 	bool bResult = false;
 
 	MaxResults = FMath::Max(0, MaxResults);
-	FConfigFile* File = Find(Filename, false);
+	FConfigFile* File = Find(Filename);
 	if ( File != nullptr )
 	{
 		out_SectionNames.Empty();
@@ -2797,7 +2807,7 @@ int32 FConfigCacheIni::GetArray
 {
 	FRemoteConfig::Get()->FinishRead(*Filename); // Ensure the remote file has been loaded and processed
 	out_Arr.Empty();
-	FConfigFile* File = Find( Filename, 0 );
+	FConfigFile* File = Find(Filename);
 	if ( File != nullptr )
 	{
 		File->GetArray(Section, Key, out_Arr);
@@ -2972,7 +2982,7 @@ void FConfigCacheIni::SetArray
 	const FString&		Filename
 )
 {
-	FConfigFile* File = Find( Filename, 1 );
+	FConfigFile* File = Find(Filename);
 	if (!File)
 	{
 		return;
@@ -3247,7 +3257,7 @@ SIZE_T FConfigCacheIni::GetMaxMemoryUsage()
 
 bool FConfigCacheIni::ForEachEntry(const FKeyValueSink& Visitor, const TCHAR* Section, const FString& Filename)
 {
-	FConfigFile* File = Find(Filename, 0);
+	FConfigFile* File = Find(Filename);
 	if(!File)
 	{
 		return false;

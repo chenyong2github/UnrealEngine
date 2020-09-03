@@ -579,7 +579,10 @@ public:
 
 	/** Finds Config file based on the final, generated ini name */
 	FConfigFile* FindConfigFile( const FString& Filename );
-	FConfigFile* Find( const FString& InFilename, bool CreateIfNotFound );
+	FConfigFile* Find(const FString& InFilename);
+
+	UE_DEPRECATED(5.0, "CreateIfNotFound is deprecated, please use the overload without this parameter")
+	FConfigFile* Find(const FString& Filename, bool CreateIfNotFound);
 
 	/** Finds Config file that matches the base name such as "Engine" */
 	FConfigFile* FindConfigFileWithBaseName(FName BaseName);

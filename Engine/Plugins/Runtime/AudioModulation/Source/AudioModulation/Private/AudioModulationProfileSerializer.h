@@ -141,7 +141,7 @@ namespace AudioModulation
 				return false;
 			}
 
-			FConfigFile* ConfigFile = GConfig->Find(ConfigPath, false /* CreateIfNotFound */);
+			FConfigFile* ConfigFile = GConfig->Find(ConfigPath);
 			if (!ConfigFile)
 			{
 				UE_LOG(LogAudioModulation, Warning, TEXT("Config '%s' not found. Mix '%s' not loaded from config profile."), *ConfigPath , *Name);

@@ -529,7 +529,7 @@ void UInternationalizationConditioningCommandlet::LoadLegacyLocalizationFiles( c
 		for(int32 j = 0; j < LegacyLocalizationFileNames.Num(); ++j)
 		{
 			const FString LegacyLocalizationPath = LanguageDirectory + TEXT("/") + LegacyLocalizationFileNames[j];
-			LegacyLocalizationCacheIni.Find(LegacyLocalizationPath, false); // GConfigCacheIni::Find(const FString&, bool) Causes the file to load if not loaded.
+			LegacyLocalizationCacheIni.Find(LegacyLocalizationPath); // GConfigCacheIni::Find(const FString&, bool) Causes the file to load if not loaded.
 		}
 	}
 }
