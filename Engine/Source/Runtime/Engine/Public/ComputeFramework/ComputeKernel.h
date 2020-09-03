@@ -109,9 +109,7 @@ public:
 	FShaderResetEvent ShaderResetSignal;
 #endif
 
-	/* Retrieve the IO bind points for the kernel - only way to get a valid bind point. */
-	//FShaderBindPoint GetInputBindPoint(const FString& Name) const;
-	//FShaderBindPoint GetOutputBindPoint(const FString& Name) const;
+	void SetKernelSource(UComputeKernelSource* KernelSource);
 
 	/*
 	 * Implemented by derived classes to specify how many invocations of the kernel are necessary 
