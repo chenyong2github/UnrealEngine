@@ -17,6 +17,7 @@
 #include "NetworkPredictionWorldManager.generated.h"
 
 class FChaosSolversModule;
+class ANetworkPredictionReplicatedManager;
 
 UCLASS()
 class NETWORKPREDICTION_API UNetworkPredictionWorldManager : public UWorldSubsystem
@@ -27,6 +28,10 @@ public:
 	static UNetworkPredictionWorldManager* ActiveInstance;
 
 	UNetworkPredictionWorldManager();
+
+	// Server created, replicated manager (only used for centralized/system wide data replication)
+	UPROPERTY()
+	ANetworkPredictionReplicatedManager* ReplicatedManager = nullptr;
 
 	// Subsystem Init/Deinit
 	virtual void Initialize(FSubsystemCollectionBase& Collection) override;
@@ -181,6 +186,7 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	{
 		// Point cached view to the VariableTickState's pending frame
 		InstanceData.Info.View->UpdateView(VariableTickState.PendingFrame, 
+			VariableTickState.GetNextTimeStep().TotalSimulationTime,
 			&FrameData.Buffer[VariableTickState.PendingFrame].InputCmd, 
 			&FrameData.Buffer[VariableTickState.PendingFrame].SyncState, 
 			&FrameData.Buffer[VariableTickState.PendingFrame].AuxState);
@@ -201,11 +207,17 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 					ServiceMask |= ENetworkPredictionService::IndependentRemoteFinalize;
 
 					// Point view to the ServerRecv PendingFrame instead
-					const int32 ServerRecvPendingFrame = DataStore->ServerRecv_IndependentTick.Find(ID)->PendingFrame;
-					InstanceData.Info.View->UpdateView(ServerRecvPendingFrame, 
-						&FrameData.Buffer[ServerRecvPendingFrame].InputCmd, 
-						&FrameData.Buffer[ServerRecvPendingFrame].SyncState, 
-						&FrameData.Buffer[ServerRecvPendingFrame].AuxState);
+					TServerRecvData_Independent<ModelDef>* ServerRecvData = DataStore->ServerRecv_IndependentTick.Find(ID);
+					npCheckSlow(ServerRecvData);
+
+					const int32 ServerRecvPendingFrame = ServerRecvData->PendingFrame;
+
+					auto& PendingFrameData = FrameData.Buffer[ServerRecvPendingFrame];
+					InstanceData.Info.View->UpdateView(ServerRecvPendingFrame,
+						ServerRecvData->TotalSimTimeMS,
+						&PendingFrameData.InputCmd, 
+						&PendingFrameData.SyncState, 
+						&PendingFrameData.AuxState);
 				}
 				else
 				{
@@ -254,7 +266,8 @@ void UNetworkPredictionWorldManager::ConfigureInstance(FNetworkPredictionID ID, 
 	else if (Archetype.TickingMode == ENetworkPredictionTickingPolicy::Fixed)
 	{
 		// Point cached view to the FixedTickState's pending frame
-		InstanceData.Info.View->UpdateView(FixedTickState.PendingFrame, 
+		InstanceData.Info.View->UpdateView(FixedTickState.PendingFrame + FixedTickState.Offset,
+			FixedTickState.GetTotalSimTimeMS(),
 			&FrameData.Buffer[FixedTickState.PendingFrame].InputCmd, 
 			&FrameData.Buffer[FixedTickState.PendingFrame].SyncState, 
 			&FrameData.Buffer[FixedTickState.PendingFrame].AuxState);
