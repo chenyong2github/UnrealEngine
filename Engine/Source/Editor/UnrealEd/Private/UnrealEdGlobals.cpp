@@ -44,10 +44,19 @@ DEFINE_LOG_CATEGORY_STATIC(LogUnrealEd, Log, All);
 /**
  * Provides access to the FEditorModeTools for the level editor
  */
+namespace Internal
+{
+	static TSharedPtr<FEditorModeTools> GetGlobalModeManager()
+	{
+		static TSharedPtr<FEditorModeTools> EditorModeToolsSingleton = MakeShared<FEditorModeTools>();
+		return EditorModeToolsSingleton;
+	}
+};
+
 FEditorModeTools& GLevelEditorModeTools()
 {
-	static TSharedRef<FEditorModeTools> EditorModeToolsSingleton = MakeShared<FEditorModeTools>();
-	return EditorModeToolsSingleton.Get();
+	check(Internal::GetGlobalModeManager().IsValid());
+	return *Internal::GetGlobalModeManager().Get();
 }
 
 FLevelEditorViewportClient* GCurrentLevelEditingViewportClient = NULL;
@@ -204,13 +213,13 @@ void EditorExit()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(EditorExit);
 
-	GLevelEditorModeTools().RemoveAllDelegateHandlers();
-	GLevelEditorModeTools().SetDefaultMode(FBuiltinEditorModes::EM_Default);
-	GLevelEditorModeTools().DeactivateAllModes(); // this also activates the default mode
-
 	// Save out any config settings for the editor so they don't get lost
 	GEditor->SaveConfig();
 	GLevelEditorModeTools().SaveConfig();
+
+	// Shutdown the global static mode manager
+	GLevelEditorModeTools().SetDefaultMode(FBuiltinEditorModes::EM_Default);
+	Internal::GetGlobalModeManager().Reset();
 
 	// Clean up the actor folders singleton
 	FActorFolders::Cleanup();

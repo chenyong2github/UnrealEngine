@@ -495,16 +495,18 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 void UEdModeInteractiveToolsContext::Shutdown()
 {
-	FLevelEditorModule& LevelEditor = FModuleManager::GetModuleChecked<FLevelEditorModule>("LevelEditor");
-	LevelEditor.OnMapChanged().Remove(WorldTearDownDelegateHandle);
-	FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
-	FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
-	GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
+	if (FLevelEditorModule* LevelEditor = FModuleManager::GetModulePtr<FLevelEditorModule>("LevelEditor"))
+	{
+		LevelEditor->OnMapChanged().Remove(WorldTearDownDelegateHandle);
+		FEditorDelegates::BeginPIE.Remove(BeginPIEDelegateHandle);
+		FEditorDelegates::PreSaveWorld.Remove(PreSaveWorldDelegateHandle);
+		GEditor->OnViewportClientListChanged().Remove(ViewportClientListChangedHandle);
 
-	// auto-accept any in-progress tools
-	DeactivateAllActiveTools();
+		// auto-accept any in-progress tools
+		DeactivateAllActiveTools();
 
-	UInteractiveToolsContext::Shutdown();
+		UInteractiveToolsContext::Shutdown();
+	}
 }
 
 void UEdModeInteractiveToolsContext::InitializeContextFromEdMode(FEdMode* EditorModeIn, IToolsContextAssetAPI* UseAssetAPI)
