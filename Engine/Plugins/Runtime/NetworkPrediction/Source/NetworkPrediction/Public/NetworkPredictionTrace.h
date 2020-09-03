@@ -39,7 +39,7 @@
 #define UE_NP_TRACE_WORLD_FRAME_START(GameInstance, DeltaSeconds) FNetworkPredictionTrace::TraceWorldFrameStart(GameInstance, DeltaSeconds)
 
 // Called to set the general tick state
-#define UE_NP_TRACE_PUSH_TICK(StartMS, DeltaMS, OutputFrame) FNetworkPredictionTrace::TraceTick(StartMS, DeltaMS, OutputFrame)
+#define UE_NP_TRACE_PUSH_TICK(StartMS, DeltaMS, OutputFrame, LocalFrameOffset) FNetworkPredictionTrace::TraceTick(StartMS, DeltaMS, OutputFrame, LocalFrameOffset)
 
 // Called when an actual instance ticks (after calling UE_NP_TRACE_TICK)
 #define UE_NP_TRACE_SIM_TICK(TraceID) FNetworkPredictionTrace::TraceSimTick(TraceID)
@@ -179,7 +179,7 @@ public:
 
 	static void TraceSimulationScope(int32 TraceID);
 
-	static void TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame);
+	static void TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame, int32 LocalFrameOffset);
 	static void TraceSimTick(int32 TraceID);
 
 	static void TraceNetRecv(int32 Frame, int32 TimeMS);

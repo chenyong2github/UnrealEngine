@@ -4,6 +4,8 @@
 #include "CoreMinimal.h"
 #include "UObject/Object.h"
 #include "NetworkPredictionConfig.h"
+#include "NetworkPredictionReplicatedManager.h"
+#include "Templates/SubclassOf.h"
 
 #include "NetworkPredictionSettings.generated.h"
 
@@ -16,6 +18,10 @@ struct FNetworkPredictionSettings
 	// Leave this on Fixed if you intend to use physics based simulations.
 	UPROPERTY(config, EditAnywhere, Category = Global)
 	ENetworkPredictionTickingPolicy PreferredTickingPolicy = ENetworkPredictionTickingPolicy::Fixed;
+
+	// Replicated Manager class
+	UPROPERTY(config, EditAnywhere, Category = Global)
+	TSubclassOf<ANetworkPredictionReplicatedManager> ReplicatedManagerClassOverride;
 
 	// ------------------------------------------------------------------------------------------
 

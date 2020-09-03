@@ -47,6 +47,15 @@ namespace UnrealBuildTool.Rules
 				}
 				);
 
+			// Only needed for the PIE delegate in FNetworkPredictionModule::StartupModule
+            if (Target.Type == TargetType.Editor) {
+                PrivateDependencyModuleNames.AddRange(
+                new string[]
+                {
+                    "UnrealEd",
+                });
+            }
+
 		}
 	}
 }

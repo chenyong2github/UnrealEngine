@@ -165,6 +165,7 @@ struct FNetworkPredictionProxy
 	// ------------------------------------------------------------------------------------
 
 	int32 GetPendingFrame() const { return View.PendingFrame; }
+	int32 GetTotalSimTimeMS() const { return View.SimTimeMS; }
 	ENetRole GetCachedNetRole() const { return CachedNetRole; }
 	bool GetCachedHasNetConnection() const { return bCachedHasNetConnection; }
 

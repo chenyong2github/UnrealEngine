@@ -63,6 +63,7 @@ UE_TRACE_EVENT_BEGIN(NetworkPrediction, Tick)
 	UE_TRACE_EVENT_FIELD(int32, StartMS)
 	UE_TRACE_EVENT_FIELD(int32, DeltaMS)
 	UE_TRACE_EVENT_FIELD(int32, OutputFrame)
+	UE_TRACE_EVENT_FIELD(int32, LocalOffsetFrame)
 UE_TRACE_EVENT_END()
 
 // Signals that the given sim has done a tick. Expected to be called after the 'Tick' event has been traced
@@ -183,12 +184,13 @@ void FNetworkPredictionTrace::TraceSimulationScope(int32 TraceID)
 
 }
 
-void FNetworkPredictionTrace::TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame)
+void FNetworkPredictionTrace::TraceTick(int32 StartMS, int32 DeltaMS, int32 OutputFrame, int32 LocalFrameOffset)
 {
 	UE_TRACE_LOG(NetworkPrediction, Tick, NetworkPredictionChannel)
 		<< Tick.StartMS(StartMS)
 		<< Tick.DeltaMS(DeltaMS)
-		<< Tick.OutputFrame(OutputFrame);
+		<< Tick.OutputFrame(OutputFrame)
+		<< Tick.LocalOffsetFrame(LocalFrameOffset);
 }
 
 void FNetworkPredictionTrace::TraceSimTick(int32 TraceID)

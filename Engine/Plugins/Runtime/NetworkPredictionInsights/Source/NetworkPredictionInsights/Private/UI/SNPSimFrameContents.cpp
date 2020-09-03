@@ -262,15 +262,17 @@ void SNPSimFrameContents::NotifyContentClicked(const FSimContentsView& InContent
 
 		TickText += FString::Format(TEXT(
 			"Simulation Frame {0}\n"
-			"Start Simulation MS: {1}\n"
-			"End Simulation MS: {2}\n"
-			"Delta Simulation MS: {3}\n"
-			"Repredict: {4}\n"
-			"Confirmed Engine Frame: {5}\n"
-			"Trashed Engine Frame: {6}\n"
-			"GFrameNumber: {7}\n\n"),
+			"Local Offset {1}\n"
+			"Start Simulation MS: {2}\n"
+			"End Simulation MS: {3}\n"
+			"Delta Simulation MS: {4}\n"
+			"Repredict: {5}\n"
+			"Confirmed Engine Frame: {6}\n"
+			"Trashed Engine Frame: {7}\n"
+			"GFrameNumber: {8}\n\n"),
 		{
 			SimTick.OutputFrame,
+			SimTick.LocalOffsetFrame,
 			SimTick.StartMS,
 			SimTick.EndMS,
 			(SimTick.EndMS - SimTick.StartMS),
