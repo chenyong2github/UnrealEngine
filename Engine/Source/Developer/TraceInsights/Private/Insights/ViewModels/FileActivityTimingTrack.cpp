@@ -81,7 +81,6 @@ void FFileActivitySharedState::OnBeginSession(Insights::ITimingViewSession& InSe
 	bShowHideAllIoTracks = false;
 	bForceIoEventsUpdate = false;
 	bMergeIoLanes = true;
-	bShowFileActivityBackgroundEvents = false;
 
 	FileActivities.Reset();
 	FileActivityMap.Reset();
@@ -103,7 +102,6 @@ void FFileActivitySharedState::OnEndSession(Insights::ITimingViewSession& InSess
 	bShowHideAllIoTracks = false;
 	bForceIoEventsUpdate = false;
 	bMergeIoLanes = true;
-	bShowFileActivityBackgroundEvents = false;
 
 	FileActivities.Reset();
 	FileActivityMap.Reset();
@@ -127,7 +125,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 	if (!IoOverviewTrack.IsValid())
 	{
 		IoOverviewTrack = MakeShared<FOverviewFileActivityTimingTrack>(*this);
-		IoOverviewTrack->SetOrder(-999999); // first track
+		IoOverviewTrack->SetOrder(FTimingTrackOrder::First);
 		IoOverviewTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 		InSession.AddScrollableTrack(IoOverviewTrack);
 	}
@@ -135,7 +133,7 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 	if (!IoActivityTrack.IsValid())
 	{
 		IoActivityTrack = MakeShared<FDetailedFileActivityTimingTrack>(*this);
-		IoActivityTrack->SetOrder(+999999); // last track
+		IoActivityTrack->SetOrder(FTimingTrackOrder::Last);
 		IoActivityTrack->SetVisibilityFlag(bShowHideAllIoTracks);
 		InSession.AddScrollableTrack(IoActivityTrack);
 	}
@@ -160,14 +158,13 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 				Timeline.EnumerateEvents(-std::numeric_limits<double>::infinity(), +std::numeric_limits<double>::infinity(),
 					[this, &FileInfo, &Timeline](double EventStartTime, double EventEndTime, uint32 EventDepth, const Trace::FFileActivity* FileActivity)
 				{
-					TSharedPtr<FIoFileActivity> Activity;
-
 					//if (EventEndTime == std::numeric_limits<double>::infinity())
 					//{
 					//	EventEndTime = EventStartTime;
 					//}
 
-					if (!FileActivityMap.Contains(FileInfo.Id))
+					TSharedPtr<FIoFileActivity> Activity = FileActivityMap.FindRef(FileInfo.Id);
+					if (!Activity.IsValid())
 					{
 						Activity = MakeShared<FIoFileActivity>();
 
@@ -175,6 +172,8 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 						Activity->Path = FileInfo.Path;
 						Activity->StartTime = EventStartTime;
 						Activity->EndTime = EventEndTime;
+						Activity->CloseStartTime = EventStartTime;
+						Activity->CloseEndTime = EventEndTime;
 						Activity->EventCount = 1;
 						Activity->Depth = -1;
 
@@ -183,8 +182,6 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 					}
 					else
 					{
-						Activity = FileActivityMap[FileInfo.Id];
-
 						if (FileActivity->ActivityType != Trace::FileActivityType_Close)
 						{
 							ensure(EventStartTime >= Activity->StartTime);
@@ -197,6 +194,13 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 							{
 								Activity->EndTime = EventEndTime;
 							}
+						}
+						else
+						{
+							// The time range for the Close event is stored separated;
+							// for the purpose of avoiding lane collisions (overlaps) between activities.
+							Activity->CloseStartTime = EventStartTime;
+							Activity->CloseEndTime = EventEndTime;
 						}
 
 						Activity->EventCount++;
@@ -213,7 +217,8 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 					uint32 Type = ((uint32)FileActivity->ActivityType & 0x0F) | (FileActivity->Failed ? 0x80 : 0);
 
-					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileActivity->Offset, FileActivity->Size, Activity });
+					AllIoEvents.Add(FIoTimingEvent{ EventStartTime, EventEndTime, EventDepth, Type, FileActivity->Offset, FileActivity->Size, FileActivity->ActualSize, Activity });
+					return Trace::EEventEnumerate::Continue;
 				});
 
 				return true;
@@ -252,7 +257,8 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 				{
 					TSharedPtr<FIoFileActivity> Lane = ActivityLanes[LaneIndex];
 
-					if (FileActivity->StartTime >= Lane->EndTime)
+					if (FileActivity->StartTime >= Lane->EndTime &&
+						(FileActivity->StartTime >= Lane->CloseEndTime || FileActivity->EndTime <= Lane->CloseStartTime)) // avoids overlaps with Close event
 					{
 						FileActivity->Depth = LaneIndex;
 						ActivityLanes[LaneIndex] = FileActivity;
@@ -296,149 +302,6 @@ void FFileActivitySharedState::Tick(Insights::ITimingViewSession& InSession, con
 
 			Stopwatch.Stop();
 			UE_LOG(TimingProfiler, Log, TEXT("[IO] Updated depth for events in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-
-			//////////////////////////////////////////////////
-			/*
-
-			Stopwatch.Restart();
-
-			struct FIoLane
-			{
-				uint32 FileId;
-				const TCHAR* Path;
-				double LastEndTime;
-				double EndTime;
-			};
-
-			TArray<FIoLane> Lanes;
-
-			TArray<FIoTimingEvent> IoEventsToAdd;
-
-			for (FIoTimingEvent& Event : AllIoEvents)
-			{
-				uint64 TimelineId = Event.Depth;
-
-				int32 Depth = -1;
-
-				bool bIsCloseEvent = false;
-
-				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-
-				if (ActivityType == Trace::FileActivityType_Open)
-				{
-					// Find lane (avoiding overlaps with other opened files).
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Event.StartTime >= Lane.EndTime)
-						{
-							Depth = LaneIndex;
-							break;
-						}
-					}
-
-					if (Depth < 0)
-					{
-						// Add new lane.
-						Depth = Lanes.AddDefaulted();
-					}
-
-					const bool bHasFailed = ((Event.Type & 0xF0) != 0);
-
-					FIoLane& Lane = Lanes[Depth];
-					Lane.FileId = TimelineId;
-					Lane.Path = Event.Path;
-					Lane.LastEndTime = Event.EndTime;
-					Lane.EndTime = bHasFailed ? Event.EndTime : std::numeric_limits<double>::infinity();
-				}
-				else if (ActivityType == Trace::FileActivityType_Close)
-				{
-					bIsCloseEvent = true;
-
-					// Find lane with same id.
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Lane.FileId == TimelineId)
-						{
-							// Adds an Idle event, but only if has passed at least 1s since last open/read/write activity.
-							if (Event.StartTime - Lane.LastEndTime > 1.0)
-							{
-								IoEventsToAdd.Add(FIoTimingEvent{ Lane.LastEndTime, Event.StartTime, static_cast<uint32>(LaneIndex), Trace::FileActivityType_Count, Event.Path });
-							}
-							Lane.LastEndTime = Event.EndTime;
-							Lane.EndTime = Event.EndTime;
-							Depth = LaneIndex;
-							break;
-						}
-					}
-					ensure(Depth >= 0);
-				}
-				else
-				{
-					// All other events should be inside the virtual Open-Close event.
-					// Find lane with same id.
-					for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-					{
-						FIoLane& Lane = Lanes[LaneIndex];
-						if (Lane.FileId == TimelineId)
-						{
-							Lane.LastEndTime = Event.EndTime;
-							Depth = LaneIndex;
-							break;
-						}
-					}
-					ensure(Depth >= 0);
-				}
-
-				if (Depth < 0) // just in case
-				{
-					// Add new lane.
-					Depth = Lanes.AddDefaulted();
-					FIoLane& Lane = Lanes[Depth];
-					Lane.FileId = TimelineId;
-					Lane.Path = Event.Path;
-					Lane.LastEndTime = Event.EndTime;
-					Lane.EndTime = bIsCloseEvent ? Event.EndTime : std::numeric_limits<double>::infinity();
-				}
-
-				Event.Depth = Depth;
-			}
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Merge 1/3 in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-			Stopwatch.Restart();
-
-			for (int32 LaneIndex = 0; LaneIndex < Lanes.Num(); ++LaneIndex)
-			{
-				FIoLane& Lane = Lanes[LaneIndex];
-				if (Lane.EndTime == std::numeric_limits<double>::infinity())
-				{
-					IoEventsToAdd.Add(FIoTimingEvent{ Lane.LastEndTime, Lane.EndTime, static_cast<uint32>(LaneIndex), Trace::FileActivityType_Count + 1, Lane.Path });
-				}
-			}
-
-			for (const FIoTimingEvent& Event : IoEventsToAdd)
-			{
-				AllIoEvents.Add(Event);
-			}
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Merge 2/3 in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-			Stopwatch.Restart();
-
-			// Sort cached IO events one more time, also by Start Time.
-			AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B) { return A.StartTime < B.StartTime; });
-
-			//// Sort cached IO events again, by Depth and then by Start Time.
-			//AllIoEvents.Sort([](const FIoTimingEvent& A, const FIoTimingEvent& B)
-			//{
-			//	return A.Depth == B.Depth ? A.StartTime < B.StartTime : A.Depth < B.Depth;
-			//});
-
-			Stopwatch.Stop();
-			UE_LOG(TimingProfiler, Log, TEXT("[IO] Merge 3/3 (sort) in %s."), *TimeUtils::FormatTimeAuto(Stopwatch.GetAccumulatedTime()));
-			*/
 		}
 	}
 }
@@ -452,16 +315,81 @@ void FFileActivitySharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 		return;
 	}
 
+	//InOutMenuBuilder.BeginSection("File Activity", LOCTEXT("FileActivityHeading", "File Activity"));
+	//{
+	//	InOutMenuBuilder.AddMenuEntry(
+	//		LOCTEXT("ShowAllIoTracks", "I/O Tracks - I"),
+	//		LOCTEXT("ShowAllIoTracks_Tooltip", "Show/hide the I/O (File Activity) tracks"),
+	//		FSlateIcon(),
+	//		FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks),
+	//				  FCanExecuteAction(),
+	//				  FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsAllIoTracksToggleOn)),
+	//		NAME_None, //"QuickFilterSeparator",
+	//		EUserInterfaceActionType::ToggleButton
+	//	);
+	//}
+	//InOutMenuBuilder.EndSection();
+
+	InOutMenuBuilder.BeginSection("File Activity");
+	{
+		InOutMenuBuilder.AddSubMenu(
+			LOCTEXT("FileActivity_SubMenu", "File Activity"),
+			LOCTEXT("FileActivity_SubMenu_Desc", "File Activity track options"),
+			FNewMenuDelegate::CreateSP(this, &FFileActivitySharedState::BuildSubMenu),
+			false,
+			FSlateIcon()
+		);
+	}
+	InOutMenuBuilder.EndSection();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFileActivitySharedState::BuildSubMenu(FMenuBuilder& InOutMenuBuilder)
+{
 	InOutMenuBuilder.BeginSection("File Activity", LOCTEXT("FileActivityHeading", "File Activity"));
 	{
 		InOutMenuBuilder.AddMenuEntry(
-			LOCTEXT("ShowAllIoTracks", "I/O Tracks - I"),
-			LOCTEXT("ShowAllIoTracks_Tooltip", "Show/hide the I/O (File Activity) tracks"),
+			LOCTEXT("ShowIoOverviewTrack", "I/O Overview Track - I"),
+			LOCTEXT("ShowIoOverviewTrack_Tooltip", "Show/hide the I/O Overview track"),
 			FSlateIcon(),
-			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks_Execute),
-					  FCanExecuteAction(),
-					  FIsActionChecked::CreateSP(this, &FFileActivitySharedState::ShowHideAllIoTracks_IsChecked)),
-			"QuickFilterSeparator",
+			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoOverviewTrack),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoOverviewTrackVisible)),
+			NAME_None, //"QuickFilterSeparator",
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InOutMenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowOnlyErrors", "Show Only Errors (I/O Overview Track)"),
+			LOCTEXT("ShowOnlyErrors_Tooltip", "Show only the events with errors, in the I/O Overview track."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleOnlyErrors),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsOnlyErrorsToggleOn)),
+			NAME_None, //"QuickFilterSeparator",
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InOutMenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowIoActivityTrack", "I/O Activity Track - I"),
+			LOCTEXT("ShowIoActivityTrack_Tooltip", "Show/hide the I/O Activity track"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ShowHideIoActivityTrack),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::IsIoActivityTrackVisible)),
+			NAME_None, //"QuickFilterSeparator",
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InOutMenuBuilder.AddMenuEntry(
+			LOCTEXT("ShowBackgroundEvents", "Show Background Events (I/O Activity Track) - O"),
+			LOCTEXT("ShowBackgroundEvents_Tooltip", "Show background events for file activities, in the I/O Activity track."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FFileActivitySharedState::ToggleBackgroundEvents),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FFileActivitySharedState::AreBackgroundEventsVisible)),
+			NAME_None, //"QuickFilterSeparator",
 			EUserInterfaceActionType::ToggleButton
 		);
 	}
@@ -470,16 +398,9 @@ void FFileActivitySharedState::ExtendFilterMenu(Insights::ITimingViewSession& In
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FFileActivitySharedState::ShowHideAllIoTracks_IsChecked() const
+void FFileActivitySharedState::SetAllIoTracksToggle(bool bOnOff)
 {
-	return bShowHideAllIoTracks;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FFileActivitySharedState::ShowHideAllIoTracks_Execute()
-{
-	bShowHideAllIoTracks = !bShowHideAllIoTracks;
+	bShowHideAllIoTracks = bOnOff;
 
 	if (IoOverviewTrack.IsValid())
 	{
@@ -503,13 +424,105 @@ void FFileActivitySharedState::ShowHideAllIoTracks_Execute()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FFileActivitySharedState::ToggleBackgroundEvents()
+bool FFileActivitySharedState::IsIoOverviewTrackVisible() const
 {
-	bShowFileActivityBackgroundEvents = !bShowFileActivityBackgroundEvents;
+	return IoOverviewTrack && IoOverviewTrack->IsVisible();
+}
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFileActivitySharedState::ShowHideIoOverviewTrack()
+{
+	if (IoOverviewTrack.IsValid())
+	{
+		IoOverviewTrack->ToggleVisibility();
+	}
+
+	if (TimingView)
+	{
+		TimingView->OnTrackVisibilityChanged();
+	}
+
+	const bool bIsOverviewTrackVisible = IsIoOverviewTrackVisible();
+	const bool bIsActivityTrackVisible = IsIoActivityTrackVisible();
+
+	if (bIsOverviewTrackVisible == bIsActivityTrackVisible)
+	{
+		bShowHideAllIoTracks = bIsOverviewTrackVisible;
+	}
+
+	if (bIsOverviewTrackVisible)
+	{
+		RequestUpdate();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FFileActivitySharedState::IsIoActivityTrackVisible() const
+{
+	return IoActivityTrack && IoActivityTrack->IsVisible();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFileActivitySharedState::ShowHideIoActivityTrack()
+{
 	if (IoActivityTrack.IsValid())
 	{
-		IoActivityTrack->SetDirtyFlag();
+		IoActivityTrack->ToggleVisibility();
+	}
+
+	if (TimingView)
+	{
+		TimingView->OnTrackVisibilityChanged();
+	}
+
+	const bool bIsOverviewTrackVisible = IsIoOverviewTrackVisible();
+	const bool bIsActivityTrackVisible = IsIoActivityTrackVisible();
+
+	if (bIsOverviewTrackVisible == bIsActivityTrackVisible)
+	{
+		bShowHideAllIoTracks = bIsOverviewTrackVisible;
+	}
+
+	if (bIsActivityTrackVisible)
+	{
+		RequestUpdate();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FFileActivitySharedState::IsOnlyErrorsToggleOn() const
+{
+	return IoOverviewTrack && IoOverviewTrack->IsOnlyErrorsToggleOn();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFileActivitySharedState::ToggleOnlyErrors()
+{
+	if (IoOverviewTrack)
+	{
+		IoOverviewTrack->ToggleOnlyErrors();
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+bool FFileActivitySharedState::AreBackgroundEventsVisible() const
+{
+	return IoActivityTrack && IoActivityTrack->AreBackgroundEventsVisible();
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FFileActivitySharedState::ToggleBackgroundEvents()
+{
+	if (IoActivityTrack)
+	{
+		IoActivityTrack->ToggleBackgroundEvents();
 	}
 }
 
@@ -523,11 +536,13 @@ INSIGHTS_IMPLEMENT_RTTI(FFileActivityTimingTrack)
 
 void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
+	InOutTooltip.ResetContent();
+
 	if (InTooltipEvent.CheckTrack(this) && InTooltipEvent.Is<FTimingEvent>())
 	{
 		const FTimingEvent& TooltipEvent = InTooltipEvent.As<FTimingEvent>();
 
-		auto MatchEvent = [&TooltipEvent](double InStartTime, double InEndTime, uint32 InDepth)
+		auto MatchEvent = [this, &TooltipEvent](double InStartTime, double InEndTime, uint32 InDepth)
 		{
 			return InDepth == TooltipEvent.GetDepth()
 				&& InStartTime == TooltipEvent.GetStartTime()
@@ -535,10 +550,8 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 		};
 
 		FTimingEventSearchParameters SearchParameters(TooltipEvent.GetStartTime(), TooltipEvent.GetEndTime(), ETimingEventSearchFlags::StopAtFirstMatch, MatchEvent);
-		FindIoTimingEvent(SearchParameters, false, [this, &InOutTooltip, &TooltipEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
+		FindIoTimingEvent(SearchParameters, [this, &InOutTooltip, &TooltipEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 		{
-			InOutTooltip.ResetContent();
-
 			const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(InEvent.Type & 0x0F);
 			const bool bHasFailed = ((InEvent.Type & 0xF0) != 0);
 
@@ -555,6 +568,10 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 				TypeStr = GetFileActivityTypeName(ActivityType);
 				TypeColor = GetFileActivityTypeColor(ActivityType);
 			}
+			if (InEvent.ActualSize != InEvent.Size)
+			{
+				TypeStr += TEXT(" [!]");
+			}
 			FLinearColor TypeLinearColor = FLinearColor(FColor(TypeColor));
 			TypeLinearColor.R *= 2.0f;
 			TypeLinearColor.G *= 2.0f;
@@ -563,13 +580,24 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 
 			InOutTooltip.AddTitle(InEvent.FileActivity->Path);
 
-			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetDuration()));
-			InOutTooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), TooltipEvent.GetDepth()));
+			const double Duration = InEvent.EndTime - InEvent.StartTime;
+			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(Duration));
 
 			if (ActivityType == Trace::FileActivityType_Read || ActivityType == Trace::FileActivityType_Write)
 			{
 				InOutTooltip.AddNameValueTextLine(TEXT("Offset:"), FText::AsNumber(InEvent.Offset).ToString() + TEXT(" bytes"));
 				InOutTooltip.AddNameValueTextLine(TEXT("Size:"), FText::AsNumber(InEvent.Size).ToString() + TEXT(" bytes"));
+				FString ActualSizeStr = FText::AsNumber(InEvent.ActualSize).ToString() + TEXT(" bytes");
+				if (InEvent.ActualSize != InEvent.Size)
+				{
+					ActualSizeStr += TEXT(" [!]");
+				}
+				InOutTooltip.AddNameValueTextLine(TEXT("Actual Size:"), ActualSizeStr);
+			}
+
+			if (!bIgnoreEventDepth)
+			{
+				InOutTooltip.AddNameValueTextLine(TEXT("Depth:"), FString::Printf(TEXT("%d"), InEvent.Depth));
 			}
 
 			InOutTooltip.UpdateLayout();
@@ -579,22 +607,46 @@ void FFileActivityTimingTrack::InitTooltip(FTooltipDrawState& InOutTooltip, cons
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParameters& InParameters, bool bIgnoreEventDepth, TFunctionRef<void(double, double, uint32, const FFileActivitySharedState::FIoTimingEvent&)> InFoundPredicate) const
+bool FFileActivityTimingTrack::FindIoTimingEvent(const FTimingEventSearchParameters& InParameters, TFunctionRef<void(double, double, uint32, const FFileActivitySharedState::FIoTimingEvent&)> InFoundPredicate) const
 {
 	return TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::Search(
 		InParameters,
 
 		// Search...
-		[this, bIgnoreEventDepth](TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::FContext& InContext)
+		[this](TTimingEventSearch<FFileActivitySharedState::FIoTimingEvent>::FContext& InContext)
 		{
-			TSharedPtr<const Trace::IAnalysisSession> Session = FInsightsManager::Get()->GetSession();
-			if (Session.IsValid())
+			if (bIgnoreDuration)
 			{
-				Trace::FAnalysisSessionReadScope SessionReadScope(*Session.Get());
-
 				for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.GetAllEvents())
 				{
-					if (Event.EndTime <= InContext.GetParameters().StartTime)
+					if (bShowOnlyErrors && ((Event.Type & 0xF0) == 0))
+					{
+						continue;
+					}
+
+					if (Event.StartTime < InContext.GetParameters().StartTime)
+					{
+						continue;
+					}
+
+					if (!InContext.ShouldContinueSearching() || Event.StartTime > InContext.GetParameters().EndTime)
+					{
+						break;
+					}
+
+					InContext.Check(Event.StartTime, Event.StartTime, bIgnoreEventDepth ? 0 : Event.Depth, Event);
+				}
+			}
+			else
+			{
+				for (const FFileActivitySharedState::FIoTimingEvent& Event : SharedState.GetAllEvents())
+				{
+					if (bShowOnlyErrors && ((Event.Type & 0xF0) == 0))
+					{
+						continue;
+					}
+
+					if (!bIgnoreDuration && Event.EndTime <= InContext.GetParameters().StartTime)
 					{
 						continue;
 					}
@@ -649,18 +701,44 @@ void FOverviewFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 
 		const bool bHasFailed = ((Event.Type & 0xF0) != 0);
 
-		if (bHasFailed)
+		if (bShowOnlyErrors && !bHasFailed)
 		{
-			FString EventName = TEXT("Failed ");
-			EventName += GetFileActivityTypeName(ActivityType);
-			const uint32 Color = 0xFFAA0000;
-			Builder.AddEvent(Event.StartTime, EventEndTime, 0, *EventName, EventType, Color);
+			continue;
 		}
-		else
+
+		uint32 Color = bHasFailed ? 0xFFAA0000 : GetFileActivityTypeColor(ActivityType);
+		if (Event.ActualSize != Event.Size)
 		{
-			const uint32 Color = GetFileActivityTypeColor(ActivityType);
-			Builder.AddEvent(Event.StartTime, EventEndTime, 0, GetFileActivityTypeName(ActivityType), EventType, Color);
+			Color = (Color & 0xFF000000) | ((Color & 0xFEFEFE) >> 1);
 		}
+
+		Builder.AddEvent(Event.StartTime, EventEndTime, 0, Color,
+			[&Event](float Width)
+			{
+				FString EventName;
+
+				const bool bHasFailed = ((Event.Type & 0xF0) != 0);
+				if (bHasFailed)
+				{
+					EventName += TEXT("Failed ");
+				}
+
+				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
+				EventName += GetFileActivityTypeName(ActivityType);
+
+				if (Event.ActualSize != Event.Size)
+				{
+					EventName += TEXT(" [!]");
+				}
+
+				if (Width > EventName.Len() * 4.0f + 32.0f)
+				{
+					const double Duration = Event.EndTime - Event.StartTime; // actual event duration
+					FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, Duration);
+				}
+
+				return EventName;
+			});
 	}
 }
 
@@ -670,13 +748,32 @@ const TSharedPtr<const ITimingEvent> FOverviewFileActivityTimingTrack::SearchEve
 {
 	TSharedPtr<const ITimingEvent> FoundEvent;
 
-	constexpr bool bIgnoreEventDepth = true;
-	FindIoTimingEvent(InSearchParameters, bIgnoreEventDepth, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
+	FindIoTimingEvent(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 	{
 		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
 
 	return FoundEvent;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FOverviewFileActivityTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuBuilder)
+{
+	InOutMenuBuilder.BeginSection(TEXT("Misc"));
+	{
+		InOutMenuBuilder.AddMenuEntry(
+			LOCTEXT("OverviewTrack_ShowOnlyErrors", "Show Only Errors"),
+			LOCTEXT("OverviewTrack_ShowOnlyErrors_Tooltip", "Show only the events with errors"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FOverviewFileActivityTimingTrack::ToggleOnlyErrors),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FOverviewFileActivityTimingTrack::IsOnlyErrorsToggleOn)),
+			NAME_None, //"QuickFilterSeparator",
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	InOutMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -688,7 +785,7 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
 
 	// Add IO file activity background events.
-	if (SharedState.bShowFileActivityBackgroundEvents)
+	if (bShowBackgroundEvents)
 	{
 		for (const TSharedPtr<FFileActivitySharedState::FIoFileActivity>& Activity : SharedState.FileActivities)
 		{
@@ -703,9 +800,19 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 
 			ensure(Activity->Depth <= 10000);
 
-			const uint64 EventType = uint64(Trace::EFileActivityType::FileActivityType_Count);
+			Builder.AddEvent(Activity->StartTime, Activity->EndTime, Activity->Depth, 0x55333333,
+				[&Activity](float Width)
+				{
+					FString EventName = Activity->Path;
 
-			Builder.AddEvent(Activity->StartTime, Activity->EndTime, Activity->Depth, Activity->Path, EventType, 0x55333333);
+					if (Width > EventName.Len() * 4.0f + 32.0f)
+					{
+						const double Duration = Activity->EndTime - Activity->StartTime;
+						FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, Duration);
+					}
+
+					return EventName;
+				});
 		}
 	}
 
@@ -722,36 +829,55 @@ void FDetailedFileActivityTimingTrack::BuildDrawState(ITimingEventsTrackDrawStat
 		}
 
 		ensure(Event.Depth <= 10000);
-
 		const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
-		const uint64 EventType = static_cast<uint64>(ActivityType);
 
-		if (ActivityType < Trace::FileActivityType_Count)
+		const bool bHasFailed = ((Event.Type & 0xF0) != 0);
+
+		if (bShowOnlyErrors && !bHasFailed)
 		{
-			const bool bHasFailed = ((Event.Type & 0xF0) != 0);
+			continue;
+		}
 
-			if (bHasFailed)
+		uint32 Color = bHasFailed ? 0xFFAA0000 : GetFileActivityTypeColor(ActivityType);
+		if (Event.ActualSize != Event.Size)
+		{
+			Color = (Color & 0xFF000000) | ((Color & 0xFEFEFE) >> 1);
+		}
+
+		Builder.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, Color,
+			[&Event](float Width)
 			{
-				FString EventName = TEXT("Failed ");
+				FString EventName;
+
+				const bool bHasFailed = ((Event.Type & 0xF0) != 0);
+				if (bHasFailed)
+				{
+					EventName += TEXT("Failed ");
+				}
+
+				const Trace::EFileActivityType ActivityType = static_cast<Trace::EFileActivityType>(Event.Type & 0x0F);
 				EventName += GetFileActivityTypeName(ActivityType);
-				const uint32 Color = 0xFFAA0000;
-				Builder.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *EventName, EventType, Color);
-			}
-			else
-			{
-				const uint32 Color = GetFileActivityTypeColor(ActivityType);
-				Builder.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, GetFileActivityTypeName(ActivityType), EventType, Color);
-			}
-		}
-		else
-		{
-			FString EventName = GetFileActivityTypeName(ActivityType);
-			EventName += " [";
-			EventName += Event.FileActivity->Path;
-			EventName += "]";
-			const uint32 Color = GetFileActivityTypeColor(ActivityType);
-			Builder.AddEvent(Event.StartTime, Event.EndTime, Event.Depth, *EventName, EventType, Color);
-		}
+
+				if (Event.ActualSize != Event.Size)
+				{
+					EventName += TEXT(" [!]");
+				}
+
+				if (ActivityType >= Trace::FileActivityType_Count)
+				{
+					EventName += " [";
+					EventName += Event.FileActivity->Path;
+					EventName += "]";
+				}
+
+				if (Width > EventName.Len() * 4.0f + 32.0f)
+				{
+					const double Duration = Event.EndTime - Event.StartTime;
+					FTimingEventsTrackDrawStateBuilder::AppendDurationToEventName(EventName, Duration);
+				}
+
+				return EventName;
+			});
 	}
 }
 
@@ -761,13 +887,43 @@ const TSharedPtr<const ITimingEvent> FDetailedFileActivityTimingTrack::SearchEve
 {
 	TSharedPtr<const ITimingEvent> FoundEvent;
 
-	constexpr bool bIgnoreEventDepth = false;
-	FindIoTimingEvent(InSearchParameters, bIgnoreEventDepth, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
+	FindIoTimingEvent(InSearchParameters, [this, &FoundEvent](double InFoundStartTime, double InFoundEndTime, uint32 InFoundDepth, const FFileActivitySharedState::FIoTimingEvent& InEvent)
 	{
 		FoundEvent = MakeShared<FTimingEvent>(SharedThis(this), InFoundStartTime, InFoundEndTime, InFoundDepth);
 	});
 
 	return FoundEvent;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FDetailedFileActivityTimingTrack::BuildContextMenu(FMenuBuilder& InOutMenuBuilder)
+{
+	InOutMenuBuilder.BeginSection(TEXT("Misc"));
+	{
+		InOutMenuBuilder.AddMenuEntry(
+			LOCTEXT("ActivityTrack_ShowOnlyErrors", "Show Only Errors"),
+			LOCTEXT("ActivityTrack_ShowOnlyErrors_Tooltip", "Show only the events with errors"),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FDetailedFileActivityTimingTrack::ToggleOnlyErrors),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FDetailedFileActivityTimingTrack::IsOnlyErrorsToggleOn)),
+			NAME_None, //"QuickFilterSeparator",
+			EUserInterfaceActionType::ToggleButton
+		);
+
+		InOutMenuBuilder.AddMenuEntry(
+			LOCTEXT("ActivityTrack_ShowBackgroundEvents", "Show Background Events - O"),
+			LOCTEXT("ActivityTrack_ShowBackgroundEvents_Tooltip", "Show background events for file activities."),
+			FSlateIcon(),
+			FUIAction(FExecuteAction::CreateSP(this, &FDetailedFileActivityTimingTrack::ToggleBackgroundEvents),
+				FCanExecuteAction(),
+				FIsActionChecked::CreateSP(this, &FDetailedFileActivityTimingTrack::AreBackgroundEventsVisible)),
+			NAME_None, //"QuickFilterSeparator",
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	InOutMenuBuilder.EndSection();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

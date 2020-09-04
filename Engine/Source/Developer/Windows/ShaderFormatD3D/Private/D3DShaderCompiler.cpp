@@ -586,7 +586,8 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 	// Fail the compilation if certain extended features are being used, since those are not supported on all D3D11 cards.
 	if (SUCCEEDED(Result) && D3DDisassembleFunc)
 	{
-		if (GD3DCheckForDoubles || bDumpDebugInfo)
+		const bool bCheckForTypedUAVs = !Input.Environment.CompilerFlags.Contains(CFLAG_AllowTypedUAVLoads);
+		if (GD3DCheckForDoubles || bCheckForTypedUAVs || bDumpDebugInfo)
 		{
 			TRefCountPtr<ID3DBlob> Disassembly;
 			if (SUCCEEDED(D3DDisassembleFunc(Shader->GetBufferPointer(), Shader->GetBufferSize(), 0, "", Disassembly.GetInitReference())))
@@ -608,6 +609,20 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 					if (DisassemblyStringW.Contains(TEXT("enableDoublePrecisionFloatOps")))
 					{
 						FilteredErrors.Add(TEXT("Shader uses double precision floats, which are not supported on all D3D11 hardware!"));
+						return false;
+					}
+				}
+					
+				if (bCheckForTypedUAVs)
+				{
+					// Disassembly will contain this text with typed loads from UAVs are used where the format and dimension are not fully supported
+					// across all versions of Windows (like Windows 7/8.1).
+					// https://microsoft.github.io/DirectX-Specs/d3d/UAVTypedLoad.html
+					// https://docs.microsoft.com/en-us/windows/win32/direct3d12/typed-unordered-access-view-loads
+					// https://docs.microsoft.com/en-us/windows/win32/direct3ddxgi/format-support-for-direct3d-11-0-feature-level-hardware
+					if (DisassemblyStringW.Contains(TEXT("Typed UAV Load Additional Formats")))
+					{
+						FilteredErrors.Add(TEXT("Shader uses UAV loads from additional typed formats, which are not supported on all D3D11 hardware! Set r.D3D.CheckedForTypedUAVs=0 if you want to allow typed UAV loads for your project, or individual shaders can opt-in by specifying CFLAG_AllowTypedUAVLoads."));
 						return false;
 					}
 				}
@@ -821,7 +836,9 @@ bool CompileAndProcessD3DShaderFXC(FString& PreprocessedShaderSource, const FStr
 				UsedUniformBufferSlots, UniformBufferNames,
 				bProcessingSecondTime, ShaderInputs,
 				PackedResourceCounts, NumInstructions,
-				Output, [](FMemoryWriter&){});
+				Output,
+				[](FMemoryWriter&){},
+				[](FShaderCode&){});
 		}
 	}
 

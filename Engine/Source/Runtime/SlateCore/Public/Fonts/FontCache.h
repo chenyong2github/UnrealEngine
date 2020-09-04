@@ -160,7 +160,7 @@ public:
 		return FontFace == Other.FontFace 
 			&& FontSize == Other.FontSize
 			&& OutlineSize == Other.OutlineSize
-			&& OutlineSizeSeparateFillAlpha == Other.OutlineSizeSeparateFillAlpha
+			&& OutlineSeparateFillAlpha == Other.OutlineSeparateFillAlpha
 			&& FontScale == Other.FontScale
 			&& GlyphIndex == Other.GlyphIndex;
 	}
@@ -183,7 +183,7 @@ private:
 	/** The size in pixels of the outline to render for the font */
 	float OutlineSize;
 	/** If checked, the outline will be completely translucent where the filled area will be. @see FFontOutlineSettings */
-	bool OutlineSizeSeparateFillAlpha;
+	bool OutlineSeparateFillAlpha;
 	/** Provides the final scale used to render to the font */
 	float FontScale;
 	/** The index of this glyph in the FreeType face */

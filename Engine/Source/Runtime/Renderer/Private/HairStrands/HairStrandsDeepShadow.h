@@ -29,6 +29,7 @@ struct FHairStrandsDeepShadowData
 	FVector  LightDirection;
 	FVector4 LightPosition;
 	FLinearColor LightLuminance;
+	float LayerDistribution;
 
 	FBoxSphereBounds Bounds;
 };

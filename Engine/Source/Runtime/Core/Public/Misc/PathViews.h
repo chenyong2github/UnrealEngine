@@ -4,6 +4,7 @@
 
 #include "CoreTypes.h"
 #include "Containers/StringFwd.h"
+
 class FString;
 
 class CORE_API FPathViews

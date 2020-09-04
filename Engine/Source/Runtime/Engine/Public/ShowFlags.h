@@ -193,7 +193,6 @@ struct FEngineShowFlags
 		SetHMDDistortion(false);
 		SetStereoRendering(false);
 		SetDistanceFieldAO(false);
-		SetDistanceFieldGI(false);
 		SetVolumetricFog(false);
 		SetVolumetricLightmap(false);
 	}
@@ -220,7 +219,6 @@ struct FEngineShowFlags
 		SetLightShafts(true);
 		SetPostProcessMaterial(true);
 		SetDistanceFieldAO(true);
-		SetDistanceFieldGI(true);
 	}
 
 	bool IsVisualizeCalibrationEnabled() const
@@ -395,7 +393,6 @@ private:
 		SetVisualizeMeshDistanceFields(false);
 		SetVisualizeGlobalDistanceField(false);
 		SetVisualizeDistanceFieldAO(false);
-		SetVisualizeDistanceFieldGI(false);
 		SetVisualizeSSR(false);
 		SetVisualizeSSS(false);
 		SetPrimitiveDistanceAccuracy(false);

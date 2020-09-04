@@ -96,14 +96,13 @@ public:
 		SvPositionToLight.Bind(Initializer.ParameterMap,TEXT("SvPositionToLight"));
 		LightFunctionParameters.Bind(Initializer.ParameterMap);
 		LightFunctionParameters2.Bind(Initializer.ParameterMap,TEXT("LightFunctionParameters2"));
-		SceneTextureParameters.Bind(Initializer);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FLightSceneInfo* LightSceneInfo, const FMaterialRenderProxy* MaterialProxy, bool bRenderingPreviewShadowIndicator, float ShadowFadeFraction )
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
-
-		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View, View.ViewUniformBuffer, ESceneTextureSetupMode::All);
+		FMaterialShader::SetViewParameters(RHICmdList, ShaderRHI, View, View.ViewUniformBuffer);
+		FMaterialShader::SetParameters(RHICmdList, ShaderRHI, MaterialProxy, *MaterialProxy->GetMaterial(View.GetFeatureLevel()), View);
 
 		// Set the transform from screen space to light space.
 		if ( SvPositionToLight.IsBound() )
@@ -145,8 +144,6 @@ public:
 			LightSceneInfo->Proxy->GetLightFunctionDisabledBrightness(),
 			bRenderingPreviewShadowIndicator ? 1.0f : 0.0f));
 
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
-
 		auto DeferredLightParameter = GetUniformBufferParameter<FDeferredLightUniformStruct>();
 
 		if (DeferredLightParameter.IsBound())
@@ -159,7 +156,6 @@ private:
 	LAYOUT_FIELD(FShaderParameter, SvPositionToLight);
 	LAYOUT_FIELD(FLightFunctionSharedParameters, LightFunctionParameters);
 	LAYOUT_FIELD(FShaderParameter, LightFunctionParameters2);
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 };
 
 IMPLEMENT_MATERIAL_SHADER_TYPE(,FLightFunctionPS,TEXT("/Engine/Private/LightFunctionPixelShader.usf"),TEXT("Main"),SF_Pixel);
@@ -266,11 +262,14 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 	check(ScreenShadowMaskTexture);
 	if (MaterialProxy && MaterialProxy->GetMaterial(Scene->GetFeatureLevel())->IsLightFunction())
 	{
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 		{
 			// Scope out this FRHIRenderPassInfo so we don't pollute ourselves elsewhere.
 			FRHIRenderPassInfo RPInfo(ScreenShadowMaskTexture->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
 			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
-			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthSurface();
+			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
 			RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
 
 			TransitionRenderPassTargets(RHICmdList, RPInfo);
@@ -302,6 +301,9 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 
 				const FViewInfo& View = Views[ViewIndex];
 
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 				if (View.VisibleLightInfos[LightSceneInfo->Id].bInViewFrustum)
 				{
 					if (LightSceneInfo->Proxy->GetLightType() == LightType_Directional)
@@ -321,7 +323,7 @@ bool FDeferredShadingSceneRenderer::RenderLightFunctionForMaterial(
 							RHICmdList.EndRenderPass();
 							FRHIRenderPassInfo RPInfoClear(ScreenShadowMaskTexture->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
 							RPInfoClear.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
-							RPInfoClear.DepthStencilRenderTarget.DepthStencilTarget = FSceneRenderTargets::Get(RHICmdList).GetSceneDepthSurface();
+							RPInfoClear.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
 							RPInfoClear.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
 
 							TransitionRenderPassTargets(RHICmdList, RPInfoClear);

@@ -6,6 +6,7 @@
 #include "AssetTypeActions_DataprepAssetInterface.h"
 #include "DataprepAssetProducers.h"
 #include "DataprepEditor.h"
+#include "DataprepEditorUtils.h"
 #include "DataprepEditorStyle.h"
 #include "Widgets/DataprepGraph/SDataprepGraphEditor.h"
 #include "Widgets/DataprepWidgets.h"
@@ -14,9 +15,11 @@
 
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Developer/AssetTools/Public/AssetToolsModule.h"
+#include "Kismet2/KismetEditorUtilities.h"
 #include "Misc/PackageName.h"
 #include "Modules/ModuleManager.h"
 #include "PropertyEditorModule.h"
+#include "ToolMenus.h"
 #include "UObject/StrongObjectPtr.h"
 
 #include "Widgets/SNullWidget.h"
@@ -74,10 +77,20 @@ public:
 		SDataprepGraphEditor::RegisterFactories();
 
 		SDataprepEditorViewport::LoadDefaultSettings();
+
+		UToolMenus::RegisterStartupCallback(
+			FSimpleMulticastDelegate::FDelegate::CreateRaw(this, &FDataprepEditorModule::RegisterMenus));
+
+		FDataprepEditorUtils::RegisterBlueprintCallbacks(this);
 	}
 
 	virtual void ShutdownModule() override
 	{
+		UToolMenus::UnRegisterStartupCallback(this);
+		UToolMenus::UnregisterOwner(this);
+
+		FKismetEditorUtilities::UnregisterAutoBlueprintNodeCreation(this);
+
 		SDataprepGraphEditor::UnRegisterFactories();
 
 		MenuExtensibilityManager.Reset();
@@ -102,6 +115,20 @@ public:
 		// Register the details customizer
 		FPropertyEditorModule& PropertyModule = FModuleManager::LoadModuleChecked< FPropertyEditorModule >( TEXT("PropertyEditor") );
 		PropertyModule.UnregisterCustomClassLayout( TEXT("DataprepAssetProducers") );
+	}
+
+	void RegisterMenus()
+	{
+		// Allow cleanup when module unloads
+		FToolMenuOwnerScoped OwnerScoped(this);
+		{
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("DataprepEditor.AssetContextMenu");
+			Menu->AddSection("AssetActions", LOCTEXT("AssetActionsMenuHeading", "Asset Actions"));
+		}
+		{
+			UToolMenu* Menu = UToolMenus::Get()->RegisterMenu("DataprepEditor.SceneOutlinerContextMenu");
+			Menu->AddSection("SceneOutlinerActions", LOCTEXT("SceneOutlinerMenuHeading", "Scene Outliner"));
+		}
 	}
 
 	/** Gets the extensibility managers for outside entities to extend datasmith data prep editor's menus and toolbars */

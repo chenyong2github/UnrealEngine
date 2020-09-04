@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+using System.IO;
+
 namespace UnrealBuildTool.Rules
 {
 	public class LidarPointCloudRuntime : ModuleRules
@@ -35,6 +37,11 @@ namespace UnrealBuildTool.Rules
 						"AssetRegistry"
 					}
 				);
+			}
+
+			if (Target.Platform == UnrealTargetPlatform.Win64)
+			{
+				RuntimeDependencies.Add("$(BinaryOutputDir)/laszip.dll", Path.Combine(PluginDirectory, "Source", "ThirdParty", "LasZip", "Win64", "laszip.dll"));
 			}
 		}
 	}

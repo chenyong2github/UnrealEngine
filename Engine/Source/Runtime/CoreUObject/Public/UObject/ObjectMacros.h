@@ -96,6 +96,7 @@ enum ESaveFlags
 	SAVE_DiffOnly       = 0x00000200,	///< Serializes the package to a special memory archive that performs a diff with an existing file on disk
 	SAVE_DiffCallstack  = 0x00000400,	///< Serializes the package to a special memory archive that compares all differences against a file on disk and dumps relevant callstacks
 	SAVE_ComputeHash    = 0x00000800,	///< Compute the MD5 hash of the cooked data
+	SAVE_CompareLinker	= 0x00001000,	///< Return the linker save to compare against another
 };
 
 /** Package flags, passed into UPackage::SetPackageFlags and related functions */
@@ -384,7 +385,7 @@ enum EPropertyFlags : uint64
 	CPF_InstancedReference				= 0x0000000000080000,	///< Property is a component references.
 	//CPF_								= 0x0000000000100000,	///<
 	CPF_DuplicateTransient				= 0x0000000000200000,	///< Property should always be reset to the default value during any type of duplication (copy/paste, binary duplication, etc.)
-	CPF_SubobjectReference				= 0x0000000000400000,	///< Property contains subobject references (TSubobjectPtr)
+	//CPF_								= 0x0000000000400000,	///< 
 	//CPF_    							= 0x0000000000800000,	///< 
 	CPF_SaveGame						= 0x0000000001000000,	///< Property should be serialized for save games, this is only checked for game-specific archives with ArIsSaveGame
 	CPF_NoClear							= 0x0000000002000000,	///< Hide clear (and browse) button.
@@ -549,6 +550,16 @@ enum class EInternalObjectFlags : int32
 	AllFlags = ReachableInCluster | ClusterRoot | Native | Async | AsyncLoading | Unreachable | PendingKill | RootSet
 };
 ENUM_CLASS_FLAGS(EInternalObjectFlags);
+
+/** Flags describing a UEnum */
+enum class EEnumFlags
+{
+	None,
+
+	Flags = 0x00000001 // Whether the UEnum represents a set of flags
+};
+
+ENUM_CLASS_FLAGS(EEnumFlags)
 
 /*----------------------------------------------------------------------------
 	Core types.
@@ -751,8 +762,11 @@ namespace UC
 		/// Marks this class as an 'early access' preview (while not considered production-ready, it's a step beyond 'experimental' and is being provided as a preview of things to come)
 		EarlyAccessPreview,
 
-		// Some properties are stored once per class in a sidecar structure and not on instances of the class
+		/// Some properties are stored once per class in a sidecar structure and not on instances of the class
 		SparseClassDataType,
+
+		/// Specifies the struct that contains the CustomThunk implementations
+		CustomThunkTemplates
 	};
 }
 
@@ -1100,6 +1114,9 @@ namespace UM
 
 		/// [StructMetadata] Pins in Make and Break nodes are hidden by default.
 		HiddenByDefault,
+
+		/// [StructMetadata] Indicates that node pins of this struct type cannot be split
+		DisableSplitPin,
 	};
 
 	// Metadata usable in UPROPERTY
@@ -1195,6 +1212,9 @@ namespace UM
 
 		/// [PropertyMetadata] Used by asset properties. Indicates that the asset pickers should always show engine content
 		ForceShowEngineContent,
+
+		/// [PropertyMetadata] Used by asset properties. Indicates that the asset pickers should always show plugin content
+		ForceShowPluginContent,
 
 		/// [PropertyMetadata] Used for FColor and FLinearColor properties. Indicates that the Alpha property should be hidden when displaying the property widget in the details.
 		HideAlphaChannel,

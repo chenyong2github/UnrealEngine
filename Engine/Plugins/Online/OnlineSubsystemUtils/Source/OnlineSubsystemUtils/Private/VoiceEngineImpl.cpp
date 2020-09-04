@@ -354,10 +354,6 @@ uint32 FVoiceEngineImpl::StartLocalVoiceProcessing(uint32 LocalUserNum)
 
 		Return = ONLINE_SUCCESS;
 	}
-	else
-	{
-		UE_LOG_ONLINE_VOICEENGINE(Error, TEXT("StartLocalVoiceProcessing(): Device is currently owned by another user"));
-	}
 
 	return Return;
 }
@@ -380,10 +376,6 @@ uint32 FVoiceEngineImpl::StopLocalVoiceProcessing(uint32 LocalUserNum)
 		}
 
 		Return = ONLINE_SUCCESS;
-	}
-	else
-	{
-		UE_LOG_ONLINE_VOICEENGINE(Error, TEXT("StopLocalVoiceProcessing: Ignoring stop request for non-owning user"));
 	}
 
 	return Return;
@@ -595,6 +587,12 @@ uint32 FVoiceEngineImpl::SubmitRemoteVoiceData(const FUniqueNetIdWrapper& Remote
 	if (QueuedData.VoipSynthComponent == nullptr || QueuedData.VoipSynthComponent->IsPendingKill())
 	{
 		CreateSerializeHelper();
+		
+		if (QueuedData.VoipSynthComponent && QueuedData.VoipSynthComponent->IsPendingKill())
+		{
+			QueuedData.VoipSynthComponent->Stop();
+			QueuedData.VoipSynthComponent->ClosePacketStream();
+		}
 
 		if (GetOnlineSubSystem())
 		{

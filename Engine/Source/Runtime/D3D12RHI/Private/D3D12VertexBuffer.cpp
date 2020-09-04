@@ -64,7 +64,10 @@ FVertexBufferRHIRef FD3D12DynamicRHI::RHICreateVertexBuffer(uint32 Size, uint32 
 {
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D12VertexBuffer();
+		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12VertexBuffer();
+			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
@@ -96,7 +99,10 @@ FVertexBufferRHIRef FD3D12DynamicRHI::CreateVertexBuffer_RenderThread(FRHIComman
 {	
 	if (CreateInfo.bWithoutNativeResource)
 	{
-		return new FD3D12VertexBuffer();
+		return GetAdapter().CreateLinkedObject<FD3D12VertexBuffer>(CreateInfo.GPUMask, [](FD3D12Device* Device)
+			{
+				return new FD3D12VertexBuffer();
+			});
 	}
 
 	const D3D12_RESOURCE_DESC Desc = CreateVertexBufferResourceDesc(Size, InUsage);
@@ -121,8 +127,11 @@ void FD3D12DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FR
 	FD3D12Buffer* SourceBuffer = SrcBuffer;
 	FD3D12Buffer* DestBuffer = DstBuffer;
 
-	while (SourceBuffer && DestBuffer)
+	for (FD3D12Buffer::FDualLinkedObjectIterator It(SourceBuffer, DestBuffer); It; ++It)
 	{
+		SourceBuffer = It.GetFirst();
+		DestBuffer = It.GetSecond();
+
 		FD3D12Device* Device = SourceBuffer->GetParentDevice();
 		check(Device == DestBuffer->GetParentDevice());
 
@@ -143,9 +152,6 @@ void FD3D12DynamicRHI::RHICopyVertexBuffer(FRHIVertexBuffer* SourceBufferRHI, FR
 		DEBUG_EXECUTE_COMMAND_CONTEXT(Device->GetDefaultCommandContext());
 
 		Device->RegisterGPUWork(1);
-
-		SourceBuffer = SourceBuffer->GetNextObject();
-		DestBuffer = DestBuffer->GetNextObject();
 	}
 }
 

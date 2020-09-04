@@ -1248,6 +1248,11 @@ public:
 		return bIsBakedAnalysisEnabled;
 	}
 
+	virtual bool IsNonRealtime() const
+	{
+		return false;
+	}
+
 	/** Updates the source effect chain. Only implemented in audio mixer. */
 	virtual void UpdateSourceEffectChain(const uint32 SourceEffectChainId, const TArray<FSourceEffectChainEntry>& SourceEffectChain, const bool bPlayEffectChainTails) {}
 

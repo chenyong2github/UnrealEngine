@@ -20,13 +20,7 @@ THIRD_PARTY_INCLUDES_END
 #endif
 
 static DXGI_SWAP_EFFECT GSwapEffect = DXGI_SWAP_EFFECT_DISCARD;
-static uint32 GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 static uint32 GSwapChainBufferCount = 1;
-
-uint32 D3D11GetSwapChainFlags()
-{
-	return GSwapChainFlags;
-}
 
 static int32 GD3D11UseAllowTearing = 1;
 static FAutoConsoleVariableRef CVarD3DUseAllowTearing(
@@ -36,6 +30,7 @@ static FAutoConsoleVariableRef CVarD3DUseAllowTearing(
 	ECVF_RenderThreadSafe| ECVF_ReadOnly
 );
 
+uint32 FD3D11Viewport::GSwapChainFlags = DXGI_SWAP_CHAIN_FLAG_ALLOW_MODE_SWITCH;
 
 FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,uint32 InSizeX,uint32 InSizeY,bool bInIsFullscreen, EPixelFormat InPreferredPixelFormat):
 	D3DRHI(InD3DRHI),
@@ -53,6 +48,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 	PixelFormat(InPreferredPixelFormat),
 	PixelColorSpace(EColorSpaceAndEOTF::ERec709_sRGB),
 	bIsFullscreen(bInIsFullscreen),
+	bAllowTearing(false),
 	FrameSyncEvent(InD3DRHI)
 {
 	check(IsInGameThread());
@@ -80,6 +76,7 @@ FD3D11Viewport::FD3D11Viewport(FD3D11DynamicRHI* InD3DRHI,HWND InWindowHandle,ui
 				{
 					GSwapEffect = DXGI_SWAP_EFFECT_FLIP_DISCARD;
 					GSwapChainFlags |= DXGI_SWAP_CHAIN_FLAG_ALLOW_TEARING;
+					bAllowTearing = true;
 					GSwapChainBufferCount = 2;
 				}
 			}

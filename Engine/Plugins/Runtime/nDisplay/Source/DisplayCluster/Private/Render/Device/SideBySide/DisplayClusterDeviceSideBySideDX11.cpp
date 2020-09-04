@@ -3,17 +3,15 @@
 #include "Render/Device/SidebySide/DisplayClusterDeviceSideBySideDX11.h"
 #include "Render/Presentation/DisplayClusterPresentationDX11.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterDeviceSideBySideDX11::FDisplayClusterDeviceSideBySideDX11()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterDeviceSideBySideDX11::~FDisplayClusterDeviceSideBySideDX11()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterPresentationBase* FDisplayClusterDeviceSideBySideDX11::CreatePresentationObject(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy)

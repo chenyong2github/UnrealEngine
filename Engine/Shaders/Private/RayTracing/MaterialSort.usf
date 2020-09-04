@@ -1,7 +1,7 @@
 #include "../Common.ush"
 #include "RayTracingCommon.ush"
 
-#define MATERIAL_SORT_SHADER_VERSION 0xd74cbc87 // Change to force shader compilation of this shader
+#define MATERIAL_SORT_SHADER_VERSION 0xd74cbc88 // Change to force shader compilation of this shader
 
 #ifndef DIM_WAVE_OPS
 	#define DIM_WAVE_OPS 0

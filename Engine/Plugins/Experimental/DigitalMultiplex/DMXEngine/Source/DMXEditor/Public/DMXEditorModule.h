@@ -12,6 +12,18 @@ class UDMXLibrary;
 class IAssetTools;
 class IAssetTypeActions;
 
+/** Names of tabs in the DMX Editor */
+class FDMXEditorTabNames
+{
+public:
+	static const FName ChannelsMonitorTabName;
+	static const FName ActivityMonitorTabName;
+	static const FName OutputConsoleTabName;
+};
+
+/**
+ * Implements the DMX Editor Module.
+ */
 class DMXEDITOR_API FDMXEditorModule
 	: public IModuleInterface
 	, public IHasMenuExtensibility			// Extender for adds or removes extenders for menu
@@ -21,9 +33,7 @@ public:
 
 	//~ Begin IModuleInterface implementation
 	virtual void StartupModule() override;
-
 	virtual void ShutdownModule() override;
-
 	//~ End IModuleInterface implementation
 
 	//~ Begin IHasMenuExtensibility implementation
@@ -66,7 +76,7 @@ public:
 	static const FName ModuleName;
 
 private:
-	void RegisterAssetTypeAction(IAssetTools& AssetTools, TSharedRef<IAssetTypeActions> Action);
+	void RegisterAssetTypeAction(IAssetTools& InOutAssetTools, TSharedRef<IAssetTypeActions> Action);
 
 private:
 	void RegisterPropertyTypeCustomizations();
@@ -88,6 +98,25 @@ private:
 	*/
 	void RegisterCustomPropertyTypeLayout(FName PropertyTypeName, FOnGetPropertyTypeCustomizationInstance PropertyTypeLayoutDelegate);
 
+	/** Called when Open Channels Montior menu command is selected */
+	void OnOpenChannelsMonitor();
+
+	/** Called when Open Universe Montior menu command is selected */
+	void OnOpenActivityMonitor();
+
+	/** Called when Open Output Console  menu command is selected */
+	void OnOpenOutputConsole();
+
+	void AddToolbarExtension(class FToolBarBuilder& InOutBuilder);
+
+	TSharedRef< class SWidget > GenerateMonitorsMenu(TSharedPtr<class FUICommandList> InCommands);
+
+	TSharedRef<class SDockTab> OnSpawnChannelsMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
+
+	TSharedRef<class SDockTab> OnSpawnActivityMonitorTab(const class FSpawnTabArgs& InSpawnTabArgs);
+
+	TSharedRef<class SDockTab> OnSpawnOutputConsoleTab(const class FSpawnTabArgs& InSpawnTabArgs);
+
 private:
 	//~ Gets the extensibility managers for outside entities to DMX editor's menus and toolbars
 	TSharedPtr<FExtensibilityManager> MenuExtensibilityManager;
@@ -102,9 +131,25 @@ private:
 	 */
 	TSharedPtr<FUICommandList> SharedDMXEditorCommands;
 
+	/**
+	 * Command list for the DMX Monitor menu
+	 */
+	TSharedPtr<class FUICommandList> DMXMonitorCommands;
+
+	TSharedPtr<class SDMXActivityMonitor> UniverseMonitorTab;
+	TSharedPtr<class SDMXChannelsMonitor> ChannelsMonitorTab;
+	TSharedPtr<class SDMXOutputConsole> OutputConsoleTab;
+
 	static EAssetTypeCategories::Type DMXEditorAssetCategory;
 
 	/** List of registered class that we must unregister when the module shuts down */
 	TSet< FName > RegisteredClassNames;
 	TSet< FName > RegisteredPropertyTypes;
+
+	/** Custom DMX Library Sequencer track registering */
+	FDelegateHandle DMXLibraryTrackCreateHandle;
+
+#if WITH_DEV_AUTOMATION_TESTS
+	friend struct FDMXChannelsMonitorHelper;
+#endif
 };

@@ -4504,10 +4504,12 @@ void FRecastNavMeshGenerator::ConfigureBuildProperties(FRecastBuildConfig& OutCo
 	const UNavigationSystemV1* NavSys = FNavigationSystem::GetCurrent<UNavigationSystemV1>(GetWorld());
 	OutConfig.AgentIndex = NavSys->GetSupportedAgentIndex(DestNavMesh);
 
-	OutConfig.tileSize = FMath::TruncToInt(DestNavMesh->TileSizeUU / CellSize);
+	OutConfig.tileSize = FMath::Max(FMath::TruncToInt(DestNavMesh->TileSizeUU / CellSize), 1);
+	UE_CLOG(OutConfig.tileSize == 1, LogNavigation, Error, TEXT("RecastNavMesh TileSize of 1 is highly discouraged. This occurence indicates an issue with RecastNavMesh\'s generation properties (specifically TileSizeUU: %f, CellSize: %f). Please ensure their correctness.")
+		, DestNavMesh->TileSizeUU, CellSize);
 
-	OutConfig.regionChunkSize = OutConfig.tileSize / DestNavMesh->LayerChunkSplits;
-	OutConfig.TileCacheChunkSize = OutConfig.tileSize / DestNavMesh->RegionChunkSplits;
+	OutConfig.regionChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->LayerChunkSplits));
+	OutConfig.TileCacheChunkSize = FMath::Max(1, OutConfig.tileSize / FMath::Max(1, DestNavMesh->RegionChunkSplits));
 	OutConfig.regionPartitioning = DestNavMesh->LayerPartitioning;
 	OutConfig.TileCachePartitionType = DestNavMesh->RegionPartitioning;
 }

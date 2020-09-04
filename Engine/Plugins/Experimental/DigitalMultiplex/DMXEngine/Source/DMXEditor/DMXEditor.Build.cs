@@ -36,9 +36,14 @@ public class DMXEditor : ModuleRules
 				"SlateCore",
 				"InputCore",
 				"Json",
+				"JsonUtilities",
 				"Projects",
 				"MainFrame",
-				"XmlParser"
+				"XmlParser",
+				"Sequencer",
+				"MovieScene",
+				"TakesCore",
+				"ContentBrowser"
 			}
 		);
 	}

@@ -126,7 +126,7 @@ public:
 	bool GetRaw(const ERGBFormat InFormat, int32 InBitDepth, TArray<uint8>& OutRawData)
 	{
 		TArray64<uint8> TmpRawData;
-		if (GetRaw(InFormat, InBitDepth, TmpRawData) && ensureMsgf(TmpRawData.Num() == (int32)TmpRawData.Num(), TEXT("Tried to get %dx%d %dbpp image with format %d into 32-bit TArray (" INT64_FMT " bytes)"), GetWidth(), GetHeight(), InBitDepth, InFormat, (long long int)TmpRawData.Num()))
+		if (GetRaw(InFormat, InBitDepth, TmpRawData) && ensureMsgf(TmpRawData.Num() == (int32)TmpRawData.Num(), TEXT("Tried to get %dx%d %dbpp image with format %d into 32-bit TArray (%" INT64_FMT " bytes)"), GetWidth(), GetHeight(), InBitDepth, InFormat, (long long int)TmpRawData.Num()))
 		{
 			OutRawData = MoveTemp(TmpRawData);
 			return true;

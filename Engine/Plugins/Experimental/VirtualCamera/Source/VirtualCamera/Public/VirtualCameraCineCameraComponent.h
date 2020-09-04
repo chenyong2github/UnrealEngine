@@ -3,26 +3,9 @@
 #pragma once
 
 #include "CineCameraComponent.h"
+#include "IVirtualCameraController.h"
+
 #include "VirtualCameraCineCameraComponent.generated.h"
-
-UENUM()
-enum class EVirtualCameraFocusMethod : uint8
-{
-	/** Don't override, ie. allow post process volume settings to persist. */
-	DoNotOverride,
-
-	/* User controls focus distance directly */
-	Manual,
-
-	/* Focus distance is locked onto a specific point in relation to an actor */
-	Tracking,
-
-	/* Focus distance automatically changes to focus on actors in a specific screen location */
-	Auto,
-
-	/** Disable depth of field entirely. */
-	Disable,
-};
 
 UCLASS(Blueprintable, BlueprintType)
 class VIRTUALCAMERA_API UVirtualCameraCineCameraComponent : public UCineCameraComponent

@@ -9,6 +9,7 @@
 #include "USDGeomMeshTranslator.h"
 #include "USDGeomPointInstancerTranslator.h"
 #include "USDGeomXformableTranslator.h"
+#include "USDLuxLightTranslator.h"
 #include "USDMemory.h"
 #include "USDShadeMaterialTranslator.h"
 #include "USDSkelRootTranslator.h"
@@ -27,6 +28,7 @@ public:
 		UsdSkelRootTranslatorHandle = GetTranslatorRegistry().Register< FUsdSkelRootTranslator >( TEXT("UsdSkelRoot") );
 		UsdGeomXformableTranslatorHandle = GetTranslatorRegistry().Register< FUsdGeomXformableTranslator >( TEXT("UsdGeomXformable") );
 		UsdShadeMaterialTranslatorHandle = GetTranslatorRegistry().Register< FUsdShadeMaterialTranslator >( TEXT("UsdShadeMaterial") );
+		UsdLuxLightTranslatorHandle = GetTranslatorRegistry().Register< FUsdLuxLightTranslator >( TEXT("UsdLuxLight") );
 #endif // #if USE_USD_SDK
 	}
 
@@ -39,6 +41,7 @@ public:
 		GetTranslatorRegistry().Unregister( UsdSkelRootTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdGeomXformableTranslatorHandle );
 		GetTranslatorRegistry().Unregister( UsdShadeMaterialTranslatorHandle );
+		GetTranslatorRegistry().Unregister( UsdLuxLightTranslatorHandle );
 #endif // #if USE_USD_SDK
 	}
 
@@ -56,6 +59,7 @@ protected:
 	FRegisteredSchemaTranslatorHandle UsdSkelRootTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdGeomXformableTranslatorHandle;
 	FRegisteredSchemaTranslatorHandle UsdShadeMaterialTranslatorHandle;
+	FRegisteredSchemaTranslatorHandle UsdLuxLightTranslatorHandle;
 };
 
 IMPLEMENT_MODULE_USD( FUsdSchemasModule, USDSchemas );

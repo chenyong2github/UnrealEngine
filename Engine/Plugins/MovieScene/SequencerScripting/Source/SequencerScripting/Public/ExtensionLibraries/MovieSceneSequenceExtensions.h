@@ -291,6 +291,42 @@ public:
 	static float GetWorkRangeEnd(UMovieSceneSequence* InSequence);
 
 	/**
+	 * Set the evaluation type for this sequence
+	 *
+	 * @param Sequence The sequence within which to set the evaluation type
+	 * @param InEvaluationType The evaluation type to set for this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetEvaluationType(UMovieSceneSequence* InSequence, EMovieSceneEvaluationType InEvaluationType);
+
+	/**
+	 * Get the evaluation type for this sequence
+	 *
+	 * @param Sequence The sequence within which to get the evaluation type
+	 * @return The evaluation type for this sequence
+	 */
+	UFUNCTION(BlueprintPure, Category = "Sequence", meta = (ScriptMethod))
+	static EMovieSceneEvaluationType GetEvaluationType(UMovieSceneSequence* InSequence);
+
+	/**
+	 * Set the clock source for this sequence
+	 *
+	 * @param Sequence The sequence within which to set the clock source
+	 * @param InClockSource The clock source to set for this sequence
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetClockSource(UMovieSceneSequence* InSequence, EUpdateClockSource InClockSource);
+
+	/**
+	 * Get the clock source for this sequence
+	 *
+	 * @param Sequence The sequence within which to get the clock source
+	 * @return The clock source for this sequence
+	 */
+	UFUNCTION(BlueprintPure, Category = "Sequence", meta = (ScriptMethod))
+	static EUpdateClockSource GetClockSource(UMovieSceneSequence* InSequence);
+
+	/**
 	 * Get the timecode source of this sequence
 	 *
 	 * @param Sequence        The sequence within which to get the timecode source
@@ -308,6 +344,16 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
 	static FSequencerBindingProxy FindBindingByName(UMovieSceneSequence* Sequence, FString Name);
+
+	/**
+	 * Attempt to locate a binding in this sequence by its Id
+	 *
+	 * @param Sequence        The sequence within which to find the binding
+	 * @param BindingId       The binding Id to look up
+	 * @return A unique identifier for the binding, or invalid
+	 */
+	UFUNCTION(BlueprintCallable, Category="Sequence", meta=(ScriptMethod))
+	static FSequencerBindingProxy FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId);
 
 	/**
 	 * Get all the bindings in this sequence
@@ -451,6 +497,15 @@ public:
 	static int32 AddMarkedFrame(UMovieSceneSequence* Sequence, const FMovieSceneMarkedFrame& InMarkedFrame);
 
 	/*
+	 * Sets the frame number for the given marked frame index. Does not maintain sort. Call SortMarkedFrames
+	 *
+	 * @InMarkIndex The given user marked frame index to edit
+	 * @InFrameNumber The frame number to set
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SetMarkedFrame(UMovieSceneSequence* Sequence, int32 InMarkIndex, FFrameNumber InFrameNumber);
+
+	/*
 	 * Delete the user marked frame by index.
 	 *
 	 * @DeleteIndex The index to the user marked frame to delete
@@ -463,6 +518,12 @@ public:
 	 */
 	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
 	static void DeleteMarkedFrames(UMovieSceneSequence* Sequence);
+
+	/*
+	 * Sort the marked frames in chronological order
+	 */
+	UFUNCTION(BlueprintCallable, Category = "Sequence", meta = (ScriptMethod))
+	static void SortMarkedFrames(UMovieSceneSequence* Sequence);
 
 	/*
 	 * Find the user marked frame by label

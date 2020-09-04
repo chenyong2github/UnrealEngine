@@ -202,7 +202,7 @@ MaterialFloat4 Texture3DSampleLevel(Texture3D Tex, SamplerState Sampler, float3 
 MaterialFloat4 Texture3DSampleBias(Texture3D Tex, SamplerState Sampler, float3 UV, MaterialFloat MipBias)
 {
 #if USE_FORCE_TEXTURE_MIP
-	return Tex.SampleBias(Sampler, UV, 0);
+	return Tex.SampleLevel(Sampler, UV, 0);
 #else
 	return Tex.SampleBias(Sampler, UV, MipBias);
 #endif
@@ -408,7 +408,7 @@ float4 PseudoVolumeTexture(Texture2D Tex, SamplerState TexSampler, float3 inPos,
 	#define TANGENTTOWORLD2					TEXCOORD11
 
 	// TangentToWorld0 is float4 only to match D3D11
-#if METAL_PROFILE || COMPILER_GLSL_ES3_1
+#if METAL_PROFILE || COMPILER_GLSL_ES3_1 || VULKAN_PROFILE
 		//@todo-rco: FIXME!
 		#define TANGENTTOWORLD_INTERPOLATOR_BLOCK	float4 TangentToWorld0 : TANGENTTOWORLD0; float4	TangentToWorld2	: TANGENTTOWORLD2;
 #else

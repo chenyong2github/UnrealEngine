@@ -123,14 +123,15 @@ void UCameraShake::PlayShake(APlayerCameraManager* Camera, float Scale, ECameraA
 	ShakeScale = Scale;
 	CameraOwner = Camera;
 
+	const float EffectiveOscillationDuration = (OscillationDuration > 0.f) ? OscillationDuration : TNumericLimits<float>::Max();
+
 	// init oscillations
 	if (OscillationDuration != 0.f)
 	{
-
 		if (OscillatorTimeRemaining > 0.f)
 		{
 			// this shake was already playing
-			OscillatorTimeRemaining = OscillationDuration;
+			OscillatorTimeRemaining = EffectiveOscillationDuration;
 
 			if (bBlendingOut)
 			{
@@ -166,7 +167,7 @@ void UCameraShake::PlayShake(APlayerCameraManager* Camera, float Scale, ECameraA
 			InitialRotSinOffset = RotSinOffset;
 			InitialFOVSinOffset = FOVSinOffset;
 
-			OscillatorTimeRemaining = OscillationDuration;
+			OscillatorTimeRemaining = EffectiveOscillationDuration;
 
 			if (OscillationBlendInTime > 0.f)
 			{
@@ -240,7 +241,7 @@ void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMini
 		AnimInst->TransientScaleModifier *= BaseShakeScale;
 	}
 
-	// update oscillation times
+	// update oscillation times... only decrease the time remaining if we're not infinite
 	if (OscillatorTimeRemaining > 0.f)
 	{
 		OscillatorTimeRemaining -= DeltaTime;
@@ -258,20 +259,21 @@ void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMini
 	// see if we've crossed any important time thresholds and deal appropriately
 	bool bOscillationFinished = false;
 
-	if (OscillatorTimeRemaining == 0.f)
+	if (OscillatorTimeRemaining <= 0.f)
 	{
 		// finished!
 		bOscillationFinished = true;
-	}
-	else if (OscillatorTimeRemaining < 0.0f)
-	{
-		// indefinite shaking
 	}
 	else if (OscillatorTimeRemaining < OscillationBlendOutTime)
 	{
 		// start blending out
 		bBlendingOut = true;
 		CurrentBlendOutTime = OscillationBlendOutTime - OscillatorTimeRemaining;
+	}
+	else if (OscillationDuration < 0.f)
+	{
+		// infinite oscillation, keep the time remaining up
+		OscillatorTimeRemaining = TNumericLimits<float>::Max();
 	}
 
 	if (bBlendingIn)
@@ -376,9 +378,9 @@ void UCameraShake::UpdateAndApplyCameraShake(float DeltaTime, float Alpha, FMini
 
 bool UCameraShake::IsFinished() const
 {
-	return (((OscillatorTimeRemaining <= 0.f) && (IsLooping() == false)) &&		// oscillator is finished
-		((AnimInst == nullptr) || AnimInst->bFinished) &&						// anim is finished
-		ReceiveIsFinished()														// BP thinks it's finished
+	return ((OscillatorTimeRemaining <= 0.f) &&							// oscillator is finished
+		((AnimInst == nullptr) || AnimInst->bFinished) &&				// anim is finished
+		ReceiveIsFinished()												// BP thinks it's finished
 		);
 }
 

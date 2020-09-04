@@ -2,6 +2,7 @@
 
 
 #include "MetalRHIPrivate.h"
+#include "MetalRHIStagingBuffer.h"
 #include "MetalCommandBuffer.h"
 #include "RenderUtils.h"
 #include "ClearReplacementShaders.h"
@@ -60,12 +61,10 @@ ns::AutoReleased<FMetalTexture> FMetalShaderResourceView::GetLinearTexture(bool 
 		if (IsValidRef(SourceVertexBuffer))
 		{
 			NewLinearTexture = SourceVertexBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc);
-			check(NewLinearTexture);
 		}
 		else if (IsValidRef(SourceIndexBuffer))
 		{
 			NewLinearTexture = SourceIndexBuffer->GetLinearTexture((EPixelFormat)Format, LinearTextureDesc);
-			check(NewLinearTexture);
 		}
 	}
 	return NewLinearTexture;
@@ -673,7 +672,7 @@ void FMetalRHICommandContext::RHICopyToStagingBuffer(FRHIVertexBuffer* SourceBuf
 	@autoreleasepool {
 		check(DestinationStagingBufferRHI);
 
-		FMetalStagingBuffer* MetalStagingBuffer = ResourceCast(DestinationStagingBufferRHI);
+		FMetalRHIStagingBuffer* MetalStagingBuffer = ResourceCast(DestinationStagingBufferRHI);
 		ensureMsgf(!MetalStagingBuffer->bIsLocked, TEXT("Attempting to Copy to a locked staging buffer. This may have undefined behavior"));
 		FMetalVertexBuffer* SourceBuffer = ResourceCast(SourceBufferRHI);
 		FMetalBuffer& ReadbackBuffer = MetalStagingBuffer->ShadowBuffer;

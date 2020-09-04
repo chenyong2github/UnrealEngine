@@ -232,4 +232,34 @@ bool FPathViewsSplitTest::RunTest(const FString& InParameters)
 	return true;
 }
 
+IMPLEMENT_CUSTOM_SIMPLE_AUTOMATION_TEST(FPathViewsChangeExtensionTest, FPathViewsTest, "System.Core.Misc.PathViews.ChangeExtension", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FPathViewsChangeExtensionTest::RunTest(const FString& InParameters)
+{
+	auto RunChangeExtensionTest = [this](const TCHAR* InPath, const TCHAR* InNewExt, const TCHAR* InExpectedPath)
+	{
+		// Run test
+		const FString NewPath = FPathViews::ChangeExtension(InPath, InNewExt);
+		if (NewPath != InExpectedPath)
+		{
+			AddError(FString::Printf(TEXT("Path '%s' failed to change the extension (got '%s', expected '%s')."), InPath, *NewPath, InExpectedPath));
+		}
+	};
+
+	RunChangeExtensionTest(nullptr, nullptr, TEXT(""));
+	RunChangeExtensionTest(TEXT(""), TEXT(""), TEXT(""));
+	RunChangeExtensionTest(TEXT(""), TEXT(".txt"), TEXT(""));
+	RunChangeExtensionTest(TEXT("file"), TEXT("log"), TEXT("file"));
+	RunChangeExtensionTest(TEXT("file.txt"), TEXT("log"), TEXT("file.log"));
+	RunChangeExtensionTest(TEXT("file.tar.gz"), TEXT("gz2"), TEXT("file.tar.gz2"));
+	RunChangeExtensionTest(TEXT("file.txt"), TEXT(""), TEXT("file"));
+	RunChangeExtensionTest(TEXT("C:/Folder/file"), TEXT("log"), TEXT("C:/Folder/file"));
+	RunChangeExtensionTest(TEXT("C:/Folder/file.txt"), TEXT("log"), TEXT("C:/Folder/file.log"));
+	RunChangeExtensionTest(TEXT("C:/Folder/file.tar.gz"), TEXT("gz2"), TEXT("C:/Folder/file.tar.gz2"));
+	RunChangeExtensionTest(TEXT("C:/Folder/First.Last/file"), TEXT("log"), TEXT("C:/Folder/First.Last/file"));
+	RunChangeExtensionTest(TEXT("C:/Folder/First.Last/file.txt"), TEXT("log"), TEXT("C:/Folder/First.Last/file.log"));
+	RunChangeExtensionTest(TEXT("C:/Folder/First.Last/file.tar.gz"), TEXT("gz2"), TEXT("C:/Folder/First.Last/file.tar.gz2"));
+
+	return true;
+}
+
 #endif

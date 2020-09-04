@@ -2,11 +2,10 @@
 
 #include "Config/DisplayClusterConfigTypes.h"
 
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
-
-#include "DisplayClusterUtils/DisplayClusterTypesConverter.h"
+#include "Misc/DisplayClusterCommonTypesConverter.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 
 //////////////////////////////////////////////////////////////////////////////////////////////
@@ -81,8 +80,8 @@ FString FDisplayClusterConfigWindow::ToString() const
 bool FDisplayClusterConfigWindow::DeserializeFromString(const FString& line)
 {
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id),                  Id);
-	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Viewports),   FString(DisplayClusterStrings::strArrayValSeparator), ViewportIds);
-	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Postprocess), FString(DisplayClusterStrings::strArrayValSeparator), PostprocessIds);
+	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Viewports),   FString(DisplayClusterStrings::common::ArrayValSeparator), ViewportIds);
+	DisplayClusterHelpers::str::ExtractArray(line, FString(DisplayClusterStrings::cfg::data::window::Postprocess), FString(DisplayClusterStrings::common::ArrayValSeparator), PostprocessIds);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::Fullscreen),  IsFullscreen);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::WinX),        WinX);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::window::WinY),        WinY);
@@ -98,31 +97,37 @@ bool FDisplayClusterConfigWindow::DeserializeFromString(const FString& line)
 //////////////////////////////////////////////////////////////////////////////////////////////
 FString FDisplayClusterConfigViewport::ToString() const
 {
-	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d, %s=%s, %s=%f]"),
+	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s=%s, %s=%d, %s=%d, %s=%d, %s=%d, %s=%s, %s=%f, %s=%d, %s=%s, %s=%s]"),
 		*FDisplayClusterConfigBase::ToString(),
 		DisplayClusterStrings::cfg::data::Id, *Id,
-		DisplayClusterStrings::cfg::data::viewport::Projection,  *ProjectionId,
-		DisplayClusterStrings::cfg::data::viewport::Camera,      *CameraId,
-		DisplayClusterStrings::cfg::data::viewport::PosX,        Loc.X,
-		DisplayClusterStrings::cfg::data::viewport::PosY,        Loc.Y,
-		DisplayClusterStrings::cfg::data::viewport::Width,       Size.X,
-		DisplayClusterStrings::cfg::data::viewport::Height,      Size.Y,
-		DisplayClusterStrings::cfg::data::viewport::RTT,         *DisplayClusterHelpers::str::BoolToStr(IsRTT),
-		DisplayClusterStrings::cfg::data::viewport::BufferRatio, BufferRatio
+		DisplayClusterStrings::cfg::data::viewport::Projection,            *ProjectionId,
+		DisplayClusterStrings::cfg::data::viewport::Camera,                *CameraId,
+		DisplayClusterStrings::cfg::data::viewport::PosX,                   Loc.X,
+		DisplayClusterStrings::cfg::data::viewport::PosY,                   Loc.Y,
+		DisplayClusterStrings::cfg::data::viewport::Width,                  Size.X,
+		DisplayClusterStrings::cfg::data::viewport::Height,                 Size.Y,
+		DisplayClusterStrings::cfg::data::viewport::RTT,                   *DisplayClusterHelpers::str::BoolToStr(bIsRTT),
+		DisplayClusterStrings::cfg::data::viewport::BufferRatio,            BufferRatio,
+		DisplayClusterStrings::cfg::data::viewport::GPUIndex,               GPUIndex,
+		DisplayClusterStrings::cfg::data::viewport::AllowCrossGPUTransfer, *DisplayClusterHelpers::str::BoolToStr(bAllowCrossGPUTransfer),
+		DisplayClusterStrings::cfg::data::viewport::IsShared,              *DisplayClusterHelpers::str::BoolToStr(bIsShared)
 	);
 }
 
 bool FDisplayClusterConfigViewport::DeserializeFromString(const FString& line)
 {
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id),                    Id);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Projection),  ProjectionId);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Camera),      CameraId);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::PosX),        Loc.X);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::PosY),        Loc.Y);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Width),       Size.X);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Height),      Size.Y);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::RTT),         IsRTT);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::BufferRatio), BufferRatio);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id),                              Id);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Projection),            ProjectionId);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Camera),                CameraId);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::PosX),                  Loc.X);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::PosY),                  Loc.Y);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Width),                 Size.X);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::Height),                Size.Y);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::RTT),                   bIsRTT);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::BufferRatio),           BufferRatio);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::GPUIndex),              GPUIndex);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::AllowCrossGPUTransfer), bAllowCrossGPUTransfer);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::viewport::IsShared),              bIsShared);
 
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }
@@ -136,7 +141,7 @@ FString FDisplayClusterConfigPostprocess::ToString() const
 	return FString::Printf(TEXT("[%s + %s=%s, %s=%s, %s]"),
 		*FDisplayClusterConfigBase::ToString(),
 		DisplayClusterStrings::cfg::data::Id, *Id,
-		DisplayClusterStrings::cfg::data::postprocess::PostprocessId, *PostprocessId,
+		DisplayClusterStrings::cfg::data::postprocess::Type, *Type,
 		*ConfigLine
 	);
 }
@@ -144,7 +149,7 @@ FString FDisplayClusterConfigPostprocess::ToString() const
 bool FDisplayClusterConfigPostprocess::DeserializeFromString(const FString& line)
 {
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id), Id);
-	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::postprocess::PostprocessId), PostprocessId);
+	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::postprocess::Type), Type);
 	ConfigLine = line; //Save unparsed args for custom pp parsers
 
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
@@ -235,7 +240,7 @@ bool FDisplayClusterConfigInput::DeserializeFromString(const FString& line)
 
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::Id),           Id);
 	DisplayClusterHelpers::str::ExtractValue(line, FString(DisplayClusterStrings::cfg::data::input::Type),  Type);
-	DisplayClusterHelpers::str::ExtractMap(line,   FString(DisplayClusterStrings::cfg::data::input::Remap), DisplayClusterStrings::strArrayValSeparator, TEXT(":"), ChMap);
+	DisplayClusterHelpers::str::ExtractMap(line,   FString(DisplayClusterStrings::cfg::data::input::Remap), DisplayClusterStrings::common::ArrayValSeparator, TEXT(":"), ChMap);
 
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }
@@ -402,7 +407,7 @@ bool FDisplayClusterConfigCustom::DeserializeFromString(const FString& line)
 	tmpLine.RemoveFromStart(DisplayClusterStrings::cfg::data::custom::Header);
 	tmpLine.TrimStartAndEndInline();
 
-	DisplayClusterHelpers::str::StrToMap(line, FString(DisplayClusterStrings::strPairSeparator), FString(DisplayClusterStrings::strKeyValSeparator), Params);
+	DisplayClusterHelpers::str::StrToMap(line, FString(DisplayClusterStrings::common::PairSeparator), FString(DisplayClusterStrings::common::KeyValSeparator), Params);
 
 	return FDisplayClusterConfigBase::DeserializeFromString(line);
 }

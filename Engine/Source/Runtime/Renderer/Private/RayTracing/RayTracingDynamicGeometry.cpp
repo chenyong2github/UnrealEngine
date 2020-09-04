@@ -35,6 +35,7 @@ public:
 		MinVertexIndex.Bind(Initializer.ParameterMap, TEXT("MinVertexIndex"));
 		PrimitiveId.Bind(Initializer.ParameterMap, TEXT("PrimitiveId"));
 		OutputVertexBaseIndex.Bind(Initializer.ParameterMap, TEXT("OutputVertexBaseIndex"));
+		bApplyWorldPositionOffset.Bind(Initializer.ParameterMap, TEXT("bApplyWorldPositionOffset"));
 	}
 
 	FRayTracingDynamicGeometryConverterCS() = default;
@@ -79,6 +80,7 @@ public:
 	LAYOUT_FIELD(FShaderParameter, NumVertices);
 	LAYOUT_FIELD(FShaderParameter, MinVertexIndex);
 	LAYOUT_FIELD(FShaderParameter, PrimitiveId);
+	LAYOUT_FIELD(FShaderParameter, bApplyWorldPositionOffset);
 	LAYOUT_FIELD(FShaderParameter, OutputVertexBaseIndex);
 };
 
@@ -225,6 +227,7 @@ void FRayTracingDynamicGeometryCollection::AddDynamicMeshBatchForGeometryUpdate(
 		SingleShaderBindings.Add(Shader->MinVertexIndex, MinVertexIndex);
 		SingleShaderBindings.Add(Shader->PrimitiveId, PrimitiveId);
 		SingleShaderBindings.Add(Shader->OutputVertexBaseIndex, OutputVertexBaseIndex);
+		SingleShaderBindings.Add(Shader->bApplyWorldPositionOffset, UpdateParams.bApplyWorldPositionOffset ? 1 : 0);
 
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 		FMeshProcessorShaders ShadersForDebug = Shaders.GetUntypedShaders();
@@ -388,43 +391,43 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 			{
 				FRHIComputeCommandList& RHICmdList = AllocateCommandList(DispatchCommands.Num(), GET_STATID(STAT_CLM_RTDynGeomDispatch));
 
-				FRHIComputeShader* CurrentShader = nullptr;
-				FRWBuffer* CurrentBuffer = nullptr;
+			FRHIComputeShader* CurrentShader = nullptr;
+			FRWBuffer* CurrentBuffer = nullptr;
 
 				// Transition to writeable for each cmd list
 				RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, BuffersToTransition.GetData(), BuffersToTransition.Num());
 
-				// Cache the bound uniform buffers because a lot are the same between dispatches
-				FShaderBindingState ShaderBindingState;
+			// Cache the bound uniform buffers because a lot are the same between dispatches
+			FShaderBindingState ShaderBindingState;
 
-				for (FMeshComputeDispatchCommand& Cmd : DispatchCommands)
+			for (FMeshComputeDispatchCommand& Cmd : DispatchCommands)
+			{
+				const TShaderRef<FRayTracingDynamicGeometryConverterCS>& Shader = Cmd.MaterialShader;
+				FRHIComputeShader* ComputeShader = Shader.GetComputeShader();
+				if (CurrentShader != ComputeShader)
 				{
-					const TShaderRef<FRayTracingDynamicGeometryConverterCS>& Shader = Cmd.MaterialShader;
-					FRHIComputeShader* ComputeShader = Shader.GetComputeShader();
-					if (CurrentShader != ComputeShader)
-					{
-						RHICmdList.SetComputeShader(ComputeShader);
-						CurrentBuffer = nullptr;
-						CurrentShader = ComputeShader;
+					RHICmdList.SetComputeShader(ComputeShader);
+					CurrentBuffer = nullptr;
+					CurrentShader = ComputeShader;
 
-						// Reset binding state
-						ShaderBindingState = FShaderBindingState();
-					}
-
-					FRWBuffer* TargetBuffer = Cmd.TargetBuffer;
-					if (CurrentBuffer != TargetBuffer)
-					{
-						CurrentBuffer = TargetBuffer;
-						Shader->RWVertexPositions.SetBuffer(RHICmdList, CurrentShader, *Cmd.TargetBuffer);
-					}
-
-					Cmd.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader, &ShaderBindingState);
-					RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
+					// Reset binding state
+					ShaderBindingState = FShaderBindingState();
 				}
 
-				// Make sure buffers are readable again
-				RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, BuffersToTransition.GetData(), BuffersToTransition.Num());
+				FRWBuffer* TargetBuffer = Cmd.TargetBuffer;
+				if (CurrentBuffer != TargetBuffer)
+				{
+					CurrentBuffer = TargetBuffer;
+					Shader->RWVertexPositions.SetBuffer(RHICmdList, CurrentShader, *Cmd.TargetBuffer);
+				}
+
+				Cmd.ShaderBindings.SetOnCommandList(RHICmdList, ComputeShader, &ShaderBindingState);
+				RHICmdList.DispatchComputeShader(FMath::DivideAndRoundUp<uint32>(Cmd.NumMaxVertices, 64), 1, 1);
 			}
+
+				// Make sure buffers are readable again
+			RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, BuffersToTransition.GetData(), BuffersToTransition.Num());
+		}
 
 			{
 				FRHIComputeCommandList& RHICmdList = AllocateCommandList(1, GET_STATID(STAT_CLM_RTDynGeomBuild));
@@ -446,9 +449,9 @@ void FRayTracingDynamicGeometryCollection::DispatchUpdates(FRHIComputeCommandLis
 					false // bSpewMerge
 				);
 			}
+			}
 		}
-	}
-
+		
 #undef SCOPED_DRAW_OR_COMPUTE_EVENT
 }
 

@@ -106,9 +106,6 @@ class USoundSubmixGraphSchema : public UEdGraphSchema
 	/** Check whether connecting these pins would cause a loop */
 	bool ConnectionCausesLoop(const UEdGraphPin* InputPin, const UEdGraphPin* OutputPin) const;
 
-	/** Get menu for breaking links to specific nodes*/
-	void GetBreakLinkToSubMenuActions(UToolMenu* Menu, const FName SectionName, class UEdGraphPin* InGraphPin);
-
 	//~ Begin EdGraphSchema Interface
 	virtual void GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const override;
 	virtual void GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const override;

@@ -12,6 +12,7 @@
 #include "Async/TaskGraphInterfaces.h"
 
 @implementation FIOSAccessibilityCache
+@synthesize RootWindowId;
 
 #if !UE_BUILD_SHIPPING
 static void DumpAccessibilityStatsForwarder()
@@ -20,7 +21,7 @@ static void DumpAccessibilityStatsForwarder()
 }
 #endif
 
-- (id)init
+-(id)init
 {
 	Cache = [[NSMutableDictionary alloc] init];
 
@@ -43,17 +44,17 @@ static void DumpAccessibilityStatsForwarder()
 	[super dealloc];
 }
 
--(FIOSAccessibilityContainer*)GetAccessibilityElement:(AccessibleWidgetId)Id
+-(FIOSAccessibilityLeaf*)GetAccessibilityElement:(AccessibleWidgetId)Id
 {
 	if (Id == IAccessibleWidget::InvalidAccessibleWidgetId)
 	{
 		return nil;
 	}
 	
-	FIOSAccessibilityContainer* ExistingElement = [Cache objectForKey:[NSNumber numberWithInt:Id]];
+	FIOSAccessibilityLeaf* ExistingElement = [Cache objectForKey:[NSNumber numberWithInt:Id]];
 	if (ExistingElement == nil)
 	{
-		ExistingElement = [[[FIOSAccessibilityContainer alloc] initWithId:Id] autorelease];
+		ExistingElement = [[[FIOSAccessibilityLeaf alloc] initWithId:Id] autorelease];
 		[Cache setObject:ExistingElement forKey:[NSNumber numberWithInt:Id]];
 	}
 	return ExistingElement;
@@ -126,12 +127,15 @@ static void DumpAccessibilityStatsForwarder()
 					// All UIKit functions must be run on Main Thread
 					dispatch_async(dispatch_get_main_queue(), ^
 					{
-						FIOSAccessibilityContainer* Element = [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id];
+						FIOSAccessibilityLeaf* Element = [[FIOSAccessibilityCache AccessibilityElementCache] GetAccessibilityElement:Id];
 						Element.ChildIds = ChildIds;
 						Element.Bounds = Bounds;
-
-						[[Element GetLeaf] SetAccessibilityTrait:UIAccessibilityTraitNotEnabled Set:!bIsEnabled];
+						[Element SetAccessibilityTrait:UIAccessibilityTraitNotEnabled Set:!bIsEnabled];
 						Element.bIsVisible = bIsVisible;
+						if ([Element ShouldEmptyCachedStrings])
+						{
+							[Element EmptyCachedStrings];
+						}
 					});
 				}
 			}
@@ -142,29 +146,29 @@ static void DumpAccessibilityStatsForwarder()
 #if !UE_BUILD_SHIPPING
 -(void)DumpAccessibilityStats
 {
-	const uint32 NumContainers = [Cache count];
-	uint32 SizeOfContainer = 0;
-	uint32 SizeOfLeaf = 0;
-	uint32 CacheSize = 0;
-
-	NSArray* Keys = [Cache allKeys];
-	for (NSString* Key in Keys)
-	{
-		FIOSAccessibilityContainer* Container = [Cache objectForKey : Key];
-		FIOSAccessibilityLeaf* Leaf = [Container GetLeaf];
-
-		SizeOfContainer = malloc_size(Container);
-		SizeOfLeaf = malloc_size(Leaf);
-		CacheSize += sizeof(NSString*) + sizeof(FIOSAccessibilityContainer*) + malloc_size(Key) + SizeOfContainer + SizeOfLeaf
-			+ malloc_size([NSString stringWithFString : Leaf.Label])
-			+ malloc_size([NSString stringWithFString : Leaf.Hint])
-			+ malloc_size([NSString stringWithFString : Leaf.Value]);
-	}
-
-	UE_LOG(LogAccessibility, Log, TEXT("Number of Accessibility Elements: %i"), NumContainers * 2);
-	UE_LOG(LogAccessibility, Log, TEXT("Size of FIOSAccessibilityContainer: %u"), SizeOfContainer);
-	UE_LOG(LogAccessibility, Log, TEXT("Size of FIOSAccessibilityLeaf: %u"), SizeOfLeaf);
-	UE_LOG(LogAccessibility, Log, TEXT("Memory stored in cache: %u kb"), CacheSize / 1000);
+	// @TODO: Update stats with current data
+//	const uint32 NumContainers = [Cache count];
+//	uint32 SizeOfContainer = 0;
+//	uint32 SizeOfLeaf = 0;
+//	uint32 CacheSize = 0;
+//
+//	NSArray* Keys = [Cache allKeys];
+//	for (NSString* Key in Keys)
+//	{
+//		FIOSAccessibilityLeaf* Leaf = [Cache objectForKey : Key];
+//		FIOSAccessibilityContainer* Container = Nil;
+//		SizeOfContainer = malloc_size(Container);
+//		SizeOfLeaf = malloc_size(Leaf);
+//		CacheSize += sizeof(NSString*) + sizeof(FIOSAccessibilityContainer*) + malloc_size(Key) + SizeOfContainer + SizeOfLeaf
+//			+ malloc_size([NSString stringWithFString : Leaf.Label])
+//			+ malloc_size([NSString stringWithFString : Leaf.Hint])
+//			+ malloc_size([NSString stringWithFString : Leaf.Value]);
+//	}
+//
+//	UE_LOG(LogAccessibility, Log, TEXT("Number of Accessibility Elements: %i"), NumContainers * 2);
+//	UE_LOG(LogAccessibility, Log, TEXT("Size of FIOSAccessibilityContainer: %u"), SizeOfContainer);
+//	UE_LOG(LogAccessibility, Log, TEXT("Size of FIOSAccessibilityLeaf: %u"), SizeOfLeaf);
+//	UE_LOG(LogAccessibility, Log, TEXT("Memory stored in cache: %u kb"), CacheSize / 1000);
 }
 #endif
 

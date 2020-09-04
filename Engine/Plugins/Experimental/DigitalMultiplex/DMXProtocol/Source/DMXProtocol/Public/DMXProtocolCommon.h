@@ -28,9 +28,9 @@ using IDMXFragmentMap = TMap<uint32, uint8>;
 
 using FArrayReaderPtr = TSharedPtr<FArrayReader, ESPMode::ThreadSafe>;
 using FDMXPacketPtr = TSharedPtr<FDMXPacket, ESPMode::ThreadSafe>;
+using FDMXBufferPtr = TSharedPtr<FDMXBuffer, ESPMode::ThreadSafe>;
 using IDMXProtocolUniversePtr = TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe>;
 using IDMXProtocolPtr = TSharedPtr<IDMXProtocol, ESPMode::ThreadSafe>;
 using IDMXProtocolPtrWeak = TWeakPtr<IDMXProtocol, ESPMode::ThreadSafe>;
-using FDMXBufferPtr = TSharedPtr<FDMXBuffer, ESPMode::ThreadSafe>;
 
 enum class EDMXSendResult : uint8;

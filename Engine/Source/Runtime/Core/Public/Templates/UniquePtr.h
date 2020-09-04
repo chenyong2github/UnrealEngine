@@ -50,6 +50,17 @@ struct TDefaultDelete
 
 	void operator()(T* Ptr) const
 	{
+		// If you get an error here when trying to use a TUniquePtr<FForwardDeclaredType> inside a UObject then:
+		//
+		// * Declare all your UObject's constructors and destructor in the .h file.
+		// * Define all of them in the .cpp file.  You can use UMyObject::UMyObject() = default; to auto-generate
+		//   the default constructor and destructor so that they don't have to be manually maintained.
+		// * Define a UMyObject(FVTableHelper& Helper) constructor too, otherwise it will be defined in the
+		//   .gen.cpp file where your pimpl type doesn't exist.  It cannot be defaulted, but it need not
+		//   contain any particular implementation; the object just needs to be garbage collectable.
+		//
+		// If this is efficiency is less important than simplicity, you may want to consider
+		// using a TPimplPtr instead, though this is also pretty efficient too.
 		delete Ptr;
 	}
 };
@@ -99,6 +110,10 @@ class TUniquePtr : public /*private*/ Deleter // @todo loadtime: can we go back 
 
 public:
 	using ElementType = T;
+
+	// Non-copyable
+	TUniquePtr(const TUniquePtr&) = delete;
+	TUniquePtr& operator=(const TUniquePtr&) = delete;
 
 	/**
 	 * Default constructor - initializes the TUniquePtr to null.
@@ -360,10 +375,6 @@ public:
 	}
 
 private:
-	// Non-copyable
-	TUniquePtr(const TUniquePtr&);
-	TUniquePtr& operator=(const TUniquePtr&);
-
 	using PtrType = T*;
 	LAYOUT_FIELD(PtrType, Ptr);
 };
@@ -376,6 +387,10 @@ class TUniquePtr<T[], Deleter> : private Deleter
 
 public:
 	using ElementType = T;
+
+	// Non-copyable
+	TUniquePtr(const TUniquePtr&) = delete;
+	TUniquePtr& operator=(const TUniquePtr&) = delete;
 
 	/**
 	 * Default constructor - initializes the TUniquePtr to null.
@@ -634,10 +649,6 @@ public:
 	}
 
 private:
-	// Non-copyable
-	TUniquePtr(const TUniquePtr&);
-	TUniquePtr& operator=(const TUniquePtr&);
-
 	T* Ptr;
 };
 

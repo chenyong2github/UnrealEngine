@@ -16,7 +16,6 @@
 
 UE_TRACE_EVENT_BEGIN(LoadTime, StartAsyncLoading, Important)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, SuspendAsyncLoading)
@@ -37,43 +36,36 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginCreateExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const void*, AsyncPackage)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndCreateExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const UObject*, Object)
 	UE_TRACE_EVENT_FIELD(const UClass*, Class)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginSerializeExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const UObject*, Object)
 	UE_TRACE_EVENT_FIELD(uint64, SerialSize)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndSerializeExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginPostLoadExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(const UObject*, Object)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndPostLoadExport)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginRequest)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(uint64, RequestId)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndRequest)
@@ -120,8 +112,7 @@ void FLoadTimeProfilerTracePrivate::Init()
 void FLoadTimeProfilerTracePrivate::OutputStartAsyncLoading()
 {
 	UE_TRACE_LOG(LoadTime, StartAsyncLoading, LoadTimeChannel)
-		<< StartAsyncLoading.Cycle(FPlatformTime::Cycles64())
-		<< StartAsyncLoading.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< StartAsyncLoading.Cycle(FPlatformTime::Cycles64());
 }
 
 PRAGMA_DISABLE_SHADOW_VARIABLE_WARNINGS
@@ -142,8 +133,7 @@ void FLoadTimeProfilerTracePrivate::OutputBeginRequest(uint64 RequestId)
 {
 	UE_TRACE_LOG(LoadTime, BeginRequest, LoadTimeChannel)
 		<< BeginRequest.Cycle(FPlatformTime::Cycles64())
-		<< BeginRequest.RequestId(RequestId)
-		<< BeginRequest.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginRequest.RequestId(RequestId);
 }
 
 void FLoadTimeProfilerTracePrivate::OutputEndRequest(uint64 RequestId)
@@ -227,8 +217,7 @@ FLoadTimeProfilerTracePrivate::FCreateExportScope::FCreateExportScope(const void
 {
 	UE_TRACE_LOG(LoadTime, BeginCreateExport, LoadTimeChannel)
 		<< BeginCreateExport.Cycle(FPlatformTime::Cycles64())
-		<< BeginCreateExport.AsyncPackage(AsyncPackage)
-		<< BeginCreateExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginCreateExport.AsyncPackage(AsyncPackage);
 }
 
 FLoadTimeProfilerTracePrivate::FCreateExportScope::~FCreateExportScope()
@@ -236,8 +225,7 @@ FLoadTimeProfilerTracePrivate::FCreateExportScope::~FCreateExportScope()
 	UE_TRACE_LOG(LoadTime, EndCreateExport, LoadTimeChannel)
 		<< EndCreateExport.Cycle(FPlatformTime::Cycles64())
 		<< EndCreateExport.Object(*Object)
-		<< EndCreateExport.Class(*Object ? (*Object)->GetClass() : nullptr)
-		<< EndCreateExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< EndCreateExport.Class(*Object ? (*Object)->GetClass() : nullptr);
 }
 
 FLoadTimeProfilerTracePrivate::FSerializeExportScope::FSerializeExportScope(const UObject* Object, uint64 SerialSize)
@@ -245,30 +233,26 @@ FLoadTimeProfilerTracePrivate::FSerializeExportScope::FSerializeExportScope(cons
 	UE_TRACE_LOG(LoadTime, BeginSerializeExport, LoadTimeChannel)
 		<< BeginSerializeExport.Cycle(FPlatformTime::Cycles64())
 		<< BeginSerializeExport.Object(Object)
-		<< BeginSerializeExport.SerialSize(SerialSize)
-		<< BeginSerializeExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginSerializeExport.SerialSize(SerialSize);
 }
 
 FLoadTimeProfilerTracePrivate::FSerializeExportScope::~FSerializeExportScope()
 {
 	UE_TRACE_LOG(LoadTime, EndSerializeExport, LoadTimeChannel)
-		<< EndSerializeExport.Cycle(FPlatformTime::Cycles64())
-		<< EndSerializeExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< EndSerializeExport.Cycle(FPlatformTime::Cycles64());
 }
 
 FLoadTimeProfilerTracePrivate::FPostLoadExportScope::FPostLoadExportScope(const UObject* Object)
 {
 	UE_TRACE_LOG(LoadTime, BeginPostLoadExport, LoadTimeChannel)
 		<< BeginPostLoadExport.Cycle(FPlatformTime::Cycles64())
-		<< BeginPostLoadExport.Object(Object)
-		<< BeginPostLoadExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginPostLoadExport.Object(Object);
 }
 
 FLoadTimeProfilerTracePrivate::FPostLoadExportScope::~FPostLoadExportScope()
 {
 	UE_TRACE_LOG(LoadTime, EndPostLoadExport, LoadTimeChannel)
-		<< EndPostLoadExport.Cycle(FPlatformTime::Cycles64())
-		<< EndPostLoadExport.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< EndPostLoadExport.Cycle(FPlatformTime::Cycles64());
 }
 
 #endif

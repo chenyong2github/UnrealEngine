@@ -91,6 +91,7 @@ struct FContextMenuWeightDebugInfo
 	float DescriptionWeight = 0.0f;
 	float NodeTitleWeight = 0.0f;
 	float CategoryWeight = 0.0f;
+	float FavoriteBonusWeight = 0.0f;
 
 	float PercentageMatchWeight = 0.0f;
 	/** The calculated match percentage */
@@ -293,6 +294,9 @@ public:
 
 	/** Regenerated filtered results (FilteredRootAction and FilteredActionNodes) based on filter text  */ 
 	void GenerateFilteredItems(bool bPreserveExpansion);
+
+	/** The last typed action within the graph action menu */
+	static FString LastUsedFilterText;
 
 protected:
 	/** Get current filter text */

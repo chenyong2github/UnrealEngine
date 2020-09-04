@@ -51,6 +51,6 @@ protected:
 
 	FRichImageRow* FindImageRow(FName TagOrId, bool bWarnIfMissing);
 
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RowType="RichImageRow"))
+	UPROPERTY(EditAnywhere, Category=Appearance, meta = (RequiredAssetDataTags = "RowStructure=RichImageRow"))
 	class UDataTable* ImageSet;
 };

@@ -24,7 +24,7 @@ class FScene;
 class FViewInfo;
 class UPrimitiveComponent;
 class FIndirectLightingCacheUniformParameters;
-template<typename ElementType,typename OctreeSemantics> class TOctree;
+template<typename ElementType,typename OctreeSemantics> class TOctree2;
 
 /** Data used to track a primitive's allocation in the volume texture atlas that stores indirect lighting. */
 class FIndirectLightingCacheAllocation
@@ -207,7 +207,7 @@ struct FPrimitiveVirtualTextureLodInfo
 };
 
 /** The type of the octree used by FScene to find primitives. */
-typedef TOctree<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
+typedef TOctree2<FPrimitiveSceneInfoCompact,struct FPrimitiveOctreeSemantics> FScenePrimitiveOctree;
 
 /**
  * The renderer's internal state for a single UPrimitiveComponent.  This has a one to one mapping with FPrimitiveSceneProxy, which is in the engine module.
@@ -255,7 +255,7 @@ public:
 	TArray<class FStaticMeshBatch> StaticMeshes;
 
 	/** The identifier for the primitive in Scene->PrimitiveOctree. */
-	FOctreeElementId OctreeId;
+	FOctreeElementId2 OctreeId;
 
 	/** 
 	 * Caches the primitive's indirect lighting cache allocation.
@@ -309,12 +309,6 @@ public:
 
 	/** The number of movable point lights for mobile */
 	int32 NumMobileMovablePointLights;
-
-	/** This indicate that we should call the GetCustomLOD function on the proxy instead of the generic implementation. */
-	bool bIsUsingCustomLODRules : 1;
-	
-	/** This indicate that we should call the GetCustomWholeSceneShadowLOD function on the proxy instead of the generic implementation. */
-	bool bIsUsingCustomWholeSceneShadowLODRules : 1;
 
 	/** Set to true for the primitive to be rendered in the main pass to be visible in a view. */
 	bool bShouldRenderInMainPass : 1;
@@ -479,7 +473,7 @@ public:
 	void UpdateComponentLastRenderTime(float CurrentWorldTime, bool bUpdateLastRenderTimeOnScreen) const;
 
 	/** Updates static lighting uniform buffer, returns the number of entries needed for GPUScene */
-	int32 UpdateStaticLightingBuffer();
+	RENDERER_API int32 UpdateStaticLightingBuffer();
 
 	/** Update the cached runtime virtual texture flags for this primitive. Do this when runtime virtual textures are created or destroyed. */
 	void UpdateRuntimeVirtualTextureFlags();
@@ -570,7 +564,7 @@ struct FPrimitiveOctreeSemantics
 		return A.PrimitiveSceneInfo == B.PrimitiveSceneInfo;
 	}
 
-	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FPrimitiveSceneInfoCompact& Element,FOctreeElementId2 Id)
 	{
 		Element.PrimitiveSceneInfo->OctreeId = Id;
 	}

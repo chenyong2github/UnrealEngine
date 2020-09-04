@@ -19,6 +19,7 @@
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "ScopedTransaction.h"
 #include "EditorCategoryUtils.h"
+#include "Classes/EditorStyleSettings.h"
 #endif
 
 #define LOCTEXT_NAMESPACE "EdGraph"
@@ -289,8 +290,6 @@ FGraphContextMenuBuilder::FGraphContextMenuBuilder(const UEdGraph* InGraph)
 /////////////////////////////////////////////////////
 // FEdGraphSchemaAction_NewNode
 
-#define SNAP_GRID (16) // @todo ensure this is the same as SNodePanel::GetSnapGridSize()
-
 namespace 
 {
 	// Maximum distance a drag can be off a node edge to require 'push off' from node
@@ -331,7 +330,7 @@ UEdGraphNode* FEdGraphSchemaAction_NewNode::CreateNode(class UEdGraph* ParentGra
 
 	ResultNode->NodePosX = XLocation;
 	ResultNode->NodePosY = Location.Y;
-	ResultNode->SnapToGrid(SNAP_GRID);
+	ResultNode->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 #endif // WITH_EDITOR
 
 	return ResultNode;

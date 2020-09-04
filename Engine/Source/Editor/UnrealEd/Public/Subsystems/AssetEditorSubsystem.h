@@ -146,6 +146,7 @@ public:
 	/** Request notification to restore the assets that were previously open when the editor was last closed */
 	void RequestRestorePreviouslyOpenAssets();
 
+	
 	void RegisterUAssetEditor(UAssetEditor* NewAssetEditor);
 	void UnregisterUAssetEditor(UAssetEditor* RemovedAssetEditor);
 	
@@ -206,11 +207,21 @@ private:
 	/** Handler for when the "Don't Restore" button is clicked on the RestorePreviouslyOpenAssets notification */
 	void OnCancelRestorePreviouslyOpenAssets();
 
-	/** Saves a list of open asset editors so they can be restored on editor restart */
-	void SaveOpenAssetEditors(bool bOnShutdown);
+public:
 
-	/** Restore the assets that were previously open when the editor was last closed */
+	/**
+	 * Saves a list of open asset editors so they can be restored on editor restart.
+	 * @param bCancelIfDebugger If true, don't save a list of assets to restore if we are running under a debugger.
+	 */
+	void SaveOpenAssetEditors(const bool bOnShutdown, const bool bCancelIfDebugger = true);
+
+	/** Restore the assets that were previously open when the editor was last closed. */
 	void RestorePreviouslyOpenAssets();
+
+	/** Sets bAutoRestoreAndDisableSaving and sets bRequestRestorePreviouslyOpenAssets to false to avoid running RestorePreviouslyOpenAssets() twice. */
+	void SetAutoRestoreAndDisableSaving(const bool bInAutoRestoreAndDisableSaving);
+
+private:
 
 	/** Handles a package being reloaded */
 	void HandlePackageReloaded(const EPackageReloadPhase InPackageReloadPhase, FPackageReloadedEvent* InPackageReloadedEvent);
@@ -273,6 +284,14 @@ private:
 
 	/** Flag whether we are currently shutting down */
 	bool bSavingOnShutdown;
+	
+	/**
+	 * Flag whether to disable SaveOpenAssetEditors() and enable auto-restore on RestorePreviouslyOpenAssets().
+	 * Useful e.g., to allow LayoutsMenu.cpp re-load layouts on-the-fly and reload the previously opened assets.
+	 * If true, SaveOpenAssetEditors() will not save any asset editor and RestorePreviouslyOpenAssets() will automatically open them without asking the user.
+	 * If false, default behavior of both SaveOpenAssetEditors() and RestorePreviouslyOpenAssets().
+	 */
+	bool bAutoRestoreAndDisableSaving;
 
 	/** Flag whether there has been a request to notify whether to restore previously open assets */
 	bool bRequestRestorePreviouslyOpenAssets;
@@ -283,6 +302,7 @@ private:
 	UPROPERTY(Transient)
 	TArray<UAssetEditor*> OwnedAssetEditors;
 	
+	/** Map of FEditorModeId to EditorModeInfo for all known UEdModes when the subsystem initialized */
 	RegisteredModeInfoMap EditorModes;
 
 	/** Event that is triggered whenever a mode is unregistered */

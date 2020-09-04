@@ -7,7 +7,7 @@
 #include "MovieSceneScriptingChannel.h"
 #include "Channels/MovieSceneChannelTraits.h"
 #include "Channels/MovieSceneChannelHandle.h"
-#include "Sections/MovieSceneStringChannel.h"
+#include "Channels/MovieSceneStringChannel.h"
 #include "KeysAndChannels/MovieSceneScriptingChannel.h"
 #include "KeyParams.h"
 #include "MovieScene.h"

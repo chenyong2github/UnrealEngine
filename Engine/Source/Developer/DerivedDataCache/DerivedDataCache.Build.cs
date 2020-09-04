@@ -9,7 +9,7 @@ public class DerivedDataCache : ModuleRules
 	{
 		PrivateDependencyModuleNames.Add("Core");
 
-		// Dependencies for S3 backend
+		// Dependencies for "S3" and "HTTP" backends
 		PrivateDependencyModuleNames.AddRange(new string[] { "SSL", "Json" });
 		PrivateIncludePathModuleNames.Add("DesktopPlatform");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "libcurl");

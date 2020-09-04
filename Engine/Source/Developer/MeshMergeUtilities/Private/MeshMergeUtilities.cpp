@@ -159,13 +159,13 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 
 	TArray<UMaterialInterface*> UniqueMaterials;
 	TMap<UMaterialInterface*, int32> MaterialIndices;
-	TMultiMap<uint32, uint32> SectionToMaterialMap;
+	TMultiMap<uint32, uint32> UniqueMaterialToUniqueSectionMap;
 	// Populate list of unique materials and store section mappings
 	for (int32 SectionIndex = 0; SectionIndex < UniqueSections.Num(); ++SectionIndex)
 	{
 		FSectionInfo& Section = UniqueSections[SectionIndex];
 		const int32 UniqueIndex = UniqueMaterials.AddUnique(Section.Material);
-		SectionToMaterialMap.Add(UniqueIndex, SectionIndex);
+		UniqueMaterialToUniqueSectionMap.Add(UniqueIndex, SectionIndex);
 	}
 
 	TArray<bool> bMaterialUsesVertexData;
@@ -182,7 +182,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 		const bool bDoesMaterialUseVertexData = bMaterialUsesVertexData[MaterialIndex];
 		// Retrieve all sections using this material 
 		TArray<uint32> SectionIndices;
-		SectionToMaterialMap.MultiFind(MaterialIndex, SectionIndices);
+		UniqueMaterialToUniqueSectionMap.MultiFind(MaterialIndex, SectionIndices);
 
 		if (MaterialOptions->bUseMeshData)
 		{
@@ -382,20 +382,14 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 
 	// Retrieve material indices which were not baked out and should still be part of the final asset
 	TArray<int32> NonReplaceMaterialIndices;
-	for (int32 MaterialIndex = 0; MaterialIndex < NewMaterials.Num(); ++MaterialIndex)
+	for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
 	{
-		TArray<uint32> SectionIndices;
-		SectionToMaterialMap.MultiFind(MaterialIndex, SectionIndices);
-
-		for (int32 LODIndex = 0; LODIndex < NumLODs; ++LODIndex)
+		const bool bProcessedLOD = MaterialOptions->LODIndices.Contains(LODIndex);
+		if (!bProcessedLOD)
 		{
-			const bool bProcessedLOD = MaterialOptions->LODIndices.Contains(LODIndex);
-			if (!bProcessedLOD)
+			for (const auto& Pair : UniqueSectionIndexPerLOD[LODIndex])
 			{
-				for (const auto& Pair : UniqueSectionIndexPerLOD[LODIndex])
-				{
-					NonReplaceMaterialIndices.AddUnique(Adapter->GetMaterialIndex(LODIndex, Pair.Key));
-				}
+				NonReplaceMaterialIndices.AddUnique(Adapter->GetMaterialIndex(LODIndex, Pair.Key));
 			}
 		}
 	}
@@ -410,7 +404,6 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 			int32 SetIndex = Adapter->GetMaterialIndex(LODIndex, Pair.Key);
 			if (!NonReplaceMaterialIndices.Contains(SetIndex))
 			{
-				//TODO (Bug), need to pass the material data MaterialSlotName and ImportedMaterialSlotName. We loose all this data when baking material on skeletalmesh
 				Adapter->SetMaterial(SetIndex, NewMaterials[Pair.Value]);
 			}
 			else
@@ -423,7 +416,16 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(TArray<TWeakObjectPtr<UObjec
 				else
 				{
 					// Add new material
-					const int32 NewMaterialIndex = Adapter->AddMaterial(NewMaterials[Pair.Value]);
+					int32 NewMaterialIndex = INDEX_NONE;
+					if (Adapter->GetMaterialSlotName(Pair.Key).IsNone() || Adapter->GetImportedMaterialSlotName(Pair.Key).IsNone())
+					{
+						NewMaterialIndex = Adapter->AddMaterial(NewMaterials[Pair.Value]);
+					}
+					else
+					{
+						NewMaterialIndex = Adapter->AddMaterial(NewMaterials[Pair.Value], Adapter->GetMaterialSlotName(Pair.Key), Adapter->GetImportedMaterialSlotName(Pair.Key));
+					}
+
 					NewMaterialRemap.Add(Pair.Value, NewMaterialIndex);
 					Adapter->RemapMaterialIndex(LODIndex, Pair.Key, NewMaterialIndex);
 				}
@@ -451,6 +453,7 @@ void FMeshMergeUtilities::BakeMaterialsForComponent(USkeletalMeshComponent* Skel
 	}
 
 	// Bake out materials for skeletal mesh
+	SkeletalMeshComponent->SkeletalMesh->Modify();
 	FSkeletalMeshComponentAdapter Adapter(SkeletalMeshComponent);
 	BakeMaterialsForComponent(Objects, &Adapter);
 	SkeletalMeshComponent->MarkRenderStateDirty();
@@ -493,6 +496,7 @@ void FMeshMergeUtilities::BakeMaterialsForMesh(UStaticMesh* StaticMesh) const
 	}
 
 	// Bake out materials for static mesh asset
+	StaticMesh->Modify();
 	FStaticMeshAdapter Adapter(StaticMesh);
 	BakeMaterialsForComponent(Objects, &Adapter);
 }

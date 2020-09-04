@@ -5,6 +5,7 @@
 #include "Engine/DataTable.h"
 #include "Kismet2/ListenerManager.h"
 #include "Widgets/SWidget.h"
+#include "Framework/Commands/UIAction.h"
 #include "AssetData.h"
 
 struct FDataTableEditorColumnHeaderData
@@ -96,7 +97,11 @@ struct UNREALED_API FDataTableEditorUtils
 	static void BroadcastPreChange(UDataTable* DataTable, EDataTableChangeInfo Info);
 	static void BroadcastPostChange(UDataTable* DataTable, EDataTableChangeInfo Info);
 
+	/** Reads a data table and parses out editable copies of rows and columns */
 	static void CacheDataTableForEditing(const UDataTable* DataTable, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
+
+	/** Generic version that works with any datatable-like structure */
+	static void CacheDataForEditing(const UScriptStruct* RowStruct, const TMap<FName, uint8*>& RowMap, TArray<FDataTableEditorColumnHeaderDataPtr>& OutAvailableColumns, TArray<FDataTableEditorRowListViewDataPtr>& OutAvailableRows);
 
 	/** Returns all script structs that can be used as a data table row. This only includes loaded ones */
 	static TArray<UScriptStruct*> GetPossibleStructs();
@@ -106,6 +111,12 @@ struct UNREALED_API FDataTableEditorUtils
 	
 	/** Utility function which verifies that the specified struct type is viable for data tables */
 	static bool IsValidTableStruct(const UScriptStruct* Struct);
+
+	/** Add a UI action for search for references, useful for customizations */
+	static void AddSearchForReferencesContextMenu(class FDetailWidgetRow& RowNameDetailWidget, FExecuteAction SearchForReferencesAction);
+
+	/** Short description for a data or curve handle */
+	static FText GetHandleShortDescription(const UObject* TableAsset, FName RowName);
 
 	/** Tooltip text for the data table row type */
 	static FText GetRowTypeInfoTooltipText(FDataTableEditorColumnHeaderDataPtr ColumnHeaderDataPtr);

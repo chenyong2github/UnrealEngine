@@ -56,6 +56,7 @@ class FOnlineSessionSearchResult;
  */
 DECLARE_MULTICAST_DELEGATE_ThreeParams(FOnPreClientTravel, const FString& /*PendingURL*/, ETravelType /*TravelType*/, bool /*bIsSeamlessTravel*/);
 typedef FOnPreClientTravel::FDelegate FOnPreClientTravelDelegate;
+DECLARE_DYNAMIC_MULTICAST_DELEGATE_TwoParams(FOnPawnControllerChanged, APawn*, Pawn, AController*, Controller);
 
 #if WITH_EDITOR
 
@@ -180,6 +181,13 @@ protected:
 
 	/** Listeners to PreClientTravel call */
 	FOnPreClientTravel NotifyPreClientTravelDelegates;
+
+	/** gets triggered shortly after a pawn's controller is set. Most of the time 
+	 *	it signals that the Controller has changed but in edge cases (like during 
+	 *	replication) it might end up broadcasting the same pawn-controller pair 
+	 *	more than once */
+	UPROPERTY(BlueprintAssignable, DisplayName=OnPawnControllerChanged)
+	FOnPawnControllerChanged OnPawnControllerChangedDelegates;
 
 	/** Handle for delegate for handling PS4 play together system events */
 	FDelegateHandle OnPlayTogetherEventReceivedDelegateHandle;
@@ -497,6 +505,9 @@ public:
 	void NotifyPreClientTravel(const FString& PendingURL, ETravelType TravelType, bool bIsSeamlessTravel);
 	/** @return delegate fired when client travel occurs */
 	FOnPreClientTravel& OnNotifyPreClientTravel() { return NotifyPreClientTravelDelegates; }
+
+	/** @return delegate broadcasted shortly after pawn's controller is set */
+	FOnPawnControllerChanged& GetOnPawnControllerChanged() { return OnPawnControllerChangedDelegates; }
 
 	/**
 	 * Calls HandleDisconnect on either the OnlineSession if it exists or the engine, to cause a travel back to the default map. The instance must have a world.

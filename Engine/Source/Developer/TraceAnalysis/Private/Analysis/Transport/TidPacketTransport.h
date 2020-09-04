@@ -19,9 +19,9 @@ public:
 	typedef UPTRINT ThreadIter;
 
 	void					Update();
-	ThreadIter				ReadThreads();
-	FStreamReader*			GetNextThread(ThreadIter& Iter);
-	int32					GetThreadId(ThreadIter Iter) const;
+	uint32					GetThreadCount() const;
+	FStreamReader*			GetThreadStream(uint32 Index);
+	int32					GetThreadId(uint32 Index) const;
 
 private:
 	struct FThreadStream

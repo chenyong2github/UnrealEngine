@@ -26,6 +26,16 @@
 
 DEFINE_LOG_CATEGORY_STATIC(LogTextLocalizationManager, Log, All);
 
+enum class ERequestedCultureOverrideLevel : uint8
+{
+	CommandLine,
+	EditorSettings,
+	GameUserSettings,
+	GameSettings,
+	EngineSettings,
+	Defaults,
+};
+
 bool IsLocalizationLockedByConfig()
 {
 	bool bIsLocalizationLocked = false;
@@ -36,258 +46,267 @@ bool IsLocalizationLockedByConfig()
 	return bIsLocalizationLocked;
 }
 
-void ApplyDefaultCultureSettings(const ELocalizationLoadFlags LocLoadFlags)
+FString GetRequestedCulture(const TCHAR* InCommandLineKey, const TCHAR* InConfigKey, const TCHAR* InDefaultCulture, ERequestedCultureOverrideLevel& OutOverrideLevel)
 {
-	const bool ShouldLoadNative = EnumHasAllFlags( LocLoadFlags, ELocalizationLoadFlags::Native);
-	const bool ShouldLoadEditor = EnumHasAllFlags(LocLoadFlags, ELocalizationLoadFlags::Editor);
-	const bool ShouldLoadGame = EnumHasAllFlags(LocLoadFlags, ELocalizationLoadFlags::Game);
-	const bool ShouldLoadEngine = EnumHasAllFlags(LocLoadFlags, ELocalizationLoadFlags::Engine);
-	const bool ShouldLoadAdditional = EnumHasAllFlags(LocLoadFlags, ELocalizationLoadFlags::Additional);
+	FString RequestedCulture;
 
-	FInternationalization& I18N = FInternationalization::Get();
-
-	// Set culture according to configuration now that configs are available.
+	auto ReadSettingsFromCommandLine = [&RequestedCulture, &InCommandLineKey, &InConfigKey, &OutOverrideLevel]()
+	{
 #if ENABLE_LOC_TESTING
-	if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), *FLeetCulture::StaticGetName()))
-	{
-		I18N.SetCurrentCulture(FLeetCulture::StaticGetName());
-	}
-	else
+		if (RequestedCulture.IsEmpty() && FParse::Param(FCommandLine::Get(), *FLeetCulture::StaticGetName()))
+		{
+			RequestedCulture = FLeetCulture::StaticGetName();
+			OutOverrideLevel = ERequestedCultureOverrideLevel::CommandLine;
+		}
 #endif
-	{
-		FString RequestedLanguage;
-		FString RequestedLocale;
-		TArray<TTuple<FName, FString>> RequestedAssetGroups;
 
-		auto ReadSettingsFromCommandLine = [&RequestedLanguage, &RequestedLocale]()
+		if (RequestedCulture.IsEmpty() && FParse::Value(FCommandLine::Get(), TEXT("CULTUREFORCOOKING="), RequestedCulture))
 		{
-			if (RequestedLanguage.IsEmpty() && FParse::Value(FCommandLine::Get(), TEXT("LANGUAGE="), RequestedLanguage))
-			{
-				UE_LOG(LogInit, Log, TEXT("Overriding language with language command-line option (%s)."), *RequestedLanguage);
-			}
-
-			if (RequestedLocale.IsEmpty() && FParse::Value(FCommandLine::Get(), TEXT("LOCALE="), RequestedLocale))
-			{
-				UE_LOG(LogInit, Log, TEXT("Overriding locale with locale command-line option (%s)."), *RequestedLocale);
-			}
-
-			FString CultureOverride;
-			if (FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), CultureOverride))
-			{
-				if (RequestedLanguage.IsEmpty())
-				{
-					RequestedLanguage = CultureOverride;
-					UE_LOG(LogInit, Log, TEXT("Overriding language with culture command-line option (%s)."), *RequestedLanguage);
-				}
-				if (RequestedLocale.IsEmpty())
-				{
-					RequestedLocale = CultureOverride;
-					UE_LOG(LogInit, Log, TEXT("Overriding locale with culture command-line option (%s)."), *RequestedLocale);
-				}
-			}
-		};
-
-		auto ReadSettingsFromConfig = [&RequestedLanguage, &RequestedLocale, &RequestedAssetGroups](const TCHAR* InConfigLogName, const FString& InConfigFilename)
-		{
-			if (RequestedLanguage.IsEmpty())
-			{
-				if (const FConfigSection* AssetGroupCulturesSection = GConfig->GetSectionPrivate(TEXT("Internationalization.AssetGroupCultures"), false, true, InConfigFilename))
-				{
-					for (const auto& SectionEntryPair : *AssetGroupCulturesSection)
-					{
-						const bool bAlreadyExists = RequestedAssetGroups.ContainsByPredicate([&](const TTuple<FName, FString>& InRequestedAssetGroup)
-						{
-							return InRequestedAssetGroup.Key == SectionEntryPair.Key;
-						});
-
-						if (!bAlreadyExists)
-						{
-							RequestedAssetGroups.Add(MakeTuple(SectionEntryPair.Key, SectionEntryPair.Value.GetValue()));
-							UE_LOG(LogInit, Log, TEXT("Overriding asset group '%s' with %s configuration option (%s)."), *SectionEntryPair.Key.ToString(), InConfigLogName, *SectionEntryPair.Value.GetValue());
-						}
-					}
-				}
-			}
-
-			if (RequestedLanguage.IsEmpty() && GConfig->GetString(TEXT("Internationalization"), TEXT("Language"), RequestedLanguage, InConfigFilename))
-			{
-				UE_LOG(LogInit, Log, TEXT("Overriding language with %s language configuration option (%s)."), InConfigLogName, *RequestedLanguage);
-			}
-
-			if (RequestedLocale.IsEmpty() && GConfig->GetString(TEXT("Internationalization"), TEXT("Locale"), RequestedLocale, InConfigFilename))
-			{
-				UE_LOG(LogInit, Log, TEXT("Overriding locale with %s locale configuration option (%s)."), InConfigLogName, *RequestedLocale);
-			}
-
-			FString CultureOverride;
-			if (GConfig->GetString(TEXT("Internationalization"), TEXT("Culture"), CultureOverride, InConfigFilename))
-			{
-				if (RequestedLanguage.IsEmpty())
-				{
-					RequestedLanguage = CultureOverride;
-					UE_LOG(LogInit, Log, TEXT("Overriding language with %s culture configuration option (%s)."), InConfigLogName, *RequestedLanguage);
-				}
-				if (RequestedLocale.IsEmpty())
-				{
-					RequestedLocale = CultureOverride;
-					UE_LOG(LogInit, Log, TEXT("Overriding locale with %s culture configuration option (%s)."), InConfigLogName, *RequestedLocale);
-				}
-			}
-		};
-
-		auto ReadSettingsFromDefaults = [&RequestedLanguage, &RequestedLocale, &I18N]()
-		{
-			if (RequestedLanguage.IsEmpty())
-			{
-				RequestedLanguage = I18N.GetDefaultLanguage()->GetName();
-				UE_LOG(LogInit, Log, TEXT("Using OS detected language (%s)."), *RequestedLanguage);
-			}
-
-			if (RequestedLocale.IsEmpty())
-			{
-				RequestedLocale = I18N.GetDefaultLocale()->GetName();
-				UE_LOG(LogInit, Log, TEXT("Using OS detected locale (%s)."), *RequestedLocale);
-			}
-		};
-
-		if (FParse::Value(FCommandLine::Get(), TEXT("CULTUREFORCOOKING="), RequestedLanguage))
-		{
-			RequestedLocale = RequestedLanguage;
+			OutOverrideLevel = ERequestedCultureOverrideLevel::CommandLine;
 
 			// Write the culture passed in if first install...
-			if (FParse::Param(FCommandLine::Get(), TEXT("firstinstall")))
+			if (FParse::Param(FCommandLine::Get(), TEXT("firstinstall")) && InConfigKey)
 			{
-				GConfig->SetString(TEXT("Internationalization"), TEXT("Language"), *RequestedLanguage, GEngineIni);
-				GConfig->SetString(TEXT("Internationalization"), TEXT("Locale"), *RequestedLocale, GEngineIni);
+				GConfig->SetString(TEXT("Internationalization"), InConfigKey, *RequestedCulture, GEngineIni);
 			}
-
-			UE_LOG(LogInit, Log, TEXT("Overriding language with culture cook command-line option (%s)."), *RequestedLanguage);
-			UE_LOG(LogInit, Log, TEXT("Overriding locale with culture cook command-line option (%s)."), *RequestedLocale);
 		}
-		// Read setting override specified on commandline.
-		ReadSettingsFromCommandLine();
+
+		if (RequestedCulture.IsEmpty() && InCommandLineKey && FParse::Value(FCommandLine::Get(), InCommandLineKey, RequestedCulture))
+		{
+			OutOverrideLevel = ERequestedCultureOverrideLevel::CommandLine;
+		}
+
+		if (RequestedCulture.IsEmpty() && FParse::Value(FCommandLine::Get(), TEXT("CULTURE="), RequestedCulture))
+		{
+			OutOverrideLevel = ERequestedCultureOverrideLevel::CommandLine;
+		}
+	};
+
+	auto ReadSettingsFromConfig = [&RequestedCulture, &InConfigKey, &OutOverrideLevel](const FString& InConfigFilename, const ERequestedCultureOverrideLevel InConfigOverrideLevel)
+	{
+		if (RequestedCulture.IsEmpty() && InConfigKey && GConfig->GetString(TEXT("Internationalization"), InConfigKey, RequestedCulture, InConfigFilename))
+		{
+			OutOverrideLevel = InConfigOverrideLevel;
+		}
+
+		if (RequestedCulture.IsEmpty() && GConfig->GetString(TEXT("Internationalization"), TEXT("Culture"), RequestedCulture, InConfigFilename))
+		{
+			OutOverrideLevel = InConfigOverrideLevel;
+		}
+	};
+
+	auto ReadSettingsFromDefaults = [&RequestedCulture, &InDefaultCulture, &OutOverrideLevel]()
+	{
+		if (RequestedCulture.IsEmpty() && InDefaultCulture)
+		{
+			RequestedCulture = InDefaultCulture;
+			OutOverrideLevel = ERequestedCultureOverrideLevel::Defaults;
+		}
+	};
+
+	// Read setting override specified on commandline.
+	ReadSettingsFromCommandLine();
 #if WITH_EDITOR
-		// Read setting specified in editor configuration.
-		if (GIsEditor)
-		{
-			ReadSettingsFromConfig(TEXT("editor"), GEditorSettingsIni);
-		}
+	// Read setting specified in editor configuration.
+	if (GIsEditor)
+	{
+		ReadSettingsFromConfig(GEditorSettingsIni, ERequestedCultureOverrideLevel::EditorSettings);
+	}
 #endif // WITH_EDITOR
-		// Read setting specified in game configurations.
-		if (!GIsEditor)
-		{
-			ReadSettingsFromConfig(TEXT("game user settings"), GGameUserSettingsIni);
-			ReadSettingsFromConfig(TEXT("game"), GGameIni);
-		}
-		// Read setting specified in engine configuration.
-		ReadSettingsFromConfig(TEXT("engine"), GEngineIni);
-		// Read defaults
-		ReadSettingsFromDefaults();
+	// Read setting specified in game configurations.
+	if (!GIsEditor)
+	{
+		ReadSettingsFromConfig(GGameUserSettingsIni, ERequestedCultureOverrideLevel::GameUserSettings);
+		ReadSettingsFromConfig(GGameIni, ERequestedCultureOverrideLevel::GameSettings);
+	}
+	// Read setting specified in engine configuration.
+	ReadSettingsFromConfig(GEngineIni, ERequestedCultureOverrideLevel::EngineSettings);
+	// Read defaults
+	ReadSettingsFromDefaults();
 
-		auto ValidateRequestedCulture = [ShouldLoadEditor, ShouldLoadGame, ShouldLoadEngine, ShouldLoadAdditional, &I18N](const FString& InRequestedCulture, const FString& InFallbackCulture, const TCHAR* InLogDesc, const bool bRequireExactMatch) -> FString
+	return RequestedCulture;
+}
+
+FString GetRequestedLanguage(ERequestedCultureOverrideLevel& OutOverrideLevel)
+{
+	return GetRequestedCulture(TEXT("LANGUAGE="), TEXT("Language"), *FInternationalization::Get().GetDefaultLanguage()->GetName(), OutOverrideLevel);
+}
+
+FString GetRequestedLocale(ERequestedCultureOverrideLevel& OutOverrideLevel)
+{
+	return GetRequestedCulture(TEXT("LOCALE="), TEXT("Locale"), *FInternationalization::Get().GetDefaultLocale()->GetName(), OutOverrideLevel);
+}
+
+TArray<TTuple<FName, FString>> GetRequestedAssetGroups(const ERequestedCultureOverrideLevel InLanguageOverrideLevel)
+{
+	TArray<TTuple<FName, FString>> RequestedAssetGroups;
+
+	auto ReadSettingsFromConfig = [&RequestedAssetGroups, &InLanguageOverrideLevel](const FString& InConfigFilename, const ERequestedCultureOverrideLevel InConfigOverrideLevel)
+	{
+		// Once the language has been overridden we stop parsing out new asset groups
+		if (InLanguageOverrideLevel <= InConfigOverrideLevel)
 		{
-			FString TargetCultureName = InRequestedCulture;
+			if (const FConfigSection* AssetGroupCulturesSection = GConfig->GetSectionPrivate(TEXT("Internationalization.AssetGroupCultures"), false, true, InConfigFilename))
+			{
+				for (const auto& SectionEntryPair : *AssetGroupCulturesSection)
+				{
+					const bool bAlreadyExists = RequestedAssetGroups.ContainsByPredicate([&](const TTuple<FName, FString>& InRequestedAssetGroup)
+					{
+						return InRequestedAssetGroup.Key == SectionEntryPair.Key;
+					});
+
+					if (!bAlreadyExists)
+					{
+						RequestedAssetGroups.Add(MakeTuple(SectionEntryPair.Key, SectionEntryPair.Value.GetValue()));
+					}
+				}
+			}
+		}
+	};
+
+#if WITH_EDITOR
+	// Read setting specified in editor configuration.
+	if (GIsEditor)
+	{
+		ReadSettingsFromConfig(GEditorSettingsIni, ERequestedCultureOverrideLevel::EditorSettings);
+	}
+#endif // WITH_EDITOR
+	// Read setting specified in game configurations.
+	if (!GIsEditor)
+	{
+		ReadSettingsFromConfig(GGameUserSettingsIni, ERequestedCultureOverrideLevel::GameUserSettings);
+		ReadSettingsFromConfig(GGameIni, ERequestedCultureOverrideLevel::GameSettings);
+	}
+	// Read setting specified in engine configuration.
+	ReadSettingsFromConfig(GEngineIni, ERequestedCultureOverrideLevel::EngineSettings);
+
+	return RequestedAssetGroups;
+}
+
+void ApplyDefaultCultureSettings(const ELocalizationLoadFlags LocLoadFlags)
+{
+	FInternationalization& I18N = FInternationalization::Get();
+
+	auto LogCultureOverride = [](const TCHAR* InResult, const TCHAR* InOptionDisplayName, const ERequestedCultureOverrideLevel InOverrideLevel)
+	{
+		switch (InOverrideLevel)
+		{
+		case ERequestedCultureOverrideLevel::CommandLine:
+			UE_LOG(LogInit, Log, TEXT("Overriding %s with command-line option (%s)."), InOptionDisplayName, InResult);
+			break;
+		case ERequestedCultureOverrideLevel::EditorSettings:
+			UE_LOG(LogInit, Log, TEXT("Overriding language with editor %s configuration option (%s)."), InOptionDisplayName, InResult);
+			break;
+		case ERequestedCultureOverrideLevel::GameUserSettings:
+			UE_LOG(LogInit, Log, TEXT("Overriding language with game user settings %s configuration option (%s)."), InOptionDisplayName, InResult);
+			break;
+		case ERequestedCultureOverrideLevel::GameSettings:
+			UE_LOG(LogInit, Log, TEXT("Overriding language with game %s configuration option (%s)."), InOptionDisplayName, InResult);
+			break;
+		case ERequestedCultureOverrideLevel::EngineSettings:
+			UE_LOG(LogInit, Log, TEXT("Overriding language with engine %s configuration option (%s)."), InOptionDisplayName, InResult);
+			break;
+		case ERequestedCultureOverrideLevel::Defaults:
+			UE_LOG(LogInit, Log, TEXT("Using OS detected %s (%s)."), InOptionDisplayName, InResult);
+			break;
+		}
+	};
+
+	auto ValidateRequestedCulture = [LocLoadFlags, &I18N](const FString& InRequestedCulture, const FString& InFallbackCulture, const TCHAR* InLogDesc, const bool bRequireExactMatch) -> FString
+	{
+		FString TargetCultureName = InRequestedCulture;
 
 #if ENABLE_LOC_TESTING
-			if (TargetCultureName != FLeetCulture::StaticGetName())
+		if (TargetCultureName != FLeetCulture::StaticGetName())
 #endif
+		{
+			// Validate the locale has data or fallback to one that does.
+			const TArray<FString> AvailableCultureNames = FTextLocalizationManager::Get().GetLocalizedCultureNames(LocLoadFlags);
+			auto ValidateCultureName = [&AvailableCultureNames, &I18N](const FString& InCultureToValidate) -> FString
 			{
-				ELocalizationLoadFlags ValidationFlags = ELocalizationLoadFlags::None;
-				if (ShouldLoadGame)
+				const TArray<FString> PrioritizedCultureNames = I18N.GetPrioritizedCultureNames(InCultureToValidate);
+				for (const FString& CultureName : PrioritizedCultureNames)
 				{
-					ValidationFlags |= ELocalizationLoadFlags::Game;
-				}
-				else
-				{
-					if (ShouldLoadEditor)
+					if (AvailableCultureNames.Contains(CultureName))
 					{
-						ValidationFlags |= ELocalizationLoadFlags::Editor;
-					}
-					if (ShouldLoadEngine)
-					{
-						ValidationFlags |= ELocalizationLoadFlags::Engine;
+						return CultureName;
 					}
 				}
-				// before the game has initialized we may have initialized a plugin (specifically common for use of loading screens)
-				// these can support more languages then the engine
-				if (ShouldLoadAdditional)
-				{
-					ValidationFlags |= ELocalizationLoadFlags::Additional;
-				}
+				return FString();
+			};
 
-				// Validate the locale has data or fallback to one that does.
-				const TArray<FString> AvailableCultureNames = FTextLocalizationManager::Get().GetLocalizedCultureNames(ValidationFlags);
-				auto ValidateCultureName = [&AvailableCultureNames, &I18N](const FString& InCultureToValidate) -> FString
-				{
-					const TArray<FString> PrioritizedCultureNames = I18N.GetPrioritizedCultureNames(InCultureToValidate);
-					for (const FString& CultureName : PrioritizedCultureNames)
-					{
-						if (AvailableCultureNames.Contains(CultureName))
-						{
-							return CultureName;
-						}
-					}
-					return FString();
-				};
+			const FString ValidCultureName = ValidateCultureName(InRequestedCulture);
+			const FString ValidFallbackCultureName = ValidateCultureName(InFallbackCulture);
 
-				const FString ValidCultureName = ValidateCultureName(InRequestedCulture);
-				const FString ValidFallbackCultureName = ValidateCultureName(InFallbackCulture);
-
-				if (!ValidCultureName.IsEmpty())
+			if (!ValidCultureName.IsEmpty())
+			{
+				if (bRequireExactMatch && InRequestedCulture != ValidCultureName)
 				{
-					if (bRequireExactMatch && InRequestedCulture != ValidCultureName)
-					{
-						TargetCultureName = ValidCultureName;
-						UE_LOG(LogTextLocalizationManager, Log, TEXT("No specific localization for '%s' exists, so the '%s' localization will be used."), *InRequestedCulture, *ValidCultureName, InLogDesc);
-					}
-				}
-				else if (!ValidFallbackCultureName.IsEmpty())
-				{
-					TargetCultureName = ValidFallbackCultureName;
-					UE_LOG(LogTextLocalizationManager, Log, TEXT("No localization for '%s' exists, so '%s' will be used for the %s."), *InRequestedCulture, *TargetCultureName, InLogDesc);
-				}
-				else
-				{
-					TargetCultureName = AvailableCultureNames.Num() > 0 ? AvailableCultureNames[0] : InFallbackCulture;
-					UE_LOG(LogTextLocalizationManager, Log, TEXT("No localization for '%s' exists, so '%s' will be used for the %s."), *InRequestedCulture, *TargetCultureName, InLogDesc);
+					TargetCultureName = ValidCultureName;
+					UE_LOG(LogTextLocalizationManager, Log, TEXT("No specific localization for '%s' exists, so the '%s' localization will be used."), *InRequestedCulture, *ValidCultureName, InLogDesc);
 				}
 			}
-
-			return TargetCultureName;
-		};
-
-		FString FallbackLanguage = TEXT("en");
-		if (ShouldLoadGame)
-		{
-			// If this is a game, use the native culture of the game as the fallback
-			FString NativeGameCulture = FTextLocalizationManager::Get().GetNativeCultureName(ELocalizedTextSourceCategory::Game);
-			if (!NativeGameCulture.IsEmpty())
+			else if (!ValidFallbackCultureName.IsEmpty())
 			{
-				FallbackLanguage = MoveTemp(NativeGameCulture);
+				TargetCultureName = ValidFallbackCultureName;
+				UE_LOG(LogTextLocalizationManager, Log, TEXT("No localization for '%s' exists, so '%s' will be used for the %s."), *InRequestedCulture, *TargetCultureName, InLogDesc);
+			}
+			else
+			{
+				TargetCultureName = AvailableCultureNames.Num() > 0 ? AvailableCultureNames[0] : InFallbackCulture;
+				UE_LOG(LogTextLocalizationManager, Log, TEXT("No localization for '%s' exists, so '%s' will be used for the %s."), *InRequestedCulture, *TargetCultureName, InLogDesc);
 			}
 		}
 
-		// Validate that we have translations for this language and locale
-		// Note: We skip the locale check for the editor as we a limited number of translations, but want to allow locale correct display of numbers, dates, etc
-		const FString TargetLanguage = ValidateRequestedCulture(RequestedLanguage, FallbackLanguage, TEXT("language"), true);
-		const FString TargetLocale = GIsEditor ? RequestedLocale : ValidateRequestedCulture(RequestedLocale, TargetLanguage, TEXT("locale"), false);
-		if (TargetLanguage == TargetLocale)
-		{
-			I18N.SetCurrentLanguageAndLocale(TargetLanguage);
-		}
-		else
-		{
-			I18N.SetCurrentLanguage(TargetLanguage);
-			I18N.SetCurrentLocale(TargetLocale);
-		}
+		return TargetCultureName;
+	};
 
-		for (const auto& RequestedAssetGroupPair : RequestedAssetGroups)
+	FString FallbackLanguage = TEXT("en");
+	if (EnumHasAnyFlags(LocLoadFlags, ELocalizationLoadFlags::Game))
+	{
+		// If this is a game, use the native culture of the game as the fallback
+		FString NativeGameCulture = FTextLocalizationManager::Get().GetNativeCultureName(ELocalizedTextSourceCategory::Game);
+		if (!NativeGameCulture.IsEmpty())
 		{
-			const FString TargetAssetGroupCulture = ValidateRequestedCulture(RequestedAssetGroupPair.Value, TargetLanguage, *FString::Printf(TEXT("'%s' asset group"), *RequestedAssetGroupPair.Key.ToString()), false);
-			if (TargetAssetGroupCulture != TargetLanguage)
-			{
-				I18N.SetCurrentAssetGroupCulture(RequestedAssetGroupPair.Key, TargetAssetGroupCulture);
-			}
+			FallbackLanguage = MoveTemp(NativeGameCulture);
+		}
+	}
+
+	FString RequestedLanguage;
+	FString RequestedLocale;
+	TArray<TTuple<FName, FString>> RequestedAssetGroups;
+	{
+		ERequestedCultureOverrideLevel LanguageOverrideLevel = ERequestedCultureOverrideLevel::Defaults;
+		RequestedLanguage = GetRequestedLanguage(LanguageOverrideLevel);
+		LogCultureOverride(*RequestedLanguage, TEXT("language"), LanguageOverrideLevel);
+
+		ERequestedCultureOverrideLevel LocaleOverrideLevel = ERequestedCultureOverrideLevel::Defaults;
+		RequestedLocale = GetRequestedLocale(LocaleOverrideLevel);
+		LogCultureOverride(*RequestedLocale, TEXT("locale"), LocaleOverrideLevel);
+
+		RequestedAssetGroups = GetRequestedAssetGroups(LanguageOverrideLevel);
+	}
+
+	// Validate that we have translations for this language and locale
+	// Note: We skip the locale check for the editor as we a limited number of translations, but want to allow locale correct display of numbers, dates, etc
+	const FString TargetLanguage = ValidateRequestedCulture(RequestedLanguage, FallbackLanguage, TEXT("language"), true);
+	const FString TargetLocale = GIsEditor ? RequestedLocale : ValidateRequestedCulture(RequestedLocale, TargetLanguage, TEXT("locale"), false);
+	if (TargetLanguage == TargetLocale)
+	{
+		I18N.SetCurrentLanguageAndLocale(TargetLanguage);
+	}
+	else
+	{
+		I18N.SetCurrentLanguage(TargetLanguage);
+		I18N.SetCurrentLocale(TargetLocale);
+	}
+
+	for (const auto& RequestedAssetGroupPair : RequestedAssetGroups)
+	{
+		const FString TargetAssetGroupCulture = ValidateRequestedCulture(RequestedAssetGroupPair.Value, TargetLanguage, *FString::Printf(TEXT("'%s' asset group"), *RequestedAssetGroupPair.Key.ToString()), false);
+		if (TargetAssetGroupCulture != TargetLanguage)
+		{
+			I18N.SetCurrentAssetGroupCulture(RequestedAssetGroupPair.Key, TargetAssetGroupCulture);
 		}
 	}
 }
@@ -448,6 +467,18 @@ void FTextLocalizationManager::CompactDataStructures()
 	NamespaceKeyLookupTable.Shrink();
 	FTextKey::CompactDataStructures();
 	UE_LOG(LogTextLocalizationManager, Log, TEXT("Compacting localization data took %6.2fms"), 1000.0 * (FPlatformTime::Seconds() - StartTime));
+}
+
+FString FTextLocalizationManager::GetRequestedLanguageName() const
+{
+	ERequestedCultureOverrideLevel LanguageOverrideLevel = ERequestedCultureOverrideLevel::Defaults;
+	return GetRequestedLanguage(LanguageOverrideLevel);
+}
+
+FString FTextLocalizationManager::GetRequestedLocaleName() const
+{
+	ERequestedCultureOverrideLevel LocaleOverrideLevel = ERequestedCultureOverrideLevel::Defaults;
+	return GetRequestedLocale(LocaleOverrideLevel);
 }
 
 FString FTextLocalizationManager::GetNativeCultureName(const ELocalizedTextSourceCategory InCategory) const

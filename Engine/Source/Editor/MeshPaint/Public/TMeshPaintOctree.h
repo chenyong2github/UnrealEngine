@@ -51,9 +51,9 @@ struct FMeshPaintTriangleOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FMeshPaintTriangle& Element, FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FMeshPaintTriangle& Element, FOctreeElementId2 Id)
 	{
 
 	}
 };
-typedef TOctree<FMeshPaintTriangle, FMeshPaintTriangleOctreeSemantics> FMeshPaintTriangleOctree;
+typedef TOctree2<FMeshPaintTriangle, FMeshPaintTriangleOctreeSemantics> FMeshPaintTriangleOctree;

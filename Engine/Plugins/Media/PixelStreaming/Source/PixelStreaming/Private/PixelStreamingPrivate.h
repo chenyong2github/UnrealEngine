@@ -24,7 +24,11 @@ struct FHWEncoderDetails
 	uint32 InitialMaxFPS;
 	uint32 LastBitrate = 0;
 	uint32 LastFramerate = 0;
-	int LastQP = -1;
+
+	static const int32 InvalidQP = -1;
+	int32 LastMinQP = InvalidQP;
+	int32 LastAvgQP = InvalidQP;
+
 	FString LastRcMode = TEXT("");
 	TUniquePtr<AVEncoder::FVideoEncoder> Encoder;
 };

@@ -36,28 +36,20 @@ void FBackendHelperUMG::CreateClassSubobjects(FEmitterLocalContext& Context, boo
 {
 	if (UWidgetBlueprintGeneratedClass* WidgetClass = Cast<UWidgetBlueprintGeneratedClass>(Context.GetCurrentlyGeneratedClass()))
 	{
-		// Child widgets may actually use the widget tree from a parent class.
-		// - @see UUserWidget::Initialize()
-		WidgetClass = WidgetClass->FindWidgetTreeOwningClass();
-
-		// Initialize the WidgetTree only if it's owned by the current widget class.
-		if (WidgetClass == Context.GetCurrentlyGeneratedClass())
+		if (UWidgetTree* WidgetTree = WidgetClass->GetWidgetTreeArchetype())
 		{
-			if (UWidgetTree* WidgetTree = WidgetClass->GetWidgetTreeArchetype())
-			{
-				ensure(WidgetTree->GetOuter() == Context.GetCurrentlyGeneratedClass());
-				FEmitDefaultValueHelper::HandleClassSubobject(Context, WidgetTree, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
-			}
+			ensure(WidgetTree->GetOuter() == Context.GetCurrentlyGeneratedClass());
+			FEmitDefaultValueHelper::HandleClassSubobject(Context, WidgetTree, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
+		}
 
-			for (UWidgetAnimation* Anim : WidgetClass->Animations)
-			{
-				ensure(Anim->GetOuter() == Context.GetCurrentlyGeneratedClass());
+		for (UWidgetAnimation* Anim : WidgetClass->Animations)
+		{
+			ensure(Anim->GetOuter() == Context.GetCurrentlyGeneratedClass());
 
-				// We need the same regeneration like for cooking. See UMovieSceneSequence::Serialize
-				UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(Anim);
+			// We need the same regeneration like for cooking. See UMovieSceneSequence::Serialize
+			UMovieSceneCompiledDataManager::GetPrecompiledData()->Compile(Anim);
 
-				FEmitDefaultValueHelper::HandleClassSubobject(Context, Anim, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
-			}
+			FEmitDefaultValueHelper::HandleClassSubobject(Context, Anim, FEmitterLocalContext::EClassSubobjectList::MiscConvertedSubobjects, bCreate, bInitialize);
 		}
 	}
 }
@@ -107,14 +99,10 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 			// If we have a valid WidgetTree instance, emit code to initialize the widget using the owning class.
 			if (UWidgetTree* WidgetTree = WidgetTreeOwningClass->GetWidgetTreeArchetype())
 			{
-				FString WidgetClassStr;
 				FString WidgetTreeStr;
 
 				if (WidgetClass == WidgetTreeOwningClass)
 				{
-					// Simple case - WidgetTree instance is owned by the current class.
-					WidgetClassStr = TEXT("GetClass()");
-
 					// This object was already created as a class-owned subobject and mapped to the 'WidgetTree' value.
 					// - @see CreateClassSubobjects()
 					WidgetTreeStr = Context.FindGloballyMappedObject(WidgetTree, UWidgetTree::StaticClass());
@@ -122,9 +110,9 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 				else
 				{
 					// Emit code to assign the owning class to a local variable.
-					WidgetClassStr = Context.GenerateUniqueLocalName();
+					const FString WidgetTreeOwnerClassStr = Context.GenerateUniqueLocalName();
 					Context.AddLine(FString::Printf(TEXT("UClass* %s = %s;"),
-						*WidgetClassStr,
+						*WidgetTreeOwnerClassStr,
 						*Context.FindGloballyMappedObject(WidgetTreeOwningClass, UClass::StaticClass(), true)));
 
 					// Emit code to locate and assign the owning class's WidgetTree instance to a local variable. This will have been created as part of the owning class's ctor, but note
@@ -132,18 +120,16 @@ void FBackendHelperUMG::EmitWidgetInitializationFunctions(FEmitterLocalContext& 
 					WidgetTreeStr = Context.GenerateUniqueLocalName();
 					Context.AddLine(FString::Printf(TEXT("UWidgetTree* %s = CastChecked<UWidgetTree>(StaticFindObjectFast(UWidgetTree::StaticClass(), %s, TEXT(\"WidgetTree\")));"),
 						*WidgetTreeStr,
-						*WidgetClassStr));
+						*WidgetTreeOwnerClassStr));
 				}
 
 				ensure(!WidgetTreeStr.IsEmpty());
-				ensure(!WidgetClassStr.IsEmpty());
 
 				const FString AnimationsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Animations")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Animations));
 				const FString BindingsArrayNativeName = GenerateLocalProperty(Context, FindFieldChecked<FArrayProperty>(UWidgetBlueprintGeneratedClass::StaticClass(), TEXT("Bindings")), reinterpret_cast<const uint8*>(&WidgetTreeOwningClass->Bindings));
 
-				Context.AddLine(FString::Printf(TEXT("UWidgetBlueprintGeneratedClass::%s(this, %s, %s, %s, %s);")
+				Context.AddLine(FString::Printf(TEXT("UWidgetBlueprintGeneratedClass::%s(this, GetClass(), %s, %s, %s);")
 					, GET_FUNCTION_NAME_STRING_CHECKED(UWidgetBlueprintGeneratedClass, InitializeWidgetStatic)
-					, *WidgetClassStr
 					, *WidgetTreeStr
 					, *AnimationsArrayNativeName
 					, *BindingsArrayNativeName));

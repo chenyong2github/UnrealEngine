@@ -229,7 +229,10 @@ FString UK2Node_Variable::GetFindReferenceSearchString() const
 	else
 	{
 		FProperty* VariableProperty = VariableReference.ResolveMember<FProperty>(GetBlueprintClassFromNode());
-		ResultSearchString = VariableReference.GetReferenceSearchString(VariableProperty->GetOwnerClass());
+		if (VariableProperty)
+		{
+			ResultSearchString = VariableReference.GetReferenceSearchString(VariableProperty->GetOwnerClass());
+		}
 	}
 	return ResultSearchString;
 }

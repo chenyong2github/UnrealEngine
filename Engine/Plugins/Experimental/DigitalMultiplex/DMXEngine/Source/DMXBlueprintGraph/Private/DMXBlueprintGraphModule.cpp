@@ -5,11 +5,15 @@
 #include "K2Node_GetDMXActiveModeFunctionValues.h"
 #include "Customizations/K2Node_GetDMXActiveModeFunctionValuesCustomization.h"
 #include "DMXBlueprintGraphLog.h"
+#include "Library/DMXEntityFixtureType.h"
 
 #include "AssetToolsModule.h"
 #include "PropertyEditorModule.h"
 #include "AssetRegistryModule.h"
 #include "AssetToolsModule.h"
+#include "UObject/UObjectIterator.h"
+#include "Customizations/K2Node_CastPatchToTypeCustomization.h"
+#include "K2Node_CastPatchToType.h"
 
 #define LOCTEXT_NAMESPACE "DMXBlueprintGraphModule"
 
@@ -21,6 +25,8 @@ void FDMXBlueprintGraphModule::StartupModule()
 	FEdGraphUtilities::RegisterVisualPinFactory(DMXGraphPanelPinFactory);
 
 	RegisterObjectCustomizations();
+
+	DataTypeChangeDelegate = UDMXEntityFixtureType::GetDataTypeChangeDelegate().AddRaw(this, &FDMXBlueprintGraphModule::OnDataTypeChanged);
 }
 
 void FDMXBlueprintGraphModule::ShutdownModule()
@@ -40,11 +46,20 @@ void FDMXBlueprintGraphModule::ShutdownModule()
 
 		PropertyModule.NotifyCustomizationModuleChanged();
 	}
+
+	// Remove the delegate
+	if (DataTypeChangeDelegate.IsValid())
+	{
+		DataTypeChangeDelegate.Reset();
+	}
 }
 
 void FDMXBlueprintGraphModule::RegisterObjectCustomizations()
 {
 	RegisterCustomClassLayout(UK2Node_GetDMXActiveModeFunctionValues::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_GetDMXActiveModeFunctionValuesCustomization::MakeInstance));
+
+	RegisterCustomClassLayout(UK2Node_CastPatchToType::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&K2Node_CastPatchToTypeCustomization::MakeInstance));
+
 }
 
 void FDMXBlueprintGraphModule::RegisterCustomClassLayout(FName ClassName, FOnGetDetailCustomizationInstance DetailLayoutDelegate)
@@ -56,6 +71,17 @@ void FDMXBlueprintGraphModule::RegisterCustomClassLayout(FName ClassName, FOnGet
 	static FName PropertyEditor("PropertyEditor");
 	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>(PropertyEditor);
 	PropertyModule.RegisterCustomClassLayout(ClassName, DetailLayoutDelegate);
+}
+
+void FDMXBlueprintGraphModule::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
+{
+	for (TObjectIterator<UK2Node_GetDMXActiveModeFunctionValues> It(RF_Transient | RF_ClassDefaultObject, /** bIncludeDerivedClasses */ true, /** InternalExcludeFlags */ EInternalObjectFlags::PendingKill); It; ++It)
+	{
+		if (It->HasValidBlueprint())
+		{
+			It->OnDataTypeChanged(InFixtureType, InMode);
+		}
+	}
 }
 
 

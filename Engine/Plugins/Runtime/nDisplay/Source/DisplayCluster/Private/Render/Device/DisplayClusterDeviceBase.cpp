@@ -22,9 +22,12 @@
 #include "Render/Projection/IDisplayClusterProjectionPolicyFactory.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+
+#include "ITextureShare.h"
+#include "ITextureShareItem.h"
 
 #include <utility>
 
@@ -54,12 +57,10 @@ FDisplayClusterDeviceBase::FDisplayClusterDeviceBase(uint32 ViewsPerViewport)
 	: FDisplayClusterDeviceBase_PostProcess(RenderViewports, ViewsPerViewport, EyeRegions)
 	, ViewsAmountPerViewport(ViewsPerViewport)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterDeviceBase::~FDisplayClusterDeviceBase()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 
@@ -68,8 +69,6 @@ FDisplayClusterDeviceBase::~FDisplayClusterDeviceBase()
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterDeviceBase::Initialize()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	if (GDisplayCluster->GetOperationMode() == EDisplayClusterOperationMode::Disabled)
 	{
 		return false;
@@ -108,7 +107,7 @@ bool FDisplayClusterDeviceBase::Initialize()
 				TSharedPtr<IDisplayClusterProjectionPolicy> ProjPolicy = ProjPolicyFactory->Create(CfgViewportProjection.Type, RHIName, CfgViewport.Id);
 				if (ProjPolicy.IsValid())
 				{
-					AddViewport(CfgViewport.Id, CfgViewport.Loc, CfgViewport.Size, ProjPolicy, CfgViewport.CameraId, CfgViewport.BufferRatio, CfgViewport.IsRTT);
+					AddViewport(CfgViewport, ProjPolicy);
 				}
 				else
 				{
@@ -139,9 +138,9 @@ bool FDisplayClusterDeviceBase::Initialize()
 	// Initialize all local Postprocess
 	for (const FDisplayClusterConfigPostprocess& CfgPostprocess : LocalPostprocess)
 	{
-		if (Postprocess.Contains(CfgPostprocess.PostprocessId))
+		if (Postprocess.Contains(CfgPostprocess.Type))
 		{
-			Postprocess[CfgPostprocess.PostprocessId].Operation->InitializePostProcess(CfgPostprocess.ConfigLine);
+			Postprocess[CfgPostprocess.Type].Operation->InitializePostProcess(CfgPostprocess.ConfigLine);
 		}
 	}
 
@@ -150,8 +149,6 @@ bool FDisplayClusterDeviceBase::Initialize()
 
 void FDisplayClusterDeviceBase::StartScene(UWorld* InWorld)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	bIsSceneOpen = true;
 
 	for (FDisplayClusterRenderViewport& Viewport : RenderViewports)
@@ -189,8 +186,6 @@ void FDisplayClusterDeviceBase::PreTick(float DeltaSeconds)
 
 void FDisplayClusterDeviceBase::SetViewportCamera(const FString& InCameraId /* = FString() */, const FString& InViewportId /* = FString() */)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	// Assign to all viewports if camera ID is empty (default camera will be used by all viewports)
 	if (InViewportId.IsEmpty())
 	{
@@ -280,6 +275,42 @@ bool FDisplayClusterDeviceBase::GetViewportRect(const FString& InViewportID, FIn
 	return true;
 }
 
+bool FDisplayClusterDeviceBase::GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy)
+{
+	// Ok, we have a request for a particular viewport. Let's find it.
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
+
+	// Request data if found
+	if (DesiredViewport)
+	{
+		OutProjectionPolicy = DesiredViewport->GetProjectionPolicy();
+		return true;
+	}
+
+	return false;
+}
+
+bool FDisplayClusterDeviceBase::GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext)
+{
+	// Ok, we have a request for a particular viewport context. Let's find it.
+	FDisplayClusterRenderViewport* const DesiredViewport = RenderViewports.FindByPredicate([InViewportID](const FDisplayClusterRenderViewport& ItemViewport)
+	{
+		return InViewportID.Compare(ItemViewport.GetId(), ESearchCase::IgnoreCase) == 0;
+	});
+
+	// Request data if found
+	if (DesiredViewport)
+	{
+		OutViewContext = DesiredViewport->GetContext(ViewIndex);
+		return true;
+	}
+
+	return false;
+}
+
 bool FDisplayClusterDeviceBase::SetBufferRatio(const FString& InViewportID, float InBufferRatio)
 {
 	// Ok, we have a request for a particular viewport. Let's find it.
@@ -318,43 +349,36 @@ bool FDisplayClusterDeviceBase::GetBufferRatio(const FString& InViewportID, floa
 	return true;
 }
 
-bool FDisplayClusterDeviceBase::GetBufferRatio(int32 ViewIdx, float& OutBufferRatio) const
+const FDisplayClusterRenderViewport* FDisplayClusterDeviceBase::GetRenderViewport(int32 ViewIdx) const
 {
 	if (ViewIdx < 0 || ViewIdx >= RenderViewports.Num())
 	{
-		return false;
+		return nullptr;
 	}
 
-	OutBufferRatio = RenderViewports[ViewIdx].GetBufferRatio();
-	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("Viewport '%s' has buffer ratio %f"), *RenderViewports[ViewIdx].GetId(), OutBufferRatio);
-	return true;
+	return &(RenderViewports[ViewIdx]);
 }
-
 
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRendering
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterDeviceBase::IsStereoEnabled() const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return true;
 }
 
 bool FDisplayClusterDeviceBase::IsStereoEnabledOnNextFrame() const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return true;
 }
 
 bool FDisplayClusterDeviceBase::EnableStereo(bool stereo /*= true*/)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return true;
 }
 
 void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, class UCanvas* Canvas)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 
 	if (!bIsCustomPresentSet)
 	{
@@ -378,14 +402,11 @@ void FDisplayClusterDeviceBase::InitCanvasFromView(class FSceneView* InView, cla
 
 void FDisplayClusterDeviceBase::AdjustViewRect(enum EStereoscopicPass StereoPassType, int32& X, int32& Y, uint32& SizeX, uint32& SizeY) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	UE_LOG(LogDisplayClusterRender, Warning, TEXT("We should never be here!"));
 }
 
 void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscopicPass StereoPassType, FRotator& ViewRotation, const float WorldToMeters, FVector& ViewLocation)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInGameThread());
 	check(WorldToMeters > 0.f);
 
@@ -485,21 +506,8 @@ void FDisplayClusterDeviceBase::CalculateStereoViewOffset(const enum EStereoscop
 	ViewContext.WorldToMeters = WorldToMeters;
 
 	UE_LOG(LogDisplayClusterRender, VeryVerbose, TEXT("ViewLoc: %s, ViewRot: %s"), *ViewLocation.ToString(), *ViewRotation.ToString());
-}
 
-FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
-{
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
-	check(IsInGameThread());
-	check(StereoPassType != EStereoscopicPass::eSSP_FULL);
-
-	const int CurrentViewportIndex = DecodeViewportIndex(StereoPassType);
-	const uint32 ViewIndex = DecodeViewIndex(StereoPassType);
-
-	FDisplayClusterRenderViewport& Viewport = RenderViewports[CurrentViewportIndex];
-	FDisplayClusterRenderViewContext& ViewContext = Viewport.GetContext(ViewIndex);
-
+	//Build Prj matrix
 	FMatrix PrjMatrix = FMatrix::Identity;
 	if (bIsSceneOpen)
 	{
@@ -509,7 +517,21 @@ FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereos
 		}
 	}
 
-	return PrjMatrix;
+	ViewContext.ProjectionMatrix = PrjMatrix;
+}
+
+FMatrix FDisplayClusterDeviceBase::GetStereoProjectionMatrix(const enum EStereoscopicPass StereoPassType) const
+{
+	check(IsInGameThread());
+	check(StereoPassType != EStereoscopicPass::eSSP_FULL);
+
+	const int CurrentViewportIndex = DecodeViewportIndex(StereoPassType);
+	const uint32 ViewIndex = DecodeViewIndex(StereoPassType);
+
+	FDisplayClusterRenderViewport& Viewport = RenderViewports[CurrentViewportIndex];
+	FDisplayClusterRenderViewContext& ViewContext = Viewport.GetContext(ViewIndex);
+
+	return ViewContext.ProjectionMatrix;
 }
 
 void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const
@@ -535,7 +557,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 		// PP round 2: post-process for each eye frame before warp&blend
 		PerformPostProcessFrameBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, StubRect);
 		// PP round 3: post-process for the whole render target before warp&blend
-		PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture);
+		PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewports);
 	}
 
 	// Perform warp&blend
@@ -563,7 +585,7 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 		// PP round 5: post-process for each eye frame after warp&blend
 		PerformPostProcessFrameAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, StubRect);
 		// PP round 6: post-process for the whole render target after warp&blend
-		PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture);
+		PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(RHICmdList, SrcTexture, RenderViewports);
 	}
 
 	// Finally, copy the render target texture to the back buffer
@@ -572,14 +594,11 @@ void FDisplayClusterDeviceBase::RenderTexture_RenderThread(FRHICommandListImmedi
 
 int32 FDisplayClusterDeviceBase::GetDesiredNumberOfViews(bool bStereoRequested) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	return RenderViewports.Num() * ViewsAmountPerViewport;
 }
 
 EStereoscopicPass FDisplayClusterDeviceBase::GetViewPassForIndex(bool bStereoRequested, uint32 ViewIndex) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	const int CurrentPass = EncodeStereoscopicPass(ViewIndex);
 	UE_LOG(LogDisplayClusterRender, Verbose, TEXT("GetViewPassForIndex: %d"), (int)CurrentPass);
 
@@ -610,13 +629,11 @@ uint32 FDisplayClusterDeviceBase::GetViewIndexForPass(EStereoscopicPass StereoPa
 	return DecodedViewIndex;
 }
 
-
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IStereoRenderTargetManager
 //////////////////////////////////////////////////////////////////////////////////////////////
 void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, const class FViewport& Viewport, class SViewport* ViewportWidget)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
 	// Store viewport
@@ -624,12 +641,77 @@ void FDisplayClusterDeviceBase::UpdateViewport(bool bUseSeparateRenderTarget, co
 	{
 		// UE viewport
 		MainViewport = (FViewport*)&Viewport;
+
+		// Postprocess op: PerformUpdateViewport()
+		//@todo move to right place
+		{
+			// Get list of local postprocess (assigned to this cluster node)
+			TArray<FDisplayClusterConfigPostprocess> LocalPostprocess = DisplayClusterHelpers::config::GetLocalPostprocess();
+			TMap<FString, IPDisplayClusterRenderManager::FDisplayClusterPPInfo> Postprocess = GDisplayCluster->GetRenderMgr()->GetRegisteredPostprocessOperations();
+			
+			// Initialize all local Postprocess
+			for (const FDisplayClusterConfigPostprocess& CfgPostprocess : LocalPostprocess)
+			{
+				if (Postprocess.Contains(CfgPostprocess.Type))
+				{
+					Postprocess[CfgPostprocess.Type].Operation->PerformUpdateViewport(MainViewport, RenderViewports);
+				}
+			}
+		}
+
+		// Create texture share for render viewports by config line flag
+		//@todo move to right place. add on\off
+		{
+			// Share viewports to external apps
+			for (int ViewportIndex = 0; ViewportIndex < RenderViewports.Num(); ViewportIndex++)
+			{
+				if (RenderViewports[ViewportIndex].IsShared())
+				{
+					static ITextureShare& TextureShareAPI = ITextureShare::Get();
+
+					//@todo: add custom sync setup
+					FTextureShareSyncPolicy SyncPolicy;
+
+					FString ShareName = RenderViewports[ViewportIndex].GetId();
+					EStereoscopicPass PassType = GetViewPassForIndex(IsStereoEnabled(), ViewportIndex);
+
+					// Create shared resource for external app
+					if (!TextureShareAPI.CreateShare(ShareName, SyncPolicy, ETextureShareProcess::Server))
+					{
+						UE_LOG(LogDisplayClusterRender, Error, TEXT("Failed create viewport share '%s'"), *ShareName);
+					}
+					else
+					{
+						// Find viewport stereoscopic pass
+						int ResourceViewportIndex = RenderViewports.Num() - 1;
+
+						// Initialize render callbacks
+						TSharedPtr<ITextureShareItem> ShareItem;
+						if (TextureShareAPI.GetShare(ShareName, ShareItem))
+						{
+							if(TextureShareAPI.LinkSceneContextToShare(ShareItem, PassType, true))
+							{
+							// Map viewport rect to stereoscopic pass
+							TextureShareAPI.SetBackbufferRect(PassType, &RenderViewports[ViewportIndex].GetArea());
+
+							// Begin share session
+							ShareItem->BeginSession();
+							}
+							else
+							{
+								TextureShareAPI.ReleaseShare(ShareName);
+								UE_LOG(LogDisplayClusterRender, Error, TEXT("failed link scene conext for share '%s'"), *ShareName);
+							}
+						}
+					}
+				}
+			}
+		}
 	}
 }
 
 void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 	check(IsInGameThread());
 
 	InOutSizeX = Viewport.GetSizeXY().X;
@@ -651,8 +733,6 @@ void FDisplayClusterDeviceBase::CalculateRenderTargetSize(const class FViewport&
 
 bool FDisplayClusterDeviceBase::NeedReAllocateViewportRenderTarget(const class FViewport& Viewport)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInGameThread());
 
 	// Get current RT size
@@ -780,11 +860,11 @@ uint32 FDisplayClusterDeviceBase::DecodeViewIndex(const enum EStereoscopicPass S
 	return DecodedViewIndex;
 }
 
-void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const FIntPoint& InViewportLocation, const FIntPoint& InViewportSize, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy, const FString& InCameraId, float InBufferRatio /* = 1.f */, bool IsRTT /*= false*/)
+void FDisplayClusterDeviceBase::AddViewport(const FDisplayClusterConfigViewport& CfgViewport, TSharedPtr<IDisplayClusterProjectionPolicy> InProjPolicy)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	FScopeLock lock(&InternalsSyncScope);
+
+	const FString& InViewportId = CfgViewport.Id;
 
 	// Check viewport ID
 	if (InViewportId.IsEmpty())
@@ -807,12 +887,12 @@ void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const F
 	}
 
 	// Initialize the viewport
-	if (InProjPolicy->HandleAddViewport(InViewportSize, ViewsAmountPerViewport))
+	if (InProjPolicy->HandleAddViewport(CfgViewport.Size, ViewsAmountPerViewport))
 	{
 		UE_LOG(LogDisplayClusterRender, Log, TEXT("A corresponded projection policy object has initialized the viewport '%s'"), *InViewportId);
 
-		FIntRect ViewportArea = FIntRect(InViewportLocation, InViewportLocation + InViewportSize);
-		FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, InCameraId, InBufferRatio, IsRTT);
+		FIntRect ViewportArea = FIntRect(CfgViewport.Loc, CfgViewport.Loc + CfgViewport.Size);
+		FDisplayClusterRenderViewport NewViewport(InViewportId, ViewportArea, InProjPolicy, EDisplayClusterEyeType::COUNT, CfgViewport.CameraId, CfgViewport.BufferRatio, CfgViewport.bAllowCrossGPUTransfer, CfgViewport.GPUIndex, CfgViewport.bIsRTT, CfgViewport.bIsShared);
 		
 		// Store viewport instance
 		RenderViewports.Add(NewViewport);
@@ -821,8 +901,6 @@ void FDisplayClusterDeviceBase::AddViewport(const FString& InViewportId, const F
 
 void FDisplayClusterDeviceBase::CopyTextureToBackBuffer_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* BackBuffer, FRHITexture2D* SrcTexture, FVector2D WindowSize) const
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	check(IsInRenderingThread());
 
 	const FIntPoint BBSize = BackBuffer->GetSizeXY();
@@ -881,5 +959,5 @@ void FDisplayClusterDeviceBase::EndFinalPostprocessSettings(struct FPostProcessS
 	{
 		*FinalPostProcessingSettings = ViewportFinalPostProcessingSettings[ViewportNumber];
 		ViewportFinalPostProcessingSettings.Remove(ViewportNumber);
-	}		
+	}
 }

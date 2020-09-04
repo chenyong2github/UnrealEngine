@@ -61,6 +61,8 @@ protected:
 	UPROPERTY( EditAnywhere, Category = DatasmithProducer )
 	FString FilePath;
 
+	TWeakObjectPtr<ADatasmithSceneActor> ImportSceneActor;
+
 private:
 	/** Fill up world with content of Datasmith scene element */
 	void SceneElementToWorld();
@@ -90,8 +92,21 @@ private:
 	friend class UDatasmithDirProducer;
 };
 
+class FDataprepContentProducerDetails : public IDetailCustomization
+{
+public:
+	virtual void CustomizeDetails( IDetailLayoutBuilder& DetailBuilder ) override;
+	FSlateColor GetStatusColorAndOpacity() const;
+	bool IsProducerSuperseded() const;
+
+protected:
+	class UDataprepAssetProducers* AssetProducers = nullptr;
+	UDataprepContentProducer* Producer = nullptr;
+	int32 ProducerIndex = INDEX_NONE; // This index does not change for the lifetime of the property widget
+};
+
 // Customization of the details of the Datasmith Scene for the data prep editor.
-class DATASMITHIMPORTER_API FDatasmithFileProducerDetails : public IDetailCustomization
+class DATASMITHIMPORTER_API FDatasmithFileProducerDetails : public FDataprepContentProducerDetails
 {
 public:
 	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDatasmithFileProducerDetails>(); };
@@ -178,6 +193,15 @@ private:
 	/** Try import files in the FolderPath as parts of constructed PLMXML file */
 	bool ImportAsPlmXml(UPackage* RootPackage, TArray< TWeakObjectPtr< UObject > >& OutAssets, TArray<FString>& FilesCouldntBeProcessedWithPlmXml);
 
+	/** 
+	 * Make resulting scene hierarchy look the way it looks when each of files is imported individually
+	 * Which means each separate CAD file should have DatasmithSceneActor as root actor
+	 * In order to have this 
+	 * 1. Root ImportSceneActor is removed 
+	 * 2. Every child of this ImportSceneActor is converted into DatasmithSceneActor, filling RelatedChildren from this child's subtree
+	*/
+	void FixPlmXmlHierarchy();
+
 	/** Indicates if ExtensionString contains "*.*" */
 	bool bHasWildCardSearch;
 
@@ -196,7 +220,7 @@ private:
 };
 
 // Customization of the details of the Datasmith Scene for the data prep editor.
-class DATASMITHIMPORTER_API FDatasmithDirProducerDetails : public IDetailCustomization
+class DATASMITHIMPORTER_API FDatasmithDirProducerDetails : public FDataprepContentProducerDetails
 {
 public:
 	static TSharedRef< IDetailCustomization > MakeDetails() { return MakeShared<FDatasmithDirProducerDetails>(); };

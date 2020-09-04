@@ -4,8 +4,13 @@
 
 #include "USDLog.h"
 #include "USDMemory.h"
+#include "USDProjectSettings.h"
+
+#include "UsdWrappers/UsdAttribute.h"
+#include "UsdWrappers/UsdStage.h"
 
 #include "Internationalization/Regex.h"
+#include "Misc/Paths.h"
 #include "Modules/ModuleManager.h"
 
 #define LOCTEXT_NAMESPACE "UnrealUSDWrapper"
@@ -24,6 +29,7 @@
 #include "pxr/usd/ar/defaultResolver.h"
 #include "pxr/usd/ar/defineResolver.h"
 #include "pxr/usd/kind/registry.h"
+#include "pxr/usd/sdf/fileFormat.h"
 #include "pxr/usd/sdf/schema.h"
 #include "pxr/usd/usd/attribute.h"
 #include "pxr/usd/usd/common.h"
@@ -42,6 +48,7 @@
 #include "pxr/usd/usdGeom/xformCommonAPI.h"
 #include "pxr/usd/usdLux/light.h"
 #include "pxr/usd/usdShade/materialBindingAPI.h"
+#include "pxr/usd/usdShade/tokens.h"
 #include "pxr/usd/usdUtils/stageCache.h"
 
 #include "USDIncludesEnd.h"
@@ -65,21 +72,45 @@ static TUsdStore< UsdGeomXformCache > XFormCache;
 
 namespace UnrealIdentifiers
 {
-	/**
-	 * Identifies the LOD variant set on a primitive which means this primitive has child prims that LOD meshes
-	 * named LOD0, LOD1, LOD2, etc
-	 */
-	static const TfToken LOD("LOD");
-
 	static const TfToken AssetPath("unrealAssetPath");
 
 	static const TfToken ActorClass("unrealActorClass");
 
 	static const TfToken PropertyPath("unrealPropertyPath");
 
-	static const TfToken MaterialRelationship("material:binding");
+	/**
+	 * Identifies the LOD variant set on a primitive which means this primitive has child prims that LOD meshes
+	 * named LOD0, LOD1, LOD2, etc
+	 */
+	const TfToken LOD("LOD");
 
-	const TfToken MaterialAssignments = TfToken("unrealMaterials");
+	const TfToken MaterialAssignments = TfToken("unrealMaterials"); // DEPRECATED in favor of MaterialAssignment
+	const TfToken MaterialAssignment = TfToken("unrealMaterial");
+
+	const TfToken DiffuseColor = TfToken("diffuseColor");
+	const TfToken EmissiveColor = TfToken("emissiveColor");
+	const TfToken Metallic = TfToken("metallic");
+	const TfToken Roughness = TfToken("roughness");
+	const TfToken Opacity = TfToken("opacity");
+	const TfToken Normal = TfToken("normal");
+	const TfToken Specular = TfToken("specular");
+	const TfToken Anisotropy = TfToken("anisotropy");
+	const TfToken Tangent = TfToken("tangent");
+	const TfToken SubsurfaceColor = TfToken("subsurfaceColor");
+	const TfToken AmbientOcclusion = TfToken("ambientOcclusion");
+
+	const TfToken Surface = TfToken("surface");
+	const TfToken St = TfToken("st");
+	const TfToken Varname = TfToken("varname");
+	const TfToken Result = TfToken("result");
+	const TfToken File = TfToken("file");
+	const TfToken Fallback = TfToken("fallback");
+	const TfToken R = TfToken("r");
+	const TfToken RGB = TfToken("rgb");
+
+	const TfToken UsdPreviewSurface = TfToken( "UsdPreviewSurface" );
+	const TfToken UsdPrimvarReader_float2 = TfToken( "UsdPrimvarReader_float2" );
+	const TfToken UsdUVTexture = TfToken( "UsdUVTexture" );
 }
 
 void Log(const char* Format, ...)
@@ -89,7 +120,7 @@ void Log(const char* Format, ...)
 
 	GET_VARARGS_ANSI(TempStr, TempStrSize, TempStrSize - 1, Format, Format);
 
-	UE_LOG(LogTemp, Log, TEXT("%hs"), TempStr);
+	UE_LOG(LogUsd, Log, TEXT("%hs"), TempStr);
 }
 
 
@@ -659,27 +690,27 @@ std::string IUsdPrim::GetUnrealPropertyPath(const pxr::UsdPrim& Prim)
 	return {};
 }
 
-TUsdStore< std::vector<UsdAttribute> > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
+TArray< UE::FUsdAttribute > PrivateGetAttributes(const pxr::UsdPrim& Prim, const TfToken& ByMetadata)
 {
 	FScopedUsdAllocs UsdAllocs;
 
 	std::vector<UsdAttribute> Attributes = Prim.GetAttributes();
 
-	std::vector<UsdAttribute> OutAttributes;
-	OutAttributes.reserve(Attributes.size());
+	TArray<UE::FUsdAttribute> OutAttributes;
+	OutAttributes.Reserve(Attributes.size());
 
 	for (UsdAttribute& Attr : Attributes)
 	{
 		if (ByMetadata.IsEmpty() || Attr.HasCustomDataKey(ByMetadata))
 		{
-			OutAttributes.push_back(Attr);
+			OutAttributes.Emplace( Attr);
 		}
 	}
 
 	return OutAttributes;
 }
 
-TUsdStore< std::vector<UsdAttribute> > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
+TArray< UE::FUsdAttribute > IUsdPrim::GetUnrealPropertyAttributes(const pxr::UsdPrim& Prim)
 {
 	return PrivateGetAttributes(Prim, UnrealIdentifiers::PropertyPath);
 }
@@ -810,7 +841,11 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 		}
 
 		MaterialNames.AddDefaulted(FaceSubsets.size());
-		FaceMaterialIndices.AddZeroed(FaceVertexCounts.size());
+		FaceMaterialIndices.AddUninitialized(FaceVertexCounts.size());
+		for ( int32& FaceMaterialIndex : FaceMaterialIndices )
+		{
+			FaceMaterialIndex = INDEX_NONE; // Signal "no material assigned", so that we can fill in those spots with DisplayColor materials, if any
+		}
 
 		int MaterialIndex = 0;
 		for (const auto &Subset : FaceSubsets)
@@ -853,7 +888,11 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 		return MakeTuple( MaterialNames, FaceMaterialIndices );
 	}
 
-	FaceMaterialIndices.AddZeroed(FaceVertexCounts.size());
+	FaceMaterialIndices.AddUninitialized( FaceVertexCounts.size() );
+	for ( int32& FaceMaterialIndex : FaceMaterialIndices )
+	{
+		FaceMaterialIndex = INDEX_NONE; // Signal "no material assigned", so that we can fill in those spots with DisplayColor materials, if any
+	}
 
 	// Figure out a zero based material index for each face.  The mapping is FaceMaterialIndices[FaceIndex] = MaterialIndex;
 	// This is done by walking the face sets and for each face set getting the number number of unique groups of faces in the set
@@ -866,7 +905,7 @@ TTuple< TArray< FString >, TArray< int32 > > IUsdPrim::GetGeometryMaterials(doub
 	//MaterialNames.Resize(FaceSets)
 	{
 		// No face sets, find a relationship that defines the material
-		UsdRelationship Relationship = Prim.GetRelationship(UnrealIdentifiers::MaterialRelationship);
+		UsdRelationship Relationship = Prim.GetRelationship(UsdShadeTokens->materialBinding);
 		if (Relationship)
 		{
 			SdfPathVector Targets;
@@ -942,7 +981,8 @@ EUsdGeomOrientation IUsdPrim::GetGeometryOrientation(const pxr::UsdGeomMesh& Mes
 }
 #endif // USE_USD_SDK
 
-
+FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPreUsdImport;
+FUsdDelegates::FUsdImportDelegate FUsdDelegates::OnPostUsdImport;
 
 DEFINE_LOG_CATEGORY( LogUsd );
 
@@ -991,43 +1031,10 @@ class FUsdDiagnosticDelegate { };
 #endif // USE_USD_SDK
 
 TUniquePtr<FUsdDiagnosticDelegate> UnrealUSDWrapper::Delegate = nullptr;
+
 #if USE_USD_SDK
-bool UnrealUSDWrapper::bInitialized = false;
-
-void UnrealUSDWrapper::Initialize( const TArray< FString >& InPluginDirectories )
-{
-	{
-		TArray< FTCHARToUTF8 > ConvertedStrings;
-
-		for ( const FString& PluginDirectory : InPluginDirectories )
-		{
-			ConvertedStrings.Emplace( *PluginDirectory, PluginDirectory.Len() );
-		}
-
-		{
-			FScopedUsdAllocs UsdAllocs;
-
-			std::vector< std::string > UsdPluginDirectories;
-
-			for ( const FTCHARToUTF8& ConvertedString : ConvertedStrings )
-			{
-				UsdPluginDirectories.emplace_back( ConvertedString.Get(), ConvertedString.Length() );
-			}
-
-			PlugRegistry::GetInstance().RegisterPlugins( UsdPluginDirectories );
-		}
-	}
-
-	bInitialized = true;
-}
-
 TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path, const char* Filename)
 {
-	if (!bInitialized)
-	{
-		return {};
-	}
-
 	bool bImportedSuccessfully = false;
 
 	string PathAndFilename = string(Path) + string(Filename);
@@ -1036,7 +1043,7 @@ TUsdStore< pxr::UsdStageRefPtr > UnrealUSDWrapper::OpenUsdStage(const char* Path
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdStageCacheContext UsdStageCacheContext( GetUsdStageCache() );
+	pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
 	UsdStageRefPtr Stage = UsdStage::Open(PathAndFilename);
 
 	return Stage;
@@ -1046,12 +1053,94 @@ double UnrealUSDWrapper::GetDefaultTimeCode()
 {
 	return UsdTimeCode::Default().GetValue();
 }
-
-pxr::UsdStageCache& UnrealUSDWrapper::GetUsdStageCache()
-{
-	return pxr::UsdUtilsStageCache::Get();
-}
 #endif // USE_USD_SDK
+
+TArray<FString> UnrealUSDWrapper::GetAllSupportedFileFormats()
+{
+	TArray<FString> Result;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs Allocs;
+
+	std::set<std::string> Extensions = pxr::SdfFileFormat::FindAllFileFormatExtensions();
+	for ( const std::string& Ext : Extensions )
+	{
+		// Ignore formats that don't target "usd"
+		pxr::SdfFileFormatConstPtr Format = pxr::SdfFileFormat::FindByExtension(Ext, pxr::UsdUsdFileFormatTokens->Target);
+		if ( Format == nullptr )
+		{
+			continue;
+		}
+
+		Result.Emplace( ANSI_TO_TCHAR( Ext.c_str() ) );
+	}
+#endif // #if USE_USD_SDK
+
+	return Result;
+}
+
+UE::FUsdStage UnrealUSDWrapper::OpenStage( const TCHAR* FilePath, EUsdInitialLoadSet InitialLoadSet, bool bUseStageCache )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	if ( bUseStageCache )
+	{
+		pxr::UsdStageCacheContext UsdStageCacheContext( pxr::UsdUtilsStageCache::Get() );
+
+		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
+	}
+	else
+	{
+		return UE::FUsdStage( pxr::UsdStage::Open( TCHAR_TO_ANSI( FilePath ), pxr::UsdStage::InitialLoadSet( InitialLoadSet ) ) );
+	}
+#else
+	return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+}
+
+UE::FUsdStage UnrealUSDWrapper::NewStage( const TCHAR* FilePath )
+{
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	UE::FUsdStage UsdStage( pxr::UsdStage::CreateNew( TCHAR_TO_ANSI( FilePath ) ) );
+
+	if ( !UsdStage )
+	{
+		return UsdStage;
+	}
+
+	pxr::UsdGeomSetStageUpAxis( UsdStage, pxr::UsdGeomTokens->z );
+
+	return UsdStage;
+#else
+	return UE::FUsdStage();
+#endif // #if USE_USD_SDK
+}
+
+TArray< UE::FUsdStage > UnrealUSDWrapper::GetAllStagesFromCache()
+{
+	TArray< UE::FUsdStage > StagesInCache;
+
+#if USE_USD_SDK
+	FScopedUsdAllocs UsdAllocs;
+
+	for ( const pxr::UsdStageRefPtr& StageInCache : pxr::UsdUtilsStageCache::Get().GetAllStages() )
+	{
+		StagesInCache.Emplace( StageInCache );
+	}
+#endif // #if USE_USD_SDK
+
+	return StagesInCache;
+}
+
+void UnrealUSDWrapper::EraseStageFromCache( const UE::FUsdStage& Stage )
+{
+#if USE_USD_SDK
+	pxr::UsdUtilsStageCache::Get().Erase( Stage );
+#endif // #if USE_USD_SDK
+}
 
 void UnrealUSDWrapper::SetupDiagnosticDelegate()
 {
@@ -1090,6 +1179,36 @@ class FUnrealUSDWrapperModule : public IUnrealUSDWrapperModule
 public:
 	virtual void StartupModule() override
 	{
+#if USE_USD_SDK
+		// Path to USD base plugins
+		FString BasePluginPath = FPaths::ConvertRelativePathToFull(FPaths::EnginePluginsDir() + FString(TEXT("Importers/USDImporter")));
+#if PLATFORM_WINDOWS
+		BasePluginPath /= TEXT("Resources/UsdResources/Windows/plugins");
+#elif PLATFORM_LINUX
+		BasePluginPath /= ("Resources/UsdResources/Linux/plugins");
+#elif PLATFORM_MAC
+		BasePluginPath /= ("Resources/UsdResources/Mac/plugins");
+#endif
+
+		{
+			FScopedUsdAllocs UsdAllocs;
+			std::vector< std::string > UsdPluginDirectories;
+
+			UsdPluginDirectories.push_back(TCHAR_TO_UTF8(*BasePluginPath));
+
+			// Fetch additional USD plugins the user may have set
+			for (const FDirectoryPath& Directory : GetDefault<UUsdProjectSettings>()->AdditionalPluginDirectories)
+			{
+				if (!Directory.Path.IsEmpty())
+				{
+					UsdPluginDirectories.push_back(TCHAR_TO_UTF8(*Directory.Path));
+				}
+			}
+
+			PlugRegistry::GetInstance().RegisterPlugins(UsdPluginDirectories);
+		}
+#endif // USE_USD_SDK
+
 		FUsdMemoryManager::Initialize();
 		UnrealUSDWrapper::SetupDiagnosticDelegate();
 	}
@@ -1098,13 +1217,6 @@ public:
 	{
 		UnrealUSDWrapper::ClearDiagnosticDelegate();
 		FUsdMemoryManager::Shutdown();
-	}
-
-	virtual void Initialize( const TArray< FString >& InPluginDirectories ) override
-	{
-#if USE_USD_SDK
-		UnrealUSDWrapper::Initialize( InPluginDirectories );
-#endif // USE_USD_SDK
 	}
 };
 

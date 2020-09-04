@@ -381,7 +381,8 @@ public:
 				if (MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && HasMouseCapture())
 				{
 					bool bSignalSelectionChanged = bChangedSelectionOnMouseDown;
-					if (IsItemSelectable() && MyGeometry.IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
+					// Don't change selection on mouse up if it already changed on mouse down
+					if (!bChangedSelectionOnMouseDown && IsItemSelectable() && MyGeometry.IsUnderLocation(MouseEvent.GetScreenSpacePosition()))
 					{
 						if (SelectionMode == ESelectionMode::SingleToggle)
 						{

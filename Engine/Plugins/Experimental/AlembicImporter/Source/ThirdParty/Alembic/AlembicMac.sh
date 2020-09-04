@@ -1,4 +1,4 @@
-export ILMBASE_ROOT=$(pwd)/deploy/Mac/
+export ILMBASE_ROOT=$(pwd)/../../../../../../Source/ThirdParty/openexr/Deploy/OpenEXR-2.3.0/OpenEXR
 export HDF5_ROOT=$(pwd)/deploy/Mac/
 mkdir build
 cd build

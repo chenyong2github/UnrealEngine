@@ -386,16 +386,25 @@ protected:
  */
 class SLATE_API FToolBarBuilder : public FMultiBoxBuilder
 {
-
+	friend class UToolMenus;
 public:
+
+	UE_DEPRECATED(4.26, "FToolBarBuilder constructor that takes in an EOrientation is deprecated.  Use one of the specific per-type FToolbarBuilder overrides instead.")
+	FToolBarBuilder(TSharedPtr< const FUICommandList > InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender, EOrientation Orientation, const bool InForceSmallIcons = false, const bool bUniform = false)
+		: FMultiBoxBuilder(bUniform ? EMultiBoxType::UniformToolBar : (Orientation == Orient_Horizontal) ? EMultiBoxType::ToolBar : EMultiBoxType::VerticalToolBar, InCustomization, false, InCommandList, InExtender)
+		, bSectionNeedsToBeApplied(false)
+		, bIsFocusable(false)
+		, bForceSmallIcons(InForceSmallIcons)
+	{
+	}
 
 	/**
 	 * Constructor
 	 *
 	 * @param	InCommandList	The action list that maps command infos to delegates that should be called for each command associated with a multiblock widget
 	 */
-	FToolBarBuilder( TSharedPtr< const FUICommandList > InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>(), EOrientation Orientation = Orient_Horizontal, const bool InForceSmallIcons = false, const bool bUniform = false)
-		: FMultiBoxBuilder(bUniform ? EMultiBoxType::UniformToolBar : (Orientation == Orient_Horizontal) ? EMultiBoxType::ToolBar : EMultiBoxType::VerticalToolBar, InCustomization, false, InCommandList, InExtender )
+	FToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = nullptr, const bool InForceSmallIcons = false)
+		: FMultiBoxBuilder(EMultiBoxType::ToolBar, InCustomization, false, InCommandList, InExtender)
 		, bSectionNeedsToBeApplied(false)
 		, bIsFocusable(false)
 		, bForceSmallIcons(InForceSmallIcons)
@@ -491,6 +500,16 @@ public:
 	void EndBlockGroup();
 
 protected:
+
+	FToolBarBuilder(EMultiBoxType InType, TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>(), const bool InForceSmallIcons = false)
+		: FMultiBoxBuilder(InType, InCustomization, false, InCommandList, InExtender)
+		, bSectionNeedsToBeApplied(false)
+		, bIsFocusable(false)
+		, bForceSmallIcons(InForceSmallIcons)
+	{
+	}
+
+
 	/** FMultiBoxBuilder interface */
 	virtual void ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition) override;
 	virtual void ApplySectionBeginning() override;
@@ -511,6 +530,35 @@ private:
 	bool bForceSmallIcons;
 };
 
+
+class SLATE_API FVerticalToolBarBuilder : public FToolBarBuilder
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * @param	InCommandList	The action list that maps command infos to delegates that should be called for each command associated with a multiblock widget
+	 */
+	FVerticalToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = nullptr, const bool InForceSmallIcons = false)
+		: FToolBarBuilder(EMultiBoxType::VerticalToolBar, InCommandList, InCustomization, InExtender, InForceSmallIcons)
+	{
+	}
+};
+
+class SLATE_API FUniformToolBarBuilder : public FToolBarBuilder
+{
+public:
+	/**
+	 * Constructor
+	 *
+	 * @param	InCommandList	The action list that maps command infos to delegates that should be called for each command associated with a multiblock widget
+	 */
+	FUniformToolBarBuilder(TSharedPtr<const FUICommandList> InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender = nullptr, const bool InForceSmallIcons = false)
+		: FToolBarBuilder(EMultiBoxType::UniformToolBar, InCommandList, InCustomization, InExtender, InForceSmallIcons)
+	{
+	}
+};
+
 /**
  * Button grid builder
  */
@@ -522,8 +570,8 @@ public:
 	 *
 	 * @param	InCommandList	The action list that maps command infos to delegates that should be called for each command associated with a multiblock widget
 	 */
-	FButtonRowBuilder( TSharedPtr< const FUICommandList > InCommandList, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>() )
-		: FMultiBoxBuilder( EMultiBoxType::ButtonRow, FMultiBoxCustomization::None, false, InCommandList, InExtender )
+	FButtonRowBuilder(TSharedPtr< const FUICommandList > InCommandList, TSharedPtr<FExtender> InExtender = TSharedPtr<FExtender>())
+		: FMultiBoxBuilder(EMultiBoxType::ButtonRow, FMultiBoxCustomization::None, false, InCommandList, InExtender)
 	{
 	}
 
@@ -536,7 +584,7 @@ public:
 	 * @param	InToolTipOverride		Optional tool tip override.	 If omitted, then the action's label will be used instead.
 	 * @param	InIconOverride			Optional icon to use for the tool bar image.  If omitted, then the action's icon will be used instead.
 	 */
-	void AddButton( const TSharedPtr< const FUICommandInfo > InCommand, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const FSlateIcon& InIconOverride = FSlateIcon() );
+	void AddButton(const TSharedPtr< const FUICommandInfo > InCommand, const TAttribute<FText>& InLabelOverride = TAttribute<FText>(), const TAttribute<FText>& InToolTipOverride = TAttribute<FText>(), const FSlateIcon& InIconOverride = FSlateIcon());
 
 	/**
 	 * Adds a button to a row
@@ -547,8 +595,8 @@ public:
 	 * @param	InIcon					The icon for the button
 	 * @param	UserInterfaceActionType	The style of button to display
 	 */
-	void AddButton( const FText& InLabel, const FText& InToolTip, const FUIAction& UIAction, const FSlateIcon& InIcon = FSlateIcon(), const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button );
-	
+	void AddButton(const FText& InLabel, const FText& InToolTip, const FUIAction& UIAction, const FSlateIcon& InIcon = FSlateIcon(), const EUserInterfaceActionType UserInterfaceActionType = EUserInterfaceActionType::Button);
+
 protected:
 	/** FMultiBoxBuilder interface */
 	virtual void ApplyHook(FName InExtensionHook, EExtensionHook::Position HookPosition) override {}

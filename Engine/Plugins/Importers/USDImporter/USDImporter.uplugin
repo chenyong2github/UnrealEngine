@@ -16,67 +16,69 @@
 	"Installed": false,
 	"Modules": [
 		{
-			"Name": "USDImporter",
-			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
-		},
-		{
 			"Name": "UnrealUSDWrapper",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "USDUtilities",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "USDSchemas",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "USDUtilities",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "USDSchemas",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "USDStage",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "USDStageEditor",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "USDImporter",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "USDStageImporter",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "USDStageEditorViewModels",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		},
 		{
 			"Name": "USDExporter",
 			"Type": "Editor",
-			"LoadingPhase": "Default",
-			"WhitelistPlatforms": [
-				"Win64",
-				"Linux"
-			]
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "USDClasses",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "GeometryCacheUSD",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
 		}
 	],
 	"Plugins": [
@@ -90,6 +92,10 @@
 		},
 		{
 			"Name": "EditorScriptingUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "LevelSequenceEditor",
 			"Enabled": true
 		},
 		{

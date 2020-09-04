@@ -22,10 +22,12 @@
 
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/LLVMContext.h"
 #include "llvm/IR/Metadata.h"
 #include "llvm/IR/Module.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/ADT/DenseSet.h"
 #include <array>
 #include <algorithm>
 
@@ -48,6 +50,8 @@ const char DxilMDHelper::kDxilTypeSystemMDName[]                      = "dx.type
 const char DxilMDHelper::kDxilTypeSystemHelperVariablePrefix[]        = "dx.typevar.";
 const char DxilMDHelper::kDxilControlFlowHintMDName[]                 = "dx.controlflow.hints";
 const char DxilMDHelper::kDxilPreciseAttributeMDName[]                = "dx.precise";
+const char DxilMDHelper::kDxilVariableDebugLayoutMDName[]             = "dx.dbg.varlayout";
+const char DxilMDHelper::kDxilTempAllocaMDName[]                      = "dx.temp";
 const char DxilMDHelper::kDxilNonUniformAttributeMDName[]             = "dx.nonuniform";
 const char DxilMDHelper::kHLDxilResourceAttributeMDName[]             = "dx.hl.resource.attribute";
 const char DxilMDHelper::kDxilValidatorVersionMDName[]                = "dx.valver";
@@ -77,7 +81,13 @@ DxilMDHelper::DxilMDHelper(Module *pModule, std::unique_ptr<ExtraPropertyHelper>
 : m_Ctx(pModule->getContext())
 , m_pModule(pModule)
 , m_pSM(nullptr)
-, m_ExtraPropertyHelper(std::move(EPH)) {
+, m_ExtraPropertyHelper(std::move(EPH))
+, m_ValMajor(1)
+, m_ValMinor(0)
+, m_MinValMajor(1)
+, m_MinValMinor(0)
+, m_bExtraMetadata(false)
+{
 }
 
 DxilMDHelper::~DxilMDHelper() {
@@ -85,6 +95,25 @@ DxilMDHelper::~DxilMDHelper() {
 
 void DxilMDHelper::SetShaderModel(const ShaderModel *pSM) {
   m_pSM = pSM;
+  m_pSM->GetMinValidatorVersion(m_MinValMajor, m_MinValMinor);
+  if (DXIL::CompareVersions(m_ValMajor, m_ValMinor, m_MinValMajor, m_MinValMinor) < 0) {
+    m_ValMajor = m_MinValMajor;
+    m_ValMinor = m_MinValMinor;
+  }
+  // Validator version 0.0 is not meant for validation or retail driver consumption,
+  // and is used for separate reflection.
+  // MinVal version drives metadata decisions for compatilbility, so snap this to
+  // latest for reflection/no validation case.
+  if (DXIL::CompareVersions(m_ValMajor, m_ValMinor, 0, 0) == 0) {
+    m_MinValMajor = 0;
+    m_MinValMinor = 0;
+  }
+  if (m_ExtraPropertyHelper) {
+    m_ExtraPropertyHelper->m_ValMajor = m_ValMajor;
+    m_ExtraPropertyHelper->m_ValMinor = m_ValMinor;
+    m_ExtraPropertyHelper->m_MinValMajor = m_MinValMajor;
+    m_ExtraPropertyHelper->m_MinValMinor = m_MinValMinor;
+  }
 }
 
 const ShaderModel *DxilMDHelper::GetShaderModel() const {
@@ -135,6 +164,8 @@ void DxilMDHelper::EmitValidatorVersion(unsigned Major, unsigned Minor) {
   MDVals[kDxilVersionMinorIdx] = Uint32ToConstMD(Minor);
 
   pDxilValidatorVersionMD->addOperand(MDNode::get(m_Ctx, MDVals));
+
+  m_ValMajor = Major; m_ValMinor = Minor; // Keep these for later use
 }
 
 void DxilMDHelper::LoadValidatorVersion(unsigned &Major, unsigned &Minor) {
@@ -144,6 +175,7 @@ void DxilMDHelper::LoadValidatorVersion(unsigned &Major, unsigned &Minor) {
     // If no validator version metadata, assume 1.0
     Major = 1;
     Minor = 0;
+    m_ValMajor = Major; m_ValMinor = Minor; // Keep these for later use
     return;
   }
 
@@ -154,6 +186,7 @@ void DxilMDHelper::LoadValidatorVersion(unsigned &Major, unsigned &Minor) {
 
   Major = ConstMDToUint32(pVersionMD->getOperand(kDxilVersionMajorIdx));
   Minor = ConstMDToUint32(pVersionMD->getOperand(kDxilVersionMinorIdx));
+  m_ValMajor = Major; m_ValMinor = Minor; // Keep these for later use
 }
 
 //
@@ -170,6 +203,8 @@ void DxilMDHelper::EmitDxilShaderModel(const ShaderModel *pSM) {
   MDVals[kDxilShaderModelMinorIdx] = Uint32ToConstMD(pSM->GetMinor());
 
   pShaderModelNamedMD->addOperand(MDNode::get(m_Ctx, MDVals));
+
+  SetShaderModel(pSM);
 }
 
 void DxilMDHelper::LoadDxilShaderModel(const ShaderModel *&pSM) {
@@ -195,6 +230,7 @@ void DxilMDHelper::LoadDxilShaderModel(const ShaderModel *&pSM) {
     string ErrorMsg(ErrorMsgTxt);
     throw hlsl::Exception(DXC_E_INCORRECT_DXIL_METADATA, ErrorMsg);
   }
+  SetShaderModel(pSM);
 }
 
 //
@@ -318,13 +354,13 @@ MDTuple *DxilMDHelper::EmitDxilSignatures(const DxilEntrySignature &EntrySig) {
 
   const DxilSignature &InputSig = EntrySig.InputSignature;
   const DxilSignature &OutputSig = EntrySig.OutputSignature;
-  const DxilSignature &PCSig = EntrySig.PatchConstantSignature;
+  const DxilSignature &PCPSig = EntrySig.PatchConstOrPrimSignature;
 
-  if (!InputSig.GetElements().empty() || !OutputSig.GetElements().empty() || !PCSig.GetElements().empty()) {
+  if (!InputSig.GetElements().empty() || !OutputSig.GetElements().empty() || !PCPSig.GetElements().empty()) {
     Metadata *MDVals[kDxilNumSignatureFields];
     MDVals[kDxilInputSignature]         = EmitSignatureMetadata(InputSig);
     MDVals[kDxilOutputSignature]        = EmitSignatureMetadata(OutputSig);
-    MDVals[kDxilPatchConstantSignature] = EmitSignatureMetadata(PCSig);
+    MDVals[kDxilPatchConstantSignature] = EmitSignatureMetadata(PCPSig);
 
     pSignatureTupleMD = MDNode::get(m_Ctx, MDVals);
   }
@@ -354,14 +390,14 @@ void DxilMDHelper::LoadDxilSignatures(const MDOperand &MDO, DxilEntrySignature &
     return;
   DxilSignature &InputSig = EntrySig.InputSignature;
   DxilSignature &OutputSig = EntrySig.OutputSignature;
-  DxilSignature &PCSig = EntrySig.PatchConstantSignature;
+  DxilSignature &PCPSig = EntrySig.PatchConstOrPrimSignature;
   const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
   IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
   IFTBOOL(pTupleMD->getNumOperands() == kDxilNumSignatureFields, DXC_E_INCORRECT_DXIL_METADATA);
 
   LoadSignatureMetadata(pTupleMD->getOperand(kDxilInputSignature),         InputSig);
   LoadSignatureMetadata(pTupleMD->getOperand(kDxilOutputSignature),        OutputSig);
-  LoadSignatureMetadata(pTupleMD->getOperand(kDxilPatchConstantSignature), PCSig);
+  LoadSignatureMetadata(pTupleMD->getOperand(kDxilPatchConstantSignature), PCPSig);
 }
 
 MDTuple *DxilMDHelper::EmitSignatureMetadata(const DxilSignature &Sig) {
@@ -485,7 +521,9 @@ void DxilMDHelper::LoadSignatureElement(const MDOperand &MDO, DxilSignatureEleme
     SE.SetSemanticIndexVec({0});
   }
   // Name-value list of extended properties.
+  m_ExtraPropertyHelper->m_bExtraMetadata = false;
   m_ExtraPropertyHelper->LoadSignatureElementProperties(pTupleMD->getOperand(kDxilSignatureElementNameValueList), SE);
+  m_bExtraMetadata |= m_ExtraPropertyHelper->m_bExtraMetadata;
 }
 
 //
@@ -603,7 +641,9 @@ void DxilMDHelper::LoadDxilSRV(const MDOperand &MDO, DxilResource &SRV) {
   SRV.SetSampleCount(ConstMDToUint32(pTupleMD->getOperand(kDxilSRVSampleCount)));
 
   // Name-value list of extended properties.
+  m_ExtraPropertyHelper->m_bExtraMetadata = false;
   m_ExtraPropertyHelper->LoadSRVProperties(pTupleMD->getOperand(kDxilSRVNameValueList), SRV);
+  m_bExtraMetadata |= m_ExtraPropertyHelper->m_bExtraMetadata;
 }
 
 MDTuple *DxilMDHelper::EmitDxilUAV(const DxilResource &UAV) {
@@ -645,7 +685,9 @@ void DxilMDHelper::LoadDxilUAV(const MDOperand &MDO, DxilResource &UAV) {
   UAV.SetROV(ConstMDToBool(pTupleMD->getOperand(kDxilUAVRasterizerOrderedView)));
 
   // Name-value list of extended properties.
+  m_ExtraPropertyHelper->m_bExtraMetadata = false;
   m_ExtraPropertyHelper->LoadUAVProperties(pTupleMD->getOperand(kDxilUAVNameValueList), UAV);
+  m_bExtraMetadata |= m_ExtraPropertyHelper->m_bExtraMetadata;
 }
 
 MDTuple *DxilMDHelper::EmitDxilCBuffer(const DxilCBuffer &CB) {
@@ -680,7 +722,9 @@ void DxilMDHelper::LoadDxilCBuffer(const MDOperand &MDO, DxilCBuffer &CB) {
   CB.SetSize(ConstMDToUint32(pTupleMD->getOperand(kDxilCBufferSizeInBytes)));
 
   // Name-value list of extended properties.
+  m_ExtraPropertyHelper->m_bExtraMetadata = false;
   m_ExtraPropertyHelper->LoadCBufferProperties(pTupleMD->getOperand(kDxilCBufferNameValueList), CB);
+  m_bExtraMetadata |= m_ExtraPropertyHelper->m_bExtraMetadata;
 }
 
 void DxilMDHelper::EmitDxilTypeSystem(DxilTypeSystem &TypeSystem, vector<GlobalVariable*> &LLVMUsed) {
@@ -774,11 +818,63 @@ void DxilMDHelper::LoadDxilTypeSystem(DxilTypeSystem &TypeSystem) {
   }
 }
 
+Metadata *DxilMDHelper::EmitDxilTemplateArgAnnotation(const DxilTemplateArgAnnotation &annotation) {
+  SmallVector<Metadata *, 2> MDVals;
+  if (annotation.IsType()) {
+    MDVals.emplace_back(Uint32ToConstMD(DxilMDHelper::kDxilTemplateArgTypeTag));
+    MDVals.emplace_back(ValueAsMetadata::get(UndefValue::get(const_cast<Type*>(annotation.GetType()))));
+  } else if (annotation.IsIntegral()) {
+    MDVals.emplace_back(Uint32ToConstMD(DxilMDHelper::kDxilTemplateArgIntegralTag));
+    MDVals.emplace_back(Uint64ToConstMD((uint64_t)annotation.GetIntegral()));
+  }
+  return MDNode::get(m_Ctx, MDVals);
+}
+void DxilMDHelper::LoadDxilTemplateArgAnnotation(const llvm::MDOperand &MDO, DxilTemplateArgAnnotation &annotation) {
+  IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+  const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
+  IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+  IFTBOOL(pTupleMD->getNumOperands() >= 1, DXC_E_INCORRECT_DXIL_METADATA);
+  unsigned Tag = ConstMDToUint32(pTupleMD->getOperand(0));
+  switch (Tag) {
+  case kDxilTemplateArgTypeTag: {
+    IFTBOOL(pTupleMD->getNumOperands() == 2, DXC_E_INCORRECT_DXIL_METADATA);
+    Constant *C = dyn_cast<Constant>(ValueMDToValue(pTupleMD->getOperand(kDxilTemplateArgValue)));
+    IFTBOOL(C != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+    annotation.SetType(C->getType());
+  } break;
+  case kDxilTemplateArgIntegralTag:
+    IFTBOOL(pTupleMD->getNumOperands() == 2, DXC_E_INCORRECT_DXIL_METADATA);
+    annotation.SetIntegral((int64_t)ConstMDToUint64(pTupleMD->getOperand(kDxilTemplateArgValue)));
+    break;
+  default:
+    DXASSERT(false, "Unknown template argument type tag.");
+    m_bExtraMetadata = true;
+    break;
+  }
+}
+
 Metadata *DxilMDHelper::EmitDxilStructAnnotation(const DxilStructAnnotation &SA) {
-  vector<Metadata *> MDVals(SA.GetNumFields() + 1);
+  bool bSupportExtended = DXIL::CompareVersions(m_MinValMajor, m_MinValMinor, 1, 5) >= 0;
+
+  vector<Metadata *> MDVals;
+  MDVals.reserve(SA.GetNumFields() + 2);  // In case of extended 1.5 property list
+  MDVals.resize(SA.GetNumFields() + 1);
+
   MDVals[0] = Uint32ToConstMD(SA.GetCBufferSize());
   for (unsigned i = 0; i < SA.GetNumFields(); i++) {
     MDVals[i+1] = EmitDxilFieldAnnotation(SA.GetFieldAnnotation(i));
+  }
+
+  // Only add template args if shader target requires validator version that supports them.
+  if (bSupportExtended && SA.GetNumTemplateArgs()) {
+    vector<Metadata *> MDTemplateArgs(SA.GetNumTemplateArgs());
+    for (unsigned i = 0; i < SA.GetNumTemplateArgs(); ++i) {
+      MDTemplateArgs[i] = EmitDxilTemplateArgAnnotation(SA.GetTemplateArgAnnotation(i));
+    }
+    SmallVector<Metadata *, 2> MDExtraVals;
+    MDExtraVals.emplace_back(Uint32ToConstMD(DxilMDHelper::kDxilTemplateArgumentsTag));
+    MDExtraVals.emplace_back(MDNode::get(m_Ctx, MDTemplateArgs));
+    MDVals.emplace_back(MDNode::get(m_Ctx, MDExtraVals));
   }
 
   return MDNode::get(m_Ctx, MDVals);
@@ -791,7 +887,37 @@ void DxilMDHelper::LoadDxilStructAnnotation(const MDOperand &MDO, DxilStructAnno
   if (pTupleMD->getNumOperands() == 1) {
     SA.MarkEmptyStruct();
   }
-  IFTBOOL(pTupleMD->getNumOperands() == SA.GetNumFields()+1, DXC_E_INCORRECT_DXIL_METADATA);
+  if (pTupleMD->getNumOperands() == SA.GetNumFields()+2) {
+    DXASSERT(DXIL::CompareVersions(m_MinValMajor, m_MinValMinor, 1, 5) >= 0,
+      "otherwise, template annotation emitted for dxil version < 1.5");
+    // Load template args from extended operand
+    const MDOperand &MDOExtra = pTupleMD->getOperand(SA.GetNumFields()+1);
+    const MDTuple *pTupleMDExtra = dyn_cast_or_null<MDTuple>(MDOExtra.get());
+    if(pTupleMDExtra) {
+      for (unsigned i = 0; i < pTupleMDExtra->getNumOperands(); i += 2) {
+        unsigned Tag = ConstMDToUint32(pTupleMDExtra->getOperand(i));
+        const MDOperand &MDO = pTupleMDExtra->getOperand(i + 1);
+        IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+
+        switch (Tag) {
+        case kDxilTemplateArgumentsTag: {
+          const MDTuple *pTupleTemplateArgs = dyn_cast_or_null<MDTuple>(pTupleMDExtra->getOperand(1).get());
+          IFTBOOL(pTupleTemplateArgs, DXC_E_INCORRECT_DXIL_METADATA);
+          SA.SetNumTemplateArgs(pTupleTemplateArgs->getNumOperands());
+          for (unsigned i = 0; i < pTupleTemplateArgs->getNumOperands(); ++i) {
+            LoadDxilTemplateArgAnnotation(pTupleTemplateArgs->getOperand(i), SA.GetTemplateArgAnnotation(i));
+          }
+        } break;
+        default:
+          DXASSERT(false, "unknown extended tag for struct annotation.");
+          m_bExtraMetadata = true;
+          break;
+        }
+      }
+    }
+  } else {
+    IFTBOOL(pTupleMD->getNumOperands() == SA.GetNumFields()+1, DXC_E_INCORRECT_DXIL_METADATA);
+  }
 
   SA.SetCBufferSize(ConstMDToUint32(pTupleMD->getOperand(0)));
   for (unsigned i = 0; i < SA.GetNumFields(); i++) {
@@ -898,6 +1024,11 @@ Metadata *DxilMDHelper::EmitDxilFieldAnnotation(const DxilFieldAnnotation &FA) {
     MDVals.emplace_back(Uint32ToConstMD(kDxilFieldAnnotationCompTypeTag));
     MDVals.emplace_back(Uint32ToConstMD((unsigned)FA.GetCompType().GetKind()));
   }
+  if (FA.IsCBVarUsed() &&
+      DXIL::CompareVersions(m_MinValMajor, m_MinValMinor, 1, 5) >= 0) {
+    MDVals.emplace_back(Uint32ToConstMD(kDxilFieldAnnotationCBUsedTag));
+    MDVals.emplace_back(BoolToConstMD(true));
+  }
 
   return MDNode::get(m_Ctx, MDVals);
 }
@@ -942,13 +1073,13 @@ void DxilMDHelper::LoadDxilFieldAnnotation(const MDOperand &MDO, DxilFieldAnnota
     case kDxilFieldAnnotationCompTypeTag:
       FA.SetCompType((CompType::Kind)ConstMDToUint32(MDO));
       break;
+    case kDxilFieldAnnotationCBUsedTag:
+      FA.SetCBVarUsed(ConstMDToBool(MDO));
+      break;
     default:
-      // TODO:  I don't think we should be failing unrecognized extended tags.
-      //        Perhaps we can flag this case in the module and fail validation
-      //        if flagged.
-      //        That way, an existing loader will not fail on an additional tag
-      //        and the blob would not be signed if the extra tag was not legal.
-      IFTBOOL(false, DXC_E_INCORRECT_DXIL_METADATA);
+      DXASSERT(false, "Unknown extended shader properties tag");
+      m_bExtraMetadata = true;
+      break;
     }
   }
 }
@@ -1023,6 +1154,32 @@ const Function *DxilMDHelper::LoadDxilFunctionProps(const MDTuple *pProps,
     if (bRayAttributes)
       props->ShaderProps.Ray.attributeSizeInBytes =
         ConstMDToUint32(pProps->getOperand(idx++));
+    break;
+  case DXIL::ShaderKind::Mesh:
+    props->ShaderProps.MS.numThreads[0] =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.MS.numThreads[1] =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.MS.numThreads[2] =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.MS.maxVertexCount =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.MS.maxPrimitiveCount =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.MS.outputTopology =
+      (DXIL::MeshOutputTopology)ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.MS.payloadSizeInBytes =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    break;
+  case DXIL::ShaderKind::Amplification:
+    props->ShaderProps.AS.numThreads[0] =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.AS.numThreads[1] =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.AS.numThreads[2] =
+      ConstMDToUint32(pProps->getOperand(idx++));
+    props->ShaderProps.AS.payloadSizeInBytes =
+      ConstMDToUint32(pProps->getOperand(idx++));
     break;
   default:
     break;
@@ -1122,6 +1279,22 @@ MDTuple *DxilMDHelper::EmitDxilEntryProperties(uint64_t rawShaderFlag,
 
     MDVals.emplace_back(
         Uint32ToConstMD(props.ShaderProps.Ray.payloadSizeInBytes));
+  } break;
+  case DXIL::ShaderKind::Mesh: {
+    auto &MS = props.ShaderProps.MS;
+    MDVals.emplace_back(Uint32ToConstMD(DxilMDHelper::kDxilMSStateTag));
+    MDTuple *pMDTuple = EmitDxilMSState(MS.numThreads,
+                                        MS.maxVertexCount,
+                                        MS.maxPrimitiveCount,
+                                        MS.outputTopology,
+                                        MS.payloadSizeInBytes);
+    MDVals.emplace_back(pMDTuple);
+  } break;
+  case DXIL::ShaderKind::Amplification: {
+    auto &AS = props.ShaderProps.AS;
+    MDVals.emplace_back(Uint32ToConstMD(DxilMDHelper::kDxilASStateTag));
+    MDTuple *pMDTuple = EmitDxilASState(AS.numThreads, AS.payloadSizeInBytes);
+    MDVals.emplace_back(pMDTuple);
   } break;
   default:
     break;
@@ -1239,8 +1412,21 @@ void DxilMDHelper::LoadDxilEntryProperties(const MDOperand &MDO,
                "else invalid shader kind");
       props.shaderKind = kind;
     } break;
+    case DxilMDHelper::kDxilMSStateTag: {
+      DXASSERT(props.IsMS(), "else invalid shader kind");
+      auto &MS = props.ShaderProps.MS;
+      LoadDxilMSState(MDO, MS.numThreads, MS.maxVertexCount,
+                      MS.maxPrimitiveCount, MS.outputTopology,
+                      MS.payloadSizeInBytes);
+    } break;
+    case DxilMDHelper::kDxilASStateTag: {
+      DXASSERT(props.IsAS(), "else invalid shader kind");
+      auto &AS = props.ShaderProps.AS;
+      LoadDxilASState(MDO, AS.numThreads, AS.payloadSizeInBytes);
+    } break;
     default:
       DXASSERT(false, "Unknown extended shader properties tag");
+      m_bExtraMetadata = true;
       break;
     }
   }
@@ -1307,6 +1493,21 @@ DxilMDHelper::EmitDxilFunctionProps(const hlsl::DxilFunctionProps *props,
     if (bRayAttributes)
       MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.Ray.attributeSizeInBytes);
     break;
+  case DXIL::ShaderKind::Mesh:
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.MS.numThreads[0]);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.MS.numThreads[1]);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.MS.numThreads[2]);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.MS.maxVertexCount);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.MS.maxPrimitiveCount);
+    MDVals[valIdx++] = Uint8ToConstMD((uint8_t)props->ShaderProps.MS.outputTopology);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.MS.payloadSizeInBytes);
+    break;
+  case DXIL::ShaderKind::Amplification:
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.AS.numThreads[0]);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.AS.numThreads[1]);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.AS.numThreads[2]);
+    MDVals[valIdx++] = Uint32ToConstMD(props->ShaderProps.AS.payloadSizeInBytes);
+    break;
   default:
     break;
   }
@@ -1367,6 +1568,35 @@ MDNode *DxilMDHelper::EmitControlFlowHints(llvm::LLVMContext &Ctx, std::vector<D
   // Set the first operand to itself.
   hintsNode->replaceOperandWith(0, hintsNode);
   return hintsNode;
+}
+
+unsigned DxilMDHelper::GetControlFlowHintMask(const Instruction *I) {
+  // Check that there are control hint to use
+  // branch.
+  MDNode *MD = I->getMetadata(hlsl::DxilMDHelper::kDxilControlFlowHintMDName);
+  if (!MD)
+    return 0;
+
+  if (MD->getNumOperands() < 3)
+    return 0;
+  unsigned mask = 0;
+  for (unsigned i = 2; i < MD->getNumOperands(); i++) {
+    Metadata *Op = MD->getOperand(2).get();
+    auto ConstOp = cast<ConstantAsMetadata>(Op);
+    unsigned hint = ConstOp->getValue()->getUniqueInteger().getLimitedValue();
+    mask |= 1 << hint;
+  }
+  return mask;
+}
+
+bool DxilMDHelper::HasControlFlowHintToPreventFlatten(
+    const llvm::Instruction *I) {
+  unsigned mask = GetControlFlowHintMask(I);
+  const unsigned BranchMask =
+      1 << (unsigned)(DXIL::ControlFlowHint::Branch) |
+      1 << (unsigned)(DXIL::ControlFlowHint::Call) |
+      1 << (unsigned)(DXIL::ControlFlowHint::ForceCase);
+  return mask & BranchMask;
 }
 
 void DxilMDHelper::EmitSubobjects(const DxilSubobjects &Subobjects) {
@@ -1459,8 +1689,18 @@ Metadata *DxilMDHelper::EmitSubobject(const DxilSubobject &obj) {
     Args.emplace_back(MDString::get(m_Ctx, ClosestHit));
     break;
   }
+  case DXIL::SubobjectKind::RaytracingPipelineConfig1: {
+    uint32_t MaxTraceRecursionDepth;
+    uint32_t Flags;
+    IFTBOOL(obj.GetRaytracingPipelineConfig1(MaxTraceRecursionDepth, Flags),
+            DXC_E_INCORRECT_DXIL_METADATA);
+    Args.emplace_back(Uint32ToConstMD(MaxTraceRecursionDepth));
+    Args.emplace_back(Uint32ToConstMD(Flags));
+    break;
+  }
   default:
     DXASSERT(false, "otherwise, we didn't handle a valid subobject kind");
+    m_bExtraMetadata = true;
     break;
   }
   return MDNode::get(m_Ctx, Args);
@@ -1528,8 +1768,19 @@ void DxilMDHelper::LoadSubobject(const llvm::MDNode &MD, DxilSubobjects &Subobje
     Subobjects.CreateHitGroup(name, (DXIL::HitGroupType)hgType, AnyHit, ClosestHit, Intersection);
     break;
   }
+  case DXIL::SubobjectKind::RaytracingPipelineConfig1: {
+    uint32_t MaxTraceRecursionDepth = ConstMDToUint32(MD.getOperand(i++));
+    uint32_t Flags = ConstMDToUint32(MD.getOperand(i++));
+    IFTBOOL(0 ==
+                ((~(uint32_t)DXIL::RaytracingPipelineFlags::ValidMask) & Flags),
+            DXC_E_INCORRECT_DXIL_METADATA);
+    Subobjects.CreateRaytracingPipelineConfig1(name, MaxTraceRecursionDepth,
+                                               Flags);
+    break;
+  }
   default:
     DXASSERT(false, "otherwise, we didn't handle a valid subobject kind");
+    m_bExtraMetadata = true;
     break;
   }
 }
@@ -1565,7 +1816,9 @@ void DxilMDHelper::LoadDxilSampler(const MDOperand &MDO, DxilSampler &S) {
   S.SetSamplerKind((DxilSampler::SamplerKind)ConstMDToUint32(pTupleMD->getOperand(kDxilSamplerType)));
 
   // Name-value list of extended properties.
+  m_ExtraPropertyHelper->m_bExtraMetadata = false;
   m_ExtraPropertyHelper->LoadSamplerProperties(pTupleMD->getOperand(kDxilSamplerNameValueList), S);
+  m_bExtraMetadata |= m_ExtraPropertyHelper->m_bExtraMetadata;
 }
 
 const MDOperand &DxilMDHelper::GetResourceClass(llvm::MDNode *MD,
@@ -1739,12 +1992,80 @@ void DxilMDHelper::LoadDxilHSState(const MDOperand &MDO,
   MaxTessFactor           = ConstMDToFloat(pTupleMD->getOperand(kDxilHSStateMaxTessellationFactor));
 }
 
+MDTuple *DxilMDHelper::EmitDxilMSState(const unsigned *NumThreads,
+                                       unsigned MaxVertexCount,
+                                       unsigned MaxPrimitiveCount,
+                                       DXIL::MeshOutputTopology OutputTopology,
+                                       unsigned payloadSizeInBytes) {
+  Metadata *MDVals[kDxilMSStateNumFields];
+  vector<Metadata *> NumThreadVals;
+
+  NumThreadVals.emplace_back(Uint32ToConstMD(NumThreads[0]));
+  NumThreadVals.emplace_back(Uint32ToConstMD(NumThreads[1]));
+  NumThreadVals.emplace_back(Uint32ToConstMD(NumThreads[2]));
+  MDVals[kDxilMSStateNumThreads] = MDNode::get(m_Ctx, NumThreadVals);
+  MDVals[kDxilMSStateMaxVertexCount] = Uint32ToConstMD(MaxVertexCount);
+  MDVals[kDxilMSStateMaxPrimitiveCount] = Uint32ToConstMD(MaxPrimitiveCount);
+  MDVals[kDxilMSStateOutputTopology] = Uint32ToConstMD((unsigned)OutputTopology);
+  MDVals[kDxilMSStatePayloadSizeInBytes] = Uint32ToConstMD(payloadSizeInBytes);
+
+  return MDNode::get(m_Ctx, MDVals);
+}
+
+void DxilMDHelper::LoadDxilMSState(const MDOperand &MDO,
+                                   unsigned *NumThreads,
+                                   unsigned &MaxVertexCount,
+                                   unsigned &MaxPrimitiveCount,
+                                   DXIL::MeshOutputTopology &OutputTopology,
+                                   unsigned &payloadSizeInBytes) {
+  IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+  const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
+  IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+  IFTBOOL(pTupleMD->getNumOperands() == kDxilMSStateNumFields, DXC_E_INCORRECT_DXIL_METADATA);
+
+  MDNode *pNode = cast<MDNode>(pTupleMD->getOperand(kDxilMSStateNumThreads));
+  NumThreads[0] = ConstMDToUint32(pNode->getOperand(0));
+  NumThreads[1] = ConstMDToUint32(pNode->getOperand(1));
+  NumThreads[2] = ConstMDToUint32(pNode->getOperand(2));
+  MaxVertexCount = ConstMDToUint32(pTupleMD->getOperand(kDxilMSStateMaxVertexCount));
+  MaxPrimitiveCount = ConstMDToUint32(pTupleMD->getOperand(kDxilMSStateMaxPrimitiveCount));
+  OutputTopology = (DXIL::MeshOutputTopology)ConstMDToUint32(pTupleMD->getOperand(kDxilMSStateOutputTopology));
+  payloadSizeInBytes = ConstMDToUint32(pTupleMD->getOperand(kDxilMSStatePayloadSizeInBytes));
+}
+
+MDTuple *DxilMDHelper::EmitDxilASState(const unsigned *NumThreads, unsigned payloadSizeInBytes) {
+  Metadata *MDVals[kDxilASStateNumFields];
+  vector<Metadata *> NumThreadVals;
+
+  NumThreadVals.emplace_back(Uint32ToConstMD(NumThreads[0]));
+  NumThreadVals.emplace_back(Uint32ToConstMD(NumThreads[1]));
+  NumThreadVals.emplace_back(Uint32ToConstMD(NumThreads[2]));
+  MDVals[kDxilASStateNumThreads] = MDNode::get(m_Ctx, NumThreadVals);
+  MDVals[kDxilASStatePayloadSizeInBytes] = Uint32ToConstMD(payloadSizeInBytes);
+
+  return MDNode::get(m_Ctx, MDVals);
+}
+
+void DxilMDHelper::LoadDxilASState(const MDOperand &MDO, unsigned *NumThreads, unsigned &payloadSizeInBytes) {
+  IFTBOOL(MDO.get() != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+  const MDTuple *pTupleMD = dyn_cast<MDTuple>(MDO.get());
+  IFTBOOL(pTupleMD != nullptr, DXC_E_INCORRECT_DXIL_METADATA);
+  IFTBOOL(pTupleMD->getNumOperands() == kDxilASStateNumFields, DXC_E_INCORRECT_DXIL_METADATA);
+
+  MDNode *pNode = cast<MDNode>(pTupleMD->getOperand(kDxilASStateNumThreads));
+  NumThreads[0] = ConstMDToUint32(pNode->getOperand(0));
+  NumThreads[1] = ConstMDToUint32(pNode->getOperand(1));
+  NumThreads[2] = ConstMDToUint32(pNode->getOperand(2));
+  payloadSizeInBytes = ConstMDToUint32(pTupleMD->getOperand(kDxilASStatePayloadSizeInBytes));
+}
+
 //
 // DxilExtraPropertyHelper methods.
 //
 DxilMDHelper::ExtraPropertyHelper::ExtraPropertyHelper(Module *pModule)
 : m_Ctx(pModule->getContext())
-, m_pModule(pModule) {
+, m_pModule(pModule)
+, m_bExtraMetadata(false) {
 }
 
 DxilExtraPropertyHelper::DxilExtraPropertyHelper(Module *pModule)
@@ -1791,13 +2112,15 @@ void DxilExtraPropertyHelper::LoadSRVProperties(const MDOperand &MDO, DxilResour
       break;
     default:
       DXASSERT(false, "Unknown resource record tag");
+      m_bExtraMetadata = true;
+      break;
     }
   }
 }
 
 void DxilExtraPropertyHelper::EmitUAVProperties(const DxilResource &UAV, std::vector<Metadata *> &MDVals) {
   // Element type for typed RW resource.
-  if (!UAV.IsStructuredBuffer() && !UAV.IsRawBuffer()) {
+  if (!UAV.IsStructuredBuffer() && !UAV.IsRawBuffer() && !UAV.GetCompType().IsInvalid()) {
     MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(DxilMDHelper::kDxilTypedBufferElementTypeTag, m_Ctx));
     MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD((unsigned)UAV.GetCompType().GetKind(), m_Ctx));
   }
@@ -1805,6 +2128,11 @@ void DxilExtraPropertyHelper::EmitUAVProperties(const DxilResource &UAV, std::ve
   if (UAV.IsStructuredBuffer()) {
     MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(DxilMDHelper::kDxilStructuredBufferElementStrideTag, m_Ctx));
     MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(UAV.GetElementStride(), m_Ctx));
+  }
+  // Sampler feedback kind
+  if (UAV.IsFeedbackTexture()) {
+    MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(DxilMDHelper::kDxilSamplerFeedbackKindTag, m_Ctx));
+    MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD((unsigned)UAV.GetSamplerFeedbackType(), m_Ctx));
   }
 }
 
@@ -1833,8 +2161,14 @@ void DxilExtraPropertyHelper::LoadUAVProperties(const MDOperand &MDO, DxilResour
       DXASSERT_NOMSG(UAV.IsStructuredBuffer());
       UAV.SetElementStride(DxilMDHelper::ConstMDToUint32(MDO));
       break;
+    case DxilMDHelper::kDxilSamplerFeedbackKindTag:
+      DXASSERT_NOMSG(UAV.IsFeedbackTexture());
+      UAV.SetSamplerFeedbackType((DXIL::SamplerFeedbackType)DxilMDHelper::ConstMDToUint32(MDO));
+      break;
     default:
       DXASSERT(false, "Unknown resource record tag");
+      m_bExtraMetadata = true;
+      break;
     }
   }
 }
@@ -1869,6 +2203,8 @@ void DxilExtraPropertyHelper::LoadCBufferProperties(const MDOperand &MDO, DxilCB
       break;
     default:
       DXASSERT(false, "Unknown cbuffer tag");
+      m_bExtraMetadata = true;
+      break;
     }
   }
 }
@@ -1894,6 +2230,14 @@ void DxilExtraPropertyHelper::EmitSignatureElementProperties(const DxilSignature
     MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(DxilMDHelper::kDxilSignatureElementDynIdxCompMaskTag, m_Ctx));
     MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(SE.GetDynIdxCompMask(), m_Ctx));
   }
+
+  if (SE.GetUsageMask() != 0 &&
+      DXIL::CompareVersions(m_ValMajor, m_ValMinor, 1, 5) >= 0) {
+    // Emitting this will not hurt old reatil loader (only asserts),
+    // and is required for signatures to match in validation.
+    MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(DxilMDHelper::kDxilSignatureElementUsageCompMaskTag, m_Ctx));
+    MDVals.emplace_back(DxilMDHelper::Uint32ToConstMD(SE.GetUsageMask(), m_Ctx));
+  }
 }
 
 void DxilExtraPropertyHelper::LoadSignatureElementProperties(const MDOperand &MDO, DxilSignatureElement &SE) {
@@ -1918,8 +2262,13 @@ void DxilExtraPropertyHelper::LoadSignatureElementProperties(const MDOperand &MD
     case DxilMDHelper::kDxilSignatureElementDynIdxCompMaskTag:
       SE.SetDynIdxCompMask(DxilMDHelper::ConstMDToUint32(MDO));
       break;
+    case DxilMDHelper::kDxilSignatureElementUsageCompMaskTag:
+      SE.SetUsageMask(DxilMDHelper::ConstMDToUint32(MDO));
+      break;
     default:
       DXASSERT(false, "Unknown signature element tag");
+      m_bExtraMetadata = true;
+      break;
     }
   }
 }
@@ -2101,6 +2450,60 @@ void DxilMDHelper::MarkNonUniform(Instruction *I) {
     { ConstantAsMetadata::get(ConstantInt::get(Type::getInt32Ty(Ctx), 1)) });
 
   I->setMetadata(DxilMDHelper::kDxilNonUniformAttributeMDName, preciseNode);
+}
+
+bool DxilMDHelper::GetVariableDebugLayout(llvm::DbgDeclareInst *inst,
+    unsigned &StartOffsetInBits, std::vector<DxilDIArrayDim> &ArrayDims) {
+  llvm::MDTuple *Tuple = dyn_cast_or_null<MDTuple>(inst->getMetadata(DxilMDHelper::kDxilVariableDebugLayoutMDName));
+  if (Tuple == nullptr) return false;
+
+  IFTBOOL(Tuple->getNumOperands() % 2 == 1, DXC_E_INCORRECT_DXIL_METADATA);
+
+  StartOffsetInBits = ConstMDToUint32(Tuple->getOperand(0));
+
+  for (unsigned Idx = 1; Idx < Tuple->getNumOperands(); Idx += 2) {
+    DxilDIArrayDim ArrayDim = {};
+    ArrayDim.StrideInBits = ConstMDToUint32(Tuple->getOperand(Idx + 0));
+    ArrayDim.NumElements = ConstMDToUint32(Tuple->getOperand(Idx + 1));
+    ArrayDims.emplace_back(ArrayDim);
+  }
+
+  return true;
+}
+
+void DxilMDHelper::SetVariableDebugLayout(llvm::DbgDeclareInst *inst,
+    unsigned StartOffsetInBits, const std::vector<DxilDIArrayDim> &ArrayDims) {
+  LLVMContext &Ctx = inst->getContext();
+
+  std::vector<Metadata*> MDVals;
+  MDVals.reserve(ArrayDims.size() + 1);
+  MDVals.emplace_back(Uint32ToConstMD(StartOffsetInBits, Ctx));
+  for (const DxilDIArrayDim &ArrayDim : ArrayDims) {
+    MDVals.emplace_back(Uint32ToConstMD(ArrayDim.StrideInBits, Ctx));
+    MDVals.emplace_back(Uint32ToConstMD(ArrayDim.NumElements, Ctx));
+  }
+
+  inst->setMetadata(DxilMDHelper::kDxilVariableDebugLayoutMDName, MDNode::get(Ctx, MDVals));
+}
+
+void DxilMDHelper::CopyMetadata(Instruction &I, Instruction &SrcInst, ArrayRef<unsigned> WL) {
+  if (!SrcInst.hasMetadata())
+    return;
+
+  DenseSet<unsigned> WLS;
+  for (unsigned M : WL)
+    WLS.insert(M);
+
+  // Otherwise, enumerate and copy over metadata from the old instruction to the
+  // new one.
+  SmallVector<std::pair<unsigned, MDNode *>, 4> TheMDs;
+  SrcInst.getAllMetadataOtherThanDebugLoc(TheMDs);
+  for (const auto &MD : TheMDs) {
+    if (WL.empty() || WLS.count(MD.first))
+      I.setMetadata(MD.first, MD.second);
+  }
+  if (WL.empty() || WLS.count(LLVMContext::MD_dbg))
+    I.setDebugLoc(SrcInst.getDebugLoc());
 }
 
 } // namespace hlsl

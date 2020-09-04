@@ -25,31 +25,26 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(CsvProfiler, BeginStat)
 	UE_TRACE_EVENT_FIELD(uint64, StatId)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, EndStat)
 	UE_TRACE_EVENT_FIELD(uint64, StatId)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, BeginExclusiveStat)
 	UE_TRACE_EVENT_FIELD(uint64, StatId)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, EndExclusiveStat)
 	UE_TRACE_EVENT_FIELD(uint64, StatId)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, CustomStatInt)
 	UE_TRACE_EVENT_FIELD(uint64, StatId)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 	UE_TRACE_EVENT_FIELD(int32, Value)
 	UE_TRACE_EVENT_FIELD(uint8, OpType)
 UE_TRACE_EVENT_END()
@@ -57,7 +52,6 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(CsvProfiler, CustomStatFloat)
 	UE_TRACE_EVENT_FIELD(uint64, StatId)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 	UE_TRACE_EVENT_FIELD(float, Value)
 	UE_TRACE_EVENT_FIELD(uint8, OpType)
 UE_TRACE_EVENT_END()
@@ -65,7 +59,6 @@ UE_TRACE_EVENT_END()
 UE_TRACE_EVENT_BEGIN(CsvProfiler, Event)
 	UE_TRACE_EVENT_FIELD(uint64, Cycle)
 	UE_TRACE_EVENT_FIELD(int32, CategoryIndex)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(CsvProfiler, BeginCapture)
@@ -154,48 +147,42 @@ void FCsvProfilerTrace::OutputBeginStat(const char* StatName, int32 CategoryInde
 {
 	UE_TRACE_LOG(CsvProfiler, BeginStat, CountersChannel)
 		<< BeginStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< BeginStat.Cycle(Cycles)
-		<< BeginStat.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginStat.Cycle(Cycles);
 }
 
 void FCsvProfilerTrace::OutputBeginStat(const FName& StatName, int32 CategoryIndex, uint64 Cycles)
 {
 	UE_TRACE_LOG(CsvProfiler, BeginStat, CountersChannel)
 		<< BeginStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< BeginStat.Cycle(Cycles)
-		<< BeginStat.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginStat.Cycle(Cycles);
 }
 
 void FCsvProfilerTrace::OutputEndStat(const char* StatName, int32 CategoryIndex, uint64 Cycles)
 {
 	UE_TRACE_LOG(CsvProfiler, EndStat, CountersChannel)
 		<< EndStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< EndStat.Cycle(Cycles)
-		<< EndStat.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< EndStat.Cycle(Cycles);
 }
 
 void FCsvProfilerTrace::OutputEndStat(const FName& StatName, int32 CategoryIndex, uint64 Cycles)
 {
 	UE_TRACE_LOG(CsvProfiler, EndStat, CountersChannel)
 		<< EndStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< EndStat.Cycle(Cycles)
-		<< EndStat.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< EndStat.Cycle(Cycles);
 }
 
 void FCsvProfilerTrace::OutputBeginExclusiveStat(const char* StatName, int32 CategoryIndex, uint64 Cycles)
 {
 	UE_TRACE_LOG(CsvProfiler, BeginExclusiveStat, CountersChannel)
 		<< BeginExclusiveStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< BeginExclusiveStat.Cycle(Cycles)
-		<< BeginExclusiveStat.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< BeginExclusiveStat.Cycle(Cycles);
 }
 
 void FCsvProfilerTrace::OutputEndExclusiveStat(const char* StatName, int32 CategoryIndex, uint64 Cycles)
 {
 	UE_TRACE_LOG(CsvProfiler, EndExclusiveStat, CountersChannel)
 		<< EndExclusiveStat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< EndExclusiveStat.Cycle(Cycles)
-		<< EndExclusiveStat.ThreadId(FPlatformTLS::GetCurrentThreadId());
+		<< EndExclusiveStat.Cycle(Cycles);
 }
 
 void FCsvProfilerTrace::OutputCustomStat(const char* StatName, int32 CategoryIndex, int32 Value, uint8 OpType, uint64 Cycles)
@@ -203,7 +190,6 @@ void FCsvProfilerTrace::OutputCustomStat(const char* StatName, int32 CategoryInd
 	UE_TRACE_LOG(CsvProfiler, CustomStatInt, CountersChannel)
 		<< CustomStatInt.Cycle(Cycles)
 		<< CustomStatInt.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< CustomStatInt.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CustomStatInt.Value(Value)
 		<< CustomStatInt.OpType(OpType);
 }
@@ -213,7 +199,6 @@ void FCsvProfilerTrace::OutputCustomStat(const FName& StatName, int32 CategoryIn
 	UE_TRACE_LOG(CsvProfiler, CustomStatInt, CountersChannel)
 		<< CustomStatInt.Cycle(Cycles)
 		<< CustomStatInt.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< CustomStatInt.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CustomStatInt.Value(Value)
 		<< CustomStatInt.OpType(OpType);
 }
@@ -223,7 +208,6 @@ void FCsvProfilerTrace::OutputCustomStat(const char* StatName, int32 CategoryInd
 	UE_TRACE_LOG(CsvProfiler, CustomStatFloat, CountersChannel)
 		<< CustomStatFloat.Cycle(Cycles)
 		<< CustomStatFloat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< CustomStatFloat.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CustomStatFloat.Value(Value)
 		<< CustomStatFloat.OpType(OpType);
 }
@@ -233,7 +217,6 @@ void FCsvProfilerTrace::OutputCustomStat(const FName& StatName, int32 CategoryIn
 	UE_TRACE_LOG(CsvProfiler, CustomStatFloat, CountersChannel)
 		<< CustomStatFloat.Cycle(Cycles)
 		<< CustomStatFloat.StatId(FCsvProfilerTraceInternal::GetStatId(StatName, CategoryIndex))
-		<< CustomStatFloat.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< CustomStatFloat.Value(Value)
 		<< CustomStatFloat.OpType(OpType);
 }
@@ -256,7 +239,6 @@ void FCsvProfilerTrace::OutputEvent(const TCHAR* Text, int32 CategoryIndex, uint
 	UE_TRACE_LOG(CsvProfiler, Event, CountersChannel, TextSize)
 		<< Event.Cycle(Cycles)
 		<< Event.CategoryIndex(CategoryIndex)
-		<< Event.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< Event.Attachment(Text, TextSize);
 }
 

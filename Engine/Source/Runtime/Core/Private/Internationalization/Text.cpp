@@ -185,25 +185,36 @@ const FNumberFormattingOptions& FNumberFormattingOptions::DefaultNoGrouping()
 // These default values have been duplicated to the KismetTextLibrary functions for Blueprints. Please replicate any changes there!
 FNumberParsingOptions::FNumberParsingOptions()
 	: UseGrouping(true)
+	, InsideLimits(false)
+	, UseClamping(false)
 {
 
 }
 
 FArchive& operator<<(FArchive& Ar, FNumberParsingOptions& Value)
 {
+	Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
 	Ar << Value.UseGrouping;
+	if (Ar.CustomVer(FEditorObjectVersion::GUID) >= FEditorObjectVersion::NumberParsingOptionsNumberLimitsAndClamping)
+	{
+		Ar << Value.InsideLimits;
+		Ar << Value.UseClamping;
+	}
 	return Ar;
 }
 
 uint32 GetTypeHash(const FNumberParsingOptions& Key)
 {
-	uint32 Hash = GetTypeHash(Key.UseGrouping);
-	return Hash;
+	uint32 Hash = HashCombine(GetTypeHash(Key.UseGrouping), GetTypeHash(Key.InsideLimits));
+	return HashCombine(Hash, GetTypeHash(Key.UseClamping));
 }
 
 bool FNumberParsingOptions::IsIdentical(const FNumberParsingOptions& Other) const
 {
-	return UseGrouping == Other.UseGrouping;
+	return UseGrouping == Other.UseGrouping
+		&& InsideLimits == Other.InsideLimits
+		&& UseClamping == Other.UseClamping;
 }
 
 const FNumberParsingOptions& FNumberParsingOptions::DefaultWithGrouping()

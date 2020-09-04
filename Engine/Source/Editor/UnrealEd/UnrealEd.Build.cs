@@ -37,7 +37,6 @@ public class UnrealEd : ModuleRules
 				"DerivedDataCache",
 				"DesktopPlatform",
 				"LauncherPlatform",
-				"EnvironmentQueryEditor",
 				"GameProjectGeneration",
 				"ProjectTargetPlatformEditor",
 				"ImageWrapper",
@@ -185,6 +184,7 @@ public class UnrealEd : ModuleRules
 				"FreeImage",
 				"IoStoreUtilities",
 				"EditorInteractiveToolsFramework",
+				"TraceLog",
 				"DeveloperSettings"
 			}
 		);
@@ -232,7 +232,6 @@ public class UnrealEd : ModuleRules
 				"ProjectTargetPlatformEditor",
 				"PListEditor",
 				"BehaviorTreeEditor",
-				"EnvironmentQueryEditor",
 				"ViewportSnapping",
 				"GameplayTasksEditor",
 				"UndoHistory",
@@ -281,7 +280,7 @@ public class UnrealEd : ModuleRules
 				"InputBindingEditor",
 				"ClothingSystemEditor",
 				"PluginWarden",
-				"PIEPreviewDeviceProfileSelector",
+				//"PIEPreviewDeviceProfileSelector",
 				"EditorInteractiveToolsFramework"
 			}
 		);

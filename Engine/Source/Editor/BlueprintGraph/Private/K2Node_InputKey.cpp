@@ -108,7 +108,7 @@ FText UK2Node_InputKey::GetModifierText() const
 #endif
     const FText AltText = NSLOCTEXT("UK2Node_InputKey", "KeyName_Alt", "Alt");
     const FText ShiftText = NSLOCTEXT("UK2Node_InputKey", "KeyName_Shift", "Shift");
-    
+
 	const FText AppenderText = NSLOCTEXT("UK2Node_InputKey", "ModAppender", "+");
 
 	FFormatNamedArguments Args;
@@ -160,7 +160,7 @@ FText UK2Node_InputKey::GetNodeTitle(ENodeTitleType::Type TitleType) const
 			FFormatNamedArguments Args;
 			Args.Add(TEXT("ModifierKey"), GetModifierText());
 			Args.Add(TEXT("Key"), GetKeyText());
-			
+
 			// FText::Format() is slow, so we cache this to save on performance
 			CachedNodeTitle.SetCachedText(FText::Format(NSLOCTEXT("K2Node", "InputKey_Name_WithModifiers", "{ModifierKey} {Key}"), Args), this);
 		}
@@ -228,12 +228,12 @@ UEdGraphPin* UK2Node_InputKey::GetReleasedPin() const
 void UK2Node_InputKey::ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const
 {
 	Super::ValidateNodeDuringCompilation(MessageLog);
-	
+
 	if (!InputKey.IsValid())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Invalid_InputKey_Warning", "InputKey Event specifies invalid FKey'{0}' for @@"), FText::FromString(InputKey.ToString())).ToString(), this);
 	}
-	else if (InputKey.IsFloatAxis())
+	else if (InputKey.IsAnalog())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Axis_InputKey_Warning", "InputKey Event specifies axis FKey'{0}' for @@"), FText::FromString(InputKey.ToString())).ToString(), this);
 	}
@@ -253,7 +253,7 @@ void UK2Node_InputKey::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGr
 
 	UEdGraphPin* InputKeyPressedPin = GetPressedPin();
 	UEdGraphPin* InputKeyReleasedPin = GetReleasedPin();
-		
+
 	struct EventPinData
 	{
 		EventPinData(UEdGraphPin* InPin,TEnumAsByte<EInputEvent> InEvent ){	Pin=InPin;EventType=InEvent;};
@@ -270,7 +270,7 @@ void UK2Node_InputKey::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGr
 	{
 		ActivePins.Add(EventPinData(InputKeyReleasedPin,IE_Released));
 	}
-	
+
 	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
 	// If more than one is linked we have to do more complicated behaviors
@@ -284,7 +284,7 @@ void UK2Node_InputKey::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGr
 		KeyVar->AllocateDefaultPins();
 
 		for (auto PinIt = ActivePins.CreateIterator(); PinIt; ++PinIt)
-		{			
+		{
 			UEdGraphPin *EachPin = (*PinIt).Pin;
 			// Create the input touch event
 			UK2Node_InputKeyEvent* InputKeyEvent = CompilerContext.SpawnIntermediateEventNode<UK2Node_InputKeyEvent>(this, EachPin, SourceGraph);
@@ -320,16 +320,16 @@ void UK2Node_InputKey::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGr
 
 			// Move the original event connections to the then pin of the key assign
 			CompilerContext.MovePinLinksToIntermediate(*EachPin, *KeyInitialize->GetThenPin());
-			
+
 			// Move the original event variable connections to the intermediate nodes
 			CompilerContext.MovePinLinksToIntermediate(*FindPin(TEXT("Key")), *KeyVar->GetVariablePin());
-		}	
+		}
 	}
 	else if( ActivePins.Num() == 1 )
 	{
 		UEdGraphPin* InputKeyPin = ActivePins[0].Pin;
 		EInputEvent InputEvent = ActivePins[0].EventType;
-	
+
 		if (InputKeyPin->LinkedTo.Num() > 0)
 		{
 			UK2Node_InputKeyEvent* InputKeyEvent = CompilerContext.SpawnIntermediateEventNode<UK2Node_InputKeyEvent>(this, InputKeyPin, SourceGraph);
@@ -372,23 +372,23 @@ void UK2Node_InputKey::GetMenuActions(FBlueprintActionDatabaseRegistrar& ActionR
 		InputNode->InputKey = Key;
 	};
 
-	// actions get registered under specific object-keys; the idea is that 
-	// actions might have to be updated (or deleted) if their object-key is  
-	// mutated (or removed)... here we use the node's class (so if the node 
+	// actions get registered under specific object-keys; the idea is that
+	// actions might have to be updated (or deleted) if their object-key is
+	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
 
-	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and 
-	// iterating over keys), first check to make sure that the registrar is 
-	// looking for actions of this type (could be regenerating actions for a 
-	// specific asset, and therefore the registrar would only accept actions 
+	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and
+	// iterating over keys), first check to make sure that the registrar is
+	// looking for actions of this type (could be regenerating actions for a
+	// specific asset, and therefore the registrar would only accept actions
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
 		for (const FKey& Key : AllKeys)
 		{
 			// these will be handled by UK2Node_GetInputAxisKeyValue and UK2Node_GetInputVectorAxisValue respectively
-			if (!Key.IsBindableInBlueprints() || Key.IsFloatAxis() || Key.IsVectorAxis())
+			if (!Key.IsBindableInBlueprints() || Key.IsAnalog())
 			{
 				continue;
 			}

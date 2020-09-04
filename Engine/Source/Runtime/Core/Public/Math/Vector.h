@@ -66,6 +66,15 @@ public:
 	/** Unreal left vector (0,-1,0) */
 	static CORE_API const FVector LeftVector;
 
+	/** Unit X axis vector (1,0,0) */
+	static CORE_API const FVector XAxisVector;
+
+	/** Unit Y axis vector (0,1,0) */
+	static CORE_API const FVector YAxisVector;
+
+	/** Unit Z axis vector (0,0,1) */
+	static CORE_API const FVector ZAxisVector;
+
 public:
 
 #if ENABLE_NAN_DIAGNOSTIC
@@ -1213,7 +1222,7 @@ inline bool FVector::Orthogonal(const FVector& Normal1, const FVector& Normal2, 
 inline bool FVector::Coplanar(const FVector &Base1, const FVector &Normal1, const FVector &Base2, const FVector &Normal2, float ParallelCosineThreshold)
 {
 	if      (!FVector::Parallel(Normal1,Normal2,ParallelCosineThreshold)) return false;
-	else if (FVector::PointPlaneDist (Base2,Base1,Normal1) > THRESH_POINT_ON_PLANE) return false;
+	else if (FMath::Abs(FVector::PointPlaneDist (Base2,Base1,Normal1)) > THRESH_POINT_ON_PLANE) return false;
 	else return true;
 }
 

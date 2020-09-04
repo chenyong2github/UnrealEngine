@@ -9,12 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public USDImporter(ReadOnlyTargetRules Target) : base(Target)
 		{
-			// We require the whole editor to be RTTI enabled on Linux for now
-			if (Target.Platform != UnrealTargetPlatform.Linux)
-			{
-				bUseRTTI = true;
-			}
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -27,24 +21,22 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"PropertyEditor",
 					"Slate",
-				"EditorStyle",
-                    "RawMesh",
-                    "GeometryCache",
+					"EditorStyle",
+					"GeometryCache",
 					"MeshDescription",
 					"MeshUtilities",
 					"MessageLog",
 					"PythonScriptPlugin",
-                    "RenderCore",
-                    "RHI",
 					"StaticMeshDescription",
 					"UnrealUSDWrapper",
+					"USDClasses",
 					"USDUtilities",
 					"DeveloperSettings"
 				}
 				);
 
 			// Always use the official version of IntelTBB
-			string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+			string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
 
 			if (Target.Platform == UnrealTargetPlatform.Win64)
 			{

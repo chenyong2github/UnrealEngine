@@ -33,6 +33,10 @@ struct FConcertPackageInfo
 	UPROPERTY()
 	FName NewPackageName;
 
+	/** The class of the asset contained in this package. */
+	UPROPERTY()
+	FString AssetClass;
+
 	/** The extension of the package file on disk (eg, .umap or .uasset) */
 	UPROPERTY()
 	FString PackageFileExtension;

@@ -8,8 +8,8 @@
 
 #include "Misc/DisplayClusterAppExit.h"
 
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterTcpListener::FDisplayClusterTcpListener(const FString& InName) :

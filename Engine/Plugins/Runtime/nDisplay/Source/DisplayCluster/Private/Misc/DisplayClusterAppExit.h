@@ -11,7 +11,7 @@
 class FDisplayClusterAppExit
 {
 public:
-	enum class ExitType
+	enum class EExitType
 	{
 		// Kills current process. No resource cleaning performed.
 		KillImmediately,
@@ -22,10 +22,10 @@ public:
 	};
 
 public:
-	static void ExitApplication(ExitType exitType, const FString& strMsg);
+	static void ExitApplication(EExitType ExitType, const FString& Msg);
 
 private:
-	static auto ExitTypeToStr(ExitType type);
+	static auto ExitTypeToStr(EExitType ExitType);
 
 private:
 	static FCriticalSection InternalsSyncScope;

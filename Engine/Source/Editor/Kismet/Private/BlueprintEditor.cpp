@@ -28,6 +28,8 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
+#include "Dialogs/CustomDialog.h"
+#include "SCheckBoxList.h"
 #include "EdGraph/EdGraphSchema.h"
 #include "EdGraphNode_Comment.h"
 #include "Editor/UnrealEdEngine.h"
@@ -65,6 +67,7 @@
 #include "K2Node_VariableGet.h"
 #include "K2Node_VariableSet.h"
 #include "K2Node_SetFieldsInStruct.h"
+#include "K2Node_Knot.h"
 #include "Engine/LevelScriptBlueprint.h"
 #include "Engine/Breakpoint.h"
 #include "ScopedTransaction.h"
@@ -152,6 +155,8 @@
 
 #include "AudioDevice.h"
 
+#include "SFixupSelfContextDlg.h"
+
 // Blueprint merging
 #include "Widgets/Input/SHyperlink.h"
 #include "Framework/Commands/GenericCommands.h"
@@ -160,7 +165,6 @@
 #include "NativeCodeGenerationTool.h"
 
 // Focusing related nodes feature
-#include "Preferences/BlueprintEditorOptions.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "Widgets/Input/SNumericEntryBox.h"
 #include "Subsystems/AssetEditorSubsystem.h"
@@ -580,18 +584,24 @@ FSlateBrush const* FBlueprintEditor::GetVarIconAndColor(const UStruct* VarScope,
 	if (VarScope != NULL)
 	{
 		FProperty* Property = FindFProperty<FProperty>(VarScope, VarName);
-		if (Property != NULL)
-		{
-			const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+		return GetVarIconAndColorFromProperty(Property, IconColorOut, SecondaryBrushOut, SecondaryColorOut);
+	}
+	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
+}
 
-			FEdGraphPinType PinType;
-			if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
-			{
-				IconColorOut = K2Schema->GetPinTypeColor(PinType);
-				SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
-				SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
-				return FBlueprintEditorUtils::GetIconFromPin(PinType);
-			}
+FSlateBrush const* FBlueprintEditor::GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut)
+{
+	if (Property != NULL)
+	{
+		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+
+		FEdGraphPinType PinType;
+		if (K2Schema->ConvertPropertyToPinType(Property, PinType)) // use schema to get the color
+		{
+			IconColorOut = K2Schema->GetPinTypeColor(PinType);
+			SecondaryBrushOut = FBlueprintEditorUtils::GetSecondaryIconFromPin(PinType);
+			SecondaryColorOut = K2Schema->GetSecondaryPinTypeColor(PinType);
+			return FBlueprintEditorUtils::GetIconFromPin(PinType);
 		}
 	}
 	return FEditorStyle::GetBrush(TEXT("Kismet.AllClasses.VariableIcon"));
@@ -609,6 +619,13 @@ bool FBlueprintEditor::OnRequestClose()
 	if (FindResultsTab.IsValid() && !IsInAScriptingMode() && GetDefault<UBlueprintEditorSettings>()->bHostFindInBlueprintsInGlobalTab)
 	{
 		FindResultsTab->RequestCloseTab();
+	}
+
+	// Close the Replace References Tab so it doesn't open the next time we do
+	TSharedPtr<SDockTab> ReplaceRefsTab = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::ReplaceNodeReferencesID);
+	if (ReplaceRefsTab.IsValid())
+	{
+		ReplaceRefsTab->RequestCloseTab();
 	}
 
 	bEditorMarkedAsClosed = true;
@@ -1106,6 +1123,11 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnAddParentNode ),
 				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanAddParentNode )
 				);
+			
+			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().CreateMatchingFunction,
+				FExecuteAction::CreateSP( this, &FBlueprintEditor::OnCreateMatchingFunction ),
+				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanCreateMatchingFunction )
+				);
 
 			// Debug actions
 			GraphEditorCommands->MapAction( FGraphEditorCommands::Get().AddBreakpoint,
@@ -1266,8 +1288,8 @@ TSharedRef<SGraphEditor> FBlueprintEditor::CreateGraphEditorWidget(TSharedRef<FT
 				);
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Paste,
-				FExecuteAction::CreateSP( this, &FBlueprintEditor::PasteNodes ),
-				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanPasteNodes )
+				FExecuteAction::CreateSP( this, &FBlueprintEditor::PasteGeneric ),
+				FCanExecuteAction::CreateSP( this, &FBlueprintEditor::CanPasteGeneric )
 				);
 
 			GraphEditorCommands->MapAction( FGenericCommands::Get().Duplicate,
@@ -1530,8 +1552,7 @@ void FBlueprintEditor::OnChangeBreadCrumbGraph(UEdGraph* InGraph)
 }
 
 FBlueprintEditor::FBlueprintEditor()
-	: EditorOptions(nullptr)
-	, bSaveIntermediateBuildProducts(false)
+	: bSaveIntermediateBuildProducts(false)
 	, bPendingDeferredClose(false)
 	, bRequestedSavingOpenDocumentState(false)
 	, bBlueprintModifiedOnOpen (false)
@@ -1937,8 +1958,6 @@ void FBlueprintEditor::InitBlueprintEditor(
 	// TRUE if a single Blueprint is being opened and is marked as newly created
 	bool bNewlyCreated = InBlueprints.Num() == 1 && InBlueprints[0]->bIsNewlyCreated;
 
-	EditorOptions = nullptr;
-
 	// Load editor settings from disk.
 	LoadEditorSettings();
 
@@ -1963,11 +1982,10 @@ void FBlueprintEditor::InitBlueprintEditor(
 	RegisterMenus();
 
 	// Initialize the asset editor and spawn nothing (dummy layout)
-	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
 	const FName BlueprintEditorAppName = FName(TEXT("BlueprintEditorApp"));
-	InitAssetEditor(Mode, InitToolkitHost, BlueprintEditorAppName, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, Objects);
+	InitAssetEditor(Mode, InitToolkitHost, BlueprintEditorAppName, FTabManager::FLayout::NullLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, Objects);
 	
 	CommonInitialization(InBlueprints, bShouldOpenInDefaultsMode);
 
@@ -2365,10 +2383,25 @@ void FBlueprintEditor::PostLayoutBlueprintEditorInitialization()
 			LogSimpleMessage( FText::Format( LOCTEXT("Blueprint Modified Long", "Blueprint \"{BlueprintName}\" was updated to fix issues detected on load. Please resave."), Args ) );
 		}
 
-		// If we have a warning/error, open output log.
-		if (!Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings))
+		// Determine if the current "mode" supports invoking the Compiler Results tab.
+		const bool bCanInvokeCompilerResultsTab = TabManager->HasTabSpawner(FBlueprintEditorTabs::CompilerResultsID);
+
+		// If we have a warning/error, open output log if the current mode allows us to invoke it.
+		const bool bIsBlueprintInWarningOrErrorState = !Blueprint->IsUpToDate() || (Blueprint->Status == BS_UpToDateWithWarnings);
+		if (bIsBlueprintInWarningOrErrorState && bCanInvokeCompilerResultsTab)
 		{
 			TabManager->TryInvokeTab(FBlueprintEditorTabs::CompilerResultsID);
+		}
+		else
+		{
+			// Toolkit modes that don't include this tab may have been incorrectly saved with layout information for restoring it
+			// as an "unrecognized" tab, due to having previously invoked it above without checking to see if the layout can open
+			// it first. To correct this, we check if the tab was restored from a saved layout here, and close it if not supported.
+			TSharedPtr<SDockTab> TabPtr = TabManager->FindExistingLiveTab(FBlueprintEditorTabs::CompilerResultsID);
+			if (TabPtr.IsValid() && !bCanInvokeCompilerResultsTab)
+			{
+				TabPtr->RequestCloseTab();
+			}
 		}
 	}
 
@@ -2884,7 +2917,8 @@ void FBlueprintEditor::CreateDefaultCommands()
 		FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes,
 		FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
 		FCanExecuteAction(),
-		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked)
+		FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
+		FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, true)
 	);
 }
 
@@ -3641,8 +3675,7 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 	UBlueprint* BlueprintObj = GetBlueprintObj();
 	
 	bool bHasAtLeastOneVariableToCheck = false;
-	FString PropertyList;
-	TArray<FName> VariableNames;
+	TArray<FProperty*> VariableProperties;
 	for (TFieldIterator<FProperty> PropertyIt(BlueprintObj->SkeletonGeneratedClass, EFieldIteratorFlags::ExcludeSuper); PropertyIt; ++PropertyIt)
 	{
 		FProperty* Property = *PropertyIt;
@@ -3664,17 +3697,77 @@ void FBlueprintEditor::DeleteUnusedVariables_OnClicked()
 				ObjectProperty->PropertyClass->IsChildOf(UTimelineComponent::StaticClass());
 			if (!FBlueprintEditorUtils::IsVariableUsed(BlueprintObj, VarName) && !bIsTimeline && bHasVarInfo)
 			{
-				VariableNames.Add(Property->GetFName());
-				if (PropertyList.IsEmpty()) {PropertyList = UEditorEngine::GetFriendlyName(Property);}
-				else {PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(Property));}
+				VariableProperties.Add(Property);
 			}
 		}
 	}
 
-	if (VariableNames.Num() > 0)
+	if (VariableProperties.Num() > 0)
 	{
-		FBlueprintEditorUtils::BulkRemoveMemberVariables(GetBlueprintObj(), VariableNames);
-		LogSimpleMessage( FText::Format( LOCTEXT("UnusedVariablesDeletedMessage", "The following variable(s) were deleted successfully: {0}."), FText::FromString( PropertyList ) ) );
+		TSharedRef<SCheckBoxList> CheckBoxList = SNew(SCheckBoxList)
+			.ItemHeaderLabel(LOCTEXT("DeleteUnusedVariablesDialog_VariableLabel", "Variable"));
+		for (FProperty* Variable : VariableProperties)
+		{
+			CheckBoxList->AddItem(FText::FromString(UEditorEngine::GetFriendlyName(Variable)), true);
+		}
+
+		TSharedRef<SWidget> DialogContain = SNew(SVerticalBox)
+			+ SVerticalBox::Slot().Padding(10)
+			.AutoHeight()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("VariableDialog_Message", "These variables are not used in the graph."
+					"\nThey may be used in other places."
+					"\nYou may use 'Find in Blueprint' or the 'Asset Search' to find out if they are referenced elsewhere."))
+				.AutoWrapText(true)
+			]
+			+ SVerticalBox::Slot().FillHeight(0.8)
+			[
+				CheckBoxList
+			];
+
+		TSharedRef<SCustomDialog> CustomDialog = SNew(SCustomDialog)
+			.Title(LOCTEXT("DeleteUnusedVariablesDialog_Title", "Delete Unused Variables"))
+			.IconBrush("NotificationList.DefaultMessage")
+			.DialogContent(DialogContain)
+			.Buttons(
+			{
+				SCustomDialog::FButton(LOCTEXT("DeleteUnusedVariablesDialog_ButtonDelete", "Delete")),
+				SCustomDialog::FButton(LOCTEXT("DeleteUnusedVariablesDialog_ButtonCancel", "Cancel"))
+			});
+
+		int32 Result = CustomDialog->ShowModal();
+		if (Result == 0)
+		{
+			TArray<FName> VariableNames;
+			FString PropertyList;
+			VariableNames.Reserve(VariableProperties.Num());
+			for (int32 Index = 0; Index < VariableProperties.Num(); ++Index)
+			{
+				if (CheckBoxList->IsItemChecked(Index))
+				{
+					VariableNames.Add(VariableProperties[Index]->GetFName());
+					if (PropertyList.IsEmpty())
+					{
+						PropertyList = UEditorEngine::GetFriendlyName(VariableProperties[Index]);
+					}
+					else
+					{
+						PropertyList += FString::Printf(TEXT(", %s"), *UEditorEngine::GetFriendlyName(VariableProperties[Index]));
+					}
+				}
+			}
+
+			if (VariableNames.Num() > 0)
+			{
+				FBlueprintEditorUtils::BulkRemoveMemberVariables(GetBlueprintObj(), VariableNames);
+				LogSimpleMessage(FText::Format(LOCTEXT("UnusedVariablesDeletedMessage", "The following variable(s) were deleted successfully: {0}."), FText::FromString(PropertyList)));
+			}
+			else
+			{
+				LogSimpleMessage(LOCTEXT("NoVariablesSelectedMessage", "No variables were selected for deletion."));
+			}
+		}
 	}
 	else if (bHasAtLeastOneVariableToCheck)
 	{
@@ -3916,8 +4009,6 @@ void FBlueprintEditor::AddReferencedObjects( FReferenceCollector& Collector )
 		}
 	}
 
-	Collector.AddReferencedObject(EditorOptions);
-
 	UserDefinedStructures.Remove(TWeakObjectPtr<UUserDefinedStruct>()); // Remove NULLs
 	for (const TWeakObjectPtr<UUserDefinedStruct>& ObjectPtr : UserDefinedStructures)
 	{
@@ -4076,8 +4167,89 @@ void FBlueprintEditor::DoPromoteToVariable( UBlueprint* InBlueprint, UEdGraphPin
 	NewPinType.bIsWeakPointer = false;
 	if (bInToMemberVariable)
 	{
-		VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewVar"));
+#if WITH_EDITORONLY_DATA
+		static const FName NAME_UIMin(TEXT("UIMin"));
+		static const FName NAME_UIMax(TEXT("UIMax"));
+		static const FName NAME_ClampMin(TEXT("ClampMin"));
+		static const FName NAME_ClampMax(TEXT("ClampMax"));
+
+		FString Meta_UIMin;
+		FString Meta_UIMax;
+		FString Meta_ClampMin;
+		FString Meta_ClampMax;
+
+		if (const UEdGraphSchema* Schema = InTargetPin->GetSchema())
+		{
+			// Name the variable to match its target blueprint pin name
+			FString IdealVarName = FText::TrimPrecedingAndTrailing(Schema->GetPinDisplayName(InTargetPin)).ToString();
+
+			// Ignore unnamed return values
+			if (IdealVarName == TEXT("Return Value"))
+			{
+				IdealVarName.Empty();
+			}
+
+			// Ignore names from compact nodes that don't usually display the pin names
+			if (const UK2Node* K2Node = Cast<UK2Node>(InTargetPin->GetOwningNode()))
+			{
+				if (K2Node->ShouldDrawCompact() || K2Node->ShouldDrawAsBead())
+				{
+					IdealVarName.Empty();
+				}
+			}
+
+			// Set the variable name to its ideal name (with an optional numeric suffix if there is a conflict)
+			if (!IdealVarName.IsEmpty())
+			{
+				TSharedPtr<FKismetNameValidator> NameValidator = MakeShareable(new FKismetNameValidator(GetBlueprintObj(), NAME_None));
+				if (NameValidator->IsValid(IdealVarName) == EValidatorResult::Ok)
+				{
+					VarName = FName(*IdealVarName);
+				}
+				else
+				{
+					VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), IdealVarName);
+				}
+
+				if (UEdGraphNode* Node = InTargetPin->GetOwningNode())
+				{
+					// Extract the target pin's numeric limits so that we can copy them to the new variable
+					Meta_UIMin = Node->GetPinMetaData(InTargetPin->PinName, NAME_UIMin);
+					Meta_UIMax = Node->GetPinMetaData(InTargetPin->PinName, NAME_UIMax);
+					Meta_ClampMin = Node->GetPinMetaData(InTargetPin->PinName, NAME_ClampMin);
+					Meta_ClampMax = Node->GetPinMetaData(InTargetPin->PinName, NAME_ClampMax);
+				}
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
+
+		if (VarName == NAME_None)
+		{
+			VarName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewVar"));
+		}
 		bWasSuccessful = FBlueprintEditorUtils::AddMemberVariable( GetBlueprintObj(), VarName, NewPinType, InTargetPin->GetDefaultAsString() );
+
+#if WITH_EDITORONLY_DATA
+		if (bWasSuccessful)
+		{
+			if (!Meta_UIMin.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_UIMin, Meta_UIMin);
+			}
+			if (!Meta_UIMax.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_UIMax, Meta_UIMax);
+			}
+			if (!Meta_ClampMin.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_ClampMin, Meta_ClampMin);
+			}
+			if (!Meta_ClampMax.IsEmpty())
+			{
+				FBlueprintEditorUtils::SetBlueprintVariableMetaData(GetBlueprintObj(), VarName, nullptr, NAME_ClampMax, Meta_ClampMax);
+			}
+		}
+#endif // WITH_EDITORONLY_DATA
 	}
 	else
 	{
@@ -4763,6 +4935,30 @@ bool FBlueprintEditor::CanAddParentNode() const
 	return false;
 }
 
+void FBlueprintEditor::OnCreateMatchingFunction()
+{
+	if (UK2Node_CallFunction* SelectedNode = Cast<UK2Node_CallFunction>(GetSingleSelectedNode()))
+	{
+		FBlueprintEditorUtils::CreateMatchingFunction(SelectedNode, GetDefaultSchemaClass());
+	}
+}
+
+bool FBlueprintEditor::CanCreateMatchingFunction() const
+{
+	if (NewDocument_IsVisibleForType(CGT_NewFunctionGraph))
+	{
+		if (const UBlueprint* Blueprint = GetBlueprintObj())
+		{
+			if (const UK2Node_CallFunction* SelectedNode = Cast<UK2Node_CallFunction>(GetSingleSelectedNode()))
+			{
+				return FKismetNameValidator(Blueprint).IsValid(SelectedNode->GetFunctionName()) == EValidatorResult::Ok;
+			}
+		}
+	}
+
+	return false;
+}
+
 void FBlueprintEditor::OnToggleBreakpoint()
 {
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
@@ -4944,6 +5140,26 @@ bool FBlueprintEditor::CanEnableBreakpoint() const
 	}
 
 	return false;
+}
+
+namespace CollapseGraphUtils
+{
+	/** Helper function to gather any moveable nodes out of a collapsed graph */
+	static void GatherMoveableNodes(const UEdGraph* const SourceGraph, TSet<UEdGraphNode*>& OutNodes)
+	{
+		for (UEdGraphNode* Node : SourceGraph->Nodes)
+		{
+			// Ignore tunnel nodes and break the links because new ones will be created during the collapse of this node
+			if (UK2Node_Tunnel* TunnelNode = Cast<UK2Node_Tunnel>(Node))
+			{
+				TunnelNode->BreakAllNodeLinks();
+			}
+			else
+			{
+				OutNodes.Add(Node);
+			}
+		}
+	}
 }
 
 void FBlueprintEditor::OnCollapseNodes()
@@ -5252,12 +5468,13 @@ bool FBlueprintEditor::CanCollapseSelectionToMacro() const
 void FBlueprintEditor::OnPromoteSelectionToFunction()
 {
 	const FScopedTransaction Transaction( LOCTEXT("ConvertCollapsedGraphToFunction", "Convert Collapse Graph to Function") );
-	GetBlueprintObj()->Modify();
+	UBlueprint* BP = GetBlueprintObj();
+	BP->Modify();
 
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 
 	// Set of nodes to select when finished
-	TSet<class UEdGraphNode*> NodesToSelect;
+	TSet<UEdGraphNode*> NodesToSelect;
 
 	const FGraphPanelSelectionSet SelectedNodes = GetSelectedNodes();
 	for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
@@ -5265,27 +5482,44 @@ void FBlueprintEditor::OnPromoteSelectionToFunction()
 		if (UK2Node_Composite* CompositeNode = Cast<UK2Node_Composite>(*It))
 		{
 			// Check if there is only one input and one output connection
-			TSet<class UEdGraphNode*> NodesInGraph;
+			TSet<UEdGraphNode*> NodesInGraph;
 			NodesInGraph.Add(CompositeNode);
 
 			if(CanCollapseSelectionToFunction(NodesInGraph))
 			{
 				DocumentManager->CleanInvalidTabs();
 
-				// Expand the composite node back into the world
 				UEdGraph* SourceGraph = CompositeNode->BoundGraph;
+				
+				TSet<UEdGraphNode*> NodesToMove;
+				CollapseGraphUtils::GatherMoveableNodes(SourceGraph, /* Out */ NodesToMove);
 
-				// Expand all composite nodes back in place
-				TSet<UEdGraphNode*> ExpandedNodes;
-				ExpandNode(CompositeNode, SourceGraph, /*inout*/ ExpandedNodes);
-				FBlueprintEditorUtils::RemoveGraph(GetBlueprintObj(), SourceGraph, EGraphRemoveFlags::Recompile);
-
-				//Remove this node from selection
+				// Remove this node from selection
 				FocusedGraphEd->SetNodeSelection(CompositeNode, false);
 
-				UEdGraphNode* FunctionNode = NULL;
-				CollapseSelectionToFunction(FocusedGraphEd, ExpandedNodes, FunctionNode);
+				UEdGraphNode* FunctionNode = nullptr;
+				CollapseSelectionToFunction(FocusedGraphEd, NodesToMove, FunctionNode);
 				NodesToSelect.Add(FunctionNode);
+
+				// Connect the exec pin of the newly dropped function call node to any previously existing connections
+				const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
+				UEdGraphPin* ResultExecFunc = K2Schema->FindExecutionPin(*FunctionNode, EGPD_Input);
+				UEdGraphPin* OriginalExecPin = K2Schema->FindExecutionPin(*CompositeNode, EGPD_Input);
+
+				if (ResultExecFunc && OriginalExecPin)
+				{
+					for (UEdGraphPin* CurPin : OriginalExecPin->LinkedTo)
+					{
+						// Make a connection if this is an exec pin
+						if (CurPin && CurPin->Direction == EGPD_Output && K2Schema->IsExecPin(*CurPin))
+						{
+							ResultExecFunc->MakeLinkTo(CurPin);
+						}
+					}
+				}
+
+				// Remove the old collapsed graph
+				FBlueprintEditorUtils::RemoveGraph(BP, SourceGraph, EGraphRemoveFlags::Recompile);
 			}
 			else
 			{
@@ -5325,10 +5559,11 @@ bool FBlueprintEditor::CanPromoteSelectionToFunction() const
 void FBlueprintEditor::OnPromoteSelectionToMacro()
 {
 	const FScopedTransaction Transaction( LOCTEXT("ConvertCollapsedGraphToMacro", "Convert Collapse Graph to Macro") );
-	GetBlueprintObj()->Modify();
+	UBlueprint* BP = GetBlueprintObj();
+	BP->Modify();
 
 	// Set of nodes to select when finished
-	TSet<class UEdGraphNode*> NodesToSelect;
+	TSet<UEdGraphNode*> NodesToSelect;
 
 	TSharedPtr<SGraphEditor> FocusedGraphEd = FocusedGraphEdPtr.Pin();
 
@@ -5337,36 +5572,25 @@ void FBlueprintEditor::OnPromoteSelectionToMacro()
 	{
 		if (UK2Node_Composite* CompositeNode = Cast<UK2Node_Composite>(*It))
 		{
-			TSet<class UEdGraphNode*> NodesInGraph;
+			TSet<UEdGraphNode*> NodesToMove;
+			UEdGraph* SourceGraph = CompositeNode->BoundGraph;
+			// Gather the entry and exit nodes of the collapsed graph so that we can create new macro inputs
 
-			// Collect all the nodes to test if they can be made into a function
-			for (UEdGraphNode* Node : CompositeNode->BoundGraph->Nodes)
+			// Gather the entry and exit nodes of the collapsed graph so that we can create new macro inputs
+			CollapseGraphUtils::GatherMoveableNodes(SourceGraph, /* Out */ NodesToMove);
+
+			if(CanCollapseSelectionToMacro(NodesToMove))
 			{
-				// Ignore the tunnel nodes
-				if (Node->GetClass() != UK2Node_Tunnel::StaticClass())
-				{
-					NodesInGraph.Add(Node);
-				}
-			}
+				DocumentManager->CleanInvalidTabs();				
 
-			if(CanCollapseSelectionToMacro(NodesInGraph))
-			{
-				DocumentManager->CleanInvalidTabs();
-
-				// Expand the composite node back into the world
-				UEdGraph* SourceGraph = CompositeNode->BoundGraph;
-
-				// Expand all composite nodes back in place
-				TSet<UEdGraphNode*> ExpandedNodes;
-				ExpandNode(CompositeNode, SourceGraph, /*inout*/ ExpandedNodes);
-				FBlueprintEditorUtils::RemoveGraph(GetBlueprintObj(), SourceGraph, EGraphRemoveFlags::Recompile);
-
-				//Remove this node from selection
+				// Remove this node from selection
 				FocusedGraphEd->SetNodeSelection(CompositeNode, false);
 
-				UEdGraphNode* MacroNode = NULL;
-				CollapseSelectionToMacro(FocusedGraphEd, ExpandedNodes, MacroNode);
+				UEdGraphNode* MacroNode = nullptr;
+				CollapseSelectionToMacro(FocusedGraphEd, NodesToMove, MacroNode);
 				NodesToSelect.Add(MacroNode);
+
+				FBlueprintEditorUtils::RemoveGraph(BP, SourceGraph, EGraphRemoveFlags::Recompile);
 			}
 			else
 			{
@@ -5554,68 +5778,67 @@ void FBlueprintEditor::MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, 
 
 bool FBlueprintEditor::CanConvertFunctionToEvent() const
 {
-	if (UBlueprint* Blueprint = GetBlueprintObj())
-	{
-		if (BPTYPE_FunctionLibrary != Blueprint->BlueprintType)
-		{
-			if (UEdGraphNode* const SelectedNode = GetSingleSelectedNode())
-			{
-				if (UK2Node_FunctionEntry* const SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
-				{
-					if (SelectedCallFunctionNode->FindSignatureFunction())
-					{
-						return true;
-					}
-				}
-			}
-		}
-	}
+	UEdGraphNode* const SelectedNode = GetSingleSelectedNode();	
 
+	if (UK2Node_FunctionEntry* const SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
+	{
+		return FBlueprintEditorUtils::IsFunctionConvertableToEvent(GetBlueprintObj(), SelectedCallFunctionNode->FindSignatureFunction());
+	}
+	
 	return false;
 }
 
 void FBlueprintEditor::OnConvertFunctionToEvent()
 {
+	UEdGraphNode* SelectedNode = GetSingleSelectedNode();
+
+	if (UK2Node_FunctionEntry* SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
+	{
+		ConvertFunctionIfValid(SelectedCallFunctionNode);
+	}
+}
+
+bool FBlueprintEditor::ConvertFunctionIfValid(UK2Node_FunctionEntry* FuncEntryNode)
+{
 	FCompilerResultsLog LogResults;
 	FMessageLog MessageLog("BlueprintLog");
 	FText SpecificErrorMessage;
+	
+	UBlueprint* BlueprintObj = FuncEntryNode ? FuncEntryNode->GetBlueprint() : nullptr;
 
-	if (UEdGraphNode* SelectedNode = GetSingleSelectedNode())
+	if(BlueprintObj && FuncEntryNode)
 	{
-		if (UK2Node_FunctionEntry* SelectedCallFunctionNode = Cast<UK2Node_FunctionEntry>(SelectedNode))
-		{
-			UFunction* Func = SelectedCallFunctionNode->FindSignatureFunction();
-			check(Func);
+		UFunction* Func = FuncEntryNode->FindSignatureFunction();
+		check(Func);
 
-			// Make sure there are no output parameters
-			if (UEdGraphSchema_K2::HasFunctionAnyOutputParameter(Func))
-			{
-				LogResults.Error(*LOCTEXT("FunctionHasOutput_Error", "A function can only be converted if it does not have any output parameters.").ToString());
-				SpecificErrorMessage = LOCTEXT("FunctionHasOutput_Error_Title", "Function cannot have output parameters");
-			}
-			// Make sure this is not a blueprint/macro function library
-			else if (GetBlueprintObj()->BlueprintType == BPTYPE_FunctionLibrary || GetBlueprintObj()->BlueprintType == BPTYPE_MacroLibrary)
-			{
-				LogResults.Error(*LOCTEXT("BlueprintFunctionLibarary_Error", "Cannot convert functions from blueprint or macro libraries.").ToString());
-				SpecificErrorMessage = LOCTEXT("BlueprintFunctionLibarary_Error_Title", "Cannot convert blueprint or macro library functions");
-			}
-			// Ensure that this is no the construction script
-			else if (SelectedCallFunctionNode->FunctionReference.GetMemberName() == UEdGraphSchema_K2::FN_UserConstructionScript)
-			{
-				LogResults.Error(*LOCTEXT("ConvertConstructionScript_Error", "Cannot convert the construction script!").ToString());
-				SpecificErrorMessage = LOCTEXT("ConvertConstructionScript_Error_Title", "Cannot convert construction script");
-			}
-			// Make sure we are not on the animation graph
-			else if (IsEditingAnimGraph())
-			{
-				LogResults.Error(*LOCTEXT("ConvertAnimGraph_Error", "Cannot convert functions on the anim graph!").ToString());
-				SpecificErrorMessage = LOCTEXT("ConvertAnimGraph_Error_Title", "Cannot convert on the anim graph");
-			}
-			else
-			{
-				ConvertFunctionToEvent(SelectedCallFunctionNode);
-			}
+		// Make sure there are no output parameters
+		if (UEdGraphSchema_K2::HasFunctionAnyOutputParameter(Func))
+		{
+			LogResults.Error(*LOCTEXT("FunctionHasOutput_Error", "A function can only be converted if it does not have any output parameters.").ToString());
+			SpecificErrorMessage = LOCTEXT("FunctionHasOutput_Error_Title", "Function cannot have output parameters");
 		}
+		// Make sure this is not a blueprint/macro function library
+		else if (BlueprintObj->BlueprintType == BPTYPE_FunctionLibrary || BlueprintObj->BlueprintType == BPTYPE_MacroLibrary)
+		{
+			LogResults.Error(*LOCTEXT("BlueprintFunctionLibarary_Error", "Cannot convert functions from blueprint or macro libraries.").ToString());
+			SpecificErrorMessage = LOCTEXT("BlueprintFunctionLibarary_Error_Title", "Cannot convert blueprint or macro library functions");
+		}
+		// Ensure that this is no the construction script
+		else if (FuncEntryNode->FunctionReference.GetMemberName() == UEdGraphSchema_K2::FN_UserConstructionScript)
+		{
+			LogResults.Error(*LOCTEXT("ConvertConstructionScript_Error", "Cannot convert the construction script!").ToString());
+			SpecificErrorMessage = LOCTEXT("ConvertConstructionScript_Error_Title", "Cannot convert construction script");
+		}
+		// Make sure we are not on the animation graph
+		else if (IsEditingAnimGraph())
+		{
+			LogResults.Error(*LOCTEXT("ConvertAnimGraph_Error", "Cannot convert functions on the anim graph!").ToString());
+			SpecificErrorMessage = LOCTEXT("ConvertAnimGraph_Error_Title", "Cannot convert on the anim graph");
+		}
+		else
+		{
+			ConvertFunctionToEvent(FuncEntryNode);
+		}		
 	}
 	else
 	{
@@ -5632,6 +5855,9 @@ void FBlueprintEditor::OnConvertFunctionToEvent()
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
 		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
 	}
+
+	// If there are no errors, we succeed and should return true
+	return LogResults.NumErrors == 0;
 }
 
 void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCallFunctionNode)
@@ -5722,6 +5948,40 @@ void FBlueprintEditor::ConvertFunctionToEvent(UK2Node_FunctionEntry* SelectedCal
 			K2Schema->ReconstructNode(*NewEventNode);
 		}
 		
+		// If this function had any local scope variables, we need to convert them to global scope
+		if(SelectedCallFunctionNode->LocalVariables.Num() > 0)
+		{
+			// Find any UK2Node_Variable's that may reference a local variable
+			TArray<UK2Node_Variable*> VarNodes;
+			FunctionGraph->GetNodesOfClass<UK2Node_Variable>(VarNodes);
+
+			// Make a globally scoped version of any local variables
+			for (const FBPVariableDescription& LocalVar : SelectedCallFunctionNode->LocalVariables)
+			{
+				// If a variable already exists of this name globally, then we need to use a unique name
+				// Only use FindUniqueKismetName if one exists because otherwise it will always add a "_0" to the name
+				FName NewVarName = FBlueprintEditorUtils::FindNewVariableIndex(NodeBP, LocalVar.VarName) == INDEX_NONE ?
+					LocalVar.VarName : FBlueprintEditorUtils::FindUniqueKismetName(NodeBP, LocalVar.VarName.ToString());
+
+				if (FBlueprintEditorUtils::AddMemberVariable(NodeBP, NewVarName, LocalVar.VarType, LocalVar.DefaultValue))
+				{
+					// Upon success, update the variable node's reference members
+					const FGuid NewVarGuid = FBlueprintEditorUtils::FindMemberVariableGuidByName(NodeBP, NewVarName);
+
+					for (UK2Node_Variable* VarNode : VarNodes)
+					{
+						if (VarNode->GetVarName() == LocalVar.VarName)
+						{
+							VarNode->Modify();
+							VarNode->VariableReference.SetDirect(NewVarName, NewVarGuid, nullptr, true);
+							// Need to reconstruct the node here to update the displayed variable name
+							K2Schema->ReconstructNode(*VarNode);
+						}
+					}
+				}
+			}
+		}
+
 		// Keep track of any nodes that have been expanded out of the function graph
 		TSet<UEdGraphNode*> ExpandedNodes;
 
@@ -5775,34 +6035,31 @@ bool FBlueprintEditor::CanConvertEventToFunction() const
 	return false;
 }
 
-void FBlueprintEditor::OnConvertEventToFunction()
+bool FBlueprintEditor::ConvertEventIfValid(UK2Node_Event* EventToConv)
 {
 	FCompilerResultsLog LogResults;
 	FMessageLog MessageLog("BlueprintLog");
 	FText SpecificErrorMessage;
 
-	if (UEdGraphNode* SelectedNode = GetSingleSelectedNode())
+	if(EventToConv)
 	{
-		if (UK2Node_Event* SelectedEventNode = Cast<UK2Node_Event>(SelectedNode))
-		{
-			UFunction* const Func = FFunctionFromNodeHelper::FunctionFromNode(SelectedEventNode);
+		UFunction* const Func = FFunctionFromNodeHelper::FunctionFromNode(EventToConv);
 
-			// Ensure we are not trying to do this on an interface event
-			if (FBlueprintEditorUtils::IsInterfaceFunction(GetBlueprintObj(), Func) || SelectedEventNode->IsInterfaceEventNode())
-			{
-				LogResults.Error(*LOCTEXT("EventIsOnInterface_Error", "Only non-interface events can be converted to functions!").ToString());
-				SpecificErrorMessage = LOCTEXT("EventIsOnInterface_Error_Title", "Cannot convert interface events");
-			}
-			// Make sure that we are not on the animation graph
-			else if (IsEditingAnimGraph())
-			{
-				LogResults.Error(*LOCTEXT("ConvertAnimGraphEvent_Error", "Cannot convert events on the anim graph!").ToString());
-				SpecificErrorMessage = LOCTEXT("ConvertAnimGraphEvent_Error_Title", "Cannot convert on the anim graph");
-			}
-			else
-			{
-				ConvertEventToFunction(SelectedEventNode);
-			}
+		// Ensure we are not trying to do this on an interface event
+		if (FBlueprintEditorUtils::IsInterfaceFunction(GetBlueprintObj(), Func) || EventToConv->IsInterfaceEventNode())
+		{
+			LogResults.Error(*LOCTEXT("EventIsOnInterface_Error", "Only non-interface events can be converted to functions!").ToString());
+			SpecificErrorMessage = LOCTEXT("EventIsOnInterface_Error_Title", "Cannot convert interface events");
+		}
+		// Make sure that we are not on the animation graph
+		else if (IsEditingAnimGraph())
+		{
+			LogResults.Error(*LOCTEXT("ConvertAnimGraphEvent_Error", "Cannot convert events on the anim graph!").ToString());
+			SpecificErrorMessage = LOCTEXT("ConvertAnimGraphEvent_Error_Title", "Cannot convert on the anim graph");
+		}
+		else
+		{
+			ConvertEventToFunction(EventToConv);
 		}
 	}
 	else
@@ -5821,6 +6078,19 @@ void FBlueprintEditor::OnConvertEventToFunction()
 		FFormatNamedArguments Arguments;
 		Arguments.Add(TEXT("SpecificErrorMessage"), SpecificErrorMessage);
 		MessageLog.Notify(FText::Format(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Convert Event to Function Failed!\n{SpecificErrorMessage}"), Arguments));
+	}
+
+	// If there are no errors, we succeed and should return true
+	return LogResults.NumErrors == 0;
+}
+
+void FBlueprintEditor::OnConvertEventToFunction()
+{
+	UEdGraphNode* SelectedNode = GetSingleSelectedNode();
+
+	if (UK2Node_Event* SelectedEventNode = Cast<UK2Node_Event>(SelectedNode))
+	{
+		ConvertEventIfValid(SelectedEventNode);
 	}
 }
 
@@ -6257,28 +6527,44 @@ void FBlueprintEditor::DeleteSelectedNodes()
 
 void FBlueprintEditor::ReconnectExecPins(UK2Node* Node)
 {
-	// Only do this on impure nodes
-	if (Node && !Node->IsNodePure())
+	if(!Node)
 	{
-		// Are there exec/then connections?
-		UEdGraphPin* const ExecPin = Node->GetExecPin();
-		UEdGraphPin* const ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+		return;
+	}
+
+	UEdGraphPin* ExecPin = nullptr;
+	UEdGraphPin* ThenPin = nullptr;
+
+	// Get pins for knot nodes or impure nodes only
+	if(UK2Node_Knot* KnotNode = Cast<UK2Node_Knot>(Node))
+	{
+		ExecPin = KnotNode->GetInputPin();
+		ThenPin = KnotNode->GetOutputPin();
+	}
+	else if(!Node->IsNodePure())
+	{
+		ExecPin = Node->GetExecPin();
+
 		// Nodes with multiple "then" pins (branch, sequence, foreach, etc) will actually have the FindPin return nullptr
-		if (ExecPin && ThenPin)
+		ThenPin = Node->FindPin(UEdGraphSchema_K2::PN_Then);
+	}
+
+	// We don't want to try and auto connect nodes with multiple outputs, 	
+	// because it's likely the user will not want those connections anyway
+	if (ExecPin && ThenPin)
+	{
+		// Make a connection from every incoming exec pin to every outgoing then pin
+		for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
 		{
-			// Make a connection from every incoming exec pin to every outgoing then pin
-			for (UEdGraphPin* const IncomingConnectionPin : ExecPin->LinkedTo)
+			if (IncomingConnectionPin)
 			{
-				if (IncomingConnectionPin)
+				for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
 				{
-					for (UEdGraphPin* const ConnectedCompletePin : ThenPin->LinkedTo)
-					{
-						IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
-					}
+					IncomingConnectionPin->MakeLinkTo(ConnectedCompletePin);
 				}
 			}
 		}
-	}
+	}	
 }
 
 bool FBlueprintEditor::CanDeleteNodes() const
@@ -6630,6 +6916,35 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 		TSet<UEdGraphNode*> PastedNodes;
 		FEdGraphUtilities::ImportNodesFromText(DestinationGraph, TextToImport, /*out*/ PastedNodes);
 
+		// Only do this step if we can create functions on the blueprint (i.e. not macro graphs, etc)
+		if (NewDocument_IsVisibleForType(CGT_NewFunctionGraph))
+		{
+			// Spawn Deferred Fixup Modal window if necessary
+			TArray<UK2Node_CallFunction*> FixupNodes;
+			for (UEdGraphNode* PastedNode : PastedNodes)
+			{
+				if (UK2Node_CallFunction* Node = Cast<UK2Node_CallFunction>(PastedNode))
+				{
+					if (Node->FunctionReference.IsSelfContext() && !Node->GetTargetFunction())
+					{
+						FixupNodes.Add(Node);
+					}
+				}
+			}
+			if (FixupNodes.Num() > 0)
+			{
+				if (!SFixupSelfContextDialog::CreateModal(FixupNodes, this, FixupNodes.Num() != PastedNodes.Num()))
+				{
+					for (UEdGraphNode* Node : PastedNodes)
+					{
+						DestinationGraph->RemoveNode(Node);
+					}
+
+					return;
+				}
+			}
+		}
+
 		// Update Paste Analytics
 		AnalyticsStats.NodePasteCreateCount += PastedNodes.Num();
 
@@ -6716,6 +7031,33 @@ void FBlueprintEditor::PasteNodesHere(class UEdGraph* DestinationGraph, const FV
 
 	// Update UI
 	FocusedGraphEd->NotifyGraphChanged();
+}
+
+void FBlueprintEditor::PasteGeneric()
+{
+	if (CanPasteNodes())
+	{
+		PasteNodes();
+	}
+	else if (MyBlueprintWidget.IsValid())
+	{
+		if (MyBlueprintWidget->CanPasteGeneric())
+		{
+			MyBlueprintWidget->OnPasteGeneric();
+		}
+	}
+}
+
+bool FBlueprintEditor::CanPasteGeneric() const
+{
+	if (CanPasteNodes())
+	{
+		return true;
+	}
+	else
+	{
+		return MyBlueprintWidget.IsValid() && MyBlueprintWidget->CanPasteGeneric();
+	}
 }
 
 
@@ -7404,6 +7746,16 @@ bool FBlueprintEditor::IsToggleHideUnrelatedNodesChecked() const
 	return bHideUnrelatedNodes == true;
 }
 
+bool FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes(bool bIsToolbar) const
+{
+	// Only show the toolbar button when not actively debugging, otherwise the debug buttons won't fit
+	if (bIsToolbar)
+	{
+		return !GIntraFrameDebuggingGameThread;
+	}
+	return GIntraFrameDebuggingGameThread;
+}
+
 TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 {
 	const bool bShouldCloseWindowAfterMenuSelection = true;
@@ -7417,7 +7769,7 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 			+SHorizontalBox::Slot()
 			[
 				SNew(STextBlock)
-					.Text(LOCTEXT("FocusRelatedOptions", "Focus Related Options"))
+					.Text(LOCTEXT("HideUnrelatedNodesOptions", "Hide Unrelated Nodes Options"))
 					.TextStyle(FEditorStyle::Get(), "Menu.Heading")
 			]
 		];
@@ -7444,6 +7796,23 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 
 	MenuBuilder.AddWidget(OptionsHeading, FText::GetEmpty(), true);
 
+	TSharedPtr<FUICommandInfo> ToggleCmd = FBlueprintEditorCommands::Get().ToggleHideUnrelatedNodes;
+
+	// Add a menu version of toggle, when we can't show the full one
+	MenuBuilder.AddMenuEntry
+	(
+		ToggleCmd->GetLabel(),
+		ToggleCmd->GetDescription(),
+		FSlateIcon(),
+		FUIAction(
+			FExecuteAction::CreateSP(this, &FBlueprintEditor::ToggleHideUnrelatedNodes),
+			FCanExecuteAction(),
+			FIsActionChecked::CreateSP(this, &FBlueprintEditor::IsToggleHideUnrelatedNodesChecked),
+			FIsActionButtonVisible::CreateSP(this, &FBlueprintEditor::ShouldShowToggleHideUnrelatedNodes, false)),
+		NAME_None,
+		EUserInterfaceActionType::ToggleButton
+	);
+
 	MenuBuilder.AddMenuEntry(FUIAction(), LockNodeStateCheckBox);
 
 	return MenuBuilder.MakeWidget();
@@ -7451,9 +7820,9 @@ TSharedRef<SWidget> FBlueprintEditor::MakeHideUnrelatedNodesOptionsMenu()
 
 void FBlueprintEditor::LoadEditorSettings()
 {
-	EditorOptions = NewObject<UBlueprintEditorOptions>();
+	UBlueprintEditorSettings* LocalSettings = GetMutableDefault<UBlueprintEditorSettings>();
 
-	if (EditorOptions->bHideUnrelatedNodes)
+	if (LocalSettings->bHideUnrelatedNodes)
 	{
 		ToggleHideUnrelatedNodes();
 	}
@@ -7461,11 +7830,10 @@ void FBlueprintEditor::LoadEditorSettings()
 
 void FBlueprintEditor::SaveEditorSettings()
 {
-	if ( EditorOptions )
-	{
-		EditorOptions->bHideUnrelatedNodes     = bHideUnrelatedNodes;
-		EditorOptions->SaveConfig();
-	}
+	UBlueprintEditorSettings* LocalSettings = GetMutableDefault<UBlueprintEditorSettings>();
+	
+	LocalSettings->bHideUnrelatedNodes     = bHideUnrelatedNodes;
+	LocalSettings->SaveConfig();
 }
 
 void FBlueprintEditor::OnLockNodeStateCheckStateChanged(ECheckBoxState NewCheckedState)
@@ -7848,28 +8216,28 @@ void FBlueprintEditor::CollapseNodes(TSet<UEdGraphNode*>& InCollapsableNodes)
 	CollapseNodesIntoGraph(GatewayNode, GatewayNode->GetInputSink(), GatewayNode->GetOutputSource(), SourceGraph, DestinationGraph, InCollapsableNodes, false, true);
 }
 
-UEdGraph* FBlueprintEditor::CollapseSelectionToFunction(TSharedPtr<SGraphEditor> InRootGraph, TSet<class UEdGraphNode*>& InCollapsableNodes, UEdGraphNode*& OutFunctionNode)
+UEdGraph* FBlueprintEditor::CollapseSelectionToFunction(TSharedPtr<SGraphEditor> InRootGraph, TSet<UEdGraphNode*>& InCollapsableNodes, UEdGraphNode*& OutFunctionNode)
 {
 	TSharedPtr<SGraphEditor> FocusedGraphEd = InRootGraph;
 	if (!FocusedGraphEd.IsValid())
 	{
-		return NULL;
+		return nullptr;
 	}
 
 	UEdGraph* SourceGraph = FocusedGraphEd->GetCurrentGraph();
 	SourceGraph->Modify();
 
-	UEdGraph* NewGraph = NULL;
+	UEdGraph* NewGraph = nullptr;
 
 	FName DocumentName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewFunction"));
 
 	NewGraph = FBlueprintEditorUtils::CreateNewGraph(GetBlueprintObj(), DocumentName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-	FBlueprintEditorUtils::AddFunctionGraph<UClass>(GetBlueprintObj(), NewGraph, /*bIsUserCreated=*/ true, NULL);
+	FBlueprintEditorUtils::AddFunctionGraph<UClass>(GetBlueprintObj(), NewGraph, /*bIsUserCreated=*/ true, nullptr);
 
 	TArray<UK2Node_FunctionEntry*> EntryNodes;
 	NewGraph->GetNodesOfClass(EntryNodes);
 	UK2Node_FunctionEntry* EntryNode = EntryNodes[0];
-	UK2Node_FunctionResult* ResultNode = NULL;
+	UK2Node_FunctionResult* ResultNode = nullptr;
 
 	// Create Result
 	FGraphNodeCreator<UK2Node_FunctionResult> ResultNodeCreator(*NewGraph);
@@ -7908,18 +8276,20 @@ UEdGraph* FBlueprintEditor::CollapseSelectionToMacro(TSharedPtr<SGraphEditor> In
 	TSharedPtr<SGraphEditor> FocusedGraphEd = InRootGraph;
 	if (!FocusedGraphEd.IsValid())
 	{
-		return NULL;
+		return nullptr;
 	}
+
+	UBlueprint* BP = GetBlueprintObj();
 
 	UEdGraph* SourceGraph = FocusedGraphEd->GetCurrentGraph();
 	SourceGraph->Modify();
 
-	UEdGraph* DestinationGraph = NULL;
+	UEdGraph* DestinationGraph = nullptr;
 
-	FName DocumentName = FBlueprintEditorUtils::FindUniqueKismetName(GetBlueprintObj(), TEXT("NewMacro"));
+	FName DocumentName = FBlueprintEditorUtils::FindUniqueKismetName(BP, TEXT("NewMacro"));
 
-	DestinationGraph = FBlueprintEditorUtils::CreateNewGraph(GetBlueprintObj(), DocumentName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
-	FBlueprintEditorUtils::AddMacroGraph(GetBlueprintObj(), DestinationGraph, /*bIsUserCreated=*/ true, NULL);
+	DestinationGraph = FBlueprintEditorUtils::CreateNewGraph(BP, DocumentName, UEdGraph::StaticClass(), UEdGraphSchema_K2::StaticClass());
+	FBlueprintEditorUtils::AddMacroGraph(BP, DestinationGraph, /*bIsUserCreated=*/ true, nullptr);
 
 	UK2Node_MacroInstance* GatewayNode = FEdGraphSchemaAction_K2NewNode::SpawnNode<UK2Node_MacroInstance>(
 		SourceGraph,
@@ -7953,7 +8323,7 @@ UEdGraph* FBlueprintEditor::CollapseSelectionToMacro(TSharedPtr<SGraphEditor> In
 		}
 	}
 
-	CollapseNodesIntoGraph(GatewayNode, InputSink, OutputSink, SourceGraph, DestinationGraph, InCollapsableNodes, false, false);
+	CollapseNodesIntoGraph(GatewayNode, InputSink, OutputSink, SourceGraph, DestinationGraph, InCollapsableNodes, /* bCanDiscardEmptyReturnNode */ false, /* bCanHaveWeakObjPtrParam */ false);
 
 	OutMacroNode = GatewayNode;
 	OutMacroNode->ReconstructNode();
@@ -8587,6 +8957,20 @@ void FBlueprintEditor::NotifyPostChange(const FPropertyChangedEvent& PropertyCha
 void FBlueprintEditor::OnFinishedChangingProperties(const FPropertyChangedEvent& PropertyChangedEvent)
 {
 	FName PropertyName = (PropertyChangedEvent.Property != NULL) ? PropertyChangedEvent.Property->GetFName() : NAME_None;
+
+	if (PropertyName.IsValid())
+	{
+		UBlueprint* Blueprint = GetBlueprintObj();
+		if (Blueprint)
+		{
+			int32 VarIndex = FBlueprintEditorUtils::FindNewVariableIndex(Blueprint, PropertyName);
+			if (VarIndex != INDEX_NONE)
+			{
+				Blueprint->Modify();
+				Blueprint->NewVariables[VarIndex].DefaultValue.Empty();
+			}
+		}
+	}
 
 	//@TODO: This code does not belong here (might not even be necessary anymore as they seem to have PostEditChangeProperty impls now)!
 	if ((PropertyName == GET_MEMBER_NAME_CHECKED(UK2Node_Switch, bHasDefaultPin)) ||

@@ -168,8 +168,8 @@ bool FDisplayClusterProjectionEasyBlendViewAdapterDX11::ApplyWarpBlend_RenderThr
 
 	ID3D11RenderTargetView* DstTextureRTV = DstTextureRHI->GetRenderTargetView(0, -1);
 
-	ID3D11Texture2D * DstTextureD3D11 = static_cast<ID3D11Texture2D*>(DstTextureRHI->GetResource());
-	ID3D11Texture2D * SrcTextureD3D11 = static_cast<ID3D11Texture2D*>(SrcTextureRHI->GetResource());
+	ID3D11Texture2D* DstTextureD3D11 = static_cast<ID3D11Texture2D*>(DstTextureRHI->GetResource());
+	ID3D11Texture2D* SrcTextureD3D11 = static_cast<ID3D11Texture2D*>(SrcTextureRHI->GetResource());
 
 	// Setup In/Out EasyBlend textures
 	{

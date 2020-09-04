@@ -15,7 +15,7 @@ class FDisplayClusterClusterEventsClient
 {
 public:
 	FDisplayClusterClusterEventsClient();
-	FDisplayClusterClusterEventsClient(const FString& name);
+	FDisplayClusterClusterEventsClient(const FString& InName);
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -23,4 +23,3 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	void EmitClusterEvent(const FDisplayClusterClusterEvent& Event) override;
 };
-

@@ -228,7 +228,7 @@ public:
 	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
 	{
 		OutData.WriteOpcode(EMaterialPreshaderOpcode::VectorParameter);
-		OutData.Write<uint16>(ParameterIndex);
+		OutData.Write((uint16)ParameterIndex);
 	}
 
 	virtual bool IsConstant() const
@@ -280,7 +280,7 @@ public:
 	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
 	{
 		OutData.WriteOpcode(EMaterialPreshaderOpcode::ScalarParameter);
-		OutData.Write<uint16>(ParameterIndex);
+		OutData.Write((uint16)ParameterIndex);
 	}
 
 	virtual bool IsConstant() const
@@ -606,7 +606,7 @@ public:
 	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::Length).Write<uint8>(ValueType);
+		OutData.WriteOpcode(EMaterialPreshaderOpcode::Length).Write((uint8)ValueType);
 	}
 	virtual bool IsConstant() const
 	{
@@ -738,8 +738,8 @@ public:
 		case FMO_Sub: OutData.WriteOpcode(EMaterialPreshaderOpcode::Sub); break;
 		case FMO_Mul: OutData.WriteOpcode(EMaterialPreshaderOpcode::Mul); break;
 		case FMO_Div: OutData.WriteOpcode(EMaterialPreshaderOpcode::Div); break;
-		case FMO_Dot: OutData.WriteOpcode(EMaterialPreshaderOpcode::Dot).Write<uint8>(ValueType); break;
-		case FMO_Cross: OutData.WriteOpcode(EMaterialPreshaderOpcode::Cross).Write<uint8>(ValueType); break;
+		case FMO_Dot: OutData.WriteOpcode(EMaterialPreshaderOpcode::Dot).Write((uint8)ValueType); break;
+		case FMO_Cross: OutData.WriteOpcode(EMaterialPreshaderOpcode::Cross).Write((uint8)ValueType); break;
 		default: checkNoEntry(); break;
 		}
 	}
@@ -821,7 +821,7 @@ public:
 	{
 		A->WriteNumberOpcodes(OutData);
 		B->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::AppendVector).Write<uint8>(NumComponentsA);
+		OutData.WriteOpcode(EMaterialPreshaderOpcode::AppendVector).Write((uint8)NumComponentsA);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1042,7 +1042,7 @@ public:
 	virtual void WriteNumberOpcodes(FMaterialPreshaderData& OutData) const override
 	{
 		X->WriteNumberOpcodes(OutData);
-		OutData.WriteOpcode(EMaterialPreshaderOpcode::ComponentSwizzle).Write<uint8>(NumElements).Write<uint8>(IndexR).Write<uint8>(IndexG).Write<uint8>(IndexB).Write<uint8>(IndexA);
+		OutData.WriteOpcode(EMaterialPreshaderOpcode::ComponentSwizzle).Write((uint8)NumElements).Write((uint8)IndexR).Write((uint8)IndexG).Write((uint8)IndexB).Write((uint8)IndexA);
 	}
 	virtual bool IsConstant() const
 	{
@@ -1390,7 +1390,7 @@ public:
 		case TMTM_TexelSize: Op = EMaterialPreshaderOpcode::TexelSize; break;
 		default: checkNoEntry(); break;
 		}
-		OutData.WriteOpcode(Op).Write(TextureParameter.ParameterInfo).Write<int32>(TextureParameter.TextureIndex);
+		OutData.WriteOpcode(Op).Write(TextureParameter.ParameterInfo).Write((int32)TextureParameter.TextureIndex);
 	}
 	virtual bool IsIdentical(const FMaterialUniformExpression* OtherExpression) const override
 	{

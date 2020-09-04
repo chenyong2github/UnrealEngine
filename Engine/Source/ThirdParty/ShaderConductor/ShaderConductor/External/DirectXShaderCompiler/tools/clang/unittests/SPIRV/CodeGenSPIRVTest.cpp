@@ -82,17 +82,43 @@ TEST_F(FileTest, CBufferType) { runFileTest("type.cbuffer.hlsl"); }
 TEST_F(FileTest, ConstantBufferType) {
   runFileTest("type.constant-buffer.hlsl");
 }
+TEST_F(FileTest, EnumType) { runFileTest("type.enum.hlsl"); }
 TEST_F(FileTest, TBufferType) { runFileTest("type.tbuffer.hlsl"); }
 TEST_F(FileTest, TextureBufferType) { runFileTest("type.texture-buffer.hlsl"); }
 TEST_F(FileTest, StructuredBufferType) {
   runFileTest("type.structured-buffer.hlsl");
 }
+TEST_F(FileTest, StructuredBufferTypeWithVector) {
+  runFileTest("type.structured-buffer.vector.hlsl");
+}
+TEST_F(FileTest, StructuredBufferTypeWithVectorDX) {
+  // structured buffers with fxc layout rules
+  setDxLayout();
+  runFileTest("type.structured-buffer.vector.dx.hlsl");
+}
+TEST_F(FileTest, StructuredBufferTypeWithVectorGL) {
+  setGlLayout();
+  runFileTest("type.structured-buffer.vector.gl.hlsl");
+}
+TEST_F(FileTest, StructuredBufferTypeWithVectorScalar) {
+  // VK_EXT_scalar_block_layout
+  setScalarLayout();
+  runFileTest("type.structured-buffer.vector.scalar.hlsl");
+}
 TEST_F(FileTest, StructuredByteBufferArray) {
   setBeforeHLSLLegalization();
   runFileTest("type.structured-buffer.array.hlsl");
 }
-TEST_F(FileTest, StructuredByteBufferArrayError) {
+TEST_F(FileTest, StructuredBufferArrayError) {
   runFileTest("type.structured-buffer.array.error.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, AppendStructuredBufferArrayError) {
+  runFileTest("type.append-structured-buffer.array.error.hlsl",
+              Expect::Failure);
+}
+TEST_F(FileTest, ConsumeStructuredBufferArrayError) {
+  runFileTest("type.consume-structured-buffer.array.error.hlsl",
+              Expect::Failure);
 }
 TEST_F(FileTest, AppendConsumeStructuredBufferTypeCast) {
   runFileTest("type.append.consume-structured-buffer.cast.hlsl");
@@ -157,7 +183,10 @@ TEST_F(FileTest, VarInitTbuffer) {
 TEST_F(FileTest, VarInitWarningIngored) {
   runFileTest("var.init.warning.ignored.hlsl", Expect::Warning);
 }
-TEST_F(FileTest, VarInitOpaque) { runFileTest("var.init.opaque.hlsl"); }
+TEST_F(FileTest, VarInitOpaque) {
+  setBeforeHLSLLegalization();
+  runFileTest("var.init.opaque.hlsl");
+}
 TEST_F(FileTest, VarInitCrossStorageClass) {
   runFileTest("var.init.cross-storage-class.hlsl");
 }
@@ -216,6 +245,7 @@ TEST_F(FileTest, BinaryOpAssignComposite) {
 TEST_F(FileTest, BinaryOpAssignOpaqueArray) {
   // Test that for copying opaque arrays, we load each element via access chain
   // separately, create an composite, and then write out once
+  setBeforeHLSLLegalization();
   runFileTest("binary-op.assign.opaque.array.hlsl");
 }
 
@@ -377,6 +407,7 @@ TEST_F(FileTest, OpTextureMipsAccess) {
 TEST_F(FileTest, OpTextureSampleAccess) {
   runFileTest("op.texture.sample-access.hlsl");
 }
+TEST_F(FileTest, OpSizeOf) { runFileTest("op.sizeof.hlsl"); }
 
 // For casting
 TEST_F(FileTest, CastNoOp) { runFileTest("cast.no-op.hlsl"); }
@@ -533,6 +564,10 @@ TEST_F(FileTest, StructMethodCall) {
   setBeforeHLSLLegalization();
   runFileTest("oo.struct.method.hlsl");
 }
+TEST_F(FileTest, StructThisAlias) {
+  setBeforeHLSLLegalization();
+  runFileTest("oo.struct.this.alias.hlsl");
+}
 TEST_F(FileTest, ClassMethodCall) {
   setBeforeHLSLLegalization();
   runFileTest("oo.class.method.hlsl");
@@ -551,6 +586,9 @@ TEST_F(FileTest, MethodCallOnStaticVar) {
   runFileTest("oo.method.on-static-var.hlsl");
 }
 TEST_F(FileTest, Inheritance) { runFileTest("oo.inheritance.hlsl"); }
+TEST_F(FileTest, InheritanceMemberFunction) {
+  runFileTest("oo.inheritance.member.function.hlsl");
+}
 TEST_F(FileTest, InheritanceStageIOVS) {
   runFileTest("oo.inheritance.stage-io.vs.hlsl");
 }
@@ -673,6 +711,10 @@ TEST_F(FileTest, SemanticPrimitiveIdPS) {
 }
 TEST_F(FileTest, SemanticOutputControlPointIdHS) {
   runFileTest("semantic.output-control-point-id.hs.hlsl");
+}
+TEST_F(FileTest, SemanticOutputControlPointIdHSError) {
+  runFileTest("semantic.output-control-point-id.hs.error.hlsl",
+              Expect::Failure);
 }
 TEST_F(FileTest, SemanticGSInstanceIDGS) {
   runFileTest("semantic.gs-instance-id.gs.hlsl");
@@ -873,8 +915,32 @@ TEST_F(FileTest, ConsumeStructuredBufferGetDimensions) {
 TEST_F(FileTest, ByteAddressBufferLoad) {
   runFileTest("method.byte-address-buffer.load.hlsl");
 }
+TEST_F(FileTest, ByteAddressBufferTemplatedLoadScalar) {
+  runFileTest("method.byte-address-buffer.templated-load.scalar.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedLoadVector) {
+  runFileTest("method.byte-address-buffer.templated-load.vector.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedLoadMatrix) {
+  runFileTest("method.byte-address-buffer.templated-load.matrix.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedLoadStruct) {
+  runFileTest("method.byte-address-buffer.templated-load.struct.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedLoadStruct2) {
+  runFileTest("method.byte-address-buffer.templated-load.struct2.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedLoadStruct3) {
+  runFileTest("method.byte-address-buffer.templated-load.struct3.hlsl");
+}
 TEST_F(FileTest, ByteAddressBufferStore) {
   runFileTest("method.byte-address-buffer.store.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedStoreStruct) {
+  runFileTest("method.byte-address-buffer.templated-store.struct.hlsl");
+}
+TEST_F(FileTest, ByteAddressBufferTemplatedStoreStruct2) {
+  runFileTest("method.byte-address-buffer.templated-store.struct.hlsl");
 }
 TEST_F(FileTest, ByteAddressBufferGetDimensions) {
   runFileTest("method.byte-address-buffer.get-dimensions.hlsl");
@@ -999,6 +1065,13 @@ TEST_F(FileTest, IntrinsicsInterlockedMethodsStaticError) {
   runFileTest("intrinsics.interlocked-methods.static-error.hlsl",
               Expect::Failure);
 }
+TEST_F(FileTest, IntrinsicsInterlockedMethodsTextureSwizzling) {
+  runFileTest("intrinsics.interlocked-methods.texture.swizzling.hlsl");
+}
+TEST_F(FileTest, IntrinsicsInterlockedMethodsTextureSwizzlingError) {
+  runFileTest("intrinsics.interlocked-methods.texture.swizzling.error.hlsl",
+              Expect::Failure);
+}
 TEST_F(FileTest, IntrinsicsIsInf) { runFileTest("intrinsics.isinf.hlsl"); }
 TEST_F(FileTest, IntrinsicsIsNan) { runFileTest("intrinsics.isnan.hlsl"); }
 TEST_F(FileTest, IntrinsicsLength) { runFileTest("intrinsics.length.hlsl"); }
@@ -1014,6 +1087,7 @@ TEST_F(FileTest, IntrinsicsModfWithSwizzling) {
   runFileTest("intrinsics.modf.swizzle.hlsl");
 }
 TEST_F(FileTest, IntrinsicsMad) { runFileTest("intrinsics.mad.hlsl"); }
+TEST_F(FileTest, IntrinsicsUMad) { runFileTest("intrinsics.umad.hlsl"); }
 TEST_F(FileTest, IntrinsicsMax) { runFileTest("intrinsics.max.hlsl"); }
 TEST_F(FileTest, IntrinsicsMsad4) { runFileTest("intrinsics.msad4.hlsl"); }
 TEST_F(FileTest, IntrinsicsNormalize) {
@@ -1056,6 +1130,11 @@ TEST_F(FileTest, IntrinsicsAsin) { runFileTest("intrinsics.asin.hlsl"); }
 TEST_F(FileTest, IntrinsicsAcos) { runFileTest("intrinsics.acos.hlsl"); }
 TEST_F(FileTest, IntrinsicsAtan) { runFileTest("intrinsics.atan.hlsl"); }
 TEST_F(FileTest, IntrinsicsAtan2) { runFileTest("intrinsics.atan2.hlsl"); }
+TEST_F(FileTest, IntrinsicsAtanFp16) {
+  // Float16 capability should be emitted for usage of fp16 in the extended
+  // instruction set.
+  runFileTest("intrinsics.atan.fp16.hlsl");
+}
 
 // Unspported intrinsic functions
 TEST_F(FileTest, IntrinsicsAbort) {
@@ -1063,6 +1142,9 @@ TEST_F(FileTest, IntrinsicsAbort) {
 }
 TEST_F(FileTest, IntrinsicsCheckAccessFullyMapped) {
   runFileTest("intrinsics.check-access-fully-mapped.hlsl");
+}
+TEST_F(FileTest, IntrinsicsCheckAccessFullyMappedWithoutSampler) {
+  runFileTest("intrinsics.check-access-fully-mapped.without-sampler.hlsl");
 }
 TEST_F(FileTest, IntrinsicsGetRenderTargetSampleCount) {
   runFileTest("intrinsics.get-render-target-sample-count.hlsl",
@@ -1360,19 +1442,27 @@ TEST_F(FileTest, SpirvStageIOAliasBuiltIn) {
   runFileTest("spirv.interface.alias-builtin.hlsl");
 }
 
+// For testing UserSemantic decoration
+TEST_F(FileTest, SpirvUserSemanticVS) {
+  runFileTest("spirv.user-semantic.vs.hlsl");
+}
+
 TEST_F(FileTest, SpirvStageIO16bitTypes) {
   runFileTest("spirv.stage-io.16bit.hlsl");
 }
 
-TEST_F(FileTest, SpirvInterpolation) {
-  runFileTest("spirv.interpolation.hlsl");
+TEST_F(FileTest, SpirvInterpolationPS) {
+  runFileTest("spirv.interpolation.ps.hlsl");
+}
+TEST_F(FileTest, SpirvInterpolationVS) {
+  runFileTest("spirv.interpolation.vs.hlsl");
 }
 TEST_F(FileTest, SpirvInterpolationError) {
   runFileTest("spirv.interpolation.error.hlsl", Expect::Failure);
 }
 
 TEST_F(FileTest, SpirvLegalizationOpaqueStruct) {
-  setRelaxLogicalPointer();
+  setBeforeHLSLLegalization();
   runFileTest("spirv.legal.opaque-struct.hlsl");
 }
 TEST_F(FileTest, SpirvLegalizationStructuredBufferUsage) {
@@ -1423,20 +1513,37 @@ TEST_F(FileTest, SpirvDebugOpLine) { runFileTest("spirv.debug.opline.hlsl"); }
 TEST_F(FileTest, SpirvDebugOpLineBranch) {
   runFileTest("spirv.debug.opline.branch.hlsl");
 }
+TEST_F(FileTest, SpirvDebugOpLinePrecendence) {
+  runFileTest("spirv.debug.opline.precedence.hlsl");
+}
 TEST_F(FileTest, SpirvDebugOpLineComposite) {
   runFileTest("spirv.debug.opline.composite.hlsl");
 }
 TEST_F(FileTest, SpirvDebugOpLineEntry) {
   runFileTest("spirv.debug.opline.entry.hlsl");
 }
-TEST_F(FileTest, SpirvDebugOpLineFuncDecl) {
-  runFileTest("spirv.debug.opline.func_decl.hlsl");
+TEST_F(FileTest, SpirvDebugOpLineFunction) {
+  setBeforeHLSLLegalization();
+  runFileTest("spirv.debug.opline.function.hlsl");
 }
 TEST_F(FileTest, SpirvDebugOpLineIntrinsics) {
   runFileTest("spirv.debug.opline.intrinsic.hlsl");
 }
+TEST_F(FileTest, SpirvDebugOpLineIntrinsicsControlBarrier) {
+  runFileTest("spirv.debug.opline.intrinsic.control.barrier.hlsl");
+}
+TEST_F(FileTest, SpirvDebugOpLineIntrinsicsVulkan1_1) {
+  useVulkan1p1();
+  runFileTest("spirv.debug.opline.intrinsic.vulkan1.1.hlsl");
+}
+TEST_F(FileTest, SpirvDebugOpLineOperators) {
+  runFileTest("spirv.debug.opline.operators.hlsl");
+}
 TEST_F(FileTest, SpirvDebugOpLineVariables) {
   runFileTest("spirv.debug.opline.variables.hlsl");
+}
+TEST_F(FileTest, SpirvDebugOpLineInclude) {
+  runFileTest("spirv.debug.opline.include.hlsl");
 }
 
 TEST_F(FileTest, SpirvDebugDxcCommitInfo) {
@@ -1448,6 +1555,19 @@ TEST_F(FileTest, SpirvDebugDxcCommitInfo) {
 TEST_F(FileTest, SpirvDebugClOption) {
   useVulkan1p1();
   runFileTest("spirv.debug.cl-option.hlsl");
+}
+
+TEST_F(FileTest, SpirvDebugO1Option) {
+  runFileTest("spirv.debug.o1.option.hlsl");
+}
+
+TEST_F(FileTest, SpirvDebugO2Option) {
+  runFileTest("spirv.debug.o2.option.hlsl");
+}
+
+TEST_F(FileTest, SpirvDebugO3Option) {
+  useVulkan1p1();
+  runFileTest("spirv.debug.o3.option.hlsl");
 }
 
 TEST_F(FileTest, SpirvDebugControlFile) {
@@ -1474,8 +1594,11 @@ TEST_F(FileTest, SpirvDebugControlUnknown) {
 TEST_F(FileTest, VulkanAttributeErrors) {
   runFileTest("vk.attribute.error.hlsl", Expect::Failure);
 }
-TEST_F(FileTest, VulkanAttributeInvalidUsages) {
-  runFileTest("vk.attribute.invalid.hlsl", Expect::Failure);
+TEST_F(FileTest, VulkanAttributePushConstantInvalidUsages) {
+  runFileTest("vk.attribute.push-constant.invalid.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanAttributeShaderRecordNVInvalidUsages) {
+  runFileTest("vk.attribute.shader-record-nv.invalid.hlsl", Expect::Failure);
 }
 
 TEST_F(FileTest, VulkanCLOptionInvertYVS) {
@@ -1577,6 +1700,40 @@ TEST_F(FileTest, VulkanRegisterBinding1to1MappingMissingCLOption) {
 TEST_F(FileTest, VulkanRegisterBinding1to1MappingAssociatedCounter) {
   runFileTest("vk.binding.cl.register.counter.hlsl", Expect::Failure);
 }
+
+// For flattening array of resources
+TEST_F(FileTest, FlattenResourceArrayBindings1) {
+  runFileTest("vk.binding.cl.flatten-arrays.example1.hlsl");
+}
+TEST_F(FileTest, FlattenResourceArrayBindings1Optimized) {
+  runFileTest("vk.binding.cl.flatten-arrays.example1-optimized.hlsl");
+}
+TEST_F(FileTest, FlattenResourceArrayBindings2) {
+  runFileTest("vk.binding.cl.flatten-arrays.example2.hlsl");
+}
+TEST_F(FileTest, FlattenResourceArrayBindings2Optimized) {
+  runFileTest("vk.binding.cl.flatten-arrays.example2-optimized.hlsl");
+}
+TEST_F(FileTest, FlattenResourceArrayBindings3) {
+  runFileTest("vk.binding.cl.flatten-arrays.example3.hlsl");
+}
+
+// For testing the "-auto-binding-space" command line option which specifies the
+// "default space" for resources.
+TEST_F(FileTest, VulkanRegisterBindingDefaultSpaceImplicit) {
+  runFileTest("vk.binding.default-space.implicit.hlsl");
+}
+TEST_F(FileTest, VulkanRegisterBindingDefaultSpaceExplicit) {
+  runFileTest("vk.binding.default-space.explicit.hlsl");
+}
+// Testing combinations of "-auto-binding-space" and other options.
+TEST_F(FileTest, VulkanRegisterBindingDefaultSpaceWithShift) {
+  runFileTest("vk.binding.default-space.with-shift.hlsl");
+}
+TEST_F(FileTest, VulkanRegisterBindingDefaultSpaceWithShiftAll) {
+  runFileTest("vk.binding.default-space.with-shift-all.hlsl");
+}
+
 TEST_F(FileTest, VulkanStructuredBufferCounter) {
   // [[vk::counter_binding()]] for RWStructuredBuffer, AppendStructuredBuffer,
   // and ConsumeStructuredBuffer
@@ -1601,8 +1758,23 @@ TEST_F(FileTest, VulkanSpecConstantInit) {
 TEST_F(FileTest, VulkanSpecConstantUsage) {
   runFileTest("vk.spec-constant.usage.hlsl");
 }
-TEST_F(FileTest, VulkanSpecConstantError) {
-  runFileTest("vk.spec-constant.error.hlsl", Expect::Failure);
+TEST_F(FileTest, VulkanSpecConstantError1) {
+  runFileTest("vk.spec-constant.error1.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSpecConstantError2) {
+  runFileTest("vk.spec-constant.error2.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSpecConstantError3) {
+  runFileTest("vk.spec-constant.error3.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSpecConstantError4) {
+  runFileTest("vk.spec-constant.error4.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSpecConstantError5) {
+  runFileTest("vk.spec-constant.error5.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSpecConstantErrorNotSegfault) {
+  runFileTest("vk.spec-constant.error.not.segfault.hlsl", Expect::Failure);
 }
 
 TEST_F(FileTest, VulkanLayoutCBufferMatrixZpr) {
@@ -1625,6 +1797,9 @@ TEST_F(FileTest, VulkanLayoutCBufferNestedEmptyStd140) {
 }
 TEST_F(FileTest, VulkanLayoutCBufferBoolean) {
   runFileTest("vk.layout.cbuffer.boolean.hlsl");
+}
+TEST_F(FileTest, VulkanLayoutCBufferDerivedStruct) {
+  runFileTest("vk.layout.cbuffer.derived-struct.hlsl");
 }
 TEST_F(FileTest, VulkanLayoutRWStructuredBufferBoolean) {
   runFileTest("vk.layout.rwstructuredbuffer.boolean.hlsl");
@@ -1746,12 +1921,22 @@ TEST_F(FileTest, VulkanSubpassInput) { runFileTest("vk.subpass-input.hlsl"); }
 TEST_F(FileTest, VulkanSubpassInputBinding) {
   runFileTest("vk.subpass-input.binding.hlsl");
 }
-TEST_F(FileTest, VulkanSubpassInputError) {
-  runFileTest("vk.subpass-input.error.hlsl", Expect::Failure);
+TEST_F(FileTest, VulkanSubpassInputError1) {
+  runFileTest("vk.subpass-input.missing-attr.error.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSubpassInputError2) {
+  runFileTest("vk.subpass-input.type.error.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, VulkanSubpassInputError3) {
+  runFileTest("vk.subpass-input.static.error.hlsl", Expect::Failure);
 }
 
 TEST_F(FileTest, NonFpColMajorError) {
   runFileTest("vk.layout.non-fp-matrix.error.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, NonFpColMajorErrorArrayStruct) {
+  runFileTest("vk.layout.non-fp-matrix.array.struct.error.hlsl",
+              Expect::Failure);
 }
 
 TEST_F(FileTest, NamespaceFunctions) {
@@ -1792,8 +1977,11 @@ TEST_F(FileTest, GeometryShaderEmit) { runFileTest("gs.emit.hlsl"); }
 TEST_F(FileTest, ComputeShaderGroupShared) {
   runFileTest("cs.groupshared.hlsl");
 }
+TEST_F(FileTest, ComputeShaderGroupSharedNotInGlobals) {
+  runFileTest("cs.groupshared.not-in-globals.hlsl");
+}
 TEST_F(FileTest, ComputeShaderGroupSharedFunctionParam) {
-  setRelaxLogicalPointer();
+  setBeforeHLSLLegalization();
   runFileTest("cs.groupshared.function-param.hlsl");
 }
 TEST_F(FileTest, ComputeShaderGroupSharedFunctionParamOut) {
@@ -1884,6 +2072,7 @@ TEST_F(FileTest, PreprocessorError) {
 TEST_F(FileTest, RayTracingNVRaygen) {
   runFileTest("raytracing.nv.raygen.hlsl");
 }
+TEST_F(FileTest, RayTracingNVEnum) { runFileTest("raytracing.nv.enum.hlsl"); }
 TEST_F(FileTest, RayTracingNVIntersection) {
   runFileTest("raytracing.nv.intersection.hlsl");
 }
@@ -1901,6 +2090,11 @@ TEST_F(FileTest, RayTracingNVLibrary) {
   runFileTest("raytracing.nv.library.hlsl");
 }
 
+// === Raytracing KHR examples ===
+TEST_F(FileTest, RayTracingKHRClosestHit) {
+  runFileTest("raytracing.khr.closesthit.hlsl");
+}
+
 // For decoration uniqueness
 TEST_F(FileTest, DecorationUnique) { runFileTest("decoration.unique.hlsl"); }
 
@@ -1909,19 +2103,6 @@ TEST_F(FileTest, CapabilityUnique) { runFileTest("capability.unique.hlsl"); }
 
 // For extension uniqueness
 TEST_F(FileTest, ExtensionUnique) { runFileTest("extension.unique.hlsl"); }
-
-// For vendor-specific extensions
-TEST_F(FileTest, VendorSpecificExtensionAllowed) {
-  // The SPV_AMD_gpu_shader_half_float extension adds support for 16-bit
-  // floating-point component types for a number of instructions in the
-  // GLSL.std.450 extended instruction set.
-  runFileTest("extension.GLSLstd450-fp16.allowed.hlsl");
-}
-TEST_F(FileTest, VendorSpecificExtensionNotAllowed) {
-  // Command line options can entirely prevent the compiler from using
-  // vendor-specific extensions.
-  runFileTest("extension.GLSLstd450-fp16.not-allowed.hlsl", Expect::Failure);
-}
 
 // For RelaxedPrecision decorations
 TEST_F(FileTest, DecorationRelaxedPrecisionBasic) {
@@ -1949,6 +2130,11 @@ TEST_F(FileTest, DecorationNoContractionStageVars) {
   runFileTest("decoration.no-contraction.stage-vars.hlsl");
 }
 
+// For UserTypeGOOGLE decorations
+TEST_F(FileTest, DecorationUserTypeGOOGLE) {
+  runFileTest("decoration.user-type.hlsl");
+}
+
 // For pragmas
 TEST_F(FileTest, PragmaPackMatrix) { runFileTest("pragma.pack_matrix.hlsl"); }
 
@@ -1963,6 +2149,91 @@ TEST_F(FileTest, VulkanLayoutShaderRecordBufferNVStd430) {
 TEST_F(FileTest, VulkanShaderRecordBufferNVOffset) {
   // Checks the behavior of [[vk::offset]] with [[vk::shader_record_nv]]
   runFileTest("vk.shader-record-nv.offset.hlsl");
+}
+TEST_F(FileTest, VulkanShadingRate) { runFileTest("vk.shading-rate.hlsl"); }
+TEST_F(FileTest, VulkanShadingRateError) {
+  runFileTest("vk.shading-rate.vs-error.hlsl", Expect::Failure);
+}
+
+// === MeshShading NV examples ===
+TEST_F(FileTest, MeshShadingNVMeshTriangle) {
+  runFileTest("meshshading.nv.triangle.mesh.hlsl");
+}
+TEST_F(FileTest, MeshShadingNVMeshLine) {
+  runFileTest("meshshading.nv.line.mesh.hlsl");
+}
+TEST_F(FileTest, MeshShadingNVMeshPoint) {
+  runFileTest("meshshading.nv.point.mesh.hlsl");
+}
+TEST_F(FileTest, MeshShadingNVMeshBuffer) {
+  runFileTest("meshshading.nv.buffer.mesh.hlsl");
+}
+TEST_F(FileTest, MeshShadingNVMeshError1) {
+  runFileTest("meshshading.nv.error1.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError2) {
+  runFileTest("meshshading.nv.error2.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError3) {
+  runFileTest("meshshading.nv.error3.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError4) {
+  runFileTest("meshshading.nv.error4.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError5) {
+  runFileTest("meshshading.nv.error5.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError6) {
+  runFileTest("meshshading.nv.error6.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError7) {
+  runFileTest("meshshading.nv.error7.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError8) {
+  runFileTest("meshshading.nv.error8.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError9) {
+  runFileTest("meshshading.nv.error9.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError10) {
+  runFileTest("meshshading.nv.error10.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError11) {
+  runFileTest("meshshading.nv.error11.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError12) {
+  runFileTest("meshshading.nv.error12.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError13) {
+  runFileTest("meshshading.nv.error13.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVMeshError14) {
+  runFileTest("meshshading.nv.error14.mesh.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVAmplification) {
+  runFileTest("meshshading.nv.amplification.hlsl");
+}
+TEST_F(FileTest, MeshShadingNVAmplificationFunCall) {
+  useVulkan1p1();
+  runFileTest("meshshading.nv.fncall.amplification.hlsl");
+}
+TEST_F(FileTest, MeshShadingNVAmplificationError1) {
+  runFileTest("meshshading.nv.error1.amplification.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVAmplificationError2) {
+  runFileTest("meshshading.nv.error2.amplification.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVAmplificationError3) {
+  runFileTest("meshshading.nv.error4.amplification.hlsl", Expect::Failure);
+}
+TEST_F(FileTest, MeshShadingNVAmplificationError4) {
+  runFileTest("meshshading.nv.error3.amplification.hlsl", Expect::Failure);
+}
+
+// Test OpEntryPoint in the Vulkan1.2 target environment
+TEST_F(FileTest, Vk1p2EntryPoint) {
+  useVulkan1p2();
+  runFileTest("vk.1p2.entry-point.hlsl");
 }
 
 } // namespace

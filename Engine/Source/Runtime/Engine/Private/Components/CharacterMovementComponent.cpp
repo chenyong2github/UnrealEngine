@@ -2562,25 +2562,28 @@ void UCharacterMovementComponent::SaveBaseLocation()
 	}
 
 	const UPrimitiveComponent* MovementBase = CharacterOwner->GetMovementBase();
-	if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+	if (MovementBase)
 	{
-		// Read transforms into OldBaseLocation, OldBaseQuat
+		// Read transforms into OldBaseLocation, OldBaseQuat. Do this regardless of whether the object is movable, since mobility can change.
 		MovementBaseUtility::GetMovementBaseTransform(MovementBase, CharacterOwner->GetBasedMovement().BoneName, OldBaseLocation, OldBaseQuat);
 
-		// Location
-		const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
+		if (MovementBaseUtility::UseRelativeLocation(MovementBase) && !CharacterOwner->IsMatineeControlled())
+		{
+			// Relative Location
+			const FVector RelativeLocation = UpdatedComponent->GetComponentLocation() - OldBaseLocation;
 
-		// Rotation
-		if (bIgnoreBaseRotation)
-		{
-			// Absolute rotation
-			CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, UpdatedComponent->GetComponentRotation(), false);
-		}
-		else
-		{
-			// Relative rotation
-			const FRotator RelativeRotation = (FQuatRotationMatrix(UpdatedComponent->GetComponentQuat()) * FQuatRotationMatrix(OldBaseQuat).GetTransposed()).Rotator();
-			CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, RelativeRotation, true);
+			// Rotation
+			if (bIgnoreBaseRotation)
+			{
+				// Absolute rotation
+				CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, UpdatedComponent->GetComponentRotation(), false);
+			}
+			else
+			{
+				// Relative rotation
+				const FRotator RelativeRotation = (FQuatRotationMatrix(UpdatedComponent->GetComponentQuat()) * FQuatRotationMatrix(OldBaseQuat).GetTransposed()).Rotator();
+				CharacterOwner->SaveRelativeBasedMovement(RelativeLocation, RelativeRotation, true);
+			}
 		}
 	}
 }
@@ -4773,6 +4776,7 @@ void UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, floa
 			if (CanStepUp(Hit) || (CharacterOwner->GetMovementBase() != NULL && CharacterOwner->GetMovementBase()->GetOwner() == Hit.GetActor()))
 			{
 				// hit a barrier, try to step up
+				const FVector PreStepUpLocation = UpdatedComponent->GetComponentLocation();
 				const FVector GravDir(0.f, 0.f, -1.f);
 				if (!StepUp(GravDir, Delta * (1.f - PercentTimeApplied), Hit, OutStepDownResult))
 				{
@@ -4782,9 +4786,18 @@ void UCharacterMovementComponent::MoveAlongFloor(const FVector& InVelocity, floa
 				}
 				else
 				{
-					// Don't recalculate velocity based on this height adjustment, if considering vertical adjustments.
 					UE_LOG(LogCharacterMovement, Verbose, TEXT("+ StepUp (ImpactNormal %s, Normal %s"), *Hit.ImpactNormal.ToString(), *Hit.Normal.ToString());
-					bJustTeleported |= !bMaintainHorizontalGroundVelocity;
+					if (!bMaintainHorizontalGroundVelocity)
+					{
+						// Don't recalculate velocity based on this height adjustment, if considering vertical adjustments. Only consider horizontal movement.
+						bJustTeleported = true;
+						const float StepUpTimeSlice = (1.f - PercentTimeApplied) * DeltaSeconds;
+						if (!HasAnimRootMotion() && !CurrentRootMotion.HasOverrideVelocity() && StepUpTimeSlice >= KINDA_SMALL_NUMBER)
+						{
+							Velocity = (UpdatedComponent->GetComponentLocation() - PreStepUpLocation) / StepUpTimeSlice;
+							Velocity.Z = 0;
+						}
+					}
 				}
 			}
 			else if ( Hit.Component.IsValid() && !Hit.Component.Get()->CanCharacterStepUp(CharacterOwner) )
@@ -5024,6 +5037,7 @@ void UCharacterMovementComponent::PhysWalking(float deltaTime, int32 Iterations)
 			{
 				// TODO-RootMotionSource: Allow this to happen during partial override Velocity, but only set allowed axes?
 				Velocity = (UpdatedComponent->GetComponentLocation() - OldLocation) / timeTick;
+				MaintainHorizontalGroundVelocity();
 			}
 		}
 
@@ -10698,9 +10712,9 @@ bool UCharacterMovementComponent::HasRootMotionSources() const
 	return CurrentRootMotion.HasActiveRootMotionSources() || (CharacterOwner && CharacterOwner->IsPlayingRootMotion() && CharacterOwner->GetMesh());
 }
 
-uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+uint16 UCharacterMovementComponent::ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr)
 {
-	if (SourcePtr != nullptr)
+	if (ensure(SourcePtr.IsValid()))
 	{
 		// Set default StartTime if it hasn't been set manually
 		if (!SourcePtr->IsStartTimeValid())
@@ -10728,16 +10742,17 @@ uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* Sou
 			}
 		}
 
-		OnRootMotionSourceBeingApplied(SourcePtr);
+		OnRootMotionSourceBeingApplied(SourcePtr.Get());
 
 		return CurrentRootMotion.ApplyRootMotionSource(SourcePtr);
 	}
-	else
-	{
-		checkf(false, TEXT("Passing nullptr into UCharacterMovementComponent::ApplyRootMotionSource"));
-	}
 
 	return (uint16)ERootMotionSourceID::Invalid;
+}
+
+uint16 UCharacterMovementComponent::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+{
+	return ApplyRootMotionSource(TSharedPtr<FRootMotionSource>(SourcePtr));
 }
 
 void UCharacterMovementComponent::OnRootMotionSourceBeingApplied(const FRootMotionSource* Source)
@@ -11299,10 +11314,7 @@ void FSavedMove_Character::SetMoveFor(ACharacter* Character, float InDeltaTime, 
 	
 	MaxSpeed = Character->GetCharacterMovement()->GetMaxSpeed();
 
-	// CheckJumpInput will increment JumpCurrentCount.
-	// Therefore, for replicated moves we want it to set it at 1 less to properly
-	// handle the change.
-	JumpCurrentCount = Character->JumpCurrentCount > 0 ? Character->JumpCurrentCount - 1 : 0;
+	JumpCurrentCount = Character->JumpCurrentCountPreJump;
 	bWantsToCrouch = Character->GetCharacterMovement()->bWantsToCrouch;
 	bForceMaxAccel = Character->GetCharacterMovement()->bForceMaxAccel;
 	StartPackedMovementMode = Character->GetCharacterMovement()->PackNetworkMovementMode();
@@ -11800,9 +11812,9 @@ void FSavedMove_Character::CombineWith(const FSavedMove_Character* OldMove, ACha
 	DeltaTime += OldMove->DeltaTime;
 
 	// Roll back jump force counters. SetInitialPosition() below will copy them to the saved move.
-	// Changes in certain counters like JumpCurrentCount don't allow move combining, so no need to roll those back (they are the same).
 	InCharacter->JumpForceTimeRemaining = OldMove->JumpForceTimeRemaining;
 	InCharacter->JumpKeyHoldTime = OldMove->JumpKeyHoldTime;
+	InCharacter->JumpCurrentCountPreJump = OldMove->JumpCurrentCount;
 }
 
 void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
@@ -11866,6 +11878,8 @@ void FSavedMove_Character::PrepMoveFor(ACharacter* Character)
 	Character->JumpForceTimeRemaining = JumpForceTimeRemaining;
 	Character->JumpMaxCount = JumpMaxCount;
 	Character->JumpCurrentCount = JumpCurrentCount;
+	Character->JumpCurrentCountPreJump = JumpCurrentCount;
+
 	StartPackedMovementMode = Character->GetCharacterMovement()->PackNetworkMovementMode();
 }
 

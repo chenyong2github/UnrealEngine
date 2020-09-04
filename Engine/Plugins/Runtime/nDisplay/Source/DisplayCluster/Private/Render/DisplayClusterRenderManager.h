@@ -31,7 +31,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const FString& configPath, const FString& nodeId) override;
+	virtual bool StartSession(const FString& InConfigPath, const FString& InNodeId) override;
 	virtual void EndSession() override;
 	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
@@ -61,6 +61,7 @@ public:
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) override;
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) override;
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) override;
+	virtual FPostProcessSettings GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera) override;
 
 	// Camera
 	virtual void SetViewportCamera(const FString& InCameraId = FString(), const FString& InViewportId = FString()) override;
@@ -69,6 +70,8 @@ public:
 	virtual bool GetViewportRect(const FString& InViewportID, FIntRect& Rect) override;
 	virtual bool SetBufferRatio(const FString& InViewportID, float InBufferRatio) override;
 	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const override;
+	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) override;
+	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) override;
 
 	// Camera API
 	virtual float GetInterpupillaryDistance(const FString& CameraId) const override;
@@ -87,9 +90,9 @@ private:
 	// FDisplayClusterRenderManager
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	void ResizeWindow(int32 WinX, int32 WinY, int32 ResX, int32 ResY);
-	void OnViewportCreatedHandler_SetCustomPresent();
-	void OnViewportCreatedHandler_CheckViewportClass();
-	void OnBeginDrawHandler();
+	void OnViewportCreatedHandler_SetCustomPresent() const;
+	void OnViewportCreatedHandler_CheckViewportClass() const;
+	void OnBeginDrawHandler() const;
 
 private:
 	EDisplayClusterOperationMode CurrentOperationMode;
@@ -110,7 +113,7 @@ private:
 	// Synchronization internals
 	TMap<FString, TSharedPtr<IDisplayClusterRenderSyncPolicyFactory>> SyncPolicyFactories;
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> CreateRenderSyncPolicy() const;
-	TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy;
+	mutable TSharedPtr<IDisplayClusterRenderSyncPolicy> SyncPolicy;
 
 private:
 	// Projection internals

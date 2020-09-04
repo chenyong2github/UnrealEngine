@@ -227,6 +227,11 @@ bool AGameStateBase::HasMatchStarted() const
 	return false;
 }
 
+bool AGameStateBase::HasMatchEnded() const
+{
+	return false;
+}
+
 float AGameStateBase::GetPlayerStartTime(AController* Controller) const
 {
 	return GetServerWorldTimeSeconds();

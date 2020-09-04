@@ -24,14 +24,25 @@
 DECLARE_CYCLE_STAT(TEXT("Custom Delta Property Rep Time"), STAT_NetReplicateCustomDeltaPropTime, STATGROUP_Game);
 DECLARE_CYCLE_STAT(TEXT("ReceiveRPC"), STAT_NetReceiveRPC, STATGROUP_Game);
 
-static TAutoConsoleVariable<int32> CVarMaxRPCPerNetUpdate( TEXT( "net.MaxRPCPerNetUpdate" ), 2, TEXT( "Maximum number of RPCs allowed per net update" ) );
-static TAutoConsoleVariable<int32> CVarDelayUnmappedRPCs( TEXT("net.DelayUnmappedRPCs" ), 0, TEXT( "If >0 delay received RPCs with unmapped properties" ) );
+static TAutoConsoleVariable<int32> CVarMaxRPCPerNetUpdate(
+	TEXT("net.MaxRPCPerNetUpdate"),
+	2,
+	TEXT("Maximum number of unreliable multicast RPC calls allowed per net update, additional ones will be dropped"),
+	ECVF_Default);
+
+static TAutoConsoleVariable<int32> CVarDelayUnmappedRPCs(
+	TEXT("net.DelayUnmappedRPCs"),
+	0,
+	TEXT("If true delay received RPCs with unmapped object references until they are received or loaded, ")
+	TEXT("if false RPCs will execute immediately with null parameters. ")
+	TEXT("This can be used with net.AllowAsyncLoading to avoid null asset parameters during async loads."),
+	ECVF_Default);
 
 static TAutoConsoleVariable<FString> CVarNetReplicationDebugProperty(
 	TEXT("net.Replication.DebugProperty"),
 	TEXT(""),
-	TEXT("Debugs Replication of property by name")
-	TEXT("Partial name of property to debug"),
+	TEXT("Debugs Replication of property by name, ")
+	TEXT("this should be set to the partial name of the property to debug"),
 	ECVF_Default);
 
 int32 GNetRPCDebug = 0;

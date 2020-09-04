@@ -30,9 +30,9 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual bool Init(EDisplayClusterOperationMode OperationMode) override;
 	virtual void Release() override;
-	virtual bool StartSession(const FString& configPath, const FString& nodeId) override;
+	virtual bool StartSession(const FString& ConfigPath, const FString& NodeId) override;
 	virtual void EndSession() override;
-	virtual bool StartScene(UWorld* pWorld) override;
+	virtual bool StartScene(UWorld* InWorld) override;
 	virtual void EndScene() override;
 	virtual void StartFrame(uint64 FrameNum) override;
 	virtual void PreTick(float DeltaSeconds);
@@ -51,31 +51,31 @@ public:
 	virtual uint32 GetTrackerDeviceAmount()  const override;
 
 	// Device IDs
-	virtual bool GetAxisDeviceIds    (TArray<FString>& ids) const override;
-	virtual bool GetButtonDeviceIds  (TArray<FString>& ids) const override;
-	virtual bool GetKeyboardDeviceIds(TArray<FString>& ids) const override;
-	virtual bool GetTrackerDeviceIds (TArray<FString>& ids) const override;
+	virtual void GetAxisDeviceIds    (TArray<FString>& DeviceIDs) const override;
+	virtual void GetButtonDeviceIds  (TArray<FString>& DeviceIDs) const override;
+	virtual void GetKeyboardDeviceIds(TArray<FString>& DeviceIDs) const override;
+	virtual void GetTrackerDeviceIds (TArray<FString>& DeviceIDs) const override;
 
 	// Axes data access
-	virtual bool GetAxis(const FString& devId, const uint8 axis, float& value) const override;
+	virtual bool GetAxis(const FString& DeviceID, const uint8 Channel, float& Value) const override;
 
 	// Button data access
-	virtual bool GetButtonState   (const FString& devId, const uint8 btn, bool& curState)    const override;
-	virtual bool IsButtonPressed  (const FString& devId, const uint8 btn, bool& curPressed)  const override;
-	virtual bool IsButtonReleased (const FString& devId, const uint8 btn, bool& curReleased) const override;
-	virtual bool WasButtonPressed (const FString& devId, const uint8 btn, bool& wasPressed)  const override;
-	virtual bool WasButtonReleased(const FString& devId, const uint8 btn, bool& wasReleased) const override;
+	virtual bool GetButtonState   (const FString& DeviceID, const uint8 Channel, bool& CurrentState)    const override;
+	virtual bool IsButtonPressed  (const FString& DeviceID, const uint8 Channel, bool& IsPressedCurrently)  const override;
+	virtual bool IsButtonReleased (const FString& DeviceID, const uint8 Channel, bool& IsReleasedCurrently) const override;
+	virtual bool WasButtonPressed (const FString& DeviceID, const uint8 Channel, bool& WasPressed)  const override;
+	virtual bool WasButtonReleased(const FString& DeviceID, const uint8 Channel, bool& WasReleased) const override;
 
 	// Keyboard data access
-	virtual bool GetKeyboardState   (const FString& devId, const uint8 btn, bool& curState)    const override;
-	virtual bool IsKeyboardPressed  (const FString& devId, const uint8 btn, bool& curPressed)  const override;
-	virtual bool IsKeyboardReleased (const FString& devId, const uint8 btn, bool& curReleased) const override;
-	virtual bool WasKeyboardPressed (const FString& devId, const uint8 btn, bool& wasPressed)  const override;
-	virtual bool WasKeyboardReleased(const FString& devId, const uint8 btn, bool& wasReleased) const override;
+	virtual bool GetKeyboardState   (const FString& DeviceID, const uint8 Channel, bool& CurrentState)    const override;
+	virtual bool IsKeyboardPressed  (const FString& DeviceID, const uint8 Channel, bool& IsPressedCurrently)  const override;
+	virtual bool IsKeyboardReleased (const FString& DeviceID, const uint8 Channel, bool& IsReleasedCurrently) const override;
+	virtual bool WasKeyboardPressed (const FString& DeviceID, const uint8 Channel, bool& WasPressed)  const override;
+	virtual bool WasKeyboardReleased(const FString& DeviceID, const uint8 Channel, bool& WasReleased) const override;
 
 	// Tracking data access
-	virtual bool GetTrackerLocation(const FString& devId, const uint8 tr, FVector& location) const override;
-	virtual bool GetTrackerQuat(const FString& devId, const uint8 tr, FQuat& rotation) const override;
+	virtual bool GetTrackerLocation(const FString& DeviceID, const uint8 Channel, FVector& Location) const override;
+	virtual bool GetTrackerQuat(const FString& DeviceID, const uint8 Channel, FQuat& Rotation) const override;
 
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
@@ -96,10 +96,10 @@ private:
 	void UpdateInputDataCache();
 
 	// Device data
-	bool GetAxisData   (const FString& devId, const uint8 channel, FDisplayClusterVrpnAnalogChannelData&  data) const;
-	bool GetButtonData (const FString& devId, const uint8 channel, FDisplayClusterVrpnButtonChannelData&  data) const;
-	bool GetKeyboardData(const FString& devId, const uint8 channel, FDisplayClusterVrpnKeyboardChannelData&  data) const;
-	bool GetTrackerData(const FString& devId, const uint8 channel, FDisplayClusterVrpnTrackerChannelData& data) const;
+	bool GetAxisData    (const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnAnalogChannelData& Data) const;
+	bool GetButtonData  (const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnButtonChannelData& Data) const;
+	bool GetKeyboardData(const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnKeyboardChannelData& Data) const;
+	bool GetTrackerData (const FString& DeviceID, const uint8 Channel, FDisplayClusterVrpnTrackerChannelData& Data) const;
 
 private:
 	// Input devices
@@ -118,12 +118,11 @@ private:
 	uint32 GetDeviceAmount_impl() const;
 
 	template<int DevTypeID>
-	bool GetDeviceIds_impl(TArray<FString>& ids) const;
+	void GetDeviceIds_impl(TArray<FString>& IDs) const;
 
 	template<int DevTypeID>
-	bool GetChannelData_impl(const FString& devId, const uint8 channel, typename display_cluster_input_device_traits<DevTypeID>::dev_channel_data_type& data) const;
+	bool GetChannelData_impl(const FString& DeviceID, const uint8 Channel, typename display_cluster_input_device_traits<DevTypeID>::dev_channel_data_type& data) const;
 
 private:
 	static constexpr auto SerializationDeviceTypeNameDelimiter = TEXT(" ");
 };
-

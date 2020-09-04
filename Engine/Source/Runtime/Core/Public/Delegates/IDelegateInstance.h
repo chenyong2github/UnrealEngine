@@ -8,7 +8,7 @@
 #include "Delegates/DelegateSettings.h"
 
 /**
- * Class representing an handle to a delegate.
+ * Class representing a handle to a specific object/function pair bound to a delegate.
  */
 class FDelegateHandle
 {
@@ -18,21 +18,25 @@ public:
 		GenerateNewHandle
 	};
 
+	/** Creates an initially unset handle */
 	FDelegateHandle()
 		: ID(0)
 	{
 	}
 
+	/** Creates a handle pointing to a new instance */
 	explicit FDelegateHandle(EGenerateNewHandleType)
 		: ID(GenerateNewID())
 	{
 	}
 
+	/** Returns true if this was ever bound to a delegate, but you need to check with the owning delegate to confirm it is still valid */
 	bool IsValid() const
 	{
 		return ID != 0;
 	}
 
+	/** Clear handle to indicate it is no longer bound */
 	void Reset()
 	{
 		ID = 0;
@@ -65,12 +69,14 @@ private:
 };
 
 
-/**
- * Interface for delegate instances.
- */
 class IDelegateInstance
 {
 public:
+	/**
+	 * Virtual destructor.
+	 */
+	virtual ~IDelegateInstance() = default;
+
 #if USE_DELEGATE_TRYGETBOUNDFUNCTIONNAME
 
 	/**
@@ -142,11 +148,4 @@ public:
 	 * Returns a handle for the delegate.
 	 */
 	virtual FDelegateHandle GetHandle() const = 0;
-
-public:
-
-	/**
-	 * Virtual destructor.
-	 */
-	virtual ~IDelegateInstance( ) { }
 };

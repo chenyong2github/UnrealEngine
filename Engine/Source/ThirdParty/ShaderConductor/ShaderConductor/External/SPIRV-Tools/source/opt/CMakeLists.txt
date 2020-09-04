@@ -49,8 +49,8 @@ set(SPIRV_TOOLS_OPT_SOURCES
   folding_rules.h
   fold_spec_constant_op_and_composite_pass.h
   freeze_spec_constant_value_pass.h
-  function.h
   fused_multiply_add_pass.h
+  function.h
   generate_webgpu_initializers_pass.h
   graphics_robust_access_pass.h
   if_conversion.h
@@ -59,6 +59,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   inline_pass.h
   inst_bindless_check_pass.h
   inst_buff_addr_check_pass.h
+  inst_debug_printf_pass.h
   instruction.h
   instruction_list.h
   instrument_pass.h
@@ -166,6 +167,7 @@ set(SPIRV_TOOLS_OPT_SOURCES
   inline_pass.cpp
   inst_bindless_check_pass.cpp
   inst_buff_addr_check_pass.cpp
+  inst_debug_printf_pass.cpp
   instruction.cpp
   instruction_list.cpp
   instrument_pass.cpp
@@ -237,8 +239,6 @@ spvtools_default_compile_options(SPIRV-Tools-opt)
 target_include_directories(SPIRV-Tools-opt
   PUBLIC
 	$<BUILD_INTERFACE:${spirv-tools_SOURCE_DIR}/include>
-	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}/include>
-  PUBLIC
 	$<BUILD_INTERFACE:${SPIRV_HEADER_INCLUDE_DIR}>
 	$<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>
   PRIVATE ${spirv-tools_BINARY_DIR}
@@ -255,5 +255,12 @@ if(ENABLE_SPIRV_TOOLS_INSTALL)
     RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR}
     LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
     ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
-  install(EXPORT SPIRV-Tools-optTargets DESTINATION lib/cmake)
+  export(EXPORT SPIRV-Tools-optTargets FILE SPIRV-Tools-optTargets.cmake)
+
+  spvtools_config_package_dir(SPIRV-Tools-opt PACKAGE_DIR)
+  install(EXPORT SPIRV-Tools-optTargets FILE SPIRV-Tools-optTargets.cmake
+  	DESTINATION ${PACKAGE_DIR})
+
+  spvtools_generate_config_file(SPIRV-Tools-opt)
+  install(FILES ${CMAKE_BINARY_DIR}/SPIRV-Tools-optConfig.cmake DESTINATION ${PACKAGE_DIR})
 endif(ENABLE_SPIRV_TOOLS_INSTALL)

@@ -94,9 +94,9 @@ bool UNiagaraNodeUsageSelector::RefreshFromExternalChanges()
 
 void UNiagaraNodeUsageSelector::Compile(class FHlslNiagaraTranslator* Translator, TArray<int32>& Outputs)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	ENiagaraScriptUsage CurrentUsage = Translator->GetCurrentUsage();
@@ -198,9 +198,9 @@ void UNiagaraNodeUsageSelector::BuildParameterMapHistory(FNiagaraParameterMapHis
 {
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(GetSchema());
 
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	GetInputPins(InputPins);
-	TArray<UEdGraphPin*> OutputPins;
+	FPinCollectorArray OutputPins;
 	GetOutputPins(OutputPins);
 
 	ENiagaraScriptUsage BaseUsage = OutHistory.GetBaseUsageContext();

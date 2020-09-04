@@ -3594,10 +3594,11 @@ void FFindInBlueprintSearchManager::Tick(float DeltaTime)
 
 bool FFindInBlueprintSearchManager::IsTickable() const
 {
-	const bool bHasPendingAssets = PendingAssets.Num() > 0 || (bHasFirstSearchOccurred && AssetsToIndexOnFirstSearch.Num() > 0);
+	const bool bHasPendingAssets = PendingAssets.Num() > 0;
+	const bool bNeedsFirstIndex = bHasFirstSearchOccurred && AssetsToIndexOnFirstSearch.Num() > 0;
 
-	// Tick only if we have an active caching operation or if we have pending assets and an open FiB context
-	return IsCacheInProgress() || (bHasPendingAssets && GlobalFindResults.Num() > 0);
+	// Tick only if we have an active caching operation or if a search has occured before we're ready or if we have pending assets and an open FiB context
+	return IsCacheInProgress() || bNeedsFirstIndex || (bHasPendingAssets && IsGlobalFindResultsOpen());
 }
 
 TStatId FFindInBlueprintSearchManager::GetStatId() const

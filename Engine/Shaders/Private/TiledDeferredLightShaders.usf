@@ -68,13 +68,14 @@ void ExecuteShadingLoops(inout float4 CompositedLighting, FScreenSpaceData Scree
 		LightData.InvRadius = TiledDeferred.LightPositionAndInvRadius[LightIndex].w;
 		LightData.Color = TiledDeferred.LightColorAndFalloffExponent[LightIndex].xyz;
 		LightData.FalloffExponent = TiledDeferred.LightColorAndFalloffExponent[LightIndex].w;
+		LightData.SpotAngles = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].xy;
 		{
 			float4 Value = TiledDeferred2.LightDirectionAndSpotlightMaskAndSpecularScale[LightIndex];
 			LightData.Direction = Value.xyz;
-			LightData.bSpotLight = Value.w > 0;
-			LightData.SpecularScale = abs(Value.w);
+			// Point-lights set the (cosine of) spot angles to ( -2.0f, 1.0f ), see PointLightComponent.cpp
+			LightData.bSpotLight = LightData.SpotAngles.x > -2.0f;
+			LightData.SpecularScale = Value.w;
 		}
-		LightData.SpotAngles = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].xy;
 		LightData.SourceRadius = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].z;
 		// don't support lights with non-0 length in tiled-deferred path, so make sure it stays zero-initialized
 		//LightData.SourceLength = TiledDeferred2.SpotAnglesAndSourceRadiusAndSimpleLighting[LightIndex].w;

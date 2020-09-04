@@ -175,7 +175,7 @@ FString UUserDefinedEnum::GetAuthoredNameStringByIndex(int32 InIndex) const
 	return Super::GetAuthoredNameStringByIndex(InIndex);
 }
 
-bool UUserDefinedEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, bool bAddMaxKeyIfMissing)
+bool UUserDefinedEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, EEnumFlags InFlags, bool bAddMaxKeyIfMissing)
 {
 	ensure(bAddMaxKeyIfMissing);
 	if (Names.Num() > 0)
@@ -184,6 +184,7 @@ bool UUserDefinedEnum::SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm I
 	}
 	Names = InNames;
 	CppForm = InCppForm;
+	EnumFlags = InFlags;
 
 	const FString BaseEnumPrefix = GenerateEnumPrefix();
 	checkSlow(BaseEnumPrefix.Len());

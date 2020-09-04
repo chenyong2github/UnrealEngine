@@ -5,7 +5,7 @@
 #include "AVEncoder.h"
 #include "AVEncoderCommon.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 
 //
 // Windows only include
@@ -42,7 +42,6 @@
 #include "XboxCommonPreApi.h"
 		#include <d3d11_x.h>
 		#include <d3d12_x.h>
-		#include <d3dcompiler_x.h>
 		#include <d3dx12_x.h>
 		#include <mftransform.h>
 		#include <mfapi.h>
@@ -213,6 +212,6 @@ private:
 } // namespace AVEncoder
 
 
-#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#endif // AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 
 

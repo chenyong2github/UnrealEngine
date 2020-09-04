@@ -58,6 +58,16 @@ TSubclassOf<UDMXEntity> FDMXEntityReference::GetEntityType() const
 	return EntityType;
 }
 
+bool FDMXEntityReference::operator==(const FDMXEntityReference& Other) const
+{
+	return DMXLibrary == Other.DMXLibrary && EntityId == Other.EntityId;
+}
+
+bool FDMXEntityReference::operator!=(const FDMXEntityReference& Other) const
+{
+	return !(*this == Other);
+}
+
 FDMXEntityControllerRef::FDMXEntityControllerRef()
 {
 	EntityType = UDMXEntityController::StaticClass();

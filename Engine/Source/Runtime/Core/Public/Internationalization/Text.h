@@ -233,6 +233,14 @@ struct CORE_API FNumberParsingOptions
 	bool UseGrouping;
 	FNumberParsingOptions& SetUseGrouping( bool InValue ){ UseGrouping = InValue; return *this; }
 
+	/** The number needs to be representable inside its type limits to be considered valid. */
+	bool InsideLimits;
+	FNumberParsingOptions& SetInsideLimits(bool InValue) { InsideLimits = InValue; return *this; }
+
+	/** Clamp the parsed value to its type limits. */
+	bool UseClamping;
+	FNumberParsingOptions& SetUseClamping(bool InValue) { UseClamping = InValue; return *this; }
+
 	friend void operator<<(FStructuredArchive::FSlot Slot, FNumberParsingOptions& Value);
 
 	/** Get the hash code to use for the given parsing options */

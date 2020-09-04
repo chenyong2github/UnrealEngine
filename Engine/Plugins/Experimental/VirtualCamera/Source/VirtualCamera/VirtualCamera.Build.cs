@@ -6,7 +6,7 @@ public class VirtualCamera : ModuleRules
 {
 	public VirtualCamera(ReadOnlyTargetRules Target) : base(Target)
 	{
-		PCHUsage = ModuleRules.PCHUsageMode.UseExplicitOrSharedPCHs;
+		DefaultBuildSettings = BuildSettingsVersion.V2;
 
 		PublicDependencyModuleNames.AddRange(
 			new string[]
@@ -23,7 +23,10 @@ public class VirtualCamera : ModuleRules
 				"RemoteSession",
 				"TimeManagement",
 				"UMG",
+				"VCamCore",
 				"VPUtilities",
+				"VPUtilitiesEditor",
+				"TakesCore",
 			}
 		);
 
@@ -59,7 +62,9 @@ public class VirtualCamera : ModuleRules
 			PublicDependencyModuleNames.Add("Sequencer");
 			PublicDependencyModuleNames.Add("SlateCore");
 			PublicDependencyModuleNames.Add("TakeRecorder");
+			PrivateDependencyModuleNames.Add("LevelEditor");
 			PrivateDependencyModuleNames.Add("UnrealEd");
+			PrivateDependencyModuleNames.Add("EditorScriptingUtilities");
 		}
 	}
 }

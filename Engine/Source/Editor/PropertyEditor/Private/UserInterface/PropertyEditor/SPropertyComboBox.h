@@ -8,16 +8,17 @@
 #include "Widgets/SWidget.h"
 #include "EditorStyleSet.h"
 #include "UserInterface/PropertyEditor/PropertyEditorConstants.h"
-#include "Widgets/Input/SComboBox.h"
+#include "SSearchableComboBox.h"
 
 class SToolTip;
 
-class SPropertyComboBox : public SComboBox< TSharedPtr<FString> >
+class SPropertyComboBox : public SSearchableComboBox
 {
 public:
 
 	SLATE_BEGIN_ARGS( SPropertyComboBox )
 		: _Font( FEditorStyle::GetFontStyle( PropertyEditorConstants::PropertyFontStyle ) )
+		, _ShowSearchForItemCount(-1)
 	{}
 		SLATE_ATTRIBUTE( TArray< TSharedPtr< FString > >, ComboItemList )
 		SLATE_ATTRIBUTE( TArray< bool >, RestrictedList )
@@ -26,6 +27,7 @@ public:
 		SLATE_EVENT( FOnSelectionChanged, OnSelectionChanged )
 		SLATE_EVENT( FOnComboBoxOpening, OnComboBoxOpening )
 		SLATE_ARGUMENT( FSlateFontInfo, Font )
+		SLATE_ARGUMENT( int32, ShowSearchForItemCount )
 	SLATE_END_ARGS()
 
 	
@@ -53,6 +55,8 @@ private:
 	void OnSelectionChangedInternal( TSharedPtr<FString> InSelectedItem, ESelectInfo::Type SelectInfo );
 
 	TSharedRef<SWidget> OnGenerateComboWidget( TSharedPtr<FString> InComboString );
+	
+	EVisibility GetSearchVisibility() const;
 
 	/** SWidget interface */
 	FReply OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent ) override;
@@ -65,4 +69,5 @@ private:
 	FOnSelectionChanged OnSelectionChanged;
 	FSlateFontInfo Font;
 	TArray< bool > RestrictedList;
+	int32 ShowSearchForItemCount;
 };

@@ -5,6 +5,9 @@
 #include "USDMemory.h"
 #include "USDPrimConversion.h"
 
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 #include "CineCameraActor.h"
 #include "CineCameraComponent.h"
 
@@ -39,7 +42,7 @@ void FUsdGeomCameraTranslator::UpdateComponents( USceneComponent* SceneComponent
 		if ( UCineCameraComponent* CameraComponent = Cast< UCineCameraComponent >( ChildComponent ) )
 		{
 			FScopedUsdAllocs UsdAllocs;
-			UsdToUnreal::ConvertGeomCamera( Schema.Get().GetPrim().GetStage(), pxr::UsdGeomCamera( Schema.Get() ), *CameraComponent, pxr::UsdTimeCode( Context->Time ) );
+			UsdToUnreal::ConvertGeomCamera( Context->Stage, pxr::UsdGeomCamera( GetPrim() ), *CameraComponent, Context->Time );
 		}
 	}
 }

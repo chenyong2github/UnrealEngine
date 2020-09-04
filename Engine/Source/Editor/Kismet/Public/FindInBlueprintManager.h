@@ -305,7 +305,7 @@ ENUM_CLASS_FLAGS(EAddOrUpdateBlueprintSearchMetadataFlags);
 // FFindInBlueprintsResult
 
 /* Item that matched the search results */
-class FFindInBlueprintsResult : public TSharedFromThis< FFindInBlueprintsResult >
+class KISMET_API FFindInBlueprintsResult : public TSharedFromThis< FFindInBlueprintsResult >
 {
 public:
 	FFindInBlueprintsResult() = default;
@@ -386,7 +386,7 @@ struct FStreamSearchOptions
 /**
  * Async task for searching Blueprints
  */
-class FStreamSearch : public FRunnable
+class KISMET_API FStreamSearch : public FRunnable
 {
 public:
 	/** Constructor */

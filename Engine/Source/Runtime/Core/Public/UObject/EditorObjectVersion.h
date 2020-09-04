@@ -87,6 +87,10 @@ struct CORE_API FEditorObjectVersion
 		SkeletalMeshBuildRefactor,
 		// Move all SkeletalMesh source data into a private uasset in the same package has the skeletalmesh
 		SkeletalMeshMoveEditorSourceDataToPrivateAsset,
+		// Parse text only if the number is inside the limits of its type
+		NumberParsingOptionsNumberLimitsAndClamping,
+		//Make sure we can have more then 255 material in the skeletal mesh source data
+		SkeletalMeshSourceDataSupport16bitOfMaterialNumber,
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

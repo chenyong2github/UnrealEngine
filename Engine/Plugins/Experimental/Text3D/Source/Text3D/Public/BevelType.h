@@ -8,5 +8,10 @@ UENUM()
 enum class EText3DBevelType : uint8
 {
     Linear,
-    HalfCircle
+	HalfCircle,
+    Convex,
+	Concave,
+	OneStep,
+	TwoSteps,
+	Engraved
 };

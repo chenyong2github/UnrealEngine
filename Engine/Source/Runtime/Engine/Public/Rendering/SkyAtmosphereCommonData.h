@@ -50,6 +50,7 @@ struct FAtmosphereSetup
 	ENGINE_API FLinearColor GetTransmittanceAtGroundLevel(const FVector& SunDirection) const;
 
 	ENGINE_API void UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode);
+	ENGINE_API void ApplyWorldOffset(const FVector& InOffset);
 
 	ENGINE_API void ComputeViewData(const FVector& WorldCameraOrigin, const FVector& ViewForward, const FVector& ViewRight, 
 		FVector& SkyWorldCameraOrigin, FVector4& SkyPlanetCenterAndViewHeight, FMatrix& SkyViewLutReferential) const;

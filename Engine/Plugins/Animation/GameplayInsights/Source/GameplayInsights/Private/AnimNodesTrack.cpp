@@ -115,6 +115,7 @@ void FAnimNodesTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Builder
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, GetPhaseName(InMessage.Phase));
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -174,6 +175,7 @@ void FAnimNodesTrack::FindAnimGraphMessage(const FTimingEventSearchParameters& I
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FAnimGraphMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -331,6 +333,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 									{
 										DebugData.RecordNodeVisit(InMessage.NodeId, InMessage.PreviousNodeId, InMessage.Weight);
 									}
+									return Trace::EEventEnumerate::Continue;
 								});
 							});
 
@@ -339,6 +342,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 								InStateMachinesTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimStateMachineMessage& InMessage)
 								{
 									DebugData.RecordStateData(InMessage.StateMachineIndex, InMessage.StateIndex, InMessage.StateWeight, InMessage.ElapsedTime);
+									return Trace::EEventEnumerate::Continue;
 								});
 							});
 
@@ -348,6 +352,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 								{
 									FText Text = AnimationProvider->FormatNodeKeyValue(InMessage);
 									DebugData.RecordNodeValue(InMessage.NodeId, Text.ToString());
+									return Trace::EEventEnumerate::Continue;
 								});
 							});
 
@@ -356,6 +361,7 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 								InSequencePlayersTimeline.EnumerateEvents(InGraphStartTime, InGraphEndTime, [&DebugData](double InStartTime, double InEndTime, uint32 InDepth, const FAnimSequencePlayerMessage& InMessage)
 								{
 									DebugData.RecordSequencePlayer(InMessage.NodeId, InMessage.Position, InMessage.Length, InMessage.FrameCounter);
+									return Trace::EEventEnumerate::Continue;
 								});
 							});
 
@@ -371,10 +377,12 @@ void FAnimNodesTrack::UpdateDebugData(const Trace::FFrame& InFrame)
 									}
 
 									DebugData.RecordBlendSpacePlayer(InMessage.NodeId, BlendSpaceBase, InMessage.PositionX, InMessage.PositionY, InMessage.PositionZ);
+									return Trace::EEventEnumerate::Continue;
 								});
 							});
 						}
 					}
+					return Trace::EEventEnumerate::Continue;
 				});
 			});
 		}

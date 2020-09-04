@@ -937,6 +937,12 @@ public:
 	/** Half of the view's stereo IPD (- for lhs, + for rhs) */
 	float StereoIPD;
 
+	/** Allow cross GPU transfer for this view */
+	bool bAllowCrossGPUTransfer;
+
+	/** Use custom GPUmask */
+	bool bOverrideGPUMask;
+
 	/** The GPU nodes on which to render this view. */
 	FRHIGPUMask GPUMask;
 
@@ -1153,9 +1159,6 @@ public:
 protected:
 	friend class FSceneRenderer;
 
-	/** Custom data per primitives */
-	TArray<void*> PrimitivesCustomData; // Size == MaxPrimitive
-
 public:
 
 	static const int32 NumBufferedSubIsOccludedArrays = 2;
@@ -1340,9 +1343,6 @@ public:
 	/** Current ray tracing debug visualization mode */
 	FName CurrentRayTracingDebugVisualizationMode;
 #endif
-
-	/** Will return custom data associated with the specified primitive index.	*/
-	FORCEINLINE void* GetCustomData(int32 InPrimitiveSceneInfoIndex) const { return PrimitivesCustomData.IsValidIndex(InPrimitiveSceneInfoIndex) ? PrimitivesCustomData[InPrimitiveSceneInfoIndex] : nullptr; }
 };
 
 //////////////////////////////////////////////////////////////////////////

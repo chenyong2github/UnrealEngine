@@ -24,8 +24,19 @@ struct DMXPrtotocolSACNHelper
 
 		// Init Universe
 		FJsonObject UniverseSettings;
-		UniverseSettings.SetNumberField(TEXT("UniverseID"), InUniverseID);
-		Universe = DMXProtocol->AddUniverse(UniverseSettings);
+		DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
+
+		Universe = DMXProtocol->GetUniverseById(InUniverseID);
+		if (Universe.IsValid())
+		{
+			UniverseExists = true;
+		}
+		else
+		{
+			Universe = DMXProtocol->AddUniverse(UniverseSettings);
+			UniverseExists = false;
+		}
+
 
 		// Call get buffer for start listening socket
 		Universe->GetInputDMXBuffer();
@@ -33,11 +44,15 @@ struct DMXPrtotocolSACNHelper
 
 	~DMXPrtotocolSACNHelper()
 	{
-		DMXProtocol->RemoveUniverseById(UniverseID);
+		if (!UniverseExists)
+		{
+			DMXProtocol->RemoveUniverseById(UniverseID);
+		}
 	}
 
 	FDMXProtocolSACN* DMXProtocol;
 	IDMXProtocolUniversePtr Universe;
+	bool UniverseExists;
 	uint16 UniverseID;
 	uint8 FixtureChannels[6] = { 1, 2, 3, 4, 5, 6 };
 	uint8 FixtureValues[6] = { 255, 155, 50, 100, 200, 220 };

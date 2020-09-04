@@ -56,6 +56,7 @@
 #include "HAL/LowLevelMemStats.h"
 #include "Misc/CoreDelegates.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "ProfilingDebugging/LoadTimeTracker.h"
 
 DEFINE_LOG_CATEGORY(LogUObjectGlobals);
 
@@ -150,11 +151,6 @@ FSimpleMulticastDelegate FCoreUObjectDelegates::PostGarbageCollectConditionalBeg
 
 FCoreUObjectDelegates::FPreLoadMapDelegate FCoreUObjectDelegates::PreLoadMap;
 FCoreUObjectDelegates::FPostLoadMapDelegate FCoreUObjectDelegates::PostLoadMapWithWorld;
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FCoreUObjectDelegates::FSoftObjectPathLoaded FCoreUObjectDelegates::StringAssetReferenceLoaded;
-FCoreUObjectDelegates::FSoftObjectPathSaving FCoreUObjectDelegates::StringAssetReferenceSaving;
-FCoreUObjectDelegates::FOnRedirectorFollowed FCoreUObjectDelegates::RedirectorFollowed;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 FSimpleMulticastDelegate FCoreUObjectDelegates::PostDemoPlay;
 FCoreUObjectDelegates::FOnLoadObjectsOnTop FCoreUObjectDelegates::ShouldLoadOnTop;
 FCoreUObjectDelegates::FShouldCookPackageForPlatform FCoreUObjectDelegates::ShouldCookPackageForPlatform;
@@ -1077,9 +1073,15 @@ public:
 // @todo: remove this in the new loader
 static int32 GGameThreadLoadCounter = 0;
 
+UE_TRACE_EVENT_BEGIN(CUSTOM_LOADTIMER_LOG, LoadPackageInternal, NoSync)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, PackageName)
+UE_TRACE_EVENT_END()
+
 UPackage* LoadPackageInternal(UPackage* InOuter, const TCHAR* InLongPackageNameOrFilename, uint32 LoadFlags, FLinkerLoad* ImportLinker, FArchive* InReaderOverride, const FLinkerInstancingContext* InstancingContext)
 {
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("LoadPackageInternal"), STAT_LoadPackageInternal, STATGROUP_ObjectVerbose);
+	SCOPED_CUSTOM_LOADTIMER(LoadPackageInternal)
+		ADD_CUSTOM_LOADTIMER_META(LoadPackageInternal, PackageName, InLongPackageNameOrFilename);
 
 	checkf(IsInGameThread(), TEXT("Unable to load %s. Objects and Packages can only be loaded from the game thread."), InLongPackageNameOrFilename);
 
@@ -1534,6 +1536,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 		LoadContext->DecrementBeginLoadCount();
 		return;
 	}
+	SCOPED_LOADTIMER(EndLoad);
 
 #if WITH_EDITOR
 	TOptional<FScopedSlowTask> SlowTask;
@@ -1568,14 +1571,17 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			ObjLoaded.Sort(FCompareUObjectByLinkerAndOffset());
 
 			// Finish loading everything.
-			for (int32 i = 0; i < ObjLoaded.Num(); i++)
 			{
-				// Preload.
-				UObject* Obj = ObjLoaded[i];
-				if (Obj->HasAnyFlags(RF_NeedLoad))
+				SCOPED_LOADTIMER(PreLoadAndSerialize);
+				for (int32 i = 0; i < ObjLoaded.Num(); i++)
 				{
-					check(Obj->GetLinker());
-					Obj->GetLinker()->Preload(Obj);
+					// Preload.
+					UObject* Obj = ObjLoaded[i];
+					if (Obj->HasAnyFlags(RF_NeedLoad))
+					{
+						check(Obj->GetLinker());
+						Obj->GetLinker()->Preload(Obj);
+					}
 				}
 			}
 
@@ -1608,6 +1614,7 @@ void EndLoad(FUObjectSerializeContext* LoadContext)
 			}
 
 			{
+				SCOPED_LOADTIMER(PostLoad);
 				// set this so that we can perform certain operations in which are only safe once all objects have been de-serialized.
 				TGuardValue<bool> GuardIsRoutingPostLoad(FUObjectThreadContext::Get().IsRoutingPostLoad, true);
 				FLinkerLoad* VisitedLinkerLoad = nullptr;
@@ -2022,17 +2029,16 @@ UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters )
 	UObject* DupRootObject = Parameters.DuplicationSeed.FindRef(Parameters.SourceObject);
 	if ( DupRootObject == NULL )
 	{
-		DupRootObject = StaticConstructObject_Internal(	Parameters.DestClass,
-														Parameters.DestOuter,
-														Parameters.DestName,
-														Parameters.ApplyFlags | Parameters.SourceObject->GetMaskedFlags(Parameters.FlagMask),
-														Parameters.ApplyInternalFlags | (Parameters.SourceObject->GetInternalFlags() & Parameters.InternalFlagMask),
-														Parameters.SourceObject->GetArchetype()->GetClass() == Parameters.DestClass
-																? Parameters.SourceObject->GetArchetype()
-																: NULL,
-														true,
-														&InstanceGraph
-														);
+		FStaticConstructObjectParameters Params(Parameters.DestClass);
+		Params.Outer = Parameters.DestOuter;
+		Params.Name = Parameters.DestName;
+		Params.SetFlags = Parameters.ApplyFlags | Parameters.SourceObject->GetMaskedFlags(Parameters.FlagMask);
+		Params.InternalSetFlags = Parameters.ApplyInternalFlags | (Parameters.SourceObject->GetInternalFlags() & Parameters.InternalFlagMask);
+		Params.Template = Parameters.SourceObject->GetArchetype()->GetClass() == Parameters.DestClass ? Parameters.SourceObject->GetArchetype() : nullptr;
+		Params.bCopyTransientsFromClassDefaults = true;
+		Params.InstanceGraph = &InstanceGraph;
+
+		DupRootObject = StaticConstructObject_Internal(Params);
 	}
 
 	FLargeMemoryData ObjectData;
@@ -2777,7 +2783,11 @@ void FObjectInitializer::PostConstructInit()
 		InitProperties(Obj, BaseClass, Defaults, bCopyTransientsFromClassDefaults);
 	}
 
-	bool bAllowInstancing = IsInstancingAllowed();
+#if USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
+	const bool bAllowInstancing = IsInstancingAllowed() && !bIsDeferredInitializer;
+#else
+	const bool bAllowInstancing = IsInstancingAllowed();
+#endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 	bool bNeedSubobjectInstancing = InitSubobjectProperties(bAllowInstancing);
 
 	// Restore class information if replacing native class.
@@ -2840,43 +2850,6 @@ void FObjectInitializer::PostConstructInit()
 	if (!FUObjectThreadContext::Get().PostInitPropertiesCheck.Num() || (FUObjectThreadContext::Get().PostInitPropertiesCheck.Pop(false) != Obj))
 	{
 		UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s failed to route PostInitProperties. Call Super::PostInitProperties() in %s::PostInitProperties()."), *Obj->GetClass()->GetName(), *Obj->GetClass()->GetName());
-	}
-	// Check if all TSubobjectPtr properties have been initialized.
-#if !USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	if (!Obj->HasAnyFlags(RF_NeedLoad))
-#else 
-	// we defer this initialization in special set of cases (when Obj is a CDO 
-	// and its parent hasn't been serialized yet)... in those cases, Obj (the 
-	// CDO) wouldn't have had RF_NeedLoad set (not yet, because it is created 
-	// from Class->GetDefualtObject() without that flag); since we've deferred
-	// all this, it is likely that this flag is now present... we want to run 
-	// all this as if the object was just created, so we check 
-	// bIsDeferredInitializer as well
-	if (!Obj->HasAnyFlags(RF_NeedLoad) || bIsDeferredInitializer)
-#endif // !USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
-	{
-		for (FProperty* P = Class->RefLink; P; P = P->NextRef)
-		{
-			if (P->HasAnyPropertyFlags(CPF_SubobjectReference))
-			{
-				FObjectProperty* ObjProp = CastFieldChecked<FObjectProperty>(P);
-				UObject* PropertyValue = ObjProp->GetObjectPropertyValue(ObjProp->ContainerPtrToValuePtr<void>(Obj));
-				if (!FSubobjectPtr::IsInitialized(PropertyValue))
-				{
-					UE_LOG(LogUObjectGlobals, Fatal, TEXT("%s must be initialized in the constructor (at least to NULL) by calling ObjectInitializer.CreateDefaultSubobject"), *ObjProp->GetFullName() );
-				}
-				else if (PropertyValue && P->HasAnyPropertyFlags(CPF_Transient))
-				{
-					// Transient subobjects can't be in the list of ComponentInits
-					for (int32 Index = 0; Index < ComponentInits.SubobjectInits.Num(); Index++)
-					{
-						UObject* Subobject = ComponentInits.SubobjectInits[Index].Subobject;
-						UE_CLOG(Subobject->GetFName() == PropertyValue->GetFName(), 
-							LogUObjectGlobals, Fatal, TEXT("Transient property %s contains a reference to non-transient subobject %s."), *ObjProp->GetFullName(), *PropertyValue->GetName() );
-					}
-				}
-			}
-		}
 	}
 #endif // !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 
@@ -2973,18 +2946,6 @@ void FObjectInitializer::InstanceSubobjects(UClass* Class, bool bNeedInstancing,
 UClass* FObjectInitializer::GetClass() const
 {
 	return Obj->GetClass();
-}
-
-void FSubobjectPtr::Set(UObject* InObject)
-{
-	if (Object != InObject && IsInitialized(Object) && !Object->IsPendingKill())
-	{
-		UE_LOG(LogUObjectGlobals, Fatal, TEXT("Unable to overwrite default subobject %s"), *Object->GetPathName());
-	}
-	else
-	{
-		Object = InObject;
-	}
 }
 
 // Binary initialize object properties to zero or defaults.
@@ -3162,20 +3123,35 @@ void CheckIsClassChildOf_Internal(const UClass* Parent, const UClass* Child)
 }
 #endif
 
-UObject* StaticConstructObject_Internal
-(
-	const UClass*	InClass,
-	UObject*		InOuter,					/*=GetTransientPackage()*/
-	FName			InName,						/*=NAME_None*/
-	EObjectFlags	InFlags,					/*=0*/
-	EInternalObjectFlags InternalSetFlags,		/*=0*/
-	UObject*		InTemplate,					/*=NULL*/
-	bool bCopyTransientsFromClassDefaults,		/*=false*/
-	FObjectInstancingGraph* InInstanceGraph,	/*=NULL*/
-	bool bAssumeTemplateIsArchetype,			/*=false*/
-	UPackage* ExternalPackage					/*=nullptr*/
-)
+FStaticConstructObjectParameters::FStaticConstructObjectParameters(const UClass* InClass)
+	: Class(InClass)
+	, Outer((UObject*)GetTransientPackage())
 {
+}
+
+UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags, UObject* Template, bool bCopyTransientsFromClassDefaults, FObjectInstancingGraph* InstanceGraph, bool bAssumeTemplateIsArchetype, UPackage* ExternalPackage)
+{
+	FStaticConstructObjectParameters Params(Class);
+	Params.Outer = InOuter;
+	Params.Name = Name;
+	Params.SetFlags = SetFlags;
+	Params.InternalSetFlags = InternalSetFlags;
+	Params.Template = Template;
+	Params.bCopyTransientsFromClassDefaults = bCopyTransientsFromClassDefaults;
+	Params.InstanceGraph = InstanceGraph;
+	Params.bAssumeTemplateIsArchetype = bAssumeTemplateIsArchetype;
+	Params.ExternalPackage = ExternalPackage;
+	return StaticConstructObject_Internal(Params);
+}
+
+UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params)
+{
+	const UClass* InClass = Params.Class;
+	UObject* InOuter = Params.Outer;
+	const FName& InName = Params.Name;
+	EObjectFlags InFlags = Params.SetFlags;
+	UObject* InTemplate = Params.Template;
+
 	LLM_SCOPE(ELLMTag::UObject);
 
 	SCOPE_CYCLE_COUNTER(STAT_ConstructObject);
@@ -3193,7 +3169,7 @@ UObject* StaticConstructObject_Internal
 	const bool bIsNativeFromCDO = bIsNativeClass &&
 		(	
 			!InTemplate || 
-			(InName != NAME_None && (bAssumeTemplateIsArchetype || InTemplate == UObject::GetArchetypeFromRequiredInfo(InClass, InOuter, InName, InFlags)))
+			(InName != NAME_None && (Params.bAssumeTemplateIsArchetype || InTemplate == UObject::GetArchetypeFromRequiredInfo(InClass, InOuter, InName, InFlags)))
 			);
 	const bool bCanRecycleSubobjects = bIsNativeFromCDO && (!(InFlags & RF_DefaultSubObject) || !FUObjectThreadContext::Get().IsInConstructor)
 #if WITH_HOT_RELOAD
@@ -3203,13 +3179,13 @@ UObject* StaticConstructObject_Internal
 		;
 
 	bool bRecycledSubobject = false;	
-	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, ExternalPackage);
+	Result = StaticAllocateObject(InClass, InOuter, InName, InFlags, Params.InternalSetFlags, bCanRecycleSubobjects, &bRecycledSubobject, Params.ExternalPackage);
 	check(Result != NULL);
 	// Don't call the constructor on recycled subobjects, they haven't been destroyed.
 	if (!bRecycledSubobject)
 	{		
 		STAT(FScopeCycleCounterUObject ConstructorScope(InClass, GET_STATID(STAT_ConstructObject)));
-		(*InClass->ClassConstructor)( FObjectInitializer(Result, InTemplate, bCopyTransientsFromClassDefaults, true, InInstanceGraph) );
+		(*InClass->ClassConstructor)( FObjectInitializer(Result, InTemplate, Params.bCopyTransientsFromClassDefaults, true, Params.InstanceGraph) );
 	}
 	
 	if( GIsEditor && GUndo && (InFlags & RF_Transactional) && !(InFlags & RF_NeedLoad) && !InClass->IsChildOf(UField::StaticClass()) )
@@ -3812,7 +3788,12 @@ UObject* FObjectInitializer::CreateDefaultSubobject(UObject* Outer, FName Subobj
 				ConstructedSubobjects.Add(SubobjectFName);
 			}
 #endif
-			Result = StaticConstructObject_Internal(OverrideClass, Outer, SubobjectFName, SubobjectFlags);
+			FStaticConstructObjectParameters Params(OverrideClass);
+			Params.Outer = Outer;
+			Params.Name = SubobjectFName;
+			Params.SetFlags = SubobjectFlags;
+
+			Result = StaticConstructObject_Internal(Params);
 			if (!bIsTransient && (bOwnerArchetypeIsNotNative || bOwnerTemplateIsNotCDO))
 			{
 				UObject* MaybeTemplate = nullptr;
@@ -3958,7 +3939,7 @@ namespace UE4CodeGen_Private
 {
 	void ConstructFProperty(FFieldVariant Outer, const FPropertyParamsBase* const*& PropertyArray, int32& NumProperties)
 	{
-		const FPropertyParamsBase* PropBase = *PropertyArray++;
+		const FPropertyParamsBase* PropBase = *--PropertyArray;
 
 		uint32 ReadMore = 0;
 
@@ -4426,8 +4407,10 @@ namespace UE4CodeGen_Private
 		}
 	}
 
-	void ConstructUProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
+	void ConstructFProperties(UObject* Outer, const FPropertyParamsBase* const* PropertyArray, int32 NumProperties)
 	{
+		// Move pointer to the end, because we'll iterate backwards over the properties
+		PropertyArray += NumProperties;
 		while (NumProperties)
 		{
 			ConstructFProperty(Outer, PropertyArray, NumProperties);
@@ -4503,7 +4486,7 @@ namespace UE4CodeGen_Private
 		NewFunction->RPCId = Params.RPCId;
 		NewFunction->RPCResponseId = Params.RPCResponseId;
 
-		ConstructUProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewFunction, Params.PropertyArray, Params.NumProperties);
 
 		NewFunction->Bind();
 		NewFunction->StaticLink();
@@ -4530,7 +4513,7 @@ namespace UE4CodeGen_Private
 			EnumNames.Emplace(UTF8_TO_TCHAR(Enumerator->NameUTF8), Enumerator->Value);
 		}
 
-		NewEnum->SetEnums(EnumNames, (UEnum::ECppForm)Params.CppForm, Params.DynamicType == EDynamicType::NotDynamic);
+		NewEnum->SetEnums(EnumNames, (UEnum::ECppForm)Params.CppForm, Params.EnumFlags, Params.DynamicType == EDynamicType::NotDynamic);
 		NewEnum->CppType = UTF8_TO_TCHAR(Params.CppTypeUTF8);
 
 		if (Params.DisplayNameFunc)
@@ -4561,7 +4544,7 @@ namespace UE4CodeGen_Private
 		UScriptStruct* NewStruct = new(EC_InternalUseOnlyConstructor, Outer, UTF8_TO_TCHAR(Params.NameUTF8), Params.ObjectFlags) UScriptStruct(FObjectInitializer(), Super, StructOps, (EStructFlags)Params.StructFlags, Params.SizeOf, Params.AlignOf);
 		OutStruct = NewStruct;
 
-		ConstructUProperties(NewStruct, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewStruct, Params.PropertyArray, Params.NumProperties);
 
 		NewStruct->StaticLink();
 
@@ -4644,7 +4627,7 @@ namespace UE4CodeGen_Private
 		}
 		NewClass->CreateLinkAndAddChildFunctionsToMap(Params.FunctionLinkArray, Params.NumFunctions);
 
-		ConstructUProperties(NewClass, Params.PropertyArray, Params.NumProperties);
+		ConstructFProperties(NewClass, Params.PropertyArray, Params.NumProperties);
 
 		if (Params.ClassConfigNameUTF8)
 		{

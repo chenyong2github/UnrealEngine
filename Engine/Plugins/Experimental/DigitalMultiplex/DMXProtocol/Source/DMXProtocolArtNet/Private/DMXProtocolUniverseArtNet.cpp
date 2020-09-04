@@ -6,6 +6,13 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolTypes.h"
+#include "DMXProtocolArtNetConstants.h"
+#include "DMXProtocolArtNet.h"
+#include "DMXStats.h"
+
+// Stats
+DECLARE_MEMORY_STAT(TEXT("Art-Net Input And Output Buffer Memory"), STAT_ArtNetInputAndOutputBufferMemory, STATGROUP_DMX);
+DECLARE_DWORD_ACCUMULATOR_STAT(TEXT("Art-Net Universes Count"), STAT_ArtNetUniversesCount, STATGROUP_DMX);
 
 //~ Artnet specific constants
 static const uint8 HIGH_NIBBLE = 0xF0;
@@ -21,16 +28,15 @@ FDMXProtocolUniverseArtNet::FDMXProtocolUniverseArtNet(IDMXProtocolPtr InDMXProt
 	OutputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
 	InputDMXBuffer = MakeShared<FDMXBuffer, ESPMode::ThreadSafe>();
 
-	Settings = MakeShared<FJsonObject>(InSettings);
-	checkf(Settings->HasField(TEXT("PortID")), TEXT("DMXProtocol PortID is not valid"));
-	checkf(Settings->HasField(TEXT("UniverseID")), TEXT("DMXProtocol Universe is not valid"));
-	PortID = Settings->GetNumberField(TEXT("PortID"));
+	// Stats
+	INC_MEMORY_STAT_BY(STAT_ArtNetInputAndOutputBufferMemory, DMX_UNIVERSE_SIZE * 2);
+	INC_DWORD_STAT(STAT_ArtNetUniversesCount);
 
+	UpdateSettings(InSettings);
 	/* Bits 15 			Bits 14-8        | Bits 7-4      | Bits 3-0
 	* 0 				Net 			 | Sub-Net 		 | Universe
 	* 0				    (0b1111111 << 8) | (0b1111 << 4) | (0b111)
 	*/
-	UniverseID = Settings->GetNumberField(TEXT("UniverseID"));
 	uint8 Net = (uint8)((UniverseID & 0b0111111100000000) >> 8);
 	uint8 Subnet = (uint8)((UniverseID & 0b11110000) >> 4);
 	uint8 Universe = (uint8)((UniverseID & 0b1111));
@@ -45,14 +51,24 @@ IDMXProtocolPtr FDMXProtocolUniverseArtNet::GetProtocol() const
 	return WeakDMXProtocol.Pin();
 }
 
+FDMXBufferPtr FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
+{
+	return InputDMXBuffer;
+}
+
 FDMXBufferPtr FDMXProtocolUniverseArtNet::GetOutputDMXBuffer() const
 {
 	return OutputDMXBuffer;
 }
 
-FDMXBufferPtr FDMXProtocolUniverseArtNet::GetInputDMXBuffer() const
+void FDMXProtocolUniverseArtNet::ZeroInputDMXBuffer()
 {
-	return InputDMXBuffer;
+	InputDMXBuffer->ZeroDMXBuffer();
+}
+
+void FDMXProtocolUniverseArtNet::ZeroOutputDMXBuffer()
+{
+	OutputDMXBuffer->ZeroDMXBuffer();
 }
 
 bool FDMXProtocolUniverseArtNet::SetDMXFragment(const IDMXFragmentMap & DMXFragment)
@@ -73,6 +89,26 @@ uint32 FDMXProtocolUniverseArtNet::GetUniverseID() const
 TSharedPtr<FJsonObject> FDMXProtocolUniverseArtNet::GetSettings() const
 {
 	return Settings;
+}
+
+void FDMXProtocolUniverseArtNet::UpdateSettings(const FJsonObject& InSettings)
+{
+	Settings = MakeShared<FJsonObject>(InSettings);
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXPortID), TEXT("DMXProtocol PortID is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol Universe is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXEthernetPort), TEXT("DMXProtocol EthernPort is not valid"));
+	checkf(Settings->HasField(DMXJsonFieldNames::DMXIpAddresses), TEXT("DMXProtocol IPAddresses is not valid"));
+	PortID = Settings->GetNumberField(DMXJsonFieldNames::DMXPortID);
+	UniverseID = Settings->GetNumberField(DMXJsonFieldNames::DMXUniverseID);
+	EthernetPort = Settings->GetNumberField(DMXJsonFieldNames::DMXEthernetPort);
+	IpAddresses.Empty();
+	for (TSharedPtr<FJsonValue> JsonIpAddress : Settings->GetArrayField(DMXJsonFieldNames::DMXIpAddresses))
+	{
+		uint64 IpAddress = 0;
+		const bool bValid = JsonIpAddress->TryGetNumber(IpAddress);
+		checkf(bValid, TEXT("DMXProtocol IPAddresses content is not valid"));
+		IpAddresses.Add(IpAddress);
+	}
 }
 
 bool FDMXProtocolUniverseArtNet::IsSupportRDM() const

@@ -201,4 +201,24 @@ void UVirtualTexture2D::BeginCacheForCookedPlatformData(const ITargetPlatform* T
 	Super::BeginCacheForCookedPlatformData(TargetPlatform);
 }
 
+bool UVirtualTexture2D::IsCachedCookedPlatformDataLoaded(const ITargetPlatform* TargetPlatform)
+{
+	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
+	{
+		return true;
+	}
+
+	return Super::IsCachedCookedPlatformDataLoaded(TargetPlatform);
+}
+
+void UVirtualTexture2D::ClearCachedCookedPlatformData(const ITargetPlatform* TargetPlatform)
+{
+	if (!UseVirtualTexturing(GMaxRHIFeatureLevel, TargetPlatform))
+	{
+		return;
+	}
+
+	Super::ClearCachedCookedPlatformData(TargetPlatform);
+}
+
 #endif

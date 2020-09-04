@@ -295,6 +295,10 @@ private:
 	 */
 	void DestroyAllNodes();
 
+public:
+	int32 GetTotalDisplayNodeCount() const { return DisplayNodeCount; }
+	int32 GetFilteredDisplayNodeCount() const { return FilteredNodes.Num(); }
+
 private:
 
 	/** Symbolic root node that contains the actual displayed root nodes as children */
@@ -334,6 +338,9 @@ private:
 	TSharedPtr<FSequencerTrackFilter_LevelFilter> TrackFilterLevelFilter;
 
 	TWeakObjectPtr<UMovieSceneSequence> WeakCurrentSequence;
+
+	/** The total number of DisplayNodes in the tree, both displayed and hidden */
+	uint32 DisplayNodeCount;
 
 	bool bFilterUpdateRequested;
 	bool bFilteringOnNodeGroups;

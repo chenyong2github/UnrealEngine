@@ -33,6 +33,7 @@
 #include "Interfaces/ITargetPlatform.h"
 #include "Interfaces/ITargetPlatformManagerModule.h"
 #include "Misc/FbxErrors.h"
+#include "Misc/ScopedSlowTask.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
 #include "IMeshBuilderModule.h"
@@ -44,10 +45,10 @@ static const int32 LARGE_MESH_MATERIAL_INDEX_THRESHOLD = 64;
 
 using namespace UnFbx;
 
-struct ExistingStaticMeshData;
-extern ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, FBXImportOptions* ImportOptions, int32 LodIndex);
-extern void RestoreExistingMeshSettings(struct ExistingStaticMeshData* ExistingMesh, UStaticMesh* NewMesh, int32 LODIndex);
-extern void RestoreExistingMeshData(struct ExistingStaticMeshData* ExistingMeshDataPtr, UStaticMesh* NewMesh, int32 LodLevel, bool bCanShowDialog, bool bForceConflictingMaterialReset);
+struct FExistingStaticMeshData;
+extern TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, FBXImportOptions* ImportOptions, int32 LodIndex);
+extern void RestoreExistingMeshSettings(const FExistingStaticMeshData* ExistingMesh, UStaticMesh* NewMesh, int32 LODIndex);
+extern void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingMeshDataPtr, UStaticMesh* NewMesh, int32 LodLevel, bool bCanShowDialog, bool bForceConflictingMaterialReset);
 extern void UpdateSomeLodsImportMeshData(UStaticMesh* NewMesh, TArray<int32> *ReimportLodList);
 
 struct FRestoreReimportData
@@ -168,7 +169,7 @@ void CreateTokenizedErrorForDegeneratedPart(UnFbx::FFbxImporter* FbxImporter, co
 //-------------------------------------------------------------------------
 //
 //-------------------------------------------------------------------------
-UStaticMesh* UnFbx::FFbxImporter::ImportStaticMesh(UObject* InParent, FbxNode* Node, const FName& Name, EObjectFlags Flags, UFbxStaticMeshImportData* ImportData, UStaticMesh* InStaticMesh, int LODIndex, void *ExistMeshDataPtr)
+UStaticMesh* UnFbx::FFbxImporter::ImportStaticMesh(UObject* InParent, FbxNode* Node, const FName& Name, EObjectFlags Flags, UFbxStaticMeshImportData* ImportData, UStaticMesh* InStaticMesh, int LODIndex, const FExistingStaticMeshData* ExistMeshDataPtr)
 {
 	TArray<FbxNode*> MeshNodeArray;
 	
@@ -365,7 +366,9 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	EVertexColorImportOption::Type VertexColorImportOption, const TMap<FVector, FColor>& ExistingVertexColorData, const FColor& VertexOverrideColor)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::BuildStaticMeshFromGeometry);
+	FFbxScopedOperation ScopedImportOperation(this);
 
+	//Only cancel the operation if we are creating a new asset, as we don't support existing asset restoration yet.
 	check(StaticMesh->IsSourceModelValid(LODIndex));
 	FbxMesh* Mesh = Node->GetMesh();
 	FString FbxNodeName = UTF8_TO_TCHAR(Node->GetName());
@@ -374,6 +377,11 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 	//The mesh description should have been created before calling BuildStaticMeshFromGeometry
 	check(MeshDescription);
 	FStaticMeshAttributes Attributes(*MeshDescription);
+
+	//This slow task doesn't have any text description and is used to unify all the other sub-tasks of this function.
+	FScopedSlowTask BuildStaticMeshSlowTask(Mesh->IsTriangleMesh() ? 1 : 2);
+	BuildStaticMeshSlowTask.MakeDialog();
+	BuildStaticMeshSlowTask.EnterProgressFrame(1);
 
 	//Get the base layer of the mesh
 	FbxLayer* BaseLayer = Mesh->GetLayer(0);
@@ -472,6 +480,13 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 		{
 			AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_FailedToTriangulate", "Unable to triangulate mesh '{0}'"), FText::FromString(Mesh->GetName()))), FFbxErrors::Generic_Mesh_TriangulationFailed);
 			return false; // not clean, missing some dealloc
+		}
+		
+		BuildStaticMeshSlowTask.EnterProgressFrame(1);
+		if (ImportOptions->bIsImportCancelable && BuildStaticMeshSlowTask.ShouldCancel())
+		{ 
+			bImportOperationCanceled = true; 
+			return false; 
 		}
 	}
 	
@@ -716,9 +731,31 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 			TArray<FVertexID> CornerVerticesIDs;
 			TArray<FVector, TInlineAllocator<3>> P;
 
+			//Create a slowtask with a granularity of ~5% to avoid entering progress for every polygon.
+			const int32 SlowTaskNumberOfUpdates = 20;
+			const int32 SlowTaskNumberOfWorkUnitsBetweenUpdates = PolygonCount >= SlowTaskNumberOfUpdates ? PolygonCount / SlowTaskNumberOfUpdates : 1;
+			int32 SlowTaskUpdateCounter = 0;
+			FScopedSlowTask ProcessingPolygonsSlowTask(PolygonCount % SlowTaskNumberOfUpdates == 0 
+				? SlowTaskNumberOfUpdates 
+				: SlowTaskNumberOfUpdates + FMath::CeilToInt((PolygonCount % SlowTaskNumberOfUpdates) / (float)SlowTaskNumberOfWorkUnitsBetweenUpdates));
+			ProcessingPolygonsSlowTask.MakeDialog();
+
 			//Polygons
 			for (int32 PolygonIndex = 0; PolygonIndex < PolygonCount; PolygonIndex++)
 			{
+				if (SlowTaskUpdateCounter-- <= 0)
+				{
+					SlowTaskUpdateCounter += SlowTaskNumberOfWorkUnitsBetweenUpdates;
+					ProcessingPolygonsSlowTask.EnterProgressFrame(1);
+					//Only cancel the operation if we are creating a new asset, as we don't support existing asset restoration yet.
+					if (ImportOptions->bIsImportCancelable && ProcessingPolygonsSlowTask.ShouldCancel())
+					{
+						Mesh->EndGetMeshEdgeIndexForPolygon();
+						bImportOperationCanceled = true;
+						return false;
+					}
+				}
+
 				int32 PolygonVertexCount = Mesh->GetPolygonSize(PolygonIndex);
 				//Verify if the polygon is degenerate, in this case do not add them
 				{
@@ -1044,6 +1081,7 @@ bool UnFbx::FFbxImporter::BuildStaticMeshFromGeometry(FbxNode* Node, UStaticMesh
 UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId, uint64 FbxUniqueId, UStaticMesh* Mesh, UFbxStaticMeshImportData* TemplateImportData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ReimportSceneStaticMesh);
+	FFbxScopedOperation FbxScopedImportOperation(this);
 
 	FRestoreReimportData RestoreData(Mesh);
 
@@ -1091,7 +1129,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 		return Mesh;
 	}
 
-	struct ExistingStaticMeshData* ExistMeshDataPtr = SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
+	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
 
 	if (Node)
 	{
@@ -1103,7 +1141,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 			TArray<UStaticMesh*> BaseMeshes;
 			TArray<FbxNode*> AllNodeInLod;
 			FindAllLODGroupNode(AllNodeInLod, NodeParent, 0);
-			FirstBaseMesh = ImportStaticMeshAsSingle(Mesh->GetOutermost(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+			FirstBaseMesh = ImportStaticMeshAsSingle(Mesh->GetOutermost(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 			//If we have a valid LOD group name we don't want to re-import LODs since they will be automatically generate by the LODGroup reduce settings
 			if(FirstBaseMesh && Mesh->LODGroup == NAME_None)
 			{
@@ -1138,7 +1176,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 		}
 		else
 		{
-			FirstBaseMesh = ImportStaticMesh(Mesh->GetOutermost(), Node, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+			FirstBaseMesh = ImportStaticMesh(Mesh->GetOutermost(), Node, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 			if (FirstBaseMesh != nullptr)
 			{
 				TArray<FbxNode*> AllNodeInLod;
@@ -1152,7 +1190,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 		// no FBX mesh match, maybe the Unreal mesh is imported from multiple FBX mesh (enable option "Import As Single")
 		if (FbxMeshArray.Num() > 0)
 		{
-			FirstBaseMesh = ImportStaticMeshAsSingle(Mesh->GetOutermost(), FbxMeshArray, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+			FirstBaseMesh = ImportStaticMeshAsSingle(Mesh->GetOutermost(), FbxMeshArray, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 			if (FirstBaseMesh != nullptr)
 			{
 				PostImportStaticMesh(FirstBaseMesh, FbxMeshArray);
@@ -1166,7 +1204,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportSceneStaticMesh(uint64 FbxNodeUniqueId
 
 	if(FirstBaseMesh)
 	{
-		//Don't restore materials when reimporting scene
+	//Don't restore materials when reimporting scene
 		RestoreExistingMeshData(ExistMeshDataPtr, FirstBaseMesh, INDEX_NONE, false, ImportOptions->bResetToFbxOnMaterialConflict);
 		RestoreData.CleanupDuplicateMesh();
 	}
@@ -1208,6 +1246,7 @@ void UnFbx::FFbxImporter::AddStaticMeshSourceModelGeneratedLOD(UStaticMesh* Stat
 UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStaticMeshImportData* TemplateImportData)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FFbxImporter::ReimportStaticMesh);
+	FFbxScopedOperation FbxScopedImportOperation(this);
 
 	FRestoreReimportData RestoreData(Mesh);
 
@@ -1311,7 +1350,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 	ImportOptions->bImportMaterials = false;
 	ImportOptions->bImportTextures = false;
 
-	struct ExistingStaticMeshData* ExistMeshDataPtr = SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
+	TSharedPtr<FExistingStaticMeshData> ExistMeshDataPtr = SaveExistingStaticMeshData(Mesh, ImportOptions, INDEX_NONE);
 
 	TArray<int32> ReimportLodList;
 	if (bCombineMeshesLOD)
@@ -1322,7 +1361,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 		{
 			TArray<FbxNode*> &LODMeshesArray = FbxMeshesLod[0];
 			LodZeroNodes = FbxMeshesLod[0];
-			NewMesh = ImportStaticMeshAsSingle(Mesh->GetOuter(), LODMeshesArray, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+			NewMesh = ImportStaticMeshAsSingle(Mesh->GetOuter(), LODMeshesArray, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 			ReimportLodList.Add(0);
 		}
 		//Import all LODs
@@ -1370,7 +1409,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 			if (AllNodeInLod.Num() > 0)
 			{
 				LodZeroNodes = AllNodeInLod;
-				NewMesh = ImportStaticMeshAsSingle(Mesh->GetOuter(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+				NewMesh = ImportStaticMeshAsSingle(Mesh->GetOuter(), AllNodeInLod, *Mesh->GetName(), RF_Public | RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 				ReimportLodList.Add(0);
 			}
 
@@ -1413,7 +1452,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 		else
 		{
 			LodZeroNodes.Add(Node);
-			NewMesh = ImportStaticMesh(Mesh->GetOuter(), Node, *Mesh->GetName(), RF_Public|RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+			NewMesh = ImportStaticMesh(Mesh->GetOuter(), Node, *Mesh->GetName(), RF_Public|RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 			ReimportLodList.Add(0);
 		}
 
@@ -1428,7 +1467,7 @@ UStaticMesh* UnFbx::FFbxImporter::ReimportStaticMesh(UStaticMesh* Mesh, UFbxStat
 		// no FBX mesh match, maybe the Unreal mesh is imported from multiple FBX mesh (enable option "Import As Single")
 		if (FbxMeshArray.Num() > 0)
 		{
-			NewMesh = ImportStaticMeshAsSingle(Mesh->GetOuter(), FbxMeshArray, *Mesh->GetName(), RF_Public|RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr);
+			NewMesh = ImportStaticMeshAsSingle(Mesh->GetOuter(), FbxMeshArray, *Mesh->GetName(), RF_Public|RF_Standalone, TemplateImportData, Mesh, 0, ExistMeshDataPtr.Get());
 			ReimportLodList.Add(0);
 			if (NewMesh != nullptr)
 			{
@@ -1467,11 +1506,10 @@ void UnFbx::FFbxImporter::VerifyGeometry(UStaticMesh* StaticMesh)
 	}
 }
 
-UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TArray<FbxNode*>& MeshNodeArray, const FName InName, EObjectFlags Flags, UFbxStaticMeshImportData* TemplateImportData, UStaticMesh* InStaticMesh, int LODIndex, void *ExistMeshDataPtr)
+UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TArray<FbxNode*>& MeshNodeArray, const FName InName, EObjectFlags Flags, UFbxStaticMeshImportData* TemplateImportData, UStaticMesh* InStaticMesh, int LODIndex, const FExistingStaticMeshData* ExistMeshDataPtr)
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(FbxImporter::ImportStaticMeshAsSingle);
-
-	struct ExistingStaticMeshData* ExistMeshData = (struct ExistingStaticMeshData*)ExistMeshDataPtr;
+	FFbxScopedOperation FbxScopedImportOperation(this);
 	bool bBuildStatus = true;
 
 	// Make sure rendering is done - so we are not changing data being used by collision drawing.
@@ -1484,8 +1522,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	
 	// Count the number of verts
 	int32 NumVerts = 0;
-	int32 MeshIndex;
-	for (MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++ )
+	for (int32 MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++ )
 	{
 		FbxNode* Node = MeshNodeArray[MeshIndex];
 		FbxMesh* FbxMesh = Node->GetMesh();
@@ -1585,10 +1622,13 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 	if( InStaticMesh != NULL && LODIndex > 0 )
 	{
 		StaticMesh = InStaticMesh;
+		//Only cancel the operation if we are creating a new asset, as we don't support existing asset restoration yet.
+		ImportOptions->bIsImportCancelable = false;
 	}
 	else
 	{
 		StaticMesh = NewObject<UStaticMesh>(Package, FName(*MeshName), Flags | RF_Public);
+		CreatedObjects.Add(StaticMesh);
 	}
 
 	if (StaticMesh->GetNumSourceModels() < LODIndex+1)
@@ -1635,22 +1675,34 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 
 	bool bAllDegenerated = true;
 	TArray<FFbxMaterial> MeshMaterials;
-	for (MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++ )
+	for (int32 MeshIndex = 0; MeshIndex < MeshNodeArray.Num(); MeshIndex++)
 	{
+		FScopedSlowTask BuildMeshSlowTask(MeshNodeArray.Num(), FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometry {0} of {1}."), FText::AsNumber(1), FText::AsNumber(MeshNodeArray.Num())));
+		
 		FbxNode* Node = MeshNodeArray[MeshIndex];
-
 		if (Node->GetMesh())
 		{
 			Node->GetMesh()->ComputeBBox();
-			FbxDouble3 BoxExtend;
-			BoxExtend[0] = Node->GetMesh()->BBoxMax.Get()[0] - Node->GetMesh()->BBoxMin.Get()[0];
-			BoxExtend[1] = Node->GetMesh()->BBoxMax.Get()[1] - Node->GetMesh()->BBoxMin.Get()[1];
-			BoxExtend[2] = Node->GetMesh()->BBoxMax.Get()[2] - Node->GetMesh()->BBoxMin.Get()[2];
-			double SqrSize = (BoxExtend[0] * BoxExtend[0]) + (BoxExtend[1] * BoxExtend[1]) + (BoxExtend[2] * BoxExtend[2]);
+			
+			FbxVector4 GlobalScale = Node->EvaluateGlobalTransform(0).GetS();
+			FbxVector4 BBoxMax = FbxVector4(Node->GetMesh()->BBoxMax.Get()) * GlobalScale;
+			FbxVector4 BBoxMin = FbxVector4(Node->GetMesh()->BBoxMin.Get()) * GlobalScale;
+			FbxVector4 BoxExtend = BBoxMax - BBoxMin;
+			double SqrSize = BoxExtend.SquareLength();
 			//If the bounding box of the mesh part is smaller then the position threshold, the part is consider degenerated and will be skip.
 			if (SqrSize > SqrBoundingBoxThreshold)
 			{
 				bAllDegenerated = false;
+
+				//Only cancel the operation if we are creating a new asset, as we don't support existing asset restoration yet.
+				BuildMeshSlowTask.EnterProgressFrame(1, FText::Format(LOCTEXT("FbxStaticMeshBuildGeometryTask", "Importing Static Mesh Geometry {0} of {1}."), FText::AsNumber(MeshIndex + 1), FText::AsNumber(MeshNodeArray.Num())));
+				if(ImportOptions->bIsImportCancelable && BuildMeshSlowTask.ShouldCancel())
+				{
+					bImportOperationCanceled = true; 
+					bBuildStatus = false;
+					break;
+				}
+
 				if (!BuildStaticMeshFromGeometry(Node, StaticMesh, MeshMaterials, LODIndex,
 					VertexColorImportOption, ExistingVertexColorData, ImportOptions->VertexOverrideColor))
 				{
@@ -1744,7 +1796,7 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 				}
 				if (MaterialIndex == INDEX_NONE)
 				{
-					if (LODIndex > 0 && ExistMeshData != nullptr)
+					if (LODIndex > 0 && ExistMeshDataPtr != nullptr)
 					{
 						//Do not add Material slot when reimporting a LOD just use the index found in the fbx if valid or use the last MaterialSlot index
 						MaterialIndex = StaticMesh->StaticMaterials.Num() - 1;
@@ -1828,9 +1880,9 @@ UStaticMesh* UnFbx::FFbxImporter::ImportStaticMeshAsSingle(UObject* InParent, TA
 		//We set it here because the remap index is build in RestoreExistingMeshSettings call before the build
 		StaticMesh->ImportVersion = EImportStaticMeshVersion::LastVersion;
 
-		if (ExistMeshData && InStaticMesh)
+		if (ExistMeshDataPtr && InStaticMesh)
 		{
-			RestoreExistingMeshSettings(ExistMeshData, InStaticMesh, StaticMesh->LODGroup != NAME_None ? INDEX_NONE : LODIndex);
+			RestoreExistingMeshSettings(ExistMeshDataPtr, InStaticMesh, StaticMesh->LODGroup != NAME_None ? INDEX_NONE : LODIndex);
 		}
 
 		// The code to check for bad lightmap UVs doesn't scale well with number of triangles.
@@ -2494,10 +2546,10 @@ bool UnFbx::FFbxImporter::FillCollisionModelList(FbxNode* Node)
 	return false;
 }
 
-extern void AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName );
-extern void AddSphereGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern void AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
-extern void AddBoxGeomFromTris(const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
+extern bool AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName );
+extern bool AddSphereGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
+extern bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
+extern bool AddBoxGeomFromTris(const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName);
 extern bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<int32>& CollisionFaceIdx, UBodySetup* BodySetup );
 
 bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const FbxString& InNodeName)
@@ -2528,7 +2580,7 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 	TSharedPtr< FbxArray<FbxNode*> > Models = Record->GetValue();
 
-	StaticMesh->bCustomizedCollision = true;
+	bool bAtLeastOneCollisionMeshImported = false;
 
 	StaticMesh->CreateBodySetup();
 
@@ -2611,7 +2663,12 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			if( !ImportOptions->bOneConvexHullPerUCX )
 			{
-				if (!DecomposeUCXMesh(CollisionVertices, CollisionFaceIdx, StaticMesh->BodySetup)) {
+				if (DecomposeUCXMesh(CollisionVertices, CollisionFaceIdx, StaticMesh->BodySetup))
+				{
+					bAtLeastOneCollisionMeshImported = true;
+				}
+				else
+				{
 					FString CollisionModelName = UTF8_TO_TCHAR(ModelName.Buffer());
 					AddTokenizedErrorMessage(FTokenizedMessage::Create(EMessageSeverity::Warning, FText::Format(LOCTEXT("Error_DecomposingCollisionMesh", "Could not decompose collision mesh [{0}]."), FText::FromString(CollisionModelName))), FFbxErrors::StaticMesh_BuildError);
 				}
@@ -2622,13 +2679,12 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 
 				// This function cooks the given data, so we cannot test for duplicates based on the position data
 				// before we call it
-				AddConvexGeomFromVertices( CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName()) );
-
-				// Now test the late element in the AggGeo list and remove it if its a duplicate
-				if(AggGeo.ConvexElems.Num() > 1)
+				if (AddConvexGeomFromVertices(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 				{
+					bAtLeastOneCollisionMeshImported = true;
 					FKConvexElem& NewElem = AggGeo.ConvexElems.Last();
 
+					// Now test the late element in the AggGeo list and remove it if its a duplicate
 					for(int32 ElementIndex = 0; ElementIndex < AggGeo.ConvexElems.Num()-1; ++ElementIndex)
 					{
 						FKConvexElem& CurrentElem = AggGeo.ConvexElems[ElementIndex];
@@ -2660,13 +2716,12 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
 
-			AddBoxGeomFromTris( CollisionTriangles, &AggGeo, ANSI_TO_TCHAR(Node->GetName()) );
-
-			// Now test the last element in the AggGeo list and remove it if its a duplicate
-			if(AggGeo.BoxElems.Num() > 1)
+			if(AddBoxGeomFromTris(CollisionTriangles, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 			{
+				bAtLeastOneCollisionMeshImported = true;
 				FKBoxElem& NewElem = AggGeo.BoxElems.Last();
 
+				// Now test the last element in the AggGeo list and remove it if its a duplicate
 				for(int32 ElementIndex = 0; ElementIndex < AggGeo.BoxElems.Num()-1; ++ElementIndex)
 				{
 					FKBoxElem& CurrentElem = AggGeo.BoxElems[ElementIndex];
@@ -2684,13 +2739,12 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
 
-			AddSphereGeomFromVerts( CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName()) );
-
-			// Now test the late element in the AggGeo list and remove it if its a duplicate
-			if(AggGeo.SphereElems.Num() > 1)
+			if(AddSphereGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
 			{
+				bAtLeastOneCollisionMeshImported = true;
 				FKSphereElem& NewElem = AggGeo.SphereElems.Last();
 
+				// Now test the late element in the AggGeo list and remove it if its a duplicate
 				for(int32 ElementIndex = 0; ElementIndex < AggGeo.SphereElems.Num()-1; ++ElementIndex)
 				{
 					FKSphereElem& CurrentElem = AggGeo.SphereElems[ElementIndex];
@@ -2708,12 +2762,12 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		{
 			FKAggregateGeom& AggGeo = StaticMesh->BodySetup->AggGeom;
 
-			AddCapsuleGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName()));
+			if (AddCapsuleGeomFromVerts(CollisionVertices, &AggGeo, ANSI_TO_TCHAR(Node->GetName())))
+			{
+				bAtLeastOneCollisionMeshImported = true;
+				FKSphylElem& NewElem = AggGeo.SphylElems.Last();
 
 			// Now test the late element in the AggGeo list and remove it if its a duplicate
-			if (AggGeo.SphylElems.Num() > 1)
-			{
-				FKSphylElem& NewElem = AggGeo.SphylElems.Last();
 				for (int32 ElementIndex = 0; ElementIndex < AggGeo.SphylElems.Num() - 1; ++ElementIndex)
 				{
 					FKSphylElem& CurrentElem = AggGeo.SphylElems[ElementIndex];
@@ -2740,12 +2794,17 @@ bool UnFbx::FFbxImporter::ImportCollisionModels(UStaticMesh* StaticMesh, const F
 		CollisionFaceIdx.Empty();
 	}
 
+	if (bAtLeastOneCollisionMeshImported)
+	{
+		StaticMesh->bCustomizedCollision = true;
+	}
+
 	// Create new GUID
 	StaticMesh->BodySetup->InvalidatePhysicsData();
 
 	// refresh collision change back to staticmesh components
 	RefreshCollisionChange(*StaticMesh);
 		
-	return true;
+	return bAtLeastOneCollisionMeshImported;
 }
 #undef LOCTEXT_NAMESPACE

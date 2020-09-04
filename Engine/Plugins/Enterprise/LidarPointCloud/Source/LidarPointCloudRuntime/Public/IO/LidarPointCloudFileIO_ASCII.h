@@ -71,7 +71,7 @@ public:
 struct FLidarPointCloudImportSettings_ASCII : public FLidarPointCloudImportSettings
 {
 	int32 LinesToSkip;
-	uint32 EstimatedPointCount;
+	int64 EstimatedPointCount;
 	FString Delimiter;
 	TArray<FString> Columns;
 	TArray<int32> SelectedColumns;
@@ -161,9 +161,11 @@ public:
 	static ULidarPointCloud* CreatePointCloudFromFile(const FString& Filename, const FLidarPointCloudAsyncParameters& AsyncParameters, const FVector2D& RGBRange, const FLidarPointCloudImportSettings_ASCII_Columns& Columns);
 
 	virtual bool HandleImport(const FString& Filename, TSharedPtr<FLidarPointCloudImportSettings> ImportSettings, FLidarPointCloudImportResults &OutImportResults) override;
-	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) override { return TSharedPtr<FLidarPointCloudImportSettings>(new FLidarPointCloudImportSettings_ASCII(Filename)); }
+	virtual TSharedPtr<FLidarPointCloudImportSettings> GetImportSettings(const FString& Filename) const override { return TSharedPtr<FLidarPointCloudImportSettings>(new FLidarPointCloudImportSettings_ASCII(Filename)); }
 
 	virtual bool HandleExport(const FString& Filename, class ULidarPointCloud* PointCloud) override;
+
+	virtual bool SupportsConcurrentInsertion(const FString& Filename) const override { return false; }
 
 	ULidarPointCloudFileIO_ASCII() { ULidarPointCloudFileIO::RegisterHandler(this, { "TXT", "XYZ", "PTS" }); }
 };

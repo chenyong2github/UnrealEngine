@@ -72,11 +72,17 @@ protected:
 	static void UnlinkProxy(FArchiveState& Inner, FArchiveState& Proxy);
 
 public:
+	/** 
+	 * Returns lowest level archive state, proxy archives will override this.
+	 */
 	virtual FArchiveState& GetInnermostState()
 	{
 		return *this;
 	}
 
+	/** 
+	 * Modifies current archive state, can be used to override flags.
+	 */
 	void SetArchiveState(const FArchiveState& InState);
 
 	/**
@@ -94,6 +100,9 @@ public:
 	 */
 	void SetCriticalError();
 
+	/**
+	 * Called to get the computed size from a size-detecting archive after it has finished serializing.
+	 */
 	virtual void CountBytes(SIZE_T InNum, SIZE_T InMax) { }
 
 	/**
@@ -114,16 +123,22 @@ public:
 		return nullptr;
 	}
 
+	/** 
+	 * Returns the current location within the backing data storage, which can possibly be passed to Seek later to restore a read/write location.
+	 * If this returns -1, there is no backing data storage and Seek will not function.
+	 */
 	virtual int64 Tell()
 	{
 		return INDEX_NONE;
 	}
 
+	/** Returns total size of the backing data storage. */
 	virtual int64 TotalSize()
 	{
 		return INDEX_NONE;
 	}
 
+	/** Returns true if the current location within the backing data storage is at the end, always returns false if there is no storage. */
 	virtual bool AtEnd()
 	{
 		int64 Pos = Tell();
@@ -131,11 +146,7 @@ public:
 		return ((Pos != INDEX_NONE) && (Pos >= TotalSize()));
 	}
 
-	FORCEINLINE bool GetError() const
-	{
-		return ArIsError;
-	}
-
+	/** Returns true if data larger than 1 byte should be swapped to deal with endian mismatches. */
 	FORCEINLINE bool IsByteSwapping()
 	{
 	#if PLATFORM_LITTLE_ENDIAN
@@ -146,7 +157,7 @@ public:
 		return SwapBytes;
 	}
 
-	/** Sets a flag indicating that this archive contains code. */
+	/** Sets a flag indicating that this archive contains native or generated code. */
 	void ThisContainsCode()
 	{
 		ArContainsCode = true;
@@ -165,33 +176,39 @@ public:
 	}
 
 	/**
-	* Called to retrieve the archetype from the event driven loader. If this returns null, then call GetArchetype yourself.
-	*/
+	 * Called to retrieve the archetype from the event driven loader. 
+	 * If this returns null, then call GetArchetype yourself. 
+	 */
 	virtual UObject* GetArchetypeFromLoader(const UObject* Obj)
 	{
 		return nullptr;
 	}
 
+	/** Returns the global engine serialization version used for this archive. */
 	FORCEINLINE int32 UE4Ver() const
 	{
 		return ArUE4Ver;
 	}
 
+	/** Returns the licensee-specific version used for this archive, will be 0 by default. */
 	FORCEINLINE int32 LicenseeUE4Ver() const
 	{
 		return ArLicenseeUE4Ver;
 	}
 
+	/** Returns the compiled engine version used for this archive. */
 	FORCEINLINE FEngineVersionBase EngineVer() const
 	{
 		return ArEngineVer;
 	}
 
+	/** Returns the engine-global network protocol version for this archive. */
 	FORCEINLINE uint32 EngineNetVer() const
 	{
 		return ArEngineNetVer;
 	}
 
+	/** Returns the game-specific network protocol version for this archive. */
 	FORCEINLINE uint32 GameNetVer() const
 	{
 		return ArGameNetVer;
@@ -205,16 +222,19 @@ public:
 	 */
 	int32 CustomVer(const struct FGuid& Key) const;
 
+	/** Returns true if this archive is for loading data. */
 	FORCEINLINE bool IsLoading() const
 	{
 		return ArIsLoading;
 	}
 
+	/** Returns true if this archive is for saving data, this can also be a pre-save preparation archive. */
 	FORCEINLINE bool IsSaving() const
 	{
 		return ArIsSaving;
 	}
 
+	/** Returns true if this archive is transacting, which is used to keep track of changes to objects for things like the editor undo system. */
 	FORCEINLINE bool IsTransacting() const
 	{
 		if (FPlatformProperties::HasEditorOnlyData())
@@ -227,131 +247,174 @@ public:
 		}
 	}
 
+	/** 
+	 * Returns true if this archive serializes to a structured text format. 
+	 * Text format archives should use high level constructs from FStructuredArchive for delimiting data rather than manually seeking through the file.
+	 */
 	FORCEINLINE bool IsTextFormat() const
 	{
 		return (ArIsTextFormat && WITH_TEXT_ARCHIVE_SUPPORT);
 	}
 
+	/** Returns true if this archive wants properties to be serialized in binary form instead of safer but slower tagged form. */
 	FORCEINLINE bool WantBinaryPropertySerialization() const
 	{
 		return ArWantBinaryPropertySerialization;
 	}
 
+	/** 
+	 * Returns true if tagged property serialization should be replaced by faster unversioned serialization.
+	 * This assumes writer and reader share the same property definitions. 
+	 */
 	FORCEINLINE bool UseUnversionedPropertySerialization() const
 	{
 		return ArUseUnversionedPropertySerialization;
 	}
 
+	/** Returns true if this archive wants to always save strings in UTF16 format even if they are ANSI characters. */
 	FORCEINLINE bool IsForcingUnicode() const
 	{
 		return ArForceUnicode;
 	}
 
+	/** 
+	 * Returns true if this archive is saving or loading data destined for persistent storage and should skip transient data.
+	 * This is also true for some intermediate archives for tasks like duplication that are eventually destined for persistent storage.
+	 */
 	FORCEINLINE bool IsPersistent() const
 	{
 		return ArIsPersistent;
 	}
 
+	/** Returns true if this archive contains errors, which means that further serialization is generally not safe. */
 	FORCEINLINE bool IsError() const
 	{
 		return ArIsError;
 	}
 
+	FORCEINLINE bool GetError() const
+	{
+		return ArIsError;
+	}
+
+	/** Returns true if this archive contains critical errors that cannot be recovered from. */
 	FORCEINLINE bool IsCriticalError() const
 	{
 		return ArIsCriticalError;
 	}
 
+	/** Returns true if this archive contains native or generated code. */
 	FORCEINLINE bool ContainsCode() const
 	{
 		return ArContainsCode;
 	}
 
+	/** Returns true if this archive contains a ULevel or UWorld object. */
 	FORCEINLINE bool ContainsMap() const
 	{
 		return ArContainsMap;
 	}
 
+	/** Returns true if this archive contains data required to be gathered for localization. */
 	FORCEINLINE bool RequiresLocalizationGather() const
 	{
 		return ArRequiresLocalizationGather;
 	}
 
+	/** Returns true if this archive should always swap bytes, ignoring endian rules. */
 	FORCEINLINE bool ForceByteSwapping() const
 	{
 		return ArForceByteSwapping;
 	}
 
+	/** Returns true if this archive is currently serializing class/struct default values. */
 	FORCEINLINE bool IsSerializingDefaults() const
 	{
 		return (ArSerializingDefaults > 0) ? true : false;
 	}
 
+	/** Returns true if this archive should ignore archetype references for structs and classes. */
 	FORCEINLINE bool IsIgnoringArchetypeRef() const
 	{
 		return ArIgnoreArchetypeRef;
 	}
 
+	/** Returns true if this archive should handle delta serialization for properties. */
 	FORCEINLINE bool DoDelta() const
 	{
 		return !ArNoDelta;
 	}
 
+	/** Returns true if this archive should perform delta serialization within properties (e.g. TMaps and TSets). */
 	FORCEINLINE bool DoIntraPropertyDelta() const
 	{
 		return !ArNoIntraPropertyDelta;
 	}
 
+	/** Returns true if this archive should ignore the Outer reference in UObject. */
 	FORCEINLINE bool IsIgnoringOuterRef() const
 	{
 		return ArIgnoreOuterRef;
 	}
 
+	/** Returns true if this archive should ignore the ClassGeneratedBy reference in UClass. */
 	FORCEINLINE bool IsIgnoringClassGeneratedByRef() const
 	{
 		return ArIgnoreClassGeneratedByRef;
 	}
 
+	/** Returns true if this archive should ignore the Class reference in UObject. */
 	FORCEINLINE bool IsIgnoringClassRef() const
 	{
 		return ArIgnoreClassRef;
 	}
 
+	/** Returns true if this archive sould allow lazy loading of bulk / secondary data. */
 	FORCEINLINE bool IsAllowingLazyLoading() const
 	{
 		return ArAllowLazyLoading;
 	}
 
+	/** 
+	 * Returns true if this archive is only looking for UObject references.
+	 * This can be false for reference collectors looking for more general references.
+	 */
 	FORCEINLINE bool IsObjectReferenceCollector() const
 	{
 		return ArIsObjectReferenceCollector;
 	}
 
+	/** Returns true if this archive should modify/search weak object references as well as strong ones. */
 	FORCEINLINE bool IsModifyingWeakAndStrongReferences() const
 	{
 		return ArIsModifyingWeakAndStrongReferences;
 	}
 
+	/** Returns true if this archive is counting memory, normally CountBytes is called to get the size. */
 	FORCEINLINE bool IsCountingMemory() const
 	{
 		return ArIsCountingMemory;
 	}
 
+	/** Returns this archive's property serialization modifier flags. */
 	FORCEINLINE uint32 GetPortFlags() const
 	{
 		return ArPortFlags;
 	}
 
+	/** Checks to see if any of the passed in property serialization modifier flags are set. */
 	FORCEINLINE bool HasAnyPortFlags(uint32 Flags) const
 	{
 		return ((ArPortFlags & Flags) != 0);
 	}
 
+	/** Checks to see if all of the passed in property serialization modifier flags are set. */
 	FORCEINLINE bool HasAllPortFlags(uint32 Flags) const
 	{
 		return ((ArPortFlags & Flags) == Flags);
 	}
 
+	/** Returns the editor-only debug serialization flags. */
 	FORCEINLINE uint32 GetDebugSerializationFlags() const
 	{
 #if WITH_EDITOR
@@ -361,11 +424,13 @@ public:
 #endif
 	}
 
+	/** Returns true if this archive should ignore bulk data. */
 	FORCEINLINE bool ShouldSkipBulkData() const
 	{
 		return ArShouldSkipBulkData;
 	}
 
+	/** Returns the maximum size of data that this archive is allowed to serialize. */
 	FORCEINLINE int64 GetMaxSerializeSize() const
 	{
 		return ArMaxSerializeSize;
@@ -373,6 +438,7 @@ public:
 
 	/**
 	 * Gets the custom version numbers for this archive.
+	 * These are used to check for system or game-specific version numbers.
 	 *
 	 * @return The container of custom versions in the archive.
 	 */
@@ -566,10 +632,10 @@ public:
 	virtual bool IsEditorOnlyPropertyOnTheStack() const;
 #endif
 
-	/* Sets the current UObject serialization context for this archive */
+	/** Sets the current UObject serialization context for this archive. */
 	virtual void SetSerializeContext(FUObjectSerializeContext* InLoadContext) {}
 
-	/* Gets the current UObject serialization context for this archive */
+	/** Gets the current UObject serialization context for this archive. */
 	virtual FUObjectSerializeContext* GetSerializeContext() { return nullptr; }
 
 #if USE_STABLE_LOCALIZATION_KEYS
@@ -624,7 +690,7 @@ protected:
 	/** Whether this archive is for saving data. */
 	uint8 ArIsSaving : 1;
 
-	/** Whether archive is transacting. */
+	/** Whether archive is transacting, which is used to keep track of changes to objects for things like the editor undo system. */
 	uint8 ArIsTransacting : 1;
 
 	/** Whether this archive serializes to a text format. Text format archives should use high level constructs from FStructuredArchive for delimiting data rather than manually seeking through the file. */
@@ -636,17 +702,17 @@ protected:
 	/** Whether tagged property serialization is replaced by faster unversioned serialization. This assumes writer and reader share the same property definitions. */
 	uint8 ArUseUnversionedPropertySerialization : 1;
 
-	/** Whether this archive wants to always save strings in unicode format */
+	/** Whether this archive wants to always save strings in UTF16 format even if they are ANSI characters */
 	uint8 ArForceUnicode : 1;
 
-	/** Whether this archive saves to persistent storage. */
+	/** Whether this archive saves to persistent storage. This is also true for some intermediate archives like DuplicateObject that are expected to go to persistent storage but may be discarded */
 	uint8 ArIsPersistent : 1;
 
 private:
-	/** Whether this archive contains errors. */
+	/** Whether this archive contains errors, which means that further serialization is generally not safe */
 	uint8 ArIsError : 1;
 
-	/** Whether this archive contains critical errors. */
+	/** Whether this archive contains critical errors that cannot be recovered from */
 	uint8 ArIsCriticalError : 1;
 
 public:
@@ -662,7 +728,7 @@ public:
 	/** Whether we should forcefully swap bytes. */
 	uint8 ArForceByteSwapping : 1;
 
-	/** If true, we will not serialize the ObjectArchetype reference in UObject. */
+	/** If true, we will not serialize archetype references for structs and classes. */
 	uint8 ArIgnoreArchetypeRef : 1;
 
 	/** If true, do not perform delta serialization of properties. */
@@ -680,7 +746,7 @@ public:
 	/** If true, UObject::Serialize will skip serialization of the Class property. */
 	uint8 ArIgnoreClassRef : 1;
 
-	/** Whether to allow lazy loading. */
+	/** Whether to allow lazy loading of bulk/secondary data. */
 	uint8 ArAllowLazyLoading : 1;
 
 	/** Whether this archive only cares about serializing object references. */
@@ -689,7 +755,7 @@ public:
 	/** Whether a reference collector is modifying the references and wants both weak and strong ones */
 	uint8 ArIsModifyingWeakAndStrongReferences : 1;
 
-	/** Whether this archive is counting memory and therefore wants e.g. TMaps to be serialized. */
+	/** Whether this archive is counting memory. */
 	uint8 ArIsCountingMemory : 1;
 
 	/** Whether bulk data serialization should be skipped or not. */
@@ -1445,8 +1511,10 @@ public:
 	/** Packs int value into bytes of 7 bits with 8th bit for 'more' */
 	virtual void SerializeIntPacked(uint32& Value);
 
+	/** Tells the archive to attempt to preload the specified object so data can be loaded out of it. */
 	virtual void Preload(UObject* Object) { }
 
+	/** Returns the low level archive state for this archive. */
 	FArchiveState& GetArchiveState()
 	{
 		return ImplicitConv<FArchiveState&>(*this);
@@ -1469,6 +1537,7 @@ public:
 	using FArchiveState::TotalSize;
 	using FArchiveState::AtEnd;
 
+	/** Attempts to set the current offset into backing data storage, this will do nothing if there is no storage. */
 	virtual void Seek(int64 InPos) { }
 
 	/**
@@ -1523,7 +1592,6 @@ public:
 	/**
 	 * Flushes cache and frees internal data.
 	 */
-
 	virtual void FlushCache() { }
 
 	/**
@@ -1541,14 +1609,18 @@ public:
 		return false;
 	}
 
+	/** 
+	 * Attempts to finish writing any buffered data to disk/permanent storage.
+	 */
 	virtual void Flush() { }
 
+	/** 
+	 * Attempts to close and finalize any handles used for backing data storage, returns true if it succeeded.
+	 */
 	virtual bool Close()
 	{
 		return !IsError();
 	}
-
-	using FArchiveState::GetError;
 
 	/**
 	 * Serializes and compresses/ uncompresses data. This is a shared helper function for compression
@@ -1565,9 +1637,10 @@ public:
 
 	using FArchiveState::IsByteSwapping;
 
-	// Used to do byte swapping on small items. This does not happen usually, so we don't want it inline
+	/** Used to do byte swapping on small items. This does not happen usually, so we don't want it inline. */
 	void ByteSwap(void* V, int32 Length);
 
+	/** Serialize data of Length bytes, taking into account byte swapping if needed. */
 	FORCEINLINE FArchive& ByteOrderSerialize(void* V, int32 Length)
 	{
 		if (!IsByteSwapping()) // Most likely case (hot path)
@@ -1660,6 +1733,7 @@ public:
 	using FArchiveState::UseUnversionedPropertySerialization;
 	using FArchiveState::IsForcingUnicode;
 	using FArchiveState::IsPersistent;
+	using FArchiveState::GetError;
 	using FArchiveState::IsError;
 	using FArchiveState::IsCriticalError;
 	using FArchiveState::ContainsCode;
@@ -1929,8 +2003,8 @@ public:
 #if WITH_EDITOR
 	/** Custom serialization modifier flags can be used for anything */
 	using FArchiveState::ArDebugSerializationFlags;
-	/** Debug stack storage if you want to add data to the archive for usage further down the serialization stack this should be used in conjunction with the FScopeAddDebugData struct */
 	
+	/** Debug stack storage if you want to add data to the archive for usage further down the serialization stack this should be used in conjunction with the FScopeAddDebugData struct */
 	virtual void PushDebugDataString(const FName& DebugData);
 	virtual void PopDebugDataString() { }
 

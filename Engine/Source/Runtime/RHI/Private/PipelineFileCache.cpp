@@ -1468,14 +1468,14 @@ public:
 				Handle = MakeShareable(FPlatformFileManager::Get().GetPlatformFile().OpenAsyncRead(*FilePath));
 				if(Handle.IsValid())
 				{
-					UE_LOG(LogRHI, Log, TEXT("Opened FPipelineCacheFile: %s (GUID: %s) with %d entries."), *FilePath, *Guid.ToString(), Content.MetaData.Num());
+					UE_LOG(LogRHI, Log, TEXT("Opened FPipelineCacheFile: %s (GUID: %s) with %d entries."), *FilePath, *Header.Guid.ToString(), Content.MetaData.Num());
 					
 					Guid = Header.Guid;
 					TOCOffset = Header.TableOffset;
 				}
 				else
 				{
-					UE_LOG(LogRHI, Log, TEXT("Filed to create async read file handle to FPipelineCacheFile: %s (GUID: %s)"), *FilePath, *Guid.ToString());
+					UE_LOG(LogRHI, Log, TEXT("Filed to create async read file handle to FPipelineCacheFile: %s (GUID: %s)"), *FilePath, *Header.Guid.ToString());
 					bSuccess = false;
 				}
 			}

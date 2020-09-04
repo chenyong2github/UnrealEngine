@@ -1234,7 +1234,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 			const FString TypeDeclaration = Property->IsA<FMulticastDelegateProperty>()
 				? FString::Printf(TEXT("%s::%s"), *DelegatesClassName, *GenerateMulticastDelegateTypeName(CastFieldChecked<FMulticastDelegateProperty>(Property)))
 				: EmitterContext.ExportCppDeclaration(Property
-					, EExportedDeclaration::Parameter
+					, EExportedDeclaration::Member
 					, EPropertyExportCPPFlags::CPPF_CustomTypeName | EPropertyExportCPPFlags::CPPF_BlueprintCppBackend | EPropertyExportCPPFlags::CPPF_NoRef | EPropertyExportCPPFlags::CPPF_NoConst
 					, FEmitterLocalContext::EPropertyNameInDeclaration::Skip);
 			EmitterContext.Header.AddLine(FString::Printf(TEXT("FORCENOINLINE %s& GetRef__%s()"), *TypeDeclaration, *UnicodeToCPPIdentifier(Property->GetName(), false, nullptr)));
@@ -1265,6 +1265,7 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 		// FUNCTIONS:
 		for (auto Func : FunctionsToGenerate)
 		{
+			TArray<FString> OutParameters;
 			TArray<FString> FuncParameters;
 			const FString ParamNameInStructPostfix(TEXT("_"));
 			const FString FuncCppName = FEmitHelper::GetCppName(Func);
@@ -1318,7 +1319,13 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 						, FEmitterLocalContext::EPropertyNameInDeclaration::Regular
 						, ParamNameInStructPostfix);
 					FuncParameters.Emplace(ParamAsStructMember);
-					RawParameterList += UnicodeToCPPIdentifier(Property->GetName(), Property->HasAnyPropertyFlags(CPF_Deprecated), TEXT("bpp__"));
+					FString RawParameter = UnicodeToCPPIdentifier(Property->GetName(), Property->HasAnyPropertyFlags(CPF_Deprecated), TEXT("bpp__"));
+					if (Property->HasAnyPropertyFlags(CPF_OutParm) && !Property->HasAnyPropertyFlags(CPF_ConstParm))
+					{
+						// keep track of any output parameter names used in the function declaration
+						OutParameters.Add(RawParameter);
+					}
+					RawParameterList += MoveTemp(RawParameter);
 				}
 			}
 			DelareFunction += TEXT(")");
@@ -1348,7 +1355,15 @@ FString FBlueprintCompilerCppBackendBase::GenerateWrapperForClass(UClass* Source
 
 				EmitterContext.Header.AddLine(FString::Printf(TEXT("%s __Parameters { %s };"), *FuncParametersStructName, *RawParameterList));
 			}
+
 			EmitterContext.Header.AddLine(FString::Printf(TEXT("__Object->%s(__Function, %s);"), GET_FUNCTION_NAME_STRING_CHECKED(UObject, ProcessEvent), FuncParameters.Num() ? TEXT("&__Parameters") : TEXT("nullptr")));
+			
+			// emit code to copy any output parameter values back from the local parameter struct
+			for (const FString& OutParameter : OutParameters)
+			{
+				EmitterContext.Header.AddLine(FString::Printf(TEXT("%s = __Parameters.%s%s;"), *OutParameter, *OutParameter, *ParamNameInStructPostfix));
+			}
+
 			EmitterContext.Header.DecreaseIndent();
 			EmitterContext.Header.AddLine(TEXT("}"));
 		}

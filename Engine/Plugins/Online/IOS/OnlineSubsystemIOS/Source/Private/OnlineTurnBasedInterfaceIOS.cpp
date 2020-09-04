@@ -4,6 +4,7 @@
 #include "TurnBasedEventListener.h"
 #include "Interfaces/OnlineIdentityInterface.h"
 #include "OnlineSubsystem.h"
+#include "OnlineSubsystemIOS.h"
 #include "OnlineAsyncTaskManager.h"
 #include "Net/RepLayout.h"
 #include "Interfaces/TurnBasedMatchInterface.h"
@@ -117,7 +118,7 @@ int32 FTurnBasedMatchIOS::GetLocalPlayerIndex() const
 #ifdef __IPHONE_8_0
         if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
         {
-            PlayerIDString = participant.player.playerID;
+			PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
         }
         else
 #endif
@@ -167,7 +168,7 @@ int32 FTurnBasedMatchIOS::GetPlayerIndexForPlayer(NSString* PlayerID) const
 #ifdef __IPHONE_8_0
         if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
         {
-            PlayerIDString = participant.player.playerID;
+			PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
         }
         else
 #endif
@@ -606,7 +607,7 @@ NSArray* FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(GKTurnBasedMatch*
 #ifdef __IPHONE_8_0
         if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
         {
-            PlayerIDString = participant.player.playerID;
+			PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
         }
         else
 #endif

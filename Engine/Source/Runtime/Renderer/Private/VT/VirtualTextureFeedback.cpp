@@ -50,7 +50,7 @@ public:
 
 	bool Poll(FRHICommandListImmediate& RHICmdList, int32 Index)
 	{
-		return Fences[Index]->Poll();
+		return Fences[Index]->Poll(RHICmdList.GetGPUMask());
 	}
 
 	FGPUFenceRHIRef GetMapFence(int32 Index)
@@ -134,7 +134,7 @@ public:
 	bool Poll(FRHICommandListImmediate& RHICmdList, int32 Index)
 	{
 		uint64 Dummy;
-		return RHICmdList.GetRenderQueryResult(Fences[Index].GetQuery(), Dummy, false);
+		return RHICmdList.GetRenderQueryResult(Fences[Index].GetQuery(), Dummy, false, RHICmdList.GetGPUMask().ToIndex());
 	}
 
 	FGPUFenceRHIRef GetMapFence(int32 Index)
@@ -216,7 +216,15 @@ void FVirtualTextureFeedback::TransferGPUToCPU(FRHICommandListImmediate& RHICmdL
 
 bool FVirtualTextureFeedback::CanMap(FRHICommandListImmediate& RHICmdList)
 {
-	return NumPending > 0u && Fences->Poll(RHICmdList, ReadIndex);
+	if (NumPending > 0u)
+	{
+		SCOPED_GPU_MASK(RHICmdList, FeedbackItems[ReadIndex].GPUMask);
+		return Fences->Poll(RHICmdList, ReadIndex);
+	}
+	else
+	{
+		return false;
+	}
 }
 
 FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandListImmediate& RHICmdList, int32 MaxTransfersToMap)
@@ -234,6 +242,7 @@ FVirtualTextureFeedback::FMapResult FVirtualTextureFeedback::Map(FRHICommandList
 		const int32 FeedbackIndex = (ReadIndex + ResultIndex) % MaxTransfers;
 		FVirtualTextureFeedbackBufferDesc const& FeedbackItemDesc = FeedbackItems[FeedbackIndex].Desc;
 
+		SCOPED_GPU_MASK(RHICmdList, FeedbackItems[FeedbackIndex].GPUMask);
 		if (!Fences->Poll(RHICmdList, FeedbackIndex))
 		{
 			break;

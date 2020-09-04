@@ -18,6 +18,6 @@ public:
 		return FModuleManager::Get().IsModuleLoaded( "USDImporter" );
 	}
 
-	virtual class UUSDImporter* GetImporter() = 0;
+	virtual class UDEPRECATED_UUSDImporter* GetImporter() = 0;
 };
 

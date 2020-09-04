@@ -388,6 +388,46 @@ float UMovieSceneSequenceExtensions::GetWorkRangeEnd(UMovieSceneSequence* Sequen
 	return 0.f;
 }
 
+void UMovieSceneSequenceExtensions::SetEvaluationType(UMovieSceneSequence* Sequence, EMovieSceneEvaluationType InEvaluationType)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		MovieScene->SetEvaluationType(InEvaluationType);
+	}
+}
+
+EMovieSceneEvaluationType UMovieSceneSequenceExtensions::GetEvaluationType(UMovieSceneSequence* Sequence)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		return MovieScene->GetEvaluationType();
+	}
+
+	return EMovieSceneEvaluationType::WithSubFrames;
+}
+
+void UMovieSceneSequenceExtensions::SetClockSource(UMovieSceneSequence* Sequence, EUpdateClockSource InClockSource)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		MovieScene->SetClockSource(InClockSource);
+	}
+}
+
+EUpdateClockSource UMovieSceneSequenceExtensions::GetClockSource(UMovieSceneSequence* Sequence)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		return MovieScene->GetClockSource();
+	}
+
+	return EUpdateClockSource::Tick;
+}
+
 FTimecode UMovieSceneSequenceExtensions::GetTimecodeSource(UMovieSceneSequence* Sequence)
 {
 	UMovieScene* MovieScene = GetMovieScene(Sequence);
@@ -407,6 +447,20 @@ FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingByName(UMovieSc
 	if (MovieScene)
 	{
 		const FMovieSceneBinding* Binding = Algo::FindBy(MovieScene->GetBindings(), Name, &FMovieSceneBinding::GetName);
+		if (Binding)
+		{
+			return FSequencerBindingProxy(Binding->GetObjectGuid(), Sequence);
+		}
+	}
+	return FSequencerBindingProxy();
+}
+
+FSequencerBindingProxy UMovieSceneSequenceExtensions::FindBindingById(UMovieSceneSequence* Sequence, FGuid BindingId)
+{
+	UMovieScene* MovieScene = GetMovieScene(Sequence);
+	if (MovieScene)
+	{
+		const FMovieSceneBinding* Binding = Algo::FindBy(MovieScene->GetBindings(), BindingId, &FMovieSceneBinding::GetObjectGuid);
 		if (Binding)
 		{
 			return FSequencerBindingProxy(Binding->GetObjectGuid(), Sequence);
@@ -600,6 +654,17 @@ int32 UMovieSceneSequenceExtensions::AddMarkedFrame(UMovieSceneSequence* Sequenc
 	return INDEX_NONE;
 }
 
+
+void UMovieSceneSequenceExtensions::SetMarkedFrame(UMovieSceneSequence* Sequence, int32 InMarkIndex, FFrameNumber InFrameNumber)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		return MovieScene->SetMarkedFrame(InMarkIndex, InFrameNumber);
+	}
+}
+
+
 void UMovieSceneSequenceExtensions::DeleteMarkedFrame(UMovieSceneSequence* Sequence, int32 DeleteIndex)
 {
 	UMovieScene* MovieScene = Sequence->GetMovieScene();
@@ -619,6 +684,15 @@ void UMovieSceneSequenceExtensions::DeleteMarkedFrames(UMovieSceneSequence* Sequ
 		MovieScene->Modify();
 
 		MovieScene->DeleteMarkedFrames();
+	}
+}
+
+void UMovieSceneSequenceExtensions::SortMarkedFrames(UMovieSceneSequence* Sequence)
+{
+	UMovieScene* MovieScene = Sequence->GetMovieScene();
+	if (MovieScene)
+	{
+		return MovieScene->SortMarkedFrames();
 	}
 }
 

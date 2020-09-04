@@ -24,6 +24,11 @@
 #include "Framework/Views/TableViewTypeTraits.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/SListView.h"
+#if WITH_ACCESSIBILITY
+#include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
+#include "Widgets/Accessibility/SlateCoreAccessibleWidgets.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 DECLARE_DELEGATE( FOnComboBoxOpening )
 
@@ -166,6 +171,9 @@ public:
 
 		/** When true, allows the combo box to receive keyboard focus */
 		SLATE_ARGUMENT( bool, IsFocusable )
+
+		/** True if this combo's menu should be collapsed when our parent receives focus, false (default) otherwise */
+		SLATE_ARGUMENT(bool, CollapseMenuOnParentFocus)
 				
 	SLATE_END_ARGS()
 
@@ -233,6 +241,7 @@ public:
 			.ForegroundColor( InArgs._ForegroundColor )
 			.OnMenuOpenChanged(this, &SComboBox< OptionType >::OnMenuOpenChanged)
 			.IsFocusable(InArgs._IsFocusable)
+			.CollapseMenuOnParentFocus(InArgs._CollapseMenuOnParentFocus)
 		);
 		SetMenuContentWidgetToFocus(ComboListView);
 
@@ -247,6 +256,82 @@ public:
 		}
 
 	}
+
+		SComboBox()
+		{
+#if WITH_ACCESSIBILITY
+			AccessibleBehavior = EAccessibleBehavior::Auto;
+			bCanChildrenBeAccessible = true;
+#endif
+		}
+
+#if WITH_ACCESSIBILITY
+		protected:
+		friend class FSlateAccessibleComboBox;
+		/**
+		* An accessible implementation of SComboBox to expose to platform accessibility APIs.
+		* We inherit from IAccessibleProperty as Windows will use the interface to read out 
+		* the value associated with the combo box. Convenient place to return the value of the currently selected option. 
+		* For subclasses of SComboBox, inherit and override the necessary functions
+		*/
+		class FSlateAccessibleComboBox
+			: public FSlateAccessibleWidget
+			, public IAccessibleProperty
+		{
+		public:
+			FSlateAccessibleComboBox(TWeakPtr<SWidget> InWidget)
+				: FSlateAccessibleWidget(InWidget, EAccessibleWidgetType::ComboBox)
+			{}
+
+			// IAccessibleWidget
+			virtual IAccessibleProperty* AsProperty() override 
+			{ 
+				return this; 
+			}
+			// ~
+
+			// IAccessibleProperty
+			virtual FString GetValue() const override
+			{
+				if (Widget.IsValid())
+				{
+					TSharedPtr<SComboBox<OptionType>> ComboBox = StaticCastSharedPtr<SComboBox<OptionType>>(Widget.Pin());
+					if (TListTypeTraits<OptionType>::IsPtrValid(ComboBox->SelectedItem))
+					{
+						OptionType SelectedOption = TListTypeTraits<OptionType>::NullableItemTypeConvertToItemType(ComboBox->SelectedItem);
+						TSharedPtr<ITableRow> SelectedTableRow = ComboBox->ComboListView->WidgetFromItem(SelectedOption);
+						if (SelectedTableRow.IsValid())
+						{
+							TSharedRef<SWidget> TableRowWidget = SelectedTableRow->AsWidget();
+							return TableRowWidget->GetAccessibleText().ToString();
+						}
+					}
+				}
+				return FText::GetEmpty().ToString();
+			}
+
+			virtual FVariant GetValueAsVariant() const override
+			{
+				return FVariant(GetValue());
+			}
+			// ~
+		};
+
+		public:
+		virtual TSharedRef<FSlateAccessibleWidget> CreateAccessibleWidget() override
+		{
+			return MakeShareable<FSlateAccessibleWidget>(new SComboBox<OptionType>::FSlateAccessibleComboBox(SharedThis(this)));
+		}
+
+		virtual TOptional<FText> GetDefaultAccessibleText(EAccessibleType AccessibleType) const
+		{
+			// current behaviour will red out the  templated type of the combo box which is verbose and unhelpful 
+			// This coupled with UIA type will announce Combo Box twice, but it's the best we can do for now if there's no label
+			//@TODOAccessibility: Give a better name
+			static FString Name(TEXT("Combo Box"));
+			return FText::FromString(Name);
+		}
+#endif
 
 	void ClearSelection( )
 	{

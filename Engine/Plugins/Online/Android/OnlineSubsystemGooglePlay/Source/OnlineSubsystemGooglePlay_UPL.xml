@@ -28,7 +28,7 @@
 			<true>
 				<insert>
 					dependencies {
-					implementation 'com.android.billingclient:billing:2.0.3'
+					implementation 'com.android.billingclient:billing:3.0.0'
 					}
 				</insert>
 			</true>

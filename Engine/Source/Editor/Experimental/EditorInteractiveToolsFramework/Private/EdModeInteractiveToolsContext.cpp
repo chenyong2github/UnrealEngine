@@ -56,7 +56,7 @@ class FEdModeToolsContextQueriesImpl : public IToolsContextQueriesAPI
 public:
 	UEdModeInteractiveToolsContext* ToolsContext;
 	FEditorModeTools* EditorModeManager;
-	
+
 	FViewCameraState CachedViewState;
 	FEditorViewportClient* CachedViewportClient;
 
@@ -178,7 +178,7 @@ public:
 		//
 		// Run a snap query by casting ray into the world.
 		// If a hit is found, we look up what triangle was hit, and then test its vertices and edges
-		// 
+		//
 
 		// cast ray into world
 		FVector RayStart = CachedViewState.Position;
@@ -190,7 +190,7 @@ public:
 		QueryParams.bReturnFaceIndex = true;
 		FHitResult HitResult;
 		bool bHitWorld = EditorModeManager->GetWorld()->LineTraceSingleByObjectType(HitResult, RayStart, RayEnd, ObjectQueryParams, QueryParams);
-		if (bHitWorld && HitResult.FaceIndex >= 0) 
+		if (bHitWorld && HitResult.FaceIndex >= 0)
 		{
 			float VisualAngle = OpeningAngleDeg(Request.Position, HitResult.ImpactPoint, RayStart);
 			//UE_LOG(LogTemp, Warning, TEXT("[HIT] visualangle %f faceindex %d"), VisualAngle, HitResult.FaceIndex);
@@ -211,7 +211,7 @@ public:
 
 					// physics collision data is created from StaticMesh RenderData
 					// so use HitResult.FaceIndex to extract triangle from the LOD0 mesh
-					// (note: this may be incorrect if there are multiple sections...in that case I think we have to 
+					// (note: this may be incorrect if there are multiple sections...in that case I think we have to
 					//  first find section whose accumulated index range would contain .FaceIndexX)
 					UStaticMesh* StaticMesh = Cast<UStaticMeshComponent>(Component)->GetStaticMesh();
 					FStaticMeshLODResources& LOD = StaticMesh->RenderData->LODResources[0];
@@ -221,7 +221,7 @@ public:
 					Positions[0] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx]);
 					Positions[1] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx+1]);
 					Positions[2] = LOD.VertexBuffers.PositionVertexBuffer.VertexPosition(Indices[TriIdx+2]);
-					
+
 					// transform to world space
 					FTransform ComponentTransform = Component->GetComponentTransform();
 					Positions[0] = ComponentTransform.TransformPosition(Positions[0]);
@@ -313,7 +313,7 @@ public:
 
 	static FVector NearestSegmentPt(FVector A, FVector B, const FVector& P)
 	{
-		FVector Direction = (B - A); 
+		FVector Direction = (B - A);
 		float Length = Direction.Size();
 		Direction /= Length;
 		float t = FVector::DotProduct( (P - A), Direction);
@@ -478,7 +478,7 @@ void UEdModeInteractiveToolsContext::Initialize(IToolsContextQueriesAPI* Queries
 
 	// If user right-press-drags, this enables "fly mode" in the main viewport, and in that mode the QEWASD keys should
 	// be used for flying control. However the EdMode InputKey/etc system doesn't enforce any of this, we can still also
-	// get that mouse input and hotkeys. So we register a dummy behavior that captures all right-mouse dragging, and 
+	// get that mouse input and hotkeys. So we register a dummy behavior that captures all right-mouse dragging, and
 	// in that mode we set bInFlyMode=true, so that Modes based on this Context will know to skip hotkey processing
 	ULocalClickDragInputBehavior* RightMouseBehavior = NewObject<ULocalClickDragInputBehavior>(this);
 	RightMouseBehavior->CanBeginClickDragFunc = [](const FInputDeviceRay& PressPos) { return  FInputRayHit(0); };
@@ -816,7 +816,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 	// enter key accepts current tool, or ends tool if it does not have accept state
 	if (Key == EKeys::Enter && Event == IE_Released && ToolManager->HasAnyActiveTool())
 	{
-		if (ToolManager->HasActiveTool(EToolSide::Mouse)) 
+		if (ToolManager->HasActiveTool(EToolSide::Mouse))
 		{
 			if (ToolManager->GetActiveTool(EToolSide::Mouse)->HasAccept())
 			{
@@ -928,7 +928,7 @@ bool UEdModeInteractiveToolsContext::InputKey(FEditorViewportClient* ViewportCli
 		{
 			// not supported yet
 		}
-		else if (Key.IsFloatAxis() || Key.IsVectorAxis())
+		else if (Key.IsAnalog())
 		{
 			// not supported yet
 		}
@@ -982,7 +982,7 @@ bool UEdModeInteractiveToolsContext::MouseMove(FEditorViewportClient* ViewportCl
 
 	if (InputRouter->HasActiveMouseCapture())
 	{
-		// This state occurs if InputBehavior did not release capture on mouse release. 
+		// This state occurs if InputBehavior did not release capture on mouse release.
 		// UMultiClickSequenceInputBehavior does this, eg for multi-click draw-polygon sequences.
 		// It's not ideal though and maybe would be better done via multiple captures + hover...?
 		InputRouter->PostInputEvent(InputState);

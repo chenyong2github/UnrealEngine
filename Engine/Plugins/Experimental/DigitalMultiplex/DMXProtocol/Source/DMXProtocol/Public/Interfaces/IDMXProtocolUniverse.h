@@ -12,10 +12,13 @@ public:
 	virtual IDMXProtocolPtr GetProtocol() const = 0;
 	virtual FDMXBufferPtr GetInputDMXBuffer() const = 0;
 	virtual FDMXBufferPtr GetOutputDMXBuffer() const = 0;
+	virtual void ZeroInputDMXBuffer() = 0;
+	virtual void ZeroOutputDMXBuffer() = 0;
 	virtual bool SetDMXFragment(const IDMXFragmentMap& DMXFragment) = 0;
 	virtual uint8 GetPriority() const = 0;
 	virtual uint32 GetUniverseID() const = 0;
 	virtual TSharedPtr<FJsonObject> GetSettings() const = 0;
+	virtual void UpdateSettings(const FJsonObject& InSettings) = 0;
 	virtual bool IsSupportRDM() const = 0;
 
 	/** Tick on the end of each frame */

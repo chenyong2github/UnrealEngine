@@ -7,7 +7,6 @@ class FControlRigEditMode;
 struct FRigElementKey;
 class SSearchBox;
 class UControlRig;
-class IControlRigManipulatable;
 struct FRigControl;
 class SControlHierarchy;
 
@@ -42,6 +41,7 @@ public:
 	~SControlHierarchy();
 
 	void Construct(const FArguments& InArgs, UControlRig* InControlRig);
+	UControlRig* GetControlRig() const;
 	void SetControlRig(UControlRig* InControlRig);
 private:
 	/** Rebuild the tree view */
@@ -85,7 +85,7 @@ private:
 	static TSharedPtr<FControlTreeElement> FindElement(const FRigElementKey& InElementKey, TSharedPtr<FControlTreeElement> CurrentItem);
 
 	void SetExpansionRecursive(TSharedPtr<FControlTreeElement> InElements, bool bTowardsParent);
-	void OnRigElementSelected(IControlRigManipulatable* ControlRigManp, const FRigControl& Control, bool bSelected);
+	void OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
 	FRigHierarchyContainer* GetHierarchyContainer() const;
 	void AddElement(FRigElementKey InKey, FRigElementKey InParentKey = FRigElementKey());
 	void AddControlElement(FRigControl InControl);

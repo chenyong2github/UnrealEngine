@@ -1,10 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "Render\Presentation\DisplayClusterPresentationBase.h "
+#include "Render/Presentation/DisplayClusterPresentationBase.h "
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 // Custom VSync interval control
@@ -35,13 +35,10 @@ uint32 FDisplayClusterPresentationBase::GetSwapInt() const
 
 void FDisplayClusterPresentationBase::OnBackBufferResize()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 bool FDisplayClusterPresentationBase::Present(int32& InOutSyncInterval)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	// Update sync value with nDisplay value
 	InOutSyncInterval = GetSwapInt();
 

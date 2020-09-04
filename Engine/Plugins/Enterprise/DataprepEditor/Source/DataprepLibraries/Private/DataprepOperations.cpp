@@ -352,6 +352,27 @@ void UDataprepRandomizeTransformOperation::OnExecution_Implementation(const FDat
 	UDataprepOperationsLibrary::RandomizeTransform(InContext.Objects, TransformType, ReferenceFrame, Min, Max);
 }
 
+void UDataprepRandomizeTransformOperation::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
+
+	const FName PropertyName = PropertyChangedEvent.MemberProperty->GetFName();
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDataprepRandomizeTransformOperation, Min))
+	{
+		Max.X = FMath::Max(Max.X, Min.X);
+		Max.Y = FMath::Max(Max.Y, Min.Y);
+		Max.Z = FMath::Max(Max.Z, Min.Z);
+	}
+
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDataprepRandomizeTransformOperation, Max))
+	{
+		Min.X = FMath::Min(Max.X, Min.X);
+		Min.Y = FMath::Min(Max.Y, Min.Y);
+		Min.Z = FMath::Min(Max.Z, Min.Z);
+	}
+}
+
 void UDataprepFlipFacesOperation::OnExecution_Implementation(const FDataprepContext& InContext)
 {
 #ifdef LOG_TIME

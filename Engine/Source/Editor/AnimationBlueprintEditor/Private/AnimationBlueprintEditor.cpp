@@ -257,10 +257,9 @@ void FAnimationBlueprintEditor::InitAnimationBlueprintEditor(const EToolkitMode:
 	RegisterMenus();
 
 	// Initialize the asset editor and spawn tabs
-	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
-	InitAssetEditor(Mode, InitToolkitHost, AnimationBlueprintEditorAppName, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsBeingEdited);
+	InitAssetEditor(Mode, InitToolkitHost, AnimationBlueprintEditorAppName, FTabManager::FLayout::NullLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsBeingEdited);
 
 	TArray<UBlueprint*> AnimBlueprints;
 	AnimBlueprints.Add(InAnimBlueprint);

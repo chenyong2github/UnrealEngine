@@ -481,10 +481,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			}
 			check(BackBuffers[i]->GetRefCount() == 1);
 
-			for (FD3D12Texture2D* Tex = BackBuffers[i]; Tex; Tex = (FD3D12Texture2D*)Tex->GetNextObject())
+			for (FD3D12TextureBase& Tex : *BackBuffers[i])
 			{
-				Tex->DoNoDeferDelete();
-				Tex->GetResource()->DoNotDeferDelete();
+				static_cast<FD3D12Texture2D&>(Tex).DoNoDeferDelete();
+				Tex.GetResource()->DoNotDeferDelete();
 			}
 		}
 		
@@ -499,10 +499,10 @@ void FD3D12Viewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
 			}
 			check(SDRBackBuffers[i]->GetRefCount() == 1);
 
-			for (FD3D12Texture2D* Tex = SDRBackBuffers[i]; Tex; Tex = (FD3D12Texture2D*)Tex->GetNextObject())
+			for (FD3D12TextureBase& Tex : *SDRBackBuffers[i])
 			{
-				Tex->DoNoDeferDelete();
-				Tex->GetResource()->DoNotDeferDelete();
+				static_cast<FD3D12Texture2D&>(Tex).DoNoDeferDelete();
+				Tex.GetResource()->DoNotDeferDelete();
 			}
 		}
 
@@ -810,8 +810,8 @@ bool FD3D12Viewport::Present(bool bLockToVsync)
 		FD3D12CommandContext& DefaultContext = Device->GetDefaultCommandContext();
 
 		// Those are not necessarily the swap chain back buffer in case of multi-gpu
-		FD3D12Texture2D* DeviceBackBuffer = static_cast<FD3D12Texture2D*>(DefaultContext.RetrieveTextureBase(GetBackBuffer_RHIThread()));
-		FD3D12Texture2D* DeviceSDRBackBuffer = static_cast<FD3D12Texture2D*>(DefaultContext.RetrieveTextureBase(GetSDRBackBuffer_RHIThread()));
+		FD3D12Texture2D* DeviceBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture2D, FRHITexture2D*>(GetBackBuffer_RHIThread());
+		FD3D12Texture2D* DeviceSDRBackBuffer = DefaultContext.RetrieveObject<FD3D12Texture2D, FRHITexture2D*>(GetSDRBackBuffer_RHIThread());
 
 		FD3D12DynamicRHI::TransitionResource(DefaultContext.CommandListHandle, DeviceBackBuffer->GetShaderResourceView(), D3D12_RESOURCE_STATE_PRESENT);
 		if (SDRBackBuffer_RHIThread != nullptr)
@@ -979,7 +979,7 @@ void FD3D12CommandContextBase::RHIBeginDrawingViewport(FRHIViewport* ViewportRHI
 
 	// Set the render target.
 	const FRHIRenderTargetView RTView(RenderTargetRHI, ERenderTargetLoadAction::ELoad);
-	RHISetRenderTargets(1, &RTView, nullptr);
+	SetRenderTargets(1, &RTView, nullptr);
 }
 
 void FD3D12CommandContextBase::RHIEndDrawingViewport(FRHIViewport* ViewportRHI, bool bPresent, bool bLockToVsync)

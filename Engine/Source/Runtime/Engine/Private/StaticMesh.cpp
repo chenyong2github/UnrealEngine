@@ -2185,7 +2185,7 @@ static void SerializeBuildSettingsForDDC(FArchive& Ar, FMeshBuildSettings& Build
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
 // and set this new GUID as the version.
-#define STATICMESH_DERIVEDDATA_VER TEXT("E0B270337A00477691AB817313334887")
+#define STATICMESH_DERIVEDDATA_VER TEXT("14FB7BD55BAA4C14BCDC7C2AD14BCE50")
 
 static const FString& GetStaticMeshDerivedDataVersion()
 {
@@ -4126,51 +4126,6 @@ void UStaticMesh::ClearMeshDescriptions()
 	}
 }
 
-void UStaticMesh::FixupMaterialSlotName()
-{
-	TSet<FName> UniqueMaterialSlotName;
-	int32 UniqueIndex = 1;
-	//Make sure we have non empty imported material slot names
-	for (FStaticMaterial& Material : StaticMaterials)
-	{
-		if (Material.ImportedMaterialSlotName == NAME_None)
-		{
-			if (Material.MaterialSlotName != NAME_None)
-			{
-				Material.ImportedMaterialSlotName = Material.MaterialSlotName;
-			}
-			else if (Material.MaterialInterface != nullptr)
-			{
-				Material.ImportedMaterialSlotName = Material.MaterialInterface->GetFName();
-			}
-			else
-			{
-				Material.ImportedMaterialSlotName = FName(TEXT("MaterialSlot"));
-			}
-		}
-
-		FName UniqueName = Material.ImportedMaterialSlotName;
-		if (UniqueMaterialSlotName.Contains(UniqueName))
-		{
-			if (UniqueName.GetStringLength() < NAME_SIZE)
-			{
-				UniqueName = *FString::Printf(TEXT("%s_%d"), *UniqueName.ToString(), UniqueIndex);
-			}
-
-			while (UniqueMaterialSlotName.Contains(UniqueName) && UniqueIndex < MAX_int32)
-		{
-				UniqueName.SetNumber(++UniqueIndex);
-			}
-		}
-		Material.ImportedMaterialSlotName = UniqueName;
-		UniqueMaterialSlotName.Add(Material.ImportedMaterialSlotName);
-		if (Material.MaterialSlotName == NAME_None)
-		{
-			Material.MaterialSlotName = Material.ImportedMaterialSlotName;
-		}
-	}
-}
-
 // If static mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
@@ -4887,7 +4842,8 @@ void UStaticMesh::PostLoad()
 			SetLODGroup(LODGroup);
 		}
 
-		FixupMaterialSlotName();
+		IMeshUtilities& MeshUtilities = FModuleManager::Get().LoadModuleChecked<IMeshUtilities>("MeshUtilities");
+		MeshUtilities.FixupMaterialSlotNames(this);
 
 		if (bIsBuiltAtRuntime)
 		{
@@ -4978,6 +4934,7 @@ void UStaticMesh::PostLoad()
 				if (BodySetup)
 				{
 					BodySetup->InvalidatePhysicsData();
+					UE_LOG(LogStaticMesh, Warning, TEXT("Mesh %s is recomputing physics on load. It must be resaved before it will cook deterministically. Please resave %s."), *GetName(), *GetPathName());
 				}
 			}
 			bCleanUpRedundantMaterialPostLoad = false;
@@ -5355,11 +5312,13 @@ void UStaticMesh::BuildFromStaticMeshDescriptions(const TArray<UStaticMeshDescri
 		MeshDescriptions.Emplace(&StaticMeshDescription->GetMeshDescription());
 	}
 
-	BuildFromMeshDescriptions(MeshDescriptions, bBuildSimpleCollision);
+	FBuildMeshDescriptionsParams Params;
+	Params.bBuildSimpleCollision = bBuildSimpleCollision;
+	BuildFromMeshDescriptions(MeshDescriptions, Params);
 }
 
 
-bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, bool bBuildSimpleCollision)
+bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*>& MeshDescriptions, const FBuildMeshDescriptionsParams& Params)
 {
 	// Set up
 
@@ -5379,6 +5338,10 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 		ReleaseResourcesFence.Wait();
 	}
 
+#if WITH_EDITOR
+	SetNumSourceModels(MeshDescriptions.Num());
+#endif
+
 	RenderData = MakeUnique<FStaticMeshRenderData>();
 	RenderData->AllocateLODResources(MeshDescriptions.Num());
 
@@ -5389,9 +5352,14 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	{
 #if WITH_EDITOR
 		// Editor builds cache the mesh description so that it can be preserved during map reloads etc
-		SetNumSourceModels(MeshDescriptions.Num());
-		CreateMeshDescription(LODIndex, *MeshDescriptionPtr);
-		CommitMeshDescription(LODIndex);
+		if (Params.bCommitMeshDescription)
+		{
+			CreateMeshDescription(LODIndex, *MeshDescriptionPtr);
+			FCommitMeshDescriptionParams CommitParams;
+			CommitParams.bMarkPackageDirty = Params.bMarkPackageDirty;
+			CommitParams.bUseHashAsGuid = Params.bUseHashAsGuid;
+			CommitMeshDescription(LODIndex, CommitParams);
+		}
 #endif
 		check(MeshDescriptionPtr != nullptr);
 		FStaticMeshLODResources& LODResources = RenderData->LODResources[LODIndex];
@@ -5448,7 +5416,7 @@ bool UStaticMesh::BuildFromMeshDescriptions(const TArray<const FMeshDescription*
 	check(BodySetup);
 	BodySetup->InvalidatePhysicsData();
 
-	if (bBuildSimpleCollision)
+	if (Params.bBuildSimpleCollision)
 	{
 		FKBoxElem BoxElem;
 		BoxElem.Center = RenderData->Bounds.Origin;

@@ -3,7 +3,7 @@
 #include "USDImportOptions.h"
 #include "UObject/UnrealType.h"
 
-UUSDImportOptions::UUSDImportOptions(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UUSDImportOptions::UDEPRECATED_UUSDImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	MeshImportType = EUsdMeshImportType::StaticMesh;
@@ -11,7 +11,7 @@ UUSDImportOptions::UUSDImportOptions(const FObjectInitializer& ObjectInitializer
 	Scale = 1.0;
 }
 
-void UUSDImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UDEPRECATED_UUSDImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
@@ -21,7 +21,7 @@ void UUSDImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& Pro
 	}
 }
 
-UUSDSceneImportOptions::UUSDSceneImportOptions(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UUSDSceneImportOptions::UDEPRECATED_UUSDSceneImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PurposesToImport = (int32) (EUsdPurpose::Default | EUsdPurpose::Proxy);
@@ -33,20 +33,20 @@ UUSDSceneImportOptions::UUSDSceneImportOptions(const FObjectInitializer& ObjectI
 	bApplyWorldTransformToGeometry = false;
 }
 
-void UUSDSceneImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UDEPRECATED_UUSDSceneImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UUSDSceneImportOptions::CanEditChange(const FProperty* InProperty) const
+bool UDEPRECATED_UUSDSceneImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEdit = Super::CanEditChange(InProperty);
 
 	FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
 
-	if (GET_MEMBER_NAME_CHECKED(UUSDImportOptions, MeshImportType) == PropertyName ||
-		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName ||
-		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bGenerateUniquePathPerUSDPrim) == PropertyName)
+	if (GET_MEMBER_NAME_CHECKED(UDEPRECATED_UUSDImportOptions, MeshImportType) == PropertyName ||
+		GET_MEMBER_NAME_CHECKED(UDEPRECATED_UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName ||
+		GET_MEMBER_NAME_CHECKED(UDEPRECATED_UUSDImportOptions, bGenerateUniquePathPerUSDPrim) == PropertyName)
 	{
 		bCanEdit &= bImportMeshes;
 	}
@@ -54,7 +54,7 @@ bool UUSDSceneImportOptions::CanEditChange(const FProperty* InProperty) const
 	return bCanEdit;
 }
 
-UUSDBatchImportOptions::UUSDBatchImportOptions(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UUSDBatchImportOptions::UDEPRECATED_UUSDBatchImportOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	bImportMeshes = true;
@@ -64,20 +64,20 @@ UUSDBatchImportOptions::UUSDBatchImportOptions(const FObjectInitializer& ObjectI
 	bApplyWorldTransformToGeometry = false;
 }
 
-void UUSDBatchImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
+void UDEPRECATED_UUSDBatchImportOptions::PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent)
 {
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 
-bool UUSDBatchImportOptions::CanEditChange(const FProperty* InProperty) const
+bool UDEPRECATED_UUSDBatchImportOptions::CanEditChange(const FProperty* InProperty) const
 {
 	bool bCanEdit = Super::CanEditChange(InProperty);
 
 	FName PropertyName = InProperty ? InProperty->GetFName() : NAME_None;
 
-	if (GET_MEMBER_NAME_CHECKED(UUSDImportOptions, MeshImportType) == PropertyName ||
-		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName ||
-		GET_MEMBER_NAME_CHECKED(UUSDImportOptions, bGenerateUniquePathPerUSDPrim) == PropertyName)
+	if (GET_MEMBER_NAME_CHECKED(UDEPRECATED_UUSDImportOptions, MeshImportType) == PropertyName ||
+		GET_MEMBER_NAME_CHECKED(UDEPRECATED_UUSDImportOptions, bApplyWorldTransformToGeometry) == PropertyName ||
+		GET_MEMBER_NAME_CHECKED(UDEPRECATED_UUSDImportOptions, bGenerateUniquePathPerUSDPrim) == PropertyName)
 	{
 		bCanEdit &= bImportMeshes;
 	}
@@ -85,7 +85,7 @@ bool UUSDBatchImportOptions::CanEditChange(const FProperty* InProperty) const
 	return bCanEdit;
 }
 
-UUSDBatchImportOptionsSubTask::UUSDBatchImportOptionsSubTask(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_UUSDBatchImportOptionsSubTask::UDEPRECATED_UUSDBatchImportOptionsSubTask(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 }

@@ -107,6 +107,7 @@ public:
 	virtual FGuid GetCustomGuid() const override;
 	virtual FString GetStructCPPName() const override;
 	virtual FProperty* CustomFindProperty(const FName Name) const override;
+	virtual void PrepareCppStructOps();
 	// End of  UScriptStruct interface.
 
 	/** Returns the raw memory of the default instance */

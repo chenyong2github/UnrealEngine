@@ -181,7 +181,25 @@ bool FImageWriteTask::WriteToDisk()
 			{
 				if (InitializeWrapper(ImageWrapper, Format))
 				{
-					bSuccess = FFileHelper::SaveArrayToFile(ImageWrapper->GetCompressed(CompressionQuality), *Filename);
+					const TArray64<uint8>& CompressedFile = ImageWrapper->GetCompressed(CompressionQuality);
+					uint64 TotalNumberOfBytes, NumberOfFreeBytes;
+					if (FPlatformMisc::GetDiskTotalAndFreeSpace(FPaths::GetPath(Filename), TotalNumberOfBytes, NumberOfFreeBytes))
+					{
+						if (NumberOfFreeBytes < (uint64)CompressedFile.Num() + 4096)
+						{
+							UE_LOG(LogImageWriteQueue, Error, TEXT("Failed to write image to '%s'. There is not enough free space on the disk."), *Filename);
+							return false;
+						}
+					}
+					else
+					{
+						uint32 ErrorCode = FPlatformMisc::GetLastError();
+						TCHAR ErrorBuffer[1024];
+						FPlatformMisc::GetSystemErrorMessage(ErrorBuffer, 1024, ErrorCode);
+						UE_LOG(LogImageWriteQueue, Warning, TEXT("Fail to check free space for %s. Error: %u (%s)"), *FPaths::GetPath(Filename), ErrorCode, ErrorBuffer);
+					}
+					IFileManager* FileManager = &IFileManager::Get();
+					bSuccess = FFileHelper::SaveArrayToFile(CompressedFile, *Filename);
 				}
 
 				GImageWrappers.ReturnImageWrapper(ImageWrapper);

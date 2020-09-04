@@ -84,16 +84,10 @@ half2 SunConstDepthMaskScaleBias()
 // Convert depth in alpha into combined circle of confusion and sun intensity.
 //
 
-void SunMaskVS_ES2(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 InTexCoord : ATTRIBUTE1,
-	out float4 OutUVPos : TEXCOORD0,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	DrawRectangle(InPosition, InTexCoord, OutPosition, OutUVPos.xy);
-	OutUVPos.zw = OutPosition.xy;
-}
+#if SHADER_SUN_MASK
+
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
 
 void SunMaskPS_ES2(
 	float4 InUVPos : TEXCOORD0,
@@ -103,7 +97,7 @@ void SunMaskPS_ES2(
 #endif
 	)
 {
-	half4 SceneColor = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVPos.xy);
+	half4 SceneColor = SceneColorTexture.Sample(SceneColorSampler, InUVPos.xy);
 
 	#if ES2_USE_DEPTHTEXTURE
 		half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, InUVPos.xy, 0).r);
@@ -141,6 +135,8 @@ void SunMaskPS_ES2(
 		OutColor.a = OutSunShaftAndDof;
 	#endif
 }
+
+#endif
 
 //
 // Pre-tonemap before hardware box-filtered resolve.

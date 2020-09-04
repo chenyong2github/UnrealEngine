@@ -9,6 +9,7 @@
 #include "MetalViewport.h"
 
 class FMetalContext;
+struct FMetalCommandBufferFence;
 
 /** The interface RHI command context. */
 class FMetalRHICommandContext : public IRHICommandContext
@@ -114,7 +115,7 @@ public:
 	// @param MaxY excluding like Win32 RECT
 	virtual void RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY) final override;
 	
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState) final override;
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState) final override;
 
 	virtual void RHISetGlobalUniformBuffers(const FUniformBufferStaticBindings& InUniformBuffers) final override;
 
@@ -165,9 +166,9 @@ public:
 
 	virtual void RHISetBlendFactor(const FLinearColor& BlendFactor) final override;
 
-	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) final override;
+	void SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget);
 	
-	virtual void RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo) final override;
+	void SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo);
 	
 	virtual void RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances) final override;
 	
@@ -237,10 +238,6 @@ public:
 	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) final override;
 
 	virtual void RHIEndRenderPass() final override;
-	
-	virtual void RHIBeginComputePass(const TCHAR* InName) final override;
-	
-	virtual void RHIEndComputePass() final override;
 	
 	virtual void RHINextSubpass() final override;
 

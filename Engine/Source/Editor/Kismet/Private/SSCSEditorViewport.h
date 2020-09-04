@@ -83,6 +83,11 @@ protected:
 	 */
 	bool IsVisible() const override;
 
+	/**
+	 * Returns true if the viewport commands should be shown
+	 */
+	bool ShouldShowViewportCommands() const;
+
 	/** Called when the simulation toggle command is fired */
 	void ToggleIsSimulateEnabled();
 

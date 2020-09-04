@@ -115,6 +115,7 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 		// save texture settings if texture exist
 		TextureFact->SuppressImportOverwriteDialog();
 		const TCHAR* TextureType = *Extension;
+		const bool bTextureAssetAlreadyExists = FindObject<UTexture>(TexturePackage, *TextureName) != nullptr;
 
 		// Unless the normal map setting is used during import, 
 		//	the user has to manually hit "reimport" then "recompress now" button
@@ -139,6 +140,12 @@ UTexture* UnFbx::FFbxImporter::ImportTexture(FbxFileTexture* FbxTexture, bool bS
 
 		if ( UnrealTexture != NULL )
 		{
+			if ( !bTextureAssetAlreadyExists )
+			{
+				//This asset did not override any other asset during its creation, so it is considered as newly created.
+				 CreatedObjects.Add(UnrealTexture);
+			}
+
 			//Make sure the AssetImportData point on the texture file and not on the fbx files since the factory point on the fbx file
 			UnrealTexture->AssetImportData->Update(IFileManager::Get().ConvertToAbsolutePathForExternalAppForRead(*FinalFilePath));
 
@@ -638,6 +645,7 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 		{
 			bCanInstance &= !FbxImportOptions->BaseEmissiveColorName.IsEmpty();
 		}
+
 		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sSpecular, FbxImportOptions->BaseSpecularTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
 		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sNormalMap, FbxImportOptions->BaseNormalTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
 		bCanInstance &= CanUseMaterialWithInstance(FbxMaterial, FbxSurfaceMaterial::sTransparentColor, FbxImportOptions->BaseOpacityTextureName, FbxImportOptions->BaseMaterial, OutUVSets);
@@ -650,6 +658,7 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 		UMaterialInstanceConstant* UnrealMaterialConstant = (UMaterialInstanceConstant*)MaterialInstanceFactory->FactoryCreateNew(UMaterialInstanceConstant::StaticClass(), Package, *FinalMaterialName, RF_Standalone | RF_Public, NULL, GWarn);
 		if (UnrealMaterialConstant != NULL)
 		{
+			CreatedObjects.Add(UnrealMaterialConstant);
 			UnrealMaterialFinal = UnrealMaterialConstant;
 			// Notify the asset registry
 			FAssetRegistryModule::AssetCreated(UnrealMaterialConstant);
@@ -751,6 +760,7 @@ UMaterialInterface* UnFbx::FFbxImporter::CreateUnrealMaterial(const FbxSurfaceMa
 
 		if (UnrealMaterial != NULL)
 		{
+			CreatedObjects.Add(UnrealMaterial);
 			UnrealMaterialFinal = UnrealMaterial;
 			// Notify the asset registry
 			FAssetRegistryModule::AssetCreated(UnrealMaterial);

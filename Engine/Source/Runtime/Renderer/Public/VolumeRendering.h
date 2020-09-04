@@ -7,6 +7,7 @@
 #pragma once
 
 #include "Shader.h"
+#include "ShaderCompilerCore.h"
 #include "ShaderParameters.h"
 #include "GlobalShader.h"
 #include "ShaderParameterUtils.h"

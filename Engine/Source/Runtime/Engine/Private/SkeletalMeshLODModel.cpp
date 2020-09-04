@@ -1163,7 +1163,7 @@ void FSkeletalMeshLODModel::UpdateChunkedSectionInfo(const FString& SkeletalMesh
 	}
 }
 
-void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source)
+void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, const FSkeletalMeshLODModel* Source)
 {
 	//The private Lock should always be valid
 	check(Source);
@@ -1174,7 +1174,6 @@ void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FS
 	FScopeLock LockSource(Source->BulkDataReadMutex);
 	FScopeLock LockDestination(Destination->BulkDataReadMutex);
 
-
 	FCriticalSection* DestinationBulkDataReadMutex = Destination->BulkDataReadMutex;
 
 	//Empty the Destination BulkData to avoid leaks
@@ -1183,9 +1182,9 @@ void FSkeletalMeshLODModel::CopyStructure(FSkeletalMeshLODModel* Destination, FS
 	Destination->RawSkeletalMeshBulkData_DEPRECATED.EmptyBulkData();
 
 	// Bulk data arrays need to be locked before a copy can be made.
-	Source->RawPointIndices.Lock(LOCK_READ_ONLY);
-	Source->LegacyRawPointIndices.Lock(LOCK_READ_ONLY);
-	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Lock(LOCK_READ_ONLY);
+	Source->RawPointIndices.LockReadOnly();
+	Source->LegacyRawPointIndices.LockReadOnly();
+	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().LockReadOnly();
 	*Destination = *Source;
 	Source->RawSkeletalMeshBulkData_DEPRECATED.GetBulkData().Unlock();
 	Source->RawPointIndices.Unlock();

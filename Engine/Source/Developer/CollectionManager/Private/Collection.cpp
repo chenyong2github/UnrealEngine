@@ -1190,7 +1190,7 @@ bool FCollection::DeleteFromSourceControl(FText& OutError)
 			if ( SourceControlProvider.Execute(ISourceControlOperation::Create<FDelete>(), AbsoluteFilename) == ECommandResult::Succeeded )
 			{
 				// Now check in the delete
-				const FText ChangelistDesc = FText::Format( LOCTEXT("CollectionDeletedDesc", "Deleted collection: {CollectionName}"), CollectionNameText );
+				const FText ChangelistDesc = FText::Format( LOCTEXT("CollectionDeletedDesc", "Deleted collection: {CollectionName}"), Args );
 				TSharedRef<FCheckIn, ESPMode::ThreadSafe> CheckInOperation = ISourceControlOperation::Create<FCheckIn>();
 				CheckInOperation->SetDescription(ChangelistDesc);
 				if ( SourceControlProvider.Execute( CheckInOperation, AbsoluteFilename ) )

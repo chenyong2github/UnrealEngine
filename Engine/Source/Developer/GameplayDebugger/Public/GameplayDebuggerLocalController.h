@@ -61,6 +61,7 @@ protected:
 	uint32 bIsSelectingActor : 1;
 	uint32 bIsLocallyEnabled : 1;
 	uint32 bPrevLocallyEnabled : 1;
+	uint32 bEnableTextShadow : 1;
 
 	FString ActivationKeyDesc;
 	FString RowUpKeyDesc;

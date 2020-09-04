@@ -59,8 +59,6 @@ class SAMPLETOOLSEDITORMODE_API UMeasureDistanceSampleTool : public UInteractive
 	GENERATED_BODY()
 
 public:
-	UMeasureDistanceSampleTool();
-
 	virtual void SetWorld(UWorld* World);
 
 	// UInteractiveTool overrides

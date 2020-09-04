@@ -215,7 +215,10 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 
 			if (!Desc.VertexBuffer)
 			{
-				return new FD3D12ShaderResourceView(nullptr);
+				return GetAdapter().CreateLinkedObject<FD3D12ShaderResourceView>(FRHIGPUMask::All(), [](FD3D12Device* Device)
+					{
+						return new FD3D12ShaderResourceView(nullptr);
+					});
 			}
 
 			FD3D12VertexBuffer* VertexBuffer = FD3D12DynamicRHI::ResourceCast(Desc.VertexBuffer);
@@ -339,7 +342,10 @@ FShaderResourceViewRHIRef FD3D12DynamicRHI::RHICreateShaderResourceView(const FS
 
 			if (!Desc.IndexBuffer)
 			{
-				return new FD3D12ShaderResourceView(nullptr);
+				return GetAdapter().CreateLinkedObject<FD3D12ShaderResourceView>(FRHIGPUMask::All(), [](FD3D12Device* Device)
+					{
+						return new FD3D12ShaderResourceView(nullptr);
+					});
 			}
 
 			FD3D12IndexBuffer* IndexBuffer = FD3D12DynamicRHI::ResourceCast(Desc.IndexBuffer);
@@ -378,17 +384,14 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 
 		// Rename the SRV to view on the new vertex buffer
 		FD3D12Buffer* Buffer = VBD3D12;
-		while (Buffer)
+		for (auto It = MakeDualLinkedObjectIterator(VBD3D12, SRVD3D12); It; ++It)
 		{
+			Buffer = It.GetFirst();
+			SRVD3D12 = It.GetSecond();
+
 			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
 			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
 			Buffer->AddDynamicSRV(SRVD3D12);
-			Buffer = Buffer->GetNextObject();
-			if (Buffer && !SRVD3D12->GetNextObject())
-			{
-				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(Buffer->GetParentDevice()));
-			}
-			SRVD3D12 = SRVD3D12->GetNextObject();
 		}
 	}
 }
@@ -405,16 +408,13 @@ void FD3D12DynamicRHI::RHIUpdateShaderResourceView(FRHIShaderResourceView* SRV, 
 
 		// Rename the SRV to view on the new index buffer
 		FD3D12Buffer* Buffer = IBD3D12;
-		while (Buffer)
+		for (auto It = MakeDualLinkedObjectIterator(IBD3D12, SRVD3D12); It; ++It)
 		{
+			Buffer = It.GetFirst();
+			SRVD3D12 = It.GetSecond();
+
 			FD3D12Device* ParentDevice = Buffer->GetParentDevice();
 			SRVD3D12->Initialize(ParentDevice, SRVDesc, Buffer->ResourceLocation, Stride);
-			Buffer = Buffer->GetNextObject();
-			if (Buffer && !SRVD3D12->GetNextObject())
-			{
-				SRVD3D12->SetNextObject(new FD3D12ShaderResourceView(Buffer->GetParentDevice()));
-			}
-			SRVD3D12 = SRVD3D12->GetNextObject();
 		}
 	}
 }

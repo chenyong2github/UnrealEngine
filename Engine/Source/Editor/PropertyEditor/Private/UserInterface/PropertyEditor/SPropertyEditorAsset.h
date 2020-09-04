@@ -368,6 +368,9 @@ private:
 	/** Tags (and eventually values) that can NOT be used with this property */
 	TSharedPtr<FAssetDataTagMap> DisallowedAssetDataTags;
 
+	/** Tags and values that must be present for an asset to be used with this property */
+	TSharedPtr<FAssetDataTagMap> RequiredAssetDataTags;
+
 	/** Whether the asset can be 'None' in this case */
 	bool bAllowClear;
 

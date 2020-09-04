@@ -171,7 +171,7 @@ protected:
 	FText Text;
 
 	/**  */
-	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RowType="RichTextStyleRow"))
+	UPROPERTY(EditAnywhere, Category=Appearance, meta=(RequiredAssetDataTags = "RowStructure=RichTextStyleRow"))
 	class UDataTable* TextStyleSet;
 
 	/**  */

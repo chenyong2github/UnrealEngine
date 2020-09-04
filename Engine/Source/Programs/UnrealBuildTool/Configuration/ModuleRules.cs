@@ -53,6 +53,44 @@ namespace UnrealBuildTool
 		}
 
 		/// <summary>
+		/// Override the settings of the UHTModuleType to have a different set of
+		/// PKG_ flags. Cannot set on a plugin because that value already set in
+		/// the '.uplugin' file
+		/// </summary>
+		public enum PackageOverrideType
+		{
+			/// <summary>
+			/// Do not override the package type on this module
+			/// </summary>
+			None,
+
+			/// <summary>
+			/// Set the PKG_EditorOnly flag on this module
+			/// </summary>
+			EditorOnly,
+
+			/// <summary>
+			/// Set the PKG_Developer on this module
+			/// </summary>
+			EngineDeveloper,
+
+			/// <summary>
+			/// Set the PKG_Developer on this module
+			/// </summary>
+			GameDeveloper,
+
+			/// <summary>
+			/// Set the PKG_UncookedOnly flag on this module
+			/// </summary>
+			EngineUncookedOnly,
+
+			/// <summary>
+			/// Set the PKG_UncookedOnly flag on this module as a game
+			/// </summary>
+			GameUncookedOnly
+		}
+
+		/// <summary>
 		/// Code optimization settings
 		/// </summary>
 		public enum CodeOptimization
@@ -518,6 +556,40 @@ namespace UnrealBuildTool
 		/// Type of module
 		/// </summary>
 		public ModuleType Type = ModuleType.CPlusPlus;
+
+		/// <summary>
+		/// Overridden type of module that will set different package flags.
+		/// Cannot be used for modules that are a part of a plugin because that is 
+		/// set in the `.uplugin` file already. 
+		/// </summary>
+		public PackageOverrideType OverridePackageType
+		{
+			get { return overridePackageType ?? PackageOverrideType.None; }
+			set
+			{
+				if (!IsPlugin)
+				{
+					overridePackageType = value;
+				}
+				else
+				{
+					throw new BuildException("Module '{0}' cannot override package type because it is part of a plugin!", Name);
+				}
+			}
+		}
+
+		private PackageOverrideType? overridePackageType;
+
+		/// <summary>
+		/// Returns true if there has been an override type specified on this module
+		/// </summary>
+		public bool HasPackageOverride
+		{
+			get
+			{
+				return OverridePackageType != PackageOverrideType.None;
+			}
+		}
 
 		/// <summary>
 		/// Subfolder of Binaries/PLATFORM folder to put this module in when building DLLs. This should only be used by modules that are found via searching like the

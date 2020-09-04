@@ -690,6 +690,8 @@ void FSlateRHIRenderer::DrawWindow_RenderThread(FRHICommandListImmediate& RHICmd
 
 	static uint32 LastTimestamp = FPlatformTime::Cycles();
 	{
+		const FRHIGPUMask PresentingGPUMask = FRHIGPUMask::FromIndex(RHICmdList.GetViewportNextPresentGPUIndex(ViewportInfo.ViewportRHI));
+		SCOPED_GPU_MASK(RHICmdList, PresentingGPUMask);
 		SCOPED_DRAW_EVENTF(RHICmdList, SlateUI, TEXT("SlateUI Title = %s"), DrawCommandParams.WindowTitle.IsEmpty() ? TEXT("<none>") : *DrawCommandParams.WindowTitle);
 		SCOPED_GPU_STAT(RHICmdList, SlateUI);
 		SCOPED_NAMED_EVENT_TEXT("Slate::DrawWindow_RenderThread", FColor::Magenta);

@@ -2,11 +2,12 @@ Availability: NoPublish
 Title: Build Configuration Properties Page
 Crumbs:
 Description: This is a procedurally generated markdown page.
-Version: 4.25
+Version: 4.26
 
 ### BuildConfiguration
 
-$ bGeneratedSYMFile : Whether to generate dSYM files. Lists Architectures that you want to build.
+$ bGeneratedSYMFile : Whether to generate dSYM files. Defaults to true for Shipping builds and false for all other builds. -dsym will force generation of a dsym for other builds,
+        * NoDsym will force it off for shipping.
 
 $ bEnableAddressSanitizer : Enables address sanitizer (ASan)
 
@@ -138,6 +139,8 @@ $ CppStandard : Which C++ stanard to use for compiling this target
 
 $ bStripSymbols : Whether to strip iOS symbols or not (implied by Shipping config).
 
+$ bEnableMemorySanitizer : Enables memory sanitizer (MSan)
+
 $ bIgnoreOutdatedImportLibraries : Whether to ignore import library files that are out of date when building targets. Set this to true to improve iteration time. By default, we do not bother re-linking targets if only a dependent .lib has changed, as chances are that the import library was not actually different unless a dependent header file of this target was also changed, in which case the target would automatically be rebuilt.
 
 $ bPrintDebugInfo : Whether debug info should be written to the console.
@@ -163,6 +166,8 @@ $ bUseUBTMakefiles : Enables support for very fast iterative builds by caching t
 $ bAllowDistcc : Whether DMUCS/Distcc may be used. Distcc requires some setup -- so by default, disable it so that we do not break local or remote building.
 
 $ bAllowParallelExecutor : Whether to allow using parallel executor on Windows.
+
+$ MaxParallelActions : Number of actions that can be executed in parallel. If 0 then code will pick a default based on the number of cores available. Only applies to the ParallelExecutor
 
 ### HybridExecutor
 
@@ -226,17 +231,17 @@ $ MaxProcessorCount : Maximum processor count for local execution.
 
 ### ParallelExecutor
 
-$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
-
 $ MaxProcessorCount : Maximum processor count for local execution.
+
+$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
 
 $ bStopCompilationAfterErrors : When enabled, will stop compiling targets after a compile error occurs.
 
-### SNDBS
+### XGE
 
-$ ProcessorCountMultiplier : Processor count multiplier for local execution. Can be below 1 to reserve CPU for other tasks.
+$ bAllowOverVpn : When set to false, XGE will not be When enabled, XGE will stop compiling targets after a compile error occurs.  Recommended, as it saves computing resources for others.
 
-$ MaxProcessorCount : Maximum processor count for local execution.
+$ VpnSubnets : List of subnets containing IP addresses assigned by VPN
 
 ### CLionGenerator
 
@@ -442,6 +447,12 @@ $ bMasterProjectNameFromFolder : If true, sets the master project name according
 
 $ Version : The version of Visual Studio to generate project files for.
 
+$ MaxSharedIncludePaths : Puts the most common include paths in the IncludePath property in the MSBuild project. This significantly reduces Visual Studio memory usage (measured 1.1GB -> 500mb), but seems to be causing issues with Visual Assist. Value here specifies maximum length of the include path list in KB.
+
+$ ExcludedIncludePaths : Semi-colon separated list of paths that should not be added to the projects include paths. Useful for omitting third-party headers (e.g ThirdParty/WebRTC) from intellisense suggestions and reducing memory footprints.
+
+$ bBuildUBTInDebug : Forces UBT to be built in debug configuration, regardless of the solution configuration
+
 $ bBuildLiveCodingConsole : Whether to include a dependency on LiveCodingConsole when building targets that support live coding.
 
 $ bIncludeDocumentation : True if we should include documentation in the generated projects.
@@ -504,8 +515,6 @@ $ GitPath : Sets the path to use for the Git executable. Defaults to "git" (assu
 
 ### VCMacProjectFileGenerator
 
-$ Version : The version of Visual Studio to generate project files for.
-
 $ bIncludeDocumentation : True if we should include documentation in the generated projects.
 
 $ bUsePrecompiled : True if build targets should pass the -useprecompiled argument.
@@ -564,9 +573,13 @@ $ bForceDebugUnrealHeaderTool : If true, the Debug version of UnrealHeaderTool w
 
 ### WindowsPlatform
 
+$ MaxRootPathLength : Maximum recommended root path length.
+
+$ MaxNestedPathLength : Maximum length of a path relative to the root directory. Used on Windows to ensure paths are portable between machines. Defaults to off.
+
 $ Compiler : Version of the compiler toolchain to use on Windows platform. A value of "default" will be changed to a specific version at UBT start up.
 
-$ CompilerVersion : The specific toolchain version to use. This may be a specific version number (for example, "14.13.26128"), or the string "Latest", to select the newest available version. By default, and if it is available, we use the toolchain version indicated by WindowsPlatform.DefaultToolChainVersion (otherwise, we use the latest version).
+$ CompilerVersion : The specific toolchain version to use. This may be a specific version number (for example, "14.13.26128"), the string "Latest" to select the newest available version, or the string "Preview" to select the newest available preview version. By default, and if it is available, we use the toolchain version indicated by WindowsPlatform.DefaultToolChainVersion (otherwise, we use the latest version).
 
 $ WindowsSdkVersion : The specific Windows SDK version to use. This may be a specific version number (for example, "8.1", "10.0" or "10.0.10150.0"), or the string "Latest", to select the newest available version. By default, and if it is available, we use the Windows SDK version indicated by WindowsPlatform.DefaultWindowsSdkVersion (otherwise, we use the latest version).
 

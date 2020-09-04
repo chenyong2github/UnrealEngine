@@ -45,7 +45,7 @@ void FNetworkPredictionAnalyzer::OnAnalysisEnd()
 {
 }
 
-bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FNetworkPredictionAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 	const auto& EventData = Context.EventData;

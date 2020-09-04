@@ -277,7 +277,7 @@ namespace Tools.DotNETCommon
 				}
 
 				// Throw the original exception
-				throw new WrappedFileOrDirectoryException(Ex, String.Format("Unable to move {0} to {1}", SourceLocation, TargetLocation));
+				throw new WrappedFileOrDirectoryException(Ex, String.Format("{0}: Unable to move {1} to {2}", Ex.GetType(), SourceLocation, TargetLocation));
 			}
 		}
 

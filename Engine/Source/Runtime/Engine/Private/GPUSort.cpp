@@ -11,6 +11,7 @@
 #include "UniformBuffer.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
+#include "ShaderCompilerCore.h"
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 #include "GlobalShader.h"

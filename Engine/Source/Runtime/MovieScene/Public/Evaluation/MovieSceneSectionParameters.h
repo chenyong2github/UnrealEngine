@@ -45,7 +45,7 @@ public:
 	float TimeScale;
 
 	/** Hierachical bias. Higher bias will take precedence. */
-	UPROPERTY(BlueprintReadWrite, EditAnywhere, Category="Sequence")
+	UPROPERTY(config, BlueprintReadWrite, EditAnywhere, Category="Sequence")
 	int32 HierarchicalBias;
 
 	UPROPERTY()

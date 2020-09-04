@@ -450,6 +450,7 @@ void FDestructibleMeshEditorViewportClient::ImportFBXChunks()
 			ImportOptions->bAutoGenerateCollision = false;
 			ImportOptions->bBakePivotInVertex = false;
 			ImportOptions->bCanShowDialog = false;
+			ImportOptions->bIsImportCancelable = false;
 			ImportOptions->bCombineToSingle = false;
 			ImportOptions->bConvertScene = true;
 			ImportOptions->bConvertSceneUnit = true;

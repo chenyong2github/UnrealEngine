@@ -5,6 +5,7 @@
 #if UE_TRACE_ENABLED
 
 #include "Trace/Detail/Atomic.h"
+#include "Trace/Detail/LogScope.inl"
 
 namespace Trace {
 namespace Private {
@@ -59,11 +60,21 @@ uint32 FEventNode::Initialize(const FEventInfo* InInfo)
 
 	// Assign a unique ID for this event
 	static uint32 volatile EventUidCounter; // = 0;
-	uint32 NewUid = AtomicIncrementRelaxed(&EventUidCounter) + uint32(EKnownEventUids::User);
+	uint32 NewUid = AtomicAddRelaxed(&EventUidCounter, 1u) + EKnownEventUids::User;
 	if (NewUid >= uint32(EKnownEventUids::Max))
 	{
-		return Uid = uint16(EKnownEventUids::Invalid);
+		return Uid = EKnownEventUids::Invalid;
 	}
+
+	// Calculate Uid's flags and pack it.
+	uint32 UidFlags = 0;
+	if (NewUid >= (1 << (8 - EKnownEventUids::_UidShift)))
+	{
+		UidFlags |= EKnownEventUids::Flag_TwoByteUid;
+	}
+
+	NewUid <<= EKnownEventUids::_UidShift;
+	NewUid |= UidFlags;
 
 	Info = InInfo;
 	Uid = uint16(NewUid);
@@ -95,16 +106,17 @@ void FEventNode::Describe() const
 	}
 
 	// Allocate the new event event in the log stream.
-	uint16 EventUid = uint16(EKnownEventUids::NewEvent);
+	uint16 EventUid = EKnownEventUids::NewEvent << EKnownEventUids::_UidShift;
+
 	uint16 EventSize = sizeof(FNewEventEvent);
 	EventSize += sizeof(FNewEventEvent::Fields[0]) * Info->FieldCount;
 	EventSize += NamesSize;
 
-	FLogInstance LogInstance = Writer_BeginLogNoSync(EventUid, EventSize, false);
-	auto& Event = *(FNewEventEvent*)(LogInstance.Ptr);
+	FLogScope LogScope = FLogScope::Enter<FEventInfo::Flag_NoSync>(EventUid, EventSize);
+	auto& Event = *(FNewEventEvent*)(LogScope.GetPointer());
 
 	// Write event's main properties.
-	Event.EventUid = uint16(Uid);
+	Event.EventUid = uint16(Uid) >> EKnownEventUids::_UidShift;
 	Event.LoggerNameSize = LoggerName.Length;
 	Event.EventNameSize = EventName.Length;
 	Event.Flags = 0;
@@ -142,7 +154,7 @@ void FEventNode::Describe() const
 		WriteName(Field.Name, Field.NameSize);
 	}
 
-	Writer_EndLog(LogInstance);
+	LogScope.Commit();
 }
 
 } // namespace Private

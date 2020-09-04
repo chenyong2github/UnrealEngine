@@ -362,22 +362,16 @@ bool FAssetDeleteModel::CanReplaceReferencesWith( const FAssetData& InAssetData 
 	{
 		// Get BP native parent classes
 		UClass* OriginalBPParentClass = CastChecked<UBlueprint>(PendingDeletes[0]->GetObject())->ParentClass;
-		const FString BPClassNameToTest = InAssetData.GetTagValueRef<FString>(FBlueprintTags::ParentClassPath);
+		const FString NativeClassName = InAssetData.GetTagValueRef<FString>(FBlueprintTags::NativeParentClassPath);
 
-		if (!BPClassNameToTest.IsEmpty())
+		if (!NativeClassName.IsEmpty())
 		{
-			UClass* ParentClassToTest = FindObject<UClass>(ANY_PACKAGE, *BPClassNameToTest);
-			if (!ParentClassToTest)
-			{
-				ParentClassToTest = LoadObject<UClass>(nullptr, *BPClassNameToTest);
-			}
-
+			UClass* NativeParentClassToTest = FindObject<UClass>(ANY_PACKAGE, *NativeClassName);
 			UClass* NativeParentClassToReplace = FBlueprintEditorUtils::FindFirstNativeClass(OriginalBPParentClass);
-			UClass* NativeParentClassToTest = FBlueprintEditorUtils::FindFirstNativeClass(ParentClassToTest);
 
 			if (!NativeParentClassToTest || !NativeParentClassToTest->IsChildOf(NativeParentClassToReplace))
 			{
-				// If we couldn't determine the asset parent class (e.g. because the ParentClass tag wasn't present in the FAssetData), or if
+				// If we couldn't determine the asset parent class (e.g. because the NativeParentClass tag wasn't present in the FAssetData), or if
 				// the asset parent class wasn't equal to or derived from the pending delete BP class, filter i
 				return true;
 			}

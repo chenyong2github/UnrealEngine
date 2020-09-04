@@ -23,6 +23,7 @@ bool FByteSwapTest::RunTest(const FString& Parameters)
 	double ValD   = *reinterpret_cast<const double*>(&ValU64);
 	uint32 ExpectedF = ByteSwap(ValU32);
 	uint64 ExpectedD = ByteSwap(ValU64);
+	char16_t ValCh16 = static_cast<char16_t>(0x2233);
 
 	TestTrue("Swapping singned int16 value",  ByteSwap(ValS16) == 0x2211);
 	TestTrue("Swapping unsigned int16 value", ByteSwap(ValU16) == 0x2211);
@@ -32,6 +33,7 @@ bool FByteSwapTest::RunTest(const FString& Parameters)
 	TestTrue("Swapping unsigned int64 value", ByteSwap(ValU64) == 0x44332211CCDDEEFFull);
 	TestTrue("Swapping float value",          ByteSwap(ValF)   == *reinterpret_cast<const float*>(&ExpectedF));
 	TestTrue("Swapping double value",         ByteSwap(ValD)   == *reinterpret_cast<const double*>(&ExpectedD));
+	TestTrue("Swapping char16_t value",       ByteSwap(ValCh16)== 0x3322);
 
 	return true;
 }

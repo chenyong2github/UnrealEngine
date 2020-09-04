@@ -48,6 +48,7 @@ private:
 	void BeginConnectedLines();
 	void AddConnectedLine(double Time, double Value, bool bNewBatch);
 	void FlushConnectedLine();
+	void AddConnectedLinePoint(float X, float Y);
 	void EndConnectedLines();
 
 	void BeginBoxes();

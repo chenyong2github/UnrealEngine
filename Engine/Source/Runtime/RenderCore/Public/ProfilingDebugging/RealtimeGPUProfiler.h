@@ -14,6 +14,7 @@
 #include "Stats/Stats.h"
 #include "RHI.h"
 #include "ProfilingDebugging/CsvProfiler.h"
+#include "GpuProfilerTrace.h"
 
 // Note:  WITH_PROFILEGPU should be 0 for final builds
 #define WANTS_DRAW_MESH_EVENTS (RHI_COMMAND_LIST_DEBUG_TRACES || (WITH_PROFILEGPU && PLATFORM_SUPPORTS_DRAW_MESH_EVENTS))
@@ -185,7 +186,7 @@ class FScopedGPUStatEvent;
 
 // GPU stats
 #ifndef HAS_GPU_STATS
-	#if ( STATS || CSV_PROFILER ) && (!UE_BUILD_SHIPPING)
+	#if ( STATS || CSV_PROFILER || GPUPROFILERTRACE_ENABLED ) && (!UE_BUILD_SHIPPING)
 	#define HAS_GPU_STATS 1
 	#else
 	#define HAS_GPU_STATS 0

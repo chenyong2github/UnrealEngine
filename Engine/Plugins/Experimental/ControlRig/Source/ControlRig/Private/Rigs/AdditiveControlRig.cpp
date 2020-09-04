@@ -5,13 +5,14 @@
 #include "Engine/SkeletalMesh.h"
 #include "IControlRigObjectBinding.h"
 #include "Components/SkeletalMeshComponent.h"
+#include "Units/Execution/RigUnit_BeginExecution.h"
 
 #define LOCTEXT_NAMESPACE "AdditiveControlRig"
 
 UAdditiveControlRig::UAdditiveControlRig(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-
+	bResetInitialTransformsBeforeSetup = false;
 }
 
 FName UAdditiveControlRig::GetControlName(const FName& InBoneName)
@@ -36,8 +37,13 @@ FName UAdditiveControlRig::GetSpaceName(const FName& InBoneName)
 	return NAME_None;
 }
 
-void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext)
+void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext, const FName& InEventName)
 {
+	if (InEventName != FRigUnit_BeginExecution::EventName)
+	{
+		return;
+	}
+
 	FRigControlHierarchy& ControlHierarchy = GetControlHierarchy();
 	for (FRigUnit_AddBoneTransform& Unit : AddBoneRigUnits)
 	{
@@ -45,6 +51,7 @@ void UAdditiveControlRig::ExecuteUnits(FRigUnitContext& InOutContext)
 		const int32 Index = ControlHierarchy.GetIndex(ControlName);
 		Unit.Transform = ControlHierarchy.GetLocalTransform(Index);
 		Unit.ExecuteContext.Hierarchy = GetHierarchy();
+		Unit.ExecuteContext.EventName = InEventName;
 		Unit.Execute(InOutContext);
 	}
 }
@@ -78,7 +85,7 @@ void UAdditiveControlRig::Initialize(bool bInitRigUnits /*= true*/)
 	}
 
 	// execute init
-	Execute(EControlRigState::Init);
+	Execute(EControlRigState::Init, FRigUnit_BeginExecution::EventName);
 }
 
 void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenceSkeleton, const FSmartNameMapping* InSmartNameMapping)
@@ -124,8 +131,9 @@ void UAdditiveControlRig::CreateRigElements(const FReferenceSkeleton& InReferenc
 			FRigSpace& Space = Container->SpaceHierarchy.Add(SpaceName, ERigSpaceType::Global, ParentName);
 			Space.InitialTransform = LocalTransform;
 		}
-		Container->ControlHierarchy.Add(ControlName, ERigControlType::Transform, NAME_None, SpaceName);
 
+		FRigControl& RigControl = Container->ControlHierarchy.Add(ControlName, ERigControlType::Transform, NAME_None, SpaceName);
+		RigControl.DisplayName = BoneName;
 	}
 
 	Container->Initialize(true);

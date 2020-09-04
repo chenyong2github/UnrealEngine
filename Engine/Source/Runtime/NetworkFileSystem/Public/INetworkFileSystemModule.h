@@ -13,7 +13,7 @@ class INetworkFileServer;
  * The first parameter is the name of the requested file.
  * The second parameter will hold the list of unsolicited files to send back.
  */
-DECLARE_DELEGATE_ThreeParams(FFileRequestDelegate, const FString&, const FString&, TArray<FString>&);
+DECLARE_DELEGATE_ThreeParams(FFileRequestDelegate, FString&, const FString&, TArray<FString>&);
 
 struct FShaderRecompileData
 {

@@ -50,7 +50,7 @@ DECLARE_CYCLE_STAT(TEXT("Resolve compiled statements"), EKismetCompilerStats_Res
 //////////////////////////////////////////////////////////////////////////
 // FKismetCompilerUtilities
 
-static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphPinType& OwningType, const FEdGraphTerminalType& TerminalType, FProperty* TestProperty, FCompilerResultsLog& MessageLog, UClass* SelfClass)
+static bool DoesTypeNotMatchProperty(UEdGraphPin* SourcePin, const FEdGraphPinType& OwningType, const FEdGraphTerminalType& TerminalType, FProperty* TestProperty, FCompilerResultsLog& MessageLog, UClass* SelfClass)
 {
 	check(SourcePin);
 	const EEdGraphPinDirection Direction = SourcePin->Direction; 
@@ -77,6 +77,10 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 	else if ((PinCategory == UEdGraphSchema_K2::PC_Class) || (PinCategory == UEdGraphSchema_K2::PC_SoftClass))
 	{
 		const UClass* ClassType = (PinSubCategory == UEdGraphSchema_K2::PSC_Self) ? SelfClass : Cast<const UClass>(PinSubCategoryObject);
+		if (ClassType)
+		{
+			ClassType = ClassType->GetAuthoritativeClass();
+		}
 
 		if (ClassType == NULL)
 		{
@@ -85,11 +89,11 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 		else
 		{
 			const UClass* MetaClass = NULL;
-			if (auto ClassProperty = CastField<FClassProperty>(TestProperty))
+			if (FClassProperty* ClassProperty = CastField<FClassProperty>(TestProperty))
 			{
 				MetaClass = ClassProperty->MetaClass;
 			}
-			else if (auto SoftClassProperty = CastField<FSoftClassProperty>(TestProperty))
+			else if (FSoftClassProperty* SoftClassProperty = CastField<FSoftClassProperty>(TestProperty))
 			{
 				MetaClass = SoftClassProperty->MetaClass;
 			}
@@ -98,6 +102,9 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 			{
 				const UClass* OutputClass = (Direction == EGPD_Output) ? ClassType :  MetaClass;
 				const UClass* InputClass = (Direction == EGPD_Output) ? MetaClass : ClassType;
+
+				OutputClass = OutputClass->GetAuthoritativeClass();
+				InputClass = InputClass->GetAuthoritativeClass();
 
 				// It matches if it's an exact match or if the output class is more derived than the input class
 				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
@@ -184,6 +191,9 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 					}
 				}
 
+				InputClass = InputClass->GetAuthoritativeClass();
+				OutputClass = OutputClass->GetAuthoritativeClass();
+
 				// It matches if it's an exact match or if the output class is more derived than the input class
 				bTypeMismatch = bSubtypeMismatch = !((OutputClass == InputClass) || (OutputClass->IsChildOf(InputClass)));
 
@@ -233,7 +243,7 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 			if (StructProperty != NULL)
 			{
 				bool bMatchingStructs = (StructType == StructProperty->Struct);
-				if (auto UserDefinedStructFromProperty = Cast<const UUserDefinedStruct>(StructProperty->Struct))
+				if (const UUserDefinedStruct* UserDefinedStructFromProperty = Cast<const UUserDefinedStruct>(StructProperty->Struct))
 				{
 					bMatchingStructs |= (UserDefinedStructFromProperty->PrimaryStruct.Get() == StructType);
 				}
@@ -263,7 +273,7 @@ static bool IsTypeCompatibleWithProperty(UEdGraphPin* SourcePin, const FEdGraphP
 		MessageLog.Error(*FText::Format(LOCTEXT("UnsupportedTypeForPinFmt", "Unsupported type ({0}) on @@"), UEdGraphSchema_K2::TypeToText(OwningType)).ToString(), SourcePin);
 	}
 
-	return false;
+	return bTypeMismatch || bSubtypeMismatch;
 }
 
 /** Tests to see if a pin is schema compatible with a property */
@@ -313,7 +323,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				}
 			}
 			
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), ArrayProp->Inner, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), ArrayProp->Inner, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -330,7 +340,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				return true;
 			}
 
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), SetProperty->ElementProp, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), SetProperty->ElementProp, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -347,8 +357,8 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 				return true;
 			}
 
-			bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), MapProperty->KeyProp, MessageLog, SelfClass);
-			bTypeMismatch = bTypeMismatch && ::IsTypeCompatibleWithProperty(SourcePin, Type, Type.PinValueType, MapProperty->ValueProp, MessageLog, SelfClass);
+			bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), MapProperty->KeyProp, MessageLog, SelfClass);
+			bTypeMismatch = bTypeMismatch || ::DoesTypeNotMatchProperty(SourcePin, Type, Type.PinValueType, MapProperty->ValueProp, MessageLog, SelfClass);
 		}
 		else
 		{
@@ -359,7 +369,7 @@ bool FKismetCompilerUtilities::IsTypeCompatibleWithProperty(UEdGraphPin* SourceP
 	else
 	{
 		// For scalars, we just take the passed in property
-		bTypeMismatch = ::IsTypeCompatibleWithProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), Property, MessageLog, SelfClass);
+		bTypeMismatch = ::DoesTypeNotMatchProperty(SourcePin, Type, SourcePin->GetPrimaryTerminalType(), Property, MessageLog, SelfClass);
 	}
 
 	// Check for the early out...if this is a type dependent parameter in an array function
@@ -457,7 +467,7 @@ void FKismetCompilerUtilities::ConsignToOblivion(UClass* OldClass, bool bForceNo
 	if (OldClass != NULL)
 	{
 		// Use the Kismet class reinstancer to ensure that the CDO and any existing instances of this class are cleaned up!
-		auto CTOResinstancer = FBlueprintCompileReinstancer::Create(OldClass);
+		TSharedPtr<FBlueprintCompileReinstancer> CTOResinstancer = FBlueprintCompileReinstancer::Create(OldClass);
 
 		UPackage* OwnerOutermost = OldClass->GetOutermost();
 		if( OldClass->ClassDefaultObject )
@@ -1092,7 +1102,7 @@ FProperty* FKismetCompilerUtilities::CreatePrimitiveProperty(FFieldVariant Prope
 }
 
 /** Creates a property named PropertyName of type PropertyType in the Scope or returns NULL if the type is unknown, but does *not* link that property in */
-FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog)
+FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const FName& PropertyName, const FEdGraphPinType& Type, UClass* SelfClass, EPropertyFlags PropertyFlags, const UEdGraphSchema_K2* Schema, FCompilerResultsLog& MessageLog, UEdGraphPin* SourcePin)
 {
 	// When creating properties that depend on other properties (e.g. FDelegateProperty/FMulticastDelegateProperty::SignatureFunction)
 	// you may need to update fixup logic in the compilation manager.
@@ -1195,14 +1205,19 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		{
 			if (!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 			{
-				MessageLog.Error(
-					*FText::Format(
-						LOCTEXT("MapKeyTypeUnhashable_ErrorFmt", "Map Property @@ has key type of {0} which cannot be hashed and is therefore invalid"),
-						Schema->GetCategoryText(Type.PinCategory)
-					).ToString(),
-					NewMapProperty
-				);
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("BadType"), Schema->GetCategoryText(Type.PinCategory));
+
+				if (SourcePin && SourcePin->GetOwningNode())
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MapKeyTypeUnhashable_Node_ErrorFmt", "@@ has key type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), SourcePin->GetOwningNode());
+				}
+				else
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("MapKeyTypeUnhashable_ErrorFmt", "Map Property @@ has key type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), NewMapProperty);
+				}
 			}
+
 			// make the value property:
 			// not feeling good about myself..
 			// Fix up the array property to have the new type-specific property as its inner, and return the new FArrayProperty
@@ -1238,13 +1253,17 @@ FProperty* FKismetCompilerUtilities::CreatePropertyOnScope(UStruct* Scope, const
 		{
 			if (!NewProperty->HasAnyPropertyFlags(CPF_HasGetValueTypeHash))
 			{
-				MessageLog.Error(
-					*FText::Format(
-						LOCTEXT("SetKeyTypeUnhashable_ErrorFmt", "Set Property @@ has contained type of {0} which cannot be hashed and is therefore invalid"),
-						Schema->GetCategoryText(Type.PinCategory)
-					).ToString(),
-					NewSetProperty
-				);
+				FFormatNamedArguments Arguments;
+				Arguments.Add(TEXT("BadType"), Schema->GetCategoryText(Type.PinCategory));
+
+				if(SourcePin && SourcePin->GetOwningNode())
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("SetKeyTypeUnhashable_Node_ErrorFmt", "@@ has container type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), SourcePin->GetOwningNode());
+				}
+				else
+				{
+					MessageLog.Error(*FText::Format(LOCTEXT("SetKeyTypeUnhashable_ErrorFmt", "Set Property @@ has container type of {BadType} which cannot be hashed and is therefore invalid"), Arguments).ToString(), NewSetProperty);
+				}
 
 				// We need to be able to serialize (for CPFUO to migrate data), so force the 
 				// property to hash:
@@ -1325,7 +1344,7 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 				if (!bAlreadyVisited && !SourceNode->IsA<UK2Node_FunctionResult>())
 				{
 					const bool bIsExecutionSequence = IsExecutionSequence(SourceNode); 
-					for (auto CurrentPin : SourceNode->Pins)
+					for (UEdGraphPin* CurrentPin : SourceNode->Pins)
 					{
 						if (CurrentPin
 							&& (CurrentPin->Direction == EEdGraphPinDirection::EGPD_Output)
@@ -1343,8 +1362,8 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 								}
 								continue;
 							}
-							auto LinkedPin = CurrentPin->LinkedTo[0];
-							auto NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
+							UEdGraphPin* LinkedPin = CurrentPin->LinkedTo[0];
+							const UK2Node* NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
 							ensure(NextNode);
 							if (CurrentNode)
 							{
@@ -1369,16 +1388,16 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 				BreakableNodes.Add(SourceNode, &bAlreadyVisited);
 				if (!bAlreadyVisited)
 				{
-					for (auto CurrentPin : SourceNode->Pins)
+					for (UEdGraphPin* CurrentPin : SourceNode->Pins)
 					{
 						if (CurrentPin
 							&& (CurrentPin->Direction == EEdGraphPinDirection::EGPD_Input)
 							&& (CurrentPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
 							&& CurrentPin->LinkedTo.Num())
 						{
-							for (auto LinkedPin : CurrentPin->LinkedTo)
+							for (UEdGraphPin* LinkedPin : CurrentPin->LinkedTo)
 							{
-								auto NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
+								const UK2Node* NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
 								ensure(NextNode);
 								if (!FRecrursiveHelper::IsExecutionSequence(NextNode))
 								{
@@ -1400,19 +1419,19 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 			, TSet<const UK2Node*>& BreakableNodes
 			, FKismetFunctionContext& InContext)
 		{
-			for (auto SequenceNode : UnBreakableExecutionSequenceNodes)
+			for (const UK2Node_ExecutionSequence* SequenceNode : UnBreakableExecutionSequenceNodes)
 			{
 				bool bIsBreakable = true;
 				// Sequence is breakable when all it's outputs are breakable
-				for (auto CurrentPin : SequenceNode->Pins)
+				for (UEdGraphPin* CurrentPin : SequenceNode->Pins)
 				{
 					if (CurrentPin
 						&& (CurrentPin->Direction == EEdGraphPinDirection::EGPD_Output)
 						&& (CurrentPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
 						&& CurrentPin->LinkedTo.Num())
 					{
-						auto LinkedPin = CurrentPin->LinkedTo[0];
-						auto NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
+						UEdGraphPin* LinkedPin = CurrentPin->LinkedTo[0];
+						const UK2Node* NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
 						ensure(NextNode);
 						if (!BreakableNodes.Contains(NextNode))
 						{
@@ -1436,7 +1455,7 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 		static void CheckDeadExecutionPath(TSet<const UK2Node*>& BreakableNodesSeeds, FKismetFunctionContext& InContext)
 		{
 			TSet<const UK2Node_ExecutionSequence*> UnBreakableExecutionSequenceNodes;
-			for (auto Node : InContext.SourceGraph->Nodes)
+			for (UEdGraphNode* Node : InContext.SourceGraph->Nodes)
 			{
 				if (FRecrursiveHelper::IsExecutionSequence(Node))
 				{
@@ -1447,7 +1466,7 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 			TSet<const UK2Node*> BreakableNodes;
 			while (BreakableNodesSeeds.Num())
 			{
-				for (auto StartingNode : BreakableNodesSeeds)
+				for (const UK2Node* StartingNode : BreakableNodesSeeds)
 				{
 					GatherBreakableNodes(StartingNode, BreakableNodes, InContext);
 				}
@@ -1455,10 +1474,10 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 				FRecrursiveHelper::GatherBreakableNodesSeedsFromSequences(UnBreakableExecutionSequenceNodes, BreakableNodesSeeds, BreakableNodes, InContext);
 			}
 
-			for (auto UnBreakableExecutionSequenceNode : UnBreakableExecutionSequenceNodes)
+			for (const UK2Node_ExecutionSequence* UnBreakableExecutionSequenceNode : UnBreakableExecutionSequenceNodes)
 			{
 				bool bUnBreakableOutputWasFound = false;
-				for (auto CurrentPin : UnBreakableExecutionSequenceNode->Pins)
+				for (UEdGraphPin* CurrentPin : UnBreakableExecutionSequenceNode->Pins)
 				{
 					if (CurrentPin
 						&& (CurrentPin->Direction == EEdGraphPinDirection::EGPD_Output)
@@ -1471,8 +1490,8 @@ void FKismetCompilerUtilities::ValidateProperEndExecutionPath(FKismetFunctionCon
 							break;
 						}
 
-						auto LinkedPin = CurrentPin->LinkedTo[0];
-						auto NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
+						UEdGraphPin* LinkedPin = CurrentPin->LinkedTo[0];
+						const UK2Node* NextNode = ensure(LinkedPin) ? Cast<const UK2Node>(LinkedPin->GetOwningNodeUnchecked()) : nullptr;
 						ensure(NextNode);
 						if (!BreakableNodes.Contains(NextNode))
 						{
@@ -1926,12 +1945,12 @@ bool FKismetFunctionContext::DoesStatementRequiresSwitch(const FBlueprintCompile
 
 bool FKismetFunctionContext::MustUseSwitchState(const FBlueprintCompiledStatement* ExcludeThisOne) const
 {
-	for (auto Node : LinearExecutionList)
+	for (UEdGraphNode* Node : LinearExecutionList)
 	{
-		auto StatementList = StatementsPerNode.Find(Node);
+		const TArray<FBlueprintCompiledStatement*>* StatementList = StatementsPerNode.Find(Node);
 		if (StatementList)
 		{
-			for (auto Statement : (*StatementList))
+			for (FBlueprintCompiledStatement* Statement : (*StatementList))
 			{
 				if (Statement && (Statement != ExcludeThisOne) && DoesStatementRequiresSwitch(Statement))
 				{
@@ -1948,21 +1967,21 @@ void FKismetFunctionContext::MergeAdjacentStates()
 	for (int32 ExecIndex = 0; ExecIndex < LinearExecutionList.Num(); ++ExecIndex)
 	{
 		// if the last statement in current node jumps to the first statement in next node, then it's redundant
-		const auto CurrentNode = LinearExecutionList[ExecIndex];
-		auto CurStatementList = StatementsPerNode.Find(CurrentNode);
+		const UEdGraphNode* CurrentNode = LinearExecutionList[ExecIndex];
+		TArray<FBlueprintCompiledStatement*>* CurStatementList = StatementsPerNode.Find(CurrentNode);
 		const bool CurrentNodeIsValid = CurrentNode && CurStatementList && CurStatementList->Num();
-		const auto LastStatementInCurrentNode = CurrentNodeIsValid ? CurStatementList->Last() : NULL;
+		const FBlueprintCompiledStatement* LastStatementInCurrentNode = CurrentNodeIsValid ? CurStatementList->Last() : nullptr;
 
 		if (LastStatementInCurrentNode
 			&& LastStatementInCurrentNode->TargetLabel
 			&& (LastStatementInCurrentNode->Type == KCST_UnconditionalGoto)
 			&& !LastStatementInCurrentNode->bIsJumpTarget)
 		{
-			const auto NextNodeIndex = ExecIndex + 1;
-			const auto NextNode = LinearExecutionList.IsValidIndex(NextNodeIndex) ? LinearExecutionList[NextNodeIndex] : NULL;
-			const auto NextNodeStatements = StatementsPerNode.Find(NextNode);
+			const int32 NextNodeIndex = ExecIndex + 1;
+			const UEdGraphNode* NextNode = LinearExecutionList.IsValidIndex(NextNodeIndex) ? LinearExecutionList[NextNodeIndex] : nullptr;
+			const TArray<FBlueprintCompiledStatement*>* NextNodeStatements = StatementsPerNode.Find(NextNode);
 			const bool bNextNodeValid = NextNode && NextNodeStatements && NextNodeStatements->Num();
-			const auto FirstStatementInNextNode = bNextNodeValid ? (*NextNodeStatements)[0] : NULL;
+			const FBlueprintCompiledStatement* FirstStatementInNextNode = bNextNodeValid ? (*NextNodeStatements)[0] : nullptr;
 			if (FirstStatementInNextNode == LastStatementInCurrentNode->TargetLabel)
 			{
 				CurStatementList->RemoveAt(CurStatementList->Num() - 1);
@@ -1972,9 +1991,9 @@ void FKismetFunctionContext::MergeAdjacentStates()
 
 	// Remove unnecessary GotoReturn statements
 	// if it's last statement generated by last node (in LinearExecution) then it can be removed
-	const auto LastExecutedNode = LinearExecutionList.Num() ? LinearExecutionList.Last() : NULL;
+	const UEdGraphNode* LastExecutedNode = LinearExecutionList.Num() ? LinearExecutionList.Last() : nullptr;
 	TArray<FBlueprintCompiledStatement*>* StatementList = StatementsPerNode.Find(LastExecutedNode);
-	FBlueprintCompiledStatement* LastStatementInLastNode = (StatementList && StatementList->Num()) ? StatementList->Last() : NULL;
+	FBlueprintCompiledStatement* LastStatementInLastNode = (StatementList && StatementList->Num()) ? StatementList->Last() : nullptr;
 	const bool SafeForNativeCode = !bGeneratingCpp || !MustUseSwitchState(LastStatementInLastNode);
 	if (LastStatementInLastNode && SafeForNativeCode && (KCST_GotoReturn == LastStatementInLastNode->Type) && !LastStatementInLastNode->bIsJumpTarget)
 	{
@@ -2010,8 +2029,8 @@ struct FGotoMapUtils
 
 	static UEdGraphNode* TargetNodeFromMap(const FBlueprintCompiledStatement* GotoStatement, const TMap< FBlueprintCompiledStatement*, UEdGraphPin* >& GotoFixupRequestMap)
 	{
-		auto ExecNetPtr = GotoFixupRequestMap.Find(GotoStatement);
-		auto ExecNet = ExecNetPtr ? *ExecNetPtr : NULL;
+		UEdGraphPin* const * ExecNetPtr = GotoFixupRequestMap.Find(GotoStatement);
+		UEdGraphPin* ExecNet = ExecNetPtr ? *ExecNetPtr : nullptr;
 		return TargetNodeFromPin(GotoStatement, ExecNet);
 	}
 };
@@ -2078,10 +2097,10 @@ void FKismetFunctionContext::ResolveGotoFixups()
 
 void FKismetFunctionContext::FinalSortLinearExecList()
 {
-	auto K2Schema = Schema;
+	const UEdGraphSchema_K2* K2Schema = Schema;
 	LinearExecutionList.RemoveAllSwap([&](UEdGraphNode* CurrentNode)
 	{
-		auto CurStatementList = StatementsPerNode.Find(CurrentNode);
+		TArray<FBlueprintCompiledStatement*>* CurStatementList = StatementsPerNode.Find(CurrentNode);
 		return !(CurrentNode && CurStatementList && CurStatementList->Num());
 	});
 
@@ -2097,30 +2116,30 @@ void FKismetFunctionContext::FinalSortLinearExecList()
 
 	while (UnsortedExecutionSet.Num())
 	{
-		UEdGraphNode* NextNode = NULL;
+		UEdGraphNode* NextNode = nullptr;
 
 		// get last state target
-		const auto CurrentNode = SortedLinearExecutionList.Last();
-		const auto CurStatementList = StatementsPerNode.Find(CurrentNode);
+		const UEdGraphNode* CurrentNode = SortedLinearExecutionList.Last();
+		const TArray<FBlueprintCompiledStatement*>* CurStatementList = StatementsPerNode.Find(CurrentNode);
 		const bool CurrentNodeIsValid = CurrentNode && CurStatementList && CurStatementList->Num();
-		const auto LastStatementInCurrentNode = CurrentNodeIsValid ? CurStatementList->Last() : NULL;
+		const FBlueprintCompiledStatement* LastStatementInCurrentNode = CurrentNodeIsValid ? CurStatementList->Last() : nullptr;
 
 		// Find next element in current chain
 		if (LastStatementInCurrentNode && (LastStatementInCurrentNode->Type == KCST_UnconditionalGoto))
 		{
-			auto TargetNode = FGotoMapUtils::TargetNodeFromMap(LastStatementInCurrentNode, GotoFixupRequestMap);
-			NextNode = UnsortedExecutionSet.Remove(TargetNode) ? TargetNode : NULL;
+			UEdGraphNode* TargetNode = FGotoMapUtils::TargetNodeFromMap(LastStatementInCurrentNode, GotoFixupRequestMap);
+			NextNode = UnsortedExecutionSet.Remove(TargetNode) ? TargetNode : nullptr;
 		}
 
 		if (CurrentNode)
 		{
-			for (auto Pin : CurrentNode->Pins)
+			for (UEdGraphPin* Pin : CurrentNode->Pins)
 			{
 				if (Pin && (EEdGraphPinDirection::EGPD_Output == Pin->Direction) && K2Schema->IsExecPin(*Pin) && Pin->LinkedTo.Num())
 				{
-					for (auto Link : Pin->LinkedTo)
+					for (UEdGraphPin* Link : Pin->LinkedTo)
 					{
-						auto LinkedNode = Link->GetOwningNodeUnchecked();
+						UEdGraphNode* LinkedNode = Link->GetOwningNodeUnchecked();
 						if (LinkedNode && (LinkedNode != NextNode) && UnsortedExecutionSet.Contains(LinkedNode))
 						{
 							NodesToStartNextChain.Add(LinkedNode);
@@ -2189,7 +2208,7 @@ struct FEventGraphUtils
 		{
 			bResult |= Node->IsA<UK2Node_Event>();
 			bResult |= Node->IsA<UK2Node_Timeline>();
-			if (auto CallNode = Cast<const UK2Node_CallFunction>(Node))
+			if (const UK2Node_CallFunction* CallNode = Cast<const UK2Node_CallFunction>(Node))
 			{
 				bResult |= CallNode->IsLatentFunction();
 			}
@@ -2224,16 +2243,16 @@ struct FEventGraphUtils
 
 		const UEdGraphSchema_K2* Schema = CastChecked<const UEdGraphSchema_K2>(Node->GetSchema());
 		const bool bIsPure = Node->IsNodePure();
-		for (auto Pin : Node->Pins)
+		for (UEdGraphPin* Pin : Node->Pins)
 		{
 			const bool bProperPure		= bIsPure	&& Pin && (Pin->Direction == EEdGraphPinDirection::EGPD_Output);
 			const bool bProperNotPure	= !bIsPure	&& Pin && (Pin->Direction == EEdGraphPinDirection::EGPD_Input) && Schema->IsExecPin(*Pin);
 			if (bProperPure || bProperNotPure)
 			{
-				for (auto Link : Pin->LinkedTo)
+				for (UEdGraphPin* Link : Pin->LinkedTo)
 				{
-					auto LinkOwner = Link ? Link->GetOwningNodeUnchecked() : NULL;
-					auto NodeToCheck = LinkOwner ? CastChecked<const UK2Node>(LinkOwner) : NULL;
+					UEdGraphNode* LinkOwner = Link ? Link->GetOwningNodeUnchecked() : nullptr;
+					const UK2Node* NodeToCheck = LinkOwner ? CastChecked<const UK2Node>(LinkOwner) : nullptr;
 					FindEventsCallingTheNodeRecursive(NodeToCheck, Results, CheckedNodes, StopOn);
 				}
 			}
@@ -2297,22 +2316,22 @@ struct FEventGraphUtils
 		}
 
 		// 
-		auto SourceEntryPoints = FEventGraphUtils::FindExecutionNodes(OwnerNode, NULL);
+		TSet<const UK2Node*> SourceEntryPoints = FEventGraphUtils::FindExecutionNodes(OwnerNode, nullptr);
 		if (1 != SourceEntryPoints.Num())
 		{
 			return true;
 		}
 
 		//
-		for (auto Link : Net.LinkedTo)
+		for (UEdGraphPin* Link : Net.LinkedTo)
 		{
-			auto LinkOwnerNode = Cast<const UK2Node>(Link->GetOwningNodeUnchecked());
+			const UK2Node* LinkOwnerNode = Cast<const UK2Node>(Link->GetOwningNodeUnchecked());
 			ensure(LinkOwnerNode);
 			if (Link->PinType.bIsReference)
 			{
 				return true;
 			}
-			auto EventsCallingDestination = FEventGraphUtils::FindExecutionNodes(LinkOwnerNode, OwnerNode);
+			TSet<const UK2Node*> EventsCallingDestination = FEventGraphUtils::FindExecutionNodes(LinkOwnerNode, OwnerNode);
 			if (0 != EventsCallingDestination.Num())
 			{
 				return true;

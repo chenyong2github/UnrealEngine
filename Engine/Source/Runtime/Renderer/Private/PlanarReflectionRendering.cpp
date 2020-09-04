@@ -168,14 +168,12 @@ public:
 		InvPrefilterRoughnessDistance.Bind(Initializer.ParameterMap, TEXT("InvPrefilterRoughnessDistance"));
 		SceneColorInputTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorInputTexture"));
 		SceneColorInputSampler.Bind(Initializer.ParameterMap, TEXT("SceneColorInputSampler"));
-		SceneTextureParameters.Bind(Initializer);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, FRHITexture* SceneColorInput, int32 FilterWidth)
 	{
 		FRHIPixelShader* ShaderRHI = RHICmdList.GetBoundPixelShader();
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, View.FeatureLevel, ESceneTextureSetupMode::All);
 
 		const float KernelRadiusYValue = FMath::Clamp(ReflectionSceneProxy->PrefilterRoughness, 0.0f, 0.04f) * 0.5f * FilterWidth;
 		SetShaderValue(RHICmdList, ShaderRHI, KernelRadiusY, KernelRadiusYValue);
@@ -195,14 +193,13 @@ private:
 	LAYOUT_FIELD(FShaderParameter, InvPrefilterRoughnessDistance)
 	LAYOUT_FIELD(FShaderResourceParameter, SceneColorInputTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, SceneColorInputSampler)
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters)
 };
 
 IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<false>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
 IMPLEMENT_SHADER_TYPE(template<>, FPrefilterPlanarReflectionPS<true>, TEXT("/Engine/Private/PlanarReflectionShaders.usf"), TEXT("PrefilterPlanarReflectionPS"), SF_Pixel);
 
 template<bool bEnablePlanarReflectionPrefilter>
-void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, const FRenderTarget* Target)
+void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& View, const FUniformBufferRHIRef& PassUniformBuffer, const FPlanarReflectionSceneProxy* ReflectionSceneProxy, const FRenderTarget* Target)
 {
 	FRHITexture* SceneColorInput = FSceneRenderTargets::Get(RHICmdList).GetSceneColorTexture();
 
@@ -219,6 +216,9 @@ void PrefilterPlanarReflection(FRHICommandListImmediate& RHICmdList, FViewInfo& 
 
 	{
 		SCOPED_DRAW_EVENT(RHICmdList, PrefilterPlanarReflection);
+
+		FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+		SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 		// Workaround for a possible driver bug on S7 Adreno, missing planar reflections
 		ERenderTargetLoadAction RTLoadAction = IsVulkanMobilePlatform(View.GetShaderPlatform()) ?  ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction;
@@ -290,6 +290,16 @@ static void UpdatePlanarReflectionContents_RenderThread(
 	QUICK_SCOPE_CYCLE_COUNTER(STAT_RenderPlanarReflection);
 
 	FMemMark MemStackMark(FMemStack::Get());
+
+	// Make sure we render to the same set of GPUs as the main scene renderer.
+	if (MainSceneRenderer->ViewFamily.RenderTarget != nullptr)
+	{
+		RenderTarget->SetActiveGPUMask(MainSceneRenderer->ViewFamily.RenderTarget->GetGPUMask(RHICmdList));
+	}
+	else
+	{
+		RenderTarget->SetActiveGPUMask(FRHIGPUMask::GPU0());
+	}
 
 	FBox PlanarReflectionBounds = SceneProxy->WorldBounds;
 
@@ -387,17 +397,21 @@ static void UpdatePlanarReflectionContents_RenderThread(
 					SceneProxy->ViewRect[ViewIndex] = SceneRenderer->Views[ViewIndex].ViewRect;
 				}
 
+				FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+				FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, SceneContext.GetCurrentFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 				for (int32 ViewIndex = 0; ViewIndex < SceneRenderer->Views.Num(); ++ViewIndex)
 				{
 					FViewInfo& View = SceneRenderer->Views[ViewIndex];
 					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+
 					if (MainSceneRenderer->Scene->GetShadingPath() == EShadingPath::Deferred)
 					{
-						PrefilterPlanarReflection<true>(RHICmdList, View, SceneProxy, Target);
+						PrefilterPlanarReflection<true>(RHICmdList, View, PassUniformBuffer, SceneProxy, Target);
 					}
 					else
 					{
-						PrefilterPlanarReflection<false>(RHICmdList, View, SceneProxy, Target);
+						PrefilterPlanarReflection<false>(RHICmdList, View, PassUniformBuffer, SceneProxy, Target);
 					}
 				}
 				RHICmdList.CopyToResolveTarget(RenderTarget->GetRenderTargetTexture(), RenderTargetTexture->TextureRHI, ResolveParams);

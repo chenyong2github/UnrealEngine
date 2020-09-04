@@ -124,7 +124,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeSectionLODUniformParameters, )
 	SHADER_PARAMETER_SRV(Buffer<float>, SectionTessellationFalloffK)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLandscapeFixedGridUniformShaderParameters, LANDSCAPE_API)
 	SHADER_PARAMETER(FVector4, LodValues)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
@@ -132,9 +132,10 @@ END_GLOBAL_SHADER_PARAMETER_STRUCT()
 struct FLandscapeBatchElementParams
 {
 #if RHI_RAYTRACING
-	FLandscapeVertexFactoryMVFUniformBufferRef LandscapeVertexFactoryMVFUniformBuffer;
+	FRHIUniformBuffer* LandscapeVertexFactoryMVFUniformBuffer;
 #endif
 	const TUniformBuffer<FLandscapeUniformShaderParameters>* LandscapeUniformShaderParametersResource;
+	const TArray<TUniformBuffer<FLandscapeFixedGridUniformShaderParameters>>* FixedGridUniformShaderParameters;
 	const FLandscapeComponentSceneProxy* SceneProxy;
 	int32 CurrentLOD;
 };
@@ -167,7 +168,7 @@ public:
 };
 
 /** vertex factory for VTF-heightmap terrain  */
-class FLandscapeVertexFactory : public FVertexFactory
+class LANDSCAPE_API FLandscapeVertexFactory : public FVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FLandscapeVertexFactory);
 
@@ -240,7 +241,7 @@ public:
 
 
 /** Vertex factory for fixed grid runtime virtual texture lod  */
-class FLandscapeFixedGridVertexFactory : public FLandscapeVertexFactory
+class LANDSCAPE_API FLandscapeFixedGridVertexFactory : public FLandscapeVertexFactory
 {
 	DECLARE_VERTEX_FACTORY_TYPE(FLandscapeFixedGridVertexFactory);
 
@@ -311,7 +312,7 @@ public:
 //
 // FLandscapeSharedBuffers
 //
-class FLandscapeSharedBuffers : public FRefCountedObject
+class LANDSCAPE_API FLandscapeSharedBuffers : public FRefCountedObject
 {
 public:
 	struct FLandscapeIndexRanges
@@ -793,6 +794,11 @@ public:
 
 	friend FLandscapeRenderSystem;
 
+	// Reference counted vertex and index buffer shared among all landscape scene proxies of the same component size
+	// Key is the component size and number of subsections.
+	// Also being reused by GPULightmass currently to save mem
+	static LANDSCAPE_API TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
+
 protected:
 	int8						MaxLOD;		// Maximum LOD level, user override possible
 	bool						UseTessellationComponentScreenSizeFalloff:1;	// Tell if we should apply a Tessellation falloff
@@ -894,10 +900,6 @@ protected:
 
 	/** Material Relevance for each material in AvailableMaterials */
 	TArray<FMaterialRelevance> MaterialRelevances;
-
-	// Reference counted vertex and index buffer shared among all landscape scene proxies of the same component size
-	// Key is the component size and number of subsections.
-	static TMap<uint32, FLandscapeSharedBuffers*> SharedBuffersMap;
 
 #if WITH_EDITORONLY_DATA
 	FLandscapeEditToolRenderData EditToolRenderData;

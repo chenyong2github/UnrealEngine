@@ -49,6 +49,7 @@ class UK2Node_ComponentBoundEvent : public UK2Node_Event
 	virtual UClass* GetDynamicBindingClass() const override;
 	virtual void RegisterDynamicBinding(UDynamicBlueprintBinding* BindingObject) const override;
 	virtual void HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName) override;
+	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
 	//~ End K2Node Interface
 
 	virtual bool IsUsedByAuthorityOnlyDelegate() const override;
@@ -59,6 +60,10 @@ class UK2Node_ComponentBoundEvent : public UK2Node_Event
 	BLUEPRINTGRAPH_API void InitializeComponentBoundEventParams(FObjectProperty const* InComponentProperty, const FMulticastDelegateProperty* InDelegateProperty);
 
 private:
+
+	/** Returns true if there is an FObjectProperty on this blueprint with a name that matches ComponentPropertyName */
+	bool IsDelegateValid() const;
+
 	/** Cached display name for the delegate property */
 	UPROPERTY()
 	FText DelegatePropertyDisplayName;

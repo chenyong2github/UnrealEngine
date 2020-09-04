@@ -15,10 +15,13 @@
 class FLidarPointCloudBuffer
 {
 public:
-	FLidarPointCloudBuffer() : Capacity(100000) {}
+	FLidarPointCloudBuffer() : FLidarPointCloudBuffer(100000) {}
+	FLidarPointCloudBuffer(uint32 Capacity) : Capacity(Capacity) {}
 
 	/** Resizes the buffer to the specified capacity, if necessary. Must be called from Rendering thread. */
 	virtual void Resize(const uint32& RequestedCapacity) = 0;
+	
+	FORCEINLINE uint32 GetCapacity() const { return Capacity; }
 
 protected:
 	uint32 Capacity;
@@ -30,6 +33,8 @@ protected:
 class FLidarPointCloudIndexBuffer : public FLidarPointCloudBuffer, public FIndexBuffer
 {
 public:
+	FLidarPointCloudIndexBuffer() : FLidarPointCloudBuffer(100000) {}
+
 	uint32 PointOffset;
 
 	virtual void Resize(const uint32& RequestedCapacity) override;
@@ -58,16 +63,17 @@ public:
 struct FLidarPointCloudBatchElementUserData
 {
 	FRHIShaderResourceView* DataBuffer;
+	int32 bEditorView;
+	FVector SelectionColor;
 	int32 IndexDivisor;
-	int32 FirstElementIndex;
 	FVector LocationOffset;
-	float VDMultiplier;
-	int32 SizeOffset;
-	float RootCellSize;
+	float VirtualDepth;
+	float SpriteSize;
 	int32 bUseLODColoration;
 	float SpriteSizeMultiplier;
 	FVector ViewRightVector;
 	FVector ViewUpVector;
+	int32 bUseCameraFacing;
 	FVector BoundsSize;
 	FVector ElevationColorBottom;
 	FVector ElevationColorTop;
@@ -82,15 +88,11 @@ struct FLidarPointCloudBatchElementUserData
 	float IntensityInfluence;
 	int32 bUseClassification;
 	FVector4 ClassificationColors[32];
+	FMatrix ClippingVolume[16];
+	uint32 NumClippingVolumes;
+	uint32 bStartClipped;
 
-	FLidarPointCloudBatchElementUserData(const float& VDMultiplier, const float& RootCellSize)
-		: DataBuffer(nullptr)
-		, IndexDivisor(4)
-		, VDMultiplier(VDMultiplier)
-		, RootCellSize(RootCellSize)
-		, bUseLODColoration(false)
-	{
-	}
+	FLidarPointCloudBatchElementUserData();
 
 	void SetClassificationColors(const TMap<int32, FLinearColor>& InClassificationColors);
 };
@@ -108,16 +110,17 @@ public:
 		const FVertexFactory* VertexFactory, const FMeshBatchElement& BatchElement, class FMeshDrawSingleShaderBindings& ShaderBindings, FVertexInputStreamArray& VertexStreams) const;
 
 	LAYOUT_FIELD(FShaderResourceParameter, DataBuffer);
+	LAYOUT_FIELD(FShaderParameter, bEditorView);
+	LAYOUT_FIELD(FShaderParameter, SelectionColor);
 	LAYOUT_FIELD(FShaderParameter, IndexDivisor);
-	LAYOUT_FIELD(FShaderParameter, FirstElementIndex);
 	LAYOUT_FIELD(FShaderParameter, LocationOffset);
-	LAYOUT_FIELD(FShaderParameter, VDMultiplier);
-	LAYOUT_FIELD(FShaderParameter, SizeOffset);
-	LAYOUT_FIELD(FShaderParameter, RootCellSize);
+	LAYOUT_FIELD(FShaderParameter, VirtualDepth);
+	LAYOUT_FIELD(FShaderParameter, SpriteSize);
 	LAYOUT_FIELD(FShaderParameter, bUseLODColoration);
 	LAYOUT_FIELD(FShaderParameter, SpriteSizeMultiplier);
 	LAYOUT_FIELD(FShaderParameter, ViewRightVector);
 	LAYOUT_FIELD(FShaderParameter, ViewUpVector);
+	LAYOUT_FIELD(FShaderParameter, bUseCameraFacing);
 	LAYOUT_FIELD(FShaderParameter, BoundsSize);
 	LAYOUT_FIELD(FShaderParameter, ElevationColorBottom);
 	LAYOUT_FIELD(FShaderParameter, ElevationColorTop);
@@ -132,6 +135,9 @@ public:
 	LAYOUT_FIELD(FShaderParameter, IntensityInfluence);
 	LAYOUT_FIELD(FShaderParameter, bUseClassification);
 	LAYOUT_FIELD(FShaderParameter, ClassificationColors);
+	LAYOUT_FIELD(FShaderParameter, ClippingVolume);
+	LAYOUT_FIELD(FShaderParameter, NumClippingVolumes);
+	LAYOUT_FIELD(FShaderParameter, bStartClipped);
 };
 
 /**
@@ -170,6 +176,5 @@ private:
 };
 
 /** A set of global render resources shared between all Lidar Point Cloud proxies */
-extern TGlobalResource<FLidarPointCloudRenderBuffer> GLidarPointCloudRenderBuffer;
 extern TGlobalResource<FLidarPointCloudIndexBuffer> GLidarPointCloudIndexBuffer;
 extern TGlobalResource<FLidarPointCloudVertexFactory> GLidarPointCloudVertexFactory;

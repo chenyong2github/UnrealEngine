@@ -124,7 +124,7 @@ namespace EditorViewportClient
 	static const float LightRotSpeed = 0.22f;
 }
 
-#define MIN_ORTHOZOOM				250.0					/* Limit of 2D viewport zoom in */
+// MIN_ORTHOZOOM defined in ULevelEditorViewportSettings
 #define MAX_ORTHOZOOM				MAX_FLT					/* Limit of 2D viewport zoom out */
 
 namespace OrbitConstants
@@ -490,19 +490,59 @@ FEditorViewportClient::~FEditorViewportClient()
 	}
 }
 
-void FEditorViewportClient::SetRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
+void FEditorViewportClient::AddRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
 {
-	PreviousRealtimeOverrideState = TempRealtimeOverride;
-	TempRealtimeOverride = TPair<bool, FText>(bShouldBeRealtime, SystemDisplayName);
+	RealtimeOverrides.Add(TPair<bool, FText>(bShouldBeRealtime, SystemDisplayName));
 
 	bShouldInvalidateViewportWidget = true;
 }
 
-void FEditorViewportClient::RemoveRealtimeOverride()
+bool FEditorViewportClient::HasRealtimeOverride(FText SystemDisplayName) const
 {
-	TempRealtimeOverride = PreviousRealtimeOverrideState;
-	PreviousRealtimeOverrideState.Reset();
-	bShouldInvalidateViewportWidget = true;
+	for (int32 Index = 0; Index < RealtimeOverrides.Num(); ++Index)
+	{
+		if (RealtimeOverrides[Index].Value.EqualTo(SystemDisplayName))
+		{
+			return true;
+		}
+	}
+	return false;
+}
+
+bool FEditorViewportClient::RemoveRealtimeOverride(FText SystemDisplayName, bool bCheckMissingOverride)
+{
+	bool bRemoved = false;
+	for (int32 Index = RealtimeOverrides.Num() - 1; Index >= 0; --Index)
+	{
+		if (RealtimeOverrides[Index].Value.EqualTo(SystemDisplayName))
+		{
+			RealtimeOverrides.RemoveAt(Index);
+			bRemoved = true;
+			break;
+		}
+	}
+	check(!bCheckMissingOverride || bRemoved);
+	
+	if (bRemoved)
+	{
+		bShouldInvalidateViewportWidget = true;
+	}
+
+	return bRemoved;
+}
+
+bool FEditorViewportClient::PopRealtimeOverride()
+{
+	if (RealtimeOverrides.Num() > 0)
+	{
+		RealtimeOverrides.Pop();
+
+		bShouldInvalidateViewportWidget = true;
+
+		return true;
+	}
+
+	return false;
 }
 
 bool FEditorViewportClient::ToggleRealtime()
@@ -519,7 +559,7 @@ void FEditorViewportClient::SetRealtime(bool bInRealtime)
 
 FText FEditorViewportClient::GetRealtimeOverrideMessage() const
 {
-	return TempRealtimeOverride.IsSet() ? TempRealtimeOverride.GetValue().Value : FText::GetEmpty();
+	return RealtimeOverrides.Num() > 0 ? RealtimeOverrides.Last().Value : FText::GetEmpty();
 }
 
 void FEditorViewportClient::SetRealtime(bool bInRealtime, bool bStoreCurrentValue)
@@ -529,7 +569,7 @@ void FEditorViewportClient::SetRealtime(bool bInRealtime, bool bStoreCurrentValu
 
 void FEditorViewportClient::RestoreRealtime(const bool bAllowDisable)
 {
-	RemoveRealtimeOverride();
+	PopRealtimeOverride();
 }
 
 void FEditorViewportClient::SaveRealtimeStateToConfig(bool& ConfigVar) const
@@ -727,7 +767,7 @@ void FEditorViewportClient::FocusViewportOnBox( const FBox& BoundingBox, bool bI
 				float Zoom = Radius / (MinAxisSize / 2.0f);
 
 				NewOrthoZoom = Zoom * (Viewport->GetSizeXY().X*15.0f);
-				NewOrthoZoom = FMath::Clamp<float>( NewOrthoZoom, MIN_ORTHOZOOM, MAX_ORTHOZOOM );
+				NewOrthoZoom = FMath::Clamp<float>( NewOrthoZoom, GetMinimumOrthoZoom(), MAX_ORTHOZOOM );
 				ViewTransform.SetOrthoZoom(NewOrthoZoom);
 			}
 		}
@@ -2091,7 +2131,7 @@ void FEditorViewportClient::HandleViewportStatEnabled(const TCHAR* InName)
 	if (GStatProcessingViewportClient == this)
 	{
 		SetShowStats(true);
-		SetRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
+		AddRealtimeOverride(true, LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
 		SetStatEnabled(InName, true);
 	}
 }
@@ -2104,7 +2144,7 @@ void FEditorViewportClient::HandleViewportStatDisabled(const TCHAR* InName)
 		if (SetStatEnabled(InName, false) == 0)
 		{
 			SetShowStats(false);
-			RemoveRealtimeOverride();
+			RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
 		}
 	}
 }
@@ -2116,7 +2156,7 @@ void FEditorViewportClient::HandleViewportStatDisableAll(const bool bInAnyViewpo
 	{
 		SetShowStats(false);
 		SetStatEnabled(NULL, false, true);
-		RemoveRealtimeOverride();
+		RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Stats", "Stats Display"));
 	}
 }
 
@@ -3354,7 +3394,7 @@ void FEditorViewportClient::OnOrthoZoom( const struct FInputEventState& InputSta
 
 	//update zoom based on input
 	SetOrthoZoom( GetOrthoZoom() + (GetOrthoZoom() / CAMERA_ZOOM_DAMPEN) * Delta );
-	SetOrthoZoom( FMath::Clamp<float>( GetOrthoZoom(), MIN_ORTHOZOOM, MAX_ORTHOZOOM ) );
+	SetOrthoZoom( FMath::Clamp<float>( GetOrthoZoom(), GetMinimumOrthoZoom(), MAX_ORTHOZOOM ) );
 
 	if (bCenterZoomAroundCursor)
 	{
@@ -4943,7 +4983,7 @@ void FEditorViewportClient::MoveViewportCamera(const FVector& InDrag, const FRot
 			if( ( LeftMouseButtonDown || bIsUsingTrackpad ) && RightMouseButtonDown )
 			{
 				SetOrthoZoom( GetOrthoZoom() + (GetOrthoZoom() / CAMERA_ZOOM_DAMPEN) * InDrag.Z );
-				SetOrthoZoom( FMath::Clamp<float>( GetOrthoZoom(), MIN_ORTHOZOOM, MAX_ORTHOZOOM ) );
+				SetOrthoZoom( FMath::Clamp<float>( GetOrthoZoom(), GetMinimumOrthoZoom(), MAX_ORTHOZOOM ) );
 			}
 			else
 			{
@@ -5998,6 +6038,11 @@ void FEditorViewportClient::EnableOverrideEngineShowFlags(TUniqueFunction<void(F
 void FEditorViewportClient::DisableOverrideEngineShowFlags()
 {
 	OverrideShowFlagsFunc = nullptr;
+}
+
+float FEditorViewportClient::GetMinimumOrthoZoom() const
+{
+	return FMath::Max(GetDefault<ULevelEditorViewportSettings>()->MinimumOrthographicZoom, 1.0f);
 }
 
 ////////////////

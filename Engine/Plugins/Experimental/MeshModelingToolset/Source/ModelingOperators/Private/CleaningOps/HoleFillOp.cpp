@@ -4,6 +4,7 @@
 #include "Operations/SimpleHoleFiller.h"
 #include "Operations/PlanarHoleFiller.h"
 #include "Operations/MinimalHoleFiller.h"
+#include "Operations/SmoothHoleFiller.h"
 #include "ConstrainedDelaunay2.h"
 #include "CompGeom/PolygonTriangulation.h"
 #include "MeshQueries.h"

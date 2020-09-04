@@ -353,7 +353,7 @@ bool DecomposeUCXMesh( const TArray<FVector>& CollisionVertices, const TArray<in
  *	about how many triangles make up each side (but it will take longer). 
  *	We get the centre of the box from the centre of its AABB.
  */
-void AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
+bool AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
 {
 	TArray<FPlaneInfo> Planes;
 
@@ -378,7 +378,7 @@ void AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
 				else if( Planes[j].DistCount == 2 && !AreEqual(Dist, Planes[j].PlaneDist[1]) )
 				{
 					UE_LOG(LogStaticMeshEdit, Log, TEXT("AddBoxGeomFromTris (%s): Found more than 2 planes with different distances."), ObjName);
-					return;
+					return false;
 				}
 
 				bFoundPlane = true;
@@ -405,14 +405,14 @@ void AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
 	if(Planes.Num() != 3)
 	{
 		UE_LOG(LogStaticMeshEdit, Log, TEXT("AddBoxGeomFromTris (%s): Not very box-like (need 3 sets of planes)."), ObjName);
-		return;
+		return false;
 	}
 
 	// If we don't have 3 pairs, we can't carry on.
 	if((Planes[0].DistCount != 2) || (Planes[1].DistCount != 2) || (Planes[2].DistCount != 2))
 	{
 		UE_LOG(LogStaticMeshEdit, Log, TEXT("AddBoxGeomFromTris (%s): Incomplete set of planes (need 2 per axis)."), ObjName);
-		return;
+		return false;
 	}
 
 	FMatrix BoxTM = FMatrix::Identity;
@@ -426,7 +426,7 @@ void AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
 	if( !AreParallel(ZAxis, Planes[2].Normal) )
 	{
 		UE_LOG(LogStaticMeshEdit, Log, TEXT("AddBoxGeomFromTris (%s): Box axes are not perpendicular."), ObjName);
-		return;
+		return false;
 	}
 
 	BoxTM.SetAxis(2, ZAxis);
@@ -450,6 +450,8 @@ void AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
 	BoxElem.Y = FMath::Abs(Planes[1].PlaneDist[0] - Planes[1].PlaneDist[1]);
 	BoxElem.Z = FMath::Abs(Planes[2].PlaneDist[0] - Planes[2].PlaneDist[1]);
 	AggGeom->BoxElems.Add(BoxElem);
+
+	return true;
 }
 
 /**
@@ -459,11 +461,11 @@ void AddBoxGeomFromTris( const TArray<FPoly>& Tris, FKAggregateGeom* AggGeom, co
  *	It checks that the AABB is square, and that all vertices are either at the
  *	centre, or within 5% of the radius distance away.
  */
-void AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
+bool AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
 {
 	if(Verts.Num() == 0)
 	{
-		return;
+		return false;
 	}
 
 	FBox Box(ForceInit);
@@ -482,7 +484,7 @@ void AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggG
 	if((Longest - Shortest)/Longest > 0.05f)
 	{
 		UE_LOG(LogStaticMeshEdit, Log, TEXT("AddSphereGeomFromVerts (%s): Sphere bounding box not square."), ObjName);
-		return;
+		return false;
 	}
 
 	float Radius = 0.5f * Longest;
@@ -510,7 +512,7 @@ void AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggG
 	if((MaxR-MinR)/Radius > 0.05f)
 	{
 		UE_LOG(LogStaticMeshEdit, Log, TEXT("AddSphereGeomFromVerts (%s): Vertices not at constant radius."), ObjName );
-		return;
+		return false;
 	}
 
 	// Allocate sphere in array
@@ -518,13 +520,15 @@ void AddSphereGeomFromVerts( const TArray<FVector>& Verts, FKAggregateGeom* AggG
 	SphereElem.Center = Center;
 	SphereElem.Radius = Radius;
 	AggGeom->SphereElems.Add(SphereElem);
+	
+	return true;
 }
 
-void AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName)
+bool AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName)
 {
 	if (Verts.Num() < 3)
 	{
-		return;
+		return false;
 	}
 
 	FVector AxisStart, AxisEnd;
@@ -570,22 +574,27 @@ void AddCapsuleGeomFromVerts(const TArray<FVector>& Verts, FKAggregateGeom* AggG
 			SphylElem.Radius = MaxRadius;
 			SphylElem.Length = FMath::Max(FMath::Sqrt(MaxDistSqr) - (2.f * MaxRadius), 0.f); // subtract two radii from total length to get segment length (ensure > 0)
 			AggGeom->SphylElems.Add(SphylElem);
+			return true;
 		}
 	}
+
+	return false;
 }
 
 
 /** Utility for adding one convex hull from the given verts */
-void AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
+bool AddConvexGeomFromVertices( const TArray<FVector>& Verts, FKAggregateGeom* AggGeom, const TCHAR* ObjName )
 {
 	if(Verts.Num() == 0)
 	{
-		return;
+		return false;
 	}
 
 	FKConvexElem* ConvexElem = new(AggGeom->ConvexElems) FKConvexElem();
 	ConvexElem->VertexData = Verts;
 	ConvexElem->UpdateElemBox();
+
+	return true;
 }
 
 
@@ -960,7 +969,7 @@ static void TransformPolys(UPolys* Polys,const FMatrix& Matrix)
 }
 
 // LOD data to copy over
-struct ExistingLODMeshData
+struct FExistingLODMeshData
 {
 	FMeshBuildSettings				ExistingBuildSettings;
 	FMeshReductionSettings			ExistingReductionSettings;
@@ -970,12 +979,12 @@ struct ExistingLODMeshData
 	FString							ExistingSourceImportFilename;
 };
 
-struct ExistingStaticMeshData
+struct FExistingStaticMeshData
 {
 	TArray<FStaticMaterial> 	ExistingMaterials;
 
 	FMeshSectionInfoMap			ExistingSectionInfoMap;
-	TArray<ExistingLODMeshData>	ExistingLODData;
+	TArray<FExistingLODMeshData>	ExistingLODData;
 
 	TArray<UStaticMeshSocket*>	ExistingSockets;
 
@@ -1039,14 +1048,15 @@ bool IsUsingMaterialSlotNameWorkflow(UAssetImportData* AssetImportData)
 	return !AllNameAreNone;
 }
 
-ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, UnFbx::FBXImportOptions* ImportOptions, int32 LodIndex)
+TSharedPtr<FExistingStaticMeshData> SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, UnFbx::FBXImportOptions* ImportOptions, int32 LodIndex)
 {
-	struct ExistingStaticMeshData* ExistingMeshDataPtr = NULL;
-
-	if (ExistingMesh)
+	if (!ExistingMesh)
 	{
+		return TSharedPtr<FExistingStaticMeshData>();
+	}
+
 		bool bSaveMaterials = !ImportOptions->bImportMaterials;
-		ExistingMeshDataPtr = new ExistingStaticMeshData();
+	TSharedPtr<FExistingStaticMeshData> ExistingMeshDataPtr = MakeShared<FExistingStaticMeshData>();
 
 		//Save the package UMetaData
 		TMap<FName, FString>* ExistingUMetaDataTagValues = UMetaData::GetMapForObject(ExistingMesh);
@@ -1061,7 +1071,7 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 		FMeshSectionInfoMap OldSectionInfoMap = ExistingMesh->GetSectionInfoMap();
 
 		bool bIsReimportCustomLODOverGeneratedLOD = ExistingMesh->IsSourceModelValid(LodIndex) &&
-			(ExistingMesh->GetSourceModel(LodIndex).IsRawMeshEmpty() || !(ExistingMesh->IsReductionActive(LodIndex) && ExistingMesh->GetSourceModel(LodIndex).ReductionSettings.BaseLODModel != LodIndex));
+			(ExistingMesh->GetSourceModel(LodIndex).IsRawMeshEmpty() || (ExistingMesh->IsReductionActive(LodIndex) && ExistingMesh->GetSourceModel(LodIndex).ReductionSettings.BaseLODModel != LodIndex));
 
 		//We need to reset some data in case we import a custom LOD over a generated LOD
 		if (bIsReimportCustomLODOverGeneratedLOD)
@@ -1100,17 +1110,18 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 				ExistingMesh->GetSectionInfoMap().Remove(LodIndex, SectionIndex);
 			}
 		}
+
 		int32 TotalMaterialIndex = ExistingMeshDataPtr->ExistingMaterials.Num();
-		for(int32 i=0; i<ExistingMesh->GetNumSourceModels(); i++)
+	for (int32 SourceModelIndex = 0; SourceModelIndex < ExistingMesh->GetNumSourceModels(); SourceModelIndex++)
 		{
 			//If the last import was exceeding the maximum number of LOD the source model will contain more LOD so just break the loop
-			if (i >= ExistingMesh->RenderData->LODResources.Num())
+		if (SourceModelIndex >= ExistingMesh->RenderData->LODResources.Num())
 				break;
-			FStaticMeshLODResources& LOD = ExistingMesh->RenderData->LODResources[i];
+		FStaticMeshLODResources& LOD = ExistingMesh->RenderData->LODResources[SourceModelIndex];
 			int32 NumSections = LOD.Sections.Num();
 			for(int32 SectionIndex = 0; SectionIndex < NumSections; ++SectionIndex)
 			{
-				FMeshSectionInfo Info = OldSectionInfoMap.Get(i, SectionIndex);
+			FMeshSectionInfo Info = OldSectionInfoMap.Get(SourceModelIndex, SectionIndex);
 				if(bSaveMaterials && ExistingMesh->StaticMaterials.IsValidIndex(Info.MaterialIndex))
 				{
 					if (ExistingMeshDataPtr->UseMaterialNameSlotWorkflow)
@@ -1137,27 +1148,28 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 							Info.MaterialIndex = TotalMaterialIndex++;
 						}
 					}
-					ExistingMeshDataPtr->ExistingSectionInfoMap.Set(i, SectionIndex, Info);
+				ExistingMeshDataPtr->ExistingSectionInfoMap.Set(SourceModelIndex, SectionIndex, Info);
 				}
 			}
 
-			const FStaticMeshSourceModel& SourceModel = ExistingMesh->GetSourceModel(i);
-			ExistingMeshDataPtr->ExistingLODData[i].ExistingBuildSettings = SourceModel.BuildSettings;
-			ExistingMeshDataPtr->ExistingLODData[i].ExistingReductionSettings = SourceModel.ReductionSettings;
-			if (bIsReimportCustomLODOverGeneratedLOD && (i == LodIndex))
+		const FStaticMeshSourceModel& SourceModel = ExistingMesh->GetSourceModel(SourceModelIndex);
+		FExistingLODMeshData& ExistingLODData = ExistingMeshDataPtr->ExistingLODData[SourceModelIndex];
+		ExistingLODData.ExistingBuildSettings = SourceModel.BuildSettings;
+		ExistingLODData.ExistingReductionSettings = SourceModel.ReductionSettings;
+		if (bIsReimportCustomLODOverGeneratedLOD && (SourceModelIndex == LodIndex))
 			{
 				//Reset the reduction
-				ExistingMeshDataPtr->ExistingLODData[i].ExistingReductionSettings.PercentTriangles = 1.0f;
-				ExistingMeshDataPtr->ExistingLODData[i].ExistingReductionSettings.PercentVertices = 1.0f;
-				ExistingMeshDataPtr->ExistingLODData[i].ExistingReductionSettings.MaxDeviation = 0.0f;
+			ExistingLODData.ExistingReductionSettings.PercentTriangles = 1.0f;
+			ExistingLODData.ExistingReductionSettings.PercentVertices = 1.0f;
+			ExistingLODData.ExistingReductionSettings.MaxDeviation = 0.0f;
 			}
-			ExistingMeshDataPtr->ExistingLODData[i].ExistingScreenSize = SourceModel.ScreenSize.Default;
-			ExistingMeshDataPtr->ExistingLODData[i].ExistingSourceImportFilename = SourceModel.SourceImportFilename;
+		ExistingLODData.ExistingScreenSize = SourceModel.ScreenSize.Default;
+		ExistingLODData.ExistingSourceImportFilename = SourceModel.SourceImportFilename;
 
-			const FMeshDescription* MeshDescription = ExistingMesh->GetMeshDescription(i);
+		const FMeshDescription* MeshDescription = ExistingMesh->GetMeshDescription(SourceModelIndex);
 			if (MeshDescription)
 			{
-				ExistingMeshDataPtr->ExistingLODData[i].ExistingMeshDescription = MakeUnique<FMeshDescription>(*MeshDescription);
+			ExistingLODData.ExistingMeshDescription = MakeUnique<FMeshDescription>(*MeshDescription);
 			}
 		}
 
@@ -1207,9 +1219,7 @@ ExistingStaticMeshData* SaveExistingStaticMeshData(UStaticMesh* ExistingMesh, Un
 			}
 		}
 		ExistingMeshDataPtr->ExistingOnMeshChanged = ExistingMesh->OnMeshChanged;
-
 		ExistingMeshDataPtr->ExistingComplexCollisionMesh = ExistingMesh->ComplexCollisionMesh;
-	}
 
 	return ExistingMeshDataPtr;
 }
@@ -1232,7 +1242,7 @@ bool IsReductionActive(const FMeshReductionSettings& ReductionSettings)
 }
 
 /* This function is call before building the mesh when we do a re-import*/
-void RestoreExistingMeshSettings(ExistingStaticMeshData* ExistingMesh, UStaticMesh* NewMesh, int32 LODIndex)
+void RestoreExistingMeshSettings(const FExistingStaticMeshData* ExistingMesh, UStaticMesh* NewMesh, int32 LODIndex)
 {
 	if (!ExistingMesh)
 	{
@@ -1417,11 +1427,21 @@ void UpdateSomeLodsImportMeshData(UStaticMesh* NewMesh, TArray<int32> *ReimportL
 	}
 }
 
-void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStaticMesh* NewMesh, int32 LodLevel, bool bCanShowDialog, bool bForceConflictingMaterialReset)
+template<typename T>
+void AddGeneratedGeom(const TArray<T>& SrcData, TArray<T>& DstData) {
+	for (const T& CurrentElement : SrcData)
+	{
+		if (CurrentElement.bIsGenerated)
+		{
+			DstData.Add(CurrentElement);
+		}
+	}
+};
+
+void RestoreExistingMeshData(TSharedPtr<const FExistingStaticMeshData> ExistingMeshDataPtr, UStaticMesh* NewMesh, int32 LodLevel, bool bCanShowDialog, bool bForceConflictingMaterialReset)
 {
 	if (!ExistingMeshDataPtr || !NewMesh)
 	{
-		delete ExistingMeshDataPtr;
 		return;
 	}
 
@@ -1671,26 +1691,32 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 	// If we already had some collision info...
 	if(ExistingMeshDataPtr->ExistingBodySetup)
 	{
-		// If we didn't import anything, always keep collision.
-		bool bKeepCollision;
+		// If we didn't import anything, keep all collisions otherwise only keep generated collisions.
+		bool bKeepAllCollisions;
 		if(!NewMesh->BodySetup || NewMesh->BodySetup->AggGeom.GetElementCount() == 0)
 		{
-			bKeepCollision = true;
+			bKeepAllCollisions = true;
 		}
-
 		else
 		{
-			bKeepCollision = false;
+			bKeepAllCollisions = false;
 		}
 
-		if(bKeepCollision)
+		if(bKeepAllCollisions)
 		{
 			NewMesh->BodySetup = ExistingMeshDataPtr->ExistingBodySetup;
 		}
 		else
 		{
-			// New collision geometry, but we still want the original settings
+			// New collision geometry, but we still want the original settings and the generated collisions
 			NewMesh->BodySetup->CopyBodySetupProperty(ExistingMeshDataPtr->ExistingBodySetup);
+
+			const FKAggregateGeom& ExistingAggGeom = ExistingMeshDataPtr->ExistingBodySetup->AggGeom;
+			FKAggregateGeom& NewAggGeom = NewMesh->BodySetup->AggGeom;
+			AddGeneratedGeom(ExistingAggGeom.BoxElems, NewAggGeom.BoxElems);
+			AddGeneratedGeom(ExistingAggGeom.ConvexElems, NewAggGeom.ConvexElems);
+			AddGeneratedGeom(ExistingAggGeom.SphereElems, NewAggGeom.SphereElems);
+			AddGeneratedGeom(ExistingAggGeom.SphylElems, NewAggGeom.SphylElems);
 		}
 	}
 
@@ -1707,8 +1733,6 @@ void RestoreExistingMeshData(ExistingStaticMeshData* ExistingMeshDataPtr, UStati
 	NewMesh->NegativeBoundsExtension = ExistingMeshDataPtr->ExistingNegativeBoundsExtension;
 
 	NewMesh->ComplexCollisionMesh = ExistingMeshDataPtr->ExistingComplexCollisionMesh;
-
-	delete ExistingMeshDataPtr;
 }
 
 #undef LOCTEXT_NAMESPACE

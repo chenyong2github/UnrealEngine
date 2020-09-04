@@ -495,11 +495,6 @@ FRDGTextureRef AddHistogramEyeAdaptationPass(
 	PassBaseParameters.EyeAdaptation = GetEyeAdaptationParameters(View, ERHIFeatureLevel::SM5);
 	PassBaseParameters.HistogramTexture = HistogramTexture;
 
-#if WITH_MGPU
-	static const FName NameForTemporalEffect("HistogramEyeAdaptationPass");
-	GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, View.ViewState ? View.ViewState->UniqueID : 0));
-#endif
-
 	if (View.bUseComputePasses)
 	{
 		FEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FEyeAdaptationCS::FParameters>();
@@ -688,11 +683,6 @@ FRDGTextureRef AddBasicEyeAdaptationPass(
 	PassBaseParameters.ColorTexture = SceneColor.Texture;
 	PassBaseParameters.EyeAdaptationTexture = EyeAdaptationTexture;
 
-#if WITH_MGPU
-	static const FName NameForTemporalEffect("BasicEyeAdaptationPass");
-	GraphBuilder.SetNameForTemporalEffect(FName(NameForTemporalEffect, View.ViewState ? View.ViewState->UniqueID : 0));
-#endif
-
 	if (View.bUseComputePasses)
 	{
 		FBasicEyeAdaptationCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FBasicEyeAdaptationCS::FParameters>();
@@ -751,6 +741,12 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 
+	// When reading back last frame's exposure data in AFR, make sure we do it on the
+	// GPUs that were actually used last frame.
+	const FRHIGPUMask ThisFrameGPUMask = RHICmdList.GetGPUMask();
+	const FRHIGPUMask LastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(ThisFrameGPUMask);
+	const FRHIGPUMask LastLastFrameGPUMask = AFRUtils::GetPrevSiblingGPUMask(LastFrameGPUMask);
+
 	if (bInUpdateLastExposure && PooledRenderTarget[CurrentBuffer].IsValid() && (GIsEditor || CVarEnablePreExposureOnlyInTheEditor.GetValueOnRenderThread() == 0))
 	{
 		// first, read the value from two frames ago
@@ -759,11 +755,7 @@ void FSceneViewState::FEyeAdaptationRTManager::SwapRTs(bool bInUpdateLastExposur
 			ExposureTextureReadback[PreviousPreviousBuffer]->IsReady())
 		{
 			// Workaround until FRHIGPUTextureReadback::Lock has multigpu support
-			FRHIGPUMask ReadBackGPUMask = RHICmdList.GetGPUMask();
-			if (!ReadBackGPUMask.HasSingleIndex())
-			{
-				ReadBackGPUMask = FRHIGPUMask::GPU0();
-			}
+			FRHIGPUMask ReadBackGPUMask = LastLastFrameGPUMask;
 
 			SCOPED_GPU_MASK(RHICmdList, ReadBackGPUMask);
 
@@ -905,7 +897,8 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		!ViewFamily.EngineShowFlags.LightComplexity &&
 		!ViewFamily.EngineShowFlags.LODColoration &&
 		!ViewFamily.EngineShowFlags.HLODColoration &&
-		!ViewFamily.EngineShowFlags.LevelColoration;
+		!ViewFamily.EngineShowFlags.LevelColoration &&
+		((!ViewFamily.EngineShowFlags.VisualizeBuffer) || View.CurrentBufferVisualizationMode != NAME_None); // disable pre-exposure for the debug visualization modes
 
 	PreExposure = 1.f;
 	bUpdateLastExposure = false;
@@ -957,3 +950,21 @@ void FSceneViewState::UpdatePreExposure(FViewInfo& View)
 		PrevFrameViewInfo.SceneColorPreExposure = PreExposure;
 	}
 }
+
+#if WITH_MGPU
+static const FName NAME_EyeAdaptation(TEXT("EyeAdaptation"));
+
+void FSceneViewState::BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
+{
+	FRHITexture* EyeAdaptation = GetEyeAdaptation(RHICmdList)->GetRenderTargetItem().ShaderResourceTexture.GetReference();
+	RHICmdList.BroadcastTemporalEffect(FName(NAME_EyeAdaptation, UniqueID), { &EyeAdaptation, 1 });
+}
+
+DECLARE_GPU_STAT(AFRWaitForEyeAdaptation);
+
+void FSceneViewState::WaitForEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList)
+{
+	SCOPED_GPU_STAT(RHICmdList, AFRWaitForEyeAdaptation);
+	RHICmdList.WaitForTemporalEffect(FName(NAME_EyeAdaptation, UniqueID));
+}
+#endif // WITH_MGPU

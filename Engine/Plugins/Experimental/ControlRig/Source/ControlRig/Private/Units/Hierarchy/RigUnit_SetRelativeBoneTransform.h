@@ -9,7 +9,7 @@
 /**
  * SetRelativeBoneTransform is used to perform a change in the hierarchy by setting a single bone's transform.
  */
-USTRUCT(meta=(DisplayName="Set Relative Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetRelativeBoneTransform"))
+USTRUCT(meta=(DisplayName="Set Relative Transform", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "SetRelativeBoneTransform", Deprecated = "4.25"))
 struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 {
 	GENERATED_BODY()
@@ -17,19 +17,17 @@ struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 	FRigUnit_SetRelativeBoneTransform()
 		: Weight(1.f)
 		, bPropagateToChildren(false)
-		, CachedBoneIndex(INDEX_NONE)
-		, CachedSpaceIndex(INDEX_NONE)
+		, CachedBone(FCachedRigElement())
+		, CachedSpaceIndex(FCachedRigElement())
 	{}
 
-	virtual FString GetUnitLabel() const override;
-
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("Transform")))
 		{
-			return Space;
+			return FRigElementKey(Space, ERigElementType::Bone);
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()
@@ -38,13 +36,13 @@ struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 	/**
 	 * The name of the Bone to set the transform for.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Bone;
 
 	/**
 	 * The name of the Bone to set the transform relative within.
 	 */
-	UPROPERTY(meta = (Input, CustomWidget = "BoneName", Constant))
+	UPROPERTY(meta = (Input))
 	FName Space;
 
 	/**
@@ -68,10 +66,10 @@ struct FRigUnit_SetRelativeBoneTransform : public FRigUnitMutable
 	bool bPropagateToChildren;
 
 	// Used to cache the internally used bone index
-	UPROPERTY()
-	int32 CachedBoneIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedBone;
 
 	// Used to cache the internally used space index
-	UPROPERTY()
-	int32 CachedSpaceIndex;
+	UPROPERTY(transient)
+	FCachedRigElement CachedSpaceIndex;
 };

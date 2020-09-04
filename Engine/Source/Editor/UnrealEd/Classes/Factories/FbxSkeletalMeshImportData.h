@@ -9,8 +9,19 @@
 #include "FbxSkeletalMeshImportData.generated.h"
 
 class USkeletalMesh;
+class USkeleton;
+class FSkeletalMeshImportData;
 class FSkeletalMeshLODModel;
+
+struct FExistingSkelMeshData;
+struct FReferenceSkeleton;
 struct FSkeletalMaterial;
+
+namespace SkeletalMeshImportData
+{
+	struct FRawBoneInfluence;
+	struct FVertex;
+}
 
 UENUM(BlueprintType)
 enum EFBXImportContentType
@@ -23,6 +34,12 @@ enum EFBXImportContentType
 
 /**
  * Import data and options used when importing a static mesh from fbx
+ * Notes:
+ * - Meta data ImportType i.e.       meta = (ImportType = "SkeletalMesh|GeoOnly")
+ *     - SkeletalMesh : the property will be shown when importing skeletalmesh
+ *     - GeoOnly: The property will be hide if we import skinning only
+ *     - RigOnly: The property will be hide if we import geo only
+ *     - RigAndGeo: The property will be show only if we import both skinning and geometry, it will be hiden otherwise
  */
 UCLASS(BlueprintType, MinimalAPI)
 class UFbxSkeletalMeshImportData : public UFbxMeshImportData
@@ -52,7 +69,7 @@ public:
 	uint32 bUpdateSkeletonReferencePose:1;
 
 	/** Enable this option to use frame 0 as reference pose */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category= Mesh, meta=(ImportType="SkeletalMesh|RigOnly", DisplayName="Use T0 As Ref Pose"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category= Mesh, meta=(ImportType="SkeletalMesh|RigAndGeo", DisplayName="Use T0 As Ref Pose"))
 	uint32 bUseT0AsRefPose:1;
 
 	/** If checked, triangles with non-matching smoothing groups will be physically split. */
@@ -94,26 +111,16 @@ public:
 	virtual void AppendAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags);
 };
 
+namespace SkeletalMeshHelper
+{
+	/** Backups the given SkeletalMesh into a FExistingSkelMeshData */
+	UNREALED_API TSharedPtr<FExistingSkelMeshData> SaveExistingSkelMeshData(USkeletalMesh* SourceSkeletalMesh, bool bSaveMaterials, int32 ReimportLODIndex);
 
-namespace SkeletalMeshImportData
-{
-	struct FRawBoneInfluence;
-}
-class FSkeletalMeshImportData;
-struct ExistingSkelMeshData;
-class USkeleton;
-struct FReferenceSkeleton;
-namespace SkeletalMeshImportData
-{
-	struct FVertex;
-	struct FRawBoneInfluence;
-}
+	/** Restore a backed up FExistingSkelMeshData into a SkeletalMesh asset */
+	UNREALED_API void RestoreExistingSkelMeshData(TSharedPtr<const FExistingSkelMeshData> MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly, bool bForceMaterialReset);
 
-extern UNREALED_API ExistingSkelMeshData* SaveExistingSkelMeshData(USkeletalMesh* ExistingSkelMesh, bool bSaveMaterials, int32 ReimportLODIndex);
-extern UNREALED_API void RestoreExistingSkelMeshData(ExistingSkelMeshData* MeshData, USkeletalMesh* SkeletalMesh, int32 ReimportLODIndex, bool bCanShowDialog, bool bImportSkinningOnly, bool bForceMaterialReset);
-extern UNREALED_API void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData);
-extern UNREALED_API void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData);
-extern UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);namespace SkeletalMeshHelper
-{
-	extern UNREALED_API void ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMeshLODModel& SrcLODModel, FSkeletalMeshLODModel& DestLODModel);
+	UNREALED_API void ProcessImportMeshInfluences(FSkeletalMeshImportData& ImportData);
+	UNREALED_API void ProcessImportMeshMaterials(TArray<FSkeletalMaterial>& Materials, FSkeletalMeshImportData& ImportData);
+	UNREALED_API bool ProcessImportMeshSkeleton(const USkeleton* SkeletonAsset, FReferenceSkeleton& RefSkeleton, int32& SkeletalDepth, FSkeletalMeshImportData& ImportData);
+	UNREALED_API void ApplySkinning(USkeletalMesh* SkeletalMesh, FSkeletalMeshLODModel& SrcLODModel, FSkeletalMeshLODModel& DestLODModel);
 }

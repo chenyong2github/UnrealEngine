@@ -74,8 +74,8 @@ void UGeometryCacheComponent::SetupTrackData()
 			// First time so create rather than update the mesh sections
 			CreateTrackSection(TrackIndex);
 
-			const float TrackMaxSampleTime = GeometryCache->Tracks[TrackIndex]->GetMaxSampleTime();
-			Duration = (Duration > TrackMaxSampleTime) ? Duration : TrackMaxSampleTime;
+			const float TrackDuration = GeometryCache->Tracks[TrackIndex]->GetDuration();
+			Duration = FMath::Max(Duration, TrackDuration);
 		}
 	}
 	UpdateLocalBounds();

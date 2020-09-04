@@ -40,7 +40,7 @@ FLwsReceiveBufferBinary::FLwsReceiveBufferBinary(const uint8* Data, const int32 
 	: BytesRemaining(InBytesRemaining)
 {
 	check(Data);
-	check(Size > 0);
+	check(Size >= 0);
 	check(InBytesRemaining >= 0);
 	Payload.Append(Data, Size);
 }

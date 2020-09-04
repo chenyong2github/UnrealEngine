@@ -49,7 +49,6 @@
 //#include "SoundDefinitions.h"
 #include "FXSystem.h"
 #include "TickTaskManagerInterface.h"
-#include "HAL/IPlatformFileProfilerWrapper.h"
 #if !UE_BUILD_SHIPPING
 #include "VisualizerEvents.h"
 #include "STaskGraph.h"
@@ -900,7 +899,7 @@ void UWorld::MarkActorComponentForNeededEndOfFrameUpdate(UActorComponent* Compon
 			bForceGameThread = !bAllowConcurrentUpdates 
 								// When there is no rendering thread force all updates on game thread,
 								// to avoid modifying scene structures from multiple task threads
-								|| !GRenderingThread; 
+								|| !GIsThreadedRendering;
 		}
 
 		if (bForceGameThread)
@@ -941,13 +940,18 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(FGPUSkinCache* GP
 
 #if WANTS_DRAW_MESH_EVENTS
 	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
+		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
 		{
 			BEGIN_DRAW_EVENTF(
 				RHICmdList, 
 				SendAllEndOfFrameUpdates, 
 				SendAllEndOfFrameUpdates->DrawEvent,
 				TEXT("SendAllEndOfFrameUpdates"));
+
+			if (SendAllEndOfFrameUpdates->GPUSkinCache)
+			{
+				SendAllEndOfFrameUpdates->GPUSkinCache->BeginBatchDispatch(RHICmdList);
+			}
 		});
 #endif
 
@@ -957,7 +961,7 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(FGPUSkinCache* GP
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
+		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
 	{
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
@@ -965,6 +969,9 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 			SendAllEndOfFrameUpdates->GPUSkinCache->TransitionAllToReadable(RHICmdList);
 
 		#if RHI_RAYTRACING
+			// Once all the individual components have received their DoDeferredRenderUpdates_Concurrent()
+			// allow the GPU Skin Cache system to update.
+			SendAllEndOfFrameUpdates->GPUSkinCache->EndBatchDispatch(RHICmdList);
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
 		#endif
 		}
@@ -1036,6 +1043,7 @@ void UWorld::SendAllEndOfFrameUpdates()
 				FMarkComponentEndOfFrameUpdateState::Set(NextComponent, INDEX_NONE, EComponentMarkedForEndOfFrameUpdateState::Unmarked);
 			}
 		};
+
 	auto GTWork = 
 		[this]()
 		{
@@ -1099,145 +1107,6 @@ void UWorld::FlushDeferredParameterCollectionInstanceUpdates()
 		bMaterialParameterCollectionInstanceNeedsDeferredUpdate = false;
 	}
 }
-
-#if !UE_BUILD_SHIPPING
-static class FFileProfileWrapperExec: private FSelfRegisteringExec
-{
-	/** Console commands, see embeded usage statement **/
-	virtual bool Exec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar ) override
-	{
-		if( FParse::Command( &Cmd, TEXT("Profile") ) )
-		{
-			if( FParse::Command( &Cmd, TEXT("File") ) ) // if they didn't use the list command, we will show usage
-			{
-				FProfiledPlatformFile* ProfilePlatformFile = (FProfiledPlatformFile*)FPlatformFileManager::Get().FindPlatformFile(TProfiledPlatformFile<FProfiledFileStatsFileDetailed>::GetTypeName());
-				if (ProfilePlatformFile == nullptr)
-				{
-					// Try 'simple' profiler file.
-					ProfilePlatformFile = (FProfiledPlatformFile*)FPlatformFileManager::Get().FindPlatformFile(TProfiledPlatformFile<FProfiledFileStatsFileSimple>::GetTypeName());
-				}				
-
-				if( ProfilePlatformFile != nullptr)
-				{
-					DisplayProfileData( ProfilePlatformFile->GetStats() );
-				}
-				return true;
-			}
-		}
-		return false;
-	}
-
-	void DisplayProfileData( const TMap< FString, TSharedPtr< struct FProfiledFileStatsFileBase > >& InProfileData )
-	{
-		TArray< TSharedPtr<FProfiledFileStatsFileBase> > ProfileData;
-		InProfileData.GenerateValueArray( ProfileData );
-
-		// Single root data is required for bar visualizer to work properly
-		TSharedPtr< FVisualizerEvent > RootEvent( new FVisualizerEvent( 0.0, 1.0, 0.0, 0, TEXT("I/O") ) );
-
-		// Calculate Start time first
-		double StartTimeMs = FPlatformTime::Seconds() * 1000.0; // All timings happened before now
-		double EndTimeMs = 0.0;
-
-		for( int32 Index = 0; Index < ProfileData.Num(); Index++ )
-		{
-			TSharedPtr<FProfiledFileStatsFileBase> FileStat = ProfileData[ Index ];
-			double FileDurationMs = 0.0;
-			for( int32 ChildIndex = 0; ChildIndex < FileStat->Children.Num(); ChildIndex++ )
-			{
-				TSharedPtr<FProfiledFileStatsOp> FileOpStat = FileStat->Children[ ChildIndex ];
-				if( FileOpStat->Duration > 0.0 )
-				{
-					StartTimeMs = FMath::Min( FileOpStat->StartTime, StartTimeMs );
-					EndTimeMs = FMath::Max( FileOpStat->StartTime + FileOpStat->Duration, EndTimeMs );
-					FileDurationMs += FileOpStat->Duration;
-				}
-			}
-
-			// Create an event for each of the files
-			TSharedPtr< FVisualizerEvent > FileEvent( new FVisualizerEvent( 0.0, 1.0, FileDurationMs, Index, FileStat->Name ) );
-			FileEvent->ParentEvent = RootEvent;
-			RootEvent->Children.Add( FileEvent );
-		}
-
-		const double TotalTimeMs = EndTimeMs - StartTimeMs;
-		RootEvent->DurationMs = TotalTimeMs;
-
-		for( int32 FileIndex = 0; FileIndex < ProfileData.Num(); FileIndex++ )
-		{
-			TSharedPtr<FProfiledFileStatsFileBase> FileStat = ProfileData[ FileIndex ];
-			TSharedPtr<FVisualizerEvent> FileEvent( RootEvent->Children[ FileIndex ] );
-
-			for( int32 ChildIndex = 0; ChildIndex < FileStat->Children.Num(); ChildIndex++ )
-			{
-				TSharedPtr<FProfiledFileStatsOp> FileOpStat = FileStat->Children[ ChildIndex ];
-				if( FileOpStat->Duration > 0.0 )
-				{
-					FString EventName;
-					switch( FileOpStat->Type )
-					{
-						case FProfiledFileStatsOp::EOpType::Tell:
-							EventName = TEXT("Tell"); break;
-						case FProfiledFileStatsOp::EOpType::Seek:
-							EventName = TEXT("Seek"); break;
-						case FProfiledFileStatsOp::EOpType::Read:
-							EventName = FString::Printf( TEXT("Read (%lld)"), FileOpStat->Bytes ); break;
-						case FProfiledFileStatsOp::EOpType::Write:
-							EventName = FString::Printf( TEXT("Write (%lld)"), FileOpStat->Bytes ); break;
-						case FProfiledFileStatsOp::EOpType::Size:
-							EventName = TEXT("Size"); break;
-						case FProfiledFileStatsOp::EOpType::OpenRead:
-							EventName = TEXT("OpenRead"); break;
-						case FProfiledFileStatsOp::EOpType::OpenWrite:
-							EventName = TEXT("OpenWrite"); break;
-						case FProfiledFileStatsOp::EOpType::Exists:
-							EventName = TEXT("Exists"); break;
-						case FProfiledFileStatsOp::EOpType::Delete:
-							EventName = TEXT("Delete"); break;
-						case FProfiledFileStatsOp::EOpType::Move:
-							EventName = TEXT("Move"); break;
-						case FProfiledFileStatsOp::EOpType::IsReadOnly:
-							EventName = TEXT("IsReadOnly"); break;
-						case FProfiledFileStatsOp::EOpType::SetReadOnly:
-							EventName = TEXT("SetReadOnly"); break;
-						case FProfiledFileStatsOp::EOpType::GetTimeStamp:
-							EventName = TEXT("GetTimeStamp"); break;
-						case FProfiledFileStatsOp::EOpType::SetTimeStamp:
-							EventName = TEXT("SetTimeStamp"); break;
-						case FProfiledFileStatsOp::EOpType::Create:
-							EventName = TEXT("Create"); break;
-						case FProfiledFileStatsOp::EOpType::Copy:
-							EventName = TEXT("Copy"); break;
-						case FProfiledFileStatsOp::EOpType::Iterate:
-							EventName = TEXT("Iterate"); break;
-						default:
-							EventName = TEXT("Unknown"); break;
-					}
-
-					const double StartTime = ( FileOpStat->StartTime - StartTimeMs ) / TotalTimeMs;
-					const double DurationTime = FileOpStat->Duration / TotalTimeMs;
-					TSharedPtr<FVisualizerEvent> ChildEvent( new FVisualizerEvent( StartTime, DurationTime, FileOpStat->Duration, FileIndex, EventName ) );
-					ChildEvent->ParentEvent = FileEvent;
-					FileEvent->Children.Add( ChildEvent );
-				}
-			}	
-		}
-
-		static FName TaskGraphModule(TEXT("TaskGraph"));
-		if (FModuleManager::Get().IsModuleLoaded(TaskGraphModule))
-		{
-			IProfileVisualizerModule& ProfileVisualizer = FModuleManager::GetModuleChecked<IProfileVisualizerModule>(TaskGraphModule);
-			ProfileVisualizer.DisplayProfileVisualizer( RootEvent, TEXT("I/O") );
-		}
-	}
-
-public:
-
-	FFileProfileWrapperExec()
-	{}
-
-} FileProfileWrapperExec;
-#endif // !UE_BUILD_SHIPPING
 
 #if ENABLE_COLLISION_ANALYZER
 #include "ICollisionAnalyzer.h"

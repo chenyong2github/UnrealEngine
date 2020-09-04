@@ -5,81 +5,109 @@
 
 FRigUnit_FitChainToCurve_Execute()
 {
+	if (Context.State == EControlRigState::Init)
+	{
+		WorkData.CachedItems.Reset();
+		return;
+	}
+
+	FRigElementKeyCollection Items;
+	if(WorkData.CachedItems.Num() == 0)
+	{
+		Items = FRigElementKeyCollection::MakeFromChain(
+			Context.Hierarchy,
+			FRigElementKey(StartBone, ERigElementType::Bone),
+			FRigElementKey(EndBone, ERigElementType::Bone),
+			false /* reverse */
+		);
+	}
+
+	FRigUnit_FitChainToCurvePerItem::StaticExecute(
+		RigVMExecuteContext, 
+		Items,
+		Bezier,
+		Alignment,
+		Minimum,
+		Maximum,
+		SamplingPrecision,
+		PrimaryAxis,
+		SecondaryAxis,
+		PoleVectorPosition,
+		Rotations,
+		RotationEaseType,
+		Weight,
+		bPropagateToChildren,
+		DebugSettings,
+		WorkData,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_FitChainToCurvePerItem_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+
+	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
 
 	float& ChainLength = WorkData.ChainLength;
-	TArray<FVector>& BonePositions = WorkData.BonePositions;
-	TArray<float>& BoneSegments = WorkData.BoneSegments;
+	TArray<FVector>& ItemPositions = WorkData.ItemPositions;
+	TArray<float>& ItemSegments = WorkData.ItemSegments;
 	TArray<FVector>& CurvePositions = WorkData.CurvePositions;
 	TArray<float>& CurveSegments = WorkData.CurveSegments;
-	TArray<int32>& BoneIndices = WorkData.BoneIndices;
-	TArray<int32>& BoneRotationA = WorkData.BoneRotationA;
-	TArray<int32>& BoneRotationB = WorkData.BoneRotationB;
-	TArray<float>& BoneRotationT = WorkData.BoneRotationT;
-	TArray<FTransform>& BoneLocalTransforms = WorkData.BoneLocalTransforms;
+	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
+	TArray<int32>& ItemRotationA = WorkData.ItemRotationA;
+	TArray<int32>& ItemRotationB = WorkData.ItemRotationB;
+	TArray<float>& ItemRotationT = WorkData.ItemRotationT;
+	TArray<FTransform>& ItemLocalTransforms = WorkData.ItemLocalTransforms;
 
 	if (Context.State == EControlRigState::Init)
 	{
-		BoneIndices.Reset();
-		CurvePositions.Reset();
-		BonePositions.Reset();
-		BoneSegments.Reset();
-		CurveSegments.Reset();
-		BoneRotationA.Reset();
-		BoneRotationB.Reset();
-		BoneRotationT.Reset();
-		BoneLocalTransforms.Reset();
+		CachedItems.Reset();
+		return;
+	}
 
+	if(CachedItems.Num() == 0 && Items.Num() > 1)
+	{
+		CurvePositions.Reset();
+		ItemPositions.Reset();
+		ItemSegments.Reset();
+		CurveSegments.Reset();
+		ItemRotationA.Reset();
+		ItemRotationB.Reset();
+		ItemRotationT.Reset();
+		ItemLocalTransforms.Reset();
 		ChainLength = 0.f;
 
-		int32 EndBoneIndex = Hierarchy->GetIndex(EndBone);
-		if (EndBoneIndex != INDEX_NONE)
+		for (FRigElementKey Item : Items)
 		{
-			int32 StartBoneIndex = Hierarchy->GetIndex(StartBone);
-			if (StartBoneIndex == EndBoneIndex)
-			{
-				return;
-			}
-
-			while (EndBoneIndex != INDEX_NONE)
-			{
-				BoneIndices.Add(EndBoneIndex);
-				if (EndBoneIndex == StartBoneIndex)
-				{
-					break;
-				}
-				EndBoneIndex = (*Hierarchy)[EndBoneIndex].ParentIndex;
-			}
+			CachedItems.Add(FCachedRigElement(Item, Hierarchy));
 		}
 
-		if (BoneIndices.Num() < 2)
+		if (CachedItems.Num() < 2)
 		{
 			UE_CONTROLRIG_RIGUNIT_REPORT_WARNING(TEXT("Didn't find enough bones. You need at least two in the chain!"));
 			return;
 		}
 
-		Algo::Reverse(BoneIndices);
-
-		BonePositions.SetNumZeroed(BoneIndices.Num());
-		BoneSegments.SetNumZeroed(BoneIndices.Num());
-		BoneSegments[0] = 0;
-		for (int32 Index = 1; Index < BoneIndices.Num(); Index++)
+		ItemPositions.SetNumZeroed(CachedItems.Num());
+		ItemSegments.SetNumZeroed(CachedItems.Num());
+		ItemSegments[0] = 0;
+		for (int32 Index = 1; Index < CachedItems.Num(); Index++)
 		{
-			FVector A = Hierarchy->GetGlobalTransform(BoneIndices[Index - 1]).GetLocation();
-			FVector B = Hierarchy->GetGlobalTransform(BoneIndices[Index]).GetLocation();
-			BoneSegments[Index] = (A - B).Size();
-			ChainLength += BoneSegments[Index];
+			FVector A = Hierarchy->GetGlobalTransform(CachedItems[Index - 1]).GetLocation();
+			FVector B = Hierarchy->GetGlobalTransform(CachedItems[Index]).GetLocation();
+			ItemSegments[Index] = (A - B).Size();
+			ChainLength += ItemSegments[Index];
 		}
 
-		BoneRotationA.SetNumZeroed(BoneIndices.Num());
-		BoneRotationB.SetNumZeroed(BoneIndices.Num());
-		BoneRotationT.SetNumZeroed(BoneIndices.Num());
-		BoneLocalTransforms.SetNumZeroed(BoneIndices.Num());
+		ItemRotationA.SetNumZeroed(CachedItems.Num());
+		ItemRotationB.SetNumZeroed(CachedItems.Num());
+		ItemRotationT.SetNumZeroed(CachedItems.Num());
+		ItemLocalTransforms.SetNumZeroed(CachedItems.Num());
 
 		if (Rotations.Num() > 1)
 		{
@@ -99,23 +127,23 @@ FRigUnit_FitChainToCurve_Execute()
 			};
 			Algo::SortBy(RotationIndices, Projection, Predicate);
 
-			for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
+			for (int32 Index = 0; Index < CachedItems.Num(); Index++)
 			{
 				float T = 0.f;
-				if (BoneIndices.Num() > 1)
+				if (CachedItems.Num() > 1)
 				{
-					T = float(Index) / float(BoneIndices.Num() - 1);
+					T = float(Index) / float(CachedItems.Num() - 1);
 				}
 
 				if (T <= RotationRatios[RotationIndices[0]])
 				{
-					BoneRotationA[Index] = BoneRotationB[Index] = RotationIndices[0];
-					BoneRotationT[Index] = 0.f;
+					ItemRotationA[Index] = ItemRotationB[Index] = RotationIndices[0];
+					ItemRotationT[Index] = 0.f;
 				}
 				else if (T >= RotationRatios[RotationIndices.Last()])
 				{
-					BoneRotationA[Index] = BoneRotationB[Index] = RotationIndices.Last();
-					BoneRotationT[Index] = 0.f;
+					ItemRotationA[Index] = ItemRotationB[Index] = RotationIndices.Last();
+					ItemRotationT[Index] = 0.f;
 				}
 				else
 				{
@@ -126,29 +154,29 @@ FRigUnit_FitChainToCurve_Execute()
 
 						if (FMath::IsNearlyEqual(Rotations[A].Ratio, T))
 						{
-							BoneRotationA[Index] = BoneRotationB[Index] = A;
-							BoneRotationT[Index] = 0.f;
+							ItemRotationA[Index] = ItemRotationB[Index] = A;
+							ItemRotationT[Index] = 0.f;
 							break;
 						}
 						else if (FMath::IsNearlyEqual(Rotations[B].Ratio, T))
 						{
-							BoneRotationA[Index] = BoneRotationB[Index] = B;
-							BoneRotationT[Index] = 0.f;
+							ItemRotationA[Index] = ItemRotationB[Index] = B;
+							ItemRotationT[Index] = 0.f;
 							break;
 						}
 						else if (Rotations[B].Ratio > T)
 						{
 							if (FMath::IsNearlyEqual(RotationRatios[A], RotationRatios[B]))
 							{
-								BoneRotationA[Index] = BoneRotationB[Index] = A;
-								BoneRotationT[Index] = 0.f;
+								ItemRotationA[Index] = ItemRotationB[Index] = A;
+								ItemRotationT[Index] = 0.f;
 							}
 							else
 							{
-								BoneRotationA[Index] = A;
-								BoneRotationB[Index] = B;
-								BoneRotationT[Index] = (T - RotationRatios[A]) / (RotationRatios[B] - RotationRatios[A]);
-								BoneRotationT[Index] = FControlRigMathLibrary::EaseFloat(BoneRotationT[Index], RotationEaseType);
+								ItemRotationA[Index] = A;
+								ItemRotationB[Index] = B;
+								ItemRotationT[Index] = (T - RotationRatios[A]) / (RotationRatios[B] - RotationRatios[A]);
+								ItemRotationT[Index] = FControlRigMathLibrary::EaseFloat(ItemRotationT[Index], RotationEaseType);
 							}
 							break;
 						}
@@ -156,11 +184,9 @@ FRigUnit_FitChainToCurve_Execute()
 				}
 			}
  		}
-		
-		return;
 	}
 
-	if (BoneIndices.Num() == 0)
+	if (CachedItems.Num() < 2)
 	{
 		return;
 	}
@@ -219,13 +245,13 @@ FRigUnit_FitChainToCurve_Execute()
 	}
 
 	int32 CurveIndex = 1;
-	BonePositions[0] = CurvePositions[0];
+	ItemPositions[0] = CurvePositions[0];
 
-	for (int32 Index = 1; Index < BoneIndices.Num(); Index++)
+	for (int32 Index = 1; Index < CachedItems.Num(); Index++)
 	{
-		const FVector& LastPosition = BonePositions[Index - 1];
+		const FVector& LastPosition = ItemPositions[Index - 1];
 
-		float BoneLength = BoneSegments[Index];
+		float BoneLength = ItemSegments[Index];
 		switch (Alignment)
 		{
 			case EControlRigCurveAlignment::Front:
@@ -250,7 +276,7 @@ FRigUnit_FitChainToCurve_Execute()
 		if (DistanceB > BoneLength)
 		{
 			float Ratio = BoneLength / DistanceB;
-			BonePositions[Index] = FMath::Lerp<FVector>(LastPosition, B, Ratio);
+			ItemPositions[Index] = FMath::Lerp<FVector>(LastPosition, B, Ratio);
 			continue;
 		}
 
@@ -280,27 +306,37 @@ FRigUnit_FitChainToCurve_Execute()
 
 		if (FMath::IsNearlyEqual(DistanceA, DistanceB))
 		{
-			BonePositions[Index] = A;
+			ItemPositions[Index] = A;
 			continue;
 		}
 
 		float Ratio = (BoneLength - DistanceA) / (DistanceB - DistanceA);
-		BonePositions[Index] = FMath::Lerp<FVector>(A, B, Ratio);
+		ItemPositions[Index] = FMath::Lerp<FVector>(A, B, Ratio);
 	}
 
-	for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
+	TArray<FTransform> BoneGlobalTransforms;
+	if (Weight < 1.f - SMALL_NUMBER)
 	{
-		FTransform Transform = Hierarchy->GetGlobalTransform(BoneIndices[Index]);
-		Transform.SetTranslation(BonePositions[Index]);
+		for (int32 Index = 0; Index < CachedItems.Num(); Index++)
+		{
+			BoneGlobalTransforms.Add(Hierarchy->GetGlobalTransform(CachedItems[Index]));
+		}
+	}
+
+	for (int32 Index = 0; Index < CachedItems.Num(); Index++)
+	{
+		FTransform Transform = Hierarchy->GetGlobalTransform(CachedItems[Index]);
+
+		Transform.SetTranslation(ItemPositions[Index]);
 
 		FVector Target = FVector::ZeroVector;
-		if (Index < BoneIndices.Num() - 1)
+		if (Index < CachedItems.Num() - 1)
 		{
-			Target = BonePositions[Index + 1] - BonePositions[Index];
+			Target = ItemPositions[Index + 1] - ItemPositions[Index];
 		}
 		else
 		{
-			Target = BonePositions.Last() - BonePositions[BonePositions.Num() - 2];
+			Target = ItemPositions.Last() - ItemPositions[ItemPositions.Num() - 2];
 		}
 
 		if (!Target.IsNearlyZero() && !PrimaryAxis.IsNearlyZero())
@@ -311,7 +347,7 @@ FRigUnit_FitChainToCurve_Execute()
 			Transform.SetRotation((Rotation * Transform.GetRotation()).GetNormalized());
 		}
 
-		Target = PoleVectorPosition - BonePositions[Index];
+		Target = PoleVectorPosition - ItemPositions[Index];
 		if (!SecondaryAxis.IsNearlyZero())
 		{
 			if (!PrimaryAxis.IsNearlyZero())
@@ -329,48 +365,57 @@ FRigUnit_FitChainToCurve_Execute()
 			}
 		}
 
-		Hierarchy->SetGlobalTransform(BoneIndices[Index], Transform, bPropagateToChildren && Rotations.Num() == 0);
+		if (Weight >= 1.f - SMALL_NUMBER)
+		{
+			Hierarchy->SetGlobalTransform(CachedItems[Index], Transform, bPropagateToChildren && Rotations.Num() == 0);
+		}
+		else
+		{
+			Transform = FControlRigMathLibrary::LerpTransform(BoneGlobalTransforms[Index], Transform, FMath::Clamp<float>(Weight, 0.f, 1.f));
+			Hierarchy->SetGlobalTransform(CachedItems[Index], Transform, bPropagateToChildren && Rotations.Num() == 0);
+		}
 	}
 
 	if (Rotations.Num() > 0)
 	{
 		FTransform BaseTransform = FTransform::Identity;
-		int32 ParentIndex = (*Hierarchy)[BoneIndices[0]].ParentIndex;
-		if (ParentIndex != INDEX_NONE)
+		FRigElementKey ParentKey = Hierarchy->GetParentKey(CachedItems[0]);
+		if (ParentKey.IsValid())
 		{
-			BaseTransform = Hierarchy->GetGlobalTransform(ParentIndex);
+			BaseTransform = Hierarchy->GetGlobalTransform(ParentKey);
 		}
 
-		for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
+		for (int32 Index = 0; Index < CachedItems.Num(); Index++)
 		{
-			BoneLocalTransforms[Index] = Hierarchy->GetLocalTransform(BoneIndices[Index]);
+			ItemLocalTransforms[Index] = Hierarchy->GetLocalTransform(CachedItems[Index]);
 		}
 
-		for (int32 Index = 0; Index < BoneIndices.Num(); Index++)
+		for (int32 Index = 0; Index < CachedItems.Num(); Index++)
 		{
-			if (BoneRotationA[Index] >= Rotations.Num() ||
-				BoneRotationB[Index] >= Rotations.Num())
+			if (ItemRotationA[Index] >= Rotations.Num() ||
+				ItemRotationB[Index] >= Rotations.Num())
 			{
 				continue;
 			}
 
-			FQuat Rotation = Rotations[BoneRotationA[Index]].Rotation;
-			FQuat RotationB = Rotations[BoneRotationB[Index]].Rotation;
-			if (BoneRotationA[Index] != BoneRotationB[Index])
+			FQuat Rotation = Rotations[ItemRotationA[Index]].Rotation;
+			FQuat RotationB = Rotations[ItemRotationB[Index]].Rotation;
+			if (ItemRotationA[Index] != ItemRotationB[Index])
 			{
-				if (BoneRotationT[Index] > 1.f - SMALL_NUMBER)
+				if (ItemRotationT[Index] > 1.f - SMALL_NUMBER)
 				{
 					Rotation = RotationB;
 				}
-				else if (BoneRotationT[Index] > SMALL_NUMBER)
+				else if (ItemRotationT[Index] > SMALL_NUMBER)
 				{
-					Rotation = FQuat::Slerp(Rotation, RotationB, BoneRotationT[Index]).GetNormalized();
+					Rotation = FQuat::Slerp(Rotation, RotationB, ItemRotationT[Index]).GetNormalized();
 				}
 			}
 
-			BaseTransform = BoneLocalTransforms[Index] * BaseTransform;
-			BaseTransform.SetRotation(BaseTransform.GetRotation() * Rotation);
-			Hierarchy->SetGlobalTransform(BoneIndices[Index], BaseTransform, bPropagateToChildren);
+			BaseTransform = ItemLocalTransforms[Index] * BaseTransform;
+			Rotation = FQuat::Slerp(BaseTransform.GetRotation(), BaseTransform.GetRotation() * Rotation, FMath::Clamp<float>(Weight, 0.f, 1.f));
+			BaseTransform.SetRotation(Rotation);
+			Hierarchy->SetGlobalTransform(CachedItems[Index], BaseTransform, bPropagateToChildren);
 		}
 	}
 
@@ -384,6 +429,6 @@ FRigUnit_FitChainToCurve_Execute()
 		Context.DrawInterface->DrawLineStrip(DebugSettings.WorldOffset, CurvePositions, DebugSettings.SegmentsColor, DebugSettings.Scale);
 		Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 4.f, DebugSettings.SegmentsColor);
 		// Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, CurvePositions, DebugSettings.Scale * 3.f, FLinearColor::Blue);
-		// Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, BonePositions, DebugSettings.Scale * 6.f, DebugSettings.SegmentsColor);
+		// Context.DrawInterface->DrawPoints(DebugSettings.WorldOffset, ItemPositions, DebugSettings.Scale * 6.f, DebugSettings.SegmentsColor);
 	}
 }

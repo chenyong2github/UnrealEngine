@@ -53,7 +53,7 @@
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "SSequencerTreeView.h"
-#include "MovieSceneSequence.h"
+#include "MovieSceneTrackEditor.h"
 #include "SSequencerSplitterOverlay.h"
 #include "SequencerHotspots.h"
 #include "SSequencerTimePanel.h"
@@ -67,6 +67,7 @@
 #include "SSequencerTransformBox.h"
 #include "SSequencerStretchBox.h"
 #include "SSequencerDebugVisualizer.h"
+#include "SSequencerTreeFilterStatusBar.h"
 #include "ISequencerModule.h"
 #include "IVREditorModule.h"
 #include "EditorFontGlyphs.h"
@@ -134,7 +135,7 @@ public:
 
 	TSharedRef<SWidget> MakeToolbar(TSharedRef<SCurveEditorPanel> InEditorPanel)
 	{
-		FToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), EOrientation::Orient_Horizontal, true);
+		FToolBarBuilder ToolBarBuilder(InEditorPanel->GetCommands(), FMultiBoxCustomization::None, InEditorPanel->GetToolbarExtender(), true);
 		ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 		ToolBarBuilder.BeginSection("Asset");
 
@@ -530,11 +531,8 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 
 		// Register an instanced custom property type layout to handle converting FFrameNumber from Tick Resolution to Display Rate.
 		CurveEditorWidget->GetKeyDetailsView()->GetPropertyRowGenerator()->RegisterInstancedCustomPropertyTypeLayout("FrameNumber", FOnGetPropertyTypeCustomizationInstance::CreateStatic(CreateFrameNumberCustomization, SequencerPtr));
-		TAttribute<bool> IsEnabledAttribute = TAttribute<bool>::Create(TAttribute<bool>::FGetter::CreateSP(this, &SSequencer::GetIsCurveEditorEnabled));
 	
 		CurveEditorPanel = SNew(SSequencerCurveEditor, CurveEditorWidget, InSequencer);
-		CurveEditorPanel->SetEnabled(IsEnabledAttribute);
-		CurveEditorWidget->SetEnabled(IsEnabledAttribute);
 
 		// Check to see if the tab is already opened due to the saved window layout.
 		TSharedPtr<SDockTab> ExistingCurveEditorTab = InSequencer->GetToolkitHost()->GetTabManager()->FindExistingLiveTab(FTabId(SSequencer::CurveEditorTabName));
@@ -935,6 +933,11 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 						]
 					]
 
+					+ SGridPanel::Slot(Column0, Row3, SGridPanel::Layer(10))
+					[
+						SAssignNew(SequencerTreeFilterStatusBar, SSequencerTreeFilterStatusBar, InSequencer)
+					]
+
 					// playback buttons
 					+ SGridPanel::Slot( Column0, Row4, SGridPanel::Layer(10) )
 					[
@@ -1301,6 +1304,11 @@ void SSequencer::HandleOutlinerNodeSelectionChanged()
 	{
 		NodeGroupManager->SelectItemsSelectedInSequencer();
 	}
+
+	if (SequencerTreeFilterStatusBar.IsValid())
+	{
+		SequencerTreeFilterStatusBar->UpdateText();
+	}
 }
 
 TSharedRef<SWidget> SSequencer::MakeAddButton()
@@ -1392,7 +1400,7 @@ TSharedRef<SWidget> SSequencer::MakeToolBar()
 
 	TSharedPtr<FExtender> Extender = FExtender::Combine(AllExtenders);
 
-	FToolBarBuilder ToolBarBuilder( SequencerPtr.Pin()->GetCommandBindings(), FMultiBoxCustomization::None, Extender, Orient_Horizontal, true);
+	FToolBarBuilder ToolBarBuilder( SequencerPtr.Pin()->GetCommandBindings(), FMultiBoxCustomization::None, Extender, true);
 	ToolBarBuilder.SetStyle(&FEditorStyle::Get(), "Sequencer.ToolBar");
 
 	ToolBarBuilder.BeginSection("Base Commands");
@@ -1681,7 +1689,7 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 			if (FocusedMovieScene->GetNodeGroups().Num() > 0)
 			{
 				MenuBuilder.BeginSection("NodeGroupFilters");
-				MenuBuilder.AddSubMenu(LOCTEXT("NodeGroupFilters", "Group Filters"), LOCTEXT("NodeGroupFiltersToolTip", "Enables using this group as a filter for all items"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillNodeGroupsFilterMenu), false);
+				MenuBuilder.AddSubMenu(LOCTEXT("NodeGroupFilters", "Group Filters"), LOCTEXT("NodeGroupFiltersToolTip", "Enables using this group as a filter for all items"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillNodeGroupsFilterMenu), false, FSlateIcon(), false);
 				MenuBuilder.EndSection();
 			}
 		}
@@ -1693,7 +1701,7 @@ TSharedRef<SWidget> SSequencer::MakeFilterMenu()
 	if (World && World->GetLevels().Num() > 1)
 	{
 		MenuBuilder.BeginSection("TrackLevelFilters");
-		MenuBuilder.AddSubMenu(LOCTEXT("LevelFilters", "Level Filters"), LOCTEXT("LevelFiltersToolTip", "Filter object tracks by level"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillLevelFilterMenu), false);
+		MenuBuilder.AddSubMenu(LOCTEXT("LevelFilters", "Level Filters"), LOCTEXT("LevelFiltersToolTip", "Filter object tracks by level"), FNewMenuDelegate::CreateRaw(this, &SSequencer::FillLevelFilterMenu), false, FSlateIcon(), false);
 		MenuBuilder.EndSection();
 	}
 
@@ -1733,18 +1741,26 @@ void SSequencer::FillNodeGroupsFilterMenu(FMenuBuilder& InMenuBarBuilder)
 		FocusedMovieScene = FocusedMovieSequence->GetMovieScene();
 		if (IsValid(FocusedMovieScene))
 		{
-			InMenuBarBuilder.BeginSection("SequencerTracksResetFilters");
+			InMenuBarBuilder.BeginSection("SequencerTracksResetNodeGroupFilters");
+
 			InMenuBarBuilder.AddMenuEntry(
-				LOCTEXT("FilterListResetNodeGroupFilters", "Reset Group Filters"),
-				LOCTEXT("FilterListResetNodeGroupFiltersToolTip", "Disables all group filters"),
+				LOCTEXT("EnableAllNodeGroupFilters", "Enable All"),
+				LOCTEXT("EnableAllNodeGroupFiltersToolTip", "Enables all group filters"),
 				FSlateIcon(),
-				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnResetNodeGroupFilters))
+				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllNodeGroupFilters, true)));
+
+			InMenuBarBuilder.AddMenuEntry(
+				LOCTEXT("ResetNodeGroupFilters", "Reset Filters"),
+				LOCTEXT("ResetNodeGroupFiltersToolTip", "Disables all group filters"),
+				FSlateIcon(),
+				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllNodeGroupFilters, false))
 			);
+			
 			InMenuBarBuilder.EndSection();
 
 			bool bIsReadOnly = GetIsSequenceReadOnly();
 
-			InMenuBarBuilder.BeginSection("NodeGroupFilters");
+			InMenuBarBuilder.BeginSection("SequencerTracksNodeGroupFilters");
 			for (UMovieSceneNodeGroup* NodeGroup : FocusedMovieScene->GetNodeGroups())
 			{
 				InMenuBarBuilder.AddMenuEntry(
@@ -1765,7 +1781,7 @@ void SSequencer::FillNodeGroupsFilterMenu(FMenuBuilder& InMenuBarBuilder)
 	}
 }
 
-void SSequencer::OnResetNodeGroupFilters()
+void SSequencer::OnEnableAllNodeGroupFilters(bool bEnableAll)
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	UMovieSceneSequence* FocusedMovieSequence = Sequencer->GetFocusedMovieSceneSequence();
@@ -1777,7 +1793,7 @@ void SSequencer::OnResetNodeGroupFilters()
 		{
 			for (UMovieSceneNodeGroup* NodeGroup : FocusedMovieScene->GetNodeGroups())
 			{
-				NodeGroup->SetEnableFilter(false);
+				NodeGroup->SetEnableFilter(bEnableAll);
 			}
 		}
 	}
@@ -1819,10 +1835,9 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 				FUIAction(FExecuteAction::CreateSP(this, &SSequencer::OnEnableAllLevelFilters, false)));
 
 			InMenuBarBuilder.EndSection();
-
-			InMenuBarBuilder.AddMenuSeparator();
 		}
 
+		InMenuBarBuilder.BeginSection("SequencerTracksLevelFilters");
 		for (ULevel* Level : Levels)
 		{
 			FString LevelName = FPackageName::GetShortName(Level->GetOutermost()->GetName());
@@ -1838,6 +1853,7 @@ void SSequencer::FillLevelFilterMenu(FMenuBuilder& InMenuBarBuilder)
 				EUserInterfaceActionType::ToggleButton
 			);
 		}
+		InMenuBarBuilder.EndSection();
 	}
 }
 
@@ -1870,6 +1886,8 @@ void SSequencer::OnResetFilters()
 {
 	TSharedPtr<FSequencer> Sequencer = SequencerPtr.Pin();
 	Sequencer->GetNodeTree()->RemoveAllFilters();
+	OnEnableAllNodeGroupFilters(false);
+	OnEnableAllLevelFilters(false);
 }
 
 void SSequencer::OnEnableAllFilters()
@@ -1886,6 +1904,8 @@ void SSequencer::OnEnableAllFilters()
 			}
 		}
 	}
+	OnEnableAllNodeGroupFilters(true);
+	OnEnableAllLevelFilters(true);
 }
 
 void SSequencer::OnTrackFilterClicked(TSharedRef<FSequencerTrackFilter> TrackFilter)
@@ -2774,6 +2794,12 @@ void SSequencer::UpdateLayoutTree()
 		{
 			NodeGroupManager->RefreshNodeGroups();
 		}
+		
+		if (SequencerTreeFilterStatusBar.IsValid())
+		{
+			SequencerTreeFilterStatusBar->UpdateText();
+		}
+		
 	}
 }
 
@@ -3009,6 +3035,8 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 
 	ESequencerDropResult DropResult = ESequencerDropResult::Unhandled;
 
+	const FScopedTransaction Transaction(LOCTEXT("DropAssets", "Drop Assets"));
+
 	// See if any callback wants to handle this drop.
 	for (FOnAssetsDrop Delegate : OnAssetsDrop)
 	{
@@ -3025,6 +3053,8 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 	// If nobody took care of it, do the default behaviour.
 	if (DropResult == ESequencerDropResult::Unhandled)
 	{
+		FMovieSceneTrackEditor::BeginKeying();
+
 		for (TArray<UObject*>::TConstIterator CurObjectIter = DroppedObjects.CreateConstIterator(); CurObjectIter; ++CurObjectIter)
 		{
 			UObject* CurObject = *CurObjectIter;
@@ -3054,6 +3084,8 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 
 			DropResult = ESequencerDropResult::DropHandled;
 		}
+
+		FMovieSceneTrackEditor::EndKeying();
 	}
 
 	if (DropResult == ESequencerDropResult::DropHandled)
@@ -3071,6 +3103,8 @@ void SSequencer::OnAssetsDropped( const FAssetDragDropOp& DragDropOp )
 
 void SSequencer::OnClassesDropped( const FClassDragDropOp& DragDropOp )
 {
+	const FScopedTransaction Transaction(LOCTEXT("DropClasses", "Drop Classes"));
+
 	ESequencerDropResult DropResult = ESequencerDropResult::Unhandled;
 
 	for (FOnClassesDrop Delegate : OnClassesDrop)
@@ -3104,6 +3138,8 @@ void SSequencer::OnClassesDropped( const FClassDragDropOp& DragDropOp )
 
 void SSequencer::OnActorsDropped( FActorDragDropGraphEdOp& DragDropOp )
 {
+	const FScopedTransaction Transaction(LOCTEXT("DropActors", "Drop Actors"));
+
 	ESequencerDropResult DropResult = ESequencerDropResult::Unhandled;
 
 	for (FOnActorsDrop Delegate : OnActorsDrop)

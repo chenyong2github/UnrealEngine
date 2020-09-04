@@ -89,35 +89,20 @@ void FTidPacketTransport::Update()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FTidPacketTransport::ThreadIter FTidPacketTransport::ReadThreads()
+uint32 FTidPacketTransport::GetThreadCount() const
 {
-	return ThreadIter(0);
+	return uint32(Threads.Num());
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FStreamReader* FTidPacketTransport::GetNextThread(ThreadIter& Iter)
+FStreamReader* FTidPacketTransport::GetThreadStream(uint32 Index)
 {
-	while (Iter < Threads.Num())
-	{
-		FThreadStream& Thread = Threads[Iter++];
-		if (!Thread.Buffer.IsEmpty())
-		{
-			return &(Thread.Buffer);
-		}
-	}
-
-	return nullptr;
+	return &(Threads[Index].Buffer);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-int32 FTidPacketTransport::GetThreadId(ThreadIter Iter) const
+int32 FTidPacketTransport::GetThreadId(uint32 Index) const
 {
-	uint32 Index = Iter - 1;
-	if (Index >= uint32(Threads.Num()))
-	{
-		return -1;
-	}
-
 	return Threads[Index].ThreadId;
 }
 

@@ -242,6 +242,10 @@ class UNREALED_API ULevelEditorViewportSettings
 	UPROPERTY(EditAnywhere, config, Category=Controls, meta=(DisplayName = "Orthographic Zoom to Cursor Position"))
 	uint32 bCenterZoomAroundCursor:1;
 
+	/** The closest possible distance allowed when viewing through an orthographic camera */
+	UPROPERTY(EditAnywhere, config, Category = Controls, meta=(UIMin = "1.0", ClampMin = "1.0"))
+	float MinimumOrthographicZoom;
+
 	/** Allow translate/rotate widget */
 	UPROPERTY(EditAnywhere, config, Category=LookAndFeel, meta=( DisplayName = "Enable Combined Translate/Rotate Widget" ))
 	uint32 bAllowTranslateRotateZWidget:1;

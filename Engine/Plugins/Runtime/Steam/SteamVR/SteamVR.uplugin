@@ -36,8 +36,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
-				"Linux"
+				"Win32"
 			]
 		},
 		{
@@ -46,8 +45,7 @@
 			"LoadingPhase": "PostConfigInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
-				"Linux"
+				"Win32"		
 			]
 		},
 		{
@@ -56,8 +54,7 @@
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",
-				"Win32",
-				"Linux"
+				"Win32"
 			]
 		}
 	],

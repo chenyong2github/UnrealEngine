@@ -7,6 +7,9 @@
 #include "ContentStreaming.h"
 #include "Streaming/TextureStreamingHelpers.h"
 #include "Engine/World.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 DEFINE_LOG_CATEGORY_STATIC(LogMaterialParameter, Warning, All);
 
@@ -72,6 +75,14 @@ void UMeshComponent::SetMaterial(int32 ElementIndex, UMaterialInterface* Materia
 			{
 				BodyInst->UpdatePhysicalMaterials();
 			}
+
+#if WITH_EDITOR
+			FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(this);
+			if (HasValidSettingsForStaticLighting(false))
+			{
+				FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(this);
+			}
+#endif
 		}
 	}
 }

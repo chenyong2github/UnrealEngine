@@ -94,7 +94,7 @@ void UAbilityTask_ApplyRootMotionJumpForce::SharedInitAndApply()
 		if (MovementComponent)
 		{
 			ForceName = ForceName.IsNone() ? FName("AbilityTaskApplyRootMotionJumpForce") : ForceName;
-			FRootMotionSource_JumpForce* JumpForce = new FRootMotionSource_JumpForce();
+			TSharedPtr<FRootMotionSource_JumpForce> JumpForce = MakeShared<FRootMotionSource_JumpForce>();
 			JumpForce->InstanceName = ForceName;
 			JumpForce->AccumulateMode = ERootMotionAccumulateMode::Override;
 			JumpForce->Priority = 500;

@@ -124,7 +124,7 @@ void UK2Node_LatentGameplayTaskCall::ReallocatePinsDuringReconstruction(TArray<U
 {
 	AllocateDefaultPins();
 	UClass* UseSpawnClass = GetClassToSpawn(&OldPins);
-	if (UseSpawnClass != NULL)
+	if (UseSpawnClass != nullptr)
 	{
 		CreatePinsForClass(UseSpawnClass);
 	}
@@ -169,7 +169,7 @@ UClass* UK2Node_LatentGameplayTaskCall::GetClassToSpawn(const TArray<UEdGraphPin
 
 void UK2Node_LatentGameplayTaskCall::CreatePinsForClass(UClass* InClass)
 {
-	check(InClass != NULL);
+	check(InClass != nullptr);
 
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
@@ -235,27 +235,31 @@ void UK2Node_LatentGameplayTaskCall::PinDefaultValueChanged(UEdGraphPin* Changed
 	{
 		const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
 
-		// Because the archetype has changed, we break the output link as the output pin type will change
-		//UEdGraphPin* ResultPin = GetResultPin();
-		//ResultPin->BreakAllPinLinks();
+		// Track removed pins so that we can reconnect it later if possible
+		TArray<UEdGraphPin*> RemovedPins;
 
-		// Remove all pins related to archetype variables
+		// Orphan all pins related to archetype variables that have connections, otherwise just remove them
 		for (const FName& OldPinReference : SpawnParamPins)
 		{
-			UEdGraphPin* OldPin = FindPin(OldPinReference);
-			if(OldPin)
+			if(UEdGraphPin* OldPin = FindPin(OldPinReference))
 			{
-				OldPin->MarkPendingKill();
+				if(OldPin->HasAnyConnections())
+				{
+					RemovedPins.Add(OldPin);
+				}
 				Pins.Remove(OldPin);
 			}
 		}
+		
 		SpawnParamPins.Reset();
 
 		UClass* UseSpawnClass = GetClassToSpawn();
-		if (UseSpawnClass != NULL)
+		if (UseSpawnClass != nullptr)
 		{
 			CreatePinsForClass(UseSpawnClass);
 		}
+
+		RewireOldPinsToNewPins(/* InOldPins = */ RemovedPins, /* InNewPins = */ Pins, /* NewPinToOldPin = */ nullptr);
 
 		// Refresh the UI for the graph so the pin changes show up
 		UEdGraph* Graph = GetGraph();
@@ -428,7 +432,7 @@ bool UK2Node_LatentGameplayTaskCall::ConnectSpawnProperties(UClass* ClassToSpawn
 					continue;
 				}
 
-				// This is sloppy, we should be comparing to defaults mutch later in the compile process:
+				// This is sloppy, we should be comparing to defaults much later in the compile process:
 				if (ClassToSpawn->ClassDefaultObject != nullptr)
 				{
 					// We don't want to generate an assignment node unless the default value 

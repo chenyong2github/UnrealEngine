@@ -111,8 +111,6 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 		SkyLightingNormal = OctahedronToUnitVector(oct1);			
 	}
 	
-	float3 DiffuseIrradiance = 0;
-
 #if APPLY_SKY_SHADOWING
 #define USE_DIRECTIONAL_OCCLUSION_ON_SKY_DIFFUSE 1
 
@@ -136,9 +134,6 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	float ContrastCurve = 1 / (1 + exp(-ContrastAndNormalizeMulAdd.x * (SkyVisibility * 10 - 5)));
 	SkyVisibility = saturate(ContrastCurve * ContrastAndNormalizeMulAdd.y + ContrastAndNormalizeMulAdd.z);
 
-#if SUPPORT_IRRADIANCE
-	DiffuseIrradiance = Texture2DSampleLevel(IrradianceTexture, IrradianceSampler, UV, 0).xyz;
-#endif
 #endif
 
 	// Apply DFAO controls
@@ -199,15 +194,8 @@ float3 SkyLightDiffuse(FGBufferData GBuffer, float AmbientOcclusion, float2 Buff
 	// apply the Diffuse color to the lighting (including OcclusionTintAndMinOcclusion as it's considered another light, that fixes SubsurfaceProfile being too dark)
 	Lighting += ((ScalarFactors * DotProductFactor) * DiffuseLookup + (1 - SkyVisibility) * OcclusionTintAndMinOcclusion.xyz) * DiffuseColor;
 
-	Lighting += DiffuseIrradiance * GBuffer.DiffuseColor * (GBuffer.GBufferAO * AmbientOcclusion);
-
 #if USE_PREEXPOSURE
 	Lighting *= View.PreExposure;
-#endif
-	
-	// For debugging
-#if SUPPORT_IRRADIANCE
-	//Lighting = max(Texture2DSampleLevel(IrradianceTexture, IrradianceSampler, UV, 0).xyz, 0) + .01f * GetSkySHDiffuse(InGBufferData.WorldNormal);
 #endif
 
 	//Lighting = (Texture2DSampleLevel(BentNormalAOTexture, BentNormalAOSampler, UV, 0).xyz);

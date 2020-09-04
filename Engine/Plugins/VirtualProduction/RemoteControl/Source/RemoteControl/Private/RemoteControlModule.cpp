@@ -38,6 +38,7 @@ namespace RemoteControlUtil
 	UFunction* FindFunctionByNameOrMetaDataName(UObject* Object, const FString& FunctionName)
 	{
 		UFunction* Function = Object->FindFunction(FName(*FunctionName));
+#if WITH_EDITOR
 		// if the function wasn't found through the function map, try finding it through its `ScriptName` or `DisplayName` metadata
 		if (Function == nullptr)
 		{
@@ -55,6 +56,7 @@ namespace RemoteControlUtil
 				}
 			}
 		}
+#endif
 		return Function;
 	}
 
@@ -108,14 +110,17 @@ public:
 
 				if (!Function)
 				{
-					ErrorText = FString::Printf(TEXT("function: %s does not exist on object: %s"), *ObjectPath, *FunctionName);
+					ErrorText = FString::Printf(TEXT("Function: %s does not exist on object: %s"), *FunctionName, *ObjectPath);
 					bSuccess = false;
 				}
-				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) ||
-					Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction) ||
-					Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport))
+				else if (!Function->HasAllFunctionFlags(FUNC_BlueprintCallable | FUNC_Public) 
+#if WITH_EDITOR
+					|| Function->HasMetaData(RemoteControlUtil::NAME_DeprecatedFunction)
+					|| Function->HasMetaData(RemoteControlUtil::NAME_ScriptNoExport)
+#endif
+					)
 				{
-					ErrorText = FString::Printf(TEXT("function: %s is deprecated or unavailable remotely on object: %s"), *ObjectPath, *FunctionName);
+					ErrorText = FString::Printf(TEXT("Function: %s is deprecated or unavailable remotely on object: %s"), *FunctionName, *ObjectPath);
 					bSuccess = false;
 				}
 				else
@@ -126,13 +131,13 @@ public:
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("object: %s does not exists."), *ObjectPath);
+				ErrorText = FString::Printf(TEXT("Object: %s does not exists."), *ObjectPath);
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = FString::Printf(TEXT("can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
+			ErrorText = FString::Printf(TEXT("Can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
 			bSuccess = false;
 		}
 
@@ -184,7 +189,7 @@ public:
 					}
 					else
 					{
-						ErrorText = FString::Printf(TEXT("object property: %s is unavailable remotely on object: %s"), *PropertyName, *ObjectPath);
+						ErrorText = FString::Printf(TEXT("Object property: %s is unavailable remotely on object: %s"), *PropertyName, *ObjectPath);
 						bSuccess = false;
 					}
 				}
@@ -196,13 +201,13 @@ public:
 			}
 			else
 			{
-				ErrorText = FString::Printf(TEXT("object: %s does not exists when trying to resolve property: %s"), *ObjectPath, *PropertyName);
+				ErrorText = FString::Printf(TEXT("Object: %s does not exists when trying to resolve property: %s"), *ObjectPath, *PropertyName);
 				bSuccess = false;
 			}
 		}
 		else
 		{
-			ErrorText = FString::Printf(TEXT("can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
+			ErrorText = FString::Printf(TEXT("Can't resolve object: %s while saving or garbage collecting."), *ObjectPath);
 			bSuccess = false;
 		}
 
@@ -246,16 +251,18 @@ public:
 	{
 		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
-			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-#if WITH_EDITOR
-			FScopedTransaction Transaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"), bGenerateTransaction);
-#endif
 			UObject* Object = ObjectAccess.Object.Get();
+
+#if WITH_EDITOR
+			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			FScopedTransaction Transaction(LOCTEXT("RemoteSetPropertyTransaction", "Remote Set Object Property"), bGenerateTransaction);
+
 			if (bGenerateTransaction)
 			{
 				Object->Modify();
 				Object->PreEditChange(ObjectAccess.Property.Get());
 			}
+#endif
 
 			FStructDeserializerPolicies Policies;
 			if (ObjectAccess.Property.IsValid())
@@ -277,11 +284,13 @@ public:
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
+#if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
 				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
+#endif
 			return bSuccess;
 		}
 		return false;
@@ -291,33 +300,33 @@ public:
 	{
 		if (ObjectAccess.IsValid() && (ObjectAccess.Access == ERCAccess::WRITE_ACCESS || ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS))
 		{
-			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
-#if WITH_EDITOR
-			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
-#endif
 			UObject* Object = ObjectAccess.Object.Get();
+
+#if WITH_EDITOR
+			bool bGenerateTransaction = ObjectAccess.Access == ERCAccess::WRITE_TRANSACTION_ACCESS;
+			FScopedTransaction Transaction(LOCTEXT("RemoteResetPropertyTransaction", "Remote Reset Object Property"), bGenerateTransaction);
 			if (bGenerateTransaction)
 			{
 				Object->Modify();
 				Object->PreEditChange(ObjectAccess.Property.Get());
 			}
+#endif
 					
 			ObjectAccess.Property->InitializeValue(ObjectAccess.Property->template ContainerPtrToValuePtr<void>(ObjectAccess.Object.Get()));
 
 			// if we are generating a transaction, also generate post edit property event, event if the change ended up unsuccessful
 			// this is to match the pre edit change call that can unregister components for example
+#if WITH_EDITOR
 			if (bGenerateTransaction)
 			{
 				FPropertyChangedEvent PropertyEvent(ObjectAccess.Property.Get());
 				Object->PostEditChangeProperty(PropertyEvent);
 			}
+#endif
 			return true;
 		}
 		return false;
 	}
-
-
-private:
 };
 
 #undef LOCTEXT_NAMESPACE

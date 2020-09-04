@@ -84,8 +84,8 @@ bool SPropertyEditorAsset::ShouldDisplayThumbnail(const FArguments& InArgs, cons
 		return false;
 	}
 
-	bool bShowThumbnail = InObjectClass == nullptr || !InObjectClass->IsChildOf(AActor::StaticClass());
-	
+	bool bShowThumbnail = InObjectClass == nullptr || !(InObjectClass->IsChildOf(AActor::StaticClass()) || InObjectClass->IsChildOf(UInterface::StaticClass()));
+
 	// also check metadata for thumbnail & text display
 	const FProperty* PropertyToCheck = nullptr;
 	if (PropertyEditor.IsValid())
@@ -227,6 +227,27 @@ void SPropertyEditorAsset::InitializeAssetDataTags(const FProperty* Property)
 			DisallowedAssetDataTags->Add(FName(*TagAndOptionalValue[0]), (NumStrings > 1) ? TagAndOptionalValue[1] : FString());
 		}
 	}
+
+	const FString RequiredAssetDataTagsFilterString = MetadataProperty->GetMetaData(TEXT("RequiredAssetDataTags"));
+	if (!RequiredAssetDataTagsFilterString.IsEmpty())
+	{
+		TArray<FString> RequiredAssetDataTagsAndValues;
+		RequiredAssetDataTagsFilterString.ParseIntoArray(RequiredAssetDataTagsAndValues, TEXT(","), true);
+
+		for (const FString& TagAndOptionalValueString : RequiredAssetDataTagsAndValues)
+		{
+			TArray<FString> TagAndOptionalValue;
+			TagAndOptionalValueString.ParseIntoArray(TagAndOptionalValue, TEXT("="), true);
+			size_t NumStrings = TagAndOptionalValue.Num();
+			check((NumStrings == 1) || (NumStrings == 2)); // there should be a single '=' within a tag/value pair
+
+			if (!RequiredAssetDataTags.IsValid())
+			{
+				RequiredAssetDataTags = MakeShared<FAssetDataTagMap>();
+			}
+			RequiredAssetDataTags->Add(FName(*TagAndOptionalValue[0]), (NumStrings > 1) ? TagAndOptionalValue[1] : FString());
+		}
+	}
 }
 
 bool SPropertyEditorAsset::IsAssetAllowed(const FAssetData& InAssetData)
@@ -236,6 +257,16 @@ bool SPropertyEditorAsset::IsAssetAllowed(const FAssetData& InAssetData)
 		for (const auto& DisallowedTagAndValue : *DisallowedAssetDataTags.Get())
 		{
 			if (InAssetData.TagsAndValues.ContainsKeyValue(DisallowedTagAndValue.Key, DisallowedTagAndValue.Value))
+			{
+				return false;
+			}
+		}
+	}
+	if (RequiredAssetDataTags.IsValid())
+	{
+		for (const auto& RequiredTagAndValue : *RequiredAssetDataTags.Get())
+		{
+			if (!InAssetData.TagsAndValues.ContainsKeyValue(RequiredTagAndValue.Key, RequiredTagAndValue.Value))
 			{
 				return false;
 			}
@@ -279,7 +310,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 	bAllowClear = InArgs._AllowClear.IsSet() ? InArgs._AllowClear.GetValue() : (Property ? !(Property->PropertyFlags & CPF_NoClear) : true);
 
 	InitializeAssetDataTags(Property);
-	if (DisallowedAssetDataTags.IsValid())
+	if (DisallowedAssetDataTags.IsValid() || RequiredAssetDataTags.IsValid())
 	{
 		// re-route the filter delegate to our own if we have our own asset data tags filter :
 		OnShouldFilterAsset.BindLambda([this, AssetFilter = InArgs._OnShouldFilterAsset](const FAssetData& InAssetData)
@@ -305,7 +336,7 @@ void SPropertyEditorAsset::Construct(const FArguments& InArgs, const TSharedPtr<
 		ObjectClass = UClass::FindCommonBase(ConstCastClassArray(AllowedClassFilters));
 	}
 
-	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass());
+	bIsActor = ObjectClass->IsChildOf(AActor::StaticClass()) || ObjectClass->IsChildOf(UInterface::StaticClass());
 
 	if (InArgs._NewAssetFactories.IsSet())
 	{
@@ -768,7 +799,8 @@ void SPropertyEditorAsset::OnMenuOpenChanged(bool bOpen)
 
 bool SPropertyEditorAsset::IsFilteredActor( const AActor* const Actor ) const
 {
-	bool IsAllowed = Actor->IsA(ObjectClass) && !Actor->IsChildActor() && IsClassAllowed(Actor->GetClass());
+	bool bActorTypeValid = ObjectClass->IsChildOf(UInterface::StaticClass()) ? Actor->GetClass()->ImplementsInterface(ObjectClass) : Actor->IsA(ObjectClass);
+	bool IsAllowed = bActorTypeValid && !Actor->IsChildActor() && IsClassAllowed(Actor->GetClass());
 	return IsAllowed;
 }
 

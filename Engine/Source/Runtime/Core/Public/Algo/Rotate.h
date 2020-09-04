@@ -58,6 +58,6 @@ namespace Algo
 	template <typename RangeType>
 	FORCEINLINE int32 Rotate(RangeType& Range, int32 Count)
 	{
-		AlgoImpl::RotateInternal(GetData(Range), GetNum(Range), Count);
+		return AlgoImpl::RotateInternal(GetData(Range), GetNum(Range), Count);
 	}
 }

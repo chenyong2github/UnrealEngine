@@ -6,7 +6,7 @@
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/ScopeLock.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterClient::FDisplayClusterClient(const FString& InName) :
@@ -69,20 +69,20 @@ void FDisplayClusterClient::Disconnect()
 
 FSocket* FDisplayClusterClient::CreateSocket(const FString& InName)
 {
-	FSocket* pSock = FTcpSocketBuilder(*InName).AsBlocking();
-	check(pSock);
-	return pSock;
+	FSocket* NewSocket = FTcpSocketBuilder(*InName).AsBlocking();
+	check(NewSocket);
+	return NewSocket;
 }
 
 bool FDisplayClusterClient::SendMsg(const TSharedPtr<FDisplayClusterMessage>& Msg)
 {
-	const bool result = FDisplayClusterSocketOps::SendMsg(Msg);
-	if (result == false)
+	const bool Result = FDisplayClusterSocketOps::SendMsg(Msg);
+	if (Result == false)
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Something wrong with connection (send). The cluster is inconsistent. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Something wrong with connection (send). The cluster is inconsistent. Exit required."));
 	}
 
-	return result;
+	return Result;
 }
 
 TSharedPtr<FDisplayClusterMessage> FDisplayClusterClient::RecvMsg()
@@ -90,7 +90,7 @@ TSharedPtr<FDisplayClusterMessage> FDisplayClusterClient::RecvMsg()
 	TSharedPtr<FDisplayClusterMessage> Response = FDisplayClusterSocketOps::RecvMsg();
 	if (!Response.IsValid())
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Something wrong with connection (recv). The cluster is inconsistent. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Something wrong with connection (recv). The cluster is inconsistent. Exit required."));
 	}
 
 	return Response;

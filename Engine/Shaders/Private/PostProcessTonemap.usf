@@ -566,7 +566,7 @@ float4 TonemapCommonPS(
 			LinearColor.rgb *= GrainMul;
 		#endif
 
-		half3 OutDeviceColor = ColorLookupTable( LinearColor );
+			half3 OutDeviceColor = ColorLookupTable(LinearColor);
 
 		half LuminanceForPostProcessAA  = dot(OutDeviceColor, half3(0.299f, 0.587f, 0.114f));
 

@@ -64,12 +64,12 @@ struct FMeshProximityTriangleOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FProximityTriangle& Element, FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FProximityTriangle& Element, FOctreeElementId2 Id)
 	{
 
 	}
 };
-typedef TOctree<FProximityTriangle, FMeshProximityTriangleOctreeSemantics> FProximityTriangleOctree;
+typedef TOctree2<FProximityTriangle, FMeshProximityTriangleOctreeSemantics> FProximityTriangleOctree;
 
 
 bool FGeometryCollectionProximityUtility::IsPointInsideOfTriangle(const FVector& P, const FVector& Vertex0, const FVector& Vertex1, const FVector& Vertex2, float Threshold)

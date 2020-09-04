@@ -34,6 +34,11 @@ namespace UnrealGameSync
 				{
 					bContainsContent = true;
 				}
+
+				if (bContainsCode && bContainsContent)
+				{
+					break;
+				}
 			}
 		}
 	}
@@ -222,6 +227,25 @@ namespace UnrealGameSync
 		}
 
 		void PollForUpdates()
+		{
+			while (!bDisposing)
+			{
+				try
+				{
+					PollForUpdatesInner();
+				}
+				catch (ThreadAbortException)
+				{
+					break;
+				}
+				catch (Exception Ex)
+				{
+					LogWriter.WriteException(Ex, "Unhandled exception in PollForUpdatesInner()");
+				}
+			}
+		}
+
+		void PollForUpdatesInner()
 		{
 			string StreamName;
 			if(!Perforce.GetActiveStream(out StreamName, LogWriter))

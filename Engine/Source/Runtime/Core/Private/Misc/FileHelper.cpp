@@ -521,7 +521,6 @@ void FFileHelper::GenerateDateTimeBasedBitmapFilename(const FString& Pattern, co
  */
 bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 SourceHeight, const FColor* Data, struct FIntRect* SubRectangle, IFileManager* FileManager /*= &IFileManager::Get()*/, FString* OutFilename /*= NULL*/, bool bInWriteAlpha /*= false*/, EChannelMask ChannelMask /*= All */ )
 {
-#if ALLOW_DEBUG_FILES
 	FIntRect Src(0, 0, SourceWidth, SourceHeight);
 	if (SubRectangle == NULL || SubRectangle->Area() == 0)
 	{
@@ -549,7 +548,7 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 		}
 	}
 
-	FArchive* Ar = FileManager->CreateDebugFileWriter( *File );
+	FArchive* Ar = FileManager->CreateFileWriter( *File );
 	if( Ar )
 	{
 		// Types.
@@ -718,7 +717,7 @@ bool FFileHelper::CreateBitmap( const TCHAR* Pattern, int32 SourceWidth, int32 S
 	{
 		return false;
 	}
-#endif
+
 	// Success.
 	return true;
 }

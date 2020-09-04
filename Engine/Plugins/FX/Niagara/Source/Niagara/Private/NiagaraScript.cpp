@@ -2498,7 +2498,7 @@ bool UNiagaraScript::CanBeRunOnGpu()const
 	}
 	for (const FNiagaraScriptDataInterfaceCompileInfo& InterfaceInfo : CachedScriptVM.DataInterfaceInfo)
 	{
-		if (!InterfaceInfo.CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
+		if (InterfaceInfo.Type.IsValid() && !InterfaceInfo.CanExecuteOnTarget(ENiagaraSimTarget::GPUComputeSim))
 		{
 			return false;
 		}

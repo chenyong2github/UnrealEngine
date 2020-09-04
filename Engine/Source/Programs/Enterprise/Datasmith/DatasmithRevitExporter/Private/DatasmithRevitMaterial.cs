@@ -12,12 +12,12 @@ namespace DatasmithRevitExporter
 {
 	public class FMaterialData
 	{
-		private Material                 CurrentMaterial   = null;
-		private string                   MaterialLabel     = null;	
-		public  int                      MaterialIndex     = 0;
-		public  FDatasmithFacadeMaterial MasterMaterial    = null;
-		private IList<string>            ExtraTexturePaths = null;
-		public  IList<string>            MessageList       = new List<string>();
+		private Material                       CurrentMaterial   = null;
+		private string                         MaterialLabel     = null;	
+		public  int                            MaterialIndex     = 0;
+		public  FDatasmithFacadeMasterMaterial MasterMaterial    = null;
+		private IList<string>                  ExtraTexturePaths = null;
+		public  IList<string>                  MessageList       = new List<string>();
 
 		// Multi-line debug log.
 		// private FDatasmithFacadeLog DebugLog = null;
@@ -68,10 +68,10 @@ namespace DatasmithRevitExporter
 			ExtraTexturePaths = InExtraTexturePaths;
 
 			// Create a new Datasmith master material.
-			MasterMaterial = new FDatasmithFacadeMaterial(GetMaterialName(InMaterialNode, CurrentMaterial), GetMaterialLabel(InMaterialNode, CurrentMaterial));
-
 			// Hash the Datasmith master material name to shorten it.
-			MasterMaterial.HashName();
+			string HashedMaterialName = FDatasmithFacadeElement.GetStringHash(GetMaterialName(InMaterialNode, CurrentMaterial));
+			MasterMaterial = new FDatasmithFacadeMasterMaterial(HashedMaterialName);
+			MasterMaterial.SetLabel(GetMaterialLabel(InMaterialNode, CurrentMaterial));
 
 			// Set the properties of the Datasmith master material.
 			if (!SetMasterMaterial(CurrentMaterial, MasterMaterial))
@@ -90,10 +90,10 @@ namespace DatasmithRevitExporter
 			MaterialIndex = InMaterialIndex;
 
 			// Create a new Datasmith master material.
-			MasterMaterial = new FDatasmithFacadeMaterial(InMaterialName, MaterialLabel);
-
 			// Hash the Datasmith master material name to shorten it.
-			MasterMaterial.HashName();
+			string HashedMaterialName = FDatasmithFacadeElement.GetStringHash(InMaterialName);
+			MasterMaterial = new FDatasmithFacadeMasterMaterial(HashedMaterialName);
+			MasterMaterial.SetLabel(MaterialLabel);
 
 			// Set the properties of the Datasmith master material.
 			SetFallbackMaterial(InMaterialColor, 0.0F, 0.5F, MasterMaterial);
@@ -170,8 +170,8 @@ namespace DatasmithRevitExporter
 		}
 
 		private bool SetMasterMaterial(
-			Material                 InMaterial,
-			FDatasmithFacadeMaterial IOMasterMaterial
+			Material                       InMaterial,
+			FDatasmithFacadeMasterMaterial IOMasterMaterial
 		)
 		{
 			if (InMaterial == null)
@@ -209,7 +209,7 @@ namespace DatasmithRevitExporter
 			{
 				case "Ceramic":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					Color color = GetColorPropertyValue(RenderingAsset, Ceramic.CeramicColor, sourceMaterialColor);
 
@@ -306,7 +306,7 @@ namespace DatasmithRevitExporter
 
 				case "Concrete":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					Color color = GetColorPropertyValue(RenderingAsset, Concrete.ConcreteColor, sourceMaterialColor);
 
@@ -389,7 +389,7 @@ namespace DatasmithRevitExporter
 
 				case "Glazing":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 					// TODO: Should use the Glazing.GlazingTransmittanceColor to select a predefined color value.
 					Color color           = sourceMaterialColor;
@@ -451,7 +451,7 @@ namespace DatasmithRevitExporter
 
 				case "Hardwood":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					// Control the Unreal material Base Color.
 					IOMasterMaterial.AddColor("DiffuseColor", sourceMaterialColor.Red / 255.0F, sourceMaterialColor.Green / 255.0F, sourceMaterialColor.Blue / 255.0F, 1.0F);
@@ -552,7 +552,7 @@ namespace DatasmithRevitExporter
 
 				case "MasonryCMU":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					Color color = GetColorPropertyValue(RenderingAsset, MasonryCMU.MasonryCMUColor, sourceMaterialColor);
 
@@ -647,7 +647,7 @@ namespace DatasmithRevitExporter
 
 				case "Metal":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					// TODO: Should use the Metal.MetalColor to select a predefined color value.
 
@@ -698,7 +698,7 @@ namespace DatasmithRevitExporter
 							float cutoutMapUVScaleY  = 1.0F / GetTexturePropertyDistance(RenderingAsset, Metal.MetalPerforationsShader, UnifiedBitmap.TextureRealWorldScaleY, 1.0F);
 							float cutoutMapUVWAngle  = GetTexturePropertyAngle(RenderingAsset, Metal.MetalPerforationsShader, UnifiedBitmap.TextureWAngle);
 
-							IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.CutOut);
+							IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.CutOut);
 
 							// Control the Unreal material Opacity Mask.
 							IOMasterMaterial.AddTexture("CutoutOpacityMap",  cutoutMapPath);
@@ -746,7 +746,7 @@ namespace DatasmithRevitExporter
 
 				case "MetallicPaint":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					Color color = GetColorPropertyValue(RenderingAsset, MetallicPaint.MetallicpaintBaseColor, sourceMaterialColor);
 
@@ -800,7 +800,7 @@ namespace DatasmithRevitExporter
 
 				case "Mirror":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					Color color = GetColorPropertyValue(RenderingAsset, Mirror.MirrorTintcolor, sourceMaterialColor);
 
@@ -904,7 +904,7 @@ namespace DatasmithRevitExporter
 
 					if ((PlasticvinylType) GetIntegerPropertyValue(RenderingAsset, PlasticVinyl.PlasticvinylType, (int) PlasticvinylType.Plasticsolid) == PlasticvinylType.Plastictransparent)
 					{
-						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 						// Control the Unreal material Opacity.
 						IOMasterMaterial.AddFloat("Transparency", 0.5F);
@@ -915,7 +915,7 @@ namespace DatasmithRevitExporter
 					}
 					else
 					{
-						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 						// Control the Unreal material Metallic.
 						IOMasterMaterial.AddBoolean("IsMetal", false);
@@ -942,7 +942,7 @@ namespace DatasmithRevitExporter
 
 				case "SolidGlass":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 					// TODO: Should use the SolidGlass.SolidglassTransmittance to select a predefined color value.
 					Color color           = sourceMaterialColor;
@@ -1033,7 +1033,7 @@ namespace DatasmithRevitExporter
 				
 				case "Stone":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					// Control the Unreal material Base Color.
 					IOMasterMaterial.AddColor("DiffuseColor", sourceMaterialColor.Red / 255.0F, sourceMaterialColor.Green / 255.0F, sourceMaterialColor.Blue / 255.0F, 1.0F);
@@ -1131,7 +1131,7 @@ namespace DatasmithRevitExporter
 
 				case "WallPaint":
 				{
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					Color color = GetColorPropertyValue(RenderingAsset, WallPaint.WallpaintColor, sourceMaterialColor);
 
@@ -1282,7 +1282,7 @@ namespace DatasmithRevitExporter
 
 					if (transparency > 0.0F)
 					{
-						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 						// Control the Unreal material Opacity.
 						IOMasterMaterial.AddFloat("Transparency", transparency);
@@ -1319,7 +1319,7 @@ namespace DatasmithRevitExporter
 					}
 					else
 					{
-						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+						IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 						bool isMetal = GetBooleanPropertyValue(RenderingAsset, Generic.GenericIsMetal, false);
 
@@ -1341,7 +1341,7 @@ namespace DatasmithRevitExporter
 							float cutoutMapUVScaleY  = 1.0F / GetTexturePropertyDistance(RenderingAsset, Generic.GenericCutoutOpacity, UnifiedBitmap.TextureRealWorldScaleY, 1.0F);
 							float cutoutMapUVWAngle  = GetTexturePropertyAngle(RenderingAsset, Generic.GenericCutoutOpacity, UnifiedBitmap.TextureWAngle);
 
-							IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.CutOut);
+							IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.CutOut);
 
 							// Control the Unreal material Opacity Mask.
 							IOMasterMaterial.AddTexture("CutoutOpacityMap",  cutoutMapPath);
@@ -1361,7 +1361,7 @@ namespace DatasmithRevitExporter
 				case "AdvancedGlazing":
 				{
 					IOMasterMaterial.AddBoolean("IsPBR", true);
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 					Color TranspColor = GetColorPropertyValue(RenderingAsset, AdvancedGlazing.GlazingTransmissionColor, sourceMaterialColor);
 					float Transparency = LightnessFromColor(TranspColor);
@@ -1391,7 +1391,7 @@ namespace DatasmithRevitExporter
 				case "AdvancedTransparent":
 				{
 					IOMasterMaterial.AddBoolean("IsPBR", true);
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 					Color TranspColor = GetColorPropertyValue(RenderingAsset, AdvancedTransparent.TransparentColor, sourceMaterialColor);
 
@@ -1415,7 +1415,7 @@ namespace DatasmithRevitExporter
 				case "AdvancedMetal":
 				{
 					IOMasterMaterial.AddBoolean("IsPBR", true);
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 					IOMasterMaterial.AddBoolean("IsMetal", true);
 					ExportDiffuse(IOMasterMaterial, RenderingAsset, AdvancedMetal.MetalF0, sourceMaterialColor);
 					ExportRougness(IOMasterMaterial, RenderingAsset, AdvancedMetal.SurfaceRoughness);
@@ -1427,7 +1427,7 @@ namespace DatasmithRevitExporter
 				case "AdvancedOpaque":
 				{
 					IOMasterMaterial.AddBoolean("IsPBR", true);
-					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+					IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 					ExportDiffuse(IOMasterMaterial, RenderingAsset, AdvancedOpaque.OpaqueAlbedo, sourceMaterialColor);
 					ExportCutout(IOMasterMaterial, RenderingAsset, AdvancedOpaque.SurfaceCutout);
@@ -1458,7 +1458,7 @@ namespace DatasmithRevitExporter
 		}
 
 		private bool ExportTexture(
-			FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetPropertyName, 
+			FDatasmithFacadeMasterMaterial IOMasterMaterial, Asset RenderingAsset, string AssetPropertyName, 
 			string MapParamName, string TextureParamPrefix)
 		{
 			string MapPath = GetTexturePropertyPath(RenderingAsset, AssetPropertyName);
@@ -1485,12 +1485,12 @@ namespace DatasmithRevitExporter
 			return false;
 		}
 
-		private void ExportNormalMap(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetPropertyName)
+		private void ExportNormalMap(FDatasmithFacadeMasterMaterial IOMasterMaterial, Asset RenderingAsset, string AssetPropertyName)
 		{
 			ExportTexture(IOMasterMaterial, RenderingAsset, AssetPropertyName, "NormalMap", "NormalMap");
 		}
 
-		private void ExportDiffuse(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty, Color DefaultColor)
+		private void ExportDiffuse(FDatasmithFacadeMasterMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty, Color DefaultColor)
 		{
 			Color DiffuseColor = GetColorPropertyValue(RenderingAsset, AssetProperty, DefaultColor);
 
@@ -1507,7 +1507,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private void ExportEmission(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string LuminanceParam, string ColorParam)
+		private void ExportEmission(FDatasmithFacadeMasterMaterial IOMasterMaterial, Asset RenderingAsset, string LuminanceParam, string ColorParam)
 		{
 			float EmissionLuminance = GetFloatPropertyValue(RenderingAsset, LuminanceParam, 1.0f);
 			Color EmissionFilterColor = GetColorPropertyValue(RenderingAsset, ColorParam, new Color(255, 255, 255));
@@ -1526,7 +1526,7 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private void ExportRougness(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty)
+		private void ExportRougness(FDatasmithFacadeMasterMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty)
 		{
 			if (ExportTexture(IOMasterMaterial, RenderingAsset, AssetProperty, "RoughnessMap", "RoughnessMap"))
 			{
@@ -1540,19 +1540,19 @@ namespace DatasmithRevitExporter
 			}
 		}
 
-		private void ExportCutout(FDatasmithFacadeMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty)
+		private void ExportCutout(FDatasmithFacadeMasterMaterial IOMasterMaterial, Asset RenderingAsset, string AssetProperty)
 		{
 			if (ExportTexture(IOMasterMaterial, RenderingAsset, AssetProperty, "CutoutOpacityMap", "CutoutMap"))
 			{
-				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.CutOut);
+				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.CutOut);
 			}
 		}
 
 		private void SetFallbackMaterial(
-			Color                    InMaterialColor,
-			float                    InMaterialTransparency, // in range 0.0-1.0
-			float                    InMaterialGlossiness,   // in range 0.0-1.0
-			FDatasmithFacadeMaterial IOMasterMaterial
+			Color                          InMaterialColor,
+			float                          InMaterialTransparency, // in range 0.0-1.0
+			float                          InMaterialGlossiness,   // in range 0.0-1.0
+			FDatasmithFacadeMasterMaterial IOMasterMaterial
 		)
 		{
 			// Control the Unreal material Base Color.
@@ -1569,7 +1569,7 @@ namespace DatasmithRevitExporter
 
 			if (InMaterialTransparency > 0.0F)
 			{
-				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Transparent);
+				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Transparent);
 
 				// Control the Unreal material Opacity.
 				IOMasterMaterial.AddFloat("Transparency", InMaterialTransparency);
@@ -1580,7 +1580,7 @@ namespace DatasmithRevitExporter
 			}
 			else
 			{
-				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMaterial.EMasterMaterialType.Opaque);
+				IOMasterMaterial.SetMasterMaterialType(FDatasmithFacadeMasterMaterial.EMasterMaterialType.Opaque);
 
 				// Control the Unreal material Metallic.
 				IOMasterMaterial.AddBoolean("IsMetal", false);
@@ -1733,6 +1733,12 @@ namespace DatasmithRevitExporter
 										sourcePath = rootedSourcePath;
 									}
 								}
+								else if (!File.Exists(sourcePath))
+								{
+									// Path is absolute but file is not found there.
+									// Remove the path component, we'll try searching the extra texture paths.
+									sourcePath = Path.GetFileName(sourcePath);
+								}
 
 								// Also search a relative path in the extra texture paths.
 								if (!Path.IsPathRooted(sourcePath))
@@ -1771,6 +1777,8 @@ namespace DatasmithRevitExporter
 			float  in_defaultValue
 		)
         {
+			// DebugLog.AddLine($"Texture Distance Property {in_propertyName}");
+
 			AssetProperty textureProperty = in_asset.FindByName(in_propertyName);
 
 			if (textureProperty != null)
@@ -1784,7 +1792,7 @@ namespace DatasmithRevitExporter
 					if (distanceProperty != null && distanceProperty.Value != 0.0)
 					{
 #if REVIT_API_2021
-					    return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.GetUnitTypeId(), UnitTypeId.Feet);
+						return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.GetUnitTypeId(), UnitTypeId.Feet);
 #else
 						return (float) UnitUtils.Convert(distanceProperty.Value, distanceProperty.DisplayUnitType, DisplayUnitType.DUT_DECIMAL_FEET);
 #endif

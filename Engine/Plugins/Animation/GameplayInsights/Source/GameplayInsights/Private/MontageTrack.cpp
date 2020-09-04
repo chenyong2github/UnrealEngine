@@ -22,7 +22,7 @@ FMontageTrack::FMontageTrack(const FAnimationSharedData& InSharedData, uint64 In
 	: FGameplayGraphTrack(InSharedData.GetGameplaySharedData(), InObjectID, FText::Format(LOCTEXT("TrackNameFormat", "Montage - {0}"), FText::FromString(FString(InName))))
 	, SharedData(InSharedData)
 {
-	bDrawLabels = true;
+	EnableOptions(ShowLabelsOption);
 	Layout = EGameplayGraphLayout::Stack;
 }
 
@@ -94,6 +94,7 @@ bool FMontageTrack::UpdateSeriesBounds(FGameplayGraphSeries& InSeries, const FTi
 					MontageSeries.CurrentMax = FMath::Max(MontageSeries.CurrentMax, InMessage.Weight);
 					bFoundEvents = true;
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -128,6 +129,7 @@ void FMontageTrack::UpdateSeries(FGameplayGraphSeries& InSeries, const FTimingTr
 
 					LastFrameWithMontage = FrameCounter;
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -205,6 +207,7 @@ void FMontageTrack::FindMontageMessage(const FTimingEventSearchParameters& InPar
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FAnimMontageMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -226,7 +229,7 @@ void FMontageTrack::FindMontageMessage(const FTimingEventSearchParameters& InPar
 
 void FMontageTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSharedRef<FVariantTreeNode>>& OutVariants) const 
 {
-	TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("MontagesHeader", "Montages")));
+	TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(LOCTEXT("MontagesHeader", "Montages"), 0));
 
 	const Trace::IFrameProvider& FramesProvider = Trace::ReadFrameProvider(SharedData.GetAnalysisSession());
 	const FAnimationProvider* AnimationProvider = SharedData.GetAnalysisSession().ReadProvider<FAnimationProvider>(FAnimationProvider::ProviderName);
@@ -253,6 +256,7 @@ void FMontageTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray<TSha
 					const TCHAR* NextSectionName = AnimationProvider->GetName(InMessage.NextSectionNameId);
 					MontageHeader->AddChild(FVariantTreeNode::MakeString(LOCTEXT("NextSectionName", "Next Section"), NextSectionName));
 				}
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}

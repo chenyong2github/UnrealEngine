@@ -11,11 +11,12 @@
 #include "Engine/GameEngine.h"
 #include "Engine/UserInterfaceSettings.h"
 #include "GeneralProjectSettings.h"
+#include "Input/HittestGrid.h"
 #include "Widgets/LayerManager/STooltipPresenter.h"
 #include "Widgets/Layout/SDPIScaler.h"
 #include "Widgets/Layout/SPopup.h"
 #include "Widgets/Layout/SWindowTitleBarArea.h"
-#include "DebugCanvas.h"
+#include "Slate/DebugCanvas.h"
 #include "Types/InvisibleToWidgetReflectorMetaData.h"
 #include "Framework/Application/SlateApplication.h"
 

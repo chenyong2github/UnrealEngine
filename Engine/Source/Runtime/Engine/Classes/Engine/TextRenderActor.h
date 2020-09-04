@@ -13,7 +13,7 @@
 
 class UBillboardComponent;
 
-UCLASS(MinimalAPI, ComponentWrapperClass, hideCategories = (Collision, Attachment, Actor))
+UCLASS(MinimalAPI, ComponentWrapperClass, hideCategories = (Collision, Attachment))
 class ATextRenderActor : public AActor
 {
 	GENERATED_UCLASS_BODY()

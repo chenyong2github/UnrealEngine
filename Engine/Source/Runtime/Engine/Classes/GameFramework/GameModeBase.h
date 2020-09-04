@@ -158,6 +158,10 @@ public:
 	UFUNCTION(BlueprintCallable, Category=Game)
 	virtual bool HasMatchStarted() const;
 
+	/** Returns true if the match can be considered ended */
+	UFUNCTION(BlueprintCallable, Category=Game)
+	virtual bool HasMatchEnded() const;
+
 	/**
 	 * Adds the delegate to the list if the player Controller has the right to pause
 	 * the game. The delegate is called to see if it is ok to unpause the game, e.g.

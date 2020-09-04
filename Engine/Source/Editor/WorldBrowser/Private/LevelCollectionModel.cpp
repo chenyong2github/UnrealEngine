@@ -198,8 +198,8 @@ void FLevelCollectionModel::BindCommands()
 	ActionList.MapAction( Commands.World_LockAllLevels,
 		FExecuteAction::CreateSP( this, &FLevelCollectionModel::LockAllLevels_Executed  ) );
 	
-	ActionList.MapAction( Commands.World_UnockAllLevels,
-		FExecuteAction::CreateSP( this, &FLevelCollectionModel::UnockAllLevels_Executed  ) );
+	ActionList.MapAction( Commands.World_UnlockAllLevels,
+		FExecuteAction::CreateSP( this, &FLevelCollectionModel::UnlockAllLevels_Executed  ) );
 
 	ActionList.MapAction( Commands.World_LockReadOnlyLevels,
 		FExecuteAction::CreateSP( this, &FLevelCollectionModel::ToggleReadOnlyLevels_Executed  ) );
@@ -1698,7 +1698,7 @@ void FLevelCollectionModel::LockAllLevels_Executed()
 	}
 }
 
-void FLevelCollectionModel::UnockAllLevels_Executed()
+void FLevelCollectionModel::UnlockAllLevels_Executed()
 {
 	if (!IsReadOnly())
 	{
@@ -1875,7 +1875,7 @@ void FLevelCollectionModel::FillLockSubMenu(FMenuBuilder& InMenuBuilder)
 	InMenuBuilder.AddMenuEntry( Commands.World_LockOnlySelectedLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_LockAllButSelectedLevels );
 	InMenuBuilder.AddMenuEntry( Commands.World_LockAllLevels );
-	InMenuBuilder.AddMenuEntry( Commands.World_UnockAllLevels );
+	InMenuBuilder.AddMenuEntry( Commands.World_UnlockAllLevels );
 
 	if (GEditor->bLockReadOnlyLevels)
 	{

@@ -17,7 +17,7 @@ class FNetTraceAnalyzer
 public:
 	FNetTraceAnalyzer(Trace::IAnalysisSession& Session, Trace::FNetProfilerProvider& NetProfilerProvider);
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 	virtual void OnAnalysisEnd() override;
 
 private:
@@ -58,7 +58,7 @@ private:
 
 	struct FBunchInfo
 	{
-		int32 ChannelIndex;
+		Trace::FNetProfilerBunchInfo BunchInfo;
 		uint32 BunchBits;
 		uint32 HeaderBits;
 		int32 FirstBunchEventIndex;
@@ -118,7 +118,7 @@ private:
 	void HandleObjectDestroyedEvent(const FOnEventContext& Context, const FEventData& EventData);
 
 	void AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, const Trace::FNetProfilerContentEvent& Event, uint32 Offset, uint32 LevelOffset);
-	void AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, uint32 StartPos, uint32 EndPos, uint32 Level, uint32 NameIndex);
+	void AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, uint32 StartPos, uint32 EndPos, uint32 Level, uint32 NameIndex, Trace::FNetProfilerBunchInfo Info);
 
 private:
 

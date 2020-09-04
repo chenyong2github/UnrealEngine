@@ -535,6 +535,30 @@ void SDataprepGraphActionNode::UpdateGraphNode()
 						]
 					]
 				]
+
+				+ SOverlay::Slot()
+				.VAlign(VAlign_Fill)
+				.HAlign(HAlign_Fill)
+				.Padding(OuterPadding)
+				[
+					SNew(SImage)
+					.ColorAndOpacity(FLinearColor(0.25f, 0.25f, 0.25f, 0.5f))
+					.Image(FDataprepEditorStyle::GetBrush("DataprepEditor.Node.Body"))
+					.Visibility_Lambda([&]()
+					{
+						if (const UDataprepGraphActionNode* ActionNode = Cast<UDataprepGraphActionNode>(GraphNode))
+						{
+							if (const UDataprepActionAsset* ActionAsset = ActionNode->GetDataprepActionAsset())
+							{
+								if (!ActionAsset->bIsEnabled)
+								{
+									return EVisibility::Visible;
+								}
+							}
+						}
+						return EVisibility::Collapsed;
+					})
+				]
 			]
 		]
 	];

@@ -140,6 +140,18 @@ public:
 	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
 	static TSet<UObject*> GetMaterialSelectedNodes(UMaterial* Material);
 
+	/** Get the node providing the output for a given material property from an active material editor */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static UMaterialExpression* GetMaterialPropertyInputNode(UMaterial* Material, EMaterialProperty Property);
+
+	/** Get the set of nodes acting as inputs to a node from an active material editor */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static TArray<UMaterialExpression*> GetInputsForMaterialExpression(UMaterial* Material, UMaterialExpression* MaterialExpression);
+
+	/** Get the list of textures used by a material */
+	UFUNCTION(BlueprintPure, Category = "MaterialEditing")
+	static TArray<UTexture*> GetUsedTextures(UMaterial* Material);
+	
 	//////// MATERIAL FUNCTION EDITING
 
 	/** Returns number of material expressions in the supplied material */

@@ -242,9 +242,6 @@ void ResizeAndCenterTexture(
 	ClampedImageCenterUV.Y = FMath::Clamp(SrcImageCenterUV.Y, 0.f, 1.f);
 
 	check(DstUAV);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UnbindRenderTargets(RHICmdList);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstUAV);
 
 	{
@@ -296,9 +293,6 @@ void CaptureKernelWeight(
 	FSceneRenderTargetItem& DstTargetItem = CenterWeightRT->GetRenderTargetItem();
 
 	check(DstTargetItem.UAV);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UnbindRenderTargets(RHICmdList);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstTargetItem.UAV);
 
 	{
@@ -352,9 +346,6 @@ void BlendLowRes(
 
 	// set destination
 	check(DstUAV);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UnbindRenderTargets(RHICmdList);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, DstUAV);
 
 	{
@@ -402,9 +393,6 @@ void CopyImageRect(
 
 	// set destination
 	check(DstUAV);
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UnbindRenderTargets(RHICmdList);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EGfxToCompute, DstUAV);
 
 	{

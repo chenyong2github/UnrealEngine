@@ -44,6 +44,9 @@
 #include "RayTracingDefinitions.h"
 #include "Interfaces/ITargetPlatform.h"
 #include "Misc/ConfigCacheIni.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "MaterialShared"
 
@@ -2561,6 +2564,10 @@ void FMaterialRenderProxy::InvalidateUniformExpressionCache(bool bRecreateUnifor
 {
 	check(IsInRenderingThread());
 
+#if WITH_EDITOR
+	FStaticLightingSystemInterface::OnMaterialInvalidated.Broadcast(this);
+#endif
+
 	if (HasVirtualTextureCallbacks)
 	{
 		GetRendererModule().RemoveAllVirtualTextureProducerDestroyedCallbacks(this);
@@ -3193,7 +3200,7 @@ FMaterialUpdateContext::~FMaterialUpdateContext()
 	TArray<const FMaterial*> MaterialResourcesToUpdate;
 	TArray<UMaterialInstance*> InstancesToUpdate;
 
-	bool bUpdateStaticDrawLists = !ComponentReregisterContext && !ComponentRecreateRenderStateContext;
+	bool bUpdateStaticDrawLists = !ComponentReregisterContext && !ComponentRecreateRenderStateContext && FApp::CanEverRender();
 
 	// If static draw lists must be updated, gather material resources from all updated materials.
 	if (bUpdateStaticDrawLists)

@@ -93,6 +93,9 @@ public:
 	TSharedPtr<FUICommandInfo> BeginBakeMeshAttributeMapsTool;
 	TSharedPtr<FUICommandInfo> BeginUVSeamEditTool;
 
+	TSharedPtr<FUICommandInfo> BeginGroomToMeshTool;
+	TSharedPtr<FUICommandInfo> BeginGenerateLODMeshesTool;
+
 	TSharedPtr<FUICommandInfo> AcceptActiveTool;
 	TSharedPtr<FUICommandInfo> CancelActiveTool;
 	TSharedPtr<FUICommandInfo> CompleteActiveTool;

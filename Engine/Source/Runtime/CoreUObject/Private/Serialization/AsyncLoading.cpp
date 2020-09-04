@@ -3038,20 +3038,15 @@ void FAsyncPackage::EventDrivenCreateExport(int32 LocalExportIndex)
 						return;
 					}
 
-					Export.Object = StaticConstructObject_Internal
-						(
-							LoadClass,
-							ThisParent,
-							NewName,
-							ObjectLoadFlags,
-							EInternalObjectFlags::None,
-							Template,
-							false,
-							nullptr,
-							true,
-							// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
-							Export.OuterIndex.IsImport() ? LinkerRoot : nullptr
-						);
+					FStaticConstructObjectParameters Params(LoadClass);
+					Params.Outer = ThisParent;
+					Params.Name = NewName;
+					Params.SetFlags = ObjectLoadFlags;
+					Params.Template = Template;
+					Params.bAssumeTemplateIsArchetype = true;
+					// if our outer is actually an import, then the package we are an export of is not in our outer chain, set our package in that case
+					Params.ExternalPackage = Export.OuterIndex.IsImport() ? LinkerRoot : nullptr;
+					Export.Object = StaticConstructObject_Internal(Params);
 
 					if (GIsInitialLoad || GUObjectArray.IsOpenForDisregardForGC())
 					{
@@ -4740,14 +4735,14 @@ void FAsyncLoadingThread::StartThread()
 
 	if (!Thread && FAsyncLoadingThreadSettings::Get().bAsyncLoadingThreadEnabled)
 	{
+		Trace::ThreadGroupBegin(TEXT("AsyncLoading"));
+
 		UE_LOG(LogStreaming, Log, TEXT("Starting Async Loading Thread."));
 		bThreadStarted = true;
 		FPlatformMisc::MemoryBarrier();
 		Thread = FRunnableThread::Create(this, TEXT("FAsyncLoadingThread"), 0, TPri_Normal);
-		if (Thread)
-		{
-			TRACE_SET_THREAD_GROUP(Thread->GetThreadID(), "AsyncLoading");
-		}
+
+		Trace::ThreadGroupEnd();
 	}
 }
 
@@ -7862,9 +7857,13 @@ void FAsyncArchive::StartReadingHeader()
 void FAsyncArchive::EndReadingHeader()
 {
 	LogItem(TEXT("End Header"));
-	check(LoadPhase == ELoadPhase::WaitingForHeader);
-	LoadPhase = ELoadPhase::WaitingForFirstExport;
-	FlushPrecacheBlock();
+	
+	if (!IsError())
+	{
+		check(LoadPhase == ELoadPhase::WaitingForHeader);
+		LoadPhase = ELoadPhase::WaitingForFirstExport;
+		FlushPrecacheBlock();
+	}
 }
 
 bool FAsyncArchive::ReadyToStartReadingHeader(bool bUseTimeLimit, bool bUseFullTimeLimit, double TickStartTime, float TimeLimit)

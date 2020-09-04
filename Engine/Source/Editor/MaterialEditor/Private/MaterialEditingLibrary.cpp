@@ -749,6 +749,38 @@ TSet<UObject*> UMaterialEditingLibrary::GetMaterialSelectedNodes(UMaterial* Mate
 	return TSet<UObject*>();
 }
 
+UMaterialExpression* UMaterialEditingLibrary::GetMaterialPropertyInputNode(UMaterial* Material, EMaterialProperty Property)
+{
+	if (Material)
+	{
+		FExpressionInput*  ExpressionInput = Material->GetExpressionInputForProperty(Property);
+		return ExpressionInput->Expression;
+	}
+
+	return nullptr;
+}
+
+TArray<UMaterialExpression*> UMaterialEditingLibrary::GetInputsForMaterialExpression(UMaterial* Material, UMaterialExpression* MaterialExpression)
+{
+	TArray<UMaterialExpression*> MaterialExpressions;
+	if (Material)
+	{
+		for (const FExpressionInput* Input : MaterialExpression->GetInputs())
+		{
+			MaterialExpressions.Add(Input->Expression);
+		}
+	}
+
+	return MaterialExpressions;
+}
+
+TArray<UTexture*> UMaterialEditingLibrary::GetUsedTextures(UMaterial* Material)
+{
+	TArray<UTexture*> OutTextures;
+	Material->GetUsedTextures(OutTextures, EMaterialQualityLevel::Num, false, GMaxRHIFeatureLevel, true);
+	return OutTextures;
+}
+
 //////////////////////////////////////////////////////////////////////////
 
 int32 UMaterialEditingLibrary::GetNumMaterialExpressionsInFunction(const UMaterialFunction* MaterialFunction)

@@ -5,12 +5,12 @@
 
 #include "Cluster/IPDisplayClusterClusterManager.h"
 #include "Config/IPDisplayClusterConfigManager.h"
-#include "Misc/DisplayClusterAppExit.h"
 
 #include "Network/Session/DisplayClusterSessionInternal.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterAppExit.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterSwapSyncService::FDisplayClusterSwapSyncService(const FString& InAddr, const int32 InPort)
@@ -59,7 +59,7 @@ void FDisplayClusterSwapSyncService::NotifySessionClose(FDisplayClusterSessionBa
 	BarrierSwap.Deactivate();
 
 	FDisplayClusterService::NotifySessionClose(InSession);
-	FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, GetName() + FString(" - Connection interrupted. Application exit requested."));
+	FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, GetName() + FString(" - Connection interrupted. Application exit requested."));
 }
 
 TSharedPtr<FDisplayClusterMessage> FDisplayClusterSwapSyncService::ProcessMessage(const TSharedPtr<FDisplayClusterMessage>& Request)
@@ -110,6 +110,6 @@ void FDisplayClusterSwapSyncService::WaitForSwapSync(double* ThreadWaitTime, dou
 {
 	if (BarrierSwap.Wait(ThreadWaitTime, BarrierWaitTime) != FDisplayClusterBarrier::WaitResult::Ok)
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Error on swap barrier. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Error on swap barrier. Exit required."));
 	}
 }

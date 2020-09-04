@@ -5319,6 +5319,26 @@ int32 FHLSLMaterialTranslator::VertexColor()
 	return AddInlinedCodeChunk(MCT_Float4,TEXT("Parameters.VertexColor"));
 }
 
+int32 FHLSLMaterialTranslator::PreSkinVertexOffset()
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return Errorf(TEXT("Pre Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
+	}
+
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPreSkinOffset(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::PostSkinVertexOffset()
+{
+	if (ShaderFrequency != SF_Vertex)
+	{
+		return Errorf(TEXT("Post Skin Offset only available in the vertex shader, pass through custom interpolators if needed."));
+	}
+
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionPostSkinOffset(Parameters)"));
+}
+
 int32 FHLSLMaterialTranslator::PreSkinnedPosition()
 {
 	if (ShaderFrequency != SF_Vertex)
@@ -5621,6 +5641,326 @@ int32 FHLSLMaterialTranslator::Length(int32 X)
 	{
 		return AddCodeChunk(MCT_Float,TEXT("length(%s)"),*GetParameterCode(X));
 	}
+}
+
+int32 FHLSLMaterialTranslator::Step(int32 Y, int32 X)
+{
+	if (X == INDEX_NONE || Y == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	FMaterialUniformExpression* ExpressionX = GetParameterUniformExpression(X);
+	FMaterialUniformExpression* ExpressionY = GetParameterUniformExpression(Y);
+
+	EMaterialValueType ResultType = GetArithmeticResultType(X, Y);
+
+	//Constant folding.
+	if (ExpressionX && ExpressionY)
+	{
+		// when x == y return 1.0f
+		if (ExpressionX == ExpressionY)
+		{
+			const int32 EqualResult = 1.0f;
+			if (ResultType == MCT_Float || ResultType == MCT_Float1)
+			{
+				return Constant(EqualResult);
+			}
+			if (ResultType == MCT_Float2)
+			{
+				return Constant2(EqualResult, EqualResult);
+			}
+			if (ResultType == MCT_Float3)
+			{
+				return Constant3(EqualResult, EqualResult, EqualResult);
+			}
+			if (ResultType == MCT_Float4)
+			{
+				return Constant4(EqualResult, EqualResult, EqualResult, EqualResult);
+			}
+		}
+
+		if (ExpressionX->IsConstant() && ExpressionY->IsConstant())
+		{
+			FLinearColor ValueX, ValueY;
+			FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+			ExpressionX->GetNumberValue(DummyContext, ValueX);
+			ExpressionY->GetNumberValue(DummyContext, ValueY);
+
+			float Red = ValueX.R >= ValueY.R ? 1 : 0;
+			if (ResultType == MCT_Float || ResultType == MCT_Float1)
+			{
+				return Constant(Red);
+			}
+
+			float Green = ValueX.G >= ValueY.G ? 1 : 0;
+			if (ResultType == MCT_Float2)
+			{
+				return Constant2(Red, Green);
+			}
+
+			float Blue = ValueX.B >= ValueY.B ? 1 : 0;
+			if (ResultType == MCT_Float3)
+			{
+				return Constant3(Red, Green, Blue);
+			}
+
+			float Alpha = ValueX.A >= ValueY.A ? 1 : 0;
+			if (ResultType == MCT_Float4)
+			{
+				return Constant4(Red, Green, Blue, Alpha);
+			}
+		}
+	}
+
+	return AddCodeChunk(ResultType, TEXT("step(%s,%s)"), *CoerceParameter(Y, ResultType), *CoerceParameter(X, ResultType));
+	// return;
+}
+
+int32 FHLSLMaterialTranslator::SmoothStep(int32 X, int32 Y, int32 A)
+{
+	if (X == INDEX_NONE || Y == INDEX_NONE || A == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	FMaterialUniformExpression* ExpressionX = GetParameterUniformExpression(X);
+	FMaterialUniformExpression* ExpressionY = GetParameterUniformExpression(Y);
+	FMaterialUniformExpression* ExpressionA = GetParameterUniformExpression(A);
+	bool bExpressionsAreEqual = false;
+
+	// According to https://docs.microsoft.com/en-us/windows/win32/direct3dhlsl/dx-graphics-hlsl-smoothstep
+	// Smoothstep's min and max and return result in the same size as the alpha.
+	// Therefore the result type (and each input) should be GetParameterType(A);
+
+	// However, for usability reasons, we will use the ArithmiticType of the three.
+	// This is important to do, because it allows a user to input a vector into the min or max
+	// and get a vector result, without putting inputs into the other two constants.
+	// This is not exactly the behavior of raw HLSL, but it is a more intuitive experience
+	// and mimics more closely the LinearInterpolate node.
+	// Incompatible inputs will be caught by the CoerceParameters below.
+
+	EMaterialValueType ResultType = GetArithmeticResultType(X, Y);
+	ResultType = GetArithmeticResultType(ResultType, GetParameterType(A));
+
+
+	// Skip over interpolations where inputs are equal
+
+	float EqualResult = 0.0f;
+	// smoothstep( x, y, y ) == 1.0
+	if (Y == A)
+	{
+		bExpressionsAreEqual = true;
+		EqualResult = 1.0f;
+	}
+
+	// smoothstep( x, y, x ) == 0.0
+	if (X == A)
+	{
+		bExpressionsAreEqual = true;
+		EqualResult = 0.0f;
+	}
+
+	if (bExpressionsAreEqual)
+	{
+		if (ResultType == MCT_Float || ResultType == MCT_Float1)
+		{
+			return Constant(EqualResult);
+		}
+		if (ResultType == MCT_Float2)
+		{
+			return Constant2(EqualResult, EqualResult);
+		}
+		if (ResultType == MCT_Float3)
+		{
+			return Constant3(EqualResult, EqualResult, EqualResult);
+		}
+		if (ResultType == MCT_Float4)
+		{
+			return Constant4(EqualResult, EqualResult, EqualResult, EqualResult);
+		}
+	}
+
+	// smoothstep( x, x, a ) could create a div by zero depending on implementation.
+	// The common implementation is to treat smoothstep as a step in these situations.
+	if (X == Y)
+	{
+		bExpressionsAreEqual = true;
+	}
+	else if (ExpressionX && ExpressionY)
+	{
+		if (ExpressionX->IsConstant() && ExpressionY->IsConstant() && (*CurrentScopeChunks)[X].Type == (*CurrentScopeChunks)[Y].Type)
+		{
+			FLinearColor ValueX, ValueY;
+			FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+			ExpressionX->GetNumberValue(DummyContext, ValueX);
+			ExpressionY->GetNumberValue(DummyContext, ValueY);
+
+			if (ValueX == ValueY)
+			{
+				bExpressionsAreEqual = true;
+			}
+		}
+	}
+
+	if (bExpressionsAreEqual)
+	{
+		return Step(X, A);
+	}
+
+	//When all inputs are constant, we can precompile the operation.
+	if (ExpressionX && ExpressionY && ExpressionA && ExpressionX->IsConstant() && ExpressionY->IsConstant() && ExpressionA->IsConstant())
+	{
+		FLinearColor ValueX, ValueY, ValueA;
+		FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+		ExpressionX->GetNumberValue(DummyContext, ValueX);
+		ExpressionY->GetNumberValue(DummyContext, ValueY);
+		ExpressionA->GetNumberValue(DummyContext, ValueA);
+
+		float Red = FMath::SmoothStep(ValueX.R, ValueY.R, ValueA.R);
+		if (ResultType == MCT_Float || ResultType == MCT_Float1)
+		{
+			return Constant(Red);
+		}
+
+		float Green = FMath::SmoothStep(ValueX.G, ValueY.G, ValueA.G);
+		if (ResultType == MCT_Float2)
+		{
+			return Constant2(Red, Green);
+		}
+
+		float Blue = FMath::SmoothStep(ValueX.B, ValueY.B, ValueA.B);
+		if (ResultType == MCT_Float3)
+		{
+			return Constant3(Red, Green, Blue);
+		}
+
+		float Alpha = FMath::SmoothStep(ValueX.A, ValueY.A, ValueA.A);
+		if (ResultType == MCT_Float4)
+		{
+			return Constant4(Red, Green, Blue, Alpha);
+		}
+	}
+
+	return AddCodeChunk(ResultType, TEXT("smoothstep(%s,%s,%s)"), *CoerceParameter(X, ResultType), *CoerceParameter(Y, ResultType), *CoerceParameter(A, ResultType));
+}
+
+int32 FHLSLMaterialTranslator::InvLerp(int32 X, int32 Y, int32 A)
+{
+	if (X == INDEX_NONE || Y == INDEX_NONE || A == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	FMaterialUniformExpression* ExpressionX = GetParameterUniformExpression(X);
+	FMaterialUniformExpression* ExpressionY = GetParameterUniformExpression(Y);
+	FMaterialUniformExpression* ExpressionA = GetParameterUniformExpression(A);
+	bool bExpressionsAreEqual = false;
+
+	EMaterialValueType ResultType = GetParameterType(A);
+
+
+	// Skip over interpolations where inputs are equal.
+
+	float EqualResult = 0.0f;
+	// (y-x)/(y-x) == 1.0
+	if (Y == A)
+	{
+		bExpressionsAreEqual = true;
+		EqualResult = 1.0;
+	}
+
+	// (x-x)/(y-x) == 0.0
+	if (X == A)
+	{
+		bExpressionsAreEqual = true;
+		EqualResult = 0.0f;
+	}
+
+	if (bExpressionsAreEqual)
+	{
+		if (ResultType == MCT_Float || ResultType == MCT_Float1)
+		{
+			return Constant(EqualResult);
+		}
+		if (ResultType == MCT_Float2)
+		{
+			return Constant2(EqualResult, EqualResult);
+		}
+		if (ResultType == MCT_Float3)
+		{
+			return Constant3(EqualResult, EqualResult, EqualResult);
+		}
+		if (ResultType == MCT_Float4)
+		{
+			return Constant4(EqualResult, EqualResult, EqualResult, EqualResult);
+		}
+	}
+
+	// (a-x)/(x-x) will create a div by zero.
+	if (X == Y)
+	{
+		bExpressionsAreEqual = true;
+	}
+	else if (ExpressionX && ExpressionY)
+	{
+		if (ExpressionX->IsConstant() && ExpressionY->IsConstant() && (*CurrentScopeChunks)[X].Type == (*CurrentScopeChunks)[Y].Type)
+		{
+			FLinearColor ValueX, ValueY;
+			FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+			ExpressionX->GetNumberValue(DummyContext, ValueX);
+			ExpressionY->GetNumberValue(DummyContext, ValueY);
+
+			if (ValueX == ValueY)
+			{
+				bExpressionsAreEqual = true;
+			}
+		}
+	}
+
+	if (bExpressionsAreEqual)
+	{
+		Error(TEXT("Div by Zero: InvLerp A == B."));
+	}
+
+	//When all inputs are constant, we can precompile the operation.
+	if (ExpressionX && ExpressionY && ExpressionA && ExpressionX->IsConstant() && ExpressionY->IsConstant() && ExpressionA->IsConstant())
+	{
+		FLinearColor ValueX, ValueY, ValueA;
+		FMaterialRenderContext DummyContext(nullptr, *Material, nullptr);
+		ExpressionX->GetNumberValue(DummyContext, ValueX);
+		ExpressionY->GetNumberValue(DummyContext, ValueY);
+		ExpressionA->GetNumberValue(DummyContext, ValueA);
+
+		float Red = FMath::GetRangePct(ValueX.R, ValueY.R, ValueA.R);
+		if (ResultType == MCT_Float || ResultType == MCT_Float1)
+		{
+			return Constant(Red);
+		}
+
+		float Green = FMath::GetRangePct(ValueX.G, ValueY.G, ValueA.G);
+		if (ResultType == MCT_Float2)
+		{
+			return Constant2(Red, Green);
+		}
+
+		float Blue = FMath::GetRangePct(ValueX.B, ValueY.B, ValueA.B);
+		if (ResultType == MCT_Float3)
+		{
+			return Constant3(Red, Green, Blue);
+		}
+
+		float Alpha = FMath::GetRangePct(ValueX.A, ValueY.A, ValueA.A);
+		if (ResultType == MCT_Float4)
+		{
+			return Constant4(Red, Green, Blue, Alpha);
+		}
+	}
+
+	int32 Numerator = Sub(A, X);
+	int32 Denominator = Sub(Y, X);
+
+	return Div(Numerator, Denominator);
 }
 
 int32 FHLSLMaterialTranslator::Lerp(int32 X,int32 Y,int32 A)
@@ -5976,10 +6316,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			else if (DestCoordBasis == MCB_MeshParticle)
 			{
 				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.Particle.WorldToParticle))");
-				if (ShaderFrequency == SF_Pixel)
-				{
-					bUsesParticleWorldToLocal = true;
-				}
+				bUsesParticleWorldToLocal = true;
 			}
 
 			// else use MCB_TranslatedWorld as intermediary basis
@@ -6011,10 +6348,7 @@ int32 FHLSLMaterialTranslator::TransformBase(EMaterialCommonBasis SourceCoordBas
 			if (DestCoordBasis == MCB_World)
 			{
 				CodeStr = TEXT("mul(<A>, <MATRIX>(Parameters.Particle.ParticleToWorld))");
-				if (ShaderFrequency == SF_Pixel)
-				{
-					bUsesParticleLocalToWorld = true;
-				}
+				bUsesParticleLocalToWorld = true;
 			}
 			// use World as an intermediary base
 			break;
@@ -6520,6 +6854,40 @@ int32 FHLSLMaterialTranslator::GetHairRoughness()
 	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairRoughness(Parameters)"));
 }
 
+int32 FHLSLMaterialTranslator::GetHairDepth()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairDepth(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairCoverage()
+{
+	return AddCodeChunk(MCT_Float1, TEXT("MaterialExpressionGetHairCoverage(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairAtlasUVs()
+{
+	return AddCodeChunk(MCT_Float2, TEXT("MaterialExpressionGetAtlasUVs(Parameters)"));
+}
+
+int32 FHLSLMaterialTranslator::GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor)
+{
+	if (Melanin == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (Redness == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+
+	if (DyeColor == INDEX_NONE)
+	{
+		return INDEX_NONE;
+	}
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionGetHairColorFromMelanin(%s, %s, %s)"), *GetParameterCode(Melanin), *GetParameterCode(Redness), *GetParameterCode(DyeColor));
+}
+
 int32 FHLSLMaterialTranslator::DistanceToNearestSurface(int32 PositionArg)
 {
 	if (ErrorUnlessFeatureLevelSupported(ERHIFeatureLevel::SM5) == INDEX_NONE)
@@ -6644,47 +7012,23 @@ int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
 	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
 }
 
-int32 FHLSLMaterialTranslator::SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth)
 {
-	if (ShaderFrequency == SF_Vertex && FeatureLevel <= ERHIFeatureLevel::ES3_1)
-	{
-		// mobile currently does not support this, we need to read a separate copy of the depth, we must disable framebuffer fetch and force scene texture reads.
-		return Errorf(TEXT("Cannot read scene depth from the vertex shader with feature level ES3.1 or below."));
-	}
+	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleAltitude(Parameters)"));
+}
 
-	if (!Material->GetShadingModels().HasShadingModel(MSM_SingleLayerWater))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Shading Model is Single Layer Water."));
-	}
-	
-	if (Material->GetMaterialDomain() != MD_Surface)
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Domain is set to Surface."));
-	}
+int32 FHLSLMaterialTranslator::GetCloudSampleAltitudeInLayer()
+{
+	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleAltitudeInLayer(Parameters)"));
+}
 
-	if (IsTranslucentBlendMode(Material->GetBlendMode()))
-	{
-		return Errorf(TEXT("Can only read scene depth below water when material Blend Mode isn't translucent."));
-	}
+int32 FHLSLMaterialTranslator::GetCloudSampleNormAltitudeInLayer()
+{
+	return AddCodeChunk(MCT_Float, TEXT("MaterialExpressionCloudSampleNormAltitudeInLayer(Parameters)"));
+}
 
-	if (Offset == INDEX_NONE && bUseOffset)
-	{
-		return INDEX_NONE;
-	}
-
-	AddEstimatedTextureSample();
-
-	const FString UserDepthCode(TEXT("MaterialExpressionSceneDepthWithoutWater(%s, %s)"));
-	const FString FallbackString(FString::SanitizeFloat(FallbackDepth));
-	const int32 TexCoordCode = GetScreenAlignedUV(Offset, ViewportUV, bUseOffset);
-
-	// add the code string
-	return AddCodeChunk(
-		MCT_Float,
-		*UserDepthCode,
-		*GetParameterCode(TexCoordCode),
-		*FallbackString
-	);
+int32 FHLSLMaterialTranslator::GetVolumeSampleConservativeDensity()
+{
+	return AddCodeChunk(MCT_Float3, TEXT("MaterialExpressionVolumeSampleConservativeDensity(Parameters)"));
 }
 
 int32 FHLSLMaterialTranslator::CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type)

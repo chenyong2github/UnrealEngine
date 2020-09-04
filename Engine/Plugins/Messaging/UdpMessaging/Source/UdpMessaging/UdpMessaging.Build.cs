@@ -34,6 +34,7 @@ namespace UnrealBuildTool.Rules
 					"UdpMessaging/Private/Shared",
 					"UdpMessaging/Private/Transport",
 					"UdpMessaging/Private/Tunnel",
+					"UdpMessaging/Public/Shared",
 				});
 
 			if (Target.Type == TargetType.Editor)

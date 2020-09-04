@@ -26,12 +26,23 @@
 #include "Components/InstancedStaticMeshComponent.h"
 #include "StaticMeshResources.h"
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
-#include "InstancedStaticMesh.h"
+#include "Engine/InstancedStaticMesh.h"
 #include "SceneManagement.h"
 #include "HAL/LowLevelMemTracker.h"
 #include "UObject/ReleaseObjectVersion.h"
 #include "ComponentRecreateRenderStateContext.h"
 #include "Algo/AnyOf.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
+
+#if WITH_EDITOR
+static float GDebugBuildTreeAsyncDelayInSeconds = 0.f;
+static FAutoConsoleVariableRef CVarDebugBuildTreeAsyncDelayInSeconds(
+	TEXT("foliage.DebugBuildTreeAsyncDelayInSeconds"),
+	GDebugBuildTreeAsyncDelayInSeconds,
+	TEXT("Adds a delay (in seconds) to BuildTreeAsync tasks for debugging"));
+#endif
 
 static TAutoConsoleVariable<int32> CVarFoliageSplitFactor(
 	TEXT("foliage.SplitFactor"),
@@ -158,7 +169,7 @@ static void FoliageCVarSinkFunction()
 				if (Component->bEnableDensityScaling && Component->CurrentDensityScaling != FoliageDensityScale)
 				{
 					Component->CurrentDensityScaling = FoliageDensityScale;
-					Component->BuildTreeIfOutdated(true, true);
+					Component->BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/true);
 				}
 			}
 		}
@@ -387,7 +398,7 @@ protected:
 public:
 	TUniquePtr<FClusterTree> Result;
 	TUniquePtr<FStaticMeshInstanceData> BuiltInstanceData;
-
+	
 	FClusterBuilder(TArray<FMatrix> InTransforms, TArray<float> InCustomDataFloats, int32 InNumCustomDataFloats, const FBox& InInstBox, int32 InMaxInstancesPerLeaf, float InDensityScaling, int32 InInstancingRandomSeed, bool InGenerateInstanceScalingRange)
 		: OriginalNum(InTransforms.Num())
 		, InstBox(InInstBox)
@@ -401,14 +412,16 @@ public:
 		, Result(nullptr)
 	{
 	}
-	
-	void BuildTreeAsync(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
-	{
-		BuildTree();
-	}
 
 	void BuildTreeAndBufferAsync(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 	{
+#if WITH_EDITOR
+		if (!FMath::IsNearlyZero(GDebugBuildTreeAsyncDelayInSeconds))
+		{
+			UE_LOG(LogStaticMesh, Warning, TEXT("BuildTree Debug Delay %5.1f (CVar foliage.DebugBuildTreeAsyncDelayInSeconds)"), GDebugBuildTreeAsyncDelayInSeconds);
+			FPlatformProcess::Sleep(GDebugBuildTreeAsyncDelayInSeconds);
+		}
+#endif
 		BuildTreeAndBuffer();
 	}
 
@@ -417,7 +430,7 @@ public:
 		BuildTree();
 		BuildInstanceBuffer();
 	}
-	
+
 	void BuildTree()
 	{
 		Init();
@@ -1933,10 +1946,9 @@ void UHierarchicalInstancedStaticMeshComponent::PostEditUndo()
 {
 	Super::PostEditUndo();
 
-	const bool bAsync = false;
-	const bool bForceUpdate = true;
 	// Force because the Outdated Condition will fail (compared values will match)
-	BuildTreeIfOutdated(bAsync, bForceUpdate);
+	// Since we don't know what changed we can't really send a command to the InstanceUpdateCmdBuffer to reflect the changes so we do the Build Non-Async
+	BuildTreeIfOutdated(/*Async*/false, /*ForceUpdate*/true);
 }
 
 void UHierarchicalInstancedStaticMeshComponent::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
@@ -1961,23 +1973,12 @@ void UHierarchicalInstancedStaticMeshComponent::PostEditChangeChainProperty(FPro
 	{
 		if (FApp::CanEverRender())
 		{
-			BuildTreeIfOutdated(false, false);
+			// Since we don't know what changed we can't really send a command to the InstanceUpdateCmdBuffer to reflect the changes so we do the Build Non-Async
+			BuildTreeIfOutdated(/*Async*/false, /*ForceUpdate*/false);
 		}
 	}
 }
 #endif
-
-void UHierarchicalInstancedStaticMeshComponent::PreSave(const class ITargetPlatform* TargetPlatform)
-{
-	Super::PreSave(TargetPlatform);
-
-	// On save, if we have a pending async build we should wait for it to complete rather than saving an incomplete tree
-	const bool bIsCooking = (TargetPlatform != nullptr);
-	if (bIsCooking || !IsTreeFullyBuilt())
-	{
-		BuildTreeIfOutdated(false, true);
-	}
-}
 
 void UHierarchicalInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 {
@@ -1985,25 +1986,11 @@ void UHierarchicalInstancedStaticMeshComponent::Serialize(FArchive& Ar)
 
 	Ar.UsingCustomVersion(FReleaseObjectVersion::GUID);
 
-	// Before serializing the content to cook, wait for the async task to be completed
-	if (bIsAsyncBuilding && Ar.IsSaving() && Ar.IsCooking())
+	// If we are saving make sure the tree is up to date. For Undo/Redo the PostEditUndo will rebuild the tree.
+	// Properly building the tree here will avoid the need to call BuildTreeIfOutdated in different duplication/load use cases.
+	if (Ar.IsSaving() && !Ar.IsTransacting())
 	{
-		int32 MaxLoopCount = 100;
-
-		// Since the build could need to be redone due to concurrent changes, wait until the array is empty so we wait for all the async build are triggered
-		while (BuildTreeAsyncTasks.Num() > 0)
-		{
-			FTaskGraphInterface::Get().WaitUntilTasksComplete(BuildTreeAsyncTasks);
-
-			// This is not normal that it take more than 100 wait to complete all the pending async task!
-			if (--MaxLoopCount == 0)
-			{
-				break;
-			}
-		}
-		
-		check(MaxLoopCount > 0);
-		check(!bIsAsyncBuilding);
+		BuildTreeIfOutdated(/*Async*/false, /*ForceUpdate*/false);
 	}
 
 	Super::Serialize(Ar);
@@ -2044,14 +2031,12 @@ void UHierarchicalInstancedStaticMeshComponent::GetResourceSizeEx(FResourceSizeE
 	CumulativeResourceSize.AddDedicatedSystemMemoryBytes(UnbuiltInstanceBoundsList.GetAllocatedSize());
 }
 
-void UHierarchicalInstancedStaticMeshComponent::PostDuplicate(bool bDuplicateForPIE)
+void UHierarchicalInstancedStaticMeshComponent::PostEditImport()
 {
-	Super::PostDuplicate(bDuplicateForPIE);
+	Super::PostEditImport();
 
-	if (bDuplicateForPIE)
-	{
-		BuildTreeIfOutdated(false, false);
-	}
+	// Node cluster isn't exported so we need to rebuild the tree.
+	BuildTreeIfOutdated(/*Async*/false,/*ForceUpdate*/true);
 }
 
 void UHierarchicalInstancedStaticMeshComponent::PostLoad()
@@ -2174,7 +2159,7 @@ bool UHierarchicalInstancedStaticMeshComponent::RemoveInstances(const TArray<int
 
 	if (bAutoRebuildTreeOnInstanceChanges)
 	{
-		BuildTreeIfOutdated(true, false);
+		BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
 	}
 
 	MarkRenderStateDirty();
@@ -2195,7 +2180,7 @@ bool UHierarchicalInstancedStaticMeshComponent::RemoveInstance(int32 InstanceInd
 
 	if (bAutoRebuildTreeOnInstanceChanges)
 	{
-		BuildTreeIfOutdated(true, false);
+		BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
 	}
 
 	MarkRenderStateDirty();
@@ -2255,7 +2240,7 @@ bool UHierarchicalInstancedStaticMeshComponent::UpdateInstanceTransform(int32 In
 			UnbuiltInstanceBounds += NewInstanceBounds;
 			UnbuiltInstanceBoundsList.Add(NewInstanceBounds);
 
-			BuildTreeIfOutdated(true, false);
+			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
 		}
 	}
 
@@ -2360,7 +2345,7 @@ bool UHierarchicalInstancedStaticMeshComponent::BatchUpdateInstancesData(int32 S
 	bool BatchResult = true;
 
 	Super::BatchUpdateInstancesData(StartInstanceIndex, NumInstances, StartInstanceData, bMarkRenderStateDirty, bTeleport);
-	BuildTreeIfOutdated(true, false);
+	BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
 
 	return BatchResult;
 }
@@ -2369,7 +2354,7 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyComponentInstanceData(FInst
 {
 	UInstancedStaticMeshComponent::ApplyComponentInstanceData(InstancedMeshData);
 
-	BuildTreeIfOutdated(false, false);
+	BuildTreeIfOutdated(/*Async*/false, /*ForceUpdate*/false);
 }
 
 void UHierarchicalInstancedStaticMeshComponent::PreAllocateInstancesMemory(int32 AddedInstanceCount)
@@ -2405,7 +2390,7 @@ int32 UHierarchicalInstancedStaticMeshComponent::AddInstance(const FTransform& I
 
 		if (bAutoRebuildTreeOnInstanceChanges)
 		{
-			BuildTreeIfOutdated(PerInstanceSMData.Num() > 1, false);
+			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
 		}
 	}
 
@@ -2449,7 +2434,7 @@ TArray<int32> UHierarchicalInstancedStaticMeshComponent::AddInstances(const TArr
 
 		if (bAutoRebuildTreeOnInstanceChanges)
 		{
-			BuildTreeIfOutdated(PerInstanceSMData.Num() > 1, false);
+			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/false);
 		}
 	}
 
@@ -2784,19 +2769,6 @@ void UHierarchicalInstancedStaticMeshComponent::ApplyBuildTree(FClusterBuilder& 
 	MarkRenderStateDirty();
 }
 
-void UHierarchicalInstancedStaticMeshComponent::OnComponentCreated()
-{
-	Super::OnComponentCreated();
-
-	// if we are pasting/duplicating this component, it may be created with some instances already in place
-	// in this case, need to ensure that the tree is properly created
-	if (FApp::CanEverRender() && PerInstanceSMData.Num() > 0 && ClusterTreePtr->Num() == 0)
-	{
-		const bool bForceUpdate = true;
-		BuildTreeIfOutdated(false, bForceUpdate);
-	}
-}
-
 bool UHierarchicalInstancedStaticMeshComponent::BuildTreeIfOutdated(bool Async, bool ForceUpdate)
 {
 	if (HasAnyFlags(RF_ClassDefaultObject | RF_ArchetypeObject))
@@ -2930,7 +2902,10 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 			FComponentRecreateRenderStateContext Context(this);
 
 			const FMeshMapBuildData* MeshMapBuildData = nullptr;
-			if (LODData.Num() > 0)
+#if WITH_EDITOR
+			MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, 0);
+#endif
+			if (MeshMapBuildData == nullptr && LODData.Num() > 0)
 			{
 				MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 			}
@@ -2950,7 +2925,7 @@ void UHierarchicalInstancedStaticMeshComponent::PropagateLightingScenarioChange(
 		}
 		else
 		{
-			BuildTreeIfOutdated(true, true);
+			BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/true);
 		}
 	}
 }
@@ -2960,7 +2935,12 @@ void UHierarchicalInstancedStaticMeshComponent::SetPerInstanceLightMapAndEditorD
 	int32 NumInstances = PerInstanceData.GetNumInstances();
 	
 	const FMeshMapBuildData* MeshMapBuildData = nullptr;
-	if (LODData.Num() > 0)
+
+#if WITH_EDITOR
+	MeshMapBuildData = FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, 0);
+#endif
+
+	if (MeshMapBuildData == nullptr && LODData.Num() > 0)
 	{
 		MeshMapBuildData = GetMeshMapBuildData(LODData[0], false);
 	}
@@ -3055,7 +3035,7 @@ void UHierarchicalInstancedStaticMeshComponent::UpdateDensityScaling()
 #endif
 
 	CurrentDensityScaling = FMath::Clamp(CurrentDensityScaling, 0.0f, 1.0f);
-	BuildTreeIfOutdated(true, OldDensityScaling != CurrentDensityScaling);
+	BuildTreeIfOutdated(/*Async*/true, /*ForceUpdate*/OldDensityScaling != CurrentDensityScaling);
 }
 
 void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
@@ -3100,12 +3080,16 @@ void UHierarchicalInstancedStaticMeshComponent::OnPostLoadPerInstanceData()
 			// Update the instance data if the lighting scenario isn't the owner level
 			if (!bForceTreeBuild)
 			{
-				AActor* Owner = GetOwner();
-				ULevel* OwnerLevel = Owner->GetLevel();
-				UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
-				if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+				if (AActor* Owner = GetOwner())
 				{
-					bForceTreeBuild = true;
+					if (ULevel* OwnerLevel = Owner->GetLevel())
+					{
+						UWorld* OwnerWorld = OwnerLevel ? OwnerLevel->OwningWorld : nullptr;
+						if (OwnerWorld && OwnerWorld->GetActiveLightingScenario() != nullptr && OwnerWorld->GetActiveLightingScenario() != OwnerLevel)
+						{
+							bForceTreeBuild = true;
+						}
+					}
 				}
 			}
 
@@ -3428,7 +3412,7 @@ static void RebuildFoliageTrees(const TArray<FString>& Args)
 		UHierarchicalInstancedStaticMeshComponent* Comp = *It;
 		if (Comp && !Comp->IsTemplate() && !Comp->IsPendingKill())
 		{
-			Comp->BuildTreeIfOutdated(false, true);
+			Comp->BuildTreeIfOutdated(/*Async*/false, /*ForceUpdate*/true);
 			Comp->MarkRenderStateDirty();
 		}
 	}

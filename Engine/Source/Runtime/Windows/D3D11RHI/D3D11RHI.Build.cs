@@ -2,6 +2,7 @@
 
 using UnrealBuildTool;
 
+[SupportedPlatforms("Win32", "Win64", "HoloLens")]
 public class D3D11RHI : ModuleRules
 {
 	public D3D11RHI(ReadOnlyTargetRules Target) : base(Target)

@@ -63,7 +63,7 @@ class FSceneView;
 struct FUniqueNetIdRepl;
 struct FEncryptionKeyResponse;
 
-template<typename,typename> class TOctree;
+template<typename,typename> class TOctree2;
 
 /**
  * Misc. Iterator types
@@ -3345,6 +3345,7 @@ public:
 	FOnLevelsChangedEvent& OnLevelsChanged() { return LevelsChangedEvent; }
 
 	/** Returns the BeginTearingDownEvent member. */
+	UE_DEPRECATED(4.26, "OnBeginTearingDown has been replaced by FWorldDelegates::OnWorldBeginTearDown")
 	FOnBeginTearingDownEvent& OnBeginTearingDown() { return BeginTearingDownEvent; }
 
 	/** Returns the actor count. */

@@ -444,11 +444,11 @@ void ULandscapeHeightfieldCollisionComponent::OnCreatePhysicsState()
 					QueryFilterDataSimple.Word3 = (QueryFilterDataSimple.Word3 & ~EPDF_ComplexCollision) | EPDF_SimpleCollision;
 					SimFilterDataSimple.Word3 = (SimFilterDataSimple.Word3 & ~EPDF_ComplexCollision) | EPDF_SimpleCollision;
 
-					NewShape->SetGeometry(MakeSerializable(ChaosSimpleHeightFieldFromCooked));
-					NewShape->SetQueryData(QueryFilterDataSimple);
-					NewShape->SetSimData(SimFilterDataSimple);
+					NewSimpleShape->SetGeometry(MakeSerializable(ChaosSimpleHeightFieldFromCooked));
+					NewSimpleShape->SetQueryData(QueryFilterDataSimple);
+					NewSimpleShape->SetSimData(SimFilterDataSimple);
 
-					Geoms.Emplace(MoveTemp(ChaosHeightFieldFromCooked));
+					Geoms.Emplace(MoveTemp(ChaosSimpleHeightFieldFromCooked));
 					ShapeArray.Emplace(MoveTemp(NewSimpleShape));
 				}
 
@@ -989,7 +989,7 @@ bool ULandscapeHeightfieldCollisionComponent::CookCollisionData(const FName& For
 	{
 		// #BGTODO Materials for simple geometry, currently just passing in the default
 		TArrayView<const uint16> SimpleHeightView(Heights + NumSamples, NumSimpleSamples);
-		HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), CollisionSizeVerts, CollisionSizeVerts, Chaos::TVector<float, 3>(1));
+		HeightfieldSimple = MakeUnique<Chaos::FHeightField>(SimpleHeightView, MakeArrayView(MaterialIndices.GetData(), 1), SimpleCollisionSizeVerts, SimpleCollisionSizeVerts, Chaos::TVector<float, 3>(1));
 		Ar << HeightfieldSimple;
 	}
 

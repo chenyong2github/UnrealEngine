@@ -163,9 +163,12 @@ void SetupMobileBasePassUniformParameters(
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
 	SetupMobileSceneTextureUniformParameters(SceneContext, View.FeatureLevel, bTranslucentPass, View.bCustomDepthStencilValid, BasePassParameters.SceneTextures);
 	BasePassParameters.UseCSM = bCanUseCSM ? 1 : 0;
-	if (View.HasValidEyeAdaptation() && View.GetEyeAdaptationBuffer())
+	if (View.HasValidEyeAdaptation())
 	{
-		BasePassParameters.SceneTextures.EyeAdaptationBuffer = View.GetEyeAdaptationBuffer()->SRV;
+		if (const FExposureBufferData* ExposureBufferData = View.GetEyeAdaptationBuffer())
+		{
+			BasePassParameters.SceneTextures.EyeAdaptationBuffer = ExposureBufferData->SRV;
+		}
 	}
 
 	BasePassParameters.PreIntegratedGFTexture = GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture;

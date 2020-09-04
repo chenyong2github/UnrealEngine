@@ -4,9 +4,20 @@
 #include "Interfaces/IDMXProtocol.h"
 #include "DMXProtocolSettings.h"
 
-TArray<FName> FDMXProtocolName::GetPossibleValues()
+IMPLEMENT_DMX_NAMELISTITEM_STATICVARS(FDMXProtocolName)
+
+IMPLEMENT_DMX_NAMELISTITEM_GetAllValues(FDMXProtocolName)
 {
 	return IDMXProtocol::GetProtocolNames();
+}
+
+IMPLEMENT_DMX_NAMELISTITEM_IsValid(FDMXProtocolName)
+{
+	if (InName.IsNone())
+	{
+		return false;
+	}
+	return IDMXProtocol::Get(InName).IsValid();
 }
 
 FDMXProtocolName::FDMXProtocolName(IDMXProtocolPtr InProtocol)
@@ -18,8 +29,9 @@ FDMXProtocolName::FDMXProtocolName(IDMXProtocolPtr InProtocol)
 }
 
 FDMXProtocolName::FDMXProtocolName(const FName& InName)
-	: Name(InName)
-{}
+{
+	Name = InName;
+}
 
 FDMXProtocolName::FDMXProtocolName()
 {
@@ -30,7 +42,10 @@ FDMXProtocolName::FDMXProtocolName()
 	if (DMXProtocolModule != nullptr)
 	{
 		Name = IDMXProtocol::GetFirstProtocolName();
+		return;
 	}
+
+	Name = NAME_None;
 }
 
 IDMXProtocolPtr FDMXProtocolName::GetProtocol() const
@@ -42,16 +57,25 @@ IDMXProtocolPtr FDMXProtocolName::GetProtocol() const
 	return IDMXProtocol::Get(Name);
 }
 
-bool FDMXProtocolName::IsValid() const
-{
-	return GetProtocol().IsValid();
-}
+IMPLEMENT_DMX_NAMELISTITEM_STATICVARS(FDMXFixtureCategory)
 
-FSimpleMulticastDelegate FDMXFixtureCategory::OnPossibleValuesUpdated;
-
-TArray<FName> FDMXFixtureCategory::GetPossibleValues()
+IMPLEMENT_DMX_NAMELISTITEM_GetAllValues(FDMXFixtureCategory)
 {
 	return GetDefault<UDMXProtocolSettings>()->FixtureCategories.Array();
+}
+
+IMPLEMENT_DMX_NAMELISTITEM_IsValid(FDMXFixtureCategory)
+{
+	const TArray<FName>&& AvailableNames = GetPossibleValues();
+	for (const FName& AvailableName : AvailableNames)
+	{
+		if (InName.IsEqual(AvailableName))
+		{
+			return true;
+		}
+	}
+
+	return false;
 }
 
 FName FDMXFixtureCategory::GetFirstValue()
@@ -72,8 +96,9 @@ FDMXFixtureCategory::FDMXFixtureCategory()
 }
 
 FDMXFixtureCategory::FDMXFixtureCategory(const FName& InName)
-	: Name(InName)
-{}
+{
+	Name = InName;
+}
 
 FString UDMXNameContainersConversions::Conv_DMXProtocolNameToString(const FDMXProtocolName & InProtocolName)
 {
@@ -123,7 +148,7 @@ bool FDMXBuffer::SetDMXFragment(const IDMXFragmentMap & InDMXFragment)
 		}
 	}
 
-	// Increase Sequence
+	// Increase Sequence ID
 	SequenceID++;
 
 	return true;
@@ -142,8 +167,18 @@ bool FDMXBuffer::SetDMXBuffer(const uint8* InBuffer, uint32 InSize)
 		return false;
 	}
 
-	// Increase Sequence
+	// Increase Sequence ID
 	SequenceID++;
 
 	return true;
+}
+
+void FDMXBuffer::ZeroDMXBuffer()
+{
+	FScopeLock BufferLock(&BufferCritSec);
+
+	FMemory::Memset(DMXData.GetData(), 0, DMX_UNIVERSE_SIZE);
+
+	// Increase Sequence ID
+	SequenceID++;
 }

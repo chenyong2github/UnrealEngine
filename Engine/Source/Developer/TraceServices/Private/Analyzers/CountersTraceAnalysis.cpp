@@ -19,7 +19,7 @@ void FCountersAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_SetValueFloat, "Counters", "SetValueFloat");
 }
 
-bool FCountersAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FCountersAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -48,7 +48,7 @@ bool FCountersAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 		uint16 CounterId = EventData.GetValue<uint16>("CounterId");
 		int64 Value = EventData.GetValue<int64>("Value");
-		double Timestamp = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
 		Trace::IEditableCounter** FindCounter = CountersMap.Find(CounterId);
 		if (FindCounter)
 		{
@@ -60,7 +60,7 @@ bool FCountersAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 	{
 		uint16 CounterId = EventData.GetValue<uint16>("CounterId");
 		float Value = EventData.GetValue<float>("Value");
-		double Timestamp = Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle"));
+		double Timestamp = Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle"));
 		Trace::IEditableCounter* FindCounter = CountersMap.FindRef(CounterId);
 		if (FindCounter)
 		{

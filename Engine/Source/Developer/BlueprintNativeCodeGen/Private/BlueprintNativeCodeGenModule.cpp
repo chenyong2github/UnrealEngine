@@ -874,8 +874,12 @@ EReplacementResult FBlueprintNativeCodeGenModule::IsTargetedForReplacement(const
 		}
 		// DATA ONLY BP
 		{
+			// @todo - Temp; remove once DOBPs based on UActorComponent can be successfully nativized. These were only recently
+			// added to DOBP consideration and they currently break nativization if data-only and excluded. Needs more investigation.
+			const bool bIsComponentBasedBPClass = BlueprintClass && BlueprintClass->IsChildOf<UActorComponent>();
+
 			static const FBoolConfigValueHelper DontNativizeDataOnlyBP(TEXT("BlueprintNativizationSettings"), TEXT("bDontNativizeDataOnlyBP"));
-			if (DontNativizeDataOnlyBP && !bNativizeOnlySelectedBPs && Blueprint && FBlueprintEditorUtils::IsDataOnlyBlueprint(Blueprint))
+			if (DontNativizeDataOnlyBP && !bNativizeOnlySelectedBPs && Blueprint && FBlueprintEditorUtils::IsDataOnlyBlueprint(Blueprint) && !bIsComponentBasedBPClass)
 			{
 				return true;
 			}

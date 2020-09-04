@@ -32,7 +32,7 @@ public:
 	{
 		UI_COMMAND(ToggleExposed, "Exposed", "Toggles whether or not this parameter is exposed.", EUserInterfaceActionType::ToggleButton, FInputChord());
 		UI_COMMAND(ToggleRequired, "Required", "Toggles whether or not this parameter is required.", EUserInterfaceActionType::ToggleButton, FInputChord());
-		UI_COMMAND(ToggleCanAutoBind, "CanAutoBind", "Toggles whether or not this parameter can be automatically bound.", EUserInterfaceActionType::ToggleButton, FInputChord());
+		UI_COMMAND(ToggleCanAutoBind, "CanAutoBind", "Toggles whether or not this parameter can auto-bind to system parameters and emitter attributes. Will never auto bind to custom parameters.", EUserInterfaceActionType::ToggleButton, FInputChord());
 		UI_COMMAND(ToggleHidden, "Hidden", "Toggles whether or not this parameter is hidden.", EUserInterfaceActionType::ToggleButton, FInputChord());
 	}
 

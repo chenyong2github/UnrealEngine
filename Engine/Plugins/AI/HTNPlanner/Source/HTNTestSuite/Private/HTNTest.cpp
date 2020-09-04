@@ -116,11 +116,11 @@ struct FHTNTestBase : public FAITestBase
 
 struct FAITest_HTNDomainBuilderBasics : public FAITestBase
 {
-	FAITest_HTNDomainBuilderBasics()
+	virtual bool InstantTest() override
 	{
 		FHTNBuilder_Domain DomainBuilder;
 
-		Test(TEXT("Initially DomainBuilder instance should be empty"), DomainBuilder.CompositeTasks.Num() == 0 && DomainBuilder.PrimitiveTasks.Num() == 0);
+		AITEST_TRUE("Initially DomainBuilder instance should be empty", DomainBuilder.CompositeTasks.Num() == 0 && DomainBuilder.PrimitiveTasks.Num() == 0);
 
 		const uint32 CompointTasksCount = 5;
 		for (int32 CompositeTaskIndex = 0; CompositeTaskIndex < CompointTasksCount; ++CompositeTaskIndex)
@@ -156,25 +156,25 @@ struct FAITest_HTNDomainBuilderBasics : public FAITestBase
 		for (int32 CompositeTaskIndex = 0; CompositeTaskIndex < DomainBuilder.CompositeTasks.Num(); ++CompositeTaskIndex)
 		{
 			FHTNBuilder_CompositeTask* CompositeTaskBuilder = DomainBuilder.CompositeTasks.Find(*FString::Printf(TEXT("c_%d"), CompositeTaskIndex));
-			Test(FString::Printf(TEXT("Failed to find Composite task c_%d that has just been added"), CompositeTaskIndex), CompositeTaskBuilder != nullptr);
+			AITEST_TRUE(FString::Printf(TEXT("Failed to find Composite task c_%d that has just been added"), CompositeTaskIndex), CompositeTaskBuilder != nullptr);
 
 			if (CompositeTaskBuilder != nullptr)
 			{
-				Test(FString::Printf(TEXT("Method count mismatch for c_%d"), CompositeTaskIndex), CompositeTaskBuilder->Methods.Num() == (CompositeTaskIndex % 3));
+				AITEST_TRUE(FString::Printf(TEXT("Method count mismatch for c_%d"), CompositeTaskIndex), CompositeTaskBuilder->Methods.Num() == (CompositeTaskIndex % 3));
 				for (int32 MethodIndex = 0; MethodIndex < CompositeTaskBuilder->Methods.Num(); ++MethodIndex)
 				{
 					if ((CompositeTaskIndex + MethodIndex) != 0)
 					{
-						Test(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (array path)"), CompositeTaskIndex, MethodIndex)
+						AITEST_TRUE(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (array path)"), CompositeTaskIndex, MethodIndex)
 							, CompositeTaskBuilder->Methods[MethodIndex].Conditions.Num() == (CompositeTaskIndex % 3));
 					}
 					else
 					{
-						Test(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (single instance)"), CompositeTaskIndex, MethodIndex)
+						AITEST_TRUE(FString::Printf(TEXT("Condition count mismatch for c_%d[%d] method (single instance)"), CompositeTaskIndex, MethodIndex)
 							, CompositeTaskBuilder->Methods[MethodIndex].Conditions.Num() == 1);
 					}
 
-					Test(FString::Printf(TEXT("Task count mismatch for c_%d[%d] method"), CompositeTaskIndex, MethodIndex)
+					AITEST_TRUE(FString::Printf(TEXT("Task count mismatch for c_%d[%d] method"), CompositeTaskIndex, MethodIndex)
 						, CompositeTaskBuilder->Methods[MethodIndex].Tasks.Num() == (CompositeTaskIndex % 4));
 				}
 			}			
@@ -191,54 +191,58 @@ struct FAITest_HTNDomainBuilderBasics : public FAITestBase
 			}
 		}
 
-		Test(TEXT("Wrong number of primitive tasks added"), DomainBuilder.PrimitiveTasks.Num() == PrimitiveTasksCount);
+		AITEST_TRUE("Wrong number of primitive tasks added", DomainBuilder.PrimitiveTasks.Num() == PrimitiveTasksCount);
 		for (int32 PrimitiveTaskIndex = 0; PrimitiveTaskIndex < PrimitiveTasksCount; ++PrimitiveTaskIndex)
 		{
 			FHTNBuilder_PrimitiveTask* PrimitiveTaskBuilder = DomainBuilder.PrimitiveTasks.Find(*FString::Printf(TEXT("p_%d"), PrimitiveTaskIndex));
-			Test(FString::Printf(TEXT("Failed to find primitive task p_%d that has just been added"), PrimitiveTaskIndex), PrimitiveTaskBuilder != nullptr);
+			AITEST_TRUE(FString::Printf(TEXT("Failed to find primitive task p_%d that has just been added"), PrimitiveTaskIndex), PrimitiveTaskBuilder != nullptr);
 
 			if (PrimitiveTaskBuilder)
 			{
-				Test(FString::Printf(TEXT("Primitive task p_%d operator is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->ActionID == PrimitiveTaskIndex);
-				Test(FString::Printf(TEXT("Primitive task p_%d effects count is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->Effects.Num() == (PrimitiveTaskIndex % 3));
+				AITEST_TRUE(FString::Printf(TEXT("Primitive task p_%d operator is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->ActionID == PrimitiveTaskIndex);
+				AITEST_TRUE(FString::Printf(TEXT("Primitive task p_%d effects count is wrong"), PrimitiveTasksCount), PrimitiveTaskBuilder->Effects.Num() == (PrimitiveTaskIndex % 3));
 			}
 		}
+
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNDomainBuilderBasics, "System.Engine.AI.HTN.DomainBuilderBasics")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDomainBuilderBasics, "System.AI.HTN.DomainBuilderBasics")
 
 struct FAITest_HTNBuildDomain : public FHTNTestBase
 {
-	FAITest_HTNBuildDomain()
+	virtual bool InstantTest() override
 	{
 		PopulateDomain();
 
-		Test(TEXT("DomainBuilder stores wrong number of primitive tasks"), DomainBuilder.PrimitiveTasks.Num() == 7);
-		Test(TEXT("DomainBuilder stores wrong number of Composite tasks"), DomainBuilder.CompositeTasks.Num() == 2);
+		AITEST_TRUE("DomainBuilder stores wrong number of primitive tasks", DomainBuilder.PrimitiveTasks.Num() == 7);
+		AITEST_TRUE("DomainBuilder stores wrong number of Composite tasks", DomainBuilder.CompositeTasks.Num() == 2);
 		
 		FHTNBuilder_CompositeTask* RootBuilder = DomainBuilder.GetRootAsCompositeTask();
-		Test(TEXT("Root task should be set"), RootBuilder != nullptr);
+		AITEST_TRUE("Root task should be set", RootBuilder != nullptr);
 		if (RootBuilder && RootBuilder->Methods.Num() > 0)
 		{
-			Test(TEXT("Root task\'s method [0] should be configured to have two conditions"), RootBuilder->Methods[0].Conditions.Num() == 2);
+			AITEST_TRUE("Root task\'s method [0] should be configured to have two conditions", RootBuilder->Methods[0].Conditions.Num() == 2);
 		}
 		
 		TArray<FHTNBuilder_CompositeTask> CompositeTasks;
 		DomainBuilder.CompositeTasks.GenerateValueArray(CompositeTasks);
-		Test(TEXT("DomainBuilder stores wrong number of methods for the first Composite task"), CompositeTasks[0].Methods.Num() == 2);
-		Test(TEXT("DomainBuilder stores wrong number of methods for the second Composite task"), CompositeTasks[1].Methods.Num() == 2);
+		AITEST_TRUE("DomainBuilder stores wrong number of methods for the first Composite task", CompositeTasks[0].Methods.Num() == 2);
+		AITEST_TRUE("DomainBuilder stores wrong number of methods for the second Composite task", CompositeTasks[1].Methods.Num() == 2);
+
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNBuildDomain, "System.Engine.AI.HTN.BuildDomain")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNBuildDomain, "System.AI.HTN.BuildDomain")
 
 struct FAITest_HTNPlanning : public FHTNTestBase
 {
-	FAITest_HTNPlanning()
+	virtual bool InstantTest() override
 	{
 		FHTNResult Result;
 		
 		Planner.GeneratePlan(*(DomainBuilder.DomainInstance), WorldState, Result);
-		Test(TEXT("Planning with an empty domain should result in an empty plan"), Result.TaskIDs.Num() == 0);
+		AITEST_TRUE("Planning with an empty domain should result in an empty plan", Result.TaskIDs.Num() == 0);
 
 		PopulateDomain();
 
@@ -247,28 +251,30 @@ struct FAITest_HTNPlanning : public FHTNTestBase
 		TArray<FHTNBuilder_CompositeTask> CompositeTasks;
 		DomainBuilder.CompositeTasks.GenerateValueArray(CompositeTasks);
 		// Patrol plan
-		Test(TEXT("Patrol plan should be same length as the last methods of the root Composite task"), CompositeTasks[0].Methods.Last().Tasks.Num() == Result.TaskIDs.Num());
+		AITEST_TRUE("Patrol plan should be same length as the last methods of the root Composite task", CompositeTasks[0].Methods.Last().Tasks.Num() == Result.TaskIDs.Num());
 		for (int32 TaskIndex = 0; TaskIndex < Result.TaskIDs.Num(); ++TaskIndex)
 		{
 			const FHTNPolicy::FTaskID TaskID = Result.TaskIDs[TaskIndex];
-			Test(TEXT("Patrol plan element mismatch"), TaskID == DomainBuilder.DomainInstance->FindTaskID(CompositeTasks[0].Methods.Last().Tasks[TaskIndex]));
+			AITEST_TRUE("Patrol plan element mismatch", TaskID == DomainBuilder.DomainInstance->FindTaskID(CompositeTasks[0].Methods.Last().Tasks[TaskIndex]));
 		}
 
 		const FHTNDomain EmptyDomain;
 		Planner.GeneratePlan(EmptyDomain, WorldState, Result);
-		Test(TEXT("Reusing previous planning result with an empty domain should result in an empty plan"), Result.TaskIDs.Num() == 0);
+		AITEST_TRUE("Reusing previous planning result with an empty domain should result in an empty plan", Result.TaskIDs.Num() == 0);
 
 		WorldState.ApplyEffect(FHTNEffect(EMockHTNWorldState::EnemyHealth, EHTNWorldStateOperation::Set).SetRHSAsValue(1));
 		WorldState.ApplyEffect(FHTNEffect(EMockHTNWorldState::EnemyActor, EHTNWorldStateOperation::Set).SetRHSAsValue(1));
 		Planner.GeneratePlan(*(DomainBuilder.DomainInstance), WorldState, Result);
-		Test(TEXT(""), Result.TaskIDs.Num() > 0);
+		AITEST_TRUE("", Result.TaskIDs.Num() > 0);
+
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNPlanning, "System.Engine.AI.HTN.Planning")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNPlanning, "System.AI.HTN.Planning")
 
 struct FAITest_HTNPlanningRollback : public FHTNTestBase
 {
-	FAITest_HTNPlanningRollback()
+	virtual bool InstantTest() override
 	{		
 		FHTNResult Result;
 
@@ -308,17 +314,19 @@ struct FAITest_HTNPlanningRollback : public FHTNTestBase
 		DomainBuilder.Compile();
 
 		Planner.GeneratePlan(*(DomainBuilder.DomainInstance), WorldState, Result);
-		Test(TEXT("First Rollback plan should consist of one task, DummyPrimitive2"), Result.TaskIDs.Num() == 1 
+		AITEST_TRUE("First Rollback plan should consist of one task, DummyPrimitive2", Result.TaskIDs.Num() == 1
 			&& FHTNDebug::GetTaskName(DomainBuilder, Result.TaskIDs[0]) == DummyPrimitiveName2);
+
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNPlanningRollback, "System.Engine.AI.HTN.PlanningRollback")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNPlanningRollback, "System.AI.HTN.PlanningRollback")
 
 struct FAITest_HTNDecompileDomain : public FHTNTestBase
 {
-	FAITest_HTNDecompileDomain()
+	virtual bool InstantTest() override
 	{
-		Test(TEXT("Compiling an empty domain is allowed"), DomainBuilder.Compile());
+		AITEST_TRUE("Compiling an empty domain is allowed", DomainBuilder.Compile());
 
 		PopulateDomain();
 
@@ -327,14 +335,15 @@ struct FAITest_HTNDecompileDomain : public FHTNTestBase
 		const FString OriginalDescription = DomainBuilder.GetDebugDescription();
 		const FString DecompiledDescription = DomainBuilder2.GetDebugDescription();
 
-		Test(TEXT("Decompilation should result in identical DomainBuilder"), OriginalDescription.Equals(DecompiledDescription));
+		AITEST_TRUE("Decompilation should result in identical DomainBuilder", OriginalDescription.Equals(DecompiledDescription));
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNDecompileDomain, "System.Engine.AI.HTN.DomainDecompilation")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDecompileDomain, "System.AI.HTN.DomainDecompilation")
 
 struct FAITest_HTNDomainCompilationIssues : public FHTNTestBase
 {
-	FAITest_HTNDomainCompilationIssues()
+	virtual bool InstantTest() override
 	{
 		const FName MissingTaskName = TEXT("MissingTask");
 
@@ -344,24 +353,25 @@ struct FAITest_HTNDomainCompilationIssues : public FHTNTestBase
 			MethodsBuilder.AddTask(MissingTaskName);
 		}
 
-		Test(TEXT("Domain with missing tasks should not compile"), DomainBuilder.Compile() == false);
-		Test(TEXT("Domain should be empty after a failed compilation"), DomainBuilder.DomainInstance->IsEmpty());
+		AITEST_FALSE("Domain with missing tasks should not compile", DomainBuilder.Compile());
+		AITEST_TRUE("Domain should be empty after a failed compilation", DomainBuilder.DomainInstance->IsEmpty());
 
 		DomainBuilder.AddPrimitiveTask(MissingTaskName);
-		Test(TEXT("After adding missing task domain should compile just fine"), DomainBuilder.Compile());
-		Test(TEXT("Domain should not be empty after a successful compilation"), DomainBuilder.DomainInstance->IsEmpty() == false);
+		AITEST_TRUE("After adding missing task domain should compile just fine", DomainBuilder.Compile());
+		AITEST_FALSE("Domain should not be empty after a successful compilation", DomainBuilder.DomainInstance->IsEmpty());
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNDomainCompilationIssues, "System.Engine.AI.HTN.DomainDecompilationIssues")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNDomainCompilationIssues, "System.AI.HTN.DomainDecompilationIssues")
 
 struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 {
-	FAITest_HTNWorldRepresentation()
+	virtual bool InstantTest() override
 	{
 		for (int32 WSIndex = 0; WSIndex < int32(EMockHTNWorldState::MAX); ++WSIndex)
 		{
 			FHTNPolicy::FWSValue Value;
-			Test(TEXT("Retrieving known values from the WorldState instance"), WorldState.GetValue(WSIndex, Value) && Value == FHTNPolicy::DefaultValue);
+			AITEST_TRUE("Retrieving known values from the WorldState instance", WorldState.GetValue(WSIndex, Value) && Value == FHTNPolicy::DefaultValue);
 		}
 
 		PopulateWorldState();
@@ -370,7 +380,7 @@ struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 		for (int32 WSIndex = 0; WSIndex < int32(EMockHTNWorldState::MAX); ++WSIndex)
 		{
 			FHTNPolicy::FWSValue Value;
-			Test(TEXT("Retrieving known values from the WorldState instance"), WorldState.GetValue(WSIndex, Value) && Value == WSIndex);
+			AITEST_TRUE("Retrieving known values from the WorldState instance", WorldState.GetValue(WSIndex, Value) && Value == WSIndex);
 
 			for (int32 OpIndex = 0; OpIndex < int32(EHTNWorldStateCheck::MAX); ++OpIndex)
 			{
@@ -401,20 +411,21 @@ struct FAITest_HTNWorldRepresentation : public FHTNTestBase
 					bExpectedResult = (Value != 0);
 					break;
 				default:
-					Test(TEXT("Unhanled operation ID!"), true);
+					AITEST_TRUE("Unhanled operation ID!", true);
 				}
 
 				FString Message = FString::Printf(TEXT("Testing %s on $d"), *FHTNDebug::HTNWorldStateCheckToString(OpCode), Value);
-				Test(Message, WorldState.CheckCondition(FHTNCondition(WSIndex, OpCode).SetRHSAsValue(ReferenceValue)) == bExpectedResult);
+				AITEST_TRUE(Message, WorldState.CheckCondition(FHTNCondition(WSIndex, OpCode).SetRHSAsValue(ReferenceValue)) == bExpectedResult);
 			}
 		}
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNWorldRepresentation, "System.Engine.AI.HTN.WorldRepresentation")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNWorldRepresentation, "System.AI.HTN.WorldRepresentation")
 
 struct FAITest_HTNCondition : public FHTNTestBase
 {
-	FAITest_HTNCondition()
+	virtual bool InstantTest() override
 	{
 		PopulateWorldState();
 
@@ -427,40 +438,41 @@ struct FAITest_HTNCondition : public FHTNTestBase
 				const FHTNPolicy::FWSValue AsValue = FHTNPolicy::FWSValue(Value);
 				const FHTNPolicy::FWSKey AsKey = FHTNPolicy::FWSKey(Value);
 
-				Test(FString::Printf(TEXT("Condition WS[%d] < %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] < %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Less).SetRHSAsValue(AsValue)) == (WSIndex < AsValue));
-				Test(FString::Printf(TEXT("Condition WS[%d] <= %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] <= %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::LessOrEqual).SetRHSAsValue(AsValue)) == (WSIndex <= AsValue));
-				Test(FString::Printf(TEXT("Condition WS[%d] == %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] == %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Equal).SetRHSAsValue(AsValue)) == (WSIndex == AsValue));
-				Test(FString::Printf(TEXT("Condition WS[%d] != %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] != %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::NotEqual).SetRHSAsValue(AsValue)) == (WSIndex != AsValue));
-				Test(FString::Printf(TEXT("Condition WS[%d] >= %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] >= %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::GreaterOrEqual).SetRHSAsValue(AsValue)) == (WSIndex >= AsValue));
-				Test(FString::Printf(TEXT("Condition WS[%d] > %d"), WSIndex, AsValue)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] > %d"), WSIndex, AsValue)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Greater).SetRHSAsValue(AsValue)) == (WSIndex > AsValue));
 
-				Test(FString::Printf(TEXT("Condition WS[%d] < WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] < WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Less).SetRHSAsWSKey(AsKey)) == (WSIndex < AsKey));
-				Test(FString::Printf(TEXT("Condition WS[%d] <= WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] <= WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::LessOrEqual).SetRHSAsWSKey(AsKey)) == (WSIndex <= AsKey));
-				Test(FString::Printf(TEXT("Condition WS[%d] == WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] == WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Equal).SetRHSAsWSKey(AsKey)) == (WSIndex == AsKey));
-				Test(FString::Printf(TEXT("Condition WS[%d] != WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] != WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::NotEqual).SetRHSAsWSKey(AsKey)) == (WSIndex != AsKey));
-				Test(FString::Printf(TEXT("Condition WS[%d] >= WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] >= WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::GreaterOrEqual).SetRHSAsWSKey(AsKey)) == (WSIndex >= AsKey));
-				Test(FString::Printf(TEXT("Condition WS[%d] > WS[%d]"), WSIndex, AsKey)
+				AITEST_TRUE(FString::Printf(TEXT("Condition WS[%d] > WS[%d]"), WSIndex, AsKey)
 					, WorldState.CheckCondition(FHTNCondition(WSIndex, EHTNWorldStateCheck::Greater).SetRHSAsWSKey(AsKey)) == (WSIndex > AsKey));
 			}
 		}
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNCondition, "System.Engine.AI.HTN.Condition")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCondition, "System.AI.HTN.Condition")
 
 struct FAITest_HTNMethodSelection : public FAITestBase 
 {
-	FAITest_HTNMethodSelection()
+	virtual bool InstantTest() override
 	{
 		FHTNDomain Domain;
 
@@ -468,13 +480,14 @@ struct FAITest_HTNMethodSelection : public FAITestBase
 		// do planning and come up with empty plan
 
 		// INJECTION
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNMethodSelection, "System.Engine.AI.HTN.MethodSelection")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNMethodSelection, "System.AI.HTN.MethodSelection")
 
 struct FAITest_HTNTrivialPlanning : public FHTNTestBase 
 {
-	FAITest_HTNTrivialPlanning()
+	virtual bool InstantTest() override
 	{
 		//FHTNDomain Domain;
 
@@ -484,13 +497,14 @@ struct FAITest_HTNTrivialPlanning : public FHTNTestBase
 
 		//FHTNCompositeTask& RootCompositeTask = Domain.AddCompositeTask(TEXT("Root"));
 		// do planning and come up with empty plan
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNTrivialPlanning, "System.Engine.AI.HTN.TrivialPlanning")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNTrivialPlanning, "System.AI.HTN.TrivialPlanning")
 
 struct FAITest_HTNExtendingDomain : public FAITestBase
 {
-	FAITest_HTNExtendingDomain()
+	virtual bool InstantTest() override
 	{
 		//FHTNDomain Domain;
 
@@ -498,9 +512,10 @@ struct FAITest_HTNExtendingDomain : public FAITestBase
 		// do planning and come up with empty plan
 
 		// INJECTION
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNExtendingDomain, "System.Engine.AI.HTN.ExtendingDomain")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNExtendingDomain, "System.AI.HTN.ExtendingDomain")
 
 struct FAITest_HTNCustomWSCheck : public FHTNTestBase
 {
@@ -511,7 +526,7 @@ struct FAITest_HTNCustomWSCheck : public FHTNTestBase
 		return true;
 	}
 
-	FAITest_HTNCustomWSCheck()
+	virtual bool InstantTest() override
 	{
 		const uint32 CustomCheckID = FHTNWorldStateOperations::RegisterCustomCheckType(&FAITest_HTNCustomWSCheck::CustomCheck, TEXT("CustomCheck")); 
 
@@ -527,12 +542,14 @@ struct FAITest_HTNCustomWSCheck : public FHTNTestBase
 		FHTNResult Result;
 		Planner.GeneratePlan(*DomainBuilder.DomainInstance, WorldState, Result);
 
-		Test(TEXT("Custom check has been exeduted"), bCheckFunctionRun);
-		Test(TEXT("The custom check should allow for construction of the plan"), Result.TaskIDs.Num() == 1);
+		AITEST_TRUE("Custom check has been exeduted", bCheckFunctionRun);
+		AITEST_TRUE("The custom check should allow for construction of the plan", Result.TaskIDs.Num() == 1);
+
+		return true;
 	}
 };
 bool FAITest_HTNCustomWSCheck::bCheckFunctionRun = false;
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNCustomWSCheck, "System.Engine.AI.HTN.CustomWSCheck")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCustomWSCheck, "System.AI.HTN.CustomWSCheck")
 
 struct FAITest_HTNCustomWSOperation : public FHTNTestBase
 {
@@ -543,7 +560,7 @@ struct FAITest_HTNCustomWSOperation : public FHTNTestBase
 		Values[Effect.KeyLeftHand] = StaticValue * 1024;
 	}
 
-	FAITest_HTNCustomWSOperation()
+	virtual bool InstantTest() override
 	{
 		const uint32 CustomOperationID = FHTNWorldStateOperations::RegisterCustomOperationType(&FAITest_HTNCustomWSOperation::CustomOperation, TEXT("CustomOperation"));
 
@@ -561,18 +578,20 @@ struct FAITest_HTNCustomWSOperation : public FHTNTestBase
 		FHTNResult Result;
 		Planner.GeneratePlan(*DomainBuilder.DomainInstance, WorldState, Result);
 
-		Test(TEXT("Custom Operation has been exeduted"), StaticValue == 2);
-		Test(TEXT("Checking custom effect on key 0"), Planner.GetWorldState().GetValueUnsafe(0) == 1024);
-		Test(TEXT("Checking custom effect on key 0"), Planner.GetWorldState().GetValueUnsafe(2) == 1024 * 2);
+		AITEST_TRUE("Custom Operation has been exeduted", StaticValue == 2);
+		AITEST_TRUE("Checking custom effect on key 0", Planner.GetWorldState().GetValueUnsafe(0) == 1024);
+		AITEST_TRUE("Checking custom effect on key 0", Planner.GetWorldState().GetValueUnsafe(2) == 1024 * 2);
+
+		return true;
 	}
 };
 uint32 FAITest_HTNCustomWSOperation::StaticValue = 0;
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNCustomWSOperation, "System.Engine.AI.HTN.CustomWSOperation")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNCustomWSOperation, "System.AI.HTN.CustomWSOperation")
 
 //	compare contents of TaskIDs in HTNResult to the operators it contains
 struct FAITest_HTNOperatorsOfGeneratedPlan : public FHTNTestBase
 {
-	FAITest_HTNOperatorsOfGeneratedPlan()
+	virtual bool InstantTest() override
 	{
 		FHTNBuilder_CompositeTask& CompositeTaskBuilder = DomainBuilder.AddCompositeTask(NAME_None);
 		{
@@ -590,21 +609,22 @@ struct FAITest_HTNOperatorsOfGeneratedPlan : public FHTNTestBase
 		FHTNResult Result;
 		Planner.GeneratePlan(*DomainBuilder.DomainInstance, WorldState, Result);
 		
-		Test(TEXT("Plan should contain two elements"), Result.TaskIDs.Num() == 2);
+		AITEST_TRUE("Plan should contain two elements", Result.TaskIDs.Num() == 2);
 		if (Result.TaskIDs.Num() >= 2)
 		{
 			const FHTNPolicy::FTaskID TaskID1 = DomainBuilder.DomainInstance->FindTaskID(TEXT("Task1"));
 			const FHTNPolicy::FTaskID TaskID2 = DomainBuilder.DomainInstance->FindTaskID(TEXT("Task2"));
-			Test(TEXT("Task2 should be the first one"), Result.TaskIDs[0] == TaskID2);
-			Test(TEXT("Task2 action should be the first one"), Result.ActionsSequence[0].ActionID == 3 && Result.ActionsSequence[0].Parameter == 4);
-			Test(TEXT("Task1 should be the second one"), Result.TaskIDs[1] == TaskID1);
-			Test(TEXT("Task1 action should be the first one"), Result.ActionsSequence[1].ActionID == 1 && Result.ActionsSequence[1].Parameter == 2);
+			AITEST_TRUE("Task2 should be the first one", Result.TaskIDs[0] == TaskID2);
+			AITEST_TRUE("Task2 action should be the first one", Result.ActionsSequence[0].ActionID == 3 && Result.ActionsSequence[0].Parameter == 4);
+			AITEST_TRUE("Task1 should be the second one", Result.TaskIDs[1] == TaskID1);
+			AITEST_TRUE("Task1 action should be the first one", Result.ActionsSequence[1].ActionID == 1 && Result.ActionsSequence[1].Parameter == 2);
 
 
 		}
+		return true;
 	}
 };
-IMPLEMENT_AI_LATENT_TEST(FAITest_HTNOperatorsOfGeneratedPlan, "System.Engine.AI.HTN.OperatorsOfGeneratedPlan")
+IMPLEMENT_AI_INSTANT_TEST(FAITest_HTNOperatorsOfGeneratedPlan, "System.AI.HTN.OperatorsOfGeneratedPlan")
 
 //----------------------------------------------------------------------//
 // Component tests

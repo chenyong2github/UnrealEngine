@@ -25,15 +25,14 @@ void FCpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 {
 	auto& Builder = Context.InterfaceBuilder;
 
+	Builder.RouteLoggerEvents(RouteId_CpuScope, "Cpu", true);
 	Builder.RouteEvent(RouteId_EventSpec, "CpuProfiler", "EventSpec");
 	Builder.RouteEvent(RouteId_EventBatch, "CpuProfiler", "EventBatch");
 	Builder.RouteEvent(RouteId_EndThread, "CpuProfiler", "EndThread");
 	Builder.RouteEvent(RouteId_EndCapture, "CpuProfiler", "EndCapture");
-	Builder.RouteEvent(RouteId_ChannelAnnounce, "Trace", "ChannelAnnounce");
-	Builder.RouteEvent(RouteId_ChannelToggle, "Trace", "ChannelToggle");
 }
 
-bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -42,15 +41,15 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 	case RouteId_EventSpec:
 	{
-		uint32 Id = EventData.GetValue<uint32>("Id");
+		uint32 SpecId = EventData.GetValue<uint32>("Id");
 		uint8 CharSize = EventData.GetValue<uint8>("CharSize");
 		if (CharSize == sizeof(ANSICHAR))
 		{
-			DefineScope(Id, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
+			DefineScope(SpecId, Session.StoreString(StringCast<TCHAR>(reinterpret_cast<const ANSICHAR*>(EventData.GetAttachment())).Get()));
 		}
 		else if (CharSize == 0 || CharSize == sizeof(TCHAR)) // 0 for backwards compatibility
 		{
-			DefineScope(Id, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
+			DefineScope(SpecId, Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment())));
 		}
 		break;
 	}
@@ -58,7 +57,7 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
 		FThreadState& ThreadState = GetThreadState(ThreadId);
-		const double Timestamp = Context.SessionContext.TimestampFromCycle(ThreadState.LastCycle);
+		const double Timestamp = Context.EventTime.AsSeconds(ThreadState.LastCycle);
 		Session.UpdateDurationSeconds(Timestamp);
 		while (ThreadState.ScopeStack.Num())
 		{
@@ -71,132 +70,219 @@ bool FCpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	case RouteId_EndCapture:
 	{
 		TotalEventSize += EventData.GetAttachmentSize();
-		uint32 ThreadId = EventData.GetValue<uint32>("ThreadId");
-		FThreadState& ThreadState = GetThreadState(ThreadId);
-		uint64 LastCycle = ThreadState.LastCycle;
-		uint64 BufferSize = EventData.GetAttachmentSize();
+		uint32 BufferSize = EventData.GetAttachmentSize();
 		const uint8* BufferPtr = EventData.GetAttachment();
-		const uint8* BufferEnd = BufferPtr + BufferSize;
-		while (BufferPtr < BufferEnd)
+		uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
+		if (uint64 LastCycle = ProcessBuffer(Context.EventTime, ThreadId, BufferPtr, BufferSize))
 		{
-			uint64 DecodedCycle = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-			uint64 ActualCycle = (DecodedCycle >> 1);
-
-			// ActualCycle larger or equeal to LastCycle means we have a new
-			// base value.
-			if (ActualCycle < LastCycle)
-			{
-				ActualCycle += LastCycle;
-			}
-			LastCycle = ActualCycle;
-			if (DecodedCycle & 1ull)
-			{
-				EventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
-				ScopeState.StartCycle = ActualCycle;
-				uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
-				uint32* FindIt = ScopeIdToEventIdMap.Find(SpecId);
-				if (!FindIt)
-				{
-					ScopeState.EventTypeId = ScopeIdToEventIdMap.Add(SpecId, TimingProfilerProvider.AddCpuTimer(TEXT("<unknown>")));
-				}
-				else
-				{
-					ScopeState.EventTypeId = *FindIt;
-				}
-				Trace::FTimingProfilerEvent Event;
-				Event.TimerIndex = ScopeState.EventTypeId;
-				ThreadState.Timeline->AppendBeginEvent(Context.SessionContext.TimestampFromCycle(ScopeState.StartCycle), Event);
-				++TotalScopeCount;
-			}
-			else if (ThreadState.ScopeStack.Num())
-			{
-				ThreadState.ScopeStack.Pop();
-				ThreadState.Timeline->AppendEndEvent(Context.SessionContext.TimestampFromCycle(ActualCycle));
-			}
-		}
-		check(BufferPtr == BufferEnd);
-		if (LastCycle)
-		{
-			double LastTimestamp = Context.SessionContext.TimestampFromCycle(LastCycle);
+			double LastTimestamp = Context.EventTime.AsSeconds(LastCycle);
 			Session.UpdateDurationSeconds(LastTimestamp);
 			if (RouteId == RouteId_EndCapture)
 			{
-
-				while (ThreadState.ScopeStack.Num())
+				FThreadState& ThreadState = GetThreadState(ThreadId);
+				for (int32 i = ThreadState.ScopeStack.Num(); i--;)
 				{
 					ThreadState.ScopeStack.Pop();
 					ThreadState.Timeline->AppendEndEvent(LastTimestamp);
 				}
 			}
 		}
-		ThreadState.LastCycle = LastCycle;
 		BytesPerScope = double(TotalEventSize) / double(TotalScopeCount);
 		break;
 	}
-	case RouteId_ChannelAnnounce:
-	{
-		const ANSICHAR* ChannelName = (ANSICHAR*)Context.EventData.GetAttachment();
-		const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-		if (FCStringAnsi::Stricmp(ChannelName, "cpu") == 0)
-		{
-			CpuChannelId = ChannelId;
-		}
+	case RouteId_CpuScope:
+		(Style == EStyle::EnterScope) ? OnCpuScopeEnter(Context) : OnCpuScopeLeave(Context);
 		break;
-	}
-	case RouteId_ChannelToggle:
-	{
-		const uint32 ChannelId = Context.EventData.GetValue<uint32>("Id");
-		const bool bEnabled = Context.EventData.GetValue<bool>("IsEnabled");
-
-		if (ChannelId == CpuChannelId && bCpuChannelState != bEnabled)
-		{
-			bCpuChannelState = bEnabled;
-			if (bEnabled == false)
-			{
-				for (auto ThreadPair : ThreadStatesMap)
-				{
-					FThreadState& ThreadState = *ThreadPair.Value;
-					if (!ThreadState.LastCycle)
-					{
-						continue;
-					}
-					const double Timestamp = Context.SessionContext.TimestampFromCycle(ThreadState.LastCycle);
-					Session.UpdateDurationSeconds(Timestamp);
-					while (ThreadState.ScopeStack.Num())
-					{
-						ThreadState.ScopeStack.Pop();
-						ThreadState.Timeline->AppendEndEvent(Timestamp);
-					}
-				}
-			}
-		}
-		break;
-	}
 	}
 
 	return true;
 }
 
-void FCpuProfilerAnalyzer::DefineScope(uint32 Id, const TCHAR* Name)
+uint64 FCpuProfilerAnalyzer::ProcessBuffer(const FEventTime& EventTime, uint32 ThreadId, const uint8* BufferPtr, uint32 BufferSize)
 {
-	if (ScopeIdToEventIdMap.Contains(Id))
+	FThreadState& ThreadState = GetThreadState(ThreadId);
+	uint64 LastCycle = ThreadState.LastCycle;
+
+	int32 RemainingPending = ThreadState.PendingEvents.Num();
+	const FPendingEvent* PendingCursor = ThreadState.PendingEvents.GetData();
+
+	const uint8* BufferEnd = BufferPtr + BufferSize;
+	while (BufferPtr < BufferEnd)
 	{
-		uint32 EventId = ScopeIdToEventIdMap[Id];
-		TimingProfilerProvider.SetTimerName(EventId, Name);
-		ScopeNameToEventIdMap.Add(Name, EventId);
+		uint64 DecodedCycle = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+		uint64 ActualCycle = (DecodedCycle >> 1);
+
+		// ActualCycle larger or equeal to LastCycle means we have a new
+		// base value.
+		if (ActualCycle < LastCycle)
+		{
+			ActualCycle += LastCycle;
+		}
+
+		// If we late connect we will be joining the cycle stream mid-flow and
+		// will have missed out on it's base timestamp. Reconstruct it here.
+		check(EventTime.GetTimestamp() == 0);
+		uint64 BaseCycle = EventTime.AsCycle64();
+		if (ActualCycle < BaseCycle)
+		{
+			ActualCycle += BaseCycle;
+		}
+
+		// Dispatch pending events that are younger than the one we've just decoded
+		for (; RemainingPending > 0; RemainingPending--, PendingCursor++)
+		{
+			bool bEnter = true;
+			uint64 PendingCycle = PendingCursor->Cycle;
+			if (int64(PendingCycle) < 0)
+			{
+				PendingCycle = ~PendingCycle;
+				bEnter = false;
+			}
+
+			if (PendingCycle > ActualCycle)
+			{
+				break;
+			}
+
+			PendingCycle = (LastCycle > PendingCycle) ? LastCycle : PendingCycle;
+			double Time = EventTime.AsSeconds(PendingCycle);
+			if (bEnter)
+			{
+				Trace::FTimingProfilerEvent Event;
+				Event.TimerIndex = PendingCursor->TimerId;
+				ThreadState.Timeline->AppendBeginEvent(Time, Event);
+			}
+			else
+			{
+				ThreadState.Timeline->AppendEndEvent(Time);
+			}
+		}
+
+		if (DecodedCycle & 1ull)
+		{
+			uint32 SpecId = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+			uint32* FindIt = SpecIdToTimerIdMap.Find(SpecId);
+			uint32 TimerId;
+			if (!FindIt)
+			{
+				TimerId = SpecIdToTimerIdMap.Add(SpecId, TimingProfilerProvider.AddCpuTimer(TEXT("<unknown>")));
+			}
+			else
+			{
+				TimerId = *FindIt;
+			}
+
+			FEventScopeState& ScopeState = ThreadState.ScopeStack.AddDefaulted_GetRef();
+			ScopeState.StartCycle = ActualCycle;
+			ScopeState.EventTypeId = TimerId;
+
+			Trace::FTimingProfilerEvent Event;
+			Event.TimerIndex = TimerId;
+			ThreadState.Timeline->AppendBeginEvent(EventTime.AsSeconds(ActualCycle), Event);
+			++TotalScopeCount;
+		}
+		else
+		{
+			// If we receive mismatched end events ignore them for now.
+			// This can happen for example because tracing connects to the store after events were traced. Those events can be lost.
+			if (ThreadState.ScopeStack.Num() > 0)
+			{
+				ThreadState.ScopeStack.Pop();
+				ThreadState.Timeline->AppendEndEvent(EventTime.AsSeconds(ActualCycle));
+			}
+		}
+
+		LastCycle = ActualCycle;
+	}
+	check(BufferPtr == BufferEnd);
+
+	// Dispatch remaining pending events.
+	for (; RemainingPending > 0; RemainingPending--, PendingCursor++)
+	{
+		uint64 PendingCycle = PendingCursor->Cycle;
+		if (int64(PendingCycle) < 0)
+		{
+			PendingCycle = ~PendingCycle;
+			double Time = EventTime.AsSeconds(PendingCycle);
+			ThreadState.Timeline->AppendEndEvent(Time);
+		}
+		else
+		{
+			Trace::FTimingProfilerEvent Event;
+			Event.TimerIndex = PendingCursor->TimerId;
+			double Time = EventTime.AsSeconds(PendingCycle);
+			ThreadState.Timeline->AppendBeginEvent(Time, Event);
+		}
+	}
+
+	ThreadState.PendingEvents.Reset();
+	ThreadState.LastCycle = LastCycle;
+	return LastCycle;
+}
+
+void FCpuProfilerAnalyzer::OnCpuScopeEnter(const FOnEventContext& Context)
+{
+	if (Context.EventTime.GetTimestamp() == 0)
+	{
+		return;
+	}
+
+	uint32 ThreadId = Context.ThreadInfo.GetId();
+	FThreadState& ThreadState = GetThreadState(ThreadId);
+
+	uint32 SpecId = Context.EventData.GetTypeInfo().GetId();
+	SpecId = ~SpecId; // to keep out of the way of normal spec IDs.
+	uint32* TimerIdIter = SpecIdToTimerIdMap.Find(SpecId);
+	if (TimerIdIter == nullptr)
+	{
+		FString ScopeName;
+		ScopeName += Context.EventData.GetTypeInfo().GetName();
+		DefineScope(SpecId, Session.StoreString(*ScopeName));
+		TimerIdIter = SpecIdToTimerIdMap.Find(SpecId);
+	}
+
+	TArray<uint8> CborData;
+	Context.EventData.SerializeToCbor(CborData);
+	uint32 TimerId = TimingProfilerProvider.AddMetadata(*TimerIdIter, MoveTemp(CborData));
+
+	uint64 Cycle = Context.EventTime.AsCycle64();
+	ThreadState.PendingEvents.Add({Cycle, TimerId});
+}
+
+void FCpuProfilerAnalyzer::OnCpuScopeLeave(const FOnEventContext& Context)
+{
+	if (Context.EventTime.GetTimestamp() == 0)
+	{
+		return;
+	}
+
+	uint32 ThreadId = Context.ThreadInfo.GetId();
+	FThreadState& ThreadState = GetThreadState(ThreadId);
+
+	uint64 Cycle = Context.EventTime.AsCycle64();
+	ThreadState.PendingEvents.Add({~Cycle});
+}
+
+void FCpuProfilerAnalyzer::DefineScope(uint32 SpecId, const TCHAR* Name)
+{
+	uint32* FindTimerIdByName = ScopeNameToTimerIdMap.Find(Name);
+	if (FindTimerIdByName)
+	{
+		SpecIdToTimerIdMap.Add(SpecId, *FindTimerIdByName);
 	}
 	else
 	{
-		uint32* FindEventIdByName = ScopeNameToEventIdMap.Find(Name);
-		if (FindEventIdByName)
+		uint32* FindTimerId = SpecIdToTimerIdMap.Find(SpecId);
+		if (FindTimerId)
 		{
-			ScopeIdToEventIdMap.Add(Id, *FindEventIdByName);
+			TimingProfilerProvider.SetTimerName(*FindTimerId, Name);
+			ScopeNameToTimerIdMap.Add(Name, *FindTimerId);
 		}
 		else
 		{
 			uint32 NewTimerId = TimingProfilerProvider.AddCpuTimer(Name);
-			ScopeIdToEventIdMap.Add(Id, NewTimerId);
-			ScopeNameToEventIdMap.Add(Name, NewTimerId);
+			SpecIdToTimerIdMap.Add(SpecId, NewTimerId);
+			ScopeNameToTimerIdMap.Add(Name, NewTimerId);
 		}
 	}
 }

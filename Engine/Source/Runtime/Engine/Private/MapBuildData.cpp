@@ -653,40 +653,7 @@ void UMapBuildDataRegistry::InvalidateStaticLighting(UWorld* World, bool bRecrea
 		RecreateContext = TUniquePtr<FGlobalComponentRecreateRenderStateContext>(new FGlobalComponentRecreateRenderStateContext);
 	}
 
-	if (MeshBuildData.Num() > 0 || LightBuildData.Num() > 0)
-	{
-		if (!ResourcesToKeep || !ResourcesToKeep->Num())
-		{
-			MeshBuildData.Empty();
-			LightBuildData.Empty();
-		}
-		else // Otherwise keep any resource if it's guid is in ResourcesToKeep.
-		{
-			TMap<FGuid, FMeshMapBuildData> PrevMeshData;
-			TMap<FGuid, FLightComponentMapBuildData> PrevLightData;
-			FMemory::Memswap(&MeshBuildData , &PrevMeshData, sizeof(MeshBuildData));
-			FMemory::Memswap(&LightBuildData , &PrevLightData, sizeof(LightBuildData));
-
-			for (const FGuid& Guid : *ResourcesToKeep)
-			{
-				const FMeshMapBuildData* MeshData = PrevMeshData.Find(Guid);
-				if (MeshData)
-				{
-					MeshBuildData.Add(Guid, *MeshData);
-					continue;
-				}
-
-				const FLightComponentMapBuildData* LightData = PrevLightData.Find(Guid);
-				if (LightData)
-				{
-					LightBuildData.Add(Guid, *LightData);
-					continue;
-				}
-			}
-		}
-
-		MarkPackageDirty();
-	}
+	InvalidateSurfaceLightmaps(World, false, ResourcesToKeep);
 
 	if (LevelPrecomputedLightVolumeBuildData.Num() > 0 || LevelPrecomputedVolumetricLightmapBuildData.Num() > 0 || LightmapResourceClusters.Num() > 0)
 	{
@@ -709,6 +676,52 @@ void UMapBuildDataRegistry::InvalidateStaticLighting(UWorld* World, bool bRecrea
 	ClearSkyAtmosphereBuildData();
 
 	bSetupResourceClusters = false;
+}
+
+void UMapBuildDataRegistry::InvalidateSurfaceLightmaps(UWorld* World, bool bRecreateRenderState, const TSet<FGuid>* ResourcesToKeep)
+{
+	TUniquePtr<FGlobalComponentRecreateRenderStateContext> RecreateContext;
+
+	if (bRecreateRenderState)
+	{
+		// Warning: if skipping this, caller is responsible for unregistering any components potentially referencing this UMapBuildDataRegistry before we change its contents!
+		RecreateContext = TUniquePtr<FGlobalComponentRecreateRenderStateContext>(new FGlobalComponentRecreateRenderStateContext);
+	}
+
+	if (MeshBuildData.Num() > 0 || LightBuildData.Num() > 0)
+	{
+		if (!ResourcesToKeep || !ResourcesToKeep->Num())
+		{
+			MeshBuildData.Empty();
+			LightBuildData.Empty();
+		}
+		else // Otherwise keep any resource if it's guid is in ResourcesToKeep.
+		{
+			TMap<FGuid, FMeshMapBuildData> PrevMeshData;
+			TMap<FGuid, FLightComponentMapBuildData> PrevLightData;
+			FMemory::Memswap(&MeshBuildData, &PrevMeshData, sizeof(MeshBuildData));
+			FMemory::Memswap(&LightBuildData, &PrevLightData, sizeof(LightBuildData));
+
+			for (const FGuid& Guid : *ResourcesToKeep)
+			{
+				const FMeshMapBuildData* MeshData = PrevMeshData.Find(Guid);
+				if (MeshData)
+				{
+					MeshBuildData.Add(Guid, *MeshData);
+					continue;
+				}
+
+				const FLightComponentMapBuildData* LightData = PrevLightData.Find(Guid);
+				if (LightData)
+				{
+					LightBuildData.Add(Guid, *LightData);
+					continue;
+				}
+			}
+		}
+
+		MarkPackageDirty();
+	}
 }
 
 void UMapBuildDataRegistry::InvalidateReflectionCaptures(const TSet<FGuid>* ResourcesToKeep)

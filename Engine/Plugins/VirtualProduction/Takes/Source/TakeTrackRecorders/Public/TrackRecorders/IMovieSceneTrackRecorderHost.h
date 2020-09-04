@@ -107,6 +107,12 @@ struct FTrackRecorderSettings
 
 			for (const FTakeRecorderPropertyTrackSettings& PropertyTrackSetting : DefaultTrack.ExcludePropertyTracks)
 			{
+				// If property path is empty, consider it as an exclusion for all properties on this component
+				if (PropertyTrackSetting.PropertyPath.IsEmpty())
+				{
+					return true;
+				}
+
 				if (InPropertyPath != PropertyTrackSetting.PropertyPath)
 				{
 					continue;

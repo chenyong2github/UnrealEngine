@@ -7,23 +7,28 @@
 #include "Data.h"
 #include "ContourList.h"
 
-#include "Curve/PlanarComplex.h"
 #include "ConstrainedDelaunay2.h"
 
 
+constexpr float FMeshCreator::OutlineExpand;
+
 FMeshCreator::FMeshCreator() :
-	Data(MakeShared<FData>()),
-	Glyph(MakeShared<FText3DGlyph>())
+	Glyph(MakeShared<FText3DGlyph>()),
+	Data(MakeShared<FData>(Glyph))
 {
-	Data->SetGlyph(Glyph);
 }
 
-void FMeshCreator::CreateMeshes(const TSharedPtr<FContourList> ContoursIn, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments)
+void FMeshCreator::CreateMeshes(const TSharedContourNode& Root, const bool bOutline, const float Extrude, const float Bevel, const EText3DBevelType Type, const int32 BevelSegments)
 {
-	Contours = ContoursIn;
-	CreateFrontMesh();
-	CreateBevelMesh(Bevel, Type, BevelSegments);
-	CreateExtrudeMesh(Extrude, Bevel);
+	CreateFrontMesh(Root, bOutline);
+	if (Contours->Num() == 0)
+	{
+		return;
+	}
+
+	const float BevelLocal = bOutline ? 0.f : Bevel;
+	CreateBevelMesh(BevelLocal, Type, BevelSegments);
+	CreateExtrudeMesh(Extrude, BevelLocal, Type);
 }
 
 void FMeshCreator::SetFrontAndBevelTextureCoordinates(const float Bevel)
@@ -88,75 +93,29 @@ void FMeshCreator::BuildMesh(UStaticMesh* StaticMesh, class UMaterial* DefaultMa
 	Glyph->Build(StaticMesh, DefaultMaterial);
 }
 
-void FMeshCreator::CreateFrontMesh()
+void FMeshCreator::CreateFrontMesh(const TSharedContourNode& Root, const bool bOutline)
 {
-	FPlanarComplexf PlanarComplex;
-	TArray<FVector2f> Vertices;
 	int32 VertexCount = 0;
+	AddToVertexCount(Root, VertexCount);
 
-	for (const FContour& Contour : *Contours)
-	{
-		Vertices.Reset(Contour.Num());
-		const FPartConstPtr First = Contour[0];
+	Data->SetCurrentGroup(EText3DGroupType::Front, bOutline ? OutlineExpand : 0.f);
+	Data->SetTarget(0.f, 0.f);
+	Contours = MakeShared<FContourList>();
 
-		for (FPartConstPtr Point = First; ; Point = Point->Next)
-		{
-			Vertices.Add({Point->Position.X, Point->Position.Y});
-
-			if (Point == First->Prev)
-			{
-				break;
-			}
-		}
-
-		PlanarComplex.Polygons.Add(Vertices);
-		VertexCount += Contour.Num();
-	}
-
-	PlanarComplex.FindSolidRegions();
-	const TArray<FGeneralPolygon2f> GeneralPolygons = PlanarComplex.ConvertOutputToGeneralPolygons();
-	Data->SetCurrentGroup(EText3DGroupType::Front);
-	Data->ResetDoneExtrude();
-	Data->SetMinBevelTarget();
 	int32 VertexIndex = Data->AddVertices(VertexCount);
+	TriangulateAndConvert(Root, VertexIndex, bOutline);
 
-	const TSharedRef<class FData> DataLocal = Data;
-	auto AddVertices = [DataLocal](const FPolygon2f& Polygon)
+	Contours->Initialize(Data);
+
+	if (bOutline)
 	{
-		for (FVector2f Vertex : Polygon.GetVertices())
-		{
-			DataLocal->AddVertex({Vertex.X, Vertex.Y}, {1.f, 0.f}, {-1.f, 0.f, 0.f});
-		}
-
-		return Polygon.VertexCount();
-	};
-
-	for (const FGeneralPolygon2f& GeneralPolygon : GeneralPolygons)
-	{
-		int32 GeneralPolygonVertexCount = AddVertices(GeneralPolygon.GetOuter());
-
-		for (const FPolygon2f& Polygon : GeneralPolygon.GetHoles())
-		{
-			GeneralPolygonVertexCount += AddVertices(Polygon);
-		}
-
-
-		TArray<FIndex3i> Triangles = ConstrainedDelaunayTriangulate<float>(GeneralPolygon);
-		Data->AddTriangles(Triangles.Num());
-
-		for (const FIndex3i& Triangle : Triangles)
-		{
-			Data->AddTriangle(VertexIndex + Triangle.A, VertexIndex + Triangle.C, VertexIndex + Triangle.B);
-		}
-
-
-		VertexIndex += GeneralPolygonVertexCount;
+		MakeOutline();
 	}
 }
 
 void FMeshCreator::CreateBevelMesh(const float Bevel, const EText3DBevelType Type, const int32 BevelSegments)
 {
-	Data->SetCurrentGroup(EText3DGroupType::Bevel);
+	Data->SetCurrentGroup(EText3DGroupType::Bevel, Bevel);
 
 	if (FMath::IsNearlyZero(Bevel))
 	{
@@ -167,99 +126,74 @@ void FMeshCreator::CreateBevelMesh(const float Bevel, const EText3DBevelType Typ
 	{
 	case EText3DBevelType::Linear:
 	{
-		const FVector2D Normal = FVector2D(1.f, -1.f).GetSafeNormal();
-		BevelLinear(Bevel, Bevel, Normal, Normal, false);
+		BevelLinearWithSegments(Bevel, Bevel, BevelSegments, FVector2D(1.f, -1.f).GetSafeNormal());
 		break;
 	}
+	case EText3DBevelType::Convex:
+	{
+		BevelCurve(HALF_PI, BevelSegments, [Bevel](const float CosCurr, const float SinCurr, const float CosNext, const float SinNext)
+		{
+				return FVector2D(CosCurr - CosNext, SinNext - SinCurr) * Bevel;
+			});
+		break;
+	}
+	case EText3DBevelType::Concave:
+		{
+		BevelCurve(HALF_PI, BevelSegments, [Bevel](const float CosCurr, const float SinCurr, const float CosNext, const float SinNext)
+			{
+				return FVector2D(SinNext - SinCurr, CosCurr - CosNext) * Bevel;
+			});
+		break;
+			}
 	case EText3DBevelType::HalfCircle:
 	{
-		const float Step = HALF_PI / BevelSegments;
-
-		float CosCurr = 1.0f;
-		float SinCurr = 0.0f;
-
-		float CosNext = 0.0f;
-		float SinNext = 0.0f;
-
-		float ExtrudeLocalNext = 0.0f;
-		float ExpandLocalNext = 0.0f;
-
-		bool bSmoothNext = false;
-
-		FVector2D NormalNext;
-		FVector2D NormalEnd;
-
-		auto MakeStep = [&SinNext, &CosNext, Step, &ExtrudeLocalNext, &ExpandLocalNext, Bevel, &CosCurr, &SinCurr, &NormalNext](int32 Index)
+		BevelCurve(PI, BevelSegments, [Bevel](const float CosCurr, const float SinCurr, const float CosNext, const float SinNext)
 		{
-			FMath::SinCos(&SinNext, &CosNext, Index * Step);
-
-			ExtrudeLocalNext = Bevel * (CosCurr - CosNext);
-			ExpandLocalNext = Bevel * (SinNext - SinCurr);
-
-			NormalNext = FVector2D(ExtrudeLocalNext, -ExpandLocalNext).GetSafeNormal();
-		};
-
-		MakeStep(1);
-		for (int32 Index = 0; Index < BevelSegments; Index++)
-		{
-			CosCurr = CosNext;
-			SinCurr = SinNext;
-
-			const float ExtrudeLocal = ExtrudeLocalNext;
-			const float ExpandLocal = ExpandLocalNext;
-
-			const FVector2D Normal = NormalNext;
-			FVector2D NormalStart;
-
-			const bool bFirst = (Index == 0);
-			const bool bLast = (Index == BevelSegments - 1);
-
-			const bool bSmooth = bSmoothNext;
-
-			if (!bLast)
-			{
-				MakeStep(Index + 2);
-				bSmoothNext = FVector2D::DotProduct(Normal, NormalNext) >= -FPart::CosMaxAngleSides;
-			}
-
-			NormalStart = bFirst ? Normal : (bSmooth ? NormalEnd : Normal);
-			NormalEnd = bLast ? Normal : (bSmoothNext ? (Normal + NormalNext).GetSafeNormal() : Normal);
-
-			BevelLinear(ExtrudeLocal, ExpandLocal, NormalStart, NormalEnd, bSmooth);
+			return FVector2D(SinCurr - SinNext, CosCurr - CosNext) * Bevel;
+		});
+		break;
 		}
-
+	case EText3DBevelType::OneStep:
+	{
+		BevelWithSteps(Bevel, 1, BevelSegments);
 		break;
 	}
-
+	case EText3DBevelType::TwoSteps:
+	{
+		BevelWithSteps(Bevel, 2, BevelSegments);
+		break;
+	}
+	case EText3DBevelType::Engraved:
+	{
+		BevelLinearWithSegments(-Bevel, 0.f, BevelSegments, FVector2D(-1.f, 0.f));
+		BevelLinearWithSegments(0.f, Bevel, BevelSegments, FVector2D(0.f, -1.f));
+		BevelLinearWithSegments(Bevel, 0.f, BevelSegments, FVector2D(1.f, 0.f));
+		break;
+	}
 	default:
 		break;
 	}
 }
 
-void FMeshCreator::CreateExtrudeMesh(float Extrude, const float Bevel)
+void FMeshCreator::CreateExtrudeMesh(float Extrude, float Bevel, const EText3DBevelType Type)
 {
-	Data->SetCurrentGroup(EText3DGroupType::Extrude);
-
-	if (Bevel >= Extrude / 2.f)
+	if (Type != EText3DBevelType::HalfCircle)
 	{
-		return;
+		Bevel = FMath::Clamp(Bevel, 0.0f, Extrude / 2.f);
 	}
 
+	if (Type != EText3DBevelType::HalfCircle && Type != EText3DBevelType::Engraved)
+	{
 	Extrude -= Bevel * 2.0f;
-	Data->SetExpandTotal(Bevel);
-	Data->SetExtrude(Extrude);
-	Data->SetExpand(0.f);
+	}
+
+
+	Data->SetCurrentGroup(EText3DGroupType::Extrude, 0.f);
 
 	const FVector2D Normal(1.f, 0.f);
-	Data->SetNormals(Normal, Normal);
+	Data->PrepareSegment(Extrude, 0.f, Normal, Normal);
 
-	for (FContour& Contour : *Contours)
-	{
-		for (const FPartPtr& Part : Contour)
-		{
-			Part->ResetDoneExpand();
-		}
-	}
+	Contours->Reset();
 
 
 	TArray<float> TextureCoordinateVs;
@@ -268,7 +202,7 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, const float Bevel)
 	{
 		// Compute TexCoord.V-s for each point
 		TextureCoordinateVs.Reset(Contour.Num() - 1);
-		const FPartConstPtr First = Contour[0];
+		const FPartPtr First = Contour[0];
 		TextureCoordinateVs.Add(First->Length());
 
 		int32 Index = 1;
@@ -293,28 +227,28 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, const float Bevel)
 		}
 
 		// Duplicate contour
-		Data->SetMinBevelTarget();
+		Data->SetTarget(0.f, 0.f);
+		const bool bFirstSmooth = First->bSmooth;
+		// It's set to sharp because we need 2 vertices with TexCoord.Y values 0 and 1 (for smooth points only one vertex is added)
+		First->bSmooth = false;
 
 		// First point in contour is processed separately
 		{
-			const FPartPtr Point = Contour[0];
-			// It's set to sharp because we need 2 vertices with TexCoord.Y values 0 and 1 (for smooth points only one vertex is added)
-			Point->bSmooth = false;
-			EmptyPaths(Point);
-			ExpandPointWithoutAddingVertices(Point);
+			EmptyPaths(First);
+			ExpandPointWithoutAddingVertices(First);
 
 			const FVector2D TexCoordPrev(0.f, 0.f);
 			const FVector2D TexCoordCurr(0.f, 1.f);
 
-			if (Point->bSmooth)
+			if (bFirstSmooth)
 			{
-				AddVertexSmooth(Point, TexCoordPrev);
-				AddVertexSmooth(Point, TexCoordCurr);
+				AddVertexSmooth(First, TexCoordPrev);
+				AddVertexSmooth(First, TexCoordCurr);
 			}
 			else
 			{
-				AddVertexSharp(Point, Point->Prev, TexCoordPrev);
-				AddVertexSharp(Point, Point, TexCoordCurr);
+				AddVertexSharp(First, First->Prev, TexCoordPrev);
+				AddVertexSharp(First, First, TexCoordCurr);
 			}
 		}
 
@@ -327,25 +261,24 @@ void FMeshCreator::CreateExtrudeMesh(float Extrude, const float Bevel)
 
 
 		// Add extruded vertices
-		Data->SetMaxBevelTarget();
+		Data->SetTarget(Data->GetPlannedExtrude(), Data->GetPlannedExpand());
 
 		// Similarly to duplicating vertices, first point is processed separately
 		{
-			const FPartPtr Point = Contour[0];
-			ExpandPointWithoutAddingVertices(Point);
+			ExpandPointWithoutAddingVertices(First);
 
 			const FVector2D TexCoordPrev(1.f, 0.f);
 			const FVector2D TexCoordCurr(1.f, 1.f);
 
-			if (Point->bSmooth)
+			if (bFirstSmooth)
 			{
-				AddVertexSmooth(Point, TexCoordPrev);
-				AddVertexSmooth(Point, TexCoordCurr);
+				AddVertexSmooth(First, TexCoordPrev);
+				AddVertexSmooth(First, TexCoordCurr);
 			}
 			else
 			{
-				AddVertexSharp(Point, Point->Prev, TexCoordPrev);
-				AddVertexSharp(Point, Point, TexCoordCurr);
+				AddVertexSharp(First, First->Prev, TexCoordPrev);
+				AddVertexSharp(First, First, TexCoordCurr);
 			}
 		}
 
@@ -375,8 +308,7 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 	FMeshDescription& MeshDescription = Glyph->GetMeshDescription();
 	const int32 TotalVerticesNum = MeshDescription.Vertices().Num();
 
-	Data->SetGlyph(Glyph);
-	Data->SetCurrentGroup(TypeOut);
+	Data->SetCurrentGroup(TypeOut, 0.f);
 	Data->AddVertices(VerticesInNum);
 
 	FStaticMeshAttributes& StaticMeshAttributes = Glyph->GetStaticMeshAttributes();
@@ -410,9 +342,219 @@ void FMeshCreator::MirrorGroup(const EText3DGroupType TypeIn, const EText3DGroup
 	}
 }
 
+void FMeshCreator::AddToVertexCount(const TSharedContourNode& Node, int32& OutVertexCount)
+{
+	for (const TSharedContourNode& Child : Node->Children)
+	{
+		OutVertexCount += Child->Contour->VertexCount();
+		AddToVertexCount(Child, OutVertexCount);
+	}
+}
+
+void FMeshCreator::TriangulateAndConvert(const TSharedContourNode& Node, int32& OutVertexIndex, const bool bOutline)
+{
+	// If this is solid region
+	if (!Node->bClockwise)
+	{
+		int32 VertexCount = 0;
+		FConstrainedDelaunay2f Triangulation;
+		Triangulation.FillRule = FConstrainedDelaunay2f::EFillRule::Positive;
+
+		const TSharedPtr<FContourList> ContoursLocal = Contours;
+		const TSharedRef<FData> DataLocal = Data;
+		auto ProcessContour = [ContoursLocal, DataLocal, &VertexCount, &Triangulation, bOutline](const TSharedContourNode NodeIn)
+		{
+			// Create contour in old format
+			FContour& Contour = ContoursLocal->Add();
+			const FPolygon2f& Polygon = *NodeIn->Contour;
+
+			for (const FVector2f Vertex : Polygon.GetVertices())
+			{
+				// Add point to contour in old format
+				const FPartPtr Point = MakeShared<FPart>();
+				Contour.Add(Point);
+				Point->Position = FVector2D(Vertex);
+
+				// Add point to mesh
+				const int32 VertexID = DataLocal->AddVertex(Point->Position, { 1.f, 0.f }, { -1.f, 0.f, 0.f });
+
+				Point->PathPrev.Add(VertexID);
+				Point->PathNext.Add(VertexID);
+			}
+
+			VertexCount += Polygon.VertexCount();
+
+			// Add contour to triangulation
+			if (!bOutline)
+			{
+				Triangulation.Add(Polygon, NodeIn->bClockwise);
+			}
+		};
+
+
+		// Outter
+		ProcessContour(Node);
+
+		// Holes
+		for (const TSharedContourNode Child : Node->Children)
+		{
+			ProcessContour(Child);
+		}
+
+
+		if (!bOutline)
+		{
+			Triangulation.Triangulate();
+			const TArray<FIndex3i>& Triangles = Triangulation.Triangles;
+			Data->AddTriangles(Triangles.Num());
+
+			for (const FIndex3i& Triangle : Triangles)
+			{
+				Data->AddTriangle(OutVertexIndex + Triangle.A, OutVertexIndex + Triangle.C, OutVertexIndex + Triangle.B);
+			}
+		}
+
+		OutVertexIndex += VertexCount;
+	}
+
+	// Continue with children
+	for (const TSharedContourNode Child : Node->Children)
+	{
+		TriangulateAndConvert(Child, OutVertexIndex, bOutline);
+	}
+}
+
+void FMeshCreator::MakeOutline()
+{
+	FContourList InitialContours = *Contours;
+
+	for (FContour& Contour : InitialContours)
+	{
+		Algo::Reverse(Contour);
+
+		for (FPartPtr& Point : Contour)
+		{
+			Swap(Point->Prev, Point->Next);
+			Point->Normal *= -1.f;
+		}
+
+
+		const FPartPtr First = Contour[0];
+		const FPartPtr Last = Contour.Last();
+
+		const FVector2D FirstTangentX = First->TangentX;
+
+		for (FPartPtr Edge = First; Edge != Last; Edge = Edge->Next)
+		{
+			Edge->TangentX = -Edge->Next->TangentX;
+		}
+
+		Last->TangentX = -FirstTangentX;
+	}
+
+
+	const FVector2D Normal = {0.f, -1.f};
+	BevelLinear(0.f, OutlineExpand, Normal, Normal, false);
+
+
+	Contours->Reset();
+
+
+	TDoubleLinkedList<FContour>::TDoubleLinkedListNode* Node = InitialContours.GetHead();
+	while (Node)
+	{
+		Contours->AddTail(Node);
+		InitialContours.RemoveNode(Node, false);
+
+		Node = InitialContours.GetHead();
+	}
+}
+
+void FMeshCreator::BevelLinearWithSegments(const float Extrude, const float Expand, const int32 BevelSegments, const FVector2D Normal)
+{
+	for (int32 Index = 0; Index < BevelSegments; Index++)
+	{
+		BevelLinear(Extrude / BevelSegments, Expand / BevelSegments, Normal, Normal, false);
+	}
+}
+
+void FMeshCreator::BevelCurve(const float Angle, const int32 BevelSegments, TFunction<FVector2D(const float CurrentCos, const float CurrentSin, const float NextCos, const float Next)> ComputeOffset)
+{
+	float CosCurr = 0.0f;
+	float SinCurr = 0.0f;
+
+	float CosNext = 0.0f;
+	float SinNext = 0.0f;
+
+	FVector2D OffsetNext;
+	bool bSmoothNext = false;
+
+	FVector2D NormalNext;
+	FVector2D NormalEnd;
+
+	auto UpdateAngle = [Angle, &CosNext, &SinNext, BevelSegments](const int32 Index)
+	{
+		const float Step = Angle / BevelSegments;
+		FMath::SinCos(&SinNext, &CosNext, Index * Step);
+	};
+
+	auto MakeStep = [UpdateAngle, &OffsetNext, ComputeOffset, &CosCurr, &SinCurr, &CosNext, &SinNext, &NormalNext](int32 Index)
+	{
+		UpdateAngle(Index);
+		OffsetNext = ComputeOffset(CosCurr, SinCurr, CosNext, SinNext);
+		NormalNext = FVector2D(OffsetNext.X, -OffsetNext.Y).GetSafeNormal();
+	};
+
+
+	UpdateAngle(0);
+
+	CosCurr = CosNext;
+	SinCurr = SinNext;
+
+	MakeStep(1);
+	for (int32 Index = 0; Index < BevelSegments; Index++)
+	{
+		CosCurr = CosNext;
+		SinCurr = SinNext;
+
+		const FVector2D OffsetCurr = OffsetNext;
+
+		const FVector2D NormalCurr = NormalNext;
+		FVector2D NormalStart;
+
+		const bool bFirst = (Index == 0);
+		const bool bLast = (Index == BevelSegments - 1);
+
+		const bool bSmooth = bSmoothNext;
+
+		if (!bLast)
+		{
+			MakeStep(Index + 2);
+			bSmoothNext = FVector2D::DotProduct(NormalCurr, NormalNext) >= -FPart::CosMaxAngleSides;
+		}
+
+		NormalStart = bFirst ? NormalCurr : (bSmooth ? NormalEnd : NormalCurr);
+		NormalEnd = bLast ? NormalCurr : (bSmoothNext ? (NormalCurr + NormalNext).GetSafeNormal() : NormalCurr);
+
+		BevelLinear(OffsetCurr.X, OffsetCurr.Y, NormalStart, NormalEnd, bSmooth);
+	}
+}
+
+void FMeshCreator::BevelWithSteps(const float Bevel, const int32 Steps, const int32 BevelSegments)
+{
+	const float BevelPerStep = Bevel / Steps;
+
+	for (int32 Step = 0; Step < Steps; Step++)
+	{
+		BevelLinearWithSegments(BevelPerStep, 0.f, BevelSegments, FVector2D(1.f, 0.f));
+		BevelLinearWithSegments(0.f, BevelPerStep, BevelSegments, FVector2D(0.f, -1.f));
+	}
+}
+
 void FMeshCreator::BevelLinear(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd, const bool bSmooth)
 {
-	Reset(Extrude, Expand, NormalStart, NormalEnd);
+	Data->PrepareSegment(Extrude, Expand, NormalStart, NormalEnd);
+	Contours->Reset();
 
 	if (!bSmooth)
 	{
@@ -426,7 +568,7 @@ void FMeshCreator::BevelLinear(const float Extrude, const float Expand, FVector2
 
 void FMeshCreator::DuplicateContourVertices()
 {
-	Data->SetMinBevelTarget();
+	Data->SetTarget(0.f, 0.f);
 
 	for (FContour& Contour : *Contours)
 	{
@@ -439,19 +581,10 @@ void FMeshCreator::DuplicateContourVertices()
 	}
 }
 
-void FMeshCreator::Reset(const float Extrude, const float Expand, FVector2D NormalStart, FVector2D NormalEnd)
-{
-	Data->SetExtrude(Extrude);
-	Data->SetExpand(Expand);
-
-	Data->SetNormals(NormalStart, NormalEnd);
-	Contours->Reset();
-}
-
 void FMeshCreator::BevelPartsWithoutIntersectingNormals()
 {
-	Data->SetMaxBevelTarget();
-	const float MaxExpand = Data->GetExpand();
+	Data->SetTarget(Data->GetPlannedExtrude(), Data->GetPlannedExpand());
+	const float MaxExpand = Data->GetPlannedExpand();
 
 	for (FContour& Contour : *Contours)
 	{
@@ -475,13 +608,13 @@ void FMeshCreator::BevelPartsWithoutIntersectingNormals()
 	}
 }
 
-void FMeshCreator::EmptyPaths(const FPartPtr Point) const
+void FMeshCreator::EmptyPaths(const FPartPtr& Point) const
 {
 	Point->PathPrev.Empty();
 	Point->PathNext.Empty();
 }
 
-void FMeshCreator::ExpandPoint(const FPartPtr Point, const FVector2D TextureCoordinates)
+void FMeshCreator::ExpandPoint(const FPartPtr& Point, const FVector2D TextureCoordinates)
 {
 	ExpandPointWithoutAddingVertices(Point);
 
@@ -496,7 +629,7 @@ void FMeshCreator::ExpandPoint(const FPartPtr Point, const FVector2D TextureCoor
 	}
 }
 
-void FMeshCreator::ExpandPointWithoutAddingVertices(const FPartPtr Point) const
+void FMeshCreator::ExpandPointWithoutAddingVertices(const FPartPtr& Point) const
 {
 	Point->Position = Data->Expanded(Point);
 	const int32 FirstAdded = Data->AddVertices(Point->bSmooth ? 1 : 2);
@@ -505,7 +638,7 @@ void FMeshCreator::ExpandPointWithoutAddingVertices(const FPartPtr Point) const
 	Point->PathNext.Add(Point->bSmooth ? FirstAdded : FirstAdded + 1);
 }
 
-void FMeshCreator::AddVertexSmooth(const FPartConstPtr Point, const FVector2D TextureCoordinates)
+void FMeshCreator::AddVertexSmooth(const FPartConstPtr& Point, const FVector2D TextureCoordinates)
 {
 	const FPartConstPtr Curr = Point;
 	const FPartConstPtr Prev = Point->Prev;
@@ -513,7 +646,7 @@ void FMeshCreator::AddVertexSmooth(const FPartConstPtr Point, const FVector2D Te
 	Data->AddVertex(Point, (Prev->TangentX + Curr->TangentX).GetSafeNormal(), (Data->ComputeTangentZ(Prev, Point->DoneExpand) + Data->ComputeTangentZ(Curr, Point->DoneExpand)).GetSafeNormal(), TextureCoordinates);
 }
 
-void FMeshCreator::AddVertexSharp(const FPartConstPtr Point, const FPartConstPtr Edge, const FVector2D TextureCoordinates)
+void FMeshCreator::AddVertexSharp(const FPartConstPtr& Point, const FPartConstPtr& Edge, const FVector2D TextureCoordinates)
 {
 	Data->AddVertex(Point, Edge->TangentX, Data->ComputeTangentZ(Edge, Point->DoneExpand).GetSafeNormal(), TextureCoordinates);
 }

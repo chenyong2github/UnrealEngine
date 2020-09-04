@@ -341,6 +341,9 @@ public:
 	/** Is this event a pointer event (touch or cursor). */
 	SLATECORE_API virtual bool IsPointerEvent() const;
 
+	/** Is this event a key event. */
+	SLATECORE_API virtual bool IsKeyEvent() const;
+
 protected:
 
 	// State of modifier keys when this event happened.
@@ -436,7 +439,9 @@ public:
 		return KeyCode;
 	}
 
-	SLATECORE_API virtual FText ToText() const override;	
+	SLATECORE_API virtual FText ToText() const override;
+
+	SLATECORE_API virtual bool IsKeyEvent() const override;
 
 private:
 	// Name of the key that was pressed.
@@ -821,7 +826,7 @@ public:
 	/** Mouse buttons that are currently pressed */
 	bool IsMouseButtonDown( FKey MouseButton ) const { return PressedButtons->Contains( MouseButton ); }
 
-	/** Mouse button that caused this event to be raised (possibly EB_None) */
+	/** Mouse button that caused this event to be raised (possibly FKey::Invalid) */
 	FKey GetEffectingButton() const { return EffectingButton; }
 	
 	/** How much did the mouse wheel turn since the last mouse event */

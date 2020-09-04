@@ -43,10 +43,6 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 
 #define PLATFORM_LITTLE_ENDIAN								1
 #define PLATFORM_SUPPORTS_UNALIGNED_LOADS					1
-#if defined(__clang__)
-	// @todo clang: Clang compiler on Windows doesn't support SEH exception handling yet (__try/__except)
-	#define PLATFORM_SEH_EXCEPTIONS_DISABLED				1
-#endif
 
 #define PLATFORM_SUPPORTS_PRAGMA_PACK						1
 #define PLATFORM_ENABLE_VECTORINTRINSICS					1
@@ -110,7 +106,9 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 #define STDCALL		__stdcall										/* Standard calling convention */
 #define FORCEINLINE __forceinline									/* Force code to be inline */
 #define FORCENOINLINE __declspec(noinline)							/* Force code to NOT be inline */
-#define FUNCTION_NO_RETURN_START __declspec(noreturn)				/* Indicate that the function never returns. */
+#define FUNCTION_NO_RETURN_START \
+	DEPRECATED_MACRO(4.26, "FUNCTION_NO_RETURN_START has been deprecated - please use UE_NORETURN") \
+	__declspec(noreturn)				/* Indicate that the function never returns. */
 #define FUNCTION_NON_NULL_RETURN_START _Ret_notnull_				/* Indicate that the function never returns nullptr. */
 
 #define DECLARE_UINT64(x)	x
@@ -183,10 +181,17 @@ typedef FWindowsPlatformTypes FPlatformTypes;
 	// Disable this warning as VC2015 Update 1 produces this warning erroneously when placed on variadic templates:
 	//
 	// warning C28216: The checkReturn annotation only applies to postconditions for function 'Func' _Param_(N).
-	#define FUNCTION_CHECK_RETURN_START __pragma(warning(push)) __pragma(warning(disable: 28216)) __declspec("SAL_checkReturn")
-	#define FUNCTION_CHECK_RETURN_END __pragma(warning(pop))
+	#define FUNCTION_CHECK_RETURN_START	 \
+		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_START has been deprecated - please use UE_NODISCARD") \
+		__pragma(warning(push)) __pragma(warning(disable: 28216)) __declspec("SAL_checkReturn")
+
+	#define FUNCTION_CHECK_RETURN_END	 \
+		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_END has been deprecated - please use UE_NODISCARD") \
+		__pragma(warning(pop))
 #else
-	#define FUNCTION_CHECK_RETURN_START __declspec("SAL_checkReturn")	/* Warn that callers should not ignore the return value. */
+	#define FUNCTION_CHECK_RETURN_START	 \
+		DEPRECATED_MACRO(4.26, "FUNCTION_CHECK_RETURN_START has been deprecated - please use UE_NODISCARD") \
+		__declspec("SAL_checkReturn")	/* Warn that callers should not ignore the return value. */
 #endif
 
 // Other macros

@@ -2,12 +2,11 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Input/Devices/IDisplayClusterInputDevice.h"
 #include "Input/Devices/DisplayClusterInputDeviceTraits.h"
 
-#include "DisplayClusterLog.h"
-
-#include "CoreMinimal.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 /**
@@ -21,30 +20,30 @@ public:
 	typedef typename display_cluster_input_device_traits<DevTypeID>::dev_channel_data_type   TChannelData;
 
 public:
-	FDisplayClusterInputDeviceBase(const FDisplayClusterConfigInput& config) :
-		ConfigData(config)
+	FDisplayClusterInputDeviceBase(const FDisplayClusterConfigInput& Config) :
+		ConfigData(Config)
 	{ }
 
 	virtual ~FDisplayClusterInputDeviceBase()
 	{ }
 
 public:
-	virtual bool GetChannelData(const uint8 channel, TChannelData& data) const
+	virtual bool GetChannelData(const uint8 Channel, TChannelData& Data) const
 	{
-		uint8 channelToGet = channel;
-		if (ConfigData.ChMap.Contains(channel))
+		uint8 ChannelToGet = Channel;
+		if (ConfigData.ChMap.Contains(Channel))
 		{
-			channelToGet = (uint8)ConfigData.ChMap[channel];
-			UE_LOG(LogDisplayClusterInputVRPN, Verbose, TEXT("DevType %d, channel %d - remapped to channel %d"), DevTypeID, channel, channelToGet);
+			ChannelToGet = (uint8)ConfigData.ChMap[Channel];
+			UE_LOG(LogDisplayClusterInputVRPN, Verbose, TEXT("DevType %d, channel %d - remapped to channel %d"), DevTypeID, Channel, ChannelToGet);
 		}
 
-		if (!DeviceData.Contains(static_cast<int32>(channelToGet)))
+		if (!DeviceData.Contains(static_cast<int32>(ChannelToGet)))
 		{
-			UE_LOG(LogDisplayClusterInputVRPN, Verbose, TEXT("%s - channel %d data is not available yet"), *GetId(), channelToGet);
+			UE_LOG(LogDisplayClusterInputVRPN, Verbose, TEXT("%s - channel %d data is not available yet"), *GetId(), ChannelToGet);
 			return false;
 		}
 
-		data = DeviceData[static_cast<int32>(channelToGet)];
+		Data = DeviceData[static_cast<int32>(ChannelToGet)];
 
 		return true;
 	}

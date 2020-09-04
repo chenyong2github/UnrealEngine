@@ -11,13 +11,6 @@ UGameplayCueNotify_Static::UGameplayCueNotify_Static(const FObjectInitializer& P
 : Super(PCIP)
 {
 	IsOverride = true;
-
-	
-	ReferenceHelper.OnGetGameplayTagName.BindLambda([](void* RawData)
-	{
-		UGameplayCueNotify_Static* ThisData = static_cast<UGameplayCueNotify_Static*>(RawData);
-		return ThisData->GameplayCueTag.GetTagName();
-	});
 }
 
 #if WITH_EDITOR

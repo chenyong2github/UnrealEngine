@@ -167,6 +167,10 @@ class GAMEPLAYDEBUGGER_API UGameplayDebuggerConfig : public UObject
 	UPROPERTY(config, EditAnywhere, Category = Display)
 	float DebugCanvasPaddingBottom;
 
+	/** enable text shadow by default */
+	UPROPERTY(config, EditAnywhere, Category = Display)
+	bool bDebugCanvasEnableTextShadow;
+
 	UPROPERTY(config, EditAnywhere, Category = AddOns, EditFixedSize)
 	TArray<FGameplayDebuggerCategoryConfig> Categories;
 

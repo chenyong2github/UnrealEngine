@@ -11,6 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "WebSocketsModule.h"
 #include "HAL/Thread.h"
+#include "Misc/ScopeLock.h"
 
 DEFINE_LOG_CATEGORY(PixelStreamer);
 
@@ -146,6 +147,8 @@ void FStreamer::OnFrameBufferReady(const FTexture2DRHIRef& FrameBuffer)
 	{
 		VideoCapturer->OnFrameReady(FrameBuffer);
 	}
+
+	SendVideoEncoderQP();
 }
 
 void FStreamer::OnConfig(const webrtc::PeerConnectionInterface::RTCConfiguration& Config)
@@ -192,6 +195,7 @@ FPlayerSession* FStreamer::GetPlayerSession(FPlayerId PlayerId)
 
 void FStreamer::DeleteAllPlayerSessions()
 {
+	FScopeLock PlayersLock(&PlayersCS);
 	while (Players.Num() > 0)
 	{
 		DeletePlayerSession(Players.CreateIterator().Key());
@@ -211,6 +215,7 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 		// With unified plan, we get several calls to OnOffer, which in turn calls
 		// this several times.
 		// Therefore, we only try to create the player if not created already
+		FScopeLock PlayersLock(&PlayersCS);
 		if (Players.Find(PlayerId))
 		{
 			return;
@@ -220,12 +225,17 @@ void FStreamer::CreatePlayerSession(FPlayerId PlayerId)
 	webrtc::FakeConstraints Constraints;
 	Constraints.AddOptional(webrtc::MediaConstraintsInterface::kEnableDtlsSrtp, "true");
 
+	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	bool bOriginalQualityController = Players.Num() == 0; // first player controls quality by default
 	TUniquePtr<FPlayerSession> Session = MakeUnique<FPlayerSession>(*this, PlayerId, bOriginalQualityController);
 	rtc::scoped_refptr<webrtc::PeerConnectionInterface> PeerConnection = PeerConnectionFactory->CreatePeerConnection(PeerConnectionConfig, webrtc::PeerConnectionDependencies{ Session.Get() });
 	check(PeerConnection);
 	Session->SetPeerConnection(PeerConnection);
-	Players.Add(PlayerId) = MoveTemp(Session);
+
+	{
+		FScopeLock PlayersLock(&PlayersCS);
+		Players.Add(PlayerId) = MoveTemp(Session);
+	}
 }
 
 void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
@@ -239,7 +249,11 @@ void FStreamer::DeletePlayerSession(FPlayerId PlayerId)
 
 	bool bWasQualityController = Player->IsQualityController();
 
-	Players.Remove(PlayerId);
+	{
+		FScopeLock PlayersLock(&PlayersCS);
+		Players.Remove(PlayerId);
+	}
+	// this is called from WebRTC signalling thread, the only thread were `Players` map is modified, so no need to lock it
 	if (Players.Num() == 0)
 	{
 		bStreamingStarted = false;
@@ -347,6 +361,8 @@ void FStreamer::AddStreams(FPlayerId PlayerId)
 void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
 {
 	checkf(GetPlayerSession(PlayerId), TEXT("player %d not found"), PlayerId);
+
+	FScopeLock PlayersLock(&PlayersCS);
 	for (auto&& PlayerEntry : Players)
 	{
 		FPlayerSession& Player = *PlayerEntry.Value;
@@ -357,6 +373,8 @@ void FStreamer::OnQualityOwnership(FPlayerId PlayerId)
 void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, const FString& Descriptor)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("SendPlayerMessage: %d - %s"), static_cast<int32>(Type), *Descriptor);
+
+	FScopeLock PlayersLock(&PlayersCS);
 	for (auto&& PlayerEntry : Players)
 	{
 		PlayerEntry.Value->SendMessage(Type, Descriptor);
@@ -366,9 +384,13 @@ void FStreamer::SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg Type, con
 void FStreamer::SendFreezeFrame(const TArray64<uint8>& JpegBytes)
 {
 	UE_LOG(PixelStreamer, Log, TEXT("Sending freeze frame to players: %d bytes"), JpegBytes.Num());
-	for (auto&& PlayerEntry : Players)
+
 	{
-		PlayerEntry.Value->SendFreezeFrame(JpegBytes);
+		FScopeLock PlayersLock(&PlayersCS);
+		for (auto&& PlayerEntry : Players)
+		{
+			PlayerEntry.Value->SendFreezeFrame(JpegBytes);
+		}
 	}
 
 	CachedJpegBytes = JpegBytes;
@@ -387,10 +409,28 @@ void FStreamer::SendUnfreezeFrame()
 {
 	UE_LOG(PixelStreamer, Log, TEXT("Sending unfreeze message to players"));
 
-	for (auto&& PlayerEntry : Players)
 	{
-		PlayerEntry.Value->SendUnfreezeFrame();
+		FScopeLock PlayersLock(&PlayersCS);
+		for (auto&& PlayerEntry : Players)
+		{
+			PlayerEntry.Value->SendUnfreezeFrame();
+		}
 	}
 
 	CachedJpegBytes.Empty();
+}
+
+void FStreamer::SendVideoEncoderQP()
+{
+	if (HWEncoderDetails.LastAvgQP != FHWEncoderDetails::InvalidQP)
+	{
+		VideoEncoderAvgQP.Update(HWEncoderDetails.LastAvgQP);
+	}
+
+	double Now = FPlatformTime::Seconds();
+	if (Now - LastVideoEncoderQPReportTime > 1)
+	{
+		SendPlayerMessage(PixelStreamingProtocol::EToPlayerMsg::VideoEncoderAvgQP, FString::Printf(TEXT("%.0f"), VideoEncoderAvgQP.Get()));
+		LastVideoEncoderQPReportTime = Now;
+	}
 }

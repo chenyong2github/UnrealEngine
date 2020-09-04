@@ -7,12 +7,12 @@
 #include "Network/Service/ClusterSync/DisplayClusterClusterSyncClient.h"
 #include "Network/Service/SwapSync/DisplayClusterSwapSyncClient.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
-FDisplayClusterClusterNodeCtrlSlave::FDisplayClusterClusterNodeCtrlSlave(const FString& ctrlName, const FString& nodeName) :
-	FDisplayClusterClusterNodeCtrlBase(ctrlName, nodeName)
+FDisplayClusterClusterNodeCtrlSlave::FDisplayClusterClusterNodeCtrlSlave(const FString& CtrlName, const FString& NodeName) :
+	FDisplayClusterClusterNodeCtrlBase(CtrlName, NodeName)
 {
 }
 
@@ -78,10 +78,10 @@ void FDisplayClusterClusterNodeCtrlSlave::GetNativeInputData(FDisplayClusterMess
 //////////////////////////////////////////////////////////////////////////////////////////////
 // IPDisplayClusterSwapSyncProtocol
 //////////////////////////////////////////////////////////////////////////////////////////////
-void FDisplayClusterClusterNodeCtrlSlave::WaitForSwapSync(double* pThreadWaitTime, double* pBarrierWaitTime)
+void FDisplayClusterClusterNodeCtrlSlave::WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime)
 {
 	check(SwapSyncClient.IsValid());
-	SwapSyncClient->WaitForSwapSync(pThreadWaitTime, pBarrierWaitTime);
+	SwapSyncClient->WaitForSwapSync(ThreadWaitTime, BarrierWaitTime);
 }
 
 

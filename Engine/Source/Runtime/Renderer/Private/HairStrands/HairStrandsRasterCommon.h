@@ -29,6 +29,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHairDeepShadowRasterPassParameters, )
 	SHADER_PARAMETER(FIntRect, AtlasRect)
 	SHADER_PARAMETER(FIntPoint, ViewportResolution)
 	SHADER_PARAMETER(uint32, AtlasSlotIndex)
+	SHADER_PARAMETER(FVector4, LayerDepths)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float>, FrontDepthTexture)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<FDeepShadowViewInfo>, DeepShadowViewInfoBuffer)
 

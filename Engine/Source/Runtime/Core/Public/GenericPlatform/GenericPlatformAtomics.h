@@ -17,6 +17,8 @@ GCC_ALIGN(16);
 
 
 /**
+* DEPRECATED! UE atomics are not maintained and potentially will be physically deprecated. Use std::atomic<T> for new code
+*
 * Generic implementation...you are required to implement at least FPlatformAtomics::InterlockedCompareExchange but they are listed here 
 * to provide a base implementation in terms of FPlatformAtomics::InterlockedCompareExchange and easy copy-paste
 **/

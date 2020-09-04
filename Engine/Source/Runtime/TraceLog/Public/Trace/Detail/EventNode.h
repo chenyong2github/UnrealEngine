@@ -16,9 +16,10 @@ struct FEventInfo
 {
 	enum
 	{
+		Flag_None			= 0,
 		Flag_Important		= 1 << 0,
 		Flag_MaybeHasAux	= 1 << 1,
-		Flag_NoSync			= 1 << 3,
+		Flag_NoSync			= 1 << 2,
 	};
 
 	FLiteralName			LoggerName;

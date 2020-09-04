@@ -253,7 +253,7 @@ bool FNetPacketNotifyTest::RunTest(const FString& Parameters)
 	
 		SIZE_T DeltaSeq = FNetPacketNotifyTestUtil::PretendReceivedPacket(Acks, Data, RcvdAcks);
 
-		TestEqual(TEXT("Notifications - Create sequence delta"), DeltaSeq, 1);
+		TestEqual(TEXT("Notifications - Create sequence delta"), DeltaSeq, SIZE_T(1));
 		TestEqual(TEXT("Notifications - Create sequence"), FPlatformMemory::Memcmp(ExpectedAckdPacketIds, RcvdAcks, sizeof(ExpectedAckdPacketIds)), 0u);
 	}
 
@@ -283,7 +283,7 @@ bool FNetPacketNotifyTest::RunTest(const FString& Parameters)
 	
 		SIZE_T DeltaSeq = FNetPacketNotifyTestUtil::PretendReceivedPacket(Acks, Data, RcvdAcks);
 
-		TestEqual(TEXT("Notifications - Create sequence delta"), DeltaSeq, 0);
+		TestEqual(TEXT("Notifications - Create sequence delta"), DeltaSeq, SIZE_T(0));
 	}
 
 

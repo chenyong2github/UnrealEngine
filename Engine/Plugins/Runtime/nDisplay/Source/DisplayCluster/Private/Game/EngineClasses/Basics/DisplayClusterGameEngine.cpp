@@ -12,12 +12,14 @@
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/Parse.h"
 #include "Misc/QualifiedFrameTime.h"
-#include "DisplayClusterBuildConfig.h"
+
+#include "Misc/DisplayClusterBuildConfig.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
+
 #include "DisplayClusterEnums.h"
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
 
 #include "Stats/Stats.h"
 
@@ -26,8 +28,6 @@
 
 void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
-
 	// Detect requested operation mode
 	OperationMode = DetectOperationMode();
 
@@ -41,7 +41,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 	// Initialize Display Cluster
 	if (!GDisplayCluster->Init(OperationMode))
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::KillImmediately, FString("Couldn't initialize DisplayCluster module"));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("Couldn't initialize DisplayCluster module"));
 	}
 
 	FString cfgPath;
@@ -53,7 +53,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		if (!FParse::Value(FCommandLine::Get(), DisplayClusterStrings::args::Config, cfgPath))
 		{
 			UE_LOG(LogDisplayClusterEngine, Error, TEXT("No config file specified"));
-			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::KillImmediately, FString("Cluster mode requires config file"));
+			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("Cluster mode requires config file"));
 		}
 
 		// Extract node ID from command line
@@ -63,7 +63,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 			UE_LOG(LogDisplayClusterEngine, Log, TEXT("Node ID is not specified"));
 #else
 			UE_LOG(LogDisplayClusterEngine, Warning, TEXT("Node ID is not specified"));
-			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::KillImmediately, FString("Cluster mode requires node ID"));
+			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("Cluster mode requires node ID"));
 #endif
 		}
 	}
@@ -85,7 +85,7 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 		// Start game session
 		if (!GDisplayCluster->StartSession(cfgPath, nodeId))
 		{
-			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::KillImmediately, FString("Couldn't start DisplayCluster session"));
+			FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::KillImmediately, FString("Couldn't start DisplayCluster session"));
 		}
 
 		// Initialize internals
@@ -98,8 +98,6 @@ void UDisplayClusterGameEngine::Init(class IEngineLoop* InEngineLoop)
 
 EDisplayClusterOperationMode UDisplayClusterGameEngine::DetectOperationMode()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
-
 	EDisplayClusterOperationMode OpMode = EDisplayClusterOperationMode::Disabled;
 	if (FParse::Param(FCommandLine::Get(), DisplayClusterStrings::args::Cluster))
 	{
@@ -117,8 +115,6 @@ EDisplayClusterOperationMode UDisplayClusterGameEngine::DetectOperationMode()
 
 bool UDisplayClusterGameEngine::InitializeInternals()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
-
 	// Store debug settings locally
 	CfgDebug = GDisplayCluster->GetPrivateConfigMgr()->GetConfigDebug();
 	
@@ -145,8 +141,6 @@ bool UDisplayClusterGameEngine::InitializeInternals()
 
 void UDisplayClusterGameEngine::PreExit()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
-
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Standalone)
 	{
@@ -160,8 +154,6 @@ void UDisplayClusterGameEngine::PreExit()
 
 bool UDisplayClusterGameEngine::LoadMap(FWorldContext& WorldContext, FURL URL, class UPendingNetGame* Pending, FString& Error)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
-
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Standalone)
 	{
@@ -193,8 +185,6 @@ bool UDisplayClusterGameEngine::LoadMap(FWorldContext& WorldContext, FURL URL, c
 
 void UDisplayClusterGameEngine::Tick(float DeltaSeconds, bool bIdleMode)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterEngine);
-
 	if (OperationMode == EDisplayClusterOperationMode::Cluster ||
 		OperationMode == EDisplayClusterOperationMode::Standalone)
 	{

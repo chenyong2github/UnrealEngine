@@ -19,6 +19,7 @@
 
 struct FCustomPropertyListNode;
 struct FObjectInstancingGraph;
+struct FStaticConstructObjectParameters;
 
 COREUOBJECT_API DECLARE_LOG_CATEGORY_EXTERN(LogUObjectGlobals, Log, All);
 
@@ -291,6 +292,17 @@ COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, con
  * are not instanced (this will instead occur in PostLoad()).  The different between StaticConstructObject and StaticAllocateObject is that StaticConstructObject will also call the class constructor on the object
  * and instance any components.
  *
+ * @param	Params		The parameters to use when construction the object. @see FStaticConstructObjectParameters
+ *
+ * @return	A pointer to a fully initialized object of the specified class.
+ */
+COREUOBJECT_API UObject* StaticConstructObject_Internal(const FStaticConstructObjectParameters& Params);
+
+/**
+ * Create a new instance of an object.  The returned object will be fully initialized.  If InFlags contains RF_NeedsLoad (indicating that the object still needs to load its object data from disk), components
+ * are not instanced (this will instead occur in PostLoad()).  The different between StaticConstructObject and StaticAllocateObject is that StaticConstructObject will also call the class constructor on the object
+ * and instance any components.
+ *
  * @param	Class		The class of the object to create
  * @param	InOuter		The object to create this object within (the Outer property for the new object will be set to the value specified here).
  * @param	Name		The name to give the new object. If no value (NAME_None) is specified, the object will be given a unique name in the form of ClassName_#.
@@ -305,6 +317,7 @@ COREUOBJECT_API UClass* StaticLoadClass(UClass* BaseClass, UObject* InOuter, con
  *
  * @return	A pointer to a fully initialized object of the specified class.
  */
+UE_DEPRECATED(4.26, "Use version that takes parameter struct")
 COREUOBJECT_API UObject* StaticConstructObject_Internal(const UClass* Class, UObject* InOuter = (UObject*)GetTransientPackage(), FName Name = NAME_None, EObjectFlags SetFlags = RF_NoFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, UObject* Template = nullptr, bool bCopyTransientsFromClassDefaults = false, struct FObjectInstancingGraph* InstanceGraph = nullptr, bool bAssumeTemplateIsArchetype = false, UPackage* ExternalPackage = nullptr);
 
 /**
@@ -335,7 +348,7 @@ COREUOBJECT_API UObject* StaticDuplicateObject(UObject const* SourceObject, UObj
  *
  * @return	The duplicate of SourceObject.
  */
-COREUOBJECT_API UObject* StaticDuplicateObjectEx( struct FObjectDuplicationParameters& Parameters );
+COREUOBJECT_API UObject* StaticDuplicateObjectEx( FObjectDuplicationParameters& Parameters );
 
 /** 
  * Parses a global context system console or debug command and executes it.
@@ -682,122 +695,6 @@ bool StaticAllocateObjectErrorTests( const UClass* Class, UObject* InOuter, FNam
  */
 COREUOBJECT_API UObject* StaticAllocateObject(const UClass* Class, UObject* InOuter, FName Name, EObjectFlags SetFlags, EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None, bool bCanReuseSubobjects = false, bool* bOutReusedSubobject = nullptr, UPackage* ExternalPackage = nullptr);
 
-/** @deprecated Use raw pointers or TWeakObjectPtr instead */
-class COREUOBJECT_API FSubobjectPtr
-{
-protected:
-
-	enum EInvalidPtr
-	{
-		InvalidPtrValue = 3,
-	};
-
-	/** Subobject pointer. */
-	UObject* Object;
-
-	/** Constructor used by TSubobjectPtr. */
-	explicit FSubobjectPtr(UObject* InObject)
-		: Object(InObject)
-	{
-	}
-
-	/** Sets the object pointer. Does runtime checks to see if the assignment is allowed.
-	 * 
-	 * @param InObject New subobject pointer.
-	 */
-	void Set(UObject* InObject);
-
-public:
-	/** Resets the internal pointer to nullptr. */
-	FORCEINLINE void Reset()
-	{
-		Set(nullptr);
-	}
-	/** Gets the pointer to the subobject. */
-	FORCEINLINE UObject* Get() const
-	{
-		return Object;
-	}
-	/** Checks if the subobject != nullptr. */
-	FORCEINLINE bool IsValid() const
-	{
-		return !!Object && Object != (UObject*)InvalidPtrValue;
-	}
-	/** Convenience operator. Does the same thing as IsValid(). */
-	FORCEINLINE explicit operator bool() const
-	{
-		return IsValid();
-	}
-	/** Compare against nullptr */
-	FORCEINLINE bool operator==(TYPE_OF_NULL Other) const
-	{
-		return !IsValid();
-	}
-	FORCEINLINE bool operator!=(TYPE_OF_NULL Other) const
-	{
-		return IsValid();
-	}
-
-	FORCEINLINE static bool IsInitialized(const UObject* Ptr)
-	{
-		return (Ptr != (UObject*)InvalidPtrValue);
-	}
-};
-
-template<> struct TIsPODType<FSubobjectPtr> { enum { Value = true }; };
-template<> struct TIsZeroConstructType<FSubobjectPtr> { enum { Value = true }; };
-template<> struct TIsWeakPointerType<FSubobjectPtr> { enum { Value = false }; };
-
-/** @deprecated Use raw pointers or TWeakObjectPtr instead */
-template <class SubobjectType>
-class TSubobjectPtrDeprecated : public FSubobjectPtr
-{
-public:
-	/** Internal constructors. */
-	TSubobjectPtrDeprecated(SubobjectType* InObject)
-		: FSubobjectPtr(InObject)
-	{}
-	TSubobjectPtrDeprecated& operator=(const TSubobjectPtrDeprecated& Other)
-	{ 
-		Set(Other.Object);
-		return *this; 
-	}
-
-	/** Default constructor. */
-	TSubobjectPtrDeprecated()
-		: FSubobjectPtr((UObject*)FSubobjectPtr::InvalidPtrValue)
-	{
-		static_assert(sizeof(TSubobjectPtrDeprecated) == sizeof(UObject*), "TSuobjectPtr should equal pointer size.");
-	}
-	/** Copy constructor */
-	template <class DerivedSubobjectType>
-	TSubobjectPtrDeprecated(TSubobjectPtrDeprecated<DerivedSubobjectType>& Other)
-		: FSubobjectPtr(Other.Object)
-	{
-		static_assert(TPointerIsConvertibleFromTo<DerivedSubobjectType, const SubobjectType>::Value, "Subobject pointers must be compatible.");
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE SubobjectType* Get() const
-	{
-		return (SubobjectType*)Object;
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE SubobjectType* operator->() const
-	{
-		return (SubobjectType*)Object;
-	}
-	/** Gets the sub-object pointer. */
-	FORCEINLINE operator SubobjectType*() const
-	{
-		return (SubobjectType*)Object;
-	}
-};
-
-template<class T> struct TIsPODType< TSubobjectPtrDeprecated<T> > { enum { Value = true }; };
-template<class T> struct TIsZeroConstructType< TSubobjectPtrDeprecated<T> > { enum { Value = true }; };
-template<class T> struct TIsWeakPointerType< TSubobjectPtrDeprecated<T> > { enum { Value = false }; };
-
-
 /**
  * Internal class to finalize UObject creation (initialize properties) after the real C++ constructor is called.
  **/
@@ -871,29 +768,6 @@ public:
 		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ false, bTransient));
 	}
 
-	/**
-	 * Create optional component or subobject. Optional subobjects may not get created
-	 * when a derived class specified DoNotCreateDefaultSubobject with the subobject's name.
-	 * @param	TReturnType					class of return type, all overrides must be of this type
-	 * @param	Outer						outer to construct the subobject in
-	 * @param	SubobjectName				name of the new component
-	 * @param bTransient		true if the component is being assigned to a transient property
-	 */
-
-	/**
-	 * Create a subobject that has the Abstract class flag, child classes are expected to override this by calling SetDefaultSubobjectClass with the same name and a non-abstract class.
-	 * @param	TReturnType					Class of return type, all overrides must be of this type
-	 * @param	SubobjectName				Name of the new component
-	 * @param	bTransient					True if the component is being assigned to a transient property. This does not make the component itself transient, but does stop it from inheriting parent defaults
-	 */
-	template<class TReturnType>
-	UE_DEPRECATED(4.23, "CreateAbstract did not work as intended and has been deprecated in favor of CreateDefaultObject")
-	TReturnType* CreateAbstractDefaultSubobject(UObject* Outer, FName SubobjectName, bool bTransient = false) const
-	{
-		UClass* ReturnType = TReturnType::StaticClass();
-		return static_cast<TReturnType*>(CreateDefaultSubobject(Outer, SubobjectName, ReturnType, ReturnType, /*bIsRequired =*/ true, bTransient));
-	}
-
 	/** 
 	* Create a component or subobject 
 	* @param TReturnType class of return type, all overrides must be of this type 
@@ -942,13 +816,6 @@ public:
 	 * @param bIsTransient		true if the component is being assigned to a transient property
 	 */
 	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bIsTransient) const;
-
-	UE_DEPRECATED(4.23, "CreateDefaultSubobject no longer takes bAbstract as a parameter.")
-	UObject* CreateDefaultSubobject(UObject* Outer, FName SubobjectFName, UClass* ReturnType, UClass* ClassToCreateByDefault, bool bIsRequired, bool bAbstract, bool bIsTransient) const
-	{
-		return CreateDefaultSubobject(Outer, SubobjectFName, ReturnType, ClassToCreateByDefault, bIsRequired, bIsTransient);
-	}
-
 
 	/**
 	 * Sets the class to use for a subobject defined in a base class, the class must be a subclass of the class used by the base class.
@@ -1145,6 +1012,47 @@ private:
 #endif // USE_CIRCULAR_DEPENDENCY_LOAD_DEFERRING
 };
 
+/**
+ * This struct is used for passing parameter values to the StaticConstructObject_Internal() method.  Only the constructor parameters are required to
+ * be valid - all other members are optional.
+ */
+struct FStaticConstructObjectParameters
+{
+	/** The class of the object to create */
+	const UClass* Class;
+
+	/** The object to create this object within (the Outer property for the new object will be set to the value specified here). */
+	UObject* Outer;
+
+	/** The name to give the new object.If no value(NAME_None) is specified, the object will be given a unique name in the form of ClassName_#. */
+	FName Name;
+
+	/** The ObjectFlags to assign to the new object. some flags can affect the behavior of constructing the object. */
+	EObjectFlags SetFlags = RF_NoFlags;
+
+	/** The InternalObjectFlags to assign to the new object. some flags can affect the behavior of constructing the object. */
+	EInternalObjectFlags InternalSetFlags = EInternalObjectFlags::None;
+
+	/** If true, copy transient from the class defaults instead of the pass in archetype ptr(often these are the same) */
+	bool bCopyTransientsFromClassDefaults = false;
+
+	/** If true, Template is guaranteed to be an archetype */
+	bool bAssumeTemplateIsArchetype = false;
+
+	/**
+	 * If specified, the property values from this object will be copied to the new object, and the new object's ObjectArchetype value will be set to this object.
+	 * If nullptr, the class default object is used instead.
+	 */
+	UObject* Template = nullptr;
+
+	/** Contains the mappings of instanced objects and components to their templates */
+	FObjectInstancingGraph* InstanceGraph = nullptr;
+
+	/** Assign an external Package to the created object if non-null */
+	UPackage* ExternalPackage = nullptr;
+
+	COREUOBJECT_API FStaticConstructObjectParameters(const UClass* InClass);
+};
 
 /**
 * Helper class for script integrations to access some UObject innards. Needed for script-generated UObject classes
@@ -1225,7 +1133,7 @@ FUNCTION_NON_NULL_RETURN_END
 {
 	if (Name == NAME_None)
 	{
-		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSuobject<> instead."));
+		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSubobject<> instead."));
 	}
 
 #if DO_CHECK
@@ -1233,7 +1141,15 @@ FUNCTION_NON_NULL_RETURN_END
 	CheckIsClassChildOf_Internal(T::StaticClass(), Class);
 #endif
 
-	return static_cast<T*>(StaticConstructObject_Internal(Class, Outer, Name, Flags, EInternalObjectFlags::None, Template, bCopyTransientsFromClassDefaults, InInstanceGraph, false/*bAssumeTemplateIsArchetype*/, ExternalPackage));
+	FStaticConstructObjectParameters Params(Class);
+	Params.Outer = Outer;
+	Params.Name = Name;
+	Params.SetFlags = Flags;
+	Params.Template = Template;
+	Params.bCopyTransientsFromClassDefaults = bCopyTransientsFromClassDefaults;
+	Params.InstanceGraph = InInstanceGraph;
+	Params.ExternalPackage = ExternalPackage;
+	return static_cast<T*>(StaticConstructObject_Internal(Params));
 }
 
 template< class T >
@@ -1242,9 +1158,11 @@ FUNCTION_NON_NULL_RETURN_START
 FUNCTION_NON_NULL_RETURN_END
 {
 	// Name is always None for this case
-	FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSuobject<> instead."));
+	FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSubobject<> instead."));
 
-	return static_cast<T*>(StaticConstructObject_Internal(T::StaticClass(), Outer, NAME_None, RF_NoFlags, EInternalObjectFlags::None, nullptr, false, nullptr));
+	FStaticConstructObjectParameters Params(T::StaticClass());
+	Params.Outer = Outer;
+	return static_cast<T*>(StaticConstructObject_Internal(Params));
 }
 
 template< class T >
@@ -1254,10 +1172,17 @@ FUNCTION_NON_NULL_RETURN_END
 {
 	if (Name == NAME_None)
 	{
-		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSuobject<> instead."));
+		FObjectInitializer::AssertIfInConstructor(Outer, TEXT("NewObject with empty name can't be used to create default subobjects (inside of UObject derived class constructor) as it produces inconsistent object names. Use ObjectInitializer.CreateDefaultSubobject<> instead."));
 	}
 
-	return static_cast<T*>(StaticConstructObject_Internal(T::StaticClass(), Outer, Name, Flags, EInternalObjectFlags::None, Template, bCopyTransientsFromClassDefaults, InInstanceGraph));
+	FStaticConstructObjectParameters Params(T::StaticClass());
+	Params.Outer = Outer;
+	Params.Name = Name;
+	Params.SetFlags = Flags;
+	Params.Template = Template;
+	Params.bCopyTransientsFromClassDefaults = bCopyTransientsFromClassDefaults;
+	Params.InstanceGraph = InInstanceGraph;
+	return static_cast<T*>(StaticConstructObject_Internal(Params));
 }
 
 /**
@@ -2129,18 +2054,6 @@ struct COREUOBJECT_API FCoreUObjectDelegates
 	DECLARE_DELEGATE_RetVal_OneParam(FPrimaryAssetId, FGetPrimaryAssetIdForObject, const UObject*);
 	static FGetPrimaryAssetIdForObject GetPrimaryAssetIdForObject;
 
-	DECLARE_DELEGATE_OneParam(FSoftObjectPathLoaded, const FString&);
-	UE_DEPRECATED(4.17, "StringAssetReferenceLoaded is deprecated, call FSoftObjectPath::PostLoadPath instead")
-	static FSoftObjectPathLoaded StringAssetReferenceLoaded;
-
-	DECLARE_DELEGATE_RetVal_OneParam(FString, FSoftObjectPathSaving, FString const& /*SavingAssetLongPathname*/);
-	UE_DEPRECATED(4.17, "StringAssetReferenceSaving is deprecated, call FSoftObjectPath::PreSavePath instead")
-	static FSoftObjectPathSaving StringAssetReferenceSaving;
-
-	DECLARE_MULTICAST_DELEGATE_TwoParams(FOnRedirectorFollowed, const FString&, UObject*);
-	UE_DEPRECATED(4.17, "RedirectorFollowed is deprecated, FixeupRedirects was replaced with ResavePackages -FixupRedirect")
-	static FOnRedirectorFollowed RedirectorFollowed;
-
 	/** Called during cooking to see if a specific package should be cooked for a given target platform */
 	DECLARE_DELEGATE_RetVal_TwoParams(bool, FShouldCookPackageForPlatform, const UPackage*, const ITargetPlatform*);
 	static FShouldCookPackageForPlatform ShouldCookPackageForPlatform;
@@ -2624,6 +2537,7 @@ namespace UE4CodeGen_Private
 		const FEnumeratorParam*     EnumeratorParams;
 		int32                       NumEnumerators;
 		EObjectFlags                ObjectFlags;
+		EEnumFlags                  EnumFlags;
 		EDynamicType                DynamicType;
 		uint8                       CppForm; // this is of type UEnum::ECppForm
 #if WITH_METADATA

@@ -18,14 +18,17 @@
 #include "Widgets/Views/STableViewBase.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/Table/ViewModels/Table.h"
 #include "Insights/Table/ViewModels/TableColumn.h"
 #include "Insights/Table/ViewModels/TableTreeNode.h"
 #include "Insights/Table/ViewModels/TreeNodeGrouping.h"
 #include "Insights/Table/ViewModels/TreeNodeSorting.h"
+#include "Insights/Table/ViewModels/UntypedTable.h"
 #include "Insights/Table/Widgets/STableTreeViewTooltip.h"
 #include "Insights/Table/Widgets/STableTreeViewRow.h"
+#include "Insights/TimingProfilerCommon.h"
 
 #define LOCTEXT_NAMESPACE "STableTreeView"
 
@@ -48,7 +51,6 @@ STableTreeView::STableTreeView()
 	, Root(MakeShared<FTableTreeNode>(RootNodeName, Table))
 	, TableTreeNodes()
 	, FilteredGroupNodes()
-	, TableTreeNodesIdMap()
 	, ExpandedNodes()
 	, bExpansionSaved(false)
 	, SearchBox(nullptr)
@@ -79,8 +81,15 @@ STableTreeView::~STableTreeView()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
 void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTablePtr)
+{
+	ConstructWidget(InTablePtr);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+BEGIN_SLATE_FUNCTION_BUILD_OPTIMIZATION
+void STableTreeView::ConstructWidget(TSharedPtr<FTable> InTablePtr)
 {
 	check(InTablePtr.IsValid());
 	Table = InTablePtr;
@@ -92,7 +101,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 	[
 		SNew(SVerticalBox)
 
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.VAlign(VAlign_Center)
 		.AutoHeight()
 		[
@@ -103,27 +112,27 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 				SNew(SVerticalBox)
 
 				// Search box
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
 					SAssignNew(SearchBox, SSearchBox)
-					.HintText(LOCTEXT("SearchBoxHint", "Search timers or groups"))
+					.HintText(LOCTEXT("SearchBoxHint", "Search"))
 					.OnTextChanged(this, &STableTreeView::SearchBox_OnTextChanged)
 					.IsEnabled(this, &STableTreeView::SearchBox_IsEnabled)
-					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search timer or group"))
+					.ToolTipText(LOCTEXT("FilterSearchHint", "Type here to search the tree hierarchy by item or group name"))
 				]
 
 				// Group by
-				+SVerticalBox::Slot()
+				+ SVerticalBox::Slot()
 				.VAlign(VAlign_Center)
 				.Padding(2.0f)
 				.AutoHeight()
 				[
 					SNew(SHorizontalBox)
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.AutoWidth()
 					.VAlign(VAlign_Center)
 					[
@@ -132,7 +141,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 						.Margin(FMargin(0.0f, 0.0f, 4.0f, 0.0f))
 					]
 
-					+SHorizontalBox::Slot()
+					+ SHorizontalBox::Slot()
 					.FillWidth(1.0f)
 					.VAlign(VAlign_Center)
 					[
@@ -151,7 +160,7 @@ void STableTreeView::Construct(const FArguments& InArgs, TSharedPtr<FTable> InTa
 		]
 
 		// Tree view
-		+SVerticalBox::Slot()
+		+ SVerticalBox::Slot()
 		.FillHeight(1.0f)
 		.Padding(0.0f, 6.0f, 0.0f, 0.0f)
 		[
@@ -243,7 +252,13 @@ TSharedPtr<SWidget> STableTreeView::TreeView_GetMenuContent()
 			PropertyName = HoveredColumnPtr->GetShortName();
 			PropertyValue = HoveredColumnPtr->GetValueAsTooltipText(*SelectedNode);
 		}
-		SelectionStr = FText::FromName(SelectedNode->GetName());
+		FString ItemName = SelectedNode->GetName().ToString();
+		const int32 MaxStringLen = 64;
+		if (ItemName.Len() > MaxStringLen)
+		{
+			ItemName = ItemName.Left(MaxStringLen) + TEXT("...");
+		}
+		SelectionStr = FText::FromString(ItemName);
 	}
 	else
 	{
@@ -738,7 +753,14 @@ TSharedRef<ITableRow> STableTreeView::TreeView_OnGenerateRow(FTableTreeNodePtr N
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, const FTableTreeNodePtr InNodePtr)
+bool STableTreeView::TableRow_ShouldBeEnabled(FTableTreeNodePtr NodePtr) const
+{
+	return true;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void STableTreeView::TableRow_SetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, FTableTreeNodePtr InNodePtr)
 {
 	HoveredColumnId = InColumnPtr ? InColumnPtr->GetId() : FName();
 
@@ -784,13 +806,6 @@ FText STableTreeView::TableRow_GetHighlightText() const
 FName STableTreeView::TableRow_GetHighlightedNodeName() const
 {
 	return HighlightedNodeName;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool STableTreeView::TableRow_ShouldBeEnabled(const uint32 TimerId) const
-{
-	return true;//im:TODO: Session->GetAggregatedStat(TimerId) != nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1840,80 +1855,16 @@ void STableTreeView::Reset()
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable)
-{
-	if (Table->UpdateSourceTable(SourceTable))
-	{
-		RebuildColumns();
-	}
-	RebuildTree(true);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
 void STableTreeView::RebuildTree(bool bResync)
 {
-	bool bListHasChanged = false;
-
-	if (bResync)
-	{
-		const int32 PreviousNodeCount = TableTreeNodes.Num();
-		TableTreeNodes.Empty(PreviousNodeCount);
-		TableTreeNodesIdMap.Empty(PreviousNodeCount);
-		bListHasChanged = true;
-	}
-
-	TSharedPtr<Trace::IUntypedTable> SourceTable = Table->GetSourceTable();
-	TSharedPtr<Trace::IUntypedTableReader> TableReader = Table->GetTableReader();
-
-	if (Session.IsValid() && SourceTable.IsValid() && TableReader.IsValid())
-	{
-		int32 TotalRowCount = SourceTable->GetRowCount();
-
-		if (TotalRowCount != TableTreeNodes.Num())
-		{
-			bResync = true;
-		}
-
-		if (bResync)
-		{
-			const int32 PreviousNodeCount = TableTreeNodes.Num();
-			TableTreeNodes.Empty(PreviousNodeCount);
-			TableTreeNodesIdMap.Empty(PreviousNodeCount);
-			bListHasChanged = true;
-
-			for (int32 RowIndex = 0; RowIndex < TotalRowCount; ++RowIndex)
-			{
-				TableReader->SetRowIndex(RowIndex);
-				uint64 NodeId = static_cast<uint64>(RowIndex);
-				FName NodeName(*FString::Printf(TEXT("row %d"), RowIndex));
-				FTableTreeNodePtr NodePtr = MakeShared<FTableTreeNode>(NodeId, NodeName, Table, RowIndex);
-				TableTreeNodes.Add(NodePtr);
-				TableTreeNodesIdMap.Add(NodeId, NodePtr);
-			}
-		}
-	}
-
-	if (bListHasChanged)
-	{
-		UpdateTree();
-
-		TreeView->RebuildList();
-	}
+	unimplemented();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeView::SelectNodeByNodeId(uint64 Id)
+FTableTreeNodePtr STableTreeView::GetNodeByTableRowIndex(int32 RowIndex) const
 {
-	FTableTreeNodePtr* NodePtrPtr = TableTreeNodesIdMap.Find(Id);
-	if (NodePtrPtr != nullptr)
-	{
-		FTableTreeNodePtr NodePtr = *NodePtrPtr;
-
-		TreeView->SetSelection(NodePtr);
-		TreeView->RequestScrollIntoView(NodePtr);
-	}
+	return (RowIndex >= 0 && RowIndex < TableTreeNodes.Num()) ? TableTreeNodes[RowIndex] : nullptr;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -1923,9 +1874,11 @@ void STableTreeView::SelectNodeByTableRowIndex(int32 RowIndex)
 	if (RowIndex >= 0 && RowIndex < TableTreeNodes.Num())
 	{
 		FTableTreeNodePtr NodePtr = TableTreeNodes[RowIndex];
-
-		TreeView->SetSelection(NodePtr);
-		TreeView->RequestScrollIntoView(NodePtr);
+		if (ensure(NodePtr))
+		{
+			TreeView->SetSelection(NodePtr);
+			TreeView->RequestScrollIntoView(NodePtr);
+		}
 	}
 }
 

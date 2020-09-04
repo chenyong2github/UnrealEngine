@@ -19,6 +19,9 @@
 #include "Misc/CString.h"
 #include "Misc/DateTime.h"
 #include "Misc/Paths.h"
+#include "ProfilingDebugging/CountersTrace.h"
+#include "ProfilingDebugging/MiscTrace.h"
+#include "ProfilingDebugging/PlatformFileTrace.h"
 #include "String/ParseTokens.h"
 #include "Templates/UnrealTemplate.h"
 #include "Trace/Trace.inl"
@@ -30,13 +33,22 @@
 #endif
 
 ////////////////////////////////////////////////////////////////////////////////
+enum class ETraceConnectType
+{
+	Network,
+	File
+};
+
+////////////////////////////////////////////////////////////////////////////////
 class FTraceAuxiliaryImpl
 {
 public:
-	void					ParseCommandLine(const TCHAR* CommandLine);
-	bool 					Start(const TCHAR* ChannelSet);
-	bool 					Stop();
-	const TCHAR*			GetPath() const;
+	const TCHAR*			GetDest() const;
+	template <class T> void	ReadChannels(T&& Callback) const;
+	void					AddChannels(const TCHAR* ChannelList);
+	bool					Connect(ETraceConnectType Type, const TCHAR* Parameter);
+	void					EnableChannels();
+	void					DisableChannels();
 
 private:
 	enum class EState : uint8
@@ -46,142 +58,161 @@ private:
 		Stopped,
 	};
 
+	struct FChannel
+	{
+		FString				Name;
+		bool				bActive = false;
+	};
+
+	void					AddChannel(const TCHAR* Name);
+	void					AddChannels(const TCHAR* Name, bool bResolvePresets);
+	void					EnableChannel(FChannel& Channel);
 	bool					SendToHost(const TCHAR* Host);
 	bool					WriteToFile(const TCHAR* Path=nullptr);
-	void					ToggleChannels(const TCHAR* Channels);
-	FString					GetChannels(const TCHAR* ChannelSet) const;
-	TMap<uint32, FString>	ActiveChannels;
-	FString					TracePath;
+
+	TMap<uint32, FChannel>	Channels;
+	FString					TraceDest;
 	EState					State = EState::None;
 };
 
 static FTraceAuxiliaryImpl GTraceAuxiliary;
 
 ////////////////////////////////////////////////////////////////////////////////
-void FTraceAuxiliaryImpl::ToggleChannels(const TCHAR* Channels)
+void FTraceAuxiliaryImpl::AddChannels(const TCHAR* ChannelList)
 {
-	UE::String::ParseTokens(Channels, TEXT(","), [this] (const FStringView& Token)
+	AddChannels(ChannelList, true);
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliaryImpl::AddChannels(const TCHAR* ChannelList, bool bResolvePresets)
+{
+	UE::String::ParseTokens(ChannelList, TEXT(","), [this, bResolvePresets] (const FStringView& Token)
 	{
-		TCHAR ChannelName[64];
-		const size_t ChannelNameSize = Token.CopyString(ChannelName, 63);
-		ChannelName[ChannelNameSize] = '\0';
+		TCHAR Name[80];
+		const size_t ChannelNameSize = Token.CopyString(Name, UE_ARRAY_COUNT(Name) - 1);
+		Name[ChannelNameSize] = '\0';
 
-		uint32 ChannelHash = 5381;
-		for (const TCHAR* c = ChannelName; *c; ++c)
+		if (bResolvePresets)
 		{
-            ChannelHash = ((ChannelHash << 5) + ChannelHash) + *c;
+			FString Value;
+			if (GConfig->GetString(TEXT("Trace.ChannelPresets"), Name, Value, GEngineIni))
+			{
+				AddChannels(*Value, false);
+				return;
+			}
 		}
 
-		if (ActiveChannels.Find(ChannelHash) != nullptr)
-		{
-			return;
-		}
-
-		ActiveChannels.Add(ChannelHash, ChannelName);
-
-		Trace::ToggleChannel(ChannelName, true);
+		AddChannel(Name);
 	});
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-FString FTraceAuxiliaryImpl::GetChannels(const TCHAR* ChannelSet) const
+void FTraceAuxiliaryImpl::AddChannel(const TCHAR* Name)
 {
-	FString Value;
-
-	if (ChannelSet == nullptr)
+	uint32 Hash = 5381;
+	for (const TCHAR* c = Name; *c; ++c)
 	{
+		uint32 LowerC = *c | 0x20;
+        Hash = ((Hash << 5) + Hash) + LowerC;
+	}
+
+	if (Channels.Find(Hash) != nullptr)
+	{
+		return;
+	}
+
+	FChannel& Value = Channels.Add(Hash, {});
+	Value.Name = Name;
+
+	if (State >= EState::Tracing)
+	{
+		EnableChannel(Value);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+bool FTraceAuxiliaryImpl::Connect(ETraceConnectType Type, const TCHAR* Parameter)
+{
+	// Connect/write to file. But only if we're not already sending/writing
+	bool bConnected = (State >= EState::Tracing);
+	if (!bConnected)
+	{
+		if (Type == ETraceConnectType::Network)
+		{
+			bConnected = SendToHost(Parameter);
+		}
+
+		else if (Type == ETraceConnectType::File)
+		{
+			bConnected = WriteToFile(Parameter);
+		}
+	}
+
+	if (!bConnected)
+	{
+		return false;
+	}
+
+	// We're now connected. If we don't appear to have any channels we'll set
+	// some defaults for the user. Less futzing.
+	if (!Channels.Num())
+	{
+		FString Value;
 		if (!GConfig->GetString(TEXT("Trace.ChannelPresets"), TEXT("Default"), Value, GEngineIni))
 		{
 			Value = TEXT("cpu,frame,log,bookmark");
 		}
-	}
-	else if (!GConfig->GetString(TEXT("Trace.ChannelPresets"), ChannelSet, Value, GEngineIni))
-	{
-		Value = ChannelSet;
+
+		AddChannels(*Value);
 	}
 
-	return Value;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void FTraceAuxiliaryImpl::ParseCommandLine(const TCHAR* CommandLine)
-{
-	if (State >= EState::Tracing)
-	{
-		return;
-	}
-
-	bool bOk = false;
-	FString Parameter;
-
-	// Start tracing if it isn't already
-	if (FParse::Value(CommandLine, TEXT("-tracehost="), Parameter))
-	{
-		bOk = SendToHost(*Parameter);
-	}
-
-	else if (FParse::Value(CommandLine, TEXT("-tracefile="), Parameter))
-	{
-		bOk = WriteToFile(*Parameter);
-	}
-
-	else if (FParse::Param(CommandLine, TEXT("tracefile")))
-	{
-		bOk = WriteToFile();
-	}
-
-	const TCHAR* ChannelSet = nullptr;
-	if (FParse::Value(CommandLine, TEXT("-trace="), Parameter, false))
-	{
-		ChannelSet = *Parameter;
-	}
-
-	if (!bOk && ChannelSet == nullptr)
-	{
-		return;
-	}
-
-	FString Channels = GetChannels(ChannelSet);
-	ToggleChannels(*Channels);
-
-	State = bOk ? EState::Tracing : EState::None;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::Start(const TCHAR* ChannelSet)
-{
-	if (State < EState::Tracing)
-	{
-		if (!WriteToFile())
-		{
-			return false;
-		}
-	}
-
-	FString Channels = GetChannels(ChannelSet);
-	ToggleChannels(*Channels);
+	EnableChannels();
 
 	State = EState::Tracing;
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-bool FTraceAuxiliaryImpl::Stop()
+void FTraceAuxiliaryImpl::EnableChannel(FChannel& Channel)
 {
-	if (State < EState::Tracing)
+	if (Channel.bActive)
 	{
-		return false;
+		return;
 	}
 
-	for (const auto& ChannelPair : ActiveChannels)
+	// Channel names have been provided by the user and may not exist yet. As
+	// we want to maintain bActive accurately (channels toggles are reference
+	// counted), we will first check Trace knows of the channel.
+	if (!Trace::IsChannel(*Channel.Name))
 	{
-		const FString& Name = ChannelPair.Value;
-		Trace::ToggleChannel(*Name, false);
+		return;
 	}
-	ActiveChannels.Reset();
 
-	State = EState::Stopped;
-	return true;
+	Trace::ToggleChannel(*Channel.Name, true);
+	Channel.bActive = true;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliaryImpl::EnableChannels()
+{
+	for (auto& ChannelPair : Channels)
+	{
+		EnableChannel(ChannelPair.Value);
+	}
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliaryImpl::DisableChannels()
+{
+	for (auto& ChannelPair : Channels)
+	{
+		FChannel& Channel = ChannelPair.Value;
+		if (Channel.bActive)
+		{
+			Trace::ToggleChannel(*Channel.Name, false);
+			Channel.bActive = false;
+		}
+	}
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -193,13 +224,14 @@ bool FTraceAuxiliaryImpl::SendToHost(const TCHAR* Host)
 		return false;
 	}
 
+	TraceDest = Host;
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path)
 {
-	if (Path == nullptr)
+	if (Path == nullptr || *Path == '\0')
 	{
 		FString Name = FDateTime::Now().ToString(TEXT("%Y%m%d_%H%M%S.utrace"));
 		return WriteToFile(*Name);
@@ -248,14 +280,24 @@ bool FTraceAuxiliaryImpl::WriteToFile(const TCHAR* Path)
 		return false;
 	}
 
-	TracePath = MoveTemp(WritePath);
+	TraceDest = MoveTemp(NativePath);
 	return true;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-const TCHAR* FTraceAuxiliaryImpl::GetPath() const
+const TCHAR* FTraceAuxiliaryImpl::GetDest() const
 {
-	return *TracePath;
+	return *TraceDest;
+}
+
+////////////////////////////////////////////////////////////////////////////////
+template <class T>
+void FTraceAuxiliaryImpl::ReadChannels(T&& Callback) const
+{
+	for (const auto& ChannelPair : Channels)
+	{
+		Callback(*(ChannelPair.Value.Name));
+	}
 }
 
 
@@ -263,30 +305,37 @@ const TCHAR* FTraceAuxiliaryImpl::GetPath() const
 ////////////////////////////////////////////////////////////////////////////////
 static void TraceAuxiliaryStart(const TArray<FString>& Args)
 {
-	const TCHAR* Channels = (Args.Num() > 0) ? *(Args[0]) : nullptr;
+	if (Args.Num() > 0)
+	{
+		GTraceAuxiliary.AddChannels(*(Args[0]));
+	}
 
-	if (!GTraceAuxiliary.Start(Channels))
+	if (!GTraceAuxiliary.Connect(ETraceConnectType::File, nullptr))
 	{
 		UE_LOG(LogConsoleResponse, Warning, TEXT("Failed to start tracing to a file"));
 		return;
 	}
 
 	// Give the user some feedback that everything's underway.
-	Channels = (Channels != nullptr) ? Channels : TEXT("[default]");
-	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing to; %s"), GTraceAuxiliary.GetPath());
-	UE_LOG(LogConsoleResponse, Log, TEXT("Trace channels; %s"), Channels);
+	FString Channels;
+	GTraceAuxiliary.ReadChannels([&Channels] (const TCHAR* Channel)
+	{
+		if (Channels.Len())
+		{
+			Channels += TEXT(",");
+		}
+
+		Channels += Channel;
+	});
+	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing to; %s"), GTraceAuxiliary.GetDest());
+	UE_LOG(LogConsoleResponse, Log, TEXT("Trace channels; %s"), *Channels);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
 static void TraceAuxiliaryStop()
 {
-	if (!GTraceAuxiliary.Stop())
-	{
-		UE_LOG(LogConsoleResponse, Warning, TEXT("Unable to stop tracing"));
-		return;
-	}
-
-	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing paused. Use 'Trace.Start' to resume"));
+	GTraceAuxiliary.DisableChannels();
+	UE_LOG(LogConsoleResponse, Log, TEXT("Tracing stopped. Use 'Trace.Start' to resume"));
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -311,9 +360,27 @@ static FAutoConsoleCommand TraceAuxiliaryStopCmd(
 
 
 ////////////////////////////////////////////////////////////////////////////////
+UE_TRACE_EVENT_BEGIN(Diagnostics, Session2, Important)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Platform)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, AppName)
+	UE_TRACE_EVENT_FIELD(Trace::WideString, CommandLine)
+	UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
+	UE_TRACE_EVENT_FIELD(uint8, TargetType)
+UE_TRACE_EVENT_END()
+
+////////////////////////////////////////////////////////////////////////////////
 void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 {
 #if UE_TRACE_ENABLED
+	// Trace out information about this session. This is done before initialisation
+	// so that it is always sent (all channels are enabled prior to initialisation)
+	UE_TRACE_LOG(Diagnostics, Session2, Trace::TraceLogChannel)
+		<< Session2.Platform(PREPROCESSOR_TO_STRING(UBT_COMPILED_PLATFORM))
+		<< Session2.AppName(UE_APP_NAME)
+		<< Session2.CommandLine(CommandLine)
+		<< Session2.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
+		<< Session2.TargetType(uint8(FApp::GetBuildTargetType()));
+
 	// Initialize Trace
 	Trace::FInitializeDesc Desc;
 	Desc.bUseWorkerThread = FPlatformProcess::SupportsMultithreading();
@@ -321,43 +388,35 @@ void FTraceAuxiliary::Initialize(const TCHAR* CommandLine)
 
 	FCoreDelegates::OnEndFrame.AddStatic(Trace::Update);
 
-	GTraceAuxiliary.ParseCommandLine(CommandLine);
-
-	// Trace out information about this session
+	// Extract an explicit channel set from the command line.
+	FString Parameter;
+	if (FParse::Value(CommandLine, TEXT("-trace="), Parameter, false))
 	{
-		uint8 Payload[1024];
-		int32 PayloadSize = 0;
-
-		auto AddToPayload = [&] (const TCHAR* String) -> uint8
-		{
-			int32 Length = FCString::Strlen(String);
-			Length = FMath::Min<int32>(Length, sizeof(Payload) - PayloadSize - 1);
-			for (int32 i = 0, n = Length; i < n; ++i)
-			{
-				Payload[PayloadSize] = uint8(String[i] & 0x7f);
-				++PayloadSize;
-			}
-			return uint8(PayloadSize - Length);
-		};
-
-		AddToPayload(FGenericPlatformMisc::GetUBTPlatform());
-		uint8 AppNameOffset = AddToPayload(TEXT(UE_APP_NAME));
-		uint8 CommandLineOffset = AddToPayload(CommandLine);
-
-		UE_TRACE_EVENT_BEGIN(Diagnostics, Session, Important)
-			UE_TRACE_EVENT_FIELD(uint8, AppNameOffset)
-			UE_TRACE_EVENT_FIELD(uint8, CommandLineOffset)
-			UE_TRACE_EVENT_FIELD(uint8, ConfigurationType)
-			UE_TRACE_EVENT_FIELD(uint8, TargetType)
-		UE_TRACE_EVENT_END()
-
-		UE_TRACE_LOG(Diagnostics, Session, TraceLogChannel, uint16(PayloadSize))
-			<< Session.AppNameOffset(AppNameOffset)
-			<< Session.CommandLineOffset(CommandLineOffset)
-			<< Session.ConfigurationType(uint8(FApp::GetBuildConfiguration()))
-			<< Session.TargetType(uint8(FApp::GetBuildTargetType()))
-			<< Session.Attachment(Payload, PayloadSize);
+		GTraceAuxiliary.AddChannels(*Parameter);
+		GTraceAuxiliary.EnableChannels();
 	}
+
+	// Attempt to send trace data somewhere from the command line
+	if (FParse::Value(CommandLine, TEXT("-tracehost="), Parameter))
+	{
+		GTraceAuxiliary.Connect(ETraceConnectType::Network, *Parameter);
+	}
+	else if (FParse::Value(CommandLine, TEXT("-tracefile="), Parameter))
+	{
+		GTraceAuxiliary.Connect(ETraceConnectType::File, *Parameter);
+	}
+	else if (FParse::Param(CommandLine, TEXT("tracefile")))
+	{
+		GTraceAuxiliary.Connect(ETraceConnectType::File, nullptr);
+	}
+#endif
+}
+
+////////////////////////////////////////////////////////////////////////////////
+void FTraceAuxiliary::EnableChannels()
+{
+#if UE_TRACE_ENABLED
+	GTraceAuxiliary.EnableChannels();
 #endif
 }
 
@@ -370,13 +429,7 @@ void FTraceAuxiliary::TryAutoConnect()
 	HANDLE KnownEvent = ::OpenEvent(EVENT_ALL_ACCESS, false, TEXT("Local\\UnrealInsightsRecorder"));
 	if (KnownEvent != nullptr)
 	{
-		const TCHAR* Params = TEXT("-tracehost=127.0.0.1 -trace=log");
-		if (FParse::Param(FCommandLine::Get(), TEXT("trace")))
-		{
-			Params = TEXT("-tracehost=127.0.0.1");
-		}
-
-		GTraceAuxiliary.ParseCommandLine(Params);
+		GTraceAuxiliary.Connect(ETraceConnectType::Network, TEXT("127.0.0.1"));
 		::CloseHandle(KnownEvent);
 	}
 	#endif

@@ -122,13 +122,6 @@ public:
 		const class FAOScreenGridResources& ScreenGridResources,
 		const class FDistanceFieldAOParameters& Parameters) const;
 
-	void ComputeIrradianceForScreenGrid(
-		const FViewInfo& View, 
-		FRHICommandListImmediate& RHICmdList, 
-		FSceneRenderTargetItem& DistanceFieldNormal, 
-		const FAOScreenGridResources& ScreenGridResources,
-		const FDistanceFieldAOParameters& Parameters) const;
-
 	void CompositeHeightfieldsIntoGlobalDistanceField(
 		FRHICommandList& RHICmdList,
 		const FScene* Scene,

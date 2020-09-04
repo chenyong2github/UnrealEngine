@@ -53,7 +53,15 @@
 			"Enabled": true
 		},
 		{
+			"Name": "OSC",
+			"Enabled": true
+		},
+		{
 			"Name": "Composure",
+			"Enabled": true
+		},
+		{
+			"Name": "ColorCorrectRegions",
 			"Enabled": true
 		}
 	]

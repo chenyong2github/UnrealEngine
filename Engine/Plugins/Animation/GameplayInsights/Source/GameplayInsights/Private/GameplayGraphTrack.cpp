@@ -55,11 +55,19 @@ FGameplayGraphTrack::FGameplayGraphTrack(const FGameplaySharedData& InGameplaySh
 	, NumActiveSeries(0)
 	, Layout(EGameplayGraphLayout::Stack)
 {
-	bDrawPoints = false;
-	bDrawBoxes = false;
-	bDrawBaseline = false;
-	bUseEventDuration = false;
-	bDrawLabels = false;
+	EnabledOptions = //EGraphOptions::ShowDebugInfo |
+					 //EGraphOptions::ShowPoints |
+					 EGraphOptions::ShowPointsWithBorder |
+					 EGraphOptions::ShowLines |
+					 EGraphOptions::ShowPolygon |
+					 //EGraphOptions::UseEventDuration |
+					 //EGraphOptions::ShowBars |
+					 //EGraphOptions::ShowBaseline |
+					 //EGraphOptions::ShowVerticalAxisGrid |
+					 //EGraphOptions::ShowHeader |
+					 //ShowLabelsOption |
+					 EGraphOptions::None;
+
 	VisibleOptions &= ~(EGraphOptions::ShowBars | EGraphOptions::UseEventDuration);
 }
 
@@ -158,7 +166,7 @@ void FGameplayGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 	GetGameplayTrack().DrawHeaderForTimingTrack(Context, *this, false);
 
 	const FTimingTrackViewport& Viewport = Context.GetViewport();
-	if(bDrawLabels && !Viewport.GetLayout().bIsCompactMode)
+	if(IsAnyOptionEnabled(ShowLabelsOption) && !Viewport.GetLayout().bIsCompactMode)
 	{
 		FDrawContext& DrawContext = Context.GetDrawContext();
 		const ITimingViewDrawHelper& DrawHelper = Context.GetHelper();
@@ -216,7 +224,7 @@ void FGameplayGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("OverlayLayout_Tooltip", "Draw series overlaid one on top of the other."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ Layout = EGameplayGraphLayout::Overlay; bDrawLabels = false; SetDirtyFlag(); }),
+				FExecuteAction::CreateLambda([this](){ Layout = EGameplayGraphLayout::Overlay; DisableOptions(ShowLabelsOption); SetDirtyFlag(); }),
 				FCanExecuteAction(),
 				FIsActionChecked::CreateLambda([this](){ return Layout == EGameplayGraphLayout::Overlay; })
 			),
@@ -244,9 +252,9 @@ void FGameplayGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 			LOCTEXT("DrawLabels_Tooltip", "Draw series labels (stack view only)."),
 			FSlateIcon(),
 			FUIAction(
-				FExecuteAction::CreateLambda([this](){ bDrawLabels = !bDrawLabels; }),
+				FExecuteAction::CreateLambda([this](){ ToggleOptions(ShowLabelsOption); }),
 				FCanExecuteAction::CreateLambda([this](){ return Layout == EGameplayGraphLayout::Stack; }),
-				FIsActionChecked::CreateLambda([this](){ return bDrawLabels; })
+				FIsActionChecked::CreateLambda([this](){ return IsAnyOptionEnabled(ShowLabelsOption); })
 			),
 			NAME_None,
 			EUserInterfaceActionType::ToggleButton

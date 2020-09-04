@@ -1648,6 +1648,18 @@ int32 FWindowsApplication::ProcessMessage( HWND hwnd, uint32 msg, WPARAM wParam,
 			}
 			break;
 
+#if WITH_EDITOR // WM_ENDSESSION was added for Editor analytics purpose to detect when the Editor dies unexpectedly because it gets killed by a logoff/shutdown.
+		case WM_ENDSESSION:
+			{
+				// wParam is true if the user session is going away. Note that WM_SESSION is a follow up for WM_QUERYENDSESSION, so wParam can be false if the user (from UI)
+				// or another application (from WM_QUERYENDSESSION) canceled the shutdown.
+				if (wParam == TRUE) // Shutdown/Reboot/Logoff
+				{
+					FCoreDelegates::OnUserLoginChangedEvent.Broadcast(false, 0, 0);
+				}
+				return DefWindowProc(hwnd, msg, wParam, lParam);
+			}
+#endif
 		case WM_SYSCOMMAND:
 			{
 				switch( wParam & 0xfff0 )

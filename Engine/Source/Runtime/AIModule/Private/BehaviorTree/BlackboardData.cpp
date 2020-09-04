@@ -6,18 +6,41 @@
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Object.h"
 #include "UObject/UObjectHash.h"
 #include "UObject/UObjectIterator.h"
+#include "AISystem.h"
 
 UBlackboardData::FKeyUpdate UBlackboardData::OnUpdateKeys;
+
 #if WITH_EDITOR
+#include "Async/Async.h"
+#include "Editor/EditorEngine.h"
+
+extern UNREALED_API UEditorEngine* GEditor;
 UBlackboardData::FBlackboardDataChanged UBlackboardData::OnBlackboardDataChanged;
 #endif
 
 static void UpdatePersistentKeys(UBlackboardData& Asset)
 {
-	UBlackboardKeyType_Object* SelfKeyType = Asset.UpdatePersistentKey<UBlackboardKeyType_Object>(FBlackboard::KeySelf);
-	if (SelfKeyType)
+	if (GET_AI_CONFIG_VAR(bAddBlackboardSelfKey))
 	{
-		SelfKeyType->BaseClass = AActor::StaticClass();
+		// note that UpdatePersistentKey will return non-null only if a given key gets newly created 
+		UBlackboardKeyType_Object* SelfKeyType = Asset.UpdatePersistentKey<UBlackboardKeyType_Object>(FBlackboard::KeySelf);
+		if (SelfKeyType)
+		{
+			SelfKeyType->BaseClass = AActor::StaticClass();
+#if WITH_EDITOR
+			// MarkPackageDirty returning false means marking wasn't possible at this moment. Give it one more try in a moment
+			if (GEditor != nullptr && Asset.MarkPackageDirty() == false)
+			{
+				TWeakObjectPtr<UBlackboardData> WeakAsset = &Asset;
+				AsyncTask(ENamedThreads::GameThread, [WeakAsset](){
+					if (UBlackboardData* AssetPtr = WeakAsset.Get())
+					{
+						AssetPtr->MarkPackageDirty();
+					}
+				});
+			}
+#endif // WITH_EDITOR
+		}
 	}
 }
 
@@ -115,6 +138,15 @@ void UBlackboardData::UpdateIfHasSynchronizedKeys()
 	for (int32 KeyIndex = 0; KeyIndex < Keys.Num() && bHasSynchronizedKeys == false; ++KeyIndex)
 	{
 		bHasSynchronizedKeys |= Keys[KeyIndex].bInstanceSynced;
+	}
+}
+
+void UBlackboardData::PostInitProperties()
+{
+	Super::PostInitProperties();
+	if (HasAnyFlags(RF_NeedPostLoad | RF_ClassDefaultObject) == false)
+	{
+		UpdatePersistentKeys(*this);
 	}
 }
 

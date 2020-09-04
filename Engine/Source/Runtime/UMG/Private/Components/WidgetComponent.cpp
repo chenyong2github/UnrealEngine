@@ -1242,6 +1242,11 @@ void UWidgetComponent::DrawWidgetToRenderTarget(float DeltaTime)
 		return;
 	}
 
+	if ( !WidgetRenderer )
+	{
+		return;
+	}
+
 	const int32 MaxAllowedDrawSize = GetMax2DTextureDimension();
 	if ( DrawSize.X <= 0 || DrawSize.Y <= 0 || DrawSize.X > MaxAllowedDrawSize || DrawSize.Y > MaxAllowedDrawSize )
 	{
@@ -1621,6 +1626,7 @@ void UWidgetComponent::UpdateWidget()
 				{
 					CurrentSlateWidget = NewSlateWidget;
 					SlateWindow->SetContent(NewSlateWidget.ToSharedRef());
+					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
 			}
@@ -1631,6 +1637,7 @@ void UWidgetComponent::UpdateWidget()
 				{
 					CurrentSlateWidget = SlateWidget;
 					SlateWindow->SetContent(SlateWidget.ToSharedRef());
+					bRenderCleared = false;
 					bWidgetChanged = true;
 				}
 			}
@@ -1692,23 +1699,15 @@ void UWidgetComponent::UpdateRenderTarget(FIntPoint DesiredRenderTargetSize)
 		}
 		else
 		{
-			// Update the format
-			if ( RenderTarget->SizeX != DesiredRenderTargetSize.X || RenderTarget->SizeY != DesiredRenderTargetSize.Y )
-			{
-				RenderTarget->InitCustomFormat(DesiredRenderTargetSize.X, DesiredRenderTargetSize.Y, PF_B8G8R8A8, false);
-				bWidgetRenderStateDirty = true;
-			}
+			bClearColorChanged = (RenderTarget->ClearColor != ActualBackgroundColor);
 
-			// Update the clear color
-			if ( RenderTarget->ClearColor != ActualBackgroundColor )
+			// Update the clear color or format
+			if ( bClearColorChanged || RenderTarget->SizeX != DesiredRenderTargetSize.X || RenderTarget->SizeY != DesiredRenderTargetSize.Y )
 			{
 				RenderTarget->ClearColor = ActualBackgroundColor;
-				bClearColorChanged = bWidgetRenderStateDirty = true;
-			}
-
-			if ( bWidgetRenderStateDirty )
-			{
+				RenderTarget->InitCustomFormat(DesiredRenderTargetSize.X, DesiredRenderTargetSize.Y, PF_B8G8R8A8, false);
 				RenderTarget->UpdateResourceImmediate();
+				bWidgetRenderStateDirty = true;
 			}
 		}
 	}

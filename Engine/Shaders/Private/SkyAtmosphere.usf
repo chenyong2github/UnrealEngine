@@ -888,6 +888,12 @@ void RenderSkyAtmosphereRayMarchingPS(
 		return;
 #endif
 	}
+	else if (SkyAtmosphere.FogShowFlagFactor <= 0.0f)
+	{ 
+		OutLuminance = PrepareOutput(float3(0.0f, 0.0f, 0.0f), float3(1.0f, 1.0f, 1.0f));
+		clip(-1.0f);
+		return;
+	}
 #endif // SAMPLE_ATMOSPHERE_ON_CLOUDS
 
 	float ViewHeight = length(WorldPos);
@@ -1344,6 +1350,12 @@ float RealTimeReflection360Mode;
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void RenderCameraAerialPerspectiveVolumeCS(uint3 ThreadId : SV_DispatchThreadID)
 {
+	if (SkyAtmosphere.FogShowFlagFactor <= 0.0f)
+	{ 
+		CameraAerialPerspectiveVolumeUAV[ThreadId] = float4(0.0f, 0.0f, 0.0f, 1.0f);
+		return;
+	}
+
 	float2 PixPos = float2(ThreadId.xy) + 0.5f;
 	float2 UV = PixPos  * SkyAtmosphere.CameraAerialPerspectiveVolumeSizeAndInvSize.zw;
 

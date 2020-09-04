@@ -8,6 +8,7 @@
 #include "MovieSceneExportMetadata.h"
 #endif
 #include "MovieSceneTimeController.h"
+#include "Async/Future.h"
 #include "MoviePipeline.generated.h"
 
 // Forward Declares
@@ -130,6 +131,7 @@ public:
 #if WITH_EDITOR
 	void AddFrameToOutputMetadata(const FString& ClipName, const FString& ImageSequenceFileName, const FMoviePipelineFrameOutputState& FrameOutputState, const FString& Extension, const bool bHasAlpha);
 #endif
+	void AddOutputFuture(TFuture<bool>&& OutputFuture);
 
 	void ProcessOutstandingFinishedFrames();
 	void OnSampleRendered(TUniquePtr<FImagePixelData>&& OutputSample);
@@ -427,6 +429,7 @@ private:
 	FMovieSceneExportMetadata OutputMetadata;
 #endif
 
+	TArray<TFuture<bool>> OutputFutures;
 	FMovieSceneChanges SequenceChanges;
 };
 

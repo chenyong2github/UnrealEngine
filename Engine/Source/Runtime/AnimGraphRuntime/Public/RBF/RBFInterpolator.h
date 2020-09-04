@@ -92,8 +92,7 @@ namespace RBFDistanceMetric
 /* A collection of smoothing kernels, all of which map the input of zero to 1.0 and 
    all values on either side as monotonically decreasing as they move away from zero.
    The width of the falloff can be specified using the Sigma parameter.
-   NOTE: These kernels have been tuned to give similar falloff convergence for the same 
-   value of sigma. */
+   */
 namespace RBFKernel
 {
 	/* A simple linear falloff, clamping at zero out when the norm of Value exceeds Sigma */
@@ -105,7 +104,7 @@ namespace RBFKernel
 	/* A gaussian falloff */
 	static inline float Gaussian(float Value, float Sigma)
 	{
-		return FMath::Exp(-0.5f * FMath::Square(Value / (Sigma / 2.0f)));
+		return FMath::Exp(-Value * FMath::Square(1.0f / Sigma));
 	}
 
 	/* An exponential falloff with a sharp peak */
@@ -137,7 +136,7 @@ namespace RBFKernel
 class FRBFInterpolatorBase
 {
 protected:
-	ANIMGRAPHRUNTIME_API bool SetUpperKernel(const TArrayView<float>& UpperKernel, int32 Size);
+	ANIMGRAPHRUNTIME_API bool SetUpperKernel(const TArrayView<float>& UpperKernel, int32 Size, bool bSmoothing);
 
 	// A square matrix of the solved coefficients.
 public:
@@ -161,11 +160,12 @@ public:
 	*/
 	TRBFInterpolator(
 		const TArrayView<T>& InNodes,
-		WeightFuncT InWeightFunc)
+		WeightFuncT InWeightFunc,
+		bool bApplySmoothing)
 		: Nodes(InNodes)
 		, WeightFunc(InWeightFunc)
 	{
-		MakeUpperKernel();
+		MakeUpperKernel(bApplySmoothing);
 	}
 
 	TRBFInterpolator(const TRBFInterpolator<T>&) = default;
@@ -276,7 +276,7 @@ public:
 	static bool GetIdenticalNodePairs(
 		const TArrayView<T>& InNodes,
 		WeightFuncT InWeightFunc,
-		TArray<TTuple<int, int>> &OutInvalidPairs
+		TArray<TTuple<int, int>>& OutInvalidPairs
 		) 
 	{
 		int NumNodes = InNodes.Num();
@@ -309,7 +309,7 @@ public:
 	}
 
 private:
-	void MakeUpperKernel()
+	void MakeUpperKernel(bool bSmoothing)
 	{
 		// If there are less than two nodes, nothing to do, since the interpolated value
 		// will be the same across the entire space. This is handled in Interpolate().
@@ -335,7 +335,7 @@ private:
 			}
 		}
 
-		bIsValid = SetUpperKernel(UpperKernel, NumNodes);
+		bIsValid = SetUpperKernel(UpperKernel, NumNodes, bSmoothing);
 	}
 
 

@@ -17,12 +17,10 @@
 #include "EdGraphNode_Comment.h"
 
 #include "ScopedTransaction.h"
+#include "Classes/EditorStyleSettings.h"
 #include "ComponentAssetBroker.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "EdGraphUtilities.h"
-
-
-#define SNAP_GRID (16) // @todo ensure this is the same as SNodePanel::GetSnapGridSize()
 
 
 namespace 
@@ -282,7 +280,7 @@ UEdGraphNode* FEdGraphSchemaAction_K2NewNode::CreateNode(
 	}
 	ResultNode->NodePosX = XLocation;
 	ResultNode->NodePosY = Location.Y;
-	ResultNode->SnapToGrid(SNAP_GRID);
+	ResultNode->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 
 	// make sure to auto-wire after we position the new node (in case the 
 	// auto-wire creates a conversion node to put between them)
@@ -611,16 +609,17 @@ UEdGraphNode* FEdGraphSchemaAction_K2AddCustomEvent::PerformAction(class UEdGrap
 UEdGraphNode* FEdGraphSchemaAction_K2AddCallOnActor::PerformAction(class UEdGraph* ParentGraph, UEdGraphPin* FromPin, const FVector2D Location, bool bSelectNewNode/* = true*/)
 {
 	// Snap the node placement location to the grid, ensures calculations later match up better
+	const float GridSnapSize = (float)GetDefault<UEditorStyleSettings>()->GridSnapSize;
 	FVector2D LocalLocation;
-	LocalLocation.X = FMath::GridSnap( Location.X, SNAP_GRID );
-	LocalLocation.Y = FMath::GridSnap( Location.Y, SNAP_GRID );
+	LocalLocation.X = FMath::GridSnap( Location.X, GridSnapSize);
+	LocalLocation.Y = FMath::GridSnap( Location.Y, GridSnapSize);
 
 	// First use the base functionality to spawn the 'call function' node
 	UEdGraphNode* CallNode = FEdGraphSchemaAction_K2NewNode::PerformAction(ParentGraph, FromPin, LocalLocation);
 	const float FunctionNodeHeightUnsnapped = UEdGraphSchema_K2::EstimateNodeHeight( CallNode );
 
 	// this is the guesstimate of the function node's height, snapped to grid units
-	const float FunctionNodeHeight = FMath::GridSnap( FunctionNodeHeightUnsnapped, SNAP_GRID );
+	const float FunctionNodeHeight = FMath::GridSnap( FunctionNodeHeightUnsnapped, GridSnapSize );
 	// this is roughly the middle of the function node height
 	const float FunctionNodeMidY = LocalLocation.Y + FunctionNodeHeight * 0.5f;
 	// this is the offset up from the mid point at which we start placing nodes 
@@ -647,7 +646,7 @@ UEdGraphNode* FEdGraphSchemaAction_K2AddCallOnActor::PerformAction(class UEdGrap
 			float CurrentNodeOffset = NodeLiteralHeight * float(ActorIndex);
 			LiteralNode->NodePosY = ReferencedNodesPlacementYLocation + CurrentNodeOffset;
 
-			LiteralNode->SnapToGrid(SNAP_GRID);
+			LiteralNode->SnapToGrid(GridSnapSize);
 
 			// Connect the literal out to the self of the call
 			UEdGraphPin* LiteralOutput = LiteralNode->GetValuePin();

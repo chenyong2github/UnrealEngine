@@ -9,7 +9,7 @@
 #include "DisplayClusterConfigurationLog.h"
 #include "DisplayClusterConfigurationStrings.h"
 
-#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
+#include "Misc/DisplayClusterCommonHelpers.h"
 
 
 #define LOCTEXT_NAMESPACE "DisplayClusterConfiguration"

@@ -1380,7 +1380,7 @@ void UMaterialEditorInstanceConstant::ResetOverrides(int32 Index, EMaterialParam
 
 void UMaterialEditorInstanceConstant::CopyToSourceInstance(const bool bForceStaticPermutationUpdate)
 {
-	if (!SourceInstance->IsTemplate(RF_ClassDefaultObject))
+	if (SourceInstance && !SourceInstance->IsTemplate(RF_ClassDefaultObject))
 	{
 		if (bIsFunctionPreviewMaterial)
 		{

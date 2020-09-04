@@ -2464,12 +2464,6 @@ void FAndroidMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2497,12 +2491,6 @@ void FAndroidMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* T
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PushEvent(Text);
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;
@@ -2516,12 +2504,6 @@ void FAndroidMisc::EndNamedEvent()
 #if FRAMEPRO_ENABLED
 	FFrameProProfiler::PopEvent();
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputEndEvent();
-	}
-#endif
 	if (bUseNativeSystrace ? !ATrace_isEnabled() : TraceMarkerFileDescriptor == -1)
 	{
 		return;

@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -25,7 +25,6 @@
 #include "SDL_cocoavideo.h"
 #include "SDL_cocoaopengles.h"
 #include "SDL_cocoaopengl.h"
-#include "SDL_log.h"
 
 /* EGL implementation of SDL OpenGL support */
 

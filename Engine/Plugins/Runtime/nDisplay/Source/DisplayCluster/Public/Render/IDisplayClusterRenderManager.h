@@ -10,6 +10,7 @@ class IDisplayClusterProjectionPolicyFactory;
 class IDisplayClusterRenderDeviceFactory;
 class IDisplayClusterRenderSyncPolicy;
 class IDisplayClusterRenderSyncPolicyFactory;
+class UCineCameraComponent;
 struct FPostProcessSettings;
 
 /**
@@ -145,9 +146,41 @@ public:
 	*/
 	virtual TMap<FString, FDisplayClusterPPInfo> GetRegisteredPostprocessOperations() const = 0;
 
+	/**
+	* Start postprocess settings
+	*
+	* @param ViewportID - viewport to set PP settings
+	* @param StartPostProcessingSettings - PP settings
+	*
+	*/
 	virtual void SetStartPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& StartPostProcessingSettings) = 0;
+
+	/**
+	* Override postprocess settings
+	*
+	* @param ViewportID - viewport to set PP settings
+	* @param OverridePostProcessingSettings - PP settings
+	*
+	*/
 	virtual void SetOverridePostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& OverridePostProcessingSettings, float BlendWeight = 1.0f) = 0;
+
+	/**
+	* Final postprocess settings
+	*
+	* @param ViewportID - viewport to set PP settings
+	* @param FinalPostProcessingSettings - PP settings
+	*
+	*/
 	virtual void SetFinalPostProcessingSettings(const FString& ViewportID, const FPostProcessSettings& FinalPostProcessingSettings) = 0;
+
+	/**
+	* Get updated cinecamera post processing
+	*
+	* @param deltaSeconds - frame deltaSeconds
+	* @param CineCamera - Cinecamera to get PP from
+	*
+	*/
+	virtual FPostProcessSettings GetUpdatedCinecameraPostProcessing(float DeltaSeconds, UCineCameraComponent* CineCamera) = 0;
 
 	/**
 	* Assigns camera to a specified viewport. If InViewportId is empty, all viewports will be assigned to a new camera. Empty camera ID means default active camera.
@@ -180,6 +213,23 @@ public:
 	* @param OutBufferRatio - Current buffer ratio (1 - same as viewport size, 0.25 - is 0.25 width and height of viewport size)
 	*/
 	virtual bool GetBufferRatio(const FString& InViewportID, float &OutBufferRatio) const = 0;
+
+	/**
+	* Returns projection policy interface of a viewport
+	*
+	* @param InViewportID        - ID of a viewport
+	* @param OutProjectionPolicy - Projection policy interface
+	*/
+	virtual bool GetViewportProjectionPolicy(const FString& InViewportID, TSharedPtr<IDisplayClusterProjectionPolicy>& OutProjectionPolicy) = 0;
+
+	/**
+	* Returns context data of a viewport
+	*
+	* @param InViewportID        - ID of a viewport
+	* @param ViewIndex           - eye view index
+	* @param OutViewContext      - Context data
+	*/
+	virtual bool GetViewportContext(const FString& InViewportID, int ViewIndex, FDisplayClusterRenderViewContext& OutViewContext) = 0;
 
 	/**
 	* Configuration of interpupillary (interocular) distance

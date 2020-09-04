@@ -35,9 +35,9 @@ FRigUnit_TwoBoneIKFK_Execute()
 						EndJointIndex = EndIndex;
 
 						// set length for upper/lower length
-						FTransform StartTransform = Hierarchy->GetInitialTransform(StartJointIndex);
-						FTransform MidTransform = Hierarchy->GetInitialTransform(MidJointIndex);
-						FTransform EndTransform = Hierarchy->GetInitialTransform(EndJointIndex);
+						FTransform StartTransform = Hierarchy->GetInitialGlobalTransform(StartJointIndex);
+						FTransform MidTransform = Hierarchy->GetInitialGlobalTransform(MidJointIndex);
+						FTransform EndTransform = Hierarchy->GetInitialGlobalTransform(EndJointIndex);
 
 						FVector UpperLimb = StartTransform.GetLocation() - MidTransform.GetLocation();
 						FVector LowerLimb = MidTransform.GetLocation() - EndTransform.GetLocation();

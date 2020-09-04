@@ -16,7 +16,7 @@ class UDisplayClusterScreenComponent;
 /**
  * DisplayCluster root component (nDisplay root)
  */
-UCLASS( ClassGroup=(Custom) )
+UCLASS(ClassGroup = (Custom), Blueprintable, meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterRootComponent
 	: public USceneComponent
 {

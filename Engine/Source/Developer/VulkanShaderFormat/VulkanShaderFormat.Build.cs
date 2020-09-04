@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 using UnrealBuildTool;
+using System.IO;
 
 public class VulkanShaderFormat : ModuleRules
 {
@@ -30,6 +31,10 @@ public class VulkanShaderFormat : ModuleRules
 				"ShaderConductor",
 				"SPIRVReflect"
 			);
+
+			string BinaryFolder = Target.UEThirdPartyBinariesDirectory + "ShaderConductor/Win64";
+			RuntimeDependencies.Add(BinaryFolder + "/dxcompiler.dll");
+			RuntimeDependencies.Add(BinaryFolder + "/ShaderConductor.dll");
 		}
 
 		if (Target.Platform != UnrealTargetPlatform.Win64 &&
@@ -42,11 +47,5 @@ public class VulkanShaderFormat : ModuleRules
 		}
 
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "Vulkan");
-
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicDelayLoadDLLs.Add("dxcompiler_sc.dll");
-			PublicDelayLoadDLLs.Add("ShaderConductor.dll");
-		}
 	}
 }

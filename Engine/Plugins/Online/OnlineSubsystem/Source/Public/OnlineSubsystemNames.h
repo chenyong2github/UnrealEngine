@@ -29,6 +29,10 @@
 #define IOS_SUBSYSTEM FName(TEXT("IOS"))
 #endif
 
+#ifndef APPLE_SUBSYSTEM
+#define APPLE_SUBSYSTEM FName(TEXT("APPLE"))
+#endif
+
 #ifndef AMAZON_SUBSYSTEM
 #define AMAZON_SUBSYSTEM FName(TEXT("AMAZON"))
 #endif
@@ -103,4 +107,8 @@
 
 #ifndef QUAIL_SUBSYSTEM
 #define QUAIL_SUBSYSTEM FName(TEXT("Quail"))
+#endif
+
+#ifndef EOS_SUBSYSTEM
+#define EOS_SUBSYSTEM FName(TEXT("EOS"))
 #endif

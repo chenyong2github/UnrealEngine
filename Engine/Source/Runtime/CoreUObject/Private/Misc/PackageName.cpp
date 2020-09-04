@@ -615,15 +615,14 @@ FString FPackageName::GetLongPackageAssetName(const FString& InLongPackageName)
 	return GetShortName(InLongPackageName);
 }
 
-bool FPackageName::DoesPackageNameContainInvalidCharacters(const FString& InLongPackageName, FText* OutReason /*= NULL*/)
+bool FPackageName::DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, FText* OutReason /*= NULL*/)
 {
 	// See if the name contains invalid characters.
-	TCHAR CharString[] = { '\0', '\0' };
-	FString MatchedInvalidChars;
+	TStringBuilder<32> MatchedInvalidChars;
 	for (const TCHAR* InvalidCharacters = INVALID_LONGPACKAGE_CHARACTERS; *InvalidCharacters; ++InvalidCharacters)
 	{
-		CharString[0] = *InvalidCharacters;
-		if (InLongPackageName.Contains(CharString, ESearchCase::CaseSensitive))
+		FStringView::SizeType OutIndex;
+		if (InLongPackageName.FindChar(*InvalidCharacters, OutIndex))
 		{
 			MatchedInvalidChars += *InvalidCharacters;
 		}
@@ -633,7 +632,7 @@ bool FPackageName::DoesPackageNameContainInvalidCharacters(const FString& InLong
 		if (OutReason)
 		{
 			FFormatNamedArguments Args;
-			Args.Add( TEXT("IllegalNameCharacters"), FText::FromString(MatchedInvalidChars) );
+			Args.Add( TEXT("IllegalNameCharacters"), FText::FromString(FString(MatchedInvalidChars)) );
 			*OutReason = FText::Format( NSLOCTEXT("Core", "PackageNameContainsInvalidCharacters", "Name may not contain the following characters: '{IllegalNameCharacters}'"), Args );
 		}
 		return true;
@@ -784,6 +783,22 @@ bool FPackageName::IsValidObjectPath(const FString& InObjectPath, FText* OutReas
 	}
 
 	return true;
+}
+
+bool FPackageName::IsValidPath(const FString& InPath)
+{
+	const FLongPackagePathsSingleton& Paths = FLongPackagePathsSingleton::Get();
+	FReadScopeLock ScopeLock(ContentMountPointCriticalSection);
+	for (const FPathPair& Pair : Paths.ContentRootToPath)
+	{
+		if (InPath.StartsWith(Pair.RootPath))
+		{
+			return true;
+		}
+	}
+
+	// The root folder is not handled in the above cases
+	return false;
 }
 
 void FPackageName::RegisterMountPoint(const FString& RootPath, const FString& ContentPath)
@@ -1385,7 +1400,7 @@ bool FPackageName::FindPackagesInDirectory( TArray<FString>& OutPackages, const 
 	const int32 PreviousPackagesCount = OutPackages.Num();
 	for (int32 FileIndex = 0; FileIndex < AllFiles.Num(); FileIndex++)
 	{
-		FString& Filename = AllFiles[FileIndex];
+		const FString& Filename = AllFiles[FileIndex];
 		if (IsPackageFilename(Filename))
 		{
 			OutPackages.Add(Filename);
@@ -1576,27 +1591,27 @@ FStringView FPackageName::ObjectPathToObjectName(FStringView InObjectPath)
 	return ObjectPathToObjectNameImpl(InObjectPath);
 }
 
-bool FPackageName::IsExtraPackage(const FString& InPackageName)
+bool FPackageName::IsExtraPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().ExtraRootPath);
 }
 
-bool FPackageName::IsScriptPackage(const FString& InPackageName)
+bool FPackageName::IsScriptPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().ScriptRootPath);
 }
 
-bool FPackageName::IsMemoryPackage(const FString& InPackageName)
+bool FPackageName::IsMemoryPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().MemoryRootPath);
 }
 
-bool FPackageName::IsTempPackage(const FString& InPackageName)
+bool FPackageName::IsTempPackage(FStringView InPackageName)
 {
 	return InPackageName.StartsWith(FLongPackagePathsSingleton::Get().TempRootPath);
 }
 
-bool FPackageName::IsLocalizedPackage(const FString& InPackageName)
+bool FPackageName::IsLocalizedPackage(FStringView InPackageName)
 {
 	// Minimum valid package name length is "/A/L10N"
 	if (InPackageName.Len() < 7)
@@ -1604,25 +1619,27 @@ bool FPackageName::IsLocalizedPackage(const FString& InPackageName)
 		return false;
 	}
 
-	const TCHAR* CurChar = *InPackageName;
+	const TCHAR* CurChar = InPackageName.GetData();
+	const TCHAR* EndChar = InPackageName.GetData() + InPackageName.Len();
 
 	// Must start with a slash
-	if (*CurChar++ != TEXT('/'))
+	if (CurChar == EndChar || *CurChar++ != TEXT('/'))
 	{
 		return false;
 	}
 
 	// Find the end of the first part of the path, eg /Game/
-	while (*CurChar && *CurChar++ != TEXT('/')) {}
-	if (!*CurChar)
+	while (CurChar != EndChar && *CurChar++ != TEXT('/')) {}
+	if (CurChar == EndChar)
 	{
 		// Found end-of-string
 		return false;
 	}
 
 	// Are we part of the L10N folder?
-	return FCString::Strnicmp(CurChar, TEXT("L10N/"), 5) == 0	// StartsWith "L10N/"
-		|| FCString::Stricmp(CurChar, TEXT("L10N")) == 0;		// Is "L10N"
+	FStringView Remaining(CurChar, EndChar - CurChar);
+	// Is "L10N" or StartsWith "L10N/" 
+	return Remaining.StartsWith(TEXT("L10N"_SV), ESearchCase::IgnoreCase) && (Remaining.Len() == 4 || Remaining[4] == '/');
 }
 
 

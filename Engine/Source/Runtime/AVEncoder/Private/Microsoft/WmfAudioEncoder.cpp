@@ -2,7 +2,7 @@
 
 #include "Microsoft/WmfAudioEncoder.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 
 #include "Microsoft/AVEncoderIMFSampleWrapper.h"
 #include "Microsoft/AVEncoderMicrosoftCommon.h"
@@ -405,5 +405,5 @@ TUniquePtr<FAudioEncoder> FWmfAudioEncoderFactory::CreateEncoder(const FString& 
 
 }
 
-#endif
+#endif //AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 

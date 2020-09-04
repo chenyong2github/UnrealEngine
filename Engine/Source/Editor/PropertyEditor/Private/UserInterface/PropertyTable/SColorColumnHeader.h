@@ -28,7 +28,7 @@ class SColorColumnHeader : public SColumnHeader
 
 		SColumnHeader::FArguments ColumnArgs;
 		ColumnArgs.Style( Style );
-		ColumnArgs.Customization( Customization );
+		ColumnArgs.Customization( InArgs._Customization );
 
 		SColumnHeader::Construct( ColumnArgs, InPropertyTableColumn, InPropertyUtilities );
 	}

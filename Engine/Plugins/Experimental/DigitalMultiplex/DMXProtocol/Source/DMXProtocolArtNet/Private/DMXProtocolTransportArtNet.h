@@ -7,12 +7,12 @@
 #include "Interfaces/IDMXProtocolTransport.h"
 #include "DMXProtocolTypes.h"
 
-#include "Containers/Queue.h"
 #include "HAL/CriticalSection.h"
 
 class FSocket;
 class ISocketSubsystem;
 class FDMXProtocolArtNet;
+class FInternetAddr;
 
 class DMXPROTOCOLARTNET_API FDMXProtocolSenderArtNet
 	: public IDMXProtocolSender
@@ -44,13 +44,11 @@ public:
 
 
 private:
-	/** Holds the queue of outbound packages. */
-	TQueue<FDMXPacketPtr, EQueueMode::Mpsc> OutboundPackages;
+	/** Holds the map of outbound packages. It takes last changes for same universe ID */
+	TMap<uint32, FDMXPacketPtr> OutboundPackages;
 
 	/** Holds the last sent message number. */
 	int32 LastSentPackage;
-
-	mutable FCriticalSection CriticalSection;
 
 	FThreadSafeCounter StopTaskCounter;
 
@@ -66,6 +64,14 @@ private:
 	FSocket* BroadcastSocket;
 
 	FDMXProtocolArtNet* Protocol;
+
+	/** Socket subsystem for internet address */
+	ISocketSubsystem* SocketSubsystem;
+
+	/** Internet address to send requests to*/
+	TSharedPtr<FInternetAddr> InternetAddr;
+
+	FCriticalSection PacketsCS;
 };
 
 

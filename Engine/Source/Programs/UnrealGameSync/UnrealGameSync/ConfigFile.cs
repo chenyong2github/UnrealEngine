@@ -431,9 +431,36 @@ namespace UnrealGameSync
 		{
 		}
 
+		string GetTempFileName(string FileName)
+		{
+			return FileName + ".tmp";
+		}
+
 		public void Load(string FileName)
 		{
 			Parse(File.ReadAllLines(FileName));
+		}
+
+		public bool TryLoad(string FileName, TextWriter Log)
+		{
+			FileInfo FileInfo = new FileInfo(FileName);
+			if (FileInfo.Exists)
+			{
+				Log.WriteLine("Loading config file from {0} ({1} bytes)", FileInfo.FullName, FileInfo.Length);
+				Load(FileInfo.FullName);
+				return true;
+			}
+
+			FileInfo TempFileInfo = new FileInfo(GetTempFileName(FileName));
+			if (TempFileInfo.Exists)
+			{
+				Log.WriteLine("Loading temporary config file from {0} ({1} bytes)", TempFileInfo.FullName, TempFileInfo.Length);
+				Load(TempFileInfo.FullName);
+				return true;
+			}
+
+			Log.WriteLine("No existing config file at {0}", FileName);
+			return false;
 		}
 
 		public void Parse(string[] Lines)
@@ -471,7 +498,10 @@ namespace UnrealGameSync
 
 		public void Save(string FileName)
 		{
-			using(StreamWriter Writer = new StreamWriter(FileName))
+			string TempFileName = GetTempFileName(FileName);
+			File.Delete(TempFileName);
+
+			using (StreamWriter Writer = new StreamWriter(TempFileName))
 			{
 				for(int Idx = 0; Idx < Sections.Count; Idx++)
 				{
@@ -496,6 +526,9 @@ namespace UnrealGameSync
 					}
 				}
 			}
+
+			File.Delete(FileName);
+			File.Move(TempFileName, FileName);
 		}
 
 		public ConfigSection FindSection(string Name)

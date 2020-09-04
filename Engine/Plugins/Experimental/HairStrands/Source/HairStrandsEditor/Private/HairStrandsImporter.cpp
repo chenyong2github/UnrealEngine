@@ -20,39 +20,49 @@ FHairImportContext::FHairImportContext(UGroomImportOptions* InImportOptions, UOb
 
 UGroomAsset* FHairStrandsImporter::ImportHair(const FHairImportContext& ImportContext, FHairDescription& HairDescription, UGroomAsset* ExistingHair)
 {
-	UGroomAsset* HairAsset = nullptr;
+	const uint32 GroupCount = ImportContext.ImportOptions->InterpolationSettings.Num();
+	UGroomAsset* OutHairAsset = nullptr;
 	if (ExistingHair)
 	{
-		HairAsset = ExistingHair;
-
-		ExistingHair->Reset();
+		OutHairAsset = ExistingHair;
 	}
-
-	if (!HairAsset)
+	else
 	{
-		HairAsset = NewObject<UGroomAsset>(ImportContext.Parent, ImportContext.Class, ImportContext.Name, ImportContext.Flags);
-
-		if (!HairAsset)
+		OutHairAsset = NewObject<UGroomAsset>(ImportContext.Parent, ImportContext.Class, ImportContext.Name, ImportContext.Flags);
+		if (!OutHairAsset)
 		{
 			UE_LOG(LogHairImporter, Warning, TEXT("Failed to import hair: Could not allocate memory to create asset."));
 			return nullptr;
 		}
+		OutHairAsset->SetNumGroup(GroupCount);
 	}
 
-	HairAsset->CommitHairDescription(MoveTemp(HairDescription));
-	bool bSucceeded = HairAsset->CacheDerivedData(&ImportContext.ImportOptions->BuildSettings);
+	// Sanity check
+	check(OutHairAsset->AreGroupsValid());
+	check(uint32(OutHairAsset->GetNumHairGroups()) == GroupCount);
+
+	OutHairAsset->CommitHairDescription(MoveTemp(HairDescription));
+
+	// Populate the interpolation settings with the new settings from the importer	
+	FProcessedHairDescription ProcessedHairDescription;
+	for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+	{
+		// Insure the interpolation settings matches between the importer and the actual asset
+		const FHairGroupsInterpolation& InterpolationSettings = ImportContext.ImportOptions->InterpolationSettings[GroupIndex];
+		OutHairAsset->HairGroupsInterpolation[GroupIndex] = InterpolationSettings;
+	}
+
+	const bool bSucceeded = OutHairAsset->CacheDerivedDatas();
 	if (!bSucceeded)
 	{
 		// Purge the newly created asset that failed to import
-		if (HairAsset != ExistingHair)
+		if (OutHairAsset != ExistingHair)
 		{
-			HairAsset->ClearFlags(RF_Standalone);
+			OutHairAsset->ClearFlags(RF_Standalone);
 			CollectGarbage(GARBAGE_COLLECTION_KEEPFLAGS);
 		}
 		return nullptr;
 	}
 
-	HairAsset->InitResource();
-
-	return HairAsset;
+	return OutHairAsset;
 }

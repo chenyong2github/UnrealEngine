@@ -37,6 +37,8 @@ enum class EPostProcessMaterialInput : uint32
 };
 
 BEGIN_SHADER_PARAMETER_STRUCT(FPostProcessMaterialParameters, )
+	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureShaderParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT(FScreenPassTextureViewportParameters, PostProcessOutput)
 	SHADER_PARAMETER_STRUCT_ARRAY(FScreenPassTextureInput, PostProcessInput, [kPostProcessMaterialInputCountMax])
 	SHADER_PARAMETER_SAMPLER(SamplerState, PostProcessInput_BilinearSampler)
@@ -106,15 +108,15 @@ struct FPostProcessMaterialInputs
 	 *  Set this to false when you need to guarantee creation of a dedicated output texture.
 	 */
 	bool bAllowSceneColorInputAsOutput = true;
+
+	bool bMetalMSAAHDRDecode = false;
 };
 
 FScreenPassTexture AddPostProcessMaterialPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FPostProcessMaterialInputs& Inputs,
-	const UMaterialInterface* MaterialInterface,
-	//bMetalMSAAHDRDecode has to be set only on mobile platform, the other platforms could use the default value.
-	const bool bMetalMSAAHDRDecode = false);
+	const UMaterialInterface* MaterialInterface);
 
 FScreenPassTexture AddPostProcessMaterialChain(
 	FRDGBuilder& GraphBuilder,

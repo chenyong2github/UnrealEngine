@@ -468,7 +468,7 @@ public:
 		{
 			if (Pred(Entry->Key, Entry->Value))
 			{
-				Remove(Entry);
+				Remove(const_cast<FCacheEntry*>(Entry));
 				++NumRemoved;
 			}
 		}

@@ -95,6 +95,8 @@
 #include "UObject/ReferencerFinder.h"
 #include "Containers/Set.h"
 #include "UObject/StrongObjectPtr.h"
+#include "DistanceFieldAtlas.h"
+#include "Logging/LogMacros.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogObjectTools, Log, All);
 
@@ -303,6 +305,53 @@ namespace ObjectTools
 				}
 			}
 		}
+	}
+
+	void GatherSubObjectsForReferenceReplacement(TSet<UObject*>& InObjects, TSet<UObject*>& ObjectsToExclude, TSet<UObject*>& OutObjectsAndSubObjects)
+	{
+		OutObjectsAndSubObjects = InObjects;
+		if (InObjects.Num() > 0)
+		{
+			for (UObject* InObject : InObjects)
+			{
+				TArray<UObject*> AdditionalObjects;
+				{
+					TArray<UObject*> SubObjects;
+					GetObjectsWithOuter(InObject, SubObjects, false);
+					for (UObject* SubObject : SubObjects)
+					{
+						if (SubObject->HasAnyFlags(RF_ArchetypeObject)
+							&& !ObjectsToExclude.Contains(SubObject)
+							&& !InObjects.Contains(SubObject))
+						{
+							AdditionalObjects.Add(SubObject);
+						}
+					}
+				}
+
+				if (UBlueprint* BlueprintObject = Cast<UBlueprint>(InObject))
+				{
+					if (AdditionalObjects.Contains(BlueprintObject->GeneratedClass))
+					{
+						// We don't want to replace within the generated class. 
+						AdditionalObjects.Remove(BlueprintObject->GeneratedClass);
+					}
+					TArray<UObject*> ClassSubObjects;
+					GetObjectsWithOuter(BlueprintObject->GeneratedClass, ClassSubObjects, false);
+					for (UObject* ClassSubObject : ClassSubObjects)
+					{
+						if (ClassSubObject->HasAnyFlags(RF_ArchetypeObject)
+							&& !ObjectsToExclude.Contains(ClassSubObject)
+							&& !InObjects.Contains(ClassSubObject))
+						{
+							AdditionalObjects.Add(ClassSubObject);
+						}
+					}
+				}
+				OutObjectsAndSubObjects.Append(AdditionalObjects);
+			}
+		}
+
 	}
 
 	/**
@@ -1068,33 +1117,42 @@ namespace ObjectTools
 		ForceReplaceReferences(ObjectToReplaceWith, ObjectsToReplace, ReplaceInfo, false);
 	}
 
-	FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate)
+	void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace, TSet<UObject*>& ObjectsToReplaceWithin)
+	{
+		FForceReplaceInfo ReplaceInfo;
+		ForceReplaceReferences(ObjectToReplaceWith, ObjectsToReplace, ObjectsToReplaceWithin, ReplaceInfo, false);
+	}
+
+	FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate, bool bWarnAboutRootSet)
 	{
 		FConsolidationResults ConsolidationResults;
-
+		const bool bShouldShowDialogs = !IsRunningCommandlet();
+		const bool bShouldHandleEditorUIChanges = !IsRunningCommandlet();
 		// Ensure the consolidation is headed toward a valid object and this isn't occurring in game
 		if ( ObjectToConsolidateTo )
 		{
-			// Close all editors to avoid changing references to temporary objects used by the editor
-			if (!GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors())
+			if (bShouldHandleEditorUIChanges)
 			{
-				// Failed to close at least one editor. It is possible that this editor has in-memory object references
-				// which are not prepared to be changed dynamically so it is not safe to continue
-				return ConsolidationResults;
+				// Close all editors to avoid changing references to temporary objects used by the editor
+				if (!GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->CloseAllAssetEditors())
+				{
+					// Failed to close at least one editor. It is possible that this editor has in-memory object references
+					// which are not prepared to be changed dynamically so it is not safe to continue
+					return ConsolidationResults;
+				}
+
+				// Clear audio components to allow previewed sounds to be consolidated
+				GEditor->ClearPreviewComponents();
+
+				// Make sure none of the objects are referenced by the editor's USelection
+				GEditor->GetSelectedObjects()->Deselect(ObjectToConsolidateTo);
+				for (int32 ObjectIdx = 0; ObjectIdx < ObjectsToConsolidate.Num(); ++ObjectIdx)
+				{
+					GEditor->GetSelectedObjects()->Deselect(ObjectsToConsolidate[ObjectIdx]);
+				}
 			}
 
-			GWarn->BeginSlowTask( NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_Consolidating", "Consolidating Assets..." ), true );
-
-			// Clear audio components to allow previewed sounds to be consolidated
-			GEditor->ClearPreviewComponents();
-
-			// Make sure none of the objects are referenced by the editor's USelection
-			GEditor->GetSelectedObjects()->Deselect( ObjectToConsolidateTo );
-			for (int32 ObjectIdx = 0; ObjectIdx < ObjectsToConsolidate.Num(); ++ObjectIdx)
-			{
-				GEditor->GetSelectedObjects()->Deselect( ObjectsToConsolidate[ObjectIdx] );
-			}
-
+			GWarn->BeginSlowTask(NSLOCTEXT("UnrealEd", "ConsolidateAssetsUpdate_Consolidating", "Consolidating Assets..."), true);
 			// Keep track of which objects, if any, cannot be consolidated, in order to notify the user later
 			TArray<UObject*> UnconsolidatableObjects;
 
@@ -1169,6 +1227,7 @@ namespace ObjectTools
 						// hierarchy that is not being consolidated. Worst case, fall back to
 						// UObject::StaticClass():
 						UClass* NewParent = BlueprintObject->ParentClass;
+						UClass* OldParent = BlueprintObject->ParentClass;
 						UClass* ParentIter = NewParent;
 						while (ParentIter)
 						{
@@ -1184,10 +1243,13 @@ namespace ObjectTools
 							NewParent = UObject::StaticClass();
 						}
 
-						BlueprintObject->ParentClass = NewParent;
+						if (OldParent != NewParent)
+						{
+							BlueprintObject->ParentClass = NewParent;
 
-						// Recompile the child blueprint to fix up the generated class
-						FKismetEditorUtilities::CompileBlueprint(BlueprintObject, EBlueprintCompileOptions::SkipGarbageCollection);
+							// Recompile the child blueprint to fix up the generated class
+							FKismetEditorUtilities::CompileBlueprint(BlueprintObject, EBlueprintCompileOptions::SkipGarbageCollection);
+						}
 					}
 				}
 
@@ -1203,7 +1265,9 @@ namespace ObjectTools
 							for(UClass* ChildClass : ChildClasses)
 							{
 								UBlueprint* ChildBlueprint = Cast<UBlueprint>(ChildClass->ClassGeneratedBy);
-								if (ChildBlueprint != nullptr && !ChildClass->HasAnyClassFlags(CLASS_NewerVersionExists))
+								if (ChildBlueprint != nullptr 
+									&& !ChildClass->HasAnyClassFlags(CLASS_NewerVersionExists)
+									&& (!ObjectsToNotConsolidateWithin.Contains(ChildBlueprint)))
 								{
 									// Do not reparent and recompile a Blueprint that is going to be deleted.
 									if (ObjectsToConsolidate.Find(ChildBlueprint) == INDEX_NONE)
@@ -1231,7 +1295,7 @@ namespace ObjectTools
 					}
 				}
 
-				ForceReplaceReferences(ObjectToConsolidateTo, ObjectsToConsolidate, ObjectsToConsolidateWithin, ReplaceInfo);
+				ForceReplaceReferences(ObjectToConsolidateTo, ObjectsToConsolidate, ObjectsToConsolidateWithin, ReplaceInfo, bWarnAboutRootSet);
 
 				if (UBlueprint* ObjectToConsolidateTo_BP = Cast<UBlueprint>(ObjectToConsolidateTo))
 				{
@@ -1255,7 +1319,7 @@ namespace ObjectTools
 						}
 					}
 
-					ForceReplaceReferences(ObjectToConsolidateTo_BP->GeneratedClass, ObjectsToConsolidate_BP, ObjectsToConsolidateWithin, GeneratedClassReplaceInfo);
+					ForceReplaceReferences(ObjectToConsolidateTo_BP->GeneratedClass, ObjectsToConsolidate_BP, ObjectsToConsolidateWithin, GeneratedClassReplaceInfo, bWarnAboutRootSet);
 
 					// Repair the references of GeneratedClass on the object being consolidated so they can be properly disposed of upon deletion.
 					for (int32 Index = 0, MaxIndex = ObjectsToConsolidate.Num(); Index < MaxIndex; ++Index)
@@ -1440,7 +1504,14 @@ namespace ObjectTools
 				FText Message = FText::Format( MessageFormatting, Arguments );
 				FText Title = NSLOCTEXT("ObjectTools", "ConsolidateAssetsFailureDlg_Title", "Failed to Consolidate Assets");
 
-				FMessageDialog::Open( EAppMsgType::Ok, Message, &Title );
+				if (bShouldShowDialogs)
+				{
+					FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+				}
+				else
+				{
+					UE_LOG(LogObjectTools, Warning, TEXT("Failed to consolidate assets: %s"), *Message.ToString());
+				}
 			}
 
 			// Alert the user to critical object failure
@@ -1467,7 +1538,14 @@ namespace ObjectTools
 				FText Message = FText::Format( MessageFormatting, Arguments );
 				FText Title = NSLOCTEXT("ObjectTools", "ConsolidateAssetsCriticalFailureDlg_Title", "Critical Failure to Consolidate Assets");
 
-				FMessageDialog::Open( EAppMsgType::Ok, Message, &Title );
+				if (bShouldShowDialogs)
+				{
+					FMessageDialog::Open(EAppMsgType::Ok, Message, &Title);
+				}
+				else
+				{
+					UE_LOG(LogObjectTools, Warning, TEXT("Failed to consolidate assets: %s"), *Message.ToString());
+				}
 			}
 		}
 
@@ -1943,7 +2021,7 @@ namespace ObjectTools
 				GatherObjectReferencersForDeletion(Package, bIsReferenced, bIsReferencedByUndo);
 
 				// only ref to this object is the transaction buffer, clear the transaction buffer
-				if (!bIsReferenced && bIsReferencedByUndo)
+				if (!bIsReferenced && bIsReferencedByUndo && GEditor && GEditor->Trans)
 				{
 					GEditor->Trans->Reset(NSLOCTEXT("UnrealEd", "DeleteSelectedItem", "Delete Selected Item"));
 				}
@@ -2499,8 +2577,11 @@ namespace ObjectTools
 			return false;
 		}
 
-		GEditor->GetSelectedObjects()->Deselect( ObjectToDelete );
-
+		if (GEditor)
+		{
+			GEditor->GetSelectedObjects()->Deselect(ObjectToDelete);
+		}
+		
 		{
 			// @todo Animation temporary HACK to allow deleting of UMorphTargets. This will be removed when UMorphTargets are subobjects of USkeleton.
 			// Get the base skeleton and unregister this morphtarget
@@ -2516,6 +2597,13 @@ namespace ObjectTools
 			{
 				World->CleanupWorld();
 			}
+
+			// Make sure the object is not still referenced by async tasks
+			UStaticMesh* StaticMesh = Cast<UStaticMesh>(ObjectToDelete);
+			if (StaticMesh != nullptr)
+			{
+				GDistanceFieldAsyncQueue->BlockUntilBuildComplete(StaticMesh, true);
+			}
 		}
 
 		if ( bPerformReferenceCheck )
@@ -2528,7 +2616,7 @@ namespace ObjectTools
 			GatherObjectReferencersForDeletion(ObjectToDelete, bIsReferenced, bIsReferencedByUndo, &Refs, bRequireReferencedProperties);
 
 			// only ref to this object is the transaction buffer, clear the transaction buffer
-			if (!bIsReferenced && bIsReferencedByUndo)
+			if (!bIsReferenced && bIsReferencedByUndo && GEditor && GEditor->Trans)
 			{
 				GEditor->Trans->Reset( NSLOCTEXT( "UnrealEd", "DeleteSelectedItem", "Delete Selected Item" ) );
 			}
@@ -2544,7 +2632,10 @@ namespace ObjectTools
 					FText::FromString( ObjectToDelete->GetFullName() ), FText::FromString( *Ar ) ) );
 
 				// Reselect the object as it failed to be deleted
-				GEditor->GetSelectedObjects()->Select( ObjectToDelete );
+				if (GEditor)
+				{
+					GEditor->GetSelectedObjects()->Select(ObjectToDelete);
+				}
 
 				return false;
 			}

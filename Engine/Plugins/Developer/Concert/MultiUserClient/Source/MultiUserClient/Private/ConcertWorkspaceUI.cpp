@@ -365,7 +365,7 @@ public:
 		WorkspaceFrontend = MoveTemp(InWorkspaceFrontend);	
 		SetVisibility(MakeAttributeSP(this, &SConcertWorkspaceSequencerToolbarExtension::GetVisibility));
 
-		FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), Orient_Horizontal, true);
+		FToolBarBuilder ToolbarBuilder(TSharedPtr<const FUICommandList>(), FMultiBoxCustomization::None, TSharedPtr<FExtender>(), true);
 
 		ToolbarBuilder.BeginSection("Concert Sequencer");
 		{

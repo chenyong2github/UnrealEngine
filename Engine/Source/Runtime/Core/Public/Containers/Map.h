@@ -280,16 +280,53 @@ public:
 	 */
 	template<typename Allocator> int32 GetKeys(TArray<KeyType, Allocator>& OutKeys) const
 	{
+		OutKeys.Reset();
+
 		TSet<KeyType> VisitedKeys;
+		VisitedKeys.Reserve(Num());
+
+		// Presize the array if we know there are supposed to be no duplicate keys
+		if (!KeyFuncs::bAllowDuplicateKeys)
+		{
+			OutKeys.Reserve(Num());
+		}
+
 		for (typename ElementSetType::TConstIterator It(Pairs); It; ++It)
 		{
+			// Even if bAllowDuplicateKeys is false, we still want to filter for duplicate
+			// keys due to maps with keys that can be invalidated (UObjects, TWeakObj, etc.)
 			if (!VisitedKeys.Contains(It->Key))
 			{
 				OutKeys.Add(It->Key);
 				VisitedKeys.Add(It->Key);
 			}
 		}
-		return VisitedKeys.Num();
+
+		return OutKeys.Num();
+	}
+
+	/**
+	 * Get the unique keys contained within this map.
+	 *
+	 * @param OutKeys Upon return, contains the set of unique keys in this map.
+	 * @return The number of unique keys in the map.
+	 */
+	template<typename Allocator> int32 GetKeys(TSet<KeyType, Allocator>& OutKeys) const
+	{
+		OutKeys.Reset();
+		
+		// Presize the set if we know there are supposed to be no duplicate keys
+		if (!KeyFuncs::bAllowDuplicateKeys)
+		{
+			OutKeys.Reserve(Num());
+		}
+
+		for (typename ElementSetType::TConstIterator It(Pairs); It; ++It)
+		{
+			OutKeys.Add(It->Key);
+		}
+
+		return OutKeys.Num();
 	}
 
 	/** 

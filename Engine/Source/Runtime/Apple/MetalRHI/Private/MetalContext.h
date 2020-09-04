@@ -11,7 +11,6 @@
 #include "MetalCommandList.h"
 #include "MetalRenderPass.h"
 #include "MetalBuffer.h"
-#include "MetalQuery.h"
 #include "MetalCaptureManager.h"
 #include "MetalFrameAllocator.h"
 #if PLATFORM_IOS
@@ -24,6 +23,7 @@
 
 class FMetalRHICommandContext;
 class FMetalPipelineStateCacheManager;
+class FMetalQueryBufferPool;
 class FMetalRHIBuffer;
 
 class FMetalContext

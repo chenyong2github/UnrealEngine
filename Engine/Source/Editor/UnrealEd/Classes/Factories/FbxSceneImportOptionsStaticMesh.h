@@ -11,22 +11,19 @@
 #include "UObject/Object.h"
 #include "FbxSceneImportOptionsStaticMesh.generated.h"
 
-UENUM()
-namespace EFbxSceneVertexColorImportOption
+UENUM(BlueprintType)
+enum class EFbxSceneVertexColorImportOption : uint8
 {
-	enum Type
-	{
-		/** Import the static mesh using the vertex colors from the FBX file. */
-		Replace,
-		/** Ignore vertex colors from the FBX file, and keep the existing mesh vertex colors. */
-		Ignore,
-		/** Override all vertex colors with the specified color. */
-		Override
-	};
-}
+	/** Import the static mesh using the vertex colors from the FBX file. */
+	Replace,
+	/** Ignore vertex colors from the FBX file, and keep the existing mesh vertex colors. */
+	Ignore,
+	/** Override all vertex colors with the specified color. */
+	Override
+};
 
-UENUM()
-enum EFBXSceneNormalImportMethod
+UENUM(BlueprintType)
+enum class EFBXSceneNormalImportMethod : uint8
 {
 	FBXSceneNIM_ComputeNormals UMETA(DisplayName = "Compute Normals"),
 	FBXSceneNIM_ImportNormals UMETA(DisplayName = "Import Normals"),
@@ -34,20 +31,17 @@ enum EFBXSceneNormalImportMethod
 	FBXSceneNIM_MAX,
 };
 
-UENUM()
-namespace EFBXSceneNormalGenerationMethod
+UENUM(BlueprintType)
+enum class EFBXSceneNormalGenerationMethod : uint8
 {
-	enum Type
-	{
-		/** Use the legacy built in method to generate normals (faster in some cases) */
-		BuiltIn,
-		/** Use MikkTSpace to generate normals and tangents */
-		MikkTSpace,
-	};
-}
+	/** Use the legacy built in method to generate normals (faster in some cases) */
+	BuiltIn,
+	/** Use MikkTSpace to generate normals and tangents */
+	MikkTSpace,
+};
 
 
-UCLASS(config = EditorPerProjectUserSettings, HideCategories=Object, MinimalAPI)
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories=Object, MinimalAPI)
 class UFbxSceneImportOptionsStaticMesh : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -60,12 +54,12 @@ class UFbxSceneImportOptionsStaticMesh : public UObject
 	FName StaticMeshLODGroup;
 
 	/** If checked, collision will automatically be generated (ignored if custom collision is imported or used). */
-	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
+	UPROPERTY(EditAnywhere, config, Category = StaticMesh, DisplayName = "Generate Missing Collision")
 	uint32 bAutoGenerateCollision : 1;
 
 	/** Specify how vertex colors should be imported */
 	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
-	TEnumAsByte<EFbxSceneVertexColorImportOption::Type> VertexColorImportOption;
+	EFbxSceneVertexColorImportOption VertexColorImportOption;
 
 	/** Specify override color in the case that VertexColorImportOption is set to Override */
 	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
@@ -91,11 +85,11 @@ class UFbxSceneImportOptionsStaticMesh : public UObject
 
 	/** Enabling this option will read the tangents(tangent,binormal,normal) from FBX file instead of generating them automatically. */
 	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
-	TEnumAsByte<enum EFBXSceneNormalImportMethod> NormalImportMethod;
+	EFBXSceneNormalImportMethod NormalImportMethod;
 
 	/** Use the MikkTSpace tangent space generator for generating normals and tangents on the mesh */
 	UPROPERTY(EditAnywhere, config, Category = StaticMesh)
-	TEnumAsByte<enum EFBXSceneNormalGenerationMethod::Type> NormalGenerationMethod;
+	EFBXSceneNormalGenerationMethod NormalGenerationMethod;
 
 	void FillStaticMeshInmportData(class UFbxStaticMeshImportData* StaticMeshImportData, class UFbxSceneImportOptions* SceneImportOptions);
 };

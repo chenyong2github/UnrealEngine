@@ -53,8 +53,9 @@ public class SlateReflector : ModuleRules
 			PublicDefinitions.Add("SLATE_REFLECTOR_HAS_SESSION_SERVICES=1");
 
 			PrivateDependencyModuleNames.AddRange(
-                new string[] {
-                    "PropertyEditor",
+				new string[] {
+					"PropertyEditor",
+					"UnrealEd",
                 }
 			);
 

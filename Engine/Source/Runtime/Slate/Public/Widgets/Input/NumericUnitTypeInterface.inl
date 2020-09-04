@@ -67,7 +67,9 @@ TOptional<NumericType> TNumericUnitTypeInterface<NumericType>::FromString(const 
 			// Use the default supplied input units
 			SourceUnits = FixedDisplayUnits.GetValue();
 		}
-		return FUnitConversion::Convert(NewValue.GetValue().Value, SourceUnits, UnderlyingUnits);
+		double ConvertedValue = FUnitConversion::Convert(NewValue.GetValue().Value, SourceUnits, UnderlyingUnits);
+		double ClampedValue = FMath::Clamp<double>(ConvertedValue, TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
+		return NumericType(ClampedValue);
 	}
 
 	return TOptional<NumericType>();

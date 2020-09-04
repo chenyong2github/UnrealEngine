@@ -119,7 +119,6 @@ void FValidationContext::FState::Reset()
 	bGfxPSOSet = false;
 	RenderPassName.Reset();
 	PreviousRenderPassName.Reset();
-	bInsideComputePass = false;
 	ComputePassName.Reset();
 	bComputeShaderSet = false;
 }

@@ -64,7 +64,7 @@ public:
 	virtual FText GetDisplayNameTextByIndex(int32 InIndex) const override;
 	virtual FString GetAuthoredNameStringByIndex(int32 InIndex) const override;
 
-	virtual bool SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, bool bAddMaxKeyIfMissing = true) override;
+	virtual bool SetEnums(TArray<TPair<FName, int64>>& InNames, ECppForm InCppForm, EEnumFlags InFlags = EEnumFlags::None, bool bAddMaxKeyIfMissing = true) override;
 
 #if WITH_EDITOR
 	//~ Begin UObject Interface

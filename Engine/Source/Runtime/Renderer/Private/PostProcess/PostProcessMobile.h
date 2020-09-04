@@ -6,8 +6,7 @@
 
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RendererInterface.h"
+#include "ScreenPass.h"
 #include "PostProcess/RenderingCompositionGraph.h"
 
 class FViewInfo;
@@ -117,28 +116,26 @@ private:
 	FVector4 TintB;
 };
 
-class FRCPassPostProcessSunMaskES2 : public TRenderingCompositePassBase<1, 2>
+struct FMobileSunMaskInputs
 {
-public:
-	FRCPassPostProcessSunMaskES2(FIntPoint InPrePostSourceViewportSize, bool bInUseSun, bool bInUseDof, bool bInUseMobileDof, bool bInUseDepthTexture, bool bInUseMetalMSAAHDRDecode)
-	: PrePostSourceViewportSize(InPrePostSourceViewportSize)
-	, bUseSun(bInUseSun)
-	, bUseDof(bInUseDof)
-	, bUseMobileDof(bInUseMobileDof)
-	, bUseDepthTexture(bInUseDepthTexture)
-	, bUseMetalMSAAHDRDecode(bInUseMetalMSAAHDRDecode)
-	{ }
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-	virtual void Release() override { delete this; }
-private:
-	FIntPoint PrePostSourceViewportSize;
-	bool bUseSun;
-	bool bUseDof;
-	bool bUseMobileDof;
-	bool bUseDepthTexture;
-	bool bUseMetalMSAAHDRDecode;
+	FScreenPassTexture SceneColor;
+
+	bool bUseSun = false;
+	bool bUseDepthOfField = false;
+	bool bUseDepthTexture = false;
+	bool bUseMetalMSAAHDRDecode = false;
 };
+
+struct FMobileSunMaskOutputs
+{
+	FScreenPassTexture SunMask;
+	FScreenPassTexture SceneColor;
+};
+
+FMobileSunMaskOutputs AddMobileSunMaskPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileSunMaskInputs& Inputs);
+
+// TEMP: Remove when converted to RDG.
+FRenderingCompositeOutputRef AddMobileSunMaskPass(FPostprocessContext& PostProcessContext, bool bInUseSun, bool bInUseDof, bool bInUseDepthTexture, bool bInUseMetalMSAAHDRDecode);
 
 class FRCPassPostProcessSunAlphaES2 : public TRenderingCompositePassBase<1, 1>
 {

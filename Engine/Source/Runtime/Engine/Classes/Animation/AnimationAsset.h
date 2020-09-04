@@ -48,7 +48,11 @@ struct FMarkerTickRecord
 	FMarkerPair PreviousMarker;
 	FMarkerPair NextMarker;
 
-	bool IsValid() const { return PreviousMarker.MarkerIndex != MarkerIndexSpecialValues::Unitialized && NextMarker.MarkerIndex != MarkerIndexSpecialValues::Unitialized; }
+	bool IsValid(bool bLooping) const
+	{
+		int32 Threshold = bLooping ? MarkerIndexSpecialValues::AnimationBoundary : MarkerIndexSpecialValues::Unitialized;
+		return PreviousMarker.MarkerIndex > Threshold && NextMarker.MarkerIndex > Threshold;
+	}
 
 	void Reset() { PreviousMarker.Reset(); NextMarker.Reset(); }
 

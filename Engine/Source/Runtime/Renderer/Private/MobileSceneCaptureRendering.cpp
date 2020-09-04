@@ -49,7 +49,6 @@ public:
 	{
 		InTexture.Bind(Initializer.ParameterMap, TEXT("InTexture"), SPF_Mandatory);
 		InTextureSampler.Bind(Initializer.ParameterMap, TEXT("InTextureSampler"));
-		SceneTextureParameters.Bind(Initializer);
 	}
 	FMobileSceneCaptureCopyPS() {}
 
@@ -67,13 +66,11 @@ public:
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
 		SetTextureParameter(RHICmdList, RHICmdList.GetBoundPixelShader(), InTexture, InTextureSampler, SamplerStateRHI, TextureRHI);
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
 	}
 
 private:
 	LAYOUT_FIELD(FShaderResourceParameter, InTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, InTextureSampler)
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters)
 };
 
 /**
@@ -178,6 +175,11 @@ static void CopyCaptureToTarget(
 {
 	check(SourceTextureRHI);
 	check(RHICmdList.IsOutsideRenderPass());
+
+	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, View.GetFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleDraw);
+	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 	FGraphicsPipelineStateInitializer GraphicsPSOInit;
 	ESceneCaptureSource CaptureSource = View.Family->SceneCaptureSource;

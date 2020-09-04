@@ -19,9 +19,6 @@ class XMLPARSER_API FXmlFile
 {
 public:
 
-
-public:
-
 	/** Constructs the file without a path */
 	FXmlFile() : RootNode(nullptr), bFileLoaded(false) {}
 	/** 
@@ -31,17 +28,10 @@ public:
 	 * @param	ConstructMethod		Whether to load a file of use the string as a buffer of xml data
 	 */
 	FXmlFile(const FString& InFile, EConstructMethod::Type ConstructMethod = EConstructMethod::ConstructFromFile);
-	/** Dtor */
 	~FXmlFile() { Clear(); };
 
-private:
-
-	/** No conversion allowed */
-	FXmlFile(const FXmlFile& rhs) {}
-	/** No assignment allowed */
-	FXmlFile& operator=(const FXmlFile& rhs) { return *this; };
-
-public:
+	FXmlFile(const FXmlFile& rhs) = delete;
+	FXmlFile& operator=(const FXmlFile& rhs) = delete;
 
 	/** 
 	 * Loads the file with the passed path. Path is either treated as a filename to open, or as a text
@@ -85,9 +75,9 @@ private:
 	/** Whites of the text at the specified locations in a passed-in array */
 	void WhiteOut(TArray<FString>& Input, int32 LineStart, int32 LineEnd, int32 IndexStart, int32 IndexEnd);
 	/** Converts the passed input into a list of tokens for parsing */
-	void Tokenize(FString Input, TArray<FString>& Tokens);
+	void Tokenize(FStringView Input, TArray<FString>& Tokens);
 	/** Converts the passed input into a list of tokens for parsing */
-	TArray<FString> Tokenize(TArray<FString>& Input);
+	TArray<FString> Tokenize(const TArray<FString>& Input);
 	/** 
 	 * Add an attribute to the passed-in array.
 	 * This makes the assumption that an attribute comes in as one 'token' (i.e. no spaces between tag="value").

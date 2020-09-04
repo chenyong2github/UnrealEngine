@@ -7,23 +7,11 @@
 #include "Widgets/Views/SHeaderRow.h"
 #include "Widgets/Views/STreeView.h"
 
-#if USE_USD_SDK
-
-#include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/sdf/path.h"
-
-#include "USDIncludesEnd.h"
-
-#endif // #if USE_USD_SDK
-
 class AUsdStageActor;
 
-using FUsdLayersTreeItemRef = TSharedRef< class FUsdLayersTreeItem >;
-using FUsdLayersTreeItemPtr = TSharedPtr< class FUsdLayersTreeItem >;
+using FUsdLayerViewModelRef = TSharedRef< class FUsdLayerViewModel >;
 
-class SUsdLayersTreeView : public SUsdTreeView< FUsdLayersTreeItemRef >
+class SUsdLayersTreeView : public SUsdTreeView< FUsdLayerViewModelRef >
 {
 public:
 	SLATE_BEGIN_ARGS( SUsdLayersTreeView ) {}
@@ -33,8 +21,8 @@ public:
 	void Refresh( AUsdStageActor* UsdStageActor, bool bResync );
 
 private:
-	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdLayersTreeItemRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
-	virtual void OnGetChildren( FUsdLayersTreeItemRef InParent, TArray< FUsdLayersTreeItemRef >& OutChildren ) const override;
+	virtual TSharedRef< ITableRow > OnGenerateRow( FUsdLayerViewModelRef InDisplayNode, const TSharedRef< STableViewBase >& OwnerTable ) override;
+	virtual void OnGetChildren( FUsdLayerViewModelRef InParent, TArray< FUsdLayerViewModelRef >& OutChildren ) const override;
 
 	virtual void SetupColumns() override;
 
@@ -42,7 +30,6 @@ private:
 
 	TSharedPtr< SWidget > ConstructLayerContextMenu();
 
-	bool CanEditLayer( FUsdLayersTreeItemRef LayerItem ) const;
 	bool CanEditSelectedLayer() const;
 	void OnEditSelectedLayer();
 
@@ -50,7 +37,7 @@ private:
 	void OnAddSubLayer();
 	void OnNewSubLayer();
 
-	bool CanRemoveLayer( FUsdLayersTreeItemRef LayerItem ) const;
+	bool CanRemoveLayer( FUsdLayerViewModelRef LayerItem ) const;
 	bool CanRemoveSelectedLayers() const;
 	void OnRemoveSelectedLayers();
 };

@@ -568,6 +568,10 @@ namespace LocalizationConfigurationScript
 				UEnum* LocalizedTextCollapseModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizedTextCollapseMode"));
 				const FName CollapseModeName = LocalizedTextCollapseModeEnum->GetNameByValue((int64)Target->Settings.ExportSettings.CollapseMode);
 				ConfigSection.Add(TEXT("LocalizedTextCollapseMode"), CollapseModeName.ToString());
+
+				UEnum* POFormatEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPortableObjectFormat"));
+				const FName POFormatName = POFormatEnum->GetNameByValue((int64)Target->Settings.ExportSettings.POFormat);
+				ConfigSection.Add(TEXT("POFormat"), POFormatName.ToString());
 			}
 		}
 
@@ -689,6 +693,10 @@ namespace LocalizationConfigurationScript
 				UEnum* LocalizedTextCollapseModeEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("ELocalizedTextCollapseMode"));
 				const FName CollapseModeName = LocalizedTextCollapseModeEnum->GetNameByValue((int64)Target->Settings.ExportSettings.CollapseMode);
 				ConfigSection.Add(TEXT("LocalizedTextCollapseMode"), CollapseModeName.ToString());
+
+				UEnum* POFormatEnum = FindObjectChecked<UEnum>(ANY_PACKAGE, TEXT("EPortableObjectFormat"));
+				const FName POFormatName = POFormatEnum->GetNameByValue((int64)Target->Settings.ExportSettings.POFormat);
+				ConfigSection.Add(TEXT("POFormat"), POFormatName.ToString());
 
 				ConfigSection.Add(TEXT("ShouldPersistCommentsOnExport"), Target->Settings.ExportSettings.ShouldPersistCommentsOnExport ? TEXT("true") : TEXT("false"));
 				ConfigSection.Add(TEXT("ShouldAddSourceLocationsAsComments"), Target->Settings.ExportSettings.ShouldAddSourceLocationsAsComments ? TEXT("true") : TEXT("false"));

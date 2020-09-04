@@ -2649,7 +2649,13 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			ULODInfoUILayout* LODInfoUILayout = NewObject<ULODInfoUILayout>(GetTransientPackage(), FName(*(FGuid::NewGuid().ToString())), RF_Standalone);
 			LODInfoUILayout->AddToRoot();
 			FSkeletalMeshLODInfo* LODInfoPtr = SkelMesh->GetLODInfo(LODIndex);
-			check(LODInfoPtr);
+			if (!LODInfoPtr || !SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIndex))
+			{
+				//Trip an ensure so user is aware of this
+				UE_ASSET_LOG(LogSkeletalMeshPersonaMeshDetail, Error, SkelMesh, TEXT("Missing LOD %d data, cannot build persona mesh UI"), LODIndex);
+				continue;
+			}
+			const FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
 			LODInfoUILayout->SetReferenceLODInfo(GetPersonaToolkit(), LODIndex);
 			LODInfoUILayouts.Add(LODInfoUILayout);
 
@@ -2717,8 +2723,6 @@ void FPersonaMeshDetails::AddLODLevelCategories(IDetailLayoutBuilder& DetailLayo
 			{
 				//Display the LODInfo settings
 				CustomizeLODInfoSetingsDetails(DetailLayout, LODInfoUILayout, LODInfoProperty, LODCategory);
-				
-				const FSkeletalMeshLODModel& LODModel = SkelMesh->GetImportedModel()->LODModels[LODIndex];
 				
 				bool bIsbuildAvailable = SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
 
@@ -3342,6 +3346,24 @@ FReply FPersonaMeshDetails::OnApplyChanges()
 	return FReply::Handled();
 }
 
+void FPersonaMeshDetails::RestoreNonReducedLOD(int32 LODIndex)
+{
+	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
+	check(SkelMesh);
+
+	FSkeletalMeshLODInfo* CurrentLODInfo = SkelMesh->GetLODInfo(LODIndex);
+	const bool bIsReductionActive = SkelMesh->IsReductionActive(LODIndex);
+	const bool bIsLODModelbuildDataAvailable = SkelMesh->IsLODImportedDataBuildAvailable(LODIndex);
+
+	if (CurrentLODInfo->bHasBeenSimplified
+		&& !bIsReductionActive
+		&& (bIsLODModelbuildDataAvailable
+			|| FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex)))
+	{
+		CurrentLODInfo->bHasBeenSimplified = false;
+	}
+}
+
 FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 {
 	USkeletalMesh* SkelMesh = GetPersonaToolkit()->GetMesh();
@@ -3397,12 +3419,8 @@ FReply FPersonaMeshDetails::ApplyLODChanges(int32 LODIndex)
 					}
 				}
 			}
-			if (LODIndex == LODInfo->ReductionSettings.BaseLOD
-				&& LODInfo->bHasBeenSimplified
-				&& !SkelMesh->IsReductionActive(LODIndex))
-			{
-				FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIndex);
-			}
+
+			RestoreNonReducedLOD(LODIndex);
 		}
 		SkelMesh->MarkPackageDirty();
 	}
@@ -3623,9 +3641,7 @@ void FPersonaMeshDetails::ApplyChanges()
 			{
 				FSkeletalMeshLODInfo& CurrentLODInfo = *(SkelMesh->GetLODInfo(LODIdx));
 				bool bIsReductionActive = SkelMesh->IsReductionActive(LODIdx);
-				bool bIsLODModelbuildDataAvailable = SkelMesh->GetImportedModel()->LODModels.IsValidIndex(LODIdx) && SkelMesh->IsLODImportedDataBuildAvailable(LODIdx);
-				bool bIsReductionDataPresent = (SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(LODIdx) && !SkelMesh->GetImportedModel()->OriginalReductionSourceMeshData[LODIdx]->IsEmpty());
-
+				
 				if (CurrentLODInfo.bHasBeenSimplified == false && bIsReductionActive)
 				{
 					if (LODIdx > 0)
@@ -3637,17 +3653,9 @@ void FPersonaMeshDetails::ApplyChanges()
 						bGenerateBaseLOD = true;
 					}
 				}
-				else if (LODIdx == CurrentLODInfo.ReductionSettings.BaseLOD
-					&& CurrentLODInfo.bHasBeenSimplified
-					&& !bIsReductionActive
-					&& (bIsLODModelbuildDataAvailable || bIsReductionDataPresent))
+				else
 				{
-					//Restore the base LOD data
-					CurrentLODInfo.bHasBeenSimplified = false;
-					if (!bIsLODModelbuildDataAvailable)
-					{
-						FLODUtilities::RestoreSkeletalMeshLODImportedData(SkelMesh, LODIdx);
-					}
+					RestoreNonReducedLOD(LODIdx);
 				}
 
 				//Make sure the editable skeleton is refresh
@@ -3783,7 +3791,7 @@ void FPersonaMeshDetails::CustomizeDetails( IDetailLayoutBuilder& DetailLayout )
 
 	IDetailCategoryBuilder& ImportSettingsCategory = DetailLayout.EditCategory("ImportSettings");
 	TSharedRef<IPropertyHandle> AssetImportProperty = DetailLayout.GetProperty(GET_MEMBER_NAME_CHECKED(USkeletalMesh, AssetImportData), USkeletalMesh::StaticClass());
-	if (!SkeletalMeshPtr.IsValid() || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
+	if (!SkeletalMeshPtr.IsValid() || !IsValid(SkeletalMeshPtr->AssetImportData) || !SkeletalMeshPtr->AssetImportData->IsA<UFbxSkeletalMeshImportData>())
 	{
 		// Hide the ability to change the import settings object
 		IDetailPropertyRow& Row = ImportSettingsCategory.AddProperty(AssetImportProperty);

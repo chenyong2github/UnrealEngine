@@ -6,13 +6,17 @@ namespace UnrealBuildTool.Rules
 	{
 		public ToolMenusEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
+			PublicDependencyModuleNames.AddRange(
+				new string[] {
+					"ToolMenus",
+				});
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[] {
 					"Core",
 					"CoreUObject",
 					"Slate",
 					"SlateCore",
-					"ToolMenus",
 					"EditorStyle",
 					"UnrealEd",
 					"InputCore",

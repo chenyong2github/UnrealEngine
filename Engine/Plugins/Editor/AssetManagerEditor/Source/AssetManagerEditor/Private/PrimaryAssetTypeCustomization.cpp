@@ -8,6 +8,7 @@
 #include "Engine/AssetManager.h"
 #include "PropertyHandle.h"
 #include "PropertyCustomizationHelpers.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "PrimaryAssetTypeCustomization"
 
@@ -72,7 +73,13 @@ TSharedRef<SWidget>	SPrimaryAssetTypeGraphPin::GetDefaultValueWidget()
 void SPrimaryAssetTypeGraphPin::OnTypeSelected(FPrimaryAssetType AssetType)
 {
 	CurrentType = AssetType;
-	GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, CurrentType.ToString());
+
+	if (CurrentType.ToString() != GraphPinObj->GetDefaultAsString())
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangePinValue", "Change Pin Value"));
+		GraphPinObj->Modify();
+		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, CurrentType.ToString());
+	}
 }
 
 FText SPrimaryAssetTypeGraphPin::GetDisplayText() const

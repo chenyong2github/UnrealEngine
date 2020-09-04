@@ -27,6 +27,15 @@ namespace VirtualTextureScalability
 		ECVF_RenderThreadSafe | ECVF_Scalability
 	);
 
+#if WITH_EDITOR
+	static TAutoConsoleVariable<int32> CVarVTMaxContinuousUpdatesPerFrameInEditor(
+		TEXT("r.VT.MaxContinuousUpdatesPerFrameInEditor"),
+		128,
+		TEXT("Max number of page uploads for pages that are already mapped when in editor."),
+		ECVF_RenderThreadSafe | ECVF_Scalability
+	);
+#endif
+
 	static TAutoConsoleVariable<int32> CVarVTMaxContinuousUpdatesPerFrame(
 		TEXT("r.VT.MaxContinuousUpdatesPerFrame"),
 		1,
@@ -133,7 +142,12 @@ namespace VirtualTextureScalability
 
 	int32 GetMaxContinuousUpdatesPerFrame()
 	{
+#if WITH_EDITOR
+		// Don't want this scalability setting to affect editor because we rely on reactive updates while editing, like GPULightmass.
+		return GIsEditor ? CVarVTMaxContinuousUpdatesPerFrameInEditor.GetValueOnAnyThread() : CVarVTMaxContinuousUpdatesPerFrame.GetValueOnAnyThread();
+#else
 		return CVarVTMaxContinuousUpdatesPerFrame.GetValueOnAnyThread();
+#endif
 	}
 
 	float GetPoolSizeScale()

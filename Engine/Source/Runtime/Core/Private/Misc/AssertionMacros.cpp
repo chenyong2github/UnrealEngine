@@ -469,13 +469,8 @@ void VARARGS FDebug::AssertFailed(const ANSICHAR* Expr, const ANSICHAR* File, in
 
 void FDebug::ProcessFatalError()
 {
-	if (GIsCriticalError)
-	{
-		return;
-	}
-
 	// This is not perfect because another thread might crash and be handled before this assert
-	// but this static varible will report the crash as an assert. Given complexity of a thread
+	// but this static variable will report the crash as an assert. Given complexity of a thread
 	// aware solution, this should be good enough. If crash reports are obviously wrong we can
 	// look into fixing this.
 	bHasAsserted = true;
@@ -509,12 +504,12 @@ FORCENOINLINE void VARARGS LowLevelFatalErrorHandler(const ANSICHAR* File, int32
 	StaticFailDebug(TEXT("LowLevelFatalError"), File, Line, DescriptionString, false, NumStackFramesToIgnore);
 }
 
-void FDebug::DumpStackTraceToLog()
+void FDebug::DumpStackTraceToLog(const ELogVerbosity::Type LogVerbosity)
 {
-	DumpStackTraceToLog(TEXT("=== FDebug::DumpStackTrace(): ==="));
+	DumpStackTraceToLog(TEXT("=== FDebug::DumpStackTrace(): ==="), LogVerbosity);
 }
 
-FORCENOINLINE void FDebug::DumpStackTraceToLog(const TCHAR* Heading)
+FORCENOINLINE void FDebug::DumpStackTraceToLog(const TCHAR* Heading, const ELogVerbosity::Type LogVerbosity)
 {
 #if !NO_LOGGING
 	// Walk the stack and dump it to the allocated memory.
@@ -534,7 +529,7 @@ FORCENOINLINE void FDebug::DumpStackTraceToLog(const TCHAR* Heading)
 
 	// Dump the error and flush the log.
 	// ELogVerbosity::Error to make sure it gets printed in log for conveniency.
-	FDebug::LogFormattedMessageWithCallstack(LogOutputDevice.GetCategoryName(), __FILE__, __LINE__, Heading, ANSI_TO_TCHAR(StackTrace), ELogVerbosity::Error);
+	FDebug::LogFormattedMessageWithCallstack(LogOutputDevice.GetCategoryName(), __FILE__, __LINE__, Heading, ANSI_TO_TCHAR(StackTrace), LogVerbosity);
 	GLog->Flush();
 	FMemory::SystemFree(StackTrace);
 #endif

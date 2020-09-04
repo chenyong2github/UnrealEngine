@@ -18,6 +18,7 @@ FTakeRecorderUserParameters::FTakeRecorderUserParameters()
 
 FTakeRecorderProjectParameters::FTakeRecorderProjectParameters()
 	: bStartAtCurrentTimecode(true)
+	, bRecordTimecode(true)
 	, bRecordSourcesIntoSubSequences(false)
 	, bRecordToPossessable(false)
 {}

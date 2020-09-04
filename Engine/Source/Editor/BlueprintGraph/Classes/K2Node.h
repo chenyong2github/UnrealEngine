@@ -178,6 +178,7 @@ class UK2Node : public UEdGraphNode
 	GENERATED_UCLASS_BODY()
 
 	// UObject interface
+	BLUEPRINTGRAPH_API virtual void PreEditChange(FProperty* PropertyThatWillChange) override;
 	BLUEPRINTGRAPH_API virtual void PostLoad() override;
 	BLUEPRINTGRAPH_API virtual void Serialize(FArchive& Ar) override;
 	// End of UObject interface

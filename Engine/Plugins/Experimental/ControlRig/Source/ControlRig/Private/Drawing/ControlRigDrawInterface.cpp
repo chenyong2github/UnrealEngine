@@ -2,6 +2,8 @@
 
 #include "Drawing/ControlRigDrawInterface.h"
 #include "Math/ControlRigMathLibrary.h"
+#include "DynamicMeshBuilder.h"
+#include "SceneManagement.h"
 
 void FControlRigDrawInterface::DrawPoint(const FTransform& WorldOffset, const FVector& Position, float Size, const FLinearColor& Color)
 {
@@ -10,7 +12,7 @@ void FControlRigDrawInterface::DrawPoint(const FTransform& WorldOffset, const FV
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawPoints(const FTransform& WorldOffset, const TArrayView<FVector>& Points, float Size, const FLinearColor& Color)
+void FControlRigDrawInterface::DrawPoints(const FTransform& WorldOffset, const FRigVMFixedArray<FVector>& Points, float Size, const FLinearColor& Color)
 {
 	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Points, Color, Size, WorldOffset);
 	Instruction.Positions.Append(Points.GetData(), Points.Num());
@@ -25,13 +27,14 @@ void FControlRigDrawInterface::DrawLine(const FTransform& WorldOffset, const FVe
 	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const TArrayView<FVector>& Positions, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawLines(const FTransform& WorldOffset, const FRigVMFixedArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::Lines, Color, Thickness, WorldOffset);
 	Instruction.Positions.Append(Positions.GetData(), Positions.Num());
+	Instructions.Add(Instruction);
 }
 
-void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const TArrayView<FVector>& Positions, const FLinearColor& Color, float Thickness)
+void FControlRigDrawInterface::DrawLineStrip(const FTransform& WorldOffset, const FRigVMFixedArray<FVector>& Positions, const FLinearColor& Color, float Thickness)
 {
 	FControlRigDrawInstruction Instruction(EControlRigDrawSettings::LineStrip, Color, Thickness, WorldOffset);
 	Instruction.Positions.Append(Positions.GetData(), Positions.Num());
@@ -79,6 +82,36 @@ void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FTr
 	DrawLine(WorldOffset, Transform.GetLocation(), Transform.TransformPosition(FVector(Size, 0.f, 0.f)), FLinearColor::Red, Thickness);
 	DrawLine(WorldOffset, Transform.GetLocation(), Transform.TransformPosition(FVector(0.f, Size, 0.f)), FLinearColor::Green, Thickness);
 	DrawLine(WorldOffset, Transform.GetLocation(), Transform.TransformPosition(FVector(0.f, 0.f, Size)), FLinearColor::Blue, Thickness);
+}
+
+void FControlRigDrawInterface::DrawAxes(const FTransform& WorldOffset, const FRigVMFixedArray<FTransform>& Transforms, float Size, float Thickness)
+{
+	if (Transforms.Num() == 0)
+	{
+		return;
+	}
+
+	FControlRigDrawInstruction InstructionX(EControlRigDrawSettings::Lines, FLinearColor::Red, Thickness, WorldOffset);
+	FControlRigDrawInstruction InstructionY(EControlRigDrawSettings::Lines, FLinearColor::Green, Thickness, WorldOffset);
+	FControlRigDrawInstruction InstructionZ(EControlRigDrawSettings::Lines, FLinearColor::Blue, Thickness, WorldOffset);
+
+	InstructionX.Positions.Reserve(Transforms.Num() * 2);
+	InstructionY.Positions.Reserve(Transforms.Num() * 2);
+	InstructionZ.Positions.Reserve(Transforms.Num() * 2);
+
+	for (const FTransform& Transform : Transforms)
+	{
+		InstructionX.Positions.Add(Transform.GetLocation());
+		InstructionX.Positions.Add(Transform.TransformPosition(FVector(Size, 0.f, 0.f)));
+		InstructionY.Positions.Add(Transform.GetLocation());
+		InstructionY.Positions.Add(Transform.TransformPosition(FVector(0.f, Size, 0.f)));
+		InstructionZ.Positions.Add(Transform.GetLocation());
+		InstructionZ.Positions.Add(Transform.TransformPosition(FVector(0.f, 0.f, Size)));
+	}
+
+	Instructions.Add(InstructionX);
+	Instructions.Add(InstructionY);
+	Instructions.Add(InstructionZ);
 }
 
 void FControlRigDrawInterface::DrawRectangle(const FTransform& WorldOffset, const FTransform& Transform, float Size, const FLinearColor& Color, float Thickness)
@@ -366,5 +399,36 @@ void FControlRigDrawInterface::DrawPointSimulation(const FTransform& WorldOffset
 	{
 		Instructions.Add(VolumesMinInstruction);
 		Instructions.Add(VolumesMaxInstruction);
+	}
+}
+
+void FControlRigDrawInterface::DrawCone(const FTransform& WorldOffset, const FTransform& ConeOffset, float Angle1, float Angle2, uint32 NumSides, bool bDrawSideLines, const FLinearColor& SideLineColor, FMaterialRenderProxy* const MaterialRenderProxy)
+{
+	TArray<FDynamicMeshVertex> MeshVerts;
+	TArray<uint32> MeshIndices;
+	BuildConeVerts(Angle1, Angle2, 1.f, 0.f, NumSides, MeshVerts, MeshIndices);
+
+	FTransform ConeTransform = ConeOffset * WorldOffset;
+	FControlRigDrawInstruction MeshInstruction;
+	MeshInstruction.PrimitiveType = EControlRigDrawSettings::DynamicMesh;
+	MeshInstruction.Transform = ConeTransform;
+	MeshInstruction.MeshVerts = MeshVerts;
+	MeshInstruction.MeshIndices = MeshIndices;
+	MeshInstruction.MaterialRenderProxy = MaterialRenderProxy;
+	Instructions.Add(MeshInstruction);
+
+	if (bDrawSideLines)
+	{
+		TArray<FVector> ConeVerts;
+		ConeVerts.AddUninitialized(NumSides);
+
+		// Draw lines down major directions
+		for (int32 i = 0; i < 4; i++)
+		{
+			float Fraction = (float)i / (float)(4);
+			float Azi = 2.f * PI * Fraction;
+			FVector ConeVert = CalcConeVert(Angle1, Angle2, Azi);
+			DrawLine(WorldOffset, ConeOffset.GetLocation(), ConeOffset.TransformPosition(ConeVert), SideLineColor, 1.f);
+		}
 	}
 }

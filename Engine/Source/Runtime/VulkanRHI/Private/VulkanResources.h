@@ -101,12 +101,10 @@ public:
 		return CreateHandle(Layout, LayoutHash);
 	}
 
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 	inline const FString& GetDebugName() const
 	{
 		return CodeHeader.DebugName;
 	}
-#endif
 
 	// Name should be pointing to "main_"
 	void GetEntryPoint(ANSICHAR* Name, int32 NameLength)
@@ -125,7 +123,7 @@ public:
 	}
 
 protected:
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT
 	FString							DebugEntryPoint;
 #endif
 	uint64							ShaderKey;

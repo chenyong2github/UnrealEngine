@@ -54,33 +54,41 @@ FRenderQueryRHIRef FD3D12DynamicRHI::RHICreateRenderQuery(ERenderQueryType Query
 	});
 }
 
-bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutResult, bool bWait, uint32 InGPUIndex)
+bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64& OutResult, bool bWait, uint32 QueryGPUIndex)
 {
 	check(IsInRenderingThread());
 	FD3D12Adapter& Adapter = GetAdapter();
 
-	// Multi-GPU support: might need to support per-GPU results eventually.
 	// First generate the GPU node mask for of the latest queries.
 	FRHIGPUMask RelevantNodeMask = FRHIGPUMask::GPU0();
 	if (GNumExplicitGPUsForRendering > 1)
 	{
-		uint32 LatestTimestamp = 0;
-		for (FD3D12RenderQuery* Query = FD3D12DynamicRHI::ResourceCast(QueryRHI); Query; Query = Query->GetNextObject())
+		// If we're not getting results for a specific GPU, use the GPU(s) whose query
+		// submitted most recently.
+		if (QueryGPUIndex == INDEX_NONE)
 		{
-			if (Query->Timestamp > LatestTimestamp)
+			uint32 LatestTimestamp = 0;
+			for (FD3D12RenderQuery& Query : *FD3D12DynamicRHI::ResourceCast(QueryRHI))
 			{
-				RelevantNodeMask = Query->GetParentDevice()->GetGPUMask();
-				LatestTimestamp = Query->Timestamp;
+				if (Query.Timestamp > LatestTimestamp)
+				{
+					RelevantNodeMask = Query.GetParentDevice()->GetGPUMask();
+					LatestTimestamp = Query.Timestamp;
+				}
+				else if (Query.Timestamp == LatestTimestamp)
+				{
+					RelevantNodeMask |= Query.GetParentDevice()->GetGPUMask();
+				}
 			}
-			else if (Query->Timestamp == LatestTimestamp)
-			{
-				RelevantNodeMask |= Query->GetParentDevice()->GetGPUMask();
-			}			
-		}
 
-		if (LatestTimestamp == 0)
+			if (LatestTimestamp == 0)
+			{
+				return false;
+			}
+		}
+		else
 		{
-			return false;
+			RelevantNodeMask = FRHIGPUMask::FromIndex(QueryGPUIndex);
 		}
 	}
 
@@ -113,7 +121,7 @@ bool FD3D12DynamicRHI::RHIGetRenderQueryResult(FRHIRenderQuery* QueryRHI, uint64
 		if (Query->Type == RQT_AbsoluteTime)
 		{
 			// GetTimingFrequency is the number of ticks per second
-			uint64 Div = FMath::Max(1llu, FGPUTiming::GetTimingFrequency() / (1000 * 1000));
+			uint64 Div = FMath::Max(1llu, FGPUTiming::GetTimingFrequency(GPUIndex) / (1000 * 1000));
 
 #if D3D12_SUBMISSION_GAP_RECORDER
 			if (RHIConsoleVariables::GAdjustRenderQueryTimestamps)
@@ -820,8 +828,8 @@ void FD3D12LinearQueryHeap::ReleaseResources()
   * @param InD3DRHI			RHI interface
   * @param InBufferSize		Number of buffered measurements
   */
-FD3D12BufferedGPUTiming::FD3D12BufferedGPUTiming(FD3D12Adapter* InParent, int32 InBufferSize)
-	: FD3D12AdapterChild(InParent)
+FD3D12BufferedGPUTiming::FD3D12BufferedGPUTiming(FD3D12Device* InParent, int32 InBufferSize)
+	: FD3D12DeviceChild(InParent)
 	, BufferSize(InBufferSize)
 	, CurrentTimestamp(-1)
 	, NumIssuedTimestamps(0)
@@ -846,12 +854,14 @@ void FD3D12BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 
 void FD3D12BufferedGPUTiming::CalibrateTimers(FD3D12Adapter* ParentAdapter)
 {
-	// Multi-GPU support : GPU timing only profile GPU0 currently.
-	const uint32 GPUIndex = 0;
-
-	GTimingFrequency = 0;
-	VERIFYD3D12RESULT(ParentAdapter->GetDevice(GPUIndex)->GetCommandListManager().GetTimestampFrequency(&GTimingFrequency));
-	GCalibrationTimestamp = ParentAdapter->GetDevice(GPUIndex)->GetCommandListManager().GetCalibrationTimestamp();
+	for (uint32 GPUIndex : FRHIGPUMask::All())
+	{
+		uint64 TimingFrequency = 0;
+		VERIFYD3D12RESULT(ParentAdapter->GetDevice(GPUIndex)->GetCommandListManager().GetTimestampFrequency(&TimingFrequency));
+		SetTimingFrequency(TimingFrequency, GPUIndex);
+		FGPUTimingCalibrationTimestamp CalibrationTimestamp = ParentAdapter->GetDevice(GPUIndex)->GetCommandListManager().GetCalibrationTimestamp();
+		SetCalibrationTimestamp(CalibrationTimestamp, GPUIndex);
+	}
 }
 
 void FD3D12DynamicRHI::RHICalibrateTimers()
@@ -869,11 +879,18 @@ void FD3D12DynamicRHI::RHICalibrateTimers()
  */
 void FD3D12BufferedGPUTiming::InitDynamicRHI()
 {
-	FD3D12Adapter* Adapter = GetParentAdapter();
-	ID3D12Device* D3DDevice = Adapter->GetD3DDevice();
+	FD3D12Device* Device = GetParentDevice();
+	FD3D12Adapter* Adapter = Device->GetParentAdapter();
+	ID3D12Device* D3DDevice = Device->GetDevice();
 	const FRHIGPUMask Node = FRHIGPUMask::All();
 
-	StaticInitialize(Adapter, PlatformStaticInitialize);
+	// StaticInitialize operates on all devices so only call it once.
+	static bool bStaticInitialized = false;
+	if (!bStaticInitialized)
+	{
+		StaticInitialize(Adapter, PlatformStaticInitialize);
+		bStaticInitialized = true;
+	}
 
 	CurrentTimestamp = 0;
 	NumIssuedTimestamps = 0;
@@ -886,7 +903,7 @@ void FD3D12BufferedGPUTiming::InitDynamicRHI()
 		QueryHeapDesc.Type = D3D12_QUERY_HEAP_TYPE_TIMESTAMP;
 		QueryHeapDesc.Count = BufferSize * 2;	// Space for each Start + End pair.
 
-		TimestampQueryHeap = Adapter->CreateLinkedObject<QueryHeap>(FRHIGPUMask::All(), [&] (FD3D12Device* Device)
+		TimestampQueryHeap = Adapter->CreateLinkedObject<QueryHeap>(Device->GetGPUMask(), [&] (FD3D12Device* Device)
 		{
 			QueryHeap* NewHeap = new QueryHeap(Device);
 			QueryHeapDesc.NodeMask = Device->GetGPUMask().GetNative();
@@ -895,16 +912,15 @@ void FD3D12BufferedGPUTiming::InitDynamicRHI()
 
 		#if ENABLE_RESIDENCY_MANAGEMENT
 			D3DX12Residency::Initialize(NewHeap->ResidencyHandle, NewHeap->Heap.GetReference(), 8ull * QueryHeapDesc.Count);
-			D3DX12Residency::BeginTrackingObject(Adapter->GetDevice(0)->GetResidencyManager(), NewHeap->ResidencyHandle);
+			D3DX12Residency::BeginTrackingObject(Device->GetResidencyManager(), NewHeap->ResidencyHandle);
 		#endif
 
 			return NewHeap;
 		});
 
 
-		// Multi-GPU support : GPU timing only profile GPU0 currently.
 		const uint64 Size = 8ull * QueryHeapDesc.Count; // Each timestamp query occupies 8 bytes.
-		Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, FRHIGPUMask::GPU0(), Node, D3D12_RESOURCE_STATE_COPY_DEST, Size, TimestampQueryHeapBuffer.GetInitReference(), TEXT("FD3D12BufferedGPUTiming: Timestamp Query Result Buffer"));
+		Adapter->CreateBuffer(D3D12_HEAP_TYPE_READBACK, Device->GetGPUMask(), Node, D3D12_RESOURCE_STATE_COPY_DEST, Size, TimestampQueryHeapBuffer.GetInitReference(), TEXT("FD3D12BufferedGPUTiming: Timestamp Query Result Buffer"));
 
 		TimestampListHandles.AddZeroed(QueryHeapDesc.Count);
 	}
@@ -918,7 +934,7 @@ void FD3D12BufferedGPUTiming::ReleaseDynamicRHI()
 #if ENABLE_RESIDENCY_MANAGEMENT
 	if (D3DX12Residency::IsInitialized(TimestampQueryHeap->ResidencyHandle))
 	{
-		D3DX12Residency::EndTrackingObject(GetParentAdapter()->GetDevice(0)->GetResidencyManager(), TimestampQueryHeap->ResidencyHandle);
+		D3DX12Residency::EndTrackingObject(GetParentDevice()->GetResidencyManager(), TimestampQueryHeap->ResidencyHandle);
 	}
 #endif
 
@@ -934,8 +950,8 @@ void FD3D12BufferedGPUTiming::ReleaseDynamicRHI()
  */
 void FD3D12BufferedGPUTiming::StartTiming()
 {
-	FD3D12Adapter* Adapter = GetParentAdapter();
-	ID3D12Device* D3DDevice = Adapter->GetD3DDevice();
+	FD3D12Device* Device = GetParentDevice();
+	ID3D12Device* D3DDevice = Device->GetDevice();
 
 	// Issue a timestamp query for the 'start' time.
 	if (GIsSupported && !bIsTiming)
@@ -946,9 +962,10 @@ void FD3D12BufferedGPUTiming::StartTiming()
 		{
 			if (SUCCEEDED(D3DDevice->SetStablePowerState(bStablePowerStateCVar)))
 			{
-				// Multi-GPU support : GPU timing only profile GPU0 currently.
 				// SetStablePowerState succeeded. Update timing frequency.
-				VERIFYD3D12RESULT(Adapter->GetDevice(0)->GetCommandListManager().GetTimestampFrequency(&GTimingFrequency));
+				uint64 TimingFrequency;
+				VERIFYD3D12RESULT(Device->GetCommandListManager().GetTimestampFrequency(&TimingFrequency));
+				SetTimingFrequency(TimingFrequency, Device->GetGPUIndex());
 				bStablePowerState = bStablePowerStateCVar;
 			}
 			else
@@ -962,8 +979,7 @@ void FD3D12BufferedGPUTiming::StartTiming()
 
 		const uint32 QueryStartIndex = GetStartTimestampIndex(CurrentTimestamp);
 
-		// Multi-GPU support : GPU timing only profile GPU0 currently.
-		FD3D12CommandContext& CmdContext = Adapter->GetDevice(0)->GetDefaultCommandContext();
+		FD3D12CommandContext& CmdContext = Device->GetDefaultCommandContext();
 
 		CmdContext.otherWorkCounter++;
 
@@ -990,8 +1006,7 @@ void FD3D12BufferedGPUTiming::EndTiming()
 		const uint32 QueryEndIndex = GetEndTimestampIndex(CurrentTimestamp);
 		check(QueryEndIndex == QueryStartIndex + 1);	// Make sure they're adjacent indices.
 
-		// Multi-GPU support : GPU timing only profile GPU0 currently.
-		FD3D12CommandContext& CmdContext = GetParentAdapter()->GetDevice(0)->GetDefaultCommandContext();
+		FD3D12CommandContext& CmdContext = GetParentDevice()->GetDefaultCommandContext();
 
 		CmdContext.otherWorkCounter += 2;
 
@@ -1016,8 +1031,7 @@ void FD3D12BufferedGPUTiming::EndTiming()
  */
 uint64 FD3D12BufferedGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 {
-	// Multi-GPU support : GPU timing only profile GPU0 currently.
-	FD3D12Device* Device = GetParentAdapter()->GetDevice(0);
+	FD3D12Device* Device = GetParentDevice();
 
 	if (GIsSupported)
 	{
@@ -1047,7 +1061,7 @@ uint64 FD3D12BufferedGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 					
 					if (EndTime > StartTime)
 					{
-						const uint64 Bubble = GetParentAdapter()->GetGPUProfiler().CalculateIdleTime(StartTime, EndTime);
+						const uint64 Bubble = Device->GetGPUProfiler().CalculateIdleTime(StartTime, EndTime);
 						const uint64 ElapsedTime = EndTime - StartTime;
 						return ElapsedTime >= Bubble ? ElapsedTime - Bubble : 0;
 					}
@@ -1097,7 +1111,7 @@ uint64 FD3D12BufferedGPUTiming::GetTiming(bool bGetCurrentResultsAndBlock)
 
 			if (EndTime > StartTime)
 			{
-				const uint64 Bubble = GetParentAdapter()->GetGPUProfiler().CalculateIdleTime(StartTime, EndTime);
+				const uint64 Bubble = Device->GetGPUProfiler().CalculateIdleTime(StartTime, EndTime);
 				const uint64 ElapsedTime = EndTime - StartTime;
 				return ElapsedTime >= Bubble ? ElapsedTime - Bubble : 0;
 			}

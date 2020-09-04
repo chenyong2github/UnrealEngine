@@ -2607,8 +2607,9 @@ void FTextHistory_StringTableEntry::Serialize(FStructuredArchive::FRecord Record
 		Record << SA_VALUE(TEXT("Key"), Key);
 
 		// String Table assets should already have been created via dependency loading when using the EDL (although they may not be fully loaded yet)
+		const bool bIsLoadingViaEDL = GEventDrivenLoaderEnabled && EVENT_DRIVEN_ASYNC_LOAD_ACTIVE_AT_RUNTIME && BaseArchive.GetLinker();
 		StringTableReferenceData = MakeShared<FStringTableReferenceData, ESPMode::ThreadSafe>();
-		StringTableReferenceData->Initialize(&Revision, TableId, MoveTemp(Key), GEventDrivenLoaderEnabled ? EStringTableLoadingPolicy::Find : EStringTableLoadingPolicy::FindOrLoad);
+		StringTableReferenceData->Initialize(&Revision, TableId, MoveTemp(Key), bIsLoadingViaEDL ? EStringTableLoadingPolicy::Find : EStringTableLoadingPolicy::FindOrLoad);
 	}
 	else if (BaseArchive.IsSaving())
 	{

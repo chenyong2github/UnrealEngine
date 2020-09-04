@@ -30,6 +30,9 @@ public:
 	/** Duplicate currently selected items */
 	TSharedPtr< FUICommandInfo > DuplicateItem;
 
+	/** Mirror currently selected items */
+	TSharedPtr< FUICommandInfo > MirrorItem;
+
 	/** Delete currently selected items */
 	TSharedPtr< FUICommandInfo > DeleteItem;
 
@@ -51,6 +54,9 @@ public:
 	/* Reset transform */
 	TSharedPtr<FUICommandInfo> ResetTransform;
 
+	/* Reset all transforms */
+	TSharedPtr<FUICommandInfo> ResetAllTransforms;
+
 	/* Reset space */
 	TSharedPtr<FUICommandInfo> ResetSpace;
 
@@ -68,6 +74,9 @@ public:
 
 	/* sets the space transform using a gizmo */
 	TSharedPtr<FUICommandInfo> ControlSpaceTransform;
+
+	/* Unparents the selected elements from the hierarchy */
+	TSharedPtr<FUICommandInfo> Unparent;
 
 	/**
 	 * Initialize commands

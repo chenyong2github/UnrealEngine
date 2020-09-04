@@ -116,7 +116,7 @@ void UEditorEngine::RenameObject(UObject* Object,UObject* NewOuter,const TCHAR* 
 
 static void RemapProperty(FProperty* Property, int32 Index, const TMap<AActor*, AActor*>& ActorRemapper, uint8* DestData)
 {
-	if (FObjectProperty* ObjectProperty = CastField<FObjectProperty>(Property))
+	if (FObjectPropertyBase* ObjectProperty = CastField<FObjectPropertyBase>(Property))
 	{
 		// If there's a concrete index, use that, otherwise iterate all array members (for the case that this property is inside a struct, or there is exactly one element)
 		const int32 Num = (Index == INDEX_NONE) ? ObjectProperty->ArrayDim : 1;
@@ -704,18 +704,13 @@ const TCHAR* ImportObjectProperties( FImportObjectParams& InParams )
 		InParams.SubobjectOuter->PreEditChange(NULL);
 	}
 
-	FObjectInstancingGraph* CurrentInstanceGraph = InParams.InInstanceGraph;
-	if ( InParams.SubobjectRoot != NULL && InParams.SubobjectRoot != UObject::StaticClass()->GetDefaultObject() )
-	{
-		if ( CurrentInstanceGraph == NULL )
-		{
-			CurrentInstanceGraph = new FObjectInstancingGraph;
-		}
-		CurrentInstanceGraph->SetDestinationRoot(InParams.SubobjectRoot);
-	}
+	FObjectInstancingGraph TempGraph;
+	FObjectInstancingGraph& InstanceGraph = InParams.InInstanceGraph ? *InParams.InInstanceGraph : TempGraph;
 
- 	FObjectInstancingGraph TempGraph; 
-	FObjectInstancingGraph& InstanceGraph = CurrentInstanceGraph ? *CurrentInstanceGraph : TempGraph;
+	if ( InParams.SubobjectRoot && InParams.SubobjectRoot != UObject::StaticClass()->GetDefaultObject() )
+	{
+		InstanceGraph.SetDestinationRoot(InParams.SubobjectRoot);
+	}
 
 	// Parse the object properties.
 	const TCHAR* NewSourceText =
@@ -762,13 +757,6 @@ const TCHAR* ImportObjectProperties( FImportObjectParams& InParams )
 			ContextSupplier = NULL;
 			InParams.Warn->SetContext(NULL);
 		}
-	}
-
-	// if we created the instance graph, delete it now
-	if ( CurrentInstanceGraph != NULL && InParams.InInstanceGraph == NULL )
-	{
-		delete CurrentInstanceGraph;
-		CurrentInstanceGraph = NULL;
 	}
 
 	return NewSourceText;

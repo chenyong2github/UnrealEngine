@@ -245,29 +245,7 @@ namespace StructViewer
 		 */
 		bool PassesFilter(const FString& InTestString, const FTextFilterExpressionEvaluator& InTextFilter)
 		{
-			class FStructFilterContext : public ITextFilterExpressionContext
-			{
-			public:
-				explicit FStructFilterContext(const FString& InStr)
-					: StrPtr(&InStr)
-				{
-				}
-
-				virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-				{
-					return TextFilterUtils::TestBasicStringExpression(*StrPtr, InValue, InTextComparisonMode);
-				}
-
-				virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-				{
-					return false;
-				}
-
-			private:
-				const FString* StrPtr;
-			};
-
-			return InTextFilter.TestTextFilter(FStructFilterContext(InTestString));
+			return InTextFilter.TestTextFilter(FBasicStringFilterExpressionContext(InTestString));
 		}
 
 		/**

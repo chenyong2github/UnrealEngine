@@ -73,6 +73,20 @@ public:
 	/** Only valid in the editor */
 	virtual bool IsEditorOnly() const override { return true; }
 
+#if WITH_EDITOR
+	/**
+	 * Add or update a filename at the specified index. If the index is greater then the number of source file,
+	 * it will add empty filenames to fill up to the specified index. The timespan and MD5 will be computed.
+	 *
+	 * @Param InPath: The filename we want to set at the specified index.
+	 * @Param Index: This specify the source file index in case you have many source file for an imported asset
+	 * @Param SourceFileLabel: Optional, can be empty string, the label we want to see in the UI when displaying the source file. (useful for multi source)
+	 */
+	UFUNCTION(BlueprintCallable, Category = "AssetImportData")
+	void ScriptedAddFilename(const FString& InPath, int32 Index, FString SourceFileLabel);
+#endif //WITH_EDITOR
+
+
 #if WITH_EDITORONLY_DATA
 
 	/** Path to the resource used to construct this static mesh. Relative to the object's package, BaseDir() or absolute */

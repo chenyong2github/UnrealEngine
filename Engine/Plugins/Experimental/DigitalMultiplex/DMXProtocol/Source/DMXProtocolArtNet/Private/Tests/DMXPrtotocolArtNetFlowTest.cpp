@@ -17,17 +17,15 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXPrtotocolArtNetBasicFlowTest, "VirtualProdu
 
 bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 {
-	static const uint16 UniverseValue = 0;
+	static const uint16 UniverseID = 0;
 
 	// Init Protocol and Managers
 	FDMXProtocolArtNet* DMXProtocol = static_cast<FDMXProtocolArtNet*>(IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet).Get());
-
 	FJsonObject UniverseSettings;
-	UniverseSettings.SetNumberField(TEXT("UniverseID"), UniverseValue);
-	UniverseSettings.SetNumberField(TEXT("PortID"), 0); // TODO set PortID
+	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
 	DMXProtocol->AddUniverse(UniverseSettings);
 
-	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = DMXProtocol->GetUniverseById(UniverseValue);
+	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = DMXProtocol->GetUniverseById(UniverseID);
 	TestTrue(TEXT("Universe is valid"), Universe.IsValid());
 	FDMXProtocolUniverseArtNet* UniverseArtNet = static_cast<FDMXProtocolUniverseArtNet*>(Universe.Get());
 
@@ -38,10 +36,10 @@ bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 	DMXFragmentMap.Add(FixtureChannels[0], FixtureValues[0]);
 	DMXFragmentMap.Add(FixtureChannels[1], FixtureValues[1]);
 	DMXFragmentMap.Add(FixtureChannels[2], FixtureValues[2]);
-	DMXProtocol->SendDMXFragment(UniverseValue, DMXFragmentMap);
+	DMXProtocol->SendDMXFragment(UniverseID, DMXFragmentMap);
 
 	// Wait before recieve DMX
-	FPlatformProcess::Sleep(0.2f);
+	FPlatformProcess::Sleep(0.5f);
 	FDMXBufferPtr InputDMXBuffer = UniverseArtNet->GetInputDMXBuffer();
 
 	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[0] - 1));
@@ -52,9 +50,9 @@ bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 	DMXFragmentMap.Add(FixtureChannels[3], FixtureValues[3]);
 	DMXFragmentMap.Add(FixtureChannels[4], FixtureValues[4]);
 	DMXFragmentMap.Add(FixtureChannels[5], FixtureValues[5]);
-	DMXProtocol->SendDMXFragment(UniverseValue, DMXFragmentMap);
+	DMXProtocol->SendDMXFragment(UniverseID, DMXFragmentMap);
 
-	FPlatformProcess::Sleep(0.2f);
+	FPlatformProcess::Sleep(0.5f);
 
 	TestEqual(TEXT("Old value DMX input should be the same"), FixtureValues[0], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[0] - 1));
 	TestEqual(TEXT("Incoming buffer should be same"), FixtureValues[4], InputDMXBuffer->GetDMXDataAddress(FixtureChannels[4] - 1));
@@ -69,7 +67,7 @@ bool FDMXPrtotocolArtNetBasicFlowTest::RunTest(const FString& Parameters)
 
 	// Send TOD 
 	DMXProtocol->TransmitTodRequest(UniverseArtNet->GetPortAddress());
-	FPlatformProcess::Sleep(0.2f);
+	FPlatformProcess::Sleep(0.5f);
 	const FDMXProtocolArtNetTodRequest& IncomingTodRequest = DMXProtocol->GetIncomingTodRequest();
 	TestEqual(TEXT("TodRequest.AdCount should not be 1"), IncomingTodRequest.AdCount, uint8(1));
 
@@ -110,15 +108,13 @@ IMPLEMENT_SIMPLE_AUTOMATION_TEST(FDMXPrtotocolArtNetConsoleCommandsTest, "Virtua
 
 bool FDMXPrtotocolArtNetConsoleCommandsTest::RunTest(const FString& Parameters)
 {
-	static const uint16 UniverseValue = 1891;
+	static const uint16 UniverseID = 1891;
 
 	FDMXProtocolArtNet* DMXProtocol = static_cast<FDMXProtocolArtNet*>(IDMXProtocol::Get(FDMXProtocolArtNetModule::NAME_Artnet).Get());
-
 	FJsonObject UniverseSettings;
-	UniverseSettings.SetNumberField(TEXT("UniverseID"), UniverseValue);
-	UniverseSettings.SetNumberField(TEXT("PortID"), 0); // TODO set PortID
+	DMXProtocol->GetDefaultUniverseSettings(UniverseID, UniverseSettings);
 	DMXProtocol->AddUniverse(UniverseSettings);
-	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = DMXProtocol->GetUniverseById(UniverseValue);
+	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = DMXProtocol->GetUniverseById(UniverseID);
 
 
 	// DMX.ArtNet.SendDMX[UniverseID] Channel:Value Channel : Value Channel : Value ...
@@ -131,7 +127,7 @@ bool FDMXPrtotocolArtNetConsoleCommandsTest::RunTest(const FString& Parameters)
 
 	FString Command(
 		FString::Printf(TEXT("DMX.ArtNet.SendDMX %d %d:%d %d:%d %d:%d"),
-			UniverseValue,
+			UniverseID,
 			Values[0][0], Values[0][1],
 			Values[1][0], Values[1][1],
 			Values[2][0], Values[2][1]

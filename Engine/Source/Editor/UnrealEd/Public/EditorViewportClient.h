@@ -301,12 +301,40 @@ public:
 	 * @param bShouldBeRealtime	If true, this viewport will be realtime, if false this viewport will not be realtime
 	 * @param SystemDisplayName	This display name of whatever system is overriding realtime. This name is displayed to users in the viewport options menu	
 	 */
-	void SetRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName);
+	void AddRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName);
+
+	UE_DEPRECATED(4.26, "SetRealtimeOverride is replaced with AddRealtimeOverride, as multiple overrides can now be added.")
+	void SetRealtimeOverride(bool bShouldBeRealtime, FText SystemDisplayName)
+	{
+		AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+	}
+	
+	/**
+	 * Returns whether there's a realtime override registered with the given system name.
+	 */
+	bool HasRealtimeOverride(FText SystemDisplayName) const;
 
 	/**
-	 * Removes the current realtime override.  If there was another realtime override set it will restore that override
+	 * Removes the most recent realtime override registered with the given system name.
+	 *
+	 * @param Whether to assert if no matching realtime override was found.
+	 * @return Whether any matching realtime override was found.
 	 */
-	void RemoveRealtimeOverride();
+	bool RemoveRealtimeOverride(FText SystemDisplayName, bool bCheckMissingOverride = true);
+
+	UE_DEPRECATED(4.26, "RemoveRealtimeOverride now takes a system display name to help remove the correct override.")
+	void RemoveRealtimeOverride()
+	{
+		PopRealtimeOverride();
+	}
+
+	/**
+	 * Removes the last added realtime override.
+	 * WARNING: it's recommended to use RemoveRealtimeOverride to prevent removing an override that belongs to another systems than yours.
+	 *
+	 * @return   Whether there was any realtime override to be popped.
+	 */
+	bool PopRealtimeOverride();
 
 	/**
 	 * Toggles whether or not the viewport updates in realtime and returns the updated state.
@@ -325,7 +353,7 @@ public:
 	/** @return		True if viewport is in realtime mode, false otherwise. */
 	bool IsRealtime() const
 	{ 
-		return (TempRealtimeOverride.IsSet() ? TempRealtimeOverride.GetValue().Key : bIsRealtime) || GFrameCounter < RealTimeUntilFrameNumber;
+		return (RealtimeOverrides.Num() > 0 ? RealtimeOverrides.Last().Key : bIsRealtime) || GFrameCounter < RealTimeUntilFrameNumber;
 	}
 
 	/**
@@ -347,21 +375,21 @@ public:
 	/**
 	 * @return true if there are any temp realtime overrides set
 	 */
-	bool IsRealtimeOverrideSet() const { return TempRealtimeOverride.IsSet(); }
+	bool IsRealtimeOverrideSet() const { return RealtimeOverrides.Num() > 0; }
 
 	/**
 	 * @return  If an override is set this returns the message indicating what set it
 	 */
 	FText GetRealtimeOverrideMessage() const;
 
-	UE_DEPRECATED(4.25, "SetRealtime no longer takes in bStoreCurrentValue parameter. For temporary overrides use SetRealtimeOverride")
+	UE_DEPRECATED(4.25, "SetRealtime no longer takes in bStoreCurrentValue parameter. For temporary overrides use AddRealtimeOverride")
 	void SetRealtime(bool bInRealtime, bool bStoreCurrentValue);
 
 	/**
 	 * Restores realtime setting to stored value. This will only enable realtime and 
 	 * never disable it (unless bAllowDisable is true)
 	 */
-	UE_DEPRECATED(4.25, "To save and restore realtime state non-permanently use SetRealtimeOverride and RemoveRealtimeOverride")
+	UE_DEPRECATED(4.25, "To save and restore realtime state non-permanently use AddRealtimeOverride and RemoveRealtimeOverride")
 	void RestoreRealtime(const bool bAllowDisable = false);
 
 	// this set ups camera for both orbit and non orbit control
@@ -1477,6 +1505,8 @@ private:
 	virtual void BeginCameraMovement(bool bHasMovement) {}
 	virtual void EndCameraMovement() {}
 
+	float GetMinimumOrthoZoom() const;
+
 public:
 	static const uint32 MaxCameraSpeeds;
 
@@ -1701,11 +1731,12 @@ protected:
 	FVector DefaultOrbitZoom;
 	FVector DefaultOrbitLookAt;
 
-	/** Cached realtime override flag and user message (used for restoring nested overrides) */
-	TOptional<TPair<bool, FText>> PreviousRealtimeOverrideState;
-
-	/** A temporary realtime override and user message that is not saved between editor sessions.  If this value is set, this viewport determines realtime from this setting, otherwise it reads the real realtime value */
-	TOptional<TPair<bool, FText>> TempRealtimeOverride;
+	/** 
+	 * Temporary realtime overrides and user messages that are not saved between editor sessions.
+	 * If any value has been pushed into the container, this viewport determines realtime from the last item,
+	 * otherwise it reads the real realtime value.
+	 * */
+	TArray<TPair<bool, FText>> RealtimeOverrides;
 	
 	/** Custom override function that will be called every ::Draw() until override is disabled */
 	TUniqueFunction<void(FEngineShowFlags&)> OverrideShowFlagsFunc;

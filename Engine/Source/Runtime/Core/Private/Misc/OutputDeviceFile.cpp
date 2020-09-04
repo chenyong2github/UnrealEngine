@@ -286,11 +286,10 @@ struct FOutputDeviceFile::FCategoryInclusionInternal
  * @param InFilename		Filename to use, can be NULL
  * @param bInDisableBackup	If true, existing files will not be backed up
  */
-FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBackup, bool bInAppendIfExists)
+FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBackup, bool bInAppendIfExists, bool bCreateWriterLazily)
 : AsyncWriter(nullptr)
 , WriterArchive(nullptr)
 , AppendIfExists(bInAppendIfExists)
-, Opened(false)
 , Dead(false)
 , CategoryInclusionInternal(nullptr)
 , bDisableBackup(bInDisableBackup)
@@ -303,6 +302,13 @@ FOutputDeviceFile::FOutputDeviceFile( const TCHAR* InFilename, bool bInDisableBa
 	{
 		Filename[0]	= 0;
 	}
+
+#if ALLOW_LOG_FILE && !NO_LOGGING
+	if (!bCreateWriterLazily) // Should the file created/opened immediately?
+	{
+		CreateWriter();
+	}
+#endif
 }
 
 /**
@@ -342,7 +348,6 @@ void FOutputDeviceFile::TearDown()
 	WriterArchive = nullptr;
 
 	Filename[0] = 0;
-	Opened = false;
 }
 
 /**
@@ -397,10 +402,32 @@ void FOutputDeviceFile::WriteByteOrderMarkToArchive(EByteOrderMark ByteOrderMark
 	}
 }
 
+bool FOutputDeviceFile::IsOpened() const
+{
+	return AsyncWriter != nullptr;
+}
+
 bool FOutputDeviceFile::CreateWriter(uint32 MaxAttempts)
 {
+	if (IsOpened())
+	{
+		return true;
+	}
+
+	// Make log filename.
+	if (!Filename[0])
+	{
+		FCString::Strcpy(Filename, *FPlatformOutputDevices::GetAbsoluteLogFilename());
+	}
+
+	// if the file already exists, create a backup as we are going to overwrite it
+	if (!bDisableBackup)
+	{
+		CreateBackupCopy(Filename);
+	}
+
 	// Create a silent filewriter so that it doesn't try to log any errors since it would redirect logging back to itself through this output device
-	uint32 WriteFlags = FILEWRITE_Silent | FILEWRITE_AllowRead | ((Opened || AppendIfExists) ? FILEWRITE_Append : 0);
+	uint32 WriteFlags = FILEWRITE_Silent | FILEWRITE_AllowRead | (AppendIfExists ? FILEWRITE_Append : 0);
 
 	// Open log file.
 	FArchive* Ar = IFileManager::Get().CreateFileWriter(Filename, WriteFlags);
@@ -417,23 +444,28 @@ bool FOutputDeviceFile::CreateWriter(uint32 MaxAttempts)
 		{
 			// Continue to increment indices until a valid filename is found
 			FinalFilename = FilenamePart + FString::FromInt(FileIndex++) + ExtensionPart;
-			if (!Opened)
-			{
-				CreateBackupCopy(*FinalFilename);
-			}
+			CreateBackupCopy(*FinalFilename);
 			FCString::Strcpy(Filename, UE_ARRAY_COUNT(Filename), *FinalFilename);
 			Ar = IFileManager::Get().CreateFileWriter(*FinalFilename, WriteFlags);
 		} while (!Ar && FileIndex < MaxAttempts);
 	}
 
-	FAsyncWriter* Result = nullptr;
 	if (Ar)
 	{
 		WriterArchive = Ar;
 		AsyncWriter = new FAsyncWriter(*WriterArchive);
-	}
+		WriteByteOrderMarkToArchive(EByteOrderMark::UTF8);
 
-	return !!AsyncWriter;
+		if (!bSuppressEventTag)
+		{
+			Logf(TEXT("Log file open, %s"), FPlatformTime::StrTimestamp());
+		}
+		return true;
+	}
+	else
+	{
+		return false;
+	}
 }
 
 /**
@@ -455,31 +487,8 @@ void FOutputDeviceFile::Serialize( const TCHAR* Data, ELogVerbosity::Type Verbos
 	{
 		if (!AsyncWriter && !Dead)
 		{
-			// Make log filename.
-			if( !Filename[0] )
-			{
-				FCString::Strcpy(Filename, *FPlatformOutputDevices::GetAbsoluteLogFilename());
-			}
-
-			// if the file already exists, create a backup as we are going to overwrite it
-			if (!bDisableBackup && !Opened)
-			{
-				CreateBackupCopy(Filename);
-			}
-
 			// Open log file and create the worker thread.
-			if (CreateWriter())
-			{
-				Opened = true;
-
-				WriteByteOrderMarkToArchive(EByteOrderMark::UTF8);
-
-				if (!bSuppressEventTag)
-				{
-					Logf( TEXT("Log file open, %s"), FPlatformTime::StrTimestamp() );
-				}
-			}
-			else 
+			if (!CreateWriter())
 			{
 				Dead = true;
 			}

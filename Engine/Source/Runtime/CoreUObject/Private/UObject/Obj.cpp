@@ -1073,6 +1073,9 @@ void UObject::ConditionalPostLoad()
 			}
 			else
 			{
+#if WITH_EDITOR
+				SCOPED_LOADTIMER_TEXT(*((GetClass()->IsChildOf(UDynamicClass::StaticClass()) ? UDynamicClass::StaticClass() : GetClass())->GetName() + TEXT("_PostLoad")));
+#endif
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetOutermost(), ELLMTagSet::Assets);
 				LLM_SCOPED_TAG_WITH_OBJECT_IN_SET(GetClass()->IsChildOf(UDynamicClass::StaticClass()) ? UDynamicClass::StaticClass() : GetClass(), ELLMTagSet::AssetClasses);
 
@@ -1759,14 +1762,14 @@ void GetAssetRegistryTagFromProperty(const void* BaseMemoryLocation, const UObje
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 		}
 		else if (Prop->IsA(FArrayProperty::StaticClass()) || Prop->IsA(FMapProperty::StaticClass()) || Prop->IsA(FSetProperty::StaticClass())
-			|| Prop->IsA(FStructProperty::StaticClass()) || Prop->IsA(FObjectPropertyBase::StaticClass()))
+			|| Prop->IsA(FStructProperty::StaticClass()))
 		{
-			// Arrays/maps/sets/structs/objects are hidden, it is often too much information to display and sort
+			// Arrays/maps/sets/structs are hidden, it is often too much information to display and sort
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Hidden;
 		}
 		else
 		{
-			// All other types are alphabetical
+			// All other types are alphabetical, there are special UI parsers for object properties
 			TagType = UObject::FAssetRegistryTag::ETagType::TT_Alphabetical;
 		}
 	}
@@ -2764,7 +2767,15 @@ void UObject::ReinitializeProperties( UObject* SourceObject/*=NULL*/, FObjectIns
 	// the properties for this object ensures that any cleanup required when an object is reinitialized from defaults occurs properly
 	// for example, when re-initializing UPrimitiveComponents, the component must notify the rendering thread that its data structures are
 	// going to be re-initialized
-	StaticConstructObject_Internal( GetClass(), GetOuter(), GetFName(), GetFlags(), GetInternalFlags(), SourceObject, !HasAnyFlags(RF_ClassDefaultObject), InstanceGraph );
+	FStaticConstructObjectParameters Params(GetClass());
+	Params.Outer = GetOuter();
+	Params.Name = GetFName();
+	Params.SetFlags = GetFlags();
+	Params.InternalSetFlags = GetInternalFlags();
+	Params.Template = SourceObject;
+	Params.bCopyTransientsFromClassDefaults = !HasAnyFlags(RF_ClassDefaultObject);
+	Params.InstanceGraph = InstanceGraph;
+	StaticConstructObject_Internal(Params);
 }
 
 
@@ -3253,7 +3264,7 @@ COREUOBJECT_API TArray<const TCHAR*> ParsePropertyFlags(EPropertyFlags InFlags)
 		TEXT("CPF_InstancedReference"),
 		TEXT("0x0000000000100000"),
 		TEXT("CPF_DuplicateTransient"),
-		TEXT("CPF_SubobjectReference"),
+		TEXT("0x0000000000400000"),
 		TEXT("0x0000000000800000"),
 		TEXT("CPF_SaveGame"),	
 		TEXT("CPF_NoClear"),
@@ -3974,6 +3985,10 @@ bool StaticExec( UWorld* InWorld, const TCHAR* Cmd, FOutputDevice& Ar )
 					{
 						SearchModeFlags |= EReferenceChainSearchMode::Direct;
 					}
+					else if (FCString::Stricmp(*Tok, TEXT("full")) == 0)
+					{
+						SearchModeFlags |= EReferenceChainSearchMode::FullChain;
+					}
 				}
 				
 				FReferenceChainSearch RefChainSearch(Object, SearchModeFlags);
@@ -4383,13 +4398,6 @@ void InitUObject()
 	
 	FCoreDelegates::NewFileAddedDelegate.AddStatic(FLinkerLoad::OnNewFileAdded);
 	FCoreDelegates::OnPakFileMounted2.AddStatic(FLinkerLoad::OnPakFileMounted);
-
-#if WITH_EDITOR
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FCoreUObjectDelegates::StringAssetReferenceLoaded.BindRaw(&GRedirectCollector, &FRedirectCollector::OnStringAssetReferenceLoaded);
-	FCoreUObjectDelegates::StringAssetReferenceSaving.BindRaw(&GRedirectCollector, &FRedirectCollector::OnStringAssetReferenceSaved);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-#endif
 
 	// Object initialization.
 	StaticUObjectInit();

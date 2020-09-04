@@ -7,7 +7,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "Containers/StringFwd.h"
+#include "Containers/StringView.h"
 
 struct FFileStatData;
 
@@ -125,7 +125,7 @@ public:
 	 */
 	static bool IsValidLongPackageName(const FString& InLongPackageName, bool bIncludeReadOnlyRoots = false, FText* OutReason = nullptr);
 
-	/** 
+	/**
 	 * Returns true if the path starts with a valid root (i.e. /Game/, /Engine/, etc) and contains no illegal characters.
 	 * This validates that the packagename is valid, and also makes sure the object after package name is also correct.
 	 * This will return false if passed a path starting with Classname'
@@ -135,6 +135,15 @@ public:
 	 * @return							true if a valid object path
 	 */
 	static bool IsValidObjectPath(const FString& InObjectPath, FText* OutReason = nullptr);
+
+	/**
+	 * Returns true if the path starts with a valid root (i.e. /Game/, /Engine/, etc).
+	 * 
+	 *
+	 * @param InObjectPath				The object path to test
+	 * @return							true if a valid object path
+	 */
+	static bool IsValidPath(const FString& InPath);
 
 	/**
 	 * Checks if the given string is a long package name or not.
@@ -467,38 +476,38 @@ public:
 	/**
 	 * Checks the root of the package's path to see if it's an extra package
 	 */
-	static bool IsExtraPackage(const FString& InPackageName);
+	static bool IsExtraPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a script package
 	 * @return true if the root of the path matches the script path
 	 */
-	static bool IsScriptPackage(const FString& InPackageName);
+	static bool IsScriptPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it's a memory package
 	 * This should be set for packages that reside in memory and not on disk, we treat them similar to a script package
 	 * @return true if the root of the patch matches the memory path
 	 */
-	static bool IsMemoryPackage(const FString& InPackageName);
+	static bool IsMemoryPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a temp package
 	 * Temp packages are sometimes saved to disk, and sometimes only exist in memory. They are never in source control
 	 * @return true if the root of the patch matches the temp path
 	 */
-	static bool IsTempPackage(const FString& InPackageName);
+	static bool IsTempPackage(FStringView InPackageName);
 
 	/**
 	 * Checks the root of the package's path to see if it is a localized package
 	 * @return true if the root of the path matches any localized root path
 	 */
-	static bool IsLocalizedPackage(const FString& InPackageName);
+	static bool IsLocalizedPackage(FStringView InPackageName);
 
 	/**
 	 * Checks if a package name contains characters that are invalid for package names.
 	 */
-	static bool DoesPackageNameContainInvalidCharacters(const FString& InLongPackageName, FText* OutReason = NULL);
+	static bool DoesPackageNameContainInvalidCharacters(FStringView InLongPackageName, FText* OutReason = NULL);
 	
 	/**
 	* Checks if a package can be found using known package extensions.

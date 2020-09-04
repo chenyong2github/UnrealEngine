@@ -712,8 +712,17 @@ void STraceDataFilterWidget::RefreshTreeviewData()
 
 void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const double InCurrentTime, const float InDeltaTime)
 {
+	IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
+	TSharedPtr<const Trace::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
+
 	if (SessionFilterService.IsValid() )
 	{
+		if (AnalysisSession.IsValid() && AnalysisSession->IsAnalysisComplete())
+		{
+			SessionFilterService = nullptr;
+			return;
+		}
+
 		if (SessionFilterService->GetTimestamp() != SyncTimeStamp)
 		{
 			RefreshTreeviewData();
@@ -721,8 +730,6 @@ void STraceDataFilterWidget::Tick(const FGeometry& AllottedGeometry, const doubl
 	}
 	else
 	{
-		IUnrealInsightsModule& InsightsModule = FModuleManager::LoadModuleChecked<IUnrealInsightsModule>("TraceInsights");
-		TSharedPtr<const Trace::IAnalysisSession> AnalysisSession = InsightsModule.GetAnalysisSession();
 		if (AnalysisSession.IsValid())
 		{
 			Trace::FStoreClient* StoreClient = InsightsModule.GetStoreClient();

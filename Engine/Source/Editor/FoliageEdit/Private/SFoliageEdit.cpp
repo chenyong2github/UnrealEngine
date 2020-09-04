@@ -584,7 +584,7 @@ void SFoliageEdit::CustomizeToolBarPalette(FToolBarBuilder& ToolBarBuilder)
 		FUIAction(FExecuteAction::CreateSP(this, &SFoliageEdit::OnSelectInvalidInstances)),
 		NAME_None,
 		LOCTEXT("FoliageSelectInvalid", "Invalid"),
-		LOCTEXT("FoliageSelectInvalidTooltip", "Select Invalid Foligae Instances"),
+		LOCTEXT("FoliageSelectInvalidTooltip", "Select Invalid Foliage Instances"),
 		FSlateIcon(FEditorStyle::GetStyleSetName(), "FoliageEditMode.SelectInvalid")
 		);
 
@@ -922,7 +922,7 @@ FText SFoliageEdit::GetFoliageEditorErrorText() const
 
 TSharedRef<SWidget> SFoliageEdit::BuildToolBar()
 {
-	FToolBarBuilder Toolbar(FoliageEditMode->UICommandList, FMultiBoxCustomization::None, nullptr, Orient_Vertical);
+	FVerticalToolBarBuilder Toolbar(FoliageEditMode->UICommandList, FMultiBoxCustomization::None);
 	Toolbar.SetLabelVisibility(EVisibility::Collapsed);
 	Toolbar.SetStyle(&FEditorStyle::Get(), "FoliageEditToolbar");
 	{

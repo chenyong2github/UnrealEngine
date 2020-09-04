@@ -257,7 +257,7 @@ void FUnrealEdMisc::OnInit()
 
 	/** Delegate that gets called when a script exception occurs */
 	FBlueprintCoreDelegates::OnScriptException.AddStatic(&FKismetDebugUtilities::OnScriptException);
-	FBlueprintCoreDelegates::OnScriptExecutionEnd.AddStatic(&FKismetDebugUtilities::EndOfScriptExecution);
+	FBlueprintContextTracker::OnExitScriptContext.AddStatic(&FKismetDebugUtilities::EndOfScriptExecution);
 	
 	FEditorDelegates::ChangeEditorMode.AddRaw(this, &FUnrealEdMisc::OnEditorChangeMode);
 	FCoreDelegates::PreModal.AddRaw(this, &FUnrealEdMisc::OnEditorPreModal);

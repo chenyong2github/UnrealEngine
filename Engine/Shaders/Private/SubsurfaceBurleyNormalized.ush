@@ -56,6 +56,7 @@
 #define TEXTURE_CACHE_DISABLED 0
 
 #define MORTON_USE_LUT 0
+#define REWEIGHT_CENTER_SAMPLE 1
 
 // exactly one of these should be true
 #define LIGHT_PERPENDICULAR 0
@@ -110,6 +111,10 @@
 
 #ifndef TEXTURE_CACHE_DISABLED
 #define TEXTURE_CACHE_DISABLED 0
+#endif
+
+#ifndef REWEIGHT_CENTER_SAMPLE
+#define REWEIGHT_CENTER_SAMPLE 1
 #endif
 
 #ifndef MORTON_USE_LUT
@@ -642,6 +647,102 @@ BurleySampleDiffuseNormal SampleSSSColorConsideringLocalShared(float2 CenterUV, 
 #endif
 }
 
+float GetScalingFactor(float A)
+{
+#if LIGHT_PERPENDICULAR
+	float S = GetPerpendicularScalingFactor(A);
+#elif (LIGHT_DIFFUSESURFACE)
+	float S = GetDiffuseSurfaceScalingFactor(A);
+#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
+	float S = GetSearchLightDiffuseScalingFactor(A);
+#endif
+	return S;
+}
+
+float3 GetScalingFactor3D(float3 SurfaceAlbedo)
+{
+#if LIGHT_PERPENDICULAR
+	float3 S3D = GetPerpendicularScalingFactor3D(SurfaceAlbedo);
+#elif (LIGHT_DIFFUSESURFACE)
+	float3 S3D = GetDiffuseSurfaceScalingFactor3D(SurfaceAlbedo);
+#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
+	float3 S3D = GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo);
+#endif
+	return S3D;
+}
+
+
+float2 CalculateBurleyScale(float WorldUnitScale, float DepthAtCenter)
+{
+	float2 BurleyScale = WorldUnitScale;
+
+	float SSSScaleX = SubsurfaceParams.x;
+	BurleyScale *= SSSScaleX / DepthAtCenter;
+
+	// account for Screen Percentage/Dyanmic Resolution Scaling
+	BurleyScale *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
+	BurleyScale.y *= (SubsurfaceInput0_Extent.x * SubsurfaceInput0_ExtentInverse.y);
+
+	return BurleyScale;
+}
+
+// Given the Depth and the BurleyParameter, figure out the actual radius of the center pixel in MM,
+// taking into account the depth and screen dimensions.
+float CalculateCenterSampleRadiusInMM(FBurleyParameter BurleyParameter, float Depth)
+{
+	float DiffuseMeanFreePath = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
+
+	float A = GetComponentForScalingFactorEstimation(BurleyParameter.SurfaceAlbedo);
+	float S = GetScalingFactor(A);
+	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+
+	float2 BurleyScale = CalculateBurleyScale(BurleyParameter.WorldUnitScale,Depth);
+
+	// In the reference function, UVOffset = BurleyScale * RadiusInMM
+	//      float2 UVOffset = BurleyScale*BurleySampleInfo.RadiusInMM;
+	// So, given the UV offset, we can find the distance in mm as:
+	//      float DistInMM = UvOffset.x/BurleyScale.x + UvOffset.y/BurleyScale.y;
+	// But for stability, we can just average them.
+	float CenterSampleRadiusInMM = 0.5f * (SubsurfaceInput0_ExtentInverse.x/BurleyScale.x + SubsurfaceInput0_ExtentInverse.y/BurleyScale.y);
+
+	return CenterSampleRadiusInMM;
+}
+
+// Given the UV and BurleyParameter, determine how much RGB weight should be assigned to the center 
+// pixel. The rest of the weight would be applied from the blur.
+float3 CalculateCenterSampleWeight(float Depth, FBurleyParameter BurleyParameter)
+{
+	float CenterSampleRadiusInMM = CalculateCenterSampleRadiusInMM(BurleyParameter, Depth);
+
+	float DiffuseMeanFreePath = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
+
+	// To calculate the surface free path from albedo, use diffuse surface scaling.
+	float3 D = DiffuseMeanFreePath / GetDiffuseSurfaceScalingFactor3D(BurleyParameter.SurfaceAlbedo);
+
+	float3 CenterSampleWeight;
+
+	CenterSampleWeight.x = GetCDF(D.x,CenterSampleRadiusInMM,0);
+	CenterSampleWeight.y = GetCDF(D.y,CenterSampleRadiusInMM,0);
+	CenterSampleWeight.z = GetCDF(D.z,CenterSampleRadiusInMM,0);
+
+	return CenterSampleWeight;
+}
+
+float CalculateCenterSampleCdf(FBurleyParameter BurleyParameter, float Depth)
+{
+	float CenterSampleRadiusInMM = CalculateCenterSampleRadiusInMM(BurleyParameter, Depth);
+
+	float DiffuseMeanFreePathForSampling = GetDiffuseMeanFreePathForSampling(BurleyParameter.DiffuseMeanFreePath);
+	float A = GetComponentForScalingFactorEstimation(BurleyParameter.SurfaceAlbedo);
+	float S = GetScalingFactor(A);
+
+	float D = DiffuseMeanFreePathForSampling / S;
+	float CenterSampleRadiusCdf = GetCDF(D.x,CenterSampleRadiusInMM,0);
+
+	return CenterSampleRadiusCdf;
+}
+
+
 float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 {
 	FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(BufferUV);
@@ -665,17 +766,8 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	uint SubsurfaceProfileInt = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
 	float3 BoundaryColorBleed = GetSubsurfaceProfileBoundaryColorBleed(ScreenSpaceData.GBuffer).xyz;
 
-
-#if LIGHT_PERPENDICULAR
-	float S = GetPerpendicularScalingFactor(A);
-	float3 S3D = GetPerpendicularScalingFactor3D(BurleyParameter.SurfaceAlbedo);
-#elif (LIGHT_DIFFUSESURFACE)
-	float S = GetDiffuseSurfaceScalingFactor(A);
-	float3 S3D = GetDiffuseSurfaceScalingFactor3D(BurleyParameter.SurfaceAlbedo);
-#elif (LIGHT_PERPENDICULAR_DIFFUSE_SURFACE)
-	float S = GetSearchLightDiffuseScalingFactor(A);
-	float3 S3D = GetSearchLightDiffuseScalingFactor(BurleyParameter.SurfaceAlbedo.rgb);
-#endif
+	float S = GetScalingFactor(A);
+	float3 S3D = GetScalingFactor3D(BurleyParameter.SurfaceAlbedo);
 
 	int SeedStart = View.FrameNumber;
 	float3 WeightingFactor = 0.0f;
@@ -703,14 +795,30 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	float ActiveNumOfSamples = 0;
 #endif
 
-	float2 BurleyScale = BurleyParameter.WorldUnitScale;
+	float2 BurleyScale = CalculateBurleyScale(BurleyParameter.WorldUnitScale,DepthAtDiscCenter);
 
-	float SSSScaleX = SubsurfaceParams.x;
-	BurleyScale *= SSSScaleX / DepthAtDiscCenter;
+	/*************************************************************************************
+	 * Center Sample Reweighting
+	 * 
+	 * The original burley algorithm involes monte car sampling. Given a random variable [0,1],
+	 * find the distance of that point from the center using the CDF, and then divide by PDF. 
+	 * But it is somewhat inefficient because it is weighted heavily towards the center.
+	 *
+	 * Instead, we are going to split the [0,1] random variable range. First, we figure out the
+	 * radius (R) of the center sample in world space. Second, we are going to determine the random
+	 * variable (T) such that CDF(R) = T. Then we split the range into two segments.
+	 *
+	 * 1. The center sample, which include the random variable values from [0,T].
+	 * 2. All other samples, which include the random variable values from [T,1].
+	 *
+	 * With the center sample is scaled the weight T and the rest of the samples are weighted
+	 * by (1-T). There shouldn't be any bias, except for small errors due to precision.
+	 **************************************************************************************/
 
-	// account for Screen Percentage/Dyanmic Resolution Scaling
-	BurleyScale *= (SubsurfaceInput0_ViewportSize.x * SubsurfaceInput0_ExtentInverse.x);
-	BurleyScale.y *= (SubsurfaceInput0_Extent.x * SubsurfaceInput0_ExtentInverse.y);
+#if REWEIGHT_CENTER_SAMPLE
+	float CenterSampleRadiusCdf = CalculateCenterSampleCdf(BurleyParameter, DepthAtDiscCenter);
+	float3 CenterSampleWeight = CalculateCenterSampleWeight(DepthAtDiscCenter, BurleyParameter);
+#endif
 
 	LOOP for (int i = 0; i < NumOfSamples; ++i)
 	{
@@ -718,6 +826,14 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 		// Create an 2d disk sampling pattern (we can load from the disk as a texture or buffer).
 		Seed3D.z = SeedStart++;
 		float2 Random0T1 = Generate2DRandomNumber(Seed3D);
+
+#if REWEIGHT_CENTER_SAMPLE
+		// The random variable goes from 0 to 1. CenterSampleRadiusCdf is the probability that a sample hits the
+		// center pixel. Since that probability is accounted for in the lighting, we only sample in the
+		// range [CenterSampleRadiusCdf,1] instead of [0,1]
+		Random0T1.x = CenterSampleRadiusCdf + Random0T1.x*(1.0f - CenterSampleRadiusCdf);
+#endif
+
 		FBurleySampleInfo BurleySampleInfo = GenerateSampleInfo(Random0T1, DiffuseMeanFreePathForSampling, S, i);
 
 		// Step 2: get the light radiance and depth at the offset
@@ -814,6 +930,11 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 	RadianceAccumulated.xyz *= (WeightingFactor == 0)? 0:(1.0f /WeightingFactor*EnergyNormalization);
 #endif
 
+#if REWEIGHT_CENTER_SAMPLE
+	// Apply lerp with center pixel
+	RadianceAccumulated.xyz = lerp(RadianceAccumulated.xyz,OriginalColor,CenterSampleWeight);
+#endif
+
 	// The opacity works by reducing the radius based on opacity, but this runs into precision issues with low opacity values.
 	// So as the opacity goes from 0.02 to 0.01, we transition to fully disabling SSS by the time we get to 0.01.
 	float LowOpacityEps = SSSS_OPACITY_THRESHOLD_EPS;
@@ -825,8 +946,6 @@ float4 BurleyNormalizedSS(float2 BufferUV, uint2 GroupThreadID)
 
 	return OutColor;
 }
-
-
 
 float4 UpdateQualityVariance(float4 SubsurfaceColor, float2 BufferUV)
 {

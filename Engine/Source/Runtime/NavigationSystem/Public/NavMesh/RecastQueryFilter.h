@@ -40,7 +40,8 @@ public:
 
 	const dtQueryFilter* GetAsDetourQueryFilter() const { return this; }
 
-	/** note that it results in losing all area cost setup. Call it before setting anything else */
+	/** Changes whether the filter will use virtual set of filtering functions (getVirtualCost and passVirtualFilter)
+	 *	or the inlined ones (getInlineCost and passInlineFilter) */
 	void SetIsVirtual(bool bIsVirtual);
 
 	/** Instruct filter whether it can reopen nodes already on closed list */

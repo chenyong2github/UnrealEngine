@@ -26,6 +26,7 @@
 #include "Runtime/Engine/Classes/Sound/AudioSettings.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "DeviceProfiles/DeviceProfile.h"
+#include "ToolMenus.h"
 
 #define LOCTEXT_NAMESPACE "FLevelEditorPlaySettingsCustomization"
 
@@ -93,7 +94,7 @@ void SScreenPositionCustomization::Construct( const FArguments& InArgs, IDetailL
 		.Padding( 4.0f, 0.0f, 0.0f, 0.0f )
 		.VAlign( VAlign_Bottom )
 		[
-			InWindowPositionProperty->CreatePropertyNameWidget( LOCTEXT( "CenterWindowLabel", "Always center window to screen" ) )
+			InWindowPositionProperty->CreatePropertyNameWidget( LOCTEXT( "CenterWindowLabel", "Always center first viewport window to screen" ) )
 		]
 		]
 		];
@@ -103,9 +104,7 @@ bool SScreenPositionCustomization::HandleNewWindowPositionPropertyIsEnabled() co
 {
 	bool CenterNewWindow;
 	CenterWindowProperty->GetValue( CenterNewWindow );
-
 	return !CenterNewWindow;
-
 }
 
 void SScreenResolutionCustomization::Construct( const FArguments& InArgs, IDetailLayoutBuilder* LayoutBuilder, const TSharedRef<IPropertyHandle>& InWindowHeightProperty, const TSharedRef<IPropertyHandle>& InWindowWidthProperty )
@@ -118,6 +117,7 @@ void SScreenResolutionCustomization::Construct( const FArguments& InArgs, IDetai
 	FSimpleDelegate SizeChangeDelegate = FSimpleDelegate::CreateSP( this, &SScreenResolutionCustomization::OnSizeChanged );
 	WindowHeightProperty->SetOnPropertyValueChanged( SizeChangeDelegate );
 	WindowWidthProperty->SetOnPropertyValueChanged( SizeChangeDelegate );
+
 	ChildSlot
 		[
 			SNew( SVerticalBox )
@@ -137,11 +137,8 @@ void SScreenResolutionCustomization::Construct( const FArguments& InArgs, IDetai
 			.Font( LayoutBuilder->GetDetailFont() )
 		.Text( LOCTEXT( "CommonResolutionsButtonText", "Common Resolutions" ) )
 		]
-	.ContentPadding( FMargin( 6, 2 ) )
-		.MenuContent()
-		[
-			MakeCommonResolutionsMenu()
-		]
+	.ContentPadding(FMargin(6, 2))
+		.OnGetMenuContent(this, &SScreenResolutionCustomization::GetResolutionsMenu)
 	.ToolTipText( LOCTEXT( "CommonResolutionsButtonTooltip", "Pick from a list of common screen resolutions" ) )
 		]
 	+ SHorizontalBox::Slot()
@@ -196,76 +193,6 @@ void SScreenResolutionCustomization::Construct( const FArguments& InArgs, IDetai
 		];
 }
 
-void SScreenResolutionCustomization::AddCommonResolutionEntry( FMenuBuilder& MenuBuilder, int32 Width, int32 Height, const FString& AspectRatio, const FText& Description )
-{
-}
-
-void SScreenResolutionCustomization::AddScreenResolutionSection( FMenuBuilder& MenuBuilder, const TArray<FPlayScreenResolution> Resolutions, const FText SectionName )
-{
-	MenuBuilder.BeginSection( NAME_None, SectionName );
-	{
-		for ( auto Iter = Resolutions.CreateConstIterator(); Iter; ++Iter )
-		{
-			FUIAction Action( FExecuteAction::CreateRaw( this, &SScreenResolutionCustomization::HandleCommonResolutionSelected, *Iter ) );
-
-			FInternationalization& I18N = FInternationalization::Get();
-
-			FFormatNamedArguments Args;
-			Args.Add( TEXT( "Width" ), FText::AsNumber( Iter->Width, NULL, I18N.GetInvariantCulture() ) );
-			Args.Add( TEXT( "Height" ), FText::AsNumber( Iter->Height, NULL, I18N.GetInvariantCulture() ) );
-			Args.Add( TEXT( "AspectRatio" ), FText::FromString( Iter->AspectRatio ) );
-
-			MenuBuilder.AddMenuEntry( FText::FromString( Iter->Description ), FText::Format( LOCTEXT( "CommonResolutionFormat", "{Width} x {Height} ({AspectRatio})" ), Args ), FSlateIcon(), Action );
-		}
-	}
-	MenuBuilder.EndSection();
-}
-
-TSharedRef<SWidget> SScreenResolutionCustomization::MakeCommonResolutionsMenu()
-{
-	const ULevelEditorPlaySettings* PlaySettings = GetDefault<ULevelEditorPlaySettings>();
-	FMenuBuilder MenuBuilder( true, NULL );
-
-
-	FText PhoneTitle = LOCTEXT( "CommonPhonesSectionHeader", "Phones" );
-	FText TabletTitle = LOCTEXT( "CommonTabletsSectionHeader", "Tablets" );
-	FText LaptopTitle = LOCTEXT( "CommonLaptopsSectionHeader", "Laptops" );
-	FText MonitorTitle = LOCTEXT( "CommonMonitorsSectionHeader", "Monitors" );
-	FText TelevisionTitle = LOCTEXT( "CommonTelevesionsSectionHeader", "Televisions" );
-	MenuBuilder.AddSubMenu(
-		PhoneTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw( this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->PhoneScreenResolutions), PhoneTitle ),
-		false,
-		FSlateIcon() );
-	MenuBuilder.AddSubMenu(
-		TabletTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw( this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->TabletScreenResolutions), TabletTitle ),
-		false,
-		FSlateIcon() );
-	MenuBuilder.AddSubMenu(
-		LaptopTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw( this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->LaptopScreenResolutions), LaptopTitle ),
-		false,
-		FSlateIcon() );
-	MenuBuilder.AddSubMenu(
-		MonitorTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw( this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->MonitorScreenResolutions), MonitorTitle ),
-		false,
-		FSlateIcon() );
-	MenuBuilder.AddSubMenu(
-		TelevisionTitle,
-		FText(),
-		FNewMenuDelegate::CreateRaw( this, &SScreenResolutionCustomization::AddScreenResolutionSection, (PlaySettings->TelevisionScreenResolutions), TelevisionTitle ),
-		false,
-		FSlateIcon() );
-
-	return MenuBuilder.MakeWidget();
-}
-
 FReply SScreenResolutionCustomization::HandleSwapAspectRatioClicked()
 {
 	FString HeightString;
@@ -296,9 +223,8 @@ FReply SScreenResolutionCustomization::HandleSwapAspectRatioClicked()
 
 void SScreenResolutionCustomization::HandleCommonResolutionSelected( const FPlayScreenResolution Resolution )
 {
-	int32 Width = Resolution.Width;
-	int32 Height = Resolution.Height;
-	float ScaleFactor;
+	int32 Width = Resolution.LogicalWidth;
+	int32 Height = Resolution.LogicalHeight;
 	ULevelEditorPlaySettings* PlayInSettings = GetMutableDefault<ULevelEditorPlaySettings>();
 	// Maintain previous orientation (i.e., swap Width and Height if required)
 	int32 PreviousWidth = -1;
@@ -308,8 +234,8 @@ void SScreenResolutionCustomization::HandleCommonResolutionSelected( const FPlay
 		const bool bIsOrientationPreserved = (PreviousWidth < PreviousHeight) != (Width < Height);
 		if ( bIsOrientationPreserved )
 		{
-			Width = Resolution.Height;
-			Height = Resolution.Width;
+			Width = Resolution.LogicalHeight;
+			Height = Resolution.LogicalWidth;
 		}
 	}
 
@@ -317,7 +243,6 @@ void SScreenResolutionCustomization::HandleCommonResolutionSelected( const FPlay
 	if ( DeviceProfile )
 	{
 		PlayInSettings->DeviceToEmulate = Resolution.ProfileName;
-		PlayInSettings->RescaleForMobilePreview( DeviceProfile, Width, Height, ScaleFactor );
 	}
 	else
 	{
@@ -354,6 +279,19 @@ const FSlateBrush* SScreenResolutionCustomization::GetAspectRatioSwitchImage() c
 void SScreenResolutionCustomization::OnSizeChanged()
 {
 	GetMutableDefault<ULevelEditorPlaySettings>()->UpdateCustomSafeZones();
+}
+
+FUIAction SScreenResolutionCustomization::GetResolutionMenuAction( const FPlayScreenResolution& ScreenResolution )
+{
+	return FUIAction( FExecuteAction::CreateRaw( this, &SScreenResolutionCustomization::HandleCommonResolutionSelected, ScreenResolution ) );
+}
+
+TSharedRef<SWidget> SScreenResolutionCustomization::GetResolutionsMenu()
+{
+	UCommonResolutionMenuContext* CommonResolutionMenuContext = NewObject<UCommonResolutionMenuContext>();
+	CommonResolutionMenuContext->GetUIActionFromLevelPlaySettings = UCommonResolutionMenuContext::FGetUIActionFromLevelPlaySettings::CreateRaw(this, &SScreenResolutionCustomization::GetResolutionMenuAction);
+
+	return UToolMenus::Get()->GenerateWidget(ULevelEditorPlaySettings::GetCommonResolutionsMenuName(), CommonResolutionMenuContext);
 }
 
 /** Virtual destructor. */

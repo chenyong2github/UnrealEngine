@@ -794,6 +794,11 @@ void FPortableObjectFormatDOM::CreateNewHeader()
 	Header.Comments.Add( FString(TEXT("")) );
 }
 
+void FPortableObjectFormatDOM::SetHeaderValue(const FString& EntryKey, const FString& EntryValue)
+{
+	Header.SetEntryValue(EntryKey, EntryValue);
+}
+
 bool FPortableObjectFormatDOM::SetLanguage( const FString& LanguageCode, const FString& LangPluralForms )
 {
 	FPortableObjectCulture NewLang(	LanguageCode, LangPluralForms );

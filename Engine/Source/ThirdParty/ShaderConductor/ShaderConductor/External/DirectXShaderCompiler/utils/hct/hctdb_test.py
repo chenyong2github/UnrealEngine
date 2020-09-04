@@ -532,7 +532,53 @@ g_shader_texts = {
                             pts.output = %s(pts.input > 3);
                         }
                         g_sb[GI] = pts;
-                    };'''
+                    };''',
+    "wave op multi prefix int": ''' struct ThreadData {
+                    uint key;
+                    uint firstLaneId;
+                    uint laneId;
+                    uint mask;
+                    int value;
+                    int result;
+                };
+                RWStructuredBuffer<ThreadData> g_buffer : register(u0);
+                [numthreads(8, 12, 1)]
+                void main(uint id : SV_GroupIndex) {
+                    ThreadData data = g_buffer[id];
+                    data.firstLaneId = WaveReadLaneFirst(id);
+                    data.laneId = WaveGetLaneIndex();
+                    if (data.mask != 0) {
+                        uint4 mask = WaveMatch(data.key);
+                        data.result = %s(data.value, mask);
+                    } else {
+                        uint4 mask = WaveMatch(data.key);
+                        data.result = %s(data.value, mask);
+                    }
+                    g_buffer[id] = data;
+                }''',
+    "wave op multi prefix uint": ''' struct ThreadData {
+                    uint key;
+                    uint firstLaneId;
+                    uint laneId;
+                    uint mask;
+                    uint value;
+                    uint result;
+                };
+                RWStructuredBuffer<ThreadData> g_buffer : register(u0);
+                [numthreads(8, 12, 1)]
+                void main(uint id : SV_GroupIndex) {
+                    ThreadData data = g_buffer[id];
+                    data.firstLaneId = WaveReadLaneFirst(id);
+                    data.laneId = WaveGetLaneIndex();
+                    if (data.mask != 0) {
+                        uint4 mask = WaveMatch(data.key);
+                        data.result = %s(data.value, mask);
+                    } else {
+                        uint4 mask = WaveMatch(data.key);
+                        data.result = %s(data.value, mask);
+                    }
+                    g_buffer[id] = data;
+                }'''
 }
 
 def get_shader_text(op_type, op_call):
@@ -1147,6 +1193,89 @@ def add_test_cases():
                     l.o_dot4 = dot(l.input1.xyzw, l.input2.xyzw);
                     g_buf[GI] = l;
                 };''')
+
+    # Dot2AddHalf
+    add_test_case('Dot2AddHalf', ['Dot2AddHalf'], 'epsilon', 0.008, [[
+        '1,2', '1,-2', '1,2', '-1,2', '1,2', '-1,2', '1,2', '-1,-2',
+        '65504,1', '-65504,1', '1,65504', '1,-65504', 'inf,inf',
+        'denorm,denorm', '-denorm,-denorm', 'nan,nan'
+    ], [
+        '3,4', '-3,4', '3,4', '3,-4', '3,4', '-3,4', '3,4', '-3,-4',
+        '1,65504', '1,-65504', '65504,1', '-65504,1', 'inf,inf',
+        'denorm,denorm', '-denorm,-denorm', 'nan,nan'
+    ], [
+        '0', '0', '10', '10', '-5', '-5', '-30', '-30', '0', '0',
+        '10000000', '-10000000', 'inf', 'denorm', '-denorm',
+        'nan'
+    ]], [
+        [11, -11, 21, -1, 6, 6, -19, -19, 131008, -131008, 10131008,
+         -10131008, p_inf, 0, 0, nan],
+    ], 'cs_6_4', ''' struct SDot2AddHalfOp {
+                   half2 input1;
+                   half2 input2;
+                   float acc;
+                   float result;
+                };
+                RWStructuredBuffer<SDot2AddHalfOp> g_buf : register(u0);
+                [numthreads(8,8,1)]
+                void main(uint GI : SV_GroupIndex) {
+                    SDot2AddHalfOp l = g_buf[GI];
+                    l.result = dot2add(l.input1, l.input2, l.acc);
+                    g_buf[GI] = l;
+                };''', shader_arguments='-enable-16bit-types')
+
+    # Dot4AddI8Packed
+    add_test_case('Dot4AddI8Packed', ['Dot4AddI8Packed'], 'epsilon', 0, [[
+        '0x00000102', '0x00000102', '0x00000102', '0x00000102',
+        '0XFFFFFFFF', '0x80808080', '0x80808080', '0x807F807F',
+        '0x7F7F7F7F', '0x80808080'
+    ], [
+        '0x00000304', '0x00000304', '0x00000304', '0x00000304',
+        '0xFFFFFFFF', '0x01010101', '0x7F7F7F7F', '0x807F807F',
+        '0x7F7F7F7F', '0x80808080'
+    ], [
+        '0', '10', '-5', '-30', '0', '0', '0', '0', '0', '0'
+    ]], [
+        [11, 21, 6, -19, 4, -512, -65024, 65026, 64516, 65536],
+    ], 'cs_6_4', ''' struct SDot4AddI8PackedOp {
+                   dword input1;
+                   dword input2;
+                   int acc;
+                   int result;
+                };
+                RWStructuredBuffer<SDot4AddI8PackedOp> g_buf : register(u0);
+                [numthreads(8,8,1)]
+                void main(uint GI : SV_GroupIndex) {
+                    SDot4AddI8PackedOp l = g_buf[GI];
+                    l.result = dot4add_i8packed(l.input1, l.input2, l.acc);
+                    g_buf[GI] = l;
+                };''')
+
+    # Dot4AddU8Packed
+    add_test_case('Dot4AddU8Packed', ['Dot4AddU8Packed'], 'epsilon', 0, [[
+        '0x00000102', '0x00000102', '0x01234567', '0xFFFFFFFF',
+        '0xFFFFFFFF'
+    ], [
+        '0x00000304', '0x00000304', '0x23456789', '0xFFFFFFFF',
+        '0xFFFFFFFF'
+    ], [
+        '0', '10', '10000', '0', '3000000000'
+    ]], [
+        [11, 21, 33668, 260100, 3000260100],
+    ], 'cs_6_4', ''' struct SDot4AddU8PackedOp {
+                   dword input1;
+                   dword input2;
+                   dword acc;
+                   dword result;
+                };
+                RWStructuredBuffer<SDot4AddU8PackedOp> g_buf : register(u0);
+                [numthreads(8,8,1)]
+                void main(uint GI : SV_GroupIndex) {
+                    SDot4AddU8PackedOp l = g_buf[GI];
+                    l.result = dot4add_u8packed(l.input1, l.input2, l.acc);
+                    g_buf[GI] = l;
+                };''')
+
     # Quaternary
     # Msad4 intrinsic calls both Bfi and Msad. Currently this is the only way to call bfi instruction from HLSL
     add_test_case('Bfi', ['Bfi', 'Msad'], 'epsilon', 0,
@@ -1247,6 +1376,45 @@ def add_test_cases():
         [['1', '2', '3', '4', '5'], ['0', '1'], ['1', '2', '4', '128']], [],
         'cs_6_0', get_shader_text("wave op uint", "WavePrefixProduct"))
 
+    #Wave Multi Prefix Tests
+    add_test_case('WaveMultiPrefixBitAnd', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix int", "WaveMultiPrefixBitAnd"))
+    add_test_case('WaveMultiPrefixBitOr', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix int", "WaveMultiPrefixBitOr"))
+    add_test_case('WaveMultiPrefixBitXor', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix int", "WaveMultiPrefixBitXor"))
+    add_test_case('WaveMultiPrefixSum', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix int", "WaveMultiPrefixSum"))
+    add_test_case('WaveMultiPrefixProduct', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix int", "WaveMultiPrefixProduct"))
+    add_test_case('WaveMultiPrefixCountBits', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['0', '42', '0', '64', '11', '76', '90', '111', '0', '0', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix int", "WaveMultiPrefixCountBits"))
+
+    add_test_case('WaveMultiPrefixUBitAnd', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix uint", "WaveMultiPrefixBitAnd"))
+    add_test_case('WaveMultiPrefixUBitOr', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix uint", "WaveMultiPrefixBitOr"))
+    add_test_case('WaveMultiPrefixUBitXor', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix uint", "WaveMultiPrefixBitXor"))
+    add_test_case('WaveMultiPrefixUSum', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix uint", "WaveMultiPrefixSum"))
+    add_test_case('WaveMultiPrefixUProduct', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['10', '42', '1', '64', '11', '76', '90', '111', '9', '6', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix uint", "WaveMultiPrefixProduct"))
+    add_test_case('WaveMultiPrefixUCountBits', ['WaveMultiPrefixOp'], 'Epsilon', 0,
+         [['0', '3', '1', '5', '4'], ['0', '42', '0', '64', '11', '76', '90', '111', '0', '0', '79', '34']], [],
+        'cs_6_5', get_shader_text("wave op multi prefix uint", "WaveMultiPrefixCountBits"))
+
 
 # generating xml file for execution test using data driven method
 # TODO: ElementTree is not generating formatted XML. Currently xml file is checked in after VS Code formatter.
@@ -1335,6 +1503,32 @@ def generate_parameter_types_wave(table):
         "ParameterType",
         attrib={
             "Name": "Validation.InputSet4",
+            "Array": "true"
+        }).text = "String"
+
+def generate_parameter_types_wave_multi_prefix(table):
+    param_types = ET.SubElement(table, "ParameterTypes")
+
+    ET.SubElement(
+        param_types, "ParameterType", attrib={
+            "Name": "ShaderOp.Target"
+        }).text = "String"
+    ET.SubElement(
+        param_types, "ParameterType", attrib={
+            "Name": "ShaderOp.Text"
+        }).text = "String"
+    ET.SubElement(
+        param_types,
+        "ParameterType",
+        attrib={
+            "Name": "Validation.Keys",
+            "Array": "true"
+        }).text = "String"
+    ET.SubElement(
+        param_types,
+        "ParameterType",
+        attrib={
+            "Name": "Validation.Values",
             "Array": "true"
         }).text = "String"
 
@@ -1427,6 +1621,28 @@ def generate_row_wave(table, case):
         for val in case.input_lists[i]:
             ET.SubElement(inputs, "Value").text = str(val)
 
+def generate_row_wave_multi(table, case):
+    row = ET.SubElement(table, "Row", {"Name": case.test_name})
+    ET.SubElement(row, "Parameter", {
+        "Name": "ShaderOp.Name"
+    }).text = case.test_name
+    ET.SubElement(row, "Parameter", {
+        "Name": "ShaderOp.Target"
+    }).text = case.shader_target
+    ET.SubElement(row, "Parameter", {
+        "Name": "ShaderOp.Text"
+    }).text = case.shader_text
+    inputs = ET.SubElement(row, "Parameter", {
+        "Name": "Validation.Keys"
+    })
+    for val in case.input_lists[0]:
+        ET.SubElement(inputs, "Value").text = str(val)
+    inputs = ET.SubElement(row, "Parameter", {
+        "Name": "Validation.Values"
+    })
+    for val in case.input_lists[1]:
+        ET.SubElement(inputs, "Value").text = str(val)
+
 def generate_table_for_taef():
     with open("..\\..\\tools\\clang\\unittests\\HLSL\\ShaderOpArithTable.xml",
               'w') as f:
@@ -1509,6 +1725,18 @@ def generate_table_for_taef():
             ET.SubElement(root, "Table", attrib={
                 "Id": "DotOpTable"
             }), 2, 3)
+        generate_parameter_types(
+            ET.SubElement(root, "Table", attrib={
+                "Id": "Dot2AddHalfOpTable"
+            }), 3, 1)
+        generate_parameter_types(
+            ET.SubElement(root, "Table", attrib={
+                "Id": "Dot4AddI8PackedOpTable"
+            }), 3, 1)
+        generate_parameter_types(
+            ET.SubElement(root, "Table", attrib={
+                "Id": "Dot4AddU8PackedOpTable"
+            }), 3, 1)
         generate_parameter_types_msad(
             ET.SubElement(root, "Table", attrib={
                 "Id": "Msad4Table"
@@ -1532,6 +1760,16 @@ def generate_table_for_taef():
             ET.SubElement(
                 root, "Table", attrib={
                     "Id": "WaveIntrinsicsPrefixUintTable"
+                }))
+        generate_parameter_types_wave_multi_prefix(
+            ET.SubElement(
+                root, "Table", attrib={
+                    "Id": "WaveIntrinsicsMultiPrefixIntTable"
+                }))
+        generate_parameter_types_wave_multi_prefix(
+            ET.SubElement(
+                root, "Table", attrib={
+                    "Id": "WaveIntrinsicsMultiPrefixUintTable"
                 }))
         generate_parameter_types(
             ET.SubElement(
@@ -1671,6 +1909,16 @@ def generate_table_for_taef():
                     print(cur_inst.dxil_class)
             elif cur_inst.category == "Dot":
                 generate_row(root.find("./Table[@Id='DotOpTable']"), case)
+            elif cur_inst.category == "Dot product with accumulate":
+                if cur_inst.name == "Dot2AddHalf":
+                    generate_row(root.find("./Table[@Id='Dot2AddHalfOpTable']"), case)
+                elif cur_inst.name == "Dot4AddI8Packed":
+                    generate_row(root.find("./Table[@Id='Dot4AddI8PackedOpTable']"), case)
+                elif cur_inst.name == "Dot4AddU8Packed":
+                    generate_row(root.find("./Table[@Id='Dot4AddU8PackedOpTable']"), case)
+                else:
+                    print("unknown op: " + cur_inst.name)
+                    print(cur_inst.dxil_class)
             elif cur_inst.dxil_class in ["WaveActiveOp", "WaveAllOp","WaveActiveAllEqual","WaveAnyTrue","WaveAllTrue"]:
                 if case.test_name.startswith("WaveActiveU"):
                     generate_row_wave(
@@ -1697,6 +1945,17 @@ def generate_table_for_taef():
                     generate_row_wave(
                         root.find(
                             "./Table[@Id='WaveIntrinsicsPrefixIntTable']"),
+                        case)
+            elif cur_inst.dxil_class == "WaveMultiPrefixOp":
+                if case.test_name.startswith("WaveMultiPrefixU"):
+                    generate_row_wave_multi(
+                        root.find(
+                            "./Table[@Id='WaveIntrinsicsMultiPrefixUintTable']"
+                        ), case)
+                else:
+                    generate_row_wave_multi(
+                        root.find(
+                            "./Table[@Id='WaveIntrinsicsMultiPrefixIntTable']"),
                         case)
             else:
                 print("unknown op: " + cur_inst.name)

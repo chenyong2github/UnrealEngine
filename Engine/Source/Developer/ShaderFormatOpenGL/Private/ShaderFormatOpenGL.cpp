@@ -18,7 +18,7 @@ class FShaderFormatGLSL : public IShaderFormat
 	enum
 	{
 		/** Version for shader format, this becomes part of the DDC key. */
-		UE_SHADER_GLSL_VER = 94,
+		UE_SHADER_GLSL_VER = 95,
 	};
 
 	void CheckFormat(FName Format) const
@@ -35,20 +35,20 @@ public:
 	{
 		CheckFormat(Format);
 		uint32 GLSLVersion = 0;
-		if (Format == NAME_GLSL_150_ES3_1
+		if (Format == NAME_GLSL_430
+			|| Format == NAME_GLSL_150_ES3_1
 			|| Format == NAME_GLSL_310_ES_EXT
 			|| Format == NAME_GLSL_ES3_1_ANDROID)
 		{
 			GLSLVersion = UE_SHADER_GLSL_VER;
 		}
-		else if (Format == NAME_GLSL_430)
+		else
 		{
-			GLSLVersion = UE_SHADER_GLSL_VER + 1;
+			check(0);
 		}
 		const uint16 Version = ((HLSLCC_VersionMinor & 0xff) << 8) | (GLSLVersion & 0xff);
 		return Version;
 	}
-
 	virtual void GetSupportedFormats(TArray<FName>& OutFormats) const override
 	{
 		OutFormats.Add(NAME_GLSL_430);

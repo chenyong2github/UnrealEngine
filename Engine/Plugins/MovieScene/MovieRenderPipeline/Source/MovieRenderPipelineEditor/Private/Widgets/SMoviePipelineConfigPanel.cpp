@@ -360,6 +360,8 @@ TSharedRef<SWidget> SMoviePipelineConfigPanel::OnGeneratePresetsMenu()
 		AssetPickerConfig.bShowPathInColumnView = true;
 		AssetPickerConfig.bShowTypeInColumnView = false;
 		AssetPickerConfig.bSortByPathInColumnView = false;
+		AssetPickerConfig.bForceShowEngineContent = true;
+		AssetPickerConfig.bForceShowPluginContent = true;
 
 		AssetPickerConfig.AssetShowWarningText = LOCTEXT("NoPresets_Warning", "No Presets Found");
 		AssetPickerConfig.Filter.ClassNames.Add(ConfigAssetType->GetFName());

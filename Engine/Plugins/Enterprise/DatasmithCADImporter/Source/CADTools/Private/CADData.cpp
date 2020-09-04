@@ -72,6 +72,8 @@ FArchive& operator<<(FArchive& Ar, FFileDescription& File)
 
 FArchive& operator<<(FArchive& Ar, FTessellationData& TessellationData)
 {
+	Ar << TessellationData.PatchId;
+
 	Ar << TessellationData.VertexArray;
 	Ar << TessellationData.NormalArray;
 	Ar << TessellationData.IndexArray;

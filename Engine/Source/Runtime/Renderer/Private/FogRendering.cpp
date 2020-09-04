@@ -194,13 +194,11 @@ public:
 		bOnlyOnRenderedOpaque.Bind(Initializer.ParameterMap, TEXT("bOnlyOnRenderedOpaque"));
 		bUseLinearDepthTexture.Bind(Initializer.ParameterMap, TEXT("bUseLinearDepthTexture"));
 		LinearDepthTextureMinMaxUV.Bind(Initializer.ParameterMap, TEXT("LinearDepthTextureMinMaxUV"));
-		SceneTextureParameters.Bind(Initializer);
 	}
 
 	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View, const FHeightFogRenderingParameters& Params)
 	{
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
 		
 		FFogUniformParameters FogUniformParameters;
 		SetupFogUniformParameters(View, FogUniformParameters);
@@ -233,7 +231,6 @@ public:
 	}
 
 private:
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters)
 	LAYOUT_FIELD(FShaderResourceParameter, OcclusionTexture)
 	LAYOUT_FIELD(FShaderResourceParameter, OcclusionSampler)
 	LAYOUT_FIELD(FShaderResourceParameter, LinearDepthTexture);
@@ -464,6 +461,7 @@ bool FDeferredShadingSceneRenderer::RenderFog(FRHICommandListImmediate& RHICmdLi
 		&& !IsForwardShadingEnabled(ShaderPlatform))
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, SceneContext.GetCurrentFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
 
 		SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite, true);
 
@@ -475,6 +473,9 @@ bool FDeferredShadingSceneRenderer::RenderFog(FRHICommandListImmediate& RHICmdLi
 			if (View.IsPerspectiveProjection())
 			{
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 				Parameters.ViewRect = View.ViewRect;
 				RenderViewFog(RHICmdList, View, Parameters);
@@ -497,6 +498,9 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(FRHICommandListImmediate
 		// Fog must be done in the base pass for MSAA to work
 		&& !IsForwardShadingEnabled(ShaderPlatform))
 	{
+		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, SceneContext.GetCurrentFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 		FSceneRenderTargetItem& RT = PassData.SceneColorWithoutSingleLayerWater->GetRenderTargetItem();
 
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, RT.TargetableTexture.GetReference());
@@ -515,6 +519,9 @@ void FDeferredShadingSceneRenderer::RenderUnderWaterFog(FRHICommandListImmediate
 			if (View.IsPerspectiveProjection())
 			{
 				SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
+
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 				// Specify the low resolution view rect
 				Parameters.ViewRect = PassData.ViewData[ViewIndex].SceneWithoutSingleLayerWaterViewRect;

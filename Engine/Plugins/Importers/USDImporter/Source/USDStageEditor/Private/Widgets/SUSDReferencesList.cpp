@@ -13,13 +13,6 @@
 #include "Widgets/Input/STextComboBox.h"
 
 #if USE_USD_SDK
-#include "USDIncludesStart.h"
-
-#include "pxr/usd/sdf/reference.h"
-#include "pxr/usd/usd/prim.h"
-#include "pxr/usd/usd/variantSets.h"
-
-#include "USDIncludesEnd.h"
 
 namespace UsdReferencesListConstants
 {
@@ -57,9 +50,9 @@ TSharedRef< SWidget > SUsdReferenceRow::GenerateWidgetForColumn( const FName& Co
 		];
 }
 
-void SUsdReferencesList::Construct( const FArguments& InArgs, const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
+void SUsdReferencesList::Construct( const FArguments& InArgs, const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
 {
-	UpdateReferences( UsdStage, PrimPath );
+	ViewModel.UpdateReferences( UsdStage, PrimPath );
 
 	SAssignNew( HeaderRowWidget, SHeaderRow )
 	.Visibility( EVisibility::Collapsed )
@@ -70,7 +63,7 @@ void SUsdReferencesList::Construct( const FArguments& InArgs, const TUsdStore< p
 	SListView::Construct
 	(
 		SListView::FArguments()
-		.ListItemsSource( &References )
+		.ListItemsSource( &ViewModel.References )
 		.OnGenerateRow( this, &SUsdReferencesList::OnGenerateRow )
 		.HeaderRow( HeaderRowWidget )
 	);
@@ -81,39 +74,9 @@ TSharedRef< ITableRow > SUsdReferencesList::OnGenerateRow( TSharedPtr< FUsdRefer
 	return SNew( SUsdReferenceRow, InDisplayNode, OwnerTable );
 }
 
-void SUsdReferencesList::UpdateReferences( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
+void SUsdReferencesList::SetPrimPath( const UE::FUsdStage& UsdStage, const TCHAR* PrimPath )
 {
-	References.Reset();
-
-	if ( !UsdStage.Get() )
-	{
-		return;
-	}
-
-	FScopedUsdAllocs UsdAllocs;
-	
-	pxr::UsdPrim Prim = UsdStage.Get()->GetPrimAtPath( UnrealToUsd::ConvertPath( PrimPath ).Get() );
-
-	// Retrieve the strongest opinion prim spec, hopefully it's enough to get all references
-	pxr::SdfPrimSpecHandle PrimSpec = Prim.GetPrimStack().size() > 0 ? Prim.GetPrimStack()[0] : pxr::SdfPrimSpecHandle();
-
-	if ( PrimSpec )
-	{
-		pxr::SdfReferencesProxy ReferencesProxy = PrimSpec->GetReferenceList();
-
-		for ( const pxr::SdfReference& UsdReference : ReferencesProxy.GetAddedOrExplicitItems() )
-		{
-			FUsdReference Reference;
-			Reference.AssetPath = UsdToUnreal::ConvertString( UsdReference.GetAssetPath() );
-
-			References.Add( MakeSharedUnreal< FUsdReference >( MoveTemp( Reference ) ) );
-		}
-	}
-}
-
-void SUsdReferencesList::SetPrimPath( const TUsdStore< pxr::UsdStageRefPtr >& UsdStage, const TCHAR* PrimPath )
-{
-	UpdateReferences( UsdStage, PrimPath );
+	ViewModel.UpdateReferences( UsdStage, PrimPath );
 	RequestListRefresh();
 }
 

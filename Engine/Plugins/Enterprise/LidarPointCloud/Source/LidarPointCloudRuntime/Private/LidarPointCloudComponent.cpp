@@ -23,6 +23,7 @@ ULidarPointCloudComponent::ULidarPointCloudComponent()
 	, PointSize(1.0f)
 	, ColorSource(ELidarPointCloudColorationMode::Data)
 	, PointShape(ELidarPointCloudSpriteShape::Square)
+	, PointOrientation(ELidarPointCloudSpriteOrientation::PreferFacingCamera)
 	, ElevationColorBottom(FLinearColor::Red)
 	, ElevationColorTop(FLinearColor::Green)
 	, PointSizeBias(0.035f)
@@ -226,3 +227,12 @@ void ULidarPointCloudComponent::PostEditChangeProperty(FPropertyChangedEvent& Pr
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 }
 #endif
+
+template void ULidarPointCloudComponent::GetPointsInSphere(TArray<FLidarPointCloudPoint*>&, const FSphere&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInSphere(TArray64<FLidarPointCloudPoint*>&, const FSphere&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInBox(TArray<FLidarPointCloudPoint*>&, const FBox&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInBox(TArray64<FLidarPointCloudPoint*>&, const FBox&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInSphereAsCopies(TArray<FLidarPointCloudPoint>&, const FSphere&, const bool&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInSphereAsCopies(TArray64<FLidarPointCloudPoint>&, const FSphere&, const bool&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInBoxAsCopies(TArray<FLidarPointCloudPoint>&, const FBox&, const bool&, const bool&);
+template void ULidarPointCloudComponent::GetPointsInBoxAsCopies(TArray64<FLidarPointCloudPoint>&, const FBox&, const bool&, const bool&);

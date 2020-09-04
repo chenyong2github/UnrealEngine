@@ -3,6 +3,7 @@
 #include "K2Node_GetDMXActiveModeFunctionValues.h"
 
 #include "Library/DMXEntityFixturePatch.h"
+#include "Library/DMXLibrary.h"
 #include "DMXSubsystem.h"
 #include "DMXProtocolConstants.h"
 #include "DMXBlueprintGraphLog.h"
@@ -19,10 +20,10 @@
 #define LOCTEXT_NAMESPACE "UK2Node_GetDMXActiveModeFunctionValues"
 
 const FName UK2Node_GetDMXActiveModeFunctionValues::InputDMXFixturePatchPinName(TEXT("InFixturePatch"));
-const FName UK2Node_GetDMXActiveModeFunctionValues::InputDMXProtocolPinName(TEXT("InProtocol"));
+//const FName UK2Node_GetDMXActiveModeFunctionValues::InputDMXProtocolPinName(TEXT("InProtocol"));
 
-const FName UK2Node_GetDMXActiveModeFunctionValues::OutputFunctionsMapPinName(TEXT("OutFunctionsMap"));
-const FName UK2Node_GetDMXActiveModeFunctionValues::OutputIsSuccessPinName(TEXT("OutIsSuccessPinName"));
+const FName UK2Node_GetDMXActiveModeFunctionValues::OutputFunctionsMapPinName(TEXT("OutAttributesMap"));
+const FName UK2Node_GetDMXActiveModeFunctionValues::OutputIsSuccessPinName(TEXT("IsSuccessful"));
 
 
 UK2Node_GetDMXActiveModeFunctionValues::UK2Node_GetDMXActiveModeFunctionValues()
@@ -34,7 +35,7 @@ UK2Node_GetDMXActiveModeFunctionValues::UK2Node_GetDMXActiveModeFunctionValues()
 void UK2Node_GetDMXActiveModeFunctionValues::OnFixturePatchChanged()
 {
 	// Reset fixture path nodes if we receive a notification
-	if (Pins.Num() > 0 && bIsExposed)
+	if (Pins.Num() > 0)
 	{
 		ResetFunctions();
 	}
@@ -86,14 +87,15 @@ void UK2Node_GetDMXActiveModeFunctionValues::AllocateDefaultPins()
 	K2Schema->ConstructBasicPinTooltip(*InputDMXFixturePatchPin, LOCTEXT("InputDMXFixturePatch", "Input DMX Fixture Patch"), InputDMXFixturePatchPin->PinToolTip);
 	
 	// Protocol Name pin
-	UEdGraphPin* InputDMXProtocolPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, FDMXProtocolName::StaticStruct(), InputDMXProtocolPinName);
-	K2Schema->ConstructBasicPinTooltip(*InputDMXProtocolPin, LOCTEXT("InputDMXProtocolPin", "The DMX protocol name"), InputDMXProtocolPin->PinToolTip);
+	//UEdGraphPin* InputDMXProtocolPin = CreatePin(EGPD_Input, UEdGraphSchema_K2::PC_Struct, FDMXProtocolName::StaticStruct(), InputDMXProtocolPinName);
+	//K2Schema->ConstructBasicPinTooltip(*InputDMXProtocolPin, LOCTEXT("InputDMXProtocolPin", "The DMX protocol name"), InputDMXProtocolPin->PinToolTip);
 
 	// Add output pin
 	FCreatePinParams OutputFunctionsMapPinParams;
 	OutputFunctionsMapPinParams.ContainerType = EPinContainerType::Map;
 	OutputFunctionsMapPinParams.ValueTerminalType.TerminalCategory = UEdGraphSchema_K2::PC_Int;
-	UEdGraphPin* OutputFunctionsMapPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Name, TEXT(""), OutputFunctionsMapPinName, OutputFunctionsMapPinParams);
+
+	UEdGraphPin* OutputFunctionsMapPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Struct, FDMXAttributeName::StaticStruct(), OutputFunctionsMapPinName, OutputFunctionsMapPinParams);
 	K2Schema->ConstructBasicPinTooltip(*OutputFunctionsMapPin, LOCTEXT("OutputFunctionsMap", "Output Functions Map."), OutputFunctionsMapPin->PinToolTip);
 
 	UEdGraphPin* OutputIsSuccessPin = CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Boolean, TEXT(""), OutputIsSuccessPinName);
@@ -102,9 +104,29 @@ void UK2Node_GetDMXActiveModeFunctionValues::AllocateDefaultPins()
 	Super::AllocateDefaultPins();
 }
 
+void UK2Node_GetDMXActiveModeFunctionValues::PostPasteNode()
+{
+	ResetFunctions();
+}
+
+void UK2Node_GetDMXActiveModeFunctionValues::PinConnectionListChanged(UEdGraphPin* Pin)
+{
+	if (Pin == GetInputDMXFixturePatchPin())
+	{
+		ResetFunctions();
+
+		// Ask to recompile the bplueprint
+		if (UBlueprint* BP = GetBlueprint())
+		{
+			FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+		}
+	}
+}
+
 void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& CompilerContext, UEdGraph* SourceGraph)
 {
 	Super::ExpandNode(CompilerContext, SourceGraph);
+
 	const UEdGraphSchema_K2* Schema = CompilerContext.GetSchema();
 
 	// First node to execute. GetDMXSubsystem
@@ -137,7 +159,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 	UEdGraphPin* GetFunctionsMapNodeSelfPin = GetFunctionsMapNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
 	UEdGraphPin* GetFunctionsMapNodeExecPin = GetFunctionsMapNode->GetExecPin();
 	UEdGraphPin* GetFunctionsMapNodeInFixturePatchPin = GetFunctionsMapNode->FindPinChecked(TEXT("InFixturePatch"));
-	UEdGraphPin* GetFunctionsMapNodeSelectedProtocolPin = GetFunctionsMapNode->FindPinChecked(TEXT("SelectedProtocol"));
+	//UEdGraphPin* GetFunctionsMapNodeSelectedProtocolPin = GetFunctionsMapNode->FindPinChecked(TEXT("SelectedProtocol"));
 	UEdGraphPin* GetFunctionsMapNodeOutFunctionsMapPin = GetFunctionsMapNode->FindPinChecked(TEXT("OutFunctionsMap"));
 	UEdGraphPin* GetFunctionsMapNodeOutIsSuccessPin = GetFunctionsMapNode->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
 	UEdGraphPin* GetFunctionsMapNodeThenPin = GetFunctionsMapNode->GetThenPin();
@@ -145,7 +167,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 	// Hook up inputs
 	Schema->TryCreateConnection(GetFunctionsMapNodeSelfPin, DMXSubsystemResult);
 	CompilerContext.MovePinLinksToIntermediate(*GetInputDMXFixturePatchPin(), *GetFunctionsMapNodeInFixturePatchPin);
-	CompilerContext.MovePinLinksToIntermediate(*GetInputDMXProtocolPin(), *GetFunctionsMapNodeSelectedProtocolPin);
+	//CompilerContext.MovePinLinksToIntermediate(*GetInputDMXProtocolPin(), *GetFunctionsMapNodeSelectedProtocolPin);
 
 	// Hook up outputs
 	CompilerContext.MovePinLinksToIntermediate(*GetOutputFunctionsMapPin(), *GetFunctionsMapNodeOutFunctionsMapPin);
@@ -190,14 +212,14 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExpandNode(FKismetCompilerContext& 
 
 			UEdGraphPin* GetFunctionsValueSelfPin = GetFunctionsValueNode->FindPinChecked(UEdGraphSchema_K2::PN_Self);
 			UEdGraphPin* GetFunctionsValueExecPin = GetFunctionsValueNode->GetExecPin();
-			UEdGraphPin* GetFunctionsValueNodeOutInNamePin = GetFunctionsValueNode->FindPinChecked(TEXT("InName"));
+			UEdGraphPin* GetFunctionsValueNodeOutInAttributePin = GetFunctionsValueNode->FindPinChecked(TEXT("FunctionAttributeName"));
 			UEdGraphPin* GetFunctionsValueNodeOutFunctionsMapPin = GetFunctionsValueNode->FindPinChecked(TEXT("InFunctionsMap"));
 			UEdGraphPin* GetFunctionsValueNodeOutValuePin = GetFunctionsValueNode->FindPinChecked(UEdGraphSchema_K2::PN_ReturnValue);
 			UEdGraphPin* GetFunctionsValueNodeThenPin = GetFunctionsValueNode->GetThenPin();
 
 			// Input
 			Schema->TryCreateConnection(GetFunctionsValueSelfPin, DMXSubsystemResult);
-			CompilerContext.MovePinLinksToIntermediate(*NamePairs[PairIndex], *GetFunctionsValueNodeOutInNamePin);
+			CompilerContext.MovePinLinksToIntermediate(*NamePairs[PairIndex], *GetFunctionsValueNodeOutInAttributePin);
 
 			// Output
 			Schema->TryCreateConnection(GetFunctionsValueNodeOutFunctionsMapPin, GetFunctionsMapNodeOutFunctionsMapPin);
@@ -309,13 +331,13 @@ UEdGraphPin* UK2Node_GetDMXActiveModeFunctionValues::GetInputDMXFixturePatchPin(
 	return Pin;
 }
 
-UEdGraphPin* UK2Node_GetDMXActiveModeFunctionValues::GetInputDMXProtocolPin() const
-{
-	UEdGraphPin* Pin = FindPinChecked(InputDMXProtocolPinName);
-	check(Pin->Direction == EGPD_Input);
-
-	return Pin;
-}
+//UEdGraphPin* UK2Node_GetDMXActiveModeFunctionValues::GetInputDMXProtocolPin() const
+//{
+//	UEdGraphPin* Pin = FindPinChecked(InputDMXProtocolPinName);
+//	check(Pin->Direction == EGPD_Input);
+//
+//	return Pin;
+//}
 
 UEdGraphPin* UK2Node_GetDMXActiveModeFunctionValues::GetOutputFunctionsMapPin() const
 {
@@ -354,6 +376,13 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExposeFunctions()
 	{
 		for (const FDMXFixtureFunction& Function : ActiveFixtureMode->Functions)
 		{
+			auto Attribute = Function.Attribute.GetAttribute();
+
+			if (Attribute.Name.IsNone())
+			{
+				continue;
+			}
+
 			{
 				FEdGraphPinType PinType;
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Int;
@@ -364,7 +393,7 @@ void UK2Node_GetDMXActiveModeFunctionValues::ExposeFunctions()
 				FEdGraphPinType PinType;
 				PinType.PinCategory = UEdGraphSchema_K2::PC_Name;
 				UEdGraphPin* Pin = CreateUserDefinedPin(*(GetPinName(Function).ToString() + FString("_Input")), PinType, EGPD_Input);
-				K2Schema->TrySetDefaultValue(*Pin, Function.FunctionName);
+				K2Schema->TrySetDefaultValue(*Pin, Function.Attribute.Name.ToString());
 			}
 
 			const bool bIsCompiling = GetBlueprint()->bBeingCompiled;
@@ -409,6 +438,10 @@ void UK2Node_GetDMXActiveModeFunctionValues::ResetFunctions()
 UDMXEntityFixturePatch* UK2Node_GetDMXActiveModeFunctionValues::GetFixturePatchFromPin() const
 {
 	UEdGraphPin* FixturePatchPin = GetInputDMXFixturePatchPin();
+	if (FixturePatchPin == nullptr)
+	{
+		return nullptr;
+	}
 
 	// Case with default object
 	if (FixturePatchPin->DefaultObject != nullptr && FixturePatchPin->LinkedTo.Num() == 0)
@@ -433,14 +466,14 @@ FName UK2Node_GetDMXActiveModeFunctionValues::GetPinName(const FDMXFixtureFuncti
 	FString EnumString;
 	EnumString = StaticEnum<EDMXFixtureSignalFormat>()->GetDisplayNameTextByIndex((int64)Function.DataType).ToString();
 
-	return *FString::Printf(TEXT("%s_%s"), *Function.FunctionName, *EnumString);
+	return *FString::Printf(TEXT("%s_%s"), *Function.Attribute.GetName().ToString(), *EnumString);
 }
 
 const FDMXFixtureMode* UK2Node_GetDMXActiveModeFunctionValues::GetActiveFixtureMode() const
 {
 	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatchFromPin())
 	{
-		if (UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
+		if (const UDMXEntityFixtureType* FixtureType = FixturePatch->ParentFixtureTypeTemplate)
 		{
 			if (FixtureType->Modes.Num() && FixtureType->Modes.Num() >= FixturePatch->ActiveMode)
 			{
@@ -450,6 +483,43 @@ const FDMXFixtureMode* UK2Node_GetDMXActiveModeFunctionValues::GetActiveFixtureM
 	}
 
 	return nullptr;
+}
+
+UDMXEntityFixtureType* UK2Node_GetDMXActiveModeFunctionValues::GetParentFixtureType() const
+{
+	if (UDMXEntityFixturePatch* FixturePatch = GetFixturePatchFromPin())
+	{
+		return FixturePatch->ParentFixtureTypeTemplate;
+	}
+
+	return nullptr;
+}
+
+void UK2Node_GetDMXActiveModeFunctionValues::OnDataTypeChanged(const UDMXEntityFixtureType* InFixtureType, const FDMXFixtureMode& InMode)
+{
+	// Check if there are any pins exists
+	if (Pins.Num() == 0)
+	{
+		return;
+	}
+
+	if (const UDMXEntityFixtureType* ParentFixtureType = GetParentFixtureType())
+	{
+		if (const FDMXFixtureMode* ActiveFixtureMode = GetActiveFixtureMode())
+		{
+			// Reset functions if there is a match in fixture types objects and name of the modes
+			if (InFixtureType && (InFixtureType == ParentFixtureType) && (InMode.ModeName == ActiveFixtureMode->ModeName))
+			{
+				ResetFunctions();
+
+				// Ask to recompile the bplueprint
+				if (UBlueprint* BP = GetBlueprint())
+				{
+					FBlueprintEditorUtils::MarkBlueprintAsModified(BP);
+				}
+			}
+		}
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

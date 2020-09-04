@@ -11,17 +11,14 @@
 UE_TRACE_CHANNEL_DEFINE(LoadTimeChannel)
 
 UE_TRACE_EVENT_BEGIN(LoadTime, BeginRequestGroup)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 UE_TRACE_EVENT_BEGIN(LoadTime, EndRequestGroup)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
 UE_TRACE_EVENT_END()
 
 FLoadTimeProfilerTrace::FRequestGroupScope::~FRequestGroupScope()
 {
-	UE_TRACE_LOG(LoadTime, EndRequestGroup, LoadTimeChannel)
-		<< EndRequestGroup.ThreadId(FPlatformTLS::GetCurrentThreadId());
+	UE_TRACE_LOG(LoadTime, EndRequestGroup, LoadTimeChannel);
 }
 
 void FLoadTimeProfilerTrace::FRequestGroupScope::OutputBegin()
@@ -33,7 +30,6 @@ void FLoadTimeProfilerTrace::FRequestGroupScope::OutputBegin()
 		memcpy(Out + FormatStringSize, FormatArgsBuffer, FormatArgsSize);
 	};
 	UE_TRACE_LOG(LoadTime, BeginRequestGroup, LoadTimeChannel, FormatStringSize + FormatArgsSize)
-		<< BeginRequestGroup.ThreadId(FPlatformTLS::GetCurrentThreadId())
 		<< BeginRequestGroup.Attachment(Attachment);
 }
 

@@ -9,20 +9,12 @@
 class UDMXLibrary;
 class UDMXEntityFixtureType;
 class UDMXEntityFader;
+class UDMXEntityFixturePatch;
+
 
 class DMXEDITOR_API FDMXEditorUtils
 {
 public:
-	/**
-	 * Utility to separate a name from an index at the end.
-	 * @param InString	The string to be separated.
-	 * @param OutName	The string without an index at the end. White spaces and '_' are also removed.
-	 * @param OutIndex	Index that was separated from the name. If there was none, it's zero.
-	 *					Check the return value to know if there was an index on InString.
-	 * @return True if there was an index on InString.
-	 */
-	static bool GetNameAndIndexFromString(const FString& InString, FString& OutName, int32& OutIndex);
-
 	/**
 	 * Generates a unique name given a base one and a list of existing ones, by appending an index to
 	 * existing names. If InBaseName is an empty String, it returns "Default name".
@@ -65,13 +57,6 @@ public:
 	 */
 	static bool ValidateEntityName(const FString& NewEntityName, const UDMXLibrary* InLibrary, UClass* InEntityClass, FText& OutReason);
 
-	/**
-	 * Creates new fader template.
-	 * @param InLibrary			The DMXLibrary object to check for name uniqueness.
-	 * @return New transient fader template object.
-	 */
-	static UDMXEntityFader* CreateFaderTemplate(const UDMXLibrary* InLibrary);
-
 	/**  Renames an Entity */
 	static void RenameEntity(UDMXLibrary* InLibrary, UDMXEntity* InEntity, const FString& NewName);
 
@@ -102,6 +87,28 @@ public:
 
 	/**  Returns the Entity class type name (e.g: Fixture Type for UDMXEntityFixtureType) in singular or plural */
 	static FText GetEntityTypeNameText(TSubclassOf<UDMXEntity> EntityClass, bool bPlural = false);
+
+	/**
+	 * Updates Addresses for Fixture Patches that use specified Parent fixture type and have bAutoAssignAddress set. 
+	 *
+	 * @param ChangedParentFixtureType	The parent fixture type of the patches that want their channels to be auto assigned
+	 */
+	static void AutoAssignedAddresses(UDMXEntityFixtureType* ChangedParentFixtureType);
+
+	/**
+	 * Updates Starting Addresses for fixture patches that have bAutoAssignAddress set, ignores others.
+	 * Note, patches all have to reside in the same library.
+	 *
+	 * @param ChangedFixturePatches		The patches that want their channels to be auto assigned
+	 */
+	static void AutoAssignedAddresses(const TArray<UDMXEntityFixturePatch*>& ChangedFixturePatches);
+
+	/**
+	 * Creates a unique color for all patches that use the default color FLinearColor(1.0f, 0.0f, 1.0f)
+	 *
+	 * @param Library				The library the patches resides in.
+	 */
+	static void UpdatePatchColors(UDMXLibrary* Library);
 
 	// can't instantiate this class
 	FDMXEditorUtils() = delete;

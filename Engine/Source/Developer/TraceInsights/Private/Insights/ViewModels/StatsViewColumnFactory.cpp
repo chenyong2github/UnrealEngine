@@ -4,8 +4,11 @@
 
 // Insights
 #include "Insights/Common/TimeUtils.h"
+#include "Insights/Table/ViewModels/TableCellValueFormatter.h"
+#include "Insights/Table/ViewModels/TableCellValueGetter.h"
+#include "Insights/Table/ViewModels/TableCellValueSorter.h"
+#include "Insights/ViewModels/StatsGroupingAndSorting.h"
 #include "Insights/ViewModels/StatsNodeHelper.h"
-#include "Insights/ViewModels/StatsViewColumn.h"
 
 #define LOCTEXT_NAMESPACE "SStatsView"
 
@@ -26,260 +29,588 @@ const FName FStatsViewColumns::MinColumnID(TEXT("Min"));
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FStatsViewColumnFactory::FStatsViewColumnFactory()
+void FStatsViewColumnFactory::CreateStatsViewColumns(TArray<TSharedRef<Insights::FTableColumn>>& Columns)
 {
-	uint32 Index = 0;
+	Columns.Reset();
 
-	// FStatsViewColumn
-	// (
-	//     Order,
-	//     Id,
-	//     SearchId,
-	//     ShortName,
-	//     TitleName,
-	//     Description,
-	//     bIsVisible,
-	//     Flags,
-	//     HorizontalAlignment,
-	//     InitialWidth, MinWidth, MaxWidth,
-	//     GetFormattedValueFn
-	// )
-
-	//////////////////////////////////////////////////
-	// Name
-
-	const EStatsViewColumnFlags NameColumnFlags = EStatsViewColumnFlags::CanBeSorted |
-												  EStatsViewColumnFlags::CanBeFiltered;
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::NameColumnID,
-		TEXT("name"),
-		LOCTEXT("StatsNameColumnName", "Name"),
-		LOCTEXT("StatsNameColumnTitle", "Stats or Group Name"),
-		LOCTEXT("StatsNameColumnDesc", "Name of the stats or group"),
-		true,
-		NameColumnFlags,
-		HAlign_Left,
-		206.0f, 10.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return FText::FromName(StatsNode.GetName()); }
-	));
-
-	//////////////////////////////////////////////////
-	// Meta Group Name
-
-	const EStatsViewColumnFlags MetaGroupNameColumnFlags = EStatsViewColumnFlags::CanBeHidden |
-														   EStatsViewColumnFlags::CanBeSorted |
-														   EStatsViewColumnFlags::CanBeFiltered;
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::MetaGroupNameColumnID,
-		TEXT("metagroupname"),
-		LOCTEXT("StatsMetaGroupNameColumnName", "Meta Group"),
-		LOCTEXT("StatsMetaGroupNameColumnTitle", "Meta Group Name"),
-		LOCTEXT("StatsMetaGroupNameColumnDesc", "Name of the meta group"),
-		false,
-		MetaGroupNameColumnFlags,
-		HAlign_Left,
-		100.0f, 10.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return FText::FromName(StatsNode.GetMetaGroupName()); }
-	));
-
-	//////////////////////////////////////////////////
-	// Type
-
-	const EStatsViewColumnFlags TypeColumnFlags = EStatsViewColumnFlags::CanBeHidden |
-												  EStatsViewColumnFlags::CanBeSorted |
-												  EStatsViewColumnFlags::CanBeFiltered;
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::TypeColumnID,
-		TEXT("type"),
-		LOCTEXT("StatsTypeColumnName", "Type"),
-		LOCTEXT("StatsTypeColumnTitle", "Type"),
-		LOCTEXT("StatsTypeColumnDesc", "Type of the stats or group"),
-		false,
-		TypeColumnFlags,
-		HAlign_Left,
-		60.0f, 10.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNodeTypeHelper::ToName(StatsNode.GetType()); }
-	));
-
-	//////////////////////////////////////////////////
-
-	const EStatsViewColumnFlags AggregatedStatsColumnFlags = EStatsViewColumnFlags::CanBeHidden |
-															 EStatsViewColumnFlags::CanBeSorted |
-															 EStatsViewColumnFlags::CanBeFiltered;
-
-	//////////////////////////////////////////////////
-	// Count
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::CountColumnID,
-		TEXT("count"),
-		LOCTEXT("CountName", "Count"),
-		LOCTEXT("CountTitle", "Count"),
-		LOCTEXT("CountDesc", "Number of selected values"),
-		true,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		60.0f, 0.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return FText::AsNumber(StatsNode.GetAggregatedStats().Count); }
-	));
-
-	//////////////////////////////////////////////////
-	// Aggregated stats
-
-	const float StatsInitialColumnWidth = 80.0f;
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::SumColumnID,
-		TEXT("sum"),
-		LOCTEXT("SumName", "Sum"),
-		LOCTEXT("SumTitle", "Sum"),
-		LOCTEXT("SumDesc", "Sum of selected values"),
-		false,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsSum(); }
-	));
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::MaxColumnID,
-		TEXT("max"),
-		LOCTEXT("MaxName", "Max"),
-		LOCTEXT("MaxTitle", "Maximum"),
-		LOCTEXT("MaxDesc", "Maximum of selected values"),
-		true,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsMax(); }
-	));
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::UpperQuartileColumnID,
-		TEXT("upperquartile"),
-		LOCTEXT("UpperQuartileName", "Upper"),
-		LOCTEXT("UpperQuartileTitle", "Upper Quartile"),
-		LOCTEXT("UpperQuartileDesc", "Upper quartile (Q3; third quartile; 75th percentile) of selected values"),
-		false,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsUpperQuartile(); }
-	));
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::AverageColumnID,
-		TEXT("avg"),
-		LOCTEXT("AverageName", "Avg."),
-		LOCTEXT("AverageTitle", "Average"),
-		LOCTEXT("AverageDesc", "Average (arithmetic mean) of selected values"),
-		false,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsAverage(); }
-	));
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::MedianColumnID,
-		TEXT("med"),
-		LOCTEXT("MedianName", "Med."),
-		LOCTEXT("MedianTitle", "Median"),
-		LOCTEXT("MedianDesc", "Median (Q2; second quartile; 50th percentile) of selected values"),
-		false,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsMedian(); }
-	));
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::LowerQuartileColumnID,
-		TEXT("lowerquartile"),
-		LOCTEXT("LowerQuartileName", "Lower"),
-		LOCTEXT("LowerQuartileTitle", "Lower Quartile"),
-		LOCTEXT("LowerQuartileDesc", "Lower quartile (Q1; first quartile; 25th percentile) of selected values"),
-		false,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsLowerQuartile(); }
-	));
-
-	Collection.Add(new FStatsViewColumn
-	(
-		Index++,
-		FStatsViewColumns::MinColumnID,
-		TEXT("min"),
-		LOCTEXT("MinName", "Min"),
-		LOCTEXT("MinTitle", "Minimum"),
-		LOCTEXT("MinDesc", "Minimum of selected values"),
-		true,
-		AggregatedStatsColumnFlags,
-		HAlign_Right,
-		StatsInitialColumnWidth, 4.0f, FLT_MAX,
-		[](const FStatsViewColumn& Column, const FStatsNode& StatsNode) -> FText
-		{ return StatsNode.GetTextForAggregatedStatsMin(); }
-	));
-
-	//////////////////////////////////////////////////
-
-	for (int32 MapIndex = 0; MapIndex < Collection.Num(); MapIndex++)
-	{
-		ColumnIdToPtrMapping.Add(Collection[MapIndex]->Id, Collection[MapIndex]);
-	}
+	Columns.Add(CreateNameColumn());
+	Columns.Add(CreateMetaGroupNameColumn());
+	Columns.Add(CreateTypeColumn());
+	Columns.Add(CreateCountColumn());
+	Columns.Add(CreateSumColumn());
+	Columns.Add(CreateMaxColumn());
+	//Columns.Add(CreateUpperQuartileColumn());
+	Columns.Add(CreateAverageColumn());
+	Columns.Add(CreateMedianColumn());
+	//Columns.Add(CreateLowerQuartileColumn());
+	Columns.Add(CreateMinColumn());
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-FStatsViewColumnFactory::~FStatsViewColumnFactory()
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateNameColumn()
 {
-	for (const FStatsViewColumn* Column : Collection)
-	{
-		delete Column;
-	}
-	Collection.Reset();
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::NameColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Name_ColumnName", "Name"));
+	Column.SetTitleName(LOCTEXT("Name_ColumnTitle", "Stats or Group Name"));
+	Column.SetDescription(LOCTEXT("Name_ColumnDesc", "Name of stats or group"));
+
+	Column.SetFlags(ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered |
+					ETableColumnFlags::IsHierarchy);
+
+	Column.SetHorizontalAlignment(HAlign_Left);
+	Column.SetInitialWidth(206.0f);
+	Column.SetMinWidth(42.0f);
+
+	Column.SetDataType(ETableCellDataType::Text);
+
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FDisplayNameValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByName>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-const FStatsViewColumnFactory& FStatsViewColumnFactory::Get()
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMetaGroupNameColumn()
 {
-	static FStatsViewColumnFactory Instance;
-	return Instance;
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::MetaGroupNameColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("MetaGroupName_ColumnName", "Meta Group"));
+	Column.SetTitleName(LOCTEXT("MetaGroupName_ColumnTitle", "Meta Group Name"));
+	Column.SetDescription(LOCTEXT("MetaGroupName_ColumnDesc", "Name of meta group"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Left);
+	Column.SetInitialWidth(100.0f);
+
+	Column.SetDataType(ETableCellDataType::Text);
+
+	class FMetaGroupNameValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MetaGroupNameColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(FText::FromName(StatsNode.GetMetaGroupName())));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMetaGroupNameValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValue>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateTypeColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::TypeColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Type_ColumnName", "Type"));
+	Column.SetTitleName(LOCTEXT("Type_ColumnTitle", "Type"));
+	Column.SetDescription(LOCTEXT("Type_ColumnDesc", "Type of stats counter or group"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Left);
+	Column.SetInitialWidth(60.0f);
+
+	Column.SetDataType(ETableCellDataType::Text);
+
+	class FStatsTypeValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::TypeColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNodeTypeHelper::ToText(StatsNode.GetType())));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FStatsTypeValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FTextValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByTextValue>(ColumnRef);
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByStatsType>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateCountColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::CountColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Count_ColumnName", "Count"));
+	Column.SetTitleName(LOCTEXT("Count_ColumnTitle", "Sample Count"));
+	Column.SetDescription(LOCTEXT("Count_ColumnDesc", "Number of selected samples"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(60.0f);
+
+	Column.SetDataType(ETableCellDataType::Int64);
+	Column.SetAggregation(ETableColumnAggregation::Sum);
+
+	class FCountValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::CountColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(static_cast<int64>(StatsNode.GetAggregatedStats().Count)));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FCountValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FInt64ValueFormatterAsNumber>();
+	Column.SetValueFormatter(Formatter);
+
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByInt64Value>(ColumnRef);
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByCount>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateSumColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::SumColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Sum_ColumnName", "Sum"));
+	Column.SetTitleName(LOCTEXT("Sum_ColumnTitle", "Sum"));
+	Column.SetDescription(LOCTEXT("Sum_ColumnDesc", "Sum of selected samples"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+	Column.SetAggregation(ETableColumnAggregation::Sum);
+
+	class FSumValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::SumColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Sum));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FSumValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FSumValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::SumColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsSum();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FSumValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingBySum>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMaxColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::MaxColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Max_ColumnName", "Max"));
+	Column.SetTitleName(LOCTEXT("Max_ColumnTitle", "Maximum"));
+	Column.SetDescription(LOCTEXT("Max_ColumnDesc", "Maximum of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+	//Column.SetAggregation(ETableColumnAggregation::Max);
+
+	class FMaxValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MaxColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Max));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMaxValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FMaxValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MaxColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsMax();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FMaxValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMax>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateUpperQuartileColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::UpperQuartileColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("UpperQuartile_ColumnName", "Upper"));
+	Column.SetTitleName(LOCTEXT("UpperQuartile_ColumnTitle", "Upper Quartile"));
+	Column.SetDescription(LOCTEXT("UpperQuartile_ColumnDesc", "Upper quartile (Q3; third quartile; 75th percentile) of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+	//Column.SetAggregation(ETableColumnAggregation::Max);
+
+	class FUpperQuartileValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::UpperQuartileColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().UpperQuartile));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FUpperQuartileValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FUpperQuartileValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::UpperQuartileColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsUpperQuartile();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FUpperQuartileValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByUpperQuartile>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateAverageColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::AverageColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Average_ColumnName", "Avg."));
+	Column.SetTitleName(LOCTEXT("Average_ColumnTitle", "Average"));
+	Column.SetDescription(LOCTEXT("Average_ColumnDesc", "Average (arithmetic mean) of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+
+	class FAverageValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::AverageColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Average));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FAverageValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FAverageValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::AverageColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsAverage();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FAverageValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByAverage>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMedianColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::MedianColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Median_ColumnName", "Med."));
+	Column.SetTitleName(LOCTEXT("Median_ColumnTitle", "Median"));
+	Column.SetDescription(LOCTEXT("Median_ColumnDesc", "Median (Q2; second quartile; 50th percentile) of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+
+	class FMedianValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MedianColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Median));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMedianValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FMedianValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MedianColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsMedian();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FMedianValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMedian>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateLowerQuartileColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::LowerQuartileColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("LowerQuartile_ColumnName", "Lower"));
+	Column.SetTitleName(LOCTEXT("LowerQuartile_ColumnTitle", "Lower Quartile"));
+	Column.SetDescription(LOCTEXT("LowerQuartile_ColumnDesc", "Lower quartile (Q1; first quartile; 25th percentile) of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					//ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+	//Column.SetAggregation(ETableColumnAggregation::Min);
+
+	class FLowerQuartileValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::LowerQuartileColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().LowerQuartile));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FLowerQuartileValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FLowerQuartileValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::LowerQuartileColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsLowerQuartile();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FLowerQuartileValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByLowerQuartile>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+TSharedRef<Insights::FTableColumn> FStatsViewColumnFactory::CreateMinColumn()
+{
+	using namespace Insights;
+
+	TSharedRef<FTableColumn> ColumnRef = MakeShared<FTableColumn>(FStatsViewColumns::MinColumnID);
+	FTableColumn& Column = *ColumnRef;
+
+	Column.SetShortName(LOCTEXT("Min_ColumnName", "Min"));
+	Column.SetTitleName(LOCTEXT("Min_ColumnTitle", "Minimum"));
+	Column.SetDescription(LOCTEXT("Min_ColumnDesc", "Minimum of selected values"));
+
+	Column.SetFlags(ETableColumnFlags::CanBeHidden |
+					ETableColumnFlags::ShouldBeVisible |
+					ETableColumnFlags::CanBeFiltered);
+
+	Column.SetHorizontalAlignment(HAlign_Right);
+	Column.SetInitialWidth(AggregatedStatsColumnInitialWidth);
+
+	Column.SetDataType(ETableCellDataType::Double);
+	//Column.SetAggregation(ETableColumnAggregation::Min);
+
+	class FMinValueGetter : public FTableCellValueGetter
+	{
+	public:
+		virtual const TOptional<FTableCellValue> GetValue(const FTableColumn& Column, const FBaseTreeNode& Node) const
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MinColumnID);
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return TOptional<FTableCellValue>(FTableCellValue(StatsNode.GetAggregatedStats().Min));
+		}
+	};
+	TSharedRef<ITableCellValueGetter> Getter = MakeShared<FMinValueGetter>();
+	Column.SetValueGetter(Getter);
+
+	class FMinValueFormatter : public FTableCellValueFormatter
+	{
+	public:
+		virtual FText FormatValue(const FTableColumn& Column, const FBaseTreeNode& Node) const override
+		{
+			ensure(Column.GetId() == FStatsViewColumns::MinColumnID);
+			//check(Node.Is<FStatsNode>());
+			const FStatsNode& StatsNode = static_cast<const FStatsNode&>(Node);
+			return StatsNode.GetTextForAggregatedStatsMin();
+		}
+	};
+	TSharedRef<ITableCellValueFormatter> Formatter = MakeShared<FMinValueFormatter>();
+	Column.SetValueFormatter(Formatter);
+
+	TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FSorterByDoubleValue>(ColumnRef);
+	//TSharedRef<ITableCellValueSorter> Sorter = MakeShared<FStatsNodeSortingByMin>(ColumnRef);
+	Column.SetValueSorter(Sorter);
+
+	return ColumnRef;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

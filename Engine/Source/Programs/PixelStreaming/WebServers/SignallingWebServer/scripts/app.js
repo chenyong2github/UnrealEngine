@@ -63,6 +63,9 @@ function setupHtmlEvents() {
 	window.addEventListener('orientationchange', onOrientationChange);
 
 	//HTML elements controls
+	let overlayButton = document.getElementById('overlayButton');
+	overlayButton.addEventListener('click', onExpandOverlay_Click); 
+
 	let resizeCheckBox = document.getElementById('enlarge-display-to-fill-window-tgl');
 	if (resizeCheckBox !== null) {
 		resizeCheckBox.onchange = function (event) {
@@ -358,8 +361,11 @@ const ToClientMessageType = {
 	Response: 1,
 	Command: 2,
 	FreezeFrame: 3,
-	UnfreezeFrame: 4
+	UnfreezeFrame: 4,
+	VideoEncoderAvgQP: 5
 };
+
+var VideoEncoderQP = "N/A";
 
 function setupWebRtcPlayer(htmlElement, config) {
 	webRtcPlayerObj = new webRtcPlayer({ peerConnectionOptions: config.peerConnectionOptions });
@@ -463,9 +469,12 @@ function setupWebRtcPlayer(htmlElement, config) {
 			}
 		} else if (view[0] === ToClientMessageType.UnfreezeFrame) {
 			invalidateFreezeFrameOverlay();
-					} else {
-			console.error(`unrecognised data received, packet ID ${view[0]}`);
-	}
+		} else if (view[0] === ToClientMessageType.VideoEncoderAvgQP) {
+			VideoEncoderQP = new TextDecoder("utf-16").decode(data.slice(1));
+			console.log(`received VideoEncoderAvgQP ${VideoEncoderQP}`);
+		} else {
+			console.error(`unrecognized data received, packet ID ${view[0]}`);
+		}
 	};
 
 	registerInputs(webRtcPlayerObj.video);
@@ -489,7 +498,6 @@ function onWebRtcAnswer(webRTCData) {
 	webRtcPlayerObj.onAggregatedStats = (aggregatedStats) => {
 		let numberFormat = new Intl.NumberFormat(window.navigator.language, { maximumFractionDigits: 0 });
 		let timeFormat = new Intl.NumberFormat(window.navigator.language, { maximumFractionDigits: 0, minimumIntegerDigits: 2 });
-		let statsText = '';
 
 		// Calculate duration of run
 		let runTime = (aggregatedStats.timestamp - aggregatedStats.timestampStart) / 1000;
@@ -515,23 +523,63 @@ function onWebRtcAnswer(webRTCData) {
 			receivedBytesMeasurement = dataMeasurements[index];
 		}
 
-		statsText += `Duration: ${timeFormat.format(runTimeHours)}:${timeFormat.format(runTimeMinutes)}:${timeFormat.format(runTimeSeconds)}</br>`;
-		statsText += `Video Resolution: ${
+		let qualityStatus = document.getElementById("qualityStatus");
+
+		// "blinks" quality status element for 1 sec by making it transparent, speed = number of blinks
+		let blinkQualityStatus = function(speed) {
+			let iter = speed; 
+			let opacity = 1; // [0..1]
+			let tickId = setInterval(
+				function() {
+					opacity -= 0.1;
+					// map `opacity` to [-0.5..0.5] range, decrement by 0.2 per step and take `abs` to make it blink: 1 -> 0 -> 1
+					qualityStatus.style = `opacity: ${Math.abs((opacity - 0.5) * 2)}`;
+					if (opacity <= 0.1) {
+						if (--iter == 0) {
+							clearInterval(tickId);
+						} else { // next blink
+							opacity = 1;
+						}
+					}
+				},
+				100 / speed // msecs
+			);
+		};
+
+		const orangeQP = 26;
+		const redQP = 35;
+
+		let statsText = '';
+
+		let color = "lime";
+		if (VideoEncoderQP > redQP) {
+			color = "red";
+			blinkQualityStatus(2);
+			statsText += `<div style="color: ${color}">Bad network connection</div>`;
+		} else if (VideoEncoderQP > orangeQP) {
+			color = "orange";
+			blinkQualityStatus(1);
+			statsText += `<div style="color: ${color}">Spotty network connection</div>`;
+		}
+
+		qualityStatus.className = `${color}Status`;
+
+		statsText += `<div>Duration: ${timeFormat.format(runTimeHours)}:${timeFormat.format(runTimeMinutes)}:${timeFormat.format(runTimeSeconds)}</div>`;
+		statsText += `<div>Video Resolution: ${
 			aggregatedStats.hasOwnProperty('frameWidth') && aggregatedStats.frameWidth && aggregatedStats.hasOwnProperty('frameHeight') && aggregatedStats.frameHeight ?
 				aggregatedStats.frameWidth + 'x' + aggregatedStats.frameHeight : 'N/A'
-			}</br>`;
-		statsText += `Received (${receivedBytesMeasurement}): ${numberFormat.format(receivedBytes)}</br>`;
-		statsText += `Frames Decoded: ${aggregatedStats.hasOwnProperty('framesDecoded') ? numberFormat.format(aggregatedStats.framesDecoded) : 'N/A'}</br>`;
-		statsText += `Packets Lost: ${aggregatedStats.hasOwnProperty('packetsLost') ? numberFormat.format(aggregatedStats.packetsLost) : 'N/A'}</br>`;
-		statsText += `Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'N/A'}</br>`;
-		statsText += `Framerate: ${aggregatedStats.hasOwnProperty('framerate') ? numberFormat.format(aggregatedStats.framerate) : 'N/A'}</br>`;
-		statsText += `Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'N/A'}</br>`;
-		statsText += `Latency (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'N/A'}</br>`;
+			}</div>`;
+		statsText += `<div>Received (${receivedBytesMeasurement}): ${numberFormat.format(receivedBytes)}</div>`;
+		statsText += `<div>Frames Decoded: ${aggregatedStats.hasOwnProperty('framesDecoded') ? numberFormat.format(aggregatedStats.framesDecoded) : 'N/A'}</div>`;
+		statsText += `<div>Packets Lost: ${aggregatedStats.hasOwnProperty('packetsLost') ? numberFormat.format(aggregatedStats.packetsLost) : 'N/A'}</div>`;
+		statsText += `<div style="color: ${color}">Bitrate (kbps): ${aggregatedStats.hasOwnProperty('bitrate') ? numberFormat.format(aggregatedStats.bitrate) : 'N/A'}</div>`;
+		statsText += `<div>Framerate: ${aggregatedStats.hasOwnProperty('framerate') ? numberFormat.format(aggregatedStats.framerate) : 'N/A'}</div>`;
+		statsText += `<div>Frames dropped: ${aggregatedStats.hasOwnProperty('framesDropped') ? numberFormat.format(aggregatedStats.framesDropped) : 'N/A'}</div>`;
+		statsText += `<div>Latency (ms): ${aggregatedStats.hasOwnProperty('currentRoundTripTime') ? numberFormat.format(aggregatedStats.currentRoundTripTime * 1000) : 'N/A'}</div>`;
+		statsText += `<div style="color: ${color}">Video Quantization Parameter: ${VideoEncoderQP}</div>`;
 
 		let statsDiv = document.getElementById("stats");
-		if (statsDiv) {
-			statsDiv.innerHTML = statsText;
-		}
+		statsDiv.innerHTML = statsText;
 
 		if (print_stats) {
 			if (aggregatedStats.timestampStart) {
@@ -1459,16 +1507,16 @@ function registerKeyboardEvents() {
 	};
 }
 
-function onExpandOverlay_Click() {
-	let subElement = document.getElementById('overlaySettings');
-	if (subElement.style.display === "none" || subElement.style.display === "") {
-		subElement.style.display = "block";
-	} else {
-		subElement.style.display = "none";
-	}
+function onExpandOverlay_Click(/* e */) {
+	let overlay = document.getElementById('overlay');
+	overlay.classList.toggle("overlay-shown");
 }
 
 function start() {
+	// update "quality status" to "disconnected" state
+	let qualityStatus = document.getElementById("qualityStatus");
+	qualityStatus.className = "grey-status";
+
 	let statsDiv = document.getElementById("stats");
 	if (statsDiv) {
 		statsDiv.innerHTML = 'Not connected';
@@ -1537,7 +1585,8 @@ function connect() {
 			webRtcPlayerObj = undefined;
 		}
 
-		start();
+		showTextOverlay(`Disconnected: ${event.reason}`);
+		var reclickToStart = setTimeout(start, 4000);
 	};
 }
 

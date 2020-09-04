@@ -808,8 +808,10 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				}
 			}
 
-			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, bReplaceActor, ParentClass);
+			FKismetEditorUtilities::FHarvestBlueprintFromActorsParams Params;
+			Params.bReplaceActors = true;
+			Params.ParentClass = ParentClass;
+			Blueprint = FKismetEditorUtilities::HarvestBlueprintFromActors(InAssetPath, Actors, Params);
 		}
 		break;
 
@@ -844,8 +846,11 @@ void FCreateBlueprintFromActorDialog::OnCreateBlueprint(const FString& InAssetPa
 				}
 			}
 
-			const bool bReplaceActor = true;
-			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Actors, bReplaceActor, ParentClass);
+			FKismetEditorUtilities::FCreateBlueprintFromActorsParams Params(Actors);
+			Params.bReplaceActors = true;
+			Params.ParentClass = ParentClass;
+
+			Blueprint = FKismetEditorUtilities::CreateBlueprintFromActors(InAssetPath, Params);
 		}
 		break;
 	}

@@ -789,7 +789,7 @@ public:
 				case CPT_Byte:
 					return FString::Printf(TEXT("%u"), Byte);
 				case CPT_Int64:
-					return FString::Printf(TEXT("%ld"), Int64);
+					return FString::Printf(TEXT("%" INT64_FMT), Int64);
 				case CPT_Int:
 					return FString::Printf(TEXT("%i"), Int);
 				case CPT_Bool:
@@ -1458,17 +1458,18 @@ struct FMultipleInheritanceBaseClass
 	 * For multiple inheritance parents declared using 'Implements', corresponds to the UClass for the interface.  For multiple inheritance parents declared
 	 * using 'Inherits', this value will be NULL.
 	 */
-	UClass* InterfaceClass;
+	UClass* InterfaceClass = nullptr;
 
 	/**
 	 * Constructors
 	 */
-	FMultipleInheritanceBaseClass(const FString& BaseClassName)
-	: ClassName(BaseClassName), InterfaceClass(NULL)
-	{}
+	explicit FMultipleInheritanceBaseClass(FString&& BaseClassName)
+		: ClassName(MoveTemp(BaseClassName))
+	{
+	}
 
-	FMultipleInheritanceBaseClass(UClass* ImplementedInterfaceClass)
-	: InterfaceClass(ImplementedInterfaceClass)
+	explicit FMultipleInheritanceBaseClass(UClass* ImplementedInterfaceClass)
+		: InterfaceClass(ImplementedInterfaceClass)
 	{
 		ClassName = FString::Printf(TEXT("I%s"), *ImplementedInterfaceClass->GetName());
 	}
@@ -1720,7 +1721,7 @@ public:
 	 * @param Inparent The C++ class name to add to the multiple inheritance list
 	 * @param UnrealSourceFile Currently parsed source file.
 	 */
-	void AddInheritanceParent(const FString& InParent, FUnrealSourceFile* UnrealSourceFile);
+	void AddInheritanceParent(FString&& InParent, FUnrealSourceFile* UnrealSourceFile);
 
 	/**
 	 * Add a string to the list of inheritance parents for this class.

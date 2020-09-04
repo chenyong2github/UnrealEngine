@@ -320,15 +320,18 @@ const FPlatformAudioCookOverrides* FPlatformCompressionUtilities::GetCookOverrid
 
 #if WITH_EDITOR
 	// In editor situations, the settings can change at any time, so we need to retrieve them.
-	
-	static double LastCacheTime = 0.0;
-	double CurrentTime = FPlatformTime::Seconds();
-	double TimeSinceLastCache = CurrentTime - LastCacheTime;
 
-	if (bForceRecache || TimeSinceLastCache > CookOverrideCachingIntervalCvar)
+	if (GIsEditor && !IsRunningCommandlet())
 	{
-		bNeedsToBeInitialized = true;
-		LastCacheTime = CurrentTime;
+		static double LastCacheTime = 0.0;
+		double CurrentTime = FPlatformTime::Seconds();
+		double TimeSinceLastCache = CurrentTime - LastCacheTime;
+
+		if (bForceRecache || TimeSinceLastCache > CookOverrideCachingIntervalCvar)
+		{
+			bNeedsToBeInitialized = true;
+			LastCacheTime = CurrentTime;
+		}
 	}
 #endif
 	

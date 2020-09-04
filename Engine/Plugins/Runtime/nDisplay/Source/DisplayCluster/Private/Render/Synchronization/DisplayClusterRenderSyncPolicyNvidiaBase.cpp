@@ -4,8 +4,9 @@
 
 #include "Config/IPDisplayClusterConfigManager.h"
 #include "Config/DisplayClusterConfigTypes.h"
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"

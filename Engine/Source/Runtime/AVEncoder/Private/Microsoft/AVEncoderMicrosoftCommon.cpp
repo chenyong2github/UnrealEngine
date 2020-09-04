@@ -2,7 +2,7 @@
 
 #include "AVEncoderMicrosoftCommon.h"
 
-#if PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#if AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 
 #if WMFMEDIA_SUPPORTED_PLATFORM
 	#pragma comment(lib, "mfplat")
@@ -41,5 +41,5 @@ ID3D12Device* GetUE4DxDevice()
 
 } // namespace AVEncoder
 
-#endif // PLATFORM_WINDOWS || PLATFORM_XBOXONE
+#endif // AVENCODER_SUPPORTED_MICROSOFT_PLATFORM
 

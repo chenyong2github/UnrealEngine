@@ -19,7 +19,7 @@ UFbxSceneImportOptionsSkeletalMesh::UFbxSceneImportOptionsSkeletalMesh(const FOb
 	, ThresholdUV(THRESH_UVS_ARE_SAME)
 	, MorphThresholdPosition(THRESH_POINTS_ARE_NEAR)
 	, bImportAnimations(true)
-	, AnimationLength(EFbxSceneVertexColorImportOption::Replace)
+	, AnimationLength(EFBXAnimationLengthImportType::FBXALIT_AnimatedKey)
 	, FrameImportRange(0, 0)
 	, bUseDefaultSampleRate(false)
 	, CustomSampleRate(0)

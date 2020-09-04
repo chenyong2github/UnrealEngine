@@ -237,6 +237,7 @@ namespace AutomationTool
 			this.MapsToCook = InParams.MapsToCook;
 			this.MapIniSectionsToCook = InParams.MapIniSectionsToCook;
 			this.DirectoriesToCook = InParams.DirectoriesToCook;
+            this.DDCGraph = InParams.DDCGraph;
             this.InternationalizationPreset = InParams.InternationalizationPreset;
             this.CulturesToCook = InParams.CulturesToCook;
             this.BasedOnReleaseVersion = InParams.BasedOnReleaseVersion;
@@ -318,6 +319,7 @@ namespace AutomationTool
 			this.ServerCommandline = InParams.ServerCommandline;
             this.ClientCommandline = InParams.ClientCommandline;
             this.Package = InParams.Package;
+			this.SkipPackage = InParams.SkipPackage;
 			this.ForcePackageData = InParams.ForcePackageData;
 			this.Deploy = InParams.Deploy;
 			this.DeployFolder = InParams.DeployFolder;
@@ -390,6 +392,7 @@ namespace AutomationTool
 			ParamList<string> MapsToCook = null,
 			ParamList<string> MapIniSectionsToCook = null,
 			ParamList<string> DirectoriesToCook = null,
+            string DDCGraph = null,
             string InternationalizationPreset = null,
             ParamList<string> CulturesToCook = null,
 			ParamList<string> ClientCookedTargets = null,
@@ -456,6 +459,7 @@ namespace AutomationTool
 			bool? SeparateDebugInfo = null,
 			bool? MapFile = null,
 			bool? NoXGE = null,
+			bool? SkipPackage = null,
 			bool? Package = null,
 			bool? Pak = null,
 			bool? IgnorePaksFromDifferentCookSource = null,
@@ -520,6 +524,7 @@ namespace AutomationTool
 			{
 				this.DirectoriesToCook = DirectoriesToCook;
 			}
+			this.DDCGraph = ParseParamValueIfNotSpecified(Command, DDCGraph, "ddc");
             this.InternationalizationPreset = ParseParamValueIfNotSpecified(Command, InternationalizationPreset, "i18npreset");
 
             // If not specified in parameters, check commandline.
@@ -765,6 +770,7 @@ namespace AutomationTool
             this.ClientCommandline = ParseParamValueIfNotSpecified(Command, ClientCommandline, "clientcmdline");
             this.ClientCommandline = this.ClientCommandline.Replace('\'', '\"'); // replace any single quotes with double quotes
             this.Package = GetParamValueIfNotSpecified(Command, Package, this.Package, "package");
+			this.SkipPackage = GetParamValueIfNotSpecified(Command, SkipPackage, this.SkipPackage, "skippackage");
 			this.ForcePackageData = GetParamValueIfNotSpecified(Command, Package, this.ForcePackageData, "forcepackagedata");
 
 			this.Deploy = GetParamValueIfNotSpecified(Command, Deploy, this.Deploy, "deploy");
@@ -1505,6 +1511,11 @@ namespace AutomationTool
 		public ParamList<string> DirectoriesToCook = new ParamList<string>();
 
         /// <summary>
+        /// Cook: Which ddc graph to use when cooking.
+        /// </summary>
+        public string DDCGraph;
+
+        /// <summary>
         /// Cook: Internationalization preset to cook.
         /// </summary>
         public string InternationalizationPreset;
@@ -1948,7 +1959,10 @@ namespace AutomationTool
 
 		[Help("package", "package the project for the target platform")]
 		public bool Package { get; set; }
-
+		
+		[Help("skippackage", "Skips packaging the project for the target platform")]
+		public bool SkipPackage { get; set; }
+		
 		[Help("package", "Determine whether data is packaged. This can be an iteration optimization for platforms that require packages for deployment")]
 		public bool ForcePackageData { get; set; }
 
@@ -2178,7 +2192,7 @@ namespace AutomationTool
 					{
 						if (AvailableEditorTargets.Count > 1)
 						{
-							throw new AutomationException("Project contains multiple editor targets but no default is set in engine.ini");
+							throw new AutomationException("Project contains multiple editor targets but no DefaultEditorTarget is set in the [/Script/BuildSettings.BuildSettings] section of DefaultEngine.ini");
 						}
 
 						EditorTarget = AvailableEditorTargets.First();
@@ -2352,6 +2366,11 @@ namespace AutomationTool
 		{
 			get { return !String.IsNullOrEmpty(IterateSharedCookedBuild);  }
 		}
+
+        public bool HasDDCGraph
+        {
+            get { return !String.IsNullOrEmpty(DDCGraph); }
+        }
 
         public bool HasInternationalizationPreset
         {
@@ -2818,6 +2837,7 @@ namespace AutomationTool
                 CommandUtils.LogLog("AdditionalCookerOptions={0}", AdditionalCookerOptions);
 				CommandUtils.LogLog("DedicatedServer={0}", DedicatedServer);
 				CommandUtils.LogLog("DirectoriesToCook={0}", DirectoriesToCook.ToString());
+                CommandUtils.LogLog("DDCGraph={0}", DDCGraph);
                 CommandUtils.LogLog("CulturesToCook={0}", CommandUtils.IsNullOrEmpty(CulturesToCook) ? "<Not Specified> (Use Defaults)" : CulturesToCook.ToString());
 				CommandUtils.LogLog("EditorTargets={0}", EditorTargets.ToString());
 				CommandUtils.LogLog("Foreign={0}", Foreign);
@@ -2849,6 +2869,7 @@ namespace AutomationTool
 				CommandUtils.LogLog("IgnorePaksFromDifferentCookSource={0}", IgnorePaksFromDifferentCookSource);
 				CommandUtils.LogLog("IoStore={0}", IoStore);
 				CommandUtils.LogLog("SkipIoStore={0}", SkipIoStore);
+				CommandUtils.LogLog("SkipPackage={0}", SkipPackage);
 				CommandUtils.LogLog("Package={0}", Package);
 				CommandUtils.LogLog("ForcePackageData={0}", ForcePackageData);
 				CommandUtils.LogLog("NullRHI={0}", NullRHI);

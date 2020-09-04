@@ -7,6 +7,12 @@
 #include "IOS/IOSAppDelegate.h"
 #import "OnlineAppStoreUtils.h"
 
+#if (defined(__IPHONE_13_0) && __IPHONE_OS_VERSION_MAX_ALLOWED >= __IPHONE_13_0) || (defined(__TVOS_13_0) && __TV_OS_VERSION_MAX_ALLOWED >= __TVOS_13_0)
+#define SUPPORTS_PERSISTENT_SCOPEIDS 1
+#else
+#define SUPPORTS_PERSISTENT_SCOPEIDS 0
+#endif
+
 FOnlineIdentityIOS::FOnlineIdentityIOS()
 	: UniqueNetId(nullptr)
 {
@@ -57,11 +63,38 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 		// Now logged in
 		bStartedLogin = true;
 		
-		const FString PlayerId(GetLocalGameCenterUser().playerID);
-		UniqueNetId = MakeShareable( new FUniqueNetIdIOS( PlayerId ) );
-		TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UniqueNetId, TEXT(""));
-		
-		UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+#if SUPPORTS_PERSISTENT_SCOPEIDS
+		if ([GKPlayer respondsToSelector:@selector(scopedIDsArePersistent)] == YES)
+		{
+			if ([GetLocalGameCenterUser() scopedIDsArePersistent])
+			{
+				const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
+
+				UniqueNetId = MakeShareable( new FUniqueNetIdIOS( PlayerId ) );
+				TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UniqueNetId, TEXT(""));
+
+				UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+			}
+			else
+			{
+				// ID is not persistent across multiple game sessions, consider as not logged in
+				FString ErrorMessage = TEXT("The user could not be authenticated with a persistent id by Game Center");
+				UE_LOG_ONLINE_IDENTITY(Log, TEXT("%s"), *ErrorMessage);
+
+				TSharedPtr<FUniqueNetIdIOS> UniqueIdForUser = MakeShareable(new FUniqueNetIdIOS());
+				TriggerOnLoginCompleteDelegates(LocalUserNum, false, *UniqueIdForUser, *ErrorMessage);
+			}
+		}
+		else
+#endif
+		{
+			const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
+
+			UniqueNetId = MakeShareable( new FUniqueNetIdIOS( PlayerId ) );
+			TriggerOnLoginCompleteDelegates(LocalUserNum, true, *UniqueNetId, TEXT(""));
+
+			UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+		}
 	}
 	else
 	{
@@ -81,11 +114,33 @@ bool FOnlineIdentityIOS::Login(int32 LocalUserNum, const FOnlineAccountCredentia
 					if (GetLocalGameCenterUser().isAuthenticated == YES)
 					{
 						/* Perform additional tasks for the authenticated player here */
-						const FString PlayerId(GetLocalGameCenterUser().playerID);
-						UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
+#if SUPPORTS_PERSISTENT_SCOPEIDS
+						if ([GKPlayer respondsToSelector:@selector(scopedIDsArePersistent)] == YES)
+						{
+							if ([GetLocalGameCenterUser() scopedIDsArePersistent])
+							{
+								const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
+								UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
 
-						bWasSuccessful = true;
-						UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+								bWasSuccessful = true;
+								UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+							}
+							else
+							{
+								// ID is not persistent across multiple game sessions, consider as not logged in
+								ErrorMessage = TEXT("The user could not be authenticated with a persistent id by Game Center");
+								UE_LOG_ONLINE_IDENTITY(Log, TEXT("%s"), *ErrorMessage);
+							}
+						}
+						else
+#endif
+						{
+							const FString PlayerId(FString(FOnlineSubsystemIOS::GetPlayerId(GetLocalGameCenterUser())));
+							UniqueNetId = MakeShareable(new FUniqueNetIdIOS(PlayerId));
+
+							bWasSuccessful = true;
+							UE_LOG_ONLINE_IDENTITY(Log, TEXT("The user %s has logged into Game Center"), *PlayerId);
+						}
 					}
 					else
 					{

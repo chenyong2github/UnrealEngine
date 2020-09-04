@@ -20,10 +20,10 @@ public:
 
 	bool IsValid() const { return Material != nullptr; }
 
-#if WITH_EDITOR
 	TSet< FString > VectorParams;
 	TSet< FString > ScalarParams;
 	TSet< FString > TextureParams;
+#if WITH_EDITORONLY_DATA
 	TSet< FString > BoolParams;
 #endif	
 

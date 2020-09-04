@@ -2991,9 +2991,10 @@ FScopedAsyncPackageEvent2::~FScopedAsyncPackageEvent2()
 void FAsyncLoadingThreadWorker::StartThread()
 {
 	LLM_SCOPE(ELLMTag::AsyncLoading);
+	Trace::ThreadGroupBegin(TEXT("AsyncLoading"));
 	Thread = FRunnableThread::Create(this, TEXT("FAsyncLoadingThreadWorker"), 0, TPri_Normal);
 	ThreadId = Thread->GetThreadID();
-	TRACE_SET_THREAD_GROUP(ThreadId, "AsyncLoading");
+	Trace::ThreadGroupEnd();
 }
 
 uint32 FAsyncLoadingThreadWorker::Run()
@@ -3682,18 +3683,13 @@ void FAsyncPackage2::EventDrivenCreateExport(int32 LocalExportIndex)
 
 		{
 			TRACE_CPUPROFILER_EVENT_SCOPE(ConstructObject);
-			Object = StaticConstructObject_Internal
-				(
-				 LoadClass,
-				 ThisParent,
-				 ObjectName,
-				 ObjectLoadFlags,
-				 EInternalObjectFlags::None,
-				 Template,
-				 false,
-				 nullptr,
-				 true
-				);
+			FStaticConstructObjectParameters Params(LoadClass);
+			Params.Outer = ThisParent;
+			Params.Name = ObjectName;
+			Params.SetFlags = ObjectLoadFlags;
+			Params.Template = Template;
+			Params.bAssumeTemplateIsArchetype = true;
+			Object = StaticConstructObject_Internal(Params);
 		}
 
 		if (GIsInitialLoad || GUObjectArray.IsOpenForDisregardForGC())
@@ -4596,11 +4592,9 @@ void FAsyncLoadingThread2::StartThread()
 		UE_LOG(LogStreaming, Log, TEXT("Starting Async Loading Thread."));
 		bThreadStarted = true;
 		FPlatformMisc::MemoryBarrier();
+		Trace::ThreadGroupBegin(TEXT("AsyncLoading"));
 		Thread = FRunnableThread::Create(this, TEXT("FAsyncLoadingThread"), 0, TPri_Normal);
-		if (Thread)
-		{
-			TRACE_SET_THREAD_GROUP(Thread->GetThreadID(), "AsyncLoading");
-		}
+		Trace::ThreadGroupEnd();
 	}
 
 	UE_LOG(LogStreaming, Display, TEXT("AsyncLoading2 - Thread Started: %s, IsInitialLoad: %s"),

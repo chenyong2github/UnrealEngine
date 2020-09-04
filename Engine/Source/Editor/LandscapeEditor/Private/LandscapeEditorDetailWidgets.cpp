@@ -156,8 +156,7 @@ void SToolSelector::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const FNa
 	SmallText = ToolSelectorButtonBlock->SmallText;
 
 	// Add this widget to the search list of the multibox
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), Label.Get());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), Label.Get(), MultiBlock->GetSearchable());
 	
 	const FString MetaTag = FString::Printf(TEXT("LandscapeToolButton.%s"), Label.IsSet() == true ? *Label.Get().ToString() : TEXT("NoLabel"));
 
@@ -281,8 +280,8 @@ EVisibility SToolSelector::GetIconVisibility(bool bIsASmallIcon) const
 
 //////////////////////////////////////////////////////////////////////////
 
-FToolSelectorBuilder::FToolSelectorBuilder(TSharedPtr< const FUICommandList > InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender /*= TSharedPtr<FExtender>()*/, EOrientation Orientation /*= Orient_Horizontal*/)
-	: FToolBarBuilder(InCommandList, InCustomization, InExtender, Orientation)
+FToolSelectorBuilder::FToolSelectorBuilder(TSharedPtr< const FUICommandList > InCommandList, FMultiBoxCustomization InCustomization, TSharedPtr<FExtender> InExtender)
+	: FToolBarBuilder(EMultiBoxType::ToolBar, InCommandList, InCustomization, InExtender)
 {
 }
 

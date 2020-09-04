@@ -15,7 +15,6 @@
 class SInlineEditableTextBlock;
 struct FAssetData;
 class UControlRig;
-class IControlRigManipulatable;
 
 class FDisplayedCurveControlInfo
 {
@@ -191,7 +190,7 @@ private:
 
 	void OnSelectionChanged(FDisplayedCurveControlInfoPtr Selection, ESelectInfo::Type SelectInfo);
 
-	void OnRigElementSelected(IControlRigManipulatable* ControlRigManp, const FRigControl& Control, bool bSelected);
+	void OnRigElementSelected(UControlRig* Subject, const FRigControl& Control, bool bSelected);
 
 	/** Box to filter to a specific morph target name */
 	TSharedPtr<SSearchBox>	NameFilterBox;

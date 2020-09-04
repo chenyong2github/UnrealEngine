@@ -44,7 +44,24 @@
 
 #endif // WITH_RECAST
 
-static const int32 ArbitraryMaxVoxelTileSize = 1024;
+namespace 
+{
+	// Max tile size in voxels. Larger than this tiles will start to get slow to build.
+	const int32 ArbitraryMaxTileSizeVoxels = 1024;
+	// Min tile size on voxels. Smaller tiles than this waste computation during voxelization because the border are will be larger than usable area.
+	const int32 ArbitraryMinTileSizeVoxels = 16;
+	// Minimum tile size in multiples of agent radius.
+	const int32 ArbitraryMinTileSizeAgentRadius = 4; 
+
+	/** this helper function supplies a consistent way to keep TileSizeUU within defined bounds */
+	float GetClampedTileSizeUU(const float InTileSizeUU, const float CellSize, const float AgentRadius)
+	{
+		const float MinTileSize = FMath::Max3(RECAST_MIN_TILE_SIZE, CellSize * ArbitraryMinTileSizeVoxels, AgentRadius * ArbitraryMinTileSizeAgentRadius);
+		const float MaxTileSize = FMath::Max(RECAST_MIN_TILE_SIZE, CellSize * ArbitraryMaxTileSizeVoxels);
+		
+		return FMath::Clamp<float>(InTileSizeUU, MinTileSize, MaxTileSize);
+	}
+}
 
 FNavMeshTileData::FNavData::~FNavData()
 {
@@ -221,7 +238,7 @@ namespace FNavMeshConfig
 FRecastNavMeshGenerationProperties::FRecastNavMeshGenerationProperties()
 {
 	TilePoolSize = 1024;
-	TileSizeUU = 1000.f;
+	TileSizeUU = 988.f;
 	CellSize = 19;
 	CellHeight = 10;
 	AgentRadius = 34.f;
@@ -282,7 +299,6 @@ ARecastNavMesh::ARecastNavMesh(const FObjectInitializer& ObjectInitializer)
 	, bDrawOctreeDetails(true)
 	, bDrawMarkedForbiddenPolys(false)
 	, bDistinctlyDrawTilesBeingBuilt(true)
-	, bDrawNavMesh(true)
 	, DrawOffset(10.f)
 	, TilePoolSize(1024)
 	, MaxSimplificationError(1.3f)	// from RecastDemo
@@ -383,8 +399,9 @@ void ARecastNavMesh::CleanUp()
 void ARecastNavMesh::PostLoad()
 {
 	Super::PostLoad();
-	// @TODO tilesize validation. This is temporary and should get removed by 4.9
-	TileSizeUU = FMath::Clamp(TileSizeUU, CellSize, ArbitraryMaxVoxelTileSize * CellSize);
+
+	UE_CLOG(TileSizeUU < CellSize, LogNavigation, Error, TEXT("%s: TileSizeUU (%f) being less than CellSize (%f) is an invalid case and will cause navmesh generation issues.")
+		, *GetName(), TileSizeUU, CellSize);
 
 	RecreateDefaultFilter();
 	UpdatePolyRefBitsPreview();
@@ -431,8 +448,6 @@ void ARecastNavMesh::PostInitProperties()
 	}
 	
 	Super::PostInitProperties();
-
-	TileSizeUU = FMath::Clamp(TileSizeUU, CellSize, ArbitraryMaxVoxelTileSize * CellSize);
 
 	if (HasAnyFlags(RF_ClassDefaultObject | RF_NeedLoad) == false)
 	{
@@ -2430,21 +2445,33 @@ void ARecastNavMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		const FName CategoryName = FObjectEditorUtils::GetCategoryFName(PropertyChangedEvent.Property);
 		if (CategoryName == NAME_Generation)
 		{
-			FName PropName = PropertyChangedEvent.Property->GetFName();
+			const FName PropName = PropertyChangedEvent.Property->GetFName();
 			
-			if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh,AgentRadius) ||
-				PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh,TileSizeUU) ||
-				PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh,CellSize))
+			if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, AgentRadius))
 			{
-				// rule of thumb, dimension tile shouldn't be less than 16 * AgentRadius
-				if (TileSizeUU < 16.f * AgentRadius)
-				{
-					TileSizeUU = FMath::Max(16.f * AgentRadius, RECAST_MIN_TILE_SIZE);
-				}
+				// changing AgentRadius is no longer affecting TileSizeUU since 
+				// that's not how we use it. It's actually not really supported to 
+				// modify AgentRadius directly on navmesh instance, since such
+				// a navmesh will get discarded during navmesh registration with
+				// the navigation system. 
+				// @todo consider hiding it (we might already have a ticket for that).
+				UE_LOG(LogNavigation, Warning, TEXT("Changing AgentRadius directly on RecastNavMesh instance is unsupported. Please use Project Settings > NavigationSystem > SupportedAgents to change AgentRadius"));
+			}
+			else if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, TileSizeUU))
+			{
+				TileSizeUU = GetClampedTileSizeUU(TileSizeUU, CellSize, AgentRadius);
+				
+				// trying to make cell size match TileSizeUU an integer number of times
+				const float AdjustedCellSize = TileSizeUU / FMath::TruncToInt(TileSizeUU / CellSize);
+				CellSize = FMath::Clamp(AdjustedCellSize, TileSizeUU / ArbitraryMinTileSizeVoxels, TileSizeUU / ArbitraryMaxTileSizeVoxels);
 
-				// tile's can't be too big, otherwise we'll crash while tryng to allocate
-				// memory during navmesh generation
-				TileSizeUU = FMath::Clamp(TileSizeUU, CellSize, ArbitraryMaxVoxelTileSize * CellSize);
+				// update config
+				FillConfig(NavDataConfig);
+			}
+			else if (PropName == GET_MEMBER_NAME_CHECKED(ARecastNavMesh, CellSize))
+			{
+				const float AdjustedTileSizeUU = CellSize * FMath::TruncToInt(TileSizeUU / CellSize);
+				TileSizeUU = GetClampedTileSizeUU(AdjustedTileSizeUU, CellSize, AgentRadius);
 
 				// update config
 				FillConfig(NavDataConfig);

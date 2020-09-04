@@ -621,12 +621,12 @@ struct FMeshDrawCommandDebugData
 {
 #if MESH_DRAW_COMMAND_DEBUG_DATA
 	const FPrimitiveSceneProxy* PrimitiveSceneProxyIfNotUsingStateBuckets;
-	const FMaterial* Material;
 	const FMaterialRenderProxy* MaterialRenderProxy;
 	TShaderRef<FMeshMaterialShader> VertexShader;
 	TShaderRef<FMeshMaterialShader> PixelShader;
 	const FVertexFactory* VertexFactory;
 	FName ResourceName;
+	FString MaterialName;
 #endif
 };
 
@@ -730,13 +730,13 @@ public:
 	void SetOnCommandList(FRHIComputeCommandList& RHICmdList, FRHIComputeShader* Shader, class FShaderBindingState* StateCacheShaderBindings = nullptr) const;
 
 #if RHI_RAYTRACING
-	void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndex, uint32 ShaderSlot) const;
+	RENDERER_API void SetRayTracingShaderBindingsForHitGroup(FRayTracingLocalShaderBindingWriter* BindingWriter, uint32 InstanceIndex, uint32 SegmentIndex, uint32 HitGroupIndex, uint32 ShaderSlot) const;
 #endif // RHI_RAYTRACING
 
 	/** Returns whether this set of shader bindings can be merged into an instanced draw call with another. */
-	bool MatchesForDynamicInstancing(const FMeshDrawShaderBindings& Rhs) const;
+	bool RENDERER_API MatchesForDynamicInstancing(const FMeshDrawShaderBindings& Rhs) const;
 
-	uint32 GetDynamicInstancingHash() const;
+	uint32 RENDERER_API GetDynamicInstancingHash() const;
 
 	SIZE_T GetAllocatedSize() const
 	{

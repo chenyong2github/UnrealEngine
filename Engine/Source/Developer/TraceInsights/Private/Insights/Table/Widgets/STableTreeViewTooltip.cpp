@@ -116,19 +116,19 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetRowTooltip(const TSharedPtr<FTabl
 				[
 					SNew(SGridPanel)
 
-					// Id: [Id]
+					// Row: [RowIndex]
 					+ SGridPanel::Slot(0, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(LOCTEXT("TT_Id", "Id:"))
+						.Text(LOCTEXT("TT_Id", "Row:"))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.TooltipBold"))
 					]
 					+ SGridPanel::Slot(1, 0)
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
-						.Text(FText::AsNumber(TreeNodePtr->GetId()))
+						.Text(FText::AsNumber(TreeNodePtr->GetRowIndex()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]
 
@@ -160,6 +160,8 @@ TSharedPtr<SToolTip> STableTreeViewTooltip::GetRowTooltip(const TSharedPtr<FTabl
 					.Padding(2.0f)
 					[
 						SNew(STextBlock)
+						.WrapTextAt(512.0f)
+						.WrappingPolicy(ETextWrappingPolicy::AllowPerCharacterWrapping)
 						.Text(FText::FromName(TreeNodePtr->GetName()))
 						.TextStyle(FEditorStyle::Get(), TEXT("Profiler.Tooltip"))
 					]

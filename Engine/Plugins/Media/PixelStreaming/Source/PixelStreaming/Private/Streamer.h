@@ -5,8 +5,10 @@
 #include "PixelStreamingPrivate.h"
 #include "SignallingServerConnection.h"
 #include "ProtocolDefs.h"
+#include "Utils.h"
 
 #include "HAL/ThreadSafeBool.h"
+#include "HAL/CriticalSection.h"
 
 class FRenderTarget;
 class IFileHandle;
@@ -52,6 +54,7 @@ private:
 	void CreatePlayerSession(FPlayerId PlayerId);
 	void DeletePlayerSession(FPlayerId PlayerId);
 	void DeleteAllPlayerSessions();
+	// calling code should lock `PlayersCS` for this call and entire lifetime of returned reference
 	FPlayerSession* GetPlayerSession(FPlayerId PlayerId);
 
 	void AddStreams(FPlayerId PlayerId);
@@ -81,6 +84,9 @@ private:
 	double LastSignallingServerConnectionAttemptTimestamp = 0;
 
 	TMap<FPlayerId, TUniquePtr<FPlayerSession>> Players;
+	// `Players` is modified only in WebRTC signalling thread, but can be accessed (along with contained `FPlayerSession` instances) 
+	// from other threads. All `Players` modifications in WebRTC thread and all accesses in other threads should be locked.
+	FCriticalSection PlayersCS;
 	rtc::scoped_refptr<webrtc::PeerConnectionFactoryInterface> PeerConnectionFactory;
 	webrtc::PeerConnectionInterface::RTCConfiguration PeerConnectionConfig;
 
@@ -97,5 +103,12 @@ private:
 	TArray64<uint8> CachedJpegBytes;
 
 	FThreadSafeBool bStreamingStarted = false;
+
+	// reporting of video encoder QP to clients
+private:
+	void SendVideoEncoderQP();
+
+	double LastVideoEncoderQPReportTime = 0;
+	FSmoothedValue<60> VideoEncoderAvgQP;
 };
 

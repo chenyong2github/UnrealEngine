@@ -2,11 +2,9 @@ Availability: NoPublish
 Title: Build Configuration Properties Page
 Crumbs:
 Description: This is a procedurally generated markdown page.
-Version: 4.25
+Version: 4.26
 
 ### Read-Only Properties
-
-$ Name (String): The name of this target.
 
 $ Platform (UnrealTargetPlatform): Platform that this target is being built for.
 
@@ -100,6 +98,10 @@ $ bCompileAgainstApplicationCore (Boolean): Enabled for builds that need to init
 
 $ bCompileRecast (Boolean): Whether to compile Recast navmesh generation.
 
+$ bCompileNavmeshSegmentLinks (Boolean): Whether to compile with navmesh segment links.
+
+$ bCompileNavmeshClusterLinks (Boolean): Whether to compile with navmesh cluster links.
+
 $ bForceEnableExceptions (Boolean): Enable exceptions for all modules.
 
 $ bUseInlining (Boolean): Enable inlining for all modules.
@@ -107,8 +109,6 @@ $ bUseInlining (Boolean): Enable inlining for all modules.
 $ bForceEnableObjCExceptions (Boolean): Enable exceptions for all modules.
 
 $ bForceEnableRTTI (Boolean): Enable RTTI for all modules.
-
-$ bWithPushModel (Boolean): When enabled, Push Model Networking will be used on the server. This can help reduce CPU overhead of networking, at the cost of more memory.
 
 $ bCompileWithStatsWithoutEngine (Boolean): Whether to include stats support even without the engine.
 
@@ -277,6 +277,8 @@ $ ManifestFileNames (List&lt;FileReference&gt;): Path to a manifest to output fo
 $ DependencyListFileNames (List&lt;FileReference&gt;): Path to a list of dependencies for this target, when precompiling
 
 $ bOverrideBuildEnvironment (Boolean): Whether to ignore violations to the shared build environment (eg. editor targets modifying definitions)
+
+$ PreBuildTargets (List&lt;TargetInfo&gt;): Specifies a list of targets which should be built before this target is built.
 
 $ PreBuildSteps (List&lt;String&gt;): Specifies a list of steps which should be executed before this target is built, in the context of the host platform's shell. The following variables will be expanded before execution: $(EngineDir), $(ProjectDir), $(TargetName), $(TargetPlatform), $(TargetConfiguration), $(TargetType), $(ProjectFile).
 

@@ -36,6 +36,11 @@ MSVC_PRAGMA(warning(disable : 4191)) // warning C4191: 'type cast': unsafe conve
 #include <d3d12shader.h>
 MSVC_PRAGMA(warning(pop))
 
+THIRD_PARTY_INCLUDES_START
+	#include <string>
+	#include "ShaderConductor/ShaderConductor.hpp"
+THIRD_PARTY_INCLUDES_END
+
 #include "D3DShaderCompiler.inl"
 
 FORCENOINLINE static void DXCFilterShaderCompileWarnings(const FString& CompileWarnings, TArray<FString>& FilteredWarnings)
@@ -436,6 +441,163 @@ static bool IsUsingTessellation(const FShaderCompilerInput& Input)
 	}
 }
 
+static ShaderConductor::Compiler::ShaderModel ToDXCShaderModel(ELanguage Language)
+{
+	switch (Language)
+	{
+	case ELanguage::ES3_1:
+	case ELanguage::SM5:
+		return { 5, 0 };
+	default:
+		UE_LOG(LogD3D12ShaderCompiler, Error, TEXT("Invalid input shader target for enum ELanguage (%d)."), (int32)Language);
+	}
+	return { 6,0 };
+}
+
+static ShaderConductor::ShaderStage ToDXCShaderStage(EShaderFrequency Frequency)
+{
+	check(Frequency >= SF_Vertex && Frequency <= SF_Compute);
+	switch (Frequency)
+	{
+	case SF_Vertex:		return ShaderConductor::ShaderStage::VertexShader;
+	case SF_Pixel:		return ShaderConductor::ShaderStage::PixelShader;
+	case SF_Geometry:	return ShaderConductor::ShaderStage::GeometryShader;
+	case SF_Hull:		return ShaderConductor::ShaderStage::HullShader;
+	case SF_Domain:		return ShaderConductor::ShaderStage::DomainShader;
+	case SF_Compute:	return ShaderConductor::ShaderStage::ComputeShader;
+	default:			return ShaderConductor::ShaderStage::NumShaderStages;
+	}
+}
+
+static void InnerDXCRewriteWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
+	const ShaderConductor::Compiler::Options& InOptions, ShaderConductor::Compiler::ResultDesc& ResultDesc)
+{
+	ResultDesc = ShaderConductor::Compiler::Rewrite(InDesc, InOptions);
+}
+
+static ShaderConductor::Compiler::ResultDesc DXCRewriteWrapper(const ShaderConductor::Compiler::SourceDesc& InDesc,
+	const ShaderConductor::Compiler::Options& InOptions,
+	bool& bOutException)
+{
+	bOutException = false;
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__try
+#endif
+	{
+		ShaderConductor::Compiler::ResultDesc ResultDesc;
+		InnerDXCRewriteWrapper(InDesc, InOptions, ResultDesc);
+		return ResultDesc;
+	}
+#if !PLATFORM_SEH_EXCEPTIONS_DISABLED
+	__except (EXCEPTION_EXECUTE_HANDLER)
+	{
+		GSCWErrorCode = ESCWErrorCode::CrashInsidePlatformCompiler;
+		ShaderConductor::Compiler::ResultDesc ResultDesc;
+		FMemory::Memzero(ResultDesc);
+		bOutException = true;
+		return ResultDesc;
+	}
+#endif
+}
+
+static const TCHAR* GRewrittenBaseFilename = TEXT("Output.dxc.hlsl");
+static bool RewriteUsingSC(FString& PreprocessedShaderSource, const FShaderCompilerInput& Input, bool bIsRayTracingShader,
+	bool bDumpDebugInfo, ELanguage Language, FShaderCompilerOutput& Output)
+{
+	bool bResult = true;
+	const bool bUsingTessellation = IsUsingTessellation(Input);
+	if (bUsingTessellation || bIsRayTracingShader)
+	{
+		bResult = false;
+	}
+	else
+	{
+		// Set up compile options for ShaderConductor (shader model, optimization settings etc.)
+		ShaderConductor::Compiler::Options Options;
+		Options.removeUnusedGlobals = false;
+		Options.packMatricesInRowMajor = false;
+		Options.enableDebugInfo = false;
+		Options.enable16bitTypes = false;
+		Options.disableOptimizations = false;
+		Options.shaderModel = ToDXCShaderModel(Language);
+
+		// Convert input source code from TCHAR to ANSI
+		std::string CStrSourceData(TCHAR_TO_ANSI(*PreprocessedShaderSource));
+		std::string CStrFileName(TCHAR_TO_ANSI(*Input.VirtualSourceFilePath));
+		std::string CStrEntryPointName(TCHAR_TO_ANSI(*Input.EntryPointName));
+
+		const ShaderConductor::MacroDefine BuiltinDefines[] =
+		{
+//			{ "COMPILER_HLSL", "1" },
+			{ "TextureExternal", "Texture2D" },
+		};
+
+		// Set up source description for ShaderConductor
+		ShaderConductor::Compiler::SourceDesc SourceDesc;
+		FMemory::Memzero(SourceDesc);
+		SourceDesc.source = CStrSourceData.c_str();
+		SourceDesc.fileName = CStrFileName.c_str();
+		SourceDesc.entryPoint = CStrEntryPointName.c_str();
+		SourceDesc.numDefines = sizeof(BuiltinDefines) / sizeof(BuiltinDefines[0]);
+		SourceDesc.defines = BuiltinDefines;
+		SourceDesc.stage = ToDXCShaderStage(Input.Target.GetFrequency());
+
+		ShaderConductor::Compiler::TargetDesc TargetDesc;
+		FMemory::Memzero(TargetDesc);
+		TargetDesc.language = ShaderConductor::ShadingLanguage::Dxil;
+
+		// Rewrite HLSL source to remove unused global variables (DXC retains them when compiling)
+		ShaderConductor::Blob* RewriteBlob = nullptr;
+
+		// Rewrite HLSL
+		Options.removeUnusedGlobals = true;
+		bool bException = false;
+		ShaderConductor::Compiler::ResultDesc RewriteResultDesc = DXCRewriteWrapper(SourceDesc, Options, bException);
+		Options.removeUnusedGlobals = false;
+		if (RewriteResultDesc.hasError || bException)
+		{
+			if (bException)
+			{
+				Output.Errors.Add(TEXT("ShaderConductor exception during rewrite"));
+			}
+			// Append compile error to output reports
+			if (ShaderConductor::Blob* ErrorBlob = RewriteResultDesc.errorWarningMsg)
+			{
+				FUTF8ToTCHAR UTF8Converter(reinterpret_cast<const ANSICHAR*>(ErrorBlob->Data()), ErrorBlob->Size());
+				const FString ErrorString(ErrorBlob->Size(), UTF8Converter.Get());
+				Output.Errors.Add(*ErrorString);
+
+				ShaderConductor::DestroyBlob(RewriteResultDesc.errorWarningMsg);
+				RewriteResultDesc.errorWarningMsg = nullptr;
+				bResult = false;
+			}
+		}
+		else
+		{
+			// Copy rewritten HLSL code into new source data string
+			RewriteBlob = RewriteResultDesc.target;
+
+			CStrSourceData.clear();
+			CStrSourceData.resize(RewriteBlob->Size());
+			FCStringAnsi::Strncpy(&CStrSourceData[0], static_cast<const char*>(RewriteBlob->Data()), RewriteBlob->Size());
+			PreprocessedShaderSource = CStrSourceData.c_str();
+
+			if (bDumpDebugInfo)
+			{
+				DumpDebugUSF(Input, CStrSourceData.c_str(), (int32)CStrSourceData.length(), 0, GRewrittenBaseFilename);
+			}
+		}
+
+		// Release ShaderConductor resources
+		if (RewriteBlob)
+		{
+			ShaderConductor::DestroyBlob(RewriteBlob);
+		}
+	}
+
+	return bResult;
+}
+
 // Generate the dumped usf file; call the D3D compiler, gather reflection information and generate the output data
 bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	const uint32 CompileFlags, const FShaderCompilerInput& Input, FString& EntryPointName,
@@ -485,6 +647,14 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 
 	FString Filename = Input.GetSourceFilename();
 
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_D3D12ForceShaderConductorRewrite))
+	{
+		if (RewriteUsingSC(PreprocessedShaderSource, Input, bIsRayTracingShader, bDumpDebugInfo, Language, Output))
+		{
+			Filename = GRewrittenBaseFilename;
+		}
+	}
+
 	FString DisasmFilename;
 	if (bDumpDebugInfo)
 	{
@@ -492,7 +662,12 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 	}
 
 	// Ignore backwards compatibility flag (/Gec) as it is deprecated.
+	// #dxr_todo: this flag should not be even passed into this function from the higher level.
 	uint32 DXCFlags = CompileFlags & (~D3D10_SHADER_ENABLE_BACKWARDS_COMPATIBILITY);
+	if (Input.Environment.CompilerFlags.Contains(CFLAG_SkipOptimizationsDXC))
+	{
+		DXCFlags |= D3D10_SHADER_SKIP_OPTIMIZATION;
+	}
 
 	const bool bKeepDebugInfo = Input.Environment.CompilerFlags.Contains(CFLAG_KeepDebugInfo);
 
@@ -694,13 +869,27 @@ bool CompileAndProcessD3DShaderDXC(FString& PreprocessedShaderSource,
 				}
 			};
 
+			auto AddOptionalDataCallback = [&](FShaderCode& ShaderCode)
+			{
+				FShaderCodeFeatures CodeFeatures;
+				//#todo-rco: Really should look inside DXIL
+				CodeFeatures.bUsesWaveOps = Input.Environment.CompilerFlags.Contains(CFLAG_WaveOperations);
+
+				// We only need this to appear when using a DXC shader
+				ShaderCode.AddOptionalData<FShaderCodeFeatures>(CodeFeatures);
+			};
+
+			//#todo-rco: Should compress ShaderCode?
+
 			FShaderCodePackedResourceCounts PackedResourceCounts = { bGlobalUniformBufferUsed, static_cast<uint8>(NumSamplers), static_cast<uint8>(NumSRVs), static_cast<uint8>(NumCBs), static_cast<uint8>(NumUAVs), 0 };
 			GenerateFinalOutput(ShaderBlob,
 				Input, VendorExtensions,
 				UsedUniformBufferSlots, UniformBufferNames,
 				bProcessingSecondTime, ShaderInputs,
 				PackedResourceCounts, NumInstructions,
-				Output, PostSRTWriterCallback);
+				Output,
+				PostSRTWriterCallback,
+				AddOptionalDataCallback);
 		}
 	}
 

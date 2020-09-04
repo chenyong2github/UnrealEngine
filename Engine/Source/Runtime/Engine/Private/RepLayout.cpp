@@ -42,28 +42,36 @@ DEFINE_LOG_CATEGORY_STATIC(LogRepPropertiesBackCompat, Warning, Warning);
 #endif
 
 int32 GDoPropertyChecksum = 0;
-static FAutoConsoleVariableRef CVarDoPropertyChecksum(TEXT("net.DoPropertyChecksum"), GDoPropertyChecksum, TEXT(""));
+static FAutoConsoleVariableRef CVarDoPropertyChecksum(TEXT("net.DoPropertyChecksum"), GDoPropertyChecksum,
+	TEXT("When true and ENABLE_PROPERTY_CHECKSUMS is defined, checksums of replicated properties are compared on client and server"));
 
 int32 GDoReplicationContextString = 0;
-static FAutoConsoleVariableRef CVarDoReplicationContextString(TEXT("net.ContextDebug"), GDoReplicationContextString, TEXT(""));
+static FAutoConsoleVariableRef CVarDoReplicationContextString(TEXT("net.ContextDebug"), GDoReplicationContextString,
+	TEXT("Debugging option to set a context string during replication"));
 
 int32 GNetSharedSerializedData = 1;
-static FAutoConsoleVariableRef CVarNetShareSerializedData(TEXT("net.ShareSerializedData"), GNetSharedSerializedData, TEXT(""));
+static FAutoConsoleVariableRef CVarNetShareSerializedData(TEXT("net.ShareSerializedData"), GNetSharedSerializedData,
+	TEXT("If true, enable shared serialization system used by replication to reduce CPU usage when multiple clients need the same data"));
 
 int32 GNetVerifyShareSerializedData = 0;
-static FAutoConsoleVariableRef CVarNetVerifyShareSerializedData(TEXT("net.VerifyShareSerializedData"), GNetVerifyShareSerializedData, TEXT(""));
+static FAutoConsoleVariableRef CVarNetVerifyShareSerializedData(TEXT("net.VerifyShareSerializedData"), GNetVerifyShareSerializedData,
+	TEXT("Debug option to verify shared serialization data during replication"));
 
 int32 LogSkippedRepNotifies = 0;
-static FAutoConsoleVariable CVarLogSkippedRepNotifies(TEXT("Net.LogSkippedRepNotifies"), LogSkippedRepNotifies, TEXT("Log when the networking code skips calling a repnotify clientside due to the property value not changing."), ECVF_Default);
+static FAutoConsoleVariable CVarLogSkippedRepNotifies(TEXT("Net.LogSkippedRepNotifies"), LogSkippedRepNotifies, 
+	TEXT("Log when the networking code skips calling a repnotify clientside due to the property value not changing."), ECVF_Default);
 
 int32 GUsePackedShadowBuffers = 1;
-static FAutoConsoleVariableRef CVarUsePackedShadowBuffers(TEXT("Net.UsePackedShadowBuffers"), GUsePackedShadowBuffers, TEXT("When enabled, FRepLayout will generate shadow buffers that are packed with only the necessary NetProperties, instead of copying entire object state."));
+static FAutoConsoleVariableRef CVarUsePackedShadowBuffers(TEXT("Net.UsePackedShadowBuffers"), GUsePackedShadowBuffers,
+	TEXT("When enabled, FRepLayout will generate shadow buffers that are packed with only the necessary NetProperties, instead of copying entire object state."));
 
 int32 GShareShadowState = 1;
-static FAutoConsoleVariableRef CVarShareShadowState(TEXT("net.ShareShadowState"), GShareShadowState, TEXT("If true, work done to compare properties will be shared across connections"));
+static FAutoConsoleVariableRef CVarShareShadowState(TEXT("net.ShareShadowState"), GShareShadowState,
+	TEXT("If true, work done to compare properties will be shared across connections"));
 
 int32 GShareInitialCompareState = 0;
-static FAutoConsoleVariableRef CVarShareInitialCompareState(TEXT("net.ShareInitialCompareState"), GShareInitialCompareState, TEXT("If true and net.ShareShadowState is enabled, attempt to also share initial replication compares across connections."));
+static FAutoConsoleVariableRef CVarShareInitialCompareState(TEXT("net.ShareInitialCompareState"), GShareInitialCompareState,
+	TEXT("If true and net.ShareShadowState is enabled, attempt to also share initial replication compares across connections."));
 
 bool GbTrackNetSerializeObjectReferences = false;
 static FAutoConsoleVariableRef CVarTrackNetSerializeObjectReferences(TEXT("net.TrackNetSerializeObjectReferences"), GbTrackNetSerializeObjectReferences, TEXT("If true, we will create small layouts for Net Serialize Structs if they have Object Properties. This can prevent some Shadow State GC crashes."));
@@ -71,7 +79,8 @@ static FAutoConsoleVariableRef CVarTrackNetSerializeObjectReferences(TEXT("net.T
 #if WITH_PUSH_VALIDATION_SUPPORT
 
 static bool GbPushModelValidateProperties = false;
-static FAutoConsoleVariableRef CVarPushModelValidateProperties(TEXT("net.PushModelValidateProperties"), GbPushModelValidateProperties, TEXT("When true, we will compare all push model properties and warn if they haven't been marked dirty properly."));
+static FAutoConsoleVariableRef CVarPushModelValidateProperties(TEXT("net.PushModelValidateProperties"), GbPushModelValidateProperties,
+	TEXT("When true, we will compare all push model properties and warn if they haven't been marked dirty properly."));
 
 #else
 

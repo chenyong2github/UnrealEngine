@@ -66,40 +66,52 @@
 #endif
 
 int32 CVar_RepGraph_Pause = 0;
-static FAutoConsoleVariableRef CVarRepGraphPause(TEXT("Net.RepGraph.Pause"), CVar_RepGraph_Pause, TEXT("Pauses actor replication in the Replication Graph."), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphPause(TEXT("Net.RepGraph.Pause"), CVar_RepGraph_Pause,
+	TEXT("Pauses actor replication in the Replication Graph."), ECVF_Default);
 
 int32 CVar_RepGraph_Frequency = 0;
-static FAutoConsoleVariableRef CVarRepGraphFrequency(TEXT("Net.RepGraph.Frequency.Override"), CVar_RepGraph_Frequency, TEXT("Explicit override for actor replication frequency"), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphFrequency(TEXT("Net.RepGraph.Frequency.Override"), CVar_RepGraph_Frequency,
+	TEXT("Explicit override for actor replication frequency"), ECVF_Default);
 
 int32 CVar_RepGraph_Frequency_MatchTargetInPIE = 1;
-static FAutoConsoleVariableRef CVarRepGraphFrequencyMatchTargetInPIE(TEXT("Net.RepGraph.Frequency.MatchTargetInPIE"), CVar_RepGraph_Frequency_MatchTargetInPIE, TEXT("In PIE, repgraph will update at the UNetDriver::NetServerMaxTickRate rate"), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphFrequencyMatchTargetInPIE(TEXT("Net.RepGraph.Frequency.MatchTargetInPIE"), CVar_RepGraph_Frequency_MatchTargetInPIE,
+	TEXT("In PIE, repgraph will update at the UNetDriver::NetServerMaxTickRate rate"), ECVF_Default);
 
 int32 CVar_RepGraph_UseLegacyBudget = 1;
-static FAutoConsoleVariableRef CVarRepGraphUseLegacyBudget(TEXT("Net.RepGraph.UseLegacyBudget"), CVar_RepGraph_UseLegacyBudget, TEXT("Use legacy IsNetReady() to make dynamic packget budgets"), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphUseLegacyBudget(TEXT("Net.RepGraph.UseLegacyBudget"), CVar_RepGraph_UseLegacyBudget,
+	TEXT("Use legacy IsNetReady() to make dynamic packget budgets"), ECVF_Default);
 
 float CVar_RepGraph_FixedBudget = 0;
-static FAutoConsoleVariableRef CVarRepGraphFixedBudge(TEXT("Net.RepGraph.FixedBudget"), CVar_RepGraph_FixedBudget, TEXT("Set fixed (independent of frame rate) packet budget. In BIts/frame"), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphFixedBudge(TEXT("Net.RepGraph.FixedBudget"), CVar_RepGraph_FixedBudget,
+	TEXT("Set fixed (independent of frame rate) packet budget. In BIts/frame"), ECVF_Default);
 
 int32 CVar_RepGraph_SkipDistanceCull = 0;
-static FAutoConsoleVariableRef CVarRepGraphSkipDistanceCull(TEXT("Net.RepGraph.SkipDistanceCull"), CVar_RepGraph_SkipDistanceCull, TEXT(""), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphSkipDistanceCull(TEXT("Net.RepGraph.SkipDistanceCull"), CVar_RepGraph_SkipDistanceCull,
+	TEXT("Debug option to skip distance culling during evaluation"), ECVF_Default);
 
 int32 CVar_RepGraph_PrintCulledOnConnectionClasses = 0;
-static FAutoConsoleVariableRef CVarRepGraphPrintCulledOnConnectionClasses(TEXT("Net.RepGraph.PrintCulledOnConnectionClasses"), CVar_RepGraph_PrintCulledOnConnectionClasses, TEXT(""), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphPrintCulledOnConnectionClasses(TEXT("Net.RepGraph.PrintCulledOnConnectionClasses"), CVar_RepGraph_PrintCulledOnConnectionClasses,
+	TEXT("Debug option to print culling stats"), ECVF_Default);
 
 int32 CVar_RepGraph_TrackClassReplication = 0;
-static FAutoConsoleVariableRef CVarRepGraphTrackClassReplication(TEXT("Net.RepGraph.TrackClassReplication"), CVar_RepGraph_TrackClassReplication, TEXT(""), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphTrackClassReplication(TEXT("Net.RepGraph.TrackClassReplication"), CVar_RepGraph_TrackClassReplication,
+	TEXT("Debug option to track class replication stats"), ECVF_Default);
 
 int32 CVar_RepGraph_NbDestroyedGridsToTriggerGC = 100;
-static FAutoConsoleVariableRef CVarRepGraphNbDestroyedGridsToTriggerGC(TEXT("Net.RepGraph.NbDestroyedGridsToTriggerGC"), CVar_RepGraph_NbDestroyedGridsToTriggerGC, TEXT(""), ECVF_Default);
+static FAutoConsoleVariableRef CVarRepGraphNbDestroyedGridsToTriggerGC(TEXT("Net.RepGraph.NbDestroyedGridsToTriggerGC"), CVar_RepGraph_NbDestroyedGridsToTriggerGC,
+	TEXT("After destroying this many grids, force a garbage collection to free memory"), ECVF_Default);
 
 int32 CVar_RepGraph_PrintTrackClassReplication = 0;
-static FAutoConsoleVariableRef CVarRepGraphPrintTrackClassReplication(TEXT("Net.RepGraph.PrintTrackClassReplication"), CVar_RepGraph_PrintTrackClassReplication, TEXT(""), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphPrintTrackClassReplication(TEXT("Net.RepGraph.PrintTrackClassReplication"), CVar_RepGraph_PrintTrackClassReplication,
+	TEXT("Debug option to print class replication stats"), ECVF_Default);
 
 int32 CVar_RepGraph_DormantDynamicActorsDestruction = 0;
-static FAutoConsoleVariableRef CVarRepGraphDormantDynamicActorsDestruction(TEXT("Net.RepGraph.DormantDynamicActorsDestruction"), CVar_RepGraph_DormantDynamicActorsDestruction, TEXT(""), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphDormantDynamicActorsDestruction(TEXT("Net.RepGraph.DormantDynamicActorsDestruction"), CVar_RepGraph_DormantDynamicActorsDestruction,
+	TEXT("If true, irrelevant dormant actors will be destroyed on the client"), ECVF_Default);
 
 float CVar_RepGraph_OutOfRangeDistanceCheckRatio = 0.5f;
-static FAutoConsoleVariableRef CVarRepGraphOutOfRangeDistanceCheckRatio(TEXT("Net.RepGraph.OutOfRangeDistanceCheckRatio"), CVar_RepGraph_OutOfRangeDistanceCheckRatio, TEXT("The ratio of DestructInfoMaxDistance that gives the distance traveled before we reevaluate the out of range destroyed actors list"), ECVF_Default );
+static FAutoConsoleVariableRef CVarRepGraphOutOfRangeDistanceCheckRatio(TEXT("Net.RepGraph.OutOfRangeDistanceCheckRatio"), CVar_RepGraph_OutOfRangeDistanceCheckRatio,
+	TEXT("The ratio of DestructInfoMaxDistance that gives the distance traveled before we reevaluate the out of range destroyed actors list"), ECVF_Default);
 
 int32 CVar_RepGraph_DormancyNode_DisconnectedBehavior = 1;
 static FAutoConsoleVariableRef CVarRepGraphDormancyNodeDisconnectedBehavior(TEXT("Net.RepGraph.DormancyNodeDisconnectedBehavior"), CVar_RepGraph_DormancyNode_DisconnectedBehavior, TEXT("This changes how the dormancy node deals with disconnected clients. 0 = ignore. 1 = skip the disconnected client nodes. 2 = lazily destroy the disconnected client nodes"), ECVF_Default);
@@ -129,8 +141,8 @@ CSV_DEFINE_CATEGORY(ReplicationGraphChannelsOpened, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphNumReps, WITH_SERVER_CODE);
 CSV_DEFINE_CATEGORY(ReplicationGraphVisibleLevels, WITH_SERVER_CODE);
 
-// Helper CVar for debugging. Set this string to conditionally log/breakpoint various points in the repgraph pipeline. Useful for bugs like "why is this actor channel closing"
-static TAutoConsoleVariable<FString> CVarRepGraphConditionalBreakpointActorName(TEXT("Net.RepGraph.ConditionalBreakpointActorName"), TEXT(""), TEXT(""), ECVF_Default );
+static TAutoConsoleVariable<FString> CVarRepGraphConditionalBreakpointActorName(TEXT("Net.RepGraph.ConditionalBreakpointActorName"), TEXT(""), 
+	TEXT("Helper CVar for debugging. Set this string to conditionally log/breakpoint various points in the repgraph pipeline. Useful for bugs like 'why is this actor channel closing'"), ECVF_Default );
 
 // Variable that can be programatically set to a specific actor/connection 
 FActorConnectionPair DebugActorConnectionPair;

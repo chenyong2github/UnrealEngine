@@ -51,6 +51,7 @@ private:
 FTimingProfilerProvider::FTimingProfilerProvider(IAnalysisSession& InSession)
 	: Session(InSession)
 {
+	// Adds the GPU timeline.
 	Timelines.Add(MakeShared<TimelineInternal>(Session.GetLinearAllocator()));
 
 	AggregatedStatsTableLayout.
@@ -121,11 +122,22 @@ FTimingProfilerTimer& FTimingProfilerProvider::AddTimerInternal(const TCHAR* Nam
 	return Timer;
 }
 
+uint32 FTimingProfilerProvider::AddMetadata(uint32 MasterTimerId, TArray<uint8>&& Metadata)
+{
+	Session.WriteAccessCheck();
+
+	uint32 MetadataId = Metadatas.Num();
+	Metadatas.Add({MoveTemp(Metadata), MasterTimerId});
+
+	return ~MetadataId;
+}
+
 FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThreadTimeline(uint32 ThreadId)
 {
 	Session.WriteAccessCheck();
 
-	if (!CpuThreadTimelineIndexMap.Contains(ThreadId))
+	const uint32* FoundTimelineIndex = CpuThreadTimelineIndexMap.Find(ThreadId);
+	if (!FoundTimelineIndex)
 	{
 		TSharedRef<TimelineInternal> Timeline = MakeShared<TimelineInternal>(Session.GetLinearAllocator());
 		uint32 TimelineIndex = Timelines.Num();
@@ -135,8 +147,7 @@ FTimingProfilerProvider::TimelineInternal& FTimingProfilerProvider::EditCpuThrea
 	}
 	else
 	{
-		uint32 TimelineIndex = CpuThreadTimelineIndexMap[ThreadId];
-		return Timelines[TimelineIndex].Get();
+		return Timelines[*FoundTimelineIndex].Get();
 	}
 }
 
@@ -151,9 +162,10 @@ bool FTimingProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32&
 {
 	Session.ReadAccessCheck();
 
-	if (CpuThreadTimelineIndexMap.Contains(ThreadId))
+	const uint32* FoundTimelineIndex = CpuThreadTimelineIndexMap.Find(ThreadId);
+	if (FoundTimelineIndex)
 	{
-		OutTimelineIndex = CpuThreadTimelineIndexMap[ThreadId];
+		OutTimelineIndex = *FoundTimelineIndex;
 		return true;
 	}
 	return false;
@@ -192,11 +204,42 @@ void FTimingProfilerProvider::EnumerateTimelines(TFunctionRef<void(const Timelin
 	}
 }
 
-void FTimingProfilerProvider::ReadTimers(TFunctionRef<void(const FTimingProfilerTimer*, uint64)> Callback) const
+const FTimingProfilerTimer* FTimingProfilerProvider::GetTimer(uint32 TimerId) const
+{
+	if (int32(TimerId) < 0)
+	{
+		TimerId = ~TimerId;
+		TimerId = Metadatas[TimerId].TimerId;
+	}
+	return (TimerId < uint32(Timers.Num())) ? Timers.GetData() + TimerId : nullptr;
+}
+
+uint32 FTimingProfilerProvider::GetTimerCount() const
+{
+	return Timers.Num();
+}
+
+TArrayView<const uint8> FTimingProfilerProvider::GetMetadata(uint32 TimerId) const
+{
+	if (int32(TimerId) >= 0)
+	{
+		return TArrayView<const uint8>();
+	}
+
+	TimerId = ~TimerId;
+	if (TimerId >= uint32(Metadatas.Num()))
+	{
+		return TArrayView<const uint8>();
+	}
+
+	const FMetadata& Metadata = Metadatas[TimerId];
+	return Metadata.Payload;
+}
+
+void FTimingProfilerProvider::ReadTimers(TFunctionRef<void(const ITimingProfilerTimerReader&)> Callback) const
 {
 	Session.ReadAccessCheck();
-
-	Callback(Timers.GetData(), Timers.Num());
+	Callback(*this);
 }
 
 ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregation(double IntervalStart, double IntervalEnd, TFunctionRef<bool(uint32)> CpuThreadFilter, bool IncludeGpu) const
@@ -218,7 +261,7 @@ ITable<FTimingProfilerAggregatedStats>* FTimingProfilerProvider::CreateAggregati
 
 	auto BucketMappingFunc = [this](const TimelineInternal::EventType& Event) -> const FTimingProfilerTimer*
 	{
-		return &Timers[Event.TimerIndex];
+		return GetTimer(Event.TimerIndex);
 	};
 
 	TMap<const FTimingProfilerTimer*, FAggregatedTimingStats> Aggregation;
@@ -405,12 +448,15 @@ ITimingProfilerButterfly* FTimingProfilerProvider::CreateButterfly(double Interv
 			LastTime = Time;
 			if (IsEnter)
 			{
+				const FTimingProfilerTimer* Timer = GetTimer(Event.TimerIndex);
+				check(Timer != nullptr);
+
 				FLocalStackEntry& StackEntry = CurrentCallstack.AddDefaulted_GetRef();
 				StackEntry.StartTime = Time;
 				StackEntry.ExclusiveTime = 0.0;
-				StackEntry.CurrentCallstackHash = ParentCallstackHash * 17 + Event.TimerIndex;
+				StackEntry.CurrentCallstackHash = ParentCallstackHash * 17 + Timer->Id;
 
-				CurrentCallstackKey.TimerStack.Push(Event.TimerIndex);
+				CurrentCallstackKey.TimerStack.Push(Timer->Id);
 				CurrentCallstackKey.Hash = StackEntry.CurrentCallstackHash;
 
 				FTimingProfilerButterflyNode** FindIt = CallstackNodeMap.Find(CurrentCallstackKey);
@@ -422,11 +468,11 @@ ITimingProfilerButterfly* FTimingProfilerProvider::CreateButterfly(double Interv
 				{
 					StackEntry.Node = &Butterfly->Nodes.PushBack();
 					CallstackNodeMap.Add(CurrentCallstackKey, StackEntry.Node);
-					Butterfly->TimerCallstacksMap[Event.TimerIndex].Add(StackEntry.Node);
+					Butterfly->TimerCallstacksMap[Timer->Id].Add(StackEntry.Node);
 					StackEntry.Node->InclusiveTime = 0.0;
 					StackEntry.Node->ExclusiveTime = 0.0;
 					StackEntry.Node->Count = 0;
-					StackEntry.Node->Timer = &this->Timers[Event.TimerIndex];
+					StackEntry.Node->Timer = Timer;
 					StackEntry.Node->Parent = ParentNode;
 					if (ParentNode)
 					{
@@ -448,6 +494,8 @@ ITimingProfilerButterfly* FTimingProfilerProvider::CreateButterfly(double Interv
 				CurrentCallstack.Pop(false);
 				CurrentCallstackKey.TimerStack.Pop(false);
 			}
+
+			return EEventEnumerate::Continue;
 		});
 	}
 	return Butterfly;

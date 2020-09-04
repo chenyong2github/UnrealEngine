@@ -85,6 +85,12 @@ public:
 	{
 		return TextureUAV[Layer];
 	}
+	
+	TRefCountPtr<IPooledRenderTarget> GetPhysicalTexturePooledRenderTarget(int32 Layer) const
+	{
+		check(PooledRenderTarget[Layer].IsValid());
+		return PooledRenderTarget[Layer];
+	}
 
 #if STATS
 	inline void ResetWorkingSetSize() { WorkingSetSize.Reset(); }

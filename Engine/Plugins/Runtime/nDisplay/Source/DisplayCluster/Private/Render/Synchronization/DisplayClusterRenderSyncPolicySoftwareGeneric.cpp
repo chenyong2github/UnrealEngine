@@ -3,7 +3,6 @@
 #include "Render/Synchronization/DisplayClusterRenderSyncPolicySoftwareGeneric.h"
 
 
-
 FDisplayClusterRenderSyncPolicySoftwareGeneric::FDisplayClusterRenderSyncPolicySoftwareGeneric()
 {
 }

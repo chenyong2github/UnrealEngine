@@ -606,6 +606,27 @@ void FLevelEditorSequencerIntegration::OnPreBeginPIE(bool bIsSimulating)
 
 void FLevelEditorSequencerIntegration::OnEndPlayMap()
 {
+	bool bAddRestoreCallback = false;
+	const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_Sequencer", "Sequencer");
+	for (FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
+	{
+		if (LevelVC)
+		{
+			// If the Sequencer was opened during PIE, we didn't make the viewport realtime. Now that PIE has ended,
+			// we can add our override.
+			if (LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl() && !LevelVC->HasRealtimeOverride(SystemDisplayName))
+			{
+				const bool bShouldBeRealtime = true;
+				LevelVC->AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+				bAddRestoreCallback = true;
+			}
+		}
+	}
+	if (bAddRestoreCallback)
+	{
+		AcquiredResources.Add([=] { this->RestoreRealtimeViewports(); });
+	}
+
 	IterateAllSequencers(
 		[](FSequencer& In, const FLevelEditorSequencerIntegrationOptions& Options)
 		{
@@ -1080,7 +1101,7 @@ void FLevelEditorSequencerIntegration::ActivateRealtimeViewports()
 			if (LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl())
 			{				
 				const bool bShouldBeRealtime = true;
-				LevelVC->SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Sequencer", "Sequencer"));
+				LevelVC->AddRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Sequencer", "Sequencer"));
 			}
 		}
 	}
@@ -1091,6 +1112,11 @@ void FLevelEditorSequencerIntegration::ActivateRealtimeViewports()
 void FLevelEditorSequencerIntegration::RestoreRealtimeViewports()
 {
 	// Undo any weird settings to editor level viewports.
+
+	// We don't care if our cinematic viewports still have our override or not because we just want to make sure nobody has
+	// it anymore. It could happen that a viewport doesn't have it if that viewport is an actual Cinematic Viewport, for instance.
+	const bool bCheckMissingOverride = false;
+
 	for(FLevelEditorViewportClient* LevelVC : GEditor->GetLevelViewportClients())
 	{
 		if (LevelVC)
@@ -1098,7 +1124,7 @@ void FLevelEditorSequencerIntegration::RestoreRealtimeViewports()
 			// Turn off realtime when exiting.
 			if( LevelVC->IsPerspective() && LevelVC->AllowsCinematicControl() )
 			{				
-				LevelVC->RemoveRealtimeOverride();
+				LevelVC->RemoveRealtimeOverride(LOCTEXT("RealtimeOverrideMessage_Sequencer", "Sequencer"), bCheckMissingOverride);
 			}
 		}
 	}

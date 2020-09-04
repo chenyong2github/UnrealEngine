@@ -26,9 +26,6 @@ class DISPLAYCLUSTER_API ADisplayClusterRootActor
 public:
 	ADisplayClusterRootActor(const FObjectInitializer& ObjectInitializer);
 
-	inline UDisplayClusterRootComponent* GetDisplayClusterRootComponent() const
-	{ return DisplayClusterRootComponent; }
-
 public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// AActor
@@ -37,13 +34,22 @@ public:
 	virtual void BeginDestroy() override;
 	virtual void Tick(float DeltaSeconds) override;
 
-	
+public:
+	inline UDisplayClusterRootComponent* GetDisplayClusterRootComponent() const
+	{ return DisplayClusterRootComponent; }
+
 public:
 	bool GetShowProjectionScreens() const
 	{ return bShowProjectionScreens; }
 
+	void SetShowProjectionScreens(bool bShow)
+	{ bShowProjectionScreens = bShow; }
+
 	UMaterial* GetProjectionScreenMaterial() const
 	{ return ProjectionScreensMaterial; }
+
+	void SetProjectionScreenMaterial(UMaterial* NewMaterial)
+	{ ProjectionScreensMaterial = NewMaterial; }
 
 protected:
 	UPROPERTY(EditAnywhere, Category = "DisplayCluster", meta = (DisplayName = "Exit when ESC pressed"))

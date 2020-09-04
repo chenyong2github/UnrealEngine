@@ -1159,13 +1159,14 @@ void MeshPaintHelpers::SetRealtimeViewport(bool bRealtime)
 		FEditorViewportClient &Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
+			const FText SystemDisplayName = NSLOCTEXT("MeshPaint", "RealtimeOverrideMessage_MeshPaint", "Mesh Paint");
 			if (bRealtime)
 			{
-				Viewport.SetRealtimeOverride(bRealtime, NSLOCTEXT("MeshPaint", "RealtimeOverrideMessage_MeshPaint", "Mesh Paint"));
+				Viewport.AddRealtimeOverride(bRealtime, SystemDisplayName);
 			}
 			else
 			{
-				Viewport.RemoveRealtimeOverride();
+				Viewport.RemoveRealtimeOverride(SystemDisplayName);
 			}
 		}
 	}
@@ -1755,11 +1756,11 @@ struct FVertexColorPropogationOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId( const FPaintedMeshVertex& Element, FOctreeElementId Id )
+	FORCEINLINE static void SetElementId( const FPaintedMeshVertex& Element, FOctreeElementId2 Id )
 	{
 	}
 };
-typedef TOctree<FPaintedMeshVertex, FVertexColorPropogationOctreeSemantics> TVertexColorPropogationPosOctree;
+typedef TOctree2<FPaintedMeshVertex, FVertexColorPropogationOctreeSemantics> TVertexColorPropogationPosOctree;
 
 void MeshPaintHelpers::ApplyVertexColorsToAllLODs(IMeshPaintGeometryAdapter& GeometryInfo, USkeletalMeshComponent* SkeletalMeshComponent)
 {

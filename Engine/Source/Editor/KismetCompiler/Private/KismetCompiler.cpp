@@ -764,12 +764,6 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 			if(!Variable.DefaultValue.IsEmpty())
 			{
 				SetPropertyDefaultValue(NewProperty, Variable.DefaultValue);
-
-				// We're copying the value to the real CDO, so clear the version stored in the blueprint editor data
-				if (CompileOptions.CompileType == EKismetCompileType::Full)
-				{
-					Variable.DefaultValue.Empty();
-				}
 			}
 
 			if (NewProperty->HasAnyPropertyFlags(CPF_Net))
@@ -788,7 +782,7 @@ void FKismetCompilerContext::CreateClassVariablesFromBlueprint()
 					{
 						MessageLog.Warning(
 							*FText::Format(
-								LOCTEXT("ExposeToSpawnButPrivateWarningFmt", "Variable {0} is marked as 'Expose on Spawn' but not marked as 'Editable'; please make it 'Editable'"),
+								LOCTEXT("ExposeToSpawnButPrivateWarningFmt", "Variable {0} is marked as 'Expose on Spawn' but not marked as 'Instance Editable'; please make it 'Instance Editable'"),
 								FText::FromString(NewProperty->GetName())
 							).ToString()
 						);
@@ -921,7 +915,7 @@ void FKismetCompilerContext::CreatePropertiesFromList(UStruct* Scope, FField**& 
 			);
 		}
 
-		if (FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(Scope, FName(*Term.Name), Term.Type, NewClass, PropertyFlags, Schema, MessageLog))
+		if (FProperty* NewProperty = FKismetCompilerUtilities::CreatePropertyOnScope(Scope, FName(*Term.Name), Term.Type, NewClass, PropertyFlags, Schema, MessageLog, Term.SourcePin))
 		{
 			if (bPropertiesAreParameters && Term.Type.bIsConst)
 			{
@@ -2548,11 +2542,6 @@ void FKismetCompilerContext::FinishCompilingClass(UClass* Class)
 	{
 		UBlueprintGeneratedClass* BPGClass = Cast<UBlueprintGeneratedClass>(Class);
 		check(BPGClass);
-
-		BPGClass->ComponentTemplates.Empty();
-		BPGClass->Timelines.Empty();
-		BPGClass->SimpleConstructionScript = NULL;
-		BPGClass->InheritableComponentHandler = NULL;
 
 		BPGClass->ComponentTemplates = Blueprint->ComponentTemplates;
 		BPGClass->Timelines = Blueprint->Timelines;

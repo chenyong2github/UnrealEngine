@@ -133,7 +133,8 @@ void SControlRigGraphPinCurveFloat::OnCurveChanged(const TArray<FRichCurveEditIn
 			if (UControlRigBlueprint* RigBlueprint = Cast<UControlRigBlueprint>(Node->GetGraph()->GetOuter()))
 			{
 				FString ExportedText;
-				FRuntimeFloatCurve::StaticStruct()->ExportText(ExportedText, &Curve, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr, true);
+				FRuntimeFloatCurve DefaultCurve;
+				FRuntimeFloatCurve::StaticStruct()->ExportText(ExportedText, &Curve, &DefaultCurve, nullptr, EPropertyPortFlags::PPF_None, nullptr, true);
 				RigBlueprint->Controller->SetPinDefaultValue(Pin->GetName(), ExportedText, true, true, true);
 			}
 		}

@@ -24,7 +24,6 @@ class UK2Node_FunctionTerminator : public UK2Node_EditablePinBase
 	//~ End UObject Interface
 
 	//~ Begin UEdGraphNode Interface
-	virtual bool CanDuplicateNode() const override { return false; }
 	virtual FLinearColor GetNodeTitleColor() const override;
 	virtual FName CreateUniquePinName(FName SourcePinName) const override;
 	virtual void ValidateNodeDuringCompilation(class FCompilerResultsLog& MessageLog) const override;
@@ -33,6 +32,7 @@ class UK2Node_FunctionTerminator : public UK2Node_EditablePinBase
 	//~ Begin UK2Node Interface
 	virtual bool NodeCausesStructuralBlueprintChange() const override { return true; }
 	virtual bool HasExternalDependencies(TArray<class UStruct*>* OptionalOutput) const override;
+	virtual void PostPasteNode() override;
 	//~ End UK2Node Interface
 
 	//~ Begin UK2Node_EditablePinBase Interface

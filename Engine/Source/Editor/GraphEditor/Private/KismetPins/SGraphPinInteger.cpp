@@ -136,7 +136,9 @@ TSharedRef<SWidget>	SGraphPinInteger::GetDefaultValueWidget()
 						(
 							FExecuteAction::CreateLambda([=]()
 							{
+								const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangePinValue", "Change Pin Value"));
 								const int32 CurValue = FCString::Atoi(*GraphPinObj->GetDefaultAsString());
+								GraphPinObj->Modify();
 								GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, FString::FromInt(CurValue ^ BitmaskFlags[i].Value));
 							}),
 							FCanExecuteAction(),

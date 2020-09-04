@@ -141,7 +141,7 @@ set (HDF5_HL_F90_C_LIB_NAME     "${HDF5_EXTERNAL_LIB_PREFIX}${HDF5_HL_F90_C_LIB_
 #-----------------------------------------------------------------------------
 # Set the target names of all the libraries
 #-----------------------------------------------------------------------------
-set (HDF5_LIB_TARGET              "${HDF5_LIB_CORENAME}-static")
+set (HDF5_LIB_TARGET              "${HDF5_LIB_TARGET_PREFIX}${HDF5_LIB_CORENAME}-static")
 set (HDF5_TEST_LIB_TARGET         "${HDF5_TEST_LIB_CORENAME}-static")
 set (HDF5_CPP_LIB_TARGET          "${HDF5_CPP_LIB_CORENAME}-static")
 set (HDF5_HL_LIB_TARGET           "${HDF5_HL_LIB_CORENAME}-static")

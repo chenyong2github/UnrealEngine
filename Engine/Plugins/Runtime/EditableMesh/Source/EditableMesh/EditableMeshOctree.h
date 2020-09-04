@@ -48,17 +48,17 @@ struct FEditableMeshOctreeSemantics
 		return ( A.PolygonID == B.PolygonID );
 	}
 
-	FORCEINLINE static void SetElementId( const FEditableMeshOctreePolygon& Element, FOctreeElementId OctreeElementID )
+	FORCEINLINE static void SetElementId( const FEditableMeshOctreePolygon& Element, FOctreeElementId2 OctreeElementID )
 	{
 		Element.EditableMesh.PolygonIDToOctreeElementIDMap.Add( Element.PolygonID, OctreeElementID );
 	}
 };
 
-class FEditableMeshOctree : public TOctree<FEditableMeshOctreePolygon, FEditableMeshOctreeSemantics>
+class FEditableMeshOctree : public TOctree2<FEditableMeshOctreePolygon, FEditableMeshOctreeSemantics>
 {
 public:
 	FEditableMeshOctree( const FVector& InOrigin, float InExtent )
-		: TOctree( InOrigin, InExtent )
+		: TOctree2( InOrigin, InExtent )
 	{
 	}
 };

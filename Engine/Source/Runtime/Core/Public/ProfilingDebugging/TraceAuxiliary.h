@@ -10,4 +10,5 @@ class CORE_API FTraceAuxiliary
 public:
 	static void Initialize(const TCHAR* CommandLine);
 	static void TryAutoConnect();
+	static void EnableChannels();
 };

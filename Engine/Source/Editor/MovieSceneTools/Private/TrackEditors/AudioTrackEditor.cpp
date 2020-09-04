@@ -1003,7 +1003,11 @@ FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieScen
 		return FReply::Unhandled();
 	}
 	
+	const FScopedTransaction Transaction(LOCTEXT("DropAssets", "Drop Assets"));
+
 	TSharedPtr<FAssetDragDropOp> DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
+
+	FMovieSceneTrackEditor::BeginKeying();
 
 	bool bAnyDropped = false;
 	for (const FAssetData& AssetData : DragDropOp->GetAssets())
@@ -1030,6 +1034,8 @@ FReply FAudioTrackEditor::OnDrop(const FDragDropEvent& DragDropEvent, UMovieScen
 			bAnyDropped = true;
 		}
 	}
+
+	FMovieSceneTrackEditor::EndKeying();
 
 	return bAnyDropped ? FReply::Handled() : FReply::Unhandled();
 }
@@ -1114,6 +1120,7 @@ FKeyPropertyResult FAudioTrackEditor::AddNewMasterSound( FFrameNumber KeyTime, U
 	}
 
 	KeyPropertyResult.bTrackModified = true;
+	KeyPropertyResult.SectionsCreated.Add(NewSection);
 	return KeyPropertyResult;
 }
 
@@ -1143,6 +1150,7 @@ FKeyPropertyResult FAudioTrackEditor::AddNewAttachedSound( FFrameNumber KeyTime,
 				UMovieSceneSection* NewSection = AudioTrack->AddNewSound(Sound, KeyTime);
 				AudioTrack->SetDisplayName(LOCTEXT("AudioTrackName", "Audio"));				
 				KeyPropertyResult.bTrackModified = true;
+				KeyPropertyResult.SectionsCreated.Add(NewSection);
 
 				GetSequencer()->EmptySelection();
 				GetSequencer()->SelectSection(NewSection);

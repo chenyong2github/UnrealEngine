@@ -4,12 +4,38 @@
 #include "ImagePixelData.h"
 #include "Stats/Stats2.h"
 #include "MovieRenderPipelineCoreModule.h"
+#include "Math/NumericLimits.h"
+
 
 namespace UE
 {
 namespace MoviePipeline
 {
 DECLARE_CYCLE_STAT(TEXT("STAT_MoviePipeline_ImageQuantization"), STAT_ImageQuantization, STATGROUP_MoviePipeline);
+
+
+template<class TToColorBitDepthType, typename TFromColorBitDepthType, typename TColorChannelNumericType>
+TArray<TToColorBitDepthType> ConvertLinearToLinearBitDepth(TFromColorBitDepthType* InColor, const int32 InCount)
+{
+	// Convert all of our pixels.
+	TArray<TToColorBitDepthType> OutsRGBData;
+	OutsRGBData.SetNumUninitialized(InCount);
+	TColorChannelNumericType MaxValueInt = TNumericLimits<TColorChannelNumericType>::Max();
+	float MaxValue = static_cast<float>(MaxValueInt);
+	for (int32 PixelIndex = 0; PixelIndex < InCount; PixelIndex++)
+	{
+		// Avoid the bounds checking of TArray[]
+		TToColorBitDepthType* OutColor = &OutsRGBData.GetData()[PixelIndex];
+
+		// We don't need sRGB color conversion. Flooring avoids an extra branch for Round.
+		OutColor->R = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].R * MaxValue) + 0.5f), 0, MaxValueInt);
+		OutColor->G = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].G * MaxValue) + 0.5f), 0, MaxValueInt);
+		OutColor->B = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].B * MaxValue) + 0.5f), 0, MaxValueInt);
+		OutColor->A = FMath::Clamp<TColorChannelNumericType>(FMath::FloorToInt((InColor[PixelIndex].A * MaxValue) + 0.5f), 0, MaxValueInt);
+	}
+
+	return OutsRGBData;
+}
 
 static TArray<uint8> GenerateSRGBTable(uint32 InPrecision)
 {
@@ -126,7 +152,7 @@ static TArray<FFloat16> GenerateSRGBTableFloat16to16()
 
 	return OutsRGBTable;
 }
-	
+
 static TArray<FColor> ConvertLinearTosRGB8bppViaLookupTable(FFloat16Color* InColor, const int32 InCount)
 {
 	TArray<uint8> sRGBTable = GenerateSRGBTableFloat16to8();
@@ -211,7 +237,7 @@ static TArray<FFloat16Color> ConvertLinearTosRGB16bppViaLookupTable(FFloat16Colo
 	return OutsRGBData;
 }
 
-static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(const FImagePixelData* InPixelData, FImagePixelPayloadPtr InPayload)
+static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(const FImagePixelData* InPixelData, FImagePixelPayloadPtr InPayload, bool bConvertToSrgb)
 {
 	TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
 
@@ -233,9 +259,16 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(const FImagePixelData
 		const void* SrcRawDataPtr = nullptr;
 		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
 
+		if (bConvertToSrgb)
 		{
 			TArray<FColor> sRGBEncoded = ConvertLinearTosRGB8bppViaLookupTable((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
 			QuantizedPixelData = MakeUnique<TImagePixelData<FColor>>(RawSize, TArray64<FColor>(MoveTemp(sRGBEncoded)), InPayload);
+		}
+		else
+		{
+			TArray<FColor> sRGBEncoded = ConvertLinearToLinearBitDepth<FColor, FFloat16Color, uint8>((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
+			QuantizedPixelData = MakeUnique<TImagePixelData<FColor>>(RawSize, TArray64<FColor>(MoveTemp(sRGBEncoded)), InPayload);
+			
 		}
 		break;
 	}
@@ -245,8 +278,14 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(const FImagePixelData
 		const void* SrcRawDataPtr = nullptr;
 		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
 		
+		if (bConvertToSrgb)
 		{
 			TArray<FColor> sRGBEncoded = ConvertLinearTosRGB8bppViaLookupTable((FLinearColor*)SrcRawDataPtr, RawSize.X * RawSize.Y);
+			QuantizedPixelData = MakeUnique<TImagePixelData<FColor>>(RawSize, TArray64<FColor>(MoveTemp(sRGBEncoded)), InPayload);
+		}
+		else
+		{
+			TArray<FColor> sRGBEncoded = ConvertLinearToLinearBitDepth<FColor, FFloat16Color, uint8>((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
 			QuantizedPixelData = MakeUnique<TImagePixelData<FColor>>(RawSize, TArray64<FColor>(MoveTemp(sRGBEncoded)), InPayload);
 		}
 		break;
@@ -260,7 +299,7 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo8bpp(const FImagePixelData
 	return QuantizedPixelData;
 }
 
-static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelData* InPixelData, FImagePixelPayloadPtr InPayload)
+static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelData* InPixelData, FImagePixelPayloadPtr InPayload, bool bConvertToSrgb)
 {
 	TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
 
@@ -272,12 +311,18 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 	{
 	case 16:
 	{
-		{
-			int64 SizeInBytes = 0;
-			const void* SrcRawDataPtr = nullptr;
-			InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
+		int64 SizeInBytes = 0;
+		const void* SrcRawDataPtr = nullptr;
+		InPixelData->GetRawData(SrcRawDataPtr, SizeInBytes);
 
+		if (bConvertToSrgb)
+		{
 			TArray<FFloat16Color> sRGBEncoded = ConvertLinearTosRGB16bppViaLookupTable((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
+			QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(sRGBEncoded)), InPayload);
+		}
+		else
+		{
+			TArray<FFloat16Color> sRGBEncoded = ConvertLinearToLinearBitDepth<FFloat16Color, FFloat16Color, uint16>((FFloat16Color*)SrcRawDataPtr, RawSize.X * RawSize.Y);
 			QuantizedPixelData = MakeUnique<TImagePixelData<FFloat16Color>>(RawSize, TArray64<FFloat16Color>(MoveTemp(sRGBEncoded)), InPayload);
 		}
 		break;
@@ -297,6 +342,7 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 		
 		const FColor* DataPtr = (FColor*)(SrcRawDataPtr);
 		for (int64 Index = 0; Index < (RawSize.X * RawSize.Y); Index++)
+		if (bConvertToSrgb)
 		{
 			OutColors[Index].R = LookupTablePtr[DataPtr[Index].R];
 			OutColors[Index].G = LookupTablePtr[DataPtr[Index].G];
@@ -318,7 +364,7 @@ static TUniquePtr<FImagePixelData> QuantizePixelDataTo16bpp(const FImagePixelDat
 	return QuantizedPixelData;
 }
 
-TUniquePtr<FImagePixelData> QuantizeImagePixelDataToBitDepth(const FImagePixelData* InData, const int32 TargetBitDepth, FImagePixelPayloadPtr InPayload)
+TUniquePtr<FImagePixelData> QuantizeImagePixelDataToBitDepth(const FImagePixelData* InData, const int32 TargetBitDepth, FImagePixelPayloadPtr InPayload, bool bConvertToSrgb)
 {
 	SCOPE_CYCLE_COUNTER(STAT_ImageQuantization);
 	TUniquePtr<FImagePixelData> QuantizedPixelData = nullptr;
@@ -326,11 +372,11 @@ TUniquePtr<FImagePixelData> QuantizeImagePixelDataToBitDepth(const FImagePixelDa
 	{
 	case 8:
 		// Convert to 8 bit FColor
-		QuantizedPixelData = UE::MoviePipeline::QuantizePixelDataTo8bpp(InData, InPayload);
+		QuantizedPixelData = UE::MoviePipeline::QuantizePixelDataTo8bpp(InData, InPayload, bConvertToSrgb);
 		break;
 	case 16:
 		// Convert to 16 bit FFloat16Color
-		QuantizedPixelData = UE::MoviePipeline::QuantizePixelDataTo16bpp(InData, InPayload);
+		QuantizedPixelData = UE::MoviePipeline::QuantizePixelDataTo16bpp(InData, InPayload, bConvertToSrgb);
 		break;
 	case 32:
 		// Convert to 32 bit FLinearColor

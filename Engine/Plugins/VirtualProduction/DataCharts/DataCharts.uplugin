@@ -17,6 +17,11 @@
 	"Modules": [
 		{
 			"Name": "DataCharts",
+			"Type": "Runtime",
+			"LoadingPhase": "Default"
+		},
+		{
+			"Name": "DataChartsEditor",
 			"Type": "Editor",
 			"LoadingPhase": "PostEngineInit"
 		}

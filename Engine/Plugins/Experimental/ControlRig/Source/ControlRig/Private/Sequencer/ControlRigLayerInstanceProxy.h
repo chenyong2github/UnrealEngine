@@ -101,12 +101,6 @@ public:
 
 	virtual void AddReferencedObjects(UAnimInstance* InAnimInstance, FReferenceCollector& Collector) override;
 
-	static void InitializeCustomProxy(FAnimInstanceProxy* InputProxy, UAnimInstance* InAnimInstance);
-	static void GatherCustomProxyDebugData(FAnimInstanceProxy* InputProxy, FNodeDebugData& DebugData);
-	static void CacheBonesCustomProxy(FAnimInstanceProxy* InputProxy);
-	static void UpdateCustomProxy(FAnimInstanceProxy* InputProxy, const FAnimationUpdateContext& Context);
-	static void EvaluateCustomProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
-
 	// this doesn't work because this instance continuously change root
 	// this will invalidate the evaluation
 // 	virtual FAnimNode_Base* GetCustomRootNode() 
@@ -133,4 +127,12 @@ protected:
 
 	/** getter for Sequencer AnimInstance. It will return null if it's using AnimBP */
 	UAnimSequencerInstance* GetSequencerAnimInstance();
+
+	static void InitializeCustomProxy(FAnimInstanceProxy* InputProxy, UAnimInstance* InAnimInstance);
+	static void GatherCustomProxyDebugData(FAnimInstanceProxy* InputProxy, FNodeDebugData& DebugData);
+	static void CacheBonesCustomProxy(FAnimInstanceProxy* InputProxy);
+	static void UpdateCustomProxy(FAnimInstanceProxy* InputProxy, const FAnimationUpdateContext& Context);
+	static void EvaluateCustomProxy(FAnimInstanceProxy* InputProxy, FPoseContext& Output);
+	/** reset internal Counters of given animinstance proxy */
+	static void ResetCounter(FAnimInstanceProxy* InAnimInstanceProxy);
 };

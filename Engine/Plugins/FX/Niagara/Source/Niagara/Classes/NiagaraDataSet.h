@@ -395,12 +395,12 @@ private:
 	FORCEINLINE void CheckCorrectThread()const
 	{
 		// In some rare occasions, the render thread might be null, like when offloading work to Lightmass 
-		// The final GRenderingThread check keeps us from inadvertently failing when that happens.
+		// The final GIsThreadedRendering check keeps us from inadvertently failing when that happens.
 #if DO_GUARD_SLOW
 		ENiagaraSimTarget SimTarget = GetSimTarget();
 		bool CPUSimOK = (SimTarget == ENiagaraSimTarget::CPUSim && !IsInRenderingThread());
 		bool GPUSimOK = (SimTarget == ENiagaraSimTarget::GPUComputeSim && IsInRenderingThread());
-		checkfSlow(!GRenderingThread || CPUSimOK || GPUSimOK, TEXT("NiagaraDataSet function being called on incorrect thread."));
+		checkfSlow(!GIsThreadedRendering || CPUSimOK || GPUSimOK, TEXT("NiagaraDataSet function being called on incorrect thread."));
 #endif
 	}
 

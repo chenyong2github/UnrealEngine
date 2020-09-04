@@ -11,6 +11,7 @@
 #include "LiveLinkRefSkeleton.h"
 #include "LiveLinkTypes.h"
 #include "LiveLinkVirtualSubject.h"
+#include "LiveLinkProvider.h"
 #include "Misc/Optional.h"
 #include "Misc/QualifiedFrameTime.h"
 #include "Misc/Timecode.h"
@@ -149,6 +150,11 @@ public:
 	/** Is the supplied subject virtual */
 	bool IsVirtualSubject(const FLiveLinkSubjectKey& Subject) const;
 
+#if WITH_EDITOR
+	/** Call initialize again on an existing virtual subject. Used for when a Blueprint Virtual Subject is compiled */
+	void ReinitializeVirtualSubject(const FLiveLinkSubjectKey& SubjectKey);
+#endif
+
 	/** Callback when property changed for one of the source settings */
 	void OnPropertyChanged(FGuid EntryGuid, const FPropertyChangedEvent& PropertyChangedEvent);
 
@@ -266,6 +272,10 @@ private:
 
 	/** Delegate when LiveLinkClient has ticked. */
 	FSimpleMulticastDelegate OnLiveLinkTickedDelegate;
+
+	/** LiveLink Provider for rebroadcasting */
+	TSharedPtr<ILiveLinkProvider> RebroadcastLiveLinkProvider;
+	FString RebroadcastLiveLinkProviderName;
 
 #if WITH_EDITOR
 	/** Delegate when a subject is evaluated. */

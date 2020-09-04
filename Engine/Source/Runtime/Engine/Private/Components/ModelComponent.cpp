@@ -309,26 +309,15 @@ void UModelComponent::PostLoad()
 }
 
 #if WITH_EDITOR
-void UModelComponent::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+void UModelComponent::PostEditUndo()
 {
 	// Rebuild the component's render data after applying a transaction to it.
 	ULevel* Level = GetTypedOuter<ULevel>();
 	if (ensure(Level))
 	{
 		Level->InvalidateModelSurface();
-		if (PropertyChangedEvent.ChangeType == EPropertyChangeType::Redirected)
-		{
-			// Normally, we can wait until the next tick to update the model surfaces. However, when force-deleting a material (signaled by the
-			// Redirected change type), UActorComponent::PostEditChangeProperty() will try to re-register the component, which ends up using render
-			// resources such as the index buffer. We need to call CommitModelSurfaces() now to make sure these resources are rebuilt taking into
-			// account the replacement material. This is not optimal, since it will be called multiple times, but it only happens when deleting a
-			// material assigned to a BSP component.
-			// This is a stopgap measure until we bite the bullet and refactor the update code so that resources aren't used before they are 
-			// recreated by the normal level rebuilding process.
-			Level->CommitModelSurfaces();
-		}
 	}
-	Super::PostEditChangeProperty(PropertyChangedEvent);
+	Super::PostEditUndo();
 }
 #endif // WITH_EDITOR
 

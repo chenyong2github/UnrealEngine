@@ -627,7 +627,12 @@ void GeneratePermuations(TArray<FPermutation>& Permutations, FPermutation& Worki
 
 int32 ExpandPSOSC(const TArray<FString>& Tokens)
 {
-	check(Tokens.Last().EndsWith(STABLE_CSV_EXT) || Tokens.Last().EndsWith(STABLE_CSV_COMPRESSED_EXT));
+	if (!Tokens.Last().EndsWith(STABLE_CSV_EXT) && !Tokens.Last().EndsWith(STABLE_CSV_COMPRESSED_EXT))
+	{
+		UE_LOG(LogShaderPipelineCacheTools, Error, TEXT("Pipeline cache filename '%s' must end with '%s' or '%s'."),
+			*Tokens.Last(), STABLE_CSV_EXT, STABLE_CSV_COMPRESSED_EXT);
+		return 0;
+	}
 
 	TArray<FStringView, TInlineAllocator<16>> StableCSVs;
 	for (int32 Index = 0; Index < Tokens.Num() - 1; Index++)

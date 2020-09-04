@@ -335,6 +335,11 @@ bool FWorldTileModel::IsLandscapeBased() const
 	return Landscape.IsValid();
 }
 
+bool FWorldTileModel::IsTiledLandscapeBased() const
+{
+	return CanReimportHeightmap();
+}
+
 bool FWorldTileModel::CanReimportHeightmap() const
 {
 	if (IsLandscapeBased() && !GetLandscape()->ReimportHeightmapFilePath.IsEmpty())
@@ -360,6 +365,11 @@ bool FWorldTileModel::CanReimportHeightmap() const
 	}
 
 	return false;
+}
+
+bool FWorldTileModel::IsLandscapeProxy() const
+{
+	return IsLandscapeStreamingProxy();
 }
 
 bool FWorldTileModel::IsLandscapeStreamingProxy() const

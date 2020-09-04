@@ -4,6 +4,7 @@
 #include "Model/FramesPrivate.h"
 #include "AnalysisServicePrivate.h"
 #include <limits>
+#include "Algo/BinarySearch.h"
 
 namespace Trace
 {
@@ -40,35 +41,10 @@ void FFrameProvider::EnumerateFrames(ETraceFrameType FrameType, uint64 Start, ui
 	}
 }
 
-// Pulled from Algo/BinarySearch.h, which by default truncates to int32.
-// @TODO: remove when LowerBound supports 64 bit results
-template <typename RangeValueType, typename PredicateValueType, typename ProjectionType, typename SortPredicateType>
-static int64 LowerBound64(RangeValueType* First, const int64 Num, const PredicateValueType& Value, ProjectionType Projection, SortPredicateType SortPredicate)
-{
-	// Current start of sequence to check
-	int64 Start = 0;
-	// Size of sequence to check
-	int64 Size = Num;
-
-	// With this method, if Size is even it will do one more comparison than necessary, but because Size can be predicted by the CPU it is faster in practice
-	while (Size > 0)
-	{
-		const int64 LeftoverSize = Size % 2;
-		Size = Size / 2;
-
-		const int64 CheckIndex = Start + Size;
-		const int64 StartIfLess = CheckIndex + LeftoverSize;
-
-		auto&& CheckValue = Invoke(Projection, First[CheckIndex]);
-		Start = SortPredicate(CheckValue, Value) ? StartIfLess : Start;
-	}
-	return Start;
-}
-
 bool FFrameProvider::GetFrameFromTime(ETraceFrameType FrameType, double Time, FFrame& OutFrame) const
 {
-	int64 LowerBound = LowerBound64(FrameStartTimes[FrameType].GetData(), FrameStartTimes[FrameType].Num(), Time, FIdentityFunctor(), TLess<double>());
-	if(LowerBound > 0 && LowerBound - 1 < (int64)Frames[FrameType].Num())
+	int64 LowerBound = Algo::LowerBound(FrameStartTimes[FrameType], Time);
+	if (LowerBound > 0 && LowerBound - 1 < (int64)Frames[FrameType].Num())
 	{
 		OutFrame = Frames[FrameType][LowerBound - 1];
 		return true;

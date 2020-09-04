@@ -525,6 +525,8 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 				
 			public:
 
+				static const TSharedRef<FTabManager::FLayout> NullLayout; /** A dummy layout meant to spawn nothing during (e.g., asset editor) initialization */
+
 				TSharedRef<FLayout> AddArea( const TSharedRef<FArea>& InArea )
 				{
 					Areas.Add( InArea );
@@ -879,7 +881,15 @@ class SLATE_API FTabManager : public TSharedFromThis<FTabManager>
 		static TSharedPtr<class SDockingTabStack> FindTabInLiveArea( const FTabMatcher& TabMatcher, const TSharedRef<SDockingArea>& InArea );
 
 		template<typename MatchFunctorType> static bool HasAnyMatchingTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode, const MatchFunctorType& Matcher );
-		bool HasOpenTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
+
+	public:
+		/**
+		 * It searches for valid and open tabs on SomeNode.
+		 * @return It returns true if there is at least a valid open tab in the input SomeNode.
+		 */
+		bool HasValidOpenTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
+
+	protected:
 		bool HasValidTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const;
 		/**
 		 * It sets the desired (or all) tabs in the FTabManager::FLayoutNode to the desired value.

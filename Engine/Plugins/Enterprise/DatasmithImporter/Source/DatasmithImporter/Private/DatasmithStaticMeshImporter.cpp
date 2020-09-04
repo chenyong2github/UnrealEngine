@@ -25,6 +25,7 @@
 #include "PhysicsEngine/AggregateGeom.h"
 #include "PhysicsEngine/BodySetup.h"
 #include "StaticMeshAttributes.h"
+#include "StaticMeshOperations.h"
 #include "Templates/UniquePtr.h"
 #include "UObject/Package.h"
 #include "UVTools/UVGenerationFlattenMapping.h"
@@ -147,6 +148,12 @@ void FDatasmithStaticMeshImporter::CleanupMeshDescriptions(TArray<FMeshDescripti
 			FElementIDRemappings Remappings;
 			MeshDescription.Compact(Remappings);
 		}
+
+		// Fix invalid vertex normals and tangents
+		// We need polygon info because ComputeTangentsAndNormals uses it to repair the invalid vertex normals/tangents
+		// Can't calculate just the required polygons as ComputeTangentsAndNormals is parallel and we can't guarantee thread-safe access patterns
+		FStaticMeshOperations::ComputePolygonTangentsAndNormals(MeshDescription);
+		FStaticMeshOperations::ComputeTangentsAndNormals(MeshDescription, EComputeNTBsFlags::UseMikkTSpace);
 	}
 }
 
@@ -369,7 +376,7 @@ void FDatasmithStaticMeshImporter::PreBuildStaticMeshes( FDatasmithImportContext
 
 	TUniquePtr<FScopedSlowTask> ProgressPtr;
 	if ( ImportContext.FeedbackContext )
-	{ 
+	{
 		ProgressPtr = MakeUnique<FScopedSlowTask>(ImportContext.ImportedStaticMeshes.Num(), LOCTEXT("PreBuildStaticMeshes", "Setting up UVs..."), true, *ImportContext.FeedbackContext);
 		ProgressPtr->MakeDialog(true);
 	}
@@ -606,7 +613,7 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 			//Also, it's okay to set both the source and the destination to be the same index as they are for different containers.
 			SourceIndex = FirstOpenUVChannel;
 		}
-		
+
 		if (bGenerateLightmapUVs)
 		{
 			if (!FMath::IsWithin<int32>(SourceIndex, 0, MAX_MESH_TEXTURE_COORDS_MD))
@@ -625,7 +632,7 @@ void FDatasmithStaticMeshImporter::SetupStaticMesh( FDatasmithAssetsImportContex
 				AssetsContext.ParentContext.LogWarning(FText::Format(LOCTEXT("LightmapUVsWontBeGenerated", "Lightmap UVs for mesh {0} won't be generated."), FText::FromName(StaticMesh->GetFName())));
 			}
 		}
-		
+
 		FDatasmithMeshBuildSettingsTemplate BuildSettingsTemplate;
 		BuildSettingsTemplate.Load(StaticMesh->GetSourceModel(LodIndex).BuildSettings);
 

@@ -185,11 +185,7 @@ public partial class Project : CommandUtils
 			string LookFor = "Bringing up level for play took";
 			bool bCommandlet = false;
 
-			if (Params.RunAutomationTest != "")
-			{
-				LookFor = "Automation Test Succeeded";
-			}
-			else if (Params.RunAutomationTests)
+			if (Params.RunAutomationTest != "" || Params.RunAutomationTests)
 			{
 				LookFor = "Automation Test Queue Empty";
 			}
@@ -392,11 +388,7 @@ public partial class Project : CommandUtils
 			{
 				LookFor = "Welcomed by server";
 			}
-			else if (Params.RunAutomationTest != "")
-			{
-				LookFor = "Automation Test Succeeded";
-			}
-			else if (Params.RunAutomationTests)
+			else if (Params.RunAutomationTest != "" || Params.RunAutomationTests)
 			{
 				LookFor = "Automation Test Queue Empty";
 			}
@@ -834,6 +826,11 @@ public partial class Project : CommandUtils
 		{
 			TempCmdLine += "-buildmachine ";
 		}
+		if (Params.HasDDCGraph)
+		{
+			TempCmdLine += "-ddc=" + Params.DDCGraph +" ";
+		}
+
 		if (Params.CrashIndex > 0)
 		{
 			int RealIndex = Params.CrashIndex - 1;
@@ -982,6 +979,12 @@ public partial class Project : CommandUtils
 				Args += " -signedpak";
 			}
 		}
+
+		if (Params.HasDDCGraph)
+		{
+			Args += " -ddc=" + Params.DDCGraph;
+		}
+
 		if (IsBuildMachine || Params.Unattended)
 		{
 			Args += " -buildmachine";

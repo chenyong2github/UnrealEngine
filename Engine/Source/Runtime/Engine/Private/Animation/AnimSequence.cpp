@@ -641,6 +641,21 @@ void UAnimSequence::AddReferencedObjects(UObject* This, FReferenceCollector& Col
 	Collector.AddReferencedObject(AnimSeq->CompressedData.CurveCompressionCodec);
 }
 
+int32 UAnimSequence::Stub_GetBoneFloatCustomAttributeNum(const FName& BoneName) const
+{
+	return 0;
+}
+
+int32 UAnimSequence::Stub_GetBoneIntegerCustomAttributeNum(const FName& BoneName) const
+{
+	return 0;
+}
+
+int32 UAnimSequence::Stub_GetBoneStringCustomAttributeNum(const FName& BoneName) const
+{
+	return 0;
+}
+
 int32 UAnimSequence::GetUncompressedRawSize() const
 {
 	int32 BoneRawSize = ((sizeof(FVector) + sizeof(FQuat) + sizeof(FVector)) * RawAnimationData.Num() * NumFrames);
@@ -4810,8 +4825,8 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 					MarkerTimeOffset = SequenceLength;
 				}
 			}
-			const float NextMarkerTime = NextSyncMarker.Time + MarkerTimeOffset;
-			const float TimeToMarker = NextMarkerTime - CurrentTime;
+
+			const float TimeToMarker = NextMarker.TimeToMarker;
 
 			if (CurrentMoveDelta > TimeToMarker)
 			{
@@ -4839,6 +4854,10 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 						MarkerTimeOffset += SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[NextMarker.MarkerIndex].MarkerName));
+				if (NextMarker.MarkerIndex != -1)
+				{
+					NextMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[NextMarker.MarkerIndex].Time - CurrentTime;
+				}
 			}
 			else
 			{
@@ -4875,8 +4894,8 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 					MarkerTimeOffset = -SequenceLength;
 				}
 			}
-			const float PrevMarkerTime = PrevSyncMarker.Time + MarkerTimeOffset;
-			const float TimeToMarker = PrevMarkerTime - CurrentTime;
+
+			const float TimeToMarker = PrevMarker.TimeToMarker;
 
 			if (CurrentMoveDelta < TimeToMarker)
 			{
@@ -4904,6 +4923,10 @@ void UAnimSequence::AdvanceMarkerPhaseAsLeader(bool bLooping, float MoveDelta, c
 						MarkerTimeOffset -= SequenceLength;
 					}
 				} while (!ValidMarkerNames.Contains(AuthoredSyncMarkers[PrevMarker.MarkerIndex].MarkerName));
+				if (PrevMarker.MarkerIndex != -1)
+				{
+					PrevMarker.TimeToMarker = MarkerTimeOffset + AuthoredSyncMarkers[PrevMarker.MarkerIndex].Time - CurrentTime;
+				}
 			}
 			else
 			{
@@ -5202,8 +5225,15 @@ FMarkerSyncAnimPosition UAnimSequence::GetMarkerSyncPositionfromMarkerIndicies(i
 	}
 
 	// Account for looping
-	PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
-	NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
+	if(PrevTime > NextTime)
+	{
+		PrevTime = (PrevTime > CurrentTime) ? PrevTime - SequenceLength : PrevTime;
+		NextTime = (NextTime < CurrentTime) ? NextTime + SequenceLength : NextTime;
+	}
+	else if (PrevTime > CurrentTime)
+	{
+		CurrentTime += SequenceLength;
+	}
 
 	if (PrevTime == NextTime)
 	{

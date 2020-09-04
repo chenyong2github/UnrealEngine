@@ -315,7 +315,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 
 		// If we're rendering dbuffer decals but there are no decals in the scene, we avoid the 
 		// clears/decompresses and set the targets to NULL		
-		// The DBufferA-C will be replaced with dummy textures in FSceneTextureShaderParameters
+		// The DBufferA-C will be replaced with dummy textures in FSceneTexturesUniformParameters
 		if (bRenderDecals)
 		{
 			FScene& Scene = *(FScene*)ViewFamily.Scene;
@@ -667,7 +667,7 @@ void FRCPassPostProcessDeferredDecals::Process(FRenderingCompositePassContext& C
 	if (CurrentStage == DRS_BeforeBasePass && !bHasValidDBufferMask)
 	{
 		// Return the DBufferMask to the render target pool.
-		// FSceneTextureShaderParameters will fall back to setting a white dummy mask texture.
+		// FSceneTexturesUniformParameters will fall back to setting a white dummy mask texture.
 		// This allows us to ignore the DBufferMask on frames without decals, without having to explicitly clear the texture.
 		SceneContext.DBufferMask = nullptr;
 	}

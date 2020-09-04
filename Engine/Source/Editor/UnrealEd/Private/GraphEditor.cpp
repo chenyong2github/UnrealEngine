@@ -34,6 +34,8 @@ void SGraphEditor::ConstructImplementation( const FArguments& InArgs )
 		InArgs._ShowGraphStateOverlay
 		);
 
+	Implementation->AssetEditorToolkit = InArgs._AssetEditorToolkit;
+
 	this->ChildSlot
 	[
 		SNew( SBox )
@@ -54,6 +56,7 @@ void SGraphEditor::Construct( const FArguments& InArgs )
 {
 	EdGraphObj = InArgs._GraphToEdit;
 	OnGraphModuleReloadedCallback = InArgs._OnGraphModuleReloaded;
+	AssetEditorToolkit = InArgs._AssetEditorToolkit;
 
 	// Register this widget with the module so that we can gracefully handle the module being unloaded.
 	// See OnModuleUnloading()

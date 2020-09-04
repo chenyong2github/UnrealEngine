@@ -1,9 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "StaticMeshImporter.h"
-#include "USDImporter.h"
-#include "USDConversionUtils.h"
-#include "RawMesh.h"
+
 #include "MeshUtilities.h"
 #include "Engine/StaticMesh.h"
 #include "Materials/Material.h"
@@ -11,22 +9,29 @@
 #include "UObject/Package.h"
 #include "Factories/Factory.h"
 #include "Factories/MaterialImportHelpers.h"
-#include "MeshDescription.h"
-#include "MeshAttributes.h"
 #include "IMeshBuilderModule.h"
+#include "Materials/Material.h"
+#include "MeshAttributes.h"
+#include "MeshDescription.h"
+#include "MeshUtilities.h"
+#include "Misc/PackageName.h"
 #include "PackageTools.h"
 #include "StaticMeshAttributes.h"
 #include "StaticMeshOperations.h"
 
 #include "USDAssetImportData.h"
+#include "USDConversionUtils.h"
 #include "USDGeomMeshConversion.h"
+#include "USDImporter.h"
 #include "USDImportOptions.h"
+#include "USDPrimConversion.h"
+#include "USDPrimResolver.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdTyped.h"
+
 #if USE_USD_SDK
-#include "USDIncludesStart.h"
-#include "pxr/usd/usdGeom/mesh.h"
-#include "USDIncludesEnd.h"
 
 #define LOCTEXT_NAMESPACE "USDImportPlugin"
 
@@ -56,7 +61,7 @@ public:
 	FTransform FinalTransform;
 	FMatrix FinalTransformIT;
 	FMeshDescription* MeshDescription;
-	UUSDImportOptions* ImportOptions;
+	UDEPRECATED_UUSDImportOptions* ImportOptions;
 	UStaticMesh* NewMesh;
 	bool bFlip;
 
@@ -67,19 +72,14 @@ private:
 	int32 MaterialIndexOffset;
 
 public:
-	void ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex);
+	bool ProcessStaticUSDGeometry(const UE::FUsdPrim& GeomPrim, int32 LODIndex);
 	void ProcessMaterials(int32 LODIndex);
 };
 
-void FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const pxr::UsdPrim& GeomPrim, int32 LODIndex)
+bool FUSDStaticMeshImportState::ProcessStaticUSDGeometry(const UE::FUsdPrim& GeomPrim, int32 LODIndex)
 {
-	pxr::UsdGeomMesh Mesh( GeomPrim );
-	if ( !Mesh )
-	{
-		return;
-	}
-
-	UsdToUnreal::ConvertGeomMesh( Mesh, *MeshDescription );
+	UsdUtils::FUsdPrimMaterialAssignmentInfo MaterialInfo;
+	return UsdToUnreal::ConvertGeomMesh( UE::FUsdTyped( GeomPrim ), *MeshDescription, MaterialInfo );
 }
 
 void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
@@ -177,16 +177,17 @@ void FUSDStaticMeshImportState::ProcessMaterials(int32 LODIndex)
 
 UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportContext, const FUsdAssetPrimToImport& PrimToImport)
 {
-	const pxr::UsdPrim& Prim = *PrimToImport.Prim;
+	const UE::FUsdPrim& Prim = PrimToImport.Prim;
 
-	const UsdToUnreal::FUsdStageInfo StageInfo( ImportContext.Stage.Get() );
+	const FUsdStageInfo StageInfo( ImportContext.Stage );
 
-	FTransform PrimToWorld = ImportContext.bApplyWorldTransformToGeometry ? UsdToUnreal::ConvertMatrix(StageInfo, IUsdPrim::GetLocalTransform( Prim )) : FTransform::Identity;
+	FTransform PrimToWorld;
+	UsdToUnreal::ConvertXformable( ImportContext.Stage, UE::FUsdTyped( Prim ), PrimToWorld, 0.0 );
 
 	FTransform FinalTransform = PrimToWorld;
-	if (ImportContext.ImportOptions->Scale != 1.0f)
+	if (ImportContext.ImportOptions_DEPRECATED->Scale != 1.0f)
 	{
-		FVector Scale3D = FinalTransform.GetScale3D() * ImportContext.ImportOptions->Scale;
+		FVector Scale3D = FinalTransform.GetScale3D() * ImportContext.ImportOptions_DEPRECATED->Scale;
 		FinalTransform.SetScale3D(Scale3D);
 	}
 	FMatrix FinalTransformIT = FinalTransform.ToInverseMatrixWithScale().GetTransposed();
@@ -195,21 +196,21 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 	int32 NumLODs = PrimToImport.NumLODs;
 
-	UUSDImportOptions* ImportOptions = nullptr;
+	UDEPRECATED_UUSDImportOptions* ImportOptions = nullptr;
 	UStaticMesh* NewMesh = UsdUtils::FindOrCreateObject<UStaticMesh>(ImportContext.Parent, ImportContext.ObjectName, ImportContext.ImportObjectFlags);
 	check(NewMesh);
-	UUSDAssetImportData* ImportData = Cast<UUSDAssetImportData>(NewMesh->AssetImportData);
+	UUsdAssetImportData* ImportData = Cast<UUsdAssetImportData>(NewMesh->AssetImportData);
 	if (!ImportData)
 	{
-		ImportData = NewObject<UUSDAssetImportData>(NewMesh);
-		ImportData->ImportOptions = DuplicateObject<UUSDImportOptions>(ImportContext.ImportOptions, ImportData);
+		ImportData = NewObject<UUsdAssetImportData>(NewMesh);
+		ImportData->ImportOptions = DuplicateObject<UDEPRECATED_UUSDImportOptions>(ImportContext.ImportOptions_DEPRECATED, ImportData);
 		NewMesh->AssetImportData = ImportData;
 	}
 	else if (!ImportData->ImportOptions)
 	{
-		ImportData->ImportOptions = DuplicateObject<UUSDImportOptions>(ImportContext.ImportOptions, ImportData);
+		ImportData->ImportOptions = DuplicateObject<UDEPRECATED_UUSDImportOptions>(ImportContext.ImportOptions_DEPRECATED, ImportData);
 	}
-	ImportOptions = CastChecked<UUSDAssetImportData>(NewMesh->AssetImportData)->ImportOptions;
+	ImportOptions = Cast<UDEPRECATED_UUSDImportOptions>(CastChecked<UUsdAssetImportData>(NewMesh->AssetImportData)->ImportOptions);
 	check(ImportOptions);
 
 	FString CurrentFilename = UFactory::GetCurrentFilename();
@@ -232,7 +233,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 	{
 		if (NewMesh->GetNumSourceModels() < LODIndex + 1)
 		{
-			// Add one LOD 
+			// Add one LOD
 			NewMesh->AddSourceModel();
 
 			if (NewMesh->GetNumSourceModels() < LODIndex + 1)
@@ -241,15 +242,15 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 			}
 		}
 
-		TArray< TUsdStore< pxr::UsdPrim > > PrimsWithGeometry;
-		for (const TUsdStore< pxr::UsdPrim >& MeshPrim : PrimToImport.MeshPrims)
+		TArray< UE::FUsdPrim > PrimsWithGeometry;
+		for (const UE::FUsdPrim& MeshPrim : PrimToImport.MeshPrims)
 		{
-			if (IUsdPrim::GetNumLODs( *MeshPrim ) > LODIndex)
+			if (IUsdPrim::GetNumLODs( MeshPrim ) > LODIndex)
 			{
 				// If the mesh has LOD children at this index then use that as the geom prim
-				IUsdPrim::SetActiveLODIndex( *MeshPrim, LODIndex );
+				IUsdPrim::SetActiveLODIndex( MeshPrim, LODIndex );
 
-				ImportContext.PrimResolver->FindMeshChildren(ImportContext, *MeshPrim, false, PrimsWithGeometry);
+				ImportContext.PrimResolver_DEPRECATED->FindMeshChildren(ImportContext, MeshPrim, false, PrimsWithGeometry);
 			}
 			else if (LODIndex == 0)
 			{
@@ -262,28 +263,12 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 		State.MeshDescription = NewMesh->CreateMeshDescription(LODIndex);
 		check(State.MeshDescription != nullptr);
 
-		bool bRecomputeNormals = false;
-
-		for (const TUsdStore< pxr::UsdPrim >& GeomPrim : PrimsWithGeometry)
+		for (const UE::FUsdPrim& GeomPrim : PrimsWithGeometry)
 		{
 			// If we dont have a geom prim this might not be an error so dont message it.  The geom prim may not contribute to the LOD for whatever reason
-			if (GeomPrim.Get())
+			if (GeomPrim)
 			{
-				pxr::UsdGeomMesh USDMesh( *GeomPrim );
-
-				if (USDMesh)
-				{
-					if ( pxr::UsdAttribute NormalAttri = USDMesh.GetNormalsAttr() )
-					{
-						if ( !NormalAttri.HasValue() )
-						{
-							bRecomputeNormals = true;
-						}
-					}
-
-					State.ProcessStaticUSDGeometry(*GeomPrim, LODIndex);
-				}
-				else
+				if ( !State.ProcessStaticUSDGeometry(GeomPrim, LODIndex) )
 				{
 					ImportContext.AddErrorMessage(EMessageSeverity::Error, FText::Format(LOCTEXT("StaticMeshesMustBeTriangulated", "{0} is not a triangle mesh. Static meshes must be triangulated to import"), FText::FromString(ImportContext.ObjectName)));
 
@@ -304,7 +289,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 		if (!NewMesh->IsSourceModelValid(LODIndex))
 		{
-			// Add one LOD 
+			// Add one LOD
 			NewMesh->AddSourceModel();
 		}
 
@@ -314,7 +299,7 @@ UStaticMesh* FUSDStaticMeshImporter::ImportStaticMesh(FUsdImportContext& ImportC
 
 		FStaticMeshSourceModel& SrcModel = NewMesh->GetSourceModel(LODIndex);
 		SrcModel.BuildSettings.bGenerateLightmapUVs = false;
-		SrcModel.BuildSettings.bRecomputeNormals = bRecomputeNormals;
+		SrcModel.BuildSettings.bRecomputeNormals = false;
 		SrcModel.BuildSettings.bRecomputeTangents = true;
 		SrcModel.BuildSettings.bBuildAdjacencyBuffer = false;
 

@@ -438,6 +438,31 @@ FString FEmitterLocalContext::ExportCppDeclaration(const FProperty* Property, EE
 		ActualCppType = GetCppTypeFromProperty(Property, ActualExtendedCppType);
 	}
 
+	if (const FInterfaceProperty* InterfaceProperty = CastField<const FInterfaceProperty>(Property))
+	{
+		// Interface parameters are a special case; we have to consider both native C++ API overrides (from a native parent class) and non-native
+		// functions that may include an interface parameter. First, there is some legacy code in FProperty::ExportCppDeclaration() that traces
+		// back to UE3/UnrealScript, which enforces that all interface parameters should be declared as 'const' even if 'CPF_ConstParm' is not set.
+		// But for Blueprint (non-native) APIs, these are not truly "constant" terms, since we don't support true 'const ref' input pins. We
+		// can get around that easily enough by passing 'CPPF_NoConst' in the export flags to override the legacy behavior if the 'CPF_ConstParm'
+		// flag is not also set; however, if the API is an override inherited from a native C++ parent class, we need to match the original C++
+		// declaration in the parent class. Since the 'CPF_ConstParm' flag will not be set on the override (again, due to not supporting a true
+		// 'const ref' input term), to get around this, nativization has UHT also set 'NativeConst' metadata, which does get carried through the
+		// compilation phase (also see FBlueprintCompilerCppBackend::TermToText, where we also need to const_cast to get around the native decl).
+		// 
+		// Thus, here we append 'CPPF_NoConst' to disable the legacy path in ExportCppDeclaration(), except in either of the following cases:
+		//
+		// a) 'CPF_ConstParm' is set on the property, OR
+		// b) 'NativeConst' is set on the property's metadata
+		//
+		// We don't need to worry about inner types on container properties because the legacy path in FProperty::ExportCppDeclaration() won't
+		// kick in for that case, so that's why we aren't also checking for 'NativeConstTemplateArg' metadata here on e.g. TArray-type arguments.
+		if (bIsParameter && !InterfaceProperty->HasAnyPropertyFlags(CPF_ConstParm) && !InterfaceProperty->HasMetaData(FName(TEXT("NativeConst"))))
+		{
+			ExportCPPFlags |= CPPF_NoConst;
+		}
+	}
+
 	FStringOutputDevice Out;
 	const bool bSkipParameterName = (ParameterName == EPropertyNameInDeclaration::Skip);
 	const FString ActualNativeName = bSkipParameterName ? FString() : (FEmitHelper::GetCppName(Property, false, ParameterName == EPropertyNameInDeclaration::ForceConverted) + NamePostfix);
@@ -909,7 +934,7 @@ FString FEmitHelper::GetPCHFilename()
 	FString PCHFilename;
 	IBlueprintCompilerCppBackendModule& BackEndModule = (IBlueprintCompilerCppBackendModule&)IBlueprintCompilerCppBackendModule::Get();
 
-	TBaseDelegate<FString>& PchFilenameQuery = BackEndModule.OnPCHFilenameQuery();
+	TDelegate<FString()>& PchFilenameQuery = BackEndModule.OnPCHFilenameQuery();
 	if (PchFilenameQuery.IsBound())
 	{
 		PCHFilename = PchFilenameQuery.Execute();

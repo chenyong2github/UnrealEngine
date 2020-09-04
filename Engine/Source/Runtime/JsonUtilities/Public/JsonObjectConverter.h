@@ -27,9 +27,9 @@ public:
 public: // UStruct -> JSON
 
 	/**
-	 * Optional callback to run when exporting a type which we don't already understand.
-	 * If this returns a valid pointer it will be inserted into the export chain. If not, or if this is not
-	 * passed in, then we will call the generic ToString on the type and export as a JSON string.
+	 * Optional callback that will be run when exporting a single property to Json.
+	 * If this returns a valid value it will be inserted into the export chain.
+	 * If this returns nullptr or is not bound, it will try generic type-specific export behavior before falling back to outputting ExportText as a string.
 	 */
 	DECLARE_DELEGATE_RetVal_TwoParams(TSharedPtr<FJsonValue>, CustomExportCallback, FProperty* /* Property */, const void* /* Value */);
 
@@ -43,7 +43,7 @@ public: // UStruct -> JSON
 	 * Templated version of UStructToJsonObject to try and make most of the params. Also serves as an example use case
 	 *
 	 * @param InStruct The UStruct instance to read from
-	 * @param ExportCb Optional callback for types we don't understand. This is called right before falling back to the generic ToString()
+	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
 	 * @return FJsonObject pointer. Invalid if an error occurred.
@@ -67,7 +67,7 @@ public: // UStruct -> JSON
 	 * @param JsonObject Json Object to be filled in with data from the ustruct
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
-	 * @param ExportCb Optional callback for types we don't understand. This is called right before falling back to the generic ToString()
+	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
 	 *
 	 * @return False if any properties failed to write
 	 */
@@ -82,7 +82,7 @@ public: // UStruct -> JSON
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
 	 * @param Indent How many tabs to add to the json serializer
-	 * @param ExportCb Optional callback for types we don't understand. This is called right before falling back to the generic ToString()
+	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
 	 * @param bPrettyPrint Option to use pretty print (e.g., adds line endings) or condensed print
 	 *
 	 * @return False if any properties failed to write
@@ -97,7 +97,7 @@ public: // UStruct -> JSON
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
 	 * @param Indent How many tabs to add to the json serializer
-	 * @param ExportCb Optional callback for types we don't understand. This is called right before falling back to the generic ToString()
+	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
 	 * @param bPrettyPrint Option to use pretty print (e.g., adds line endings) or condensed print
 	 *
 	 * @return False if any properties failed to write
@@ -142,7 +142,7 @@ public: // UStruct -> JSON
 	 * @param JsonAttributes Map of attributes to copy in to
 	 * @param CheckFlags Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags Skip properties that match any of these flags
-	 * @param ExportCb Optional callback for types we don't understand. This is called right before falling back to the generic ToString()
+	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
 	 *
 	 * @return False if any properties failed to write
 	 */
@@ -154,11 +154,12 @@ public: // UStruct -> JSON
 	 * @param Value				Pointer to the value of the property
 	 * @param CheckFlags		Only convert properties that match at least one of these flags. If 0 check all properties.
 	 * @param SkipFlags			Skip properties that match any of these flags
-	 * @param ExportCb			Optional callback for types we don't understand. This is called right before falling back to the generic ToString()
+	 * @param ExportCb Optional callback to override export behavior, if this returns null it will fallback to the default
+	 * @param OuterProperty		If applicable, the Array/Set/Map Property that contains this property
 	 *
 	 * @return					The constructed JsonValue from the property
 	 */
-	static TSharedPtr<FJsonValue> UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr);
+	static TSharedPtr<FJsonValue> UPropertyToJsonValue(FProperty* Property, const void* Value, int64 CheckFlags, int64 SkipFlags, const CustomExportCallback* ExportCb = nullptr, FProperty* OuterProperty = nullptr);
 
 public: // JSON -> UStruct
 

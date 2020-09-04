@@ -49,10 +49,13 @@ void FLiveLinkVirtualSubjectDetailCustomization::CustomizeDetails(IDetailLayoutB
 
 	SubjectsListItems.Reset();
 
-	TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), false, false);
-	for (const FLiveLinkSubjectKey& SubjectKey : SubjectKeys)
+	if (Client)
 	{
-		SubjectsListItems.AddUnique(MakeShared<FName>(SubjectKey.SubjectName.Name));
+		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), /*bIncludeDisabledSubject*/ false, /*bIncludeVirtualSubject*/ false);
+		for (const FLiveLinkSubjectKey& SubjectKey : SubjectKeys)
+		{
+			SubjectsListItems.AddUnique(MakeShared<FName>(SubjectKey.SubjectName.Name));
+		}
 	}
 
 	// In case one of the associated subject linked to this virtual one doesn't exist anymore, add it to the list to display it red
@@ -163,7 +166,7 @@ FSlateColor FLiveLinkVirtualSubjectDetailCustomization::HandleSubjectItemColor(F
 	if (ULiveLinkVirtualSubject* Subject = SubjectPtr.Get())
 	{
 		const FName ThisItem = *InItem.Get();
-		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), false, false);
+		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), /*bIncludeDisabledSubject*/ false, /*bIncludeVirtualSubject*/ false);
 		if (false == SubjectKeys.ContainsByPredicate([ThisItem](const FLiveLinkSubjectKey& Other) { return Other.SubjectName.Name == ThisItem; }))
 		{
 			Result = FLinearColor::Red;
@@ -180,7 +183,7 @@ FText FLiveLinkVirtualSubjectDetailCustomization::HandleSubjectItemToolTip(FSubj
 	if (ULiveLinkVirtualSubject* Subject = SubjectPtr.Get())
 	{
 		const FName ThisItem = *InItem.Get();
-		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), false, false);
+		TArray<FLiveLinkSubjectKey> SubjectKeys = Client->GetSubjectsSupportingRole(Subject->GetRole(), /*bIncludeDisabledSubject*/ false, /*bIncludeVirtualSubject*/ false);
 		if (false == SubjectKeys.ContainsByPredicate([ThisItem](const FLiveLinkSubjectKey& Other) { return Other.SubjectName.Name == ThisItem; }))
 		{
 			Result = LOCTEXT("LinkedSubjectToolTip", "This subject was not found in the list of available LiveLink subjects. VirtualSubject might not work properly.");

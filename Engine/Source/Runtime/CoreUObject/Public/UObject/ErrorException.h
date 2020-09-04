@@ -18,9 +18,7 @@
 		 * Throws a printf-formatted exception as a const TCHAR*.
 		 */
 		template <typename... Types>
-		FUNCTION_NO_RETURN_START
-		static void VARARGS Throwf(const TCHAR* Fmt, Types... Args)
-		FUNCTION_NO_RETURN_END
+		UE_NORETURN static void VARARGS Throwf(const TCHAR* Fmt, Types... Args)
 		{
 			static_assert(TAnd<TIsValidVariadicFunctionArg<Types>...>::Value, "Invalid argument(s) passed to FError::Throwf");
 
@@ -28,9 +26,7 @@
 		}
 
 	private:
-		FUNCTION_NO_RETURN_START
-		static void VARARGS ThrowfImpl(const TCHAR* Fmt, ...)
-		FUNCTION_NO_RETURN_END;
+		UE_NORETURN static void VARARGS ThrowfImpl(const TCHAR* Fmt, ...);
 	};
 #endif
 

@@ -21,17 +21,17 @@ namespace Insights
 	class FTableColumn;
 }
 
-DECLARE_DELEGATE_RetVal_OneParam(bool, FShouldBeEnabledDelegate, const uint32 /*NetEventId*/);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FNetEventNodeShouldBeEnabledDelegate, FNetEventNodePtr /*NodePtr*/);
 DECLARE_DELEGATE_RetVal_OneParam(bool, FIsColumnVisibleDelegate, const FName /*ColumnId*/);
 DECLARE_DELEGATE_RetVal_OneParam(EHorizontalAlignment, FGetColumnOutlineHAlignmentDelegate, const FName /*ColumnId*/);
-DECLARE_DELEGATE_ThreeParams(FSetHoveredNetEventTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, const FNetEventNodePtr /*NetEventNodePtr*/);
+DECLARE_DELEGATE_ThreeParams(FSetHoveredNetEventTableCell, TSharedPtr<Insights::FTable> /*TablePtr*/, TSharedPtr<Insights::FTableColumn> /*ColumnPtr*/, FNetEventNodePtr /*NetEventNodePtr*/);
 
 /** Widget that represents a table row in the tree control. Generates widgets for each column on demand. */
 class SNetStatsTableRow : public SMultiColumnTableRow<FNetEventNodePtr>
 {
 public:
 	SLATE_BEGIN_ARGS(SNetStatsTableRow) {}
-		SLATE_EVENT(FShouldBeEnabledDelegate, OnShouldBeEnabled)
+		SLATE_EVENT(FNetEventNodeShouldBeEnabledDelegate, OnShouldBeEnabled)
 		SLATE_EVENT(FIsColumnVisibleDelegate, OnIsColumnVisible)
 		SLATE_EVENT(FGetColumnOutlineHAlignmentDelegate, OnGetColumnOutlineHAlignmentDelegate)
 		SLATE_EVENT(FSetHoveredNetEventTableCell, OnSetHoveredCell)
@@ -72,7 +72,7 @@ protected:
 	const FSlateBrush* GetOutlineBrush(const FName ColumnId) const;
 	bool HandleShouldBeEnabled() const;
 	EVisibility IsColumnVisible(const FName ColumnId) const;
-	void OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FNetEventNodePtr InNetEventNodePtr);
+	void OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, FNetEventNodePtr InNetEventNodePtr);
 
 protected:
 	/** A shared pointer to the table view model. */
@@ -81,7 +81,7 @@ protected:
 	/** Data context for this table row. */
 	FNetEventNodePtr NetEventNodePtr;
 
-	FShouldBeEnabledDelegate OnShouldBeEnabled;
+	FNetEventNodeShouldBeEnabledDelegate OnShouldBeEnabled;
 	FIsColumnVisibleDelegate IsColumnVisibleDelegate;
 	FSetHoveredNetEventTableCell SetHoveredCellDelegate;
 	FGetColumnOutlineHAlignmentDelegate GetColumnOutlineHAlignmentDelegate;

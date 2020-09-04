@@ -978,6 +978,7 @@ void FFoliageStaticMesh::AddInstance(AInstancedFoliageActor* IFA, const FFoliage
 {
 	check(Component);
 	Component->AddInstanceWorldSpace(NewInstance.GetInstanceWorldTransform());
+	bInvalidateLightingCache = true;
 }
 
 void FFoliageStaticMesh::RemoveInstance(int32 InstanceIndex)
@@ -999,6 +1000,7 @@ void FFoliageStaticMesh::SetInstanceWorldTransform(int32 InstanceIndex, const FT
 {
 	check(Component);
 	Component->UpdateInstanceTransform(InstanceIndex, Transform, true, true, bTeleport);
+	bInvalidateLightingCache = true;
 }
 
 FTransform FFoliageStaticMesh::GetInstanceWorldTransform(int32 InstanceIndex) const
@@ -1749,6 +1751,12 @@ void FFoliageInfo::AddInstanceImpl(AInstancedFoliageActor* InIFA, const FFoliage
 void FFoliageInfo::AddInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances)
 {
 	AddInstancesImpl(InIFA, InSettings, InNewInstances, [](FFoliageImpl* Impl, AInstancedFoliageActor* LocalIFA, const FFoliageInstance& LocalInstance) { Impl->AddInstance(LocalIFA, LocalInstance); });
+}
+
+void FFoliageInfo::ReserveAdditionalInstances(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, uint32 ReserveNum)
+{
+	Instances.Reserve(Instances.Num() + ReserveNum);
+	Implementation->PreAddInstances(InIFA, InSettings, ReserveNum);
 }
 
 void FFoliageInfo::AddInstancesImpl(AInstancedFoliageActor* InIFA, const UFoliageType* InSettings, const TArray<const FFoliageInstance*>& InNewInstances, FFoliageInfo::FAddImplementationFunc ImplementationFunc)
@@ -3801,6 +3809,25 @@ void AInstancedFoliageActor::PostLoad()
 							}
 							// Rehash instance location
 							Info.InstanceHash->InsertInstance(Instance.Location, InstanceIdx);
+						}
+					}
+				}
+			}
+
+			// Fixup corrupted data
+			if (Info.Type == EFoliageImplType::StaticMesh)
+			{
+				UFoliageType_InstancedStaticMesh* FoliageType_InstancedStaticMesh = Cast<UFoliageType_InstancedStaticMesh>(FoliageType);
+				if (UStaticMesh* FoliageTypeStaticMesh = FoliageType_InstancedStaticMesh->GetStaticMesh())
+				{
+					FFoliageStaticMesh* FoliageStaticMesh = StaticCast<FFoliageStaticMesh*>(Info.Implementation.Get());
+					if (UHierarchicalInstancedStaticMeshComponent* HISMComponent = FoliageStaticMesh->Component)
+					{
+						HISMComponent->ConditionalPostLoad();
+						UStaticMesh* ComponentStaticMesh = HISMComponent->GetStaticMesh();
+						if (ComponentStaticMesh != FoliageTypeStaticMesh)
+						{
+							HISMComponent->SetStaticMesh(FoliageTypeStaticMesh);
 						}
 					}
 				}

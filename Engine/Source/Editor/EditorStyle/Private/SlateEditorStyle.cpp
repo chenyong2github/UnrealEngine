@@ -2774,10 +2774,10 @@ void FSlateEditorStyle::FStyle::SetupSequencerStyles()
 	Set( "Sequencer.ToolBar.SToolBarButtonBlock.Padding", 			 FCoreStyle::Get().GetMargin("ToolBar.SToolBarButtonBlock.Padding"));
 	Set( "Sequencer.ToolBar.SToolBarCheckComboButtonBlock.Padding",  FCoreStyle::Get().GetMargin("ToolBar.SToolBarCheckComboButtonBlock.Padding"));
 	Set( "Sequencer.ToolBar.SToolBarButtonBlock.CheckBox.Padding", 	 FCoreStyle::Get().GetMargin("ToolBar.SToolBarButtonBlock.CheckBox.Padding"));
-	Set( "Sequencer.ToolBar.SToolBarComboButtonBlock.ComboButton.Color", GetColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"));
+	Set( "Sequencer.ToolBar.SToolBarComboButtonBlock.ComboButton.Color", FCoreStyle::Get().GetSlateColor("ToolBar.SToolBarComboButtonBlock.ComboButton.Color"));
 
 	// Used only for WidgetBlocks
-	Set( "Sequencer.ToolBar.Block.IndentedPadding", 	FCoreStyle::Get().GetMargin("Sequencer.ToolBar.Block.IndentedPadding") );
+	Set( "Sequencer.ToolBar.Block.IndentedPadding", 	FCoreStyle::Get().GetMargin("ToolBar.Block.IndentedPadding") );
 	Set( "Sequencer.ToolBar.Block.Padding", 			FMargin(0.0f, 4.0f));
 
 	Set( "Sequencer.ToolBar.Separator", 				new FSlateColorBrush( FLinearColor(FColor(48, 48, 48)) ) );
@@ -4962,7 +4962,7 @@ void FSlateEditorStyle::FStyle::SetupLevelEditorStyle()
 		Set("LevelEditor.BrowseViewportControls", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
 
 		Set("MainFrame.VisitAskAQuestionPage", new IMAGE_BRUSH("Icons/Help/icon_Help_ask_16x", Icon16x16));
-		Set("MainFrame.VisitWiki", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
+		Set("MainFrame.VisitOnlineLearning", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
 		Set("MainFrame.VisitForums", new IMAGE_BRUSH("Icons/Help/icon_Help_Documentation_16x", Icon16x16));
 		Set("MainFrame.VisitSearchForAnswersPage", new IMAGE_BRUSH("Icons/Help/icon_Help_search_16x", Icon16x16));
 		Set("MainFrame.VisitSupportWebSite", new IMAGE_BRUSH("Icons/Help/icon_Help_support_16x", Icon16x16));
@@ -5960,6 +5960,11 @@ void FSlateEditorStyle::FStyle::SetupPersonaStyle()
 		Set( "BlueprintEditor.AddNewAnimationLayer.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon20x20) );
 		Set( "BlueprintEditor.AddNewAnimationLayer", new IMAGE_BRUSH( "Icons/icon_Blueprint_AddFunction_40px", Icon40x40) );
 
+		Set( "MyBlueprint.PasteVariable", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+		Set( "MyBlueprint.PasteLocalVariable", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+		Set( "MyBlueprint.PasteFunction", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+		Set( "MyBlueprint.PasteMacro", new IMAGE_BRUSH( "Icons/Edit/icon_Edit_Paste_40x", Icon40x40 ) );
+
 		Set( "Kismet.Status.Unknown.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Unknown_Small", Icon16x16 ) );
 		Set( "Kismet.Status.Error.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Broken_Small", Icon16x16 ) );
 		Set( "Kismet.Status.Good.Small", new IMAGE_BRUSH( "Old/Kismet2/CompileStatus_Good_Small", Icon16x16 ) );
@@ -6716,7 +6721,7 @@ void FSlateEditorStyle::FStyle::SetupClassIconsAndThumbnails()
 			TEXT("SkyLight"),
 			TEXT("SkyLightComponent"),
 			TEXT("SkyAtmosphere"),
-			TEXT("VolumetricCloud"),
+			//TEXT("VolumetricCloud"), // Add later when icons are available. This is to prevent in editor warning.
 			TEXT("SkeletalMesh"),
 			TEXT("Skeleton"),
 			TEXT("SlateBrushAsset"),
@@ -7328,19 +7333,17 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 	{
 		Set( "DataTableEditor.Tabs.Properties", new IMAGE_BRUSH( "/Icons/icon_tab_SelectionDetails_16x", Icon16x16 ) );
 
-		Set("DataTableEditor.Copy", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon32x32));
-		Set("DataTableEditor.Paste", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon32x32));
-		Set("DataTableEditor.Duplicate", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Duplicate_40x", Icon32x32));
-		Set("DataTableEditor.Save", new IMAGE_BRUSH("Icons/icon_SaveAsset_40x", Icon16x16));
-		Set("DataTableEditor.Browse", new IMAGE_BRUSH("Icons/lens_12x", Icon16x16));
-		Set("DataTableEditor.Add", new IMAGE_BRUSH("Icons/icon_add_40x", Icon32x32));
-		Set("DataTableEditor.Remove", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Delete_40x", Icon32x32));
+		Set("DataTableEditor.Copy", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon40x40));
+		Set("DataTableEditor.Paste", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon40x40));
+		Set("DataTableEditor.Duplicate", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Duplicate_40x", Icon40x40));
+		Set("DataTableEditor.Add", new IMAGE_BRUSH("Icons/icon_add_40x", Icon40x40));
+		Set("DataTableEditor.Remove", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Delete_40x", Icon40x40));
 
-		Set("DataTableEditor.Copy.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon16x16));
-		Set("DataTableEditor.Paste.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon16x16));
-		Set("DataTableEditor.Duplicate.Small", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Duplicate_40x", Icon16x16));
-		Set("DataTableEditor.Add.Small", new IMAGE_BRUSH("Icons/icon_add_40x", Icon16x16));
-		Set("DataTableEditor.Remove.Small", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Delete_40x", Icon16x16));
+		Set("DataTableEditor.Copy.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Copy_40x", Icon20x20));
+		Set("DataTableEditor.Paste.Small", new IMAGE_BRUSH("/Icons/Edit/icon_Edit_Paste_40x", Icon20x20));
+		Set("DataTableEditor.Duplicate.Small", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Duplicate_40x", Icon20x20));
+		Set("DataTableEditor.Add.Small", new IMAGE_BRUSH("Icons/icon_add_40x", Icon20x20));
+		Set("DataTableEditor.Remove.Small", new IMAGE_BRUSH("Icons/Edit/icon_Edit_Delete_40x", Icon20x20));
 
 
 
@@ -7436,10 +7439,6 @@ void FSlateEditorStyle::FStyle::SetupToolkitStyles()
 		Set( "MaterialEditor.CameraHome.Small", new IMAGE_BRUSH( "Icons/icon_MatEd_Home_40x", Icon20x20 ) );
 		Set( "MaterialEditor.FindInMaterial", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon40x40 ) );
 		Set( "MaterialEditor.FindInMaterial.Small", new IMAGE_BRUSH( "Icons/icon_Blueprint_Find_40px", Icon20x20 ) );
-
-		Set("MaterialEditor.AddSubstanceSpecialToolBar", new IMAGE_BRUSH("Icons/icon_SubstanceFactory_White_40x", Icon40x40));
-		Set("MaterialEditor.AddSubstanceSpecialMenu", new IMAGE_BRUSH("Icons/icon_SubstanceFactory_White_40x", Icon32x32));
-
 
 		Set("MaterialEditor.CellListViewRow", FTableRowStyle(NormalTableRowStyle)
 			.SetEvenRowBackgroundBrush(IMAGE_BRUSH("PropertyView/DetailCategoryMiddle", FVector2D(16, 16), FLinearColor(0.5f, 0.5f, 0.5f)))

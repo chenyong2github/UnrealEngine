@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -677,7 +677,7 @@ SDL_BuildAudioTypeCVTFromFloat(SDL_AudioCVT *cvt, const SDL_AudioFormat dst_fmt)
         }
 
         if (!filter) {
-            return SDL_SetError("No conversion from float to destination format available");
+            return SDL_SetError("No conversion from float to format 0x%.4x available", dst_fmt);
         }
 
         if (SDL_AddAudioCVTFilter(cvt, filter) < 0) {
@@ -915,7 +915,7 @@ SDL_BuildAudioCVT(SDL_AudioCVT * cvt,
     cvt->dst_format = dst_fmt;
     cvt->needed = 0;
     cvt->filter_index = 0;
-    SDL_zero(cvt->filters);
+    SDL_zeroa(cvt->filters);
     cvt->len_mult = 1;
     cvt->len_ratio = 1.0;
     cvt->rate_incr = ((double) dst_rate) / ((double) src_rate);
@@ -1256,16 +1256,7 @@ SDL_ResetAudioStreamResampler(SDL_AudioStream *stream)
 {
     /* set all the padding to silence. */
     const int len = stream->resampler_padding_samples;
-// EPIC EDIT BEGIN
-//  SDL_memset(stream->resampler_state, '\0', len * sizeof (float));
-
-#ifdef __EMSCRIPTEN__ // UE-71969 -- limiting only to HTML5... do not want to change/affect other platforms
-    if ( len > 0 )
-#endif
-    {
-        SDL_memset(stream->resampler_state, '\0', len * sizeof (float));
-    }
-// EPIC EDIT END
+    SDL_memset(stream->resampler_state, '\0', len * sizeof (float));
 }
 
 static void
@@ -1663,23 +1654,8 @@ SDL_AudioStreamClear(SDL_AudioStream *stream)
     if (!stream) {
         SDL_InvalidParamError("stream");
     } else {
-// EPIC EDIT BEGIN
-//      SDL_ClearDataQueue(stream->queue, stream->packetlen * 2);
-//      if (stream->reset_resampler_func) {
-
-#ifdef __EMSCRIPTEN__ // UE-71969 -- limiting only to HTML5... do not want to change/affect other platforms
-        if ( (stream->packetlen > 0) && stream->queue && (stream->queue != 0xffffffff) )
-#endif
-        {
-            SDL_ClearDataQueue(stream->queue, stream->packetlen * 2);
-        }
-        if (stream->reset_resampler_func
-#ifdef __EMSCRIPTEN__ // UE-71969 -- limiting only to HTML5...
-            && stream->reset_resampler_func == SDL_ResetAudioStreamResampler
-            // and SDL_ResetAudioStreamResampler_SRC is only available when HAVE_LIBSAMPLERATE_H -- which is not for HTML5
-#endif
-        ) {
-// EPIC EDIT END
+        SDL_ClearDataQueue(stream->queue, stream->packetlen * 2);
+        if (stream->reset_resampler_func) {
             stream->reset_resampler_func(stream);
         }
         stream->first_run = SDL_TRUE;

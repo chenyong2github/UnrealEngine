@@ -147,7 +147,7 @@ static bool appCompressMemoryGZIP(void* CompressedBuffer, int32& CompressedSize,
 	// This is how much memory we may need, however the consumer is allocating memory for us without knowing the required length.
 	//unsigned long CompressedMaxSize = deflateBound(&gzipstream, gzipstream.avail_in) + GzipHeaderLength;
 	gzipstream.next_out = (uint8*)CompressedBuffer;
-	gzipstream.avail_out = UncompressedSize;
+	gzipstream.avail_out = CompressedSize;
 
 	int status = 0;
 	bool bOperationSucceeded = false;
@@ -161,6 +161,30 @@ static bool appCompressMemoryGZIP(void* CompressedBuffer, int32& CompressedSize,
 	// Propagate compressed size from intermediate variable back into out variable.
 	CompressedSize = gzipstream.total_out;
 	return bOperationSucceeded;
+}
+
+static int appCompressMemoryBoundGZIP(int32 UncompressedSize)
+{
+	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("Compress Memory Bound GZIP"), STAT_appCompressMemoryBoundGZIP, STATGROUP_Compression);
+	z_stream gzipstream;
+	gzipstream.zalloc = &zalloc;
+	gzipstream.zfree = &zfree;
+	gzipstream.opaque = Z_NULL;
+	// Init deflate settings to use GZIP
+	int windowsBits = 15;
+	int GZIP_ENCODING = 16;
+	deflateInit2(
+		&gzipstream,
+		Z_DEFAULT_COMPRESSION,
+		Z_DEFLATED,
+		windowsBits | GZIP_ENCODING,
+		MAX_MEM_LEVEL,
+		Z_DEFAULT_STRATEGY);
+	// Return required size
+	const unsigned long GzipHeaderLength = 12;
+	int RequiredSize = deflateBound(&gzipstream, UncompressedSize) + GzipHeaderLength;
+	deflateEnd(&gzipstream);
+	return RequiredSize;
 }
 
 /**
@@ -477,8 +501,8 @@ int32 FCompression::CompressMemoryBound(FName FormatName, int32 UncompressedSize
 	}
 	else if (FormatName == NAME_Gzip)
 	{
-		// CompressionBound = deflateBound(&gzipstream, gzipstream.avail_in) + GzipHeaderLength;
-		UE_LOG(LogCompression, Fatal, TEXT("FCompression::CompressMemoryBound - GZip is not supported yet"));
+		// Calculate gzip bounds for compression.
+		CompressionBound = appCompressMemoryBoundGZIP(UncompressedSize);
 	}
 	else if (FormatName == NAME_LZ4)
 	{

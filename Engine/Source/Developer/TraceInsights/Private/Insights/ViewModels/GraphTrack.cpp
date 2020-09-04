@@ -18,6 +18,7 @@
 #include "Insights/ViewModels/GraphTrackEvent.h"
 #include "Insights/ViewModels/TimingEvent.h"
 #include "Insights/ViewModels/TimingTrackViewport.h"
+#include "Insights/ViewModels/TimingViewDrawHelper.h"
 #include "Insights/ViewModels/TooltipDrawState.h"
 #include "Insights/Widgets/SGraphSeriesList.h"
 
@@ -38,21 +39,16 @@ FGraphTrack::FGraphTrack()
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
 	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
-	, bDrawDebugInfo(false)
-	, bDrawPoints(true)
-	, bDrawPointsWithBorder(true)
-	, bDrawLines(true)
-	, bDrawPolygon(true)
-	, bUseEventDuration(true)
-	, bDrawBoxes(true)
-	, bDrawBaseline(true)
-	, VisibleOptions(EGraphOptions::All)
-	, EditableOptions(EGraphOptions::All)
+	, EnabledOptions(EGraphOptions::DefaultEnabledOptions)
+	, VisibleOptions(EGraphOptions::DefaultVisibleOptions)
+	, EditableOptions(EGraphOptions::DefaultEditableOptions)
+	, SharedValueViewport()
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
 	, NumDrawBoxes(0)
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -64,21 +60,16 @@ FGraphTrack::FGraphTrack(const FString& InName)
 	, PointBrush(FEditorStyle::GetBrush("Graph.ExecutionBubble"))
 	, BorderBrush(FInsightsStyle::Get().GetBrush("SingleBorder"))
 	, Font(FCoreStyle::GetDefaultFontStyle("Regular", 8))
-	, bDrawDebugInfo(false)
-	, bDrawPoints(true)
-	, bDrawPointsWithBorder(true)
-	, bDrawLines(true)
-	, bDrawPolygon(true)
-	, bUseEventDuration(true)
-	, bDrawBoxes(true)
-	, bDrawBaseline(true)
-	, VisibleOptions(EGraphOptions::All)
-	, EditableOptions(EGraphOptions::All)
+	, EnabledOptions(EGraphOptions::DefaultEnabledOptions)
+	, VisibleOptions(EGraphOptions::DefaultVisibleOptions)
+	, EditableOptions(EGraphOptions::DefaultEditableOptions)
+	, SharedValueViewport()
 	, NumAddedEvents(0)
 	, NumDrawPoints(0)
 	, NumDrawLines(0)
 	, NumDrawBoxes(0)
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -170,6 +161,7 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 	//DrawContext.DrawBox(0.0f, GetPosY(), Viewport.Width, 1.0f, WhiteBrush, FLinearColor(0.05f, 0.05f, 0.05f, 1.0f));
 
 	bool bDrawnBaseline = false;
+	const bool bDrawBaseline = IsAnyOptionEnabled(EGraphOptions::ShowBaseline);
 	for (const TSharedPtr<FGraphSeries>& Series : AllSeries)
 	{
 		if (Series->IsVisible())
@@ -189,6 +181,16 @@ void FGraphTrack::Draw(const ITimingTrackDrawContext& Context) const
 
 			DrawSeries(*Series, DrawContext, Viewport);
 		}
+	}
+
+	if (IsAnyOptionEnabled(EGraphOptions::ShowVerticalAxisGrid))
+	{
+		DrawVerticalAxisGrid(Context);
+	}
+
+	if (IsAnyOptionEnabled(EGraphOptions::ShowHeader))
+	{
+		DrawHeader(Context);
 	}
 
 	// Restore clipping.
@@ -215,7 +217,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 		DrawContext.ElementList.PushClip(ClipZone);
 	}
 
-	if (bDrawBoxes)
+	if (IsAnyOptionEnabled(EGraphOptions::ShowBars))
 	{
 		int32 NumBoxes = Series.Boxes.Num();
 		const float TrackPosY = GetPosY();
@@ -240,7 +242,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 	FPaintGeometry Geo = DrawContext.Geometry.ToPaintGeometry();
 	Geo.AppendTransform(FSlateLayoutTransform(FVector2D(0.0f, LocalPosY * DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale())));
 
-	if (bDrawPolygon)
+	if (IsAnyOptionEnabled(EGraphOptions::ShowPolygon))
 	{
 		FSlateResourceHandle ResourceHandle = FSlateApplication::Get().GetRenderer()->GetResourceHandle(*WhiteBrush);
 		const FSlateShaderResourceProxy* ResourceProxy = ResourceHandle.GetResourceProxy();
@@ -252,7 +254,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 
 		const FSlateRenderTransform& RenderTransform = Geo.GetAccumulatedRenderTransform();
 
-		FColor FillColor(Series.FillColor.R * 255, Series.FillColor.G * 255, Series.FillColor.B * 255, 42);
+		FColor FillColor = Series.FillColor.ToFColor(true);
 
 		for (int32 BatchIndex = 0; BatchIndex < Series.LinePoints.Num(); ++BatchIndex)
 		{
@@ -349,13 +351,13 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 					Indices,
 					nullptr,
 					0,
-					0, ESlateDrawEffect::PreMultipliedAlpha);
+					0, ESlateDrawEffect::None);
 				DrawContext.LayerId++;
 			}
 		}
 	}
 
-	if (bDrawLines)
+	if (IsAnyOptionEnabled(EGraphOptions::ShowLines))
 	{
 		// Find scale to get the size of a pixel
 		const float InvScale = 1.0f / DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
@@ -379,14 +381,14 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 	// Restore clipping.
 	DrawContext.ElementList.PopClip();
 
-	if (bDrawPoints)
+	if (IsAnyOptionEnabled(EGraphOptions::ShowPoints))
 	{
 		const int32 NumPoints = Series.Points.Num();
 
 #define INSIGHTS_GRAPH_TRACK_DRAW_POINTS_AS_RECTANGLES 0
 #if !INSIGHTS_GRAPH_TRACK_DRAW_POINTS_AS_RECTANGLES
 
-		if (bDrawPointsWithBorder)
+		if (IsAnyOptionEnabled(EGraphOptions::ShowPointsWithBorder))
 		{
 			// Draw points (border).
 			for (int32 Index = 0; Index < NumPoints; ++Index)
@@ -413,7 +415,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 
 		//const float Angle = FMath::DegreesToRadians(45.0f);
 
-		if (bDrawPointsWithBorder)
+		if (IsAnyOptionEnabled(EGraphOptions::ShowPointsWithBorder))
 		{
 			// Draw borders.
 			const float BorderPtSize = PointVisualSize;
@@ -445,7 +447,7 @@ void FGraphTrack::DrawSeries(const FGraphSeries& Series, FDrawContext& DrawConte
 #endif
 	}
 
-	if (bDrawDebugInfo) // for debugging only
+	if (IsAnyOptionEnabled(EGraphOptions::ShowDebugInfo)) // for debugging only
 	{
 		// Find scale to get the size of a pixel
 		const float PixelUnit = 1.0f / DrawContext.Geometry.GetAccumulatedLayoutTransform().GetScale();
@@ -522,14 +524,14 @@ void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimin
 	FDrawContext& DrawContext = Context.GetDrawContext();
 
 	const float EventX1 = Viewport.TimeToSlateUnitsRounded(GraphEvent.GetStartTime());
-	const float EventX2 = Viewport.TimeToSlateUnitsRounded(GraphEvent.GetEndTime());
+	const float EventX2 = Viewport.TimeToSlateUnitsRounded(Viewport.RestrictEndTime(GraphEvent.GetEndTime()));
 
 	const float EventY1 = GetPosY() + Series->GetRoundedYForValue(GraphEvent.GetValue());
 
 	const FLinearColor HighlightColor(1.0f, 1.0f, 0.0f, 1.0f);
 
 	// Draw highlighted box.
-	if (bDrawBoxes)
+	if (IsAnyOptionEnabled(EGraphOptions::ShowBars))
 	{
 		float W = EventX2 - EventX1;
 		ensure(W >= 0); // we expect events to be sorted
@@ -552,7 +554,10 @@ void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimin
 	}
 
 	// Draw highlighted line.
-	if ((EventX2 > EventX1) && ((bUseEventDuration && (bDrawLines || bDrawPolygon)) || bDrawBoxes))
+	if ((EventX2 > EventX1) &&
+		(AreAllOptionsEnabled(EGraphOptions::UseEventDuration | EGraphOptions::ShowLines) ||
+		 AreAllOptionsEnabled(EGraphOptions::UseEventDuration | EGraphOptions::ShowPolygon) ||
+		 IsAnyOptionEnabled(EGraphOptions::ShowBars)))
 	{
 		float W = EventX2 - EventX1;
 		ensure(W >= 0); // we expect events to be sorted
@@ -578,6 +583,22 @@ void FGraphTrack::DrawEvent(const ITimingTrackDrawContext& Context, const ITimin
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+void FGraphTrack::DrawVerticalAxisGrid(const ITimingTrackDrawContext& Context) const
+{
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::DrawHeader(const ITimingTrackDrawContext& Context) const
+{
+	const FTimingViewDrawHelper& Helper = *static_cast<const FTimingViewDrawHelper*>(&Context.GetHelper());
+	FDrawContext& DrawContext = Context.GetDrawContext();
+	Helper.DrawTrackHeader(*this, DrawContext.LayerId, DrawContext.LayerId + 1);
+	DrawContext.LayerId += 2;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEvent& InTooltipEvent) const
 {
 	if (InTooltipEvent.CheckTrack(this) && InTooltipEvent.Is<FGraphTrackEvent>())
@@ -588,7 +609,10 @@ void FGraphTrack::InitTooltip(FTooltipDrawState& InOutTooltip, const ITimingEven
 		InOutTooltip.ResetContent();
 		InOutTooltip.AddTitle(Series->GetName().ToString(), Series->GetColor());
 		InOutTooltip.AddNameValueTextLine(TEXT("Time:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetStartTime()));
-		InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetDuration()));
+		if (Series->HasEventDuration())
+		{
+			InOutTooltip.AddNameValueTextLine(TEXT("Duration:"), TimeUtils::FormatTimeAuto(TooltipEvent.GetDuration()));
+		}
 		InOutTooltip.AddNameValueTextLine(TEXT("Value:"), Series->FormatValue(TooltipEvent.GetValue()));
 		InOutTooltip.UpdateLayout();
 	}
@@ -601,7 +625,10 @@ const TSharedPtr<const ITimingEvent> FGraphTrack::GetEvent(float InPosX, float I
 	const float LocalPosX = InPosX;
 	const float LocalPosY = InPosY - GetPosY();
 
-	const bool bCheckLine = bUseEventDuration && (bDrawLines || bDrawPolygon);
+	const bool bCheckLine = AreAllOptionsEnabled(EGraphOptions::UseEventDuration | EGraphOptions::ShowLines) ||
+							AreAllOptionsEnabled(EGraphOptions::UseEventDuration | EGraphOptions::ShowPolygon);
+
+	const bool bCheckBox = IsAnyOptionEnabled(EGraphOptions::ShowBars);
 
 	// Search series in reverse order.
 	for (int32 SeriesIndex = AllSeries.Num() - 1; SeriesIndex >= 0; --SeriesIndex)
@@ -609,7 +636,7 @@ const TSharedPtr<const ITimingEvent> FGraphTrack::GetEvent(float InPosX, float I
 		const TSharedPtr<FGraphSeries>& Series = AllSeries[SeriesIndex];
 		if (Series->IsVisible())
 		{
-			const FGraphSeriesEvent* Event = Series->GetEvent(LocalPosX, LocalPosY, Viewport, bCheckLine, bDrawBoxes);
+			const FGraphSeriesEvent* Event = Series->GetEvent(LocalPosX, LocalPosY, Viewport, bCheckLine, bCheckBox);
 			if (Event != nullptr)
 			{
 				return MakeShared<FGraphTrackEvent>(SharedThis(this), Series.ToSharedRef(), *Event);
@@ -630,9 +657,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_ShowDebugInfo
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowDebugInfo_Execute),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowDebugInfo_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowDebugInfo_IsChecked)
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::ShowDebugInfo),
+				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_CanExecute, EGraphOptions::ShowDebugInfo),
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::ShowDebugInfo)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -649,9 +676,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_ShowPoints
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPoints_Execute),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPoints_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowPoints_IsChecked)
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::ShowPoints),
+				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_CanExecute, EGraphOptions::ShowPoints),
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::ShowPoints)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -668,9 +695,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_ShowPointsWithBorder
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPointsWithBorder_Execute),
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::ShowPointsWithBorder),
 				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPointsWithBorder_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowPointsWithBorder_IsChecked)
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::ShowPointsWithBorder)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -687,9 +714,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_ShowLines
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowLines_Execute),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowLines_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowLines_IsChecked)
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::ShowLines),
+				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_CanExecute, EGraphOptions::ShowLines),
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::ShowLines)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -706,9 +733,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_ShowPolygon
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPolygon_Execute),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowPolygon_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowPolygon_IsChecked)
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::ShowPolygon),
+				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_CanExecute, EGraphOptions::ShowPolygon),
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::ShowPolygon)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -725,9 +752,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_UseEventDuration
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_UseEventDuration_Execute),
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::UseEventDuration),
 				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_UseEventDuration_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_UseEventDuration_IsChecked)
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::UseEventDuration)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -744,9 +771,9 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 		{
 			FUIAction Action_ShowBars
 			(
-				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowBars_Execute),
-				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ShowBars_CanExecute),
-				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ShowBars_IsChecked)
+				FExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_Execute, EGraphOptions::ShowBars),
+				FCanExecuteAction::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_CanExecute, EGraphOptions::ShowBars),
+				FIsActionChecked::CreateSP(this, &FGraphTrack::ContextMenu_ToggleOption_IsChecked, EGraphOptions::ShowBars)
 			);
 			MenuBuilder.AddMenuEntry
 			(
@@ -776,156 +803,40 @@ void FGraphTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void FGraphTrack::ContextMenu_ShowDebugInfo_Execute()
+bool FGraphTrack::ContextMenu_ToggleOption_CanExecute(EGraphOptions Option)
 {
-	bDrawDebugInfo = !bDrawDebugInfo;
+	return EnumHasAnyFlags(EditableOptions, Option);
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+void FGraphTrack::ContextMenu_ToggleOption_Execute(EGraphOptions Option)
+{
+	ToggleOptions(Option);
 	SetDirtyFlag();
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-bool FGraphTrack::ContextMenu_ShowDebugInfo_CanExecute()
+bool FGraphTrack::ContextMenu_ToggleOption_IsChecked(EGraphOptions Option)
 {
-	return  EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowDebugInfo);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowDebugInfo_IsChecked()
-{
-	return bDrawDebugInfo;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::ContextMenu_ShowPoints_Execute()
-{
-	bDrawPoints = !bDrawPoints;
-	SetDirtyFlag();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowPoints_CanExecute()
-{
-	return  EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowPoints);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowPoints_IsChecked()
-{
-	return bDrawPoints;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::ContextMenu_ShowPointsWithBorder_Execute()
-{
-	bDrawPointsWithBorder = !bDrawPointsWithBorder;
-	SetDirtyFlag();
+	return IsAnyOptionEnabled(Option);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FGraphTrack::ContextMenu_ShowPointsWithBorder_CanExecute()
 {
-	return bDrawPoints && EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowPointsWithBorder);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowPointsWithBorder_IsChecked()
-{
-	return bDrawPointsWithBorder;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::ContextMenu_ShowLines_Execute()
-{
-	bDrawLines = !bDrawLines;
-	SetDirtyFlag();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowLines_CanExecute()
-{
-	return EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowLines);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowLines_IsChecked()
-{
-	return bDrawLines;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::ContextMenu_ShowPolygon_Execute()
-{
-	bDrawPolygon = !bDrawPolygon;
-	SetDirtyFlag();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowPolygon_CanExecute()
-{
-	return EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowPolygon);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowPolygon_IsChecked()
-{
-	return bDrawPolygon;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::ContextMenu_UseEventDuration_Execute()
-{
-	bUseEventDuration = !bUseEventDuration;
-	SetDirtyFlag();
+	return EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowPointsWithBorder)
+		&& IsAnyOptionEnabled(EGraphOptions::ShowPoints);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 bool FGraphTrack::ContextMenu_UseEventDuration_CanExecute()
 {
-	return (bDrawLines || bDrawPolygon) && EnumHasAnyFlags(EditableOptions, EGraphOptions::UseEventDuration);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_UseEventDuration_IsChecked()
-{
-	return bUseEventDuration;
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-void FGraphTrack::ContextMenu_ShowBars_Execute()
-{
-	bDrawBoxes = !bDrawBoxes;
-	SetDirtyFlag();
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowBars_CanExecute()
-{
-	return EnumHasAnyFlags(EditableOptions, EGraphOptions::ShowBars);
-}
-
-////////////////////////////////////////////////////////////////////////////////////////////////////
-
-bool FGraphTrack::ContextMenu_ShowBars_IsChecked()
-{
-	return bDrawBoxes;
+	return EnumHasAnyFlags(EditableOptions, EGraphOptions::UseEventDuration)
+		&& IsAnyOptionEnabled(EGraphOptions::ShowLines | EGraphOptions::ShowPolygon);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -939,12 +850,17 @@ INSIGHTS_IMPLEMENT_RTTI(FRandomGraphTrack)
 FRandomGraphTrack::FRandomGraphTrack()
 	: FGraphTrack()
 {
-	bDrawPoints = true;
-	bDrawPointsWithBorder = true;
-	bDrawLines = true;
-	bDrawPolygon = false;
-	bUseEventDuration = false;
-	bDrawBoxes = false;
+	EnabledOptions = //EGraphOptions::ShowDebugInfo |
+					 EGraphOptions::ShowPoints |
+					 EGraphOptions::ShowPointsWithBorder |
+					 EGraphOptions::ShowLines |
+					 //EGraphOptions::ShowPolygon |
+					 //EGraphOptions::UseEventDuration |
+					 //EGraphOptions::ShowBars |
+					 //EGraphOptions::ShowBaseline |
+					 //EGraphOptions::ShowVerticalAxisGrid |
+					 EGraphOptions::ShowHeader |
+					 EGraphOptions::None;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

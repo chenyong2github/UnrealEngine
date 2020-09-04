@@ -7,7 +7,6 @@ UAnimationSettings::UAnimationSettings(const FObjectInitializer& ObjectInitializ
 	: Super(ObjectInitializer)
 	, CompressCommandletVersion(2)	// Bump this up to trigger full recompression. Otherwise only new animations imported will be recompressed.
 	, ForceRecompression(false)
-	, bOnlyCheckForMissingSkeletalMeshes(false)
 	, bForceBelowThreshold(false)
 	, bFirstRecompressUsingCurrentOrDefault(true)
 	, bRaiseMaxErrorToExisting(false)

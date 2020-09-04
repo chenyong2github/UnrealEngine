@@ -103,7 +103,7 @@ void FFbxExporter::GetSkeleton(FbxNode* RootNode, TArray<FbxNode*>& BoneNodes)
 /**
  * Adds an Fbx Mesh to the FBX scene based on the data in the given FSkeletalMeshLODModel
  */
-FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* MeshName, int32 LODIndex, const UAnimSequence* AnimSeq)
+FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* MeshName, int32 LODIndex, const UAnimSequence* AnimSeq /*= nullptr*/, const TArray<UMaterialInterface*>* OverrideMaterials /*= nullptr*/)
 {
 	const FSkeletalMeshModel* SkelMeshResource = SkelMesh->GetImportedModel();
 	if (!SkelMeshResource->LODModels.IsValidIndex(LODIndex))
@@ -346,7 +346,16 @@ FbxNode* FFbxExporter::CreateMesh(const USkeletalMesh* SkelMesh, const TCHAR* Me
 
 	for(int32 MaterialIndex = 0; MaterialIndex < MaterialCount; ++MaterialIndex)
 	{
-		UMaterialInterface* MatInterface = SkelMesh->Materials[MaterialIndex].MaterialInterface;
+		UMaterialInterface* MatInterface = nullptr;
+
+		if (OverrideMaterials && OverrideMaterials->IsValidIndex(MaterialIndex))
+		{
+			MatInterface = (*OverrideMaterials)[MaterialIndex];
+		}
+		else
+		{
+			MatInterface = SkelMesh->Materials[MaterialIndex].MaterialInterface;
+		}
 
 		FbxSurfaceMaterial* FbxMaterial = NULL;
 		if (LODIndex == 0)
@@ -581,7 +590,7 @@ void FFbxExporter::ExportSkeletalMeshComponent(USkeletalMeshComponent* SkelMeshC
 	{
 		UAnimSequence* AnimSeq = (bSaveAnimSeq && SkelMeshComp->GetAnimationMode() == EAnimationMode::AnimationSingleNode) ? 
 			Cast<UAnimSequence>(SkelMeshComp->AnimationData.AnimToPlay) : NULL;
-		FbxNode* SkeletonRootNode = ExportSkeletalMeshToFbx(SkelMeshComp->SkeletalMesh, AnimSeq, MeshName, ActorRootNode);
+		FbxNode* SkeletonRootNode = ExportSkeletalMeshToFbx(SkelMeshComp->SkeletalMesh, AnimSeq, MeshName, ActorRootNode, &SkelMeshComp->OverrideMaterials);
 		if(SkeletonRootNode)
 		{
 			FbxSkeletonRoots.Add(SkelMeshComp, SkeletonRootNode);
@@ -656,11 +665,11 @@ void ExportObjectMetadataToBones(const UObject* ObjectToExport, const TArray<Fbx
 /**
  * Add the given skeletal mesh to the Fbx scene in preparation for exporting.  Makes all new nodes a child of the given node
  */
-FbxNode* FFbxExporter::ExportSkeletalMeshToFbx(const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSeq, const TCHAR* MeshName, FbxNode* ActorRootNode)
+FbxNode* FFbxExporter::ExportSkeletalMeshToFbx(const USkeletalMesh* SkeletalMesh, const UAnimSequence* AnimSeq, const TCHAR* MeshName, FbxNode* ActorRootNode, const TArray<UMaterialInterface*>* OverrideMaterials /*= nullptr*/)
 {
 	if(AnimSeq)
 	{
-		return ExportAnimSequence(AnimSeq, SkeletalMesh, GetExportOptions()->bExportPreviewMesh, MeshName, ActorRootNode);
+		return ExportAnimSequence(AnimSeq, SkeletalMesh, GetExportOptions()->bExportPreviewMesh, MeshName, ActorRootNode, OverrideMaterials);
 
 	}
 	else
@@ -702,7 +711,8 @@ FbxNode* FFbxExporter::ExportSkeletalMeshToFbx(const USkeletalMesh* SkeletalMesh
 					double LodScreenSize = (double)(10.0f / SkeletalMesh->GetLODInfo(CurrentLodIndex)->ScreenSize.Default);
 					FbxLodGroupAttribute->AddThreshold(LodScreenSize);
 				}
-				FbxNode* FbxActorLOD = CreateMesh(SkeletalMesh, *FbxLODNodeName, CurrentLodIndex);
+				const UAnimSequence* NullAnimSeq = nullptr;
+				FbxNode* FbxActorLOD = CreateMesh(SkeletalMesh, *FbxLODNodeName, CurrentLodIndex, NullAnimSeq, OverrideMaterials);
 				if (FbxActorLOD)
 				{
 					MeshRootNode->AddChild(FbxActorLOD);
@@ -718,7 +728,9 @@ FbxNode* FFbxExporter::ExportSkeletalMeshToFbx(const USkeletalMesh* SkeletalMesh
 		}
 		else
 		{
-			MeshRootNode = CreateMesh(SkeletalMesh, MeshName, 0);
+			const int32 LODIndex = 0;
+			const UAnimSequence* NullAnimSeq = nullptr;
+			MeshRootNode = CreateMesh(SkeletalMesh, MeshName, LODIndex, NullAnimSeq, OverrideMaterials);
 			if (MeshRootNode)
 			{
 				TmpNodeNoTransform->AddChild(MeshRootNode);

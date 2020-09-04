@@ -6,6 +6,7 @@
 #include "Misc/AssertionMacros.h"
 #include "HAL/PlatformMath.h"
 #include "Templates/IsFloatingPoint.h"
+#include "Templates/IsIntegral.h"
 
 
 //#define IMPLEMENT_ASSIGNMENT_OPERATOR_MANUALLY
@@ -356,6 +357,31 @@ public:
 		return ((Value & (Value - 1)) == (T)0);
 	}
 
+	/** Converts a float to a nearest less or equal integer. */
+	static FORCEINLINE float Floor(float F)
+	{
+		return FloorToFloat(F);
+	}
+
+	/** Converts a double to a nearest less or equal integer. */
+	static FORCEINLINE double Floor(double F)
+	{
+		return FloorToDouble(F);
+	}
+
+	/**
+	 * Converts an integral type to a nearest less or equal integer.
+	 * Unlike std::floor, it returns an IntegralType.
+	 */
+	template <
+	    typename IntegralType,
+	    typename TEnableIf<TIsIntegral<IntegralType>::Value>::Type* = nullptr
+	>
+	static FORCEINLINE IntegralType Floor(IntegralType I)
+	{
+	    return I;
+	}
+
 
 	// Math Operations
 
@@ -387,24 +413,29 @@ public:
 		return X<Min ? Min : X<Max ? X : Max;
 	}
 
-	/** Snaps a value to the nearest grid multiple */
-	static FORCEINLINE float GridSnap( float Location, float Grid )
+	/** Wraps X to be between Min and Max, inclusive */
+	template< class T >
+	static FORCEINLINE T Wrap(const T X, const T Min, const T Max)
 	{
-		if( Grid==0.f )	return Location;
-		else			
+		T Size = Max - Min;
+		T EndVal = X;
+		while (EndVal < Min)
 		{
-			return FloorToFloat((Location + 0.5f*Grid)/Grid)*Grid;
+			EndVal += Size;
 		}
+
+		while (EndVal > Max)
+		{
+			EndVal -= Size;
+		}
+		return EndVal;
 	}
 
 	/** Snaps a value to the nearest grid multiple */
-	static FORCEINLINE double GridSnap( double Location, double Grid )
+	template< class T >
+	static FORCEINLINE T GridSnap(T Location, T Grid)
 	{
-		if( Grid==0.0 )	return Location;
-		else			
-		{
-			return FloorToDouble((Location + 0.5*Grid)/Grid)*Grid;
-		}
+		return (Grid == T{}) ? Location : (Floor((Location + (Grid/(T)2)) / Grid) * Grid);
 	}
 
 	/** Divides two integers and rounds up */

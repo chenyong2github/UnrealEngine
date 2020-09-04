@@ -17,7 +17,7 @@ UFbxSceneImportData::UFbxSceneImportData(const FObjectInitializer& ObjectInitial
 	bCreateFolderHierarchy = false;
 	bForceFrontXAxis = false;
 	bImportScene = true;
-	HierarchyType = FBXSOCHT_CreateLevelActors;
+	HierarchyType = (int32)EFBXSceneOptionsCreateHierarchyType::FBXSOCHT_CreateLevelActors;
 #endif
 }
 

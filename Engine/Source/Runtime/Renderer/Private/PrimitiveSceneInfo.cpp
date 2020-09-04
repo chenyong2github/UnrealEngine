@@ -132,10 +132,6 @@ FPrimitiveSceneInfo::FPrimitiveSceneInfo(UPrimitiveComponent* InComponent,FScene
 	LastRenderTime(-FLT_MAX),
 	Scene(InScene),
 	NumMobileMovablePointLights(0),
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	bIsUsingCustomLODRules(Proxy->IsUsingCustomLODRules()),
-	bIsUsingCustomWholeSceneShadowLODRules(Proxy->IsUsingCustomWholeSceneShadowLODRules()),
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	bShouldRenderInMainPass(InComponent->SceneProxy->ShouldRenderInMainPass()),
 	bVisibleInRealTimeSkyCapture(InComponent->SceneProxy->IsVisibleInRealTimeSkyCaptures()),
 #if RHI_RAYTRACING
@@ -291,7 +287,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 
 						check(!MeshRelevance.CommandInfosMask.Get(PassType));
 
-						check(!Mesh.bRequiresPerElementVisibility);
 						uint64 BatchElementMask = ~0ull;
 						PassMeshProcessor->AddMeshBatch(Mesh, BatchElementMask, SceneInfo->Proxy);
 
@@ -405,7 +400,8 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 		checkf(RHISupportsMultithreadedShaderCreation(GMaxRHIShaderPlatform), TEXT("Raytracing code needs the ability to create shaders from task threads."));
 
 		FCachedRayTracingMeshCommandContext CommandContext(Scene->CachedRayTracingMeshCommands);
-		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr);
+		FMeshPassProcessorRenderState PassDrawRenderState(Scene->UniformBuffers.ViewUniformBuffer, Scene->UniformBuffers.OpaqueBasePassUniformBuffer);
+		FRayTracingMeshProcessor RayTracingMeshProcessor(&CommandContext, Scene, nullptr, PassDrawRenderState);
 
 		for (FPrimitiveSceneInfo* SceneInfo : SceneInfos)
 		{
@@ -425,7 +421,6 @@ void FPrimitiveSceneInfo::CacheMeshDrawCommands(FRHICommandListImmediate& RHICmd
 				{
 					FStaticMeshBatch& Mesh = SceneInfo->StaticMeshes[MeshIndex];
 
-					check(!Mesh.bRequiresPerElementVisibility);
 					RayTracingMeshProcessor.AddMeshBatch(Mesh, ~0ull, SceneInfo->Proxy);
 
 					if (CommandContext.CommandIndex >= 0)
@@ -541,13 +536,6 @@ void FPrimitiveSceneInfo::AddStaticMeshes(FRHICommandListImmediate& RHICmdList, 
 				Scene->StaticMeshes[SceneArrayAllocation.Index] = &Mesh;
 				Mesh.Id = SceneArrayAllocation.Index;
 				MeshRelevance.Id = SceneArrayAllocation.Index;
-
-				if (Mesh.bRequiresPerElementVisibility)
-				{
-					// Use a separate index into StaticMeshBatchVisibility, since most meshes don't use it
-					Mesh.BatchVisibilityId = Scene->StaticMeshBatchVisibility.AddUninitialized().Index;
-					Scene->StaticMeshBatchVisibility[Mesh.BatchVisibilityId] = true;
-				}
 			}
 		}
 	}
@@ -861,7 +849,7 @@ void FPrimitiveSceneInfo::RemoveFromScene(bool bUpdateStaticDrawLists)
 	check(OctreeId.IsValidId());
 	check(Scene->PrimitiveOctree.GetElementById(OctreeId).PrimitiveSceneInfo == this);
 	Scene->PrimitiveOctree.RemoveElement(OctreeId);
-	OctreeId = FOctreeElementId();
+	OctreeId = FOctreeElementId2();
 
 	if (LightmapDataOffset != INDEX_NONE && UseGPUScene(GMaxRHIShaderPlatform, Scene->GetFeatureLevel()))
 	{

@@ -34,9 +34,10 @@
 #include "EngineStats.h"
 
 #include "Render\Device\IDisplayClusterRenderDevice.h"
+#include "Render\Device\DisplayClusterRenderViewport.h"
 
 #include "DisplayClusterEnums.h"
-#include "DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterGlobals.h"
 
 
 UDisplayClusterViewportClient::UDisplayClusterViewportClient(FVTableHelper& Helper) : Super(Helper)
@@ -246,6 +247,8 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			}
 		}
 
+		const FDisplayClusterRenderViewport* RenderViewport = DCRenderDevice->GetRenderViewport(ViewFamilyIdx * NumViewsPerFamily);
+
 		TMap<ULocalPlayer*, FSceneView*> PlayerViewMap;
 
 		FAudioDeviceHandle RetrievedAudioDevice = MyWorld->GetAudioDevice();
@@ -266,6 +269,18 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 			if (View)
 			{
 				Views.Add(View);
+				if (RenderViewport)
+				{
+					// Support MGPU viewport mapping
+					if (RenderViewport->GetGPUIndex() >= 0)
+					{
+						View->bOverrideGPUMask = true;
+						View->GPUMask = FRHIGPUMask::FromIndex(RenderViewport->GetGPUIndex());
+					}
+
+					// Control CrossGPU transfer for this viewport
+					View->bAllowCrossGPUTransfer = RenderViewport->IsCrossGPUTransferAllowed();
+				}
 
 				// We don't allow instanced stereo currently
 				View->bIsInstancedStereoEnabled  = false;
@@ -455,8 +470,7 @@ void UDisplayClusterViewportClient::Draw(FViewport* InViewport, FCanvas* SceneCa
 		if (ViewFamily.GetScreenPercentageInterface() == nullptr)
 		{
 			// In case of stereo, we set the same buffer ratio for both left and right views (taken from left)
-			float CustomBufferRatio = 1.f;
-			DCRenderDevice->GetBufferRatio(ViewFamilyIdx * NumViewsPerFamily, CustomBufferRatio);
+			float CustomBufferRatio = RenderViewport ? RenderViewport->GetBufferRatio() : 1;
 
 			bool AllowPostProcessSettingsScreenPercentage = false;
 			float GlobalResolutionFraction = 1.0f;

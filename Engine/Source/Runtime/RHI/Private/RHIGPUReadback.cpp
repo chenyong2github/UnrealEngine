@@ -141,6 +141,23 @@ void* FRHIGPUTextureReadback::Lock(uint32 NumBytes)
 	}
 }
 
+void FRHIGPUTextureReadback::LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels)
+{
+	if (DestinationStagingBuffer)
+	{
+		void* ResultsBuffer = nullptr;
+		int32 BufferWidth = 0, BufferHeight = 0;
+		RHICmdList.MapStagingSurface(DestinationStagingBuffer, Fence.GetReference(), ResultsBuffer, BufferWidth, BufferHeight);
+		OutBufferPtr = ResultsBuffer;
+		OutRowPitchInPixels = BufferWidth;
+	}
+	else
+	{
+		OutBufferPtr = nullptr;
+		OutRowPitchInPixels = 0;
+	}
+}
+
 void FRHIGPUTextureReadback::Unlock()
 {
 	ensure(DestinationStagingBuffer);

@@ -9,12 +9,16 @@ PathTracingMaterialSampling.usf: Material sampling functions
 #include "PathTracingMaterialCommon.ush"
 #include "PathTracingFresnel.ush"
 #include "PathTracingLambert.ush"
+#include "PathTracingRadianceProbe.ush"
 #include "PathTracingGlossy.ush"
 #include "PathTracingSpecularReflection.ush"
 #include "PathTracingSpecularTransmission.ush"
 #include "PathTracingDefaultLit.ush"
 #include "PathTracingClearCoat.ush"
 
+#ifndef FORCE_ALL_MATERIALS_DIFFUSE
+	#define FORCE_ALL_MATERIALS_DIFFUSE 0
+#endif
 
 void SampleMaterialAsWorldNormal(
 	float3 RayDirection,
@@ -33,6 +37,11 @@ void SampleMaterialAsWorldNormal(
 bool IsNeeValidMaterial(FMaterialClosestHitPayload Payload)
 {
 	// Checks done in the same order as other sampling and evaluation functions to ensure consistency
+	
+	#if FORCE_ALL_MATERIALS_DIFFUSE
+		return true;
+	#endif
+	
 	if (IsPureSpecularReflection(Payload))
 	{
 		return false;
@@ -63,12 +72,25 @@ void SampleMaterial(
 	float3 RayDirection,
 	FMaterialClosestHitPayload Payload,
 	float4 RandSample,
+	bool bForceRadianceProbe,
 	out float3 OutDirection,
 	out float3 OutThroughput,
 	out float OutPdf,
 	out float OutPositionBiasSign)
 {
 	OutPositionBiasSign = 1;
+	
+	if (bForceRadianceProbe)
+	{
+		RadianceProbe_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
+		return;
+	}
+	
+	#if FORCE_ALL_MATERIALS_DIFFUSE
+		Lambert_SampleMaterial(Payload, RandSample, OutDirection, OutThroughput, OutPdf);
+		return;
+	#endif
+		
 	if (IsPureSpecularReflection(Payload))
 	{
 		SpecularReflection_SampleMaterial(RayDirection, Payload, OutDirection, OutThroughput, OutPdf);
@@ -99,9 +121,21 @@ void PdfMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
+	bool bForceRadianceProbe,
 	out float OutPdf
 )
 {
+	if (bForceRadianceProbe)
+	{
+		OutPdf = RadianceProbe_Pdf(OutgoingDirection, Payload);
+		return;
+	}
+	
+	#if FORCE_ALL_MATERIALS_DIFFUSE
+		OutPdf = Lambert_Pdf(OutgoingDirection, Payload);
+		return;
+	#endif
+	
 	if (IsPureSpecularReflection(Payload))
 	{
 		OutPdf = SpecularReflection_Pdf();
@@ -132,10 +166,22 @@ void EvalMaterial(
 	float3 IncomingDirection,
 	float3 OutgoingDirection,
 	FMaterialClosestHitPayload Payload,
+	bool bForceRadianceProbe,
 	out float3 OutThroughput,
 	out float OutPdf
 )
 {
+	if (bForceRadianceProbe)
+	{
+		RadianceProbe_EvalMaterial(OutgoingDirection, Payload, OutThroughput, OutPdf);
+		return;
+	}
+	
+	#if FORCE_ALL_MATERIALS_DIFFUSE
+		Lambert_EvalMaterial(OutgoingDirection, Payload, OutThroughput, OutPdf);
+		return;
+	#endif
+	
 	if (IsPureSpecularReflection(Payload))
 	{
 		SpecularReflection_EvalMaterial(OutThroughput, OutPdf);

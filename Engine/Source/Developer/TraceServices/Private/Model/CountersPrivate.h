@@ -6,7 +6,16 @@
 #include "TraceServices/Model/Frames.h"
 #include "TraceServices/Model/AnalysisSession.h"
 #include "Templates/SharedPointer.h"
+
+// We need to test data pattern and measure performance for more trace sessions
+// before completly switching to variable paged array.
+#define USE_VARIABLE_PAGED_ARRAY 1
+
+#if USE_VARIABLE_PAGED_ARRAY
+#include "Common/VariablePagedArray.h"
+#else
 #include "Common/PagedArray.h"
+#endif
 
 namespace Trace
 {
@@ -93,9 +102,15 @@ private:
 	}
 
 	TArray64<double>::TConstIterator FrameStartTimesIterator;
+#if USE_VARIABLE_PAGED_ARRAY
+	TVariablePagedArray<double>::TIterator TimestampsIterator;
+	TVariablePagedArray<ECounterOpType>::TIterator OpTypesIterator;
+	typename TVariablePagedArray<ValueType>::TIterator OpArgumentsIterator;
+#else
 	TPagedArray<double>::TIterator TimestampsIterator;
 	TPagedArray<ECounterOpType>::TIterator OpTypesIterator;
 	typename TPagedArray<ValueType>::TIterator OpArgumentsIterator;
+#endif
 	TTuple<double, ValueType> Current;
 };
 
@@ -116,11 +131,11 @@ public:
 	void InsertOp(double Timestamp, ECounterOpType OpType, ValueType OpArgument)
 	{
 		uint64 InsertionIndex;
-		if (Timestamps.Num() == 0 || Timestamps[Timestamps.Num() - 1] <= Timestamp)
+		if (Timestamps.Num() == 0 || Timestamps.Last() <= Timestamp)
 		{
 			InsertionIndex = Timestamps.Num();
 		}
-		else if (Timestamps[0] >= Timestamp)
+		else if (Timestamps.First() >= Timestamp)
 		{
 			InsertionIndex = 0;
 		}
@@ -133,7 +148,11 @@ public:
 				CurrentPage = TimestampIterator.PrevPage();
 			}
 			uint64 PageInsertionIndex = Algo::LowerBound(*CurrentPage, Timestamp);
+#if USE_VARIABLE_PAGED_ARRAY
+			InsertionIndex = TimestampIterator.GetCurrentItemIndex() + PageInsertionIndex;
+#else
 			InsertionIndex = TimestampIterator.GetCurrentPageIndex() * Timestamps.GetPageSize() + PageInsertionIndex;
+#endif
 		}
 		Timestamps.Insert(InsertionIndex) = Timestamp;
 		OpTypes.Insert(InsertionIndex) = OpType;
@@ -150,13 +169,22 @@ public:
 		return TIterator(*this, FrameStartTimes);
 	}
 
+	double GetFirstTimestamp() const { return Timestamps.First(); }
+	double GetLastTimestamp() const { return Timestamps.Last(); }
+
 private:
 	template<typename IteratorValueType>
 	friend class TCounterDataIterator;
 
+#if USE_VARIABLE_PAGED_ARRAY
+	TVariablePagedArray<double> Timestamps;
+	TVariablePagedArray<ECounterOpType> OpTypes;
+	TVariablePagedArray<ValueType> OpArguments;
+#else
 	TPagedArray<double> Timestamps;
 	TPagedArray<ECounterOpType> OpTypes;
 	TPagedArray<ValueType> OpArguments;
+#endif
 };
 
 class FCounter

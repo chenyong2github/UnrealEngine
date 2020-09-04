@@ -43,7 +43,8 @@ FD3D12Device::FD3D12Device(FRHIGPUMask InGPUMask, FD3D12Adapter* InAdapter) :
 	DefaultBufferAllocator(this, InGPUMask), //Note: Cross node buffers are possible 
 	SamplerID(0),
 	DefaultFastAllocator(this, InGPUMask, D3D12_HEAP_TYPE_UPLOAD, 1024 * 1024 * 4),
-	TextureAllocator(this, FRHIGPUMask::All())
+	TextureAllocator(this, FRHIGPUMask::All()),
+	GPUProfilingData(this)
 {
 	InitPlatformSpecific();
 }
@@ -290,6 +291,8 @@ void FD3D12Device::SetupAfterDeviceCreation()
 	CreateCommandContexts();
 
 	UpdateMSAASettings();
+
+	GPUProfilingData.Init();
 }
 
 void FD3D12Device::UpdateConstantBufferPageProperties()
@@ -398,6 +401,9 @@ void FD3D12Device::Cleanup()
 	TimestampQueryHeap.Destroy();
 
 	D3DX12Residency::DestroyResidencyManager(ResidencyManager);
+
+	// Release buffered timestamp queries
+	GPUProfilingData.FrameTiming.ReleaseResource();
 }
 
 FD3D12CommandListManager* FD3D12Device::GetCommandListManager(ED3D12CommandQueueType InQueueType) const
@@ -421,12 +427,12 @@ FD3D12CommandListManager* FD3D12Device::GetCommandListManager(ED3D12CommandQueue
 
 void FD3D12Device::RegisterGPUWork(uint32 NumPrimitives, uint32 NumVertices)
 {
-	GetParentAdapter()->GetGPUProfiler().RegisterGPUWork(NumPrimitives, NumVertices);
+	GetGPUProfiler().RegisterGPUWork(NumPrimitives, NumVertices);
 }
 
 void FD3D12Device::RegisterGPUDispatch(FIntVector GroupCount)
 {
-	GetParentAdapter()->GetGPUProfiler().RegisterGPUDispatch(GroupCount);
+	GetGPUProfiler().RegisterGPUDispatch(GroupCount);
 }
 
 void FD3D12Device::BlockUntilIdle()

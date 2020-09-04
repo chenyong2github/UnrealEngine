@@ -44,8 +44,14 @@ public:
 	/** Toggles color saturation */
 	TSharedPtr<FUICommandInfo> Desaturation;
 
-	/** If enabled, the texture will be scaled to fit the viewport */
+	/** If enabled, the texture will be scaled down to fit within the viewport if needed */
 	TSharedPtr<FUICommandInfo> FitToViewport;
+
+	/** If enabled, the texture will be scaled to fill the viewport */
+	TSharedPtr<FUICommandInfo> FillToViewport;
+
+	/** If enabled, the texture will be zoomed back to its size (zoom level 100%) */
+	TSharedPtr<FUICommandInfo> ZoomToNatural;
 
 	/** Sets the checkered background pattern */
 	TSharedPtr<FUICommandInfo> CheckeredBackground;

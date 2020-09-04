@@ -213,7 +213,7 @@ struct FStatUnitData
 	/** Unit frame times filtered with a simple running average */
 	float RenderThreadTime;
 	float GameThreadTime;
-	float GPUFrameTime;
+	float GPUFrameTime[MAX_NUM_GPUS];
 	float FrameTime;
 	float RHITTime;
 	float InputLatencyTime;
@@ -221,7 +221,7 @@ struct FStatUnitData
 	/** Raw equivalents of the above variables */
 	float RawRenderThreadTime;
 	float RawGameThreadTime;
-	float RawGPUFrameTime;
+	float RawGPUFrameTime[MAX_NUM_GPUS];
 	float RawFrameTime;
 	float RawRHITTime;
 	float RawInputLatencyTime;
@@ -235,7 +235,7 @@ struct FStatUnitData
 	int32 CurrentIndex;
 	TArray<float> RenderThreadTimes;
 	TArray<float> GameThreadTimes;
-	TArray<float> GPUFrameTimes;
+	TArray<float> GPUFrameTimes[MAX_NUM_GPUS];
 	TArray<float> FrameTimes;
 	TArray<float> RHITTimes;
 	TArray<float> InputLatencyTimes;
@@ -245,13 +245,13 @@ struct FStatUnitData
 	FStatUnitData()
 		: RenderThreadTime(0.0f)
 		, GameThreadTime(0.0f)
-		, GPUFrameTime(0.0f)
+		, GPUFrameTime{ 0.0f }
 		, FrameTime(0.0f)
 		, RHITTime(0.0f)
 		, InputLatencyTime(0.0f)
 		, RawRenderThreadTime(0.0f)
 		, RawGameThreadTime(0.0f)
-		, RawGPUFrameTime(0.0f)
+		, RawGPUFrameTime{ 0.0f }
 		, RawFrameTime(0.0f)
 		, RawRHITTime(0.0f)
 		, RawInputLatencyTime(0.0f)
@@ -261,7 +261,10 @@ struct FStatUnitData
 		CurrentIndex = 0;
 		RenderThreadTimes.AddZeroed(NumberOfSamples);
 		GameThreadTimes.AddZeroed(NumberOfSamples);
-		GPUFrameTimes.AddZeroed(NumberOfSamples);
+		for (auto& GPUFrameTimesArray : GPUFrameTimes)
+		{
+			GPUFrameTimesArray.AddZeroed(NumberOfSamples);
+		}
 		FrameTimes.AddZeroed(NumberOfSamples);
 		RHITTimes.AddZeroed(NumberOfSamples);
 		InputLatencyTimes.AddZeroed(NumberOfSamples);

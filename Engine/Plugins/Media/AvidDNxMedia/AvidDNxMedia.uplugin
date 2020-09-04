@@ -1,18 +1,17 @@
 {
-	"FileVersion" : 3,
-	"Version" : 1,
-	"VersionName" : "1.0",
-	"FriendlyName" : "Avid DNxHR/DNxMXF Media Plugin",
-	"Description" : "Implements video export using Avid DNx Codecs.",
-	"CreatedBy" : "Epic Games Inc",
-	"CreatedByURL" : "http://epicgames.com",
-	"Category" : "Media Players",
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Avid DNxHR/DNxMXF Media Plugin",
+	"Description": "Implements video export using Avid DNx Codecs.",
+	"CreatedBy": "Epic Games Inc",
+	"CreatedByURL": "http://epicgames.com",
+	"Category": "Media Players",
 	"EnabledByDefault": false,
-	"CanContainContent" : false,
+	"CanContainContent": false,
 	"IsBetaVersion": false,
 	"Installed": false,
-	"Modules" :
-	[
+	"Modules": [
 		{
 			"Name": "AvidDNxMedia",
 			"Type": "Runtime",

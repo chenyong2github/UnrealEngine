@@ -806,7 +806,7 @@ public:
 	int32 PointerToIndex(const ElementType* Ptr) const
 	{
 		checkSlow(Data.Num());
-		int32 Index = Ptr - &GetData(0);
+		int32 Index = (int32)((FElementOrFreeListLink*)Ptr - &GetData(0));
 		checkSlow(Index >= 0 && Index < Data.Num() && Index < AllocationFlags.Num() && AllocationFlags[Index]);
 		return Index;
 	}

@@ -232,6 +232,7 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyAtmosphereInternalCommonParameters, )
 	SHADER_PARAMETER(float, TransmittanceSampleCount)
 	SHADER_PARAMETER(float, MultiScatteringSampleCount)
 	SHADER_PARAMETER(float, AerialPespectiveViewDistanceScale)
+	SHADER_PARAMETER(float, FogShowFlagFactor)
 
 	SHADER_PARAMETER(FVector, SkyLuminanceFactor)
 
@@ -397,7 +398,7 @@ static void CopyAtmosphereSetupToUniformShaderParameters(FAtmosphereUniformShade
 static FLinearColor GetLightDiskLuminance(FLightSceneInfo& Light, FLinearColor LightIlluminance)
 {
 	const float SunSolidAngle = 2.0f * PI * (1.0f - FMath::Cos(Light.Proxy->GetSunLightHalfApexAngleRadian())); // Solid angle from aperture https://en.wikipedia.org/wiki/Solid_angle 
-	return LightIlluminance / SunSolidAngle; // approximation
+	return  Light.Proxy->GetAtmosphereSunDiskColorScale() * LightIlluminance / SunSolidAngle; // approximation
 }
 
 void PrepareSunLightProxy(const FSkyAtmosphereRenderSceneInfo& SkyAtmosphere, uint32 AtmosphereLightIndex, FLightSceneInfo& AtmosphereLight)
@@ -1138,6 +1139,7 @@ void InitSkyAtmosphereForView(FRHICommandListImmediate& RHICmdList, const FScene
 static void SetupSkyAtmosphereInternalCommonParameters(
 	FSkyAtmosphereInternalCommonParameters& InternalCommonParameters, 
 	const FScene& Scene,
+	const FSceneViewFamily& ViewFamily,
 	const FSkyAtmosphereRenderSceneInfo& SkyInfo)
 {
 	GET_VALID_DATA_FROM_CVAR;
@@ -1169,6 +1171,7 @@ static void SetupSkyAtmosphereInternalCommonParameters(
 	const FSkyAtmosphereSceneProxy& SkyAtmosphereSceneProxy = SkyInfo.GetSkyAtmosphereSceneProxy();
 	InternalCommonParameters.SkyLuminanceFactor = FVector(SkyAtmosphereSceneProxy.GetSkyLuminanceFactor());
 	InternalCommonParameters.AerialPespectiveViewDistanceScale = SkyAtmosphereSceneProxy.GetAerialPespectiveViewDistanceScale();
+	InternalCommonParameters.FogShowFlagFactor = ViewFamily.EngineShowFlags.Fog > 0 ? 1.0f : 0.0f;
 
 	auto ValidateDistanceValue = [](float& Value)
 	{
@@ -1217,7 +1220,7 @@ void FSceneRenderer::RenderSkyAtmosphereLookUpTables(FRHICommandListImmediate& R
 
 	// Initialise common internal parameters on the sky info for this frame
 	FSkyAtmosphereInternalCommonParameters InternalCommonParameters;
-	SetupSkyAtmosphereInternalCommonParameters(InternalCommonParameters, *Scene, SkyInfo);
+	SetupSkyAtmosphereInternalCommonParameters(InternalCommonParameters, *Scene, ViewFamily, SkyInfo);
 	SkyInfo.GetInternalCommonParametersUniformBuffer() = TUniformBufferRef<FSkyAtmosphereInternalCommonParameters>::CreateUniformBufferImmediate(InternalCommonParameters, UniformBuffer_SingleFrame);
 
 	FRDGBuilder GraphBuilder(RHICmdList);

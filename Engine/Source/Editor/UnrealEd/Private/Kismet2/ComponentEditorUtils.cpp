@@ -471,6 +471,12 @@ void FComponentEditorUtils::CopyComponents(const TArray<UActorComponent*>& Compo
 			if (USceneComponent* DuplicatedCompAsSceneComp = Cast<USceneComponent>(DuplicatedComponent))
 			{
 				DuplicatedCompAsSceneComp->SetupAttachment(nullptr);
+
+				AActor* Owner = Component->GetOwner();
+				if (Owner && Component == Owner->GetRootComponent())
+				{
+					DuplicatedCompAsSceneComp->SetRelativeTransform_Direct(FTransform::Identity);
+				}
 			}
 
 			// Find the closest parent component of the current component within the list of components to copy
@@ -489,10 +495,10 @@ void FComponentEditorUtils::CopyComponents(const TArray<UActorComponent*>& Compo
 	const FExportObjectInnerContext Context;
 
 	// Export the component object(s) to text for copying
-	for (auto ObjectIt = ObjectMap.CreateIterator(); ObjectIt; ++ObjectIt)
+	for (const TPair<FName, UActorComponent*>& ObjectPair : ObjectMap)
 	{
 		// Get the component object to be copied
-		UActorComponent* ComponentToCopy = ObjectIt->Value;
+		UActorComponent* ComponentToCopy = ObjectPair.Value;
 		check(ComponentToCopy);
 
 		// If this component object had a parent within the selected set
@@ -544,8 +550,20 @@ void FComponentEditorUtils::PasteComponents(TArray<UActorComponent*>& OutPastedC
 
 	TargetActor->Modify();
 
-	USceneComponent* TargetParent = TargetComponent ? TargetComponent->GetAttachParent() : nullptr;
-	for (auto& NewObjectPair : Factory->NewObjectMap)
+	USceneComponent* TargetParent = nullptr;
+	if (TargetComponent)
+	{
+		checkSlow(TargetActor == TargetComponent->GetOwner());
+		if (TargetActor->GetRootComponent() == TargetComponent)
+		{
+			TargetParent = TargetComponent;
+		}
+		else
+		{
+			TargetParent = TargetComponent->GetAttachParent();
+		}
+	}
+	for (const TPair<FName, UActorComponent*>& NewObjectPair : Factory->NewObjectMap)
 	{
 		// Get the component object instance
 		UActorComponent* NewActorComponent = NewObjectPair.Value;
@@ -606,8 +624,8 @@ void FComponentEditorUtils::GetComponentsFromClipboard(TMap<FName, FName>& OutPa
 	TSharedRef<FComponentObjectTextFactory> Factory = FComponentObjectTextFactory::Get(TextToImport, bGetComponentsAsArchetypes);
 
 	// Return the created component mappings
-	OutParentMap = Factory->ParentMap;
-	OutNewObjectMap = Factory->NewObjectMap;
+	OutParentMap = MoveTemp(Factory->ParentMap);
+	OutNewObjectMap = MoveTemp(Factory->NewObjectMap);
 }
 
 bool FComponentEditorUtils::CanDeleteComponents(const TArray<UActorComponent*>& ComponentsToDelete)
@@ -783,6 +801,7 @@ UActorComponent* FComponentEditorUtils::DuplicateComponent(UActorComponent* Temp
 				check(RootComponent);
 
 				// GetComponentTransform() is not a UPROPERTY, so make sure the clone has calculated it properly before attachment
+				NewSceneComponent->SetRelativeTransform_Direct(FTransform::Identity);
 				NewSceneComponent->UpdateComponentToWorld();
 
 				NewSceneComponent->SetupAttachment(RootComponent);
@@ -1181,11 +1200,12 @@ FComponentReference FComponentEditorUtils::MakeComponentReference(const AActor* 
 	FComponentReference Result;
 	if (InComponent)
 	{
+		AActor* ComponentOwner = InComponent->GetOwner();
 		const AActor* Owner = InExpectedComponentOwner;
-		if (InComponent->GetOwner() && InComponent->GetOwner() != Owner)
+		if (ComponentOwner && ComponentOwner != Owner)
 		{
-			Result.OtherActor = InComponent->GetOwner();
-			Owner = InComponent->GetOwner();
+			Result.OtherActor = ComponentOwner;
+			Owner = ComponentOwner;
 		}
 
 		if (InComponent->CreationMethod == EComponentCreationMethod::Native || InComponent->CreationMethod == EComponentCreationMethod::SimpleConstructionScript)
@@ -1194,7 +1214,7 @@ FComponentReference FComponentEditorUtils::MakeComponentReference(const AActor* 
 		}
 		if (Result.ComponentProperty.IsNone() && InComponent->CreationMethod != EComponentCreationMethod::UserConstructionScript)
 		{
-			Result.PathToComponent = InComponent->GetPathName(InComponent->GetOwner());
+			Result.PathToComponent = InComponent->GetPathName(ComponentOwner);
 		}
 	}
 	return Result;

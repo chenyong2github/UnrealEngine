@@ -78,6 +78,8 @@ TSharedPtr<SDockTab> FTabManager::FLastMajorOrNomadTab::Search(const FTabManager
 	return FoundTab;
 }
 
+const TSharedRef<FTabManager::FLayout> FTabManager::FLayout::NullLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
+
 static const FString UE4_TABMANAGER_OPENED_TAB_STRING = TEXT("OpenedTab");
 static const FString UE4_TABMANAGER_CLOSED_TAB_STRING = TEXT("ClosedTab");
 static const FString UE4_TABMANAGER_INVALID_TAB_STRING = TEXT("InvalidTab");
@@ -856,14 +858,18 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 		if ( bShouldCreate )
 		{
 			TSharedPtr<SDockingArea> RestoredDockArea;
-			const bool bHasOpenTabs = bIsPrimaryArea || HasOpenTabs(ThisArea);
+			const bool bHasValidOpenTabs = bIsPrimaryArea || HasValidOpenTabs(ThisArea);
 
-			if ( bHasOpenTabs )
+			if (bHasValidOpenTabs)
 			{
 				RestoredDockArea = RestoreArea(ThisArea, ParentWindow, bEmbedTitleAreaContent, RestoreAreaOutputCanBeNullptr);
 				// Invalidate all tabs in ThisArea because they were not recognized
 				if (!RestoredDockArea)
 				{
+					if (bIsPrimaryArea)
+					{
+						UE_LOG(LogSlate, Warning, TEXT("Primary area was not valid for RestoreAreaOutputCanBeNullptr = %d."), RestoreAreaOutputCanBeNullptr);
+					}
 					SetTabsTo(ThisArea, ETabState::InvalidTab, ETabState::OpenedTab);
 					InvalidDockAreas.Add(ThisArea);
 				}
@@ -875,7 +881,7 @@ TSharedPtr<SWidget> FTabManager::RestoreFrom(const TSharedRef<FLayout>& Layout, 
 
 			if (bIsPrimaryArea && RestoredDockArea.IsValid() && ensure(!PrimaryDockArea.IsValid()))
 			{
-				PrimaryDockArea	= RestoredDockArea;
+				PrimaryDockArea = RestoredDockArea;
 			}
 		}
 	}
@@ -1882,7 +1888,7 @@ bool FTabManager::HasAnyMatchingTabs( const TSharedRef<FTabManager::FLayoutNode>
 	}
 }
 
-bool FTabManager::HasOpenTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const
+bool FTabManager::HasValidOpenTabs( const TSharedRef<FTabManager::FLayoutNode>& SomeNode ) const
 {
 	// Search for valid and open tabs
 	struct OpenTabMatcher

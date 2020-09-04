@@ -1090,7 +1090,7 @@ void FUniformExpressionSet::FillUniformBuffer(const FMaterialRenderContext& Mate
 			FUintVector4* VTPackedPageTableUniform = (FUintVector4*)BufferCursor;
 			if (AllocatedVT)
 			{
-				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform, true);
+				AllocatedVT->GetPackedPageTableUniform(VTPackedPageTableUniform);
 			}
 			else
 			{
@@ -1861,7 +1861,7 @@ bool FMaterialUniformExpressionRuntimeVirtualTextureUniform::IsIdentical(const F
 void FMaterialUniformExpressionRuntimeVirtualTextureUniform::WriteNumberOpcodes(FMaterialPreshaderData& OutData) const
 {
 	const FHashedMaterialParameterInfo WriteParameterInfo = bParameter ? ParameterInfo : FHashedMaterialParameterInfo();
-	OutData.WriteOpcode(EMaterialPreshaderOpcode::RuntimeVirtualTextureUniform).Write(WriteParameterInfo).Write<int32>(TextureIndex).Write<int32>(VectorIndex);
+	OutData.WriteOpcode(EMaterialPreshaderOpcode::RuntimeVirtualTextureUniform).Write(WriteParameterInfo).Write((int32)TextureIndex).Write((int32)VectorIndex);
 }
 
 /**

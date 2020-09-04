@@ -66,10 +66,15 @@ void SPropertyEditorText::Construct( const FArguments& InArgs, const TSharedRef<
 		PrimaryWidget = SingleLineWidget;
 	}
 
-	if( InPropertyEditor->PropertyIsA( FObjectPropertyBase::StaticClass() ) )
+	if (bIsPassword)
+	{
+		// Passwords should be obfuscated rather than reveal the property value in the tooltip
+		PrimaryWidget->SetToolTipText(LOCTEXT("PasswordToolTip", "<hidden>"));
+	}
+	else if (InPropertyEditor->PropertyIsA(FObjectPropertyBase::StaticClass()))
 	{
 		// Object properties should display their entire text in a tooltip
-		PrimaryWidget->SetToolTipText( TAttribute<FText>( InPropertyEditor, &FPropertyEditor::GetValueAsText ) );
+		PrimaryWidget->SetToolTipText(TAttribute<FText>(InPropertyEditor, &FPropertyEditor::GetValueAsText));
 	}
 }
 

@@ -407,9 +407,9 @@ protected:
 	/** Map of function graphs we've seen before and already pre-processed. */
 	TMap<const UNiagaraGraph*, UNiagaraGraph*> PreprocessedFunctions;
 
-	void RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, UNiagaraScriptSource* Source, FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, TArray<int32>& Inputs, const TArray<UEdGraphPin*>& CallInputs, const TArray<UEdGraphPin*>& CallOutputs,
+	void RegisterFunctionCall(ENiagaraScriptUsage ScriptUsage, const FString& InName, const FString& InFullName, const FGuid& CallNodeId, UNiagaraScriptSource* Source, FNiagaraFunctionSignature& InSignature, bool bIsCustomHlsl, const FString& InCustomHlsl, TArray<int32>& Inputs, TArrayView<UEdGraphPin* const> CallInputs, TArrayView<UEdGraphPin* const> CallOutputs,
 		FNiagaraFunctionSignature& OutSignature);
-	void GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArray<int32>& Inputs, TArray<int32>& Outputs);
+	void GenerateFunctionCall(ENiagaraScriptUsage ScriptUsage, FNiagaraFunctionSignature& FunctionSignature, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
 	FString GetFunctionSignature(const FNiagaraFunctionSignature& Sig);
 
 	/** Compiles an output Pin on a graph node. Caches the result for any future inputs connected to it. */
@@ -426,9 +426,9 @@ protected:
 	{
 		FString Name;
 		FNiagaraFunctionSignature& Signature;
-		TArray<int32>& Inputs;
+		TArrayView<const int32> Inputs;
 		FGuid Id;
-		FFunctionContext(const FString& InName, FNiagaraFunctionSignature& InSig, TArray<int32>& InInputs, const FGuid& InId)
+		FFunctionContext(const FString& InName, FNiagaraFunctionSignature& InSig, TArrayView<const int32> InInputs, const FGuid& InId)
 			: Name(InName)
 			, Signature(InSig)
 			, Inputs(InInputs)
@@ -437,7 +437,7 @@ protected:
 	};
 	TArray<FFunctionContext> FunctionContextStack;
 	const FFunctionContext* FunctionCtx()const { return FunctionContextStack.Num() > 0 ? &FunctionContextStack.Last() : nullptr; }
-	void EnterFunction(const FString& Name, FNiagaraFunctionSignature& Signature, TArray<int32>& Inputs, const FGuid& InGuid);
+	void EnterFunction(const FString& Name, FNiagaraFunctionSignature& Signature, TArrayView<const int32> Inputs, const FGuid& InGuid);
 	void ExitFunction();
 	FString GetCallstack();
 	TArray<FGuid> GetCallstackGuids();
@@ -498,8 +498,8 @@ public:
 	
 	virtual void ReadDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variable, ENiagaraDataSetAccessMode AccessMode, int32 InputChunk, TArray<int32>& Outputs);
 	virtual void WriteDataSet(const FNiagaraDataSetID DataSet, const TArray<FNiagaraVariable>& Variable, ENiagaraDataSetAccessMode AccessMode, const TArray<int32>& Inputs, TArray<int32>& Outputs);
-	virtual void ParameterMapSet(class UNiagaraNodeParameterMapSet* SetNode, TArray<FCompiledPin>& Inputs, TArray<int32>& Outputs);
-	virtual void ParameterMapGet(class UNiagaraNodeParameterMapGet* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
+	virtual void ParameterMapSet(class UNiagaraNodeParameterMapSet* SetNode, TArrayView<const FCompiledPin> Inputs, TArray<int32>& Outputs);
+	virtual void ParameterMapGet(class UNiagaraNodeParameterMapGet* GetNode, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
 	virtual void Emitter(class UNiagaraNodeEmitter* GetNode, TArray<int32>& Inputs, TArray<int32>& Outputs);
 
 	virtual void ParameterMapForBegin(class UNiagaraNodeParameterMapFor* ForNode, int32 IterationCount);
@@ -528,7 +528,7 @@ public:
 	void ExitFunctionCallNode();
 	bool IsFunctionVariableCulledFromCompilation(const FName& InputName) const;
 
-	virtual void Convert(class UNiagaraNodeConvert* Convert, TArray <int32>& Inputs, TArray<int32>& Outputs);
+	virtual void Convert(class UNiagaraNodeConvert* Convert, TArrayView<const int32> Inputs, TArray<int32>& Outputs);
 	virtual void If(class UNiagaraNodeIf* IfNode, TArray<FNiagaraVariable>& Vars, int32 Condition, TArray<int32>& PathA, TArray<int32>& PathB, TArray<int32>& Outputs);
 
 	void Message(FNiagaraCompileEventSeverity Severity, FText MessageText, const UNiagaraNode* Node, const UEdGraphPin* Pin);

@@ -17,11 +17,6 @@
 #include "Misc/QualifiedFrameTime.h"
 #include "HAL/PlatformProcess.h"
 
-// platforms which can have runtime threading switches
-#if !defined(HAVE_RUNTIME_THREADING_SWITCHES)
-	#define HAVE_RUNTIME_THREADING_SWITCHES			(!PLATFORM_PS4 && !PLATFORM_ANDROID && !PLATFORM_TVOS && !PLATFORM_SWITCH && !PLATFORM_LUMIN)
-#endif
-
 /**
  * Provides information about the application.
  */
@@ -447,14 +442,7 @@ public:
 	 *
 	 * @return true if this isn't a server, has more than one core, does not have a -onethread command line options, etc.
 	 */
-#if HAVE_RUNTIME_THREADING_SWITCHES
 	static bool ShouldUseThreadingForPerformance();
-#else
-	FORCEINLINE static bool ShouldUseThreadingForPerformance()
-	{
-		return true;
-	}
-#endif // HAVE_RUNTIME_THREADING_SWITCHES
 
 	/**
 	 * Checks whether application is in benchmark mode.

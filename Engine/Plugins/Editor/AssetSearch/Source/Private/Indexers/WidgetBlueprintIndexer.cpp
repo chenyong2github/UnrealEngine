@@ -3,7 +3,9 @@
 #include "WidgetBlueprintIndexer.h"
 #include "Engine/Blueprint.h"
 #include "WidgetBlueprint.h"
+#include "Blueprint/WidgetBlueprintGeneratedClass.h"
 #include "Components/Widget.h"
+#include "Misc/StringBuilder.h"
 #include "Utility/IndexerUtilities.h"
 #include "SearchSerializer.h"
 
@@ -14,6 +16,7 @@ enum class EWidgetBlueprintIndexerVersion
 	Empty,
 	Initial,
 	FixLabels,
+	Binding,
 
 	// -----<new versions can be added above this line>-------------------------------------------------
 	VersionPlusOne,
@@ -50,7 +53,34 @@ void FWidgetBlueprintIndexer::IndexAsset(const UObject* InAssetObject, FSearchSe
 		Serializer.EndIndexingObject();
 	}
 
-	// TODO Animations
+	if (const UWidgetBlueprintGeneratedClass* BPClass = Cast<UWidgetBlueprintGeneratedClass>(BP->GeneratedClass))
+	{
+		Serializer.BeginIndexingObject(BP, TEXT("$self"));
+
+		for (const FDelegateRuntimeBinding& Binding : BPClass->Bindings)
+		{
+			if (!Binding.ObjectName.IsEmpty() && !Binding.PropertyName.IsNone())
+			{
+				TStringBuilder<128> PropertyName;
+				PropertyName.Append(TEXT("[Binding] "));
+				PropertyName.Append(Binding.ObjectName);
+				PropertyName.Append(TEXT("."));
+				PropertyName.Append(Binding.PropertyName.ToString());
+
+				if (Binding.SourcePath.IsValid())
+				{
+					Serializer.IndexProperty(PropertyName.ToString(), Binding.SourcePath.ToString());
+				}
+				else if (!Binding.FunctionName.IsNone())
+				{
+					Serializer.IndexProperty(PropertyName.ToString(), Binding.FunctionName.ToString());
+				}
+			}
+
+		}
+
+		Serializer.EndIndexingObject();
+	}
 }
 
 #undef LOCTEXT_NAMESPACE

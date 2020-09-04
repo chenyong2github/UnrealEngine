@@ -89,7 +89,7 @@ void UGeometryCache::Serialize(FArchive& Ar)
 FString UGeometryCache::GetDesc()
 {
 	const int32 NumTracks = Tracks.Num();
-	return FString("%d Tracks", NumTracks);
+	return FString::Printf(TEXT("%d Tracks"), NumTracks);
 }
 
 void UGeometryCache::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
@@ -163,8 +163,8 @@ float UGeometryCache::CalculateDuration() const
 	// Create mesh sections for each GeometryCacheTrack
 	for (int32 TrackIndex = 0; TrackIndex < NumTracks; ++TrackIndex)
 	{
-		const float TrackMaxSampleTime = Tracks[TrackIndex]->GetMaxSampleTime();
-		Duration = (Duration > TrackMaxSampleTime) ? Duration : TrackMaxSampleTime;
+		const float TrackDuration = Tracks[TrackIndex]->GetDuration();
+		Duration = FMath::Max(Duration, TrackDuration);
 	}
 	return Duration;
 }

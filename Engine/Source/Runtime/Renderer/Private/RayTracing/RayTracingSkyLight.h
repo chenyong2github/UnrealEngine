@@ -11,7 +11,7 @@ RaytracingOptions.h declares ray tracing options for use in rendering
 #include "Halton.h"
 #include "BlueNoise.h"
 
-BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, )
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, RENDERER_API)
 	SHADER_PARAMETER(uint32, SamplesPerPixel)
 	SHADER_PARAMETER(uint32, SamplingStopLevel)
 	SHADER_PARAMETER(float, MaxRayDistance)
@@ -58,8 +58,10 @@ END_SHADER_PARAMETER_STRUCT()
 
 int32 GetRayTracingSkyLightDecoupleSampleGenerationCVarValue();
 
-void SetupSkyLightParameters(const FScene& Scene, FSkyLightData* SkyLight);
+extern RENDERER_API void SetupSkyLightParameters(const FScene& Scene, FSkyLightData* SkyLight);
 void SetupSkyLightQuasiRandomParameters(const FScene& Scene, const FViewInfo& View, FIntVector& OutBlueNoiseDimensions, FSkyLightQuasiRandomData* OutSkyLightQuasiRandomData);
 void SetupSkyLightVisibilityRaysParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FSkyLightVisibilityRaysData* OutSkyLightVisibilityRaysData);
+
+extern RENDERER_API void BuildSkyLightCdfs(FRHICommandListImmediate& RHICmdList, class FSkyLightSceneProxy* SkyLight);
 
 #endif // RHI_RAYTRACING

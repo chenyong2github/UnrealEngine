@@ -84,6 +84,7 @@ void FSlateUser::FActiveTooltipInfo::Reset()
 
 	Tooltip.Reset();
 	SourceWidget.Reset();
+	TooltipVisualizer.Reset();
 	OffsetDirection = ETooltipOffsetDirection::Undetermined;
 }
 
@@ -778,7 +779,7 @@ void FSlateUser::QueryCursor()
 					CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
 					
 #if WITH_SLATE_DEBUGGING
-					FSlateDebugging::BroadcastCursorQuery(nullptr, CursorReply);
+					FSlateDebugging::BroadcastCursorQuery(TSharedPtr<SWidget>(), CursorReply);
 #endif
 				}
 			}
@@ -788,7 +789,7 @@ void FSlateUser::QueryCursor()
 				CursorReply = FCursorReply::Cursor(EMouseCursor::Default);
 
 #if WITH_SLATE_DEBUGGING
-				FSlateDebugging::BroadcastCursorQuery(nullptr, CursorReply);
+				FSlateDebugging::BroadcastCursorQuery(TSharedPtr<SWidget>(), CursorReply);
 #endif
 			}
 		}
@@ -1198,21 +1199,24 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 		}
 
 		// Notify the new tooltip that it's about to be opened.
-		if (NewTooltip)
+		if (NewTooltip && bCanSpawnNewTooltip)
 		{
 			NewTooltip->OnOpening();
 		}
 
 		// Some widgets might want to provide an alternative Tooltip Handler.
-		TSharedPtr<SWidget> NewTooltipWidget = NewTooltip ? NewTooltip->AsWidget() : TSharedPtr<SWidget>();
-		for (int32 WidgetIndex = WidgetsToQueryForTooltip.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex)
+		if (bCanSpawnNewTooltip || !NewTooltip)
 		{
-			const TSharedRef<SWidget>& CurWidget = WidgetsToQueryForTooltip.Widgets[WidgetIndex].Widget;
-			if (CurWidget->OnVisualizeTooltip(NewTooltipWidget))
+			TSharedPtr<SWidget> NewTooltipWidget = NewTooltip ? NewTooltip->AsWidget() : TSharedPtr<SWidget>();
+			for (int32 WidgetIndex = WidgetsToQueryForTooltip.Widgets.Num() - 1; WidgetIndex >= 0; --WidgetIndex)
 			{
-				// Someone is taking care of visualizing this tooltip
-				NewTooltipVisualizer = CurWidget;
-				break;
+				const TSharedRef<SWidget>& CurWidget = WidgetsToQueryForTooltip.Widgets[WidgetIndex].Widget;
+				if (CurWidget->OnVisualizeTooltip(NewTooltipWidget))
+				{
+					// Someone is taking care of visualizing this tooltip
+					NewTooltipVisualizer = CurWidget;
+					break;
+				}
 			}
 		}
 	}
@@ -1282,16 +1286,19 @@ void FSlateUser::UpdateTooltip(const FMenuStack& MenuStack, bool bCanSpawnNewToo
 		{
 			CloseTooltip();
 
-			if (NewTooltipVisualizer)
+			if (NewTooltip && bCanSpawnNewTooltip)
 			{
-				ActiveTooltipInfo.TooltipVisualizer = NewTooltipVisualizer;
-				ActiveTooltipInfo.Tooltip = NewTooltip;
+				if (NewTooltipVisualizer)
+				{
+					ActiveTooltipInfo.TooltipVisualizer = NewTooltipVisualizer;
+					ActiveTooltipInfo.Tooltip = NewTooltip;
+				}
+				else
+				{
+					ShowTooltip(NewTooltip.ToSharedRef(), DesiredLocation);
+					ActiveTooltipInfo.SourceWidget = WidgetProvidingNewTooltip;
+				}	
 			}
-			else if (bCanSpawnNewTooltip && NewTooltip)
-			{
-				ShowTooltip(NewTooltip.ToSharedRef(), DesiredLocation);
-				ActiveTooltipInfo.SourceWidget = WidgetProvidingNewTooltip;
-			}	
 		}
 	}
 

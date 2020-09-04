@@ -8,9 +8,9 @@
  */
 struct FDisplayClusterClusterEventsMsg
 {
-	constexpr static auto ArgName       = "Name";
-	constexpr static auto ArgType       = "Type";
-	constexpr static auto ArgCategory   = "Category";
-	constexpr static auto ArgParameters = "Parameters";
-	constexpr static auto ArgError      = "Error";
+	constexpr static auto ArgName       = TEXT("Name");
+	constexpr static auto ArgType       = TEXT("Type");
+	constexpr static auto ArgCategory   = TEXT("Category");
+	constexpr static auto ArgParameters = TEXT("Parameters");
+	constexpr static auto ArgError      = TEXT("Error");
 };

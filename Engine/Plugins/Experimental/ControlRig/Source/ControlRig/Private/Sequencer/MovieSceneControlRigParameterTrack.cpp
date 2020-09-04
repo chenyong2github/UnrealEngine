@@ -7,12 +7,13 @@
 #include "Sequencer/MovieSceneControlRigParameterTemplate.h"
 #include "MovieScene.h"
 #include "MovieSceneTimeHelpers.h"
-#include "Sequencer/ControlRigSortedControls.h"
+#include "Channels/MovieSceneChannelProxy.h"
 #define LOCTEXT_NAMESPACE "MovieSceneParameterControlRigTrack"
 
 
 UMovieSceneControlRigParameterTrack::UMovieSceneControlRigParameterTrack(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
+	, ControlRig(nullptr)
 {
 #if WITH_EDITORONLY_DATA
 	TrackTint = FColor(65, 89, 194, 65);
@@ -49,97 +50,7 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateNewSection()
 	}
 	if (ControlRig)
 	{
-		TArray<bool> OnArray;
-		const TArray<FRigControl>& Controls = ControlRig->AvailableControls();
-		OnArray.Init(true,Controls.Num());
-		NewSection->SetControlsMask(OnArray);
-
-		TArray<FRigControl> SortedControls;
-		FControlRigSortedControls::GetControlsInOrder(ControlRig, SortedControls);
-		
-		for (const FRigControl& RigControl : SortedControls)
-		{
-			if (!RigControl.bAnimatable)
-			{
-				continue;
-			}
-
-			switch (RigControl.ControlType)
-			{
-				case ERigControlType::Float:
-				{
-					TOptional<float> DefaultValue;
-					if (bSetDefault)
-					{
-						//or use IntialValue?
-						DefaultValue = RigControl.Value.Get<float>();
-					}
-					NewSection->AddScalarParameter(RigControl.Name,DefaultValue,false);
-					break;
-				}
-				case ERigControlType::Bool:
-				{
-					TOptional<bool> DefaultValue;
-					if (bSetDefault)
-					{
-						//or use IntialValue?
-						DefaultValue = RigControl.Value.Get<bool>();
-					}
-					NewSection->AddBoolParameter(RigControl.Name, DefaultValue, false);
-					break;
-				}
-				case ERigControlType::Vector2D:
-				{
-					TOptional<FVector2D> DefaultValue;
-					if (bSetDefault)
-					{
-						//or use IntialValue?
-						DefaultValue = RigControl.Value.Get<FVector2D>();
-					}
-					NewSection->AddVector2DParameter(RigControl.Name, DefaultValue, false);
-					break;
-				}
-				
-				case ERigControlType::Position:
-				case ERigControlType::Scale:
-				case ERigControlType::Rotator:
-				{
-					TOptional<FVector> DefaultValue;
-					if (bSetDefault)
-					{
-						//or use IntialValue?
-						DefaultValue = RigControl.Value.Get<FVector>();
-					}
-					NewSection->AddVectorParameter(RigControl.Name,DefaultValue,false);
-					//mz todo specify rotator special so we can do quat interps
-					break;
-				}
-				case ERigControlType::TransformNoScale:
-				case ERigControlType::Transform:
-				{
-					TOptional<FTransform> DefaultValue;
-					if (bSetDefault)
-					{
-						if (RigControl.ControlType == ERigControlType::Transform)
-						{
-							DefaultValue = RigControl.Value.Get<FTransform>();
-						}
-						else
-						{
-							FTransformNoScale NoScale = RigControl.Value.Get<FTransformNoScale>();
-							DefaultValue = NoScale;
-						}
-					}
-					NewSection->AddTransformParameter(RigControl.Name,DefaultValue,false);
-					break;
-				}
-				
-				default:
-					break;
-			}
-		}
-		NewSection->ReconstructChannelProxy(true);
-		
+		NewSection->RecreateWithThisControlRig(ControlRig,bSetDefault);
 	}
 	return  NewSection;
 }
@@ -215,23 +126,15 @@ FText UMovieSceneControlRigParameterTrack::GetDefaultDisplayName() const
 #endif
 
 
-
-
-IControlRigManipulatable* UMovieSceneControlRigParameterTrack::GetManipulatableFromBinding(UMovieScene* MovieScene)
+UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateControlRigSection(FFrameNumber StartTime, UControlRig* InControlRig, bool bInOwnsControlRig)
 {
-	if (ControlRig)
+	if (!bInOwnsControlRig)
 	{
-		return ControlRig;
+		InControlRig->Rename(nullptr, this);
 	}
-	return nullptr;
-}
-
-
-UMovieSceneSection* UMovieSceneControlRigParameterTrack::CreateControlRigSection(FFrameNumber StartTime, UControlRig* InControlRig)
-{
 	ControlRig = InControlRig;
 	UMovieSceneControlRigParameterSection*  NewSection = Cast<UMovieSceneControlRigParameterSection>(CreateNewSection());
-
+	
 	UMovieScene* OuterMovieScene = GetTypedOuter<UMovieScene>();
 	NewSection->SetRange(TRange<FFrameNumber>::All());
 
@@ -342,37 +245,37 @@ UMovieSceneSection* UMovieSceneControlRigParameterTrack::FindOrExtendSection(FFr
 
 			if (SectionIndex > 0)
 			{
-				// Append and grow the previous section
-				UMovieSceneSection* PreviousSection = Sections[SectionIndex ? SectionIndex - 1 : 0];
+			// Append and grow the previous section
+			UMovieSceneSection* PreviousSection = Sections[SectionIndex ? SectionIndex - 1 : 0];
 
-				PreviousSection->SetEndFrame(Time);
-				return PreviousSection;
+			PreviousSection->SetEndFrame(Time);
+			return PreviousSection;
 			}
 			else if (Sections.IsValidIndex(SectionIndex + 1))
 			{
-				// Prepend and grow the next section because there are no sections before this one
-				UMovieSceneSection* NextSection = Sections[SectionIndex + 1];
-				NextSection->SetStartFrame(Time);
-				return NextSection;
+			// Prepend and grow the next section because there are no sections before this one
+			UMovieSceneSection* NextSection = Sections[SectionIndex + 1];
+			NextSection->SetStartFrame(Time);
+			return NextSection;
 			}
 			else
 			{
-				// SectionIndex == 0 
-				UMovieSceneSection* PreviousSection = Sections[0];
-				if (PreviousSection->HasEndFrame() && PreviousSection->GetExclusiveEndFrame() <= Time)
+			// SectionIndex == 0 
+			UMovieSceneSection* PreviousSection = Sections[0];
+			if (PreviousSection->HasEndFrame() && PreviousSection->GetExclusiveEndFrame() <= Time)
+			{
+				// Append and grow the section
+				if (PreviousSection->GetExclusiveEndFrame() != Time)
 				{
-					// Append and grow the section
-					if (PreviousSection->GetExclusiveEndFrame() != Time)
-					{
-						PreviousSection->SetEndFrame(Time);
-					}
+					PreviousSection->SetEndFrame(Time);
 				}
-				else
-				{
-					// Prepend and grow the section
-					PreviousSection->SetStartFrame(Time);
-				}
-				return PreviousSection;
+			}
+			else
+			{
+				// Prepend and grow the section
+				PreviousSection->SetStartFrame(Time);
+			}
+			return PreviousSection;
 			}
 		}
 	}
@@ -420,19 +323,142 @@ void UMovieSceneControlRigParameterTrack::PostLoad()
 	{
 		ControlRig->ConditionalPostLoad();
 		ControlRig->Initialize();
-		ControlRig->CreateRigControlsForCurveContainer();
-		for (UMovieSceneSection * Section: Sections)
+		for (UMovieSceneSection* Section : Sections)
 		{
 			if (Section)
 			{
 				UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section);
 				if (CRSection)
 				{
+					CRSection->ControlRig = ControlRig;
 					CRSection->ReconstructChannelProxy(true);
 				}
 			}
 		}
 	}
 }
+
+CONTROLRIG_API void UMovieSceneControlRigParameterTrack::ReplaceControlRig(UControlRig* NewControlRig, bool RecreateChannels)
+{
+	ControlRig = NewControlRig;
+	if (ControlRig->GetOuter() != this)
+	{
+		ControlRig->Rename(nullptr, this);
+	}
+	for (UMovieSceneSection* Section : Sections)
+	{
+		if (UMovieSceneControlRigParameterSection* CRSection = Cast<UMovieSceneControlRigParameterSection>(Section))
+		{
+			if (RecreateChannels)
+			{
+				CRSection->RecreateWithThisControlRig(NewControlRig, CRSection->GetBlendType() == EMovieSceneBlendType::Absolute);
+			}
+			else
+			{
+				CRSection->ControlRig = NewControlRig;
+			}
+		}	
+	}
+}
+
+void UMovieSceneControlRigParameterTrack::GetSelectedNodes(TArray<FName>& SelectedControlNames)
+{
+	if (GetControlRig())
+	{
+		SelectedControlNames = GetControlRig()->CurrentControlSelection();
+	}
+}
+
+TArray<FFBXNodeAndChannels>* UMovieSceneControlRigParameterTrack::GetNodeAndChannelMappings()
+{
+#if WITH_EDITOR
+	if (GetControlRig() == nullptr)
+	{
+		return nullptr;
+	}
+	bool bSectionAdded;
+
+	UMovieSceneControlRigParameterSection* CurrentSectionToKey = Cast<UMovieSceneControlRigParameterSection>(FindOrAddSection(0, bSectionAdded));
+	if (!CurrentSectionToKey)
+	{
+		return nullptr;
+	}
+
+	const FName FloatChannelTypeName = FMovieSceneFloatChannel::StaticStruct()->GetFName();
+	const FName BoolChannelTypeName = FMovieSceneBoolChannel::StaticStruct()->GetFName();
+	const FName EnumChannelTypeName = FMovieSceneByteChannel::StaticStruct()->GetFName();
+	const FName IntegerChannelTypeName = FMovieSceneIntegerChannel::StaticStruct()->GetFName();
+
+
+	FMovieSceneChannelProxy& ChannelProxy = CurrentSectionToKey->GetChannelProxy();
+	TArray<FFBXNodeAndChannels>* NodeAndChannels = new TArray<FFBXNodeAndChannels>();
+	TArray<FString> StringArray;
+
+	for (const FMovieSceneChannelEntry& Entry : CurrentSectionToKey->GetChannelProxy().GetAllEntries())
+	{
+		const FName ChannelTypeName = Entry.GetChannelTypeName();
+		if (ChannelTypeName != FloatChannelTypeName && ChannelTypeName != BoolChannelTypeName
+			&& ChannelTypeName != EnumChannelTypeName && ChannelTypeName != IntegerChannelTypeName)
+		{
+			continue;
+		}
+
+		TArrayView<FMovieSceneChannel* const>        Channels = Entry.GetChannels();
+		TArrayView<const FMovieSceneChannelMetaData> AllMetaData = Entry.GetMetaData();
+
+		for (int32 Index = 0; Index < Channels.Num(); ++Index)
+		{
+			FMovieSceneChannelHandle Channel = ChannelProxy.MakeHandle(ChannelTypeName, Index);
+
+			const FMovieSceneChannelMetaData& MetaData = AllMetaData[Index];
+			StringArray.SetNum(0);
+			FString String = MetaData.Name.ToString();
+			String.ParseIntoArray(StringArray, TEXT("."));
+			if (StringArray.Num() > 0)
+			{
+				FString NodeName = StringArray[0];
+				FRigControl* Control = GetControlRig() ? GetControlRig()->FindControl(FName(*StringArray[0])) : nullptr;
+				if (Control)
+				{
+					NodeName = NodeName.ToUpper();
+					if (NodeAndChannels->Num() == 0 || (*NodeAndChannels)[NodeAndChannels->Num() - 1].NodeName != NodeName)
+					{
+						FFBXNodeAndChannels NodeAndChannel;
+						NodeAndChannel.MovieSceneTrack = this;
+						NodeAndChannel.ControlType = (FFBXControlRigTypeProxyEnum)(uint8)Control->ControlType;
+						NodeAndChannel.NodeName = NodeName;
+						NodeAndChannels->Add(NodeAndChannel);
+					}
+					if (ChannelTypeName == FloatChannelTypeName)
+					{
+						FMovieSceneFloatChannel* FloatChannel = Channel.Cast<FMovieSceneFloatChannel>().Get();
+						(*NodeAndChannels)[NodeAndChannels->Num() - 1].Channels.Add(FloatChannel);
+					}
+					else if (ChannelTypeName == BoolChannelTypeName)
+					{
+						FMovieSceneBoolChannel* BoolChannel = Channel.Cast<FMovieSceneBoolChannel>().Get();
+						(*NodeAndChannels)[NodeAndChannels->Num() - 1].BoolChannels.Add(BoolChannel);
+					}
+					else if (ChannelTypeName == EnumChannelTypeName)
+					{
+						FMovieSceneByteChannel* EnumChannel = Channel.Cast<FMovieSceneByteChannel>().Get();
+						(*NodeAndChannels)[NodeAndChannels->Num() - 1].EnumChannels.Add(EnumChannel);
+					}
+					else if (ChannelTypeName == IntegerChannelTypeName)
+					{
+						FMovieSceneIntegerChannel* IntegerChannel = Channel.Cast<FMovieSceneIntegerChannel>().Get();
+						(*NodeAndChannels)[NodeAndChannels->Num() - 1].IntegerChannels.Add(IntegerChannel);
+					}
+				}
+			}
+		}
+	}
+
+	return NodeAndChannels;
+#else
+	return nullptr;
+#endif
+}
+
 
 #undef LOCTEXT_NAMESPACE

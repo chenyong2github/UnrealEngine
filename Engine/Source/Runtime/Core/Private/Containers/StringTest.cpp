@@ -347,4 +347,142 @@ bool FStringFromStringViewTest::RunTest(const FString& Parameters)
 	return true;
 }
 
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringConstructWithSlackTest, "System.Core.String.ConstructWithSlack", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringConstructWithSlackTest::RunTest(const FString& Parameters)
+{
+	// Note that the total capacity of a string might be greater than the string length + slack + a null terminator due to
+	// underlying malloc implementations which is why we poll FMemory to see what size of allocation we should be expecting.
+
+	// Test creating from a valid string with various valid slack value
+	{
+		const TCHAR* TestString = TEXT("FooBar");
+		const char* TestAsciiString = "FooBar";
+		const int32 LengthOfString = TCString<TCHAR>::Strlen(TestString);
+		const int32 ExtraSlack = 32;
+		const int32 NumElements = LengthOfString + ExtraSlack + 1;
+
+		const SIZE_T ExpectedCapacity = FMemory::QuantizeSize(NumElements * sizeof(TCHAR));
+
+		FString StringFromTChar(TestString, ExtraSlack);
+		TestEqual(TEXT("(TCHAR: Valid string with valid slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromAscii(TestAsciiString, ExtraSlack);
+		TestEqual(TEXT("(ASCII: Valid string with valid slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
+		TestEqual(TEXT("(FStringView: Valid string with valid slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFString(FString(TestString), ExtraSlack);
+		TestEqual(TEXT("(FString: Valid string with valid slack"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+	}
+
+	// Test creating from a valid string with a zero slack value
+	{
+		const TCHAR* TestString = TEXT("FooBar");
+		const char* TestAsciiString = "FooBar";
+		const int32 LengthOfString = TCString<TCHAR>::Strlen(TestString);
+		const int32 ExtraSlack = 0;
+		const int32 NumElements = LengthOfString + ExtraSlack + 1;
+
+		const SIZE_T ExpectedCapacity = FMemory::QuantizeSize(NumElements * sizeof(TCHAR));
+
+		FString StringFromTChar(TestString, ExtraSlack);
+		TestEqual(TEXT("(TCHAR: Valid string with zero slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromAscii(TestAsciiString, ExtraSlack);
+		TestEqual(TEXT("(ASCII: Valid string with zero slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
+		TestEqual(TEXT("(FStringView: Valid string with zero slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFString(FString(TestString), ExtraSlack);
+		TestEqual(TEXT("(FString: Valid string with zero slack"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+	}
+
+	// Test creating from an empty string with a valid slack value
+	{
+		const TCHAR* TestString = TEXT("");
+		const char* TestAsciiString = "";
+		const int32 LengthOfString = TCString<TCHAR>::Strlen(TestString);
+		const int32 ExtraSlack = 32;
+		const int32 NumElements = LengthOfString + ExtraSlack + 1;
+
+		const SIZE_T ExpectedCapacity = FMemory::QuantizeSize(NumElements * sizeof(TCHAR));
+
+		FString StringFromTChar(TestString, ExtraSlack);
+		TestEqual(TEXT("(TCHAR: Empty string with slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromAscii(TestAsciiString, ExtraSlack);
+		TestEqual(TEXT("(ASCII: Empty string with slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
+		TestEqual(TEXT("(FStringView: Empty string with slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFString(FString(TestString), ExtraSlack);
+		TestEqual(TEXT("(FString: Empty string with slack) resulting capacity"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+	}
+
+	// Test creating from an empty string with a zero slack value
+	{
+		const TCHAR* TestString = TEXT("");
+		const char* TestAsciiString = "";
+		const int32 ExtraSlack = 0;
+
+		const SIZE_T ExpectedCapacity = 0u;
+
+		FString StringFromTChar(TestString, ExtraSlack);
+		TestEqual(TEXT("(TCHAR: Empty string with zero slack) resulting capacity"), StringFromTChar.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromAscii(TestAsciiString, ExtraSlack);
+		TestEqual(TEXT("(ASCII: Empty string with zero slack) resulting capacity"), StringFromAscii.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFStringView(FStringView(TestString), ExtraSlack);
+		TestEqual(TEXT("(FStringView: Empty string with zero slack) resulting capacity"), StringFromFStringView.GetAllocatedSize(), ExpectedCapacity);
+
+		FString StringFromFString(FString(TestString), ExtraSlack);
+		TestEqual(TEXT("(FString: Empty string with zero slack) resulting capacity"), StringFromFString.GetAllocatedSize(), ExpectedCapacity);
+	}
+
+	return true;
+}
+
+IMPLEMENT_SIMPLE_AUTOMATION_TEST(FStringEqualityTest, "System.Core.String.Equality", EAutomationTestFlags::ApplicationContextMask | EAutomationTestFlags::SmokeFilter)
+bool FStringEqualityTest::RunTest(const FString& Parameters)
+{
+	auto TestSelfEquality = [this](const TCHAR* A)
+	{
+		TestTrue(TEXT("Self Equality C string"), FString(A) == A);
+		TestTrue(TEXT("Self Equality C string"), A == FString(A));
+		TestTrue(TEXT("Self Equality CaseSensitive"), FString(A).Equals(FString(A), ESearchCase::CaseSensitive));
+		TestTrue(TEXT("Self Equality IgnoreCase"), FString(A).Equals(FString(A), ESearchCase::IgnoreCase));
+
+		FString Slacker(A);
+		Slacker.Reserve(100);
+		TestTrue(TEXT("Self Equality slack"), Slacker == FString(A));
+	};
+
+	auto TestPairEquality = [this](const TCHAR* A, const TCHAR* B)
+	{
+		TestEqual(TEXT("Equals CaseSensitive"), FCString::Strcmp(A, B)  == 0, FString(A).Equals(FString(B), ESearchCase::CaseSensitive));
+		TestEqual(TEXT("Equals CaseSensitive"), FCString::Strcmp(B, A)  == 0, FString(B).Equals(FString(A), ESearchCase::CaseSensitive));
+		TestEqual(TEXT("Equals IgnoreCase"),	FCString::Stricmp(A, B) == 0, FString(A).Equals(FString(B), ESearchCase::IgnoreCase));
+		TestEqual(TEXT("Equals IgnoreCase"),	FCString::Stricmp(B, A) == 0, FString(B).Equals(FString(A), ESearchCase::IgnoreCase));
+	};
+
+	const TCHAR* Pairs[][2] =	{ {TEXT(""),	TEXT(" ")}
+								, {TEXT("a"),	TEXT("A")}
+								, {TEXT("aa"),	TEXT("aA")}
+								, {TEXT("az"),	TEXT("AZ")}
+								, {TEXT("@["),	TEXT("@]")} };
+
+	for (const TCHAR** Pair : Pairs)
+	{
+		TestSelfEquality(Pair[0]);
+		TestSelfEquality(Pair[1]);
+		TestPairEquality(Pair[0], Pair[1]);
+	}
+
+	return true;	
+}
+
 #endif // WITH_DEV_AUTOMATION_TESTS

@@ -73,6 +73,7 @@ EPixelFormat FDDSLoadHelper::ComputePixelFormat() const
 			Format = PF_BC5;
 		}
 		else if(DDSHeader->ddpf.dwFourCC == MAKEFOURCC('B','C','4','U') ||
+			DDSHeader->ddpf.dwFourCC == MAKEFOURCC('A', 'T', 'I', '1') ||
 			DDSHeader->ddpf.dwFourCC == MAKEFOURCC('B','C','4','S'))
 		{
 			Format = PF_BC4;

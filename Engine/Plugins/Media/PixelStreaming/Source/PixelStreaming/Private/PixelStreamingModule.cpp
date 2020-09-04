@@ -7,7 +7,6 @@
 #include "InputDevice.h"
 #include "PixelStreamerInputComponent.h"
 #include "PixelStreamerDelegates.h"
-#include "SessionMonitorConnection.h"
 #include "SignallingServerConnection.h"
 #include "HUDStats.h"
 #include "PixelStreamingPrivate.h"
@@ -129,13 +128,6 @@ void FPixelStreamingModule::InitStreamer()
 	UFreezeFrame::CreateInstance();
 	verify(FModuleManager::Get().LoadModule(FName("ImageWrapper")));
 
-	uint16 SessionMonitorPort = 0;
-	FParse::Value(FCommandLine::Get(), TEXT("PixelStreamingSessionMonitorPort="), SessionMonitorPort);
-	if (SessionMonitorPort)
-	{
-		SessionMonitorConnection = MakeUnique<FSessionMonitorConnection>(SessionMonitorPort);
-	}
-
 	Streamer = MakeUnique<FStreamer>(FString::Printf(TEXT("ws://%s:%d"), *SignallingServerIP, SignallingServerPort));
 }
 
@@ -174,18 +166,33 @@ void FPixelStreamingModule::InitPlayer()
 /** IModuleInterface implementation */
 void FPixelStreamingModule::StartupModule()
 {
-	// only D3D11/D3D12 is supported
-	if (
-		GDynamicRHI == nullptr ||
-		!(GDynamicRHI->GetName() == FString(TEXT("D3D11")) || GDynamicRHI->GetName() == FString(TEXT("D3D12")))
-		)
+	FString DynamicRHIName = TEXT("[null]");
+	bool bIsD3D11 = false;
+	bool bIsD3D12 = false;
+	if (GDynamicRHI != nullptr)
 	{
-		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11/D3D12 Dynamic RHI is supported. Detected %s"), GDynamicRHI != nullptr ? GDynamicRHI->GetName() : TEXT("[null]"));
+		DynamicRHIName = GDynamicRHI->GetName();
+		bIsD3D11 = GDynamicRHI->GetName() == FString(TEXT("D3D11"));
+		bIsD3D12 = GDynamicRHI->GetName() == FString(TEXT("D3D12"));
+	}
+	
+	// only D3D11/D3D12 is supported
+	if (!bIsD3D11 && !bIsD3D12)
+	{
+		UE_LOG(PixelStreaming, Log, TEXT("Only D3D11/D3D12 Dynamic RHI is supported. Detected %s"), *DynamicRHIName);
 		return;
 	}
 
 	InitStreamer();
-	InitPlayer();
+	if (bIsD3D11)
+	{
+		// The player is currently only supported on DX11.
+		InitPlayer();
+	}
+	else
+	{
+		UE_LOG(PixelStreaming, Log, TEXT("Player is supported only on DX11"));
+	}
 }
 
 void FPixelStreamingModule::ShutdownModule()
@@ -414,17 +421,6 @@ bool FPixelStreamingModule::IsTickableInEditor() const
 
 void FPixelStreamingModule::Tick(float DeltaTime)
 {
-	if (SessionMonitorConnection)
-	{
-		HeartbeatCountdown -= DeltaTime;
-		if (HeartbeatCountdown <= 0)
-		{
-			SessionMonitorConnection->Heartbeat();
-			//  Hardcoded value for now
-			HeartbeatCountdown = 2.0f;
-		}
-	}
-
 	FHUDStats::Get().Tick();
 }
 

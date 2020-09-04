@@ -26,6 +26,28 @@ enum class EStatsNodeType
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+enum class EStasNodeAggregatedStats
+{
+	Count,
+	Sum,
+	Min,
+	Max,
+	Average,
+	Median,
+	LowerQuartile,
+	UpperQuartile,
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+union FStatsNodeAggregatedStatsValue
+{
+	double Value;
+	int64 IntValue;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 template<typename Type>
 struct TAggregatedStats
 {
@@ -91,17 +113,18 @@ class FStatsNode : public Insights::FBaseTreeNode
 {
 public:
 	static const FName TypeName;
-	static const uint64 InvalidId = -1;
+	static constexpr uint32 InvalidCounterId = uint32(-1);
 
 public:
 	/** Initialization constructor for the stats node. */
-	FStatsNode(uint64 InId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType)
-		: FBaseTreeNode(InId, InName, InType == EStatsNodeType::Group)
+	FStatsNode(uint32 InCounterId, const FName InName, const FName InMetaGroupName, EStatsNodeType InType)
+		: FBaseTreeNode(InName, InType == EStatsNodeType::Group)
+		, CounterId(InCounterId)
 		, MetaGroupName(InMetaGroupName)
 		, Type(InType)
 		, bIsAddedToGraph(false)
 	{
-		const uint32 HashColor = GetId() * 0x2c2c57ed;
+		const uint32 HashColor = GetCounterId() * 0x2c2c57ed;
 		Color.R = ((HashColor >> 16) & 0xFF) / 255.0f;
 		Color.G = ((HashColor >> 8) & 0xFF) / 255.0f;
 		Color.B = ((HashColor) & 0xFF) / 255.0f;
@@ -111,8 +134,9 @@ public:
 	}
 
 	/** Initialization constructor for the group node. */
-	FStatsNode(const FName InGroupName)
-		: FBaseTreeNode(0, InGroupName, true)
+	explicit FStatsNode(const FName InGroupName)
+		: FBaseTreeNode(InGroupName, true)
+		, CounterId(InvalidCounterId)
 		, Type(EStatsNodeType::Group)
 		, Color(0.0, 0.0, 0.0, 1.0)
 		, bIsAddedToGraph(false)
@@ -121,6 +145,11 @@ public:
 	}
 
 	virtual const FName& GetTypeName() const override { return TypeName; }
+
+	/**
+	 * @return the counter id as provided by analyzer.
+	 */
+	uint32 GetCounterId() const { return CounterId; }
 
 	/**
 	 * @return a name of the meta group that this stats node belongs to, taken from the metadata.
@@ -146,6 +175,16 @@ public:
 		return Color;
 	}
 
+	bool IsAddedToGraph() const
+	{
+		return bIsAddedToGraph;
+	}
+
+	void SetAddedToGraphFlag(bool bOnOff)
+	{
+		bIsAddedToGraph = bOnOff;
+	}
+
 	/**
 	 * @return the aggregated stats of this stats counter (if counter is a "float number" type).
 	 */
@@ -156,7 +195,7 @@ public:
 
 	void ResetAggregatedStats();
 
-	void SetAggregatedStats(FAggregatedStats& AggregatedStats);
+	void SetAggregatedStats(const FAggregatedStats& AggregatedStats);
 
 	/**
 	 * @return the aggregated stats of this stats counter (if counter is an "integer number" type).
@@ -168,8 +207,8 @@ public:
 
 	void ResetAggregatedIntegerStats();
 
-	void SetAggregatedIntegerStats(FAggregatedIntegerStats& AggregatedIntegerStats);
-	
+	void SetAggregatedIntegerStats(const FAggregatedIntegerStats& AggregatedIntegerStats);
+
 	const FText FormatValue(double Value) const;
 	const FText FormatValue(int64 Value) const;
 
@@ -194,17 +233,10 @@ public:
 		Algo::SortBy(GetChildrenMutable(), Projection, Instance);
 	}
 
-	bool IsAddedToGraph() const
-	{
-		return bIsAddedToGraph;
-	}
-
-	void SetAddedToGraphFlag(bool bOnOff)
-	{
-		bIsAddedToGraph = bOnOff;
-	}
-
 private:
+	/** The counter id provided by the analyzer. */
+	uint32 CounterId;
+
 	/** The name of the meta group that this stats counter belongs to, based on the stats' metadata; only valid for stats counter nodes. */
 	const FName MetaGroupName;
 

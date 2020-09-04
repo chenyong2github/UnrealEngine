@@ -9,6 +9,9 @@
 #include "UnrealUSDWrapper.h"
 #include "USDMemory.h"
 
+#include "UsdWrappers/UsdPrim.h"
+#include "UsdWrappers/UsdStage.h"
+
 namespace USDKindTypes
 {
 	// Note: std::string for compatiblity with USD
@@ -18,14 +21,9 @@ namespace USDKindTypes
 	const std::string SubComponent("subcomponent");
 }
 
-enum class EUsdMeshImportType : uint8;
-class UUSDImportOptions;
 
-#if USE_USD_SDK
-#include "USDIncludesStart.h"
-#include "pxr/pxr.h"
-#include "USDIncludesEnd.h"
-#endif // #if USE_USD_SDK
+enum class EUsdMeshImportType : uint8;
+class UDEPRECATED_UUSDImportOptions;
 
 #include "USDImporter.generated.h"
 
@@ -48,18 +46,16 @@ struct USDIMPORTER_API FUsdImportContext
 	UPROPERTY()
 	FString ImportPathName;
 
-	UPROPERTY()
-	UUSDImportOptions* ImportOptions;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the new USDStageImporter module instead"))
+	UDEPRECATED_UUSDImportOptions* ImportOptions_DEPRECATED;
 
-	UPROPERTY()
-	UUSDPrimResolver* PrimResolver;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the new USDStageImporter module instead"))
+	UDEPRECATED_UUSDPrimResolver* PrimResolver_DEPRECATED;
 
-#if USE_USD_SDK
-	TUsdStore< pxr::UsdStageRefPtr > Stage;
+	UE::FUsdStage Stage;
 
 	/** Root Prim of the USD file */
-	TUsdStore< pxr::UsdPrim > RootPrim;
-#endif // #if USE_USD_SDK
+	UE::FUsdPrim RootPrim;
 
 	/** Object flags to apply to newly imported objects */
 	EObjectFlags ImportObjectFlags;
@@ -75,9 +71,7 @@ struct USDIMPORTER_API FUsdImportContext
 
 	virtual ~FUsdImportContext() { }
 
-#if USE_USD_SDK
-	virtual void Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage);
-#endif // #if USE_USD_SDK
+	virtual void Init(UObject* InParent, const FString& InName, const UE::FUsdStage& InStage);
 
 	void AddErrorMessage(EMessageSeverity::Type MessageSeverity, FText ErrorMessage);
 	void DisplayErrorMessages(bool bAutomated);
@@ -110,14 +104,12 @@ struct USDIMPORTER_API FUSDSceneImportContext : public FUsdImportContext
 
 	FCachedActorLabels ActorLabels;
 
-#if USE_USD_SDK
-	virtual void Init(UObject* InParent, const FString& InName, const TUsdStore< pxr::UsdStageRefPtr >& InStage);
-#endif // #if USE_USD_SDK
+	virtual void Init(UObject* InParent, const FString& InName, const UE::FUsdStage& InStage) override;
 };
 
 // Used to make ImportContext visible to the garbage collector so that it doesn't unload its references
-UCLASS(transient)
-class USDIMPORTER_API UUsdSceneImportContextContainer : public UObject
+UCLASS(transient, Deprecated)
+class USDIMPORTER_API UDEPRECATED_UUsdSceneImportContextContainer : public UObject
 {
 	GENERATED_BODY()
 
@@ -126,8 +118,8 @@ public:
 	FUSDSceneImportContext ImportContext;
 };
 
-UCLASS(transient)
-class USDIMPORTER_API UUSDImporter : public UObject
+UCLASS(transient, Deprecated)
+class USDIMPORTER_API UDEPRECATED_UUSDImporter : public UObject
 {
 	GENERATED_UCLASS_BODY()
 
@@ -137,7 +129,7 @@ public:
 	bool ShowImportOptions(UObject& ImportOptions);
 
 #if USE_USD_SDK
-	TUsdStore< pxr::UsdStageRefPtr > ReadUsdFile(FUsdImportContext& ImportContext, const FString& Filename);
+	UE::FUsdStage ReadUsdFile(FUsdImportContext& ImportContext, const FString& Filename);
 
 	void ImportUsdStage(FUSDSceneImportContext& ImportContext);
 

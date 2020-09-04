@@ -3,281 +3,88 @@
 #pragma once
 
 #if USE_USD_SDK
-#include "USDConversionUtils.h"
+#include "UnrealUSDWrapper.h"
 #include "USDMemory.h"
-
-#include "Containers/StringConv.h"
 
 #include <string>
 
 #include "USDIncludesStart.h"
-
-#include "pxr/base/gf/vec2f.h"
-#include "pxr/base/gf/vec3f.h"
-#include "pxr/base/gf/vec4f.h"
-
-#include "pxr/usd/sdf/path.h"
-#include "pxr/usd/usd/stage.h"
-
+	#include "pxr/pxr.h"
 #include "USDIncludesEnd.h"
+
+PXR_NAMESPACE_OPEN_SCOPE
+	class GfMatrix4d;
+	class GfVec2f;
+	class GfVec3f;
+	class GfVec4f;
+	class SdfPath;
+	class TfToken;
+
+	class UsdStage;
+	template< typename T > class TfRefPtr;
+
+	using UsdStageRefPtr = TfRefPtr< UsdStage >;
+PXR_NAMESPACE_CLOSE_SCOPE
+
+struct USDUTILITIES_API FUsdStageInfo
+{
+	EUsdUpAxis UpAxis = EUsdUpAxis::ZAxis;
+	float MetersPerUnit = 0.01f;
+
+	explicit FUsdStageInfo( const pxr::UsdStageRefPtr& Stage );
+};
 
 namespace UsdToUnreal
 {
-	struct FUsdStageInfo
-	{
-		pxr::TfToken UpAxis = pxr::UsdGeomTokens->z;
-		float MetersPerUnit = 0.01f;
+	USDUTILITIES_API FString ConvertString( const std::string& InString );
+	USDUTILITIES_API FString ConvertString( std::string&& InString );
+	USDUTILITIES_API FString ConvertString( const char* InString );
 
-		explicit FUsdStageInfo( const pxr::UsdStageRefPtr& Stage )
-		{
-			UpAxis = UsdUtils::GetUsdStageAxis( Stage );
-			MetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( Stage );
-		}
-	};
+	USDUTILITIES_API FString ConvertPath( const pxr::SdfPath& Path );
 
-	static FString ConvertString( const std::string& InString )
-	{
-		return FString( ANSI_TO_TCHAR( InString.c_str() ) );
-	}
+	USDUTILITIES_API FName ConvertName( const char* InString );
+	USDUTILITIES_API FName ConvertName( const std::string& InString );
+	USDUTILITIES_API FName ConvertName( std::string&& InString );
 
-	static FString ConvertString( std::string&& InString )
-	{
-		TUsdStore< std::string > UsdString( MoveTemp( InString ) ); // Store the temporary so that it gets destroyed with the USD allocator
+	USDUTILITIES_API FString ConvertToken( const pxr::TfToken& Token );
 
-		return FString( ANSI_TO_TCHAR( UsdString.Get().c_str() ) );
-	}
+	USDUTILITIES_API FLinearColor ConvertColor( const pxr::GfVec3f& InValue );
+	USDUTILITIES_API FLinearColor ConvertColor( const pxr::GfVec4f& InValue );
 
-	static FString ConvertString( const char* InString )
-	{
-		return FString( ANSI_TO_TCHAR( InString ) );
-	}
+	USDUTILITIES_API FVector2D ConvertVector( const pxr::GfVec2f& InValue );
+	USDUTILITIES_API FVector ConvertVector( const pxr::GfVec3f& InValue );
+	USDUTILITIES_API FVector ConvertVector( const FUsdStageInfo& StageInfo, const pxr::GfVec3f& InValue );
 
-	static FString ConvertPath( const pxr::SdfPath& Path )
-	{
-		return ConvertString( Path.GetString().c_str() );
-	}
+	USDUTILITIES_API FTransform ConvertTransform( bool bZUp, FTransform Transform );
 
-	static FName ConvertName( const char* InString )
-	{
-		return FName( InString );
-	}
+	USDUTILITIES_API FMatrix ConvertMatrix( const pxr::GfMatrix4d& Matrix );
+	USDUTILITIES_API FTransform ConvertMatrix( const FUsdStageInfo& StageInfo, const pxr::GfMatrix4d& InMatrix );
 
-	static FName ConvertName( const std::string& InString )
-	{
-		return FName( InString.c_str() );
-	}
-
-	static FName ConvertName( std::string&& InString )
-	{
-		TUsdStore< std::string > UsdString( MoveTemp( InString ) ); // Store the temporary so that it gets destroyed with the USD allocator
-
-		return FName( UsdString.Get().c_str() );
-	}
-
-	static FString ConvertToken( const pxr::TfToken& Token )
-	{
-		return UsdToUnreal::ConvertString( Token.GetString() );
-	}
-
-	static FLinearColor ConvertColor( const pxr::GfVec3f& InValue )
-	{
-		return FLinearColor( InValue[0], InValue[1], InValue[2] );
-	}
-
-	static FLinearColor ConvertColor( const pxr::GfVec4f& InValue )
-	{
-		return FLinearColor( InValue[0], InValue[1], InValue[2], InValue[3] );
-	}
-
-	static FVector2D ConvertVector( const pxr::GfVec2f& InValue )
-	{
-		return FVector2D( InValue[0], InValue[1] );
-	}
-
-	static FVector ConvertVector( const pxr::GfVec3f& InValue )
-	{
-		return FVector( InValue[0], InValue[1], InValue[2] );
-	}
-
-	static FVector ConvertVector( const FUsdStageInfo& StageInfo, const pxr::GfVec3f& InValue )
-	{
-		FVector Value = ConvertVector( InValue );
-
-		const float UEMetersPerUnit = 0.01f;
-		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
-		{
-			Value *= StageInfo.MetersPerUnit / UEMetersPerUnit;
-		}
-
-		const bool bIsZUp = ( StageInfo.UpAxis == pxr::UsdGeomTokens->z );
-
-		if ( bIsZUp )
-		{
-			Value.Y = -Value.Y;
-		}
-		else
-		{
-			Swap( Value.Y, Value.Z );
-		}
-
-		return Value;
-	}
-
-	static FTransform ConvertTransform( bool bZUp, FTransform Transform )
-	{
-		// Translate
-		FVector Translate = Transform.GetTranslation();
-
-		if (bZUp)
-		{
-			Translate.Y = -Translate.Y;
-		}
-		else
-		{
-			Swap(Translate.Y, Translate.Z);
-		}
-
-		Transform.SetTranslation(Translate);
-
-		FQuat Rotation = Transform.GetRotation();
-
-		if (bZUp)
-		{
-			Rotation.X = -Rotation.X;
-			Rotation.Z = -Rotation.Z;
-		}
-		else
-		{
-			Rotation = Rotation.Inverse();
-			Swap(Rotation.Y, Rotation.Z);
-		}
-
-		Transform.SetRotation(Rotation);
-
-		if(!bZUp)
-		{
-			FVector Scale = Transform.GetScale3D();
-			Swap(Scale.Y, Scale.Z);
-			Transform.SetScale3D(Scale);
-		}
-
-		return Transform;
-	}
-
-	static FMatrix ConvertMatrix( const pxr::GfMatrix4d& Matrix )
-	{
-		FMatrix UnrealMatrix(
-			FPlane(Matrix[0][0], Matrix[0][1], Matrix[0][2], Matrix[0][3]),
-			FPlane(Matrix[1][0], Matrix[1][1], Matrix[1][2], Matrix[1][3]),
-			FPlane(Matrix[2][0], Matrix[2][1], Matrix[2][2], Matrix[2][3]),
-			FPlane(Matrix[3][0], Matrix[3][1], Matrix[3][2], Matrix[3][3])
-		);
-
-		return UnrealMatrix;
-	}
-
-	static FTransform ConvertMatrix( const FUsdStageInfo& StageInfo, const pxr::GfMatrix4d& InMatrix )
-	{
-		FMatrix Matrix = ConvertMatrix( InMatrix );
-		FTransform Transform( Matrix );
-
-		Transform = ConvertTransform( StageInfo.UpAxis == pxr::UsdGeomTokens->z, Transform );
-
-		const float UEMetersPerUnit = 0.01f;
-		if ( !FMath::IsNearlyEqual( StageInfo.MetersPerUnit, UEMetersPerUnit ) )
-		{
-			Transform.ScaleTranslation( StageInfo.MetersPerUnit / UEMetersPerUnit );
-		}
-
-		return Transform;
-	}
+	USDUTILITIES_API float ConvertDistance( const FUsdStageInfo& StageInfo, const float InValue );
 }
 
 namespace UnrealToUsd
 {
-	static TUsdStore< std::string > ConvertString( const TCHAR* InString )
-	{
-		return MakeUsdStore< std::string >( TCHAR_TO_ANSI( InString ) );
-	}
+	USDUTILITIES_API TUsdStore< std::string > ConvertString( const TCHAR* InString );
 
-	static TUsdStore< pxr::SdfPath > ConvertPath( const TCHAR* InString )
-	{
-		// SdfPath throws a warning if constructed with the empty string
-		if (!InString || *InString == '\0')
-		{
-			return MakeUsdStore< pxr::SdfPath >();
-		}
+	USDUTILITIES_API TUsdStore< pxr::SdfPath > ConvertPath( const TCHAR* InString );
 
-		return MakeUsdStore< pxr::SdfPath >( TCHAR_TO_ANSI( InString ) );
-	}
+	USDUTILITIES_API TUsdStore< std::string > ConvertName( const FName& InName );
 
-	static TUsdStore< std::string > ConvertName( const FName& InName )
-	{
-		return MakeUsdStore< std::string >( TCHAR_TO_ANSI( *InName.ToString() ) );
-	}
+	USDUTILITIES_API TUsdStore< pxr::TfToken > ConvertToken( const TCHAR* InString );
 
-	static TUsdStore< pxr::TfToken > ConvertToken( const TCHAR* InString )
-	{
-		return MakeUsdStore< pxr::TfToken >( TCHAR_TO_ANSI( InString ) );
-	}
+	USDUTILITIES_API pxr::GfVec4f ConvertColor( const FLinearColor& InValue );
+	USDUTILITIES_API pxr::GfVec4f ConvertColor( const FColor& InValue );
 
-	static pxr::GfVec2f ConvertVector( const FVector2D& InValue )
-	{
-		return pxr::GfVec2f( InValue[0], InValue[1] );
-	}
+	USDUTILITIES_API pxr::GfVec2f ConvertVector( const FVector2D& InValue );
+	USDUTILITIES_API pxr::GfVec3f ConvertVector( const FVector& InValue );
+	USDUTILITIES_API pxr::GfVec3f ConvertVector( const FUsdStageInfo& StageInfo, const FVector& InValue );
 
-	static pxr::GfVec3f ConvertVector( const FVector& InValue )
-	{
-		return pxr::GfVec3f( InValue[0], InValue[1], InValue[2] );
-	}
+	USDUTILITIES_API pxr::GfMatrix4d ConvertMatrix( const FMatrix& Matrix );
 
-	static pxr::GfVec3f ConvertVector( const pxr::TfToken& UpAxis, const FVector& InValue )
-	{
-		pxr::GfVec3f Value = ConvertVector( InValue );
+	USDUTILITIES_API pxr::GfMatrix4d ConvertTransform( const FUsdStageInfo& StageInfo, const FTransform& Transform );
 
-		const bool bIsZUp = ( UpAxis == pxr::UsdGeomTokens->z );
-
-		if ( bIsZUp )
-		{
-			Value[1] = -Value[1];
-		}
-		else
-		{
-			Swap( Value[1], Value[2] );
-		}
-
-		return Value;
-	}
-
-	inline pxr::GfMatrix4d ConvertMatrix( const FMatrix& Matrix )
-	{
-		pxr::GfMatrix4d UsdMatrix(
-			Matrix.M[0][0], Matrix.M[0][1], Matrix.M[0][2], Matrix.M[0][3],
-			Matrix.M[1][0], Matrix.M[1][1], Matrix.M[1][2], Matrix.M[1][3],
-			Matrix.M[2][0], Matrix.M[2][1], Matrix.M[2][2], Matrix.M[2][3],
-			Matrix.M[3][0], Matrix.M[3][1], Matrix.M[3][2], Matrix.M[3][3]
-		);
-
-		return UsdMatrix;
-	}
-
-	inline pxr::GfMatrix4d ConvertTransform( const pxr::UsdStageRefPtr& Stage, const FTransform& Transform )
-	{
-		pxr::TfToken UpAxisValue = UsdUtils::GetUsdStageAxis( Stage );
-		const float StageMetersPerUnit = UsdUtils::GetUsdStageMetersPerUnit( Stage );
-
-		FTransform TransformInUsdSpace = Transform;
-
-		const float UEMetersPerUnit = 0.01f;
-		if ( !FMath::IsNearlyEqual( StageMetersPerUnit, UEMetersPerUnit ) )
-		{
-			TransformInUsdSpace.ScaleTranslation( StageMetersPerUnit * UEMetersPerUnit );
-		}
-
-		TransformInUsdSpace = UsdToUnreal::ConvertTransform( UpAxisValue == pxr::UsdGeomTokens->z, TransformInUsdSpace );
-
-		return ConvertMatrix( TransformInUsdSpace.ToMatrixWithScale() );
-	}
+	USDUTILITIES_API float ConvertDistance( const FUsdStageInfo& StageInfo, const float& InValue );
 }
 
 #endif // #if USE_USD_SDK

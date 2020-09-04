@@ -10,6 +10,6 @@
  */
 struct FDisplayClusterVrpnTrackerChannelData
 {
-	FVector  trLoc;
-	FQuat    trQuat;
+	FVector  TrackerLoc;
+	FQuat    TrackerQuat;
 };

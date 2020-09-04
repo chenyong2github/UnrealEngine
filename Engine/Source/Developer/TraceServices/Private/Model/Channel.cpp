@@ -14,9 +14,9 @@ FChannelProvider::FChannelProvider()
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-void FChannelProvider::AnnounceChannel(const ANSICHAR* InChannelName, uint32 Id)
+void FChannelProvider::AnnounceChannel(const TCHAR* InChannelName, uint32 Id)
 {
-	FString ChannelName(ANSI_TO_TCHAR(InChannelName));
+	FString ChannelName(InChannelName);
 	ChannelName.GetCharArray()[0] = TChar<TCHAR>::ToUpper(ChannelName.GetCharArray()[0]);
 	Channels.Add(FChannelEntry{
 		Id,

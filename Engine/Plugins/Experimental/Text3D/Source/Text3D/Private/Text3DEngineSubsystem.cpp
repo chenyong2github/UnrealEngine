@@ -9,6 +9,7 @@
 #include "Materials/Material.h"
 #include "MeshCreator.h"
 #include "GlyphLoader.h"
+#include "ContourNode.h"
 #include "UObject/ConstructorHelpers.h"
 
 
@@ -158,7 +159,7 @@ void FCachedFontData::LoadFreeTypeFace()
 	const FTypefaceEntry& Typeface = CompositeFont->DefaultTypeface.Fonts[0];
 	const FFontFaceDataConstPtr FaceData = Typeface.Font.GetFontFaceData();
 
-	if (FaceData->HasData() && FaceData->GetData().Num() > 0)
+	if (FaceData.IsValid() && FaceData->HasData() && FaceData->GetData().Num() > 0)
 	{
 		Data = FaceData->GetData();
 		FT_New_Memory_Face(FText3DModule::GetFreeTypeLibrary(), Data.GetData(), Data.Num(), 0, &FreeTypeFace);
@@ -186,9 +187,10 @@ TSharedPtr<int32> FCachedFontData::GetCacheCounter()
 	return CacheCounter;
 }
 
-TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
+TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
 {
 	uint32 HashParameters = 0;
+	HashParameters = HashCombine(HashParameters, GetTypeHash(bOutline));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Extrude));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Bevel));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(BevelType));
@@ -198,9 +200,10 @@ TSharedPtr<int32> FCachedFontData::GetMeshesCacheCounter(float Extrude, float Be
 	return CachedMeshes.GetCacheCounter();
 }
 
-UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
+UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments)
 {
 	uint32 HashParameters = 0;
+	HashParameters = HashCombine(HashParameters, GetTypeHash(bOutline));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Extrude));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(Bevel));
 	HashParameters = HashCombine(HashParameters, GetTypeHash(BevelType));
@@ -220,13 +223,13 @@ UStaticMesh* FCachedFontData::GetGlyphMesh(uint32 GlyphIndex, float Extrude, flo
 
 
 	FMeshCreator MeshCreator;
-	TSharedPtr<FContourList> Contours = GetGlyphContours(GlyphIndex);
-	if (!Contours.Get())
+	TSharedContourNode Root = GetGlyphContours(GlyphIndex);
+	if (Root->Children.Num() == 0)
 	{
 		return nullptr;
 	}
 
-	MeshCreator.CreateMeshes(Contours, Extrude, Bevel, BevelType, BevelSegments);
+	MeshCreator.CreateMeshes(Root, bOutline, Extrude, Bevel, BevelType, BevelSegments);
 	MeshCreator.SetFrontAndBevelTextureCoordinates(Bevel);
 	MeshCreator.MirrorGroups(Extrude);
 
@@ -249,7 +252,7 @@ const FString& FCachedFontData::GetFontName()
 	return FontName;
 }
 
-TSharedPtr<FContourList> FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
+TSharedContourNode FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
 {
 	check(FreeTypeFace);
 
@@ -264,9 +267,9 @@ TSharedPtr<FContourList> FCachedFontData::GetGlyphContours(uint32 GlyphIndex)
 	}
 
 	FGlyphLoader GlyphLoader(FreeTypeFace->glyph);
-	TSharedPtr<FContourList> Contours = GlyphLoader.GetContourList();
-	//Glyphs.Add(GlyphIndex, Contours);
-	return Contours;
+	TSharedContourNode Root = GlyphLoader.GetContourList();
+	//Glyphs.Add(GlyphIndex, Root);
+	return Root;
 }
 
 bool FCachedFontData::Cleanup()

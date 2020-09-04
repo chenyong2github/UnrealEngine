@@ -85,9 +85,10 @@ public:
 	static ENGINE_API void RunCommandOnGameThread(TFunction<void()> InFunction, const TStatId InStatId = TStatId());
 
 	static ENGINE_API void SetUseThreadedAudio(bool bInUseThreadedAudio);
-	static ENGINE_API bool IsUsingThreadedAudio() { return bUseThreadedAudio; }
+	static ENGINE_API bool IsUsingThreadedAudio();
 
-	static ENGINE_API bool IsAudioThreadRunning() { return bIsAudioThreadRunning; }
+	UE_DEPRECATED(4.26, "Please use global `IsAudioThreadRunning()`")
+	static ENGINE_API bool IsAudioThreadRunning();
 
 	static ENGINE_API void SuspendAudioThread();
 	static ENGINE_API void ResumeAudioThread();

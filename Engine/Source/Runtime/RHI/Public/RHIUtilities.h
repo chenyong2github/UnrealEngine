@@ -14,14 +14,6 @@
 #include "RHIDefinitions.h"
 #include "RHICommandList.h"
 
-class FExclusiveDepthStencil;
-class FRHIDepthRenderTargetView;
-class FRHIRenderTargetView;
-class FRHISetRenderTargetsInfo;
-struct FRHIResourceCreateInfo;
-enum class EResourceTransitionAccess;
-enum class ESimpleRenderTargetMode;
-
 
 static inline bool IsDepthOrStencilFormat(EPixelFormat Format)
 {
@@ -165,6 +157,7 @@ struct FTextureRWBuffer3D
 	{
 		RHIAcquireTransientResource(Buffer);
 	}
+
 	void DiscardTransientResource()
 	{
 		RHIDiscardTransientResource(Buffer);
@@ -249,7 +242,6 @@ struct FRWBuffer
 			|| IsMetalPlatform(GMaxRHIShaderPlatform)
 			|| (GMaxRHIFeatureLevel == ERHIFeatureLevel::ES3_1 && GSupportsResourceView)
 		);
-
 		// Provide a debug name if using Fast VRAM so the allocators diagnostics will work
 		ensure(!((AdditionalUsage & BUF_FastVRAM) && !InDebugName));
 		NumBytes = BytesPerElement * NumElements;
@@ -359,11 +351,12 @@ struct FReadBuffer
 
 	FReadBuffer(): NumBytes(0) {}
 
-	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr)
+	void Initialize(uint32 BytesPerElement, uint32 NumElements, EPixelFormat Format, uint32 AdditionalUsage = 0, const TCHAR* InDebugName = nullptr, FResourceArrayInterface* InResourceArray = nullptr)
 	{
 		check(GSupportsResourceView);
 		NumBytes = BytesPerElement * NumElements;
 		FRHIResourceCreateInfo CreateInfo;
+		CreateInfo.ResourceArray = InResourceArray;
 		CreateInfo.DebugName = InDebugName;
 		Buffer = RHICreateVertexBuffer(NumBytes, BUF_ShaderResource | AdditionalUsage, CreateInfo);
 		SRV = RHICreateShaderResourceView(Buffer, BytesPerElement, Format);
@@ -625,17 +618,6 @@ inline void TransitionRenderPassTargets(FRHICommandList& RHICmdList, const FRHIR
 	}
 
 	RHICmdList.TransitionResources(EResourceTransitionAccess::EWritable, Transitions, TransitionIndex);
-}
-
-UE_DEPRECATED(4.25, "UnbindRenderTargets API is deprecated; EndRenderPass implies UnbindRenderTargets.")
-inline void UnbindRenderTargets(FRHICommandList& RHICmdList)
-{
-	check(RHICmdList.IsOutsideRenderPass());
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
-	FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
-	RHICmdList.SetRenderTargets(1, &RTV, &DepthRTV);
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 /**

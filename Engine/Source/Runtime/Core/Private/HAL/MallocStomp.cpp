@@ -22,13 +22,20 @@
 #define MALLOC_STOMP_KEEP_VIRTUAL_MEMORY 0
 #endif
 
+#if PLATFORM_64BITS
+	// 64-bit ABIs on x86_64 expect a 16-byte alignment
+#define STOMPALIGNMENT 16U
+#else
+#define STOMPALIGNMENT 0U
+#endif
+
 static void MallocStompOverrunTest()
 {
 #if !USING_CODE_ANALYSIS
 	const uint32 ArraySize = 4;
 	uint8* Pointer = new uint8[ArraySize];
 	// Overrun.
-	Pointer[ArraySize+1] = 0;
+	Pointer[ArraySize+1+ STOMPALIGNMENT] = 0;
 #endif // !USING_CODE_ANALYSIS
 }
 
@@ -67,7 +74,7 @@ void* FMallocStomp::TryMalloc(SIZE_T Size, uint32 Alignment)
 
 #if PLATFORM_64BITS
 	// 64-bit ABIs on x86_64 expect a 16-byte alignment
-	Alignment = FMath::Max<uint32>(Alignment, 16U);
+	Alignment = FMath::Max<uint32>(Alignment, STOMPALIGNMENT);
 #endif
 
 	const SIZE_T AlignedSize = (Alignment > 0U) ? ((Size + Alignment - 1U) & -static_cast<int32>(Alignment)) : Size;

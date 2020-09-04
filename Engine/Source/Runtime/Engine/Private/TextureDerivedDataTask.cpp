@@ -249,8 +249,16 @@ void FTextureCacheDerivedDataWorker::BuildTexture()
 	else if (bHasValidMip0)
 	{
 		// Only support single Block/Layer here (Blocks and Layers are intended for VT support)
-		ensure(TextureData.Blocks.Num() == 1);
-		ensure(TextureData.Layers.Num() == 1);
+		if (TextureData.Blocks.Num() > 1)
+		{
+			// This warning can happen if user attempts to import a UDIM without VT enabled
+			UE_LOG(LogTexture, Warning, TEXT("Texture %s was imported as UDIM with %d blocks but VirtualTexturing is not enabled, only the 1001 block will be availiable"),
+				*Texture.GetName(), TextureData.Blocks.Num());
+		}
+
+		// No user-facing way to generated multi-layered textures currently, so this should not occur
+		ensureMsgf(TextureData.Layers.Num() == 1, TEXT("Texture %s has %d layers bu VirtualTexturing is not enabled, only layer0 will be availiable"),
+			*Texture.GetName(), TextureData.Blocks.Num());
 
 		check(DerivedData->Mips.Num() == 0);
 		DerivedData->SizeX = 0;

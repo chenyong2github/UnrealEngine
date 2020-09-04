@@ -102,6 +102,21 @@ extern RENDERER_API TUniformBufferRef<FSceneTexturesUniformParameters> CreateSce
 	ESceneTextureSetupMode SetupMode,
 	EUniformBufferUsage Usage);
 
+extern RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
+	FSceneRenderTargets& SceneContext,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	EUniformBufferUsage Usage);
+
+extern RENDERER_API bool IsSceneTexturesValid(FRHICommandListImmediate& RHICmdList);
+
+template <typename TRHICmdList>
+RENDERER_API TRefCountPtr<FRHIUniformBuffer> CreateSceneTextureUniformBufferDependentOnShadingPath(
+	TRHICmdList& RHICmdList,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	EUniformBufferUsage Usage);
+
 template< typename TRHICmdList >
 RENDERER_API TUniformBufferRef<FSceneTexturesUniformParameters> CreateSceneTextureUniformBufferSingleDraw(TRHICmdList& RHICmdList, ESceneTextureSetupMode SceneTextureSetupMode, ERHIFeatureLevel::Type FeatureLevel);
 
@@ -132,59 +147,13 @@ extern RENDERER_API void BindSceneTextureUniformBufferDependentOnShadingPath(
 	const FShader::CompiledShaderInitializerType& Initializer,
 	FShaderUniformBufferParameter& SceneTexturesUniformBuffer);
 
-/** Encapsulates scene texture shader parameter bindings. */
-class RENDERER_API FSceneTextureShaderParameters
-{
-	DECLARE_TYPE_LAYOUT(FSceneTextureShaderParameters, NonVirtual);
-public:
-	/** Binds the parameters using a compiled shader's parameter map. */
-	void Bind(const FShader::CompiledShaderInitializerType& Initializer)
-	{
-		BindSceneTextureUniformBufferDependentOnShadingPath(Initializer, SceneTexturesUniformBuffer);
-	}
+BEGIN_SHADER_PARAMETER_STRUCT(FSceneTextureShaderParameters, RENDERER_API)
+	SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTextures)
+	SHADER_PARAMETER_STRUCT_REF(FMobileSceneTextureUniformParameters, MobileSceneTextures)
+END_SHADER_PARAMETER_STRUCT()
 
-	const FShaderUniformBufferParameter& GetUniformBufferParameter() const { return SceneTexturesUniformBuffer; }
-
-	template< typename ShaderRHIParamRef, typename TRHICmdList >
-	void Set(TRHICmdList& RHICmdList, const ShaderRHIParamRef& ShaderRHI, ERHIFeatureLevel::Type FeatureLevel, ESceneTextureSetupMode SetupMode) const
-	{
-		if (SceneTexturesUniformBuffer.IsBound())
-		{
-			if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Deferred)
-			{
-				TUniformBufferRef<FSceneTexturesUniformParameters> UniformBuffer = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, SetupMode, FeatureLevel);
-				SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTexturesUniformBuffer, UniformBuffer);
-			}
-			else if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-			{
-				TUniformBufferRef<FMobileSceneTextureUniformParameters> UniformBuffer = CreateMobileSceneTextureUniformBufferSingleDraw(RHICmdList, FeatureLevel);
-				SetUniformBufferParameter(RHICmdList, ShaderRHI, SceneTexturesUniformBuffer, UniformBuffer);
-			}
-		}
-	}
-
-	/** Serializer. */
-	friend FArchive& operator<<(FArchive& Ar,FSceneTextureShaderParameters& P)
-	{
-		Ar << P.SceneTexturesUniformBuffer;
-		return Ar;
-	}
-
-	inline bool IsBound() const 
-	{ 
-		return SceneTexturesUniformBuffer.IsBound(); 
-	}
-
-	bool IsSameUniformParameter(const FShaderUniformBufferParameter& Parameter)
-	{
-		if (Parameter.IsBound() && SceneTexturesUniformBuffer.IsBound() && Parameter.GetBaseIndex() == SceneTexturesUniformBuffer.GetBaseIndex())
-		{
-			return true;
-		}
-
-		return false;
-	}
-
-private:
-	LAYOUT_FIELD(FShaderUniformBufferParameter, SceneTexturesUniformBuffer);
-};
+extern RENDERER_API FSceneTextureShaderParameters CreateSceneTextureShaderParameters(
+	FSceneRenderTargets& SceneContext,
+	ERHIFeatureLevel::Type FeatureLevel,
+	ESceneTextureSetupMode SetupMode,
+	EUniformBufferUsage Usage);

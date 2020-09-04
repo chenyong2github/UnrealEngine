@@ -18,7 +18,7 @@ class FDisplayClusterVrpnAnalogInputDevice
 	: public FDisplayClusterVrpnAnalogInputDataHolder
 {
 public:
-	FDisplayClusterVrpnAnalogInputDevice(const FDisplayClusterConfigInput& config);
+	FDisplayClusterVrpnAnalogInputDevice(const FDisplayClusterConfigInput& Config);
 	virtual ~FDisplayClusterVrpnAnalogInputDevice();
 
 public:
@@ -30,7 +30,7 @@ public:
 
 private:
 	// Data update handler
-	static void VRPN_CALLBACK HandleAnalogDevice(void *userData, vrpn_ANALOGCB const tr);
+	static void VRPN_CALLBACK HandleAnalogDevice(void *UserData, vrpn_ANALOGCB const AnalogData);
 
 private:
 	// The device (PIMPL)

@@ -9,7 +9,6 @@
 #include "GenericPlatform/GenericPlatformFile.h"
 #include "Modules/ModuleManager.h"
 #include "HAL/IPlatformFileLogWrapper.h"
-#include "HAL/IPlatformFileProfilerWrapper.h"
 #include "HAL/IPlatformFileCachedWrapper.h"
 #include "HAL/IPlatformFileModule.h"
 #include "HAL/IPlatformFileOpenLogWrapper.h"
@@ -66,21 +65,6 @@ IPlatformFile* FPlatformFileManager::GetPlatformFile(const TCHAR* Name)
 		PlatformFile = AutoDestroySingleton.Get();
 	}
 #if !UE_BUILD_SHIPPING
-	else if (FCString::Strcmp(TProfiledPlatformFile<FProfiledFileStatsFileDetailed>::GetTypeName(), Name) == 0)
-	{
-		static TUniquePtr<IPlatformFile> AutoDestroySingleton(new TProfiledPlatformFile<FProfiledFileStatsFileDetailed>());
-		PlatformFile = AutoDestroySingleton.Get();
-	}
-	else if (FCString::Strcmp(TProfiledPlatformFile<FProfiledFileStatsFileSimple>::GetTypeName(), Name) == 0)
-	{
-		static TUniquePtr<IPlatformFile> AutoDestroySingleton(new TProfiledPlatformFile<FProfiledFileStatsFileSimple>());
-		PlatformFile = AutoDestroySingleton.Get();
-	}
-	else if (FCString::Strcmp(FPlatformFileReadStats::GetTypeName(), Name) == 0)
-	{
-		static TUniquePtr<IPlatformFile> AutoDestroySingleton(new FPlatformFileReadStats());
-		PlatformFile = AutoDestroySingleton.Get();
-	}
 	else if (FCString::Strcmp(FPlatformFileOpenLog::GetTypeName(), Name) == 0)
 	{
 		static TUniquePtr<IPlatformFile> AutoDestroySingleton(new FPlatformFileOpenLog());
@@ -94,11 +78,10 @@ IPlatformFile* FPlatformFileManager::GetPlatformFile(const TCHAR* Name)
 	}
 	else if (FModuleManager::Get().ModuleExists(Name))
 	{
-		// Try to load a module containing the platform file.
 		class IPlatformFileModule* PlatformFileModule = FModuleManager::LoadModulePtr<IPlatformFileModule>(Name);
+
 		if (PlatformFileModule != NULL)
 		{
-			// TODO: Attempt to create platform file
 			PlatformFile = PlatformFileModule->GetPlatformFile();
 		}
 	}

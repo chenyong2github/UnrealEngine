@@ -89,7 +89,7 @@ FOculusInput::FOculusInput( const TSharedRef< FGenericApplicationMessageHandler 
 	, MessageHandler( InMessageHandler )
 	, ControllerPairs()
 {
-	// take care of backward compatibility of Remote with Gamepad 
+	// take care of backward compatibility of Remote with Gamepad
 	if (bRemoteKeysMappedToGamepad)
 	{
 		Remote.MapKeysToGamepad();
@@ -127,19 +127,19 @@ void FOculusInput::PreInit()
 	LoadConfig();
 
 	// Register the FKeys
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_Thumbstick, LOCTEXT("OculusTouch_Left_Thumbstick", "Oculus Touch (L) Thumbstick CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_FaceButton1, LOCTEXT("OculusTouch_Left_FaceButton1", "Oculus Touch (L) X Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_Trigger, LOCTEXT("OculusTouch_Left_Trigger", "Oculus Touch (L) Trigger CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_FaceButton2, LOCTEXT("OculusTouch_Left_FaceButton2", "Oculus Touch (L) Y Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_IndexPointing, LOCTEXT("OculusTouch_Left_IndexPointing", "Oculus Touch (L) Pointing CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_ThumbUp, LOCTEXT("OculusTouch_Left_ThumbUp", "Oculus Touch (L) Thumb Up CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_Thumbstick, LOCTEXT("OculusTouch_Left_Thumbstick", "Oculus Touch (L) Thumbstick CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_FaceButton1, LOCTEXT("OculusTouch_Left_FaceButton1", "Oculus Touch (L) X Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_Trigger, LOCTEXT("OculusTouch_Left_Trigger", "Oculus Touch (L) Trigger CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_FaceButton2, LOCTEXT("OculusTouch_Left_FaceButton2", "Oculus Touch (L) Y Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_IndexPointing, LOCTEXT("OculusTouch_Left_IndexPointing", "Oculus Touch (L) Pointing CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Left_ThumbUp, LOCTEXT("OculusTouch_Left_ThumbUp", "Oculus Touch (L) Thumb Up CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
 
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_Thumbstick, LOCTEXT("OculusTouch_Right_Thumbstick", "Oculus Touch (R) Thumbstick CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_FaceButton1, LOCTEXT("OculusTouch_Right_FaceButton1", "Oculus Touch (R) A Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_Trigger, LOCTEXT("OculusTouch_Right_Trigger", "Oculus Touch (R) Trigger CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_FaceButton2, LOCTEXT("OculusTouch_Right_FaceButton2", "Oculus Touch (R) B Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_IndexPointing, LOCTEXT("OculusTouch_Right_IndexPointing", "Oculus Touch (R) Pointing CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_ThumbUp, LOCTEXT("OculusTouch_Right_ThumbUp", "Oculus Touch (R) Thumb Up CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_Thumbstick, LOCTEXT("OculusTouch_Right_Thumbstick", "Oculus Touch (R) Thumbstick CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_FaceButton1, LOCTEXT("OculusTouch_Right_FaceButton1", "Oculus Touch (R) A Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_Trigger, LOCTEXT("OculusTouch_Right_Trigger", "Oculus Touch (R) Trigger CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_FaceButton2, LOCTEXT("OculusTouch_Right_FaceButton2", "Oculus Touch (R) B Button CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_IndexPointing, LOCTEXT("OculusTouch_Right_IndexPointing", "Oculus Touch (R) Pointing CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouch_Right_ThumbUp, LOCTEXT("OculusTouch_Right_ThumbUp", "Oculus Touch (R) Thumb Up CapTouch"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::NotBlueprintBindableKey, "OculusTouch"));
 
 	EKeys::AddMenuCategoryDisplayInfo("OculusRemote", LOCTEXT("OculusRemoteSubCategory", "Oculus Remote"), TEXT("GraphEditor.PadEvent_16x"));
 
@@ -156,8 +156,8 @@ void FOculusInput::PreInit()
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusRemote_Home, LOCTEXT("OculusRemote_Home", "Oculus Remote Home"), FKeyDetails::GamepadKey, "OculusRemote"));
 
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouchpad_Touchpad, LOCTEXT("OculusTouchpad_Touchpad", "Oculus Touchpad Button"), FKeyDetails::GamepadKey | FKeyDetails::Deprecated));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouchpad_Touchpad_X, LOCTEXT("OculusTouchpad_Touchpad_X", "Oculus Touchpad X-Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
-	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouchpad_Touchpad_Y, LOCTEXT("OculusTouchpad_Touchpad_Y", "Oculus Touchpad Y-Axis"), FKeyDetails::GamepadKey | FKeyDetails::FloatAxis | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouchpad_Touchpad_X, LOCTEXT("OculusTouchpad_Touchpad_X", "Oculus Touchpad X-Axis"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::Deprecated));
+	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouchpad_Touchpad_Y, LOCTEXT("OculusTouchpad_Touchpad_Y", "Oculus Touchpad Y-Axis"), FKeyDetails::GamepadKey | FKeyDetails::Axis1D | FKeyDetails::Deprecated));
 	EKeys::AddKey(FKeyDetails(FOculusKey::OculusTouchpad_Back, LOCTEXT("OculusTouchpad_Back", "Oculus Touchpad Back"), FKeyDetails::GamepadKey | FKeyDetails::Deprecated));
 
 	UE_LOG(LogOcInput, Log, TEXT("OculusInput pre-init called"));
@@ -208,7 +208,7 @@ void FOculusInput::SendControllerEvents()
 			OculusHMD->StartGameFrame_GameThread();
 
 			ovrpControllerState4 OvrpControllerState;
-			
+
 			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetControllerState4(ovrpController_Remote, &OvrpControllerState)) &&
 				(OvrpControllerState.ConnectedControllerTypes & ovrpController_Remote))
 			{
@@ -296,7 +296,7 @@ void FOculusInput::SendControllerEvents()
 				}
 			}
 
-			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetControllerState4(ovrpController_Touchpad, &OvrpControllerState)) && 
+			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetControllerState4(ovrpController_Touchpad, &OvrpControllerState)) &&
 				(OvrpControllerState.ConnectedControllerTypes & ovrpController_Touchpad))
 			{
 				ovrpVector2f ThumbstickValue = OvrpControllerState.Touchpad[0];
@@ -420,7 +420,7 @@ void FOculusInput::SendControllerEvents()
 									FCoreDelegates::VRControllerRecentered.Broadcast();
 								}
 							}
-							
+
 							if (OvrTriggerAxis != State.TriggerAxis)
 							{
 								State.TriggerAxis = OvrTriggerAxis;
@@ -496,7 +496,7 @@ void FOculusInput::SendControllerEvents()
 								case EOculusTouchControllerButton::Thumbstick:
 									bButtonPressed = bIsLeft ? (OvrpControllerState.Buttons & ovrpButton_LThumb) != 0 : (OvrpControllerState.Buttons & ovrpButton_RThumb) != 0;
 									break;
-									
+
 								case EOculusTouchControllerButton::Thumbstick_Up:
 									if (bIsTouchController && State.ThumbstickAxes.Size() > 0.7f ||
 										bIsMobileController && State.Buttons[(int)EOculusTouchControllerButton::Thumbstick].bIsPressed && State.ThumbstickAxes.Size() > 0.5f)
@@ -567,7 +567,7 @@ void FOculusInput::SendControllerEvents()
 									bButtonPressed = (bIsLeft ? (OvrpControllerState.Buttons & ovrpTouch_LTouchpad) != 0 : (OvrpControllerState.Buttons & ovrpTouch_RTouchpad) != 0) ||
 										(bGoKeysMappedToTouch && (bIsLeft ? (OvrpControllerState.Touches & ovrpTouch_LThumb) != 0 : (OvrpControllerState.Touches & ovrpTouch_RThumb) != 0));
 									break;
-								
+
 								default:
 									check(0);
 									break;
@@ -647,7 +647,7 @@ void FOculusInput::SendControllerEvents()
 								default:
 									check(0);
 								}
-							
+
 								if (CurrentAxisVal != CapState.State)
 								{
 									MessageHandler->OnControllerAnalog(CapState.Axis, ControllerPair.UnrealControllerIndex, CurrentAxisVal);
@@ -750,7 +750,7 @@ void FOculusInput::UpdateForceFeedback( const FOculusTouchControllerPair& Contro
 		if(IOculusHMDModule::IsAvailable() && FOculusHMDModule::GetPluginWrapper().GetInitialized() && FApp::HasVRFocus())
 		{
 			ovrpControllerState4 OvrpControllerState;
-			
+
 			if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetControllerState4((ovrpController)(ovrpController_Active | ovrpController_LTrackedRemote | ovrpController_RTrackedRemote), &OvrpControllerState)) &&
 				(OvrpControllerState.ConnectedControllerTypes & (ovrpController_Touch | ovrpController_LTrackedRemote | ovrpController_RTrackedRemote)))
 			{
@@ -934,7 +934,7 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 					}
 
 					ovrpControllerState4 OvrpControllerState;
-					
+
 					ovrpController ControllerTypes = (ovrpController)(ovrpController_Active | ovrpController_LTrackedRemote | ovrpController_RTrackedRemote);
 
 #ifdef USE_ANDROID_INPUT
@@ -1021,7 +1021,7 @@ void FOculusInput::SetHapticFeedbackValues(int32 ControllerId, int32 Hand, const
 									}
 								}
 							}
-						} 
+						}
 						else
 						{
 							// Buffered haptics is currently only supported on Touch

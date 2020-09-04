@@ -6,7 +6,7 @@
 
 #include "GenericPlatform/Accessibility/GenericAccessibleInterfaces.h"
 
-@class FIOSAccessibilityContainer;
+@class FIOSAccessibilityLeaf;
 
 /**
  * This class is a singleton and should be accessed through [FIOSAccessibilityCache AccessibilityElementCache].
@@ -21,12 +21,13 @@
 @interface FIOSAccessibilityCache : NSObject
 {
 @private
-	/** AccessibleWidgetId(String)->FIOSAccessibilityContainer map for all created containers. */
+	/** AccessibleWidgetId(String)->FIOSAccessibilityLeaf map for all created containers. */
 	NSMutableDictionary* Cache;
 }
-
-/** Retrieve a cached container, or create one if it doesn't exist yet. */
--(FIOSAccessibilityContainer*)GetAccessibilityElement:(AccessibleWidgetId)Id;
+/** The Id of the root IAccessibleWindow that backs the IOS application */
+@property (nonatomic) AccessibleWidgetId RootWindowId;
+/** Retrieve a cached leaf, or create one if it doesn't exist yet. */
+-(FIOSAccessibilityLeaf*)GetAccessibilityElement:(AccessibleWidgetId)Id;
 /** Returns true if the Cache contains the Id. Does not create one if it doesn't exist. */
 -(bool)AccessibilityElementExists:(AccessibleWidgetId)Id;
 /** Removes an entry from the Cache. */
@@ -35,9 +36,8 @@
 -(void)Clear;
 /** Loop over all cached elements and update any properties necessary on the Game thread. */
 -(void)UpdateAllCachedProperties;
-
 /** Singleton accessor */
-+(id)AccessibilityElementCache;
++(FIOSAccessibilityCache*)AccessibilityElementCache;
 
 #if !UE_BUILD_SHIPPING
 -(void)DumpAccessibilityStats;

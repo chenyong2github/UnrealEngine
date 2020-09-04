@@ -89,6 +89,7 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 	bShowShowReferencesOptions = true;
 	bShowShowSearchableNames = true;
 	bShowShowNativePackages = true;
+	bDirtyResults = false;
 
 	ChildSlot
 	[
@@ -134,6 +135,23 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 				.IsEnabled(this, &SReferenceViewer::IsForwardEnabled)
 				[
 					SNew(SImage) .Image(FEditorStyle::GetBrush("ContentBrowser.HistoryForward"))
+				]
+			]
+
+			// Refresh Button
+			+SHorizontalBox::Slot()
+			.AutoWidth()
+			.Padding(1,0,3,0)
+			.VAlign(VAlign_Center)
+			[
+				SNew(SButton)
+				.ButtonStyle( FEditorStyle::Get(), "HoverHintOnly" )
+				.ForegroundColor( FEditorStyle::GetSlateColor(DefaultForegroundName) )
+				.ToolTipText(LOCTEXT("RefreshTooltip", "Refresh current view"))
+				.ContentPadding( 0 )
+				.OnClicked(this, &SReferenceViewer::RefreshClicked)
+				[
+					SNew(SImage) .Image(FEditorStyle::GetBrush("Icons.Refresh"))
 				]
 			]
 
@@ -374,6 +392,31 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 					.AutoHeight()
 					[
 						SNew(SHorizontalBox)
+						.Visibility_Lambda([this]() { return (bShowShowReferencesOptions ? EVisibility::Visible : EVisibility::Collapsed); })
+
+						+ SHorizontalBox::Slot()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(STextBlock)
+							.Text(LOCTEXT("ShowHideEditorOnlyReferences", "Show EditorOnly References"))
+						]
+
+						+SHorizontalBox::Slot()
+						.AutoWidth()
+						.VAlign(VAlign_Center)
+						.Padding(2.f)
+						[
+							SNew(SCheckBox)
+							.OnCheckStateChanged(this, &SReferenceViewer::OnShowEditorOnlyReferencesChanged)
+							.IsChecked(this, &SReferenceViewer::IsShowEditorOnlyReferencesChecked)
+						]
+					]
+
+					+ SVerticalBox::Slot()
+					.AutoHeight()
+					[
+						SNew(SHorizontalBox)
 						.Visibility(this, &SReferenceViewer::GetManagementReferencesVisibility)
 
 						+ SHorizontalBox::Slot()
@@ -454,6 +497,15 @@ void SReferenceViewer::Construct(const FArguments& InArgs)
 			[
 				AssetDiscoveryIndicator
 			]
+
+			+SOverlay::Slot()
+			.HAlign(HAlign_Center)
+			.VAlign(VAlign_Bottom)
+			.Padding(FMargin(0, 0, 0, 16))
+			[
+				SNew(STextBlock)
+				.Text(this, &SReferenceViewer::GetStatusText)
+			]
 		]
 	];
 
@@ -533,6 +585,15 @@ void SReferenceViewer::RebuildGraph()
 		{
 			GraphObj->RebuildGraph();
 		}
+
+		bDirtyResults = false;
+		if (!AssetRefreshHandle.IsValid())
+		{
+			// Listen for updates
+			AssetRefreshHandle = AssetRegistryModule.Get().OnAssetUpdated().AddSP(this, &SReferenceViewer::OnAssetRegistryChanged);
+			AssetRegistryModule.Get().OnAssetAdded().AddSP(this, &SReferenceViewer::OnAssetRegistryChanged);
+			AssetRegistryModule.Get().OnAssetRemoved().AddSP(this, &SReferenceViewer::OnAssetRegistryChanged);
+		}
 	}
 }
 
@@ -562,6 +623,15 @@ FReply SReferenceViewer::BackClicked()
 FReply SReferenceViewer::ForwardClicked()
 {
 	HistoryManager.GoForward();
+
+	return FReply::Handled();
+}
+
+FReply SReferenceViewer::RefreshClicked()
+{
+	RebuildGraph();
+	TriggerZoomToFit(0, 0);
+	RegisterActiveTimer(0.1f, FWidgetActiveTimerDelegate::CreateSP(this, &SReferenceViewer::TriggerZoomToFit));
 
 	return FReply::Handled();
 }
@@ -614,6 +684,43 @@ FText SReferenceViewer::GetAddressBarText() const
 		{
 			return TemporaryPathBeingEdited;
 		}
+	}
+
+	return FText();
+}
+
+FText SReferenceViewer::GetStatusText() const
+{
+	FString DirtyPackages;
+	if (GraphObj)
+	{
+		const TArray<FAssetIdentifier>& CurrentGraphRootPackageNames = GraphObj->GetCurrentGraphRootIdentifiers();
+		
+		for (const FAssetIdentifier& CurrentAsset : CurrentGraphRootPackageNames)
+		{
+			if (CurrentAsset.IsPackage())
+			{
+				FString PackageString = CurrentAsset.PackageName.ToString();
+				UPackage* InMemoryPackage = FindPackage(nullptr, *PackageString);
+				if (InMemoryPackage && InMemoryPackage->IsDirty())
+				{
+					DirtyPackages += FPackageName::GetShortName(*PackageString);
+
+					// Break on first modified asset to avoid string going too long, the multi select case is fairly rare
+					break;
+				}
+			}
+		}
+	}
+
+	if (DirtyPackages.Len() > 0)
+	{
+		return FText::Format(LOCTEXT("ModifiedWarning", "Showing old saved references for edited asset {0}"), FText::FromString(DirtyPackages));
+	}
+
+	if (bDirtyResults)
+	{
+		return LOCTEXT("DirtyWarning", "Saved references changed, refresh for update");
 	}
 
 	return FText();
@@ -887,6 +994,29 @@ ECheckBoxState SReferenceViewer::IsShowHardReferencesChecked() const
 	}
 }
 
+void SReferenceViewer::OnShowEditorOnlyReferencesChanged(ECheckBoxState NewState)
+{
+	if (GraphObj)
+	{
+		GraphObj->SetShowEditorOnlyReferencesEnabled(NewState == ECheckBoxState::Checked);
+		RebuildGraph();
+	}
+}
+
+
+ECheckBoxState SReferenceViewer::IsShowEditorOnlyReferencesChecked() const
+{
+	if (GraphObj)
+	{
+		return GraphObj->IsShowEditorOnlyReferences() ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+	}
+	else
+	{
+		return ECheckBoxState::Unchecked;
+	}
+}
+
+
 EVisibility SReferenceViewer::GetManagementReferencesVisibility() const
 {
 	if (bShowShowReferencesOptions && UAssetManager::IsValid())
@@ -1104,7 +1234,6 @@ void SReferenceViewer::ShowSelectionInContentBrowser()
 void SReferenceViewer::OpenSelectedInAssetEditor()
 {
 	TArray<FAssetIdentifier> IdentifiersToEdit;
-	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	TSet<UObject*> SelectedNodes = GraphEditorPtr->GetSelectedNodes();
 	for (FGraphPanelSelectionSet::TConstIterator It(SelectedNodes); It; ++It)
 	{
@@ -1140,10 +1269,10 @@ FString SReferenceViewer::GetReferencedObjectsList() const
 		for (const FName& SelectedPackageName : AllSelectedPackageNames)
 		{
 			TArray<FName> HardDependencies;
-			AssetRegistryModule.Get().GetDependencies(SelectedPackageName, HardDependencies, EAssetRegistryDependencyType::Hard);
+			AssetRegistryModule.Get().GetDependencies(SelectedPackageName, HardDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 			
 			TArray<FName> SoftDependencies;
-			AssetRegistryModule.Get().GetDependencies(SelectedPackageName, SoftDependencies, EAssetRegistryDependencyType::Soft);
+			AssetRegistryModule.Get().GetDependencies(SelectedPackageName, SoftDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Soft);
 
 			ReferencedObjectsList += FString::Printf(TEXT("[%s - Dependencies]\n"), *SelectedPackageName.ToString());
 			if (HardDependencies.Num() > 0)
@@ -1184,10 +1313,10 @@ FString SReferenceViewer::GetReferencingObjectsList() const
 		for (const FName& SelectedPackageName : AllSelectedPackageNames)
 		{
 			TArray<FName> HardDependencies;
-			AssetRegistryModule.Get().GetReferencers(SelectedPackageName, HardDependencies, EAssetRegistryDependencyType::Hard);
+			AssetRegistryModule.Get().GetReferencers(SelectedPackageName, HardDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 			TArray<FName> SoftDependencies;
-			AssetRegistryModule.Get().GetReferencers(SelectedPackageName, SoftDependencies, EAssetRegistryDependencyType::Soft);
+			AssetRegistryModule.Get().GetReferencers(SelectedPackageName, SoftDependencies, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Soft);
 
 			ReferencingObjectsList += FString::Printf(TEXT("[%s - Referencers]\n"), *SelectedPackageName.ToString());
 			if (HardDependencies.Num() > 0)
@@ -1516,6 +1645,12 @@ bool SReferenceViewer::HasAtLeastOneRealNodeSelected() const
 	}
 
 	return false;
+}
+
+void SReferenceViewer::OnAssetRegistryChanged(const FAssetData& AssetData)
+{
+	// We don't do more specific checking because that data is not exposed, and it wouldn't handle newly added references anyway
+	bDirtyResults = true;
 }
 
 void SReferenceViewer::OnInitialAssetRegistrySearchComplete()

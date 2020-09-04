@@ -89,19 +89,6 @@ static void ValidateTargetedRHIFeatureLevelExists(EShaderPlatform Platform)
 	}
 }
 
-bool FMetalDynamicRHIModule::IsSupported()
-{
-	return true;
-}
-
-FDynamicRHI* FMetalDynamicRHIModule::CreateRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
-{
-	LLM(MetalLLM::Initialise());
-	return new FMetalDynamicRHI(RequestedFeatureLevel);
-}
-
-IMPLEMENT_MODULE(FMetalDynamicRHIModule, MetalRHI);
-
 FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 : ImmediateContext(nullptr, FMetalDeviceContext::CreateDeviceContext())
 , AsyncComputeContext(nullptr)
@@ -110,6 +97,8 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	// This should be called once at the start 
 	check( IsInGameThread() );
 	check( !GIsThreadedRendering );
+	
+	GRHISupportsMultithreading = true;
 	
 	// we cannot render to a volume texture without geometry shader or vertex-shader-layer support, so initialise to false and enable based on platform feature availability
 	GSupportsVolumeTextureRendering = false;
@@ -421,11 +410,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 #else
 		GRHISupportsRHIThread = bSupportsRHIThread;
 #endif
-		// TODO: Reenable GRHISupportsParallelRHIExecute once fixed
-		// At the moment there are too many places where we call GetDeviceContext() whoich means we end up accessing the same Metal command buffer
-		// in the immediate commandlist and all the RHI task threads which causes crashes.
-		// This should have this logic for Parallel Execute: GRHISupportsRHIThread && ((!IsRHIDeviceIntel() && !IsRHIDeviceNVIDIA()) || FParse::Param(FCommandLine::Get(),TEXT("metalparallel")));
-		GRHISupportsParallelRHIExecute = GRHISupportsRHIThread && FParse::Param(FCommandLine::Get(),TEXT("metalparallel"));
+		GRHISupportsParallelRHIExecute = GRHISupportsRHIThread && ((!IsRHIDeviceIntel() && !IsRHIDeviceNVIDIA()) || FParse::Param(FCommandLine::Get(),TEXT("metalparallel")));
 #endif
 		GSupportsEfficientAsyncCompute = GRHISupportsParallelRHIExecute && (IsRHIDeviceAMD() || PLATFORM_IOS || FParse::Param(FCommandLine::Get(),TEXT("metalasynccompute"))); // Only AMD currently support async. compute and it requires parallel execution to be useful.
 		GSupportsParallelOcclusionQueries = GRHISupportsRHIThread;

@@ -964,14 +964,15 @@ bool FMeshDrawShaderBindings::MatchesForDynamicInstancing(const FMeshDrawShaderB
 		{
 			const uint8* LooseBindings = SingleShaderBindings.GetLooseDataStart();
 			const uint8* OtherLooseBindings = OtherSingleShaderBindings.GetLooseDataStart();
+			const uint32 LooseLength = SingleShaderBindings.GetLooseDataSizeBytes();
+			const uint32 OtherLength = OtherSingleShaderBindings.GetLooseDataSizeBytes();
 
-			uint32 Length = 0;
-			for (const FShaderLooseParameterBufferInfo& ParamInfo : SingleShaderBindings.ParameterMapInfo.LooseParameterBuffers)
+			if (LooseLength != OtherLength)
 			{
-				Length = FMath::Max<uint32>(Length, ParamInfo.BaseIndex + ParamInfo.Size);
+				return false;
 			}
 
-			if (memcmp(LooseBindings, OtherLooseBindings, Length) != 0)
+			if (memcmp(LooseBindings, OtherLooseBindings, LooseLength) != 0)
 			{
 				return false;
 			}
@@ -1105,13 +1106,13 @@ void FMeshDrawCommand::SubmitDraw(
 
 	if (GShowMaterialDrawEvents)
 	{
-		const FMaterial* Material = MeshDrawCommand.DebugData.Material;
+		const FString& MaterialName = MeshDrawCommand.DebugData.MaterialName;
 		FName ResourceName = MeshDrawCommand.DebugData.ResourceName;
 
 		FString DrawEventName = FString::Printf(
 				TEXT("%s %s"),
 				// Note: this is the parent's material name, not the material instance
-				*Material->GetFriendlyName(),
+			*MaterialName,
 			ResourceName.IsValid() ? *ResourceName.ToString() : TEXT(""));
 
 		const uint32 Instances = MeshDrawCommand.NumInstances * InstanceFactor;
@@ -1211,12 +1212,12 @@ void FMeshDrawCommand::SubmitDraw(
 void FMeshDrawCommand::SetDebugData(const FPrimitiveSceneProxy* PrimitiveSceneProxy, const FMaterial* Material, const FMaterialRenderProxy* MaterialRenderProxy, const FMeshProcessorShaders& UntypedShaders, const FVertexFactory* VertexFactory)
 {
 	DebugData.PrimitiveSceneProxyIfNotUsingStateBuckets = PrimitiveSceneProxy;
-	DebugData.Material = Material;
 	DebugData.MaterialRenderProxy = MaterialRenderProxy;
 	DebugData.VertexShader = UntypedShaders.VertexShader;
 	DebugData.PixelShader = UntypedShaders.PixelShader;
 	DebugData.VertexFactory = VertexFactory;
 	DebugData.ResourceName =  PrimitiveSceneProxy ? PrimitiveSceneProxy->GetResourceName() : FName();
+	DebugData.MaterialName = Material->GetFriendlyName();
 }
 #endif
 
@@ -1388,7 +1389,7 @@ void FMeshPassProcessor::GetDrawCommandPrimitiveId(
 		}
 		else if (BatchElement.PrimitiveIdMode == PrimID_DynamicPrimitiveShaderData)
 		{
-			DrawPrimitiveId = Scene->Primitives.Num() + BatchElement.DynamicPrimitiveShaderDataIndex;
+			DrawPrimitiveId = (Scene ? Scene->Primitives.Num() : 0) + BatchElement.DynamicPrimitiveShaderDataIndex;
 		}
 		else
 		{

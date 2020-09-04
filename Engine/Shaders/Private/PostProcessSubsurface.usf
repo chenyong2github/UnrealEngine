@@ -695,6 +695,22 @@ void SubsurfaceRecombinePS(noperspective float4 UVAndScreenPos : TEXCOORD0, floa
 	LerpFactor = 0;
 #endif // SUBSURFACE_RECOMBINE_MODE
 
+	float3 DirectColor = Texture2DSample(SubsurfaceInput0_Texture, SharedSubsurfaceSampler0, BufferUV).rgb;
+
+	uint ProfileId = ExtractSubsurfaceProfileInt(ScreenSpaceData.GBuffer);
+
+	bool bIsHalfResUpsample = false;
+	if (bIsHalfResUpsample && GetSubsurfaceProfileUseBurley(ProfileId))
+	{
+		FBurleyParameter BurleyParameter = GetBurleyParameters(ScreenSpaceData.GBuffer);
+		
+		float Depth = CalcSceneDepth(BufferUV);
+
+		float3 CenterSampleWeight = CalculateCenterSampleWeight(Depth, BurleyParameter);
+
+		SSSColor = lerp(SSSColor,DirectColor,CenterSampleWeight);
+	}
+
 	// we multiply the base color later in to get more crips human skin textures (scanned data always has Subsurface included)
 	float3 StoredBaseColor = ScreenSpaceData.GBuffer.StoredBaseColor;
 	float StoredSpecular = ScreenSpaceData.GBuffer.StoredSpecular;

@@ -95,30 +95,18 @@ static FPropertyNode* GetEditConditionParentNode(const TSharedPtr<FPropertyNode>
 		return ParentNode->GetParentNode();
 	}
 
+	if (PropertyNode->GetProperty()->ArrayDim > 1 && PropertyNode->GetArrayIndex() != INDEX_NONE)
+	{
+		// in a fixed size container, parent node is just the header field
+		return ParentNode->GetParentNode();
+	}
+
 	return ParentNode;
 }
 
 static uint8* GetPropertyValuePtr(const FProperty* Property, const TSharedPtr<FPropertyNode>& PropertyNode, FPropertyNode* ParentNode, FComplexPropertyNode* ComplexParentNode, int32 Index)
 {
-	uint8* BasePtr = ComplexParentNode->GetMemoryOfInstance(Index);
-	if (BasePtr == nullptr)
-	{
-		return nullptr;
-	}
-
-	uint8* ParentPtr = ParentNode->GetValueAddress(BasePtr, PropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData) != 0);
-	if (ParentPtr == nullptr)
-	{
-		return nullptr;
-	}
-
 	uint8* ValuePtr = ComplexParentNode->GetValuePtrOfInstance(Index, Property, ParentNode);
-
-	// SPARSEDATA_TODO: remove the next three lines once we're sure the pointer math is correct
-	uint8* OldValuePtr = Property->ContainerPtrToValuePtr<uint8>(ParentPtr);
-	check(OldValuePtr == ValuePtr || PropertyNode->HasNodeFlags(EPropertyNodeFlags::IsSparseClassData));
-	ensure(ValuePtr != nullptr);
-
 	return ValuePtr;
 }
 

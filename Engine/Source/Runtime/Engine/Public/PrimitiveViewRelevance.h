@@ -64,8 +64,6 @@ struct FPrimitiveViewRelevance : public FMaterialRelevance
 	uint32 bUsesLightingChannels : 1;
 	/** Whether the primitive has materials that use volumetric translucent self shadow. */
 	uint32 bTranslucentSelfShadow : 1;
-	/** Whether the view use custom data. */
-	uint32 bUseCustomViewData : 1;
 
 	/** 
 	 * Whether this primitive view relevance has been initialized this frame.  

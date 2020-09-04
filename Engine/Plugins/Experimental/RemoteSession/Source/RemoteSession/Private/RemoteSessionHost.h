@@ -4,7 +4,7 @@
 
 #include "RemoteSessionRole.h"
 
-class IBackChannelConnection;
+class IBackChannelSocketConnection;
 class FRecordingMessageHandler;
 class FFrameGrabber;
 class IImageWrapper;
@@ -28,12 +28,19 @@ public:
 
 protected:
 
-	virtual void	OnBindEndpoints() override;
-	virtual void	OnCreateChannels() override;
-	
-	bool			ProcessIncomingConnection(TSharedRef<IBackChannelConnection> NewConnection);
+	bool 			ProcessStateChange(const ConnectionState NewState, const ConnectionState OldState) override;
 
-	TSharedPtr<IBackChannelConnection> Listener;
+
+	virtual void 	BindEndpoints(TBackChannelSharedPtr<IBackChannelConnection> InConnection);
+
+	void			SendChannelListToConnection();
+	
+	bool			ProcessIncomingConnection(TSharedRef<IBackChannelSocketConnection> NewConnection);
+
+	void			OnChangeChannel(IBackChannelPacket& Message);
+
+
+	TSharedPtr<IBackChannelSocketConnection> Listener;
 
 	TArray<FRemoteSessionChannelInfo> SupportedChannels;
 

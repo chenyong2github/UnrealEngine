@@ -5,6 +5,9 @@
 #include "CoreMinimal.h"
 #include "ShaderCore.h"
 
+struct FShaderCompilerInput;
+struct FShaderCompilerOutput;
+
 /** Governs the behavior for adding shader defines to the preprocessed source. Can be helpful for the debugging, but makes the source unique
     which can prevent efficient caching.
   */

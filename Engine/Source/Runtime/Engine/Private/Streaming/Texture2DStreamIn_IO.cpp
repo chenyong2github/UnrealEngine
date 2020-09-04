@@ -115,6 +115,8 @@ void FTexture2DStreamIn_IO::ReportIOError(const FContext& Context)
 		{
 			StreamingManager.MarkMountedStateDirty(Context.Texture->GetMipIoFilenameHash(MipIndex));
 		}
+
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Texture->GetName());
 	}
 }
 

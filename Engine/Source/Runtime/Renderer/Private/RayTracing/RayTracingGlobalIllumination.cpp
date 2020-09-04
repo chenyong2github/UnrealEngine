@@ -224,7 +224,7 @@ DECLARE_GPU_STAT_NAMED(RayTracingGIBruteForce, TEXT("Ray Tracing GI: Brute Force
 DECLARE_GPU_STAT_NAMED(RayTracingGIFinalGather, TEXT("Ray Tracing GI: Final Gather"));
 DECLARE_GPU_STAT_NAMED(RayTracingGICreateGatherPoints, TEXT("Ray Tracing GI: Create Gather Points"));
 
-void SetupLightParameters(
+RENDERER_API void SetupLightParameters(
 	const FScene& Scene,
 	const FViewInfo& View,
 	FPathTracingLightData* LightParameters)

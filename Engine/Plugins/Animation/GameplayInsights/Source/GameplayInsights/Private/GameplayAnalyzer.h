@@ -14,7 +14,7 @@ public:
 
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
 	virtual void OnAnalysisEnd() override {}
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
 	enum : uint16
@@ -23,6 +23,11 @@ private:
 		RouteId_Class,
 		RouteId_Object,
 		RouteId_ObjectEvent,
+		RouteId_ClassPropertyStringId,
+		RouteId_ClassProperty,
+		RouteId_PropertiesStart,
+		RouteId_PropertiesEnd,
+		RouteId_PropertyValue,
 	};
 
 	Trace::IAnalysisSession& Session;

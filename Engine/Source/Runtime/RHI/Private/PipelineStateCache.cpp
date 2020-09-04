@@ -334,7 +334,7 @@ int32 FindRayTracingHitGroupIndex(FRayTracingPipelineState* Pipeline, FRHIRayTra
 	return INDEX_NONE;
 }
 
-void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, EApplyRendertargetOption ApplyFlags)
+void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipelineStateInitializer& Initializer, EApplyRendertargetOption ApplyFlags, bool bApplyAdditionalState)
 {
 	FGraphicsPipelineState* PipelineState = PipelineStateCache::GetAndOrCreateGraphicsPipelineState(RHICmdList, Initializer, ApplyFlags);
 	if (PipelineState && (PipelineState->RHIPipeline || !Initializer.bFromPSOFileCache))
@@ -344,7 +344,7 @@ void SetGraphicsPipelineState(FRHICommandList& RHICmdList, const FGraphicsPipeli
 		check(Result >= 1);
 #endif
 		check(IsInRenderingThread() || IsInParallelRenderingThread());
-		RHICmdList.SetGraphicsPipelineState(PipelineState, Initializer.BoundShaderState);
+		RHICmdList.SetGraphicsPipelineState(PipelineState, Initializer.BoundShaderState, bApplyAdditionalState);
 	}
 }
 

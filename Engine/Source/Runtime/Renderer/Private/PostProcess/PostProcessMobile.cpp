@@ -761,19 +761,15 @@ FPooledRenderTargetDesc FRCPassPostProcessBloomUpES2::ComputeOutputDesc(EPassOut
 	return Ret;
 }
 
-
-
-
-
 //
 // SUN MASK
 //
 
-class FPostProcessSunMaskPS_ES2 : public FGlobalShader
+class FMobileSunMaskPS : public FGlobalShader
 {
 public:
-	DECLARE_GLOBAL_SHADER(FPostProcessSunMaskPS_ES2);
-	SHADER_USE_PARAMETER_STRUCT(FPostProcessSunMaskPS_ES2, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FMobileSunMaskPS);
+	SHADER_USE_PARAMETER_STRUCT(FMobileSunMaskPS, FGlobalShader);
 
 	class FUseSunDim :					SHADER_PERMUTATION_BOOL("ES2_USE_SUN");
 	class FUseDofDim :					SHADER_PERMUTATION_BOOL("ES2_USE_DOF");
@@ -787,11 +783,12 @@ public:
 		FUseMetalMSAAHDRDecodeDim>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FVector4, SunColorApertureDiv2)
 		SHADER_PARAMETER_STRUCT_REF(FMobileSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_TEXTURE(Texture2D, PostprocessInput0)
-		SHADER_PARAMETER_SAMPLER(SamplerState, PostprocessInput0Sampler)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
+		SHADER_PARAMETER(FVector4, SunColorApertureDiv2)
+		RENDER_TARGET_BINDING_SLOTS()
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -814,7 +811,8 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		
+		OutEnvironment.SetDefine(TEXT("SHADER_SUN_MASK"), 1);
+
 		// This post-processor has a 1-Dimensional color attachment for SV_Target0
 		OutEnvironment.SetDefine(TEXT("SUBPASS_COLOR0_ATTACHMENT_DIM"), 1);
 
@@ -849,177 +847,93 @@ public:
 		PermutationVector.Set<FUseMetalMSAAHDRDecodeDim>(bInUseMetalMSAAHDRDecode);
 		return RemapPermutationVector(PermutationVector);
 	}
-
-public:
-
-	void SetPS(const FRenderingCompositePassContext& Context, const TShaderRef<FPostProcessSunMaskPS_ES2>& Shader, FRHITexture* PostprocessInput0)
-	{
-		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
-
-		FParameters ShaderParameters;
-
-		ShaderParameters.View = Context.View.ViewUniformBuffer;
-
-		ShaderParameters.SceneTextures = CreateMobileSceneTextureUniformBufferSingleDraw(Context.RHICmdList, Context.View.FeatureLevel);
-
-		ShaderParameters.SunColorApertureDiv2.X = Context.View.LightShaftColorMask.R;
-		ShaderParameters.SunColorApertureDiv2.Y = Context.View.LightShaftColorMask.G;
-		ShaderParameters.SunColorApertureDiv2.Z = Context.View.LightShaftColorMask.B;
-		ShaderParameters.SunColorApertureDiv2.W = GetMobileDepthOfFieldScale(Context.View) * 0.5f;
-
-		ShaderParameters.PostprocessInput0 = PostprocessInput0;
-		ShaderParameters.PostprocessInput0Sampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-		SetShaderParameters(Context.RHICmdList, Shader, ShaderRHI, ShaderParameters);
-	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FPostProcessSunMaskPS_ES2, "/Engine/Private/PostProcessMobile.usf", "SunMaskPS_ES2", SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FMobileSunMaskPS, "/Engine/Private/PostProcessMobile.usf", "SunMaskPS_ES2", SF_Pixel);
 
-
-class FPostProcessSunMaskVS_ES2 : public FGlobalShader
+FMobileSunMaskOutputs AddMobileSunMaskPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileSunMaskInputs& Inputs)
 {
-	DECLARE_SHADER_TYPE(FPostProcessSunMaskVS_ES2,Global);
+	check(Inputs.SceneColor.IsValid());
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	FScreenPassRenderTarget SunMaskOutput;
+	FScreenPassRenderTarget SceneColorOutput;
+
 	{
-		return !IsConsolePlatform(Parameters.Platform);
-	}
+		FRDGTextureDesc OutputDesc = Inputs.SceneColor.Texture->Desc;
+		OutputDesc.Reset();
 
-	FPostProcessSunMaskVS_ES2(){}
-
-public:
-	LAYOUT_FIELD(FPostProcessPassParameters, PostprocessParameter);
-
-	FPostProcessSunMaskVS_ES2(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		PostprocessParameter.Bind(Initializer.ParameterMap);
-	}
-
-	void SetVS(const FRenderingCompositePassContext& Context)
-	{
-		FRHIVertexShader* ShaderRHI = Context.RHICmdList.GetBoundVertexShader();
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
-		PostprocessParameter.SetVS(ShaderRHI, Context, TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI());
-	}
-};
-
-IMPLEMENT_SHADER_TYPE(,FPostProcessSunMaskVS_ES2,TEXT("/Engine/Private/PostProcessMobile.usf"),TEXT("SunMaskVS_ES2"),SF_Vertex);
-
-void FRCPassPostProcessSunMaskES2::Process(FRenderingCompositePassContext& Context)
-{
-	SCOPED_DRAW_EVENT(Context.RHICmdList, PostProcessSunMask);
-
-	const FPooledRenderTargetDesc* InputDesc = GetInputDesc(ePId_Input0);
-
-	uint32 DstX = FMath::Max(1, PrePostSourceViewportSize.X);
-	uint32 DstY = FMath::Max(1, PrePostSourceViewportSize.Y);
-
-	FIntRect DstRect;
-	DstRect.Min.X = 0;
-	DstRect.Min.Y = 0;
-	DstRect.Max.X = DstX;
-	DstRect.Max.Y = DstY;
-
-	FIntPoint DstSize = PrePostSourceViewportSize;
-
-	FIntPoint SrcSize;
-	FIntRect SrcRect;
-	const FViewInfo& View = Context.View;
-
-	SrcSize = InputDesc->Extent; //-V595
-//	uint32 ScaleFactor = View.ViewRect.Width() / SrcSize.X;
-//	SrcRect = View.ViewRect / ScaleFactor;
-// TODO: This won't work with scaled views.
-	SrcRect = View.ViewRect;
-
-	const FSceneRenderTargetItem& DestRenderTarget0 = PassOutputs[0].RequestSurface(Context);
-	const FSceneRenderTargetItem* DestRenderTarget1 = nullptr;
-
-	int32 NumRenderTargets = 1;
-
-	if (!bUseDepthTexture)
-	{
-		DestRenderTarget1 = &PassOutputs[1].RequestSurface(Context);
-		NumRenderTargets += 1;
-	}
-
-	FRHITexture* RenderTargets[2] =
-	{
-		DestRenderTarget0.TargetableTexture,
-		DestRenderTarget1 != nullptr ? DestRenderTarget1->TargetableTexture : nullptr
-	};
-
-	FRHITexture* InputRenderTarget = GetInput(ePId_Input0)->GetOutput()->PooledRenderTarget->GetRenderTargetItem().ShaderResourceTexture;
-
-	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, ERenderTargetActions::DontLoad_Store);
-
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("PostProcessSunMaskES2"));
-
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	Context.RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<false, CF_Always>::GetRHI();
-
-	TShaderMapRef<FPostProcessSunMaskVS_ES2> VertexShader(Context.GetShaderMap());
-	auto ShaderPermutationVector = FPostProcessSunMaskPS_ES2::BuildPermutationVector(bUseSun, bUseDof, bUseDepthTexture, bUseMetalMSAAHDRDecode);
-	TShaderMapRef<FPostProcessSunMaskPS_ES2> PixelShader(Context.GetShaderMap(), ShaderPermutationVector);
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(Context.RHICmdList, GraphicsPSOInit);
-
-	VertexShader->SetVS(Context);
-	PixelShader->SetPS(Context, PixelShader, InputRenderTarget);
-
-	DrawRectangle(
-		Context.RHICmdList,
-		SrcRect.Min.X, SrcRect.Min.Y,
-		SrcRect.Width(), SrcRect.Height(),
-		SrcRect.Min.X, SrcRect.Min.Y,
-		SrcRect.Width(), SrcRect.Height(),
-		DstSize,
-		SrcSize,
-		VertexShader,
-		EDRF_UseTriangleOptimization);
-
-	Context.RHICmdList.EndRenderPass();
-
-	for (int i = 0; i < NumRenderTargets; ++i)
-	{
-		if (RenderTargets[i] != nullptr)
+		if (!Inputs.bUseDepthTexture)
 		{
-			Context.RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, RenderTargets[i]);
+			SceneColorOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, TEXT("SceneColor")), ERenderTargetLoadAction::ENoAction);
 		}
+
+		OutputDesc.Format = PF_R16F;
+		SunMaskOutput = FScreenPassRenderTarget(GraphBuilder.CreateTexture(OutputDesc, TEXT("SunMask")), ERenderTargetLoadAction::ENoAction);
 	}
+
+	FMobileSunMaskPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMobileSunMaskPS::FParameters>();
+	PassParameters->RenderTargets[0] = SunMaskOutput.GetRenderTargetBinding();
+	PassParameters->RenderTargets[1] = SceneColorOutput.GetRenderTargetBinding();
+
+	PassParameters->View = View.ViewUniformBuffer;
+	PassParameters->SceneTextures = CreateMobileSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, View.FeatureLevel);
+	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
+	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	PassParameters->SunColorApertureDiv2.X = View.LightShaftColorMask.R;
+	PassParameters->SunColorApertureDiv2.Y = View.LightShaftColorMask.G;
+	PassParameters->SunColorApertureDiv2.Z = View.LightShaftColorMask.B;
+	PassParameters->SunColorApertureDiv2.W = GetMobileDepthOfFieldScale(View) * 0.5f;
+
+	FMobileSunMaskPS::FPermutationDomain PermutationVector = FMobileSunMaskPS::BuildPermutationVector(Inputs.bUseSun, Inputs.bUseDepthOfField, Inputs.bUseDepthTexture, Inputs.bUseMetalMSAAHDRDecode);
+	TShaderMapRef<FMobileSunMaskPS> PixelShader(View.ShaderMap, PermutationVector);
+
+	const FScreenPassTextureViewport InputViewport(Inputs.SceneColor);
+	const FScreenPassTextureViewport OutputViewport(SunMaskOutput);
+
+	AddDrawScreenPass(GraphBuilder, RDG_EVENT_NAME("MobileSunMask"), View, OutputViewport, InputViewport, PixelShader, PassParameters);
+
+	FMobileSunMaskOutputs Outputs;
+	Outputs.SunMask = SunMaskOutput;
+	Outputs.SceneColor = SceneColorOutput;
+	return Outputs;
 }
 
-FPooledRenderTargetDesc FRCPassPostProcessSunMaskES2::ComputeOutputDesc(EPassOutputId InPassOutputId) const
+FRenderingCompositeOutputRef AddMobileSunMaskPass(FPostprocessContext& PostProcessContext, bool bInUseSun, bool bInUseDof, bool bInUseDepthTexture, bool bInUseMetalMSAAHDRDecode)
 {
-	FPooledRenderTargetDesc Ret;
-	Ret.Depth = 0;
-	Ret.ArraySize = 1;
-	Ret.bIsArray = false;
-	Ret.NumMips = 1;
-	Ret.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
-	Ret.bForceSeparateTargetAndShaderResource = false;
-	// Keep the depth in alpha channel for Depth Of Field Gaussian
-	Ret.Format = InPassOutputId == ePId_Output1 ? ((!bUseDof || bUseMobileDof) ? PF_FloatR11G11B10 : PF_FloatRGBA) : PF_R16F;
-	Ret.NumSamples = 1;
-	Ret.Extent.X = FMath::Max(1, PrePostSourceViewportSize.X);
-	Ret.Extent.Y = FMath::Max(1, PrePostSourceViewportSize.Y);
-	Ret.DebugName = TEXT("SunMask");
-	Ret.ClearValue = FClearValueBinding(FLinearColor::Black);
-	return Ret;
+	FRenderingCompositePass* OutPass = PostProcessContext.Graph.RegisterPass(
+		new(FMemStack::Get()) TRCPassForRDG<1, 2>(
+			[bInUseSun, bInUseDof, bInUseDepthTexture, bInUseMetalMSAAHDRDecode](FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
+	{
+		FRDGBuilder GraphBuilder(InContext.RHICmdList);
+
+		FRDGTextureRef SceneColorTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("SceneColor"));
+
+		FMobileSunMaskInputs PassInputs;
+		PassInputs.SceneColor = FScreenPassTexture(SceneColorTexture, InContext.View.ViewRect);
+		PassInputs.bUseSun = bInUseSun;
+		PassInputs.bUseDepthOfField = bInUseDof;
+		PassInputs.bUseDepthTexture = bInUseDepthTexture;
+		PassInputs.bUseMetalMSAAHDRDecode = bInUseMetalMSAAHDRDecode;
+
+		FMobileSunMaskOutputs PassOutputs = AddMobileSunMaskPass(GraphBuilder, InContext.View, PassInputs);
+
+		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, PassOutputs.SunMask.Texture);
+
+		if (PassOutputs.SceneColor.IsValid())
+		{
+			InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output1, PassOutputs.SceneColor.Texture);
+		}
+
+		GraphBuilder.Execute();
+	}));
+	OutPass->SetInput(ePId_Input0, PostProcessContext.FinalOutput);
+	if (!bInUseDepthTexture)
+	{
+		PostProcessContext.FinalOutput = FRenderingCompositeOutputRef(OutPass, ePId_Output1);
+	}
+	return OutPass;
 }
-
-
-
 
 //
 // SUN ALPHA

@@ -1601,22 +1601,22 @@ public:
 
 	TArray<FVector>& TangentsX;			//Reference to newly created tangents list.
 	TArray<FVector>& TangentsY;			//Reference to newly created bitangents list.
-	TArray<FVector>& TangentsZ;			//Reference to computed normals, will be empty otherwise.
+	const TArray<FVector>& TangentsZ;	//Reference to computed normals, will be empty otherwise.
 
 	MikkTSpace_Mesh(
-		const TArray<FVector>		&InVertices,
-		const TArray<uint32>		&InIndices,
-		const TArray<FVector2D>		&InUVs,
-		TArray<FVector>				&InVertexTangentsX,
-		TArray<FVector>				&InVertexTangentsY,
-		TArray<FVector>				&InVertexTangentsZ
+		const TArray<FVector>&		InVertices,
+		const TArray<uint32>&		InIndices,
+		const TArray<FVector2D>&	InUVs,
+		TArray<FVector>&			InOutVertexTangentsX,
+		TArray<FVector>&			InOutVertexTangentsY,
+		const TArray<FVector>&		InVertexTangentsZ
 		)
 		:
 		Vertices(InVertices),
 		Indices(InIndices),
 		UVs(InUVs),
-		TangentsX(InVertexTangentsX),
-		TangentsY(InVertexTangentsY),
+		TangentsX(InOutVertexTangentsX),
+		TangentsY(InOutVertexTangentsY),
 		TangentsZ(InVertexTangentsZ)
 	{
 	}
@@ -1646,7 +1646,7 @@ static void MikkGetPosition(const SMikkTSpaceContext* Context, float Position[3]
 static void MikkGetNormal(const SMikkTSpaceContext* Context, float Normal[3], const int FaceIdx, const int VertIdx)
 {
 	MikkTSpace_Mesh *UserData = (MikkTSpace_Mesh*)(Context->m_pUserData);
-	FVector &VertexNormal = UserData->TangentsZ[FaceIdx * 3 + VertIdx];
+	const FVector& VertexNormal = UserData->TangentsZ[FaceIdx * 3 + VertIdx];
 	for (int32 i = 0; i < 3; ++i)
 	{
 		Normal[i] = VertexNormal[i];
@@ -2046,6 +2046,65 @@ static void ComputeTangents_MikkTSpace(
 	const TArray<FVector>& InVertices,
 	const TArray<uint32>& InIndices,
 	const TArray<FVector2D>& InUVs,
+	const TArray<FVector>& InNormals,
+	bool bIgnoreDegenerateTriangles,
+	TArray<FVector>& OutTangentX,
+	TArray<FVector>& OutTangentY
+	)
+{
+	const int32 NumWedges = InIndices.Num();
+
+	bool bTangentsComputationNeeded = false;
+
+	if (OutTangentX.Num() != NumWedges)
+	{
+		OutTangentX.Empty(NumWedges);
+		OutTangentX.AddZeroed(NumWedges);
+		bTangentsComputationNeeded = true;
+	}
+	if (OutTangentY.Num() != NumWedges)
+	{
+		OutTangentY.Empty(NumWedges);
+		OutTangentY.AddZeroed(NumWedges);
+		bTangentsComputationNeeded = true;
+	}
+
+	if (!bTangentsComputationNeeded && NumWedges > 0)
+	{
+		for (int32 WedgeIdx = 0; WedgeIdx < NumWedges && !bTangentsComputationNeeded; ++WedgeIdx)
+		{
+			bTangentsComputationNeeded = OutTangentX[WedgeIdx].IsNearlyZero() || OutTangentY[WedgeIdx].IsNearlyZero();
+		}
+	}
+
+	if (!bTangentsComputationNeeded)
+	{
+		return;
+	}
+
+	MikkTSpace_Mesh MikkTSpaceMesh(InVertices, InIndices, InUVs, OutTangentX, OutTangentY, InNormals);
+
+	// use mikktspace to calculate the tangents
+	SMikkTSpaceInterface MikkTInterface;
+	MikkTInterface.m_getNormal = MikkGetNormal;
+	MikkTInterface.m_getNumFaces = MikkGetNumFaces;
+	MikkTInterface.m_getNumVerticesOfFace = MikkGetNumVertsOfFace;
+	MikkTInterface.m_getPosition = MikkGetPosition;
+	MikkTInterface.m_getTexCoord = MikkGetTexCoord;
+	MikkTInterface.m_setTSpaceBasic = MikkSetTSpaceBasic;
+	MikkTInterface.m_setTSpace = nullptr;
+
+	SMikkTSpaceContext MikkTContext;
+	MikkTContext.m_pInterface = &MikkTInterface;
+	MikkTContext.m_pUserData = (void*)(&MikkTSpaceMesh);
+	MikkTContext.m_bIgnoreDegenerates = bIgnoreDegenerateTriangles;
+	genTangSpaceDefault(&MikkTContext);
+}
+
+static void ComputeTangents_MikkTSpace(
+	const TArray<FVector>& InVertices,
+	const TArray<uint32>& InIndices,
+	const TArray<FVector2D>& InUVs,
 	const TArray<uint32>& SmoothingGroupIndices,
 	const FOverlappingCorners& OverlappingCorners,
 	TArray<FVector>& OutTangentX,
@@ -2060,49 +2119,7 @@ static void ComputeTangents_MikkTSpace(
 
 	int32 NumWedges = InIndices.Num();
 
-	bool bWedgeTSpace = false;
-
-	if (OutTangentX.Num() > 0 && OutTangentY.Num() > 0)
-	{
-		bWedgeTSpace = true;
-		for (int32 WedgeIdx = 0; WedgeIdx < OutTangentX.Num()
-			&& WedgeIdx < OutTangentY.Num(); ++WedgeIdx)
-		{
-			bWedgeTSpace = bWedgeTSpace && (!OutTangentX[WedgeIdx].IsNearlyZero()) && (!OutTangentY[WedgeIdx].IsNearlyZero());
-		}
-	}
-
-	if (OutTangentX.Num() != NumWedges)
-	{
-		OutTangentX.Empty(NumWedges);
-		OutTangentX.AddZeroed(NumWedges);
-	}
-	if (OutTangentY.Num() != NumWedges)
-	{
-		OutTangentY.Empty(NumWedges);
-		OutTangentY.AddZeroed(NumWedges);
-	}
-
-	if (!bWedgeTSpace)
-	{
-		MikkTSpace_Mesh MikkTSpaceMesh( InVertices, InIndices, InUVs, OutTangentX, OutTangentY, OutTangentZ );
-
-		// we can use mikktspace to calculate the tangents
-		SMikkTSpaceInterface MikkTInterface;
-		MikkTInterface.m_getNormal = MikkGetNormal;
-		MikkTInterface.m_getNumFaces = MikkGetNumFaces;
-		MikkTInterface.m_getNumVerticesOfFace = MikkGetNumVertsOfFace;
-		MikkTInterface.m_getPosition = MikkGetPosition;
-		MikkTInterface.m_getTexCoord = MikkGetTexCoord;
-		MikkTInterface.m_setTSpaceBasic = MikkSetTSpaceBasic;
-		MikkTInterface.m_setTSpace = nullptr;
-
-		SMikkTSpaceContext MikkTContext;
-		MikkTContext.m_pInterface = &MikkTInterface;
-		MikkTContext.m_pUserData = (void*)(&MikkTSpaceMesh);
-		MikkTContext.m_bIgnoreDegenerates = bIgnoreDegenerateTriangles;
-		genTangSpaceDefault(&MikkTContext);
-	}
+	ComputeTangents_MikkTSpace(InVertices, InIndices, InUVs, OutTangentZ, bIgnoreDegenerateTriangles, OutTangentX, OutTangentY);
 
 	check(OutTangentX.Num() == NumWedges);
 	check(OutTangentY.Num() == NumWedges);
@@ -2992,6 +3009,56 @@ private:
 	UStaticMesh* StaticMesh;
 };
 
+template<class MaterialSlotType>
+void FixupMaterialSlotNames_Implementation(TArray<MaterialSlotType>& MaterialSlots)
+{
+	TArray<FName> UniqueMImportedaterialSlotName;
+
+	//Make sure we have non empty imported material slot names
+	for (MaterialSlotType& MaterialSlot : MaterialSlots)
+	{
+		if (MaterialSlot.ImportedMaterialSlotName == NAME_None)
+		{
+			if (MaterialSlot.MaterialSlotName != NAME_None)
+			{
+				MaterialSlot.ImportedMaterialSlotName = MaterialSlot.MaterialSlotName;
+			}
+			else if (MaterialSlot.MaterialInterface != nullptr)
+			{
+				MaterialSlot.ImportedMaterialSlotName = MaterialSlot.MaterialInterface->GetFName();
+			}
+			else
+			{
+				MaterialSlot.ImportedMaterialSlotName = FName(TEXT("MaterialSlot"));
+			}
+		}
+
+		FString UniqueName = MaterialSlot.ImportedMaterialSlotName.ToString();
+		int32 UniqueIndex = 1;
+		while (UniqueMImportedaterialSlotName.Contains(FName(*UniqueName)))
+		{
+			UniqueName = FString::Printf(TEXT("%s_%d"), *UniqueName, UniqueIndex);
+			UniqueIndex++;
+		}
+		MaterialSlot.ImportedMaterialSlotName = FName(*UniqueName);
+		UniqueMImportedaterialSlotName.Add(MaterialSlot.ImportedMaterialSlotName);
+		if (MaterialSlot.MaterialSlotName == NAME_None)
+		{
+			MaterialSlot.MaterialSlotName = MaterialSlot.ImportedMaterialSlotName;
+		}
+	}
+}
+
+void FMeshUtilities::FixupMaterialSlotNames(UStaticMesh* StaticMesh) const
+{
+	FixupMaterialSlotNames_Implementation(StaticMesh->StaticMaterials);
+}
+
+void FMeshUtilities::FixupMaterialSlotNames(USkeletalMesh* SkeletalMesh) const
+{
+	FixupMaterialSlotNames_Implementation(SkeletalMesh->Materials);
+}
+
 bool FMeshUtilities::BuildStaticMesh(FStaticMeshRenderData& OutRenderData, UStaticMesh* StaticMesh, const FStaticMeshLODGroup& LODGroup)
 {
 	TArray<FStaticMeshSourceModel>& SourceModels = StaticMesh->GetSourceModels();
@@ -3500,6 +3567,7 @@ public:
 	}
 
 	void Skeletal_ComputeTangents(
+		const FString& SkeletalMeshName,
 		IMeshBuildData* BuildData,
 		const FOverlappingCorners& OverlappingCorners
 		)
@@ -3852,7 +3920,7 @@ public:
 				}
 			}
 
-			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData](FVector& NormalizedVector)
+			auto VerifyTangentSpace = [&bIsZeroLengthNormalErrorMessageDisplayed, &BuildData, &SkeletalMeshName](FVector& NormalizedVector)
 			{
 				if (NormalizedVector.IsNearlyZero() || NormalizedVector.ContainsNaN())
 				{
@@ -3861,8 +3929,11 @@ public:
 					if (!bIsZeroLengthNormalErrorMessageDisplayed)
 					{
 						bIsZeroLengthNormalErrorMessageDisplayed = true;
+
 						// add warning message if available, do a log if not
-						FText TextMessage = LOCTEXT("Skeletal_ComputeTangents_MikkTSpace_Warning_ZeroLengthNormal", "Skeletal ComputeTangents MikkTSpace function: Compute a zero length normal vector.");
+						FFormatNamedArguments Args;
+						Args.Add(TEXT("SkeletalMeshName"), FText::FromString(SkeletalMeshName));
+						FText TextMessage = FText::Format(LOCTEXT("Skeletal_ComputeTangents_MikkTSpace_Warning_ZeroLengthNormal", "{SkeletalMeshName} ComputeTangents MikkTSpace function: Compute a zero length normal vector."), Args);
 						if (BuildData->OutWarningMessages)
 						{
 							BuildData->OutWarningMessages->Add(TextMessage);
@@ -3912,7 +3983,7 @@ public:
 		check(WedgeTangentZ.Num() == NumWedges);
 	}
 
-	bool PrepareSourceMesh(IMeshBuildData* BuildData)
+	bool PrepareSourceMesh(const FString& SkeletalMeshName, IMeshBuildData* BuildData)
 	{
 		check(Stage == EStage::Uninit);
 
@@ -3950,7 +4021,7 @@ public:
 		}
 
 		// Compute any missing tangents. MikkTSpace should be use only when the user want to recompute the normals or tangents otherwise should always fallback on builtin tangent
-		Skeletal_ComputeTangents(BuildData, OverlappingCorners);
+		Skeletal_ComputeTangents(SkeletalMeshName, BuildData, OverlappingCorners);
 
 		// At this point the mesh will have valid tangents.
 		BuildData->ValidateTangentArraySize();
@@ -4178,7 +4249,7 @@ private:
 	EStage Stage;
 };
 
-bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions, TArray<FText> * OutWarningMessages, TArray<FName> * OutWarningNames)
+bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel,	const FString& SkeletalMeshName, const FReferenceSkeleton& RefSkeleton, const TArray<SkeletalMeshImportData::FVertInfluence>& Influences, const TArray<SkeletalMeshImportData::FMeshWedge>& Wedges, const TArray<SkeletalMeshImportData::FMeshFace>& Faces, const TArray<FVector>& Points, const TArray<int32>& PointToOriginalMap, const MeshBuildOptions& BuildOptions, TArray<FText> * OutWarningMessages, TArray<FName> * OutWarningNames)
 {
 #if WITH_EDITORONLY_DATA
 
@@ -4248,7 +4319,7 @@ bool FMeshUtilities::BuildSkeletalMesh(FSkeletalMeshLODModel& LODModel, const FR
 		OutWarningNames);
 
 	FSkeletalMeshUtilityBuilder Builder;
-	if (!Builder.PrepareSourceMesh(&BuildData))
+	if (!Builder.PrepareSourceMesh(SkeletalMeshName, &BuildData))
 	{
 		return false;
 	}
@@ -5702,12 +5773,12 @@ bool FMeshUtilities::GenerateUniqueUVsForSkeletalMesh(const FSkeletalMeshLODMode
 
 void FMeshUtilities::CalculateTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY, TArray<FVector>& OutNormals) const
 {
-	const float ComparisonThreshold = (InTangentOptions & ETangentOptions::IgnoreDegenerateTriangles ) ? THRESH_POINTS_ARE_SAME : 0.0f;
+	const float ComparisonThreshold = (InTangentOptions & ETangentOptions::IgnoreDegenerateTriangles) ? THRESH_POINTS_ARE_SAME : 0.0f;
 
 	FOverlappingCorners OverlappingCorners;
 	FindOverlappingCorners(OverlappingCorners, InVertices, InIndices, ComparisonThreshold);
 
-	if ( InTangentOptions & ETangentOptions::UseMikkTSpace )
+	if (InTangentOptions & ETangentOptions::UseMikkTSpace)
 	{
 		ComputeTangents_MikkTSpace(InVertices, InIndices, InUVs, InSmoothingGroupIndices, OverlappingCorners, OutTangentX, OutTangentY, OutNormals, InTangentOptions);
 	}
@@ -5715,6 +5786,11 @@ void FMeshUtilities::CalculateTangents(const TArray<FVector>& InVertices, const 
 	{
 		ComputeTangents(InVertices, InIndices, InUVs, InSmoothingGroupIndices, OverlappingCorners, OutTangentX, OutTangentY, OutNormals, InTangentOptions);
 	}
+}
+
+void FMeshUtilities::CalculateMikkTSpaceTangents(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<FVector>& InNormals, bool bIgnoreDegenerateTriangles, TArray<FVector>& OutTangentX, TArray<FVector>& OutTangentY) const
+{
+	ComputeTangents_MikkTSpace(InVertices, InIndices, InUVs, InNormals, bIgnoreDegenerateTriangles, OutTangentX, OutTangentY);
 }
 
 void FMeshUtilities::CalculateNormals(const TArray<FVector>& InVertices, const TArray<uint32>& InIndices, const TArray<FVector2D>& InUVs, const TArray<uint32>& InSmoothingGroupIndices, const uint32 InTangentOptions, TArray<FVector>& OutNormals) const
@@ -5795,7 +5871,7 @@ void FMeshUtilities::GenerateRuntimeSkinWeightData(const FSkeletalMeshLODModel* 
 					{
 						const FBoneIndexType Index = SourceSkinWeight.InfluenceBones[InfluenceIndex];
 						const uint8 Weight = SourceSkinWeight.InfluenceWeights[InfluenceIndex];
-						
+
 						if (b16BitBoneIndices)
 						{
 							InOutSkinWeightOverrideData.BoneIDs.AddZeroed(2);

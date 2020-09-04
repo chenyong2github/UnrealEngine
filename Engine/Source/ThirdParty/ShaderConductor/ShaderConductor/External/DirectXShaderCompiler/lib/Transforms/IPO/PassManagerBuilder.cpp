@@ -29,6 +29,7 @@
 #include "dxc/HLSL/DxilGenerationPass.h" // HLSL Change
 #include "dxc/HLSL/HLMatrixLowerPass.h" // HLSL Change
 #include "dxc/HLSL/ComputeViewIdState.h" // HLSL Change
+#include "llvm/Analysis/DxilValueCache.h" // HLSL Change
 
 using namespace llvm;
 
@@ -207,6 +208,7 @@ void PassManagerBuilder::populateFunctionPassManager(
 
 // HLSL Change Starts
 static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, hlsl::HLSLExtensionsCodegenHelper *ExtHelper, legacy::PassManagerBase &MPM) {
+
   // Don't do any lowering if we're targeting high-level.
   if (HLSLHighLevel) {
     MPM.add(createHLEmitMetadataPass());
@@ -241,35 +243,38 @@ static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, hlsl::HLSLExten
     // Do this before change vector to array.
     MPM.add(createDxilLegalizeEvalOperationsPass());
   }
-  else {
-    // This should go between matrix lower and dynamic indexing vector to array,
-    // because matrix lower may create dynamically indexed global vectors,
-    // which should become locals. If they are turned into arrays first,
-    // this pass will ignore them as it only works on scalars and vectors.
-    MPM.add(createLowerStaticGlobalIntoAlloca());
-  }
+  // This should go between matrix lower and dynamic indexing vector to array,
+  // because matrix lower may create dynamically indexed global vectors,
+  // which should become locals. If they are turned into arrays first,
+  // this pass will ignore them as it only works on scalars and vectors.
+  MPM.add(createLowerStaticGlobalIntoAlloca());
 
   // Change dynamic indexing vector to array.
-  MPM.add(createDynamicIndexingVectorToArrayPass(NoOpt));
+  MPM.add(createDynamicIndexingVectorToArrayPass(false /* ReplaceAllVector */));
+
+  // Rotate the loops before, mem2reg, since it messes up dbg.value's
+  MPM.add(createLoopRotatePass());
+
+  // mem2reg
+  // Special Mem2Reg pass that skips precise marker.
+  MPM.add(createDxilConditionalMem2RegPass(NoOpt));
 
   if (!NoOpt) {
-    // mem2reg
-    MPM.add(createPromoteMemoryToRegisterPass());
-
     MPM.add(createDxilConvergentMarkPass());
   }
 
-  MPM.add(createSimplifyInstPass());
+  if (!NoOpt)
+    MPM.add(createSimplifyInstPass());
 
-  MPM.add(createCFGSimplificationPass());
+  if (!NoOpt)
+    MPM.add(createCFGSimplificationPass());
 
   // Passes to handle [unroll]
   // Needs to happen after SROA since loop count may depend on
   // struct members.
   // Needs to happen before resources are lowered and before HL
   // module is gone.
-  MPM.add(createLoopRotatePass());
-  MPM.add(createDxilLoopUnrollPass(/*MaxIterationAttempt*/ 128));
+  MPM.add(createDxilLoopUnrollPass(1024));
 
   // Default unroll pass. This is purely for optimizing loops without
   // attributes.
@@ -287,14 +292,20 @@ static void addHLSLPasses(bool HLSLHighLevel, unsigned OptLevel, hlsl::HLSLExten
   // Propagate precise attribute.
   MPM.add(createDxilPrecisePropagatePass());
 
-  MPM.add(createSimplifyInstPass());
+  if (!NoOpt)
+    MPM.add(createSimplifyInstPass());
 
   // scalarize vector to scalar
-  MPM.add(createScalarizerPass());
+  MPM.add(createScalarizerPass(!NoOpt /* AllowFolding */));
 
-  MPM.add(createSimplifyInstPass());
+  if (!NoOpt)
+    MPM.add(createSimplifyInstPass());
 
-  MPM.add(createCFGSimplificationPass());
+  if (!NoOpt)
+    MPM.add(createCFGSimplificationPass());
+
+  // Remove vector instructions
+  MPM.add(createDxilEliminateVectorPass());
 
   MPM.add(createDeadCodeEliminationPass());
 
@@ -313,6 +324,9 @@ void PassManagerBuilder::populateModulePassManager(
       MPM.add(createHLEnsureMetadataPass()); // HLSL Change - rehydrate metadata from high-level codegen
     }
 
+    if (!HLSLHighLevel)
+      MPM.add(createDxilInsertPreservesPass()); // HLSL Change - insert preserve instructions
+
     if (Inliner) {
       MPM.add(Inliner);
       Inliner = nullptr;
@@ -328,15 +342,21 @@ void PassManagerBuilder::populateModulePassManager(
     else if (!Extensions.empty()) // HLSL Change - GlobalExtensions not considered
       MPM.add(createBarrierNoopPass());
 
+    if (!HLSLHighLevel)
+      MPM.add(createDxilPreserveToSelectPass()); // HLSL Change - lower preserve instructions to selects
+
     addExtensionsToPM(EP_EnabledOnOptLevel0, MPM);
+
     // HLSL Change Begins.
     addHLSLPasses(HLSLHighLevel, OptLevel, HLSLExtensionsCodeGen, MPM);
     if (!HLSLHighLevel) {
       MPM.add(createDxilConvergentClearPass());
       MPM.add(createMultiDimArrayToOneDimArrayPass());
+      MPM.add(createDxilRemoveDeadBlocksPass());
       MPM.add(createDxilLowerCreateHandleForLibPass());
       MPM.add(createDxilTranslateRawBuffer());
       MPM.add(createDxilLegalizeSampleOffsetPass());
+      MPM.add(createDxilFinalizePreservesPass());
       MPM.add(createDxilFinalizeModulePass());
       MPM.add(createComputeViewIdStatePass());
       MPM.add(createDxilDeadFunctionEliminationPass());
@@ -454,7 +474,7 @@ void PassManagerBuilder::populateModulePassManager(
   addExtensionsToPM(EP_Peephole, MPM);
   // HLSL Change. MPM.add(createJumpThreadingPass());         // Thread jumps
   MPM.add(createCorrelatedValuePropagationPass());
-  MPM.add(createDeadStoreEliminationPass());  // Delete dead stores
+  MPM.add(createDeadStoreEliminationPass(ScanLimit));  // Delete dead stores
   // HLSL Change - disable LICM in frontend for not consider register pressure.
   // MPM.add(createLICMPass());
 
@@ -612,12 +632,16 @@ void PassManagerBuilder::populateModulePassManager(
 
   // HLSL Change Begins.
   if (!HLSLHighLevel) {
+    if (OptLevel > 0)
+      MPM.add(createDxilEraseDeadRegionPass());
+
     MPM.add(createDxilConvergentClearPass());
     MPM.add(createDeadCodeEliminationPass()); // DCE needed after clearing convergence
                                               // annotations before CreateHandleForLib
                                               // so no unused resources get re-added to
                                               // DxilModule.
     MPM.add(createMultiDimArrayToOneDimArrayPass());
+    MPM.add(createDxilRemoveDeadBlocksPass());
     MPM.add(createDxilLowerCreateHandleForLibPass());
     MPM.add(createDxilTranslateRawBuffer());
     MPM.add(createDeadCodeEliminationPass());
@@ -628,6 +652,7 @@ void PassManagerBuilder::populateModulePassManager(
     MPM.add(createComputeViewIdStatePass());
     MPM.add(createDxilDeadFunctionEliminationPass());
     MPM.add(createNoPausePassesPass());
+    MPM.add(createDxilValidateWaveSensitivityPass());
     MPM.add(createDxilEmitMetadataPass());
   }
   // HLSL Change Ends.
@@ -701,7 +726,7 @@ void PassManagerBuilder::addLTOOptimizationPasses(legacy::PassManagerBase &PM) {
   PM.add(createMemCpyOptPass());            // Remove dead memcpys.
 
   // Nuke dead stores.
-  PM.add(createDeadStoreEliminationPass());
+  PM.add(createDeadStoreEliminationPass(ScanLimit)); // HLSL Change - add ScanLimit
 
   // More loops are countable; try to optimize them.
   PM.add(createIndVarSimplifyPass());

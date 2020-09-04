@@ -39,13 +39,26 @@ public:
 	virtual bool IsEnabled() const override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override;
 	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override;
+	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) override;
 	virtual bool RemoveUniverseById(uint32 InUniverseId) override;
 	virtual void RemoveAllUniverses() override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const override;
 	virtual uint32 GetUniversesNum() const override;
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
-	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() override { return OnUniverseInputUpdateEvent; }
+	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
+	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() override { return OnUniverseInputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseOutputBufferUpdated, FOnUniverseOutputBufferUpdated);
+	virtual FOnUniverseOutputBufferUpdated& GetOnUniverseOutputBufferUpdated() override { return OnUniverseOutputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketReceived, FOnPacketReceived);
+	virtual FOnPacketReceived& GetOnPacketReceived() override { return OnPacketReceived; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketSent, FOnPacketSent);
+	virtual FOnPacketSent& GetOnPacketSent() override	{ return OnPacketSent;	}
 	//~ End IDMXProtocol implementation
 
 	//~ Begin IDMXNetworkInterface implementation
@@ -72,6 +85,9 @@ public:
 	const FDMXProtocolArtNetTodData& GetIncomingTodData() const { return IncomingTodData; }
 	const FDMXProtocolArtNetTodControl& GetIncomingTodControl() const { return IncomingTodControl; }
 	const FDMXProtocolArtNetRDM& GetIncomingRDM() const { return IncomingRDM; }
+
+	//~ ArtNet public getters
+	const TSharedPtr<FDMXProtocolUniverseManager<FDMXProtocolUniverseArtNet>>& GetUniverseManager() const { return UniverseManager; }
 
 	/**
 	 * Transmit TOD data
@@ -103,7 +119,7 @@ private:
 	FDMXProtocolArtNet() = delete;
 
 public:
-	const TSharedPtr<FInternetAddr>& GetBroadcastAddr() { return BroadcastAddr; }
+	const TSharedPtr<FInternetAddr>& GetBroadcastAddr() const { return BroadcastAddr; }
 	void OnDataReceived(const FArrayReaderPtr & Buffer);
 
 private:
@@ -117,6 +133,10 @@ private:
 	bool HandleTodData(const FArrayReaderPtr & Buffer);
 	bool HandleTodControl(const FArrayReaderPtr & Buffer);
 	bool HandleRdm(const FArrayReaderPtr & Buffer);
+
+	uint32 GetUniverseAddr(FString UnicastAddress) const;
+
+	friend class FDMXProtocolUniverseArtNet;
 
 private:
 	FName ProtocolName;
@@ -145,7 +165,10 @@ private:
 	FDMXProtocolArtNetTodControl IncomingTodControl;
 	FDMXProtocolArtNetRDM IncomingRDM;
 
-	FOnUniverseInputUpdateEvent OnUniverseInputUpdateEvent;
+	FOnUniverseInputBufferUpdated OnUniverseInputBufferUpdated;
+	FOnUniverseOutputBufferUpdated OnUniverseOutputBufferUpdated;
+	FOnPacketReceived OnPacketReceived;
+	FOnPacketSent OnPacketSent;
 
 	/** Mutex protecting access to the sockets. */
 	mutable FCriticalSection SocketsCS;

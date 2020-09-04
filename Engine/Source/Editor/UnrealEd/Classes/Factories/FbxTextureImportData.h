@@ -18,39 +18,39 @@ class UNREALED_API UFbxTextureImportData : public UFbxAssetImportData
 	GENERATED_UCLASS_BODY()
 
 	/** If importing textures is enabled, this option will cause normal map Y (Green) values to be inverted */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, config, Category=ImportSettings, meta=(OBJRestrict="true"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, AdvancedDisplay, config, Category=ImportSettings, meta=(OBJRestrict="true"))
 	uint32 bInvertNormalMaps:1;
 
 	/** Specify where we should search for matching materials when importing */
-	UPROPERTY(EditAnywhere, config, Category = ImportSettings, meta = (DisplayName="Search Location", OBJRestrict = "true", ImportType = "Mesh"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = ImportSettings, meta = (DisplayName="Search Location", OBJRestrict = "true", ImportType = "Mesh"))
 	EMaterialSearchLocation MaterialSearchLocation;
 
 	/** Base material to instance from when importing materials. */
-	UPROPERTY(EditAnywhere, config, Category = Material, meta = (ImportType = "Mesh", AllowedClasses = "MaterialInterface"))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh", AllowedClasses = "MaterialInterface"))
 	FSoftObjectPath BaseMaterialName;
 
 	/** transient, ImportUI customize helper to store if we must show or not the BaseMaterialName property. */
 	bool bUseBaseMaterial;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseColorName;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseDiffuseTextureName;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseNormalTextureName;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseEmissiveColorName;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseEmmisiveTextureName;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseSpecularTextureName;
 
-	UPROPERTY(config, meta = (ImportType = "Mesh"))
+	UPROPERTY(BlueprintReadWrite, config, Category = Material, meta = (ImportType = "Mesh"))
 	FString BaseOpacityTextureName;
 
 	bool CanEditChange( const FProperty* InProperty ) const override;

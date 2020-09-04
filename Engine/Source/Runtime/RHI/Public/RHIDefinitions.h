@@ -28,6 +28,12 @@ enum EShaderFrequency : uint8
 	SF_Pixel			= 3,
 	SF_Geometry			= 4,
 	SF_Compute			= 5,
+	SF_RayGen			= 6,
+	SF_RayMiss			= 7,
+	SF_RayHitGroup		= 8,
+	SF_RayCallable		= 9,
+
+	SF_NumFrequencies	= 10,
 
 	// Number of standard SM5-style shader frequencies for graphics pipeline (excluding compute)
 	SF_NumGraphicsFrequencies = 5,
@@ -35,12 +41,6 @@ enum EShaderFrequency : uint8
 	// Number of standard SM5-style shader frequencies (including compute)
 	SF_NumStandardFrequencies = 6,
 
-	SF_RayGen			= 6,
-	SF_RayMiss			= 7,
-	SF_RayHitGroup		= 8,
-	SF_RayCallable		= 9,
-
-	SF_NumFrequencies	= 10,
 	SF_NumBits			= 4,
 };
 static_assert(SF_NumFrequencies <= (1 << SF_NumBits), "SF_NumFrequencies will not fit on SF_NumBits");
@@ -1096,71 +1096,70 @@ enum EVRSRateCombiner : uint8
  */
 enum EBufferUsageFlags
 {
-	BUF_None			  = 0x0000,
+	BUF_None					= 0x0000,
 	
 
 	// Mutually exclusive write-frequency flags
 
 	/** The buffer will be written to once. */
-	BUF_Static            = 0x0001, 
+	BUF_Static					= 0x0001, 
 
 	/** 
 	 * The buffer will be written to occasionally, GPU read only, CPU write only.  The data lifetime is until the next update, or the buffer is destroyed.
 	 */
-	BUF_Dynamic           = 0x0002, 
+	BUF_Dynamic					= 0x0002, 
 
 	/** The buffer's data will have a lifetime of one frame.  It MUST be written to each frame, or a new one created each frame. */
-	BUF_Volatile          = 0x0004, 
+	BUF_Volatile				= 0x0004, 
 
 	// Mutually exclusive bind flags.
-	BUF_UnorderedAccess   = 0x0008, // Allows an unordered access view to be created for the buffer.
+	BUF_UnorderedAccess			= 0x0008, // Allows an unordered access view to be created for the buffer.
 
 	/** Create a byte address buffer, which is basically a structured buffer with a uint32 type. */
-	BUF_ByteAddressBuffer = 0x0020,
-
-	/** Create a structured buffer with an atomic UAV counter. */
-	BUF_UAVCounter UE_DEPRECATED(4.25, "BUF_UAVCounter is deprecated and getting removed; please don't use.") = 0x10000,
+	BUF_ByteAddressBuffer		= 0x0020,
 
 	/** Buffer that the GPU will use as a source for a copy. */
-	BUF_SourceCopy			= 0x0040,
+	BUF_SourceCopy				= 0x0040,
 
 	/** Create a buffer that can be bound as a stream output target. */
-	BUF_StreamOutput      = 0x0080,
+	BUF_StreamOutput			= 0x0080,
+
 	/** Create a buffer which contains the arguments used by DispatchIndirect or DrawIndirect. */
-	BUF_DrawIndirect      = 0x0100,
+	BUF_DrawIndirect			= 0x0100,
+
 	/** 
 	 * Create a buffer that can be bound as a shader resource. 
 	 * This is only needed for buffer types which wouldn't ordinarily be used as a shader resource, like a vertex buffer.
 	 */
-	BUF_ShaderResource    = 0x0200,
+	BUF_ShaderResource			= 0x0200,
 
 	/**
 	 * Request that this buffer is directly CPU accessible
 	 * (@todo josh: this is probably temporary and will go away in a few months)
 	 */
-	BUF_KeepCPUAccessible = 0x0400,
+	BUF_KeepCPUAccessible		= 0x0400,
 
 	/**
 	 * Provide information that this buffer will contain only one vertex, which should be delivered to every primitive drawn.
 	 * This is necessary for OpenGL implementations, which need to handle this case very differently (and can't handle GL_HALF_FLOAT in such vertices at all).
 	 */
-	BUF_ZeroStride        = 0x0800,
+	BUF_ZeroStride				= 0x0800,
 
 	/** Buffer should go in fast vram (hint only). Requires BUF_Transient */
-	BUF_FastVRAM          = 0x1000,
+	BUF_FastVRAM				= 0x1000,
 
 	/** Buffer should be allocated from transient memory. */
-	BUF_Transient		  = 0x2000,
+	BUF_Transient				= 0x2000,
 
-	/** Buffer that should be accessed one byte at a time. */
-	BUF_UINT8 UE_DEPRECATED(4.25, "BUF_UINT8 is deprecated and getting removed; please don't use.") = 0x20000,
+	/** Create a buffer that can be shared with an external RHI or process. */
+	BUF_Shared					= 0x4000,
 
 	/**
 	 * Buffer contains opaque ray tracing acceleration structure data.
 	 * Resources with this flag can't be bound directly to any shader stage and only can be used with ray tracing APIs.
 	 * This flag is mutually exclusive with all other buffer flags except BUF_Static.
 	*/
-	BUF_AccelerationStructure = 0x8000,
+	BUF_AccelerationStructure	= 0x8000,
 
 	// Helper bit-masks
 	BUF_AnyDynamic = (BUF_Dynamic | BUF_Volatile),

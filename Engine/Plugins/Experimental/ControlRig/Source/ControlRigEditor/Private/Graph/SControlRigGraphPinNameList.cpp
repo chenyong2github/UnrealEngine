@@ -11,6 +11,7 @@
 
 void SControlRigGraphPinNameList::Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 {
+	this->ModelPin = InArgs._ModelPin;
 	this->OnGetNameListContent = InArgs._OnGetNameListContent;
 
 	SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
@@ -32,7 +33,7 @@ TSharedRef<SWidget>	SControlRigGraphPinNameList::GetDefaultValueWidget()
 		[
 			SAssignNew(NameListComboBox, SControlRigGraphPinNameListValueWidget)
 				.Visibility(this, &SGraphPin::GetDefaultValueVisibility)
-				.OptionsSource(&GetNameList())
+				.OptionsSource(&CurrentList)
 				.OnGenerateWidget(this, &SControlRigGraphPinNameList::MakeNameListItemWidget)
 				.OnSelectionChanged(this, &SControlRigGraphPinNameList::OnNameListChanged)
 				.OnComboBoxOpening(this, &SControlRigGraphPinNameList::OnNameListComboBox)
@@ -49,7 +50,7 @@ const TArray<TSharedPtr<FString>>& SControlRigGraphPinNameList::GetNameList() co
 {
 	if (OnGetNameListContent.IsBound())
 	{
-		return OnGetNameListContent.Execute();
+		return OnGetNameListContent.Execute(ModelPin);
 	}
 	return EmptyList;
 }
@@ -78,15 +79,20 @@ void SControlRigGraphPinNameList::OnNameListChanged(TSharedPtr<FString> NewSelec
 {
 	if (SelectInfo != ESelectInfo::Direct)
 	{
-		FString NewValue = *NewSelection.Get();
+		FString NewValue = FName(NAME_None).ToString();
+		if (NewSelection.IsValid())
+		{
+			NewValue = *NewSelection.Get();
+		}
 		SetNameListText(FText::FromString(NewValue), ETextCommit::OnEnter);
 	}
 }
 
 void SControlRigGraphPinNameList::OnNameListComboBox()
 {
+	CurrentList = GetNameList();
 	TSharedPtr<FString> CurrentlySelected;
-	for (TSharedPtr<FString> Item : GetNameList())
+	for (TSharedPtr<FString> Item : CurrentList)
 	{
 		if (Item->Equals(GetNameListText().ToString()))
 		{

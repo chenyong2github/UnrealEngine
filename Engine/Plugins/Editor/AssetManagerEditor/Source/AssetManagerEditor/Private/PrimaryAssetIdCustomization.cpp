@@ -12,6 +12,7 @@
 #include "PropertyCustomizationHelpers.h"
 #include "Editor.h"
 #include "AssetThumbnail.h"
+#include "ScopedTransaction.h"
 
 #define LOCTEXT_NAMESPACE "PrimaryAssetIdCustomization"
 
@@ -272,7 +273,13 @@ FSlateColor SPrimaryAssetIdGraphPin::OnGetWidgetBackground() const
 void SPrimaryAssetIdGraphPin::OnIdSelected(FPrimaryAssetId AssetId)
 {
 	CurrentId = AssetId;
-	GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, CurrentId.ToString());
+
+	if (CurrentId.ToString() != GraphPinObj->GetDefaultAsString())
+	{
+		const FScopedTransaction Transaction(NSLOCTEXT("GraphEditor", "ChangePinValue", "Change Pin Value"));
+		GraphPinObj->Modify();
+		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, CurrentId.ToString());
+	}
 }
 
 FText SPrimaryAssetIdGraphPin::GetDisplayText() const

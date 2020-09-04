@@ -481,6 +481,7 @@ struct FMovementProperties
 		, bCanFly(false)
 	{
 	}
+	FMovementProperties(const FMovementProperties& Other) = default;
 };
 
 /** Properties of representation of an 'agent' (or Pawn) used by AI navigation/pathfinding. */
@@ -559,12 +560,15 @@ struct ENGINE_API FNavDataConfig : public FNavAgentProperties
 {
 	GENERATED_USTRUCT_BODY()
 
+	/** Internal/debug name of this agent */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Display)
 	FName Name;
 
+	/** Color used to represent this agent in the editor and for debugging */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Display)
 	FColor Color;
 
+	/** Rough size of this agent, used when projecting unto navigation mesh */
 	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = Querying)
 	FVector DefaultQueryExtent;
 
@@ -580,6 +584,7 @@ struct ENGINE_API FNavDataConfig : public FNavAgentProperties
 #endif // WITH_EDITOR
 
 protected:
+	/** Class to use when spawning navigation data instance */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = Navigation, meta = (MetaClass = "NavigationData"))
 	TSoftClassPtr<AActor> NavDataClass;
 

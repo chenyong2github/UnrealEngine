@@ -12,6 +12,7 @@ UTextureEditorSettings::UTextureEditorSettings( const FObjectInitializer& Object
 	, CheckerColorTwo(FColor(64, 64, 64))
 	, CheckerSize(32)
 	, FitToViewport(true)
+	, ZoomMode(ETextureEditorZoomMode::Fit)
 	, TextureBorderColor(FColor::White)
 	, TextureBorderEnabled(true)
 { }

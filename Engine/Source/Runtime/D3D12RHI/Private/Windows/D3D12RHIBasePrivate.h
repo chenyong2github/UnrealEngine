@@ -23,9 +23,11 @@
 #endif
 #define D3D_OVERLOADS 1
 #include "Windows/AllowWindowsPlatformTypes.h"
+THIRD_PARTY_INCLUDES_START
 #include <d3d12.h>
 #include <d3dx12.h>
 #include <d3d12sdklayers.h>
+THIRD_PARTY_INCLUDES_END
 #include "Windows/HideWindowsPlatformTypes.h"
 
 #undef DrawText

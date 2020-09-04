@@ -105,6 +105,12 @@ namespace Tools.DotNETCommon
 					ParentLength++;
 				}
 
+				if (ParentLength == 0 && FullName[0] == Path.DirectorySeparatorChar)
+				{
+					// we have reached the root
+					ParentLength = 1;
+				}
+
 				return new DirectoryReference(FullName.Substring(0, ParentLength), Sanitize.None);
 			}
 		}
@@ -114,6 +120,7 @@ namespace Tools.DotNETCommon
 		/// </summary>
 		/// <param name="File">The file to get directory for</param>
 		/// <returns>The full directory name containing the given file</returns>
+		[Obsolete("Replace with call to FileReference.ParentDirectory instead.")]
 		public static DirectoryReference GetParentDirectory(FileReference File)
 		{
 			int ParentLength = File.FullName.LastIndexOf(Path.DirectorySeparatorChar);
@@ -121,6 +128,7 @@ namespace Tools.DotNETCommon
 			{
 				ParentLength++;
 			}
+
 			return new DirectoryReference(File.FullName.Substring(0, ParentLength), Sanitize.None);
 		}
 

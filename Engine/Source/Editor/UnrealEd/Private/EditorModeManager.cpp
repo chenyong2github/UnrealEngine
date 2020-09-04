@@ -34,6 +34,8 @@
 #include "Subsystems/BrushEditingSubsystem.h"
 #include "Tools/UEdMode.h"
 #include "Widgets/Images/SImage.h"
+#include "InputRouter.h"
+#include "InteractiveGizmoManager.h"
 
 /*------------------------------------------------------------------------------
 	FEditorModeTools.
@@ -932,8 +934,7 @@ void FEditorModeTools::ActivateMode(FEditorModeID InID, bool bToggle)
 		Toolkit->GetToolPaletteNames(PaletteNames);
 		for (auto Palette : PaletteNames)
 		{
-			const bool bUniform = true;
-			FToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), Orient_Horizontal, false, bUniform);
+			FUniformToolBarBuilder ModeToolbarBuilder(CommandList, FMultiBoxCustomization(ScriptableMode->GetModeInfo().ToolbarCustomizationName), TSharedPtr<FExtender>(), false);
 			ModeToolbarBuilder.SetStyle(&FEditorStyle::Get(), "PaletteToolBar");
 			Toolkit->BuildToolPalette(Palette, ModeToolbarBuilder);
 
@@ -1325,7 +1326,9 @@ bool FEditorModeTools::ProcessCapturedMouseMoves( FEditorViewportClient* InViewp
 bool FEditorModeTools::InputKey(FEditorViewportClient* InViewportClient, FViewport* Viewport, FKey Key, EInputEvent Event)
 {
 	bool bHandled = false;
-	for (UEdMode* Mode : ActiveScriptableModes)
+	//Copy the modes and iterate of that since a key may remove the edit mode and change CopyActiveScriptableModes
+	TArray<UEdMode*> CopyActiveScriptableModes(ActiveScriptableModes);
+	for (UEdMode* Mode : CopyActiveScriptableModes)
 	{
 		bHandled |= Mode->InputKey(InViewportClient, Viewport, Key, Event);
 	}

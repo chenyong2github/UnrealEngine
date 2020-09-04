@@ -77,11 +77,7 @@
 #endif
 
 #if MATERIAL_SKY_ATMOSPHERE && PROJECT_SUPPORT_SKY_ATMOSPHERE
-	#include "/Engine/Private/SkyAtmosphereCommon.ush"
-#endif
-
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER
-	#include "/Engine/Private/SingleLayerWaterCommon.ush"
+#include "/Engine/Private/SkyAtmosphereCommon.ush"
 #endif
 
 #include "/Engine/Private/PaniniProjection.ush"
@@ -306,7 +302,7 @@ struct FMaterialPixelParameters
 	uint PrimitiveId;
 
 	// Actual primitive Id
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	uint	HairPrimitiveId;	// Control point ID
 	float2	HairPrimitiveUV;	// U: parametric distance between the two surrounding control point. V: parametric distance along hair width
 #endif
@@ -413,6 +409,11 @@ struct FMaterialVertexParameters
 
 	float3 PreSkinnedPosition;
 	float3 PreSkinnedNormal;
+
+#if GPU_SKINNED_MESH_FACTORY
+	float3 PreSkinOffset;
+	float3 PostSkinOffset;
+#endif
 
 	half4 VertexColor;
 #if NUM_MATERIAL_TEXCOORDS_VERTEX
@@ -1042,18 +1043,21 @@ float3 MaterialExpressionBlackBody( float Temp )
 }
 
 
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
+float  GetHairStrandsDepth(uint HairPrimitiveId, float2 VertexUV, float InDeviceZ);
+float  GetHairStrandsCoverage(uint HairPrimitiveId, float2 VertexUV);
 float2 GetHairStrandsRootUV(uint HairPrimitiveId, float2 VertexUV);
 float2 GetHairStrandsUV(uint HairPrimitiveId, float2 VertexUV);
 float2 GetHairStrandsDimensions(uint HairPrimitiveId, float2 VertexUV);
 float  GetHairStrandsSeed(uint HairPrimitiveId, float2 VertexUV);
 float  GetHairStrandsRoughness(uint HairPrimitiveId, float2 HairPrimitiveUV);
 float3 GetHairStrandsBaseColor(uint HairPrimitiveId, float2 HairPrimitiveUV);
+float3 GetHairStrandsTangent(uint HairPrimitiveId, float2 HairPrimitiveUV, half3x3 TangentToWorld);
 #endif
 
 float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	return GetHairStrandsRootUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0, 0);
@@ -1062,7 +1066,7 @@ float2 MaterialExpressionGetHairRootUV(FMaterialPixelParameters Parameters)
 
 float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 {	
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	return GetHairStrandsUV(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0,0);
@@ -1071,7 +1075,7 @@ float2 MaterialExpressionGetHairUV(FMaterialPixelParameters Parameters)
 
 float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	return GetHairStrandsDimensions(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float2(0, 0);
@@ -1080,7 +1084,7 @@ float2 MaterialExpressionGetHairDimensions(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	return GetHairStrandsSeed(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
@@ -1089,7 +1093,7 @@ float MaterialExpressionGetHairSeed(FMaterialPixelParameters Parameters)
 
 float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	return GetHairStrandsBaseColor(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return float3(0,0,0);
@@ -1098,15 +1102,59 @@ float3 MaterialExpressionGetHairBaseColor(FMaterialPixelParameters Parameters)
 
 float MaterialExpressionGetHairRoughness(FMaterialPixelParameters Parameters)
 {
-#if VF_STRAND_HAIR
+#if VF_STRAND_HAIR || VF_CARDS_HAIR
 	return GetHairStrandsRoughness(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
 #else
 	return 0;
 #endif
 }
+
+
+float MaterialExpressionGetHairDepth(FMaterialVertexParameters Parameters)
+{
+	return 0;
+}
+
+float MaterialExpressionGetHairDepth(FMaterialPixelParameters Parameters)
+{
+#if VF_CARDS_HAIR
+	return GetHairStrandsDepth(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.SvPosition.z);
+#else
+	return 0; // TODO for VF_STRAND_HAIR?
+#endif
+}
+
+float MaterialExpressionGetHairCoverage(FMaterialPixelParameters Parameters)
+{
+#if VF_CARDS_HAIR
+	return GetHairStrandsCoverage(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV);
+#else
+	return 0; // TODO for VF_STRAND_HAIR?
+#endif
+}
+
 float3 MaterialExpressionGetHairTangent(FMaterialPixelParameters Parameters)
 {
+#if VF_STRAND_HAIR
 	return Parameters.TangentToWorld[2];
+#elif VF_CARDS_HAIR
+	return GetHairStrandsTangent(Parameters.HairPrimitiveId, Parameters.HairPrimitiveUV, Parameters.TangentToWorld);
+#else
+	return 0;
+#endif
+	
+}
+
+float2 MaterialExpressionGetAtlasUVs(FMaterialPixelParameters Parameters)
+{
+#if VF_STRAND_HAIR
+	return float2(0,0);
+#elif VF_CARDS_HAIR
+	return Parameters.HairPrimitiveUV;
+#else
+	return 0;
+#endif
+
 }
 
 float3 MaterialExpressionGetHairColorFromMelanin(float Melanin, float Redness, float3 DyeColor)
@@ -1293,19 +1341,21 @@ float3 MaterialExpressionVolumeSampleConservativeDensity(FMaterialPixelParameter
 #endif
 }
 
-/** 
-	Get the scene depth from the scene below the single layer water surface. This is only valid in the single layer water rendering pass.
-	Returns the chosen fallback depth if the material doesn't support reading back the correct depth.
-*/
-float MaterialExpressionSceneDepthWithoutWater(float2 ViewportUV, float FallbackDepth)
+float3 MaterialExpressionPreSkinOffset(FMaterialVertexParameters Parameters)
 {
-#if MATERIAL_SHADINGMODEL_SINGLELAYERWATER && !SCENE_TEXTURES_DISABLED && (!SIMPLE_SINGLE_LAYER_WATER || SINGLE_LAYER_WATER_SIMPLE_FORWARD)
-
-	const float2 ClampedViewportUV = clamp(ViewportUV, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.xy, OpaqueBasePass.SceneWithoutSingleLayerWaterMinMaxUV.zw);
-
-	return OpaqueBasePass.SceneDepthWithoutSingleLayerWaterTexture.SampleLevel(SingleLayerWaterSceneDepthSampler, ClampedViewportUV, 0).x * SINGLE_LAYER_WATER_DEPTH_SCALE;
+#if GPU_SKINNED_MESH_FACTORY
+	return Parameters.PreSkinOffset;
 #else
-	return FallbackDepth;
+	return 0;
+#endif
+}
+
+float3 MaterialExpressionPostSkinOffset(FMaterialVertexParameters Parameters)
+{
+#if GPU_SKINNED_MESH_FACTORY
+	return Parameters.PostSkinOffset;
+#else
+	return 0;
 #endif
 }
 
@@ -2456,8 +2506,14 @@ uint DiscardMaterialWithPixelCoverage(FMaterialPixelParameters MaterialParameter
 	#define FIsFrontFace bool
 	half GetFloatFacingSign(FIsFrontFace bIsFrontFace)
 	{
+#if COMPILER_DXC && COMPILER_VULKAN
+		// We need to flip SV_IsFrontFace for Vulkan when compiling with DXC due to different coordinate systems.
+		// HLSLcc did that by flipping SV_IsFrontFace in the high-level GLSL output.
+		return bIsFrontFace ? -1 : +1;
+#else
 		return bIsFrontFace ? +1 : -1;
-	}
+#endif
+}
 
 #if MATERIAL_TWOSIDED_SEPARATE_PASS
 	#define OPTIONAL_IsFrontFace

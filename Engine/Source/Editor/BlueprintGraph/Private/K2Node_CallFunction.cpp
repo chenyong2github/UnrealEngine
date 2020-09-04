@@ -50,18 +50,12 @@
 
 struct FCustomStructureParamHelper
 {
-	static FName GetCustomStructureParamName()
-	{
-		static FName Name(TEXT("CustomStructureParam"));
-		return Name;
-	}
-
 	static void FillCustomStructureParameterNames(const UFunction* Function, TArray<FString>& OutNames)
 	{
 		OutNames.Reset();
 		if (Function)
 		{
-			const FString& MetaDataValue = Function->GetMetaData(GetCustomStructureParamName());
+			const FString& MetaDataValue = Function->GetMetaData(FBlueprintMetadata::MD_CustomStructureParam);
 			if (!MetaDataValue.IsEmpty())
 			{
 				MetaDataValue.ParseIntoArray(OutNames, TEXT(","), true);
@@ -261,12 +255,6 @@ UEdGraphPin* FDynamicOutputHelper::GetTypePickerPin(const UK2Node_CallFunction* 
 			TypePickerPin = FuncNode->FindPin(TypeDeterminingPinName);
 		}
 	}
-
-	if (TypePickerPin && !ensure(TypePickerPin->Direction == EGPD_Input))
-	{
-		TypePickerPin = nullptr;
-	}
-
 	return TypePickerPin;
 }
 
@@ -369,8 +357,9 @@ bool FDynamicOutputHelper::IsTypePickerPin(UEdGraphPin* Pin) const
 		}
 	}
 
-	bool const bPinIsClassPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class);
-	bool const bPinIsObjectPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object);
+	bool const bPinIsClassPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Class || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftClass);
+	bool const bPinIsObjectPicker = (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object || Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject);
+
 	return bIsTypeDeterminingPin && (bPinIsClassPicker || bPinIsObjectPicker) && (Pin->Direction == EGPD_Input);
 }
 
@@ -422,15 +411,15 @@ void FDynamicOutputHelper::GetDynamicOutPins(const UK2Node_CallFunction* FuncNod
 			{
 				// Check against each property that the user has specified
 				for (const FString& OutputPinName : UserDefinedDynamicProprties)
-		{
+				{
 					// If this is the return parameter of this function or the pin name matches that which the user has specified
 					if (OutputPinName == ParamIt->GetName())
-			{
+					{
 						AddPinToOutputLambda(*ParamIt, OutPins);
 						break;
+					}
+				}
 			}
-		}
-	}
 		}
 	}
 }
@@ -445,7 +434,9 @@ bool FDynamicOutputHelper::CanConformPinType(const UK2Node_CallFunction* FuncNod
 		const FName PinCategory = TypeToTest.PinCategory;
 		if ((PinCategory == UEdGraphSchema_K2::PC_Object) ||
 			(PinCategory == UEdGraphSchema_K2::PC_Interface) ||
-			(PinCategory == UEdGraphSchema_K2::PC_Class))
+			(PinCategory == UEdGraphSchema_K2::PC_Class) ||
+			(PinCategory == UEdGraphSchema_K2::PC_SoftObject) || 
+			(PinCategory == UEdGraphSchema_K2::PC_SoftClass))
 		{
 			if (UClass* TypeClass = Cast<UClass>(TypeToTest.PinSubCategoryObject.Get()))
 			{
@@ -925,6 +916,11 @@ void UK2Node_CallFunction::CreateExecPinsForFunctionCall(const UFunction* Functi
 			}
 		}
 	}
+}
+
+FName UK2Node_CallFunction::GetFunctionName() const
+{
+	return FunctionReference.GetMemberName();
 }
 
 void UK2Node_CallFunction::DetermineWantsEnumToExecExpansion(const UFunction* Function)
@@ -1688,8 +1684,11 @@ FString UK2Node_CallFunction::GetDefaultTooltipForFunction(const UFunction* Func
 		static const FString DoxygenNote(TEXT("@note"));
 		static const FString TooltipNote(TEXT("Note:"));
 
-		Tooltip.Split(DoxygenParam, &Tooltip, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
-		Tooltip.Split(DoxygenReturn, &Tooltip, nullptr, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		int32 Pos = Tooltip.Find(DoxygenParam, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		Tooltip.RightChopInline(Pos >= 0 ? Pos + DoxygenParam.Len() : Pos);
+		Pos = Tooltip.Find(DoxygenReturn, ESearchCase::IgnoreCase, ESearchDir::FromStart);
+		Tooltip.RightChopInline(Pos >= 0 ? Pos + DoxygenParam.Len() : Pos);
+
 		Tooltip.ReplaceInline(*DoxygenSee, *TooltipSee);
 		Tooltip.ReplaceInline(*DoxygenNote, *TooltipNote);
 
@@ -1946,29 +1945,32 @@ void UK2Node_CallFunction::FixupSelfMemberContext()
 	UClass* MemberClass = FunctionReference.GetMemberParentClass();
 	if (FunctionReference.IsSelfContext())
 	{
-		if (MemberClass == nullptr)
+		// if there is a function that matches the reference in the new context
+		// and there are no connections to the self pin, we just want to call
+		// that function
+		UEdGraphPin* SelfPin = GetDefault<UEdGraphSchema_K2>()->FindSelfPin(*this, EGPD_Input);
+		if (!FunctionReference.ResolveMember<UFunction>(Blueprint) || (SelfPin && SelfPin->HasAnyConnections()))
 		{
-			// the self pin may have type information stored on it
-			if (UEdGraphPin* SelfPin = GetDefault<UEdGraphSchema_K2>()->FindSelfPin(*this, EGPD_Input))
+			if (MemberClass == nullptr)
 			{
-				MemberClass = Cast<UClass>(SelfPin->PinType.PinSubCategoryObject.Get());
+				// the self pin may have type information stored on it
+				if (SelfPin)
+				{
+					MemberClass = Cast<UClass>(SelfPin->PinType.PinSubCategoryObject.Get());
+				}
 			}
-		}
-		// if we happened to retain the ParentClass for a self reference 
-		// (unlikely), then we know where this node came from... let's keep it
-		// referencing that function
-		if (MemberClass != nullptr)
-		{
-			if (!IsBlueprintOfType(MemberClass))
+			// if we happened to retain the ParentClass for a self reference 
+			// (unlikely), then we know where this node came from... let's keep it
+			// referencing that function
+			if (MemberClass != nullptr)
 			{
-				FunctionReference.SetExternalMember(FunctionReference.GetMemberName(), MemberClass);
+				if (!IsBlueprintOfType(MemberClass))
+				{
+					FunctionReference.SetExternalMember(FunctionReference.GetMemberName(), MemberClass);
+				}
 			}
+			// else, there is nothing we can do... the node will produce an error later during compilation
 		}
-		// else, there is nothing we can do... if there is an function matching 
-		// the member name in this Blueprint, then it will reference that 
-		// function (even if it came from a different Blueprint, one with an 
-		// identically named function)... if there is no function matching this 
-		// reference, then the node will produce an error later during compilation
 	}
 	else if (MemberClass != nullptr)
 	{
@@ -3318,6 +3320,11 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 		}
 		else if (UFunction* TargetFunction = GetTargetFunction())
 		{
+			const bool bIsObjectType = (MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+				MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject) &&
+				(OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Object ||
+				OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_SoftObject);
+
 			if (// Strictly speaking this first check is not needed, but by not disabling the connection here we get a better reason later:
 				(	OtherPin->PinType.IsContainer() 
 					// make sure we don't allow connections of mismatched container types (e.g. maps to arrays)
@@ -3332,6 +3339,54 @@ bool UK2Node_CallFunction::IsConnectionDisallowed(const UEdGraphPin* MyPin, cons
 			{
 				bIsDisallowed = true;
 				OutReason = LOCTEXT("PinSetConnectionDisallowed", "Containers of containers are not supported - consider wrapping a container in a Structure object").ToString();
+			}
+			// Do not allow exec pins to be connected to a wildcard if this is a container function
+			else if(MyPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard && OtherPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Exec)
+			{
+				bIsDisallowed = true;
+				OutReason = LOCTEXT("PinExecConnectionDisallowed", "Cannot create a container of Exec pins.").ToString();
+			}
+			else if (bIsObjectType && MyPin->Direction == EGPD_Input && MyPin->PinType.IsContainer() && OtherPin->PinType.IsContainer())
+			{
+				// Check that we can actually connect the dependent pins to this new array
+				const UEdGraphSchema_K2* K2Schema = Cast<UEdGraphSchema_K2>(GetSchema());
+
+				// Gather all pins that would be dependent on on the container type
+				TArray<UEdGraphPin*> DependentPins;
+				{
+					for (UEdGraphPin* Pin : Pins)
+					{
+						if (Pin->Direction == EGPD_Input && Pin != MyPin && FEdGraphUtilities::IsDynamicContainerParam(TargetFunction, Pin->PinName))
+						{
+							DependentPins.Add(Pin);
+						}
+					}
+				}
+
+				for (UEdGraphPin* Pin : DependentPins)
+				{
+					// #TODO Maps need special validation for the key/value together, not just one pin type. 
+					// otherwise you will end up with false failures. 
+					if (OtherPin->PinType.IsMap() && !Pin->PinType.IsMap())
+					{
+						continue;
+					}
+
+					const bool ConnectResponse = K2Schema->ArePinTypesCompatible(Pin->PinType, OtherPin->PinType, nullptr, /* bIgnoreArray = */ true);
+
+					if (!ConnectResponse)
+					{
+						// Display the necessary tooltip on the pin hover, and log it if we are compiling
+						FFormatNamedArguments MessageArgs;
+						MessageArgs.Add(TEXT("PinAType"), UEdGraphSchema_K2::TypeToText(Pin->PinType));
+						MessageArgs.Add(TEXT("PinBType"), UEdGraphSchema_K2::TypeToText(OtherPin->PinType));
+						UBlueprint* BP = GetBlueprint();
+						UEdGraph* OwningGraph = GetGraph();
+
+						OutReason = FText::Format(LOCTEXT("DefaultPinIncompatibilityMessage", "{PinAType} is not compatible with {PinBType}."), MessageArgs).ToString();
+						return true;
+					}
+				}
 			}
 		}
 	}

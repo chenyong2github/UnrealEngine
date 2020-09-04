@@ -34,7 +34,6 @@
 #include "llvm/ADT/STLExtras.h"
 
 #include "DeclResultIdMapper.h"
-#include "SpirvEvalInfo.h"
 
 namespace clang {
 namespace spirv {
@@ -52,6 +51,8 @@ public:
   ASTContext &getASTContext() { return astContext; }
   SpirvBuilder &getSpirvBuilder() { return spvBuilder; }
   DiagnosticsEngine &getDiagnosticsEngine() { return diags; }
+  CompilerInstance &getCompilerInstance() { return theCompilerInstance; }
+  SpirvCodeGenOptions &getSpirvOptions() { return spirvOptions; }
 
   void doDecl(const Decl *decl);
   void doStmt(const Stmt *stmt, llvm::ArrayRef<const Attr *> attrs = {});
@@ -76,6 +77,7 @@ private:
   void doFunctionDecl(const FunctionDecl *decl);
   void doVarDecl(const VarDecl *decl);
   void doRecordDecl(const RecordDecl *decl);
+  void doEnumDecl(const EnumDecl *decl);
   void doHLSLBufferDecl(const HLSLBufferDecl *decl);
   void doImplicitDecl(const Decl *decl);
 
@@ -260,6 +262,24 @@ private:
   SpirvInstruction *tryToAssignToRWBufferRWTexture(const Expr *lhs,
                                                    SpirvInstruction *rhs);
 
+  /// Tries to emit instructions for assigning to the given mesh out attribute
+  /// or indices object. Returns 0 if the trial fails and no instructions are
+  /// generated.
+  SpirvInstruction *
+  tryToAssignToMSOutAttrsOrIndices(const Expr *lhs, SpirvInstruction *rhs,
+                                   SpirvInstruction *vecComponent = nullptr,
+                                   bool noWriteBack = false);
+
+  /// Emit instructions for assigning to the given mesh out attribute.
+  void assignToMSOutAttribute(
+      const DeclaratorDecl *decl, SpirvInstruction *value,
+      const llvm::SmallVector<SpirvInstruction *, 4> &indices);
+
+  /// Emit instructions for assigning to the given mesh out indices object.
+  void
+  assignToMSOutIndices(const DeclaratorDecl *decl, SpirvInstruction *value,
+                       const llvm::SmallVector<SpirvInstruction *, 4> &indices);
+
   /// Processes each vector within the given matrix by calling actOnEachVector.
   /// matrixVal should be the loaded value of the matrix. actOnEachVector takes
   /// three parameters for the current vector: the index, the <type-id>, and
@@ -289,12 +309,15 @@ private:
                                     SpirvInstruction *initValue,
                                     SourceLocation loc);
 
-  /// Collects all indices from consecutive MemberExprs
-  /// TODO: Update method description here.
+  /// Collects all indices from consecutive MemberExprs, ArraySubscriptExprs and
+  /// CXXOperatorCallExprs. Also special handles all mesh shader out attributes
+  /// to return the entire expression in order for caller to extract the member
+  /// expression.
   const Expr *
   collectArrayStructIndices(const Expr *expr, bool rawIndex,
                             llvm::SmallVectorImpl<uint32_t> *rawIndices,
-                            llvm::SmallVectorImpl<SpirvInstruction *> *indices);
+                            llvm::SmallVectorImpl<SpirvInstruction *> *indices,
+                            bool *isMSOutAttribute = nullptr);
 
   /// Creates an access chain to index into the given SPIR-V evaluation result
   /// and returns the new SPIR-V evaluation result.
@@ -521,6 +544,12 @@ private:
   void processCallShader(const CallExpr *callExpr);
   void processTraceRay(const CallExpr *callExpr);
 
+  /// Process amplification shader intrinsics.
+  void processDispatchMesh(const CallExpr *callExpr);
+
+  /// Process mesh shader intrinsics.
+  void processMeshOutputCounts(const CallExpr *callExpr);
+
 private:
   /// Returns the <result-id> for constant value 0 of the given type.
   SpirvConstant *getValueZero(QualType type);
@@ -624,6 +653,12 @@ private:
   /// \brief Adds necessary execution modes for the compute shader based on the
   /// HLSL attributes of the entry point function.
   void processComputeShaderAttributes(const FunctionDecl *entryFunction);
+
+  /// \brief Adds necessary execution modes for the mesh/amplification shader
+  /// based on the HLSL attributes of the entry point function.
+  bool
+  processMeshOrAmplificationShaderAttributes(const FunctionDecl *decl,
+                                             uint32_t *outVerticesArraySize);
 
   /// \brief Emits a wrapper function for the entry function and returns true
   /// on success.
@@ -776,12 +811,11 @@ private:
   /// declaration for the Buffer/Texture object.
   /// If residencyCodeId is not zero,  the SPIR-V instruction for storing the
   /// resulting residency code will also be emitted.
-  SpirvInstruction *processBufferTextureLoad(const Expr *object,
-                                             SpirvInstruction *location,
-                                             SpirvInstruction *constOffset,
-                                             SpirvInstruction *varOffset,
-                                             SpirvInstruction *lod,
-                                             SpirvInstruction *residencyCode);
+  SpirvInstruction *
+  processBufferTextureLoad(const Expr *object, SpirvInstruction *location,
+                           SpirvInstruction *constOffset,
+                           SpirvInstruction *varOffset, SpirvInstruction *lod,
+                           SpirvInstruction *residencyCode, SourceLocation loc);
 
   /// \brief Processes .Sample() and .Gather() method calls for texture objects.
   SpirvInstruction *processTextureSampleGather(const CXXMemberCallExpr *expr,
@@ -947,7 +981,7 @@ private:
                               const clang::FunctionDecl *,
                               bool isEntryFunction);
 
-private:
+public:
   /// \brief Wrapper method to create a fatal error message and report it
   /// in the diagnostic engine associated with this consumer.
   template <unsigned N>
@@ -1106,11 +1140,16 @@ private:
   /// HitAttributeNV.
   llvm::SmallDenseMap<QualType,
                       std::pair<SpirvInstruction *, SpirvInstruction *>, 4>
-      payloadMap;
+      rayPayloadMap;
   llvm::SmallDenseMap<QualType, SpirvInstruction *, 4> hitAttributeMap;
   llvm::SmallDenseMap<QualType,
                       std::pair<SpirvInstruction *, SpirvInstruction *>, 4>
       callDataMap;
+
+  /// Incoming ray payload for current entry function being translated.
+  /// Only valid for any-hit/closest-hit ray tracing shaders.
+  SpirvInstruction *currentRayPayload;
+
   /// This is the Patch Constant Function. This function is not explicitly
   /// called from the entry point function.
   FunctionDecl *patchConstFunc;

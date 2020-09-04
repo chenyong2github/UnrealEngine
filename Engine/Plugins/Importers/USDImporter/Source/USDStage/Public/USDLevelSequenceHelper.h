@@ -4,18 +4,14 @@
 
 #include "CoreMinimal.h"
 
-#if USE_USD_SDK
-#include "USDIncludesStart.h"
-
-#include "pxr/pxr.h"
-#include "pxr/usd/sdf/changeList.h"
-#include "pxr/usd/usd/stage.h"
-
-#include "USDIncludesEnd.h"
-#endif // USE_USD_SDK
-
 class AUsdStageActor;
 class FUsdLevelSequenceHelperImpl;
+class UUsdPrimTwin;
+
+namespace UE
+{
+	class FUsdStage;
+}
 
 class FUsdLevelSequenceHelper
 {
@@ -24,10 +20,35 @@ public:
 	explicit FUsdLevelSequenceHelper(TWeakObjectPtr<AUsdStageActor> InStageActor);
 	virtual ~FUsdLevelSequenceHelper();
 
-#if USE_USD_SDK
-	void InitLevelSequence(const pxr::UsdStageRefPtr& UsdStage);
-	void UpdateLevelSequence(const pxr::UsdStageRefPtr& UsdStage);
-#endif // USE_USD_SDK
+	void InitLevelSequence(const UE::FUsdStage& UsdStage);
+
+	/** Adds the necessary tracks for a given prim to the level sequence */
+	void AddPrim(UUsdPrimTwin& PrimTwin);
+
+	/** Removes any track associated with this prim */
+	void RemovePrim(const UUsdPrimTwin& PrimTwin);
+
+	/** Prevents the FUsdLevelSequenceHelper from updating the level sequences on object transactions for a given scope */
+	struct FBlockMonitoring
+	{
+		FBlockMonitoring( FUsdLevelSequenceHelper& InLevelSequenceHelper )
+			: LevelSequenceHelper( InLevelSequenceHelper )
+		{
+			LevelSequenceHelper.StopMonitoringChanges();
+		}
+
+		~FBlockMonitoring()
+		{
+			LevelSequenceHelper.StartMonitoringChanges();
+		}
+
+	private:
+		FUsdLevelSequenceHelper& LevelSequenceHelper;
+	};
+
+protected:
+	void StartMonitoringChanges();
+	void StopMonitoringChanges();
 
 private:
 	TUniquePtr<FUsdLevelSequenceHelperImpl> UsdSequencerImpl;

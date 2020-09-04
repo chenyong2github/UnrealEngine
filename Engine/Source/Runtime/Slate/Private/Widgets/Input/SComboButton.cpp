@@ -40,6 +40,8 @@ void SComboButton::Construct( const FArguments& InArgs )
 			.ForegroundColor( InArgs._ForegroundColor )
 			.ButtonColorAndOpacity( InArgs._ButtonColorAndOpacity )
 			.IsFocusable( InArgs._IsFocusable )
+		// We set the button to not be accessible as there are issues interacting with the menus that pop up e.g in SComboBox
+		.AccessibleParams(FAccessibleWidgetData(EAccessibleBehavior::NotAccessible, EAccessibleBehavior::NotAccessible, false))
 			[
 				// Button and down arrow on the right
 				// +-------------------+---+

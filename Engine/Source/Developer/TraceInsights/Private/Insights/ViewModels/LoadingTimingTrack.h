@@ -39,16 +39,17 @@ public:
 		return TrackPtrPtr ? *TrackPtrPtr : nullptr;
 	}
 
-	void ShowHideAllLoadingTracks() { ShowHideAllLoadingTracks_Execute(); }
+	bool IsAllLoadingTracksToggleOn() const { return bShowHideAllLoadingTracks; }
+	void SetAllLoadingTracksToggle(bool bOnOff);
+	void ShowAllLoadingTracks() { SetAllLoadingTracksToggle(true); }
+	void HideAllLoadingTracks() { SetAllLoadingTracksToggle(false); }
+	void ShowHideAllLoadingTracks() { SetAllLoadingTracksToggle(!IsAllLoadingTracksToggleOn()); }
 
 private:
 	const TCHAR* GetEventNameByEventType(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByPackageName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
 	const TCHAR* GetEventNameByPackageAndExportClassName(uint32 Depth, const Trace::FLoadTimeProfilerCpuEvent& Event) const;
-
-	bool ShowHideAllLoadingTracks_IsChecked() const;
-	void ShowHideAllLoadingTracks_Execute();
 
 private:
 	STimingView* TimingView;
@@ -57,6 +58,8 @@ private:
 
 	/** Maps thread id to track pointer. */
 	TMap<uint32, TSharedPtr<FLoadingTimingTrack>> LoadingTracks;
+
+	uint64 LoadTimeProfilerTimelineCount;
 
 	FLoadingTrackGetEventNameDelegate GetEventNameDelegate;
 };

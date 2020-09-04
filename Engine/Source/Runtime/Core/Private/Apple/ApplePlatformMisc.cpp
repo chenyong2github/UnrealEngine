@@ -334,12 +334,6 @@ void FApplePlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR
 #elif APPLE_PROFILING_ENABLED
 	FApplePlatformDebugEvents::BeginNamedEvent(Color, Text);
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FApplePlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
@@ -349,12 +343,6 @@ void FApplePlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSIC
 #elif APPLE_PROFILING_ENABLED
 	FApplePlatformDebugEvents::BeginNamedEvent(Color, Text);
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FApplePlatformMisc::EndNamedEvent()
@@ -364,12 +352,6 @@ void FApplePlatformMisc::EndNamedEvent()
 #elif APPLE_PROFILING_ENABLED
 	FApplePlatformDebugEvents::EndNamedEvent();
 #endif // FRAMEPRO_ENABLED
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputEndEvent();
-	}
-#endif
 }
 
 void FApplePlatformMisc::CustomNamedStat(const TCHAR* Text, float Value, const TCHAR* Graph, const TCHAR* Unit)

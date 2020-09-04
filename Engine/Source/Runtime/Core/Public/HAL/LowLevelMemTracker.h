@@ -25,8 +25,10 @@
 	// using asset tagging requires a significantly higher number of per-thread tags, so make it optional
 	// even if this is on, we still need to run with -llmtagsets=assets because of the sheer number of stat ids it makes
 	// LLM Assets can be viewed in game using 'Stat LLMAssets'
-	#define LLM_ALLOW_ASSETS_TAGS 0
-
+	#ifndef LLM_ALLOW_ASSETS_TAGS
+		#define LLM_ALLOW_ASSETS_TAGS 0
+	#endif
+	
 	#define LLM_STAT_TAGS_ENABLED (LLM_ALLOW_ASSETS_TAGS || 0)
 
 	// this controls if the commandline is used to enable tracking, or to disable it. If LLM_COMMANDLINE_ENABLES_FUNCTIONALITY is true, 
@@ -520,6 +522,8 @@ private:
 
 	bool bCsvWriterEnabled;
 
+	bool bTraceWriterEnabled;
+
 	bool bInitialisedTrackers;
 
 	FLLMCustomTag CustomTags[LLM_CUSTOM_TAG_COUNT];
@@ -527,6 +531,7 @@ private:
 	FLLMTracker* Trackers[(int32)ELLMTracker::Max];
 
 	int32 ParentTags[LLM_TAG_COUNT];
+	FCriticalSection UpdateLock;
 
 	static FLowLevelMemTracker* TrackerInstance;
 

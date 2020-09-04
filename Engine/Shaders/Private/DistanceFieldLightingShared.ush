@@ -4,8 +4,6 @@
 	DistanceFieldLightingShared.usf
 =============================================================================*/
 
-#include "SurfelMaterialShared.ush"
-
 #ifndef THREADGROUP_SIZEX
 #define THREADGROUP_SIZEX 1
 #endif   
@@ -470,28 +468,6 @@ bool ViewFrustumIntersectSphere(float3 SphereOrigin, float SphereRadius)
 	}
 	
 	return true;
-}
-
-Buffer<float4> SurfelData;
-
-float4 LoadSurfelPositionAndRadius(uint SurfelIndex)
-{
-	return SurfelData[SurfelIndex * SURFEL_DATA_STRIDE + 0];
-}
-
-float3 LoadSurfelNormal(uint SurfelIndex)
-{
-	return SurfelData[SurfelIndex * SURFEL_DATA_STRIDE + 1].xyz;
-}
-
-float3 LoadSurfelDiffuseColor(uint SurfelIndex)
-{
-	return SurfelData[SurfelIndex * SURFEL_DATA_STRIDE + 2].xyz;
-}
-
-float3 LoadSurfelEmissiveColor(uint SurfelIndex)
-{
-	return SurfelData[SurfelIndex * SURFEL_DATA_STRIDE + 3].xyz;
 }
 
 float ApproximateConeConeIntersection(float ArcLength0, float ArcLength1, float AngleBetweenCones)

@@ -224,6 +224,11 @@ public:
 	*/
 	virtual bool GetUsingSharedDDC() const = 0;
 
+	/**
+	 * Retrieve the name of the graph used when configuring DDC
+	 */
+	virtual const TCHAR* GetGraphName() const = 0;
+
 	//--------------------
 	// UsageStats Interface
 	//--------------------

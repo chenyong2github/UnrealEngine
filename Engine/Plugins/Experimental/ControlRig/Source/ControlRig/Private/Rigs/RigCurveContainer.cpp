@@ -87,9 +87,7 @@ FRigCurve FRigCurveContainer::Remove(const FName& InName)
 
 	int32 IndexToDelete = GetIndex(InName);
 	ensure(IndexToDelete != INDEX_NONE);
-#if WITH_EDITOR
 	Select(InName, false);
-#endif
 	RemovedCurve = Curves[IndexToDelete];
 	Curves.RemoveAt(IndexToDelete);
 	RefreshMapping();
@@ -167,13 +165,11 @@ FName FRigCurveContainer::Rename(const FName& InOldName, const FName& InNewName)
 		{
 			FName NewName = GetSafeNewName(InNewName);
 
-#if WITH_EDITOR
 			bool bWasSelected = IsSelected(InOldName);
 			if(bWasSelected)
 			{
 				Select(InOldName, false);
 			}
-#endif
 
 			Curves[Found].Name = NewName;
 			RefreshMapping();
@@ -183,11 +179,11 @@ FName FRigCurveContainer::Rename(const FName& InOldName, const FName& InNewName)
 			{
 				OnCurveRenamed.Broadcast(Container, RigElementType(), InOldName, NewName);
 			}
+#endif
 			if(bWasSelected)
 			{
 				Select(NewName, true);
 			}
-#endif
 			return NewName;
 		}
 	}
@@ -232,8 +228,6 @@ void FRigCurveContainer::ResetValues()
 		Curves[Index].Value = 0.f;
 	}
 }
-
-#if WITH_EDITOR
 
 bool FRigCurveContainer::Select(const FName& InName, bool bSelect)
 {
@@ -287,6 +281,8 @@ bool FRigCurveContainer::IsSelected(const FName& InName) const
 	return Selection.Contains(InName);
 }
 
+#if WITH_EDITOR
+
 TArray<FRigElementKey> FRigCurveContainer::ImportCurvesFromSkeleton(const USkeleton* InSkeleton, const FName& InNameSpace, bool bRemoveObsoleteCurves, bool bSelectCurves, bool bNotify)
 {
 	check(InSkeleton);
@@ -316,3 +312,37 @@ TArray<FRigElementKey> FRigCurveContainer::ImportCurvesFromSkeleton(const USkele
 
 
 #endif
+
+FRigPose FRigCurveContainer::GetPose() const
+{
+	FRigPose Pose;
+	AppendToPose(Pose);
+	return Pose;
+}
+
+void FRigCurveContainer::SetPose(FRigPose& InPose)
+{
+	for(FRigPoseElement& Element : InPose)
+	{
+		if(Element.Index.GetKey().Type == ERigElementType::Curve)
+		{
+			if(Element.Index.UpdateCache(Container))
+			{
+				Curves[Element.Index.GetIndex()].Value = Element.CurveValue;
+			}
+		}
+	}
+}
+
+void FRigCurveContainer::AppendToPose(FRigPose& InOutPose) const
+{
+	for(const FRigCurve& Curve : Curves)
+	{
+		FRigPoseElement Element;
+		if(Element.Index.UpdateCache(Curve.GetElementKey(), Container))
+		{
+			Element.CurveValue = Curve.Value;
+			InOutPose.Elements.Add(Element);
+		}
+	}
+}

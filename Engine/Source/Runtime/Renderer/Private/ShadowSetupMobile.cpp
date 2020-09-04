@@ -74,14 +74,6 @@ static bool EnableStaticMeshCSMVisibilityState(bool bMovableLight, const FPrimit
 				MobileCSMVisibilityInfo.MobileCSMStaticMeshVisibilityMap[StaticMesh.Id] = MobileCSMVisibilityInfo.MobileNonCSMStaticMeshVisibilityMap[StaticMesh.Id];
 				// CSM excluded list
 				MobileCSMVisibilityInfo.MobileNonCSMStaticMeshVisibilityMap[StaticMesh.Id] = false;
-
-				if (StaticMesh.bRequiresPerElementVisibility)
-				{
-					// CSM enabled list
-					MobileCSMVisibilityInfo.MobileCSMStaticBatchVisibility[StaticMesh.BatchVisibilityId] = MobileCSMVisibilityInfo.MobileNonCSMStaticBatchVisibility[StaticMesh.BatchVisibilityId];
-					// CSM excluded list
-					MobileCSMVisibilityInfo.MobileNonCSMStaticBatchVisibility[StaticMesh.BatchVisibilityId] = 0;
-				}
 				
 				INC_DWORD_STAT_BY(STAT_CSMStaticMeshReceivers, 1);
 				bFoundReceiver = true;

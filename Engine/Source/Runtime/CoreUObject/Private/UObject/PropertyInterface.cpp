@@ -243,9 +243,9 @@ const TCHAR* FInterfaceProperty::ImportText_Internal( const TCHAR* InBuffer, voi
 	return Buffer;
 }
 
-bool FInterfaceProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps) const
+bool FInterfaceProperty::ContainsObjectReference(TArray<const FStructProperty*>& EncounteredStructProps, EPropertyObjectReferenceType InReferenceType /*= EPropertyObjectReferenceType::Strong*/) const
 {
-	return true; 
+	return !!(InReferenceType & EPropertyObjectReferenceType::Strong);
 }
 
 /** Manipulates the data referenced by this FProperty */

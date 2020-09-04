@@ -3,8 +3,9 @@
 #pragma once
 #include "CoreMinimal.h"
 #include "Subsystems/EngineSubsystem.h"
-#include "ContourList.h"
+#include "Text3DPrivate.h"
 #include "BevelType.h"
+#include "ContourNode.h"
 #include "Text3DEngineSubsystem.generated.h"
 
 
@@ -45,10 +46,10 @@ public:
 
 	uint32 GetTypefaceFontDataHash();
 	TSharedPtr<int32> GetCacheCounter();
-	TSharedPtr<int32> GetMeshesCacheCounter(float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
+	TSharedPtr<int32> GetMeshesCacheCounter(bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
 
-	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
-	TSharedPtr<FContourList> GetGlyphContours(uint32 GlyphIndex);
+	UStaticMesh* GetGlyphMesh(uint32 GlyphIndex, bool bOutline, float Extrude, float Bevel, EText3DBevelType BevelType, float BevelSegments);
+	TSharedContourNode GetGlyphContours(uint32 GlyphIndex);
 
 	UPROPERTY()
 	class UFont* Font;
@@ -56,7 +57,7 @@ public:
 	UPROPERTY()
 	TMap<uint32, FCachedFontMeshes> Meshes;
 
-	TMap<uint32, TSharedPtr<FContourList>> Glyphs;
+	TMap<uint32, TSharedContourNode> Glyphs;
 
 private:
 	FT_Face FreeTypeFace;

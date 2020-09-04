@@ -7,13 +7,14 @@
 #include "Config/DisplayClusterConfigTypes.h"
 #include "Input/IPDisplayClusterInputManager.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
-UDisplayClusterSceneComponent::UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer) :
-	USceneComponent(ObjectInitializer)
+UDisplayClusterSceneComponent::UDisplayClusterSceneComponent(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
 {
+	// Children of UDisplayClusterSceneComponent must always Tick to be able to process VRPN tracking
 	PrimaryComponentTick.bCanEverTick = true;
 }
 

@@ -19,9 +19,4 @@ class UBlueprintFunctionLibrary : public UObject
 	// UObject interface
 	ENGINE_API virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 	// End of UObject interface
-
-protected:
-
-	//bool	CheckAuthority(UObject* 
-
 };

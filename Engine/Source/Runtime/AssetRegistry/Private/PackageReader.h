@@ -44,31 +44,36 @@ public:
 	bool ReadDependencyData(FPackageDependencyData& OutDependencyData);
 
 	/** Serializers for different package maps */
-	void SerializeNameMap();
-	void SerializeImportMap(TArray<FObjectImport>& OutImportMap);
-	void SerializeExportMap(TArray<FObjectExport>& OutExportMap);
-	void SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
-	void SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
+	bool SerializeNameMap();
+	bool SerializeImportMap(TArray<FObjectImport>& OutImportMap);
+	bool SerializeExportMap(TArray<FObjectExport>& OutExportMap);
+	bool SerializeSoftPackageReferenceList(TArray<FName>& OutSoftPackageReferenceList);
+	bool SerializeSearchableNamesMap(FPackageDependencyData& OutDependencyData);
+	bool SerializeAssetRegistryDependencyData(FPackageDependencyData& DependencyData);
 
 	/** Returns flags the asset package was saved with */
 	uint32 GetPackageFlags() const;
 
 	// Farchive implementation to redirect requests to the Loader
-	void Serialize( void* V, int64 Length );
-	bool Precache( int64 PrecacheOffset, int64 PrecacheSize );
-	void Seek( int64 InPos );
-	int64 Tell();
-	int64 TotalSize();
-	FArchive& operator<<( FName& Name );
+	virtual void Serialize( void* V, int64 Length ) override;
+	virtual bool Precache( int64 PrecacheOffset, int64 PrecacheSize ) override;
+	virtual void Seek( int64 InPos ) override;
+	virtual int64 Tell() override;
+	virtual int64 TotalSize() override;
+	virtual FArchive& operator<<( FName& Name ) override;
 	virtual FString GetArchiveName() const override
 	{
 		return PackageFilename;
 	}
 
 private:
+	bool StartSerializeSection(int64 Offset);
+
 	FString PackageFilename;
+	/* Loader is the interface used to read the bytes from the package's repository. All interpretation of the bytes is done by serializing into *this, which is also an FArchive. */
 	FArchive* Loader;
 	FPackageFileSummary PackageFileSummary;
 	TArray<FName> NameMap;
 	int64 PackageFileSize;
+	int64 AssetRegistryDependencyDataOffset;
 };

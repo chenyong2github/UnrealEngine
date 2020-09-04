@@ -641,12 +641,10 @@ const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, 
 	}
 
 	uint8* TempElementStorage = (uint8*)FMemory::Malloc(ElementProp->ElementSize);
-	ElementProp->InitializeValue(TempElementStorage);
 
 	bool bSuccess = false;
 	ON_SCOPE_EXIT
 	{
-		ElementProp->DestroyValue(TempElementStorage);
 		FMemory::Free(TempElementStorage);
 
 		// If we are returning because of an error, remove any already-added elements from the map before returning
@@ -659,6 +657,12 @@ const TCHAR* FSetProperty::ImportText_Internal(const TCHAR* Buffer, void* Data, 
 
 	for (;;)
 	{
+		ElementProp->InitializeValue(TempElementStorage);
+		ON_SCOPE_EXIT
+		{
+			ElementProp->DestroyValue(TempElementStorage);
+		};
+
 		// Read key into temporary storage
 		Buffer = ElementProp->ImportText(Buffer, TempElementStorage, PortFlags | PPF_Delimited, Parent, ErrorText);
 		if (!Buffer)
@@ -786,7 +790,6 @@ void FSetProperty::InstanceSubobjects(void* Data, void const* DefaultData, UObje
 	if (DefaultData)
 	{
 		FScriptSetHelper DefaultSetHelper(this, DefaultData);
-		const int32 DefaultNum = DefaultSetHelper.Num();
 
 		for (int32 Index = 0, Num = SetHelper.Num(); Num; ++Index)
 		{

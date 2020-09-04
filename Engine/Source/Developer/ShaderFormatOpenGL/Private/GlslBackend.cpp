@@ -5722,7 +5722,7 @@ void FGlslLanguageSpec::SetupLanguageIntrinsics(_mesa_glsl_parse_state* State, e
 {
 	unsigned IntrinsicReturnType = bDefaultPrecisionIsHalf ? IR_INTRINSIC_ALL_FLOATING : IR_INTRINSIC_FLOAT;
 	make_intrinsic_genType(ir, State, FRAMEBUFFER_FETCH_ES2, ir_invalid_opcode, IntrinsicReturnType, 0, 4, 4);
-	make_intrinsic_genType(ir, State, DEPTHBUFFER_FETCH_ES2, ir_invalid_opcode, IntrinsicReturnType, 3, 1, 1);
+	make_intrinsic_genType(ir, State, DEPTHBUFFER_FETCH_ES2, ir_invalid_opcode, IntrinsicReturnType, 0, 1, 1);
 
 	{
 		ir_function* func = new(State)ir_function("compiler_internal_AdjustInputSemantic");

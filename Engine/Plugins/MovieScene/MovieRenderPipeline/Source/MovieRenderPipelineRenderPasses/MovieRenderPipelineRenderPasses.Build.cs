@@ -15,9 +15,10 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 				"Engine",
 				"ImageWriteQueue",
                 "SignalProcessing", // Needed for wave writer.
+				"AudioMixer",
 				"UEOpenExr", // Needed for multilayer EXRs
 				"UEOpenExrRTTI", // Needed for EXR metadata
-				"ImageWrapper",
+				"ImageWrapper",				
 				"CinematicCamera", // For metadata
 			}
 		);
@@ -25,8 +26,10 @@ public class MovieRenderPipelineRenderPasses : ModuleRules
 		PublicDependencyModuleNames.AddRange(
 			new string[] {
 				"MovieRenderPipelineCore",
+				"Renderer",
 				"RenderCore",
-                "RHI",
+				"RHI",
+				"OpenColorIO",
 			}
         );
 

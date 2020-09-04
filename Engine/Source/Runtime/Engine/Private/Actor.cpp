@@ -305,7 +305,7 @@ void AActor::ResetOwnedComponents()
 
 			if (Component->GetIsReplicated())
 			{
-				ReplicatedComponents.AddUnique(Component);
+				ReplicatedComponents.Add(Component);
 			}
 		}
 	}, true, RF_NoFlags, EInternalObjectFlags::PendingKill);
@@ -1314,9 +1314,18 @@ bool AActor::Modify( bool bAlwaysMarkDirty/*=true*/ )
 	}
 
 	// If the root component is blueprint constructed we don't save it to the transaction buffer
-	if( RootComponent && !RootComponent->IsCreatedByConstructionScript())
+	if (RootComponent)
 	{
-		bSavedToTransactionBuffer = RootComponent->Modify( bAlwaysMarkDirty ) || bSavedToTransactionBuffer;
+		if (!RootComponent->IsCreatedByConstructionScript())
+		{
+			bSavedToTransactionBuffer = RootComponent->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
+		}
+
+		USceneComponent* DefaultAttachComp = GetDefaultAttachComponent();
+		if (DefaultAttachComp && DefaultAttachComp != RootComponent && !DefaultAttachComp->IsCreatedByConstructionScript())
+		{
+			bSavedToTransactionBuffer = DefaultAttachComp->Modify(bAlwaysMarkDirty) || bSavedToTransactionBuffer;
+		}
 	}
 
 	return bSavedToTransactionBuffer;
@@ -2814,7 +2823,7 @@ void AActor::RemoveOwnedComponent(UActorComponent* Component)
 
 	if (OwnedComponents.Remove(Component) > 0)
 	{
-		ReplicatedComponents.Remove(Component);
+		ReplicatedComponents.RemoveSingleSwap(Component);
 		if (Component->IsCreatedByConstructionScript())
 		{
 			BlueprintCreatedComponents.RemoveSingleSwap(Component);
@@ -2835,14 +2844,13 @@ bool AActor::OwnsComponent(UActorComponent* Component) const
 
 void AActor::UpdateReplicatedComponent(UActorComponent* Component)
 {
-	checkf(Component->GetOwner() == this, TEXT("UE-9568: Component %s being updated for Actor %s"), *Component->GetPathName(), *GetPathName() );
 	if (Component->GetIsReplicated())
 	{
 		ReplicatedComponents.AddUnique(Component);
 	}
 	else
 	{
-		ReplicatedComponents.Remove(Component);
+		ReplicatedComponents.RemoveSingleSwap(Component);
 	}
 }
 
@@ -3147,7 +3155,7 @@ void AActor::PostSpawnInitialize(FTransform const& UserSpawnTransform, AActor* I
 	// at the native class level. In that case, if this is a Blueprint instance, we need to defer native registration until after SCS execution can establish a scene root.
 	// Note: This API will also call PostRegisterAllComponents() on the actor instance. If deferred, PostRegisterAllComponents() won't be called until the root is set by SCS.
 	bHasDeferredComponentRegistration = (SceneRootComponent == nullptr && Cast<UBlueprintGeneratedClass>(GetClass()) != nullptr);
-	if (!bHasDeferredComponentRegistration)
+	if (!bHasDeferredComponentRegistration && GetWorld())
 	{
 		RegisterAllComponents();
 	}
@@ -3227,7 +3235,10 @@ void AActor::FinishSpawning(const FTransform& UserTransform, bool bIsDefaultTran
 		FinalRootComponentTransform.GetLocation().DiagnosticCheckNaN(TEXT("AActor::FinishSpawning: FinalRootComponentTransform.GetLocation()"));
 		FinalRootComponentTransform.GetRotation().DiagnosticCheckNaN(TEXT("AActor::FinishSpawning: FinalRootComponentTransform.GetRotation()"));
 
-		ExecuteConstruction(FinalRootComponentTransform, nullptr, InstanceDataCache, bIsDefaultTransform);
+		{
+			FEditorScriptExecutionGuard ScriptGuard;
+			ExecuteConstruction(FinalRootComponentTransform, nullptr, InstanceDataCache, bIsDefaultTransform);
+		}
 
 		{
 			SCOPE_CYCLE_COUNTER(STAT_PostActorConstruction);
@@ -3845,6 +3856,17 @@ void AActor::AddActorWorldTransform(const FTransform& DeltaTransform, bool bSwee
 	}
 }
 
+void AActor::AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
+{
+	if (RootComponent)
+	{
+		RootComponent->AddWorldTransformKeepScale(DeltaTransform, bSweep, OutSweepHitResult, Teleport);
+	}
+	else if (OutSweepHitResult)
+	{
+		*OutSweepHitResult = FHitResult();
+	}
+}
 
 bool AActor::SetActorTransform(const FTransform& NewTransform, bool bSweep, FHitResult* OutSweepHitResult, ETeleportType Teleport)
 {
@@ -4156,27 +4178,19 @@ void AActor::SetNetDriverName(FName NewNetDriverName)
 //
 int32 AActor::GetFunctionCallspace( UFunction* Function, FFrame* Stack )
 {
-	// Quick reject 1.
-	if ((Function->FunctionFlags & FUNC_Static))
-	{
-		// Call local
-		DEBUG_CALLSPACE(TEXT("GetFunctionCallspace Local1: %s"), *Function->GetName());
-		return FunctionCallspace::Local;
-	}
-
 	if (GAllowActorScriptExecutionInEditor)
 	{
-		// Call local
-		DEBUG_CALLSPACE(TEXT("GetFunctionCallspace Local2: %s"), *Function->GetName());
+		// Call local, this global is only true when we know it's being called on an editor-placed object
+		DEBUG_CALLSPACE(TEXT("GetFunctionCallspace ScriptExecutionInEditor: %s"), *Function->GetName());
 		return FunctionCallspace::Local;
 	}
 
-	UWorld* World = GetWorld();
-	if (!World)
+	if ((Function->FunctionFlags & FUNC_Static) || (GetWorld() == nullptr))
 	{
-		// Call local
-		DEBUG_CALLSPACE(TEXT("GetFunctionCallspace Local3: %s"), *Function->GetName());
-		return FunctionCallspace::Local;
+		// Use the same logic as function libraries for static/CDO called functions, will try to use the global context to check authority only/cosmetic
+		DEBUG_CALLSPACE(TEXT("GetFunctionCallspace Static: %s"), *Function->GetName());
+
+		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
 	}
 
 	const ENetRole LocalRole = GetLocalRole();
@@ -5014,6 +5028,11 @@ void AActor::K2_AddActorWorldTransform(const FTransform& DeltaTransform, bool bS
 {
 	AddActorWorldTransform(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
 }
+
+ void AActor::K2_AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
+ {
+ 	AddActorWorldTransformKeepScale(DeltaTransform, bSweep, (bSweep ? &SweepHitResult : nullptr), TeleportFlagToEnum(bTeleport));
+ }
 
 bool AActor::K2_SetActorTransform(const FTransform& NewTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport)
 {

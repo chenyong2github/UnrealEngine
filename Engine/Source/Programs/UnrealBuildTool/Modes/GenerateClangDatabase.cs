@@ -94,6 +94,16 @@ namespace UnrealBuildTool
 
 								StringBuilder CommandBuilder = new StringBuilder();
 								CommandBuilder.AppendFormat("\"{0}\"", ClangPath.FullName);
+
+								if (ModuleCompileEnvironment.CppStandard >= CppStandardVersion.Cpp17)
+								{
+									CommandBuilder.AppendFormat(" -std=c++17");
+								}
+								else if (ModuleCompileEnvironment.CppStandard >= CppStandardVersion.Cpp14)
+								{
+									CommandBuilder.AppendFormat(" -std=c++14");
+								}
+
 								foreach (FileItem ForceIncludeFile in ModuleCompileEnvironment.ForceIncludeFiles)
 								{
 									CommandBuilder.AppendFormat(" -include \"{0}\"", ForceIncludeFile.FullName);

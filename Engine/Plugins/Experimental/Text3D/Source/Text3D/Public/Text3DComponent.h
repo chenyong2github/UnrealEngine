@@ -28,7 +28,7 @@ enum class EText3DHorizontalTextAlignment : uint8
 };
 
 
-UCLASS(ClassGroup = (Text3D))
+UCLASS(ClassGroup = (Text3D), meta=(BlueprintSpawnableComponent))
 class TEXT3D_API UText3DComponent final : public USceneComponent
 {
 	GENERATED_BODY()
@@ -37,6 +37,7 @@ public:
 	UText3DComponent();
 
 	virtual void OnRegister() override;
+	virtual void OnUnregister() override;
 
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -51,23 +52,27 @@ public:
 	float Extrude;
 
 	/** Size of bevel */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevel, Category = "Text3D", Meta = (ClampMin = 0))
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevel, Category = "Text3D", Meta = (EditCondition = "!bOutline", ClampMin = 0))
 	float Bevel;
 
-	/** Bevel Type (Linear / Half Circle) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelType, Category = "Text3D")
+	/** Bevel Type */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelType, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
 	EText3DBevelType BevelType;
 
-	/** Half Circle Bevel Segments (Defines the amount of tesselation for the bevel part) */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelSegments, Category = "Text3D", Meta = (ClampMin = 1, ClampMax = 15))
+	/** Bevel Segments (Defines the amount of tesselation for the bevel part) */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelSegments, Category = "Text3D", Meta = (EditCondition = "!bOutline", ClampMin = 1, ClampMax = 15))
 	int32 BevelSegments;
+
+	/** Generate Outline */
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetOutline, Category = "Text3D")
+	bool bOutline;
 
 	/** Material for the front part */
 	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetFrontMaterial, Category = "Text3D")
 	class UMaterialInterface* FrontMaterial;
 
 	/** Material for the bevel part */
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelMaterial, Category = "Text3D")
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, BlueprintSetter = SetBevelMaterial, Category = "Text3D", Meta = (EditCondition = "!bOutline"))
 	class UMaterialInterface* BevelMaterial;
 
 	/** Material for the extruded part */
@@ -137,6 +142,9 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetFont(class UFont* const InFont);
 
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
+	void SetOutline(const bool bValue);
+
 	/** Set the text extrusion size and signal the primitives to be rebuilt */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetExtrude(const float Value);
@@ -145,11 +153,11 @@ public:
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetBevel(const float Value);
 
-	/** Set the 3d bevel type (Linear / Half Circle) */
+	/** Set the 3d bevel type */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetBevelType(const EText3DBevelType Value);
 
-	/** Set the amount of segments that will be used to tesselate the Half Circle Bevel */
+	/** Set the amount of segments that will be used to tesselate the Bevel */
 	UFUNCTION(BlueprintCallable, Category = "Rendering|Components|Text3D")
 	void SetBevelSegments(const int32 Value);
 
@@ -223,14 +231,17 @@ private:
 	class USceneComponent* TextRoot;
 	FTextGenerated TextGeneratedDelegate;
 
-#if WITH_EDITOR
-	bool bInitialized;
-#endif
 	bool bPendingBuild;
 	bool bFreezeBuild;
 
 	TSharedPtr<struct FText3DShapedText> ShapedText;
 	TArray<TSharedPtr<int32>> CachedCounterReferences;
+
+	UPROPERTY(Transient)
+	TArray<USceneComponent*> CharacterKernings;
+
+	UPROPERTY(Transient)
+	TArray<UStaticMeshComponent*> CharacterMeshes;
 
 	class UMaterialInterface* GetMaterial(const EText3DGroupType Type) const;
 	void SetMaterial(const EText3DGroupType Type, class UMaterialInterface* Material);
@@ -238,6 +249,7 @@ private:
 
 	void Rebuild();
 	void UpdateTransforms();
+	void ClearTextMesh();
 	void BuildTextMesh(const bool bCleanCache = false);
 	void CheckBevel();
 	float MaxBevel() const;

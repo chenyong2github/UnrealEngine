@@ -13,9 +13,10 @@ namespace UnrealBuildTool.Rules
                     "ControlRigEditor/Private/EditMode",
                     "ControlRigEditor/Private/Graph",
                     "ControlRigEditor/Private/Editor",
-                    "../../../../Source/Editor/UnrealEd/Private" //compatibility for FBX importer
+					"../../../../Source/Developer/MessageLog/Private", //compatibility for FBX importer
+					"../../../../Source/Editor/UnrealEd/Private" //compatibility for FBX importer
 				}
-            );
+			);
 
             PublicDependencyModuleNames.AddRange(
 				new string[]
@@ -40,6 +41,7 @@ namespace UnrealBuildTool.Rules
                     "ControlRigDeveloper",
                     "Kismet",
                     "EditorStyle",
+					"EditorWidgets",
                     "ApplicationCore",
                     "AnimationCore",
                     "PropertyEditor",
@@ -66,10 +68,11 @@ namespace UnrealBuildTool.Rules
 					"Json",
 					"DesktopPlatform",
 					"ToolMenus",
-					"ControlRigManipulation",
                     "RigVM",
-                    "RigVMDeveloper"
-                }
+                    "RigVMDeveloper",
+					"AnimationEditor",
+					"MessageLog"
+				}
             );
 
             AddEngineThirdPartyPrivateStaticDependencies(Target, "FBX");

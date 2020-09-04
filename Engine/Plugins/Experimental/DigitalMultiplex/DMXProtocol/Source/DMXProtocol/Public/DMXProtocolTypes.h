@@ -5,6 +5,7 @@
 #include "DMXProtocolCommon.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolMacros.h"
+#include "DMXNameListItem.h"
 
 #include "Dom/JsonObject.h"
 #include "Kismet/BlueprintFunctionLibrary.h"
@@ -13,7 +14,7 @@
 
 #include "DMXProtocolTypes.generated.h"
 
-UENUM(BlueprintType)
+UENUM(BlueprintType, Category = "DMX")
 enum class EDMXSendResult : uint8
 {
 	Success UMETA(DisplayName = "Successfully sent"),
@@ -34,10 +35,12 @@ enum class EDMXProtocolDirectionality : uint8
 UENUM()
 enum class EDMXCommunicationTypes : uint8
 {
-	Broadcast UMETA(DisplayName = "Broadcast")
+	Broadcast	UMETA(DisplayName = "Broadcast"),
+	Unicast		UMETA(DisplayName = "Unicast"),
+	Multicast	UMETA(DisplayName = "Multicast"),
 };
 
-UENUM(BlueprintType)
+UENUM(BlueprintType, Category = "DMX")
 enum class EDMXFixtureSignalFormat : uint8
 {
 	/** Uses 1 channel (byte) and allows subdivision into sub functions */
@@ -52,17 +55,14 @@ enum class EDMXFixtureSignalFormat : uint8
 	E32Bit 	UMETA(DisplayName = "32 Bit"),
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXProtocolName
+	: public FDMXNameListItem
 {
 public:
 	GENERATED_BODY()
 
-	/** Selected protocol name */
-	UPROPERTY(BlueprintReadWrite, Category = "DMX|Protocol")
-	FName Name;
-
-	static TArray<FName> GetPossibleValues();
+	DECLARE_DMX_NAMELISTITEM_STATICS(false)
 
 	FDMXProtocolName();
 	/** Construct from a protocol name */
@@ -72,8 +72,9 @@ public:
 
 	/** Returns the Protocol this name represents */
 	IDMXProtocolPtr GetProtocol() const;
-	/** True if it has a valid Protocol name */
-	bool IsValid() const;
+
+	/** IsValid member accessor */
+	bool IsValid() const { return IsValid(Name); }
 
 	//~ FName operators
 	operator FName&() { return Name; }
@@ -84,26 +85,25 @@ public:
 	operator const IDMXProtocolPtr() const { return GetProtocol(); }
 
 	/** Bool (is valid) operator */
-	operator bool() const { return IsValid(); }
+	operator bool() const { return IsValid(Name); }
 
 	//~ Comparison operators
 	bool operator==(const FDMXProtocolName& Other) const { return Name == Other.Name; }
+	bool operator!=(const FDMXProtocolName& Other) const { return !Name.IsEqual(Other.Name); }
 	bool operator==(const IDMXProtocolPtr& Other) const { return GetProtocol().Get() == Other.Get(); }
+	bool operator!=(const IDMXProtocolPtr& Other) const { return GetProtocol().Get() != Other.Get(); }
 	bool operator==(const FName& Other) const { return Name == Other; }
+	bool operator!=(const FName& Other) const { return !Name.IsEqual(Other); }
 };
 
-USTRUCT(BlueprintType)
+USTRUCT(BlueprintType, Category = "DMX")
 struct DMXPROTOCOL_API FDMXFixtureCategory
+	: public FDMXNameListItem
 {
 public:
 	GENERATED_BODY()
 
-	/** Selected protocol name */
-	UPROPERTY(BlueprintReadWrite, Category = "DMX|Category")
-	FName Name;
-
-	static FSimpleMulticastDelegate OnPossibleValuesUpdated;
-	static TArray<FName> GetPossibleValues();
+	DECLARE_DMX_NAMELISTITEM_STATICS(false)
 
 	static FName GetFirstValue();
 
@@ -116,7 +116,7 @@ public:
 	operator const FName&() const { return Name; }
 
 	/** Bool (is valid) operator */
-	operator bool() const { return !Name.IsNone(); }
+	operator bool() const { return IsValid(Name); }
 
 	//~ Comparison operators
 	bool operator==(const FDMXFixtureCategory& Other) const { return Name == Other.Name; }
@@ -158,6 +158,9 @@ struct DMXPROTOCOL_API FDMXUniverse
 	UPROPERTY()
 	EDMXProtocolDirectionality DMXProtocolDirectionality;
 
+	UPROPERTY()
+	TArray<FString> UnicastIpAddresses;
+
 	FDMXUniverse()
 		: UniverseNumber(0)
 		, Channel(1)
@@ -174,7 +177,7 @@ public:
 		DMXData.AddZeroed(DMX_UNIVERSE_SIZE);
 	}
 
-	/** @return Gets actual SequanceID  */
+	/** @return Gets actual SequenceID  */
 	uint32 GetSequenceID() const { return SequenceID; }
 
 	/** @return DMX buffer address value */
@@ -205,6 +208,9 @@ public:
 	 */
 	bool SetDMXBuffer(const uint8* InBuffer, uint32 InSize);
 
+	/** Sets all values in the buffer to Zero */
+	void ZeroDMXBuffer();
+
 private:
 	/** DMX bytes buffer array */
 	TArray<uint8> DMXData;
@@ -218,19 +224,22 @@ private:
 
 struct DMXPROTOCOL_API FDMXPacket
 {
-	FDMXPacket(FJsonObject& InSettings, const TArray<uint8>& InData)
+	FDMXPacket(FJsonObject& InSettings, uint32 InUniverseID, const TArray<uint8>& InData)
 	{
 		Settings = InSettings;
+		UniverseID = InUniverseID;
 		Data = InData;
 	}
 
 	FDMXPacket(const TArray<uint8>& InData)
 	{
 		Data = InData;
+		UniverseID = 0;
 	}
 
 	FJsonObject Settings;
 	TArray<uint8> Data;
+	uint32 UniverseID;
 };
 
 struct DMXPROTOCOL_API FRDMUID

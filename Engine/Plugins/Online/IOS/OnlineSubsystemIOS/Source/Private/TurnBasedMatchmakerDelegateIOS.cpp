@@ -3,6 +3,7 @@
 #include "TurnBasedMatchmakerDelegateIOS.h"
 #include "OnlineTurnBasedInterfaceIOS.h"
 #include "Interfaces/OnlineTurnBasedInterface.h"
+#include "OnlineSubsystemIOS.h"
 
 @interface FTurnBasedMatchmakerDelegateIOS()
 {
@@ -40,19 +41,19 @@
 
 			NSMutableArray* playerIdentifierArray = [NSMutableArray array];
 			for (GKTurnBasedParticipant* participant in match.participants) {
-                NSString* PlayerIDString = nil;
+				NSString* PlayerIDString = nil;
 #ifdef __IPHONE_8_0
-                if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
-                {
-                    PlayerIDString = participant.player.playerID;
-                }
-                else
+				if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
+				{
+					PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
+				}
+				else
 #endif
-                {
+				{
 #if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-                    PlayerIDString = participant.playerID;
+					PlayerIDString = participant.playerID;
 #endif
-                }
+				}
 				if (!PlayerIDString)
 				{
 					break;

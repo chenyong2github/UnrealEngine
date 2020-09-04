@@ -64,6 +64,7 @@ ACharacter::ACharacter(const FObjectInitializer& ObjectInitializer)
 	JumpMaxHoldTime = 0.0f;
     JumpMaxCount = 1;
     JumpCurrentCount = 0;
+	JumpCurrentCountPreJump = 0;
     bWasJumping = false;
 
 	AnimRootMotionTranslationScale = 1.0f;
@@ -305,6 +306,7 @@ void ACharacter::ResetJumpState()
 	if (CharacterMovement && !CharacterMovement->IsFalling())
 	{
 		JumpCurrentCount = 0;
+		JumpCurrentCountPreJump = 0;
 	}
 }
 
@@ -806,6 +808,7 @@ void ACharacter::Restart()
 	Super::Restart();
 
     JumpCurrentCount = 0;
+	JumpCurrentCountPreJump = 0;
 
 	bPressedJump = false;
 	ResetJumpState();
@@ -1007,6 +1010,8 @@ void ACharacter::StopJumping()
 
 void ACharacter::CheckJumpInput(float DeltaTime)
 {
+	JumpCurrentCountPreJump = JumpCurrentCount;
+
 	if (CharacterMovement)
 	{
 		if (bPressedJump)
@@ -1575,7 +1580,7 @@ void ACharacter::StopAnimMontage(class UAnimMontage* AnimMontage)
 	}
 }
 
-class UAnimMontage * ACharacter::GetCurrentMontage()
+class UAnimMontage * ACharacter::GetCurrentMontage() const
 {
 	UAnimInstance * AnimInstance = (Mesh)? Mesh->GetAnimInstance() : nullptr; 
 	if ( AnimInstance )

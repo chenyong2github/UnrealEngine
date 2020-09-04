@@ -1105,33 +1105,6 @@ FRHICOMMAND_MACRO(FRHICommandSetScissorRect)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandSetRenderTargets)
-{
-	uint32 NewNumSimultaneousRenderTargets;
-	FRHIRenderTargetView NewRenderTargetsRHI[MaxSimultaneousRenderTargets];
-	FRHIDepthRenderTargetView NewDepthStencilTarget;
-
-	FORCEINLINE_DEBUGGABLE FRHICommandSetRenderTargets(
-		uint32 InNewNumSimultaneousRenderTargets,
-		const FRHIRenderTargetView* InNewRenderTargetsRHI,
-		const FRHIDepthRenderTargetView* InNewDepthStencilTargetRHI
-		)
-		: NewNumSimultaneousRenderTargets(InNewNumSimultaneousRenderTargets)
-
-	{
-		check(InNewNumSimultaneousRenderTargets <= MaxSimultaneousRenderTargets);
-		for (uint32 Index = 0; Index < NewNumSimultaneousRenderTargets; Index++)
-		{
-			NewRenderTargetsRHI[Index] = InNewRenderTargetsRHI[Index];
-		}
-		if (InNewDepthStencilTargetRHI)
-		{
-			NewDepthStencilTarget = *InNewDepthStencilTargetRHI;
-		}		
-	}
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandBeginRenderPass)
 {
 	FRHIRenderPassInfo Info;
@@ -1230,27 +1203,6 @@ FRHICOMMAND_MACRO(FRHICommandEndRenderSubPass)
 	RHI_API void Execute(FRHICommandListBase& CmdList);
 };
 
-FRHICOMMAND_MACRO(FRHICommandBeginComputePass)
-{
-	const TCHAR* Name;
-
-	FRHICommandBeginComputePass(const TCHAR* InName)
-		: Name(InName)
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
-FRHICOMMAND_MACRO(FRHICommandEndComputePass)
-{
-	FRHICommandEndComputePass()
-	{
-	}
-
-	RHI_API void Execute(FRHICommandListBase& CmdList);
-};
-
 FRHICOMMAND_MACRO(FRHICommandBindClearMRTValues)
 {
 	bool bClearColor;
@@ -1304,8 +1256,10 @@ struct FRHICommandSetComputePipelineState final : public FRHICommand<FRHICommand
 FRHICOMMAND_MACRO(FRHICommandSetGraphicsPipelineState)
 {
 	FGraphicsPipelineState* GraphicsPipelineState;
-	FORCEINLINE_DEBUGGABLE FRHICommandSetGraphicsPipelineState(FGraphicsPipelineState* InGraphicsPipelineState)
+	bool bApplyAdditionalState;
+	FORCEINLINE_DEBUGGABLE FRHICommandSetGraphicsPipelineState(FGraphicsPipelineState* InGraphicsPipelineState, bool bInApplyAdditionalState)
 		: GraphicsPipelineState(InGraphicsPipelineState)
+		, bApplyAdditionalState(bInApplyAdditionalState)
 	{
 	}
 	RHI_API void Execute(FRHICommandListBase& CmdList);
@@ -3175,34 +3129,6 @@ public:
 		GraphicsPSOInit.bHasFragmentDensityAttachment = PSOContext.HasFragmentDensityAttachment;
 	}
 
-	UE_DEPRECATED(4.22, "SetRenderTargets API is deprecated; please use RHIBegin/EndRenderPass instead.")
-	FORCEINLINE_DEBUGGABLE void SetRenderTargets(
-		uint32 NewNumSimultaneousRenderTargets,
-		const FRHIRenderTargetView* NewRenderTargetsRHI,
-		const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI)
-	{
-		check(IsOutsideRenderPass());
-		CacheActiveRenderTargets(
-			NewNumSimultaneousRenderTargets, 
-			NewRenderTargetsRHI, 
-			NewDepthStencilTargetRHI,
-			false
-			);
-
-		if (Bypass())
-		{
-			GetContext().RHISetRenderTargets(
-				NewNumSimultaneousRenderTargets,
-				NewRenderTargetsRHI,
-				NewDepthStencilTargetRHI);
-			return;
-		}
-		ALLOC_COMMAND(FRHICommandSetRenderTargets)(
-			NewNumSimultaneousRenderTargets,
-			NewRenderTargetsRHI,
-			NewDepthStencilTargetRHI);
-	}
-
 	FORCEINLINE_DEBUGGABLE void BindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
 	{
 		//check(IsOutsideRenderPass());
@@ -3214,7 +3140,7 @@ public:
 		ALLOC_COMMAND(FRHICommandBindClearMRTValues)(bClearColor, bClearDepth, bClearStencil);
 	}	
 
-	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState, const FBoundShaderStateInput& ShaderInput)
+	FORCEINLINE_DEBUGGABLE void SetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState, const FBoundShaderStateInput& ShaderInput, bool bApplyAdditionalState)
 	{
 		//check(IsOutsideRenderPass());
 		BoundShaderInput = ShaderInput;
@@ -3222,10 +3148,10 @@ public:
 		{
 			extern RHI_API FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(class FGraphicsPipelineState* GraphicsPipelineState);
 			FRHIGraphicsPipelineState* RHIGraphicsPipelineState = ExecuteSetGraphicsPipelineState(GraphicsPipelineState);
-			GetContext().RHISetGraphicsPipelineState(RHIGraphicsPipelineState);
+			GetContext().RHISetGraphicsPipelineState(RHIGraphicsPipelineState, bApplyAdditionalState);
 			return;
 		}
-		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState);
+		ALLOC_COMMAND(FRHICommandSetGraphicsPipelineState)(GraphicsPipelineState, bApplyAdditionalState);
 	}
 
 	FORCEINLINE_DEBUGGABLE void BeginUAVOverlap()
@@ -3585,40 +3511,6 @@ public:
 			ALLOC_COMMAND(FRHICommandNextSubpass)();
 		}
 		IncrementSubpass();
-	}
-
-	UE_DEPRECATED(4.25, "BeginComputePass API is deprecated. Use SetComputeShader() instead.")
-	FORCEINLINE_DEBUGGABLE void BeginComputePass(const TCHAR* Name)
-	{
-		check(!IsInsideRenderPass());
-		check(!IsInsideComputePass());
-
-		if (Bypass())
-		{
-			GetContext().RHIBeginComputePass(Name);
-		}
-		else
-		{
-			TCHAR* NameCopy  = AllocString(Name);
-			ALLOC_COMMAND(FRHICommandBeginComputePass)(NameCopy);
-		}
-		Data.bInsideComputePass = true;
-	}
-
-	UE_DEPRECATED(4.25, "EndComputePass API is deprecated. BeginRenderPass() or SetComputeShader() instead.")
-	void EndComputePass()
-	{
-		check(IsInsideComputePass());
-		check(!IsInsideRenderPass());
-		if (Bypass())
-		{
-			GetContext().RHIEndComputePass();
-		}
-		else
-		{
-			ALLOC_COMMAND(FRHICommandEndComputePass)();
-		}
-		Data.bInsideComputePass = false;
 	}
 
 	// These 6 are special in that they must be called on the immediate command list and they force a flush only when we are not doing RHI thread
@@ -4304,6 +4196,14 @@ public:
 		return GDynamicRHI->RHITransferTexture(Texture, Rect, SrcGPUIndex, DestGPUIndex, PullData);
 	}
 
+	FORCEINLINE void TransferTextures(const TArrayView<const FTransferTextureParams> Params)
+	{
+		LLM_SCOPE(ELLMTag::Textures);
+		ImmediateFlush(EImmediateFlushType::FlushRHIThread);
+
+		return GDynamicRHI->RHITransferTextures(Params);
+	}
+
 	FORCEINLINE FTexture2DArrayRHIRef CreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)
 	{
 		LLM_SCOPE((Flags & (TexCreate_RenderTargetable | TexCreate_DepthStencilTargetable)) != 0 ? ELLMTag::RenderTargets : ELLMTag::Textures);
@@ -4674,7 +4574,7 @@ public:
 	
 	FORCEINLINE uint32 GetGPUFrameCycles()
 	{
-		return RHIGetGPUFrameCycles();
+		return RHIGetGPUFrameCycles(GetGPUMask().ToIndex());
 	}
 	
 	FORCEINLINE FViewportRHIRef CreateViewport(void* WindowHandle, uint32 SizeX, uint32 SizeY, bool bIsFullscreen, EPixelFormat PreferredPixelFormat)
@@ -5270,6 +5170,11 @@ FORCEINLINE void RHICopySharedMips(FRHITexture2D* DestTexture2D, FRHITexture2D* 
 FORCEINLINE void RHITransferTexture(FRHITexture2D* Texture, FIntRect Rect, uint32 SrcGPUIndex, uint32 DestGPUIndex, bool PullData)
 {
 	return FRHICommandListExecutor::GetImmediateCommandList().TransferTexture(Texture, Rect, SrcGPUIndex, DestGPUIndex, PullData);
+}
+
+FORCEINLINE void RHITransferTextures(const TArrayView<const FTransferTextureParams> Params)
+{
+	return FRHICommandListExecutor::GetImmediateCommandList().TransferTextures(Params);
 }
 
 FORCEINLINE FTexture2DArrayRHIRef RHICreateTexture2DArray(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, FRHIResourceCreateInfo& CreateInfo)

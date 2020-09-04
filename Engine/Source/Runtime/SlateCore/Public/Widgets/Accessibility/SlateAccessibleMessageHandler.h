@@ -30,6 +30,7 @@ public:
 	virtual AccessibleWidgetId GetAccessibleWindowId(const TSharedRef<FGenericWindow>& InWindow) const override;
 	virtual TSharedPtr<IAccessibleWidget> GetAccessibleWidgetFromId(AccessibleWidgetId Id) const override;
 	virtual void RunInThread(const TFunction<void()>& InFunction, bool bWaitForCompletion = true, ENamedThreads::Type InThread = ENamedThreads::GameThread) override;
+	virtual void MakeAccessibleAnnouncement(const FString& AnnouncementString) override;
 	//~
 
 	/**
@@ -66,6 +67,24 @@ public:
 	 */
 	void Tick();
 
+	/**
+	* Returns the Widget that currently has accessibility focus in the application.
+	* accessibility focusable widgets are a superset of keyboard/gamepad focusable widgetes.
+	* i.e A widget can support accessibility focus but NOT keyboard/gamepad focus.
+	* Can return nullptr if no widget has accessibility focus. Up to caller to do validity check.
+	* @return  The widget that currently has accessible focus.
+	*/
+	TSharedPtr<FSlateAccessibleWidget> GetAccessibilityFocusedWidget() const;
+
+	/**
+	* Sets the currently accessibility focused widget in the application.
+	* If you're trying to clear the accessibility focus, use ClearAccessibilityFocus() 
+	* @param NewAccessibleFocusedWidget The widget that  now has accessible focus
+	*/
+	void SetAccessibilityFocusedWidget(const TSharedRef<FSlateAccessibleWidget>& NewAccessibilityFocusedWidget);
+
+	/** Reset the accessibility focused widget to nullptr*/
+	void ClearAccessibilityFocus();
 private:
 	/**
 	*  A helper class that wraps an accessibility task and the event to be triggered when the task finishes executing. 
@@ -136,6 +155,12 @@ private:
 #if ACCESSIBILITY_DEBUG_RESPONSIVENESS
 	FEvent* EnqueueEvent;
 #endif 
+
+	/** 
+	* The widget tht currently has accessibility focus 
+	* @see GetAccessibilityFocusedWidget, SetAccessibilityFocusedWidget
+	*/
+	TWeakPtr<FSlateAccessibleWidget> AccessibilityFocusedWidget;
 
 	/** If true, Tick() will begin the update process to the accessible widget tree. Use MarkDirty() to set. */
 	bool bDirty;

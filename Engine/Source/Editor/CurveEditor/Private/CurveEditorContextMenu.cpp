@@ -123,19 +123,37 @@ void FCurveEditorContextMenu::BuildMenu(FMenuBuilder& MenuBuilder, TSharedRef<FC
 		}
 		else
 		{
+			// Test if at least one curve is editable
+			bool bIsReadOnly = true;
+			TSet<FCurveModelID> CurvesToAddTo;
+			for(const FCurveModelID CurveModelID : CurveEditor->GetEditedCurves())
+			{
+				if (const FCurveModel* CurveModel = CurveEditor->FindCurve(CurveModelID))
+				{
+					if (!CurveModel->IsReadOnly())
+					{
+						bIsReadOnly = false;
+						break;
+					}
+				}
+			}
+
 			MenuBuilder.BeginSection("CurveEditorAllCurveSections", LOCTEXT("CurveEditorAllCurveSections", "All Curves"));
 			{
 				// Buffer Curves
 				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().BufferVisibleCurves);
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ApplyBufferedCurves, NAME_None, ApplyBufferedCurvesText);
-				MenuBuilder.AddMenuSeparator();
-				
-				// Modify Curves
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().AddKeyToAllCurves);
-				MenuBuilder.AddMenuSeparator();
+				if (!bIsReadOnly)
+				{
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().ApplyBufferedCurves, NAME_None, ApplyBufferedCurvesText);
+					MenuBuilder.AddMenuSeparator();
 
-				// Filters
-				MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
+					// Modify Curves
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().AddKeyToAllCurves);
+					MenuBuilder.AddMenuSeparator();
+
+					// Filters
+					MenuBuilder.AddMenuEntry(FCurveEditorCommands::Get().OpenUserImplementableFilterWindow);
+				}
 			}
 			MenuBuilder.EndSection();
 		}

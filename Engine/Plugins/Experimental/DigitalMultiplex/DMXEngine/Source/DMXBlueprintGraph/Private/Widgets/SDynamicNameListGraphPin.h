@@ -6,6 +6,7 @@
 #include "SGraphPin.h"
 #include "Widgets/SNameListPicker.h"
 #include "Widgets/DeclarativeSyntaxSupport.h"
+#include "DMXNameListItem.h"
 
 template<typename TStructType>
 class DMXBLUEPRINTGRAPH_API SDynamicNameListGraphPin
@@ -14,14 +15,11 @@ class DMXBLUEPRINTGRAPH_API SDynamicNameListGraphPin
 public:
 	SLATE_BEGIN_ARGS(SDynamicNameListGraphPin)
 	{}
-		SLATE_ARGUMENT(FSimpleMulticastDelegate*, UpdateOptionsDelegate)
-		SLATE_ATTRIBUTE(TArray<FName>, OptionsSource)
 	SLATE_END_ARGS()
 
 	/**  Slate widget construction method */
 	void Construct(const FArguments& InArgs, UEdGraphPin* InGraphPinObj)
 	{
-		OptionsSource = InArgs._OptionsSource;
 		SGraphPin::Construct(SGraphPin::FArguments(), InGraphPinObj);
 	}
 
@@ -33,8 +31,11 @@ public:
 			.HasMultipleValues(false)
 			.Value(this, &SDynamicNameListGraphPin::GetValue)
 			.OnValueChanged(this, &SDynamicNameListGraphPin::SetValue)
-			.UpdateOptionsDelegate(UpdateOptionsDelegate)
-			.OptionsSource(OptionsSource)
+			.UpdateOptionsDelegate(&TStructType::OnValuesChanged)
+			.OptionsSource(MakeAttributeLambda(&TStructType::GetPossibleValues))
+			.IsValid(this, &SDynamicNameListGraphPin::IsValueValid)
+			.bCanBeNone(TStructType::bCanBeNone)
+			.bDisplayWarningIcon(true)
 			.Visibility(this, &SGraphPin::GetDefaultValueVisibility);
 	}
 	//~ End SGraphPin Interface
@@ -42,25 +43,26 @@ public:
 private:
 	FName GetValue() const
 	{
-		TStructType ProtocolName;
+		TStructType NameItem;
 
 		if (!GraphPinObj->GetDefaultAsString().IsEmpty())
 		{
-			TStructType::StaticStruct()->ImportText(*GraphPinObj->GetDefaultAsString(), &ProtocolName, nullptr, EPropertyPortFlags::PPF_None, GLog, TStructType::StaticStruct()->GetName());
+			TStructType::StaticStruct()->ImportText(*GraphPinObj->GetDefaultAsString(), &NameItem, nullptr, EPropertyPortFlags::PPF_None, GLog, TStructType::StaticStruct()->GetName());
 		}
 
-		return ProtocolName;
+		return NameItem.GetName();
 	}
 
 	void SetValue(FName NewValue)
 	{
 		FString ValueString;
-		TStructType NewProtocolName(NewValue);
-		TStructType::StaticStruct()->ExportText(ValueString, &NewProtocolName, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);
+		TStructType NewNameItem(NewValue);
+		TStructType::StaticStruct()->ExportText(ValueString, &NewNameItem, nullptr, nullptr, EPropertyPortFlags::PPF_None, nullptr);
 		GraphPinObj->GetSchema()->TrySetDefaultValue(*GraphPinObj, ValueString);
 	}
 
-private:
-	TAttribute<TArray<FName>> OptionsSource;
-	FSimpleMulticastDelegate* UpdateOptionsDelegate;
+	bool IsValueValid() const
+	{
+		return TStructType::IsValid(GetValue());
+	}
 };

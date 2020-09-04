@@ -184,6 +184,18 @@ bool FLinuxApplication::IsCursorDirectlyOverSlateWindow() const
 	return bInsideOwnWindow;
 }
 
+TSharedPtr<FGenericWindow> FLinuxApplication::GetWindowUnderCursor()
+{
+	// If we are drag and dropping the current window under the cursor will always be the DnD window
+	// fallback to the SlateApplication finding the top most in DnD situations
+	if (CurrentUnderCursorWindow.IsValid() && CurrentUnderCursorWindow->IsDragAndDropWindow())
+	{
+		return nullptr;
+	}
+
+	return CurrentUnderCursorWindow;
+}
+
 void FLinuxApplication::AddPendingEvent( SDL_Event SDLEvent )
 {
 	if( GPumpingMessagesOutsideOfMainLoop && bAllowedToDeferMessageProcessing )
@@ -766,8 +778,13 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 						{
 							MessageHandler->OnCursorSet();
 
+							// Currently Tooltip windows will also get enter/leave events. depending on if this causes issues
+							// should avoid setting the window under cursor for tooltips and use the window under
+							CurrentUnderCursorWindow = CurrentEventWindow;
+
 							bInsideOwnWindow = true;
-							UE_LOG(LogLinuxWindow, Verbose, TEXT("Entered one of application windows"));
+
+							UE_LOG(LogLinuxWindow, Verbose, TEXT("Entered one of application windows. Cursor under Window: '%d'"), CurrentEventWindow->GetID());
 						}
 					}
 					break;
@@ -781,6 +798,7 @@ void FLinuxApplication::ProcessDeferredMessage( SDL_Event Event )
 								UpdateMouseCaptureWindow((SDL_HWindow)GetCapture());
 							}
 
+ 							CurrentUnderCursorWindow = nullptr;
 							bInsideOwnWindow = false;
 							UE_LOG(LogLinuxWindow, Verbose, TEXT("Left an application window we were hovering above."));
 						}

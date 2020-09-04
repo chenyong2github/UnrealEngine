@@ -26,6 +26,7 @@ namespace Insights
 	class FTable;
 	class FTableColumn;
 	class ITableCellValueSorter;
+	class SAggregatorStatus;
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -98,13 +99,13 @@ private:
 	/** Called by STreeView to generate a table row for the specified item. */
 	TSharedRef<ITableRow> TreeView_OnGenerateRow(FTimerNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
 
-	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, const FTimerNodePtr NodePtr);
+	bool TableRow_ShouldBeEnabled(FTimerNodePtr NodePtr) const;
+
+	void TableRow_SetHoveredCell(TSharedPtr<Insights::FTable> TablePtr, TSharedPtr<Insights::FTableColumn> ColumnPtr, FTimerNodePtr NodePtr);
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
 	FName TableRow_GetHighlightedNodeName() const;
-
-	bool TableRow_ShouldBeEnabled(const uint32 TimerId) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Sorting
@@ -223,6 +224,8 @@ private:
 	double StatsStartTime;
 	double StatsEndTime;
 	uint32 StatsTimerId;
+
+	TSharedPtr<Insights::SAggregatorStatus> AggregatorStatus;
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////

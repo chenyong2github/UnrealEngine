@@ -11,8 +11,8 @@ uint NumVertices;
 uint WeightStride;
 
 Buffer<uint> WeightLookup;
-Buffer<float4> BoneMatrices;
-Buffer<uint> MatrixOffsets;
+StructuredBuffer<float4> BoneMatrices;
+StructuredBuffer<uint> MatrixOffsets;
 Buffer<uint> VertexWeights;
 Buffer<float> RestPositions;
 

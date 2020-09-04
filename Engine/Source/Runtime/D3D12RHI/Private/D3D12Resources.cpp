@@ -41,7 +41,7 @@ FD3D12DeferredDeletionQueue::~FD3D12DeferredDeletionQueue()
 	}
 }
 
-void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FD3D12Fence* Fence)
+void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FFenceList&& FenceList)
 {
 	check(pResource->ShouldDeferDelete());
 
@@ -50,8 +50,7 @@ void FD3D12DeferredDeletionQueue::EnqueueResource(FD3D12Resource* pResource, FD3
 
 	FencedObjectType FencedObject;
 	FencedObject.RHIObject  = pResource;
-	FencedObject.Fence      = Fence;
-	FencedObject.FenceValue = Fence->GetCurrentFence();
+	FencedObject.FenceList  = MoveTemp(FenceList);
 	FencedObject.Type       = EObjectType::RHI;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
@@ -63,8 +62,7 @@ void FD3D12DeferredDeletionQueue::EnqueueResource(ID3D12Object* pResource, FD3D1
 
 	FencedObjectType FencedObject;
 	FencedObject.D3DObject  = pResource;
-	FencedObject.Fence      = Fence;
-	FencedObject.FenceValue = Fence->GetCurrentFence();
+	FencedObject.FenceList.Emplace(Fence, Fence->GetCurrentFence());
 	FencedObject.Type       = EObjectType::D3D;
 	DeferredReleaseQueue.Enqueue(FencedObject);
 }
@@ -143,7 +141,14 @@ bool FD3D12DeferredDeletionQueue::ReleaseResources(bool bDeleteImmediately, bool
 		{
 			bool operator() (FencedObjectType FenceObject) const
 			{
-				return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
+				for (auto& FencePair : FenceObject.FenceList)
+				{
+					if (!FencePair.Key->IsFenceComplete(FencePair.Value))
+					{
+						return false;
+					}
+				}
+				return true;
 			}
 		};
 
@@ -170,7 +175,14 @@ FD3D12DeferredDeletionQueue::FD3D12AsyncDeletionWorker::FD3D12AsyncDeletionWorke
 	{
 		bool operator() (FencedObjectType FenceObject) const
 		{
-			return FenceObject.Fence->IsFenceComplete(FenceObject.FenceValue);
+			for (auto& FencePair : FenceObject.FenceList)
+			{
+				if (!FencePair.Key->IsFenceComplete(FencePair.Value))
+				{
+					return false;
+				}
+			}
+			return true;
 		}
 	};
 
@@ -298,7 +310,26 @@ void FD3D12Resource::UpdateResidency(FD3D12CommandListHandle& CommandList)
 
 void FD3D12Resource::DeferDelete()
 {
-	GetParentDevice()->GetParentAdapter()->GetDeferredDeletionQueue().EnqueueResource(this, &GetParentDevice()->GetCommandListManager().GetFence());
+	FD3D12Adapter* Adapter = GetParentDevice()->GetParentAdapter();
+
+	// Upload heaps such as texture lock data can be referenced by multiple GPUs so we
+	// must wait for all of them to finish before releasing.
+	FD3D12DeferredDeletionQueue::FFenceList FenceList;
+	if (HeapType == D3D12_HEAP_TYPE_UPLOAD)
+	{
+		for (uint32 GPUIndex : FRHIGPUMask::All())
+		{
+			FD3D12Fence* Fence = &Adapter->GetDevice(GPUIndex)->GetCommandListManager().GetFence();
+			FenceList.Emplace(Fence, Fence->GetCurrentFence());
+		}
+	}
+	else
+	{
+		FD3D12Fence* Fence = &GetParentDevice()->GetCommandListManager().GetFence();
+		FenceList.Emplace(Fence, Fence->GetCurrentFence());
+	}
+
+	Adapter->GetDeferredDeletionQueue().EnqueueResource(this, MoveTemp(FenceList));
 }
 
 /////////////////////////////////////////////////////////////////////
@@ -379,12 +410,12 @@ HRESULT FD3D12Adapter::CreateCommittedResource(const D3D12_RESOURCE_DESC& InDesc
 
 	if (SUCCEEDED(hr))
 	{
-		// Set a default name (can override later).
-		SetName(pResource, Name);
-
 		// Set the output pointer
 		*ppOutResource = new FD3D12Resource(GetDevice(CreationNode.ToIndex()), CreationNode, pResource, InInitialState, InResourceStateMode, InDefaultState, InDesc, nullptr, HeapProps.Type);
 		(*ppOutResource)->AddRef();
+
+		// Set a default name (can override later).
+		SetName(*ppOutResource, Name);
 
 		// Only track resources that cannot be accessed on the CPU.
 		if (IsCPUInaccessible(HeapProps.Type))

@@ -146,7 +146,7 @@ void UDetailsView::PostEditChangeProperty(FPropertyChangedEvent& PropertyChanged
 			|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDetailsView, ColumnWidth))
 		{
 			SoftObjectPath = LazyObject.Get();
-			AsynBuildContentWidget();
+			BuildContentWidget();
 		}
 	}
 }

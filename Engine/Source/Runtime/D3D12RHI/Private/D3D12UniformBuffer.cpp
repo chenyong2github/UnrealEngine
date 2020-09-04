@@ -72,12 +72,10 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 	{
 		const int32 NumResources = Layout.Resources.Num();
 
-		FD3D12UniformBuffer* CurrentBuffer = UniformBufferOut;
-
-		while (CurrentBuffer != nullptr)
+		for (FD3D12UniformBuffer& CurrentBuffer : *UniformBufferOut)
 		{
-			CurrentBuffer->ResourceTable.Empty(NumResources);
-			CurrentBuffer->ResourceTable.AddZeroed(NumResources);
+			CurrentBuffer.ResourceTable.Empty(NumResources);
+			CurrentBuffer.ResourceTable.AddZeroed(NumResources);
 			for (int32 i = 0; i < NumResources; ++i)
 			{
 				EUniformBufferBaseType ResourceType = Layout.Resources[i].MemberType;
@@ -104,10 +102,8 @@ FUniformBufferRHIRef FD3D12DynamicRHI::RHICreateUniformBuffer(const void* Conten
 					check(Resource);
 				}
 
-				CurrentBuffer->ResourceTable[i] = Resource;
+				CurrentBuffer.ResourceTable[i] = Resource;
 			}
-
-			CurrentBuffer = CurrentBuffer->GetNextObject();
 		}
 	}
 
@@ -163,7 +159,7 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 	FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
 	const bool bBypass = RHICmdList.Bypass();
 
-	FD3D12UniformBuffer* UniformBuffer = ResourceCast(UniformBufferRHI);
+	FD3D12UniformBuffer* FirstUniformBuffer = ResourceCast(UniformBufferRHI);
 
 	const uint32 NumBytes = Layout.ConstantBufferSize;
 	const int32 NumResources = Layout.Resources.Num();
@@ -206,11 +202,11 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 	}
 
 	// Update buffers on all GPUs by looping over FD3D12LinkedAdapterObject chain
-	while (UniformBuffer)
+	for (FD3D12UniformBuffer& UniformBuffer : *FirstUniformBuffer)
 	{
-		check(UniformBuffer->ResourceTable.Num() == NumResources);
+		check(UniformBuffer.ResourceTable.Num() == NumResources);
 
-		FD3D12Device* Device = UniformBuffer->GetParentDevice();
+		FD3D12Device* Device = UniformBuffer.GetParentDevice();
 
 		FD3D12ResourceLocation UpdatedResourceLocation(Device);
 
@@ -218,7 +214,7 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 		{
 			void* MappedData = nullptr;
 
-			if (UniformBuffer->UniformBufferUsage == UniformBuffer_MultiFrame)
+			if (UniformBuffer.UniformBufferUsage == UniformBuffer_MultiFrame)
 			{
 				FD3D12DynamicHeapAllocator& Allocator = GetAdapter().GetUploadHeapAllocator(Device->GetGPUIndex());
 				MappedData = Allocator.AllocUploadResource(NumBytes, DEFAULT_CONTEXT_UPLOAD_POOL_ALIGNMENT, UpdatedResourceLocation);
@@ -240,18 +236,16 @@ void FD3D12DynamicRHI::RHIUpdateUniformBuffer(FRHIUniformBuffer* UniformBufferRH
 
 		if (bBypass)
 		{
-			FRHICommandD3D12UpdateUniformBuffer Cmd(UniformBuffer, UpdatedResourceLocation, CmdListResources, NumResources);
+			FRHICommandD3D12UpdateUniformBuffer Cmd(&UniformBuffer, UpdatedResourceLocation, CmdListResources, NumResources);
 			Cmd.Execute(RHICmdList);
 		}
 		else
 		{
-			new (RHICmdList.AllocCommand<FRHICommandD3D12UpdateUniformBuffer>()) FRHICommandD3D12UpdateUniformBuffer(UniformBuffer, UpdatedResourceLocation, CmdListResources, NumResources);
+			new (RHICmdList.AllocCommand<FRHICommandD3D12UpdateUniformBuffer>()) FRHICommandD3D12UpdateUniformBuffer(&UniformBuffer, UpdatedResourceLocation, CmdListResources, NumResources);
 
 			//fence is required to stop parallel recording threads from recording with the old bad state of the uniformbuffer resource table.  This command MUST execute before dependent recording starts.
 			RHICmdList.RHIThreadFence(true);
 		}
-
-		UniformBuffer = UniformBuffer->GetNextObject();
 	}
 
 }

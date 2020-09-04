@@ -16,6 +16,8 @@ namespace Trace
 	class IAnalysisSession;
 }
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** Major tab IDs for Insights tools */
 struct TRACEINSIGHTS_API FInsightsManagerTabs
 {
@@ -24,7 +26,12 @@ struct TRACEINSIGHTS_API FInsightsManagerTabs
 	static const FName TimingProfilerTabId;
 	static const FName LoadingProfilerTabId;
 	static const FName NetworkingProfilerTabId;
+	static const FName MemoryProfilerTabId;
+	static const FName InsightsMessageLogTabId;
+	static const FName AutomationWindowTabId;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Tab IDs for the timing profiler */
 struct TRACEINSIGHTS_API FTimingProfilerTabs
@@ -40,8 +47,7 @@ struct TRACEINSIGHTS_API FTimingProfilerTabs
 	static const FName LogViewID;
 };
 
-/** Delegate invoked when a major tab is created */
-DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInsightsMajorTabCreated, FName /*MajorTabId*/, TSharedRef<FTabManager> /*TabManager*/)
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Configuration for an Insights minor tab. This is used to augment the standard supplied tabs from plugins. */
 struct TRACEINSIGHTS_API FInsightsMinorTabConfig
@@ -60,6 +66,8 @@ struct TRACEINSIGHTS_API FInsightsMinorTabConfig
 
 	TSharedPtr<FWorkspaceItem> WorkspaceGroup;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Configuration for an Insights major tab */
 struct TRACEINSIGHTS_API FInsightsMajorTabConfig
@@ -103,6 +111,8 @@ struct TRACEINSIGHTS_API FInsightsMajorTabConfig
 	bool bIsAvailable;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** Combination of extenders applied to the individual major tabs within Insights */
 struct TRACEINSIGHTS_API FInsightsMajorTabExtender
 {
@@ -128,13 +138,34 @@ protected:
 	TSharedPtr<FTabManager> TabManager;
 };
 
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** Called back to register common layout extensions */
-DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterMajorTabExtensions, FInsightsMajorTabExtender&);
+DECLARE_MULTICAST_DELEGATE_OneParam(FOnRegisterMajorTabExtensions, FInsightsMajorTabExtender& /*MajorTabExtender*/);
+
+/** Delegate invoked when a major tab is created */
+DECLARE_MULTICAST_DELEGATE_TwoParams(FOnInsightsMajorTabCreated, FName /*MajorTabId*/, TSharedRef<FTabManager> /*TabManager*/)
+
+class TRACEINSIGHTS_API IInsightsComponent;
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
 
 /** Interface for an Unreal Insights module. */
-class IUnrealInsightsModule : public IModuleInterface
+class TRACEINSIGHTS_API IUnrealInsightsModule : public IModuleInterface
 {
 public:
+	/**
+	 * Registers an IInsightsComponent. The component will Initialize().
+	 */
+	virtual void RegisterComponent(TSharedPtr<IInsightsComponent> Component) = 0;
+
+	/**
+	 * Unregisters an IInsightsComponent. The component will Shutdown().
+	 */
+	virtual void UnregisterComponent(TSharedPtr<IInsightsComponent> Component) = 0;
+
+	//////////////////////////////////////////////////
+
 	/**
 	 * Creates the default trace store (for "Browser" mode).
 	 */
@@ -154,15 +185,7 @@ public:
 	 */
 	virtual bool ConnectToStore(const TCHAR* InStoreHost, uint32 InStorePort) = 0;
 
-	/**
-	 * Called when the application starts in "Browser" mode.
-	 */
-	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) = 0;
-
-	/**
-	 * Called when the application starts in "Viewer" mode.
-	 */
-	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
+	//////////////////////////////////////////////////
 
 	/**
 	 * Gets the current analysis session.
@@ -173,8 +196,9 @@ public:
 	 * Starts analysis of the specified trace. Called when the application starts in "Viewer" mode.
 	 *
 	 * @param InTraceId The id of the trace to analyze.
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	virtual void StartAnalysisForTrace(uint32 InTraceId) = 0;
+	virtual void StartAnalysisForTrace(uint32 InTraceId, bool InAutoQuit = false) = 0;
 
 	/**
 	 * Starts analysis of the last live session. Called when the application starts in "Viewer" mode.
@@ -185,13 +209,11 @@ public:
 	 * Starts analysis of the specified *.utrace file. Called when the application starts in "Viewer" mode.
 	 *
 	 * @param InTraceFile The filename (*.utrace) of the trace to analyze.
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) = 0;
+	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile, bool InAutoQuit = false) = 0;
 
-	/**
-	 * Called when the application shutsdown.
-	 */
-	virtual void ShutdownUserInterface() = 0;
+	//////////////////////////////////////////////////
 
 	/**
 	 * Registers a major tab layout. This defines how the major tab will appear when spawned.
@@ -216,6 +238,56 @@ public:
 	/** Callback invoked when a major tab is created */
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() = 0;
 
-	/** Set the ini path for saving persistent layout data. */
+	/** Finds a major tab config for the specified id. */
+	virtual const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const = 0;
+
+	/** Sets the ini path for saving persistent layout data. */
 	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) = 0;
+
+	/**
+	 * Called when the application starts in "Browser" mode.
+	 */
+	virtual void CreateSessionBrowser(bool bAllowDebugTools, bool bSingleProcess) = 0;
+
+	/**
+	 * Called when the application starts in "Viewer" mode.
+	 */
+	virtual void CreateSessionViewer(bool bAllowDebugTools) = 0;
+
+	/**
+	 * Called when the application shutsdown.
+	 */
+	virtual void ShutdownUserInterface() = 0;
+
+	/**
+	* Called to schedule a command to run after session analysis is complete. Intended for running Automation RunTests commands.
+	*/
+	virtual void ScheduleCommand(const FString& InCmd) = 0;
+
+	/**
+	* Called to initialize testing in stand alone Insights.
+	 * @param InInitAutomationModules If true Insights will initialize the modules required for running automation tests.
+	 * @param InAutoQuit If true Insights will close after completing session analysis and running any tests started using the ScheduleCommand function.
+	*/
+	virtual void InitializeTesting(bool InInitAutomationModules, bool InAutoQuit) = 0;
 };
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
+class TRACEINSIGHTS_API IInsightsComponent
+{
+public:
+	/** Initializes this component. Called by TraceInsights module when this component is registered. */
+	virtual void Initialize(IUnrealInsightsModule& Module) = 0;
+
+	/** Shutsdown this component. Called by TraceInsights module when this component is unregistered. */
+	virtual void Shutdown() = 0;
+
+	/* Allows this component to register major tabs. */
+	virtual void RegisterMajorTabs(IUnrealInsightsModule& InsightsModule) = 0;
+
+	/* Requests this component to unregister its major tabs. */
+	virtual void UnregisterMajorTabs() = 0;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////

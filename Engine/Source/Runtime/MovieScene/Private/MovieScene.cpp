@@ -75,6 +75,14 @@ void UMovieScene::PostInitProperties()
 	Super::PostInitProperties();
 }
 
+void UMovieScene::PostLoad()
+{
+	SortMarkedFrames();
+
+	Super::PostLoad();
+}
+
+
 void UMovieScene::Serialize( FArchive& Ar )
 {
 	Ar.UsingCustomVersion(FMovieSceneEvaluationCustomVersion::GUID);
@@ -557,12 +565,16 @@ void FMovieSceneSectionGroup::Clean()
 
 void UMovieSceneNodeGroup::AddNode(const FString& Path)
 {
+	Modify();
+
 	Nodes.AddUnique(Path);
 	OnNodeGroupChangedEvent.Broadcast();
 }
 
 void UMovieSceneNodeGroup::RemoveNode(const FString& Path)
 {
+	Modify();
+
 	Nodes.Remove(Path);
 	OnNodeGroupChangedEvent.Broadcast();
 }
@@ -610,6 +622,8 @@ void UMovieSceneNodeGroup::UpdateNodePath(const FString& OldPath, const FString&
 
 void UMovieSceneNodeGroup::SetName(const FName& InName)
 {
+	Modify();
+
 	Name = InName;
 	OnNodeGroupChangedEvent.Broadcast();
 }
@@ -641,6 +655,8 @@ void UMovieSceneNodeGroupCollection::PostLoad()
 
 void UMovieSceneNodeGroupCollection::AddNodeGroup(UMovieSceneNodeGroup* NodeGroup)
 {
+	Modify();
+
 	if (!NodeGroups.Contains(NodeGroup))
 	{
 		NodeGroups.Add(NodeGroup);
@@ -652,6 +668,8 @@ void UMovieSceneNodeGroupCollection::AddNodeGroup(UMovieSceneNodeGroup* NodeGrou
 
 void UMovieSceneNodeGroupCollection::RemoveNodeGroup(UMovieSceneNodeGroup* NodeGroup)
 {
+	Modify();
+
 	NodeGroup->OnNodeGroupChanged().RemoveAll(this);
 
 	if (NodeGroups.RemoveSingle(NodeGroup))
@@ -1388,17 +1406,24 @@ int32 UMovieScene::AddMarkedFrame(const FMovieSceneMarkedFrame &InMarkedFrame)
 		MarkedFrames[MarkedIndex].Label = NewLabel;
 	}
 
-	return MarkedIndex;
+	SortMarkedFrames();
+	return FindMarkedFrameByFrameNumber(InMarkedFrame.FrameNumber);
 }
 
 void UMovieScene::DeleteMarkedFrame(int32 DeleteIndex)
 {
 	MarkedFrames.RemoveAt(DeleteIndex);
+	SortMarkedFrames();
 }
 
 void UMovieScene::DeleteMarkedFrames()
 {
 	MarkedFrames.Empty();
+}
+
+void UMovieScene::SortMarkedFrames()
+{
+	MarkedFrames.Sort([&](const FMovieSceneMarkedFrame& A, const FMovieSceneMarkedFrame& B) { return A.FrameNumber < B.FrameNumber; });
 }
 
 int32 UMovieScene::FindMarkedFrameByLabel(const FString& InLabel) const

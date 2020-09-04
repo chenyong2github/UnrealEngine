@@ -87,6 +87,7 @@ UMovieSceneSequencePlayer::UMovieSceneSequencePlayer(const FObjectInitializer& I
 	, Sequence(nullptr)
 	, StartTime(0)
 	, DurationFrames(0)
+	, DurationSubFrames(0.f)
 	, CurrentNumLoops(0)
 {
 	PlayPosition.Reset(FFrameTime(0));
@@ -121,6 +122,7 @@ void UMovieSceneSequencePlayer::GetLifetimeReplicatedProps(TArray<FLifetimePrope
 	DOREPLIFETIME(UMovieSceneSequencePlayer, bReversePlayback);
 	DOREPLIFETIME(UMovieSceneSequencePlayer, StartTime);
 	DOREPLIFETIME(UMovieSceneSequencePlayer, DurationFrames);
+	DOREPLIFETIME(UMovieSceneSequencePlayer, DurationSubFrames);
 	DOREPLIFETIME(UMovieSceneSequencePlayer, PlaybackSettings);
 }
 
@@ -441,7 +443,7 @@ FQualifiedFrameTime UMovieSceneSequencePlayer::GetCurrentTime() const
 
 FQualifiedFrameTime UMovieSceneSequencePlayer::GetDuration() const
 {
-	return FQualifiedFrameTime(DurationFrames, PlayPosition.GetInputRate());
+	return FQualifiedFrameTime(FFrameTime(DurationFrames, DurationSubFrames), PlayPosition.GetInputRate());
 }
 
 int32 UMovieSceneSequencePlayer::GetFrameDuration() const
@@ -468,12 +470,13 @@ void UMovieSceneSequencePlayer::SetFrameRate(FFrameRate FrameRate)
 	PlayPosition.SetTimeBase(FrameRate, PlayPosition.GetOutputRate(), PlayPosition.GetEvaluationType());
 }
 
-void UMovieSceneSequencePlayer::SetFrameRange( int32 NewStartTime, int32 Duration )
+void UMovieSceneSequencePlayer::SetFrameRange( int32 NewStartTime, int32 Duration, float SubFrames )
 {
 	Duration = FMath::Max(Duration, 0);
 
 	StartTime      = NewStartTime;
 	DurationFrames = Duration;
+	DurationSubFrames = SubFrames;
 
 	TOptional<FFrameTime> CurrentTime = PlayPosition.GetCurrentPosition();
 	if (CurrentTime.IsSet())
@@ -563,7 +566,21 @@ void UMovieSceneSequencePlayer::SetPlayRate(float PlayRate)
 
 FFrameTime UMovieSceneSequencePlayer::GetLastValidTime() const
 {
-	return DurationFrames > 0 ? FFrameTime(StartTime + DurationFrames - 1, 0.99999994f) : FFrameTime(StartTime);
+	if (DurationFrames > 0)
+	{
+		if (DurationSubFrames > 0.f)
+		{
+			return FFrameTime(StartTime + DurationFrames, DurationSubFrames);
+		}
+		else
+		{
+			return FFrameTime(StartTime + DurationFrames - 1, 0.99999994f);
+		}
+	}
+	else
+	{
+		return FFrameTime(StartTime);
+	}
 }
 
 bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
@@ -573,7 +590,7 @@ bool UMovieSceneSequencePlayer::ShouldStopOrLoop(FFrameTime NewPosition) const
 	{
 		if (!bReversePlayback)
 		{
-			bShouldStopOrLoop = NewPosition.FrameNumber >= StartTime + GetFrameDuration();
+			bShouldStopOrLoop = NewPosition >= FFrameTime(StartTime + GetFrameDuration(), DurationSubFrames);
 		}
 		else
 		{
@@ -653,10 +670,12 @@ void UMovieSceneSequencePlayer::Initialize(UMovieSceneSequence* InSequence, cons
 			const FFrameNumber SrcStartFrame = UE::MovieScene::DiscreteInclusiveLower(PlaybackRange);
 			const FFrameNumber SrcEndFrame   = UE::MovieScene::DiscreteExclusiveUpper(PlaybackRange);
 
-			const FFrameNumber StartingFrame = ConvertFrameTime(SrcStartFrame, TickResolution, DisplayRate).FloorToFrame();
-			const FFrameNumber EndingFrame   = ConvertFrameTime(SrcEndFrame,   TickResolution, DisplayRate).FloorToFrame();
+			const FFrameTime EndingTime = ConvertFrameTime(SrcEndFrame, TickResolution, DisplayRate);
 
-			SetFrameRange(StartingFrame.Value, (EndingFrame - StartingFrame).Value);
+			const FFrameNumber StartingFrame = ConvertFrameTime(SrcStartFrame, TickResolution, DisplayRate).FloorToFrame();
+			const FFrameNumber EndingFrame   = EndingTime.FloorToFrame();
+
+			SetFrameRange(StartingFrame.Value, (EndingFrame - StartingFrame).Value, EndingTime.GetSubFrame());
 		}
 
 		// Reset the play position based on the user-specified start offset, or a random time
@@ -1319,7 +1338,8 @@ int32 UMovieSceneSequencePlayer::GetFunctionCallspace(UFunction* Function, FFram
 {
 	if (HasAnyFlags(RF_ClassDefaultObject))
 	{
-		return FunctionCallspace::Local;
+		// Try to use the same logic as function libraries for static functions, will try to use the global context to check authority only/cosmetic
+		return GEngine->GetGlobalFunctionCallspace(Function, this, Stack);
 	}
 
 	check(GetOuter());

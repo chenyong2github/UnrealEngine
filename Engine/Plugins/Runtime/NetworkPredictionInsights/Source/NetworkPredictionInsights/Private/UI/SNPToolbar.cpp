@@ -16,6 +16,7 @@
 
 #define LOCTEXT_NAMESPACE "NetworkPredictionInsightsModule"
 
+
 SNPToolbar::SNPToolbar()
 {
 }

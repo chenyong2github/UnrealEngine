@@ -105,6 +105,12 @@ public:
 	/** This will expand out references in the passed in AssetBundleData that are pointing to other primary assets with bundles. This is useful to preload entire webs of assets */
 	virtual void RecursivelyExpandBundleData(FAssetBundleData& BundleData) const;
 
+	/** Register a delegate to call when all types are scanned at startup, if this has already happened call immediately */
+	virtual void CallOrRegister_OnCompletedInitialScan(FSimpleMulticastDelegate::FDelegate Delegate);
+
+	/** Returns true if initial scan has completed, this can be pretty late in editor builds */
+	virtual bool HasInitialScanCompleted() const;
+
 	// ACCESSING ASSET DIRECTORY
 
 	/** Gets the FAssetData for a primary asset with the specified type/name, will only work for once that have been scanned for already. Returns true if it found a valid data */
@@ -366,6 +372,12 @@ public:
 	/** Extracts all FSoftObjectPaths from a Class/Struct */
 	virtual void ExtractSoftObjectPaths(const UStruct* Struct, const void* StructValue, TArray<FSoftObjectPath>& FoundAssetReferences, const TArray<FName>& PropertiesToSkip = TArray<FName>()) const;
 
+	/** Helper function to read the asset registry */
+	virtual void SearchAssetRegistryPaths(TArray<FAssetData>& OutAssetDataList, TSet<FName>& OutDerivedClassNames, const TArray<FString>& Directories, const TArray<FString>& PackageNames, UClass* BaseClass, bool bHasBlueprintClasses) const;
+
+	/** Helper function which requests the asset registery scan a list of directories/assets */
+	virtual void ScanPathsSynchronous(const TArray<FString>& PathsToScan) const;
+
 	/** Dumps out summary of managed types to log */
 	static void DumpAssetTypeSummary();
 
@@ -568,11 +580,11 @@ protected:
 	bool OnAssetRegistryAvailableAfterInitialization(FName InName, FAssetRegistryState& OutNewState);
 
 #if WITH_EDITOR
-	/** Function used during creating Management references to decide when to recurse and set references */
+	UE_DEPRECATED(4.26, "ShouldSetManager that takes EAssetRegistryDependencyType is no longer called; switch to the version that takes EDependencyCategory")
 	virtual EAssetSetManagerResult::Type ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target, EAssetRegistryDependencyType::Type DependencyType, EAssetSetManagerFlags::Type Flags) const;
-
-	/** Helper function which requests the asset register scan a list of directories/assets */
-	virtual void ScanPathsSynchronous(const TArray<FString>& PathsToScan) const;
+	/** Function used during creating Management references to decide when to recurse and set references */
+	virtual EAssetSetManagerResult::Type ShouldSetManager(const FAssetIdentifier& Manager, const FAssetIdentifier& Source, const FAssetIdentifier& Target,
+		UE::AssetRegistry::EDependencyCategory Category, UE::AssetRegistry::EDependencyProperty Properties, EAssetSetManagerFlags::Type Flags) const;
 
 	/** Called when asset registry is done loading off disk, will finish any deferred loads */
 	virtual void OnAssetRegistryFilesLoaded();
@@ -696,6 +708,10 @@ protected:
 	UPROPERTY()
 	bool bIncludeOnlyOnDiskAssets;
 
+	/** True if we have passed the initial asset registry/type scan */
+	UPROPERTY()
+	bool bHasCompletedInitialScan;
+
 	/** Number of notifications seen in this update */
 	UPROPERTY()
 	int32 NumberOfSpawnedNotifications;
@@ -704,6 +720,9 @@ protected:
 	TMap<FName, FName> PrimaryAssetTypeRedirects;
 	TMap<FString, FString> PrimaryAssetIdRedirects;
 	TMap<FName, FName> AssetPathRedirects;
+
+	/** Delegate called when initial span finishes */
+	FSimpleMulticastDelegate OnCompletedInitialScanDelegate;
 
 	/** Delegate bound to chunk install */
 	FDelegateHandle ChunkInstallDelegateHandle;

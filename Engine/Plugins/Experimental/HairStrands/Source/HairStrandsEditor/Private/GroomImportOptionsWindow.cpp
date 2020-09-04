@@ -18,14 +18,6 @@
 
 #define LOCTEXT_NAMESPACE "GroomImportOptionsWindow"
 
-static int32 GHairStrandsImportValidation = 1;
-static FAutoConsoleVariableRef CVarHairStrandsImportValidation(TEXT("r.HairStrands.ImportValidation"), GHairStrandsImportValidation, TEXT("Enable/Disable hair strands validation at import time"));
-
-bool RunGroomAssetValidation()
-{
-	return GHairStrandsImportValidation > 0;
-}
-
 enum class EHairDescriptionStatus
 {
 	Valid,
@@ -227,7 +219,13 @@ enum class EGroomOptionsVisibility : uint8
 
 ENUM_CLASS_FLAGS(EGroomOptionsVisibility);
 
-TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, const FProcessedHairDescription* ProcessedDescription, EGroomOptionsVisibility VisibilityFlag, FText WindowTitle, FText InButtonLabel)
+TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(
+	UGroomImportOptions* ImportOptions, 
+	UGroomHairGroupsPreview* GroupsPreview,
+	const FString& FilePath, 
+	EGroomOptionsVisibility VisibilityFlag, 
+	FText WindowTitle, 
+	FText InButtonLabel)
 {
 	TSharedRef<SWindow> Window = SNew(SWindow)
 		.Title(WindowTitle)
@@ -249,23 +247,6 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 			// but the hiding doesn't work with ShowOnlyInnerProperties 
 			ConversionOptionsProperty->RemoveMetaData(TEXT("ShowOnlyInnerProperties"));
 			ConversionOptionsProperty->SetMetaData(TEXT("Category"), TEXT("Hidden"));
-		}
-	}
-
-	// Convert the process hair description into hair groups
-	UGroomHairGroupsPreview* GroupsPreview = nullptr;
-	if (ProcessedDescription)
-	{
-		GroupsPreview = NewObject<UGroomHairGroupsPreview>();
-		for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : ProcessedDescription->HairGroups)
-		{
-			const FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
-			const FHairGroupInfo& GroupInfo = Group.Key;
-
-			FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
-			OutGroup.GroupID = GroupInfo.GroupID;
-			OutGroup.CurveCount = GroupInfo.NumCurves;
-			OutGroup.GuideCount = GroupInfo.NumGuides;
 		}
 	}
 
@@ -293,14 +274,14 @@ TSharedPtr<SGroomImportOptionsWindow> DisplayOptions(UGroomImportOptions* Import
 	return OptionsWindow;
 }
 
-TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, const FString& FilePath, const FProcessedHairDescription* ProcessedDescription)
+TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayImportOptions(UGroomImportOptions* ImportOptions, UGroomHairGroupsPreview* GroupsPreview, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, FilePath, ProcessedDescription, EGroomOptionsVisibility::All, LOCTEXT("GroomImportWindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
+	return DisplayOptions(ImportOptions, GroupsPreview, FilePath, EGroomOptionsVisibility::All, LOCTEXT("GroomImportWindowTitle", "Groom Import Options"), LOCTEXT("Import", "Import"));
 }
 
-TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, const FString& FilePath)
+TSharedPtr<SGroomImportOptionsWindow> SGroomImportOptionsWindow::DisplayRebuildOptions(UGroomImportOptions* ImportOptions, UGroomHairGroupsPreview* GroupsPreview, const FString& FilePath)
 {
-	return DisplayOptions(ImportOptions, FilePath, nullptr, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomRebuildWindowTitle ", "Groom Build Options"), LOCTEXT("Build", "Build"));
+	return DisplayOptions(ImportOptions, GroupsPreview, FilePath, EGroomOptionsVisibility::BuildOptions, LOCTEXT("GroomRebuildWindowTitle ", "Groom Build Options"), LOCTEXT("Build", "Build"));
 }
 
 

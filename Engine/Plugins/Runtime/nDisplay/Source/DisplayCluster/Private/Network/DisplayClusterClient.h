@@ -7,7 +7,7 @@
 #include "Network/DisplayClusterMessage.h"
 #include "Network/DisplayClusterSocketOps.h"
 
-#include "DisplayClusterConstants.h"
+#include "Misc/DisplayClusterConstants.h"
 
 
 /**
@@ -26,7 +26,7 @@ public:
 	// Terminates current connection
 	void Disconnect();
 
-	virtual bool SendMsg(const TSharedPtr<FDisplayClusterMessage>& msg) override final;
+	virtual bool SendMsg(const TSharedPtr<FDisplayClusterMessage>& Msg) override final;
 	virtual TSharedPtr<FDisplayClusterMessage> RecvMsg() override final;
 
 	TSharedPtr<FDisplayClusterMessage> SendRecvMsg(const TSharedPtr<FDisplayClusterMessage>& Msg);

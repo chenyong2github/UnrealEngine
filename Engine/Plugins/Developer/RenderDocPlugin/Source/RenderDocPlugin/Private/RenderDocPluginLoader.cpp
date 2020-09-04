@@ -90,15 +90,15 @@ void FRenderDocPluginLoader::Initialize()
 	RenderDocDLL = nullptr;
 	RenderDocAPI = nullptr;
 
+	bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
+	if (bDisableFrameTraceCapture)
+	{
+		UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because -DisableFrameTraceCapture cmd line flag."));
+		return;
+	}
+
 	if (FApp::IsUnattended())
 	{
-		bool bDisableFrameTraceCapture = FParse::Param(FCommandLine::Get(), TEXT("DisableFrameTraceCapture"));
-		if (bDisableFrameTraceCapture)
-		{
-			UE_LOG(RenderDocPlugin, Display, TEXT("RenderDoc plugin will not be loaded because -DisableFrameTraceCapture cmd line flag."));
-			return;
-		}
-
 		IConsoleVariable* CVarAutomationAllowFrameTraceCapture = IConsoleManager::Get().FindConsoleVariable(TEXT("AutomationAllowFrameTraceCapture"), false);
 		if (!CVarAutomationAllowFrameTraceCapture || CVarAutomationAllowFrameTraceCapture->GetInt() == 0)
 		{
@@ -137,22 +137,21 @@ void FRenderDocPluginLoader::Initialize()
 	}
 
 	// 3) Check for a RenderDoc custom installation by prompting the user:
-	if (RenderDocDLL == nullptr)
+	IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
+	if (RenderDocDLL == nullptr && DesktopPlatform && !FApp::IsUnattended())
 	{
 		//Renderdoc does not seem to be installed, but it might be built from source or downloaded by archive, 
 		//so prompt the user to navigate to the main exe file
 		UE_LOG(RenderDocPlugin, Log, TEXT("RenderDoc library not found; provide a custom installation location..."));
+
 		FString RenderdocPath;
-		IDesktopPlatform* DesktopPlatform = FDesktopPlatformModule::Get();
-		if (DesktopPlatform)
+		FString Filter = TEXT("Renderdoc executable|renderdocui.exe");
+		TArray<FString> OutFiles;
+		if (DesktopPlatform->OpenFileDialog(nullptr, TEXT("Locate main Renderdoc executable..."), TEXT(""), TEXT(""), Filter, EFileDialogFlags::None, OutFiles))
 		{
-			FString Filter = TEXT("Renderdoc executable|renderdocui.exe");
-			TArray<FString> OutFiles;
-			if (DesktopPlatform->OpenFileDialog(nullptr, TEXT("Locate main Renderdoc executable..."), TEXT(""), TEXT(""), Filter, EFileDialogFlags::None, OutFiles))
-			{
-				RenderdocPath = OutFiles[0];
-			}
+			RenderdocPath = OutFiles[0];
 		}
+
 		RenderdocPath = FPaths::GetPath(RenderdocPath);
 		RenderDocDLL = LoadAndCheckRenderDocLibrary(RenderDocAPI, RenderdocPath);
 		if (RenderDocDLL)

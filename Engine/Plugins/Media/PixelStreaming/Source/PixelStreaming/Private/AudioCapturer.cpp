@@ -115,13 +115,16 @@ int32 FAudioCapturer::Init()
 	}
 
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
-	if (!AudioDevice)
+	if (AudioDevice)
 	{
-		return -1;
+		AudioDevice->RegisterSubmixBufferListener(this);
+	}
+	else
+	{
+		UE_LOG(LogAudioCapturer, Warning, TEXT("No audio device"));
 	}
 
 	bInitialized = true;
-	AudioDevice->RegisterSubmixBufferListener(this);
 
 	UE_LOG(LogAudioCapturer, Verbose, TEXT("Init"));
 
@@ -140,12 +143,11 @@ int32 FAudioCapturer::Terminate()
 	}
 
 	FAudioDeviceHandle AudioDevice = GEngine->GetMainAudioDevice();
-	if (!AudioDevice)
+	if (AudioDevice)
 	{
-		return -1;
+		AudioDevice->UnregisterSubmixBufferListener(this);
 	}
 
-	AudioDevice->UnregisterSubmixBufferListener(this);
 	bInitialized = false;
 
 	{

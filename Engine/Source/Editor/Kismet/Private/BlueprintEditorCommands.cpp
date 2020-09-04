@@ -48,7 +48,7 @@ void FBlueprintEditorCommands::RegisterCommands()
 
 	// Preview commands
 	UI_COMMAND( ResetCamera, "Reset Camera", "Resets the camera to focus on the mesh", EUserInterfaceActionType::Button, FInputChord() );
-	UI_COMMAND( EnableSimulation, "Simulation", "Enables the simulation of the blueprint and ticking", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND( EnableSimulation, "Simulation", "Enables simulation of components in the viewport", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( ShowFloor, "Show Floor", "Toggles a ground mesh for collision", EUserInterfaceActionType::ToggleButton, FInputChord() );
 	UI_COMMAND( ShowGrid, "Show Grid", "Toggles viewport grid", EUserInterfaceActionType::ToggleButton, FInputChord() );
 
@@ -78,7 +78,7 @@ void FBlueprintEditorCommands::RegisterCommands()
 	UI_COMMAND( BeginBlueprintMerge, "Merge", "Shows the Blueprint merge panel and toolbar, allowing the user to resolve conflicted blueprints", EUserInterfaceActionType::Button, FInputChord() );
 	
 	// Hide unrelated nodes
-	UI_COMMAND( ToggleHideUnrelatedNodes, "Hide Unrelated", "Toggles  automatically hiding nodes which are unrelated to the selected nodes.", EUserInterfaceActionType::ToggleButton, FInputChord() );
+	UI_COMMAND( ToggleHideUnrelatedNodes, "Hide Unrelated", "Toggles automatically hiding nodes which are unrelated to the selected nodes.", EUserInterfaceActionType::ToggleButton, FInputChord() );
 }
 
 PRAGMA_ENABLE_OPTIMIZATION

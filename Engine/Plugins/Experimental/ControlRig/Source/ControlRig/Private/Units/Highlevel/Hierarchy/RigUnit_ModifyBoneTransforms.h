@@ -4,32 +4,8 @@
 
 #include "Units/RigUnit.h"
 #include "Units/Highlevel/RigUnit_HighlevelBase.h"
+#include "RigUnit_ModifyTransforms.h"
 #include "RigUnit_ModifyBoneTransforms.generated.h"
-
-UENUM()
-enum class EControlRigModifyBoneMode : uint8
-{
-	/** Override existing local transform */
-	OverrideLocal,
-
-	/** Override existing global transform */
-	OverrideGlobal,
-
-	/** 
-	 * Additive to existing local transform.
-	 * Input transform is added within the bone's space.
-	 */
-	AdditiveLocal,
-
-	/**
-     * Additive to existing global transform.
-     * Input transform is added as a global offset in the root of the hierarchy.
-	 */
-	AdditiveGlobal,
-
-	/** MAX - invalid */
-	Max UMETA(Hidden),
-};
 
 USTRUCT()
 struct FRigUnit_ModifyBoneTransforms_PerBone
@@ -44,7 +20,7 @@ struct FRigUnit_ModifyBoneTransforms_PerBone
 	/**
 	 * The name of the Bone to set the transform for.
 	 */
-	UPROPERTY(EditAnywhere, meta = (Input, CustomWidget = "BoneName", Constant), Category = FRigUnit_ModifyBoneTransforms_PerBone)
+	UPROPERTY(EditAnywhere, meta = (Input), Category = FRigUnit_ModifyBoneTransforms_PerBone)
 	FName Bone;
 
 	/**
@@ -55,18 +31,15 @@ struct FRigUnit_ModifyBoneTransforms_PerBone
 };
 
 USTRUCT()
-struct FRigUnit_ModifyBoneTransforms_WorkData
+struct FRigUnit_ModifyBoneTransforms_WorkData : public FRigUnit_ModifyTransforms_WorkData
 {
 	GENERATED_BODY()
-
-	UPROPERTY()
-	TArray<int32> CachedBoneIndices;
 };
 
 /**
  * ModifyBonetransforms is used to perform a change in the hierarchy by setting one or more bones' transforms.
  */
-USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone"))
+USTRUCT(meta=(DisplayName="Modify Transforms", Category="Hierarchy", DocumentationPolicy="Strict", Keywords = "ModifyBone", Deprecated = "4.25"))
 struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 {
 	GENERATED_BODY()
@@ -80,7 +53,7 @@ struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 		BoneToModify.Add(FRigUnit_ModifyBoneTransforms_PerBone());
 	}
 
-	virtual FName DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
+	virtual FRigElementKey DetermineSpaceForPin(const FString& InPinPath, void* InUserContext) const override
 	{
 		if (InPinPath.StartsWith(TEXT("BoneToModify")))
 		{
@@ -98,7 +71,7 @@ struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 			{
 				if (Mode == EControlRigModifyBoneMode::AdditiveLocal)
 				{
-					return BoneToModify[Index].Bone;
+					return FRigElementKey(BoneToModify[Index].Bone, ERigElementType::Bone);
 				}
 
 				if (Mode == EControlRigModifyBoneMode::OverrideLocal)
@@ -108,13 +81,13 @@ struct FRigUnit_ModifyBoneTransforms : public FRigUnit_HighlevelBaseMutable
 						int32 BoneIndex = Container->BoneHierarchy.GetIndex(BoneToModify[Index].Bone);
 						if (BoneIndex != INDEX_NONE)
 						{
-							return Container->BoneHierarchy[BoneIndex].ParentName;
+							return Container->BoneHierarchy[BoneIndex].GetParentElementKey();
 						}
 					}
 				}
 			}
 		}
-		return NAME_None;
+		return FRigElementKey();
 	}
 
 	RIGVM_METHOD()

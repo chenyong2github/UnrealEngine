@@ -69,6 +69,9 @@ private:
 	/** Handler for clicking the history forward button */
 	FReply ForwardClicked();
 
+	/** Refresh the current view */
+	FReply RefreshClicked();
+
 	/** Handler for when the graph panel tells us to go back in history (like using the mouse thumb button) */
 	void GraphNavigateHistoryBack();
 
@@ -83,6 +86,9 @@ private:
 
 	/** Gets the text to be displayed in the address bar */
 	FText GetAddressBarText() const;
+
+	/** Gets the text to be displayed for warning/status updates */
+	FText GetStatusText() const;
 
 	/** Called when the path is being edited */
 	void OnAddressBarTextChanged(const FText& NewText);
@@ -113,6 +119,8 @@ private:
 	ECheckBoxState IsShowSoftReferencesChecked() const;
 	void OnShowHardReferencesChanged(ECheckBoxState NewState);
 	ECheckBoxState IsShowHardReferencesChecked() const;
+	void OnShowEditorOnlyReferencesChanged(ECheckBoxState NewState);
+	ECheckBoxState IsShowEditorOnlyReferencesChecked() const;
 
 	EVisibility GetManagementReferencesVisibility() const;
 	void OnShowManagementReferencesChanged(ECheckBoxState NewState);
@@ -158,6 +166,7 @@ private:
 	bool HasAtLeastOnePackageNodeSelected() const;
 	bool HasAtLeastOneRealNodeSelected() const;
 
+	void OnAssetRegistryChanged(const FAssetData& AssetData);
 	void OnInitialAssetRegistrySearchComplete();
 	EActiveTimerReturnType TriggerZoomToFit(double InCurrentTime, float InDeltaTime);
 private:
@@ -201,4 +210,26 @@ private:
 	bool bShowShowSearchableNames;
 	/** Whether to visually show to the user the option of "Show Native Packages" */
 	bool bShowShowNativePackages;
+	/** True if our view is out of date due to asset registry changes */
+	bool bDirtyResults;
+
+	/** Handle to know if dirty */
+	FDelegateHandle AssetRefreshHandle;
 };
+
+enum class EDependencyPinCategory
+{
+	LinkEndPassive = 0,
+	LinkEndActive = 1,
+	LinkEndMask = LinkEndActive,
+
+	LinkTypeNone = 0,
+	LinkTypeUsedInGame = 2,
+	LinkTypeHard = 4,
+	LinkTypeMask = LinkTypeHard | LinkTypeUsedInGame,
+};
+ENUM_CLASS_FLAGS(EDependencyPinCategory);
+
+extern EDependencyPinCategory ParseDependencyPinCategory(FName PinCategory);
+extern FLinearColor GetColor(EDependencyPinCategory Category);
+extern FName GetName(EDependencyPinCategory Category);

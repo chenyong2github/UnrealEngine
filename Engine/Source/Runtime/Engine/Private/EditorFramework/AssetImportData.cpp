@@ -20,6 +20,18 @@ UAssetImportData::UAssetImportData(const FObjectInitializer& ObjectInitializer)
 {
 }
 
+#if WITH_EDITOR
+void UAssetImportData::ScriptedAddFilename(const FString& InPath, int32 Index, FString SourceFileLabel)
+{
+	Modify();
+	//Add or update the Source filename
+	AddFileName(InPath, Index, SourceFileLabel);
+
+	PostEditChange();
+}
+#endif //WITH_EDITOR
+
+
 #if WITH_EDITORONLY_DATA
 
 FOnImportDataChanged UAssetImportData::OnImportDataChanged;

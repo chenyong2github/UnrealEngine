@@ -12,23 +12,33 @@
 	"SupportURL": "",
 	"CanContainContent": true,
 	"IsBetaVersion": true,
-  "Installed": false,
-  "EnabledByDefault": false,
-  "Modules": [
-    {
-      "Name": "VirtualCamera",
-      "Type": "UncookedOnly",
-      "LoadingPhase": "PostDefault",
-      "WhitelistPlatforms" :
+	"Installed": false,
+	"EnabledByDefault": false,
+	"Modules":
+	[
+		{
+			"Name": "VirtualCamera",
+			"Type": "UncookedOnly",
+			"LoadingPhase": "PostDefault",
+			"WhitelistPlatforms" :
 			[
 				"Win64",
 				"Win32",
 				"Linux",
 				"Mac"
 			]
-    }
-  ],
+		},
+		{
+			"Name": "VirtualCameraEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
 	"Plugins": [
+		{
+			"Name": "MediaIOFramework",
+			"Enabled": true
+		},
 		{
 			"Name": "RemoteSession",
 			"Enabled": true
@@ -43,6 +53,10 @@
 		},
 		{
 			"Name": "VirtualProductionUtilities",
+			"Enabled": true
+		},
+		{
+			"Name": "VCamCore",
 			"Enabled": true
 		}
 	]

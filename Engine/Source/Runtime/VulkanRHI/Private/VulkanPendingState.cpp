@@ -482,15 +482,11 @@ void FVulkanPendingGfxState::PrepareForDraw(FVulkanCmdBuffer* CmdBuffer)
 				{
 					if (VertexInputStateInfo.Attributes[AttributeIndex].binding == CurrBinding.binding)
 					{
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 						uint64 VertexShaderKey = GetCurrentShaderKey(ShaderStage::Vertex);
 						FVulkanVertexShader* VertexShader = Device->GetShaderFactory().LookupShader<FVulkanVertexShader>(VertexShaderKey);
-						UE_LOG(LogVulkanRHI, Warning, TEXT("Missing binding on location %d in '%s' vertex shader"),
+						UE_LOG(LogVulkanRHI, Warning, TEXT("Missing input assembly binding on location %d in Vertex shader '%s'"),
 							CurrBinding.binding,
 							VertexShader ? *VertexShader->GetDebugName() : TEXT("Null"));
-#else
-						UE_LOG(LogVulkanRHI, Warning, TEXT("Missing binding on location %d in vertex shader"), CurrBinding.binding);
-#endif
 						ensure(0);
 					}
 				}

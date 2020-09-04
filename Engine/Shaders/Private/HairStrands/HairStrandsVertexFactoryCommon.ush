@@ -28,3 +28,9 @@ FHairControlPoint UnpackHairControlPoint(
 
 	return Out;
 }
+
+bool IsValidHairStrandsSegment(const FHairControlPoint CP0, const FHairControlPoint CP1)
+{
+	return !(CP0.Type == HAIR_CONTROLPOINT_END && CP1.Type == HAIR_CONTROLPOINT_START);
+}
+

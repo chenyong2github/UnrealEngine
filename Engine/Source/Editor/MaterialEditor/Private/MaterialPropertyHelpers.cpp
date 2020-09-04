@@ -1243,6 +1243,11 @@ bool FMaterialPropertyHelpers::OnShouldSetCurveAsset(const FAssetData& AssetData
 
 	for (UCurveLinearColor* GradientCurve : Atlas->GradientCurves)
 	{
+		if (!GradientCurve || !GradientCurve->GetOutermost())
+		{
+			continue;
+		}
+
 		if (GradientCurve->GetOutermost()->GetPathName() == AssetData.PackageName.ToString())
 		{
 			return true;
@@ -1293,7 +1298,6 @@ void FMaterialPropertyHelpers::ResetCurveToDefault(TSharedPtr<IPropertyHandle> P
 {
 	const FScopedTransaction Transaction(LOCTEXT("ResetToDefault", "Reset To Default"));
 	Parameter->Modify();
-	bool TempBool;
 	const FMaterialParameterInfo& ParameterInfo = Parameter->ParameterInfo;
 
 	UDEditorScalarParameterValue* ScalarParam = Cast<UDEditorScalarParameterValue>(Parameter);
@@ -1304,6 +1308,12 @@ void FMaterialPropertyHelpers::ResetCurveToDefault(TSharedPtr<IPropertyHandle> P
 		if (MaterialEditorInstance->SourceInstance->GetScalarParameterDefaultValue(ParameterInfo, OutValue))
 		{
 			ScalarParam->ParameterValue = OutValue;
+			
+			// Purge cached values, which will cause non-default values for the atlas data to be returned by IsScalarParameterUsedAsAtlasPosition
+			MaterialEditorInstance->SourceInstance->ClearParameterValuesEditorOnly();
+
+			// Update the atlas data from default values
+			bool TempBool;
 			MaterialEditorInstance->SourceInstance->IsScalarParameterUsedAsAtlasPosition(ParameterInfo, TempBool, ScalarParam->AtlasData.Curve, ScalarParam->AtlasData.Atlas);
 			MaterialEditorInstance->CopyToSourceInstance();
 		}

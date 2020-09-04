@@ -105,7 +105,9 @@
 #include "Materials/MaterialExpressionRayTracingQualitySwitch.h"
 #include "Materials/MaterialExpressionGetMaterialAttributes.h"
 #include "Materials/MaterialExpressionHairAttributes.h"
+#include "Materials/MaterialExpressionHairColor.h"
 #include "Materials/MaterialExpressionIf.h"
+#include "Materials/MaterialExpressionInverseLinearInterpolate.h"
 #include "Materials/MaterialExpressionLightmapUVs.h"
 #include "Materials/MaterialExpressionPrecomputedAOMask.h"
 #include "Materials/MaterialExpressionLightmassReplace.h"
@@ -155,6 +157,7 @@
 #include "Materials/MaterialExpressionPixelDepth.h"
 #include "Materials/MaterialExpressionPixelNormalWS.h"
 #include "Materials/MaterialExpressionPower.h"
+#include "Materials/MaterialExpressionSkinningVertexOffsets.h"
 #include "Materials/MaterialExpressionPreSkinnedNormal.h"
 #include "Materials/MaterialExpressionPreSkinnedPosition.h"
 #include "Materials/MaterialExpressionQualitySwitch.h"
@@ -171,12 +174,12 @@
 #include "Materials/MaterialExpressionSaturate.h"
 #include "Materials/MaterialExpressionSceneColor.h"
 #include "Materials/MaterialExpressionSceneDepth.h"
-#include "Materials/MaterialExpressionSceneDepthWithoutWater.h"
 #include "Materials/MaterialExpressionSceneTexelSize.h"
 #include "Materials/MaterialExpressionSceneTexture.h"
 #include "Materials/MaterialExpressionScreenPosition.h"
 #include "Materials/MaterialExpressionShadingModel.h"
 #include "Materials/MaterialExpressionSine.h"
+#include "Materials/MaterialExpressionSmoothStep.h"
 #include "Materials/MaterialExpressionSingleLayerWaterMaterialOutput.h"
 #include "Materials/MaterialExpressionThinTranslucentMaterialOutput.h"
 #include "Materials/MaterialExpressionSobol.h"
@@ -186,6 +189,7 @@
 #include "Materials/MaterialExpressionSquareRoot.h"
 #include "Materials/MaterialExpressionStaticBool.h"
 #include "Materials/MaterialExpressionStaticSwitch.h"
+#include "Materials/MaterialExpressionStep.h"
 #include "Materials/MaterialExpressionSubtract.h"
 #include "Materials/MaterialExpressionTangent.h"
 #include "Materials/MaterialExpressionTangentOutput.h"
@@ -3651,6 +3655,197 @@ void UMaterialExpressionSubtract::GetCaption(TArray<FString>& OutCaptions) const
 		ret += TEXT("(");
 		ret += ATraced.Expression ? TEXT(",") : FString::Printf( TEXT("%.4g,"), ConstA);
 		ret += BTraced.Expression ? TEXT(")") : FString::Printf( TEXT("%.4g)"), ConstB);
+	}
+
+	OutCaptions.Add(ret);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionSmoothStep
+//
+
+UMaterialExpressionSmoothStep::UMaterialExpressionSmoothStep(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+			, NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	ConstMin = 0.0f;
+	ConstMax = 1.0f;
+	ConstValue = 0.0f;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSmoothStep::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg1 = Min.GetTracedInput().Expression ? Min.Compile(Compiler) : Compiler->Constant(ConstMin);
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg2 = Max.GetTracedInput().Expression ? Max.Compile(Compiler) : Compiler->Constant(ConstMax);
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg3 = Value.GetTracedInput().Expression ? Value.Compile(Compiler) : Compiler->Constant(ConstValue);
+
+	return Compiler->SmoothStep(Arg1, Arg2, Arg3);
+}
+
+void UMaterialExpressionSmoothStep::GetCaption(TArray<FString>& OutCaptions) const
+{
+	FString ret = TEXT("SmoothStep");
+
+	FExpressionInput MinTraced = Min.GetTracedInput();
+	FExpressionInput MaxTraced = Max.GetTracedInput();
+	FExpressionInput ValueTraced = Value.GetTracedInput();
+
+	if (!MinTraced.Expression || !MaxTraced.Expression || !ValueTraced.Expression)
+	{
+		ret += TEXT("(");
+		ret += MinTraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstMin);
+		ret += MaxTraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstMax);
+		ret += ValueTraced.Expression ? TEXT(")") : FString::Printf(TEXT("%.4g)"), ConstValue);
+	}
+
+	OutCaptions.Add(ret);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionStep
+//
+
+UMaterialExpressionStep::UMaterialExpressionStep(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+			, NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	ConstY = 0.0f;
+	ConstX = 1.0f;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionStep::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg1 = Y.GetTracedInput().Expression ? Y.Compile(Compiler) : Compiler->Constant(ConstY);
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg2 = X.GetTracedInput().Expression ? X.Compile(Compiler) : Compiler->Constant(ConstX);
+
+	return Compiler->Step(Arg1, Arg2);
+}
+
+void UMaterialExpressionStep::GetCaption(TArray<FString>& OutCaptions) const
+{
+	FString ret = TEXT("Step");
+
+	FExpressionInput YTraced = Y.GetTracedInput();
+	FExpressionInput XTraced = X.GetTracedInput();
+
+	if (!YTraced.Expression || !XTraced.Expression)
+	{
+		ret += TEXT("(");
+		ret += YTraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstY);
+		ret += XTraced.Expression ? TEXT(")") : FString::Printf(TEXT("%.4g)"), ConstX);
+	}
+
+	OutCaptions.Add(ret);
+}
+#endif // WITH_EDITOR
+
+//
+//	UMaterialExpressionInverseLerp
+//
+
+UMaterialExpressionInverseLinearInterpolate::UMaterialExpressionInverseLinearInterpolate(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Math;
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Math(LOCTEXT("Math", "Math"))
+			, NAME_Utility(LOCTEXT("Utility", "Utility"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	ConstA = 0.0f;
+	ConstB = 1.0f;
+	ConstValue = 0.0f;
+	bClampResult = false;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_Math);
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionInverseLinearInterpolate::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg1 = A.GetTracedInput().Expression ? A.Compile(Compiler) : Compiler->Constant(ConstA);
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg2 = B.GetTracedInput().Expression ? B.Compile(Compiler) : Compiler->Constant(ConstB);
+	// if the input is hooked up, use it, otherwise use the internal constant
+	int32 Arg3 = Value.GetTracedInput().Expression ? Value.Compile(Compiler) : Compiler->Constant(ConstValue);
+
+	int32 Result = Compiler->InvLerp(Arg1, Arg2, Arg3);
+	return bClampResult ? Compiler->Clamp(Result, Compiler->Constant(0.0f), Compiler->Constant(1.0f)) : Result;
+}
+
+void UMaterialExpressionInverseLinearInterpolate::GetCaption(TArray<FString>& OutCaptions) const
+{
+	FString ret = TEXT("InvLerp");
+
+	FExpressionInput MinTraced = A.GetTracedInput();
+	FExpressionInput MaxTraced = B.GetTracedInput();
+	FExpressionInput ValueTraced = Value.GetTracedInput();
+
+	if (!MinTraced.Expression || !MaxTraced.Expression || !ValueTraced.Expression)
+	{
+		ret += TEXT("(");
+		ret += MinTraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstA);
+		ret += MaxTraced.Expression ? TEXT(",") : FString::Printf(TEXT("%.4g,"), ConstB);
+		ret += ValueTraced.Expression ? TEXT(")") : FString::Printf(TEXT("%.4g)"), ConstValue);
+	}
+
+	if (bClampResult)
+	{
+		ret += TEXT(" Clamped");
 	}
 
 	OutCaptions.Add(ret);
@@ -17055,6 +17250,72 @@ void UMaterialExpressionSkyAtmosphereDistantLightScatteredLuminance::GetCaption(
 #endif // WITH_EDITOR
 
 ///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionSkinningVertexOffsets
+///////////////////////////////////////////////////////////////////////////////
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+UMaterialExpressionSkinningVertexOffsets::UMaterialExpressionSkinningVertexOffsets(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Constants;
+		FConstructorStatics()
+			: NAME_Constants(LOCTEXT("Vectors", "Vectors"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	MenuCategories.Add(ConstructorStatics.NAME_Constants);
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Pre Skin Offset"), 1, 1, 1, 1, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Post Skin Offset"), 1, 1, 1, 1, 0));
+	bShaderInputData = true;
+	bShowOutputNameOnPin = true;
+#endif
+}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+
+#if WITH_EDITOR
+int32 UMaterialExpressionSkinningVertexOffsets::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (Compiler->GetCurrentShaderFrequency() != SF_Vertex)
+	{
+		return Compiler->Errorf(
+			TEXT("%s only available in the vertex shader, pass through custom interpolators if needed."), 
+			(OutputIndex == 0) ? TEXT("Pre Skin Offset") : TEXT("Post Skin Offset")
+			);
+	}
+
+	switch (OutputIndex)
+	{
+	default:
+		return Compiler->Constant3(0, 0, 0);
+
+	case 0:
+		return Compiler->PreSkinVertexOffset();
+
+	case 1:
+		return Compiler->PostSkinVertexOffset();
+	}
+}
+
+void UMaterialExpressionSkinningVertexOffsets::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Skin Vertex Offset"));
+}
+
+void UMaterialExpressionSkinningVertexOffsets::GetExpressionToolTip(TArray<FString>& OutToolTip)
+{
+	ConvertToMultilineToolTip(TEXT("Returns pre or post skinned offset applied to each vertex for a skeletal mesh, usable in vertex shader only."
+		"Returns <0, 0, 0> for non-skeletal meshes or when disabled."), 40, OutToolTip);
+}
+#endif // WITH_EDITOR
+
+///////////////////////////////////////////////////////////////////////////////
 // UMaterialExpressionPreSkinnedPosition
 ///////////////////////////////////////////////////////////////////////////////
 UMaterialExpressionPreSkinnedPosition::UMaterialExpressionPreSkinnedPosition(const FObjectInitializer& ObjectInitializer)
@@ -17289,11 +17550,14 @@ UMaterialExpressionHairAttributes::UMaterialExpressionHairAttributes(const FObje
 	Outputs.Add(FExpressionOutput(TEXT("V"), 1, 0, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Length"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Radius"), 1, 0, 1, 0, 0));
-	Outputs.Add(FExpressionOutput(TEXT("Seed")));
+	Outputs.Add(FExpressionOutput(TEXT("Seed"), 1, 1, 0, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("World Tangent"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Root UV"), 1, 1, 1, 0, 0));
 	Outputs.Add(FExpressionOutput(TEXT("BaseColor"), 1, 1, 1, 1, 0));
 	Outputs.Add(FExpressionOutput(TEXT("Roughness"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Depth"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("Coverage"), 1, 1, 0, 0, 0));
+	Outputs.Add(FExpressionOutput(TEXT("AtlasUVs"), 1, 1, 1, 0, 0));
 #endif
 }
 
@@ -17328,6 +17592,18 @@ int32 UMaterialExpressionHairAttributes::Compile(class FMaterialCompiler* Compil
 	{
 		return Compiler->GetHairRoughness();
 	}
+	else if (OutputIndex == 9)
+	{
+		return Compiler->GetHairDepth();
+	}
+	else if (OutputIndex == 10)
+	{
+		return Compiler->GetHairCoverage();
+	}
+	else if (OutputIndex == 11)
+	{
+		return Compiler->GetHairAtlasUVs();
+	}
 
 	return Compiler->Errorf(TEXT("Invalid input parameter"));
 }
@@ -17338,6 +17614,53 @@ void UMaterialExpressionHairAttributes::GetCaption(TArray<FString>& OutCaptions)
 }
 #endif // WITH_EDITOR
 
+//
+// Hair Color
+//
+
+UMaterialExpressionHairColor::UMaterialExpressionHairColor(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_Utility;
+		FConstructorStatics()
+			: NAME_Utility(LOCTEXT("Hair Color", "Hair Color"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_Utility);
+
+#endif
+
+#if WITH_EDITORONLY_DATA
+	bShowOutputNameOnPin = true;
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Color"), 1, 1, 1, 1, 0));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionHairColor::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 MelaninInput = Melanin.GetTracedInput().Expression ? Melanin.Compile(Compiler) : Compiler->Constant(0.5f);
+	int32 RednessInput = Redness.GetTracedInput().Expression ? Redness.Compile(Compiler) : Compiler->Constant(0.0f);
+	int32 DyeColorInput = DyeColor.GetTracedInput().Expression ? DyeColor.Compile(Compiler) : Compiler->Constant3(1.f,1.f, 1.f);
+
+	return Compiler->GetHairColorFromMelanin(
+		MelaninInput,
+		RednessInput,
+		DyeColorInput);
+}
+
+void UMaterialExpressionHairColor::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Hair Color"));
+}
+#endif // WITH_EDITOR
 
 //
 //  UMaterialExpressionARPassthroughCameraUVs
@@ -17711,6 +18034,220 @@ void UMaterialExpressionCloudSampleAttribute::GetCaption(TArray<FString>& OutCap
 #endif // WITH_EDITOR
 
 
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionVolumetricAdvancedMaterialOutput
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionVolumetricAdvancedMaterialOutput::UMaterialExpressionVolumetricAdvancedMaterialOutput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_VolumetricAdvancedOutput;
+		FConstructorStatics()
+			: NAME_VolumetricAdvancedOutput(LOCTEXT("Volume", "Volume"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+
+	ConstPhaseG = 0.0f;
+	ConstPhaseG2 = 0.0f;
+	ConstPhaseBlend = 0.0f;
+	PerSamplePhaseEvaluation = false;
+
+	MultiScatteringApproximationOctaveCount = 0;
+	ConstMultiScatteringContribution = 0.5f;
+	ConstMultiScatteringOcclusion = 0.5f;
+	ConstMultiScatteringEccentricity = 0.5f;
+
+	bGroundContribution = false;
+	bGrayScaleMaterial = false;
+	bRayMarchVolumeShadow = true;
+
+#if WITH_EDITORONLY_DATA
+	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedOutput);
+#endif
+
+#if WITH_EDITOR
+	Outputs.Reset();
+#endif
+}
+
+#if WITH_EDITOR
+
+int32 UMaterialExpressionVolumetricAdvancedMaterialOutput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	int32 CodeInput = INDEX_NONE;
+
+	// Generates function names GetVolumetricAdvanceMaterialOutput{index} used in BasePixelShader.usf.
+	if (OutputIndex == 0)
+	{
+		CodeInput = PhaseG.IsConnected() ? PhaseG.Compile(Compiler) : Compiler->Constant(ConstPhaseG);
+	}
+	else if (OutputIndex == 1)
+	{
+		CodeInput = PhaseG2.IsConnected() ? PhaseG2.Compile(Compiler) : Compiler->Constant(ConstPhaseG2);
+	}
+	else if (OutputIndex == 2)
+	{
+		CodeInput = PhaseBlend.IsConnected() ? PhaseBlend.Compile(Compiler) : Compiler->Constant(ConstPhaseBlend);
+	}
+	else if (OutputIndex == 3)
+	{
+		CodeInput = MultiScatteringContribution.IsConnected() ? MultiScatteringContribution.Compile(Compiler) : Compiler->Constant(ConstMultiScatteringContribution);
+	}
+	else if (OutputIndex == 4)
+	{
+		CodeInput = MultiScatteringOcclusion.IsConnected() ? MultiScatteringOcclusion.Compile(Compiler) : Compiler->Constant(ConstMultiScatteringOcclusion);
+	}
+	else if (OutputIndex == 5)
+	{
+		CodeInput = MultiScatteringEccentricity.IsConnected() ? MultiScatteringEccentricity.Compile(Compiler) : Compiler->Constant(ConstMultiScatteringEccentricity);
+	}
+	else if (OutputIndex == 6)
+	{
+		CodeInput = ConservativeDensity.IsConnected() ? ConservativeDensity.Compile(Compiler) : Compiler->Constant3(1.0f, 1.0f, 1.0f);
+	}
+
+	return Compiler->CustomOutput(this, OutputIndex, CodeInput);
+}
+
+void UMaterialExpressionVolumetricAdvancedMaterialOutput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(FString(TEXT("Volumetric Advanced Output")));
+}
+
+bool UMaterialExpressionVolumetricAdvancedMaterialOutput::GetEvaluatePhaseOncePerSample() const
+{
+	return PerSamplePhaseEvaluation && (PhaseG.IsConnected() || PhaseG2.IsConnected() || PhaseBlend.IsConnected());
+}
+
+uint32 UMaterialExpressionVolumetricAdvancedMaterialOutput::GetMultiScatteringApproximationOctaveCount() const
+{
+	return MultiScatteringApproximationOctaveCount;
+}
+
+#endif // WITH_EDITOR
+
+int32 UMaterialExpressionVolumetricAdvancedMaterialOutput::GetNumOutputs() const
+{
+	return 7;
+}
+
+FString UMaterialExpressionVolumetricAdvancedMaterialOutput::GetFunctionName() const
+{
+	return TEXT("GetVolumetricAdvancedMaterialOutput");
+}
+
+FString UMaterialExpressionVolumetricAdvancedMaterialOutput::GetDisplayName() const
+{
+	return TEXT("Volumetric Advanced Ouput");
+}
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionVolumetricAdvancedMaterialInput
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionVolumetricAdvancedMaterialInput::UMaterialExpressionVolumetricAdvancedMaterialInput(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_VolumetricAdvancedInput;
+		FConstructorStatics()
+			: NAME_VolumetricAdvancedInput(LOCTEXT("Volume", "Volume"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_VolumetricAdvancedInput);
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("ConservativeDensity")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionVolumetricAdvancedMaterialInput::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (OutputIndex == 0)
+	{
+		return Compiler->GetVolumeSampleConservativeDensity();
+	}
+
+	return Compiler->Errorf(TEXT("Invalid input parameter"));
+}
+
+void UMaterialExpressionVolumetricAdvancedMaterialInput::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Volumetric Advanced Input"));
+}
+#endif // WITH_EDITOR
+
+
+///////////////////////////////////////////////////////////////////////////////
+// UMaterialExpressionCloudSampleAttribute
+///////////////////////////////////////////////////////////////////////////////
+
+UMaterialExpressionCloudSampleAttribute::UMaterialExpressionCloudSampleAttribute(const FObjectInitializer& ObjectInitializer)
+	: Super(ObjectInitializer)
+{
+#if WITH_EDITORONLY_DATA
+	// Structure to hold one-time initialization
+	struct FConstructorStatics
+	{
+		FText NAME_CloudSampleAttributes;
+		FConstructorStatics()
+			: NAME_CloudSampleAttributes(LOCTEXT("Volume", "Volume"))
+		{
+		}
+	};
+	static FConstructorStatics ConstructorStatics;
+	MenuCategories.Add(ConstructorStatics.NAME_CloudSampleAttributes);
+
+	bShowOutputNameOnPin = true;
+
+	Outputs.Reset();
+	Outputs.Add(FExpressionOutput(TEXT("Altitude")));
+	Outputs.Add(FExpressionOutput(TEXT("AltitudeInLayer")));
+	Outputs.Add(FExpressionOutput(TEXT("NormAltitudeInLayer")));
+#endif
+}
+
+#if WITH_EDITOR
+int32 UMaterialExpressionCloudSampleAttribute::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
+{
+	if (OutputIndex == 0)
+	{
+		return Compiler->GetCloudSampleAltitude();
+	}
+	else if (OutputIndex == 1)
+	{
+		return Compiler->GetCloudSampleAltitudeInLayer();
+	}
+	else if (OutputIndex == 2)
+	{
+		return Compiler->GetCloudSampleNormAltitudeInLayer();
+	}
+
+	return Compiler->Errorf(TEXT("Invalid input parameter"));
+}
+
+void UMaterialExpressionCloudSampleAttribute::GetCaption(TArray<FString>& OutCaptions) const
+{
+	OutCaptions.Add(TEXT("Cloud Sample Attributes"));
+}
+#endif // WITH_EDITOR
+
+
 /////////////////////////// THIN TRANSLUCENT
 
 
@@ -17775,71 +18312,7 @@ FString UMaterialExpressionThinTranslucentMaterialOutput::GetDisplayName() const
 }
 
 
-///////////////////////////////////////////////////////////////////////////////
-// UMaterialExpressionSceneDepthWithoutWater
-///////////////////////////////////////////////////////////////////////////////
-UMaterialExpressionSceneDepthWithoutWater::UMaterialExpressionSceneDepthWithoutWater()
-{
-#if WITH_EDITORONLY_DATA
-	MenuCategories.Add(LOCTEXT("Water", "Water"));
 
-	Outputs.Reset();
-	Outputs.Add(FExpressionOutput(TEXT(""), 1, 1, 0, 0, 0));
-	bShaderInputData = true;
-#endif
-
-	ConstInput = FVector2D(0.f, 0.f);
-}
-
-#if WITH_EDITOR
-int32 UMaterialExpressionSceneDepthWithoutWater::Compile(class FMaterialCompiler* Compiler, int32 OutputIndex)
-{
-	int32 OffsetIndex = INDEX_NONE;
-	int32 CoordinateIndex = INDEX_NONE;
-	bool bUseOffset = false;
-
-	if (InputMode == EMaterialSceneAttributeInputMode::OffsetFraction)
-	{
-		if (Input.GetTracedInput().Expression)
-		{
-			OffsetIndex = Input.Compile(Compiler);
-		}
-		else
-		{
-			OffsetIndex = Compiler->Constant2(ConstInput.X, ConstInput.Y);
-		}
-		bUseOffset = true;
-	}
-	else if (InputMode == EMaterialSceneAttributeInputMode::Coordinates)
-	{
-		if (Input.GetTracedInput().Expression)
-		{
-			CoordinateIndex = Input.Compile(Compiler);
-		}
-	}
-
-	int32 Result = Compiler->SceneDepthWithoutWater(OffsetIndex, CoordinateIndex, bUseOffset, FallbackDepth);
-	return Result;
-}
-
-void UMaterialExpressionSceneDepthWithoutWater::GetCaption(TArray<FString>& OutCaptions) const
-{
-	OutCaptions.Add(TEXT("Scene Depth Without Water"));
-}
-
-FName UMaterialExpressionSceneDepthWithoutWater::GetInputName(int32 InputIndex) const
-{
-	if (InputIndex == 0)
-	{
-		// Display the current InputMode enum's display name.
-		FByteProperty* InputModeProperty = FindFProperty<FByteProperty>(UMaterialExpressionSceneDepthWithoutWater::StaticClass(), "InputMode");
-		// Can't use GetNameByValue as GetNameStringByValue does name mangling that GetNameByValue does not
-		return *InputModeProperty->Enum->GetNameStringByValue((int64)InputMode.GetValue());
-	}
-	return NAME_None;
-}
-
-#endif // WITH_EDITOR
 
 
 #undef LOCTEXT_NAMESPACE

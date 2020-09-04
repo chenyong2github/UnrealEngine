@@ -956,10 +956,18 @@ void FShaderParameterParser::ValidateShaderParameterTypes(
 		// Match parsed type with expected shader type
 		bool bIsTypeCorrect = ParsedParameter.Type == Member.ExpectedShaderType;
 		
-		// Accept half-precision floats when single-precision was requested
-		if (!bIsTypeCorrect && ParsedParameter.Type.StartsWith(TEXT("half")) && Member.ExpectedShaderType.StartsWith(TEXT("float")))
+		if (!bIsTypeCorrect)
 		{
-			bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 4, *Member.ExpectedShaderType + 5) == 0);
+			// Accept half-precision floats when single-precision was requested
+			if (ParsedParameter.Type.StartsWith(TEXT("half")) && Member.ExpectedShaderType.StartsWith(TEXT("float")))
+			{
+				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 4, *Member.ExpectedShaderType + 5) == 0);
+			}
+			// Accept single-precision floats when half-precision was expected
+			else if (ParsedParameter.Type.StartsWith(TEXT("float")) && Member.ExpectedShaderType.StartsWith(TEXT("half")))
+			{
+				bIsTypeCorrect = (FCString::Strcmp(*ParsedParameter.Type + 5, *Member.ExpectedShaderType + 4) == 0);
+			}
 		}
 
 		// Allow silent casting between signed and unsigned on shader bindings.
@@ -1211,6 +1219,51 @@ FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& 
 	return Text;
 }
 
+static FString CreateShaderConductorCommandLine(const FShaderCompilerInput& Input, const FString& SourceFilename, EShaderConductorTarget SCTarget)
+{
+	const TCHAR* Stage = nullptr;
+	switch (Input.Target.GetFrequency())
+	{
+	case SF_Vertex:			Stage = TEXT("vs"); break;
+	case SF_Pixel:			Stage = TEXT("ps"); break;
+	case SF_Geometry:		Stage = TEXT("gs"); break;
+	case SF_Hull:			Stage = TEXT("hs"); break;
+	case SF_Domain:			Stage = TEXT("ds"); break;
+	case SF_Compute:		Stage = TEXT("cs"); break;
+	default:				return FString();
+	}
+
+	const TCHAR* Target = nullptr;
+	switch (SCTarget)
+	{
+	case EShaderConductorTarget::Dxil:		Target = TEXT("dxil"); break;
+	case EShaderConductorTarget::Spirv:		Target = TEXT("spirv"); break;
+	default:								return FString();
+	}
+
+	FString CmdLine = TEXT("-E ") + Input.EntryPointName;
+	//CmdLine += TEXT("-O ") + *(CompilerInfo.Input.D);
+	CmdLine += TEXT(" -S ") + FString(Stage);
+	CmdLine += TEXT(" -T ");
+	CmdLine += Target;
+	CmdLine += TEXT(" -I ") + (Input.DumpDebugInfoPath / SourceFilename);
+
+	return CmdLine;
+}
+
+SHADERCOMPILERCOMMON_API void WriteShaderConductorCommandLine(const FShaderCompilerInput& Input, const FString& SourceFilename, EShaderConductorTarget Target)
+{
+	FArchive* FileWriter = IFileManager::Get().CreateFileWriter(*(Input.DumpDebugInfoPath / TEXT("ShaderConductorCmdLine.txt")));
+	if (FileWriter)
+	{
+		FString CmdLine = CreateShaderConductorCommandLine(Input, SourceFilename, Target);
+
+		FileWriter->Serialize(TCHAR_TO_ANSI(*CmdLine), CmdLine.Len());
+		FileWriter->Close();
+		delete FileWriter;
+	}
+}
+
 static int Mali_ExtractNumberInstructions(const FString &MaliOutput)
 {
 	int ReturnedNum = 0;
@@ -1413,6 +1466,42 @@ void CompileOfflineMali(const FShaderCompilerInput& Input, FShaderCompilerOutput
 		IFileManager::Get().Delete(*GLSLSourceFile, true, true);
 	}
 }
+
+
+void DumpDebugUSF(const FShaderCompilerInput& Input, const ANSICHAR* Source, int32 SourceLength, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
+{
+	FString BaseSourceFilename = (OverrideBaseFilename && *OverrideBaseFilename) ? OverrideBaseFilename : *Input.GetSourceFilename();
+	FString Filename = Input.DumpDebugInfoPath / BaseSourceFilename;
+
+	if (TUniquePtr<FArchive> FileWriter = TUniquePtr<FArchive>(IFileManager::Get().CreateFileWriter(*Filename)))
+	{
+		if (SourceLength > 0 && !Source[SourceLength])
+		{
+			// Skip possible extra NUL character
+			--SourceLength;
+		}
+		FileWriter->Serialize((void*)Source, SourceLength);
+		{
+			FString Line = TEXT("\n");
+
+			Line += CrossCompiler::CreateResourceTableFromEnvironment(Input.Environment);
+
+			Line += TEXT("#if 0 /*DIRECT COMPILE*/\n");
+			Line += CreateShaderCompilerWorkerDirectCommandLine(Input, HlslCCFlags);
+			Line += TEXT("\n#endif /*DIRECT COMPILE*/\n");
+
+			FileWriter->Serialize(TCHAR_TO_ANSI(*Line), Line.Len());
+		}
+		FileWriter->Close();
+	}
+}
+
+void DumpDebugUSF(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags, const TCHAR* OverrideBaseFilename)
+{
+	auto AnsiSourceFile = StringCast<ANSICHAR>(*Source);
+	DumpDebugUSF(Input, (ANSICHAR*)AnsiSourceFile.Get(), AnsiSourceFile.Length(), HlslCCFlags, OverrideBaseFilename);
+}
+
 
 namespace CrossCompiler
 {

@@ -3,26 +3,22 @@
 #include "Render/Presentation/DisplayClusterPresentationNative.h"
 #include "Render/Synchronization/IDisplayClusterRenderSyncPolicy.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterPresentationNative::FDisplayClusterPresentationNative(FViewport* const Viewport, TSharedPtr<IDisplayClusterRenderSyncPolicy>& SyncPolicy)
 	: FDisplayClusterPresentationBase(Viewport, SyncPolicy)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 FDisplayClusterPresentationNative::~FDisplayClusterPresentationNative()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
 }
 
 
 bool FDisplayClusterPresentationNative::Present(int32& InOutSyncInterval)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterRender);
-
 	TSharedPtr<IDisplayClusterRenderSyncPolicy> CurSyncPolicy = GetSyncPolicyObject();
 	if (CurSyncPolicy.IsValid())
 	{

@@ -10,6 +10,9 @@
 #include "Insights/ViewModels/TimingEventSearch.h"
 #include "TraceServices/Model/Frames.h"
 #include "VariantTreeNode.h"
+#include "ObjectPropertyTrace.h"
+#include "Framework/MultiBox/MultiBoxBuilder.h"
+#include "Framework/Commands/UICommandInfo.h"
 
 #define LOCTEXT_NAMESPACE "ObjectEventsTrack"
 
@@ -36,6 +39,7 @@ void FObjectEventsTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& Buil
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, InMessage.Name);
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -95,6 +99,7 @@ void FObjectEventsTrack::FindObjectEvent(const FTimingEventSearchParameters& InP
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -148,7 +153,7 @@ void FObjectEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray
 	{
 		Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
 
-		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName())));
+		TSharedRef<FVariantTreeNode> Header = OutVariants.Add_GetRef(FVariantTreeNode::MakeHeader(FText::FromString(GetName()), 0));
 
 		// object events
 		GameplayProvider->ReadObjectEventsTimeline(GetGameplayTrack().GetObjectId(), [&InFrame, &Header](const FGameplayProvider::ObjectEventsTimeline& InTimeline)
@@ -156,9 +161,59 @@ void FObjectEventsTrack::GetVariantsAtFrame(const Trace::FFrame& InFrame, TArray
 			InTimeline.EnumerateEvents(InFrame.StartTime, InFrame.EndTime, [&Header](double InStartTime, double InEndTime, uint32 InDepth, const FObjectEventMessage& InMessage)
 			{
 				Header->AddChild(FVariantTreeNode::MakeFloat(FText::FromString(InMessage.Name), InStartTime));
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
+}
+
+void FObjectEventsTrack::BuildContextMenu(FMenuBuilder& MenuBuilder)
+{
+	FGameplayTimingEventsTrack::BuildContextMenu(MenuBuilder);
+
+#if OBJECT_PROPERTY_TRACE_ENABLED
+	MenuBuilder.BeginSection("Trace", LOCTEXT("TraceHeader", "Trace"));
+	{
+		TWeakObjectPtr<UObject> WeakObject = nullptr;
+		const FGameplayProvider* GameplayProvider = SharedData.GetAnalysisSession().ReadProvider<FGameplayProvider>(FGameplayProvider::ProviderName);
+		if (GameplayProvider)
+		{
+			Trace::FAnalysisSessionReadScope SessionReadScope(SharedData.GetAnalysisSession());
+
+			if (const FObjectInfo* ObjectInfo = GameplayProvider->FindObjectInfo(GetGameplayTrack().GetObjectId()))
+			{
+				WeakObject = FindObject<UObject>(nullptr, ObjectInfo->PathName);
+			}
+		}
+
+		MenuBuilder.AddMenuEntry
+		(
+			LOCTEXT("TraceProperties", "Trace Object Properties"),
+			LOCTEXT("TraceProperties_Tooltip", "Enable object property tracing for this object."),
+			FSlateIcon(),
+			FUIAction(
+				FExecuteAction::CreateLambda([WeakObject]()
+				{ 
+					if(UObject* Object = WeakObject.Get())
+					{
+						FObjectPropertyTrace::ToggleObjectRegistration(Object);
+					}
+				}),
+				FCanExecuteAction::CreateLambda([WeakObject]()
+				{
+					return FObjectPropertyTrace::IsEnabled() && WeakObject.IsValid();
+				}),
+				FGetActionCheckState::CreateLambda([WeakObject]()
+				{
+					return FObjectPropertyTrace::IsEnabled() && FObjectPropertyTrace::IsObjectRegistered(WeakObject.Get()) ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+				})
+			),
+			NAME_None,
+			EUserInterfaceActionType::ToggleButton
+		);
+	}
+	MenuBuilder.EndSection();
+#endif
 }
 
 #undef LOCTEXT_NAMESPACE

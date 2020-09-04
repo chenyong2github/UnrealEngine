@@ -69,8 +69,6 @@ public:
 	SLATE_BEGIN_ARGS(SSpinBox<NumericType>)
 		: _Style(&FCoreStyle::Get().GetWidgetStyle<FSpinBoxStyle>("SpinBox"))
 		, _Value(0)
-		, _MinValue(0)
-		, _MaxValue(0)
 		, _MinFractionalDigits(DefaultMinFractionalDigits)
 		, _MaxFractionalDigits(DefaultMaxFractionalDigits)
 		, _AlwaysUsesDeltaSnap(false)
@@ -103,7 +101,7 @@ public:
 		SLATE_ATTRIBUTE( TOptional< NumericType >, MaxSliderValue )
 		/** The minimum fractional digits the spin box displays, defaults to 1 */
 		SLATE_ATTRIBUTE(TOptional< int32 >, MinFractionalDigits)
-		/** The maximum fractional digits the spin box displays, defaults to 7 */
+		/** The maximum fractional digits the spin box displays, defaults to 6 */
 		SLATE_ATTRIBUTE(TOptional< int32 >, MaxFractionalDigits)
 		/** Whether typed values should use delta snapping, defaults to false */
 		SLATE_ATTRIBUTE(bool, AlwaysUsesDeltaSnap)
@@ -232,7 +230,7 @@ public:
 		PointerDraggingSliderIndex = INDEX_NONE;
 
 		CachedExternalValue = ValueAttribute.Get();
-		InternalValue = ValueAttribute.Get();
+		IntermediateDragFractionalValue = 0.0;
 
 		bIsTextChanging = false;
 
@@ -320,11 +318,11 @@ public:
 		//if there is a spin range limit, draw the filler bar
 		if (!bUnlimitedSpinRange)
 		{
-			double Value = ValueAttribute.Get();
+			NumericType Value = ValueAttribute.Get();
 			NumericType CurrentDelta = Delta.Get();
 			if( CurrentDelta != 0.0f )
 			{
-				Value= Snap(Value, CurrentDelta); // snap floating point value to nearest Delta
+				Value = FMath::GridSnap(Value, CurrentDelta); // snap floating point value to nearest Delta
 			}
 
 			float FractionFilled = Fraction(Value, GetMinSliderValue(), GetMaxSliderValue());
@@ -372,8 +370,8 @@ public:
 		if ( MouseEvent.GetEffectingButton() == EKeys::LeftMouseButton && PointerDraggingSliderIndex == INDEX_NONE )
 		{
 			DistanceDragged = 0;
-			InternalValue = ValueAttribute.Get();
-			PreDragValue = InternalValue;
+			PreDragValue = ValueAttribute.Get();
+			IntermediateDragFractionalValue = 0.0;
 			PointerDraggingSliderIndex = MouseEvent.GetPointerIndex();
 			CachedMousePosition = MouseEvent.GetScreenSpacePosition().IntPoint();
 
@@ -413,12 +411,6 @@ public:
 		
 			if( bDragging )
 			{
-				NumericType CurrentDelta = Delta.Get();
-				if (CurrentDelta != 0)
-				{
-					InternalValue = Snap(InternalValue, CurrentDelta);
-				}
-
 				NotifyValueCommitted();
 			}
 
@@ -533,8 +525,6 @@ public:
 			}
 			else
 			{
-				double NewValue = 0;
-
 				// Increments the spin based on delta mouse movement.
 
 				// A minimum slider width to use for calculating deltas in the slider-range space
@@ -551,11 +541,11 @@ public:
 				{
 					float DeltaToAdd = MouseEvent.GetCursorDelta().X / SliderWidthInSlateUnits;
 
-					if (SupportDynamicSliderMaxValue.Get() && InternalValue == GetMaxSliderValue())
+					if (SupportDynamicSliderMaxValue.Get() && CachedExternalValue == GetMaxSliderValue())
 					{
 						ApplySliderMaxValueChanged(DeltaToAdd, false);
 					}
-					else if (SupportDynamicSliderMinValue.Get() && InternalValue == GetMinSliderValue())
+					else if (SupportDynamicSliderMinValue.Get() && CachedExternalValue == GetMinSliderValue())
 					{
 						ApplySliderMinValueChanged(DeltaToAdd, false);
 					}
@@ -568,7 +558,7 @@ public:
 
 					const float CachedSliderExponent = SliderExponent.Get();
 					// The amount currently filled in the spinbox, needs to be calculated to do deltas correctly.
-					float FractionFilled = Fraction(InternalValue, GetMinSliderValue(), GetMaxSliderValue());
+					float FractionFilled = Fraction(PreDragValue, GetMinSliderValue(), GetMaxSliderValue());
 						
 					if (CachedSliderExponent != 1)
 					{
@@ -580,13 +570,14 @@ public:
 						}
 						else
 						{
-							FractionFilled = 1.0f - FMath::Pow( 1.0f - FractionFilled, CachedSliderExponent);
+							FractionFilled = 1.0f - FMath::Pow(1.0f - FractionFilled, CachedSliderExponent);
 						}
 					}
 					FractionFilled *= SliderWidthInSlateUnits;
 
 					// Now add the delta to the fraction filled, this causes the spin.
-					FractionFilled += MouseEvent.GetCursorDelta().X;
+					float MouseDelta = MouseEvent.GetScreenSpacePosition().IntPoint().X - CachedMousePosition.X;
+					FractionFilled += MouseDelta;
 						
 					// Clamp the fraction to be within the bounds of the geometry.
 					FractionFilled = FMath::Clamp(FractionFilled, 0.0f, SliderWidthInSlateUnits);
@@ -610,7 +601,11 @@ public:
 						
 					}
 
-					NewValue = FMath::LerpStable<double>(GetMinSliderValue(), GetMaxSliderValue(), Percent);
+					double ValueToRound = FMath::LerpStable<double>(GetMinSliderValue(), GetMaxSliderValue(), Percent);
+					NumericType NewValue = TIsIntegral<NumericType>::Value
+						? (NumericType)FMath::FloorToDouble(ValueToRound + 0.5)
+						: (NumericType)ValueToRound;
+					CommitValue(NewValue, CommittedViaSpin, ETextCommit::OnEnter);
 				}
 				else
 				{
@@ -619,17 +614,18 @@ public:
 					if (LinearDeltaSensitivity.IsSet() && Delta.IsSet() && Delta.Get() > 0)
 					{
 						const float MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / LinearDeltaSensitivity.Get());
-						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow(Delta.Get(), SliderExponent.Get()));
+						IntermediateDragFractionalValue += (Sign * MouseDelta * FMath::Pow(Delta.Get(), SliderExponent.Get()));
 					}
 					else
 					{
 						const float MouseDelta = FMath::Abs(MouseEvent.GetCursorDelta().X / SliderWidthInSlateUnits);
-						const double CurrentValue = FMath::Clamp<double>(FMath::Abs(InternalValue),1.0,TNumericLimits<NumericType>::Max());
-						NewValue = InternalValue + (Sign * MouseDelta * FMath::Pow(CurrentValue, SliderExponent.Get()));
+						const double CurrentValue = FMath::Clamp<double>(FMath::Abs(static_cast<double>(CachedExternalValue)), 1.0, TNumericLimits<NumericType>::Max());
+						IntermediateDragFractionalValue += (Sign * MouseDelta * FMath::Pow(CurrentValue, SliderExponent.Get()));
 					}
+
+					NumericType NewValue = UpdateDraggingValues(CachedExternalValue);
+					CommitValue(NewValue, CommittedViaSpin, ETextCommit::OnEnter);
 				}
-			
-				CommitValue( NewValue, CommittedViaSpin, ETextCommit::OnEnter );
 			}
 
 			return FReply::Handled();
@@ -673,27 +669,25 @@ public:
 			bDragging = false;
 			PointerDraggingSliderIndex = INDEX_NONE;
 
-			InternalValue = PreDragValue;
+			CachedExternalValue = PreDragValue;
 			NotifyValueCommitted();
 			return FReply::Handled().ReleaseMouseCapture().SetMousePos(CachedMousePosition);
 		}
 		else if ( Key == EKeys::Up || Key == EKeys::Right )
 		{
-			InternalValue = ValueAttribute.Get();
-			CommitValue( InternalValue + Delta.Get(), CommittedViaArrowKey, ETextCommit::OnEnter );
+			CommitValue( ValueAttribute.Get() + Delta.Get(), CommittedViaArrowKey, ETextCommit::OnEnter );
 			ExitTextMode();
 			return FReply::Handled();	
 		}
 		else if ( Key == EKeys::Down || Key == EKeys::Left )
 		{
-			InternalValue = ValueAttribute.Get();
-			CommitValue( InternalValue - Delta.Get(), CommittedViaArrowKey, ETextCommit::OnEnter );
+			CommitValue( ValueAttribute.Get() - Delta.Get(), CommittedViaArrowKey, ETextCommit::OnEnter );
 			ExitTextMode();
 			return FReply::Handled();
 		}
 		else if ( Key == EKeys::Enter )
 		{
-			InternalValue = ValueAttribute.Get();
+			CachedExternalValue = ValueAttribute.Get();
 			EnterTextMode();
 			return FReply::Handled().SetUserFocus(EditableText.ToSharedRef(), EFocusCause::Navigation);
 		}
@@ -861,7 +855,7 @@ protected:
 		TOptional<NumericType> NewValue = Interface->FromString(NewText.ToString(), ValueAttribute.Get());
 		if (NewValue.IsSet())
 		{
-			CommitValue( NewValue.GetValue(), CommittedViaTypeIn, CommitInfo );
+			CommitValue(NewValue.GetValue(), CommittedViaTypeIn, CommitInfo);
 		}
 	}
 
@@ -882,34 +876,31 @@ protected:
 	 * @param CommitMethod           Did the user type in the value or spin to it.
 	 * @param OriginalCommitInfo	 If the user typed in the value, information about the source of the commit
 	 */
-	void CommitValue( double NewValue, ECommitMethod CommitMethod, ETextCommit::Type OriginalCommitInfo )
+	void CommitValue( NumericType NewValue, ECommitMethod CommitMethod, ETextCommit::Type OriginalCommitInfo )
 	{
+		NumericType ValueToCommit = NewValue;
 		if( CommitMethod == CommittedViaSpin || CommitMethod == CommittedViaArrowKey )
 		{
-			NewValue = FMath::Clamp<double>( NewValue, GetMinSliderValue(), GetMaxSliderValue() );
+			ValueToCommit = FMath::Clamp<NumericType>(ValueToCommit, GetMinSliderValue(), GetMaxSliderValue());
 		}
 
-		NewValue = FMath::Clamp<double>( NewValue, GetMinValue(), GetMaxValue() );
-
-		if ( !ValueAttribute.IsBound() )
-		{
-			ValueAttribute.Set( RoundIfIntegerValue( NewValue ) );
-		}
-
-		auto CurrentValue = ValueAttribute.Get();
+		ValueToCommit = FMath::Clamp<NumericType>(ValueToCommit, GetMinValue(), GetMaxValue());
 
 		// If not in spin mode, there is no need to jump to the value from the external source, continue to use the committed value.
 		if(CommitMethod == CommittedViaSpin)
 		{
 			// This will detect if an external force has changed the value. Internally it will abandon the delta calculated this tick and update the internal value instead.
+			const NumericType CurrentValue = ValueAttribute.Get();
 			if(CurrentValue != CachedExternalValue)
 			{
-				NewValue = CurrentValue;
+				ValueToCommit = CurrentValue;
 			}
 		}
-
-		// Update the internal value, this needs to be done before rounding.
-		InternalValue = NewValue;
+		else
+		{
+			// Reset intermediate spin value
+			IntermediateDragFractionalValue = 0.0;
+		}
 
 		const bool bAlwaysUsesDeltaSnap = GetAlwaysUsesDeltaSnap();
 		// If needed, round this value to the delta. Internally the value is not held to the Delta but externally it appears to be.
@@ -918,30 +909,34 @@ protected:
 			NumericType CurrentDelta = Delta.Get();
 			if( CurrentDelta != 0 )
 			{
-				NewValue = Snap(NewValue, CurrentDelta); // snap numeric point value to nearest Delta
+				ValueToCommit = FMath::GridSnap((double)ValueToCommit, (double)CurrentDelta); // snap numeric point value to nearest Delta
+				if (CachedExternalValue != ValueToCommit)
+				{
+					IntermediateDragFractionalValue = 0.0;
+				}
 			}
 		}		
 
 		// Update the max slider value based on the current value if we're in dynamic mode
-		if (SupportDynamicSliderMaxValue.Get() && ValueAttribute.Get() > GetMaxSliderValue())
+		if (SupportDynamicSliderMaxValue.Get() && ValueToCommit > GetMaxSliderValue())
 		{
-			ApplySliderMaxValueChanged(ValueAttribute.Get() - GetMaxSliderValue(), true);
+			ApplySliderMaxValueChanged(ValueToCommit - GetMaxSliderValue(), true);
 		}
-		else if (SupportDynamicSliderMinValue.Get() && ValueAttribute.Get() < GetMinSliderValue())
+		else if (SupportDynamicSliderMinValue.Get() && ValueToCommit < GetMinSliderValue())
 		{
-			ApplySliderMinValueChanged(ValueAttribute.Get() - GetMinSliderValue(), true);
+			ApplySliderMinValueChanged(ValueToCommit - GetMinSliderValue(), true);
 		}
 
 		if( CommitMethod == CommittedViaTypeIn || CommitMethod == CommittedViaArrowKey )
 		{
-			OnValueCommitted.ExecuteIfBound( RoundIfIntegerValue( NewValue ), OriginalCommitInfo );
+			OnValueCommitted.ExecuteIfBound(ValueToCommit, OriginalCommitInfo);
 		}
 
-		OnValueChanged.ExecuteIfBound( RoundIfIntegerValue( NewValue ) );
+		OnValueChanged.ExecuteIfBound(ValueToCommit);
 
 		if (!ValueAttribute.IsBound())
 		{
-			ValueAttribute.Set(NewValue);
+			ValueAttribute.Set(ValueToCommit);
 		}
 
 		// Update the cache of the external value to what the user believes the value is now.
@@ -957,11 +952,8 @@ protected:
 	
 	void NotifyValueCommitted() const
 	{
-		// The internal value will have been clamped and rounded to the delta at this point, but integer values may still need to be rounded
-		// if the delta is 0.
-		const auto CurrentValue = RoundIfIntegerValue( InternalValue );
-		OnValueCommitted.ExecuteIfBound( CurrentValue, ETextCommit::OnEnter );
-		OnEndSliderMovement.ExecuteIfBound( CurrentValue );
+		OnValueCommitted.ExecuteIfBound( CachedExternalValue, ETextCommit::OnEnter );
+		OnEndSliderMovement.ExecuteIfBound( CachedExternalValue );
 	}
 
 	/** @return true when we are in keyboard-based input mode; false otherwise */
@@ -971,20 +963,13 @@ protected:
 	}
 
 	/** Calculates range fraction. Possible to use on full numeric range  */
-	static float Fraction(double InValue, NumericType InMinValue, NumericType InMaxValue)
+	static float Fraction(NumericType InValue, NumericType InMinValue, NumericType InMaxValue)
 	{
 		const double HalfMax = InMaxValue*0.5;
 		const double HalfMin = InMinValue*0.5;
 		const double HalfVal = InValue*0.5;
 
 		return (float)FMath::Clamp((HalfVal - HalfMin)/(HalfMax - HalfMin), 0.0, 1.0);
-	}
-
-	/** Snaps value to a nearest grid multiple. Clamps value if it's outside numeric range  */
-	static double Snap(double InValue, double InGrid)
-	{
-		double Result = FMath::GridSnap(InValue, InGrid);
-		return FMath::Clamp<double>(Result, TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
 	}
 
 private:
@@ -1051,12 +1036,21 @@ private:
 		return Interface->IsCharacterValid(InChar);
 	}
 
-	/** Rounds the submitted value to the correct value if it's an integer. */
-	NumericType RoundIfIntegerValue( double ValueToRound ) const
+	/** Update the IntermediateDragFractionalValue and return the updated CurrentValue */
+	NumericType UpdateDraggingValues(NumericType CurrentValue)
 	{
-		return TIsIntegral<NumericType>::Value
-			? (NumericType)FMath::FloorToDouble( ValueToRound + 0.5 )
-			: (NumericType)ValueToRound;
+		if (TIsIntegral<NumericType>::Value)
+		{						
+			double IntegralPart = 0.f;
+			IntermediateDragFractionalValue = FMath::Modf(IntermediateDragFractionalValue, &IntegralPart);
+						
+			return CurrentValue + static_cast<NumericType>(IntegralPart);
+		}
+		else
+		{
+			NumericType TmpValue = CurrentValue + IntermediateDragFractionalValue;
+			return TmpValue;
+		}
 	}
 
 	/** Whether the user is dragging the slider */
@@ -1068,23 +1062,29 @@ private:
 	/** Cached mouse position to restore after scrolling. */
 	FIntPoint CachedMousePosition;
 
-	/** This value represents what the spinbox believes the value to be, regardless of delta and the user binding to an int. 
-		The spinbox will always count using floats between values, this is important to keep it flowing smoothly and feeling right, 
-		and most importantly not conflicting with the user truncating the value to an int. */
-	double InternalValue;
-
-	/** The state of InternalValue before a drag operation was started */
-	double PreDragValue;
-
-	/** This is the cached value the user believes it to be (usually different due to truncation to an int). Used for identifying 
-		external forces on the spinbox and syncing the internal value to them. Synced when a value is committed to the spinbox. */
+	/*
+	 * This is the cached value the user believes it to be. Used for identifying external forces on the spinbox
+	 * and syncing the internal value to them. Synced when a value is committed to the spinbox. 
+	 */
 	NumericType CachedExternalValue;
+	
+	/** The state of CachedExternalValue before a drag operation was started */
+	NumericType PreDragValue;
+
+	/**
+	 * This value represents the fractional part of the spinbox when using integers. 
+	 * The spinbox will always count using floats between values, this is important to keep it flowing smoothly and feeling right, 
+	 * and most importantly not conflicting with the user truncating the value to an int.
+	 */
+	double IntermediateDragFractionalValue;
 
 	/** Re-entrant guard for the text changed handler */
 	bool bIsTextChanging;
 
-	/* Holds whether or not to prevent throttling during mouse capture */
-	// When true, the viewport will be updated with every single change to the value during dragging
+	/*
+	 * Holds whether or not to prevent throttling during mouse capture
+	 * When true, the viewport will be updated with every single change to the value during dragging
+	 */
 	bool bPreventThrottling;
 };
 

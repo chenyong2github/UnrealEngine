@@ -30,7 +30,7 @@ void UK2Node_GetInputAxisKeyValue::Initialize(const FKey AxisKey)
 {
 	InputAxisKey = AxisKey;
 	SetFromFunction(AActor::StaticClass()->FindFunctionByName(GET_FUNCTION_NAME_CHECKED(AActor, GetInputAxisKeyValue)));
-	
+
 	CachedTooltip.MarkDirty();
 	CachedNodeTitle.MarkDirty();
 }
@@ -82,7 +82,7 @@ void UK2Node_GetInputAxisKeyValue::ValidateNodeDuringCompilation(class FCompiler
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Invalid_GetInputAxisKey_Warning", "GetInputAxisKey Value specifies invalid FKey'{0}' for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);
 	}
-	else if (!InputAxisKey.IsFloatAxis())
+	else if (!InputAxisKey.IsAxis1D())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotAxis_GetInputAxisKey_Warning", "GetInputAxisKey Value specifies FKey'{0}' which is not a float axis for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);
 	}
@@ -129,22 +129,22 @@ void UK2Node_GetInputAxisKeyValue::GetMenuActions(FBlueprintActionDatabaseRegist
 		InputNode->Initialize(Key);
 	};
 
-	// actions get registered under specific object-keys; the idea is that 
-	// actions might have to be updated (or deleted) if their object-key is  
-	// mutated (or removed)... here we use the node's class (so if the node 
+	// actions get registered under specific object-keys; the idea is that
+	// actions might have to be updated (or deleted) if their object-key is
+	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
 
-	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and 
-	// iterating over keys), first check to make sure that the registrar is 
-	// looking for actions of this type (could be regenerating actions for a 
-	// specific asset, and therefore the registrar would only accept actions 
+	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and
+	// iterating over keys), first check to make sure that the registrar is
+	// looking for actions of this type (could be regenerating actions for a
+	// specific asset, and therefore the registrar would only accept actions
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
 		for (const FKey& Key : AllKeys)
 		{
-			if (!Key.IsBindableInBlueprints() || !Key.IsFloatAxis())
+			if (!Key.IsBindableInBlueprints() || !Key.IsAxis1D())
 			{
 				continue;
 			}

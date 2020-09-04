@@ -60,6 +60,9 @@ void FVirtualTextureUploadCache::Finalize(FRHICommandListImmediate& RHICmdList)
 
 	check(IsInRenderingThread());
 
+	// Multi-GPU support : May be ineffecient for AFR.
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 	for (int PoolIndex = 0; PoolIndex < Pools.Num(); ++PoolIndex)
 	{
 		FPoolEntry& PoolEntry = Pools[PoolIndex];

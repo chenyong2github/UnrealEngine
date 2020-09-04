@@ -101,11 +101,13 @@ public:
 		: _Object( nullptr )
 		, _Spacing(0)
 		, _ColumnPadding(false)
+		, _ResizableColumn(true)
 		{}
 		SLATE_ARGUMENT(TSharedPtr<FDataprepDetailsViewColumnSizeData>, ColumnSizeData)
 		SLATE_ARGUMENT(UObject*, Object)
 		SLATE_ARGUMENT(float, Spacing)
 		SLATE_ARGUMENT(bool, ColumnPadding)
+		SLATE_ARGUMENT(bool, ResizableColumn)
 	SLATE_END_ARGS()
 
 public:
@@ -224,6 +226,11 @@ private:
 	 * This is useful when the SDataprepDetailsView widget is used along the Producers widget
 	 */
 	bool bColumnPadding;
+
+	/**
+	 * Indicates if the name and value widgets have a splitter and can be resized
+	 */
+	bool bResizableColumn;
 
 	/** Grid panel storing the row widgets */
 	TSharedPtr<SGridPanel> GridPanel;

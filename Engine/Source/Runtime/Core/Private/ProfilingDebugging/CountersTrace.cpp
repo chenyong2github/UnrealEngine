@@ -58,8 +58,4 @@ void FCountersTrace::OutputSetValue(uint16 CounterId, double Value)
 		<< SetValueFloat.CounterId(CounterId);
 }
 
-void FCountersTrace::Init(const TCHAR* CmdLine)
-{
-}
-
 #endif

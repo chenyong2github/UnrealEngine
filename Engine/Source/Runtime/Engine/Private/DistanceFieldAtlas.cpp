@@ -1013,7 +1013,7 @@ private:
 	volatile bool bForceFinish;
 };
 
-FQueuedThreadPool* CreateWorkerThreadPool()
+static FQueuedThreadPool* CreateWorkerThreadPool()
 {
 	TRACE_CPUPROFILER_EVENT_SCOPE(CreateWorkerThreadPool)
 	const int32 NumThreads = FMath::Max<int32>(FPlatformMisc::NumberOfCoresIncludingHyperthreads() - 2, 1);
@@ -1038,15 +1038,27 @@ uint32 FBuildDistanceFieldThreadRunnable::Run()
 		// LIFO build order, since meshes actually visible in a map are typically loaded last
 		FAsyncDistanceFieldTask* Task = AsyncQueue.TaskQueue.Pop();
 
+		FQueuedThreadPool* ThreadPool = nullptr;
+		
+#if WITH_EDITOR
+		ThreadPool = GLargeThreadPool;
+#endif
+
 		if (Task)
 		{
-			if (!WorkerThreadPool)
+			if (!ThreadPool)
 			{
-				WorkerThreadPool.Reset(CreateWorkerThreadPool());
+				if (!WorkerThreadPool)
+				{
+					WorkerThreadPool.Reset(CreateWorkerThreadPool());
+				}
+
+				ThreadPool = WorkerThreadPool.Get();
 			}
 
-			AsyncQueue.Build(Task, *WorkerThreadPool);
+			AsyncQueue.Build(Task, *ThreadPool);
 			LastWorkCycle = FPlatformTime::Cycles64();
+
 			bHasWork = true;
 		}
 		else

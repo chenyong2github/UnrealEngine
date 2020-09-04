@@ -211,7 +211,6 @@ class ENGINE_API USkyLightComponent : public ULightComponentBase
 #endif // WITH_EDITOR
 	virtual void BeginDestroy() override;
 	virtual bool IsReadyForFinishDestroy() override;
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
 	virtual TStructOnScope<FActorComponentInstanceData> GetComponentInstanceData() const override;
@@ -288,15 +287,15 @@ public:
 	UFUNCTION(BlueprintCallable, Category="Rendering|Components|SkyLight")
 	void RecaptureSky();
 
-	void SetIrradianceEnvironmentMap(const FSHVectorRGB3& InIrradianceEnvironmentMap)
-	{
-		IrradianceEnvironmentMap = InIrradianceEnvironmentMap;
-	}
-
 	void UpdateImportanceSamplingData();
 
 	virtual void Serialize(FArchive& Ar) override;
 
+	const FTexture* GetProcessedSkyTexture() const { return ProcessedSkyTexture; }
+#if RHI_RAYTRACING
+	const FSkyLightImportanceSamplingData* GetImportanceSamplingData() const { return ImportanceSamplingData; }
+#endif
+	FSHVectorRGB3 GetIrradianceEnvironmentMap() { return IrradianceEnvironmentMap; }
 protected:
 
 #if WITH_EDITOR

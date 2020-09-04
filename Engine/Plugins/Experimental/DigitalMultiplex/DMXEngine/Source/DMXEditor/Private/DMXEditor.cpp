@@ -5,8 +5,9 @@
 #include "DMXEditorModule.h"
 #include "DMXEditorTabs.h"
 #include "DMXEditorUtils.h"
+#include "DMXFixtureTypeSharedData.h"
+#include "DMXFixturePatchSharedData.h"
 #include "Library/DMXLibrary.h"
-#include "Library/DMXEntityFader.h"
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
@@ -17,10 +18,12 @@
 #include "Widgets/Layout/SScrollBox.h"
 #include "Widgets/Docking/SDockTab.h"
 
-#include "Widgets/SDMXInputConsole.h"
 #include "Widgets/SDMXEntityEditor.h"
 #include "Widgets/SDMXEntityInspector.h"
-#include "Widgets/SDMXOutputConsole.h"
+#include "Widgets/Controller/SDMXControllerEditor.h"
+#include "Widgets/FixturePatch/SDMXFixturePatchEditor.h"
+#include "Widgets/FixtureType/SDMXFixtureTypeEditor.h"
+#include "Widgets/OutputConsole/SDMXOutputConsole.h"
 
 #include "Modules/ModuleManager.h"
 #include "ScopedTransaction.h"
@@ -34,11 +37,12 @@ FDMXEditor::FDMXEditor()
 
 FDMXEditor::~FDMXEditor()
 {
-	InputConsoleWidget.Reset();
-	OutputConsoleWidget.Reset();
-	ControllersWidget.Reset();
-	FixtureTypesWidget.Reset();
-	FixturePatchWidget.Reset();
+	ControllerEditor.Reset();
+	FixtureTypeEditor.Reset();
+	FixturePatchEditor.Reset();
+
+	FixtureTypeSharedData.Reset();
+	FixturePatchSharedData.Reset();
 }
 
 FName FDMXEditor::GetToolkitFName() const
@@ -68,10 +72,20 @@ void FDMXEditor::InitEditor(const EToolkitMode::Type Mode, const TSharedPtr<clas
 		Toolbar = MakeShared<FDMXEditorToolbar>(SharedThis(this));
 	}
 
+	if (!FixtureTypeSharedData.IsValid())
+	{
+		FixtureTypeSharedData = MakeShared<FDMXFixtureTypeSharedData>(SharedThis(this));
+	}
+	
+	if (!FixturePatchSharedData.IsValid())
+	{
+		FixturePatchSharedData = MakeShared<FDMXFixturePatchSharedData>(SharedThis(this));
+	}
+
 	// Initialize the asset editor and spawn nothing (dummy layout)
-	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	const bool bCreateDefaultStandaloneMenu = true;
 	const bool bCreateDefaultToolbar = true;
+	const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 	FAssetEditorToolkit::InitAssetEditor(Mode, InitToolkitHost, FDMXEditorModule::DMXEditorAppIdentifier, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, (UObject*)DMXLibrary);
 
 	CommonInitialization(DMXLibrary);
@@ -123,11 +137,9 @@ void FDMXEditor::RegisterToolbarTab(const TSharedRef<class FTabManager>& InTabMa
 
 void FDMXEditor::CreateDefaultTabContents(UDMXLibrary* DMXLibrary)
 {
-	InputConsoleWidget = CreateInputConsoleWidget();
-	OutputConsoleWidget = CreateOutputConsoleWidget();
-	ControllersWidget = CreateControllersWidget();
-	FixtureTypesWidget = CreateFixtureTypesWidget();
-	FixturePatchWidget = CreateFixturePatchWidget();
+	ControllerEditor = CreateControllerEditor();
+	FixtureTypeEditor = CreateFixtureTypeEditor();
+	FixturePatchEditor = CreateFixturePatchEditor();
 }
 
 void FDMXEditor::CreateDefaultCommands()
@@ -245,15 +257,15 @@ TSharedPtr<SDMXEntityEditor> FDMXEditor::GetEditorWidgetForEntityType(TSubclassO
 
 	if (InEntityClass->IsChildOf(UDMXEntityController::StaticClass()))
 	{
-		EntityEditor = ControllersWidget;
+		EntityEditor = ControllerEditor;
 	}
 	else if (InEntityClass->IsChildOf(UDMXEntityFixtureType::StaticClass()))
 	{
-		EntityEditor = FixtureTypesWidget;
+		EntityEditor = FixtureTypeEditor;
 	}
 	else if (InEntityClass->IsChildOf(UDMXEntityFixturePatch::StaticClass()))
 	{
-		EntityEditor = FixturePatchWidget;
+		EntityEditor = FixturePatchEditor;
 	}
 	else
 	{
@@ -311,33 +323,32 @@ UDMXLibrary * FDMXEditor::GetEditableDMXLibrary() const
 	return Cast<UDMXLibrary>(GetEditingObject());
 }
 
-TSharedRef<SDMXInputConsole> FDMXEditor::CreateInputConsoleWidget()
+TSharedRef<SDMXControllerEditor> FDMXEditor::CreateControllerEditor()
 {
-	return SNew(SDMXInputConsole);
-}
-
-TSharedRef<SWidget> FDMXEditor::CreateOutputConsoleWidget()
-{
-	return SNew(SDMXOutputConsole)
+	return SNew(SDMXControllerEditor)
 		.DMXEditor(SharedThis(this));
 }
 
-TSharedRef<SDMXControllers> FDMXEditor::CreateControllersWidget()
+TSharedRef<SDMXFixtureTypeEditor> FDMXEditor::CreateFixtureTypeEditor()
 {
-	return SNew(SDMXControllers)
+	return SNew(SDMXFixtureTypeEditor)
 		.DMXEditor(SharedThis(this));
 }
 
-TSharedRef<SDMXFixtureTypes> FDMXEditor::CreateFixtureTypesWidget()
+TSharedRef<SDMXFixturePatchEditor> FDMXEditor::CreateFixturePatchEditor()
 {
-	return SNew(SDMXFixtureTypes)
+	return SNew(SDMXFixturePatchEditor)
 		.DMXEditor(SharedThis(this));
 }
 
-TSharedRef<SDMXFixturePatch> FDMXEditor::CreateFixturePatchWidget()
+TSharedPtr<FDMXFixtureTypeSharedData> FDMXEditor::GetFixtureTypeSharedData() const
 {
-	return SNew(SDMXFixturePatch)
-		.DMXEditor(SharedThis(this));
+	return FixtureTypeSharedData;
+}
+
+const TSharedPtr<FDMXFixturePatchSharedData>& FDMXEditor::GetFixturePatchSharedData() const
+{
+	return FixturePatchSharedData;
 }
 
 #undef LOCTEXT_NAMESPACE

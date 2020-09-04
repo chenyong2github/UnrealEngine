@@ -124,7 +124,7 @@ float GetPerpendicularScalingFactor(float SurfaceAlbedo)
 	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
 }
 
-float3 GetPerpendicularScalingFactor(float3 SurfaceAlbedo)
+float3 GetPerpendicularScalingFactor3D(float3 SurfaceAlbedo)
 {
 	return 1.85 - SurfaceAlbedo + 7 * UnClampedPow(SurfaceAlbedo - 0.8, 3);
 }
@@ -136,7 +136,7 @@ float GetDiffuseSurfaceScalingFactor(float SurfaceAlbedo)
 	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
 }
 
-float3 GetDiffuseSurfaceScalingFactor(float3 SurfaceAlbedo)
+float3 GetDiffuseSurfaceScalingFactor3D(float3 SurfaceAlbedo)
 {
 	return 1.9 - SurfaceAlbedo + 3.5*(SurfaceAlbedo - 0.8)*(SurfaceAlbedo - 0.8);
 }
@@ -148,9 +148,9 @@ float GetSearchLightDiffuseScalingFactor(float SurfaceAlbedo)
 	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
 }
 
-float3 GetSearchLightDiffuseScalingFactor(float3 SurfaceAlbedo)
+float3 GetSearchLightDiffuseScalingFactor3D(float3 SurfaceAlbedo)
 {
-	return 3.5 + 100 * UnClampedPow(SurfaceAlbedo - 0.33, 4);
+	return 3.5 + 100.0 * UnClampedPow(SurfaceAlbedo - 0.33, 4.0);
 }
 
 //@TODO Revisit here after offline comparison.
@@ -163,7 +163,7 @@ float4 GetBurleyTransmissionProfile(FGBufferData GBufferData, float Thickness)
 	float WorldUnitScale = DecodeWorldUnitScale(ActualSSProfilesTexture.Load(int3(SSSS_SUBSURFACE_COLOR_OFFSET, SubsurfaceProfileInt,0)).a)*10.0f; //in cm. we do not multiply by 100.0f as we did in the subsurface shader.
 	float4 MeanFreePath = DecodeDiffuseMeanFreePath(ActualSSProfilesTexture.Load(int3(BSSS_DMFP_OFFSET, SubsurfaceProfileInt, 0)));
 	float3 SurfaceAlbedo = ActualSSProfilesTexture.Load(int3(BSSS_SURFACEALBEDO_OFFSET, SubsurfaceProfileInt, 0)).rgb;
-	float3 ScalingFactor = GetSearchLightDiffuseScalingFactor(SurfaceAlbedo);//assuming that the volume albedo is the same to the surface albedo for transmission;
+	float3 ScalingFactor = GetSearchLightDiffuseScalingFactor3D(SurfaceAlbedo);//assuming that the volume albedo is the same to the surface albedo for transmission;
 	float4 Output=float4(0,0,0,1);
 	
 	float3 r = Thickness / MeanFreePath.xyz;

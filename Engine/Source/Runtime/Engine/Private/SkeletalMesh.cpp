@@ -480,6 +480,12 @@ void USkeletalMesh::ValidateBoundsExtension()
 /* Return true if the reduction settings are setup to reduce a LOD*/
 bool USkeletalMesh::IsReductionActive(int32 LODIndex) const
 {
+	//Invalid LOD are not reduced
+	if(!IsValidLODIndex(LODIndex))
+	{
+		return false;
+	}
+
 	bool bReductionActive = false;
 	if (IMeshReduction* ReductionModule = FModuleManager::Get().LoadModuleChecked<IMeshReductionManagerModule>("MeshReductionInterface").GetSkeletalMeshReductionInterface())
 	{
@@ -1328,7 +1334,7 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 	//Block any re-entrant call by incrementing PostEditChangeStackCounter. It will be decrement when we will go out of scope.
 	const bool bCallPostEditChange = false;
 	const bool bReRegisterComponents = false;
-	FScopedSkeletalMeshPostEditChange(this, bCallPostEditChange, bReRegisterComponents);
+	FScopedSkeletalMeshPostEditChange BlockRecursiveCallScope(this, bCallPostEditChange, bReRegisterComponents);
 
 	bool bFullPrecisionUVsReallyChanged = false;
 
@@ -1434,8 +1440,8 @@ void USkeletalMesh::PostEditChangeProperty(FPropertyChangedEvent& PropertyChange
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
 
-	//The stack counter after a PostEditChange should be 0
-	check(PostEditChangeStackCounter == 0);
+	//The stack counter here should be 1 since the BlockRecursiveCallScope protection has the lock and it will be decrement to 0 when we get out of the function scope
+	check(PostEditChangeStackCounter == 1);
 }
 
 void USkeletalMesh::PostEditUndo()
@@ -2282,6 +2288,32 @@ void USkeletalMesh::ReserveLODImportData(int32 MaxLODIndex)
 void USkeletalMesh::ForceBulkDataResident(const int32 LODIndex)
 {
 	GetMeshEditorData().GetLODImportedData(LODIndex).GetBulkData().ForceBulkDataResident();
+}
+
+void USkeletalMesh::EmptyLODImportData(const int32 LODIndex)
+{
+	if(!ImportedModel->LODModels.IsValidIndex(LODIndex) || !GetMeshEditorData().IsLODImportDataValid(LODIndex))
+	{
+		return;
+	}
+
+	FRawSkeletalMeshBulkData& RawMesh = GetMeshEditorData().GetLODImportedData(LODIndex);
+	FSkeletalMeshImportData EmptyData;
+	RawMesh.SaveRawMesh(EmptyData);
+	RawMesh.GeoImportVersion = ESkeletalMeshGeoImportVersions::Before_Versionning;
+	RawMesh.SkinningImportVersion = ESkeletalMeshSkinningImportVersions::Before_Versionning;
+	ImportedModel->LODModels[LODIndex].RawSkeletalMeshBulkDataID = RawMesh.GetIdString();
+	ImportedModel->LODModels[LODIndex].bIsBuildDataAvailable = RawMesh.IsBuildDataAvailable();
+	ImportedModel->LODModels[LODIndex].bIsRawSkeletalMeshBulkDataEmpty = RawMesh.IsEmpty();
+}
+
+void USkeletalMesh::EmptyAllImportData()
+{
+	const int32 LODNumber = GetLODNum();
+	for(int32 LODIndex = 0; LODIndex < LODNumber; ++LODIndex)
+	{
+		EmptyLODImportData(LODIndex);
+	}
 }
 
 void USkeletalMesh::CreateUserSectionsDataForLegacyAssets()
@@ -3529,6 +3561,95 @@ void USkeletalMesh::InvalidateDeriveDataCacheGUID()
 	GetImportedModel()->GenerateNewGUID();
 }
 
+namespace InternalSkeletalMeshHelper
+{
+	/**
+	 * We want to recreate the LODMaterialMap correctly. The hypothesis is the original section will always be the same when we build the skeletalmesh
+	 * Max GPU bone per section which drive the chunking which can generate different number of section but the number of original section will always be the same.
+	 * So we simply reset the LODMaterialMap and rebuild it with the backup we took before building the skeletalmesh.
+	 */
+	void CreateLodMaterialMapBackup(const USkeletalMesh* SkeletalMesh, TMap<int32, TArray<uint16>>& BackupSectionsPerLOD)
+	{
+		if (!ensure(SkeletalMesh != nullptr))
+		{
+			return;
+		}
+		BackupSectionsPerLOD.Reset();
+		const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		if (!ImportedModel)
+		{
+			return;
+		}
+		//Create the backup
+		for (int32 LODIndex = 0; LODIndex < SkeletalMesh->GetLODNum(); ++LODIndex)
+		{
+			const FSkeletalMeshLODInfo* LODInfoEntry = SkeletalMesh->GetLODInfo(LODIndex);
+			//Do not backup/restore LODMaterialMap if...
+			if (!ImportedModel->LODModels.IsValidIndex(LODIndex)
+				|| LODInfoEntry == nullptr
+				|| LODInfoEntry->LODMaterialMap.Num() == 0 //If there is no LODMaterialMap we have nothing to backup
+				|| SkeletalMesh->IsReductionActive(LODIndex) //Reduction will manage the LODMaterialMap, avoid backup restore
+				|| !SkeletalMesh->IsLODImportedDataBuildAvailable(LODIndex)) //Legacy asset are not build, avoid backup restore
+			{
+				continue;
+			}
+			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
+			TArray<uint16>& BackupSections = BackupSectionsPerLOD.FindOrAdd(LODIndex);
+			int32 SectionCount = LODModel.Sections.Num();
+			BackupSections.Reserve(SectionCount);
+			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+			{
+				if (LODModel.Sections[SectionIndex].ChunkedParentSectionIndex == INDEX_NONE)
+				{
+					BackupSections.Add(LODInfoEntry->LODMaterialMap.IsValidIndex(SectionIndex) ? LODInfoEntry->LODMaterialMap[SectionIndex] : INDEX_NONE);
+				}
+			}
+		}
+	}
+
+	void RestoreLodMaterialMapBackup(USkeletalMesh* SkeletalMesh, const TMap<int32, TArray<uint16>>& BackupSectionsPerLOD)
+	{
+		if (!ensure(SkeletalMesh != nullptr))
+		{
+			return;
+		}
+		const FSkeletalMeshModel* ImportedModel = SkeletalMesh->GetImportedModel();
+		if (!ImportedModel)
+		{
+			return;
+		}
+
+		for (int32 LODIndex = 0; LODIndex < SkeletalMesh->GetLODNum(); ++LODIndex)
+		{
+			FSkeletalMeshLODInfo* LODInfoEntry = SkeletalMesh->GetLODInfo(LODIndex);
+			if (!ImportedModel->LODModels.IsValidIndex(LODIndex) || LODInfoEntry == nullptr)
+			{
+				continue;
+			}
+			const TArray<uint16>* BackupSectionsPtr = BackupSectionsPerLOD.Find(LODIndex);
+			if (!BackupSectionsPtr)
+			{
+				continue;
+			}
+
+			const TArray<uint16>& BackupSections = *BackupSectionsPtr;
+			const FSkeletalMeshLODModel& LODModel = ImportedModel->LODModels[LODIndex];
+			LODInfoEntry->LODMaterialMap.Reset();
+			const int32 SectionCount = LODModel.Sections.Num();
+			for (int32 SectionIndex = 0; SectionIndex < SectionCount; ++SectionIndex)
+			{
+				const FSkelMeshSection& Section = LODModel.Sections[SectionIndex];
+				int32 NewLODMaterialMapValue = INDEX_NONE;
+				if (BackupSections.IsValidIndex(Section.OriginalDataSectionIndex))
+				{
+					NewLODMaterialMapValue = BackupSections[Section.OriginalDataSectionIndex];
+				}
+				LODInfoEntry->LODMaterialMap.Add(NewLODMaterialMapValue);
+			}
+		}
+	}
+} //namespace InternalSkeletalMeshHelper
+
 void USkeletalMesh::CacheDerivedData()
 {
 	// Cache derived data for the running platform.
@@ -3537,7 +3658,17 @@ void USkeletalMesh::CacheDerivedData()
 	check(RunningPlatform);
 
 	AllocateResourceForRendering();
+
+	//LODMaterialMap from LODInfo is store in the uasset and not in the DDC, so we want to fix it here
+	//to cover the post load and the post edit change. The build can change the number of section and LODMaterialMap is index per section
+	//TODO, move LODMaterialmap functionality into the LODModel UserSectionsData which are index per original section (imported section).
+	TMap<int32, TArray<uint16>> BackupSectionsPerLOD;
+	InternalSkeletalMeshHelper::CreateLodMaterialMapBackup(this, BackupSectionsPerLOD);
+
 	SkeletalMeshRenderData->Cache(RunningPlatform, this);
+
+	InternalSkeletalMeshHelper::RestoreLodMaterialMapBackup(this, BackupSectionsPerLOD);
+
 	PostMeshCached.Broadcast(this);
 }
 
@@ -3685,7 +3816,7 @@ void USkeletalMesh::CopyMirrorTableFrom(USkeletalMesh* SrcMesh)
 }
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
-void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo)
+void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const
 {
 	// Do nothing if no mirror table in source mesh
 	if( SkelMirrorTable.Num() == 0 )
@@ -3711,7 +3842,7 @@ void USkeletalMesh::ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
 
 
 /** Utility for copying and converting a mirroring table from another SkeletalMesh. */
-void USkeletalMesh::ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo)
+void USkeletalMesh::ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo)
 {
 	// Do nothing if no mirror table in source mesh
 	if( MirrorExportInfo.Num() == 0 )
@@ -3764,7 +3895,7 @@ void USkeletalMesh::ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInf
  *	Return true if mirror table is OK, false if there are problems.
  *	@param	ProblemBones	Output string containing information on bones that are currently bad.
  */
-bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones)
+bool USkeletalMesh::MirrorTableIsGood(FString& ProblemBones) const
 {
 	TArray<int32>	BadBoneMirror;
 
@@ -4149,6 +4280,16 @@ void USkeletalMesh::RemoveLODInfo(int32 Index)
 {
 	if (LODInfo.IsValidIndex(Index))
 	{
+#if WITH_EDITOR
+		if (MeshEditorDataObject != nullptr)
+		{
+			MeshEditorDataObject->RemoveLODImportedData(Index);
+		}
+		if (GetImportedModel() && GetImportedModel()->OriginalReductionSourceMeshData.IsValidIndex(Index))
+		{
+			GetImportedModel()->OriginalReductionSourceMeshData.RemoveAt(Index);
+		}
+#endif // WITH_EDITOR
 		LODInfo.RemoveAt(Index);
 	}
 }
@@ -5367,7 +5508,8 @@ void FSkeletalMeshSceneProxy::GetDynamicRayTracingInstances(FRayTracingMaterialG
 							LODData.GetNumVertices() * (uint32)sizeof(FVector),
 							MeshObject->GetRayTracingGeometry()->Initializer.TotalPrimitiveCount,
 							MeshObject->GetRayTracingGeometry(),
-							MeshObject->GetRayTracingDynamicVertexBuffer()
+							MeshObject->GetRayTracingDynamicVertexBuffer(),
+							true
 						}
 					);
 				}

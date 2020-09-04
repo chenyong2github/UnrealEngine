@@ -30,6 +30,7 @@ private:
 	void OnSlateUserInteraction(double CurrSlateInteractionTime);
 	void OnEnterPIE(const bool /*bIsSimulating*/);
 	void OnExitPIE(const bool /*bIsSimulating*/);
+	void OnUserLoginChanged(bool, int32, int32);
 
 	static TUniquePtr<FEditorAnalyticsSession> CreateCurrentSession(const FDateTime& StartupTimeUtc, uint32 OutOfProcessMonitorProcessId);
 	static FString GetUserActivityString();
@@ -37,12 +38,16 @@ private:
 	void UpdateSessionDuration(double InCurrTimeSecs);
 	bool UpdateEditorIdleTime(double InCurrTimeSecs, bool bReset);
 	bool UpdateUserIdleTime(double InCurrTimeSecs, bool bReset);
+	bool UpdateOutOfProcessMonitorState(bool bQuickCheck);
 	bool TrySaveCurrentSession(const FDateTime& CurrTimeUtc, double CurrTimeSecs);
 
 private:
 	TUniquePtr<FEditorAnalyticsSession> CurrentSession;
 	FCriticalSection SaveSessionLock;
 	float HeartbeatTimeElapsed;
+
+	/** The next time to check if the debugger is attached */
+	double NextDebuggerCheckSecs;
 
 	/** Last activity (user input, crash, terminate, shutdown) timestamp from FPlatformTime::Seconds() to track user inactivity. */
 	TAtomic<double> LastUserActivityTimeSecs;

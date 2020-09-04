@@ -11,6 +11,7 @@
 FMenuSeparatorBlock::FMenuSeparatorBlock(const FName& InExtensionHook, bool bInIsPartOfHeading)
 	: FMultiBlock( nullptr, nullptr, InExtensionHook, EMultiBlockType::Separator, bInIsPartOfHeading )
 {
+	SetSearchable(false);
 }
 
 
@@ -62,6 +63,5 @@ void SMenuSeparatorBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, con
 	];
 
 	// Add this widget to the search list of the multibox and hide it
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), FText::GetEmpty());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), FText::GetEmpty(), MultiBlock->GetSearchable());
 }

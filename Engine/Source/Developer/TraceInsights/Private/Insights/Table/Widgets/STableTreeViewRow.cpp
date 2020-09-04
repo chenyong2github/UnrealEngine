@@ -173,7 +173,7 @@ bool STableTreeViewRow::HandleShouldBeEnabled() const
 	{
 		if (OnShouldBeEnabled.IsBound())
 		{
-			bResult = OnShouldBeEnabled.Execute(TableTreeNodePtr->GetId());
+			bResult = OnShouldBeEnabled.Execute(TableTreeNodePtr);
 		}
 	}
 
@@ -196,7 +196,7 @@ EVisibility STableTreeViewRow::IsColumnVisible(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void STableTreeViewRow::OnSetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, const FTableTreeNodePtr InTreeNodePtr)
+void STableTreeViewRow::OnSetHoveredCell(TSharedPtr<FTable> InTablePtr, TSharedPtr<FTableColumn> InColumnPtr, FTableTreeNodePtr InTreeNodePtr)
 {
 	SetHoveredCellDelegate.ExecuteIfBound(InTablePtr, InColumnPtr, InTreeNodePtr);
 }

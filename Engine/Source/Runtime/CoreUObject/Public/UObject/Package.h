@@ -7,6 +7,7 @@
 #include "UObject/UObjectGlobals.h"
 #include "UObject/Object.h"
 #include "UObject/PackageId.h"
+#include "UObject/LinkerSave.h"
 #include "Misc/Guid.h"
 #include "Misc/WorldCompositionUtility.h"
 #include "Misc/OutputDeviceError.h"
@@ -21,7 +22,9 @@ class Error;
 // This is a dummy type which is not implemented anywhere. It's only 
 // used to flag a deprecated Conform argument to package save functions.
 class FLinkerNull;
+struct FPackageSaveInfo;
 class FSavePackageContext;
+struct FSavePackageArgs;
 
 /**
 * Represents the result of saving a package
@@ -62,11 +65,14 @@ struct FSavePackageResultStruct
 	/** MD5 hash of the cooked data */
 	TFuture<FMD5Hash> CookedHash;
 
+	/** Linker for linker comparison after save. */
+	TUniquePtr<FLinkerSave> LinkerSave;
+
 	/** Constructors, it will implicitly construct from the result enum */
 	FSavePackageResultStruct() : Result(ESavePackageResult::Error), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult) : Result(InResult), TotalFileSize(0) {}
 	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize) : Result(InResult), TotalFileSize(InTotalFileSize) {}
-	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)) {}
+	FSavePackageResultStruct(ESavePackageResult InResult, int64 InTotalFileSize, TFuture<FMD5Hash>&& InHash, TUniquePtr<FLinkerSave> Linker = nullptr) : Result(InResult), TotalFileSize(InTotalFileSize), CookedHash(MoveTemp(InHash)), LinkerSave(MoveTemp(Linker)) {}
 
 	bool operator==(const FSavePackageResultStruct& Other) const
 	{
@@ -81,7 +87,7 @@ struct FSavePackageResultStruct
 };
 
 COREUOBJECT_API void StartSavingEDLCookInfoForVerification();
-COREUOBJECT_API void VerifyEDLCookInfo();
+COREUOBJECT_API void VerifyEDLCookInfo(bool bFullReferencesExpected=true);
 
 /**
 * A package.
@@ -173,6 +179,7 @@ public:
 	virtual bool NeedsLoadForClient() const override { return true; }				// To avoid calling the expensive generic version, which only makes sure that the UPackage static class isn't excluded
 	virtual bool NeedsLoadForServer() const override { return true; }
 	virtual bool IsPostLoadThreadSafe() const override;
+	virtual bool IsDestructionThreadSafe() const override { return true; }
 
 #if WITH_EDITORONLY_DATA
 																					/** Sets the bLoadedByEditorPropertiesOnly flag */
@@ -227,7 +234,7 @@ public:
 	*/
 	virtual void PostInitProperties() override;
 
-	virtual void BeginDestroy() override;
+	virtual void BeginDestroy() override;	
 
 	/** Serializer */
 	virtual void Serialize( FArchive& Ar ) override;
@@ -559,6 +566,18 @@ public:
 		uint32 SaveFlags=SAVE_None, const class ITargetPlatform* TargetPlatform = NULL, const FDateTime& FinalTimeStamp = FDateTime::MinValue(), 
 		bool bSlowTask = true, class FArchiveDiffMap* InOutDiffMap = nullptr,
 		FSavePackageContext* SavePackageContext = nullptr);
+
+	/**
+	 * Save an asset into an Unreal Package
+	 * Save2 is currently experimental and shouldn't be used until it can safely replace Save.
+	 */
+	static FSavePackageResultStruct Save2(UPackage* InPackage, UObject* InAsset, const TCHAR* InFilename, FSavePackageArgs& SaveArgs);
+
+	/**
+	 * Save a list of packages concurrently using Save2 mechanism
+	 * SaveConcurrent is currently experimental and shouldn't be used until it can safely replace Save.
+	 */
+	static ESavePackageResult SaveConcurrent(TArrayView<FPackageSaveInfo> InPackages, FSavePackageArgs& SaveArgs, TArray<FSavePackageResultStruct>& OutResults);
 
 	/**
 	* Save one specific object (along with any objects it references contained within the same Outer) into an Unreal package.

@@ -1,6 +1,10 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "MetalRHIPrivate.h"
+#include "MetalRHIRenderQuery.h"
+#include "MetalVertexDeclaration.h"
+#include "MetalShaderTypes.h"
+#include "MetalGraphicsPipelineState.h"
 #include "Misc/App.h"
 #if PLATFORM_IOS
 #include "IOS/IOSAppDelegate.h"

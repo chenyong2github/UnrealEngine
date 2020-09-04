@@ -58,6 +58,14 @@ protected:
 	void ConvertClientFilenameToServerFilename(FString& FilenameToConvert);
 
 	/**
+	 *	Convert the given filename from the an arbitrary local representation to the normalized server version of it
+	 *	NOTE: Potentially modifies the input FString!!!!
+	 *
+	 *	@param	FilenameToConvert		Upon input, the filename. After the call, the server version
+	 */
+	void ConvertLocalFilenameToServerFilename(FString& FilenameToConvert);
+
+	/**
 	 *	Convert the given filename from the server to the client version of it
 	 *	NOTE: Potentially modifies the input FString!!!!
 	 *
@@ -151,7 +159,7 @@ protected:
 	 * @param In -
 	 * @param Out -
 	 */
-	void ProcessSyncFile( FArchive& In, FArchive& Out );
+	bool ProcessSyncFile( FArchive& In, FArchive& Out );
 
 
 	virtual bool SendPayload( TArray<uint8> &Out ) = 0; 
@@ -234,7 +242,7 @@ private:
 	TMap<uint64, IFileHandle*> OpenFiles;
 
 	// Holds the file interface for local (to the server) files - all file ops MUST go through here, NOT IFileManager.
-	FSandboxPlatformFile* Sandbox;
+	TUniquePtr<FSandboxPlatformFile> Sandbox;
 
 	// Holds the list of unsolicited files to send in separate packets.
 	TArray<FString> UnsolictedFiles;
@@ -245,14 +253,26 @@ private:
 	// Local path to the engine directory
 	FString LocalEngineDir;
 
+	// Absolute local path to the engine directory
+	FString LocalEngineDirAbs;
+
 	// Local path to the project directory
 	FString LocalProjectDir;
+
+	// Absolute local path to the project directory
+	FString LocalProjectDirAbs;
 
 	// Local path to the engine platform extensions directory
 	FString LocalEnginePlatformExtensionsDir;
 
+	// Absolute local path to the engine platform extensions directory
+	FString LocalEnginePlatformExtensionsDirAbs;
+
 	// Local path to the project platform extensions directory
 	FString LocalProjectPlatformExtensionsDir;
+
+	// Absolute local path to the project platform extensions directory
+	FString LocalProjectPlatformExtensionsDirAbs;
 
 	const FNetworkFileDelegateContainer* NetworkFileDelegates;
 

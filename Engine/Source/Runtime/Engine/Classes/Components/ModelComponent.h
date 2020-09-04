@@ -117,7 +117,7 @@ public:
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void PostLoad() override;
 #if WITH_EDITOR
-	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditUndo() override;
 #endif // WITH_EDITOR
 	virtual bool IsNameStableForNetworking() const override;
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);

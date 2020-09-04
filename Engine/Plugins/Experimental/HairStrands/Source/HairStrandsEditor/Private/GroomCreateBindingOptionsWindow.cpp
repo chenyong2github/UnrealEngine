@@ -21,6 +21,7 @@
 #include "Widgets/SBoxPanel.h"
 #include "Widgets/Text/STextBlock.h"
 #include "Editor.h"
+#include "GroomBindingAsset.h"
 
 #define LOCTEXT_NAMESPACE "GroomCreateBindingOptionsWindow"
 
@@ -103,7 +104,7 @@ void SGroomCreateBindingOptionsWindow::Construct(const FArguments& InArgs)
 
 bool SGroomCreateBindingOptionsWindow::CanCreateBinding()  const
 {
-	return true;
+	return BindingOptions->TargetSkeletalMesh != nullptr;
 }
 
 enum class EGroomBindingOptionsVisibility : uint8

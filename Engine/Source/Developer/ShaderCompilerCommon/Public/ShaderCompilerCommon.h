@@ -5,9 +5,7 @@
 #include "CoreMinimal.h"
 #include "UniformBuffer.h"
 #include "ShaderCore.h"
-
-struct FShaderCompilerInput;
-struct FShaderCompilerEnvironment;
+#include "ShaderCompilerCore.h"
 
 /**
  * This function looks for resources specified in ResourceTableMap in the 
@@ -91,6 +89,18 @@ extern SHADERCOMPILERCOMMON_API bool ConvertFromFP32ToFP16(FString& InOutSourceC
 extern SHADERCOMPILERCOMMON_API void StripInstancedStereo(FString& ShaderSource);
 
 extern SHADERCOMPILERCOMMON_API FString CreateShaderCompilerWorkerDirectCommandLine(const FShaderCompilerInput& Input, uint32 CCFlags = 0);
+
+enum class EShaderConductorTarget
+{
+	Dxil,
+	Spirv,
+};
+ extern SHADERCOMPILERCOMMON_API void WriteShaderConductorCommandLine(const FShaderCompilerInput& Input, const FString& SourceFilename, EShaderConductorTarget Target);
+
+
+// Utility functions shared amongst all backends to write out a dumped USF
+extern SHADERCOMPILERCOMMON_API void DumpDebugUSF(const FShaderCompilerInput& Input, const ANSICHAR* Source, int32 SourceLength, uint32 HlslCCFlags = 0, const TCHAR* OverrideBaseFilename = nullptr);
+extern SHADERCOMPILERCOMMON_API void DumpDebugUSF(const FShaderCompilerInput& Input, const FString& Source, uint32 HlslCCFlags = 0, const TCHAR* OverrideBaseFilename = nullptr);
 
 // calls 'Mali Offline Compiler' to compile the glsl source code and extract the generated instruction count
 extern SHADERCOMPILERCOMMON_API void CompileOfflineMali(const FShaderCompilerInput &Input, FShaderCompilerOutput& ShaderOutput, const ANSICHAR* ShaderSource, const int32 SourceSize, bool bVulkanSpirV);

@@ -51,7 +51,7 @@ UDMXEntity* UDMXLibrary::FindEntity(const FGuid& Id)
 {
 	for (UDMXEntity* Entity : Entities)
 	{
-		if (Entity->GetID() == Id)
+		if (Entity && Entity->GetID() == Id)
 		{
 			return Entity;
 		}

@@ -47,4 +47,8 @@ public:
 	 * Make a context menu widget to manage parameterization link of a property
 	 */
 	static TSharedPtr<SWidget> MakeContextMenu(const TSharedPtr<FDataprepParametrizationActionData>& ParameterizationActionData);
+
+	static void RegisterBlueprintCallbacks(void* InModule);
+	static void CreateUserDefinedFilter();
+	static void CreateUserDefinedOperation();
 };

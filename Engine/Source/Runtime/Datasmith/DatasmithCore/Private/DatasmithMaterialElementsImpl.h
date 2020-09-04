@@ -199,8 +199,8 @@ public:
 	virtual IDatasmithExpressionInput& GetNormal() override { return Normal; }
 	virtual const IDatasmithExpressionInput& GetNormal() const override { return Normal; }
 
-	virtual IDatasmithExpressionInput& GetFlatness() override { return Normal; }
-	virtual const IDatasmithExpressionInput& GetFlatness() const override { return Normal; }
+	virtual IDatasmithExpressionInput& GetFlatness() override { return Flatness; }
+	virtual const IDatasmithExpressionInput& GetFlatness() const override { return Flatness; }
 
 	virtual int32 GetInputCount() const override { return 2; }
 	virtual IDatasmithExpressionInput* GetInput( int32 Index ) override { return Index == 0 ? &Normal : &Flatness; }
@@ -309,6 +309,9 @@ public:
 	virtual bool GetMaterialFunctionOnly() const override { return bMaterialFunctionOnly; };
 	virtual void SetMaterialFunctionOnly(bool bInMaterialFunctionOnly) override { bMaterialFunctionOnly = bInMaterialFunctionOnly; };
 
+	virtual float GetOpacityMaskClipValue() const override { return OpacityMaskClipValue; }
+	virtual void SetOpacityMaskClipValue(float InClipValue) override { OpacityMaskClipValue = InClipValue; }
+
 	virtual int32 GetExpressionsCount() const override { return Expressions.Num(); }
 	virtual IDatasmithMaterialExpression* GetExpression( int32 Index ) override { IDatasmithMaterialExpression* Expression = Expressions.IsValidIndex( Index ) ? Expressions[ Index ] : nullptr; return Expression; }
 	virtual int32 GetExpressionIndex( const IDatasmithMaterialExpression* Expression ) const override;
@@ -337,6 +340,8 @@ protected:
 	bool bTwoSided;
 	bool bUseMaterialAttributes;
 	bool bMaterialFunctionOnly;
+
+	float OpacityMaskClipValue;
 
 	FString ParentLabel;
 };

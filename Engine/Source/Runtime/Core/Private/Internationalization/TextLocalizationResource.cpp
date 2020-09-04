@@ -235,28 +235,25 @@ bool FTextLocalizationResource::LoadFromArchive(FArchive& Archive, const FTextKe
 
 		if (LocalizedStringArrayOffset != INDEX_NONE)
 		{
+			const int64 CurrentFileOffset = Archive.Tell();
+			Archive.Seek(LocalizedStringArrayOffset);
+			Archive.Precache(LocalizedStringArrayOffset, 0); // Inform the archive that we're going to repeatedly serialize from the current location
 			if (VersionNumber >= FTextLocalizationResourceVersion::ELocResVersion::Optimized_CRC32)
 			{
-				const int64 CurrentFileOffset = Archive.Tell();
-				Archive.Seek(LocalizedStringArrayOffset);
 				Archive << LocalizedStringArray;
-				Archive.Seek(CurrentFileOffset);
 			}
 			else
 			{
 				TArray<FString> TmpLocalizedStringArray;
-
-				const int64 CurrentFileOffset = Archive.Tell();
-				Archive.Seek(LocalizedStringArrayOffset);
 				Archive << TmpLocalizedStringArray;
-				Archive.Seek(CurrentFileOffset);
-
 				LocalizedStringArray.Reserve(TmpLocalizedStringArray.Num());
 				for (FString& LocalizedString : TmpLocalizedStringArray)
 				{
 					LocalizedStringArray.Emplace(FTextLocalizationResourceString{ MoveTemp(LocalizedString), INDEX_NONE });
 				}
 			}
+			Archive.Seek(CurrentFileOffset);
+			Archive.Precache(CurrentFileOffset, 0); // Inform the archive that we're going to repeatedly serialize from the current location
 		}
 	}
 

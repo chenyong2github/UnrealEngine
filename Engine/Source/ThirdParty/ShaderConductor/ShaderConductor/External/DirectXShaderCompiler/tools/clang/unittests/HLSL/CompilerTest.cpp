@@ -24,14 +24,15 @@
 #include "dxc/DxilContainer/DxilContainer.h"
 #include "dxc/Support/WinIncludes.h"
 #include "dxc/dxcapi.h"
+#include "dxc/dxcpix.h"
 #ifdef _WIN32
 #include <atlfile.h>
 #include "dia2.h"
 #endif
 
-#include "HLSLTestData.h"
-#include "HlslTestUtils.h"
-#include "DxcTestUtils.h"
+#include "dxc/Test/HLSLTestData.h"
+#include "dxc/Test/HlslTestUtils.h"
+#include "dxc/Test/DxcTestUtils.h"
 
 #include "llvm/Support/raw_os_ostream.h"
 #include "dxc/Support/Global.h"
@@ -205,6 +206,8 @@ public:
 
   TEST_METHOD(CompileWhenDebugThenDIPresent)
   TEST_METHOD(CompileDebugLines)
+  TEST_METHOD(CompileDebugPDB)
+  TEST_METHOD(CompileDebugDisasmPDB)
 
   TEST_METHOD(CompileWhenDefinesThenApplied)
   TEST_METHOD(CompileWhenDefinesManyThenApplied)
@@ -233,7 +236,13 @@ public:
 
 #if _ITERATOR_DEBUG_LEVEL==0 
   // CompileWhenNoMemThenOOM can properly detect leaks only when debug iterators are disabled
-  TEST_METHOD(CompileWhenNoMemThenOOM)
+  BEGIN_TEST_METHOD(CompileWhenNoMemThenOOM)
+    // Disabled because there are problems where we try to allocate memory in destructors,
+    // which causes more bad_alloc() throws while unwinding bad_alloc(), which asserts
+    // If only failing one allocation, there are allocations where failing them is lost,
+    // such as in ~raw_string_ostream(), where it flushes, then eats bad_alloc(), if thrown.
+    TEST_METHOD_PROPERTY(L"Ignore", L"true")
+  END_TEST_METHOD()
 #endif
   TEST_METHOD(CompileWhenShaderModelMismatchAttributeThenFail)
   TEST_METHOD(CompileBadHlslThenFail)
@@ -251,6 +260,12 @@ public:
   TEST_METHOD(DiaLoadBadBitcodeThenFail)
   TEST_METHOD(DiaLoadDebugThenOK)
   TEST_METHOD(DiaTableIndexThenOK)
+  TEST_METHOD(DiaLoadDebugSubrangeNegativeThenOK)
+  TEST_METHOD(DiaLoadRelocatedBitcode)
+  TEST_METHOD(DiaLoadBitcodePlusExtraData)
+  TEST_METHOD(DiaCompileArgs)
+
+  TEST_METHOD(PixDebugCompileInfo)
 
   TEST_METHOD(CodeGenFloatingPointEnvironment)
   TEST_METHOD(CodeGenInclude)
@@ -271,16 +286,21 @@ public:
   TEST_METHOD(PreprocessWhenExpandTokenPastingOperandThenAccept)
   TEST_METHOD(WhenSigMismatchPCFunctionThenFail)
 
-  TEST_METHOD(CodeGenSamples)
+  TEST_METHOD(BatchSamples)
+  TEST_METHOD(BatchD3DReflect)
+  TEST_METHOD(BatchDxil)
+  TEST_METHOD(BatchHLSL)
+  TEST_METHOD(BatchInfra)
+  TEST_METHOD(BatchPasses)
+  TEST_METHOD(BatchShaderTargets)
+  TEST_METHOD(BatchValidation)
+
   TEST_METHOD(SubobjectCodeGenErrors)
-  TEST_METHOD(DebugInfo)
-  TEST_METHOD(QuickTest)
   BEGIN_TEST_METHOD(ManualFileCheckTest)
     TEST_METHOD_PROPERTY(L"Ignore", L"true")
   END_TEST_METHOD()
 
   // Batch directories
-  TEST_METHOD(CodeGenBatch)
   BEGIN_TEST_METHOD(CodeGenHashStability)
       TEST_METHOD_PROPERTY(L"Priority", L"2")
   END_TEST_METHOD()
@@ -305,7 +325,7 @@ public:
 
   void CreateBlobFromText(_In_z_ const char *pText,
                           _Outptr_ IDxcBlobEncoding **ppBlob) {
-    CreateBlobPinned(pText, strlen(pText), CP_UTF8, ppBlob);
+    CreateBlobPinned(pText, strlen(pText) + 1, CP_UTF8, ppBlob);
   }
 
   HRESULT CreateCompiler(IDxcCompiler **ppResult) {
@@ -696,7 +716,7 @@ public:
     using namespace llvm;
     using namespace WEX::TestExecution;
 
-    if (implicitDir) suitePath.insert(0, L"..\\CodeGenHLSL\\");
+    if (implicitDir) suitePath.insert(0, L"..\\HLSLFileCheck\\");
 
     ::llvm::sys::fs::MSFileSystem *msfPtr;
     VERIFY_SUCCEEDED(CreateMSFileSystemForDisk(&msfPtr));
@@ -762,7 +782,7 @@ public:
     using namespace llvm;
     using namespace WEX::TestExecution;
 
-    if (implicitDir) suitePath.insert(0, L"..\\CodeGenHLSL\\");
+    if (implicitDir) suitePath.insert(0, L"..\\HLSLFileCheck\\");
 
     ::llvm::sys::fs::MSFileSystem *msfPtr;
     VERIFY_SUCCEEDED(CreateMSFileSystemForDisk(&msfPtr));
@@ -1021,6 +1041,88 @@ TEST_F(CompilerTest, CompileWhenDebugThenDIPresent) {
 #endif
 }
 
+TEST_F(CompilerTest, CompileDebugDisasmPDB) {
+  const char *hlsl = R"(
+    [RootSignature("")]
+    float main(float pos : A) : SV_Target {
+      float x = abs(pos);
+      float y = sin(pos);
+      float z = x + y;
+      return z;
+    }
+  )";
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  CComPtr<IDxcCompiler> pCompiler;
+  CComPtr<IDxcCompiler2> pCompiler2;
+
+  CComPtr<IDxcOperationResult> pResult;
+  CComPtr<IDxcBlobEncoding> pSource;
+  CComPtr<IDxcBlob> pProgram;
+  CComPtr<IDxcBlob> pPdbBlob;
+  WCHAR *pDebugName = nullptr;
+
+  VERIFY_SUCCEEDED(CreateCompiler(&pCompiler));
+  VERIFY_SUCCEEDED(pCompiler.QueryInterface(&pCompiler2));
+  CreateBlobFromText(hlsl, &pSource);
+  LPCWSTR args[] = { L"/Zi", L"/Qembed_debug" };
+  VERIFY_SUCCEEDED(pCompiler2->CompileWithDebug(pSource, L"source.hlsl", L"main",
+    L"ps_6_0", args, _countof(args), nullptr, 0, nullptr, &pResult, &pDebugName, &pPdbBlob));
+  VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
+
+  // Test that disassembler can consume a PDB container
+  CComPtr<IDxcBlobEncoding> pDisasm;
+  VERIFY_SUCCEEDED(pCompiler->Disassemble(pPdbBlob, &pDisasm));
+}
+
+// Test that the new PDB format still works with Dia
+TEST_F(CompilerTest, CompileDebugPDB) {
+  const char *hlsl = R"(
+    [RootSignature("")]
+    float main(float pos : A) : SV_Target {
+      float x = abs(pos);
+      float y = sin(pos);
+      float z = x + y;
+      return z;
+    }
+  )";
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  CComPtr<IDxcCompiler> pCompiler;
+  CComPtr<IDxcCompiler2> pCompiler2;
+
+  CComPtr<IDxcOperationResult> pResult;
+  CComPtr<IDxcBlobEncoding> pSource;
+  CComPtr<IDxcBlob> pProgram;
+  CComPtr<IDxcBlob> pPdbBlob;
+  WCHAR *pDebugName = nullptr;
+
+  VERIFY_SUCCEEDED(CreateCompiler(&pCompiler));
+  VERIFY_SUCCEEDED(pCompiler.QueryInterface(&pCompiler2));
+  CreateBlobFromText(hlsl, &pSource);
+  LPCWSTR args[] = { L"/Zi", L"/Qembed_debug" };
+  VERIFY_SUCCEEDED(pCompiler2->CompileWithDebug(pSource, L"source.hlsl", L"main",
+    L"ps_6_0", args, _countof(args), nullptr, 0, nullptr, &pResult, &pDebugName, &pPdbBlob));
+  VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
+
+  CComPtr<IDiaDataSource> pDiaSource;
+  CComPtr<IStream> pProgramStream;
+
+  VERIFY_SUCCEEDED(pLib->CreateStreamFromBlobReadOnly(pPdbBlob, &pProgramStream));
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcDiaDataSource, &pDiaSource));
+  VERIFY_SUCCEEDED(pDiaSource->loadDataFromIStream(pProgramStream));
+
+  // Test that IDxcContainerReflection can consume a PDB container
+  CComPtr<IDxcContainerReflection> pReflection;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
+  VERIFY_SUCCEEDED(pReflection->Load(pPdbBlob));
+
+  UINT32 uDebugInfoIndex = 0;
+  VERIFY_SUCCEEDED(pReflection->FindFirstPartKind(hlsl::DFCC_ShaderDebugInfoDXIL, &uDebugInfoIndex));
+}
+
 TEST_F(CompilerTest, CompileDebugLines) {
   CComPtr<IDiaDataSource> pDiaSource;
   VERIFY_SUCCEEDED(CreateDiaSourceForCompile(
@@ -1031,40 +1133,35 @@ TEST_F(CompilerTest, CompileDebugLines) {
     "  return z;\r\n"
     "}", &pDiaSource));
     
-  static constexpr uint32_t numExpectedRVAs = 10;
+  const uint32_t numExpectedVAs = 18;
+  const uint32_t numExpectedLineEntries = 6;
 
   auto verifyLines = [=](const std::vector<LineNumber> lines) {
-    VERIFY_ARE_EQUAL(lines.size(), numExpectedRVAs);
-    // 0: loadInput
-    VERIFY_ARE_EQUAL(lines[0].rva,  0);
+    VERIFY_ARE_EQUAL(lines.size(), numExpectedLineEntries);
+
+    // loadInput
     VERIFY_ARE_EQUAL(lines[0].line, 1);
-    // 1: dbg.value
-    VERIFY_ARE_EQUAL(lines[1].rva,  1);
-    VERIFY_ARE_EQUAL(lines[1].line, 1);
-    // 2: abs
-    VERIFY_ARE_EQUAL(lines[2].rva,  2);
-    VERIFY_ARE_EQUAL(lines[2].line, 2);
-    // 3: dbg.value
-    VERIFY_ARE_EQUAL(lines[3].rva,  3);
-    VERIFY_ARE_EQUAL(lines[3].line, 2);
-    // 4: sin
-    VERIFY_ARE_EQUAL(lines[4].rva,  4);
-    VERIFY_ARE_EQUAL(lines[4].line, 3);
-    // 5: dbg.value
-    VERIFY_ARE_EQUAL(lines[5].rva,  5);
-    VERIFY_ARE_EQUAL(lines[5].line, 3);
-    // 6: fadd
-    VERIFY_ARE_EQUAL(lines[6].rva,  6);
-    VERIFY_ARE_EQUAL(lines[6].line, 4);
-    // 7: dbg.value
-    VERIFY_ARE_EQUAL(lines[7].rva,  7);
-    VERIFY_ARE_EQUAL(lines[7].line, 4);
-    // 8: storeOutput
-    VERIFY_ARE_EQUAL(lines[8].rva,  8);
-    VERIFY_ARE_EQUAL(lines[8].line, 5);
-    // 9: ret
-    VERIFY_ARE_EQUAL(lines[9].rva,  9);
-    VERIFY_ARE_EQUAL(lines[9].line, 5);
+    VERIFY_ARE_EQUAL(lines[0].rva,  4);
+
+    // abs
+    VERIFY_ARE_EQUAL(lines[1].line, 2);
+    VERIFY_ARE_EQUAL(lines[1].rva, 7);
+
+    // sin
+    VERIFY_ARE_EQUAL(lines[2].line, 3);
+    VERIFY_ARE_EQUAL(lines[2].rva, 10);
+
+    // fadd
+    VERIFY_ARE_EQUAL(lines[3].line, 4);
+    VERIFY_ARE_EQUAL(lines[3].rva, 13);
+
+    // storeOutput
+    VERIFY_ARE_EQUAL(lines[4].line, 5);
+    VERIFY_ARE_EQUAL(lines[4].rva, 16);
+
+    // ret
+    VERIFY_ARE_EQUAL(lines[5].line, 5);
+    VERIFY_ARE_EQUAL(lines[5].rva, 17);
   };
   
   CComPtr<IDiaSession> pSession;
@@ -1073,7 +1170,7 @@ TEST_F(CompilerTest, CompileDebugLines) {
   // Verify lines are ok when getting one RVA at a time.
   std::vector<LineNumber> linesOneByOne;
   VERIFY_SUCCEEDED(pDiaSource->openSession(&pSession));
-  for (int i = 0; i < numExpectedRVAs; ++i) {
+  for (int i = 0; i < numExpectedVAs; ++i) {
     VERIFY_SUCCEEDED(pSession->findLinesByRVA(i, 1, &pEnumLineNumbers));
     std::vector<LineNumber> lines = ReadLineNumbers(pEnumLineNumbers);
     std::copy(lines.begin(), lines.end(), std::back_inserter(linesOneByOne));
@@ -1084,7 +1181,7 @@ TEST_F(CompilerTest, CompileDebugLines) {
   // Verify lines are ok when getting all RVAs at once.
   std::vector<LineNumber> linesAllAtOnce;
   pEnumLineNumbers.Release();
-  VERIFY_SUCCEEDED(pSession->findLinesByRVA(0, numExpectedRVAs, &pEnumLineNumbers));
+  VERIFY_SUCCEEDED(pSession->findLinesByRVA(0, numExpectedVAs, &pEnumLineNumbers));
   linesAllAtOnce = ReadLineNumbers(pEnumLineNumbers);
   verifyLines(linesAllAtOnce);
 
@@ -1108,7 +1205,7 @@ TEST_F(CompilerTest, CompileDebugLines) {
   // Verify lines are ok when getting by address.
   std::vector<LineNumber> linesByAddr;
   pEnumLineNumbers.Release();
-  VERIFY_SUCCEEDED(pSession->findLinesByAddr(0, 0, numExpectedRVAs, &pEnumLineNumbers));
+  VERIFY_SUCCEEDED(pSession->findLinesByAddr(0, 0, numExpectedVAs, &pEnumLineNumbers));
   linesByAddr = ReadLineNumbers(pEnumLineNumbers);
   verifyLines(linesByAddr);
 
@@ -1294,8 +1391,9 @@ TEST_F(CompilerTest, CompileWhenDebugWorksThenStripDebug) {
                                       0, nullptr, &pResult));
   VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
   // Check if it contains debug blob
-  hlsl::DxilContainerHeader *pHeader =
-      (hlsl::DxilContainerHeader *)(pProgram->GetBufferPointer());
+  hlsl::DxilContainerHeader *pHeader = 
+      hlsl::IsDxilContainerLike(pProgram->GetBufferPointer(), pProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pHeader, pProgram->GetBufferSize()));
   hlsl::DxilPartHeader *pPartHeader = hlsl::GetDxilPartByType(
       pHeader, hlsl::DxilFourCC::DFCC_ShaderDebugInfoDXIL);
   VERIFY_IS_NOT_NULL(pPartHeader);
@@ -1309,7 +1407,8 @@ TEST_F(CompilerTest, CompileWhenDebugWorksThenStripDebug) {
   pResult.Release();
   VERIFY_SUCCEEDED(pBuilder->SerializeContainer(&pResult));
   VERIFY_SUCCEEDED(pResult->GetResult(&pNewProgram));
-  pHeader = (hlsl::DxilContainerHeader *)(pNewProgram->GetBufferPointer());
+  pHeader = hlsl::IsDxilContainerLike(pNewProgram->GetBufferPointer(), pNewProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pHeader, pNewProgram->GetBufferSize()));
   pPartHeader = hlsl::GetDxilPartByType(
       pHeader, hlsl::DxilFourCC::DFCC_ShaderDebugInfoDXIL);
   VERIFY_IS_NULL(pPartHeader);
@@ -1344,8 +1443,8 @@ TEST_F(CompilerTest, CompileWhenWorksThenAddRemovePrivate) {
 
   CComPtr<IDxcBlob> pNewProgram;
   VERIFY_SUCCEEDED(pResult->GetResult(&pNewProgram));
-  hlsl::DxilContainerHeader *pContainerHeader =
-    (hlsl::DxilContainerHeader *)(pNewProgram->GetBufferPointer());
+  hlsl::DxilContainerHeader *pContainerHeader = hlsl::IsDxilContainerLike(pNewProgram->GetBufferPointer(), pNewProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pNewProgram->GetBufferSize()));
   hlsl::DxilPartHeader *pPartHeader = hlsl::GetDxilPartByType(
     pContainerHeader, hlsl::DxilFourCC::DFCC_PrivateData);
   VERIFY_IS_NOT_NULL(pPartHeader);
@@ -1363,8 +1462,8 @@ TEST_F(CompilerTest, CompileWhenWorksThenAddRemovePrivate) {
 
   pNewProgram.Release();
   VERIFY_SUCCEEDED(pResult->GetResult(&pNewProgram));
-  pContainerHeader =
-    (hlsl::DxilContainerHeader *)(pNewProgram->GetBufferPointer());
+  pContainerHeader = hlsl::IsDxilContainerLike(pNewProgram->GetBufferPointer(), pNewProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pNewProgram->GetBufferSize()));
   pPartHeader = hlsl::GetDxilPartByType(
     pContainerHeader, hlsl::DxilFourCC::DFCC_PrivateData);
   VERIFY_IS_NULL(pPartHeader);
@@ -1420,8 +1519,8 @@ TEST_F(CompilerTest, CompileThenAddCustomDebugName) {
 
   CComPtr<IDxcBlob> pNewProgram;
   VERIFY_SUCCEEDED(pResult->GetResult(&pNewProgram));
-  hlsl::DxilContainerHeader *pContainerHeader =
-    (hlsl::DxilContainerHeader *)(pNewProgram->GetBufferPointer());
+  hlsl::DxilContainerHeader *pContainerHeader = hlsl::IsDxilContainerLike(pNewProgram->GetBufferPointer(), pNewProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pNewProgram->GetBufferSize()));
   hlsl::DxilPartHeader *pPartHeader = hlsl::GetDxilPartByType(
     pContainerHeader, hlsl::DxilFourCC::DFCC_ShaderDebugName);
   VERIFY_IS_NOT_NULL(pPartHeader);
@@ -1440,8 +1539,8 @@ TEST_F(CompilerTest, CompileThenAddCustomDebugName) {
 
   pNewProgram.Release();
   VERIFY_SUCCEEDED(pResult->GetResult(&pNewProgram));
-  pContainerHeader =
-    (hlsl::DxilContainerHeader *)(pNewProgram->GetBufferPointer());
+  pContainerHeader = hlsl::IsDxilContainerLike(pNewProgram->GetBufferPointer(), pNewProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pNewProgram->GetBufferSize()));
   pPartHeader = hlsl::GetDxilPartByType(
     pContainerHeader, hlsl::DxilFourCC::DFCC_ShaderDebugName);
   VERIFY_IS_NULL(pPartHeader);
@@ -1467,25 +1566,46 @@ TEST_F(CompilerTest, CompileWithRootSignatureThenStripRootSignature) {
   VERIFY_SUCCEEDED(status);
   VERIFY_SUCCEEDED(pResult->GetResult(&pProgram));
   VERIFY_IS_NOT_NULL(pProgram);
-  hlsl::DxilContainerHeader *pContainerHeader =
-      (hlsl::DxilContainerHeader *)(pProgram->GetBufferPointer());
+  hlsl::DxilContainerHeader *pContainerHeader = hlsl::IsDxilContainerLike(pProgram->GetBufferPointer(), pProgram->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pProgram->GetBufferSize()));
   hlsl::DxilPartHeader *pPartHeader = hlsl::GetDxilPartByType(
       pContainerHeader, hlsl::DxilFourCC::DFCC_RootSignature);
   VERIFY_IS_NOT_NULL(pPartHeader);
+  pResult.Release();
   
   // Remove root signature
-  CComPtr<IDxcBlob> pNewProgram;
+  CComPtr<IDxcBlob> pProgramRootSigRemoved;
   CComPtr<IDxcContainerBuilder> pBuilder;
   VERIFY_SUCCEEDED(CreateContainerBuilder(&pBuilder));
   VERIFY_SUCCEEDED(pBuilder->Load(pProgram));
   VERIFY_SUCCEEDED(pBuilder->RemovePart(hlsl::DxilFourCC::DFCC_RootSignature));
-  pResult.Release();
   VERIFY_SUCCEEDED(pBuilder->SerializeContainer(&pResult));
-  VERIFY_SUCCEEDED(pResult->GetResult(&pNewProgram));
-  pContainerHeader = (hlsl::DxilContainerHeader *)(pNewProgram->GetBufferPointer());
+  VERIFY_SUCCEEDED(pResult->GetResult(&pProgramRootSigRemoved));
+  pContainerHeader = hlsl::IsDxilContainerLike(pProgramRootSigRemoved->GetBufferPointer(), pProgramRootSigRemoved->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pProgramRootSigRemoved->GetBufferSize()));
+  hlsl::DxilPartHeader *pPartHeaderShouldBeNull = hlsl::GetDxilPartByType(pContainerHeader,
+                                        hlsl::DxilFourCC::DFCC_RootSignature);
+  VERIFY_IS_NULL(pPartHeaderShouldBeNull);
+  pBuilder.Release();
+  pResult.Release();
+
+  // Add root signature back
+  CComPtr<IDxcBlobEncoding> pRootSignatureBlob;
+  CComPtr<IDxcLibrary> pLibrary;
+  CComPtr<IDxcBlob> pProgramRootSigAdded;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLibrary));
+  VERIFY_SUCCEEDED(pLibrary->CreateBlobWithEncodingFromPinned(
+    hlsl::GetDxilPartData(pPartHeader), pPartHeader->PartSize, 0, &pRootSignatureBlob));
+  VERIFY_SUCCEEDED(CreateContainerBuilder(&pBuilder));
+  VERIFY_SUCCEEDED(pBuilder->Load(pProgramRootSigRemoved));
+  pBuilder->AddPart(hlsl::DxilFourCC::DFCC_RootSignature, pRootSignatureBlob);
+  pBuilder->SerializeContainer(&pResult);
+  VERIFY_SUCCEEDED(pResult->GetResult(&pProgramRootSigAdded));
+  pContainerHeader = hlsl::IsDxilContainerLike(pProgramRootSigAdded->GetBufferPointer(), pProgramRootSigAdded->GetBufferSize());
+  VERIFY_SUCCEEDED(hlsl::IsValidDxilContainer(pContainerHeader, pProgramRootSigAdded->GetBufferSize()));
   pPartHeader = hlsl::GetDxilPartByType(pContainerHeader,
                                         hlsl::DxilFourCC::DFCC_RootSignature);
-  VERIFY_IS_NULL(pPartHeader);
+  VERIFY_IS_NOT_NULL(pPartHeader);
 }
 #endif // Container builder unsupported
 
@@ -1753,8 +1873,8 @@ TEST_F(CompilerTest, CompileWhenODumpThenPassConfig) {
   VerifyOperationSucceeded(pResult);
   CComPtr<IDxcBlob> pResultBlob;
   VERIFY_SUCCEEDED(pResult->GetResult(&pResultBlob));
-  string passes((char *)pResultBlob->GetBufferPointer(), pResultBlob->GetBufferSize());
-  VERIFY_ARE_NOT_EQUAL(string::npos, passes.find("inline"));
+  wstring passes = BlobToUtf16(pResultBlob);
+  VERIFY_ARE_NOT_EQUAL(wstring::npos, passes.find(L"inline"));
 }
 
 TEST_F(CompilerTest, CompileWhenVdThenProducesDxilContainer) {
@@ -1806,12 +1926,11 @@ TEST_F(CompilerTest, CompileWhenODumpThenOptimizerMatch) {
     VerifyOperationSucceeded(pResult);
     CComPtr<IDxcBlob> pResultBlob;
     VERIFY_SUCCEEDED(pResult->GetResult(&pResultBlob));
-    string passes((char *)pResultBlob->GetBufferPointer(), pResultBlob->GetBufferSize());
+    wstring passes = BlobToUtf16(pResultBlob);
 
     // Get wchar_t version and prepend hlsl-hlensure, to do a split high-level/opt compilation pass.
-    CA2W passesW(passes.c_str(), CP_UTF8);
     std::vector<LPCWSTR> Options;
-    SplitPassList(passesW.m_psz, Options);
+    SplitPassList(const_cast<LPWSTR>(passes.data()), Options);
 
     // Now compile directly.
     pResult.Release();
@@ -2290,11 +2409,8 @@ TEST_F(CompilerTest, DiaLoadBadBitcodeThenFail) {
   VERIFY_FAILED(pDiaSource->loadDataFromIStream(pStream));
 }
 
-static void CompileTestAndLoadDia(dxc::DxcDllSupport &dllSupport, IDiaDataSource **ppDataSource) {
+static void CompileAndGetDebugPart(dxc::DxcDllSupport &dllSupport, const char *source, wchar_t *profile, IDxcBlob **ppDebugPart) {
   CComPtr<IDxcBlob> pContainer;
-  CComPtr<IDxcBlob> pDebugContent;
-  CComPtr<IDiaDataSource> pDiaSource;
-  CComPtr<IStream> pStream;
   CComPtr<IDxcLibrary> pLib;
   CComPtr<IDxcContainerReflection> pReflection;
   UINT32 index;
@@ -2302,18 +2418,363 @@ static void CompileTestAndLoadDia(dxc::DxcDllSupport &dllSupport, IDiaDataSource
   args.push_back(L"/Zi");
   args.push_back(L"/Qembed_debug");
 
-  VerifyCompileOK(dllSupport, EmptyCompute, L"cs_6_0", args, &pContainer);
+  VerifyCompileOK(dllSupport, source, profile, args, &pContainer);
   VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
   VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
   VERIFY_SUCCEEDED(pReflection->Load(pContainer));
   VERIFY_SUCCEEDED(pReflection->FindFirstPartKind(hlsl::DFCC_ShaderDebugInfoDXIL, &index));
-  VERIFY_SUCCEEDED(pReflection->GetPartContent(index, &pDebugContent));
+  VERIFY_SUCCEEDED(pReflection->GetPartContent(index, ppDebugPart));
+}
+
+static void CompileTestAndLoadDiaSource(dxc::DxcDllSupport &dllSupport, const char *source, wchar_t *profile, IDiaDataSource **ppDataSource) {
+  CComPtr<IDxcBlob> pDebugContent;
+  CComPtr<IStream> pStream;
+  CComPtr<IDiaDataSource> pDiaSource;
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  CompileAndGetDebugPart(dllSupport, source, profile, &pDebugContent);
   VERIFY_SUCCEEDED(pLib->CreateStreamFromBlobReadOnly(pDebugContent, &pStream));
   VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcDiaDataSource, &pDiaSource));
   VERIFY_SUCCEEDED(pDiaSource->loadDataFromIStream(pStream));
   if (ppDataSource) {
     *ppDataSource = pDiaSource.Detach();
   }
+}
+
+static void CompileTestAndLoadDia(dxc::DxcDllSupport &dllSupport, IDiaDataSource **ppDataSource) {
+  CompileTestAndLoadDiaSource(dllSupport, EmptyCompute, L"cs_6_0", ppDataSource);
+}
+
+TEST_F(CompilerTest, DiaLoadDebugSubrangeNegativeThenOK) {
+  static const char source[] = R"(
+    SamplerState  samp0 : register(s0);
+    Texture2DArray tex0 : register(t0);
+
+    float4 foo(Texture2DArray textures[], int idx, SamplerState samplerState, float3 uvw) {
+      return textures[NonUniformResourceIndex(idx)].Sample(samplerState, uvw);
+    }
+
+    [RootSignature( "DescriptorTable(SRV(t0)), DescriptorTable(Sampler(s0)) " )]
+    float4 main(int index : INDEX, float3 uvw : TEXCOORD) : SV_Target {
+      Texture2DArray textures[] = {
+        tex0,
+      };
+      return foo(textures, index, samp0, uvw);
+    }
+  )";
+
+  CComPtr<IDiaDataSource> pDiaDataSource;
+  CComPtr<IDiaSession> pDiaSession;
+  CompileTestAndLoadDiaSource(m_dllSupport, source, L"ps_6_0", &pDiaDataSource);
+
+  VERIFY_SUCCEEDED(pDiaDataSource->openSession(&pDiaSession));
+}
+
+TEST_F(CompilerTest, DiaLoadRelocatedBitcode) {
+
+  static const char source[] = R"(
+    SamplerState  samp0 : register(s0);
+    Texture2DArray tex0 : register(t0);
+
+    float4 foo(Texture2DArray textures[], int idx, SamplerState samplerState, float3 uvw) {
+      return textures[NonUniformResourceIndex(idx)].Sample(samplerState, uvw);
+    }
+
+    [RootSignature( "DescriptorTable(SRV(t0)), DescriptorTable(Sampler(s0)) " )]
+    float4 main(int index : INDEX, float3 uvw : TEXCOORD) : SV_Target {
+      Texture2DArray textures[] = {
+        tex0,
+      };
+      return foo(textures, index, samp0, uvw);
+    }
+  )";
+
+  CComPtr<IDxcBlob> pPart;
+  CComPtr<IDiaDataSource> pDiaSource;
+  CComPtr<IStream> pStream;
+
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  CompileAndGetDebugPart(m_dllSupport, source, L"ps_6_0", &pPart);
+  const char *pPartData = (char *)pPart->GetBufferPointer();
+  const size_t uPartSize = pPart->GetBufferSize();
+
+  // Get program header
+  const hlsl::DxilProgramHeader *programHeader = (hlsl::DxilProgramHeader *)pPartData;
+
+  const char *pBitcode = nullptr;
+  uint32_t uBitcodeSize = 0;
+  hlsl::GetDxilProgramBitcode(programHeader, &pBitcode, &uBitcodeSize);
+  VERIFY_IS_TRUE(uBitcodeSize % sizeof(UINT32) == 0);
+
+  size_t uNewGapSize = 4 * 10; // Size of some bytes between program header and bitcode
+  size_t uNewSuffixeBytes = 4 * 10; // Size of some random bytes after the program
+
+  hlsl::DxilProgramHeader newProgramHeader = {};
+  memcpy(&newProgramHeader, programHeader, sizeof(newProgramHeader));
+  newProgramHeader.BitcodeHeader.BitcodeOffset = uNewGapSize + sizeof(newProgramHeader.BitcodeHeader);
+
+  unsigned uNewSizeInBytes = sizeof(newProgramHeader) + uNewGapSize + uBitcodeSize + uNewSuffixeBytes;
+  VERIFY_IS_TRUE(uNewSizeInBytes % sizeof(UINT32) == 0);
+  newProgramHeader.SizeInUint32 = uNewSizeInBytes / sizeof(UINT32);
+
+  llvm::SmallVector<char, 0> buffer;
+  llvm::raw_svector_ostream OS(buffer);
+
+  // Write the header
+  OS.write((char *)&newProgramHeader, sizeof(newProgramHeader));
+
+  // Write some garbage between the header and the bitcode
+  for (unsigned i = 0; i < uNewGapSize; i++) {
+    OS.write(0xFF);
+  }
+
+  // Write the actual bitcode
+  OS.write(pBitcode, uBitcodeSize);
+
+  // Write some garbage after the bitcode
+  for (unsigned i = 0; i < uNewSuffixeBytes; i++) {
+    OS.write(0xFF);
+  }
+  OS.flush();
+
+  // Try to load this new program, make sure dia is still okay.
+  CComPtr<IDxcBlobEncoding> pNewProgramBlob;
+  VERIFY_SUCCEEDED(pLib->CreateBlobWithEncodingFromPinned(buffer.data(), buffer.size(), CP_ACP, &pNewProgramBlob));
+
+  CComPtr<IStream> pNewProgramStream;
+  VERIFY_SUCCEEDED(pLib->CreateStreamFromBlobReadOnly(pNewProgramBlob, &pNewProgramStream));
+
+  CComPtr<IDiaDataSource> pDiaDataSource;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcDiaDataSource, &pDiaDataSource));
+
+  VERIFY_SUCCEEDED(pDiaDataSource->loadDataFromIStream(pNewProgramStream));
+}
+
+TEST_F(CompilerTest, DiaCompileArgs) {
+  static const char source[] = R"(
+    SamplerState  samp0 : register(s0);
+    Texture2DArray tex0 : register(t0);
+
+    float4 foo(Texture2DArray textures[], int idx, SamplerState samplerState, float3 uvw) {
+      return textures[NonUniformResourceIndex(idx)].Sample(samplerState, uvw);
+    }
+
+    [RootSignature( "DescriptorTable(SRV(t0)), DescriptorTable(Sampler(s0)) " )]
+    float4 main(int index : INDEX, float3 uvw : TEXCOORD) : SV_Target {
+      Texture2DArray textures[] = {
+        tex0,
+      };
+      return foo(textures, index, samp0, uvw);
+    }
+  )";
+
+  CComPtr<IDxcBlob> pPart;
+  CComPtr<IDiaDataSource> pDiaSource;
+  CComPtr<IStream> pStream;
+
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  const WCHAR *FlagList[] = {
+    L"/Zi",
+    L"-Zpr",
+    L"/Qembed_debug",
+    L"/Fd", L"F:\\my dir\\",
+    L"-Fo", L"F:\\my dir\\file.dxc",
+  };
+  const WCHAR *DefineList[] = {
+    L"MY_SPECIAL_DEFINE",
+    L"MY_OTHER_SPECIAL_DEFINE=\"MY_STRING\"",
+  };
+
+  std::vector<LPCWSTR> args;
+  for (unsigned i = 0; i < _countof(FlagList); i++) {
+    args.push_back(FlagList[i]);
+  }
+  for (unsigned i = 0; i < _countof(DefineList); i++) {
+    args.push_back(L"/D");
+    args.push_back(DefineList[i]);
+  }
+
+  auto CompileAndGetDebugPart = [&args](dxc::DxcDllSupport &dllSupport, const char *source, wchar_t *profile, IDxcBlob **ppDebugPart) {
+    CComPtr<IDxcBlob> pContainer;
+    CComPtr<IDxcLibrary> pLib;
+    CComPtr<IDxcContainerReflection> pReflection;
+    UINT32 index;
+
+    VerifyCompileOK(dllSupport, source, profile, args, &pContainer);
+    VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+    VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
+    VERIFY_SUCCEEDED(pReflection->Load(pContainer));
+    VERIFY_SUCCEEDED(pReflection->FindFirstPartKind(hlsl::DFCC_ShaderDebugInfoDXIL, &index));
+    VERIFY_SUCCEEDED(pReflection->GetPartContent(index, ppDebugPart));
+  };
+
+  CompileAndGetDebugPart(m_dllSupport, source, L"ps_6_0", &pPart);
+
+  CComPtr<IStream> pNewProgramStream;
+  VERIFY_SUCCEEDED(pLib->CreateStreamFromBlobReadOnly(pPart, &pNewProgramStream));
+
+  CComPtr<IDiaDataSource> pDiaDataSource;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcDiaDataSource, &pDiaDataSource));
+
+  VERIFY_SUCCEEDED(pDiaDataSource->loadDataFromIStream(pNewProgramStream));
+
+  CComPtr<IDiaSession> pSession;
+  VERIFY_SUCCEEDED(pDiaDataSource->openSession(&pSession));
+
+  CComPtr<IDiaEnumTables> pEnumTables;
+  VERIFY_SUCCEEDED(pSession->getEnumTables(&pEnumTables));
+
+  CComPtr<IDiaTable> pSymbolTable;
+
+  LONG uCount = 0;
+  VERIFY_SUCCEEDED(pEnumTables->get_Count(&uCount));
+  for (int i = 0; i < uCount; i++) {
+    CComPtr<IDiaTable> pTable;
+    VARIANT index = {};
+    index.vt = VT_I4;
+    index.intVal = i;
+    VERIFY_SUCCEEDED(pEnumTables->Item(index, &pTable));
+
+    CComBSTR pName;
+    VERIFY_SUCCEEDED(pTable->get_name(&pName));
+
+    if (pName == "Symbols") {
+      pSymbolTable = pTable;
+      break;
+    }
+  }
+
+  std::wstring Args;
+  std::wstring Entry;
+  std::wstring Target;
+  std::vector<std::wstring> Defines;
+  std::vector<std::wstring> Flags;
+
+  auto ReadNullSeparatedTokens = [](BSTR Str) -> std::vector<std::wstring> {
+    std::vector<std::wstring> Result;
+    while (*Str) {
+      Result.push_back(std::wstring(Str));
+      Str += wcslen(Str)+1;
+    }
+    return Result;
+  };
+
+  VERIFY_SUCCEEDED(pSymbolTable->get_Count(&uCount));
+  for (int i = 0; i < uCount; i++) {
+    CComPtr<IUnknown> pSymbolUnk;
+    CComPtr<IDiaSymbol> pSymbol;
+    CComVariant pValue;
+    CComBSTR pName;
+    VERIFY_SUCCEEDED(pSymbolTable->Item(i, &pSymbolUnk));
+    VERIFY_SUCCEEDED(pSymbolUnk->QueryInterface(&pSymbol));
+    VERIFY_SUCCEEDED(pSymbol->get_name(&pName));
+    VERIFY_SUCCEEDED(pSymbol->get_value(&pValue));
+    if (pName == "hlslTarget") {
+      if (pValue.vt == VT_BSTR)
+        Target = pValue.bstrVal;
+    }
+    else if (pName == "hlslEntry") {
+      if (pValue.vt == VT_BSTR)
+        Entry = pValue.bstrVal;
+    }
+    else if (pName == "hlslFlags") {
+      if (pValue.vt == VT_BSTR)
+        Flags = ReadNullSeparatedTokens(pValue.bstrVal);
+    }
+    else if (pName == "hlslArguments") {
+      if (pValue.vt == VT_BSTR)
+        Args = pValue.bstrVal;
+    }
+    else if (pName == "hlslDefines") {
+      if (pValue.vt == VT_BSTR)
+        Defines = ReadNullSeparatedTokens(pValue.bstrVal);
+    }
+  }
+
+  auto VectorContains = [](std::vector<std::wstring> &Tokens, std::wstring Sub) {
+    for (unsigned i = 0; i < Tokens.size(); i++) {
+      if (Tokens[i].find(Sub) != std::wstring::npos)
+        return true;
+    }
+    return false;
+  };
+
+  VERIFY_IS_TRUE(Target == L"ps_6_0");
+  VERIFY_IS_TRUE(Entry == L"main");
+
+  VERIFY_IS_TRUE(_countof(FlagList) == Flags.size());
+  for (unsigned i = 0; i < _countof(FlagList); i++) {
+    VERIFY_IS_TRUE(Flags[i] == FlagList[i]);
+  }
+  for (unsigned i = 0; i < _countof(DefineList); i++) {
+    VERIFY_IS_TRUE(VectorContains(Defines, DefineList[i]));
+  }
+}
+
+TEST_F(CompilerTest, DiaLoadBitcodePlusExtraData) {
+  // Test that dia doesn't crash when bitcode has unused extra data at the end
+
+  static const char source[] = R"(
+    SamplerState  samp0 : register(s0);
+    Texture2DArray tex0 : register(t0);
+
+    float4 foo(Texture2DArray textures[], int idx, SamplerState samplerState, float3 uvw) {
+      return textures[NonUniformResourceIndex(idx)].Sample(samplerState, uvw);
+    }
+
+    [RootSignature( "DescriptorTable(SRV(t0)), DescriptorTable(Sampler(s0)) " )]
+    float4 main(int index : INDEX, float3 uvw : TEXCOORD) : SV_Target {
+      Texture2DArray textures[] = {
+        tex0,
+      };
+      return foo(textures, index, samp0, uvw);
+    }
+  )";
+
+  CComPtr<IDxcBlob> pPart;
+  CComPtr<IDiaDataSource> pDiaSource;
+  CComPtr<IStream> pStream;
+
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  CompileAndGetDebugPart(m_dllSupport, source, L"ps_6_0", &pPart);
+  const char *pPartData = (char *)pPart->GetBufferPointer();
+  const size_t uPartSize = pPart->GetBufferSize();
+
+  // Get program header
+  const hlsl::DxilProgramHeader *programHeader = (hlsl::DxilProgramHeader *)pPartData;
+
+  const char *pBitcode = nullptr;
+  uint32_t uBitcodeSize = 0;
+  hlsl::GetDxilProgramBitcode(programHeader, &pBitcode, &uBitcodeSize);
+
+  llvm::SmallVector<char, 0> buffer;
+  llvm::raw_svector_ostream OS(buffer);
+
+  // Write the bitcode
+  OS.write(pBitcode, uBitcodeSize);
+  for (unsigned i = 0; i < 12; i++) {
+    OS.write(0xFF);
+  }
+  OS.flush();
+
+  // Try to load this new program, make sure dia is still okay.
+  CComPtr<IDxcBlobEncoding> pNewProgramBlob;
+  VERIFY_SUCCEEDED(pLib->CreateBlobWithEncodingFromPinned(buffer.data(), buffer.size(), CP_ACP, &pNewProgramBlob));
+
+  CComPtr<IStream> pNewProgramStream;
+  VERIFY_SUCCEEDED(pLib->CreateStreamFromBlobReadOnly(pNewProgramBlob, &pNewProgramStream));
+
+  CComPtr<IDiaDataSource> pDiaDataSource;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcDiaDataSource, &pDiaDataSource));
+
+  VERIFY_SUCCEEDED(pDiaDataSource->loadDataFromIStream(pNewProgramStream));
 }
 
 TEST_F(CompilerTest, DiaLoadDebugThenOK) {
@@ -2349,6 +2810,117 @@ TEST_F(CompilerTest, DiaTableIndexThenOK) {
   VERIFY_FAILED(pEnumTables->Item(vtIndex, &pTable));
 }
 #endif // _WIN32 - exclude dia stuff
+
+#ifdef _WIN32
+TEST_F(CompilerTest, PixDebugCompileInfo) {
+  static const char source[] = R"(
+    SamplerState  samp0 : register(s0);
+    Texture2DArray tex0 : register(t0);
+
+    float4 foo(Texture2DArray textures[], int idx, SamplerState samplerState, float3 uvw) {
+      return textures[NonUniformResourceIndex(idx)].Sample(samplerState, uvw);
+    }
+
+    [RootSignature( "DescriptorTable(SRV(t0)), DescriptorTable(Sampler(s0)) " )]
+    float4 main(int index : INDEX, float3 uvw : TEXCOORD) : SV_Target {
+      Texture2DArray textures[] = {
+        tex0,
+      };
+      return foo(textures, index, samp0, uvw);
+    }
+  )";
+
+  CComPtr<IDxcBlob> pPart;
+  CComPtr<IDiaDataSource> pDiaSource;
+  CComPtr<IStream> pStream;
+
+  CComPtr<IDxcLibrary> pLib;
+  VERIFY_SUCCEEDED(m_dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+
+  const WCHAR *FlagList[] = {
+      L"/Zi",          L"-Zpr", L"/Qembed_debug",        L"/Fd",
+      L"F:\\my dir\\", L"-Fo",  L"F:\\my dir\\file.dxc",
+  };
+  const WCHAR *DefineList[] = {
+      L"MY_SPECIAL_DEFINE",
+      L"MY_OTHER_SPECIAL_DEFINE=\"MY_STRING\"",
+  };
+
+  std::vector<LPCWSTR> args;
+  for (unsigned i = 0; i < _countof(FlagList); i++) {
+    args.push_back(FlagList[i]);
+  }
+  for (unsigned i = 0; i < _countof(DefineList); i++) {
+    args.push_back(L"/D");
+    args.push_back(DefineList[i]);
+  }
+
+  auto CompileAndGetDebugPart = [&args](dxc::DxcDllSupport &dllSupport,
+                                        const char *source, wchar_t *profile,
+                                        IDxcBlob **ppDebugPart) {
+    CComPtr<IDxcBlob> pContainer;
+    CComPtr<IDxcLibrary> pLib;
+    CComPtr<IDxcContainerReflection> pReflection;
+    UINT32 index;
+
+    VerifyCompileOK(dllSupport, source, profile, args, &pContainer);
+    VERIFY_SUCCEEDED(dllSupport.CreateInstance(CLSID_DxcLibrary, &pLib));
+    VERIFY_SUCCEEDED(
+        dllSupport.CreateInstance(CLSID_DxcContainerReflection, &pReflection));
+    VERIFY_SUCCEEDED(pReflection->Load(pContainer));
+    VERIFY_SUCCEEDED(
+        pReflection->FindFirstPartKind(hlsl::DFCC_ShaderDebugInfoDXIL, &index));
+    VERIFY_SUCCEEDED(pReflection->GetPartContent(index, ppDebugPart));
+  };
+
+  constexpr wchar_t *profile = L"ps_6_0";
+  CompileAndGetDebugPart(m_dllSupport, source, profile, &pPart);
+
+  CComPtr<IStream> pNewProgramStream;
+  VERIFY_SUCCEEDED(
+      pLib->CreateStreamFromBlobReadOnly(pPart, &pNewProgramStream));
+
+  CComPtr<IDiaDataSource> pDiaDataSource;
+  VERIFY_SUCCEEDED(
+      m_dllSupport.CreateInstance(CLSID_DxcDiaDataSource, &pDiaDataSource));
+
+  VERIFY_SUCCEEDED(pDiaDataSource->loadDataFromIStream(pNewProgramStream));
+
+  CComPtr<IDiaSession> pSession;
+  VERIFY_SUCCEEDED(pDiaDataSource->openSession(&pSession));
+
+  CComPtr<IDxcPixDxilDebugInfoFactory> factory;
+  VERIFY_SUCCEEDED(pSession->QueryInterface(IID_PPV_ARGS(&factory)));
+
+  CComPtr<IDxcPixCompilationInfo> compilationInfo;
+  VERIFY_SUCCEEDED(factory->NewDxcPixCompilationInfo(&compilationInfo));
+
+  CComBSTR arguments;
+  VERIFY_SUCCEEDED(compilationInfo->GetArguments(&arguments));
+  for (unsigned i = 0; i < _countof(FlagList); i++) {
+    VERIFY_IS_TRUE(nullptr != wcsstr(arguments, FlagList[i]));
+  }
+
+  CComBSTR macros;
+  VERIFY_SUCCEEDED(compilationInfo->GetMacroDefinitions(&macros));
+  for (unsigned i = 0; i < _countof(DefineList); i++) {
+    std::wstring MacroDef = std::wstring(L"-D") + DefineList[i];
+    VERIFY_IS_TRUE(nullptr != wcsstr(macros, MacroDef.c_str()));
+  }
+
+  CComBSTR entryPointFile;
+  VERIFY_SUCCEEDED(compilationInfo->GetEntryPointFile(&entryPointFile));
+  VERIFY_ARE_EQUAL(std::wstring(L"source.hlsl"), std::wstring(entryPointFile));
+
+  CComBSTR entryPointFunction;
+  VERIFY_SUCCEEDED(compilationInfo->GetEntryPoint(&entryPointFunction));
+  VERIFY_ARE_EQUAL(std::wstring(L"main"), std::wstring(entryPointFunction));
+
+  CComBSTR hlslTarget;
+  VERIFY_SUCCEEDED(compilationInfo->GetHlslTarget(&hlslTarget));
+  VERIFY_ARE_EQUAL(std::wstring(profile), std::wstring(hlslTarget));
+}
+#endif // _WIN32 - exclude PIX stuff
 
 #ifdef _WIN32
 
@@ -2472,20 +3044,19 @@ TEST_F(CompilerTest, CodeGenLibUnusedFunc) {
 }
 
 TEST_F(CompilerTest, CodeGenRootSigProfile) {
+  if (m_ver.SkipDxilVersion(1, 5)) return;
   CodeGenTest(L"rootSigProfile.hlsl");
 }
 
 TEST_F(CompilerTest, CodeGenRootSigProfile2) {
+  if (m_ver.SkipDxilVersion(1, 5)) return;
   // TODO: Verify the result when reflect the structures.
   CodeGenTest(L"rootSigProfile2.hlsl");
 }
 
 TEST_F(CompilerTest, CodeGenRootSigProfile5) {
+  if (m_ver.SkipDxilVersion(1, 5)) return;
   CodeGenTest(L"rootSigProfile5.hlsl");
-}
-
-TEST_F(CompilerTest, CodeGenSamples){
-  CodeGenTestCheckBatchDir(L"Samples");
 }
 
 TEST_F(CompilerTest, LibGVStore) {
@@ -2560,8 +3131,8 @@ TEST_F(CompilerTest, LibGVStore) {
   CComPtr<IDxcBlobEncoding> pTextBlob;
   VERIFY_SUCCEEDED(pCompiler->Disassemble(pReassembled, &pTextBlob));
 
-  std::string Text = (const char *)pTextBlob->GetBufferPointer();
-  VERIFY_ARE_NOT_EQUAL(std::string::npos, Text.find("store"));
+  std::wstring Text = BlobToUtf16(pTextBlob);
+  VERIFY_ARE_NOT_EQUAL(std::wstring::npos, Text.find(L"store"));
 }
 
 TEST_F(CompilerTest, PreprocessWhenValidThenOK) {
@@ -2703,6 +3274,7 @@ TEST_F(CompilerTest, SubobjectCodeGenErrors) {
     { "SubobjectToExportsAssociation sea;", "1:1: error: subobject needs to be initialized" },
     { "RaytracingShaderConfig rsc;",        "1:1: error: subobject needs to be initialized" },
     { "RaytracingPipelineConfig rpc;",      "1:1: error: subobject needs to be initialized" },
+    { "RaytracingPipelineConfig1 rpc1;",    "1:1: error: subobject needs to be initialized" },
     { "TriangleHitGroup hitGt;",            "1:1: error: subobject needs to be initialized" },
     { "ProceduralPrimitiveHitGroup hitGt;", "1:1: error: subobject needs to be initialized" },
     { "GlobalRootSignature grs2 = {\"\"};", "1:29: error: empty string not expected here" },
@@ -2726,14 +3298,6 @@ TEST_F(CompilerTest, SubobjectCodeGenErrors) {
     std::string failLog(VerifyOperationFailed(pResult));
     VERIFY_ARE_NOT_EQUAL(string::npos, failLog.find(testCases[i].expectedError));
   }
-}
-
-TEST_F(CompilerTest, DebugInfo) {
-  CodeGenTestCheckBatchDir(L"debug");
-}
-
-TEST_F(CompilerTest, QuickTest) {
-  CodeGenTestCheckBatchDir(L"quick-test");
 }
 
 #ifdef _WIN32
@@ -2773,9 +3337,37 @@ TEST_F(CompilerTest, DISABLED_ManualFileCheckTest) {
 
 
 TEST_F(CompilerTest, CodeGenHashStability) {
-  CodeGenTestCheckBatchHash(L"batch");
+  CodeGenTestCheckBatchHash(L"");
 }
 
-TEST_F(CompilerTest, CodeGenBatch) {
-  CodeGenTestCheckBatchDir(L"batch");
+TEST_F(CompilerTest, BatchD3DReflect) {
+  CodeGenTestCheckBatchDir(L"d3dreflect");
+}
+
+TEST_F(CompilerTest, BatchDxil) {
+  CodeGenTestCheckBatchDir(L"dxil");
+}
+
+TEST_F(CompilerTest, BatchHLSL) {
+  CodeGenTestCheckBatchDir(L"hlsl");
+}
+
+TEST_F(CompilerTest, BatchInfra) {
+  CodeGenTestCheckBatchDir(L"infra");
+}
+
+TEST_F(CompilerTest, BatchPasses) {
+  CodeGenTestCheckBatchDir(L"passes");
+}
+
+TEST_F(CompilerTest, BatchShaderTargets) {
+  CodeGenTestCheckBatchDir(L"shader_targets");
+}
+
+TEST_F(CompilerTest, BatchValidation) {
+  CodeGenTestCheckBatchDir(L"validation");
+}
+
+TEST_F(CompilerTest, BatchSamples) {
+  CodeGenTestCheckBatchDir(L"samples");
 }

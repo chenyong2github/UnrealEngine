@@ -871,12 +871,6 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 		Profiler->StartScopedEvent(Text);
 	}
 #endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANSICHAR* Text)
@@ -890,12 +884,6 @@ void FWindowsPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 		Profiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FWindowsPlatformMisc::EndNamedEvent()
@@ -907,12 +895,6 @@ void FWindowsPlatformMisc::EndNamedEvent()
 	if (Profiler)
 	{
 		Profiler->EndScopedEvent();
-	}
-#endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputEndEvent();
 	}
 #endif
 }
@@ -1604,18 +1586,20 @@ bool FWindowsPlatformMisc::Is64bitOperatingSystem()
 #endif
 }
 
-bool FWindowsPlatformMisc::VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion)
+bool FWindowsPlatformMisc::VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion, uint32 BuildNumber)
 {
 	OSVERSIONINFOEX Version;
 	Version.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
 	Version.dwMajorVersion = MajorVersion;
 	Version.dwMinorVersion = MinorVersion;
+	Version.dwBuildNumber  = BuildNumber;
 
 	ULONGLONG ConditionMask = 0;
 	ConditionMask = VerSetConditionMask(ConditionMask, VER_MAJORVERSION, VER_GREATER_EQUAL);
 	ConditionMask = VerSetConditionMask(ConditionMask, VER_MINORVERSION, VER_GREATER_EQUAL);
+	ConditionMask = VerSetConditionMask(ConditionMask, VER_BUILDNUMBER,  VER_GREATER_EQUAL);
 
-	return !!VerifyVersionInfo(&Version, VER_MAJORVERSION | VER_MINORVERSION, ConditionMask);
+	return !!VerifyVersionInfo(&Version, VER_MAJORVERSION | VER_MINORVERSION | VER_BUILDNUMBER, ConditionMask);
 }
 
 bool FWindowsPlatformMisc::IsValidAbsolutePathFormat(const FString& Path)
@@ -1654,51 +1638,115 @@ bool FWindowsPlatformMisc::IsValidAbsolutePathFormat(const FString& Path)
 	return bIsValid;
 }
 
+static void QueryCpuInformation(uint32& OutGroupCount, uint32& OutNumaNodeCount, uint32& OutCoreCount, uint32& OutLogicalProcessorCount, bool bForceSingleNumaNode = false)
+{
+	GROUP_AFFINITY FilterGroupAffinity = {};
+
+	if (bForceSingleNumaNode)
+	{
+		PROCESSOR_NUMBER ProcessorNumber = {};
+		USHORT NodeNumber = 0;
+
+		GetThreadIdealProcessorEx(GetCurrentThread(), &ProcessorNumber);
+		GetNumaProcessorNodeEx(&ProcessorNumber, &NodeNumber);
+		GetNumaNodeProcessorMaskEx(NodeNumber, &FilterGroupAffinity);
+	}
+
+	OutGroupCount = OutNumaNodeCount = OutCoreCount = OutLogicalProcessorCount = 0;
+	uint8* BufferPtr = nullptr;
+	DWORD BufferBytes = 0;
+
+	if (false == GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) BufferPtr, &BufferBytes))
+	{
+		if (GetLastError() == ERROR_INSUFFICIENT_BUFFER)
+		{
+			BufferPtr = reinterpret_cast<uint8*>(FMemory::Malloc(BufferBytes));
+
+			if (GetLogicalProcessorInformationEx(RelationAll, (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) BufferPtr, &BufferBytes))
+			{
+				uint8* InfoPtr = BufferPtr;
+
+				while (InfoPtr < BufferPtr + BufferBytes)
+				{
+					PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX ProcessorInfo = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION_EX) InfoPtr;
+
+					if (nullptr == ProcessorInfo)
+					{
+						break;
+					}
+
+					if (ProcessorInfo->Relationship == RelationProcessorCore)
+					{
+						if (bForceSingleNumaNode)
+						{
+							for (int GroupIdx = 0; GroupIdx < ProcessorInfo->Processor.GroupCount; ++GroupIdx)
+							{
+								if (FilterGroupAffinity.Group == ProcessorInfo->Processor.GroupMask[GroupIdx].Group)
+								{
+									KAFFINITY Intersection = FilterGroupAffinity.Mask & ProcessorInfo->Processor.GroupMask[GroupIdx].Mask;
+
+									if (Intersection > 0)
+									{
+										OutCoreCount++;
+
+										OutLogicalProcessorCount += FMath::CountBits(Intersection);
+									}
+								}
+							}
+						}
+						else
+						{
+							OutCoreCount++;
+
+							for (int GroupIdx = 0; GroupIdx < ProcessorInfo->Processor.GroupCount; ++GroupIdx)
+							{
+								OutLogicalProcessorCount += FMath::CountBits(ProcessorInfo->Processor.GroupMask[GroupIdx].Mask);
+							}
+						}
+					}
+					if (ProcessorInfo->Relationship == RelationNumaNode)
+					{
+						OutNumaNodeCount++;
+					}
+
+					if (ProcessorInfo->Relationship == RelationGroup)
+					{
+						OutGroupCount = ProcessorInfo->Group.ActiveGroupCount;
+					}
+
+					InfoPtr += ProcessorInfo->Size;
+				}
+			}
+
+			FMemory::Free(BufferPtr);
+		}
+	}
+}
+
 int32 FWindowsPlatformMisc::NumberOfCores()
 {
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
+		uint32 NumGroups = 0;
+		uint32 NumaNodeCount = 0;
+		uint32 NumCores = 0;
+		uint32 LogicalProcessorCount = 0;
+		QueryCpuInformation(NumGroups, NumaNodeCount, NumCores, LogicalProcessorCount);
+
 		if (FCommandLine::IsInitialized() && FParse::Param(FCommandLine::Get(), TEXT("usehyperthreading")))
 		{
-			CoreCount = NumberOfCoresIncludingHyperthreads();
+			CoreCount = LogicalProcessorCount;
 		}
 		else
 		{
-			// Get only physical cores
-			PSYSTEM_LOGICAL_PROCESSOR_INFORMATION InfoBuffer = NULL;
-			::DWORD BufferSize = 0;
-
-			// Get the size of the buffer to hold processor information.
-			::BOOL Result = GetLogicalProcessorInformation(InfoBuffer, &BufferSize);
-			check(!Result && GetLastError() == ERROR_INSUFFICIENT_BUFFER);
-			check(BufferSize > 0);
-
-			// Allocate the buffer to hold the processor info.
-			InfoBuffer = (PSYSTEM_LOGICAL_PROCESSOR_INFORMATION)FMemory::Malloc(BufferSize);
-			check(InfoBuffer);
-
-			// Get the actual information.
-			Result = GetLogicalProcessorInformation(InfoBuffer, &BufferSize);
-			check(Result);
-
-			// Count physical cores
-			const int32 InfoCount = (int32)(BufferSize / sizeof(SYSTEM_LOGICAL_PROCESSOR_INFORMATION));
-			for (int32 Index = 0; Index < InfoCount; ++Index)
-			{
-				SYSTEM_LOGICAL_PROCESSOR_INFORMATION* Info = &InfoBuffer[Index];
-				if (Info->Relationship ==  RelationProcessorCore)
-				{
-					CoreCount++;
-				}
-			}
-			FMemory::Free(InfoBuffer);
+			CoreCount = NumCores;
 		}
 
 		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
 
 		int32 LimitCount = 32768;
-		if (FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
+		if (FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
 		{
 			CoreCount = FMath::Min(CoreCount, LimitCount);
 		}
@@ -1712,15 +1760,18 @@ int32 FWindowsPlatformMisc::NumberOfCoresIncludingHyperthreads()
 	static int32 CoreCount = 0;
 	if (CoreCount == 0)
 	{
-		// Get the number of logical processors, including hyperthreaded ones.
-		SYSTEM_INFO SI;
-		GetSystemInfo(&SI);
-		CoreCount = (int32)SI.dwNumberOfProcessors;
+		uint32 NumGroups = 0;
+		uint32 NumaNodeCount = 0;
+		uint32 NumCores = 0;
+		uint32 LogicalProcessorCount = 0;
+		QueryCpuInformation(NumGroups, NumaNodeCount, NumCores, LogicalProcessorCount);
+
+		CoreCount = LogicalProcessorCount;
 
 		// Optionally limit number of threads (we don't necessarily scale super well with very high core counts)
 
 		int32 LimitCount = 32768;
-		if (FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
+		if (FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("-corelimit="), LimitCount))
 		{
 			CoreCount = FMath::Min(CoreCount, LimitCount);
 		}
@@ -1905,6 +1956,17 @@ bool FWindowsPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FSt
 	}
 
 	return Result == ERROR_SUCCESS;
+}
+
+bool FWindowsPlatformMisc::DeleteStoredSection(const FString& InStoreId, const FString& InSectionName)
+{
+	check(!InStoreId.IsEmpty());
+	check(!InSectionName.IsEmpty());
+
+	FString FullRegistryKey = FString(TEXT("Software")) / InStoreId / InSectionName;
+	FullRegistryKey = FullRegistryKey.Replace(TEXT("/"), TEXT("\\")); // we use forward slashes, but the registry needs back slashes
+
+	return ::RegDeleteTree(HKEY_CURRENT_USER, *FullRegistryKey) == ERROR_SUCCESS;
 }
 
 FString FWindowsPlatformMisc::GetDefaultLanguage()

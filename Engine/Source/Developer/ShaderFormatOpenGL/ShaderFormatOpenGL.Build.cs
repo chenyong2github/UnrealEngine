@@ -41,7 +41,7 @@ public class ShaderFormatOpenGL : ModuleRules
 
 		if (Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			PublicDelayLoadDLLs.Add("dxcompiler_sc.dll");
+			PublicDelayLoadDLLs.Add("dxcompiler.dll");
 			PublicDelayLoadDLLs.Add("ShaderConductor.dll");
 		}
 	}

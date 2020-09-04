@@ -638,6 +638,7 @@ void FFbxImporter::ReleaseScene()
 
 	// reset
 	CollisionModels.Clear();
+	CreatedObjects.Empty();
 	CurPhase = NOTSTARTED;
 	bFirstMesh = true;
 	LastMergeBonesChoice = EAppReturnType::Ok;
@@ -1124,7 +1125,7 @@ void FFbxImporter::FixMaterialClashName()
 	}
 }
 
-void FFbxImporter::EnsureNodeNameAreValid()
+void FFbxImporter::EnsureNodeNameAreValid(const FString& BaseFilename)
 {
 	const bool bKeepNamespace = GetDefault<UEditorPerProjectUserSettings>()->bKeepFbxNamespace;
 
@@ -1157,21 +1158,22 @@ void FFbxImporter::EnsureNodeNameAreValid()
 				NodeName = NodeName.Replace(TEXT(":"), TEXT("_"));
 				Node->SetName(TCHAR_TO_UTF8(*NodeName));
 			}
-			if (AllNodeName.Contains(NodeName))
+		}
+		// Do not allow node to be named same as filename as this creates problems later on (reimport)
+		if (AllNodeName.Contains(NodeName) || 0 == NodeName.Compare(BaseFilename, ESearchCase::IgnoreCase))
+		{
+			FString UniqueNodeName;
+			do
 			{
-				FString UniqueNodeName;
-				do
-				{
-					UniqueNodeName = NodeName + FString::FromInt(CurrentNameIndex++);
-				} while (AllNodeName.Contains(UniqueNodeName));
-				Node->SetName(TCHAR_TO_UTF8(*UniqueNodeName));
-				if (!GIsAutomationTesting)
-				{
-					AddTokenizedErrorMessage(
-						FTokenizedMessage::Create(EMessageSeverity::Warning,
-							FText::Format(LOCTEXT("FbxImport_NodeNameClash", "FBX File Loading: Found name clash, node '{0}' was rename '{1}'"), FText::FromString(NodeName), FText::FromString(UniqueNodeName))),
-						FFbxErrors::Generic_LoadingSceneFailed);
-				}
+				UniqueNodeName = NodeName + FString::FromInt(CurrentNameIndex++);
+			} while (AllNodeName.Contains(UniqueNodeName));
+			Node->SetName(TCHAR_TO_UTF8(*UniqueNodeName));
+			if (!GIsAutomationTesting)
+			{
+				AddTokenizedErrorMessage(
+					FTokenizedMessage::Create(EMessageSeverity::Warning,
+						FText::Format(LOCTEXT("FbxImport_NodeNameClash", "FBX File Loading: Found name clash, node '{0}' was renamed to '{1}'"), FText::FromString(NodeName), FText::FromString(UniqueNodeName))),
+					FFbxErrors::Generic_LoadingSceneFailed);
 			}
 		}
 		AllNodeName.Add(NodeName);
@@ -1260,7 +1262,8 @@ bool FFbxImporter::ImportFile(FString Filename, bool bPreventMaterialNameClash /
 	// Import the scene.
 	bStatus = Importer->Import(Scene);
 
-	EnsureNodeNameAreValid();
+	const bool bRemovePath = true;
+	EnsureNodeNameAreValid(FPaths::GetBaseFilename(Filename, bRemovePath));
 
 	//Make sure we don't have name clash for materials
 	if (bPreventMaterialNameClash)
@@ -1413,6 +1416,7 @@ bool FFbxImporter::ReadHeaderFromFile(const FString& Filename, bool bPreventMate
 //-------------------------------------------------------------------------
 bool FFbxImporter::ImportFromFile(const FString& Filename, const FString& Type, bool bPreventMaterialNameClash /*= false*/)
 {
+	FFbxScopedOperation ScopedImportOperation(this);
 	bool Result = true;
 
 
@@ -2595,31 +2599,32 @@ void FFbxImporter::RecursiveFindFbxSkelMesh(FbxNode* Node, TArray< TArray<FbxNod
 			bool bFoundCorrectLink = false;
 			for (int32 ClusterId = 0; ClusterId < ClusterCount; ++ClusterId)
 			{
-				FbxNode* Link = Deformer->GetCluster(ClusterId)->GetLink(); //Get the bone influences by this first cluster
-				Link = GetRootSkeleton(Link); // Get the skeleton root itself
+				FbxNode* RootBoneLink = Deformer->GetCluster(ClusterId)->GetLink(); //Get the bone influences by this first cluster
+				RootBoneLink = GetRootSkeleton(RootBoneLink); // Get the skeleton root itself
 
-				if (Link)
+				if (RootBoneLink)
 				{
-					int32 i;
-					for (i = 0; i < SkeletonArray.Num(); i++)
+					bool bAddedToExistingSkeleton = false;
+					for (int32 SkeletonIndex = 0; SkeletonIndex < SkeletonArray.Num(); ++SkeletonIndex)
 					{
-						if (Link == SkeletonArray[i])
+						if (RootBoneLink == SkeletonArray[SkeletonIndex])
 						{
 							// append to existed outSkelMeshArray element
-							TArray<FbxNode*>* TempArray = outSkelMeshArray[i];
+							TArray<FbxNode*>* TempArray = outSkelMeshArray[SkeletonIndex];
 							TempArray->Add(NodeToAdd);
+							bAddedToExistingSkeleton = true;
 							break;
 						}
 					}
 
 					// if there is no outSkelMeshArray element that is bind to this skeleton
 					// create new element for outSkelMeshArray
-					if (i == SkeletonArray.Num())
+					if (!bAddedToExistingSkeleton)
 					{
 						TArray<FbxNode*>* TempArray = new TArray<FbxNode*>();
 						TempArray->Add(NodeToAdd);
 						outSkelMeshArray.Add(TempArray);
-						SkeletonArray.Add(Link);
+						SkeletonArray.Add(RootBoneLink);
 						
 						if (ImportOptions->bImportScene && !ImportOptions->bTransformVertexToAbsolute)
 						{
@@ -2661,35 +2666,30 @@ void FFbxImporter::RecursiveFindFbxSkelMesh(FbxNode* Node, TArray< TArray<FbxNod
 
 	//Skeletalmesh node can have child so let's always iterate trough child
 	{
-		int32 ChildIndex;
-		TArray<FbxNode*> ChildNoScale;
-		TArray<FbxNode*> ChildScale;
+		TArray<FbxNode*> ChildScaled;
 		//Sort the node to have the one with no scaling first so we have more chance
 		//to have a root skeletal mesh with no scale. Because scene import do not support
 		//root skeletal mesh containing scale
-		for (ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex)
+		for (int32 ChildIndex = 0; ChildIndex < Node->GetChildCount(); ++ChildIndex)
 		{
 			FbxNode *ChildNode = Node->GetChild(ChildIndex);
 
 			if(!Node->GetNodeAttribute() || Node->GetNodeAttribute()->GetAttributeType() != FbxNodeAttribute::eLODGroup)
 			{
-				FbxVector4 ChildScaling = ChildNode->EvaluateLocalScaling();
 				FbxVector4 NoScale(1.0, 1.0, 1.0);
-				if(ChildScaling == NoScale)
+
+				if(ChildNode->EvaluateLocalScaling() == NoScale)
 				{
-					ChildNoScale.Add(ChildNode);
+					RecursiveFindFbxSkelMesh(ChildNode, outSkelMeshArray, SkeletonArray, ExpandLOD);
 				}
 				else
 				{
-					ChildScale.Add(ChildNode);
+					ChildScaled.Add(ChildNode);
 				}
 			}
 		}
-		for (FbxNode *ChildNode : ChildNoScale)
-		{
-			RecursiveFindFbxSkelMesh(ChildNode, outSkelMeshArray, SkeletonArray, ExpandLOD);
-		}
-		for (FbxNode *ChildNode : ChildScale)
+
+		for (FbxNode *ChildNode : ChildScaled)
 		{
 			RecursiveFindFbxSkelMesh(ChildNode, outSkelMeshArray, SkeletonArray, ExpandLOD);
 		}
@@ -2886,13 +2886,10 @@ void FFbxImporter::FillFbxSkelMeshArrayInScene(FbxNode* Node, TArray< TArray<Fbx
 		TArray<FbxNode*>* CombineNodes = new TArray<FbxNode*>();
 		for (TArray<FbxNode*> *Parts : outSkelMeshArray)
 		{
-			for (FbxNode* TmpNode : (*Parts))
-			{
-				CombineNodes->Add(TmpNode);
-			}
+			CombineNodes->Append(*Parts);
 			delete Parts;
 		}
-		outSkelMeshArray.Empty();
+		outSkelMeshArray.Empty(1);
 		outSkelMeshArray.Add(CombineNodes);
 	}
 }

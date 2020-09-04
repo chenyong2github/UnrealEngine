@@ -6,6 +6,7 @@
 #include "Common/SlabAllocator.h"
 #include "Common/PagedArray.h"
 #include "Containers/Map.h"
+#include "Containers/StringView.h"
 
 namespace Trace
 {
@@ -15,6 +16,7 @@ class FStringStore
 public:
 	FStringStore(FSlabAllocator& Allocator);
 	const TCHAR* Store(const TCHAR* String);
+	const TCHAR* Store(const FStringView& String);
 
 private:
 	enum

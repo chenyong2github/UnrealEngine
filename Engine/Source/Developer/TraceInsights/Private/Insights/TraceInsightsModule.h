@@ -15,6 +15,7 @@ namespace Trace
 
 class SDockTab;
 class FSpawnTabArgs;
+class SWindow;
 
 /**
  * Implements the Trace Insights module.
@@ -39,19 +40,21 @@ public:
 	virtual void CreateSessionViewer(bool bAllowDebugTools) override;
 
 	virtual TSharedPtr<const Trace::IAnalysisSession> GetAnalysisSession() const override;
-	virtual void StartAnalysisForTrace(uint32 InTraceId) override;
+	virtual void StartAnalysisForTrace(uint32 InTraceId, bool InAutoQuit = false) override;
 	virtual void StartAnalysisForLastLiveSession() override;
-	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile) override;
+	virtual void StartAnalysisForTraceFile(const TCHAR* InTraceFile, bool InAutoQuit = false) override;
 
 	virtual void ShutdownUserInterface() override;
+
+	virtual void RegisterComponent(TSharedPtr<IInsightsComponent> Component) override;
+	virtual void UnregisterComponent(TSharedPtr<IInsightsComponent> Component) override;
 
 	virtual void RegisterMajorTabConfig(const FName& InMajorTabId, const FInsightsMajorTabConfig& InConfig) override;
 	virtual void UnregisterMajorTabConfig(const FName& InMajorTabId) override;
 	virtual FOnInsightsMajorTabCreated& OnMajorTabCreated() override { return OnInsightsMajorTabCreatedDelegate; }
 	virtual FOnRegisterMajorTabExtensions& OnRegisterMajorTabExtension(const FName& InMajorTabId) override;
 
-	/** Find a major tab config for the specified id. */
-	const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const;
+	virtual const FInsightsMajorTabConfig& FindMajorTabConfig(const FName& InMajorTabId) const override;
 
 	const FOnRegisterMajorTabExtensions* FindMajorTabLayoutExtension(const FName& InMajorTabId) const;
 
@@ -60,6 +63,10 @@ public:
 
 	/** Set the ini path for saving persistent layout data. */
 	virtual void SetUnrealInsightsLayoutIni(const FString& InIniPath) override;
+
+	virtual void ScheduleCommand(const FString& InCmd) override;
+
+	virtual void InitializeTesting(bool InInitAutomationModules, bool InAutoQuit) override;
 
 protected:
 	void InitTraceStore();
@@ -73,30 +80,13 @@ protected:
 	/** Callback called when a major tab is closed. */
 	void OnTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
 
-	/** Callback called when the Timing Profiler major tab is closed. */
-	void OnTimingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Loading Profiler major tab is closed. */
-	void OnLoadingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
-	/** Callback called when the Networking Profiler major tab is closed. */
-	void OnNetworkingProfilerTabBeingClosed(TSharedRef<SDockTab> TabBeingClosed);
-
 	/** Start Page */
 	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
 
 	/** Session Info */
 	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);
 
-	/** Timing Profiler */
-	TSharedRef<SDockTab> SpawnTimingProfilerTab(const FSpawnTabArgs& Args);
-
-	/** Loading Profiler */
-	TSharedRef<SDockTab> SpawnLoadingProfilerTab(const FSpawnTabArgs& Args);
-
-	/** Networking Profiler */
-	TSharedRef<SDockTab> SpawnNetworkingProfilerTab(const FSpawnTabArgs& Args);
-
+	void OnWindowClosedEvent(const TSharedRef<SWindow>&);
 protected:
 	TUniquePtr<Trace::FStoreService> StoreService;
 
@@ -110,4 +100,6 @@ protected:
 
 	TSharedPtr<FTabManager::FLayout> PersistentLayout;
 	static FString UnrealInsightsLayoutIni;
+
+	TArray<TSharedRef<IInsightsComponent>> Components;
 };

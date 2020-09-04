@@ -41,6 +41,8 @@ public:
 	void RHIBeginFrame() final override;
 	void RHIEndFrame() final override;
 
+	virtual void SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) = 0;
+
 	void RHIWaitComputeFence(FRHIComputeFence* InFence) final override;
 
 	virtual void UpdateMemoryStats();
@@ -280,7 +282,7 @@ public:
 	virtual void RHISetStreamSource(uint32 StreamIndex, FRHIVertexBuffer* VertexBuffer, uint32 Offset) final override;
 	virtual void RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ) final override;
 	virtual void RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY) final override;
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState) final override;
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState, bool bApplyAdditionalState) final override;
 	virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) final override;
 	virtual void RHISetShaderSampler(FRHIGraphicsShader* Shader, uint32 SamplerIndex, FRHISamplerState* NewState) final override;
 	virtual void RHISetShaderResourceViewParameter(FRHIGraphicsShader* Shader, uint32 SamplerIndex, FRHIShaderResourceView* SRV) final override;
@@ -288,8 +290,8 @@ public:
 	virtual void RHISetShaderParameter(FRHIGraphicsShader* Shader, uint32 BufferIndex, uint32 BaseIndex, uint32 NumBytes, const void* NewValue) final override;
 	virtual void RHISetStencilRef(uint32 StencilRef) final override;
 	virtual void RHISetBlendFactor(const FLinearColor& BlendFactor) final override;
-	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) final override;
-	virtual void RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo) final override;
+	virtual void SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) final override;
+	void SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo);
 	virtual void RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil) final override;
 	virtual void RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances) final override;
 	virtual void RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset) final override;
@@ -306,22 +308,71 @@ public:
 
 	virtual void RHIClearMRTImpl(bool bClearColor, int32 NumClearColors, const FLinearColor* ColorArray, bool bClearDepth, float Depth, bool bClearStencil, uint32 Stencil);
 
-	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) final override
+
+	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
 	{
-		IRHICommandContext::RHIBeginRenderPass(InInfo, InName);
+		if (InInfo.bGeneratingMips)
+		{
+			FRHITexture* Textures[MaxSimultaneousRenderTargets];
+			FRHITexture** LastTexture = Textures;
+			for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
+			{
+				if (!InInfo.ColorRenderTargets[Index].RenderTarget)
+				{
+					break;
+				}
+
+				*LastTexture = InInfo.ColorRenderTargets[Index].RenderTarget;
+				++LastTexture;
+			}
+
+			//Use RWBarrier since we don't transition individual subresources.  Basically treat the whole texture as R/W as we walk down the mip chain.
+			int32 NumTextures = (int32)(LastTexture - Textures);
+			if (NumTextures)
+			{
+				RHITransitionResources(EResourceTransitionAccess::ERWSubResBarrier, Textures, NumTextures);
+			}
+		}
+
+		FRHISetRenderTargetsInfo RTInfo;
+		InInfo.ConvertToRenderTargetsInfo(RTInfo);
+		SetRenderTargetsAndClear(RTInfo);
+
+		RenderPassInfo = InInfo;
+
 		if (InInfo.bOcclusionQueries)
 		{
 			RHIBeginOcclusionQueryBatch(InInfo.NumOcclusionQueries);
 		}
 	}
 
-	virtual void RHIEndRenderPass() final override
+	virtual void RHIEndRenderPass()
 	{
 		if (RenderPassInfo.bOcclusionQueries)
 		{
 			RHIEndOcclusionQueryBatch();
 		}
-		IRHICommandContext::RHIEndRenderPass();
+
+		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
+		{
+			if (!RenderPassInfo.ColorRenderTargets[Index].RenderTarget)
+			{
+				break;
+			}
+			if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
+			{
+				RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
+			}
+		}
+
+		if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
+		{
+			RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
+		}
+
+		FRHIRenderTargetView RTV(nullptr, ERenderTargetLoadAction::ENoAction);
+		FRHIDepthRenderTargetView DepthRTV(nullptr, ERenderTargetLoadAction::ENoAction, ERenderTargetStoreAction::ENoAction);
+		SetRenderTargets(1, &RTV, &DepthRTV);
 	}
 
 	// When using Alternate Frame Rendering some temporal effects i.e. effects which consume GPU work from previous frames must synchronize their resources
@@ -372,40 +423,19 @@ public:
 		uint32 UserData) final override;
 #endif // D3D12_RHI_RAYTRACING
 
-	template<typename ObjectType, typename RHIType, typename Predicate>
-	static FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject, Predicate Func)
-	{
-		ObjectType* Object = FD3D12DynamicRHI::ResourceCast(RHIObject);
-#if WITH_MGPU
-		if (Object && GNumExplicitGPUsForRendering > 1)
-		{
-			while (Object && !Func(Object))
-			{
-				Object = Object->GetNextObject();
-			}
-			check(Object)
-		}
-#endif // WITH_MGPU
-		return Object;
-	}
-
 	template<typename ObjectType, typename RHIType>
-	static FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject, FD3D12Device* Device)
+	static FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject, uint32 GPUIndex)
 	{
-		return RetrieveObject<ObjectType, RHIType>(RHIObject, [&](ObjectType* Object)
-		{
-			return Object->GetParentDevice() == Device;
-		});
+		return FD3D12DynamicRHI::ResourceCast(RHIObject, GPUIndex);
 	}
 
 	template<typename ObjectType, typename RHIType>
 	FORCEINLINE_DEBUGGABLE ObjectType* RetrieveObject(RHIType RHIObject)
 	{
-		return RetrieveObject<ObjectType, RHIType>(RHIObject, GetParentDevice());
+		return RetrieveObject<ObjectType, RHIType>(RHIObject, GetGPUIndex());
 	}
 
-	template<typename Predicate>
-	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, Predicate Func)
+	static inline FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture, uint32 GPUIndex)
 	{
 		// If it's the dummy backbuffer then swap with actual current RHI backbuffer right now
 		FRHITexture* RHITexture = Texture;
@@ -416,29 +446,12 @@ public:
 			RHITexture = BufferBufferReferenceTexture->IsSDR() ? ViewPort->GetSDRBackBuffer_RHIThread() : ViewPort->GetBackBuffer_RHIThread();
 		}
 
-		FD3D12TextureBase* Result = Texture ? (FD3D12TextureBase*)RHITexture->GetTextureBaseRHI() : nullptr;
-#if WITH_MGPU
-		if (Result && GNumExplicitGPUsForRendering > 1)
-		{
-			if (Result->GetBaseShaderResource() != Result)
-			{
-				Result = (FD3D12TextureBase*)Result->GetBaseShaderResource();
-			}
-			while (Result && !Func(Result->GetParentDevice()))
-			{
-				Result = Result->GetNextObject();
-			}
-		}
-#endif // WITH_MGPU
-		return Result;
+		return RHITexture ? static_cast<FD3D12TextureBase*>(RHITexture->GetTextureBaseRHI())->GetLinkedObject(GPUIndex) : nullptr;
 	}
 
 	FORCEINLINE_DEBUGGABLE FD3D12TextureBase* RetrieveTextureBase(FRHITexture* Texture)
 	{
-		return RetrieveTextureBase(Texture, [&](FD3D12Device* Device)
-		{
-			return Device == GetParentDevice();
-		});
+		return RetrieveTextureBase(Texture, GetGPUIndex());
 	}
 
 	uint32 GetGPUIndex() const { return GPUMask.ToIndex(); }
@@ -586,6 +599,10 @@ public:
 	{
 		ContextRedirect(RHICopyToResolveTarget(SourceTexture, DestTexture, ResolveParams));
 	}
+	FORCEINLINE virtual void RHICopyTexture(FRHITexture* SourceTextureRHI, FRHITexture* DestTextureRHI, const FRHICopyTextureInfo& CopyInfo) final override
+	{
+		ContextRedirect(RHICopyTexture(SourceTextureRHI, DestTextureRHI, CopyInfo));
+	}
 	FORCEINLINE virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures) final override
 	{
 		ContextRedirect(RHITransitionResources(TransitionType, InTextures, NumTextures));
@@ -622,9 +639,9 @@ public:
 	{
 		ContextRedirect(RHISetScissorRect(bEnable, MinX, MinY, MaxX, MaxY));
 	}
-	FORCEINLINE void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState) final override
+	FORCEINLINE void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsPipelineState, bool bApplyAdditionalState) final override
 	{
-		ContextRedirect(RHISetGraphicsPipelineState(GraphicsPipelineState));
+		ContextRedirect(RHISetGraphicsPipelineState(GraphicsPipelineState, bApplyAdditionalState));
 	}
 	FORCEINLINE virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) final override
 	{
@@ -658,13 +675,13 @@ public:
 	{
 		ContextRedirect(RHISetBlendFactor(BlendFactor));
 	}
-	FORCEINLINE virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) final override
+	FORCEINLINE virtual void SetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) final override
 	{
-		ContextRedirect(RHISetRenderTargets(NumSimultaneousRenderTargets, NewRenderTargets, NewDepthStencilTarget));
+		ContextRedirect(SetRenderTargets(NumSimultaneousRenderTargets, NewRenderTargets, NewDepthStencilTarget));
 	}
-	FORCEINLINE virtual void RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo) final override
+	FORCEINLINE void SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 	{
-		ContextRedirect(RHISetRenderTargetsAndClear(RenderTargetsInfo));
+		ContextRedirect(SetRenderTargetsAndClear(RenderTargetsInfo));
 	}
 	FORCEINLINE virtual void RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil) final override
 	{
@@ -777,6 +794,11 @@ public:
 		uint32 UserData) final override
 	{
 		ContextRedirect(RHISetRayTracingHitGroup(Scene, InstanceIndex, SegmentIndex, ShaderSlot, Pipeline, HitGroupIndex, NumUniformBuffers, UniformBuffers, LooseParameterDataSize, LooseParameterData, UserData));
+	}
+
+	virtual void RHISetRayTracingHitGroups(FRHIRayTracingScene* Scene, FRHIRayTracingPipelineState* Pipeline, uint32 NumBindings, const FRayTracingLocalShaderBindings* Bindings) final override
+	{
+		ContextRedirect(RHISetRayTracingHitGroups(Scene, Pipeline, NumBindings, Bindings));
 	}
 
 	virtual void RHISetRayTracingCallableShader(

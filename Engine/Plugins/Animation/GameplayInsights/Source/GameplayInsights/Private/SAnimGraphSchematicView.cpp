@@ -663,6 +663,7 @@ void SAnimGraphSchematicView::RefreshNodes()
 										}
 									}
 								}
+								return Trace::EEventEnumerate::Continue;
 							});
 						});
 
@@ -718,8 +719,10 @@ void SAnimGraphSchematicView::RefreshNodes()
 								ExistingNode->KeysAndValues.Add(Key, SharedMessage);
 								ExistingNode->Values.Add(SharedMessage);
 							}
+							return Trace::EEventEnumerate::Continue;
 						});
 					});
+					return Trace::EEventEnumerate::Continue;
 				});
 			};
 		});

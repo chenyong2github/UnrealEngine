@@ -189,7 +189,12 @@ void AGameModeBase::StartPlay()
 
 bool AGameModeBase::HasMatchStarted() const
 {
-	return GameState->HasMatchStarted();
+	return GameState && GameState->HasMatchStarted();
+}
+
+bool AGameModeBase::HasMatchEnded() const
+{
+	return GameState && GameState->HasMatchEnded();
 }
 
 bool AGameModeBase::SetPause(APlayerController* PC, FCanUnpause CanUnpauseDelegate /*= FCanUnpause()*/)

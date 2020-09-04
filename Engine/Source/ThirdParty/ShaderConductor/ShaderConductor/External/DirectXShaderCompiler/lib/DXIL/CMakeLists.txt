@@ -9,6 +9,7 @@ add_llvm_library(LLVMDXIL
   DxilOperations.cpp
   DxilResource.cpp
   DxilResourceBase.cpp
+  DxilResourceProperties.cpp
   DxilSampler.cpp
   DxilSemantic.cpp
   DxilShaderFlags.cpp
@@ -18,6 +19,7 @@ add_llvm_library(LLVMDXIL
   DxilSubobject.cpp
   DxilTypeSystem.cpp
   DxilUtil.cpp
+  DxilPDB.cpp
 
   ADDITIONAL_HEADER_DIRS
   ${LLVM_MAIN_INCLUDE_DIR}/llvm/IR

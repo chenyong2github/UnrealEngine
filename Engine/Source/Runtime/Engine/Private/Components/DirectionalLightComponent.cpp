@@ -882,7 +882,7 @@ private:
 				FadeExtension *= FMath::Clamp(CVarRtdfFarTransitionScale.GetValueOnAnyThread(), 0.0f, 1.0f);
 			}
 			// For the last cascade, we want to fade out to avoid a hard line, since there is no further cascade to overlap with, 
-			// extending the far makes little sensse as extending the shadow range would be counter intuitive and affect performance. 
+			// extending the far makes little sense as extending the shadow range would be counter intuitive and affect performance. 
 			// Thus, move the fade plane closer:
 			FadePlane -= FadeExtension;
 		}
@@ -963,6 +963,10 @@ UDirectionalLightComponent::UDirectionalLightComponent(const FObjectInitializer&
 
 	ModulatedShadowColor = FColor(128, 128, 128);
 	ShadowAmount = 1.0f;
+
+	bUsedAsAtmosphereSunLight = false;
+	AtmosphereSunLightIndex = 0;
+	AtmosphereSunDiskColorScale = FLinearColor::White;
 
 	bCastShadowsOnClouds = 0;
 	bCastShadowsOnAtmosphere = 0;
@@ -1223,6 +1227,26 @@ void UDirectionalLightComponent::SetShadowAmount(float NewValue)
 		&& ShadowAmount != NewValue)
 	{
 		ShadowAmount = NewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UDirectionalLightComponent::SetAtmosphereSunLight(bool bNewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& bUsedAsAtmosphereSunLight != bNewValue)
+	{
+		bUsedAsAtmosphereSunLight = bNewValue;
+		MarkRenderStateDirty();
+	}
+}
+
+void UDirectionalLightComponent::SetAtmosphereSunLightIndex(int32 NewValue)
+{
+	if (AreDynamicDataChangesAllowed()
+		&& AtmosphereSunLightIndex != NewValue)
+	{
+		AtmosphereSunLightIndex = FMath::Max(0, NewValue);
 		MarkRenderStateDirty();
 	}
 }

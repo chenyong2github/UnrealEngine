@@ -85,7 +85,10 @@ static int32 FindParameterLowerBoundIndex(const FMaterialCachedParameterEntry& E
 #if WITH_EDITOR
 static int32 TryAddParameter(FMaterialCachedParameters& CachedParameters, EMaterialParameterType Type, const FMaterialParameterInfo& ParameterInfo, const FGuid& ExpressionGuid, bool bOverride = false)
 {
-	FMaterialCachedParameterEntry& Entry = CachedParameters.Entries[(int32)Type];
+	FMaterialCachedParameterEntry& Entry = Type >= EMaterialParameterType::RuntimeCount ?
+													CachedParameters.EditorOnlyEntries[static_cast<int32>(Type) - static_cast<int32>(EMaterialParameterType::RuntimeCount)] :
+													CachedParameters.RuntimeEntries[static_cast<int32>(Type)];
+
 	const FHashedName HashedName(ParameterInfo.Name);
 	int32 Index = FindParameterLowerBoundIndex(Entry, HashedName, ParameterInfo);
 
@@ -179,6 +182,26 @@ bool FMaterialCachedExpressionData::UpdateForFunction(const FMaterialCachedExpre
 			{
 				Parameters.FontValues.Insert(Param.FontValue, Index);
 				Parameters.FontPageValues.Insert(Param.FontPage, Index);
+			}
+		}
+
+		for (const FStaticSwitchParameter& Param : FunctionInstance->StaticSwitchParameterValues)
+		{
+			const FMaterialParameterInfo ParameterInfo(Param.ParameterInfo.Name, Association, ParameterIndex);
+			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticSwitch, ParameterInfo, FGuid(), true);
+			if (Index != INDEX_NONE)
+			{
+				Parameters.StaticSwitchValues.Insert(Param.Value, Index);
+			}
+		}
+
+		for (const FStaticComponentMaskParameter& Param : FunctionInstance->StaticComponentMaskParameterValues)
+		{
+			const FMaterialParameterInfo ParameterInfo(Param.ParameterInfo.Name, Association, ParameterIndex);
+			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticComponentMask, ParameterInfo, FGuid(), true);
+			if (Index != INDEX_NONE)
+			{
+				Parameters.StaticComponentMaskValues.Insert({Param.R,Param.G,Param.B,Param.A}, Index);
 			}
 		}
 	}
@@ -471,6 +494,36 @@ bool FMaterialCachedExpressionData::UpdateForExpressions(const FMaterialCachedEx
 				Parameters.RuntimeVirtualTextureValues.Insert(Value, Index);
 			}
 		}
+		else if (UMaterialExpressionStaticBoolParameter* ExpressionStaticBoolParameter = Cast<UMaterialExpressionStaticBoolParameter>(Expression))
+		{
+			const FMaterialParameterInfo ParameterInfo(ExpressionStaticBoolParameter->GetParameterName(), Association, ParameterIndex);
+			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticSwitch, ParameterInfo, ExpressionStaticBoolParameter->ExpressionGUID);
+			if (Index != INDEX_NONE)
+			{
+				bool Value = ExpressionStaticBoolParameter->DefaultValue;
+				if (Context.Parent)
+				{
+					FMaterialCachedParameterEntry& CachedEntry = Parameters.EditorOnlyEntries[static_cast<int32>(EMaterialParameterType::StaticSwitch) - static_cast<int32>(EMaterialParameterType::RuntimeCount)];
+					Context.Parent->GetStaticSwitchParameterDefaultValue(ParameterInfo, Value, CachedEntry.ExpressionGuids[Index], true);
+				}
+				Parameters.StaticSwitchValues.Insert(Value, Index);
+			}
+		}
+		else if (UMaterialExpressionStaticComponentMaskParameter* ExpressionStaticComponentMaskParameter = Cast<UMaterialExpressionStaticComponentMaskParameter>(Expression))
+		{
+			const FMaterialParameterInfo ParameterInfo(ExpressionStaticComponentMaskParameter->GetParameterName(), Association, ParameterIndex);
+			const int32 Index = TryAddParameter(Parameters, EMaterialParameterType::StaticComponentMask, ParameterInfo, ExpressionStaticComponentMaskParameter->ExpressionGUID);
+			if (Index != INDEX_NONE)
+			{
+				FStaticComponentMaskValue Value {static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultR), static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultG), static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultB), static_cast<bool>(ExpressionStaticComponentMaskParameter->DefaultA)};
+				if (Context.Parent)
+				{
+					FMaterialCachedParameterEntry& CachedEntry = Parameters.EditorOnlyEntries[static_cast<int32>(EMaterialParameterType::StaticSwitch) - static_cast<int32>(EMaterialParameterType::RuntimeCount)];
+					Context.Parent->GetStaticComponentMaskParameterDefaultValue(ParameterInfo, Value.R, Value.G, Value.B, Value.A, CachedEntry.ExpressionGuids[Index], true);
+				}
+				Parameters.StaticComponentMaskValues.Insert(Value, Index);
+			}
+		}
 		else if (UMaterialExpressionCollectionParameter* ExpressionCollectionParameter = Cast<UMaterialExpressionCollectionParameter>(Expression))
 		{
 			UMaterialParameterCollection* Collection = ExpressionCollectionParameter->Collection;
@@ -568,10 +621,16 @@ void FMaterialCachedParameterEntry::Reset()
 
 void FMaterialCachedParameters::Reset()
 {
-	for (int32 i = 0; i < NumMaterialParameterTypes; ++i)
+	for (int32 i = 0; i < NumMaterialRuntimeParameterTypes; ++i)
 	{
-		Entries[i].Reset();
+		RuntimeEntries[i].Reset();
 	}
+#if WITH_EDITORONLY_DATA
+	for (int32 i = 0; i < NumMaterialEditorOnlyParameterTypes; ++i)
+	{
+		EditorOnlyEntries[i].Reset();
+	}
+#endif
 
 	ScalarValues.Reset();
 	VectorValues.Reset();
@@ -581,6 +640,8 @@ void FMaterialCachedParameters::Reset()
 	RuntimeVirtualTextureValues.Reset();
 
 #if WITH_EDITORONLY_DATA
+	StaticSwitchValues.Reset();
+	StaticComponentMaskValues.Reset();
 	ScalarMinMaxValues.Reset();
 	ScalarCurveValues.Reset();
 	ScalarCurveAtlasValues.Reset();
@@ -606,7 +667,7 @@ int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type,
 
 int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type, const FHashedMaterialParameterInfo& ParameterInfo) const
 {
-	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	const FHashedName HashedName(ParameterInfo.GetName());
 	const int32 Index = FindParameterLowerBoundIndex(Entry, HashedName, ParameterInfo);
 	if (Index < Entry.NameHashes.Num() &&
@@ -622,13 +683,13 @@ int32 FMaterialCachedParameters::FindParameterIndex(EMaterialParameterType Type,
 
 bool FMaterialCachedParameters::IsParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly) const
 {
-	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	return !bOveriddenOnly || Entry.Overrides[Index];
 }
 
 bool FMaterialCachedParameters::IsDefaultParameterValid(EMaterialParameterType Type, int32 Index, bool bOveriddenOnly, bool bCheckOwnedGlobalOverrides) const
 {
-	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	const bool bOveridden = Entry.Overrides[Index];
 	if (!bCheckOwnedGlobalOverrides && bOveridden)
 	{
@@ -643,7 +704,7 @@ bool FMaterialCachedParameters::IsDefaultParameterValid(EMaterialParameterType T
 
 void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	const int32 NumParameters = Entry.NameHashes.Num();
 	if (bEmptyOutput)
 	{
@@ -660,7 +721,7 @@ void FMaterialCachedParameters::GetAllParameterInfoOfType(EMaterialParameterType
 
 void FMaterialCachedParameters::GetAllGlobalParameterInfoOfType(EMaterialParameterType Type, bool bEmptyOutput, TArray<FMaterialParameterInfo>& OutParameterInfo, TArray<FGuid>& OutParameterIds) const
 {
-	const FMaterialCachedParameterEntry& Entry = Entries[(int32)Type];
+	const FMaterialCachedParameterEntry& Entry = GetParameterTypeEntry(Type);
 	const int32 NumParameters = Entry.NameHashes.Num();
 	if (bEmptyOutput)
 	{

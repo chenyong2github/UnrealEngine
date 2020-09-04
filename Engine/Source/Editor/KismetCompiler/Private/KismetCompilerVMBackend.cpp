@@ -1281,7 +1281,7 @@ public:
 			Writer << FunctionName;
 		}
 		
-		const bool bIsCustomThunk = FunctionToCall->HasMetaData(TEXT("CustomThunk"));
+		const bool bIsCustomThunk = FunctionToCall->HasMetaData(FBlueprintMetadata::MD_CustomThunk);
 		// Emit function parameters
 		int32 NumParams = 0;
 		for (TFieldIterator<FProperty> PropIt(FunctionToCall); PropIt && (PropIt->PropertyFlags & CPF_Parm); ++PropIt)
@@ -1294,7 +1294,7 @@ public:
 				check(Term != NULL);
 
 				// Latent function handling:  Need to emit a fixup request into the FLatentInfo struct
- 				if (bIsUbergraph && FuncParamProperty->GetName() == FunctionToCall->GetMetaData("LatentInfo"))
+ 				if (bIsUbergraph && FuncParamProperty->GetName() == FunctionToCall->GetMetaData(FBlueprintMetadata::MD_LatentInfo))
  				{
 					EmitLatentInfoTerm(Term, FuncParamProperty, Statement.TargetLabel);
  				}

@@ -48,11 +48,15 @@ class SDataTableListViewRow : public SMultiColumnTableRow<FDataTableEditorRowLis
 {
 public:
 
-	SLATE_BEGIN_ARGS(SDataTableListViewRow) {}
+	SLATE_BEGIN_ARGS(SDataTableListViewRow)
+		: _IsEditable(true)
+	{
+	}
 	/** The owning object. This allows us access to the actual data table being edited as well as some other API functions. */
 	SLATE_ARGUMENT(TSharedPtr<FDataTableEditor>, DataTableEditor)
 		/** The row we're working with to allow us to get naming information. */
 		SLATE_ARGUMENT(FDataTableEditorRowListViewDataPtr, RowDataPtr)
+		SLATE_ARGUMENT(bool, IsEditable)
 		SLATE_END_ARGS()
 
 	void Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView);
@@ -104,6 +108,7 @@ private:
 	FDataTableEditorRowListViewDataPtr RowDataPtr;
 	TWeakPtr<FDataTableEditor> DataTableEditor;
 
+	bool IsEditable;
 	bool bIsDragDropObject;
 	bool bIsHoveredDragTarget;
 };

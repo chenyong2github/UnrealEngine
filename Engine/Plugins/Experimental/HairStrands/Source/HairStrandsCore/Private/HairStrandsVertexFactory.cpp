@@ -11,11 +11,12 @@
 #include "Rendering/ColorVertexBuffer.h"
 #include "MeshMaterialShader.h"
 #include "HairStrandsInterface.h"
+#include "GroomInstance.h"
 
 /////////////////////////////////////////////////////////////////////////////////////////
 
-template<typename T> inline void BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value)	{ if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
-template<typename T> inline void BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value)	{ if (Param.IsBound()) ShaderBindings.Add(Param, Value); }
+template<typename T> inline void VFS_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderResourceParameter& Param, T* Value)	{ if (Param.IsBound() && Value) ShaderBindings.Add(Param, Value); }
+template<typename T> inline void VFS_BindParam(FMeshDrawSingleShaderBindings& ShaderBindings, const FShaderParameter& Param, const T& Value)	{ if (Param.IsBound()) ShaderBindings.Add(Param, Value); }
 
 class FDummyCulledDispatchVertexIdsBuffer : public FVertexBuffer
 {
@@ -45,6 +46,24 @@ public:
 	}
 };
 TGlobalResource<FDummyCulledDispatchVertexIdsBuffer> GDummyCulledDispatchVertexIdsBuffer;
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
+inline FRHIShaderResourceView* GetPositionSRV(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)			{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.PositionBuffer; };
+inline FRHIShaderResourceView* GetPreviousPositionSRV(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)	{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.PrevPositionBuffer; }
+inline FRHIShaderResourceView* GetAttributeSRV(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)			{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.AttributeBuffer; }
+inline FRHIShaderResourceView* GetMaterialSRV(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)			{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.MaterialBuffer; }
+inline FRHIShaderResourceView* GetTangentSRV(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)			{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.TangentBuffer; }
+
+inline bool  UseStableRasterization(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)						{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.bUseStableRasterization; };
+inline bool  UseScatterSceneLighting(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)					{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.bScatterSceneLighting; };
+inline float GetMaxStrandRadius(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)							{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.HairRadius; };
+inline float GetMaxStrandLength(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)							{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.HairLength; };
+inline float GetHairDensity(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)								{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.HairDensity; };
+inline const FVector& GetPositionOffset(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)					{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.PositionOffset; }
+inline const FVector& GetPreviousPositionOffset(const FHairStrandsVertexFactory* VF, uint32 GroupIndex)			{ return VF->Data.Instances[GroupIndex]->HairGroupPublicData->VFInput.Strands.PrevPositionOffset; }
+
+/////////////////////////////////////////////////////////////////////////////////////////
 
 class FHairStrandsVertexFactoryShaderParameters : public FVertexFactoryShaderParameters
 {
@@ -109,32 +128,30 @@ public:
 		const FHairGroupPublicData* GroupPublicData = reinterpret_cast<const FHairGroupPublicData*>(BatchElement.VertexFactoryUserData);
 		check(GroupPublicData);
 		const uint64 GroupIndex = GroupPublicData->GetGroupIndex();
-		BindParam(ShaderBindings, PositionBuffer, VF->GetPositionSRV(GroupIndex));
-		BindParam(ShaderBindings, PreviousPositionBuffer, VF->GetPreviousPositionSRV(GroupIndex));
-		BindParam(ShaderBindings, AttributeBuffer, VF->GetAttributeSRV(GroupIndex));
-		BindParam(ShaderBindings, MaterialBuffer, VF->GetMaterialSRV(GroupIndex));
-		BindParam(ShaderBindings, TangentBuffer, VF->GetTangentSRV(GroupIndex));
-		BindParam(ShaderBindings, Radius, VF->GetMaxStrandRadius(GroupIndex));
-		BindParam(ShaderBindings, Length, VF->GetMaxStrandLength(GroupIndex));
-		BindParam(ShaderBindings, PositionOffset, VF->GetPositionOffset(GroupIndex));
-		BindParam(ShaderBindings, PreviousPositionOffset, VF->GetPreviousPositionOffset(GroupIndex));
-		BindParam(ShaderBindings, Density, VF->GetHairDensity(GroupIndex));
-		BindParam(ShaderBindings, StableRasterization, VF->UseStableRasterization(GroupIndex) ? 1u : 0u);
-		BindParam(ShaderBindings, ScatterSceneLighing, VF->UseScatterSceneLighting(GroupIndex) ? 1u : 0u);
+		VFS_BindParam(ShaderBindings, PositionBuffer, GetPositionSRV(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, PreviousPositionBuffer, GetPreviousPositionSRV(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, AttributeBuffer, GetAttributeSRV(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, MaterialBuffer, GetMaterialSRV(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, TangentBuffer, GetTangentSRV(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, Radius, GetMaxStrandRadius(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, Length, GetMaxStrandLength(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, PositionOffset, GetPositionOffset(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, PreviousPositionOffset, GetPreviousPositionOffset(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, Density, GetHairDensity(VF, GroupIndex));
+		VFS_BindParam(ShaderBindings, StableRasterization, UseStableRasterization(VF, GroupIndex) ? 1u : 0u);
+		VFS_BindParam(ShaderBindings, ScatterSceneLighing, UseScatterSceneLighting(VF, GroupIndex) ? 1u : 0u);
 		
 		FShaderResourceViewRHIRef CulledDispatchVertexIdsSRV = GDummyCulledDispatchVertexIdsBuffer.SRVUint;
 		FShaderResourceViewRHIRef CulledCompactedRadiusScaleBufferSRV = GDummyCulledDispatchVertexIdsBuffer.SRVFloat;
 
-		FHairGroupPublicData* PublicGroupData = VF->GetHairGroupPublicData(GroupIndex);
-		
-		const bool bCulling = PublicGroupData ? PublicGroupData->GetCullingResultAvailable() : false;
-		if (bCulling && PublicGroupData)
+		const bool bCulling = GroupPublicData->GetCullingResultAvailable();
+		if (bCulling)
 		{
-			CulledDispatchVertexIdsSRV = PublicGroupData->GetCulledVertexIdBuffer().SRV;
-			CulledCompactedRadiusScaleBufferSRV = PublicGroupData->GetCulledVertexRadiusScaleBuffer().SRV;
+			CulledDispatchVertexIdsSRV = GroupPublicData->GetCulledVertexIdBuffer().SRV;
+			CulledCompactedRadiusScaleBufferSRV = GroupPublicData->GetCulledVertexRadiusScaleBuffer().SRV;
 		}
 
-		BindParam(ShaderBindings, Culling, bCulling ? 1 : 0);
+		VFS_BindParam(ShaderBindings, Culling, bCulling ? 1 : 0);
 		ShaderBindings.Add(CulledVertexIdsBuffer, CulledDispatchVertexIdsSRV);
 		ShaderBindings.Add(CulledVertexRadiusScaleBuffer, CulledCompactedRadiusScaleBufferSRV);
 	}

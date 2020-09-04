@@ -76,7 +76,16 @@ protected:
 
 	UBlueprint* GetBlueprintObj() const { return Blueprint.Get(); }
 
-	void AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, FProperty* VariableProperty);
+	/**
+	* Adds any FMulticastDelegateProperties on the given details builder with either
+	* a green "+" symbol to create a bound node, or a "view" option if it already exists.
+	* 
+	* @param DetailBuilder		Details builder to add the events to
+	* @param PropertyName		Name of the selected property
+	* @param ComponentClass		The class to find any Multicast delegate properties on
+	*/
+	void AddEventsCategory(IDetailLayoutBuilder& DetailBuilder, FName PropertyName, UClass* ComponentClass);
+	
 	FReply HandleAddOrViewEventForVariable(const FName EventName, FName PropertyName, TWeakObjectPtr<UClass> PropertyClass);
 	int32 HandleAddOrViewIndexForButton(const FName EventName, FName PropertyName) const;
 
@@ -617,6 +626,9 @@ private:
 
 	/** Callback to determine if the "New" button for adding input/output pins is visible */
 	EVisibility GetAddNewInputOutputVisibility() const;
+
+	/** Callback to determine if the "new" button for adding input/output pins is enabled */
+	bool IsAddNewInputOutputEnabled() const;
 
 	EVisibility OnGetSectionTextVisibility(TWeakPtr<SWidget> RowWidget) const;
 

@@ -24,6 +24,7 @@ FTimingEventsTrack::FTimingEventsTrack()
 	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
 	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -34,6 +35,7 @@ FTimingEventsTrack::FTimingEventsTrack(const FString& InName)
 	, DrawState(MakeShared<FTimingEventsTrackDrawState>())
 	, FilteredDrawState(MakeShared<FTimingEventsTrackDrawState>())
 {
+	SetValidLocations(ETimingTrackLocation::Scrollable | ETimingTrackLocation::TopDocked | ETimingTrackLocation::BottomDocked);
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -313,15 +315,32 @@ const TSharedPtr<const ITimingEvent> FTimingEventsTrack::GetEvent(float InPosX, 
 	{
 		const int32 Depth = DY / (Layout.EventH + Layout.EventDY);
 
-		const double StartTime = Viewport.SlateUnitsToTime(InPosX) - 1.0 / Viewport.GetScaleX(); // -1px
-		const double EndTime = StartTime + 3.0 / Viewport.GetScaleX(); // +3px
-
 		auto EventFilter = [Depth](double, double, uint32 EventDepth)
 		{
 			return EventDepth == Depth;
 		};
 
-		return SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+		const double SecondsPerPixel = 1.0 / Viewport.GetScaleX();
+
+		const double StartTime0 = Viewport.SlateUnitsToTime(InPosX);
+		const double EndTime0 = StartTime0;
+		TSharedPtr<const ITimingEvent> FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime0, EndTime0, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+
+		if (!FoundEvent.IsValid())
+		{
+			const double StartTime = StartTime0;
+			const double EndTime = StartTime0 + SecondsPerPixel; // +1px
+			FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+		}
+
+		if (!FoundEvent.IsValid())
+		{
+			const double StartTime = StartTime0 - SecondsPerPixel; // -1px
+			const double EndTime = StartTime0 + 2.0 * SecondsPerPixel; // +2px
+			FoundEvent = SearchEvent(FTimingEventSearchParameters(StartTime, EndTime, ETimingEventSearchFlags::StopAtFirstMatch, EventFilter));
+		}
+
+		return FoundEvent;
 	}
 
 	return nullptr;

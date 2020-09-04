@@ -9,6 +9,7 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Text/STextBlock.h"
 #include "HAL/PlatformApplicationMisc.h"
+#include "ControlRig.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigCompilerDetails"
 
@@ -50,24 +51,40 @@ void FRigVMCompileSettingsDetails::CustomizeChildren(TSharedRef<IPropertyHandle>
 		}
 
 		StructBuilder.AddCustomRow(LOCTEXT("ASTTools", "AST Tools"))
-		.NameContent()
-		[
-			SNew(STextBlock)
-			.Text(FText::FromString(TEXT("AST")))
-			.Font(IDetailLayoutBuilder::GetDetailFont())
-		]
-		.ValueContent()
-		[
-			SNew(SButton)
-			.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyASTClicked)
-			.ContentPadding(FMargin(2))
-			.Content()
+			.NameContent()
 			[
 				SNew(STextBlock)
-				.Justification(ETextJustify::Center)
-				.Text(LOCTEXT("CopyASTToClipboard", "Copy to Clipboard"))
+				.Text(FText::FromString(TEXT("AST")))
+			.Font(IDetailLayoutBuilder::GetDetailFont())
 			]
-		];
+			.ValueContent()
+			[
+				SNew(SVerticalBox)
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyASTClicked)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("CopyASTToClipboard", "Copy AST"))
+					]
+				]
+				+ SVerticalBox::Slot()
+				[
+					SNew(SButton)
+					.OnClicked(this, &FRigVMCompileSettingsDetails::OnCopyByteCodeClicked)
+					.ContentPadding(FMargin(2))
+					.Content()
+					[
+						SNew(STextBlock)
+						.Justification(ETextJustify::Center)
+						.Text(LOCTEXT("CopyByteCodeToClipboard", "Copy ByteCode"))
+					]
+				]
+			];
 	}
 }
 
@@ -79,6 +96,22 @@ FReply FRigVMCompileSettingsDetails::OnCopyASTClicked()
 		{
 			FString DotContent = BlueprintBeingCustomized->Model->GetRuntimeAST()->DumpDot();
 			FPlatformApplicationMisc::ClipboardCopy(*DotContent);
+		}
+	}
+	return FReply::Handled();
+}
+
+FReply FRigVMCompileSettingsDetails::OnCopyByteCodeClicked()
+{
+	if (BlueprintBeingCustomized)
+	{
+		if (BlueprintBeingCustomized->Model)
+		{
+			if(UControlRig* ControlRig = Cast<UControlRig>(BlueprintBeingCustomized->GetObjectBeingDebugged()))
+			{
+				FString ByteCodeContent = ControlRig->GetVM()->DumpByteCodeAsText();
+				FPlatformApplicationMisc::ClipboardCopy(*ByteCodeContent);
+			}
 		}
 	}
 	return FReply::Handled();

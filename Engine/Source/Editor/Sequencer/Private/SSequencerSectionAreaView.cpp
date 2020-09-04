@@ -119,7 +119,7 @@ bool SSequencerSectionAreaView::GetSectionEnabled(TSharedRef<ISequencerSection> 
 
 FText SSequencerSectionAreaView::GetSectionToolTip(TSharedRef<ISequencerSection> InSequencerSection) const
 {
-	return InSequencerSection->GetSectionTitle();
+	return InSequencerSection->GetSectionToolTip();
 }
 
 

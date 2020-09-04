@@ -17,11 +17,13 @@
 #include "dxc/DXIL/DxilTypeSystem.h"
 #include "dxc/DXIL/DxilUtil.h"
 #include "dxc/DXIL/DxilFunctionProps.h"
+#include "dxc/DXIL/DxilInstructions.h"
 #include "llvm/IR/GetElementPtrTypeIterator.h"
 #include "llvm/IR/IRBuilder.h"
 #include "llvm/IR/Instructions.h"
 #include "llvm/IR/InstIterator.h"
 #include "llvm/IR/IntrinsicInst.h"
+#include "llvm/Analysis/PostDominators.h"
 #include "llvm/IR/Module.h"
 #include "llvm/IR/DebugInfo.h"
 #include "llvm/IR/PassManager.h"
@@ -246,6 +248,83 @@ void CheckInBoundForTGSM(GlobalVariable &GV, const DataLayout &DL) {
   }
 }
 
+static bool GetUnsignedVal(Value *V, uint32_t *pValue) {
+  ConstantInt *CI = dyn_cast<ConstantInt>(V);
+  if (!CI) return false;
+  uint64_t u = CI->getZExtValue();
+  if (u > UINT32_MAX) return false;
+  *pValue = (uint32_t)u;
+  return true;
+}
+
+static void MarkUsedSignatureElements(Function *F, DxilModule &DM) {
+  DXASSERT_NOMSG(F != nullptr);
+  // For every loadInput/storeOutput, update the corresponding ReadWriteMask.
+  // F is a pointer to a Function instance
+  for (llvm::inst_iterator I = llvm::inst_begin(F), E = llvm::inst_end(F); I != E; ++I) {
+    DxilInst_LoadInput LI(&*I);
+    DxilInst_StoreOutput SO(&*I);
+    DxilInst_LoadPatchConstant LPC(&*I);
+    DxilInst_StorePatchConstant SPC(&*I);
+    DxilInst_StoreVertexOutput SVO(&*I);
+    DxilInst_StorePrimitiveOutput SPO(&*I);
+    DxilSignature *pSig;
+    uint32_t col, row, sigId;
+    bool bDynIdx = false;
+    if (LI) {
+      if (!GetUnsignedVal(LI.get_inputSigId(), &sigId)) continue;
+      if (!GetUnsignedVal(LI.get_colIndex(), &col)) continue;
+      if (!GetUnsignedVal(LI.get_rowIndex(), &row)) bDynIdx = true;
+      pSig = &DM.GetInputSignature();
+    }
+    else if (SO) {
+      if (!GetUnsignedVal(SO.get_outputSigId(), &sigId)) continue;
+      if (!GetUnsignedVal(SO.get_colIndex(), &col)) continue;
+      if (!GetUnsignedVal(SO.get_rowIndex(), &row)) bDynIdx = true;
+      pSig = &DM.GetOutputSignature();
+    }
+    else if (SPC) {
+      if (!GetUnsignedVal(SPC.get_outputSigID(), &sigId)) continue;
+      if (!GetUnsignedVal(SPC.get_col(), &col)) continue;
+      if (!GetUnsignedVal(SPC.get_row(), &row)) bDynIdx = true;
+      pSig = &DM.GetPatchConstOrPrimSignature();
+    }
+    else if (LPC) {
+      if (!GetUnsignedVal(LPC.get_inputSigId(), &sigId)) continue;
+      if (!GetUnsignedVal(LPC.get_col(), &col)) continue;
+      if (!GetUnsignedVal(LPC.get_row(), &row)) bDynIdx = true;
+      pSig = &DM.GetPatchConstOrPrimSignature();
+    }
+    else if (SVO) {
+      if (!GetUnsignedVal(SVO.get_outputSigId(), &sigId)) continue;
+      if (!GetUnsignedVal(SVO.get_colIndex(), &col)) continue;
+      if (!GetUnsignedVal(SVO.get_rowIndex(), &row)) bDynIdx = true;
+      pSig = &DM.GetOutputSignature();
+    }
+    else if (SPO) {
+      if (!GetUnsignedVal(SPO.get_outputSigId(), &sigId)) continue;
+      if (!GetUnsignedVal(SPO.get_colIndex(), &col)) continue;
+      if (!GetUnsignedVal(SPO.get_rowIndex(), &row)) bDynIdx = true;
+      pSig = &DM.GetPatchConstOrPrimSignature();
+    }
+    else {
+      continue;
+    }
+
+    // Consider being more fine-grained about masks.
+    // We report sometimes-read on input as always-read.
+    auto &El = pSig->GetElement(sigId);
+    unsigned UsageMask = El.GetUsageMask();
+    unsigned colBit = 1 << col;
+    if (!(colBit & UsageMask)) {
+      El.SetUsageMask(UsageMask | colBit);
+    }
+    if (bDynIdx && (El.GetDynIdxCompMask() & colBit) == 0) {
+      El.SetDynIdxCompMask(El.GetDynIdxCompMask() | colBit);
+    }
+  }
+}
+
 class DxilFinalizeModule : public ModulePass {
 public:
   static char ID; // Pass identification, replacement for typeid
@@ -280,23 +359,49 @@ public:
     }
   }
 
+  void patchDxil_1_6(Module &M, hlsl::OP *hlslOP) {
+    for (auto it : hlslOP->GetOpFuncList(DXIL::OpCode::AnnotateHandle)) {
+      Function *F = it.second;
+      if (!F)
+        continue;
+      for (auto uit = F->user_begin(); uit != F->user_end();) {
+        CallInst *CI = cast<CallInst>(*(uit++));
+        DxilInst_AnnotateHandle annoteHdl(CI);
+        Value *hdl = annoteHdl.get_res();
+        CI->replaceAllUsesWith(hdl);
+        CI->eraseFromParent();
+      }
+    }
+  }
+
   bool runOnModule(Module &M) override {
     if (M.HasDxilModule()) {
       DxilModule &DM = M.GetDxilModule();
+      unsigned ValMajor = 0;
+      unsigned ValMinor = 0;
+      M.GetDxilModule().GetValidatorVersion(ValMajor, ValMinor);
+      unsigned DxilMajor = 0;
+      unsigned DxilMinor = 0;
+      M.GetDxilModule().GetDxilVersion(DxilMajor, DxilMinor);
 
       bool IsLib = DM.GetShaderModel()->IsLib();
       // Skip validation patch for lib.
       if (!IsLib) {
-        unsigned ValMajor = 0;
-        unsigned ValMinor = 0;
-        M.GetDxilModule().GetValidatorVersion(ValMajor, ValMinor);
         if (ValMajor == 1 && ValMinor <= 1) {
           patchValidation_1_1(M);
         }
+
+        // Set used masks for signature elements
+        MarkUsedSignatureElements(DM.GetEntryFunction(), DM);
+        if (DM.GetShaderModel()->IsHS())
+          MarkUsedSignatureElements(DM.GetPatchConstantFunction(), DM);
       }
 
       // Remove store undef output.
       hlsl::OP *hlslOP = M.GetDxilModule().GetOP();
+      if (DxilMinor < 6) {
+        patchDxil_1_6(M, hlslOP);
+      }
       RemoveStoreUndefOutput(M, hlslOP);
 
       RemoveUnusedStaticGlobal(M);
@@ -318,6 +423,14 @@ public:
 
       // Clear intermediate options that shouldn't be in the final DXIL
       DM.ClearIntermediateOptions();
+
+      // Remove unused AllocateRayQuery calls
+      RemoveUnusedRayQuery(M);
+
+      if (IsLib && DXIL::CompareVersions(ValMajor, ValMinor, 1, 4) <= 0) {
+        // 1.4 validator requires function annotations for all functions
+        AddFunctionAnnotationForInitializers(M, DM);
+      }
 
       return true;
     }
@@ -466,6 +579,42 @@ private:
         Function *NewEntry = StripFunctionParameter(OldEntry, DM, FunctionDIs);
         if (NewEntry) OldEntry->eraseFromParent();
       }
+    }
+  }
+
+  void AddFunctionAnnotationForInitializers(Module &M, DxilModule &DM) {
+    if (GlobalVariable *GV = M.getGlobalVariable("llvm.global_ctors")) {
+      ConstantArray *init = cast<ConstantArray>(GV->getInitializer());
+      for (auto V : init->operand_values()) {
+        if (isa<ConstantAggregateZero>(V))
+          continue;
+        ConstantStruct *CS = cast<ConstantStruct>(V);
+        if (isa<ConstantPointerNull>(CS->getOperand(1)))
+          continue;
+        Function *F = cast<Function>(CS->getOperand(1));
+        if (DM.GetTypeSystem().GetFunctionAnnotation(F) == nullptr)
+          DM.GetTypeSystem().AddFunctionAnnotation(F);
+      }
+    }
+  }
+
+  void RemoveUnusedRayQuery(Module &M) {
+    hlsl::OP *hlslOP = M.GetDxilModule().GetOP();
+    llvm::Function *AllocFn = hlslOP->GetOpFunc(
+      DXIL::OpCode::AllocateRayQuery, Type::getVoidTy(M.getContext()));
+    SmallVector<CallInst*, 4> DeadInsts;
+    for (auto U : AllocFn->users()) {
+      if (CallInst *CI = dyn_cast<CallInst>(U)) {
+        if (CI->user_empty()) {
+          DeadInsts.emplace_back(CI);
+        }
+      }
+    }
+    for (auto CI : DeadInsts) {
+      CI->eraseFromParent();
+    }
+    if (AllocFn->user_empty()) {
+      AllocFn->eraseFromParent();
     }
   }
 };
@@ -767,3 +916,110 @@ ModulePass *llvm::createDxilEmitMetadataPass() {
 }
 
 INITIALIZE_PASS(DxilEmitMetadata, "hlsl-dxilemit", "HLSL DXIL Metadata Emit", false, false)
+
+///////////////////////////////////////////////////////////////////////////////
+
+namespace {
+
+const StringRef UniNoWaveSensitiveGradientErrMsg =
+    "Gradient operations are not affected by wave-sensitive data or control "
+    "flow.";
+
+class DxilValidateWaveSensitivity : public ModulePass {
+public:
+  static char ID; // Pass identification, replacement for typeid
+  explicit DxilValidateWaveSensitivity() : ModulePass(ID) {}
+
+  const char *getPassName() const override {
+    return "HLSL DXIL wave sensitiveity validation";
+  }
+
+  bool runOnModule(Module &M) override {
+    // Only check ps and lib profile.
+    DxilModule &DM = M.GetDxilModule();
+    const ShaderModel *pSM = DM.GetShaderModel();
+    if (!pSM->IsPS() && !pSM->IsLib())
+      return false;
+
+    SmallVector<CallInst *, 16> gradientOps;
+    SmallVector<CallInst *, 16> barriers;
+    SmallVector<CallInst *, 16> waveOps;
+
+    for (auto &F : M) {
+      if (!F.isDeclaration())
+        continue;
+
+      for (User *U : F.users()) {
+        CallInst *CI = dyn_cast<CallInst>(U);
+        if (!CI)
+          continue;
+        Function *FCalled = CI->getCalledFunction();
+        if (!FCalled || !FCalled->isDeclaration())
+          continue;
+
+        if (!hlsl::OP::IsDxilOpFunc(FCalled))
+          continue;
+
+        DXIL::OpCode dxilOpcode = hlsl::OP::GetDxilOpFuncCallInst(CI);
+
+        if (OP::IsDxilOpWave(dxilOpcode)) {
+          waveOps.emplace_back(CI);
+        }
+
+        if (OP::IsDxilOpGradient(dxilOpcode)) {
+          gradientOps.push_back(CI);
+        }
+
+        if (dxilOpcode == DXIL::OpCode::Barrier) {
+          barriers.push_back(CI);
+        }
+      }
+    }
+
+    // Skip if not have wave op.
+    if (waveOps.empty())
+      return false;
+
+    // Skip if no gradient op.
+    if (gradientOps.empty())
+      return false;
+
+    for (auto &F : M) {
+      if (F.isDeclaration())
+        continue;
+
+      SmallVector<CallInst *, 16> localGradientOps;
+      for (CallInst *CI : gradientOps) {
+        if (CI->getParent()->getParent() == &F)
+          localGradientOps.emplace_back(CI);
+      }
+
+      if (localGradientOps.empty())
+        continue;
+
+      PostDominatorTree PDT;
+      PDT.runOnFunction(F);
+      std::unique_ptr<WaveSensitivityAnalysis> WaveVal(
+          WaveSensitivityAnalysis::create(PDT));
+
+      WaveVal->Analyze(&F);
+      for (CallInst *op : localGradientOps) {
+        if (WaveVal->IsWaveSensitive(op)) {
+          dxilutil::EmitWarningOnInstruction(op,
+                                             UniNoWaveSensitiveGradientErrMsg);
+        }
+      }
+    }
+    return false;
+  }
+};
+
+}
+
+char DxilValidateWaveSensitivity::ID = 0;
+
+ModulePass *llvm::createDxilValidateWaveSensitivityPass() {
+  return new DxilValidateWaveSensitivity();
+}
+
+INITIALIZE_PASS(DxilValidateWaveSensitivity, "hlsl-validate-wave-sensitivity", "HLSL DXIL wave sensitiveity validation", false, false)

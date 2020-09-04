@@ -1,17 +1,27 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+
 #include "Library/DMXEntityFixtureType.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXLibrary.h"
 #include "Library/DMXImport.h"
 #include "Library/DMXImportGDTF.h"
+#include "DMXProtocolSettings.h"
+#include "DMXRuntimeUtils.h"
+#include "DMXUtils.h"
+
+
+#if WITH_EDITOR
+	/** Editor only data type change delegate */
+FDataTypeChangeDelegate UDMXEntityFixtureType::DataTypeChangeDelegate;
+#endif
 
 #if WITH_EDITOR
 void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 {
 	if (DMXImportAsset == nullptr || !DMXImportAsset->IsValidLowLevelFast())
 	{
-		return; 
+		return;
 	}
 
 	if (UDMXImportGDTFDMXModes* GDTFDMXModes = Cast<UDMXImportGDTFDMXModes>(DMXImportAsset->DMXModes))
@@ -19,9 +29,20 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 		// Clear existing modes
 		Modes.Empty(DMXImportAsset->DMXModes != nullptr ? GDTFDMXModes->DMXModes.Num() : 0);
 
-		if (DMXImportAsset->DMXModes == nullptr) 
-		{ 
-			return; 
+		if (DMXImportAsset->DMXModes == nullptr)
+		{
+			return;
+		}
+
+		// Used to map Functions to Attributes
+		const UDMXProtocolSettings* ProtocolSettings = GetDefault<UDMXProtocolSettings>();
+		// Break the Attributes' keywords into arrays of strings to be read for each Function
+		TMap< FName, TArray<FString> > AttributesKeywords;
+		for (const FDMXAttribute& Attribute : ProtocolSettings->Attributes)
+		{
+			TArray<FString> Keywords = Attribute.GetKeywords();
+			
+			AttributesKeywords.Emplace(Attribute.Name, MoveTemp(Keywords));
 		}
 
 		// Copy modes from asset
@@ -34,12 +55,48 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 			// For that we need to keep track of the latest occupied address after adding each function.
 			int32 LastOccupiedAddress = 0;
 
+			// Keep track of the Attributes used on this Mode's Functions because they must be unique
+			TArray<FName> MappedAttributes;
+
 			for (const FDMXImportGDTFDMXChannel& ModeChannel : AssetMode.DMXChannels)
 			{
 				FDMXFixtureFunction& Function = Mode.Functions[Mode.Functions.Emplace()];
 				Function.FunctionName = ModeChannel.LogicalChannel.Attribute.Name.ToString();
 				Function.DefaultValue = ModeChannel.Default.Value;
 
+				// Try to auto-map the Function to an existing Attribute
+				// using the Function's name and the Attributes' keywords
+				if (!Function.FunctionName.IsEmpty() && AttributesKeywords.Num())
+				{
+					// Remove white spaces and index numbers from the name
+					FString FilteredFunctionName;
+					int32 IndexFromName;
+					FDMXRuntimeUtils::GetNameAndIndexFromString(Function.FunctionName, FilteredFunctionName, IndexFromName);
+
+					// Check if the Function name matches any Attribute's keywords
+					for (const TPair< FName, TArray<FString> >& Keywords : AttributesKeywords)
+					{
+						if (MappedAttributes.Contains(Keywords.Key))
+						{
+							continue; // Attribute already mapped to another Function in this Mode
+						}
+
+						auto CompareStringCaseInsensitive = [&FilteredFunctionName](const FString& Keyword)
+						{
+							return Keyword.Equals(FilteredFunctionName, ESearchCase::IgnoreCase);
+						};
+
+						// Match the Function name against the Attribute name and its keywords
+						if (CompareStringCaseInsensitive(Keywords.Key.ToString())
+							|| Keywords.Value.ContainsByPredicate(CompareStringCaseInsensitive))
+						{
+							Function.Attribute = Keywords.Key;
+							MappedAttributes.Emplace(Keywords.Key); // Mark Attribute as used in this Mode
+						}
+					}
+				}
+
+				// Calculate Function's number of occupied channels/addresses
 				if (ModeChannel.Offset.Num() > 0)
 				{
 					// Compute number of used addresses in the function as the interval
@@ -75,7 +132,7 @@ void UDMXEntityFixtureType::SetModesFromDMXImport(UDMXImport* DMXImportAsset)
 						Function.bUseLSBMode = false;
 					}
 
-					// Update occupied addresses
+					// Update occupied addresses on current mode
 					LastOccupiedAddress += Function.ChannelOffset + NumChannelsToOccupy(Function.DataType);
 				}
 				else
@@ -120,6 +177,79 @@ void UDMXEntityFixtureType::SetFunctionSize(FDMXFixtureFunction& InFunction, uin
 }
 
 #endif // WITH_EDITOR
+
+bool FDMXPixelMatrix::GetChannelsFromPixel(FIntPoint Pixel, FDMXAttributeName Attribute, TArray<int32>& Channels) const
+{
+	TArray<int32> AllChannels;
+
+	if (Pixel.X < 0 || Pixel.X >= XPixels)
+	{
+		return false;
+	}
+
+	if (Pixel.Y < 0 || Pixel.Y >= YPixels)
+	{
+		return false;
+	}
+
+	for (int32 YPixel = 0; YPixel < YPixels; YPixel++)
+	{
+		for (int32 XPixel = 0; XPixel < XPixels; XPixel++)
+		{
+			AllChannels.Add(XPixel + YPixel * XPixels);
+		}
+	}
+
+	TArray<int32> OrderedChannels;
+	FDMXUtils::PixelsDistributionSort(PixelsDistribution, XPixels, YPixels, AllChannels, OrderedChannels);
+
+	check(AllChannels.Num() == OrderedChannels.Num());
+
+	int32 PixelSize = 0;
+	int32 PixelFunctionIndex = -1;
+	int32 PixelFunctionSize = 0;
+	for (const FDMXFixturePixelFunction& PixelFunction : PixelFunctions)
+	{
+		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType);
+		if (PixelFunction.Attribute.GetAttribute() == Attribute.GetAttribute())
+		{
+			PixelFunctionIndex = PixelSize;
+			PixelFunctionSize = CurrentFunctionSize;
+		}
+		PixelSize += CurrentFunctionSize;
+	}
+
+	// no function found
+	if (PixelFunctionIndex < 0 || PixelFunctionSize == 0)
+	{
+		return false;
+	}
+
+	int32 ChannelBase = FirstPixelChannel + (OrderedChannels[Pixel.X + Pixel.Y * XPixels] * PixelSize) + PixelFunctionIndex;
+
+	for (int32 ChannelIndex = 0; ChannelIndex < PixelFunctionSize; ChannelIndex++)
+	{
+		Channels.Add(ChannelBase + ChannelIndex);
+	}
+
+	return true;
+}
+
+int32 FDMXPixelMatrix::GetPixelFunctionsLastChannel()
+{
+	int32 PixelSize = 0;
+	for (const FDMXFixturePixelFunction& PixelFunction : PixelFunctions)
+	{
+		int32 CurrentFunctionSize = UDMXEntityFixtureType::NumChannelsToOccupy(PixelFunction.DataType);
+		PixelSize += CurrentFunctionSize;
+	}
+	int32 AllPixels = XPixels * YPixels * PixelSize;
+	if (AllPixels > 0)
+	{
+		AllPixels--;
+	}
+	return FirstPixelChannel + AllPixels;
+}
 
 uint8 UDMXEntityFixtureType::GetFunctionLastChannel(const FDMXFixtureFunction& Function)
 {
@@ -294,27 +424,55 @@ float UDMXEntityFixtureType::BytesToNormalizedValue(EDMXFixtureSignalFormat InSi
 }
 
 #if WITH_EDITOR
+void UDMXEntityFixtureType::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
+{
+	Super::PostEditChangeProperty(PropertyChangedEvent);
 
+	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+		
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled))
+	{				
+		for (FDMXFixtureMode& Mode : Modes)
+		{
+			if (!bPixelFunctionsEnabled)
+			{
+				Mode.PixelMatrixConfig.PixelFunctions.Reset();
+			}
+			UpdateModeChannelProperties(Mode);
+		}
+	}
+}
+#endif // WITH_EDITOR
+
+#if WITH_EDITOR
 void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEvent& PropertyChangedEvent)
 {
+	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	FName PropertyName = PropertyChangedEvent.GetPropertyName();
+
 	// Clamp DefaultValue from selected data type
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DefaultValue)
-		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DefaultValue) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType))
 	{
-		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());
-		const int32 FunctionIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions).ToString());
+		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());		
 
-		check(ModeIndex != INDEX_NONE && FunctionIndex != INDEX_NONE);
-		FDMXFixtureFunction& Function = Modes[ModeIndex].Functions[FunctionIndex];
+		check(ModeIndex != INDEX_NONE);
 
-		ClampDefaultValue(Function);
+		for (FDMXFixtureFunction& Function : Modes[ModeIndex].Functions)
+		{
+			ClampDefaultValue(Function);
+		}
 	}
 
 	// Refresh ChannelSpan from functions' settings
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bAutoChannelSpan)
-		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions)
-		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, ChannelOffset)
-		|| PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType))
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, bPixelFunctionsEnabled) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, XPixels) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, YPixels) ||		
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, bAutoChannelSpan) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, ChannelOffset) ||
+		PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, DataType))
 	{
 		// If we have a specific Modes index that was modified, update its properties
 		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());
@@ -338,26 +496,80 @@ void UDMXEntityFixtureType::PostEditChangeChainProperty(FPropertyChangedChainEve
 			}
 		}
 	}
-
-	if (PropertyChangedEvent.GetPropertyName() == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes) &&
-        (PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear))
+		
+	// Keep Attributes unique across a Mode
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(FDMXFixtureFunction, Attribute))
 	{
-		// Warn patches from this type about the Mode(s) removal so they can keep their ActiveMode value valid
-		if (ParentLibrary != nullptr)
+		// Find duplicates
+		const int32 ModeIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes).ToString());
+		check(ModeIndex != INDEX_NONE);
+
+		FDMXFixtureMode& Mode = Modes[ModeIndex];
+
+		const int32 ChangedFunctionIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(FDMXFixtureMode, Functions).ToString());
+		const int32 ChangedPixelFunctionIndex = PropertyChangedEvent.GetArrayIndex(GET_MEMBER_NAME_CHECKED(FDMXPixelMatrix, PixelFunctions).ToString());
+
+		FDMXAttributeName ChangedAttribute;
+		if (ChangedFunctionIndex != INDEX_NONE)
 		{
-			ParentLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
-				{
-					if (Patch->ParentFixtureTypeTemplate == this)
-					{
-						Patch->ValidateActiveMode();
-					}
-				});
+			check(Mode.Functions.IsValidIndex(ChangedFunctionIndex));
+			ChangedAttribute = Mode.Functions[ChangedFunctionIndex].Attribute;
+		}
+		else
+		{
+			check(Mode.PixelMatrixConfig.PixelFunctions.IsValidIndex(ChangedPixelFunctionIndex));
+			ChangedAttribute = Mode.PixelMatrixConfig.PixelFunctions[ChangedPixelFunctionIndex].Attribute;
+		}
+
+		for (int32 IdxOtherFunction = 0; IdxOtherFunction < Mode.Functions.Num(); IdxOtherFunction++)
+		{
+			if (ChangedFunctionIndex == IdxOtherFunction)
+			{
+				continue;
+			}
+
+			FDMXAttributeName& Attribute = Mode.Functions[IdxOtherFunction].Attribute;
+			if (ChangedAttribute == Attribute)
+			{
+				Attribute = FDMXAttributeName::None;
+			}
+		}
+
+		int32 NumPixelFunctions = Mode.PixelMatrixConfig.PixelFunctions.Num();
+		for (int32 IdxOtherPixelFunction = 0; IdxOtherPixelFunction < NumPixelFunctions; IdxOtherPixelFunction++)
+		{
+			if (ChangedPixelFunctionIndex == IdxOtherPixelFunction)
+			{
+				continue;
+			}
+
+			FDMXAttributeName& Attribute = Mode.PixelMatrixConfig.PixelFunctions[IdxOtherPixelFunction].Attribute;
+			if (ChangedAttribute == Attribute)
+			{
+				Attribute = FDMXAttributeName::None;
+			}
 		}
 	}
 
-	Super::PostEditChangeChainProperty(PropertyChangedEvent);
+	// Keep Fixture Patches' ActiveMode value valid
+	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityFixtureType, Modes) &&
+		(PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayRemove || PropertyChangedEvent.ChangeType == EPropertyChangeType::ArrayClear))
+	{		
+		if (ParentLibrary != nullptr)
+		{
+			ParentLibrary->ForEachEntityOfType<UDMXEntityFixturePatch>([this](UDMXEntityFixturePatch* Patch)
+			{
+				if (Patch->ParentFixtureTypeTemplate == this)
+				{
+					Patch->ValidateActiveMode();					
+				}
+			});
+		}
+	}
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXEntityFixtureType::PostEditUndo()
 {
 	for (FDMXFixtureMode& Mode : Modes)
@@ -367,49 +579,58 @@ void UDMXEntityFixtureType::PostEditUndo()
 
 	Super::PostEditUndo();
 }
+#endif // WITH_EDITOR
 
+#if WITH_EDITOR
 void UDMXEntityFixtureType::UpdateModeChannelProperties(FDMXFixtureMode& Mode)
 {
-	int32 ChannelSpan = 0;
-
-	for (FDMXFixtureFunction& Function : Mode.Functions)
-	{
-		Function.Channel = ChannelSpan + 1 + Function.ChannelOffset;
-
-		switch (Function.DataType)
-		{
-		case EDMXFixtureSignalFormat::E8Bit:
-		case EDMXFixtureSignalFormat::E8BitSubFunctions:
-			ChannelSpan = Function.Channel;
-			break;
-		case EDMXFixtureSignalFormat::E16Bit:
-			ChannelSpan = Function.Channel + 1;
-			break;
-		case EDMXFixtureSignalFormat::E24Bit:
-			ChannelSpan = Function.Channel + 2;
-			break;
-		case EDMXFixtureSignalFormat::E32Bit:
-			ChannelSpan = Function.Channel + 3;
-			break;
-		default:
-			checkNoEntry();
-			break;
-		}
-	}
-
-	if (ChannelSpan < 1)
-	{
-		ChannelSpan = 1; 
-	}
-	if (ChannelSpan > 512)
-	{
-		ChannelSpan = 512; 
-	}
-
 	if (Mode.bAutoChannelSpan)
 	{
+		int32 ChannelSpan = 0;
+
+		// Update span from common Functions
+		for (FDMXFixtureFunction& Function : Mode.Functions)
+		{
+			Function.Channel = ChannelSpan + 1 + Function.ChannelOffset;
+
+			switch (Function.DataType)
+			{
+			case EDMXFixtureSignalFormat::E8Bit:
+			case EDMXFixtureSignalFormat::E8BitSubFunctions:
+				ChannelSpan = Function.Channel;
+				break;
+			case EDMXFixtureSignalFormat::E16Bit:
+				ChannelSpan = Function.Channel + 1;
+				break;
+			case EDMXFixtureSignalFormat::E24Bit:
+				ChannelSpan = Function.Channel + 2;
+				break;
+			case EDMXFixtureSignalFormat::E32Bit:
+				ChannelSpan = Function.Channel + 3;
+				break;
+			default:
+				checkNoEntry();
+				break;
+			}
+		}
+
+		// Update span for Pixel Functions, only if the type uses the Pixel Matrix category
+		if (bPixelFunctionsEnabled)
+		{
+			int32 PixelFunctionFirstChannel = Mode.PixelMatrixConfig.FirstPixelChannel;
+			int32 PixelFunctionLastChannel = Mode.PixelMatrixConfig.GetPixelFunctionsLastChannel();
+			if (PixelFunctionLastChannel - PixelFunctionFirstChannel > 0)
+			{
+				ChannelSpan += PixelFunctionLastChannel - PixelFunctionFirstChannel + 1;
+			}
+		}
+
+		ChannelSpan = FMath::Clamp(ChannelSpan, 1, static_cast<int32>(DMX_UNIVERSE_SIZE));
+
 		Mode.ChannelSpan = ChannelSpan;
+
+		// Notify DataType changes
+		DataTypeChangeDelegate.Broadcast(this, Mode);
 	}
 }
-
 #endif // WITH_EDITOR

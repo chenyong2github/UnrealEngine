@@ -21,7 +21,7 @@ void UPanelWidget::ReleaseSlateResources(bool bReleaseChildren)
 	{
 		for ( int32 SlotIndex = 0; SlotIndex < Slots.Num(); SlotIndex++ )
 		{
-			if ( Slots[SlotIndex]->Content != nullptr )
+			if ( Slots[SlotIndex] && Slots[SlotIndex]->Content != nullptr )
 			{
 				Slots[SlotIndex]->ReleaseSlateResources(bReleaseChildren);
 			}

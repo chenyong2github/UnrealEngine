@@ -31,7 +31,7 @@ void MainPS(
 
 	OutColor.rgb = SceneColorSample.rgb * SeparateTranslucencySample.a * SeparateModulationSample.rgb + SeparateTranslucencySample.rgb;
 	OutColor.a = SceneColorSample.a * SeparateTranslucencySample.a;
-
+	
 #if !POST_PROCESS_ALPHA
 	OutColor.a = 0;
 #endif

@@ -222,6 +222,19 @@ static FOpenGLVertexBuffer* FindExpandedZeroStrideBuffer(FOpenGLVertexBuffer* Ze
 			}
 		}
 		break;
+	case 12:
+		{
+			uint64 SourceA = *(uint64*)SourceData;
+			uint32 SourceB = *((uint32*)SourceData + 2);
+			uint32* RESTRICT Dest = (uint32*)Data;
+			for (uint32 Index = 0; Index < Size / (3 * sizeof(uint32)); ++Index)
+			{
+				*((uint64*)Dest) = SourceA;
+				Dest = Dest + 2;
+				*Dest++ = SourceB;
+			}
+		}
+		break;
 	case 16:
 		{
 			uint64 SourceA = *(uint64*)SourceData;
@@ -1507,7 +1520,7 @@ void FOpenGLDynamicRHI::RHISetBlendState(FRHIBlendState* NewStateRHI,const FLine
 	FMemory::Memcpy(&PendingState.BlendState,&(NewState->Data),sizeof(FOpenGLBlendStateData));
 }
 
-void FOpenGLDynamicRHI::RHISetRenderTargets(
+void FOpenGLDynamicRHI::SetRenderTargets(
 	uint32 NumSimultaneousRenderTargets,
 	const FRHIRenderTargetView* NewRenderTargetsRHI,
 	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI)
@@ -1667,10 +1680,10 @@ void FOpenGLDynamicRHI::RHIDiscardRenderTargets(bool Depth, bool Stencil, uint32
 	}
 }
 
-void FOpenGLDynamicRHI::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
+void FOpenGLDynamicRHI::SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 {
 	VERIFY_GL_SCOPE();
-	this->RHISetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
+	this->SetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
 		RenderTargetsInfo.ColorRenderTarget,
 		&RenderTargetsInfo.DepthStencilRenderTarget);
 
@@ -3112,6 +3125,7 @@ void FOpenGLDynamicRHI::RHISubmitCommandsAndFlushGPU()
  */
 uint32 FOpenGLDynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
+	check(GPUIndex == 0);
 	return GGPUFrameTime;
 }
 

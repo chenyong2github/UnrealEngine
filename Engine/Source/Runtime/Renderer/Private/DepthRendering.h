@@ -218,11 +218,6 @@ void GetDepthPassShaders(
 	TShaderRef<FDepthOnlyPS<bUsesMobileColorValue>>& PixelShader,
 	FShaderPipelineRef& ShaderPipeline);
 
-extern void CreateDepthPassUniformBuffer(
-	FRHICommandListImmediate& RHICmdList, 
-	const FViewInfo& View,
-	TUniformBufferRef<FSceneTextureShaderParameters>& DepthPassUniformBuffer);
-
 class FDepthPassMeshProcessor : public FMeshPassProcessor
 {
 public:

@@ -490,10 +490,10 @@ void UEditorEngine::EndPlayMap()
 	}
 
 	// Restores realtime viewports that have been disabled for PIE.
-	RemoveViewportsRealtimeOverride();
+	const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
+	RemoveViewportsRealtimeOverride(SystemDisplayName);
 
-	// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
-	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
+	EnableWorldSwitchCallbacks(false);
 
 	// Set the autosave timer to have at least 10 seconds remaining before autosave
 	const static float SecondsWarningTillAutosave = 10.0f;
@@ -527,10 +527,15 @@ void UEditorEngine::EndPlayMap()
 			// Update the position where the first PIE window will be opened (this also updates its displayed value in "Editor Preferences" --> "Level Editor" --> "Play" --> "New Window Position")
 			if (WindowIndex == 0)
 			{
-				// Only update it if "Always center window to screen" is disabled
-				if (!PlaySettingsConfig->CenterNewWindow)
+				// Remember last known size
+				PlaySettingsConfig->LastSize = PlayInEditorSessionInfo->CachedWindowInfo[0].Size;
+
+				// Only update it if "Always center window to screen" is disabled, and the size was not 0 (which means it is attached to the editor rather than being an standalone window)
+				if (!PlaySettingsConfig->CenterNewWindow && PlaySettingsConfig->LastSize.X > 0 && PlaySettingsConfig->LastSize.Y > 0)
 				{
 					PlaySettingsConfig->NewWindowPosition = PlaySettingsConfig->MultipleInstancePositions[WindowIndex];
+					PlaySettingsConfig->NewWindowWidth = PlaySettingsConfig->LastSize.X;
+					PlaySettingsConfig->NewWindowHeight = PlaySettingsConfig->LastSize.Y;
 				}
 			}
 		}
@@ -1431,7 +1436,7 @@ static bool ShowBlueprintErrorDialog( TArray<UBlueprint*> ErroredBlueprints )
 		.DialogContent(DialogContents)
 		.Buttons( { SCustomDialog::FButton(OKText), SCustomDialog::FButton(CancelText) } );
 
-	int ButtonPressed = CustomDialog->ShowModal();
+	int32 ButtonPressed = CustomDialog->ShowModal();
 	return ButtonPressed == 0;
 }
 
@@ -1910,9 +1915,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 
 			// The editor viewport client wont be visible so temporarily disable it being realtime
 			const bool bShouldBeRealtime = false;
+			const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
 			// Remove any previous override since we already applied a override when entering PIE
-			EditorViewportClient.RemoveRealtimeOverride();
-			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
+			EditorViewportClient.RemoveRealtimeOverride(SystemDisplayName);
+			EditorViewportClient.AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 
 			if (!SlatePlayInEditorSession.EditorPlayer.IsValid())
 			{
@@ -1956,9 +1962,10 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 
 			// Make sure the viewport is in real-time mode
 			const bool bShouldBeRealtime = true;
+			const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
 			// Remove any previous override since we already applied a override when entering PIE
-			EditorViewportClient.RemoveRealtimeOverride();
-			EditorViewportClient.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor"));
+			EditorViewportClient.RemoveRealtimeOverride(SystemDisplayName);
+			EditorViewportClient.AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 
 			// The Simulate window should show stats
 			EditorViewportClient.SetShowStats( true );
@@ -2008,31 +2015,29 @@ void UEditorEngine::ToggleBetweenPIEandSIE( bool bNewSession )
 	FEditorDelegates::OnSwitchBeginPIEAndSIE.Broadcast( bIsSimulatingInEditor );
 }
 
-int32 UEditorEngine::OnSwitchWorldForSlatePieWindow( int32 WorldID )
+int32 UEditorEngine::OnSwitchWorldForSlatePieWindow(int32 WorldID, int32 WorldPIEInstance)
 {
 	static const int32 EditorWorldID = 0;
 	static const int32 PieWorldID = 1;
 
+	// PlayWorld cannot be depended on as it only points to the first instance
 	int32 RestoreID = -1;
-	if( WorldID == -1 && GWorld != PlayWorld && PlayWorld != NULL)
+	if (WorldID == -1 && !GIsPlayInEditorWorld)
 	{
 		// When we have an invalid world id we always switch to the pie world in the PIE window
-		const bool bSwitchToPIE = true; 
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
 		// The editor world was active restore it later
 		RestoreID = EditorWorldID;
 	}
-	else if( WorldID == PieWorldID && GWorld != PlayWorld)
+	else if(WorldID == PieWorldID && !GIsPlayInEditorWorld)
 	{
-		const bool bSwitchToPIE = true;
 		// Want to restore the PIE world and the current world is not already the pie world
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(WorldPIEInstance);
 	}
-	else if( WorldID == EditorWorldID && GWorld != EditorWorld)
+	else if(WorldID == EditorWorldID && GWorld != EditorWorld)
 	{
-		const bool bSwitchToPIE = false;
 		// Want to restore the editor world and the current world is not already the editor world
-		OnSwitchWorldsForPIE( bSwitchToPIE );
+		OnSwitchWorldsForPIEInstance(-1);
 	}
 	else
 	{
@@ -2051,6 +2056,85 @@ void UEditorEngine::OnSwitchWorldsForPIE( bool bSwitchToPieWorld, UWorld* Overri
 	else
 	{
 		RestoreEditorWorld( OverrideWorld ? OverrideWorld : EditorWorld );
+	}
+}
+
+void UEditorEngine::OnSwitchWorldsForPIEInstance(int32 WorldPIEInstance)
+{
+	if (WorldPIEInstance < 0)
+	{
+		RestoreEditorWorld(EditorWorld);
+	}
+	else
+	{
+		FWorldContext* PIEContext = GetPIEWorldContext(WorldPIEInstance);
+		if (PIEContext && PIEContext->World())
+		{
+			SetPlayInEditorWorld(PIEContext->World());
+		}
+	}
+}
+
+void UEditorEngine::EnableWorldSwitchCallbacks(bool bEnable)
+{
+	if (bEnable)
+	{
+		// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
+		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
+		ScriptExecutionStartHandle = FBlueprintContextTracker::OnEnterScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionStart);
+		ScriptExecutionEndHandle = FBlueprintContextTracker::OnExitScriptContext.AddUObject(this, &UEditorEngine::OnScriptExecutionEnd);
+	}
+	else
+	{
+		// Don't actually need to reset this delegate but doing so allows is to check invalid attempts to execute the delegate
+		FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE();
+
+		// There should never be an active function context when pie is ending!
+		check(!FunctionStackWorldSwitcher);
+
+		FBlueprintContextTracker::OnEnterScriptContext.Remove(ScriptExecutionStartHandle);
+		FBlueprintContextTracker::OnExitScriptContext.Remove(ScriptExecutionEndHandle);
+	}
+}
+
+void UEditorEngine::OnScriptExecutionStart(const FBlueprintContextTracker& ContextTracker, const UObject* ContextObject, const UFunction* ContextFunction)
+{
+	// Only do world switching for game thread callbacks, this is only bound at all in PIE so no need to check GIsEditor
+	if (IsInGameThread())
+	{
+		// See if we should create a world switcher, which is true if we don't have one and our PIE info is missing
+		if (!FunctionStackWorldSwitcher && (!GIsPlayInEditorWorld || GPlayInEditorID == -1))
+		{
+			check(FunctionStackWorldSwitcherTag == -1);
+			UWorld* ContextWorld = GetWorldFromContextObject(ContextObject, EGetWorldErrorMode::ReturnNull);
+
+			if (ContextWorld && ContextWorld->WorldType == EWorldType::PIE)
+			{
+				FunctionStackWorldSwitcher = new FScopedConditionalWorldSwitcher(ContextWorld);
+				FunctionStackWorldSwitcherTag = ContextTracker.GetScriptEntryTag();
+			}
+		}
+	}
+}
+
+void UEditorEngine::OnScriptExecutionEnd(const struct FBlueprintContextTracker& ContextTracker)
+{
+	if (IsInGameThread())
+	{
+		if (FunctionStackWorldSwitcher)
+		{
+			int32 CurrentScriptEntryTag = ContextTracker.GetScriptEntryTag();
+
+			// Tag starts at 1 for first function on stack
+			check(CurrentScriptEntryTag >= 1 && FunctionStackWorldSwitcherTag >= 1);
+
+			if (CurrentScriptEntryTag == FunctionStackWorldSwitcherTag)
+			{
+				FunctionStackWorldSwitcherTag = -1;
+				delete FunctionStackWorldSwitcher;
+				FunctionStackWorldSwitcher = nullptr;
+			}
+		}
 	}
 }
 
@@ -2461,7 +2545,8 @@ void UEditorEngine::StartPlayInEditorSession(FRequestPlaySessionParams& InReques
 
 	// Can't allow realtime viewports whilst in PIE so disable it for ALL viewports here.
 	const bool bShouldBeRealtime = false;
-	SetViewportsRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverride_PIE", "Play in Editor"));
+	const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_PIE", "Play in Editor");
+	SetViewportsRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 
 	// Allow the global config to override our ability to create multiple PIE worlds.
 	if (!GEditor->bAllowMultiplePIEWorlds)
@@ -2789,6 +2874,21 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		{
 			GameViewport->Viewport->SetPlayInEditorViewport(true);
 		}
+
+		if (InParams.EditorPlaySettings->bUseNonRealtimeAudioDevice)
+		{
+			UE_LOG(LogPlayLevel, Log, TEXT("Creating new non-realtime audio mixer"));
+			FAudioDeviceParams DeviceParams = AudioDeviceManager->GetDefaultParamsForNewWorld();
+			DeviceParams.Scope = EAudioDeviceScope::Unique;
+			DeviceParams.AssociatedWorld = PlayWorld;
+			DeviceParams.bIsNonRealtime = true;
+			FAudioDeviceHandle AudioDevice = AudioDeviceManager->RequestAudioDevice(DeviceParams);
+			check(AudioDevice.IsValid());
+			if (PlayWorld)
+			{
+				PlayWorld->SetAudioDevice(AudioDevice);
+			}
+		}
 	}
 
 	// By this point it is safe to remove the GameInstance from the root and allow it to garbage collected as per usual
@@ -2822,8 +2922,7 @@ UGameInstance* UEditorEngine::CreateInnerProcessPIEGameInstance(FRequestPlaySess
 		return nullptr;
 	}
 
-	// Set up a delegate to be called in Slate when GWorld needs to change.  Slate does not have direct access to the playworld to switch itself
-	FScopedConditionalWorldSwitcher::SwitchWorldForPIEDelegate = FOnSwitchWorldForPIE::CreateUObject(this, &UEditorEngine::OnSwitchWorldsForPIE);
+	EnableWorldSwitchCallbacks(true);
 
 	if (PIEViewport.IsValid())
 	{
@@ -2854,7 +2953,7 @@ FText GeneratePIEViewportWindowTitle(const EPlayNetMode InNetMode, const ERHIFea
 
 	if (InNetMode == PIE_Client)
 	{
-		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Client %d"), ClientIndex + 1)));
+		Args.Add(TEXT("NetMode"), FText::FromString(FString::Printf(TEXT("Client %d"), ClientIndex)));
 	}
 	else if (InNetMode == PIE_ListenServer)
 	{
@@ -2951,7 +3050,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 	// If they haven't provided a Slate Window (common), we will create one.
 	if (!bHasCustomWindow)
 	{
-		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams,InViewportIndex, InWorldContext.PIEFixedTickSeconds);
+		FText ViewportName = GeneratePIEViewportWindowTitle(InNetMode, PreviewPlatform.GetEffectivePreviewFeatureLevel(), InSessionParams, InWorldContext.PIEInstance, InWorldContext.PIEFixedTickSeconds);
 		PieWindow = SNew(SWindow)
 			.Title(ViewportName)
 			.ScreenPosition(FVector2D(WindowPosition.X, WindowPosition.Y))
@@ -2966,7 +3065,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 
 	// Setup a delegate for switching to the play world on slate input events, drawing and ticking
-	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow);
+	FOnSwitchWorldHack OnWorldSwitch = FOnSwitchWorldHack::CreateUObject(this, &UEditorEngine::OnSwitchWorldForSlatePieWindow, InWorldContext.PIEInstance);
 	PieWindow->SetOnWorldSwitchHack(OnWorldSwitch);
 
 	if (!bHasCustomWindow)
@@ -2997,7 +3096,7 @@ TSharedRef<SPIEViewport> UEditorEngine::GeneratePIEViewportWindow(const FRequest
 
 
 	bool bRenderDirectlyToWindow = bVRPreview;
-	bool bEnableStereoRendering = bVRPreview;
+	bool bEnableStereoRendering = bVRPreview && (/* only first PIE instance can be VR */ InViewportIndex == 0);
 
 	static const auto CVarPropagateAlpha = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.PostProcessing.PropagateAlpha"));
 	const EAlphaChannelMode::Type PropagateAlpha = EAlphaChannelMode::FromInt(CVarPropagateAlpha->GetValueOnGameThread());
@@ -3209,7 +3308,8 @@ void UEditorEngine::GetWindowSizeAndPositionForInstanceIndex(ULevelEditorPlaySet
 	// Now we can position the window. If it is the first window, we can respect the center window flag.
 	if (InInstanceIndex == 0)
 	{
-		if (InEditorPlaySettings.CenterNewWindow)
+		// Center window if CenterNewWindow checked or if NewWindowPosition is FIntPoint::NoneValue (-1,-1)
+		if (InEditorPlaySettings.CenterNewWindow || InEditorPlaySettings.NewWindowPosition == FIntPoint::NoneValue)
 		{
 			// We don't store the last window position in this case, because we want additional windows
 			// to open starting at the top left of the monitor.

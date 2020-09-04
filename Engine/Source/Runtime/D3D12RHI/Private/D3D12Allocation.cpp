@@ -1511,7 +1511,13 @@ void* FD3D12FastAllocator::Allocate(uint32 Size, uint32 Alignment, class FD3D12R
 		}
 
 		FD3D12Resource* Resource = nullptr;
-		VERIFYD3D12RESULT(Adapter->CreateBuffer(PagePool.GetHeapType(), GetGPUMask(), GetVisibilityMask(), Size + Alignment, &Resource, TEXT("Stand Alone Fast Allocation")));
+		FString ResourceName;
+#if NAME_OBJECTS
+		static int64 ID = 0;
+		const int64 UniqueID = FPlatformAtomics::InterlockedIncrement(&ID);
+		ResourceName = FString::Printf(TEXT("Stand Alone Fast Allocation %lld"), UniqueID);
+#endif
+		VERIFYD3D12RESULT(Adapter->CreateBuffer(PagePool.GetHeapType(), GetGPUMask(), GetVisibilityMask(), Size + Alignment, &Resource, *ResourceName));
 
 		void* Data = nullptr;
 		if (PagePool.IsCPUWritable())

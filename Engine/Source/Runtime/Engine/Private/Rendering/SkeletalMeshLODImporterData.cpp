@@ -10,6 +10,7 @@
 #include "Rendering/SkeletalMeshModel.h"
 #include "Engine/SkeletalMesh.h"
 #include "Factories/FbxSkeletalMeshImportData.h"
+#include "Misc/ScopedSlowTask.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSkeletalMeshLODImporterData, Log, All);
 
@@ -223,9 +224,17 @@ bool FSkeletalMeshImportData::ApplyRigToGeo(FSkeletalMeshImportData& Other)
 	// new vertex will have correct bone weight apply to them.
 	TArray<TArray<int32>> OldToNewRemap;
 	OldToNewRemap.AddDefaulted(Other.Points.Num());
+	const int32 WedgeNum = Wedges.Num();
+	int32 ProgressStep = FMath::Max<int32>(1, FMath::FloorToInt((float)WedgeNum/100.0f));
+	int32 StepCount = FMath::CeilToInt((float)WedgeNum / (float)ProgressStep);
 
-	for (int32 WedgeIndex = 0, NewWedgesNum = Wedges.Num(); WedgeIndex < NewWedgesNum; ++WedgeIndex)
+	FScopedSlowTask SlowTask((float)(StepCount), NSLOCTEXT("FSkeletalMeshImportData", "FSkeletalMeshImportData_ApplyRigToGeo_MainSlowTask", "Applying skinning to geometry..."));
+	for (int32 WedgeIndex = 0; WedgeIndex < WedgeNum; ++WedgeIndex)
 	{
+		if (WedgeIndex % ProgressStep == 0)
+		{
+			SlowTask.EnterProgressFrame(1.0f);
+		}
 		const FVector2D& CurWedgeUV = Wedges[WedgeIndex].UVs[0];
 		int32 NewVertexIndex = (int32)(Wedges[WedgeIndex].VertexIndex);
 		FVector& NewPointA = Points[NewVertexIndex];
@@ -637,7 +646,7 @@ FArchive& operator<<(FArchive& Ar, FSkeletalMeshImportData& RawMesh)
 	//We now save it after the processing is done so for old version we do it here when loading
 	if (Ar.IsLoading() && Version < RAW_SKELETAL_MESH_BULKDATA_VER_AlternateInfluence)
 	{
-		ProcessImportMeshInfluences(RawMesh);
+		SkeletalMeshHelper::ProcessImportMeshInfluences(RawMesh);
 	}
 
 	
@@ -845,6 +854,10 @@ FByteBulkData& FRawSkeletalMeshBulkData::GetBulkData()
 	return BulkData;
 }
 
+const FByteBulkData& FRawSkeletalMeshBulkData::GetBulkData() const
+{
+	return BulkData;
+}
 
 /************************************************************************
 * FWedgePosition
@@ -931,36 +944,36 @@ void FOctreeQueryHelper::FindNearestWedgeIndexes(const FVector& SearchPosition, 
 	{
 		return;
 	}
-	float MinSquaredDistance = MAX_FLT;
+
 	OutNearestWedges.Empty();
-	
-	FVector Extend(2.0f);
-	for (int i = 0; i < 2; ++i)
+	const float OctreeExtent = WedgePosOctree->GetRootBounds().Extent.Size3();
+	//Use the max between 1e-4 cm and 1% of the bounding box extend
+	FVector Extend(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent*0.005f));
+
+	//Pass Extent size % of the Octree bounding box extent
+	//PassIndex 0 -> 0.5%
+	//PassIndex n -> 0.05*n
+	//PassIndex 1 -> 5%
+	//PassIndex 2 -> 10%
+	//...
+	for(int32 PassIndex = 0; PassIndex < 5; ++PassIndex)
 	{
-		// Iterate through the octree attempting to find the vertices closest to the current new point
-		// The first shot is an intersection with a 1 CM cube box around the search position, this ensure we dont fall in the wrong neighbourg
-		WedgePosOctree->FindElementsWithBoundsTest(FBoxCenterAndExtent(SearchPosition, Extend), [&OutNearestWedges, &MinSquaredDistance, &SearchPosition](const FWedgeInfo& WedgeInfo)
+		// Query the octree to find the vertices close(inside the extend) to the SearchPosition
+		WedgePosOctree->FindElementsWithBoundsTest(FBoxCenterAndExtent(SearchPosition, Extend), [&OutNearestWedges](const FWedgeInfo& WedgeInfo)
 		{
 			// Add all of the elements in the current node to the list of points to consider for closest point calculations
-			float VectorDelta = FVector::DistSquared(SearchPosition, WedgeInfo.Position);
-			MinSquaredDistance = FMath::Min(VectorDelta, MinSquaredDistance);
 			OutNearestWedges.Add(WedgeInfo);
 		});
-
-		if (i == 0)
+		if (OutNearestWedges.Num() == 0)
 		{
-			float MinDistance = FMath::Sqrt(MinSquaredDistance);
-			if (MinDistance < Extend.X)
-			{
-				//We found the closest points
-				break;
-			}
-			OutNearestWedges.Empty();
-			//Change the extend to the distance we found so we are sure to find any closer point in the neighbourg
-			Extend = FVector(MinDistance + KINDA_SMALL_NUMBER);
+			float ExtentPercent = 0.05f*((float)PassIndex+1.0f);
+			Extend = FVector(FMath::Max(KINDA_SMALL_NUMBER, OctreeExtent * ExtentPercent));
+		}
+		else
+		{
+			break;
 		}
 	}
-
 }
 
 void FWedgePosition::FillWedgePosition(

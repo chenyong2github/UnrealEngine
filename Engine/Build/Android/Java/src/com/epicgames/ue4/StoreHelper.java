@@ -8,10 +8,11 @@ import android.os.Bundle;
 public interface StoreHelper
 {
 	public boolean QueryInAppPurchases(String[] ProductIDs);
-	public boolean BeginPurchase(String ProductID);
+	public boolean BeginPurchase(String ProductID, String ObfuscatedAccountId);
 	public boolean IsAllowedToMakePurchases();
 	public void ConsumePurchase(String purchaseToken);
 	public boolean QueryExistingPurchases();
 	public boolean RestorePurchases(String[] InProductIDs, boolean[] bConsumable);
 	public void	onDestroy();
+	public boolean onActivityResult(int requestCode, int resultCode, Intent data);
 }

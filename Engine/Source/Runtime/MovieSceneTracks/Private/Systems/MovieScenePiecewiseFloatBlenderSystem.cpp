@@ -491,7 +491,7 @@ void UMovieScenePiecewiseFloatBlenderSystem::OnRun(FSystemTaskPrerequisites& InP
 				TaskData->bTasksComplete = true;
 			};
 
-			TaskData.Prerequisite = TGraphTask<FFunctionGraphTask>::CreateTask(&SingleBlendTasks, Linker->EntityManager.GetDispatchThread())
+			TaskData.Prerequisite = TGraphTask<TFunctionGraphTaskImpl<void(), ESubsequentsMode::TrackSubsequents>>::CreateTask(&SingleBlendTasks, Linker->EntityManager.GetDispatchThread())
 				.ConstructAndDispatchWhenReady(MoveTemp(OnBlendsComplete), TStatId(), ENamedThreads::AnyHiPriThreadHiPriTask);
 		}
 		else

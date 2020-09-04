@@ -216,8 +216,7 @@ class FAOScreenGridResources : public FRenderResource
 {
 public:
 
-	FAOScreenGridResources() :
-		bAllocateResourceForGI(false)
+	FAOScreenGridResources()
 	{}
 
 	virtual void InitDynamicRHI() override;
@@ -226,51 +225,26 @@ public:
 	{
 		ScreenGridConeVisibility.Release();
 		ConeDepthVisibilityFunction.Release();
-		StepBentNormal.Release();
-		SurfelIrradiance.Release();
-		HeightfieldIrradiance.Release();
 	}
 
 	void AcquireTransientResource()
 	{
 		ScreenGridConeVisibility.AcquireTransientResource();
-		if (bAllocateResourceForGI)
-		{
-			StepBentNormal.AcquireTransientResource();
-			SurfelIrradiance.AcquireTransientResource();
-			HeightfieldIrradiance.AcquireTransientResource();
-		}
 	}
 
 	void DiscardTransientResource()
 	{
 		ScreenGridConeVisibility.DiscardTransientResource();
-		if (bAllocateResourceForGI)
-		{
-			StepBentNormal.DiscardTransientResource();
-			SurfelIrradiance.DiscardTransientResource();
-			HeightfieldIrradiance.DiscardTransientResource();
-		}
 	}
 
 	FIntPoint ScreenGridDimensions;
 
 	FRWBuffer ScreenGridConeVisibility;
-
-	bool bAllocateResourceForGI;
 	FRWBuffer ConeDepthVisibilityFunction;
-	FRWBuffer StepBentNormal;
-	FRWBuffer SurfelIrradiance;
-	FRWBuffer HeightfieldIrradiance;
 
 	size_t GetSizeBytesForAO() const
 	{
 		return ScreenGridConeVisibility.NumBytes;
-	}
-
-	size_t GetSizeBytesForGI() const
-	{
-		return ConeDepthVisibilityFunction.NumBytes + StepBentNormal.NumBytes + SurfelIrradiance.NumBytes + HeightfieldIrradiance.NumBytes;
 	}
 };
 
@@ -435,49 +409,6 @@ public:
 
 protected:
 	int32 MaxSize;
-};
-
-// Must match usf
-const int32 RecordConeDataStride = 10;
-// In float4s, must match usf
-const int32 NumVisibilitySteps = 10;
-
-/**  */
-class FTemporaryIrradianceCacheResources : public FMaxSizedRWBuffers
-{
-public:
-
-	virtual void InitDynamicRHI()
-	{
-		if (MaxSize > 0)
-		{
-			ConeVisibility.Initialize(sizeof(float), MaxSize * NumConeSampleDirections, PF_R32_FLOAT, BUF_Static);
-			ConeData.Initialize(sizeof(float), MaxSize * NumConeSampleDirections * RecordConeDataStride, PF_R32_FLOAT, BUF_Static);
-			StepBentNormal.Initialize(sizeof(float) * 4, MaxSize * NumVisibilitySteps, PF_A32B32G32R32F, BUF_Static);
-			SurfelIrradiance.Initialize(sizeof(FFloat16Color), MaxSize, PF_FloatRGBA, BUF_Static);
-			HeightfieldIrradiance.Initialize(sizeof(FFloat16Color), MaxSize, PF_FloatRGBA, BUF_Static);
-		}
-	}
-
-	virtual void ReleaseDynamicRHI()
-	{
-		ConeVisibility.Release();
-		ConeData.Release();
-		StepBentNormal.Release();
-		SurfelIrradiance.Release();
-		HeightfieldIrradiance.Release();
-	}
-
-	size_t GetSizeBytes() const
-	{
-		return ConeVisibility.NumBytes + ConeData.NumBytes + StepBentNormal.NumBytes + SurfelIrradiance.NumBytes + HeightfieldIrradiance.NumBytes;
-	}
-
-	FRWBuffer ConeVisibility;
-	FRWBuffer ConeData;
-	FRWBuffer StepBentNormal;
-	FRWBuffer SurfelIrradiance;
-	FRWBuffer HeightfieldIrradiance;
 };
 
 class FScreenGridParameters

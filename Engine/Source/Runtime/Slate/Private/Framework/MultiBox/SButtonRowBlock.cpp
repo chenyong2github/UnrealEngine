@@ -88,8 +88,7 @@ void SButtonRowBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const F
 	}
 
 	// Add this widget to the search list of the multibox
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), ActualLabel.Get());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), ActualLabel.Get(), MultiBlock->GetSearchable());
 
 	// Allow the block to override the button icon, too
 	const FSlateIcon& ActualIcon = !ButtonRowBlock->IconOverride.IsSet() && ButtonRowBlock->GetAction().IsValid() ? ButtonRowBlock->GetAction()->GetIcon() : ButtonRowBlock->IconOverride;

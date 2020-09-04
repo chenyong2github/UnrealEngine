@@ -31,34 +31,10 @@ TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize(
 	TEXT("Encoder target size in format widthxheight"),
 	ECVF_Cheat);
 
-TAutoConsoleVariable<int32> CVarPixelStreamingEncoderPrioritizeQuality(
-	TEXT("PixelStreaming.Encoder.PrioritizeQuality"),
-	0,
-	TEXT("Reduces framerate automatically on bitrate reduction to trade FPS/latency for video quality"),
-	ECVF_Cheat);
-
-TAutoConsoleVariable<int32> CVarPixelStreamingEncoderLowBitrate(
-	TEXT("PixelStreaming.Encoder.LowBitrate"),
-	1000000,
-	TEXT("Lower bound of bitrate for quality adaptation, in Bps"),
-	ECVF_Default);
-
-TAutoConsoleVariable<int32> CVarPixelStreamingEncoderHighBitrate(
-	TEXT("PixelStreaming.Encoder.HighBitrate"),
-	5000000,
-	TEXT("Upper bound of bitrate for quality adaptation, in Bps"),
-	ECVF_Default);
-
-TAutoConsoleVariable<float> CVarPixelStreamingEncoderMinFPS(
-	TEXT("PixelStreaming.Encoder.MinFPS"),
-	10.0,
-	TEXT("Minimal FPS for quality adaptation"),
-	ECVF_Default);
-
 TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMinQP(
 	TEXT("PixelStreaming.Encoder.MinQP"),
 	20,
-	TEXT("0-51, lower values result in better quality but higher bitrate"),
+	TEXT("[0-51], lower values result in better quality but higher bitrate. Is used to limit encoder's bitrate while producing acceptable quality"),
 	ECVF_Default);
 
 TAutoConsoleVariable<FString> CVarPixelStreamingEncoderRateControl(
@@ -66,6 +42,36 @@ TAutoConsoleVariable<FString> CVarPixelStreamingEncoderRateControl(
 	TEXT("CBR"),
 	TEXT("PixelStreaming video encoder RateControl mode. Supported modes are `ConstQP`, `VBR`, `CBR`"),
 	ECVF_Default);
+
+//////////////////////////////////////////////////////////////////////////
+// Quality Prioritization
+// experimental feature, disabled by default
+
+TAutoConsoleVariable<int32> CVarPixelStreamingEncoderPrioritizeQuality(
+	TEXT("PixelStreaming.Encoder.PrioritizeQuality"),
+	0,
+	TEXT("Reduces framerate if poor encoding quality is detected (QP > CVarPixelStreamingEncoderMaxTolerableQP)"),
+	ECVF_Cheat);
+
+TAutoConsoleVariable<int32> CVarPixelStreamingEncoderMaxTolerableQP(
+	TEXT("PixelStreaming.Encoder.MaxTolerableQP"),
+	30,
+	TEXT("Threshold for H.264 Encoder Quantization Parameter value [0-51], if it goes higher than that Quality Prioritization kicks in (if enabled)"),
+	ECVF_Cheat);
+
+TAutoConsoleVariable<float> CVarPixelStreamingEncoderMinFPS(
+	TEXT("PixelStreaming.Encoder.MinFPS"),
+	10.0,
+	TEXT("Minimal FPS for Quality Prioritization framerate reduction"),
+	ECVF_Cheat);
+
+TAutoConsoleVariable<int32> CVarPixelStreamingEncoderFillerDataHack(
+	TEXT("PixelStreaming.Encoder.FillerDataHack"),
+	1,
+	TEXT("Enables/disables the filler data hack (For NvEnc only)"),
+	ECVF_Cheat);
+
+//////////////////////////////////////////////////////////////////////////
 
 
 //
@@ -190,7 +196,20 @@ int32 FVideoEncoder::Encode(const webrtc::VideoFrame& Frame, const webrtc::Codec
 		bForceKeyFrame = true;
 	}
 
-	// Adjust framerate if required, so we can keep quality without increasing bitrate
+	const int32 MaxPossibleQP = 51;
+
+	// Adjust QP
+	{
+		int MinQP = CVarPixelStreamingEncoderMinQP.GetValueOnAnyThread();
+		MinQP = FMath::Clamp(MinQP, 0, MaxPossibleQP);
+		if (HWEncoderDetails.LastMinQP != MinQP)
+		{
+			HWEncoderDetails.LastMinQP = MinQP;
+			HWEncoderDetails.Encoder->SetParameter(TEXT("qp"), FString::FromInt(HWEncoderDetails.LastMinQP));
+		}
+	}
+
+	// Quality prioritization
 	{
 		float Fps;
 		if (!CVarPixelStreamingEncoderPrioritizeQuality.GetValueOnAnyThread())
@@ -199,34 +218,37 @@ int32 FVideoEncoder::Encode(const webrtc::VideoFrame& Frame, const webrtc::Codec
 		}
 		else
 		{
+			// WebRTC detects available bandwidth and adjusts video encoder bitrate accordingly. If bandwidth is limited video quality 
+			// can drop to unacceptable level. In this case we reduce framerate to allocate more bandwidth to individual frames, 
+			// so effectively we trade responsiveness (lower FPS = higher latency) for better video quality. Disable "Quality Prioritization" 
+			// feature for applications where this is unacceptable, or reconfigure default parameters.
+			int32 QP = HWEncoderDetails.LastAvgQP;
 
-			// Quality of video suffers if B/W is limited and drops below some threshold. We can sacrifice
-			// responsiveness (latency) to improve video quality. We reduce framerate and so encoder
-			// can spread limited bitrate over fewer frames.
-			int32 Bps = HWEncoderDetails.LastBitrate;
-
-			// bitrate lower than lower bound results always in min FPS
-			// bitrate between lower and upper bounds results in FPS proportionally between min and max FPS
-			// bitrate higher than upper bound results always in max FPS
-			const int32 UpperBoundBps = CVarPixelStreamingEncoderHighBitrate.GetValueOnAnyThread();
-			const int32 LowerBoundBps = FMath::Min(CVarPixelStreamingEncoderLowBitrate.GetValueOnAnyThread(), UpperBoundBps);
+			// QP higher than max tolerable value in FPS proportionally between min and max FPS
+			// QP lower than max tolerable value results in max FPS
+			const int32 MaxTolerableQP = CVarPixelStreamingEncoderMaxTolerableQP.GetValueOnAnyThread();
 			const float MaxFps = HWEncoderDetails.InitialMaxFPS;
 			const float MinFps = FMath::Min(CVarPixelStreamingEncoderMinFPS.GetValueOnAnyThread(), MaxFps);
 
-			if (Bps < LowerBoundBps)
-				Fps = MinFps;
-			else if (Bps < UpperBoundBps)
+			if (QP < MaxTolerableQP || QP == FHWEncoderDetails::InvalidQP)
 			{
-				Fps = MinFps + (MaxFps - MinFps) / (UpperBoundBps - LowerBoundBps) * (Bps - LowerBoundBps);
+				Fps = MaxFps;
 			}
 			else
 			{
-				Fps = MaxFps;
+				float FpsInterval = MaxFps - MinFps;
+				int32 QpInterval = MaxPossibleQP - MaxTolerableQP;
+				Fps = MinFps + FpsInterval / QpInterval * (QpInterval - (QP - MaxTolerableQP));
 			}
 		}
 
 		if (HWEncoderDetails.LastFramerate != int(Fps))
 		{
+			if (FMath::Abs(HWEncoderDetails.LastFramerate - Fps) > 5 || UE_GET_LOG_VERBOSITY(PixelStreamer) >= ELogVerbosity::Verbose)
+			{
+				UE_LOG(PixelStreamer, Log, TEXT("Quality prioritization: QP %d, FPS %.0f"), HWEncoderDetails.LastAvgQP, Fps);
+			}
+
 			HWEncoderDetails.LastFramerate = int(Fps);
 			// SetMaxFPS must be called from the game thread because it changes a console var
 			AsyncTask(ENamedThreads::GameThread, [Fps = int(Fps)]() { GEngine->SetMaxFPS(Fps); });
@@ -234,16 +256,8 @@ int32 FVideoEncoder::Encode(const webrtc::VideoFrame& Frame, const webrtc::Codec
 		}
 	}
 
-	// Adjust QP
-	{
-		int MinQP = CVarPixelStreamingEncoderMinQP.GetValueOnAnyThread();
-		MinQP = FMath::Clamp(MinQP, 0, 51);
-		if (HWEncoderDetails.LastQP != MinQP)
-		{
-			HWEncoderDetails.LastQP = MinQP;
-			HWEncoderDetails.Encoder->SetParameter(TEXT("qp"), FString::FromInt(HWEncoderDetails.LastQP));
-		}
-	}
+	// Filler data hack (for NvEnc)
+	HWEncoderDetails.Encoder->SetParameter( TEXT("fillerdata"), CVarPixelStreamingEncoderFillerDataHack.GetValueOnAnyThread() == 0 ? TEXT("0") : TEXT("1"));
 
 	// Adjust RcMode
 	{
@@ -278,6 +292,8 @@ void FVideoEncoder::OnEncodedVideoFrame(const AVEncoder::FAVPacket& Packet, AVEn
 		return;
 	}
 
+	HWEncoderDetails.LastAvgQP = Packet.Video.FrameAvgQP;
+
 	// The hardware encoder is shared between webrtc's FVideoEncoder instances, so we only create the EncodedImage buffer once
 	if (Cookie->EncodedFrameBuffer.Num()==0)
 	{
@@ -293,18 +309,23 @@ void FVideoEncoder::OnEncodedVideoFrame(const AVEncoder::FAVPacket& Packet, AVEn
 
 		FHUDStats& Stats = FHUDStats::Get();
 		double LatencyMs = Packet.Timings.EncodeFinishTs.GetTotalMilliseconds() - Packet.Timings.EncodeStartTs.GetTotalMilliseconds();
-		double BitrateMbps = Packet.Data.Num() * 8 * Packet.Video.Framerate / 1000000.0;
+		//double BitrateMbps = Packet.Data.Num() * 8 * Packet.Video.Framerate / 1000000.0;
+		double BitrateMbps = Packet.Data.Num() * 8 / Packet.Duration.GetTotalSeconds() / 1000000.0;
+
 		if (Stats.bEnabled)
 		{
 			Stats.EncoderLatencyMs.Update(LatencyMs);
 			Stats.EncoderBitrateMbps.Update(BitrateMbps);
 			Stats.EncoderQP.Update(Packet.Video.FrameAvgQP);
+			Stats.EncoderFPS.Update(1 / Packet.Duration.GetTotalSeconds());
+			Stats.BandwidthMbps = LastBitrate.get_sum_bps() / 1000000.0;
 		}
 
-		UE_LOG(PixelStreamer, VeryVerbose, TEXT("QP %d/%0.f, latency %.0f/%.0f ms, bitrate %.3f/%.3f Mbps, %d bytes")
+		UE_LOG(PixelStreamer, VeryVerbose, TEXT("QP %d/%0.f, latency %.0f/%.0f ms, bitrate %.3f/%.3f Mbps, fps %.1f/%.1f, %d bytes")
 			, Packet.Video.FrameAvgQP, Stats.EncoderQP.Get()
 			, LatencyMs, Stats.EncoderLatencyMs.Get()
 			, BitrateMbps, Stats.EncoderBitrateMbps.Get()
+			, 1 / Packet.Duration.GetTotalSeconds(), Stats.EncoderFPS.Get()
 			, (int)Packet.Data.Num());
 
 	}
@@ -365,9 +386,7 @@ int32 FVideoEncoder::SetRateAllocation(const webrtc::BitrateAllocation& Allocati
 
 webrtc::VideoEncoder::ScalingSettings FVideoEncoder::GetScalingSettings() const
 {
-	// verifySlow(false);
-	// return ScalingSettings{ ScalingSettings::kOff };
-	return ScalingSettings{0, 1024 * 1024};
+	return ScalingSettings{24, 34};
 }
 
 bool FVideoEncoder::SupportsNativeHandle() const

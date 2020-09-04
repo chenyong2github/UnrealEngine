@@ -46,10 +46,14 @@
 #include "Components/SceneCaptureComponent2D.h"
 #include "Sound/SoundCue.h"
 #include "Sound/SoundWave.h"
+#if WITH_ACCESSIBILITY
+#include "Framework/Application/SlateApplication.h"
+#include "Widgets/Accessibility/SlateAccessibleMessageHandler.h"
+#endif
 
 #define LOCTEXT_NAMESPACE "GameplayStatics"
 
-static const int UE4_SAVEGAME_FILE_TYPE_TAG = 0x53415647;		// "sAvG"
+static const int UE4_SAVEGAME_FILE_TYPE_TAG = 0x53415647;		// "SAVG"
 
 struct FSaveGameFileVersion
 {
@@ -692,7 +696,7 @@ AActor* UGameplayStatics::FinishSpawningActor(AActor* Actor, const FTransform& S
 	return Actor;
 }
 
-void UGameplayStatics::LoadStreamLevel(const UObject* WorldContextObject, FName LevelName,bool bMakeVisibleAfterLoad,bool bShouldBlockOnLoad,FLatentActionInfo LatentInfo)
+void UGameplayStatics::LoadStreamLevel(const UObject* WorldContextObject, FName LevelName, bool bMakeVisibleAfterLoad, bool bShouldBlockOnLoad, FLatentActionInfo LatentInfo)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
@@ -705,7 +709,13 @@ void UGameplayStatics::LoadStreamLevel(const UObject* WorldContextObject, FName 
 	}
 }
 
-void UGameplayStatics::UnloadStreamLevel(const UObject* WorldContextObject, FName LevelName,FLatentActionInfo LatentInfo,bool bShouldBlockOnUnload)
+void UGameplayStatics::LoadStreamLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bMakeVisibleAfterLoad, bool bShouldBlockOnLoad, FLatentActionInfo LatentInfo)
+{
+	const FName LevelName = FName(*FPackageName::ObjectPathToPackageName(Level.ToString()));
+	LoadStreamLevel(WorldContextObject, LevelName, bMakeVisibleAfterLoad, bShouldBlockOnLoad, LatentInfo);
+}
+
+void UGameplayStatics::UnloadStreamLevel(const UObject* WorldContextObject, FName LevelName, FLatentActionInfo LatentInfo, bool bShouldBlockOnUnload)
 {
 	if (UWorld* World = GEngine->GetWorldFromContextObject(WorldContextObject, EGetWorldErrorMode::LogAndReturnNull))
 	{
@@ -716,6 +726,12 @@ void UGameplayStatics::UnloadStreamLevel(const UObject* WorldContextObject, FNam
 			LatentManager.AddNewAction(LatentInfo.CallbackTarget, LatentInfo.UUID, NewAction );
 		}
 	}
+}
+
+void UGameplayStatics::UnloadStreamLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, FLatentActionInfo LatentInfo, bool bShouldBlockOnUnload)
+{
+	const FName LevelName = FName(*FPackageName::ObjectPathToPackageName(Level.ToString()));
+	UnloadStreamLevel(WorldContextObject, LevelName, LatentInfo, bShouldBlockOnUnload);
 }
 
 ULevelStreaming* UGameplayStatics::GetStreamingLevel(const UObject* WorldContextObject, FName InPackageName)
@@ -785,6 +801,12 @@ void UGameplayStatics::OpenLevel(const UObject* WorldContextObject, FName LevelN
 	}
 
 	GEngine->SetClientTravel( World, *Cmd, TravelType );
+}
+
+void UGameplayStatics::OpenLevelBySoftObjectPtr(const UObject* WorldContextObject, const TSoftObjectPtr<UWorld> Level, bool bAbsolute, FString Options)
+{
+	const FName LevelName = FName(*FPackageName::ObjectPathToPackageName(Level.ToString()));
+	UGameplayStatics::OpenLevel(WorldContextObject, LevelName, bAbsolute, Options);
 }
 
 FString UGameplayStatics::GetCurrentLevelName(const UObject* WorldContextObject, bool bRemovePrefixString)
@@ -2934,6 +2956,16 @@ int32 UGameplayStatics::GetIntOption( const FString& Options, const FString& Key
 bool UGameplayStatics::HasLaunchOption(const FString& OptionToCheck)
 {
 	return FParse::Param(FCommandLine::Get(), *OptionToCheck);
+}
+
+void UGameplayStatics::AnnounceAccessibleString(const FString& AnnouncementString)
+{
+#if WITH_ACCESSIBILITY
+	if (!AnnouncementString.IsEmpty())
+	{
+		FSlateApplication::Get().GetAccessibleMessageHandler()->MakeAccessibleAnnouncement(AnnouncementString);
+	}
+#endif
 }
 
 /**

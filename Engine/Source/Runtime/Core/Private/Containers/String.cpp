@@ -604,11 +604,17 @@ int32 FString::CullArray( TArray<FString>* InArray )
 	return InArray->Num();
 }
 
-FString FString::Reverse() const
+FString FString::Reverse() const &
 {
 	FString New(*this);
 	New.ReverseString();
 	return New;
+}
+
+FString FString::Reverse() &&
+{
+	ReverseString();
+	return MoveTemp(*this);
 }
 
 void FString::ReverseString()
@@ -911,7 +917,7 @@ int32 FString::ParseIntoArray( TArray<FString>& OutArray, const TCHAR* pchDelim,
 	// Make sure the delimit string is not null or empty
 	check(pchDelim);
 	OutArray.Reset();
-	const TCHAR *Start = Data.GetData();
+	const TCHAR *Start = **this;
 	const int32 DelimLength = FCString::Strlen(pchDelim);
 	if (Start && *Start != TEXT('\0') && DelimLength)
 	{
@@ -1052,7 +1058,7 @@ int32 FString::ParseIntoArray(TArray<FString>& OutArray, const TCHAR* const * De
 	return OutArray.Num();
 }
 
-FString FString::Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase) const
+FString FString::Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase) const &
 {
 	// Previous code used to accidentally accept a nullptr replacement string - this is no longer accepted.
 	check(To);
@@ -1094,6 +1100,12 @@ FString FString::Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type S
 	return Result;
 }
 
+FString FString::Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase) &&
+{
+	ReplaceInline(From, To, SearchCase);
+	return MoveTemp(*this);
+}
+
 int32 FString::ReplaceInline(const TCHAR* SearchText, const TCHAR* ReplacementText, ESearchCase::Type SearchCase)
 {
 	int32 ReplacementCount = 0;
@@ -1130,8 +1142,7 @@ int32 FString::ReplaceInline(const TCHAR* SearchText, const TCHAR* ReplacementTe
 		}
 		else if (Contains(SearchText, SearchCase))
 		{
-			FString Copy(*this);
-			Empty(Len());
+			FString Copy(MoveTemp(*this));
 
 			// get a pointer into the character data
 			TCHAR* WritePosition = (TCHAR*)Copy.Data.GetData();
@@ -1169,13 +1180,13 @@ int32 FString::ReplaceInline(const TCHAR* SearchText, const TCHAR* ReplacementTe
 /**
  * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
  */
-FString FString::ReplaceQuotesWithEscapedQuotes() const
+FString FString::ReplaceQuotesWithEscapedQuotes() &&
 {
 	if (Contains(TEXT("\""), ESearchCase::CaseSensitive))
 	{
-		FString Result;
+		FString Copy(MoveTemp(*this));
 
-		const TCHAR* pChar = **this;
+		const TCHAR* pChar = *Copy;
 
 		bool bEscaped = false;
 		while ( *pChar != 0 )
@@ -1190,16 +1201,14 @@ FString FString::ReplaceQuotesWithEscapedQuotes() const
 			}
 			else if ( *pChar == TCHAR('"') )
 			{
-				Result += TCHAR('\\');
+				*this += TCHAR('\\');
 			}
 
-			Result += *pChar++;
+			*this += *pChar++;
 		}
-		
-		return Result;
 	}
 
-	return *this;
+	return MoveTemp(*this);
 }
 
 static const TCHAR* CharToEscapeSeqMap[][2] =
@@ -1215,15 +1224,7 @@ static const TCHAR* CharToEscapeSeqMap[][2] =
 
 static const uint32 MaxSupportedEscapeChars = UE_ARRAY_COUNT(CharToEscapeSeqMap);
 
-/**
- * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
- * The characters supported are: { \n, \r, \t, \', \", \\ }.
- *
- * @param	Chars	by default, replaces all supported characters; this parameter allows you to limit the replacement to a subset.
- *
- * @return	a string with all control characters replaced by the escaped version.
- */
-FString FString::ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars/*=nullptr*/ ) const
+FString FString::ReplaceCharWithEscapedChar(const TArray<TCHAR>* Chars/*=nullptr*/) &&
 {
 	if ( Len() > 0 && (Chars == nullptr || Chars->Num() > 0) )
 	{
@@ -1241,28 +1242,23 @@ FString FString::ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars/*=nullpt
 
 	return *this;
 }
-/**
- * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
- * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
- */
-FString FString::ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars/*=nullptr*/ ) const
+
+FString FString::ReplaceEscapedCharWithChar(const TArray<TCHAR>* Chars/*=nullptr*/) &&
 {
 	if ( Len() > 0 && (Chars == nullptr || Chars->Num() > 0) )
 	{
-		FString Result(*this);
 		// Spin CharToEscapeSeqMap backwards to ensure we're doing the inverse of ReplaceCharWithEscapedChar
 		for ( int32 ChIdx = MaxSupportedEscapeChars - 1; ChIdx >= 0; ChIdx-- )
 		{
 			if ( Chars == nullptr || Chars->Contains(*(CharToEscapeSeqMap[ChIdx][0])) )
 			{
 				// use ReplaceInline as that won't create a copy of the string if the character isn't found
-				Result.ReplaceInline( CharToEscapeSeqMap[ChIdx][1], CharToEscapeSeqMap[ChIdx][0] );
+				ReplaceInline(CharToEscapeSeqMap[ChIdx][1], CharToEscapeSeqMap[ChIdx][0]);
 			}
 		}
-		return Result;
 	}
 
-	return *this;
+	return MoveTemp(*this);
 }
 
 /** 

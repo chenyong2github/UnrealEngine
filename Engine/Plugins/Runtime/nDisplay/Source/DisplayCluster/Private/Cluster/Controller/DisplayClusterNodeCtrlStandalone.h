@@ -12,7 +12,7 @@ class FDisplayClusterNodeCtrlStandalone
 	: public FDisplayClusterNodeCtrlBase
 {
 public:
-	FDisplayClusterNodeCtrlStandalone(const FString& ctrlName, const FString& nodeName);
+	FDisplayClusterNodeCtrlStandalone(const FString& CtrlName, const FString& NodeName);
 	virtual ~FDisplayClusterNodeCtrlStandalone();
 
 public:

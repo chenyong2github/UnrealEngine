@@ -86,7 +86,7 @@ public:
 			FUintVector4 PageTableUniform[2];
 			FUintVector4 Uniform;
 
-			AllocatedVT->GetPackedPageTableUniform(PageTableUniform, false);
+			AllocatedVT->GetPackedPageTableUniform(PageTableUniform);
 			AllocatedVT->GetPackedUniform(&Uniform, (uint32)LayerIndex);
 
 			SetShaderValueArray(RHICmdList, ShaderRHI, VTPackedPageTableUniform, PageTableUniform, UE_ARRAY_COUNT(PageTableUniform));

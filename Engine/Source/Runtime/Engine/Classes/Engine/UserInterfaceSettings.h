@@ -39,6 +39,8 @@ enum class EUIScalingRule : uint8
 	Horizontal,
 	/** Evaluates the scale curve based on the Y axis of the viewport. */
 	Vertical,
+	/** ScaleToFit - Does not use scale curve. Emulates behavior of scale box by using DesignScreenSize and scaling the content relatively to it. */
+	ScaleToFit,
 	/** Custom - Allows custom rule interpretation. */
 	Custom
 };
@@ -180,6 +182,10 @@ public:
 	 */
 	UPROPERTY(config, EditAnywhere, Category="DPI Scaling", meta=( DisplayName="Allow High DPI in Game Mode" ))
 	bool bAllowHighDPIInGameMode;
+
+	/** Used only with ScaleToFit scaling rule. Defines native resolution for which were source UI textures created. DPI scaling will be 1.0 at this screen resolution. */
+	UPROPERTY(config, EditAnywhere, Category="DPI Scaling|Scale To Fit Rule", meta=( DisplayName="Design Screen Size", ClampMin="1", UIMin="1" ))
+	FIntPoint DesignScreenSize = FIntPoint(1920, 1080);
 
 	/**
 	 * If false, widget references will be stripped during cook for server builds and not loaded at runtime.

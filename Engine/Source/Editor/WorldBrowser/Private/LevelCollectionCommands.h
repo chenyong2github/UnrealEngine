@@ -107,12 +107,12 @@ public:
 		UI_COMMAND( World_LockOnlySelectedLevels, "Lock Only Selected", "Toggles the selected levels to a locked state; toggles all other levels to an unlocked state", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( World_LockAllButSelectedLevels, "Lock All But Selected", "Toggles the selected levels to an unlocked state; toggles all other levels to a locked state", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( World_LockAllLevels, "Lock All", "Locks all levels", EUserInterfaceActionType::Button, FInputChord() );
-		UI_COMMAND( World_UnockAllLevels, "Unlock All", "Unlocks all levels", EUserInterfaceActionType::Button, FInputChord() );
+		UI_COMMAND( World_UnlockAllLevels, "Unlock All", "Unlocks all levels", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( World_LockReadOnlyLevels, "Lock Read-Only Levels", "Locks all read-only levels", EUserInterfaceActionType::Button, FInputChord() );
 		UI_COMMAND( World_UnlockReadOnlyLevels, "Unlock Read-Only Levels", "Unlocks all read-only levels", EUserInterfaceActionType::Button, FInputChord() );
 		
 		//view
-		UI_COMMAND( FitToSelection, "Fit to Selection", "Fits view to selected levels", EUserInterfaceActionType::Button, FInputChord(EKeys::Home) );
+		UI_COMMAND( FitToSelection, "Fit to Selection", "Fits view to selected levels", EUserInterfaceActionType::Button, FInputChord(EKeys::F) );
 		UI_COMMAND( ExpandSelectedItems, "Expand Selected", "Expands all children of a selected items", EUserInterfaceActionType::Button, FInputChord() );
 		
 		// Parent->child
@@ -294,7 +294,7 @@ public:
 	TSharedPtr< FUICommandInfo > World_LockAllLevels;
 
 	/** Unlocks selected levels */
-	TSharedPtr< FUICommandInfo > World_UnockAllLevels;
+	TSharedPtr< FUICommandInfo > World_UnlockAllLevels;
 
 	/** Makes selected Levels locked; makes all others unlocked */
 	TSharedPtr< FUICommandInfo > World_LockOnlySelectedLevels;

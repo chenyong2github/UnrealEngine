@@ -8,9 +8,11 @@
 ///////////////////////////////////////////////////////////////////////////////
 
 #include "dxc/Support/Global.h"
+#include "dxc/Support/Unicode.h"
+#include "dxc/Support/WinIncludes.h"
 #include "dxc/DXIL/DxilSubobject.h"
+#include "dxc/DxilContainer/DxilRuntimeReflection.h"
 #include "llvm/ADT/STLExtras.h"
-
 
 namespace hlsl {
 
@@ -75,6 +77,10 @@ void DxilSubobject::CopyUnionedContents(const DxilSubobject &other) {
     HitGroup.AnyHit = other.HitGroup.AnyHit;
     HitGroup.ClosestHit = other.HitGroup.ClosestHit;
     HitGroup.Intersection = other.HitGroup.Intersection;
+    break;
+  case Kind::RaytracingPipelineConfig1:
+    RaytracingPipelineConfig1.MaxTraceRecursionDepth = other.RaytracingPipelineConfig1.MaxTraceRecursionDepth;
+    RaytracingPipelineConfig1.Flags = other.RaytracingPipelineConfig1.Flags;
     break;
   default:
     DXASSERT(0, "invalid kind");
@@ -178,7 +184,17 @@ bool DxilSubobject::GetHitGroup(DXIL::HitGroupType &hitGroupType,
   return false;
 }
 
-
+// RaytracingPipelineConfig1
+bool DxilSubobject::GetRaytracingPipelineConfig1(
+    uint32_t &MaxTraceRecursionDepth, uint32_t &Flags) const {
+  if (m_Kind == Kind::RaytracingPipelineConfig1) {
+    MaxTraceRecursionDepth = RaytracingPipelineConfig1.MaxTraceRecursionDepth;
+    Flags = RaytracingPipelineConfig1.Flags;
+    return true;
+  }
+  return false;
+}
+ 
 DxilSubobjects::DxilSubobjects()
   : m_BytesStorage()
   , m_Subobjects()
@@ -307,6 +323,16 @@ DxilSubobject &DxilSubobjects::CreateHitGroup(llvm::StringRef Name,
   return obj;
 }
 
+DxilSubobject &DxilSubobjects::CreateRaytracingPipelineConfig1(
+    llvm::StringRef Name, uint32_t MaxTraceRecursionDepth, uint32_t Flags) {
+  auto &obj = CreateSubobject(Kind::RaytracingPipelineConfig1, Name);
+  obj.RaytracingPipelineConfig1.MaxTraceRecursionDepth = MaxTraceRecursionDepth;
+  DXASSERT_NOMSG(
+      0 == ((~(uint32_t)DXIL::RaytracingPipelineFlags::ValidMask) & Flags));
+  obj.RaytracingPipelineConfig1.Flags = Flags;
+  return obj;
+}
+
 DxilSubobject &DxilSubobjects::CreateSubobject(Kind kind, llvm::StringRef Name) {
   Name = InternString(Name);
   IFTBOOLMSG(FindSubobject(Name) == nullptr, DXC_E_GENERAL_INTERNAL_ERROR, "Subobject name collision");
@@ -317,6 +343,74 @@ DxilSubobject &DxilSubobjects::CreateSubobject(Kind kind, llvm::StringRef Name) 
   return ref;
 }
 
+bool LoadSubobjectsFromRDAT(DxilSubobjects &subobjects, RDAT::SubobjectTableReader *pSubobjectTableReader) {
+  if (!pSubobjectTableReader)
+    return false;
+  bool result = true;
+  for (unsigned i = 0; i < pSubobjectTableReader->GetCount(); ++i) {
+    try {
+      auto reader = pSubobjectTableReader->GetItem(i);
+      DXIL::SubobjectKind kind = reader.GetKind();
+      bool bLocalRS = false;
+      switch (kind) {
+      case DXIL::SubobjectKind::StateObjectConfig:
+        subobjects.CreateStateObjectConfig(reader.GetName(),
+          reader.GetStateObjectConfig_Flags());
+        break;
+      case DXIL::SubobjectKind::LocalRootSignature:
+        bLocalRS = true;
+      case DXIL::SubobjectKind::GlobalRootSignature: {
+        const void *pOutBytes;
+        uint32_t OutSizeInBytes;
+        if (!reader.GetRootSignature(&pOutBytes, &OutSizeInBytes)) {
+          result = false;
+          continue;
+        }
+        subobjects.CreateRootSignature(reader.GetName(), bLocalRS, pOutBytes, OutSizeInBytes);
+        break;
+      }
+      case DXIL::SubobjectKind::SubobjectToExportsAssociation: {
+        uint32_t NumExports = reader.GetSubobjectToExportsAssociation_NumExports();
+        std::vector<llvm::StringRef> Exports;
+        Exports.resize(NumExports);
+        for (unsigned i = 0; i < NumExports; ++i) {
+          Exports[i] = reader.GetSubobjectToExportsAssociation_Export(i);
+        }
+        subobjects.CreateSubobjectToExportsAssociation(reader.GetName(),
+          reader.GetSubobjectToExportsAssociation_Subobject(),
+          Exports.data(), NumExports);
+        break;
+      }
+      case DXIL::SubobjectKind::RaytracingShaderConfig:
+        subobjects.CreateRaytracingShaderConfig(reader.GetName(),
+          reader.GetRaytracingShaderConfig_MaxPayloadSizeInBytes(),
+          reader.GetRaytracingShaderConfig_MaxAttributeSizeInBytes());
+        break;
+      case DXIL::SubobjectKind::RaytracingPipelineConfig:
+        subobjects.CreateRaytracingPipelineConfig(reader.GetName(),
+          reader.GetRaytracingPipelineConfig_MaxTraceRecursionDepth());
+        break;
+      case DXIL::SubobjectKind::HitGroup:
+        subobjects.CreateHitGroup(reader.GetName(),
+          reader.GetHitGroup_Type(),
+          reader.GetHitGroup_AnyHit(),
+          reader.GetHitGroup_ClosestHit(),
+          reader.GetHitGroup_Intersection());
+        break;
+      case DXIL::SubobjectKind::RaytracingPipelineConfig1:
+        subobjects.CreateRaytracingPipelineConfig1(
+          reader.GetName(),
+          reader.GetRaytracingPipelineConfig1_MaxTraceRecursionDepth(),
+          reader.GetRaytracingPipelineConfig1_Flags());
+        break;
+      }
+    }
+    catch (hlsl::Exception &) {
+      result = false;
+    }
+  }
+  return result;
+}
 
 } // namespace hlsl
 

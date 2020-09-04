@@ -69,37 +69,6 @@ UMeshTexturePaintingToolProperties::UMeshTexturePaintingToolProperties()
 	PaintTexture(nullptr)
 {
 }
-
-
-
-void UMeshTexturePaintingToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UBrushBaseProperties::SaveProperties(SaveFromTool);
-	UMeshTexturePaintingToolProperties* PropertyCache = GetPropertyCache<UMeshTexturePaintingToolProperties>();
-	PropertyCache->PaintColor = this->PaintColor;
-	PropertyCache->EraseColor = this->EraseColor;
-	PropertyCache->bEnableFlow = this->bEnableFlow;
-	PropertyCache->bWriteRed = this->bWriteRed;
-	PropertyCache->bWriteGreen = this->bWriteGreen;
-	PropertyCache->bWriteBlue = this->bWriteBlue;
-	PropertyCache->bWriteRed = this->bWriteRed;
-	PropertyCache->bOnlyFrontFacingTriangles = this->bOnlyFrontFacingTriangles;
-}
-
-void UMeshTexturePaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UBrushBaseProperties::RestoreProperties(RestoreToTool);
-	UMeshTexturePaintingToolProperties* PropertyCache = GetPropertyCache<UMeshTexturePaintingToolProperties>();
-	this->PaintColor = PropertyCache->PaintColor;
-	this->EraseColor = PropertyCache->EraseColor;
-	this->bEnableFlow = PropertyCache->bEnableFlow;
-	this->bOnlyFrontFacingTriangles = PropertyCache->bOnlyFrontFacingTriangles;
-	this->bWriteRed = PropertyCache->bWriteRed;
-	this->bWriteGreen = PropertyCache->bWriteGreen;
-	this->bWriteBlue = PropertyCache->bWriteBlue;
-	this->bWriteRed = PropertyCache->bWriteRed;
-}
-
 UMeshTexturePaintingTool::UMeshTexturePaintingTool()
 {
 	PropertyClass = UMeshTexturePaintingToolProperties::StaticClass();
@@ -152,9 +121,9 @@ void UMeshTexturePaintingTool::Shutdown(EToolShutdownType ShutdownType)
 void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 {
 	UMeshToolManager* MeshToolManager = Cast<UMeshToolManager>(GetToolManager());
-	Super::Render(RenderAPI);
-	FToolDataVisualizer Draw;
-	Draw.BeginFrame(RenderAPI);
+		Super::Render(RenderAPI);
+		FToolDataVisualizer Draw;
+		Draw.BeginFrame(RenderAPI);
 	if (MeshToolManager && LastBestHitResult.Component != nullptr)
 	{
 		BrushStampIndicator->bDrawIndicatorLines = true;
@@ -191,7 +160,7 @@ void UMeshTexturePaintingTool::Render(IToolsContextRenderAPI* RenderAPI)
 	{
 		BrushStampIndicator->bDrawIndicatorLines = false;
 	}
-	Draw.EndFrame();
+		Draw.EndFrame();
 	UpdateResult();
 
 }

@@ -727,12 +727,6 @@ void FRDGBuilder::ExecutePass(const FRDGPass* Pass)
 	{
 		RHICmdList.BeginRenderPass(RPInfo, Pass->GetName());
 	}
-	else
-	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		UnbindRenderTargets(RHICmdList);
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
-	}
 
 	Pass->Execute(RHICmdList);
 

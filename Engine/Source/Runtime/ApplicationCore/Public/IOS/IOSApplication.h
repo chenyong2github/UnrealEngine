@@ -15,7 +15,7 @@ public:
 
 public:
 
-	virtual ~FIOSApplication() {}
+	virtual ~FIOSApplication();
 
 	void SetMessageHandler( const TSharedRef< FGenericApplicationMessageHandler >& InMessageHandler );
 #if WITH_ACCESSIBILITY
@@ -59,7 +59,14 @@ private:
 	bool bHasLoadedInputPlugins;
 
 	TArray< TSharedRef< FIOSWindow > > Windows;
-
+#if WITH_ACCESSIBILITY
+	/**
+	 * A timer used to introduce a small delay before accessibility announcement requests to
+	 * Avoid our requested accessibility announcement from being stompd by system accessibility requests.
+	 */
+	NSTimer* AccessibilityAnnouncementDelayTimer;
+#endif
+	
 	static FCriticalSection CriticalSection;
 	static bool bOrientationChanged;
 

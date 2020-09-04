@@ -1110,7 +1110,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	UPROPERTY()
 	bool UserAbilityActivationInhibited;
 
-	/** When enabled, we will not replicate this ASC to simulated proxies. We will route multicast RPCs through   */
+	/** When enabled GameplayCue RPCs will be routed through the AvatarActor's IAbilitySystemReplicationProxyInterface rather than this component */
 	UPROPERTY()
 	bool ReplicationProxyEnabled;
 
@@ -1169,7 +1169,7 @@ class GAMEPLAYABILITIES_API UAbilitySystemComponent : public UGameplayTasksCompo
 	// ----------------------------------------------------------------------------------------------------------------	
 
 	/** Plays a montage and handles replication and prediction based on passed in ability/activation info */
-	virtual float PlayMontage(UGameplayAbility* AnimatingAbility, FGameplayAbilityActivationInfo ActivationInfo, UAnimMontage* Montage, float InPlayRate, FName StartSectionName = NAME_None);
+	virtual float PlayMontage(UGameplayAbility* AnimatingAbility, FGameplayAbilityActivationInfo ActivationInfo, UAnimMontage* Montage, float InPlayRate, FName StartSectionName = NAME_None, float StartTimeSeconds = 0.0f);
 
 	/** Plays a montage without updating replication/prediction structures. Used by simulated proxies when replication tells them to play a montage. */
 	virtual float PlayMontageSimulated(UAnimMontage* Montage, float InPlayRate, FName StartSectionName = NAME_None);

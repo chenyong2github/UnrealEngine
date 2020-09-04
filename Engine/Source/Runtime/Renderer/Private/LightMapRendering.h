@@ -48,7 +48,7 @@ public:
 };
 
 /** Global uniform buffer containing the default precomputed lighting data. */
-extern TGlobalResource< FEmptyPrecomputedLightingUniformBuffer > GEmptyPrecomputedLightingUniformBuffer;
+extern RENDERER_API TGlobalResource< FEmptyPrecomputedLightingUniformBuffer > GEmptyPrecomputedLightingUniformBuffer;
 
 void GetIndirectLightingCacheParameters(
 	ERHIFeatureLevel::Type FeatureLevel,
@@ -639,7 +639,7 @@ enum ELightMapPolicyType
 	LMP_DUMMY
 };
 
-class FUniformLightMapPolicyShaderParametersType
+class RENDERER_API FUniformLightMapPolicyShaderParametersType
 {
 	DECLARE_TYPE_LAYOUT(FUniformLightMapPolicyShaderParametersType, NonVirtual);
 public:
@@ -662,7 +662,7 @@ public:
 	LAYOUT_FIELD(FShaderUniformBufferParameter, LightmapResourceCluster);
 };
 
-class FUniformLightMapPolicy
+class RENDERER_API FUniformLightMapPolicy
 {
 public:
 

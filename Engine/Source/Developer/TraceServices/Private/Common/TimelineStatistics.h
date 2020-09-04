@@ -137,6 +137,7 @@ private:
 				}
 				Callback(InternalResult[BucketKey], EventNonRecursiveInclusiveTime, EventExclusiveTime);
 			}
+			return EEventEnumerate::Continue;
 		});
 	}
 

@@ -210,40 +210,87 @@ void FMovieSceneCameraShakeSourceShakeSectionTemplate::Setup(FPersistentEvaluati
 void FMovieSceneCameraShakeSourceShakeSectionTemplate::Evaluate(const FMovieSceneEvaluationOperand& Operand, const FMovieSceneContext& Context, const FPersistentEvaluationData& PersistentData, FMovieSceneExecutionTokens& ExecutionTokens) const
 {
 	FCameraShakeSourceShakeSectionInstanceData& InstanceData = PersistentData.GetSectionData<FCameraShakeSourceShakeSectionInstanceData>();
+
+	const bool bHasDuration = InstanceData.Duration.IsSet();
+	const bool bHasBlendOutTime = InstanceData.BlendOutTime.IsSet();
+
 	if (InstanceData.Status == ECameraShakeSourceShakeStatus::NotStarted)
 	{
-		// We haven't started playing the shake yet... add an execution token which will trigger it.
-		ExecutionTokens.Add(FCameraShakeSourceShakeStartExecutionToken(SourceData));
-		InstanceData.Status = ECameraShakeSourceShakeStatus::Started;
+		const FFrameTime ShakeEndTime = bHasDuration ? 
+			SectionStartTime + InstanceData.Duration.GetValue() : SectionEndTime;
+
+		if (SectionStartTime <= Context.GetTime() && Context.GetTime() <= ShakeEndTime)
+		{
+			// We haven't started playing the shake yet... add an execution token which will trigger it.
+			ExecutionTokens.Add(FCameraShakeSourceShakeStartExecutionToken(SourceData));
+			InstanceData.Status = ECameraShakeSourceShakeStatus::Started;
+		}
 	}
-	else if (InstanceData.Status == ECameraShakeSourceShakeStatus::Started && InstanceData.BlendOutTime.IsSet())
+	else if (InstanceData.Status == ECameraShakeSourceShakeStatus::Started)
 	{
-		// We have started playing, but we have a blend-out time that we need to watch out for.
-		// There can be 3 situations here:
+		// We have started playing, but we might have a blend-out and/or end time that we need to 
+		// watch out for. There can be 3 situations here:
 		//
 		//   1. The shake has a duration, and our source section is long enough that the shake will
-		//		blend out and finish naturally on its own. In this case we have nothing to do.
+		//		blend out and finish naturally on its own. In this case we have nothing to do 
+		//		except update our internal status.
 		//	 2. The shake has a duration, but our source section's size is cutting this short. We 
-		//	    will want to start making the shake blend out manually.
+		//	    will want to start making the shake blend out manually, or stop it abruptely if
+		//	    it doesn't have any blend-out time.
 		//	 3. The shake has no duration, so we need to make it blend out manually near the end of
-		//	    our source section.
+		//	    our source section, or end it abruptely at the end of our source section.
 		//
-		// Cases 2 and 3 require us to stop the shake ourselves. Let's see which case we are in.
+		// Cases 2 and 3 require us to blend-out/stop the shake ourselves. Let's see which case we 
+		// are in.
 		//
-		const bool bHasDuration = InstanceData.Duration.IsSet();
-		const bool bNeedsManualStop = 
-			// Case 3
-			!bHasDuration ||
-			// Case 2
-			(SectionStartTime + InstanceData.Duration.GetValue()) > SectionEndTime;
-		if (bNeedsManualStop)
+		bool bObserveEndState = true;
+
+		if (bHasBlendOutTime)
 		{
-			// Let's see if we have reached the time when we need to start blending out.
-			const FFrameTime BlendOutStartTime = SectionEndTime - InstanceData.BlendOutTime.GetValue();
-			if (Context.GetPreviousTime() < BlendOutStartTime && Context.GetTime() >= BlendOutStartTime)
+			const bool bNeedsManualStop = 
+				// Case 3
+				!bHasDuration ||
+				// Case 2
+				(SectionStartTime + InstanceData.Duration.GetValue()) > SectionEndTime;
+
+			if (bNeedsManualStop)
 			{
-				ExecutionTokens.Add(FCameraShakeSourceShakeBlendOutExecutionToken(SourceData));
-				InstanceData.Status = ECameraShakeSourceShakeStatus::BlendingOut;
+				// Let's see if we have reached the time when we need to start blending out.
+				const FFrameTime BlendOutStartTime = SectionEndTime - InstanceData.BlendOutTime.GetValue();
+				if (Context.GetPreviousTime() <= BlendOutStartTime && Context.GetTime() >= BlendOutStartTime)
+				{
+					ExecutionTokens.Add(FCameraShakeSourceShakeBlendOutExecutionToken(SourceData));
+					InstanceData.Status = ECameraShakeSourceShakeStatus::BlendingOut;
+				}
+
+				bObserveEndState = false;
+			}
+		}
+		// else: If there's no blend-out, the shake always ends in an abrupt way.
+		//	 In cases 2 and 3, this happens at the end of the section, so we handle that in the 
+		//	 pre-animated restore token.
+		//	 In case 1, the shake ends abruptly by itself, so we just need to observe when that
+		//	 happens to keep our internal status correct.
+
+		if (bObserveEndState && bHasDuration)
+		{
+			// Just observe when the shake has ended, in order to update our internal status.
+			const FFrameTime ShakeEndTime = SectionStartTime + InstanceData.Duration.GetValue();
+			if (Context.GetTime() >= ShakeEndTime)
+			{
+				InstanceData.Status = ECameraShakeSourceShakeStatus::NotStarted;
+			}
+		}
+	}
+	else if (InstanceData.Status == ECameraShakeSourceShakeStatus::BlendingOut)
+	{
+		// We're blending out... see if we have finished, so we can keep our internal status correct.
+		if (bHasDuration)
+		{
+			const FFrameTime ShakeEndTime = SectionStartTime + InstanceData.Duration.GetValue();
+			if (Context.GetTime() >= ShakeEndTime)
+			{
+				InstanceData.Status = ECameraShakeSourceShakeStatus::NotStarted;
 			}
 		}
 	}

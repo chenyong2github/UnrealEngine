@@ -36,7 +36,7 @@ void UK2Node_GetInputVectorAxisValue::ValidateNodeDuringCompilation(class FCompi
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Invalid_GetInputVectorAxis_Warning", "GetInputVectorAxis Value specifies invalid FKey'{0}' for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);
 	}
-	else if (!InputAxisKey.IsVectorAxis())
+	else if (!InputAxisKey.IsAxis2D() && !InputAxisKey.IsAxis3D())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotAxis_GetInputVectorAxis_Warning", "GetInputVectorAxis Value specifies FKey'{0}' which is not a vector axis for @@"), FText::FromString(InputAxisKey.ToString())).ToString(), this);
 	}
@@ -78,22 +78,22 @@ void UK2Node_GetInputVectorAxisValue::GetMenuActions(FBlueprintActionDatabaseReg
 		InputNode->Initialize(Key);
 	};
 
-	// actions get registered under specific object-keys; the idea is that 
-	// actions might have to be updated (or deleted) if their object-key is  
-	// mutated (or removed)... here we use the node's class (so if the node 
+	// actions get registered under specific object-keys; the idea is that
+	// actions might have to be updated (or deleted) if their object-key is
+	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
 
-	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and 
-	// iterating over keys), first check to make sure that the registrar is 
-	// looking for actions of this type (could be regenerating actions for a 
-	// specific asset, and therefore the registrar would only accept actions 
+	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and
+	// iterating over keys), first check to make sure that the registrar is
+	// looking for actions of this type (could be regenerating actions for a
+	// specific asset, and therefore the registrar would only accept actions
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
 		for (const FKey& Key : AllKeys)
 		{
-			if (!Key.IsBindableInBlueprints() || !Key.IsVectorAxis())
+			if (!Key.IsBindableInBlueprints() || !(InputAxisKey.IsAxis2D() || InputAxisKey.IsAxis3D()))
 			{
 				continue;
 			}

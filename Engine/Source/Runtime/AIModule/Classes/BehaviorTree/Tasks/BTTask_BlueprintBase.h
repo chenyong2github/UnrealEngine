@@ -49,7 +49,7 @@ protected:
 	UPROPERTY(Transient)
 	AActor* ActorOwner;
 
-	/** If any of the Tick functions is implemented, how ofter should they be ticked.
+	/** If any of the Tick functions is implemented, how often should they be ticked.
 	 *	Values < 0 mean 'every tick'. */
 	UPROPERTY(EditAnywhere, Category = Task)
 	FIntervalCountdown TickInterval;

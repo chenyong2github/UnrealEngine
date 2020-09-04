@@ -35,6 +35,12 @@ This structure allows a single RHI to control several different hardware setups.
 
 #pragma once
 
+THIRD_PARTY_INCLUDES_START
+#if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+#include "dxgidebug.h"
+#endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+THIRD_PARTY_INCLUDES_END
+
 class FD3D12DynamicRHI;
 
 struct FD3D12AdapterDesc
@@ -170,8 +176,6 @@ public:
 		return *(UploadHeapAllocator[GPUIndex]); 
 	}
 
-	FORCEINLINE FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
-
 	FORCEINLINE uint32 GetDebugFlags() const { return DebugFlags; }
 
 	void Cleanup();
@@ -259,55 +263,24 @@ public:
 		ED3D12ResourceStateMode InResourceStateMode,
 		FRHIResourceCreateInfo& CreateInfo);
 
-	template<typename ObjectType, typename CreationCoreFunction>
+	template <typename ObjectType, typename CreationCoreFunction>
 	inline ObjectType* CreateLinkedObject(FRHIGPUMask GPUMask, const CreationCoreFunction& pfnCreationCore)
 	{
-		ObjectType* ObjectOut = nullptr;
-		ObjectType* Previous = nullptr;
-
-		for (uint32 GPUIndex : GPUMask)
-		{
-			ObjectType* NewObject = pfnCreationCore(GetDevice(GPUIndex));
-
-			// For AFR link up the resources so they can be implicitly destroyed.
-			if (!Previous)
-			{
-				ObjectOut = NewObject;
-			}
-			else // This will also configure the head link flag.
-			{
-				Previous->SetNextObject(NewObject);
-			}
-
-			Previous = NewObject;
-		}
-
-		return ObjectOut;
+		return FD3D12LinkedAdapterObject<typename ObjectType::LinkedObjectType>::template CreateLinkedObjects<ObjectType>(
+			GPUMask,
+			[this](uint32 GPUIndex) { return GetDevice(GPUIndex); },
+			pfnCreationCore
+		);
 	}
 
-	template<typename ResourceType, typename ViewType, typename CreationCoreFunction>
+	template <typename ResourceType, typename ViewType, typename CreationCoreFunction>
 	inline ViewType* CreateLinkedViews(ResourceType* Resource, const CreationCoreFunction& pfnCreationCore)
 	{
-		ViewType* ViewOut = nullptr;
-		ViewType* Previous = nullptr;
-
-		while (Resource)
-		{
-			ViewType* NewView = pfnCreationCore(Resource);
-			// For AFR link up the resources so they can be implicitly destroyed
-			if (!Previous)
-			{
-				ViewOut = NewView;
-			}
-			else // This will also configure the head link flag.
-			{
-				Previous->SetNextObject(NewView);
-			}
-			Previous = NewView;
-			Resource = (ResourceType*)Resource->GetNextObject();
-		}
-
-		return ViewOut;
+		return FD3D12LinkedAdapterObject<typename ViewType::LinkedObjectType>::template CreateLinkedObjects<ViewType>(
+			Resource->GetLinkedObjectsGPUMask(),
+			[Resource](uint32 GPUIndex) { return static_cast<ResourceType*>(Resource->GetLinkedObject(GPUIndex)); },
+			pfnCreationCore
+		);
 	}
 
 	inline FD3D12CommandContextRedirector& GetDefaultContextRedirector() { return DefaultContextRedirector; }
@@ -353,6 +326,7 @@ protected:
 	TRefCountPtr<ID3D12Device1> RootDevice1;
 #if PLATFORM_WINDOWS || PLATFORM_HOLOLENS
 	TRefCountPtr<ID3D12Device2> RootDevice2;
+	TRefCountPtr<IDXGIDebug> DXGIDebug;
 
 	HANDLE ExceptionHandlerHandle = INVALID_HANDLE_VALUE;
 #endif
@@ -409,7 +383,6 @@ protected:
 	FD3D12CommandContextRedirector DefaultContextRedirector;
 	FD3D12CommandContextRedirector DefaultAsyncComputeContextRedirector;
 
-	FD3DGPUProfiler GPUProfilingData;
 	uint32 FrameCounter;
 
 #if D3D12_SUBMISSION_GAP_RECORDER

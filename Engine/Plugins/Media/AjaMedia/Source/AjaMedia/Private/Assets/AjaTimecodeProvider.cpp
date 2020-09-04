@@ -5,6 +5,7 @@
 #include "AJA.h"
 
 #include "Misc/App.h"
+#include "UObject/VirtualProductionObjectVersion.h"
 
 #define LOCTEXT_NAMESPACE "AjaTimecodeProvider"
 
@@ -12,7 +13,7 @@
 //~ IAJASyncChannelCallbackInterface implementation
 //--------------------------------------------------------------------
 // Those are called from the AJA thread. There's a lock inside AJA to prevent this object from dying while in this thread.
-struct UAjaTimecodeProvider::FAJACallback : public AJA::IAJASyncChannelCallbackInterface
+struct UAjaTimecodeProvider::FAJACallback : public AJA::IAJATimecodeChannelCallbackInterface
 {
 	UAjaTimecodeProvider* Owner;
 	FAJACallback(UAjaTimecodeProvider* InOwner)
@@ -34,7 +35,7 @@ struct UAjaTimecodeProvider::FAJACallback : public AJA::IAJASyncChannelCallbackI
 //--------------------------------------------------------------------
 UAjaTimecodeProvider::UAjaTimecodeProvider(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
-	, SyncChannel(nullptr)
+	, TimecodeChannel(nullptr)
 	, SyncCallback(nullptr)
 #if WITH_EDITORONLY_DATA
 	, InitializedEngine(nullptr)
@@ -44,28 +45,30 @@ UAjaTimecodeProvider::UAjaTimecodeProvider(const FObjectInitializer& ObjectIniti
 {
 }
 
-FQualifiedFrameTime UAjaTimecodeProvider::GetQualifiedFrameTime() const
+bool UAjaTimecodeProvider::FetchTimecode(FQualifiedFrameTime& OutFrameTime)
 {
-	FFrameRate FrameRate = bUseReferenceIn ? ReferenceConfiguration.LtcFrameRate : VideoConfiguration.MediaConfiguration.MediaMode.FrameRate;
-	if (SyncChannel)
+	if (!TimecodeChannel || (State != ETimecodeProviderSynchronizationState::Synchronized))
 	{
-		if (State == ETimecodeProviderSynchronizationState::Synchronized)
-		{
-			AJA::FTimecode NewTimecode;
-			if (SyncChannel->GetTimecode(NewTimecode))
-			{
-				//We expect the timecode to be processed in the library. What we receive will be a "linear" timecode even for frame rates greater than 30.
-				FTimecode Timecode = FAja::ConvertAJATimecode2Timecode(NewTimecode, FrameRate);
-				return FQualifiedFrameTime(Timecode, FrameRate);
-			}
-			else
-			{
-				const_cast<UAjaTimecodeProvider*>(this)->State = ETimecodeProviderSynchronizationState::Error;
-			}
-		}
+		return false;
 	}
 
-	return FQualifiedFrameTime(0, FrameRate);
+	AJA::FTimecode NewTimecode;
+
+	if (!TimecodeChannel->GetTimecode(NewTimecode))
+	{
+		State = ETimecodeProviderSynchronizationState::Error;
+		return false;
+	}
+
+	// We expect the timecode to be processed in the library. 
+	// What we receive will be a "linear" timecode even for frame rates greater than 30.
+
+	FFrameRate FrameRate = bUseDedicatedPin ? LTCConfiguration.LtcFrameRate : VideoConfiguration.MediaConfiguration.MediaMode.FrameRate;
+	FTimecode Timecode = FAja::ConvertAJATimecode2Timecode(NewTimecode, FrameRate);
+
+	OutFrameTime = FQualifiedFrameTime(Timecode, FrameRate);
+
+	return true;
 }
 
 bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
@@ -91,7 +94,7 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 	}
 
 	FString FailureReason;
-	if ((bUseReferenceIn && !ReferenceConfiguration.IsValid()) || (!bUseReferenceIn && !VideoConfiguration.IsValid()))
+	if ((bUseDedicatedPin && !LTCConfiguration.IsValid()) || (!bUseDedicatedPin && !VideoConfiguration.IsValid()))
 	{
 		State = ETimecodeProviderSynchronizationState::Error;
 		UE_LOG(LogAjaMedia, Warning, TEXT("The TimecodeProvider '%s' configuration is invalid."), *GetName());
@@ -101,45 +104,52 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 	check(SyncCallback == nullptr);
 	SyncCallback = new FAJACallback(this);
 
-	const int32 DeviceIndex = bUseReferenceIn ? ReferenceConfiguration.Device.DeviceIdentifier : VideoConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
+	const int32 DeviceIndex = bUseDedicatedPin ? LTCConfiguration.Device.DeviceIdentifier : VideoConfiguration.MediaConfiguration.MediaConnection.Device.DeviceIdentifier;
 	AJA::AJADeviceOptions DeviceOptions(DeviceIndex);
 
-	AJA::AJASyncChannelOptions Options(*GetName());
+	AJA::AJATimecodeChannelOptions Options(*GetName());
 	Options.CallbackInterface = SyncCallback;
+	Options.bUseDedicatedPin = bUseDedicatedPin;
 
-	Options.bReadTimecodeFromReferenceIn = bUseReferenceIn;
-
-	Options.LTCSourceIndex = ReferenceConfiguration.LtcIndex;
-	Options.LTCFrameRateNumerator = ReferenceConfiguration.LtcFrameRate.Numerator;
-	Options.LTCFrameRateDenominator = ReferenceConfiguration.LtcFrameRate.Denominator;
-
-	Options.ChannelIndex = VideoConfiguration.MediaConfiguration.MediaConnection.PortIdentifier;
-	Options.VideoFormatIndex = VideoConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
-
-	Options.TransportType = AJA::ETransportType::TT_SdiSingle;
+	if (bUseDedicatedPin)
 	{
-		const EMediaIOTransportType TransportType = VideoConfiguration.MediaConfiguration.MediaConnection.TransportType;
-		const EMediaIOQuadLinkTransportType QuadTransportType = VideoConfiguration.MediaConfiguration.MediaConnection.QuadTransportType;
-		switch (TransportType)
-		{
-		case EMediaIOTransportType::SingleLink:
-			Options.TransportType = AJA::ETransportType::TT_SdiSingle;
-			break;
-		case EMediaIOTransportType::DualLink:
-			Options.TransportType = AJA::ETransportType::TT_SdiDual;
-			break;
-		case EMediaIOTransportType::QuadLink:
-			Options.TransportType = QuadTransportType == EMediaIOQuadLinkTransportType::SquareDivision ? AJA::ETransportType::TT_SdiQuadSQ : AJA::ETransportType::TT_SdiQuadTSI;
-			break;
-		case EMediaIOTransportType::HDMI:
-			Options.TransportType = AJA::ETransportType::TT_Hdmi;
-			break;
-		}
+		Options.bReadTimecodeFromReferenceIn = bUseReferenceIn;
+		Options.LTCSourceIndex = LTCConfiguration.LtcIndex;
+		Options.LTCFrameRateNumerator = LTCConfiguration.LtcFrameRate.Numerator;
+		Options.LTCFrameRateDenominator = LTCConfiguration.LtcFrameRate.Denominator;
 	}
-
-	Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
-	switch(VideoConfiguration.TimecodeFormat)
+	else
 	{
+		Options.bReadTimecodeFromReferenceIn = false;
+		Options.LTCSourceIndex = 0;
+
+		Options.ChannelIndex = VideoConfiguration.MediaConfiguration.MediaConnection.PortIdentifier;
+		Options.VideoFormatIndex = VideoConfiguration.MediaConfiguration.MediaMode.DeviceModeIdentifier;
+
+		Options.TransportType = AJA::ETransportType::TT_SdiSingle;
+		{
+			const EMediaIOTransportType TransportType = VideoConfiguration.MediaConfiguration.MediaConnection.TransportType;
+			const EMediaIOQuadLinkTransportType QuadTransportType = VideoConfiguration.MediaConfiguration.MediaConnection.QuadTransportType;
+			switch (TransportType)
+			{
+			case EMediaIOTransportType::SingleLink:
+				Options.TransportType = AJA::ETransportType::TT_SdiSingle;
+				break;
+			case EMediaIOTransportType::DualLink:
+				Options.TransportType = AJA::ETransportType::TT_SdiDual;
+				break;
+			case EMediaIOTransportType::QuadLink:
+				Options.TransportType = QuadTransportType == EMediaIOQuadLinkTransportType::SquareDivision ? AJA::ETransportType::TT_SdiQuadSQ : AJA::ETransportType::TT_SdiQuadTSI;
+				break;
+			case EMediaIOTransportType::HDMI:
+				Options.TransportType = AJA::ETransportType::TT_Hdmi;
+				break;
+			}
+		}
+
+		Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
+		switch (VideoConfiguration.TimecodeFormat)
+		{
 		case EMediaIOTimecodeFormat::None:
 			Options.TimecodeFormat = AJA::ETimecodeFormat::TCF_None;
 			break;
@@ -151,11 +161,13 @@ bool UAjaTimecodeProvider::Initialize(class UEngine* InEngine)
 			break;
 		default:
 			break;
+		}
 	}
 
-	check(SyncChannel == nullptr);
-	SyncChannel = new AJA::AJASyncChannel();
-	if (!SyncChannel->Initialize(DeviceOptions, Options))
+	check(TimecodeChannel == nullptr);
+	TimecodeChannel = new AJA::AJATimecodeChannel();
+
+	if (!TimecodeChannel->Initialize(DeviceOptions, Options))
 	{
 		State = ETimecodeProviderSynchronizationState::Error;
 		ReleaseResources();
@@ -186,13 +198,26 @@ void UAjaTimecodeProvider::BeginDestroy()
 	Super::BeginDestroy();
 }
 
+void UAjaTimecodeProvider::Serialize(FArchive& Ar)
+{
+	Super::Serialize(Ar);
+
+	Ar.UsingCustomVersion(FVirtualProductionObjectVersion::GUID);
+
+	if (Ar.IsLoading() && Ar.CustomVer(FVirtualProductionObjectVersion::GUID) < FVirtualProductionObjectVersion::SupportAjaLTCPin)
+	{
+		//When loading an old object, we need to fix up the dedicated pin boolean if reference was checked
+		bUseDedicatedPin = bUseReferenceIn;
+	}
+}
+
 void UAjaTimecodeProvider::ReleaseResources()
 {
-	if (SyncChannel)
+	if (TimecodeChannel)
 	{
-		SyncChannel->Uninitialize();
-		delete SyncChannel;
-		SyncChannel = nullptr;
+		TimecodeChannel->Uninitialize();
+		delete TimecodeChannel;
+		TimecodeChannel = nullptr;
 
 		check(SyncCallback);
 		delete SyncCallback;

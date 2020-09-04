@@ -160,6 +160,7 @@ void FCurveStructCustomization::CustomizeChildren( TSharedRef<IPropertyHandle> I
 					[
 						SNew(SHorizontalBox)
 						+SHorizontalBox::Slot()
+						.AutoWidth()
 						[
 							Child->CreatePropertyValueWidget()
 						]
@@ -279,8 +280,6 @@ void FCurveStructCustomization::OnExternalCurveChanged(TSharedRef<IPropertyHandl
 		{
 			CurveWidget->SetCurveOwner(this, CurvePropertyHandle->IsEditable());
 		}
-
-		CurvePropertyHandle->NotifyPostChange();
 	}
 }
 

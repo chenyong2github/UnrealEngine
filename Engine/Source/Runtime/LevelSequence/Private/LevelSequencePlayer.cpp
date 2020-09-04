@@ -353,7 +353,10 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 		}
 	}
 
-	if (CameraComponent)
+	// we want to notify of cuts on hard cuts and time jumps, but not on blend cuts
+	const bool bIsStraightCut = !CameraCutParams.BlendType.IsSet() || CameraCutParams.bJumpCut;
+
+	if (CameraComponent && bIsStraightCut)
 	{
 		CameraComponent->NotifyCameraCut();
 	}
@@ -361,12 +364,19 @@ void ULevelSequencePlayer::UpdateCameraCut(UObject* CameraObject, const EMovieSc
 	if (PC->PlayerCameraManager)
 	{
 		PC->PlayerCameraManager->bClientSimulatingViewTarget = (CameraActor != nullptr);
-		PC->PlayerCameraManager->SetGameCameraCutThisFrame();
+
+		if (bIsStraightCut)
+		{
+			PC->PlayerCameraManager->SetGameCameraCutThisFrame();
+		}
 	}
 
-	if (OnCameraCut.IsBound())
+	if (bIsStraightCut)
 	{
-		OnCameraCut.Broadcast(CameraComponent);
+		if (OnCameraCut.IsBound())
+		{
+			OnCameraCut.Broadcast(CameraComponent);
+		}
 	}
 }
 

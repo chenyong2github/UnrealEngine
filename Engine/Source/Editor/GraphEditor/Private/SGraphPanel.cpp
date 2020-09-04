@@ -726,47 +726,13 @@ void SGraphPanel::ArrangeChildrenForContextMenuSummon(const FGeometry& AllottedG
 
 TSharedPtr<SWidget> SGraphPanel::OnSummonContextMenu(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
 {
-	//Editability is up to the user to consider for menu options
-	{
-		// If we didn't drag very far, summon a context menu.
-		// Figure out what's under the mouse: Node, Pin or just the Panel, and summon the context menu for that.
-		UEdGraphNode* NodeUnderCursor = nullptr;
-		UEdGraphPin* PinUnderCursor = nullptr;
-		{
-			FArrangedChildren ArrangedNodes(EVisibility::Visible);
-			this->ArrangeChildrenForContextMenuSummon(MyGeometry, ArrangedNodes);
-			const int32 HoveredNodeIndex = SWidget::FindChildUnderMouse( ArrangedNodes, MouseEvent );
-			if (HoveredNodeIndex != INDEX_NONE)
-			{
-				const FArrangedWidget& HoveredNode = ArrangedNodes[HoveredNodeIndex];
-				TSharedRef<SGraphNode> GraphNode = StaticCastSharedRef<SGraphNode>(HoveredNode.Widget);
-				TSharedPtr<SGraphNode> GraphSubNode = GraphNode->GetNodeUnderMouse(HoveredNode.Geometry, MouseEvent);
-				GraphNode = GraphSubNode.IsValid() ? GraphSubNode.ToSharedRef() : GraphNode;
-				NodeUnderCursor = GraphNode->GetNodeObj();
+	TSharedPtr<SGraphNode> NodeUnderMouse = GetGraphNodeUnderMouse(MyGeometry, MouseEvent);
+	UEdGraphPin* PinUnderCursor = GetPinUnderMouse(MyGeometry, MouseEvent, NodeUnderMouse);
+	UEdGraphNode* EdNodeUnderMouse = NodeUnderMouse.IsValid() ? NodeUnderMouse->GetNodeObj() : nullptr;
+	TArray<UEdGraphPin*> NoSourcePins;
 
-				// Selection should switch to this code if it isn't already selected.
-				// When multiple nodes are selected, we do nothing, provided that the
-				// node for which the context menu is being created is in the selection set.
-				if (!SelectionManager.IsNodeSelected(GraphNode->GetObjectBeingDisplayed()))
-				{
-					SelectionManager.SelectSingleNode(GraphNode->GetObjectBeingDisplayed());
-				}
-
-				const TSharedPtr<SGraphPin> HoveredPin = GraphNode->GetHoveredPin(GraphNode->GetCachedGeometry(), MouseEvent);
-				if (HoveredPin.IsValid())
-				{
-					PinUnderCursor = HoveredPin->GetPinObj();
-				}
-			}				
-		}
-
-		const FVector2D NodeAddPosition = PanelCoordToGraphCoord( MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()) );
-		TArray<UEdGraphPin*> NoSourcePins;
-
-		return SummonContextMenu(MouseEvent.GetScreenSpacePosition(), NodeAddPosition, NodeUnderCursor, PinUnderCursor, NoSourcePins);
-	}
-
-	return TSharedPtr<SWidget>();
+	const FVector2D NodeAddPosition = PanelCoordToGraphCoord(MyGeometry.AbsoluteToLocal(MouseEvent.GetScreenSpacePosition()));
+	return SummonContextMenu(MouseEvent.GetScreenSpacePosition(), NodeAddPosition, EdNodeUnderMouse, PinUnderCursor, NoSourcePins);
 }
 
 
@@ -1029,6 +995,46 @@ bool SGraphPanel::PassesAssetReferenceFilter(const TArray<FAssetData>& Reference
 	return true;
 }
 
+TSharedPtr<SGraphNode> SGraphPanel::GetGraphNodeUnderMouse(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	TSharedPtr<SGraphNode> GraphNode;
+	FArrangedChildren ArrangedNodes(EVisibility::Visible);
+	this->ArrangeChildrenForContextMenuSummon(MyGeometry, ArrangedNodes);
+	const int32 HoveredNodeIndex = SWidget::FindChildUnderMouse(ArrangedNodes, MouseEvent);
+	if (HoveredNodeIndex != INDEX_NONE)
+	{
+		const FArrangedWidget& HoveredNode = ArrangedNodes[HoveredNodeIndex];
+		GraphNode = StaticCastSharedRef<SGraphNode>(HoveredNode.Widget);
+		TSharedPtr<SGraphNode> GraphSubNode = GraphNode->GetNodeUnderMouse(HoveredNode.Geometry, MouseEvent);
+		GraphNode = GraphSubNode.IsValid() ? GraphSubNode.ToSharedRef() : GraphNode;
+
+		// Selection should switch to this code if it isn't already selected.
+		// When multiple nodes are selected, we do nothing, provided that the
+		// node for which the context menu is being created is in the selection set.
+		if (!SelectionManager.IsNodeSelected(GraphNode->GetObjectBeingDisplayed()))
+		{
+			SelectionManager.SelectSingleNode(GraphNode->GetObjectBeingDisplayed());
+		}
+	}
+
+	return GraphNode;
+}
+
+UEdGraphPin* SGraphPanel::GetPinUnderMouse(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent, TSharedPtr<SGraphNode> GraphNode) const
+{
+	UEdGraphPin* PinUnderCursor = nullptr;
+	if (GraphNode.IsValid())
+	{
+		const TSharedPtr<SGraphPin> HoveredPin = GraphNode->GetHoveredPin(GraphNode->GetCachedGeometry(), MouseEvent);
+		if (HoveredPin.IsValid())
+		{
+			PinUnderCursor = HoveredPin->GetPinObj();
+		}
+	}
+
+	return PinUnderCursor;
+}
+
 void SGraphPanel::OnBeginMakingConnection(UEdGraphPin* InOriginatingPin)
 {
 	OnBeginMakingConnection(FGraphPinHandle(InOriginatingPin));
@@ -1124,6 +1130,30 @@ TSharedPtr<SWidget> SGraphPanel::SummonContextMenu(const FVector2D& WhereToSummo
 	}
 
 	return TSharedPtr<SWidget>();
+}
+
+void SGraphPanel::SummonCreateNodeMenuFromUICommand(uint32 NumNodesAdded)
+{
+	FVector2D WhereToSummonMenu = LastPointerEvent.GetScreenSpacePosition();
+	const float AdditionalOffset = 1.0f + (NumNodesAdded * GetDefault<UGraphEditorSettings>()->PaddingAutoCollateIncrement);
+	FVector2D WhereToAddNode = PastePosition + AdditionalOffset;
+
+	TSharedPtr<SGraphNode> NodeUnderMouse = GetGraphNodeUnderMouse(LastPointerGeometry, LastPointerEvent);
+
+	// Do not open the context menu on top of non-empty graph area
+	if (NodeUnderMouse.IsValid())
+	{
+		return;
+	}
+	
+	TArray<UEdGraphPin*> DragFromPins;
+	TSharedPtr<SWidget> CreateNodeMenuWidget = SummonContextMenu(WhereToSummonMenu, WhereToAddNode, nullptr, nullptr, DragFromPins);
+
+	if (CreateNodeMenuWidget.IsValid())
+	{
+		FSlateApplication::Get().SetKeyboardFocus(CreateNodeMenuWidget);
+		return;
+	}
 }
 
 void SGraphPanel::AttachGraphEvents(TSharedPtr<SGraphNode> CreatedSubNode)

@@ -354,7 +354,10 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 				continue;
 			}
 
-			const bool bHasKerning = FT_HAS_KERNING(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace()) != 0;
+			const bool bHasKerning = FT_HAS_KERNING(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace()) != 0 || InFontInfo.LetterSpacing != 0;
+
+			// Letter spacing should scale proportional to font size / 1000 (to roughly mimic Photoshop tracking)
+			const float LetterSpacingScaled = InFontInfo.LetterSpacing != 0 ? InFontInfo.LetterSpacing * InFontInfo.Size / 1000 : 0;
 
 			uint32 GlyphFlags = 0;
 			SlateFontRendererUtils::AppendGlyphFlags(*KerningOnlyTextSequenceEntry.FaceAndMemory, *KerningOnlyTextSequenceEntry.FontDataPtr, GlyphFlags);
@@ -368,7 +371,7 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 				const int32 CurrentCharIndex = KerningOnlyTextSequenceEntry.TextStartIndex + SequenceCharIndex;
 				const TCHAR CurrentChar = InText[CurrentCharIndex];
 
-				if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, OutGlyphsToRender))
+				if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, OutGlyphsToRender, LetterSpacingScaled))
 				{
 					uint32 GlyphIndex = FT_Get_Char_Index(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), CurrentChar);
 
@@ -402,17 +405,25 @@ void FSlateTextShaper::PerformKerningOnlyTextShaping(const TCHAR* InText, const 
 					ShapedGlyphEntry.TextDirection = TextBiDi::ETextDirection::LeftToRight;
 					ShapedGlyphEntry.bIsVisible = !RenderCodepointAsWhitespace(CurrentChar);
 
-					// Apply the kerning against the previous entry
-					if (CurrentGlyphEntryIndex > 0 && bHasKerning && ShapedGlyphEntry.bIsVisible)
+					// Apply the letter spacing and font kerning against the previous entry
+					if (CurrentGlyphEntryIndex > 0 && bHasKerning)
 					{
 						FShapedGlyphEntry& PreviousShapedGlyphEntry = OutGlyphsToRender[CurrentGlyphEntryIndex - 1];
 
-						FT_Vector KerningVector;
-						if (FTKerningPairCache->FindOrCache(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), FFreeTypeKerningPairCache::FKerningPair(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale, KerningVector))
+						if (LetterSpacingScaled != 0)
 						{
-							const int8 Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
-							PreviousShapedGlyphEntry.XAdvance += Kerning;
-							PreviousShapedGlyphEntry.Kerning = Kerning;
+							PreviousShapedGlyphEntry.XAdvance += LetterSpacingScaled;
+						}
+
+						if (ShapedGlyphEntry.bIsVisible)
+						{
+							FT_Vector KerningVector;
+							if (FTKerningPairCache->FindOrCache(KerningOnlyTextSequenceEntry.FaceAndMemory->GetFace(), FFreeTypeKerningPairCache::FKerningPair(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale, KerningVector))
+							{
+								const int8 Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
+								PreviousShapedGlyphEntry.XAdvance += Kerning;
+								PreviousShapedGlyphEntry.Kerning = Kerning;
+							}
 						}
 					}
 				}
@@ -432,6 +443,9 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 	hb_unicode_funcs_t* HarfBuzzUnicodeFuncs = hb_unicode_funcs_get_default();
 
 	GraphemeBreakIterator->SetString(InText + InTextStart, InTextLen);
+
+	// HarfBuzz does not currently support letter spacing/tracking in conjunction with certain combinations of grapheme clusters, so we will bypass letter spacing under certain conditions (such as with Arabic script).
+	bool bBypassLetterSpacing = false;
 
 	// Step 1) Split the text into sections that are using the same font face (composite fonts may contain different faces for different character ranges)
 	{
@@ -474,6 +488,10 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 				if (StringConv::IsHighSurrogate(InText[RunningTextIndex]) && StringConv::IsLowSurrogate(InText[NextTextIndex]))
 				{
 					CurrentCodepoint = StringConv::EncodeSurrogate(InText[RunningTextIndex], InText[NextTextIndex]);
+				}
+				else
+				{
+					bBypassLetterSpacing = true;
 				}
 			}
 #endif	// !PLATFORM_TCHAR_IS_4_BYTES
@@ -586,6 +604,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 	{
 		// Need to flip the sequence here to mimic what HarfBuzz would do if the text had been a single sequence of right-to-left text
 		Algo::Reverse(HarfBuzzTextSequence);
+		bBypassLetterSpacing = true;
 	}
 
 	// Step 3) Now we use HarfBuzz to shape each font data sequence using its FreeType glyph
@@ -601,12 +620,17 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 			}
 
 #if WITH_FREETYPE
-			const bool bHasKerning = FT_HAS_KERNING(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace()) != 0;
+			const bool bHasKerning = FT_HAS_KERNING(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace()) != 0 || (!bBypassLetterSpacing && InFontInfo.LetterSpacing != 0);
 #else  // WITH_FREETYPE
 			const bool bHasKerning = false;
 #endif // WITH_FREETYPE
+
+			// Letter spacing should scale proportional to font size / 1000 (to roughly mimic Photoshop tracking)
+			const float LetterSpacingScaled = (!bBypassLetterSpacing && InFontInfo.LetterSpacing != 0) ? InFontInfo.LetterSpacing * InFontInfo.Size / 1000 : 0;
+
 			const hb_feature_t HarfBuzzFeatures[] = {
-				{ HB_TAG('k','e','r','n'), bHasKerning, 0, uint32(-1) }
+				{ HB_TAG('k','e','r','n'), bHasKerning, 0, uint32(-1) },
+				{ HB_TAG('l','i','g','a'), LetterSpacingScaled == 0, 0, uint32(-1) } // Disable standard ligatures if we have non-zero letter spacing to allow the individual characters to flow freely
 			};
 			const int32 HarfBuzzFeaturesCount = UE_ARRAY_COUNT(HarfBuzzFeatures);
 
@@ -640,7 +664,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 					const int32 CurrentCharIndex = static_cast<int32>(HarfBuzzGlyphInfo.cluster);
 					const TCHAR CurrentChar = InText[CurrentCharIndex];
-					if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, OutGlyphsToRender))
+					if (!InsertSubstituteGlyphs(InText, CurrentCharIndex, ShapedGlyphFaceData, OutGlyphsToRender, LetterSpacingScaled))
 					{
 						const int32 CurrentGlyphEntryIndex = OutGlyphsToRender.AddDefaulted();
 						FShapedGlyphEntry& ShapedGlyphEntry = OutGlyphsToRender[CurrentGlyphEntryIndex];
@@ -657,16 +681,23 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 						ShapedGlyphEntry.TextDirection = InTextDirection;
 						ShapedGlyphEntry.bIsVisible = !RenderCodepointAsWhitespace(CurrentChar);
 
-						// Apply the kerning against the previous entry
-						if (CurrentGlyphEntryIndex > 0 && bHasKerning && ShapedGlyphEntry.bIsVisible)
+						// Apply the letter spacing and font kerning against the previous entry
+						if (CurrentGlyphEntryIndex > 0 && bHasKerning)
 						{
 							FShapedGlyphEntry& PreviousShapedGlyphEntry = OutGlyphsToRender[CurrentGlyphEntryIndex - 1];
 
-#if WITH_FREETYPE
-							FT_Vector KerningVector;
-							if (FTKerningPairCache->FindOrCache(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace(), FFreeTypeKerningPairCache::FKerningPair(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale, KerningVector))
+							if (LetterSpacingScaled != 0)
 							{
-								PreviousShapedGlyphEntry.Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
+								PreviousShapedGlyphEntry.XAdvance += LetterSpacingScaled;
+							}
+#if WITH_FREETYPE
+							if (ShapedGlyphEntry.bIsVisible)
+							{
+								FT_Vector KerningVector;
+								if (FTKerningPairCache->FindOrCache(HarfBuzzTextSequenceEntry.FaceAndMemory->GetFace(), FFreeTypeKerningPairCache::FKerningPair(PreviousShapedGlyphEntry.GlyphIndex, ShapedGlyphEntry.GlyphIndex), FT_KERNING_DEFAULT, InFontInfo.Size, FinalFontScale, KerningVector))
+								{
+									PreviousShapedGlyphEntry.Kerning = FreeTypeUtils::Convert26Dot6ToRoundedPixel<int8>(KerningVector.x);
+								}
 							}
 #endif // WITH_FREETYPE
 						}
@@ -791,7 +822,7 @@ void FSlateTextShaper::PerformHarfBuzzTextShaping(const TCHAR* InText, const int
 
 #endif // WITH_HARFBUZZ
 
-bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, TArray<FShapedGlyphEntry>& OutGlyphsToRender) const
+bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 InCharIndex, const TSharedRef<FShapedGlyphFaceData>& InShapedGlyphFaceData, TArray<FShapedGlyphEntry>& OutGlyphsToRender, const float InLetterSpacingScaled) const
 {
 	auto GetSpaceGlyphIndexAndAdvance = [this, &InShapedGlyphFaceData](uint32& OutSpaceGlyphIndex, int16& OutSpaceXAdvance)
 	{
@@ -849,7 +880,7 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 			ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
 			ShapedGlyphEntry.GlyphIndex = SpaceGlyphIndex;
 			ShapedGlyphEntry.SourceIndex = InCharIndex;
-			ShapedGlyphEntry.XAdvance = SpaceXAdvance * NumSpacesToInsert;
+			ShapedGlyphEntry.XAdvance = (SpaceXAdvance + InLetterSpacingScaled) * NumSpacesToInsert;
 			ShapedGlyphEntry.YAdvance = 0;
 			ShapedGlyphEntry.XOffset = 0;
 			ShapedGlyphEntry.YOffset = 0;
@@ -892,7 +923,7 @@ bool FSlateTextShaper::InsertSubstituteGlyphs(const TCHAR* InText, const int32 I
 		ShapedGlyphEntry.FontFaceData = InShapedGlyphFaceData;
 		ShapedGlyphEntry.GlyphIndex = SpaceGlyphIndex;
 		ShapedGlyphEntry.SourceIndex = InCharIndex;
-		ShapedGlyphEntry.XAdvance = (SpaceXAdvance * 2) / 3;
+		ShapedGlyphEntry.XAdvance = ((SpaceXAdvance + InLetterSpacingScaled) * 2) / 3;
 		ShapedGlyphEntry.YAdvance = 0;
 		ShapedGlyphEntry.XOffset = 0;
 		ShapedGlyphEntry.YOffset = 0;

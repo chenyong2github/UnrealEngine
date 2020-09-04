@@ -6,21 +6,15 @@
 #include "Widgets/IToolTip.h"
 #include "Widgets/SToolTip.h"
 
-// Insights
-#include "Insights/InsightsManager.h"
-
 class SGridPanel;
 
 namespace Insights
 {
-	//TODO: class FTable;
-	//TODO: class FTableColumn;
+	class FTable;
+	class FTableColumn;
 }
 
 class FStatsNode;
-class FStatsViewColumn;
-
-#define LOCTEXT_NAMESPACE "SStatsView"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -30,10 +24,9 @@ class SStatsViewTooltip
 public:
 	SStatsViewTooltip() = delete;
 
-	//TODO: static TSharedPtr<SToolTip> GetTableTooltip(const Insights::FTable& Table);
-	//TODO: static TSharedPtr<SToolTip> GetColumnTooltip(const Insights::FTableColumn& Column);
-	static TSharedPtr<SToolTip> GetColumnTooltip(const FStatsViewColumn& Column);
-	static TSharedPtr<SToolTip> GetRowTooltip(const TSharedPtr<FStatsNode> StatsNodePtr);
+	static TSharedPtr<SToolTip> GetTableTooltip(const Insights::FTable& Table);
+	static TSharedPtr<SToolTip> GetColumnTooltip(const Insights::FTableColumn& Column);
+	static TSharedPtr<SToolTip> GetRowTooltip(const TSharedPtr<FStatsNode> TreeNodePtr);
 
 private:
 	static void AddAggregatedStatsRow(TSharedPtr<SGridPanel> Grid, int32& Row, const FText& Name, const FText& Value);
@@ -90,5 +83,3 @@ private:
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
-
-#undef LOCTEXT_NAMESPACE

@@ -3969,14 +3969,15 @@ void FEdModeFoliage::ForceRealTimeViewports(const bool bEnable)
 		FEditorViewportClient &Viewport = ViewportWindow->GetAssetViewportClient();
 		if (Viewport.IsPerspective())
 		{
+			const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_Foliage", "Foliage Mode");
 			if (bEnable)
 			{
 				const bool bShouldBeRealtime = true;
-				Viewport.SetRealtimeOverride(bShouldBeRealtime, LOCTEXT("RealtimeOverrideMessage_Foliage", "Foliage Mode"));
+				Viewport.AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
 			}
 			else
 			{
-				Viewport.RemoveRealtimeOverride();
+				Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
 			}
 		}
 	}

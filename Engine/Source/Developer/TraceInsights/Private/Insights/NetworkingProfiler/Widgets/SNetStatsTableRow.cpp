@@ -170,7 +170,7 @@ bool SNetStatsTableRow::HandleShouldBeEnabled() const
 	{
 		if (OnShouldBeEnabled.IsBound())
 		{
-			bResult = OnShouldBeEnabled.Execute(NetEventNodePtr->GetId());
+			bResult = OnShouldBeEnabled.Execute(NetEventNodePtr);
 		}
 	}
 
@@ -193,7 +193,7 @@ EVisibility SNetStatsTableRow::IsColumnVisible(const FName ColumnId) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
-void SNetStatsTableRow::OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, const FNetEventNodePtr InNetEventNodePtr)
+void SNetStatsTableRow::OnSetHoveredCell(TSharedPtr<Insights::FTable> InTablePtr, TSharedPtr<Insights::FTableColumn> InColumnPtr, FNetEventNodePtr InNetEventNodePtr)
 {
 	SetHoveredCellDelegate.ExecuteIfBound(InTablePtr, InColumnPtr, InNetEventNodePtr);
 }

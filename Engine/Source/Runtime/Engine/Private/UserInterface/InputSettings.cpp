@@ -60,7 +60,11 @@ void UInputSettings::PostInitProperties()
 		case LANG_SPANISH:
 			DefaultConsoleKey = FInputKeyManager::Get().GetKeyFromCodes(VK_OEM_5, 0);
 			break;
-			
+
+		case LANG_SWEDISH:
+			DefaultConsoleKey = EKeys::Section;
+			break;
+
 		case LANG_JAPANESE:
 		case LANG_RUSSIAN:
 			DefaultConsoleKey = FInputKeyManager::Get().GetKeyFromCodes(VK_OEM_3, 0);
@@ -113,7 +117,7 @@ void UInputSettings::PopulateAxisConfigs()
 	EKeys::GetAllKeys(AllKeys);
 	for (const FKey& Key : AllKeys)
 	{
-		if (Key.IsFloatAxis() && !UniqueAxisConfigNames.Contains(Key.GetFName()))
+		if (Key.IsAxis1D() && !UniqueAxisConfigNames.Contains(Key.GetFName()))
 		{
 			FInputAxisConfigEntry NewAxisConfigEntry;
 			NewAxisConfigEntry.AxisKeyName = Key.GetFName();
@@ -137,7 +141,7 @@ void UInputSettings::PostEditChangeChainProperty(FPropertyChangedChainEvent& Pro
 
 	const FName MemberPropertyName = PropertyChangedEvent.PropertyChain.GetActiveMemberNode()->GetValue()->GetFName();
 
-	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, ActionMappings) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, AxisMappings) || 
+	if (MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, ActionMappings) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, AxisMappings) ||
 		MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, AxisConfig) || MemberPropertyName == GET_MEMBER_NAME_CHECKED(UInputSettings, SpeechMappings))
 	{
 		ForceRebuildKeymaps();
@@ -265,7 +269,7 @@ void UInputSettings::GetAxisNames(TArray<FName>& AxisNames) const
 	for (const FInputAxisKeyMapping& AxisMapping : AxisMappings)
 	{
 		AxisNames.AddUnique(AxisMapping.AxisName);
-	}	
+	}
 }
 
 void UInputSettings::ForceRebuildKeymaps()
@@ -362,7 +366,7 @@ struct FMatchMappingByName
 	{
 		return AxisMapping.AxisName == Name;
 	}
-	
+
 	bool operator() (const FInputActionSpeechMapping& SpeechMapping)
 	{
 		return SpeechMapping.GetActionName() == Name;

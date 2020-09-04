@@ -12,6 +12,7 @@ enum ENetTraceAnalyzerVersion
 {
 	ENetTraceAnalyzerVersion_Initial = 1,
 	ENetTraceAnalyzerVersion_BunchChannelIndex = 2,
+	ENetTraceAnalyzerVersion_BunchChannelInfo = 3,
 };
 
 
@@ -69,7 +70,7 @@ uint32 FNetTraceAnalyzer::GetTracedEventTypeIndex(uint16 NameIndex, uint8 Level)
 	}
 }
 
-bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -85,7 +86,7 @@ bool FNetTraceAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
 		case RouteId_InitEvent:
 		{
 			const uint64 TimestampCycles = EventData.GetValue<uint64>("Timestamp");
-			LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+			LastTimeStamp = Context.EventTime.AsSeconds(TimestampCycles);
 
 			// we always trace the version so that we make sure that we are backwards compatible with older trace stream
 			NetTraceVersion = EventData.GetValue<uint32>("NetTraceVersion");
@@ -218,6 +219,7 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 
 				Event.ObjectInstanceIndex = 0;
 				Event.NameIndex = 0;
+				Event.BunchInfo.Value = 0;
 
 				checkSlow(Event.EndPos > Event.StartPos);
 
@@ -257,7 +259,7 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 
 				FBunchInfo BunchInfo;
 
-				BunchInfo.ChannelIndex = -1;
+				BunchInfo.BunchInfo.Value = 0;
 				BunchInfo.HeaderBits = 0U;
 				BunchInfo.BunchBits = DecodedEventEndPos;
 				BunchInfo.FirstBunchEventIndex = Events.Num();
@@ -285,23 +287,28 @@ void FNetTraceAnalyzer::HandlePacketContentEvent(const FOnEventContext& Context,
 				{
 					if (NetTraceVersion >= ENetTraceAnalyzerVersion_BunchChannelIndex)
 					{
-						const int32 DecodedChannelId = DecodedHeaderBits ? (int32)FTraceAnalyzerUtils::Decode7bit(BufferPtr) : -1;
+						const uint64 DecodedBunchInfo = FTraceAnalyzerUtils::Decode7bit(BufferPtr);
+						if (NetTraceVersion >= ENetTraceAnalyzerVersion_BunchChannelInfo)
+						{
+							BunchInfo.BunchInfo.Value = DecodedBunchInfo;
+						}
+						else
+						{
+							BunchInfo.BunchInfo.Value = uint64(0);
+							BunchInfo.BunchInfo.ChannelIndex = DecodedBunchInfo;
+						}
 
-						BunchInfo.ChannelIndex = DecodedChannelId;
+						if (BunchInfo.NameIndex)
+						{
+							GameInstanceState->ChannelNames.FindOrAdd(BunchInfo.BunchInfo.ChannelIndex) = BunchInfo.NameIndex;
+						}
+						else
+						{
+							const uint32* ExistingChannelNameIndex = GameInstanceState->ChannelNames.Find(BunchInfo.BunchInfo.ChannelIndex);						
+							BunchInfo.NameIndex = ExistingChannelNameIndex ? *ExistingChannelNameIndex : 0U;
+						}
 
-						// Try to find bunch name using channelId if not included in the Bunch
-						if (DecodedChannelId != -1)
-						{					
-							if (BunchInfo.NameIndex)
-							{
-								GameInstanceState->ChannelNames.FindOrAdd(DecodedChannelId) = BunchInfo.NameIndex;
-							}
-							else
-							{
-								const uint32* ExistingChannelNameIndex = GameInstanceState->ChannelNames.Find(DecodedChannelId);						
-								BunchInfo.NameIndex = ExistingChannelNameIndex ? *ExistingChannelNameIndex : 0U;
-							}
-						}					
+						BunchInfo.BunchInfo.bIsValid = 1U;
 					}
 
 					BunchInfo.HeaderBits = DecodedHeaderBits;
@@ -330,10 +337,10 @@ void FNetTraceAnalyzer::AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& E
 	Event.StartPos = InEvent.StartPos + Offset;
 	Event.EndPos = InEvent.EndPos + Offset;
 	Event.Level = InEvent.Level + LevelOffset;	
-	Event.ParentIndex = InEvent.ParentIndex;
+	Event.BunchInfo = InEvent.BunchInfo;
 }
 
-void FNetTraceAnalyzer::AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, uint32 StartPos, uint32 EndPos, uint32 Level, uint32 NameIndex)
+void FNetTraceAnalyzer::AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& Events, uint32 StartPos, uint32 EndPos, uint32 Level, uint32 NameIndex, Trace::FNetProfilerBunchInfo BunchInfo)
 {
 	Trace::FNetProfilerContentEvent& Event = Events.PushBack();
 
@@ -343,7 +350,7 @@ void FNetTraceAnalyzer::AddEvent(TPagedArray<Trace::FNetProfilerContentEvent>& E
 	Event.StartPos = StartPos;
 	Event.EndPos = EndPos;			
 	Event.Level = Level;
-	Event.ParentIndex = 0;
+	Event.BunchInfo = BunchInfo;
 }
 
 void FNetTraceAnalyzer::FlushPacketEvents(FNetTraceConnectionState& ConnectionState, Trace::FNetProfilerConnectionData& ConnectionData, const Trace::ENetProfilerConnectionMode ConnectionMode)
@@ -382,10 +389,10 @@ void FNetTraceAnalyzer::FlushPacketEvents(FNetTraceConnectionState& ConnectionSt
 		if (Bunch.HeaderBits)
 		{
 			// Bunch event
-			AddEvent(Events, NextBunchOffset, NextBunchOffset + Bunch.HeaderBits + Bunch.BunchBits, 0, Bunch.NameIndex);
+			AddEvent(Events, NextBunchOffset, NextBunchOffset + Bunch.HeaderBits + Bunch.BunchBits, 0, Bunch.NameIndex, Bunch.BunchInfo);
 
 			// Bunch header event
-			AddEvent(Events, NextBunchOffset, NextBunchOffset + Bunch.HeaderBits, 1, BunchHeaderNameIndex);
+			AddEvent(Events, NextBunchOffset, NextBunchOffset + Bunch.HeaderBits, 1, BunchHeaderNameIndex, Trace::FNetProfilerBunchInfo::MakeBunchInfo(0));
 	
 			// Add events belonging to bunch, including the ones from merged bunches
 			for (uint32 EventIt = 0; EventIt < EventsToAdd; ++EventIt)
@@ -423,7 +430,7 @@ void FNetTraceAnalyzer::HandlePacketEvent(const FOnEventContext& Context, const 
 	const Trace::ENetProfilerConnectionMode ConnectionMode = Trace::ENetProfilerConnectionMode(PacketType);
 
 	// Update LastTimestamp, later on we will be able to get timestamps piggybacked from other analyzers
-	LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+	LastTimeStamp = Context.EventTime.AsSeconds(TimestampCycles);
 
 	FNetTraceConnectionState* ConnectionState = GetActiveConnectionState(GameInstanceId, ConnectionId);
 	if (!ConnectionState)
@@ -466,7 +473,7 @@ void FNetTraceAnalyzer::HandlePacketDroppedEvent(const FOnEventContext& Context,
 	const uint8 PacketType = EventData.GetValue<uint8>("PacketType");
 
 	// Update LastTimestamp, later on we will be able to get timestamps piggybacked from other analyzers
-	LastTimeStamp = Context.SessionContext.TimestampFromCycle(TimestampCycles);
+	LastTimeStamp = Context.EventTime.AsSeconds(TimestampCycles);
 
 	FNetTraceConnectionState* ConnectionState = GetActiveConnectionState(GameInstanceId, ConnectionId);
 	if (!ConnectionState)

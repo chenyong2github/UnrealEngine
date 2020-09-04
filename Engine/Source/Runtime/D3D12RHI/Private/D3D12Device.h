@@ -123,6 +123,8 @@ public:
 
 	void BlockUntilIdle();
 
+	FORCEINLINE FD3DGPUProfiler& GetGPUProfiler() { return GPUProfilingData; }
+
 protected:
 
 	/** A pool of command lists we can cycle through for the global D3D device */
@@ -198,8 +200,9 @@ protected:
 #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
 	FD3D12TimedIntervalQueryTracker* BackBufferWriteBarrierTracker = nullptr;
 #endif // #if PLATFORM_USE_BACKBUFFER_WRITE_TRANSITION_TRACKING
-};
 
+	FD3DGPUProfiler GPUProfilingData;
+};
 template <typename TDesc> 
 void TD3D12ViewDescriptorHandle<TDesc>::AllocateDescriptorSlot()
 {

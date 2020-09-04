@@ -10,6 +10,6 @@
  */
 struct FDisplayClusterVrpnButtonChannelData
 {
-	bool btnStateOld;
-	bool btnStateNew;
+	bool BtnStateOld;
+	bool BtnStateNew;
 };

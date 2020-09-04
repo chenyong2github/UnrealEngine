@@ -6,13 +6,8 @@
 
 #define LOCTEXT_NAMESPACE "TableCellValueSorter"
 
-// Sort by name (ascending). -- too slow :(
-//#define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetName().LexicalLess(B->GetName());
-//#define INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B) return A.NodePtr->GetName().LexicalLess(B.NodePtr->GetName());
-
-// Sort by node id (ascending).
-#define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetId() < B->GetId();
-#define INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B) return A.NodePtr->GetId() < B.NodePtr->GetId();
+// Default sorting
+#define INSIGHTS_DEFAULT_SORTING_NODES(A, B) return A->GetDefaultSortOrder() < B->GetDefaultSortOrder();
 
 namespace Insights
 {
@@ -63,7 +58,7 @@ FBaseTableColumnSorter::FBaseTableColumnSorter(TSharedRef<FTableColumn> InColumn
 		InColumnRef->GetId(),
 		FText::Format(LOCTEXT("Sorter_ColumnValue_Name", "By {0}"), InColumnRef->GetShortName()),
 		FText::Format(LOCTEXT("Sorter_ColumnValue_Title", "Sort By {0}"), InColumnRef->GetTitleName()),
-		FText::Format(LOCTEXT("Sorter_ColumnValue_Desc", "Sort by {0} (ascending or descending), then by id (ascending)."), InColumnRef->GetShortName()),
+		FText::Format(LOCTEXT("Sorter_ColumnValue_Desc", "Sort by {0}."), InColumnRef->GetShortName()),
 		InColumnRef)
 {
 }
@@ -77,7 +72,7 @@ FSorterByName::FSorterByName(TSharedRef<FTableColumn> InColumnRef)
 		FName(TEXT("ByName")),
 		LOCTEXT("Sorter_ByName_Name", "By Name"),
 		LOCTEXT("Sorter_ByName_Title", "Sort By Name"),
-		LOCTEXT("Sorter_ByName_Desc", "Sort by name."),
+		LOCTEXT("Sorter_ByName_Desc", "Sort alphabetically by name."),
 		InColumnRef)
 {
 	AscendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
@@ -102,7 +97,7 @@ FSorterByTypeName::FSorterByTypeName(TSharedRef<FTableColumn> InColumnRef)
 		FName(TEXT("ByTypeName")),
 		LOCTEXT("Sorter_ByTypeName_Name", "By Type Name"),
 		LOCTEXT("Sorter_ByTypeName_Title", "Sort By Type Name"),
-		LOCTEXT("Sorter_ByTypeName_Desc", "Sort by type name (ascending or descending), then by id (ascending)."),
+		LOCTEXT("Sorter_ByTypeName_Desc", "Sort by type name."),
 		InColumnRef)
 {
 	AscendingCompareDelegate = [](const FBaseTreeNodePtr& A, const FBaseTreeNodePtr& B) -> bool
@@ -272,7 +267,7 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 		{
 			if (A.Value == B.Value)
 			{
-				INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B)
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
 			}
 			else
 			{
@@ -287,7 +282,7 @@ void FSorterByInt64Value::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 		{
 			if (A.Value == B.Value)
 			{
-				INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B)
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
 			}
 			else
 			{
@@ -387,7 +382,7 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 		{
 			if (A.Value == B.Value)
 			{
-				INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B)
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
 			}
 			else
 			{
@@ -402,7 +397,7 @@ void FSorterByFloatValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode 
 		{
 			if (A.Value == B.Value)
 			{
-				INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B)
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
 			}
 			else
 			{
@@ -502,7 +497,7 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 		{
 			if (A.Value == B.Value)
 			{
-				INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B)
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
 			}
 			else
 			{
@@ -517,7 +512,7 @@ void FSorterByDoubleValue::Sort(TArray<FBaseTreeNodePtr>& NodesToSort, ESortMode
 		{
 			if (A.Value == B.Value)
 			{
-				INSIGHTS_DEFAULT_SORTING_ELEMENTS(A, B)
+				INSIGHTS_DEFAULT_SORTING_NODES(A.NodePtr, B.NodePtr)
 			}
 			else
 			{
@@ -554,11 +549,7 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 
 		if (ValueA == ValueB)
 		{
-			// Sort by name (ascending).
-			//return A->GetName().LexicalLess(B->GetName()); // so slow :(
-
-			// Sort by node id (ascending).
-			return A->GetId() < B->GetId();
+			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
@@ -577,11 +568,7 @@ FSorterByCStringValue::FSorterByCStringValue(TSharedRef<FTableColumn> InColumnRe
 
 		if (ValueA == ValueB)
 		{
-			// Sort by name (ascending).
-			//return A->GetName().LexicalLess(B->GetName()); // so slow :(
-
-			// Sort by node id (ascending).
-			return A->GetId() < B->GetId();
+			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
@@ -607,31 +594,28 @@ FSorterByTextValue::FSorterByTextValue(TSharedRef<FTableColumn> InColumnRef)
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
-		if (!OptionalValueB.IsSet() || !OptionalValueB.GetValue().TextPtr.IsValid())
+		if (!OptionalValueB.IsSet())
 		{
 			return true;
 		}
 
-		if (!OptionalValueA.IsSet() || !OptionalValueA.GetValue().TextPtr.IsValid())
+		if (!OptionalValueA.IsSet())
 		{
 			return false;
 		}
 
-		const FText& ValueA = *OptionalValueA.GetValue().TextPtr;
-		const FText& ValueB = *OptionalValueB.GetValue().TextPtr;
+		const FText& ValueA = OptionalValueA.GetValue().GetText();
+		const FText& ValueB = OptionalValueB.GetValue().GetText();
 
-		if (ValueA.EqualTo(ValueB))
+		const int32 Compare = ValueA.CompareTo(ValueB);
+		if (Compare == 0)
 		{
-			// Sort by name (ascending).
-			//return A->GetName().LexicalLess(B->GetName()); // so slow :(
-
-			// Sort by node id (ascending).
-			return A->GetId() < B->GetId();
+			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
 			// Sort by value (ascending).
-			return ValueA.CompareTo(ValueB) < 0;
+			return Compare < 0;
 		}
 	};
 
@@ -640,26 +624,22 @@ FSorterByTextValue::FSorterByTextValue(TSharedRef<FTableColumn> InColumnRef)
 		const TOptional<FTableCellValue> OptionalValueA = Column.GetValue(*A);
 		const TOptional<FTableCellValue> OptionalValueB = Column.GetValue(*B);
 
-		if (!OptionalValueB.IsSet() || !OptionalValueB.GetValue().TextPtr.IsValid())
+		if (!OptionalValueB.IsSet())
 		{
 			return true;
 		}
 
-		if (!OptionalValueA.IsSet() || !OptionalValueA.GetValue().TextPtr.IsValid())
+		if (!OptionalValueA.IsSet())
 		{
 			return false;
 		}
 
-		const FText& ValueA = *OptionalValueA.GetValue().TextPtr;
-		const FText& ValueB = *OptionalValueB.GetValue().TextPtr;
+		const FText& ValueA = OptionalValueA.GetValue().GetText();
+		const FText& ValueB = OptionalValueB.GetValue().GetText();
 
 		if (ValueA.EqualTo(ValueB))
 		{
-			// Sort by name (ascending).
-			//return A->GetName().LexicalLess(B->GetName()); // so slow :(
-
-			// Sort by node id (ascending).
-			return A->GetId() < B->GetId();
+			INSIGHTS_DEFAULT_SORTING_NODES(A, B)
 		}
 		else
 		{
@@ -674,5 +654,4 @@ FSorterByTextValue::FSorterByTextValue(TSharedRef<FTableColumn> InColumnRef)
 } // namespace Insights
 
 #undef INSIGHTS_DEFAULT_SORTING_NODES
-#undef INSIGHTS_DEFAULT_SORTING_ELEMENTS
 #undef LOCTEXT_NAMESPACE

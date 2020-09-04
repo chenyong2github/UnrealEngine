@@ -65,7 +65,7 @@ DEFINE_STAT(STAT_SecondsPerCycle);
 #if	!UE_BUILD_SHIPPING
 
 static TAutoConsoleVariable<int32> CVarEnableLeakTest(
-	TEXT( "debug.EnableLeakTest" ),
+	TEXT( "EnableLeakTest" ),
 	0,
 	TEXT( "If set to 1, enables leak test, for testing stats based memory profiler" )
 	);

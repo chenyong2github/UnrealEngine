@@ -6,6 +6,8 @@
 #include "USDSchemasModule.h"
 #include "USDTypesConversion.h"
 
+#include "UsdWrappers/UsdTyped.h"
+
 #if USE_USD_SDK
 
 #include "Components/HierarchicalInstancedStaticMeshComponent.h"
@@ -39,7 +41,7 @@ namespace UsdGeomPointInstancerTranslatorImpl
 			return false;
 		}
 
-		UsdToUnreal::FUsdStageInfo StageInfo( Stage );
+		FUsdStageInfo StageInfo( Stage );
 
 		int32 Index = 0;
 
@@ -92,14 +94,14 @@ namespace UsdGeomPointInstancerTranslatorImpl
 
 		TUsdStore< pxr::SdfPath > UsdPrimPath = UsdPrim.Get().GetPrimPath();
 
-		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) ) )
+		if ( TSharedPtr< FUsdSchemaTranslator > SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim.Get() ) ) )
 		{
 			while ( SchemaTranslator->IsCollapsed( CollapsingType ) )
 			{
 				UsdPrimPath = UsdPrimPath.Get().GetParentPath();
 				UsdPrim = UsdPrim.Get().GetStage()->GetPrimAtPath( UsdPrimPath.Get() );
 
-				SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, pxr::UsdTyped( UsdPrim.Get() ) );
+				SchemaTranslator = UsdSchemasModule.GetTranslatorRegistry().CreateTranslatorForSchema( TranslationContext, UE::FUsdTyped( UsdPrim.Get() ) );
 
 				if ( !SchemaTranslator.IsValid() )
 				{
@@ -121,14 +123,13 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 
 	FScopedUsdAllocs UsdAllocs;
 
-	pxr::UsdGeomPointInstancer PointInstancer( Schema.Get() );
+	pxr::UsdPrim Prim = GetPrim();
+	pxr::UsdGeomPointInstancer PointInstancer( Prim );
 
 	if ( !PointInstancer )
 	{
 		return;
 	}
-
-	pxr::UsdPrim Prim = PointInstancer.GetPrim();
 
 	// For each prototype
 	const pxr::UsdRelationship& Prototypes = PointInstancer.GetPrototypesRel();
@@ -148,12 +149,17 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 				continue;
 			}
 
-			FUsdGeomXformableTranslator PrototypeXformTranslator( Context, pxr::UsdTyped( PrototypePrim ) );
+			USceneComponent* PrototypeParentComponent = Context->ParentComponent;
+
+			FUsdGeomXformableTranslator PrototypeXformTranslator( Context, UE::FUsdTyped( PrototypePrim ) );
 
 			const bool bNeedsActor = false;
-			USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor );
+			if ( USceneComponent* PrototypeXformComponent = PrototypeXformTranslator.CreateComponentsEx( {}, bNeedsActor ) )
+			{
+				PrototypeParentComponent = PrototypeXformComponent;
+			}
 
-			TGuardValue< USceneComponent* > ParentComponentGuard2( Context->ParentComponent, PrototypeXformComponent );
+			TGuardValue< USceneComponent* > ParentComponentGuard2( Context->ParentComponent, PrototypeParentComponent );
 
 			// Find UsdGeomMeshes in prototype childs
 			TArray< TUsdStore< pxr::UsdPrim > > ChildGeomMeshPrims = UsdUtils::GetAllPrimsOfType( PrototypePrim, pxr::TfType::Find< pxr::UsdGeomMesh >() );
@@ -171,7 +177,7 @@ void FUsdGeomPointInstancerTranslator::UpdateComponents( USceneComponent* PointI
 					if ( pxr::UsdPrim PrototypeTargetPrim = Prim.GetStage()->GetPrimAtPath( PrototypeTargetPrimPath.Get() ) )
 					{
 						pxr::UsdGeomMesh PrototypeGeomMesh( PrototypeTargetPrim );
-						FUsdGeomXformableTranslator PrototypeGeomXformableTranslator( UHierarchicalInstancedStaticMeshComponent::StaticClass(), Context, PrototypeGeomMesh );
+						FUsdGeomXformableTranslator PrototypeGeomXformableTranslator( UHierarchicalInstancedStaticMeshComponent::StaticClass(), Context, UE::FUsdTyped( PrototypeGeomMesh ) );
 
 						USceneComponent* UsdGeomPrimComponent = PrototypeGeomXformableTranslator.CreateComponentsEx( {}, bNeedsActor );
 

@@ -58,9 +58,9 @@ void UK2Node_CallArrayFunction::PostReconstructNode()
 	Super::PostReconstructNode();
 }
 
-void UK2Node_CallArrayFunction::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
+void UK2Node_CallArrayFunction::NotifyPinConnectionListChanged(UEdGraphPin* ChangedPin)
 {
-	Super::NotifyPinConnectionListChanged(Pin);
+	Super::NotifyPinConnectionListChanged(ChangedPin);
 
 	TArray<UEdGraphPin*> PinsToCheck;
 	GetArrayTypeDependentPins(PinsToCheck);
@@ -74,22 +74,23 @@ void UK2Node_CallArrayFunction::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 		}
 	}
 
-	PinsToCheck.Add(GetTargetArrayPin());
+	UEdGraphPin* TargetArray = GetTargetArrayPin();
 
-	if (PinsToCheck.Contains(Pin))
+	if (PinsToCheck.Contains(ChangedPin))
 	{
 		bool bNeedToPropagate = false;
 
-		if( Pin->LinkedTo.Num() > 0 )
+		if(ChangedPin->LinkedTo.Num() > 0)
 		{
-			if (Pin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard)
-			{
-				UEdGraphPin* LinkedTo = Pin->LinkedTo[0];
-				check(LinkedTo);
+			UEdGraphPin* LinkedTo = ChangedPin->LinkedTo[0];
+			check(LinkedTo);
 
-				Pin->PinType.PinCategory = LinkedTo->PinType.PinCategory;
-				Pin->PinType.PinSubCategory = LinkedTo->PinType.PinSubCategory;
-				Pin->PinType.PinSubCategoryObject = LinkedTo->PinType.PinSubCategoryObject;
+			// If the pin being changed is a WildCard or the array input itself, then we must propagate changes
+			if (ChangedPin->PinType.PinCategory == UEdGraphSchema_K2::PC_Wildcard || (ChangedPin == TargetArray && LinkedTo->PinType.PinCategory != UEdGraphSchema_K2::PC_Wildcard))
+			{
+				ChangedPin->PinType.PinCategory = LinkedTo->PinType.PinCategory;
+				ChangedPin->PinType.PinSubCategory = LinkedTo->PinType.PinSubCategory;
+				ChangedPin->PinType.PinSubCategoryObject = LinkedTo->PinType.PinSubCategoryObject;
 
 				bNeedToPropagate = true;
 			}
@@ -109,15 +110,15 @@ void UK2Node_CallArrayFunction::NotifyPinConnectionListChanged(UEdGraphPin* Pin)
 
 			if (bNeedToPropagate)
 			{
-				Pin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
-				Pin->PinType.PinSubCategory = NAME_None;
-				Pin->PinType.PinSubCategoryObject = nullptr;
+				ChangedPin->PinType.PinCategory = UEdGraphSchema_K2::PC_Wildcard;
+				ChangedPin->PinType.PinSubCategory = NAME_None;
+				ChangedPin->PinType.PinSubCategoryObject = nullptr;
 			}
 		}
 
 		if (bNeedToPropagate)
 		{
-			PropagateArrayTypeInfo(Pin);
+			PropagateArrayTypeInfo(ChangedPin);
 			GetGraph()->NotifyGraphChanged();
 		}
 	}
@@ -271,6 +272,12 @@ void UK2Node_CallArrayFunction::GetArrayTypeDependentPins(TArray<UEdGraphPin*>& 
 			}
 		}
 	}
+
+	// Add the target array pin to make sure we get everything that depends on this type
+	if(UEdGraphPin* TargetPin = GetTargetArrayPin())
+	{
+		OutPins.Add(TargetPin);
+	}	
 }
 
 void UK2Node_CallArrayFunction::PropagateArrayTypeInfo(const UEdGraphPin* SourcePin)
@@ -282,14 +289,12 @@ void UK2Node_CallArrayFunction::PropagateArrayTypeInfo(const UEdGraphPin* Source
 
 		TArray<UEdGraphPin*> DependentPins;
 		GetArrayTypeDependentPins(DependentPins);
-		DependentPins.Add(GetTargetArrayPin());
 	
 		// Propagate pin type info (except for array info!) to pins with dependent types
 		for (UEdGraphPin* CurrentPin : DependentPins)
 		{
-			if (CurrentPin != SourcePin)
+			if (CurrentPin && CurrentPin != SourcePin)
 			{
-				CA_SUPPRESS(6011); // warning C6011: Dereferencing NULL pointer 'CurrentPin'.
 				FEdGraphPinType& CurrentPinType = CurrentPin->PinType;
 
 				bool const bHasTypeMismatch = (CurrentPinType.PinCategory != SourcePinType.PinCategory) ||

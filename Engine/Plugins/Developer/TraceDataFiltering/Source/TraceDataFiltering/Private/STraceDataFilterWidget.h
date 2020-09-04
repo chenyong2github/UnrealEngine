@@ -98,7 +98,7 @@ protected:
 	/** Analysis filter service for the current analysis session this window is currently representing */
 	TSharedPtr<ISessionTraceFilterService> SessionFilterService;
 	/** Timestamp used for refreshing cached filter data */
-	FDateTime SyncTimeStamp;
+	FDateTime SyncTimeStamp = 0;
 	
 	/** Wrapper for presets drop down button */
 	TSharedPtr<SHorizontalBox> OptionsWidget;

@@ -106,18 +106,27 @@ FRigUnit_MathFloatFloor_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::FloorToFloat(Value);
+	Int = (int32)Result;
 }
 
 FRigUnit_MathFloatCeil_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::CeilToFloat(Value);
+	Int = (int32)Result;
 }
 
 FRigUnit_MathFloatRound_Execute()
 {
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
 	Result = FMath::RoundToFloat(Value);
+	Int = (int32)Result;
+}
+
+FRigUnit_MathFloatToInt_Execute()
+{
+    DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
+	Result = FMath::FloorToInt(Value);
 }
 
 FRigUnit_MathFloatSign_Execute()

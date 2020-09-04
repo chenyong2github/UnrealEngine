@@ -191,16 +191,13 @@ class ENGINE_API UHierarchicalInstancedStaticMeshComponent : public UInstancedSt
 	// Apply the results of the async build
 	void ApplyBuildTreeAsync(ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent, TSharedRef<FClusterBuilder, ESPMode::ThreadSafe> Builder, double StartTime);
 
-	virtual void OnComponentCreated() override;
-
 public:
 
 	//Begin UObject Interface
-	virtual void PreSave(const class ITargetPlatform* TargetPlatform) override;
 	virtual void Serialize(FArchive& Ar) override;
 	virtual void GetResourceSizeEx(FResourceSizeEx& CumulativeResourceSize) override;
-	virtual void PostDuplicate(bool bDuplicateForPIE) override;
 	virtual void PostLoad() override;
+	virtual void PostEditImport() override;
 	virtual FPrimitiveSceneProxy* CreateSceneProxy() override;
 	virtual FBoxSphereBounds CalcBounds(const FTransform& BoundTransform) const override;
 #if WITH_EDITOR

@@ -128,7 +128,7 @@ static bool GetPolygonTangentsAndNormals(FMeshDescription& MeshDescription,
 
 void FStaticMeshOperations::ComputePolygonTangentsAndNormals(FMeshDescription& MeshDescription, float ComparisonThreshold)
 {
-	TRACE_CPUPROFILER_EVENT_SCOPE(TEXT("FStaticMeshOperations::ComputePolygonTangentsAndNormals_Selection"));
+	TRACE_CPUPROFILER_EVENT_SCOPE(FStaticMeshOperations::ComputePolygonTangentsAndNormals_Selection);
 
 	FStaticMeshAttributes Attributes(MeshDescription);
 	Attributes.RegisterPolygonNormalAndTangentAttributes();
@@ -721,6 +721,13 @@ void FStaticMeshOperations::ConvertFromRawMesh(const FRawMesh& SourceRawMesh, FM
 
 	//Triangles
 	int32 TriangleCount = SourceRawMesh.WedgeIndices.Num() / 3;
+
+	// Reserve enough memory to avoid as much as possible reallocations
+	DestinationMeshDescription.ReserveNewVertexInstances(SourceRawMesh.WedgeIndices.Num());
+	DestinationMeshDescription.ReserveNewTriangles(TriangleCount);
+	DestinationMeshDescription.ReserveNewPolygons(TriangleCount);
+	DestinationMeshDescription.ReserveNewEdges(TriangleCount * 2);
+
 	for (int32 TriangleIndex = 0; TriangleIndex < TriangleCount; ++TriangleIndex)
 	{
 		int32 VerticeIndexBase = TriangleIndex * 3;
@@ -1434,19 +1441,29 @@ void FStaticMeshOperations::ComputeTangentsAndNormals(FMeshDescription& MeshDesc
 #if WITH_MIKKTSPACE
 namespace MeshDescriptionMikktSpaceInterface
 {
+	struct FMeshDescriptionCachedData
+	{
+		FMeshDescription* MeshDescription;
+		TVertexAttributesRef<const FVector> VertexPositions;
+		TVertexInstanceAttributesRef<const FVector> VertexInstanceNormals;
+		TVertexInstanceAttributesRef<const FVector2D> VertexInstanceUVs;
+		TVertexInstanceAttributesRef<FVector> VertexInstanceTangents;
+		TVertexInstanceAttributesRef<float> VertexInstanceBinormalSigns;
+	};
+
 	int MikkGetNumFaces(const SMikkTSpaceContext* Context)
 	{
-		FMeshDescription *MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		return MeshDescription->Polygons().GetArraySize();
+		FMeshDescriptionCachedData* UserData = (FMeshDescriptionCachedData*)(Context->m_pUserData);
+		return UserData->MeshDescription->Polygons().GetArraySize();
 	}
 
 	int MikkGetNumVertsOfFace(const SMikkTSpaceContext* Context, const int FaceIdx)
 	{
 		// All of our meshes are triangles.
-		FMeshDescription *MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		if (MeshDescription->IsPolygonValid(FPolygonID(FaceIdx)))
+		FMeshDescriptionCachedData* UserData = (FMeshDescriptionCachedData*)(Context->m_pUserData);
+		if (UserData->MeshDescription->IsPolygonValid(FPolygonID(FaceIdx)))
 		{
-			return MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx)).Num();
+			return UserData->MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx)).Num();
 		}
 
 		return 0;
@@ -1454,11 +1471,10 @@ namespace MeshDescriptionMikktSpaceInterface
 
 	void MikkGetPosition(const SMikkTSpaceContext* Context, float Position[3], const int FaceIdx, const int VertIdx)
 	{
-		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
-		const FVertexID VertexID = MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
-		const FVector& VertexPosition = MeshDescription->VertexAttributes().GetAttribute<FVector>(VertexID, MeshAttribute::Vertex::Position);
+		FMeshDescriptionCachedData* UserData = (FMeshDescriptionCachedData*)(Context->m_pUserData);
+		const FVertexInstanceID VertexInstanceID = UserData->MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx))[VertIdx];
+		const FVertexID VertexID = UserData->MeshDescription->GetVertexInstanceVertex(VertexInstanceID);
+		const FVector& VertexPosition = UserData->VertexPositions[VertexID];
 		Position[0] = VertexPosition.X;
 		Position[1] = VertexPosition.Y;
 		Position[2] = VertexPosition.Z;
@@ -1466,10 +1482,9 @@ namespace MeshDescriptionMikktSpaceInterface
 
 	void MikkGetNormal(const SMikkTSpaceContext* Context, float Normal[3], const int FaceIdx, const int VertIdx)
 	{
-		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
-		const FVector& VertexNormal = MeshDescription->VertexInstanceAttributes().GetAttribute<FVector>(VertexInstanceID, MeshAttribute::VertexInstance::Normal);
+		FMeshDescriptionCachedData* UserData = (FMeshDescriptionCachedData*)(Context->m_pUserData);
+		const FVertexInstanceID VertexInstanceID = UserData->MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx))[VertIdx];
+		const FVector& VertexNormal = UserData->VertexInstanceNormals[VertexInstanceID];
 		Normal[0] = VertexNormal.X;
 		Normal[1] = VertexNormal.Y;
 		Normal[2] = VertexNormal.Z;
@@ -1477,20 +1492,17 @@ namespace MeshDescriptionMikktSpaceInterface
 
 	void MikkSetTSpaceBasic(const SMikkTSpaceContext* Context, const float Tangent[3], const float BitangentSign, const int FaceIdx, const int VertIdx)
 	{
-		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
-		const FVector VertexTangent(Tangent[0], Tangent[1], Tangent[2]);
-		MeshDescription->VertexInstanceAttributes().SetAttribute<FVector>(VertexInstanceID, MeshAttribute::VertexInstance::Tangent, 0, VertexTangent);
-		MeshDescription->VertexInstanceAttributes().SetAttribute<float>(VertexInstanceID, MeshAttribute::VertexInstance::BinormalSign, 0, -BitangentSign);
+		FMeshDescriptionCachedData* UserData = (FMeshDescriptionCachedData*)(Context->m_pUserData);
+		const FVertexInstanceID VertexInstanceID = UserData->MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx))[VertIdx];
+		UserData->VertexInstanceTangents[VertexInstanceID] = FVector(Tangent[0], Tangent[1], Tangent[2]);
+		UserData->VertexInstanceBinormalSigns[VertexInstanceID] = -BitangentSign;
 	}
 
 	void MikkGetTexCoord(const SMikkTSpaceContext* Context, float UV[2], const int FaceIdx, const int VertIdx)
 	{
-		FMeshDescription* MeshDescription = (FMeshDescription*)(Context->m_pUserData);
-		const TArray<FVertexInstanceID>& VertexInstanceIDs = MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx));
-		const FVertexInstanceID VertexInstanceID = VertexInstanceIDs[VertIdx];
-		const FVector2D& TexCoord = MeshDescription->VertexInstanceAttributes().GetAttribute<FVector2D>(VertexInstanceID, MeshAttribute::VertexInstance::TextureCoordinate, 0);
+		FMeshDescriptionCachedData* UserData = (FMeshDescriptionCachedData*)(Context->m_pUserData);
+		const FVertexInstanceID VertexInstanceID = UserData->MeshDescription->GetPolygonVertexInstances(FPolygonID(FaceIdx))[VertIdx];
+		const FVector2D& TexCoord = UserData->VertexInstanceUVs[VertexInstanceID];
 		UV[0] = TexCoord.X;
 		UV[1] = TexCoord.Y;
 	}
@@ -1520,9 +1532,19 @@ void FStaticMeshOperations::ComputeMikktTangents(FMeshDescription& MeshDescripti
 	MikkTInterface.m_setTSpaceBasic = MeshDescriptionMikktSpaceInterface::MikkSetTSpaceBasic;
 	MikkTInterface.m_setTSpace = nullptr;
 
+	MeshDescriptionMikktSpaceInterface::FMeshDescriptionCachedData UserData;
+	UserData.MeshDescription = &MeshDescription;
+
+	FStaticMeshAttributes Attributes(MeshDescription);
+	UserData.VertexPositions = Attributes.GetVertexPositions();
+	UserData.VertexInstanceUVs = Attributes.GetVertexInstanceUVs();
+	UserData.VertexInstanceNormals = Attributes.GetVertexInstanceNormals();
+	UserData.VertexInstanceTangents = Attributes.GetVertexInstanceTangents();
+	UserData.VertexInstanceBinormalSigns = Attributes.GetVertexInstanceBinormalSigns();
+	
 	SMikkTSpaceContext MikkTContext;
 	MikkTContext.m_pInterface = &MikkTInterface;
-	MikkTContext.m_pUserData = (void*)(&MeshDescription);
+	MikkTContext.m_pUserData = (void*)(&UserData);
 	MikkTContext.m_bIgnoreDegenerates = bIgnoreDegenerateTriangles;
 	genTangSpaceDefault(&MikkTContext);
 #else

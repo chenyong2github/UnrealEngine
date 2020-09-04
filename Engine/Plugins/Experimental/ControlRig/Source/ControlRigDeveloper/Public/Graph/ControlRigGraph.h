@@ -40,11 +40,13 @@ public:
 
 	void CacheNameLists(const FRigHierarchyContainer* HierarchyContainer, const FControlRigDrawContainer* DrawContainer);
 
-	const TArray<TSharedPtr<FString>>& GetBoneNameList() const;
-	const TArray<TSharedPtr<FString>>& GetControlNameList() const;
-	const TArray<TSharedPtr<FString>>& GetSpaceNameList() const;
-	const TArray<TSharedPtr<FString>>& GetCurveNameList() const;
-	const TArray<TSharedPtr<FString>>& GetDrawingNameList() const;
+	const TArray<TSharedPtr<FString>>& GetBoneNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>& GetControlNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>& GetSpaceNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>& GetCurveNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>& GetElementNameList(URigVMPin* InPin = nullptr) const;
+	const TArray<TSharedPtr<FString>>& GetElementNameList(ERigElementType InElementType) const;
+	const TArray<TSharedPtr<FString>>& GetDrawingNameList(URigVMPin* InPin = nullptr) const;
 
 	bool bSuspendModelNotifications;
 	bool bIsTemporaryGraphForCopyPaste;
@@ -104,6 +106,11 @@ private:
 	friend class UControlRigVariableNodeSpawner;
 	friend class UControlRigParameterNodeSpawner;
 	friend class UControlRigRerouteNodeSpawner;
+	friend class UControlRigBranchNodeSpawner;
+	friend class UControlRigIfNodeSpawner;
+	friend class UControlRigSelectNodeSpawner;
+	friend class UControlRigPrototypeNodeSpawner;
+	friend class UControlRigEnumNodeSpawner;
 #endif
 	friend class UControlRigGraphNode;
 	friend class FControlRigEditor;

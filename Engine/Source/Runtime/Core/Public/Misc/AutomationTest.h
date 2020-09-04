@@ -890,17 +890,14 @@ public:
 
 private:
 
-	/** Special feedback context used exclusively while automation testing */
-	 class FAutomationTestFeedbackContext : public FFeedbackContext
+	/** Special output device used during automation testing to gather messages that happen during tests */
+	 class FAutomationTestOutputDevice : public FOutputDevice
 	{
 	public:
-
-		/** Constructor */
-		FAutomationTestFeedbackContext() 
+		FAutomationTestOutputDevice() 
 			: CurTest( NULL ) {}
 
-		/** Destructor */
-		~FAutomationTestFeedbackContext()
+		~FAutomationTestOutputDevice()
 		{
 			CurTest = NULL;
 		}
@@ -908,16 +905,16 @@ private:
 		/**
 		 * FOutputDevice interface
 		 *
-		 * @param	V		String to serialize within the context
+		 * @param	V		String to serialize within the output device
 		 * @param	Event	Event associated with the string
 		 */
 		virtual void Serialize( const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category ) override;
 
 		/**
-		 * Set the automation test associated with the feedback context. The automation test is where all warnings, errors, etc.
+		 * Set the automation test associated with the output device. The automation test is where all warnings, errors, etc.
 		 * will be routed to.
 		 *
-		 * @param	InAutomationTest	Automation test to associate with the feedback context.
+		 * @param	InAutomationTest	Automation test to associate with the output device.
 		 */
 		void SetCurrentAutomationTest( class FAutomationTestBase* InAutomationTest )
 		{
@@ -925,10 +922,57 @@ private:
 		}
 
 	private:
-
 		/** Associated automation test; all warnings, errors, etc. are routed to the automation test to track */
 		class FAutomationTestBase* CurTest;
 	};
+
+	 /** Special feedback context used during automated testing to filter messages that happen during tests */
+	 class FAutomationTestMessageFilter: public FFeedbackContext
+	 {
+	 public:
+		 FAutomationTestMessageFilter()
+			 : CurTest(nullptr) {}
+
+		 ~FAutomationTestMessageFilter()
+		 {
+			 CurTest = nullptr;
+		 }
+
+		 /**
+		  * FOutputDevice interface
+		  *
+		  * @param	V		String to serialize within the context
+		  * @param	Event	Event associated with the string
+		  */
+		 virtual void Serialize(const TCHAR* V, ELogVerbosity::Type Verbosity, const class FName& Category) override;
+
+		 /**
+		  * Set the automation test associated with the feedback context. The automation test is what will be used
+		  * to determine if a given warning or error is expected and thus should not be treated as a warning or error
+		  * by the destination context.
+		  *
+		  * @param	InAutomationTest	Automation test to associate with the feedback context.
+		  */
+		 void SetCurrentAutomationTest(class FAutomationTestBase* InAutomationTest)
+		 {
+			 CurTest = InAutomationTest;
+		 }
+
+		 /**
+		  * Set the destination associated with the feedback context. The automation test is where all warnings, errors, etc.
+		  * will be routed to.
+		  *
+		  * @param	InAutomationTest	Automation test to associate with the feedback context.
+		  */
+		 void SetDestinationContext(FFeedbackContext* InDestinationContext)
+		 {
+			 DestinationContext = InDestinationContext;
+		 }
+
+	 private:
+		 class FAutomationTestBase* CurTest;
+		 FFeedbackContext* DestinationContext = nullptr;
+	 };
 
 	//** Store information about blacklisted test */
 	struct FBlacklistEntry
@@ -943,7 +987,7 @@ private:
 		bool bWarn;
 	};
 
-	friend class FAutomationTestFeedbackContext;
+	friend class FAutomationTestOutputDevice;
 	/** Helper method called to prepare settings for automation testing to follow */
 	void PrepForAutomationTests();
 
@@ -995,8 +1039,13 @@ private:
 	FAutomationTestFramework( const FAutomationTestFramework& );
 	FAutomationTestFramework& operator=( const FAutomationTestFramework& );
 
-	/** Specialized feedback context used for automation testing */
-	FAutomationTestFeedbackContext AutomationTestFeedbackContext;
+	/** Specialized output device used for automation testing */
+	FAutomationTestOutputDevice AutomationTestOutputDevice;
+
+	/** Specialized feedback context used for message filtering during automated testing */
+	FAutomationTestMessageFilter AutomationTestMessageFilter;
+
+	FFeedbackContext* OriginalGWarn = nullptr;
 
 	/** Mapping of automation test names to their respective object instances */
 	TMap<FString, class FAutomationTestBase*> AutomationTestClassNameToInstanceMap;
@@ -1306,6 +1355,9 @@ public:
 
 	bool TestEqual(const TCHAR* What, int32 Actual, int32 Expected);
 	bool TestEqual(const TCHAR* What, int64 Actual, int64 Expected);
+#if PLATFORM_64BITS
+	bool TestEqual(const TCHAR* What, SIZE_T Actual, SIZE_T Expected);
+#endif
 	bool TestEqual(const TCHAR* What, float Actual, float Expected, float Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, double Actual, double Expected, double Tolerance = KINDA_SMALL_NUMBER);
 	bool TestEqual(const TCHAR* What, FVector Actual, FVector Expected, float Tolerance = KINDA_SMALL_NUMBER);

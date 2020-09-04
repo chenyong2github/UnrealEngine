@@ -23,6 +23,8 @@ UWidgetInteractionComponent::UWidgetInteractionComponent(const FObjectInitialize
 	, InteractionSource(EWidgetInteractionSource::World)
 	, bEnableHitTesting(true)
 	, bShowDebug(false)
+	, DebugSphereLineThickness(2.f)
+	, DebugLineThickness(1.f)
 	, DebugColor(FLinearColor::Red)
 {
 	PrimaryComponentTick.bCanEverTick = true;
@@ -43,6 +45,8 @@ UWidgetInteractionComponent::UWidgetInteractionComponent(const FObjectInitialize
 
 void UWidgetInteractionComponent::OnComponentCreated()
 {
+	Super::OnComponentCreated();
+	
 #if WITH_EDITORONLY_DATA
 	if ( ArrowComponent )
 	{
@@ -316,18 +320,18 @@ FWidgetPath UWidgetInteractionComponent::DetermineWidgetUnderPointer()
 	{
 		if ( HoveredWidgetComponent )
 		{
-			UKismetSystemLibrary::DrawDebugSphere(this, LastHitResult.ImpactPoint, 2.5f, 12, DebugColor, 0, 2);
+			UKismetSystemLibrary::DrawDebugSphere(this, LastHitResult.ImpactPoint, 2.5f, 12, DebugColor, 0, DebugSphereLineThickness);
 		}
 
 		if ( InteractionSource == EWidgetInteractionSource::World || InteractionSource == EWidgetInteractionSource::Custom )
 		{
 			if ( HoveredWidgetComponent )
 			{
-				UKismetSystemLibrary::DrawDebugLine(this, LastHitResult.TraceStart, LastHitResult.ImpactPoint, DebugColor, 0, 1);
+				UKismetSystemLibrary::DrawDebugLine(this, LastHitResult.TraceStart, LastHitResult.ImpactPoint, DebugColor, 0, DebugLineThickness);
 			}
 			else
 			{
-				UKismetSystemLibrary::DrawDebugLine(this, TraceResult.LineStartLocation, TraceResult.LineEndLocation, DebugColor, 0, 1);
+				UKismetSystemLibrary::DrawDebugLine(this, TraceResult.LineStartLocation, TraceResult.LineEndLocation, DebugColor, 0, DebugLineThickness);
 			}
 		}
 	}

@@ -143,7 +143,8 @@ struct FRigVMParameter
 		, bConstant(false)
 		, bInput(false)
 		, bOutput(false)
-		, MaxArraySize()
+		, bSingleton(false)
+		, ArraySize()
 		, Getter()
 		, CastName()
 		, CastType()
@@ -156,7 +157,8 @@ struct FRigVMParameter
 	bool bConstant;
 	bool bInput;
 	bool bOutput;
-	FString MaxArraySize;
+	bool bSingleton;
+	FString ArraySize;
 	FString Getter;
 	FString CastName;
 	FString CastType;
@@ -243,6 +245,16 @@ struct FRigVMParameter
 	bool IsArray() const
 	{
 		return BaseType().Equals(TEXT("TArray"));
+	}
+
+	bool IsDynamic() const
+	{
+		return ArraySize.IsEmpty() && !bInput && !bOutput && !bSingleton;
+	}
+
+	bool IsDynamicArray() const
+	{
+		return IsArray() && IsDynamic();
 	}
 
 	bool RequiresCast() const
@@ -781,7 +793,7 @@ protected:
 	bool SkipDeclaration(FToken& Token);
 	/** Similar to MatchSymbol() but will return to the exact location as on entry if the symbol was not found. */
 	bool SafeMatchSymbol(const TCHAR Match);
-	void HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString InterfaceName);
+	void HandleOneInheritedClass(FClasses& AllClasses, UClass* Class, FString&& InterfaceName);
 	FClass* ParseClassNameDeclaration(FClasses& AllClasses, FString& DeclaredClassName, FString& RequiredAPIMacroIfPresent);
 
 	/** The property style of a variable declaration being parsed */
@@ -1042,6 +1054,40 @@ private:
 
 	// Checks if a valid range has been found on the provided metadata
 	bool CheckUIMinMaxRangeFromMetaData(const FString& UIMin, const FString& UIMax);
+
+	// Names that cannot be used enums, UStructs, or UClasses
+	static TArray<FString> ReservedTypeNames;
+
+public:
+	/**
+	* Checks if the given token uses one of the reserved type names.
+	*
+	* @param  TypeName		String of the type to check (For UObject/UClass, use the stripped name)
+	* @return True if the TypeName is a reserved name
+	*/
+	static bool IsReservedTypeName(const FString& TypeName);
+
+	/**
+	* Checks if the given token uses one of the reserved type names.
+	*
+	* @param  Token		The token to check
+	* @return True if the Token is using a reserved name
+	*/
+	static bool IsReservedTypeName(const FToken& Token);
+	
+	static const FName NAME_InputText;
+	static const FName NAME_OutputText;
+	static const FName NAME_ConstantText;
+	static const FName NAME_VisibleText;
+	static const FName NAME_ArraySizeText;
+	static const FName NAME_SingletonText;
+	static const TCHAR* TArrayText;
+	static const TCHAR* TEnumAsByteText;
+	static const TCHAR* FFixedArrayText;
+	static const TCHAR* FDynamicArrayText;
+	static const TCHAR* GetRefText;
+	static const TCHAR* GetFixedArrayText;
+	static const TCHAR* GetDynamicArrayText;
 };
 
 /////////////////////////////////////////////////////

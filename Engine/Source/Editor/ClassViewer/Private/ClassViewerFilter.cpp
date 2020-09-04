@@ -366,29 +366,7 @@ static bool CheckIfBlueprintBase(const TSharedRef<const IUnloadedBlueprintData>&
 */
 static bool PassesTextFilter(const FString& InTestString, const TSharedRef<FTextFilterExpressionEvaluator>& InTextFilter)
 {
-	class FClassFilterContext : public ITextFilterExpressionContext
-	{
-	public:
-		explicit FClassFilterContext(const FString& InStr)
-			: StrPtr(&InStr)
-		{
-		}
-
-		virtual bool TestBasicStringExpression(const FTextFilterString& InValue, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-		{
-			return TextFilterUtils::TestBasicStringExpression(*StrPtr, InValue, InTextComparisonMode);
-		}
-
-		virtual bool TestComplexExpression(const FName& InKey, const FTextFilterString& InValue, const ETextFilterComparisonOperation InComparisonOperation, const ETextFilterTextComparisonMode InTextComparisonMode) const override
-		{
-			return false;
-		}
-
-	private:
-		const FString* StrPtr;
-	};
-
-	return InTextFilter->TestTextFilter(FClassFilterContext(InTestString));
+	return InTextFilter->TestTextFilter(FBasicStringFilterExpressionContext(InTestString));
 }
 
 FClassViewerFilter::FClassViewerFilter(const FClassViewerInitializationOptions& InInitOptions) :
@@ -515,7 +493,19 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 		bPassesCustomFilter = InInitOptions.ClassFilter->IsClassAllowed(InInitOptions, InClass, FilterFunctions);
 	}
 
-	const bool bPassesTextFilter = PassesTextFilter(InClass->GetName(), TextFilter);
+	bool bPassesTextFilter = true;
+	if (bCheckTextFilter && (TextFilter->GetFilterType() != ETextFilterExpressionType::Empty))
+	{
+		FString ClassNameWithCppPrefix = FString::Printf(TEXT("%s%s"), InClass->GetPrefixCPP(), *InClass->GetName());
+		bPassesTextFilter = PassesTextFilter(InClass->GetName(), TextFilter) || PassesTextFilter(ClassNameWithCppPrefix, TextFilter);
+
+		// If the class is deprecated, try searching without the deprecated name inserted, in case a user typed a string
+		if (!bPassesTextFilter && InClass->HasAnyClassFlags(CLASS_Deprecated))
+		{
+			ClassNameWithCppPrefix.RemoveAt(1, 11);
+			bPassesTextFilter |= PassesTextFilter(ClassNameWithCppPrefix, TextFilter);
+		}
+	}
 
 	bool bPassesAssetReferenceFilter = true;
 	if (AssetReferenceFilter.IsValid() && !InClass->IsNative())
@@ -525,7 +515,7 @@ bool FClassViewerFilter::IsClassAllowed(const FClassViewerInitializationOptions&
 
 	bool bPassesFilter = bPassesAllowedClasses && bPassesPlaceableFilter && bPassesBlueprintBaseFilter
 		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassFilter 
-		&& bPassesCustomFilter && (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
+		&& bPassesCustomFilter && bPassesTextFilter && bPassesAssetReferenceFilter;
 
 	return bPassesFilter;
 }
@@ -545,9 +535,6 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 
 	const bool bIsBlueprintBase = CheckIfBlueprintBase(InUnloadedClassData);
 	const bool bPassesBlueprintBaseFilter = !InInitOptions.bIsBlueprintBaseOnly || bIsBlueprintBase;
-
-	// unloaded blueprints cannot be editor-only
-	const bool bPassesEditorClassFilter = !InInitOptions.bEditorClassesOnly;
 
 	// Determine if we allow any developer folder classes, if so determine if this class is in one of the allowed developer folders.
 	static const FString DeveloperPathWithSlash = FPackageName::FilenameToLongPackageName(FPaths::GameDevelopersDir());
@@ -618,8 +605,8 @@ bool FClassViewerFilter::IsUnloadedClassAllowed(const FClassViewerInitialization
 	}
 
 	bool bPassesFilter = bPassesPlaceableFilter && bPassesBlueprintBaseFilter
-		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesEditorClassFilter
-		&& bPassesCustomFilter && (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
+		&& bPassesDeveloperFilter && bPassesInternalFilter && bPassesCustomFilter 
+		&& (!bCheckTextFilter || bPassesTextFilter) && bPassesAssetReferenceFilter;
 
 	return bPassesFilter;
 }

@@ -50,6 +50,5 @@ void SGroupMarkerBlock::BuildMultiBlockWidget(const ISlateStyle* StyleSet, const
 	];
 
 	// Add this widget to the search list of the multibox and hide it
-	if (MultiBlock->GetSearchable())
-		OwnerMultiBoxWidget.Pin()->AddSearchElement(this->AsWidget(), FText::GetEmpty());
+	OwnerMultiBoxWidget.Pin()->AddElement(this->AsWidget(), FText::GetEmpty(), MultiBlock->GetSearchable());
 }

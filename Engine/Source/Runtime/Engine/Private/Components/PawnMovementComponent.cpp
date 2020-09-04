@@ -23,7 +23,7 @@ void UPawnMovementComponent::SetUpdatedComponent(USceneComponent* NewUpdatedComp
 
 	Super::SetUpdatedComponent(NewUpdatedComponent);
 
-	PawnOwner = NewUpdatedComponent ? CastChecked<APawn>(NewUpdatedComponent->GetOwner()) : NULL;
+	PawnOwner = UpdatedComponent ? CastChecked<APawn>(UpdatedComponent->GetOwner()) : NULL;
 }
 
 void UPawnMovementComponent::Serialize(FArchive& Ar)

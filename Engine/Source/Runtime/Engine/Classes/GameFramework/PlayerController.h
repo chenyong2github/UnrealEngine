@@ -22,6 +22,7 @@
 #include "Camera/PlayerCameraManager.h"
 #include "Components/InputComponent.h"
 #include "GameFramework/ForceFeedbackEffect.h"
+#include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "PlayerController.generated.h"
 
@@ -48,7 +49,7 @@ DECLARE_DELEGATE_RetVal(bool, FCanUnpause);
 /** delegate used to override default viewport audio listener position calculated from camera */
 DECLARE_DELEGATE_ThreeParams(FGetAudioListenerPos, FVector& /*Location*/, FVector& /*ProjFront*/, FVector& /*ProjRight*/);
 
-DECLARE_LOG_CATEGORY_EXTERN(LogPlayerController, Log, All);
+ENGINE_API DECLARE_LOG_CATEGORY_EXTERN(LogPlayerController, Log, All);
 DECLARE_STATS_GROUP(TEXT("PlayerController"), STATGROUP_PlayerController, STATCAT_Advanced);
 
 UENUM()
@@ -160,44 +161,6 @@ struct ENGINE_API FUpdateLevelStreamingLevelStatus
 	/** Whether we want to force a blocking load */
 	UPROPERTY()
 	uint32 bNewShouldBlockOnLoad : 1;
-};
-
-/** This structure is used to pass arguments to ServerUpdateLevelVisibilty() and ServerUpdateMultipleLevelsVisibility() server RPC functions */
-USTRUCT()
-struct ENGINE_API FUpdateLevelVisibilityLevelInfo
-{
-	GENERATED_BODY();
-
-	FUpdateLevelVisibilityLevelInfo()
-		: PackageName(NAME_None)
-		, FileName(NAME_None)
-		, bIsVisible(false)
-		, bSkipCloseOnError(false)
-	{
-	}
-
-	/**
-	 * @param Level			Level to pull PackageName and FileName from.
-	 * @param bInIsVisible	Default value for bIsVisible.
-	 */
-	FUpdateLevelVisibilityLevelInfo(const class ULevel* const Level, const bool bInIsVisible);
-
-	/** The name of the package for the level whose status changed. */
-	UPROPERTY()
-	FName PackageName;
-
-	/** The name / path of the asset file for the level whose status changed. */
-	UPROPERTY()
-	FName FileName;
-
-	/** The new visibility state for this level. */
-	UPROPERTY()
-	uint32 bIsVisible : 1;
-
-	/** Skip connection close if level can't be found (not net serialized) */
-	uint32 bSkipCloseOnError : 1;
-
-	bool NetSerialize(FArchive& Ar, UPackageMap* PackageMap, bool& bOutSuccess);
 };
 
 template<>

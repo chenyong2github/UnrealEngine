@@ -264,28 +264,21 @@ void FDeferredShadingSceneRenderer::EndTimingSeparateTranslucencyModulatePass(FR
 /** Pixel shader used to copy scene color into another texture so that materials can read from scene color with a node. */
 class FCopySceneColorPS : public FGlobalShader
 {
-	DECLARE_SHADER_TYPE(FCopySceneColorPS, Global);
 public:
+	DECLARE_GLOBAL_SHADER(FCopySceneColorPS);
 
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5); }
-
-	FCopySceneColorPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer) :
-		FGlobalShader(Initializer)
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		SceneTextureParameters.Bind(Initializer);
-	}
-	FCopySceneColorPS() {}
-
-	void SetParameters(FRHICommandList& RHICmdList, const FViewInfo& View)
-	{
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
+		return IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-private:
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
+	FCopySceneColorPS() = default;
+	FCopySceneColorPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FGlobalShader(Initializer)
+	{}
 };
 
-IMPLEMENT_SHADER_TYPE(, FCopySceneColorPS, TEXT("/Engine/Private/TranslucentLightingShaders.usf"), TEXT("CopySceneColorMain"), SF_Pixel);
+IMPLEMENT_GLOBAL_SHADER(FCopySceneColorPS, "/Engine/Private/TranslucentLightingShaders.usf", "CopySceneColorMain", SF_Pixel);
 
 extern int32 GLightShaftRenderAfterDOF;
 
@@ -548,9 +541,12 @@ void FDeferredShadingSceneRenderer::ConditionalResolveSceneColorForTranslucentMa
 		if (bNeedsResolve && !View.IsUnderwater())
 		{
 			FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			SCOPED_DRAW_EVENTF(RHICmdList, EventCopy, TEXT("CopySceneColor from SceneColor for translucency"));
+
+			FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, View.GetFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleDraw);
+			FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+			SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 			RHICmdList.CopyToResolveTarget(SceneContext.GetSceneColorSurface(), SceneContext.GetSceneColorTexture(), FResolveRect(View.ViewRect.Min.X, View.ViewRect.Min.Y, View.ViewRect.Max.X, View.ViewRect.Max.Y));
 
@@ -583,8 +579,6 @@ void FDeferredShadingSceneRenderer::ConditionalResolveSceneColorForTranslucentMa
 				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
 
 				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-
-				PixelShader->SetParameters(RHICmdList, View);
 
 				DrawRectangle(
 					RHICmdList,
@@ -772,7 +766,6 @@ protected:
 	{
 	}
 
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FShaderParameter, LowResColorTexelSize);
 	LAYOUT_FIELD(FShaderResourceParameter, LowResDepthTexture);
 	LAYOUT_FIELD(FShaderResourceParameter, LowResColorTexture);
@@ -786,7 +779,6 @@ public:
 		: FGlobalShader(Initializer)
 		, bUseNearestDepthNeighborUpsample(InbUseNearestDepthNeighborUpsample)
 	{
-		SceneTextureParameters.Bind(Initializer);
 		LowResColorTexelSize.Bind(Initializer.ParameterMap, TEXT("LowResColorTexelSize"));
 		LowResDepthTexture.Bind(Initializer.ParameterMap, TEXT("LowResDepthTexture"));
 		LowResColorTexture.Bind(Initializer.ParameterMap, TEXT("LowResColorTexture"));
@@ -811,8 +803,6 @@ public:
 
 		SetSamplerParameter(RHICmdList, ShaderRHI, BilinearClampedSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
 		SetSamplerParameter(RHICmdList, ShaderRHI, PointClampedSampler, TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
 	}
 
 	LAYOUT_FIELD(const bool, bUseNearestDepthNeighborUpsample);
@@ -854,6 +844,10 @@ void UpsampleTranslucency(FRHICommandList& RHICmdList, const FViewInfo& View, bo
 	SCOPED_DRAW_EVENTF(RHICmdList, EventUpsampleCopy, TEXT("Upsample translucency"));
 
 	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
+	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, View.GetFeatureLevel(), ESceneTextureSetupMode::All, UniformBuffer_SingleDraw);
+	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 	SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite);
 	RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
 

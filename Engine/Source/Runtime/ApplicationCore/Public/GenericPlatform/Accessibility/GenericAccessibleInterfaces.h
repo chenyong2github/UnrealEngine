@@ -45,7 +45,9 @@ enum class EAccessibleWidgetType : uint8
 	Slider,
 	Text,
 	TextEdit,
-	Window
+	Window,
+	List,
+	ListItem
 };
 
 /** Events that can be raised from accessible widgets to report back to the platform */
@@ -118,9 +120,9 @@ public:
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetChildAtPosition(int32 X, int32 Y) = 0;
 	/**
-	 * Retrieves the currently-focused widget, if it is accessible.
+	 * Retrieves the currently accessibilit focused widget
 	 *
-	 * @return The widget that has focus, or nullptr if the focused widget is not accessible.
+	 * @return The widget that has accessibility focus.
 	 */
 	virtual TSharedPtr<IAccessibleWidget> GetFocusedWidget() const = 0;
 	/**
@@ -254,6 +256,68 @@ public:
 	virtual const FString& GetText() const = 0;
 };
 
+/**
+* A widget that represents a table such as list views, tile views or tree views 
+* Data about the items that are selected in the table or if selection is supported can be queried.
+*/
+class IAccessibleTable
+{
+public: 
+	/**
+	 * Get all of the elements that are selected in the table. 
+	 *
+	 * @return All the items selected in this table. Returns an empty array if nothing is selected. 
+	 */
+	virtual TArray<TSharedPtr<IAccessibleWidget>> GetSelectedItems() const { return TArray < TSharedPtr<IAccessibleWidget>>(); }
+
+	/**
+	 * Check if the table can select more than one element at a time. 
+	 *
+	 * @return True if the table can support selection for more than one element at a time. Else false. 
+	 */
+	virtual bool CanSupportMultiSelection() const { return false; }
+
+	/**
+	 * Checks if the table must have an element selected at all times.
+	 *
+	 * @return True if an element of the table must be selected at all times, else false
+	 */
+	virtual bool IsSelectionRequired() const { return false; }
+};
+
+/**
+* A widget that is an element in an accessible table.
+* These widgets can be interacted with by selecting them or querying them for the owning table. 
+* NOTE: All accessible table rows must have an accessible table as an owner 
+*/
+class IAccessibleTableRow
+{
+public:
+	/** Selects this table row in the owning table. */
+	virtual void Select() {}
+
+	/** Adds this table row to the list of selected items in the owning table */
+	virtual void AddToSelection() {}
+
+	/** Removes this table row from the list of selected items in the owning table */
+	virtual void RemoveFromSelection() {}
+
+	/**
+	 * Checks if this table row is currently selected in the owning table. 
+	 *
+	 * @return True if this table row is currently selected in the owning table. Else false 
+	 */
+	virtual bool IsSelected() const { return false; }
+
+	/**
+	 * Get the accessible table that owns this accessible table row. 
+	 * NOTE: This should always return a valid pointer in concrete classes. An accessible table row must ALWAYS have an accessible table as an owner. 
+	 *
+	 * @return The owning table 
+	 */
+	virtual TSharedPtr<IAccessibleWidget> GetOwningTable() const { return nullptr; }
+};
+
 typedef int32 AccessibleWidgetId; 
 
 /**
@@ -368,18 +432,20 @@ public:
 	 */
 	virtual bool IsHidden() const = 0;
 	/**
-	 * Whether the widget supports keyboard focus or not.
+	 * Whether the widget supports accessibility focus or not.
 	 *
-	 * @return true if the widget can receive keyboard focus.
+	 * @return true if the widget can receive accessibility focus.
 	 */
 	virtual bool SupportsFocus() const = 0;
 	/**
-	 * Whether the widget has keyboard focus or not.
+	 * Whether the widget has accessibility focus or not.
 	 *
-	 * @return true if the widget currently has keyboard focus.
+	 * @return true if the widget currently has accessibility focus.
 	 */
 	virtual bool HasFocus() const = 0;
-	/** Assign keyboard focus to this widget, if it supports it. If not, focus should not be affected. */
+	/** Assign keyboard/gamepad focus to this widget, if it supports it. If not, focus should not be affected. 
+	* Note: For widgets that support accessibility focus but not keyboard/gamepad focus, this should NOT repreplace the widget with accessibility focus. 
+	*/
 	virtual void SetFocus() = 0;
 
 	/**
@@ -406,6 +472,20 @@ public:
 	 * @return 'this' as an IAccessibleText if possible, otherwise nullptr
 	 */
 	virtual IAccessibleText* AsText() { return nullptr; }
+
+	/**
+	 * Attempt to cast this to an IAccessibleTable
+	 *
+	 * @return 'this' as an IAccessibleTable if possible, otherwise nullptr
+	 */
+	virtual IAccessibleTable* AsTable() { return nullptr; }
+
+	/**
+	 * Attempt to cast this to an IAccessibleTableRow
+	 *
+	 * @return 'this' as an IAccessibleTableRow if possible, otherwise nullptr
+	 */
+	virtual IAccessibleTableRow* AsTableRow() { return nullptr; }
 };
 
 /**
@@ -525,6 +605,13 @@ public:
 	 * @param Thread The thread to run the Function in.
 	 */
 	virtual void RunInThread(const TFunction<void()>& Function, bool bWaitForCompletion = true, ENamedThreads::Type Thread = ENamedThreads::GameThread) { }
+
+	/**
+	 * Request a string to be announced to the user.
+	 * Note: Currently only supported on Win10, Mac, iOS. If requests are made too close together,
+	 * earlier announcement requests will get stomped by later announcements on certain platforms.
+	 */
+	virtual void MakeAccessibleAnnouncement(const FString& AnnouncementString) { }
 protected:
 	/** Triggered when bIsActive changes from false to true. */
 	virtual void OnActivate() {}

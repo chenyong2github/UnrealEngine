@@ -129,6 +129,53 @@ void PrintSmallFloatWithSign(int2 PixelPos, inout float3 OutColor, float3 FontCo
 	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.01));
 }
 
+// for printf debugging in the shader, does not have to be positive
+// outputs a float number in the form: xx.yyy
+// @param LeftTop - in pixels
+void PrintMediumFloatWithSign(int2 PixelPos, inout float3 OutColor, float3 FontColor, int2 LeftTop, float Number)
+{
+	int2 Cursor = LeftTop;
+
+	bool bHasSign = Number < 0;
+
+	// Minus Sign
+	Number = abs(Number) + 0.005; // Round up first digit
+
+	bool bIsGreater10 = Number >= 10;
+
+	FLATTEN
+	if (bHasSign && bIsGreater10)
+	{
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _MINUS_);
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10));
+		Number = abs(Number);
+	}
+	else if (bIsGreater10)
+	{
+		Cursor.x += 8;
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 10));
+	}
+	else if (bHasSign)
+	{
+		Cursor.x += 8;
+		PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _MINUS_);
+	}
+	else
+	{
+		Cursor.x += 2*8;
+	}
+
+	// we always print this character, so no ifs needed
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 1));
+	// period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, _DOT_);
+	// after period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.1));
+	// after period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.01));
+	// after period
+	PrintCharacter(PixelPos, OutColor, FontColor, Cursor, ExtractDigitFromFloat(Number, 0.001));
+}
 
 //
 void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition : SV_POSITION, out float4 OutColor : SV_Target0)
@@ -153,7 +200,7 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 	{
 		const float PixelDx = abs(PixelPos.x - OutputViewportCenter.x);
 		const float PixelDy = abs(PixelPos.y - OutputViewportCenter.y);
-		if (PixelDx < 100 && PixelDy < 40)
+		if (PixelDx < 130 && PixelDy < 40)
 		{
 			float3 LuminanceAvg = 0.0f;
 			float3 SceneColorAvg = 0.0f;
@@ -221,6 +268,20 @@ void MainPS(noperspective float4 UVAndScreenPos : TEXCOORD0, float4 SvPosition :
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _L_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _U_);
 			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _X_);
+
+			// EV100
+			TopLeft = OutputViewportCenter + int2(11, 33);
+
+			const float EyeAdaptationEV100 = log2((LuminanceAvg/.18)/EyeAdaptation_LuminanceMax);
+			PrintMediumFloatWithSign(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, EyeAdaptationEV100);
+
+			TopLeft.x += 60;
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _E_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _V_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _1_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _0_);
+			PrintCharacter(PixelPos, OutColor.xyz, float3(1, 1, 1), TopLeft, _0_);
+
 			return;
 		}
 	}

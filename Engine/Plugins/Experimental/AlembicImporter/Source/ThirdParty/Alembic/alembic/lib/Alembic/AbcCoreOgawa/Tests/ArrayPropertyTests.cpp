@@ -52,7 +52,7 @@ namespace ABCA = Alembic::AbcCoreAbstract;
 using namespace Alembic::Util;
 
 //-*****************************************************************************
-void testDuplicateArray()
+void testDuplicateArray(bool iUseMMap)
 {
     std::string archiveName = "repeatArray.abc";
 
@@ -141,7 +141,7 @@ void testDuplicateArray()
     }
 
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::CompoundPropertyReaderPtr parent = archive->getProperties();
@@ -329,7 +329,7 @@ void testDuplicateArray()
 }
 
 //-*****************************************************************************
-void testReadWriteArrays()
+void testReadWriteArrays(bool iUseMMap)
 {
 
     std::string archiveName = "arrayProperties.abc";
@@ -615,7 +615,7 @@ void testReadWriteArrays()
 
     // now we read what we've written
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::CompoundPropertyReaderPtr parent = archive->getProperties();
@@ -1212,7 +1212,7 @@ void testReadWriteArrays()
 }
 
 //-*****************************************************************************
-void testEmptyArray()
+void testEmptyArray(bool iUseMMap)
 {
     std::string archiveName = "emptyArray.abc";
     {
@@ -1229,7 +1229,7 @@ void testEmptyArray()
     }
 
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::CompoundPropertyReaderPtr parent = archive->getProperties();
@@ -1324,7 +1324,7 @@ void testEmptyArray()
     }
 
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::CompoundPropertyReaderPtr parent = archive->getProperties();
@@ -1368,7 +1368,7 @@ void testEmptyArray()
 }
 
 //-*****************************************************************************
-void testExtentArrayStrings()
+void testExtentArrayStrings(bool iUseMMap)
 {
     std::string archiveName = "extentStrArray.abc";
     {
@@ -1452,7 +1452,7 @@ void testExtentArrayStrings()
     }
 
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::CompoundPropertyReaderPtr parent = archive->getProperties();
@@ -1570,7 +1570,7 @@ void testExtentArrayStrings()
 }
 
 //-*****************************************************************************
-void testArrayStringsRepeats()
+void testArrayStringsRepeats(bool iUseMMap)
 {
     std::string archiveName = "strArrayRepeats.abc";
     std::vector < Alembic::Util::string > vals(6);
@@ -1682,7 +1682,7 @@ void testArrayStringsRepeats()
     }
 
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::CompoundPropertyReaderPtr parent = archive->getProperties();
@@ -1766,7 +1766,7 @@ void testArrayStringsRepeats()
     }
 }
 
-void testArraySamples()
+void testArraySamples(bool iUseMMap)
 {
     std::string archiveName = "numArraySamplesTest.abc";
 
@@ -1838,7 +1838,7 @@ void testArraySamples()
     }
 
     {
-        AO::ReadArchive r;
+        AO::ReadArchive r(1, iUseMMap);
         ABCA::ArchiveReaderPtr a = r( archiveName );
         ABCA::ObjectReaderPtr archive = a->getTop();
         ABCA::ObjectReaderPtr obj = archive->getChild(0);
@@ -1873,13 +1873,174 @@ void testArraySamples()
     }
 }
 
+void testWriteWhileRead()
+{
+    std::string archiveName = "numWriteReadTest.abc";
+
+    ABCA::DataType dtype(Alembic::Util::kStringPOD);
+    std::vector < Alembic::Util::string > vals(1);
+    vals[0] = "yummy";
+    ABCA::ArraySample samp(&(vals.front()), dtype,
+        Alembic::Util::Dimensions(vals.size()));
+
+    {
+        AO::WriteArchive w;
+        ABCA::ArchiveWriterPtr a = w(archiveName, ABCA::MetaData());
+        ABCA::ObjectWriterPtr archive = a->getTop();
+        ABCA::ObjectWriterPtr obj = archive->createChild(
+            ABCA::ObjectHeader("test", ABCA::MetaData()));
+
+        ABCA::CompoundPropertyWriterPtr parent = obj->getProperties();
+        ABCA::ArrayPropertyWriterPtr prop;
+
+        ABCA::CompoundPropertyWriterPtr smallProp =
+            parent->createCompoundProperty("small", ABCA::MetaData());
+        smallProp->createArrayProperty("a", ABCA::MetaData(), dtype, 0);
+        prop = smallProp->createArrayProperty("b", ABCA::MetaData(), dtype, 0);
+        for (std::size_t i = 0; i < 10; ++i)
+        {
+            prop->setSample(samp);
+        }
+        smallProp->createArrayProperty("c", ABCA::MetaData(), dtype, 0);
+
+        ABCA::CompoundPropertyWriterPtr mdProp =
+            parent->createCompoundProperty("md", ABCA::MetaData());
+        mdProp->createArrayProperty("a", ABCA::MetaData(), dtype, 0);
+        prop = mdProp->createArrayProperty("b", ABCA::MetaData(), dtype, 0);
+        for (std::size_t i = 0; i < 150; ++i)
+        {
+            prop->setSample(samp);
+        }
+        mdProp->createArrayProperty("c", ABCA::MetaData(), dtype, 0);
+
+        ABCA::CompoundPropertyWriterPtr mdlgProp =
+            parent->createCompoundProperty("mdlg", ABCA::MetaData());
+        mdlgProp->createArrayProperty("a", ABCA::MetaData(), dtype, 0);
+        prop = mdlgProp->createArrayProperty("b", ABCA::MetaData(), dtype, 0);
+        for (std::size_t i = 0; i < 300; ++i)
+        {
+            prop->setSample(samp);
+        }
+        mdlgProp->createArrayProperty("c", ABCA::MetaData(), dtype, 0);
+    }
+
+    {
+        // Use file streams for this test. Detecting overwriting with memory
+        // mapped files is not currently supported.
+        AO::ReadArchive r(1, false);
+        ABCA::ArchiveReaderPtr a = r( archiveName );
+        ABCA::ObjectReaderPtr archive = a->getTop();
+        ABCA::ObjectReaderPtr obj = archive->getChild(0);
+        ABCA::CompoundPropertyReaderPtr parent = obj->getProperties();
+
+        ABCA::CompoundPropertyReaderPtr smallProp =
+            parent->getCompoundProperty("small");
+        TESTING_ASSERT(smallProp->getNumProperties() == 3);
+        TESTING_ASSERT(smallProp->getArrayProperty("b")->getNumSamples() == 10);
+
+        ABCA::CompoundPropertyReaderPtr mdProp =
+            parent->getCompoundProperty("md");
+        TESTING_ASSERT(mdProp->getNumProperties() == 3);
+        TESTING_ASSERT(mdProp->getArrayProperty("b")->getNumSamples() == 150);
+
+        ABCA::CompoundPropertyReaderPtr mdlgProp =
+            parent->getCompoundProperty("mdlg");
+        TESTING_ASSERT(mdlgProp->getNumProperties() == 3);
+        TESTING_ASSERT(mdlgProp->getArrayProperty("b")->getNumSamples() == 300);
+
+
+        ABCA::ArrayPropertyReaderPtr smallb = smallProp->getArrayProperty("b");
+        ABCA::ArrayPropertyReaderPtr mdb = mdProp->getArrayProperty("b");
+        ABCA::ArrayPropertyReaderPtr mdlgb = mdlgProp->getArrayProperty("b");
+
+        ABCA::ArraySamplePtr samp;
+        smallb->getSample(3, samp);
+        mdb->getSample(3, samp);
+        mdlgb->getSample(3, samp);
+
+        // everything is blown away at this point
+        AO::WriteArchive w;
+        ABCA::ArchiveWriterPtr aw = w(archiveName, ABCA::MetaData());
+        TESTING_ASSERT_THROW(smallb->getSample(8, samp), std::runtime_error);
+        TESTING_ASSERT_THROW(mdb->getSample(98, samp),  std::runtime_error);
+        TESTING_ASSERT_THROW(mdlgb->getSample(208, samp), std::runtime_error);
+
+    }
+}
+
+void testBigData(bool iUseMMap)
+{
+    std::string archiveName = "bigData.abc";
+    ABCA::DataType dtype(Alembic::Util::kUint64POD);
+    std::vector < Alembic::Util::uint64_t > vals(536870915);
+    for (Alembic::Util::uint64_t i = 0; i < vals.size(); ++i)
+    {
+        vals[i] = i;
+    }
+
+    {
+        ABCA::ArraySample samp(&(vals.front()), dtype,
+            Alembic::Util::Dimensions(vals.size()));
+
+        AO::WriteArchive w;
+        ABCA::ArchiveWriterPtr a = w(archiveName, ABCA::MetaData());
+        ABCA::ObjectWriterPtr archive = a->getTop();
+        ABCA::ObjectWriterPtr obj = archive->createChild(
+            ABCA::ObjectHeader("test", ABCA::MetaData()));
+
+        ABCA::CompoundPropertyWriterPtr parent = obj->getProperties();
+        ABCA::ArrayPropertyWriterPtr prop = parent->createArrayProperty(
+            "biggy", ABCA::MetaData(), dtype, 0);
+        prop->setSample(samp);
+    }
+
+    {
+        AO::ReadArchive r(1, iUseMMap);
+        ABCA::ArchiveReaderPtr a = r( archiveName );
+        ABCA::ObjectReaderPtr archive = a->getTop();
+        ABCA::ObjectReaderPtr obj = archive->getChild(0);
+        ABCA::CompoundPropertyReaderPtr parent = obj->getProperties();
+
+        ABCA::ArrayPropertyReaderPtr prop = parent->getArrayProperty("biggy");
+
+        ABCA::ArraySamplePtr samp;
+        prop->getSample(0, samp);
+
+        TESTING_ASSERT(samp != NULL);
+        TESTING_ASSERT(samp->size() == vals.size());
+        Alembic::Util::uint64_t * data =
+            (Alembic::Util::uint64_t *)(samp->getData());
+        for (std::size_t i = 0; i < vals.size(); ++i)
+        {
+            TESTING_ASSERT(vals[i] == data[i]);
+        }
+    }
+}
+
+void runTests(bool iUseMMap)
+{
+    testEmptyArray(iUseMMap);
+    testDuplicateArray(iUseMMap);
+    testReadWriteArrays(iUseMMap);
+    testExtentArrayStrings(iUseMMap);
+    testArrayStringsRepeats(iUseMMap);
+    testArraySamples(iUseMMap);
+
+    if (!iUseMMap)
+    {
+        // Skip this test when using mmap. Detecting when an open, memory mapped
+        // file is overwritten can't easily be made to fail in the way that file
+        // streams do and this test expects.
+        testWriteWhileRead();
+    }
+
+    //keep this disabled until we know our CI can handle it
+    //testBigData();
+}
+
 int main ( int argc, char *argv[] )
 {
-    testEmptyArray();
-    testDuplicateArray();
-    testReadWriteArrays();
-    testExtentArrayStrings();
-    testArrayStringsRepeats();
-    testArraySamples();
+    runTests(true);     // Use mmap
+    runTests(false);    // Use streams
     return 0;
 }

@@ -80,12 +80,12 @@ public class MeshUtilities : ModuleRules
 		}
 
         // Always use the official version of IntelTBB
-        string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8/lib/";
+        string IntelTBBLibs = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8/lib/";
 
         // EMBREE
         if (Target.Platform == UnrealTargetPlatform.Win64)
         {
-            string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/Win64/";
+            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/Win64/";
 
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/embree.2.14.0.lib");
@@ -96,7 +96,7 @@ public class MeshUtilities : ModuleRules
         }
         else if (Target.Platform == UnrealTargetPlatform.Mac)
         {
-            string SDKDir = Target.UEThirdPartySourceDirectory + "IntelEmbree/Embree2140/MacOSX/";
+            string SDKDir = Target.UEThirdPartySourceDirectory + "Intel/Embree/Embree2140/MacOSX/";
 
             PublicIncludePaths.Add(SDKDir + "include");
             PublicAdditionalLibraries.Add(SDKDir + "lib/libembree.2.14.0.dylib");

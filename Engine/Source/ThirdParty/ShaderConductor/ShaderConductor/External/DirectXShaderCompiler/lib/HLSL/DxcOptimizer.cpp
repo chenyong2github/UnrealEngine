@@ -20,6 +20,7 @@
 #include "dxc/HLSL/HLMatrixLowerPass.h"
 #include "dxc/HLSL/DxilGenerationPass.h"
 #include "dxc/HLSL/ComputeViewIdState.h"
+#include "llvm/Analysis/DxilValueCache.h"
 #include "dxc/DXIL/DxilUtil.h"
 #include "dxc/Support/dxcapi.impl.h"
 
@@ -41,8 +42,7 @@
 #include <list>   // should change this for string_table
 #include <vector>
 
-// This is pretty ugly; should be refactored to a proper library
-#include "../tools/opt/PassPrinters.cpp"
+#include "llvm/PassPrinters/PassPrinters.h"
 
 using namespace llvm;
 using namespace hlsl;
@@ -87,15 +87,20 @@ HRESULT SetupRegistryPassForHLSL() {
     initializeDxilAllocateResourcesForLibPass(Registry);
     initializeDxilCleanupAddrSpaceCastPass(Registry);
     initializeDxilCondenseResourcesPass(Registry);
+    initializeDxilConditionalMem2RegPass(Registry);
     initializeDxilConvergentClearPass(Registry);
     initializeDxilConvergentMarkPass(Registry);
     initializeDxilDeadFunctionEliminationPass(Registry);
     initializeDxilEliminateOutputDynamicIndexingPass(Registry);
+    initializeDxilEliminateVectorPass(Registry);
     initializeDxilEmitMetadataPass(Registry);
+    initializeDxilEraseDeadRegionPass(Registry);
     initializeDxilExpandTrigIntrinsicsPass(Registry);
     initializeDxilFinalizeModulePass(Registry);
+    initializeDxilFinalizePreservesPass(Registry);
     initializeDxilFixConstArrayInitializerPass(Registry);
     initializeDxilGenerationPassPass(Registry);
+    initializeDxilInsertPreservesPass(Registry);
     initializeDxilLegalizeEvalOperationsPass(Registry);
     initializeDxilLegalizeResourcesPass(Registry);
     initializeDxilLegalizeSampleOffsetPassPass(Registry);
@@ -104,10 +109,14 @@ HRESULT SetupRegistryPassForHLSL() {
     initializeDxilLowerCreateHandleForLibPass(Registry);
     initializeDxilPrecisePropagatePassPass(Registry);
     initializeDxilPreserveAllOutputsPass(Registry);
+    initializeDxilPreserveToSelectPass(Registry);
     initializeDxilPromoteLocalResourcesPass(Registry);
     initializeDxilPromoteStaticResourcesPass(Registry);
+    initializeDxilRemoveDeadBlocksPass(Registry);
     initializeDxilSimpleGVNHoistPass(Registry);
     initializeDxilTranslateRawBufferPass(Registry);
+    initializeDxilValidateWaveSensitivityPass(Registry);
+    initializeDxilValueCachePass(Registry);
     initializeDynamicIndexingVectorToArrayPass(Registry);
     initializeEarlyCSELegacyPassPass(Registry);
     initializeEliminateAvailableExternallyPass(Registry);
@@ -190,9 +199,11 @@ static ArrayRef<LPCSTR> GetPassArgNames(LPCSTR passName) {
   static const LPCSTR ArgPromotionArgs[] = { "maxElements" };
   static const LPCSTR CFGSimplifyPassArgs[] = { "Threshold", "Ftor", "bonus-inst-threshold" };
   static const LPCSTR DxilAddPixelHitInstrumentationArgs[] = { "force-early-z", "add-pixel-cost", "rt-width", "sv-position-index", "num-pixels" };
+  static const LPCSTR DxilConditionalMem2RegArgs[] = { "NoOpt" };
   static const LPCSTR DxilDebugInstrumentationArgs[] = { "UAVSize", "parameter0", "parameter1", "parameter2" };
   static const LPCSTR DxilGenerationPassArgs[] = { "NotOptimized" };
   static const LPCSTR DxilOutputColorBecomesConstantArgs[] = { "mod-mode", "constant-red", "constant-green", "constant-blue", "constant-alpha" };
+  static const LPCSTR DxilPIXMeshShaderOutputInstrumentationArgs[] = { "UAVSize" };
   static const LPCSTR DxilShaderAccessTrackingArgs[] = { "config", "checkForDynamicIndexing" };
   static const LPCSTR DynamicIndexingVectorToArrayArgs[] = { "ReplaceAllVectors" };
   static const LPCSTR Float2IntArgs[] = { "float2int-max-integer-bw" };
@@ -223,9 +234,11 @@ static ArrayRef<LPCSTR> GetPassArgNames(LPCSTR passName) {
   if (strcmp(passName, "argpromotion") == 0) return ArrayRef<LPCSTR>(ArgPromotionArgs, _countof(ArgPromotionArgs));
   if (strcmp(passName, "simplifycfg") == 0) return ArrayRef<LPCSTR>(CFGSimplifyPassArgs, _countof(CFGSimplifyPassArgs));
   if (strcmp(passName, "hlsl-dxil-add-pixel-hit-instrmentation") == 0) return ArrayRef<LPCSTR>(DxilAddPixelHitInstrumentationArgs, _countof(DxilAddPixelHitInstrumentationArgs));
+  if (strcmp(passName, "dxil-cond-mem2reg") == 0) return ArrayRef<LPCSTR>(DxilConditionalMem2RegArgs, _countof(DxilConditionalMem2RegArgs));
   if (strcmp(passName, "hlsl-dxil-debug-instrumentation") == 0) return ArrayRef<LPCSTR>(DxilDebugInstrumentationArgs, _countof(DxilDebugInstrumentationArgs));
   if (strcmp(passName, "dxilgen") == 0) return ArrayRef<LPCSTR>(DxilGenerationPassArgs, _countof(DxilGenerationPassArgs));
   if (strcmp(passName, "hlsl-dxil-constantColor") == 0) return ArrayRef<LPCSTR>(DxilOutputColorBecomesConstantArgs, _countof(DxilOutputColorBecomesConstantArgs));
+  if (strcmp(passName, "hlsl-dxil-pix-meshshader-output-instrumentation") == 0) return ArrayRef<LPCSTR>(DxilPIXMeshShaderOutputInstrumentationArgs, _countof(DxilPIXMeshShaderOutputInstrumentationArgs));
   if (strcmp(passName, "hlsl-dxil-pix-shader-access-instrumentation") == 0) return ArrayRef<LPCSTR>(DxilShaderAccessTrackingArgs, _countof(DxilShaderAccessTrackingArgs));
   if (strcmp(passName, "dynamic-vector-to-array") == 0) return ArrayRef<LPCSTR>(DynamicIndexingVectorToArrayArgs, _countof(DynamicIndexingVectorToArrayArgs));
   if (strcmp(passName, "float2int") == 0) return ArrayRef<LPCSTR>(Float2IntArgs, _countof(Float2IntArgs));
@@ -263,9 +276,11 @@ static ArrayRef<LPCSTR> GetPassArgDescriptions(LPCSTR passName) {
   static const LPCSTR ArgPromotionArgs[] = { "None" };
   static const LPCSTR CFGSimplifyPassArgs[] = { "None", "None", "Control the number of bonus instructions (default = 1)" };
   static const LPCSTR DxilAddPixelHitInstrumentationArgs[] = { "None", "None", "None", "None", "None" };
+  static const LPCSTR DxilConditionalMem2RegArgs[] = { "None" };
   static const LPCSTR DxilDebugInstrumentationArgs[] = { "None", "None", "None", "None" };
   static const LPCSTR DxilGenerationPassArgs[] = { "None" };
   static const LPCSTR DxilOutputColorBecomesConstantArgs[] = { "None", "None", "None", "None", "None" };
+  static const LPCSTR DxilPIXMeshShaderOutputInstrumentationArgs[] = { "None" };
   static const LPCSTR DxilShaderAccessTrackingArgs[] = { "None", "None" };
   static const LPCSTR DynamicIndexingVectorToArrayArgs[] = { "None" };
   static const LPCSTR Float2IntArgs[] = { "Max integer bitwidth to consider in float2int" };
@@ -296,9 +311,11 @@ static ArrayRef<LPCSTR> GetPassArgDescriptions(LPCSTR passName) {
   if (strcmp(passName, "argpromotion") == 0) return ArrayRef<LPCSTR>(ArgPromotionArgs, _countof(ArgPromotionArgs));
   if (strcmp(passName, "simplifycfg") == 0) return ArrayRef<LPCSTR>(CFGSimplifyPassArgs, _countof(CFGSimplifyPassArgs));
   if (strcmp(passName, "hlsl-dxil-add-pixel-hit-instrmentation") == 0) return ArrayRef<LPCSTR>(DxilAddPixelHitInstrumentationArgs, _countof(DxilAddPixelHitInstrumentationArgs));
+  if (strcmp(passName, "dxil-cond-mem2reg") == 0) return ArrayRef<LPCSTR>(DxilConditionalMem2RegArgs, _countof(DxilConditionalMem2RegArgs));
   if (strcmp(passName, "hlsl-dxil-debug-instrumentation") == 0) return ArrayRef<LPCSTR>(DxilDebugInstrumentationArgs, _countof(DxilDebugInstrumentationArgs));
   if (strcmp(passName, "dxilgen") == 0) return ArrayRef<LPCSTR>(DxilGenerationPassArgs, _countof(DxilGenerationPassArgs));
   if (strcmp(passName, "hlsl-dxil-constantColor") == 0) return ArrayRef<LPCSTR>(DxilOutputColorBecomesConstantArgs, _countof(DxilOutputColorBecomesConstantArgs));
+  if (strcmp(passName, "hlsl-dxil-pix-meshshader-output-instrumentation") == 0) return ArrayRef<LPCSTR>(DxilPIXMeshShaderOutputInstrumentationArgs, _countof(DxilPIXMeshShaderOutputInstrumentationArgs));
   if (strcmp(passName, "hlsl-dxil-pix-shader-access-instrumentation") == 0) return ArrayRef<LPCSTR>(DxilShaderAccessTrackingArgs, _countof(DxilShaderAccessTrackingArgs));
   if (strcmp(passName, "dynamic-vector-to-array") == 0) return ArrayRef<LPCSTR>(DynamicIndexingVectorToArrayArgs, _countof(DynamicIndexingVectorToArrayArgs));
   if (strcmp(passName, "float2int") == 0) return ArrayRef<LPCSTR>(Float2IntArgs, _countof(Float2IntArgs));
@@ -340,6 +357,7 @@ static bool IsPassOptionName(StringRef S) {
     ||  S.equals("InlineThreshold")
     ||  S.equals("InsertLifetime")
     ||  S.equals("MaxHeaderSize")
+    ||  S.equals("NoOpt")
     ||  S.equals("NotOptimized")
     ||  S.equals("Os")
     ||  S.equals("ReplaceAllVectors")

@@ -88,6 +88,10 @@ public:
 	// UPrimitiveComponent.. public BP function needs to stay public to avoid nativization errors. (RR)
 	virtual void SetMaterial(int32 ElementIndex, class UMaterialInterface* InMaterial) override;
 
+	// Set the wireframe material.
+	UFUNCTION(BlueprintCallable, Category = "Mesh Reconstruction")
+	virtual void SetWireframeMaterial(class UMaterialInterface* InMaterial);
+
 	/** Updates from HoloLens or iOS */
 	void UpdateMesh(const FVector& InLocation, const FQuat& InRotation, const FVector& Scale, TArray<FVector>& Vertices, TArray<MRMESH_INDEX_TYPE>& Indices);
 
@@ -148,6 +152,9 @@ private:
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	UMaterialInterface* Material;
 
+	UPROPERTY(EditAnywhere, Category = Appearance)
+	UMaterialInterface* WireframeMaterial;
+
 	/** If true, MRMesh will create a renderable mesh proxy.  If false it will not, but could still provide collision. */
 	UPROPERTY(EditAnywhere, Category = Appearance)
 	bool bCreateMeshProxySections = true;
@@ -168,8 +175,6 @@ private:
 	UPROPERTY(Transient)
 	TArray<UBodySetup*> BodySetups;
 
-	UPROPERTY()
-	UMaterialInterface* WireframeMaterial;
 
 	/** Whether this mesh should write z-depth to occlude meshes or not */
 	bool bEnableOcclusion;

@@ -27,7 +27,7 @@ TSharedRef<ISlateRun> FRichTextDecorator::Create(const TSharedRef<class FTextLay
 		RunInfo.MetaData.Add(Pair.Key, OriginalText.Mid(Pair.Value.BeginIndex, Pair.Value.EndIndex - Pair.Value.BeginIndex));
 	}
 
-	const FTextBlockStyle& TextStyle = Owner->GetDefaultTextStyle();
+	const FTextBlockStyle& TextStyle = Owner->GetCurrentDefaultTextStyle();
 
 	TSharedPtr<ISlateRun> SlateRun;
 	TSharedPtr<SWidget> DecoratorWidget = CreateDecoratorWidget(RunInfo, TextStyle);

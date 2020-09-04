@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Math/BoxSphereBounds.h"
 
 struct FMeshDescription;
@@ -27,13 +28,19 @@ public:
 	virtual int32 GetMaterialIndex(int32 LODIndex, int32 SectionIndex) const = 0;
 	/** Remaps the material index for the given lod and section index to the specified new one */
 	virtual void RemapMaterialIndex(int32 LODIndex, int32 SectionIndex, int32 NewMaterialIndex) = 0;
+	/** Returns the material slot name for the given index */
+	virtual FName GetMaterialSlotName(int32 MaterialIndex) const = 0;
+	/** Returns the importer material slot name for the given index */
+	virtual FName GetImportedMaterialSlotName(int32 MaterialIndex) const = 0;
 	/** Adds a new material to the underlying asset/data */
 	virtual int32 AddMaterial(UMaterialInterface* Material) = 0;
+	/** Adds a new material to the underlying asset/data and specify the slot names */
+	virtual int32 AddMaterial(UMaterialInterface* Material, const FName& SlotName, const FName& ImportedSlotName) = 0;
 
 	/** Update UV channel data on object the adapter represents */
 	virtual void UpdateUVChannelData() = 0;
 
-	/** Ability to aplly custom settings to the FMeshData structure */
+	/** Ability to apply custom settings to the FMeshData structure */
 	virtual void ApplySettings(int32 LODIndex, FMeshData& InOutMeshData) const = 0;
 
 	/** Returns bounds of underlying data */

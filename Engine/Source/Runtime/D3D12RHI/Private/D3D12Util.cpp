@@ -270,9 +270,9 @@ static void LogBreadcrumbData(ID3D12Device* Device)
 	FD3D12DynamicRHI* D3D12RHI = (FD3D12DynamicRHI*)GDynamicRHI;
 	D3D12RHI->ForEachDevice(Device, [&](FD3D12Device* Device)
 		{
-			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetCommandListManager());
-			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetAsyncCommandListManager());
-			bValidData = bValidData && LogBreadcrumbData(Device->GetParentAdapter()->GetGPUProfiler(), Device->GetCopyCommandListManager());
+		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCommandListManager());
+		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetAsyncCommandListManager());
+		bValidData = bValidData && LogBreadcrumbData(Device->GetGPUProfiler(), Device->GetCopyCommandListManager());
 		});
 
 	if (!bValidData)
@@ -424,6 +424,7 @@ static bool LogDREDData(ID3D12Device* Device)
 			FString ContextStr;
 			TMap<int32, const wchar_t*> ContextStrings;
 
+			uint32 TracedCommandLists = 0;
 			auto Node = Dred.BreadcrumbHead;
 			while (Node)
 			{
@@ -432,6 +433,7 @@ static bool LogDREDData(ID3D12Device* Device)
 				if (LastCompletedOp != Node->BreadcrumbCount && LastCompletedOp != 0)
 				{
 					UE_LOG(LogD3D12RHI, Error, TEXT("DRED: Commandlist \"%s\" on CommandQueue \"%s\", %d completed of %d"), Node->pCommandListDebugNameW, Node->pCommandQueueDebugNameW, LastCompletedOp, Node->BreadcrumbCount);
+					TracedCommandLists++;
 
 					int32 FirstOp = FMath::Max(LastCompletedOp - 100, 0);
 					int32 LastOp = FMath::Min(LastCompletedOp + 20, int32(Node->BreadcrumbCount) - 1);
@@ -464,6 +466,11 @@ static bool LogDREDData(ID3D12Device* Device)
 				}
 
 				Node = Node->pNext;
+			}
+
+			if (TracedCommandLists == 0)
+			{
+				UE_LOG(LogD3D12RHI, Error, TEXT("DRED: No command list found with active outstanding operations (all finished or not started yet)."));
 			}
 		}
 
@@ -499,6 +506,10 @@ static bool LogDREDData(ID3D12Device* Device)
 					Node = Node->pNext;
 				}
 			}
+		}
+		else
+		{
+			UE_LOG(LogD3D12RHI, Error, TEXT("DRED: No PageFault data."));
 		}
 
 		return true;
@@ -599,7 +610,7 @@ namespace D3D12RHI
 
 		// Show message box or trace information
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (!FApp::IsUnattended())
+		if (!FApp::IsUnattended() && !IsDebuggerPresent())
 		{
 			FPlatformMisc::MessageBoxExt(EAppMsgType::Ok, *ErrorMessage.ToText().ToString(), TEXT("Error"));
 		}
@@ -628,6 +639,12 @@ namespace D3D12RHI
 			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
 		}
 #endif // PLATFORM_WINDOWS || PLATFORM_HOLOLENS
+
+		// hard break here when the debugger is attached
+		if (IsDebuggerPresent())
+		{
+			UE_DEBUG_BREAK();
+		}
 	}
 
 	void VerifyD3D12Result(HRESULT D3DResult, const ANSICHAR* Code, const ANSICHAR* Filename, uint32 Line, ID3D12Device* Device, FString Message)

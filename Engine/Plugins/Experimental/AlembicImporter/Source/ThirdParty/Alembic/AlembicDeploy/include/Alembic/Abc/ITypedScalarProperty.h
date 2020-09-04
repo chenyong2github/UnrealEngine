@@ -33,8 +33,8 @@
 // OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
 //
 //-*****************************************************************************
-#ifndef _Alembic_Abc_ITypedScalarProperty_h_
-#define _Alembic_Abc_ITypedScalarProperty_h_
+#ifndef Alembic_Abc_ITypedScalarProperty_h
+#define Alembic_Abc_ITypedScalarProperty_h
 
 #include <Alembic/Abc/Foundation.h>
 #include <Alembic/Abc/IScalarProperty.h>
@@ -83,13 +83,12 @@ public:
     static bool matches( const AbcA::PropertyHeader &iHeader,
                          SchemaInterpMatching iMatching = kStrictMatching )
     {
-        return ( iHeader.getDataType().getPod() ==
-                 TRAITS::dataType().getPod() &&
-                 ( iHeader.getDataType().getExtent() ==
-                   TRAITS::dataType().getExtent() ||
-                   std::string() == getInterpretation() ) ) &&
-               iHeader.isScalar() &&
-               matches( iHeader.getMetaData(), iMatching );
+        return ( 
+            iHeader.getDataType().getPod() == TRAITS::dataType().getPod() &&
+            iHeader.getDataType().getExtent() ==
+                TRAITS::dataType().getExtent() &&
+            iHeader.isScalar() &&
+            matches( iHeader.getMetaData(), iMatching ) );
     }
 
     //-*************************************************************************
@@ -215,11 +214,11 @@ public:
 typedef ITypedScalarProperty<BooleanTPTraits>         IBoolProperty;
 typedef ITypedScalarProperty<Uint8TPTraits>           IUcharProperty;
 typedef ITypedScalarProperty<Int8TPTraits>            ICharProperty;
-typedef ITypedScalarProperty<Uint16TPTraits>          IFInt16Property;
+typedef ITypedScalarProperty<Uint16TPTraits>          IUInt16Property;
 typedef ITypedScalarProperty<Int16TPTraits>           IInt16Property;
 typedef ITypedScalarProperty<Uint32TPTraits>          IUInt32Property;
 typedef ITypedScalarProperty<Int32TPTraits>           IInt32Property;
-typedef ITypedScalarProperty<Uint64TPTraits>          IFInt64Property;
+typedef ITypedScalarProperty<Uint64TPTraits>          IUInt64Property;
 typedef ITypedScalarProperty<Int64TPTraits>           IInt64Property;
 typedef ITypedScalarProperty<Float16TPTraits>         IHalfProperty;
 typedef ITypedScalarProperty<Float32TPTraits>         IFloatProperty;

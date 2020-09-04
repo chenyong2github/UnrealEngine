@@ -134,6 +134,10 @@ public:
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, meta=(DisplayName="Show Friendly Variable Names"))
 	uint32 bShowFriendlyNames:1;
 
+	/** When enabled, the underlying Names for Components inherited from C++ will be shown alongside their UProperty Variable name */
+	UPROPERTY(EditAnywhere, config, Category = UserInterface, meta = (DisplayName = "Show Underlying Names For Native Components"))
+	uint32 bShowNativeComponentNames:1;
+
 	/** When enabled, the Editor Preferences and Project Settings menu items in the main menu will be expanded with sub-menus for each settings section. */
 	UPROPERTY(EditAnywhere, config, Category=UserInterface, AdvancedDisplay)
 	uint32 bExpandConfigurationMenus:1;
@@ -182,8 +186,8 @@ public:
 	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName="Log Font Size", ConfigRestartRequired=true))
 	int32 LogFontSize;
 
-	/** The display mode for timestamps in the output log */
-	UPROPERTY(EditAnywhere, config, Category="Output Log")
+	/** The display mode for timestamps in the output log window*/
+	UPROPERTY(EditAnywhere, config, Category="Output Log", meta=(DisplayName = "Output Log Window Timestamp Mode"))
 	TEnumAsByte<ELogTimes::Type> LogTimestampMode;
 
 	/** Should warnings and errors in the Output Log during "Play in Editor" be promoted to the message log? */

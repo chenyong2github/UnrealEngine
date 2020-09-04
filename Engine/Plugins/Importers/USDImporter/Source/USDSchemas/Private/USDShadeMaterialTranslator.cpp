@@ -2,8 +2,11 @@
 
 #include "USDShadeMaterialTranslator.h"
 
+#include "USDAssetImportData.h"
 #include "USDShadeConversion.h"
 #include "USDTypesConversion.h"
+
+#include "UsdWrappers/SdfPath.h"
 
 #include "Materials/Material.h"
 #include "Misc/SecureHash.h"
@@ -17,21 +20,28 @@
 
 void FUsdShadeMaterialTranslator::CreateAssets()
 {
-	pxr::UsdShadeMaterial ShadeMaterial( Schema.Get() );
+	pxr::UsdShadeMaterial ShadeMaterial( GetPrim() );
 
 	if ( !ShadeMaterial )
 	{
 		return;
 	}
 
-	FSHAHash MaterialHash = UsdToUnreal::HashShadeMaterial( ShadeMaterial );
-	UObject*& CachedMaterial = Context->AssetsCache.FindOrAdd( MaterialHash.ToString() );
+	FString MaterialHashString = UsdUtils::HashShadeMaterial( ShadeMaterial ).ToString();
+
+	UObject*& CachedMaterial = Context->AssetsCache.FindOrAdd( MaterialHashString );
 
 	if ( !CachedMaterial )
 	{
-		UMaterial* NewMaterial = NewObject< UMaterial >();
+		UMaterial* NewMaterial = NewObject< UMaterial >( GetTransientPackage(), NAME_None, Context->ObjectFlags );
 
-		if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache ) )
+		UUsdAssetImportData* ImportData = NewObject< UUsdAssetImportData >( NewMaterial, TEXT("USDAssetImportData") );
+		ImportData->PrimPath = PrimPath.GetString();
+		NewMaterial->AssetImportData = ImportData;
+
+		TMap<FString, int32>& PrimvarToUVIndex = Context->MaterialToPrimvarToUVIndex.FindOrAdd( PrimPath.GetString() );
+
+		if ( UsdToUnreal::ConvertMaterial( ShadeMaterial, *NewMaterial, Context->AssetsCache, PrimvarToUVIndex ) )
 		{
 			//UMaterialEditingLibrary::RecompileMaterial( CachedMaterial ); // Too slow
 			NewMaterial->PostEditChange();
@@ -41,12 +51,13 @@ void FUsdShadeMaterialTranslator::CreateAssets()
 			NewMaterial = nullptr;
 		}
 
-		CachedMaterial = NewMaterial;
+		// ConvertMaterial may have added other items to AssetsCache, so lets update the reference to make sure its ok
+		CachedMaterial = Context->AssetsCache.Add( MaterialHashString, NewMaterial );
 	}
 
 	FScopeLock Lock( &Context->CriticalSection );
 	{
-		Context->PrimPathsToAssets.Add( UsdToUnreal::ConvertPath( Schema.Get().GetPath() ), CachedMaterial );
+		Context->PrimPathsToAssets.Add( PrimPath.GetString(), CachedMaterial );
 	}
 }
 

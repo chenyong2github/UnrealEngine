@@ -70,13 +70,17 @@ public:
 	bool bNeedsCPUAccess;
 };
 
-class FVolumetricLightmapBrickData
+struct FVolumetricLightmapBasicBrickDataLayers
 {
-public:
 	FVolumetricLightmapDataLayer AmbientVector;
 	FVolumetricLightmapDataLayer SHCoefficients[6];
 	FVolumetricLightmapDataLayer SkyBentNormal;
 	FVolumetricLightmapDataLayer DirectionalLightShadowing;
+};
+
+class FVolumetricLightmapBrickData : public FVolumetricLightmapBasicBrickDataLayers
+{
+public:
 	// Mobile LQ layers:
 	FVolumetricLightmapDataLayer LQLightColor;
 	FVolumetricLightmapDataLayer LQLightDirection;
@@ -518,3 +522,90 @@ class FMoveWholeIndirectionTextureCS : public FGlobalShader
 		SHADER_PARAMETER_UAV(RWTexture3D<uint4>, IndirectionTexture)
 	END_SHADER_PARAMETER_STRUCT()
 };
+
+struct FVolumetricLightmapBrickTextureSet : public FVolumetricLightmapBasicBrickDataLayers
+{
+	FIntVector BrickDataDimensions;
+
+	template<class VolumetricLightmapBrickDataType> // Can be either FVolumetricLightmapBrickData or FVolumetricLightmapBrickTextureSet
+	void Initialize(FIntVector InBrickDataDimensions, VolumetricLightmapBrickDataType& BrickData)
+	{
+		BrickDataDimensions = InBrickDataDimensions;
+
+		AmbientVector.Format = BrickData.AmbientVector.Format;
+		SkyBentNormal.Format = BrickData.SkyBentNormal.Format;
+		DirectionalLightShadowing.Format = BrickData.DirectionalLightShadowing.Format;
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].Format = BrickData.SHCoefficients[i].Format;
+		}
+
+		AmbientVector.CreateTargetTexture(BrickDataDimensions);
+		AmbientVector.CreateUAV();
+
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].CreateTargetTexture(BrickDataDimensions);
+			SHCoefficients[i].CreateUAV();
+		}
+
+		if (BrickData.SkyBentNormal.Texture.IsValid())
+		{
+			SkyBentNormal.CreateTargetTexture(BrickDataDimensions);
+			SkyBentNormal.CreateUAV();
+		}
+
+		DirectionalLightShadowing.CreateTargetTexture(BrickDataDimensions);
+		DirectionalLightShadowing.CreateUAV();
+	}
+
+	void Release()
+	{
+		AmbientVector.Texture.SafeRelease();
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].Texture.SafeRelease();
+		}
+		SkyBentNormal.Texture.SafeRelease();
+		DirectionalLightShadowing.Texture.SafeRelease();
+
+		AmbientVector.UAV.SafeRelease();
+		for (int32 i = 0; i < UE_ARRAY_COUNT(SHCoefficients); i++)
+		{
+			SHCoefficients[i].UAV.SafeRelease();
+		}
+		SkyBentNormal.UAV.SafeRelease();
+		DirectionalLightShadowing.UAV.SafeRelease();
+	}
+};
+
+class ENGINE_API FVolumetricLightmapBrickAtlas : public FRenderResource
+{
+public:
+	FVolumetricLightmapBrickAtlas();
+
+	FVolumetricLightmapBrickTextureSet TextureSet;
+
+	virtual void ReleaseRHI() override;
+
+	struct Allocation
+	{
+		// The data being allocated, as an identifier for the entry
+		class FPrecomputedVolumetricLightmapData* Data = nullptr;
+
+		int32 Size = 0;
+		int32 StartOffset = 0;
+	};
+
+	TArray<Allocation> Allocations;
+
+	void Insert(int32 Index, FPrecomputedVolumetricLightmapData* Data);
+	void Remove(FPrecomputedVolumetricLightmapData* Data);
+
+private:
+	bool bInitialized;
+	int32 PaddedBrickSize;
+};
+
+extern ENGINE_API TGlobalResource<FVolumetricLightmapBrickAtlas> GVolumetricLightmapBrickAtlas;

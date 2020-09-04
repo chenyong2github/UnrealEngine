@@ -122,7 +122,7 @@ namespace Algo
 	 * @param  Range  The range to sort.
 	 */
 	template <typename RangeType>
-	FORCEINLINE void StableSort(RangeType& Range)
+	FORCEINLINE void StableSort(RangeType&& Range)
 	{
 		AlgoImpl::StableSortInternal(GetData(Range), GetNum(Range), FIdentityFunctor(), TLess<>());
 	}
@@ -134,7 +134,7 @@ namespace Algo
 	 * @param  Predicate  A binary predicate object used to specify if one element should precede another.
 	 */
 	template <typename RangeType, typename PredicateType>
-	FORCEINLINE void StableSort(RangeType& Range, PredicateType Pred)
+	FORCEINLINE void StableSort(RangeType&& Range, PredicateType Pred)
 	{
 		AlgoImpl::StableSortInternal(GetData(Range), GetNum(Range), FIdentityFunctor(), MoveTemp(Pred));
 	}
@@ -146,7 +146,7 @@ namespace Algo
 	 * @param  Proj   The projection to sort by when applied to the element.
 	 */
 	template <typename RangeType, typename ProjectionType>
-	FORCEINLINE void StableSortBy(RangeType& Range, ProjectionType Proj)
+	FORCEINLINE void StableSortBy(RangeType&& Range, ProjectionType Proj)
 	{
 		AlgoImpl::StableSortInternal(GetData(Range), GetNum(Range), MoveTemp(Proj), TLess<>());
 	}
@@ -159,7 +159,7 @@ namespace Algo
 	 * @param  Predicate  A binary predicate object, applied to the projection, used to specify if one element should precede another.
 	 */
 	template <typename RangeType, typename ProjectionType, typename PredicateType>
-	FORCEINLINE void StableSortBy(RangeType& Range, ProjectionType Proj, PredicateType Pred)
+	FORCEINLINE void StableSortBy(RangeType&& Range, ProjectionType Proj, PredicateType Pred)
 	{
 		AlgoImpl::StableSortInternal(GetData(Range), GetNum(Range), MoveTemp(Proj), MoveTemp(Pred));
 	}

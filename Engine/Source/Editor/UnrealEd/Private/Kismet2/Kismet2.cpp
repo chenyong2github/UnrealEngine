@@ -1049,58 +1049,17 @@ UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActor(const FString& Path
 	return NewBlueprint;
 }
 
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const bool bReplaceInWorld, UClass* ParentClass)
+UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FString& Path, const FKismetEditorUtilities::FCreateBlueprintFromActorsParams& Params)
 {
 	UBlueprint* NewBlueprint = nullptr;
 	FString AssetName;
 
 	if (UPackage* Package = CreateBlueprintPackage(Path, AssetName))
 	{
-		NewBlueprint = CreateBlueprintFromActors(FName(*AssetName), Package, Actors, bReplaceInWorld, ParentClass);
+		NewBlueprint = CreateBlueprintFromActors(FName(*AssetName), Package, Params);
 	}
 
 	return NewBlueprint;
-}
-
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FString& Path, AActor* RootActor, const TArray<AActor*>& ChildActors, const bool bReplaceInWorld)
-{
-	FCreateBlueprintFromActorParams CreateActorParams;
-	CreateActorParams.bReplaceActor = false;
-	CreateActorParams.bDeferCompilation = true;
-	CreateActorParams.bOpenBlueprint = false;
-	
-	UBlueprint* BP = FKismetEditorUtilities::CreateBlueprintFromActor(Path, RootActor, CreateActorParams);
-
-	if (BP)
-	{
-		FKismetEditorUtilities::FAddActorsToBlueprintParams AddActorsParams;
-		AddActorsParams.bReplaceActors = false;
-		AddActorsParams.RelativeToInstance = RootActor;
-
-		FKismetEditorUtilities::AddActorsToBlueprint(BP, ChildActors, AddActorsParams);
-
-		if (bReplaceInWorld)
-		{
-			FVector Location = RootActor->GetActorLocation();
-			FRotator Rotator = RootActor->GetActorRotation();
-
-			TArray<AActor*> Actors;
-			Actors.Reserve(ChildActors.Num() + 1);
-			Actors.Add(RootActor);
-			Actors.Append(ChildActors);
-
-			AActor* NewActor = FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(BP, Actors, Location, Rotator, RootActor->GetAttachParentActor());
-			if (NewActor)
-			{
-				NewActor->SetActorScale3D(RootActor->GetActorScale3D());
-			}
-		}
-
-		// Open the editor for the new blueprint
-		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(BP);
-	}
-
-	return BP;
 }
 
 void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, const TArray<UActorComponent*>& Components, const FKismetEditorUtilities::FAddComponentsToBlueprintParams& Params)
@@ -1108,9 +1067,10 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 	USimpleConstructionScript* SCS = Blueprint->SimpleConstructionScript;
 
 	USceneComponent* RootTemplate = nullptr;
+	USCS_Node* RootSCSNode = nullptr;
 	if (Params.OptionalNewRootNode == nullptr)
 	{
-		RootTemplate = SCS->GetSceneRootComponentTemplate();
+		RootTemplate = SCS->GetSceneRootComponentTemplate(false, &RootSCSNode);
 	}
 
 	TArray<UBlueprint*> ParentBPStack;
@@ -1118,17 +1078,39 @@ void FKismetEditorUtilities::AddComponentsToBlueprint(UBlueprint* Blueprint, con
 
 	TMap<USceneComponent*, USCS_Node*> InstanceComponentToNodeMap;
 
-	auto AddChildToSCSRootNodeLambda = [SCS, &Params](USCS_Node* InSCSNode)
+	auto AddChildToSCSRootNodeLambda = [SCS, &Params, RootTemplate, RootSCSNode](USCS_Node* InSCSNode)
 	{
-		if (Params.OptionalNewRootNode != nullptr)
+		if (Params.OptionalNewRootNode)
 		{
 			Params.OptionalNewRootNode->AddChildNode(InSCSNode);
 		}
+		else if (RootTemplate)
+		{
+			// If we have a known root template and it is from the same blueprint, add the SCSNode as a child
+			// of this node, otherwise set the template as parent and add the SCSNode as a RootNode for this BP
+			if (RootSCSNode && RootSCSNode->GetSCS() == SCS)
+			{
+				RootSCSNode->AddChildNode(InSCSNode);
+			}
+			else
+			{
+				InSCSNode->SetParent(RootTemplate);
+				SCS->AddNode(InSCSNode);
+			}
+		}
 		else
 		{
-			// Continuation of convention from FCreateConstructionScriptFromSelectedActors::Execute, perhaps more elegant
-			// to provide OptionalNewRootNode in both cases.
-			SCS->GetRootNodes()[0]->AddChildNode(InSCSNode);
+			// Otherwise if there are existing root nodes, attach the SCS Node to the first of those, 
+			// and if there are no root nodes, our final fallback is to just be a RootNode
+			const TArray<USCS_Node*>& RootNodes = SCS->GetRootNodes();
+			if (RootNodes.Num() > 0)
+			{
+				RootNodes[0]->AddChildNode(InSCSNode);
+			}
+			else
+			{
+				SCS->AddNode(InSCSNode);
+			}
 		}
 	};
 
@@ -1606,9 +1588,7 @@ void RepositionNodes(const TArray<USCS_Node*>& Nodes, const FTransform& Pivot)
 		{
 			//The relative transform for those component was converted into the world space
 			const FTransform NewRelativeTransform = NodeTemplate->GetRelativeTransform().GetRelativeTransform(Pivot);
-			NodeTemplate->SetRelativeLocation_Direct(NewRelativeTransform.GetLocation());
-			NodeTemplate->SetRelativeRotation_Direct(NewRelativeTransform.GetRotation().Rotator());
-			NodeTemplate->SetRelativeScale3D_Direct(NewRelativeTransform.GetScale3D());
+			NodeTemplate->SetRelativeTransform_Direct(NewRelativeTransform);
 		}
 	}
 };
@@ -1770,9 +1750,6 @@ void CreateBlueprintFromActors_Internal(UBlueprint* Blueprint, const TArray<AAct
 			}
 		}
 	}
-
-	// Open the editor for the new blueprint
-	GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
 }
 
 void CreateChildActorComponentsForActors(const FBlueprintAssemblyProps& AssemblyProps)
@@ -1843,25 +1820,66 @@ void CreateChildActorComponentsForActors(const FBlueprintAssemblyProps& Assembly
 	}
 }
 
-UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const bool bReplaceInWorld, UClass* ParentClass)
+UBlueprint* FKismetEditorUtilities::CreateBlueprintFromActors(const FName BlueprintName, UPackage* Package, const FKismetEditorUtilities::FCreateBlueprintFromActorsParams& Params)
 {
-	UBlueprint* Blueprint = nullptr;
+	UBlueprint* NewBlueprint = nullptr;
 
-	if (Actors.Num() > 0)
+	if (AActor* RootActor = Params.RootActor)
 	{
-		if (Package != nullptr)
+		FCreateBlueprintFromActorParams CreateActorParams;
+		CreateActorParams.bReplaceActor = false;
+		CreateActorParams.bDeferCompilation = true;
+		CreateActorParams.bOpenBlueprint = false;
+
+		NewBlueprint = FKismetEditorUtilities::CreateBlueprintFromActor(BlueprintName, Package, RootActor, CreateActorParams);
+
+		if (NewBlueprint)
+		{
+			FKismetEditorUtilities::FAddActorsToBlueprintParams AddActorsParams;
+			AddActorsParams.bReplaceActors = false;
+			AddActorsParams.RelativeToInstance = RootActor;
+
+			FKismetEditorUtilities::AddActorsToBlueprint(NewBlueprint, Params.AdditionalActors, AddActorsParams);
+
+			if (Params.bReplaceActors)
+			{
+				FVector Location = RootActor->GetActorLocation();
+				FRotator Rotator = RootActor->GetActorRotation();
+
+				TArray<AActor*> Actors;
+				Actors.Reserve(Params.AdditionalActors.Num() + 1);
+				Actors.Add(RootActor);
+				Actors.Append(Params.AdditionalActors);
+
+				AActor* NewActor = FKismetEditorUtilities::CreateBlueprintInstanceFromSelection(NewBlueprint, Actors, Location, Rotator, RootActor->GetAttachParentActor());
+				if (NewActor)
+				{
+					NewActor->SetActorScale3D(RootActor->GetActorScale3D());
+				}
+			}
+		}
+	}
+	else if (Params.AdditionalActors.Num() > 0)
+	{
+		if (Package)
 		{
 			// We don't have a factory, but we can still try to create a blueprint for this actor class
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("CreateFromActors"));
+			NewBlueprint = FKismetEditorUtilities::CreateBlueprint(Params.ParentClass, Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("CreateFromActors"));
 		}
 
-		if (Blueprint != nullptr)
+		if (NewBlueprint)
 		{
-			CreateBlueprintFromActors_Internal(Blueprint, Actors, bReplaceInWorld, &CreateChildActorComponentsForActors);
+			CreateBlueprintFromActors_Internal(NewBlueprint, Params.AdditionalActors, Params.bReplaceActors, &CreateChildActorComponentsForActors);
 		}
 	}
 
-	return Blueprint;
+	if (Params.bOpenBlueprint && NewBlueprint)
+	{
+		// Open the editor for the new blueprint
+		GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(NewBlueprint);
+	}
+
+	return NewBlueprint;
 }
 
 void FKismetEditorUtilities::AddActorsToBlueprint(UBlueprint* Blueprint, const TArray<AActor*>& Actors, const FKismetEditorUtilities::FAddActorsToBlueprintParams& Params)
@@ -1924,20 +1942,20 @@ void FKismetEditorUtilities::AddActorsToBlueprint(UBlueprint* Blueprint, const T
 	}
 }
 
-UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass)
+UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FString& Path, const TArray<AActor*>& Actors, const FKismetEditorUtilities::FHarvestBlueprintFromActorsParams& Params)
 {
 	UBlueprint* NewBlueprint = nullptr;
 	FString AssetName;
 
 	if (UPackage* Package = CreateBlueprintPackage(Path, AssetName))
 	{
-		NewBlueprint = HarvestBlueprintFromActors(FName(*AssetName), Package, Actors, bReplaceInWorld, ParentClass);
+		NewBlueprint = HarvestBlueprintFromActors(FName(*AssetName), Package, Actors, Params);
 	}
 
 	return NewBlueprint;
 }
 
-UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, bool bReplaceInWorld, UClass* ParentClass)
+UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName BlueprintName, UPackage* Package, const TArray<AActor*>& Actors, const FKismetEditorUtilities::FHarvestBlueprintFromActorsParams& Params)
 {
 	auto AssemblyFunction = [](const FBlueprintAssemblyProps& AssemblyProps)
 	{
@@ -1963,20 +1981,20 @@ UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName Bluep
 			{
 				USceneComponent* SceneComponent = Actor->GetRootComponent();
 				SceneComponentOldRelativeTransforms.Emplace(SceneComponent, SceneComponent->GetRelativeTransform());
-				SceneComponent->SetRelativeTransform(SceneComponent->GetComponentTransform());
+				SceneComponent->SetRelativeTransform_Direct(SceneComponent->GetComponentTransform());
 			}
 		}
 
-		FKismetEditorUtilities::FAddComponentsToBlueprintParams Params;
-		Params.HarvestMode = (AssemblyProps.Actors.Num() > 1 ? FKismetEditorUtilities::EAddComponentToBPHarvestMode::Havest_AppendOwnerName : FKismetEditorUtilities::EAddComponentToBPHarvestMode::Harvest_UseComponentName);
-		Params.OptionalNewRootNode = AssemblyProps.RootNodeOverride;
+		FKismetEditorUtilities::FAddComponentsToBlueprintParams AddComponentsParams;
+		AddComponentsParams.HarvestMode = (AssemblyProps.Actors.Num() > 1 ? FKismetEditorUtilities::EAddComponentToBPHarvestMode::Havest_AppendOwnerName : FKismetEditorUtilities::EAddComponentToBPHarvestMode::Harvest_UseComponentName);
+		AddComponentsParams.OptionalNewRootNode = AssemblyProps.RootNodeOverride;
 
-		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, AllSelectedComponents, Params);
+		FKismetEditorUtilities::AddComponentsToBlueprint(AssemblyProps.Blueprint, AllSelectedComponents, AddComponentsParams);
 
 		// Replace the modified components to their relative transform
 		for (const TPair<USceneComponent*, FTransform >& Pair : SceneComponentOldRelativeTransforms)
 		{
-			Pair.Key->SetRelativeTransform(Pair.Value);
+			Pair.Key->SetRelativeTransform_Direct(Pair.Value);
 		}
 	};
 
@@ -1987,12 +2005,18 @@ UBlueprint* FKismetEditorUtilities::HarvestBlueprintFromActors(const FName Bluep
 		if (Package != nullptr)
 		{
 			// We don't have a factory, but we can still try to create a blueprint for this actor class
-			Blueprint = FKismetEditorUtilities::CreateBlueprint(ParentClass, Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("HarvestFromActors"));
+			Blueprint = FKismetEditorUtilities::CreateBlueprint(Params.ParentClass, Package, BlueprintName, EBlueprintType::BPTYPE_Normal, UBlueprint::StaticClass(), UBlueprintGeneratedClass::StaticClass(), FName("HarvestFromActors"));
 		}
 
 		if (Blueprint != nullptr)
 		{
-			CreateBlueprintFromActors_Internal(Blueprint, Actors, bReplaceInWorld, AssemblyFunction);
+			CreateBlueprintFromActors_Internal(Blueprint, Actors, Params.bReplaceActors, AssemblyFunction);
+
+			// Open the editor for the new blueprint
+			if (Params.bOpenBlueprint)
+			{
+				GEditor->GetEditorSubsystem<UAssetEditorSubsystem>()->OpenEditorForAsset(Blueprint);
+			}
 		}
 	}
 
@@ -2421,6 +2445,29 @@ const UK2Node_ComponentBoundEvent* FKismetEditorUtilities::FindBoundEventForComp
 		}
 	}
 	return Node;
+}
+
+void FKismetEditorUtilities::FindAllBoundEventsForComponent(const UBlueprint* Blueprint, FName PropertyName, TArray<UK2Node_ComponentBoundEvent*>& OutNodes)
+{
+	if (Blueprint && PropertyName != NAME_None)
+	{
+		TArray<UK2Node_ComponentBoundEvent*> EventNodes;
+		FBlueprintEditorUtils::GetAllNodesOfClass(Blueprint, EventNodes);
+		for (UK2Node_ComponentBoundEvent* CurNode : EventNodes)
+		{
+			if (CurNode && CurNode->ComponentPropertyName == PropertyName)
+			{
+				OutNodes.Add(CurNode);
+			}
+		}
+	}
+}
+
+bool FKismetEditorUtilities::PropertyHasBoundEvents(const UBlueprint* Blueprint, FName PropertyName)
+{
+	TArray<UK2Node_ComponentBoundEvent*> EventNodes;
+	FKismetEditorUtilities::FindAllBoundEventsForComponent(Blueprint, PropertyName, EventNodes);
+	return EventNodes.Num() > 0;
 }
 
 bool FKismetEditorUtilities::IsClassABlueprintInterface(const UClass* Class)

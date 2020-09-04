@@ -1259,6 +1259,11 @@ public:
 		bValidEyeAdaptation = true;
 	}
 
+#if WITH_MGPU
+	void BroadcastEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
+	void WaitForEyeAdaptationTemporalEffect(FRHICommandList& RHICmdList);
+#endif
+
 	float GetLastEyeAdaptationExposure() const
 	{
 		return EyeAdaptationRTManager.GetLastExposure();
@@ -1787,51 +1792,6 @@ public:
 	FScatterUploadBuffer	LightmapUploadBuffer;
 };
 
-class FPrimitiveSurfelFreeEntry
-{
-public:
-	FPrimitiveSurfelFreeEntry(int32 InOffset, int32 InNumSurfels) :
-		Offset(InOffset),
-		NumSurfels(InNumSurfels)
-	{}
-
-	FPrimitiveSurfelFreeEntry() :
-		Offset(0),
-		NumSurfels(0)
-	{}
-
-	int32 Offset;
-	int32 NumSurfels;
-};
-
-class FPrimitiveSurfelAllocation
-{
-public:
-	FPrimitiveSurfelAllocation(int32 InOffset, int32 InNumLOD0, int32 InNumSurfels, int32 InNumInstances) :
-		Offset(InOffset),
-		NumLOD0(InNumLOD0),
-		NumSurfels(InNumSurfels),
-		NumInstances(InNumInstances)
-	{}
-
-	FPrimitiveSurfelAllocation() :
-		Offset(0),
-		NumLOD0(0),
-		NumSurfels(0),
-		NumInstances(1)
-	{}
-
-	int32 GetTotalNumSurfels() const
-	{
-		return NumSurfels * NumInstances;
-	}
-
-	int32 Offset;
-	int32 NumLOD0;
-	int32 NumSurfels;
-	int32 NumInstances;
-};
-
 class FPrimitiveRemoveInfo
 {
 public:
@@ -1863,28 +1823,6 @@ public:
 	}
 
 	FVector4 SphereBound;
-};
-
-class FSurfelBufferAllocator
-{
-public:
-
-	FSurfelBufferAllocator() : NumSurfelsInBuffer(0) {}
-
-	int32 GetNumSurfelsInBuffer() const { return NumSurfelsInBuffer; }
-	void AddPrimitive(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 PrimitiveLOD0Surfels, int32 PrimitiveNumSurfels, int32 NumInstances);
-	void RemovePrimitive(const FPrimitiveSceneInfo* Primitive);
-
-	const FPrimitiveSurfelAllocation* FindAllocation(const FPrimitiveSceneInfo* Primitive)
-	{
-		return Allocations.Find(Primitive);
-	}
-
-private:
-
-	int32 NumSurfelsInBuffer;
-	TMap<const FPrimitiveSceneInfo*, FPrimitiveSurfelAllocation> Allocations;
-	TArray<FPrimitiveSurfelFreeEntry> FreeList;
 };
 
 /** Scene data used to manage distance field object buffers on the GPU. */
@@ -1966,12 +1904,6 @@ public:
 	/** Stores the primitive and instance index of every entry in the object buffer. */
 	TArray<FPrimitiveAndInstance> PrimitiveInstanceMapping;
 	TArray<FPrimitiveSceneInfo*> HeightfieldPrimitives;
-
-	class FSurfelBuffers* SurfelBuffers;
-	FSurfelBufferAllocator SurfelAllocations;
-
-	class FInstancedSurfelBuffers* InstancedSurfelBuffers;
-	FSurfelBufferAllocator InstancedSurfelAllocations;
 
 	/** Pending operations on the object buffers to be processed next frame. */
 	TArray<FPrimitiveSceneInfo*> PendingAddOperations;
@@ -2713,9 +2645,6 @@ public:
 
 	/** The static meshes in the scene. */
 	TSparseArray<FStaticMeshBatch*> StaticMeshes;
-
-	/** This sparse array is used just to track free indices for FStaticMeshBatch::BatchVisibilityId. */
-	TSparseArray<bool> StaticMeshBatchVisibility;
 
 	/** The exponential fog components in the scene. */
 	TArray<FExponentialHeightFogSceneInfo> ExponentialFogs;

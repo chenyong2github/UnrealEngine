@@ -113,6 +113,8 @@ const FName FBlueprintMetadata::MD_IgnoreCategoryKeywordsInSubclasses(TEXT("Igno
 
 const FName FBlueprintMetadata::MD_Protected(TEXT("BlueprintProtected"));
 const FName FBlueprintMetadata::MD_Latent(TEXT("Latent"));
+const FName FBlueprintMetadata::MD_CustomThunkTemplates(TEXT("CustomThunkTemplates"));
+const FName FBlueprintMetadata::MD_CustomThunk(TEXT("CustomThunk"));
 const FName FBlueprintMetadata::MD_Variadic(TEXT("Variadic"));
 const FName FBlueprintMetadata::MD_UnsafeForConstructionScripts(TEXT("UnsafeDuringActorConstruction"));
 const FName FBlueprintMetadata::MD_FunctionCategory(TEXT("Category"));
@@ -128,6 +130,7 @@ const FName FBlueprintMetadata::MD_PropertySetFunction(TEXT("BlueprintSetter"));
 
 const FName FBlueprintMetadata::MD_ExposeOnSpawn(TEXT("ExposeOnSpawn"));
 const FName FBlueprintMetadata::MD_HideSelfPin(TEXT("HideSelfPin"));
+const FName FBlueprintMetadata::MD_HidePin(TEXT("HidePin"));
 const FName FBlueprintMetadata::MD_DefaultToSelf(TEXT("DefaultToSelf"));
 const FName FBlueprintMetadata::MD_WorldContext(TEXT("WorldContext"));
 const FName FBlueprintMetadata::MD_CallableWithoutWorldContext(TEXT("CallableWithoutWorldContext"));
@@ -139,7 +142,7 @@ const FName FBlueprintMetadata::MD_Private(TEXT("BlueprintPrivate"));
 
 const FName FBlueprintMetadata::MD_BlueprintInternalUseOnly(TEXT("BlueprintInternalUseOnly"));
 const FName FBlueprintMetadata::MD_NeedsLatentFixup(TEXT("NeedsLatentFixup"));
-
+const FName FBlueprintMetadata::MD_LatentInfo(TEXT("LatentInfo"));
 const FName FBlueprintMetadata::MD_LatentCallbackTarget(TEXT("LatentCallbackTarget"));
 const FName FBlueprintMetadata::MD_AllowPrivateAccess(TEXT("AllowPrivateAccess"));
 
@@ -164,9 +167,12 @@ const FName FBlueprintMetadata::MD_DataTablePin(TEXT("DataTablePin"));
 
 const FName FBlueprintMetadata::MD_NativeMakeFunction(TEXT("HasNativeMake"));
 const FName FBlueprintMetadata::MD_NativeBreakFunction(TEXT("HasNativeBreak"));
+const FName FBlueprintMetadata::MD_NativeDisableSplitPin(TEXT("DisableSplitPin"));
 
 const FName FBlueprintMetadata::MD_DynamicOutputType(TEXT("DeterminesOutputType"));
 const FName FBlueprintMetadata::MD_DynamicOutputParam(TEXT("DynamicOutputParam"));
+
+const FName FBlueprintMetadata::MD_CustomStructureParam(TEXT("CustomStructureParam"));
 
 const FName FBlueprintMetadata::MD_ArrayParam(TEXT("ArrayParm"));
 const FName FBlueprintMetadata::MD_ArrayDependentParam(TEXT("ArrayTypeDependentParams"));
@@ -184,6 +190,8 @@ const FName FBlueprintMetadata::MD_Bitflags(TEXT("Bitflags"));
 const FName FBlueprintMetadata::MD_UseEnumValuesAsMaskValuesInEditor(TEXT("UseEnumValuesAsMaskValuesInEditor"));
 
 const FName FBlueprintMetadata::MD_AnimBlueprintFunction(TEXT("AnimBlueprintFunction"));
+
+const FName FBlueprintMetadata::MD_AllowAbstractClasses(TEXT("AllowAbstract"));
 
 //////////////////////////////////////////////////////////////////////////
 
@@ -1066,6 +1074,7 @@ void UEdGraphSchema_K2::MarkFunctionEntryAsEditable(const UEdGraph* CurrentGraph
 	{
 		if (UK2Node_EditablePinBase* EditableNode = Cast<UK2Node_EditablePinBase>(Node))
 		{
+			EditableNode->Modify();
 			EditableNode->bIsEditable = bNewEditable;
 		}
 	}
@@ -1176,7 +1185,7 @@ bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UEnum* InEnum)
 	return InEnum && (InEnum->GetBoolMetaData(FBlueprintMetadata::MD_AllowableBlueprintVariableType) || InEnum->IsA<UUserDefinedEnum>());
 }
 
-bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass)
+bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass, bool bAssumeBlueprintType)
 {
 	if (InClass)
 	{
@@ -1222,7 +1231,7 @@ bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UClass* InClass)
 		}
 	}
 	
-	return false;
+	return bAssumeBlueprintType;
 }
 
 bool UEdGraphSchema_K2::IsAllowableBlueprintVariableType(const UScriptStruct* InStruct, const bool bForInternalUse)
@@ -1308,7 +1317,12 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 
 	if (bCanSplit)
 	{
-		if (UScriptStruct* StructType = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject.Get()))
+		UScriptStruct* StructType = Cast<UScriptStruct>(InGraphPin->PinType.PinSubCategoryObject.Get());
+
+		// Check if the user has explicitly disabled split pins
+		const bool bDisableSplit = StructType ? StructType->HasMetaData(FBlueprintMetadata::MD_NativeDisableSplitPin) : false;
+
+		if (StructType && !bDisableSplit)
 		{
 			if (InGraphPin->Direction == EGPD_Input)
 			{
@@ -1317,8 +1331,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeMakeFunction);
-					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
-					bCanSplit = (Function != NULL);
+					UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
+					bCanSplit = (Function != nullptr);
 				}
 			}
 			else
@@ -1327,8 +1341,8 @@ bool UEdGraphSchema_K2::PinHasSplittableStructType(const UEdGraphPin* InGraphPin
 				if (!bCanSplit)
 				{
 					const FString& MetaData = StructType->GetMetaData(FBlueprintMetadata::MD_NativeBreakFunction);
-					UFunction* Function = FindObject<UFunction>(NULL, *MetaData, true);
-					bCanSplit = (Function != NULL);
+					UFunction* Function = FindObject<UFunction>(nullptr, *MetaData, true);
+					bCanSplit = (Function != nullptr);
 				}
 			}
 		}
@@ -1439,83 +1453,16 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 	check(CurrentGraph);
 	UBlueprint* OwnerBlueprint = FBlueprintEditorUtils::FindBlueprintForGraphChecked(CurrentGraph);
 
-	if (InGraphPin != NULL)
+	if (InGraphPin)
 	{
 		{
-			FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
+			FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
 			if (!bIsDebugging)
-			{
-				// Break pin links
-				if (InGraphPin->LinkedTo.Num() > 1)
-				{
-					Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-				}
-	
+			{	
 				// Add the change pin type action, if this is a select node
 				if (InGraphNode->IsA(UK2Node_Select::StaticClass()))
 				{
 					Section.AddMenuEntry(FGraphEditorCommands::Get().ChangePinType);
-				}
-	
-				// add sub menu for break link to
-				if (InGraphPin->LinkedTo.Num() > 0)
-				{
-					Section.AddMenuEntry(
-						"SelectAllInputNodes",
-						InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input ? LOCTEXT("SelectAllInputNodes", "Select All Input Nodes") : LOCTEXT("SelectAllOutputNodes", "Select All Output Nodes"),
-						InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input ? LOCTEXT("SelectAllInputNodesTooltip", "Adds all input Nodes linked to this Pin to selection") : LOCTEXT("SelectAllOutputNodesTooltip", "Adds all output Nodes linked to this Pin to selection"),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateUObject((UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::SelectAllNodesInDirection, InGraphPin->Direction, const_cast<UEdGraph*>(CurrentGraph), const_cast<UEdGraphPin*>(InGraphPin))));
-
-					if(InGraphPin->LinkedTo.Num() > 1)
-					{
-						Section.AddSubMenu(
-							"BreakLinkTo",
-							LOCTEXT("BreakLinkTo", "Break Link To..."),
-							LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
-
-						Section.AddSubMenu(
-							"JumpToConnection",
-							LOCTEXT("JumpToConnection", "Jump to Connection..."),
-							LOCTEXT("JumpToSpecificConnection", "Jump to specific connection..."),
-							FNewToolMenuDelegate::CreateUObject( (UEdGraphSchema_K2*const)this, &UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
-
-						Section.AddSubMenu(
-							"StraightenConnection",
-							LOCTEXT("StraightenConnection", "Straighten Connection To..."),
-							LOCTEXT("StraightenConnection_Tip", "Straighten a specific connection"),
-							FNewToolMenuDelegate::CreateUObject( this, &UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
-					}
-					else
-					{
-						((UEdGraphSchema_K2*const)this)->GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(InGraphPin));
-						((UEdGraphSchema_K2*const)this)->GetJumpToConnectionSubMenuActions(Menu, const_cast<UEdGraphPin*>(InGraphPin));
-						
-						UEdGraphPin* Pin = InGraphPin->LinkedTo[0];
-						FText PinName = Pin->GetDisplayName();
-						FText NodeName = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
-
-						FText EntryTitle;
-						FText EntryTooltip;
-						if (PinName.IsEmpty())
-						{
-							EntryTitle = FText::Format(LOCTEXT("StraightenDescription_SinglePin_NoDisplayName", "Straighten Connection to {0}"), NodeName);
-							EntryTooltip = FText::Format(LOCTEXT("StraightenDescription_SinglePin_NoDisplayName_Tip", "Straighten the connection between this pin, and {0}"), NodeName);
-						}
-						else
-						{
-							EntryTitle = FText::Format(LOCTEXT("StraightenDescription_SinglePin", "Straighten Connection to {0} ({1})"), NodeName, PinName);
-							EntryTooltip = FText::Format(LOCTEXT("StraightenDescription_SinglePin_Node_Tip", "Straighten the connection between this pin, and {0} ({1})"), NodeName, PinName);
-						}
-
-						Section.AddMenuEntry(
-							FGraphEditorCommands::Get().StraightenConnections,
-							EntryTitle,
-							EntryTooltip,
-							FSlateIcon(NAME_None, NAME_None, NAME_None)
-						);
-					}
 				}
 	
 				// Conditionally add the var promotion pin if this is an output pin and it's not an exec pin
@@ -1643,6 +1590,15 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 					if (InGraphNode->IsA(UK2Node_ActorBoundEvent::StaticClass()) && GEditor->GetSelectedActorCount() == 1)
 					{
 						Section.AddMenuEntry(FGraphEditorCommands::Get().AssignReferencedActor);
+					}
+
+					// Conditionally show the "Create Matching Function" option if it is an unresolved CallFunction node
+					if (const UK2Node_CallFunction* FuncNode = Cast<UK2Node_CallFunction>(InGraphNode))
+					{
+						if (!FuncNode->GetTargetFunction())
+						{
+							Section.AddMenuEntry(FGraphEditorCommands::Get().CreateMatchingFunction);
+						}
 					}
 				}
 
@@ -1778,13 +1734,11 @@ void UEdGraphSchema_K2::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContext
 					}
 				}
 			}
-
-			{
-				FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaDocumentation", LOCTEXT("DocumentationHeader", "Documentation"));
-				Section.AddMenuEntry( FGraphEditorCommands::Get().GoToDocumentation );
-			}
 		}
 	}
+
+	FToolMenuSection& Section = Menu->AddSection("EdGraphSchemaDocumentation", LOCTEXT("DocumentationHeader", "Documentation"));
+	Section.AddMenuEntry(FGraphEditorCommands::Get().GoToDocumentation);
 
 	Super::GetContextMenuActions(Menu, Context);
 }
@@ -2004,186 +1958,6 @@ void UEdGraphSchema_K2::GetReplaceVariableMenu(FToolMenuSection& Section, const 
 					FNewToolMenuDelegate::CreateStatic( &UEdGraphSchema_K2::GetReplaceVariableMenu,
 						const_cast<UK2Node_Variable*>(Variable), InOwnerBlueprint, bInReplaceExistingVariable));
 			}
-		}
-	}
-}
-
-void UEdGraphSchema_K2::GetBreakLinkToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
-{
-	FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
-
-	// Make sure we have a unique name for every entry in the list
-	TMap< FString, uint32 > LinkTitleCount;
-
-	// Add all the links we could break from
-	for(TArray<class UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
-	{
-		UEdGraphPin* Pin = *Links;
-		FText Title = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
-		FString TitleString = Title.ToString();
-		const FText PinDisplayName = Pin->GetDisplayName();
-		if (!PinDisplayName.IsEmpty())
-		{
-			TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *PinDisplayName.ToString());
-
-			// Add name of connection if possible
-			FFormatNamedArguments Args;
-			Args.Add( TEXT("NodeTitle"), Title );
-			Args.Add( TEXT("PinName"), PinDisplayName );
-			Title = FText::Format( LOCTEXT("BreakDescPin", "{NodeTitle} ({PinName})"), Args );
-		}
-
-		uint32 &Count = LinkTitleCount.FindOrAdd( TitleString );
-
-		FText Description;
-		FFormatNamedArguments Args;
-		Args.Add( TEXT("NodeTitle"), Title );
-		Args.Add( TEXT("NumberOfNodes"), Count );
-
-		if ( Count == 0 )
-		{
-			Description = FText::Format( LOCTEXT("BreakDesc", "Break Link to {NodeTitle}"), Args );
-		}
-		else
-		{
-			Description = FText::Format( LOCTEXT("BreakDescMulti", "Break Link to {NodeTitle} ({NumberOfNodes})"), Args );
-		}
-		++Count;
-
-		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
-			FExecuteAction::CreateUObject(this, &UEdGraphSchema_K2::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links)));
-	}
-}
-
-void UEdGraphSchema_K2::GetJumpToConnectionSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
-{
-	FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
-
-	// Make sure we have a unique name for every entry in the list
-	TMap< FString, uint32 > LinkTitleCount;
-
-	// Add all the links we could break from
-	for(const UEdGraphPin* PinLink : InGraphPin->LinkedTo )
-	{
-		FText Title = PinLink->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView);
-		FString TitleString = Title.ToString();
-		const FText PinDisplayName = PinLink->GetDisplayName();
-		if (!PinDisplayName.IsEmpty())
-		{
-			TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *PinDisplayName.ToString());
-
-			// Add name of connection if possible
-			FFormatNamedArguments Args;
-			Args.Add( TEXT("NodeTitle"), Title );
-			Args.Add( TEXT("PinName"), PinDisplayName );
-			Title = FText::Format( LOCTEXT("JumpToDescPin", "{NodeTitle} ({PinName})"), Args );
-		}
-
-		uint32 &Count = LinkTitleCount.FindOrAdd( TitleString );
-
-		FText Description;
-		FFormatNamedArguments Args;
-		Args.Add( TEXT("NodeTitle"), Title );
-		Args.Add( TEXT("NumberOfNodes"), Count );
-
-		if ( Count == 0 )
-		{
-			Description = FText::Format( LOCTEXT("JumpDesc", "Jump to {NodeTitle}"), Args );
-		}
-		else
-		{
-			Description = FText::Format( LOCTEXT("JumpDescMulti", "Jump to {NodeTitle} ({NumberOfNodes})"), Args );
-		}
-		++Count;
-
-		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
-		FExecuteAction::CreateStatic(&FKismetEditorUtilities::BringKismetToFocusAttentionOnPin, PinLink)));
-	}
-}
-
-// todo: this is a long way off ideal, but we can't pass context from our menu items onto the graph panel implementation
-// It'd be better to be able to pass context through to menu/ui commands
-namespace { UEdGraphPin* StraightenDestinationPin = nullptr; }
-UEdGraphPin* UEdGraphSchema_K2::GetAndResetStraightenDestinationPin()
-{
-	UEdGraphPin* Temp = StraightenDestinationPin;
-	StraightenDestinationPin = nullptr;
-	return Temp;
-}
-
-void UEdGraphSchema_K2::GetStraightenConnectionToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin) const
-{
-	const FUIAction* StraightenConnectionsUIAction = Menu->Context.GetActionForCommand(FGraphEditorCommands::Get().StraightenConnections);
-	if(!ensure(StraightenConnectionsUIAction))
-	{
-		return;
-	}
-
-	// Make sure we have a unique name for every entry in the list
-	TMap<FString, uint32> LinkTitleCount;
-
-	TMap<UEdGraphNode*, TArray<UEdGraphPin*>> NodeToPins;
-
-	for (UEdGraphPin* Pin : InGraphPin->LinkedTo)
-	{
-		UEdGraphNode* Node = Pin->GetOwningNode();
-		if (Node)
-		{
-			NodeToPins.FindOrAdd(Node).Add(Pin);
-		}
-	}
-	
-	FToolMenuSection& Section = Menu->FindOrAddSection("EdGraphSchemaPinActions");
-	Section.AddMenuEntry(FGraphEditorCommands::Get().StraightenConnections,
-		LOCTEXT("StraightenAllConnections", "All Connected Pins"),
-		TAttribute<FText>(), FSlateIcon(NAME_None, NAME_None, NAME_None) );
-
-	for (const TPair<UEdGraphNode*, TArray<UEdGraphPin*>>& Pair : NodeToPins)
-	{
-		for (UEdGraphPin* Pin : Pair.Value)
-		{
-			FText Title = Pair.Key->GetNodeTitle(ENodeTitleType::ListView);
-			FString TitleString = Title.ToString();
-			const FText PinDisplayName = Pin->GetDisplayName();
-			if (!PinDisplayName.IsEmpty())
-			{
-				TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *PinDisplayName.ToString());
-
-				// Add name of connection if possible
-				FFormatNamedArguments Args;
-				Args.Add(TEXT("NodeTitle"), Title);
-				Args.Add(TEXT("PinName"), PinDisplayName);
-				Title = FText::Format(LOCTEXT("StraightenToDescPin", "{NodeTitle} ({PinName})"), Args);
-			}
-			uint32 &Count = LinkTitleCount.FindOrAdd(TitleString);
-
-			FText Description;
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("NodeTitle"), Title);
-			Args.Add(TEXT("NumberOfNodes"), Count);
-
-			if (Count == 0)
-			{
-				Description = FText::Format(LOCTEXT("StraightenDesc", "Straighten connection to {NodeTitle}"), Args);
-			}
-			else
-			{
-				Description = FText::Format(LOCTEXT("StraightendDescMulti", "Straighten connection to {NodeTitle} ({NumberOfNodes})"), Args);
-			}
-			++Count;
-
-			Section.AddMenuEntry(
-				NAME_None,
-				Description,
-				Description,
-				FSlateIcon(),
-				FToolMenuExecuteAction::CreateLambda([=](const FToolMenuContext& Context){
-				if (const FUIAction* UIAction = Context.GetActionForCommand(FGraphEditorCommands::Get().StraightenConnections))
-				{
-					StraightenDestinationPin = Pin;
-					UIAction->ExecuteAction.Execute();
-				}
-			}));
 		}
 	}
 }
@@ -3167,7 +2941,7 @@ FText UEdGraphSchema_K2::GetPinDisplayName(const UEdGraphPin* Pin) const
 			}
 		}
 
-		if( GEditor && GetDefault<UEditorStyleSettings>()->bShowFriendlyNames )
+		if( GEditor && GetDefault<UEditorStyleSettings>()->bShowFriendlyNames && Pin->bAllowFriendlyName )
 		{
 			DisplayName = FText::FromString(FName::NameToDisplayString(DisplayName.ToString(), Pin->PinType.PinCategory == PC_Boolean));
 		}
@@ -3955,8 +3729,6 @@ void UEdGraphSchema_K2::GetVariableTypeTree(TArray< TSharedPtr<FPinTypeTreeInfo>
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Byte, true), PC_Byte, this, LOCTEXT("ByteType", "8 bit number")) ) );
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int, true), PC_Int, this, LOCTEXT("IntegerType", "Integer number")) ) );
 	TypeTree.Add( MakeShareable( new FPinTypeTreeInfo(GetCategoryText(PC_Int64, true), PC_Int64, this, LOCTEXT("Integer64Type", "64 bit Integer number")) ) );
-
-	TypeTree.Add(MakeShareable(new FPinTypeTreeInfo(GetCategoryText(PC_FieldPath, true), PC_FieldPath, this, LOCTEXT("FieldPathType", "Reference to a property"))));
 
 	if (!bIndexTypesOnly)
 	{
@@ -5179,25 +4951,6 @@ void UEdGraphSchema_K2::SetPinDefaultValueAtConstruction(UEdGraphPin* Pin, const
 	GetPinDefaultValuesFromString(Pin->PinType, Pin->GetOwningNodeUnchecked(), DefaultValueString, Pin->DefaultValue, Pin->DefaultObject, Pin->DefaultTextValue);
 }
 
-void UEdGraphSchema_K2::SetPinDefaultValue(UEdGraphPin* Pin, const UFunction* Function, const FProperty* Param) const
-{
-	if (Function != nullptr && Param != nullptr)
-	{
-		FString NewValue;
-		FindFunctionParameterDefaultValue(Function, Param, NewValue);
-		SetPinAutogeneratedDefaultValue(Pin, NewValue);
-	}
-	else
-	{
-		SetPinAutogeneratedDefaultValueBasedOnType(Pin);
-	}
-}
-
-void UEdGraphSchema_K2::SetPinDefaultValueBasedOnType(UEdGraphPin* Pin) const
-{
-	SetPinAutogeneratedDefaultValueBasedOnType(Pin);
-}
-
 void UEdGraphSchema_K2::ValidateExistingConnections(UEdGraphPin* Pin)
 {
 	const UEdGraphSchema_K2* K2Schema = GetDefault<UEdGraphSchema_K2>();
@@ -5251,6 +5004,7 @@ namespace FSetVariableByNameFunctionNames
 	static const FName SetVectorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetVectorPropertyByName));
 	static const FName SetRotatorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetRotatorPropertyByName));
 	static const FName SetLinearColorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetLinearColorPropertyByName));
+	static const FName SetColorName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetColorPropertyByName));
 	static const FName SetTransformName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetTransformPropertyByName));
 	static const FName SetCollisionProfileName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetCollisionProfileNameProperty));
 	static const FName SetStructureName(GET_FUNCTION_NAME_CHECKED(UKismetSystemLibrary, SetStructurePropertyByName));
@@ -5352,7 +5106,7 @@ UFunction* UEdGraphSchema_K2::FindSetVariableByNameFunction(const FEdGraphPinTyp
 	}
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == ColorStruct)
 	{
-		SetFunctionName = FSetVariableByNameFunctionNames::SetLinearColorName;
+		SetFunctionName = FSetVariableByNameFunctionNames::SetColorName;
 	}
 	else if(PinType.PinCategory == UEdGraphSchema_K2::PC_Struct && PinType.PinSubCategoryObject == TransformStruct)
 	{

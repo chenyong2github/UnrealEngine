@@ -16,7 +16,9 @@
 #include "Model/ThreadsPrivate.h"
 #include "Model/CountersPrivate.h"
 #include "Model/NetProfilerProvider.h"
+#include "Model/MemoryPrivate.h"
 #include "Model/Channel.h"
+#include "Model/DiagnosticsPrivate.h"
 
 namespace Trace
 {
@@ -59,7 +61,7 @@ void FAnalysisSessionLock::EndRead()
 void FAnalysisSessionLock::BeginEdit()
 {
 	check(!GThreadCurrentSessionLock || GThreadCurrentSessionLock == this);
-	checkf(GThreadCurrentWriteLockCount == 0, TEXT("Trying to lock for edit while holding read access"));
+	checkf(GThreadCurrentReadLockCount == 0, TEXT("Trying to lock for edit while holding read access"));
 	if (GThreadCurrentWriteLockCount++ == 0)
 	{
 		GThreadCurrentSessionLock = this;
@@ -237,6 +239,12 @@ TSharedPtr<const IAnalysisSession> FAnalysisService::StartAnalysis(const TCHAR* 
 
 	FChannelProvider* ChannelProvider = new FChannelProvider();
 	Session->AddProvider(FChannelProvider::ProviderName, ChannelProvider);
+
+	FMemoryProvider* MemoryProvider = new FMemoryProvider(*Session);
+	Session->AddProvider(FMemoryProvider::ProviderName, MemoryProvider);
+
+	FDiagnosticsProvider* DiagnosticsProvider = new FDiagnosticsProvider(*Session);
+	Session->AddProvider(FDiagnosticsProvider::ProviderName, DiagnosticsProvider);
 
 	Session->AddAnalyzer(new FMiscTraceAnalyzer(*Session, *ThreadProvider, *BookmarkProvider, *LogProvider, *FrameProvider, *ChannelProvider));
 	Session->AddAnalyzer(new FLogTraceAnalyzer(*Session, *LogProvider));

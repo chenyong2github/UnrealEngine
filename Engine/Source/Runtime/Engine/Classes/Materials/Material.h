@@ -1042,6 +1042,7 @@ public:
 	ENGINE_API virtual bool IsTranslucencyWritingCustomDepth() const override;
 	ENGINE_API virtual bool IsTranslucencyWritingVelocity() const override;
 	ENGINE_API virtual bool IsMasked() const override;
+	ENGINE_API virtual bool IsDeferredDecal() const override { return MaterialDomain == MD_DeferredDecal; }
 	ENGINE_API virtual bool IsUIMaterial() const { return MaterialDomain == MD_UI; }
 	ENGINE_API virtual bool IsPostProcessMaterial() const { return MaterialDomain == MD_PostProcess; }
 	ENGINE_API virtual USubsurfaceProfile* GetSubsurfaceProfile_Internal() const override;

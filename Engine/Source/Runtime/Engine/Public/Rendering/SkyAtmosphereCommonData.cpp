@@ -8,7 +8,7 @@
 
 #include "Components/SkyAtmosphereComponent.h"
 
-//#pragma optimize( "", off )
+//PRAGMA_DISABLE_OPTIMIZATION
 
 const float FAtmosphereSetup::CmToSkyUnit = 0.00001f;			// Centimeters to Kilometers
 const float FAtmosphereSetup::SkyUnitToCm = 1.0f / 0.00001f;	// Kilometers to Centimeters
@@ -59,6 +59,11 @@ FAtmosphereSetup::FAtmosphereSetup(const USkyAtmosphereComponent& SkyAtmosphereC
 	TransmittanceMinLightElevationAngle = SkyAtmosphereComponent.TransmittanceMinLightElevationAngle;
 
 	UpdateTransform(SkyAtmosphereComponent.GetComponentTransform(), uint8(SkyAtmosphereComponent.TransformMode));
+}
+
+void FAtmosphereSetup::ApplyWorldOffset(const FVector& InOffset)
+{
+	PlanetCenterKm += InOffset * FAtmosphereSetup::CmToSkyUnit;
 }
 
 void FAtmosphereSetup::UpdateTransform(const FTransform& ComponentTransform, uint8 TranformMode)

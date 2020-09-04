@@ -218,7 +218,9 @@ void UMaterialGraphSchema::SelectAllInputNodes(UEdGraph* Graph, UEdGraphPin* InG
 			}
 			else
 			{
+				PRAGMA_DISABLE_DEPRECATION_WARNINGS
 				SelectAllInputNodes(Graph, InputPin);
+				PRAGMA_ENABLE_DEPRECATION_WARNINGS
 			}
 		}
 	}
@@ -401,45 +403,6 @@ void UMaterialGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCont
 	{
 		const UEdGraphPin* InGraphPin = Context->Pin;
 		const UMaterialGraph* MaterialGraph = CastChecked<UMaterialGraph>(Context->Graph);
-		{
-			FToolMenuSection& Section = Menu->AddSection("MaterialGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-			// Only display the 'Break Link' option if there is a link to break!
-			if (InGraphPin->LinkedTo.Num() > 0)
-			{
-				if(InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)
-				{
-					Section.AddMenuEntry(
-						"SelectLinkedNodes",
-						LOCTEXT("SelectLinkedNodes", "Select Linked Nodes"),
-						LOCTEXT("SelectLinkedNodesTooltip", "Adds all input Nodes linked to this Pin to selection"),
-						FSlateIcon(),
-						FUIAction(FExecuteAction::CreateUObject(const_cast<UMaterialGraphSchema*>(this), &UMaterialGraphSchema::SelectAllInputNodes, const_cast<UEdGraph*>(Context->Graph), const_cast<UEdGraphPin*>(InGraphPin)))
-						);
-				}
-
-				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-
-				// add sub menu for break link to
-				if(InGraphPin->LinkedTo.Num() > 1)
-				{
-					Section.AddSubMenu(
-						"BreakLinkTo",
-						LOCTEXT("BreakLinkTo", "Break Link To..." ),
-						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-						FNewToolMenuDelegate::CreateUObject(this, &UMaterialGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(InGraphPin)));
-				}
-				else
-				{
-					GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(InGraphPin));
-				}
-			}
-
-			// Only display Promote to Parameters on input pins
-			if (InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)
-			{
-				Section.AddMenuEntry(FMaterialEditorCommands::Get().PromoteToParameter);
-			}
-		}
 
 		// add menu items to expression output for material connection
 		if ( InGraphPin->Direction == EGPD_Output )

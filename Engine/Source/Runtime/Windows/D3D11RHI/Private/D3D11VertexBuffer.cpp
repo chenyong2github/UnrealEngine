@@ -6,6 +6,13 @@
 
 #include "D3D11RHIPrivate.h"
 
+static TAutoConsoleVariable<int32> GCVarUseSharedKeyedMutex(
+	TEXT("r.D3D11.UseSharedKeyMutex"),
+	0,
+	TEXT("If 1, BUF_Shared textures will be created with the D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX\n")
+	TEXT("flag instead of D3D11_RESOURCE_MISC_SHARED (default).\n"),
+	ECVF_Default);
+
 FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size,uint32 InUsage, FRHIResourceCreateInfo& CreateInfo)
 {
 	if (CreateInfo.bWithoutNativeResource)
@@ -54,6 +61,18 @@ FVertexBufferRHIRef FD3D11DynamicRHI::RHICreateVertexBuffer(uint32 Size,uint32 I
 	if (InUsage & BUF_ShaderResource)
 	{
 		Desc.BindFlags |= D3D11_BIND_SHADER_RESOURCE;
+	}
+
+	if (InUsage & BUF_Shared)
+	{
+		if (GCVarUseSharedKeyedMutex->GetInt() != 0)
+		{
+			Desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED_KEYEDMUTEX;
+		}
+		else
+		{
+			Desc.MiscFlags |= D3D11_RESOURCE_MISC_SHARED;
+		}
 	}
 
 	if (FPlatformMemory::SupportsFastVRAMMemory())

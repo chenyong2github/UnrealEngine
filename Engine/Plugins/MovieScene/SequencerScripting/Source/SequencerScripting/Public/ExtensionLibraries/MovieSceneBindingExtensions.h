@@ -47,8 +47,8 @@ public:
 	/**
 	 * Set this binding's name
 	 *
-	 * @param InBinding     The binding to set the name of
-	 * @param InDisplayName The new name to set
+	 * @param InBinding     The binding to get the name of
+	 * @param InName The display name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
 	static void SetDisplayName(const FSequencerBindingProxy& InBinding, const FText& InDisplayName);
@@ -66,7 +66,7 @@ public:
 	 * Set this binding's object non-display name
 	 *
 	 * @param InBinding     The binding to get the name of
-	 * @param InName The new name to set
+	 * @param InName The name of the binding
 	 */
 	UFUNCTION(BlueprintCallable, Category=Sequence, meta=(ScriptMethod))
 	static void SetName(const FSequencerBindingProxy& InBinding, const FString& InName);

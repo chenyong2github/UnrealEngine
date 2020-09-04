@@ -43,7 +43,7 @@ private:
 
 private:
 	friend FLiveLinkClientReference;
-	static FLiveLinkClient* StaticLiveLinkClient;
+	static FLiveLinkClient* LiveLinkClient_AnyThread;
 
 	FLiveLinkClient LiveLinkClient;
 	FLiveLinkMotionController LiveLinkMotionController;

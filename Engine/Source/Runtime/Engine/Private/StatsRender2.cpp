@@ -107,6 +107,12 @@ struct FStatRenderGlobals
 	/** The font used for rendering stats. */
 	UFont* StatFont;
 
+	/** The cached max char height of StatFont. */
+	int32 StatFontHeight;
+
+	/** The legacy font size of StatFont the last time Initialize was called. */
+	int32 CachedLegacyFontSize;
+
 	/** Current size of the viewport, used to detect resolution changes. */
 	FIntPoint SizeXY;
 
@@ -129,6 +135,8 @@ struct FStatRenderGlobals
 		HeadingColor(1.f,0.2f,0.f),
 		GroupColor(FLinearColor::White),
 		StatFont(nullptr),
+		StatFontHeight(12),
+		CachedLegacyFontSize(0),
 		StatFontType(EStatFontTypes::NumFonts),
 		bNeedRefresh(true)
 	{
@@ -164,6 +172,23 @@ struct FStatRenderGlobals
 		if (bIsStereo)
 		{
 			SetNewFont( EStatFontTypes::Tiny );
+		}
+
+		const int32 LegacyFontSize = StatFont->LegacyFontSize;
+		if (LegacyFontSize != CachedLegacyFontSize)
+		{
+			CachedLegacyFontSize = LegacyFontSize;
+
+			if (LegacyFontSize != Cast<UFont>(StatFont->GetClass()->GetDefaultObject())->LegacyFontSize)
+			{
+				StatFontHeight = StatFont->GetMaxCharHeight();
+			}
+			else
+			{
+				StatFontHeight = GStatFonts[(int32)StatFontType].FontHeight;
+			}
+
+			bNeedRefresh = true;
 		}
 
 		if( bNeedRefresh )
@@ -203,7 +228,7 @@ struct FStatRenderGlobals
 	 */
 	int32 GetFontHeight() const
 	{
-		return GStatFonts[( int32 )StatFontType].FontHeight;
+		return StatFontHeight;
 	}
 
 	/**

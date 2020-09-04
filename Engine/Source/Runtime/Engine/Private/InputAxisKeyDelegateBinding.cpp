@@ -4,7 +4,6 @@
 #include "GameFramework/Actor.h"
 #include "Components/InputComponent.h"
 
-
 UInputAxisKeyDelegateBinding::UInputAxisKeyDelegateBinding(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {

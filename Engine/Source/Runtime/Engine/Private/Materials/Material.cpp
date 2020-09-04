@@ -680,7 +680,7 @@ void SerializeInlineShaderMaps(
 	{
 		int32 NumResourcesToSave = 0;
 		const TArray<FMaterialResource*> *MaterialResourcesToSavePtr = NULL;
-		if (Ar.IsCooking())
+		if (Ar.IsCooking() && Ar.IsPersistent() && !Ar.IsObjectReferenceCollector() && !Ar.ShouldSkipBulkData())
 		{
 			check( PlatformMaterialResourcesToSavePtr );
 			auto& PlatformMaterialResourcesToSave = *PlatformMaterialResourcesToSavePtr;

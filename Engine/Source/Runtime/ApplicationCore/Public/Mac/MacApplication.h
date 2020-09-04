@@ -409,6 +409,8 @@ private:
 #if WITH_ACCESSIBILITY
 	/** Timer used to refresh the accessibility cache */
 	NSTimer* AccessibilityCacheTimer;
+	
+	NSTimer* AccessibilityAnnouncementDelayTimer;
 #endif
 
 	friend class FMacWindow;

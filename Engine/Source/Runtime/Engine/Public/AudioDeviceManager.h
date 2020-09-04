@@ -88,7 +88,7 @@ public:
 	FAudioDeviceHandle& operator=(const FAudioDeviceHandle& Other);
 	FAudioDeviceHandle& operator=(FAudioDeviceHandle&& Other);
 
-	
+
 	~FAudioDeviceHandle();
 
 	// gets a pointer to the audio device.
@@ -249,7 +249,7 @@ public:
 
 	/**
 	 * Returns a strong handle to the audio device associated with the given device ID.
-	 * if the device ID is invalid returns an invalid, zeroed handle. 
+	 * if the device ID is invalid returns an invalid, zeroed handle.
 	 */
 	FAudioDeviceHandle GetAudioDevice(Audio::FDeviceId InDeviceID);
 
@@ -361,6 +361,9 @@ public:
 
 	/** Gets whether or not all devices should play their audio. */
 	bool IsPlayAllDeviceAudio() const { return bPlayAllDeviceAudio; }
+
+	/** Gets whether or not non-realtime devices should play their audio. */
+	bool IsAlwaysPlayNonRealtimeDeviceAudio() const;
 
 	/** Is debug visualization of 3d sounds enabled */
 	bool IsVisualizeDebug3dEnabled() const;

@@ -19,7 +19,7 @@ class ENGINESETTINGS_API UGeneralProjectSettings
 	UPROPERTY(config, EditAnywhere, Category=Publisher)
 	FString CompanyName;
 
-	/** The distinguished name of the company (author, provider) that created the project. */
+	/** The Distinguished Name of the company (author, provider) that created the project, which is used by publishing tools on some platforms. */
 	UPROPERTY(config, EditAnywhere, Category=Publisher)
 	FString CompanyDistinguishedName;
 
@@ -47,7 +47,7 @@ class ENGINESETTINGS_API UGeneralProjectSettings
 	UPROPERTY(config, EditAnywhere, Category=About)
 	FGuid ProjectID;
 
-	/** The project's name. */
+	/** The project's non-localized name. */
 	UPROPERTY(config, EditAnywhere, Category=About)
 	FString ProjectName;
 
@@ -79,23 +79,19 @@ class ENGINESETTINGS_API UGeneralProjectSettings
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	bool bStartInVR;
 	
-	/** This field is no longer used; @see FARSupportInterface ::StartARSession(); @see UARBlueprintLibrary::StartARSession() */
-	UPROPERTY()
-	bool bStartInAR_DEPRECATED;
-
-    /** No longer used; AR support is determined by included plugins */
-	UPROPERTY()
-	bool bSupportAR_DEPRECATED;
-	
+	/** Should the user be allowed to resize the window used by the game, when not using full screen */
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	bool bAllowWindowResize;
 
+	/** Should a close button be shown for the game's window, when not using full screen */
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	bool bAllowClose;
 
+	/** Should a maximize button be shown for the game's window, when not using full screen */
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	bool bAllowMaximize;
 
+	/** Should a minimize button be shown for the game's window, when not using full screen */
 	UPROPERTY(config, EditAnywhere, Category = Settings)
 	bool bAllowMinimize;
 };

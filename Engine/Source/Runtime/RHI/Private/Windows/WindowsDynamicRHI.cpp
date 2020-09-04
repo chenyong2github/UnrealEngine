@@ -75,9 +75,9 @@ static IDynamicRHIModule* LoadDynamicRHIModule(ERHIFeatureLevel::Type& DesiredFe
 		FString DefaultGraphicsRHI;
 		if(EngineSettings.GetString(TEXT("/Script/WindowsTargetPlatform.WindowsTargetSettings"), TEXT("DefaultGraphicsRHI"), DefaultGraphicsRHI))
 		{
-			static FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
-			static FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
-			static FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
+			FString NAME_DX11(TEXT("DefaultGraphicsRHI_DX11"));
+			FString NAME_DX12(TEXT("DefaultGraphicsRHI_DX12"));
+			FString NAME_VULKAN(TEXT("DefaultGraphicsRHI_Vulkan"));
 			if(DefaultGraphicsRHI == NAME_DX11)
 			{
 				bForceD3D11 = true;

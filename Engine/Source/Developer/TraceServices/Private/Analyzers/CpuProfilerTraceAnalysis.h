@@ -19,24 +19,34 @@ public:
 	FCpuProfilerAnalyzer(Trace::IAnalysisSession& Session, Trace::FTimingProfilerProvider& TimingProfilerProvider, Trace::FThreadProvider& InThreadProvider);
 	~FCpuProfilerAnalyzer();
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context) override;
 
 private:
-	struct EventScopeState
+	struct FEventScopeState
 	{
 		uint64 StartCycle;
 		uint32 EventTypeId;
 	};
 
-	struct FThreadState
+	struct FPendingEvent
 	{
-		TArray<EventScopeState> ScopeStack;
-		Trace::FTimingProfilerProvider::TimelineInternal* Timeline;
-		double LastCycle = 0.0;
+		uint64 Cycle;
+		uint32 TimerId;
 	};
 
-	void DefineScope(uint32 Id, const TCHAR* ScopeName);
+	struct FThreadState
+	{
+		TArray<FEventScopeState> ScopeStack;
+		TArray<FPendingEvent> PendingEvents;
+		Trace::FTimingProfilerProvider::TimelineInternal* Timeline;
+		uint64 LastCycle = 0;
+	};
+
+	void OnCpuScopeEnter(const FOnEventContext& Context);
+	void OnCpuScopeLeave(const FOnEventContext& Context);
+	void DefineScope(uint32 SpecId, const TCHAR* ScopeName);
 	FThreadState& GetThreadState(uint32 ThreadId);
+	uint64 ProcessBuffer(const FEventTime& EventTime, uint32 ThreadId, const uint8* BufferPtr, uint32 BufferSize);
 
 	enum : uint16
 	{
@@ -44,6 +54,7 @@ private:
 		RouteId_EventBatch,
 		RouteId_EndThread,
 		RouteId_EndCapture,
+		RouteId_CpuScope,
 		RouteId_ChannelAnnounce,
 		RouteId_ChannelToggle,
 	};
@@ -52,11 +63,9 @@ private:
 	Trace::FTimingProfilerProvider& TimingProfilerProvider;
 	Trace::FThreadProvider& ThreadProvider;
 	TMap<uint32, FThreadState*> ThreadStatesMap;
-	TMap<uint32, uint32> ScopeIdToEventIdMap;
-	TMap<const TCHAR*, uint32> ScopeNameToEventIdMap;
+	TMap<uint32, uint32> SpecIdToTimerIdMap;
+	TMap<const TCHAR*, uint32> ScopeNameToTimerIdMap;
 	uint64 TotalEventSize = 0;
 	uint64 TotalScopeCount = 0;
-	uint32 CpuChannelId = 0;
-	bool bCpuChannelState = true;
 	double BytesPerScope = 0.0;
 };

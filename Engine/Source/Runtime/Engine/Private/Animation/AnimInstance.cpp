@@ -537,6 +537,32 @@ void UAnimInstance::PostUpdateAnimation()
 	SCOPE_CYCLE_COUNTER(STAT_PostUpdateAnimation);
 	check(!IsRunningParallelEvaluation());
 
+	// Call post-update on linked instances here rather than at a higher level in SkeletalMeshComponent, 
+	// but only IF we are the primary anim instance. This is to cover all the cases in which PostUpdateAnimation can be called:
+	// - During a character movement tick to get animated root motion.
+	//    - In this case we need to PostUpdateAnimation linked instances immediately to make sure their notfies 
+	//      are dispatched (they are queued from the call to TickAssetPlayerInstances in ParallelUpdateAnimation that will 
+	//      have been called on the game thread).
+	// - Post-parallel update/evaluate task.
+	//    - In the non-root motion case we need to dispatch notifies on the game thread (that were queued on a worker thread)
+	//      when parallel tasks are completed.
+	if(GetSkelMeshComponent()->GetAnimInstance() == this)
+	{
+		for (UAnimInstance* LinkedInstance : GetSkelMeshComponent()->GetLinkedAnimInstances())
+		{
+			if(LinkedInstance->NeedsUpdate())
+			{
+				LinkedInstance->PostUpdateAnimation();
+			}
+		}
+	}
+
+	// Early out here if we are not set to needing an update
+	if(!bNeedsUpdate)
+	{
+		return;
+	}
+
 	bNeedsUpdate = false;
 
 	// acquire the proxy as we need to update

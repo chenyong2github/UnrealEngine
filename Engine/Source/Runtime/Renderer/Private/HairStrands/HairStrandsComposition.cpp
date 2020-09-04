@@ -19,6 +19,17 @@ static FAutoConsoleVariableRef CVarHairFastResolveVelocityThreshold(TEXT("r.Hair
 static int32 GHairPatchBufferDataBeforePostProcessing = 1;
 static FAutoConsoleVariableRef CVarHairPatchBufferDataBeforePostProcessing(TEXT("r.HairStrands.PatchMaterialData"), GHairPatchBufferDataBeforePostProcessing, TEXT("Patch the buffer with hair material data before post processing run. (default 1)."));
 
+/////////////////////////////////////////////////////////////////////////////////////////
+
+float GetHairFastResolveVelocityThreshold(const FIntPoint& Resolution)
+{
+	FVector2D PixelVelocity(1.f / (Resolution.X * 2), 1.f / (Resolution.Y * 2));
+	const float VelocityThreshold = FMath::Clamp(GHairFastResolveVelocityThreshold, 0, 512) * FMath::Min(PixelVelocity.X, PixelVelocity.Y);
+	return VelocityThreshold;
+}
+
+/////////////////////////////////////////////////////////////////////////////////////////
+
 class FHairVisibilityComposeSamplePS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FHairVisibilityComposeSamplePS);
@@ -121,7 +132,7 @@ class FHairVisibilityFastResolvePS : public FGlobalShader
 	DECLARE_GLOBAL_SHADER(FHairVisibilityFastResolvePS);
 	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityFastResolvePS, FGlobalShader);
 
-	class FMSAACount : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_MSAACOUNT", 4, 8);
+	class FMSAACount : SHADER_PERMUTATION_SPARSE_INT("PERMUTATION_MSAACOUNT", 2, 4, 8);
 	using FPermutationDomain = TShaderPermutationDomain<FMSAACount>;
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
@@ -135,13 +146,13 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("SHADER_FASTRESOLVE"), 1);
+		OutEnvironment.SetDefine(TEXT("SHADER_FASTRESOLVE_MSAA"), 1);
 	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FHairVisibilityFastResolvePS, "/Engine/Private/HairStrands/HairStrandsVisibilityComposeSubPixelPS.usf", "FastResolvePS", SF_Pixel);
 
-static void AddHairVisibilityFastResolvePass(
+static void AddHairVisibilityFastResolveMSAAPass(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FRDGTextureRef& HairVisibilityVelocityTexture,
@@ -167,7 +178,7 @@ static void AddHairVisibilityFastResolvePass(
 
 	FHairVisibilityFastResolvePS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityFastResolvePS::FParameters>();
 	Parameters->HairVisibilityVelocityTexture = HairVisibilityVelocityTexture;
-	Parameters->VelocityThreshold = VelocityThreshold;
+	Parameters->VelocityThreshold = GetHairFastResolveVelocityThreshold(Resolution);
 	Parameters->RenderTargets[0] = FRenderTargetBinding(DummyTexture, ERenderTargetLoadAction::ENoAction);
 	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
 		OutDepthTexture,
@@ -229,6 +240,105 @@ static void AddHairVisibilityFastResolvePass(
 	}
 }
 
+class FHairVisibilityFastResolveMaskPS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FHairVisibilityFastResolveMaskPS);
+	SHADER_USE_PARAMETER_STRUCT(FHairVisibilityFastResolveMaskPS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ResolveMaskTexture)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters) { return IsHairStrandsSupported(Parameters.Platform); }
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("SHADER_FASTRESOLVE_MASK"), 1);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FHairVisibilityFastResolveMaskPS, "/Engine/Private/HairStrands/HairStrandsVisibilityComposeSubPixelPS.usf", "FastResolvePS", SF_Pixel);
+
+static void AddHairVisibilityFastResolveMaskPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	const FRDGTextureRef& HairResolveMaskTexture,
+	FRDGTextureRef& OutDepthTexture)
+{
+	const FIntPoint Resolution = OutDepthTexture->Desc.Extent;
+	FRDGTextureRef DummyTexture;
+	{
+		FRDGTextureDesc Desc;
+		Desc.Extent = Resolution;
+		Desc.Depth = 0;
+		Desc.Format = PF_R8G8B8A8;
+		Desc.NumMips = 1;
+		Desc.NumSamples = 1;
+		Desc.Flags = TexCreate_None;
+		Desc.TargetableFlags = TexCreate_RenderTargetable | TexCreate_ShaderResource;
+		Desc.ClearValue = FClearValueBinding(0);
+		DummyTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairDummyTexture"));
+	}
+
+	FHairVisibilityFastResolveMaskPS::FParameters* Parameters = GraphBuilder.AllocParameters<FHairVisibilityFastResolveMaskPS::FParameters>();
+	Parameters->ResolveMaskTexture = HairResolveMaskTexture;
+	Parameters->RenderTargets[0] = FRenderTargetBinding(DummyTexture, ERenderTargetLoadAction::ENoAction);
+	Parameters->RenderTargets.DepthStencil = FDepthStencilBinding(
+		OutDepthTexture,
+		ERenderTargetLoadAction::ELoad,
+		ERenderTargetLoadAction::ELoad,
+		FExclusiveDepthStencil::DepthNop_StencilWrite);
+
+	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
+	TShaderMapRef<FHairVisibilityFastResolveMaskPS> PixelShader(View.ShaderMap);
+	const FGlobalShaderMap* GlobalShaderMap = View.ShaderMap;
+	const FIntRect Viewport = View.ViewRect;
+
+	const FViewInfo* CapturedView = &View;
+
+	{
+		ClearUnusedGraphResources(PixelShader, Parameters);
+
+		GraphBuilder.AddPass(
+			RDG_EVENT_NAME("HairStrandsVisibilityMarkTAAFastResolve"),
+			Parameters,
+			ERDGPassFlags::Raster,
+			[Parameters, VertexShader, PixelShader, Viewport, Resolution, CapturedView](FRHICommandList& RHICmdList)
+			{
+				FGraphicsPipelineStateInitializer GraphicsPSOInit;
+				RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
+				GraphicsPSOInit.BlendState = TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_Zero, BO_Add, BF_One, BF_Zero>::GetRHI();
+				GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
+				GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
+					false, CF_Always,
+					true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
+					false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+					STENCIL_TEMPORAL_RESPONSIVE_AA_MASK, STENCIL_TEMPORAL_RESPONSIVE_AA_MASK>::GetRHI();
+				GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
+				GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
+				GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
+				GraphicsPSOInit.PrimitiveType = PT_TriangleList;
+				SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
+
+				VertexShader->SetParameters(RHICmdList, CapturedView->ViewUniformBuffer);
+				RHICmdList.SetStencilRef(STENCIL_TEMPORAL_RESPONSIVE_AA_MASK);
+				RHICmdList.SetViewport(Viewport.Min.X, Viewport.Min.Y, 0.0f, Viewport.Max.X, Viewport.Max.Y, 1.0f);
+				SetShaderParameters(RHICmdList, PixelShader, PixelShader.GetPixelShader(), *Parameters);
+				DrawRectangle(
+					RHICmdList,
+					0, 0,
+					Viewport.Width(), Viewport.Height(),
+					Viewport.Min.X, Viewport.Min.Y,
+					Viewport.Width(), Viewport.Height(),
+					Viewport.Size(),
+					Resolution,
+					VertexShader,
+					EDRF_UseTriangleOptimization);
+			});
+	}
+}
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 class FHairPatchGbufferDataPS : public FGlobalShader
@@ -364,10 +474,19 @@ void RenderHairComposition(
 				if (HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture)
 				{
 					FRDGTextureRef RDGHairVisibilityVelocityTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].VelocityTexture, TEXT("HairVisibilityVelocityTexture"));
-					AddHairVisibilityFastResolvePass(
+					AddHairVisibilityFastResolveMSAAPass(
 						GraphBuilder,
 						View,
 						RDGHairVisibilityVelocityTexture,
+						SceneColorDepth);
+				}
+				else if (HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture)
+				{
+					FRDGTextureRef HairResolveMaskTexture = GraphBuilder.RegisterExternalTexture(HairVisibilityViews.HairDatas[ViewIndex].ResolveMaskTexture, TEXT("HairResolveMaskTexture"));
+					AddHairVisibilityFastResolveMaskPass(
+						GraphBuilder,
+						View,
+						HairResolveMaskTexture,
 						SceneColorDepth);
 				}
 

@@ -91,7 +91,7 @@ struct FVulkanShaderHeader
 		uint16									GlobalIndex;
 		TEnumAsByte<EUniformBufferBaseType>		UBBaseType;
 		uint8									Pad0 = 0;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 		FString									DebugName;
 #endif
 	};
@@ -104,7 +104,7 @@ struct FVulkanShaderHeader
 		uint8					Pad0 = 0;
 		//uint32					ConstantDataSizeInBytes;
 		TArray<FUBResourceInfo>	ResourceEntries;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 		FString					DebugName;
 #endif
 	};
@@ -120,7 +120,7 @@ struct FVulkanShaderHeader
 		// 1 if this is an immutable sampler
 		uint8							bImmutableSampler = 0;
 		uint8							Pad0 = 0;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 		FString							DebugName;
 #endif
 	};
@@ -132,7 +132,7 @@ struct FVulkanShaderHeader
 		uint16							ConstantDataSizeInFloats;
 		CrossCompiler::EPackedTypeIndex	PackedTypeIndex;
 		uint8							PackedUBIndex;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 		FString							DebugName;
 #endif
 	};
@@ -181,9 +181,7 @@ struct FVulkanShaderHeader
 	TArray<FSpirvInfo>						UniformBufferSpirvInfos;
 	TArray<FSpirvInfo>						GlobalSpirvInfos;
 
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 	FString									DebugName;
-#endif
 
 	FVulkanShaderHeader() = default;
 	enum EInit
@@ -210,7 +208,7 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader::FUBResourceInfo& 
 	Ar << Entry.OriginalBindingIndex;
 	Ar << Entry.GlobalIndex;
 	Ar << Entry.UBBaseType;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	Ar << Entry.DebugName;
 #endif
 	return Ar;
@@ -223,7 +221,7 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader::FUniformBufferInf
 	Ar << UBInfo.bOnlyHasResources;
 	//Ar << UBInfo.ConstantDataSizeInBytes;
 	Ar << UBInfo.ResourceEntries;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	Ar << UBInfo.DebugName;
 #endif
 	return Ar;
@@ -234,7 +232,7 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader::FPackedGlobalInfo
 	Ar << PackedGlobalInfo.ConstantDataSizeInFloats;
 	Ar << PackedGlobalInfo.PackedTypeIndex;
 	Ar << PackedGlobalInfo.PackedUBIndex;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	Ar << PackedGlobalInfo.DebugName;
 #endif
 	return Ar;
@@ -256,7 +254,7 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader::FGlobalInfo& Glob
 	Ar << GlobalInfo.CombinedSamplerStateAliasIndex;
 	Ar << GlobalInfo.TypeIndex;
 	Ar << GlobalInfo.bImmutableSampler;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
+#if VULKAN_ENABLE_BINDING_DEBUG_NAMES
 	Ar << GlobalInfo.DebugName;
 #endif
 	return Ar;
@@ -285,8 +283,6 @@ inline FArchive& operator<<(FArchive& Ar, FVulkanShaderHeader& Header)
 	Ar << Header.SpirvCRC;
 	Ar << Header.UniformBufferSpirvInfos;
 	Ar << Header.GlobalSpirvInfos;
-#if VULKAN_ENABLE_SHADER_DEBUG_NAMES
 	Ar << Header.DebugName;
-#endif
 	return Ar;
 }

@@ -78,8 +78,21 @@ public:
 
 	virtual FString GetFriendlyName() const override { return TEXT("FPlanarReflectionRenderTarget"); }
 
+	virtual FRHIGPUMask GetGPUMask(FRHICommandListImmediate& RHICmdList) const override
+	{
+		return ActiveGPUMask;
+	}
+
+	// Changes the GPUMask used when updating the reflection capture in AFR.
+	void SetActiveGPUMask(FRHIGPUMask InGPUMask)
+	{
+		check(IsInRenderingThread());
+		ActiveGPUMask = InGPUMask;
+	}
+
 private:
 
+	FRHIGPUMask ActiveGPUMask; // In AFR we need to change which GPUs are rendered to every frame.
 	FIntPoint Size;
 };
 

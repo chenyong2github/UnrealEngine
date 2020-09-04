@@ -63,6 +63,10 @@
 #endif
 #include "RHIGPUReadback.h"
 
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
+
 /** Affects BasePassPixelShader.usf so must relaunch editor to recompile shaders. */
 static TAutoConsoleVariable<int32> CVarEarlyZPassOnlyMaterialMasking(
 	TEXT("r.EarlyZPassOnlyMaterialMasking"),
@@ -385,8 +389,6 @@ FDistanceFieldSceneData::FDistanceFieldSceneData(EShaderPlatform ShaderPlatform)
 	: NumObjectsInBuffer(0)
 	, NumHeightFieldObjectsInBuffer(0)
 	, ObjectBufferIndex(0)
-	, SurfelBuffers(NULL)
-	, InstancedSurfelBuffers(NULL)
 	, AtlasGeneration(0)
 	, HeightFieldAtlasGeneration(0)
 	, HFVisibilityAtlasGenerattion(0)
@@ -1156,7 +1158,7 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 ,	DynamicIndirectShadowsSelfShadowingIntensity(FMath::Clamp(InWorld->GetWorldSettings()->DynamicIndirectShadowsSelfShadowingIntensity, 0.0f, 1.0f))
 ,	ReadOnlyCVARCache(FReadOnlyCVARCache::Get())
 #if RHI_RAYTRACING
-, RayTracingDynamicGeometryCollection(nullptr)
+,	RayTracingDynamicGeometryCollection(nullptr)
 #endif
 ,	AsyncCreateLightPrimitiveInteractionsTask(nullptr)
 ,	NumVisibleLights_GameThread(0)
@@ -2383,11 +2385,23 @@ void FVolumetricLightmapSceneData::RemoveLevelVolume(const FPrecomputedVolumetri
 
 const FPrecomputedVolumetricLightmap* FVolumetricLightmapSceneData::GetLevelVolumetricLightmap() const
 {
+#if WITH_EDITOR
+	if (FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(Scene->GetWorld()))
+	{
+		return FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(Scene->GetWorld());
+	}
+#endif
 	return &GlobalVolumetricLightmap;
 }
 
 bool FVolumetricLightmapSceneData::HasData() const
 {
+#if WITH_EDITOR
+	if (FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(Scene->GetWorld()))
+	{
+		return true;
+	}
+#endif
 	if (LevelVolumetricLightmaps.Num() > 0)
 	{
 		if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5)
@@ -2405,6 +2419,12 @@ bool FVolumetricLightmapSceneData::HasData() const
 
 bool FScene::HasPrecomputedVolumetricLightmap_RenderThread() const
 {
+#if WITH_EDITOR
+	if (FStaticLightingSystemInterface::GetPrecomputedVolumetricLightmap(GetWorld()))
+	{
+		return true;
+	}
+#endif
 	return VolumetricLightmapSceneData.HasData();
 }
 
@@ -3582,6 +3602,13 @@ void FScene::ApplyWorldOffset_RenderThread(const FVector& InOffset)
 			FogData.Height += InOffset.Z;
 		}
 	}
+
+	// SkyAtmospheres
+	for (FSkyAtmosphereSceneProxy* SkyAtmosphereProxy : SkyAtmosphereStack)
+	{
+		SkyAtmosphereProxy->ApplyWorldOffset(InOffset);
+	}
+	
 	
 	VelocityData.ApplyOffset(InOffset);
 }

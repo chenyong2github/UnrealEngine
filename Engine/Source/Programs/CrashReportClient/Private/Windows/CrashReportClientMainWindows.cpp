@@ -15,11 +15,7 @@
 #if CRASH_REPORT_WITH_MTBF && !PLATFORM_SEH_EXCEPTIONS_DISABLED
 extern void LogCrcEvent(const TCHAR*);
 
-/**
- * Invoked when an exception was not handled by vectored exception handler(s) nor structured exception handler(s)(__try/__except).
- * For good understanding a SEH inner working,take a look at EngineUnhandledExceptionFilter documentation in WindowsPlatformCrashContext.cpp.
- */
-LONG WINAPI CrashReportUnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo)
+void SaveCrcCrashException(EXCEPTION_POINTERS* ExceptionInfo)
 {
 	// Try to write the exception code in the appropriate field if the session was created. The first crashing thread
 	// incrementing the counter wins the race and can write its exception code.
@@ -33,7 +29,7 @@ LONG WINAPI CrashReportUnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInf
 		uint64 MonitoredEditorPid;
 		if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
 		{
-			FTimespan Timeout = FTimespan::FromSeconds(1);
+			FTimespan Timeout = FTimespan::FromSeconds(2);
 			if (FEditorAnalyticsSession::Lock(Timeout)) // This lock is reentrant for the same process.
 			{
 				FEditorAnalyticsSession MonitoredSession;
@@ -45,6 +41,30 @@ LONG WINAPI CrashReportUnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInf
 			}
 		}
 	}
+}
+
+/**
+ * The Vectored Exception Handler (VEH) is added to capture heap corruption exceptions because those are not reaching the
+ * UnhandledExceptionFilter(). VEH has first and only chance to heap corrutpion exceptions before they got 'handled' by the OS.
+ */
+LONG WINAPI CrashReportVectoredExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo)
+{
+	if (ExceptionInfo->ExceptionRecord->ExceptionCode == STATUS_HEAP_CORRUPTION)
+	{
+		SaveCrcCrashException(ExceptionInfo);
+	}
+
+	// Let the OS deal with the exception. (the process will crash)
+	return EXCEPTION_CONTINUE_SEARCH;
+}
+
+/**
+ * Invoked when an exception was not handled by vectored exception handler(s) nor structured exception handler(s)(__try/__except).
+ * For good understanding a SEH inner working,take a look at EngineUnhandledExceptionFilter documentation in WindowsPlatformCrashContext.cpp.
+ */
+LONG WINAPI CrashReportUnhandledExceptionFilter(EXCEPTION_POINTERS* ExceptionInfo)
+{
+	SaveCrcCrashException(ExceptionInfo);
 
 	// Let the OS deal with the exception. (the process will crash)
 	return EXCEPTION_CONTINUE_SEARCH;
@@ -62,6 +82,9 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 	FString Arguments(::GetCommandLineW());
 	if (Arguments.Contains(TEXT("-MONITOR=")) && !Arguments.Contains(TEXT("-RespawnedInstance")))
 	{
+		uint64 ChildPipe = 0;
+		FParse::Value(GetCommandLineW(), TEXT("-READ="), ChildPipe);
+
 		// Parse the process ID of the Editor that spawned this CRC.
 		uint32 MonitoredEditorPid = 0;
 		if (FParse::Value(GetCommandLineW(), TEXT("-MONITOR="), MonitoredEditorPid))
@@ -81,7 +104,7 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 				true, false, false,
 				&RespawnPid, 0,
 				nullptr,
-				nullptr,
+				reinterpret_cast<void*>(ChildPipe), // Ensure the child process inherit this pipe handle that was previously inherited from its parent.
 				nullptr);
 
 			if (Handle.IsValid())
@@ -91,15 +114,17 @@ int WINAPI WinMain(_In_ HINSTANCE hInInstance, _In_opt_ HINSTANCE hPrevInstance,
 				{
 					*Ar << RespawnPid;
 				}
+				
+				FPlatformProcess::CloseProc(Handle);
 			}
 		}
-
 		RequestEngineExit(TEXT("Respawn instance."));
 		return 0; // Exit this intermediate instance, the Editor is waiting for it to continue.
 	}
 
 #if !PLATFORM_SEH_EXCEPTIONS_DISABLED
 	::SetUnhandledExceptionFilter(CrashReportUnhandledExceptionFilter);
+	::AddVectoredExceptionHandler(0, CrashReportVectoredExceptionFilter);
 #endif // !PLATFORM_SEH_EXCEPTIONS_DISABLED
 #endif // CRASH_REPORT_WITH_MTBF
 

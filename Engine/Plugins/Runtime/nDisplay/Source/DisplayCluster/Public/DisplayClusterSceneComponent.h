@@ -14,7 +14,7 @@ class UDisplayClusterSceneComponentSync;
 /**
  * Extended scene component
  */
-UCLASS( ClassGroup=(Custom) )
+UCLASS(ClassGroup = (Custom), Blueprintable, meta = (BlueprintSpawnableComponent))
 class DISPLAYCLUSTER_API UDisplayClusterSceneComponent
 	: public USceneComponent
 {

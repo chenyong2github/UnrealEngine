@@ -148,6 +148,7 @@ struct FUserDefinedStructureCompilerInner
 			const FString TransientString = FString::Printf(TEXT("TRASHSTRUCT_%s"), *StructToClean->GetName());
 			const FName TransientName = MakeUniqueObjectName(GetTransientPackage(), UUserDefinedStruct::StaticClass(), FName(*TransientString));
 			TransientStruct = NewObject<UUserDefinedStruct>(GetTransientPackage(), TransientName, RF_Public | RF_Transient);
+			TransientStruct->PrepareCppStructOps();
 
 			TArray<UObject*> SubObjects;
 			GetObjectsWithOuter(StructToClean, SubObjects, true);
@@ -282,9 +283,9 @@ struct FUserDefinedStructureCompilerInner
 			{
 				const UClass* ClassObject = Cast<UClass>(VarType.PinSubCategoryObject.Get());
 
-				if (ClassObject && ClassObject->IsChildOf(AActor::StaticClass()) && (VarType.PinCategory == UEdGraphSchema_K2::PC_Object || VarType.PinCategory == UEdGraphSchema_K2::PC_Interface))
+				if (ClassObject && ClassObject->IsChildOf(AActor::StaticClass()) && (VarType.PinCategory == UEdGraphSchema_K2::PC_Object || VarType.PinCategory == UEdGraphSchema_K2::PC_Interface || VarType.PinCategory == UEdGraphSchema_K2::PC_SoftObject))
 				{
-					// prevent hard reference Actor variables from having default values (because Blueprint templates are library elements that can 
+					// prevent Actor reference variables from having default values (because Blueprint templates are library elements that can 
 					// bridge multiple levels and different levels might not have the actor that the default is referencing).
 					VarProperty->PropertyFlags |= CPF_DisableEditOnTemplate;
 				}

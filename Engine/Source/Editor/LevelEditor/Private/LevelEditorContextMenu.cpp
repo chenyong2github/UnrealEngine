@@ -461,6 +461,32 @@ void FLevelEditorContextMenu::RegisterSceneOutlinerContextMenu()
 	}));
 }
 
+void FLevelEditorContextMenu::RegisterEmptySelectionContextMenu()
+{
+	UToolMenus* ToolMenus = UToolMenus::Get();
+	if (ToolMenus->IsMenuRegistered("LevelEditor.EmptySelectionContextMenu"))
+	{
+		return;
+	}
+
+	UToolMenu* Menu = ToolMenus->RegisterMenu("LevelEditor.EmptySelectionContextMenu");
+	Menu->AddDynamicSection("PlaceActors", FNewToolMenuDelegate::CreateLambda([](UToolMenu* InMenu)
+	{
+		if (ULevelEditorContextMenuContext* LevelEditorContext = InMenu->FindContext<ULevelEditorContextMenuContext>())
+		{
+			{
+				FToolMenuSection& Section = InMenu->AddSection("SelectActorGeneral", LOCTEXT("SelectAnyHeading", "General"));
+				Section.AddMenuEntry(FGenericCommands::Get().SelectAll, TAttribute<FText>(), LOCTEXT("SelectAll_ToolTip", "Selects all actors"));
+			}
+
+			if (LevelEditorContext->ContextType == ELevelEditorMenuContext::Viewport)
+			{
+				LevelEditorCreateActorMenu::FillAddReplaceContextMenuSections(InMenu, LevelEditorContext);
+			}
+		}
+	}));
+}
+
 FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext ContextType)
 {
 	if (GEditor->GetSelectedComponentCount() > 0)
@@ -476,7 +502,7 @@ FName FLevelEditorContextMenu::GetContextMenuName(ELevelEditorMenuContext Contex
 		return "LevelEditor.SceneOutlinerContextMenu";
 	}
 
-	return NAME_None;
+	return "LevelEditor.EmptySelectionContextMenu";
 }
 
 FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakPtr<SLevelEditor> LevelEditor, ELevelEditorMenuContext ContextType)
@@ -484,6 +510,7 @@ FName FLevelEditorContextMenu::InitMenuContext(FToolMenuContext& Context, TWeakP
 	RegisterComponentContextMenu();
 	RegisterActorContextMenu();
 	RegisterSceneOutlinerContextMenu();
+	RegisterEmptySelectionContextMenu();
 
 	TSharedPtr<FUICommandList> LevelEditorActionsList = LevelEditor.Pin()->GetLevelEditorActions();
 	Context.AppendCommandList(LevelEditorActionsList);

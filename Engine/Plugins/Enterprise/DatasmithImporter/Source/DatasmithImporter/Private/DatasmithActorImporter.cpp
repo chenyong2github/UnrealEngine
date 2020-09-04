@@ -612,6 +612,7 @@ void FDatasmithActorImporter::SetupSceneComponent( USceneComponent* SceneCompone
 
 	SceneComponentTemplate->RelativeTransform = ActorElement->GetRelativeTransform();
 	SceneComponentTemplate->Mobility = ActorElement->IsA(EDatasmithElementType::Camera) ? EComponentMobility::Movable : EComponentMobility::Static;
+	SceneComponentTemplate->bVisible = ActorElement->GetVisibility();
 	SceneComponentTemplate->AttachParent = Parent;
 
 	// Add tags from ActorElement to SceneComponentTemplate

@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "ShaderCore.h"
 #include "mcpp.h"
+#include "ShaderCompilerCore.h"
 
 enum class EMessageType
 {

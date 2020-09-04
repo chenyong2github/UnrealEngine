@@ -39,36 +39,49 @@
 #include "Math/NumericLimits.h"
 #include "UObject/UnrealNames.h"
 
-static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime( TEXT( "net.PingExcludeFrameTime" ), 0, TEXT( "Calculate RTT time between NIC's of server and client." ) );
+static TAutoConsoleVariable<int32> CVarPingExcludeFrameTime(TEXT("net.PingExcludeFrameTime"), 0,
+	TEXT("If true, game frame times are subtracted from calculated ping to approximate actual network ping"));
 
-static TAutoConsoleVariable<int32> CVarPingUsePacketRecvTime(TEXT("net.PingUsePacketRecvTime"), 0, TEXT("Use OS or Receive Thread packet receive time, for calculating the ping. Excludes frame time."));
+static TAutoConsoleVariable<int32> CVarPingUsePacketRecvTime(TEXT("net.PingUsePacketRecvTime"), 0,
+	TEXT("Use OS or Receive Thread packet receive time, for calculating the ping. Excludes frame time."));
 
 #if !UE_BUILD_SHIPPING
-static TAutoConsoleVariable<int32> CVarPingDisplayServerTime( TEXT( "net.PingDisplayServerTime" ), 0, TEXT( "Show server frame time" ) );
+static TAutoConsoleVariable<int32> CVarPingDisplayServerTime(TEXT("net.PingDisplayServerTime"), 0,
+	TEXT("Show server frame time. Not available in shipping builds."));
 #endif
 
-static TAutoConsoleVariable<int32> CVarTickAllOpenChannels( TEXT( "net.TickAllOpenChannels" ), 0, TEXT( "If nonzero, each net connection will tick all of its open channels every tick. Leaving this off will improve performance." ) );
+static TAutoConsoleVariable<int32> CVarTickAllOpenChannels(TEXT("net.TickAllOpenChannels"), 0,
+	TEXT("If nonzero, each net connection will tick all of its open channels every tick. Leaving this off will improve performance."));
 
-static TAutoConsoleVariable<int32> CVarRandomizeSequence(TEXT("net.RandomizeSequence"), 1, TEXT("Randomize initial packet sequence"));
+static TAutoConsoleVariable<int32> CVarRandomizeSequence(TEXT("net.RandomizeSequence"), 1,
+	TEXT("Randomize initial packet sequence, can provide some obfuscation"));
 
-static TAutoConsoleVariable<int32> CVarMaxChannelSize(TEXT("net.MaxChannelSize"), UNetConnection::DEFAULT_MAX_CHANNEL_SIZE, TEXT("The maximum number of channels."));
+static TAutoConsoleVariable<int32> CVarMaxChannelSize(TEXT("net.MaxChannelSize"), UNetConnection::DEFAULT_MAX_CHANNEL_SIZE,
+	TEXT("The maximum number of network channels allowed across the entire server"));
 
 #if !UE_BUILD_SHIPPING
-static TAutoConsoleVariable<int32> CVarForceNetFlush(TEXT("net.ForceNetFlush"), 0, TEXT("Immediately flush send buffer when written to (helps trace packet writes - WARNING: May be unstable)."));
+static TAutoConsoleVariable<int32> CVarForceNetFlush(TEXT("net.ForceNetFlush"), 0,
+	TEXT("Immediately flush send buffer when written to (helps trace packet writes - WARNING: May be unstable)."));
 #endif
 
-static TAutoConsoleVariable<int32> CVarNetDoPacketOrderCorrection(TEXT("net.DoPacketOrderCorrection"), 0, TEXT("Whether or not to try to fix 'out of order' packet sequences, by caching packets and waiting for the missing sequence."));
+static TAutoConsoleVariable<int32> CVarNetDoPacketOrderCorrection(TEXT("net.DoPacketOrderCorrection"), 0,
+	TEXT("Whether or not to try to fix 'out of order' packet sequences, by caching packets and waiting for the missing sequence."));
 
-static TAutoConsoleVariable<int32> CVarNetPacketOrderCorrectionEnableThreshold(TEXT("net.PacketOrderCorrectionEnableThreshold"), 1, TEXT("The number of 'out of order' packet sequences that need to occur, before correction is enabled."));
+static TAutoConsoleVariable<int32> CVarNetPacketOrderCorrectionEnableThreshold(TEXT("net.PacketOrderCorrectionEnableThreshold"), 1,
+	TEXT("The number of 'out of order' packet sequences that need to occur, before correction is enabled."));
 
-static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxMissingPackets(TEXT("net.PacketOrderMaxMissingPackets"), 3, TEXT("The maximum number of missed packet sequences that is allowed, before treating missing packets as lost."));
+static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxMissingPackets(TEXT("net.PacketOrderMaxMissingPackets"), 3,
+	TEXT("The maximum number of missed packet sequences that is allowed, before treating missing packets as lost."));
 
-static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxCachedPackets(TEXT("net.PacketOrderMaxCachedPackets"), 32, TEXT("(NOTE: Must be power of 2!) The maximum number of packets to cache while waiting for missing packet sequences, before treating missing packets as lost."));
+static TAutoConsoleVariable<int32> CVarNetPacketOrderMaxCachedPackets(TEXT("net.PacketOrderMaxCachedPackets"), 32,
+	TEXT("(NOTE: Must be power of 2!) The maximum number of packets to cache while waiting for missing packet sequences, before treating missing packets as lost."));
 
-TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters(TEXT("net.EnableDetailedScopeCounters"), 1, TEXT("Enables detailed networking scope cycle counters. There are often lots of these which can negatively impact performance."));
+TAutoConsoleVariable<int32> CVarNetEnableDetailedScopeCounters(TEXT("net.EnableDetailedScopeCounters"), 1,
+	TEXT("Enables detailed networking scope cycle counters. There are often lots of these which can negatively impact performance."));
 
 #if !UE_BUILD_SHIPPING
-static TAutoConsoleVariable<int32> CVarDisableBandwithThrottling( TEXT( "net.DisableBandwithThrottling" ), 0, TEXT( "Forces IsNetReady to always return true. Not available in shipping builds." ) );
+static TAutoConsoleVariable<int32> CVarDisableBandwithThrottling(TEXT("net.DisableBandwithThrottling"), 0,
+	TEXT("Forces IsNetReady to always return true. Not available in shipping builds."));
 #endif
 
 extern int32 GNetDormancyValidate;
@@ -200,10 +213,8 @@ UNetConnection::UNetConnection(const FObjectInitializer& ObjectInitializer)
 ,	SendBunchHeader		( MAX_BUNCH_HEADER_BITS )
 
 ,	StatPeriod			( 1.f  )
-,	AvgLag				( 9999 )
-,   BestLag				( 9999 )
-,   BestLagAcc			( 9999 )
-,	LagAcc				( 9999 )
+,	AvgLag				( 0 )
+,	LagAcc				( 0 )
 ,	LagCount			( 0 )
 ,	LastTime			( 0 )
 ,	FrameTime			( 0 )
@@ -683,7 +694,7 @@ void UNetConnection::Serialize( FArchive& Ar )
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("DormantReplicatorMap", DormantReplicatorMap.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibleLevelNames", ClientVisibleLevelNames.CountBytes(Ar));
-		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibileActorOuters", ClientVisibileActorOuters.CountBytes(Ar));
+		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ClientVisibileActorOuters", ClientVisibleActorOuters.CountBytes(Ar));
 
 		GRANULAR_NETWORK_MEMORY_TRACKING_TRACK("ActorsStarvedByClassTimeMap",
 			ActorsStarvedByClassTimeMap.CountBytes(Ar);
@@ -950,7 +961,7 @@ void UNetConnection::AddReferencedObjects(UObject* InThis, FReferenceCollector& 
 	}
 
 	// ClientVisibileActorOuters acceleration map
-	for (auto& MapIt : This->ClientVisibileActorOuters)
+	for (auto& MapIt : This->ClientVisibleActorOuters)
 	{
 		Collector.AddReferencedObject(MapIt.Key, This);
 	}
@@ -1004,7 +1015,7 @@ bool UNetConnection::ClientHasInitializedLevelFor(const AActor* TestActor) const
 
 	// Note: we are calling GetOuter() here instead of GetLevel() to avoid an unreal Cast<>: we justt need the memory address for the lookup.
 	UObject* ActorOuter = TestActor->GetOuter();
-	if (const bool* bIsVisible = ClientVisibileActorOuters.Find(ActorOuter))
+	if (const bool* bIsVisible = ClientVisibleActorOuters.Find(ActorOuter))
 	{
 		return *bIsVisible;
 	}
@@ -1030,14 +1041,14 @@ bool UNetConnection::UpdateCachedLevelVisibility(ULevel* Level) const
 		IsVisibile = ClientVisibleLevelNames.Contains(Level->GetOutermost()->GetFName());
 	}
 
-	ClientVisibileActorOuters.FindOrAdd(Level) = IsVisibile;
+	ClientVisibleActorOuters.FindOrAdd(Level) = IsVisibile;
 	return IsVisibile;
 }
 
 void UNetConnection::UpdateAllCachedLevelVisibility() const
 {
 	// Update our acceleration map
-	for (auto& MapIt : ClientVisibileActorOuters)
+	for (auto& MapIt : ClientVisibleActorOuters)
 	{
 		if (ULevel* Level = Cast<ULevel>(MapIt.Key))
 		{
@@ -1046,17 +1057,21 @@ void UNetConnection::UpdateAllCachedLevelVisibility() const
 	}
 }
 
-void UNetConnection::UpdateLevelVisibility(const FName& PackageName, bool bIsVisible)
+void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
-	FUpdateLevelVisibilityLevelInfo LevelVisibility;
-	LevelVisibility.PackageName = PackageName;
-	LevelVisibility.FileName = PackageName;
-	LevelVisibility.bIsVisible = bIsVisible;
-
-	UpdateLevelVisibility(LevelVisibility);
+	if (Driver && Driver->GetWorld())
+	{
+		// If we are doing seamless travel we need to defer visibility updates until after the server has completed loading the level
+		// otherwise we might end up in a situation where visibilty is not correctly updated
+		if (Driver->GetWorld()->IsInSeamlessTravel())
+		{
+			PendingUpdateLevelVisibility.FindOrAdd(LevelVisibility.PackageName) = LevelVisibility;
+		}
+	}
+	UpdateLevelVisibilityInternal(LevelVisibility);
 }
 
-void UNetConnection::UpdateLevelVisibility(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
+void UNetConnection::UpdateLevelVisibilityInternal(const FUpdateLevelVisibilityLevelInfo& LevelVisibility)
 {
 	using namespace UE4_NetConnectionPrivate;
 
@@ -3126,20 +3141,8 @@ int32 UNetConnection::SendRawBunch(FOutBunch& Bunch, bool InAllowMerge, const FN
 	// flush packet now so that we can report collected stats in the correct scope
 	PrepareWriteBitsToSendBuffer(BunchHeaderBits, BunchBits);
 
-	// Report bunch, if the bunch has a debug name set, we use the name when reporting the bunch
-	if (GetOutTraceCollector())
-	{
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-		if (!Bunch.DebugString.IsEmpty())
-		{
-			UE_NET_TRACE_END_BUNCH(OutTraceCollector, ToCStr(Bunch.DebugString), 0, BunchHeaderBits, BunchBits, Bunch.ChIndex, BunchCollector);
-		}
-		else
-#endif
-		{
-			UE_NET_TRACE_END_BUNCH(OutTraceCollector, Bunch.ChName, 0, BunchHeaderBits, BunchBits, Bunch.ChIndex, BunchCollector);
-		}
-	}
+	// Report bunch
+	UE_NET_TRACE_END_BUNCH(OutTraceCollector, Bunch, Bunch.ChName, 0, BunchHeaderBits, BunchBits, BunchCollector);
 
 	// Write the bits to the buffer and remember the packet id used
 	Bunch.PacketId = WriteBitsToSendBufferInternal(SendBunchHeader.GetData(), BunchHeaderBits, Bunch.GetData(), BunchBits, EWriteBitsDataType::Bunch);
@@ -3214,7 +3217,7 @@ UChannel* UNetConnection::CreateChannelByName(const FName& ChName, EChannelCreat
 			if (!bHasWarnedAboutChannelLimit)
 			{
 				bHasWarnedAboutChannelLimit = true;
-				UE_LOG(LogNetTraffic, Warning, TEXT("No free channel could be found in the channel list (current limit is %d channels) for connection with owner %s. Consider increasing the max channels allowed using CVarMaxChannelSize."), MaxChannelSize, *GetNameSafe(OwningActor));
+				UE_LOG(LogNetTraffic, Warning, TEXT("No free channel could be found in the channel list (current limit is %d channels) for connection with owner %s. Consider increasing the max channels allowed using net.MaxChannelSize."), MaxChannelSize, *GetNameSafe(OwningActor));
 			}
 
 			return nullptr;
@@ -3426,7 +3429,6 @@ void UNetConnection::Tick(float DeltaSeconds)
 		{
 			AvgLag = LagAcc/LagCount;
 		}
-		BestLag = AvgLag;
 
 		InBytesPerSecond = FMath::TruncToInt(static_cast<float>(InBytes) / RealTime);
 		OutBytesPerSecond = FMath::TruncToInt(static_cast<float>(OutBytes) / RealTime);
@@ -3879,6 +3881,15 @@ void UNetConnection::ResetGameWorldState()
 	KeepProcessingActorChannelBunchesMap.Empty();
 	DormantReplicatorMap.Empty();
 	CleanupDormantActorState();
+	ClientVisibleActorOuters.Empty();
+
+	// Update any level visibility requests received during the transition
+	// This can occur if client loads faster than the server
+	for (const auto& Pending : PendingUpdateLevelVisibility)
+	{
+		UpdateLevelVisibilityInternal(Pending.Value);
+	}
+	PendingUpdateLevelVisibility.Empty();
 }
 
 void UNetConnection::CleanupDormantActorState()

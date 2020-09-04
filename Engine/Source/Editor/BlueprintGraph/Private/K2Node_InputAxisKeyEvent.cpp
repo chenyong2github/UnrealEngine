@@ -63,7 +63,7 @@ void UK2Node_InputAxisKeyEvent::ValidateNodeDuringCompilation(class FCompilerRes
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "Invalid_InputAxisKey_Warning", "InputAxisKey Event specifies invalid FKey'{0}' for @@"), FText::FromString(AxisKey.ToString())).ToString(), this);
 	}
-	else if (!AxisKey.IsFloatAxis())
+	else if (!AxisKey.IsAxis1D())
 	{
 		MessageLog.Warning(*FText::Format(NSLOCTEXT("KismetCompiler", "NotAxis_InputAxisKey_Warning", "InputAxisKey Event specifies FKey'{0}' which is not a float axis for @@"), FText::FromString(AxisKey.ToString())).ToString(), this);
 	}
@@ -105,7 +105,7 @@ bool UK2Node_InputAxisKeyEvent::IsCompatibleWithGraph(const UEdGraph* TargetGrap
 {
 	// By default, to be safe, we don't allow events to be pasted, except under special circumstances (see below)
 	bool bIsCompatible = false;
-	
+
 	// Find the Blueprint that owns the target graph
 	UBlueprint* Blueprint = FBlueprintEditorUtils::FindBlueprintForGraph(TargetGraph);
 	if (Blueprint != nullptr)
@@ -131,22 +131,22 @@ void UK2Node_InputAxisKeyEvent::GetMenuActions(FBlueprintActionDatabaseRegistrar
 		InputNode->Initialize(Key);
 	};
 
-	// actions get registered under specific object-keys; the idea is that 
-	// actions might have to be updated (or deleted) if their object-key is  
-	// mutated (or removed)... here we use the node's class (so if the node 
+	// actions get registered under specific object-keys; the idea is that
+	// actions might have to be updated (or deleted) if their object-key is
+	// mutated (or removed)... here we use the node's class (so if the node
 	// type disappears, then the action should go with it)
 	UClass* ActionKey = GetClass();
 
-	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and 
-	// iterating over keys), first check to make sure that the registrar is 
-	// looking for actions of this type (could be regenerating actions for a 
-	// specific asset, and therefore the registrar would only accept actions 
+	// to keep from needlessly instantiating a UBlueprintNodeSpawner (and
+	// iterating over keys), first check to make sure that the registrar is
+	// looking for actions of this type (could be regenerating actions for a
+	// specific asset, and therefore the registrar would only accept actions
 	// corresponding to that asset)
 	if (ActionRegistrar.IsOpenForRegistration(ActionKey))
 	{
 		for (const FKey& Key : AllKeys)
 		{
-			if (!Key.IsBindableInBlueprints() || !Key.IsFloatAxis())
+			if (!Key.IsBindableInBlueprints() || !Key.IsAxis1D())
 			{
 				continue;
 			}

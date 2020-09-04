@@ -398,6 +398,11 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyFloatBuffer();
 	}
 
+	FRHIShaderResourceView* GetHalfSRVWithFallback(FRWBuffer& Buffer) const
+	{
+		return Buffer.SRV ? Buffer.SRV.GetReference() : FNiagaraRenderer::GetDummyHalfBuffer();
+	}
+
 	void Set(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceSetArgs& Context) const
 	{
 		check(IsInRenderingThread());
@@ -529,7 +534,7 @@ struct FNiagaraDataInterfaceParametersCS_ParticleRead : public FNiagaraDataInter
 		SetSRVParameter(RHICmdList, ComputeShader, IDToIndexTableParam, GetIntSRVWithFallback(SourceData->GetGPUIDToIndexTable()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputFloatBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferFloat()));
 		SetSRVParameter(RHICmdList, ComputeShader, InputIntBufferParam, GetIntSRVWithFallback(SourceData->GetGPUBufferInt()));
-		SetSRVParameter(RHICmdList, ComputeShader, InputHalfBufferParam, GetFloatSRVWithFallback(SourceData->GetGPUBufferHalf()));
+		SetSRVParameter(RHICmdList, ComputeShader, InputHalfBufferParam, GetHalfSRVWithFallback(SourceData->GetGPUBufferHalf()));
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideFloatParam, ParticleStrideFloat);
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideIntParam, ParticleStrideInt);
 		SetShaderValue(RHICmdList, ComputeShader, ParticleStrideHalfParam, ParticleStrideHalf);

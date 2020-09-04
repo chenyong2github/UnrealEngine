@@ -723,6 +723,41 @@ void UK2Node_FunctionEntry::FindDiffs(UEdGraphNode* OtherNode, struct FDiffResul
 	}
 }
 
+bool UK2Node_FunctionEntry::IsCompatibleWithGraph(const UEdGraph* InGraph) const
+{
+	if (CanCreateUnderSpecifiedSchema(InGraph->GetSchema()))
+	{
+		if (InGraph->GetSchema()->GetGraphType(InGraph) == GT_Function)
+		{
+			TArray<UK2Node_FunctionEntry*> Nodes;
+			InGraph->GetNodesOfClass<UK2Node_FunctionEntry>(Nodes);
+			return Nodes.Num() == 0;
+		}
+	}
+
+	return false;
+}
+
+void UK2Node_FunctionEntry::PostPasteNode()
+{
+	Super::PostPasteNode();
+
+	// If a function entry is being pasted, it should be editable in it's new graph
+	bIsEditable = true;
+
+	// ensure there are UserDefinedPins for all pins except the 'then' pin
+	for (int32 PinIdx = 1; PinIdx < Pins.Num(); ++PinIdx)
+	{
+		UEdGraphPin* Pin = Pins[PinIdx];
+		if (Pin && !UserDefinedPinExists(Pin->GetFName()))
+		{
+			UserDefinedPins.Add(MakeShared<FUserPinInfo>(*Pin));
+		}
+	}
+
+	ReconstructNode();
+}
+
 int32 UK2Node_FunctionEntry::GetFunctionFlags() const
 {
 	int32 ReturnFlags = 0;

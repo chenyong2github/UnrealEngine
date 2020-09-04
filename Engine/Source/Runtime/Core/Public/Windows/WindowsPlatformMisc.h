@@ -90,6 +90,7 @@ struct CORE_API FWindowsPlatformMisc
 	static bool SetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, const FString& InValue);
 	static bool GetStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName, FString& OutValue);
 	static bool DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName);
+	static bool DeleteStoredSection(const FString& InStoreId, const FString& InSectionName);
 
 	static bool CoInitialize();
 	static void CoUninitialize();
@@ -124,7 +125,7 @@ struct CORE_API FWindowsPlatformMisc
 	 *
 	 * @return	Returns true if the current Windows version if equal or newer than MajorVersion
 	 */
-	static bool VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion);
+	static bool VerifyWindowsVersion(uint32 MajorVersion, uint32 MinorVersion, uint32 BuildNumber = 0);
 
 #if !UE_BUILD_SHIPPING
 	static void PromptForRemoteDebugging(bool bIsEnsure);

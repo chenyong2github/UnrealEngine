@@ -280,6 +280,17 @@ namespace UnrealBuildTool
 				Arguments.Add("/execution-charset:utf-8");
 			}
 
+			// Do not allow inline method expansion if E&C support is enabled or inline expansion has been disabled
+			if (!CompileEnvironment.bSupportEditAndContinue && CompileEnvironment.bUseInlining)
+			{
+				Arguments.Add("/Ob2");
+			}
+			else
+			{
+				// Specifically disable inline expansion to override /O1,/O2/ or /Ox if set
+				Arguments.Add("/Ob0");
+			}
+
 			//
 			//	Debug
 			//
@@ -290,12 +301,6 @@ namespace UnrealBuildTool
 
 				// Favor code size (especially useful for embedded platforms).
 				Arguments.Add("/Os");
-
-				// Allow inline method expansion unless E&C support is requested
-				if (!CompileEnvironment.bSupportEditAndContinue && CompileEnvironment.bUseInlining)
-				{
-					Arguments.Add("/Ob2");
-				}
 
 				// Always include runtime error checks
 				Arguments.Add("/RTCs");
@@ -327,9 +332,6 @@ namespace UnrealBuildTool
 						Arguments.Add("/Oy-");
 					}
 				}
-
-				// Allow inline method expansion
-				Arguments.Add("/Ob2");
 
 				//
 				// LTCG
@@ -1594,7 +1596,7 @@ namespace UnrealBuildTool
 			else if (!LinkEnvironment.bIsBuildingLibrary)
 			{
 				// Add the library paths to the argument list.
-				foreach (DirectoryReference LibraryPath in LinkEnvironment.LibraryPaths)
+				foreach (DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 				{
 					Arguments.Add(String.Format("/LIBPATH:\"{0}\"", LibraryPath));
 				}
@@ -1660,17 +1662,14 @@ namespace UnrealBuildTool
 
 			if (!bIsBuildingLibraryOrImportLibrary)
 			{
-				foreach (string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+				foreach (FileReference Library in LinkEnvironment.Libraries)
 				{
-					InputFileNames.Add(string.Format("\"{0}\"", AdditionalLibrary));
-
-					// If the library file name has a relative path attached (rather than relying on additional
-					// lib directories), then we'll add it to our prerequisites list.  This will allow UBT to detect
-					// when the binary needs to be relinked because a dependent external library has changed.
-					//if( !String.IsNullOrEmpty( Path.GetDirectoryName( AdditionalLibrary ) ) )
-					{
-						PrerequisiteItems.Add(FileItem.GetItemByPath(AdditionalLibrary));
-					}
+					InputFileNames.Add(string.Format("\"{0}\"", Library));
+					PrerequisiteItems.Add(FileItem.GetItemByFileReference(Library));
+				}
+				foreach (string SystemLibrary in LinkEnvironment.SystemLibraries)
+				{
+					InputFileNames.Add(string.Format("\"{0}\"", SystemLibrary));
 				}
 			}
 
@@ -1821,16 +1820,11 @@ namespace UnrealBuildTool
 			{
 				ObjectFileDirectories.Add(InputFile.Location.Directory);
 			}
-			foreach(string AdditionalLibrary in LinkEnvironment.AdditionalLibraries)
+			foreach(FileReference Library in LinkEnvironment.Libraries)
 			{
-				// Need to handle import libraries that are about to be built (but may not exist yet), third party libraries with relative paths in the UE4 tree, and system libraries in the system path
-				FileReference AdditionalLibraryLocation = new FileReference(AdditionalLibrary);
-				if(Path.IsPathRooted(AdditionalLibrary) || FileReference.Exists(AdditionalLibraryLocation))
-				{
-					ObjectFileDirectories.Add(AdditionalLibraryLocation.Directory);
-				}
+				ObjectFileDirectories.Add(Library.Directory);
 			}
-			foreach(DirectoryReference LibraryPath in LinkEnvironment.LibraryPaths)
+			foreach(DirectoryReference LibraryPath in LinkEnvironment.SystemLibraryPaths)
 			{
 				ObjectFileDirectories.Add(LibraryPath);
 			}

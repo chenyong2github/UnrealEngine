@@ -20,7 +20,7 @@ void FGpuProfilerAnalyzer::OnAnalysisBegin(const FOnAnalysisContext& Context)
 	Builder.RouteEvent(RouteId_Frame, "GpuProfiler", "Frame");
 }
 
-bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -33,7 +33,7 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 		uint32 EventType = EventData.GetValue<uint32>("EventType");
 		const auto& Name = EventData.GetArray<uint16>("Name");
 
-		FString EventName(Name.GetData(), Name.Num());
+		const FString EventName(Name.Num(), Name.GetData());
 		EventTypeMap.Add(EventType, TimingProfilerProvider.AddGpuTimer(*EventName));
 		break;
 	}
@@ -54,7 +54,7 @@ bool FGpuProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 			uint64 ActualTimestamp = (DecodedTimestamp >> 1) + LastTimestamp;
 			LastTimestamp = ActualTimestamp;
 			LastTime = double(ActualTimestamp + CalibrationBias) / 1000000.0;
-			LastTime -= Context.SessionContext.StartCycle / (double)Context.SessionContext.CycleFrequency;
+			LastTime += Context.EventTime.AsSeconds(0);
 
 			// The monolithic timeline assumes that timestamps are ever increasing, but
 			// with gpu/cpu calibration and drift there can be a tiny bit of overlap between

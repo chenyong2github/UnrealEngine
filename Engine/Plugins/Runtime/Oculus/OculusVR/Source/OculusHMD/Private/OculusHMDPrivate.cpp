@@ -26,9 +26,9 @@ bool InGameThread()
 
 bool InRenderThread()
 {
-	if (GRenderingThread && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+	if (GIsThreadedRendering && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
 	{
-		return FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+		return IsInActualRenderingThread();
 	}
 	else
 	{
@@ -39,16 +39,16 @@ bool InRenderThread()
 
 bool InRHIThread()
 {
-	if (GRenderingThread && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
+	if (GIsThreadedRendering && !GIsRenderingThreadSuspended.Load(EMemoryOrder::Relaxed))
 	{
-		if (GRHIThreadId)
+		if (IsRHIThreadRunning())
 		{
-			if (FPlatformTLS::GetCurrentThreadId() == GRHIThreadId)
+			if (IsInRHIThread())
 			{
 				return true;
 			}
-			
-			if (FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID())
+
+			if (IsInActualRenderingThread())
 			{
 				return GetImmediateCommandList_ForRenderCommand().Bypass();
 			}
@@ -57,7 +57,7 @@ bool InRHIThread()
 		}
 		else
 		{
-			return FPlatformTLS::GetCurrentThreadId() == GRenderingThread->GetThreadID();
+			return IsInActualRenderingThread();
 		}
 	}
 	else

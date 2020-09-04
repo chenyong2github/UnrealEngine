@@ -17,6 +17,7 @@
 #include "ScopedTransaction.h"
 #include "NiagaraEditorUtilities.h"
 #include "NiagaraNodeOutput.h"
+#include "Containers/ContainerAllocationPolicies.h"
 
 #define LOCTEXT_NAMESPACE "UNiagaraStackFunctionInputCollection"
 
@@ -314,7 +315,8 @@ UNiagaraStackEntry::FStackIssueFix UNiagaraStackFunctionInputCollection::GetRese
 	}));
 }
 
-void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> DuplicateInputNames, TArray<FName> ValidAliasedInputNames, TArray<const UEdGraphPin*> PinsWithInvalidTypes, TMap<FName, UEdGraphPin*> StaticSwitchInputs, TArray<FStackIssue>& NewIssues)
+void UNiagaraStackFunctionInputCollection::RefreshIssues(const TArray<FName>& DuplicateInputNames, const TArray<FName>& ValidAliasedInputNames, const TArray<const UEdGraphPin*>& PinsWithInvalidTypes,
+	const TMap<FName, UEdGraphPin*>& StaticSwitchInputs, TArray<FStackIssue>& NewIssues)
 {
 	if (!GetIsEnabled())
 	{
@@ -323,7 +325,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 	}
 
 	// Gather override nodes to find candidates that were replaced by static switches and are no longer valid
-	TArray<UEdGraphPin*> OverridePins;
+	FPinCollectorArray OverridePins;
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*InputFunctionCallNode);
 	if (OverrideNode != nullptr)
 	{
@@ -332,7 +334,7 @@ void UNiagaraStackFunctionInputCollection::RefreshIssues(TArray<FName> Duplicate
 	for (UEdGraphPin* OverridePin : OverridePins)
 	{
 		// Try to find function input overrides which are no longer valid so we can generate errors for them.
-		UEdGraphPin** PinReference = StaticSwitchInputs.Find(OverridePin->PinName);
+		UEdGraphPin*const* PinReference = StaticSwitchInputs.Find(OverridePin->PinName);
 		if (PinReference == nullptr)
 		{
 			// If the pin isn't in the misc category for the add pin, and not the parameter map pin, and it's for this function call,

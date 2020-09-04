@@ -46,10 +46,6 @@ class ENGINE_API AGameMode : public AGameModeBase
 	UFUNCTION(BlueprintCallable, Category="Game")
 	virtual bool IsMatchInProgress() const;
 
-	/** Returns true if the match state is WaitingPostMatch or later */
-	UFUNCTION(BlueprintCallable, Category="Game")
-	virtual bool HasMatchEnded() const;
-
 	/** Transition from WaitingToStart to InProgress. You can call this manually, will also get called if ReadyToStartMatch returns true */
 	UFUNCTION(BlueprintCallable, Category="Game")
 	virtual void StartMatch();
@@ -247,6 +243,8 @@ public:
 	virtual void InitGame(const FString& MapName, const FString& Options, FString& ErrorMessage) override;
 	virtual void StartPlay() override;
 	virtual bool HasMatchStarted() const override;
+	/** Returns true if the match state is WaitingPostMatch or later */
+	virtual bool HasMatchEnded() const override;
 	virtual void PostLogin(APlayerController* NewPlayer) override;
 	virtual void Logout(AController* Exiting) override;
 	virtual int32 GetNumPlayers() override;

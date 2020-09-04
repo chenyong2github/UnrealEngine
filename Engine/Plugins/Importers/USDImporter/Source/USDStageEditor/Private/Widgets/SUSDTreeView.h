@@ -9,12 +9,7 @@
 #include "Widgets/Views/STreeView.h"
 
 class AUsdStageActor;
-
-class IUsdTreeViewItem
-{
-public:
-	virtual ~IUsdTreeViewItem() = default;
-};
+class IUsdTreeViewItem;
 
 class FUsdTreeViewColumn
 {

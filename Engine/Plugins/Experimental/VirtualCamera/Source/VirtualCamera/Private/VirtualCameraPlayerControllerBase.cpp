@@ -8,6 +8,7 @@
 #include "Engine/World.h"
 #include "Features/IModularFeatures.h"
 #include "Framework/Application/SlateApplication.h"
+#include "ILiveLinkClient.h"
 #include "IXRTrackingSystem.h"
 #include "RemoteSession.h"
 #include "Channels/RemoteSessionInputChannel.h"
@@ -18,7 +19,6 @@
 #include "Roles/LiveLinkTransformRole.h"
 #include "Roles/LiveLinkTransformTypes.h"
 #include "VirtualCamera.h"
-#include "VirtualCameraSubsystem.h"
 #include "VPGameMode.h"
 #include "VPRootActor.h"
 
@@ -82,12 +82,6 @@ void AVirtualCameraPlayerControllerBase::BeginPlay()
 		UE_LOG(LogVirtualCamera, Warning, TEXT("There is no VP Root Actor in the scene. A CineCameraActor will be spawned. Multi user functionalities may suffer."));
 	}
 
-	// set controller implementation (aka this) onto camera subsystem
-	if (UVirtualCameraSubsystem* SubSystem = GEngine->GetEngineSubsystem<UVirtualCameraSubsystem>())
-	{
-		SubSystem->SetVirtualCameraController(this);
-	}
-
 	// Make a default sequence playback controller
 	LevelSequencePlaybackController = NewObject<ULevelSequencePlaybackController>(this);
 	if (LevelSequencePlaybackController)
@@ -120,12 +114,10 @@ void AVirtualCameraPlayerControllerBase::BeginPlay()
 	{
 		if (IRemoteSessionModule* RemoteSession = FModuleManager::LoadModulePtr<IRemoteSessionModule>("RemoteSession"))
 		{
-			TMap<FString, ERemoteSessionChannelMode> RequiredChannels;
-			RequiredChannels.Add(FRemoteSessionFrameBufferChannelFactoryWorker::StaticType(), ERemoteSessionChannelMode::Write);
-			RequiredChannels.Add(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
-			RequiredChannels.Add(FRemoteSessionXRTrackingChannel::StaticType(), ERemoteSessionChannelMode::Read);
+			RemoteSession->AddSupportedChannel(FRemoteSessionImageChannel::StaticType(), ERemoteSessionChannelMode::Write);
+			RemoteSession->AddSupportedChannel(FRemoteSessionInputChannel::StaticType(), ERemoteSessionChannelMode::Read);
+			RemoteSession->AddSupportedChannel(FRemoteSessionXRTrackingChannel::StaticType(), ERemoteSessionChannelMode::Read);
 
-			RemoteSession->SetSupportedChannels(RequiredChannels);
 			RemoteSession->InitHost();
 		}
 	}
@@ -1424,29 +1416,4 @@ bool AVirtualCameraPlayerControllerBase::ToggleAxisLock(const EVirtualCameraAxis
 void AVirtualCameraPlayerControllerBase::ActivateGameViewport()
 {
 	FSlateApplication::Get().ActivateGameViewport();
-}
-
-UCineCameraComponent* AVirtualCameraPlayerControllerBase::GetStreamedCameraComponent_Implementation() const
-{
-	return GetVirtualCameraCineCameraComponent();
-}
-
-UCineCameraComponent* AVirtualCameraPlayerControllerBase::GetRecordingCameraComponent_Implementation() const
-{
-	return TargetCameraActor ? TargetCameraActor->GetCineCameraComponent() : nullptr;
-}
-
-ULevelSequencePlaybackController* AVirtualCameraPlayerControllerBase::GetSequenceController_Implementation() const
-{
-	return LevelSequencePlaybackController;
-}
-
-TScriptInterface<IVirtualCameraPresetContainer> AVirtualCameraPlayerControllerBase::GetPresetContainer_Implementation() const
-{
-	return GetVirtualCameraPawn();
-}
-
-TScriptInterface<IVirtualCameraOptions> AVirtualCameraPlayerControllerBase::GetOptions_Implementation() const
-{
-	return GetVirtualCameraPawn();
 }

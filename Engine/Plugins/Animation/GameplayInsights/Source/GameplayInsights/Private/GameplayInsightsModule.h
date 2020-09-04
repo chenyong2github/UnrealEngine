@@ -29,6 +29,9 @@ public:
 
 protected:
 	void RegisterTimingProfilerLayoutExtensions(FInsightsMajorTabExtender& InOutExtender);
+#if WITH_EDITOR
+	void RegisterMenus();
+#endif
 
 private:
 	FGameplayTraceModule GameplayTraceModule;

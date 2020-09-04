@@ -333,7 +333,7 @@ void FStoreBrowser::UpdateMetadata(FStoreBrowserTraceInfo& Trace)
 	{
 		virtual int32 Read(void* Data, uint32 Size) override
 		{
-			if (BytesRead >= 48 * 1024)
+			if (BytesRead >= 1024 * 1024)
 			{
 				return 0;
 			}

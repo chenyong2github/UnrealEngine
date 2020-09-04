@@ -2230,9 +2230,8 @@ void FLevelEditorToolBar::RegisterOpenBlueprintMenu()
 			Config.InitialAssetViewType = EAssetViewType::List;
 			Config.OnAssetSelected = FOnAssetSelected::CreateStatic(&FBlueprintMenus::OnBPSelected);
 			Config.bAllowDragging = false;
-			// Don't show stuff in Engine
-			Config.Filter.PackagePaths.Add("/Game");
-			Config.Filter.bRecursivePaths = true;
+			// Allow saving user defined filters via View Options
+			Config.SaveSettingsName = FString(TEXT("ToolbarOpenBPClass"));
 
 			TSharedRef<SWidget> Widget = 
 				SNew(SBox)

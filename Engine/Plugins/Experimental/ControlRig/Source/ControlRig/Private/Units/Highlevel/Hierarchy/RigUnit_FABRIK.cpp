@@ -5,74 +5,93 @@
 
 FRigUnit_FABRIK_Execute()
 {
+	if (Context.State == EControlRigState::Init)
+	{
+		WorkData.CachedItems.Reset();
+		return;
+	}
+	
+	FRigElementKeyCollection Items;
+	if(WorkData.CachedItems.Num() == 0)
+	{
+		Items = FRigElementKeyCollection::MakeFromChain(
+			Context.Hierarchy,
+			FRigElementKey(StartBone, ERigElementType::Bone),
+			FRigElementKey(EffectorBone, ERigElementType::Bone),
+			false /* reverse */
+		);
+	}
+
+	FRigUnit_FABRIKPerItem::StaticExecute(
+		RigVMExecuteContext, 
+		Items,
+		EffectorTransform,
+		Precision,
+		Weight,
+		bPropagateToChildren,
+		MaxIterations,
+		WorkData,
+		ExecuteContext, 
+		Context);
+}
+
+FRigUnit_FABRIKPerItem_Execute()
+{
     DECLARE_SCOPE_HIERARCHICAL_COUNTER_RIGUNIT()
-	FRigBoneHierarchy* Hierarchy = ExecuteContext.GetBones();
+	FRigHierarchyContainer* Hierarchy = ExecuteContext.Hierarchy;
 	if (Hierarchy == nullptr)
 	{
 		return;
 	}
 
 	TArray<FFABRIKChainLink>& Chain = WorkData.Chain;
-	TArray<int32>& BoneIndices = WorkData.BoneIndices;
-	int32& EffectorIndex = WorkData.EffectorIndex;
+	TArray<FCachedRigElement>& CachedItems = WorkData.CachedItems;
+	FCachedRigElement& CachedEffector = WorkData.CachedEffector;
 
 	if (Context.State == EControlRigState::Init)
 	{
-		BoneIndices.Reset();
+		CachedItems.Reset();
+		CachedEffector.Reset();
+		return;
+	}
 
-		// verify the chain
-		const int32 RootIndex = Hierarchy->GetIndex(StartBone);
-		if (RootIndex != INDEX_NONE)
+	if (Context.State == EControlRigState::Update)
+	{
+		if (CachedItems.Num() == 0 && Items.Num() > 0)
 		{
-			int32 CurrentIndex = EffectorIndex = Hierarchy->GetIndex(EffectorBone);
-			while (CurrentIndex != INDEX_NONE)
+			for (FRigElementKey Item : Items)
 			{
-				// ensure the chain
-				int32 ParentIndex = (*Hierarchy)[CurrentIndex].ParentIndex;
-				if (ParentIndex != INDEX_NONE)
-				{
-					BoneIndices.Add(CurrentIndex);
-				}
-
-				if (ParentIndex == RootIndex)
-				{
-					BoneIndices.Add(RootIndex);
-					break;
-				}
-
-				CurrentIndex = ParentIndex;
+				CachedItems.Add(FCachedRigElement(Item, Hierarchy));
 			}
 
-			Chain.Reserve(BoneIndices.Num());
+			CachedEffector = CachedItems.Last();
 		}
-	}
-	else  if (Context.State == EControlRigState::Update)
-	{
-		if (BoneIndices.Num() > 0)
+
+		if (CachedItems.Num() > 0)
 		{
 			// Gather chain links. These are non zero length bones.
 			Chain.Reset();
 			
 			TArray<FTransform> Transforms;
-			Transforms.AddDefaulted(BoneIndices.Num());
+			Transforms.AddDefaulted(CachedItems.Num());
 
 			float MaximumReach = 0.f;
-			int32 const NumChainLinks = BoneIndices.Num();
-			const int32 RootIndex = BoneIndices.Last();
-			Chain.Add(FFABRIKChainLink(Hierarchy->GetGlobalTransform(RootIndex).GetLocation(), 0.f, RootIndex, 0));
+			int32 const NumChainLinks = CachedItems.Num();
+			const FCachedRigElement& RootIndex = CachedItems[0];
+			Chain.Add(FFABRIKChainLink(Hierarchy->GetGlobalTransform(RootIndex).GetLocation(), 0.f, 0, 0));
 			Transforms[0] = Hierarchy->GetGlobalTransform(RootIndex);
 
 			// start from child to up
-			for (int32 ChainIndex = BoneIndices.Num() - 2; ChainIndex >= 0 ; --ChainIndex)
+			for (int32 ChainIndex = 1; ChainIndex < CachedItems.Num() ; ChainIndex++)
 			{
-				const FTransform& BoneTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex]);
-				const FTransform& ParentTransform = Hierarchy->GetGlobalTransform(BoneIndices[ChainIndex + 1]);
+				const FTransform& BoneTransform = Hierarchy->GetGlobalTransform(CachedItems[ChainIndex]);
+				const FTransform& ParentTransform = Hierarchy->GetGlobalTransform(CachedItems[ChainIndex - 1]);
 
 				// Calculate the combined length of this segment of skeleton
 				float const BoneLength = FVector::Dist(BoneTransform.GetLocation(), ParentTransform.GetLocation());
 
 				const int32 TransformIndex = Chain.Num();
-				Chain.Add(FFABRIKChainLink(BoneTransform.GetLocation(), BoneLength, BoneIndices[ChainIndex], TransformIndex));
+				Chain.Add(FFABRIKChainLink(BoneTransform.GetLocation(), BoneLength, ChainIndex, TransformIndex));
 				MaximumReach += BoneLength;
 
 				Transforms[TransformIndex] = BoneTransform;
@@ -88,9 +107,11 @@ FRigUnit_FABRIK_Execute()
 				{
 					const FFABRIKChainLink& CurrentLink = Chain[LinkIndex];
 					const FFABRIKChainLink& ChildLink = Chain[LinkIndex + 1];
+					const FCachedRigElement& CurrentItem = CachedItems[CurrentLink.BoneIndex];
+					const FCachedRigElement& ChildItem = CachedItems[ChildLink.BoneIndex];
 
 					// Calculate pre-translation vector between this bone and child
-					FVector const OldDir = (Hierarchy->GetGlobalTransform(ChildLink.BoneIndex).GetLocation() - Hierarchy->GetGlobalTransform(CurrentLink.BoneIndex).GetLocation()).GetUnsafeNormal();
+					FVector const OldDir = (Hierarchy->GetGlobalTransform(ChildItem).GetLocation() - Hierarchy->GetGlobalTransform(CurrentItem).GetLocation()).GetUnsafeNormal();
 
 					// Get vector from the post-translation bone to it's child
 					FVector const NewDir = (ChildLink.Position - CurrentLink.Position).GetUnsafeNormal();
@@ -111,19 +132,20 @@ FRigUnit_FABRIK_Execute()
 
 				// fill up the last data transform
 				const FFABRIKChainLink & CurrentLink = Chain[NumChainLinks - 1];
+				const FCachedRigElement& CurrentItem = CachedItems[CurrentLink.BoneIndex];
+
 				FTransform& CurrentBoneTransform = Transforms[CurrentLink.TransformIndex];
 				CurrentBoneTransform.SetTranslation(CurrentLink.Position);
-				CurrentBoneTransform.SetRotation(Hierarchy->GetGlobalTransform(CurrentLink.BoneIndex).GetRotation());
+				CurrentBoneTransform.SetRotation(Hierarchy->GetGlobalTransform(CurrentItem).GetRotation());
 
 				if (FMath::IsNearlyEqual(Weight, 1.f))
 				{
 					for (int32 LinkIndex = 0; LinkIndex < NumChainLinks; LinkIndex++)
 					{
 						FFABRIKChainLink const & LocalLink = Chain[LinkIndex];
-						Hierarchy->SetGlobalTransform(LocalLink.BoneIndex, Transforms[LocalLink.TransformIndex], bPropagateToChildren);
+						const FCachedRigElement& LocalItem = CachedItems[LocalLink.BoneIndex];
+						Hierarchy->SetGlobalTransform(LocalItem, Transforms[LocalLink.TransformIndex], bPropagateToChildren);
 					}
-
-					Hierarchy->SetGlobalTransform(EffectorIndex, EffectorTransform, bPropagateToChildren);
 				}
 				else
 				{
@@ -132,15 +154,24 @@ FRigUnit_FABRIK_Execute()
 					for (int32 LinkIndex = 0; LinkIndex < NumChainLinks; LinkIndex++)
 					{
 						FFABRIKChainLink const & LocalLink = Chain[LinkIndex];
-						FTransform PreviousXfo = Hierarchy->GetGlobalTransform(LocalLink.BoneIndex);
+						const FCachedRigElement& LocalItem = CachedItems[LocalLink.BoneIndex];
+						FTransform PreviousXfo = Hierarchy->GetGlobalTransform(LocalItem);
 						FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, Transforms[LocalLink.TransformIndex], T);
-						Hierarchy->SetGlobalTransform(LocalLink.BoneIndex, Xfo, bPropagateToChildren);
+						Hierarchy->SetGlobalTransform(LocalItem, Xfo, bPropagateToChildren);
 					}
-
-					FTransform PreviousXfo = Hierarchy->GetGlobalTransform(EffectorIndex);
-					FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
-					Hierarchy->SetGlobalTransform(EffectorIndex, Xfo, bPropagateToChildren);
 				}
+			}
+
+			if (FMath::IsNearlyEqual(Weight, 1.f))
+			{
+				Hierarchy->SetGlobalTransform(CachedEffector, EffectorTransform, bPropagateToChildren);
+			}
+			else
+			{
+				float T = FMath::Clamp<float>(Weight, 0.f, 1.f);
+				FTransform PreviousXfo = Hierarchy->GetGlobalTransform(CachedEffector);
+				FTransform Xfo = FControlRigMathLibrary::LerpTransform(PreviousXfo, EffectorTransform, T);
+				Hierarchy->SetGlobalTransform(CachedEffector, Xfo, bPropagateToChildren);
 			}
 		}
 	}

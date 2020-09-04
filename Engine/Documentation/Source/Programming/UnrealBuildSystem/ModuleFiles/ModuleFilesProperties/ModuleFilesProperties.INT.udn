@@ -2,7 +2,7 @@ Availability: NoPublish
 Title: Build Configuration Properties Page
 Crumbs:
 Description: This is a procedurally generated markdown page.
-Version: 4.25
+Version: 4.26
 
 ### Read/Write Properties
 $ Type (ModuleType): Type of module
@@ -19,7 +19,7 @@ $ bTreatAsEngineModule (Boolean): Whether this module should be treated as an en
 
 $ bUseRTTI (Boolean): Use run time type information
 
-$ bUseAVX (Boolean): Use AVX instructions
+$ bUseAVX (Boolean): Direct the compiler to generate AVX instructions wherever SSE or AVX intrinsics are used, on the platforms that support it. Note that by enabling this you are changing the minspec for the PC platform, and the resultant executable will crash on machines without AVX support.
 
 $ bEnableBufferSecurityChecks (Boolean): Enable buffer security checks.  This should usually be enabled as it prevents severe security risks.
 
@@ -40,6 +40,8 @@ $ IsRedistributableOverride (Nullable&lt;Boolean&gt;): Redistribution override f
 $ bLegalToDistributeObjectCode (Boolean): Whether the output from this module can be publicly distributed, even if it has code/ dependencies on modules that are not (i.e. CarefullyRedist, NotForLicensees, NoRedist). This should be used when you plan to release binaries but not source.
 
 $ WhitelistRestrictedFolders (List&lt;String&gt;): List of folders which are whitelisted to be referenced when compiling this binary, without propagating restricted folder names
+
+$ AliasRestrictedFolders (Dictionary&lt;String, String&gt;): Set of aliased restricted folder references
 
 $ bEnforceIWYU (Boolean): Enforce "include what you use" rules when PCHUsage is set to ExplicitOrSharedPCH; warns when monolithic headers (Engine.h, UnrealEd.h, etc...) are used, and checks that source files include their matching header first.
 
@@ -77,6 +79,8 @@ $ PublicRuntimeLibraryPaths (List&lt;String&gt;): List of search paths for libra
 
 $ PublicAdditionalLibraries (List&lt;String&gt;): List of additional libraries (names of the .lib files including extension) - typically used for External (third party) modules
 
+$ PublicPreBuildLibraries (List&lt;String&gt;): List of additional pre-build libraries (names of the .lib files including extension) - typically used for additional targets which are still built, but using either TargetRules.PreBuildSteps or TargetRules.PreBuildTargets.
+
 $ PublicSystemLibraries (List&lt;String&gt;): List of system libraries to use - these are typically referenced via name and then found via the system paths. If you need to reference a .lib file use the PublicAdditionalLibraries instead
 
 $ PublicFrameworks (List&lt;String&gt;): List of XCode frameworks (iOS and MacOS)
@@ -86,6 +90,8 @@ $ PublicWeakFrameworks (List&lt;String&gt;): List of weak frameworks (for OS ver
 $ PublicAdditionalFrameworks (List&lt;Framework&gt;): List of addition frameworks - typically used for External (third party) modules on Mac and iOS
 
 $ AdditionalBundleResources (List&lt;BundleResource&gt;): List of addition resources that should be copied to the app bundle for Mac or iOS
+
+$ TypeLibraries (List&lt;TypeLibrary&gt;): List of type libraries that we need to generate headers for (Windows only)
 
 $ PublicAdditionalShadowFiles (List&lt;String&gt;): For builds that execute on a remote machine (e.g. iOS), this list contains additional files that need to be copied over in order for the app to link successfully.  Source/header files and PCHs are automatically copied.  Usually this is simply a list of precompiled third party library dependencies.
 
@@ -104,6 +110,8 @@ $ AdditionalPropertiesForReceipt (ReceiptPropertyList): List of additional prope
 $ PrecompileForTargets (PrecompileTargetsType): Which targets this module should be precompiled for
 
 $ ExternalDependencies (List&lt;String&gt;): External files which invalidate the makefile if modified. Relative paths are resolved relative to the .build.cs file.
+
+$ AdditionalCodeGenDirectories (List&lt;String&gt;): External directories containing generated interop files.
 
 $ SubclassRules (List&lt;String&gt;): Subclass rules files which invalidate the makefile if modified.
 

@@ -5,7 +5,7 @@
 
 #include "HAL/RunnableThread.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterSessionBase::FDisplayClusterSessionBase(FSocket* InSocket, IDisplayClusterSessionListener* InListener, const FString& InName) :

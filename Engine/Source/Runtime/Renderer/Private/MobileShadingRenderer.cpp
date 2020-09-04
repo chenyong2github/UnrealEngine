@@ -207,11 +207,9 @@ void FMobileSceneRenderer::PrepareViewVisibilityLists()
 
 		// Init static mesh visibility info for CSM drawlist
 		MobileCSMVisibilityInfo.MobileCSMStaticMeshVisibilityMap.Init(false, View.StaticMeshVisibilityMap.Num());
-		MobileCSMVisibilityInfo.MobileCSMStaticBatchVisibility.AddZeroed(View.StaticMeshBatchVisibility.Num());
 
 		// Init static mesh visibility info for default drawlist that excludes meshes in CSM only drawlist.
 		MobileCSMVisibilityInfo.MobileNonCSMStaticMeshVisibilityMap = View.StaticMeshVisibilityMap;
-		MobileCSMVisibilityInfo.MobileNonCSMStaticBatchVisibility = View.StaticMeshBatchVisibility;
 	}
 }
 
@@ -777,8 +775,10 @@ void FMobileSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	
 	if (!bGammaSpace || bRenderToSceneColor)
 	{
-		// transition scene color to Readable for post-processing
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneColor);
+		// Transition scene color to readable for post-processing. If MSAA is enabled, post-processing will use the resolved
+		// texture, so make sure we transition that, not the render target.
+		FRHITexture* PPColorInput = SceneColorResolve != nullptr ? SceneColorResolve : SceneColor;
+		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, PPColorInput);
 	}
 
 	RHICmdList.SetCurrentStat(GET_STATID(STAT_CLMM_Post));

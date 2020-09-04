@@ -35,7 +35,6 @@ private:
 	FAsioSocket*		Output = nullptr;
 	FAsioRecorder&		Recorder;
 	uint32				SessionId;
-	bool				bTimedOut = false;
 	uint8				Buffer[BufferSize];
 };
 

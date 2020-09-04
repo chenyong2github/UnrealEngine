@@ -111,6 +111,18 @@ void SGraphNodeK2Base::UpdateCompactNode()
 	// Default to "pure" styling, where we can just center the pins vertically
 	// since don't need to worry about alignment with other nodes
 	float PinPaddingTop = 0.f;
+
+	// If the center node title is 2 or more, then make the node bigger
+	// so that the text box isn't over top of the label
+	static float MinNodePadding = 55.f;
+	static float MaxNodePadding = 180.0f;
+	static float PaddingIncrementSize = 20.0f;
+
+	int32 HeadTitleLength = NodeTitle.Get() ? NodeTitle.Get()->GetHeadTitle().ToString().Len() : 0;
+	
+	// Calculate a padding amount clamping to the min/max settings
+	const float PinPaddingRight = FMath::Clamp(MinNodePadding + ((float)HeadTitleLength * PaddingIncrementSize), MinNodePadding, MaxNodePadding);
+
 	EVerticalAlignment PinVerticalAlignment = VAlign_Center;
 
 	// But if this is an impure node, we'll align the pins to the top, 
@@ -123,11 +135,11 @@ void SGraphNodeK2Base::UpdateCompactNode()
 			PinVerticalAlignment = VAlign_Top;
 		}
 	}
-	
+
 	NodeOverlay->AddSlot()
 		.HAlign(HAlign_Left)
 		.VAlign(PinVerticalAlignment)
-		.Padding(0.f, PinPaddingTop, 55.f, 0.f)
+		.Padding(/* left */ 0.f, PinPaddingTop, PinPaddingRight, /* bottom */ 0.f)
 		[
 			// LEFT
 			SAssignNew(LeftNodeBox, SVerticalBox)

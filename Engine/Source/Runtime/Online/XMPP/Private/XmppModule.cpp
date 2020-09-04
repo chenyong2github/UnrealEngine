@@ -111,7 +111,7 @@ bool FXmppModule::HandleXmppCommand( const TCHAR* Cmd, FOutputDevice& Ar )
 		{
 			TSharedPtr<IXmppConnection> Connection = GetConnection(UserName);
 			if (Connection.IsValid() &&
-				Connection->GetLoginStatus() == EXmppLoginStatus::LoggedIn)
+				(Connection->GetLoginStatus() == EXmppLoginStatus::LoggedIn || Connection->GetLoginStatus() == EXmppLoginStatus::ProcessingLogin))
 			{
 				UE_LOG(LogXmpp, Warning, TEXT("Already logged in as <%s>"), *UserName);
 			}

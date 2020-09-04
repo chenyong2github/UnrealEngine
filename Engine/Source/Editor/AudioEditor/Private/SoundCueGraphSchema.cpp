@@ -276,18 +276,7 @@ void USoundCueGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Cont
 
 void USoundCueGraphSchema::GetContextMenuActions(class UToolMenu* Menu, class UGraphNodeContextMenuContext* Context) const
 {
-	if (Context->Pin)
-	{
-		{
-			FToolMenuSection& Section = Menu->AddSection("SoundCueGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-			// Only display the 'Break Link' option if there is a link to break!
-			if (Context->Pin->LinkedTo.Num() > 0)
-			{
-				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-			}
-		}
-	}
-	else if (Context->Node)
+	if (Context->Node)
 	{
 		const USoundCueGraphNode* SoundGraphNode = Cast<const USoundCueGraphNode>(Context->Node);
 		{

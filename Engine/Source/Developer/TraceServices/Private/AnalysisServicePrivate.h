@@ -48,6 +48,7 @@ public:
 
 	virtual ILinearAllocator& GetLinearAllocator() override { return Allocator; }
 	virtual const TCHAR* StoreString(const TCHAR* String) override { return StringStore.Store(String); }
+	virtual const TCHAR* StoreString(const FStringView& String) override { return StringStore.Store(String); }
 
 	virtual void BeginRead() const override { Lock.BeginRead(); }
 	virtual void EndRead() const override { Lock.EndRead(); }

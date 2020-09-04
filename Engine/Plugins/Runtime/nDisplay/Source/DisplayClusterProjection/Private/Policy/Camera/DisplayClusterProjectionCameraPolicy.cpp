@@ -5,10 +5,10 @@
 #include "DisplayClusterProjectionLog.h"
 #include "DisplayClusterProjectionStrings.h"
 
-#include "DisplayClusterUtils/DisplayClusterCommonHelpers.h"
-
 #include "Config/IDisplayClusterConfigManager.h"
 #include "Game/IDisplayClusterGameManager.h"
+
+#include "Misc/DisplayClusterCommonHelpers.h"
 
 #include "DisplayClusterCameraComponent.h"
 #include "DisplayClusterRootComponent.h"

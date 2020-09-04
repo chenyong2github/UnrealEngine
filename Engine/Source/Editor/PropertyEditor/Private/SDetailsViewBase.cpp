@@ -233,10 +233,17 @@ EVisibility SDetailsViewBase::GetTreeVisibility() const
 	return EVisibility::Collapsed;
 }
 
+EVisibility SDetailsViewBase::GetScrollBarVisibility() const
+{
+	const bool bHasAnythingToShow = RootTreeNodes.Num() > 0;
+	const bool bShowScrollBar = DetailsViewArgs.bShowScrollBar && bHasAnythingToShow;
+	return bShowScrollBar ? EVisibility::Visible : EVisibility::Collapsed;
+}
+
 /** Returns the image used for the icon on the filter button */
 const FSlateBrush* SDetailsViewBase::OnGetFilterButtonImageResource() const
 {
-	if (bHasActiveFilter)
+	if (HasActiveSearch())
 	{
 		return FEditorStyle::GetBrush(TEXT("PropertyWindow.FilterCancel"));
 	}
@@ -635,14 +642,7 @@ void SDetailsViewBase::OnShowAnimatedClicked()
 /** Called when the filter text changes.  This filters specific property nodes out of view */
 void SDetailsViewBase::OnFilterTextChanged(const FText& InFilterText)
 {
-	FString InFilterString = InFilterText.ToString();
-	InFilterString.TrimStartAndEndInline();
-
-	// Was the filter just cleared
-	bool bFilterCleared = InFilterString.Len() == 0 && CurrentFilter.FilterStrings.Num() > 0;
-
-	FilterView(InFilterString);
-
+	FilterView(InFilterText.ToString());
 }
 
 void SDetailsViewBase::OnFilterTextCommitted(const FText& InSearchText, ETextCommit::Type InCommitType)
@@ -683,24 +683,37 @@ void SDetailsViewBase::SetHostTabManager(TSharedPtr<FTabManager> InTabManager)
 /** 
  * Hides or shows properties based on the passed in filter text
  * 
- * @param InFilterText	The filter text
+ * @param InFilter The filter text
  */
-void SDetailsViewBase::FilterView(const FString& InFilterText)
+void SDetailsViewBase::FilterView(const FString& InFilter)
 {
+	bool bHadActiveFilter = CurrentFilter.FilterStrings.Num() > 0;
+
 	TArray<FString> CurrentFilterStrings;
 
-	FString ParseString = InFilterText;
+	FString ParseString = InFilter;
 	// Remove whitespace from the front and back of the string
 	ParseString.TrimStartAndEndInline();
 	ParseString.ParseIntoArray(CurrentFilterStrings, TEXT(" "), true);
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	bHasActiveFilter = CurrentFilterStrings.Num() > 0;
-
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
+	
 	CurrentFilter.FilterStrings = CurrentFilterStrings;
 
-	UpdateFilteredDetails();
-}
+	if (!bHadActiveFilter && CurrentFilter.FilterStrings.Num() > 0)
+	{
+		SavePreSearchExpandedItems();
+	}
 
+	UpdateFilteredDetails();
+	
+	if (bHadActiveFilter && CurrentFilter.FilterStrings.Num() == 0)
+	{
+		RestorePreSearchExpandedItems();
+	}
+}
 
 EVisibility SDetailsViewBase::GetFilterBoxVisibility() const
 {
@@ -799,14 +812,14 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 		check(RootPropertyNode.IsValid());
 
 		// Purge any objects that are marked pending kill from the object list
-		if(auto ObjectRoot = RootPropertyNode->AsObjectNode())
+		if (FObjectPropertyNode* ObjectRoot = RootPropertyNode->AsObjectNode())
 		{
 			ObjectRoot->PurgeKilledObjects();
 		}
 
-		if(bHadDeferredActions)
+		if (bHadDeferredActions)
 		{		
-			// Any deferred actions are likely to cause the node  tree to be at least partially rebuilt
+			// Any deferred actions are likely to cause the node tree to be at least partially rebuilt
 			// Save the expansion state of existing nodes so we can expand them later
 			SaveExpandedItems(RootPropertyNode.ToSharedRef());
 		}
@@ -829,9 +842,9 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 	if (DeferredActions.Num() > 0)
 	{
 		// Execute any deferred actions
-		for (int32 ActionIndex = 0; ActionIndex < DeferredActions.Num(); ++ActionIndex)
+		for (const FSimpleDelegate& DeferredAction : DeferredActions)
 		{
-			DeferredActions[ActionIndex].ExecuteIfBound();
+			DeferredAction.ExecuteIfBound();
 		}
 		DeferredActions.Empty();
 	}
@@ -971,7 +984,7 @@ void SDetailsViewBase::Tick( const FGeometry& AllottedGeometry, const double InC
 * @param InPropertyNode			The node to get expanded items from
 * @param OutExpandedItems	List of expanded items that were found
 */
-void GetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, TArray<FString>& OutExpandedItems)
+static void GetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, TSet<FString>& OutExpandedItems)
 {
 	if (InPropertyNode->HasNodeFlags(EPropertyNodeFlags::Expanded))
 	{
@@ -987,7 +1000,6 @@ void GetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, TArray<FString>&
 	{
 		GetExpandedItems(InPropertyNode->GetChildNode(ChildIndex), OutExpandedItems);
 	}
-
 }
 
 /**
@@ -996,36 +1008,108 @@ void GetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, TArray<FString>&
 * @param InNode			The node to set expanded items on
 * @param OutExpandedItems	List of expanded items to set
 */
-void SetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, const TSet<FString>& InExpandedItems)
+static void SetExpandedItems(TSharedPtr<FPropertyNode> InPropertyNode, const TSet<FString>& InExpandedItems, bool bCollapseRest)
 {
-	if (InExpandedItems.Num() > 0)
+	const bool bWithArrayIndex = true;
+	FString Path;
+	Path.Empty(128);
+	InPropertyNode->GetQualifiedName(Path, bWithArrayIndex);
+
+	if (InExpandedItems.Contains(Path))
 	{
-		const bool bWithArrayIndex = true;
-		FString Path;
-		Path.Empty(128);
-		InPropertyNode->GetQualifiedName(Path, bWithArrayIndex);
+		InPropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, true);
+	}
+	else if (bCollapseRest)
+	{
+		InPropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, false);
+	}
 
-		if (InExpandedItems.Contains(Path))
+	for (int32 NodeIndex = 0; NodeIndex < InPropertyNode->GetNumChildNodes(); ++NodeIndex)
+	{
+		SetExpandedItems(InPropertyNode->GetChildNode(NodeIndex), InExpandedItems, bCollapseRest);
+	}
+}
+
+void SDetailsViewBase::SavePreSearchExpandedItems()
+{
+	PreSearchExpandedItems.Reset();
+
+	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
+
+	for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		GetExpandedItems(RootPropertyNode.ToSharedRef(), PreSearchExpandedItems);
+	}
+
+	for (FDetailLayoutData& LayoutData : DetailLayouts)
+	{
+		FRootPropertyNodeList& ExternalRootPropertyNodes = LayoutData.DetailLayout->GetExternalRootPropertyNodes();
+		for (TSharedPtr<FComplexPropertyNode>& ExternalRootPropertyNode : ExternalRootPropertyNodes)
 		{
-			InPropertyNode->SetNodeFlags(EPropertyNodeFlags::Expanded, true);
+			GetExpandedItems(ExternalRootPropertyNode.ToSharedRef(), PreSearchExpandedItems);
 		}
+	}
 
-		for (int32 NodeIndex = 0; NodeIndex < InPropertyNode->GetNumChildNodes(); ++NodeIndex)
+	PreSearchExpandedCategories.Reset();
+
+	for (const TSharedRef<FDetailTreeNode>& RootNode : RootTreeNodes)
+	{
+		if (RootNode->GetNodeType() == EDetailNodeType::Category)
 		{
-			SetExpandedItems(InPropertyNode->GetChildNode(NodeIndex), InExpandedItems);
+			FDetailCategoryImpl& Category = (FDetailCategoryImpl&) RootNode.Get();
+			if (Category.ShouldBeExpanded())
+			{
+				PreSearchExpandedCategories.Add(Category.GetCategoryPathName());
+			}
 		}
 	}
 }
 
-void SDetailsViewBase::SaveExpandedItems( TSharedRef<FPropertyNode> StartNode )
+void SDetailsViewBase::RestorePreSearchExpandedItems()
+{
+	FRootPropertyNodeList& RootPropertyNodes = GetRootNodes();
+
+	for (TSharedPtr<FComplexPropertyNode>& RootPropertyNode : RootPropertyNodes)
+	{
+		SetExpandedItems(RootPropertyNode, PreSearchExpandedItems, true);
+	}
+
+	for (FDetailLayoutData& LayoutData : DetailLayouts)
+	{
+		FRootPropertyNodeList& ExternalRootPropertyNodes = LayoutData.DetailLayout->GetExternalRootPropertyNodes();
+		for (TSharedPtr<FComplexPropertyNode>& ExternalRootPropertyNode : ExternalRootPropertyNodes)
+		{
+			SetExpandedItems(ExternalRootPropertyNode, PreSearchExpandedItems, true);
+		}
+	}
+
+	PreSearchExpandedItems.Reset();
+
+	for (const TSharedRef<FDetailTreeNode>& RootNode : RootTreeNodes)
+	{
+		if (RootNode->GetNodeType() == EDetailNodeType::Category)
+		{
+			FDetailCategoryImpl& Category = (FDetailCategoryImpl&) RootNode.Get();
+			
+			bool bShouldBeExpanded = PreSearchExpandedCategories.Contains(Category.GetCategoryPathName());
+			RequestItemExpanded(RootNode, bShouldBeExpanded);
+		}
+	}
+
+	PreSearchExpandedCategories.Reset();
+}
+
+void SDetailsViewBase::SaveExpandedItems(TSharedRef<FPropertyNode> StartNode)
 {
 	UStruct* BestBaseStruct = StartNode->FindComplexParent()->GetBaseStructure();
 
-	TArray<FString> ExpandedPropertyItems;
-	GetExpandedItems(StartNode, ExpandedPropertyItems);
+	TSet<FString> ExpandedPropertyItemSet;
+	GetExpandedItems(StartNode, ExpandedPropertyItemSet);
+
+	TArray<FString> ExpandedPropertyItems = ExpandedPropertyItemSet.Array();
 
 	// Handle spaces in expanded node names by wrapping them in quotes
-	for( FString& String : ExpandedPropertyItems )
+	for (FString& String : ExpandedPropertyItems)
 	{
 		String.InsertAt(0, '"');
 		String.AppendChar('"');
@@ -1033,12 +1117,12 @@ void SDetailsViewBase::SaveExpandedItems( TSharedRef<FPropertyNode> StartNode )
 
 	TArray<FString> ExpandedCustomItems = ExpandedDetailNodes.Array();
 
-	// Expanded custom items may have spaces but SetSingleLineArray doesnt support spaces (treats it as another element in the array)
+	// Expanded custom items may have spaces but SetSingleLineArray doesn't support spaces (treats it as another element in the array)
 	// Append a '|' after each element instead
 	FString ExpandedCustomItemsString;
-	for (auto It = ExpandedDetailNodes.CreateConstIterator(); It; ++It)
+	for (const FString& DetailNode : ExpandedDetailNodes)
 	{
-		ExpandedCustomItemsString += *It;
+		ExpandedCustomItemsString += DetailNode;
 		ExpandedCustomItemsString += TEXT(",");
 	}
 
@@ -1078,10 +1162,8 @@ void SDetailsViewBase::SaveExpandedItems( TSharedRef<FPropertyNode> StartNode )
 	}
 }
 
-void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> InitialStartNode)
+void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> StartNode)
 {
-	TSharedPtr<FPropertyNode> StartNode = InitialStartNode;
-
 	FString ExpandedCustomItems;
 
 	UStruct* BestBaseStruct = StartNode->FindComplexParent()->GetBaseStructure();
@@ -1095,7 +1177,7 @@ void SDetailsViewBase::RestoreExpandedItems(TSharedRef<FPropertyNode> InitialSta
 
 	TSet<FString> ExpandedPropertyItems;
 	ExpandedPropertyItems.Append(DetailPropertyExpansionStrings);
-	SetExpandedItems(StartNode, ExpandedPropertyItems);
+	SetExpandedItems(StartNode, ExpandedPropertyItems, false);
 
 	if (BestBaseStruct)
 	{
@@ -1133,7 +1215,7 @@ void SDetailsViewBase::UpdateFilteredDetails()
 			if(DetailLayout.IsValid())
 			{
 				FRootPropertyNodeList& ExternalRootPropertyNodes = DetailLayout->GetExternalRootPropertyNodes();
-				for (auto ExternalRootNode : ExternalRootPropertyNodes)
+				for (const TSharedPtr<FComplexPropertyNode>& ExternalRootNode : ExternalRootPropertyNodes)
 				{
 					if (ExternalRootNode.IsValid())
 					{
@@ -1172,8 +1254,6 @@ void SDetailsViewBase::UpdateFilteredDetails()
 
 	RefreshTree();
 }
-
-
 
 void SDetailsViewBase::RegisterInstancedCustomPropertyLayout(UStruct* Class, FOnGetDetailCustomizationInstance DetailLayoutDelegate)
 {

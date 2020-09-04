@@ -13,8 +13,12 @@
 
 #include "dxc/DxilContainer/DxilContainer.h"
 #include "dxc/DXIL/DxilUtil.h"
+#include "dxc/DXIL/DxilPDB.h"
 #include "dxc/Support/FileIOHelper.h"
 #include "dxc/Support/dxcapi.impl.h"
+
+#include "llvm/Support/MSFileSystem.h"
+#include "llvm/Support/FileSystem.h"
 
 #include "llvm/Support/MemoryBuffer.h"
 #include "llvm/IR/DebugInfo.h"
@@ -65,14 +69,41 @@ std::unique_ptr<llvm::MemoryBuffer> getMemBufferFromStream(_In_ IStream *pStream
 }
 }  // namespace dxil_dia
 
-STDMETHODIMP dxil_dia::DataSource::loadDataFromIStream(_In_ IStream *pIStream) {
-  DxcThreadMalloc TM(m_pMalloc);
-  if (m_module.get() != nullptr) {
-    return E_FAIL;
-  }
-  m_context.reset();
-  m_finder.reset();
+STDMETHODIMP dxil_dia::DataSource::loadDataFromIStream(_In_ IStream *pInputIStream) {
   try {
+    DxcThreadMalloc TM(m_pMalloc);
+    if (m_module.get() != nullptr) {
+      return E_FAIL;
+    }
+
+    // Setup filesystem because bitcode reader might emit warning
+    ::llvm::sys::fs::MSFileSystem* msfPtr;
+    IFT(CreateMSFileSystemForDisk(&msfPtr));
+    std::unique_ptr<::llvm::sys::fs::MSFileSystem> msf(msfPtr);
+
+    ::llvm::sys::fs::AutoPerThreadSystem pts(msf.get());
+    IFTLLVM(pts.error_code());
+
+    CComPtr<IStream> pIStream = pInputIStream;
+    CComPtr<IDxcBlob> pContainer;
+    if (SUCCEEDED(hlsl::pdb::LoadDataFromStream(m_pMalloc, pInputIStream, &pContainer))) {
+      const hlsl::DxilContainerHeader *pContainerHeader = 
+        hlsl::IsDxilContainerLike(pContainer->GetBufferPointer(), pContainer->GetBufferSize());
+      if (!hlsl::IsValidDxilContainer(pContainerHeader, pContainer->GetBufferSize()))
+        return E_FAIL;
+      const hlsl::DxilPartHeader *PartHeader =
+        hlsl::GetDxilPartByType(pContainerHeader, hlsl::DFCC_ShaderDebugInfoDXIL);
+      if (!PartHeader)
+        return E_FAIL;
+      CComPtr<IDxcBlobEncoding> pPinnedBlob;
+      IFR(hlsl::DxcCreateBlobWithEncodingFromPinned(PartHeader+1, PartHeader->PartSize, CP_ACP, &pPinnedBlob));
+      pIStream.Release();
+      IFR(hlsl::CreateReadOnlyBlobStream(pPinnedBlob, &pIStream));
+    }
+
+    m_context.reset();
+    m_finder.reset();
+
     m_context = std::make_shared<llvm::LLVMContext>();
     llvm::MemoryBuffer *pBitcodeBuffer;
     std::unique_ptr<llvm::MemoryBuffer> pEmbeddedBuffer;
@@ -101,9 +132,8 @@ STDMETHODIMP dxil_dia::DataSource::loadDataFromIStream(_In_ IStream *pIStream) {
       UINT32 BlobSize;
       const char *pBitcode = nullptr;
       hlsl::GetDxilProgramBitcode(pDxilProgramHeader, &pBitcode, &BlobSize);
-      UINT32 offset = (UINT32)(pBitcode - (const char *)pDxilProgramHeader);
       std::unique_ptr<llvm::MemoryBuffer> p = llvm::MemoryBuffer::getMemBuffer(
-        llvm::StringRef(pBitcode, bufferSize - offset), "data");
+        llvm::StringRef(pBitcode, BlobSize), "data", false /* RequiresNullTerminator */);
       pEmbeddedBuffer.swap(p);
       pBitcodeBuffer = pEmbeddedBuffer.get();
     }

@@ -43,6 +43,7 @@ const uint32 MetalBufferBytesSize = BufferOffsetAlignment * 32;
 #endif
 
 #include "MetalRHI.h"
+#include "MetalDynamicRHI.h"
 #include "RHI.h"
 
 #define BUFFER_CACHE_MODE mtlpp::ResourceOptions::CpuCacheModeDefaultCache
@@ -250,8 +251,6 @@ FORCEINLINE mtlpp::LoadAction GetMetalRTLoadAction(ERenderTargetLoadAction LoadA
 		default: return mtlpp::LoadAction::DontCare;
 	}
 }
-
-uint32 TranslateElementTypeToSize(EVertexElementType Type);
 
 mtlpp::PrimitiveType TranslatePrimitiveType(uint32 PrimitiveType);
 

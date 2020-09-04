@@ -2,22 +2,63 @@
 
 #include "Library/DMXEntityController.h"
 #include "Interfaces/IDMXProtocol.h"
+#include "Interfaces/IDMXProtocolUniverse.h"
+#include "DMXProtocolTypes.h"
+
+DECLARE_LOG_CATEGORY_CLASS(DMXEntityControllerLog, Log, All);
+
+FDMXBufferPtr UDMXEntityController::GetInputDMXBuffer(int32 LocalUniverseID) const
+{
+	if (!DeviceProtocol.IsValid())
+	{
+		return nullptr;
+	}
+
+	IDMXProtocolPtr Protocol = DeviceProtocol;
+
+	TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> Universe = Protocol->GetUniverseById(LocalUniverseID + RemoteOffset);
+	if (!Universe.IsValid())
+	{
+		UE_LOG(DMXEntityControllerLog, Warning, TEXT("%S: Universe Not Valid"), __FUNCTION__);
+		return nullptr;
+	}
+
+	return Universe->GetInputDMXBuffer();
+}
 
 #if WITH_EDITOR
 
 void UDMXEntityController::PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent)
 {
 	const FName&& PropertyName = PropertyChangedEvent.GetPropertyName();
+
 	if (PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalStart)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseLocalNum)
 		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, UniverseRemoteStart)
-		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol))
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, DeviceProtocol)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, AdditionalUnicastIPs)
+		|| PropertyName == GET_MEMBER_NAME_CHECKED(UDMXEntityController, CommunicationMode))
 	{
 		ValidateRangeValues();
 		UpdateUniversesFromRange();
 	}
 
 	Super::PostEditChangeProperty(PropertyChangedEvent);
+}
+
+bool UDMXEntityController::CanEditChange(const FProperty* InProperty) const
+{
+	if (InProperty != nullptr)
+	{
+
+		FString PropertyName = InProperty->GetName();
+		if (PropertyName == GET_MEMBER_NAME_STRING_CHECKED(UDMXEntityController, AdditionalUnicastIPs))
+		{
+			return CommunicationMode != EDMXCommunicationTypes::Broadcast;
+		}
+	}
+
+	return Super::CanEditChange(InProperty);
 }
 
 void UDMXEntityController::PostLoad()
@@ -60,11 +101,11 @@ void UDMXEntityController::ValidateRangeValues()
 	{
 		if (UniverseLocalStart < 0)
 		{
-			UniverseLocalStart = 0; 
+			UniverseLocalStart = 0;
 		}
 		if (UniverseLocalNum < 1)
 		{
-			UniverseLocalNum = 1; 
+			UniverseLocalNum = 1;
 		}
 
 		UniverseLocalEnd = UniverseLocalStart + UniverseLocalNum - 1;
@@ -72,6 +113,7 @@ void UDMXEntityController::ValidateRangeValues()
 
 	UniverseRemoteEnd = UniverseRemoteStart + UniverseLocalNum - 1;
 	RemoteOffset = UniverseRemoteStart - UniverseLocalStart;
+
 }
 
 void UDMXEntityController::UpdateUniversesFromRange()
@@ -91,5 +133,15 @@ void UDMXEntityController::UpdateUniversesFromRange()
 	for (uint16 UniverseIndex = 0, UniverseID = UniverseRemoteStart; UniverseID <= UniverseRemoteEnd; ++UniverseIndex, ++UniverseID)
 	{
 		Universes[UniverseIndex].UniverseNumber = UniverseID;
+		if (CommunicationMode == EDMXCommunicationTypes::Unicast)
+		{
+			TArray<FString> UnicastIPs;
+			UnicastIPs.Append(AdditionalUnicastIPs);
+			Universes[UniverseIndex].UnicastIpAddresses = UnicastIPs;
+		}
+		else
+		{
+			Universes[UniverseIndex].UnicastIpAddresses = { "" };
+		}
 	}
 }

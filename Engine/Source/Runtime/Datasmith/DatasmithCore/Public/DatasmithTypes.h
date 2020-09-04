@@ -90,14 +90,14 @@ public:
 struct DATASMITHCORE_API FDatasmithTransformFrameInfo
 {
 	FDatasmithTransformFrameInfo(int32 InFrameNumber, const FVector& InVec)
-	    : FrameNumber(InFrameNumber)
-	    , X(InVec.X)
+		: FrameNumber(InFrameNumber)
+		, X(InVec.X)
 		, Y(InVec.Y)
 		, Z(InVec.Z)
-	{ }
+	{}
 
 	FDatasmithTransformFrameInfo(int32 InFrameNumber, const FQuat& InQuat)
-	    : FrameNumber(InFrameNumber)
+		: FrameNumber(InFrameNumber)
 	{
 		const FVector EulerAngles = InQuat.Euler();
 		X = EulerAngles.X;
@@ -110,7 +110,7 @@ struct DATASMITHCORE_API FDatasmithTransformFrameInfo
 		, X(InX)
 		, Y(InY)
 		, Z(InZ)
-	{ }
+	{}
 
 	bool operator==(const FDatasmithTransformFrameInfo& Other) const;
 	bool IsValid() const;
@@ -134,7 +134,7 @@ struct DATASMITHCORE_API FDatasmithVisibilityFrameInfo
 	FDatasmithVisibilityFrameInfo(int32 InFrameNumber, bool bInVisible)
 		: FrameNumber(InFrameNumber)
 		, bVisible(bInVisible)
-	{ }
+	{}
 
 	bool operator==(const FDatasmithVisibilityFrameInfo& Other) const;
 	bool IsValid() const;

@@ -32,6 +32,9 @@ template<typename KeyType,typename ValueType,typename SetAllocator ,typename Key
 typedef TMap<FString, FStringFormatArg> FStringFormatNamedArguments;
 typedef TArray<FStringFormatArg> FStringFormatOrderedArguments;
 
+TCHAR*       GetData(FString&);
+const TCHAR* GetData(const FString&);
+
 /**
  * A dynamically sizeable string.
  * @see https://docs.unrealengine.com/latest/INT/Programming/UnrealArchitecture/StringHandling/FString/
@@ -45,19 +48,32 @@ private:
 	typedef TArray<TCHAR> DataType;
 	DataType Data;
 
+	template <typename RangeType>
+	using TRangeElementType = typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<RangeType>()))>::Type>::Type;
+
+	template <typename CharRangeType>
+	struct TIsRangeOfCharType : TIsCharType<TRangeElementType<CharRangeType>>
+	{
+	};
+
+	template <typename CharRangeType>
+	struct TIsRangeOfTCHAR : TIsSame<TCHAR, TRangeElementType<CharRangeType>>
+	{
+	};
+
 	/** Trait testing whether a type is a contiguous range of characters, and not CharType[]. */
 	template <typename CharRangeType>
 	using TIsCharRangeNotCArray = TAnd<
 		TIsContiguousContainer<CharRangeType>,
 		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
-		TIsCharType<typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
+		TIsRangeOfCharType<CharRangeType>>;
 
 	/** Trait testing whether a type is a contiguous range of TCHAR, and not TCHAR[]. */
 	template <typename CharRangeType>
 	using TIsTCharRangeNotCArray = TAnd<
 		TIsContiguousContainer<CharRangeType>,
 		TNot<TIsArray<typename TRemoveReference<CharRangeType>::Type>>,
-		TIsSame<TCHAR, typename TRemoveCV<typename TRemovePointer<decltype(GetData(DeclVal<CharRangeType>()))>::Type>::Type>>;
+		TIsRangeOfTCHAR<CharRangeType>>;
 
 public:
 	using ElementType = TCHAR;
@@ -124,10 +140,10 @@ public:
 	>
 	FORCEINLINE explicit FString(int32 InCount, const CharType* InSrc)
 	{
-		if (InSrc && *InSrc)
+		if (InSrc)
 		{
 			int32 DestLen = FPlatformString::ConvertedLength<TCHAR>(InSrc, InCount);
-			if (DestLen > 0)
+			if (DestLen > 0 && *InSrc)
 			{
 				Data.Reserve(DestLen + 1);
 				Data.AddUninitialized(DestLen + 1);
@@ -1100,7 +1116,7 @@ public:
 	 */
 	FORCEINLINE friend bool operator==(const FString& Lhs, const FString& Rhs)
 	{
-		return FPlatformString::Stricmp(*Lhs, *Rhs) == 0;
+		return Lhs.Equals(Rhs, ESearchCase::IgnoreCase);
 	}
 
 	/**
@@ -1141,7 +1157,7 @@ public:
 	 */
 	FORCEINLINE friend bool operator!=(const FString& Lhs, const FString& Rhs)
 	{
-		return FPlatformString::Stricmp(*Lhs, *Rhs) != 0;
+		return !(Lhs == Rhs);
 	}
 
 	/**
@@ -1400,16 +1416,29 @@ public:
 	 * @param SearchCase 	Whether or not the comparison should ignore case
 	 * @return true if this string is lexicographically equivalent to the other, otherwise false
 	 */
-	FORCEINLINE bool Equals( const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive ) const
+	FORCEINLINE bool Equals(const FString& Other, ESearchCase::Type SearchCase = ESearchCase::CaseSensitive) const
 	{
-		if( SearchCase == ESearchCase::CaseSensitive )
+		int32 Num = Data.Num();
+		int32 OtherNum = Other.Data.Num();
+
+		if (Num != OtherNum)
 		{
-			return FCString::Strcmp( **this, *Other )==0; 
+			// Handle special case where FString() == FString("")
+			return Num + OtherNum == 1;
 		}
-		else
+		else if (Num > 1)
 		{
-			return FCString::Stricmp( **this, *Other )==0;
+			if (SearchCase == ESearchCase::CaseSensitive)
+			{
+				return FCString::Strcmp(Data.GetData(), Other.Data.GetData()) == 0; 
+			}
+			else
+			{
+				return FCString::Stricmp(Data.GetData(), Other.Data.GetData()) == 0;
+			}
 		}
+
+		return true;
 	}
 
 	/**
@@ -1435,8 +1464,8 @@ public:
 	 * Splits this string at given string position case sensitive.
 	 *
 	 * @param InStr The string to search and split at
-	 * @param LeftS out the string to the left of InStr, not updated if return is false
-	 * @param RightS out the string to the right of InStr, not updated if return is false
+	 * @param LeftS out the string to the left of InStr, not updated if return is false. LeftS must not point to the same location as RightS, but can point to this.
+	 * @param RightS out the string to the right of InStr, not updated if return is false. RightS must not point to the same location as LeftS, but can point to this.
 	 * @param SearchCase		Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @param SearchDir			Indicates whether the search starts at the beginning or at the end ( defaults to ESearchDir::FromStart )
 	 * @return true if string is split, otherwise false
@@ -1444,12 +1473,30 @@ public:
 	bool Split(const FString& InS, FString* LeftS, FString* RightS, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase,
 		ESearchDir::Type SearchDir = ESearchDir::FromStart) const
 	{
+		check(LeftS != RightS || LeftS == nullptr);
+
 		int32 InPos = Find(InS, SearchCase, SearchDir);
 
-		if (InPos < 0)	{ return false; }
+		if (InPos < 0) { return false; }
 
-		if (LeftS)		{ *LeftS = Left(InPos); }
-		if (RightS)	{ *RightS = Mid(InPos + InS.Len()); }
+		if (LeftS)
+		{
+			if (LeftS != this)
+			{
+				*LeftS = Left(InPos);
+				if (RightS) { *RightS = Mid(InPos + InS.Len()); }
+			}
+			else
+			{
+				// we know that RightS can't be this so we can safely modify it before we deal with LeftS
+				if (RightS) { *RightS = Mid(InPos + InS.Len()); }
+				*LeftS = Left(InPos);
+			}
+		}
+		else if (RightS)
+		{
+			*RightS = Mid(InPos + InS.Len());
+		}
 
 		return true;
 	}
@@ -1750,7 +1797,12 @@ public:
 	/**
 	 * Returns a copy of this string, with the characters in reverse order
 	 */
-	FString Reverse() const;
+	FString Reverse() const &;
+
+	/**
+	 * Returns this string, with the characters in reverse order
+	 */
+	FString Reverse() &&;
 
 	/**
 	 * Reverses the order of characters in this string
@@ -1765,7 +1817,17 @@ public:
 	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
 	 * @return a copy of this string with the replacement made
 	 */
-	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const;
+	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) const &;
+
+	/**
+	 * Replace all occurrences of a substring in this string
+	 *
+	 * @param From substring to replace
+	 * @param To substring to replace From with
+	 * @param SearchCase	Indicates whether the search is case sensitive or not ( defaults to ESearchCase::IgnoreCase )
+	 * @return a copy of this string with the replacement made
+	 */
+	FString Replace(const TCHAR* From, const TCHAR* To, ESearchCase::Type SearchCase = ESearchCase::IgnoreCase) &&;
 
 	/**
 	 * Replace all occurrences of SearchText with ReplacementText in this string.
@@ -1807,7 +1869,16 @@ public:
 	/**
 	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
 	 */
-	FString ReplaceQuotesWithEscapedQuotes() const;
+	FString ReplaceQuotesWithEscapedQuotes() const &
+	{
+		FString Result(*this);
+		return MoveTemp(Result).ReplaceQuotesWithEscapedQuotes();
+	}
+
+	/**
+	 * Returns a copy of this string with all quote marks escaped (unless the quote is already escaped)
+	 */
+	FString ReplaceQuotesWithEscapedQuotes() &&;
 
 	/**
 	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
@@ -1817,14 +1888,39 @@ public:
 	 *
 	 * @return	a string with all control characters replaced by the escaped version.
 	 */
-	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const;
+	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) const &
+	{
+		FString Result(*this);
+		return MoveTemp(Result).ReplaceCharWithEscapedChar(Chars);
+	}
+
+	/**
+	 * Replaces certain characters with the "escaped" version of that character (i.e. replaces "\n" with "\\n").
+	 * The characters supported are: { \n, \r, \t, \', \", \\ }.
+	 *
+	 * @param	Chars	by default, replaces all supported characters; this parameter allows you to limit the replacement to a subset.
+	 *
+	 * @return	a string with all control characters replaced by the escaped version.
+	 */
+	FString ReplaceCharWithEscapedChar( const TArray<TCHAR>* Chars = nullptr ) &&;
 
 	/**
 	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
 	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
 	 * @return copy of this string with replacement made
 	 */
-	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const;
+	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) const &
+	{
+		FString Result(*this);
+		return MoveTemp(Result).ReplaceEscapedCharWithChar(Chars);
+	}
+
+	/**
+	 * Removes the escape backslash for all supported characters, replacing the escape and character with the non-escaped version.  (i.e.
+	 * replaces "\\n" with "\n".  Counterpart to ReplaceCharWithEscapedChar().
+	 * @return copy of this string with replacement made
+	 */
+	FString ReplaceEscapedCharWithChar( const TArray<TCHAR>* Chars = nullptr ) &&;
 
 	/**
 	 * Replaces all instances of '\t' with TabWidth number of spaces
@@ -1837,11 +1933,22 @@ public:
 	 * @param InSpacesPerTab - Number of spaces that a tab represents
 	 * @return copy of this string with replacement made
 	 */
-	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const
+	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) const &
 	{
 		FString FinalString(*this);
 		FinalString.ConvertTabsToSpacesInline(InSpacesPerTab);
 		return FinalString;
+	}
+
+	/**
+	 * Replaces all instances of '\t' with TabWidth number of spaces
+	 * @param InSpacesPerTab - Number of spaces that a tab represents
+	 * @return copy of this string with replacement made
+	 */
+	FString ConvertTabsToSpaces(const int32 InSpacesPerTab) &&
+	{
+		ConvertTabsToSpacesInline(InSpacesPerTab);
+		return MoveTemp(*this);
 	}
 
 	// Takes the number passed in and formats the string in comma format ( 12345 becomes "12,345")

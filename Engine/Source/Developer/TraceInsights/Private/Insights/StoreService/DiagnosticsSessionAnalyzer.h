@@ -11,13 +11,19 @@ namespace Insights
 struct FDiagnosticsSessionAnalyzer : public Trace::IAnalyzer
 {
 	virtual void OnAnalysisBegin(const FOnAnalysisContext& Context) override;
-	virtual bool OnEvent(uint16, const FOnEventContext& Context) override;
+	virtual bool OnEvent(uint16 RouteId, EStyle, const FOnEventContext& Context) override;
+
+	enum : uint16
+	{
+		RouteId_Session,
+		RouteId_Session2,
+	};
 
 	FString Platform;
 	FString AppName;
 	FString CommandLine;
-	int8 ConfigurationType = 0;
-	int8 TargetType = 0;
+	EBuildConfiguration ConfigurationType;
+	EBuildTargetType TargetType;
 };
 
 } // namespace Insights

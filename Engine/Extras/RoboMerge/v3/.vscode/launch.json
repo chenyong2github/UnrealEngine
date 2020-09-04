@@ -1,0 +1,147 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch TEST Bot (single process)",
+            "program": "${workspaceFolder}/dist/robo/robo.js",
+            "runtimeArgs": ["--require", "source-map-support/register"],
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std",
+            "args": [
+                "-noIPC"
+            ],
+            "env": {
+                "ROBO_DEV_MODE": "true",
+                "ROBO_EXTERNAL_URL": "http://localhost:8877",
+                "NODE_ENV": "development",
+                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_VAULT_PATH": "./vault",
+                "EPIC_ENV": "dev",
+                "EPIC_DEPLOYMENT": "local",
+                "BOTNAME": "test",
+                "ROBO_RUNBOTS": "yes"
+            },
+            "smartStep": true,
+            "skipFiles": [
+                "<node_internals>/**",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch Fortnite Bot (All Start Paused) (single process)",
+            "program": "${workspaceFolder}/dist/robo/robo.js",
+            "runtimeArgs": ["--require", "source-map-support/register"],
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std",
+            "args": [
+                "-noIPC", "-noTLS"
+            ],
+            "env": {
+                "ROBO_DEV_MODE": "true",
+                "ROBO_EXTERNAL_URL": "http://localhost:8877",
+                "NODE_ENV": "development",
+                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_VAULT_PATH": "./vault",
+                "EPIC_ENV": "dev",
+                "EPIC_DEPLOYMENT": "local",
+                "BOTNAME": "fortnite",
+                "ROBO_RUNBOTS": "no"
+            },
+            "smartStep": true,
+            "skipFiles": [
+                "<node_internals>/**",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Launch All Bots (All Start Paused) (single process)",
+            "program": "${workspaceFolder}/dist/robo/robo.js",
+            "runtimeArgs": ["--require", "source-map-support/register"],
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "console": "integratedTerminal",
+            "outputCapture": "std",
+            "args": [
+                "-noIPC", "-noTLS"
+            ],
+            "env": {
+                "ROBO_DEV_MODE": "true",
+                "ROBO_EXTERNAL_URL": "http://localhost:8877",
+                "NODE_ENV": "development",
+                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_VAULT_PATH": "./vault",
+                "EPIC_ENV": "dev",
+                "EPIC_DEPLOYMENT": "local",
+                "BOTNAME": "3lateral,anim,build,core,DevVR,engine,fortnite,mcp,mms,ocean,ogs,partner,portal,release,rendering,solaris,wex",
+                "ROBO_RUNBOTS": "no"
+            },
+            "smartStep": true,
+            "skipFiles": [
+                "<node_internals>/**",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "TEST Bot Multi-process (Watchdog)",
+            "program": "${workspaceFolder}/dist/robo/watchdog.js",
+            "runtimeArgs": ["--require", "source-map-support/register"],
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "env": {
+                "ROBO_DEV_MODE": "true",
+                "ROBO_EXTERNAL_URL": "https://localhost:4433",
+                "NODE_ENV": "development",
+                "ROBO_BRANCHSPECS_DIRECTORY": "./debugdata",
+                "ROBO_VAULT_PATH": "./vault",
+                "EPIC_ENV": "dev",
+                "EPIC_DEPLOYMENT": "local",
+                "ROBO_RUNBOTS": "yes"
+            },
+            "autoAttachChildProcesses": true,
+            "smartStep": true,
+            "skipFiles": [
+                "<node_internals>/**",
+                "${workspaceFolder}/node_modules/**/*.js"
+            ]
+        },
+        {
+            "type": "node",
+            "request": "launch",
+            "name": "Run unit tests",
+            "program": "${workspaceFolder}/dist/robo/branchmap.js",
+            "preLaunchTask": "tsc: build - tsconfig.json",
+            "outFiles": [
+                "${workspaceFolder}/dist/**/*.js"
+            ],
+            "args": [
+                "__TEST_COMPUTE_TARGETS__"
+            ],
+            "env": {
+                "NODE_ENV": "development"
+            }
+        }
+    ]
+}

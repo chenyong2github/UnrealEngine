@@ -11,10 +11,29 @@
 
 #if UE_TRACE_ENABLED
 
-// General trace channel. Used by all built in events.
-Trace::FTraceChannel TraceLogChannel;
-
 namespace Trace {
+
+////////////////////////////////////////////////////////////////////////////////
+struct FTraceChannel : public FChannel
+{
+	bool IsEnabled() const { return true; }
+	explicit operator bool() const { return true; }
+};
+
+static FTraceChannel	TraceLogChannelDetail;
+FChannel&				TraceLogChannel			= TraceLogChannelDetail;
+
+///////////////////////////////////////////////////////////////////////////////
+UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+	UE_TRACE_EVENT_FIELD(Trace::AnsiString, Name)
+UE_TRACE_EVENT_END()
+
+UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
+	UE_TRACE_EVENT_FIELD(uint32, Id)
+	UE_TRACE_EVENT_FIELD(bool, IsEnabled)
+UE_TRACE_EVENT_END()
 
 ///////////////////////////////////////////////////////////////////////////////
 static FChannel* volatile	GHeadChannel;			// = nullptr;
@@ -23,6 +42,13 @@ static FChannel* volatile	GNewChannelList;		// = nullptr;
 ////////////////////////////////////////////////////////////////////////////////
 static uint32 GetChannelHash(const ANSICHAR* Input, int32 Length)
 {
+	// Make channel names tolerant to ending 's' (or 'S').
+	// Example: "Log", "log", "logs", "LOGS" and "LogsChannel" will all match as being the same channel.
+	if (Length > 0 && (Input[Length - 1] | 0x20) == 's')
+	{
+		--Length;
+	}
+
 	uint32 Result = 0x811c9dc5;
 	for (; Length; ++Input, --Length)
 	{
@@ -130,20 +156,10 @@ void FChannel::Initialize(const ANSICHAR* InChannelName)
 ///////////////////////////////////////////////////////////////////////////////
 void FChannel::Announce() const
 {
-	UE_TRACE_EVENT_BEGIN(Trace, ChannelAnnounce, Important)
-		UE_TRACE_EVENT_FIELD(uint32, Id)
-		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
-	UE_TRACE_EVENT_END()
-
-	ANSICHAR Buffer[128];
-	uint32 Count = FMath::Min<uint32>(sizeof(Buffer) - 1, Name.Len);
-	memcpy(Buffer, Name.Ptr, Count);
-	Buffer[Count] = '\0';
-
-	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel, Count + 1)
+	UE_TRACE_LOG(Trace, ChannelAnnounce, TraceLogChannel)
 		<< ChannelAnnounce.Id(Name.Hash)
-		<< ChannelAnnounce.IsEnabled(!bDisabled)
-		<< ChannelAnnounce.Attachment(Buffer, Count + 1);
+		<< ChannelAnnounce.IsEnabled(IsEnabled())
+		<< ChannelAnnounce.Name(Name.Ptr, Name.Len);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -166,26 +182,7 @@ void FChannel::ToggleAll(bool bEnabled)
 }
 
 ///////////////////////////////////////////////////////////////////////////////
-bool FChannel::Toggle(bool bEnabled)
-{
-	UE_TRACE_EVENT_BEGIN(Trace, ChannelToggle, Important)
-		UE_TRACE_EVENT_FIELD(uint32, Id)
-		UE_TRACE_EVENT_FIELD(bool, IsEnabled)
-	UE_TRACE_EVENT_END()
-
-	const bool bWasEnabled = !bDisabled;
-	if (bWasEnabled != bEnabled)
-	{
-		bDisabled = !bEnabled;
-		UE_TRACE_LOG(Trace, ChannelToggle, TraceLogChannel)
-			<< ChannelToggle.Id(Name.Hash)
-			<< ChannelToggle.IsEnabled(bEnabled);
-	}
-	return bWasEnabled;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-bool FChannel::Toggle(const ANSICHAR* ChannelName, bool bEnabled)
+FChannel* FChannel::FindChannel(const ANSICHAR* ChannelName)
 {
 	using namespace Private;
 
@@ -203,11 +200,34 @@ bool FChannel::Toggle(const ANSICHAR* ChannelName, bool bEnabled)
 		{
 			if (Channel->Name.Hash == ChannelNameHash)
 			{
-				return Channel->Toggle(bEnabled);
+				return Channel;
 			}
 		}
 	}
 
+	return nullptr;
+}
+
+///////////////////////////////////////////////////////////////////////////////
+bool FChannel::Toggle(bool bEnabled)
+{
+	using namespace Private;
+	int64 OldRefCnt = AtomicAddRelaxed(&Enabled, bEnabled ? 1 : -1);
+
+	UE_TRACE_LOG(Trace, ChannelToggle, TraceLogChannel)
+		<< ChannelToggle.Id(Name.Hash)
+		<< ChannelToggle.IsEnabled(IsEnabled());
+
+	return IsEnabled();
+}
+
+///////////////////////////////////////////////////////////////////////////////
+bool FChannel::Toggle(const ANSICHAR* ChannelName, bool bEnabled)
+{
+	if (FChannel* Channel = FChannel::FindChannel(ChannelName))
+	{
+		return Channel->Toggle(bEnabled);
+	}
 	return false;
 }
 

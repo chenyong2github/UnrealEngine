@@ -36,6 +36,7 @@ public class UnrealHeaderToolTarget : TargetRules
         GlobalDefinitions.Add("HACK_HEADER_GENERATOR=1");
         GlobalDefinitions.Add("FNAME_WRITE_PROTECT_PAGES=0");
         GlobalDefinitions.Add("USE_LOCALIZED_PACKAGE_CACHE=0");
+		GlobalDefinitions.Add("STATS=0");
 
 		// We disable compilation of GC related code since it takes a very long time (up to 30 seconds on typical hardware at the time of writing)
 		GlobalDefinitions.Add("UE_WITH_GC=0");

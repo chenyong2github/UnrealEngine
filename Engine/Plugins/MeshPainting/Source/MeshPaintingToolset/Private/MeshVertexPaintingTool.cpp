@@ -57,28 +57,6 @@ UMeshVertexPaintingToolProperties::UMeshVertexPaintingToolProperties()
 {
 }
 
-
-
-void UMeshVertexPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	UBrushBaseProperties::SaveProperties(SaveFromTool);
-	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
-	PropertyCache->PaintColor = this->PaintColor;
-	PropertyCache->EraseColor = this->EraseColor;
-	PropertyCache->bEnableFlow = this->bEnableFlow;
-	PropertyCache->bOnlyFrontFacingTriangles = this->bOnlyFrontFacingTriangles;
-}
-
-void UMeshVertexPaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	UBrushBaseProperties::RestoreProperties(RestoreToTool);
-	UMeshVertexPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshVertexPaintingToolProperties>();
-	this->PaintColor = PropertyCache->PaintColor;
-	this->EraseColor = PropertyCache->EraseColor;
-	this->bEnableFlow = PropertyCache->bEnableFlow;
-	this->bOnlyFrontFacingTriangles = PropertyCache->bOnlyFrontFacingTriangles;
-}
-
 UMeshVertexPaintingTool::UMeshVertexPaintingTool()
 {
 	PropertyClass = UMeshVertexPaintingToolProperties::StaticClass();
@@ -553,7 +531,6 @@ void UMeshVertexPaintingTool::FinishPainting()
 	}
 }
 
-
 UMeshColorPaintingToolProperties::UMeshColorPaintingToolProperties()
 	:UMeshVertexPaintingToolProperties(),
 	bWriteRed(true),
@@ -562,26 +539,6 @@ UMeshColorPaintingToolProperties::UMeshColorPaintingToolProperties()
 	bWriteAlpha(false)
 {
 
-}
-
-void UMeshColorPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	Super::SaveProperties(SaveFromTool);
-	UMeshColorPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshColorPaintingToolProperties>();
-	PropertyCache->bWriteRed = this->bWriteRed;
-	PropertyCache->bWriteGreen = this->bWriteGreen;
-	PropertyCache->bWriteBlue = this->bWriteBlue;
-	PropertyCache->bWriteRed = this->bWriteRed;
-}
-
-void UMeshColorPaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	Super::RestoreProperties(RestoreToTool);
-	UMeshColorPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshColorPaintingToolProperties>();
-	this->bWriteRed = PropertyCache->bWriteRed;
-	this->bWriteGreen = PropertyCache->bWriteGreen;
-	this->bWriteBlue = PropertyCache->bWriteBlue;
-	this->bWriteRed = PropertyCache->bWriteRed;
 }
 
 UMeshColorPaintingTool::UMeshColorPaintingTool()
@@ -758,25 +715,6 @@ UMeshWeightPaintingToolProperties::UMeshWeightPaintingToolProperties()
 	PaintTextureWeightIndex(EMeshPaintTextureIndex::TextureOne),
 	EraseTextureWeightIndex(EMeshPaintTextureIndex::TextureTwo)
 {
-
-}
-
-void UMeshWeightPaintingToolProperties::SaveProperties(UInteractiveTool* SaveFromTool)
-{
-	Super::SaveProperties(SaveFromTool);
-	UMeshWeightPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshWeightPaintingToolProperties>();
-	PropertyCache->TextureWeightType = this->TextureWeightType;
-	PropertyCache->PaintTextureWeightIndex = this->PaintTextureWeightIndex;
-	PropertyCache->EraseTextureWeightIndex = this->EraseTextureWeightIndex;
-}
-
-void UMeshWeightPaintingToolProperties::RestoreProperties(UInteractiveTool* RestoreToTool)
-{
-	Super::RestoreProperties(RestoreToTool);
-	UMeshWeightPaintingToolProperties* PropertyCache = GetPropertyCache<UMeshWeightPaintingToolProperties>();
-	this->TextureWeightType = PropertyCache->TextureWeightType;
-	this->PaintTextureWeightIndex = PropertyCache->PaintTextureWeightIndex;
-	this->EraseTextureWeightIndex = PropertyCache->EraseTextureWeightIndex;
 
 }
 

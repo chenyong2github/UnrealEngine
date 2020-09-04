@@ -11,7 +11,7 @@ class UCameraComponent;
 /**
  * Camera component
  */
-UCLASS( ClassGroup=(Custom) )
+UCLASS( ClassGroup=(Custom), Blueprintable, meta = (BlueprintSpawnableComponent) )
 class DISPLAYCLUSTER_API UDisplayClusterCameraComponent
 	: public UDisplayClusterSceneComponent
 {
@@ -80,16 +80,18 @@ public:
 public:
 	virtual void SetSettings(const FDisplayClusterConfigSceneNode* ConfigData) override;
 	virtual bool ApplySettings() override;
+	virtual void TickComponent(float DeltaTime, ELevelTick TickType, FActorComponentTickFunction* ThisTickFunction) override;
 
 public:
 	virtual void BeginPlay() override;
 
 private:
+	UPROPERTY(EditAnywhere, Category = Camera)
 	float EyeDist;
+	
+	UPROPERTY(EditAnywhere, Category = Camera)
 	bool  bEyeSwap;
+	
+	UPROPERTY(EditAnywhere, Category = Camera)
 	int   ForceEyeOffset = 0;
-
-#if 0
-	UCameraComponent* CameraComponent = nullptr;
-#endif
 };

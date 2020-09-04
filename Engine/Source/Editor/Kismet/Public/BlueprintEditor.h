@@ -400,9 +400,22 @@ public:
 	 * @param VarScope			Scope to find the variable in
 	 * @param VarName			Name of variable
 	 * @param IconColorOut		The resulting color for the glyph
+	 * @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	 * @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
 	 * @return					The resulting glyph brush
 	 */
 	static FSlateBrush const* GetVarIconAndColor(const UStruct* VarScope, FName VarName, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
+
+	/**
+	 * Util for finding a glyph and color for a variable.
+	 *
+	 * @param Property       The variable's property
+	 * @param IconColorOut      The resulting color for the glyph
+	 * @param SecondaryBrushOut The resulting secondary glyph brush (used for Map types)
+	 * @param SecondaryColorOut The resulting secondary color for the glyph (used for Map types)
+	 * @return					The resulting glyph brush
+	 */
+	static FSlateBrush const* GetVarIconAndColorFromProperty(const FProperty* Property, FSlateColor& IconColorOut, FSlateBrush const*& SecondaryBrushOut, FSlateColor& SecondaryColorOut);
 
 	/** Overridable function for determining if the current mode can script */
 	virtual bool IsInAScriptingMode() const;
@@ -635,6 +648,9 @@ public:
 	/** Removes the bookmark node with the given ID. */
 	void RemoveBookmark(const FGuid& BookmarkNodeId, bool bRefreshUI = true);
 
+	/** Gets the default schema for this editor */
+	TSubclassOf<UEdGraphSchema> GetDefaultSchema() const { return GetDefaultSchemaClass(); }
+
 protected:
 	UE_DEPRECATED(4.26, "Please do any validation inside the UBlueprint class during compilation, extra errors during compiling only supplied by the designer can lead to design time only errors being reported and being missed during cooks/content validation.")
 	virtual void AppendExtraCompilerResults(TSharedPtr<class IMessageLogListing> ResultsListing) {}
@@ -802,6 +818,9 @@ protected:
 
 	void OnAddParentNode();
 	bool CanAddParentNode() const;
+	
+	void OnCreateMatchingFunction();
+	bool CanCreateMatchingFunction() const;
 
 	void OnEnableBreakpoint();
 	bool CanEnableBreakpoint() const;
@@ -846,6 +865,19 @@ protected:
 	void MoveNodesToAveragePos(TSet<UEdGraphNode*>& AverageNodes, FVector2D SourcePos, bool bExpandedNodesNeedUniqueGuid = false) const;
 
 	void OnConvertFunctionToEvent();
+
+public:
+	/** Converts the given function entry node to an event if it passes validation */
+	bool ConvertFunctionIfValid(UK2Node_FunctionEntry* FuncEntryNode);
+
+	/** Converts the given event node to a function graph on this blueprint if it passes validation */
+	bool ConvertEventIfValid(UK2Node_Event* EventToConv);
+
+protected:
+	/** 
+	* Callback function for the context menu on a node to determine if a function 
+	* could possibly be converted to an event
+	*/
 	bool CanConvertFunctionToEvent() const;
 
 	/*
@@ -904,6 +936,10 @@ protected:
 
 	/** Paste on graph at specific location */
 	virtual void PasteNodesHere(class UEdGraph* DestinationGraph, const FVector2D& GraphLocation) override;
+
+	/** Paste Variable Definition or Nodes */
+	virtual void PasteGeneric();
+	virtual bool CanPasteGeneric() const;
 
 	virtual void PasteNodes();
 	virtual bool CanPasteNodes() const override;
@@ -1104,7 +1140,7 @@ private:
 	void OnEditTunnel();
 
 	/* Create comment node on graph */
-	void OnCreateComment();
+	virtual void OnCreateComment();
 
 	// Create new graph editor widget for the supplied document container
 	TSharedRef<SGraphEditor> CreateGraphEditorWidget(TSharedRef<class FTabInfo> InTabInfo, class UEdGraph* InGraph);
@@ -1163,9 +1199,6 @@ private:
 
 	/** Returns the appropriate check box state representing whether or not the selected nodes are enabled */
 	ECheckBoxState GetEnabledCheckBoxStateForSelectedNodes();
-
-	/** Configuration class used to store editor settings across sessions. */
-	UBlueprintEditorOptions* EditorOptions;
 
 	/**
 	 * Load editor settings from disk (docking state, window pos/size, option state, etc).
@@ -1316,6 +1349,7 @@ public:
 	/** Make nodes which are unrelated to the selected nodes fade out */
 	void ToggleHideUnrelatedNodes();
 	bool IsToggleHideUnrelatedNodesChecked() const;
+	bool ShouldShowToggleHideUnrelatedNodes(bool bIsToolbar) const;
 
 	/** Make a drop down menu to control the opacity of unrelated nodes */
 	TSharedRef<SWidget> MakeHideUnrelatedNodesOptionsMenu();

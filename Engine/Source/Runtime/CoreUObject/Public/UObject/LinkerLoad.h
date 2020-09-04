@@ -652,6 +652,15 @@ public:
 	/** Used by Matinee to fixup component renaming */
 	COREUOBJECT_API static FName FindSubobjectRedirectName(const FName& Name, UClass* Class);
 
+#if WITH_EDITOR
+	COREUOBJECT_API static bool GetPreloadingEnabled();
+	COREUOBJECT_API static void SetPreloadingEnabled(bool bEnabled);
+	COREUOBJECT_API static bool TryGetPreloadedLoader(FArchive*& OutLoader, const TCHAR* FileName);
+	private:
+		static bool bPreloadingEnabled;
+	public:
+#endif
+
 	/** 
 	 * Adds external read dependency 
 	 *

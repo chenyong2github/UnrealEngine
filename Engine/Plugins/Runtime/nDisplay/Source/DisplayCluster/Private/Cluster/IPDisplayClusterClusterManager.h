@@ -2,12 +2,13 @@
 
 #pragma once
 
-#include "Misc/Timecode.h"
-#include "Misc/FrameRate.h"
 #include "Cluster/IDisplayClusterClusterManager.h"
 #include "IPDisplayClusterManager.h"
 
 #include "Network/DisplayClusterMessage.h"
+
+#include "Misc/Timecode.h"
+#include "Misc/FrameRate.h"
 
 class IPDisplayClusterNodeController;
 class FJsonObject;

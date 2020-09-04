@@ -42,6 +42,7 @@ public:
 		{
 			Callback(true, InStartTime, InEvent);
 			Callback(false, InEndTime, InEvent);
+			return Trace::EEventEnumerate::Continue;
 		});
 	}
 	
@@ -70,15 +71,24 @@ public:
 				{
 					if(!bIntersected && bEnumerateOutsideRange && PreviousEvent != Event)
 					{
-						Callback(PreviousEvent->Time, PreviousEvent->Time, 0, PreviousEvent->Event);
+						if (Callback(PreviousEvent->Time, PreviousEvent->Time, 0, PreviousEvent->Event) == EEventEnumerate::Stop)
+						{
+							return;
+						}
 					}
 
-					Callback(Event->Time, Event->Time, 0, Event->Event);
+					if (Callback(Event->Time, Event->Time, 0, Event->Event) == EEventEnumerate::Stop)
+					{
+						return;
+					}
 					bIntersected = true;
 				}
 				else if(bEnumerateOutsideRange && bIntersected)
 				{
-					Callback(Event->Time, Event->Time, 0, Event->Event);
+					if (Callback(Event->Time, Event->Time, 0, Event->Event) == EEventEnumerate::Stop)
+					{
+						return;
+					}
 				}
 
 				PreviousEvent = Event;
@@ -121,6 +131,13 @@ public:
 	void SetEnumerateOutsideRange(bool bInEnumerateOutsideRange)
 	{
 		bEnumerateOutsideRange = bInEnumerateOutsideRange;
+	}
+
+	virtual bool GetEventInfo(double InTime, double DeltaTime, int32 Depth, typename ITimeline<EventType>::FTimelineEventInfo& EventInfo) const override
+	{
+		//Not implemented
+		check(false);
+		return false;
 	}
 
 private:

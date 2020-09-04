@@ -57,14 +57,26 @@ TARGET_INCLUDE_DIRECTORIES(Alembic
     $<INSTALL_INTERFACE:$<INSTALL_PREFIX>/include>
     ${ALEMBIC_ILMBASE_INCLUDE_DIRECTORY}
     ${Boost_INCLUDE_DIRS}
+    PRIVATE
     ${HDF5_INCLUDE_DIRS}
     )
 
 IF (ALEMBIC_SHARED_LIBS)
-  SET_TARGET_PROPERTIES(Alembic PROPERTIES DEFINE_SYMBOL ALEMBIC_EXPORTS)
+  SET_TARGET_PROPERTIES(Alembic PROPERTIES DEFINE_SYMBOL ALEMBIC_EXPORTS
+    SOVERSION ${PROJECT_VERSION_MAJOR}.${PROJECT_VERSION_MINOR}
+    VERSION ${PROJECT_VERSION})
 ENDIF()
 
-TARGET_LINK_LIBRARIES(Alembic ${ALEMBIC_ILMBASE_LIBS})
+
+TARGET_LINK_LIBRARIES(Alembic
+    LINK_PUBLIC
+    ${ALEMBIC_ILMBASE_LIBS}
+    ${CMAKE_THREAD_LIBS_INIT}
+    ${EXTERNAL_MATH_LIBS}
+    LINK_PRIVATE
+    ${HDF5_LIBRARIES}
+    ${ZLIB_LIBRARY}
+  )
 
 # link in atomic if we are using tr1 and the compiler is new enough
 # to want  __atomic_compare_exchange_n
@@ -73,16 +85,12 @@ IF ( ${ALEMBIC_LIB_USES_TR1} AND CMAKE_COMPILER_IS_GNUCXX AND
     TARGET_LINK_LIBRARIES( Alembic atomic )
 ENDIF()
 
-# fixes undefined symbols for x86_64
-IF (ALEMBIC_SHARED_LIBS AND DARWIN)
-    TARGET_LINK_LIBRARIES(${CORE_LIBS})
-ENDIF()
-
+SET( ALEMBIC_LIB_INSTALL_DIR lib CACHE PATH "Where to install the Alembic libs")
 INSTALL(TARGETS Alembic
         EXPORT AlembicTargets
-        LIBRARY DESTINATION lib
-        ARCHIVE DESTINATION lib
-        RUNTIME DESTINATION lib)
+        LIBRARY DESTINATION ${ALEMBIC_LIB_INSTALL_DIR}
+        ARCHIVE DESTINATION ${ALEMBIC_LIB_INSTALL_DIR}
+        RUNTIME DESTINATION ${ALEMBIC_LIB_INSTALL_DIR})
 
 #-******************************************************************************
 # PACKAGE EXPORTS
@@ -110,7 +118,9 @@ EXPORT(TARGETS
     Alembic::
     )
 
-SET(ConfigPackageLocation lib/cmake/Alembic)
+SET(ConfigPackageLocation lib/cmake/Alembic CACHE PATH
+    "Where to install the Alembic's cmake files")
+
 INSTALL(FILES
     "${CMAKE_CURRENT_BINARY_DIR}/AlembicConfig.cmake"
     "${CMAKE_CURRENT_BINARY_DIR}/AlembicConfigVersion.cmake"

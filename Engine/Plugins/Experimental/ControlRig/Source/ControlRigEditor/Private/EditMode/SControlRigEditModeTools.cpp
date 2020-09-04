@@ -18,12 +18,166 @@
 #include "MovieScene.h"
 #include "SControlHierarchy.h"
 #include "SControlPicker.h"
+#include "IDetailCustomization.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
+#include "DetailWidgetRow.h"
+#include "Rigs/FKControlRig.h"
 
 #define LOCTEXT_NAMESPACE "ControlRigRootCustomization"
 
+class FControlRigEditModeGenericDetails : public IDetailCustomization
+{
+public:
+	/** Makes a new instance of this detail layout class for a specific detail view requesting it */
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShareable(new FControlRigEditModeGenericDetails);
+	}
+
+	/** IDetailCustomization interface */
+	virtual void CustomizeDetails(class IDetailLayoutBuilder& DetailLayout) override
+	{
+		TArray<TWeakObjectPtr<UObject>> ObjectsBeingCustomized;
+		DetailLayout.GetObjectsBeingCustomized(ObjectsBeingCustomized);
+
+		TArray<UControlRigControlsProxy*> ProxiesBeingCustomized;
+		for (TWeakObjectPtr<UObject> ObjectBeingCustomized : ObjectsBeingCustomized)
+		{
+			if (UControlRigControlsProxy* Proxy = Cast< UControlRigControlsProxy>(ObjectBeingCustomized.Get()))
+			{
+				ProxiesBeingCustomized.Add(Proxy);
+			}
+		}
+
+		if (ProxiesBeingCustomized.Num() == 0)
+		{
+			return;
+		}
+
+		IDetailCategoryBuilder& Category = DetailLayout.EditCategory(TEXT("Control"), LOCTEXT("Channels", "Channels"));
+
+		for (UControlRigControlsProxy* Proxy : ProxiesBeingCustomized)
+		{
+			FName ValuePropertyName = TEXT("Transform");
+			if (Proxy->RigControl->ControlType == ERigControlType::Float)
+			{
+				ValuePropertyName = TEXT("Float");
+			}
+			else if (Proxy->RigControl->ControlType == ERigControlType::Integer)
+			{
+				if (Proxy->RigControl->ControlEnum == nullptr)
+				{
+					ValuePropertyName = TEXT("Integer");
+				}
+				else
+				{
+					ValuePropertyName = TEXT("Enum");
+				}
+			}
+			else if (Proxy->RigControl->ControlType == ERigControlType::Bool)
+			{
+				ValuePropertyName = TEXT("Bool");
+			}
+			else if (Proxy->RigControl->ControlType == ERigControlType::Position ||
+				Proxy->RigControl->ControlType == ERigControlType::Scale)
+			{
+				ValuePropertyName = TEXT("Vector");
+			}
+			else if (Proxy->RigControl->ControlType == ERigControlType::Vector2D)
+			{
+				ValuePropertyName = TEXT("Vector2D");
+			}
+
+			TSharedPtr<IPropertyHandle> ValuePropertyHandle = DetailLayout.GetProperty(ValuePropertyName, Proxy->GetClass());
+			if (ValuePropertyHandle)
+			{
+				ValuePropertyHandle->SetPropertyDisplayName(FText::FromName(Proxy->RigControl->GetDisplayName()));
+			}
+
+			for (const FRigControl& ChildControl : Proxy->ControlRig->GetControlHierarchy())
+			{
+				if (ChildControl.ParentName == Proxy->RigControl->Name)
+				{
+					if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+					{
+						if (UObject* NestedProxy = EditMode->ControlProxy->FindProxy(ChildControl.Name))
+						{
+							FName PropertyName(NAME_None);
+							switch (ChildControl.ControlType)
+							{
+								case ERigControlType::Bool:
+								{
+									PropertyName = TEXT("Bool");
+									break;
+								}
+								case ERigControlType::Float:
+								{
+									PropertyName = TEXT("Float");
+									break;
+								}
+								case ERigControlType::Integer:
+								{
+									if (ChildControl.ControlEnum == nullptr)
+									{
+										PropertyName = TEXT("Integer");
+									}
+									else
+									{
+										PropertyName = TEXT("Enum");
+									}
+									break;
+								}
+								default:
+								{
+									break;
+								}
+							}
+
+							if (PropertyName.IsNone())
+							{
+								continue;
+							}
+
+							TArray<UObject*> NestedProxies;
+							NestedProxies.Add(NestedProxy);
+
+							FAddPropertyParams Params;
+							Params.CreateCategoryNodes(false);
+
+							IDetailPropertyRow* NestedRow = Category.AddExternalObjectProperty(
+								NestedProxies,
+								PropertyName,
+								EPropertyLocation::Advanced,
+								Params);
+							NestedRow->DisplayName(FText::FromName(ChildControl.GetDisplayName()));
+
+							Category.SetShowAdvanced(true);
+						}
+					}
+				}
+			}
+		}
+	}
+};
+
 void SControlRigEditModeTools::SetControlRig(UControlRig* ControlRig)
 {
-	ControlHierarchy->SetControlRig(ControlRig);
+	SequencerRig = ControlRig;
+	ViewportRig = ControlRig;
+	if (SequencerRig.IsValid())
+	{
+		if (UControlRig* InteractionRig = SequencerRig->GetInteractionRig())
+		{
+			ViewportRig = InteractionRig;
+		}
+	}
+
+	TArray<TWeakObjectPtr<>> Objects;
+	Objects.Add(SequencerRig);
+	RigOptionsDetailsView->SetObjects(Objects);
+
+	ControlHierarchy->SetControlRig(ViewportRig.Get());
 }
 
 void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEditMode& InEditMode,UWorld* InWorld)
@@ -36,7 +190,7 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 		DetailsViewArgs.bLockable = false;
 		DetailsViewArgs.bSearchInitialKeyFocus = true;
 		DetailsViewArgs.bUpdatesFromSelection = false;
-		DetailsViewArgs.bShowOptions = true;
+		DetailsViewArgs.bShowOptions = false;
 		DetailsViewArgs.bShowModifiedPropertiesOption = true;
 		DetailsViewArgs.bShowActorLabel = false;
 		DetailsViewArgs.bCustomNameAreaLocation = true;
@@ -46,10 +200,15 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 		DetailsViewArgs.bShowScrollBar = false; // Don't need to show this, as we are putting it in a scroll box
 	}
 
-	DetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
-	DetailsView->SetKeyframeHandler(SharedThis(this));
-	DetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
-	DetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization));
+	ControlDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
+	ControlDetailsView->SetKeyframeHandler(SharedThis(this));
+	ControlDetailsView->SetIsPropertyVisibleDelegate(FIsPropertyVisible::CreateSP(this, &SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization));
+	ControlDetailsView->SetIsPropertyReadOnlyDelegate(FIsPropertyReadOnly::CreateSP(this, &SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization));
+	ControlDetailsView->SetGenericLayoutDetailsDelegate(FOnGetDetailCustomizationInstance::CreateStatic(&FControlRigEditModeGenericDetails::MakeInstance));
+
+	RigOptionsDetailsView = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor").CreateDetailView(DetailsViewArgs);
+	RigOptionsDetailsView->SetKeyframeHandler(SharedThis(this));
+	RigOptionsDetailsView->OnFinishedChangingProperties().AddSP(this, &SControlRigEditModeTools::OnRigOptionFinishedChange);
 
 	ChildSlot
 	[
@@ -57,83 +216,48 @@ void SControlRigEditModeTools::Construct(const FArguments& InArgs, FControlRigEd
 		+ SScrollBox::Slot()
 		[
 			SNew(SVerticalBox)
-			/* We don't do the picker nor the float controls but leeaving this here inc case we 
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				SAssignNew(PickerExpander, SExpandableArea)
+				.InitiallyCollapsed(true)
+				.AreaTitle(LOCTEXT("Picker_Header", "Controls"))
+				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
+				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
+				.BodyContent()
+				[
+					SAssignNew(ControlHierarchy, SControlHierarchy, InEditMode.GetControlRig(true))
+				]
+			]
+
+			+SVerticalBox::Slot()
+			.AutoHeight()
+			[
+				ControlDetailsView.ToSharedRef()
+			]
+
 			+ SVerticalBox::Slot()
 			.AutoHeight()
 			[
-				SAssignNew(PickerExpander, SExpandableArea)
+				SAssignNew(RigOptionExpander, SExpandableArea)
 				.InitiallyCollapsed(true)
-				.AreaTitle(LOCTEXT("Picker_Header", "Controls"))
+				.Visibility(this, &SControlRigEditModeTools::GetRigOptionExpanderVisibility)
+				.AreaTitle(LOCTEXT("RigOption_Header", "Rig Options"))
 				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
 				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
 				.BodyContent()
 				[
-					SAssignNew(ControlPicker, SControlPicker, InWorld)
+					RigOptionsDetailsView.ToSharedRef()
 				]
-			]
-			
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew(PickerExpander, SExpandableArea)
-				.InitiallyCollapsed(true)
-				.AreaTitle(LOCTEXT("CurveControl_Header", "Curve Controls"))
-				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
-				.BodyContent()
-				[
-					SAssignNew(CurveControlContainer, SCurveControlContainer, InEditMode.GetControlRig())
-				]
-			]
-			*/
-
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				SAssignNew(PickerExpander, SExpandableArea)
-				.InitiallyCollapsed(true)
-				.AreaTitle(LOCTEXT("Picker_Header", "Controls"))
-				.AreaTitleFont(FEditorStyle::GetFontStyle("DetailsView.CategoryFontStyle"))
-				.BorderBackgroundColor(FLinearColor(.6f, .6f, .6f))
-				.BodyContent()
-				[
-					SAssignNew(ControlHierarchy, SControlHierarchy, InEditMode.GetControlRig())
-				]
-			]
-			+SVerticalBox::Slot()
-			.AutoHeight()
-			[
-				DetailsView.ToSharedRef()
 			]
 		]
 	];
-
-	// Bind notification when edit mode selection changes, so we can update picker
-	FControlRigEditMode* ControlRigEditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName));
-	if (ControlRigEditMode)
-	{
-		ControlRigEditMode->ModifiedEvent.AddSP(this, &SControlRigEditModeTools::HandleModifiedEvent);
-	}	
 }
 
 void SControlRigEditModeTools::SetDetailsObjects(const TArray<TWeakObjectPtr<>>& InObjects)
 {
-	DetailsView->SetObjects(InObjects);
-
-	// Look for the first UControlRig
-	UControlRig* Rig = nullptr;
-	for (TWeakObjectPtr<UObject> ObjPtr : InObjects)
-	{
-		Rig = Cast<UControlRig>(ObjPtr.Get());
-		if (Rig)
-		{
-			break;
-		}
-	}
-
-	//ControlPicker->SetControlRig(Rig);
-
+	ControlDetailsView->SetObjects(InObjects);
 }
 
 void SControlRigEditModeTools::SetSequencer(TWeakPtr<ISequencer> InSequencer)
@@ -143,7 +267,7 @@ void SControlRigEditModeTools::SetSequencer(TWeakPtr<ISequencer> InSequencer)
 
 bool SControlRigEditModeTools::IsPropertyKeyable(UClass* InObjectClass, const IPropertyHandle& InPropertyHandle) const
 {
-	if (InObjectClass && InObjectClass->IsChildOf(UControlRigTransformNoScaleControlProxy::StaticClass()) && InPropertyHandle.GetProperty() 
+	if (InObjectClass && InObjectClass->IsChildOf(UControlRigTransformNoScaleControlProxy::StaticClass()) && InObjectClass->IsChildOf(UControlRigEulerTransformControlProxy::StaticClass()) && InPropertyHandle.GetProperty()
 		&& InPropertyHandle.GetProperty()->GetFName() == GET_MEMBER_NAME_CHECKED(UControlRigTransformControlProxy, Transform)) 
 	{
 		return true;
@@ -212,7 +336,7 @@ bool SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization(const FPr
 {
 	auto ShouldPropertyBeVisible = [](const FProperty& InProperty)
 	{
-		bool bShow = InProperty.HasAnyPropertyFlags(CPF_Interp) || InProperty.HasMetaData(UControlRig::InputMetaName) || InProperty.HasMetaData(UControlRig::OutputMetaName);
+		bool bShow = InProperty.HasAnyPropertyFlags(CPF_Interp) || InProperty.HasMetaData(FRigVMStruct::InputMetaName) || InProperty.HasMetaData(FRigVMStruct::OutputMetaName);
 
 	/*	// Show 'PickerIKTogglePos' properties
 		bShow |= (InProperty.GetFName() == GET_MEMBER_NAME_CHECKED(FLimbControl, PickerIKTogglePos));
@@ -224,10 +348,13 @@ bool SControlRigEditModeTools::ShouldShowPropertyOnDetailCustomization(const FPr
 		bShow |= OwnerClass == UControlRigEditModeSettings::StaticClass();
 		bShow |= OwnerClass == UControlRigTransformControlProxy::StaticClass();		
 		bShow |= OwnerClass == UControlRigTransformNoScaleControlProxy::StaticClass();
+		bShow |= OwnerClass == UControlRigEulerTransformControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigFloatControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigVectorControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigVector2DControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigBoolControlProxy::StaticClass();
+		bShow |= OwnerClass == UControlRigEnumControlProxy::StaticClass();
+		bShow |= OwnerClass == UControlRigIntegerControlProxy::StaticClass();
 
 		return bShow;
 	};
@@ -253,17 +380,21 @@ bool SControlRigEditModeTools::IsReadOnlyPropertyOnDetailCustomization(const FPr
 {
 	auto ShouldPropertyBeEnabled = [](const FProperty& InProperty)
 	{
-		bool bShow = InProperty.HasAnyPropertyFlags(CPF_Interp) || InProperty.HasMetaData(UControlRig::InputMetaName);
+		bool bShow = InProperty.HasAnyPropertyFlags(CPF_Interp) || InProperty.HasMetaData(FRigVMStruct::InputMetaName);
 
 		// Always show settings properties
 		const UClass* OwnerClass = InProperty.GetOwner<UClass>();
 		bShow |= OwnerClass == UControlRigEditModeSettings::StaticClass();
 		bShow |= OwnerClass == UControlRigTransformControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigTransformNoScaleControlProxy::StaticClass();
+		bShow |= OwnerClass == UControlRigEulerTransformControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigFloatControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigVectorControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigVector2DControlProxy::StaticClass();
 		bShow |= OwnerClass == UControlRigBoolControlProxy::StaticClass();
+		bShow |= OwnerClass == UControlRigEnumControlProxy::StaticClass();
+		bShow |= OwnerClass == UControlRigIntegerControlProxy::StaticClass();
+
 
 		return bShow;
 	};
@@ -326,6 +457,28 @@ void SControlRigEditModeTools::HandleModifiedEvent(ERigVMGraphNotifType InNotifT
 		{
 			break;
 		}
+	}
+}
+
+EVisibility SControlRigEditModeTools::GetRigOptionExpanderVisibility() const
+{
+	if (UControlRig* ControlRig = SequencerRig.Get())
+	{
+		if (Cast<UFKControlRig>(ControlRig))
+		{
+			return EVisibility::Visible;
+		}
+	}
+	return EVisibility::Hidden;
+}
+
+void SControlRigEditModeTools::OnRigOptionFinishedChange(const FPropertyChangedEvent& PropertyChangedEvent)
+{
+	SetControlRig(SequencerRig.Get());
+
+	if (FControlRigEditMode* EditMode = static_cast<FControlRigEditMode*>(GLevelEditorModeTools().GetActiveMode(FControlRigEditMode::ModeName)))
+	{
+		EditMode->SetObjects_Internal();
 	}
 }
 

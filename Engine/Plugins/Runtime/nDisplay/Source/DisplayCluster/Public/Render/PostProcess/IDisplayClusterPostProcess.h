@@ -8,6 +8,8 @@
 #include "RHIResources.h"
 #include "RHICommandList.h"
 
+class FDisplayClusterRenderViewport;
+class FViewport;
 
 /**
  * nDisplay post-process interface
@@ -25,6 +27,15 @@ public:
 	* @param CfgLine - Configuration line for this postprocess
 	*/
 	virtual void InitializePostProcess(const FString& CfgLine)
+	{ }
+
+	/**
+	* call every time viewports changed
+	*
+	* @param MainViewport
+	* @param RenderViewports
+	*/
+	virtual void PerformUpdateViewport(FViewport* MainViewport, const TArray<FDisplayClusterRenderViewport>& RenderViewports)
 	{ }
 
 	/**
@@ -131,7 +142,7 @@ public:
 	* @param RHICmdList - RHI command list
 	* @param SrcTexture - Source texture
 	*/
-	virtual void PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
+	virtual void PerformPostProcessRenderTargetBeforeWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
 	{ }
 
 	/**
@@ -150,6 +161,6 @@ public:
 	* @param RHICmdList - RHI command list
 	* @param SrcTexture - Source texture
 	*/
-	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture) const
+	virtual void PerformPostProcessRenderTargetAfterWarpBlend_RenderThread(FRHICommandListImmediate& RHICmdList, FRHITexture2D* SrcTexture, const TArray<FDisplayClusterRenderViewport>& RenderViewports) const
 	{ }
 };

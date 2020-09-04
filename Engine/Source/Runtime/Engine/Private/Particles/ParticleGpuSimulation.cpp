@@ -18,6 +18,7 @@
 #include "UniformBuffer.h"
 #include "ShaderParameters.h"
 #include "Shader.h"
+#include "ShaderCompilerCore.h"
 #include "VertexFactory.h"
 #include "RHIStaticStates.h"
 #include "GlobalDistanceFieldParameters.h"
@@ -51,6 +52,10 @@
 
 DECLARE_CYCLE_STAT(TEXT("GPUSpriteEmitterInstance Init GT"), STAT_GPUSpriteEmitterInstance_Init, STATGROUP_Particles);
 DECLARE_GPU_STAT_NAMED(ParticleSimulation, TEXT("Particle Simulation"));
+
+#if WITH_MGPU
+DECLARE_GPU_STAT(AFRWaitForParticleSimulation);
+#endif
 
 /*------------------------------------------------------------------------------
 	Constants to tune memory and performance for GPU particle simulation.
@@ -1428,6 +1433,12 @@ void ExecuteSimulationCommands(
 	SCOPED_DRAW_EVENT(RHICmdList, ParticleSimulation);
 	SCOPED_GPU_STAT(RHICmdList, ParticleSimulation);
 
+	FUniformBufferStaticBindings GlobalUniformBuffers;
+	if (SceneTexturesUniformBuffer)
+	{
+		GlobalUniformBuffers.AddUniformBuffer(SceneTexturesUniformBuffer);
+	}
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 	const float FixDeltaSeconds = CVarGPUParticleFixDeltaSeconds.GetValueOnRenderThread();
 	const FParticleStateTextures& TextureResources = (FixDeltaSeconds <= 0 || bUseFixDT) ? ParticleSimulationResources->GetPreviousStateTextures() : ParticleSimulationResources->GetCurrentStateTextures();
@@ -4819,6 +4830,7 @@ void FFXSystem::SimulateGPUParticles(
 	static const FName NameForTemporalEffect("SimulateGPUParticles");
 	if (Phase == PhaseToWaitForTemporalEffect)
 	{
+		SCOPED_GPU_STAT(RHICmdList, AFRWaitForParticleSimulation);
 		RHICmdList.WaitForTemporalEffect(NameForTemporalEffect);
 	}
 
@@ -4951,13 +4963,6 @@ void FFXSystem::SimulateGPUParticles(
 	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[0]);
 	RHICmdList.EndUpdateMultiFrameResource(CurrentStateRenderTargets[1]);
 
-#if WITH_MGPU
-	if (Phase == PhaseToBroadcastTemporalEffect)
-	{
-		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, TexturesToCopyForTemporalEffect);
-	}
-#endif
-
 	if (SimulationCommands.Num() && FixDeltaSeconds > 0)
 	{
 		//the fixed timestep works in two stages.  A first stage which simulates the fixed timestep and this second stage which simulates any remaining time from the actual delta time.  e.g.  fixed timestep of 16ms and actual dt of 23ms
@@ -4995,9 +5000,20 @@ void FFXSystem::SimulateGPUParticles(
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, VisualizeStateRHIs, 2);		
 	}
 
-	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	UnbindRenderTargets(RHICmdList);
-	PRAGMA_ENABLE_DEPRECATION_WARNINGS
+#if WITH_MGPU
+	// Previously, this broadcast was before the above extra stage simulate work. This is because that work is temporary, only applied visually to the current frame
+	// rather than fed back through the simulation for the next frame. However, this led to a possible data race in AFR under certain circumstances:
+	// Let's say GPU0 writes to StateTextures[0][GPU0] on this frame, then initiates the copy from StateTextures[0][GPU0] to StateTextures[0][GPU1] and signals GPU1 that it can start particle work.
+	// GPU0 then starts writing to StateTextures[1][GPU0] as a temporary for extra work on this frame.
+	// GPU1 Completes its work on StateTextures[1][GPU1], and initiates the copy from StateTextures[1][GPU1] to StateTextures[1][GPU0] at the end of its frame.
+	// However, GPU0 may still be writing to StateTextures[1][GPU0], and this leads to a data race.
+	// For now, we're moving the broadcast to after any extra work to block the next AFR group from using the textures until we're done,
+	// however for a potential AFR performance boost, we can put the broadcast back to where it was, and use a third buffer for temporary extra particle simulation work.
+	if (Phase == PhaseToBroadcastTemporalEffect)
+	{
+		RHICmdList.BroadcastTemporalEffect(NameForTemporalEffect, TexturesToCopyForTemporalEffect);
+	}
+#endif
 
 	// Stats.
 	if (Phase == GetLastParticleSimulationPhase(GetShaderPlatform()))

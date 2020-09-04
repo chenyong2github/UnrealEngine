@@ -1137,7 +1137,7 @@ void UAnimMontage::TickAssetPlayer(FAnimTickRecord& Instance, struct FAnimNotify
 				FMarkerTickRecord* MarkerTickRecord = Instance.MarkerTickRecord;
 				FMarkerTickContext& MarkerTickContext = Context.MarkerTickContext;
 
-				if (MarkerTickRecord->IsValid())
+				if (MarkerTickRecord->IsValid(Instance.bLooping))
 				{
 					MarkerTickContext.SetMarkerSyncStartPosition(GetMarkerSyncPositionfromMarkerIndicies(MarkerTickRecord->PreviousMarker.MarkerIndex, MarkerTickRecord->NextMarker.MarkerIndex, PreviousTime));
 
@@ -2879,7 +2879,8 @@ void UAnimMontage::BakeTimeStretchCurve()
 	{
 		if (const FSmartNameMapping* CurveNameMapping = MySkeleton->GetSmartNameContainer(USkeleton::AnimCurveMappingName))
 		{
-			if (const USkeleton::AnimCurveUID CurveUID = CurveNameMapping->FindUID(TimeStretchCurveName))
+			const USkeleton::AnimCurveUID CurveUID = CurveNameMapping->FindUID(TimeStretchCurveName);
+			if (CurveUID != SmartName::MaxUID)
 			{
 				TimeStretchFloatCurve = (FFloatCurve*)(GetCurveData().GetCurveData(CurveUID));
 			}

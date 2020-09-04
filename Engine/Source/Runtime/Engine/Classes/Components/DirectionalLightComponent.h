@@ -275,6 +275,12 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
 	void SetShadowAmount(float NewValue);
 
+	UFUNCTION(BlueprintCallable, Category="Rendering|Lighting")
+	void SetAtmosphereSunLight(bool bNewValue);
+
+	UFUNCTION(BlueprintCallable, Category = "Rendering|Lighting")
+	void SetAtmosphereSunLightIndex(int32 NewValue);
+
 	//~ Begin ULightComponent Interface
 	virtual FVector4 GetLightPosition() const override;
 	virtual ELightComponentType GetLightType() const override;
@@ -293,6 +299,10 @@ class ENGINE_API UDirectionalLightComponent : public ULightComponent
 	virtual uint8 GetAtmosphereSunLightIndex() const override
 	{
 		return AtmosphereSunLightIndex;
+	}
+	virtual FLinearColor GetAtmosphereSunDiskColorScale() const override
+	{
+		return AtmosphereSunDiskColorScale;
 	}
 	//~ End ULightComponent Interface
 

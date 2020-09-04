@@ -150,7 +150,7 @@ void SkyLight_SampleLight(
 	// DEBUG: assert cached PDF is equivalent to re-evaluation
 	//MipPdf = PdfSkyLightOcclusionRay(WorldNormal, RayDirection);
 
-	float2 PixelOffset = RandSample.yz;
+	float2 PixelOffset = RandSample.zw;
 	float2 MipPixelUV = (MipPixel + PixelOffset) / float2(DimensionsAtLevel(SkyLight.MipDimensions.xy, StopLevel));
 
 	// Construct Cubemap coordinate

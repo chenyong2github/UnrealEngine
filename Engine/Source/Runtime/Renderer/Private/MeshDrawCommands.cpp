@@ -553,7 +553,6 @@ void GenerateDynamicMeshDrawCommands(
 			if (!DynamicMeshElementsPassRelevance || (*DynamicMeshElementsPassRelevance)[MeshIndex].Get(PassType))
 			{
 				const FMeshBatchAndRelevance& MeshAndRelevance = DynamicMeshElements[MeshIndex];
-				check(!MeshAndRelevance.Mesh->bRequiresPerElementVisibility);
 				const uint64 BatchElementMask = ~0ull;
 
 				PassMeshProcessor->AddMeshBatch(*MeshAndRelevance.Mesh, BatchElementMask, MeshAndRelevance.PrimitiveSceneProxy);
@@ -572,9 +571,8 @@ void GenerateDynamicMeshDrawCommands(
 		for (int32 MeshIndex = 0; MeshIndex < NumStaticMeshBatches; MeshIndex++)
 		{
 			const FStaticMeshBatch* StaticMeshBatch = DynamicMeshCommandBuildRequests[MeshIndex];
-			const uint64 BatchElementMask = StaticMeshBatch->bRequiresPerElementVisibility ? View.StaticMeshBatchVisibility[StaticMeshBatch->BatchVisibilityId] : ~0ull;
-
-			PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, BatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
+			const uint64 DefaultBatchElementMask = ~0ul;
+			PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 		}
 
 		const int32 NumCommandsGenerated = VisibleCommands.Num() - NumCommandsBefore;
@@ -628,7 +626,6 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 			if (!DynamicMeshElementsPassRelevance || (*DynamicMeshElementsPassRelevance)[MeshIndex].Get(PassType))
 			{
 				const FMeshBatchAndRelevance& MeshAndRelevance = DynamicMeshElements[MeshIndex];
-				check(!MeshAndRelevance.Mesh->bRequiresPerElementVisibility);
 				const uint64 BatchElementMask = ~0ull;
 
 				const int32 PrimitiveIndex = MeshAndRelevance.PrimitiveSceneProxy->GetPrimitiveSceneInfo()->GetIndex();
@@ -656,17 +653,18 @@ void GenerateMobileBasePassDynamicMeshDrawCommands(
 		for (int32 MeshIndex = 0; MeshIndex < NumStaticMeshBatches; MeshIndex++)
 		{
 			const FStaticMeshBatch* StaticMeshBatch = DynamicMeshCommandBuildRequests[MeshIndex];
-			const uint64 BatchElementMask = StaticMeshBatch->bRequiresPerElementVisibility ? View.StaticMeshBatchVisibility[StaticMeshBatch->BatchVisibilityId] : ~0ull;
 
 			const int32 PrimitiveIndex = StaticMeshBatch->PrimitiveSceneInfo->Proxy->GetPrimitiveSceneInfo()->GetIndex();
 			if (MobileCSMVisibilityInfo.bMobileDynamicCSMInUse
 				&& (MobileCSMVisibilityInfo.bAlwaysUseCSM || MobileCSMVisibilityInfo.MobilePrimitiveCSMReceiverVisibilityMap[PrimitiveIndex]))
 			{
-				MobilePassCSMPassMeshProcessor->AddMeshBatch(*StaticMeshBatch, BatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
+				const uint64 DefaultBatchElementMask = ~0ul;
+				MobilePassCSMPassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 			}
 			else
 			{
-				PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, BatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
+				const uint64 DefaultBatchElementMask = ~0ul;
+				PassMeshProcessor->AddMeshBatch(*StaticMeshBatch, DefaultBatchElementMask, StaticMeshBatch->PrimitiveSceneInfo->Proxy, StaticMeshBatch->Id);
 			}
 		}
 
@@ -1096,7 +1094,7 @@ void FParallelMeshDrawCommandPass::DispatchPassSetup(
 
 		const bool bExecuteInParallel = FApp::ShouldUseThreadingForPerformance()
 			&& CVarMeshDrawCommandsParallelPassSetup.GetValueOnRenderThread() > 0
-			&& GRenderingThread; // Rendering thread is required to safely use rendering resources in parallel.
+			&& GIsThreadedRendering; // Rendering thread is required to safely use rendering resources in parallel.
 
 		if (bExecuteInParallel)
 		{

@@ -110,7 +110,8 @@ bool FSkeletalMeshBuilder::Build(USkeletalMesh* SkeletalMesh, const int32 LODInd
 		// Create skinning streams for NewModel.
 		SlowTask.EnterProgressFrame(1.0f);
 		MeshUtilities.BuildSkeletalMesh(
-			BuildLODModel,
+			BuildLODModel, 
+			SkeletalMesh->GetPathName(),
 			RefSkeleton,
 			LODInfluences,
 			LODWedges,

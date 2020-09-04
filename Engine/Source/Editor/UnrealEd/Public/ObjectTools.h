@@ -200,7 +200,7 @@ namespace ObjectTools
 	 * @return	Structure of consolidation results, specifying which packages were dirtied, which objects failed consolidation (if any), etc.
 	 */
 	UNREALED_API FConsolidationResults ConsolidateObjects( UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, bool bShowDeleteConfirmation = true );
-	UNREALED_API FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate);
+	UNREALED_API FConsolidationResults ConsolidateObjects(UObject* ObjectToConsolidateTo, TArray<UObject*>& ObjectsToConsolidate, TSet<UObject*>& ObjectsToConsolidateWithin, TSet<UObject*>& ObjectsToNotConsolidateWithin, bool bShouldDeleteAfterConsolidate, bool bWarnAboutRootSet = true);
 	UNREALED_API void CompileBlueprintsAfterRefUpdate(TArray<UObject*>& ObjectsConsolidatedWithin);
 	/**
 	 * Copies references for selected generic browser objects to the clipboard.
@@ -326,6 +326,7 @@ namespace ObjectTools
 	 * @param ObjectsToReplace		An array of objects that should be replaced with 'ObjectToReplaceWith'
 	 */
 	UNREALED_API void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace);
+	UNREALED_API void ForceReplaceReferences(UObject* ObjectToReplaceWith, TArray<UObject*>& ObjectsToReplace, TSet<UObject*>& ObjectsToReplaceWithin);
 
 	/**
 	 * Gathers additional objects to delete such as map built data
@@ -571,6 +572,14 @@ namespace ObjectTools
 	 * @param bInRequireReferencingProperties   Whether referencing properties information should be filled. (Opt-in only has it can degrade performance)
 	 */
 	UNREALED_API void GatherObjectReferencersForDeletion(UObject* InObject, bool& bOutIsReferenced, bool& bOutIsReferencedByUndo, FReferencerInformationList* OutMemoryReferences = nullptr, bool bInRequireReferencingProperties = false);
+
+	/** 
+	* Find any subobjects that might also need references replaced for a deep copy
+	* @param InObjects					The objects that are going to have their references replaced
+	* @param ObjectsToExclude			Any objects that should not have their references replaced
+	* @param OutObjectsAndSubobjects	The complete list of objects and any subobjects that should have references replaced
+	*/
+	UNREALED_API void GatherSubObjectsForReferenceReplacement(TSet<UObject*>& InObjects, TSet<UObject*>& ObjectsToExclude, TSet<UObject*>& OutObjectsAndSubObjects);
 }
 
 

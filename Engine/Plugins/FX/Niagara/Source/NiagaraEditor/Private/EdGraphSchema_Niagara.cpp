@@ -41,6 +41,7 @@
 #include "NiagaraParameterCollection.h"
 #include "NiagaraNodeReroute.h"
 #include "NiagaraNodeUsageSelector.h"
+#include "Classes/EditorStyleSettings.h"
 #include "EdGraphNode_Comment.h"
 
 #include "Modules/ModuleManager.h"
@@ -49,8 +50,6 @@
 #include "NiagaraNodeStaticSwitch.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraSchema"
-
-#define SNAP_GRID (16) // @todo ensure this is the same as SNodePanel::GetSnapGridSize()
 
 const FLinearColor UEdGraphSchema_Niagara::NodeTitleColor_Attribute = FLinearColor::Green;
 const FLinearColor UEdGraphSchema_Niagara::NodeTitleColor_Constant = FLinearColor::Red;
@@ -122,7 +121,7 @@ UEdGraphNode* FNiagaraSchemaAction_NewNode::PerformAction(class UEdGraph* Parent
 
 		NodeTemplate->NodePosX = XLocation;
 		NodeTemplate->NodePosY = Location.Y;
-		NodeTemplate->SnapToGrid(SNAP_GRID);
+		NodeTemplate->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 
 		ResultNode = NodeTemplate;
 
@@ -1466,51 +1465,6 @@ FNiagaraTypeDefinition UEdGraphSchema_Niagara::GetTypeDefForProperty(const FProp
 	return FNiagaraTypeDefinition::GetFloatDef();//Some invalid type?
 }
 
-void UEdGraphSchema_Niagara::GetBreakLinkToSubMenuActions(UToolMenu* Menu, const FName SectionName, UEdGraphPin* InGraphPin)
-{
-	FToolMenuSection& Section = Menu->FindOrAddSection(SectionName);
-
-	// Make sure we have a unique name for every entry in the list
-	TMap< FString, uint32 > LinkTitleCount;
-
-	// Add all the links we could break from
-	for (TArray<class UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
-	{
-		UEdGraphPin* Pin = *Links;
-		FString TitleString = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView).ToString();
-		FText Title = FText::FromString(TitleString);
-		if (!Pin->PinName.IsNone())
-		{
-			TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *Pin->PinName.ToString());
-
-			// Add name of connection if possible
-			FFormatNamedArguments Args;
-			Args.Add(TEXT("NodeTitle"), Title);
-			Args.Add(TEXT("PinName"), Pin->GetDisplayName());
-			Title = FText::Format(LOCTEXT("BreakDescPin", "{NodeTitle} ({PinName})"), Args);
-		}
-
-		uint32 &Count = LinkTitleCount.FindOrAdd(TitleString);
-
-		FText Description;
-		FFormatNamedArguments Args;
-		Args.Add(TEXT("NodeTitle"), Title);
-		Args.Add(TEXT("NumberOfNodes"), Count);
-
-		if (Count == 0)
-		{
-			Description = FText::Format(LOCTEXT("BreakDesc", "Break link to {NodeTitle}"), Args);
-		}
-		else
-		{
-			Description = FText::Format(LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})"), Args);
-		}
-		++Count;
-		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
-			FExecuteAction::CreateUObject((UEdGraphSchema_Niagara*const)this, &UEdGraphSchema::BreakSinglePinLink, const_cast<UEdGraphPin*>(InGraphPin), *Links)));
-	}
-}
-
 void UEdGraphSchema_Niagara::ConvertNumericPinToTypeAll(UNiagaraNode* InNode, FNiagaraTypeDefinition TypeDef)
 {
 	if (InNode)
@@ -1706,26 +1660,6 @@ void UEdGraphSchema_Niagara::GetContextMenuActions(UToolMenu* Menu, UGraphNodeCo
 					LOCTEXT("ConvertNumericSpecific", "Convert Numeric To..."),
 					LOCTEXT("ConvertNumericSpecificToolTip", "Convert Numeric pin to the specific typed pin."),
 				FNewToolMenuDelegate::CreateUObject((UEdGraphSchema_Niagara*const)this, &UEdGraphSchema_Niagara::GetNumericConversionToSubMenuActions, SectionName, const_cast<UEdGraphPin*>(InGraphPin)));
-			}
-
-			// Only display the 'Break Link' option if there is a link to break!
-			if (InGraphPin->LinkedTo.Num() > 0)
-			{
-				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-
-				// add sub menu for break link to
-				if (InGraphPin->LinkedTo.Num() > 1)
-				{
-					Section.AddSubMenu(
-						"BreakLinkTo",
-						LOCTEXT("BreakLinkTo", "Break Link To..."),
-						LOCTEXT("BreakSpecificLinks", "Break a specific link..."),
-						FNewToolMenuDelegate::CreateUObject((UEdGraphSchema_Niagara*const)this, &UEdGraphSchema_Niagara::GetBreakLinkToSubMenuActions, SectionName, const_cast<UEdGraphPin*>(InGraphPin)));
-				}
-				else
-				{
-					((UEdGraphSchema_Niagara*const)this)->GetBreakLinkToSubMenuActions(Menu, SectionName,const_cast<UEdGraphPin*>(InGraphPin));
-				}
 			}
 
 			if (InGraphPin->Direction == EEdGraphPinDirection::EGPD_Input)

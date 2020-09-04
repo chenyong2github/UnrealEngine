@@ -47,6 +47,8 @@ class UCookCommandlet
 	bool bUseSerializationForGeneratingPackageDependencies;
 	/** Only cook packages specified on commandline options (for debugging)*/
 	bool bCookSinglePackage;
+	/** Modification to bCookSinglePackage - cook transitive hard references in addition to the packages on the commandline */
+	bool bKeepSinglePackageRefs;
 	/** Should we output additional verbose cooking warnings */
 	bool bVerboseCookerWarnings;
 	/** only clean up objects which are not in use by the cooker when we gc (false will enable full gc) */

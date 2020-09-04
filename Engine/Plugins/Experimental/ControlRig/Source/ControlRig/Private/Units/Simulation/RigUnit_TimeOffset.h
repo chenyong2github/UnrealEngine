@@ -8,7 +8,7 @@
 /**
  * Records a value over time and can access the value from the past
  */
-USTRUCT(meta=(DisplayName="Value Over Time (Float)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset"))
+USTRUCT(meta=(DisplayName="Value Over Time (Float)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset,Delay"))
 struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -45,10 +45,10 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	float Result;
 
-	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
+	UPROPERTY(meta = (ArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> Buffer;
 
-	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
+	UPROPERTY(meta = (ArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> DeltaTimes;
 
 	UPROPERTY()
@@ -61,7 +61,7 @@ struct FRigUnit_TimeOffsetFloat : public FRigUnit_SimBase
 /**
  * Records a value over time and can access the value from the past
  */
-USTRUCT(meta=(DisplayName="Value Over Time (Vector)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset"))
+USTRUCT(meta=(DisplayName="Value Over Time (Vector)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset,Delay"))
 struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -98,10 +98,10 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FVector Result;
 
-	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
+	UPROPERTY(meta = (ArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<FVector> Buffer;
 
-	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
+	UPROPERTY(meta = (ArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> DeltaTimes;
 
 	UPROPERTY()
@@ -114,7 +114,7 @@ struct FRigUnit_TimeOffsetVector : public FRigUnit_SimBase
 /**
  * Records a value over time and can access the value from the past
  */
-USTRUCT(meta=(DisplayName="Value Over Time (Transform)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset"))
+USTRUCT(meta=(DisplayName="Value Over Time (Transform)", PrototypeName="TimeOffset", Keywords="Buffer,Delta,History,Previous,TimeOffset,Delay"))
 struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 {
 	GENERATED_BODY()
@@ -151,10 +151,10 @@ struct FRigUnit_TimeOffsetTransform : public FRigUnit_SimBase
 	UPROPERTY(meta=(Output))
 	FTransform Result;
 
-	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
+	UPROPERTY(meta = (ArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<FTransform> Buffer;
 
-	UPROPERTY(meta = (MaxArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
+	UPROPERTY(meta = (ArraySize = "FMath::Clamp<int32>(BufferSize, 2, 512)"))
 	TArray<float> DeltaTimes;
 
 	UPROPERTY()

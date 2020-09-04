@@ -17,6 +17,8 @@
 #include "Internationalization/TextPackageNamespaceUtil.h"
 #include "ScopedTransaction.h"
 #include "UObject/PropertyIterator.h"
+#include "Engine/UserDefinedStruct.h"
+#include "Kismet2/StructureEditorUtils.h"
 
 #define LOCTEXT_NAMESPACE "Enum"
 
@@ -281,28 +283,55 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 	{
 		FArchiveEnumeratorResolver EnumeratorResolver(Enum, OldNames);
 
-		TArray<UClass*> ClassesToCheck;
+		// Track any user defined structs that may have been modified during this enum update
+		TSet<UUserDefinedStruct*> EffectedUserStructs;
+		
+		// Helper lambda to get the class of a UStruct off of a property
+		auto GetStructClass = [&EffectedUserStructs](const FProperty* Prop) -> UClass*
+		{
+			if(Prop)
+			{
+				// Attempt to use this property's default owner class
+				if(UClass* OwnerClass = Prop->GetOwnerClass())
+				{
+					return OwnerClass;	
+				}
+				// Otherwise check for UserDefinedStructs that may have this property
+				else if (UStruct* OwnerStruct = Prop->GetOwnerStruct())
+				{
+					if(UUserDefinedStruct* UserStruct = Cast<UUserDefinedStruct>(OwnerStruct))
+					{
+						EffectedUserStructs.Add(UserStruct);
+					}
+					return OwnerStruct->GetClass();
+				}
+			}
+			return nullptr;
+		};
+
+		TSet<UClass*> ClassesToCheck;
+
 		for (TPropertyIterator<FByteProperty> It; It; ++It)
 		{
 			const FByteProperty* ByteProperty = *It;
 			if (ByteProperty && (Enum == ByteProperty->GetIntPropertyEnum()))
 			{
-				UClass* OwnerClass = ByteProperty->GetOwnerClass();
-				if (OwnerClass)
-				{
-					ClassesToCheck.Add(OwnerClass);
+				if(UClass* StructClass = GetStructClass(ByteProperty))
+				{					
+					ClassesToCheck.Add(StructClass);
 				}
 			}
 		}
+
 		for (TPropertyIterator<FEnumProperty> It; It; ++It)
 		{
 			const FEnumProperty* EnumProperty = *It;
 			if (EnumProperty && (Enum == EnumProperty->GetEnum()))
 			{
-				UClass* OwnerClass = EnumProperty->GetOwnerClass();
-				if (OwnerClass)
+				// Check for user defined structs that may have this property
+				if (UClass* StructClass = GetStructClass(EnumProperty))
 				{
-					ClassesToCheck.Add(OwnerClass);
+					ClassesToCheck.Add(StructClass);
 				}
 			}
 		}
@@ -317,6 +346,14 @@ void FEnumEditorUtils::BroadcastChanges(const UUserDefinedEnum* Enum, const TArr
 					break;
 				}
 			}
+		}
+
+		// User defined structs have to be notified that their structure has been changed after 
+		// serialization in order for the structure editor to get updated properly
+		for(UUserDefinedStruct* Struct : EffectedUserStructs)
+		{
+			FStructureEditorUtils::ModifyStructData(Struct);
+			FStructureEditorUtils::OnStructureChanged(Struct);
 		}
 	}
 

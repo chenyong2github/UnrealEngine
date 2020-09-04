@@ -3486,15 +3486,15 @@ void UNetDriver::AddReferencedObjects(UObject* InThis, FReferenceCollector& Coll
 	}
 	
 	for (FObjectReplicator* Replicator : This->AllOwnedReplicators)
-		{
+	{
 		Collector.AddReferencedObject(Replicator->ObjectPtr, This);
 		Collector.AddReferencedObject(Replicator->ObjectClass, This);
-			}
+	}
 
 	for (FConnectionMap::TIterator It(This->MappedClientConnections); It; ++It)
-		{
+	{
 		Collector.AddReferencedObject(It.Value(), This);
-		}
+	}
 
 	if (This->GuidCache.IsValid())
 	{
@@ -5483,9 +5483,11 @@ void UNetDriver::CleanupWorldForSeamlessTravel()
 
 				// This is currently necessary because the actor iterator used in the seamless travel handler 
 				// skips over AWorldSettings actors for an unknown reason.
-				if (Level->GetWorldSettings())
+				AWorldSettings* WorldSettings = Level->GetWorldSettings(false);
+
+				if (WorldSettings != nullptr)
 				{
-					NotifyActorLevelUnloaded(Level->GetWorldSettings());
+					NotifyActorLevelUnloaded(WorldSettings);
 				}
 			}
 		}
@@ -5787,6 +5789,12 @@ void UNetDriver::ProcessRemoteFunction(
 	FFrame* Stack,
 	class UObject* SubObject)
 {
+	if (Actor->IsActorBeingDestroyed())
+	{
+		UE_LOG(LogNet, Warning, TEXT("UNetDriver::ProcessRemoteFunction: Remote function %s called from actor %s while actor is being destroyed. Function will not be processed."), *Function->GetName(), *Actor->GetName());
+		return;
+	}
+
 #if !UE_BUILD_SHIPPING
 	SCOPE_CYCLE_COUNTER(STAT_NetProcessRemoteFunc);
 	SCOPE_CYCLE_UOBJECT(Function, Function);

@@ -194,7 +194,7 @@ namespace DataprepParameterization
 
 	void* GetAddressOf(const FSetProperty& Property, void* BaseAddress, int32 ContainerIndex)
 	{
-		void* AddressOfSet = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 ); 
+		void* AddressOfSet = Property.ContainerPtrToValuePtr<void*>( BaseAddress, 0 );
 		if ( ContainerIndex == INDEX_NONE )
 		{
 			// The index none is used when we want to get the container itself
@@ -250,7 +250,7 @@ namespace DataprepParameterization
 		{
 			return Property.ContainerPtrToValuePtr<void*>( BaseAddress, FMath::Max( ContainerIndex, 0 ) );
 		}
-		
+
 		return nullptr;
 	}
 
@@ -312,7 +312,7 @@ namespace DataprepParameterization
 		FFieldVariant CurrentOuter;
 
 		if ( UObject* ObjectBinded = Binding.ObjectBinded )
-		{ 
+		{
 			// We use the current outer has a heuristic to validate that the property is still valid
 			CurrentOuter = ObjectBinded->GetClass();
 			void* CurrentPropertyValueAddresss = ObjectBinded;
@@ -395,7 +395,7 @@ namespace DataprepParameterization
 
 		// Get the last valid level from the cache
 		int32 LevelIndex = GetDeepestLevelOfValidCache( Binding, OutPropertyValueAddress );
-		
+
 
 		FFieldVariant CurrentOuter = Binding.ObjectBinded->GetClass();
 		if ( LevelIndex != INDEX_NONE )
@@ -403,7 +403,7 @@ namespace DataprepParameterization
 			CurrentOuter = GetOuterForPropertyFinding( Binding.PropertyChain[LevelIndex].CachedProperty.Get() );
 		}
 
-		// We start updating the binding from the first invalid level this is always the one after 
+		// We start updating the binding from the first invalid level this is always the one after
 		LevelIndex++;
 
 		// Todo (what happen if the bottom property changed its type)
@@ -536,7 +536,7 @@ uint32 GetTypeHash(const FDataprepParameterizationBinding& Binding)
 {
 	// The value type validation data shouldn't matter for the hash of a binding
 	return HashCombine(  GetTypeHash( Binding.ObjectBinded ), GetTypeHash( Binding.PropertyChain ) );
-	
+
 }
 
 uint32 GetTypeHash(const TArray<FDataprepPropertyLink>& PropertyLinks)
@@ -600,7 +600,7 @@ void UDataprepParameterizationBindings::Add(const TSharedRef<FDataprepParameteri
 	NameToBindings.FindOrAdd( ParamerterName ).AddByHash( BindingHash, Binding );
 
 	FSetOfBinding& BindingsFromSameObject = ObjectToBindings.FindOrAdd( Binding->ObjectBinded );
-		
+
 	for ( TSharedRef<FDataprepParameterizationBinding>& PossibleSubBinding : BindingsFromSameObject )
 	{
 		if ( PossibleSubBinding->PropertyChain.Num() >= Binding->PropertyChain.Num() )
@@ -624,12 +624,12 @@ void UDataprepParameterizationBindings::Add(const TSharedRef<FDataprepParameteri
 				}
 			}
 		}
-		
+
 	}
 
 	BindingsFromSameObject.AddByHash( BindingHash, Binding );
 
-	
+
 }
 
 FName UDataprepParameterizationBindings::RemoveBinding(const TSharedRef<FDataprepParameterizationBinding>& Binding)
@@ -641,7 +641,7 @@ FName UDataprepParameterizationBindings::RemoveBinding(const TSharedRef<FDatapre
 
 		// 1) Remove from the map binding to parameter
 		BindingToParameterName.RemoveByHash( BindingHash, Binding );
-		
+
 		// 2) Remove from the map parameter to bindings
 		{
 			if ( FSetOfBinding* BindingsMappedToParameter = NameToBindings.Find( *ParameterName ) )
@@ -975,7 +975,7 @@ void UDataprepParameterization::Serialize(FArchive& Ar)
 		ParameterizationStorage.Empty(CustomContainerClass->GetMinAlignment());
 		FDataprepParameterizationWriter Writer(DefaultParameterisation, ParameterizationStorage);
 	}
-	
+
 	Super::Serialize( Ar );
 }
 
@@ -1052,7 +1052,7 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 			{
 				FProperty* PropertyFromParameterization = *PropertyPtr;
 				FProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
-				// Ensure that the properties are compatible 
+				// Ensure that the properties are compatible
 				if ( !bAddingFullProperty || PropertyFromParameterization->ArrayDim == PropertyFromBinding->ArrayDim )
 				{
 					FValueTypeValidationData ValueTypeValidationData;
@@ -1067,7 +1067,7 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 			else
 			{
 				BindingsContainer->Add( Binding, Name, BindingsToRemove );
-			
+
 				FProperty* PropertyFromBinding = PropertyChain.Last().CachedProperty.Get();
 
 				// The validation we did with GetDeepestLevelOfValidCache ensure us that the property ptr is valid
@@ -1092,6 +1092,11 @@ bool UDataprepParameterization::BindObjectProperty(UDataprepParameterizableObjec
 		{
 			UpdateParameterizationFromBinding( Binding );
 			
+			if ( bIsFirstBindingFromObject )
+			{
+				AddBindingToPostEditOfParameterizableObject( *Object, true );
+			}
+
 			if ( bIsFirstBindingFromObject )
 			{
 				AddBindingToPostEditOfParameterizableObject( *Object, true );
@@ -1205,7 +1210,6 @@ void UDataprepParameterization::GetExistingParameterNamesForType(FProperty* Prop
 {
 	OutValidExistingNames.Empty( NameToParameterizationProperty.Num() );
 	OutInvalidNames.Empty( NameToParameterizationProperty.Num() );
-	
 
 	FValueTypeValidationData ValidationData;
 	DataprepParameterization::PopulateValueTypeValidationData( Property, ValidationData );
@@ -1225,7 +1229,7 @@ void UDataprepParameterization::GetExistingParameterNamesForType(FProperty* Prop
 					OutValidExistingNames.Add( Pair.Key.ToString() );
 				}
 			}
-			
+
 			if ( !bWasAdded )
 			{
 				OutInvalidNames.Add( Pair.Key.ToString() );
@@ -1292,7 +1296,7 @@ void UDataprepParameterization::UpdateClass()
 void UDataprepParameterization::LoadParameterization()
 {
 	if ( !CustomContainerClass )
-	{ 
+	{
 		CreateClassObject();
 
 		TSet<TSharedRef<FDataprepParameterizationBinding>> BindingToRemove;
@@ -1404,7 +1408,7 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 
 				ObjectName = MakeUniqueObjectName( Outer, CustomContainerClass, ObjectName );
 				UObject* Object = NewObject<UObject>( Outer, CustomContainerClass, ObjectName, OldObject->GetFlags() );
-				
+
 				if ( bMigrateData )
 				{
 					UEngine::FCopyPropertiesForUnrelatedObjectsParams Options;
@@ -1419,7 +1423,7 @@ void UDataprepParameterization::DoReinstancing(UClass* OldClass, bool bMigrateDa
 		OldToNew.Add( OldCDO, NewCDO );
 
 		/**
-		 * Notify the tools 
+		 * Notify the tools
 		 * If we did the data migration the tools were already notify of the change by the copy properties for unrelated objects by GEngine::CopyPropertiesForUnrelatedObjects
 		 */
 		if ( !bMigrateData && GEngine)
@@ -1524,7 +1528,7 @@ void UDataprepParameterization::PushParametrizationValueToBindings(FName Paramet
 					}
 				}
 
-				
+
 				CastChecked<UDataprepAsset>( GetOuter() )->OnParameterizedObjectsStatusChanged.Broadcast( &ObjectsModified );
 
 				TSet<UObject*> ObjectsToNotify;

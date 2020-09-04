@@ -34,52 +34,6 @@ bool USoundClassGraphSchema::ConnectionCausesLoop(const UEdGraphPin* InputPin, c
 	return InputNode->SoundClass->RecurseCheckChild( OutputNode->SoundClass );
 }
 
-void USoundClassGraphSchema::GetBreakLinkToSubMenuActions(UToolMenu* Menu, UEdGraphPin* InGraphPin)
-{
-	FToolMenuSection& Section = Menu->FindOrAddSection("SoundClassGraphSchemaPinActions");
-
-	// Make sure we have a unique name for every entry in the list
-	TMap< FString, uint32 > LinkTitleCount;
-
-	// Add all the links we could break from
-	for(TArray<class UEdGraphPin*>::TConstIterator Links(InGraphPin->LinkedTo); Links; ++Links)
-	{
-		UEdGraphPin* Pin = *Links;
-		FString TitleString = Pin->GetOwningNode()->GetNodeTitle(ENodeTitleType::ListView).ToString();
-		FText Title = FText::FromString( TitleString );
-		if ( Pin->PinName != TEXT("") )
-		{
-			TitleString = FString::Printf(TEXT("%s (%s)"), *TitleString, *Pin->PinName.ToString());
-
-			// Add name of connection if possible
-			FFormatNamedArguments Args;
-			Args.Add( TEXT("NodeTitle"), Title );
-			Args.Add( TEXT("PinName"), Pin->GetDisplayName() );
-			Title = FText::Format( LOCTEXT("BreakDescPin", "{NodeTitle} ({PinName})"), Args );
-		}
-
-		uint32 &Count = LinkTitleCount.FindOrAdd( TitleString );
-
-		FText Description;
-		FFormatNamedArguments Args;
-		Args.Add( TEXT("NodeTitle"), Title );
-		Args.Add( TEXT("NumberOfNodes"), Count );
-
-		if ( Count == 0 )
-		{
-			Description = FText::Format( LOCTEXT("BreakDesc", "Break link to {NodeTitle}"), Args );
-		}
-		else
-		{
-			Description = FText::Format( LOCTEXT("BreakDescMulti", "Break link to {NodeTitle} ({NumberOfNodes})"), Args );
-		}
-		++Count;
-
-		Section.AddMenuEntry(NAME_None, Description, Description, FSlateIcon(), FUIAction(
-			FExecuteAction::CreateUObject((USoundClassGraphSchema*const)this, &USoundClassGraphSchema::BreakSinglePinLink, const_cast< UEdGraphPin* >(InGraphPin), *Links) ) );
-	}
-}
-
 void USoundClassGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& ContextMenuBuilder) const
 {
 	const FText Name = LOCTEXT("NewSoundClass", "New Sound Class");
@@ -92,32 +46,7 @@ void USoundClassGraphSchema::GetGraphContextActions(FGraphContextMenuBuilder& Co
 
 void USoundClassGraphSchema::GetContextMenuActions(UToolMenu* Menu, UGraphNodeContextMenuContext* Context) const
 {
-	if (Context->Pin)
-	{
-		{
-			FToolMenuSection& Section = Menu->AddSection("SoundClassGraphSchemaPinActions", LOCTEXT("PinActionsMenuHeader", "Pin Actions"));
-			// Only display the 'Break Links' option if there is a link to break!
-			if (Context->Pin->LinkedTo.Num() > 0)
-			{
-				Section.AddMenuEntry(FGraphEditorCommands::Get().BreakPinLinks);
-
-				// add sub menu for break link to
-				if(Context->Pin->LinkedTo.Num() > 1)
-				{
-					Section.AddSubMenu(
-						"BreakLinkTo",
-						LOCTEXT("BreakLinkTo", "Break Link To..." ),
-						LOCTEXT("BreakSpecificLinks", "Break a specific link..." ),
-						FNewToolMenuDelegate::CreateUObject( (USoundClassGraphSchema*const)this, &USoundClassGraphSchema::GetBreakLinkToSubMenuActions, const_cast<UEdGraphPin*>(Context->Pin)));
-				}
-				else
-				{
-					((USoundClassGraphSchema*const)this)->GetBreakLinkToSubMenuActions(Menu, const_cast<UEdGraphPin*>(Context->Pin));
-				}
-			}
-		}
-	}
-	else if (Context->Node)
+	if (Context->Node)
 	{
 		const USoundClassGraphNode* SoundGraphNode = Cast<const USoundClassGraphNode>(Context->Node);
 

@@ -585,6 +585,8 @@ private:
 	FReply RegenerateLOD(int32 LODIndex);
 	/** Removes the specified lod from the skeletal mesh */
 	FReply RemoveOneLOD(int32 LODIndex);
+	/** Restore the LOD imported data if the LOD is no longer reduced */
+	void RestoreNonReducedLOD(int32 LODIndex);
 	/** hide properties which don't need to be showed to end users */
 	void HideUnnecessaryProperties(IDetailLayoutBuilder& DetailLayout);
 

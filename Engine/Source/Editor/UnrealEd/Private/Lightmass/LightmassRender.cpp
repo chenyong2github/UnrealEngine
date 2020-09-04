@@ -174,6 +174,16 @@ struct FLightmassMaterialCompiler : public FProxyMaterialCompiler
 		return Compiler->Constant4(1.0f,1.0f,1.0f,1.0f);
 	}
 
+	virtual int32 PreSkinVertexOffset() override
+	{
+		return Compiler->Constant3(0.f, 0.f, 0.f);
+	}
+
+	virtual int32 PostSkinVertexOffset() override
+	{
+		return Compiler->Constant3(0.f, 0.f, 0.f);
+	}
+
 	virtual int32 PreSkinnedPosition() override
 	{
 		return Compiler->Constant3(0.f,0.f,0.f);

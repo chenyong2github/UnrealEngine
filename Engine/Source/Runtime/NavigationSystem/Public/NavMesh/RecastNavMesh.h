@@ -469,11 +469,9 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category = Display)
 	uint32 bDrawMarkedForbiddenPolys : 1;
 
+	/** if true, show currently rebuilding tiles differently when visualizing */
 	UPROPERTY(config)
 	uint32 bDistinctlyDrawTilesBeingBuilt:1;
-
-	UPROPERTY(EditAnywhere, Category = Display)
-	uint32 bDrawNavMesh : 1;
 
 	/** vertical offset added to navmesh's debug representation for better readability */
 	UPROPERTY(EditAnywhere, Category=Display, config)
@@ -531,6 +529,7 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0.0"))
 	float MaxSimplificationError;
 
+	/** Sets the limit for number of asynchronous tile generators running at one time, also used for some synchronous tasks */
 	UPROPERTY(EditAnywhere, Category = Generation, config, meta = (ClampMin = "0", UIMin = "0"), AdvancedDisplay)
 	int32 MaxSimultaneousTileGenerationJobsCount;
 
@@ -613,6 +612,7 @@ class NAVIGATIONSYSTEM_API ARecastNavMesh : public ANavigationData
 	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
 	uint32 bFilterLowSpanFromTileCache : 1;
 
+	/** if set, navmesh data gathering will never happen on the game thread and will only be done on background threads */
 	UPROPERTY(EditAnywhere, Category = Generation, config, AdvancedDisplay)
 	uint32 bDoFullyAsyncNavDataGathering : 1;
 	

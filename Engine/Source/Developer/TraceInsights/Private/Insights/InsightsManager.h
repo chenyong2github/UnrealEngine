@@ -9,27 +9,33 @@
 #include "TraceServices/ModuleService.h"
 
 // Insights
+#include "Insights/Common/Stopwatch.h"
 #include "Insights/InsightsCommands.h"
 #include "Insights/InsightsSettings.h"
+#include "Insights/IUnrealInsightsModule.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
 namespace Trace
 {
 	class FStoreClient;
+	class IAnalysisService;
+	class IModuleService;
 }
 
 class SStartPageWindow;
+class SSessionInfoWindow;
+class FInsightsMessageLogViewModel;
+class FInsightsTestRunner;
+class FInsightsMenuBuilder;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 /**
  * This class manages following areas:
  *     Connecting/disconnecting to source trace
- *     Lifetime of all other managers (specific profilers)
  *     Global Unreal Insights application state and settings
  */
-class FInsightsManager
-	: public TSharedFromThis<FInsightsManager>
+class FInsightsManager : public TSharedFromThis<FInsightsManager>, public IInsightsComponent
 {
 	friend class FInsightsActionManager;
 
@@ -46,31 +52,21 @@ public:
 	 * @param TraceAnalysisService The trace analysis service
 	 * @param TraceModuleService   The trace module service
 	 */
-	static TSharedPtr<FInsightsManager> Initialize(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
-												   TSharedRef<Trace::IModuleService> TraceModuleService)
-	{
-		if (FInsightsManager::Instance.IsValid())
-		{
-			FInsightsManager::Instance.Reset();
-		}
-
-		FInsightsManager::Instance = MakeShareable(new FInsightsManager(TraceAnalysisService, TraceModuleService));
-		FInsightsManager::Instance->PostConstructor();
-
-		return FInsightsManager::Instance;
-	}
-
-	/** Shutdowns the main manager. */
-	void Shutdown()
-	{
-		if (FInsightsManager::Instance.IsValid())
-		{
-			FInsightsManager::Instance.Reset();
-		}
-	}
+	static TSharedPtr<FInsightsManager> CreateInstance(TSharedRef<Trace::IAnalysisService> TraceAnalysisService,
+													   TSharedRef<Trace::IModuleService> TraceModuleService);
 
 	/** @return the global instance of the main manager (FInsightsManager). */
 	static TSharedPtr<FInsightsManager> Get();
+
+	//////////////////////////////////////////////////
+	// IInsightsComponent
+
+	virtual void Initialize(IUnrealInsightsModule& InsightsModule) override;
+	virtual void Shutdown() override;
+	virtual void RegisterMajorTabs(IUnrealInsightsModule& InsightsModule) override;
+	virtual void UnregisterMajorTabs() override;
+
+	//////////////////////////////////////////////////
 
 	TSharedRef<Trace::IAnalysisService> GetAnalysisService() const { return AnalysisService; }
 	TSharedRef<Trace::IModuleService> GetModuleService() const { return ModuleService; }
@@ -102,9 +98,17 @@ public:
 	/** @return an instance of the main settings. */
 	static FInsightsSettings& GetSettings();
 
+	//////////////////////////////////////////////////
+	// StartPage (Trace Store Browser)
+
 	void AssignStartPageWindow(const TSharedRef<SStartPageWindow>& InStartPageWindow)
 	{
 		StartPageWindow = InStartPageWindow;
+	}
+
+	void RemoveStartPageWindow()
+	{
+		StartPageWindow.Reset();
 	}
 
 	/**
@@ -114,6 +118,28 @@ public:
 	TSharedPtr<class SStartPageWindow> GetStartPageWindow() const
 	{
 		return StartPageWindow.Pin();
+	}
+
+	//////////////////////////////////////////////////
+	// Session Info
+
+	void AssignSessionInfoWindow(const TSharedRef<SSessionInfoWindow>& InSessionInfoWindow)
+	{
+		SessionInfoWindow = InSessionInfoWindow;
+	}
+
+	void RemoveSessionInfoWindow()
+	{
+		SessionInfoWindow.Reset();
+	}
+
+	/**
+	 * Converts profiler window weak pointer to a shared pointer and returns it.
+	 * Make sure the returned pointer is valid before trying to dereference it.
+	 */
+	TSharedPtr<class SSessionInfoWindow> GetSessionInfoWindow() const
+	{
+		return SessionInfoWindow.Pin();
 	}
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -134,17 +160,30 @@ public:
 	/**
 	 * Creates a new analysis session instance using specified trace id.
 	 * @param TraceId - The id of the trace to analyze
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	void LoadTrace(uint32 TraceId);
+	void LoadTrace(uint32 TraceId, bool InAutoQuit = false);
 
 	/**
 	 * Creates a new analysis session instance and loads a trace file from the specified location.
 	 * @param TraceFilename - The trace file to analyze
+	 * @param InAutoQuit - The Application will close when session analysis is complete or fails to start
 	 */
-	void LoadTraceFile(const FString& TraceFilename);
+	void LoadTraceFile(const FString& TraceFilename, bool InAutoQuit = false);
 
 	/** Opens the Settings dialog. */
 	void OpenSettings();
+
+	void UpdateSessionDuration();
+
+	bool IsAnalysisComplete() const { return bIsAnalysisComplete; }
+	double GetSessionDuration() const { return SessionDuration; }
+	double GetAnalysisDuration() const { return AnalysisDuration; }
+	double GetAnalysisSpeedFactor() const { return AnalysisSpeedFactor; }
+
+	TSharedPtr<FInsightsMessageLogViewModel> GetMessageLog() { return InsightsMessageLogViewModel; }
+
+	TSharedPtr<FInsightsMenuBuilder> GetInsightsMenuBuilder() { return InsightsMenuBuilder; }
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// SessionChangedEvent
@@ -158,13 +197,36 @@ private:
 	FSessionChangedEvent SessionChangedEvent;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
+// SessionAnalysisComplete
+
+public:
+	/** The event to execute when session analysis is complete. */
+	DECLARE_EVENT(FTimingProfilerManager, FSessionAnalysisCompletedEvent);
+	FSessionAnalysisCompletedEvent& GetSessionAnalysisCompletedEvent() { return SessionAnalysisCompletedEvent; }
+private:
+	/** The event to execute when session analysis is completed. */
+	FSessionAnalysisCompletedEvent SessionAnalysisCompletedEvent;
+
+	////////////////////////////////////////////////////////////////////////////////////////////////////
 
 private:
-	/** Finishes initialization of the profiler manager. */
-	void PostConstructor();
-
 	/** Binds our UI commands to delegates. */
 	void BindCommands();
+
+	/** Called to spawn the Start Page major tab. */
+	TSharedRef<SDockTab> SpawnStartPageTab(const FSpawnTabArgs& Args);
+
+	/** Callback called when the Start Page major tab is closed. */
+	void OnStartPageTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	/** Called to spawn the Session Info major tab. */
+	TSharedRef<SDockTab> SpawnSessionInfoTab(const FSpawnTabArgs& Args);
+
+	/** Callback called when the Session Info major tab is closed. */
+	void OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed);
+
+	/** Called to spawn the Message Log major tab. */
+	TSharedRef<SDockTab> SpawnMessageLogTab(const FSpawnTabArgs& Args);
 
 	/** Updates this manager, done through FCoreTicker. */
 	bool Tick(float DeltaTime);
@@ -179,6 +241,8 @@ private:
 	void ActivateTimingInsightsTab();
 
 private:
+	bool bIsInitialized;
+
 	/** The delegate to be invoked when this manager ticks. */
 	FTickerDelegate OnTick;
 
@@ -215,13 +279,31 @@ private:
 	/** A weak pointer to the Start Page window. */
 	TWeakPtr<class SStartPageWindow> StartPageWindow;
 
+	/** A weak pointer to the Session Info window. */
+	TWeakPtr<class SSessionInfoWindow> SessionInfoWindow;
+
+	TSharedPtr<class SWidget> InsightsMessageLog;
+	TSharedPtr<FInsightsMessageLogViewModel> InsightsMessageLogViewModel;
+
 	/** If enabled, UI can display additional info for debugging purposes. */
 	bool bIsDebugInfoEnabled;
 
+	bool bShouldOpenAnalysisInSeparateProcess;
+
+	FStopwatch AnalysisStopwatch;
+	bool bIsAnalysisComplete;
+	double SessionDuration;
+	double AnalysisDuration;
+	double AnalysisSpeedFactor;
+
+	bool bIsMainTabSet = false;
+
+	TSharedPtr<FInsightsMenuBuilder> InsightsMenuBuilder;
+	TSharedPtr<FInsightsTestRunner> TestRunner;
+
+private:
+	static const TCHAR* AutoQuitMsgOnFail;
+
 	/** A shared pointer to the global instance of the main manager. */
 	static TSharedPtr<FInsightsManager> Instance;
-
-	bool bIsNetworkingProfilerAvailable;
-
-	bool bShouldOpenAnalysisInSeparateProcess;
 };

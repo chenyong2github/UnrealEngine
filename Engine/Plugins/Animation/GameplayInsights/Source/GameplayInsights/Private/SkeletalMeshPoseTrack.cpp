@@ -78,6 +78,7 @@ void FSkeletalMeshPoseTrack::BuildDrawState(ITimingEventsTrackDrawStateBuilder& 
 			InTimeline.EnumerateEvents(Context.GetViewport().GetStartTime(), Context.GetViewport().GetEndTime(), [&Builder](double InStartTime, double InEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 			{
 				Builder.AddEvent(InStartTime, InEndTime, 0, InMessage.MeshName);
+				return Trace::EEventEnumerate::Continue;
 			});
 		});
 	}
@@ -157,6 +158,7 @@ void FSkeletalMeshPoseTrack::FindSkeletalMeshPoseMessage(const FTimingEventSearc
 					InTimeline.EnumerateEvents(InContext.GetParameters().StartTime, InContext.GetParameters().EndTime, [&InContext](double InEventStartTime, double InEventEndTime, uint32 InDepth, const FSkeletalMeshPoseMessage& InMessage)
 					{
 						InContext.Check(InEventStartTime, InEventEndTime, 0, InMessage);
+						return Trace::EEventEnumerate::Continue;
 					});
 				});
 			}
@@ -412,6 +414,7 @@ void FSkeletalMeshPoseTrack::DrawPoses(UWorld* InWorld, double InTime, double In
 							Component->SetDebugDrawColor(Color);
 						}
 					}
+					return Trace::EEventEnumerate::Continue;
 				});
 			});
 		}

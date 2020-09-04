@@ -178,6 +178,10 @@ class ENGINE_API UTextRenderComponent : public UPrimitiveComponent
 	virtual FBoxSphereBounds CalcBounds(const FTransform& LocalToWorld) const override;
 	//~ End USceneComponent Interface.
 
+	//~ Begin UActorComponent Interface.
+	virtual bool RequiresGameThreadEndOfFrameUpdates() const override;
+	//~ End UActorComponent Interface.
+
 	//~ Begin UObject Interface.
 	virtual void PostLoad() override;
 	//~ End UObject interface.

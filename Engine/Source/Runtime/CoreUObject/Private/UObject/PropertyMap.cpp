@@ -327,13 +327,13 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 			MapHelper.EmptyValues();
 		}
 
-		uint8* TempKeyStorage = nullptr;
+		uint8* TempKeyValueStorage = nullptr;
 		ON_SCOPE_EXIT
 		{
-			if (TempKeyStorage)
+			if (TempKeyValueStorage)
 			{
-				KeyProp->DestroyValue(TempKeyStorage);
-				FMemory::Free(TempKeyStorage);
+				KeyProp->DestroyValue(TempKeyValueStorage);
+				FMemory::Free(TempKeyValueStorage);
 			}
 		};
 
@@ -342,17 +342,17 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		FStructuredArchive::FArray KeysToRemoveArray = Record.EnterArray(SA_FIELD_NAME(TEXT("KeysToRemove")), NumKeysToRemove);
 		if (NumKeysToRemove)
 		{
-			TempKeyStorage = (uint8*)FMemory::Malloc(KeyProp->GetSize());
-			KeyProp->InitializeValue(TempKeyStorage);
+			TempKeyValueStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			KeyProp->InitializeValue(TempKeyValueStorage);
 
 			FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
 			for (; NumKeysToRemove; --NumKeysToRemove)
 			{
 				// Read key into temporary storage
-				KeyProp->SerializeItem(KeysToRemoveArray.EnterElement(), TempKeyStorage);
+				KeyProp->SerializeItem(KeysToRemoveArray.EnterElement(), TempKeyValueStorage);
 
 				// If the key is in the map, remove it
-				if (uint8* PairPtr = MapHelper.FindMapPairPtrFromHash(TempKeyStorage))
+				if (uint8* PairPtr = MapHelper.FindMapPairPtrFromHash(TempKeyValueStorage))
 				{
 					MapHelper.RemovePair(PairPtr);
 				}
@@ -363,10 +363,10 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 		FStructuredArchive::FArray EntriesArray = Record.EnterArray(SA_FIELD_NAME(TEXT("Entries")), NumEntries);
 
 		// Allocate temporary key space if we haven't allocated it already above
-		if (NumEntries != 0 && !TempKeyStorage)
+		if (NumEntries != 0 && !TempKeyValueStorage)
 		{
-			TempKeyStorage = (uint8*)FMemory::Malloc(KeyProp->GetSize());
-			KeyProp->InitializeValue(TempKeyStorage);
+			TempKeyValueStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+			KeyProp->InitializeValue(TempKeyValueStorage);
 		}
 
 		// Read remaining items into container
@@ -377,10 +377,10 @@ void FMapProperty::SerializeItem(FStructuredArchive::FSlot Slot, void* Value, co
 			// Read key into temporary storage
 			{
 				FSerializedPropertyScope SerializedProperty(UnderlyingArchive, KeyProp, this);
-				KeyProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyStorage);
+				KeyProp->SerializeItem(EntryRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyValueStorage);
 			}
 
-			void* ValuePtr = MapHelper.FindOrAdd(TempKeyStorage);
+			void* ValuePtr = MapHelper.FindOrAdd(TempKeyValueStorage);
 
 			// Deserialize value into hash map-owned memory
 			{
@@ -999,13 +999,13 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 		{
 			FScriptMapHelper MapHelper(this, ContainerPtrToValuePtr<void>(Data));
 
-			uint8* TempKeyStorage = nullptr;
+			uint8* TempKeyValueStorage = nullptr;
 			ON_SCOPE_EXIT
 			{
-				if (TempKeyStorage)
+				if (TempKeyValueStorage)
 				{
-					KeyProp->DestroyValue(TempKeyStorage);
-					FMemory::Free(TempKeyStorage);
+					KeyProp->DestroyValue(TempKeyValueStorage);
+					FMemory::Free(TempKeyValueStorage);
 				}
 			};
 
@@ -1029,13 +1029,13 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 			if( NumKeysToRemove != 0 )
 			{
-				TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
-				KeyProp->InitializeValue(TempKeyStorage);
+				TempKeyValueStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+				KeyProp->InitializeValue(TempKeyValueStorage);
 
-				if (SerializeOrConvert( KeyProp, KeyPropertyTag, KeysToRemoveArray.EnterElement(), TempKeyStorage, DefaultsStruct))
+				if (SerializeOrConvert( KeyProp, KeyPropertyTag, KeysToRemoveArray.EnterElement(), TempKeyValueStorage, DefaultsStruct))
 				{
 					// If the key is in the map, remove it
-					int32 Found = MapHelper.FindMapIndexWithKey(TempKeyStorage);
+					int32 Found = MapHelper.FindMapIndexWithKey(TempKeyValueStorage);
 					if (Found != INDEX_NONE)
 					{
 						MapHelper.RemoveAt(Found);
@@ -1044,8 +1044,8 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 					// things are going fine, remove the rest of the keys:
 					for(int32 I = 1; I < NumKeysToRemove; ++I)
 					{
-						verify(SerializeOrConvert( KeyProp, KeyPropertyTag, KeysToRemoveArray.EnterElement(), TempKeyStorage, DefaultsStruct));
-						Found = MapHelper.FindMapIndexWithKey(TempKeyStorage);
+						verify(SerializeOrConvert( KeyProp, KeyPropertyTag, KeysToRemoveArray.EnterElement(), TempKeyValueStorage, DefaultsStruct));
+						Found = MapHelper.FindMapIndexWithKey(TempKeyValueStorage);
 						if (Found != INDEX_NONE)
 						{
 							MapHelper.RemoveAt(Found);
@@ -1065,19 +1065,19 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 			{
 				if( NumEntries != 0 )
 				{
-					if( TempKeyStorage == nullptr )
+					if(TempKeyValueStorage == nullptr )
 					{
-						TempKeyStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
-						KeyProp->InitializeValue(TempKeyStorage);
+						TempKeyValueStorage = (uint8*)FMemory::Malloc(MapLayout.SetLayout.Size);
+						KeyProp->InitializeValue(TempKeyValueStorage);
 					}
 
 					FStructuredArchive::FRecord FirstPropertyRecord = EntriesArray.EnterElement().EnterRecord();
 
-					if( SerializeOrConvert( KeyProp, KeyPropertyTag, FirstPropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyStorage, DefaultsStruct ) )
+					if( SerializeOrConvert( KeyProp, KeyPropertyTag, FirstPropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyValueStorage, DefaultsStruct ) )
 					{
 						// Add a new default value if the key doesn't currently exist in the map
 						bool bKeyAlreadyPresent = true;
-						int32 NextPairIndex = MapHelper.FindMapIndexWithKey(TempKeyStorage);
+						int32 NextPairIndex = MapHelper.FindMapIndexWithKey(TempKeyValueStorage);
 						if (NextPairIndex == INDEX_NONE)
 						{
 							bKeyAlreadyPresent = false;
@@ -1086,7 +1086,7 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 						uint8* NextPairPtr = MapHelper.GetPairPtrWithoutCheck(NextPairIndex);
 						// This copy is unnecessary when the key was already in the map:
-						KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyStorage);
+						KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyValueStorage);
 
 						// Deserialize value
 						if( SerializeOrConvert( ValueProp, ValuePropertyTag, FirstPropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), NextPairPtr, DefaultsStruct ) )
@@ -1096,8 +1096,8 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 							{
 								FStructuredArchive::FRecord PropertyRecord = EntriesArray.EnterElement().EnterRecord();
 
-								verify( SerializeOrConvert( KeyProp, KeyPropertyTag, PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyStorage, DefaultsStruct ) );
-								NextPairIndex = MapHelper.FindMapIndexWithKey(TempKeyStorage);
+								verify( SerializeOrConvert( KeyProp, KeyPropertyTag, PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Key"))), TempKeyValueStorage, DefaultsStruct ) );
+								NextPairIndex = MapHelper.FindMapIndexWithKey(TempKeyValueStorage);
 								if (NextPairIndex == INDEX_NONE)
 								{
 									NextPairIndex = MapHelper.AddDefaultValue_Invalid_NeedsRehash();
@@ -1105,7 +1105,7 @@ EConvertFromTypeResult FMapProperty::ConvertFromType(const FPropertyTag& Tag, FS
 
 								NextPairPtr = MapHelper.GetPairPtrWithoutCheck(NextPairIndex);
 								// This copy is unnecessary when the key was already in the map:
-								KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyStorage);
+								KeyProp->CopyCompleteValue_InContainer(NextPairPtr, TempKeyValueStorage);
 								verify( SerializeOrConvert( ValueProp, ValuePropertyTag, PropertyRecord.EnterField(SA_FIELD_NAME(TEXT("Value"))), NextPairPtr, DefaultsStruct ) );
 							}
 						}

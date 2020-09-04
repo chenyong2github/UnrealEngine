@@ -14,45 +14,50 @@ enum EPropertyPortFlags
 	/** No special property exporting flags */
 	PPF_None						= 0x00000000,
 
-	//								= 0x00000001,
-
 	/** Indicates that property data should be wrapped in quotes (for some types of properties) */
-	PPF_Delimited					= 0x00000002,
+	PPF_Delimited					= 0x00000001,
 
 	/** Indicates that the object reference should be verified */
-	PPF_CheckReferences				= 0x00000004, 
+	PPF_CheckReferences				= 0x00000002, 
 	
-	PPF_ExportsNotFullyQualified	= 0x00000008,
+	PPF_ExportsNotFullyQualified	= 0x00000004,
 	
-	PPF_AttemptNonQualifiedSearch	= 0x00000010,
+	PPF_AttemptNonQualifiedSearch	= 0x00000008,
 	
 	/** Indicates that importing values for config properties is disallowed */
-	PPF_RestrictImportTypes			= 0x00000020,
+	PPF_RestrictImportTypes			= 0x00000010,
 
 	/** Indicates that this is a blueprint pin or something else that is saved to disk as import text */
-	PPF_SerializedAsImportText		= 0x00000040,
+	PPF_SerializedAsImportText		= 0x00000020,
 
 	/** 
 	 * Set if this is being exported/imported for an external editor format like CSV.
 	 * If true, it uses authored names instead of internal names and default values are always written out.
 	 */
-	PPF_ExternalEditor				= 0x00000080,
+	PPF_ExternalEditor				= 0x00000040,
 
 	/** only include properties which are marked CPF_InstancedReference */
-	PPF_SubobjectsOnly				= 0x00000100,
+	PPF_SubobjectsOnly				= 0x00000080,
 
 	/**
-	 * Only applicable to component properties (for now)
 	 * Indicates that two object should be considered identical
 	 * if the property values for both objects are all identical
 	 */
-	PPF_DeepComparison				= 0x00000200,
+	PPF_DeepComparison				= 0x00000100,
 
 	/**
 	 * Similar to PPF_DeepComparison, except that template components are always compared using standard object
 	 * property comparison logic (basically if the pointers are different, then the property isn't identical)
 	 */
-	PPF_DeepCompareInstances		= 0x00000400,
+	PPF_DeepCompareInstances		= 0x00000200,
+
+	/**
+	 * Only do a deep comparison if the objects are native created default subobjects.
+	 * This can be used to use the legacy FPropertyObjectBase::Identical behavior where subobjects that were
+	 * not created as a default subobject would always return false for a deep compare.
+	 * Requires PPF_DeepComparison or PPF_DeepCompareInstances to also be set
+	 */
+	 PPF_DeepCompareDSOsOnly		= 0x00000400,
 
 	/**
 	 * Set if this operation is copying in memory (for copy/paste) instead of exporting to a file. There are

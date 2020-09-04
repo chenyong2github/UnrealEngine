@@ -17,6 +17,7 @@
 #include "dxc/Support/WinAdapter.h"
 #include "dxc/DXIL/DxilEntryProps.h"
 #include "dxc/DXIL/DxilSubobject.h"
+#include "dxc/DXIL/DxilInstructions.h"
 
 #include "llvm/IR/Constants.h"
 #include "llvm/IR/Function.h"
@@ -30,6 +31,7 @@
 #include "llvm/IR/DiagnosticPrinter.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SetVector.h"
 #include <unordered_set>
 
 using namespace llvm;
@@ -114,6 +116,7 @@ DxilModule::DxilModule(Module *pModule)
 , m_IntermediateFlags(0)
 , m_AutoBindingSpace(UINT_MAX)
 , m_pSubobjects(nullptr)
+, m_bMetadataErrors(false)
 {
 
   DXASSERT_NOMSG(m_pModule != nullptr);
@@ -196,7 +199,13 @@ bool DxilModule::GetMinValidatorVersion(unsigned &ValMajor, unsigned &ValMinor) 
   if (!m_pSM)
     return false;
   m_pSM->GetMinValidatorVersion(ValMajor, ValMinor);
-  if (ValMajor == 1 && ValMinor == 0 &&
+  if (DXIL::CompareVersions(ValMajor, ValMinor, 1, 5) < 0 &&
+      m_ShaderFlags.GetRaytracingTier1_1())
+    ValMinor = 5;
+  else if (DXIL::CompareVersions(ValMajor, ValMinor, 1, 4) < 0 &&
+           GetSubobjects() && !GetSubobjects()->GetSubobjects().empty())
+    ValMinor = 4;
+  else if (DXIL::CompareVersions(ValMajor, ValMinor, 1, 1) < 0 &&
       (m_ShaderFlags.GetFeatureInfo() & hlsl::DXIL::ShaderFeatureInfo_ViewID))
     ValMinor = 1;
   return true;
@@ -275,6 +284,10 @@ void DxilModule::SetPatchConstantFunction(llvm::Function *patchConstantFunc) {
   }
 }
 
+bool DxilModule::IsEntryOrPatchConstantFunction(const llvm::Function* pFunc) const {
+  return pFunc == GetEntryFunction() || pFunc == GetPatchConstantFunction();
+}
+
 unsigned DxilModule::GetGlobalFlags() const {
   unsigned Flags = m_ShaderFlags.GetGlobalFlags();
   return Flags;
@@ -303,6 +316,7 @@ void DxilModule::CollectShaderFlagsForModule(ShaderFlags &Flags) {
     switch (UAV->GetKind()) {
     case DXIL::ResourceKind::RawBuffer:
     case DXIL::ResourceKind::StructuredBuffer:
+    case DXIL::ResourceKind::StructuredBufferWithCounter:
       hasRawAndStructuredBuffer = true;
       break;
     default:
@@ -331,27 +345,54 @@ void DxilModule::CollectShaderFlagsForModule(ShaderFlags &Flags) {
 
 void DxilModule::CollectShaderFlagsForModule() {
   CollectShaderFlagsForModule(m_ShaderFlags);
+
+  // This is also where we record the size of the mesh payload for amplification shader output
+  for (Function &F : GetModule()->functions()) {
+    if (HasDxilEntryProps(&F)) {
+      DxilFunctionProps &props = GetDxilFunctionProps(&F);
+      if (props.shaderKind == DXIL::ShaderKind::Amplification) {
+        if (props.ShaderProps.AS.payloadSizeInBytes != 0)
+          continue;
+        for (const BasicBlock &BB : F.getBasicBlockList()) {
+          for (const Instruction &I : BB.getInstList()) {
+            const DxilInst_DispatchMesh dispatch(const_cast<Instruction*>(&I));
+            if (dispatch) {
+              Type *payloadTy = dispatch.get_payload()->getType()->getPointerElementType();
+              const DataLayout &DL = m_pModule->getDataLayout();
+              props.ShaderProps.AS.payloadSizeInBytes = DL.getTypeAllocSize(payloadTy);
+            }
+          }
+        }
+      }
+    }
+  }
 }
 
 void DxilModule::SetNumThreads(unsigned x, unsigned y, unsigned z) {
-  DXASSERT(m_DxilEntryPropsMap.size() == 1 && m_pSM->IsCS(),
-           "only works for CS profile");
+  DXASSERT(m_DxilEntryPropsMap.size() == 1 &&
+           (m_pSM->IsCS() || m_pSM->IsMS() || m_pSM->IsAS()),
+           "only works for CS/MS/AS profiles");
   DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
-  DXASSERT(props.IsCS(), "Must be CS profile");
-  unsigned *numThreads = props.ShaderProps.CS.numThreads;
+  DXASSERT_NOMSG(m_pSM->GetKind() == props.shaderKind);
+  unsigned *numThreads = props.IsCS() ? props.ShaderProps.CS.numThreads :
+    props.IsMS() ? props.ShaderProps.MS.numThreads : props.ShaderProps.AS.numThreads;
   numThreads[0] = x;
   numThreads[1] = y;
   numThreads[2] = z;
 }
 unsigned DxilModule::GetNumThreads(unsigned idx) const {
+  DXASSERT(m_DxilEntryPropsMap.size() == 1 &&
+           (m_pSM->IsCS() || m_pSM->IsMS() || m_pSM->IsAS()),
+           "only works for CS/MS/AS profiles");
   DXASSERT(idx < 3, "Thread dimension index must be 0-2");
-  if (!m_pSM->IsCS())
-    return 0;
-  DXASSERT(m_DxilEntryPropsMap.size() == 1, "should have one entry prop");
   __analysis_assume(idx < 3);
+  if (!(m_pSM->IsCS() || m_pSM->IsMS() || m_pSM->IsAS()))
+    return 0;
   const DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
-  DXASSERT(props.IsCS(), "Must be CS profile");
-  return props.ShaderProps.CS.numThreads[idx];
+  DXASSERT_NOMSG(m_pSM->GetKind() == props.shaderKind);
+  const unsigned *numThreads = props.IsCS() ? props.ShaderProps.CS.numThreads :
+    props.IsMS() ? props.ShaderProps.MS.numThreads : props.ShaderProps.AS.numThreads;
+  return numThreads[idx];
 }
 
 DXIL::InputPrimitive DxilModule::GetInputPrimitive() const {
@@ -627,6 +668,95 @@ void DxilModule::SetMaxTessellationFactor(float MaxTessellationFactor) {
   props.ShaderProps.HS.maxTessFactor = MaxTessellationFactor;
 }
 
+unsigned DxilModule::GetMaxOutputVertices() const {
+  if (!m_pSM->IsMS())
+    return 0;
+  DXASSERT(m_DxilEntryPropsMap.size() == 1, "should have one entry prop");
+  DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+  DXASSERT(props.IsMS(), "Must be MS profile");
+  return props.ShaderProps.MS.maxVertexCount;
+}
+
+void DxilModule::SetMaxOutputVertices(unsigned NumOVs) {
+  DXASSERT(m_DxilEntryPropsMap.size() == 1 && m_pSM->IsMS(),
+           "only works for MS profile");
+  DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+  DXASSERT(props.IsMS(), "Must be MS profile");
+  props.ShaderProps.MS.maxVertexCount = NumOVs;
+}
+
+unsigned DxilModule::GetMaxOutputPrimitives() const {
+  if (!m_pSM->IsMS())
+    return 0;
+  DXASSERT(m_DxilEntryPropsMap.size() == 1, "should have one entry prop");
+  DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+  DXASSERT(props.IsMS(), "Must be MS profile");
+  return props.ShaderProps.MS.maxPrimitiveCount;
+}
+
+void DxilModule::SetMaxOutputPrimitives(unsigned NumOPs) {
+  DXASSERT(m_DxilEntryPropsMap.size() == 1 && m_pSM->IsMS(),
+           "only works for MS profile");
+  DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+  DXASSERT(props.IsMS(), "Must be MS profile");
+  props.ShaderProps.MS.maxPrimitiveCount = NumOPs;
+}
+
+DXIL::MeshOutputTopology DxilModule::GetMeshOutputTopology() const {
+  if (!m_pSM->IsMS())
+    return DXIL::MeshOutputTopology::Undefined;
+  DXASSERT(m_DxilEntryPropsMap.size() == 1, "should have one entry prop");
+  DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+  DXASSERT(props.IsMS(), "Must be MS profile");
+  return props.ShaderProps.MS.outputTopology;
+}
+
+void DxilModule::SetMeshOutputTopology(DXIL::MeshOutputTopology MeshOutputTopology) {
+  DXASSERT(m_DxilEntryPropsMap.size() == 1 && m_pSM->IsMS(),
+           "only works for MS profile");
+  DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+  DXASSERT(props.IsMS(), "Must be MS profile");
+  props.ShaderProps.MS.outputTopology = MeshOutputTopology;
+}
+
+unsigned DxilModule::GetPayloadSizeInBytes() const {
+  if (m_pSM->IsMS())
+  {
+    DXASSERT(m_DxilEntryPropsMap.size() == 1, "should have one entry prop");
+    DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+    DXASSERT(props.IsMS(), "Must be MS profile");
+    return props.ShaderProps.MS.payloadSizeInBytes;
+  }
+  else if(m_pSM->IsAS())
+  {
+    DXASSERT(m_DxilEntryPropsMap.size() == 1, "should have one entry prop");
+    DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+    DXASSERT(props.IsAS(), "Must be AS profile");
+    return props.ShaderProps.AS.payloadSizeInBytes;
+  }
+  else
+  {
+    return 0;
+  }
+}
+
+void DxilModule::SetPayloadSizeInBytes(unsigned Size) {
+  DXASSERT(m_DxilEntryPropsMap.size() == 1 && (m_pSM->IsMS() || m_pSM->IsAS()),
+           "only works for MS or AS profile");
+  if (m_pSM->IsMS())
+  {
+    DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+    DXASSERT(props.IsMS(), "Must be MS profile");
+    props.ShaderProps.MS.payloadSizeInBytes = Size;
+  } 
+  else if (m_pSM->IsAS())
+  {
+    DxilFunctionProps &props = m_DxilEntryPropsMap.begin()->second->props;
+    DXASSERT(props.IsAS(), "Must be AS profile");
+    props.ShaderProps.AS.payloadSizeInBytes = Size;
+  }
+}
+
 void DxilModule::SetAutoBindingSpace(uint32_t Space) {
   m_AutoBindingSpace = Space;
 }
@@ -651,6 +781,8 @@ void DxilModule::SetShaderProperties(DxilFunctionProps *props) {
   case DXIL::ShaderKind::Domain:
   case DXIL::ShaderKind::Hull:
   case DXIL::ShaderKind::Vertex:
+  case DXIL::ShaderKind::Mesh:
+  case DXIL::ShaderKind::Amplification:
     break;
   default: {
     DXASSERT(props->shaderKind == DXIL::ShaderKind::Geometry,
@@ -880,6 +1012,7 @@ namespace {
 template <typename TResource>
 static void RemoveResourcesWithUnusedSymbolsHelper(std::vector<std::unique_ptr<TResource>> &vec) {
   unsigned resID = 0;
+  std::unordered_set<GlobalVariable *> eraseList; // Need in case of duplicate defs of lib resources
   for (auto p = vec.begin(); p != vec.end();) {
     auto c = p++;
     Constant *symbol = (*c)->GetGlobalSymbol();
@@ -887,13 +1020,16 @@ static void RemoveResourcesWithUnusedSymbolsHelper(std::vector<std::unique_ptr<T
     if (symbol->user_empty()) {
       p = vec.erase(c);
       if (GlobalVariable *GV = dyn_cast<GlobalVariable>(symbol))
-        GV->eraseFromParent();
+        eraseList.insert(GV);
       continue;
     }
     if ((*c)->GetID() != resID) {
       (*c)->SetID(resID);
     }
     resID++;
+  }
+  for (auto gv : eraseList) {
+    gv->eraseFromParent();
   }
 }
 }
@@ -929,16 +1065,16 @@ const DxilSignature &DxilModule::GetOutputSignature() const {
   return m_DxilEntryPropsMap.begin()->second->sig.OutputSignature;
 }
 
-DxilSignature &DxilModule::GetPatchConstantSignature() {
+DxilSignature &DxilModule::GetPatchConstOrPrimSignature() {
   DXASSERT(m_DxilEntryPropsMap.size() == 1 && !m_pSM->IsLib(),
            "only works for non-lib profile");
-  return m_DxilEntryPropsMap.begin()->second->sig.PatchConstantSignature;
+  return m_DxilEntryPropsMap.begin()->second->sig.PatchConstOrPrimSignature;
 }
 
-const DxilSignature &DxilModule::GetPatchConstantSignature() const {
+const DxilSignature &DxilModule::GetPatchConstOrPrimSignature() const {
   DXASSERT(m_DxilEntryPropsMap.size() == 1 && !m_pSM->IsLib(),
            "only works for non-lib profile");
-  return m_DxilEntryPropsMap.begin()->second->sig.PatchConstantSignature;
+  return m_DxilEntryPropsMap.begin()->second->sig.PatchConstOrPrimSignature;
 }
 
 const std::vector<uint8_t> &DxilModule::GetSerializedRootSignature() const {
@@ -1256,7 +1392,12 @@ bool DxilModule::IsKnownNamedMetaData(llvm::NamedMDNode &Node) {
   return DxilMDHelper::IsKnownNamedMetaData(Node);
 }
 
+bool DxilModule::HasMetadataErrors() {
+  return m_bMetadataErrors;
+}
+
 void DxilModule::LoadDxilMetadata() {
+  m_bMetadataErrors = false;
   m_pMDHelper->LoadDxilVersion(m_DxilMajor, m_DxilMinor);
   m_pMDHelper->LoadValidatorVersion(m_ValMajor, m_ValMinor);
   const ShaderModel *loadedSM;
@@ -1347,11 +1488,23 @@ void DxilModule::LoadDxilMetadata() {
 
   LoadDxilResources(*pEntryResources);
 
-  m_pMDHelper->LoadDxilTypeSystem(*m_pTypeSystem.get());
+  // Type system is not required for consumption of dxil.
+  try {
+    m_pMDHelper->LoadDxilTypeSystem(*m_pTypeSystem.get());
+  } catch (hlsl::Exception &) {
+    m_bMetadataErrors = true;
+#ifdef DBG
+    throw;
+#endif
+    m_pTypeSystem->GetStructAnnotationMap().clear();
+    m_pTypeSystem->GetFunctionAnnotationMap().clear();
+  }
 
   m_pMDHelper->LoadRootSignature(m_SerializedRootSignature);
 
   m_pMDHelper->LoadDxilViewIdState(m_SerializedState);
+
+  m_bMetadataErrors |= m_pMDHelper->HasExtraMetadata();
 }
 
 MDTuple *DxilModule::EmitDxilResources() {
@@ -1408,52 +1561,126 @@ void DxilModule::ReEmitDxilResources() {
 }
 
 template <typename TResource>
-static void
+static bool
 StripResourcesReflection(std::vector<std::unique_ptr<TResource>> &vec) {
+  bool bChanged = false;
   for (auto &p : vec) {
     p->SetGlobalName("");
     // Cannot remove global symbol which used by validation.
+    bChanged = true;
   }
+  return bChanged;
 }
 
-void DxilModule::StripReflection() {
+// Return true if any members or components of struct <Ty> contain
+// scalars of less than 32 bits or are matrices, in which case translation is required
+typedef llvm::SmallSetVector<const StructType*, 4> SmallStructSetVector;
+static bool ResourceTypeRequiresTranslation(const StructType * Ty, SmallStructSetVector & containedStructs) {
+  if (Ty->getName().startswith("class.matrix."))
+    return true;
+  bool bResult = false;
+  containedStructs.insert(Ty);
+  for (auto eTy : Ty->elements()) {
+    // Skip past all levels of sequential types to test their elements
+    SequentialType *seqTy;
+    while ((seqTy = dyn_cast<SequentialType>(eTy))) {
+      eTy = seqTy->getElementType();
+    }
+    // Recursively call this function again to process internal structs
+    if (StructType *structTy = dyn_cast<StructType>(eTy)) {
+      if (ResourceTypeRequiresTranslation(structTy, containedStructs))
+        bResult = true;
+    } else if (eTy->getScalarSizeInBits() < 32) { // test scalar sizes
+      bResult = true;
+    }
+  }
+  return bResult;
+}
+
+bool DxilModule::StripReflection() {
+  bool bChanged = false;
+  bool bIsLib = GetShaderModel()->IsLib();
+
   // Remove names.
   for (Function &F : m_pModule->functions()) {
     for (BasicBlock &BB : F) {
-      if (BB.hasName())
+      if (BB.hasName()) {
         BB.setName("");
+        bChanged = true;
+      }
       for (Instruction &I : BB) {
-        if (I.hasName())
+        if (I.hasName()) {
           I.setName("");
+          bChanged = true;
+        }
       }
     }
   }
-  // Remove struct annotation.
-  // FunctionAnnotation is used later, so keep it.
-  m_pTypeSystem->GetStructAnnotationMap().clear();
 
+  if (bIsLib && GetUseMinPrecision())
+  {
+    // We must preserve struct annotations for resources containing min-precision types,
+    // since they have not yet been converted for legacy layout.
+    // Keep all structs contained in any we must keep.
+    SmallStructSetVector structsToKeep;
+    SmallStructSetVector structsToRemove;
+    for (auto &item : m_pTypeSystem->GetStructAnnotationMap()) {
+      SmallStructSetVector containedStructs;
+      if (!ResourceTypeRequiresTranslation(item.first, containedStructs))
+        structsToRemove.insert(item.first);
+      else
+        structsToKeep.insert(containedStructs.begin(), containedStructs.end());
+    }
+
+    for (auto Ty : structsToKeep)
+      structsToRemove.remove(Ty);
+    for (auto Ty : structsToRemove) {
+      m_pTypeSystem->GetStructAnnotationMap().erase(Ty);
+    }
+  } else {
+    // Remove struct annotations.
+    if (!m_pTypeSystem->GetStructAnnotationMap().empty()) {
+      m_pTypeSystem->GetStructAnnotationMap().clear();
+      bChanged = true;
+    }
+    if (DXIL::CompareVersions(m_ValMajor, m_ValMinor, 1, 5) >= 0) {
+      // Remove function annotations.
+      if (!m_pTypeSystem->GetFunctionAnnotationMap().empty()) {
+        m_pTypeSystem->GetFunctionAnnotationMap().clear();
+        bChanged = true;
+      }
+    }
+  }
 
   // Resource
-  if (!GetShaderModel()->IsLib()) {
-    StripResourcesReflection(m_CBuffers);
-    StripResourcesReflection(m_UAVs);
-    StripResourcesReflection(m_SRVs);
-    StripResourcesReflection(m_Samplers);
+  if (!bIsLib) {
+    bChanged |= StripResourcesReflection(m_CBuffers);
+    bChanged |= StripResourcesReflection(m_UAVs);
+    bChanged |= StripResourcesReflection(m_SRVs);
+    bChanged |= StripResourcesReflection(m_Samplers);
   }
 
   // Unused global.
   SmallVector<GlobalVariable *,2> UnusedGlobals;
   for (GlobalVariable &GV : m_pModule->globals()) {
-    if (GV.use_empty())
-      UnusedGlobals.emplace_back(&GV);
+    if (GV.use_empty()) {
+      // Need to preserve this global, otherwise we drop constructors
+      // for static globals.
+      if (!bIsLib || GV.getName().compare("llvm.global_ctors") != 0)
+        UnusedGlobals.emplace_back(&GV);
+    }
   }
+  bChanged |= !UnusedGlobals.empty();
 
   for (GlobalVariable *GV : UnusedGlobals) {
     GV->eraseFromParent();
   }
 
   // ReEmit meta.
-  ReEmitDxilResources();
+  if (bChanged)
+    ReEmitDxilResources();
+
+  return bChanged;
 }
 
 void DxilModule::LoadDxilResources(const llvm::MDOperand &MDO) {

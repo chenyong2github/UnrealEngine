@@ -21,33 +21,6 @@ namespace Trace {
 namespace Private {
 
 ////////////////////////////////////////////////////////////////////////////////
-uint8* MemoryReserve(SIZE_T Size)
-{
-	void* Ptr = mmap(nullptr, Size, PROT_READ | PROT_WRITE, MAP_PRIVATE | MAP_ANON, -1, 0);
-	return (Ptr != MAP_FAILED) ? reinterpret_cast<uint8*>(Ptr) : nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryFree(void* Address, SIZE_T Size)
-{
-	munmap(Address, Size);
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryMap(void* Address, SIZE_T Size)
-{
-	// no-op if mmap()ed with R/W
-}
-
-////////////////////////////////////////////////////////////////////////////////
-void MemoryUnmap(void* Address, SIZE_T Size)
-{
-	madvise(Address, Size, MADV_DONTNEED);
-}
-
-
-
-////////////////////////////////////////////////////////////////////////////////
 UPTRINT ThreadCreate(const ANSICHAR* Name, void (*Entry)())
 {
 	void* (*PthreadThunk)(void*) = [] (void* Param) -> void * {
@@ -93,7 +66,7 @@ uint64 TimeGetFrequency()
 }
 
 ////////////////////////////////////////////////////////////////////////////////
-uint64 TimeGetTimestamp()
+TRACELOG_API uint64 TimeGetTimestamp()
 {
 	return mach_absolute_time();
 }
@@ -219,7 +192,7 @@ int32 TcpSocketAccept(UPTRINT Socket, UPTRINT& Out)
 	Inner = accept(Inner, nullptr, nullptr);
 	if (Inner < 0)
 	{
-		return (Inner == EAGAIN || Inner == EWOULDBLOCK) - 1; // 0 if would block else -1
+		return (errno == EAGAIN || errno == EWOULDBLOCK) - 1; // 0 if would block else -1
 	}
 
 	if (!TcpSocketSetNonBlocking(Inner, false))

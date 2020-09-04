@@ -246,8 +246,13 @@ float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 
 	// Orthonormal basis
 	// Tangent0 is orthogonal to N.
-	float3 Tangent0 = (Vh.z < 0.9999) ? normalize( cross( float3(0, 0, 1), Vh ) ) : float3(1, 0, 0);
-	float3 Tangent1 = cross( Vh, Tangent0 );
+	#if 1 // Stable tangent basis based on V.
+		float3 Tangent0 = (V.z < 0.9999) ? normalize( cross( float3(0, 0, 1), V ) ) : float3(1, 0, 0);
+		float3 Tangent1 = normalize(cross( Vh, Tangent0 ));
+	#else
+		float3 Tangent0 = (Vh.z < 0.9999) ? normalize( cross( float3(0, 0, 1), Vh ) ) : float3(1, 0, 0);
+		float3 Tangent1 = cross( Vh, Tangent0 );
+	#endif
 
 	float2 p = DiskE;
 	float s = 0.5 + 0.5 * Vh.z;

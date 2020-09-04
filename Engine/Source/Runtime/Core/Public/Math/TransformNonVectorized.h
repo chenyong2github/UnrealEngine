@@ -692,11 +692,16 @@ public:
 		return AreScale3DsEqual(*this, Other, Tolerance);
 	}
 
-
 	// Test if all components of the transforms are equal, within a tolerance.
 	FORCEINLINE bool Equals(const FTransform& Other, float Tolerance = KINDA_SMALL_NUMBER) const
 	{
 		return Private_TranslationEquals(Other.Translation, Tolerance) && Private_RotationEquals(Other.Rotation, Tolerance) && Private_Scale3DEquals(Other.Scale3D, Tolerance);
+	}
+
+	// Test if all components of the transform property are equal.
+	FORCEINLINE bool Identical(const FTransform* Other, uint32 PortFlags) const
+	{
+		return Equals(*Other, 0.f);
 	}
 
 	// Test if rotation and translation components of the transforms are equal, within a tolerance.

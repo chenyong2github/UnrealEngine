@@ -2,7 +2,7 @@
 
 #include "Config/Checker/DisplayClusterConfigChecker.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterConfigChecker::FDisplayClusterConfigChecker()

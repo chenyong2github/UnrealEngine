@@ -1,0 +1,124 @@
+#include "/Engine/Private/HashTable.ush"
+
+bool ICHashTableAdd( uint Key, out uint Index )
+{
+	// Zero is reserved as invalid
+	Key++;
+
+	LOOP
+	for( Index = MurmurMix( Key );; Index++ )
+	{
+		Index = Index % IrradianceCachingParameters.HashTableSize;
+
+		uint StoredKey = IrradianceCachingParameters.RWHashTable[ Index ];
+		if( StoredKey != Key )
+		{
+			if( StoredKey != 0 )
+				continue;
+
+			uint PrevKey;
+			InterlockedCompareExchange( IrradianceCachingParameters.RWHashTable[ Index ], 0, Key, PrevKey );
+			
+			if( PrevKey == 0 )
+				return true;
+			else if( PrevKey != Key )
+				continue;
+		}
+
+		break;
+	}
+
+	return false;
+}
+
+// Returns true if key is found.
+// Index output is the hash table bucket this key is stored in if found.
+bool ICHashTableFind( uint Key, out uint Index )
+{
+	// Zero is reserved as invalid
+	Key++;
+
+	LOOP
+	for( Index = MurmurMix( Key );; Index++ )
+	{
+		Index = Index % IrradianceCachingParameters.HashTableSize;
+
+		uint StoredKey = IrradianceCachingParameters.RWHashTable[ Index ];
+		if( StoredKey != Key )
+		{
+			if( StoredKey != 0 )
+				continue;
+		}
+		else
+		{
+			return true;
+		}
+
+		break;
+	}
+
+	return false;
+}
+
+uint3 EncodeVoxelKey(float3 VoxelPos)
+{
+	int3 Signed = int3( VoxelPos ) + 0x1000000;
+	uint3 Voxel = uint3( Signed ) & 0xfffffff;
+
+	uint3 Key;
+	Key.x = Voxel.x;
+	Key.y = Voxel.y;
+	Key.z = Voxel.z;
+	return Key;
+}
+
+#define ATOMIC_ADD_FLOAT(Value, Increment) \
+{ \
+	uint NewValue = asuint(Increment); \
+	uint CompareValue = 0; \
+	uint OldValue; \
+	[allow_uav_condition] \
+	while (true) \
+	{ \
+		InterlockedCompareExchange(Value, CompareValue, NewValue, OldValue); \
+		if (OldValue == CompareValue) \
+			break; \
+		CompareValue = OldValue; \
+		NewValue = asuint(Increment + asfloat(OldValue)); \
+	} \
+}
+
+#define IrradianceCacheMaxSize 262144
+#define MaxNumGeometryHitPointsPerPass (IrradianceCacheMaxSize / 4)
+
+void EmitGeometryHitPoint(uint2 ThreadIndex, uint2 LaunchDim, uint PassIndex, FIrradianceCacheRecord HitPoint)
+{
+	uint2 PixelPosInBlock = ThreadIndex % 8;
+	uint PixelLinearIndex = PixelPosInBlock.y * 8 + PixelPosInBlock.x;
+	if(PixelLinearIndex == PassIndex % 64)
+	{
+		int CompactedLinearIndex = (ThreadIndex.y * LaunchDim.x + ThreadIndex.x) / 64;
+		if(CompactedLinearIndex < MaxNumGeometryHitPointsPerPass)
+		{
+			uint3 Key = EncodeVoxelKey(floor(HitPoint.WorldPosition.xyz / IrradianceCachingParameters.Spacing));			
+			uint HashKey = 0;
+			HashKey = MurmurAdd( HashKey, Key.x );
+			HashKey = MurmurAdd( HashKey, Key.y );
+			HashKey = MurmurAdd( HashKey, Key.z );
+			uint Index;
+			if (ICHashTableAdd(HashKey, Index))
+			{
+				uint RecordIndex = 0;
+				InterlockedAdd(IrradianceCachingParameters.RecordAllocator[0], 1, RecordIndex);
+				RecordIndex %= IrradianceCacheMaxSize;
+				IrradianceCachingParameters.RWHashToIndex[Index] = RecordIndex;
+				if (IrradianceCachingParameters.RWIndexToHash[RecordIndex] != 0)
+				{
+					IrradianceCachingParameters.RWHashTable[IrradianceCachingParameters.RWIndexToHash[RecordIndex]] = 0;
+				}
+				IrradianceCachingParameters.RWIndexToHash[RecordIndex] = Index;
+				IrradianceCachingParameters.IrradianceCacheRecords[RecordIndex] = HitPoint;
+			}
+		}
+	}
+}

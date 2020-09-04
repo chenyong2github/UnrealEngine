@@ -11,29 +11,6 @@
 UE_TRACE_CHANNEL(FrameChannel)
 UE_TRACE_CHANNEL(BookmarkChannel)
 
-UE_TRACE_EVENT_BEGIN(Misc, RegisterGameThread, Important)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Misc, CreateThread, Important)
-	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
-	UE_TRACE_EVENT_FIELD(uint32, CreatedThreadId)
-	UE_TRACE_EVENT_FIELD(uint32, Priority)
-	UE_TRACE_EVENT_FIELD(uint16, NameSize)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Misc, SetThreadGroup, Important)
-	UE_TRACE_EVENT_FIELD(uint32, ThreadId)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Misc, BeginThreadGroupScope, Important)
-	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
-UE_TRACE_EVENT_END()
-
-UE_TRACE_EVENT_BEGIN(Misc, EndThreadGroupScope, Important)
-	UE_TRACE_EVENT_FIELD(uint32, CurrentThreadId)
-UE_TRACE_EVENT_END()
-
 UE_TRACE_EVENT_BEGIN(Misc, BookmarkSpec, Important)
 	UE_TRACE_EVENT_FIELD(const void*, BookmarkPoint)
 	UE_TRACE_EVENT_FIELD(int32, Line)
@@ -63,44 +40,6 @@ struct FMiscTraceInternal
 };
 
 uint64 FMiscTraceInternal::LastFrameCycle[TraceFrameType_Count] = { 0, 0 };
-
-void FMiscTrace::OutputRegisterGameThread(uint32 Id)
-{
-	UE_TRACE_LOG(Misc, RegisterGameThread, TraceLogChannel)
-		<< RegisterGameThread.ThreadId(FPlatformTLS::GetCurrentThreadId());
-}
-
-void FMiscTrace::OutputCreateThread(uint32 Id, const TCHAR* Name, uint32 Priority)
-{
-	uint16 NameSize = (uint16)((FCString::Strlen(Name) + 1) * sizeof(TCHAR));
-	UE_TRACE_LOG(Misc, CreateThread, TraceLogChannel, NameSize)
-		<< CreateThread.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< CreateThread.CreatedThreadId(Id)
-		<< CreateThread.Priority(Priority)
-		<< CreateThread.Attachment(Name, NameSize);
-}
-
-void FMiscTrace::OutputSetThreadGroup(uint32 Id, const ANSICHAR* GroupName)
-{
-	uint16 NameSize = (uint16)(strlen(GroupName) + 1);
-	UE_TRACE_LOG(Misc, SetThreadGroup, TraceLogChannel, NameSize)
-		<< SetThreadGroup.ThreadId(Id)
-		<< SetThreadGroup.Attachment(GroupName, NameSize);
-}
-
-void FMiscTrace::OutputBeginThreadGroupScope(const ANSICHAR* GroupName)
-{
-	uint16 NameSize = (uint16)(strlen(GroupName) + 1);
-	UE_TRACE_LOG(Misc, BeginThreadGroupScope, TraceLogChannel, NameSize)
-		<< BeginThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId())
-		<< BeginThreadGroupScope.Attachment(GroupName, NameSize);
-}
-
-void FMiscTrace::OutputEndThreadGroupScope()
-{
-	UE_TRACE_LOG(Misc, EndThreadGroupScope, TraceLogChannel)
-		<< EndThreadGroupScope.CurrentThreadId(FPlatformTLS::GetCurrentThreadId());
-}
 
 void FMiscTrace::OutputBookmarkSpec(const void* BookmarkPoint, const ANSICHAR* File, int32 Line, const TCHAR* Format)
 {
@@ -133,7 +72,7 @@ void FMiscTrace::OutputBeginFrame(ETraceFrameType FrameType)
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - FMiscTraceInternal::LastFrameCycle[FrameType];
 	FMiscTraceInternal::LastFrameCycle[FrameType] = Cycle;
-	uint8 Buffer[9];
+	uint8 Buffer[10];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
 	uint16 BufferSize = (uint16)(BufferPtr - Buffer);
@@ -158,7 +97,7 @@ void FMiscTrace::OutputEndFrame(ETraceFrameType FrameType)
 	uint64 Cycle = FPlatformTime::Cycles64();
 	uint64 CycleDiff = Cycle - FMiscTraceInternal::LastFrameCycle[FrameType];
 	FMiscTraceInternal::LastFrameCycle[FrameType] = Cycle;
-	uint8 Buffer[9];
+	uint8 Buffer[10];
 	uint8* BufferPtr = Buffer;
 	FTraceUtils::Encode7bit(CycleDiff, BufferPtr);
 	uint16 BufferSize = (uint16)(BufferPtr - Buffer);

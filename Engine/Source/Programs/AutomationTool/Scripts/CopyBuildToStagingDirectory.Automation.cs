@@ -2953,6 +2953,7 @@ public partial class Project : CommandUtils
 
 			var ChunkListFilename = GetChunkPakManifestListFilename(Params, SC);
 			List<string> ChunkList = new List<string>(ReadAllLines(ChunkListFilename));
+			Log.TraceInformation("Reading chunk list file {0} which contains {1} entries", ChunkListFilename, ChunkList.Count);
 
 			for (int Index = 0; Index < ChunkList.Count; ++Index)
 			{
@@ -2985,6 +2986,7 @@ public partial class Project : CommandUtils
 					}
 				}
 				CD.Manifest = ReadPakChunkManifest(ChunkManifestFilename);
+				Log.TraceInformation("Reading chunk manifest {0} which contains {1} entries", ChunkManifestFilename, CD.Manifest.Count);
 				ChunkDefinitions.Add(CD);
 			}
 

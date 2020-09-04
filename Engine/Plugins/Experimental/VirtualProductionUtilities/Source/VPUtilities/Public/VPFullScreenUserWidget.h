@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "Blueprint/UserWidget.h"
 #include "Components/WidgetComponent.h"
+#include "CompositingElement.h"
 #include "VPFullScreenUserWidget.generated.h"
 
 class FWidgetRenderer;
@@ -34,6 +35,8 @@ enum class EVPWidgetDisplayType : uint8
 	Viewport,
 	/** Display as a post process. */
 	PostProcess,
+	/** Render to a texture and send to composure. */
+    Composure,
 };
 
 
@@ -44,7 +47,7 @@ struct FVPFullScreenUserWidget_Viewport
 
 public:
 	FVPFullScreenUserWidget_Viewport();
-	bool Display(UWorld* World, UUserWidget* Widget);
+	bool Display(UWorld* World, UUserWidget* Widget, float InDPIScale);
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
 
@@ -67,15 +70,17 @@ struct FVPFullScreenUserWidget_PostProcess
 
 public:
 	FVPFullScreenUserWidget_PostProcess();
-	bool Display(UWorld* World, UUserWidget* Widget);
+	bool Display(UWorld* World, UUserWidget* Widget, bool bInRenderToTextureOnly, float InDPIScale);
 	void Hide(UWorld* World);
 	void Tick(UWorld* World, float DeltaSeconds);
+
+	TSharedPtr<SVirtualWindow> VPUTILITIES_API GetSlateWindow() const;
 
 private:
 	bool CreatePostProcessComponent(UWorld* World);
 	void ReleasePostProcessComponent();
 
-	bool CreateRenderer(UWorld* World, UUserWidget* Widget);
+	bool CreateRenderer(UWorld* World, UUserWidget* Widget, float InDPIScale);
 	void ReleaseRenderer();
 	void TickRenderer(UWorld* World, float DeltaSeconds);
 
@@ -87,7 +92,7 @@ private:
 
 public:
 	/**
-	 * Post process material used to display the widget. 
+	 * Post process material used to display the widget.
 	 * SlateUI [Texture]
 	 * TintColorAndOpacity [Vector]
 	 * OpacityFromTexture [Scalar]
@@ -131,6 +136,14 @@ public:
 	UPROPERTY(EditAnywhere, AdvancedDisplay, Category = PostProcess)
 	EWidgetBlendMode RenderTargetBlendMode;
 
+	/** List of composure layers that are expecting to use the WidgetRenderTarget. */
+	UPROPERTY(EditAnywhere, Category= PostProcess)
+    TArray<ACompositingElement*> ComposureLayerTargets;
+
+	/** The target to which the user widget is rendered. */
+	UPROPERTY(Transient)
+    UTextureRenderTarget2D* WidgetRenderTarget;
+
 private:
 	/** Post process component used to add the material to the post process chain. */
 	UPROPERTY(Transient)
@@ -139,10 +152,6 @@ private:
 	/** The dynamic instance of the material that the render target is attached to. */
 	UPROPERTY(Transient)
 	UMaterialInstanceDynamic* PostProcessMaterialInstance;
-
-	/** The target to which the user widget is rendered. */
-	UPROPERTY(Transient)
-	UTextureRenderTarget2D* WidgetRenderTarget;
 
 	/** The slate window that contains the user widget content. */
 	TSharedPtr<SVirtualWindow> SlateWindow;
@@ -158,6 +167,9 @@ private:
 
 	/** Hit tester when we want the hardware input. */
 	TSharedPtr<FVPWidgetPostProcessHitTester> CustomHitTestPath;
+
+	/** Only render to the UTextureRenderTarget2D - do not output to the final viewport. */
+	bool bRenderToTextureOnly;
 };
 
 /**
@@ -172,7 +184,6 @@ public:
 	UVPFullScreenUserWidget(const FObjectInitializer& ObjectInitializer);
 
 	//~ Begin UObject interface
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	virtual void BeginDestroy() override;
 #if WITH_EDITOR
 	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
@@ -187,9 +198,14 @@ public:
 	virtual void Hide();
 	virtual void Tick(float DeltaTime);
 
+	void SetDisplayTypes(EVPWidgetDisplayType InEditorDisplayType, EVPWidgetDisplayType InGameDisplayType, EVPWidgetDisplayType InPIEDisplayType);
+
 protected:
 	void InitWidget();
 	void ReleaseWidget();
+
+	FVector2D FindSceneViewportSize();
+	float GetViewportDPIScale();
 
 private:
 	void OnLevelRemovedFromWorld(ULevel* InLevel, UWorld* InWorld);
@@ -207,18 +223,22 @@ protected:
 	UPROPERTY(EditAnywhere, Category = "User Interface", meta = (DisplayName = "PIE Display Type"))
 	EVPWidgetDisplayType PIEDisplayType;
 
-	/** The class of User Widget to create and display an instance of */
-	UPROPERTY(EditAnywhere, Category = "User Interface")
-	TSubclassOf<UUserWidget> WidgetClass;
-
-protected:
 	/** Behavior when the widget should be display by the slate attached to the viewport. */
 	UPROPERTY(EditAnywhere, Category = "Viewport", meta = (ShowOnlyInnerProperties))
 	FVPFullScreenUserWidget_Viewport ViewportDisplayType;
 
+public:
+	/** The class of User Widget to create and display an instance of */
+	UPROPERTY(EditAnywhere, Category = "User Interface")
+	TSubclassOf<UUserWidget> WidgetClass;
+
 	/** Behavior when the widget should be display by a post process. */
 	UPROPERTY(EditAnywhere, Category = "Post Process", meta = (ShowOnlyInnerProperties))
 	FVPFullScreenUserWidget_PostProcess PostProcessDisplayType;
+
+	// Get a pointer to the inner widget.
+	// Note: This should not be stored!
+	UUserWidget* GetWidget() const { return Widget; };
 
 private:
 	/** The User Widget object displayed and managed by this component */

@@ -2258,7 +2258,7 @@ void MainCS(
 	uint2 PixelPos = DispatchThreadId + OutputViewportRect.xy;
 	if (all(PixelPos < OutputViewportRect.zw))
 	{
-		float4 FinalOutput0 = OutColor0;
+		float4 FinalOutput0 = min(MaxHalfFloat.xxxx, OutColor0);
 		#if AA_ENABLE_STOCASTIC_QUANTIZATION
 		{
 			uint2 Random = Rand3DPCG16(int3(PixelPos, View.StateFrameIndexMod8)).xy;

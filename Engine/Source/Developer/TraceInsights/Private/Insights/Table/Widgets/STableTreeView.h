@@ -23,7 +23,6 @@ class FMenuBuilder;
 namespace Trace
 {
 	class IAnalysisSession;
-	struct FTimelineEvent;
 }
 
 namespace Insights
@@ -66,8 +65,6 @@ public:
 
 	TSharedPtr<Insights::FTable> GetTable() const { return Table; }
 
-	void UpdateSourceTable(TSharedPtr<Trace::IUntypedTable> SourceTable);
-
 	virtual void Reset();
 
 	void RebuildColumns();
@@ -78,12 +75,11 @@ public:
 	 */
 	virtual void RebuildTree(bool bResync);
 
-	const FTableTreeNodePtr* FindNode(uint64 Id) const { return TableTreeNodesIdMap.Find(Id); }
-
-	void SelectNodeByNodeId(uint64 Id);
+	FTableTreeNodePtr GetNodeByTableRowIndex(int32 RowIndex) const;
 	void SelectNodeByTableRowIndex(int32 RowIndex);
 
 protected:
+	void ConstructWidget(TSharedPtr<FTable> InTablePtr);
 	void UpdateTree();
 
 	/** Called when the analysis session has changed. */
@@ -138,13 +134,13 @@ protected:
 	/** Called by STreeView to generate a table row for the specified item. */
 	TSharedRef<ITableRow> TreeView_OnGenerateRow(FTableTreeNodePtr TreeNode, const TSharedRef<STableViewBase>& OwnerTable);
 
-	void TableRow_SetHoveredCell(TSharedPtr<FTable> TablePtr, TSharedPtr<FTableColumn> ColumnPtr, const FTableTreeNodePtr NodePtr);
+	bool TableRow_ShouldBeEnabled(FTableTreeNodePtr NodePtr) const;
+
+	void TableRow_SetHoveredCell(TSharedPtr<FTable> TablePtr, TSharedPtr<FTableColumn> ColumnPtr, FTableTreeNodePtr NodePtr);
 	EHorizontalAlignment TableRow_GetColumnOutlineHAlignment(const FName ColumnId) const;
 
 	FText TableRow_GetHighlightText() const;
 	FName TableRow_GetHighlightedNodeName() const;
-
-	bool TableRow_ShouldBeEnabled(const uint32 TreeNodeId) const;
 
 	////////////////////////////////////////////////////////////////////////////////////////////////////
 	// Filtering
@@ -288,14 +284,11 @@ protected:
 	/** The root node of the tree. */
 	FTableTreeNodePtr Root;
 
-	/** Table (row) nodes. Each node corresponds to a table row. */
+	/** Table (row) nodes. Each node corresponds to a table row. Index in this array corresponds to RowIndex in source table. */
 	TArray<FTableTreeNodePtr> TableTreeNodes;
 
 	/** A filtered array of group and nodes to be displayed in the tree widget. */
 	TArray<FTableTreeNodePtr> FilteredGroupNodes;
-
-	/** All nodes, stored as Id -> FTableTreeNodePtr. */
-	TMap<uint64, FTableTreeNodePtr> TableTreeNodesIdMap;
 
 	/** Currently expanded group nodes. */
 	TSet<FTableTreeNodePtr> ExpandedNodes;

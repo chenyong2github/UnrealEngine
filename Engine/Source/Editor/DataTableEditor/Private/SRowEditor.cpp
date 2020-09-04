@@ -93,9 +93,16 @@ void SRowEditor::NotifyPostChange( const FPropertyChangedEvent& PropertyChangedE
 {
 	check(DataTable.IsValid());
 
-	FDataTableEditorUtils::BroadcastPostChange(DataTable.Get(), FDataTableEditorUtils::EDataTableChangeInfo::RowData);
+	FName RowName = NAME_None;
+	if (SelectedName.IsValid())
+	{
+		RowName = *SelectedName.Get();
+	}
 
+	DataTable->HandleDataTableChanged(RowName);
 	DataTable->MarkPackageDirty();
+
+	FDataTableEditorUtils::BroadcastPostChange(DataTable.Get(), FDataTableEditorUtils::EDataTableChangeInfo::RowData);
 }
 
 void SRowEditor::PreChange(const class UUserDefinedStruct* Struct, FStructureEditorUtils::EStructureEditorChangeInfo Info)

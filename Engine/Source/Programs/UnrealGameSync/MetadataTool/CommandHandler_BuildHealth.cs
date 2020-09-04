@@ -503,7 +503,7 @@ namespace MetadataTool
 		/// <returns>Response object</returns>
 		T ParseHttpResponse<T>(HttpWebResponse Response)
 		{
-			using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.Default))
+			using (StreamReader ResponseReader = new StreamReader(Response.GetResponseStream(), Encoding.UTF8))
 			{
 				string ResponseContent = ResponseReader.ReadToEnd();
 				return new JavaScriptSerializer().Deserialize<T>(ResponseContent);

@@ -253,27 +253,6 @@ void FRHICommandNextSubpass::Execute(FRHICommandListBase& CmdList)
 	INTERNAL_DECORATOR(RHINextSubpass)();
 }
 
-void FRHICommandBeginComputePass::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(BeginComputePass);
-	INTERNAL_DECORATOR(RHIBeginComputePass)(Name);
-}
-
-void FRHICommandEndComputePass::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(EndComputePass);
-	INTERNAL_DECORATOR(RHIEndComputePass)();
-}
-
-void FRHICommandSetRenderTargets::Execute(FRHICommandListBase& CmdList)
-{
-	RHISTAT(SetRenderTargets);
-	INTERNAL_DECORATOR(RHISetRenderTargets)(
-		NewNumSimultaneousRenderTargets,
-		NewRenderTargetsRHI,
-		&NewDepthStencilTarget);
-}
-
 void FRHICommandBindClearMRTValues::Execute(FRHICommandListBase& CmdList)
 {
 	RHISTAT(BindClearMRTValues);
@@ -303,7 +282,7 @@ void FRHICommandSetGraphicsPipelineState::Execute(FRHICommandListBase& CmdList)
 	RHISTAT(SetGraphicsPipelineState);
 	extern FRHIGraphicsPipelineState* ExecuteSetGraphicsPipelineState(FGraphicsPipelineState* GraphicsPipelineState);
 	FRHIGraphicsPipelineState* RHIGraphicsPipelineState = ExecuteSetGraphicsPipelineState(GraphicsPipelineState);
-	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(RHIGraphicsPipelineState);
+	INTERNAL_DECORATOR(RHISetGraphicsPipelineState)(RHIGraphicsPipelineState, bApplyAdditionalState);
 }
 
 void FRHICommandDispatchComputeShader::Execute(FRHICommandListBase& CmdList)

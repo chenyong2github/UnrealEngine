@@ -54,7 +54,6 @@ public:
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
 		for ( int i=0; i<7; i++ )
 		{
 			LpvBufferSRVParameters[i].Bind( Initializer.ParameterMap, LpvVolumeTextureSRVNames[i] );
@@ -94,7 +93,6 @@ public:
 		}
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		PostprocessParameter.SetPS(RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SceneTextureParameters.Set(RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
 		SetTextureParameter(RHICmdList, ShaderRHI, PreIntegratedGF, PreIntegratedGFSampler, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI(), GSystemTextures.PreintegratedGF->GetRenderTargetItem().ShaderResourceTexture);
 	}
 
@@ -102,7 +100,6 @@ public:
 	LAYOUT_ARRAY(FShaderResourceParameter, LpvBufferSRVParameters, 7);
 	LAYOUT_FIELD(FShaderResourceParameter, LpvVolumeTextureSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, AOVolumeTextureSRVParameter);
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, PreIntegratedGF);
 	LAYOUT_FIELD(FShaderResourceParameter, PreIntegratedGFSampler);
 };
@@ -146,14 +143,11 @@ public:
 	LAYOUT_FIELD(FShaderResourceParameter, LpvVolumeTextureSampler);
 	LAYOUT_FIELD(FShaderResourceParameter, AOVolumeTextureSRVParameter);
 
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
-
 	/** Initialization constructor. */
 	FPostProcessLpvDirectionalOcclusionPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
 	{
 		PostprocessParameter.Bind(Initializer.ParameterMap);
-		SceneTextureParameters.Bind(Initializer);
 		LpvVolumeTextureSampler.Bind(Initializer.ParameterMap, TEXT("gLpv3DTextureSampler"));
 		AOVolumeTextureSRVParameter.Bind( Initializer.ParameterMap, TEXT("gAOVolumeTexture") );
 	}
@@ -175,7 +169,6 @@ public:
 
 		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, Context.View.ViewUniformBuffer);
 		PostprocessParameter.SetPS(Context.RHICmdList, ShaderRHI, Context, TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI());
-		SceneTextureParameters.Set(Context.RHICmdList, ShaderRHI, Context.View.FeatureLevel, ESceneTextureSetupMode::All);
 	}
 };
 

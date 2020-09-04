@@ -11,8 +11,12 @@
 #include "DMXProtocolSettings.h"
 #include "DMXProtocolUniverseSACN.h"
 #include "Managers/DMXProtocolUniverseManager.h"
+#include "DMXStats.h"
 
 #include "Serialization/BufferArchive.h"
+
+// Stats
+DECLARE_CYCLE_STAT(TEXT("SACN Packages Enqueue To Send"), STAT_SACNPackagesEnqueueToSend, STATGROUP_DMX);
 
 FDMXProtocolSACN::FDMXProtocolSACN(const FName& InProtocolName, FJsonObject& InSettings)
 	: ProtocolName(InProtocolName)
@@ -31,7 +35,7 @@ TSharedPtr<FJsonObject> FDMXProtocolSACN::GetSettings() const
 }
 
 bool FDMXProtocolSACN::Init()
-{	
+{
 	InterfaceIPAddress = GetDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
 
 	// Set Network Interface listener
@@ -68,7 +72,16 @@ bool FDMXProtocolSACN::IsEnabled() const
 
 TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::AddUniverse(const FJsonObject& InSettings)
 {
-	TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe = MakeShared<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
+	checkf(InSettings.HasField(DMXJsonFieldNames::DMXUniverseID), TEXT("DMXProtocol UniverseID is not valid"));
+	uint32 UniverseID = InSettings.GetNumberField(DMXJsonFieldNames::DMXUniverseID);
+	TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(UniverseID);
+	if (Universe.IsValid())
+	{
+		UE_LOG_DMXPROTOCOL(Error, TEXT("Universe %i exist"), UniverseID);
+		return Universe;
+	}
+
+	Universe = MakeShared<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe>(SharedThis(this), InSettings);
 	return UniverseManager->AddUniverse(Universe->GetUniverseID(), Universe);
 }
 
@@ -76,14 +89,44 @@ void FDMXProtocolSACN::CollectUniverses(const TArray<FDMXUniverse>& Universes)
 {
 	for (const FDMXUniverse& Universe : Universes)
 	{
+		FJsonObject UniverseSettings;
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, Universe.UniverseNumber);
+		TArray<TSharedPtr<FJsonValue>> IpAddresses;
+		for (FString IpAddress : Universe.UnicastIpAddresses)
+		{
+			if (IpAddress.IsEmpty())
+			{
+				IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddrByID(Universe.UniverseNumber)));
+			}
+			else
+			{
+				IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddrUnicast(IpAddress)));
+			}
+		}
+		// Broadcast Only ?
+		if (IpAddresses.Num() == 0)
+		{
+			IpAddresses.Add(MakeShared<FJsonValueNumber>(GetUniverseAddrByID(Universe.UniverseNumber)));
+		}
+		UniverseSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses);
+		UniverseSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ACN_PORT);
+
 		if (UniverseManager->GetAllUniverses().Contains(Universe.UniverseNumber))
 		{
+			UpdateUniverse(Universe.UniverseNumber, UniverseSettings);
 			continue;
 		}
 
-		FJsonObject UniverseSettings;
-		UniverseSettings.SetNumberField(TEXT("UniverseID"), Universe.UniverseNumber);
 		AddUniverse(UniverseSettings);
+	}
+}
+
+void FDMXProtocolSACN::UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings)
+{
+	TSharedPtr<FDMXProtocolUniverseSACN, ESPMode::ThreadSafe> Universe = UniverseManager->GetUniverseById(InUniverseId);
+	if (Universe.IsValid())
+	{
+		Universe->UpdateSettings(InSettings);
 	}
 }
 
@@ -100,6 +143,15 @@ void FDMXProtocolSACN::RemoveAllUniverses()
 TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> FDMXProtocolSACN::GetUniverseById(uint32 InUniverseId) const
 {
 	return UniverseManager->GetUniverseById(InUniverseId);
+}
+
+void FDMXProtocolSACN::GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const
+{
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXPortID, 0.0);
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXUniverseID, InUniverseID);
+	OutSettings.SetNumberField(DMXJsonFieldNames::DMXEthernetPort, ACN_PORT);
+	const TArray<TSharedPtr<FJsonValue>> IpAddresses = { MakeShared<FJsonValueNumber>(GetUniverseAddrByID(InUniverseID)) };
+	OutSettings.SetArrayField(DMXJsonFieldNames::DMXIpAddresses, IpAddresses); // Broadcast IP address
 }
 
 
@@ -159,7 +211,7 @@ bool FDMXProtocolSACN::SendDiscovery(const TArray<uint16>& Universes)
 	// Sending
 	FJsonObject PacketSettings;
 	PacketSettings.SetNumberField("UniverseID", ACN_MAX_UNIVERSES);
-	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, Packager.GetBuffer());
+	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, ACN_MAX_UNIVERSES, Packager.GetBuffer());
 	GetSenderInterface()->EnqueueOutboundPackage(Packet);
 
 	return true;
@@ -181,6 +233,17 @@ EDMXSendResult FDMXProtocolSACN::SendDMXFragment(uint16 InUniverseID, const IDMX
 	}
 
 	EDMXSendResult Result = SendDMXInternal(FinalSendUniverseID, Universe->GetOutputDMXBuffer());
+
+	if (Result == EDMXSendResult::Success)
+	{
+		const FDMXBufferPtr& OutputBuffer = Universe->GetOutputDMXBuffer();
+		check(OutputBuffer.IsValid());
+
+		OutputBuffer->AccessDMXData([this, FinalSendUniverseID](TArray<uint8>& Buffer) {
+				OnUniverseOutputBufferUpdated.Broadcast(ProtocolName, FinalSendUniverseID, Buffer);
+			});
+	}
+
 	return Result;
 }
 
@@ -226,7 +289,7 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMX
 	FDMXProtocolPackager Packager;
 
 	// SACN PDU packets
-	FDMXProtocolE131RootLayerPacket RootLayer;;
+	FDMXProtocolE131RootLayerPacket RootLayer;
 	static FGuid Guid = FGuid::NewGuid();
 	FMemory::Memcpy(RootLayer.CID, &Guid, ACN_CIDBYTES);
 
@@ -241,16 +304,16 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMX
 	DMPLayer.PropertyValueCount = ACN_DMX_SIZE + 1;
 	bool bBufferSizeIsWrong = false;
 	DMXBuffer->AccessDMXData([&DMPLayer, &bBufferSizeIsWrong](TArray<uint8>& InData)
+	{
+		if (InData.Num() == ACN_DMX_SIZE)
 		{
-			if (InData.Num() == ACN_DMX_SIZE)
-			{
-				FMemory::Memcpy(DMPLayer.DMX, InData.GetData(), ACN_DMX_SIZE);
-			}
-			else
-			{
-				bBufferSizeIsWrong = true;
-			}
-		});
+			FMemory::Memcpy(DMPLayer.DMX, InData.GetData(), ACN_DMX_SIZE);
+		}
+		else
+		{
+			bBufferSizeIsWrong = true;
+		}
+	});
 
 	if (bBufferSizeIsWrong)
 	{
@@ -263,13 +326,24 @@ EDMXSendResult FDMXProtocolSACN::SendDMXInternal(uint16 InUniverseID, const FDMX
 
 	// Sending
 	FJsonObject PacketSettings;
-	PacketSettings.SetNumberField("UniverseID", InUniverseID);
-	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, Packager.GetBuffer());
-
-	if (!GetSenderInterface()->EnqueueOutboundPackage(Packet))
+	PacketSettings.SetNumberField(TEXT("UniverseID"), InUniverseID);
+	FDMXPacketPtr Packet = MakeShared<FDMXPacket, ESPMode::ThreadSafe>(PacketSettings, InUniverseID, Packager.GetBuffer());
+	TSharedPtr<IDMXProtocolSender> SenderInterface = GetSenderInterface();
+	// @TODO: Check why sender interface could be invalid
+	if (SenderInterface.IsValid())
 	{
-		return EDMXSendResult::ErrorEnqueuePackage;
+		if (!SenderInterface->EnqueueOutboundPackage(Packet))
+		{
+			return EDMXSendResult::ErrorEnqueuePackage;
+		}
 	}
+	else
+	{
+		return EDMXSendResult::ErrorNoSenderInterface;
+	}
+
+	// Stats
+	SCOPE_CYCLE_COUNTER(STAT_SACNPackagesEnqueueToSend);
 
 	return EDMXSendResult::Success;
 }
@@ -292,6 +366,7 @@ bool FDMXProtocolSACN::RestartNetworkInterface(const FString& InInterfaceIPAddre
 
 	// Try to create IP address at the first
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+
 	// Create sender address
 	TSharedPtr<FInternetAddr> SenderAddr = SocketSubsystem->CreateInternetAddr();
 	bool bIsValid = false;
@@ -312,11 +387,11 @@ bool FDMXProtocolSACN::RestartNetworkInterface(const FString& InInterfaceIPAddre
 	FSocket* NewSenderSocket = FUdpSocketBuilder(TEXT("UDPSACNSenderSocket"))
 		.AsNonBlocking()
 #if PLATFORM_SUPPORTS_UDP_MULTICAST_GROUP
-        .WithMulticastInterface(SenderEndpoint.Address)
-        .WithMulticastLoopback()
-        .WithMulticastTtl(1)
+		.WithMulticastInterface(SenderEndpoint.Address)
+		.WithMulticastLoopback()
+		.WithMulticastTtl(1)
 #endif
-        .BoundToEndpoint(SenderEndpoint)
+		.BoundToEndpoint(SenderEndpoint)
 		.AsReusable();
 
 	if (NewSenderSocket == nullptr)
@@ -363,13 +438,11 @@ void FDMXProtocolSACN::RDMDiscovery(const TSharedPtr<FJsonObject>& CMD)
 	// Cross protocol RDM discovery implementation will be here
 }
 
-TSharedPtr<FInternetAddr> FDMXProtocolSACN::GetUniverseAddr(uint16 InUniverseID)
+uint32 FDMXProtocolSACN::GetUniverseAddrByID(uint16 InUniverseID)
 {
 	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
-
 	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
-	InternetAddr->SetPort(ACN_PORT);
-
+	uint32 ReturnAddress = 0;
 	FBufferArchive IP;
 	uint8 IP_0 = ACN_UNIVERSE_IP_0;
 	uint8 IP_1 = ACN_UNIVERSE_IP_1;
@@ -379,6 +452,24 @@ TSharedPtr<FInternetAddr> FDMXProtocolSACN::GetUniverseAddr(uint16 InUniverseID)
 	IP << InUniverseID;	// [x.x.x.x]
 
 	InternetAddr->SetRawIp(IP);
-
-	return InternetAddr;
+	InternetAddr->GetIp(ReturnAddress);
+	return ReturnAddress;
 }
+
+uint32 FDMXProtocolSACN::GetUniverseAddrUnicast(FString UnicastAddress)
+{
+	ISocketSubsystem* SocketSubsystem = ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM);
+	TSharedPtr<FInternetAddr> InternetAddr = SocketSubsystem->CreateInternetAddr();
+	uint32 ReturnAddress = 0;
+	bool bIsValid = false;
+	InternetAddr->SetIp(*UnicastAddress, bIsValid);
+	InternetAddr->GetIp(ReturnAddress);
+
+	if (!bIsValid)
+	{
+		UE_LOG_DMXPROTOCOL(Warning, TEXT("Failed to create unicast address"));
+	}
+
+	return ReturnAddress;
+}
+

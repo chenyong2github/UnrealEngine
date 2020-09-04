@@ -58,7 +58,7 @@ void UAbilityTask_ApplyRootMotionConstantForce::SharedInitAndApply()
 		if (MovementComponent)
 		{
 			ForceName = ForceName.IsNone() ? FName("AbilityTaskApplyRootMotionConstantForce"): ForceName;
-			FRootMotionSource_ConstantForce* ConstantForce = new FRootMotionSource_ConstantForce();
+			TSharedPtr<FRootMotionSource_ConstantForce> ConstantForce = MakeShared<FRootMotionSource_ConstantForce>();
 			ConstantForce->InstanceName = ForceName;
 			ConstantForce->AccumulateMode = bIsAdditive ? ERootMotionAccumulateMode::Additive : ERootMotionAccumulateMode::Override;
 			ConstantForce->Priority = 5;

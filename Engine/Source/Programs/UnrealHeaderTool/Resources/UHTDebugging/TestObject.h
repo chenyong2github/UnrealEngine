@@ -11,7 +11,7 @@ DECLARE_DYNAMIC_DELEGATE(FSimpleClassDelegate);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FRegularDelegate, int32, SomeArgument);
 DECLARE_DYNAMIC_DELEGATE_OneParam(FDelegateWithDelegateParam, FRegularDelegate const &, RegularDelegate);
 
-struct ITestObject
+struct ITestInterface
 {
 };
 
@@ -31,7 +31,7 @@ class alignas(8) UAlignedObject : public UObject
 };
 
 UCLASS()
-class UTestObject : public UObject, public ITestObject
+class UTestObject : public UObject, public ITestInterface, public SomeNamespace::FSomeNonReflectedType
 {
 	GENERATED_BODY()
 

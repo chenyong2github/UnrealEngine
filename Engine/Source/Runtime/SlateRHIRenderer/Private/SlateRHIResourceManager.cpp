@@ -560,7 +560,7 @@ static void LoadUObjectForBrush( const FSlateBrush& InBrush )
 		// Set the texture object to a default texture to prevent constant loading of missing textures
 		if( !TextureObject )
 		{
-			UE_LOG(LogSlate, Warning, TEXT("Error loading loading UTexture from path: %s not found"), *Path);
+			UE_LOG(LogSlate, Warning, TEXT("Error loading UTexture from path: %s not found"), *Path);
 			TextureObject = GEngine->DefaultTexture;
 		}
 		else

@@ -98,6 +98,8 @@ public:
 
 	virtual bool IsCursorDirectlyOverSlateWindow() const override;
 
+ 	virtual TSharedPtr<FGenericWindow> GetWindowUnderCursor() override;
+
 	/** Returns true if this application is foreground */
 	FORCEINLINE bool IsForeground()
 	{
@@ -311,6 +313,7 @@ private:
 	TSharedPtr< FLinuxWindow > CurrentlyActiveWindow;
 	TSharedPtr< FLinuxWindow > CurrentFocusWindow;
 	TSharedPtr< FLinuxWindow > CurrentClipWindow;
+	TSharedPtr< FLinuxWindow > CurrentUnderCursorWindow;
 
 	/** Stores (unescaped) file URIs received during current drag-n-drop operation. */
 	TArray<FString> DragAndDropQueue;

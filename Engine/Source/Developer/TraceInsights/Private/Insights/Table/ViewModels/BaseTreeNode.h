@@ -30,12 +30,9 @@ typedef TWeakPtr<class FBaseTreeNode> FBaseTreeNodeWeak;
 class FBaseTreeNode : public TSharedFromThis<FBaseTreeNode>
 {
 public:
-	static constexpr int32 InvalidId = -1;
-
-public:
 	/** Initialization constructor for the node. */
-	FBaseTreeNode(uint64 InId, const FName InName, bool bInIsGroup)
-		: Id(InId)
+	FBaseTreeNode(const FName InName, bool bInIsGroup)
+		: DefaultSortOrder(0)
 		, Name(InName)
 		, bIsGroup(bInIsGroup)
 		, bIsExpanded(false)
@@ -48,13 +45,8 @@ public:
 
 	virtual const FName& GetTypeName() const = 0;
 
-	/**
-	 * @return an id of this node.
-	 */
-	const int32 GetId() const
-	{
-		return Id;
-	}
+	uint32 GetDefaultSortOrder() const { return DefaultSortOrder; }
+	void SetDefaultSortOrder(uint32 Order) { DefaultSortOrder = Order; }
 
 	/**
 	 * @return a name of this node.
@@ -159,8 +151,8 @@ protected:
 	}
 
 private:
-	/** The id of this node. */
-	const int32 Id;
+	/** The default sort order. Index used to optimize sorting. */
+	int32 DefaultSortOrder;
 
 	/** The name of this node. */
 	const FName Name;

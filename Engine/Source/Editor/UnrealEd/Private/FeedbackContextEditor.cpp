@@ -24,6 +24,9 @@
 /** Called to cancel the slow task activity */
 DECLARE_DELEGATE( FOnCancelClickedDelegate );
 
+/** Called when checking if the cancel button should be enabled */
+DECLARE_DELEGATE_RetVal(bool, FReceiveUserCancelDelegate);
+
 /**
  * Simple "slow task" widget
  */
@@ -43,6 +46,9 @@ public:
 		/** Called to when an asset is clicked */
 		SLATE_EVENT( FOnCancelClickedDelegate, OnCancelClickedDelegate )
 
+		/** Called when checking if the cancel button should be enabled */
+		SLATE_EVENT( FReceiveUserCancelDelegate, ReceiveUserCancelDelegate)
+
 		/** The feedback scope stack that we are presenting to the user */
 		SLATE_ARGUMENT( TWeakPtr<FSlowTaskStack>, ScopeStack )
 
@@ -52,6 +58,7 @@ public:
 	void Construct( const FArguments& InArgs )
 	{
 		OnCancelClickedDelegate = InArgs._OnCancelClickedDelegate;
+		ReceiveUserCancelDelegate = InArgs._ReceiveUserCancelDelegate;
 		WeakStack = InArgs._ScopeStack;
 
 		// This is a temporary widget that needs to be updated over its entire lifespan => has an active timer registered for its entire lifespan
@@ -131,6 +138,7 @@ public:
 					.Text( NSLOCTEXT("FeedbackContextProgress", "Cancel", "Cancel") )
 					.HAlign(EHorizontalAlignment::HAlign_Center)
 					.OnClicked(this, &SSlowTaskWidget::OnCancel)
+					.IsEnabled(this, &SSlowTaskWidget::GetCancelEnabledState)
 				];
 		}
 
@@ -332,10 +340,23 @@ private:
 		return FReply::Handled();
 	}
 
+	bool GetCancelEnabledState() const
+	{
+		if (ReceiveUserCancelDelegate.IsBound())
+		{
+			return !ReceiveUserCancelDelegate.Execute();
+		}
+
+		return true;
+	}
+
 private:
 
 	/** Delegate to invoke if the user clicks cancel */
 	FOnCancelClickedDelegate OnCancelClickedDelegate;
+
+	/** Delegate that returns if the cancel state is already active */
+	FReceiveUserCancelDelegate ReceiveUserCancelDelegate;
 
 	/** The scope stack that we are reflecting */
 	TWeakPtr<FSlowTaskStack> WeakStack;
@@ -449,7 +470,7 @@ void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelB
 				}
 
 				const bool bFocusAndActivate = FPlatformApplicationMisc::IsThisApplicationForeground();
-
+				FReceiveUserCancelDelegate ReceiveUserCancelDelegate = FReceiveUserCancelDelegate::CreateRaw(this, &FFeedbackContextEditor::ReceivedUserCancel);
 				TSharedRef<SWindow> SlowTaskWindowRef = SNew(SWindow)
 					.SizingRule(ESizingRule::Autosized)
 					.AutoCenter(EAutoCenter::PreferredWorkArea)
@@ -462,6 +483,7 @@ void FFeedbackContextEditor::StartSlowTask( const FText& Task, bool bShowCancelB
 					SNew(SSlowTaskWidget)
 					.ScopeStack(GetScopeStackSharedPtr())
 					.OnCancelClickedDelegate(OnCancelClicked)
+					.ReceiveUserCancelDelegate(ReceiveUserCancelDelegate)
 				);
 
 				SlowTaskWindow = SlowTaskWindowRef;

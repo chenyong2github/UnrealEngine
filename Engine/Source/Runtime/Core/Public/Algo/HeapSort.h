@@ -15,7 +15,7 @@ namespace Algo
 	 * @param Range		The range to sort.
 	 */
 	template <typename RangeType>
-	FORCEINLINE void HeapSort(RangeType& Range)
+	FORCEINLINE void HeapSort(RangeType&& Range)
 	{
 		AlgoImpl::HeapSortInternal(GetData(Range), GetNum(Range), FIdentityFunctor(), TLess<>());
 	}
@@ -27,7 +27,7 @@ namespace Algo
 	 * @param Predicate	A binary predicate object used to specify if one element should precede another.
 	 */
 	template <typename RangeType, typename PredicateType>
-	FORCEINLINE void HeapSort(RangeType& Range, PredicateType Predicate)
+	FORCEINLINE void HeapSort(RangeType&& Range, PredicateType Predicate)
 	{
 		AlgoImpl::HeapSortInternal(GetData(Range), GetNum(Range), FIdentityFunctor(), MoveTemp(Predicate));
 	}
@@ -39,7 +39,7 @@ namespace Algo
 	 * @param Projection	The projection to sort by when applied to the element.
 	 */
 	template <typename RangeType, typename ProjectionType>
-	FORCEINLINE void HeapSortBy(RangeType& Range, ProjectionType Projection)
+	FORCEINLINE void HeapSortBy(RangeType&& Range, ProjectionType Projection)
 	{
 		AlgoImpl::HeapSortInternal(GetData(Range), GetNum(Range), Projection, TLess<>());
 	}
@@ -52,7 +52,7 @@ namespace Algo
 	 * @param Predicate	A binary predicate object, applied to the projection, used to specify if one element should precede another.
 	 */
 	template <typename RangeType, typename ProjectionType, typename PredicateType>
-	FORCEINLINE void HeapSortBy(RangeType& Range, ProjectionType Projection, PredicateType Predicate)
+	FORCEINLINE void HeapSortBy(RangeType&& Range, ProjectionType Projection, PredicateType Predicate)
 	{
 		AlgoImpl::HeapSortInternal(GetData(Range), GetNum(Range), MoveTemp(Projection), MoveTemp(Predicate));
 	}

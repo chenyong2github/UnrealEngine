@@ -12,7 +12,7 @@ extern TAutoConsoleVariable<FString> CVarPixelStreamingEncoderTargetSize;
 
 FVideoCapturer::FVideoCapturer(FHWEncoderDetails& InHWEncoderDetails): HWEncoderDetails(InHWEncoderDetails)
 {
-	set_enable_video_adapter(false);
+	//set_enable_video_adapter(false);
 
 	std::vector<cricket::VideoFormat> Formats;
 	Formats.push_back(cricket::VideoFormat(Width, Height, cricket::VideoFormat::FpsToInterval(Framerate), cricket::FOURCC_H264));

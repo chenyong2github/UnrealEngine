@@ -304,7 +304,6 @@ public:
 	//~ Begin UObject Interface
 	static void AddReferencedObjects(UObject* InThis, FReferenceCollector& Collector);
 	virtual void BeginDestroy() override;
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
 private:

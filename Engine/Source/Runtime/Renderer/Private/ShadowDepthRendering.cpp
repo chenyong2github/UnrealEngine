@@ -1372,15 +1372,16 @@ void FProjectedShadowInfo::GetShadowTypeNameForDrawEvent(FString& TypeName) cons
 #if WITH_MGPU
 FRHIGPUMask FSceneRenderer::GetGPUMaskForShadow(FProjectedShadowInfo* ProjectedShadowInfo) const
 {
-	// Preshadows are handled separately and check bDepthsCached.
+	// Preshadows that are going to be cached this frame should render on all GPUs.
 	if (ProjectedShadowInfo->bPreShadow)
 	{
-		return AllViewsGPUMask;
+		// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
+		// wasted for any shadows that re-cache on consecutive frames.
+		return !ProjectedShadowInfo->bDepthsCached && ProjectedShadowInfo->bAllocatedInPreshadowCache ? FRHIGPUMask::All() : AllViewsGPUMask;
 	}
-
 	// SDCM_StaticPrimitivesOnly shadows don't update every frame so we need to render
 	// their depths on all possible GPUs.
-	if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
+	else if (ProjectedShadowInfo->CacheMode == SDCM_StaticPrimitivesOnly)
 	{
 		// Cached whole scene shadows shouldn't be view dependent.
 		checkSlow(ProjectedShadowInfo->DependentView == nullptr);
@@ -1495,6 +1496,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 				{
 					if (CurrentLightForDrawEvent)
 					{
+						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 						STOP_DRAW_EVENT(LightEvent);
 					}
 
@@ -1502,6 +1504,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 					FString LightNameWithLevel;
 					GetLightNameForDrawEvent(CurrentLightForDrawEvent, LightNameWithLevel);
 
+					SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 					BEGIN_DRAW_EVENTF(
 						RHICmdList,
 						LightNameEvent,
@@ -1516,6 +1519,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 		if (CurrentLightForDrawEvent)
 		{
+			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 			STOP_DRAW_EVENT(LightEvent);
 		}
 
@@ -1524,8 +1528,9 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 		if (SerialShadowPasses.Num() > 0)
 		{
 			bool bForceSingleRenderPass = CVarShadowForceSerialSingleRenderPass.GetValueOnAnyThread() != 0;
-			if(bForceSingleRenderPass)
+			if (bForceSingleRenderPass)
 			{
+				SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
 				BeginShadowRenderPass(RHICmdList, true);
 			}
 
@@ -1539,6 +1544,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 				{
 					if (CurrentLightForDrawEvent)
 					{
+						SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 						STOP_DRAW_EVENT(LightEvent);
 					}
 
@@ -1546,6 +1552,7 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 					FString LightNameWithLevel;
 					GetLightNameForDrawEvent(CurrentLightForDrawEvent, LightNameWithLevel);
 
+					SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 					BEGIN_DRAW_EVENTF(
 						RHICmdList,
 						LightNameEvent,
@@ -1555,24 +1562,37 @@ void FSceneRenderer::RenderShadowDepthMapAtlases(FRHICommandListImmediate& RHICm
 
 				ProjectedShadowInfo->SetupShadowUniformBuffers(RHICmdList, Scene);
 				ProjectedShadowInfo->TransitionCachedShadowmap(RHICmdList, Scene);
+#if WITH_MGPU
+				// In case the first shadow is view-dependent, ensure we do the clear on all GPUs.
+				FRHIGPUMask GPUMaskForRenderPass = RHICmdList.GetGPUMask();
+				if (ShadowIndex == 0)
+				{
+					// This ensures that we don't downgrade the GPU mask if the first shadow is a
+					// cached whole scene shadow.
+					GPUMaskForRenderPass |= AllViewsGPUMask;
+				}
+#endif
 				if (!bForceSingleRenderPass)
 				{
+					SCOPED_GPU_MASK(RHICmdList, GPUMaskForRenderPass);
 					BeginShadowRenderPass(RHICmdList, ShadowIndex == 0);
 				}
 				ProjectedShadowInfo->RenderDepth(RHICmdList, this, BeginShadowRenderPass, false);
-				if(!bForceSingleRenderPass)
+				if (!bForceSingleRenderPass)
 				{
 					RHICmdList.EndRenderPass();
 				}
 			}
-			if(bForceSingleRenderPass)
+			if (bForceSingleRenderPass)
 			{
+				SCOPED_GPU_MASK(RHICmdList, AllViewsGPUMask);
 				RHICmdList.EndRenderPass();
 			}
 		}
 
 		if (CurrentLightForDrawEvent)
 		{
+			SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 			STOP_DRAW_EVENT(LightEvent);
 			CurrentLightForDrawEvent = NULL;
 		}
@@ -1692,9 +1712,7 @@ void FSceneRenderer::RenderShadowDepthMaps(FRHICommandListImmediate& RHICmdList)
 
 			if (!ProjectedShadowInfo->bDepthsCached)
 			{
-				// Multi-GPU support : Updating on all GPUs may be inefficient for AFR. Work is
-				// wasted for any shadows that re-cache on consecutive frames.
-				SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+				SCOPED_GPU_MASK(RHICmdList, GetGPUMaskForShadow(ProjectedShadowInfo));
 
 				const bool bDoParallelDispatch = RHICmdList.IsImmediate() &&  // translucent shadows are draw on the render thread, using a recursive cmdlist (which is not immediate)
 					GRHICommandList.UseParallelAlgorithms() && CVarParallelShadows.GetValueOnRenderThread() &&

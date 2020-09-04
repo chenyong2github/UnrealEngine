@@ -427,7 +427,7 @@ public:
 						FVector TangentY = Vertex.TangentY;
 						FVector TangentZ = Vertex.TangentZ;
 						FVector Position = Vertex.Position;
-						for (uint8 InfluenceIndex = 0; InfluenceIndex < 8; ++InfluenceIndex)
+						for (uint8 InfluenceIndex = 0; InfluenceIndex < MAX_TOTAL_INFLUENCES; ++InfluenceIndex)
 						{
 							const int32 ArrayIndex = BoneIndices.IndexOfByKey(Section.BoneMap[Vertex.InfluenceBones[InfluenceIndex]]);
 							if (ArrayIndex != INDEX_NONE)

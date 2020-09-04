@@ -11,6 +11,7 @@
 #include "Engine/StaticMesh.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Stats/StatsMisc.h"
+#include "Trace/Trace.h"
 #include "HAL/RunnableThread.h"
 
 //#include "ScopedTimers.h"
@@ -285,7 +286,7 @@ public:
 		ThreadName = FString::Printf(TEXT("TBB %d"), ThreadIndex++);
 		ThreadID = FPlatformTLS::GetCurrentThreadId();
 		SetTls();
-		TRACE_CREATE_THREAD(ThreadID, TEXT("TBB"), TPri_Normal);
+		Trace::ThreadRegister(TEXT("TBB"), ThreadID, TPri_Normal);
 
 		FPlatformProcess::SetThreadName(*ThreadName);
 	}

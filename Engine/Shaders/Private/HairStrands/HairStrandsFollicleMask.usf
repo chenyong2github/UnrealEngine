@@ -10,10 +10,19 @@ uint MaxRootCount;
 uint Channel;
 uint KernelSizeInPixels;
 
+#define UV_MESH 0
+#define UV_ROOT 1
+
+#if PERMUTATION_UV_TYPE == UV_MESH
 Buffer<float4> TrianglePosition0Buffer;
 Buffer<float4> TrianglePosition1Buffer;
 Buffer<float4> TrianglePosition2Buffer;
 Buffer<uint>   RootBarycentricBuffer;
+#endif 
+
+#if PERMUTATION_UV_TYPE == UV_ROOT
+Buffer<float2> RootUVsBuffer;
+#endif
 
 void MainVS(
 	uint VertexId : SV_VertexID,
@@ -23,23 +32,29 @@ void MainVS(
 {
 	OutVertexUV = 0;
 	OutRootUV = 0;
-	OutPosition = float4(1.#INF, 1.#INF, 1.#INF, 1);
+	OutPosition = float4(POSITIVE_INFINITY, POSITIVE_INFINITY, POSITIVE_INFINITY, 1);
 
 	ResolvedView = ResolveView();
 
 	const uint TriangleVertex = (VertexId % 3);
 	const uint TriangleIndex = VertexId / 3;
 
+#if PERMUTATION_UV_TYPE == UV_MESH
 	if (TriangleIndex > MaxRootCount) return;
 	const FHairMeshTriangleWithUVs Tri = GetTriangleWithUVsTransformation(TriangleIndex, TrianglePosition0Buffer, TrianglePosition1Buffer, TrianglePosition2Buffer);
 
 	const uint EncodedBarycentric = RootBarycentricBuffer[TriangleIndex];
 	const float3 Barycentric = DecodeBarycentrics(EncodedBarycentric);
 	float2 RootUV = Barycentric.x * Tri.UV0 + Barycentric.y * Tri.UV1 + Barycentric.z * Tri.UV2;
-	const float2 KernelSize = float2(KernelSizeInPixels, KernelSizeInPixels);
-	const float2 QuadExtent = (KernelSize / OutputResolution) * 0.5f;
+#endif
 
-	// TODO: This should be fixed on the content side	
+#if PERMUTATION_UV_TYPE == UV_ROOT
+	float2 RootUV = RootUVsBuffer[TriangleIndex];
+#endif
+
+	const float2 KernelRadius = float2(KernelSizeInPixels, KernelSizeInPixels);
+	const float2 QuadExtent = (KernelRadius / OutputResolution);
+
 	RootUV.y = 1 - RootUV.y;
 
 	float2 UV = RootUV;
@@ -49,11 +64,11 @@ void MainVS(
 	}
 	if (TriangleVertex == 1)
 	{
-		UV += float2(3* QuadExtent.x, -QuadExtent.y);
+		UV += float2(3 * QuadExtent.x, -QuadExtent.y);
 	}
 	if (TriangleVertex == 2)
 	{
-		UV += float2(-QuadExtent.x, 3* QuadExtent.y);
+		UV += float2(-QuadExtent.x, 3 * QuadExtent.y);
 	}
 
 	OutRootUV = RootUV;
@@ -68,8 +83,9 @@ void MainPS(
 {
 	// In a distance of 2 pixels, write a gradient with its pic at the root
 	OutColor = 0;
+	const float KernelRadius = KernelSizeInPixels;
 	const float UVDistance = length(VertexUV - RootUV) * OutputResolution;
-	const float Value = 1 - saturate(UVDistance / float(KernelSizeInPixels * 0.5f));
+	const float Value = 1 - saturate(UVDistance / KernelRadius);
 
 	if (Value == 0)
 	{

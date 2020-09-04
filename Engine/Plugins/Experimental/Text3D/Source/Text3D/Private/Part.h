@@ -9,9 +9,10 @@
 struct FPart final
 {
 	static constexpr float CosMaxAngleSideTangent = 0.995f;
-	static constexpr float CosMaxAngleSides = 1.f - 2.f * CosMaxAngleSideTangent * CosMaxAngleSideTangent;
+	static constexpr float CosMaxAngleSides = -0.9f;
 
 	FPart();
+	FPart(const FPartConstPtr& Other);
 
 
 	/** Previous part. */

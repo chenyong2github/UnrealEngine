@@ -285,6 +285,13 @@ public:
 	FORCEINLINE FActorPerceptionContainer::TConstIterator GetPerceptualDataConstIterator() const { return FActorPerceptionContainer::TConstIterator(PerceptualData); }
 
 	virtual void GetHostileActors(TArray<AActor*>& OutActors) const;
+	
+	void GetHostileActorsBySense(TSubclassOf<UAISense> SenseToFilterBy, TArray<AActor*>& OutActors) const;
+
+	/**	Retrieves all actors in PerceptualData matching the predicate.
+	 *	@return whether dead data (invalid actors) have been found while iterating over PerceptualData
+	 */
+	bool GetFilteredActors(TFunctionRef<bool(const FActorPerceptionInfo&)> Predicate, TArray<AActor*>& OutActors) const;
 
 	// @note Will stop on first age 0 stimulus
 	const FActorPerceptionInfo* GetFreshestTrace(const FAISenseID Sense) const;
@@ -334,6 +341,9 @@ public:
 	//----------------------------------------------------------------------//
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
 	void GetPerceivedHostileActors(TArray<AActor*>& OutActors) const;
+
+	UFUNCTION(BlueprintCallable, Category = "AI|Perception")
+	void GetPerceivedHostileActorsBySense(const TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const;
 
 	/** If SenseToUse is none all actors currently perceived in any way will get fetched */
 	UFUNCTION(BlueprintCallable, Category = "AI|Perception")

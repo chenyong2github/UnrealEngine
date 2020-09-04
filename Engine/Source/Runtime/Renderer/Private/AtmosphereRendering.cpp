@@ -251,7 +251,6 @@ public:
 	FAtmosphericFogPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
 		FGlobalShader(Initializer)
 	{
-		SceneTextureParameters.Bind(Initializer);
 		AtmosphereTextureParameters.Bind(Initializer.ParameterMap);
 		OcclusionTextureParameter.Bind(Initializer.ParameterMap, TEXT("OcclusionTexture"));
 		OcclusionTextureSamplerParameter.Bind(Initializer.ParameterMap, TEXT("OcclusionTextureSampler"));
@@ -259,9 +258,9 @@ public:
 
 	void SetParameters(FRHICommandList& RHICmdList, const FSceneView& View, const TRefCountPtr<IPooledRenderTarget>& LightShaftOcclusion)
 	{
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, RHICmdList.GetBoundPixelShader(), View.ViewUniformBuffer);
-		SceneTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View.FeatureLevel, ESceneTextureSetupMode::All);
-		AtmosphereTextureParameters.Set(RHICmdList, RHICmdList.GetBoundPixelShader(), View);
+		FRHIPixelShader* PixelShader = RHICmdList.GetBoundPixelShader();
+		FGlobalShader::SetParameters<FViewUniformShaderParameters>(RHICmdList, PixelShader, View.ViewUniformBuffer);
+		AtmosphereTextureParameters.Set(RHICmdList, PixelShader, View);
 
 		if (LightShaftOcclusion)
 		{
@@ -287,7 +286,6 @@ public:
 
 private:
 	
-	LAYOUT_FIELD(FSceneTextureShaderParameters, SceneTextureParameters);
 	LAYOUT_FIELD(FAtmosphereShaderTextureParameters, AtmosphereTextureParameters);
 	LAYOUT_FIELD(FShaderResourceParameter, OcclusionTextureParameter);
 	LAYOUT_FIELD(FShaderResourceParameter, OcclusionTextureSamplerParameter);
@@ -470,7 +468,8 @@ void FDeferredShadingSceneRenderer::RenderAtmosphere(FRHICommandListImmediate& R
 	if (Scene->GetFeatureLevel() >= ERHIFeatureLevel::SM5 && Scene->HasAtmosphericFog())
 	{
 		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-		
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
         SceneContext.BeginRenderingSceneColor(RHICmdList, ESimpleRenderTargetMode::EExistingColorAndDepth, FExclusiveDepthStencil::DepthRead_StencilWrite);
 		
 		FGraphicsPipelineStateInitializer GraphicsPSOInit;
@@ -488,6 +487,9 @@ void FDeferredShadingSceneRenderer::RenderAtmosphere(FRHICommandListImmediate& R
 			SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
 			SCOPED_DRAW_EVENTF(RHICmdList, Atmosphere, TEXT("Atmosphere %dx%d"), View.ViewRect.Width(), View.ViewRect.Height());
 			SCOPED_GPU_STAT(RHICmdList, Atmosphere);
+
+			FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+			SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 			// Set the device viewport for the view.
 			RHICmdList.SetViewport((float)View.ViewRect.Min.X, (float)View.ViewRect.Min.Y, 0.0f, (float)View.ViewRect.Max.X, (float)View.ViewRect.Max.Y, 1.0f);

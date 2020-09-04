@@ -11,7 +11,7 @@
 #include "Modules/ModuleManager.h"
 #include "EditorStyleSet.h"
 #include "Editor/UnrealEdEngine.h"
-#include "Factories/DataAssetFactory.h"
+#include "BlackboardDataFactory.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "UnrealEdGlobals.h"
 #include "Kismet2/KismetEditorUtilities.h"
@@ -215,10 +215,9 @@ void FBehaviorTreeEditor::InitBehaviorTreeEditor( const EToolkitMode::Type Mode,
 		FBTDebuggerCommands::Register();
 		FBTBlackboardCommands::Register();
 
-		const TSharedRef<FTabManager::FLayout> DummyLayout = FTabManager::NewLayout("NullLayout")->AddArea(FTabManager::NewPrimaryArea());
 		const bool bCreateDefaultStandaloneMenu = true;
 		const bool bCreateDefaultToolbar = true;
-		InitAssetEditor( Mode, InitToolkitHost, FBehaviorTreeEditorModule::BehaviorTreeEditorAppIdentifier, DummyLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit );
+		InitAssetEditor( Mode, InitToolkitHost, FBehaviorTreeEditorModule::BehaviorTreeEditorAppIdentifier, FTabManager::FLayout::NullLayout, bCreateDefaultStandaloneMenu, bCreateDefaultToolbar, ObjectsToEdit );
 
 		BindCommonCommands();
 		ExtendMenu();
@@ -1817,10 +1816,36 @@ void FBehaviorTreeEditor::CreateNewBlackboard()
 	FString PackageName;
 	FAssetToolsModule& AssetToolsModule = FModuleManager::GetModuleChecked<FAssetToolsModule>("AssetTools");
 	AssetToolsModule.Get().CreateUniqueAssetName(PathNameWithFilename, TEXT(""), PackageName, Name);
+	
+	UBlackboardDataFactory* Factory = NewObject<UBlackboardDataFactory>();
+	UBlackboardData* NewAsset = Cast<UBlackboardData>(AssetToolsModule.Get().CreateAssetWithDialog(Name, PathName, UBlackboardData::StaticClass(), Factory));
+	
+	if (NewAsset != nullptr)
+	{
+		UBehaviorTreeGraph* BTGraph = Cast<UBehaviorTreeGraph>(BehaviorTree->BTGraph);
+		if (BTGraph)
+		{
+			// Update root node with the newly created asset
+			UBehaviorTreeGraphNode_Root* RootNode = nullptr;
+			for (const auto& Node : BTGraph->Nodes)
+			{
+				RootNode = Cast<UBehaviorTreeGraphNode_Root>(Node);
+				if (RootNode != nullptr)
+				{
+					RootNode->BlackboardAsset = NewAsset;
+					break;
+				}
+			}
 
-	UDataAssetFactory* DataAssetFactory = NewObject<UDataAssetFactory>();
-	FContentBrowserModule& ContentBrowserModule = FModuleManager::LoadModuleChecked<FContentBrowserModule>("ContentBrowser");
-	ContentBrowserModule.Get().CreateNewAsset(Name, PathName, UBlackboardData::StaticClass(), DataAssetFactory);
+			BTGraph->UpdateBlackboardChange();
+		}
+
+		UE_CLOG(BehaviorTree->BlackboardAsset != nullptr, LogBehaviorTreeEditor, Log, TEXT("Blackboard data asset %s has been replaced by %s"), *GetNameSafe(BlackboardData), *GetNameSafe(NewAsset));
+		BehaviorTree->BlackboardAsset = NewAsset;
+		BlackboardData = NewAsset;
+
+		RefreshBlackboardViewsAssociatedObject();
+	}
 }
 
 bool FBehaviorTreeEditor::CanCreateNewBlackboard() const

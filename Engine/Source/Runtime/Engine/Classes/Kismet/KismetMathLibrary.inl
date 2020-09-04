@@ -271,6 +271,12 @@ int32 UKismetMathLibrary::Clamp(int32 V, int32 A, int32 B)
 }
 
 KISMET_MATH_FORCEINLINE
+int32 UKismetMathLibrary::Wrap(int32 Value, int32 Min, int32 Max)
+{
+	return FMath::Wrap(Value, Min, Max);
+}
+
+KISMET_MATH_FORCEINLINE
 int32 UKismetMathLibrary::Abs_Int(int32 A)
 {
 	return FMath::Abs(A);
@@ -770,6 +776,12 @@ float UKismetMathLibrary::FClamp(float V, float A, float B)
 {
 	return FMath::Clamp(V, A, B);
 }	
+
+KISMET_MATH_FORCEINLINE
+float UKismetMathLibrary::FWrap(float Value, float Min, float Max)
+{
+	return FMath::Wrap(Value, Min, Max);
+}
 
 KISMET_MATH_FORCEINLINE
 float UKismetMathLibrary::Lerp(float A, float B, float V)
@@ -1398,6 +1410,12 @@ FQuat UKismetMathLibrary::Conv_VectorToQuaterion(FVector InVec)
 }
 
 KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Conv_VectorToQuaternion(FVector InVec)
+{
+	return InVec.ToOrientationQuat();
+}
+
+KISMET_MATH_FORCEINLINE
 FLinearColor UKismetMathLibrary::Conv_VectorToLinearColor(FVector InVec)
 {
 	return FLinearColor(InVec);	
@@ -1973,6 +1991,12 @@ FRotator UKismetMathLibrary::Conv_Vector4ToRotator(const FVector4& InVec)
 
 KISMET_MATH_FORCEINLINE
 FQuat UKismetMathLibrary::Conv_Vector4ToQuaterion(const FVector4& InVec)
+{
+	return InVec.ToOrientationQuat();
+}
+
+KISMET_MATH_FORCEINLINE
+FQuat UKismetMathLibrary::Conv_Vector4ToQuaternion(const FVector4& InVec)
 {
 	return InVec.ToOrientationQuat();
 }

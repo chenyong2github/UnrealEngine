@@ -108,8 +108,6 @@ TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< 
 		return FReply::Handled();
 	};
 
-	TSharedPtr<STextBlock> StatusText;
-
 	TSharedPtr<SWidget> Widget = SNew(SBorder)
 		.BorderImage(FEditorStyle::GetBrush("NoBrush"))
 		[
@@ -121,12 +119,13 @@ TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< 
 				SNew( SDataprepDetailsView )
 				.Object( ProducerStackEntry->GetProducer() )
 				.ColumnSizeData( ColumnSizeData )
+				.ResizableColumn(false)
 			]
 			// Delete button
 			+ SHorizontalBox::Slot()
 			.HAlign(HAlign_Center)
 			.VAlign(VAlign_Top)
-			.Padding(FMargin(0.0f, 10.0f, 0.0f, 0.0f))
+			.Padding(FMargin(0.0f, 7.0f, 0.0f, 0.0f))
 			.AutoWidth()
 			[
 				SNew(SButton)
@@ -143,47 +142,9 @@ TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< 
 					.Text(FEditorFontGlyphs::Trash)
 				]
 			]
-			// Error/warning icon
-			+ SHorizontalBox::Slot()
-			.HAlign(HAlign_Center)
-			.VAlign(VAlign_Top)
-			.Padding(FMargin(5.0f, 10.0f, 0.0f, 0.0f))
-			.AutoWidth()
-			[
-				SNew(SButton)
-				.ButtonStyle(FEditorStyle::Get(), "HoverHintOnly")
-				.IsFocusable(false)
-				.VAlign(VAlign_Top)
-				.Content()
-				[
-					SAssignNew(StatusText, STextBlock)
-					.Font(FDataprepEditorUtils::GetGlyphFont())
-					.ColorAndOpacity(this, &SDataprepProducersTableRow::GetStatusColorAndOpacity)
-					.Text(FEditorFontGlyphs::Exclamation_Triangle)
-				]
-			]
 		];
 
-	StatusText->SetToolTipText( TAttribute<FText>( this, &SDataprepProducersTableRow::GetStatusTooltipText ) );
-
 	return Widget.ToSharedRef();
-}
-
-FSlateColor SDataprepProducersTableRow::GetStatusColorAndOpacity() const
-{
-	FContentProducerEntryPtr ProducerStackEntry = Node.Pin();
-	return  ( ProducerStackEntry.IsValid() && ProducerStackEntry->WillBeRun() ) ? FLinearColor::Transparent : FLinearColor::Red;
-}
-
-FText SDataprepProducersTableRow::GetStatusTooltipText() const
-{
-	FContentProducerEntryPtr ProducerStackEntry = Node.Pin();
-	if( !ProducerStackEntry.IsValid() )
-	{
-		return LOCTEXT( "DataprepProducersWidget_StatusTextTooltip_Invalid", "The producer is not valid");
-	}
-
-	return  ProducerStackEntry->WillBeRun() ? FText() : LOCTEXT( "DataprepProducersWidget_StatusTextTooltip_Superseded", "This producer is superseded by another one and will be skipped when run.");
 }
 
 void SDataprepProducersTreeView::Construct(const FArguments& InArgs, UDataprepAssetProducers* InAssetProducersPtr, TSharedRef< FDataprepDetailsViewColumnSizeData > InColumnSizeData )

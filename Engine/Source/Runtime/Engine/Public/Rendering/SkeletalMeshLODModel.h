@@ -475,13 +475,13 @@ public:
 	*
 	* It also use a private mutex to make sure it's thread safe to copy the same source multiple time in multiple thread.
 	*/
-	static ENGINE_API void CopyStructure(FSkeletalMeshLODModel* Destination, FSkeletalMeshLODModel* Source);
+	static ENGINE_API void CopyStructure(FSkeletalMeshLODModel* Destination, const FSkeletalMeshLODModel* Source);
 
 	/**
 	* Create a new FSkeletalMeshLODModel on the heap. Copy data from the "FSkeletalMeshLODModel* Other" to the just created LODModel return the heap allocated LODModel.
 	* This function is thread safe since its use the thread safe CopyStructure function to copy the data from Other.
 	*/
-	static ENGINE_API FSkeletalMeshLODModel* CreateCopy(FSkeletalMeshLODModel* Other)
+	static ENGINE_API FSkeletalMeshLODModel* CreateCopy(const FSkeletalMeshLODModel* Other)
 	{
 		FSkeletalMeshLODModel* Destination = new FSkeletalMeshLODModel();
 		FSkeletalMeshLODModel::CopyStructure(Destination, Other);

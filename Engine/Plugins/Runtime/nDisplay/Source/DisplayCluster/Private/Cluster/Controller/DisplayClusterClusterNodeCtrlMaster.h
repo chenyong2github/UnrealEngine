@@ -2,10 +2,10 @@
 
 #pragma once
 
+#include "CoreMinimal.h"
 #include "Cluster/Controller/DisplayClusterClusterNodeCtrlSlave.h"
 
 #include "Network/DisplayClusterMessage.h"
-
 
 class FDisplayClusterClusterSyncService;
 class FDisplayClusterSwapSyncService;
@@ -19,7 +19,7 @@ class FDisplayClusterClusterNodeCtrlMaster
 	: public FDisplayClusterClusterNodeCtrlSlave
 {
 public:
-	FDisplayClusterClusterNodeCtrlMaster(const FString& ctrlName, const FString& nodeName);
+	FDisplayClusterClusterNodeCtrlMaster(const FString& CtrlName, const FString& NodeName);
 	virtual ~FDisplayClusterClusterNodeCtrlMaster();
 
 public:
@@ -84,4 +84,3 @@ private:
 private:
 	mutable FCriticalSection InternalsSyncScope;
 };
-

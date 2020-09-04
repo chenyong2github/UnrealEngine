@@ -103,7 +103,7 @@ void GetPrecomputedLightingParameters(
 			IAllocatedVirtualTexture* AllocatedVT = ResourceCluster->AcquireAllocatedVT();
 			check(AllocatedVT);
 
-			AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0], true);
+			AllocatedVT->GetPackedPageTableUniform(&Parameters.LightmapVTPackedPageTableUniform[0]);
 			NumLightmapVTLayers = AllocatedVT->GetNumTextureLayers();
 			for (uint32 LayerIndex = 0u; LayerIndex < NumLightmapVTLayers; ++LayerIndex)
 			{

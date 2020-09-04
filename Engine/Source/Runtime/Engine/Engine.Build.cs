@@ -79,7 +79,7 @@ public class Engine : ModuleRules
 				"AnalyticsET",
 				"RHI",
 				"Sockets",
-				"AssetRegistry", // Here until FAssetData is moved to engine
+				"AssetRegistry", // Here until we update all modules using AssetRegistry to add a dependency on it
 				"EngineMessages",
 				"EngineSettings",
 				"SynthBenchmark",
@@ -194,6 +194,7 @@ public class Engine : ModuleRules
 
 		if (Target.Type == TargetType.Editor)
 		{
+			PrivateDependencyModuleNames.Add("EditorStyle");
 			PrivateIncludePathModuleNames.Add("Foliage");
 		}
 

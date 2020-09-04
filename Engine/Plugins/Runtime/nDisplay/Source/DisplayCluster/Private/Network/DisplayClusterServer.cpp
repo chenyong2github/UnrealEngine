@@ -3,7 +3,7 @@
 #include "Network/DisplayClusterServer.h"
 #include "Misc/ScopeLock.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterServer::FDisplayClusterServer(const FString& InName, const FString& InAddr, const int32 InPort) :

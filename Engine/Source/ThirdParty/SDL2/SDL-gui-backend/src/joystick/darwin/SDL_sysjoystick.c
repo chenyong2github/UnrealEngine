@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -52,7 +52,7 @@ void FreeRumbleEffectData(FFEFFECT *effect)
     SDL_free(effect);
 }
 
-FFEFFECT *CreateRumbleEffectData(Sint16 magnitude, Uint32 duration_ms)
+FFEFFECT *CreateRumbleEffectData(Sint16 magnitude)
 {
     FFEFFECT *effect;
     FFPERIODIC *periodic;
@@ -65,7 +65,7 @@ FFEFFECT *CreateRumbleEffectData(Sint16 magnitude, Uint32 duration_ms)
     effect->dwSize = sizeof(*effect);
     effect->dwGain = 10000;
     effect->dwFlags = FFEFF_OBJECTOFFSETS;
-    effect->dwDuration = duration_ms * 1000; /* In microseconds. */
+    effect->dwDuration = SDL_MAX_RUMBLE_DURATION_MS * 1000; /* In microseconds. */
     effect->dwTriggerButton = FFEB_NOTRIGGER;
 
     effect->cAxes = 2;
@@ -127,16 +127,34 @@ FreeDevice(recDevice *removeDevice)
     recDevice *pDeviceNext = NULL;
     if (removeDevice) {
         if (removeDevice->deviceRef) {
-            IOHIDDeviceUnscheduleFromRunLoop(removeDevice->deviceRef, CFRunLoopGetCurrent(), SDL_JOYSTICK_RUNLOOP_MODE);
+            if (removeDevice->runLoopAttached) {
+                /* Calling IOHIDDeviceUnscheduleFromRunLoop without a prior,
+                 * paired call to IOHIDDeviceScheduleWithRunLoop can lead
+                 * to crashes in MacOS 10.14.x and earlier.  This doesn't
+                 * appear to be a problem in MacOS 10.15.x, but we'll
+                 * do it anyways.  (Part-of fix for Bug 5034)
+                 */
+                IOHIDDeviceUnscheduleFromRunLoop(removeDevice->deviceRef, CFRunLoopGetCurrent(), SDL_JOYSTICK_RUNLOOP_MODE);
+            }
+            CFRelease(removeDevice->deviceRef);
             removeDevice->deviceRef = NULL;
         }
+
+        /* clear out any reference to removeDevice from an associated,
+         * live instance of SDL_Joystick  (Part-of fix for Bug 5034)
+         */
+        SDL_LockJoysticks();
+        if (removeDevice->joystick) {
+            removeDevice->joystick->hwdata = NULL;
+        }
+        SDL_UnlockJoysticks();
 
         /* save next device prior to disposing of this device */
         pDeviceNext = removeDevice->pNext;
 
         if ( gpDeviceList == removeDevice ) {
             gpDeviceList = pDeviceNext;
-        } else {
+        } else if (gpDeviceList) {
             recDevice *device = gpDeviceList;
             while (device->pNext != removeDevice) {
                 device = device->pNext;
@@ -161,7 +179,7 @@ GetHIDElementState(recDevice *pDevice, recElement *pElement, SInt32 *pValue)
     SInt32 value = 0;
     int returnValue = SDL_FALSE;
 
-    if (pDevice && pElement) {
+    if (pDevice && pDevice->deviceRef && pElement) {
         IOHIDValueRef valueRef;
         if (IOHIDDeviceGetValue(pDevice->deviceRef, pElement->elementRef, &valueRef) == kIOReturnSuccess) {
             value = (SInt32) IOHIDValueGetIntegerValue(valueRef);
@@ -206,7 +224,11 @@ JoystickDeviceWasRemovedCallback(void *ctx, IOReturn result, void *sender)
 {
     recDevice *device = (recDevice *) ctx;
     device->removed = SDL_TRUE;
-    device->deviceRef = NULL; // deviceRef was invalidated due to the remove
+    if (device->deviceRef) {
+        // deviceRef was invalidated due to the remove
+        CFRelease(device->deviceRef);
+        device->deviceRef = NULL;
+    }
     if (device->ffeffect_ref) {
         FFDeviceReleaseEffect(device->ffdevice, device->ffeffect_ref);
         device->ffeffect_ref = NULL;
@@ -393,12 +415,16 @@ AddHIDElement(const void *value, void *parameter)
     }
 }
 
+
 static SDL_bool
 GetDeviceInfo(IOHIDDeviceRef hidDevice, recDevice *pDevice)
 {
     Sint32 vendor = 0;
     Sint32 product = 0;
     Sint32 version = 0;
+    char *name;
+    char manufacturer_string[256];
+    char product_string[256];
     CFTypeRef refCF = NULL;
     CFArrayRef array = NULL;
     Uint16 *guid16 = (Uint16 *)pDevice->guid.data;
@@ -423,17 +449,16 @@ GetDeviceInfo(IOHIDDeviceRef hidDevice, recDevice *pDevice)
         return SDL_FALSE; /* Filter device list to non-keyboard/mouse stuff */
     }
 
-    pDevice->deviceRef = hidDevice;
+    /* Make sure we retain the use of the IOKit-provided device-object,
+       lest the device get disconnected and we try to use it.  (Fixes
+       SDL-Bugzilla #4961, aka. https://bugzilla.libsdl.org/show_bug.cgi?id=4961 )
+    */
+    CFRetain(hidDevice);
 
-    /* get device name */
-    refCF = IOHIDDeviceGetProperty(hidDevice, CFSTR(kIOHIDProductKey));
-    if (!refCF) {
-        /* Maybe we can't get "AwesomeJoystick2000", but we can get "Logitech"? */
-        refCF = IOHIDDeviceGetProperty(hidDevice, CFSTR(kIOHIDManufacturerKey));
-    }
-    if ((!refCF) || (!CFStringGetCString(refCF, pDevice->product, sizeof (pDevice->product), kCFStringEncodingUTF8))) {
-        SDL_strlcpy(pDevice->product, "Unidentified joystick", sizeof (pDevice->product));
-    }
+    /* Now that we've CFRetain'ed the device-object (for our use), we'll
+       save the reference to it.
+    */
+    pDevice->deviceRef = hidDevice;
 
     refCF = IOHIDDeviceGetProperty(hidDevice, CFSTR(kIOHIDVendorIDKey));
     if (refCF) {
@@ -450,8 +475,23 @@ GetDeviceInfo(IOHIDDeviceRef hidDevice, recDevice *pDevice)
         CFNumberGetValue(refCF, kCFNumberSInt32Type, &version);
     }
 
+    /* get device name */
+    refCF = IOHIDDeviceGetProperty(hidDevice, CFSTR(kIOHIDManufacturerKey));
+    if ((!refCF) || (!CFStringGetCString(refCF, manufacturer_string, sizeof(manufacturer_string), kCFStringEncodingUTF8))) {
+        manufacturer_string[0] = '\0';
+    }
+    refCF = IOHIDDeviceGetProperty(hidDevice, CFSTR(kIOHIDProductKey));
+    if ((!refCF) || (!CFStringGetCString(refCF, product_string, sizeof(product_string), kCFStringEncodingUTF8))) {
+        product_string[0] = '\0';
+    }
+    name = SDL_CreateJoystickName(vendor, product, manufacturer_string, product_string);
+    if (name) {
+        SDL_strlcpy(pDevice->product, name, sizeof(pDevice->product));
+        SDL_free(name);
+    }
+
 #ifdef SDL_JOYSTICK_HIDAPI
-    if (HIDAPI_IsDevicePresent(vendor, product, version)) {
+    if (HIDAPI_IsDevicePresent(vendor, product, version, pDevice->product)) {
         /* The HIDAPI driver is taking care of this device */
         return 0;
     }
@@ -518,18 +558,19 @@ JoystickDeviceWasAddedCallback(void *ctx, IOReturn res, void *sender, IOHIDDevic
     }
 
     if (!GetDeviceInfo(ioHIDDeviceObject, device)) {
-        SDL_free(device);
+        FreeDevice(device);
         return;   /* not a device we care about, probably. */
     }
 
     if (SDL_ShouldIgnoreJoystick(device->product, device->guid)) {
-        SDL_free(device);
+        FreeDevice(device);
         return;
     }
 
     /* Get notified when this device is disconnected. */
     IOHIDDeviceRegisterRemovalCallback(ioHIDDeviceObject, JoystickDeviceWasRemovedCallback, device);
     IOHIDDeviceScheduleWithRunLoop(ioHIDDeviceObject, CFRunLoopGetCurrent(), SDL_JOYSTICK_RUNLOOP_MODE);
+    device->runLoopAttached = SDL_TRUE;
 
     /* Allocate an instance ID for this device */
     device->instance_id = SDL_GetNextJoystickInstanceID();
@@ -706,6 +747,11 @@ DARWIN_JoystickGetDevicePlayerIndex(int device_index)
     return -1;
 }
 
+static void
+DARWIN_JoystickSetDevicePlayerIndex(int device_index, int player_index)
+{
+}
+
 static SDL_JoystickGUID
 DARWIN_JoystickGetDeviceGUID( int device_index )
 {
@@ -733,6 +779,7 @@ DARWIN_JoystickOpen(SDL_Joystick * joystick, int device_index)
 
     joystick->instance_id = device->instance_id;
     joystick->hwdata = device;
+    device->joystick = joystick;
     joystick->name = device->product;
 
     joystick->naxes = device->axes;
@@ -799,7 +846,7 @@ FFStrError(unsigned int err)
 }
 
 static int
-DARWIN_JoystickInitRumble(recDevice *device, Sint16 magnitude, Uint32 duration_ms)
+DARWIN_JoystickInitRumble(recDevice *device, Sint16 magnitude)
 {
     HRESULT result;
 
@@ -822,7 +869,7 @@ DARWIN_JoystickInitRumble(recDevice *device, Sint16 magnitude, Uint32 duration_m
     }
 
     /* Create the effect */
-    device->ffeffect = CreateRumbleEffectData(magnitude, duration_ms);
+    device->ffeffect = CreateRumbleEffectData(magnitude);
     if (!device->ffeffect) {
         return SDL_OutOfMemory();
     }
@@ -836,13 +883,17 @@ DARWIN_JoystickInitRumble(recDevice *device, Sint16 magnitude, Uint32 duration_m
 }
 
 static int
-DARWIN_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble, Uint32 duration_ms)
+DARWIN_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint16 high_frequency_rumble)
 {
     HRESULT result;
     recDevice *device = joystick->hwdata;
 
     /* Scale and average the two rumble strengths */
     Sint16 magnitude = (Sint16)(((low_frequency_rumble / 2) + (high_frequency_rumble / 2)) / 2);
+    
+    if (!device) {
+        return SDL_SetError("Rumble failed, device disconnected");
+    }
 
     if (!device->ffservice) {
         return SDL_Unsupported();
@@ -850,7 +901,6 @@ DARWIN_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint
 
     if (device->ff_initialized) {
         FFPERIODIC *periodic = ((FFPERIODIC *)device->ffeffect->lpvTypeSpecificParams);
-        device->ffeffect->dwDuration = duration_ms * 1000; /* In microseconds. */
         periodic->dwMagnitude = CONVERT_MAGNITUDE(magnitude);
 
         result = FFEffectSetParameters(device->ffeffect_ref, device->ffeffect,
@@ -859,7 +909,7 @@ DARWIN_JoystickRumble(SDL_Joystick * joystick, Uint16 low_frequency_rumble, Uint
             return SDL_SetError("Unable to update rumble effect: %s", FFStrError(result));
         }
     } else {
-        if (DARWIN_JoystickInitRumble(device, magnitude, duration_ms) < 0) {
+        if (DARWIN_JoystickInitRumble(device, magnitude) < 0) {
             return -1;
         }
         device->ff_initialized = SDL_TRUE;
@@ -886,7 +936,6 @@ DARWIN_JoystickUpdate(SDL_Joystick * joystick)
 
     if (device->removed) {      /* device was unplugged; ignore it. */
         if (joystick->hwdata) {
-            joystick->force_recentering = SDL_TRUE;
             joystick->hwdata = NULL;
         }
         return;
@@ -981,6 +1030,10 @@ DARWIN_JoystickUpdate(SDL_Joystick * joystick)
 static void
 DARWIN_JoystickClose(SDL_Joystick * joystick)
 {
+    recDevice *device = joystick->hwdata;
+    if (device) {
+        device->joystick = NULL;
+    }
 }
 
 static void
@@ -1005,6 +1058,7 @@ SDL_JoystickDriver SDL_DARWIN_JoystickDriver =
     DARWIN_JoystickDetect,
     DARWIN_JoystickGetDeviceName,
     DARWIN_JoystickGetDevicePlayerIndex,
+    DARWIN_JoystickSetDevicePlayerIndex,
     DARWIN_JoystickGetDeviceGUID,
     DARWIN_JoystickGetDeviceInstanceID,
     DARWIN_JoystickOpen,

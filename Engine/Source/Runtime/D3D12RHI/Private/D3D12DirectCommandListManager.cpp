@@ -428,12 +428,13 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 		if (SUCCEEDED(hr))
 		{
 			// find out how many entries we can much push in a single event (limit to MAX_GPU_BREADCRUMB_DEPTH)
-			int32 GPUCrashDataDepth = GetParentDevice()->GetParentAdapter()->GetGPUProfiler().GPUCrashDataDepth;
+			int32 GPUCrashDataDepth = GetParentDevice()->GetGPUProfiler().GPUCrashDataDepth;
 			int32 MaxEventCount = GPUCrashDataDepth > 0 ? FMath::Min(GPUCrashDataDepth, MAX_GPU_BREADCRUMB_DEPTH) : MAX_GPU_BREADCRUMB_DEPTH;			
 
-			// Allocate persistent CPU reabable memory which will still be valid after a device lost and wrap this data in a placed resource
+			// Allocate persistent CPU readable memory which will still be valid after a device lost and wrap this data in a placed resource
 			// so the GPU command list can write to it
-			BreadCrumbResourceAddress = VirtualAlloc(nullptr, MaxEventCount, MEM_COMMIT, PAGE_READWRITE);
+			const uint32 BreadCrumbBufferSize = MaxEventCount * sizeof(uint32);
+			BreadCrumbResourceAddress = VirtualAlloc(nullptr, BreadCrumbBufferSize, MEM_COMMIT, PAGE_READWRITE);
 			if (BreadCrumbResourceAddress)
 			{
 				// Create non refcounted heap because SetHeap function will take ownership without perform AddRef
@@ -447,7 +448,7 @@ void FD3D12CommandListManager::Create(const TCHAR* Name, uint32 NumCommandLists,
 					TCHAR TempStr[MAX_SPRINTF] = TEXT("");
 					FCString::Sprintf(TempStr, TEXT("BreadCrumbResource_%s"), Name);
 
-					const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(MaxEventCount * sizeof(uint32), D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
+					const D3D12_RESOURCE_DESC BufferDesc = CD3DX12_RESOURCE_DESC::Buffer(BreadCrumbBufferSize, D3D12_RESOURCE_FLAG_ALLOW_CROSS_ADAPTER);
 					hr = Adapter->CreatePlacedResource(BufferDesc, BreadCrumbHeap.GetReference(), 0, D3D12_RESOURCE_STATE_COPY_DEST, nullptr, BreadCrumbResource.GetInitReference(), TempStr, false);
 					if (SUCCEEDED(hr))
 					{

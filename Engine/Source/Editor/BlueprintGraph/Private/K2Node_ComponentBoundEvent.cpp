@@ -4,6 +4,8 @@
 #include "Kismet2/BlueprintEditorUtils.h"
 #include "Engine/ComponentDelegateBinding.h"
 #include "Kismet2/KismetEditorUtilities.h"
+#include "Kismet2/CompilerResultsLog.h"
+#include "Logging/MessageLog.h"
 
 #define LOCTEXT_NAMESPACE "K2Node"
 
@@ -85,12 +87,48 @@ void UK2Node_ComponentBoundEvent::RegisterDynamicBinding(UDynamicBlueprintBindin
 }
 
 void UK2Node_ComponentBoundEvent::HandleVariableRenamed(UBlueprint* InBlueprint, UClass* InVariableClass, UEdGraph* InGraph, const FName& InOldVarName, const FName& InNewVarName)
-{
-	if (InOldVarName == ComponentPropertyName && InVariableClass->IsChildOf(InBlueprint->GeneratedClass))
+{	
+	if (InVariableClass->IsChildOf(InBlueprint->GeneratedClass))
 	{
-		Modify();
-		ComponentPropertyName = InNewVarName;
+		// This could be the case if the component that this was originally bound to was removed, and a new one was 
+		// added in it's place. @see UE-88511
+		if (InNewVarName == ComponentPropertyName)
+		{
+			FCompilerResultsLog LogResults;
+			FMessageLog MessageLog("BlueprintLog");
+			LogResults.Error(*LOCTEXT("ComponentBoundEvent_Rename_Error", "There can only be one event node bound to this component! Delete @@ or the other bound event").ToString(), this);
+
+			MessageLog.NewPage(LOCTEXT("ComponentBoundEvent_Rename_Error_Label", "Rename Component Error"));
+			MessageLog.AddMessages(LogResults.Messages);
+			MessageLog.Notify(LOCTEXT("OnConvertEventToFunctionErrorMsg", "Renaming a component"));
+			FKismetEditorUtilities::BringKismetToFocusAttentionOnObject(this);
+		}
+		else if (InOldVarName == ComponentPropertyName)
+		{
+			Modify();
+			ComponentPropertyName = InNewVarName;
+		}
+	}	
+}
+
+void UK2Node_ComponentBoundEvent::ValidateNodeDuringCompilation(FCompilerResultsLog& MessageLog) const
+{
+	if (!IsDelegateValid())
+	{
+		MessageLog.Warning(*LOCTEXT("ComponentBoundEvent_Error", "@@ does not have a valid matching component!").ToString(), this);
 	}
+	Super::ValidateNodeDuringCompilation(MessageLog);
+}
+
+bool UK2Node_ComponentBoundEvent::IsDelegateValid() const
+{
+	const UBlueprint* const BP = GetBlueprint();
+	// Validate that the property has not been renamed or deleted via the SCS tree
+	return BP && FindFProperty<FObjectProperty>(BP->GeneratedClass, ComponentPropertyName)
+		// Validate that the actual declaration for this event has not been deleted 
+		// either from a native base class or a BP multicast delegate. The Delegate could have been 
+		// renamed/redirected, so also check for a remapped field if we need to
+		&& (GetTargetDelegateProperty() || FMemberReference::FindRemappedField<FMulticastDelegateProperty>(DelegateOwnerClass, DelegatePropertyName));
 }
 
 bool UK2Node_ComponentBoundEvent::IsUsedByAuthorityOnlyDelegate() const

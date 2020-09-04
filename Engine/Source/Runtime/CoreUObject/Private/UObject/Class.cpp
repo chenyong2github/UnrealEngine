@@ -2210,15 +2210,16 @@ struct ENGINE_API FTestStruct
 {
 	GENERATED_USTRUCT_BODY()
 
+	UObject* RawObjectPtr = nullptr;
 	TMap<int32, double> Doubles;
 	FTestStruct()
 	{
 		Doubles.Add(1, 1.5);
 		Doubles.Add(2, 2.5);
 	}
-	void AddStructReferencedObjects(class FReferenceCollector& Collector) const
+	void AddStructReferencedObjects(class FReferenceCollector& Collector)
 	{
-		Collector.AddReferencedObject(AActor::StaticClass());
+		Collector.AddReferencedObject(RawObjectPtr);
 	}
 	bool Serialize(FArchive& Ar)
 	{
@@ -5091,6 +5092,22 @@ bool UClass::ReplaceNativeFunction(FName InFName, FNativeFuncPtr InPointer, bool
 
 #endif
 
+UClass* UClass::GetAuthoritativeClass()
+{
+#if WITH_HOT_RELOAD && WITH_ENGINE
+	if (GIsHotReload)
+	{
+		const TMap<UClass*, UClass*>& ReinstancedClasses = GetClassesToReinstanceForHotReload();
+		if (UClass* const* FoundMapping = ReinstancedClasses.Find(this))
+		{
+			return *FoundMapping;
+		}
+	}
+#endif
+
+	return this;
+}
+
 void UClass::AddNativeFunction(const ANSICHAR* InName, FNativeFuncPtr InPointer)
 {
 	FName InFName(InName);
@@ -5965,6 +5982,12 @@ UScriptStruct* TBaseStructure<FFrameNumber>::Get()
 UScriptStruct* TBaseStructure<FFrameTime>::Get()
 {
 	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("FrameTime"));
+	return ScriptStruct;
+}
+
+UScriptStruct* TBaseStructure<FAssetBundleData>::Get()
+{
+	static UScriptStruct* ScriptStruct = StaticGetBaseStructureInternal(TEXT("AssetBundleData"));
 	return ScriptStruct;
 }
 

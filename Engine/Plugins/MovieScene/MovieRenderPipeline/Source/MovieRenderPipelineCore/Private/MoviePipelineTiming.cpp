@@ -28,6 +28,29 @@ void UMoviePipeline::TickProducingFrames()
 	// We should not be calling this once we have completed all the shots.
 	check(CurrentShotIndex >= 0 && CurrentShotIndex < ActiveShotList.Num());
 
+	// Check if any frames failed to output
+	TArray<int32> CompletedOutputFutures;
+	for (int32 Index=0; Index < OutputFutures.Num(); ++Index)
+	{
+		const TFuture<bool>& OutputFuture = OutputFutures[Index];
+		if (OutputFuture.IsReady())
+		{
+			CompletedOutputFutures.Add(Index);
+
+			if (!OutputFuture.Get())
+			{
+				UE_LOG(LogMovieRenderPipeline, Error, TEXT("Error exporting frame, canceling movie export."));
+				RequestShutdown();
+				break;
+			}
+		}
+	}
+
+	for (int32 Index=CompletedOutputFutures.Num()-1; Index>=0; --Index)
+	{
+		OutputFutures.RemoveAt(CompletedOutputFutures[Index]);
+	}
+
 	if (bShutdownRequested)
 	{
 		UE_LOG(LogMovieRenderPipeline, Log, TEXT("[GFrameCounter: %d] Async Shutdown Requested, abandoning remaining work and moving to Finalize."), GFrameCounter);

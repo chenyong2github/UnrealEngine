@@ -17,6 +17,9 @@
 #include "Components/LightComponent.h"
 #include "ShadowMap.h"
 #include "Engine/StaticMesh.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 /**
  * Creates a static lighting vertex to represent the given static mesh vertex.
@@ -433,6 +436,10 @@ bool UStaticMeshComponent::IsPrecomputedLightingValid() const
 		return GetMeshMapBuildData(LODData[0]) != NULL;
 	}
 
+#if WITH_EDITOR
+	return FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this, MinLOD) != nullptr;
+#endif
+
 	return false;
 }
 
@@ -453,6 +460,13 @@ FStaticMeshStaticLightingMesh* UStaticMeshComponent::AllocateStaticLightingMesh(
 
 void UStaticMeshComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuildEnqueuedLighting, bool bTranslationOnly)
 {
+#if WITH_EDITOR
+	if (HasStaticLighting() && HasValidSettingsForStaticLighting(false))
+	{
+		FStaticLightingSystemInterface::OnPrimitiveComponentUnregistered.Broadcast(this);
+	}
+#endif
+
 	// Save the static mesh state for transactions, force it to be marked dirty if we are going to discard any static lighting data.
 	Modify(true);
 
@@ -463,6 +477,13 @@ void UStaticMeshComponent::InvalidateLightingCacheDetailed(bool bInvalidateBuild
 		FStaticMeshComponentLODInfo& LODDataElement = LODData[i];
 		LODDataElement.MapBuildDataId.Invalidate();
 	}
+
+#if WITH_EDITOR
+	if (HasStaticLighting() && HasValidSettingsForStaticLighting(false))
+	{
+		FStaticLightingSystemInterface::OnPrimitiveComponentRegistered.Broadcast(this);
+	}
+#endif
 
 	MarkRenderStateDirty();
 }

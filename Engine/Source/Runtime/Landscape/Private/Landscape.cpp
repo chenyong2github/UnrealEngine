@@ -66,6 +66,9 @@ Landscape.cpp: Terrain rendering
 #include "LandscapeDataAccess.h"
 #include "UObject/EditorObjectVersion.h"
 #include "Algo/BinarySearch.h"
+#if WITH_EDITOR
+#include "Rendering/StaticLightingSystemInterface.h"
+#endif
 
 /** Landscape stats */
 
@@ -1323,6 +1326,13 @@ const FMeshMapBuildData* ULandscapeComponent::GetMeshMapBuildData() const
 	{
 		ULevel* OwnerLevel = Owner->GetLevel();
 
+#if WITH_EDITOR
+		if (FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this))
+		{
+			return FStaticLightingSystemInterface::GetPrimitiveMeshMapBuildData(this);
+		}
+#endif
+
 		if (OwnerLevel && OwnerLevel->OwningWorld)
 		{
 			ULevel* ActiveLightingScenario = OwnerLevel->OwningWorld->GetActiveLightingScenario();
@@ -2501,6 +2511,15 @@ void ALandscapeProxy::PostLoad()
 		if (Comp)
 		{
 			Comp->UpdateRejectNavmeshUnderneath();
+
+			// Store the layer combination in the MaterialInstanceConstantMap
+			if (UMaterialInstance* MaterialInstance = Comp->GetMaterialInstance(0, false))
+			{
+				if(UMaterialInstanceConstant* CombinationMaterialInstance = Cast<UMaterialInstanceConstant>(MaterialInstance->Parent))
+				{
+					MaterialInstanceConstantMap.Add(*ULandscapeComponent::GetLayerAllocationKey(Comp->GetWeightmapLayerAllocations(), CombinationMaterialInstance->Parent), CombinationMaterialInstance);
+				}
+			}
 		}
 	}
 
@@ -3126,7 +3145,7 @@ void ULandscapeInfo::RegisterActor(ALandscapeProxy* Proxy, bool bMapCheck)
 			checkf(!LandscapeActor || LandscapeActor == Landscape, TEXT("Multiple landscapes with the same GUID detected: %s vs %s"), *LandscapeActor->GetPathName(), *Landscape->GetPathName());
 			LandscapeActor = Landscape;
 			// In world composition user is not allowed to move landscape in editor, only through WorldBrowser 
-			LandscapeActor->bLockLocation = OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
+			LandscapeActor->bLockLocation |= OwningWorld != nullptr ? OwningWorld->WorldComposition != nullptr : false;
 
 			// update proxies reference actor
 			for (ALandscapeStreamingProxy* StreamingProxy : Proxies)

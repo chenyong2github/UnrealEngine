@@ -34,14 +34,18 @@ enum class Extension {
   KHR_multiview,
   KHR_shader_draw_parameters,
   KHR_post_depth_coverage,
+  KHR_ray_tracing,
   EXT_descriptor_indexing,
   EXT_fragment_fully_covered,
+  EXT_fragment_invocation_density,
   EXT_shader_stencil_export,
   EXT_shader_viewport_index_layer,
   AMD_gpu_shader_half_float,
   AMD_shader_explicit_vertex_parameter,
   GOOGLE_hlsl_functionality1,
+  GOOGLE_user_type,
   NV_ray_tracing,
+  NV_mesh_shader,
   KHR_uniform_buffer_standard_layout,
   Unknown,
 };
@@ -84,6 +88,9 @@ public:
   /// Returns true if the given extension is not part of the core of the target
   /// environment.
   bool isExtensionRequiredForTargetEnv(Extension);
+
+  /// Returns true if the given extension is set in allowedExtensions
+  bool isExtensionEnabled(llvm::StringRef name);
 
 private:
   /// \brief Wrapper method to create an error message and report it

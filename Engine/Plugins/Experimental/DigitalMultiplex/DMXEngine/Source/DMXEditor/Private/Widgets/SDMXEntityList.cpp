@@ -6,8 +6,11 @@
 #include "DMXEditorUtils.h"
 #include "DMXEditorLog.h"
 #include "DMXEditorStyle.h"
+#include "DMXEntityDragDropOp.h"
+#include "DMXFixturePatchSharedData.h"
 #include "DMXProtocolConstants.h"
 #include "DMXProtocolTypes.h"
+#include "DMXRuntimeUtils.h"
 #include "Library/DMXEntityController.h"
 #include "Library/DMXEntityFixturePatch.h"
 #include "Library/DMXEntityFixtureType.h"
@@ -252,8 +255,8 @@ bool FDMXTreeNodeBase::operator<(const FDMXTreeNodeBase& Other) const
 	FString NameOnlyOther;
 	int32 NumberThis = 0;
 	int32 NumberOther = 0;
-	if (FDMXEditorUtils::GetNameAndIndexFromString(ThisName, NameOnlyThis, NumberThis)
-		&& FDMXEditorUtils::GetNameAndIndexFromString(OtherName, NameOnlyOther, NumberOther)
+	if (FDMXRuntimeUtils::GetNameAndIndexFromString(ThisName, NameOnlyThis, NumberThis)
+		&& FDMXRuntimeUtils::GetNameAndIndexFromString(OtherName, NameOnlyOther, NumberOther)
 		&& NameOnlyThis.Equals(NameOnlyOther))
 	{
 		return NumberThis < NumberOther;
@@ -356,442 +359,15 @@ FDMXTreeNodeBase::ECategoryType FDMXCategoryTreeNode::GetCategoryType() const
 	return CategoryType;
 }
 
-FDMXEntityBaseTreeNode::FDMXEntityBaseTreeNode(UDMXEntity* InEntity)
+FDMXEntityTreeNode::FDMXEntityTreeNode(UDMXEntity* InEntity)
 	: FDMXTreeNodeBase(FDMXTreeNodeBase::ENodeType::EntityNode)
 {
 	DMXEntity = InEntity;
 }
 
-bool FDMXEntityBaseTreeNode::IsEntityNode() const
+bool FDMXEntityTreeNode::IsEntityNode() const
 {
 	return true;
-}
-
-///////////////////////////////////////////////////////////////////////////////
-// FDMXEntityDragDropOperation
-
-FDMXEntityDragDropOperation::FDMXEntityDragDropOperation(UDMXLibrary* InLibrary, TWeakPtr<SDMXEntityList> InEntityList, TArray<TSharedPtr<FDMXEntityBaseTreeNode>>&& InEntities)
-	: DraggedFromLibrary(InLibrary)
-	, DraggedEntities(MoveTemp(InEntities))
-	, EntityList(InEntityList)
-	, bValidDropTarget(false)
-{
-	DraggedLabel = DraggedEntities.Num() == 1
-		? FText::FromString(TEXT("'") + DraggedEntities[0]->GetEntity()->GetDisplayName() + TEXT("'"))
-		: FDMXEditorUtils::GetEntityTypeNameText(DraggedEntities[0]->GetEntity()->GetClass(), true);
-	
-	SetDraggingFromMultipleCategories();
-
-	Construct();
-}
-
-void FDMXEntityDragDropOperation::SetHoveredEntity(TSharedPtr<FDMXEntityBaseTreeNode> InEntityNode, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType)
-{
-	HoveredEntity = InEntityNode;
-	HoveredLibrary = InLibrary;
-	HoveredTabType = TabEntitiesType;
-	HoverTargetChanged();
-}
-
-void FDMXEntityDragDropOperation::SetHoveredCategory(TSharedPtr<FDMXCategoryTreeNode> InCategory, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType)
-{
-	HoveredCategory = InCategory;
-	HoveredLibrary = InLibrary;
-	HoveredTabType = TabEntitiesType;
-	HoverTargetChanged();
-}
-
-void FDMXEntityDragDropOperation::DroppedOnEntity(TSharedRef<FDMXEntityBaseTreeNode> InEntity, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType)
-{
-	if (!bValidDropTarget) return;
-	check(EntityList.IsValid() && DraggedFromLibrary != nullptr && HoveredEntity.IsValid());
-
-	// Register transaction and current DMX library state for Undo
-	const FScopedTransaction ReorderTransaction = FScopedTransaction(
-		FText::Format(LOCTEXT("ReorderEntities", "Reorder {0}|plural(one=Entity, other=Entities)"), DraggedEntities.Num())
-	);
-	DraggedFromLibrary->Modify();
-
-	// The index of the Entity we're about to insert the dragged ones before
-	const int32 InsertBeforeIndex = DraggedFromLibrary->FindEntityIndex(HoveredEntity->GetEntity());
-	check(InsertBeforeIndex != INDEX_NONE);
-	ReorderEntities(InsertBeforeIndex);
-
-	if (IsDraggingToDifferentCategory())
-	{
-		SetPropertyForNewCategory();
-	}
-
-	// Display the changes in the Entities list
-	EntityList.Pin()->UpdateTree();
-}
-
-void FDMXEntityDragDropOperation::DroppedOnCategory(TSharedRef<FDMXCategoryTreeNode> InCategory, UDMXLibrary* InLibrary, TSubclassOf<UDMXEntity> TabEntitiesType)
-{
-	if (!bValidDropTarget)
-	{
-		return; 
-	}
-	check(EntityList.IsValid() && DraggedFromLibrary != nullptr && HoveredCategory.IsValid());
-
-	// Register transaction and current DMX library state for Undo
-	const FScopedTransaction ChangeCategoryTransaction = FScopedTransaction(
-		FText::Format(LOCTEXT("ChangeEntitiesCategory", "Change {0}|plural(one=Entity, other=Entities) category"), DraggedEntities.Num())
-	);
-	DraggedFromLibrary->Modify();
-
-	SetPropertyForNewCategory();
-
-	if (HoveredCategory->GetChildren().Num() > 0)
-	{
-		// Index after last entity in hovered category
-		UDMXEntity* LastEntityInCategory = HoveredCategory->GetChildren().Last(0)->GetEntity();
-		const int32 LastEntityIndex = DraggedFromLibrary->FindEntityIndex(LastEntityInCategory);
-		check(LastEntityIndex != INDEX_NONE);
-		// Move dragged entities after the last ones in the category
-		ReorderEntities(LastEntityIndex + 1);
-	}
-
-	// Display the changes in the Entities list
-	EntityList.Pin()->UpdateTree();
-}
-
-void FDMXEntityDragDropOperation::ReorderEntities(int32 NewIndex)
-{
-	// Reverse for to keep dragged entities order
-	for (int32 EntityIndex = DraggedEntities.Num() - 1; EntityIndex > -1; --EntityIndex)
-	{
-		if (DraggedEntities[EntityIndex].IsValid() && DraggedEntities[EntityIndex]->GetEntity() != nullptr)
-		{
-			UDMXEntity* Entity = DraggedEntities[EntityIndex]->GetEntity();
-			DraggedFromLibrary->SetEntityIndex(Entity, NewIndex);
-		}
-	}
-}
-
-void FDMXEntityDragDropOperation::SetPropertyForNewCategory()
-{
-	const TSharedPtr<FDMXCategoryTreeNode>&& NewCategory = GetTargetCategory();
-	check(NewCategory.IsValid());
-
-	if (!NewCategory->IsCategoryValueValid())
-	{
-		return; 
-	}
-
-	switch (NewCategory->GetCategoryType())
-	{
-	case FDMXTreeNodeBase::ECategoryType::DeviceProtocol:
-		{
-			const FDMXProtocolName& DeviceProtocol = *NewCategory->GetCategoryValue<FDMXProtocolName>();
-			for (TSharedPtr<FDMXEntityBaseTreeNode> Entity : DraggedEntities)
-			{
-				if (UDMXEntityController* Controller = Cast<UDMXEntityController>(Entity->GetEntity()))
-				{
-					Controller->Modify();
-					Controller->DeviceProtocol = DeviceProtocol;
-				}
-			}
-		}
-		break;
-
-	case FDMXTreeNodeBase::ECategoryType::DMXCategory:
-		{
-			const FDMXFixtureCategory& FixtureCategory = *NewCategory->GetCategoryValue<FDMXFixtureCategory>();
-			for (TSharedPtr<FDMXEntityBaseTreeNode> Entity : DraggedEntities)
-			{
-				if (UDMXEntityFixtureType* FixtureType = Cast<UDMXEntityFixtureType>(Entity->GetEntity()))
-				{
-					FixtureType->Modify();
-					FixtureType->DMXCategory = FixtureCategory;
-				}
-			}
-		}
-		break;
-
-	case FDMXTreeNodeBase::ECategoryType::UniverseID:
-	case FDMXTreeNodeBase::ECategoryType::FixtureAssignmentState:
-		{
-			const uint32& UniverseID = *NewCategory->GetCategoryValue<uint32>();
-			for (TSharedPtr<FDMXEntityBaseTreeNode> Entity : DraggedEntities)
-			{
-				if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity->GetEntity()))
-				{
-					FixturePatch->Modify();
-					FixturePatch->UniverseID = UniverseID;
-				}
-			}
-		}
-
-	default:
-		// The other category types don't change properties
-		break;
-	}
-}
-
-void FDMXEntityDragDropOperation::Construct()
-{
-	// Create the drag-drop decorator window
-	CursorDecoratorWindow = SWindow::MakeCursorDecorator();
-	const bool bShowImmediately = false;
-	FSlateApplication::Get().AddWindow(CursorDecoratorWindow.ToSharedRef(), bShowImmediately);
-
-	HoverTargetChanged();
-}
-
-void FDMXEntityDragDropOperation::HoverTargetChanged()
-{
-	check(EntityList.IsValid());
-	TSharedPtr<SDMXEntityList> PinnedList = EntityList.Pin();
-
-	if (HoveredLibrary != nullptr && DraggedFromLibrary != HoveredLibrary)
-	{
-		// For now, we don't allow dragging entities from one library to the other
-		SetFeedbackMessageError(FText::Format(
-			LOCTEXT("CantDragToDifferentLibrary", "Cannot move {0} outside {1}|plural(one=its, other=their) library"),
-			DraggedLabel,
-			DraggedEntities.Num()
-		));
-		bValidDropTarget = false;
-		return;
-	}
-	else if (HoveredTabType != UDMXEntity::StaticClass() && PinnedList->GetListType() != HoveredTabType)
-	{
-		// Don't allow dragging entities from a type onto a different type tab
-		SetFeedbackMessageError(FText::Format(
-			LOCTEXT("CantDragToDifferentType", "Cannot move {0} to {1} tab"),
-			DraggedLabel,
-			FDMXEditorUtils::GetEntityTypeNameText(HoveredTabType, /*bPlural =*/true)
-		));
-		bValidDropTarget = false;
-		return;
-	}
-	else if (HoveredEntity.IsValid() && HoveredEntity->GetEntity() != nullptr)
-	{
-		if (IsDraggingToDifferentCategory())
-		{
-			// If dragging into a different category, some property will have to be changed
-
-			check(HoveredEntity->GetParent().IsValid());
-			FText PropertyChangeName;
-			FText PropertyNewValue;
-			bValidDropTarget = GetCategoryPropertyNameFromTabType(PropertyChangeName, PropertyNewValue);
-			if (bValidDropTarget)
-			{
-				SetFeedbackMessageOK(FText::Format(
-					LOCTEXT("ReorderBeforeAndSetProperty", "Reorder {0} before '{1}'\nSet {2} = '{3}'"),
-					DraggedLabel,
-					HoveredEntity->GetDisplayName(),
-					PropertyChangeName,
-					PropertyNewValue
-				));
-			}
-			return;
-		}
-		else if (DraggedEntities.Num() == 1 && DraggedEntities[0] == HoveredEntity)
-		{
-			SetFeedbackMessageError(FText::Format(
-				LOCTEXT("ReorderBeforeItself", "Cannot reorder {0} before itself"),
-				DraggedLabel
-			));
-			bValidDropTarget = false;
-			return;
-		}
-		else
-		{
-			// Reordering between entities of same category is fine
-			SetFeedbackMessageOK(FText::Format(
-				LOCTEXT("ReorderBeforeOther", "Reorder {0} before '{1}'"),
-				DraggedLabel,
-				HoveredEntity->GetDisplayName()
-			));
-			bValidDropTarget = true;
-			return;
-		}
-	}
-	else if (HoveredCategory.IsValid())
-	{
-		if (!IsDraggingToDifferentCategory())
-		{
-			// Good visual feedback, but we register as invalid drop target. There wouldn't be
-			// any change by dragging the items into their own category.
-			SetFeedbackMessageOK(FText::Format(
-				LOCTEXT("DragIntoSelfCategory", "The selected {0} {1}|plural(one=is, other=are) already in this category"),
-				FDMXEditorUtils::GetEntityTypeNameText(PinnedList->GetListType(), DraggedEntities.Num() > 1),
-				DraggedEntities.Num()
-			));
-			bValidDropTarget = false;
-			return;
-		}
-		else
-		{
-			// Some (or all) items will have a property changed because they come from another category
-			FText PropertyChangeName;
-			FText PropertyNewValue;
-			bValidDropTarget = GetCategoryPropertyNameFromTabType(PropertyChangeName, PropertyNewValue);
-			if (bValidDropTarget)
-			{
-				SetFeedbackMessageOK(FText::Format(
-					LOCTEXT("ReorderAndSetProperty", "{0}\nSet {1} = '{2}'"),
-					DraggedLabel,
-					PropertyChangeName,
-					PropertyNewValue
-				));
-			}
-			return;
-		}
-	}
-
-	SetFeedbackMessageError(DraggedLabel);
-	bValidDropTarget = false;
-}
-
-void FDMXEntityDragDropOperation::SetDraggingFromMultipleCategories()
-{
-	bDraggingFromMultipleCategories = false;
-
-	TWeakPtr<FDMXTreeNodeBase> FirstCategory = DraggedEntities[0]->GetParent();
-	for (TSharedPtr<FDMXEntityBaseTreeNode> DraggedEntity : DraggedEntities)
-	{
-		if (DraggedEntity->GetParent() != FirstCategory)
-		{
-			bDraggingFromMultipleCategories = true;
-			break;
-		}
-	}
-}
-
-bool FDMXEntityDragDropOperation::GetCategoryPropertyNameFromTabType(FText& PropertyName, FText& CategoryPropertyValue)
-{
-	check(EntityList.IsValid());
-	const TSubclassOf<UDMXEntity> DraggedEntitiesType = EntityList.Pin()->GetListType();
-	TSharedPtr<FDMXCategoryTreeNode>&& TargetCategory = GetTargetCategory();
-	check(TargetCategory.IsValid());
-
-	if (DraggedEntitiesType->IsChildOf(UDMXEntityController::StaticClass()))
-	{
-		PropertyName = LOCTEXT("Property_DeviceProtocol", "Device Protocol");
-		CategoryPropertyValue = TargetCategory->GetDisplayName();
-	}
-	else if (DraggedEntitiesType->IsChildOf(UDMXEntityFixtureType::StaticClass()))
-	{
-		PropertyName = LOCTEXT("Property_DMXCategory", "DMX Category");
-		CategoryPropertyValue = TargetCategory->GetDisplayName();
-	}
-	else if (DraggedEntitiesType->IsChildOf(UDMXEntityFixturePatch::StaticClass()))
-	{
-		if (TargetCategory->IsCategoryValueValid())
-		{
-			PropertyName = LOCTEXT("Property_Universe", "Universe");
-			const uint32 UniverseID = *TargetCategory->GetCategoryValue<uint32>();
-			CategoryPropertyValue = UniverseID == MAX_uint32
-				? LOCTEXT("UnassignedUniverseIDValue", "Unassigned")
-				: FText::AsNumber(UniverseID);
-		}
-		else
-		{
-			// Can't assign universe by simply dragging into "Assigned Fixtures"
-			SetFeedbackMessageError(FText::Format(
-				LOCTEXT("DragCantChangeUniverse", "Drag onto a Universe to assign it"),
-				FDMXEditorUtils::GetEntityTypeNameText(DraggedEntitiesType, DraggedEntities.Num() > 1)
-			));
-			return false;
-		}
-	}
-	else
-	{
-		// Dragged Entities are of unimplemented type!
-		SetFeedbackMessageError(FText::Format(
-			LOCTEXT("DragUnimplementedCategoryChange", "Cannot move {0} to another category"),
-			FDMXEditorUtils::GetEntityTypeNameText(DraggedEntitiesType, DraggedEntities.Num() > 1)
-		));
-		return false;
-	}
-
-	return true;
-}
-
-bool FDMXEntityDragDropOperation::IsDraggingToDifferentCategory() const
-{
-	if (HoveredEntity.IsValid())
-	{
-		return bDraggingFromMultipleCategories || DraggedEntities[0]->GetParent() != HoveredEntity->GetParent();
-	}
-	else if (HoveredCategory.IsValid())
-	{
-		return bDraggingFromMultipleCategories || DraggedEntities[0]->GetParent() != HoveredCategory;
-	}
-
-	UE_LOG_DMXEDITOR(Fatal, TEXT("%S was called and there was no hovered Entity or Category"), __FUNCTION__);
-	return false;
-}
-
-TSharedPtr<FDMXCategoryTreeNode> FDMXEntityDragDropOperation::GetTargetCategory() const
-{
-	if (HoveredCategory.IsValid())
-	{
-		return HoveredCategory;
-	}
-	else if (HoveredEntity.IsValid())
-	{
-		return StaticCastSharedPtr<FDMXCategoryTreeNode>(HoveredEntity->GetParent().Pin());
-	}
-
-	return nullptr;
-}
-
-void FDMXEntityDragDropOperation::SetFeedbackMessageError(const FText& Message)
-{
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error"));
-	SetFeedbackMessage(StatusSymbol, Message);
-}
-
-void FDMXEntityDragDropOperation::SetFeedbackMessageOK(const FText& Message)
-{
-	const FSlateBrush* StatusSymbol = FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK"));
-	SetFeedbackMessage(StatusSymbol, Message);
-}
-
-void FDMXEntityDragDropOperation::SetFeedbackMessage(const FSlateBrush* Icon, const FText& Message)
-{
-	if (!Message.IsEmpty())
-	{
-		CursorDecoratorWindow->ShowWindow();
-		CursorDecoratorWindow->SetContent
-		(
-			SNew(SBorder)
-			.BorderImage(FEditorStyle::GetBrush("Graph.ConnectorFeedback.Border"))
-			[
-				SNew(SHorizontalBox)
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(3.0f)
-				[
-					SNew(SScaleBox)
-					.Stretch(EStretch::ScaleToFit)
-					[
-						SNew(SImage)
-						.Image(Icon)
-					]
-				]
-				+SHorizontalBox::Slot()
-				.AutoWidth()
-				.Padding(3.0f)
-				.MaxWidth(500)
-				.VAlign(VAlign_Center)
-				[
-					SNew(STextBlock)
-					.WrapTextAt(480.0f)
-					.Text(Message)
-				]
-			]
-		);
-	}
-	else
-	{
-		CursorDecoratorWindow->HideWindow();
-		CursorDecoratorWindow->SetContent(SNullWidget::NullWidget);
-	}
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -799,7 +375,9 @@ void FDMXEntityDragDropOperation::SetFeedbackMessage(const FSlateBrush* Icon, co
 
 void SDMXCategoryRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& InOwnerTableView, TSharedPtr<FDMXTreeNodeBase> InNodePtr, bool bInIsRootCategory, TWeakPtr<SDMXEntityList> InEditorList)
 {
-	EditorListPtr = InEditorList;
+	OnEntityOrderChanged = InArgs._OnEntityOrderChanged;
+
+	EntityListPtr = InEditorList;
 	TreeNodePtr = StaticCastSharedPtr<FDMXCategoryTreeNode>(InNodePtr);
 	check(TreeNodePtr.IsValid());
 
@@ -856,34 +434,27 @@ void SDMXCategoryRow::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEv
 {
 	check(GetNode().IsValid());
 
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDrag = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
+	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
 	{
-		if (TSharedPtr<SDMXEntityList> EditorListPinned = EditorListPtr.Pin())
-		{
-			EntityDrag->SetHoveredCategory(GetNode(), EditorListPinned->GetDMXLibrary(), EditorListPinned->GetListType());
-		}
-	}
-}
-
-void SDMXCategoryRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
-{
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDrag = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
-	{
-		EntityDrag->SetHoveredCategory(nullptr, nullptr, UDMXEntity::StaticClass());
+		EntityDragDropOp->HandleDragEnterCategoryRow(SharedThis(this));
 	}
 }
 
 FReply SDMXCategoryRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	check(GetNode().IsValid());
-
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDrag = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
+	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
 	{
-		if (TSharedPtr<SDMXEntityList> EditorListPinned = EditorListPtr.Pin())
+		if (TSharedPtr<SDMXEntityList> EntityListPinned = EntityListPtr.Pin())
 		{
-			EntityDrag->DroppedOnCategory(GetNode().ToSharedRef(), EditorListPinned->GetDMXLibrary(), EditorListPinned->GetListType());
+			if (EntityDragDropOp->HandleDropOnCategoryRow(SharedThis(this)))
+			{				
+				EntityListPinned->UpdateTree();
+
+				OnEntityOrderChanged.ExecuteIfBound();
+
+				return FReply::Handled().EndDragDrop();
+			}
 		}
-		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
@@ -907,11 +478,13 @@ const FSlateBrush* SDMXCategoryRow::GetBackgroundImage() const
 
 void SDMXEntityRow::Construct(const FArguments& InArgs, TSharedPtr<FDMXTreeNodeBase> InNodePtr, TSharedPtr<STableViewBase> InOwnerTableView, TWeakPtr<SDMXEntityList> InEditorList)
 {
-	TreeNodePtr = StaticCastSharedPtr<FDMXEntityBaseTreeNode>(InNodePtr);
-	EditorListPtr = InEditorList;
+	TreeNodePtr = StaticCastSharedPtr<FDMXEntityTreeNode>(InNodePtr);
+	EntityListPtr = InEditorList;
 
 	OnEntityDragged = InArgs._OnEntityDragged;
 	OnGetFilterText = InArgs._OnGetFilterText;
+
+	OnEntityOrderChanged = InArgs._OnEntityOrderChanged;
 
 	const FSlateFontInfo&& NameFont = FCoreStyle::GetDefaultFontStyle("Regular", 10);
 
@@ -976,12 +549,12 @@ void SDMXEntityRow::Construct(const FArguments& InArgs, TSharedPtr<FDMXTreeNodeB
 			.VAlign(VAlign_Center)
 			[
 				SNew(SCheckBox)
-				.IsChecked(EntityAsPatch->bAutoAssignAddress ? ECheckBoxState::Checked : ECheckBoxState::Unchecked)
+				.IsChecked(this, &SDMXEntityRow::IsAutoAssignChannelEnabled)
 				.OnCheckStateChanged(this, &SDMXEntityRow::OnAutoAssignChannelBoxStateChanged)
-				.ToolTipText(LOCTEXT("AutoAssignChannelToolTip", "Auto-assign channel from drag/drop list order"))
+				.ToolTipText(LOCTEXT("AutoAssignChannelToolTip", "Auto-assign address from drag/drop list order"))
 			];
 
-		// Used channels range labels
+		// Used address range labels
 		const FSlateFontInfo&& ChannelFont = FCoreStyle::GetDefaultFontStyle("Bold", 8);
 		const FLinearColor ChannelLabelColor(1.0f, 1.0f, 1.0f, 0.8f);
 		const float MinChannelTextWidth = 20.0f;
@@ -1031,6 +604,18 @@ void SDMXEntityRow::Construct(const FArguments& InArgs, TSharedPtr<FDMXTreeNodeB
 	}
 
 	InNodePtr->OnRenameRequest().BindSP(InlineRenameWidget.Get(), &SInlineEditableTextBlock::EnterEditingMode);
+}
+
+ECheckBoxState SDMXEntityRow::IsAutoAssignChannelEnabled() const
+{
+	if (TSharedPtr<FDMXEntityTreeNode> TreeNode = TreeNodePtr.Pin())
+	{
+		if (UDMXEntityFixturePatch* EntityAsPatch = Cast<UDMXEntityFixturePatch>(TreeNode->GetEntity()))
+		{
+			return EntityAsPatch->bAutoAssignAddress ? ECheckBoxState::Checked : ECheckBoxState::Unchecked;
+		}
+	}
+	return ECheckBoxState::Undetermined;
 }
 
 FText SDMXEntityRow::GetDisplayText() const
@@ -1092,23 +677,10 @@ void SDMXEntityRow::OnAutoAssignChannelBoxStateChanged(ECheckBoxState NewState)
 }
 
 void SDMXEntityRow::OnDragEnter(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
-{
-	check(GetNode().IsValid() && GetNode()->GetEntity() != nullptr);
-
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDrag = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
+{	
+	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
 	{
-		if (TSharedPtr<SDMXEntityList> EditorListPinned = EditorListPtr.Pin())
-		{
-			EntityDrag->SetHoveredEntity(GetNode(), EditorListPinned->GetDMXLibrary(), EditorListPinned->GetListType());
-		}
-	}
-}
-
-void SDMXEntityRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
-{
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDrag = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
-	{
-		EntityDrag->SetHoveredEntity(nullptr, nullptr, UDMXEntity::StaticClass());
+		EntityDragDropOp->HandleDragEnterEntityRow(SharedThis(this));
 	}
 }
 
@@ -1116,13 +688,20 @@ FReply SDMXEntityRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& 
 {
 	check(GetNode().IsValid() && GetNode()->GetEntity() != nullptr);
 
-	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDrag = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
+	if (TSharedPtr<FDMXEntityDragDropOperation> EntityDragDropOp = DragDropEvent.GetOperationAs<FDMXEntityDragDropOperation>())
 	{
-		if (TSharedPtr<SDMXEntityList> EditorListPinned = EditorListPtr.Pin())
+		if (TSharedPtr<SDMXEntityList> EntityListPinned = EntityListPtr.Pin())
 		{
-			EntityDrag->DroppedOnEntity(GetNode().ToSharedRef(), EditorListPinned->GetDMXLibrary(), EditorListPinned->GetListType());
+			if (EntityDragDropOp->HandleDropOnEntityRow(SharedThis(this)))
+			{
+				// Display the changes in the Entities list
+				EntityListPinned->UpdateTree();
+
+				OnEntityOrderChanged.ExecuteIfBound();
+
+				return FReply::Handled().EndDragDrop();
+			}
 		}
-		return FReply::Handled();
 	}
 
 	return FReply::Unhandled();
@@ -1138,7 +717,7 @@ bool SDMXEntityRow::OnNameTextVerifyChanged(const FText& InNewText, FText& OutEr
 
 	return FDMXEditorUtils::ValidateEntityName(
 		TextAsString,
-		EditorListPtr.Pin()->GetDMXLibrary(),
+		EntityListPtr.Pin()->GetDMXLibrary(),
 		TreeNodePtr.Pin()->GetEntity()->GetClass(),
 		OutErrorMessage
 	);
@@ -1156,11 +735,11 @@ void SDMXEntityRow::OnNameTextCommit(const FText& InNewName, ETextCommit::Type I
 	}
 
 	const FScopedTransaction Transaction(LOCTEXT("RenameEntity", "Rename Entity"));
-	EditorListPtr.Pin()->GetDMXLibrary()->Modify();
+	EntityListPtr.Pin()->GetDMXLibrary()->Modify();
 
-	FDMXEditorUtils::RenameEntity(EditorListPtr.Pin()->GetDMXLibrary(), Node->GetEntity(), NewNameString);
+	FDMXEditorUtils::RenameEntity(EntityListPtr.Pin()->GetDMXLibrary(), Node->GetEntity(), NewNameString);
 
-	EditorListPtr.Pin()->SelectItemByName(NewNameString, ESelectInfo::OnMouseClick);
+	EntityListPtr.Pin()->SelectItemByName(NewNameString, ESelectInfo::OnMouseClick);
 }
 
 FText SDMXEntityRow::GetToolTipText() const
@@ -1239,6 +818,19 @@ void SDMXEntityList::Construct(const FArguments& InArgs, const TSubclassOf<UDMXE
 	DMXEditor = InArgs._DMXEditor;
 	ListType = InListType;
 	OnSelectionUpdated = InArgs._OnSelectionUpdated;
+	OnAutoAssignAddressChanged = InArgs._OnAutoAssignAddressChanged;
+
+	OnEntitiesAdded = InArgs._OnEntitiesAdded;
+	OnEntityOrderChanged = InArgs._OnEntityOrderChanged;
+	OnEntitiesRemoved = InArgs._OnEntitiesRemoved;
+	
+	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+	{
+		FixturePatchSharedData = PinnedEditor->GetFixturePatchSharedData();
+	}
+	check(FixturePatchSharedData.IsValid());
+
+	FixturePatchSharedData->OnFixturePatchSelectionChanged.AddSP(this, &SDMXEntityList::OnSharedDataSelectedFixturePatches);
 
 	// listen to common editor shortcuts for copy/paste etc
 	CommandList = MakeShared<FUICommandList>();
@@ -1427,7 +1019,7 @@ void SDMXEntityList::Construct(const FArguments& InArgs, const TSubclassOf<UDMXE
 	UpdateTree();
 
 	// Make sure we know when tabs become active to update details tab
-	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateRaw(this, &SDMXEntityList::OnActiveTabChanged));
+	OnActiveTabChangedDelegateHandle = FGlobalTabmanager::Get()->OnActiveTabChanged_Subscribe(FOnActiveTabChanged::FDelegate::CreateSP(this, &SDMXEntityList::OnActiveTabChanged));
 }
 
 SDMXEntityList::~SDMXEntityList()
@@ -1567,6 +1159,8 @@ void SDMXEntityList::OnPasteNodes()
 		NewEntity->SetName(FDMXEditorUtils::FindUniqueEntityName(Library, NewEntity->GetClass(), NewEntity->GetDisplayName()));
 
 		Library->AddEntity(NewEntity);
+
+		OnEntitiesAdded.ExecuteIfBound();
 	}
 
 	// Select the new Entities in their type tab
@@ -1593,10 +1187,19 @@ bool SDMXEntityList::CanDuplicateNodes() const
 
 void SDMXEntityList::OnDuplicateNodes()
 {
-	const TArray<UDMXEntity*>&& SelectedEntities = GetSelectedEntities();
-	
+	TArray<UDMXEntity*>&& SelectedEntities = GetSelectedEntities();
+
+	// Sort selected entities by universe and starting channel to get a meaningful order when auto assign addresses
+	SelectedEntities.Sort([&](UDMXEntity& FirstEntity, UDMXEntity& SecondEntity) {
+		UDMXEntityFixturePatch* FirstPatch = CastChecked<UDMXEntityFixturePatch>(&FirstEntity);
+		UDMXEntityFixturePatch* SecondPatch = CastChecked<UDMXEntityFixturePatch>(&SecondEntity);
+		return
+			FirstPatch->UniverseID < SecondPatch->UniverseID ||
+			(FirstPatch->UniverseID == SecondPatch->UniverseID &&
+				FirstPatch->GetStartingChannel() <= SecondPatch->GetStartingChannel());
+		});
 	UDMXLibrary* Library = GetDMXLibrary();
-	if(SelectedEntities.Num() > 0 && Library != nullptr)
+	if (SelectedEntities.Num() > 0 && Library != nullptr)
 	{
 		// Force the text box being edited (if any) to commit its text. The duplicate operation may trigger a regeneration of the tree view,
 		// releasing all row widgets. If one row was in edit mode (rename/rename on create), it was released before losing the focus and
@@ -1622,12 +1225,28 @@ void SDMXEntityList::OnDuplicateNodes()
 				Library->AddEntity(EntityCopy);
 				NewEntities.Add(EntityCopy);
 				Library->SetEntityIndex(EntityCopy, ++NewEntityIndex);
+
+				OnEntitiesAdded.ExecuteIfBound();
 			}
 		}
 
 		// Refresh entities tree to contain nodes with the new entities and select them
 		UpdateTree();
 		SelectItemsByEntity(NewEntities, ESelectInfo::OnMouseClick); // OnMouseClick triggers selection updated event
+
+		SelectedEntities = GetSelectedEntities();
+
+		// Auto assign the addresses of the newly added entities
+		for (UDMXEntity* Entity : SelectedEntities)
+		{
+			if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Entity))
+			{
+				FDMXEditorUtils::AutoAssignedAddresses(TArray<UDMXEntityFixturePatch*>{ FixturePatch });
+			}
+		}
+
+		// Update the tree anew since addresses changed
+		UpdateTree();
 	}
 }
 
@@ -1703,11 +1322,11 @@ void SDMXEntityList::OnDeleteNodes()
 		}
 	}
 
-	{
-		// Clears references to the Entities and delete them
-		const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
-		FDMXEditorUtils::RemoveEntities(GetDMXLibrary(), MoveTemp(EntitiesToDelete));
-	}
+	// Clears references to the Entities and delete them
+	const FScopedTransaction Transaction(EntitiesToDelete.Num() > 1 ? LOCTEXT("RemoveEntities", "Remove Entities") : LOCTEXT("RemoveEntity", "Remove Entity"));
+	FDMXEditorUtils::RemoveEntities(GetDMXLibrary(), MoveTemp(EntitiesToDelete));
+
+	OnEntitiesRemoved.ExecuteIfBound();
 
 	UpdateTree();
 }
@@ -1728,6 +1347,42 @@ void SDMXEntityList::OnRenameNode()
 	{
 		EntitiesTreeWidget->RequestScrollIntoView(SelectedItems[0]);
 	}
+}
+
+TSharedPtr<FDMXTreeNodeBase> SDMXEntityList::GetCategoryNode(UDMXEntity* Entity) const
+{
+	TSharedPtr<FDMXTreeNodeBase> EntityNode = RootNode->FindChild(Entity, true);
+	if (EntityNode.IsValid())
+	{
+		TSharedPtr<FDMXTreeNodeBase> CategoryNode = EntityNode->GetParent().Pin();
+		if (CategoryNode.IsValid())
+		{
+			check(CategoryNode != RootNode);
+			check(!CategoryNode->IsEntityNode());
+
+			return CategoryNode;
+		}
+	}
+
+	return nullptr;
+}
+
+TArray<TSharedPtr<FDMXEntityTreeNode>> SDMXEntityList::GetSelectedNodes() const
+{
+	TArray<TSharedPtr<FDMXEntityTreeNode>> Result;
+	TArray<TSharedPtr<FDMXTreeNodeBase>> SelectedItems = EntitiesTreeWidget->GetSelectedItems();
+	for (TSharedPtr<FDMXTreeNodeBase> SelectedItem : SelectedItems)
+	{
+		if (SelectedItem->IsEntityNode())
+		{
+			if (TSharedPtr<FDMXEntityTreeNode> AsEntityNode = StaticCastSharedPtr<FDMXEntityTreeNode>(SelectedItem))
+			{
+				Result.Add(AsEntityNode);
+			}
+		}
+	}
+
+	return Result;
 }
 
 TArray<UDMXEntity*> SDMXEntityList::GetSelectedEntities() const
@@ -1818,6 +1473,7 @@ void SDMXEntityList::SelectItemsByEntity(const TArray<UDMXEntity*>& InEntities, 
 	if (InEntities.Num() > 0)
 	{
 		TSharedPtr<FDMXTreeNodeBase> FirstNode;
+		TArray<TSharedPtr<FDMXTreeNodeBase>> SelectedNodes;
 		for (UDMXEntity* Entity : InEntities)
 		{
 			if (Entity == nullptr)
@@ -1826,9 +1482,10 @@ void SDMXEntityList::SelectItemsByEntity(const TArray<UDMXEntity*>& InEntities, 
 			}
 
 			// Find the Entity node for this Entity
+
 			if (TSharedPtr<FDMXTreeNodeBase> EntityNode = FindTreeNode(Entity))
 			{
-				EntitiesTreeWidget->SetItemSelection(EntityNode, true);
+				SelectedNodes.Add(EntityNode);				
 
 				if (!FirstNode.IsValid())
 				{
@@ -1836,6 +1493,7 @@ void SDMXEntityList::SelectItemsByEntity(const TArray<UDMXEntity*>& InEntities, 
 				}
 			}
 		}
+		EntitiesTreeWidget->SetItemSelection(SelectedNodes, true);
 
 		// Scroll the first selected node into view
 		if (FirstNode.IsValid())
@@ -1872,7 +1530,7 @@ void SDMXEntityList::InitializeNodes()
 		Library->ForEachEntityOfType<UDMXEntityController>([this, &CategoryType](UDMXEntityController* Controller)
 			{
 				// Create this entity's node
-				TSharedPtr<FDMXEntityBaseTreeNode> ControllerNode = CreateEntityTreeNode(Controller);
+				TSharedPtr<FDMXEntityTreeNode> ControllerNode = CreateEntityTreeNode(Controller);
 
 				// For each Entity, we find or create a category node then add the entity as its child
 				const FDMXProtocolName& Protocol = Controller->DeviceProtocol;
@@ -1891,7 +1549,7 @@ void SDMXEntityList::InitializeNodes()
 		Library->ForEachEntityOfType<UDMXEntityFixtureType>([this, &CategoryType] (UDMXEntityFixtureType* FixtureType)
 			{
 				// Create this entity's node
-				TSharedPtr<FDMXEntityBaseTreeNode> FixtureTypeNode = CreateEntityTreeNode(FixtureType);
+				TSharedPtr<FDMXEntityTreeNode> FixtureTypeNode = CreateEntityTreeNode(FixtureType);
 
 				// For each Entity, we find or create a category node then add the entity as its child
 				const FDMXFixtureCategory DMXCategory = FixtureType->DMXCategory;
@@ -1936,55 +1594,46 @@ void SDMXEntityList::InitializeNodes()
 		Library->ForEachEntityOfType<UDMXEntityFixturePatch>([&] (UDMXEntityFixturePatch* FixturePatch)
 			{
 				// Create this entity's node
-				TSharedPtr<FDMXEntityBaseTreeNode> FixturePatchNode = CreateEntityTreeNode(FixturePatch);
+				TSharedPtr<FDMXEntityTreeNode> FixturePatchNode = CreateEntityTreeNode(FixturePatch);
 
-				if (FixturePatch->IsInControllersRange(Controllers))
+				if (FixturePatch->IsInControllersRange(Controllers) &&
+					FixturePatch->ParentFixtureTypeTemplate &&
+					FixturePatch->GetChannelSpan() > 0)
 				{
 					// create or get existing sub-category in Assigned Fixtures category
 					TSharedPtr<FDMXTreeNodeBase> UniverseCategoryNode = GetOrCreateCategoryNode(
 						CategoryType,
 						FText::Format(LOCTEXT("UniverseSubcategoryLabel", "Universe {0}"),
 							FText::AsNumber(FixturePatch->UniverseID)),
-						&FixturePatch->UniverseID,
-						AssignedFixturesCategoryNode);
+							&FixturePatch->UniverseID,
+							AssignedFixturesCategoryNode);
 
 					UniverseCategoryNode->AddChild(FixturePatchNode);
 				}
 				else
 				{
+					if (Controllers.Num() == 0)
+					{
+						// There's no controller to assign the patch to
+						FText ErrorText = LOCTEXT("DMXEntityList.PatchMissingController", "No controller available. See 'Controllers' tab to create one.");
+						FixturePatchNode->SetErrorStatus(ErrorText);
+					}
+					else if (!FixturePatch->IsInControllersRange(Controllers))
+					{
+						FText ErrorText = LOCTEXT("DMXEntityList.PatchNotInControllersRange", "The Universe of the patch is smaller than 0 or not reachable by any Controller in the Library.");
+						FixturePatchNode->SetErrorStatus(ErrorText);
+					}
+
 					UnassignedFixturesCategoryNode->AddChild(FixturePatchNode);
 				}
 			});
+
 		// Sort Universe ID sub-categories in crescent order
 		AssignedFixturesCategoryNode->SortChildren();
 
 		// Sort configurations by channel value within their Universes.
 		for (TSharedPtr<FDMXTreeNodeBase> UniverseIDCategory : AssignedFixturesCategoryNode->GetChildren())
-		{
-			// Check for Patches with Auto-Assign Channel on and set their AutoStartingAddress accordingly.
-			// We won't create a Transaction for this because auto starting addresses are a consequence of other
-			// property changes, like switch Auto-Assign on/off and changing the drag/drop order of entities.
-			// So we just change it with the nodes initialization, which happens whenever any property changes,
-			// keeping it always correct and cached to be saved with the DMXLibrary.
-			const TArray< TSharedPtr<FDMXTreeNodeBase> >& PatchNodes = UniverseIDCategory->GetChildren();
-			for (int32 NodeIndex = 0; NodeIndex < PatchNodes.Num(); ++NodeIndex)
-			{
-				UDMXEntityFixturePatch* Patch = CastChecked<UDMXEntityFixturePatch>(PatchNodes[NodeIndex]->GetEntity());
-				if (Patch->bAutoAssignAddress)
-				{
-					if (NodeIndex > 0)
-					{
-						UDMXEntityFixturePatch* PreviousPatch = CastChecked<UDMXEntityFixturePatch>(PatchNodes[NodeIndex - 1]->GetEntity());
-						Patch->AutoStartingAddress = PreviousPatch->GetStartingChannel() + PreviousPatch->GetChannelSpan();
-					}
-					else
-					{
-						// This is the first Patch in this Universe, so it gets channel 1
-						Patch->AutoStartingAddress = 1;
-					}
-				}
-			}
-
+		{			
 			// Sort Patches by starting channel
 			UniverseIDCategory->SortChildren([](const TSharedPtr<FDMXTreeNodeBase>& A, const TSharedPtr<FDMXTreeNodeBase>& B)->bool
 				{
@@ -1995,20 +1644,7 @@ void SDMXEntityList::InitializeNodes()
 						const int32& ChannelA = PatchA->GetStartingChannel();
 						const int32& ChannelB = PatchB->GetStartingChannel();
 
-						if (ChannelA == ChannelB)
-						{
-							if (PatchA->bAutoAssignAddress != PatchB->bAutoAssignAddress)
-							{
-								// Draw is decided by setting the Auto-Assigned ones as first 
-								return PatchA->bAutoAssignAddress;
-							}
-							else
-							{
-								// If both are not auto-assigned, keep drag/drop order
-								return true;
-							}
-						}
-						return PatchA->GetStartingChannel() < PatchB->GetStartingChannel();
+						return PatchA->GetStartingChannel() <= PatchB->GetStartingChannel();
 					}
 					return false;
 				});
@@ -2027,20 +1663,23 @@ void SDMXEntityList::InitializeNodes()
 				{
 					const int32 ChannelSpan = Patch->GetChannelSpan();
 
+					FText InvalidReason;
 					if (Patch->GetStartingChannel() < AvailableChannel && PreviousPatch != nullptr)
 					{
-						// This Patch is overlapping occupied channels
-						Node->SetWarningStatus(FText::Format(
+						// The Patch is overlapping occupied channels
+						Node->SetErrorStatus(FText::Format(
 							LOCTEXT("PatchOverlapWarning", "Start channel overlaps channels from {0}"),
 							FText::FromString(PreviousPatch->GetDisplayName())
 						));
 					}
-
-					// Update error status because after auto-channel changes there could be validation errors
-					FText InvalidReason;
-					if (!Patch->IsValidEntity(InvalidReason))
+					else if (!Patch->IsValidEntity(InvalidReason))
 					{
+						// Update error status because after auto-channel changes there could be validation errors
 						Node->SetErrorStatus(InvalidReason);
+					}
+					else
+					{
+						Node->SetErrorStatus(FText::GetEmpty());
 					}
 
 					// Update the next available channel from this Patch's functions
@@ -2057,10 +1696,10 @@ void SDMXEntityList::InitializeNodes()
 	}
 }
 
-TSharedPtr<FDMXEntityBaseTreeNode> SDMXEntityList::CreateEntityTreeNode(UDMXEntity* Entity)
+TSharedPtr<FDMXEntityTreeNode> SDMXEntityList::CreateEntityTreeNode(UDMXEntity* Entity)
 {
 	check(Entity != nullptr);
-	TSharedPtr<FDMXEntityBaseTreeNode> NewNode = MakeShared<FDMXEntityBaseTreeNode>(Entity);
+	TSharedPtr<FDMXEntityTreeNode> NewNode = MakeShared<FDMXEntityTreeNode>(Entity);
 	RefreshFilteredState(NewNode, false);
 	
 	// Error status
@@ -2177,7 +1816,10 @@ TSharedRef<ITableRow> SDMXEntityList::MakeNodeWidget(TSharedPtr<FDMXTreeNodeBase
 	if (InNodePtr->GetNodeType() == FDMXTreeNodeBase::ENodeType::CategoryNode)
 	{
 		const bool bIsRootCategory = InNodePtr->GetCategoryType() != FDMXTreeNodeBase::ECategoryType::UniverseID;
-		return SNew(SDMXCategoryRow, OwnerTable, InNodePtr, bIsRootCategory, SharedThis(this))
+
+		return 
+			SNew(SDMXCategoryRow, OwnerTable, InNodePtr, bIsRootCategory, SharedThis(this))
+			.OnEntityOrderChanged(OnEntityOrderChanged)
 			[
 				SNew(STextBlock)
 				.Text(InNodePtr->GetDisplayName())
@@ -2188,7 +1830,8 @@ TSharedRef<ITableRow> SDMXEntityList::MakeNodeWidget(TSharedPtr<FDMXTreeNodeBase
 	{
 		TSharedRef<SDMXEntityRow> EntityRow = SNew(SDMXEntityRow, InNodePtr, OwnerTable, SharedThis(this))
 			.OnGetFilterText(this, &SDMXEntityList::GetFilterText)
-			.OnEntityDragged(this, &SDMXEntityList::OnEntityDragged);
+			.OnEntityDragged(this, &SDMXEntityList::OnEntityDragged)
+			.OnEntityOrderChanged(OnEntityOrderChanged);
 
 		if (ListType->IsChildOf(UDMXEntityFixturePatch::StaticClass()))
 		{
@@ -2439,6 +2082,46 @@ bool SDMXEntityList::IsInTab(TSharedPtr<SDockTab> InDockTab) const
 	return false;
 }
 
+void SDMXEntityList::OnSharedDataSelectedFixturePatches()
+{
+	if (GetListType() != UDMXEntityFixturePatch::StaticClass())
+	{
+		return;
+	}
+
+	check(FixturePatchSharedData.IsValid());
+	const TArray<TWeakObjectPtr<UDMXEntityFixturePatch>>& SelectedFixturePatches = FixturePatchSharedData->GetSelectedFixturePatches();
+	const TArray<UDMXEntity*>& SelectedEntitiesInList = GetSelectedEntities();
+
+	bool bSelectionChanged = false;
+	if (SelectedEntitiesInList.Num() != SelectedFixturePatches.Num())
+	{
+		bSelectionChanged = true;
+	}
+
+	for (TWeakObjectPtr<UDMXEntityFixturePatch> Patch : SelectedFixturePatches)
+	{
+		if (!SelectedEntitiesInList.Contains(Patch))
+		{
+			bSelectionChanged = true;
+			break;
+		}
+	}
+
+	if (bSelectionChanged)
+	{
+		TArray<UDMXEntity*> NewSelection;
+		for (TWeakObjectPtr<UDMXEntityFixturePatch> Patch : SelectedFixturePatches)
+		{
+			if (Patch.IsValid())
+			{
+				NewSelection.Add(Patch.Get());
+			}
+		}
+		SelectItemsByEntity(NewSelection);
+	}
+}
+
 void SDMXEntityList::OnGetChildrenForTree(TSharedPtr<FDMXTreeNodeBase> InNodePtr, TArray<TSharedPtr<FDMXTreeNodeBase>>& OutChildren)
 {
 	if (InNodePtr.IsValid())
@@ -2478,10 +2161,35 @@ void SDMXEntityList::OnTreeSelectionChanged(TSharedPtr<FDMXTreeNodeBase> InSelec
 
 void SDMXEntityList::UpdateSelectionFromNodes(const TArray<TSharedPtr<FDMXTreeNodeBase>>& SelectedNodes)
 {
-	bUpdatingSelection = true;
+	if (TSharedPtr<FDMXEditor> PinnedEditor = DMXEditor.Pin())
+	{
+		bUpdatingSelection = true;
 
-	// Notify that the selection has updated
-	OnSelectionUpdated.ExecuteIfBound(SelectedNodes);
+		TArray<UDMXEntity*> SelectedEntities;
+		for (const TSharedPtr<FDMXTreeNodeBase>& Node : SelectedNodes)
+		{
+			SelectedEntities.Add(Node->GetEntity());
+		}
+
+		// Notify that the selection has updated
+		OnSelectionUpdated.ExecuteIfBound(SelectedEntities);
+
+		// Select fixture patches via shared data
+		if (ListType == UDMXEntityFixturePatch::StaticClass())
+		{
+			TArray<TWeakObjectPtr<UDMXEntityFixturePatch>> SelectedFixturePatches;
+			for (const TSharedPtr<FDMXTreeNodeBase>& Node : SelectedNodes)
+			{
+				if (UDMXEntityFixturePatch* FixturePatch = Cast<UDMXEntityFixturePatch>(Node->GetEntity()))
+				{
+					SelectedFixturePatches.Add(FixturePatch);
+				}				
+			}
+
+			check(FixturePatchSharedData.IsValid());
+			FixturePatchSharedData->SelectFixturePatches(SelectedFixturePatches);
+		}
+	}
 
 	bUpdatingSelection = false;
 }
@@ -2497,6 +2205,12 @@ void SDMXEntityList::SetNodeExpansionState(TSharedPtr<FDMXTreeNodeBase> InNodeTo
 void SDMXEntityList::UpdateTree(bool bRegenerateTreeNodes /*= true*/)
 {
 	check(EntitiesTreeWidget.IsValid());
+
+	// the DMXEditor may have been closed, no need to update the tree
+	if (!DMXEditor.IsValid())
+	{
+		return;
+	}
 
 	if (bRegenerateTreeNodes)
 	{
@@ -2609,25 +2323,25 @@ FReply SDMXEntityList::OnEntityDragged(TSharedPtr<FDMXTreeNodeBase> InNodePtr, c
 	if (InNodePtr.IsValid() && InNodePtr->GetEntity() != nullptr)
 	{
 		TArray<TSharedPtr<FDMXTreeNodeBase>>&& SelectedItems = EntitiesTreeWidget->GetSelectedItems();
-		TArray<TSharedPtr<FDMXEntityBaseTreeNode>> DraggedEntities;
+		TArray<TWeakObjectPtr<UDMXEntity>> DraggedEntities;
 		DraggedEntities.Reserve(SelectedItems.Num());
 
 		for (TSharedPtr<FDMXTreeNodeBase> SelectedItem : SelectedItems)
 		{
 			if (SelectedItem->IsEntityNode())
 			{
-				if (TSharedPtr<FDMXEntityBaseTreeNode> AsEntityNode = StaticCastSharedPtr<FDMXEntityBaseTreeNode>(SelectedItem))
+				if (TSharedPtr<FDMXEntityTreeNode> AsEntityNode = StaticCastSharedPtr<FDMXEntityTreeNode>(SelectedItem))
 				{
-					DraggedEntities.Add(AsEntityNode);
+					DraggedEntities.Add(AsEntityNode->GetEntity());
 				}
 			}
 		}
 
 		if (DraggedEntities.Num() == 0)
 		{
-			if (TSharedPtr<FDMXEntityBaseTreeNode> AsEntityNode = StaticCastSharedPtr<FDMXEntityBaseTreeNode>(InNodePtr))
+			if (TSharedPtr<FDMXEntityTreeNode> AsEntityNode = StaticCastSharedPtr<FDMXEntityTreeNode>(InNodePtr))
 			{
-				DraggedEntities.Add(AsEntityNode);
+				DraggedEntities.Add(AsEntityNode->GetEntity());
 			}
 			else
 			{
@@ -2635,7 +2349,7 @@ FReply SDMXEntityList::OnEntityDragged(TSharedPtr<FDMXTreeNodeBase> InNodePtr, c
 			}
 		}
 
-		TSharedRef<FDMXEntityDragDropOperation> DragOperation = MakeShared<FDMXEntityDragDropOperation>(GetDMXLibrary(), SharedThis(this), MoveTemp(DraggedEntities));
+		TSharedRef<FDMXEntityDragDropOperation> DragOperation = MakeShared<FDMXEntityDragDropOperation>(GetDMXLibrary(), MoveTemp(DraggedEntities));
 
 		return FReply::Handled().BeginDragDrop(DragOperation);
 	}
@@ -2680,8 +2394,15 @@ void SDMXEntityList::OnEditorSetupNewFixturePatch(UDMXEntity* InNewEntity, UDMXE
 		if (PinnedEditor.IsValid())
 		{
 			PinnedEditor->GetOnSetupNewEntity().Remove(OnSetupNewEntityHandle);
-
 			FixturePatch->ParentFixtureTypeTemplate = InSelectedFixtureType;
+
+			FDMXEditorUtils::UpdatePatchColors(FixturePatch->GetParentLibrary());
+
+			FDMXEditorUtils::AutoAssignedAddresses(TArray<UDMXEntityFixturePatch*>{ FixturePatch });
+
+			// We want to use the auto assign address as the manual one for the new asset
+			FixturePatch->ManualStartingAddress = FixturePatch->AutoStartingAddress;
+
 			// Issue a selection to trigger a OnSelectionUpdate and make the inspector display the new values
 			SelectItemByEntity(FixturePatch);
 		}
@@ -2696,6 +2417,8 @@ void SDMXEntityList::OnAutoAssignChannelStateChanged(bool NewState, TSharedPtr<F
 {
 	const FScopedTransaction Transaction(LOCTEXT("SetAutoAssignChannelTransaction", "Set Auto Assign Channel"));
 
+	TArray<UDMXEntityFixturePatch*> ChangedPatches;
+
 	// Was the changed entity one of the selected ones?
 	if (EntitiesTreeWidget->IsItemSelected(InNodePtr))
 	{
@@ -2708,6 +2431,8 @@ void SDMXEntityList::OnAutoAssignChannelStateChanged(bool NewState, TSharedPtr<F
 				{
 					Patch->Modify();
 					Patch->bAutoAssignAddress = NewState;
+
+					ChangedPatches.Add(Patch);
 				}
 			}
 		}
@@ -2718,10 +2443,15 @@ void SDMXEntityList::OnAutoAssignChannelStateChanged(bool NewState, TSharedPtr<F
 		{
 			Patch->Modify();
 			Patch->bAutoAssignAddress = NewState;
+
+			ChangedPatches.Add(Patch);
 		}
 	}
 
+	FDMXEditorUtils::AutoAssignedAddresses(ChangedPatches);
+
 	UpdateTree();
+	OnAutoAssignAddressChanged.ExecuteIfBound(ChangedPatches);
 }
 
 #undef LOCTEXT_NAMESPACE

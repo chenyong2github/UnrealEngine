@@ -54,16 +54,10 @@ void DxcClearThreadMalloc() throw();
 // Used to retrieve the current invocation's allocator or perform an alloc/free/realloc.
 IMalloc *DxcGetThreadMallocNoRef() throw();
 
-#if defined(LLVM_ON_UNIX)
-#define DXC_HIDDEN_LINKAGE __attribute__(( visibility("hidden") ))
-#else  // LLVM_ON_UNIX
-#define DXC_HIDDEN_LINKAGE
-#endif  // LLVM_ON_UNIX
-
 class DxcThreadMalloc {
 public:
-  explicit DXC_HIDDEN_LINKAGE DxcThreadMalloc(IMalloc *pMallocOrNull) throw();
-  DXC_HIDDEN_LINKAGE ~DxcThreadMalloc();
+  explicit DxcThreadMalloc(IMalloc *pMallocOrNull) throw();
+  ~DxcThreadMalloc();
 
   IMalloc *GetInstalledAllocator() const { return p; }
 
@@ -209,6 +203,8 @@ inline void OutputDebugFormatA(_In_ _Printf_format_string_ _Null_terminated_ con
 
 #define DXASSERT_LOCALVAR(local, exp, msg) DXASSERT(exp, msg)
 
+#define DXASSERT_LOCALVAR_NOMSG(local, exp) DXASSERT_LOCALVAR(local, exp, "")
+
 #define DXASSERT_NOMSG(exp) DXASSERT(exp, "")
 
 #define DXVERIFY_NOMSG(exp) DXASSERT(exp, "")
@@ -219,6 +215,8 @@ inline void OutputDebugFormatA(_In_ _Printf_format_string_ _Null_terminated_ con
 #define DXASSERT_NOMSG assert
 
 #define DXASSERT_LOCALVAR(local, exp, msg) DXASSERT(exp, msg)
+
+#define DXASSERT_LOCALVAR_NOMSG(local, exp) DXASSERT_LOCALVAR(local, exp, "")
 
 #define DXVERIFY_NOMSG assert
 
@@ -238,6 +236,7 @@ inline void OutputDebugFormatA(_In_ _Printf_format_string_ _Null_terminated_ con
 
 // DXASSERT_LOCALVAR is disabled in free builds, but we keep the local referenced to avoid a warning.
 #define DXASSERT_LOCALVAR(local, exp, msg) do { (void)(local); _Analysis_assume_(exp); } while (0)
+#define DXASSERT_LOCALVAR_NOMSG(local, exp) DXASSERT_LOCALVAR(local, exp, "")
 
 // DXASSERT_NOMSG is disabled in free builds.
 #define DXASSERT_NOMSG(exp) _Analysis_assume_(exp)

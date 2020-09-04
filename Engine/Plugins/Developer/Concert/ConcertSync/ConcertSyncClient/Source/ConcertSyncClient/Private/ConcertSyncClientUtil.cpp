@@ -5,6 +5,7 @@
 #include "ConcertTransactionEvents.h"
 #include "ConcertLogGlobal.h"
 #include "ConcertSyncSettings.h"
+#include "ConcertWorkspaceData.h"
 
 #include "UObject/Class.h"
 #include "UObject/UObjectHash.h"
@@ -482,6 +483,29 @@ UWorld* GetCurrentWorld()
 		CurrentWorld = GameEngine->GetGameWorld();
 	}
 	return CurrentWorld;
+}
+
+UObject* FindAssetInPackage(const UPackage* InPackage)
+{
+	UObject* Asset = nullptr;
+	ForEachObjectWithOuter(InPackage, [&Asset](UObject* Object)
+		{
+			if (Object->IsAsset())
+			{
+				ensure(Asset == nullptr);
+				Asset = Object;
+			}
+		}, false);
+	return Asset;
+}
+
+void FillPackageInfo(UPackage* InPackage, UObject* InAsset, const EConcertPackageUpdateType InPackageUpdateType, FConcertPackageInfo& OutPackageInfo)
+{
+	UObject* Asset = InAsset ? InAsset : FindAssetInPackage(InPackage);
+	OutPackageInfo.PackageName = InPackage->GetFName();
+	OutPackageInfo.AssetClass = Asset ? Asset->GetClass()->GetName() : FString();
+	OutPackageInfo.PackageFileExtension = Asset && Asset->IsA<UWorld>()? FPackageName::GetMapPackageExtension() : FPackageName::GetAssetPackageExtension();
+	OutPackageInfo.PackageUpdateType = InPackageUpdateType;
 }
 
 }

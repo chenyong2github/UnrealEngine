@@ -105,7 +105,7 @@ namespace SkeletalMeshImportData
 		// Point to three vertices in the vertex list.
 		uint32   WedgeIndex[3];
 		// Materials can be anything.
-		uint8    MatIndex;
+		uint16    MatIndex;
 		// Second material from exporter (unused)
 		uint8    AuxMatIndex;
 		// 32-bit flag for smoothing groups.
@@ -141,7 +141,18 @@ namespace SkeletalMeshImportData
 
 		friend FArchive &operator<<(FArchive& Ar, FTriangle& F)
 		{
-			Ar << F.MatIndex;
+			Ar.UsingCustomVersion(FEditorObjectVersion::GUID);
+
+			if (Ar.IsLoading() && Ar.CustomVer(FEditorObjectVersion::GUID) < FEditorObjectVersion::SkeletalMeshSourceDataSupport16bitOfMaterialNumber)
+			{
+				uint8 TempMatIndex = 0;
+				Ar << TempMatIndex;
+				F.MatIndex = TempMatIndex;
+			}
+			else
+			{
+				Ar << F.MatIndex;
+			}
 			Ar << F.AuxMatIndex;
 			Ar << F.SmoothingGroups;
 			
@@ -502,6 +513,8 @@ public:
 
 	ENGINE_API FByteBulkData& GetBulkData();
 	
+	ENGINE_API const FByteBulkData& GetBulkData() const;
+	
 	/** Empty the bulk data. */
 	ENGINE_API void EmptyBulkData()
 	{
@@ -605,11 +618,11 @@ struct FWedgeInfoOctreeSemantics
 	}
 
 	/** Ignored for this implementation */
-	FORCEINLINE static void SetElementId(const FWedgeInfo& Element, FOctreeElementId Id)
+	FORCEINLINE static void SetElementId(const FWedgeInfo& Element, FOctreeElementId2 Id)
 	{
 	}
 };
-typedef TOctree<FWedgeInfo, FWedgeInfoOctreeSemantics> TWedgeInfoPosOctree;
+typedef TOctree2<FWedgeInfo, FWedgeInfoOctreeSemantics> TWedgeInfoPosOctree;
 
 class FOctreeQueryHelper
 {

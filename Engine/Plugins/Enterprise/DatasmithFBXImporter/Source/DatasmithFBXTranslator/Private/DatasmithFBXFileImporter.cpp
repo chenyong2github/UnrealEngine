@@ -1021,7 +1021,10 @@ void FDatasmithFBXFileImporter::DoImportMesh(FbxMesh* InMesh, FDatasmithFBXScene
 	int32 PolygonOffset = 0;        // MeshDescription.Polygons().Num();
 
 	FMeshDescription MeshDescription;
-	DatasmithMeshHelper::PrepareAttributeForStaticMesh(MeshDescription);
+
+	FStaticMeshAttributes StaticMeshAttributes{ MeshDescription };
+	StaticMeshAttributes.Register();
+	StaticMeshAttributes.RegisterPolygonNormalAndTangentAttributes();
 
 	TVertexAttributesRef<FVector> VertexPositions = MeshDescription.VertexAttributes().GetAttributesRef<FVector>(MeshAttribute::Vertex::Position);
 	TVertexInstanceAttributesRef<FVector> VertexInstanceNormals = MeshDescription.VertexInstanceAttributes().GetAttributesRef<FVector>(MeshAttribute::VertexInstance::Normal);

@@ -15,9 +15,10 @@
 #include "Misc/DisplayClusterAppExit.h"
 #include "Misc/QualifiedFrameTime.h"
 
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterLog.h"
+
 #include "DisplayClusterEnums.h"
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterLog.h"
 
 
 FDisplayClusterClusterSyncService::FDisplayClusterClusterSyncService(const FString& InAddr, const int32 InPort) :
@@ -79,7 +80,7 @@ void FDisplayClusterClusterSyncService::NotifySessionClose(FDisplayClusterSessio
 	BarrierTickEnd.Deactivate();
 
 	FDisplayClusterService::NotifySessionClose(InSession);
-	FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, GetName() + FString(" - Connection interrupted. Application exit requested."));
+	FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, GetName() + FString(" - Connection interrupted. Application exit requested."));
 }
 
 TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMessage(const TSharedPtr<FDisplayClusterMessage>& Request)
@@ -127,9 +128,15 @@ TSharedPtr<FDisplayClusterMessage> FDisplayClusterClusterSyncService::ProcessMes
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetDeltaTime::name)
 	{
+		// Get delta (float)
 		float DeltaSeconds = 0.0f;
 		GetDeltaTime(DeltaSeconds);
-		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, DeltaSeconds);
+
+		// Convert to hex string
+		const FString StrDeltaSeconds = FDisplayClusterTypesConverter::template ToHexString(DeltaSeconds);
+
+		// Send the response
+		Response->SetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, StrDeltaSeconds);
 		return Response;
 	}
 	else if (ReqName == FDisplayClusterClusterSyncMsg::GetFrameTime::name)
@@ -194,7 +201,7 @@ void FDisplayClusterClusterSyncService::WaitForGameStart()
 {
 	if (BarrierGameStart.Wait() != FDisplayClusterBarrier::WaitResult::Ok)
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Error on game start barrier. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Error on game start barrier. Exit required."));
 	}
 }
 
@@ -202,7 +209,7 @@ void FDisplayClusterClusterSyncService::WaitForFrameStart()
 {
 	if (BarrierFrameStart.Wait() != FDisplayClusterBarrier::WaitResult::Ok)
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Error on frame start barrier. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Error on frame start barrier. Exit required."));
 	}
 }
 
@@ -210,7 +217,7 @@ void FDisplayClusterClusterSyncService::WaitForFrameEnd()
 {
 	if (BarrierFrameEnd.Wait() != FDisplayClusterBarrier::WaitResult::Ok)
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Error on frame end barrier. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Error on frame end barrier. Exit required."));
 	}
 }
 
@@ -218,7 +225,7 @@ void FDisplayClusterClusterSyncService::WaitForTickEnd()
 {
 	if (BarrierTickEnd.Wait() != FDisplayClusterBarrier::WaitResult::Ok)
 	{
-		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::ExitType::NormalSoft, FString("Error on tick end barrier. Exit required."));
+		FDisplayClusterAppExit::ExitApplication(FDisplayClusterAppExit::EExitType::NormalSoft, FString("Error on tick end barrier. Exit required."));
 	}
 }
 

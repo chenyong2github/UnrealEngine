@@ -387,7 +387,7 @@ public:
 		return GetFName().ToString();
 	}
 
-	/** Optimized version of GetName that overwries an existing string */
+	/** Optimized version of GetName that overwrites an existing string */
 	FORCEINLINE void GetName(FString &ResultString) const
 	{
 		GetFName().ToString(ResultString);

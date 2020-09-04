@@ -4,7 +4,8 @@
 
 #include "Config/IDisplayClusterConfigManager.h"
 #include "IPDisplayClusterManager.h"
-#include "DisplayClusterBuildConfig.h"
+
+#include "Misc/DisplayClusterBuildConfig.h"
 
 
 /**

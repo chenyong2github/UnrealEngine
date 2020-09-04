@@ -5,6 +5,8 @@
 #include "Brushes/SlateColorBrush.h"
 #include "Application/SlateApplicationBase.h"
 #include "Framework/Application/SlateApplication.h"
+#include "Input/HittestGrid.h"
+#include "Types/NavigationMetaData.h"
 
 DECLARE_CYCLE_STAT(TEXT("Game UI Tick"), STAT_ViewportTickTime, STATGROUP_Slate);
 DECLARE_CYCLE_STAT(TEXT("Game UI Paint"), STAT_ViewportPaintTime, STATGROUP_Slate);
@@ -46,6 +48,10 @@ void SViewport::Construct( const FArguments& InArgs )
 	bPreMultipliedAlpha = InArgs._PreMultipliedAlpha;
 	ViewportInterface = InArgs._ViewportInterface;
 	ViewportSize = InArgs._ViewportSize;
+
+#if UE_WITH_SLATE_SIMULATEDNAVIGATIONMETADATA
+	AddMetadata(MakeShared<FSimulatedNavigationMetaData>(EUINavigationRule::Stop));
+#endif
 
 	this->ChildSlot
 	[

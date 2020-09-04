@@ -15,10 +15,13 @@ FGraphSeries::FGraphSeries()
 	, Description()
 	, bIsVisible(true)
 	, bIsDirty(false)
+	, bHasEventDuration(true)
 	, bAutoZoom(false)
-	, BaselineY(0.0)
-	, ScaleY(1.0)
+	, bIsAutoZoomDirty(false)
+	, bUseSharedViewport(false)
+	, ValueViewport()
 	, Color(0.0f, 0.5f, 1.0f, 1.0f)
+	, FillColor(0.0f, 0.5f, 1.0f, 1.0f)
 	, BorderColor(0.3f, 0.8f, 1.0f, 1.0f)
 	//, Events()
 	//, Points()
@@ -101,54 +104,77 @@ FString FGraphSeries::FormatValue(double Value) const
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+bool FGraphSeries::UpdateAutoZoomEx(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated)
+{
+	bool bViewportChanged = false;
+	bIsAutoZoomDirty = false;
+
+	const double LowValue = GetValueForY(InBottomY);
+	const double HighValue = GetValueForY(InTopY);
+
+	double MinValue = InMinEventValue;
+	double MaxValue = InMaxEventValue;
+
+	// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
+	if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
+	{
+		MinValue = FMath::Min(MinValue, LowValue);
+		MaxValue = FMath::Max(MaxValue, HighValue);
+	}
+
+	if (MinValue < MaxValue)
+	{
+		if (bIsAutoZoomAnimated)
+		{
+			// Interpolate the min-max interval (animating the vertical position and scale of the graph series).
+			constexpr double InterpolationSpeed = 0.5;
+			const double NewMinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
+			const double NewMaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
+
+			// Check if we reach the target min-max interval.
+			const double ErrorTolerance = 0.5 / GetScaleY(); // delta value for dy ~= 0.5 pixels
+			if (!FMath::IsNearlyEqual(NewMinValue, MinValue, ErrorTolerance) ||
+				!FMath::IsNearlyEqual(NewMaxValue, MaxValue, ErrorTolerance))
+			{
+				MinValue = NewMinValue;
+				MaxValue = NewMaxValue;
+
+				// Request a new update so we can further interpolate the min-max interval.
+				bIsAutoZoomDirty = true;
+			}
+		}
+
+		double NewBaselineY;
+		double NewScaleY;
+		ComputeBaselineAndScale(MinValue, MaxValue, InTopY, InBottomY, NewBaselineY, NewScaleY);
+
+		if (NewBaselineY != GetBaselineY() || NewScaleY != GetScaleY())
+		{
+			bViewportChanged = true;
+		}
+
+		SetBaselineY(NewBaselineY);
+		SetScaleY(NewScaleY);
+	}
+	else
+	{
+		// If MinValue == MaxValue, we keep the previous baseline and scale.
+	}
+
+	return bViewportChanged;
+}
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 void FGraphSeries::UpdateAutoZoom(const float InTopY, const float InBottomY, const double InMinEventValue, const double InMaxEventValue, const bool bIsAutoZoomAnimated)
 {
 	if (IsAutoZoomEnabled())
 	{
-		const double LowValue = GetValueForY(InBottomY);
-		const double HighValue = GetValueForY(InTopY);
+		UpdateAutoZoomEx(InTopY, InBottomY, InMinEventValue, InMaxEventValue, bIsAutoZoomAnimated);
 
-		double MinValue = InMinEventValue;
-		double MaxValue = InMaxEventValue;
-
-		// If MinValue == MaxValue, we keep the previous baseline and scale, but only if the min/max value is already visible.
-		if (MinValue == MaxValue && (MinValue < LowValue || MaxValue > HighValue))
+		if (bIsAutoZoomDirty)
 		{
-			MinValue = FMath::Min(MinValue, LowValue);
-			MaxValue = FMath::Max(MaxValue, HighValue);
-		}
-
-		if (MinValue < MaxValue)
-		{
-			if (bIsAutoZoomAnimated)
-			{
-				// Interpolate the min-max interval (animating the vertical position and scale of the graph series).
-				constexpr double InterpolationSpeed = 0.5;
-				const double NewMinValue = InterpolationSpeed * MinValue + (1.0 - InterpolationSpeed) * LowValue;
-				const double NewMaxValue = InterpolationSpeed * MaxValue + (1.0 - InterpolationSpeed) * HighValue;
-
-				// Check if we reach the target min-max interval.
-				const double ErrorTolerance = 0.5 / GetScaleY(); // delta value for dy ~= 0.5 pixels
-				if (!FMath::IsNearlyEqual(NewMinValue, MinValue, ErrorTolerance) ||
-					!FMath::IsNearlyEqual(NewMaxValue, MaxValue, ErrorTolerance))
-				{
-					MinValue = NewMinValue;
-					MaxValue = NewMaxValue;
-
-					// Request a new update so we can further interpolate the min-max interval.
-					SetDirtyFlag();
-				}
-			}
-
-			double NewBaselineY;
-			double NewScaleY;
-			ComputeBaselineAndScale(MinValue, MaxValue, InTopY, InBottomY, NewBaselineY, NewScaleY);
-			SetBaselineY(NewBaselineY);
-			SetScaleY(NewScaleY);
-		}
-		else
-		{
-			// If MinValue == MaxValue, we keep the previous baseline and scale.
+			SetDirtyFlag();
 		}
 	}
 }

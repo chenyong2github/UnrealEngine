@@ -13,7 +13,6 @@ struct FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 
 	FRigUnit_DebugHierarchy()
 	{
-		Mode = EControlRigDrawHierarchyMode::Axes;
 		Scale = 10.f;
 		Color = FLinearColor::White;
 		Thickness = 0.f;
@@ -23,9 +22,6 @@ struct FRigUnit_DebugHierarchy : public FRigUnit_DebugBaseMutable
 
 	RIGVM_METHOD()
 	virtual void Execute(const FRigUnitContext& Context) override;
-
-	UPROPERTY(meta = (Input))
-	TEnumAsByte<EControlRigDrawHierarchyMode::Type> Mode;
 
 	UPROPERTY(meta = (Input))
 	float Scale;

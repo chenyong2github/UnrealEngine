@@ -28,6 +28,14 @@ class SEditableTextBox;
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 
+struct FSessionInfoTabs
+{
+	// Tab identifiers
+	static const FName SessionInfoID;
+};
+
+////////////////////////////////////////////////////////////////////////////////////////////////////
+
 /** Implements the Start Page window. */
 class SSessionInfoWindow : public SCompoundWidget
 {
@@ -42,7 +50,7 @@ public:
 	SLATE_END_ARGS()
 
 	/** Constructs this widget. */
-	void Construct(const FArguments& InArgs);
+	void Construct(const FArguments& InArgs, const TSharedRef<SDockTab>& ConstructUnderMajorTab, const TSharedPtr<SWindow>& ConstructUnderWindow);
 
 private:
 	/** Updates the amount of time the profiler has been active. */
@@ -102,8 +110,20 @@ private:
 	 */
 	virtual FReply OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)  override;
 
+	/**
+	 * Fill the main menu with menu items.
+	 *
+	 * @param MenuBuilder The multi-box builder that should be filled with content for this pull-down menu.
+	 * @param TabManager A Tab Manager from which to populate tab spawner menu items.
+	 */
+	static void FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr<FTabManager> TabManager);
+
+
 private:
 	void AddInfoLine(TSharedPtr<SVerticalBox> InVerticalBox, const FText& InHeader, const TAttribute<FText>& InValue) const;
+
+	TSharedRef<SDockTab> SpawnTab_SessionInfo(const FSpawnTabArgs& Args);
+	void OnSessionInfoTabClosed(TSharedRef<SDockTab> TabBeingClosed);
 
 	FText GetSessionNameText() const;
 	FText GetUriText() const;
@@ -124,14 +144,15 @@ private:
 	/** The handle to the active update duration tick */
 	TWeakPtr<FActiveTimerHandle> ActiveTimerHandle;
 
-	//uint32 TraceId;
-	//FText Name;
+	/** Holds the tab manager that manages the front-end's tabs. */
+	TSharedPtr<FTabManager> TabManager;
 
-	//FText Platform;
-	//FText AppName;
-	//FText CommandLine;
-	//EBuildConfiguration ConfigurationType;
-	//EBuildTargetType TargetType;
+	FText PlatformText;
+	FText AppNameText;
+	FText CommandLineText;
+	FText BuildConfigurationTypeText;
+	FText BuildTargetTypeText;
+	bool bIsSessionInfoSet = false;
 
 	//FText Uri;
 	//FDateTime Timestamp;

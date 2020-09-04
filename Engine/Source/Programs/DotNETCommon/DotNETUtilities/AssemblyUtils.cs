@@ -62,12 +62,43 @@ namespace Tools.DotNETCommon
 		/// <param name="RootDirectory">The directory to enumerate.</param>
 		public static void InstallRecursiveAssemblyResolver(string RootDirectory)
 		{
-			// Our Dictionary<string,string> will be used to hold the mapping of assembly name to path on disk. It will be captured by the AssemblyResolve lambda below.
-			Dictionary<string, string> AssemblyLocationCache = new Dictionary<string, string>();
-			// Create a temporary dictionary to track last modified date of each assembly, so we can ensure we always reference the latest one in the case of stale assemblies on disk.
-			Dictionary<string, DateTime> AssemblyWriteTimes = new Dictionary<string, DateTime>();
+			RefreshAssemblyCache(RootDirectory);
+			
+			AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
+			{
+				// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
+				string AssemblyName = args.Name.Split(',')[0];
+				string AssemblyLocation;
+				if (AssemblyLocationCache.TryGetValue(AssemblyName, out AssemblyLocation))
+				{
+					// We have this assembly in our folder.					
+					if (File.Exists(AssemblyLocation))
+					{
+						// The assembly still exists, so load it.
+						return Assembly.LoadFile(AssemblyLocation);
+					}
+					else
+					{
+						// The assembly no longer exists on disk, so remove it from our cache.
+						AssemblyLocationCache.Remove(AssemblyName);
+					}
+				}
+
+				// The assembly wasn't found, though may have been compiled or copied as a dependency
+				RefreshAssemblyCache(RootDirectory, string.Format("{0}.dll", AssemblyName));
+				if (AssemblyLocationCache.TryGetValue(AssemblyName, out AssemblyLocation))
+				{
+					return Assembly.LoadFile(AssemblyLocation);
+				}
+
+				return null;
+			};
+		}
+
+		private static void RefreshAssemblyCache(string RootDirectory, string Pattern = "*.dll")
+		{
 			// Initialize our cache of assemblies by enumerating all files in the given folder.
-			foreach (string DiscoveredAssembly in Directory.EnumerateFiles(RootDirectory, "*.dll", SearchOption.AllDirectories))
+			foreach (string DiscoveredAssembly in Directory.EnumerateFiles(RootDirectory, Pattern, SearchOption.AllDirectories))
 			{
 				string AssemblyName = Path.GetFileNameWithoutExtension(DiscoveredAssembly);
 				DateTime AssemblyLastWriteTime = File.GetLastWriteTimeUtc(DiscoveredAssembly);
@@ -87,27 +118,13 @@ namespace Tools.DotNETCommon
 					AssemblyWriteTimes.Add(AssemblyName, AssemblyLastWriteTime);
 				}
 			}
-			AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
-			{
-				// Name is fully qualified assembly definition - e.g. "p4dn, Version=1.0.0.0, Culture=neutral, PublicKeyToken=ff968dc1933aba6f"
-				string AssemblyName = args.Name.Split(',')[0];
-				if (AssemblyLocationCache.ContainsKey(AssemblyName))
-				{
-					// We have this assembly in our folder.
-					string AssemblyLocation = AssemblyLocationCache[AssemblyName];
-					if (File.Exists(AssemblyLocation))
-					{
-						// The assembly still exists, so load it.
-						return Assembly.LoadFile(AssemblyLocation);
-					}
-					else
-					{
-						// The assembly no longer exists on disk, so remove it from our cache.
-						AssemblyLocationCache.Remove(AssemblyName);
-					}
-				}
-				return null;
-			};
+
 		}
+
+		// Map of assembly name to path on disk
+		private static Dictionary<string, string> AssemblyLocationCache = new Dictionary<string, string>();
+		// Track last modified date of each assembly, so we can ensure we always reference the latest one in the case of stale assemblies on disk.
+		private static Dictionary<string, DateTime> AssemblyWriteTimes = new Dictionary<string, DateTime>();
+
     }
 }

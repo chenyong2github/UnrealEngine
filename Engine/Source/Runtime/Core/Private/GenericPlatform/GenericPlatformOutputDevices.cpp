@@ -13,15 +13,15 @@
 #include "Misc/App.h"
 #include "HAL/FeedbackContextAnsi.h"
 #include "Misc/OutputDeviceConsole.h"
-#include "Templates/UniquePtr.h"
 
 TCHAR FGenericPlatformOutputDevices::CachedAbsoluteFilename[FGenericPlatformOutputDevices::AbsoluteFileNameMaxLength] = { 0 };
+TUniquePtr<FOutputDeviceFile> FGenericPlatformOutputDevices::DefaultOutputDeviceFileTempHolder;
 
 void FGenericPlatformOutputDevices::SetupOutputDevices()
 {
 	check(GLog);
 
-	CachedAbsoluteFilename[0] = 0;
+	InitDefaultOutputDeviceFile();
 
 	GLog->AddOutputDevice(FPlatformOutputDevices::GetLog());
 
@@ -52,43 +52,70 @@ void FGenericPlatformOutputDevices::SetupOutputDevices()
 };
 
 
+void FGenericPlatformOutputDevices::InitDefaultOutputDeviceFile()
+{
+	if (CachedAbsoluteFilename[0] != 0)
+	{
+		return; // Already initialized
+	}
+
+	FCString::Strcpy(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename), *FPaths::ProjectLogDir());
+	FString LogFilename;
+	const bool bShouldStopOnSeparator = false;
+	if (!FParse::Value(FCommandLine::Get(), TEXT("LOG="), LogFilename, bShouldStopOnSeparator))
+	{
+		if (FParse::Value(FCommandLine::Get(), TEXT("ABSLOG="), LogFilename, bShouldStopOnSeparator))
+		{
+			CachedAbsoluteFilename[0] = 0;
+		}
+	}
+
+	FString Extension(FPaths::GetExtension(LogFilename));
+	if (Extension != TEXT("log") && Extension != TEXT("txt"))
+	{
+		// Ignoring the specified log filename because it doesn't have a .log extension			
+		LogFilename.Empty();
+	}
+
+	if (LogFilename.Len() == 0)
+	{
+		if (FCString::Strlen(FApp::GetProjectName()) != 0)
+		{
+			LogFilename = FApp::GetProjectName();
+		}
+		else
+		{
+			LogFilename = TEXT("UE4");
+		}
+
+		LogFilename += TEXT(".log");
+	}
+
+	FCString::Strcat(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename) - FCString::Strlen(CachedAbsoluteFilename), *LogFilename);
+
+#if (!UE_BUILD_SHIPPING) || PRESERVE_LOG_BACKUPS_IN_SHIPPING
+	const bool bDisableBackup = false;
+#else
+	const bool bDisableBackup = true;
+#endif
+	// The desired 'CachedAbsoluteFilename' is likely ok unless a concurrent instance is already using it. To ensure the function returns real filename this process
+	// is going to use, create the log file, generate a new name if 'CachedAbsoluteFilename' is already used by another process and keep hold to it so than no other
+	// process can steal it.
+	DefaultOutputDeviceFileTempHolder = MakeUnique<FOutputDeviceFile>(CachedAbsoluteFilename, bDisableBackup, /*bAppendIfExists*/false, /*bCreateWriterLazily*/false);
+
+	// Update the absolute log filename if 'CachedAbsoluteFilename' was already in use. FOutputDeviceFile automatically generated a new one.
+	if (FCString::Strcmp(CachedAbsoluteFilename, DefaultOutputDeviceFileTempHolder->GetFilename()) != 0)
+	{
+		FCString::Strcpy(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename), DefaultOutputDeviceFileTempHolder->GetFilename());
+	}
+}
+
 FString FGenericPlatformOutputDevices::GetAbsoluteLogFilename()
 {
 	if (!CachedAbsoluteFilename[0])
 	{
-		FCString::Strcpy(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename), *FPaths::ProjectLogDir());
-		FString LogFilename;
-		const bool bShouldStopOnSeparator = false;
-		if (!FParse::Value(FCommandLine::Get(), TEXT("LOG="), LogFilename, bShouldStopOnSeparator))
-		{
-			if (FParse::Value(FCommandLine::Get(), TEXT("ABSLOG="), LogFilename, bShouldStopOnSeparator))
-			{
-				CachedAbsoluteFilename[0] = 0;
-			}
-		}
-
-		FString Extension(FPaths::GetExtension(LogFilename));
-		if (Extension != TEXT("log") && Extension != TEXT("txt"))
-		{
-			// Ignoring the specified log filename because it doesn't have a .log extension			
-			LogFilename.Empty();
-		}
-
-		if (LogFilename.Len() == 0)
-		{
-			if (FCString::Strlen(FApp::GetProjectName()) != 0)
-			{
-				LogFilename = FApp::GetProjectName();
-			}
-			else
-			{
-				LogFilename = TEXT("UE4");
-			}
-
-			LogFilename += TEXT(".log");
-		}
-
-		FCString::Strcat(CachedAbsoluteFilename, UE_ARRAY_COUNT(CachedAbsoluteFilename) - FCString::Strlen(CachedAbsoluteFilename), *LogFilename);
+		// Generates, cache and lock the filename, preventing concurrent instance to use it. Nothing will be logged to the file until the device get registered.
+		InitDefaultOutputDeviceFile();
 	}
 
 	return CachedAbsoluteFilename;
@@ -121,12 +148,11 @@ class FOutputDevice* FGenericPlatformOutputDevices::GetLog()
 #endif // WITH_LOGGING_TO_MEMORY
 			if (!LogDevice)
 			{
-#if (!UE_BUILD_SHIPPING) || PRESERVE_LOG_BACKUPS_IN_SHIPPING
-				const bool bDisableBackup = false;
-#else
-				const bool bDisableBackup = true;
-#endif
-				LogDevice = MakeUnique<FOutputDeviceFile>(nullptr, bDisableBackup);
+				// Ensure the default file output device is created.
+				InitDefaultOutputDeviceFile();
+
+				// Activate the default file output device, transfering ownership.
+				LogDevice = MoveTemp(DefaultOutputDeviceFileTempHolder);
 			}
 		}
 

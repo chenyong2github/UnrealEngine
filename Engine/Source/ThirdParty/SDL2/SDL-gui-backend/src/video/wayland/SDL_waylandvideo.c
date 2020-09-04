@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -370,7 +370,7 @@ display_handle_global(void *data, struct wl_registry *registry, uint32_t id,
     } else if (strcmp(interface, "wl_output") == 0) {
         Wayland_add_display(d, id);
     } else if (strcmp(interface, "wl_seat") == 0) {
-        Wayland_display_add_input(d, id);
+        Wayland_display_add_input(d, id, version);
     } else if (strcmp(interface, "xdg_wm_base") == 0) {
         d->shell.xdg = wl_registry_bind(d->registry, id, &xdg_wm_base_interface, 1);
         xdg_wm_base_add_listener(d->shell.xdg, &shell_listener_xdg, NULL);
@@ -387,13 +387,7 @@ display_handle_global(void *data, struct wl_registry *registry, uint32_t id,
     } else if (strcmp(interface, "zwp_pointer_constraints_v1") == 0) {
         Wayland_display_add_pointer_constraints(d, id);
     } else if (strcmp(interface, "wl_data_device_manager") == 0) {
-/* EG BEGIN */
-#ifdef SDL_WITH_EPIC_EXTENSIONS
-        // Version 3 fails on some older compositors, we can get away with version 2.
-        d->data_device_manager = wl_registry_bind(d->registry, id, &wl_data_device_manager_interface, 2);
-#else
-        d->data_device_manager = wl_registry_bind(d->registry, id, &wl_data_device_manager_interface, 3);
-#endif /* SDL_WITH_EPIC_EXTENSIONS */
+        d->data_device_manager = wl_registry_bind(d->registry, id, &wl_data_device_manager_interface, SDL_min(3, version));
     } else if (strcmp(interface, "zxdg_decoration_manager_v1") == 0) {
         d->decoration_manager = wl_registry_bind(d->registry, id, &zxdg_decoration_manager_v1_interface, 1);
     } else if (strcmp(interface, "org_kde_kwin_server_decoration_manager") == 0) {
@@ -424,10 +418,9 @@ static const struct wl_registry_listener registry_listener = {
 int
 Wayland_VideoInit(_THIS)
 {
-    SDL_VideoData *data = SDL_malloc(sizeof *data);
+    SDL_VideoData *data = SDL_calloc(1, sizeof(*data));
     if (data == NULL)
         return SDL_OutOfMemory();
-    memset(data, 0, sizeof *data);
 
     _this->driverdata = data;
 

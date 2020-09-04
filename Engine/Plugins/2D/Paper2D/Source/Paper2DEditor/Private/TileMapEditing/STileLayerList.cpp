@@ -141,7 +141,7 @@ void STileLayerList::Construct(const FArguments& InArgs, UPaperTileMap* InTileMa
 		FExecuteAction::CreateSP(this, &STileLayerList::SelectLayerBelow, /*bBottommost=*/ false));
 
 	//
-	FToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization("TileLayerBrowserToolbar"), TSharedPtr<FExtender>(), Orient_Horizontal, /*InForceSmallIcons=*/ true);
+	FToolBarBuilder ToolbarBuilder(CommandList, FMultiBoxCustomization("TileLayerBrowserToolbar"), TSharedPtr<FExtender>(), /*InForceSmallIcons=*/ true);
 	ToolbarBuilder.SetLabelVisibility(EVisibility::Collapsed);
 
 	ToolbarBuilder.AddToolBarButton(TileMapCommands.AddNewLayerAbove);

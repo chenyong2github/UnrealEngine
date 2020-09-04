@@ -552,6 +552,7 @@ public:
 
 	/** @return key state of the InKey */
 	FKeyState* GetKeyState(FKey InKey) { return KeyStateMap.Find(InKey); }
+	const FKeyState* GetKeyState(FKey InKey) const { return KeyStateMap.Find(InKey); }
 
 	/** @return true if InKey is currently held */
 	bool IsPressed( FKey InKey ) const;
@@ -693,7 +694,7 @@ private:
 		}
 	}
 
-	void ConditionalBuildKeyMappings_Internal() const;
+	virtual void ConditionalBuildKeyMappings_Internal() const;
 
 	/** Set the Key consumed for the frame so that subsequent input components will not be notified they were pressed */
 	void ConsumeKey(FKey Key);
@@ -706,10 +707,10 @@ protected:
 	/** Initialized axis properties (i.e deadzone values) if needed */
 	void ConditionalInitAxisProperties();
 
-private:
-
 	/** @return True if a key is handled by an action binding */
-	bool IsKeyHandledByAction( FKey Key ) const;
+	virtual bool IsKeyHandledByAction(FKey Key) const;
+
+private:
 
 	/** Gesture recognizer object */
 	// @todo: Move this up to Slate?
@@ -736,4 +737,6 @@ private:
 
 	/** Cache the last time dilation so as to be able to clear smoothing when it changes */
 	float LastTimeDilation;
+
+	friend class UEnhancedPlayerInput;	// TEMP: Support for ongoing input rework
 };

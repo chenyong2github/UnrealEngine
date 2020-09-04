@@ -15,10 +15,10 @@
 #include "DisplayClusterSceneComponent.h"
 #include "DisplayClusterScreenComponent.h"
 
-#include "DisplayClusterGlobals.h"
-#include "DisplayClusterHelpers.h"
-#include "DisplayClusterLog.h"
-#include "DisplayClusterStrings.h"
+#include "Misc/DisplayClusterGlobals.h"
+#include "Misc/DisplayClusterHelpers.h"
+#include "Misc/DisplayClusterLog.h"
+#include "Misc/DisplayClusterStrings.h"
 
 #include "GameFramework/Actor.h"
 #include "Engine/LevelStreaming.h"
@@ -26,12 +26,10 @@
 
 FDisplayClusterGameManager::FDisplayClusterGameManager()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 }
 
 FDisplayClusterGameManager::~FDisplayClusterGameManager()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 }
 
 
@@ -40,8 +38,6 @@ FDisplayClusterGameManager::~FDisplayClusterGameManager()
 //////////////////////////////////////////////////////////////////////////////////////////////
 bool FDisplayClusterGameManager::Init(EDisplayClusterOperationMode OperationMode)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	CurrentOperationMode = OperationMode;
 
 	return true;
@@ -49,22 +45,18 @@ bool FDisplayClusterGameManager::Init(EDisplayClusterOperationMode OperationMode
 
 void FDisplayClusterGameManager::Release()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 }
 
-bool FDisplayClusterGameManager::StartSession(const FString& configPath, const FString& nodeId)
+bool FDisplayClusterGameManager::StartSession(const FString& InConfigPath, const FString& InNodeId)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
-	ConfigPath = configPath;
-	ClusterNodeId = nodeId;
+	ConfigPath = InConfigPath;
+	ClusterNodeId = InNodeId;
 
 	return true;
 }
 
 void FDisplayClusterGameManager::EndSession()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 
 	ConfigPath.Reset();
 	ClusterNodeId.Reset();
@@ -72,8 +64,6 @@ void FDisplayClusterGameManager::EndSession()
 
 bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	check(InWorld);
 	CurrentWorld = InWorld;
 
@@ -116,9 +106,7 @@ bool FDisplayClusterGameManager::StartScene(UWorld* InWorld)
 
 void FDisplayClusterGameManager::EndScene()
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
 	FScopeLock lock(&InternalsSyncScope);
-
 	DisplayClusterRootActor = nullptr;
 	CurrentWorld = nullptr;
 }
@@ -151,7 +139,7 @@ TArray<UDisplayClusterScreenComponent*> FDisplayClusterGameManager::GetAllScreen
 	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetAllScreens();
 }
 
-UDisplayClusterScreenComponent* FDisplayClusterGameManager::GetScreenById(const FString& ScreenId) const
+UDisplayClusterScreenComponent* FDisplayClusterGameManager::GetScreenById(const FString& ScreenID) const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
@@ -160,7 +148,7 @@ UDisplayClusterScreenComponent* FDisplayClusterGameManager::GetScreenById(const 
 		return nullptr;
 	}
 
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreenById(ScreenId);
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreenById(ScreenID);
 }
 
 int32 FDisplayClusterGameManager::GetScreensAmount() const
@@ -175,7 +163,7 @@ int32 FDisplayClusterGameManager::GetScreensAmount() const
 	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetScreensAmount();
 }
 
-UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetCameraById(const FString& CameraId) const
+UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetCameraById(const FString& CameraID) const
 {
 	FScopeLock lock(&InternalsSyncScope);
 
@@ -184,7 +172,7 @@ UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetCameraById(const 
 		return nullptr;
 	}
 
-	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetCameraById(CameraId);
+	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetCameraById(CameraID);
 }
 
 TArray<UDisplayClusterCameraComponent*> FDisplayClusterGameManager::GetAllCameras() const
@@ -223,16 +211,14 @@ UDisplayClusterCameraComponent* FDisplayClusterGameManager::GetDefaultCamera() c
 	return DisplayClusterRootActor->GetDisplayClusterRootComponent()->GetDefaultCamera();
 }
 
-void FDisplayClusterGameManager::SetDefaultCamera(const FString& id)
+void FDisplayClusterGameManager::SetDefaultCamera(const FString& CameraID)
 {
-	DISPLAY_CLUSTER_FUNC_TRACE(LogDisplayClusterGame);
-
 	if(!DisplayClusterRootActor)
 	{
 		return;
 	}
 
-	DisplayClusterRootActor->GetDisplayClusterRootComponent()->SetDefaultCamera(id);
+	DisplayClusterRootActor->GetDisplayClusterRootComponent()->SetDefaultCamera(CameraID);
 }
 
 UDisplayClusterSceneComponent* FDisplayClusterGameManager::GetNodeById(const FString& NodeId) const

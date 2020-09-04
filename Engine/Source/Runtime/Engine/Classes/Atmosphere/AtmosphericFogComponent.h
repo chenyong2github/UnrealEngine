@@ -359,9 +359,6 @@ private:
 #if WITH_EDITORONLY_DATA
 	class FAtmospherePrecomputeDataHandler* PrecomputeDataHandler;
 
-public:
-	// Because FAtmospherePrecomputeDataHandler is a FTicableEditorObject and its destruction is not thread safe
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 private:
 #endif
 

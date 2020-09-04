@@ -5,7 +5,19 @@
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
 
+class INavigationEventSimulationView;
+class FSlateNavigationEventSimulator;
+class SWidget;
 class FWorkspaceItem;
+class INavigationEventSimulationView;
+
+DECLARE_DELEGATE_OneParam(FSimpleWidgetDelegate, TWeakPtr<const SWidget>);
+
+struct FNavigationEventSimulationViewArgs
+{
+	FSimpleWidgetDelegate OnWidgetSelected;
+	FSimpleWidgetDelegate OnNavigateToWidget;
+};
 
 /**
  * Interface for messaging modules.
@@ -39,6 +51,12 @@ public:
 
 	/** Unregisters the tab spawner for the widget reflector. */
 	virtual void UnregisterTabSpawner() = 0;
+
+	/** Get the Navigation Event Simulator used by the widget reflector. */
+	virtual FSlateNavigationEventSimulator* GetNavigationEventSimulator() const = 0;
+
+	/** Create a widget to visualize the result of a Navigation Event Simulation. */
+	virtual TSharedRef<INavigationEventSimulationView> CreateNavigationEventSimulationView(const FNavigationEventSimulationViewArgs& DetailsViewArgs) = 0;
 
 public:
 

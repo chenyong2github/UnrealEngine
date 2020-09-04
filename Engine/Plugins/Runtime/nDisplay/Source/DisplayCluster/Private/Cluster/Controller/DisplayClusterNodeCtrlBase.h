@@ -20,7 +20,7 @@ class FDisplayClusterNodeCtrlBase
 	friend FDisplayClusterClusterManager;
 
 public:
-	FDisplayClusterNodeCtrlBase(const FString& ctrlName, const FString& nodeName);
+	FDisplayClusterNodeCtrlBase(const FString& CtrlName, const FString& NodeName);
 
 	virtual ~FDisplayClusterNodeCtrlBase() = 0
 	{ }
@@ -89,7 +89,7 @@ public:
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	// IPDisplayClusterSwapSyncProtocol - default overrides
 	//////////////////////////////////////////////////////////////////////////////////////////////
-	virtual void WaitForSwapSync(double* pThreadWaitTime, double* pBarrierWaitTime) override
+	virtual void WaitForSwapSync(double* ThreadWaitTime, double* BarrierWaitTime) override
 	{ }
 
 protected:
@@ -119,4 +119,3 @@ private:
 	const FString NodeName;
 	const FString ControllerName;
 };
-

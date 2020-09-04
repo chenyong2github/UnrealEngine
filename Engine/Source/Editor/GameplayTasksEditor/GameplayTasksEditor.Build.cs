@@ -6,7 +6,9 @@ namespace UnrealBuildTool.Rules
 	{
         public GameplayTasksEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-            PrivateIncludePaths.AddRange(
+			OverridePackageType = PackageOverrideType.EngineDeveloper;
+
+			PrivateIncludePaths.AddRange(
                 new string[] {
                     "Editor/GraphEditor/Private",
 				    "Editor/Kismet/Private",

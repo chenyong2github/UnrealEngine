@@ -122,30 +122,51 @@ void SKeySelector::Construct(const FArguments& InArgs)
 
 	this->ChildSlot
 	[
-		SAssignNew(KeyComboButton, SComboButton)
-		.OnGetMenuContent(this, &SKeySelector::GetMenuContent)
-		.ContentPadding(0)
-		.ToolTipText(this, &SKeySelector::GetKeyTooltip)
-		.ButtonContent()
+		SNew(SHorizontalBox)
+		+ SHorizontalBox::Slot()
+		.AutoWidth()
 		[
-			SNew(SHorizontalBox)
-			+ SHorizontalBox::Slot()
-			.AutoWidth()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Center)
+			SNew(SButton)
+			.PressMethod(EButtonPressMethod::DownAndUp)
+			.ToolTipText(this, &SKeySelector::GetKeyTooltip)
+			.OnClicked(this, &SKeySelector::ListenForInput)
 			[
-				SNew(SImage)
-				.Image(this, &SKeySelector::GetKeyIconImage)
-			]
-			+ SHorizontalBox::Slot()
-			.VAlign(VAlign_Center)
-			.HAlign(HAlign_Left)
-			[
-				SNew(STextBlock)
-				.Text(this, &SKeySelector::GetKeyDescription)
-				.Font(InArgs._Font)
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.AutoWidth()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Center)
+				[
+					SNew(SImage)
+					.Image(this, &SKeySelector::GetKeyIconImage)
+					.ColorAndOpacity(this, &SKeySelector::GetKeyIconColor)
+				]
 			]
 		]
+		+ SHorizontalBox::Slot()
+		.HAlign(HAlign_Fill)
+		[
+			SAssignNew(KeyComboButton, SComboButton)
+			.OnGetMenuContent(this, &SKeySelector::GetMenuContent)
+			.ContentPadding(0)
+			.ToolTipText(this, &SKeySelector::GetKeyDescription)	// Longer key descriptions can overrun the visible space in the combo button if the parent width is constrained, so we reflect them in the tooltip too.
+			.ButtonContent()
+			[
+				SNew(SHorizontalBox)
+				+ SHorizontalBox::Slot()
+				.Padding(2.f, 0.f)
+				.AutoWidth()
+				+ SHorizontalBox::Slot()
+				.VAlign(VAlign_Center)
+				.HAlign(HAlign_Left)
+				[
+					SNew(STextBlock)
+					.Text(this, &SKeySelector::GetKeyDescription)
+					.Font(InArgs._Font)
+				]
+			]
+		]
+
 	];
 }
 
@@ -196,6 +217,94 @@ FText SKeySelector::GetKeyTooltip() const
 		}
 	}
 	return LOCTEXT("KeySelector", "Select the key value.");
+}
+
+FSlateColor SKeySelector::GetKeyIconColor() const
+{
+	// Orange when listening for input
+	return bListenForNextInput ? FLinearColor(0.953f, 0.612f, 0.071f) : FLinearColor::White;
+}
+
+//=======================================================================
+// Input Capture Helpers
+
+FReply SKeySelector::ListenForInput()
+{
+	if (!bListenForNextInput)
+	{
+		bListenForNextInput = true;
+		return FReply::Handled().CaptureMouse(SharedThis(this)).SetUserFocus(SharedThis(this));
+	}
+	return FReply::Unhandled();
+}
+
+FReply SKeySelector::ProcessHeardInput(FKey KeyHeard)
+{
+	if (bListenForNextInput)	// TODO: Unnecessary. Keep it for safety?
+	{
+		const FScopedTransaction Transaction(LOCTEXT("ChangeKey", "Change Key Value"));
+		OnKeyChanged.ExecuteIfBound(MakeShareable(new FKey(KeyHeard)));
+
+		bListenForNextInput = false;
+		return FReply::Handled().ReleaseMouseCapture().ClearUserFocus(EFocusCause::Cleared);
+	}
+	return FReply::Unhandled();
+}
+
+FReply SKeySelector::OnKeyDown(const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent)
+{
+	if (bListenForNextInput)
+	{
+		// In the case of axis inputs emulating button key presses we ignore the key press in favor of the axis. Key variants will need to be set from the combo box if required.
+		if (InKeyEvent.GetKey().IsButtonAxis())
+		{
+			return FReply::Unhandled();
+		}
+
+		return ProcessHeardInput(InKeyEvent.GetKey());
+	}
+	return SCompoundWidget::OnKeyDown(MyGeometry, InKeyEvent);
+}
+
+FReply SKeySelector::OnMouseButtonDown(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (bListenForNextInput)
+	{
+		return ProcessHeardInput(MouseEvent.GetEffectingButton());
+	}
+	return SCompoundWidget::OnMouseButtonDown(MyGeometry, MouseEvent);
+}
+
+FReply SKeySelector::OnMouseWheel(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	if (bListenForNextInput)
+	{
+		// We prefer to bind the axis over EKeys::MouseWheelUp/Down.
+		return ProcessHeardInput(EKeys::MouseWheelAxis);
+	}
+	return SCompoundWidget::OnMouseWheel(MyGeometry, MouseEvent);
+}
+
+FReply SKeySelector::OnMouseMove(const FGeometry& MyGeometry, const FPointerEvent& MouseEvent)
+{
+	// TODO: Support detecting mouse movement?
+	// This is difficult to get right for all users and may lead to accidental mouse axis selections, so we'll ignore it for now.
+	return SCompoundWidget::OnMouseMove(MyGeometry, MouseEvent);
+}
+
+FReply SKeySelector::OnAnalogValueChanged(const FGeometry& MyGeometry, const FAnalogInputEvent& InAnalogInputEvent)
+{
+	if (bListenForNextInput)
+	{
+		// We require a (substantial) minimum axis value before triggering the axis to account for dead zones and improve axes selection.
+		if (FMath::Abs(InAnalogInputEvent.GetAnalogValue()) < 0.5f)
+		{
+			return FReply::Handled();
+		}
+
+		return ProcessHeardInput(InAnalogInputEvent.GetKey());
+	}
+	return SCompoundWidget::OnAnalogValueChanged(MyGeometry, InAnalogInputEvent);
 }
 
 //=======================================================================

@@ -447,11 +447,11 @@ struct FSkeletalMaterial
 	ENGINE_API friend bool operator==( const FSkeletalMaterial& LHS, const UMaterialInterface& RHS );
 	ENGINE_API friend bool operator==( const UMaterialInterface& LHS, const FSkeletalMaterial& RHS );
 
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category=SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category=SkeletalMesh)
 	class UMaterialInterface *	MaterialInterface;
 	
 	/*This name should be use by the gameplay to avoid error if the skeletal mesh Materials array topology change*/
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, Category = SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = SkeletalMesh)
 	FName						MaterialSlotName;
 #if WITH_EDITORONLY_DATA
 	UPROPERTY()
@@ -527,6 +527,7 @@ private:
 	TUniquePtr<FSkeletalMeshRenderData> SkeletalMeshRenderData;
 
 #if WITH_EDITORONLY_DATA
+public:
 	/*
 	 * This editor data asset is save in the same package has the skeletalmesh, the editor data asset is always loaded.
 	 * If the skeletal mesh is rename the editor data asset will also be rename: the name is SkeletalMeshName_USkeletalMeshEditorData
@@ -537,6 +538,7 @@ private:
 	UPROPERTY()
 	mutable USkeletalMeshEditorData* MeshEditorDataObject;
 
+private:
 	/*
 	 * Return a valid USkeletalMeshEditorData, if the MeshEditorDataPath is invalid it will create the USkeletalMeshEditorData and set the MeshEditorDataPath to point on it.
 	 */
@@ -582,13 +584,19 @@ public:
 	/* Set the Versions of the geo and skinning data. We use those versions to answer to IsLODImportedDataBuildAvailable function. */
 	void SetLODImportedDataVersions(const int32 LODIndex, const ESkeletalMeshGeoImportVersions& InGeoImportVersion, const ESkeletalMeshSkinningImportVersions& InSkinningImportVersion);
 
-	/* Static function that copy the LOD import data from a source skeletal mesh to a destination skeletal mesh*/
+	/* Static function that copy the LOD import data from a source s^keletal mesh to a destination skeletal mesh*/
 	static void CopyImportedData(int32 SrcLODIndex, USkeletalMesh* SrcSkeletalMesh, int32 DestLODIndex, USkeletalMesh* DestSkeletalMesh);
 
 	/* Allocate the space we need. Use this before calling this API in multithreaded. */
 	void ReserveLODImportData(int32 MaxLODIndex);
 	
 	void ForceBulkDataResident(const int32 LODIndex);
+
+	/* Remove the import data for the specified LOD */
+	void EmptyLODImportData(const int32 LODIndex);
+
+	/* Remove the import data for all the LODs */
+	void EmptyAllImportData();
 
 	// End USkeletalMeshEditorData public skeletalmesh API
 	//////////////////////////////////////////////////////////////////////////
@@ -677,7 +685,7 @@ public:
 #endif
 
 	/** List of materials applied to this mesh. */
-	UPROPERTY(EditAnywhere, BlueprintReadOnly, transient, duplicatetransient, Category=SkeletalMesh)
+	UPROPERTY(EditAnywhere, BlueprintReadWrite, transient, duplicatetransient, Category=SkeletalMesh)
 	TArray<FSkeletalMaterial> Materials;
 
 	/** List of bones that should be mirrored. */
@@ -970,10 +978,11 @@ public:
 	/** Adds an asset to this mesh with validation and event broadcast */
 	void AddClothingAsset(UClothingAssetBase* InNewAsset);
 
-	const FSkeletalMeshSamplingInfo& GetSamplingInfo() { return SamplingInfo; }
+	const FSkeletalMeshSamplingInfo& GetSamplingInfo() const { return SamplingInfo; }
 
 #if WITH_EDITOR
 	void SetSamplingInfo(const FSkeletalMeshSamplingInfo& InSamplingInfo) { SamplingInfo = InSamplingInfo; }
+	const FOnMeshChanged& GetOnMeshChanged() const { return OnMeshChanged; }
 	FOnMeshChanged& GetOnMeshChanged() { return OnMeshChanged; }
 #endif
 
@@ -1222,15 +1231,15 @@ public:
 
 	/** Utility for copying and converting a mirroring table from another USkeletalMesh. */
 	void CopyMirrorTableFrom(USkeletalMesh* SrcMesh);
-	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo);
-	void ImportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo);
+	void ExportMirrorTable(TArray<FBoneMirrorExport> &MirrorExportInfo) const;
+	void ImportMirrorTable(const TArray<FBoneMirrorExport> &MirrorExportInfo);
 
 	/** 
 	 *	Utility for checking that the bone mirroring table of this mesh is good.
 	 *	Return true if mirror table is OK, false if there are problems.
 	 *	@param	ProblemBones	Output string containing information on bones that are currently bad.
 	 */
-	bool MirrorTableIsGood(FString& ProblemBones);
+	bool MirrorTableIsGood(FString& ProblemBones) const;
 
 	/**
 	 * Returns the mesh only socket list - this ignores any sockets in the skeleton
@@ -1357,7 +1366,6 @@ public:
 	*/
 	void InvalidateDeriveDataCacheGUID();
 #endif 
-
 private:
 
 #if WITH_EDITOR
@@ -1367,6 +1375,11 @@ private:
 
 	/** Utility function to help with building the combined socket list */
 	bool IsSocketOnMesh( const FName& InSocketName ) const;
+
+	/**
+	* Create a new GUID for the source Model data, regenerate derived data and re-create any render state based on that.
+	*/
+	void InvalidateRenderData();
 
 #if WITH_EDITORONLY_DATA
 	/**
@@ -1438,10 +1451,16 @@ public:
 	 * Reset whole entry
 	 */
 	void ResetLODInfo();
+
 	/*
-	 * Returns whole array of LODInfo
+	 * Returns whole array of LODInfo non-const
 	 */
 	TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() { return LODInfo;  }
+
+	/*
+	 * Returns whole array of LODInfo const
+	 */
+	const TArray<FSkeletalMeshLODInfo>& GetLODInfoArray() const { return LODInfo; }
 	
 	/* 
 	 * Get LODInfo of the given index non-const

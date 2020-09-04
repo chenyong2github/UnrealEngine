@@ -11,33 +11,36 @@ namespace UnrealBuildTool.Rules
 		{
 			bUseRTTI = true;
 
+			PublicDependencyModuleNames.AddRange(
+				new string[]
+				{
+					"Core",
+					"CoreUObject",
+					"UnrealUSDWrapper",
+				});
+
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
 					"CinematicCamera",
-					"Core",
-					"CoreUObject",
 					"DesktopPlatform",
-					"Engine",
-					"UnrealEd",
-					"InputCore",
-					"SlateCore",
-					"PropertyEditor",
-					"Slate",
 					"EditorStyle",
-					"RawMesh",
-					"GeometryCache",
+					"Engine",
+					"MaterialBaking", // So that we can use the BakeMaterials function
 					"MaterialEditor",
 					"MeshDescription",
 					"MeshUtilities",
-					"MikkTSpace",
-					"PythonScriptPlugin",
-					"RenderCore",
-					"RHI",
-					"StaticMeshDescription",
-					"UnrealUSDWrapper",
 					"MessageLog",
-					"JsonUtilities",
+					"MovieScene",
+					"MovieSceneTracks",
+					"PropertyEditor",
+					"RenderCore",
+					"RHI", // So that we can use GMaxRHIFeatureLevel when force-loading textures before baking materials
+					"Slate",
+					"SlateCore",
+					"StaticMeshDescription",
+					"UnrealEd",
+					"USDClasses",
 				}
 				);
 		}

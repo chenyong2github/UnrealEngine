@@ -4,6 +4,6 @@
 
 #include "CoreTypes.h"
 #include "Detail/Channel.inl"
-#include "Detail/EventDef.inl"
 #include "Detail/EventNode.h"
+#include "Detail/LogScope.inl"
 #include "Detail/Writer.inl"

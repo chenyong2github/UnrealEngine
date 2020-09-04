@@ -483,12 +483,6 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const ANS
 		CurrentProfiler->StartScopedEvent(ANSI_TO_TCHAR(Text));
 	}
 #endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCHAR* Text)
@@ -502,12 +496,6 @@ void FGenericPlatformMisc::BeginNamedEvent(const struct FColor& Color, const TCH
 		CurrentProfiler->StartScopedEvent(Text);
 	}
 #endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputBeginDynamicEvent(Text);
-	}
-#endif
 }
 
 void FGenericPlatformMisc::EndNamedEvent()
@@ -519,12 +507,6 @@ void FGenericPlatformMisc::EndNamedEvent()
 	if (CurrentProfiler != NULL)
 	{
 		CurrentProfiler->EndScopedEvent();
-	}
-#endif
-#if CPUPROFILERTRACE_ENABLED
-	if (CpuChannel)
-	{
-		FCpuProfilerTrace::OutputEndEvent();
 	}
 #endif
 }
@@ -590,7 +572,7 @@ bool FGenericPlatformMisc::GetStoredValue(const FString& InStoreId, const FStrin
 }
 
 bool FGenericPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FString& InSectionName, const FString& InKeyName)
-{	
+{
 	check(!InStoreId.IsEmpty());
 	check(!InSectionName.IsEmpty());
 	check(!InKeyName.IsEmpty());
@@ -608,6 +590,26 @@ bool FGenericPlatformMisc::DeleteStoredValue(const FString& InStoreId, const FSt
 
 		ConfigFile.Dirty = true;
 		return ConfigFile.Write(ConfigPath) && RemovedNum == 1;
+	}
+
+	return false;
+}
+
+bool FGenericPlatformMisc::DeleteStoredSection(const FString& InStoreId, const FString& InSectionName)
+{
+	check(!InStoreId.IsEmpty());
+	check(!InSectionName.IsEmpty());
+
+	// This assumes that FPlatformProcess::ApplicationSettingsDir() returns a user-specific directory; it doesn't on Windows, but Windows overrides this behavior to use the registry
+	const FString ConfigPath = FString(FPlatformProcess::ApplicationSettingsDir()) / InStoreId / FString(TEXT("KeyValueStore.ini"));
+
+	FConfigFile ConfigFile;
+	ConfigFile.Read(ConfigPath);
+
+	if (ConfigFile.Remove(InSectionName) != 0)
+	{
+		ConfigFile.Dirty = true;
+		return ConfigFile.Write(ConfigPath);
 	}
 
 	return false;
@@ -1263,7 +1265,7 @@ void FGenericPlatformMisc::UpdateHotfixableEnsureSettings()
 	else
 	{
 		float HandleEnsurePercentOnCmdLine = 100.0f;
-		if (!FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
+		if (FCommandLine::IsInitialized() && FParse::Value(FCommandLine::Get(), TEXT("handleensurepercent="), HandleEnsurePercentOnCmdLine))
 		{
 			GenericPlatformMisc::GEnsureChance = HandleEnsurePercentOnCmdLine / 100.0f;
 		}

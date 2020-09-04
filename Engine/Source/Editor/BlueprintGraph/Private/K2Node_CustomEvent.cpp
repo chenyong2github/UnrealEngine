@@ -2,6 +2,7 @@
 
 
 #include "K2Node_CustomEvent.h"
+#include "Classes/EditorStyleSettings.h"
 #include "Engine/BlueprintGeneratedClass.h"
 #include "EdGraphSchema_K2.h"
 #include "K2Node_BaseMCDelegate.h"
@@ -15,8 +16,6 @@
 #include "FindInBlueprintManager.h"
 
 #define LOCTEXT_NAMESPACE "K2Node_CustomEvent"
-
-#define SNAP_GRID (16) // @todo ensure this is the same as SNodePanel::GetSnapGridSize()
 
 /**
  * Attempts to find a CustomEvent node associated with the specified function.
@@ -447,7 +446,7 @@ UK2Node_CustomEvent* UK2Node_CustomEvent::CreateFromFunction(FVector2D GraphPosi
 
 		CustomEventNode->NodePosX = GraphPosition.X;
 		CustomEventNode->NodePosY = GraphPosition.Y;
-		CustomEventNode->SnapToGrid(SNAP_GRID);
+		CustomEventNode->SnapToGrid(GetDefault<UEditorStyleSettings>()->GridSnapSize);
 	}
 
 	return CustomEventNode;

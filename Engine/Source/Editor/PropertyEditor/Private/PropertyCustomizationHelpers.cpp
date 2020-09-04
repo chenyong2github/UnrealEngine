@@ -213,14 +213,14 @@ namespace PropertyCustomizationHelpers
 			.IsFocusable( false );
 	}
 
-	TSharedRef<SWidget> MakeNewBlueprintButton( FSimpleDelegate OnFindClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled )
+	TSharedRef<SWidget> MakeNewBlueprintButton( FSimpleDelegate OnNewBlueprintClicked, TAttribute<FText> OptionalToolTipText, TAttribute<bool> IsEnabled )
 	{
 		return
 			SNew( SPropertyEditorButton )
 			.Text( LOCTEXT( "NewBlueprintButtonLabel", "New Blueprint") )
 			.ToolTipText( OptionalToolTipText.Get().IsEmpty() ? LOCTEXT( "NewBlueprintButtonToolTipText", "Create New Blueprint") : OptionalToolTipText )
 			.Image( FEditorStyle::GetBrush("PropertyWindow.Button_CreateNewBlueprint") )
-			.OnClickAction( OnFindClicked )
+			.OnClickAction( OnNewBlueprintClicked )
 			.IsEnabled(IsEnabled)
 			.IsFocusable( false );
 	}
@@ -744,16 +744,14 @@ bool SProperty::IsValidProperty() const
 	return PropertyHandle.IsValid() && PropertyHandle->IsValidHandle();
 }
 
+TSharedRef<SWidget> PropertyCustomizationHelpers::MakePropertyComboBox(const FPropertyComboBoxArgs& InArgs)
+{
+	return SNew(SPropertyEditorCombo).ComboArgs(InArgs);
+}
+
 TSharedRef<SWidget> PropertyCustomizationHelpers::MakePropertyComboBox(const TSharedPtr<IPropertyHandle>& InPropertyHandle, FOnGetPropertyComboBoxStrings OnGetStrings, FOnGetPropertyComboBoxValue OnGetValue, FOnPropertyComboBoxValueSelected OnValueSelected)
 {
-	FSlateFontInfo FontStyle = FEditorStyle::GetFontStyle(PropertyEditorConstants::PropertyFontStyle);
-
-	return SNew(SPropertyEditorCombo)
-		.PropertyHandle(InPropertyHandle)
-		.OnGetComboBoxStrings(OnGetStrings)
-		.OnGetComboBoxValue(OnGetValue)
-		.OnComboBoxValueSelected(OnValueSelected)
-		.Font(FontStyle);
+	return MakePropertyComboBox(FPropertyComboBoxArgs(InPropertyHandle, OnGetStrings, OnGetValue, OnValueSelected));
 }
 
 void PropertyCustomizationHelpers::MakeInstancedPropertyCustomUI(TMap<FName, IDetailGroup*>& ExistingGroup, IDetailCategoryBuilder& BaseCategory, TSharedRef<IPropertyHandle>& BaseProperty, FOnInstancedPropertyIteration AddRowDelegate)

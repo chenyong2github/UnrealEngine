@@ -7,7 +7,8 @@
 #include "Misc/FrameRate.h"
 #include "Misc/Timecode.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterCommonHelpers.h"
+#include "Misc/DisplayClusterLog.h"
 
 
 FDisplayClusterClusterSyncClient::FDisplayClusterClusterSyncClient() :
@@ -59,10 +60,15 @@ void FDisplayClusterClusterSyncClient::GetDeltaTime(float& DeltaSeconds)
 	}
 
 	// Extract sync data from response message
-	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, DeltaSeconds) == false)
+	FString StrDeltaSeconds;
+	if (Response->GetArg(FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds, StrDeltaSeconds) == false)
 	{
 		UE_LOG(LogDisplayClusterNetworkMsg, Error, TEXT("Couldn't extract an argument: %s"), FDisplayClusterClusterSyncMsg::GetDeltaTime::argDeltaSeconds);
+		return;
 	}
+
+	// Convert from hex string to float
+	DeltaSeconds = FDisplayClusterTypesConverter::template FromHexString<float>(StrDeltaSeconds);
 }
 
 void FDisplayClusterClusterSyncClient::GetFrameTime(TOptional<FQualifiedFrameTime>& FrameTime)

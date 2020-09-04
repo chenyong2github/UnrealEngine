@@ -135,6 +135,11 @@ struct FVideoEncoderConfig
 	*/
 	EPreset Preset = EPreset::HighQuality;
 
+	/**
+	 * Temporay hack for enabling filler data in NvEnc
+	 */
+	bool bFillerDataHack = false;
+
 	/** 
 	* Options specific to an hardware vendor (e.g: AMF or NVidia), or specific to a codec (h264)
 	* At the moment there are the following options (name and value)
@@ -392,7 +397,7 @@ public:
 	 *
 	 * This is a bit awkward, but it's somewhat required to account for how webrtc works (for PixelStreaming), where 
 	 * encoding a frame is a two step process :
-	 * 1st - CopyTexture initiates a copy of the texture to the internal buffers, and returns an Id the caller can use to reference that internal buffer.
+	 * 1st - CopyTexture initiates a copy if the texture to the internal buffers, and returns an Id the caller can use to reference that internal buffer.
 	 * 2nd - Either a Drop or Encode is required for each CopyTexture call, otherwise the respective internal buffer will stay
 	 * @param Texture Texture to copy
 	 * @param CaptureTs Capture timestamp
@@ -407,9 +412,9 @@ public:
 
 	/**
 	 * Drops an internal buffer that was returned by CopyTexture.
-	 * This should be used if the application decides that it doesn't want to encode a frame that was already
+	 * This should be used with the application decides that it doesn't want to encode a frame that was already
 	 * passed to CopyTexture.
-	 * Once this is called on a valid buffer id, do not use it that buffer id again.
+	 * Once this is called on a valid buffer, do not use it again.
 	 *
 	 * @param BufferId Buffer returned by a CopyTexture call
 	 *
@@ -499,3 +504,6 @@ void UnregisterDefaultFactories();
 
 }
 
+#if !defined(AVENCODER_SUPPORTED_MICROSOFT_PLATFORM)
+	#define AVENCODER_SUPPORTED_MICROSOFT_PLATFORM 0
+#endif

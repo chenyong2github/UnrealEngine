@@ -131,6 +131,7 @@ UnrealEngine.cpp: Implements the UEngine class and helpers.
 #include "HAL/LowLevelMemTracker.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "DynamicResolutionState.h"
+#include "Engine/ViewportStatsSubsystem.h"
 
 #include "Chaos/TriangleMeshImplicitObject.h"
 
@@ -430,7 +431,8 @@ ENGINE_API void UpdatePlayInEditorWorldDebugString(const FWorldContext* WorldCon
 				break;
 
 			case NM_Client:
-				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance - 1)).ToString();
+				// 0 is always the server, use PIEInstance so it matches the in-editor UI
+				WorldName = FText::Format(NSLOCTEXT("Engine", "PlayWorldIsClient", "Client {0}"), FText::AsNumber(WorldContext->PIEInstance)).ToString();
 				break;
 
 			default:
@@ -471,10 +473,6 @@ void FTemporaryPlayInEditorIDOverride::SetID(int32 NewID)
 		UpdatePlayInEditorWorldDebugString(GEngine->GetWorldContextFromPIEInstance(GPlayInEditorID));
 	}
 }
-
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-FSimpleMulticastDelegate UEngine::OnPostEngineInit;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 // We expose these variables to everyone as we need to access them in other files via an extern
 ENGINE_API float GAverageFPS = 0.0f;
@@ -1738,6 +1736,7 @@ void UEngine::Init(IEngineLoop* InEngineLoop)
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Hitches"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatHitches, &UEngine::ToggleStatHitches, bIsRHS));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_AI"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatAI, NULL, bIsRHS));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Timecode"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatTimecode, NULL, bIsRHS));
+	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_FrameCounter"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatFrameCounter, NULL, bIsRHS));
 
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_ColorList"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatColorList, NULL));
 	EngineStats.Add(FEngineStatFuncs(TEXT("STAT_Levels"), TEXT("STATCAT_Engine"), FText::GetEmpty(), &UEngine::RenderStatLevels, NULL));
@@ -2358,10 +2357,14 @@ void UEngine::UpdateTimecode()
 {
 	FApp::InvalidateCurrentFrameTime();
 
-	const UTimecodeProvider* Provider = GetTimecodeProvider();
-	if (Provider && Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+	if (UTimecodeProvider* Provider = GetTimecodeProvider())
 	{
-		FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
+		Provider->FetchAndUpdate();
+
+		if (Provider->GetSynchronizationState() == ETimecodeProviderSynchronizationState::Synchronized)
+		{
+			FApp::SetCurrentFrameTime(Provider->GetDelayedQualifiedFrameTime());
+		}
 	}
 }
 
@@ -3224,7 +3227,7 @@ bool UEngine::InitializeHMDDevice()
 			}
 
 			// If we found a valid XRSystem, use it to get a stereo rendering device, if available
-			if (XRSystem.IsValid())
+			if (XRSystem.IsValid() && !FParse::Param(FCommandLine::Get(), TEXT("noxrstereo")))
 			{
 				StereoRenderingDevice = XRSystem->GetStereoRenderingDevice();
 				const bool bShouldStartInVR = StereoRenderingDevice.IsValid() && (FParse::Param(FCommandLine::Get(), TEXT("vr")) || GetDefault<UGeneralProjectSettings>()->bStartInVR);
@@ -3909,6 +3912,16 @@ int InfiniteRecursionFunction(int B)
 {
 	GInfiniteRecursionCount += InfiniteRecursionFunction(B + 1);
 	return GInfiniteRecursionCount;
+}
+
+// used to test CRT invalid parameter handling
+void CauseCrtError()
+{
+#if PLATFORM_WINDOWS
+	CA_SUPPRESS(6387);	// Suppress the warning about nullptr not being valid for printf as we are trying
+						// to invoke this exact error for testing purposes.
+	printf((const char*)nullptr); //-V575
+#endif
 }
 
 #if defined (__clang__) 
@@ -8715,8 +8728,8 @@ bool UEngine::PerformError(const TCHAR* Cmd, FOutputDevice& Ar)
 	}
 	else if (FParse::Command(&Cmd, TEXT("CRTINVALID")))
 	{
-	FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
-		FString::Printf(TEXT("%s"), (const char*)nullptr);
+		FGenericCrashContext::SetCrashTrigger(ECrashTrigger::Debug);
+		CauseCrtError();
 		return true;
 	}
 	else if (FParse::Command(&Cmd, TEXT("HITCH")))
@@ -10329,7 +10342,7 @@ float UEngine::DrawOnscreenDebugMessages(UWorld* World, FViewport* Viewport, FCa
 /**
 *	Renders stats
 *
-*  @param World			The World to render stats about
+*   @param World			The World to render stats about
 *	@param Viewport			The viewport to render to
 *	@param Canvas			Canvas object to use for rendering
 *	@param CanvasObject		Optional canvas object for visualizing properties
@@ -10477,6 +10490,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 #endif
 
 #if TRACING_PROFILER
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 		if (FTracingProfiler::Get()->IsCapturing())
 		{
 			SmallTextItem.SetColor(FLinearColor(0.0f, 1.0f, 0.0f, 1.0f));
@@ -10487,6 +10501,7 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 			MessageY += FontSizeY;
 
 		}
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 #endif
 
 #if !(UE_BUILD_TEST)
@@ -10538,6 +10553,14 @@ void DrawStatsHUD( UWorld* World, FViewport* Viewport, FCanvas* Canvas, UCanvas*
 
 		RenderStats( Viewport, Canvas, StatsXOffset, Y, FMath::FloorToInt(PixelSizeX / Canvas->GetDPIScale()));
 #endif
+	}
+
+	// Use the new Viewport stats subsystem to draw any additional items that the user may want to
+	{
+		if (UViewportStatsSubsystem* ViewportSubsystem = World->GetSubsystem<UViewportStatsSubsystem>())
+		{
+			ViewportSubsystem->Draw(Viewport, Canvas, CanvasObject, MessageY);
+		}
 	}
 
 	// draw debug properties
@@ -10823,7 +10846,13 @@ FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher( FViewportClien
 	: ViewportClient( InViewportClient )
 	, OldWorld( nullptr )
 {
-	ConditionalSwitchWorld( ViewportClient, nullptr );
+	UWorld* InWorld = nullptr;
+	if (InViewportClient)
+	{
+		InWorld = InViewportClient->GetWorld();
+	}
+
+	ConditionalSwitchWorld( ViewportClient, InWorld );
 }
 
 FScopedConditionalWorldSwitcher::FScopedConditionalWorldSwitcher(UWorld* InWorld)
@@ -10842,24 +10871,29 @@ void FScopedConditionalWorldSwitcher::ConditionalSwitchWorld( FViewportClient* I
 {
 	if( GIsEditor )
 	{
-		if( ViewportClient && ViewportClient == GEngine->GameViewport && !GIsPlayInEditorWorld )
+		if ( InWorld && InWorld->WorldType == EWorldType::PIE && !GIsPlayInEditorWorld )
+		{
+			// We don't want to restore using Viewport client so clear it
+			ViewportClient = nullptr;
+
+			OldWorld = GWorld;
+			const bool bSwitchToPIEWorld = true;
+
+			// First check if we are being told to switch to a PIE world, if so always switch regardless of viewport
+			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
+		}
+		else if( ViewportClient && ViewportClient == GEngine->GameViewport && !GIsPlayInEditorWorld )
 		{
 			OldWorld = GWorld; 
 			const bool bSwitchToPIEWorld = true;
-			// Delegate must be valid
+
+			// If this is the main game viewport delegate will handle finding new world
 			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, nullptr );
 		}
 		else if( ViewportClient )
 		{
 			// Tell the viewport client to set the correct world and store what the world used to be
 			OldWorld = ViewportClient->ConditionalSetWorld();
-		}
-		else if ( InWorld && !GIsPlayInEditorWorld )
-		{
-			OldWorld = GWorld;
-			const bool bSwitchToPIEWorld = true;
-			// No viewport so set the world directly
-			SwitchWorldForPIEDelegate.ExecuteIfBound( bSwitchToPIEWorld, InWorld );
 		}
 	}
 }
@@ -13682,6 +13716,62 @@ const FWorldContext& UEngine::GetWorldContextFromPIEInstanceChecked(const int32 
 	return HandleInvalidWorldContext();
 }
 
+UWorld* UEngine::GetCurrentPlayWorld(UWorld* PossiblePlayWorld) const
+{
+	UWorld* BestWorld = nullptr;
+	for (const FWorldContext& WorldContext : WorldList)
+	{
+		if (PossiblePlayWorld && WorldContext.World() == PossiblePlayWorld)
+		{
+			// This is a game world and matches passed in world, return it
+			if (WorldContext.WorldType == EWorldType::Game)
+			{
+				return WorldContext.World();
+			}
+
+#if WITH_EDITOR
+			if (WorldContext.WorldType == EWorldType::PIE)
+			{
+				// This is a PIE world, and PIE instance is either not set or matches this world
+				if (GPlayInEditorID == -1 || GPlayInEditorID == WorldContext.PIEInstance)
+				{
+					return WorldContext.World();
+				}
+				else
+				{
+					// If you see this warning, game code is traversing PIE world boundaries in an unsafe way. That should be fixed or GPlayInEditorID needs to be set properly
+					UE_LOG(LogEngine, Warning, TEXT("GetCurrentPlayWorld failed with ambiguous PIE world! GPlayInEditorID %d does not match %s"), GPlayInEditorID, *PossiblePlayWorld->GetPathName());
+				}
+			}
+#endif
+
+			// We found the possible play world but it is is definitely not the current world, so return null due to ambiguity
+			return nullptr;
+		}
+
+		if (BestWorld)
+		{
+			// We want to use the first found world unless it's the specified world to check
+			continue;
+		}
+
+		// If it's a game world, try and set BestWorld. If World() is null, this won't do anything
+		if (WorldContext.WorldType == EWorldType::Game)
+		{
+			BestWorld = WorldContext.World();
+		}
+#if WITH_EDITOR
+		// This is a PIE world, PIE instance is set, and it matches this world
+		else if (WorldContext.WorldType == EWorldType::PIE && GPlayInEditorID != -1 && GPlayInEditorID == WorldContext.PIEInstance)
+		{
+			BestWorld = WorldContext.World();
+		}
+#endif
+	}
+
+	return BestWorld;
+}
+
 UPendingNetGame* UEngine::PendingNetGameFromWorld( UWorld* InWorld )
 {
 	return GetWorldContextFromWorldChecked(InWorld).PendingNetGame;
@@ -14276,6 +14366,10 @@ private:
 	int32 TaggedDataScope;
 };
 
+#if WITH_EDITOR
+static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
+#endif
+
 /* Serializes and stores property data from a specified 'source' object. Only stores data compatible with a target destination object. */
 struct FCPFUOWriter : public FObjectWriter, public FCPFUOArchive
 {
@@ -14322,8 +14416,7 @@ public:
 #if WITH_EDITOR
 	virtual bool ShouldSkipProperty(const class FProperty* InProperty) const override
 	{
-		static FName BlueprintCompilerGeneratedDefaultsName(TEXT("BlueprintCompilerGeneratedDefaults"));
-		return bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName);
+		return (bSkipCompilerGeneratedDefaults && InProperty->HasMetaData(BlueprintCompilerGeneratedDefaultsName));
 	}
 #endif 
 	//~ End FArchive Interface
@@ -14587,63 +14680,77 @@ void UEngine::CopyPropertiesForUnrelatedObjects(UObject* OldObject, UObject* New
 	}
 }
 
-// This is a really bad hack for UBlueprintFunctionLibrary::GetFunctionCallspace. See additional comments there.
-bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
+int32 UEngine::GetGlobalFunctionCallspace(UFunction* Function, UObject* FunctionTarget, FFrame* Stack)
 {
-	for (auto It = WorldList.CreateIterator(); It; ++It)
+	check(Function);
+
+	const bool bIsAuthoritativeFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintAuthorityOnly);
+	const bool bIsCosmeticFunc = Function->HasAnyFunctionFlags(FUNC_BlueprintCosmetic);
+
+	// If this is an authority/cosmetic function, we need to try and find the global context to see if it's a dedicated server/client
+	if (bIsAuthoritativeFunc || bIsCosmeticFunc)
 	{
-		FWorldContext &Context = *It;
-		bool useIt = false;
-		if (GPlayInEditorID != -1)
+		UWorld* CurrentWorld = nullptr;
+#if !WITH_EDITOR
+		// In cooked builds there is only one active game world, so this will find it
+		CurrentWorld = GetCurrentPlayWorld();
+#else
+		// In the editor there can be multiple possible PIE worlds at once due to client/server testing and globals not being set, so we need to look for a world to use as context
+		UWorld* PossibleWorld = nullptr;
+
+		// First look at function target, this will fail if it's a static function
+		if (FunctionTarget)
 		{
-			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == GPlayInEditorID)
-			{
-				useIt = true;
-			}
-		}
-		else
-		{
-			if (Context.WorldType == EWorldType::Game)
-			{
-				useIt = true;
-			}
+			PossibleWorld = FunctionTarget->GetWorld();
 		}
 
-		if (useIt && (Context.World() != nullptr))
+		// Next check BP stack
+		if (!PossibleWorld && Stack && Stack->Object)
 		{
-			return (Context.World()->GetNetMode() ==  NM_Client);
+			PossibleWorld = Stack->Object->GetWorld();
+		}
+
+		CurrentWorld = GetCurrentPlayWorld(PossibleWorld);
+#endif
+
+		// If we found a game world context, check it for networking mode
+		if (CurrentWorld)
+		{
+			ENetMode WorldNetMode = CurrentWorld->GetNetMode();
+			if (WorldNetMode == NM_DedicatedServer && bIsCosmeticFunc)
+			{
+				return FunctionCallspace::Absorbed;
+			}
+			if (WorldNetMode == NM_Client && bIsAuthoritativeFunc)
+			{
+				return FunctionCallspace::Absorbed;
+			}
 		}
 	}
+
+	// If we can't find a net mode always call locally
+	return FunctionCallspace::Local;
+}
+
+bool UEngine::ShouldAbsorbAuthorityOnlyEvent()
+{
+	UWorld* CurrentWorld = GetCurrentPlayWorld();
+	if (CurrentWorld)
+	{
+		return (CurrentWorld->GetNetMode() == NM_Client);
+	}
+
 	return false;
 }
 
-
 bool UEngine::ShouldAbsorbCosmeticOnlyEvent()
 {
-	for (auto It = WorldList.CreateIterator(); It; ++It)
+	UWorld* CurrentWorld = GetCurrentPlayWorld();
+	if (CurrentWorld)
 	{
-		FWorldContext &Context = *It;
-		bool useIt = false;
-		if (GPlayInEditorID != -1)
-		{
-			if (Context.WorldType == EWorldType::PIE && Context.PIEInstance == GPlayInEditorID)
-			{
-				useIt = true;
-			}
-		}
-		else
-		{
-			if (Context.WorldType == EWorldType::Game)
-			{
-				useIt = true;
-			}
-		}
-
-		if (useIt && (Context.World() != nullptr))
-		{
-			return (Context.World()->GetNetMode() == NM_DedicatedServer);
-		}
+		return (CurrentWorld->GetNetMode() == NM_DedicatedServer);
 	}
+
 	return false;
 }
 
@@ -15646,7 +15753,7 @@ static void SetupThreadAffinity(const TArray<FString>& Args)
 	FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 		FSimpleDelegateGraphTask::FDelegate::CreateStatic(&SetAffinityOnThread),
 		TStatId(), NULL, ENamedThreads::GetRenderThread());
-	if (GRHIThread_InternalUseOnly)
+	if (IsRHIThreadRunning())
 	{
 		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
 			FSimpleDelegateGraphTask::FDelegate::CreateStatic(&SetAffinityOnThread),
@@ -16226,6 +16333,18 @@ int32 UEngine::RenderStatTimecode(UWorld* World, FViewport* Viewport, FCanvas* C
 	}
 	Y += RowHeight;
 	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("TC: %s"), *FApp::GetTimecode().ToString()), Font, FColor::Green);
+	Y += RowHeight;
+
+	return Y;
+}
+
+// FRAMECOUNTER
+int32 UEngine::RenderStatFrameCounter(UWorld* World, FViewport* Viewport, FCanvas* Canvas, int32 X, int32 Y, const FVector* ViewLocation, const FRotator* ViewRotation)
+{
+	UFont* Font = FPlatformProperties::SupportsWindowedMode() ? GetSmallFont() : GetMediumFont();
+	const int32 RowHeight = FMath::TruncToInt(Font->GetMaxCharHeight() * 1.1f);
+
+	Canvas->DrawShadowedString(X, Y, *FString::Printf(TEXT("FC: %d"), GFrameCounter), Font, FColor::Green);
 	Y += RowHeight;
 
 	return Y;

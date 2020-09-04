@@ -49,6 +49,7 @@ struct FRCCall
 /**
  * Requested access mode to a remote property
  */
+UENUM()
 enum class ERCAccess : uint8
 {
 	NO_ACCESS,

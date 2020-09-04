@@ -16,6 +16,10 @@ class ALightmassImportanceVolume : public AVolume
 {
 	GENERATED_UCLASS_BODY()
 
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(FPropertyChangedEvent& PropertyChangedEvent) override;
+	virtual void PostEditMove(bool bFinished) override;
+#endif // WITH_EDITOR
 };
 
 

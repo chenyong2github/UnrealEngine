@@ -16,7 +16,7 @@ class FDisplayClusterVrpnAnalogInputDataHolder
 	: public FDisplayClusterInputDeviceBase<EDisplayClusterInputDeviceType::VrpnAnalog>
 {
 public:
-	FDisplayClusterVrpnAnalogInputDataHolder(const FDisplayClusterConfigInput& config);
+	FDisplayClusterVrpnAnalogInputDataHolder(const FDisplayClusterConfigInput& Config);
 	virtual ~FDisplayClusterVrpnAnalogInputDataHolder();
 
 public:
@@ -30,7 +30,7 @@ public:
 	// IDisplayClusterStringSerializable
 	//////////////////////////////////////////////////////////////////////////////////////////////
 	virtual FString SerializeToString() const override final;
-	virtual bool    DeserializeFromString(const FString& data) override final;
+	virtual bool    DeserializeFromString(const FString& Data) override final;
 
 private:
 	// Serialization constants

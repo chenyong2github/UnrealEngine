@@ -814,11 +814,8 @@ void UMRMeshComponent::SendBrickData_Internal(IMRMesh::FSendBrickDataArgs Args)
 
 	if (bCreateMeshProxySections)
 	{
-		if (SceneProxy != nullptr && GRenderingThread != nullptr)
+		if (SceneProxy != nullptr && GIsThreadedRendering)
 		{
-			check(GRenderingThread != nullptr);
-			check(SceneProxy != nullptr);
-
 			// Graphics update
 			UMRMeshComponent* This = this;
 			ENQUEUE_RENDER_COMMAND(FSendBrickDataLambda)(
@@ -893,6 +890,15 @@ void UMRMeshComponent::SetMaterial(int32 ElementIndex, class UMaterialInterface*
 	if (Material != InMaterial)
 	{
 		Material = InMaterial;
+		MarkRenderDynamicDataDirty();
+	}
+}
+
+void UMRMeshComponent::SetWireframeMaterial(class UMaterialInterface* InMaterial)
+{
+	if (WireframeMaterial != InMaterial)
+	{
+		WireframeMaterial = InMaterial;
 		MarkRenderDynamicDataDirty();
 	}
 }

@@ -266,6 +266,8 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 {
 	if (bNeedToAllocatePageTable)
 	{
+		SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
+
 		const TCHAR* TextureNames[] = { TEXT("PageTable_0"), TEXT("PageTable_1") };
 		static_assert(UE_ARRAY_COUNT(TextureNames) == TextureCapacity, "");
 
@@ -312,6 +314,9 @@ void FVirtualTextureSpace::AllocateTextures(FRHICommandList& RHICmdList)
 void FVirtualTextureSpace::ApplyUpdates(FVirtualTextureSystem* System, FRHICommandList& RHICmdList)
 {
 	static TArray<FPageTableUpdate> ExpandedUpdates[VIRTUALTEXTURE_SPACE_MAXLAYERS][16];
+
+	// Multi-GPU support : May be ineffecient for AFR.
+	SCOPED_GPU_MASK(RHICmdList, FRHIGPUMask::All());
 
 	for (uint32 LayerIndex = 0u; LayerIndex < Description.NumPageTableLayers; ++LayerIndex)
 	{

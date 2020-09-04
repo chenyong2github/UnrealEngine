@@ -13,6 +13,7 @@
 #include "FbxImporter.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/Input/STextEntryPopup.h"
+#include "Factories/FbxSceneImportData.h"
 
 #define LOCTEXT_NAMESPACE "SFbxSSceneBaseMeshListView"
 
@@ -188,6 +189,137 @@ void SFbxSSceneBaseMeshListView::FillPivotContextMenu(FMenuBuilder& MenuBuilder)
 	else
 	{
 		MenuBuilder.AddMenuEntry(LOCTEXT("ResetPivotBakeAll", "All No Pivot Bake"), FText(), FSlateIcon(), FUIAction(FExecuteAction::CreateSP(this, &SFbxSSceneBaseMeshListView::AssignToPivot, InvalidUid)));
+	}
+}
+
+void SFbxSSceneBaseMeshListView::FillMeshStatusMap(FbxSceneReimportStatusMapPtr MeshStatusMap
+	, TSharedPtr<FFbxSceneInfo> SceneInfo
+	, TSharedPtr<FFbxSceneInfo> SceneInfoOriginal
+	, bool bFillSkeletalMeshStatusMap
+	, TArray<FbxMeshInfoPtr>* FilterFbxMeshesArrayPtr
+	, TArray<FbxMeshInfoPtr>* FbxMeshesArrayPtr)
+{
+	//If FbxMeshesArrayPtr is null use the InternalFbxMeshesArray, we need it to found match between SceneInfo and SceneInfoOriginal
+	TArray<FbxMeshInfoPtr> InternalFbxMeshesArray;
+	TArray<FbxMeshInfoPtr>* ValidFbxMeshesArrayPtr = FbxMeshesArrayPtr ? FbxMeshesArrayPtr : &InternalFbxMeshesArray;
+
+	auto AddToFilterFbxMeshesArrayPtr = [&FilterFbxMeshesArrayPtr](FbxMeshInfoPtr& MeshInfo)
+	{
+		if (FilterFbxMeshesArrayPtr)
+		{
+			FilterFbxMeshesArrayPtr->Add(MeshInfo);
+		}
+	};
+
+	for (FbxMeshInfoPtr MeshInfo : SceneInfo->MeshInfo)
+	{
+		if (MeshInfo->bIsSkelMesh != bFillSkeletalMeshStatusMap || MeshInfo->IsLod || MeshInfo->IsCollision)
+		{
+			continue;
+		}
+		ValidFbxMeshesArrayPtr->Add(MeshInfo);
+		AddToFilterFbxMeshesArrayPtr(MeshInfo);
+		FbxMeshInfoPtr FoundMeshInfo = nullptr;
+		for (FbxMeshInfoPtr OriginalMeshInfo : SceneInfoOriginal->MeshInfo)
+		{
+			if (OriginalMeshInfo->OriginalImportPath.Compare(MeshInfo->OriginalImportPath) == 0)
+			{
+				FoundMeshInfo = MeshInfo;
+				break;
+			}
+		}
+		if (!FoundMeshInfo.IsValid())
+		{
+			//have an added asset
+			EFbxSceneReimportStatusFlags StatusFlag = EFbxSceneReimportStatusFlags::Added | EFbxSceneReimportStatusFlags::ReimportAsset;
+			if (MeshInfo->GetContentObject() != nullptr)
+			{
+				StatusFlag |= EFbxSceneReimportStatusFlags::FoundContentBrowserAsset;
+			}
+			MeshStatusMap->Add(MeshInfo->OriginalImportPath, StatusFlag);
+		}
+	}
+
+	for (FbxMeshInfoPtr OriginalMeshInfo : SceneInfoOriginal->MeshInfo)
+	{
+		if (OriginalMeshInfo->bIsSkelMesh != bFillSkeletalMeshStatusMap || OriginalMeshInfo->IsLod || OriginalMeshInfo->IsCollision)
+		{
+			continue;
+		}
+		FbxMeshInfoPtr FoundMeshInfo = nullptr;
+		
+		{
+			TArray<FbxMeshInfoPtr>& FbxMeshesArray = *ValidFbxMeshesArrayPtr;
+			for (FbxMeshInfoPtr MeshInfo : FbxMeshesArray)
+			{
+				if (OriginalMeshInfo->OriginalImportPath.Compare(MeshInfo->OriginalImportPath) == 0)
+				{
+					FoundMeshInfo = MeshInfo;
+					//Add the override info to the new fbx meshinfo
+					FoundMeshInfo->SetOverridePath(OriginalMeshInfo->bOverridePath);
+					FoundMeshInfo->OverrideImportPath = OriginalMeshInfo->OverrideImportPath;
+					FoundMeshInfo->OverrideFullImportName = OriginalMeshInfo->OverrideFullImportName;
+					FoundMeshInfo->OptionName = OriginalMeshInfo->OptionName;
+					break;
+				}
+			}
+		}
+
+		if (FoundMeshInfo.IsValid() && FoundMeshInfo->bOriginalTypeChanged)
+		{
+			//We dont reimport asset that have change their type
+			EFbxSceneReimportStatusFlags StatusFlag = EFbxSceneReimportStatusFlags::None;
+			MeshStatusMap->Add(FoundMeshInfo->OriginalImportPath, StatusFlag);
+		}
+		else if (FoundMeshInfo.IsValid())
+		{
+			//Set the old pivot information if we find one
+			FbxNodeInfoPtr OriginalPivotNode = SFbxSSceneBaseMeshListView::FindNodeInfoByUid(OriginalMeshInfo->PivotNodeUid, SceneInfoOriginal);
+			if (OriginalPivotNode.IsValid())
+			{
+				for (FbxNodeInfoPtr NodeInfo : SceneInfo->HierarchyInfo)
+				{
+					if (OriginalPivotNode->NodeHierarchyPath.Compare(NodeInfo->NodeHierarchyPath) == 0)
+					{
+						FoundMeshInfo->PivotNodeUid = NodeInfo->UniqueId;
+						FoundMeshInfo->PivotNodeName = NodeInfo->NodeName;
+						break;
+					}
+				}
+			}
+
+			//We have a match
+			EFbxSceneReimportStatusFlags StatusFlag = EFbxSceneReimportStatusFlags::Same;
+			if (OriginalMeshInfo->GetContentObject() != nullptr)
+			{
+				StatusFlag |= EFbxSceneReimportStatusFlags::FoundContentBrowserAsset;
+			}
+			if (OriginalMeshInfo->bImportAttribute)
+			{
+				StatusFlag |= EFbxSceneReimportStatusFlags::ReimportAsset;
+			}
+			MeshStatusMap->Add(FoundMeshInfo->OriginalImportPath, StatusFlag);
+
+		}
+		else
+		{
+			//we have a delete asset
+			EFbxSceneReimportStatusFlags StatusFlag = EFbxSceneReimportStatusFlags::Removed;
+			//Is the asset exist in content browser
+			UPackage* PkgExist = OriginalMeshInfo->GetContentPackage();
+			if (PkgExist != nullptr)
+			{
+				PkgExist->FullyLoad();
+				//Delete the asset by default
+				StatusFlag |= EFbxSceneReimportStatusFlags::FoundContentBrowserAsset | EFbxSceneReimportStatusFlags::ReimportAsset;
+				MeshStatusMap->Add(OriginalMeshInfo->OriginalImportPath, StatusFlag);
+				ValidFbxMeshesArrayPtr->Add(OriginalMeshInfo);
+				AddToFilterFbxMeshesArrayPtr(OriginalMeshInfo);
+				//When the asset do not exist in the new fbx we have to add it so we can delete it
+				SceneInfo->MeshInfo.Add(OriginalMeshInfo);
+			}
+			//If the asset is not there anymore we do not care about it
+		}
 	}
 }
 

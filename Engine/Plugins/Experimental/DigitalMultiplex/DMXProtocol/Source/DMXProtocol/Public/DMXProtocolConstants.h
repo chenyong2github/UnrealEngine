@@ -11,6 +11,15 @@ enum
   RDM_UID_WIDTH = 6
 };
 
+enum
+{
+	DMX_UNLIMITED_REFRESH_RATE	= 0,
+	DMX_SLOW_REFRESH_RATE		= 32,
+	DMX_MEDIUM_REFRESH_RATE		= 37,
+	DMX_FAST_REFRESH_RATE		= 40,
+	DMX_MAX_REFRESH_RATE		= 44
+};
+
 enum EDMXPortCapability
 {
 	DMX_PORT_CAPABILITY_NONE,
@@ -37,3 +46,11 @@ enum EDMUniverseDirection
 
 
 #define DMX_K2_CATEGORY_NAME "DMX"
+
+namespace DMXJsonFieldNames
+{
+	const FString DMXPortID(TEXT("PortID"));
+	const FString DMXUniverseID(TEXT("UniverseID"));
+	const FString DMXEthernetPort(TEXT("EthernetPort"));
+	const FString DMXIpAddresses(TEXT("IpAddresses"));
+}

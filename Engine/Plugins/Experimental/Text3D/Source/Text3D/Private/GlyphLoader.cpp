@@ -1,89 +1,91 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "GlyphLoader.h"
-#include "Contour.h"
+#include "Arrangement.h"
 #include "Part.h"
-#include "ContourList.h"
+#include "BoxTypes.h"
+#include "Curve/DynamicGraph2.h"
+#include "Polygon2.h"
+
 
 FGlyphLoader::FGlyphLoader(const FT_GlyphSlot Glyph) :
-	Contours(MakeShared<FContourList>()),
-	EndIndex(-1)
+	Root(MakeShared<FContourNode>(nullptr, false, true)),
+	EndIndex(-1),
+	VertexID(0)
 {
 	check(Glyph);
 
 	const FT_Outline Outline = Glyph->outline;
 	const int32 ContourCount = Outline.n_contours;
-	Clockwise.Reserve(ContourCount);
-	FNodePtr Root = MakeShared<FContourNode>(nullptr);
 
 	for (int32 Index = 0; Index < ContourCount; Index++)
 	{
-		if (CreateContour(Outline, Index))
+		const TSharedPtr<FPolygon2f> Contour = CreateContour(Outline, Index);
+
+		if (Contour.IsValid())
 		{
-			ComputeInitialParity();
-			Insert(MakeShared<FContourNode>(Contour), Root);
+			Insert(MakeShared<FContourNode>(Contour, true, Contour->IsClockwise()), Root);
 		}
 	}
 
-	FixParity(Root, false);
-	Contours->Initialize();
-}
-
-TSharedPtr<FContourList> FGlyphLoader::GetContourList() const
-{
-	return Contours;
-}
-
-struct FGlyphLoader::FContourNode
-{
-	FContourNode(FContour* const ContourIn)
-		: Contour(ContourIn)
+	if (Root->Children.Num() == 0)
 	{
+		return;
 	}
 
+	FixParityAndDivide(Root, false);
+}
 
-	FContour* Contour;
-	TArray<FNodePtr> Nodes;
-};
+TSharedContourNode FGlyphLoader::GetContourList() const
+{
+	return Root;
+}
 
 
 FGlyphLoader::FLine::FLine(const FVector2D PositionIn)
 	: Position(PositionIn)
 {
-
 }
 
 void FGlyphLoader::FLine::Add(FGlyphLoader* const Loader)
 {
-	if (!Loader->Contour->Num() || !(Position - Loader->FirstPosition).IsNearlyZero())
+	if (!Loader->ProcessedContour.Num() || !(Position - Loader->FirstPosition).IsNearlyZero())
 	{
-		const FPartPtr Point = Loader->AddPoint(Position);
-		Loader->JoinWithLast(Point);
-		Loader->LastPoint = Point;
+		Loader->ProcessedContour.AddHead(Position);
 	}
 }
 
-
-FGlyphLoader::FCurve::FCurve(const bool bLineIn)
-	: bLine(bLineIn)
-
-	, StartT(0.f)
-	, EndT(1.f)
+FGlyphLoader::FCurve::FCurve(const bool bLineIn) :
+	bLine(bLineIn),
+	StartT(0.f),
+	EndT(1.f)
 {
+	Loader = nullptr;
 
+	Depth = 0.0f;
+	MaxDepth = 0.0f;
+	First = nullptr;
+	Last = nullptr;
+	bFirstSplit = false;
+	bLastSplit = false;
 }
 
 FGlyphLoader::FCurve::~FCurve()
 {
-
 }
 
 struct FGlyphLoader::FCurve::FPointData
 {
+	FPointData()
+	{
+		T = 0.0f;
+		Point = nullptr;
+	}
+
 	float T;
 	FVector2D Position;
 	FVector2D Tangent;
-	FPartPtr Point;
+	TDoubleLinkedList<FVector2f>::TDoubleLinkedListNode* Point;
 };
 
 void FGlyphLoader::FCurve::Add(FGlyphLoader* const LoaderIn)
@@ -98,12 +100,12 @@ void FGlyphLoader::FCurve::Add(FGlyphLoader* const LoaderIn)
 
 	Depth = 0;
 
-
 	FPointData Start;
 	Start.T = StartT;
 	Start.Position = Position(Start.T);
 	Start.Tangent = Tangent(Start.T);
-	Start.Point = Loader->AddPoint(Start.Position);
+	Loader->ProcessedContour.AddHead(Start.Position);
+	Start.Point = Loader->ProcessedContour.GetHead();
 	First = Start.Point;
 	bFirstSplit = false;
 
@@ -116,7 +118,6 @@ void FGlyphLoader::FCurve::Add(FGlyphLoader* const LoaderIn)
 	bLastSplit = false;
 
 
-	Loader->JoinWithLast(Start.Point);
 	ComputeMaxDepth();
 	Split(Start, End);
 }
@@ -134,14 +135,14 @@ void FGlyphLoader::FCurve::ComputeMaxDepth()
 	float Length = 0.f;
 
 	FVector2D Prev;
-	FVector2D Curr = Position(StartT);
+	FVector2D Current = Position(StartT);
 
 	for (float T = StartT + StepT; T < EndT; T += StepT)
 	{
-		Prev = Curr;
-		Curr = Position(T);
+		Prev = Current;
+		Current = Position(T);
 
-		Length += (Curr - Prev).Size();
+		Length += (Current - Prev).Size();
 	}
 
 	const float MaxStepCount = Length / MinStep;
@@ -156,23 +157,8 @@ void FGlyphLoader::FCurve::Split(const FPointData& Start, const FPointData& End)
 	Middle.T = (Start.T + End.T) / 2.f;
 	Middle.Position = Position(Middle.T);
 	Middle.Tangent = Tangent(Middle.T);
-	Middle.Point = Loader->AddPoint(Middle.Position);
-	Middle.Point->bSmooth = true;
-
-
-	Start.Point->Next = Middle.Point;
-	Middle.Point->Prev = Start.Point;
-	Middle.Point->Next = End.Point;
-
-	if (End.Point)
-	{
-		End.Point->Prev = Middle.Point;
-	}
-	else
-	{
-		Loader->LastPoint = Middle.Point;
-	}
-
+	Loader->ProcessedContour.InsertNode(Middle.Position, Start.Point);
+	Middle.Point = Start.Point->GetPrevNode();
 
 	CheckPart(Start, Middle);
 	UpdateTangent(&Middle);
@@ -196,10 +182,6 @@ void FGlyphLoader::FCurve::CheckPart(const FPointData& Start, const FPointData& 
 			bLastSplit = true;
 			Split(Start, End);
 		}
-		else
-		{
-			Start.Point->TangentX = Side;
-		}
 	}
 	else
 	{
@@ -209,9 +191,7 @@ void FGlyphLoader::FCurve::CheckPart(const FPointData& Start, const FPointData& 
 
 void FGlyphLoader::FCurve::UpdateTangent(FPointData* const Middle)
 {
-
 }
-
 
 FGlyphLoader::FQuadraticCurve::FQuadraticCurve(const FVector2D A, const FVector2D B, const FVector2D C)
 	: FCurve(OnOneLine(A, B, C))
@@ -220,7 +200,6 @@ FGlyphLoader::FQuadraticCurve::FQuadraticCurve(const FVector2D A, const FVector2
 	, F(-A + B)
 	, G(A)
 {
-
 }
 
 FVector2D FGlyphLoader::FQuadraticCurve::Position(const float T) const
@@ -246,14 +225,15 @@ FVector2D FGlyphLoader::FQuadraticCurve::Tangent(const float T)
 	return QuadraticCurveTangent(E, F, T).GetSafeNormal();
 }
 
-
-FGlyphLoader::FCubicCurve::FCubicCurve(const FVector2D A, const FVector2D B, const FVector2D C, const FVector2D D)
-	: FCurve(OnOneLine(A, B, C) && OnOneLine(B, C, D))
-
-	, E(-A + 3.f * B - 3.f * C + D)
-	, F(A - 2.f * B + C)
-	, G(-A + B)
-	, H(A)
+FGlyphLoader::FCubicCurve::FCubicCurve(const FVector2D A, const FVector2D B, const FVector2D C, const FVector2D D) :
+	FCurve(OnOneLine(A, B, C) && OnOneLine(B, C, D)),
+	E(-A + 3.f * B - 3.f * C + D),
+	F(A - 2.f * B + C),
+	G(-A + B),
+	H(A),
+	bSharpStart(false),
+	bSharpMiddle(false),
+	bSharpEnd(false)
 {
 	if (!bLine)
 	{
@@ -269,7 +249,6 @@ void FGlyphLoader::FCubicCurve::UpdateTangent(FPointData* const Middle)
 	{
 		bSharpMiddle = false;
 		Middle->Tangent *= -1.f;
-		Middle->Point->bSmooth = false;
 	}
 }
 
@@ -306,71 +285,50 @@ FVector2D FGlyphLoader::FCubicCurve::Tangent(const float T)
 	return Result.GetSafeNormal();
 }
 
-
-bool FGlyphLoader::CreateContour(const FT_Outline Outline, const int32 ContourIndex)
+TSharedPtr<FPolygon2f> FGlyphLoader::CreateContour(const FT_Outline Outline, const int32 ContourIndex)
 {
-	if (!ProcessFreetypeOutline(Outline, ContourIndex))
-	{
-		return false;
-	}
-
-	return ComputeNormals();
+	const TSharedPtr<FPolygon2f> Contour = ProcessFreetypeOutline(Outline, ContourIndex);
+	return Contour.IsValid() ? RemoveBadPoints(Contour) : Contour;
 }
 
-void FGlyphLoader::ComputeInitialParity()
+bool FGlyphLoader::IsInside(const TSharedPtr<const FPolygon2f> ContourA, const TSharedPtr<const FPolygon2f> ContourB) const
 {
-	float DoubledArea = 0.0f;
-
-	FVector2D Curr;
-	FVector2D Next = FirstPosition;
-
-	Next = (*Contour)[1]->Position - FirstPosition;
-
-	for (FPartPtr Point = (*Contour)[2]; Point != (*Contour)[0]; Point = Point->Next)
-	{
-		Curr = Next;
-		Next = Point->Position - FirstPosition;
-
-		DoubledArea += FVector2D::CrossProduct(Curr, Next);
-	}
-
-	Clockwise.Add(TPair<const FContour*, bool>(Contour, DoubledArea < 0.f));
+	return ContourB->Contains(ContourA->GetSegmentPoint(0, 0));
 }
 
-void FGlyphLoader::Insert(const FNodePtr NodeA, const FNodePtr NodeB)
+void FGlyphLoader::Insert(const TSharedContourNode NodeA, const TSharedContourNode NodeB) const
 {
-	TArray<FNodePtr>& BNodes = NodeB->Nodes;
-	const FContour* ContourA = NodeA->Contour;
+	TArray<TSharedContourNode>& ChildrenB = NodeB->Children;
+	const TSharedPtr<const FPolygon2f> ContourA = NodeA->Contour;
 
-	for (int32 IndexC = 0; IndexC < BNodes.Num(); IndexC++)
+	for (int32 ChildBIndex = 0; ChildBIndex < ChildrenB.Num(); ChildBIndex++)
 	{
-		FNodePtr& NodeC = BNodes[IndexC];
-		const FContour* ContourC = NodeC->Contour;
+		TSharedContourNode& ChildB = ChildrenB[ChildBIndex];
+		const TSharedPtr<const FPolygon2f> ChildBContour = ChildB->Contour;
 
-		if (Inside(ContourA, ContourC))
+		if (IsInside(ContourA, ChildBContour))
 		{
-			Insert(NodeA, NodeC);
+			Insert(NodeA, ChildB);
 			return;
 		}
 
-		if (Inside(ContourC, ContourA))
+		if (IsInside(ChildBContour, ContourA))
 		{
-			// add contourC to list of contours that are inside contourA
-			TArray<FNodePtr>& ANodes = NodeA->Nodes;
-			ANodes.Add(NodeC);
-			// replace contourC with contourA in list it was before
-			NodeC = NodeA;
+			// add ChildBContour to list of contours that are inside ContourA
+			TArray<TSharedContourNode>& ChildrenA = NodeA->Children;
+			ChildrenA.Add(ChildB);
+			// replace ChildBContour with ContourA in list it was before
+			ChildB = NodeA;
 
-			// check if other contours in that list are inside contourA
-
-			for (int32 Index = BNodes.Num() - 1; Index > IndexC; Index--)
+			// check if other contours in that list are inside ContourA
+			for (int32 ChildBSiblingIndex = ChildrenB.Num() - 1; ChildBSiblingIndex > ChildBIndex; ChildBSiblingIndex--)
 			{
-				FNodePtr Node = BNodes[Index];
+				TSharedContourNode ChildBSibling = ChildrenB[ChildBSiblingIndex];
 
-				if (Inside(Node->Contour, ContourA))
+				if (IsInside(ChildBSibling->Contour, ContourA))
 				{
-					ANodes.Add(Node);
-					BNodes.RemoveAt(Index);
+					ChildrenA.Add(ChildBSibling);
+					ChildrenB.RemoveAt(ChildBSiblingIndex);
 				}
 			}
 
@@ -378,58 +336,114 @@ void FGlyphLoader::Insert(const FNodePtr NodeA, const FNodePtr NodeB)
 		}
 	}
 
-	BNodes.Add(NodeA);
+	ChildrenB.Add(NodeA);
 }
 
-void FGlyphLoader::FixParity(const FNodePtr Node, const bool bClockwiseIn)
+void FGlyphLoader::FixParityAndDivide(const TSharedContourNode Node, const bool bClockwiseIn)
 {
-	for (FNodePtr NodeA : Node->Nodes)
+	TArray<TSharedContourNode>& Children = Node->Children;
+
+	for (int32 ChildIndex = 0; ChildIndex < Children.Num(); ChildIndex++)
 	{
-		FixParity(NodeA, !bClockwiseIn);
-		FContour* const ContourB = NodeA->Contour;
+		TSharedContourNode Child = Children[ChildIndex];
+		const TSharedPtr<FPolygon2f> ChildContour = Child->Contour;
 
-		if (bClockwiseIn != Clockwise[ContourB])
+		// bCanHaveIntersections has default value "true", if it's false then contour was checked for having self-intersections and it's parity was fixed
+		if (!Child->bCanHaveIntersections)
 		{
-			for (const FPartPtr& Point : *ContourB)
+			FixParityAndDivide(Child, !bClockwiseIn);
+			continue;
+		}
+
+		// Fix parity
+		if (Child->bClockwise != bClockwiseIn)
 			{
-				Swap(Point->Prev, Point->Next);
+			ChildContour->Reverse();
+			Child->bClockwise = bClockwiseIn;
 			}
 
+		MakeArrangement(ChildContour);
+		Junctions.Reset();
 
-			const FPartPtr First = (*ContourB)[0];
-			const FPartPtr Last = First->Prev;
+		// Find first junction
+		if (!FindJunction())
+		{
+			// If no junction was found, contour doesn't have self-intersections
+			FixParityAndDivide(Child, !bClockwiseIn);
+			continue;
+		}
 
-			const FVector2D TangentFirst = First->TangentX;
+		// Remove this contour from parent's child list
+		Children.RemoveAt(ChildIndex--);
+		// Reset path
+		DividedContourIDs.Reset();
+		// Parts are stored as children of separate root node
+		TSharedContourNode RootForDetaching = MakeShared<FContourNode>(nullptr, false, Node->bClockwise);
+		// Processed edges are removed from graph to simplify dividing, vertices that don't belong to any edge are removed too, so a copy is needed
+		const TArray<FVector2f> InitialVertices = CopyVertices();
 
-			for (FPartPtr Edge = First; Edge != Last; Edge = Edge->Next)
+		bool bAddPoint = true;
+		while (bAddPoint)
+		{
+			AddPoint();
+
+			if (VertexID == -1)
 			{
-				Edge->TangentX = -Edge->Next->TangentX;
+				// This is bad contour (not a closed loop)
+				VertexID = Junctions.Last();
+				DetachBadContour();
+			}
+			else
+			{
+				const int32 RepeatedJunctionIndex = Junctions.Find(VertexID);
+				if (RepeatedJunctionIndex == INDEX_NONE)
+				{
+					continue;
+				}
+
+				// If it is, we made a loop that should be separated
+				DetachFinishedContour(RepeatedJunctionIndex, InitialVertices, RootForDetaching);
 			}
 
-			Last->TangentX = -TangentFirst;
-
-
-			for (const FPartPtr& Point : *ContourB)
+			// If path contains no junctions and current vertex is not a junction
+			if (Junctions.Num() == 0 && !Arrangement->Graph.IsJunctionVertex(VertexID))
 			{
-				Point->Normal *= -1.0f;
+				if (!FindJunction())
+				{
+					// If there are no junctions in graph, it contains last contour that should be separated
+					if (!FindRegular())
+					{
+						// Graph is empty, done
+						bAddPoint = false;
+					}
+					else
+					{
+						// Add non-junction vertex as if it was a junction
+						AddPoint(true);
+					}
+				}
 			}
 		}
+
+		RemoveUnneededNodes(RootForDetaching);
+		MergeRootForDetaching(Child, RootForDetaching, Node);
 	}
 }
 
-bool FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Outline, const int32 ContourIndex)
+TSharedPtr<FPolygon2f> FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Outline, const int32 ContourIndex)
 {
+	TSharedPtr<FPolygon2f> Contour;
+
 	const int32 StartIndex = EndIndex + 1;
 	EndIndex = Outline.contours[ContourIndex];
 	const int32 ContourLength = EndIndex - StartIndex + 1;
 
 	if (ContourLength < 3)
 	{
-		return false;
+		return Contour;
 	}
 
-	Contour = &Contours->Add();
-
+	ProcessedContour.Empty();
 
 	const FT_Vector* const Points = Outline.points + StartIndex;
 	auto ToFVector2D = [Points](const int32 Index)
@@ -439,7 +453,7 @@ bool FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Outline, const int32 
 	};
 
 	FVector2D Prev;
-	FVector2D Curr = ToFVector2D(ContourLength - 1);
+	FVector2D Current = ToFVector2D(ContourLength - 1);
 	FVector2D Next = ToFVector2D(0);
 	FVector2D NextNext = ToFVector2D(1);
 
@@ -450,59 +464,57 @@ bool FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Outline, const int32 
 		return FT_CURVE_TAG(Tags[Index]);
 	};
 
-	int32 TagPrev;
-	int32 TagCurr = Tag(ContourLength - 1);
+	int32 TagPrev = 0;
+	int32 TagCurrent = Tag(ContourLength - 1);
 	int32 TagNext = Tag(0);
 
 
 	FVector2D& FirstPositionLocal = FirstPosition;
-	const FPartPtr& LastPointLocal = LastPoint;
-	FContour*& ContourLocal = Contour;
-	auto ContourIsBad = [&FirstPositionLocal, &LastPointLocal, &ContourLocal](const FVector2D Point)
+	TDoubleLinkedList<FVector2f>& ProcessedContourLocal = ProcessedContour;
+	auto ContourIsBad = [&FirstPositionLocal, &ProcessedContourLocal](const FVector2D Point)
 	{
-		if (ContourLocal->Num() == 0)
+		if (ProcessedContourLocal.Num() == 0)
 		{
 			FirstPositionLocal = Point;
 			return false;
 		}
 
-		return (Point - LastPointLocal->Position).IsNearlyZero();
+		return (Point - FVector2D(ProcessedContourLocal.GetHead()->GetValue())).IsNearlyZero();
 	};
 
 	for (int32 Index = 0; Index < ContourLength; Index++)
 	{
 		const int32 NextIndex = (Index + 1) % ContourLength;
 
-		Prev = Curr;
-		Curr = Next;
+		Prev = Current;
+		Current = Next;
 		Next = NextNext;
 		NextNext = ToFVector2D((NextIndex + 1) % ContourLength);
 
-		TagPrev = TagCurr;
-		TagCurr = TagNext;
+		TagPrev = TagCurrent;
+		TagCurrent = TagNext;
 		TagNext = Tag(NextIndex);
 
-		if (TagCurr == FT_Curve_Tag_On)
+		if (TagCurrent == FT_Curve_Tag_On)
 		{
 			if (TagNext == FT_Curve_Tag_Cubic || TagNext == FT_Curve_Tag_Conic)
 			{
 				continue;
 			}
 
-			if (ContourIsBad(Curr))
+			if (ContourIsBad(Current))
 			{
-				RemoveContour();
-				return false;
+				return Contour;
 			}
 
-			if (TagNext == FT_Curve_Tag_On && (Curr - Next).IsNearlyZero())
+			if (TagNext == FT_Curve_Tag_On && (Current - Next).IsNearlyZero())
 			{
 				continue;
 			}
 
-			FLine(Curr).Add(this);
+			FLine(Current).Add(this);
 		}
-		else if (TagCurr == FT_Curve_Tag_Conic)
+		else if (TagCurrent == FT_Curve_Tag_Conic)
 		{
 			FVector2D A;
 
@@ -510,84 +522,93 @@ bool FGlyphLoader::ProcessFreetypeOutline(const FT_Outline Outline, const int32 
 			{
 				if (ContourIsBad(Prev))
 				{
-					RemoveContour();
-					return false;
+					return Contour;
 				}
 
 				A = Prev;
 			}
 			else
 			{
-				A = (Prev + Curr) / 2.f;
+				A = (Prev + Current) / 2.f;
 			}
 
-			FQuadraticCurve(A, Curr, TagNext == FT_Curve_Tag_Conic ? (Curr + Next) / 2.f : Next).Add(this);
+			FQuadraticCurve(A, Current, TagNext == FT_Curve_Tag_Conic ? (Current + Next) / 2.f : Next).Add(this);
 		}
-		else if (TagCurr == FT_Curve_Tag_Cubic && TagNext == FT_Curve_Tag_Cubic)
+		else if (TagCurrent == FT_Curve_Tag_Cubic && TagNext == FT_Curve_Tag_Cubic)
 		{
 			if (ContourIsBad(Prev))
 			{
-				RemoveContour();
-				return false;
+				return Contour;
 			}
 
-			FCubicCurve(Prev, Curr, Next, NextNext).Add(this);
+			FCubicCurve(Prev, Current, Next, NextNext).Add(this);
 		}
 	}
 
-	if (Contour->Num() < 3)
+	if (ProcessedContour.Num() < 3)
 	{
-		RemoveContour();
-		return false;
+		return Contour;
 	}
 
-	JoinWithLast((*Contour)[0]);
-	return true;
+
+	Contour = MakeShared<FPolygon2f>();
+
+	for (const TDoubleLinkedList<FVector2f>::TDoubleLinkedListNode* Point = ProcessedContour.GetTail(); Point; Point = Point->GetPrevNode())
+	{
+		Contour->AppendVertex(Point->GetValue());
+	}
+
+	return Contour;
 }
 
-bool FGlyphLoader::ComputeNormals()
+bool FGlyphLoader::IsBadNormal(const TSharedPtr<FPolygon2f> Contour, const int32 Point) const
 {
-	FPartPtr First = (*Contour)[0];
+		FVector2f ToPrev;
+		FVector2f ToNext;
 
-	for (FPartPtr Point = First;;)
+		Contour->NeighbourVectors(Point, ToPrev, ToNext, true);
+		return FMath::IsNearlyZero(1.0f - FVector2D::DotProduct(FVector2D(ToPrev), FVector2D(ToNext)));
+}
+
+bool FGlyphLoader::MergedWithNext(const TSharedPtr<FPolygon2f> Contour, const int32 Point) const
+{
+		const int32 Current = Point;
+		const int32 Next = (Point + 1) % Contour->VertexCount();
+
+		return FVector2D((*Contour)[Next] - (*Contour)[Current]).IsNearlyZero();
+}
+
+TSharedPtr<FPolygon2f> FGlyphLoader::RemoveBadPoints(const TSharedPtr<FPolygon2f> Contour) const
+{
+	int32 First = 0;
+
+	for (int32 Point = First;;)
 	{
-		FPartPtr Next = Point->Next;
 		bool bPointRemoved = false;
 
-		while (!Point->ComputeNormal() || (Next->Position - Point->Position).IsNearlyZero())
+		while (IsBadNormal(Contour, Point) || MergedWithNext(Contour, Point))
 		{
 			bPointRemoved = true;
 
-			if (Contour->Num() < 4)
+			if (Contour->VertexCount() < 4)
 			{
-				RemoveContour();
-				return false;
+				return TSharedPtr<FPolygon2f>();
 			}
 
-			Contour->RemoveAt(Contour->Find(Point));
-			const FPartPtr Curr = Point->Prev;
+			Contour->RemoveVertex(Point);
+			const int32 Current = (Point - 1 + Contour->VertexCount()) % Contour->VertexCount();
 
-			Curr->Next = Next;
-			Next->Prev = Curr;
-
-			Curr->ComputeTangentX();
-
-			if (Point == First)
+			if (Point == 0)
 			{
-				First = Curr;
+				First = Current;
 			}
 
-			Point = Curr;
+			Point = Current;
 		}
 
-		if (bPointRemoved)
+		if (!bPointRemoved)
 		{
-			Point->bSmooth = false;
-			Next->bSmooth = false;
-		}
-		else
-		{
-			Point = Point->Next;
+			Point = (Point + 1) % Contour->VertexCount();
 
 			if (Point == First)
 			{
@@ -596,73 +617,225 @@ bool FGlyphLoader::ComputeNormals()
 		}
 	}
 
-	return true;
+	return Contour;
 }
 
-void FGlyphLoader::RemoveContour()
+void FGlyphLoader::MakeArrangement(const TSharedPtr<const FPolygon2f> Contour)
 {
-	Contours->Remove(*Contour);
-	Contour = nullptr;
-}
+	FAxisAlignedBox2f Box = FAxisAlignedBox2f::Empty();
 
-FPartPtr FGlyphLoader::AddPoint(const FVector2D Position)
-{
-	const FPartPtr Point = MakeShared<FPart>();
-	Contour->Add(Point);
-	Point->Position = Position;
-	return Point;
-}
-
-void FGlyphLoader::JoinWithLast(const FPartPtr Point)
-{
-	if (Contour->Num() > 1)
+	for (const FVector2f Vertex : Contour->GetVertices())
 	{
-		LastPoint->Next = Point;
-		Point->Prev = LastPoint;
+		Box.Contain(Vertex);
+	}
 
-		LastPoint->ComputeTangentX();
+	Arrangement = MakeShared<FArrangement>(Box);
+
+	for (FSegment2f Edge : Contour->Segments())
+	{
+		Arrangement->Insert(Edge);
 	}
 }
 
-bool FGlyphLoader::Inside(const FContour* const ContourA, const FContour* const ContourB)
+bool FGlyphLoader::FindJunction()
 {
-	const int32 BPointCount = ContourB->Num();
-	// compute angle to which vector "b(i) - a(0)" is rotated when "i" iterates over all points of contourB
-	float AngleTotal = 0.f;
+	FDynamicGraph2d& Graph = Arrangement->Graph;
 
-	float AnglePrev;
-	float AngleCurr;
-
-	const TMap<const FContour*, bool>& ClockwiseLocal = Clockwise;
-	auto ComputeAngleCurr = [ContourB, &ClockwiseLocal, BPointCount, ContourA, &AngleCurr](const int32 EndPoint)
+	for (int32 VID = 0; VID < Graph.MaxVertexID(); VID++)
 	{
-		// use counterclockwise version of contour if it's clockwise
-		const FVector2D Delta = (*ContourB)[ClockwiseLocal[ContourB] ? BPointCount - 1 - EndPoint : EndPoint]->Position - (*ContourA)[0]->Position;
-		AngleCurr = FMath::Atan2(Delta.Y, Delta.X);
-	};
-
-	ComputeAngleCurr(0);
-
-	for (int32 Index = 0; Index < BPointCount; Index++)
-	{
-		AnglePrev = AngleCurr;
-		ComputeAngleCurr((Index + 1) % BPointCount);
-
-		float DeltaAngle = AngleCurr - AnglePrev;
-
-		if (DeltaAngle < -PI)
+		if (Graph.IsJunctionVertex(VID))
 		{
-			DeltaAngle += 2.f * PI;
+			VertexID = VID;
+			return true;
 		}
-
-		if (DeltaAngle > PI)
-		{
-			DeltaAngle -= 2.f * PI;
-		}
-
-		AngleTotal += DeltaAngle;
 	}
 
-	// if contourA is inside contourB, angle is 2pi, else it's 0
-	return AngleTotal > 3.f;
+	VertexID = -1;
+	return false;
+}
+
+bool FGlyphLoader::FindRegular()
+{
+	FDynamicGraph2d& Graph = Arrangement->Graph;
+
+	for (int32 VID = 0; VID < Graph.MaxVertexID(); VID++)
+	{
+		if (Graph.IsRegularVertex(VID))
+	{
+			VertexID = VID;
+			return true;
+		}
+	}
+
+	VertexID = -1;
+	return false;
+}
+
+TArray<FVector2f> FGlyphLoader::CopyVertices() const
+{
+	FDynamicGraph2d& Graph = Arrangement->Graph;
+	TArray<FVector2f> Vertices;
+	const int32 MaxVID = Graph.MaxVertexID();
+	Vertices.Reserve(MaxVID);
+
+	for (int32 VID = 0; VID < MaxVID; VID++)
+	{
+		const FVector2d Vertex = Graph.GetVertex(VID);
+		Vertices.Add({static_cast<float>(Vertex.X), static_cast<float>(Vertex.Y)});
+	}
+
+	return Vertices;
+}
+
+void FGlyphLoader::DetachBadContour()
+{
+	const int32 JunctionIndexInContour = FindStartOfDetachedContour(Junctions.Num() - 1);
+	RemoveDetachedContourFromPath(JunctionIndexInContour);
+}
+
+void FGlyphLoader::DetachFinishedContour(const int32 RepeatedJunctionIndex, const TArray<FVector2f>& InitialVertices, const TSharedContourNode RootForDetaching)
+{
+	const int32 JunctionIndexInContour = FindStartOfDetachedContour(RepeatedJunctionIndex);
+
+	// Create contour from copied vertices
+	TSharedPtr<FPolygon2f> FinishedContour = MakeShared<FPolygon2f>();
+
+	for (int32 ID = JunctionIndexInContour; ID < DividedContourIDs.Num(); ID++)
+	{
+		FinishedContour->AppendVertex(InitialVertices[DividedContourIDs[ID]]);
+	}
+
+	RemoveDetachedContourFromPath(JunctionIndexInContour);
+
+	const TSharedContourNode FinishedContourNode = MakeShared<FContourNode>(FinishedContour, false, FinishedContour->IsClockwise());
+	Insert(FinishedContourNode, RootForDetaching);
+}
+
+int32 FGlyphLoader::FindStartOfDetachedContour(const int32 RepeatedJunctionIndex)
+{
+	// Remove from list of junctions all junctions that belong to detached loop
+	Junctions.SetNum(RepeatedJunctionIndex);
+	// Find index in path of first (and last) vertex of loop
+	const int32 JunctionIndexInContour = DividedContourIDs.Find(VertexID);
+	return JunctionIndexInContour;
+}
+
+void FGlyphLoader::RemoveDetachedContourFromPath(const int32 JunctionIndexInContour)
+{
+	DividedContourIDs.SetNum(JunctionIndexInContour);
+}
+
+void FGlyphLoader::AddPoint(const bool bForceJunction)
+{
+	DividedContourIDs.Add(VertexID);
+	FDynamicGraph2d& Graph = Arrangement->Graph;
+	int32 OutgoingEdge = 0;
+
+	if (Graph.IsJunctionVertex(VertexID) || bForceJunction)
+	{
+		Junctions.Add(VertexID);
+		// Select specific path direction
+		OutgoingEdge = FindOutgoing(Junctions.Last());
+	}
+	else if (Graph.IsVertex(VertexID))
+	{
+		// This should be the only possible direction
+		OutgoingEdge = *Graph.VtxEdgesItr(VertexID).begin();
+	}
+	else
+	{
+		// We have no possible directions, this contour is bad
+		VertexID = -1;
+		return;
+	}
+
+	// Move to next graph node
+	VertexID = edge_other_v(OutgoingEdge, VertexID);
+	Graph.RemoveEdge(OutgoingEdge, true);
+}
+
+void FGlyphLoader::RemoveUnneededNodes(const TSharedContourNode Node) const
+{
+	TArray<TSharedContourNode>& Children = Node->Children;
+
+	for (int32 ChildIndex = 0; ChildIndex < Children.Num(); )
+	{
+		const TSharedContourNode Child = Children[ChildIndex];
+
+		if (Child->bClockwise == Node->bClockwise)
+		{
+			Children.RemoveAt(ChildIndex);
+		}
+		else
+		{
+			ChildIndex++;
+			RemoveUnneededNodes(Child);
+		}
+	}
+}
+
+void FGlyphLoader::MergeRootForDetaching(const TSharedContourNode RemovedNode, const TSharedContourNode RootForDetaching, const TSharedContourNode RemovedNodeParent) const
+{
+	for (const TSharedContourNode Child : RemovedNode->Children)
+		{
+		Insert(Child, RootForDetaching);
+		}
+
+	for (const TSharedContourNode Child : RootForDetaching->Children)
+		{
+		RemovedNodeParent->Children.Add(Child);
+		}
+}
+
+bool FGlyphLoader::IsOutgoing(const int32 Junction, const int32 EID) const
+{
+	return (Arrangement->Graph.GetEdgeV(EID).A == Junction) == Arrangement->Directions[EID];
+}
+
+int32 FGlyphLoader::FindOutgoing(const int32 Junction) const
+{
+	// Get list of all edges that have this vertex
+	TArray<int32> Edges;
+	SortedVtxEdges(Junction, Edges);
+
+	int32 Current = 0;
+	int32 Next = Edges[0];
+
+	for (int32 EdgeIndex = 0; EdgeIndex < Edges.Num(); EdgeIndex++)
+	{
+		Current = Next;
+		Next = Edges[(EdgeIndex + 1) % Edges.Num()];
+
+		// Needed direction is the one that is outgoing and it's clockwise neighbour is not
+		if (!IsOutgoing(Junction, Current) && IsOutgoing(Junction, Next))
+	{
+			return Next;
+		}
+	}
+
+	return Edges[0];
+}
+
+int32 FGlyphLoader::edge_other_v(const int32 EID, const int32 VID) const
+{
+	const FIndex2i Edge = Arrangement->Graph.GetEdgeV(EID);
+	return (Edge.A == VID) ? Edge.B : ((Edge.B == VID) ? Edge.A : FDynamicGraph::InvalidID);
+}
+
+void FGlyphLoader::SortedVtxEdges(const int32 VID, TArray<int32> &Sorted) const
+{
+	FDynamicGraph2d& Graph = Arrangement->Graph;
+	Sorted.Reserve(Graph.GetVtxEdgeCount(VID));
+
+	for (int32 EID : Graph.VtxEdgesItr(VID))
+	{
+		Sorted.Add(EID);
+	}
+
+	const FVector2d V = Graph.GetVertex(VID);
+	Algo::SortBy(Sorted, [&](int32 EID) {
+		const int32 NbrVID = edge_other_v(EID, VID);
+		const FVector2d D = Graph.GetVertex(NbrVID) - V;
+		return TMathUtil<double>::Atan2Positive(D.Y, D.X);
+	});
 }

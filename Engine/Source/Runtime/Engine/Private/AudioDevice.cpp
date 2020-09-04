@@ -47,19 +47,6 @@
 #include "Developer/AssetTools/Public/IAssetTools.h"
 #include "Editor/EditorEngine.h"
 #endif // WITH_EDITOR
-
-// Returns the linear frequency of the input value. Maps log domain and range values to linear output (good for linear slider representation/visualization of log frequency). Reverse of GetLogFrequencyClamped.
-static FORCEINLINE float GetLinearFrequencyClamped(const float InFrequencyValue, const FVector2D& Domain, const FVector2D& Range)
-{
-	const float InFrequencyValueCopy = FMath::Clamp<float>(InFrequencyValue, Range.X, Range.Y);
-	const FVector2D RangeLog(FMath::Loge(Range.X), FMath::Loge(Range.Y));
-
-	check(Domain.Y != Domain.X);
-	check(RangeLog.Y != RangeLog.X);
-	const float Scale = (RangeLog.Y - RangeLog.X) / (Domain.Y - Domain.X);
-
-	return Domain.X + (FMath::Loge(InFrequencyValue) - RangeLog.X) / Scale;
-}
 	
 static int32 AudioChannelCountCVar = 0;
 FAutoConsoleVariableRef CVarSetAudioChannelCount(
@@ -2744,7 +2731,7 @@ static void UpdateClassAdjustorOverrideEntry(FSoundClassAdjuster& ClassAdjustor,
 
 float FAudioDevice::GetInterpolatedFrequency(const float InFrequency, const float InterpValue) const
 {
-	const float NormFrequency = InterpolateAdjuster(GetLinearFrequencyClamped(InFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY)), InterpValue);
+	const float NormFrequency = InterpolateAdjuster(Audio::GetLinearFrequencyClamped(InFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY)), InterpValue);
 	return Audio::GetLogFrequencyClamped(NormFrequency, FVector2D(0.0f, 1.0f), FVector2D(MIN_FILTER_FREQUENCY, MAX_FILTER_FREQUENCY));
 }
 
@@ -6307,11 +6294,19 @@ bool FAudioDevice::IsAudioDeviceMuted() const
 {
 	check(IsInAudioThread());
 
-	// First check to see if the device manager has "bPlayAllPIEAudio" enabled
 	FAudioDeviceManager* DeviceManager = GEngine->GetAudioDeviceManager();
-	if (DeviceManager && DeviceManager->IsPlayAllDeviceAudio())
+	if(DeviceManager)
 	{
-		return false;
+		// Check to see if the device manager has "bPlayAllPIEAudio" enabled
+		const bool bIsPlayAllDeviceAudio = DeviceManager->IsPlayAllDeviceAudio();
+
+		// Check if always playing NonRealtime devices, and this is a NonRealtime device
+		const bool bIsAlwaysPlayNonRealtime = DeviceManager->IsAlwaysPlayNonRealtimeDeviceAudio() && IsNonRealtime();
+
+		if (bIsPlayAllDeviceAudio || bIsAlwaysPlayNonRealtime)
+		{
+			return false;
+		}
 	}
 
 	return bIsDeviceMuted;

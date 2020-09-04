@@ -357,7 +357,7 @@ void FPerformanceMonitorModule::RecordFrame()
 			ArrayForStatName.Add(StatUnitData->RawGameThreadTime);
 			GeneratedStats.Emplace(TEXT("GameThreadTime"), ArrayForStatName);
 			ArrayForStatName = GeneratedStats.FindOrAdd(TEXT("GPUFrameTime"));
-			ArrayForStatName.Add(StatUnitData->RawGPUFrameTime);
+			ArrayForStatName.Add(StatUnitData->RawGPUFrameTime[0]);
 			GeneratedStats.Emplace(TEXT("GPUFrameTime"), ArrayForStatName);
 
 			ArrayForStatName = GeneratedStats.FindOrAdd(TEXT("GlobalRenderThreadTime"));

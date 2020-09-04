@@ -5,7 +5,7 @@
 #include "CoreTypes.h"
 #include "Trace/Config.h"
 
-#if UE_TRACE_ENABLED && PLATFORM_WINDOWS && !UE_BUILD_SHIPPING
+#if (PLATFORM_WINDOWS || PLATFORM_MAC) && !UE_BUILD_SHIPPING
 #define PLATFORMFILETRACE_ENABLED 1
 #else
 #define PLATFORMFILETRACE_ENABLED 0
@@ -15,20 +15,19 @@
 
 struct FPlatformFileTrace
 {
-	CORE_API static void Init(const TCHAR* CmdLine);
-
 	static void BeginOpen(const TCHAR* Path);
 	static void EndOpen(uint64 FileHandle);
+	static void FailOpen(const TCHAR* Path);
 	static void BeginClose(uint64 FileHandle);
-	static void EndClose();
+	static void EndClose(uint64 FileHandle);
+	static void FailClose(uint64 FileHandle);
 	static void BeginRead(uint64 ReadHandle, uint64 FileHandle, uint64 Offset, uint64 Size);
 	static void EndRead(uint64 ReadHandle, uint64 SizeRead);
 	static void BeginWrite(uint64 WriteHandle, uint64 FileHandle, uint64 Offset, uint64 Size);
 	static void EndWrite(uint64 WriteHandle, uint64 SizeWritten);
-};
 
-#define TRACE_PLATFORMFILE_INIT(CmdLine) \
-	FPlatformFileTrace::Init(CmdLine);
+	CORE_API static uint32 GetOpenFileHandleCount();
+};
 
 #define TRACE_PLATFORMFILE_BEGIN_OPEN(Path) \
 	FPlatformFileTrace::BeginOpen(Path);
@@ -36,11 +35,17 @@ struct FPlatformFileTrace
 #define TRACE_PLATFORMFILE_END_OPEN(FileHandle) \
 	FPlatformFileTrace::EndOpen(uint64(FileHandle));
 
+#define TRACE_PLATFORMFILE_FAIL_OPEN(Path) \
+	FPlatformFileTrace::FailOpen(Path);
+
 #define TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle) \
 	FPlatformFileTrace::BeginClose(uint64(FileHandle));
 
-#define TRACE_PLATFORMFILE_END_CLOSE() \
-	FPlatformFileTrace::EndClose();
+#define TRACE_PLATFORMFILE_END_CLOSE(FileHandle) \
+	FPlatformFileTrace::EndClose(uint64(FileHandle));
+
+#define TRACE_PLATFORMFILE_FAIL_CLOSE(FileHandle) \
+	FPlatformFileTrace::FailClose(uint64(FileHandle));
 
 #define TRACE_PLATFORMFILE_BEGIN_READ(ReadHandle, FileHandle, Offset, Size) \
 	FPlatformFileTrace::BeginRead(uint64(ReadHandle), uint64(FileHandle), Offset, Size);
@@ -56,11 +61,12 @@ struct FPlatformFileTrace
 
 #else
 
-#define TRACE_PLATFORMFILE_INIT(CmdLine)
 #define TRACE_PLATFORMFILE_BEGIN_OPEN(Path)
 #define TRACE_PLATFORMFILE_END_OPEN(FileHandle)
+#define TRACE_PLATFORMFILE_FAIL_OPEN(Path)
 #define TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle)
-#define TRACE_PLATFORMFILE_END_CLOSE()
+#define TRACE_PLATFORMFILE_END_CLOSE(FileHandle)
+#define TRACE_PLATFORMFILE_FAIL_CLOSE(FileHandle)
 #define TRACE_PLATFORMFILE_BEGIN_READ(ReadHandle, FileHandle, Offset, Size)
 #define TRACE_PLATFORMFILE_END_READ(ReadHandle, SizeRead)
 #define TRACE_PLATFORMFILE_BEGIN_WRITE(WriteHandle, FileHandle, Offset, Size)

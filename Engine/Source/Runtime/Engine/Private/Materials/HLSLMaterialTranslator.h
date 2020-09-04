@@ -648,6 +648,9 @@ protected:
 
 	virtual int32 VertexColor() override;
 
+	virtual int32 PreSkinVertexOffset() override;
+	virtual int32 PostSkinVertexOffset() override;
+
 	virtual int32 PreSkinnedPosition() override;
 	virtual int32 PreSkinnedNormal() override;
 
@@ -664,6 +667,9 @@ protected:
 	virtual int32 Logarithm10(int32 X) override;
 	virtual int32 SquareRoot(int32 X) override;
 	virtual int32 Length(int32 X) override;
+	virtual int32 Step(int32 Y, int32 X) override;
+	virtual int32 SmoothStep(int32 X, int32 Y, int32 A) override;
+	virtual int32 InvLerp(int32 X, int32 Y, int32 A) override;
 	virtual int32 Lerp(int32 X, int32 Y, int32 A) override;
 	virtual int32 Min(int32 A, int32 B) override;
 	virtual int32 Max(int32 A, int32 B) override;
@@ -713,6 +719,10 @@ protected:
 	virtual int32 GetHairRootUV() override;
 	virtual int32 GetHairBaseColor() override;
 	virtual int32 GetHairRoughness() override;
+	virtual int32 GetHairDepth() override;
+	virtual int32 GetHairCoverage() override;
+	virtual int32 GetHairAtlasUVs() override;
+	virtual int32 GetHairColorFromMelanin(int32 Melanin, int32 Redness, int32 DyeColor) override;
 	virtual int32 DistanceToNearestSurface(int32 PositionArg) override;
 	virtual int32 DistanceFieldGradient(int32 PositionArg) override;
 	virtual int32 AtmosphericFogColor(int32 WorldPosition) override;
@@ -731,8 +741,6 @@ protected:
 	virtual int32 GetCloudSampleNormAltitudeInLayer() override;
 	virtual int32 GetVolumeSampleConservativeDensity() override;
 
-	// Water
-	virtual int32 SceneDepthWithoutWater(int32 Offset, int32 ViewportUV, bool bUseOffset, float FallbackDepth) override;
 
 	virtual int32 CustomPrimitiveData(int32 OutputIndex, EMaterialValueType Type) override;
 

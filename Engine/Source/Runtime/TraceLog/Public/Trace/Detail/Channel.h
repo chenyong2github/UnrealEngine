@@ -38,6 +38,7 @@ public:
 	void				Announce() const;
 	static bool			Toggle(const ANSICHAR* ChannelName, bool bEnabled);
 	static void			ToggleAll(bool bEnabled);
+	static FChannel*	FindChannel(const ANSICHAR* ChannelName);
 	bool				Toggle(bool bEnabled);
 	bool				IsEnabled() const;
 	explicit			operator bool () const;
@@ -51,7 +52,7 @@ private:
 		uint32			Len;
 		uint32			Hash;
 	}					Name;
-	bool				bDisabled;
+	volatile int32		Enabled;
 };
 
 } // namespace Trace

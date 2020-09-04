@@ -15,6 +15,7 @@
 #include "Stats/Stats2.h"
 #include "MovieRenderPipelineCoreModule.h"
 
+#include "OpenColorIODisplayExtension.h"
 #include "MoviePipelineDeferredPasses.generated.h"
 
 class UTextureRenderTarget2D;
@@ -70,6 +71,7 @@ public:
 	{
 		PassIdentifier = FMoviePipelinePassIdentifier("ImagePassBase");
 	}
+
 protected:
 
 	// UMoviePipelineRenderPass API
@@ -85,6 +87,7 @@ protected:
 
 	FSceneView* GetSceneViewForSampleState(FSceneViewFamily* ViewFamily, FMoviePipelineRenderPassMetrics& InOutSampleState);
 
+
 protected:
 	virtual void GetViewShowFlags(FEngineShowFlags& OutShowFlag, EViewModeIndex& OutViewModeIndex) const;
 	virtual void BlendPostProcessSettings(FSceneView* InView);
@@ -92,11 +95,9 @@ protected:
 	virtual void MoviePipelineRenderShowFlagOverride(FEngineShowFlags& OutShowFlag) {}
 	virtual void RendererSubmission_GameThread(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas, FSceneViewFamilyContext& InViewFamily);
 	virtual void PostRendererSubmission(const FMoviePipelineRenderPassMetrics& InSampleState, FCanvas& InCanvas) {}
-	virtual bool IsScreenPercentageSupported() const { return true; }
+	virtual bool IsScreenPercentageSupported() const { return true; }	
 	virtual bool IsAntiAliasingSupported() const { return true; }
 	virtual int32 GetOutputFileSortingOrder() const { return -1; }
-public:
-	
 
 protected:
 	/** A temporary render target that we render the view to. */
@@ -114,6 +115,9 @@ protected:
 	FGraphEventArray OutstandingTasks;
 
 	FGraphEventRef TaskPrereq;
+
+	/** The lifetime of this SceneViewExtension is only during the rendering process. It is destroyed as part of TearDown. */
+	TSharedPtr<FOpenColorIODisplayExtension, ESPMode::ThreadSafe> OCIOSceneViewExtension;
 };
 
 UCLASS(BlueprintType)
@@ -197,7 +201,6 @@ public:
 protected:
 	TSharedPtr<FAccumulatorPool, ESPMode::ThreadSafe> AccumulatorPool;
 };
-
 
 
 UCLASS(BlueprintType)

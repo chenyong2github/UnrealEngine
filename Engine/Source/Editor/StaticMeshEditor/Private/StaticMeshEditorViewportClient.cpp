@@ -337,7 +337,7 @@ FWidget::EWidgetMode FStaticMeshEditorViewportClient::GetWidgetMode() const
 		return WidgetMode;
 	}
 
-	return FWidget::WM_None;
+	return FWidget::WM_Max;
 }
 
 void FStaticMeshEditorViewportClient::SetWidgetMode(FWidget::EWidgetMode NewMode)
@@ -1717,12 +1717,6 @@ void FStaticMeshEditorViewportClient::OnSocketSelectionChanged( UStaticMeshSocke
 		}
 	}
 
-	Invalidate();
-}
-
-void FStaticMeshEditorViewportClient::ResetCamera()
-{
-	FocusViewportOnBox( StaticMeshComponent->Bounds.GetBox() );
 	Invalidate();
 }
 

@@ -6,6 +6,7 @@ using System.Data.SqlClient;
 using System.Diagnostics;
 using System.IO;
 using System.Linq;
+using System.Net;
 using System.Reflection;
 using System.Runtime.InteropServices;
 using System.Text;
@@ -22,15 +23,24 @@ namespace UnrealGameSync
 		[STAThread]
 		static void Main(string[] Args)
 		{
-			Application.EnableVisualStyles();
-			Application.SetCompatibleTextRenderingDefault(false);
-
 			bool bFirstInstance;
-			using(Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
+			using (Mutex InstanceMutex = new Mutex(true, "UnrealGameSyncRunning", out bFirstInstance))
 			{
-				using(EventWaitHandle ActivateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ActivateUnrealGameSync"))
+				if (bFirstInstance)
 				{
-					if(bFirstInstance)
+					Application.EnableVisualStyles();
+					Application.SetCompatibleTextRenderingDefault(false);
+				}
+
+				using (EventWaitHandle ActivateEvent = new EventWaitHandle(false, EventResetMode.AutoReset, "ActivateUnrealGameSync"))
+				{
+					// handle any url passed in, possibly exiting
+					if (UriHandler.ProcessCommandLine(Args, bFirstInstance, ActivateEvent))
+					{
+						return;
+					}
+
+					if (bFirstInstance)
 					{
 						InnerMain(InstanceMutex, ActivateEvent, Args);
 					}
@@ -66,6 +76,9 @@ namespace UnrealGameSync
             string ProjectFileName;
             ParseArgument(RemainingArgs, "-project=", out ProjectFileName);
 
+			string Uri;
+			ParseArgument(RemainingArgs, "-uri=", out Uri);
+
 			string UpdateConfigFile = Path.Combine(Path.GetDirectoryName(Assembly.GetExecutingAssembly().Location), "AutoUpdate.ini");
 			MergeUpdateSettings(UpdateConfigFile, ref UpdatePath, ref UpdateSpawn);
 
@@ -84,6 +97,9 @@ namespace UnrealGameSync
 
 			string DataFolder = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "UnrealGameSync");
 			Directory.CreateDirectory(DataFolder);
+
+			// Enable TLS 1.1 and 1.2. TLS 1.0 is now deprecated and not allowed by default in NET Core servers.
+			ServicePointManager.SecurityProtocol |= SecurityProtocolType.Tls11 | SecurityProtocolType.Tls12;
 
 			// Create the log file
 			using (TimestampLogWriter Log = new TimestampLogWriter(new BoundedLogWriter(Path.Combine(DataFolder, "UnrealGameSync.log"))))
@@ -117,7 +133,7 @@ namespace UnrealGameSync
 						PerforceConnection DefaultConnection = new PerforceConnection(UserName, null, ServerAndPort);
 						using (UpdateMonitor UpdateMonitor = new UpdateMonitor(DefaultConnection, UpdatePath))
 						{
-							ProgramApplicationContext Context = new ProgramApplicationContext(DefaultConnection, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, Log);
+							ProgramApplicationContext Context = new ProgramApplicationContext(DefaultConnection, UpdateMonitor, DeploymentSettings.ApiUrl, DataFolder, ActivateEvent, bRestoreState, UpdateSpawn, ProjectFileName, bUnstable, Log, Uri);
 							Application.Run(Context);
 
 							if (UpdateMonitor.IsUpdateAvailable && UpdateSpawn != null)

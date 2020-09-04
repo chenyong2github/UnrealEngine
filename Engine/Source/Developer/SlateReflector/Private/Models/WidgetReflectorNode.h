@@ -38,6 +38,8 @@ struct FWidgetHitTestInfo
 class FWidgetReflectorNodeBase
 {
 public:
+	using TPointerAsInt = uint64; // We can't use PTRINT since the target may be 32bits and the json could be saved in 64bits
+
 	/**
 	 * Destructor
 	 */
@@ -105,6 +107,11 @@ public:
 	virtual int32 GetWidgetLineNumber() const = 0;
 
 	/**
+	 * @return true if the data of the asset that the widget we were initialized from was created from (for UMG widgets) is valid
+	 */
+	virtual bool HasValidWidgetAssetData() const = 0;
+
+	/**
 	 * @return The data of the asset that the widget we were initialized from was created from (for UMG widgets)
 	 */
 	virtual FAssetData GetWidgetAssetData() const = 0;
@@ -122,7 +129,7 @@ public:
 	/**
 	 * @return The in-memory address of the widget we were initialized from
 	 */
-	virtual FString GetWidgetAddress() const = 0;
+	virtual TPointerAsInt GetWidgetAddress() const = 0;
 
 	/**
 	 * @return True if the the widget we were initialized from is enabled, false otherwise
@@ -236,10 +243,11 @@ public:
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
 	virtual int32 GetWidgetLineNumber() const override;
+	virtual bool HasValidWidgetAssetData() const override;
 	virtual FAssetData GetWidgetAssetData() const override;
 	virtual FVector2D GetWidgetDesiredSize() const override;
 	virtual FSlateColor GetWidgetForegroundColor() const override;
-	virtual FString GetWidgetAddress() const override;
+	virtual TPointerAsInt GetWidgetAddress() const override;
 	virtual bool GetWidgetEnabled() const override;
 	virtual bool IsWidgetLive() const override { return true; }
 
@@ -291,10 +299,11 @@ public:
 	virtual FText GetWidgetReadableLocation() const override;
 	virtual FString GetWidgetFile() const override;
 	virtual int32 GetWidgetLineNumber() const override;
+	virtual bool HasValidWidgetAssetData() const override;
 	virtual FAssetData GetWidgetAssetData() const override;
 	virtual FVector2D GetWidgetDesiredSize() const override;
 	virtual FSlateColor GetWidgetForegroundColor() const override;
-	virtual FString GetWidgetAddress() const override;
+	virtual TPointerAsInt GetWidgetAddress() const override;
 	virtual bool GetWidgetEnabled() const override;
 	virtual bool IsWidgetLive() const override { return false; }
 
@@ -358,7 +367,7 @@ private:
 	FSlateColor CachedWidgetForegroundColor;
 
 	/** The in-memory address of the widget at the point it was passed to Initialize */
-	FString CachedWidgetAddress;
+	TPointerAsInt CachedWidgetAddress;
 
 	/** The enabled state of the widget at the point it was passed to Initialize */
 	bool CachedWidgetEnabled;
@@ -428,83 +437,117 @@ public:
 	 * @param CandidateNodes A list of FReflectorNodes that represent widgets.
 	 * @param WidgetPathToFind We want to find all reflector nodes corresponding to widgets in this path
 	 * @param SearchResult An array that gets results put in it
-	 * @param NodeIndexToFind Index of the widget in the path that we are currently looking for; we are done when we've found all of them
 	 */
-	static void FindLiveWidgetPath(const TArray<TSharedRef<FWidgetReflectorNodeBase>>& CandidateNodes, const FWidgetPath& WidgetPathToFind, TArray<TSharedRef<FWidgetReflectorNodeBase>>& SearchResult, int32 NodeIndexToFind = 0);
+	static void FindLiveWidgetPath(const TArray<TSharedRef<FWidgetReflectorNodeBase>>& CandidateNodes, const FWidgetPath& WidgetPathToFind, TArray<TSharedRef<FWidgetReflectorNodeBase>>& SearchResult);
+
+	/**
+	 * Locate the widget in a list of nodes and their children.
+	 * @note This only really works for live nodes, as the snapshot nodes may no longer exist, or not even be local to this machine
+	 *
+	 * @param CandidateNodes A list of FReflectorNodes that represent widgets.
+	 * @param WidgetToFind We want to find the reflector nodes corresponding to this widget
+	 * @param SearchResult An array that gets results put in it
+	 */
+	static void FindLiveWidget(const TArray<TSharedRef<FWidgetReflectorNodeBase>>& CandidateNodes, const TSharedPtr<const SWidget>& WidgetToFind, TArray<TSharedRef<FWidgetReflectorNodeBase>>& SearchResult);
+
+	/**
+	 * Locate the widget pointer in a list of nodes and their children.
+	 * @note This only really works for snapshot nodes, as the live node may no longer have the same pointer
+	 *
+	 * @param CandidateNodes A list of FReflectorNodes that represent widgets.
+	 * @param WidgetPointer We want to find all reflector nodes corresponding to widgets in this path
+	 * @param SearchResult An array that gets results put in it
+	 */
+	static void FindSnaphotWidget(const TArray<TSharedRef<FWidgetReflectorNodeBase>>& CandidateNodes, FWidgetReflectorNodeBase::TPointerAsInt WidgetToFind, TArray<TSharedRef<FWidgetReflectorNodeBase>>& SearchResult);
 
 public:
 	/**
 	 * @return The type string for the given widget
 	 */
-	static FText GetWidgetType(const TSharedPtr<SWidget>& InWidget);
+	static FText GetWidgetType(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return The type string combined with a short name (if any) for the given widget
 	 */
-	static FText GetWidgetTypeAndShortName(const TSharedPtr<SWidget>& InWidget);
+	static FText GetWidgetTypeAndShortName(const TSharedPtr<const SWidget>& InWidget);
 	
 	/**
 	 * @return The current visibility string for the given widget
 	 */
-	static FText GetWidgetVisibilityText(const TSharedPtr<SWidget>& InWidget);
+	static FText GetWidgetVisibilityText(const TSharedPtr<const SWidget>& InWidget);
 
 	/** Is the widget visible? */
-	static bool GetWidgetVisibility(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetVisibility(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return The current clipping string for the given widget
 	 */
-	static FText GetWidgetClippingText(const TSharedPtr<SWidget>& InWidget);
+	static FText GetWidgetClippingText(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	* @return The current focusability for the given widget
 	*/
-	static bool GetWidgetFocusable(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetFocusable(const TSharedPtr<const SWidget>& InWidget);
 
-	static bool GetWidgetNeedsTick(const TSharedPtr<SWidget>& InWidget);
-	static bool GetWidgetIsVolatile(const TSharedPtr<SWidget>& InWidget);
-	static bool GetWidgetIsVolatileIndirectly(const TSharedPtr<SWidget>& InWidget);
-	static bool GetWidgetHasActiveTimers(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetNeedsTick(const TSharedPtr<const SWidget>& InWidget);
+	static bool GetWidgetIsVolatile(const TSharedPtr<const SWidget>& InWidget);
+	static bool GetWidgetIsVolatileIndirectly(const TSharedPtr<const SWidget>& InWidget);
+	static bool GetWidgetHasActiveTimers(const TSharedPtr<const SWidget>& InWidget);
 	
 	/**
 	 * The human readable location for widgets that are defined in C++ is the file and line number
 	 * The human readable location for widgets that are defined in UMG is the asset name
 	 * @return The fully human readable location for the given widget
 	 */
-	static FText GetWidgetReadableLocation(const TSharedPtr<SWidget>& InWidget);
+	static FText GetWidgetReadableLocation(const TSharedPtr<const SWidget>& InWidget);
 	
 	/**
 	 * @return The name of the file that this widget was created from (for C++ widgets)
 	 */
-	static FString GetWidgetFile(const TSharedPtr<SWidget>& InWidget);
+	static FString GetWidgetFile(const TSharedPtr<const SWidget>& InWidget);
 	
 	/**
 	 * @return The line number of the file that this widget was created from (for C++ widgets)
 	 */
-	static int32 GetWidgetLineNumber(const TSharedPtr<SWidget>& InWidget);
+	static int32 GetWidgetLineNumber(const TSharedPtr<const SWidget>& InWidget);
+
+	/**
+	 * @return true if the name of the asset that this widget was created from (for UMG widgets) is valid
+	 */
+	static bool HasValidWidgetAssetData(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return The name of the asset that this widget was created from (for UMG widgets)
 	 */
-	static FAssetData GetWidgetAssetData(const TSharedPtr<SWidget>& InWidget);
+	static FAssetData GetWidgetAssetData(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return The current desired size of the given widget
 	 */
-	static FVector2D GetWidgetDesiredSize(const TSharedPtr<SWidget>& InWidget);
+	static FVector2D GetWidgetDesiredSize(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return The in-memory address of the widget, converted to a string
 	 */
-	static FString GetWidgetAddress(const TSharedPtr<SWidget>& InWidget);
+	static FString GetWidgetAddressAsString(const TSharedPtr<const SWidget>& InWidget);
+
+	/**
+	 * @return The in-memory address of the widget
+	 */
+	static FWidgetReflectorNodeBase::TPointerAsInt GetWidgetAddress(const TSharedPtr<const SWidget>& InWidget);
+
+	/**
+	 * @return Convert a widget address into a string
+	 */
+	static FString WidgetAddressToString(FWidgetReflectorNodeBase::TPointerAsInt InWidgetPtr);
 
 	/**
 	 * @return The current foreground color of the given widget
 	 */
-	static FSlateColor GetWidgetForegroundColor(const TSharedPtr<SWidget>& InWidget);
+	static FSlateColor GetWidgetForegroundColor(const TSharedPtr<const SWidget>& InWidget);
 
 	/**
 	 * @return True if the given widget is currently enabled, false otherwise
 	 */
-	static bool GetWidgetEnabled(const TSharedPtr<SWidget>& InWidget);
+	static bool GetWidgetEnabled(const TSharedPtr<const SWidget>& InWidget);
 };

@@ -678,10 +678,11 @@ public:
 		, PlatformHash(0)
 		, TimeoutInSeconds(0.0f)
 	{
-		QuerySettings.Set(SETTING_MAPNAME, FString(), EOnlineComparisonOp::Equals);
-		QuerySettings.Set(SEARCH_DEDICATED_ONLY, false, EOnlineComparisonOp::Equals);
-		QuerySettings.Set(SEARCH_EMPTY_SERVERS_ONLY, false, EOnlineComparisonOp::Equals);
-		QuerySettings.Set(SEARCH_SECURE_SERVERS_ONLY, false, EOnlineComparisonOp::Equals);
+		// Examples of setting search parameters
+		// QuerySettings.Set(SETTING_MAPNAME, FString(), EOnlineComparisonOp::Equals);
+		// QuerySettings.Set(SEARCH_DEDICATED_ONLY, false, EOnlineComparisonOp::Equals);
+		// QuerySettings.Set(SEARCH_EMPTY_SERVERS_ONLY, false, EOnlineComparisonOp::Equals);
+		// QuerySettings.Set(SEARCH_SECURE_SERVERS_ONLY, false, EOnlineComparisonOp::Equals);
 	}
 
 	virtual ~FOnlineSessionSearch()

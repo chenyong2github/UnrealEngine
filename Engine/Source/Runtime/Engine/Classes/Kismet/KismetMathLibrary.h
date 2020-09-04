@@ -358,6 +358,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Clamp (integer)"), Category="Math|Integer")
 	static int32 Clamp(int32 Value, int32 Min, int32 Max);
 
+	/** Returns Value between A and B (inclusive) that wraps around */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Wrap (integer)", Min = "0", Max = "100"), Category = "Math|Integer")
+	static int32 Wrap(int32 Value, int32 Min, int32 Max);
+
 	/** Returns the absolute (positive) value of A */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Absolute (integer)", CompactNodeTitle = "ABS"), Category="Math|Integer")
 	static int32 Abs_Int(int32 A);
@@ -371,7 +375,7 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	static int64 Multiply_Int64Int64(int64 A, int64 B);
 
 	/** Division (A / B) */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer64 / integer64", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer")
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "integer64 / integer64", CompactNodeTitle = "/", Keywords = "/ divide division"), Category="Math|Integer64")
 	static int64 Divide_Int64Int64(int64 A, int64 B = 1);
 	
 	/** Addition (A + B) */
@@ -706,6 +710,10 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "Clamp (float)", Min="0.0", Max="1.0"), Category="Math|Float")
 	static float FClamp(float Value, float Min, float Max);
 
+	/** Returns Value wrapped from A and B (inclusive) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "Wrap (float)", Min = "0.0", Max = "1.0"), Category = "Math|Float")
+	static float FWrap(float Value, float Min, float Max);
+
 	/** This functions returns 0 if B (the denominator) is zero */
 	UFUNCTION(BlueprintPure, Category = "Math|Float", meta = (Keywords = "percent"))
 	static float SafeDivide(float A, float B);
@@ -870,32 +878,32 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint + IntPoint", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus"), Category = "Math|IntPoint")
 	static FIntPoint Add_IntPointIntPoint(FIntPoint A, FIntPoint B);
 
-	/** Returns IntPoint A added by B */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint + int", CompactNodeTitle = "+", ScriptMethod = "AddInt", ScriptOperator = "+;+=", Keywords = "+ add plus"), Category = "Math|IntPoint")
+	/** Addition (A - B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint + Integer", CompactNodeTitle = "+", ScriptMethod = "AddInt", ScriptOperator = "+;+=", Keywords = "+ add plus"), Category = "Math|IntPoint")
 	static FIntPoint Add_IntPointInt(FIntPoint A, int32 B);
 
 	/** Returns IntPoint A subtracted by B */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint - IntPoint", CompactNodeTitle = "-", ScriptMethod = "Subtract", ScriptOperator = "-;-=", Keywords = "- subtract minus"), Category = "Math|IntPoint")
 	static FIntPoint Subtract_IntPointIntPoint(FIntPoint A, FIntPoint B);
 
-	/** Returns IntPoint A subtracted by B */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint - Int", CompactNodeTitle = "-", ScriptMethod = "SubtractInt", ScriptOperator = "-;-=", Keywords = "- subtract minus"), Category = "Math|IntPoint")
+	/** Subtraction (A - B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint - Integer", CompactNodeTitle = "-", ScriptMethod = "SubtractInt", ScriptOperator = "-;-=", Keywords = "- subtract minus"), Category = "Math|IntPoint")
 	static FIntPoint Subtract_IntPointInt(FIntPoint A, int32 B);
 
 	/** Returns IntPoint A multiplied by B */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint * IntPoint", CompactNodeTitle = "*", ScriptMethod = "Multiply", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|IntPoint")
 	static FIntPoint Multiply_IntPointIntPoint(FIntPoint A, FIntPoint B);
 
-	/** Returns IntPoint A multiplied by B */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint * Int", CompactNodeTitle = "*", ScriptMethod = "MultiplyInt", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|IntPoint")
+	/** Multiplication (A * B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint * Integer", CompactNodeTitle = "*", ScriptMethod = "MultiplyInt", ScriptOperator = "*;*=", Keywords = "* multiply"), Category = "Math|IntPoint")
 	static FIntPoint Multiply_IntPointInt(FIntPoint A, int32 B);
 
 	/** Returns IntPoint A divided by B */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint / IntPoint", CompactNodeTitle = "/", ScriptMethod = "Divide", ScriptOperator = "/;/=", Keywords = "/ divide"), Category = "Math|IntPoint")
 	static FIntPoint Divide_IntPointIntPoint(FIntPoint A, FIntPoint B);
 
-	/** Returns IntPoint A divided by B */
-	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint / Int", CompactNodeTitle = "/", ScriptMethod = "DivideInt", ScriptOperator = "/;/=", Keywords = "/ divide"), Category = "Math|IntPoint")
+	/** Division (A * B) */
+	UFUNCTION(BlueprintPure, meta = (DisplayName = "IntPoint / Integer", CompactNodeTitle = "/", ScriptMethod = "DivideInt", ScriptOperator = "/;/=", Keywords = "/ divide"), Category = "Math|IntPoint")
 	static FIntPoint Divide_IntPointInt(FIntPoint A, int32 B);
 
 	/** Returns true if IntPoint A is equal to IntPoint B (A == B) */
@@ -1279,6 +1287,9 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(ScriptMethod = "RotatorFromAxisAndAngle", Keywords="make construct build rotate rotation"), Category="Math|Vector")
 	static FRotator RotatorFromAxisAndAngle(FVector Axis, float Angle);
 
+	UE_DEPRECATED(4.26, "Conv_VectorToQuaterion was renamed to Conv_VectorToQuaternion")
+	static FQuat Conv_VectorToQuaterion(FVector InVec);
+
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
 	 * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
@@ -1288,8 +1299,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 *
 	 * @return Quaternion from the Vector's direction, without any roll.
 	 */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaterion (Vector)", ScriptMethod = "Quaternion", Keywords="rotation rotate cast convert", BlueprintAutocast), Category="Math|Conversions")
-	static FQuat Conv_VectorToQuaterion(FVector InVec);
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaternion (Vector)", ScriptMethod = "Quaternion", Keywords="rotation rotate cast convert", BlueprintAutocast), Category="Math|Conversions")
+	static FQuat Conv_VectorToQuaternion(FVector InVec);
 
 	/** Vector addition */
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "vector + vector", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category="Math|Vector")
@@ -1951,6 +1962,9 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Rotation (Vector4)", ScriptMethod = "Rotator", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
 	static FRotator Conv_Vector4ToRotator(const FVector4& InVec);
 
+	UE_DEPRECATED(4.26, "Conv_Vector4ToQuaterion renamed to Conv_Vector4ToQuaternion")
+	static FQuat Conv_Vector4ToQuaterion(const FVector4& InVec);
+	
 	/**
 	 * Return the Quaternion orientation corresponding to the direction in which the vector points.
 	 * Similar to the FRotator version, returns a result without roll such that it preserves the up vector.
@@ -1960,8 +1974,8 @@ class ENGINE_API UKismetMathLibrary : public UBlueprintFunctionLibrary
 	 *
 	 * @return Quaternion from the Vector's direction, without any roll.
 	 */
-	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaterion (Vector4)", ScriptMethod = "Quaternion", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
-	static FQuat Conv_Vector4ToQuaterion(const FVector4& InVec);
+	UFUNCTION(BlueprintPure, meta=(DisplayName = "To Quaternion (Vector4)", ScriptMethod = "Quaternion", Keywords = "rotation rotate cast convert", BlueprintAutocast), Category = "Math|Conversions")
+	static FQuat Conv_Vector4ToQuaternion(const FVector4& InVec);
 
 	/** Returns addition of Vector A and Vector B (A + B) */
 	UFUNCTION(BlueprintPure, meta = (DisplayName = "Vector4 + Vector4", CompactNodeTitle = "+", ScriptMethod = "Add", ScriptOperator = "+;+=", Keywords = "+ add plus", CommutativeAssociativeBinaryOperator = "true"), Category = "Math|Vector4")

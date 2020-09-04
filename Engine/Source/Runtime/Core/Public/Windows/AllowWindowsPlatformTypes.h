@@ -5,7 +5,7 @@
 #ifndef WINDOWS_PLATFORM_TYPES_GUARD
 	#define WINDOWS_PLATFORM_TYPES_GUARD
 #else
-	#error Nesting AllowWindowsPLatformTypes.h is not allowed!
+	#error Nesting AllowWindowsPlatformTypes.h is not allowed!
 #endif
 
 #pragma warning( push )

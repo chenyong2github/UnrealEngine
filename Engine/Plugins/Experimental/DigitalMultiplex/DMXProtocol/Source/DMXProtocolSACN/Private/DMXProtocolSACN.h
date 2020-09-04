@@ -40,6 +40,7 @@ public:
 	virtual bool IsEnabled() const override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> AddUniverse(const FJsonObject& InSettings) override;
 	virtual void CollectUniverses(const TArray<FDMXUniverse>& Universes) override;
+	virtual void UpdateUniverse(uint32 InUniverseId, const FJsonObject& InSettings) override;
 	virtual bool RemoveUniverseById(uint32 InUniverseId) override;
 	virtual void RemoveAllUniverses() override;
 	virtual TSharedPtr<IDMXProtocolUniverse, ESPMode::ThreadSafe> GetUniverseById(uint32 InUniverseId) const override;
@@ -49,10 +50,19 @@ public:
 	virtual uint32 GetUniversesNum() const override;
 	virtual uint16 GetMinUniverseID() const override;
 	virtual uint16 GetMaxUniverses() const override;
-	virtual FOnUniverseInputUpdateEvent& GetOnUniverseInputUpdate() override
-	{
-		return OnUniverseInputUpdateEvent;
-	}
+	virtual void GetDefaultUniverseSettings(uint16 InUniverseID, FJsonObject& OutSettings) const override;
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseInputBufferUpdated, FOnUniverseInputBufferUpdated);
+	virtual FOnUniverseInputBufferUpdated& GetOnUniverseInputBufferUpdated() override { return OnUniverseInputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnUniverseOutputBufferUpdated, FOnUniverseOutputBufferUpdated);
+	virtual FOnUniverseOutputBufferUpdated& GetOnUniverseOutputBufferUpdated() override { return OnUniverseOutputBufferUpdated; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketReceived, FOnPacketReceived);
+	virtual FOnPacketReceived& GetOnPacketReceived() override { return OnPacketReceived; }
+
+	DECLARE_DERIVED_EVENT(FDMXProtocolArtNet, IDMXProtocol::FOnPacketSent, FOnPacketSent);
+	virtual FOnPacketSent& GetOnPacketSent() override { return OnPacketSent; }
 	//~ End IDMXProtocol implementation
 
 	//~ Begin IDMXNetworkInterface implementation
@@ -69,11 +79,16 @@ public:
 	//~ sACN specific implementation
 	bool SendDiscovery(const TArray<uint16>& Universes);
 
+	//~ sACN public getters
+	const TSharedPtr<FDMXProtocolUniverseManager<FDMXProtocolUniverseSACN>>& GetUniverseManager() const { return UniverseManager; }
+
 	//~ Only the factory makes instances
 	FDMXProtocolSACN() = delete;
 
 public:
-	static TSharedPtr<FInternetAddr> GetUniverseAddr(uint16 InUniverseID);
+	static uint32 GetUniverseAddrByID(uint16 InUniverseID);
+
+	static uint32 GetUniverseAddrUnicast(FString UnicastAddress);
 
 private:
 	EDMXSendResult SendDMXInternal(uint16 UniverseID, const FDMXBufferPtr& DMXBuffer) const;
@@ -93,7 +108,10 @@ private:
 	/** Holds the network socket used to sender packages. */
 	FSocket* SenderSocket;
 
-	FOnUniverseInputUpdateEvent OnUniverseInputUpdateEvent;
+	FOnUniverseInputBufferUpdated OnUniverseInputBufferUpdated;
+	FOnUniverseOutputBufferUpdated OnUniverseOutputBufferUpdated;
+	FOnPacketReceived OnPacketReceived;
+	FOnPacketSent OnPacketSent;
 
 	/** Mutex protecting access to the listening socket. */
 	mutable FCriticalSection SenderSocketCS;

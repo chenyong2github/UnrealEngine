@@ -19,6 +19,7 @@ class UEdGraph;
 struct FNotificationInfo;
 struct Rect;
 class FMenuBuilder;
+class FAssetEditorToolkit;
 
 DECLARE_DELEGATE_ThreeParams( FOnNodeTextCommitted, const FText&, ETextCommit::Type, UEdGraphNode* );
 DECLARE_DELEGATE_RetVal_ThreeParams( bool, FOnNodeVerifyTextCommit, const FText&, UEdGraphNode*, FText& );
@@ -147,6 +148,7 @@ public:
 		SLATE_ARGUMENT( UEdGraph*, GraphToDiff )
 		SLATE_ARGUMENT( FGraphEditorEvents, GraphEvents)
 		SLATE_ARGUMENT( bool, AutoExpandActionMenu )
+		SLATE_ARGUMENT( TWeakPtr<FAssetEditorToolkit>, AssetEditorToolkit)
 		SLATE_EVENT(FSimpleDelegate, OnNavigateHistoryBack)
 		SLATE_EVENT(FSimpleDelegate, OnNavigateHistoryForward)
 
@@ -392,7 +394,7 @@ public:
 		}
 	}
 
-	virtual void StraightenConnections(UEdGraphPin* SourcePin, UEdGraphPin* PinToAlign = nullptr)
+	virtual void StraightenConnections(UEdGraphPin* SourcePin, UEdGraphPin* PinToAlign = nullptr) const
 	{
 		if (Implementation.IsValid())
 		{
@@ -583,6 +585,8 @@ private:
 protected:
 	/** The Graph we are currently editing */
 	UEdGraph* EdGraphObj;
+
+	TWeakPtr<FAssetEditorToolkit> AssetEditorToolkit;
 private:
 	/** The actual implementation of the GraphEditor */
 	TSharedPtr<SGraphEditor> Implementation;

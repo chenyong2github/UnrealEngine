@@ -81,7 +81,7 @@ public class OpenVDB : ModuleRules
             // Add TBB
             {
                 // store the compiled tbb library in the same area as the rest of the third party code
-                string TBBPath = Target.UEThirdPartySourceDirectory + "IntelTBB/IntelTBB-2019u8";
+                string TBBPath = Target.UEThirdPartySourceDirectory + "Intel/TBB/IntelTBB-2019u8";
                 PublicIncludePaths.Add(Path.Combine(TBBPath, "include"));
                 string TBBLibPath = TBBPath + "/lib/Win64/vc14";
                 if (bDebug)

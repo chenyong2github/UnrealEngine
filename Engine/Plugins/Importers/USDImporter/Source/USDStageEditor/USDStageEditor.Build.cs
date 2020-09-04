@@ -9,8 +9,6 @@ namespace UnrealBuildTool.Rules
 	{
 		public USDStageEditor(ReadOnlyTargetRules Target) : base(Target)
 		{
-			bUseRTTI = true;
-
 			PrivateDependencyModuleNames.AddRange(
 				new string[]
 				{
@@ -25,12 +23,13 @@ namespace UnrealBuildTool.Rules
 					"SlateCore",
 					"UnrealEd",
 					"UnrealUSDWrapper",
-					"USDImporter",
+					"USDStageImporter",
 					"USDStage",
+					"USDStageEditorViewModels",
 					"USDUtilities",
 					"WorkspaceMenuStructure",
 				}
-				);
+			);
 		}
 	}
 }

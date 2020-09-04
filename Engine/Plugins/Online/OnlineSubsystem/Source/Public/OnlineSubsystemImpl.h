@@ -112,6 +112,8 @@ public:
 	virtual IOnlineGameActivityPtr GetGameActivityInterface() const override;
 	virtual IOnlineGameItemStatsPtr GetGameItemStatsInterface() const override;
 	virtual IOnlineGameMatchesPtr GetGameMatchesInterface() const override;
+	virtual IOnlineTurnBasedPtr GetTurnBasedInterface() const override;
+	virtual IOnlineTournamentPtr GetTournamentInterface() const override;
 	virtual void PreUnload() override;
 	virtual bool Shutdown() override;
 	virtual bool IsServer() const override;

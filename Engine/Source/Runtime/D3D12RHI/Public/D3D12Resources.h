@@ -637,6 +637,11 @@ private:
 
 class FD3D12DeferredDeletionQueue : public FD3D12AdapterChild
 {
+public:
+	using FFencePair = TPair<FD3D12Fence*, uint64>;
+	using FFenceList = TArray<FFencePair, TInlineAllocator<1>>;
+
+private:
 	enum class EObjectType
 	{
 		RHI,
@@ -650,8 +655,7 @@ class FD3D12DeferredDeletionQueue : public FD3D12AdapterChild
 			FD3D12Resource* RHIObject;
 			ID3D12Object*   D3DObject;
 		};
-		FD3D12Fence* Fence;
-		uint64 FenceValue;
+		FFenceList FenceList;
 		EObjectType Type;
 	};
 	FThreadsafeQueue<FencedObjectType> DeferredReleaseQueue;
@@ -660,7 +664,7 @@ public:
 
 	inline const uint32 QueueSize() const { return DeferredReleaseQueue.GetSize(); }
 
-	void EnqueueResource(FD3D12Resource* pResource, FD3D12Fence* Fence);
+	void EnqueueResource(FD3D12Resource* pResource, FFenceList&& FenceList);
 	void EnqueueResource(ID3D12Object* pResource, FD3D12Fence* Fence);
 
 	bool ReleaseResources(bool bDeleteImmediately, bool bIsShutDown);

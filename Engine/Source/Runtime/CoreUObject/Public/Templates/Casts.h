@@ -24,9 +24,7 @@ class UStaticMeshComponent;
 template<class TClass> class TSubclassOf;
 /// @endcond
 
-FUNCTION_NO_RETURN_START
-	COREUOBJECT_API void CastLogError(const TCHAR* FromType, const TCHAR* ToType)
-FUNCTION_NO_RETURN_END;
+UE_NORETURN COREUOBJECT_API void CastLogError(const TCHAR* FromType, const TCHAR* ToType);
 
 /**
  * Metafunction which detects whether or not a class is an IInterface.  Rules:
@@ -311,11 +309,6 @@ FORCEINLINE T* ExactCast( UObject* Src )
 template< class T, class U > FORCEINLINE T* Cast       ( const TWeakObjectPtr<U>& Src                                                                   ) { return Cast       <T>(Src.Get()); }
 template< class T, class U > FORCEINLINE T* ExactCast  ( const TWeakObjectPtr<U>& Src                                                                   ) { return ExactCast  <T>(Src.Get()); }
 template< class T, class U > FORCEINLINE T* CastChecked( const TWeakObjectPtr<U>& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(Src.Get(), CheckType); }
-
-// FSubobjectPtr versions
-template< class T > FORCEINLINE T* Cast       ( const FSubobjectPtr& Src                                                                   ) { return Cast       <T>(Src.Get()); }
-template< class T > FORCEINLINE T* ExactCast  ( const FSubobjectPtr& Src                                                                   ) { return ExactCast  <T>(Src.Get()); }
-template< class T > FORCEINLINE T* CastChecked( const FSubobjectPtr& Src, ECastCheckedType::Type CheckType = ECastCheckedType::NullChecked ) { return CastChecked<T>(Src.Get(), CheckType); }
 
 // TSubclassOf versions
 template< class T, class U > FORCEINLINE T* Cast       ( const TSubclassOf<U>& Src                                                                   ) { return Cast       <T>(*Src); }

@@ -4,7 +4,7 @@
 PathTracingRayGenShader.usf: Reference path tracing
 ===============================================================================================*/
 
-#define PATH_TRACING
+#define PATH_TRACING  
 
 #include "../Common.ush"
 #include "../PostProcessCommon.ush"
@@ -209,7 +209,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 						// Evaluate material
 						float3 MaterialThroughput;
 						float MaterialEvalPdf = 0.0;
-						EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, MaterialThroughput, MaterialEvalPdf);
+						EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, false, MaterialThroughput, MaterialEvalPdf);
 
 						// Apply material Pdf for correct MIS weight
 						float MisWeight = 1.0;
@@ -218,7 +218,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 #if 0
 							// DEBUG: Validate Material PDF
 							float MaterialPdfTmp;
-							PdfMaterial(Ray.Direction, LightRay, RayHitInfo, MaterialPdfTmp);
+							PdfMaterial(Ray.Direction, LightRay, RayHitInfo, false, MaterialPdfTmp);
 							if (abs(MaterialPdf - MaterialPdfTmp) > 0.0001)
 							{
 								MaterialThroughput *= -1.f;
@@ -240,15 +240,15 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
 			float SignedPositionBias;
 			float SamplePdf;
-			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, Direction, Throughput, SamplePdf, SignedPositionBias);
+			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, false, Direction, Throughput, SamplePdf, SignedPositionBias);
 			if (SamplePdf == 0.0)
 			{
 				break;
 			}
 
-			PdfMaterial(Ray.Direction, Direction, Payload, MaterialPdf);
+			PdfMaterial(Ray.Direction, Direction, Payload, false, MaterialPdf);
 			// Debug: Evaluation of a candidate sample direction should maintain energy balance with pathspace MIS
-			// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Throughput, MaterialPdf);
+			// EvalMaterial(Ray.Direction, Direction, RayHitInfo, false, Throughput, MaterialPdf);
 			// SamplePdf = MaterialPdf;
 
 			// Update ray

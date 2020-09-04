@@ -295,6 +295,16 @@ struct FCopyBufferRegionParams
 	uint64 NumBytes;
 };
 
+struct FTransferTextureParams
+{
+	FRHITexture2D* Texture;
+	FIntVector Min;
+	FIntVector Max;
+	uint32 SrcGPUIndex;
+	uint32 DestGPUIndex;
+	bool PullData;
+};
+
 /** The interface RHI command context. Sometimes the RHI handles these. On platforms that can processes command lists in parallel, it is a separate object. */
 class IRHICommandContext : public IRHIComputeContext
 {
@@ -514,7 +524,7 @@ public:
 	// @param MaxY excluding like Win32 RECT
 	virtual void RHISetScissorRect(bool bEnable, uint32 MinX, uint32 MinY, uint32 MaxX, uint32 MaxY) = 0;
 
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState) = 0;
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState) = 0;
 
 	/** Set the shader resource view of a surface. */
 	virtual void RHISetShaderTexture(FRHIGraphicsShader* Shader, uint32 TextureIndex, FRHITexture* NewTexture) = 0;
@@ -580,10 +590,6 @@ public:
 
 	virtual void RHISetBlendFactor(const FLinearColor& BlendFactor) {}
 
-	virtual void RHISetRenderTargets(uint32 NumSimultaneousRenderTargets, const FRHIRenderTargetView* NewRenderTargets, const FRHIDepthRenderTargetView* NewDepthStencilTarget) = 0;
-
-	virtual void RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo) = 0;
-
 	// Bind the clear state of the currently set render targets. This is used by platforms which
 	// need the state of the target when finalizing a hardware clear or a resource transition to SRV
 	// The explicit bind is needed to support parallel rendering (propagate state between contexts).
@@ -620,68 +626,11 @@ public:
 
 	virtual void RHIUpdateTextureReference(FRHITextureReference* TextureRef, FRHITexture* NewTexture) = 0;
 
-	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName)
-	{
-		if (InInfo.bGeneratingMips)
-		{
-			FRHITexture* Textures[MaxSimultaneousRenderTargets];
-			FRHITexture** LastTexture = Textures;
-			for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-			{
-				if (!InInfo.ColorRenderTargets[Index].RenderTarget)
-				{
-					break;
-				}
+	virtual void RHIBeginRenderPass(const FRHIRenderPassInfo& InInfo, const TCHAR* InName) = 0;
 
-				*LastTexture = InInfo.ColorRenderTargets[Index].RenderTarget;
-				++LastTexture;
-			}
+	virtual void RHIEndRenderPass() = 0;
 
-			//Use RWBarrier since we don't transition individual subresources.  Basically treat the whole texture as R/W as we walk down the mip chain.
-			int32 NumTextures = (int32)(LastTexture - Textures);
-			if (NumTextures)
-			{
-				RHITransitionResources(EResourceTransitionAccess::ERWSubResBarrier, Textures, NumTextures);
-			}
-		}
-
-		FRHISetRenderTargetsInfo RTInfo;
-		InInfo.ConvertToRenderTargetsInfo(RTInfo);
-		RHISetRenderTargetsAndClear(RTInfo);
-
-		RenderPassInfo = InInfo;
-	}
-
-	virtual void RHIEndRenderPass()
-	{
-		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			if (!RenderPassInfo.ColorRenderTargets[Index].RenderTarget)
-			{
-				break;
-			}
-			if (RenderPassInfo.ColorRenderTargets[Index].ResolveTarget)
-			{
-				RHICopyToResolveTarget(RenderPassInfo.ColorRenderTargets[Index].RenderTarget, RenderPassInfo.ColorRenderTargets[Index].ResolveTarget, RenderPassInfo.ResolveParameters);
-			}
-		}
-
-		if (RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget && RenderPassInfo.DepthStencilRenderTarget.ResolveTarget)
-		{
-			RHICopyToResolveTarget(RenderPassInfo.DepthStencilRenderTarget.DepthStencilTarget, RenderPassInfo.DepthStencilRenderTarget.ResolveTarget, RenderPassInfo.ResolveParameters);
-		}
-	}
-	
 	virtual void RHINextSubpass()
-	{
-	}
-
-	virtual void RHIBeginComputePass(const TCHAR* InName)
-	{
-		RHISetRenderTargets(0, nullptr, nullptr);
-	}
-
-	virtual void RHIEndComputePass()
 	{
 	}
 
@@ -852,7 +801,7 @@ public:
 	* This will set most relevant pipeline state. Legacy APIs are expected to set corresponding disjoint state as well.
 	* @param GraphicsShaderState - the graphics pipeline state
 	*/
-	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState) override
+	virtual void RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState) override
 	{
 		FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
 		FGraphicsPipelineStateInitializer& PsoInit = FallbackGraphicsState->Initializer;

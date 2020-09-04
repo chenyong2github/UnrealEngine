@@ -309,6 +309,10 @@ void MainVS(
 #define MOBILE_STENCIL_COMPARE_NEVER			6
 #define MOBILE_STENCIL_COMPARE_ALWAYS			7
 
+#ifndef MOBILE_STENCIL_COMPARE_FUNCTION
+#define MOBILE_STENCIL_COMPARE_FUNCTION MOBILE_STENCIL_COMPARE_NEVER
+#endif
+
 void MainPS(
 	in FPostProcessMaterialVSToPS Input,
 	out half4 OutColor : SV_Target0
@@ -389,10 +393,6 @@ void MainPS(
 #if POST_PROCESS_MATERIAL_BEFORE_TONEMAP
 #if OUTPUT_GAMMA_SPACE
 	FullSceneColor.rgb = sqrt(FullSceneColor.rgb);
-#endif
-
-#if !MATERIALBLENDING_MODULATE && USE_PREEXPOSURE
-	FullSceneColor.xyz *= View.PreExposure;
 #endif
 #endif
 	OutColor = FullSceneColor;

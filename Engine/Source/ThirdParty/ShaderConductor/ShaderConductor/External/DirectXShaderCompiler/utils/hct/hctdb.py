@@ -19,6 +19,8 @@ all_stages = (
     'closesthit',
     'miss',
     'callable',
+    'mesh',
+    'amplification',
     )
 
 class db_dxil_enum_value(object):
@@ -63,6 +65,7 @@ class db_dxil_inst(object):
         self.fn_attr = ""               # attribute shorthands: rn=does not access memory,ro=only reads from memory,
         self.is_deriv = False           # whether this is some kind of derivative
         self.is_gradient = False        # whether this requires a gradient calculation
+        self.is_feedback = False        # whether this is a sampler feedback op
         self.is_wave = False            # whether this requires in-wave, cross-lane functionality
         self.requires_uniform_inputs = False  # whether this operation requires that all of its inputs are uniform across the wave
         self.shader_stages = ()         # shader stages to which this applies, empty for all.
@@ -285,8 +288,8 @@ class db_dxil(object):
             self.name_idx[i].category = "Pixel shader"
             self.name_idx[i].shader_stages = ("pixel",)
         for i in "ThreadId,GroupId,ThreadIdInGroup,FlattenedThreadIdInGroup".split(","):
-            self.name_idx[i].category = "Compute shader"
-            self.name_idx[i].shader_stages = ("compute",)
+            self.name_idx[i].category = "Compute/Mesh/Amplification shader"
+            self.name_idx[i].shader_stages = ("compute", "mesh", "amplification")
         for i in "EmitStream,CutStream,EmitThenCutStream,GSInstanceID".split(","):
             self.name_idx[i].category = "Geometry shader"
             self.name_idx[i].shader_stages = ("geometry",)
@@ -304,7 +307,7 @@ class db_dxil(object):
             self.name_idx[i].shader_stages = ("geometry", "domain", "hull")
         for i in "ViewID".split(","):
             self.name_idx[i].category = "Graphics shader"
-            self.name_idx[i].shader_stages = ("vertex", "hull", "domain", "geometry", "pixel")
+            self.name_idx[i].shader_stages = ("vertex", "hull", "domain", "geometry", "pixel", "mesh")
         for i in "MakeDouble,SplitDouble,LegacyDoubleToFloat,LegacyDoubleToSInt32,LegacyDoubleToUInt32".split(","):
             self.name_idx[i].category = "Double precision"
         for i in "CycleCounterLegacy".split(","):
@@ -312,9 +315,17 @@ class db_dxil(object):
         for i in "LegacyF32ToF16,LegacyF16ToF32".split(","):
             self.name_idx[i].category = "Legacy floating-point"
         for i in self.instr:
-            if i.name.startswith("Wave") or i.name.startswith("Quad") or i.name == "GlobalOrderedCountInc":
+            if i.name.startswith("Wave"):
                 i.category = "Wave"
                 i.is_wave = True
+                i.shader_stages = (
+                    "library", "compute", "amplification", "mesh",
+                    "pixel", "vertex", "hull", "domain", "geometry",
+                    "raygeneration", "intersection", "anyhit", "closesthit", "miss", "callable")
+            elif i.name.startswith("Quad"):
+                i.category = "Quad Wave Ops"
+                i.is_wave = True
+                i.shader_stages = ("library", "compute", "amplification", "mesh", "pixel")
             elif i.name.startswith("Bitcast"):
                 i.category = "Bitcasts with different sizes"
         for i in "ViewID,AttributeAtVertex".split(","):
@@ -329,6 +340,10 @@ class db_dxil(object):
         for i in "InstanceID,InstanceIndex,PrimitiveIndex".split(","):
             self.name_idx[i].category = "Raytracing object space uint System Values"
             self.name_idx[i].shader_model = 6,3
+            self.name_idx[i].shader_stages = ("library","intersection","anyhit","closesthit")
+        for i in "GeometryIndex".split(","):
+            self.name_idx[i].category = "Raytracing object space uint System Values, raytracing tier 1.1"
+            self.name_idx[i].shader_model = 6,5
             self.name_idx[i].shader_stages = ("library","intersection","anyhit","closesthit")
         for i in "HitKind".split(","):
             self.name_idx[i].category = "Raytracing hit uint System Values"
@@ -374,11 +389,39 @@ class db_dxil(object):
             self.name_idx[i].category = "Library create handle from resource struct (like HL intrinsic)"
             self.name_idx[i].shader_model = 6,3
             self.name_idx[i].shader_model_translated = 6,0
+        for i in "CreateHandleFromHeap,AnnotateHandle".split(","):
+            self.name_idx[i].category = "Get handle from heap"
+            self.name_idx[i].shader_model = 6,6
         for i in "Dot4AddU8Packed,Dot4AddI8Packed,Dot2AddHalf".split(","):
             self.name_idx[i].category = "Dot product with accumulate"
             self.name_idx[i].shader_model = 6,4
         for i in "WaveMatch,WaveMultiPrefixOp,WaveMultiPrefixBitCount".split(","):
             self.name_idx[i].category = "Wave"
+            self.name_idx[i].shader_model = 6,5
+        for i in "SetMeshOutputCounts,EmitIndices,GetMeshPayload,StoreVertexOutput,StorePrimitiveOutput".split(","):
+            self.name_idx[i].category = "Mesh shader instructions"
+            self.name_idx[i].shader_stages = ("mesh",)
+            self.name_idx[i].shader_model = 6,5
+        for i in "DispatchMesh".split(","):
+            self.name_idx[i].category = "Amplification shader instructions"
+            self.name_idx[i].shader_stages = ("amplification",)
+            self.name_idx[i].shader_model = 6,5
+        for i in "WriteSamplerFeedback,WriteSamplerFeedbackBias".split(","):
+            self.name_idx[i].category = "Sampler Feedback"
+            self.name_idx[i].is_feedback = True
+            self.name_idx[i].shader_model = 6,5
+            self.name_idx[i].shader_stages = ("library", "pixel",)
+        for i in "WriteSamplerFeedbackLevel,WriteSamplerFeedbackGrad".split(","):
+            self.name_idx[i].category = "Sampler Feedback"
+            self.name_idx[i].is_feedback = True
+            self.name_idx[i].shader_model = 6,5
+        for i in ("AllocateRayQuery,RayQuery_TraceRayInline,RayQuery_Proceed,RayQuery_Abort,RayQuery_CommitNonOpaqueTriangleHit,RayQuery_CommitProceduralPrimitiveHit,RayQuery_RayFlags,RayQuery_WorldRayOrigin,RayQuery_WorldRayDirection,RayQuery_RayTMin,"+
+                 "RayQuery_CandidateTriangleRayT,RayQuery_CommittedRayT,RayQuery_CandidateInstanceIndex,RayQuery_CandidateInstanceID,RayQuery_CandidateGeometryIndex,RayQuery_CandidatePrimitiveIndex,"+
+                 "RayQuery_CandidateObjectRayOrigin,RayQuery_CandidateObjectRayDirection,RayQuery_CommittedInstanceIndex,RayQuery_CommittedInstanceID,RayQuery_CommittedGeometryIndex,RayQuery_CommittedPrimitiveIndex,"+
+                 "RayQuery_CommittedObjectRayOrigin,RayQuery_CommittedObjectRayDirection,RayQuery_CandidateProceduralPrimitiveNonOpaque,RayQuery_CandidateTriangleFrontFace,RayQuery_CommittedTriangleFrontFace,"+
+                 "RayQuery_CandidateTriangleBarycentrics,RayQuery_CommittedTriangleBarycentrics,RayQuery_CommittedStatus,RayQuery_CandidateType,RayQuery_CandidateObjectToWorld3x4,"+
+                 "RayQuery_CandidateWorldToObject3x4,RayQuery_CommittedObjectToWorld3x4,RayQuery_CommittedWorldToObject3x4,RayQuery_CandidateInstanceContributionToHitGroupIndex,RayQuery_CommittedInstanceContributionToHitGroupIndex").split(","):
+            self.name_idx[i].category = "Inline Ray Query"
             self.name_idx[i].shader_model = 6,5
 
     def populate_llvm_instructions(self):
@@ -1269,7 +1312,7 @@ class db_dxil(object):
             db_dxil_param(0, "v", "", "")])
         next_op_idx += 1
 
-        self.add_dxil_op("TraceRay", next_op_idx, "TraceRay", "returns the view index", "u", "", [
+        self.add_dxil_op("TraceRay", next_op_idx, "TraceRay", "initiates raytrace", "u", "", [
             db_dxil_param(0, "v", "", ""),
             db_dxil_param(2, "res", "AccelerationStructure", "Top-level acceleration structure to use"),
             db_dxil_param(3, "i32", "RayFlags", "Valid combination of Ray_flags"),
@@ -1373,9 +1416,340 @@ class db_dxil(object):
             db_dxil_param(6, "i32", "mask3", "mask 3")])
         next_op_idx += 1
 
+        # Mesh Shader
+        self.add_dxil_op("SetMeshOutputCounts", next_op_idx, "SetMeshOutputCounts", "Mesh shader intrinsic SetMeshOutputCounts", "v", "", [
+            retvoid_param,
+            db_dxil_param(2, "i32", "numVertices", "number of output vertices"),
+            db_dxil_param(3, "i32", "numPrimitives", "number of output primitives")])
+        next_op_idx += 1
+        self.add_dxil_op("EmitIndices", next_op_idx, "EmitIndices", "emit a primitive's vertex indices in a mesh shader", "v", "", [
+            retvoid_param,
+            db_dxil_param(2, "u32", "PrimitiveIndex", "a primitive's index"),
+            db_dxil_param(3, "u32", "VertexIndex0", "a primitive's first vertex index"),
+            db_dxil_param(4, "u32", "VertexIndex1", "a primitive's second vertex index"),
+            db_dxil_param(5, "u32", "VertexIndex2", "a primitive's third vertex index")])
+        next_op_idx += 1
+        self.add_dxil_op("GetMeshPayload", next_op_idx, "GetMeshPayload", "get the mesh payload which is from amplification shader", "u", "ro", [
+            db_dxil_param(0, "$o", "", "mesh payload result")])
+        next_op_idx += 1
+        self.add_dxil_op("StoreVertexOutput", next_op_idx, "StoreVertexOutput", "stores the value to mesh shader vertex output", "hfwi", "", [
+            retvoid_param,
+            db_dxil_param(2, "u32", "outputSigId", "vertex output signature element ID"),
+            db_dxil_param(3, "u32", "rowIndex", "row index relative to element"),
+            db_dxil_param(4, "u8", "colIndex", "column index relative to element"),
+            db_dxil_param(5, "$o", "value", "value to store"),
+            db_dxil_param(6, "u32", "vertexIndex", "vertex index")])
+        next_op_idx += 1
+        self.add_dxil_op("StorePrimitiveOutput", next_op_idx, "StorePrimitiveOutput", "stores the value to mesh shader primitive output", "hfwi", "", [
+            retvoid_param,
+            db_dxil_param(2, "u32", "outputSigId", "primitive output signature element ID"),
+            db_dxil_param(3, "u32", "rowIndex", "row index relative to element"),
+            db_dxil_param(4, "u8", "colIndex", "column index relative to element"),
+            db_dxil_param(5, "$o", "value", "value to store"),
+            db_dxil_param(6, "u32", "primitiveIndex", "primitive index")])
+        next_op_idx += 1
+
+        # Amplification Shader
+        self.add_dxil_op("DispatchMesh", next_op_idx, "DispatchMesh", "Amplification shader intrinsic DispatchMesh", "u", "", [
+            retvoid_param,
+            db_dxil_param(2, "i32", "threadGroupCountX", "thread group count x"),
+            db_dxil_param(3, "i32", "threadGroupCountY", "thread group count y"),
+            db_dxil_param(4, "i32", "threadGroupCountZ", "thread group count z"),
+            db_dxil_param(5, "$o", "payload", "payload")])
+        next_op_idx += 1
+
+        # Sampler feedback
+        self.add_dxil_op("WriteSamplerFeedback", next_op_idx, "WriteSamplerFeedback", "updates a feedback texture for a sampling operation", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "res", "feedbackTex", "handle of feedback texture UAV"),
+            db_dxil_param(3, "res", "sampledTex", "handled of sampled texture SRV"),
+            db_dxil_param(4, "res", "sampler", "handle of sampler"),
+            db_dxil_param(5, "f", "c0", "coordinate c0"),
+            db_dxil_param(6, "f", "c1", "coordinate c1"),
+            db_dxil_param(7, "f", "c2", "coordinate c2"),
+            db_dxil_param(8, "f", "c3", "coordinate c3"),
+            db_dxil_param(9, "f", "clamp", "clamp")])
+        next_op_idx += 1
+        self.add_dxil_op("WriteSamplerFeedbackBias", next_op_idx, "WriteSamplerFeedbackBias", "updates a feedback texture for a sampling operation with a bias on the mipmap level", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "res", "feedbackTex", "handle of feedback texture UAV"),
+            db_dxil_param(3, "res", "sampledTex", "handled of sampled texture SRV"),
+            db_dxil_param(4, "res", "sampler", "handle of sampler"),
+            db_dxil_param(5, "f", "c0", "coordinate c0"),
+            db_dxil_param(6, "f", "c1", "coordinate c1"),
+            db_dxil_param(7, "f", "c2", "coordinate c2"),
+            db_dxil_param(8, "f", "c3", "coordinate c3"),
+            db_dxil_param(9, "f", "bias", "bias in [-16.f,15.99f]"),
+            db_dxil_param(10, "f", "clamp", "clamp")])
+        next_op_idx += 1
+        self.add_dxil_op("WriteSamplerFeedbackLevel", next_op_idx, "WriteSamplerFeedbackLevel", "updates a feedback texture for a sampling operation with a mipmap-level offset", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "res", "feedbackTex", "handle of feedback texture UAV"),
+            db_dxil_param(3, "res", "sampledTex", "handled of sampled texture SRV"),
+            db_dxil_param(4, "res", "sampler", "handle of sampler"),
+            db_dxil_param(5, "f", "c0", "coordinate c0"),
+            db_dxil_param(6, "f", "c1", "coordinate c1"),
+            db_dxil_param(7, "f", "c2", "coordinate c2"),
+            db_dxil_param(8, "f", "c3", "coordinate c3"),
+            db_dxil_param(9, "f", "lod", "LOD")])
+        next_op_idx += 1
+        self.add_dxil_op("WriteSamplerFeedbackGrad", next_op_idx, "WriteSamplerFeedbackGrad", "updates a feedback texture for a sampling operation with explicit gradients", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "res", "feedbackTex", "handle of feedback texture UAV"),
+            db_dxil_param(3, "res", "sampledTex", "handled of sampled texture SRV"),
+            db_dxil_param(4, "res", "sampler", "handle of sampler"),
+            db_dxil_param(5, "f", "c0", "coordinate c0"),
+            db_dxil_param(6, "f", "c1", "coordinate c1"),
+            db_dxil_param(7, "f", "c2", "coordinate c2"),
+            db_dxil_param(8, "f", "c3", "coordinate c3"),
+            db_dxil_param(9, "f", "ddx0", "rate of change of coordinate c0 in the x direction"),
+            db_dxil_param(10, "f", "ddx1", "rate of change of coordinate c1 in the x direction"),
+            db_dxil_param(11, "f", "ddx2", "rate of change of coordinate c2 in the x direction"),
+            db_dxil_param(12, "f", "ddy0", "rate of change of coordinate c0 in the y direction"),
+            db_dxil_param(13, "f", "ddy1", "rate of change of coordinate c1 in the y direction"),
+            db_dxil_param(14, "f", "ddy2", "rate of change of coordinate c2 in the y direction"),
+            db_dxil_param(15, "f", "clamp", "clamp")])
+        next_op_idx += 1
+
+        # RayQuery
+        self.add_dxil_op("AllocateRayQuery", next_op_idx, "AllocateRayQuery", "allocates space for RayQuery and return handle", "v", "", [
+            db_dxil_param(0, "i32", "", "handle to RayQuery state"),
+            db_dxil_param(2, "u32", "constRayFlags", "Valid combination of RAY_FLAGS", is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_TraceRayInline", next_op_idx, "RayQuery_TraceRayInline", "initializes RayQuery for raytrace", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "res", "accelerationStructure", "Top-level acceleration structure to use"),
+            db_dxil_param(4, "i32", "rayFlags", "Valid combination of RAY_FLAGS, combined with constRayFlags provided to AllocateRayQuery"),
+            db_dxil_param(5, "i32", "instanceInclusionMask", "Bottom 8 bits of InstanceInclusionMask are used to include/rejectgeometry instances based on the InstanceMask in each instance: if(!((InstanceInclusionMask & InstanceMask) & 0xff)) { ignore intersection }"),
+            db_dxil_param(6, "f", "origin_X", "Origin x of the ray"),
+            db_dxil_param(7, "f", "origin_Y", "Origin y of the ray"),
+            db_dxil_param(8, "f", "origin_Z", "Origin z of the ray"),
+            db_dxil_param(9, "f", "tMin", "Tmin of the ray"),
+            db_dxil_param(10, "f", "direction_X", "Direction x of the ray"),
+            db_dxil_param(11, "f", "direction_Y", "Direction y of the ray"),
+            db_dxil_param(12, "f", "direction_Z", "Direction z of the ray"),
+            db_dxil_param(13, "f", "tMax", "Tmax of the ray")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_Proceed", next_op_idx, "RayQuery_Proceed", "advances a ray query", "1", "", [
+            db_dxil_param(0, "i1", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_Abort", next_op_idx, "RayQuery_Abort", "aborts a ray query", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommitNonOpaqueTriangleHit", next_op_idx, "RayQuery_CommitNonOpaqueTriangleHit", "commits a non opaque triangle hit", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommitProceduralPrimitiveHit", next_op_idx, "RayQuery_CommitProceduralPrimitiveHit", "commits a procedural primitive hit", "v", "", [
+            db_dxil_param(0, "v", "", ""),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "f", "t", "Procedural primitive hit distance (t) to commit.")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedStatus", next_op_idx, "RayQuery_StateScalar", "returns uint status (COMMITTED_STATUS) of the committed hit in a ray query", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateType", next_op_idx, "RayQuery_StateScalar", "returns uint candidate type (CANDIDATE_TYPE) of the current hit candidate in a ray query, after Proceed() has returned true", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateObjectToWorld3x4", next_op_idx, "RayQuery_StateMatrix", "returns matrix for transforming from object-space to world-space for a candidate hit.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i32", "row", "row [0..2], relative to the element"),
+            db_dxil_param(4, "i8", "col", "column [0..3], relative to the element")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateWorldToObject3x4", next_op_idx, "RayQuery_StateMatrix", "returns matrix for transforming from world-space to object-space for a candidate hit.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i32", "row", "row [0..2], relative to the element"),
+            db_dxil_param(4, "i8", "col", "column [0..3], relative to the element")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedObjectToWorld3x4", next_op_idx, "RayQuery_StateMatrix", "returns matrix for transforming from object-space to world-space for a Committed hit.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i32", "row", "row [0..2], relative to the element"),
+            db_dxil_param(4, "i8", "col", "column [0..3], relative to the element")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedWorldToObject3x4", next_op_idx, "RayQuery_StateMatrix", "returns matrix for transforming from world-space to object-space for a Committed hit.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i32", "row", "row [0..2], relative to the element"),
+            db_dxil_param(4, "i8", "col", "column [0..3], relative to the element")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateProceduralPrimitiveNonOpaque", next_op_idx, "RayQuery_StateScalar", "returns if current candidate procedural primitive is non opaque", "1", "ro", [
+            db_dxil_param(0, "i1", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateTriangleFrontFace", next_op_idx, "RayQuery_StateScalar", "returns if current candidate triangle is front facing", "1", "ro", [
+            db_dxil_param(0, "i1", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedTriangleFrontFace", next_op_idx, "RayQuery_StateScalar", "returns if current committed triangle is front facing", "1", "ro", [
+            db_dxil_param(0, "i1", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateTriangleBarycentrics", next_op_idx, "RayQuery_StateVector", "returns candidate triangle hit barycentrics", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedTriangleBarycentrics", next_op_idx, "RayQuery_StateVector", "returns committed triangle hit barycentrics", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_RayFlags", next_op_idx, "RayQuery_StateScalar", "returns ray flags", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_WorldRayOrigin", next_op_idx, "RayQuery_StateVector", "returns world ray origin", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_WorldRayDirection", next_op_idx, "RayQuery_StateVector", "returns world ray direction", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_RayTMin", next_op_idx, "RayQuery_StateScalar", "returns float representing the parametric starting point for the ray.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateTriangleRayT", next_op_idx, "RayQuery_StateScalar", "returns float representing the parametric point on the ray for the current candidate triangle hit.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedRayT", next_op_idx, "RayQuery_StateScalar", "returns float representing the parametric point on the ray for the current committed hit.", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateInstanceIndex", next_op_idx, "RayQuery_StateScalar", "returns candidate hit instance index", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateInstanceID", next_op_idx, "RayQuery_StateScalar", "returns candidate hit instance ID", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateGeometryIndex", next_op_idx, "RayQuery_StateScalar", "returns candidate hit geometry index", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidatePrimitiveIndex", next_op_idx, "RayQuery_StateScalar", "returns candidate hit geometry index", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateObjectRayOrigin", next_op_idx, "RayQuery_StateVector", "returns candidate hit object ray origin", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateObjectRayDirection", next_op_idx, "RayQuery_StateVector", "returns candidate object ray direction", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedInstanceIndex", next_op_idx, "RayQuery_StateScalar", "returns committed hit instance index", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedInstanceID", next_op_idx, "RayQuery_StateScalar", "returns committed hit instance ID", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedGeometryIndex", next_op_idx, "RayQuery_StateScalar", "returns committed hit geometry index", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedPrimitiveIndex", next_op_idx, "RayQuery_StateScalar", "returns committed hit geometry index", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedObjectRayOrigin", next_op_idx, "RayQuery_StateVector", "returns committed hit object ray origin", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedObjectRayDirection", next_op_idx, "RayQuery_StateVector", "returns committed object ray direction", "f", "ro", [
+            db_dxil_param(0, "f", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle"),
+            db_dxil_param(3, "i8", "component", "component [0..2]",is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("GeometryIndex", next_op_idx, "GeometryIndex", "The autogenerated index of the current geometry in the bottom-level structure", "i", "rn", [
+            db_dxil_param(0, "i32", "", "result")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CandidateInstanceContributionToHitGroupIndex", next_op_idx, "RayQuery_StateScalar", "returns candidate hit InstanceContributionToHitGroupIndex", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
+        self.add_dxil_op("RayQuery_CommittedInstanceContributionToHitGroupIndex", next_op_idx, "RayQuery_StateScalar", "returns committed hit InstanceContributionToHitGroupIndex", "i", "ro", [
+            db_dxil_param(0, "i32", "", "operation result"),
+            db_dxil_param(2, "i32", "rayQueryHandle", "RayQuery handle")])
+        next_op_idx += 1
+
         # End of DXIL 1.5 opcodes.
         self.set_op_count_for_version(1, 5, next_op_idx)
-        assert next_op_idx == 168, "next operation index is %d rather than 168 and thus opcodes are broken" % next_op_idx
+        assert next_op_idx == 216, "216 is expected next operation index but encountered %d and thus opcodes are broken" % next_op_idx
+
+        self.add_dxil_op("CreateHandleFromHeap", next_op_idx, "CreateHandleFromHeap", "create resource handle from heap", "v", "ro", [
+            db_dxil_param(0, "res", "", "result"),
+            db_dxil_param(2, "i32", "index", "heap index"),
+            db_dxil_param(3, "i1", "nonUniformIndex", "non-uniform resource index", is_const=True)])
+        next_op_idx += 1
+
+        self.add_dxil_op("AnnotateHandle", next_op_idx, "AnnotateHandle", "annotate handle with resource properties", "v", "rn", [
+            db_dxil_param(0, "res", "", "annotated handle"),
+            db_dxil_param(2, "res", "res", "input handle"),
+            db_dxil_param(3, "i8", "resourceClass", "the class of resource to create (SRV, UAV, CBuffer, Sampler)", is_const=True), # maps to DxilResourceBase::Class
+            db_dxil_param(4, "i8", "resourceKind", "the kind of resource to create (Texture1D/2D/..., Buffer...)", is_const=True), # maps to DxilResourceBase::Kind
+            db_dxil_param(5, "resproperty", "props", "details like component type, strutrure stride...")])
+        next_op_idx += 1
+
+        # End of DXIL 1.6 opcodes.
+        self.set_op_count_for_version(1, 6, next_op_idx)
+        assert next_op_idx == 218, "next operation index is %d rather than 165 and thus opcodes are broken" % next_op_idx
 
         # Set interesting properties.
         self.build_indices()
@@ -1525,6 +1899,9 @@ class db_dxil(object):
             {'n':'force-ssa-updater', 'i':'ForceSSAUpdater', 't':'bool', 'd':'Force the pass to not use DomTree and mem2reg, insteadforming SSA values through the SSAUpdater infrastructure.'},
             {'n':'sroa-random-shuffle-slices', 'i':'SROARandomShuffleSlices', 't':'bool', 'd':'Enable randomly shuffling the slices to help uncover instability in their order.'},
             {'n':'sroa-strict-inbounds', 'i':'SROAStrictInbounds', 't':'bool', 'd':'Experiment with completely strict handling of inbounds GEPs.'}])
+        add_pass("dxil-cond-mem2reg", "DxilConditionalMem2Reg", "Dxil Conditional Mem2Reg", [
+                {'n':'NoOpt', 't':'bool', 'c':1},
+            ])
         add_pass('scalarrepl', 'SROA_DT', 'Scalar Replacement of Aggregates (DT)', [
             {'n':'Threshold', 't':'int', 'c':1},
             {'n':'StructMemberThreshold', 't':'int', 'c':1},
@@ -1569,6 +1946,8 @@ class db_dxil(object):
             {'n':'constant-alpha','t':'float','c':1}])
         add_pass('hlsl-dxil-remove-discards', 'DxilRemoveDiscards', 'HLSL DXIL Remove all discard instructions', [])
         add_pass('hlsl-dxil-force-early-z', 'DxilForceEarlyZ', 'HLSL DXIL Force the early Z global flag, if shader has no discard calls', [])
+        add_pass('hlsl-dxil-pix-meshshader-output-instrumentation', 'DxilPIXMeshShaderOutputInstrumentation', 'DXIL mesh shader output instrumentation for PIX', [
+            {'n':'UAVSize','t':'int','c':1}])
         add_pass('hlsl-dxil-pix-shader-access-instrumentation', 'DxilShaderAccessTracking', 'HLSL DXIL shader access tracking for PIX', [
             {'n':'config','t':'int','c':1},
             {'n':'checkForDynamicIndexing','t':'bool','c':1}])
@@ -1578,6 +1957,7 @@ class db_dxil(object):
             {'n':'parameter1','t':'int','c':1},
             {'n':'parameter2','t':'int','c':1}])
         add_pass('dxil-annotate-with-virtual-regs', 'DxilAnnotateWithVirtualRegister', 'Annotates each instruction in the DXIL module with a virtual register number', [])
+        add_pass('dxil-dbg-value-to-dbg-declare', 'DxilDbgValueToDbgDeclare', 'Converts llvm.dbg.value uses to llvm.dbg.declare.', [])
         add_pass('hlsl-dxil-reduce-msaa-to-single', 'DxilReduceMSAAToSingleSample', 'HLSL DXIL Reduce all MSAA reads to single-sample reads', [])
 
         category_lib="dxil_gen"
@@ -1630,6 +2010,12 @@ class db_dxil(object):
         add_pass('hlsl-translate-dxil-opcode-version', 'DxilTranslateRawBuffer', 'Translates one version of dxil to another', [])
         add_pass('hlsl-dxil-cleanup-addrspacecast', 'DxilCleanupAddrSpaceCast', 'HLSL DXIL Cleanup Address Space Cast (part of hlsl-dxilfinalize)', [])
         add_pass('dxil-fix-array-init', 'DxilFixConstArrayInitializer', 'Dxil Fix Array Initializer', [])
+        add_pass('hlsl-validate-wave-sensitivity', 'DxilValidateWaveSensitivity', 'HLSL DXIL wave sensitiveity validation', [])
+        add_pass('dxil-elim-vector', 'DxilEliminateVector', 'Dxil Eliminate Vectors', [])
+        add_pass('dxil-finalize-preserves', 'DxilFinalizePreserves', 'Dxil Finalize Preserves', [])
+        add_pass('dxil-insert-preserves', 'DxilInsertPreserves', 'Dxil Insert Noops', [])
+        add_pass('dxil-preserve-to-select', 'DxilPreserveToSelect', 'Dxil Insert Noops', [])
+        add_pass('dxil-value-cache', 'DxilValueCache', 'Dxil Value Cache',[])
 
         category_lib="llvm"
         add_pass('ipsccp', 'IPSCCP', 'Interprocedural Sparse Conditional Constant Propagation', [])
@@ -1660,6 +2046,8 @@ class db_dxil(object):
         add_pass('indvars', 'IndVarSimplify', "Induction Variable Simplification", [])
         add_pass('loop-idiom', 'LoopIdiomRecognize', "Recognize loop idioms", [])
         add_pass('dxil-loop-unroll', 'DxilLoopUnroll', 'DxilLoopUnroll', [])
+        add_pass('dxil-erase-dead-region', 'DxilEraseDeadRegion', 'DxilEraseDeadRegion', [])
+        add_pass('dxil-remove-dead-blocks', 'DxilRemoveDeadBlocks', 'DxilRemoveDeadBlocks', [])
         add_pass('loop-deletion', 'LoopDeletion', "Delete dead loops", [])
         add_pass('loop-interchange', 'LoopInterchange', 'Interchanges loops for cache reuse', [])
         add_pass('loop-unroll', 'LoopUnroll', 'Unroll loops', [
@@ -1746,7 +2134,8 @@ class db_dxil(object):
             (27, "ViewID", ""),
             (28, "Barycentrics", ""),
             (29, "ShadingRate", ""),
-            (30, "Invalid", ""),
+            (30, "CullPrimitive", ""),
+            (31, "Invalid", ""),
             ])
         self.enums.append(SemanticKind)
         SigPointKind = db_dxil_enum("SigPointKind", "Signature Point is more specific than shader stage or signature as it is unique in both stage and item dimensionality or frequency.", [
@@ -1766,7 +2155,11 @@ class db_dxil(object):
             (13, "PSIn", "Pixel Shader input"),
             (14, "PSOut", "Pixel Shader output"),
             (15, "CSIn", "Compute Shader input"),
-            (16, "Invalid", ""),
+            (16, "MSIn", "Mesh Shader input"),
+            (17, "MSOut", "Mesh Shader vertices output"),
+            (18, "MSPOut", "Mesh Shader primitives output"),
+            (19, "ASIn", "Amplification Shader input"),
+            (21, "Invalid", ""),
             ])
         self.enums.append(SigPointKind)
         PackingKind = db_dxil_enum("PackingKind", "Kind of signature point", [
@@ -1792,24 +2185,28 @@ class db_dxil(object):
 
 
         SigPointCSV = """
-            SigPoint, Related, ShaderKind, PackingKind,    SignatureKind
-            VSIn,     Invalid, Vertex,     InputAssembler, Input
-            VSOut,    Invalid, Vertex,     Vertex,         Output
-            PCIn,     HSCPIn,  Hull,       None,           Invalid
-            HSIn,     HSCPIn,  Hull,       None,           Invalid
-            HSCPIn,   Invalid, Hull,       Vertex,         Input
-            HSCPOut,  Invalid, Hull,       Vertex,         Output
-            PCOut,    Invalid, Hull,       PatchConstant,  PatchConstant
-            DSIn,     Invalid, Domain,     PatchConstant,  PatchConstant
-            DSCPIn,   Invalid, Domain,     Vertex,         Input
-            DSOut,    Invalid, Domain,     Vertex,         Output
-            GSVIn,    Invalid, Geometry,   Vertex,         Input
-            GSIn,     GSVIn,   Geometry,   None,           Invalid
-            GSOut,    Invalid, Geometry,   Vertex,         Output
-            PSIn,     Invalid, Pixel,      Vertex,         Input
-            PSOut,    Invalid, Pixel,      Target,         Output
-            CSIn,     Invalid, Compute,    None,           Invalid
-            Invalid,  Invalid, Invalid,    Invalid,        Invalid
+            SigPoint, Related, ShaderKind,    PackingKind,    SignatureKind
+            VSIn,     Invalid, Vertex,        InputAssembler, Input
+            VSOut,    Invalid, Vertex,        Vertex,         Output
+            PCIn,     HSCPIn,  Hull,          None,           Invalid
+            HSIn,     HSCPIn,  Hull,          None,           Invalid
+            HSCPIn,   Invalid, Hull,          Vertex,         Input
+            HSCPOut,  Invalid, Hull,          Vertex,         Output
+            PCOut,    Invalid, Hull,          PatchConstant,  PatchConstOrPrim
+            DSIn,     Invalid, Domain,        PatchConstant,  PatchConstOrPrim
+            DSCPIn,   Invalid, Domain,        Vertex,         Input
+            DSOut,    Invalid, Domain,        Vertex,         Output
+            GSVIn,    Invalid, Geometry,      Vertex,         Input
+            GSIn,     GSVIn,   Geometry,      None,           Invalid
+            GSOut,    Invalid, Geometry,      Vertex,         Output
+            PSIn,     Invalid, Pixel,         Vertex,         Input
+            PSOut,    Invalid, Pixel,         Target,         Output
+            CSIn,     Invalid, Compute,       None,           Invalid
+            MSIn,     Invalid, Mesh,          None,           Invalid
+            MSOut,    Invalid, Mesh,          Vertex,         Output
+            MSPOut,   Invalid, Mesh,          Vertex,         PatchConstOrPrim
+            ASIn,     Invalid, Amplification, None,           Invalid
+            Invalid,  Invalid, Invalid,       Invalid,        Invalid
         """
         table = [list(map(str.strip, line.split(','))) for line in SigPointCSV.splitlines() if line.strip()]
         for row in table[1:]: assert(len(row) == len(table[0])) # Ensure table is rectangular
@@ -1836,37 +2233,38 @@ class db_dxil(object):
 
         # The following has SampleIndex, Coverage, and InnerCoverage as loaded with instructions rather than from the signature
         SemanticInterpretationCSV = """
-            Semantic,VSIn,VSOut,PCIn,HSIn,HSCPIn,HSCPOut,PCOut,DSIn,DSCPIn,DSOut,GSVIn,GSIn,GSOut,PSIn,PSOut,CSIn
-            Arbitrary,Arb,Arb,NA,NA,Arb,Arb,Arb,Arb,Arb,Arb,Arb,NA,Arb,Arb,NA,NA
-            VertexID,SV,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
-            InstanceID,SV,Arb,NA,NA,Arb,Arb,NA,NA,Arb,Arb,Arb,NA,Arb,Arb,NA,NA
-            Position,Arb,SV,NA,NA,SV,SV,Arb,Arb,SV,SV,SV,NA,SV,SV,NA,NA
-            RenderTargetArrayIndex,Arb,SV,NA,NA,SV,SV,Arb,Arb,SV,SV,SV,NA,SV,SV,NA,NA
-            ViewPortArrayIndex,Arb,SV,NA,NA,SV,SV,Arb,Arb,SV,SV,SV,NA,SV,SV,NA,NA
-            ClipDistance,Arb,ClipCull,NA,NA,ClipCull,ClipCull,Arb,Arb,ClipCull,ClipCull,ClipCull,NA,ClipCull,ClipCull,NA,NA
-            CullDistance,Arb,ClipCull,NA,NA,ClipCull,ClipCull,Arb,Arb,ClipCull,ClipCull,ClipCull,NA,ClipCull,ClipCull,NA,NA
-            OutputControlPointID,NA,NA,NA,NotInSig,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
-            DomainLocation,NA,NA,NA,NA,NA,NA,NA,NotInSig,NA,NA,NA,NA,NA,NA,NA,NA
-            PrimitiveID,NA,NA,NotInSig,NotInSig,NA,NA,NA,NotInSig,NA,NA,NA,Shadow,SGV,SGV,NA,NA
-            GSInstanceID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig,NA,NA,NA,NA
-            SampleIndex,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,Shadow _41,NA,NA
-            IsFrontFace,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,SGV,SGV,NA,NA
-            Coverage,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig _50,NotPacked _41,NA
-            InnerCoverage,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig _50,NA,NA
-            Target,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,Target,NA
-            Depth,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked,NA
-            DepthLessEqual,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _50,NA
-            DepthGreaterEqual,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _50,NA
-            StencilRef,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _50,NA
-            DispatchThreadID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig
-            GroupID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig
-            GroupIndex,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig
-            GroupThreadID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig
-            TessFactor,NA,NA,NA,NA,NA,NA,TessFactor,TessFactor,NA,NA,NA,NA,NA,NA,NA,NA
-            InsideTessFactor,NA,NA,NA,NA,NA,NA,TessFactor,TessFactor,NA,NA,NA,NA,NA,NA,NA,NA
-            ViewID,NotInSig _61,NA,NotInSig _61,NotInSig _61,NA,NA,NA,NotInSig _61,NA,NA,NA,NotInSig _61,NA,NotInSig _61,NA,NA
-            Barycentrics,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _61,NA,NA
-            ShadingRate,NA,SV _64,NA,NA,SV _64,SV _64,NA,NA,SV _64,SV _64,SV _64,NA,SV _64,SV _64,NA,NA
+            Semantic,VSIn,VSOut,PCIn,HSIn,HSCPIn,HSCPOut,PCOut,DSIn,DSCPIn,DSOut,GSVIn,GSIn,GSOut,PSIn,PSOut,CSIn,MSIn,MSOut,MSPOut,ASIn
+            Arbitrary,Arb,Arb,NA,NA,Arb,Arb,Arb,Arb,Arb,Arb,Arb,NA,Arb,Arb,NA,NA,NA,Arb,Arb,NA
+            VertexID,SV,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+            InstanceID,SV,Arb,NA,NA,Arb,Arb,NA,NA,Arb,Arb,Arb,NA,Arb,Arb,NA,NA,NA,NA,NA,NA
+            Position,Arb,SV,NA,NA,SV,SV,Arb,Arb,SV,SV,SV,NA,SV,SV,NA,NA,NA,SV,NA,NA
+            RenderTargetArrayIndex,Arb,SV,NA,NA,SV,SV,Arb,Arb,SV,SV,SV,NA,SV,SV,NA,NA,NA,NA,SV,NA
+            ViewPortArrayIndex,Arb,SV,NA,NA,SV,SV,Arb,Arb,SV,SV,SV,NA,SV,SV,NA,NA,NA,NA,SV,NA
+            ClipDistance,Arb,ClipCull,NA,NA,ClipCull,ClipCull,Arb,Arb,ClipCull,ClipCull,ClipCull,NA,ClipCull,ClipCull,NA,NA,NA,ClipCull,NA,NA
+            CullDistance,Arb,ClipCull,NA,NA,ClipCull,ClipCull,Arb,Arb,ClipCull,ClipCull,ClipCull,NA,ClipCull,ClipCull,NA,NA,NA,ClipCull,NA,NA
+            OutputControlPointID,NA,NA,NA,NotInSig,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+            DomainLocation,NA,NA,NA,NA,NA,NA,NA,NotInSig,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+            PrimitiveID,NA,NA,NotInSig,NotInSig,NA,NA,NA,NotInSig,NA,NA,NA,Shadow,SGV,SGV,NA,NA,NA,NA,SV,NA
+            GSInstanceID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig,NA,NA,NA,NA,NA,NA,NA,NA
+            SampleIndex,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,Shadow _41,NA,NA,NA,NA,NA,NA
+            IsFrontFace,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,SGV,SGV,NA,NA,NA,NA,NA,NA
+            Coverage,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig _50,NotPacked _41,NA,NA,NA,NA,NA
+            InnerCoverage,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig _50,NA,NA,NA,NA,NA,NA
+            Target,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,Target,NA,NA,NA,NA,NA
+            Depth,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked,NA,NA,NA,NA,NA
+            DepthLessEqual,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _50,NA,NA,NA,NA,NA
+            DepthGreaterEqual,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _50,NA,NA,NA,NA,NA
+            StencilRef,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _50,NA,NA,NA,NA,NA
+            DispatchThreadID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig,NotInSig,NA,NA,NotInSig
+            GroupID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig,NotInSig,NA,NA,NotInSig
+            GroupIndex,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig,NotInSig,NA,NA,NotInSig
+            GroupThreadID,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotInSig,NotInSig,NA,NA,NotInSig
+            TessFactor,NA,NA,NA,NA,NA,NA,TessFactor,TessFactor,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+            InsideTessFactor,NA,NA,NA,NA,NA,NA,TessFactor,TessFactor,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA
+            ViewID,NotInSig _61,NA,NotInSig _61,NotInSig _61,NA,NA,NA,NotInSig _61,NA,NA,NA,NotInSig _61,NA,NotInSig _61,NA,NA,NotInSig,NA,NA,NA
+            Barycentrics,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked _61,NA,NA,NA,NA,NA,NA
+            ShadingRate,NA,SV _64,NA,NA,SV _64,SV _64,NA,NA,SV _64,SV _64,SV _64,NA,SV _64,SV _64,NA,NA,NA,NA,SV,NA
+            CullPrimitive,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NA,NotPacked,NA
         """
         table = [list(map(str.strip, line.split(','))) for line in SemanticInterpretationCSV.splitlines() if line.strip()]
         for row in table[1:]: assert(len(row) == len(table[0])) # Ensure table is rectangular
@@ -1918,7 +2316,6 @@ class db_dxil(object):
         self.add_valrule("Meta.TessellatorOutputPrimitive", "Invalid Tessellator Output Primitive specified. Must be point, line, triangleCW or triangleCCW.")
         self.add_valrule("Meta.MaxTessFactor", "Hull Shader MaxTessFactor must be [%0..%1].  %2 specified")
         self.add_valrule("Meta.ValidSamplerMode", "Invalid sampler mode on sampler ")
-        self.add_valrule("Meta.FunctionAnnotation", "Cannot find function annotation for %0")
         self.add_valrule("Meta.GlcNotOnAppendConsume", "globallycoherent cannot be used with append/consume buffers")
         self.add_valrule_msg("Meta.StructBufAlignment", "StructuredBuffer stride not aligned","structured buffer element size must be a multiple of %0 bytes (actual size %1 bytes)")
         self.add_valrule_msg("Meta.StructBufAlignmentOutOfBound", "StructuredBuffer stride out of bounds","structured buffer elements cannot be larger than %0 bytes (actual size %1 bytes)")
@@ -1983,7 +2380,7 @@ class db_dxil(object):
         self.add_valrule("Instr.SampleCompType", "sample_* instructions require resource to be declared to return UNORM, SNORM or FLOAT.")
         self.add_valrule("Instr.BarrierModeUselessUGroup", "sync can't specify both _ugroup and _uglobal. If both are needed, just specify _uglobal.")
         self.add_valrule("Instr.BarrierModeNoMemory", "sync must include some form of memory barrier - _u (UAV) and/or _g (Thread Group Shared Memory).  Only _t (thread group sync) is optional. ")
-        self.add_valrule("Instr.BarrierModeForNonCS", "sync in a non-Compute Shader must only sync UAV (sync_uglobal)")
+        self.add_valrule("Instr.BarrierModeForNonCS", "sync in a non-Compute/Amplification/Mesh Shader must only sync UAV (sync_uglobal)")
         self.add_valrule("Instr.WriteMaskForTypedUAVStore", "store on typed uav must write to all four components of the UAV")
         self.add_valrule("Instr.ResourceKindForCalcLOD","lod requires resource declared as texture1D/2D/3D/Cube/CubeArray/1DArray/2DArray")
         self.add_valrule("Instr.ResourceKindForSample", "sample/_l/_d requires resource declared as texture1D/2D/3D/Cube/1DArray/2DArray/CubeArray")
@@ -1994,8 +2391,8 @@ class db_dxil(object):
         self.add_valrule("Instr.ResourceKindForTextureStore", "texture store only works on Texture1D/1DArray/2D/2DArray/3D")
         self.add_valrule("Instr.ResourceKindForGetDim", "Invalid resource kind on GetDimensions")
         self.add_valrule("Instr.ResourceKindForTextureLoad", "texture load only works on Texture1D/1DArray/2D/2DArray/3D/MS2D/MS2DArray")
-        self.add_valrule("Instr.ResourceClassForSamplerGather", "sample, lod and gather should on srv resource.")
-        self.add_valrule("Instr.ResourceClassForUAVStore", "store should on uav resource.")
+        self.add_valrule("Instr.ResourceClassForSamplerGather", "sample, lod and gather should be on srv resource.")
+        self.add_valrule("Instr.ResourceClassForUAVStore", "store should be on uav resource.")
         self.add_valrule("Instr.ResourceClassForLoad", "load can only run on UAV/SRV resource")
         self.add_valrule("Instr.ResourceMapToSingleEntry", "Fail to map resource to resource table")
         self.add_valrule("Instr.ResourceUser", "Resource should only used by Load/GEP/Call")
@@ -2019,6 +2416,12 @@ class db_dxil(object):
         self.add_valrule("Instr.AttributeAtVertexNoInterpolation", "Attribute %0 must have nointerpolation mode in order to use GetAttributeAtVertex function.")
         self.add_valrule("Instr.CreateHandleImmRangeID", "Local resource must map to global resource.")
         self.add_valrule("Instr.SignatureOperationNotInEntry", "Dxil operation for input output signature must be in entryPoints.")
+        self.add_valrule("Instr.MultipleSetMeshOutputCounts", "SetMeshOUtputCounts cannot be called multiple times.")
+        self.add_valrule("Instr.MissingSetMeshOutputCounts", "Missing SetMeshOutputCounts call.")
+        self.add_valrule("Instr.NonDominatingSetMeshOutputCounts", "Non-Dominating SetMeshOutputCounts call.")
+        self.add_valrule("Instr.MultipleGetMeshPayload", "GetMeshPayload cannot be called multiple times.")
+        self.add_valrule("Instr.NotOnceDispatchMesh", "DispatchMesh must be called exactly once in an Amplification shader.")
+        self.add_valrule("Instr.NonDominatingDispatchMesh", "Non-Dominating DispatchMesh call.")
 
         # Some legacy rules:
         # - space is only supported for shader targets 5.1 and higher
@@ -2031,6 +2434,7 @@ class db_dxil(object):
         self.add_valrule_msg("Types.Defined", "Type must be defined based on DXIL primitives", "Type '%0' is not defined on DXIL primitives")
         self.add_valrule_msg("Types.IntWidth", "Int type must be of valid width", "Int type '%0' has an invalid width")
         self.add_valrule("Types.NoMultiDim", "Only one dimension allowed for array type")
+        self.add_valrule("Types.NoPtrToPtr", "Pointers to pointers, or pointers in structures are not allowed")
         self.add_valrule("Types.I8", "I8 can only used as immediate value for intrinsic")
 
         self.add_valrule_msg("Sm.Name", "Target shader model name must be known", "Unknown shader model '%0'")
@@ -2039,6 +2443,7 @@ class db_dxil(object):
         self.add_valrule("Sm.Operand", "Operand must be defined in target shader model")
         self.add_valrule_msg("Sm.Semantic", "Semantic must be defined in target shader model", "Semantic '%0' is invalid as %1 %2")
         self.add_valrule_msg("Sm.NoInterpMode", "Interpolation mode must be undefined for VS input/PS output/patch constant.", "Interpolation mode for '%0' is set but should be undefined")
+        self.add_valrule_msg("Sm.ConstantInterpMode", "Interpolation mode must be constant for MS primitive output.", "Interpolation mode for '%0' should be constant")
         self.add_valrule("Sm.NoPSOutputIdx", "Pixel shader output registers are not indexable.")# TODO restrict to PS
         self.add_valrule("Sm.PSConsistentInterp", "Interpolation mode for PS input position must be linear_noperspective_centroid or linear_noperspective_sample when outputting oDepthGE or oDepthLE and not running at sample frequency (which is forced by inputting SV_SampleIndex or declaring an input linear_sample or linear_noperspective_sample)")
         self.add_valrule("Sm.ThreadGroupChannelRange", "Declared Thread Group %0 size %1 outside valid range [%2..%3]")
@@ -2073,6 +2478,7 @@ class db_dxil(object):
         self.add_valrule("Sm.InvalidTextureKindOnUAV", "Texture2DMS[Array] or TextureCube[Array] resources are not supported with UAVs")
         self.add_valrule("Sm.InvalidResourceKind", "Invalid resources kind")
         self.add_valrule("Sm.InvalidResourceCompType","Invalid resource return type")
+        self.add_valrule("Sm.InvalidSamplerFeedbackType","Invalid sampler feedback type")
         self.add_valrule("Sm.SampleCountOnlyOn2DMS","Only Texture2DMS/2DMSArray could has sample count")
         self.add_valrule("Sm.CounterOnlyOnStructBuf", "BufferUpdateCounter valid only on structured buffers")
         self.add_valrule("Sm.GSTotalOutputVertexDataRange", "Declared output vertex count (%0) multiplied by the total number of declared scalar components of output data (%1) equals %2.  This value cannot be greater than %3")
@@ -2084,17 +2490,30 @@ class db_dxil(object):
         self.add_valrule_msg("Sm.ResourceRangeOverlap", "Resource ranges must not overlap", "Resource %0 with base %1 size %2 overlap with other resource with base %3 size %4 in space %5")
         self.add_valrule_msg("Sm.CBufferOffsetOverlap", "CBuffer offsets must not overlap", "CBuffer %0 has offset overlaps at %1")
         self.add_valrule_msg("Sm.CBufferElementOverflow", "CBuffer elements must not overflow", "CBuffer %0 size insufficient for element at offset %1")
+        self.add_valrule_msg("Sm.CBufferArrayOffsetAlignment", "CBuffer array offset must be aligned to 16-bytes", "CBuffer %0 has unaligned array offset at %1")
         self.add_valrule_msg("Sm.OpcodeInInvalidFunction", "Invalid DXIL opcode usage like StorePatchConstant in patch constant function", "opcode '%0' should only be used in '%1'")
         self.add_valrule_msg("Sm.ViewIDNeedsSlot", "ViewID requires compatible space in pixel shader input signature", "Pixel shader input signature lacks available space for ViewID")
         self.add_valrule("Sm.64bitRawBufferLoadStore", "i64/f64 rawBufferLoad/Store overloads are allowed after SM 6.3")
         self.add_valrule("Sm.RayShaderSignatures", "Ray tracing shader '%0' should not have any shader signatures")
         self.add_valrule("Sm.RayShaderPayloadSize", "For shader '%0', %1 size is smaller than argument's allocation size")
+        self.add_valrule("Sm.MeshShaderMaxVertexCount", "MS max vertex output count must be [0..%0].  %1 specified")
+        self.add_valrule("Sm.MeshShaderMaxPrimitiveCount", "MS max primitive output count must be [0..%0].  %1 specified")
+        self.add_valrule("Sm.MeshShaderPayloadSize", "For shader '%0', payload size is greater than %1")
+        self.add_valrule("Sm.MeshShaderPayloadSizeDeclared", "For shader '%0', payload size %1 is greater than declared size of %2 bytes")
+        self.add_valrule("Sm.MeshShaderOutputSize", "For shader '%0', vertex plus primitive output size is greater than %1")
+        self.add_valrule("Sm.MeshShaderInOutSize", "For shader '%0', payload plus output size is greater than %1")
+        self.add_valrule("Sm.MeshVSigRowCount", "For shader '%0', vertex output signatures are taking up more than %1 rows")
+        self.add_valrule("Sm.MeshPSigRowCount", "For shader '%0', primitive output signatures are taking up more than %1 rows")
+        self.add_valrule("Sm.MeshTotalSigRowCount", "For shader '%0', vertex and primitive output signatures are taking up more than %1 rows")
+        self.add_valrule("Sm.MaxMSSMSize", "Total Thread Group Shared Memory storage is %0, exceeded %1")
+        self.add_valrule("Sm.AmplificationShaderPayloadSize", "For shader '%0', payload size is greater than %1")
+        self.add_valrule("Sm.AmplificationShaderPayloadSizeDeclared", "For shader '%0', payload size %1 is greater than declared size of %2 bytes")
 
         # fxc relaxed check of gradient check.
         #self.add_valrule("Uni.NoUniInDiv", "TODO - No instruction requiring uniform execution can be present in divergent block")
         #self.add_valrule("Uni.GradientFlow", "TODO - No divergent gradient operations inside flow control") # a bit more specific than the prior rule
         #self.add_valrule("Uni.ThreadSync", "TODO - Thread sync operation must be in non-varying flow control due to a potential race condition, adding a sync after reading any values controlling shader execution at this point")
-        self.add_valrule("Uni.NoWaveSensitiveGradient", "Gradient operations are not affected by wave-sensitive data or control flow.")
+        #self.add_valrule("Uni.NoWaveSensitiveGradient", "Gradient operations are not affected by wave-sensitive data or control flow.")
         
         self.add_valrule("Flow.Reducible", "Execution flow must be reducible")
         self.add_valrule("Flow.NoRecusion", "Recursion is not permitted")
@@ -2199,7 +2618,7 @@ class db_hlsl_attribute(object):
 
 class db_hlsl_intrinsic(object):
     "An HLSL intrinsic declaration"
-    def __init__(self, name, idx, opname, params, ns, ns_idx, doc, ro, rn, unsigned_op, overload_idx):
+    def __init__(self, name, idx, opname, params, ns, ns_idx, doc, ro, rn, unsigned_op, overload_idx, hidden):
         self.name = name                                # Function name
         self.idx = idx                                  # Unique number within namespace
         self.opname = opname                            # D3D-style name
@@ -2215,6 +2634,7 @@ class db_hlsl_intrinsic(object):
         if unsigned_op != "":
             self.unsigned_op = "%s_%s" % (id_prefix, unsigned_op)
         self.overload_param_index = overload_idx        # Parameter determines the overload type, -1 means ret type
+        self.hidden = hidden                            # Internal high-level op, not exposed to HLSL
         self.key = ("%3d" % ns_idx) + "!" + name + "!" + ("%2d" % len(params)) + "!" + ("%3d" % idx)    # Unique key
         self.vulkanSpecific = ns.startswith("Vk")       # Vulkan specific intrinsic - SPIRV change
 
@@ -2271,11 +2691,14 @@ class db_hlsl(object):
             "sampler_cube": "LICOMPTYPE_SAMPLERCUBE",
             "sampler_cmp": "LICOMPTYPE_SAMPLERCMP",
             "sampler": "LICOMPTYPE_SAMPLER",
+            "resource": "LICOMPTYPE_RESOURCE",
             "ray_desc" : "LICOMPTYPE_RAYDESC",
             "acceleration_struct" : "LICOMPTYPE_ACCELERATION_STRUCT",
             "udt" : "LICOMPTYPE_USER_DEFINED_TYPE",
             "void": "LICOMPTYPE_VOID",
             "string": "LICOMPTYPE_STRING",
+            "Texture2D": "LICOMPTYPE_TEXTURE2D",
+            "Texture2DArray": "LICOMPTYPE_TEXTURE2DARRAY",
             "wave": "LICOMPTYPE_WAVE"}
         self.trans_rowcol = {
             "r": "IA_R",
@@ -2404,7 +2827,7 @@ class db_hlsl(object):
                         template_list = "LITEMPLATE_ANY"
                     else:
                         base_type = type_name
-                        if base_type.startswith("sampler") or base_type.startswith("string") or base_type.startswith("wave") or base_type.startswith("acceleration_struct") or base_type.startswith("ray_desc"):
+                        if base_type.startswith("sampler") or base_type.startswith("string") or base_type.startswith("Texture") or base_type.startswith("wave") or base_type.startswith("acceleration_struct") or base_type.startswith("ray_desc"):
                             template_list = "LITEMPLATE_OBJECT"
                         else:
                             template_list = "LITEMPLATE_SCALAR"
@@ -2449,6 +2872,7 @@ class db_hlsl(object):
             readnone = False          # Not read memory
             unsigned_op = ""          # Unsigned opcode if exist
             overload_param_index = -1 # Parameter determines the overload type, -1 means ret type.
+            hidden = False
             for a in attrs:
                 if (a == ""):
                     continue
@@ -2458,6 +2882,10 @@ class db_hlsl(object):
                 if (a == "rn"):
                     readnone = True
                     continue
+                if (a == "hidden"):
+                    hidden = True
+                    continue
+
                 assign = a.split('=')
 
                 if (len(assign) != 2):
@@ -2473,7 +2901,7 @@ class db_hlsl(object):
                     continue
                 assert False, "invalid attr %s" % (a)
 
-            return readonly, readnone, unsigned_op, overload_param_index
+            return readonly, readnone, unsigned_op, overload_param_index, hidden
 
         current_namespace = None
         for line in intrinsic_defs:
@@ -2506,7 +2934,7 @@ class db_hlsl(object):
                         op = operand_match.group(1)
                 if not op:
                     op = name
-                readonly, readnone, unsigned_op, overload_param_index = process_attr(attr)
+                readonly, readnone, unsigned_op, overload_param_index, hidden = process_attr(attr)
                 # Add an entry for this intrinsic.
                 if bracket_cleanup_re.search(opts):
                     opts = bracket_cleanup_re.sub(r"<\1@\2>", opts)
@@ -2530,7 +2958,7 @@ class db_hlsl(object):
                 # TODO: verify a single level of indirection
                 self.intrinsics.append(db_hlsl_intrinsic(
                     name, num_entries, op, args, current_namespace, ns_idx, "pending doc for " + name,
-                    readonly, readnone, unsigned_op, overload_param_index))
+                    readonly, readnone, unsigned_op, overload_param_index, hidden))
                 num_entries += 1
                 continue
             assert False, "cannot parse line %s" % (line)

@@ -109,7 +109,7 @@ FMDLImporter::FMDLImporter(const FString& PluginPath)
 #endif
 
 	MdlContext.Reset(new Mdl::FApiContext());
-	UE_LOG(LogMDLImporter, Error, TEXT("%s"), *ThirdPartyPath);
+	
 	if (MdlContext->Load(FPaths::Combine(ThirdPartyPath, TEXT("MDL"), Platform), UMDLImporterOptions::GetMdlSystemPath()))
 	{
 		const FString MdlUserPath = UMDLImporterOptions::GetMdlUserPath();

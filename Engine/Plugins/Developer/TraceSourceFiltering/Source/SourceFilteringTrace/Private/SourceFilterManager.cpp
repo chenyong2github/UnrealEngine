@@ -18,6 +18,7 @@
 #include "Async/TaskGraphInterfaces.h"
 #include "Algo/Accumulate.h"
 #include "Logging/LogMacros.h"
+#include "HAL/LowLevelMemStats.h"
 
 #include "TraceFilter.h"
 #include "TraceSourceFiltering.h"

@@ -198,17 +198,20 @@ void FD3D11DynamicRHI::RHISetRasterizerState(FRHIRasterizerState* NewStateRHI)
 	StateCache.SetRasterizerState(NewState->Resource);
 }
 
-void FD3D11DynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState)
+void FD3D11DynamicRHI::RHISetGraphicsPipelineState(FRHIGraphicsPipelineState* GraphicsState, bool bApplyAdditionalState)
 {
 	FRHIGraphicsPipelineStateFallBack* FallbackGraphicsState = static_cast<FRHIGraphicsPipelineStateFallBack*>(GraphicsState);
-	IRHICommandContextPSOFallback::RHISetGraphicsPipelineState(GraphicsState);
+	IRHICommandContextPSOFallback::RHISetGraphicsPipelineState(GraphicsState, bApplyAdditionalState);
 	const FGraphicsPipelineStateInitializer& PsoInit = FallbackGraphicsState->Initializer;
 
-	ApplyGlobalUniformBuffers(static_cast<FD3D11VertexShader*>(PsoInit.BoundShaderState.VertexShaderRHI));
-	ApplyGlobalUniformBuffers(static_cast<FD3D11HullShader*>(PsoInit.BoundShaderState.HullShaderRHI));
-	ApplyGlobalUniformBuffers(static_cast<FD3D11DomainShader*>(PsoInit.BoundShaderState.DomainShaderRHI));
-	ApplyGlobalUniformBuffers(static_cast<FD3D11GeometryShader*>(PsoInit.BoundShaderState.GeometryShaderRHI));
-	ApplyGlobalUniformBuffers(static_cast<FD3D11PixelShader*>(PsoInit.BoundShaderState.PixelShaderRHI));
+	if (bApplyAdditionalState)
+	{
+		ApplyGlobalUniformBuffers(static_cast<FD3D11VertexShader*>(PsoInit.BoundShaderState.VertexShaderRHI));
+		ApplyGlobalUniformBuffers(static_cast<FD3D11HullShader*>(PsoInit.BoundShaderState.HullShaderRHI));
+		ApplyGlobalUniformBuffers(static_cast<FD3D11DomainShader*>(PsoInit.BoundShaderState.DomainShaderRHI));
+		ApplyGlobalUniformBuffers(static_cast<FD3D11GeometryShader*>(PsoInit.BoundShaderState.GeometryShaderRHI));
+		ApplyGlobalUniformBuffers(static_cast<FD3D11PixelShader*>(PsoInit.BoundShaderState.PixelShaderRHI));
+	}
 
 	// Store the PSO's primitive (after since IRHICommandContext::RHISetGraphicsPipelineState sets the BSS)
 	PrimitiveType = PsoInit.PrimitiveType;
@@ -1025,7 +1028,7 @@ FRTVDesc GetRenderTargetViewDesc(ID3D11RenderTargetView* RenderTargetView)
 	return ret;
 }
 
-void FD3D11DynamicRHI::RHISetRenderTargets(
+void FD3D11DynamicRHI::SetRenderTargets(
 	uint32 NewNumSimultaneousRenderTargets,
 	const FRHIRenderTargetView* NewRenderTargetsRHI,
 	const FRHIDepthRenderTargetView* NewDepthStencilTargetRHI)
@@ -1213,10 +1216,9 @@ void FD3D11DynamicRHI::RHISetRenderTargets(
 	}
 }
 
-void FD3D11DynamicRHI::RHISetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
+void FD3D11DynamicRHI::SetRenderTargetsAndClear(const FRHISetRenderTargetsInfo& RenderTargetsInfo)
 {
-
-	this->RHISetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
+	this->SetRenderTargets(RenderTargetsInfo.NumColorRenderTargets,
 		RenderTargetsInfo.ColorRenderTarget,
 		&RenderTargetsInfo.DepthStencilRenderTarget);
 	
@@ -1960,6 +1962,7 @@ void FD3D11DynamicRHI::RHIBlockUntilGPUIdle()
  */
 uint32 FD3D11DynamicRHI::RHIGetGPUFrameCycles(uint32 GPUIndex)
 {
+	check(GPUIndex == 0);
 #if INTEL_METRICSDISCOVERY
 	if (GDX11IntelMetricsDiscoveryEnabled)
 	{

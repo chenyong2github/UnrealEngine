@@ -319,7 +319,7 @@ void FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData(const FContext& Cont
 		if (NumExternalReferences > PreviousNumberOfExternalReferences && NumReferenceChecks > 0)
 		{
 			PreviousNumberOfExternalReferences = NumExternalReferences;
-			UE_LOG(LogStaticMesh, Warning, TEXT("[%s] Streamed out LODResources got referenced while in pending stream out."), *Mesh->GetName());
+			UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Streamed out LODResources got referenced while in pending stream out."), *Mesh->GetName());
 		}
 	}
 
@@ -341,7 +341,7 @@ void FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData(const FContext& Cont
 		++NumReferenceChecks;
 		if (NumReferenceChecks >= GStreamingMaxReferenceChecks)
 		{
-			UE_LOG(LogStaticMesh, Log, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
+			UE_LOG(LogContentStreaming, Log, TEXT("[%s] Streamed out LODResources references are not getting released."), *Mesh->GetName());
 		}
 
 		bDeferExecution = true;
@@ -519,6 +519,8 @@ void FStaticMeshStreamIn_IO::ReportIOError(const FContext& Context)
 		{
 			StreamingManager.MarkMountedStateDirty(Context.Mesh->GetMipIoFilenameHash(MipIndex));
 		}
+
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Mesh->GetName());
 	}
 }
 

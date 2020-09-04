@@ -205,7 +205,7 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			[
 				SNew(SImage)
 				.Image(FEditorStyle::GetBrush("Searching.SearchActiveTab"))
-				.Visibility_Lambda([&](){ return this->bHasActiveFilter ? EVisibility::Visible : EVisibility::Collapsed; })
+				.Visibility_Lambda([this](){ return this->HasActiveSearch() ? EVisibility::Visible : EVisibility::Collapsed; })
 			]
 			+SOverlay::Slot()
 			.Padding(2.f, 2.0f, 4.f, 2.f)
@@ -313,10 +313,18 @@ void SDetailsView::Construct(const FArguments& InArgs, const FDetailsViewArgs& I
 			]
 		]
 		+ SOverlay::Slot()
+		.HAlign(HAlign_Center)
+		.Padding(2.0f, 24.0f, 2.0f, 2.0f)
+		[
+			SNew(STextBlock)
+			.Text(LOCTEXT("AllItemsFiltered", "All results have been filtered. Try changing your active filters above."))
+			.Visibility_Lambda([this]() { return ((this->GetFilterBoxVisibility() == EVisibility::Visible) && !this->CurrentFilter.IsEmptyFilter() && RootTreeNodes.Num() == 0) ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+		]
+		+ SOverlay::Slot()
 		[
 			SNew(SImage)
 			.Image(FEditorStyle::GetBrush("Searching.SearchActiveBorder"))
-			.Visibility_Lambda([&]() { return this->bHasActiveFilter ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
+			.Visibility_Lambda([this]() { return (this->GetFilterBoxVisibility() == EVisibility::Visible) && this->HasActiveSearch() ? EVisibility::HitTestInvisible : EVisibility::Collapsed; })
 		]
 	];
 
@@ -361,13 +369,6 @@ EVisibility SDetailsView::GetActorNameAreaVisibility() const
 {
 	const bool bVisible = DetailsViewArgs.NameAreaSettings != FDetailsViewArgs::HideNameArea && !bViewingClassDefaultObject;
 	return bVisible ? EVisibility::Visible : EVisibility::Collapsed; 
-}
-
-EVisibility SDetailsView::GetScrollBarVisibility() const
-{
-	const bool bHasAnythingToShow = RootTreeNodes.Num() > 0;
-	const bool bShowScrollBar = DetailsViewArgs.bShowScrollBar && bHasAnythingToShow;
-	return bShowScrollBar ? EVisibility::Visible : EVisibility::Collapsed;
 }
 
 void SDetailsView::ForceRefresh()
@@ -768,17 +769,13 @@ void SDetailsView::PreSetObject(int32 InNewNumObjects)
 	for(const FDetailLayoutData& Layout : DetailLayouts)
 	{
 		FRootPropertyNodeList& ExternalRootPropertyNodes = Layout.DetailLayout->GetExternalRootPropertyNodes();
-		for (auto ExternalRootNode : ExternalRootPropertyNodes)
+		for (TSharedPtr<FComplexPropertyNode>& ExternalRootNode : ExternalRootPropertyNodes)
 		{
 			if (ExternalRootNode.IsValid())
 			{
 				SaveExpandedItems(ExternalRootNode.ToSharedRef());
 
-				FComplexPropertyNode* ComplexNode = ExternalRootNode->AsComplexNode();
-				if (ComplexNode)
-				{
-					ComplexNode->Disconnect();
-				}
+				ExternalRootNode->Disconnect();
 			}
 		}
 	}

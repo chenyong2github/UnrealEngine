@@ -123,16 +123,20 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 			bExplicitPackages = true;
 		}
 		else if( FParse::Value( *CurrentSwitch, TEXT( "PACKAGEFOLDER="), PackageFolder ) )
-        {
-            TArray<FString> FilesInPackageFolder;
-            FPackageName::FindPackagesInDirectory(FilesInPackageFolder, *PackageFolder);
-            for( int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++ )
-            {
+		{
+			TArray<FString> FilesInPackageFolder;
+			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, PackageFolder);
+			for( int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++ )
+			{
 				FString PackageFile(FilesInPackageFolder[FileIndex]);
 				FPaths::MakeStandardFilename(PackageFile);
 				PackageNames.Add( *PackageFile );
-            }
+			}
 			bExplicitPackages = true;
+		}
+		else if (FParse::Value(*CurrentSwitch, TEXT("GCFREQ="), GarbageCollectionFrequency))
+		{
+			UE_LOG(LogContentCommandlet, Display, TEXT("Setting garbage collection to happen every %d packages."), GarbageCollectionFrequency);
 		}
 		else if (FParse::Value(*CurrentSwitch, TEXT("MAP="), Maps))
 		{
@@ -215,7 +219,7 @@ int32 UResavePackagesCommandlet::InitializeResaveParameters( const TArray<FStrin
 		for (const FDirectoryPath& Path : Settings->DirectoriesForHLODCommandlet)
 		{
 			TArray<FString> FilesInPackageFolder;			
-			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, *FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir(), Path.Path));
+			FPackageName::FindPackagesInDirectory(FilesInPackageFolder, FPaths::ConvertRelativePathToFull(FPaths::ProjectContentDir(), Path.Path));
 			for (int32 FileIndex = 0; FileIndex < FilesInPackageFolder.Num(); FileIndex++)
 			{
 				FString PackageFile(FilesInPackageFolder[FileIndex]);
@@ -600,7 +604,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 		
 		if (bSavePackage)
 		{
-			PackagesRequiringResave++;
+			PackagesConsideredForResave++;
 
 			// Only rebuild static meshes on load for the to be saved package.
 			extern ENGINE_API FName GStaticMeshPackageNameToRebuild;
@@ -773,6 +777,7 @@ void UResavePackagesCommandlet::LoadAndSaveOnePackage(const FString& Filename)
 					ESaveFlags SaveFlags = bKeepPackageGUIDOnSave ? SAVE_KeepGUID : SAVE_None;
 					if( SavePackageHelper(Package, Filename, RF_Standalone, GWarn, nullptr, SaveFlags) )
 					{
+						PackagesResaved++;
 						if (Verbosity == VERY_VERBOSE)
 						{
 							UE_LOG(LogContentCommandlet, Display, TEXT("Correctly saved:  [%s]."), *Filename );
@@ -1031,7 +1036,8 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 	}
 
 	int32 GCIndex = 0;
-	PackagesRequiringResave = 0;
+	PackagesConsideredForResave = 0;
+	PackagesResaved = 0;
 
 	// allow for an option to restart at a given package name (in case it dies during a run, etc)
 	bool bCanProcessPackage = true;
@@ -1088,7 +1094,7 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		}
 
 		// Break out if we've resaved enough packages
-		if( MaxPackagesToResave > -1 && PackagesRequiringResave >= MaxPackagesToResave )
+		if( MaxPackagesToResave > -1 && PackagesResaved >= MaxPackagesToResave )
 		{
 			UE_LOG(LogContentCommandlet, Warning, TEXT( "Attempting to resave more than MaxPackagesToResave; exiting" ) );
 			break;
@@ -1138,8 +1144,9 @@ int32 UResavePackagesCommandlet::Main( const FString& Params )
 		FPlatformMisc::SetEnvironmentVar(TEXT("uebp_UATMutexNoWait"), TEXT("0"));		
 	}
 
-	UE_LOG(LogContentCommandlet, Display, TEXT( "[REPORT] %d/%d packages required resaving" ), PackagesRequiringResave, PackageNames.Num() );
-	
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were considered for resaving"), PackagesConsideredForResave, PackageNames.Num());
+	UE_LOG(LogContentCommandlet, Display, TEXT("[REPORT] %d/%d packages were resaved"), PackagesResaved, PackagesConsideredForResave);
+
 
 	return 0;
 }

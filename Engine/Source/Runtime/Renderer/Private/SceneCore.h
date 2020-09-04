@@ -133,9 +133,6 @@ public:
 	/** The index of the mesh in the scene's static meshes array. */
 	int32 Id;
 
-	/** Index of the mesh into the scene's StaticMeshBatchVisibility array. */
-	int32 BatchVisibilityId;
-
 	// Constructor/destructor.
 	FStaticMeshBatch(
 		FPrimitiveSceneInfo* InPrimitiveSceneInfo,
@@ -144,8 +141,7 @@ public:
 		):
 		FMeshBatch(InMesh),
 		PrimitiveSceneInfo(InPrimitiveSceneInfo),
-		Id(INDEX_NONE),
-		BatchVisibilityId(INDEX_NONE)
+		Id(INDEX_NONE)
 	{
 		BatchHitProxyId = InHitProxyId;
 	}
@@ -157,8 +153,7 @@ private:
 	FStaticMeshBatch(const FStaticMeshBatch& InStaticMesh):
 		FMeshBatch(InStaticMesh),
 		PrimitiveSceneInfo(InStaticMesh.PrimitiveSceneInfo),
-		Id(InStaticMesh.Id),
-		BatchVisibilityId(InStaticMesh.BatchVisibilityId)
+		Id(InStaticMesh.Id)
 	{}
 };
 
@@ -175,7 +170,6 @@ public:
 		, CommandInfosBase(0)
 		, LODIndex(StaticMesh.LODIndex)
 		, bDitheredLODTransition(StaticMesh.bDitheredLODTransition)
-		, bRequiresPerElementVisibility(StaticMesh.bRequiresPerElementVisibility)
 		, bSelectable(StaticMesh.bSelectable)
 		, CastShadow(StaticMesh.CastShadow)
 		, bUseForMaterial(StaticMesh.bUseForMaterial)
@@ -210,9 +204,6 @@ public:
 
 	/** Whether the mesh batch should apply dithered LOD. */
 	uint8 bDitheredLODTransition : 1;
-
-	/** Whether the mesh batch needs VertexFactory->GetStaticBatchElementVisibility to be called each frame to determine which elements of the batch are visible. */
-	uint8 bRequiresPerElementVisibility : 1;
 
 	/** Whether the mesh batch can be selected through editor selection, aka hit proxies. */
 	uint8 bSelectable : 1;

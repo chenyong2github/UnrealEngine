@@ -9,12 +9,12 @@
 
 #include "USDSceneImportFactory.generated.h"
 
-class UUSDSceneImportOptions;
+class UDEPRECATED_UUSDSceneImportOptions;
 class UWorld;
 
 
-UCLASS(transient)
-class UUSDSceneImportFactory : public USceneImportFactory, public IImportSettingsParser
+UCLASS(transient, Deprecated)
+class UDEPRECATED_UUSDSceneImportFactory : public USceneImportFactory, public IImportSettingsParser
 {
 	GENERATED_UCLASS_BODY()
 
@@ -32,7 +32,7 @@ private:
 	UPROPERTY()
 	FUSDSceneImportContext ImportContext;
 
-	UPROPERTY()
-	UUSDSceneImportOptions* ImportOptions;
+	UPROPERTY(meta = (DeprecatedProperty, DeprecationMessage = "Use the new USDStageImporter module instead"))
+	UDEPRECATED_UUSDSceneImportOptions* ImportOptions_DEPRECATED;
 };
 

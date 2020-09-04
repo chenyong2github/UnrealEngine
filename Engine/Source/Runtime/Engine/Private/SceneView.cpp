@@ -659,6 +659,8 @@ FSceneView::FSceneView(const FSceneViewInitOptions& InitOptions)
 	, ColorScale(InitOptions.ColorScale)
 	, StereoPass(InitOptions.StereoPass)
 	, StereoIPD(InitOptions.StereoIPD)
+	, bAllowCrossGPUTransfer(true)
+	, bOverrideGPUMask(false)
 	, GPUMask(FRHIGPUMask::GPU0())
 	, bRenderFirstInstanceOnly(false)
 	, DiffuseOverrideParameter(FVector4(0,0,0,1))
@@ -1332,6 +1334,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 
 		LERP_PP(BlueCorrection);
 		LERP_PP(ExpandGamut);
+		LERP_PP(ToneCurveAmount);
 
 		LERP_PP(FilmWhitePoint);
 		LERP_PP(FilmSaturation);
@@ -1575,7 +1578,7 @@ void FSceneView::OverridePostProcessSettings(const FPostProcessSettings& Src, fl
 			Dest.BloomDirtMask = Src.BloomDirtMask;
 		}
 
-		IF_PP(BloomMethod)
+		if (Src.bOverride_BloomMethod)
 		{
 			Dest.BloomMethod = Src.BloomMethod;
 		}
@@ -1907,6 +1910,11 @@ void FSceneView::EndFinalPostprocessSettings(const FSceneViewInitOptions& ViewIn
 	if(!Family->EngineShowFlags.LensFlares)
 	{
 		FinalPostProcessSettings.LensFlareIntensity = 0;
+	}
+
+	if (!Family->EngineShowFlags.ToneCurve)
+	{
+		FinalPostProcessSettings.ToneCurveAmount = 0;
 	}
 
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)

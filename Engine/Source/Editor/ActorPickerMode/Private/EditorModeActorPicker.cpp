@@ -233,7 +233,8 @@ bool FEdModeActorPicker::IsActorValid(const AActor *const Actor) const
 			OnGetAllowedClasses.Execute(AllowedClasses);
 			for(const UClass* AllowedClass : AllowedClasses)
 			{
-				if(Actor->IsA(AllowedClass))
+				if ((AllowedClass->IsChildOf(UInterface::StaticClass()) && Actor->GetClass()->ImplementsInterface(AllowedClass)) ||
+					Actor->IsA(AllowedClass))
 				{
 					bHasValidClass = true;
 					break;

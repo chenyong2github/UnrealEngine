@@ -462,7 +462,7 @@ void UDiffAssetRegistriesCommandlet::ConsistencyCheck(const FString& OldPath, co
 	{
 		FName Package = Recurse[RecurseIndex];
 		TArray<FAssetIdentifier> Referencers;
-		NewState.GetReferencers(Package, Referencers, EAssetRegistryDependencyType::Hard);
+		NewState.GetReferencers(Package, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 		
 		for (const FAssetIdentifier& Referencer : Referencers)
 		{
@@ -1194,7 +1194,7 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 		{
 			FName Package = Recurse[RecurseIndex];
 			TArray<FAssetIdentifier> Referencers;
-			NewState.GetReferencers(Package, Referencers, EAssetRegistryDependencyType::Hard);
+			NewState.GetReferencers(Package, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 			for (const FAssetIdentifier& Referencer : Referencers)
 			{
@@ -1322,7 +1322,7 @@ void UDiffAssetRegistriesCommandlet::DiffAssetRegistries(const FString& OldPath,
 			// don't bother touching anything if this asset or its dependencies didn't change
 			if (NewFlags)
 			{
-				NewState.GetReferencers(Package, Referencers, EAssetRegistryDependencyType::Hard);
+				NewState.GetReferencers(Package, Referencers, UE::AssetRegistry::EDependencyCategory::Package, UE::AssetRegistry::EDependencyQuery::Hard);
 
 				for (const FAssetIdentifier& Referencer : Referencers)
 				{

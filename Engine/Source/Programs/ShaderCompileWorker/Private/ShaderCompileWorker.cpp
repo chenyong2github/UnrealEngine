@@ -46,7 +46,7 @@ static void OnXGEJobCompleted(const TCHAR* WorkingDirectory)
 }
 
 #if USING_CODE_ANALYSIS
-	FUNCTION_NO_RETURN_START static inline void ExitWithoutCrash(ESCWErrorCode ErrorCode, const FString& Message) FUNCTION_NO_RETURN_END;
+	UE_NORETURN static inline void ExitWithoutCrash(ESCWErrorCode ErrorCode, const FString& Message);
 #endif
 
 static inline void ExitWithoutCrash(ESCWErrorCode ErrorCode, const FString& Message)
@@ -179,8 +179,6 @@ static int64 WriteOutputFileHeader(FArchive& OutputFile, int32 ErrorCode, int32 
 class FWorkLoop
 {
 public:
-	bool bIsBuildMachine = false;
-
 	// If we have been idle for 20 seconds then exit. Can be overriden from the cmd line with -TimeToLive=N where N is in seconds (and a float value)
 	float TimeToLive = 20.0f;
 
@@ -193,8 +191,6 @@ public:
 	,	OutputFilePath(FString(InWorkingDirectory) + InOutputFilename)
 	,	FormatVersionMap(InFormatVersionMap)
 	{
-		bIsBuildMachine = FParse::Param(FCommandLine::Get(), TEXT("buildmachine"));
-
 		TArray<FString> Tokens, Switches;
 		FCommandLine::Parse(FCommandLine::Get(), Tokens, Switches);
 		for (FString& Switch : Switches)
@@ -838,7 +834,7 @@ static void DirectCompile(const TArray<const class IShaderFormat*>& ShaderFormat
  */
 static int32 GuardedMain(int32 argc, TCHAR* argv[], bool bDirectMode)
 {
-	FString ExtraCmdLine = TEXT("-NOPACKAGECACHE -ReduceThreadUsage -cpuprofilertrace");
+	FString ExtraCmdLine = TEXT("-NOPACKAGECACHE -ReduceThreadUsage -cpuprofilertrace -nocrashreports");
 
 	// When executing tasks remotely through XGE, enumerating files requires tcp/ip round-trips with
 	// the initiator, which can slow down engine initialization quite drastically.
@@ -998,9 +994,9 @@ static int32 GuardedMainWrapper(int32 ArgC, TCHAR* ArgV[], const TCHAR* CrashOut
 			ReturnCode = GuardedMain(ArgC, ArgV, bDirectMode);
 			GIsGuarded = 0;
 		}
-		__except( ReportCrash( GetExceptionInformation() ) )
+		__except(EXCEPTION_EXECUTE_HANDLER)
 		{
-			FArchive& OutputFile = *IFileManager::Get().CreateFileWriter(CrashOutputFile,FILEWRITE_NoFail);
+			FArchive& OutputFile = *IFileManager::Get().CreateFileWriter(CrashOutputFile, FILEWRITE_EvenIfReadOnly);
 
 			if (GFailedErrorCode == ESCWErrorCode::Success)
 			{

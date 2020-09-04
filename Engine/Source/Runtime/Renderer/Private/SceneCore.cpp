@@ -377,11 +377,6 @@ FStaticMeshBatch::~FStaticMeshBatch()
 	FScene* Scene = PrimitiveSceneInfo->Scene;
 	// Remove this static mesh from the scene's list.
 	Scene->StaticMeshes.RemoveAt(Id);
-
-	if (BatchVisibilityId != INDEX_NONE)
-	{
-		Scene->StaticMeshBatchVisibility.RemoveAt(BatchVisibilityId);
-	}
 }
 
 /** Initialization constructor. */

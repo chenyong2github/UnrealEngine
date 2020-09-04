@@ -84,14 +84,40 @@ struct TDefaultNumericTypeInterface : INumericTypeInterface<NumericType>
 			.SetMaximumFractionalDigits(TIsIntegral<NumericType>::Value ? 0 : FMath::Max(MaxFractionalDigits, MinFractionalDigits));
 		return FastDecimalFormat::NumberToString(Value, ExpressionParser::GetLocalizedNumberFormattingRules(), NumberFormattingOptions);
 	}
+
 	virtual TOptional<NumericType> FromString(const FString& InString, const NumericType& InExistingValue) override
 	{
+		// Attempt to parse a number of type NumericType. Need to parse all the characters.
+		FNumberParsingOptions ParsingOption = FNumberParsingOptions().SetUseGrouping(false).SetUseClamping(true);
+
+		{
+			NumericType PrimaryValue{};
+			int32 PrimaryParsedLen = 0;
+			bool PrimaryResult =  FastDecimalFormat::StringToNumber(*InString, InString.Len(), ExpressionParser::GetLocalizedNumberFormattingRules(), ParsingOption, PrimaryValue, &PrimaryParsedLen);
+			if(PrimaryResult && PrimaryParsedLen == InString.Len())
+			{
+				return PrimaryValue;
+			}
+		}
+
+		{
+			NumericType FallbackValue{};
+			int32 FallbackParsedLen = 0;
+			bool FallbackResult = FastDecimalFormat::StringToNumber(*InString, InString.Len(), FastDecimalFormat::GetCultureAgnosticFormattingRules(), ParsingOption, FallbackValue, &FallbackParsedLen);
+			if (FallbackResult && FallbackParsedLen == InString.Len())
+			{
+				return FallbackResult;
+			}
+		}
+
+		// Attempt to parse it as an expression
 		static FBasicMathExpressionEvaluator Parser;
 
-		TValueOrError<double, FExpressionError> Result = Parser.Evaluate(*InString, double(InExistingValue));
+		TValueOrError<double, FExpressionError> Result = Parser.Evaluate(*InString, InExistingValue);
 		if (Result.IsValid())
 		{
-			return NumericType(Result.GetValue());
+			double ClampedValue = FMath::Clamp<double>(Result.GetValue(), TNumericLimits<NumericType>::Lowest(), TNumericLimits<NumericType>::Max());
+			return NumericType(ClampedValue);
 		}
 
 		return TOptional<NumericType>();

@@ -22,7 +22,9 @@
 #include "dxc/DXIL/DxilConstants.h"
 #include "dxc/Support/WinAdapter.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/Optional.h"
+#include "llvm/ADT/StringRef.h"
 
 namespace clang {
   class ASTContext;
@@ -297,14 +299,11 @@ void AddHLSLVectorTemplate(
   clang::ASTContext& context, 
   _Outptr_ clang::ClassTemplateDecl** vectorTemplateDecl);
 
-void AddRecordTypeWithHandle(
-            clang::ASTContext& context,
-  _Outptr_  clang::CXXRecordDecl** typeDecl, 
-  _In_z_    const char* typeName);
+clang::CXXRecordDecl* DeclareRecordTypeWithHandle(
+  clang::ASTContext& context, llvm::StringRef name);
 
-void AddRayFlags(clang::ASTContext& context);
-void AddHitKinds(clang::ASTContext& context);
-void AddStateObjectFlags(clang::ASTContext& context);
+void AddRaytracingConstants(clang::ASTContext& context);
+void AddSamplerFeedbackConstants(clang::ASTContext& context);
 
 /// <summary>Adds the implementation for std::is_equal.</summary>
 void AddStdIsEqualImplementation(clang::ASTContext& context, clang::Sema& sema);
@@ -313,18 +312,18 @@ void AddStdIsEqualImplementation(clang::ASTContext& context, clang::Sema& sema);
 /// Adds a new template type in the specified context with the given name. The record type will have a handle field.
 /// </summary>
 /// <parm name="context">AST context to which template will be added.</param>
-/// <parm name="typeDecl">After execution, template declaration.</param>
-/// <parm name="recordDecl">After execution, record declaration for template.</param>
-/// <parm name="typeName">Name of template to create.</param>
 /// <parm name="templateArgCount">Number of template arguments (one or two).</param>
 /// <parm name="defaultTypeArgValue">If assigned, the default argument for the element template.</param>
-void AddTemplateTypeWithHandle(
+clang::CXXRecordDecl* DeclareTemplateTypeWithHandle(
             clang::ASTContext& context,
-  _Outptr_  clang::ClassTemplateDecl** typeDecl,
-  _Outptr_  clang::CXXRecordDecl** recordDecl,
-  _In_z_    const char* typeName,
+            llvm::StringRef name,
             uint8_t templateArgCount,
   _In_opt_  clang::TypeSourceInfo* defaultTypeArgValue);
+
+clang::CXXRecordDecl* DeclareUIntTemplatedTypeWithHandle(
+  clang::ASTContext& context, llvm::StringRef typeName, llvm::StringRef templateParamName);
+clang::CXXRecordDecl* DeclareRayQueryType(clang::ASTContext& context);
+clang::CXXRecordDecl *DeclareResourceType(clang::ASTContext &context);
 
 /// <summary>Create a function template declaration for the specified method.</summary>
 /// <param name="context">AST context in which to work.</param>
@@ -364,6 +363,7 @@ bool HasHLSLMatOrientation(clang::QualType type, bool *pIsRowMajor = nullptr);
 bool IsHLSLMatRowMajor(clang::QualType type, bool defaultValue);
 bool IsHLSLUnsigned(clang::QualType type);
 bool HasHLSLUNormSNorm(clang::QualType type, bool *pIsSNorm = nullptr);
+bool HasHLSLGloballyCoherent(clang::QualType type);
 bool IsHLSLInputPatchType(clang::QualType type);
 bool IsHLSLOutputPatchType(clang::QualType type);
 bool IsHLSLPointStreamType(clang::QualType type);
@@ -375,6 +375,7 @@ bool IsHLSLNumericOrAggregateOfNumericType(clang::QualType type);
 bool IsHLSLNumericUserDefinedType(clang::QualType type);
 bool IsHLSLAggregateType(clang::QualType type);
 clang::QualType GetHLSLResourceResultType(clang::QualType type);
+unsigned GetHLSLResourceTemplateUInt(clang::QualType type);
 bool IsIncompleteHLSLResourceArrayType(clang::ASTContext& context, clang::QualType type);
 clang::QualType GetHLSLInputPatchElementType(clang::QualType type);
 unsigned GetHLSLInputPatchCount(clang::QualType type);
@@ -384,6 +385,7 @@ unsigned GetHLSLOutputPatchCount(clang::QualType type);
 bool IsHLSLSubobjectType(clang::QualType type);
 bool GetHLSLSubobjectKind(clang::QualType type, DXIL::SubobjectKind &subobjectKind, 
                           DXIL::HitGroupType &ghType);
+bool IsHLSLRayQueryType(clang::QualType type);
 
 bool IsArrayConstantStringType(const clang::QualType type);
 bool IsPointerStringType(const clang::QualType type);

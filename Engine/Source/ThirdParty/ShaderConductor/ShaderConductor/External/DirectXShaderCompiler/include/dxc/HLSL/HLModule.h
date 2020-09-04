@@ -21,6 +21,7 @@
 #include "dxc/DXIL/DxilSignature.h"
 #include "dxc/DXIL/DxilFunctionProps.h"
 #include "dxc/DXIL/DxilSubobject.h"
+#include "dxc/DXIL/DxilResourceProperties.h"
 #include <memory>
 #include <string>
 #include <vector>
@@ -39,6 +40,7 @@ class MDNode;
 class GlobalVariable;
 class DIGlobalVariable;
 class DebugInfoFinder;
+class GetElementPtrInst;
 }
 
 
@@ -152,11 +154,6 @@ public:
   DxilFunctionAnnotation *GetFunctionAnnotation(llvm::Function *F);
   DxilFunctionAnnotation *AddFunctionAnnotation(llvm::Function *F);
 
-  void AddResourceTypeAnnotation(llvm::Type *Ty, DXIL::ResourceClass resClass,
-                                 DXIL::ResourceKind kind);
-  DXIL::ResourceClass GetResourceClass(llvm::Type *Ty);
-  DXIL::ResourceKind  GetResourceKind(llvm::Type *Ty);
-
   // Float Denorm mode.
   void SetFloat32DenormMode(const DXIL::Float32DenormMode mode);
   DXIL::Float32DenormMode GetFloat32DenormMode() const;
@@ -178,8 +175,14 @@ public:
   llvm::MDNode *DxilUAVToMDNode(const DxilResource &UAV);
   llvm::MDNode *DxilCBufferToMDNode(const DxilCBuffer &CB);
   void LoadDxilResourceBaseFromMDNode(llvm::MDNode *MD, DxilResourceBase &R);
-  void AddResourceWithGlobalVariableAndMDNode(llvm::Constant *GV,
-                                              llvm::MDNode *MD);
+  void LoadDxilResourceFromMDNode(llvm::MDNode *MD, DxilResource &R);
+  void LoadDxilSamplerFromMDNode(llvm::MDNode *MD, DxilSampler &S);
+  DxilResourceBase *
+  AddResourceWithGlobalVariableAndProps(llvm::Constant *GV,
+                                        DxilResourceProperties &RP);
+  unsigned GetBindingForResourceInCB(llvm::GetElementPtrInst *CbPtr,
+                                     llvm::GlobalVariable *CbGV,
+                                     DXIL::ResourceClass RC);
 
   // Type related methods.
   static bool IsStreamOutputPtrType(llvm::Type *Ty);
@@ -208,15 +211,12 @@ public:
   static bool HasPreciseAttributeWithMetadata(llvm::Instruction *I);
   static void MarkPreciseAttributeWithMetadata(llvm::Instruction *I);
   static void ClearPreciseAttributeWithMetadata(llvm::Instruction *I);
+  template<class BuilderTy>
+  static void MarkPreciseAttributeOnValWithFunctionCall(llvm::Value *V,
+                                                        BuilderTy &Builder, llvm::Module &M);
   static void MarkPreciseAttributeOnPtrWithFunctionCall(llvm::Value *Ptr,
                                                         llvm::Module &M);
   static bool HasPreciseAttribute(llvm::Function *F);
-  // Resource attribute.
-  static void  MarkDxilResourceAttrib(llvm::Function *F, llvm::MDNode *MD);
-  static llvm::MDNode *GetDxilResourceAttrib(llvm::Function *F);
-  void MarkDxilResourceAttrib(llvm::Argument *Arg, llvm::MDNode *MD);
-  llvm::MDNode *GetDxilResourceAttrib(llvm::Argument *Arg);
-  static llvm::MDNode *GetDxilResourceAttrib(llvm::Type *Ty, llvm::Module &M);
 
   // DXIL type system.
   DxilTypeSystem &GetTypeSystem();
@@ -251,6 +251,9 @@ public:
   DxilSubobjects *ReleaseSubobjects();
   void ResetSubobjects(DxilSubobjects *subobjects);
 
+  // Reg binding for resource in cb.
+  void AddRegBinding(unsigned CbID, unsigned ConstantIdx, unsigned Srv, unsigned Uav, unsigned Sampler);
+
 private:
   // Signatures.
   std::vector<uint8_t> m_SerializedRootSignature;
@@ -268,8 +271,11 @@ private:
   std::unordered_map<const llvm::Function *, std::unique_ptr<DxilFunctionProps>>  m_DxilFunctionPropsMap;
   std::unordered_set<llvm::Function *>  m_PatchConstantFunctions;
 
-  // Resource type annotation.
-  std::unordered_map<llvm::Type *, std::pair<DXIL::ResourceClass, DXIL::ResourceKind>> m_ResTypeAnnotation;
+  // Resource bindings for res in cb.
+  // Key = CbID << 32 | ConstantIdx. Val is reg binding.
+  std::unordered_map<uint64_t, unsigned> m_SrvBindingInCB;
+  std::unordered_map<uint64_t, unsigned> m_UavBindingInCB;
+  std::unordered_map<uint64_t, unsigned> m_SamplerBindingInCB;
 
 private:
   llvm::LLVMContext &m_Ctx;
@@ -297,8 +303,6 @@ private:
   llvm::MDTuple *EmitHLShaderProperties();
   void LoadHLShaderProperties(const llvm::MDOperand &MDO);
   llvm::MDTuple *EmitDxilShaderProperties();
-  llvm::MDTuple *EmitResTyAnnotations();
-  void LoadResTyAnnotations(const llvm::MDOperand &MDO);
   // LLVM used.
   std::vector<llvm::GlobalVariable*> m_LLVMUsed;
 

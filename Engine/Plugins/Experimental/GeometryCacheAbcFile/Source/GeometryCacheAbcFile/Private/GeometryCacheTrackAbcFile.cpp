@@ -8,7 +8,9 @@
 #include "AbcUtilities.h"
 #include "Framework/Notifications/NotificationManager.h"
 #include "GeometryCache.h"
+#include "GeometryCacheAbcStream.h"
 #include "GeometryCacheHelpers.h"
+#include "IGeometryCacheStreamer.h"
 #include "Logging/LogCategory.h"
 #include "Logging/LogMacros.h"
 #include "Misc/Paths.h"
@@ -22,6 +24,11 @@ DEFINE_LOG_CATEGORY_STATIC(LogGeometryCacheAbcFile, Log, All);
 UGeometryCacheTrackAbcFile::UGeometryCacheTrackAbcFile()
 : EndFrameIndex(0)
 {
+}
+
+UGeometryCacheTrackAbcFile::~UGeometryCacheTrackAbcFile()
+{
+	IGeometryCacheStreamer::Get().UnregisterTrack(this);
 }
 
 const bool UGeometryCacheTrackAbcFile::UpdateMatrixData(const float Time, const bool bLooping, int32& InOutMatrixSampleIndex, FMatrix& OutWorldMatrix)
@@ -90,8 +97,12 @@ void UGeometryCacheTrackAbcFile::ShowNotification(const FText& Text)
 	FSlateNotificationManager::Get().AddNotification(Info);
 }
 
-bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImportSettings* AbcSettings)
+bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImportSettings* AbcSettings, float InitialTime, bool bIsLooping)
 {
+	IGeometryCacheStreamer& Streamer = IGeometryCacheStreamer::Get();
+	Streamer.UnregisterTrack(this);
+	Reset();
+
 	if (!FilePath.IsEmpty())
 	{
 		AbcFile = MakeUnique<FAbcFile>(FilePath);
@@ -118,14 +129,10 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 			return false;
 		}
 
-		// Set the end frame from the Abc if none is specified in the settings
-		EndFrameIndex = FMath::Max(AbcFile->GetMaxFrameIndex() - 1, 1);
-		if (AbcSettings->SamplingSettings.FrameEnd == 0)
-		{
-			AbcSettings->SamplingSettings.FrameEnd = EndFrameIndex;
-		}
-
 		Result = AbcFile->Import(AbcSettings);
+
+		// Set the end frame after import since it might have been modified due to validation at import
+		EndFrameIndex = AbcSettings->SamplingSettings.FrameEnd;
 
 		if (Result != EAbcImportError::AbcImportError_NoError)
 		{
@@ -144,9 +151,6 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 			return false;
 		}
 
-		MatrixSamples.Reset();
-		MatrixSampleTimes.Reset();
-
 		TArray<FMatrix> Mats;
 		Mats.Add(FMatrix::Identity);
 		Mats.Add(FMatrix::Identity);
@@ -158,8 +162,14 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 
 		Duration = AbcFile->GetImportLength();
 
-		// Fill out the MeshData with the sample from time 0
-		GetMeshData(0, MeshData);
+		// Register this Track and associated Stream with the GeometryCacheStreamer and prefetch the first frame
+		// The Stream ownership is passed to the Streamer
+		FGeometryCacheAbcStream* Stream = new FGeometryCacheAbcStream(this);
+		Streamer.RegisterTrack(this, Stream);
+
+		const int32 InitialFrameIndex = FindSampleIndexFromTime(InitialTime, bIsLooping);
+		Stream->Prefetch(InitialFrameIndex);
+		GetMeshData(InitialFrameIndex, MeshData);
 
 		if (MeshData.Positions.Num() == 0)
 		{
@@ -167,10 +177,7 @@ bool UGeometryCacheTrackAbcFile::SetSourceFile(const FString& FilePath, UAbcImpo
 			ShowNotification(FText::Format(LOCTEXT("NoVisibleGeometry", "Warning: {0} has no visible geometry."), FText::FromString(Filename)));
 		}
 	}
-	else
-	{
-		Reset();
-	}
+
 	SourceFile = FilePath;
 	return true;
 }
@@ -197,8 +204,10 @@ const FGeometryCacheTrackSampleInfo& UGeometryCacheTrackAbcFile::GetSampleInfo(f
 		SampleTime = GeometyCacheHelpers::WrapAnimationTime(Time, Duration);
 	}
 
-	// #ueent_todo: Return the correct SampleInfo without double querying the Alembic. 
-	// Currently returns the info for MeshData queried in UpdateMeshData
+	// Update the mesh data as required
+	int32 ThisSampleIndex = FindSampleIndexFromTime(SampleTime, bLooping);
+	GetMeshData(ThisSampleIndex, MeshData);
+
 	SampleInfo = FGeometryCacheTrackSampleInfo(
 		SampleTime,
 		MeshData.BoundingBox,
@@ -213,9 +222,10 @@ bool UGeometryCacheTrackAbcFile::GetMeshData(int32 SampleIndex, FGeometryCacheMe
 {
 	if (AbcFile)
 	{
-		// #ueent_todo: Implement optimized Alembic querying
-		FAbcUtilities::GetFrameMeshData(*AbcFile, SampleIndex, OutMeshData);
-		return true;
+		if (IGeometryCacheStreamer::Get().IsTrackRegistered(this))
+		{
+			return IGeometryCacheStreamer::Get().TryGetFrameData(this, SampleIndex, OutMeshData);
+		}
 	}
 	return false;
 }
@@ -234,6 +244,11 @@ void UGeometryCacheTrackAbcFile::SetupGeometryCacheMaterials(UGeometryCache* Geo
 
 		FAbcUtilities::SetupGeometryCacheMaterials(*AbcFile, GeometryCache, Package);
 	}
+}
+
+FAbcFile& UGeometryCacheTrackAbcFile::GetAbcFile()
+{
+	return *AbcFile.Get();
 }
 
 #undef LOCTEXT_NAMESPACE

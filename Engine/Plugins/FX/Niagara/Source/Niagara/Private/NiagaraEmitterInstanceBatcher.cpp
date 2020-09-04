@@ -14,7 +14,7 @@
 #include "SceneUtils.h"
 #include "ShaderParameterUtils.h"
 #include "ClearQuad.h"
-#include "Runtime/Engine/Private/GPUSort.h"
+#include "GPUSort.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara Dispatch Setup"), STAT_NiagaraGPUDispatchSetup_RT, STATGROUP_Niagara);
 DECLARE_CYCLE_STAT(TEXT("GPU Emitter Dispatch [RT]"), STAT_NiagaraGPUSimTick_RT, STATGROUP_Niagara);
@@ -1108,6 +1108,13 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 
 	SCOPED_DRAW_EVENTF(RHICmdList, NiagaraEmitterInstanceBatcher_ExecuteAll, TEXT("NiagaraEmitterInstanceBatcher_ExecuteAll - TickStage(%d)"), TickStage);
 
+	FUniformBufferStaticBindings GlobalUniformBuffers;
+	if (FRHIUniformBuffer* SceneTexturesUniformBuffer = GNiagaraViewDataManager.GetSceneTextureUniformParameters())
+	{
+		GlobalUniformBuffers.AddUniformBuffer(SceneTexturesUniformBuffer);
+	}
+	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
+
 	FMemMark Mark(FMemStack::Get());
 	TArray<FOverlappableTicks, TMemStackAllocator<> > SimPasses;
 	{
@@ -1158,9 +1165,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 	// Note: We can not encapsulate the whole Niagara pass as some DI's may not be compatible (i.e. use CopyTexture function), we need to fix this with future RDG conversion
 	if (SimPasses.Num() > 0)
 	{
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RHICmdList.BeginComputePass(TEXT("NiagaraCompute"));
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		//RHICmdList.BeginComputePass(TEXT("NiagaraCompute"));
+		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		RHICmdList.BeginUAVOverlap();
 
 		FEmitterInstanceList InstancesWithPersistentIDs;
@@ -1212,9 +1219,9 @@ void NiagaraEmitterInstanceBatcher::ExecuteAll(FRHICommandList& RHICmdList, FRHI
 		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, OutputGraphicsBuffers.GetData(), OutputGraphicsBuffers.Num());
 
 		RHICmdList.EndUAVOverlap();
-		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		RHICmdList.EndComputePass();
-		PRAGMA_ENABLE_DEPRECATION_WARNINGS
+		//PRAGMA_DISABLE_DEPRECATION_WARNINGS
+		//RHICmdList.EndComputePass();
+		//PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
 	// Release counts

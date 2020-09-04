@@ -36,6 +36,7 @@ public:
 		, _Method()
 		, _MaxListHeight(450.0f)
 		, _HasDownArrow(true)
+		, _SearchVisibility()
 	{}
 
 	/** Slot for this button's content (optional) */
@@ -75,6 +76,9 @@ public:
 		 */
 		SLATE_ARGUMENT(bool, HasDownArrow)
 
+		/** Allow setting the visibility of the search box dynamically */
+		SLATE_ATTRIBUTE(EVisibility, SearchVisibility)
+
 	SLATE_END_ARGS()
 
 	/**
@@ -103,7 +107,7 @@ private:
 	/** Generate a row for the InItem in the combo box's list (passed in as OwnerTable). Do this by calling the user-specified OnGenerateWidget */
 	TSharedRef<ITableRow> GenerateMenuItemRow(TSharedPtr<FString> InItem, const TSharedRef<STableViewBase>& OwnerTable);
 
-	//** Called if the menu is closed
+	/** Called if the menu is closed */
 	void OnMenuOpenChanged(bool bOpen);
 
 	/** Invoked when the selection in the list changes */
@@ -111,6 +115,9 @@ private:
 
 	/** Invoked when the search text changes */
 	void OnSearchTextChanged(const FText& ChangedText);
+
+	/** Sets the current selection to the first valid match when user presses enter in the filter box */
+	void OnSearchTextCommitted(const FText& InText, ETextCommit::Type InCommitType);
 
 	/** Handle clicking on the content menu */
 	virtual FReply OnButtonClicked() override;
@@ -134,7 +141,14 @@ private:
 	/** Delegate to invoke when we need to visualize an option as a widget. */
 	FOnGenerateWidget OnGenerateWidget;
 
+	/** Updated whenever search text is changed */
+	FText SearchText;
+
+	/** Source data for this combo box */
 	const TArray< TSharedPtr<FString> >* OptionsSource;
+
+	/** Filtered list that is actually displayed */
+	TArray< TSharedPtr<FString> > FilteredOptionsSource;
 };
 
 

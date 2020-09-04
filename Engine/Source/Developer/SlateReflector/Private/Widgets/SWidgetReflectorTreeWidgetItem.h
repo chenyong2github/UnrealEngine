@@ -14,7 +14,7 @@
 /**
  * Widget that visualizes the contents of a FReflectorNode.
  */
-class SLATEREFLECTOR_API SReflectorTreeWidgetItem
+class SReflectorTreeWidgetItem
 	: public SMultiColumnTableRow<TSharedRef<FWidgetReflectorNodeBase>>
 {
 public:

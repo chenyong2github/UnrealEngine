@@ -1138,10 +1138,15 @@ public:
 	void AddActorWorldRotation(FRotator DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 	void AddActorWorldRotation(const FQuat& DeltaRotation, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
 
-	/** Adds a delta to the transform of this actor in world space. Scale is unchanged. */
+	/** Adds a delta to the transform of this actor in world space. Ignores scale and sets it to (1,1,1). */
 	UFUNCTION(BlueprintCallable, Category="Utilities|Transformation", meta=(DisplayName="AddActorWorldTransform", ScriptName="AddActorWorldTransform"))
 	void K2_AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
 	void AddActorWorldTransform(const FTransform& DeltaTransform, bool bSweep=false, FHitResult* OutSweepHitResult=nullptr, ETeleportType Teleport = ETeleportType::None);
+
+	/** Adds a delta to the transform of this actor in world space. Scale is unchanged. */
+	UFUNCTION(BlueprintCallable, Category = "Utilities|Transformation", meta = (DisplayName = "AddActorWorldTransformKeepScale", ScriptName = "AddActorWorldTransformKeepScale"))
+	void K2_AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep, FHitResult& SweepHitResult, bool bTeleport);
+	void AddActorWorldTransformKeepScale(const FTransform& DeltaTransform, bool bSweep = false, FHitResult* OutSweepHitResult = nullptr, ETeleportType Teleport = ETeleportType::None);
 
 	/** 
 	 * Set the Actors transform to the specified one.
@@ -2188,6 +2193,13 @@ public:
 	/** Get the owner of this Actor, used primarily for network replication. */
 	UFUNCTION(BlueprintCallable, Category=Actor)
 	AActor* GetOwner() const;
+
+	/** Templated version of GetOwner(), will return nullptr if cast fails */
+	template< class T >
+	T* GetOwner() const
+	{
+		return Cast<T>(GetOwner());
+	}
 
 	/**
 	 * This will check to see if the Actor is still in the world.  It will check things like

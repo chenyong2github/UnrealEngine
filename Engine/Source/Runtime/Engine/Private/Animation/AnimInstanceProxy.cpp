@@ -712,7 +712,7 @@ void FAnimInstanceProxy::TickAssetPlayerInstances(float DeltaSeconds)
 			//For debugging UE-54705
 			FName InitialMarkerPrevious = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().PreviousMarkerName;
 			FName InitialMarkerEnd = TickContext.MarkerTickContext.GetMarkerSyncStartPosition().NextMarkerName;
-			const bool bIsLeaderRecordValidPre = SyncGroup.ActivePlayers[0].MarkerTickRecord->IsValid();
+			const bool bIsLeaderRecordValidPre = SyncGroup.ActivePlayers[0].MarkerTickRecord->IsValid(SyncGroup.ActivePlayers[0].bLooping);
 			FMarkerTickRecord LeaderPreMarkerTickRecord = *SyncGroup.ActivePlayers[0].MarkerTickRecord;
 #endif
 
@@ -2723,6 +2723,16 @@ void FAnimInstanceProxy::EvaluateInputProxy(FAnimInstanceProxy* InputProxy, FPos
 	if (InputProxy)
 	{
 		InputProxy->Evaluate(Output);
+	}
+}
+
+void FAnimInstanceProxy::ResetCounterInputProxy(FAnimInstanceProxy* InputProxy)
+{
+	if (InputProxy)
+	{
+		InputProxy->UpdateCounter.Reset();
+		InputProxy->EvaluationCounter.Reset();
+		InputProxy->CachedBonesCounter.Reset();
 	}
 }
 

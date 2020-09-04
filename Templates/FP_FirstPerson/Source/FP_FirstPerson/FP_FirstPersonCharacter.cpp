@@ -91,17 +91,17 @@ void AFP_FirstPersonCharacter::SetupPlayerInputComponent(class UInputComponent* 
 void AFP_FirstPersonCharacter::OnFire()
 {
 	// Play a sound if there is one
-	if (FireSound != NULL)
+	if (FireSound != nullptr)
 	{
 		UGameplayStatics::PlaySoundAtLocation(this, FireSound, GetActorLocation());
 	}
 
 	// Try and play a firing animation if specified
-	if (FireAnimation != NULL)
+	if (FireAnimation != nullptr)
 	{
 		// Get the animation object for the arms mesh
 		UAnimInstance* AnimInstance = Mesh1P->GetAnimInstance();
-		if (AnimInstance != NULL)
+		if (AnimInstance != nullptr)
 		{
 			AnimInstance->Montage_Play(FireAnimation, 1.f);
 		}
@@ -135,7 +135,7 @@ void AFP_FirstPersonCharacter::OnFire()
 	UPrimitiveComponent* DamagedComponent = Impact.GetComponent();
 
 	// If we hit an actor, with a component that is simulating physics, apply an impulse
-	if ((DamagedActor != NULL) && (DamagedActor != this) && (DamagedComponent != NULL) && DamagedComponent->IsSimulatingPhysics())
+	if ((DamagedActor != nullptr) && (DamagedActor != this) && (DamagedComponent != nullptr) && DamagedComponent->IsSimulatingPhysics())
 	{
 		DamagedComponent->AddImpulseAtLocation(ShootDir * WeaponDamage, Impact.Location);
 	}

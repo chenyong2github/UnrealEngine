@@ -399,6 +399,7 @@ class FGenerateSkyLightVisibilityRaysCS : public FGlobalShader
 		SHADER_PARAMETER(int32, SamplesPerPixel)
 
 		SHADER_PARAMETER_STRUCT_REF(FSkyLightData, SkyLightData)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSkyLightQuasiRandomData, SkyLightQuasiRandomData)
 		// Writable variant to allow for Sky Light Visibility Ray output
@@ -432,6 +433,7 @@ void FDeferredShadingSceneRenderer::GenerateSkyLightVisibilityRays(
 
 	// Compute Pass parameter definition
 	FGenerateSkyLightVisibilityRaysCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateSkyLightVisibilityRaysCS::FParameters>();
+	PassParameters->ViewUniformBuffer = Views[0].ViewUniformBuffer;
 	PassParameters->SkyLightData = CreateUniformBufferImmediate(SkyLightData, EUniformBufferUsage::UniformBuffer_SingleDraw);
 	PassParameters->SkyLightQuasiRandomData = SkyLightQuasiRandomData;
 	PassParameters->WritableSkyLightVisibilityRaysData.SkyLightVisibilityRaysDimensions = FIntVector(Dimensions.X, Dimensions.Y, 0);

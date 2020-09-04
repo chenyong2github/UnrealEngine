@@ -233,6 +233,12 @@ void RHIInit(bool bHasEditorToken)
 				GRHICommandList.GetImmediateAsyncComputeCommandList().GetComputeContext();
 				check(GIsRHIInitialized);
 
+				// Set default GPU mask to all GPUs. This is necessary to ensure that any commands
+				// that create and initialize resources are executed on all GPUs. Scene rendering
+				// will restrict itself to a subset of GPUs as needed.
+				GRHICommandList.GetImmediateCommandList().SetGPUMask(FRHIGPUMask::All());
+				GRHICommandList.GetImmediateAsyncComputeCommandList().SetGPUMask(FRHIGPUMask::All());
+
 				FString FeatureLevelString;
 				GetFeatureLevelName(GMaxRHIFeatureLevel, FeatureLevelString);
 
@@ -267,7 +273,7 @@ void RHIInit(bool bHasEditorToken)
 #if PLATFORM_WINDOWS || PLATFORM_MAC
 #if NV_GEFORCENOW
 	bool bDetectAndWarnBadDrivers = true;
-	if (!!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
+	if (IsRHIDeviceNVIDIA() && !!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
 	{
 		const GfnRuntimeSdk::GfnRuntimeError GfnResult = GfnRuntimeSdk::gfnInitializeRuntimeSdk(GfnRuntimeSdk::gfnDefaultLanguage);
 		const bool bGfnRuntimeSDKInitialized = GfnResult == GfnRuntimeSdk::gfnSuccess || GfnResult == GfnRuntimeSdk::gfnInitSuccessClientOnly;
@@ -315,7 +321,7 @@ void RHIExit()
 	}
 
 #if NV_GEFORCENOW
-	if (!!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
+	if (GRHIVendorId != 0 && IsRHIDeviceNVIDIA() && !!CVarDisableDriverWarningPopupIfGFN.GetValueOnAnyThread())
 	{
 		GfnRuntimeSdk::gfnShutdownRuntimeSdk();
 	}

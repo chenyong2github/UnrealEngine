@@ -1111,9 +1111,13 @@ FString FEmitDefaultValueHelper::HandleNonNativeComponent(FEmitterLocalContext& 
 
 			UObject* ObjectToCompare = ComponentClass->GetDefaultObject(false);
 
-			if (ComponentTemplate->HasAnyFlags(RF_InheritableComponentTemplate))
+			UClass* ParentClass = BPGC->GetSuperClass();
+			UBlueprintGeneratedClass* ParentAsBPGC = Cast<UBlueprintGeneratedClass>(ParentClass);
+			if (ComponentTemplate->HasAnyFlags(RF_InheritableComponentTemplate)
+				&& ensureMsgf(ParentAsBPGC, TEXT("Encountered a non-native component (%s) marked as an override in (%s) which has a native parent class (%s); this is unexpected."), *ComponentTemplate->GetName(), *BPGC->GetName(), ParentClass ? *ParentClass->GetName() : TEXT("(null)")))
 			{
-				ObjectToCompare = Node->GetActualComponentTemplate(Cast<UBlueprintGeneratedClass>(BPGC->GetSuperClass()));
+				// We've already emitted code to construct this component, so now we just use the parent class record as the delta for emitting initialization code.
+				ObjectToCompare = Node->GetActualComponentTemplate(ParentAsBPGC);
 			}
 			else
 			{

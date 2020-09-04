@@ -4,7 +4,6 @@
 
 #include <Metal/Metal.h>
 #include "MetalBuffer.h"
-#include "MetalQuery.h"
 #include "MetalDebugCommandEncoder.h"
 #include "MetalBlitCommandEncoder.h"
 #include "MetalComputeCommandEncoder.h"
@@ -15,6 +14,7 @@
 
 class FMetalCommandList;
 class FMetalCommandQueue;
+class FMetalGraphicsPipelineState;
 struct FMetalCommandBufferFence;
 
 /**

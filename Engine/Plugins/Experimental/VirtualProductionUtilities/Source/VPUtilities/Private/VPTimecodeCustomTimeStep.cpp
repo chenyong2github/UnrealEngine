@@ -50,6 +50,9 @@ bool UVPTimecodeCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 		return true; // run the engine's default time step code
 	}
 
+	// Updates logical last time to match logical current time from last tick
+	UpdateApplicationLastTime();
+
 	// Loop until we have a new timecode value
 	MaxDeltaTime = FMath::Max(0.f, MaxDeltaTime);
 
@@ -62,7 +65,8 @@ bool UVPTimecodeCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 		double BeforeSeconds = FPlatformTime::Seconds();
 		while(FPlatformTime::Seconds() - BeforeSeconds < MaxDeltaTime)
 		{
-			const UTimecodeProvider* TimecodeProvider = InEngine->GetTimecodeProvider();
+			UTimecodeProvider* TimecodeProvider = InEngine->GetTimecodeProvider();
+
 			if (TimecodeProvider == nullptr)
 			{
 				UE_LOG(LogVPUtilities, Error, TEXT("There is no Timecode Provider for '%s'."), *GetName());
@@ -77,7 +81,9 @@ bool UVPTimecodeCustomTimeStep::UpdateTimeStep(UEngine* InEngine)
 				return true;
 			}
 
+			TimecodeProvider->FetchAndUpdate();
 			NewTimecode = TimecodeProvider->GetTimecode();
+
 			if (NewTimecode == PreviousTimecode)
 			{
 				FPlatformProcess::SleepNoStats(0.f);

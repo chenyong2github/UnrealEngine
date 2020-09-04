@@ -96,7 +96,7 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 			CurrentOptions = NewObject<UGroomImportOptions>();
 		}
 
-		TSharedPtr<IHairStrandsTranslator> SelectedTranslator = GetTranslator(CurrentFilename);
+		TSharedPtr<IGroomTranslator> SelectedTranslator = GetTranslator(CurrentFilename);
 		if (!SelectedTranslator.IsValid())
 		{
 			return EReimportResult::Failed;
@@ -104,8 +104,6 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 
 		// Load the alembic file upfront to preview & report any potential issue
 		FProcessedHairDescription OutDescription;
-		const bool bRunValidation = RunGroomAssetValidation();
-		if (bRunValidation)
 		{
 			FScopedSlowTask Progress((float)1, LOCTEXT("ReimportHairAsset", "Reimporting hair asset for preview..."), true);
 			Progress.MakeDialog(true);
@@ -116,12 +114,48 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 				return EReimportResult::Failed;
 			}
 
-			FGroomBuilder::ProcessHairDescription(HairDescription, CurrentOptions->BuildSettings, OutDescription);
+			FGroomBuilder::ProcessHairDescription(HairDescription, OutDescription);
+
+			// Populate the interpolation settings based on the group count from the description
+			const uint32 GroupCount = OutDescription.HairGroups.Num();
+			if (uint32(HairAsset->GetNumHairGroups()) != GroupCount)
+			{
+				HairAsset->SetNumGroup(GroupCount);
+			}
+
+			// Initialized the settings value based on the assets interpolation options 
+			// (if the group are not resize above, the settings are preserved)
+			CurrentOptions->InterpolationSettings.Init(FHairGroupsInterpolation(), GroupCount);
+			for (uint32 GroupIndex = 0; GroupIndex < GroupCount; ++GroupIndex)
+			{
+				CurrentOptions->InterpolationSettings[GroupIndex] = HairAsset->HairGroupsInterpolation[GroupIndex];
+			}
 		}
 
 		if (!GIsRunningUnattendedScript && !IsAutomatedImport())
 		{
-			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, CurrentFilename, bRunValidation ? &OutDescription : nullptr);
+			// Convert the process hair description into hair groups
+			UGroomHairGroupsPreview* GroupsPreview = NewObject<UGroomHairGroupsPreview>();
+			{
+				uint32 GroupIndex = 0;
+				for (TPair<int32, FProcessedHairDescription::FHairGroup> HairGroupIt : OutDescription.HairGroups)
+				{
+					const FProcessedHairDescription::FHairGroup& Group = HairGroupIt.Value;
+					const FHairGroupInfo& GroupInfo = Group.Key;
+
+					FGroomHairGroupPreview& OutGroup = GroupsPreview->Groups.AddDefaulted_GetRef();
+					OutGroup.GroupID = GroupInfo.GroupID;
+					OutGroup.CurveCount = GroupInfo.NumCurves;
+					OutGroup.GuideCount = GroupInfo.NumGuides;
+
+					if (OutGroup.GroupID < OutDescription.HairGroups.Num())
+					{
+						OutGroup.InterpolationSettings = CurrentOptions->InterpolationSettings[OutGroup.GroupID];
+					}
+				}
+			}
+
+			TSharedPtr<SGroomImportOptionsWindow> GroomOptionWindow = SGroomImportOptionsWindow::DisplayImportOptions(CurrentOptions, GroupsPreview, CurrentFilename);
 
 			if (!GroomOptionWindow->ShouldImport())
 			{
@@ -130,6 +164,15 @@ EReimportResult::Type UReimportHairStrandsFactory::Reimport(UObject* Obj)
 
 			// Move the transient ImportOptions to the asset package and set it on the GroomAssetImportData for serialization
 			CurrentOptions->Rename(nullptr, GroomAssetImportData);
+
+			// Save the options as the new default
+			for (const FGroomHairGroupPreview& GroupPreview : GroupsPreview->Groups)
+			{
+				if (GroupPreview.GroupID < OutDescription.HairGroups.Num())
+				{
+					CurrentOptions->InterpolationSettings[GroupPreview.GroupID] = GroupPreview.InterpolationSettings;
+				}
+			}
 			GroomAssetImportData->ImportOptions = CurrentOptions;
 		}
 

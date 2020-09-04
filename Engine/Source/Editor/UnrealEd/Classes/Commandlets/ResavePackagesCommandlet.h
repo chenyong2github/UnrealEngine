@@ -121,7 +121,8 @@ protected:
 	bool bForceUATEnvironmentVariableSet;
 
 	/** Running count of packages that got modified and will need to be resaved */
-	int32 PackagesRequiringResave;
+	int32 PackagesConsideredForResave;
+	int32 PackagesResaved;
 
 	/** Only collect garbage after N packages */
 	int32 GarbageCollectionFrequency;

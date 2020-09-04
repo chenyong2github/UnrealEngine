@@ -86,15 +86,19 @@ COREUOBJECT_API int32 GMaximumScriptLoopIterations = 1000000;
 #endif
 
 #if DO_BLUEPRINT_GUARD
-#define CHECK_RUNAWAY { ++FBlueprintExceptionTracker::Get().Runaway; }
+
+#define CHECK_RUNAWAY { FBlueprintContextTracker::Get().AddRunaway(); }
 COREUOBJECT_API void GInitRunaway() 
 {
-	FBlueprintExceptionTracker::Get().ResetRunaway();
+	FBlueprintContextTracker::Get().ResetRunaway();
 }
+
 #else
+
 #define CHECK_RUNAWAY
 COREUOBJECT_API void GInitRunaway() {}
-#endif
+
+#endif // DO_BLUEPRINT_GUARD
 
 #define STORE_INSTRUCTION_NAMES SCRIPT_AUDIT_ROUTINES
 
@@ -128,10 +132,14 @@ static struct F##inst##Registrar \
 //////////////////////////////////////////////////////////////////////////
 // FBlueprintCoreDelegates
 
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
+
 FBlueprintCoreDelegates::FOnScriptDebuggingEvent FBlueprintCoreDelegates::OnScriptException;
 FBlueprintCoreDelegates::FOnScriptExecutionEnd FBlueprintCoreDelegates::OnScriptExecutionEnd;
 FBlueprintCoreDelegates::FOnScriptInstrumentEvent FBlueprintCoreDelegates::OnScriptProfilingEvent;
 FBlueprintCoreDelegates::FOnToggleScriptProfiler FBlueprintCoreDelegates::OnToggleScriptProfiler;
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, const FFrame& StackFrame, const FBlueprintExceptionInfo& Info)
 {
@@ -147,31 +155,7 @@ void FBlueprintCoreDelegates::ThrowScriptException(const UObject* ActiveObject, 
 		break;
 #if WITH_EDITOR && DO_BLUEPRINT_GUARD
 	case EBlueprintExceptionType::AccessViolation:
-		{
-			// Determine if the access none should warn or not (we suppress warnings beyond a certain count for each object to avoid per-frame spaminess)
-			struct FIntConfigValueHelper
-			{
-				int32 Value;
-
-				FIntConfigValueHelper() : Value(0)
-				{
-					GConfig->GetInt(TEXT("ScriptErrorLog"), TEXT("MaxNumOfAccessViolation"), Value, GEditorIni);
-				}
-			};
-
-			static const FIntConfigValueHelper MaxNumOfAccessViolation;
-			if (MaxNumOfAccessViolation.Value > 0)
-			{
-				const FName ActiveObjectName = ActiveObject ? ActiveObject->GetFName() : FName();
-				int32& Num = FBlueprintExceptionTracker::Get().DisplayedWarningsMap.FindOrAdd(ActiveObjectName);
-				if (Num > MaxNumOfAccessViolation.Value)
-				{
-					// Skip the generic warning, we've hit this one too many times
-					bShouldLogWarning = false;
-				}
-				Num++;
-			}
-		}
+		bShouldLogWarning = FBlueprintContextTracker::Get().RecordAccessViolation(ActiveObject);
 		break;
 #endif // WITH_EDITOR && DO_BLUEPRINT_GUARD
 	default:
@@ -218,18 +202,83 @@ void FBlueprintCoreDelegates::SetScriptMaximumLoopIterations( const int32 Maximu
 
 #if DO_BLUEPRINT_GUARD
 
+FBlueprintContextTracker::FOnEnterScriptContext FBlueprintContextTracker::OnEnterScriptContext;
+FBlueprintContextTracker::FOnExitScriptContext FBlueprintContextTracker::OnExitScriptContext;
+
+FBlueprintContextTracker& FBlueprintContextTracker::Get()
+{
+	return TThreadSingleton<FBlueprintContextTracker>::Get();
+}
+
+const FBlueprintContextTracker* FBlueprintContextTracker::TryGet()
+{
+	return TThreadSingleton<FBlueprintContextTracker>::TryGet();
+}
+
+void FBlueprintContextTracker::ResetRunaway()
+{
+	Runaway = 0;
+	Recurse = 0;
+	bRanaway = false;
+}
+
+void FBlueprintContextTracker::EnterScriptContext(const UObject* ContextObject, const UFunction* ContextFunction)
+{
+	ScriptEntryTag++;
+
+	OnEnterScriptContext.Broadcast(*this, ContextObject, ContextFunction);
+}
+
+void FBlueprintContextTracker::ExitScriptContext()
+{
+	OnExitScriptContext.Broadcast(*this);
+
+	ScriptEntryTag--;
+
+	check(ScriptEntryTag >= 0);
+}
+
+bool FBlueprintContextTracker::RecordAccessViolation(const UObject* Object)
+{
+	// Determine if the access none should warn or not (we suppress warnings beyond a certain count for each object to avoid per-frame spaminess)
+	struct FIntConfigValueHelper
+	{
+		int32 Value;
+
+		FIntConfigValueHelper() : Value(0)
+		{
+			GConfig->GetInt(TEXT("ScriptErrorLog"), TEXT("MaxNumOfAccessViolation"), Value, GEditorIni);
+		}
+	};
+
+	static const FIntConfigValueHelper MaxNumOfAccessViolation;
+	if (MaxNumOfAccessViolation.Value > 0)
+	{
+		const FName ActiveObjectName = Object ? Object->GetFName() : FName();
+		int32& Num = DisplayedWarningsMap.FindOrAdd(ActiveObjectName);
+		Num++;
+		if (Num > MaxNumOfAccessViolation.Value)
+		{
+			// Skip the generic warning, we've hit this one too many times
+			return false;
+		}
+	}
+	return true;
+}
+
 // This is meant to be called from the immediate mode, and for confusing reasons the optimized code isn't always safe in that case
 PRAGMA_DISABLE_OPTIMIZATION
 
 void PrintScriptCallStackImpl()
 {
-	const FBlueprintExceptionTracker* BlueprintExceptionTracker = FBlueprintExceptionTracker::TryGet();
+	const FBlueprintContextTracker* BlueprintExceptionTracker = FBlueprintContextTracker::TryGet();
 	if (BlueprintExceptionTracker)
 	{
-		FString ScriptStack = FString::Printf(TEXT("\n\nScript Stack (%d frames):\n"), BlueprintExceptionTracker->ScriptStack.Num());
-		for (int32 FrameIdx = BlueprintExceptionTracker->ScriptStack.Num() - 1; FrameIdx >= 0; --FrameIdx)
+		const TArray<const FFrame*>& RawStack = BlueprintExceptionTracker->GetScriptStack();
+		FString ScriptStack = FString::Printf(TEXT("\n\nScript Stack (%d frames):\n"), RawStack.Num());
+		for (int32 FrameIdx = RawStack.Num() - 1; FrameIdx >= 0; --FrameIdx)
 		{
-			ScriptStack += BlueprintExceptionTracker->ScriptStack[FrameIdx]->GetStackDescription() + TEXT("\n");
+			ScriptStack += RawStack[FrameIdx]->GetStackDescription() + TEXT("\n");
 		}
 		UE_LOG(LogOutputDevice, Warning, TEXT("%s"), *ScriptStack);
 	}
@@ -238,7 +287,8 @@ void PrintScriptCallStackImpl()
 PRAGMA_ENABLE_OPTIMIZATION
 
 extern CORE_API void (*GPrintScriptCallStackFn)();
-#endif
+
+#endif // DO_BLUEPRINT_GUARD
 
 //////////////////////////////////////////////////////////////////////////
 // FEditorScriptExecutionGuard
@@ -403,7 +453,7 @@ FString FFrame::GetScriptCallstack()
 	FString ScriptStack;
 
 #if DO_BLUEPRINT_GUARD
-	FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
+	FBlueprintContextTracker& BlueprintExceptionTracker = FBlueprintContextTracker::Get();
 	if (BlueprintExceptionTracker.ScriptStack.Num() > 0)
 	{
 		for (int32 i = BlueprintExceptionTracker.ScriptStack.Num() - 1; i >= 0; --i)
@@ -975,7 +1025,7 @@ void ProcessLocalScriptFunction(UObject* Context, FFrame& Stack, RESULT_DECL)
 	MS_ALIGN(16) uint8 Buffer[MAX_SIMPLE_RETURN_VALUE_SIZE] GCC_ALIGN(16);
 
 #if DO_BLUEPRINT_GUARD
-	FBlueprintExceptionTracker& BpET = FBlueprintExceptionTracker::Get();
+	FBlueprintContextTracker& BpET = FBlueprintContextTracker::Get();
 	if(BpET.bRanaway)
 	{
 		// If we have a return property, return a zeroed value in it, to try and save execution as much as possible
@@ -1810,9 +1860,9 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 	checkSlow((Function->ParmsSize == 0) || (Parms != NULL));
 
 #if DO_BLUEPRINT_GUARD
-	FBlueprintExceptionTracker& BlueprintExceptionTracker = FBlueprintExceptionTracker::Get();
-	const int32 ProcessEventDepth = BlueprintExceptionTracker.ScriptEntryTag;
-	TGuardValue<int32> EntryCounter(BlueprintExceptionTracker.ScriptEntryTag, BlueprintExceptionTracker.ScriptEntryTag + 1);
+	FBlueprintContextTracker& BlueprintContextTracker = FBlueprintContextTracker::Get();
+	const int32 ProcessEventDepth = BlueprintContextTracker.GetScriptEntryTag();
+	BlueprintContextTracker.EnterScriptContext(this, Function);
 #elif PER_FUNCTION_SCRIPT_STATS || LIGHTWEIGHT_PROCESS_EVENT_COUNTER
 	const int32 ProcessEventDepth = ProcessEventCounter;
 	TGuardValue<int32> PECounter(ProcessEventCounter, ProcessEventCounter + 1);
@@ -1833,7 +1883,8 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 #endif
 
 #if DO_BLUEPRINT_GUARD
-	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && BlueprintExceptionTracker.ScriptEntryTag == 1);
+	// Only start stat if this is the top level context
+	CONDITIONAL_SCOPE_CYCLE_COUNTER(STAT_BlueprintTime, IsInGameThread() && BlueprintContextTracker.GetScriptEntryTag() == 1);
 #endif
 
 #if UE_BLUEPRINT_EVENTGRAPH_FASTCALLS
@@ -1949,10 +2000,8 @@ void UObject::ProcessEvent( UFunction* Function, void* Parms )
 		}
 	}
 
-#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
-#if WITH_EDITORONLY_DATA
-	FBlueprintCoreDelegates::OnScriptExecutionEnd.Broadcast();
-#endif
+#if DO_BLUEPRINT_GUARD
+	BlueprintContextTracker.ExitScriptContext();
 #endif
 }
 

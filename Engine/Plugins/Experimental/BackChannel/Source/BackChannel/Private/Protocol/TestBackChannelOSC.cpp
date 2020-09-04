@@ -29,12 +29,12 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 {
 	FBackChannelOSCMessage Message(OSCPacketMode::Write);
 	
-	Message.SetAddress(TEXT("/foo"));
+	Message.SetPath(TEXT("/foo"));
 	
 	int32 IntValue = 1;
 	float FloatValue = 2.5;
 	FString StringValue = TEXT("Hello!");
-	TArray<int8> AnswerArray;
+	TArray<uint8> AnswerArray;
 
 	const int kArraySize = 33;
 	const int kArrayValue = 42;
@@ -44,9 +44,14 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 		AnswerArray.Add(kArrayValue);
 	}
 
-	Message << IntValue << FloatValue << StringValue << AnswerArray;
+	// #agrant todo - cleanup
+	// Message << IntValue << FloatValue << StringValue << AnswerArray;
+	Message.Write(TEXT("Int"), IntValue);
+	Message.Write(TEXT("Float"), FloatValue);
+	Message.Write(TEXT("String"), StringValue);
+	Message.Write(TEXT("Array"), AnswerArray);
 
-	FString Address = Message.GetAddress();
+	FString Address = Message.GetPath();
 	FString Tags = Message.GetTags();
 	const int32 ArgSize = Message.GetArgumentSize();
 
@@ -78,7 +83,12 @@ bool FBackChannelTestOSCMessage::RunTest(const FString& Parameters)
 
 	OutArray.AddUninitialized(kArraySize);
 
-	*NewMessage << OutIntValue << OutFloatValue << OutStringValue << OutArray;
+	// #agrant cleanup
+	// *NewMessage << OutIntValue << OutFloatValue << OutStringValue << OutArray;
+	NewMessage->Read(TEXT("Int"), OutIntValue);
+	NewMessage->Read(TEXT("Float"), OutFloatValue);
+	NewMessage->Read(TEXT("String"), OutStringValue);
+	NewMessage->Read(TEXT("Array"), OutArray);
 
 	check(OutIntValue == IntValue);
 	check(OutFloatValue == OutFloatValue);
@@ -142,8 +152,12 @@ bool FBackChannelTestOSCBundleWithMessages::RunTest(const FString& Parameters)
 	FString Msg1Test = TEXT("This is Message 1");
 	FString Msg2Test = TEXT("This is Message 2");
 
-	(*Msg1) << Msg1Test;
-	*Msg2 << Msg2Test;
+	// #agrant cleanuo
+	//(*Msg1) << Msg1Test;
+	//*Msg2 << Msg2Test;
+
+	Msg1->Write(TEXT("String"), *Msg1Test);
+	Msg2->Write(TEXT("String"), *Msg2Test);
 
 	TSharedPtr<FBackChannelOSCBundle> Bundle = MakeShareable(new FBackChannelOSCBundle(OSCPacketMode::Write));
 
@@ -179,8 +193,11 @@ bool FBackChannelTestOSCBundleWithMessages::RunTest(const FString& Parameters)
 
 	FString OutMsg1Text, OutMsg2Text;
 
-	*RecreatedMsg1 << OutMsg1Text;
-	*RecreatedMsg2 << OutMsg2Text;
+	// #agrant cleanup
+	//*RecreatedMsg1 << OutMsg1Text;
+	//*RecreatedMsg2 << OutMsg2Text;
+	RecreatedMsg1->Read(TEXT("String"), OutMsg1Text);
+	RecreatedMsg2->Read(TEXT("String"), OutMsg2Text);
 
 	check(OutMsg1Text == Msg1Test);
 	check(OutMsg2Text == Msg2Test);

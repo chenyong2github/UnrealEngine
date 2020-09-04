@@ -2,7 +2,7 @@
 
 #include "Render/Presentation/DisplayClusterPresentationDX11.h"
 
-#include "DisplayClusterLog.h"
+#include "Misc/DisplayClusterLog.h"
 
 #include "RHI.h"
 #include "RHIResources.h"

@@ -11,6 +11,7 @@
 
 #include "ISequencer.h"
 #include "MovieSceneSequence.h"
+#include "Exporters/AnimSeqExportOption.h"
 
 namespace UE 
 {
@@ -38,9 +39,10 @@ void FAnimTrajectoryCache::Evaluate(FTrajectoryCache* ParentTransformCache)
 
 	// TODO: for some reason SkeletalMeshComponent becomes invalid sometimes when evaluating, no clue why yet
 	FMovieSceneSequenceTransform MovieSceneSequenceTransform;
-	MovieSceneToolHelpers::ExportToAnimSequence(CachedAnimSequence, Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene(), Sequencer.Get(), SkeletalMeshComponent.Get(),
+	UAnimSeqExportOption* AnimSeqExportOption = NewObject<UAnimSeqExportOption>(GetTransientPackage(), NAME_None);
+	MovieSceneToolHelpers::ExportToAnimSequence(CachedAnimSequence, AnimSeqExportOption,Sequencer->GetFocusedMovieSceneSequence()->GetMovieScene(), Sequencer.Get(), SkeletalMeshComponent.Get(),
 		Sequencer->GetFocusedTemplateID(), MovieSceneSequenceTransform);
-
+	AnimSeqExportOption->MarkPendingKill();
 	Sequencer->ForceEvaluate();
 
 	GetSpaceBasedAnimationData(GlobalBoneTransforms);

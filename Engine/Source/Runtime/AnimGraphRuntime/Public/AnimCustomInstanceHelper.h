@@ -31,6 +31,7 @@
 #include "SequencerAnimationSupport.h"
 
 
+PRAGMA_DISABLE_OPTIMIZATION
 class ANIMGRAPHRUNTIME_API FAnimCustomInstanceHelper
 {
 public:
@@ -47,6 +48,7 @@ public:
 		InSkeletalMeshComponent->VisibilityBasedAnimTickOption = EVisibilityBasedAnimTickOption::AlwaysTickPoseAndRefreshBones;
 #if WITH_EDITOR
 		InSkeletalMeshComponent->SetUpdateAnimationInEditor(true);
+		InSkeletalMeshComponent->SetUpdateClothInEditor(true);
 #endif
 
 		// we use sequence instance if it's using anim blueprint that matches. Otherwise, we create sequence player
@@ -140,6 +142,7 @@ public:
 					if (NewSequencerInterface->DoesSupportDifferentSourceAnimInstance())
 					{
 						InSkeletalMeshComponent->AnimScriptInstance = NewInstance;
+						ensureAlways(NewInstance != CurSourceInstance);
 						NewSequencerInterface->SetSourceAnimInstance(CurSourceInstance);
 
 						InSkeletalMeshComponent->AnimScriptInstance->InitializeAnimation();
@@ -175,6 +178,7 @@ public:
 	{
 #if WITH_EDITOR
 		InSkeletalMeshComponent->SetUpdateAnimationInEditor(false);
+		InSkeletalMeshComponent->SetUpdateClothInEditor(false);
 #endif
 
 		if (InSkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationCustomMode)
@@ -194,6 +198,8 @@ public:
 						// if we have source, replace with it
 						if (SourceAnimInstance)
 						{
+							// clear before you remove
+							SequencerInterface->SetSourceAnimInstance(nullptr);
 							InSkeletalMeshComponent->AnimScriptInstance = SourceAnimInstance;
 							bClearAnimScriptInstance = false;
 						}
@@ -220,6 +226,7 @@ public:
 					// this can be animBP, we want to return that
 					else if (SourceInstance)
 					{
+						SequencerInterface->SetSourceAnimInstance(nullptr);
 						InSkeletalMeshComponent->AnimScriptInstance = SourceInstance;
 					}
 				}
@@ -228,6 +235,18 @@ public:
 		else if (InSkeletalMeshComponent->GetAnimationMode() == EAnimationMode::Type::AnimationBlueprint)
 		{
 			UAnimInstance* AnimInstance = InSkeletalMeshComponent->GetAnimInstance();
+			ISequencerAnimationSupport* SequencerInterface = Cast<ISequencerAnimationSupport>(AnimInstance);
+			if (SequencerInterface && SequencerInterface->DoesSupportDifferentSourceAnimInstance())
+			{
+				UAnimInstance* SourceInstance = SequencerInterface->GetSourceAnimInstance();
+				if (SourceInstance)
+				{
+					SequencerInterface->SetSourceAnimInstance(nullptr);
+					InSkeletalMeshComponent->AnimScriptInstance = SourceInstance;
+					AnimInstance = SourceInstance;
+				}
+			}
+		
 			if (AnimInstance)
 			{
 				AnimInstance->Montage_Stop(0.0f);
@@ -259,3 +278,4 @@ private:
 	/** Helper function for BindToSkeletalMeshComponent */
 	static bool ShouldCreateCustomInstancePlayer(const USkeletalMeshComponent* SkeletalMeshComponent);
 };
+PRAGMA_ENABLE_OPTIMIZATION

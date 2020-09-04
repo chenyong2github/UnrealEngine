@@ -57,7 +57,7 @@ ECounterDisplayHint FLoadTimeProfilerProvider::FLoaderFrameCounter::GetDisplayHi
 
 void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, int64)> Callback) const
 {
-	
+
 }
 
 void FLoadTimeProfilerProvider::FLoaderFrameCounter::EnumerateFloatValues(double IntervalStart, double IntervalEnd, bool bIncludeExternalBounds, TFunctionRef<void(double, double)> Callback) const
@@ -108,7 +108,7 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 			[](const FLoadRequest& Row)
 			{
 				return Row.Packages.Num();
-			}, 
+			},
 			TEXT("PackageCount")).
 		AddColumn(&FLoadTimeProfilerProvider::PackageSizeSum, TEXT("Size")).
 		AddColumn<const TCHAR*>(
@@ -162,6 +162,7 @@ FLoadTimeProfilerProvider::FLoadTimeProfilerProvider(IAnalysisSession& InSession
 
 bool FLoadTimeProfilerProvider::GetCpuThreadTimelineIndex(uint32 ThreadId, uint32& OutTimelineIndex) const
 {
+	Session.ReadAccessCheck();
 	const uint32* FindTimelineIndex = CpuTimelinesThreadMap.Find(ThreadId);
 	if (FindTimelineIndex)
 	{
@@ -304,9 +305,10 @@ ITable<FPackagesTableRow>* FLoadTimeProfilerProvider::CreatePackageDetailsTable(
 					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
 				}
 			}
+			return Trace::EEventEnumerate::Continue;
 		});
 	}
-	
+
 	return Table;
 }
 
@@ -364,6 +366,7 @@ ITable<FExportsTableRow>* FLoadTimeProfilerProvider::CreateExportDetailsTable(do
 					Row->AsyncLoadingThreadTime += EndTime - StartTime; // TODO: Should be exclusive time
 				}
 			}
+			return Trace::EEventEnumerate::Continue;
 		});
 	}
 	return Table;
@@ -414,7 +417,7 @@ void FLoadTimeProfilerProvider::DistributeBytesAcrossFrames(uint64 ByteCount, do
 		Frame.*FrameVariable += ByteCount;
 		return;
 	}
-	
+
 	double TotalTime = EndTime - StartTime;
 	double TimeInFirstFrame = (BeginFrameIndex + 1) * LoaderFrameLength - StartTime;
 	check(TimeInFirstFrame >= 0.0);
@@ -445,7 +448,7 @@ void FLoadTimeProfilerProvider::DistributeBytesAcrossFrames(uint64 ByteCount, do
 	BytesInLastFrame += ByteCount;
 	Frames[EndFrameIndex].*FrameVariable += BytesInLastFrame;
 	TotalDistributed += BytesInLastFrame;
-	
+
 	check(TotalDistributed == OriginalByteCount);
 }
 
@@ -471,7 +474,7 @@ void FLoadTimeProfilerProvider::EndLoadPackage(uint64 LoadHandle, double Time)
 	FPackageLoad& PackageLoad = PackageLoads[LoadHandle];
 	PackageLoad.EndTime = Time;
 	check(PackageLoad.EndTime >= PackageLoad.StartTime);
-	
+
 	DistributeBytesAcrossFrames(PackageLoad.Package->Summary.TotalHeaderSize, PackageLoad.StartTime, PackageLoad.EndTime, &FLoaderFrame::HeaderLoadedBytes);
 	DistributeBytesAcrossFrames(PackageLoad.Package->TotalExportsSerialSize, PackageLoad.StartTime, PackageLoad.EndTime, &FLoaderFrame::ExportLoadedBytes);
 
@@ -523,6 +526,8 @@ Trace::FPackageExportInfo& FLoadTimeProfilerProvider::CreateExport()
 
 FLoadTimeProfilerProvider::CpuTimelineInternal& FLoadTimeProfilerProvider::EditCpuTimeline(uint32 ThreadId)
 {
+	Session.WriteAccessCheck();
+
 	uint32* FindTimelineIndex = CpuTimelinesThreadMap.Find(ThreadId);
 	if (FindTimelineIndex)
 	{
@@ -560,7 +565,7 @@ void FLoadTimeProfilerProvider::CreateCounters()
 		{
 			CounterProvider.AddCounter(new FLoaderFrameCounter(FLoaderFrameCounter::ELoaderFrameCounterType(CounterType), Frames));
 		}
-	
+
 		ActiveIoDispatcherBatchesCounter = CounterProvider.CreateCounter();
 		ActiveIoDispatcherBatchesCounter->SetName(TEXT("AssetLoading/IoDispatcher/ActiveBatches"));
 

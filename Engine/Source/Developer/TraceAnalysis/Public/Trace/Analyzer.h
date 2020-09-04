@@ -3,11 +3,10 @@
 #pragma once
 
 #include "CoreTypes.h"
+#include "Containers/ArrayView.h"
+#include "Containers/StringView.h"
 #include "Logging/LogMacros.h"
 #include "Trace/Detail/Field.h"
-#include "Containers/ArrayView.h"
-
-#include <memory.h>
 
 namespace Trace
 {
@@ -24,58 +23,38 @@ namespace Trace
 class TRACEANALYSIS_API IAnalyzer
 {
 public:
-	struct FSessionContext
-	{
-		uint64 StartCycle;
-		uint64 CycleFrequency;
-
-		double TimestampFromCycle(uint64 Cycle) const
-		{
-			return double(Cycle - StartCycle) / double(CycleFrequency);
-		}
-
-		double DurationFromCycleCount(uint64 CycleCount) const
-		{
-			return double(CycleCount) / double(CycleFrequency);
-		}
-	};
-
 	struct FInterfaceBuilder
 	{
 		/** Subscribe to an event required for analysis.
 		 * @param RouteId User-provided identifier for this event subscription.
 		 * @param Logger Name of the logger that emits the event.
-		 * @param Event Name of the event to subscribe to. */
-		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event) = 0;
+		 * @param Event Name of the event to subscribe to.
+		 * @param bScoped Route scoped events. */
+		virtual void RouteEvent(uint16 RouteId, const ANSICHAR* Logger, const ANSICHAR* Event, bool bScoped=false) = 0;
 
 		/** Subscribe to all events from a particular logger.
 		 * @param RouteId User-provided identifier for this event subscription.
-		 * @param Logger Name of the logger that emits the event. */
-		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger) = 0;
+		 * @param Logger Name of the logger that emits the event.
+		 * @param bScoped Route scoped events. */
+		virtual void RouteLoggerEvents(uint16 RouteId, const ANSICHAR* Logger, bool bScoped=false) = 0;
 
 		/** Subscribe to all events in the trace stream being analyzed.
-		 * @param RouteId User-provided identifier for this event subscription. */
-		virtual void RouteAllEvents(uint16 RouteId) = 0;
+		 * @param RouteId User-provided identifier for this event subscription.
+		 * @param bScoped Route scoped events. */
+		virtual void RouteAllEvents(uint16 RouteId, bool bScoped=false) = 0;
 	};
 
 	struct FOnAnalysisContext
 	{
-		const FSessionContext&	SessionContext;
-		FInterfaceBuilder&		InterfaceBuilder;
+		FInterfaceBuilder& InterfaceBuilder;
 	};
 
 	struct TRACEANALYSIS_API FEventFieldInfo
 	{
-		enum class EType { None, Integer, Float, };
+		enum class EType { None, Integer, Float, AnsiString, WideString };
 
 		/** Returns the name of the field. */
 		const ANSICHAR* GetName() const;
-
-		/** Offset from the start of the event to this field's data. */
-		uint32 GetOffset() const;
-
-		/** Returns the size of the field's data in bytes. */
-		uint32 GetSize() const;
 
 		/** What type of field is this? */
 		EType GetType() const;
@@ -89,9 +68,6 @@ public:
 		/** Each event is assigned a unique ID when logged. Not that this is not
 		 * guaranteed to be the same for the same event from one trace to the next. */
 		uint32 GetId() const;
-
-		/** Returns the total size of the event. */
-		uint32 GetSize() const;
 
 		/** The name of the event. */
 		const ANSICHAR* GetName() const;
@@ -135,8 +111,9 @@ public:
 		/** Queries the value of a field of the event. It is not necessary to match
 		 * ValueType to the type in the event.
 		 * @param FieldName The name of the event's field to get the value for.
+		 * @param Default Return this value if the given field was not found.
 		 * @return Value of the field (coerced to ValueType) if found, otherwise 0. */
-		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName) const;
+		template <typename ValueType> ValueType GetValue(const ANSICHAR* FieldName, ValueType Default=ValueType(0)) const;
 
 		/** Returns an object for reading data from an array-type field. A valid
 		 * array reader object will always be return even if no field matching the
@@ -150,6 +127,19 @@ public:
 		 * @param FieldName The name of the event's field to get the value for. */
 		template <typename ValueType> TArrayView<const ValueType> GetArrayView(const ANSICHAR* FieldName) const;
 
+		/** Return the value of a string-type field. The view-type prototypes
+		 * must match the underlying string type while the FString-variant is
+		 * agnostic of the field's encoding.
+		  * @param Out Destination object for the field's value.
+		  * @return True if the field was found. */
+		bool GetString(const ANSICHAR* FieldName, FAnsiStringView& Out) const;
+		bool GetString(const ANSICHAR* FieldName, FStringView& Out) const;
+		bool GetString(const ANSICHAR* FieldName, FString& Out) const;
+
+		/** Serializes the event to Cbor object.
+		 * @param Recipient of the Cbor serialization. Data is appeneded to Out. */
+		void SerializeToCbor(TArray<uint8>& Out) const;
+
 		/** Returns the event's attachment. Not that this will always return an
 		 * address but if the event has no attachment then reading from that
 		 * address if undefined. */
@@ -158,19 +148,54 @@ public:
 		/** Returns the size of the events attachment, or 0 if none. */
 		uint32 GetAttachmentSize() const;
 
-		/** Provides a pointer to the raw event data. */
-		const uint8* GetRawPointer() const;
-
 	private:
 		const void* GetValueImpl(const ANSICHAR* FieldName, int16& SizeAndType) const;
 		const FArrayReader* GetArrayImpl(const ANSICHAR* FieldName) const;
 	};
 
+	struct TRACEANALYSIS_API FThreadInfo
+	{
+		/* Returns the trace-specific id for the thread */
+		uint32 GetId() const;
+
+		/* Returns the system if for the thread. Because this may not be known by
+		 * trace and because IDs can be reused by the system, relying on the value
+		 * of this is discouraged. */
+		uint32 GetSystemId() const;
+
+		/* Returns a hint for use when sorting threads. */
+		int32 GetSortHint() const;
+
+		/* Returns the thread's name or an empty string */
+		const ANSICHAR* GetName() const;
+
+		/* Returns the name of the group a thread has been assigned ti, or an empty string */
+		const ANSICHAR* GetGroupName() const;
+	};
+
+	struct TRACEANALYSIS_API FEventTime
+	{
+		/** Returns the integer timestamp for the event or zero if there no associated timestamp. */
+		uint64 GetTimestamp() const;
+
+		/** Time of the event in seconds (from teh start of the trace). Zero if there is no time for the event. */
+		double AsSeconds() const;
+
+		/** Returns a timestamp for the event compatible with FPlatformTime::Cycle64(), or zero if the event has no timestamp. */
+		uint64 AsCycle64() const;
+
+		/** Returns a FPlatformTime::Cycle64() value as seconds relative to the start of the trace. */
+		double AsSeconds(uint64 Cycles64) const;
+
+		/** As AsSeconds(Cycles64) but absolute. */
+		double AsSecondsAbsolute(int64 DurationCycles64) const;
+	};
+
 	struct FOnEventContext
 	{
-		const FSessionContext&	SessionContext;
-		const FEventData&		EventData;
-		uint32					ThreadId;
+		const FThreadInfo&	ThreadInfo;
+		const FEventTime&	EventTime;
+		const FEventData&	EventData;
 	};
 
 	virtual ~IAnalyzer() = default;
@@ -188,6 +213,14 @@ public:
 	{
 	}
 
+	/** Called when information about a thread has been updated. It is entirely
+	 * possible that this might get called more than once for a particular thread
+	 * if its details changed.
+	 * @param ThreadInfo Describes the thread whose information has changed. */
+	virtual void OnThreadInfo(const FThreadInfo& ThreadInfo)
+	{
+	}
+
 	/** When a new event type appears in the trace stream, this method is called
 	 * if the event type has been subscribed to.
 	 * @param RouteId User-provided identifier for this event subscription.
@@ -198,30 +231,32 @@ public:
 		return true;
 	}
 
+	enum class EStyle : uint32
+	{
+		Normal,
+		EnterScope,
+		LeaveScope,
+	};
+
 	/** For each event subscribed to in OnAnalysisBegin(), the analysis engine
 	 * will call this method when those events are encountered in a trace log
 	 * @param RouteId User-provided identifier given when subscribing to a particular event.
+	 * @param Style Indicates the style of event. Note that EventData is *undefined* if the style is LeaveScope!
 	 * @param Context Access to the instance of the subscribed event.
 	 * @return This analyzer is removed from the analysis session if false is returned. */
-	virtual bool OnEvent(uint16 RouteId, const FOnEventContext& Context)
+	virtual bool OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 	{
 		return true;
 	}
 
 private:
 	template <typename ValueType> static ValueType CoerceValue(const void* Addr, int16 SizeAndType);
-	template <typename ValueType> static const ValueType* CoercePtr(const void* Addr, int16 SizeAndType);
 };
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
 ValueType IAnalyzer::CoerceValue(const void* Addr, int16 SizeAndType)
 {
-	if (Addr == nullptr)
-	{
-		return ValueType(0);
-	}
-
 	switch (SizeAndType)
 	{
 	case -4: return ValueType(*(const float*)(Addr));
@@ -237,34 +272,14 @@ ValueType IAnalyzer::CoerceValue(const void* Addr, int16 SizeAndType)
 
 ////////////////////////////////////////////////////////////////////////////////
 template <typename ValueType>
-const ValueType* IAnalyzer::CoercePtr(const void* Addr, int16 SizeAndType)
-{
-	if (Addr == nullptr)
-	{
-		return nullptr;
-	}
-
-	switch (SizeAndType)
-	{
-	case -4:
-	case -8:
-	case  1:
-	case  2:
-	case  4:
-	case  8:
-		return reinterpret_cast<const ValueType*>(Addr);
-	}
-
-	return nullptr;
-}
-
-////////////////////////////////////////////////////////////////////////////////
-template <typename ValueType>
-ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName) const
+ValueType IAnalyzer::FEventData::GetValue(const ANSICHAR* FieldName, ValueType Default) const
 {
 	int16 FieldSizeAndType;
-	const void* Addr = GetValueImpl(FieldName, FieldSizeAndType);
-	return CoerceValue<ValueType>(Addr, FieldSizeAndType);
+	if (const void* Addr = GetValueImpl(FieldName, FieldSizeAndType))
+	{
+		return CoerceValue<ValueType>(Addr, FieldSizeAndType);
+	}
+	return Default;
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -288,8 +303,11 @@ template <typename ValueType>
 ValueType IAnalyzer::TArrayReader<ValueType>::operator [] (uint32 Index) const
 {
 	int16 ElementSizeAndType;
-	const void* Addr = GetImpl(Index, ElementSizeAndType);
-	return CoerceValue<ValueType>(Addr, ElementSizeAndType);
+	if (const void* Addr = GetImpl(Index, ElementSizeAndType))
+	{
+		return CoerceValue<ValueType>(Addr, ElementSizeAndType);
+	}
+	return ValueType(0);
 }
 
 ////////////////////////////////////////////////////////////////////////////////
@@ -298,7 +316,13 @@ const ValueType* IAnalyzer::TArrayReader<ValueType>::GetData() const
 {
 	int16 ElementSizeAndType;
 	const void* Addr = GetImpl(0, ElementSizeAndType);
-	return CoercePtr<ValueType>(Addr, ElementSizeAndType);
+
+	if (Addr == nullptr || sizeof(ValueType) != abs(ElementSizeAndType))
+	{
+		return nullptr;
+	}
+
+	return (const ValueType*)Addr;
 }
 
 } // namespace Trace

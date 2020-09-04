@@ -5,7 +5,6 @@
 #include "Preferences/CascadeOptions.h"
 #include "Preferences/CurveEdOptions.h"
 #include "Preferences/MaterialEditorOptions.h"
-#include "Preferences/BlueprintEditorOptions.h"
 #include "Preferences/PersonaOptions.h"
 #include "Preferences/AnimationBlueprintEditorOptions.h"
 #include "Preferences/PhysicsAssetEditorOptions.h"
@@ -76,11 +75,6 @@ UMaterialStatsOptions::UMaterialStatsOptions(const FObjectInitializer& ObjectIni
 	bMaterialQualityUsed[EMaterialQualityLevel::High] = 1;
 }
 
-UBlueprintEditorOptions::UBlueprintEditorOptions(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)
-{
-}
-
 UAnimationBlueprintEditorOptions::UAnimationBlueprintEditorOptions(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
@@ -145,6 +139,8 @@ UPersonaOptions::UPersonaOptions(const FObjectInitializer& ObjectInitializer)
 	bTimelineDisplayFormatSecondary = true;
 
 	bTimelineDisplayCurveKeys = false;
+
+	TimelineEnabledSnaps = { "CompositeSegment", "MontageSection" };
 }
 
 void UPersonaOptions::SetShowGrid( bool bInShowGrid )

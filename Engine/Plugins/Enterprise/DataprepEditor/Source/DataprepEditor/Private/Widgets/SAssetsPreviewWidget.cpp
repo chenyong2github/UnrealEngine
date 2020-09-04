@@ -240,15 +240,32 @@ namespace AssetPreviewWidget
 			.Padding( 0, 0, 0, 2 )
 			[
 				SAssignNew(TreeView, STreeView<IAssetTreeItemPtr>)
-				.SelectionMode(ESelectionMode::Single)
+				.SelectionMode(ESelectionMode::Multi)
 				.TreeItemsSource(&RootItems)
 				.HeaderRow(HeaderRow)
 				.OnGenerateRow(this, &SAssetsPreviewWidget::MakeRowWidget)
 				.OnSetExpansionRecursive(this, &SAssetsPreviewWidget::OnSetExpansionRecursive)
 				.OnGetChildren(this, &SAssetsPreviewWidget::OnGetChildren)
 				.OnSelectionChanged(this, &SAssetsPreviewWidget::OnSelectionChangedInternal)
+				.OnContextMenuOpening(this, &SAssetsPreviewWidget::OnContextMenuOpeningInternal)
 			]
 		];
+	}
+
+	TSet<UObject*> SAssetsPreviewWidget::GetSelectedAssets() const
+	{
+		TSet< UObject* > Selection;
+		TArray<IAssetTreeItemPtr> SelectedItems = TreeView->GetSelectedItems();
+
+		for (IAssetTreeItemPtr Item : SelectedItems)
+		{
+			if ( !Item->IsFolder() )
+			{
+				Selection.Add( static_cast<FAssetTreeAssetItem&>( *Item.Get() ).AssetPtr.Get() );
+			}
+		}
+
+		return MoveTemp(Selection);
 	}
 
 	void SAssetsPreviewWidget::SetAssetsList(const TArray< TWeakObjectPtr< UObject > >& InAssetsList, const FString& InPathToReplace, const FString& InSubstitutePath)
@@ -477,15 +494,24 @@ namespace AssetPreviewWidget
 		}
 	}
 
+	TSharedPtr<SWidget> SAssetsPreviewWidget::OnContextMenuOpeningInternal()
+	{
+		TSet< UObject* > Selection = GetSelectedAssets();
+
+		if ( Selection.Num() > 0 && OnContextMenu().IsBound() )
+		{
+			return OnContextMenu().Execute( Selection );
+		}
+
+		return nullptr;
+	}
+
 	void SAssetsPreviewWidget::OnSelectionChangedInternal(IAssetTreeItemPtr ItemSelected, ESelectInfo::Type SelectionType)
 	{
-		if ( ItemSelected )
+		TSet< UObject* > Selection = GetSelectedAssets();
+
+		if (Selection.Num() > 0)
 		{
-			TSet< UObject* > Selection;
-			if ( !ItemSelected->IsFolder() )
-			{
-				Selection.Add( static_cast<FAssetTreeAssetItem&>( *ItemSelected.Get() ).AssetPtr.Get() );
-			}
 			OnSelectionChanged().Broadcast( Selection );
 		}
 	}
@@ -708,6 +734,63 @@ namespace AssetPreviewWidget
 		}
 
 		return bPassKeyWord;
+	}
+
+	void SAssetsPreviewWidget::SelectMatchingItems(const TSet<UObject*>& InAssets)
+	{
+		TFunction<void(TArray<IAssetTreeItemPtr>&, const TArray<IAssetTreeItemPtr>&, const TArray<IAssetTreeItemPtr>&)> 
+			SelectMatchingItemsInternal = [this, &SelectMatchingItemsInternal, &InAssets](TArray<IAssetTreeItemPtr>& FolderPath, const TArray<IAssetTreeItemPtr>& Folders, const TArray<IAssetTreeItemPtr>& Assets)
+		{
+			for ( const IAssetTreeItemPtr& AssetItemPtr : Assets )
+			{
+				FAssetTreeAssetItem& AssetItem = static_cast<FAssetTreeAssetItem&>( *AssetItemPtr.Get() );
+				UObject* Asset = AssetItem.AssetPtr.Get();
+				if ( Asset && InAssets.Contains(Asset) )
+				{
+					// Expand folder path first
+					for (IAssetTreeItemPtr& FolderPtr : FolderPath)
+					{
+						TreeView->SetItemExpansion(FolderPtr, true);
+					}
+					TreeView->SetItemSelection(AssetItemPtr, true, ESelectInfo::Direct);
+				}
+			}
+
+			// Recurse into child folders
+			for ( const IAssetTreeItemPtr& Folder : Folders )
+			{
+				FolderPath.Add(Folder);
+				FAssetTreeFolderItem* FolderItem = static_cast<FAssetTreeFolderItem*>( Folder.Get() );
+				SelectMatchingItemsInternal(FolderPath, FolderItem->Folders, FolderItem->Assets);
+				FolderPath.Pop();
+			}
+		};
+
+		TreeView->ClearSelection();
+
+		if (InAssets.Num() == 0)
+		{
+			return;
+		}
+
+		TArray<IAssetTreeItemPtr> RootAssets;
+		TArray<IAssetTreeItemPtr> RootFolders;
+
+		for ( const IAssetTreeItemPtr& AssetItemPtr : RootItems )
+		{
+			if (AssetItemPtr->IsFolder())
+			{
+				RootFolders.Add(AssetItemPtr);
+			}
+			else
+			{
+				RootAssets.Add(AssetItemPtr);
+			}
+		}
+
+		TArray<IAssetTreeItemPtr> FolderPath;
+
+		SelectMatchingItemsInternal(FolderPath, RootFolders, RootAssets);
 	}
 }
 

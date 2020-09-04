@@ -2,9 +2,13 @@
 
 using Microsoft.Win32;
 using System;
+using System.Collections.Generic;
+using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using System.Windows.Input;
+using System.Windows.Shell;
 using Timing_Data_Investigator.Commands;
 using Timing_Data_Investigator.Models;
 using Tools.DotNETCommon;
@@ -18,38 +22,77 @@ namespace Timing_Data_Investigator
 	{
 		public MainWindow()
 		{
+			JumpList jumpList = new JumpList();
+			jumpList.ShowRecentCategory = true;
+			JumpList.SetJumpList(Application.Current, jumpList);
+
 			InitializeComponent();
 			Loaded += MainWindow_Loaded;
 		}
 
 		private void MainWindow_Loaded(object sender, RoutedEventArgs e)
 		{
+			string[] CmdArgs = Environment.GetCommandLineArgs();
+			if(CmdArgs.Length > 1)
+			{
+				if(CmdArgs[1].EndsWith(".timing.bin"))
+				{
+					LoadTimingFile(CmdArgs[1]);
+					return;
+				}
+			}
+
 			ShowOpenFileDialog();
 		}
 
 		private void LoadTimingFile(string FilePath)
 		{
-
-			TimingDataViewModel NewTimingData = TimingDataViewModel.FromBinaryFile(FileReference.FromString(FilePath));
-
-			// If this is an aggregate, hook up the open commands for the file rows.
-			if (NewTimingData.Type == UnrealBuildTool.TimingDataType.Aggregate)
+			if(!File.Exists(FilePath))
 			{
-				foreach (TimingDataViewModel File in NewTimingData.Children[0].Children.Cast<TimingDataViewModel>())
-				{
-					OpenTimingDataCommand FileOpenCommand = new OpenTimingDataCommand(File);
-					FileOpenCommand.OpenAction =
-						(ViewModel) =>
-						{
-							TimingDataViewModel FileTimingData = NewTimingData.LoadTimingDataFromBinaryBlob(File.Name);
-							Dispatcher.BeginInvoke(new Action(() => { AddTimingDataViewModelToTabs(FileTimingData); }));
-						};
-
-					File.OpenCommand = FileOpenCommand;
-				}
+				string ErrorString = "Unable to load file \"" + FilePath + "\"";
+				Console.WriteLine(ErrorString);
+				MessageBox.Show(ErrorString + Environment.NewLine + "(File not found)",
+										  "File Not Found",
+										  MessageBoxButton.OK,
+										  MessageBoxImage.Question);
+				return;
 			}
 
-			AddTimingDataViewModelToTabs(NewTimingData);
+			JumpList.AddToRecentCategory(FilePath);
+
+			try
+			{
+				TimingDataViewModel NewTimingData = TimingDataViewModel.FromBinaryFile(FileReference.FromString(FilePath));
+
+				// If this is an aggregate, hook up the open commands for the file rows.
+				if (NewTimingData.Type == UnrealBuildTool.TimingDataType.Aggregate)
+				{
+					foreach (TimingDataViewModel File in NewTimingData.Children[0].Children.Cast<TimingDataViewModel>())
+					{
+						OpenTimingDataCommand FileOpenCommand = new OpenTimingDataCommand(File);
+						FileOpenCommand.OpenAction =
+							(ViewModel) =>
+							{
+								TimingDataViewModel FileTimingData = NewTimingData.LoadTimingDataFromBinaryBlob(File.Name);
+								Dispatcher.BeginInvoke(new Action(() => { AddTimingDataViewModelToTabs(FileTimingData); }));
+							};
+
+						File.OpenCommand = FileOpenCommand;
+					}
+				}
+				AddTimingDataViewModelToTabs(NewTimingData);
+			}
+			catch (System.IO.EndOfStreamException e)
+			{
+				string ErrorString = "Unable to load file \"" + FilePath + "\"";
+				Console.WriteLine(ErrorString);
+				Console.WriteLine(e.ToString());
+				MessageBox.Show(ErrorString + Environment.NewLine + "(may be corrupted)",
+										  "Error Loading Timing File",
+										  MessageBoxButton.OK,
+										  MessageBoxImage.Error);
+			}
+
 		}
 
 		private void AddTimingDataViewModelToTabs(TimingDataViewModel NewViewModel)
@@ -59,7 +102,12 @@ namespace Timing_Data_Investigator
 			OpenedFiles.SelectedItem = NewViewModel;
 		}
 
-		private void OpenFile_Click(object sender, RoutedEventArgs e)
+		private void OpenCommand_CanExecute(object sender, CanExecuteRoutedEventArgs e)
+		{
+			e.CanExecute = true;
+		}
+
+		private void OpenCommand_Executed(object sender, ExecutedRoutedEventArgs e)
 		{
 			ShowOpenFileDialog();
 		}

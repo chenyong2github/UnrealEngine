@@ -261,7 +261,7 @@ public:
 	TSet<FFrameNumber> GetVerticalFrames() const;
 
 	/** @return The set of marked frames */
-	TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const;
+	TArray<FMovieSceneMarkedFrame> GetMarkedFrames() const override;
 
 	TArray<FMovieSceneMarkedFrame> GetGlobalMarkedFrames() const;
 	void InvalidateGlobalMarkedFramesCache() { bGlobalMarkedFramesCached = false; }
@@ -389,6 +389,9 @@ public:
 
 		return SequencerSharedBindings;
 	}
+
+	virtual void SetDisplayName(FGuid InBinding,const FText& InDisplayName) override;
+	virtual FText GetDisplayName(FGuid InBinding) override;
 
 	/**
 	 * Builds up the sequencer's "Add Track" menu.
@@ -734,8 +737,8 @@ public:
 	virtual void SetPerspectiveViewportPossessionEnabled(bool bEnabled) override;
 	virtual void SetPerspectiveViewportCameraCutEnabled(bool bEnabled) override;
 	virtual void RenderMovie(UMovieSceneSection* InSection) const override;
-	virtual void EnterSilentMode() override { ++SilentModeCount; }
-	virtual void ExitSilentMode() override { --SilentModeCount; ensure(SilentModeCount >= 0); }
+	virtual void EnterSilentMode() override;
+	virtual void ExitSilentMode() override;
 	virtual bool IsInSilentMode() const override { return SilentModeCount != 0; }
 	virtual FGuid GetHandleToObject(UObject* Object, bool bCreateHandleIfMissing = true, const FName& CreatedFolderName = NAME_None) override;
 	virtual ISequencerObjectChangeListener& GetObjectChangeListener() override;
@@ -748,6 +751,7 @@ public:
 	virtual void SetPlaybackSpeed(float InPlaybackSpeed) override { PlaybackSpeed = InPlaybackSpeed; }
 	virtual float GetPlaybackSpeed() const override { return PlaybackSpeed; }
 	virtual TArray<FGuid> AddActors(const TArray<TWeakObjectPtr<AActor> >& InActors, bool bSelectActors = true) override;
+	virtual TArray<FGuid> ConvertToSpawnable(FGuid Guid) override;
 	virtual void AddSubSequence(UMovieSceneSequence* Sequence) override;
 	virtual bool CanKeyProperty(FCanKeyPropertyParams CanKeyPropertyParams) const override;
 	virtual void KeyProperty(FKeyPropertyParams KeyPropertyParams) override;
@@ -763,6 +767,7 @@ public:
 	virtual void SelectObject(FGuid ObjectBinding) override;
 	virtual void SelectTrack(UMovieSceneTrack* Track) override;
 	virtual void SelectSection(UMovieSceneSection* Section) override;
+	virtual void SelectFolder(UMovieSceneFolder* Folder) override;
 	virtual void SelectByPropertyPaths(const TArray<FString>& InPropertyPaths) override;
 	virtual void SelectByChannels(UMovieSceneSection* Section, TArrayView<const FMovieSceneChannelHandle> InChannels, bool bSelectParentInstead, bool bSelect) override;
 	virtual void SelectByNthCategoryNode(UMovieSceneSection* Section, int Index, bool bSelect) override;
@@ -774,6 +779,7 @@ public:
 	virtual FOnStopEvent& OnStopEvent() override { return OnStopDelegate; }
 	virtual FOnBeginScrubbingEvent& OnBeginScrubbingEvent() override { return OnBeginScrubbingDelegate; }
 	virtual FOnEndScrubbingEvent& OnEndScrubbingEvent() override { return OnEndScrubbingDelegate; }
+	virtual FOnPreRefreshImmediate& OnPreRefreshImmediate() override { return OnPreRefreshImmediateDelagate; }
 	virtual FOnMovieSceneDataChanged& OnMovieSceneDataChanged() override { return OnMovieSceneDataChangedDelegate; }
 	virtual FOnMovieSceneBindingsChanged& OnMovieSceneBindingsChanged() override { return OnMovieSceneBindingsChangedDelegate; }
 	virtual FOnMovieSceneBindingsPasted& OnMovieSceneBindingsPasted() override { return OnMovieSceneBindingsPastedDelegate; }
@@ -1044,7 +1050,7 @@ private:
 
 	/** Handles loading in previously recorded data. */
 	void OnLoadRecordedData();
-
+	
 	/** Adds the track to the selected folder (if FGuid is invalid) and selects the track, throbs it, and notifies the sequence to rebuild any necessary data. */
 	void OnAddTrack(const TWeakObjectPtr<UMovieSceneTrack>& InTrack, const FGuid& ObjectBinding) override;
 
@@ -1285,6 +1291,9 @@ private:
 	/** A delegate which is called any time the movie scene data is changed. */
 	FOnMovieSceneDataChanged OnMovieSceneDataChangedDelegate;
 
+	/** A delegate which is called before we refresh the ui and evaluate immediately. */
+	FOnPreRefreshImmediate  OnPreRefreshImmediateDelagate; 
+
 	/** A delegate which is called any time the movie scene bindings are changed. */
 	FOnMovieSceneBindingsChanged OnMovieSceneBindingsChangedDelegate;
 
@@ -1395,11 +1404,17 @@ private:
 
 	FCachedViewState CachedViewState;
 	
+	struct FViewModifierInfo
+	{
+		bool bApplyViewModifier = false;
+		FVector ViewModifierLocation = FVector::ZeroVector;
+		FRotator ViewModifierRotation = FRotator::ZeroRotator;
+		float ViewModifierFOV = 0.f;
+	};
 	/** Information for previewing camera cut blends. This will be applied to the editor viewport during blends. */
-	bool bApplyViewModifier;
-	FVector ViewModifierLocation;
-	FRotator ViewModifierRotation;
-	float ViewModifierFOV;
+	FViewModifierInfo ViewModifierInfo;
+	/** Information cached before entering silent mode, so we can restore it afterwards. */
+	FViewModifierInfo CachedViewModifierInfo;
 	
 	/** Original editor camera info, for when previewing a sequence with a blend from/to gameplay. */
 	bool bHasPreAnimatedInfo;

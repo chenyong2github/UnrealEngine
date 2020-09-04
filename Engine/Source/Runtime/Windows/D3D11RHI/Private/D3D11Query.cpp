@@ -430,7 +430,7 @@ void FD3D11BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 	check( !GAreGlobalsInitialized );
 
 	// Get the GPU timestamp frequency.
-	GTimingFrequency = 0;
+	SetTimingFrequency(0);
 	TRefCountPtr<ID3D11Query> FreqQuery;
 	FD3D11DynamicRHI* D3DRHI = (FD3D11DynamicRHI*)UserData;
 	ID3D11DeviceContext *D3D11DeviceContext = D3DRHI->GetDeviceContext();
@@ -472,7 +472,7 @@ void FD3D11BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 			if (D3DResult == S_OK)
 			{
 				DebugState = 2;
-				GTimingFrequency = FreqQueryData.Frequency;
+				SetTimingFrequency(FreqQueryData.Frequency);
 				checkSlow(!FreqQueryData.Disjoint);
 
 				if (FreqQueryData.Disjoint)
@@ -482,7 +482,7 @@ void FD3D11BufferedGPUTiming::PlatformStaticInitialize(void* UserData)
 			}
 		}
 
-		UE_LOG(LogD3D11RHI, Log, TEXT("GPU Timing Frequency: %f (Debug: %d %d)"), GTimingFrequency / (double)(1000 * 1000), DebugState, DebugCounter);
+		UE_LOG(LogD3D11RHI, Log, TEXT("GPU Timing Frequency: %f (Debug: %d %d)"), GetTimingFrequency() / (double)(1000 * 1000), DebugState, DebugCounter);
 	}
 
 	FreqQuery = NULL;
@@ -580,8 +580,10 @@ void FD3D11BufferedGPUTiming::CalibrateTimers(FD3D11DynamicRHI* InD3DRHI)
 		// If we managed to get valid timestamps, save both of them (CPU & GPU) and return
 		if (D3DResult == S_OK && GPUTimestamp)
 		{
-			GCalibrationTimestamp.CPUMicroseconds = uint64(FPlatformTime::ToSeconds64(CPUTimestamp) * 1e6);
-			GCalibrationTimestamp.GPUMicroseconds = uint64(GPUTimestamp * (1e6 / GTimingFrequency));
+			FGPUTimingCalibrationTimestamp CalibrationTimestamp;
+			CalibrationTimestamp.CPUMicroseconds = uint64(FPlatformTime::ToSeconds64(CPUTimestamp) * 1e6);
+			CalibrationTimestamp.GPUMicroseconds = uint64(GPUTimestamp * (1e6 / GetTimingFrequency()));
+			SetCalibrationTimestamp(CalibrationTimestamp);
 			break;
 		}
 		else

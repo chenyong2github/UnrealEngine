@@ -15,6 +15,7 @@
 #include "Insights/ViewModels/DrawHelpers.h"
 
 #include <limits>
+#include "Misc/StringBuilder.h"
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////
 // FPacketContentViewDrawStateBuilder
@@ -180,30 +181,72 @@ void FPacketContentViewDrawStateBuilder::AddEvent(const Trace::FNetProfilerConte
 	// Draw the name of the event.
 	if (EventW > 8.0f)
 	{
-		FString Name = EventName ? EventName : TEXT("?");
-		if (EventW > Name.Len() * 2.0f + 48.0f)
+		TStringBuilder<512> Builder;
+
+		Builder.Appendf(TEXT("%s"), EventName ? EventName : TEXT("?"));
+		if (EventW > Builder.Len() * 2.0f + 48.0f)
 		{
+			const Trace::FNetProfilerBunchInfo& Info = Event.BunchInfo;
+			if (Info.bIsValid)
+			{
+				Builder.Appendf(TEXT(" ChannelId:%u"), Info.ChannelIndex);
+
+				if (Info.bOpen && Info.bClose)
+				{
+					Builder.Append(TEXT(" | OpenTemp"));
+				}
+				else if (Event.BunchInfo.bOpen)
+				{
+					Builder.Append(TEXT(" | Open"));
+				}
+				else if (Event.BunchInfo.bClose)
+				{
+					Builder.Appendf(TEXT(" | Close: %s"), LexToString(Trace::ENetProfilerChannelCloseReason(Info.ChannelCloseReason)));		
+				}
+				if (Event.BunchInfo.bReliable)
+				{
+					Builder.Appendf(TEXT(" | Reliable: ChSeq: %u"), Info.Seq);
+				}
+				if (Event.BunchInfo.bPartial)
+				{
+					Builder.Appendf(TEXT(" | Partial%s%s"), Info.bPartialInitial ? TEXT("Initial") : TEXT(""), Info.bPartialFinal ? TEXT("Final") : TEXT(""));
+				}
+				if (Event.BunchInfo.bIsReplicationPaused)
+				{
+					Builder.Append(TEXT(" | ReplicationPaused"));
+				}
+				if (Event.BunchInfo.bHasMustBeMappedGUIDs)
+				{
+					Builder.Append(TEXT(" | HasMustBeMappedGUIDs"));
+				}
+				if (Event.BunchInfo.bHasPackageMapExports)
+				{
+					Builder.Append(TEXT(" | HasPackageMapExports"));
+				}
+
+				Builder.Append(TEXT(", "));
+			}
+
 			if (Event.ObjectInstanceIndex != 0)
 			{
-				Name += TEXT(" (NetId:");
-				Name += FText::AsNumber(NetId).ToString();
-				Name += TEXT(", ");
+				Builder.Appendf(TEXT(" (NetId:%u, "), NetId);
 			}
 			else
 			{
-				Name += TEXT(" (");
+				Builder.Append(TEXT(" ("));
 			}
 			const uint32 EventSize = Event.EndPos - Event.StartPos;
 			if (EventSize == 1)
 			{
-				Name += TEXT("1 bit)");
+				Builder.Append(TEXT("1 bit)"));
 			}
 			else
 			{
-				Name += FText::AsNumber(EventSize).ToString();
-				Name += TEXT(" bits)");
+				Builder.Appendf(TEXT("%u bits)"), EventSize);
 			}
 		}
+
+		FString Name(Builder.ToString());
 
 		const TSharedRef<FSlateFontMeasure> FontMeasureService = FSlateApplication::Get().GetRenderer()->GetFontMeasureService();
 		const int32 LastWholeCharacterIndex = FontMeasureService->FindLastWholeCharacterIndexBeforeOffset(Name, EventFont, FMath::RoundToInt(EventW - 2.0f));

@@ -7,7 +7,9 @@
         xmlns:tdi="clr-namespace:Timing_Data_Investigator"
         mc:Ignorable="d"
         Title="CompileTimeAnalyzer" Width="1024" Height="768" WindowStartupLocation="CenterScreen">
-
+    <Window.CommandBindings>
+        <CommandBinding Command="ApplicationCommands.Open" CanExecute="OpenCommand_CanExecute" Executed="OpenCommand_Executed" />
+    </Window.CommandBindings>
     <Window.Resources>
 		<tdi:NullToVisibilityConverter x:Key="NullToVisibilityConverter" />
 		<Style x:Key="TabCloseButton" TargetType="Button">
@@ -40,7 +42,7 @@
         <DockPanel Grid.Row="0">
             <Menu DockPanel.Dock="Top" Background="{DynamicResource {x:Static SystemColors.WindowBrushKey}}">
                 <MenuItem Header="_File">
-                    <MenuItem Header="_Open Compile Time File" Click="OpenFile_Click" />
+                    <MenuItem Header="_Open Compile Time File" Command="ApplicationCommands.Open"/>
 					<Separator />
 					<MenuItem x:Name="RecentFiles" Header="Open Recent _File" IsEnabled="False" />
 					<Separator />

@@ -866,7 +866,7 @@ int32 FNiagaraParameterMapHistoryBuilder::FindMatchingParameterMapFromContextInp
 		return INDEX_NONE;
 	}
 	const UNiagaraNode* Node = CallingContext.Last();
-	TArray<const UEdGraphPin*> Inputs;
+	FPinCollectorArray Inputs;
 	Node->GetInputPins(Inputs);
 	const UEdGraphSchema_Niagara* Schema = CastChecked<UEdGraphSchema_Niagara>(Node->GetSchema());
 
@@ -1179,7 +1179,7 @@ void FNiagaraParameterMapHistoryBuilder::VisitInputPin(const UEdGraphPin* Pin, c
 
 void FNiagaraParameterMapHistoryBuilder::VisitInputPins(const class UNiagaraNode* InNode, bool bFilterForCompilation)
 {
-	TArray<UEdGraphPin*> InputPins;
+	FPinCollectorArray InputPins;
 	InNode->GetInputPins(InputPins);
 
 	for (int32 i = 0; i < InputPins.Num(); i++)
@@ -1431,42 +1431,36 @@ int32 FNiagaraParameterMapHistoryBuilder::AddVariableToHistory(FNiagaraParameter
 
 void FNiagaraParameterMapHistoryBuilder::BuildCurrentAliases()
 {
-	AliasMap = TMap<FString, FString>();
+	AliasMap.Reset();
 
-	FString Callstack;
+	TStringBuilder<1024> Callstack;
 	for (int32 i = 0; i < FunctionNameContextStack.Num(); i++)
 	{
-		if (i == 0)
+		if (i != 0)
 		{
-			Callstack += FunctionNameContextStack[i].ToString();
+			Callstack << TEXT(".");
 		}
-		else
-		{
-			Callstack += TEXT(".") + FunctionNameContextStack[i].ToString();
-		}
+		FunctionNameContextStack[i].AppendString(Callstack);
 	}
 
-	if (!Callstack.IsEmpty())
+	if (Callstack.Len() > 0)
 	{
-		AliasMap.Add(TEXT("Module"), Callstack);
+		AliasMap.Add(TEXT("Module"), Callstack.ToString());
 	}
 
-	Callstack.Empty();
+	Callstack.Reset();
 	for (int32 i = 0; i < EmitterNameContextStack.Num(); i++)
 	{
-		if (i == 0)
+		if (i != 0)
 		{
-			Callstack += EmitterNameContextStack[i].ToString();
+			Callstack << TEXT(".");
 		}
-		else
-		{
-			Callstack += TEXT(".") + EmitterNameContextStack[i].ToString();
-		}
+		EmitterNameContextStack[i].AppendString(Callstack);
 	}
 
-	if (!Callstack.IsEmpty())
+	if (Callstack.Len() > 0)
 	{
-		AliasMap.Add(TEXT("Emitter"), Callstack);
+		AliasMap.Add(TEXT("Emitter"), Callstack.ToString());
 	}
 }
 

@@ -3,117 +3,121 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "IAssetRegistry.h"
+
 #include "Algo/Find.h"
+#include "Containers/StringView.h"
+#include "IAssetRegistry.h"
 #include "Misc/PackageName.h"
 
-struct FCachedPackageFilename
-{
-	FCachedPackageFilename(FString&& InPackageFilename, FString&& InStandardFilename, FName InStandardFileFName)
-	:	PackageFilename(MoveTemp(InPackageFilename))
-	,	StandardFilename(MoveTemp(InStandardFilename))
-	,	StandardFileFName(InStandardFileFName)
-	{
-	}
-
-	FCachedPackageFilename(const FCachedPackageFilename& In) = default;
-
-	FCachedPackageFilename(FCachedPackageFilename&& In)
-	:	PackageFilename(MoveTemp(In.PackageFilename))
-	,	StandardFilename(MoveTemp(In.StandardFilename))
-	,	StandardFileFName(In.StandardFileFName)
-	{
-	}
-
-	FString		PackageFilename; // this is also full path
-	FString		StandardFilename;
-	FName		StandardFileFName;
-};
-
+/* This class has marked all of its functions const and its variables mutable so that CookOnTheFlyServer can use its functions from const functions */
 struct FPackageNameCache
 {
-	FPackageNameCache(IAssetRegistry* InAssetRegistry = nullptr) : AssetRegistry(InAssetRegistry) {}
+	bool			HasCacheForPackageName(const FName& PackageName) const;
 
-	FString			GetCachedPackageFilename(const UPackage* Package) const;
+	FString			GetCachedStandardFileNameString(const UPackage* Package) const;
 
-	FString			GetCachedStandardPackageFilename(const UPackage* Package) const;
+	FName			GetCachedStandardFileName(const FName& PackageName) const;
+	FName			GetCachedStandardFileName(const UPackage* Package) const;
 
-	FName			GetCachedStandardPackageFileFName(const FName& PackageName) const;
-	FName			GetCachedStandardPackageFileFName(const UPackage* Package) const;
+	const FName*	GetCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, bool bExactMatchRequired=true, FName* FoundFileName = nullptr) const;
 
-	const FName*	GetCachedPackageFilenameToPackageFName(const FName& StandardPackageFilename) const;
+	void			ClearPackageFileNameCache(IAssetRegistry* InAssetRegistry) const;
+	bool			ClearPackageFileNameCacheForPackage(const UPackage* Package) const;
+	bool			ClearPackageFileNameCacheForPackage(const FName& PackageName) const;
 
-	void			ClearPackageFilenameCache(IAssetRegistry* InAssetRegistry) const;
-	bool			ClearPackageFilenameCacheForPackage(const UPackage* Package) const;
+	void			AppendCacheResults(TArray<TTuple<FName, FString>>&& PackageToStandardFileNames) const;
 
-	void			AppendCacheResults(TArray<TTuple<FName, FString, FString>>&& PackageToStandardFileNames);
+	bool			CalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName) const;
 
-	bool			CalculateCacheData(FName PackageName, FString& OutPackageFilename, FString& OutStandardFilename, FName& OutStandardFileFName) const;
-
-	bool			Contains(FName PackageName) const;
-
+	bool			ContainsPackageName(FName PackageName) const;
+	
+	void			SetAssetRegistry(IAssetRegistry* InAssetRegistry) const;
 	IAssetRegistry* GetAssetRegistry() const;
-	void SetAssetRegistry(IAssetRegistry* NewRegistry);
+
+	/** Normalize the given FileName for use in looking up the cached data associated with the FileName. This normalization is equivalent to FPaths::MakeStandardFilename */
+	static FName	GetStandardFileName(const FName& FileName);
+	static FName	GetStandardFileName(const FStringView& FileName);
+
 
 private:
+	struct FCachedPackageFilename
+	{
+		FCachedPackageFilename(FString&& InStandardFilename, FName InStandardFileFName)
+			: StandardFileNameString(MoveTemp(InStandardFilename))
+			, StandardFileName(InStandardFileFName)
+		{
+		}
+
+		FCachedPackageFilename(const FCachedPackageFilename& In) = default;
+
+		FCachedPackageFilename(FCachedPackageFilename&& In)
+			: StandardFileNameString(MoveTemp(In.StandardFileNameString))
+			, StandardFileName(In.StandardFileName)
+		{
+		}
+
+		FString		StandardFileNameString;
+		FName		StandardFileName;
+	};
+
 	bool DoesPackageExist(const FName& PackageName, FString* OutFilename) const;
 	const FCachedPackageFilename& Cache(const FName& PackageName) const;
 
-	mutable IAssetRegistry* AssetRegistry;
+	mutable IAssetRegistry* AssetRegistry = nullptr;
 
 	mutable TMap<FName, FCachedPackageFilename> PackageFilenameCache; // filename cache (only process the string operations once)
 	mutable TMap<FName, FName>					PackageFilenameToPackageFNameCache;
-
-	// temporary -- should eliminate the need for this
-	friend uint32 UCookOnTheFlyServer::FullLoadAndSave(uint32& CookedPackageCount);
 };
 
-FName FPackageNameCache::GetCachedStandardPackageFileFName(const FName& PackageName) const
+inline FName FPackageNameCache::GetCachedStandardFileName(const FName& PackageName) const
 {
-	return Cache(PackageName).StandardFileFName;
+	return Cache(PackageName).StandardFileName;
 }
 
-FString FPackageNameCache::GetCachedPackageFilename(const UPackage* Package) const
+inline bool FPackageNameCache::HasCacheForPackageName(const FName& PackageName) const
 {
-	// check( Package->GetName() == Package->GetFName().ToString() );
-	return Cache(Package->GetFName()).PackageFilename;
+	return PackageFilenameCache.Find(PackageName) != nullptr;
 }
 
-FString FPackageNameCache::GetCachedStandardPackageFilename(const UPackage* Package) const
-{
-	// check( Package->GetName() == Package->GetFName().ToString() );
-	return Cache(Package->GetFName()).StandardFilename;
-}
-
-FName FPackageNameCache::GetCachedStandardPackageFileFName(const UPackage* Package) const
+inline FString FPackageNameCache::GetCachedStandardFileNameString(const UPackage* Package) const
 {
 	// check( Package->GetName() == Package->GetFName().ToString() );
-	return Cache(Package->GetFName()).StandardFileFName;
+	return Cache(Package->GetFName()).StandardFileNameString;
 }
 
-bool FPackageNameCache::ClearPackageFilenameCacheForPackage(const UPackage* Package) const
+inline FName FPackageNameCache::GetCachedStandardFileName(const UPackage* Package) const
 {
-	check(IsInGameThread());
-
-	return PackageFilenameCache.Remove(Package->GetFName()) >= 1;
+	// check( Package->GetName() == Package->GetFName().ToString() );
+	return Cache(Package->GetFName()).StandardFileName;
 }
 
-void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FString, FString>>&& PackageToStandardFileNames)
+inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const UPackage* Package) const
+{
+	return ClearPackageFileNameCacheForPackage(Package->GetFName());
+}
+
+inline void FPackageNameCache::AppendCacheResults(TArray<TTuple<FName, FString>>&& PackageToStandardFileNames) const
 {
 	check(IsInGameThread());
 	for (auto& Entry : PackageToStandardFileNames)
 	{
 		FName PackageName = Entry.Get<0>();
-		FString& PackageFilename = Entry.Get<1>();
-		FString& StandardFilename = Entry.Get<2>();
+		FString& StandardFilename = Entry.Get<1>();
 
 		FName StandardFileFName(*StandardFilename);
 		PackageFilenameToPackageFNameCache.Add(StandardFileFName, PackageName);
-		PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(PackageFilename), MoveTemp(StandardFilename), StandardFileFName));
+		PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(StandardFilename), StandardFileFName));
 	}
 }
 
-bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutFilename) const
+inline bool FPackageNameCache::ClearPackageFileNameCacheForPackage(const FName& PackageName) const
+{
+	check(IsInGameThread());
+
+	return PackageFilenameCache.Remove(PackageName) >= 1;
+}
+
+inline bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutFilename) const
 {
 	FString PackageNameStr = PackageName.ToString();
 
@@ -159,11 +163,12 @@ bool FPackageNameCache::DoesPackageExist(const FName& PackageName, FString* OutF
 	return true;
 }
 
-bool FPackageNameCache::CalculateCacheData(FName PackageName, FString& OutPackageFilename, FString& OutStandardFilename, FName& OutStandardFileFName) const
+inline bool FPackageNameCache::CalculateCacheData(FName PackageName, FString& OutStandardFilename, FName& OutStandardFileFName) const
 {
-	if (DoesPackageExist(PackageName, &OutPackageFilename))
+	FString FilenameOnDisk;
+	if (DoesPackageExist(PackageName, &FilenameOnDisk))
 	{
-		OutStandardFilename = OutPackageFilename = FPaths::ConvertRelativePathToFull(OutPackageFilename);
+		OutStandardFilename = FPaths::ConvertRelativePathToFull(FilenameOnDisk);
 
 		FPaths::MakeStandardFilename(OutStandardFilename);
 		OutStandardFileFName = FName(*OutStandardFilename);
@@ -172,22 +177,16 @@ bool FPackageNameCache::CalculateCacheData(FName PackageName, FString& OutPackag
 	return false;
 }
 
-bool FPackageNameCache::Contains(FName PackageName) const
+inline bool FPackageNameCache::ContainsPackageName(FName PackageName) const
 {
 	return PackageFilenameCache.Contains(PackageName);
 }
-
-IAssetRegistry* FPackageNameCache::GetAssetRegistry() const
+inline IAssetRegistry* FPackageNameCache::GetAssetRegistry() const
 {
 	return AssetRegistry;
 }
 
-void FPackageNameCache::SetAssetRegistry(IAssetRegistry* NewRegistry)
-{
-	 AssetRegistry = NewRegistry;
-}
-
-const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName) const
+inline const FPackageNameCache::FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName) const
 {
 	check(IsInGameThread());
 
@@ -200,43 +199,80 @@ const FCachedPackageFilename& FPackageNameCache::Cache(const FName& PackageName)
 
 	// cache all the things, like it's your birthday!
 
-	FString PackageFilename;
-	FString StandardFilename;
-	FName StandardFileFName = NAME_None;
+	FString FileNameString;
+	FName FileName = NAME_None;
 
-	CalculateCacheData(PackageName, PackageFilename, StandardFilename, StandardFileFName);
+	CalculateCacheData(PackageName, FileNameString, FileName);
 
-	PackageFilenameToPackageFNameCache.Add(StandardFileFName, PackageName);
+	PackageFilenameToPackageFNameCache.Add(FileName, PackageName);
 
-	return PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(PackageFilename), MoveTemp(StandardFilename), StandardFileFName));
+	return PackageFilenameCache.Emplace(PackageName, FCachedPackageFilename(MoveTemp(FileNameString), FileName));
 }
 
-const FName* FPackageNameCache::GetCachedPackageFilenameToPackageFName(const FName& StandardPackageFilename) const
+inline const FName* FPackageNameCache::GetCachedPackageNameFromStandardFileName(const FName& NormalizedFileName, bool bExactMatchRequired, FName* FoundFileName) const
 {
 	check(IsInGameThread());
-	const FName* Result = PackageFilenameToPackageFNameCache.Find(StandardPackageFilename);
+	const FName* Result = PackageFilenameToPackageFNameCache.Find(NormalizedFileName);
 	if (Result)
 	{
+		if (FoundFileName)
+		{
+			*FoundFileName = NormalizedFileName;
+		}
 		return Result;
 	}
 
-	FName PackageName = StandardPackageFilename;
-	FString PotentialLongPackageName = StandardPackageFilename.ToString();
-	if (FPackageName::IsValidLongPackageName(PotentialLongPackageName) == false)
+	FName PackageName = NormalizedFileName;
+	FString PotentialLongPackageName = NormalizedFileName.ToString();
+	if (!FPackageName::IsValidLongPackageName(PotentialLongPackageName))
 	{
-		PotentialLongPackageName = FPackageName::FilenameToLongPackageName(PotentialLongPackageName);
+		if (!FPackageName::TryConvertFilenameToLongPackageName(PotentialLongPackageName, PotentialLongPackageName))
+		{
+			return nullptr;
+		}
 		PackageName = FName(*PotentialLongPackageName);
 	}
 
-	Cache(PackageName);
+	const FCachedPackageFilename& CachedFilename = Cache(PackageName);
 
-	return PackageFilenameToPackageFNameCache.Find(StandardPackageFilename);
+	if (bExactMatchRequired)
+	{
+		if (FoundFileName)
+		{
+			*FoundFileName = NormalizedFileName;
+		}
+		return PackageFilenameToPackageFNameCache.Find(NormalizedFileName);
+	}
+	else
+	{
+		check(FoundFileName != nullptr);
+		*FoundFileName = CachedFilename.StandardFileName;
+		return PackageFilenameToPackageFNameCache.Find(CachedFilename.StandardFileName);
+	}
 }
 
-void FPackageNameCache::ClearPackageFilenameCache(IAssetRegistry* InAssetRegistry) const
+inline void FPackageNameCache::ClearPackageFileNameCache(IAssetRegistry* InAssetRegistry) const
 {
 	check(IsInGameThread());
 	PackageFilenameCache.Empty();
 	PackageFilenameToPackageFNameCache.Empty();
 	AssetRegistry = InAssetRegistry;
 }
+
+inline void FPackageNameCache::SetAssetRegistry(IAssetRegistry* InAssetRegistry) const
+{
+	AssetRegistry = InAssetRegistry;
+}
+
+inline FName FPackageNameCache::GetStandardFileName(const FName& FileName)
+{
+	return GetStandardFileName(FileName.ToString());
+}
+
+inline FName FPackageNameCache::GetStandardFileName(const FStringView& InFileName)
+{
+	FString FileName(InFileName);
+	FPaths::MakeStandardFilename(FileName);
+	return FName(FileName);
+}
+

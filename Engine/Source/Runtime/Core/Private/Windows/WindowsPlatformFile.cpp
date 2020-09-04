@@ -181,8 +181,19 @@ protected:
 		{
 			// Close the file handle
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
-			CloseHandle(Handle);
-			TRACE_PLATFORMFILE_END_CLOSE();
+			BOOL CloseResult = CloseHandle(Handle);
+#if PLATFORMFILETRACE_ENABLED
+			if (CloseResult)
+			{
+				TRACE_PLATFORMFILE_END_CLOSE(Handle);
+			}
+			else
+			{
+				TRACE_PLATFORMFILE_FAIL_CLOSE(Handle);
+			}
+#else
+			(void)CloseResult;
+#endif
 			Handle = nullptr;
 		}
 		return true;
@@ -523,8 +534,19 @@ public:
 	virtual ~FFileHandleWindows()
 	{
 		TRACE_PLATFORMFILE_BEGIN_CLOSE(FileHandle);
-		CloseHandle(FileHandle);
-		TRACE_PLATFORMFILE_END_CLOSE();
+		BOOL CloseResult = CloseHandle(FileHandle);
+#if PLATFORMFILETRACE_ENABLED
+		if (CloseResult)
+		{
+			TRACE_PLATFORMFILE_END_CLOSE(FileHandle);
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_CLOSE(FileHandle);
+		}
+#else
+		(void)CloseResult;
+#endif
 		FileHandle = NULL;
 	}
 	virtual int64 Tell(void) override
@@ -595,7 +617,8 @@ public:
 			// Early out as a failure case if we did not read all of the bytes that we expected to read
 			if (BytesToRead32 != NumRead)
 			{
-				return false; 
+				TRACE_PLATFORMFILE_END_READ(&OverlappedIO, TotalNumRead);
+				return false;
 			}	
 					
 		} while (BytesToRead > 0);
@@ -644,6 +667,7 @@ public:
 			// Early out as a failure case if we didn't write all of the data we expected
 			if (BytesToWrite32 != NumWritten)
 			{
+				TRACE_PLATFORMFILE_END_WRITE(this, TotalNumWritten);
 				return false;
 			}
 			
@@ -727,8 +751,19 @@ public:
 		check(!NumOutstandingRegions); // can't delete the file before you delete all outstanding regions
 		CloseHandle(MappingHandle);
 		TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
-		CloseHandle(Handle);
-		TRACE_PLATFORMFILE_END_CLOSE();
+		BOOL CloseResult = CloseHandle(Handle);
+#if PLATFORMFILETRACE_ENABLED
+		if (CloseResult)
+		{
+			TRACE_PLATFORMFILE_END_CLOSE(Handle);
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_CLOSE(Handle);
+		}
+#else
+		(void)CloseResult;
+#endif
 	}
 	virtual IMappedFileRegion* MapRegion(int64 Offset = 0, int64 BytesToMap = MAX_int64, bool bPreloadHint = false) override
 	{
@@ -900,20 +935,36 @@ public:
 	{
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE Handle = CreateFileW(*WindowsNormalizedFilename(Filename), FILE_WRITE_ATTRIBUTES, FILE_SHARE_READ, nullptr, OPEN_EXISTING, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, nullptr);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
 			const FILETIME ModificationFileTime = UEDateTimeToWindowsFileTime(DateTime);
 			if (!SetFileTime(Handle, nullptr, nullptr, &ModificationFileTime))
 			{
 				UE_LOG(LogTemp, Warning, TEXT("SetTimeStamp: Failed to SetFileTime on %s"), Filename);
 			}
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
-			CloseHandle(Handle);
-			TRACE_PLATFORMFILE_END_CLOSE();
+#if PLATFORMFILETRACE_ENABLED
+			// MSVC static analysis has a rule that reports the argument to CloseHandle as uninitialized memory after the call to CloseHandle, so we have to save it ahead of time
+			uint64 SavedHandle = uint64(Handle);
+#endif
+			BOOL CloseResult = CloseHandle(Handle);
+#if PLATFORMFILETRACE_ENABLED
+			if (CloseResult)
+			{
+				TRACE_PLATFORMFILE_END_CLOSE(SavedHandle);
+			}
+			else
+			{
+				TRACE_PLATFORMFILE_FAIL_CLOSE(SavedHandle);
+			}
+#else
+			(void)CloseResult;
+#endif
 		}
 		else
 		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
 			UE_LOG(LogTemp, Warning, TEXT("SetTimeStamp: Failed to open file %s"), Filename);
 		}
 	}
@@ -934,10 +985,10 @@ public:
 		FString NormalizedFileName = WindowsNormalizedFilename(Filename);
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE hFile = CreateFile(*NormalizedFileName, FILE_READ_ATTRIBUTES, FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, NULL, OPEN_EXISTING, 0, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(hFile);
 		// If the file exists on disk, read the capitalization from the path on disk, otherwise just return the (normalized) input filename
 		if (hFile != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(hFile);
 			for (uint32 Length = NormalizedFileName.Len() + 10;;)
 			{
 				TArray<TCHAR>& CharArray = NormalizedFileName.GetCharArray();
@@ -956,8 +1007,27 @@ public:
 				}
 			}
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(hFile);
-			CloseHandle(hFile);
-			TRACE_PLATFORMFILE_END_CLOSE();
+#if PLATFORMFILETRACE_ENABLED
+			// MSVC static analysis has a rule that reports the argument to CloseHandle as uninitialized memory after the call to CloseHandle, so we have to save it ahead of time
+			uint64 SavedHFile = uint64(hFile);
+#endif
+			BOOL CloseResult = CloseHandle(hFile);
+#if PLATFORMFILETRACE_ENABLED
+			if (CloseResult)
+			{
+				TRACE_PLATFORMFILE_END_CLOSE(SavedHFile);
+			}
+			else
+			{
+				TRACE_PLATFORMFILE_FAIL_CLOSE(SavedHFile);
+			}
+#else
+			(void)CloseResult;
+#endif
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
 		}
 
 		// Remove the Windows device path prefix.
@@ -988,7 +1058,17 @@ public:
 		FString NormalizedFilename = WindowsNormalizedFilename(Filename);
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE Handle = CreateFileW(*NormalizedFilename, Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
+#if PLATFORMFILETRACE_ENABLED
+		if (Handle != INVALID_HANDLE_VALUE)
+		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
+		}
+#endif
+
 		// we can't really fail here because this is intended to be an async open
 		return new FWindowsAsyncReadFileHandle(Handle, *NormalizedFilename);
 
@@ -1002,24 +1082,27 @@ public:
 		uint32  Create    = OPEN_EXISTING;
 #define USE_OVERLAPPED_IO (!IS_PROGRAM && !WITH_EDITOR)		// Use straightforward synchronous I/O in cooker/editor
 
-#if USE_OVERLAPPED_IO
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
+#if USE_OVERLAPPED_IO
 		HANDLE Handle    = CreateFileW(*WindowsNormalizedFilename(Filename), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
 			return new FAsyncBufferedFileReaderWindows(Handle);
 		}
 #else
-		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE Handle = CreateFileW(*WindowsNormalizedFilename(Filename), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
 			return new FFileHandleWindows(Handle);
 		}
 #endif
-		return NULL;
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
+			return nullptr;
+		}
 	}
 
 	virtual IFileHandle* OpenReadNoBuffering(const TCHAR* Filename, bool bAllowWrite = false) override
@@ -1029,12 +1112,16 @@ public:
 		uint32  Create = OPEN_EXISTING;
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE Handle = CreateFileW(*WindowsNormalizedFilename(Filename), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OVERLAPPED, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
 			return new FFileHandleWindows(Handle);
 		}
-		return NULL;
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
+			return nullptr;
+		}
 	}
 
 	virtual IFileHandle* OpenWrite(const TCHAR* Filename, bool bAppend = false, bool bAllowRead = false) override
@@ -1044,9 +1131,9 @@ public:
 		uint32  Create    = bAppend ? OPEN_ALWAYS : CREATE_ALWAYS;
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE Handle    = CreateFileW(*WindowsNormalizedFilename(Filename), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
 		if(Handle != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
 			FFileHandleWindows *PlatformFileHandle = new FFileHandleWindows(Handle);
 			if (bAppend)
 			{
@@ -1054,7 +1141,11 @@ public:
 			}
 			return PlatformFileHandle;
 		}
-		return NULL;
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
+			return nullptr;
+		}
 	}
 
 
@@ -1070,17 +1161,36 @@ public:
 		uint32  Create = OPEN_EXISTING;
 		TRACE_PLATFORMFILE_BEGIN_OPEN(Filename);
 		HANDLE Handle = CreateFileW(*WindowsNormalizedFilename(Filename), Access, WinFlags, NULL, Create, FILE_ATTRIBUTE_NORMAL, NULL);
-		TRACE_PLATFORMFILE_END_OPEN(Handle);
-		if (Handle == INVALID_HANDLE_VALUE)
+		if (Handle != INVALID_HANDLE_VALUE)
 		{
+			TRACE_PLATFORMFILE_END_OPEN(Handle);
+		}
+		else
+		{
+			TRACE_PLATFORMFILE_FAIL_OPEN(Filename);
 			return nullptr;
 		}
 		HANDLE MappingHandle = CreateFileMapping(Handle, NULL, PAGE_READONLY, 0, 0, NULL);
 		if (MappingHandle == INVALID_HANDLE_VALUE)
 		{
 			TRACE_PLATFORMFILE_BEGIN_CLOSE(Handle);
-			CloseHandle(Handle);
-			TRACE_PLATFORMFILE_END_CLOSE();
+#if PLATFORMFILETRACE_ENABLED
+			// MSVC static analysis has a rule that reports the argument to CloseHandle as uninitialized memory after the call to CloseHandle, so we have to save it ahead of time
+			uint64 SavedHandle = uint64(Handle);
+#endif
+			BOOL CloseResult = CloseHandle(Handle);
+#if PLATFORMFILETRACE_ENABLED
+			if (CloseResult)
+			{
+				TRACE_PLATFORMFILE_END_CLOSE(SavedHandle);
+			}
+			else
+			{
+				TRACE_PLATFORMFILE_FAIL_CLOSE(SavedHandle);
+			}
+#else
+			(void)CloseResult;
+#endif
 			return nullptr;
 		}
 		return new FMappedFileHandleWindows(Handle, MappingHandle, Size, Filename);
@@ -1182,7 +1292,7 @@ public:
 		bool Result = false;
 		WIN32_FIND_DATAW Data;
 		FString SearchWildcard = FString(Directory) / TEXT("*.*");
-		HANDLE Handle = FindFirstFileW(*(WindowsNormalizedDirname(*SearchWildcard)), &Data);
+		HANDLE Handle = FindFirstFileW(*(WindowsNormalizedFilename(*SearchWildcard)), &Data);
 		if (Handle != INVALID_HANDLE_VALUE)
 		{
 			Result = true;

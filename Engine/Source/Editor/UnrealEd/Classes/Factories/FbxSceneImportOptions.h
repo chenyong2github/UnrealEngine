@@ -7,8 +7,8 @@
 #include "UObject/Object.h"
 #include "FbxSceneImportOptions.generated.h"
 
-UENUM()
-enum EFBXSceneOptionsCreateHierarchyType
+UENUM(BlueprintType)
+enum class EFBXSceneOptionsCreateHierarchyType : uint8
 {
 	FBXSOCHT_CreateLevelActors UMETA(DisplayName = "Create Level Actors", ToolTip = "Create an actor for every node in the fbx hierarchy. No reimport of the hierarchy."),
 	FBXSOCHT_CreateActorComponents UMETA(DisplayName = "Create one Actor with Components", ToolTip = "Create one actor and a component for every node in the fbx hierarchy. No reimport of the hierarchy."),
@@ -19,7 +19,7 @@ enum EFBXSceneOptionsCreateHierarchyType
 
 
 
-UCLASS(config = EditorPerProjectUserSettings, HideCategories=Object, MinimalAPI)
+UCLASS(BlueprintType, config = EditorPerProjectUserSettings, HideCategories=Object, MinimalAPI)
 class UFbxSceneImportOptions : public UObject
 {
 	GENERATED_UCLASS_BODY()
@@ -44,7 +44,7 @@ class UFbxSceneImportOptions : public UObject
 
 	/** Choose if you want to generate the scene hierarchy with normal level actors, one actor with multiple components, or one blueprint asset with multiple components. */
 	UPROPERTY(EditAnywhere, config, category = ImportOptions)
-	TEnumAsByte<enum EFBXSceneOptionsCreateHierarchyType> HierarchyType;
+	EFBXSceneOptionsCreateHierarchyType HierarchyType;
 
 	/** Whether to force the front axis to be align with X instead of -Y. */
 	UPROPERTY(EditAnywhere, config, category = ImportOptions)

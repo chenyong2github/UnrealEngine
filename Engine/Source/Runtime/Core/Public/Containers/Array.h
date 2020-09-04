@@ -2270,23 +2270,32 @@ public:
 	 * Remove all instances that match the predicate
 	 *
 	 * @param Predicate Predicate class instance
+	 * @param bAllowShrinking Tell if this function can shrink the memory in-use if suitable.
 	 * @see Remove, RemoveSingle, RemoveSingleSwap, RemoveSwap
 	 */
 	template <class PREDICATE_CLASS>
 	SizeType RemoveAllSwap(const PREDICATE_CLASS& Predicate, bool bAllowShrinking = true)
 	{
+		bool bRemoved = false;
 		const SizeType OriginalNum = ArrayNum;
 		for (SizeType ItemIndex = 0; ItemIndex < Num();)
 		{
 			if (Predicate((*this)[ItemIndex]))
 			{
-				RemoveAtSwap(ItemIndex, 1, bAllowShrinking);
+				bRemoved = true;
+				RemoveAtSwap(ItemIndex, 1, false);
 			}
 			else
 			{
 				++ItemIndex;
 			}
 		}
+
+		if (bRemoved && bAllowShrinking)
+		{
+			ResizeShrink();
+		}
+
 		return OriginalNum - ArrayNum;
 	}
 
@@ -2295,6 +2304,7 @@ public:
 	 * O(Count) instead of O(ArrayNum), but does not preserve the order
 	 *
 	 * @param Item The item to remove
+	 * @param bAllowShrinking Tell if this function can shrink the memory in-use if suitable.
 	 *
 	 * @returns The number of items removed. For RemoveSingleItem, this is always either 0 or 1.
 	 * @see Add, Insert, Remove, RemoveAll, RemoveAllSwap, RemoveSwap
@@ -2323,18 +2333,26 @@ public:
 	 * @returns Number of elements removed.
 	 * @see Add, Insert, Remove, RemoveAll, RemoveAllSwap
 	 */
-	SizeType RemoveSwap(const ElementType& Item)
+	SizeType RemoveSwap(const ElementType& Item, bool bAllowShrinking = true)
 	{
 		CheckAddress(&Item);
 
 		const SizeType OriginalNum = ArrayNum;
+		bool bRemoved = false;
 		for (SizeType Index = 0; Index < ArrayNum; Index++)
 		{
 			if ((*this)[Index] == Item)
 			{
-				RemoveAtSwap(Index--);
+				bRemoved = true;
+				RemoveAtSwap(Index--, 1, false);
 			}
 		}
+
+		if (bRemoved && bAllowShrinking)
+		{
+			ResizeShrink();
+		}
+
 		return OriginalNum - ArrayNum;
 	}
 

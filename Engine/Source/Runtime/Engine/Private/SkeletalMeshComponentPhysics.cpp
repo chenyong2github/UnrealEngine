@@ -74,7 +74,11 @@ DECLARE_CYCLE_STAT(TEXT("Cloth Writeback"), STAT_ClothWriteback, STATGROUP_Physi
 void FSkeletalMeshComponentClothTickFunction::ExecuteTick(float DeltaTime, enum ELevelTick TickType, ENamedThreads::Type CurrentThread, const FGraphEventRef& MyCompletionGraphEvent)
 {
 	QUICK_SCOPE_CYCLE_COUNTER(FSkeletalMeshComponentClothTickFunction_ExecuteTick);
-	FActorComponentTickFunction::ExecuteTickHelper(Target,/*bTickInEditor=*/ false, DeltaTime, TickType, [this](float DilatedTime)
+#if WITH_EDITOR
+	FActorComponentTickFunction::ExecuteTickHelper(Target, Target->bUpdateClothInEditor, DeltaTime, TickType, [this](float DilatedTime)
+#else
+	FActorComponentTickFunction::ExecuteTickHelper(Target,true, DeltaTime, TickType, [this](float DilatedTime)
+#endif
 	{
 		Target->TickClothing(DilatedTime, *this);
 	});
@@ -2545,7 +2549,11 @@ void USkeletalMeshComponent::RecreateClothingActors()
 		{
 			// Only create cloth sim actors when the world is ready for it
 			const UWorld* const World = GetWorld();
+#if WITH_EDITORONLY_DATA
+			if (World && (World->bShouldSimulatePhysics || bUpdateClothInEditor) && World->GetPhysicsScene())
+#else
 			if (World && World->bShouldSimulatePhysics && World->GetPhysicsScene())
+#endif
 			{
 				TArray<UClothingAssetBase*> AssetsInUse;
 				SkeletalMesh->GetClothingAssetsInUse(AssetsInUse);

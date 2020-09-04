@@ -173,10 +173,10 @@ public:
 	 *
 	 * @param ToolkitHost	The tool-kit to use if/when this toolkit is switched back to world-centric mode
 	 */
-	static void SetPreviousWorldCentricToolkitHostForNewAssetEditor( TSharedRef< IToolkitHost > ToolkitHost );
+	static void SetPreviousWorldCentricToolkitHostForNewAssetEditor(TSharedRef< IToolkitHost > ToolkitHost);
 
 	/** Applies the passed in layout (or the saved user-modified version if available).  Must be called after InitAssetEditor. */
-	void RestoreFromLayout( const TSharedRef<FTabManager::FLayout>& NewLayout );
+	void RestoreFromLayout(const TSharedRef<FTabManager::FLayout>& NewLayout);
 
 	/** @return Returns this asset editor's tab manager object.  May be nullptr for non-standalone toolkits */
 	TSharedPtr<FTabManager> GetTabManager()
@@ -186,10 +186,10 @@ public:
 
 	/** Registers default tool bar */
 	static void RegisterDefaultToolBar();
-	
+
 	/** Makes a default asset editing toolbar */
 	void GenerateToolbar();
-	
+
 	/** Regenerates the menubar and toolbar widgets */
 	void RegenerateMenusAndToolbars();
 
@@ -202,7 +202,7 @@ public:
 
 	/** Called at the end of RegenerateMenusAndToolbars() */
 	virtual void PostRegenerateMenusAndToolbars() { }
-	
+
 	// Called when another toolkit (such as a ed mode toolkit) is being hosted in this asset editor toolkit
 	virtual void OnToolkitHostingStarted(const TSharedRef<IToolkit>& Toolkit) {}
 
@@ -224,7 +224,7 @@ public:
 	 *
 	 * @param Widget The widget to use as the overlay
 	 */
-	void SetMenuOverlay( TSharedRef<SWidget> Widget );
+	void SetMenuOverlay(TSharedRef<SWidget> Widget);
 
 	/** Adds or removes widgets from the default toolbar in this asset editor */
 	void AddToolbarWidget(TSharedRef<SWidget> Widget);
@@ -233,15 +233,15 @@ public:
 	/** True if this actually is editing an asset */
 	bool IsActuallyAnAsset() const;
 
-	/** 
-	 * Gets the text to display in a toolkit titlebar for an object 
+	/**
+	 * Gets the text to display in a toolkit titlebar for an object
 	 * @param	InObject	The object we want a description of
 	 * @return a formatted description of the object state (e.g. "MyObject*")
 	 */
 	static FText GetLabelForObject(const UObject* InObject);
 
-	/** 
-	 * Gets the text to display in a toolkit tooltip for an object 
+	/**
+	 * Gets the text to display in a toolkit tooltip for an object
 	 * @param	InObject	The object we want a description of
 	 * @return a formatted description of the object
 	 */
@@ -252,6 +252,8 @@ public:
 
 	/** Set the asset editor mode manager we are using */
 	void SetAssetEditorModeManager(class FAssetEditorModeManager* InModeManager);
+
+	virtual void AddGraphEditorPinActionsToContextMenu(FToolMenuSection& InSection) const {};
 
 protected:
 
@@ -271,19 +273,19 @@ protected:
 	virtual void RemoveEditingObject(UObject* Object);
 
 	/** Called to test if "Save" should be enabled for this asset */
-	virtual bool CanSaveAsset() const {return true;}
+	virtual bool CanSaveAsset() const { return true; }
 
 	/** Called when "Save" is clicked for this asset */
 	virtual void SaveAsset_Execute();
 
 	/** Called to test if "Save As" should be enabled for this asset */
-	virtual bool CanSaveAssetAs() const {return true;}
+	virtual bool CanSaveAssetAs() const { return true; }
 
 	/** Called when "Save As" is clicked for this asset */
 	virtual void SaveAssetAs_Execute();
 
 	/** Called to test if "Find in Content Browser" should be enabled for this asset */
-	virtual bool CanFindInContentBrowser() const {return true;}
+	virtual bool CanFindInContentBrowser() const { return true; }
 
 	/** Called when "Find in Content Browser" is clicked for this asset */
 	virtual void FindInContentBrowser_Execute();
@@ -296,31 +298,31 @@ protected:
 
 	/** Called to check to see if there's an asset capable of being reimported */
 	virtual bool CanReimport() const;
-	virtual bool CanReimport( UObject* EditingObject ) const;
+	virtual bool CanReimport(UObject* EditingObject) const;
 
 	/** Called when "Reimport" is clicked for this asset */
 	virtual void Reimport_Execute();
-	virtual void Reimport_Execute( UObject* EditingObject );
+	virtual void Reimport_Execute(UObject* EditingObject);
 
 	/** Called to determine if the user should be prompted for a new file if one is missing during an asset reload */
 	virtual bool ShouldPromptForNewFilesOnReload(const UObject& object) const;
 
 	/** Called when this toolkit would close */
-	virtual bool OnRequestClose() {return true;}
-		
-	/** 
+	virtual bool OnRequestClose() { return true; }
+
+	/**
 	  * Static: Called when "Switch to Standalone Editor" is clicked for the asset editor
 	  *
 	  * @param ThisToolkitWeakRef	The toolkit that we want to restart in standalone mode
 	  */
-	static void SwitchToStandaloneEditor_Execute( TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef );
+	static void SwitchToStandaloneEditor_Execute(TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef);
 
-	/** 
+	/**
 	  * Static: Called when "Switch to World-Centric Editor" is clicked for the asset editor
 	  *
 	  * @param	ThisToolkitWeakRef			The toolkit that we want to restart in world-centric mode
 	  */
-	static void SwitchToWorldCentricEditor_Execute( TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef );
+	static void SwitchToWorldCentricEditor_Execute(TWeakPtr< FAssetEditorToolkit > ThisToolkitWeakRef);
 
 	/** @return a pointer to the brush to use for the tab icon */
 	virtual const FSlateBrush* GetDefaultTabIcon() const;

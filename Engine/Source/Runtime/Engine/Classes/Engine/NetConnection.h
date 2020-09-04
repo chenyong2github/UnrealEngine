@@ -12,6 +12,7 @@
 #include "Serialization/BitWriter.h"
 #include "Misc/NetworkGuid.h"
 #include "GameFramework/OnlineReplStructs.h"
+#include "GameFramework/UpdateLevelVisibilityLevelInfo.h"
 #include "Engine/NetDriver.h"
 #include "Net/DataBunch.h"
 #include "Net/NetPacketNotify.h"
@@ -466,14 +467,6 @@ public:
 	/** Average lag seen during the last StatPeriod */
 	float AvgLag;
 
-private:
-	// BestLag variable is deprecated. Use AvgLag instead
-	float			BestLag;
-	// BestLagAcc variable is deprecated. Use LagAcc instead
-	double			BestLagAcc;
-
-public:
-
 	/** Total accumulated lag values during the current StatPeriod */
 	double			LagAcc;
 	/** Nb of stats accumulated in LagAcc */
@@ -738,9 +731,6 @@ public:
 	/** Called by PlayerController to tell connection about client level visiblity change */
 	ENGINE_API void UpdateLevelVisibility(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
 	
-	UE_DEPRECATED(4.24, "This method will be removed. Use UpdateLevelVisibility that takes an FUpdateLevelVisibilityLevelInfo")
-	ENGINE_API void UpdateLevelVisibility(const FName& PackageName, bool bIsVisible);
-
 #if DO_ENABLE_NET_TEST
 
 	/** Packet settings for testing lag, net errors, etc */
@@ -1348,7 +1338,15 @@ private:
 	FName PlayerOnlinePlatformName;
 
 	/** This is an acceleration set that is derived from ClientWorldPackageName and ClientVisibleLevelNames. We use this to quickly test an AActor*'s visibility while replicating. */
-	mutable TMap<UObject*, bool> ClientVisibileActorOuters;
+	mutable TMap<UObject*, bool> ClientVisibleActorOuters;
+
+	/** This is used to capture visibility updates while the server is in transition and deffer the update until the server has completed the transition */
+	TMap<FName, FUpdateLevelVisibilityLevelInfo> PendingUpdateLevelVisibility;
+
+private:
+
+	/** Called by PlayerController to tell connection about client level visibility change */
+	void UpdateLevelVisibilityInternal(const struct FUpdateLevelVisibilityLevelInfo& LevelVisibility);
 
 	/** Called internally to update cached acceleration map */
 	bool UpdateCachedLevelVisibility(ULevel* Level) const;

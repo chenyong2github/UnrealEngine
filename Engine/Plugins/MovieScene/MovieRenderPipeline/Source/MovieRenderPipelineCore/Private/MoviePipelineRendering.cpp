@@ -139,6 +139,9 @@ void UMoviePipeline::RenderFrame()
 	UMoviePipelineCameraSetting* CameraSettings = FindOrAddSetting<UMoviePipelineCameraSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineHighResSetting* HighResSettings = FindOrAddSetting<UMoviePipelineHighResSetting>(ActiveShotList[CurrentShotIndex]);
 	UMoviePipelineOutputSetting* OutputSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineOutputSetting>();
+	
+	// Color settings are optional, so we don't need to do any assertion checks.
+	UMoviePipelineColorSetting* ColorSettings = GetPipelineMasterConfig()->FindSetting<UMoviePipelineColorSetting>();
 	check(AntiAliasingSettings);
 	check(CameraSettings);
 	check(HighResSettings);
@@ -320,7 +323,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.bWorldIsPaused = bWorldIsPaused;
 				SampleState.bCameraCut = bCameraCut;
 				SampleState.AntiAliasingMethod = AntiAliasingMethod;
-				SampleState.SceneCaptureSource = OutputSettings->bDisableToneCurve ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
+				SampleState.SceneCaptureSource = (ColorSettings && ColorSettings->bDisableToneCurve) ? ESceneCaptureSource::SCS_FinalColorHDR : ESceneCaptureSource::SCS_FinalToneCurveHDR;
 				SampleState.OutputState = CachedOutputState;
 				if (CameraSettings->CameraShutterAngle == 0)
 				{
@@ -343,6 +346,7 @@ void UMoviePipeline::RenderFrame()
 				SampleState.bWriteSampleToDisk = HighResSettings->bWriteAllSamples;
 				SampleState.ExposureCompensation = CameraSettings->bManualExposure ? CameraSettings->ExposureCompensation : TOptional<float>();
 				SampleState.TextureSharpnessBias = HighResSettings->TextureSharpnessBias;
+				SampleState.OCIOConfiguration = ColorSettings ? &ColorSettings->OCIOConfiguration : nullptr;
 				SampleState.GlobalScreenPercentageFraction = FLegacyScreenPercentageDriver::GetCVarResolutionFraction();
 				{
 					SampleState.OverlappedPad = FIntPoint(FMath::CeilToInt(TileResolution.X * HighResSettings->OverlapRatio), 
@@ -401,13 +405,18 @@ void UMoviePipeline::AddFrameToOutputMetadata(const FString& ClipName, const FSt
 }
 #endif
 
+void UMoviePipeline::AddOutputFuture(TFuture<bool>&& OutputFuture)
+{
+	OutputFutures.Add(MoveTemp(OutputFuture));
+}
+
 void UMoviePipeline::ProcessOutstandingFinishedFrames()
 {
 	while (!OutputBuilder->FinishedFrames.IsEmpty())
 	{
 		FMoviePipelineMergerOutputFrame OutputFrame;
 		OutputBuilder->FinishedFrames.Dequeue(OutputFrame);
-
+	
 		for (UMoviePipelineOutputBase* OutputContainer : GetPipelineMasterConfig()->GetOutputContainers())
 		{
 			OutputContainer->OnRecieveImageData(&OutputFrame);

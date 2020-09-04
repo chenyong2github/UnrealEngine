@@ -3381,9 +3381,10 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable)
 			if (ViewportWindow.IsValid())
 			{
 				FEditorViewportClient& Viewport = ViewportWindow->GetAssetViewportClient();
+				const FText SystemDisplayName = LOCTEXT("RealtimeOverrideMessage_Landscape", "Landscape Mode");
 				if (bEnable)
 				{
-					Viewport.SetRealtimeOverride(bEnable, LOCTEXT("RealtimeOverrideMessage_Landscape", "Landscape Mode"));
+					Viewport.AddRealtimeOverride(bEnable, SystemDisplayName);
 
 					// @todo vreditor: Force game view to true in VREditor since we can't use hitproxies and debug objects yet
 					UVREditorMode* VREditorMode = Cast<UVREditorMode>( GEditor->GetEditorWorldExtensionsManager()->GetEditorWorldExtensions( GetWorld() )->FindExtension( UVREditorMode::StaticClass() ) );
@@ -3398,7 +3399,7 @@ void FEdModeLandscape::ForceRealTimeViewports(const bool bEnable)
 				}
 				else
 				{
-					Viewport.RemoveRealtimeOverride();
+					Viewport.RemoveRealtimeOverride(SystemDisplayName, false);
 				}
 			}
 		}

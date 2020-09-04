@@ -213,7 +213,12 @@ bool UPackage::IsFullyLoaded() const
 		FString DummyFilename;
 		FString SourcePackageName = FileName != NAME_None ? FileName.ToString() : GetName();
 		// Try to find matching package in package file cache. We use the source package name here as it may be loaded into a temporary package
-		if (	!GetConvertedDynamicPackageNameToTypeName().Contains(GetFName()) &&
+		if (HasAnyPackageFlags(PKG_CompiledIn))
+		{
+			// Native packages don't have a file size but are always considered fully loaded.
+			bHasBeenFullyLoaded = true;
+		}
+		else if (	!GetConvertedDynamicPackageNameToTypeName().Contains(GetFName()) &&
 				(
 					!FPackageName::DoesPackageExist(*SourcePackageName, NULL, &DummyFilename ) ||
 					(GIsEditor && IFileManager::Get().FileSize(*DummyFilename) < 0) 

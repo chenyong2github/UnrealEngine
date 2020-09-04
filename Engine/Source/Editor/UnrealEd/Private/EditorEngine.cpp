@@ -231,6 +231,8 @@
 
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
+#include "Rendering/StaticLightingSystemInterface.h"
+
 
 DEFINE_LOG_CATEGORY_STATIC(LogEditor, Log, All);
 
@@ -1079,13 +1081,6 @@ void UEditorEngine::Init(IEngineLoop* InEngineLoop)
 			FModuleManager::Get().LoadModule(TEXT("PListEditor"));
 		}
 
-		bool bEnvironmentQueryEditor = false;
-		GConfig->GetBool(TEXT("EnvironmentQueryEd"), TEXT("EnableEnvironmentQueryEd"), bEnvironmentQueryEditor, GEngineIni);
-		if (bEnvironmentQueryEditor || GetDefault<UEditorExperimentalSettings>()->bEQSEditor)
-		{
-			FModuleManager::Get().LoadModule(TEXT("EnvironmentQueryEditor"));
-		}
-
 		FModuleManager::Get().LoadModule(TEXT("LogVisualizer"));
 		FModuleManager::Get().LoadModule(TEXT("HotReload"));
 
@@ -1704,9 +1699,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 				}
 
 				// Update the level.
-				GameCycles=0;
-				CLOCK_CYCLES(GameCycles);
-
 				{
 					// So that hierarchical stats work in PIE
 					SCOPE_CYCLE_COUNTER(STAT_FrameTime);
@@ -1727,9 +1719,6 @@ void UEditorEngine::Tick( float DeltaSeconds, bool bIdleMode )
 
 					FKismetDebugUtilities::NotifyDebuggerOfEndOfGameFrame(PieContext.World());
 				}
-
-
-				UNCLOCK_CYCLES(GameCycles);
 
 				// Tick the viewports.
 				if ( GameViewport != NULL )
@@ -5261,6 +5250,11 @@ void UEditorEngine::ReplaceActors(UActorFactory* Factory, const FAssetData& Asse
 				{
 					NewActorRootComponent->SetRelativeScale3D( OldActor->GetRootComponent()->GetRelativeScale3D() );
 				}
+
+				if (OldActor->GetRootComponent() != NULL)
+				{
+					NewActorRootComponent->SetMobility(OldActor->GetRootComponent()->Mobility);
+				}
 			}
 
 			NewActor->Layers.Empty();
@@ -6218,7 +6212,27 @@ void UEditorEngine::SetViewportsRealtimeOverride(bool bShouldBeRealtime, FText S
 	{
 		if (VC)
 		{
-			VC->SetRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+			VC->AddRealtimeOverride(bShouldBeRealtime, SystemDisplayName);
+		}
+	}
+
+	RedrawAllViewports();
+
+	FEditorSupportDelegates::UpdateUI.Broadcast();
+}
+
+void UEditorEngine::RemoveViewportsRealtimeOverride(FText SystemDisplayName)
+{
+	// We don't check that we had an override on all the viewport clients because since the caller added their override, there could have
+	// been new viewport clients added to the list by someone else. It's probably that the caller just wants to make sure no viewport has
+	// their override anymore so it's a sensible default to ignore those who don't have it.
+	const bool bCheckMissingOverride = false;
+
+	for (FEditorViewportClient* VC : AllViewportClients)
+	{
+		if (VC)
+		{
+			VC->RemoveRealtimeOverride(SystemDisplayName, bCheckMissingOverride);
 		}
 	}
 
@@ -6233,7 +6247,7 @@ void UEditorEngine::RemoveViewportsRealtimeOverride()
 	{
 		if (VC)
 		{
-			VC->RemoveRealtimeOverride();
+			VC->PopRealtimeOverride();
 		}
 	}
 
@@ -6330,7 +6344,7 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 				static const FName AssetRegistryName(TEXT("AssetRegistry"));
 				FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>(AssetRegistryName);
 				// Don't throttle during amortized export, greatly increases export time
-				if (IsLightingBuildCurrentlyExporting() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
+				if (IsLightingBuildCurrentlyExporting() || FStaticLightingSystemInterface::IsStaticLightingSystemRunning() || GShaderCompilingManager->IsCompiling() || (AssetRegistryModule && AssetRegistryModule->Get().IsLoadingAssets()))
 				{
 					bShouldThrottle = false;
 				}
@@ -6343,6 +6357,10 @@ bool UEditorEngine::ShouldThrottleCPUUsage() const
 
 bool UEditorEngine::AreAllWindowsHidden() const
 {
+	if (!FSlateApplication::IsInitialized())
+	{
+		return true;
+	}
 	const TArray< TSharedRef<SWindow> > AllWindows = FSlateApplication::Get().GetInteractiveTopLevelWindows();
 
 	bool bAllHidden = true;
@@ -7249,11 +7267,11 @@ FWorldContext& UEditorEngine::GetEditorWorldContext(bool bEnsureIsGWorld)
 	return CreateNewWorldContext(EWorldType::Editor);
 }
 
-FWorldContext* UEditorEngine::GetPIEWorldContext()
+FWorldContext* UEditorEngine::GetPIEWorldContext(int32 WorldPIEInstance)
 {
-	for(auto& WorldContext : WorldList)
+	for (FWorldContext& WorldContext : WorldList)
 	{
-		if(WorldContext.WorldType == EWorldType::PIE)
+		if (WorldContext.WorldType == EWorldType::PIE && WorldContext.PIEInstance == WorldPIEInstance)
 		{
 			return &WorldContext;
 		}

@@ -1697,6 +1697,9 @@ void UEditorEngine::RebuildMap(UWorld* InWorld, EMapRebuildType RebuildType)
 	FEditorDelegates::MapChange.Broadcast(MapChangeEventFlags::MapRebuild);
 	GEngine->BroadcastLevelActorListChanged();
 	
+	// Need to reinitialize world subsystems since they are torn down as part of the lighting build
+	GWorld->InitializeSubsystems();
+
 	GWarn->EndSlowTask();
 }
 
@@ -4942,7 +4945,7 @@ void UEditorEngine::MoveViewportCamerasToBox(const FBox& BoundingBox, bool bActi
  * @param InDestination		The destination actor we want to move this actor to, NULL assumes we just want to go towards the floor
  * @return					Whether or not the actor was moved.
  */
-bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination )
+bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, const bool InUseLineTrace, const bool InUseBounds, const bool InUsePivot, FActorOrComponent InDestination, TArray<FActorOrComponent> ObjectsToIgnore)
 {
 	if ( !Object.IsValid() || Object == InDestination )	// Early out
 	{
@@ -5048,9 +5051,23 @@ bool UEditorEngine::SnapObjectTo( FActorOrComponent Object, const bool InAlign, 
 	// If we hit anything, we will move the actor to a position that lets it rest on the floor.
 	FHitResult Hit(1.0f);
 	FCollisionQueryParams Params(SCENE_QUERY_STAT(MoveActorToTrace), false);
+	for (FActorOrComponent ObjectToIgnore : ObjectsToIgnore)
+	{
+		if (ObjectToIgnore.Actor)
+		{
+			Params.AddIgnoredActor(ObjectToIgnore.Actor);
+		}
+		else
+		{
+			Params.AddIgnoredComponent(Cast<UPrimitiveComponent>(ObjectToIgnore.Component));
+		}
+	}
 	if( Object.Actor )
 	{
 		Params.AddIgnoredActor( Object.Actor );
+		TArray<AActor*> ChildActors;
+		Object.Actor->GetAllChildActors(ChildActors);
+		Params.AddIgnoredActors(ChildActors);
 	}
 	else
 	{
@@ -5640,10 +5657,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	//------------------------------------------------------------------------------------
 	// MISC
 	//
-	else if (FParse::Command(&Str, TEXT("BLUEPRINTIFY")))
-	{
-		HandleBlueprintifyFunction( Str, Ar );
-	}
 	else if( FParse::Command(&Str,TEXT("EDCALLBACK")) )
 	{
 		HandleCallbackCommand( InWorld, Str, Ar );
@@ -5984,27 +5997,6 @@ bool UEditorEngine::Exec( UWorld* InWorld, const TCHAR* Stream, FOutputDevice& A
 	}
 
 	return bProcessed;
-}
-
-bool UEditorEngine::HandleBlueprintifyFunction( const TCHAR* Str , FOutputDevice& Ar )
-{
-	bool bResult = false;
-	TArray<AActor*> SelectedActors;
-	USelection* EditorSelection = GetSelectedActors();
-	for (FSelectionIterator Itor(*EditorSelection); Itor; ++Itor)
-	{
-		if (AActor* Actor = Cast<AActor>(*Itor))
-		{
-			SelectedActors.Add(Actor);
-		}
-	}
-	if(SelectedActors.Num() >0)
-	{
-		FKismetEditorUtilities::HarvestBlueprintFromActors(TEXT("/Game/Unsorted/"), SelectedActors, false);
-		bResult = true;
-	}
-	return bResult;
-	
 }
 
 bool UEditorEngine::HandleCallbackCommand( UWorld* InWorld, const TCHAR* Str , FOutputDevice& Ar )

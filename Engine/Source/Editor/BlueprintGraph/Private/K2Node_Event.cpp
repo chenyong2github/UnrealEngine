@@ -177,7 +177,7 @@ FText UK2Node_Event::GetKeywords() const
 	FText Keywords;
 
 	UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
-	if (Function != NULL)
+	if (Function != nullptr)
 	{
 		Keywords = UK2Node_CallFunction::GetKeywordsForFunction( Function );
 	}
@@ -208,7 +208,7 @@ void UK2Node_Event::PostReconstructNode()
 }
 
 
-void UK2Node_Event::FixupEventReference()
+void UK2Node_Event::FixupEventReference(bool bForce /*= false*/)
 {
 	if (bOverrideFunction && !HasAnyFlags(RF_Transient))
 	{
@@ -218,7 +218,8 @@ void UK2Node_Event::FixupEventReference()
 			UClass* BlueprintType = (Blueprint != nullptr) ? Blueprint->SkeletonGeneratedClass : nullptr;
 
 			UClass* ParentType = EventReference.GetMemberParentClass();
-			if ((BlueprintType != nullptr) && ( (ParentType == nullptr) || !(BlueprintType->IsChildOf(ParentType) || BlueprintType->ImplementsInterface(ParentType)) ))
+
+			if (BlueprintType && (bForce || !ParentType || !(BlueprintType->IsChildOf(ParentType) || BlueprintType->ImplementsInterface(ParentType))))
 			{
 				FName EventName = EventReference.GetMemberName();
 
@@ -264,7 +265,7 @@ void UK2Node_Event::UpdateDelegatePin(bool bSilent)
 		OldSignature = Pin->PinType.PinSubCategoryObject.Get();
 	}
 
-	UFunction* NewSignature = NULL;
+	UFunction* NewSignature = nullptr;
 	if(bOverrideFunction)
 	{
 		NewSignature = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
@@ -273,10 +274,10 @@ void UK2Node_Event::UpdateDelegatePin(bool bSilent)
 	{
 		NewSignature = Blueprint->SkeletonGeneratedClass
 			? Blueprint->SkeletonGeneratedClass->FindFunctionByName(CustomFunctionName)
-			: NULL;
+			: nullptr;
 	}
 
-	Pin->PinType.PinSubCategoryObject = NULL;
+	Pin->PinType.PinSubCategoryObject = nullptr;
 	FMemberReference::FillSimpleMemberReference<UFunction>(NewSignature, Pin->PinType.PinSubCategoryMemberReference);
 
 	if ((OldSignature != NewSignature) && !bSilent)
@@ -309,8 +310,17 @@ void UK2Node_Event::AllocateDefaultPins()
 {
 	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Delegate, DelegateOutputName);
 	CreatePin(EGPD_Output, UEdGraphSchema_K2::PC_Exec, UEdGraphSchema_K2::PN_Then);
+	
+	// If the function signature is currently invalid then try and fix the event reference
+	// in case the function has moved to some other valid location from the last compile
+	UFunction* Function = FindEventSignatureFunction();
+	
+	if (!Function)
+	{
+		FixupEventReference(/*bForce*/ true);
+		Function = FindEventSignatureFunction();
+	}
 
-	const UFunction* Function = FindEventSignatureFunction();
 	if (Function)
 	{
 		CreatePinsForFunctionEntryExit(Function, /*bIsFunctionEntry=*/ true);
@@ -837,7 +847,7 @@ UObject* UK2Node_Event::GetJumpTargetForDoubleClick() const
 		}
 	}
 
-	return NULL;
+	return nullptr;
 }
 
 FSlateIcon UK2Node_Event::GetIconAndTint(FLinearColor& OutColor) const
@@ -891,7 +901,7 @@ bool UK2Node_Event::HasExternalDependencies(TArray<class UStruct*>* OptionalOutp
 
 	UFunction* Function = EventReference.ResolveMember<UFunction>(GetBlueprintClassFromNode());
 	const UClass* SourceClass = Function ? Function->GetOwnerClass() : nullptr;
-	const bool bResult = (SourceClass != NULL) && (SourceClass->ClassGeneratedBy != SourceBlueprint);
+	const bool bResult = (SourceClass != nullptr) && (SourceClass->ClassGeneratedBy != SourceBlueprint);
 	if (bResult && OptionalOutput)
 	{
 		OptionalOutput->AddUnique(Function);

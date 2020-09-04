@@ -13,36 +13,36 @@
 /** Element type is used to identify its class like Mesh, Actor, Light, etc. */
 enum class EDatasmithElementType : uint64
 {
-	None = 0,
-	StaticMesh = 1 << 0,
-	Actor = 1 << 1,
-	StaticMeshActor = 1 << 2,
-	Light = 1 << 3,
-	PointLight = 1 << 4,
-	SpotLight = 1 << 5,
-	DirectionalLight = 1 << 6,
-	AreaLight = 1 << 7,
-	LightmassPortal = 1 << 8,
-	EnvironmentLight = 1 << 9,
-	Camera = 1 << 10,
-	Shader = 1 << 11,
-	Material = 1 << 12,
-	MasterMaterial = 1 << 13,
-	KeyValueProperty = 1 << 14,
-	Texture = 1 << 15,
-	MaterialId = 1 << 16,
-	PostProcess = 1 << 17,
-	Scene = 1 << 18,
-	MetaData = 1 << 19,
-	CustomActor = 1 << 20,
-	BaseMaterial = 1 << 21,
-	Landscape = 1 << 22,
-	UEPbrMaterial = 1 << 23,
-	PostProcessVolume = 1 << 24,
-	LevelSequence = 1 << 25,
-	Animation = 1 << 26,
+	None                           = 0,
+	StaticMesh                     = 1 <<  0,
+	Actor                          = 1 <<  1,
+	StaticMeshActor                = 1 <<  2,
+	Light                          = 1 <<  3,
+	PointLight                     = 1 <<  4,
+	SpotLight                      = 1 <<  5,
+	DirectionalLight               = 1 <<  6,
+	AreaLight                      = 1 <<  7,
+	LightmassPortal                = 1 <<  8,
+	EnvironmentLight               = 1 <<  9,
+	Camera                         = 1 << 10,
+	Shader                         = 1 << 11,
+	BaseMaterial                   = 1 << 12,
+	MasterMaterial                 = 1 << 13,
+	KeyValueProperty               = 1 << 14,
+	Texture                        = 1 << 15,
+	MaterialId                     = 1 << 16,
+	PostProcess                    = 1 << 17,
+	Scene                          = 1 << 18,
+	MetaData                       = 1 << 19,
+	CustomActor                    = 1 << 20,
+	Material                       = 1 << 21,
+	Landscape                      = 1 << 22,
+	UEPbrMaterial                  = 1 << 23,
+	PostProcessVolume              = 1 << 24,
+	LevelSequence                  = 1 << 25,
+	Animation                      = 1 << 26,
 	HierarchicalInstanceStaticMesh = 1 << 27,
-	Variant = 1 << 28,
+	Variant                        = 1 << 28,
 };
 
 ENUM_CLASS_FLAGS( EDatasmithElementType ); // Define bitwise operators for EDatasmithElementType
@@ -141,7 +141,8 @@ enum class EDatasmithTextureMode : uint8
 	NormalGreenInv,
 	Displace,
 	Other,
-	Bump
+	Bump,
+	Ies
 };
 
 /** Texture filtering for textures. */
@@ -166,7 +167,7 @@ enum class EDatasmithTextureAddress : uint8
 
 /** Texture format for raw data importing. */
 UENUM()
-enum class EDatasmithTextureFormat
+enum class EDatasmithTextureFormat : uint8
 {
 	PNG,
 	JPEG
@@ -200,7 +201,7 @@ enum class EDatasmithMaterialMode
 	MixedMetal
 };
 
-enum class EDatasmithMasterMaterialType
+enum class EDatasmithMasterMaterialType : uint8
 {
 	/** Let Datasmith figure which master material to use */
 	Auto,
@@ -215,7 +216,7 @@ enum class EDatasmithMasterMaterialType
 	Count
 };
 
-enum class EDatasmithMasterMaterialQuality
+enum class EDatasmithMasterMaterialQuality : uint8
 {
 	High,
 	Low,
@@ -392,6 +393,7 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 // EXPORT INFO
 #define DATASMITH_EXPORT						TEXT("Export")
 #define DATASMITH_EXPORTDURATION				TEXT("Duration")
+#define DATASMITH_RESOURCEPATH					TEXT("ResourcePath")
 
 //ELEMENTS
 #define DATASMITH_HASH							TEXT("Hash")
@@ -427,6 +429,7 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 #define DATASMITH_LIGHTUSETEMPNAME				TEXT("usetemp")
 #define DATASMITH_LIGHTTEMPNAME					TEXT("temperature")
 #define DATASMITH_LIGHTIESNAME					TEXT("IES")
+#define DATASMITH_LIGHTIESTEXTURENAME			TEXT("IESTexture")
 #define DATASMITH_LIGHTIESBRIGHTNAME			TEXT("IESbrightness")
 #define DATASMITH_LIGHTIESROTATION				TEXT("IESrotation")
 #define DATASMITH_LIGHTINTENSITYNAME			TEXT("Intensity")
@@ -565,6 +568,7 @@ static const TCHAR* KeyValuePropertyTypeStrings[] = { TEXT("String"), TEXT("Colo
 
 #define DATASMITH_STACKLAYER					TEXT("Stacked")
 #define DATASMITH_BLENDMODE						TEXT("Blendmode")
+#define DATASMITH_OPACITYMASKCLIPVALUE			TEXT("OpacityMaskClipValue")
 
 #define DATASMITH_ENVILLUMINATIONMAP			TEXT("Illuminate")
 

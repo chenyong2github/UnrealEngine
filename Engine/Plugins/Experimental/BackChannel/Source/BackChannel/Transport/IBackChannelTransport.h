@@ -2,7 +2,7 @@
 
 #pragma once
 
-#include "IBackChannelConnection.h"
+#include "IBackChannelSocketConnection.h"
 #include "Modules/ModuleManager.h"
 
 /**
@@ -22,7 +22,7 @@ public:
 		return FModuleManager::LoadModulePtr<IBackChannelTransport>("BackChannel");
 	}
 
-	virtual TSharedPtr<IBackChannelConnection> CreateConnection(const int32 Type) = 0;
+	virtual TSharedPtr<IBackChannelSocketConnection> CreateConnection(const int32 Type) = 0;
 
 public:
 

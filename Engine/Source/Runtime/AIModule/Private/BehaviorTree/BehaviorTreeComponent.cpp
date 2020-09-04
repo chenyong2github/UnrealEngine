@@ -432,6 +432,10 @@ void UBehaviorTreeComponent::RestartTree()
 			TreeStartInfo.bPendingInitialize = true;
 			ProcessPendingInitialize();
 		}
+		else
+		{
+			UE_VLOG(GetOwner(), LogBehaviorTree, Warning, TEXT("\tFailed to restart tree logic since it has never been started and it\'s not possible to say which BT asset to use."));
+		}
 	}
 	else if (bRequestedStop)
 	{

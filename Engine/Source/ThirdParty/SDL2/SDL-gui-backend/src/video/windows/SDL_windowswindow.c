@@ -1,6 +1,6 @@
 /*
   Simple DirectMedia Layer
-  Copyright (C) 1997-2019 Sam Lantinga <slouken@libsdl.org>
+  Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>
 
   This software is provided 'as-is', without any express or implied
   warranty.  In no event will the authors be held liable for any damages
@@ -30,6 +30,7 @@
 #include "../../events/SDL_keyboard_c.h"
 #include "../../events/SDL_mouse_c.h"
 
+#include "../../joystick/windows/SDL_rawinputjoystick_c.h"
 #include "SDL_windowsvideo.h"
 #include "SDL_windowswindow.h"
 #include "SDL_hints.h"
@@ -93,9 +94,14 @@ GetWindowStyle(SDL_Window * window)
             style |= STYLE_NORMAL;
         }
 
-        /* You can have a borderless resizable window */
         if (window->flags & SDL_WINDOW_RESIZABLE) {
-            style |= STYLE_RESIZABLE;
+            /* You can have a borderless resizable window, but Windows doesn't always draw it correctly,
+               see https://bugzilla.libsdl.org/show_bug.cgi?id=4466
+             */
+            if (!(window->flags & SDL_WINDOW_BORDERLESS) ||
+                SDL_GetHintBoolean("SDL_BORDERLESS_RESIZABLE_STYLE", SDL_FALSE)) {
+                style |= STYLE_RESIZABLE;
+            }
         }
 
         /* Need to set initialize minimize style, or when we call ShowWindow with WS_MINIMIZE it will activate a random window */
@@ -182,6 +188,7 @@ SetupWindowData(_THIS, SDL_Window * window, HWND hwnd, HWND parent, SDL_bool cre
     data->hinstance = (HINSTANCE) GetWindowLongPtr(hwnd, GWLP_HINSTANCE);
     data->created = created;
     data->mouse_button_flags = 0;
+    data->last_pointer_update = (LPARAM)-1;
     data->videodata = videodata;
     data->initializing = SDL_TRUE;
 
@@ -803,9 +810,18 @@ WIN_GetWindowWMInfo(_THIS, SDL_Window * window, SDL_SysWMinfo * info)
     }
 }
 
+static LRESULT CALLBACK SDL_HelperWindowProc(HWND hWnd, UINT msg, WPARAM wParam, LPARAM lParam)
+{
+#if SDL_JOYSTICK_RAWINPUT
+    if (RAWINPUT_WindowProc(hWnd, msg, wParam, lParam) == 0) {
+        return 0;
+    }
+#endif
+    return DefWindowProc(hWnd, msg, wParam, lParam);
+}
 
 /*
- * Creates a HelperWindow used for DirectInput events.
+ * Creates a HelperWindow used for DirectInput and RawInput events.
  */
 int
 SDL_HelperWindowCreate(void)
@@ -820,7 +836,7 @@ SDL_HelperWindowCreate(void)
 
     /* Create the class. */
     SDL_zero(wce);
-    wce.lpfnWndProc = DefWindowProc;
+    wce.lpfnWndProc = SDL_GetHintBoolean(SDL_HINT_JOYSTICK_RAWINPUT, SDL_TRUE) ? SDL_HelperWindowProc : DefWindowProc;
     wce.lpszClassName = (LPCWSTR) SDL_HelperWindowClassName;
     wce.hInstance = hInstance;
 
@@ -904,7 +920,7 @@ WIN_UpdateClipCursor(SDL_Window *window)
 {
     SDL_WindowData *data = (SDL_WindowData *) window->driverdata;
     SDL_Mouse *mouse = SDL_GetMouse();
-    RECT rect;
+    RECT rect, clipped_rect;
 
     if (data->in_title_click || data->focus_click_pending) {
         return;
@@ -913,35 +929,43 @@ WIN_UpdateClipCursor(SDL_Window *window)
         data->skip_update_clipcursor = SDL_FALSE;
         return;
     }
+    if (!GetClipCursor(&clipped_rect)) {
+        return;
+    }
 
     if ((mouse->relative_mode || (window->flags & SDL_WINDOW_INPUT_GRABBED)) &&
         (window->flags & SDL_WINDOW_INPUT_FOCUS)) {
         if (mouse->relative_mode && !mouse->relative_mode_warp) {
-            LONG cx, cy;
-            GetWindowRect(data->hwnd, &rect);
+            if (GetWindowRect(data->hwnd, &rect)) {
+                LONG cx, cy;
 
-            cx = (rect.left + rect.right) / 2;
-            cy = (rect.top + rect.bottom) / 2;
+                cx = (rect.left + rect.right) / 2;
+                cy = (rect.top + rect.bottom) / 2;
 
-            /* Make an absurdly small clip rect */
-            rect.left = cx - 1;
-            rect.right = cx + 1;
-            rect.top = cy - 1;
-            rect.bottom = cy + 1;
+                /* Make an absurdly small clip rect */
+                rect.left = cx - 1;
+                rect.right = cx + 1;
+                rect.top = cy - 1;
+                rect.bottom = cy + 1;
 
-            if (ClipCursor(&rect)) {
-                data->cursor_clipped_rect = rect;
+                if (SDL_memcmp(&rect, &clipped_rect, sizeof(rect)) != 0) {
+                    if (ClipCursor(&rect)) {
+                        data->cursor_clipped_rect = rect;
+                    }
+                }
             }
         } else {
             if (GetClientRect(data->hwnd, &rect) && !IsRectEmpty(&rect)) {
                 ClientToScreen(data->hwnd, (LPPOINT) & rect);
                 ClientToScreen(data->hwnd, (LPPOINT) & rect + 1);
-                if (ClipCursor(&rect)) {
-                    data->cursor_clipped_rect = rect;
+                if (SDL_memcmp(&rect, &clipped_rect, sizeof(rect)) != 0) {
+                    if (ClipCursor(&rect)) {
+                        data->cursor_clipped_rect = rect;
+                    }
                 }
             }
         }
-    } else if (GetClipCursor(&rect) && SDL_memcmp(&rect, &data->cursor_clipped_rect, sizeof(rect)) == 0) {
+    } else if (SDL_memcmp(&clipped_rect, &data->cursor_clipped_rect, sizeof(clipped_rect)) == 0) {
         ClipCursor(NULL);
         SDL_zero(data->cursor_clipped_rect);
     }

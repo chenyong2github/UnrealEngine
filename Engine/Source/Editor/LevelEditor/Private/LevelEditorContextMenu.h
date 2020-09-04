@@ -64,6 +64,7 @@ private:
 	static void RegisterComponentContextMenu();
 	static void RegisterActorContextMenu();
 	static void RegisterSceneOutlinerContextMenu();
+	static void RegisterEmptySelectionContextMenu();
 
 	/**
 	 * Builds the actor group menu

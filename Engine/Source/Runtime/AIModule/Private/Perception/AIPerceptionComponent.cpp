@@ -299,7 +299,7 @@ void UAIPerceptionComponent::UpdatePerceptionWhitelist(const FAISenseID Channel,
 	}
 }
 
-void UAIPerceptionComponent::GetHostileActors(TArray<AActor*>& OutActors) const
+bool UAIPerceptionComponent::GetFilteredActors(TFunctionRef<bool(const FActorPerceptionInfo&)> Predicate, TArray<AActor*>& OutActors) const
 {
 	bool bDeadDataFound = false;
 
@@ -307,8 +307,7 @@ void UAIPerceptionComponent::GetHostileActors(TArray<AActor*>& OutActors) const
 	for (FActorPerceptionContainer::TConstIterator DataIt = GetPerceptualDataConstIterator(); DataIt; ++DataIt)
 	{
 		const FActorPerceptionInfo& ActorPerceptionInfo = DataIt->Value;
-
-		if (ActorPerceptionInfo.bIsHostile && ActorPerceptionInfo.HasAnyKnownStimulus())
+		if (Predicate(ActorPerceptionInfo))
 		{
 			if (AActor* Actor = ActorPerceptionInfo.Target.Get())
 			{
@@ -320,6 +319,36 @@ void UAIPerceptionComponent::GetHostileActors(TArray<AActor*>& OutActors) const
 			}
 		}
 	}
+	return bDeadDataFound;
+}
+
+void UAIPerceptionComponent::GetHostileActors(TArray<AActor*>& OutActors) const
+{
+	const bool bDeadDataFound = GetFilteredActors([](const FActorPerceptionInfo& ActorPerceptionInfo) {
+			return (ActorPerceptionInfo.bIsHostile && ActorPerceptionInfo.HasAnyKnownStimulus());
+		}, OutActors);
+
+	if (bDeadDataFound)
+	{
+		FSimpleDelegateGraphTask::CreateAndDispatchWhenReady(
+			FSimpleDelegateGraphTask::FDelegate::CreateUObject(const_cast<UAIPerceptionComponent*>(this), &UAIPerceptionComponent::RemoveDeadData),
+			GET_STATID(STAT_FSimpleDelegateGraphTask_RequestingRemovalOfDeadPerceptionData), NULL, ENamedThreads::GameThread);
+	}
+}
+
+void UAIPerceptionComponent::GetHostileActorsBySense(TSubclassOf<UAISense> SenseToFilterBy, TArray<AActor*>& OutActors) const
+{
+	const FAISenseID SenseIdFilter = UAISense::GetSenseID(SenseToFilterBy);
+
+	if (SenseIdFilter == FAISenseID::InvalidID())
+	{
+		UE_VLOG(GetOwner(), LogAIPerception, Warning, TEXT("UAIPerceptionComponent::GetHostileActorsBySense called with an invalid or yet unregistered sense. Bailing out."));
+		return;
+	}
+
+	const bool bDeadDataFound = GetFilteredActors([SenseIdFilter](const FActorPerceptionInfo& ActorPerceptionInfo) {
+		return (ActorPerceptionInfo.bIsHostile && ActorPerceptionInfo.HasKnownStimulusOfSense(SenseIdFilter));
+		}, OutActors);
 
 	if (bDeadDataFound)
 	{
@@ -386,7 +415,7 @@ void UAIPerceptionComponent::SetDominantSense(TSubclassOf<UAISense> InDominantSe
 
 FGenericTeamId UAIPerceptionComponent::GetTeamIdentifier() const
 {
-	return AIOwner ? FGenericTeamId::GetTeamIdentifier(AIOwner) : FGenericTeamId::NoTeam;
+	return FGenericTeamId::GetTeamIdentifier(GetOwner());
 }
 
 FVector UAIPerceptionComponent::GetActorLocation(const AActor& Actor) const 
@@ -478,7 +507,7 @@ void UAIPerceptionComponent::ProcessStimuli()
 				// tell it what's our dominant sense
 				PerceptualInfo->DominantSense = DominantSenseID;
 
-				PerceptualInfo->bIsHostile = AIOwner != NULL && FGenericTeamId::GetAttitude(AIOwner, SourceActor) == ETeamAttitude::Hostile;
+				PerceptualInfo->bIsHostile = (FGenericTeamId::GetAttitude(GetOwner(), SourceActor) == ETeamAttitude::Hostile);
 			}
 		}
 
@@ -718,6 +747,11 @@ void UAIPerceptionComponent::RemoveDeadData()
 void UAIPerceptionComponent::GetPerceivedHostileActors(TArray<AActor*>& OutActors) const
 {
 	GetHostileActors(OutActors);
+}
+
+void UAIPerceptionComponent::GetPerceivedHostileActorsBySense(const TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const
+{
+	GetHostileActorsBySense(SenseToUse, OutActors);
 }
 
 void UAIPerceptionComponent::GetCurrentlyPerceivedActors(TSubclassOf<UAISense> SenseToUse, TArray<AActor*>& OutActors) const

@@ -122,6 +122,11 @@ public:
 	virtual FText GetSectionTitle() const { return FText(); }
 
 	/**
+	 * @return The ToolTip for the section in the section view. By default, the section title
+	 */
+	virtual FText GetSectionToolTip() const { return GetSectionTitle(); }
+
+	/**
 	 * @return The amount of padding to apply to non-interactive portions of the section interface (such as section text)
 	 */
 	virtual FMargin GetContentPadding() const { return FMargin(11.f, 6.f); }

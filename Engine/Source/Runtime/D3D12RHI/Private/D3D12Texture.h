@@ -75,13 +75,14 @@ public:
 		RenderTargetViews.Add(View);
 	}
 
-	int32 GetMemorySize() const
+	int64 GetMemorySize() const
 	{
 		return MemorySize;
 	}
 
-	void SetMemorySize(int32 InMemorySize)
+	void SetMemorySize(int64 InMemorySize)
 	{
+		check(InMemorySize > 0);
 		MemorySize = InMemorySize;
 	}
 
@@ -190,7 +191,7 @@ public:
 protected:
 
 	/** Amount of memory allocated by this texture, in bytes. */
-	int32 MemorySize;
+	int64 MemorySize;
 
 	/** Pointer to the base shader resource. Usually the object itself, but not for texture references. */
 	FD3D12BaseShaderResource* BaseShaderResource;
@@ -348,7 +349,7 @@ public:
 
 private:
 	/** Unlocks a previously locked mip-map. */
-	void UnlockInternal(class FRHICommandListImmediate* RHICmdList, TD3D12Texture2D* Previous, uint32 MipIndex, uint32 ArrayIndex);
+	void UnlockInternal(class FRHICommandListImmediate* RHICmdList, FLinkedObjectIterator NextObject, uint32 MipIndex, uint32 ArrayIndex);
 
 	/** Whether the texture is a cube-map. */
 	const uint32 bCubemap : 1;
@@ -591,4 +592,10 @@ struct FRHICommandD3D12AsyncReallocateTexture2D final : public FRHICommand<FRHIC
 	}
 
 	void Execute(FRHICommandListBase& RHICmdList);
+};
+
+template<>
+struct TD3D12ResourceTraits<FRHITextureReference>
+{
+	typedef FD3D12TextureReference TConcreteType;
 };

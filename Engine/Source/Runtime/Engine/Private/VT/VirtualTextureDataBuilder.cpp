@@ -854,7 +854,9 @@ void FVirtualTextureDataBuilder::BuildSourcePixels(const FTextureSourceData& Sou
 
 		FTextureSourceBlockData& BlockData = SourceBlocks[BlockIndex];
 		BlockData.BlockX = SourceBlockData.BlockX;
-		BlockData.BlockY = SourceBlockData.BlockY;
+		// UE4 applies a (1-y) transform to imported UVs, so apply a similar transform to UDIM block locations here
+		// This ensures that UDIM tiles will appear in the correct location when sampled with transformed UVs
+		BlockData.BlockY = (SizeInBlocksY - SourceBlockData.BlockY) % SizeInBlocksY;
 		BlockData.NumMips = SourceBlockData.NumMips;
 		BlockData.NumSlices = SourceBlockData.NumSlices;
 		BlockData.MipBias = SourceBlockData.MipBias;

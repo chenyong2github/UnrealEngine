@@ -1677,7 +1677,7 @@ void UOnlineHotfixManager::HotfixRowUpdate(UObject* Asset, const FString& AssetP
 
 		if (bWasDataTableChanged)
 		{
-			DataTable->OnDataTableChanged().Broadcast();
+			DataTable->HandleDataTableChanged();
 		}
 	}
 	else if (CurveTable)

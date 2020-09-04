@@ -59,20 +59,22 @@ public:
 
 	virtual void CalculateTextureDimensions( uint32& Width, uint32& Height ) const override;
 	virtual ESimpleElementBlendMode GetColourChannelBlendMode( ) const override;
-	virtual bool GetFitToViewport( ) const override;
 	virtual int32 GetMipLevel( ) const override;
 	virtual int32 GetLayer() const override;
 	virtual UTexture* GetTexture( ) const override;
 	virtual bool HasValidTextureResource( ) const override;
 	virtual bool GetUseSpecifiedMip( ) const override;
-	virtual double GetZoom( ) const override;
+	virtual double GetCustomZoomLevel( ) const override;
+	virtual void SetCustomZoomLevel(double ZoomValue) override;
 	virtual void PopulateQuickInfo( ) override;
-	virtual void SetFitToViewport( const bool bFitToViewport ) override;
-	virtual void SetZoom( double ZoomValue ) override;
+	virtual void SetZoomMode( const ETextureEditorZoomMode ZoomMode ) override;
+	virtual ETextureEditorZoomMode GetZoomMode() const override;
+	virtual double CalculateDisplayedZoomLevel() const override;
+	virtual void OffsetZoom( double OffsetValue, bool bSnapToStepSize = true );
 	virtual void ZoomIn( ) override;
 	virtual void ZoomOut( ) override;
 	virtual float GetVolumeOpacity( ) const override;
-	virtual void SetVolumeOpacity( float ZoomValue ) override;
+	virtual void SetVolumeOpacity( float VolumeOpacity ) override;
 	virtual const FRotator& GetVolumeOrientation( ) const override;
 	virtual void SetVolumeOrientation( const FRotator& InOrientation ) override;
 
@@ -172,11 +174,17 @@ private:
 	// Callback for getting the checked state of the Compress Now action.
 	bool HandleCompressNowActionCanExecute( ) const;
 
-	// Callback for toggling the Fit To Viewport action.
+	// Callback for executing the Fit To Viewport action.
 	void HandleFitToViewportActionExecute( );
 
-	// Callback for getting the checked state of the Fit To Viewport action.
-	bool HandleFitToViewportActionIsChecked( ) const;
+	// Callback for executing the Fill To Viewport action.
+	void HandleFillToViewportActionExecute( );
+
+	virtual bool IsFitToViewport() const;
+	virtual bool IsFillToViewport() const;
+	
+	// Callback for executing the Fit To 100% action.
+	void HandleZoomToNaturalActionExecute( );
 
 	// Callback for toggling the Green channel action.
 	void HandleGreenChannelActionExecute( );
@@ -313,6 +321,9 @@ private:
 
 	/** The texture's zoom factor. */
 	double Zoom;
+
+	/** This toolkit's current zoom mode **/
+	ETextureEditorZoomMode ZoomMode;
 
 	// For volume texture, defines an opacity to see through the volume when tracing.
 	float VolumeOpacity;

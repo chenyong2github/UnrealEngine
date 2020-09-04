@@ -535,6 +535,7 @@ UNavigationSystemV1::UNavigationSystemV1(const FObjectInitializer& ObjectInitial
 		FWorldDelegates::OnWorldPostActorTick.AddUObject(this, &UNavigationSystemV1::OnWorldPostActorTick);
 		FWorldDelegates::LevelAddedToWorld.AddUObject(this, &UNavigationSystemV1::OnLevelAddedToWorld);
 		FWorldDelegates::LevelRemovedFromWorld.AddUObject(this, &UNavigationSystemV1::OnLevelRemovedFromWorld);
+		FWorldDelegates::OnWorldBeginTearDown.AddUObject(this, &UNavigationSystemV1::OnBeginTearingDown);
 #if !UE_BUILD_SHIPPING
 		FCoreDelegates::OnGetOnScreenMessages.AddUObject(this, &UNavigationSystemV1::GetOnScreenMessages);
 #endif // !UE_BUILD_SHIPPING
@@ -560,10 +561,10 @@ UNavigationSystemV1::~UNavigationSystemV1()
 }
 PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
-void UNavigationSystemV1::ConfigureAsStatic()
+void UNavigationSystemV1::ConfigureAsStatic(bool bEnableStatic)
 {
-	bStaticRuntimeNavigation = true;
-	SetWantsComponentChangeNotifies(false);
+	bStaticRuntimeNavigation = bEnableStatic;
+	SetWantsComponentChangeNotifies(!bEnableStatic);
 }
 
 void UNavigationSystemV1::SetUpdateNavOctreeOnComponentChange(bool bNewUpdateOnComponentChange)
@@ -832,9 +833,13 @@ void UNavigationSystemV1::OnInitializeActors()
 	
 }
 
-void UNavigationSystemV1::OnBeginTearingDown()
+void UNavigationSystemV1::OnBeginTearingDown(UWorld* World)
 {
-	CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
+	// If the world being torn down is my world context
+	if (World == GetWorld())
+	{
+		CleanUp(FNavigationSystem::ECleanupMode::CleanupWithWorld);
+	}
 }
 
 void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
@@ -844,8 +849,6 @@ void UNavigationSystemV1::OnWorldInitDone(FNavigationSystemRunMode Mode)
 	
 	UWorld* World = GetWorld();
 	check(World);
-
-	World->OnBeginTearingDown().AddUObject(this, &UNavigationSystemV1::OnBeginTearingDown);
 
 	// process all queued custom link registration requests
 	// (since it's possible navigation system was not ready by the time
@@ -1741,8 +1744,7 @@ ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentProperti
 
 ANavigationData* UNavigationSystemV1::GetNavDataForProps(const FNavAgentProperties& AgentProperties)
 {
-	const UNavigationSystemV1* ConstThis = AsConst(this);
-	return const_cast<ANavigationData*>(ConstThis->GetNavDataForProps(AgentProperties));
+	return const_cast<ANavigationData*>(AsConst(*this).GetNavDataForProps(AgentProperties));
 }
 
 // @todo could optimize this by having "SupportedAgentIndex" in FNavAgentProperties
@@ -2701,7 +2703,7 @@ void UNavigationSystemV1::UnregisterNavOctreeElement(UObject* ElementOwner, INav
 	}
 }
 
-void UNavigationSystemV1::RemoveNavOctreeElementId(const FOctreeElementId& ElementId, int32 UpdateFlags)
+void UNavigationSystemV1::RemoveNavOctreeElementId(const FOctreeElementId2& ElementId, int32 UpdateFlags)
 {
 	FNavigationDataHandler(DefaultOctreeController, DefaultDirtyAreasController).RemoveNavOctreeElementId(ElementId, UpdateFlags);
 }
@@ -3931,6 +3933,7 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 	UNavigationSystemV1::NavigationDirtyEvent.RemoveAll(this);
 	FWorldDelegates::LevelAddedToWorld.RemoveAll(this);
 	FWorldDelegates::LevelRemovedFromWorld.RemoveAll(this);
+	FWorldDelegates::OnWorldBeginTearDown.RemoveAll(this);
 
 #if WITH_HOT_RELOAD
 	if (IHotReloadInterface* HotReloadSupport = FModuleManager::GetModulePtr<IHotReloadInterface>("HotReload"))
@@ -3970,7 +3973,6 @@ void UNavigationSystemV1::CleanUp(FNavigationSystem::ECleanupMode Mode)
 	UWorld* MyWorld = (Mode == FNavigationSystem::ECleanupMode::CleanupWithWorld) ? GetWorld() : NULL;
 	if (MyWorld)
 	{
-		MyWorld->OnBeginTearingDown().RemoveAll(this);
 
 		if (MyWorld->WorldType == EWorldType::Game || MyWorld->WorldType == EWorldType::Editor)
 		{
@@ -4870,7 +4872,9 @@ void UNavigationSystemModuleConfig::UpdateWithNavSysCDO(const UNavigationSystemV
 	UClass* MyClass = NavigationSystemClass.ResolveClass();
 	if (MyClass != nullptr && MyClass->IsChildOf(NavSysCDO.GetClass()))
 	{
-		bStrictlyStatic = NavSysCDO.bStaticRuntimeNavigation;
+		// note that we're not longer copying bStrictlyStatic due to UE-91171
+		// Copying NavSysCDO.bStaticRuntimeNavigation resulted in copying 'true' 
+		// between unrelated maps
 		bCreateOnClient = NavSysCDO.bAllowClientSideNavigation;
 		bAutoSpawnMissingNavData = NavSysCDO.bAutoCreateNavigationData;
 		bSpawnNavDataInNavBoundsLevel = NavSysCDO.bSpawnNavDataInNavBoundsLevel;
@@ -4895,10 +4899,7 @@ UNavigationSystemBase* UNavigationSystemModuleConfig::CreateAndConfigureNavigati
 	{
 		NavSysInstance->bAutoCreateNavigationData = bAutoSpawnMissingNavData;
 		NavSysInstance->bSpawnNavDataInNavBoundsLevel = bSpawnNavDataInNavBoundsLevel;
-		if (bStrictlyStatic)
-		{
-			NavSysInstance->ConfigureAsStatic();
-		}
+		NavSysInstance->ConfigureAsStatic(bStrictlyStatic);
 	}
 
 	return NavSysInstance;

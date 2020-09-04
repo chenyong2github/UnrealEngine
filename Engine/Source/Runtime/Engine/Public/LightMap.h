@@ -318,12 +318,6 @@ public:
 	{
 		return bUpdateStatus;
 	}
-
-protected:
-
-	friend struct FLightMapPendingTexture;
-
-	FLightMap2D(const TArray<FGuid>& InLightGuids);
 	
 	/** The textures containing the light-map data. */
 	ULightMapTexture2D* Textures[2];
@@ -354,6 +348,9 @@ protected:
 
 	/** Tracks which of the 4 channels has valid texture data. */
 	bool bShadowChannelValid[4];
+
+protected:
+	FLightMap2D(const TArray<FGuid>& InLightGuids);
 
 	/** If true, update the status when encoding light maps */
 	static bool bUpdateStatus;
@@ -637,17 +634,16 @@ void CropUnmappedTexels( const TMappingData& MappingData, int32 SizeX, int32 Siz
 /** 
  * A bundle of lightmap resources which are referenced by multiple components. 
  */
-class FLightmapResourceCluster : public FRenderResource
+class ENGINE_API FLightmapResourceCluster : public FRenderResource
 {
 public:
 	FLightmapResourceCluster() : AllocatedVT(nullptr) {}
 	virtual ~FLightmapResourceCluster();
 
-	ENGINE_API virtual void InitRHI();
-	ENGINE_API virtual void ReleaseRHI();
+	virtual void InitRHI();
+	virtual void ReleaseRHI();
 
-	ENGINE_API void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
-
+	void UpdateUniformBuffer(ERHIFeatureLevel::Type InFeatureLevel);
 	void UpdateUniformBuffer_RenderThread();
 
 	/**

@@ -25,6 +25,7 @@
 #endif // WITH_EDITOR
 
 // Insights
+#include "Insights/Common/InsightsMenuBuilder.h"
 #include "Insights/InsightsManager.h"
 #include "Insights/InsightsStyle.h"
 #include "Insights/TimingProfilerManager.h"
@@ -65,6 +66,50 @@ STimingProfilerWindow::STimingProfilerWindow()
 
 STimingProfilerWindow::~STimingProfilerWindow()
 {
+	if (LogView)
+	{
+		HideTab(FTimingProfilerTabs::LogViewID);
+		check(LogView == nullptr);
+	}
+
+	if (StatsView)
+	{
+		HideTab(FTimingProfilerTabs::StatsCountersID);
+		check(StatsView == nullptr);
+	}
+
+	if (CalleesTreeView)
+	{
+		HideTab(FTimingProfilerTabs::CalleesID);
+		check(CalleesTreeView == nullptr);
+	}
+
+	if (CallersTreeView)
+	{
+		HideTab(FTimingProfilerTabs::CallersID);
+		check(CallersTreeView == nullptr);
+	}
+
+	if (TimersView)
+	{
+		HideTab(FTimingProfilerTabs::TimersID);
+		check(TimersView == nullptr);
+	}
+
+	if (TimingView)
+	{
+		HideTab(FTimingProfilerTabs::TimingViewID);
+		check(TimingView == nullptr);
+	}
+
+	if (FrameTrack)
+	{
+		HideTab(FTimingProfilerTabs::FramesTrackID);
+		check(FrameTrack == nullptr);
+	}
+
+	HideTab(FTimingProfilerTabs::ToolbarID);
+
 #if WITH_EDITOR
 	if (DurationActive > 0.0f && FEngineAnalytics::IsAvailable())
 	{
@@ -175,6 +220,8 @@ TSharedRef<SDockTab> STimingProfilerWindow::SpawnTab_TimingView(const FSpawnTabA
 		[
 			SAssignNew(TimingView, STimingView)
 		];
+
+	TimingView->Reset(true);
 
 	DockTab->SetOnTabClosed(SDockTab::FOnTabClosedCallback::CreateRaw(this, &STimingProfilerWindow::OnTimingViewTabClosed));
 
@@ -573,9 +620,7 @@ void STimingProfilerWindow::FillMenu(FMenuBuilder& MenuBuilder, const TSharedPtr
 		return;
 	}
 
-#if !WITH_EDITOR
-	//TODO: FGlobalTabmanager::Get()->PopulateTabSpawnerMenu(MenuBuilder, WorkspaceMenu::GetMenuStructure().GetStructureRoot());
-#endif //!WITH_EDITOR
+	FInsightsManager::Get()->GetInsightsMenuBuilder()->PopulateMenu(MenuBuilder);
 
 	TabManager->PopulateLocalTabSpawnerMenu(MenuBuilder);
 }

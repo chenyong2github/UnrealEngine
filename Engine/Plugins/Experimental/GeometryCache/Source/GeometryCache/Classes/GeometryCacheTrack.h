@@ -91,7 +91,8 @@ class GEOMETRYCACHE_API UGeometryCacheTrack : public UObject
 	virtual float GetDuration();
 
 	/**
-	* GetMaxSampleTime, returns the time for the last sample can be considered as the total animation length
+	* GetMaxSampleTime, returns the time for the last sample
+	* Not the same as the animation length since it might not start at time 0
 	*
 	* @return const float
 	*/

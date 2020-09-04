@@ -2,21 +2,35 @@
 
 #include "DesignerExtension.h"
 #include "ScopedTransaction.h"
+#include "WidgetBlueprint.h"
 
 #define LOCTEXT_NAMESPACE "UMG"
 
 // Designer Extension
 
 FDesignerExtension::FDesignerExtension()
-	: ScopedTransaction(NULL)
+	: ScopedTransaction(nullptr)
 {
 
+}
+
+FDesignerExtension::~FDesignerExtension()
+{
+	ensure(Designer == nullptr);
+	ensure(ScopedTransaction == nullptr);
 }
 
 void FDesignerExtension::Initialize(IUMGDesigner* InDesigner, UWidgetBlueprint* InBlueprint)
 {
 	Designer = InDesigner;
 	Blueprint = InBlueprint;
+}
+
+void FDesignerExtension::Uninitialize()
+{
+	Designer = nullptr;
+	Blueprint.Reset();
+	ensure(ScopedTransaction == nullptr);
 }
 
 FName FDesignerExtension::GetExtensionId() const
@@ -26,7 +40,7 @@ FName FDesignerExtension::GetExtensionId() const
 
 void FDesignerExtension::BeginTransaction(const FText& SessionName)
 {
-	if ( ScopedTransaction == NULL )
+	if ( ensure(ScopedTransaction == nullptr) )
 	{
 		ScopedTransaction = new FScopedTransaction(SessionName);
 	}
@@ -43,10 +57,10 @@ void FDesignerExtension::BeginTransaction(const FText& SessionName)
 
 void FDesignerExtension::EndTransaction()
 {
-	if ( ScopedTransaction != NULL )
+	if ( ensure(ScopedTransaction != nullptr) )
 	{
 		delete ScopedTransaction;
-		ScopedTransaction = NULL;
+		ScopedTransaction = nullptr;
 	}
 }
 

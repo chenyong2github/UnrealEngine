@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 /*=============================================================================
-	ShaderCore.h: Shader core module implementation.
+	ShaderCore.cpp: Shader core module implementation.
 =============================================================================*/
 
 #include "ShaderCore.h"
@@ -12,6 +12,7 @@
 #include "Stats/StatsMisc.h"
 #include "Misc/ScopedSlowTask.h"
 #include "Shader.h"
+#include "ShaderCompilerCore.h"
 #include "VertexFactory.h"
 #include "Modules/ModuleManager.h"
 #include "Interfaces/IShaderFormat.h"
@@ -371,7 +372,13 @@ void ValidateStaticUniformBuffer(FRHIUniformBuffer* UniformBuffer, FUniformBuffe
 			TEXT("Shader is requesting a uniform buffer at slot %s with hash '%u', but a reverse lookup of the hash can't find it. The shader cache may be out of date."),
 			*SlotRegistry.GetDebugDescription(Slot), ExpectedHash);
 
-		UE_LOG(LogShaders, Warning, TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null."), ExpectedStructMetadata->GetShaderVariableName(), *SlotRegistry.GetDebugDescription(Slot));
+		UE_LOG(LogShaders, Fatal,
+			TEXT("Shader requested a global uniform buffer of type '%s' at static slot '%s', but it was null. ")
+			TEXT("Global uniform buffers are bound by RHICmdList.SetGlobalUniformBuffers. This must be called ")
+			TEXT("before any PSOs are set for the shaders that need the binding. Global uniform buffer bindings ")
+			TEXT("are handled automatically by RDG if the uniform buffer is included in the pass parameter struct, ")
+			TEXT("otherwise a call to the command list method above is necessary."),
+			ExpectedStructMetadata->GetShaderVariableName(), *SlotRegistry.GetDebugDescription(Slot));
 	}
 	else
 	{

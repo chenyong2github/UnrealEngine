@@ -88,7 +88,7 @@ FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverri
 FNiagaraStackFunctionInputOverrideMergeAdapter::FNiagaraStackFunctionInputOverrideMergeAdapter(
 	UNiagaraScript& InOwningScript,
 	UNiagaraNodeFunctionCall& InOwningFunctionCallNode,
-	FString InInputName,
+	FStringView InInputName,
 	FNiagaraVariable InRapidIterationParameter
 )
 	: OwningScript(&InOwningScript)
@@ -207,11 +207,11 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 	FString UniqueEmitterName = InOwningEmitter.GetUniqueEmitterName();
 
 	// Collect explicit overrides set via parameter map set nodes.
-	TSet<FString> AliasedInputsAdded;
+	TSet<FName> AliasedInputsAdded;
 	UNiagaraNodeParameterMapSet* OverrideNode = FNiagaraStackGraphUtilities::GetStackFunctionOverrideNode(*FunctionCallNode);
 	if (OverrideNode != nullptr)
 	{
-		TArray<UEdGraphPin*> OverridePins;
+		FPinCollectorArray OverridePins;
 		OverrideNode->GetInputPins(OverridePins);
 		for (UEdGraphPin* OverridePin : OverridePins)
 		{
@@ -222,7 +222,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 				if (InputHandle.GetNamespace().ToString() == FunctionCallNode->GetFunctionName())
 				{
 					InputOverrides.Add(MakeShared<FNiagaraStackFunctionInputOverrideMergeAdapter>(InOwningEmitter, *OwningScript.Get(), *FunctionCallNode.Get(), *OverridePin));
-					AliasedInputsAdded.Add(OverridePin->PinName.ToString());
+					AliasedInputsAdded.Add(OverridePin->PinName);
 				}
 			}
 		}
@@ -297,7 +297,7 @@ FNiagaraStackFunctionMergeAdapter::FNiagaraStackFunctionMergeAdapter(const UNiag
 				}
 			}
 
-			if (AliasedInputsAdded.Contains(AliasedInputHandle.GetParameterHandleString().ToString()) == false)
+			if (AliasedInputsAdded.Contains(AliasedInputHandle.GetParameterHandleString()) == false)
 			{
 				// Check if the input is at the current default and if so it can be skipped.
 				bool bMatchesDefault = false;

@@ -10,7 +10,8 @@
 # Exclude anything for platforms we don't care about
 - /**/Win32/
 - /**/Win64/
-- /**/Android/
+- /Plugins/**/Android/
+- /Source/ThirdParty/**/Android/
 - /**/Linux/
 - /**/PS4/
 - /**/Switch/
@@ -23,6 +24,7 @@
 - /**/Linux64/
 - /**/linux32/
 - /**/linux64/
+# Keep Source/Developer/Android/AndroidTargetPlatform and its dependencies for Mac Editor configurations; it is referenced by TargetPlatform.Build.cs
 
 # Also ignore tps files; we don't need them to build
 - *.tps
@@ -32,6 +34,7 @@
 
 # Binaries/DotNET: Include C# tools
 + /Binaries/DotNET/
++ /Binaries/DotNET/AgentInterface.dll
 + /Binaries/DotNET/UnrealBuildTool.exe
 + /Binaries/DotNET/UnrealBuildTool.pdb
 + /Binaries/DotNET/DotNETUtilities.dll
@@ -276,6 +279,7 @@ protect /Saved/
 + /Source/Programs/UnrealPak/
 + /Source/Programs/UnrealHeaderTool/
 + /Source/Programs/UnrealHeaderTool/**.def
++ /Source/Programs/UnrealLightmass/
 - /Source/Programs/**/bin/
 - /Source/Programs/**/obj/
 - /Source/Programs/*/

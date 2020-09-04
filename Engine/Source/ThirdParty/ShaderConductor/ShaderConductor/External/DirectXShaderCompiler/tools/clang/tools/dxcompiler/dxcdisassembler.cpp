@@ -16,22 +16,27 @@
 
 #include "dxc/DXIL/DxilShaderModel.h"
 #include "dxc/DXIL/DxilModule.h"
+#include "dxc/DXIL/DxilPDB.h"
 #include "dxc/DXIL/DxilResource.h"
 #include "dxc/HLSL/HLMatrixType.h"
 #include "dxc/DXIL/DxilConstants.h"
 #include "dxc/DXIL/DxilOperations.h"
 #include "llvm/IR/DiagnosticInfo.h"
 #include "llvm/IR/DiagnosticPrinter.h"
+#include "llvm/IR/IntrinsicInst.h"
 #include "llvm/IR/AssemblyAnnotationWriter.h"
+#include "llvm/IR/DebugInfoMetadata.h"
 #include "llvm/Support/FormattedStream.h"
 #include "llvm/Support/Format.h"
 #include "dxc/DxilContainer/DxilPipelineStateValidation.h"
 #include "dxc/DxilContainer/DxilContainer.h"
 #include "dxc/DxilContainer/DxilRuntimeReflection.h"
-#include "dxc/DxilContainer/DxilContainerReader.h"
 #include "dxc/HLSL/ComputeViewIdState.h"
+#include "dxc/Support/FileIOHelper.h"
 #include "dxc/DXIL/DxilUtil.h"
 #include "dxcutil.h"
+#include "dxc/DXIL/DxilInstructions.h"
+#include "dxc/DXIL/DxilResourceProperties.h"
 
 using namespace llvm;
 using namespace hlsl;
@@ -192,6 +197,12 @@ void PrintSignature(LPCSTR pName, const DxilProgramSignature *pSignature,
     case DxilProgramSigSemantic::Barycentrics:
       pSysValue = "BARYCEN";
       break;
+    case DxilProgramSigSemantic::ShadingRate:
+      pSysValue = "SHDINGRATE";
+      break;
+    case DxilProgramSigSemantic::CullPrimitive:
+      pSysValue = "CULLPRIM";
+      break;
     case DxilProgramSigSemantic::Undefined:
       break;
     }
@@ -325,7 +336,9 @@ PCSTR g_pFeatureInfoNames[] = {
     "View Instancing",
     "Barycentrics",
     "Use native low precision",
-    "Shading Rate"
+    "Shading Rate",
+    "Raytracing tier 1.1 features",
+    "Sampler feedback"
 };
 static_assert(_countof(g_pFeatureInfoNames) == ShaderFeatureInfoCount, "g_pFeatureInfoNames needs to be updated");
 
@@ -357,6 +370,7 @@ void PrintResourceFormat(DxilResourceBase &res, unsigned alignment,
       OS << right_justify("byte", alignment);
       break;
     case DxilResource::Kind::StructuredBuffer:
+    case DxilResource::Kind::StructuredBufferWithCounter:
       OS << right_justify("struct", alignment);
       break;
     default:
@@ -384,6 +398,7 @@ void PrintResourceDim(DxilResourceBase &res, unsigned alignment,
     switch (res.GetKind()) {
     case DxilResource::Kind::RawBuffer:
     case DxilResource::Kind::StructuredBuffer:
+    case DxilResource::Kind::StructuredBufferWithCounter:
       if (res.GetClass() == DxilResourceBase::Class::SRV)
         OS << right_justify("r/o", alignment);
       else {
@@ -531,6 +546,8 @@ void PrintViewIdState(DxilModule &M, raw_string_ostream &OS,
   }
   if (pSM->IsHS() || pSM->IsDS()) {
     OS << ", patchconst: " << VID.getNumPCSigScalars();
+  } else if (pSM->IsMS()) {
+    OS << ", primitive outputs: " << VID.getNumPCSigScalars();
   }
   OS << "\n";
 
@@ -553,6 +570,10 @@ void PrintViewIdState(DxilModule &M, raw_string_ostream &OS,
     PrintOutputsDependentOnViewId(OS, comment, "PCOutputs",
                                   VID.getNumPCSigScalars(),
                                   VID.getPCOutputsDependentOnViewId());
+  } else if (pSM->IsMS()) {
+    PrintOutputsDependentOnViewId(OS, comment, "Primitive Outputs",
+                                  VID.getNumPCSigScalars(),
+                                  VID.getPCOutputsDependentOnViewId());
   }
 
   if (!pSM->IsGS()) {
@@ -571,6 +592,9 @@ void PrintViewIdState(DxilModule &M, raw_string_ostream &OS,
   if (pSM->IsHS()) {
     PrintInputsContributingToOutputs(OS, comment, "Inputs", "PCOutputs",
                                      VID.getInputsContributingToPCOutputs());
+  } else if (pSM->IsMS()) {
+    PrintInputsContributingToOutputs(OS, comment, "Inputs", "Primitive Outputs",
+                                     VID.getInputsContributingToPCOutputs());
   } else if (pSM->IsDS()) {
     PrintInputsContributingToOutputs(OS, comment, "PCInputs", "Outputs",
                                      VID.getPCInputsContributingToOutputs());
@@ -587,6 +611,7 @@ static const char *SubobjectKindToString(DXIL::SubobjectKind kind) {
   case DXIL::SubobjectKind::RaytracingShaderConfig: return "RaytracingShaderConfig";
   case DXIL::SubobjectKind::RaytracingPipelineConfig: return "RaytracingPipelineConfig";
   case DXIL::SubobjectKind::HitGroup: return "HitGroup";
+  case DXIL::SubobjectKind::RaytracingPipelineConfig1: return "RaytracingPipelineConfig1";
   }
   return "<invalid kind>";
 }
@@ -597,8 +622,22 @@ static const char *FlagToString(DXIL::StateObjectFlags Flag) {
     return "STATE_OBJECT_FLAG_ALLOW_LOCAL_DEPENDENCIES_ON_EXTERNAL_DEFINITIONS";
   case DXIL::StateObjectFlags::AllowExternalDependenciesOnLocalDefinitions:
     return "STATE_OBJECT_FLAG_ALLOW_EXTERNAL_DEPENDENCIES_ON_LOCAL_DEFINITIONS";
+  case DXIL::StateObjectFlags::AllowStateObjectAdditions:
+    return "STATE_OBJECT_FLAG_ALLOW_STATE_OBJECT_ADDITIONS";
   }
   return "<invalid StateObjectFlag>";
+}
+
+static const char *FlagToString(DXIL::RaytracingPipelineFlags Flag) {
+  switch (Flag) {
+  case DXIL::RaytracingPipelineFlags::None:
+    return "RAYTRACING_PIPELINE_FLAG_NONE";
+  case DXIL::RaytracingPipelineFlags::SkipTriangles:
+    return "RAYTRACING_PIPELINE_FLAG_SKIP_TRIANGLES";
+  case DXIL::RaytracingPipelineFlags::SkipProceduralPrimitives:
+    return "RAYTRACING_PIPELINE_FLAG_SKIP_PROCEDURAL_PRIMITIVES";
+  }
+  return "<invalid RaytracingPipelineFlags>";
 }
 
 static const char *HitGroupTypeToString(DXIL::HitGroupType type) {
@@ -724,6 +763,18 @@ void PrintSubobjects(const DxilSubobjects &subobjects,
          << ", Anyhit = \"" << AnyHit
          << "\", Closesthit = \"" << ClosestHit
          << "\", Intersection = \"" << Intersection << "\"";
+      break;
+    }
+    case DXIL::SubobjectKind::RaytracingPipelineConfig1: {
+      uint32_t MaxTraceRecursionDepth;
+      uint32_t Flags;
+      if (!obj.GetRaytracingPipelineConfig1(MaxTraceRecursionDepth, Flags)) {
+        OS << "<error getting subobject>";
+        break;
+      }
+      OS << "MaxTraceRecursionDepth = " << MaxTraceRecursionDepth;
+      OS << ", Flags = ";
+      PrintFlags<DXIL::RaytracingPipelineFlags>(OS, Flags);
       break;
     }
     }
@@ -1182,14 +1233,223 @@ static const char *OpCodeSignatures[] = {
   "(acc,a,b)",  // Dot4AddU8Packed
   "(value)",  // WaveMatch
   "(value,mask0,mask1,mask2,mask3,op,sop)",  // WaveMultiPrefixOp
-  "(value,mask0,mask1,mask2,mask3)"  // WaveMultiPrefixBitCount
+  "(value,mask0,mask1,mask2,mask3)",  // WaveMultiPrefixBitCount
+  "(numVertices,numPrimitives)",  // SetMeshOutputCounts
+  "(PrimitiveIndex,VertexIndex0,VertexIndex1,VertexIndex2)",  // EmitIndices
+  "()",  // GetMeshPayload
+  "(outputSigId,rowIndex,colIndex,value,vertexIndex)",  // StoreVertexOutput
+  "(outputSigId,rowIndex,colIndex,value,primitiveIndex)",  // StorePrimitiveOutput
+  "(threadGroupCountX,threadGroupCountY,threadGroupCountZ,payload)",  // DispatchMesh
+  "(feedbackTex,sampledTex,sampler,c0,c1,c2,c3,clamp)",  // WriteSamplerFeedback
+  "(feedbackTex,sampledTex,sampler,c0,c1,c2,c3,bias,clamp)",  // WriteSamplerFeedbackBias
+  "(feedbackTex,sampledTex,sampler,c0,c1,c2,c3,lod)",  // WriteSamplerFeedbackLevel
+  "(feedbackTex,sampledTex,sampler,c0,c1,c2,c3,ddx0,ddx1,ddx2,ddy0,ddy1,ddy2,clamp)",  // WriteSamplerFeedbackGrad
+  "(constRayFlags)",  // AllocateRayQuery
+  "(rayQueryHandle,accelerationStructure,rayFlags,instanceInclusionMask,origin_X,origin_Y,origin_Z,tMin,direction_X,direction_Y,direction_Z,tMax)",  // RayQuery_TraceRayInline
+  "(rayQueryHandle)",  // RayQuery_Proceed
+  "(rayQueryHandle)",  // RayQuery_Abort
+  "(rayQueryHandle)",  // RayQuery_CommitNonOpaqueTriangleHit
+  "(rayQueryHandle,t)",  // RayQuery_CommitProceduralPrimitiveHit
+  "(rayQueryHandle)",  // RayQuery_CommittedStatus
+  "(rayQueryHandle)",  // RayQuery_CandidateType
+  "(rayQueryHandle,row,col)",  // RayQuery_CandidateObjectToWorld3x4
+  "(rayQueryHandle,row,col)",  // RayQuery_CandidateWorldToObject3x4
+  "(rayQueryHandle,row,col)",  // RayQuery_CommittedObjectToWorld3x4
+  "(rayQueryHandle,row,col)",  // RayQuery_CommittedWorldToObject3x4
+  "(rayQueryHandle)",  // RayQuery_CandidateProceduralPrimitiveNonOpaque
+  "(rayQueryHandle)",  // RayQuery_CandidateTriangleFrontFace
+  "(rayQueryHandle)",  // RayQuery_CommittedTriangleFrontFace
+  "(rayQueryHandle,component)",  // RayQuery_CandidateTriangleBarycentrics
+  "(rayQueryHandle,component)",  // RayQuery_CommittedTriangleBarycentrics
+  "(rayQueryHandle)",  // RayQuery_RayFlags
+  "(rayQueryHandle,component)",  // RayQuery_WorldRayOrigin
+  "(rayQueryHandle,component)",  // RayQuery_WorldRayDirection
+  "(rayQueryHandle)",  // RayQuery_RayTMin
+  "(rayQueryHandle)",  // RayQuery_CandidateTriangleRayT
+  "(rayQueryHandle)",  // RayQuery_CommittedRayT
+  "(rayQueryHandle)",  // RayQuery_CandidateInstanceIndex
+  "(rayQueryHandle)",  // RayQuery_CandidateInstanceID
+  "(rayQueryHandle)",  // RayQuery_CandidateGeometryIndex
+  "(rayQueryHandle)",  // RayQuery_CandidatePrimitiveIndex
+  "(rayQueryHandle,component)",  // RayQuery_CandidateObjectRayOrigin
+  "(rayQueryHandle,component)",  // RayQuery_CandidateObjectRayDirection
+  "(rayQueryHandle)",  // RayQuery_CommittedInstanceIndex
+  "(rayQueryHandle)",  // RayQuery_CommittedInstanceID
+  "(rayQueryHandle)",  // RayQuery_CommittedGeometryIndex
+  "(rayQueryHandle)",  // RayQuery_CommittedPrimitiveIndex
+  "(rayQueryHandle,component)",  // RayQuery_CommittedObjectRayOrigin
+  "(rayQueryHandle,component)",  // RayQuery_CommittedObjectRayDirection
+  "()",  // GeometryIndex
+  "(rayQueryHandle)",  // RayQuery_CandidateInstanceContributionToHitGroupIndex
+  "(rayQueryHandle)",  // RayQuery_CommittedInstanceContributionToHitGroupIndex
+  "(index,nonUniformIndex)",  // CreateHandleFromHeap
+  "(res,resourceClass,resourceKind,props)"  // AnnotateHandle
 };
 // OPCODE-SIGS:END
+
+LPCSTR ResourceKindToString(DXIL::ResourceKind RK) {
+  switch (RK)
+  {
+  case DXIL::ResourceKind::Texture1D: return "Texture1D";
+  case DXIL::ResourceKind::Texture2D: return "Texture2D";
+  case DXIL::ResourceKind::Texture2DMS: return "Texture2DMS";
+  case DXIL::ResourceKind::Texture3D: return "Texture3D";
+  case DXIL::ResourceKind::TextureCube: return "TextureCube";
+  case DXIL::ResourceKind::Texture1DArray: return "Texture1DArray";
+  case DXIL::ResourceKind::Texture2DArray: return "Texture2DArray";
+  case DXIL::ResourceKind::Texture2DMSArray: return "Texture2DMSArray";
+  case DXIL::ResourceKind::TextureCubeArray: return "TextureCubeArray";
+  case DXIL::ResourceKind::TypedBuffer: return "TypedBuffer";
+  case DXIL::ResourceKind::RawBuffer: return "ByteAddressBuffer";
+  case DXIL::ResourceKind::StructuredBuffer: return "StructuredBuffer";
+  case DXIL::ResourceKind::CBuffer: return "CBuffer";
+  case DXIL::ResourceKind::Sampler: return "Sampler";
+  case DXIL::ResourceKind::TBuffer: return "TBuffer";
+  case DXIL::ResourceKind::RTAccelerationStructure: return "RTAccelerationStructure";
+  case DXIL::ResourceKind::FeedbackTexture2D: return "FeedbackTexture2D";
+  case DXIL::ResourceKind::FeedbackTexture2DArray: return "FeedbackTexture2DArray";
+  case DXIL::ResourceKind::StructuredBufferWithCounter: return "StructuredBufferWithCounter";
+  case DXIL::ResourceKind::SamplerComparison: return "SamplerComparison";
+  default:
+    return "<invalid ResourceKind>";
+  }
+}
+
+LPCSTR CompTypeToString(DXIL::ComponentType CompType) {
+  switch (CompType) {
+  case DXIL::ComponentType::I1: return "I1";
+  case DXIL::ComponentType::I16: return "I16";
+  case DXIL::ComponentType::U16: return "U16";
+  case DXIL::ComponentType::I32: return "I32";
+  case DXIL::ComponentType::U32: return "U32";
+  case DXIL::ComponentType::I64: return "I64";
+  case DXIL::ComponentType::U64: return "U64";
+  case DXIL::ComponentType::F16: return "F16";
+  case DXIL::ComponentType::F32: return "F32";
+  case DXIL::ComponentType::F64: return "F64";
+  case DXIL::ComponentType::SNormF16: return "SNormF16";
+  case DXIL::ComponentType::UNormF16: return "UNormF16";
+  case DXIL::ComponentType::SNormF32: return "SNormF32";
+  case DXIL::ComponentType::UNormF32: return "UNormF32";
+  case DXIL::ComponentType::SNormF64: return "SNormF64";
+  case DXIL::ComponentType::UNormF64: return "UNormF64";
+  default:
+    return "<invalid CompType>";
+  }
+}
+
+LPCSTR SamplerFeedbackTypeToString(DXIL::SamplerFeedbackType SFT) {
+  switch(SFT) {
+  case DXIL::SamplerFeedbackType::MinMip: return "MinMip";
+  case DXIL::SamplerFeedbackType::MipRegionUsed: return "MipRegionUsed";
+  default:
+    return "<invalid sampler feedback type>";
+  }
+}
+
+void PrintResourceProperties(DxilResourceProperties &RP,
+                             formatted_raw_ostream &OS) {
+  OS << "  resource: ";
+
+  if (RP.Class == DXIL::ResourceClass::CBuffer) {
+    OS << "CBuffer";
+    return;
+  } else if (RP.Class == DXIL::ResourceClass::SRV &&
+             RP.Kind == DXIL::ResourceKind::TBuffer) {
+    OS << "TBuffer";
+    return;
+  }
+
+  if (RP.Class == DXIL::ResourceClass::Sampler) {
+    if (RP.Kind == DXIL::ResourceKind::Sampler)
+      OS << "SamplerState";
+    else if (RP.Kind == DXIL::ResourceKind::SamplerComparison)
+      OS << "SamplerComparisonState";
+    return;
+  }
+
+  bool bUAV = RP.Class == DXIL::ResourceClass::UAV;
+  LPCSTR RW = bUAV ? (RP.UAV.bROV ? "ROV" : "RW") : "";
+  LPCSTR GC = bUAV && RP.UAV.bGloballyCoherent ? "globallycoherent " : "";
+
+  switch (RP.Kind)
+  {
+  case DXIL::ResourceKind::Texture1D:
+  case DXIL::ResourceKind::Texture2D:
+  case DXIL::ResourceKind::Texture3D:
+  case DXIL::ResourceKind::TextureCube:
+  case DXIL::ResourceKind::Texture1DArray:
+  case DXIL::ResourceKind::Texture2DArray:
+  case DXIL::ResourceKind::TextureCubeArray:
+  case DXIL::ResourceKind::TypedBuffer:
+    OS << GC << RW << ResourceKindToString(RP.Kind);
+    OS << "<" << CompTypeToString(RP.Typed.CompType)
+       << (bUAV && !RP.Typed.SingleComponent ? "[vec]" : "")
+       << ">";
+    break;
+
+  case DXIL::ResourceKind::Texture2DMS:
+  case DXIL::ResourceKind::Texture2DMSArray:
+    OS << ResourceKindToString(RP.Kind);
+    OS << "<" << CompTypeToString(RP.Typed.CompType)
+       << ", samples=" << RP.getSampleCount()
+       << ">";
+    break;
+
+  case DXIL::ResourceKind::RawBuffer:
+    OS << GC << RW << ResourceKindToString(RP.Kind);
+    break;
+
+  case DXIL::ResourceKind::StructuredBuffer:
+  case DXIL::ResourceKind::StructuredBufferWithCounter:
+    OS << GC << RW << ResourceKindToString(RP.Kind);
+    OS << "<stride=" << RP.ElementStride << ">";
+    break;
+
+  case DXIL::ResourceKind::RTAccelerationStructure:
+    OS << ResourceKindToString(RP.Kind);
+    break;
+
+  case DXIL::ResourceKind::FeedbackTexture2D:
+  case DXIL::ResourceKind::FeedbackTexture2DArray:
+    OS << ResourceKindToString(RP.Kind);
+    OS << "<" << SamplerFeedbackTypeToString(RP.SamplerFeedbackType) << ">";
+    break;
+
+  default:
+    OS << "<invalid resource properties>";
+    break;
+  }
+}
 
 class DxcAssemblyAnnotationWriter : public llvm::AssemblyAnnotationWriter {
 public:
   ~DxcAssemblyAnnotationWriter() {}
   void printInfoComment(const Value &V, formatted_raw_ostream &OS) override {
+    if (const Instruction *I = dyn_cast<Instruction>(&V)) {
+      if (isa<DbgInfoIntrinsic>(I)) {
+        DILocalVariable *Var = nullptr;
+        DIExpression *Expr = nullptr;
+        if (const DbgDeclareInst *DI = dyn_cast<DbgDeclareInst>(I)) {
+          Var = DI->getVariable();
+          Expr = DI->getExpression();
+        }
+        else if (const DbgValueInst *DI = dyn_cast<DbgValueInst>(I)) {
+          Var = DI->getVariable();
+          Expr = DI->getExpression();
+        }
+
+        if (Var && Expr) {
+          OS << " ; var:\"" << Var->getName() << "\"" << " ";
+          Expr->printAsBody(OS);
+        }
+      }
+      else {
+        DebugLoc Loc = I->getDebugLoc();
+        if (Loc && Loc.getLine() != 0)
+          OS << " ; line:" << Loc.getLine() << " col:" << Loc.getCol();
+      }
+    }
     const CallInst *CI = dyn_cast<const CallInst>(&V);
     if (!CI) {
       return;
@@ -1216,6 +1476,22 @@ public:
     DXIL::OpCode opcode = (DXIL::OpCode)opcodeVal;
     OS << "  ; " << hlsl::OP::GetOpCodeName(opcode)
        << OpCodeSignatures[opcodeVal];
+
+    // Add extra decoding for certain ops
+    switch (opcode) {
+    case DXIL::OpCode::AnnotateHandle: {
+      // Decode resource properties
+      DxilInst_AnnotateHandle AH(const_cast<CallInst*>(CI));
+      if (Constant *Props = dyn_cast<Constant>(AH.get_props())) {
+        DXIL::ResourceClass RC = static_cast<DXIL::ResourceClass>(AH.get_resourceClass_val());
+        DXIL::ResourceKind RK = static_cast<DXIL::ResourceKind>(AH.get_resourceKind_val());
+        DxilResourceProperties RP = resource_helper::loadFromConstant(*Props, RC, RK);
+        PrintResourceProperties(RP, OS);
+      }
+    } break;
+    default:
+      break;
+    }
   }
 };
 
@@ -1457,8 +1733,19 @@ void PrintPipelineStateValidationRuntimeInfo(const char *pBuffer,
 namespace dxcutil {
 
 HRESULT Disassemble(IDxcBlob *pProgram, raw_string_ostream &Stream) {
+  CComPtr<IDxcBlob> pPdbContainerBlob;
+  {
+    CComPtr<IStream> pStream;
+    IFR(hlsl::CreateReadOnlyBlobStream(pProgram, &pStream));
+    if (SUCCEEDED(hlsl::pdb::LoadDataFromStream(DxcGetThreadMallocNoRef(), pStream, &pPdbContainerBlob))) {
+      pProgram = pPdbContainerBlob;
+    }
+  }
+
   const char *pIL = (const char *)pProgram->GetBufferPointer();
   uint32_t pILLength = pProgram->GetBufferSize();
+  const char *pReflectionIL = nullptr;
+  uint32_t pReflectionILLength = 0;
   const DxilPartHeader *pRDATPart = nullptr;
   if (const DxilContainerHeader *pContainer =
           IsDxilContainerLike(pIL, pILLength)) {
@@ -1525,9 +1812,6 @@ HRESULT Disassemble(IDxcBlob *pProgram, raw_string_ostream &Stream) {
 
     it = std::find_if(begin(pContainer), end(pContainer),
                       DxilPartIsType(DFCC_DXIL));
-    if (it == end(pContainer)) {
-      return DXC_E_CONTAINER_MISSING_DXIL;
-    }
 
     DxilPartIterator dbgit =
         std::find_if(begin(pContainer), end(pContainer),
@@ -1535,6 +1819,10 @@ HRESULT Disassemble(IDxcBlob *pProgram, raw_string_ostream &Stream) {
     // Use dbg module if exist.
     if (dbgit != end(pContainer))
       it = dbgit;
+
+    if (it == end(pContainer)) {
+      return DXC_E_CONTAINER_MISSING_DXIL;
+    }
 
     const DxilProgramHeader *pProgramHeader =
         reinterpret_cast<const DxilProgramHeader *>(GetDxilPartData(*it));
@@ -1559,6 +1847,18 @@ HRESULT Disassemble(IDxcBlob *pProgram, raw_string_ostream &Stream) {
     }
 
     GetDxilProgramBitcode(pProgramHeader, &pIL, &pILLength);
+
+    it = std::find_if(begin(pContainer), end(pContainer),
+                      DxilPartIsType(DFCC_ShaderStatistics));
+    if (it != end(pContainer)) {
+      // If this part exists, use it for reflection data, probably stripped from DXIL part.
+      const DxilProgramHeader *pReflectionProgramHeader =
+          reinterpret_cast<const DxilProgramHeader *>(GetDxilPartData(*it));
+      if (IsValidDxilProgramHeader(pReflectionProgramHeader, (*it)->PartSize)) {
+        GetDxilProgramBitcode(pReflectionProgramHeader, &pReflectionIL, &pReflectionILLength);
+      }
+    }
+
   } else {
     const DxilProgramHeader *pProgramHeader =
         reinterpret_cast<const DxilProgramHeader *>(pIL);
@@ -1575,21 +1875,41 @@ HRESULT Disassemble(IDxcBlob *pProgram, raw_string_ostream &Stream) {
     return DXC_E_IR_VERIFICATION_FAILED;
   }
 
+  std::unique_ptr<llvm::Module> pReflectionModule;
+  if (pReflectionIL && pReflectionILLength) {
+    pReflectionModule = dxilutil::LoadModuleFromBitcode(
+      llvm::StringRef(pReflectionIL, pReflectionILLength), llvmContext, DiagStr);
+    if (pReflectionModule.get() == nullptr) {
+      return DXC_E_IR_VERIFICATION_FAILED;
+    }
+  }
+
   if (pModule->getNamedMetadata("dx.version")) {
     DxilModule &dxilModule = pModule->GetOrCreateDxilModule();
+    DxilModule &dxilReflectionModule = pReflectionModule.get()
+      ? pReflectionModule->GetOrCreateDxilModule()
+      : dxilModule;
 
     if (!dxilModule.GetShaderModel()->IsLib()) {
       PrintDxilSignature("Input", dxilModule.GetInputSignature(), Stream,
                          /*comment*/ ";");
-      PrintDxilSignature("Output", dxilModule.GetOutputSignature(), Stream,
-                         /*comment*/ ";");
-      PrintDxilSignature("Patch Constant signature",
-                         dxilModule.GetPatchConstantSignature(), Stream,
-                         /*comment*/ ";");
+      if (dxilModule.GetShaderModel()->IsMS()) {
+        PrintDxilSignature("Vertex Output", dxilModule.GetOutputSignature(), Stream,
+                           /*comment*/ ";");
+        PrintDxilSignature("Primitive Output",
+                           dxilModule.GetPatchConstOrPrimSignature(), Stream,
+                           /*comment*/ ";");
+      } else {
+        PrintDxilSignature("Output", dxilModule.GetOutputSignature(), Stream,
+                           /*comment*/ ";");
+        PrintDxilSignature("Patch Constant",
+                           dxilModule.GetPatchConstOrPrimSignature(), Stream,
+                           /*comment*/ ";");
+      }
     }
-    PrintBufferDefinitions(dxilModule, Stream, /*comment*/ ";");
-    PrintResourceBindings(dxilModule, Stream, /*comment*/ ";");
-    PrintViewIdState(dxilModule, Stream, /*comment*/ ";");
+    PrintBufferDefinitions(dxilReflectionModule, Stream, /*comment*/ ";");
+    PrintResourceBindings(dxilReflectionModule, Stream, /*comment*/ ";");
+    PrintViewIdState(dxilReflectionModule, Stream, /*comment*/ ";");
 
     if (pRDATPart) {
       RDAT::DxilRuntimeData runtimeData(GetDxilPartData(pRDATPart), pRDATPart->PartSize);
@@ -1608,6 +1928,10 @@ HRESULT Disassemble(IDxcBlob *pProgram, raw_string_ostream &Stream) {
   }
   DxcAssemblyAnnotationWriter w;
   pModule->print(Stream, &w);
+  //if (pReflectionModule) {
+  //  Stream << "\n========== Reflection Module from STAT part ==========\n";
+  //  pReflectionModule->print(Stream, &w);
+  //}
   Stream.flush();
   return S_OK;
 }

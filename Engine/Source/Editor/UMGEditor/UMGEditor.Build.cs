@@ -22,6 +22,8 @@ public class UMGEditor : ModuleRules
                 "Editor/UMGEditor/Private/Utility",
 			});
 
+		OverridePackageType = PackageOverrideType.EngineDeveloper;
+
 		PrivateIncludePathModuleNames.AddRange(
 			new string[] {
 				"AssetTools",
@@ -54,6 +56,7 @@ public class UMGEditor : ModuleRules
 				"EditorStyle",
 				"Slate",
 				"SlateCore",
+				"SlateRHIRenderer",
 				"MessageLog",
 				"MovieScene",
 				"MovieSceneTools",
@@ -66,6 +69,7 @@ public class UMGEditor : ModuleRules
 				"GameProjectGeneration",
 				"PropertyPath",
 				"ToolMenus",
+				"SlateReflector",
 				"DeveloperSettings",
 			}
 			);

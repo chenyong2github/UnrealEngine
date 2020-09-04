@@ -352,6 +352,11 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	ULevel* NewLevel = nullptr;
 
 	ULevelStreaming* NewStreamingLevel = AddLevelToWorld_Internal(InWorld, LevelPackageName, LevelStreamingClass, LevelTransform);
+
+	// Broadcast the levels have changed (new style)
+	InWorld->BroadcastLevelsChanged();
+	FEditorDelegates::RefreshLevelBrowser.Broadcast();
+
 	if (NewStreamingLevel)
 	{
 		NewLevel = NewStreamingLevel->GetLoadedLevel();
@@ -372,10 +377,6 @@ ULevelStreaming* UEditorLevelUtils::AddLevelToWorld(UWorld* InWorld, const TCHAR
 	{
 		GLevelEditorModeTools().ActivateDefaultMode();
 	}
-
-	// Broadcast the levels have changed (new style)
-	InWorld->BroadcastLevelsChanged();
-	FEditorDelegates::RefreshLevelBrowser.Broadcast();
 
 	// Update volume actor visibility for each viewport since we loaded a level which could potentially contain volumes
 	if (GUnrealEd)

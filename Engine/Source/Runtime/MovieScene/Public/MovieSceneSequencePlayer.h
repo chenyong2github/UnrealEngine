@@ -328,7 +328,7 @@ public:
 	 * @param Duration        The number of frames to play
 	 */
 	UFUNCTION(BlueprintCallable, Category="Game|Cinematic", DisplayName="Set Play Range (Frames)")
-	void SetFrameRange( int32 StartFrame, int32 Duration );
+	void SetFrameRange( int32 StartFrame, int32 Duration, float SubFrames = 0.f );
 
 	/**
 	 * Set the valid play range for this sequence, determined by a starting time  and a duration (in seconds)
@@ -539,7 +539,6 @@ protected:
 
 	/*~ Begin UObject interface */
 	virtual bool IsSupportedForNetworking() const { return true; }
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	virtual int32 GetFunctionCallspace(UFunction* Function, FFrame* Stack) override;
 	virtual bool CallRemoteFunction(UFunction* Function, void* Parameters, FOutParmRec* OutParms, FFrame* Stack) override;
 	virtual void PostNetReceive() override;
@@ -615,6 +614,9 @@ protected:
 	/** Time (in playback frames) at which to stop playing the sequence (defaults to the upper bound of the sequence's play range) */
 	UPROPERTY(replicated)
 	int32 DurationFrames;
+
+	UPROPERTY(replicated)
+	float DurationSubFrames;
 
 	/** The number of times we have looped in the current playback */
 	UPROPERTY(transient)

@@ -2,13 +2,13 @@
 
 #pragma once
 
-#include "BackChannel/Transport/IBackChannelConnection.h"
+#include "BackChannel/Transport/IBackChannelSocketConnection.h"
 #include "HAL/Runnable.h"
 #include "HAL/ThreadSafeBool.h"
 
 class FSocket;
 
-DECLARE_DELEGATE_RetVal_OneParam(bool, FBackChannelListenerDelegate, TSharedRef<IBackChannelConnection>);
+DECLARE_DELEGATE_RetVal_OneParam(bool, FBackChannelListenerDelegate, TSharedRef<IBackChannelSocketConnection>);
 
 /**
  * BackChannelClient implementation.
@@ -20,7 +20,7 @@ public:
 	FBackChannelThreadedListener();
 	~FBackChannelThreadedListener();
 
-	void Start(TSharedRef<IBackChannelConnection> InConnection, FBackChannelListenerDelegate InDelegate);
+	void Start(TSharedRef<IBackChannelSocketConnection> InConnection, FBackChannelListenerDelegate InDelegate);
 
 	virtual void Stop() override;
 
@@ -32,7 +32,7 @@ protected:
 
 private:
 
-	TSharedPtr<IBackChannelConnection>		Connection;
+	TSharedPtr<IBackChannelSocketConnection>		Connection;
 	FBackChannelListenerDelegate			Delegate;
 	
 	FThreadSafeBool							bExitRequested;

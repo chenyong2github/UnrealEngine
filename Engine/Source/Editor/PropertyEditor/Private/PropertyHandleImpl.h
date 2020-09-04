@@ -16,17 +16,22 @@ class FObjectBaseAddress
 {
 public:
 	FObjectBaseAddress()
-		:	Object( nullptr )
-		,	BaseAddress( nullptr )
+		:	ObjectOrStruct(nullptr)
+		,	BaseAddress(nullptr)
 		,	bIsStruct(false)
 	{}
-	FObjectBaseAddress(UObject* InObject, uint8* InBaseAddress, bool InIsStruct)
-		:	Object( InObject )
-		,	BaseAddress( InBaseAddress )
+	FObjectBaseAddress(uint8* InObjectOrStruct, uint8* InBaseAddress, bool InIsStruct)
+		:	ObjectOrStruct(InObjectOrStruct)
+		,	BaseAddress(InBaseAddress)
 		,	bIsStruct(InIsStruct)
 	{}
 
-	UObject*	Object;
+	FORCEINLINE UObject* GetUObject() const
+	{
+		return bIsStruct ? nullptr : (UObject*) ObjectOrStruct;
+	}
+
+	uint8*		ObjectOrStruct;
 	uint8*		BaseAddress;
 	bool		bIsStruct;
 };
@@ -440,7 +445,8 @@ public:
 	virtual void AccessRawData( TArray<void*>& RawData ) override;
 	virtual void AccessRawData( TArray<const void*>& RawData ) const override;
 	virtual uint32 GetNumOuterObjects() const override;
-	virtual void GetOuterObjects( TArray<UObject*>& OuterObjects ) const override;
+	virtual void GetOuterObjects(TArray<UObject*>& OuterObjects) const override;
+	virtual void ReplaceOuterObjects(const TArray<UObject*>& OuterObjects) override;
 	virtual void GetOuterPackages(TArray<UPackage*>& OuterPackages) const override;
 	virtual FPropertyAccess::Result GetNumChildren( uint32& OutNumChildren ) const override;
 	virtual TSharedPtr<IPropertyHandleArray> AsArray() override { return nullptr; }

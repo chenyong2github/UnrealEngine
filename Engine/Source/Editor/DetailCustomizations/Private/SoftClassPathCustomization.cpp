@@ -23,7 +23,7 @@ void FSoftClassPathCustomization::CustomizeHeader(TSharedRef<IPropertyHandle> In
 	
 	const UClass* const MetaClass = !MetaClassName.IsEmpty()
 		? FEditorClassUtils::GetClassFromString(MetaClassName)
-		: UClass::StaticClass();
+		: UObject::StaticClass();
 	const UClass* const RequiredInterface = !RequiredInterfaceName.IsEmpty()
 		? FEditorClassUtils::GetClassFromString(RequiredInterfaceName)
 		: FEditorClassUtils::GetClassFromString(MustImplementName);

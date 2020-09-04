@@ -16,6 +16,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 		GpuCrashed,
 		Terminated,
 		Shutdown,
+		LogOut,
 	};
 
 	FString SessionId;
@@ -32,19 +33,23 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	uint32 PlatformProcessID;
 	uint32 MonitorProcessID; // Set to the CrashReportClientEditor PID when out-of-process reporting is used.
 	TOptional<int32> ExitCode; // Set by CrashReportClientEditor after the Editor process exit when out-of-process reporting is used and reading the exit code is supported.
-	TOptional<int32> MonitorExceptCode; // Set by CrashReportClientEditor if an exception is caught by monitoring the Editor. This is to detect if CRC crashes itself.
+	TOptional<int32> MonitorExceptCode; // Set in CrashReportClientEditor process when an exception or an error is caught.
+	TOptional<int32> MonitorExitCode; // Set in the Editor process when the Editor detects that CrashReportClientEditor process unexpectedly died.
 
-	FDateTime StartupTimestamp;
-	FDateTime Timestamp;
+	FDateTime StartupTimestamp; // Wall time (UTC) when the session started.
+	FDateTime Timestamp; // Wall time (UTC) when the session was ended.
+	volatile int32 SessionDuration = 0; // The session duration in seconds, computed using FPlatformTime::Seconds() rather than Timestamp - StartupTimestamp which can be affected by daylight saving.
 	volatile int32 IdleSeconds = 0; // Can be updated from concurrent threads.
 	volatile int32 Idle1Min = 0;
 	volatile int32 Idle5Min = 0;
 	volatile int32 Idle30Min = 0;
-	volatile int32 TotalUserInactivitySeconds = 0; // If time elapsed between two user interaction is greater than a threshold, consider it inactivity and sum it up.
 	volatile int32 TotalEditorInactivitySeconds = 0; // Account for user input and Editor process CPU usage. Add up gaps where the CPU was not used intensively and the user did not interact.
 	FString CurrentUserActivity;
 	TArray<FString> Plugins;
 	float AverageFPS;
+
+	uint64 SessionTickCount = 0; // Number of time the analytic session was ticked. Zero is the interesting value. If the Editor is hang during boot, some users may be prompt to kill it.
+	uint32 UserInteractionCount = 0; // Number of slate user interactions. Zero is the interesting value. If the Editor UI hang at start up, some users may be prompt to kill it.
 
 	FString DesktopGPUAdapter;
 	FString RenderingGPUAdapter;
@@ -53,6 +58,7 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	uint32 GRHIDeviceRevision;
 	FString GRHIAdapterInternalDriverVersion;
 	FString GRHIAdapterUserDriverVersion;
+	FString GRHIName;
 
 	uint64 TotalPhysicalRAM;
 	int32 CPUPhysicalCores;
@@ -72,10 +78,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	bool bIsVanilla : 1;
 	bool bIsTerminating : 1;
 	bool bWasShutdown : 1;
+	bool bIsUserLoggingOut: 1; // Also cover shutdown/reboot as logging out is part of the process. Logging out currently end up as an abnormal termination.
 	bool bIsInPIE : 1;
 	bool bIsInEnterprise : 1;
 	bool bIsInVRMode : 1;
 	bool bIsLowDriveSpace : 1;
+	bool bIsCrcExeMissing: 1; // CrashReportClient executable is missing? To explain with MonitorProcessID would be zero.
 
 	FEditorAnalyticsSession();
 
@@ -105,8 +113,12 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	static bool GetStoredSessionIDs(TArray<FString>& OutSessions);
 
 	/**
-	 * Read all stored sessions into the given array.
+	 * Read all stored sessions into the given array. This function only loads the sessions that are
+	 * compatible with the current session format. Between releases, the format of the stored session
+	 * can change. A newer engine will load sessions from a previous engine as long as the session format
+	 * did not change.
 	 * @returns true if the sessions were successfully loaded.
+	 * @see CleanupOutdatedIncompatibleSessions()
 	 */
 	static bool LoadAllStoredSessions(TArray<FEditorAnalyticsSession>& OutSessions);
 
@@ -115,6 +127,16 @@ struct EDITORANALYTICSSESSION_API FEditorAnalyticsSession
 	 * @returns true if the session IDs were successfully saved.
 	 */
 	static bool SaveStoredSessionIDs(const TArray<FString>& InSessions);
+
+	/**
+	 * Delete sessions that are incompatible with the current session format and too old to be sent even if the Editor
+	 * version corresponding to the format was used again. This is a maintenance function to prevent accumulating dead
+	 * sessions over years.
+	 * @param MaxAge Threshold to delete sessions that are older than MaxAge. Incompatible sessions are kept around for
+	 *               some time because many users continue using older versions of the Editor that would be able to send
+	 *               those sessions that a newer Editor version wouldn't.
+	 */
+	static void CleanupOutdatedIncompatibleSessions(const FTimespan& MaxAge);
 
 	/**
 	 * Try to acquire the local storage lock without blocking.

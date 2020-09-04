@@ -1594,6 +1594,8 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 
 	if (NormalShadows.Num() > 0)
 	{
+		FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(SceneContext, FeatureLevel, ESceneTextureSetupMode::All, UniformBuffer_SingleFrame);
+
 		auto RenderShadowMask = [&](const FHairStrandsVisibilityViews* HairVisibilityViews)
 		{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
@@ -1616,6 +1618,9 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 				LightSceneInfo->Proxy->SetScissorRect(RHICmdList, View, View.ViewRect);
 
 				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+
+				FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
+				SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 
 				// Project the shadow depth buffers onto the scene.
 				for (int32 ShadowIndex = 0; ShadowIndex < NormalShadows.Num(); ShadowIndex++)

@@ -60,4 +60,3 @@ private:
 	// Tick end barrier
 	FDisplayClusterBarrier BarrierTickEnd;
 };
-

@@ -111,7 +111,9 @@ protected:
 
 	void UpdateDrawing();
 
+#if WITH_EDITOR
 	static void OnEditorSelectionChanged(UObject* NewSelection);
+#endif // WITH_EDITOR
 
 public:
 #if WITH_EDITORONLY_DATA

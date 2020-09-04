@@ -13,12 +13,12 @@ precise float4 MakePrecise(precise float4 v) { return v; }
 #if PLATFORM_SUPPORTS_STATIC_SAMPLERS
 
 // Static sampler table must match D3D12RootSignature.cpp
-SamplerState D3DStaticPointWrappedSampler       : register(s1000);
-SamplerState D3DStaticPointClampedSampler       : register(s1001);
-SamplerState D3DStaticBilinearWrappedSampler    : register(s1002);
-SamplerState D3DStaticBilinearClampedSampler    : register(s1003);
-SamplerState D3DStaticTrilinearWrappedSampler   : register(s1004);
-SamplerState D3DStaticTrilinearClampedSampler   : register(s1005);
+SamplerState D3DStaticPointWrappedSampler       : register(s0, space1000);
+SamplerState D3DStaticPointClampedSampler       : register(s1, space1000);
+SamplerState D3DStaticBilinearWrappedSampler    : register(s2, space1000);
+SamplerState D3DStaticBilinearClampedSampler    : register(s3, space1000);
+SamplerState D3DStaticTrilinearWrappedSampler   : register(s4, space1000);
+SamplerState D3DStaticTrilinearClampedSampler   : register(s5, space1000);
 
 #define GetGlobalSampler(Filter, WrapMode) D3DStatic##Filter##WrapMode##Sampler
 

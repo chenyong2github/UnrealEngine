@@ -45,6 +45,7 @@ static TAutoConsoleVariable<int32> CVarRayTracingNiagaraSprites(
 	1,
 	TEXT("Include Niagara sprites in ray tracing effects (default = 1 (Niagara sprites enabled in ray tracing))"));
 
+
 /** Dynamic data for sprite renderers. */
 struct FNiagaraDynamicDataSprites : public FNiagaraDynamicDataBase
 {
@@ -795,7 +796,8 @@ void FNiagaraRendererSprites::GetDynamicRayTracingInstances(FRayTracingMaterialG
 				NumVerticesPerInstance * SourceParticleData->GetNumInstances() * (uint32)sizeof(FVector),
 				NumTrianglesPerInstance * SourceParticleData->GetNumInstances(),
 				&RayTracingGeometry,
-				VertexBuffer
+				VertexBuffer,
+				true
 			}
 		);
 	}

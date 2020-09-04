@@ -205,7 +205,7 @@ struct FRigUnit_MathTransformLerp : public FRigUnit_MathTransformBase
 /**
  * Return one of the two values based on the condition
  */
-USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If"))
+USTRUCT(meta=(DisplayName="Select", PrototypeName="Select", Keywords="Pick,If", Deprecated = "4.26.0"))
 struct FRigUnit_MathTransformSelectBool : public FRigUnit_MathTransformBase
 {
 	GENERATED_BODY()

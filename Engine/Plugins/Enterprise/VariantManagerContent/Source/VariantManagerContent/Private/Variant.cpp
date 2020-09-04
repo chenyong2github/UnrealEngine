@@ -2,7 +2,9 @@
 
 #include "Variant.h"
 
+#include "LevelVariantSets.h"
 #include "PropertyValue.h"
+#include "ThumbnailGenerator.h"
 #include "VariantManagerContentLog.h"
 #include "VariantManagerObjectVersion.h"
 #include "VariantObjectBinding.h"
@@ -11,18 +13,46 @@
 #include "CoreMinimal.h"
 #include "Engine/Texture2D.h"
 #include "GameFramework/Actor.h"
-#include "ImageUtils.h"
-
-#if WITH_EDITORONLY_DATA
-#include "ObjectTools.h"
-#endif
 
 #define LOCTEXT_NAMESPACE "Variant"
+
+UVariant::FOnVariantChanged UVariant::OnThumbnailUpdated;
+
+UVariant::FOnVariantChanged UVariant::OnDependenciesUpdated;
+
+struct FVariantImpl
+{
+	static bool IsValidDependencyRecursive(const UVariant* This, const UVariant* Other, TSet<const UVariant*>& ParentStack)
+	{
+		if (!Other || Other == This || ParentStack.Contains(Other))
+		{
+			return false;
+		}
+
+		ParentStack.Add(Other);
+
+		for (const FVariantDependency& Dependency : Other->Dependencies)
+		{
+			const UVariant* OtherDependency = Dependency.Variant.Get();
+			if (!FVariantImpl::IsValidDependencyRecursive(This, OtherDependency, ParentStack))
+			{
+				return false;
+			}
+		}
+
+		ParentStack.Remove(Other);
+
+		return true;
+	}
+};
 
 UVariant::UVariant(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	DisplayText = FText::FromString(TEXT("Variant"));
+#if WITH_EDITOR
+	bTriedRestoringOldThumbnail = false;
+#endif
 }
 
 UVariantSet* UVariant::GetParent()
@@ -213,6 +243,24 @@ UVariantObjectBinding* UVariant::GetBindingByName(const FString& ActorName)
 
 void UVariant::SwitchOn()
 {
+	if (GetPackage() == GetTransientPackage())
+	{
+		return;
+	}
+
+	for ( const FVariantDependency& Dependency : Dependencies )
+	{
+		if ( !Dependency.bEnabled )
+		{
+			continue;
+		}
+
+		if ( UVariant* Variant = Dependency.Variant.Get() )
+		{
+			Variant->SwitchOn();
+		}
+	}
+
 	for (UVariantObjectBinding* Binding : ObjectBindings)
 	{
 		for (UPropertyValue* PropCapture : Binding->GetCapturedProperties())
@@ -245,114 +293,173 @@ bool UVariant::IsActive()
 	return true;
 }
 
-void UVariant::SetThumbnail(UTexture2D* NewThumbnail)
+void UVariant::SetThumbnailFromTexture(UTexture2D* Texture)
 {
-	if (NewThumbnail == Thumbnail)
+	if (Texture == nullptr)
 	{
-		return;
+		SetThumbnailInternal(nullptr);
 	}
-
-	if (NewThumbnail != nullptr)
+	else
 	{
-		int32 OriginalWidth = NewThumbnail->PlatformData->SizeX;
-		int32 OriginalHeight = NewThumbnail->PlatformData->SizeY;
-		int32 TargetWidth = FMath::Min(OriginalWidth, VARIANT_THUMBNAIL_SIZE);
-		int32 TargetHeight = FMath::Min(OriginalHeight, VARIANT_THUMBNAIL_SIZE);
-
-		// We need to guarantee this UTexture2D is serialized with us but that we don't take ownership of it,
-		// and also that it is shown without compression, so we duplicate it here
-		if (TargetWidth != OriginalWidth || TargetHeight != OriginalHeight || NewThumbnail->GetOuter() != this)
+		if (UTexture2D* NewThumbnail = ThumbnailGenerator::GenerateThumbnailFromTexture(Texture))
 		{
-			const FColor* OriginalBytes = reinterpret_cast<const FColor*>(NewThumbnail->PlatformData->Mips[0].BulkData.LockReadOnly());
-			TArrayView<const FColor> OriginalColors(OriginalBytes, OriginalWidth * OriginalHeight);
-
-			TArray<FColor> TargetColors;
-			TargetColors.SetNumUninitialized(TargetWidth * TargetHeight);
-
-			if (TargetWidth != OriginalWidth || TargetHeight != OriginalHeight)
-			{
-				FImageUtils::ImageResize(OriginalWidth, OriginalHeight, OriginalColors, TargetWidth, TargetHeight, TArrayView<FColor>(TargetColors), false);
-			}
-			else
-			{
-				TargetColors = TArray<FColor>(OriginalColors.GetData(), OriginalColors.GetTypeSize() * OriginalColors.Num());
-			}
-
-			NewThumbnail->PlatformData->Mips[0].BulkData.Unlock();
-
-			FCreateTexture2DParameters Params;
-			Params.bDeferCompression = true;
-			Params.CompressionSettings = TC_EditorIcon;
-
-			UTexture2D* ResizedThumbnail = FImageUtils::CreateTexture2D(TargetWidth, TargetHeight, TargetColors, this, FString(), RF_NoFlags, Params);
-			if (ResizedThumbnail)
-			{
-				NewThumbnail = ResizedThumbnail;
-			}
-			else
-			{
-				UE_LOG(LogVariantContent, Warning, TEXT("Failed to resize texture '%s' as a thumbnail for variant '%s'"), *NewThumbnail->GetName(), *GetDisplayText().ToString());
-				return;
-			}
+			SetThumbnailInternal(NewThumbnail);
 		}
 	}
+}
 
-	Modify();
+void UVariant::SetThumbnailFromFile(FString FilePath)
+{
+	if (UTexture2D* NewThumbnail = ThumbnailGenerator::GenerateThumbnailFromFile(FilePath))
+	{
+		SetThumbnailInternal(NewThumbnail);
+	}
+}
 
-	Thumbnail = NewThumbnail;
+void UVariant::SetThumbnailFromCamera(UObject* WorldContextObject, const FTransform& CameraTransform, float FOVDegrees, float MinZ, float Gamma)
+{
+	if (UTexture2D* NewThumbnail = ThumbnailGenerator::GenerateThumbnailFromCamera(WorldContextObject, CameraTransform, FOVDegrees, MinZ, Gamma))
+	{
+		SetThumbnailInternal(NewThumbnail);
+	}
+}
+
+void UVariant::SetThumbnailFromEditorViewport()
+{
+	if (UTexture2D* NewThumbnail = ThumbnailGenerator::GenerateThumbnailFromEditorViewport())
+	{
+		SetThumbnailInternal(NewThumbnail);
+	}
 }
 
 UTexture2D* UVariant::GetThumbnail()
 {
-#if WITH_EDITORONLY_DATA
-	if (Thumbnail == nullptr)
+#if WITH_EDITOR
+	if (Thumbnail == nullptr && !bTriedRestoringOldThumbnail)
 	{
-		// Try to convert old thumbnails to a new thumbnail
-		FName VariantName = *GetFullName();
-		FThumbnailMap Map;
-		ThumbnailTools::ConditionallyLoadThumbnailsForObjects({ VariantName }, Map);
-
-		FObjectThumbnail* OldThumbnail = Map.Find(VariantName);
-		if (OldThumbnail && !OldThumbnail->IsEmpty())
-		{
-			const TArray<uint8>& OldBytes = OldThumbnail->GetUncompressedImageData();
-
-			TArray<FColor> OldColors;
-			OldColors.SetNumUninitialized(OldBytes.Num() / sizeof(FColor));
-			FMemory::Memcpy(OldColors.GetData(), OldBytes.GetData(), OldBytes.Num());
-
-			// Resize if needed
-			int32 Width = OldThumbnail->GetImageWidth();
-			int32 Height = OldThumbnail->GetImageHeight();
-			if (Width != VARIANT_THUMBNAIL_SIZE || Height != VARIANT_THUMBNAIL_SIZE)
-			{
-				TArray<FColor> ResizedColors;
-				ResizedColors.SetNum(VARIANT_THUMBNAIL_SIZE * VARIANT_THUMBNAIL_SIZE);
-
-				FImageUtils::ImageResize(Width, Height, OldColors, VARIANT_THUMBNAIL_SIZE, VARIANT_THUMBNAIL_SIZE, ResizedColors, false);
-
-				OldColors = MoveTemp(ResizedColors);
-			}
-
-			FCreateTexture2DParameters Params;
-			Params.bDeferCompression = true;
-
-			Thumbnail = FImageUtils::CreateTexture2D(VARIANT_THUMBNAIL_SIZE, VARIANT_THUMBNAIL_SIZE, OldColors, this, FString(), RF_NoFlags, Params);
-
-			UPackage* Package = GetOutermost();
-			if (Package)
-			{
-				// After this our thumbnail will be empty, and we won't get in here ever again for this variant
-				ThumbnailTools::CacheEmptyThumbnail(GetFullName(), GetOutermost());
-
-				// Updated the thumbnail in the package, so we need to notify that it changed
-				Package->MarkPackageDirty();
-			}
-		}
+		Thumbnail = ThumbnailGenerator::GenerateThumbnailFromObjectThumbnail(this);
+		bTriedRestoringOldThumbnail = true;
 	}
 #endif
 
 	return Thumbnail;
+}
+
+void UVariant::SetThumbnailInternal(UTexture2D* NewThumbnail)
+{
+	Modify();
+	Thumbnail = NewThumbnail;
+
+	if (NewThumbnail)
+	{
+		NewThumbnail->Rename(nullptr, this);
+	}
+
+	UVariant::OnThumbnailUpdated.Broadcast(this);
+}
+
+TArray<UVariant*> UVariant::GetDependents(ULevelVariantSets* LevelVariantSets, bool bOnlyEnabledDependencies )
+{
+	TArray<UVariant*> Result;
+	if ( !LevelVariantSets )
+	{
+		return Result;
+	}
+
+	for ( UVariantSet* VariantSet : LevelVariantSets->GetVariantSets() )
+	{
+		if ( !VariantSet )
+		{
+			continue;
+		}
+
+		for ( UVariant* Variant : VariantSet->GetVariants() )
+		{
+			if ( !Variant )
+			{
+				continue;
+			}
+
+			for ( FVariantDependency& Dependency : Variant->Dependencies )
+			{
+				UVariant* TargetVariant = Dependency.Variant.Get();
+				if ( (Dependency.bEnabled || !bOnlyEnabledDependencies) && TargetVariant == this )
+				{
+					Result.Add(Variant);
+				}
+			}
+		}
+	}
+
+	return Result;
+}
+
+bool UVariant::IsValidDependency(const UVariant* Other) const
+{
+	TSet<const UVariant*> ParentStack;
+	return FVariantImpl::IsValidDependencyRecursive(this, Other, ParentStack);
+}
+
+int32 UVariant::AddDependency(FVariantDependency& Dependency)
+{
+	UVariant* Variant = Dependency.Variant.Get();
+	if (Variant && !IsValidDependency(Variant))
+	{
+		UE_LOG(LogVariantContent, Error, TEXT("Cannot add variant '%s' as a dependency of '%s'! Cycles were detected!"), *Variant->GetDisplayText().ToString(), *GetDisplayText().ToString());
+		return INDEX_NONE;
+	}
+
+	Modify();
+	int32 NewIndex = Dependencies.Add(Dependency);
+	UVariant::OnDependenciesUpdated.Broadcast(this);
+	return NewIndex;
+}
+
+FVariantDependency& UVariant::GetDependency(int32 Index)
+{
+	return Dependencies[Index];
+}
+
+void UVariant::SetDependency(int32 Index, FVariantDependency& Dependency)
+{
+	if (Dependencies.IsValidIndex(Index))
+	{
+		UVariant* Variant = Dependency.Variant.Get();
+		if (Variant && !IsValidDependency(Variant))
+		{
+			UE_LOG(LogVariantContent, Error, TEXT("Cannot set variant '%s' as a dependency of '%s'! Cycles were detected!"),
+				*Variant->GetDisplayText().ToString(),
+				*GetDisplayText().ToString());
+			return;
+		}
+
+		Modify();
+		Dependencies[Index] = Dependency;
+		UVariant::OnDependenciesUpdated.Broadcast(this);
+	}
+	else
+	{
+		UE_LOG(LogVariantContent, Error, TEXT("Invalid dependency index '%d'! Note: Variant '%s' has '%d' dependencies"), Index, *GetDisplayText().ToString(), GetNumDependencies());
+	}
+}
+
+void UVariant::DeleteDependency(int32 Index)
+{
+	if (Dependencies.IsValidIndex(Index))
+	{
+		Modify();
+		Dependencies.RemoveAt(Index);
+		UVariant::OnDependenciesUpdated.Broadcast(this);
+	}
+	else
+	{
+		UE_LOG(LogVariantContent, Error, TEXT("Invalid dependency index '%d'! Note: Variant '%s' has '%d' dependencies"), Index, *GetDisplayText().ToString(), GetNumDependencies());
+	}
+}
+
+int32 UVariant::GetNumDependencies()
+{
+	return Dependencies.Num();
 }
 
 #undef LOCTEXT_NAMESPACE

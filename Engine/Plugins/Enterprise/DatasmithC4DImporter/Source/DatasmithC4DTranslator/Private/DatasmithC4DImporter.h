@@ -85,6 +85,7 @@ public:
 	TSharedPtr<IDatasmithCameraActorElement> ImportCamera(melange::BaseObject* CameraObject, const FString& DatasmithName, const FString& DatasmithLabel);
 	TSharedPtr<IDatasmithMeshActorElement> ImportPolygon(melange::PolygonObject* PolyObject, const FString& DatasmithName, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
 	TSharedPtr<IDatasmithMasterMaterialElement> ImportMaterial(melange::Material* InC4DMaterialPtr);
+	TSharedPtr<IDatasmithMasterMaterialElement> ImportSimpleColorMaterial(melange::BaseObject* Object, int32 UseColor);
 	TSharedPtr<IDatasmithTextureElement> ImportTexture(const FString& TexturePath, EDatasmithTextureMode TextureMode);
 	TSharedPtr<IDatasmithMeshElement> ImportMesh(melange::PolygonObject* PolyObject, const FString& DatasmithMeshName, const FString& DatasmithLabel);
 
@@ -116,10 +117,10 @@ public:
 	TMap<int32, FString> GetCustomizedMaterialAssignment(const FString& DatasmithMeshName, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Imports a melange actor, which might involve parsing another small hierarchy of subnodes and deformers*/
-	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
+	TSharedPtr<IDatasmithActorElement> ImportObjectAndChildren(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const FString& DatasmithLabel, const TArray<melange::TextureTag*>& TextureTags);
 
 	/** Traverse the melange actor hierarchy importing all nodes */
-	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, TArray<melange::BaseObject*>* InstanceObjects, const TArray<melange::TextureTag*>& TextureTags);
+	void ImportHierarchy(melange::BaseObject* ActorObject, melange::BaseObject* DataObject, TSharedPtr<IDatasmithActorElement> ParentActor, const melange::Matrix& WorldTransformMatrix, const FString& InstancePath, const TArray<melange::TextureTag*>& TextureTags);
 
 	/**
 	 * Adds Actor as a child of ParentActor using the corresponding WorldTransformMatrix. Object is the corresponding melange Object to Actor.
@@ -134,11 +135,23 @@ public:
 	FString C4dDocumentFilename;
 
 private:
+	FVector GetDocumentDefaultColor();
+
 	/** Returns the TextureTags that should affect this object. May check parent objects, so relies on CachesOriginalObject */
 	TArray<melange::TextureTag*> GetActiveTextureTags(const melange::BaseObject* Object, const TArray<melange::TextureTag*>& OrderedTextureTags);
 
 	/** Removes from Context->Scene all empty actors that have a single child */
 	void RemoveEmptyActors();
+
+	/** Traverses the original and instanced hierarchy simultaneously and register links between instanced objects and their originals */
+	void RegisterInstancedHierarchy(melange::BaseObject* InstanceRoot, melange::BaseObject* OriginalRoot);
+
+	/**
+	 * Replaces the values of ActorElementToAnimationSources to point to the original objects, in case they are instanced objects.
+	 * This is required because we need to parse the instanced hierarchy to fetch the correct polygons and materials, but Cinema 4D only places animations
+	 * on the original hierarchy.
+	 */
+	void RedirectInstancedAnimations();
 
 	/** Storage of FMeshDescriptions until they're retrieved by GetGeometriesForMeshElement */
 	TMap<IDatasmithMeshElement*, FMeshDescription> MeshElementToMeshDescription;
@@ -156,10 +169,10 @@ private:
 	TMap<FString, TSharedPtr<IDatasmithTextureElement>> ImportedTextures;
 
 	/** Storage of all parsed actors from the melange document, used so we can import all animations afterwards */
-	TMap<IDatasmithActorElement*, melange::BaseObject*> ActorElementToC4DObject;
+	TMap<IDatasmithActorElement*, melange::BaseObject*> ActorElementToAnimationSources;
 
-	/** Cache caches all objects that are children of instance objects i.e. caches all instanced objects */
-	TMap<melange::BaseObject*, TArray<melange::BaseObject*>> InstancesObjectsMap;
+	/** Maps an instance to the corresponding original node, used so that we can redirect animations to the original nodes */
+	TMap<melange::BaseObject*, melange::BaseObject*> InstancedSubObjectsToOriginals;
 
 	/** Keeps track of the owners of every melange cache object so we can climb the hierarchy upwards */
 	TMap<melange::BaseObject*, melange::BaseObject*> CachesOriginalObject;
@@ -187,6 +200,8 @@ private:
 
 	/** Can be used to also export the imported scene in a .udatasmith format during import */
 	TSharedPtr<FDatasmithSceneExporter> SceneExporterRef;
+
+	TOptional<FVector> DefaultDocumentColorLinear;
 };
 
 #endif // _MELANGE_SDK_

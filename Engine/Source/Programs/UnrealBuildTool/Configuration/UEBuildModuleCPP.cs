@@ -128,6 +128,7 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("MovieSceneTools", "Sequencer"),
 			new KeyValuePair<string, string>("NavigationSystem", "UnrealEd"),
 			new KeyValuePair<string, string>("PacketHandler", "ReliabilityHandlerComponent"),
+			new KeyValuePair<string, string>("PIEPreviewDeviceProfileSelector", "UnrealEd"),
 			new KeyValuePair<string, string>("PixelInspectorModule", "UnrealEd"),
 			new KeyValuePair<string, string>("Sequencer", "MovieSceneTools"),
 			new KeyValuePair<string, string>("Sequencer", "ViewportInteraction"),
@@ -141,7 +142,6 @@ namespace UnrealBuildTool
 			new KeyValuePair<string, string>("UnrealEd", "Kismet"),
 			new KeyValuePair<string, string>("UnrealEd", "MeshPaint"),
 			new KeyValuePair<string, string>("UnrealEd", "MeshPaintMode"),
-			new KeyValuePair<string, string>("UnrealEd", "PIEPreviewDeviceProfileSelector"),
 			new KeyValuePair<string, string>("UnrealEd", "PluginWarden"),
 			new KeyValuePair<string, string>("UnrealEd", "PropertyEditor"),
 			new KeyValuePair<string, string>("UnrealEd", "ToolMenusEditor"),
@@ -713,6 +713,10 @@ namespace UnrealBuildTool
 			{
 				return false;
 			}
+			if (ModuleCompileEnvironment.CppStandard != CompileEnvironment.CppStandard)
+			{
+				return false;
+			}
 			return true;
 		}
 
@@ -801,6 +805,12 @@ namespace UnrealBuildTool
 					Variant += ".NoUndef";
 				}
 			}
+
+			if (CompileEnvironment.CppStandard != BaseCompileEnvironment.CppStandard)
+			{
+				Variant += String.Format(".{0}", CompileEnvironment.CppStandard);
+			}
+
 			return Variant;
 		}
 
@@ -817,6 +827,7 @@ namespace UnrealBuildTool
 			CompileEnvironment.ShadowVariableWarningLevel = ModuleCompileEnvironment.ShadowVariableWarningLevel;
 			CompileEnvironment.UnsafeTypeCastWarningLevel = ModuleCompileEnvironment.UnsafeTypeCastWarningLevel;
 			CompileEnvironment.bEnableUndefinedIdentifierWarnings = ModuleCompileEnvironment.bEnableUndefinedIdentifierWarnings;
+			CompileEnvironment.CppStandard = ModuleCompileEnvironment.CppStandard;
 		}
 
 		/// <summary>

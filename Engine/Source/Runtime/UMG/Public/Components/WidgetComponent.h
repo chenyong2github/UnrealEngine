@@ -98,7 +98,6 @@ class UMG_API UWidgetComponent : public UMeshComponent
 public:
 	//UObject interface
 	virtual void Serialize(FArchive& Ar) override;
-	virtual bool IsDestructionThreadSafe() const override { return false; }
 	//~ End UObject Interface
 
 	/** UActorComponent Interface */

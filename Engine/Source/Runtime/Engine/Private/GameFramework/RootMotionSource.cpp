@@ -1765,9 +1765,9 @@ void FRootMotionSourceGroup::ApplyTimeStampReset(float DeltaTime)
 	}
 }
 
-uint16 FRootMotionSourceGroup::ApplyRootMotionSource(FRootMotionSource* SourcePtr)
+uint16 FRootMotionSourceGroup::ApplyRootMotionSource(TSharedPtr<FRootMotionSource> SourcePtr)
 {
-	if (SourcePtr != nullptr)
+	if (ensure(SourcePtr.IsValid()))
 	{
 		// Get valid localID
 		// Note: Current ID method could produce duplicate IDs "in flight" at one time
@@ -1784,14 +1784,10 @@ uint16 FRootMotionSourceGroup::ApplyRootMotionSource(FRootMotionSource* SourcePt
 		SourcePtr->LocalID = LocalID;
 
 		// Apply to pending so that next Prepare it gets added to "active"
-		PendingAddRootMotionSources.Add(TSharedPtr<FRootMotionSource>(SourcePtr));
+		PendingAddRootMotionSources.Add(SourcePtr);
 		UE_LOG(LogRootMotion, VeryVerbose, TEXT("RootMotionSource added to Pending: [%u] %s"), LocalID, *SourcePtr->ToSimpleString());
 
 		return LocalID;
-	}
-	else
-	{
-		checkf(false, TEXT("Passing nullptr into FRootMotionSourceGroup::ApplyRootMotionSource"));
 	}
 
 	return (uint16)ERootMotionSourceID::Invalid;
@@ -2234,9 +2230,9 @@ bool FRootMotionSourceGroup::operator!=(const FRootMotionSourceGroup& Other) con
 	return !(FRootMotionSourceGroup::operator==(Other));
 }
 
-void FRootMotionSourceGroup::AddStructReferencedObjects(class FReferenceCollector& Collector) const
+void FRootMotionSourceGroup::AddStructReferencedObjects(class FReferenceCollector& Collector)
 {
-	for (const auto& RootMotionSource : RootMotionSources)
+	for (TSharedPtr<FRootMotionSource>& RootMotionSource : RootMotionSources)
 	{
 		if (RootMotionSource.IsValid())
 		{
@@ -2244,7 +2240,7 @@ void FRootMotionSourceGroup::AddStructReferencedObjects(class FReferenceCollecto
 		}
 	}
 
-	for (const auto& RootMotionSource : PendingAddRootMotionSources)
+	for (TSharedPtr<FRootMotionSource>& RootMotionSource : PendingAddRootMotionSources)
 	{
 		if (RootMotionSource.IsValid())
 		{

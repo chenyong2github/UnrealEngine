@@ -58,8 +58,8 @@ static void SerializeLODInfoForDDC(USkeletalMesh* SkeletalMesh, FString& KeySuff
 // If skeletal mesh derived data needs to be rebuilt (new format, serialization
 // differences, etc.) replace the version GUID below with a new one.
 // In case of merge conflicts with DDC versions, you MUST generate a new GUID
-// and set this new GUID as the version.                                       
-#define SKELETALMESH_DERIVEDDATA_VER TEXT("1C773BAE1FBE45EBB033448102C753F1")
+// and set this new GUID as the version.           
+#define SKELETALMESH_DERIVEDDATA_VER TEXT("8C07B3C86DA74803BA18CCD2487AB3EC")
 
 static const FString& GetSkeletalMeshDerivedDataVersion()
 {
@@ -115,6 +115,9 @@ static FString BuildSkeletalMeshDerivedDataKey(const ITargetPlatform* TargetPlat
 	{
 		KeySuffix += TEXT("0zzzzzzzzzzzzzzzz");
 	}
+
+	const bool bUnlimitedBoneInfluences = FGPUBaseSkinVertexFactory::GetUnlimitedBoneInfluences();
+	KeySuffix += bUnlimitedBoneInfluences ? "1" : "0";
 
 	return FDerivedDataCacheInterface::BuildCacheKey(
 		TEXT("SKELETALMESH"),

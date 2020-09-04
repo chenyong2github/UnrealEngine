@@ -472,6 +472,8 @@ enum class EDecimalNumberParseFlags : uint8
 	AllowTrailingSign = 1<<1,
 	AllowDecimalSeparators = 1<<2,
 	AllowGroupSeparators = 1<<3,
+	TestLimits = 1<<4,
+	ClampValue = 1<<5,
 };
 ENUM_CLASS_FLAGS(EDecimalNumberParseFlags);
 
@@ -528,9 +530,10 @@ private:
 	const FDecimalNumberSigningStrings ASCII_AlwaysSigned;
 };
 
-bool StringToIntegral_StringToUInt64(const TCHAR*& InBuffer, const TCHAR* InBufferEnd, const FDecimalNumberFormattingRules& InFormattingRules, const FDecimalNumberSignParser& InSignParser, const EDecimalNumberParseFlags& InParseFlags, const int32* InMaxDigitsToParse, bool& OutIsNegative, uint64& OutVal, uint8& OutDigitCount)
+bool StringToIntegral_StringToUInt64(const TCHAR*& InBuffer, const TCHAR* InBufferEnd, const FDecimalNumberFormattingRules& InFormattingRules, const FDecimalNumberSignParser& InSignParser, const EDecimalNumberParseFlags& InParseFlags, const int32 InMaxDigitsToParse, bool& OutIsNegative, bool& OutIsOverflow, uint64& OutVal, uint8& OutDigitCount)
 {
 	OutIsNegative = false;
+	OutIsOverflow = false;
 	OutVal = 0;
 	OutDigitCount = 0;
 
@@ -545,6 +548,8 @@ bool StringToIntegral_StringToUInt64(const TCHAR*& InBuffer, const TCHAR* InBuff
 	{
 		return false;
 	}
+
+	const bool bTestForOverflow = EnumHasAnyFlags(InParseFlags, EDecimalNumberParseFlags::TestLimits | EDecimalNumberParseFlags::ClampValue);
 
 	// Parse the number, stopping once we find the end of the string or a decimal separator
 	static const TCHAR EuropeanNumerals[] = { '0', '1', '2', '3', '4', '5', '6', '7', '8', '9' };
@@ -569,11 +574,28 @@ bool StringToIntegral_StringToUInt64(const TCHAR*& InBuffer, const TCHAR* InBuff
 			if ((*InBuffer == InFormattingRules.DigitCharacters[CharIndex]) || (*InBuffer == EuropeanNumerals[CharIndex]))
 			{
 				++InBuffer;
-				if (!InMaxDigitsToParse || OutDigitCount < *InMaxDigitsToParse)
+				if (OutDigitCount < InMaxDigitsToParse)
 				{
 					++OutDigitCount;
-					OutVal *= 10;
-					OutVal += CharIndex;
+					uint64 NewVal = (OutVal * 10) + CharIndex;
+					if (bTestForOverflow && NewVal <= OutVal && OutVal != 0)
+					{
+						OutIsOverflow = true;
+						if (EnumHasAnyFlags(InParseFlags, EDecimalNumberParseFlags::TestLimits))
+						{
+							return false;
+						}
+					}
+					OutVal = NewVal;
+				}
+				else if (bTestForOverflow)
+				{
+					// Found a number too big to be represented
+					OutIsOverflow = true;
+					if (EnumHasAnyFlags(InParseFlags, EDecimalNumberParseFlags::TestLimits))
+					{
+						return false;
+					}
 				}
 				bValidChar = true;
 				break;
@@ -613,33 +635,65 @@ bool StringToIntegral_StringToUInt64(const TCHAR*& InBuffer, const TCHAR* InBuff
 	return !bFoundUnexpectedNonNumericCharacter;
 }
 
-FORCEINLINE bool StringToIntegral_Common(const TCHAR*& InBuffer, const TCHAR* InBufferEnd, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberSignParser& InSignParser, bool& OutIsNegative, uint64& OutVal, uint8& OutDigitCount)
+FORCEINLINE bool StringToIntegral_Common(const TCHAR*& InBuffer, const TCHAR* InBufferEnd, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberSignParser& InSignParser, bool& OutIsNegative, bool& OutIsOverflow, uint64& OutVal, uint8& OutDigitCount)
 {
 	return StringToIntegral_StringToUInt64(
 		InBuffer, 
 		InBufferEnd, 
 		InFormattingRules, 
 		InSignParser, 
-		EDecimalNumberParseFlags::AllowLeadingSign | EDecimalNumberParseFlags::AllowTrailingSign | EDecimalNumberParseFlags::AllowDecimalSeparators | (InParsingOptions.UseGrouping ? EDecimalNumberParseFlags::AllowGroupSeparators : EDecimalNumberParseFlags::None), 
-		nullptr, 
-		OutIsNegative, 
+		EDecimalNumberParseFlags::AllowLeadingSign | EDecimalNumberParseFlags::AllowTrailingSign | EDecimalNumberParseFlags::AllowDecimalSeparators
+			| (InParsingOptions.UseGrouping ? EDecimalNumberParseFlags::AllowGroupSeparators : EDecimalNumberParseFlags::None)
+			| (InParsingOptions.InsideLimits ? EDecimalNumberParseFlags::TestLimits : EDecimalNumberParseFlags::None)
+			| (InParsingOptions.UseClamping ? EDecimalNumberParseFlags::ClampValue : EDecimalNumberParseFlags::None),
+		MaxIntegralPrintLength,
+		OutIsNegative,
+		OutIsOverflow,
 		OutVal, 
 		OutDigitCount
 		);
 }
 
-bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, bool& OutIsNegative, uint64& OutVal, int32* OutParsedLen)
+bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberIntegralLimits& InLimits, bool& OutIsNegative, uint64& OutVal, int32* OutParsedLen)
 {
 	const TCHAR* Buffer = InStr;
 	const TCHAR* BufferEnd = InStr + InStrLen;
 	const FDecimalNumberSignParser SignParser(InFormattingRules);
 
 	// Parse the integral part of the number
+	bool bIsOverflow = false;
 	uint8 IntegralPartDigitCount = 0;
-	bool bResult = StringToIntegral_Common(Buffer, BufferEnd, InFormattingRules, InParsingOptions, SignParser, OutIsNegative, OutVal, IntegralPartDigitCount);
+	bool bResult = StringToIntegral_Common(Buffer, BufferEnd, InFormattingRules, InParsingOptions, SignParser, OutIsNegative, bIsOverflow, OutVal, IntegralPartDigitCount);
 
 	// A number can only be valid if we actually parsed some digits
 	bResult &= IntegralPartDigitCount > 0;
+
+	if (bResult && InParsingOptions.InsideLimits)
+	{
+		bResult &= !bIsOverflow;
+		if (InLimits.bIsNumericSigned)
+		{
+			uint64 NegativeMinLimit = OutIsNegative ? InLimits.NumericLimitLowest * -1 : InLimits.NumericLimitMax;	//ie. -128 * -1 == 128 | 127
+			bResult &= OutVal <= NegativeMinLimit;
+		}
+		else
+		{
+			bResult &= !OutIsNegative;
+			bResult &= OutVal <= InLimits.NumericLimitMax;
+		}
+	}
+
+	if (bResult && InParsingOptions.UseClamping)
+	{
+		if (bIsOverflow)
+		{
+			OutVal = OutIsNegative ? uint64(InLimits.NumericLimitLowest * -1) : InLimits.NumericLimitMax;
+		}
+		else
+		{
+			OutVal = FMath::Clamp<uint64>(OutVal, 0, OutIsNegative ? (InLimits.NumericLimitLowest * -1) : InLimits.NumericLimitMax);
+		}
+	}
 
 	// Only fill in the length if we actually parsed some digits
 	if (IntegralPartDigitCount > 0 && OutParsedLen)
@@ -650,7 +704,7 @@ bool StringToIntegral(const TCHAR* InStr, const int32 InStrLen, const FDecimalNu
 	return bResult;
 }
 
-bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, double& OutVal, int32* OutParsedLen)
+bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimalNumberFormattingRules& InFormattingRules, const FNumberParsingOptions& InParsingOptions, const FDecimalNumberFractionalLimits& InLimits, double& OutVal, int32* OutParsedLen)
 {
 	const TCHAR* Buffer = InStr;
 	const TCHAR* BufferEnd = InStr + InStrLen;
@@ -658,18 +712,22 @@ bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimal
 
 	// Parse the integral part of the number, if this succeeds then Buffer will be pointing at the first digit past the decimal separator
 	bool bIntegralPartIsNegative = false;
+	bool bIntegralPartIsOverflow = false;
 	uint64 IntegralPart = 0;
 	uint8 IntegralPartDigitCount = 0;
-	bool bResult = StringToIntegral_Common(Buffer, BufferEnd, InFormattingRules, InParsingOptions, SignParser, bIntegralPartIsNegative, IntegralPart, IntegralPartDigitCount);
+	bool bResult = StringToIntegral_Common(Buffer, BufferEnd, InFormattingRules, InParsingOptions, SignParser, bIntegralPartIsNegative, bIntegralPartIsOverflow, IntegralPart, IntegralPartDigitCount);
+	bResult &= !bIntegralPartIsOverflow;
 
 	// Parse the fractional part of the number
 	bool bFractionPartIsNegative = false;
+	bool bFractionPartIsOverflow = false;
 	uint64 FractionalPart = 0;
 	uint8 FractionalPartDigitCount = 0;
 	if (bResult && Buffer > InStr && *(Buffer - 1) == InFormattingRules.DecimalSeparatorCharacter)
 	{
 		// Only parse the fractional part of the number if the preceding character was a decimal separator
-		bResult &= StringToIntegral_StringToUInt64(Buffer, BufferEnd, InFormattingRules, SignParser, EDecimalNumberParseFlags::AllowTrailingSign, &MaxFractionalPrintPrecision, bFractionPartIsNegative, FractionalPart, FractionalPartDigitCount);
+		bResult &= StringToIntegral_StringToUInt64(Buffer, BufferEnd, InFormattingRules, SignParser, EDecimalNumberParseFlags::AllowTrailingSign, MaxFractionalPrintPrecision, bFractionPartIsNegative, bFractionPartIsOverflow, FractionalPart, FractionalPartDigitCount);
+		// if bFractionPartIsOverflow then we are losing precession but the number is still valid (and should be bellow MaxFractionalPrintPrecision)
 	}
 
 	// A number can only be valid if we actually parsed some digits
@@ -681,6 +739,17 @@ bool StringToFractional(const TCHAR* InStr, const int32 InStrLen, const FDecimal
 	OutVal += (static_cast<double>(FractionalPart) / Pow10Table[FractionalPartDigitCount]);
 	OutVal *= ((bIntegralPartIsNegative || bFractionPartIsNegative) ? -1.0 : 1.0);
 	
+
+	if (bResult && InParsingOptions.InsideLimits)
+	{
+		bResult &= OutVal >= InLimits.NumericLimitLowest && OutVal <= InLimits.NumericLimitMax;
+	}
+
+	if (bResult && InParsingOptions.UseClamping)
+	{
+		OutVal = FMath::Clamp(OutVal, InLimits.NumericLimitLowest, InLimits.NumericLimitMax);
+	}
+
 	// Only fill in the length if we actually parsed some digits
 	if (TotalDigitCount > 0 && OutParsedLen)
 	{

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 #include "CsvProfilerTraceAnalysis.h"
 #include "AnalysisServicePrivate.h"
+#include "Common/Utils.h"
 #include "TraceServices/Model/Counters.h"
 #include "TraceServices/Model/Frames.h"
 
@@ -59,7 +60,7 @@ void FCsvProfilerAnalyzer::OnAnalysisEnd()
 	ThreadStatesMap.Empty();
 }
 
-bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Context)
+bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, EStyle Style, const FOnEventContext& Context)
 {
 	Trace::FAnalysisSessionEditScope _(Session);
 
@@ -133,7 +134,7 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	{
 		RenderThreadId = EventData.GetValue<uint32>("RenderThreadId");
 		RHIThreadId = EventData.GetValue<uint32>("RHIThreadId");
-		uint32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		uint32 CaptureStartFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
 		bEnableCounts = EventData.GetValue<bool>("EnableCounts");
 		const TCHAR* Filename = Session.StoreString(reinterpret_cast<const TCHAR*>(EventData.GetAttachment()));
 		CsvProfilerProvider.StartCapture(Filename, CaptureStartFrame);
@@ -141,7 +142,7 @@ bool FCsvProfilerAnalyzer::OnEvent(uint16 RouteId, const FOnEventContext& Contex
 	}
 	case RouteId_EndCapture:
 	{
-		uint32 CaptureEndFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.SessionContext.TimestampFromCycle(EventData.GetValue<uint64>("Cycle")));
+		uint32 CaptureEndFrame = GetFrameNumberForTimestamp(TraceFrameType_Game, Context.EventTime.AsSeconds(EventData.GetValue<uint64>("Cycle")));
 		for (FStatSeriesInstance* StatSeries : StatSeriesInstanceArray)
 		{
 			FlushAtEndOfCapture(*StatSeries, CaptureEndFrame);
@@ -270,7 +271,8 @@ FCsvProfilerAnalyzer::FStatSeriesInstance& FCsvProfilerAnalyzer::GetStatSeries(u
 
 void FCsvProfilerAnalyzer::HandleMarkerEvent(const FOnEventContext& Context, bool bIsExclusive, bool bIsBegin)
 {
-	FThreadState& ThreadState = GetThreadState(Context.EventData.GetValue<uint32>("ThreadId"));
+	uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
+	FThreadState& ThreadState = GetThreadState(ThreadId);
 	uint64 StatId = Context.EventData.GetValue<uint64>("StatId");
 	FTimingMarker Marker;
 	Marker.StatId = StatId;
@@ -324,7 +326,7 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 		HandleMarker(Context, ThreadState, InsertedMarker);
 	}
 	
-	double Timestamp = Context.SessionContext.TimestampFromCycle(Marker.Cycle);
+	double Timestamp = Context.EventTime.AsSeconds(Marker.Cycle);
 	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Timestamp);
 	if (Marker.bIsBegin)
 	{
@@ -359,9 +361,10 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 				check(Marker.Cycle >= StartMarker.Cycle);
 				if (Marker.Cycle > StartMarker.Cycle)
 				{
-					uint64 ElapsedCycles = Marker.Cycle - StartMarker.Cycle;
+					const FEventTime& EventTime = Context.EventTime;
+					double Elapsed = EventTime.AsSeconds(Marker.Cycle) - EventTime.AsSeconds(StartMarker.Cycle);
 					FStatSeriesInstance& StatSeries = GetStatSeries(Marker.StatId, Trace::CsvStatSeriesType_Timer, ThreadState);
-					SetTimerValue(StatSeries, FrameNumber, Context.SessionContext.DurationFromCycleCount(ElapsedCycles) * 1000.0, !Marker.bIsExclusiveInsertedMarker);
+					SetTimerValue(StatSeries, FrameNumber, Elapsed * 1000.0, !Marker.bIsExclusiveInsertedMarker);
 				}
 			}
 		}
@@ -370,10 +373,11 @@ void FCsvProfilerAnalyzer::HandleMarker(const FOnEventContext& Context, FThreadS
 
 void FCsvProfilerAnalyzer::HandleCustomStatEvent(const FOnEventContext& Context, bool bIsFloat)
 {
-	FThreadState& ThreadState = GetThreadState(Context.EventData.GetValue<uint32>("ThreadId"));
+	uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
+	FThreadState& ThreadState = GetThreadState(ThreadId);
 	FStatSeriesInstance& StatSeries = GetStatSeries(Context.EventData.GetValue<uint64>("StatId"), bIsFloat ? Trace::CsvStatSeriesType_CustomStatFloat : Trace::CsvStatSeriesType_CustomStatInt, ThreadState);
 	ECsvOpType OpType = static_cast<ECsvOpType>(Context.EventData.GetValue<uint8>("OpType"));
-	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Context.EventData.GetValue<uint64>("Cycle")));
+	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Context.EventData.GetValue<uint64>("Cycle")));
 	if (bIsFloat)
 	{
 		float Value = Context.EventData.GetValue<float>("Value");
@@ -388,9 +392,10 @@ void FCsvProfilerAnalyzer::HandleCustomStatEvent(const FOnEventContext& Context,
 
 void FCsvProfilerAnalyzer::HandleEventEvent(const FOnEventContext& Context)
 {
-	FThreadState& ThreadState = GetThreadState(Context.EventData.GetValue<uint32>("ThreadId"));
+	uint32 ThreadId = FTraceAnalyzerUtils::GetThreadIdField(Context);
+	FThreadState& ThreadState = GetThreadState(ThreadId);
 	uint64 Cycle = Context.EventData.GetValue<uint64>("Cycle");
-	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.SessionContext.TimestampFromCycle(Cycle));
+	uint32 FrameNumber = GetFrameNumberForTimestamp(ThreadState.FrameType, Context.EventTime.AsSeconds(Cycle));
 	FString EventText = reinterpret_cast<const TCHAR*>(Context.EventData.GetAttachment());
 	int32 CategoryIndex = Context.EventData.GetValue<int32>("CategoryIndex");
 	if (CategoryIndex > 0)

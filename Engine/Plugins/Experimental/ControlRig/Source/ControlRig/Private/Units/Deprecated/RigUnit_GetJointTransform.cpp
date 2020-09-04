@@ -19,19 +19,19 @@ FRigUnit_GetJointTransform_Execute()
 			{
 			case ETransformGetterType::Current:
 				{
-					FTransform ComputedBaseTransform = UtilityHelpers::GetBaseTransformByMode(TransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetGlobalTransform(JointName); },
-					(*Hierarchy)[Index].ParentName, BaseJoint, BaseTransform);
+					FTransform ComputedBaseTransform = UtilityHelpers::GetBaseTransformByMode(TransformSpace, [Hierarchy](const FRigElementKey& JointKey) { return Hierarchy->GetGlobalTransform(JointKey.Name); },
+					(*Hierarchy)[Index].GetParentElementKey(), FRigElementKey(BaseJoint, ERigElementType::Bone), BaseTransform);
 
-					Output = Hierarchy->GetGlobalTransform(Index).GetRelativeTransform(ComputedBaseTransform);
+					Output = Hierarchy->GetInitialGlobalTransform(Index).GetRelativeTransform(ComputedBaseTransform);
 					break;
 				}
 			case ETransformGetterType::Initial:
 			default:
 				{
-				FTransform ComputedBaseTransform = UtilityHelpers::GetBaseTransformByMode(TransformSpace, [Hierarchy](const FName& JointName) { return Hierarchy->GetInitialTransform(JointName); },
-					(*Hierarchy)[Index].ParentName, BaseJoint, BaseTransform);
+					FTransform ComputedBaseTransform = UtilityHelpers::GetBaseTransformByMode(TransformSpace, [Hierarchy](const FRigElementKey& JointKey) { return Hierarchy->GetInitialGlobalTransform(JointKey.Name); },
+					(*Hierarchy)[Index].GetParentElementKey(), FRigElementKey(BaseJoint, ERigElementType::Bone), BaseTransform);
 
-					Output = Hierarchy->GetInitialTransform(Index).GetRelativeTransform(ComputedBaseTransform);
+					Output = Hierarchy->GetInitialGlobalTransform(Index).GetRelativeTransform(ComputedBaseTransform);
 					break;
 				}
 			}

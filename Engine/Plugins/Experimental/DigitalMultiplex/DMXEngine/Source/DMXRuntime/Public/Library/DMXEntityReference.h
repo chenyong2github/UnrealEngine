@@ -51,6 +51,28 @@ public:
 	/** Get the type of entity this reference points to */
 	TSubclassOf<UDMXEntity> GetEntityType() const;
 
+public:
+	/** Comparison operators */
+	bool operator==(const FDMXEntityReference& Other) const;
+	bool operator!=(const FDMXEntityReference& Other) const;
+
+	/** Gets a hash from the DMX Library and EntityID values */
+	FORCEINLINE_DEBUGGABLE friend uint32 GetTypeHash(const FDMXEntityReference& EntityRef)
+	{
+		// Get the 4 Guid int32 values (A, B, C, D) as 2 uint64 ones.
+		const uint64* EntityId64 = reinterpret_cast<const uint64*>(&EntityRef.EntityId);
+
+		// Take the Library address and the EntityID to make a hash from both
+		uint64 ToHash[] =
+		{
+			reinterpret_cast<uintptr_t>(EntityRef.DMXLibrary),
+			EntityId64[0],
+			EntityId64[1]
+		};
+		
+		return CityHash64(reinterpret_cast<char*>(&ToHash), sizeof(ToHash));
+	}
+
 protected:
 	UPROPERTY()
 	TSubclassOf<UDMXEntity> EntityType;

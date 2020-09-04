@@ -7,6 +7,15 @@
 
 #if WITH_EDITOR
 #include "ISettingsModule.h"
+#include "IDetailCustomization.h"
+#include "DetailLayoutBuilder.h"
+#include "DetailCategoryBuilder.h"
+#include "IDetailPropertyRow.h"
+#include "DetailWidgetRow.h"
+#include "SocketSubsystem.h"
+
+#include "Widgets/Text/STextBlock.h"
+#include "Widgets/Input/SComboBox.h"
 #endif
 
 IMPLEMENT_MODULE( FDMXProtocolModule, DMXProtocol );
@@ -18,11 +27,106 @@ DEFINE_LOG_CATEGORY(LogDMXProtocol);
 FOnNetworkInterfaceChanged IDMXProtocol::OnNetworkInterfaceChanged;
 
 const TCHAR* FDMXProtocolModule::BaseModuleName = TEXT("DMXProtocol");
+const FString FDMXProtocolModule::LocalHostIpAddress = TEXT("127.0.0.1");
 
 const TMap<FName, IDMXProtocolPtr>& FDMXProtocolModule::GetProtocols() const
 {
 	return DMXProtocols;
 }
+
+
+#if WITH_EDITOR
+class FDMXProtocolSettingsCustomization : public IDetailCustomization
+{
+public:
+	FDMXProtocolSettingsCustomization()
+	{
+		LocalIpAddresses.Add(MakeShared<FString>(DefaultAddress));
+		TArray<TSharedPtr<FInternetAddr>> Addresses;
+		ISocketSubsystem::Get(PLATFORM_SOCKETSUBSYSTEM)->GetLocalAdapterAddresses(Addresses);
+		bool bFoundLocalHost = false;
+		for (TSharedPtr<FInternetAddr> Address : Addresses)
+		{
+			LocalIpAddresses.Add(MakeShared<FString>(Address->ToString(false)));
+			if (Address->ToString(false) == FDMXProtocolModule::LocalHostIpAddress)
+			{
+				bFoundLocalHost = true;
+			}
+		}
+		if (!bFoundLocalHost)
+		{
+			LocalIpAddresses.Add(MakeShared<FString>(FDMXProtocolModule::LocalHostIpAddress));
+		}
+	}
+
+	// IDetailCustomization interface
+	virtual void CustomizeDetails(IDetailLayoutBuilder& DetailBuilder) override
+	{
+		
+		InterfaceIpAddressProperty = DetailBuilder.GetProperty(GET_MEMBER_NAME_CHECKED(UDMXProtocolSettings, InterfaceIPAddress));
+		DetailBuilder.EditDefaultProperty(InterfaceIpAddressProperty)->CustomWidget()
+			.NameContent()
+			[
+				SNew(STextBlock)
+				.Text(LOCTEXT("DMXProtocolSettingsCustomization", "Interface IP address"))
+			]
+			.ValueContent()
+			[
+				SNew(SComboBox<TSharedRef<FString>>)
+				.OptionsSource(&LocalIpAddresses)
+				.OnGenerateWidget(this, &FDMXProtocolSettingsCustomization::GenerateComboWidget)
+				.InitiallySelectedItem(GetCurrentlySelectedIpAddress())
+				.OnSelectionChanged(this, &FDMXProtocolSettingsCustomization::OnChangeSelection)
+				.Content()
+				[
+					SNew(STextBlock).Text(this, &FDMXProtocolSettingsCustomization::GetTextAddressFromSettings)
+				]
+			];
+	}
+	//
+
+	static TSharedRef<IDetailCustomization> MakeInstance()
+	{
+		return MakeShared<FDMXProtocolSettingsCustomization>();
+	}
+
+	TSharedRef<SWidget> GenerateComboWidget(TSharedRef<FString> InAddress)
+	{
+		return SNew(STextBlock).Text(FText::FromString(*InAddress));
+	}
+
+	void OnChangeSelection(TSharedPtr<FString> InAddress, ESelectInfo::Type InType)
+	{
+		InterfaceIpAddressProperty->SetValue(*InAddress);
+	}
+
+	FText GetTextAddressFromSettings() const
+	{
+		FString CurrentIpAddress = GetMutableDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
+		return FText::FromString(CurrentIpAddress);
+	}
+
+	TSharedPtr<FString> GetCurrentlySelectedIpAddress()
+	{
+		FString CurrentIpAddress = GetMutableDefault<UDMXProtocolSettings>()->InterfaceIPAddress;
+		
+		for (TSharedRef<FString> LocalIpAddress : LocalIpAddresses)
+		{
+			if (*LocalIpAddress == CurrentIpAddress)
+			{
+				return LocalIpAddress;
+			}
+		}
+
+		return LocalIpAddresses[0];
+	}
+
+	TArray<TSharedRef<FString>> LocalIpAddresses;
+	const FString DefaultAddress = TEXT("0.0.0.0");
+
+	TSharedPtr<IPropertyHandle> InterfaceIpAddressProperty;
+};
+#endif
 
 void FDMXProtocolModule::StartupModule()
 {
@@ -38,6 +142,10 @@ void FDMXProtocolModule::StartupModule()
 			LOCTEXT("ProjectSettings_Description", "Configure DMX plugin global settings"),
 			GetMutableDefault<UDMXProtocolSettings>()
 		);
+
+		FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+		PropertyModule.RegisterCustomClassLayout(UDMXProtocolSettings::StaticClass()->GetFName(), FOnGetDetailCustomizationInstance::CreateStatic(&FDMXProtocolSettingsCustomization::MakeInstance));
+		PropertyModule.NotifyCustomizationModuleChanged();
 	}
 #endif // WITH_EDITOR
 
@@ -48,6 +156,8 @@ void FDMXProtocolModule::ShutdownModule()
 	ShutdownAllDMXProtocols();
 
 #if WITH_EDITOR
+	FPropertyEditorModule& PropertyModule = FModuleManager::GetModuleChecked<FPropertyEditorModule>("PropertyEditor");
+	PropertyModule.UnregisterCustomClassLayout(UDMXProtocolSettings::StaticClass()->GetFName());
 	// Unregister DMX Protocol global settings
 	ISettingsModule* SettingsModule = FModuleManager::GetModulePtr<ISettingsModule>("Settings");
 	if (SettingsModule)
