@@ -411,6 +411,12 @@ void UMovieSceneSkeletalAnimationTrack::FindBestBlendPoint(USkeletalMeshComponen
 
 void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 {
+	UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
+	if (!MovieScene)
+	{
+		return;
+	}
+
 	if (bForce || RootMotionParams.bRootMotionsDirty)
 	{
 		RootMotionParams.bRootMotionsDirty = false;
@@ -441,8 +447,6 @@ void UMovieSceneSkeletalAnimationTrack::SetUpRootMotions(bool bForce)
 			}
 		}
 
-
-		UMovieScene* MovieScene = GetTypedOuter<UMovieScene>();
 		TArray< UMovieSceneSkeletalAnimationSection*> SectionsAtCurrentTime;
 
 		RootMotionParams.StartFrame = AnimationSections[0]->GetInclusiveStartFrame();
