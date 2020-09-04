@@ -12,7 +12,6 @@
 #include <ThirdParty/GTEngine/LowLevel/GteArray3.h>
 #include <ThirdParty/GTEngine/LowLevel/GteArray4.h>
 #include <ThirdParty/GTEngine/LowLevel/GteAtomicMinMax.h>
-#include <ThirdParty/GTEngine/LowLevel/GteComputeModel.h>
 #include <ThirdParty/GTEngine/LowLevel/GteLexicoArray2.h>
 #include <ThirdParty/GTEngine/LowLevel/GteMinHeap.h>
 #include <ThirdParty/GTEngine/LowLevel/GteRangeIteration.h>

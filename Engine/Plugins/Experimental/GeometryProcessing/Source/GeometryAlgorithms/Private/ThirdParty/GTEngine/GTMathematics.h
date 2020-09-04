@@ -82,7 +82,6 @@
 #include <ThirdParty/GTEngine/Mathematics/GteETManifoldMesh.h>
 #include <ThirdParty/GTEngine/Mathematics/GteETNonmanifoldMesh.h>
 #include <ThirdParty/GTEngine/Mathematics/GteFeatureKey.h>
-#include <ThirdParty/GTEngine/Mathematics/GteGenerateMeshUV.h>
 #include <ThirdParty/GTEngine/Mathematics/GteIsPlanarGraph.h>
 #include <ThirdParty/GTEngine/Mathematics/GteMinimalCycleBasis.h>
 #include <ThirdParty/GTEngine/Mathematics/GteMinimumAreaBox2.h>
