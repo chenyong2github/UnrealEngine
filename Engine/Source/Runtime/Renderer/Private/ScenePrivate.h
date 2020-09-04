@@ -86,6 +86,7 @@ class FRHIGPUTextureReadback;
 class FRuntimeVirtualTextureSceneProxy;
 class FLumenSceneData;
 class FVirtualShadowMapArrayCacheManager;
+class FComputeFramework;
 
 /** Holds information about a single primitive's occlusion. */
 class FPrimitiveOcclusionHistory
@@ -2701,6 +2702,9 @@ public:
 
 	/** GPU Skinning cache, if enabled */
 	class FGPUSkinCache* GPUSkinCache;
+
+	/* Root system that handles runtime execution of Compute Framework tasks */
+	FComputeFramework* ComputeFramework = nullptr;
 
 	/** Uniform buffers for parameter collections with the corresponding Ids. */
 	TMap<FGuid, FUniformBufferRHIRef> ParameterCollections;
