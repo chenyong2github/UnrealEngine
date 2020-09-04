@@ -55,7 +55,6 @@
 #include "PlanarReflectionSceneProxy.h"
 #include "Engine/StaticMesh.h"
 #include "GPUSkinCache.h"
-#include "ComputeFramework/ComputeFramework.h"
 #include "DynamicShadowMapChannelBindingHelper.h"
 #include "GPUScene.h"
 #include "HAL/LowLevelMemTracker.h"
@@ -1204,11 +1203,6 @@ FScene::FScene(UWorld* InWorld, bool bInRequiresHitProxies, bool bInIsEditorScen
 	{
 		const bool bRequiresMemoryLimit = !bInIsEditorScene;
 		GPUSkinCache = new FGPUSkinCache(bRequiresMemoryLimit);
-	}
-
-	if (SupportsComputeFramework(InFeatureLevel, GetFeatureLevelShaderPlatform(InFeatureLevel)))
-	{
-		ComputeFramework = new FComputeFramework();
 	}
 
 #if RHI_RAYTRACING

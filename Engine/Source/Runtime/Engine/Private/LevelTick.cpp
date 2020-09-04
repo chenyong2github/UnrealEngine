@@ -59,7 +59,6 @@
 #include "Streaming/TextureStreamingHelpers.h"
 #include "ProfilingDebugging/CsvProfiler.h"
 #include "GPUSkinCache.h"
-#include "ComputeFramework/ComputeFramework.h"
 
 #if WITH_EDITOR
 #include "Editor.h"
@@ -928,22 +927,16 @@ bool UWorld::HasEndOfFrameUpdates() const
 
 struct FSendAllEndOfFrameUpdates
 {
-	FGPUSkinCache* GPUSkinCache = nullptr;
-	FComputeFramework* ComputeFramework = nullptr;
-
+	FGPUSkinCache* GPUSkinCache;
 #if WANTS_DRAW_MESH_EVENTS
 	FDrawEvent DrawEvent;
 #endif
 };
 
-FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(
-	FGPUSkinCache* GPUSkinCache,
-	FComputeFramework* ComputeFramework
-	)
+FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(FGPUSkinCache* GPUSkinCache)
 {
 	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = new FSendAllEndOfFrameUpdates;
 	SendAllEndOfFrameUpdates->GPUSkinCache = GPUSkinCache;
-	SendAllEndOfFrameUpdates->ComputeFramework = ComputeFramework;
 
 #if WANTS_DRAW_MESH_EVENTS
 	ENQUEUE_RENDER_COMMAND(BeginDrawEventCommand)(
@@ -963,7 +956,7 @@ FSendAllEndOfFrameUpdates* BeginSendEndOfFrameUpdatesDrawEvent(
 void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates)
 {
 	ENQUEUE_RENDER_COMMAND(EndDrawEventCommand)(
-		[SendAllEndOfFrameUpdates](FRHICommandListImmediate& RHICmdList)
+		[SendAllEndOfFrameUpdates](FRHICommandList& RHICmdList)
 	{
 		if (SendAllEndOfFrameUpdates->GPUSkinCache)
 		{
@@ -973,11 +966,6 @@ void EndSendEndOfFrameUpdatesDrawEvent(FSendAllEndOfFrameUpdates* SendAllEndOfFr
 		#if RHI_RAYTRACING
 			SendAllEndOfFrameUpdates->GPUSkinCache->CommitRayTracingGeometryUpdates(RHICmdList);
 		#endif
-		}
-
-		if (SendAllEndOfFrameUpdates->ComputeFramework)
-		{
-			SendAllEndOfFrameUpdates->ComputeFramework->ExecuteBatches(RHICmdList);
 		}
 
 		delete SendAllEndOfFrameUpdates;
@@ -1021,10 +1009,7 @@ void UWorld::SendAllEndOfFrameUpdates()
 	}
 
 	// Issue a GPU event to wrap GPU work done during SendAllEndOfFrameUpdates, like skin cache updates
-	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = BeginSendEndOfFrameUpdatesDrawEvent(
-		Scene ? Scene->GetGPUSkinCache() : nullptr,
-		Scene ? Scene->GetComputeFramework() : nullptr
-		);
+	FSendAllEndOfFrameUpdates* SendAllEndOfFrameUpdates = BeginSendEndOfFrameUpdatesDrawEvent(Scene ? Scene->GetGPUSkinCache() : nullptr);
 
 	// update all dirty components. 
 	FGuardValue_Bitfield(bPostTickComponentUpdate, true); 
