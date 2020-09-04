@@ -16,6 +16,8 @@ class UTexture2D;
 MODELINGCOMPONENTS_API class IAssetGenerationAPI
 {
 public:
+	virtual ~IAssetGenerationAPI(){}
+
 	/**
 	 * Create a new UStaticMeshAsset for the provided mesh, then a new UStaticMeshComponent and AStaticMeshActor in the TargetWorld
 	 * @param TargetWorld world to create new Actor in
