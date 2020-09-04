@@ -12,6 +12,7 @@
 
 class FViewInfo;
 class FSceneTextureParameters;
+class FSeparateTranslucencyTextures;
 struct FTemporalAAHistory;
 
 
@@ -135,6 +136,6 @@ RENDERER_API FRDGTextureRef AddPasses(
 	const FSceneTextureParameters& SceneTextures,
 	const FViewInfo& View,
 	FRDGTextureRef InputSceneColor,
-	FRDGTextureRef SeparateTranslucency);
+	const FSeparateTranslucencyTextures& SeparateTranslucencyTextures);
 
 } // namespace DiaphragmDOF

@@ -30,7 +30,7 @@
 #define PPI_PostProcessInput3 17
 #define PPI_PostProcessInput4 18
 
-SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_0)
+SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_0) 
 SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_1)
 SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_2)
 SCREEN_PASS_TEXTURE_VIEWPORT(PostProcessInput_3)
@@ -63,6 +63,8 @@ SamplerState PostProcessInput_BilinearSampler;
 	#define PostProcessInput_3_SharedSampler PostProcessInput_3_Sampler
 	#define PostProcessInput_4_SharedSampler PostProcessInput_4_Sampler
 #endif
+
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
 
 #include "/Engine/Generated/Material.ush"
 
@@ -335,7 +337,11 @@ void MainPS(
 	UNROLL
 	for (int CoordinateIndex = 0; CoordinateIndex < NUM_MATERIAL_TEXCOORDS; CoordinateIndex++)
 	{
+	#if POST_PROCESS_AR_PASSTHROUGH
+		Parameters.TexCoords[CoordinateIndex] = GetUV(Input, CoordinateIndex);
+	#else
 		Parameters.TexCoords[CoordinateIndex] = ViewportUV;
+	#endif
 	}
 	UNROLL
 	for (int CoordinateIndex = NUM_MATERIAL_TEXCOORDS; CoordinateIndex < NUM_TEX_COORD_INTERPOLATORS; CoordinateIndex++)
@@ -372,9 +378,7 @@ void MainPS(
 	clip(ClipValue);
 #endif
 
-	// SceneDepth texture is not accessible during post-processing as we discard it at the end of mobile BasePass
-    // instead fetch depth from SceneColor.A 
-	float DeviceZ = Texture2DSample(MobileSceneTextures.SceneColorTexture, MobileSceneTextures.SceneColorTextureSampler, BufferUV).a;
+	float DeviceZ = LookupDeviceZ(BufferUV);
 	SvPosition.z = DeviceZ;
 	SvPosition.z = max(SvPosition.z, 1e-18);
 	// fill out other related material parameters

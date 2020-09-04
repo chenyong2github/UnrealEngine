@@ -12,48 +12,31 @@ LandscapeMeshMobileUpdate.cpp: Helpers to stream in and out mobile landscape ver
 
 template class TRenderAssetUpdate<FLandscapeMeshMobileUpdateContext>;
 
-FLandscapeMeshMobileUpdateContext::FLandscapeMeshMobileUpdateContext(ULandscapeLODStreamingProxy* InLandscapeProxy, EThreadType InCurrentThread)
+FLandscapeMeshMobileUpdateContext::FLandscapeMeshMobileUpdateContext(const ULandscapeLODStreamingProxy* InLandscapeProxy, EThreadType InCurrentThread)
 	: LandscapeProxy(InLandscapeProxy)
 	, CurrentThread(InCurrentThread)
 {
 	check(InLandscapeProxy);
 	checkSlow(InCurrentThread != FLandscapeMeshMobileUpdate::TT_Render || IsInRenderingThread());
-	RenderData = InLandscapeProxy->GetRenderData().Get();
+	RenderData = InLandscapeProxy ? InLandscapeProxy->GetRenderData().Get() : nullptr;
 }
 
-FLandscapeMeshMobileUpdateContext::FLandscapeMeshMobileUpdateContext(UStreamableRenderAsset* InLandscapeProxy, EThreadType InCurrentThread)
-#if UE_BUILD_SHIPPING
-	: FLandscapeMeshMobileUpdateContext(static_cast<ULandscapeLODStreamingProxy*>(InLandscapeProxy), InCurrentThread)
-#else
-	: FLandscapeMeshMobileUpdateContext(Cast<ULandscapeLODStreamingProxy>(InLandscapeProxy), InCurrentThread)
-#endif
+FLandscapeMeshMobileUpdateContext::FLandscapeMeshMobileUpdateContext(const UStreamableRenderAsset* InLandscapeProxy, EThreadType InCurrentThread)
+	: FLandscapeMeshMobileUpdateContext(CastChecked<ULandscapeLODStreamingProxy>(InLandscapeProxy), InCurrentThread)
 {}
 
-UStreamableRenderAsset* FLandscapeMeshMobileUpdateContext::GetRenderAsset() const
-{
-	return LandscapeProxy;
-}
-
-FLandscapeMeshMobileUpdate::FLandscapeMeshMobileUpdate(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips)
-	: TRenderAssetUpdate<FLandscapeMeshMobileUpdateContext>(InLandscapeProxy, InRequestedMips)
+FLandscapeMeshMobileUpdate::FLandscapeMeshMobileUpdate(ULandscapeLODStreamingProxy* InLandscapeProxy)
+	: TRenderAssetUpdate<FLandscapeMeshMobileUpdateContext>(InLandscapeProxy)
 {
 	TSharedPtr<FLandscapeMobileRenderData, ESPMode::ThreadSafe> RenderData = InLandscapeProxy->GetRenderData();
-	if (RenderData.IsValid())
+	if (!RenderData.IsValid())
 	{
-		CurrentFirstLODIdx = RenderData->CurrentFirstLODIdx;
-		check(CurrentFirstLODIdx >= 0 && CurrentFirstLODIdx < MAX_MESH_LOD_COUNT);
-	}
-	else
-	{
-		RequestedMips = INDEX_NONE;
-		PendingFirstMip = INDEX_NONE;
 		bIsCancelled = true;
-		CurrentFirstLODIdx = INDEX_NONE;
 	}
 }
 
-FLandscapeMeshMobileStreamIn::FLandscapeMeshMobileStreamIn(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips)
-	: FLandscapeMeshMobileUpdate(InLandscapeProxy, InRequestedMips)
+FLandscapeMeshMobileStreamIn::FLandscapeMeshMobileStreamIn(ULandscapeLODStreamingProxy* InLandscapeProxy)
+	: FLandscapeMeshMobileUpdate(InLandscapeProxy)
 {
 	FMemory::Memset(StagingLODDataArray, 0, sizeof(StagingLODDataArray));
 	FMemory::Memset(StagingLODDataSizes, 0, sizeof(StagingLODDataSizes));
@@ -68,7 +51,7 @@ void FLandscapeMeshMobileStreamIn::ExpandResources(const FContext& Context)
 {
 	LLM_SCOPE(ELLMTag::Landscape);
 
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 	FLandscapeMobileRenderData* RenderData = Context.RenderData;
 
 	if (!IsCancelled() && LandscapeProxy && RenderData)
@@ -78,7 +61,7 @@ void FLandscapeMeshMobileStreamIn::ExpandResources(const FContext& Context)
 
 		const uint32 OldSize = RenderData->VertexBuffer->VertexBufferRHI->GetSize();
 		uint32 NewSize = OldSize;
-		for (int32 LODIdx = CurrentFirstLODIdx - 1; LODIdx >= PendingFirstMip; --LODIdx)
+		for (int32 LODIdx = CurrentFirstLODIdx - 1; LODIdx >= PendingFirstLODIdx; --LODIdx)
 		{
 			check(StagingLODDataSizes[LODIdx] >= 0);
 			NewSize += StagingLODDataSizes[LODIdx];
@@ -93,7 +76,7 @@ void FLandscapeMeshMobileStreamIn::ExpandResources(const FContext& Context)
 		FRHIResourceCreateInfo CreateInfo;
 		IntermediateVertexBuffer = RHICreateVertexBuffer(NewSize, BUF_Static, CreateInfo);
 		uint8* Dest = (uint8*)RHILockVertexBuffer(IntermediateVertexBuffer, OldSize, NewSize - OldSize, RLM_WriteOnly);
-		for (int32 LODIdx = CurrentFirstLODIdx - 1; LODIdx >= PendingFirstMip; --LODIdx)
+		for (int32 LODIdx = CurrentFirstLODIdx - 1; LODIdx >= PendingFirstLODIdx; --LODIdx)
 		{
 			if (StagingLODDataSizes[LODIdx] > 0)
 			{
@@ -123,14 +106,12 @@ void FLandscapeMeshMobileStreamIn::DiscardNewLODs(const FContext& Context)
 
 void FLandscapeMeshMobileStreamIn::DoFinishUpdate(const FContext& Context)
 {
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 	FLandscapeMobileRenderData* RenderData = Context.RenderData;
 
 	if (!IsCancelled() && LandscapeProxy && RenderData)
 	{
-		check(Context.CurrentThread == TT_Render
-			&& CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx
-			&& PendingFirstMip < CurrentFirstLODIdx);
+		check(Context.CurrentThread == TT_Render);
 
 		if (IntermediateVertexBuffer)
 		{
@@ -142,9 +123,7 @@ void FLandscapeMeshMobileStreamIn::DoFinishUpdate(const FContext& Context)
 			Batcher.QueueUpdateRequest(LandscapeVB->VertexBufferRHI, IntermediateVertexBuffer);
 		}
 
-		check(LandscapeProxy->GetCachedNumResidentLODs() == LandscapeProxy->GetNumMipsForStreaming() - CurrentFirstLODIdx);
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		LandscapeProxy->SetCachedNumResidentLODs(uint8(LandscapeProxy->GetNumMipsForStreaming() - PendingFirstMip));
+		RenderData->CurrentFirstLODIdx = PendingFirstLODIdx;
 	}
 	
 	IntermediateVertexBuffer.SafeRelease();
@@ -156,8 +135,8 @@ void FLandscapeMeshMobileStreamIn::DoCancel(const FContext& Context)
 	DoFinishUpdate(Context);
 }
 
-FLandscapeMeshMobileStreamOut::FLandscapeMeshMobileStreamOut(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips)
-	: FLandscapeMeshMobileUpdate(InLandscapeProxy, InRequestedMips)
+FLandscapeMeshMobileStreamOut::FLandscapeMeshMobileStreamOut(ULandscapeLODStreamingProxy* InLandscapeProxy)
+	: FLandscapeMeshMobileUpdate(InLandscapeProxy)
 {
 	PushTask(FContext(InLandscapeProxy, TT_None), TT_Render, SRA_UPDATE_CALLBACK(ShrinkResources), TT_None, nullptr);
 }
@@ -167,22 +146,15 @@ void FLandscapeMeshMobileStreamOut::ShrinkResources(const FContext& Context)
 	LLM_SCOPE(ELLMTag::Landscape);
 	check(Context.CurrentThread == TT_Render);
 
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 	FLandscapeMobileRenderData* RenderData = Context.RenderData;
 
 	if (!IsCancelled() && LandscapeProxy && RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip > CurrentFirstLODIdx);
-		check(LandscapeProxy->GetCachedNumResidentLODs() == LandscapeProxy->GetNumMipsForStreaming() - CurrentFirstLODIdx);
+		RenderData->CurrentFirstLODIdx = PendingFirstLODIdx;
 
-		const int32 OldNumResidentLODs = LandscapeProxy->GetCachedNumResidentLODs();
-		const int32 NewNumResidentLODs = LandscapeProxy->GetNumMipsForStreaming() - PendingFirstMip;
-
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		LandscapeProxy->SetCachedNumResidentLODs((uint8)NewNumResidentLODs);
-
-		const int32 OldSizeNoInline = LandscapeProxy->CalcCumulativeLODSize(OldNumResidentLODs);
-		const int32 NewSizeNoInline = LandscapeProxy->CalcCumulativeLODSize(NewNumResidentLODs);
+		const int32 OldSizeNoInline = LandscapeProxy->CalcCumulativeLODSize(ResourceState.NumResidentLODs);
+		const int32 NewSizeNoInline = LandscapeProxy->CalcCumulativeLODSize(ResourceState.NumRequestedLODs);
 		const int32 SizeDelta = NewSizeNoInline - OldSizeNoInline;
 		if (!!SizeDelta)
 		{
@@ -209,8 +181,8 @@ void FLandscapeMeshMobileStreamIn_IO::FCancelIORequestsTask::DoWork()
 	PendingUpdate->DoUnlock(PreviousTaskState);
 }
 
-FLandscapeMeshMobileStreamIn_IO::FLandscapeMeshMobileStreamIn_IO(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips, bool bHighPrio)
-	: FLandscapeMeshMobileStreamIn(InLandscapeProxy, InRequestedMips)
+FLandscapeMeshMobileStreamIn_IO::FLandscapeMeshMobileStreamIn_IO(ULandscapeLODStreamingProxy* InLandscapeProxy, bool bHighPrio)
+	: FLandscapeMeshMobileStreamIn(InLandscapeProxy)
 	, bHighPrioIORequest(bHighPrio)
 {
 	FMemory::Memset(IORequests, 0, sizeof(IORequests));
@@ -243,12 +215,12 @@ bool FLandscapeMeshMobileStreamIn_IO::HasPendingIORequests() const
 
 FString FLandscapeMeshMobileStreamIn_IO::GetIOFilename(const FContext& Context)
 {
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 
 	if (!IsCancelled() && LandscapeProxy)
 	{
 		FString Filename;
-		verify(LandscapeProxy->GetMipDataFilename(PendingFirstMip, Filename));
+		verify(LandscapeProxy->GetMipDataFilename(PendingFirstLODIdx, Filename));
 		return Filename;
 	}
 	MarkAsCancelled();
@@ -284,14 +256,14 @@ void FLandscapeMeshMobileStreamIn_IO::SetIORequest(const FContext& Context, cons
 		return;
 	}
 
-	check(PendingFirstMip < CurrentFirstLODIdx);
+	check(PendingFirstLODIdx < CurrentFirstLODIdx);
 
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 	if (LandscapeProxy != nullptr)
 	{
 		SetAsyncFileCallback(Context);
 
-		for (int32 Index = PendingFirstMip; Index < CurrentFirstLODIdx; ++Index)
+		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
 			FBulkDataInterface::BulkDataRangeArray BulkDataArray;
 #if !LANDSCAPE_LOD_STREAMING_USE_TOKEN && USE_BULKDATA_STREAMING_TOKEN
@@ -323,14 +295,14 @@ void FLandscapeMeshMobileStreamIn_IO::GetIORequestResults(const FContext& Contex
 	LLM_SCOPE(ELLMTag::Landscape);
 	check(!TaskSynchronization.GetValue());
 
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 	FLandscapeMobileRenderData* RenderData = Context.RenderData;
 
 	if (!IsCancelled() && LandscapeProxy && RenderData)
 	{
-		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
+		check(PendingFirstLODIdx < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
 
-		for (int32 Idx = PendingFirstMip; Idx < CurrentFirstLODIdx; ++Idx)
+		for (int32 Idx = PendingFirstLODIdx; Idx < CurrentFirstLODIdx; ++Idx)
 		{
 			IBulkDataIORequest* IORequest = IORequests[Idx];
 			if (IORequest)
@@ -356,7 +328,7 @@ void FLandscapeMeshMobileStreamIn_IO::GetIORequestResults(const FContext& Contex
 
 void FLandscapeMeshMobileStreamIn_IO::ClearIORequest(const FContext& Context)
 {
-	for (int32 Idx = PendingFirstMip; Idx < CurrentFirstLODIdx; ++Idx)
+	for (int32 Idx = PendingFirstLODIdx; Idx < CurrentFirstLODIdx; ++Idx)
 	{
 		IBulkDataIORequest*& IORequest = IORequests[Idx];
 		if (IORequest != nullptr)
@@ -384,8 +356,8 @@ void FLandscapeMeshMobileStreamIn_IO::CancelIORequest()
 	}
 }
 
-FLandscapeMeshMobileStreamIn_IO_AsyncReallocate::FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips, bool bHighPrio)
-	: FLandscapeMeshMobileStreamIn_IO(InLandscapeProxy, InRequestedMips, bHighPrio)
+FLandscapeMeshMobileStreamIn_IO_AsyncReallocate::FLandscapeMeshMobileStreamIn_IO_AsyncReallocate(ULandscapeLODStreamingProxy* InLandscapeProxy, bool bHighPrio)
+	: FLandscapeMeshMobileStreamIn_IO(InLandscapeProxy, bHighPrio)
 {
 	PushTask(FContext(InLandscapeProxy, TT_None), TT_Async, SRA_UPDATE_CALLBACK(DoInitiateIO), TT_None, nullptr);
 }
@@ -424,8 +396,8 @@ void FLandscapeMeshMobileStreamIn_IO_AsyncReallocate::DoCancelIO(const FContext&
 }
 
 #if WITH_EDITOR
-FLandscapeMeshMobileStreamIn_GPUDataOnly::FLandscapeMeshMobileStreamIn_GPUDataOnly(ULandscapeLODStreamingProxy* InLandscapeProxy, int32 InRequestedMips)
-	: FLandscapeMeshMobileStreamIn(InLandscapeProxy, InRequestedMips)
+FLandscapeMeshMobileStreamIn_GPUDataOnly::FLandscapeMeshMobileStreamIn_GPUDataOnly(ULandscapeLODStreamingProxy* InLandscapeProxy)
+	: FLandscapeMeshMobileStreamIn(InLandscapeProxy)
 {
 	PushTask(FContext(InLandscapeProxy, TT_None), TT_GameThread, SRA_UPDATE_CALLBACK(DoGetStagingData), TT_None, nullptr);
 }
@@ -433,11 +405,11 @@ FLandscapeMeshMobileStreamIn_GPUDataOnly::FLandscapeMeshMobileStreamIn_GPUDataOn
 void FLandscapeMeshMobileStreamIn_GPUDataOnly::GetStagingData(const FContext& Context)
 {
 	LLM_SCOPE(ELLMTag::Landscape);
-	ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
+	const ULandscapeLODStreamingProxy* LandscapeProxy = Context.LandscapeProxy;
 
 	if (!IsCancelled() && LandscapeProxy)
 	{
-		for (int32 Idx = PendingFirstMip; Idx < CurrentFirstLODIdx; ++Idx)
+		for (int32 Idx = PendingFirstLODIdx; Idx < CurrentFirstLODIdx; ++Idx)
 		{
 			ULandscapeLODStreamingProxy::BulkDataType& BulkData = LandscapeProxy->GetStreamingLODBulkData(Idx);
 			if (BulkData.GetBulkDataSize() > 0)

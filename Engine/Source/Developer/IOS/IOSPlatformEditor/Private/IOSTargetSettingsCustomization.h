@@ -99,11 +99,6 @@ private:
 	TSharedPtr<IPropertyHandle> ShaderVersionPropertyHandle;
 	TSharedPtr<IPropertyHandle> MinOSPropertyHandle;
 	TSharedPtr<IPropertyHandle> MRTPropertyHandle;
-	TSharedPtr<IPropertyHandle> GLES2PropertyHandle;
-	TSharedPtr<IPropertyHandle> DevArmV7PropertyHandle;
-	TSharedPtr<IPropertyHandle> DevArmV7sPropertyHandle;
-	TSharedPtr<IPropertyHandle> ShipArmV7PropertyHandle;
-	TSharedPtr<IPropertyHandle> ShipArmV7sPropertyHandle;
 	TSharedPtr<IPropertyHandle> AutomaticSigningProperty;
 
 	FString SelectedProvision;
@@ -219,8 +214,6 @@ private:
 	void UpdateGLVersionWarning();
 
 	void SetMinVersion(int32 Value);
-
-	void HandleGLES2CheckBoxCheckStateChanged(ECheckBoxState NewState);
 
 	// 
 	FText GetBundleText(TSharedRef<IPropertyHandle> InPropertyHandle) const;

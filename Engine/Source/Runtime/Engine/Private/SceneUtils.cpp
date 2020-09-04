@@ -8,6 +8,12 @@ bool IsMobileHDR()
 	return MobileHDRCvar->GetValueOnAnyThread() == 1;
 }
 
+bool IsMobileDeferredShading()
+{
+	static auto* MobileShadingPathCvar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.ShadingPath"));
+	return MobileShadingPathCvar->GetValueOnAnyThread() == 1;
+}
+
 ENGINE_API EMobileHDRMode GetMobileHDRMode()
 {
 	EMobileHDRMode HDRMode = EMobileHDRMode::EnabledFloat16;

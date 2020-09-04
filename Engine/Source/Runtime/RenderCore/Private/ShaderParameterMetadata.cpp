@@ -241,12 +241,6 @@ void FShaderParametersMetadata::InitializeLayout()
 		MemberStack.Push(FUniformBufferMemberAndOffset(*this, Members[MemberIndex], 0));
 	}
 
-	/** The point of RDG is to track resources that have deferred allocation. Could deffer the creation of uniform buffer,
-	 * but there is a risk where it create more resource dependency than necessary on passes that reference this deferred
-	 * uniform buffers. Therefore only allow graph resources in shader parameter structures.
-	 */
-	const bool bAllowGraphResources = UseCase == EUseCase::ShaderParameterStruct;
-
 	/** Uniform buffer references are only allowed in shader parameter structures that may be used as a root shader parameter
 	 * structure.
 	 */
@@ -291,15 +285,10 @@ void FShaderParametersMetadata::InitializeLayout()
 					TEXT("and use HLSL comparison operators to translate into clean SGPR, to have minimal VGPR footprint."), *CppName);
 			}
 
-			if (IsRDGResourceReferenceShaderParameterType(BaseType) || BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
+			if (BaseType == UBMT_REFERENCED_STRUCT || BaseType == UBMT_RDG_UNIFORM_BUFFER)
 			{
-				if (!bAllowGraphResources)
-				{
-					UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: Graph resources are only allowed in shader parameter structs."), *CppName);
-				}
-			}
-			else if (BaseType == UBMT_REFERENCED_STRUCT)
-			{
+				check(ChildStruct);
+
 				if (!bAllowUniformBufferReferences)
 				{
 					UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s error: Shader parameter struct reference can only be done in shader parameter structs."), *CppName);
@@ -319,6 +308,11 @@ void FShaderParametersMetadata::InitializeLayout()
 				}
 			}
 
+			if (UseCase != EUseCase::ShaderParameterStruct && IsShaderParameterTypeIgnoredByRHI(BaseType))
+			{
+				UE_LOG(LogRendererCore, Fatal, TEXT("Shader parameter %s is not allowed in a uniform buffer."), *CppName);
+			}
+
 			const bool bTypeCanBeArray = (bAllowResourceArrays && (bIsRHIResource || bIsRDGResource)) || bIsVariableNativeType || BaseType == UBMT_NESTED_STRUCT;
 			if (bIsArray && !bTypeCanBeArray)
 			{
@@ -332,11 +326,57 @@ void FShaderParametersMetadata::InitializeLayout()
 			{
 				const uint32 AbsoluteMemberOffset = CurrentMember.GetOffset() + MemberStack[i].StructOffset + ArrayElementId * SHADER_PARAMETER_POINTER_ALIGNMENT;
 				check(AbsoluteMemberOffset < (1u << (sizeof(FRHIUniformBufferLayout::FResourceParameter::MemberOffset) * 8)));
-				Layout.Resources.Add(FRHIUniformBufferLayout::FResourceParameter{ uint16(AbsoluteMemberOffset), BaseType });
+				const FRHIUniformBufferLayout::FResourceParameter ResourceParameter{ uint16(AbsoluteMemberOffset), BaseType };
+
+				Layout.Resources.Add(ResourceParameter);
+
+				if (IsRDGTextureReferenceShaderParameterType(BaseType) || BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
+				{
+					Layout.GraphResources.Add(ResourceParameter);
+					Layout.GraphTextures.Add(ResourceParameter);
+
+					if (BaseType == UBMT_RENDER_TARGET_BINDING_SLOTS)
+					{
+						checkf(!Layout.HasRenderTargets(), TEXT("Shader parameter struct %s has multiple render target binding slots."), GetStructTypeName());
+						Layout.RenderTargetsOffset = ResourceParameter.MemberOffset;
+					}
+				}
+				else if (IsRDGBufferReferenceShaderParameterType(BaseType))
+				{
+					Layout.GraphResources.Add(ResourceParameter);
+					Layout.GraphBuffers.Add(ResourceParameter);
+				}
+				else if (BaseType == UBMT_RDG_UNIFORM_BUFFER)
+				{
+					Layout.GraphResources.Add(ResourceParameter);
+					Layout.GraphUniformBuffers.Add(ResourceParameter);
+				}
+				else if (BaseType == UBMT_REFERENCED_STRUCT)
+				{
+					Layout.UniformBuffers.Add(ResourceParameter);
+				}
 			}
 		}
 
-		if (ChildStruct && BaseType != UBMT_REFERENCED_STRUCT)
+		if (BaseType == UBMT_UAV)
+		{
+			Layout.bHasNonGraphOutputs = true;
+		}
+		else if (BaseType == UBMT_REFERENCED_STRUCT || BaseType == UBMT_RDG_UNIFORM_BUFFER)
+		{
+			if (ChildStruct)
+			{
+				for (const FShaderParametersMetadata::FMember& Member : ChildStruct->GetMembers())
+				{
+					if (Member.GetBaseType() == UBMT_UAV)
+					{
+						Layout.bHasNonGraphOutputs = true;
+					}
+				}
+			}
+		}
+
+		if (ChildStruct && BaseType != UBMT_REFERENCED_STRUCT && BaseType != UBMT_RDG_UNIFORM_BUFFER)
 		{
 			for (uint32 ArrayElementId = 0; ArrayElementId < (bIsArray ? ArraySize : 1u); ArrayElementId++)
 			{
@@ -349,26 +389,32 @@ void FShaderParametersMetadata::InitializeLayout()
 				}
 			}
 		}
-	} // for (int32 i = 0; i < MemberStack.Num(); ++i)
+	}
 
-	Layout.Resources.Sort([](
+	const auto ByMemberOffset = [](
 		const FRHIUniformBufferLayout::FResourceParameter& A,
 		const FRHIUniformBufferLayout::FResourceParameter& B)
 	{
-#if 0 // TODO(RDG)
-		/** Sort the resource on MemberType first to avoid CPU miss predictions when iterating over the resources. Then based on ascending offset
-		 * to still allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
-		 */
+		return A.MemberOffset < B.MemberOffset;
+	};
+
+	const auto ByTypeThenMemberOffset = [](
+		const FRHIUniformBufferLayout::FResourceParameter& A,
+		const FRHIUniformBufferLayout::FResourceParameter& B)
+	{
 		if (A.MemberType == B.MemberType)
 		{
 			return A.MemberOffset < B.MemberOffset;
 		}
 		return A.MemberType < B.MemberType;
-#else
-		// Sorts the resource based on MemberOffset to allow O(N) complexity on offset cross referencing such as done in ClearUnusedGraphResourcesImpl().
-		return A.MemberOffset < B.MemberOffset;
-#endif
-	});
+	};
+
+	Layout.Resources.Sort(ByMemberOffset);
+	Layout.GraphResources.Sort(ByMemberOffset);
+	Layout.GraphTextures.Sort(ByTypeThenMemberOffset);
+	Layout.GraphBuffers.Sort(ByTypeThenMemberOffset);
+	Layout.GraphUniformBuffers.Sort(ByMemberOffset);
+	Layout.UniformBuffers.Sort(ByMemberOffset);
 
 	// Compute the hash of the RHI layout.
 	Layout.ComputeHash();

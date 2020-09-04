@@ -498,7 +498,17 @@ int32 FMaterialAttributesInput::CompileWithDefault(class FMaterialCompiler* Comp
 	}
 
 	EMaterialProperty Property = FMaterialAttributeDefinitionMap::GetProperty(AttributeID);
-	SetConnectedProperty(Property, Ret != INDEX_NONE);
+
+	// Note that we only do a proper check for MP_Anisotropy since we are not confident of which materials/feaures
+	// are relying the very permissive else clause path.
+	if (Property == MP_Anisotropy)
+	{
+		SetConnectedProperty(Property, Compiler->IsMaterialPropertyUsed(Property, Ret));
+	}
+	else
+	{
+		SetConnectedProperty(Property, Ret != INDEX_NONE);
+	}
 
 	if( Ret == INDEX_NONE )
 	{
@@ -1225,6 +1235,11 @@ bool FMaterialResource::IsUsingFullPrecision() const
 	return Material->bUseFullPrecision;
 }
 
+bool FMaterialResource::IsUsingAlphaToCoverage() const
+{
+	return Material->bUseAlphaToCoverage && Material->MaterialDomain == EMaterialDomain::MD_Surface && Material->GetBlendMode() == EBlendMode::BLEND_Masked;
+}
+
 bool FMaterialResource::IsUsingPreintegratedGFForSimpleIBL() const
 {
 	return Material->bForwardRenderUsePreintegratedGFForSimpleIBL;
@@ -1237,7 +1252,9 @@ bool FMaterialResource::IsUsingHQForwardReflections() const
 
 bool FMaterialResource::IsUsingPlanarForwardReflections() const
 {
-	return Material->bUsePlanarForwardReflections;
+	return Material->bUsePlanarForwardReflections
+		// Don't use planar reflection if it is used only for mobile pixel projected reflection.
+		&& (GetFeatureLevel() <= ERHIFeatureLevel::ES3_1 || GetMobilePlanarReflectionMode() != EMobilePlanarReflectionMode::MobilePPRExclusive);
 }
 
 bool FMaterialResource::IsNonmetal() const
@@ -1385,6 +1402,14 @@ bool FMaterialResource::HasSpecularConnected() const
 bool FMaterialResource::HasEmissiveColorConnected() const
 {
 	return HasMaterialAttributesConnected() || Material->HasEmissiveColorConnected();
+}
+
+bool FMaterialResource::HasAnisotropyConnected() const
+{
+	// Note that anisotropy does a proper check when the MaterialAttributes node is used.
+	// The other other HasXXXConnected() was not updated to remain conservative and be 
+	// backwards compatible. Consider fixing in the future.
+	return (HasMaterialAttributesConnected() && Material->MaterialAttributes.IsConnected(MP_Anisotropy)) || Material->HasAnisotropyConnected();
 }
 
 bool FMaterialResource::HasAmbientOcclusionConnected() const
@@ -1608,11 +1633,14 @@ void FMaterial::SetupMaterialEnvironment(
 
 	if ((RHISupportsTessellation(Platform) == false) || (GetTessellationMode() == MTM_NoTessellation))
 	{
+		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
 		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("0"));
 	}
 	else
 	{
+		// Make sure this define is in sync with FShaderCompilerInput::IsUsingTessellation
 		OutEnvironment.SetDefine(TEXT("USING_TESSELLATION"),TEXT("1"));
+
 		if (GetTessellationMode() == MTM_FlatTessellation)
 		{
 			OutEnvironment.SetDefine(TEXT("TESSELLATION_TYPE_FLAT"),TEXT("1"));
@@ -1736,6 +1764,7 @@ void FMaterial::SetupMaterialEnvironment(
 	OutEnvironment.SetDefine(TEXT("MATERIAL_ALLOW_NEGATIVE_EMISSIVECOLOR"), AllowNegativeEmissiveColor());
 	OutEnvironment.SetDefine(TEXT("MATERIAL_OUTPUT_OPACITY_AS_ALPHA"), GetBlendableOutputAlpha());
 	OutEnvironment.SetDefine(TEXT("TRANSLUCENT_SHADOW_WITH_MASKED_OPACITY"), GetCastDynamicShadowAsMasked());
+	OutEnvironment.SetDefine(TEXT("MATERIAL_USE_ALPHA_TO_COVERAGE"), IsUsingAlphaToCoverage());
 
 	if (IsUsingFullPrecision())
 	{
@@ -2328,7 +2357,17 @@ void FMaterialVirtualTextureStack::GetTextureValues(const FMaterialRenderContext
 
 void FMaterialVirtualTextureStack::GetTextureValue(const FMaterialRenderContext& Context, const FUniformExpressionSet& UniformExpressionSet, const URuntimeVirtualTexture*& OutValue) const
 {
-	OutValue = GetIndexedTexture<URuntimeVirtualTexture>(Context.Material, PreallocatedStackTextureIndex);
+	OutValue = nullptr;
+	if (NumLayers > 0)
+	{
+		const int32 ParameterIndex = LayerUniformExpressionIndices[0];
+		if (ParameterIndex != INDEX_NONE)
+		{
+			const URuntimeVirtualTexture* Texture = nullptr;
+			UniformExpressionSet.GetTextureValue(ParameterIndex, Context, Context.Material, Texture);
+			OutValue = Texture;
+		}
+	}
 }
 
 void FMaterialVirtualTextureStack::Serialize(FArchive& Ar)

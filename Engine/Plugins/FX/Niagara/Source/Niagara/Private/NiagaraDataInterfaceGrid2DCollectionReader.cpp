@@ -104,7 +104,8 @@ public:
 			FRHIShaderResourceView* InputGridBuffer;
 			if (Grid2DProxyData->CurrentData != nullptr)
 			{
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, Grid2DProxyData->CurrentData->GridBuffer.UAV);
+				// FIXME: this shouldn't be necessary, since the Grid2D DI leaves the buffer in the SRVMask state. Confirm and remove the commented out line.
+				//RHICmdList.Transition(FRHITransitionInfo(Grid2DProxyData->CurrentData->GridBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask));
 				InputGridBuffer = Grid2DProxyData->CurrentData->GridBuffer.SRV;
 			}
 			else

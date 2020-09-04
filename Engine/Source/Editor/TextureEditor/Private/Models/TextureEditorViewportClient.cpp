@@ -113,7 +113,7 @@ void FTextureEditorViewportClient::Draw(FViewport* Viewport, FCanvas* Canvas)
 		{
 			BatchedElementParameters = new FBatchedElementVolumeTexturePreviewParameters(
 				Settings.VolumeViewMode == TextureEditorVolumeViewMode_DepthSlices, 
-				FMath::Max<int32>(VolumeTexture->GetSizeZ() >> VolumeTexture->GetCachedLODBias(), 1), 
+				FMath::Max<int32>(VolumeTexture->GetSizeZ(), 1), 
 				MipLevel, 
 				(float)TextureEditorPtr.Pin()->GetVolumeOpacity(),
 				true, 

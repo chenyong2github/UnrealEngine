@@ -57,6 +57,7 @@ FIrradianceCache::FIrradianceCache()
 	IrradianceCachingParameters.Quality = GGPULightmassIrradianceCachingQuality;
 	IrradianceCachingParameters.Spacing = GGPULightmassIrradianceCachingSpacing;
 	IrradianceCachingParameters.HashTableSize = HashTableSize;
+	IrradianceCachingParameters.CacheSize = IrradianceCacheMaxSize;
 	IrradianceCachingParameters.RWHashTable = HashTable.UAV;
 	IrradianceCachingParameters.RWHashToIndex = HashToIndex.UAV;
 	IrradianceCachingParameters.RWIndexToHash = IndexToHash.UAV;

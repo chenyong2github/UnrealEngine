@@ -30,10 +30,25 @@ void UARTrackedGeometry::DebugDraw( UWorld* World, const FLinearColor& OutlineCo
 	DrawDebugCoordinateSystem(World, Location, Rotation, Scale3D.X, true, PersistForSeconds, 0, OutlineThickness);
 }
 
+void UARTrackedGeometry::GetNetworkPayload(FARMeshUpdatePayload& Payload)
+{
+	Payload.WorldTransform = GetLocalToWorldTransform();
+	Payload.ObjectClassification = ObjectClassification;
+	UpdateSessionPayload(Payload.SessionPayload);
+}
+
 TSharedPtr<FARSupportInterface , ESPMode::ThreadSafe> UARTrackedGeometry::GetARSystem() const
 {
 	auto MyARSystem = ARSystem.Pin();
 	return MyARSystem;
+}
+
+void UARTrackedGeometry::UpdateSessionPayload(FARSessionPayload& Payload) const
+{
+	if (auto MyARSystem = ARSystem.Pin())
+	{
+		Payload.FromSessionConfig(MyARSystem->GetSessionConfig());
+	}
 }
 
 FTransform UARTrackedGeometry::GetLocalToTrackingTransform() const
@@ -63,7 +78,14 @@ void UARTrackedGeometry::SetTrackingState(EARTrackingState NewState)
 
 FTransform UARTrackedGeometry::GetLocalToWorldTransform() const
 {
-	return GetLocalToTrackingTransform() * GetARSystem()->GetXRTrackingSystem()->GetTrackingToWorldTransform();
+	if (auto XRSystem = GEngine->XRSystem.Get())
+	{
+		return GetLocalToTrackingTransform() * XRSystem->GetTrackingToWorldTransform();
+	}
+	else
+	{
+		return GetLocalToTrackingTransform();
+	}
 }
 
 int32 UARTrackedGeometry::GetLastUpdateFrameNumber() const
@@ -74,6 +96,16 @@ int32 UARTrackedGeometry::GetLastUpdateFrameNumber() const
 FName UARTrackedGeometry::GetDebugName() const
 {
 	return DebugName;
+}
+
+const FString& UARTrackedGeometry::GetName() const
+{
+	return AnchorName;
+}
+
+void UARTrackedGeometry::SetName(const FString& InName)
+{
+	AnchorName = InName;
 }
 
 float UARTrackedGeometry::GetLastUpdateTimestamp() const
@@ -109,6 +141,12 @@ void UARTrackedGeometry::UpdateTrackingState( EARTrackingState NewTrackingState 
 void UARTrackedGeometry::UpdateAlignmentTransform( const FTransform& NewAlignmentTransform )
 {
 	LocalToAlignedTrackingTransform = LocalToTrackingTransform * NewAlignmentTransform;
+	
+	if (UnderlyingMesh)
+	{
+		// Update MR mesh with the new local to world transform as it needs to be at the same location of this geometry
+		UnderlyingMesh->SetWorldTransform(GetLocalToWorldTransform());
+	}
 }
 
 void UARTrackedGeometry::SetDebugName( FName InDebugName )
@@ -183,6 +221,19 @@ void UARPlaneGeometry::DebugDraw( UWorld* World, const FLinearColor& OutlineColo
 	ARDebugHelpers::DrawDebugString( World, WorldSpaceCenter, CurAnchorDebugName, 0.25f*OutlineThickness, OutlineRGB, PersistForSeconds, true);
 }
 
+void UARPlaneGeometry::GetNetworkPayload(FARPlaneUpdatePayload& Payload)
+{
+	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
+
+	Payload.WorldTransform = LocalToWorldTransform;
+	Payload.Center = Center;
+	Payload.Extents = Extent;
+	Payload.BoundaryVertices = BoundaryPolygon;
+	Payload.ObjectClassification = ObjectClassification;
+	
+	UpdateSessionPayload(Payload.SessionPayload);
+}
+
 void UARTrackedImage::DebugDraw(UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds /*= 0.0f*/) const
 {
 	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
@@ -197,17 +248,44 @@ void UARTrackedImage::DebugDraw(UWorld* World, const FLinearColor& OutlineColor,
 	ARDebugHelpers::DrawDebugString(World, WorldSpaceCenter, CurAnchorDebugName, 0.25f * OutlineThickness, OutlineRGB, PersistForSeconds, true);
 }
 
+void UARTrackedImage::GetNetworkPayload(FARImageUpdatePayload& Payload)
+{
+	Payload.WorldTransform = GetLocalToWorldTransform();
+	Payload.DetectedImage = DetectedImage;
+	Payload.EstimatedSize = EstimatedSize;
+	
+	UpdateSessionPayload(Payload.SessionPayload);
+}
+
 void UARTrackedImage::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, FVector2D InEstimatedSize, UARCandidateImage* InDetectedImage)
 {
 	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
 	EstimatedSize = InEstimatedSize;
 	DetectedImage = InDetectedImage;
 	ObjectClassification = EARObjectClassification::Image;
+	
+	if ((EstimatedSize.X == 0.f || EstimatedSize.Y == 0.f) && DetectedImage)
+	{
+		EstimatedSize.X = DetectedImage->GetPhysicalWidth();
+		EstimatedSize.Y = DetectedImage->GetPhysicalHeight();
+	}
 }
 
 FVector2D UARTrackedImage::GetEstimateSize()
 {
 	return EstimatedSize;
+}
+
+void UARTrackedQRCode::GetNetworkPayload(FARQRCodeUpdatePayload& Payload)
+{
+	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
+
+	Payload.WorldTransform = LocalToWorldTransform;
+	Payload.Extents = FVector(EstimatedSize.X, EstimatedSize.Y, 0.0f);
+
+	Payload.QRCode = QRCode;
+	
+	UpdateSessionPayload(Payload.SessionPayload);
 }
 
 void UARTrackedQRCode::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, FVector2D InEstimatedSize, const FString& CodeData, int32 InVersion)
@@ -245,6 +323,10 @@ void UARTrackedPoint::DebugDraw(UWorld* World, const FLinearColor& OutlineColor,
 	DrawDebugPoint(World, LocalToWorldTransform.GetLocation(), 0.5f, OutlineRGB, false, PersistForSeconds, 0);
 }
 
+void UARTrackedPoint::GetNetworkPayload(FARPointUpdatePayload& Payload)
+{
+}
+
 void UARTrackedPoint::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform)
 {
 	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
@@ -253,6 +335,19 @@ void UARTrackedPoint::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface
 void UARFaceGeometry::DebugDraw( UWorld* World, const FLinearColor& OutlineColor, float OutlineThickness, float PersistForSeconds ) const
 {
 	Super::DebugDraw(World, OutlineColor, OutlineThickness, PersistForSeconds);
+}
+
+void UARFaceGeometry::GetNetworkPayload(FARFaceUpdatePayload& Payload)
+{
+	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
+
+	Payload.LeftEyePosition = LocalToWorldTransform.TransformPosition(LeftEyeTransform.GetLocation());
+	Payload.RightEyePosition = LocalToWorldTransform.TransformPosition(RightEyeTransform.GetLocation());
+
+	//not sure what space this is in...
+	Payload.LookAtTarget = LocalToWorldTransform.TransformPosition(LookAtTarget);
+	
+	UpdateSessionPayload(Payload.SessionPayload);
 }
 
 float UARFaceGeometry::GetBlendShapeValue(EARFaceBlendShape BlendShape) const
@@ -305,6 +400,11 @@ void UAREnvironmentCaptureProbe::DebugDraw(UWorld* World, const FLinearColor& Ou
 	DrawDebugBox( World, LocalToWorldTransform.GetLocation(), Extent, LocalToWorldTransform.GetRotation(), OutlineRGB, false, PersistForSeconds, 0, 0.1f * OutlineThickness );
 }
 
+void UAREnvironmentCaptureProbe::GetNetworkPayload(FAREnvironmentProbeUpdatePayload& Payload)
+{
+}
+
+
 void UAREnvironmentCaptureProbe::UpdateEnvironmentCapture(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 InFrameNumber, double InTimestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, FVector InExtent)
 {
 	Super::UpdateTrackedGeometry(InTrackingSystem, InFrameNumber, InTimestamp, InLocalToTrackingTransform, InAlignmentTransform);
@@ -330,6 +430,10 @@ void UARTrackedObject::DebugDraw(UWorld* World, const FLinearColor& OutlineColor
 	ARDebugHelpers::DrawDebugString( World, LocalToWorldTransform.GetLocation(), CurAnchorDebugName, 0.25f*OutlineThickness, OutlineRGB, PersistForSeconds, true);
 	
 	DrawDebugPoint(World, LocalToWorldTransform.GetLocation(), 0.5f, OutlineRGB, false, PersistForSeconds, 0);
+}
+
+void UARTrackedObject::GetNetworkPayload(FARObjectUpdatePayload& Payload)
+{
 }
 
 void UARTrackedObject::UpdateTrackedGeometry(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, UARCandidateObject* InDetectedObject)
@@ -391,8 +495,48 @@ void UARTrackedPose::DebugDraw(UWorld* World, const FLinearColor& OutlineColor, 
 	}
 }
 
+void UARTrackedPose::GetNetworkPayload(FARPoseUpdatePayload& Payload)
+{
+	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
+
+	Payload.WorldTransform = LocalToWorldTransform;
+
+	Payload.JointTransforms = TrackedPose.JointTransforms;
+}
+
 void UARTrackedPose::UpdateTrackedPose(const TSharedRef<FARSupportInterface , ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform, const FARPose3D& InTrackedPose)
 {
 	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
 	TrackedPose = InTrackedPose;
+}
+
+void UARMeshGeometry::GetNetworkPayload(FARMeshUpdatePayload& Payload)
+{
+	const FTransform LocalToWorldTransform = GetLocalToWorldTransform();
+
+	Payload.WorldTransform = LocalToWorldTransform;
+	
+	UpdateSessionPayload(Payload.SessionPayload);
+}
+
+void UARGeoAnchor::UpdateGeoAnchor(const TSharedRef<FARSupportInterface, ESPMode::ThreadSafe>& InTrackingSystem, uint32 FrameNumber, double Timestamp, const FTransform& InLocalToTrackingTransform, const FTransform& InAlignmentTransform,
+									  float InLongitude, float InLatitude, float InAltitudeMeters, EARAltitudeSource InAltitudeSource)
+{
+	Super::UpdateTrackedGeometry(InTrackingSystem, FrameNumber, Timestamp, InLocalToTrackingTransform, InAlignmentTransform);
+	
+	Longitude = InLongitude;
+	Latitude = InLatitude;
+	AltitudeMeters = InAltitudeMeters;
+	AltitudeSource = InAltitudeSource;
+}
+
+void UARGeoAnchor::GetNetworkPayload(FARGeoAnchorUpdatePayload& Payload)
+{
+	UpdateSessionPayload(Payload.SessionPayload);
+	Payload.WorldTransform = GetLocalToWorldTransform();
+	Payload.Longitude = Longitude;
+	Payload.Latitude = Latitude;
+	Payload.AltitudeMeters = AltitudeMeters;
+	Payload.AltitudeSource = AltitudeSource;
+	Payload.AnchorName = GetName();
 }

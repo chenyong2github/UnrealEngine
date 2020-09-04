@@ -36,8 +36,8 @@ typedef TUniformBufferRef< FDitherUniformShaderParameters > FDitherUniformBuffer
 /** Base Hull shader for drawing policy rendering */
 class FBaseHS : public FMeshMaterialShader
 {
-	DECLARE_TYPE_LAYOUT(FBaseHS, NonVirtual);
 public:
+	DECLARE_TYPE_LAYOUT(FBaseHS, NonVirtual);
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -61,26 +61,17 @@ public:
 		return true;
 	}
 
-	FBaseHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FMeshMaterialShader(Initializer)
-	{
-		if (!PassUniformBuffer.IsBound())
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-	}
-
-	FBaseHS() {}
-
-	
-	
+	FBaseHS() = default;
+	FBaseHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMeshMaterialShader(Initializer)
+	{}
 };
 
 /** Base Domain shader for drawing policy rendering */
 class FBaseDS : public FMeshMaterialShader
 {
-	DECLARE_TYPE_LAYOUT(FBaseDS, NonVirtual);
 public:
+	DECLARE_TYPE_LAYOUT(FBaseDS, NonVirtual);
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -92,30 +83,20 @@ public:
 		if (Parameters.VertexFactoryType && !Parameters.VertexFactoryType->SupportsTessellationShaders())
 		{
 			// VF can opt out of tessellation
-			return false;	
+			return false;
 		}
 
 		if (Parameters.MaterialParameters.TessellationMode == MTM_NoTessellation)
 		{
 			// Material controls use of tessellation
-			return false;	
+			return false;
 		}
 
-		return true;		
+		return true;
 	}
 
-	FBaseDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer):
-		FMeshMaterialShader(Initializer)
-	{
-		if (!PassUniformBuffer.IsBound())
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FSceneTexturesUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-	}
-
-	FBaseDS() {}
-
-	
-	
+	FBaseDS() = default;
+	FBaseDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+		: FMeshMaterialShader(Initializer)
+	{}
 };
-

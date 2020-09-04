@@ -42,7 +42,7 @@ NDKINSTALLPATH="$STUDIO_SDK_PATH/ndk/21.1.6352462"
 PLATFORMTOOLS="$STUDIO_SDK_PATH/platform-tools:$STUDIO_SDK_PATH/build-tools/28.0.3:$%STUDIO_SDK_PATH/tools/bin"
 
 retVal=$(type -P "adb")
-if [ $retVal == "" ]; then
+if [ "$retVal" == "" ]; then
 	echo >> ~/.bash_profile
 	echo export PATH="\"\$PATH:$PLATFORMTOOLS\"" >>~/.bash_profile
 	echo Added $PLATFORMTOOLS to path

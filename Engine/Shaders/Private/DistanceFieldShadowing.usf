@@ -737,6 +737,10 @@ void DistanceFieldShadowingCS(
 	Result = NumIntersectingObjects / 500.0f;
 #endif
 
+	#if METAL_PROFILE 
+		// clamp max depth to avoid #inf
+		SceneDepth = min(SceneDepth, 65500.0f);
+	#endif
 	RWShadowFactors[DispatchThreadId.xy] = float2(Result, SceneDepth);
 }
 

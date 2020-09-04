@@ -54,6 +54,15 @@ public:
 	
 	UPROPERTY(EditAnywhere, Config, Category = "Packaging")
 	bool bAutoIncrementVersion;
+	
+	UPROPERTY(EditAnywhere, Config, Category = "App Installer")
+	bool bShouldCreateAppInstaller;
+
+	UPROPERTY(EditAnywhere, Config, Category = "App Installer")
+	FString AppInstallerInstallationURL;
+
+	UPROPERTY(EditAnywhere, Config, Category = "App Installer", meta = (ToolTip = "0 will check on every app launch."))
+	int HoursBetweenUpdateChecks = 0;
 
 	UPROPERTY(EditAnywhere, config, Category = "Rendering", meta = (DisplayName = "Enable PIX Profiling"))
 	bool bEnablePIXProfiling;

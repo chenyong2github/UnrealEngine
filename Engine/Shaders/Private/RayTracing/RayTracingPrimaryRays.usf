@@ -214,9 +214,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingPrimaryRaysRGS)
 			ReflectionRay.TMax = LocalMaxRayDistance;
 			ReflectionRay.Origin = HitPoint;
 
-#if GBUFFER_HAS_TANGENT
 			ModifyGGXAnisotropicNormalRoughness(Payload.WorldTangent, Payload.Anisotropy, Payload.Roughness, Payload.WorldNormal, Ray.Direction);
-#endif
 
 			ReflectionRay.Direction = GenerateReflectedRayDirection(Ray.Direction, Payload.WorldNormal, Payload.Roughness, RandSample);
 			ApplyPositionBias(ReflectionRay, Payload.WorldNormal, MaxNormalBias);

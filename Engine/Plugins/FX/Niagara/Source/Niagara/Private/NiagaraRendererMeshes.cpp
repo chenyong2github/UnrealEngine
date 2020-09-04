@@ -903,7 +903,7 @@ void FNiagaraRendererMeshes::GetDynamicRayTracingInstances(FRayTracingMaterialGa
 		DispatchComputeShader(RHICmdList, GPURayTracingTransformsCS, NGroups, 1, 1);
 		GPURayTracingTransformsCS->UnbindBuffers(RHICmdList);
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, InstanceGPUTransformsBuffer.UAV);
+		RHICmdList.Transition(FRHITransitionInfo(InstanceGPUTransformsBuffer.UAV, ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 	}
 
 	RayTracingInstance.BuildInstanceMaskAndFlags();

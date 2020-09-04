@@ -2,6 +2,7 @@
 
 #include "IOS/IOSInputInterface.h"
 #include "IOS/IOSAppDelegate.h"
+#include "IOS/IOSApplication.h"
 #include "Misc/ConfigCacheIni.h"
 #include "Misc/ScopeLock.h"
 #include "HAL/IConsoleManager.h"
@@ -237,9 +238,7 @@ void FIOSInputInterface::HandleDisconnect(GCController* Controller)
 #if !PLATFORM_TVOS
 void ModifyVectorByOrientation(FVector& Vec, bool bIsRotation)
 {
-    UIInterfaceOrientation Orientation = [[UIApplication sharedApplication] statusBarOrientation];
-
-	switch (Orientation)
+	switch (FIOSApplication::CachedOrientation)
 	{
 	case UIInterfaceOrientationPortrait:
 		// this is the base orientation, so nothing to do

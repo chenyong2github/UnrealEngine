@@ -729,8 +729,7 @@ static void InternalBuildStrandsTextures_GPU(
 	Desc.Extent.Y = OutputResolution;
 	Desc.Depth = 0;
 	Desc.NumMips = 1;
-	Desc.Flags = 0;
-	Desc.TargetableFlags = TexCreate_UAV | TexCreate_ShaderResource | TexCreate_RenderTargetable;
+	Desc.Flags = TexCreate_None;
 	Desc.Format = PF_A8R8G8B8;
 
 	Desc.Format = PF_R32_FLOAT;

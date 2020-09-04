@@ -44,6 +44,11 @@ namespace MagicLeap
 		FRequiredPrivilege RequiredPrivilege(PrivilegeID);
 		{
 			FScopeLock Lock(&CriticalSection);
+			if (!RequiredPrivileges.Contains(PrivilegeID))
+			{
+				UE_LOG(LogMagicLeap, Error, TEXT("Privilege %s was denied as it wasn't listed in the required privileges map."), *MLPrivilegeToString(PrivilegeID));
+				return EPrivilegeState::Denied;
+			}
 			RequiredPrivilege = RequiredPrivileges[PrivilegeID];
 		}
 

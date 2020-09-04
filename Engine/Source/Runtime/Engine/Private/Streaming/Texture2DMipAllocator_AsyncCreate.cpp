@@ -8,8 +8,8 @@ Texture2DStreamIn_AsyncCreate.cpp: Implementation of FTextureMipAllocator using 
 #include "RenderUtils.h"
 #include "Containers/ResourceArray.h"
 
-FTexture2DMipAllocator_AsyncCreate::FTexture2DMipAllocator_AsyncCreate()
-	: FTextureMipAllocator(ETickState::AllocateMips, ETickThread::Async)
+FTexture2DMipAllocator_AsyncCreate::FTexture2DMipAllocator_AsyncCreate(UTexture* Texture)
+	: FTextureMipAllocator(Texture, ETickState::AllocateMips, ETickThread::Async)
 {
 }
 
@@ -23,26 +23,22 @@ bool FTexture2DMipAllocator_AsyncCreate::AllocateMips(
 	FTextureMipInfoArray& OutMipInfos, 
 	const FTextureUpdateSyncOptions& SyncOptions)
 {
-	check(Context.PendingFirstMipIndex < Context.CurrentFirstMipIndex);
+	check(PendingFirstLODIdx < CurrentFirstLODIdx);
 
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
-	FTexture2DRHIRef Texture2DRHI = Resource ? Resource->GetTexture2DRHI() : FTexture2DRHIRef();
-	if (!Texture2DRHI)
+	if (!Context.Resource)
 	{
 		return false;
 	}
 
-	OutMipInfos.AddDefaulted(Context.CurrentFirstMipIndex);
+	OutMipInfos.AddDefaulted(CurrentFirstLODIdx);
 
 	// Allocate the mip memory as temporary buffers so that the FTextureMipDataProvider implementation can write to it.
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Texture2D->GetPlatformMips();
-	for (int32 MipIndex = Context.PendingFirstMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 	{
-		const FTexture2DMipMap& OwnerMip = OwnerMips[MipIndex];
+		const FTexture2DMipMap& OwnerMip = *Context.MipsView[MipIndex];
 		FTextureMipInfo& MipInfo = OutMipInfos[MipIndex];
 
-		MipInfo.Format = Texture2DRHI->GetFormat();
+		MipInfo.Format = Context.Resource->GetPixelFormat();
 		MipInfo.SizeX = OwnerMip.SizeX;
 		MipInfo.SizeY = OwnerMip.SizeY;
 		MipInfo.DataSize = CalcTextureMipMapSize(MipInfo.SizeX, MipInfo.SizeY, MipInfo.Format, 0);
@@ -54,11 +50,11 @@ bool FTexture2DMipAllocator_AsyncCreate::AllocateMips(
 	}
 
 	// Backup size and format.
-	if (OutMipInfos.IsValidIndex(Context.PendingFirstMipIndex))
+	if (OutMipInfos.IsValidIndex(PendingFirstLODIdx))
 	{
-		FinalSizeX = OutMipInfos[Context.PendingFirstMipIndex].SizeX;
-		FinalSizeY = OutMipInfos[Context.PendingFirstMipIndex].SizeY;
-		FinalFormat = OutMipInfos[Context.PendingFirstMipIndex].Format;
+		FinalSizeX = OutMipInfos[PendingFirstLODIdx].SizeX;
+		FinalSizeY = OutMipInfos[PendingFirstLODIdx].SizeY;
+		FinalFormat = OutMipInfos[PendingFirstLODIdx].Format;
 
 		// Once the FTextureMipDataProvider has set the mip data, FinalizeMips can then create the texture in it's step (1).
 		AdvanceTo(ETickState::FinalizeMips, ETickThread::Async);
@@ -75,9 +71,7 @@ bool FTexture2DMipAllocator_AsyncCreate::AllocateMips(
 // - Render : swap the results
 bool FTexture2DMipAllocator_AsyncCreate::FinalizeMips(const FTextureUpdateContext& Context, const FTextureUpdateSyncOptions& SyncOptions)
 {
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Context.Texture, ECastCheckedType::NullChecked);
-	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
-	FTexture2DRHIRef Texture2DRHI = Resource ? Resource->GetTexture2DRHI() : FTexture2DRHIRef();
+	FRHITexture2D* Texture2DRHI = Context.Resource ? Context.Resource->GetTexture2DRHI() : nullptr;
 	if (!Texture2DRHI)
 	{
 		return false;
@@ -86,10 +80,8 @@ bool FTexture2DMipAllocator_AsyncCreate::FinalizeMips(const FTextureUpdateContex
 	// Step (1) : Create the texture on the async thread, having the new mip data as reference so that it can be initialized correctly.
 	if (!IntermediateTextureRHI)
 	{
-		const uint32 Flags = (Texture2D->SRGB ? TexCreate_SRGB : 0) | TexCreate_DisableAutoDefrag;
-
 		// Create the intermediate texture.
-		IntermediateTextureRHI = RHIAsyncCreateTexture2D(FinalSizeX, FinalSizeY, FinalFormat, Context.NumRequestedMips, Flags, FinalMipData.GetData(), FinalMipData.Num());
+		IntermediateTextureRHI = RHIAsyncCreateTexture2D(FinalSizeX, FinalSizeY, FinalFormat, ResourceState.NumRequestedLODs, Context.Resource->GetCreationFlags(), FinalMipData.GetData(), FinalMipData.Num());
 		// Free the temporary mip data, since copy is now in the RHIAsyncCreateTexture2D command.
 		ReleaseAllocatedMipData();
 
@@ -102,7 +94,7 @@ bool FTexture2DMipAllocator_AsyncCreate::FinalizeMips(const FTextureUpdateContex
 		// Copy the mips.
 		RHICopySharedMips(IntermediateTextureRHI, Texture2DRHI);
 		// Use the new texture resource for the texture asset, must run on the renderthread.
-		Resource->UpdateTexture(IntermediateTextureRHI, Context.PendingFirstMipIndex);
+		Context.Resource->FinalizeStreaming(IntermediateTextureRHI);
 		// No need for the intermediate texture anymore.
 		IntermediateTextureRHI.SafeRelease();
 
@@ -138,14 +130,6 @@ FTextureMipAllocator::ETickThread FTexture2DMipAllocator_AsyncCreate::GetCancelT
 		return ETickThread::None;
 	}
 }
-
-int32 FTexture2DMipAllocator_AsyncCreate::GetCurrentFirstMip(UTexture* Texture) const
-{
-	UTexture2D* Texture2D = CastChecked<UTexture2D>(Texture, ECastCheckedType::NullChecked);
-	FTexture2DResource* Resource = static_cast<FTexture2DResource*>(Texture2D->Resource);
-	return Resource ? Resource->GetCurrentFirstMip() : INDEX_NONE;
-}
-
 
 void FTexture2DMipAllocator_AsyncCreate::ReleaseAllocatedMipData()
 {

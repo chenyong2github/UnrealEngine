@@ -40,6 +40,7 @@ public:
 	virtual class TSharedPtr< class IStereoRendering, ESPMode::ThreadSafe > GetStereoRenderingDevice() override { return AsShared(); }
 	virtual class TSharedPtr< class IXRCamera, ESPMode::ThreadSafe > GetXRCamera(int32 DeviceId) override;
 	virtual FName GetSystemName() const override;
+	virtual int32 GetXRSystemFlags() const override;
 	virtual FString GetVersionString() const override;
 
 	virtual bool DoesSupportPositionalTracking() const override;
@@ -89,7 +90,7 @@ public:
 	virtual void GetEyeRenderParams_RenderThread(const FRenderingCompositePassContext& Context, FVector2D& EyeToSrcUVScaleValue, FVector2D& EyeToSrcUVOffsetValue) const override;
 	virtual void CalculateRenderTargetSize(const class FViewport& Viewport, uint32& InOutSizeX, uint32& InOutSizeY) override;
 	virtual bool NeedReAllocateViewportRenderTarget(const FViewport& Viewport) override;
-	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 	//virtual FRHICustomPresent* GetCustomPresent() override;
 	virtual IStereoRenderTargetManager* GetRenderTargetManager() override { return this; }
 
@@ -112,7 +113,7 @@ public:
 		return IsStereoEnabled();
 	}
 	virtual bool NeedReAllocateDepthTexture(const TRefCountPtr<IPooledRenderTarget>& DepthTarget) override;
-	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 InTexFlags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+	virtual bool AllocateDepthTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags InTexFlags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 
 public:
 	/** Constructor */
@@ -240,6 +241,8 @@ private:
 
 #if !PLATFORM_LUMIN
 	void DisplayWarningIfVDZINotEnabled();
+	void DisplayWarningIfRequiredVkExtensionsNotEnabled();
+	bool IsVREnabled() const;
 #endif
 
 	void GetClipExtents();
@@ -272,6 +275,7 @@ private:
 	bool bIsVDZIEnabled;
 	bool bUseVulkanForZI;
 	bool bVDZIWarningDisplayed;
+	bool bVkExtensionsWarningDisplayed;
 #if PLATFORM_WINDOWS || PLATFORM_LINUX || PLATFORM_MAC
 	enum class EServerPingState : int32
 	{
@@ -349,6 +353,8 @@ private:
 
 	float SavedMaxFPS;
 	FIntPoint DefaultRenderTargetSize;
+
+	static const FString kVulkanExtensionsWarningMsg;
 };
 
 //DEFINE_LOG_CATEGORY_STATIC(LogHMD, Log, All);

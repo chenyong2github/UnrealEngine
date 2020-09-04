@@ -823,6 +823,10 @@ public:
 	bool GetTwistAndSwingAngleOfDeltaRotationFromRefPose(FName BoneName, float& OutTwistAngle, float& OutSwingAngle) const;
 
 	bool IsSkinCacheAllowed(int32 LodIdx) const;
+	/**
+	 *	Compute SkeletalMesh MinLOD that will be used by this component
+	 */
+	int32 ComputeMinLOD() const;
 
 public:
 	//~ Begin UObject Interface

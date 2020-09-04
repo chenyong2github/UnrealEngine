@@ -132,10 +132,7 @@ struct FRenderAssetStreamingManager final : public IRenderAssetStreamingManager
 #endif // !UE_BUILD_SHIPPING
 
 	/** Adds a new texture/mesh to the streaming manager. */
-	virtual void AddStreamingRenderAsset( UTexture2D* Texture ) override;
-	virtual void AddStreamingRenderAsset(UStaticMesh* StaticMesh) override;
-	virtual void AddStreamingRenderAsset(USkeletalMesh* SkeletalMesh) override;
-	virtual void AddStreamingRenderAsset(ULandscapeLODStreamingProxy* Landscape) override;
+	virtual void AddStreamingRenderAsset( UStreamableRenderAsset* RenderAsset ) override;
 
 	/** Removes a texture/mesh from the streaming manager. */
 	virtual void RemoveStreamingRenderAsset( UStreamableRenderAsset* RenderAsset ) override;
@@ -227,20 +224,20 @@ private:
 		 */
 		void StreamRenderAssets( bool bProcessEverything );
 
-		int32 GetNumStreamedMipsArray(FStreamingRenderAsset::EAssetType AssetType, const int32*& OutArray)
+		int32 GetNumStreamedMipsArray(EStreamableRenderAssetType AssetType, const int32*& OutArray)
 		{
 			switch (AssetType)
 			{
-			case FStreamingRenderAsset::AT_Texture:
+			case EStreamableRenderAssetType::Texture:
 				OutArray = NumStreamedMips_Texture;
 				return TEXTUREGROUP_MAX;
-			case FStreamingRenderAsset::AT_StaticMesh:
+			case EStreamableRenderAssetType::StaticMesh:
 				OutArray = NumStreamedMips_StaticMesh.GetData();
 				return NumStreamedMips_StaticMesh.Num();
-			case FStreamingRenderAsset::AT_SkeletalMesh:
+			case EStreamableRenderAssetType::SkeletalMesh:
 				OutArray = NumStreamedMips_SkeletalMesh.GetData();
 				return NumStreamedMips_SkeletalMesh.Num();
-			case FStreamingRenderAsset::AT_LandscapeMeshMobile:
+			case EStreamableRenderAssetType::LandscapeMeshMobile:
 				OutArray = NumStreamedMips_LandscapeMeshMobile.GetData();
 				return NumStreamedMips_LandscapeMeshMobile.Num();
 			default:
@@ -307,8 +304,6 @@ private:
 	 */
 	void TickDeferredMipLevelChangeCallbacks();
 
-	void AddStreamingRenderAsset_Internal(UStreamableRenderAsset* InAsset, FStreamingRenderAsset::EAssetType InType);
-
 	/** Next sync, dump texture group stats. */
 	bool	bTriggerDumpTextureGroupStats;
 
@@ -334,7 +329,6 @@ private:
 
 	/** New textures/meshes, before they've been added to the thread-safe container. */
 	TArray<UStreamableRenderAsset*>	PendingStreamingRenderAssets;
-	TArray<typename FStreamingRenderAsset::EAssetType> PendingStreamingRenderAssetTypes;
 
 	/** The list of indices with null render asset in StreamingRenderAssets. */
 	TArray<int32>	RemovedRenderAssetIndices;

@@ -152,7 +152,7 @@ public:
 	/** 
 	 * Constructor that will create Texture and Color/DepthBuffers as needed
 	 */
-	FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumSamples, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData);
+	FMetalSurface(ERHIResourceType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumSamples, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData);
 
 	FMetalSurface(FMetalSurface& Source, NSRange MipRange);
 	
@@ -248,10 +248,8 @@ public:
 		ReadbackRequestedAndComplete 	= ReadbackRequested | ReadbackFenceComplete
 	};
 	
-	uint32 Flags;
-	// one per mip
-//	FMetalBuffer LockedMemory[16];
-//	uint32 WriteLock;
+	ETextureCreateFlags Flags;
+
 	uint32 BufferLocks;
 
 	// how much memory is allocated for this texture
@@ -285,7 +283,7 @@ public:
 	FMetalSurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FMetalTexture2D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
+	FMetalTexture2D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
 		: FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, Flags, InClearValue)
 		, Surface(RRT_Texture2D, Format, SizeX, SizeY, 1, NumSamples, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
 	{
@@ -313,7 +311,7 @@ public:
 	FMetalSurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FMetalTexture2DArray(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
+	FMetalTexture2DArray(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
 		: FRHITexture2DArray(SizeX, SizeY, ArraySize, NumMips, 1, Format, Flags, InClearValue)
 		, Surface(RRT_Texture2DArray, Format, SizeX, SizeY, 1, /*NumSamples=*/1, /*bArray=*/ true, ArraySize, NumMips, Flags, BulkData)
 	{
@@ -336,7 +334,7 @@ public:
 	FMetalSurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FMetalTexture3D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
+	FMetalTexture3D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
 		: FRHITexture3D(SizeX, SizeY, SizeZ, NumMips, Format, Flags, InClearValue)
 		, Surface(RRT_Texture3D, Format, SizeX, SizeY, SizeZ, /*NumSamples=*/1, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
 	{
@@ -359,7 +357,7 @@ public:
 	FMetalSurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FMetalTextureCube(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
+	FMetalTextureCube(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData, const FClearValueBinding& InClearValue)
 		: FRHITextureCube(Size, NumMips, Format, Flags, InClearValue)
 		, Surface(RRT_TextureCube, Format, Size, Size, 6, /*NumSamples=*/1, bArray, ArraySize, NumMips, Flags, BulkData)
 	{
@@ -470,21 +468,6 @@ public:
 	 * Initialize the buffer contents from the render-thread.
 	 */
 	void Init_RenderThread(class FRHICommandListImmediate& RHICmdList, uint32 Size, uint32 InUsage, FRHIResourceCreateInfo& CreateInfo, FRHIResource* Resource);
-	
-	/**
-	 * Alias the buffer backing store allowing the memory to be reused by another resource.
-	 */
-	void Alias();
-
-	/**
-	 * Unalias the buffer backing store forcing the memory to be reserved for use by this resource.
-	 */
-	void Unalias();
-	
-	/**
-	 * Allocate the buffer backing store.
-	 */
-//	void Alloc(uint32 InSize, EResourceLockMode LockMode);
 	
 	/**
 	 * Get a linear texture for given format.
@@ -683,26 +666,6 @@ public:
 	TRefCountPtr<FMetalShaderResourceView> SourceView;
 };
 
-class FMetalFence;
-
-class FMetalComputeFence : public FRHIComputeFence
-{
-public:
-	
-	FMetalComputeFence(FName InName);
-	
-	virtual ~FMetalComputeFence();
-	
-	virtual void Reset() final override;
-	
-	void Write(FMetalFence* InFence);
-	
-	void Wait(FMetalContext& Context);
-	
-private:
-	FMetalFence* Fence;
-};
-
 class FMetalGPUFence final : public FRHIGPUFence
 {
 public:
@@ -858,11 +821,6 @@ template<>
 struct TMetalResourceTraits<FRHIBlendState>
 {
 	typedef FMetalBlendState TConcreteType;
-};
-template<>
-struct TMetalResourceTraits<FRHIComputeFence>
-{
-	typedef FMetalComputeFence TConcreteType;
 };
 template<>
 struct TMetalResourceTraits<FRHIGraphicsPipelineState>

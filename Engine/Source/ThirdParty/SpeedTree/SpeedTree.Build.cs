@@ -21,7 +21,7 @@ public class SpeedTree : ModuleRules
             string SpeedTreePath = Target.UEThirdPartySourceDirectory + "SpeedTree/SpeedTreeSDK-v7.0/";
             PublicIncludePaths.Add(SpeedTreePath + "Include");
 
-            string SpeedTree8Path = Target.UEThirdPartySourceDirectory + "SpeedTree/SpeedTree8/";
+            string SpeedTree8Path = Target.UEThirdPartySourceDirectory + "SpeedTree/SpeedTreeDataBuffer/";
             PublicIncludePaths.Add(SpeedTree8Path);
 
             if (Target.Platform == UnrealTargetPlatform.Win64)

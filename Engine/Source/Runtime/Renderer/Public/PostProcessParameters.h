@@ -98,7 +98,6 @@ private:
 	LAYOUT_ARRAY(FShaderParameter, PostProcessInputMinMaxParameter, ePId_Input_MAX);
 	LAYOUT_FIELD(FShaderParameter, ScreenPosToPixel);
 	LAYOUT_FIELD(FShaderParameter, SceneColorBufferUVViewport);
-	LAYOUT_FIELD(FShaderResourceParameter, BilinearTextureSampler);
 	
 public:
 	// @param Filter can be 0 if FilterOverrideArray is used

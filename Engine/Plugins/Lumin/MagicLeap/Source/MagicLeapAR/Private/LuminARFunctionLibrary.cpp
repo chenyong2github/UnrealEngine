@@ -83,10 +83,16 @@ bool ULuminARFrameFunctionLibrary::LuminARLineTrace(UObject* WorldContextObject,
 
 ULuminARCandidateImage* ULuminARImageTrackingFunctionLibrary::AddLuminRuntimeCandidateImage(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary)
 {
+	// ForwardAxisAsNormal is default for anyone using this old function since that was the orientation we used to report before providing the option.
+	return ULuminARImageTrackingFunctionLibrary::AddLuminRuntimeCandidateImageEx(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth, bUseUnreliablePose, bImageIsStationary, EMagicLeapImageTargetOrientation::ForwardAxisAsNormal);
+}
+
+ULuminARCandidateImage* ULuminARImageTrackingFunctionLibrary::AddLuminRuntimeCandidateImageEx(UARSessionConfig* SessionConfig, UTexture2D* CandidateTexture, FString FriendlyName, float PhysicalWidth, bool bUseUnreliablePose, bool bImageIsStationary, EMagicLeapImageTargetOrientation InAxisOrientation)
+{
 	TSharedPtr<FLuminARImplementation, ESPMode::ThreadSafe> LuminARSystem = FLuminARModule::GetLuminARSystem();
 	if (LuminARSystem.IsValid())
 	{
-		return LuminARSystem->AddLuminRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth, bUseUnreliablePose, bImageIsStationary);
+		return LuminARSystem->AddLuminRuntimeCandidateImage(SessionConfig, CandidateTexture, FriendlyName, PhysicalWidth, bUseUnreliablePose, bImageIsStationary, InAxisOrientation);
 	}
 	else
 	{

@@ -41,14 +41,17 @@ public:
     FMetalSuballocatedUniformBuffer(const FRHIUniformBufferLayout& Layout, EUniformBufferUsage Usage, EUniformBufferValidation Validation);
     ~FMetalSuballocatedUniformBuffer();
     
-    void Update(const void* Contents);
+	void Update(const void* Contents, TArray<TRefCountPtr<FRHIResource> > const& InResourceTable);
     
     // Prepares this uniform buffer for binding.
     // You MUST call this before binding it.
     // If this is a UB that was created before the current frame the data on the GPU will
     // not be correct until this function returns.
     void PrepareToBind();
-    
+
+	// Copies the RDG resources to a resource table for a deferred update on the RHI thread.
+	void CopyResourceTable_RenderThread(const void* Contents, TArray<TRefCountPtr<FRHIResource> >& OutResourceTable);
+
 private:
     
     // Pushes the data in Contents to the gpu.

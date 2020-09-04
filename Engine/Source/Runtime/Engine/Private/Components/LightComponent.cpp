@@ -33,7 +33,7 @@ void FStaticShadowDepthMap::InitRHI()
 	if (FApp::CanEverRender() && Data && Data->ShadowMapSizeX > 0 && Data->ShadowMapSizeY > 0 && GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(Data->ShadowMapSizeX, Data->ShadowMapSizeY, PF_R16F, 1, 1, 0, CreateInfo);
+		FTexture2DRHIRef Texture2DRHI = RHICreateTexture2D(Data->ShadowMapSizeX, Data->ShadowMapSizeY, PF_R16F, 1, 1, TexCreate_None, CreateInfo);
 		TextureRHI = Texture2DRHI;
 
 		uint32 DestStride = 0;
@@ -331,6 +331,10 @@ FLightSceneProxy::FLightSceneProxy(const ULightComponent* InLightComponent)
 	, ShadowAmount(1.0f)
 	, SamplesPerPixel(1)
 	, DeepShadowLayerDistribution(InLightComponent->DeepShadowLayerDistribution)
+	, bMobileMovablePointLightUniformBufferNeedsUpdate(false)
+	, bMobileMovablePointLightShouldBeRender(false)
+	, bMobileMovablePointLightShouldCastShadow(false)
+	, MobileMovablePointLightShadowmapMinMax()
 {
 	check(SceneInterface);
 

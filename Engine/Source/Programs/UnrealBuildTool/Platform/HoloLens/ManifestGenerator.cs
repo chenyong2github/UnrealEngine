@@ -760,7 +760,17 @@ namespace UnrealBuildTool
 			UpdatedFilePaths = new List<string>();
 			ManifestRelatedFilePaths = new List<string>();
 
-			WinMDReferences = ((InWinMDReferences == null) ? new List<WinMDRegistrationInfo>() : new List<WinMDRegistrationInfo>(InWinMDReferences));
+			WinMDReferences = new List<WinMDRegistrationInfo>();
+			if(InWinMDReferences != null)
+            {
+				foreach(var r in InWinMDReferences)
+                {
+					if(!WinMDReferences.Any((a) => a.PackageRelativeDllPath.ToLower() == r.PackageRelativeDllPath.ToLower()))
+                    {
+						WinMDReferences.Add(r);
+					}
+                }
+            }
 			//Platform = TargetPlatform;
 			Architecture = TargetArchitecture;
 			TargetSettings = "/Script/HoloLensPlatformEditor.HoloLensTargetSettings";
@@ -1897,11 +1907,11 @@ namespace UnrealBuildTool
 				TargetDeviceFamily.Attributes.Append(NameAttribute);
 
 				XmlAttribute MinVersionAttribute = AppxManifestXmlDocument.CreateAttribute("MinVersion");
-				MinVersionAttribute.Value = CreateStringValue("MinimumPlatformVersion", "Package.Dependencies.TargetDeviceFamily[0].MinVersion", "MinimumPlatformVersion", "MinVersion", "10.0.10240.0");
+				MinVersionAttribute.Value = CreateStringValue("MinimumPlatformVersion", "Package.Dependencies.TargetDeviceFamily[0].MinVersion", "MinimumPlatformVersion", "MinVersion", "10.0.17763.0");
 				TargetDeviceFamily.Attributes.Append(MinVersionAttribute);
 
 				XmlAttribute MaxVersionTestedAttribute = AppxManifestXmlDocument.CreateAttribute("MaxVersionTested");
-				MaxVersionTestedAttribute.Value = CreateStringValue("MaximumPlatformVersionTested", "Package.Dependencies.TargetDeviceFamily[0].MaxVersionTested", "MaximumPlatformVersionTested", "MaxVersionTested", "10.0.10586.0");
+				MaxVersionTestedAttribute.Value = CreateStringValue("MaximumPlatformVersionTested", "Package.Dependencies.TargetDeviceFamily[0].MaxVersionTested", "MaximumPlatformVersionTested", "MaxVersionTested", "10.0.18362.0");
 				TargetDeviceFamily.Attributes.Append(MaxVersionTestedAttribute);
 			}
 
@@ -2360,7 +2370,11 @@ namespace UnrealBuildTool
 			SdkSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Include", SDKVersion.ToString(), "winrt");
 			PhoneSchemaFolder = DirectoryReference.Combine(SDKRootFolder, "Extension SDKs", "WindowsMobile", SDKVersion.ToString(), "Include", "WinRT");
 
-			if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2017, out VSInstallDir))
+			if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2019, out VSInstallDir))
+			{
+				VSSchemaFolder = DirectoryReference.Combine(VSInstallDir, "Xml", "Schemas");
+			}
+			else if (WindowsPlatform.TryGetVSInstallDir(WindowsCompiler.VisualStudio2017, out VSInstallDir))
 			{
 				VSSchemaFolder = DirectoryReference.Combine(VSInstallDir, "Xml", "Schemas");
 			}
@@ -2375,6 +2389,8 @@ namespace UnrealBuildTool
 				"UapManifestSchema_v5.xsd",
 				"UapManifestSchema_v6.xsd",
 				"UapManifestSchema_v7.xsd",
+				"UapManifestSchema_v8.xsd",
+				"UapManifestSchema_v10.xsd",
 				"FoundationManifestSchema.xsd",
 				"AppxManifestSchema2010_v3.xsd",
 				"AppxManifestSchema2013_v2.xsd",
@@ -2384,6 +2400,7 @@ namespace UnrealBuildTool
 				"DesktopManifestSchema_v3.xsd",
 				"DesktopManifestSchema_v4.xsd",
 				"DesktopManifestSchema_v5.xsd",
+				"DesktopManifestSchema_v6.xsd",
 				"IotManifestSchema_v2.xsd"
 			};
 

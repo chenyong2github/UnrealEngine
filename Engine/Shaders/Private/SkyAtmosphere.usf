@@ -6,15 +6,8 @@
 
 
 #include "Common.ush"
-
-#if SHADING_PATH_MOBILE
-#define MobileSceneTextures SceneTexturesStruct 
-#endif
-
 #include "SceneTexturesCommon.ush"
 #include "SkyAtmosphereCommon.ush"
-
-
 
 #ifndef COLORED_TRANSMITTANCE_ENABLED	// Never used, UE4 does not supports dual blending
 #define COLORED_TRANSMITTANCE_ENABLED 0 
@@ -898,7 +891,7 @@ void RenderSkyAtmosphereRayMarchingPS(
 
 	float ViewHeight = length(WorldPos);
 #if FASTSKY_ENABLED && RENDERSKY_ENABLED
-	if (ViewHeight < Atmosphere.TopRadiusKm && DeviceZ == FarDepthValue)
+	if (ViewHeight < (Atmosphere.TopRadiusKm + PLANET_RADIUS_SAFE_TRACE_EDGE) && DeviceZ == FarDepthValue)
 	{
 		float2 UV;
 

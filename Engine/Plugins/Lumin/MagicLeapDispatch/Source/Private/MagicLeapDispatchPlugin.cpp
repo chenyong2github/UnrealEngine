@@ -1,7 +1,8 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "IMagicLeapDispatchPlugin.h"
-#include "MagicLeapPluginUtil.h"
+#include "Containers/Ticker.h"
+#include "Containers/Queue.h"
 #include "Lumin/CAPIShims/LuminAPIDispatch.h"
 
 #if PLATFORM_LUMIN
@@ -36,6 +37,119 @@ EMagicLeapDispatchResult MLToUEDispatchResult(MLResult Result)
 class FMagicLeapDispatchPlugin : public IMagicLeapDispatchPlugin
 {
 public:
+	void StartupModule() override
+	{
+		TickDelegate = FTickerDelegate::CreateRaw(this, &FMagicLeapDispatchPlugin::Tick);
+	}
+
+	void ShutdownModule() override
+	{
+		FTicker::GetCoreTicker().RemoveTicker(TickDelegateHandle);
+	}
+
+	bool Tick(float DeltaTime)
+	{
+#if WITH_MLSDK
+		OAuthResponse IncomingResponse;
+		if (IncomingResponses.Dequeue(IncomingResponse))
+		{
+			if (IncomingResponse.bRedirect)
+			{
+				OAuthMetadata.RedirectDelegate.ExecuteIfBound(IncomingResponse.Response);
+			}
+			else
+			{
+				OAuthMetadata.CancelDelegate.ExecuteIfBound(IncomingResponse.Response);
+			}
+			MLResult Result = MLDispatchOAuthUnregisterSchema(TCHAR_TO_UTF8(*OAuthMetadata.RedirectURI));
+			UE_CLOG(Result != MLResult_Ok, LogMagicLeapDispatch, Error, TEXT("MLDispatchOAuthUnregisterSchema failed with error %s"), UTF8_TO_TCHAR(MLDispatchGetResultString(Result)));
+			Result = MLDispatchOAuthUnregisterSchema(TCHAR_TO_UTF8(*OAuthMetadata.CancelURI));
+			UE_CLOG(Result != MLResult_Ok, LogMagicLeapDispatch, Error, TEXT("MLDispatchOAuthUnregisterSchema failed with error %s"), UTF8_TO_TCHAR(MLDispatchGetResultString(Result)));
+		}
+#endif // WITH_MLSDK
+		
+		return true;
+	}
+
+#if WITH_MLSDK
+	struct FOAuthMetadata
+	{
+		FString RedirectURI;
+		FString CancelURI;
+		FMagicLeapOAuthSchemaHandler RedirectDelegate;
+		FMagicLeapOAuthSchemaHandler CancelDelegate;
+	};
+
+	FOAuthMetadata OAuthMetadata;
+
+	struct OAuthResponse
+	{
+		FString Response;
+		bool bRedirect;
+	};
+
+	TQueue<OAuthResponse, EQueueMode::Spsc> IncomingResponses;
+
+	static void RedirectUriCb(MLDispatchOAuthResponse* Response)
+	{
+		if (Response)
+		{
+			FMagicLeapDispatchPlugin* This = static_cast<FMagicLeapDispatchPlugin*>(Response->context);
+			if (This)
+			{
+				This->IncomingResponses.Enqueue({ UTF8_TO_TCHAR(Response->response), true });
+			}
+		}
+	}
+
+	static void CancelUriCb(MLDispatchOAuthResponse* Response)
+	{
+		if (Response)
+		{
+			FMagicLeapDispatchPlugin* This = static_cast<FMagicLeapDispatchPlugin*>(Response->context);
+			if (This)
+			{
+				This->IncomingResponses.Enqueue({ UTF8_TO_TCHAR(Response->response), false });
+			}
+		}
+	}
+#endif // WITH_MLSDK
+
+	EMagicLeapDispatchResult OpenOAuthWindow(const FString& OAuthURL, const FString& RedirectURI, const FString& CancelURI,
+		const FMagicLeapOAuthSchemaHandler& RedirectUriDelegate, const FMagicLeapOAuthSchemaHandler CancelUriDelegate)
+	{
+#if WITH_MLSDK
+		if (!TickDelegateHandle.IsValid())
+		{
+			TickDelegateHandle = FTicker::GetCoreTicker().AddTicker(TickDelegate);
+		}
+
+		OAuthMetadata.RedirectURI = RedirectURI;
+		OAuthMetadata.CancelURI = CancelURI;
+		OAuthMetadata.RedirectDelegate = RedirectUriDelegate;
+		OAuthMetadata.CancelDelegate = CancelUriDelegate;
+
+		MLDispatchOAuthCallbacks RedirectCallbacks = {};
+		MLDispatchOAuthCallbacksInit(&RedirectCallbacks);
+		RedirectCallbacks.oauth_schema_handler = RedirectUriCb;
+		MLResult Result = MLDispatchOAuthRegisterSchemaEx(TCHAR_TO_UTF8(*RedirectURI), &RedirectCallbacks, this);
+		UE_CLOG(Result != MLResult_Ok, LogMagicLeapDispatch, Error, TEXT("MLDispatchOAuthRegisterSchemaEx() failed with error %s"), UTF8_TO_TCHAR(MLDispatchGetResultString(Result)));
+
+		MLDispatchOAuthCallbacks CancelCallbacks = {};
+		MLDispatchOAuthCallbacksInit(&CancelCallbacks);
+		CancelCallbacks.oauth_schema_handler = CancelUriCb;
+		Result = MLDispatchOAuthRegisterSchemaEx(TCHAR_TO_UTF8(*CancelURI), &CancelCallbacks, this);
+		UE_CLOG(Result != MLResult_Ok, LogMagicLeapDispatch, Error, TEXT("MLDispatchOAuthRegisterSchemaEx() failed with error %s"), UTF8_TO_TCHAR(MLDispatchGetResultString(Result)));
+
+		Result = MLDispatchOAuthOpenWindow(TCHAR_TO_UTF8(*OAuthURL), TCHAR_TO_UTF8(*CancelURI));
+		UE_CLOG(Result != MLResult_Ok, LogMagicLeapDispatch, Error, TEXT("MLDispatchOAuthOpenWindow() failed with error %s"), UTF8_TO_TCHAR(MLDispatchGetResultString(Result)));
+
+		return MLToUEDispatchResult(Result);
+#else
+		return EMagicLeapDispatchResult::NotImplemented;
+#endif // WITH_MLSDK
+	}
+
 #if PLATFORM_LUMIN
 	virtual EMagicLeapDispatchResult TryOpenApplication(const TArray<FLuminFileInfo>& DispatchFileList) override
 	{
@@ -107,7 +221,8 @@ public:
 #endif // PLATFORM_LUMIN
 
 private:
-	FMagicLeapAPISetup APISetup;
+	FTickerDelegate TickDelegate;
+	FDelegateHandle TickDelegateHandle;
 };
 
 IMPLEMENT_MODULE(FMagicLeapDispatchPlugin, MagicLeapDispatch);

@@ -42,57 +42,79 @@ uint SwapEndian32(in uint x)
 		(x >> 24);
 }
 
-void SelectColorMod(in float3 OrigColor, in float3 EncodedColor, in int IndexInTable, inout int SelectedIndex, inout float MinPixelError)
+void FindPixelWeights(in float3 Block[16], in float3 BaseColor, in uint TableIdx, in int StartX, in int EndX, in int StartY, in int EndY, out uint SubBlockWeights)
 {
-	float3 Diff = EncodedColor - OrigColor;
-	float ErrorForIndex = dot(Diff, Diff);
-	if (ErrorForIndex < MinPixelError)
-	{
-		MinPixelError = ErrorForIndex;
-		SelectedIndex = IndexInTable;
-	}
-}
-
-void FindPixelWeights(in float3 Block[16], in float3 BaseColor, in uint TableIdx, in int StartX, in int EndX, in int StartY, in int EndY, out uint SubBlockWeights, out float Error)
-{
-	int PIXEL_INDEX_ENCODE_TABLE[4] = { 3, 2, 0, 1 };
-
+	//int PIXEL_INDEX_ENCODE_TABLE[4] = { 3, 2, 0, 1 };
 	SubBlockWeights = 0;
-	Error = 0;
 	
-	float2 TableValue = EtcParameters.RGB_DISTANCE_TABLES[TableIdx];
-	float3 EncodedColor0 = saturate(BaseColor + TableValue.xxx);
-	float3 EncodedColor1 = saturate(BaseColor + TableValue.yyy);
-	float3 EncodedColor2 = saturate(BaseColor - TableValue.xxx);
-	float3 EncodedColor3 = saturate(BaseColor - TableValue.yyy);
+	float TableRangeMax = EtcParameters.RGB_DISTANCE_TABLES[TableIdx].w / 255.f;
+	float BaseLum = Luminance(BaseColor);
 
 	for (int Y = StartY; Y < EndY; ++Y)
 	{
 		for (int X = StartX; X < EndX; ++X)
 		{
 			float3 OrigColor = Block[4 * Y + X];
-			float MinPixelError = 4.f;
-			int SelectedIndex = 0;
-			SelectColorMod(OrigColor, EncodedColor0, 0, SelectedIndex, MinPixelError);
-			SelectColorMod(OrigColor, EncodedColor1, 1, SelectedIndex, MinPixelError);
-			SelectColorMod(OrigColor, EncodedColor2, 2, SelectedIndex, MinPixelError);
-			SelectColorMod(OrigColor, EncodedColor3, 3, SelectedIndex, MinPixelError);
-			
-			int EncIndex = PIXEL_INDEX_ENCODE_TABLE[SelectedIndex];
+			float Diff = Luminance(OrigColor) - BaseLum;
+			int EncIndex = 0;
+			if (Diff < 0.f)
+			{
+				EncIndex = (-Diff * 1.58) > TableRangeMax ? 3 : 2;  
+			}
+			else
+			{
+				EncIndex = (Diff * 1.58) > TableRangeMax ? 1 : 0;
+			}
+			//int EncIndex = PIXEL_INDEX_ENCODE_TABLE[SelectedIndex];
 			int IndexInBlock = X * 4 + Y;
 			SubBlockWeights |= ((EncIndex & 1) << IndexInBlock) | ((EncIndex >> 1) << (16 + IndexInBlock));
-			Error += MinPixelError;
 		}
 	}
 }
 
-uint2 CompressBlock_ETC2_RGB_Est(in float3 Block[16])
+uint SelectRGBTableIndex(float LuminanceR)
+{
+	// guess a table using sub-block luminance range
+	float Range = (LuminanceR + LuminanceR * 0.1)*255.0;
+	if (Range < 8.0)
+	{
+		return 0;
+	}
+	else if (Range < 17.0)
+	{
+		return 1;
+	}
+	else if (Range < 29.0)
+	{
+		return 2;
+	}
+	else if (Range < 42.0)
+	{
+		return 3;
+	}
+	else if (Range < 60.0)
+	{
+		return 4;
+	}
+	else if (Range < 80.0)
+	{
+		return 5;
+	}
+	else if (Range < 106.0)
+	{
+		return 6;
+	}
+	return 7;
+}
+
+uint2 CompressBlock_ETC2_RGB(in float3 Block[16])
 {
 	// Always use side-by-side mode (flip bit set to 0).
 	uint FlipBit = 0;
+	
 	float3 BaseColor1_Float = (Block[0] + Block[1] + Block[4] + Block[5] +  Block[8] +  Block[9] + Block[12] + Block[13]) * 0.125;
 	float3 BaseColor2_Float = (Block[2] + Block[3] + Block[6] + Block[7] + Block[10] + Block[11] + Block[14] + Block[15]) * 0.125;
-	
+		
 	int3 BaseColor1 = FloatColorToUint555(BaseColor1_Float);
 	int3 BaseColor2 = FloatColorToUint555(BaseColor2_Float);
 	int3 Diff = BaseColor2 - BaseColor1;
@@ -102,7 +124,7 @@ uint2 CompressBlock_ETC2_RGB_Est(in float3 Block[16])
 
 	uint BlockMode;
 	int3 MinDiff = { -4, -4, -4 }, MaxDiff = { 3, 3, 3 };
-	if( all(Diff >= MinDiff) && all(Diff <= MaxDiff) )
+	if (all(Diff >= MinDiff) && all(Diff <= MaxDiff))
 	{
 		// We can use differential mode.
 		BlockMode = BLOCK_MODE_DIFFERENTIAL;
@@ -121,40 +143,21 @@ uint2 CompressBlock_ETC2_RGB_Est(in float3 Block[16])
 		BaseColor2_Quant = ExpandColor444(BaseColor2);
 	}
 
-	// iterating through all tables to find a best fit is quite slow
-	// guess a table using sub-block color range
-	float3 Block1Max = max(Block[0], Block[13]);
-	float3 Block2Max = max(Block[2], Block[15]);
-	float Block1Range = length(BaseColor1_Quant - Block1Max);
-	float Block2Range = length(BaseColor2_Quant - Block2Max);
-	
-	uint SubBlock1TableIdx = 0;
-	uint SubBlock2TableIdx = 0;
-	for (uint i = 0; i < NUM_RGB_TABLES; ++i)
-	{
-		float TableRange = EtcParameters.RGB_DISTANCE_TABLES[i].y;
-		if (TableRange > Block1Range)
-		{
-			SubBlock1TableIdx = i; 
-			break;
-		}
-	}
-		
-	for (uint j = 0; j < NUM_RGB_TABLES; ++j)
-	{
-		float TableRange = EtcParameters.RGB_DISTANCE_TABLES[j].y;
-		if (TableRange > Block2Range)
-		{
-			SubBlock2TableIdx = j; 
-			break;
-		}
-	}
-	
-	float Error = 0.0f;
+	float l00 = Luminance(Block[0]);
+	float l08 = Luminance(Block[8]);
+	float l13 = Luminance(Block[13]);
+	float LuminanceR1 = (max3(l00, l08, l13) - min3(l00, l08, l13))*0.5;
+	uint SubBlock1TableIdx = SelectRGBTableIndex(LuminanceR1);
 	uint SubBlock1Weights = 0;
-	FindPixelWeights(Block, BaseColor1_Quant, SubBlock1TableIdx, 0, 2, 0, 4, SubBlock1Weights, Error);
+	FindPixelWeights(Block, BaseColor1_Quant, SubBlock1TableIdx, 0, 2, 0, 4, SubBlock1Weights);
+
+	float l02 = Luminance(Block[2]);
+	float l10 = Luminance(Block[10]);
+	float l15 = Luminance(Block[15]);
+	float LuminanceR2 =  (max3(l02, l10, l15) - min3(l02, l10, l15))*0.5;
+	uint SubBlock2TableIdx = SelectRGBTableIndex(LuminanceR2);
 	uint SubBlock2Weights = 0;
-	FindPixelWeights(Block, BaseColor2_Quant, SubBlock2TableIdx, 2, 4, 0, 4, SubBlock2Weights, Error);
+	FindPixelWeights(Block, BaseColor2_Quant, SubBlock2TableIdx, 2, 4, 0, 4, SubBlock2Weights);
 	
 	// Both these values need to be big-endian. We can build ModeBits directly in big-endian layout, but for IndexBits
 	// it's too hard, so we'll just swap here.
@@ -162,79 +165,6 @@ uint2 CompressBlock_ETC2_RGB_Est(in float3 Block[16])
 	uint IndexBits = SwapEndian32(SubBlock1Weights | SubBlock2Weights);
 
 	return uint2(ModeBits, IndexBits);
-}
-
-uint2 CompressBlock_ETC2_RGB_Full(in float3 Block[16])
-{
-	// Always use side-by-side mode (flip bit set to 0).
-	uint FlipBit = 0;
-	float3 BaseColor1_Float = (Block[0] + Block[1] + Block[4] + Block[5] +  Block[8] +  Block[9] + Block[12] + Block[13]) * 0.125;
-	float3 BaseColor2_Float = (Block[2] + Block[3] + Block[6] + Block[7] + Block[10] + Block[11] + Block[14] + Block[15]) * 0.125;
-
-	int3 BaseColor1 = FloatColorToUint555(BaseColor1_Float);
-	int3 BaseColor2 = FloatColorToUint555(BaseColor2_Float);
-	int3 Diff = BaseColor2 - BaseColor1;
-
-	uint ColorBits;
-	float3 BaseColor1_Quant, BaseColor2_Quant;
-
-	uint BlockMode;
-	int3 MinDiff = { -4, -4, -4 }, MaxDiff = { 3, 3, 3 };
-	if( all(Diff >= MinDiff) && all(Diff <= MaxDiff) )
-	{
-		// We can use differential mode.
-		BlockMode = BLOCK_MODE_DIFFERENTIAL;
-		ColorBits = ((Diff.b & 7) << 16) | (BaseColor1.b << 19) | ((Diff.g & 7) << 8) | (BaseColor1.g << 11) | (Diff.r & 7) | (BaseColor1.r << 3);
-		BaseColor1_Quant = ExpandColor555(BaseColor1);
-		BaseColor2_Quant = ExpandColor555(BaseColor2);
-	}
-	else
-	{
-		// We must use the lower precision individual mode.
-		BlockMode = BLOCK_MODE_INDIVIDUAL;
-		BaseColor1 >>= 1;
-		BaseColor2 >>= 1;
-		ColorBits = (BaseColor1.b << 20) | (BaseColor2.b << 16) | (BaseColor1.g << 12) | (BaseColor2.g << 8) | (BaseColor1.r << 4) | BaseColor2.r;
-		BaseColor1_Quant = ExpandColor444(BaseColor1);
-		BaseColor2_Quant = ExpandColor444(BaseColor2);
-	}
-
-	float SubBlock0Error = 4.f, SubBlock1Error = 4.f;
-	uint SubBlock0TableIdx = 0, SubBlock1TableIdx = 0;
-	uint SubBlock0Weights = 0, SubBlock1Weights = 0;
-	for (int TableIdx = 0; TableIdx < NUM_RGB_TABLES; ++TableIdx)
-	{
-		uint SubBlockWeights;
-		float Error;
-		FindPixelWeights(Block, BaseColor1_Quant, TableIdx, 0, 2, 0, 4, SubBlockWeights, Error);
-		if (Error < SubBlock0Error)
-		{
-			SubBlock0Error = Error;
-			SubBlock0TableIdx = TableIdx;
-			SubBlock0Weights = SubBlockWeights;
-		}
-
-		FindPixelWeights(Block, BaseColor2_Quant, TableIdx, 2, 4, 0, 4, SubBlockWeights, Error);
-		if (Error < SubBlock1Error)
-		{
-			SubBlock1Error = Error;
-			SubBlock1TableIdx = TableIdx;
-			SubBlock1Weights = SubBlockWeights;
-		}
-	}
-	
-	// Both these values need to be big-endian. We can build ModeBits directly in big-endian layout, but for IndexBits
-	// it's too hard, so we'll just swap here.
-	uint ModeBits = (SubBlock0TableIdx << 29) | (SubBlock1TableIdx << 26) | (BlockMode << 25) | (FlipBit << 24) | ColorBits;
-	uint IndexBits = SwapEndian32(SubBlock0Weights | SubBlock1Weights);
-
-	return uint2(ModeBits, IndexBits);
-}
-
-uint2 CompressBlock_ETC2_RGB(in float3 Block[16])
-{
-	//return CompressBlock_ETC2_RGB_Full(Block);
-	return CompressBlock_ETC2_RGB_Est(Block);
 }
 
 uint2 CompressBlock_ETC2_SRGB(in float3 Block[16])
@@ -258,7 +188,7 @@ void SelectAlphaMod(in float SourceAlpha, in float EncodedAlpha, int IndexInTabl
 	}
 }
 
-uint2 CompressBlock_ETC2_Alpha_Est(in float BlockA[16])
+uint2 CompressBlock_ETC2_Alpha(in float BlockA[16])
 {
 	float MinAlpha = 1.f;
 	float MaxAlpha = 0.f;
@@ -338,11 +268,6 @@ uint2 CompressBlock_ETC2_Alpha_Est(in float BlockA[16])
 	AlphaBits.y = SwapEndian32(BlockWeights.x);
 
 	return AlphaBits;
-}
-
-uint2 CompressBlock_ETC2_Alpha(in float BlockA[16])
-{
-	return CompressBlock_ETC2_Alpha_Est(BlockA);
 }
 
 uint4 CompressBlock_ETC2_RGBA(in float3 BlockRGB[16], in float BlockA[16])

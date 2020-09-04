@@ -19,9 +19,6 @@ struct FRenderAssetStreamingSettings;
 /** Self-contained structure to manage a streaming texture/mesh, possibly on a separate thread. */
 struct FStreamingRenderAsset
 {
-	static constexpr int32 MaxNumMeshLODs = MAX_MESH_LOD_COUNT;
-	static_assert(2 * MaxNumMeshLODs >= MAX_TEXTURE_MIP_COUNT, "Failed mip count assumption");
-
 	enum EOptionalMipsState : uint8
 	{
 		OMS_NotCached,
@@ -30,20 +27,10 @@ struct FStreamingRenderAsset
 		OMS_Num
 	};
 
-	enum EAssetType : uint8
-	{
-		AT_Texture,
-		AT_StaticMesh,
-		AT_SkeletalMesh,
-		AT_LandscapeMeshMobile,
-		AT_Num
-	};
-
 	FStreamingRenderAsset(
 		UStreamableRenderAsset* InRenderAsset,
 		const int32* NumStreamedMips,
 		int32 NumLODGroups,
-		EAssetType InAssetType,
 		const FRenderAssetStreamingSettings& Settings);
 
 	/** Update data that should not change unless changing settings. */
@@ -53,7 +40,7 @@ struct FStreamingRenderAsset
 	void UpdateDynamicData(const int32* NumStreamedMips, int32 NumLODGroups, const FRenderAssetStreamingSettings& Settings, bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr);
 
 	/** Lightweight version of UpdateDynamicData. */
-	void UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr);
+	FStreamableRenderResourceState UpdateStreamingStatus(bool bWaitForMipFading, TArray<UStreamableRenderAsset*>* DeferredTickCBAssets = nullptr);
 
 	/**
 	 * Returns the amount of memory used by the texture/mesh given a specified number of mip-maps, in bytes.
@@ -64,20 +51,22 @@ struct FStreamingRenderAsset
 	int32 GetSize( int32 InMipCount ) const
 	{
 		check(InMipCount > 0);
-		check(InMipCount <= (IsTexture() ? MAX_TEXTURE_MIP_COUNT : MaxNumMeshLODs));
+		check((uint32)InMipCount <= (IsTexture() ? UE_ARRAY_COUNT(CumulativeLODSizes) : UE_ARRAY_COUNT(CumulativeLODSizes_Mesh)));
 		return CumulativeLODSizes[InMipCount - 1];
 	}
 
-	static const TCHAR* GetStreamingAssetTypeStr(EAssetType InAssetType)
+	static const TCHAR* GetStreamingAssetTypeStr(EStreamableRenderAssetType InAssetType)
 	{
 		switch (InAssetType)
 		{
-		case AT_Texture:
+		case EStreamableRenderAssetType::Texture:
 			return TEXT("Texture");
-		case AT_StaticMesh:
+		case EStreamableRenderAssetType::StaticMesh:
 			return TEXT("StaticMesh");
-		case AT_SkeletalMesh:
+		case EStreamableRenderAssetType::SkeletalMesh:
 			return TEXT("SkeletalMesh");
+		case EStreamableRenderAssetType::LandscapeMeshMobile:
+			return TEXT("Landscape");
 		default:
 			return TEXT("Unkown");
 		}
@@ -128,13 +117,12 @@ struct FStreamingRenderAsset
 	float GetNormalizedScreenSize(int32 NumMips) const
 	{
 		check(IsMesh());
-		check(NumMips > 0 && NumMips <= MipCount);
+		check(NumMips > 0 && (uint32)NumMips < UE_ARRAY_COUNT(LODScreenSizes));
 		return LODScreenSizes[NumMips - 1];
 	}
 
 	float GetLODScreenSize(int32 NumMips, float MaxScreenSizeOverAllViews) const
 	{
-		check(NumMips > 0 && NumMips <= MipCount);
 		return IsTexture() ?
 			static_cast<float>(1 << (NumMips - 1)) :
 			GetNormalizedScreenSize(NumMips) * MaxScreenSizeOverAllViews;
@@ -145,7 +133,7 @@ struct FStreamingRenderAsset
 
 	void UpdateOptionalMipsState_Async();
 	
-	void CancelPendingMipChangeRequest();
+	void CancelStreamingRequest();
 	void StreamWantedMips(FRenderAssetStreamingManager& Manager);
 
 	// Cache meta data (e.g. WantedMips) for StreamWantedMipsUsingCachedData to use later on
@@ -157,18 +145,18 @@ struct FStreamingRenderAsset
 
 	bool IsTexture() const
 	{
-		return RenderAssetType == AT_Texture;
+		return RenderAssetType == EStreamableRenderAssetType::Texture;
 	}
 
 	bool IsMesh() const
 	{
 		// FRenderAssetStreamingManager only handles textures and meshes currently
-		return RenderAssetType != AT_Texture;
+		return RenderAssetType != EStreamableRenderAssetType::Texture;
 	}
 
 	bool IsLandscapeMesh() const
 	{
-		return RenderAssetType == AT_LandscapeMeshMobile;
+		return RenderAssetType == EStreamableRenderAssetType::LandscapeMeshMobile;
 	}
 
 	FORCEINLINE int32 GetPerfectWantedMips() const { return FMath::Max<int32>(VisibleWantedMips,  HiddenWantedMips); }
@@ -205,27 +193,21 @@ struct FStreamingRenderAsset
 
 	/** (1) Texture/mesh to manage. Note that this becomes null when the texture/mesh is removed. */
 	UStreamableRenderAsset*		RenderAsset;
-	/** (1) The first optional mip index, or INDEX_NONE if none exists. */
-	int32 FirstOptionalMipIndex = INDEX_NONE;
 	/** (1) The optional mip filename hash, see FRenderAssetStreamingManager::OnPakFileChanged() */
 	FIoFilenameHash OptionalFileHash = INVALID_IO_FILENAME_HASH;
 	/** (1) Cached texture/mesh LOD group. */
 	int32			LODGroup;
-	/** (1) Cached number of mipmaps that are not allowed to stream. */
-	int32			NumNonStreamingMips;
-	/** (1) Cached number of mip-maps in the asset's mip array (including the base mip) */
-	int32			MipCount;
 	/** (1) Sum of all boost factors that applies to this texture/mesh. */
 	float			BoostFactor;
 	/** (1) Cached memory sizes for each possible mipcount. */
 	union
 	{
-		int32 CumulativeLODSizes[2 * MaxNumMeshLODs];
+		uint32 CumulativeLODSizes[FStreamableRenderResourceState::MAX_LOD_COUNT];
 		struct
 		{
-			int32 CumulativeLODSizes_Mesh[MaxNumMeshLODs];
+			uint32 CumulativeLODSizes_Mesh[FStreamableRenderResourceState::MAX_LOD_COUNT / 2];
 			// Normalized size of projected bounding sphere - [0, 1]
-			float LODScreenSizes[MaxNumMeshLODs];
+			float LODScreenSizes[FStreamableRenderResourceState::MAX_LOD_COUNT / 2];
 		};
 	};
 
@@ -237,8 +219,6 @@ struct FStreamingRenderAsset
 	int32			MinAllowedMips;
 	/** (2) Max mip to be requested by the streaming  */
 	int32			MaxAllowedMips;
-	/** (2) Mips which are in an optional bulk data file (may not be present on device) */
-	int32			NumNonOptionalMips;
 	/** (2) How much game time has elapsed since the texture was bound for rendering. Based on FApp::GetCurrentTime(). */
 	float			LastRenderTime;
 
@@ -274,7 +254,7 @@ struct FStreamingRenderAsset
 	int32 CachedVisibleWantedMips;
 
 	/** (1) */
-	EAssetType RenderAssetType;
+	EStreamableRenderAssetType RenderAssetType;
 	/** (2) Cached state on disk of the optional mips for this streaming texture */
 	EOptionalMipsState	OptionalMipsState;
 
@@ -283,15 +263,11 @@ struct FStreamingRenderAsset
 	/** (1) Whether the texture should be forcibly fully loaded. */
 	uint32			bIsTerrainTexture : 1;
 
-	/** (2) Whether the texture is ready to be streamed in/out (cached from IsReadyForStreaming()). */
-	uint32			bReadyForStreaming : 1;
 	/** (2) Whether the texture should be forcibly fully loaded. */
 	uint32			bForceFullyLoad : 1;
 	/** (2) Whether the texture resolution should be affected by the memory budget. Only effective when forced fully resident. */
 	uint32			bIgnoreStreamingMipBias : 1;
 
-	/** (3) Whether the texture is currently being streamed in/out. */
-	uint32			bInFlight : 1;
 	/** (3) Wheter the streamer has streaming plans for this texture. */
 	uint32			bHasUpdatePending : 1;
 

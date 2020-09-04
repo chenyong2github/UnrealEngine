@@ -19,14 +19,9 @@ struct FSkelMeshUpdateContext
 {
 	typedef int32 EThreadType;
 
-	FSkelMeshUpdateContext(USkeletalMesh* InMesh, EThreadType InCurrentThread);
+	FSkelMeshUpdateContext(const USkeletalMesh* InMesh, EThreadType InCurrentThread);
 
-	FSkelMeshUpdateContext(UStreamableRenderAsset* InMesh, EThreadType InCurrentThread);
-
-	UStreamableRenderAsset* GetRenderAsset() const
-	{
-		return Mesh;
-	}
+	FSkelMeshUpdateContext(const UStreamableRenderAsset* InMesh, EThreadType InCurrentThread);
 
 	EThreadType GetCurrentThread() const
 	{
@@ -34,9 +29,12 @@ struct FSkelMeshUpdateContext
 	}
 
 	/** The mesh to update, this must be the same one as the one used when creating the FSkeletalMeshUpdate object. */
-	USkeletalMesh* Mesh;
+	const USkeletalMesh* Mesh;
 	/** The current render data of this mesh. */
 	FSkeletalMeshRenderData* RenderData;
+	/** The array view of streamable LODs from the asset. Takes into account FStreamableRenderResourceState::AssetLODBias and FStreamableRenderResourceState::MaxNumLODs. */
+	TArrayView<FSkeletalMeshLODRenderData*> LODResourcesView;
+
 	/** The thread on which the context was created. */
 	EThreadType CurrentThread;
 };
@@ -51,7 +49,7 @@ extern template class TRenderAssetUpdate<FSkelMeshUpdateContext>;
 class FSkeletalMeshUpdate : public TRenderAssetUpdate<FSkelMeshUpdateContext>
 {
 public:
-	FSkeletalMeshUpdate(USkeletalMesh* InMesh, int32 InRequestedMips);
+	FSkeletalMeshUpdate(const USkeletalMesh* InMesh);
 
 	virtual ~FSkeletalMeshUpdate() {}
 
@@ -59,21 +57,12 @@ public:
 	{
 		TRenderAssetUpdate<FSkelMeshUpdateContext>::Abort();
 	}
-
-#if WITH_EDITOR
-	/** Returns whether DDC of this mesh needs to be regenerated.  */
-	virtual bool DDCIsInvalid() const { return false; }
-#endif
-
-protected:
-	/** Cached index of current first LOD that will be replaced by PendingFirstMip */
-	int32 CurrentFirstLODIdx;
 };
 
 class FSkeletalMeshStreamIn : public FSkeletalMeshUpdate
 {
 public:
-	FSkeletalMeshStreamIn(USkeletalMesh* InMesh, int32 InRequestedMips);
+	FSkeletalMeshStreamIn(const USkeletalMesh* InMesh);
 
 	virtual ~FSkeletalMeshStreamIn();
 
@@ -91,8 +80,8 @@ protected:
 		FIndexBufferRHIRef AdjacencyIndexBuffer;
 		TArray<TPair<FName, FSkinWeightRHIInfo>> AltSkinWeightVertexBuffers;
 
-		void CreateFromCPUData_RenderThread(USkeletalMesh* Mesh, FSkeletalMeshLODRenderData& LODResource);
-		void CreateFromCPUData_Async(USkeletalMesh* Mesh, FSkeletalMeshLODRenderData& LODResource);
+		void CreateFromCPUData_RenderThread(FSkeletalMeshLODRenderData& LODResource);
+		void CreateFromCPUData_Async(FSkeletalMeshLODRenderData& LODResource);
 
 		void SafeRelease();
 
@@ -127,7 +116,7 @@ private:
 class FSkeletalMeshStreamOut : public FSkeletalMeshUpdate
 {
 public:
-	FSkeletalMeshStreamOut(USkeletalMesh* InMesh, int32 InRequestedMips);
+	FSkeletalMeshStreamOut(const USkeletalMesh* InMesh);
 
 	virtual ~FSkeletalMeshStreamOut() {}
 
@@ -153,7 +142,7 @@ private:
 class FSkeletalMeshStreamIn_IO : public FSkeletalMeshStreamIn
 {
 public:
-	FSkeletalMeshStreamIn_IO(USkeletalMesh* InMesh, int32 InRequestedMips, bool bHighPrio);
+	FSkeletalMeshStreamIn_IO(const USkeletalMesh* InMesh, bool bHighPrio);
 
 	virtual ~FSkeletalMeshStreamIn_IO() {}
 
@@ -214,7 +203,7 @@ template <bool bRenderThread>
 class TSkeletalMeshStreamIn_IO : public FSkeletalMeshStreamIn_IO
 {
 public:
-	TSkeletalMeshStreamIn_IO(USkeletalMesh* InMesh, int32 InRequestedMips, bool bHighPrio);
+	TSkeletalMeshStreamIn_IO(const USkeletalMesh* InMesh, bool bHighPrio);
 
 	virtual ~TSkeletalMeshStreamIn_IO() {}
 
@@ -235,23 +224,19 @@ typedef TSkeletalMeshStreamIn_IO<false> FSkeletalMeshStreamIn_IO_Async;
 class FSkeletalMeshStreamIn_DDC : public FSkeletalMeshStreamIn
 {
 public:
-	FSkeletalMeshStreamIn_DDC(USkeletalMesh* InMesh, int32 InRequestedMips);
+	FSkeletalMeshStreamIn_DDC(const USkeletalMesh* InMesh);
 
 	virtual ~FSkeletalMeshStreamIn_DDC() {}
 
-	virtual bool DDCIsInvalid() const override { return bDerivedDataInvalid; }
-
 protected:
 	void LoadNewLODsFromDDC(const FContext& Context);
-
-	bool bDerivedDataInvalid;
 };
 
 template <bool bRenderThread>
 class TSkeletalMeshStreamIn_DDC : public FSkeletalMeshStreamIn_DDC
 {
 public:
-	TSkeletalMeshStreamIn_DDC(USkeletalMesh* InMesh, int32 InRequestedMips);
+	TSkeletalMeshStreamIn_DDC(const USkeletalMesh* InMesh);
 
 	virtual ~TSkeletalMeshStreamIn_DDC() {}
 

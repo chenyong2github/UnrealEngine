@@ -2362,7 +2362,7 @@ private:
 		Image.Init(TextureSource.Width, TextureSource.Height, ERawImageFormat::RGBA32F);
 		for (int PixelIndex = 0; PixelIndex < TextureSource.Width * TextureSource.Height; PixelIndex++)
 		{
-			*(Image.AsRGBA32F() + PixelIndex) = TextureSource.GetPixel(PixelIndex);
+			Image.AsRGBA32F()[PixelIndex] = TextureSource.GetPixel(PixelIndex);
 		}
 
 		int32 TargetWidth;

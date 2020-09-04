@@ -11,24 +11,27 @@
 
 class FDistanceFieldAOParameters;
 
-extern void AllocateOrReuseAORenderTarget(FRHICommandList& RHICmdList, TRefCountPtr<IPooledRenderTarget>& Target, const TCHAR* Name, EPixelFormat Format, uint32 Flags = 0);
+extern void AllocateOrReuseAORenderTarget(FRDGBuilder& GraphBuilder, FRDGTextureRef& Target, const TCHAR* Name, EPixelFormat Format, ETextureCreateFlags Flags = TexCreate_None);
 
 extern void UpdateHistory(
-	FRHICommandList& RHICmdList,
-	const FViewInfo& View, 
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
 	const TCHAR* BentNormalHistoryRTName,
-	IPooledRenderTarget* VelocityTexture,
-	FSceneRenderTargetItem& BentNormalInterpolation,
-	FSceneRenderTargetItem& DistanceFieldNormal,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FRDGTextureRef VelocityTexture,
+	FRDGTextureRef BentNormalInterpolation,
+	FRDGTextureRef DistanceFieldNormal,
 	/** Contains last frame's history, if non-NULL.  This will be updated with the new frame's history. */
 	FIntRect* DistanceFieldAOHistoryViewRect,
 	TRefCountPtr<IPooledRenderTarget>* BentNormalHistoryState,
 	/** Output of Temporal Reprojection for the next step in the pipeline. */
-	TRefCountPtr<IPooledRenderTarget>& BentNormalHistoryOutput,
+	FRDGTextureRef& BentNormalHistoryOutput,
 	const FDistanceFieldAOParameters& Parameters);
 
 extern void UpsampleBentNormalAO(
-	FRHICommandList& RHICmdList, 
-	const TArray<FViewInfo>& Views, 
-	TRefCountPtr<IPooledRenderTarget>& DistanceFieldAOBentNormal,
+	FRDGBuilder& GraphBuilder,
+	const TArray<FViewInfo>& Views,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer,
+	FRDGTextureRef SceneColorTexture,
+	FRDGTextureRef DistanceFieldAOBentNormal,
 	bool bModulateSceneColor);

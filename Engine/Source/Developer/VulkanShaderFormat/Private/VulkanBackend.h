@@ -65,26 +65,10 @@ struct FVulkanBindingTable
 		EVulkanBindingType::EType	Type;
 		int8		SubType;	// HLSL CC subtype, PACKED_TYPENAME_HIGHP and etc
 	};
-
-	TArray<FString> InputAttachments;
-
+		
 	FVulkanBindingTable(EHlslShaderFrequency ShaderStage) : Stage(ShaderStage) {}
 
 	int32 RegisterBinding(const char* InName, const char* BlockName, EVulkanBindingType::EType Type);
-
-	int32 GetInputAttachmentIndex(const FString& Name)
-	{
-		for (int32 Index = 0; Index < InputAttachments.Num(); ++Index)
-		{
-			if (InputAttachments[Index] == Name)
-			{
-				return Index;
-			}
-		}
-
-		check(0);
-		return -1;
-	}
 
 	const TArray<FBinding>& GetBindings() const
 	{
@@ -107,6 +91,8 @@ struct FVulkanBindingTable
 
 		return -1;
 	}
+
+	uint32 InputAttachmentsMask = 0;
 
 private:
 	// Previous implementation supported bindings only for textures.
@@ -158,17 +144,11 @@ struct FVulkanCodeBackend : public FCodeBackend
 	bool bExplicitDepthWrites;
 };
 
-// Intrinsic name
-#define VULKAN_SUBPASS_FETCH				"VulkanSubpassFetch"
-// Generated attachment name
-#define VULKAN_SUBPASS_FETCH_VAR			"GENERATED_SubpassFetchAttachment"
-#define VULKAN_SUBPASS_FETCH_VAR_W			TEXT("GENERATED_SubpassFetchAttachment")
-
-// Intrinsic name
-#define VULKAN_SUBPASS_DEPTH_FETCH			"VulkanSubpassDepthFetch"
-// Generated attachment name
-#define VULKAN_SUBPASS_DEPTH_FETCH_VAR		"GENERATED_SubpassDepthFetchAttachment"
-#define VULKAN_SUBPASS_DEPTH_FETCH_VAR_W	TEXT("GENERATED_SubpassDepthFetchAttachment")
+// InputAttachments
+// 0 - reserved for depth input, 1-8 for color
+extern const char* VULKAN_SUBPASS_FETCH[9];
+extern const char* VULKAN_SUBPASS_FETCH_VAR[9];
+extern const TCHAR* VULKAN_SUBPASS_FETCH_VAR_W[9];
 
 #ifdef __GNUC__
 #pragma GCC visibility pop

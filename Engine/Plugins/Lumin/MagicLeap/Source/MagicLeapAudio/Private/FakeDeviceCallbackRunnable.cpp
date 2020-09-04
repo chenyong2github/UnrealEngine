@@ -3,7 +3,7 @@
 #include "FakeDeviceCallbackRunnable.h"
 #include "CoreGlobals.h"
 #include "HAL/Event.h"
-#include "GenericPlatform/GenericPlatformProcess.h"
+#include "HAL/PlatformProcess.h"
 
 namespace Audio
 {
@@ -24,7 +24,7 @@ namespace Audio
 		{
 			Semaphore->Trigger();
 			Thread->WaitForCompletion();
-			FGenericPlatformProcess::ReturnSynchEventToPool(Semaphore);
+			FPlatformProcess::ReturnSynchEventToPool(Semaphore);
 			Semaphore = nullptr;
 		}
 
@@ -65,7 +65,7 @@ namespace Audio
 	{
 		if (Semaphore == nullptr)
 		{
-			Semaphore = FGenericPlatformProcess::GetSynchEventFromPool();
+			Semaphore = FPlatformProcess::GetSynchEventFromPool();
 			Thread = FRunnableThread::Create(this, TEXT("FakeDeviceCallbackRunnable"), 0, TPri_BelowNormal);
 		}
 

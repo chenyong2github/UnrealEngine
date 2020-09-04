@@ -23,11 +23,11 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FFogUniformParameters,)
 	SHADER_PARAMETER(float, ApplyVolumetricFog)
 	SHADER_PARAMETER_TEXTURE(TextureCube, FogInscatteringColorCubemap)
 	SHADER_PARAMETER_SAMPLER(SamplerState, FogInscatteringColorSampler)
-	SHADER_PARAMETER_TEXTURE(Texture3D, IntegratedLightScattering)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, IntegratedLightScattering)
 	SHADER_PARAMETER_SAMPLER(SamplerState, IntegratedLightScatteringSampler)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
 
-extern void SetupFogUniformParameters(const class FViewInfo& View, FFogUniformParameters& OutParameters);
-TUniformBufferRef<FFogUniformParameters> CreateFogUniformBuffer(const class FViewInfo& View, EUniformBufferUsage Usage);
+extern void SetupFogUniformParameters(FRDGBuilder& GraphBuilder, const FViewInfo& View, FFogUniformParameters& OutParameters);
+TRDGUniformBufferRef<FFogUniformParameters> CreateFogUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View);
 
 extern bool ShouldRenderFog(const FSceneViewFamily& Family);

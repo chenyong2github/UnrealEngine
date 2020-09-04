@@ -30,7 +30,7 @@ enum class EHMDInputControllerButtons : uint8
 	Count UMETA(Hidden)
 };
 
-UENUM(BlueprintType, Category = "WindowsMixedRealityHMD")
+UENUM()
 enum class EHMDTrackingStatus : uint8
 {
 	NotTracked,
@@ -74,7 +74,7 @@ public:
 	/**
 	* Returns name of WindowsMR device type.
 	*/
-	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "Use Generic HMD library version"))
 	static FString GetVersionString();
 
 	/**
@@ -93,7 +93,7 @@ public:
 	/**
 	* Returns true if running on a WMR VR device, false if running on HoloLens.
 	*/
-	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "Use GetXRSystemFlags and check for bIsAR"))
 	static bool IsDisplayOpaque();
 
 	/**
@@ -102,56 +102,58 @@ public:
 	* Set this to false to override the default behavior if your application requires free mouse movement.
 	* locked: true to lock to center, false to not lock.
 	*/
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UE_DEPRECATED(4.26, "LockMouseToCenter was a dvelopment feature that is no longer needed")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "No longer needed"))
 	static void LockMouseToCenter(bool locked);
 
 	
 	/**
 	 * Returns true if a WMR VR device or HoloLens are tracking the environment.
 	 */
-	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintPure, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "Use GetHMDData TrackingStatus member"))
 	static bool IsTrackingAvailable();
 
 	/**
 	 * Returns the pose information to determine what a WMR device is pointing at.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta=(DeprecatedFunction, DeprecationMessage = "Use GetMotionControllerData Aim members"))
 	static FPointerPoseInfo GetPointerPoseInfo(EControllerHand hand);
 
 	/**
 	 * Returns true if the button was clicked.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta=(DeprecatedFunction, DeprecationMessage="Use Input Action Mappings to get events"))
 	static bool IsButtonClicked(EControllerHand hand, EHMDInputControllerButtons button);
 
 	/**
 	 * Returns true if the button is held down.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "Use Input Action Mappings to gets events"))
 	static bool IsButtonDown(EControllerHand hand, EHMDInputControllerButtons button);
 
 	/**
 	 * Returns true if an input device detects a grasp/grab action.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "Use Input Action Mappings to get left or right grip events.  Also available in GetMotionControllerData"))
 	static bool IsGrasped(EControllerHand hand);
 
 	/**
 	 * Returns true if a hand or motion controller is experiencing a primary Select press.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "Use Input Action Mappings to get left or right trigger events"))
 	static bool IsSelectPressed(EControllerHand hand);
 
 	/**
 	 * Returns tracking state for the controller
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta=(DeprecatedFunction, DeprecationMessage="Use GetMotionControllerData TrackingStatus"))
 	static EHMDTrackingStatus GetControllerTrackingStatus(EControllerHand hand);
 
 	/**
 	 *  Set the focus point for the current frame to stabilize your holograms.
 	 *  When run on device, the depth buffer with be used.  Use this for remoting.
 	 */
-	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD")
+	UE_DEPRECATED(4.26, "SetFocusPointForFrame was a dvelopment feature that is no longer needed")
+	UFUNCTION(BlueprintCallable, Category = "WindowsMixedRealityHMD", meta = (DeprecatedFunction, DeprecationMessage = "No longer needed"))
 	static void SetFocusPointForFrame(FVector position);
 };

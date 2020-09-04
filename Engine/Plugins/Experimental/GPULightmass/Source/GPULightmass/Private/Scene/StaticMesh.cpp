@@ -16,6 +16,17 @@ FStaticMeshInstance::FStaticMeshInstance(UStaticMeshComponent* ComponentUObject)
 
 const FMeshMapBuildData* FStaticMeshInstance::GetMeshMapBuildDataForLODIndex(int32 LODIndex)
 {
+	if (bLODsShareStaticLighting)
+	{
+		for (int32 Index = 0; Index < LODLightmaps.Num(); Index++)
+		{
+			if (LODLightmaps[Index].IsValid())
+			{
+				return LODLightmaps[Index]->MeshMapBuildData.Get();
+			}
+		}
+	}
+
 	return LODLightmaps[LODIndex].IsValid() ? LODLightmaps[LODIndex]->MeshMapBuildData.Get() : nullptr;
 }
 
@@ -38,7 +49,7 @@ void FStaticMeshInstance::AllocateLightmaps(TEntityArray<FLightmap>& LightmapCon
 			bValidTextureMap = true;
 		}
 
-		if (bValidTextureMap && LODIndex >= ClampedMinLOD && ComponentUObject->LightmapType != ELightmapType::ForceVolumetric)
+		if (bValidTextureMap && (!bLODsShareStaticLighting ? LODIndex >= ClampedMinLOD : LODIndex == ClampedMinLOD) && ComponentUObject->LightmapType != ELightmapType::ForceVolumetric)
 		{
 			// Shrink LOD texture lightmaps by half for each LOD level
 			const int32 LightMapWidth = LODIndex > 0 ? FMath::Max(BaseLightMapWidth / (2 << (LODIndex - 1)), 32) : BaseLightMapWidth;

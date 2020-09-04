@@ -226,6 +226,9 @@ FD3D11DynamicRHI::FD3D11DynamicRHI(IDXGIFactory1* InDXGIFactory1,D3D_FEATURE_LEV
 	GRHISupportsResolveCubemapFaces = true;
 	GRHISupportsCopyToTextureMultipleMips = true;
 
+	GRHITransitionPrivateData_SizeInBytes = sizeof(FD3D11TransitionData);
+	GRHITransitionPrivateData_AlignInBytes = alignof(FD3D11TransitionData);
+
 	// Initialize the constant buffers.
 	InitConstantBuffers();
 

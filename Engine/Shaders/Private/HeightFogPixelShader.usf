@@ -41,7 +41,7 @@ void ExponentialPixelMain(
 		float SceneDepth = SCENE_TEXTURES_DISABLED_SCENE_DEPTH_VALUE;
 		DeviceZ = ConvertToDeviceZ(SceneDepth);
 	#else
-		DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct.SceneDepthTextureSampler, TexCoord, 0).r;
+		DeviceZ = Texture2DSampleLevel(SceneTexturesStruct.SceneDepthTexture, SceneTexturesStruct_SceneDepthTextureSampler, TexCoord, 0).r;
 		SceneDepth = ConvertFromDeviceZ(DeviceZ); // Fetch the depth buffer Z / W value, solve for W
 	#endif
 	}

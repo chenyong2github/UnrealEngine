@@ -14,7 +14,7 @@ ENDIF()
 
 # TODO: Get real flags
 # NOTE: Not sure all projects use all of these flags. 
-SET(APEX_ALL_WARNINGS "/Wall /wd4201 /wd4577  /wd4464 /wd4777 /wd4458 /wd4459 /wd4324 /wd4514 /wd4820 /wd4127 /wd4710 /wd4711 /wd4061 /wd4668 /wd4626 /wd4266 /wd4263 /wd4264 /wd4640 /wd4625 /wd4574 /wd4191 /wd4987 /wd4986 /wd4946 /wd4836 /wd4571 /wd4826 /wd4456 /wd4457 /wd4548 /wd4623 /wd4365 /wd5045 /wd5038 /wd4746")
+SET(APEX_ALL_WARNINGS "/Wall /wd4201 /wd4577  /wd4464 /wd4777 /wd4458 /wd4459 /wd4324 /wd4514 /wd4820 /wd4127 /wd4710 /wd4711 /wd4061 /wd4668 /wd4626 /wd4266 /wd4263 /wd4264 /wd4640 /wd4625 /wd4574 /wd4191 /wd4987 /wd4986 /wd4946 /wd4836 /wd4571 /wd4826 /wd4456 /wd4457 /wd4548 /wd4623 /wd4365 /wd5045 /wd5038 /wd4746 /wd4596")
 
 # NOTE: Version here is the version of cl.exe, not Visual Studio.
 IF(CMAKE_CXX_COMPILER_ID STREQUAL "MSVC" AND

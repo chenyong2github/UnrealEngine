@@ -13,7 +13,6 @@
 
 -(IOSCloudStorage*)init:(bool)registerHandler
 {
-#ifdef __IPHONE_8_0
 	if ([CKContainer class])
 	{
 		// get the current iCloud ubiquity token
@@ -38,7 +37,6 @@
 		SharedDatabase = [CloudContainer publicCloudDatabase];
 		UserDatabase = [CloudContainer privateCloudDatabase];
 	}
-#endif
 	return self;
 }
 
@@ -53,7 +51,6 @@
 
 -(bool)readFile:(NSString*)fileName sharedDB:(bool)shared completionHandler:(void(^)(CKRecord* record, NSError* error))handler
 {
-#ifdef __IPHONE_8_0
 	if ([CKDatabase class])
 	{
 		CKDatabase* DB = shared ? SharedDatabase : UserDatabase;
@@ -64,13 +61,11 @@
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 
 -(bool)writeFile:(NSString*)fileName contents:(NSData*)fileContents sharedDB:(bool)shared completionHandler:(void(^)(CKRecord* record, NSError* error))handler
 {
-#ifdef __IPHONE_8_0
 	if ([CKDatabase class])
 	{
 		CKDatabase* DB = shared ? SharedDatabase : UserDatabase;
@@ -90,13 +85,11 @@
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 
 -(bool)deleteFile:(NSString*)fileName sharedDB:(bool)shared completionHandler:(void(^)(CKRecordID* record, NSError* error))handler
 {
-#ifdef __IPHONE_8_0
 	if ([CKDatabase class])
 	{
 		CKDatabase* DB = shared ? SharedDatabase : UserDatabase;
@@ -107,13 +100,11 @@
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 
 -(bool)query:(bool)shared fetchHandler:(void(^)(CKRecord* record))fetch completionHandler:(void(^)(CKQueryCursor* record, NSError* error))complete
 {
-#ifdef __IPHONE_8_0
 	if ([CKDatabase class])
 	{
 		CKDatabase* DB = shared ? SharedDatabase : UserDatabase;
@@ -129,7 +120,6 @@
 			return true;
 		}
 	}
-#endif
 	return false;
 }
 
@@ -286,7 +276,6 @@ bool FOnlineUserCloudInterfaceIOS::ClearFile(const FUniqueNetId& UserId, const F
 
 void FOnlineUserCloudInterfaceIOS::EnumerateUserFiles(const FUniqueNetId& UserId)
 {
-#ifdef __IPHONE_8_0
 	MetaDataState = EOnlineAsyncTaskState::InProgress;
 	if ([[IOSCloudStorage cloudStorage] query:false fetchHandler:^(CKRecord* record)
 	{
@@ -313,7 +302,6 @@ void FOnlineUserCloudInterfaceIOS::EnumerateUserFiles(const FUniqueNetId& UserId
     {
         TriggerOnEnumerateUserFilesCompleteDelegates(false, UserId);
     }
-#endif
 }
 
 void FOnlineUserCloudInterfaceIOS::GetUserFileList(const FUniqueNetId& UserId, TArray<FCloudFileHeader>& UserFiles)
@@ -327,7 +315,6 @@ void FOnlineUserCloudInterfaceIOS::GetUserFileList(const FUniqueNetId& UserId, T
 
 bool FOnlineUserCloudInterfaceIOS::ReadUserFile(const FUniqueNetId& UserId, const FString& FileName)
 {
-#ifdef __IPHONE_8_0
 	FCloudFile* CloudFile = GetCloudFile(FileName, true);
 	if (CloudFile)
 	{
@@ -366,13 +353,11 @@ bool FOnlineUserCloudInterfaceIOS::ReadUserFile(const FUniqueNetId& UserId, cons
     {
         TriggerOnReadUserFileCompleteDelegates(false, UserId, FileName);
     }
-#endif
 	return false;
 }
 
 bool FOnlineUserCloudInterfaceIOS::WriteUserFile(const FUniqueNetId& UserId, const FString& FileName, TArray<uint8>& FileContents, bool bCompressBeforeUpload)
 {
-#ifdef __IPHONE_8_0
 	FCloudFile* CloudFile = GetCloudFile(FileName, true);
 	if (CloudFile)
 	{
@@ -410,7 +395,6 @@ bool FOnlineUserCloudInterfaceIOS::WriteUserFile(const FUniqueNetId& UserId, con
     {
         TriggerOnWriteUserFileCompleteDelegates(false, UserId, FileName);
     }
-#endif
 	return false;
 }
 
@@ -422,7 +406,6 @@ void FOnlineUserCloudInterfaceIOS::CancelWriteUserFile(const FUniqueNetId& UserI
 
 bool FOnlineUserCloudInterfaceIOS::DeleteUserFile(const FUniqueNetId& UserId, const FString& FileName, bool bShouldCloudDelete, bool bShouldLocallyDelete)
 {
-#ifdef __IPHONE_8_0
 	FCloudFile* CloudFile = GetCloudFile(FileName, true);
 	if (CloudFile)
 	{
@@ -461,7 +444,6 @@ bool FOnlineUserCloudInterfaceIOS::DeleteUserFile(const FUniqueNetId& UserId, co
     {
         TriggerOnDeleteUserFileCompleteDelegates(false, UserId, FileName);
     }
-#endif
 	return false;
 }
 

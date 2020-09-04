@@ -49,14 +49,6 @@ DECLARE_ISBOUNDSHADER(ComputeShader)
 #define VALIDATE_BOUND_SHADER(s)
 #endif
 
-int32 GEnableDX11TransitionChecks = 0;
-static FAutoConsoleVariableRef CVarDX11TransitionChecks(
-	TEXT("r.TransitionChecksEnableDX11"),
-	GEnableDX11TransitionChecks,
-	TEXT("Enables transition checks in the DX11 RHI."),
-	ECVF_Default
-	);
-
 static int32 GUnbindResourcesBetweenDrawsInDX11 = UE_BUILD_DEBUG;
 static FAutoConsoleVariableRef CVarUnbindResourcesBetweenDrawsInDX11(
 	TEXT("r.UnbindResourcesBetweenDrawsInDX11"),
@@ -86,17 +78,14 @@ FThreadSafeCounter GDX11RTRebind;
 FThreadSafeCounter GDX11CommitGraphicsResourceTables;
 #endif
 
+static TAutoConsoleVariable<int32> CVarAllowUAVFlushExt(
+	TEXT("r.D3D11.AutoFlushUAV"),
+	1,
+	TEXT("If enabled, use NVAPI (Nvidia), AGS (AMD) or Intel Extensions (Intel) to not flush between dispatches/draw calls")
+	TEXT(" 1: on (default)\n")
+	TEXT(" 0: off"),
+	ECVF_RenderThreadSafe);
 
-
-void FD3D11BaseShaderResource::SetDirty(bool bInDirty, uint32 CurrentFrame)
-{
-	bDirty = bInDirty;
-	if (bDirty)
-	{
-		LastFrameWritten = CurrentFrame;
-	}
-	ensureMsgf((GEnableDX11TransitionChecks == 0) || !(CurrentGPUAccess == EResourceTransitionAccess::EReadable && bDirty), TEXT("ShaderResource is dirty, but set to Readable."));
-}
 
 #if !PLATFORM_HOLOLENS
 //MultiGPU
@@ -247,7 +236,7 @@ void FD3D11DynamicRHI::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32
 	
 	Direct3DDeviceIMContext->Dispatch(ThreadGroupCountX, ThreadGroupCountY, ThreadGroupCountZ);	
 	StateCache.SetComputeShader(nullptr);
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 void FD3D11DynamicRHI::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBufferRHI, uint32 ArgumentOffset)
@@ -268,7 +257,7 @@ void FD3D11DynamicRHI::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Argume
 
 	Direct3DDeviceIMContext->DispatchIndirect(ArgumentBuffer->Resource,ArgumentOffset);
 	StateCache.SetComputeShader(nullptr);
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 void FD3D11DynamicRHI::RHISetViewport(float MinX, float MinY, float MinZ, float MaxX, float MaxY, float MaxZ)
@@ -458,15 +447,8 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIPixelShader* ComputeShaderRHI, uin
 	if (UAV)
 	{
 		ConditionalClearShaderResource(UAV->Resource, true);
-
-		//check it's safe for r/w for this UAV
-		const EResourceTransitionAccess CurrentUAVAccess = UAV->Resource->GetCurrentGPUAccess();
-		const bool UAVDirty = UAV->Resource->IsDirty();
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess], (int32)UAVDirty);
-
-		//UAVs always dirty themselves. If a shader wanted to just read, it should use an SRV.
-		UAV->Resource->SetDirty(true, PresentCounter);
 	}
+
 	if (CurrentUAVs[UAVIndex] != UAV)
 	{
 		CurrentUAVs[UAVIndex] = UAV;
@@ -483,14 +465,6 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 	if(UAV)
 	{
 		ConditionalClearShaderResource(UAV->Resource, true);		
-
-		//check it's safe for r/w for this UAV
-		const EResourceTransitionAccess CurrentUAVAccess = UAV->Resource->GetCurrentGPUAccess();
-		const bool UAVDirty = UAV->Resource->IsDirty();
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess], (int32)UAVDirty);
-
-		//UAVs always dirty themselves. If a shader wanted to just read, it should use an SRV.
-		UAV->Resource->SetDirty(true, PresentCounter);
 	}
 
 	ID3D11UnorderedAccessView* D3D11UAV = UAV ? UAV->View : NULL;
@@ -508,14 +482,6 @@ void FD3D11DynamicRHI::RHISetUAVParameter(FRHIComputeShader* ComputeShaderRHI,ui
 	if(UAV)
 	{
 		ConditionalClearShaderResource(UAV->Resource, true);
-
-		//check it's safe for r/w for this UAV
-		const EResourceTransitionAccess CurrentUAVAccess = UAV->Resource->GetCurrentGPUAccess();
-		const bool UAVDirty = UAV->Resource->IsDirty();
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || !UAVDirty || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier), TEXT("UAV: %i is in unsafe state for GPU R/W: %s, Dirty: %i"), UAVIndex, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess], (int32)UAVDirty);
-
-		//UAVs always dirty themselves. If a shader wanted to just read, it should use an SRV.
-		UAV->Resource->SetDirty(true, PresentCounter);
 	}
 
 	ID3D11UnorderedAccessView* D3D11UAV = UAV ? UAV->View : NULL;
@@ -932,17 +898,6 @@ void FD3D11DynamicRHI::CommitUAVs()
 				{
 					FD3D11UnorderedAccessView* RHIUAV = RHIUAVs[i];
 					ID3D11UnorderedAccessView* UAV = UAVs[i];
-					if (UAV)
-					{
-						//check it's safe for r/w for this UAV
-						const EResourceTransitionAccess CurrentUAVAccess = RHIUAV->Resource->GetCurrentGPUAccess();
-						const bool UAVDirty = RHIUAV->Resource->IsDirty();
-						const bool bAccessPass = (CurrentUAVAccess == EResourceTransitionAccess::ERWBarrier && !UAVDirty) || (CurrentUAVAccess == EResourceTransitionAccess::ERWNoBarrier);
-						ensureMsgf((GEnableDX11TransitionChecks == 0) || bAccessPass, TEXT("UAV: %i is in unsafe state for GPU R/W: %s"), i, *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)CurrentUAVAccess]);
-
-						//UAVs get set to dirty.  If the shader just wanted to read it should have used an SRV.
-						RHIUAV->Resource->SetDirty(true, PresentCounter);
-					}
 
 					// Unbind any shader views of the UAV's resource.
 					ConditionalClearShaderResource(RHIUAV->Resource, true);
@@ -1035,16 +990,6 @@ void FD3D11DynamicRHI::SetRenderTargets(
 {
 	FD3D11TextureBase* NewDepthStencilTarget = GetD3D11TextureFromRHITexture(NewDepthStencilTargetRHI ? NewDepthStencilTargetRHI->Texture : nullptr);
 
-#if CHECK_SRV_TRANSITIONS
-	// if the depth buffer is writable then it counts as unresolved.
-	if (NewDepthStencilTargetRHI && NewDepthStencilTargetRHI->GetDepthStencilAccess() == FExclusiveDepthStencil::DepthWrite_StencilWrite && NewDepthStencilTarget)
-	{		
-		check(UnresolvedTargetsConcurrencyGuard.Increment() == 1);
-		UnresolvedTargets.Add(NewDepthStencilTarget->GetResource(), FUnresolvedRTInfo(NewDepthStencilTargetRHI->Texture->GetName(), 0, 1, -1, 1));
-		check(UnresolvedTargetsConcurrencyGuard.Decrement() == 0);
-	}
-#endif
-
 	check(NewNumSimultaneousRenderTargets <= MaxSimultaneousRenderTargets);
 
 	bool bTargetChanged = false;
@@ -1053,6 +998,7 @@ void FD3D11DynamicRHI::SetRenderTargets(
 	ID3D11DepthStencilView* DepthStencilView = NULL;
 	if(NewDepthStencilTarget)
 	{
+		check(NewDepthStencilTargetRHI);
 		CurrentDSVAccessType = NewDepthStencilTargetRHI->GetDepthStencilAccess();
 		DepthStencilView = NewDepthStencilTarget->GetDepthStencilView(CurrentDSVAccessType);
 
@@ -1068,32 +1014,6 @@ void FD3D11DynamicRHI::SetRenderTargets(
 		bTargetChanged = true;
 	}
 
-	if (NewDepthStencilTarget)
-	{
-		uint32 CurrentFrame = PresentCounter;
-		const EResourceTransitionAccess CurrentAccess = NewDepthStencilTarget->GetCurrentGPUAccess();
-		const uint32 LastFrameWritten = NewDepthStencilTarget->GetLastFrameWritten();
-		const bool bReadable = CurrentAccess == EResourceTransitionAccess::EReadable;
-		const bool bDepthWrite = NewDepthStencilTargetRHI->GetDepthStencilAccess().IsDepthWrite();
-		const bool bAccessValid =	!bReadable ||
-									LastFrameWritten != CurrentFrame || 
-									!bDepthWrite;
-
-		ensureMsgf((GEnableDX11TransitionChecks == 0) || bAccessValid, TEXT("DepthTarget '%s' is not GPU writable."), *NewDepthStencilTargetRHI->Texture->GetName().ToString());
-
-		//switch to writable state if this is the first render of the frame.  Don't switch if it's a later render and this is a depth test only situation
-		if (!bAccessValid || (bReadable && bDepthWrite))
-		{
-			DUMP_TRANSITION(NewDepthStencilTargetRHI->Texture->GetName(), EResourceTransitionAccess::EWritable);
-			NewDepthStencilTarget->SetCurrentGPUAccess(EResourceTransitionAccess::EWritable);
-		}
-
-		if (bDepthWrite)
-		{
-			NewDepthStencilTarget->SetDirty(true, CurrentFrame);
-		}
-	}
-
 	// Gather the render target views for the new render targets.
 	ID3D11RenderTargetView* NewRenderTargetViews[MaxSimultaneousRenderTargets];
 	for(uint32 RenderTargetIndex = 0;RenderTargetIndex < MaxSimultaneousRenderTargets;++RenderTargetIndex)
@@ -1104,38 +1024,9 @@ void FD3D11DynamicRHI::SetRenderTargets(
 			int32 RTMipIndex = NewRenderTargetsRHI[RenderTargetIndex].MipIndex;
 			int32 RTSliceIndex = NewRenderTargetsRHI[RenderTargetIndex].ArraySliceIndex;
 			FD3D11TextureBase* NewRenderTarget = GetD3D11TextureFromRHITexture(NewRenderTargetsRHI[RenderTargetIndex].Texture);
-
-			if (NewRenderTarget)
-			{
-				RenderTargetView = NewRenderTarget->GetRenderTargetView(RTMipIndex, RTSliceIndex);
-				uint32 CurrentFrame = PresentCounter;
-				const EResourceTransitionAccess CurrentAccess = NewRenderTarget->GetCurrentGPUAccess();
-				const uint32 LastFrameWritten = NewRenderTarget->GetLastFrameWritten();
-				const bool bReadable = CurrentAccess == EResourceTransitionAccess::EReadable;
-				const bool bAccessValid = !bReadable || LastFrameWritten != CurrentFrame;
-				ensureMsgf((GEnableDX11TransitionChecks == 0) || bAccessValid, TEXT("RenderTarget '%s' is not GPU writable."), *NewRenderTargetsRHI[RenderTargetIndex].Texture->GetName().ToString());
-								
-				if (!bAccessValid || bReadable)
-				{
-					DUMP_TRANSITION(NewRenderTargetsRHI[RenderTargetIndex].Texture->GetName(), EResourceTransitionAccess::EWritable);
-					NewRenderTarget->SetCurrentGPUAccess(EResourceTransitionAccess::EWritable);
-				}
-				NewRenderTarget->SetDirty(true, CurrentFrame);
-			}
+			RenderTargetView = NewRenderTarget ? NewRenderTarget->GetRenderTargetView(RTMipIndex, RTSliceIndex) : nullptr;
 
 			ensureMsgf(RenderTargetView, TEXT("Texture being set as render target has no RTV"));
-#if CHECK_SRV_TRANSITIONS			
-			if (RenderTargetView)
-			{
-				// remember this target as having been bound for write.
-				ID3D11Resource* RTVResource;
-				RenderTargetView->GetResource(&RTVResource);
-				check(UnresolvedTargetsConcurrencyGuard.Increment() == 1);
-				UnresolvedTargets.Add(RTVResource, FUnresolvedRTInfo(NewRenderTargetsRHI[RenderTargetIndex].Texture->GetName(), RTMipIndex, 1, RTSliceIndex, 1));
-				check(UnresolvedTargetsConcurrencyGuard.Decrement() == 0);
-				RTVResource->Release();
-			}
-#endif
 			
 			// Unbind any shader views of the render target that are bound.
 			ConditionalClearShaderResource(NewRenderTarget, false);
@@ -1452,6 +1343,19 @@ inline int32 SetShaderResourcesFromBuffer_Surface(FD3D11DynamicRHI* RESTRICT D3D
 			ShaderResource = TextureD3D11->GetBaseShaderResource();
 			D3D11Resource = TextureD3D11->GetShaderResourceView();
 
+#if ENABLE_RHI_VALIDATION
+			if (D3D11RHI->Tracker)
+			{
+				constexpr ERHIAccess Access = ShaderFrequency == EShaderFrequency::SF_Compute
+					? ERHIAccess::SRVCompute
+					: ERHIAccess::SRVGraphics;
+
+				// Textures bound here only have their "common" plane accessible. Stencil etc is ignored.
+				// (i.e. only access the color plane of a color texture, or depth plane of a depth texture)
+				D3D11RHI->Tracker->Assert(TextureRHI->GetViewIdentity(0, 0, 0, 0, uint32(RHIValidation::EResourcePlane::Common), 1), Access);
+			}
+#endif
+
 			// todo: could coalesce adjacent bound resources.
 			SetResource<ShaderFrequency>(D3D11RHI, StateCache, BindIndex, ShaderResource, D3D11Resource, TextureRHI->GetName());
 			NumSetCalls++;
@@ -1484,6 +1388,14 @@ inline int32 SetShaderResourcesFromBufferUAVPS(FD3D11DynamicRHI* RESTRICT D3D11R
 			{
 				UE_LOG(LogD3D11RHI, Fatal, TEXT("Null UAV (resource %d bind %d) on UB Layout %s"), ResourceIndex, BindIndex, *LayoutName.ToString());
 			}
+
+#if ENABLE_RHI_VALIDATION
+			if (D3D11RHI->Tracker)
+			{
+				D3D11RHI->Tracker->AssertUAV(UnorderedAccessViewRHI, RHIValidation::EUAVMode::Graphics, BindIndex);
+			}
+#endif
+
 			D3D11RHI->InternalSetUAVPS(BindIndex, UnorderedAccessViewRHI);
 			NumSetCalls++;
 			ResourceInfo = *ResourceInfos++;
@@ -1518,6 +1430,18 @@ inline int32 SetShaderResourcesFromBuffer_SRV(FD3D11DynamicRHI* RESTRICT D3D11RH
 			{
 				UE_LOG(LogD3D11RHI, Fatal, TEXT("Null SRV (resource %d bind %d) on UB Layout %s"), ResourceIndex, BindIndex, *LayoutName.ToString());
 			}
+
+#if ENABLE_RHI_VALIDATION
+			if (D3D11RHI->Tracker)
+			{
+				constexpr ERHIAccess Access = ShaderFrequency == EShaderFrequency::SF_Compute
+					? ERHIAccess::SRVCompute
+					: ERHIAccess::SRVGraphics;
+
+				D3D11RHI->Tracker->Assert(ShaderResourceViewRHI->ViewIdentity, Access);
+			}
+#endif
+
 			ShaderResource = ShaderResourceViewRHI->Resource.GetReference();
 			D3D11Resource = ShaderResourceViewRHI->View.GetReference();
 
@@ -1618,7 +1542,11 @@ void FD3D11DynamicRHI::SetResourcesFromTables(const ShaderType* RESTRICT Shader)
 		}
 #endif
 
-		FName LayoutName = *Buffer->GetLayout().GetDebugName();
+#if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
+		const FName LayoutName = *Buffer->GetLayout().GetDebugName();
+#else 
+		const FName LayoutName = NAME_None;
+#endif
 
 		// todo: could make this two pass: gather then set
 		SetShaderResourcesFromBuffer_Surface<(EShaderFrequency)ShaderType::StaticFrequency>(this, &StateCache, Buffer, Shader->ShaderResourceTable.TextureMap.GetData(), BufferIndex, LayoutName);
@@ -1744,7 +1672,7 @@ void FD3D11DynamicRHI::RHIDrawPrimitive(uint32 BaseVertexIndex,uint32 NumPrimiti
 		Direct3DDeviceIMContext->Draw(VertexCount,BaseVertexIndex);
 	}
 
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 void FD3D11DynamicRHI::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
@@ -1761,7 +1689,7 @@ void FD3D11DynamicRHI::RHIDrawPrimitiveIndirect(FRHIVertexBuffer* ArgumentBuffer
 	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
 	Direct3DDeviceIMContext->DrawInstancedIndirect(ArgumentBuffer->Resource,ArgumentOffset);
 
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 void FD3D11DynamicRHI::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIStructuredBuffer* ArgumentsBufferRHI, int32 DrawArgumentsIndex, uint32 NumInstances)
@@ -1793,7 +1721,7 @@ void FD3D11DynamicRHI::RHIDrawIndexedIndirect(FRHIIndexBuffer* IndexBufferRHI, F
 		check(0);
 	}
 
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 void FD3D11DynamicRHI::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI,int32 BaseVertexIndex,uint32 FirstInstance,uint32 NumVertices,uint32 StartIndex,uint32 NumPrimitives,uint32 NumInstances)
@@ -1836,7 +1764,7 @@ void FD3D11DynamicRHI::RHIDrawIndexedPrimitive(FRHIIndexBuffer* IndexBufferRHI,i
 		Direct3DDeviceIMContext->DrawIndexed(IndexCount,StartIndex,BaseVertexIndex);
 	}
 
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 void FD3D11DynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBufferRHI, FRHIVertexBuffer* ArgumentBufferRHI,uint32 ArgumentOffset)
@@ -1859,7 +1787,7 @@ void FD3D11DynamicRHI::RHIDrawIndexedPrimitiveIndirect(FRHIIndexBuffer* IndexBuf
 	StateCache.SetPrimitiveTopology(GetD3D11PrimitiveType(PrimitiveType,bUsingTessellation));
 	Direct3DDeviceIMContext->DrawIndexedInstancedIndirect(ArgumentBuffer->Resource,ArgumentOffset);
 
-	ApplyUAVOverlapState();
+	EnableUAVOverlap();
 }
 
 // Raster operations.
@@ -1914,11 +1842,6 @@ void FD3D11DynamicRHI::RHIClearMRTImpl(bool bClearColor, int32 NumClearColors, c
 	}
 
 	GPUProfilingData.RegisterGPUWork(0);
-}
-
-void FD3D11DynamicRHI::RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
-{
-	// Not necessary for d3d.
 }
 
 // Blocks the CPU until the GPU catches up and goes idle.
@@ -2070,240 +1993,126 @@ IRHICommandContextContainer* FD3D11DynamicRHI::RHIGetCommandContextContainer(int
 	return nullptr;
 }
 
-void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures)
+void FD3D11DynamicRHI::EnableUAVOverlap()
 {
-	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
-	bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
+	// This function is called after every draw or dispatch to turn overlap back on if it was turned off by a UAV barrier. This way, the next
+	// draw/dispatch after the barrier executes after everything before it has completed and the caches were flushed, and any subsequent
+	// submissions are allowed to overlap until the next UAV barrier.
 
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], NumTextures);
-	for (int32 i = 0; i < NumTextures; ++i)
-	{				
-		FRHITexture* RenderTarget = InTextures[i];
-		if (RenderTarget)
-		{
-			SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResourcesLoop, bShowTransitionEvents, TEXT("To:%i - %s"), i, *RenderTarget->GetName().ToString());
-
-			FD3D11BaseShaderResource* Resource = nullptr;
-			FD3D11Texture2D* SourceTexture2D = static_cast<FD3D11Texture2D*>(RenderTarget->GetTexture2D());
-			if (SourceTexture2D)
-			{
-				Resource = SourceTexture2D;
-			}
-			FD3D11Texture2DArray* SourceTexture2DArray = static_cast<FD3D11Texture2DArray*>(RenderTarget->GetTexture2DArray());
-			if (SourceTexture2DArray)
-			{
-				Resource = SourceTexture2DArray;
-			}
-			FD3D11TextureCube* SourceTextureCube = static_cast<FD3D11TextureCube*>(RenderTarget->GetTextureCube());
-			if (SourceTextureCube)
-			{
-				Resource = SourceTextureCube;
-			}
-			FD3D11Texture3D* SourceTexture3D = static_cast<FD3D11Texture3D*>(RenderTarget->GetTexture3D());
-			if (SourceTexture3D)
-			{
-				Resource = SourceTexture3D;
-			}
-			DUMP_TRANSITION(RenderTarget->GetName(), TransitionType);
-			Resource->SetCurrentGPUAccess(TransitionType);
-		}
-	}
-}
-
-void FD3D11DynamicRHI::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 InNumUAVs, FRHIComputeFence* WriteFence)
-{
-	for (int32 i = 0; i < InNumUAVs; ++i)
-	{
-		if (InUAVs[i])
-		{
-			FD3D11UnorderedAccessView* UAV = ResourceCast(InUAVs[i]);
-			if (UAV && UAV->Resource)
-			{
-				UAV->Resource->SetCurrentGPUAccess(TransitionType);
-				if (TransitionType != EResourceTransitionAccess::ERWNoBarrier)
-				{
-					UAV->Resource->SetDirty(false, PresentCounter);
-				}
-			}
-		}
-	}
-
-	if (WriteFence)
-	{
-		WriteFence->WriteFence();
-	}
-}
-
-static TAutoConsoleVariable<int32> CVarAllowUAVFlushExt(
-	TEXT("r.D3D11.AutoFlushUAV"),
-	1,
-	TEXT("If enabled, use NVAPI (Nvidia), AGS (AMD) or Intel Extensions (Intel) to not flush between dispatches/draw calls")
-	TEXT(" 1: on (default)\n")
-	TEXT(" 0: off"),
-	ECVF_RenderThreadSafe);
-
-// Enable this to test if NvAPI/AGS/Intel returned an error during UAV overlap enabling/disabling.
-// By default we do not test because this is an optimalisation (if overlapping is not enabled, GPU execution is slower)
-// Enable it here to validate if overlapping is actually used.
-#if 0
-	#define CHECK_AGS(x)   do { AGSReturnCode err = (x); check(err == AGS_SUCCESS); } while(false)
-	#define CHECK_NVAPI(x) do { NvAPI_Status  err = (x); check(err == NVAPI_OK);    } while(false)
-	#define CHECK_INTEL(x) do { HRESULT       err = (x); check(err == S_OK);        } while(false)
-#else
-	#define CHECK_AGS(x)   do { (x); } while(false)
-	#define CHECK_NVAPI(x) do { (x); } while(false)
-	#define CHECK_INTEL(x) do { (x); } while(false)
-#endif
-
-bool FD3D11DynamicRHI::IsUAVOverlapSupported()
-{
-	return IsRHIDeviceNVIDIA() || IsRHIDeviceAMD() || IsRHIDeviceIntel();
-}
-
-void FD3D11DynamicRHI::ApplyUAVOverlapState()
-{
-	if (UAVOverlapState != EUAVOverlapState::EPending)
+	if (bUAVOverlapEnabled || !CVarAllowUAVFlushExt.GetValueOnRenderThread())
 	{
 		return;
 	}
 
-	UAVOverlapState = EUAVOverlapState::EOn;
+	bUAVOverlapEnabled = true;
 
 #if !PLATFORM_HOLOLENS
 	if (IsRHIDeviceNVIDIA())
 	{
-		CHECK_NVAPI(NvAPI_D3D11_BeginUAVOverlap(Direct3DDevice));
+		NvAPI_D3D11_BeginUAVOverlap(Direct3DDevice);
 	}
 	else if (IsRHIDeviceAMD())
 	{
-		CHECK_AGS(agsDriverExtensionsDX11_BeginUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext));
+		agsDriverExtensionsDX11_BeginUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext);
 	}
 	else if (IsRHIDeviceIntel())
 	{
 #if INTEL_EXTENSIONS
 		if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap)
 		{
-			CHECK_INTEL(IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap(IntelExtensionContext));
+			IntelD3D11ExtensionFuncs->D3D11BeginUAVOverlap(IntelExtensionContext);
 		}
 #endif
 	}
-	else
+#endif
+}
+
+void FD3D11DynamicRHI::DisableUAVOverlap()
+{
+	// This is called when a transition to UAVCompute or UAVGraphics is executed. It disables overlapping for the next draw/dispatch, so we get the same
+	// behavior as with a UAV barrier in APIs with explicit barriers. Overlapping will be turned back on automatically after the draw/dispatch.
+	if (!bUAVOverlapEnabled)
 	{
-		ensureMsgf(false, TEXT("BeginUAVOverlap not implemented for this GPU IHV."));
+		return;
+	}
+
+#if !PLATFORM_HOLOLENS
+	if (IsRHIDeviceNVIDIA())
+	{
+		NvAPI_D3D11_EndUAVOverlap(Direct3DDevice);
+	}
+	else if (IsRHIDeviceAMD())
+	{
+		agsDriverExtensionsDX11_EndUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext);
+	}
+	else if (IsRHIDeviceIntel())
+	{
+#if INTEL_EXTENSIONS
+		if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap)
+		{
+			IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap(IntelExtensionContext);
+		}
+#endif
 	}
 #endif
+
+	bUAVOverlapEnabled = false;
+}
+
+void FD3D11DynamicRHI::RHICreateTransition(FRHITransition* Transition, ERHIPipeline SrcPipelines, ERHIPipeline DstPipelines, ERHICreateTransitionFlags CreateFlags, TArrayView<const FRHITransitionInfo> Infos)
+{
+	checkf(FMath::IsPowerOfTwo(uint32(SrcPipelines)) && FMath::IsPowerOfTwo(uint32(DstPipelines)), TEXT("Support for multi-pipe resources is not yet implemented."));
+
+	FD3D11TransitionData* Data = new (Transition->GetPrivateData<FD3D11TransitionData>()) FD3D11TransitionData;
+	Data->bUAVBarrier = false;
+
+	// If we have any transitions to UAVCompute or UAVGraphics, we need to break up the current overlap group.
+	for (const FRHITransitionInfo& Info : Infos)
+	{
+		if (Info.Resource && EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask))
+		{
+			Data->bUAVBarrier = true;
+			break;
+		}
+	}
+}
+
+void FD3D11DynamicRHI::RHIReleaseTransition(FRHITransition* Transition)
+{
+	Transition->GetPrivateData<FD3D11TransitionData>()->~FD3D11TransitionData();
+}
+
+void FD3D11DynamicRHI::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+}
+
+void FD3D11DynamicRHI::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	// The only thing we care about in D3D11 is breaking up the current overlap group if we have a UAV barrier. If overlap is already off, there's nothing to do.
+	if (!bUAVOverlapEnabled)
+	{
+		return;
+	}
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D11TransitionData* Data = Transition->GetPrivateData<FD3D11TransitionData>();
+		if (Data->bUAVBarrier)
+		{
+			DisableUAVOverlap();
+			break;
+		}
+	}
 }
 
 void FD3D11DynamicRHI::RHIBeginUAVOverlap()
 {
-	checkf(UAVOverlapState == EUAVOverlapState::EOff, TEXT("Mismatched call to BeginUAVOverlap. Ensure all calls to RHICmdList.BeginUAVOverlap() are paired with a call to RHICmdList.EndUAVOverlap()."));
-
-	bUAVOverlapAllowed = (CVarAllowUAVFlushExt.GetValueOnRenderThread() != 0) && IsUAVOverlapSupported();
-	if (!bUAVOverlapAllowed)
-	{
-		return;
-	}
-
-	// The driver APIs just set an internal flag which is used by the next dispatch in order to determine if there needs to be a barrier before
-	// running the CS. This means that we need to call the API *after* the next dispatch, because we always want a barrier before the first
-	// dispatch in an overlap group. Consider this example:
-	//
-	//		// Dispatches 1 and 2 are independent, we want them to overlap.
-	//		RHICmdList.BeginUAVOverlap();
-	//		Dispatch1();
-	//		Dispatch2();
-	//		RHICmdList.EndUAVOverlap();
-	//
-	//		// Dispatches 3 and 4 have no inter-dependencies, so they should overlap, but read UAV locations written by 1 and/or 2, so we want a barrier here.
-	//		RHICmdList.BeginUAVOverlap();
-	//		Dispatch3();
-	//		Dispatch4();
-	//		RHICmdList.EndUAVOverlap();
-	//
-	// If we just call the driver extension API immediately here, it will simply overwrite the flag set by the previous end call, and all 4 dispatches will
-	// (potentially) overlap, as if the inner end/begin pair didn't exist, producing incorrect results. Instead, we must set the state to pending here,
-	// and the next RHI draw or dispatch function will call the API after running the draw/dispatch, so the example above results in this actual set of driver calls:
-	//
-	//		Dispatch1();				// Internal barrier before, makes sure we don't overlap any earlier dispatches.
-	//		Vendor_BeginUAVOverlap();	// Set overlap flag to true.
-	//		Dispatch2();				// No barrier, overlaps 1.
-	//		Vendor_EndUAVOverlap();		// Set overlap flag to false.
-	//
-	//		Dispatch3();				// Barrier before, makes sure we don't overlap 2.
-	//		Vendor_BeginUAVOverlap();	// Set overlap flag to true.
-	//		Dispatch4();				// No barrier, overlaps 3.
-	//		Vendor_EndUAVOverlap();		// Set overlap flag to false, any dispatches after this will not overlap.
-	//
-	// This correctly serializes dispatches 2 and 3.
-	UAVOverlapState = EUAVOverlapState::EPending;
+	// No need to do anything here. Overlap is always on and the current group is broken up when we see a transition to UAVCompute or UAVGraphics.
 }
 
 void FD3D11DynamicRHI::RHIEndUAVOverlap()
 {
-	if (!bUAVOverlapAllowed)
-	{
-		return;
-	}
-
-	checkf(UAVOverlapState != EUAVOverlapState::EOff, TEXT("Mismatched call to EndUAVOverlap. Ensure all calls to RHICmdList.BeginUAVOverlap() are paired with a call to RHICmdList.EndUAVOverlap()."));
-
-	// Only call the driver API if we got a dispatch in between the call to RHIBeginUAVOverlap() and this call to RHIEndUAVOverlap(). Otherwise it's an
-	// empty overlap group and we can simply cancel the request.
-	if (UAVOverlapState == EUAVOverlapState::EOn)
-	{
-#if !PLATFORM_HOLOLENS
-		if (IsRHIDeviceNVIDIA())
-		{
-			CHECK_NVAPI(NvAPI_D3D11_EndUAVOverlap(Direct3DDevice));
-		}
-		else if (IsRHIDeviceAMD())
-		{
-			CHECK_AGS(agsDriverExtensionsDX11_EndUAVOverlap(AmdAgsContext, Direct3DDeviceIMContext));
-		}
-		else if (IsRHIDeviceIntel())
-		{
-#if INTEL_EXTENSIONS
-			if (IntelD3D11ExtensionFuncs && IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap)
-			{
-				CHECK_INTEL(IntelD3D11ExtensionFuncs->D3D11EndUAVOverlap(IntelExtensionContext));
-			}
-#endif
-		}
-		else
-		{
-			ensureMsgf(false, TEXT("EndUAVOverlap not implemented for this GPU IHV."));
-		}
-#endif	
-	}
-
-	UAVOverlapState = EUAVOverlapState::EOff;
-}
-
-void FD3D11DynamicRHI::RHIAutomaticCacheFlushAfterComputeShader(bool bEnable)
-{
-	if (bEnable)
-	{
-		if (UAVOverlapState != EUAVOverlapState::EOff)
-		{
-			RHIEndUAVOverlap();
-		}
-	}
-	else
-	{
-		if (UAVOverlapState == EUAVOverlapState::EOff)
-		{
-			RHIBeginUAVOverlap();
-		}
-	}
-}
-
-void FD3D11DynamicRHI::RHIFlushComputeShaderCache()
-{
-	if (UAVOverlapState != EUAVOverlapState::EOff)
-	{
-		RHIEndUAVOverlap();
-		RHIBeginUAVOverlap();
-	}
+	// Same as above.
 }
 
 //*********************** StagingBuffer Implementation ***********************//

@@ -9,6 +9,32 @@
 #include "RenderResource.h"
 #include "RHIDefinitions.h"
 
+class FTextureWithRDG;
+class FRDGTexture;
+class FRDGBuilder;
+struct IPooledRenderTarget;
+
+/** An FTexture variant that includes more efficient support for registering with RDG. */
+class RENDERCORE_API FTextureWithRDG : public FTexture
+{
+public:
+	FTextureWithRDG();
+	FTextureWithRDG(const FTextureWithRDG& Other);
+	FTextureWithRDG& operator=(const FTextureWithRDG& Other);
+	~FTextureWithRDG() override;
+
+	FRDGTexture* GetRDG(FRDGBuilder& GraphBuilder) const;
+	FRDGTexture* GetPassthroughRDG() const;
+
+	void ReleaseRHI() override;
+
+protected:
+	void InitRDG(const TCHAR* Name);
+
+private:
+	TRefCountPtr<IPooledRenderTarget> RenderTarget;
+};
+
 extern RENDERCORE_API void RenderUtilsInit();
 
 /**
@@ -59,24 +85,6 @@ FORCEINLINE FVector GenerateYAxis(const VectorType& XAxis, const VectorType& ZAx
 	return (FVector(z) ^ x) * z.W;
 }
 
-/** Information about a pixel format. */
-struct FPixelFormatInfo
-{
-	const TCHAR*	Name;
-	int32				BlockSizeX,
-					BlockSizeY,
-					BlockSizeZ,
-					BlockBytes,
-					NumComponents;
-	/** Platform specific token, e.g. D3DFORMAT with D3DDrv										*/
-	uint32			PlatformFormat;
-	/** Whether the texture format is supported on the current platform/ rendering combination	*/
-	bool			Supported;
-	EPixelFormat	UnrealFormat;
-};
-
-extern RENDERCORE_API FPixelFormatInfo GPixelFormats[PF_MAX];		// Maps members of EPixelFormat to a FPixelFormatInfo describing the format.
-
 #define NUM_DEBUG_UTIL_COLORS (32)
 static const FColor DebugUtilColor[NUM_DEBUG_UTIL_COLORS] = 
 {
@@ -114,12 +122,6 @@ static const FColor DebugUtilColor[NUM_DEBUG_UTIL_COLORS] =
 	FColor(19,25,126)
 };
 
-//
-//	CalculateImageBytes
-//
-
-extern RENDERCORE_API SIZE_T CalculateImageBytes(uint32 SizeX,uint32 SizeY,uint32 SizeZ,uint8 Format);
-
 /** A global white texture. */
 extern RENDERCORE_API class FTexture* GWhiteTexture;
 extern RENDERCORE_API class FTextureWithSRV* GWhiteTextureWithSRV;
@@ -140,16 +142,16 @@ extern RENDERCORE_API class FVertexBufferWithSRV* GWhiteVertexBufferWithSRV;
 extern RENDERCORE_API class FTexture* GBlackArrayTexture;
 
 /** A global black volume texture. */
-extern RENDERCORE_API class FTexture* GBlackVolumeTexture;
+extern RENDERCORE_API class FTextureWithRDG* GBlackVolumeTexture;
 
 /** A global black volume texture, with alpha=1. */
-extern RENDERCORE_API class FTexture* GBlackAlpha1VolumeTexture;
+extern RENDERCORE_API class FTextureWithRDG* GBlackAlpha1VolumeTexture;
 
 /** A global black texture<uint> */
 extern RENDERCORE_API class FTexture* GBlackUintTexture;
 
 /** A global black volume texture<uint>  */
-extern RENDERCORE_API class FTexture* GBlackUintVolumeTexture;
+extern RENDERCORE_API class FTextureWithRDG* GBlackUintVolumeTexture;
 
 /** A global white cube texture. */
 extern RENDERCORE_API class FTexture* GWhiteTextureCube;
@@ -513,22 +515,6 @@ inline bool IsUsingBasePassVelocity(const FStaticShaderPlatform Platform)
 	return !!(GBasePassVelocityPlatformMask & (1ull << Platform));
 }
 
-inline bool IsUsingAnisotropicBRDF(EShaderPlatform Platform)
-{
-	extern RENDERCORE_API uint64 GAnisotropicBRDFPlatformMask;
-	return (!!(GAnisotropicBRDFPlatformMask & (1ull << Platform)));
-}
-
-inline bool BasePassCanOutputTangent(EShaderPlatform Platform)
-{
-	return IsUsingAnisotropicBRDF(Platform) && !IsUsingBasePassVelocity(Platform);
-}
-
-inline bool BasePassCanOutputTangent(ERHIFeatureLevel::Type FeatureLevel)
-{
-	return BasePassCanOutputTangent(GetFeatureLevelShaderPlatform(FeatureLevel));
-}
-
 /** Returns whether the base pass should use selective outputs for a given shader platform */
 inline bool IsUsingSelectiveBasePassOutputs(const FStaticShaderPlatform Platform)
 {
@@ -558,7 +544,7 @@ inline bool IsUsingPerPixelDBufferMask(const FStaticShaderPlatform Platform)
 
 inline bool UseGPUScene(const FStaticShaderPlatform Platform, const FStaticFeatureLevel FeatureLevel)
 {
-	if (IsMobilePlatform(Platform))
+	if (FeatureLevel == ERHIFeatureLevel::ES3_1)
 	{
 		return MobileSupportsGPUScene(Platform);
 	}

@@ -49,9 +49,14 @@ namespace WindowsMixedReality
 				return false;
 			}
 
-			if (!bIsMultiViewEnabled)
+			if (!bIsMultiViewEnabled || hmd->IsThirdCameraActive())
 			{
 				hmd->CopyResources(D3D11Context, ViewportTexture);
+			}
+
+			if (StereoDepthTexture != nullptr)
+			{
+				hmd->CommitDepthBuffer(StereoDepthTexture);
 			}
 
 			InOutSyncInterval = 0;
@@ -85,6 +90,10 @@ namespace WindowsMixedReality
 			ViewportTexture = (ID3D11Texture2D*)RT->GetNativeResource();
 		}
 
+		void SetDepthTexture(ID3D11Texture2D* depthTexture)
+		{
+			StereoDepthTexture = depthTexture;
+		}
 
 	private:
 #if WITH_WINDOWS_MIXED_REALITY
@@ -93,6 +102,7 @@ namespace WindowsMixedReality
 
 		ID3D11DeviceContext* D3D11Context = nullptr;
 		ID3D11Texture2D* ViewportTexture = nullptr;
+		ID3D11Texture2D* StereoDepthTexture = nullptr;
 		bool bIsMultiViewEnabled = false;
 	};
 }

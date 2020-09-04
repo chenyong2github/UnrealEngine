@@ -38,7 +38,6 @@ FLazyName FMapErrors::NoKillZ(TEXT("NoKillZ"));
 FLazyName FMapErrors::LightComponentNull(TEXT("LightComponentNull"));
 FLazyName FMapErrors::RebuildLighting(TEXT("RebuildLighting"));
 FLazyName FMapErrors::StaticComponentHasInvalidLightmapSettings(TEXT("StaticComponentHasInvalidLightmapSettings"));
-FLazyName FMapErrors::AnisotropicBRDF_or_BasePassVelocity(TEXT("AnisotropicBRDF_or_BasePassVelocity"));
 FLazyName FMapErrors::RebuildPaths(TEXT("RebuildPaths"));
 FLazyName FMapErrors::ParticleSystemComponentNull(TEXT("ParticleSystemComponentNull"));
 FLazyName FMapErrors::PSysCompErrorEmptyActorRef(TEXT("PSysCompErrorEmptyActorRef"));

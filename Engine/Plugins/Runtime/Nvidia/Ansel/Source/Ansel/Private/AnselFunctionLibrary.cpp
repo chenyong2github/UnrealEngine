@@ -151,8 +151,8 @@ void UAnselFunctionLibrary::ConstrainCameraByGeometry(UObject* WorldContextObjec
 {
 	OutCameraLocation = NewCameraLocation; // accept new camera position by default
 
-	static IConsoleVariable* CVarConstrainCameraSize = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.Constrain.CameraSize"));
-	const float CameraRadius = CVarConstrainCameraSize->GetFloat();
+	static IConsoleVariable* CVarConstrainCameraSizeLocal = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.Constrain.CameraSize"));
+	const float CameraRadius = CVarConstrainCameraSizeLocal->GetFloat();
 
 	if (CameraRadius < 0.f)
 	{

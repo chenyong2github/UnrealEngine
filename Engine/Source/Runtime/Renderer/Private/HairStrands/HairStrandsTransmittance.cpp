@@ -201,7 +201,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	const uint32 NodeGroupSize,
 	FRDGTextureRef HairLUTTexture,
 	FRDGBufferRef IndirectArgsBuffer,
-	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture)
+	FRDGTextureRef ScreenShadowMaskSubPixelTexture)
 {
 	FRDGBufferRef OutBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateStructuredDesc(
 		4 * sizeof(float),
@@ -242,7 +242,7 @@ static FRDGBufferRef AddDeepShadowTransmittanceMaskPass(
 	memcpy(&(Parameters->DeepShadow_AtlasSlotOffsets_AtlasSlotIndex[0]), Params.DeepShadow_AtlasSlotOffsets_AtlasSlotIndex, sizeof(FIntVector4) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
 	memcpy(&(Parameters->DeepShadow_CPUWorldToLightTransforms[0]), Params.DeepShadow_CPUWorldToLightTransforms, sizeof(FMatrix) * FHairStrandsDeepShadowData::MaxMacroGroupCount);
 
-	Parameters->RayMarchMaskTexture = GraphBuilder.RegisterExternalTexture(ScreenShadowMaskSubPixelTexture.IsValid() ? ScreenShadowMaskSubPixelTexture : GSystemTextures.WhiteDummy);
+	Parameters->RayMarchMaskTexture = ScreenShadowMaskSubPixelTexture ? ScreenShadowMaskSubPixelTexture : GraphBuilder.RegisterExternalTexture(GSystemTextures.WhiteDummy);
 
 	bool bIsSuperSampled = false;
 	if (TransmittanceType == FHairTransmittanceType_VirtualVoxel)
@@ -399,7 +399,7 @@ static void AddDeepShadowOpaqueMaskPass(
 	if (HairOpaqueMaskType == FHairOpaqueMaskType_VirtualVoxel)
 	{
 		FRDGTextureDesc Desc = OutShadowMask->Desc;
-		Desc.TargetableFlags |= TexCreate_ShaderResource;
+		Desc.Flags |= TexCreate_ShaderResource;
 		RayMarchMask = GraphBuilder.CreateTexture(Desc, TEXT("RayMarchMask"));
 		FRHICopyTextureInfo CopyInfo;
 		CopyInfo.Size = OutShadowMask->Desc.GetSize();
@@ -470,12 +470,12 @@ static void AddDeepShadowOpaqueMaskPass(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const FLightSceneInfo* LightSceneInfo,
 	const FHairStrandsMacroGroupDatas& MacroGroupDatas,
 	const FHairStrandsVisibilityData& VisibilityData,
-	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture)
+	FRDGTextureRef ScreenShadowMaskSubPixelTexture)
 {
 	if (MacroGroupDatas.Datas.Num() == 0)
 		return FHairStrandsTransmittanceMaskData();
@@ -484,17 +484,13 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 		return FHairStrandsTransmittanceMaskData();
 
 	DECLARE_GPU_STAT(HairStrandsTransmittanceMask);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsTransmittanceMask);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsTransmittanceMask);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsTransmittanceMask");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsTransmittanceMask);
 
-	const FHairLUT InHairLUT = GetHairLUT(RHICmdList, View);
-
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(RHICmdList);
-	FRDGBuilder GraphBuilder(RHICmdList);
+	const FHairLUT InHairLUT = GetHairLUT(GraphBuilder, View);
 
 	// Note: GbufferB.a store the shading model on the 4 lower bits (MATERIAL_SHADINGMODEL_HAIR)
-	FSceneTextureParameters SceneTextures;
-	SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
+	FSceneTextureParameters SceneTextures = GetSceneTextureParameters(GraphBuilder);
 
 	FRDGTextureRef HairLUTTexture = GraphBuilder.RegisterExternalTexture(InHairLUT.Textures[HairLUTType_DualScattering], TEXT("HairLUTTexture"));
 	FRDGBufferRef NodeIndirectArgBuffer = GraphBuilder.RegisterExternalBuffer(VisibilityData.NodeIndirectArg, TEXT("HairNodeIndirectArgBuffer"));
@@ -589,27 +585,17 @@ static FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 	}
 
 	FHairStrandsTransmittanceMaskData OutTransmittanceMaskData;
-	GraphBuilder.QueueBufferExtraction(OutShadowMask, &OutTransmittanceMaskData.TransmittanceMask, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
-
-	// #RDG_todo/#Hair_todo
-	// Keep an extra ref to keep the buffer alive until the .Execute() function. The issue arive by the fact the indirect buffer is never 
-	// explicitly referenced in the graph. So its reference count is never incremented, and this makes it culled during the graph dependency 
-	// walk.
-	TRefCountPtr<FPooledRDGBuffer> DummyNodeIndirectArg;
-	GraphBuilder.QueueBufferExtraction(NodeIndirectArgBuffer, &DummyNodeIndirectArg, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-
-	GraphBuilder.Execute();
-	OutTransmittanceMaskData.TransmittanceMaskSRV = RHICreateShaderResourceView(OutTransmittanceMaskData.TransmittanceMask->StructuredBuffer);
-
+	OutTransmittanceMaskData.TransmittanceMask = OutShadowMask;
+	OutTransmittanceMaskData.TransmittanceMaskSRV = GraphBuilder.CreateSRV(OutShadowMask);
 	return OutTransmittanceMaskData;
 }
 
 FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const TArray<FViewInfo>& Views,
 	const FLightSceneInfo* LightSceneInfo,
 	const FHairStrandsRenderingData* HairDatas,
-	TRefCountPtr<IPooledRenderTarget>& ScreenShadowMaskSubPixelTexture)
+	FRDGTextureRef ScreenShadowMaskSubPixelTexture)
 {
 	FHairStrandsTransmittanceMaskData TransmittanceMaskData;
 	if (HairDatas)
@@ -620,7 +606,7 @@ FHairStrandsTransmittanceMaskData RenderHairStrandsTransmittanceMask(
 			const FHairStrandsVisibilityData& InHairVisibilityData = HairDatas->HairVisibilityViews.HairDatas[ViewIndex];
 			const FHairStrandsMacroGroupDatas& InMacroGroupDatas = HairDatas->MacroGroupsPerViews.Views[ViewIndex];
 
-			TransmittanceMaskData = RenderHairStrandsTransmittanceMask(RHICmdList, View, LightSceneInfo, InMacroGroupDatas, InHairVisibilityData, ScreenShadowMaskSubPixelTexture);
+			TransmittanceMaskData = RenderHairStrandsTransmittanceMask(GraphBuilder, View, LightSceneInfo, InMacroGroupDatas, InHairVisibilityData, ScreenShadowMaskSubPixelTexture);
 		}
 	}
 	return TransmittanceMaskData;

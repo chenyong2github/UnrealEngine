@@ -6,7 +6,6 @@
 #include "IMagicLeapLocationPlugin.h"
 #include "MagicLeapLocationTypes.h"
 #include "AppEventHandler.h"
-#include "MagicLeapPluginUtil.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMagicLeapLocation, Verbose, All);
 

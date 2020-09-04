@@ -474,7 +474,7 @@ bool FLuminPlatformFile::FileExists(const TCHAR* Filename)
 	return (FileExistsInternal(ConvertToLuminPath(NormalizedFilename, false))) ? true : FileExistsInternal(ConvertToLuminPath(NormalizedFilename, true));
 }
 
-bool FLuminPlatformFile::FileExists(const TCHAR* Filename, FString& OutLuminPath)
+bool FLuminPlatformFile::FileExistsWithPath(const TCHAR* Filename, FString& OutLuminPath)
 {
 	bool bExists = false;
 	FString NormalizedFilename = NormalizeFilename(Filename);
@@ -503,7 +503,7 @@ int64 FLuminPlatformFile::FileSize(const TCHAR* Filename)
 	// Checking that the file exists will also give us the true location of the file.
 	// Which can be either in the read-only or the read-write areas of the application.
 	FString LuminPath;
-	if (FileExists(Filename, LuminPath))
+	if (FileExistsWithPath(Filename, LuminPath))
 	{
 		return FileSizeInterenal(LuminPath);
 	}
@@ -522,7 +522,7 @@ bool FLuminPlatformFile::IsReadOnly(const TCHAR* Filename)
 	// Checking that the file exists will also give us the true location of the file.
 	// Which can be either in the read-only or the read-write areas of the application.
 	FString LuminPath;
-	if (FileExists(Filename, LuminPath))
+	if (FileExistsWithPath(Filename, LuminPath))
 	{
 		return IsReadOnlyInternal(LuminPath);
 	}
@@ -562,7 +562,7 @@ FDateTime FLuminPlatformFile::GetTimeStamp(const TCHAR* Filename)
 	// Checking that the file exists will also give us the true location of the file.
 	// Which can be either in the read-only or the read-write areas of the application.
 	FString LuminPath;
-	if (FileExists(Filename, LuminPath))
+	if (FileExistsWithPath(Filename, LuminPath))
 	{
 		return GetTimeStampInternal(LuminPath);
 	}
@@ -593,7 +593,7 @@ FDateTime FLuminPlatformFile::GetAccessTimeStamp(const TCHAR* Filename)
 	// Checking that the file exists will also give us the true location of the file.
 	// Which can be either in the read-only or the read-write areas of the application.
 	FString LuminPath;
-	if (FileExists(Filename, LuminPath))
+	if (FileExistsWithPath(Filename, LuminPath))
 	{
 		return GetAccessTimeStampInternal(LuminPath);
 	}

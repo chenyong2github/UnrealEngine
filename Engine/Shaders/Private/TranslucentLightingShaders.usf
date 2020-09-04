@@ -7,6 +7,7 @@
 
 #include "Common.ush"
 #include "SHCommon.ush"
+#include "SceneTexturesCommon.ush"
 
 #if INJECTION_PIXEL_SHADER
 	#include "ShadowProjectionCommon.ush"
@@ -50,16 +51,16 @@ MaterialFloat3 EncodeSceneColorForMaterialNode(MaterialFloat3 LinearSceneColor)
 	return pow(LinearSceneColor * .1f, .25f);
 }
 
-void CopySceneColorMain(
-	FScreenVertexOutput Input,
-	out float4 OutColor : SV_Target0
-	)
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
+
+Texture2D SceneColorTexture;
+
+void CopySceneColorMain(FScreenVertexOutput Input, out float4 OutColor : SV_Target0)
 {
-    float4 LinearColor = Texture2DSample(SceneTexturesStruct.SceneColorTexture, SceneTexturesStruct.SceneColorTextureSampler, Input.UV);
+	float4 LinearColor = Texture2DSample(SceneColorTexture, GlobalPointClampedSampler, Input.UV);
 	OutColor = float4(EncodeSceneColorForMaterialNode(LinearColor.rgb), 0);
 }
 
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
 /** Geometry shader that writes to a range of slices of a volume texture. */
 [maxvertexcount(3)]
 void WriteToSliceMainGS(triangle FWriteToSliceVertexOutput Input[3], inout TriangleStream<FWriteToSliceGeometryOutput> OutStream)

@@ -14,7 +14,7 @@
 class FMagicLeapVREyeTracker;
 
 USTRUCT(BlueprintType)
-struct FMagicLeapEyeBlinkState
+struct MAGICLEAPEYETRACKER_API FMagicLeapEyeBlinkState
 {
 	GENERATED_BODY()
 
@@ -64,7 +64,7 @@ public:
 };
 
 
-class FMagicLeapEyeTracker : public IEyeTracker
+class MAGICLEAPEYETRACKER_API FMagicLeapEyeTracker : public IEyeTracker
 {
 public:
 	FMagicLeapEyeTracker();
@@ -95,7 +95,7 @@ private:
 	FMagicLeapVREyeTracker* VREyeTracker;
 };
 
-class FMagicLeapEyeTrackerModule : public IMagicLeapEyeTrackerModule
+class MAGICLEAPEYETRACKER_API FMagicLeapEyeTrackerModule : public IMagicLeapEyeTrackerModule
 {
 	/************************************************************************/
 	/* IInputDeviceModule                                                   */

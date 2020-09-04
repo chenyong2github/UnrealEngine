@@ -9,15 +9,15 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_networking.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
     
 CREATE_FUNCTION_SHIM(ml_networking, const char*, MLNetworkingGetResultString)
-#define MLNetworkingGetResultString ::MLSDK_API::MLNetworkingGetResultStringShim
+#define MLNetworkingGetResultString ::LUMIN_MLSDK_API::MLNetworkingGetResultStringShim
 CREATE_FUNCTION_SHIM(ml_networking, MLResult, MLNetworkingIsInternetConnected)
-#define MLNetworkingIsInternetConnected ::MLSDK_API::MLNetworkingIsInternetConnectedShim
+#define MLNetworkingIsInternetConnected ::LUMIN_MLSDK_API::MLNetworkingIsInternetConnectedShim
 CREATE_FUNCTION_SHIM(ml_networking, MLResult, MLNetworkingGetWiFiData)
-#define MLNetworkingGetWiFiData ::MLSDK_API::MLNetworkingGetWiFiDataShim
+#define MLNetworkingGetWiFiData ::LUMIN_MLSDK_API::MLNetworkingGetWiFiDataShim
 
 }
 

@@ -20,6 +20,7 @@
 #include "MetalShaderResources.h"
 #include "MetalLLM.h"
 #include "Engine/RendererSettings.h"
+#include "MetalTransitionData.h"
 
 DEFINE_LOG_CATEGORY(LogMetal)
 
@@ -401,6 +402,9 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 			   MemoryStats.TotalGraphicsMemory / 1024 / 1024);
 	}
 
+	GRHITransitionPrivateData_SizeInBytes = sizeof(FMetalTransitionData);
+	GRHITransitionPrivateData_AlignInBytes = alignof(FMetalTransitionData);
+
 	GRHISupportsRHIThread = false;
 	if (GMaxRHIFeatureLevel >= ERHIFeatureLevel::SM5)
 	{
@@ -499,6 +503,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
     bSupportsD16 = !FParse::Param(FCommandLine::Get(),TEXT("nometalv2")) && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
     GRHISupportsHDROutput = FPlatformMisc::MacOSXVersionCompare(10,14,4) >= 0 && Device.SupportsFeatureSet(mtlpp::FeatureSet::macOS_GPUFamily1_v2);
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
+	GMaxWorkGroupInvocations = 1024;
 #else
 #if PLATFORM_TVOS
 	GRHISupportsBaseVertexIndex = false;
@@ -521,6 +526,7 @@ FMetalDynamicRHI::FMetalDynamicRHI(ERHIFeatureLevel::Type RequestedFeatureLevel)
 	}
 	
 	GRHIHDRDisplayOutputFormat = (GRHISupportsHDROutput) ? PF_PLATFORM_HDR_0 : PF_B8G8R8A8;
+	GMaxWorkGroupInvocations = Device.SupportsFeatureSet(mtlpp::FeatureSet::iOS_GPUFamily4_v1) ? 1024 : 512;
 #endif
 	GMaxTextureDimensions = 8192;
 	GMaxCubeTextureDimensions = 8192;
@@ -875,7 +881,7 @@ FMetalDynamicRHI::~FMetalDynamicRHI()
 #endif
 }
 
-uint64 FMetalDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+uint64 FMetalDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	@autoreleasepool {
 	OutAlign = 0;
@@ -883,7 +889,7 @@ uint64 FMetalDynamicRHI::RHICalcTexture2DPlatformSize(uint32 SizeX, uint32 SizeY
 	}
 }
 
-uint64 FMetalDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+uint64 FMetalDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	@autoreleasepool {
 	OutAlign = 0;
@@ -891,7 +897,7 @@ uint64 FMetalDynamicRHI::RHICalcTexture3DPlatformSize(uint32 SizeX, uint32 SizeY
 	}
 }
 
-uint64 FMetalDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, uint32 Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
+uint64 FMetalDynamicRHI::RHICalcTextureCubePlatformSize(uint32 Size, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, const FRHIResourceCreateInfo& CreateInfo, uint32& OutAlign)
 {
 	@autoreleasepool {
 	OutAlign = 0;
@@ -906,8 +912,10 @@ uint64 FMetalDynamicRHI::RHIGetMinimumAlignmentForBufferBackedSRV(EPixelFormat F
 
 void FMetalDynamicRHI::Init()
 {
-	GRHICommandList.GetImmediateCommandList().SetContext(RHIGetDefaultContext());
-	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(RHIGetDefaultAsyncComputeContext());
+	// Command lists need the validation RHI context if enabled, so call the global scope version of RHIGetDefaultContext() and RHIGetDefaultAsyncComputeContext().
+	GRHICommandList.GetImmediateCommandList().SetContext(::RHIGetDefaultContext());
+	GRHICommandList.GetImmediateAsyncComputeCommandList().SetComputeContext(::RHIGetDefaultAsyncComputeContext());
+
 	FRenderResource::InitPreRHIResources();
 	GIsRHIInitialized = true;
 }

@@ -662,7 +662,7 @@ public:
 	int32 CustomDepthStencilValue;
 
 	/**  Max draw distance exposed to LDs. The real max draw distance is the min (disregarding 0) of this and volumes affecting this object. */
-	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category = LOD, meta = (DisplayName = "Desired Max Draw Distance"))
+	UPROPERTY(EditAnywhere, AdvancedDisplay, BlueprintReadOnly, Category=Rendering, meta = (DisplayName = "Desired Max Draw Distance"))
 	float LDMaxDrawDistance;
 
 #if WITH_EDITORONLY_DATA

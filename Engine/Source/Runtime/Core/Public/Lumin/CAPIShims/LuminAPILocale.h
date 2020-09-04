@@ -10,13 +10,13 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_locale.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 	CREATE_FUNCTION_SHIM(ml_locale, MLResult, MLLocaleGetSystemLanguage)
-	#define MLLocaleGetSystemLanguage ::MLSDK_API::MLLocaleGetSystemLanguageShim
+	#define MLLocaleGetSystemLanguage ::LUMIN_MLSDK_API::MLLocaleGetSystemLanguageShim
 	CREATE_FUNCTION_SHIM(ml_locale, MLResult, MLLocaleGetSystemCountry)
-	#define MLLocaleGetSystemCountry ::MLSDK_API::MLLocaleGetSystemCountryShim
+	#define MLLocaleGetSystemCountry ::LUMIN_MLSDK_API::MLLocaleGetSystemCountryShim
 
 }
 

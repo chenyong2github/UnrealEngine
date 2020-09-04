@@ -24,6 +24,7 @@ namespace UnrealBuildTool.Rules
                     "Analytics",
                     "Core",
                     "RenderCore",
+					"RHI",
                     "ImageCore",
                     "CoreUObject",
                     "Engine",

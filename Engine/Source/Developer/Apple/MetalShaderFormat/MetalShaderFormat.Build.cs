@@ -25,16 +25,9 @@ public class MetalShaderFormat : ModuleRules
 			}
 			);
 
-		AddEngineThirdPartyPrivateStaticDependencies(Target, 
-			"HLSLCC"
-			);
-
 		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64)
 		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"ShaderConductor",
-				"SPIRVReflect"
-			);
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "SPIRVReflect");
 		}
 
 		DynamicallyLoadedModuleNames.AddRange(
@@ -43,15 +36,5 @@ public class MetalShaderFormat : ModuleRules
 				"DerivedDataCache",
 			}
 			);
-
-		if (Target.Platform == UnrealTargetPlatform.Win64)
-		{
-			PublicDelayLoadDLLs.Add("dxcompiler.dll");
-			PublicDelayLoadDLLs.Add("ShaderConductor.dll");
-
-			string BinaryFolder = Target.UEThirdPartyBinariesDirectory + "ShaderConductor/Win64";
-			RuntimeDependencies.Add(BinaryFolder + "/dxcompiler.dll");
-			RuntimeDependencies.Add(BinaryFolder + "/ShaderConductor.dll");
-		}
 	}
 }

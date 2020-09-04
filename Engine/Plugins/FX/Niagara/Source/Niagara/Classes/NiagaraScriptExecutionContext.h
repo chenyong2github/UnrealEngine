@@ -440,6 +440,7 @@ struct FNiagaraComputeInstanceData
 	uint8* ExternalParamData = nullptr;
 	FNiagaraComputeExecutionContext* Context = nullptr;
 	TArray<FNiagaraDataInterfaceProxy*> DataInterfaceProxies;
+	bool bStartNewOverlapGroup = false;
 	bool bUsesSimStages = false;
 	bool bUsesOldShaderStages = false;
 	TArray<FNiagaraSimStageData, TInlineAllocator<1>> SimStageData;

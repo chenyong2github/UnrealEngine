@@ -68,9 +68,8 @@ FName FMaterialShader::UniformBufferLayoutName(TEXT("Material"));
 FMaterialShader::FMaterialShader(const FMaterialShaderType::CompiledShaderInitializerType& Initializer)
 :	FShader(Initializer)
 #if WITH_EDITORONLY_DATA
-, DebugUniformExpressionSet(Initializer.UniformExpressionSet)
-, DebugUniformExpressionUBLayout(FRHIUniformBufferLayout::Zero)
-, DebugDescription(Initializer.DebugDescription)
+,	DebugUniformExpressionSet(Initializer.UniformExpressionSet)
+,	DebugDescription(Initializer.DebugDescription)
 #endif // WITH_EDITORONLY_DATA
 {
 #if WITH_EDITORONLY_DATA
@@ -488,7 +487,14 @@ void FMeshMaterialShader::GetShaderBindings(
 	FMeshDrawSingleShaderBindings& ShaderBindings) const
 {
 	FMaterialShader::GetShaderBindings(Scene, FeatureLevel, MaterialRenderProxy, Material, ShaderBindings);
-	ShaderBindings.Add(PassUniformBuffer, DrawRenderState.GetPassUniformBuffer());
+	if (PassUniformBuffer.IsInitialized())
+	{
+		ShaderBindings.Add(PassUniformBuffer, DrawRenderState.GetPassUniformBuffer());
+	}
+	else
+	{
+		checkf(!DrawRenderState.GetPassUniformBuffer(), TEXT("Shader is missing the pass uniform buffer binding in the parameter map and the mesh pass draw render state requires it."));
+	}
 	ShaderBindings.Add(GetUniformBufferParameter<FViewUniformShaderParameters>(), DrawRenderState.GetViewUniformBuffer());
 	ShaderBindings.Add(GetUniformBufferParameter<FDistanceCullFadeUniformShaderParameters>(), ShaderElementData.FadeUniformBuffer);
 	ShaderBindings.Add(GetUniformBufferParameter<FDitherUniformShaderParameters>(), ShaderElementData.DitherUniformBuffer);

@@ -534,12 +534,6 @@ UMaterialFunctionMaterialLayerFactory::UMaterialFunctionMaterialLayerFactory(con
 	bEditAfterNew = true;
 }
 
-bool UMaterialFunctionMaterialLayerFactory::CanCreateNew() const
-{
-	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
-	return MaterialEditorModule.MaterialLayersEnabled();
-}
-
 UObject* UMaterialFunctionMaterialLayerFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
 {
 	UMaterialFunctionMaterialLayer* Function = NewObject<UMaterialFunctionMaterialLayer>(InParent, UMaterialFunctionMaterialLayer::StaticClass(), Name, Flags);
@@ -559,12 +553,6 @@ UMaterialFunctionMaterialLayerBlendFactory::UMaterialFunctionMaterialLayerBlendF
 	SupportedClass = UMaterialFunctionMaterialLayerBlend::StaticClass();
 	bCreateNew = true;
 	bEditAfterNew = true;
-}
-
-bool UMaterialFunctionMaterialLayerBlendFactory::CanCreateNew() const
-{
-	IMaterialEditorModule& MaterialEditorModule = FModuleManager::LoadModuleChecked<IMaterialEditorModule>( "MaterialEditor" );
-	return MaterialEditorModule.MaterialLayersEnabled();
 }
 
 UObject* UMaterialFunctionMaterialLayerBlendFactory::FactoryCreateNew(UClass* Class,UObject* InParent,FName Name,EObjectFlags Flags,UObject* Context,FFeedbackContext* Warn)
@@ -4433,6 +4421,9 @@ UObject* UTextureFactory::FactoryCreateBinary
 	{
 		// Update with new settings, which should disable streaming...
 		ExistingTexture2D->UpdateResource();
+		// Wait for InitRHI() to complete before the FTextureReferenceReplacer calls ReleaseRHI() to follow the workflow.
+		// Static texture needs to avoid having pending InitRHI() before enqueuing ReleaseRHI() to safely track access of the PlatformData on the renderthread.
+		ExistingTexture->WaitForPendingInitOrStreaming();
 	}
 	
 	FTextureReferenceReplacer RefReplacer(ExistingTexture);

@@ -71,6 +71,8 @@ public:
 	TRefCountPtr<IPooledRenderTarget> SSAORandomization;
 	/** GTAO randomization */
 	TRefCountPtr<IPooledRenderTarget> GTAORandomization;
+	/** GTAO PreIntegrated */
+	TRefCountPtr<IPooledRenderTarget> GTAOPreIntegrated;
 
 	/** Preintegrated GF for single sample IBL */
 	TRefCountPtr<IPooledRenderTarget> PreintegratedGF;

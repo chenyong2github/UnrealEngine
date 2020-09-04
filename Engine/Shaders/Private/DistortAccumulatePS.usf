@@ -55,9 +55,9 @@ void Main(
 #if SHADING_PATH_MOBILE
 	// Mobile specific: 
 	// distortion primtitives rendered without depth testing
-	// discard pixels that are hidden by comparing them to depth stored in SceneColor.A
+	// discard pixels that are hidden by manually comparing them to a scene depth
 	float2 BufferUV = SvPositionToBufferUV(SvPosition);
-	ClipOccludedPixel(SvPosition.z, CalcFullSceneColor(BufferUV).a);
+	ClipOccludedPixel(SvPosition.z, LookupDeviceZ(BufferUV));
 #endif
 	
 	// material distortion offset
@@ -80,7 +80,7 @@ void Main(
 
 #if SHADING_PATH_MOBILE
 	// sample depth from SceneColor.A on Mobile
-	float DistortSceneDepth = ConvertFromDeviceZ(CalcFullSceneColor(DistortBufferUV).a); 
+	float DistortSceneDepth = ConvertFromDeviceZ(LookupDeviceZ(DistortBufferUV)); 
 #else
 	float DistortSceneDepth = CalcSceneDepth(DistortBufferUV);
 #endif

@@ -61,6 +61,17 @@ namespace UnrealBuildTool
         public bool bAutoIncrementVersion = false;
 
 		/// <summary>
+		/// Whether to run native code analysis at compile time, producing a nativecodeanalysis.xml file for every compiled source file
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "bRunNativeCodeAnalysis")]
+		public bool bRunNativeCodeAnalysis = false;
+		/// <summary>
+		/// A project relative path for a custom native code analysis ruleset xml file
+		/// </summary>
+		[ConfigFile(ConfigHierarchyType.Engine, "/Script/HoloLensPlatformEditor.HoloLensTargetSettings", "NativeCodeAnalysisRuleset")]
+		public string NativeCodeAnalysisRuleset = null;
+		
+		/// <summary>
 		/// Constructor
 		/// </summary>
 		/// <param name="Info">Target information</param>
@@ -126,6 +137,15 @@ namespace UnrealBuildTool
 		public string Win10SDKVersionString
 		{
 			get { return Inner.Win10SDKVersionString; }
+		}
+		
+		public bool bRunNativeCodeAnalysis
+		{
+			get { return Inner.bRunNativeCodeAnalysis; }
+		}
+		public string NativeCodeAnalysisRuleset
+		{
+			get { return Inner.NativeCodeAnalysisRuleset; }
 		}
 #if !__MonoCS__
 #pragma warning restore CS1591

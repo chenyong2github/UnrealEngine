@@ -3,6 +3,7 @@
 #pragma once
 
 #include "Modules/ModuleManager.h"
+#include "MagicLeapImageTrackerTypes.h"
 
 /**
  * The public interface to this module.  In most cases, this interface is only public to sibling modules
@@ -35,8 +36,10 @@ public:
 
 	virtual bool GetImageTrackerEnabled() const = 0;
 	virtual void SetImageTrackerEnabled(bool bEnabled) = 0;
-	virtual void SetTargetAsync(const struct FMagicLeapImageTrackerTarget& ImageTarget) = 0;
+	virtual void SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetCompletedStaticDelegate& SucceededDelegate, const FMagicLeapSetImageTargetCompletedStaticDelegate& FailedDelegate) = 0;
+	virtual void SetTargetAsync(const FMagicLeapImageTargetSettings& ImageTarget, const FMagicLeapSetImageTargetSucceededMulti& SucceededDelegate, const FMagicLeapSetImageTargetFailedMulti& FailedDelegate) = 0;
+	virtual bool RemoveTargetAsync(const FString& TargetName) = 0;
 	virtual void DestroyTracker() = 0;
-	virtual bool TryGetRelativeTransform(const FString& TargetName, FVector& OutLocation, FRotator& OutRotation) = 0;
-	virtual bool IsTracked(const FString& TargetName) const = 0;
+	virtual void GetTargetState(const FString& TargetName, bool bProvideTransformInTrackingSpace, FMagicLeapImageTargetState& TargetState) const = 0;
+	virtual FGuid GetTargetHandle(const FString& TargetName) const = 0;
 };

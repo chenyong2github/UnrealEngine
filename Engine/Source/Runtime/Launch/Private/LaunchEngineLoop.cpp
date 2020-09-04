@@ -174,6 +174,10 @@
 
 #include "Misc/EmbeddedCommunication.h"
 
+#if WITH_ENGINE
+	#include "Tests/RHIUnitTests.h"
+#endif
+
 class FSlateRenderer;
 class SViewport;
 class IPlatformFile;
@@ -1573,6 +1577,14 @@ int32 FEngineLoop::PreInitPreStartupScreen(const TCHAR* CmdLine)
 	}
 #endif // !UE_BUILD_SHIPPING
 
+#if RHI_COMMAND_LIST_DEBUG_TRACES
+	// Enable command-list-only draw events if we haven't already got full draw events enabled.
+	if (!GetEmitDrawEvents())
+	{
+		EnableEmitDrawEventsOnlyOnCommandlist();
+	}
+#endif // RHI_COMMAND_LIST_DEBUG_TRACES
+
 	// Switch into executable's directory (may be required by some of the platform file overrides)
 	FPlatformProcess::SetCurrentWorkingDirectoryToBaseDir();
 
@@ -2531,10 +2543,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 		InPackageLocalizationManager.InitializeFromCache(MakeShareable(new FEnginePackageLocalizationCache()));
 	});
 #endif	// USE_LOCALIZED_PACKAGE_CACHE
-
-#if RHI_COMMAND_LIST_DEBUG_TRACES
-	EnableEmitDrawEventsOnlyOnCommandlist();
-#endif
 
 	{
 		SCOPED_BOOT_TIMING("FUniformBufferStruct::InitializeStructs()");
@@ -5789,11 +5797,11 @@ void FEngineLoop::PostInitRHI()
 	}
 	RHIPostInit(PixelFormatByteWidth);
 
-#if (!UE_BUILD_SHIPPING)
-	if (FParse::Param(FCommandLine::Get(), TEXT("rhiunittest")))
+#if WITH_ENGINE && (!UE_BUILD_SHIPPING)
+	IRHITestModule* RHIUnitTests = static_cast<IRHITestModule*>(FModuleManager::Get().GetModule(TEXT("RHITests")));
+	if (RHIUnitTests)
 	{
-		extern ENGINE_API void RunRHIUnitTest();
-		RunRHIUnitTest();
+		RHIUnitTests->RunAllTests();
 	}
 #endif //(!UE_BUILD_SHIPPING)
 

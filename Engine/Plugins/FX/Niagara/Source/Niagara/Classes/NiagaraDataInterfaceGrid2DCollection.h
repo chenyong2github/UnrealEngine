@@ -57,8 +57,8 @@ struct FGrid2DCollectionRWInstanceData_RenderThread
 
 	FTextureRHIRef RenderTargetToCopyTo;
 
-	void BeginSimulate();
-	void EndSimulate();
+	void BeginSimulate(FRHICommandList& RHICmdList);
+	void EndSimulate(FRHICommandList& RHICmdList);
 	void* DebugTargetTexture = nullptr;
 };
 

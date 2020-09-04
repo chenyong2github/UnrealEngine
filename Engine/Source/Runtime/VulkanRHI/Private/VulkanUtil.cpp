@@ -156,7 +156,7 @@ void FVulkanGPUTiming::Initialize()
 	if (FVulkanPlatform::SupportsTimestampRenderQueries() && GIsSupported)
 	{
 		check(!Pool);
-		Pool = new FVulkanTimingQueryPool(Device, 8);
+		Pool = new FVulkanTimingQueryPool(Device, CmdContext->GetCommandBufferManager(), 8);
 		Pool->ResultsBuffer = Device->GetStagingManager().AcquireBuffer(Pool->GetMaxQueries() * sizeof(uint64), VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT);
 	}
 }
@@ -401,7 +401,7 @@ void FVulkanGPUProfiler::BeginFrame()
 		// Use local tracepoints if no extension is available
 		if (!Device->GetOptionalExtensions().HasGPUCrashDumpExtensions() && LocalTracePointsQueryPool == nullptr)
 		{
-			LocalTracePointsQueryPool = new FVulkanTimingQueryPool(Device, GMaxCrashBufferEntries);
+			LocalTracePointsQueryPool = new FVulkanTimingQueryPool(Device, CmdContext->GetCommandBufferManager(), GMaxCrashBufferEntries);
 		}
 	}
 #endif
@@ -700,17 +700,6 @@ namespace VulkanRHIBridge
 
 namespace VulkanRHI
 {
-#if ENABLE_RHI_VALIDATION
-	FVulkanCommandListContext& GetVulkanContext(class FValidationContext& CmdContext)
-	{
-		if (GValidationRHI && GValidationRHI->Context == &CmdContext)
-		{
-			return (FVulkanCommandListContext&)*CmdContext.RHIContext;
-		}
-
-		return (FVulkanCommandListContext&)CmdContext;
-	}
-#endif
 	VkBuffer CreateBuffer(FVulkanDevice* InDevice, VkDeviceSize Size, VkBufferUsageFlags BufferUsageFlags, VkMemoryRequirements& OutMemoryRequirements)
 	{
 		VkDevice Device = InDevice->GetInstanceHandle();
@@ -787,7 +776,7 @@ namespace VulkanRHI
 		{
 			if (GValidationCvar.GetValueOnRenderThread() == 0)
 			{
-				UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed with Validation error. Try running with r.Vulkan.EnableValidation=1 to get information from the driver"));
+				UE_LOG(LogVulkanRHI, Fatal, TEXT("Failed with Validation error. Try running with r.Vulkan.EnableValidation=1 or -vulkandebug to get information from the validation layers."));
 			}
 		}
 #endif

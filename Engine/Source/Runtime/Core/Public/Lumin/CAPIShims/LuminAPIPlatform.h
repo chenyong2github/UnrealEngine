@@ -10,11 +10,11 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_platform.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_platform, MLResult, MLPlatformGetAPILevel)
-#define MLPlatformGetAPILevel ::MLSDK_API::MLPlatformGetAPILevelShim
+#define MLPlatformGetAPILevel ::LUMIN_MLSDK_API::MLPlatformGetAPILevelShim
 
 }
 

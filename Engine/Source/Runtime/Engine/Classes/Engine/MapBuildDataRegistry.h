@@ -15,6 +15,7 @@
 #include "UObject/UObjectAnnotation.h"
 #include "RenderCommandFence.h"
 #include "LightMap.h"
+#include "Engine/TextureCube.h"
 #include "MapBuildDataRegistry.generated.h"
 
 class FPrecomputedLightVolumeData;
@@ -187,12 +188,13 @@ public:
 	float Brightness;
 
 	TArray<uint8> FullHDRCapturedData;
-	TArray<uint8> EncodedHDRCapturedData;
+	UTextureCube* EncodedCaptureData;
 
 	FReflectionCaptureData() :
 		CubemapSize(0),
 		AverageBrightness(0.0f),
 		Brightness(0.0f),
+		EncodedCaptureData(nullptr),
 		bUploadedFinal(false)
 	{}
 
@@ -209,7 +211,6 @@ public:
 		if (!GIsEditor)
 		{
 			FullHDRCapturedData.Empty();
-			EncodedHDRCapturedData.Empty();
 			CubemapSize = 0;
 			bUploadedFinal = true;
 		}
@@ -247,6 +248,8 @@ public:
 	{
 		return CubemapSize == DefaultAnnotation.CubemapSize && FullHDRCapturedData.Num() == DefaultAnnotation.FullHDRCapturedData.Num();
 	}
+
+	ENGINE_API void AddReferencedObjects(FReferenceCollector& Collector);
 
 	/** Serializer. */
 	friend ENGINE_API FArchive& operator<<(FArchive& Ar,FReflectionCaptureMapBuildData& ReflectionCaptureMapBuildData);

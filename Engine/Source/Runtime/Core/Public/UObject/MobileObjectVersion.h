@@ -18,6 +18,9 @@ struct CORE_API FMobileObjectVersion
 		// Added stationary point/spot light direct contribution to volumetric lightmaps. 
 		LQVolumetricLightmapLayers,
 		
+		// Store Reflection Capture in compressed format for mobile
+		StoreReflectionCaptureCompressedMobile,
+		
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1

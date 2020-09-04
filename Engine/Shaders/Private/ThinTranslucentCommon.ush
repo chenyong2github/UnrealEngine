@@ -52,7 +52,7 @@ void AccumulateThinTranslucentModel(inout float3 DualBlendColorAdd,
 	// Exiting the surface, FresnelRatio light is reflected back into the surface, and the rest refracts out of the surface.
 #if THIN_TRANSLUCENT_ACCURATE_FRESNEL
 	// Accurate calculation
-	const float F0 = GBuffer.SpecularColor; // air to glass F0
+	const float F0 = dot(float3(1.0f,1.0f,1.0f)/3.0f,GBuffer.SpecularColor.rgb); // air to glass F0
 	const float NIor = DielectricF0ToIor(F0);
 	const float ReverseNIor = 1.0/NIor; // glass to air IOR
 	const float ReverseF0 = DielectricIorToF0(ReverseNIor); // glass to air F0

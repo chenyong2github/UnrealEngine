@@ -15,6 +15,7 @@ public class VulkanRHI : ModuleRules
 		{
 			PrivateIncludePaths.Add("Runtime/VulkanRHI/Private/Windows");
 			AddEngineThirdPartyPrivateStaticDependencies(Target, "AMD_AGS");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "NVAftermath");
 		}
 		else if (Target.IsInPlatformGroup(UnrealPlatformGroup.Unix))
 		{

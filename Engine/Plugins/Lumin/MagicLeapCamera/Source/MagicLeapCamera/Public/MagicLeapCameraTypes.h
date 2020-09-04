@@ -5,7 +5,7 @@
 #include "MagicLeapCameraTypes.generated.h"
 
 USTRUCT(BlueprintType)
-struct FMagicLeapCameraPlaneInfo
+struct MAGICLEAPCAMERA_API FMagicLeapCameraPlaneInfo
 {
 	GENERATED_BODY()
 	/** Width of the output image in pixels. */
@@ -26,7 +26,7 @@ struct FMagicLeapCameraPlaneInfo
 };
 
 USTRUCT(BlueprintType)
-struct FMagicLeapCameraOutput
+struct MAGICLEAPCAMERA_API FMagicLeapCameraOutput
 {
 	GENERATED_BODY()
 	/**

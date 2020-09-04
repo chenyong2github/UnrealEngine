@@ -6,7 +6,6 @@
 
 #include "ScreenPass.h"
 #include "OverridePassSequence.h"
-#include "PostProcess/RenderingCompositionGraph.h"
 
 struct FSelectionOutlineInputs
 {
@@ -18,10 +17,11 @@ struct FSelectionOutlineInputs
 
 	// [Required] The scene depth to composite with selection outlines.
 	FScreenPassTexture SceneDepth;
+
+	// [Required] Used when scene textures are required by the material.
+	FSceneTextureShaderParameters SceneTextures;
 };
 
 FScreenPassTexture AddSelectionOutlinePass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FSelectionOutlineInputs& Inputs);
-
-FRenderingCompositeOutputRef AddSelectionOutlinePass(FRenderingCompositionGraph& Graph, FRenderingCompositeOutputRef Input);
 
 #endif

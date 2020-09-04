@@ -27,7 +27,6 @@ enum class EARFaceTrackingFileWriterType : uint8
 UENUM(BlueprintType, Category="AR AugmentedReality")
 enum class ELivelinkTrackingType : uint8
 {
-	None,
 	FaceTracking,
 	PoseTracking
 };
@@ -43,7 +42,6 @@ class APPLEARKIT_API UAppleARKitSettings :
 public:
 	UAppleARKitSettings()
 		: bRequireARKitSupport(true)
-        , LivelinkTrackingType(ELivelinkTrackingType::None)
 		, bFaceTrackingLogData(false)
 		, bFaceTrackingWriteEachFrame(false)
 		, FaceTrackingFileWriterType(EARFaceTrackingFileWriterType::None)
@@ -52,6 +50,7 @@ public:
 		, WrittenCameraImageQuality(85)
 		, LiveLinkPublishingPort(11111)
 		, DefaultFaceTrackingLiveLinkSubjectName(FName("iPhoneXFaceAR"))
+		, DefaultPoseTrackingLiveLinkSubjectName(FName("PoseTracking"))
 		, DefaultFaceTrackingDirection(EARFaceTrackingDirection::FaceRelative)
 		, bAdjustThreadPrioritiesDuringARSession(false)
 		, GameThreadPriorityOverride(47)
@@ -77,7 +76,8 @@ public:
 	int32 GetWrittenCameraImageQuality();
 	ETextureRotationDirection GetWrittenCameraImageRotation();
 	int32 GetLiveLinkPublishingPort();
-	FName GetLiveLinkSubjectName();
+	FName GetFaceTrackingLiveLinkSubjectName();
+	FName GetPoseTrackingLiveLinkSubjectName();
 	EARFaceTrackingDirection GetFaceTrackingDirection();
 	bool ShouldAdjustThreadPriorities();
 	int32 GetGameThreadPriorityOverride();
@@ -97,7 +97,7 @@ protected:
 
 	/** Livelink tracking type. To publish face blend shapes, or body pose data to LiveLink, or none */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
-	ELivelinkTrackingType LivelinkTrackingType;
+	TArray<ELivelinkTrackingType> LivelinkTrackingTypes;
 
 	/** Whether file writing is enabled at all or not */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
@@ -130,10 +130,20 @@ protected:
 	/** The port to use when listening/sending LiveLink face blend shapes via the network */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
 	int32 LiveLinkPublishingPort;
-
-	/** The default name to use when publishing face tracking name */
+	
+	/**
+	 * The default name to use when publishing face tracking name
+	 * If multiple faces are tracked, the subject name for the faces will be:
+	 * #1: DefaultFaceTrackingLiveLinkSubjectName
+	 * #2: DefaultFaceTrackingLiveLinkSubjectName-1
+	 * #3: DefaultFaceTrackingLiveLinkSubjectName-2, etc
+	 */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
 	FName DefaultFaceTrackingLiveLinkSubjectName;
+	
+	/** The default name to use when publishing pose tracking name */
+	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")
+	FName DefaultPoseTrackingLiveLinkSubjectName;
 
 	/** The default tracking to use when tracking face blend shapes (face relative or mirrored). Defaults to face relative */
 	UPROPERTY(Config, BlueprintReadOnly, EditAnywhere, Category="AR Settings")

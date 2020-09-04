@@ -177,7 +177,8 @@ void FAtmosphereSetup::ComputeViewData(const FVector& WorldCameraOrigin, const F
 	FVector& SkyWorldCameraOrigin, FVector4& SkyPlanetCenterAndViewHeight, FMatrix& SkyViewLutReferential) const
 {
 	// The constants below should match the one in SkyAtmosphereCommon.ush
-	const float PlanetRadiusOffset = 0.01f;		// Always force to be 10 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing)
+	// Always force to be 1 meters above the ground/sea level (to always see the sky and not be under the virtual planet occluding ray tracing) and lower for small planet radius
+	const float PlanetRadiusOffset = 0.001f;		
 
 	const float Offset = PlanetRadiusOffset * SkyUnitToCm;
 	const float BottomRadiusWorld = BottomRadiusKm * SkyUnitToCm;

@@ -11,11 +11,19 @@
 #include "DeviceProfiles/DeviceProfile.h"
 #include "DeviceProfiles/DeviceProfileManager.h"
 #include "Containers/ResourceArray.h"
+#include "Rendering/Texture3DResource.h"
+
+//*****************************************************************************
+
+// Master switch to control whether streaming is enabled for volume texture. 
+bool GSupportsVolumeTextureStreaming = false;
 
 // Limit the possible depth of volume texture otherwise when the user converts 2D textures, he can crash the engine.
 const int32 MAX_VOLUME_TEXTURE_DEPTH = 512;
 
-extern RHI_API bool GUseTexture3DBulkDataRHI;
+//*****************************************************************************
+//***************************** UVolumeTexture ********************************
+//*****************************************************************************
 
 UVolumeTexture::UVolumeTexture(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
@@ -82,6 +90,11 @@ bool UVolumeTexture::UpdateSourceFromSourceTexture()
 	{
 		Source.Init(0, 0, 0, 0, TSF_Invalid, nullptr);
 		SourceLightingGuid.Invalidate();
+
+		if (PlatformData)
+		{
+			*PlatformData = FTexturePlatformData();
+		}
 	}
 
 	UpdateMipGenSettings();
@@ -236,7 +249,7 @@ uint32 UVolumeTexture::CalcTextureMemorySize(int32 MipCount) const
 		const EPixelFormat Format = GetPixelFormat();
 		if (Format != PF_Unknown)
 		{
-			const uint32 Flags = (SRGB ? TexCreate_SRGB : 0)  | (bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed) | (bNoTiling ? TexCreate_NoTiling : 0);
+			const ETextureCreateFlags Flags = (SRGB ? TexCreate_SRGB : TexCreate_None)  | (bNotOfflineProcessed ? TexCreate_None : TexCreate_OfflineProcessed) | (bNoTiling ? TexCreate_NoTiling : TexCreate_None);
 
 			uint32 SizeX = 0;
 			uint32 SizeY = 0;
@@ -262,287 +275,6 @@ uint32 UVolumeTexture::CalcTextureMemorySizeEnum( ETextureMipCount Enum ) const
 	}
 }
 
-class FVolumeTextureBulkData : public FResourceBulkDataInterface
-{
-public:
-
-	FVolumeTextureBulkData(int32 InFirstMip)
-	: FirstMip(InFirstMip)
-	{
-		FMemory::Memzero(MipData, sizeof(MipData));
-		FMemory::Memzero(MipSize, sizeof(MipSize));
-	}
-
-	~FVolumeTextureBulkData()
-	{ 
-		Discard();
-	}
-
-	const void* GetResourceBulkData() const override
-	{
-		return MipData[FirstMip];
-	}
-
-	uint32 GetResourceBulkDataSize() const override
-	{
-		return MipSize[FirstMip];
-	}
-
-	void Discard() override
-	{
-		for (int32 MipIndex = 0; MipIndex < MAX_TEXTURE_MIP_COUNT; ++MipIndex)
-		{
-			if (MipData[MipIndex])
-			{
-				FMemory::Free(MipData[MipIndex]);
-				MipData[MipIndex] = nullptr;
-			}
-			MipSize[MipIndex] = 0;
-		}
-	}
-
-	void MergeMips(int32 NumMips)
-	{
-		check(NumMips < MAX_TEXTURE_MIP_COUNT);
-
-		uint64 MergedSize = 0;
-		for (int32 MipIndex = FirstMip; MipIndex < NumMips; ++MipIndex)
-		{
-			MergedSize += MipSize[MipIndex];
-		}
-
-		// Don't do anything if there is nothing to merge
-		if (MergedSize > MipSize[FirstMip])
-		{
-			uint8* MergedAlloc = (uint8*)FMemory::Malloc(MergedSize);
-			uint8* CurrPos = MergedAlloc;
-			for (int32 MipIndex = FirstMip; MipIndex < NumMips; ++MipIndex)
-			{
-				if (MipData[MipIndex])
-				{
-					FMemory::Memcpy(CurrPos, MipData[MipIndex], MipSize[MipIndex]);
-				}
-				CurrPos += MipSize[MipIndex];
-			}
-
-			Discard();
-
-			MipData[FirstMip] = MergedAlloc;
-			MipSize[FirstMip] = MergedSize;
-		}
-	}
-
-	void** GetMipData() { return MipData; }
-	uint32* GetMipSize() { return MipSize; }
-	int32 GetFirstMip() const { return FirstMip; }
-
-protected:
-
-	void* MipData[MAX_TEXTURE_MIP_COUNT];
-	uint32 MipSize[MAX_TEXTURE_MIP_COUNT];
-	int32 FirstMip;
-};
-
-class FTexture3DResource : public FTextureResource
-{
-public:
-	/**
-	 * Minimal initialization constructor.
-	 * @param InOwner - The UVolumeTexture which this FTexture3DResource represents.
-	 */
-	FTexture3DResource(UVolumeTexture* InOwner, int32 MipBias)
-	:	Owner( InOwner )
-	,	SizeX(InOwner->GetSizeX())
-	,	SizeY(InOwner->GetSizeY())
-	,	SizeZ(InOwner->GetSizeZ())
-	,	CurrentFirstMip(INDEX_NONE)
-	,	NumMips(InOwner->GetNumMips())
-	,	PixelFormat(InOwner->GetPixelFormat())
-	,	TextureSize(0)
-	,	TextureReference(&InOwner->TextureReference)
-	,	InitialData(MipBias)
-	{
-		check(0 < NumMips && NumMips <= MAX_TEXTURE_MIP_COUNT);
-		check(0 <= MipBias && MipBias < NumMips);
-
-		STAT(LODGroupStatName = TextureGroupStatFNames[Owner->LODGroup]);
-		TextureName = Owner->GetFName();
-
-		CreationFlags = (Owner->SRGB ? TexCreate_SRGB : 0)  | (Owner->bNotOfflineProcessed ? 0 : TexCreate_OfflineProcessed) | TexCreate_ShaderResource | (Owner->bNoTiling ? TexCreate_NoTiling : 0);
-		SamplerFilter = (ESamplerFilter)UDeviceProfileManager::Get().GetActiveProfile()->GetTextureLODSettings()->GetSamplerFilter(Owner);
-
-		bGreyScaleFormat = (PixelFormat == PF_G8) || (PixelFormat == PF_BC4);
-
-		FTexturePlatformData* PlatformData = Owner->PlatformData;
-		if (PlatformData && PlatformData->TryLoadMips(MipBias, InitialData.GetMipData() + MipBias, Owner))
-		{
-			for (int32 MipIndex = MipBias; MipIndex < NumMips; ++MipIndex)
-			{
-				const FTexture2DMipMap& MipMap = PlatformData->Mips[MipIndex];
-				
-				// The bulk data can be bigger because of memory alignment constraints on each slice and mips.
-				InitialData.GetMipSize()[MipIndex] = FMath::Max<int32>(
-					MipMap.BulkData.GetBulkDataSize(), 
-					CalcTextureMipMapSize3D(SizeX, SizeY, SizeZ, (EPixelFormat)PixelFormat, MipIndex)
-					);
-			}
-		}
-	}
-
-	/**
-	 * Destructor, freeing MipData in the case of resource being destroyed without ever 
-	 * having been initialized by the rendering thread via InitRHI.
-	 */	
-	~FTexture3DResource() {}
-	
-	/**
-	 * Called when the resource is initialized. This is only called by the rendering thread.
-	 */
-	virtual void InitRHI() override
-	{
-		INC_DWORD_STAT_BY(STAT_TextureMemory, TextureSize);
-		INC_DWORD_STAT_FNAME_BY(LODGroupStatName, TextureSize);
-
-		CurrentFirstMip = InitialData.GetFirstMip();
-
-		// Create the RHI texture.
-		{
-			FRHIResourceCreateInfo CreateInfo;
-			if (GUseTexture3DBulkDataRHI)
-			{
-				InitialData.MergeMips(NumMips);
-				CreateInfo.BulkData = &InitialData;
-			}
-
-			const uint32 BaseMipSizeX = FMath::Max<uint32>(SizeX >> CurrentFirstMip, 1); // BlockSizeX?
-			const uint32 BaseMipSizeY = FMath::Max<uint32>(SizeY >> CurrentFirstMip, 1);
-			const uint32 BaseMipSizeZ = FMath::Max<uint32>(SizeZ >> CurrentFirstMip, 1);
-
-			CreateInfo.ExtData = Owner->PlatformData ? Owner->PlatformData->GetExtData() : 0;
-			Texture3DRHI = RHICreateTexture3D(BaseMipSizeX, BaseMipSizeY, BaseMipSizeZ, PixelFormat, NumMips - CurrentFirstMip, CreationFlags, CreateInfo);
-			TextureRHI = Texture3DRHI; 
-		}
-
-		TextureRHI->SetName(TextureName);
-		RHIBindDebugLabelName(TextureRHI, *TextureName.ToString());
-
-		if (TextureReference)
-		{
-			RHIUpdateTextureReference(TextureReference->TextureReferenceRHI, TextureRHI);
-		}
-
-		if (!GUseTexture3DBulkDataRHI) 
-		{
-			const int32 BlockSizeX = GPixelFormats[PixelFormat].BlockSizeX;
-			const int32 BlockSizeY = GPixelFormats[PixelFormat].BlockSizeY;
-			const int32 BlockBytes = GPixelFormats[PixelFormat].BlockBytes;
-			ensure(GPixelFormats[PixelFormat].BlockSizeZ == 1);
-
-			for (int32 MipIndex = CurrentFirstMip; MipIndex < NumMips; ++MipIndex)
-			{
-				const uint8* MipData = (const uint8*)InitialData.GetMipData()[MipIndex];
-				if (MipData)
-				{
-					// Could also access the mips size directly.
-					const uint32 MipSizeX = FMath::Max<uint32>(SizeX >> MipIndex, 1);
-					const uint32 MipSizeY = FMath::Max<uint32>(SizeY >> MipIndex, 1);
-					const uint32 MipSizeZ = FMath::Max<uint32>(SizeZ >> MipIndex, 1);
-
-					const uint32 NumBlockX = (uint32)FMath::DivideAndRoundUp<int32>(MipSizeX, BlockSizeX);
-					const uint32 NumBlockY = (uint32)FMath::DivideAndRoundUp<int32>(MipSizeY, BlockSizeY);
-
-					// FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, NumBlockX * BlockSizeX, NumBlockY * BlockSizeY, MipSizeZ);
-					FUpdateTextureRegion3D UpdateRegion(0, 0, 0, 0, 0, 0, MipSizeX, MipSizeY, MipSizeZ);
-
-					// RHIUpdateTexture3D crashes on some platforms at engine initialization time.
-					// The default volume texture end up being loaded at that point, which is a problem.
-					// We check if this is really the rendering thread to find out if the engine is initializing.
-					RHIUpdateTexture3D(Texture3DRHI, MipIndex - CurrentFirstMip, UpdateRegion, NumBlockX * BlockBytes, NumBlockX * NumBlockY * BlockBytes, MipData);
-				}
-			}
-			InitialData.Discard();
-		}
-
-		// Create the sampler state RHI resource.
-		FSamplerStateInitializerRHI SamplerStateInitializer
-		(
-			SamplerFilter,
-			AM_Wrap,
-			AM_Wrap,
-			AM_Wrap
-		);
-		SamplerStateRHI = GetOrCreateSamplerState(SamplerStateInitializer);
-	}
-
-	virtual void ReleaseRHI() override
-	{
-		DEC_DWORD_STAT_BY( STAT_TextureMemory, TextureSize );
-		DEC_DWORD_STAT_FNAME_BY( LODGroupStatName, TextureSize );
-		if (TextureReference)
-		{
-			RHIUpdateTextureReference(TextureReference->TextureReferenceRHI, nullptr);
-		}
-		Texture3DRHI.SafeRelease();
-		FTextureResource::ReleaseRHI();
-	}
-
-	/** Returns the width of the texture in pixels. */
-	uint32 GetSizeX() const override
-	{
-		return FMath::Max<uint32>(SizeX >> CurrentFirstMip, 1);
-	}
-	/** Returns the height of the texture in pixels. */
-	uint32 GetSizeY() const override
-	{
-		return FMath::Max<uint32>(SizeY >> CurrentFirstMip, 1);
-	}
-	/** Returns the depth of the texture in pixels. */
-	uint32 GetSizeZ() const override
-	{
-		return FMath::Max<uint32>(SizeZ >> CurrentFirstMip, 1);
-	}
-
-private:
-
-	/** The UVolumeTexture which this resource represents */
-	UVolumeTexture*	Owner;
-
-#if STATS
-	/** The FName of the LODGroup-specific stat */
-	FName LODGroupStatName;
-#endif
-	/** The FName of the texture asset */
-	FName TextureName;
-
-	/** Dimension X of the resource	*/
-	uint32 SizeX;
-	/** Dimension Y of the resource	*/
-	uint32 SizeY;
-	/** Dimension Z of the resource	*/
-	uint32 SizeZ;
-	/** The first mip cached in the resource. */
-	int32 CurrentFirstMip;
-	/** Num of mips of the texture */
-	int32 NumMips;
-	/** Format of the texture */
-	uint8 PixelFormat;
-	/** Creation flags of the texture */
-	uint32 CreationFlags;
-	/** Cached texture size for stats. */
-	int32 TextureSize;
-
-	/** The filtering to use for this texture */
-	ESamplerFilter SamplerFilter;
-
-	/** A reference to the texture's RHI resource as a texture 3D. */
-	FTexture3DRHIRef Texture3DRHI;
-
-	/** */
-	FTextureReference* TextureReference;
-
-	FVolumeTextureBulkData InitialData;
-};
-
 FTextureResource* UVolumeTexture::CreateResource()
 {
 	const FPixelFormatInfo& FormatInfo = GPixelFormats[GetPixelFormat()];
@@ -551,7 +283,7 @@ FTextureResource* UVolumeTexture::CreateResource()
 
 	if (GetNumMips() > 0 && GSupportsTexture3D && bFormatIsSupported)
 	{
-		return new FTexture3DResource(this, GetCachedLODBias());
+		return new FTexture3DResource(this, GetResourcePostInitState(PlatformData, GSupportsVolumeTextureStreaming));
 	}
 	else if (GetNumMips() == 0)
 	{
@@ -608,7 +340,7 @@ void UVolumeTexture::PostEditChangeProperty(FPropertyChangedEvent& PropertyChang
 		const FName PropertyName = PropertyChangedEvent.Property->GetFName();
 
 		// Set default tile size if none is currently specified.
-		if (PropertyName == SourceTextureName && !Source2DTileSizeX && !Source2DTileSizeY)
+		if (PropertyName == SourceTextureName)
 		{
 			SetDefaultSource2DTileSize();
 		}
@@ -658,3 +390,12 @@ bool UVolumeTexture::ShaderPlatformSupportsCompression(FStaticShaderPlatform Sha
 	}
 }
 
+bool UVolumeTexture::StreamOut(int32 NewMipCount)
+{
+	return false;
+}
+
+bool UVolumeTexture::StreamIn(int32 NewMipCount, bool bHighPrio)
+{
+	return false;
+}

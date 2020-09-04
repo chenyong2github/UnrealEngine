@@ -1210,7 +1210,7 @@ bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 {
 	if (Image.Format == ERawImageFormat::BGRA8)
 	{
-		const FColor *SrcColors = Image.AsBGRA8();
+		const FColor* SrcColors = (&Image.AsBGRA8()[0]);
 		const FColor* LastColor = SrcColors + (Image.SizeX * Image.SizeY * Image.NumSlices);
 		while (SrcColors < LastColor)
 		{
@@ -1224,7 +1224,7 @@ bool FVirtualTextureDataBuilder::DetectAlphaChannel(const FImage &Image)
 	}
 	else if (Image.Format == ERawImageFormat::RGBA16F)
 	{
-		const FFloat16Color *SrcColors = Image.AsRGBA16F();
+		const FFloat16Color* SrcColors = (&Image.AsRGBA16F()[0]);
 		const FFloat16Color* LastColor = SrcColors + (Image.SizeX * Image.SizeY * Image.NumSlices);
 		while (SrcColors < LastColor)
 		{

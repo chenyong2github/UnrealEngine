@@ -56,7 +56,7 @@ void FIESLightProfileResource::BuildIESLightProfilesTexture(const TArray<UTextur
 	if (!TextureRHI || TextureRHI->GetSizeY() != NewArraySize)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		const uint32 TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
+		const ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling | TexCreate_ShaderResource;
 		TextureRHI = RHICreateTexture2D(256, NewArraySize, PF_FloatRGBA, 1, 1, TexCreateFlags, CreateInfo);
 	}
 

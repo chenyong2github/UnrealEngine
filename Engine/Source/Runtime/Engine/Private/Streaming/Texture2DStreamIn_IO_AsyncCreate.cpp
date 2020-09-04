@@ -7,8 +7,8 @@ Texture2DStreamIn_IO_AsyncCreate.cpp: Async create path for streaming in texture
 #include "Streaming/Texture2DStreamIn_IO_AsyncCreate.h"
 #include "RenderUtils.h"
 
-FTexture2DStreamIn_IO_AsyncCreate::FTexture2DStreamIn_IO_AsyncCreate(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
-	: FTexture2DStreamIn_IO(InTexture, InRequestedMips, InPrioritizedIORequest) 
+FTexture2DStreamIn_IO_AsyncCreate::FTexture2DStreamIn_IO_AsyncCreate(UTexture2D* InTexture, bool InPrioritizedIORequest)
+	: FTexture2DStreamIn_IO(InTexture, InPrioritizedIORequest) 
 {
 	PushTask(FContext(InTexture, TT_None), TT_Async, SRA_UPDATE_CALLBACK(AllocateAndLoadMips), TT_None, nullptr);
 }

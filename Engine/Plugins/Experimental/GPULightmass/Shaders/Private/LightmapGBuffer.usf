@@ -11,6 +11,10 @@
 
 #include "/Engine/Private/PathTracing/Utilities/PathTracingRandomSequence.ush"
 
+float4 VirtualTexturePhysicalTileCoordinateScaleAndBias;
+int2 ScratchTilePoolOffset; 
+int RenderPassIndex;
+
 struct FLightmapGBufferVSToPS
 {
 	FVertexFactoryInterpolantsVSToPS FactoryInterpolants;
@@ -41,13 +45,13 @@ void LightmapGBufferVS(
 	// Unscale with float2(1, 2)
     LightmapUV *= float2(1, 2);
 	// Transform to tile [-1, 1] uv space
-    float2 LightmapUVYInverted = (LightmapUV * LightmapGBufferParams.VirtualTexturePhysicalTileCoordinateScaleAndBias.xy + LightmapGBufferParams.VirtualTexturePhysicalTileCoordinateScaleAndBias.zw) * 2.0f - 1.0f;
+    float2 LightmapUVYInverted = (LightmapUV * VirtualTexturePhysicalTileCoordinateScaleAndBias.xy + VirtualTexturePhysicalTileCoordinateScaleAndBias.zw) * 2.0f - 1.0f;
     LightmapUVYInverted.y = -LightmapUVYInverted.y;
 
     uint SampleIndex = 0;
 	float2 RandSample = float2(
-		Halton(LightmapGBufferParams.RenderPassIndex, 2), 
-		Halton(LightmapGBufferParams.RenderPassIndex, 3)
+		Halton(RenderPassIndex, 2), 
+		Halton(RenderPassIndex, 3)
 	);
 
 	const float FilterWidth = 2.0f;
@@ -88,7 +92,7 @@ void LightmapGBufferPS(
 #endif
 
 	// GBuffer Outputs
-	LightmapGBufferParams.ScratchTilePoolLayer0[LightmapGBufferParams.ScratchTilePoolOffset + Input.Position.xy] = OutWorldPosition;
-	LightmapGBufferParams.ScratchTilePoolLayer1[LightmapGBufferParams.ScratchTilePoolOffset + Input.Position.xy] = OutWorldNormal;
-	LightmapGBufferParams.ScratchTilePoolLayer2[LightmapGBufferParams.ScratchTilePoolOffset + Input.Position.xy] = OutShadingNormal;
+	LightmapGBufferParams.ScratchTilePoolLayer0[ScratchTilePoolOffset + Input.Position.xy] = OutWorldPosition;
+	LightmapGBufferParams.ScratchTilePoolLayer1[ScratchTilePoolOffset + Input.Position.xy] = OutWorldNormal;
+	LightmapGBufferParams.ScratchTilePoolLayer2[ScratchTilePoolOffset + Input.Position.xy] = OutShadingNormal;
 }

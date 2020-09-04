@@ -10,19 +10,19 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_secure_storage.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_secure_storage, MLResult, MLSecureStoragePutBlob)
-#define MLSecureStoragePutBlob ::MLSDK_API::MLSecureStoragePutBlobShim
+#define MLSecureStoragePutBlob ::LUMIN_MLSDK_API::MLSecureStoragePutBlobShim
 CREATE_FUNCTION_SHIM(ml_secure_storage, MLResult, MLSecureStorageGetBlob)
-#define MLSecureStorageGetBlob ::MLSDK_API::MLSecureStorageGetBlobShim
+#define MLSecureStorageGetBlob ::LUMIN_MLSDK_API::MLSecureStorageGetBlobShim
 CREATE_FUNCTION_SHIM(ml_secure_storage, MLResult, MLSecureStorageDeleteBlob)
-#define MLSecureStorageDeleteBlob ::MLSDK_API::MLSecureStorageDeleteBlobShim
+#define MLSecureStorageDeleteBlob ::LUMIN_MLSDK_API::MLSecureStorageDeleteBlobShim
 CREATE_FUNCTION_SHIM(ml_secure_storage, void, MLSecureStorageFreeBlobBuffer)
-#define MLSecureStorageFreeBlobBuffer ::MLSDK_API::MLSecureStorageFreeBlobBufferShim
+#define MLSecureStorageFreeBlobBuffer ::LUMIN_MLSDK_API::MLSecureStorageFreeBlobBufferShim
 CREATE_FUNCTION_SHIM(ml_secure_storage, const char*, MLSecureStorageGetResultString)
-#define MLSecureStorageGetResultString ::MLSDK_API::MLSecureStorageGetResultStringShim
+#define MLSecureStorageGetResultString ::LUMIN_MLSDK_API::MLSecureStorageGetResultStringShim
 
 }
 

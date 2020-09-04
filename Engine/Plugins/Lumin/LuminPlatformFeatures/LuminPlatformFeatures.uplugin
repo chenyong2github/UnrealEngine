@@ -1,0 +1,36 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "1.0",
+	"FriendlyName": "Magic Leap Secure Storage",
+	"CreatedBy": "Magic Leap, Inc.",
+	"CreatedByURL": "http://magicleap.com",
+	"Description": "Contains the secure storage implementation for the ML1 device.",
+	"Category": "Lumin",
+	"EnabledByDefault": true,
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": false,
+	"IsBetaVersion": false,
+	"Installed": false,
+	"SupportedTargetPlatforms": [
+		"Lumin"
+	],
+	"Modules": [
+		{
+			"Name": "LuminPlatformFeatures",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault",
+			"WhitelistPlatforms": [
+				"Lumin"
+			]
+		}
+	],
+	"Plugins": [
+        {
+            "Name": "MLSDK",
+            "Enabled": true
+        }
+	]
+}

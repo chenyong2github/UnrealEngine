@@ -4,6 +4,7 @@
 #include "IOculusInputModule.h"
 
 #if OCULUS_INPUT_SUPPORTED_PLATFORMS
+#include "OculusHMDModule.h"
 #include "GenericPlatform/IInputInterface.h"
 #include "XRMotionControllerBase.h"
 #include "IHapticDevice.h"
@@ -31,6 +32,7 @@ namespace OculusInput
 
 class FOculusInput : public IInputDevice, public FXRMotionControllerBase, public IHapticDevice
 {
+	friend class FOculusHandTracking;
 
 public:
 
@@ -66,11 +68,12 @@ public:
 	virtual float GetHapticAmplitudeScale() const override;
 
 	uint32 GetNumberOfTouchControllers() const;
+	uint32 GetNumberOfHandControllers() const;
 
 private:
 
 	/** Applies force feedback settings to the controller */
-	void UpdateForceFeedback( const FOculusTouchControllerPair& ControllerPair, const EControllerHand Hand );
+	void UpdateForceFeedback( const FOculusControllerPair& ControllerPair, const EControllerHand Hand );
 
 	bool OnControllerButtonPressed( const FOculusButtonState& ButtonState, int32 ControllerId, bool IsRepeat );
 	bool OnControllerButtonReleased( const FOculusButtonState& ButtonState, int32 ControllerId, bool IsRepeat );
@@ -83,20 +86,15 @@ private:
 	TSharedPtr< FGenericApplicationMessageHandler > MessageHandler;
 
 	/** List of the connected pairs of controllers, with state for each controller device */
-	TArray< FOculusTouchControllerPair > ControllerPairs;
+	TArray< FOculusControllerPair > ControllerPairs;
 
 	FOculusRemoteControllerState Remote;
-
-	FOculusTouchpadState Touchpad;
 
 	/** Threshold for treating trigger pulls as button presses, from 0.0 to 1.0 */
 	static float TriggerThreshold;
 
 	/** Are Remote keys mapped to gamepad or not. */
 	static bool bRemoteKeysMappedToGamepad;
-
-	/** Are Go keys mapped to Touch or not. */
-	static bool bGoKeysMappedToTouch;
 
 	/** Repeat key delays, loaded from config */
 	static float InitialButtonRepeatDelay;

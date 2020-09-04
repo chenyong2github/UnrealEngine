@@ -322,7 +322,7 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 			{
 				// Standalone global var
 				FSpirv::FEntry* FoundEntry = Spirv.GetEntry(*FoundVariableName);
-				check(FoundEntry);
+				checkf(FoundEntry, TEXT("Entry name not found in SPIR-V module: %s"), *(*FoundVariableName));
 				FDecorations& FoundDecorations = Decorations.FindChecked(VariableId);
 				FoundEntry->Binding = FoundDecorations.BindingIndex;
 				FoundEntry->WordBindingIndex = FoundDecorations.WordBindingIndex;
@@ -333,22 +333,22 @@ static void ComputeMovableWordIndices(FSpirv& Spirv)
 	}
 }
 
-static void PathSpirvEntryPoint(FSpirv& OutSpirv, uint32 OffsetToName)
+static void PatchSpirvEntryPoint(FSpirv& OutSpirv, uint32 OffsetToName)
 {
 	char* EntryPointName = (char*)(OutSpirv.Data.GetData() + OffsetToName);
 	check(!FCStringAnsi::Strcmp(EntryPointName, "main_00000000_00000000"));
 	FCStringAnsi::Sprintf(EntryPointName, "main_%0.8x_%0.8x", OutSpirv.Data.Num() * sizeof(uint32), OutSpirv.CRC);
 };
 
-bool PathSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv)
+bool PatchSpirvReflectionEntriesAndEntryPoint(FSpirv& OutSpirv)
 {
-	// Re-compuite movable word indices and update CRC code
+	// Re-compute movable word indices and update CRC code
 	ComputeMovableWordIndices(OutSpirv);
 	OutSpirv.CRC = FCrc::MemCrc32(OutSpirv.Data.GetData(), OutSpirv.Data.Num() * sizeof(uint32));
 
 	// Patch the entry point name
-	PathSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToMainName);
-	PathSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToEntryPoint);
+	PatchSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToMainName);
+	PatchSpirvEntryPoint(OutSpirv, OutSpirv.OffsetToEntryPoint);
 	return true;
 }
 
@@ -442,7 +442,7 @@ bool GenerateSpirv(const ANSICHAR* Source, FCompilerInfo& CompilerInfo, FString&
 			OutSpirv.ReflectionInfo.Add(Entry);
 		}
 
-		PathSpirvReflectionEntriesAndEntryPoint(OutSpirv);
+		PatchSpirvReflectionEntriesAndEntryPoint(OutSpirv);
 
 		// Copy back to original spirv data as it is used for dumping information
 		FMemory::Memcpy(&Spirv[0], OutSpirv.Data.GetData(), SizeInWords * sizeof(uint32));

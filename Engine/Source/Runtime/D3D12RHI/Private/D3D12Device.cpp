@@ -4,8 +4,6 @@
 D3D12Device.cpp: D3D device RHI implementation.
 =============================================================================*/
 #include "D3D12RHIPrivate.h"
-#include "RHIValidation.h"
-
 
 namespace D3D12RHI
 {
@@ -155,7 +153,7 @@ bool FD3D12Device::IsGPUIdle()
 	return Fence.IsFenceComplete(Fence.GetLastSignaledFence());
 }
 
-#if PLATFORM_WINDOWS
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 typedef HRESULT(WINAPI *FDXGIGetDebugInterface1)(UINT, REFIID, void **);
 #endif
 
@@ -165,7 +163,9 @@ void FD3D12Device::SetupAfterDeviceCreation()
 {
 	ID3D12Device* Direct3DDevice = GetParentAdapter()->GetD3DDevice();
 
-#if PLATFORM_WINDOWS
+	GRHISupportsArrayIndexFromAnyShader = true;
+
+#if (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 	// Check if we're running under GPU capture
 	bool bUnderGPUCapture = false;
 
@@ -236,9 +236,9 @@ void FD3D12Device::SetupAfterDeviceCreation()
 
 	if(bUnderGPUCapture)
 	{
-		GetDynamicRHI<FD3D12DynamicRHI>()->EnableIdealGPUCaptureOptions(true);
+		GDynamicRHI->EnableIdealGPUCaptureOptions(true);
 	}
-#endif
+#endif // (PLATFORM_WINDOWS || PLATFORM_HOLOLENS)
 
 	// Init offline descriptor allocators
 	RTVAllocator.Init(Direct3DDevice);
@@ -366,6 +366,9 @@ void FD3D12Device::Cleanup()
 
 	ReleasePooledUniformBuffers();
 
+	// Flush all pending deletes before destroying the device or any command contexts.
+	FRHIResource::FlushPendingDeletes();
+
 	// Delete array index 0 (the default context) last
 	for (int32 i = CommandContextArray.Num() - 1; i >= 0; i--)
 	{
@@ -380,8 +383,6 @@ void FD3D12Device::Cleanup()
 		AsyncComputeContextArray[i] = nullptr;
 	}
 
-	// Flush all pending deletes before destroying the device.
-	FRHIResource::FlushPendingDeletes();
 
 	/*
 	// Cleanup thread resources

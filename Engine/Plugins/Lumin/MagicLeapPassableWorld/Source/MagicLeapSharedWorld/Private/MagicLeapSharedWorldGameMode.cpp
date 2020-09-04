@@ -131,7 +131,7 @@ void AMagicLeapSharedWorldGameMode::Tick(float DeltaSeconds)
 	for (auto It = GetWorld()->GetControllerIterator(); It; ++It)
 	{
 		AMagicLeapSharedWorldPlayerController* PC = Cast<AMagicLeapSharedWorldPlayerController>(It->Get());
-		if (PC != nullptr && !PC->IsLocalController())
+		if (PC != nullptr)
 		{
 			// if PC is not in the map, means its new.
 			if (!PlayerToLocalPins.Contains(PC))

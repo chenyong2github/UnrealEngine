@@ -16,6 +16,29 @@ const FString UNiagaraDataInterfaceTexture::TextureName(TEXT("Texture_"));
 const FString UNiagaraDataInterfaceTexture::SamplerName(TEXT("Sampler_"));
 const FString UNiagaraDataInterfaceTexture::DimensionsBaseName(TEXT("Dimensions_"));
 
+struct FNiagaraDataInterfaceProxyTexture : public FNiagaraDataInterfaceProxy
+{
+	FSamplerStateRHIRef SamplerStateRHI;
+	FTextureReferenceRHIRef TextureReferenceRHI;
+	FVector2D TexDims;
+
+	virtual void ConsumePerInstanceDataFromGameThread(void* PerInstanceData, const FNiagaraSystemInstanceID& Instance) override
+	{
+		checkNoEntry();
+	}
+
+	virtual int32 PerInstanceDataPassedToRenderThreadSize() const override
+	{
+		return 0;
+	}
+
+	virtual void PreStage(FRHICommandList& RHICmdList, const FNiagaraDataInterfaceStageArgs& Context) override
+	{
+		// Make sure the texture is readable, we don't know where it's coming from.
+		RHICmdList.Transition(FRHITransitionInfo(TextureReferenceRHI->GetReferencedTexture(), ERHIAccess::Unknown, ERHIAccess::SRVMask));
+	}
+};
+
 UNiagaraDataInterfaceTexture::UNiagaraDataInterfaceTexture(FObjectInitializer const& ObjectInitializer)
 	: Super(ObjectInitializer)
 	, Texture(nullptr)

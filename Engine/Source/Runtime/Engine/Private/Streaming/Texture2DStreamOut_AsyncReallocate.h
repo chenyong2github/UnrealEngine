@@ -13,7 +13,7 @@ class FTexture2DStreamOut_AsyncReallocate : public FTexture2DUpdate
 {
 public:
 
-	FTexture2DStreamOut_AsyncReallocate(UTexture2D* InTexture, int32 InRequestedMips);
+	FTexture2DStreamOut_AsyncReallocate(UTexture2D* InTexture);
 
 protected:
 

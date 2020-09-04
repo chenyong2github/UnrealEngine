@@ -3657,6 +3657,15 @@ namespace UnrealBuildTool
 				GlobalCompileEnvironment.Definitions.Add("USE_CHECKS_IN_SHIPPING=0");
 			}
 
+			if (Rules.bUseEstimatedUtcNow)
+			{
+				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=1");
+			}
+			else
+			{
+				GlobalCompileEnvironment.Definitions.Add("USE_ESTIMATED_UTCNOW=0");
+			}
+
 			// bBuildEditor has now been set appropriately for all platforms, so this is here to make sure the #define
 			if (Rules.bBuildEditor)
 			{

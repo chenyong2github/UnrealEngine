@@ -1,11 +1,11 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #pragma once
-#include "GlobalShader.h"
+
+#include "RenderGraphDefinitions.h"
 
 struct FGenerateMipsStruct;
 
-/** Parameters for generating mip maps */
 struct FGenerateMipsParams
 {
 	ESamplerFilter Filter = SF_Bilinear;
@@ -14,34 +14,47 @@ struct FGenerateMipsParams
 	ESamplerAddressMode AddressW = AM_Clamp;
 };
 
+enum class EGenerateMipsPass
+{
+	Compute,
+	Raster
+};
+
 class RENDERCORE_API FGenerateMips
 {
 public:
-	/**
-	 * Public function for executing the generate mips compute shader 
-	 * @param RHICmdList RHI command list to use to schedule generation of mips
-	 * @param InTexture Texture to generate mips for
-	 * @param InParams Parameters influencing mips generation (Default sampler is always bilinear clamp)
-	 * @param ExternalMipsStructCache Shared pointer to provide a location to cache internal parameters and resource needed to generate mips (provide if generation is triggered repeatedly)
-	 * @param bAllowRenderBasedGeneration Set to true if generation via classic rendering is allowable (some platforms do not support compute based generation, but some use cases may disallow this)
-	 */
-	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, TSharedPtr<FGenerateMipsStruct> & ExternalMipsStructCache, const FGenerateMipsParams& InParams = FGenerateMipsParams(), bool bAllowRenderBasedGeneration = false)
+	/** (ES3.1+) Generates mips for the requested RHI texture using the feature-level appropriate means (Compute, Raster, or Fixed-Function). */
+	static void Execute(
+		FRDGBuilder& GraphBuilder,
+		FRDGTextureRef Texture,
+		FGenerateMipsParams Params = {},
+		EGenerateMipsPass Pass = EGenerateMipsPass::Compute);
+
+	/** (SM5+) Generates mips for the requested RDG texture using the requested compute / raster pass. */
+	static void Execute(
+		FRDGBuilder& GraphBuilder,
+		FRDGTextureRef Texture,
+		FRHISamplerState* Sampler,
+		EGenerateMipsPass Pass = EGenerateMipsPass::Compute)
 	{
-		ExecuteInternal(RHICmdList, InTexture, InParams, &ExternalMipsStructCache, bAllowRenderBasedGeneration);
+		if (Pass == EGenerateMipsPass::Compute)
+		{
+			ExecuteCompute(GraphBuilder, Texture, Sampler);
+		}
+		else
+		{
+			ExecuteRaster(GraphBuilder, Texture, Sampler);
+		}
 	}
-	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams = FGenerateMipsParams(), bool bAllowRenderBasedGeneration = false)
-	{
-		ExecuteInternal(RHICmdList, InTexture, InParams, nullptr, bAllowRenderBasedGeneration);
-	}
 
-	static void Execute(class FRDGBuilder* GraphBuilder, class FRDGTexture* InGraphTexture, FRHISamplerState* InSampler);
+	static void ExecuteCompute(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
+	static void ExecuteRaster(FRDGBuilder& GraphBuilder, FRDGTextureRef Texture, FRHISamplerState* Sampler);
 
-private:
-	static void ExecuteInternal(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams, TSharedPtr<FGenerateMipsStruct> * ExternalMipsStructCache, bool bAllowRenderBasedGeneration);
+	//////////////////////////////////////////////////////////////////////////
+	UE_DEPRECATED(4.26, "Please use the FRDGBuilder version of this function instead.")
+	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, TSharedPtr<FGenerateMipsStruct>& GenerateMipsStruct, FGenerateMipsParams Params = {}, bool bAllowRenderBasedGeneration = false);
 
-	static void Compute(FRHICommandListImmediate& RHIImmCmdList, FRHITexture* InTexture, TSharedPtr<FGenerateMipsStruct> GenMipsStruct);
-	static TSharedPtr<FGenerateMipsStruct> SetupTexture(FRHITexture* InTexture, const FGenerateMipsParams& InParams = FGenerateMipsParams());
-
-	static void RenderMips(FRHICommandListImmediate& RHICmdList, FRHITexture* InTexture, const FGenerateMipsParams& InParams, TSharedPtr<FGenerateMipsStruct> * ExternalMipsStructCache);
-	static void SetupRendering(FGenerateMipsStruct *GenMipsStruct, FRHITexture* InTexture, const FGenerateMipsParams& InParams);
+	UE_DEPRECATED(4.26, "Please use the FRDGBuilder version of this function instead.")
+	static void Execute(FRHICommandListImmediate& RHICmdList, FRHITexture* Texture, FGenerateMipsParams Params = {}, bool bAllowRenderBasedGeneration = false);
+	//////////////////////////////////////////////////////////////////////////
 };

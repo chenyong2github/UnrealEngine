@@ -2,7 +2,6 @@
 
 #include "MagicLeapMusicServiceFunctionLibrary.h"
 #include "MagicLeapMusicServicePlugin.h"
-#include "MagicLeapPluginUtil.h"
 #include "Misc/Timespan.h"
 #include "Lumin/CAPIShims/LuminAPIMusicService.h"
 #include "Async/Async.h"

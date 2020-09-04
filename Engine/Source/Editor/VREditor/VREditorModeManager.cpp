@@ -86,10 +86,10 @@ void FVREditorModeManager::Tick( const float DeltaTime )
 		for(APlayerController* PlayerController : PlayerControllers)
 		{
 			const float LeftGripTimeDown = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Left_Grip_Click),
-				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Grip_Click),
+				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Trackpad_Touch),
 				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Left_Grip_Click));
 			const float RightGripTimeDown = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Right_Grip_Click),
-				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Right_Grip_Click),
+				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Right_Trackpad_Touch),
 				PlayerController->GetInputKeyTimeDown(EKeys::OculusTouch_Right_Grip_Click));
 			const float LeftTriggerValue = FMath::Max3(PlayerController->GetInputKeyTimeDown(EKeys::Vive_Left_Trigger_Axis.GetFName()),
 				PlayerController->GetInputKeyTimeDown(EKeys::ValveIndex_Left_Trigger_Axis.GetFName()),

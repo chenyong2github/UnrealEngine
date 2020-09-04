@@ -70,17 +70,17 @@ void UStereoLayerComponent::PostLoad()
 		{
 			case SLSH_QuadLayer:
 			{
-				Shape = NewObject<UStereoLayerShapeQuad>(this);
+				Shape = NewObject<UStereoLayerShapeQuad>(this, NAME_None, RF_Public);
 				break;
 			}
 			case SLSH_CubemapLayer:
 			{
-				Shape = NewObject<UStereoLayerShapeCubemap>(this);
+				Shape = NewObject<UStereoLayerShapeCubemap>(this, NAME_None, RF_Public);
 				break;
 			}
 			case SLSH_CylinderLayer:
 			{
-				auto Cylinder = NewObject<UStereoLayerShapeCylinder>(this);
+				auto Cylinder = NewObject<UStereoLayerShapeCylinder>(this, NAME_None, RF_Public);
 				Shape = Cylinder;
 				Cylinder->Height = CylinderHeight_DEPRECATED;
 				Cylinder->OverlayArc = CylinderOverlayArc_DEPRECATED;
@@ -89,7 +89,7 @@ void UStereoLayerComponent::PostLoad()
 			}
 			case SLSH_EquirectLayer:
 			{
-				auto Equirect = NewObject<UStereoLayerShapeEquirect>(this);
+				auto Equirect = NewObject<UStereoLayerShapeEquirect>(this, NAME_None, RF_Public);
 				Shape = Equirect;
 				Equirect->SetEquirectProps(EquirectProps_DEPRECATED);
 				break;
@@ -101,7 +101,7 @@ void UStereoLayerComponent::PostLoad()
 
 	if (Shape == nullptr)
 	{
-		Shape = NewObject<UStereoLayerShapeQuad>(this);
+		Shape = NewObject<UStereoLayerShapeQuad>(this, NAME_None, RF_Public);
 	}
 }
 
@@ -179,7 +179,7 @@ void UStereoLayerComponent::TickComponent(float DeltaTime, enum ELevelTick TickT
 		// Set the correct layer shape and apply any shape-specific properties
 		if (Shape == nullptr)
 		{
-			Shape = NewObject<UStereoLayerShapeQuad>(this);
+			Shape = NewObject<UStereoLayerShapeQuad>(this, NAME_None, RF_Public);
 		}
 		Shape->ApplyShape(LayerDesc);
 

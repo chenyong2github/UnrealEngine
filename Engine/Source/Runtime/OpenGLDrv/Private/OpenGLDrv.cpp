@@ -565,14 +565,6 @@ void FOpenGLBase::ProcessExtensions( const FString& ExtensionsString )
 #endif // !PLATFORM_IOS
 
 	// Setup CVars that require the RHI initialized
-
-	//@todo-rco: Workaround Nvidia driver crash
-#if PLATFORM_DESKTOP && !PLATFORM_LINUX
-	if (IsRHIDeviceNVIDIA())
-	{
-		OpenGLConsoleVariables::bUseVAB = 0;
-	}
-#endif
 }
 
 void PE_GetCurrentOpenGLShaderDeviceCapabilities(FOpenGLShaderDeviceCapabilities& Capabilities)

@@ -12,23 +12,23 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_privileges.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_privileges, MLResult, MLPrivilegesStartup)
-#define MLPrivilegesStartup ::MLSDK_API::MLPrivilegesStartupShim
+#define MLPrivilegesStartup ::LUMIN_MLSDK_API::MLPrivilegesStartupShim
 CREATE_FUNCTION_SHIM(ml_privileges, MLResult, MLPrivilegesShutdown)
-#define MLPrivilegesShutdown ::MLSDK_API::MLPrivilegesShutdownShim
+#define MLPrivilegesShutdown ::LUMIN_MLSDK_API::MLPrivilegesShutdownShim
 CREATE_FUNCTION_SHIM(ml_privileges, MLResult, MLPrivilegesCheckPrivilege)
-#define MLPrivilegesCheckPrivilege ::MLSDK_API::MLPrivilegesCheckPrivilegeShim
+#define MLPrivilegesCheckPrivilege ::LUMIN_MLSDK_API::MLPrivilegesCheckPrivilegeShim
 CREATE_FUNCTION_SHIM(ml_privileges, MLResult, MLPrivilegesRequestPrivilege)
-#define MLPrivilegesRequestPrivilege ::MLSDK_API::MLPrivilegesRequestPrivilegeShim
+#define MLPrivilegesRequestPrivilege ::LUMIN_MLSDK_API::MLPrivilegesRequestPrivilegeShim
 CREATE_FUNCTION_SHIM(ml_privileges, MLResult, MLPrivilegesRequestPrivilegeAsync)
-#define MLPrivilegesRequestPrivilegeAsync ::MLSDK_API::MLPrivilegesRequestPrivilegeAsyncShim
+#define MLPrivilegesRequestPrivilegeAsync ::LUMIN_MLSDK_API::MLPrivilegesRequestPrivilegeAsyncShim
 CREATE_FUNCTION_SHIM(ml_privileges, MLResult, MLPrivilegesRequestPrivilegeTryGet)
-#define MLPrivilegesRequestPrivilegeTryGet ::MLSDK_API::MLPrivilegesRequestPrivilegeTryGetShim
+#define MLPrivilegesRequestPrivilegeTryGet ::LUMIN_MLSDK_API::MLPrivilegesRequestPrivilegeTryGetShim
 CREATE_FUNCTION_SHIM(ml_privileges, const char*, MLPrivilegesGetResultString)
-#define MLPrivilegesGetResultString ::MLSDK_API::MLPrivilegesGetResultStringShim
+#define MLPrivilegesGetResultString ::LUMIN_MLSDK_API::MLPrivilegesGetResultStringShim
 
 }
 

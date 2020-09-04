@@ -10,6 +10,7 @@ RaytracingOptions.h declares ray tracing options for use in rendering
 #include "RenderGraph.h"
 #include "Halton.h"
 #include "BlueNoise.h"
+#include "Renderer/Private/SceneRendering.h"
 
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FSkyLightData, RENDERER_API)
 	SHADER_PARAMETER(uint32, SamplesPerPixel)

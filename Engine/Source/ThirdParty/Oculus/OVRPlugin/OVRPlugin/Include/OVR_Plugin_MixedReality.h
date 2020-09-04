@@ -2,14 +2,14 @@
 
 Copyright (c) Facebook Technologies, LLC and its affiliates.  All rights reserved.
 
-Licensed under the Oculus SDK License Version 3.5 (the "License");
+Licensed under the Oculus Master SDK License Version 1.0 (the "License");
 you may not use the Oculus SDK except in compliance with the License,
 which is provided at the time of installation or download, or which
 otherwise accompanies this software in either electronic or hard copy form.
 
 You may obtain a copy of the License at
 
-https://developer.oculus.com/licenses/sdk-3.5/
+https://developer.oculus.com/licenses/oculusmastersdk-1.0/
 
 Unless required by applicable law or agreed to in writing, the Oculus SDK
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -67,7 +67,7 @@ OVRP_EXPORT ovrpResult ovrp_OverrideExternalCameraFov(int cameraId, ovrpBool use
 /// Get if the FOV of the external camera is overridden
 OVRP_EXPORT ovrpResult ovrp_GetUseOverriddenExternalCameraFov(int cameraId, ovrpBool* useOverriddenFov);
 
-/// Override the Pose of the external camera. 
+/// Override the Pose of the external camera.
 OVRP_EXPORT ovrpResult ovrp_OverrideExternalCameraStaticPose(int cameraId, ovrpBool useOverriddenPose, const ovrpPosef* pose);
 
 /// Get if the Pose of the external camera is overridden
@@ -88,6 +88,9 @@ OVRP_EXPORT ovrpResult ovrp_ResetDefaultExternalCamera();
 /// Set a manual external camera to the system. The manual external camera is valid when there is no camera configuration can be loaded
 /// On Quest, it would start listenting to the MRC port if needed
 OVRP_EXPORT ovrpResult ovrp_SetDefaultExternalCamera(const char* cameraName, const ovrpCameraIntrinsics* cameraIntrinsics, const ovrpCameraExtrinsics* cameraExtrinsics);
+
+/// (PC only) set external camera intrinsics and extrinsics
+OVRP_EXPORT ovrpResult ovrp_SetExternalCameraProperties(const char* cameraName, const ovrpCameraIntrinsics* cameraIntrinsics, const ovrpCameraExtrinsics* cameraExtrinsics);
 
 
 //////////////////// Camera Devices //////////////////////////

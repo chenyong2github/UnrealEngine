@@ -16,7 +16,7 @@ bool FPixelShaderUtils::FRasterizeToRectsVS::ShouldCompilePermutation(const FGlo
 }
 
 BEGIN_SHADER_PARAMETER_STRUCT(FRasterizeToRectsUpload, )
-	SHADER_PARAMETER_RDG_BUFFER_UPLOAD(Buffer<uint4>, RectMinMaxBuffer)
+	RDG_BUFFER_ACCESS(RectMinMaxBuffer, ERHIAccess::CopyDest)
 END_SHADER_PARAMETER_STRUCT()
 
 // static

@@ -19,6 +19,7 @@ struct CORE_API FLuminPlatformMisc : public FAndroidMisc
 	static bool SupportsMessaging();
 	static void GetValidTargetPlatforms(TArray<FString>& TargetPlatformNames);
 	static bool GetOverrideResolution(int32 &ResX, int32& ResY);
+	static const TCHAR* GetPlatformFeaturesModuleName();
 
 	static bool GetUseVirtualJoysticks()
 	{
@@ -55,6 +56,7 @@ struct CORE_API FLuminPlatformMisc : public FAndroidMisc
 	static bool ShouldUseDesktopOpenGL();
 	static const FString& GetApplicationWritableDirectoryPath();
 	static const FString& GetApplicationPackageDirectoryPath();
+	static const FString& GetApplicationTempDirectoryPath();
 	static const FString& GetApplicationApplicationPackageName();
 	static const FString& GetApplicationComponentName();
 
@@ -67,6 +69,7 @@ private:
 private:
 	static FString WritableDirPath;
 	static FString PackageDirPath;
+	static FString TempDirPath;
 	static FString PackageName;
 	static FString ComponentName;
 

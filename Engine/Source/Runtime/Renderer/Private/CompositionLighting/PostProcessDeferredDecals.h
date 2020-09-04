@@ -1,83 +1,72 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	PostProcessDeferredDecals.h: Deferred Decals implementation.
-=============================================================================*/
-
 #pragma once
 
-#include "CoreMinimal.h"
-#include "RHIDefinitions.h"
-#include "RHI.h"
-#include "RendererInterface.h"
-#include "PostProcess/SceneRenderTargets.h"
-#include "PostProcess/RenderingCompositionGraph.h"
+#include "RenderGraph.h"
 #include "DecalRenderingCommon.h"
+#include "PostProcess/RenderingCompositionGraph.h"
 
-// ePId_Input0: SceneColor (not needed for DBuffer decals)
-// derives from TRenderingCompositePassBase<InputCount, OutputCount> 
-class FRCPassPostProcessDeferredDecals : public TRenderingCompositePassBase<1, 1>
-{
-public:
-	// One instance for each render stage
-	FRCPassPostProcessDeferredDecals(EDecalRenderStage InDecalRenderStage);
+class FViewInfo;
 
-	// interface FRenderingCompositePass ---------
-	virtual void Process(FRenderingCompositePassContext& Context) override;
-	virtual void Release() override { delete this; }
-	virtual FPooledRenderTargetDesc ComputeOutputDesc(EPassOutputId InPassOutputId) const override;
-
-private:
-	// see EDecalRenderStage
-	EDecalRenderStage CurrentStage;
-	void DecodeRTWriteMask(FRenderingCompositePassContext& Context);
-};
-
-static inline bool IsWritingToGBufferA(FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
+inline bool IsWritingToGBufferA(FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 {
 	return RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferWithNormal
 		|| RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal
 		|| RenderTargetMode == FDecalRenderingCommon::RTM_GBufferNormal;
 }
 
-struct FDecalRenderTargetManager
+inline bool IsWritingToDepth(FDecalRenderingCommon::ERenderTargetMode RenderTargetMode)
 {
-	enum EDecalResolveBufferIndex
-	{
-		SceneColorIndex,
-		GBufferAIndex,
-		GBufferBIndex,
-		GBufferCIndex,
-		GBufferEIndex,
-		DBufferAIndex,
-		DBufferBIndex,
-		DBufferCIndex,
-		DBufferMaskIndex,
-		ResolveBufferMax,
-	};
-	//
-	FRHICommandList& RHICmdList;
-	//
-	bool TargetsToTransitionWritable[ResolveBufferMax];
-	//
-	FRHITexture* TargetsToResolve[ResolveBufferMax];
-	//
-	bool bGufferADirty;
-	bool bGufferBCDirty;
-	ERHIFeatureLevel::Type FeatureLevel;
+	return RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteWithNormal
+		|| RenderTargetMode == FDecalRenderingCommon::RTM_SceneColorAndGBufferDepthWriteNoNormal;
+}
 
-	// constructor
-	FDecalRenderTargetManager(FRHICommandList& InRHICmdList, EShaderPlatform ShaderPlatform, ERHIFeatureLevel::Type InFeatureLevel, EDecalRenderStage CurrentStage);
+struct FDeferredDecalPassTextures
+{
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer = nullptr;
 
-	// destructor
-	~FDecalRenderTargetManager()
-	{
+	// Potential render targets for the decal pass.
+	FRDGTextureMSAA Depth;
+	FRDGTextureRef Color = nullptr;
+	FRDGTextureRef ScreenSpaceAO = nullptr;
+	FRDGTextureRef GBufferA = nullptr;
+	FRDGTextureRef GBufferB = nullptr;
+	FRDGTextureRef GBufferC = nullptr;
+	FRDGTextureRef GBufferE = nullptr;
 
-	}
-
-	void ResolveTargets();
-
-	void SetRenderTargetMode(FDecalRenderingCommon::ERenderTargetMode CurrentRenderTargetMode, bool bHasNormal, bool bPerPixelDBufferMask);
+	// [Input / Output]: D-Buffer targets allocated on-demand for the D-Buffer pass.
+	FRDGTextureRef DBufferA = nullptr;
+	FRDGTextureRef DBufferB = nullptr;
+	FRDGTextureRef DBufferC = nullptr;
+	FRDGTextureRef DBufferMask = nullptr;
 };
 
-extern void RenderMeshDecals(FRenderingCompositePassContext& Context, EDecalRenderStage CurrentDecalStage);
+FDeferredDecalPassTextures GetDeferredDecalPassTextures(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	TRDGUniformBufferRef<FSceneTextureUniformParameters> SceneTexturesUniformBuffer);
+
+void AddDeferredDecalPass(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& ViewInfo,
+	FDeferredDecalPassTextures& Textures,
+	EDecalRenderStage RenderStage);
+
+BEGIN_SHADER_PARAMETER_STRUCT(FDeferredDecalPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
+
+void GetDeferredDecalPassParameters(
+	const FViewInfo& View,
+	const FDeferredDecalPassTextures& DecalPassTextures,
+	ERenderTargetLoadAction DBufferLoadAction,
+	FDecalRenderingCommon::ERenderTargetMode RenderTargetMode,
+	FDeferredDecalPassParameters& PassParameters);
+
+void RenderMeshDecals(
+	FRDGBuilder& GraphBuilder,
+	const FViewInfo& View,
+	FDeferredDecalPassTextures& DecalPassTextures,
+	ERenderTargetLoadAction DBufferLoadAction,
+	EDecalRenderStage DecalRenderStage);

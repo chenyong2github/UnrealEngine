@@ -28,7 +28,6 @@ struct FRayTracingGeometrySegment;
 struct FAccelerationStructureBuildParams;
 struct FRayTracingLocalShaderBindings;
 enum class EAsyncComputeBudget;
-enum class EResourceTransitionAccess;
 enum class EResourceTransitionPipeline;
 
 #define VALIDATE_UNIFORM_BUFFER_GLOBAL_BINDINGS (!UE_BUILD_SHIPPING && !UE_BUILD_TEST)
@@ -65,6 +64,14 @@ public:
 		UniformBuffers.Add(UniformBuffer);
 	}
 
+	inline void TryAddUniformBuffer(FRHIUniformBuffer* UniformBuffer)
+	{
+		if (UniformBuffer)
+		{
+			AddUniformBuffer(UniformBuffer);
+		}
+	}
+
 	int32 GetUniformBufferCount() const
 	{
 		return UniformBuffers.Num();
@@ -90,10 +97,9 @@ private:
 class IRHIComputeContext
 {
 public:
-	/**
-	* Compute queue will wait for the fence to be written before continuing.
-	*/
-	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) = 0;
+	virtual ~IRHIComputeContext()
+	{
+	}
 
 	/**
 	*Sets the current compute shader.
@@ -115,28 +121,14 @@ public:
 
 	virtual void RHISetAsyncComputeBudget(EAsyncComputeBudget Budget) {}
 
-	/**
-	* Explicitly transition a UAV from readable -> writable by the GPU or vice versa.
-	* Also explicitly states which pipeline the UAV can be used on next.  For example, if a Compute job just wrote this UAV for a Pixel shader to read
-	* you would do EResourceTransitionAccess::Readable and EResourceTransitionPipeline::EComputeToGfx
-	*
-	* @param TransitionType - direction of the transition
-	* @param EResourceTransitionPipeline - How this UAV is transitioning between Gfx and Compute, if at all.
-	* @param InUAVs - array of UAV objects to transition
-	* @param NumUAVs - number of UAVs to transition
-	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
-	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence) = 0;
+	virtual void RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions) = 0;
 
-	virtual void RHIBeginUAVOverlap() {}
-	virtual void RHIEndUAVOverlap() {}
+	virtual void RHIEndTransitions(TArrayView<const FRHITransition*> Transitions) = 0;
 
 	/**
 	* Clears a UAV to the multi-channel floating point value provided. Should only be called on UAVs with a floating point format, or on structured buffers.
 	* Structured buffers are treated as a regular R32_UINT buffer during the clear operation, and the Values.X component is copied directly into the buffer without any format conversion. (Y,Z,W) of Values is ignored.
 	* Typed floating point buffers undergo standard format conversion during the write operation. The conversion is determined by the format of the UAV.
-	*
-	* The UAV is expected to be in a writable state, as this function has equivalent semantics to dispatching a compute shader. This function does not perform any implicit transitions.
 	*
 	* @param UnorderedAccessViewRHI		The UAV to clear.
 	* @param Values						The values to clear the UAV to, one component per channel (XYZW = RGBA). Channels not supported by the UAV are ignored.
@@ -149,13 +141,17 @@ public:
 	* Structured buffers are treated as a regular R32_UINT buffer during the clear operation, and the Values.X component is copied directly into the buffer without any format conversion. (Y,Z,W) of Values is ignored.
 	* Typed integer buffers undergo standard format conversion during the write operation. The conversion is determined by the format of the UAV.
 	*
-	* The UAV is expected to be in a writable state, as this function has equivalent semantics to dispatching a compute shader. This function does not perform any implicit transitions.
-	*
 	* @param UnorderedAccessViewRHI		The UAV to clear.
 	* @param Values						The values to clear the UAV to, one component per channel (XYZW = RGBA). Channels not supported by the UAV are ignored.
 	*
 	*/
 	virtual void RHIClearUAVUint(FRHIUnorderedAccessView* UnorderedAccessViewRHI, const FUintVector4& Values) = 0;
+
+	virtual void RHIBeginUAVOverlap() {}
+	virtual void RHIEndUAVOverlap() {}
+
+	virtual void RHIBeginUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs) {}
+	virtual void RHIEndUAVOverlap(TArrayView<FRHIUnorderedAccessView*> UAVs) {}
 
 	/** Set the shader resource view of a surface.  This is used for binding TextureMS parameter types that need a multi sampled view. */
 	virtual void RHISetShaderTexture(FRHIComputeShader* PixelShader, uint32 TextureIndex, FRHITexture* NewTexture) = 0;
@@ -263,6 +259,28 @@ public:
 	{
 		checkNoEntry();
 	}
+
+#if ENABLE_RHI_VALIDATION
+
+	RHIValidation::FTracker* Tracker = nullptr;
+	IRHIComputeContext* WrappingContext = nullptr;
+
+	// Always returns the platform RHI context, even when the validation RHI is active.
+	virtual IRHIComputeContext& GetLowestLevelContext() { return *this; }
+
+	// Returns the validation RHI context if the validation RHI is active, otherwise returns the platform RHI context.
+	virtual IRHIComputeContext& GetHighestLevelContext()
+	{
+		return WrappingContext ? *WrappingContext : *this;
+	}
+
+#else
+
+	// Fast implementations when the RHI validation layer is disabled.
+	inline IRHIComputeContext& GetLowestLevelContext() { return *this; }
+	inline IRHIComputeContext& GetHighestLevelContext() { return *this; }
+
+#endif
 };
 
 enum class EAccelerationStructureBuildMode
@@ -313,24 +331,9 @@ public:
 	{
 	}
 
-	/**
-	* Compute queue will wait for the fence to be written before continuing.
-	*/
-	virtual void RHIWaitComputeFence(FRHIComputeFence* InFence) override
-	{
-		if (InFence)
-		{
-			checkf(InFence->GetWriteEnqueued(), TEXT("ComputeFence: %s waited on before being written. This will hang the GPU."), *InFence->GetName().ToString());
-		}
-	}
-
 	virtual void RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ) = 0;
 
 	virtual void RHIDispatchIndirectComputeShader(FRHIVertexBuffer* ArgumentBuffer, uint32 ArgumentOffset) = 0;
-
-	virtual void RHIAutomaticCacheFlushAfterComputeShader(bool bEnable) = 0;
-
-	virtual void RHIFlushComputeShaderCache() = 0;
 
 	// Useful when used with geometry shader (emit polygons to different viewports), otherwise SetViewPort() is simpler
 	// @param Count >0
@@ -353,84 +356,6 @@ public:
 	virtual void RHIResummarizeHTile(FRHITexture2D* DepthTexture)
 	{
 		/* empty default implementation */
-	}
-
-	/**
-	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
-	* We know render targets are only used as rendered targets on the Gfx pipeline, so these transitions are assumed to be implemented such
-	* Gfx->Gfx and Gfx->Compute pipeline transitions are both handled by this call by the RHI implementation.  Hence, no pipeline parameter on this call.
-	* TransitionPipeline version is also available to transition from Compute->Gfx for example
-	*
-	* @param TransitionType - direction of the transition
-	* @param InTextures - array of texture objects to transition
-	* @param NumTextures - number of textures to transition
-	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures)
-	{
-		if (TransitionType == EResourceTransitionAccess::EReadable)
-		{
-			const FResolveParams ResolveParams;
-			for (int32 i = 0; i < NumTextures; ++i)
-			{
-				RHICopyToResolveTarget(InTextures[i], InTextures[i], ResolveParams);
-			}
-		}
-	}
-
-	/**
-	* Explicitly transition a texture resource from readable -> writable by the GPU or vice versa.
-	* Also explicitly states which pipeline the texture can be used on next.  For example, if a Compute job just wrote this UAV for a Pixel shader to read
-	* you would do EResourceTransitionAccess::Readable and EResourceTransitionPipeline::EComputeToGfx
-	*
-	* @param TransitionType - direction of the transition
-	* @param TransitionPipeline - How this Texture is transitioning between Gfx and Compute, if at all.
-	* @param InTextures - array of texture objects to transition
-	* @param NumTextures - number of textures to transition
-	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHITexture** InTextures, int32 NumTextures)
-	{
-		RHITransitionResources(TransitionType, InTextures, NumTextures);
-	}
-
-	/**
-	* Explicitly transition a UAV from readable -> writable by the GPU or vice versa.
-	* Also explicitly states which pipeline the UAV can be used on next.  For example, if a Compute job just wrote this UAV for a Pixel shader to read
-	* you would do EResourceTransitionAccess::Readable and EResourceTransitionPipeline::EComputeToGfx
-	*
-	* @param TransitionType - direction of the transition
-	* @param EResourceTransitionPipeline - How this UAV is transitioning between Gfx and Compute, if at all.
-	* @param InUAVs - array of UAV objects to transition
-	* @param NumUAVs - number of UAVs to transition
-	* @param WriteComputeFence - Optional ComputeFence to write as part of this transition
-	*/
-	virtual void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs, FRHIComputeFence* WriteComputeFence)
-	{
-		if (WriteComputeFence)
-		{
-			WriteComputeFence->WriteFence();
-		}
-	}
-
-	void RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 NumUAVs)
-	{
-		RHITransitionResources(TransitionType, TransitionPipeline, InUAVs, NumUAVs, nullptr);
-	}
-
-	/**
-	* Explicitly transition a depth/stencil texture from readable -> writable by the GPU or vice versa.
-	* This implementation provides compatibility with the old RHI behavior where the stencil mode is ignored and the whole depth/stencil resource is transitioned.
-	*
-	* RHIs should override this method to implement stencil-specific resource barriers.
-	*/
-	virtual void RHITransitionResources(FExclusiveDepthStencil DepthStencilMode, FRHITexture* DepthTexture)
-	{
-		if (DepthStencilMode.IsUsingDepthStencil())
-		{
-			RHITransitionResources(DepthStencilMode.IsAnyWrite()
-				? EResourceTransitionAccess::EWritable
-				: EResourceTransitionAccess::EReadable, 
-				&DepthTexture, 1);
-		}
 	}
 
 	virtual void RHIBeginRenderQuery(FRHIRenderQuery* RenderQuery) = 0;
@@ -589,11 +514,6 @@ public:
 	virtual void RHISetStencilRef(uint32 StencilRef) {}
 
 	virtual void RHISetBlendFactor(const FLinearColor& BlendFactor) {}
-
-	// Bind the clear state of the currently set render targets. This is used by platforms which
-	// need the state of the target when finalizing a hardware clear or a resource transition to SRV
-	// The explicit bind is needed to support parallel rendering (propagate state between contexts).
-	virtual void RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil) {}
 
 	virtual void RHIDrawPrimitive(uint32 BaseVertexIndex, uint32 NumPrimitives, uint32 NumInstances) = 0;
 

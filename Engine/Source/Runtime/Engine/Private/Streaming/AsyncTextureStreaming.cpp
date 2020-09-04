@@ -144,7 +144,7 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 	}
 	else
 	{
-		const typename FStreamingRenderAsset::EAssetType AssetType = StreamingRenderAsset.RenderAssetType;
+		const EStreamableRenderAssetType AssetType = StreamingRenderAsset.RenderAssetType;
 		DynamicInstancesView.GetRenderAssetScreenSize(AssetType, RenderAsset, MaxSize, MaxSize_VisibleOnly, MaxNumForcedLODs, bOutputToLog ? TEXT("Dynamic") : nullptr);
 
 		bool bCulled = false;
@@ -267,14 +267,14 @@ void FAsyncRenderAssetStreamingData::UpdatePerfectWantedMips_Async(FStreamingRen
 
 		// TODO: for meshes, how to determine whether they are HLOD?
 		if (StreamingRenderAsset.bForceFullyLoad
-			|| (AssetType == FStreamingRenderAsset::AT_Texture
+			|| (AssetType == EStreamableRenderAssetType::Texture
 				&& StreamingRenderAsset.LODGroup == TEXTUREGROUP_HierarchicalLOD
 				&& Settings.HLODStrategy == 2))
 		{
 			if (bOutputToLog) UE_LOG(LogContentStreaming, Log,  TEXT("  Forced FullyLoad"));
 			MaxSize = FLT_MAX; // Forced load ensure the texture gets fully loaded but after what is visible/required by the other logic.
 		}
-		else if (AssetType == FStreamingRenderAsset::AT_Texture
+		else if (AssetType == EStreamableRenderAssetType::Texture
 			&& StreamingRenderAsset.LODGroup == TEXTUREGROUP_HierarchicalLOD
 			&& Settings.HLODStrategy == 1)
 		{
@@ -335,7 +335,7 @@ void FRenderAssetStreamingMipCalcTask::ApplyPakStateChanges_Async()
 		{
 			if (IsAborted()) break;
 
-			if (StreamingRenderAsset.FirstOptionalMipIndex != INDEX_NONE)
+			if (StreamingRenderAsset.OptionalFileHash != INVALID_IO_FILENAME_HASH)
 			{
 				// If there was no valid filename, the hash will be 0, for which DoesMipDataExist() could still change.
 				if (bRecacheAllFiles || MountedStateDirtyFiles.Contains(StreamingRenderAsset.OptionalFileHash))
@@ -808,7 +808,7 @@ void FRenderAssetStreamingMipCalcTask::UpdateLoadAndCancelationRequests_Async(in
 		FStreamingRenderAsset& StreamingRenderAsset = StreamingRenderAssets[AssetIndex];
 
 		// If there is a pending update with no cancelation request
-		if (StreamingRenderAsset.bInFlight && StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
+		if (StreamingRenderAsset.RequestedMips != StreamingRenderAsset.ResidentMips)
 		{
 			// If there is a pending load that attempts to load unrequired data (by at least 2 mips), 
 			// or if there is a pending unload that attempts to unload required data, try to cancel it.
@@ -1024,13 +1024,11 @@ void FRenderAssetStreamingMipCalcTask::UpdateStats_Async()
 
 		if (StreamingRenderAsset.IsMesh())
 		{
-			const bool bOptLODsExist = StreamingRenderAsset.OptionalMipsState == FStreamingRenderAsset::OMS_HasOptionalMips;
-			const int32 NumLODs = bOptLODsExist ? StreamingRenderAsset.MipCount : StreamingRenderAsset.NumNonOptionalMips;
-			const int32 NumStreamedLODs = NumLODs - StreamingRenderAsset.NumNonStreamingMips;
+			const int32 NumStreamedLODs = StreamingRenderAsset.MaxAllowedMips - StreamingRenderAsset.MinAllowedMips;
 			const int32 NumResidentLODs = StreamingRenderAsset.ResidentMips;
-			const int32 NumEvictedLODs = NumLODs - NumResidentLODs;
-			const int64 TotalSize = StreamingRenderAsset.GetSize(NumLODs);
-			const int64 StreamedSize = TotalSize - StreamingRenderAsset.GetSize(StreamingRenderAsset.NumNonStreamingMips);
+			const int32 NumEvictedLODs = StreamingRenderAsset.MaxAllowedMips - NumResidentLODs;
+			const int64 TotalSize = StreamingRenderAsset.GetSize(StreamingRenderAsset.MaxAllowedMips);
+			const int64 StreamedSize = TotalSize - StreamingRenderAsset.GetSize(StreamingRenderAsset.MinAllowedMips);
 			const int64 EvictedSize = TotalSize - ResidentSize;
 
 			++Stats.NumStreamedMeshes;

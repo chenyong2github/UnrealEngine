@@ -5,7 +5,7 @@
 #include "GoogleARCoreCameraImage.generated.h"
 
 typedef struct ArImage_ ArImage;
-typedef struct AImage AImage;
+typedef struct ArSession_ ArSession;
 
 /**
  * An object that represents an acquired CPU-accessible camera image.
@@ -51,14 +51,14 @@ public:
 	/**
 	 * Get the raw image data of a given plane.
 	 */
-	uint8 *GetPlaneData(
+	const uint8 *GetPlaneData(
 		int32 Plane, int32 &PixelStride,
-		int32 &RowStride, int32 &DataLength);
+		int32 &RowStride, int32 &DataLength) const;
 
 private:
 #if PLATFORM_ANDROID
 	ArImage *ArImage = nullptr;
-	const AImage *NdkImage = nullptr;
+	const ArSession* SessionHandle = nullptr;
 #endif
 
 	friend class FGoogleARCoreFrame;

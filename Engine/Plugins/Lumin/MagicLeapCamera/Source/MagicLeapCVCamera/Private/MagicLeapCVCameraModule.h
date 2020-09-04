@@ -8,7 +8,6 @@
 #include "MagicLeapCVCameraRunnable.h"
 #include "MagicLeapCameraTypes.h"
 #include "MagicLeapCVCameraTypes.h"
-#include "MagicLeapPluginUtil.h"
 #include "AppEventHandler.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMagicLeapCVCamera, Verbose, All);
@@ -36,7 +35,6 @@ private:
 	bool TryPushNewCaptureTask(FCVCameraTask::EType InTaskType);
 	void OnAppPause();
 
-	FMagicLeapAPISetup APISetup;
 	FTickerDelegate TickDelegate;
 	FDelegateHandle TickDelegateHandle;
 	float MinCameraRunTimer;

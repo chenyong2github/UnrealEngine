@@ -127,6 +127,8 @@ void PrefilterPlanarReflectionPS(
 	}
 }
 
+#if SHADING_PATH_DEFERRED
+
 void PlanarReflectionPS(
 	float2 BufferUV : TEXCOORD0,
 	float3 ScreenVector : TEXCOORD1,
@@ -152,3 +154,5 @@ void PlanarReflectionPS(
 	#endif
 	}
 }
+
+#endif

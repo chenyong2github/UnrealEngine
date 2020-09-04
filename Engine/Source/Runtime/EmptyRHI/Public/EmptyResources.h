@@ -65,7 +65,7 @@ public:
 	/** 
 	 * Constructor that will create Texture and Color/DepthBuffers as needed
 	 */
-	FEmptySurface(ERHIResourceType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData);
+	FEmptySurface(ERHIResourceType ResourceType, EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData);
 
 	/**
 	 * Destructor
@@ -100,7 +100,7 @@ public:
 	FEmptySurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FEmptyTexture2D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, uint32 Flags, FResourceBulkDataInterface* BulkData)
+	FEmptyTexture2D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 NumMips, uint32 NumSamples, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData)
 		: FRHITexture2D(SizeX, SizeY, NumMips, NumSamples, Format, Flags)
 		, Surface(RRT_Texture2D, Format, SizeX, SizeY, 1, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
 	{
@@ -114,7 +114,7 @@ public:
 	FEmptySurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FEmptyTexture2DArray(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData)
+	FEmptyTexture2DArray(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData)
 		: FRHITexture2DArray(SizeX, SizeY, ArraySize, NumMips, 1, Format, Flags)
 		, Surface(RRT_Texture2DArray, Format, SizeX, SizeY, 1, /*bArray=*/ true, ArraySize, NumMips, Flags, BulkData)
 	{
@@ -128,7 +128,7 @@ public:
 	FEmptySurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FEmptyTexture3D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData)
+	FEmptyTexture3D(EPixelFormat Format, uint32 SizeX, uint32 SizeY, uint32 SizeZ, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData)
 		: FRHITexture3D(SizeX, SizeY, SizeZ, NumMips, Format, Flags)
 		, Surface(RRT_Texture3D, Format, SizeX, SizeY, SizeZ, /*bArray=*/ false, 1, NumMips, Flags, BulkData)
 	{
@@ -142,7 +142,7 @@ public:
 	FEmptySurface Surface;
 
 	// Constructor, just calls base and Surface constructor
-	FEmptyTextureCube(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, uint32 Flags, FResourceBulkDataInterface* BulkData)
+	FEmptyTextureCube(EPixelFormat Format, uint32 Size, bool bArray, uint32 ArraySize, uint32 NumMips, ETextureCreateFlags Flags, FResourceBulkDataInterface* BulkData)
 		: FRHITextureCube(Size, NumMips, Format, Flags)
 		, Surface(RRT_TextureCube, Format, Size, Size, 6, bArray, ArraySize, NumMips, Flags, BulkData)
 	{

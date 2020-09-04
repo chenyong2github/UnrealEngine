@@ -2,103 +2,42 @@
 
 #pragma once
 
-inline FRDGTextureRef FRDGBuilder::RegisterExternalTexture(
-	const TRefCountPtr<IPooledRenderTarget>& ExternalPooledTexture,
-	const TCHAR* Name,
-	ERDGResourceFlags Flags)
+inline FRDGTextureRef FRDGBuilder::FindExternalTexture(FRHITexture* ExternalTexture) const
 {
-#if RDG_ENABLE_DEBUG
+	if (const FRDGTextureRef* FoundTexturePtr = ExternalTextures.Find(ExternalTexture))
 	{
-		checkf(ExternalPooledTexture.IsValid(), TEXT("Attempted to register NULL external texture: %s"), Name);
-		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
-		checkf(Name, TEXT("Externally allocated texture requires a debug name when registering them to render graph."));
-		Validation.ExecuteGuard(TEXT("RegisterExternalTexture"), Name);
+		return *FoundTexturePtr;
 	}
-#endif
-
-	if (FRDGTextureRef* Texture = ExternalTextures.Find(ExternalPooledTexture.GetReference()))
-	{
-		return *Texture;
-	}
-
-	// Since we're going to use the resolved texture of the pooled RT, we must ensure that we're not inheriting
-	// the multisample settings from the targetable texture.
-	FPooledRenderTargetDesc Desc = ExternalPooledTexture->GetDesc();
-	Desc.NumSamples = 1;
-
-	FRDGTexture* OutTexture = AllocateForRHILifeTime<FRDGTexture>(Name, Desc, Flags);
-	OutTexture->PooledRenderTarget = ExternalPooledTexture;
-	OutTexture->ResourceRHI = ExternalPooledTexture->GetRenderTargetItem().ShaderResourceTexture;
-	AllocatedTextures.Add(OutTexture, ExternalPooledTexture);
-
-	TextureCount++;
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalTexture(OutTexture));
-
-	ExternalTextures.Add(ExternalPooledTexture.GetReference(), OutTexture);
-
-	return OutTexture;
+	return nullptr;
 }
 
-inline FRDGBufferRef FRDGBuilder::RegisterExternalBuffer(
-	const TRefCountPtr<FPooledRDGBuffer>& ExternalPooledBuffer,
-	const TCHAR* Name,
-	ERDGResourceFlags Flags)
+inline FRDGTextureRef FRDGBuilder::FindExternalTexture(IPooledRenderTarget* ExternalTexture, ERenderTargetTexture Texture) const
 {
-#if RDG_ENABLE_DEBUG
+	if (ExternalTexture)
 	{
-		checkf(ExternalPooledBuffer.IsValid(), TEXT("Attempted to register NULL external buffer: %s"), Name);
-		Validation.ExecuteGuard(TEXT("RegisterExternalBuffer"), Name);
+		return FindExternalTexture(ExternalTexture->GetRenderTargetItem().GetRHI(Texture));
 	}
-#endif
-
-	if (FRDGBufferRef* Buffer = ExternalBuffers.Find(ExternalPooledBuffer.GetReference()))
-	{
-		return *Buffer;
-	}
-
-	FRDGBuffer* OutBuffer = AllocateForRHILifeTime<FRDGBuffer>(Name, ExternalPooledBuffer->Desc, Flags);
-	OutBuffer->PooledBuffer = ExternalPooledBuffer;
-	switch (OutBuffer->Desc.UnderlyingType)
-	{
-	case FRDGBufferDesc::EUnderlyingType::VertexBuffer:
-		OutBuffer->ResourceRHI = ExternalPooledBuffer->VertexBuffer;
-		break;
-	case FRDGBufferDesc::EUnderlyingType::IndexBuffer:
-		OutBuffer->ResourceRHI = ExternalPooledBuffer->IndexBuffer;
-		break;
-	case FRDGBufferDesc::EUnderlyingType::StructuredBuffer:
-		OutBuffer->ResourceRHI = ExternalPooledBuffer->StructuredBuffer;
-		break;
-	}
-	AllocatedBuffers.Add(OutBuffer, ExternalPooledBuffer);
-
-	BufferCount++;
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateExternalBuffer(OutBuffer));
-
-	ExternalBuffers.Add(ExternalPooledBuffer.GetReference(), OutBuffer);
-
-	return OutBuffer;
+	return nullptr;
 }
 
 inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	const FRDGTextureDesc& Desc,
 	const TCHAR* Name,
-	ERDGResourceFlags Flags)
+	ERDGTextureFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(Name, TEXT("Creating a render graph texture requires a valid debug name."));
-		Validation.ExecuteGuard(TEXT("CreateTexture"), Name);
+		checkf(Name, TEXT("Creating a texture requires a valid debug name."));
+		UserValidation.ExecuteGuard(TEXT("CreateTexture"), Name);
 
 		// Validate the pixel format.
 		checkf(Desc.Format != PF_Unknown, TEXT("Illegal to create texture %s with an invalid pixel format."), Name);
 		checkf(Desc.Format < PF_MAX, TEXT("Illegal to create texture %s with invalid FPooledRenderTargetDesc::Format."), Name);
-		checkf(GPixelFormats[Desc.Format].Supported, TEXT("Failed to create texture %s with pixel format %s because it is not supported."),
-			Name, GPixelFormats[Desc.Format].Name);
+		checkf(GPixelFormats[Desc.Format].Supported,
+			TEXT("Failed to create texture %s with pixel format %s because it is not supported."), Name, GPixelFormats[Desc.Format].Name);
+		checkf(Desc.IsValid(), TEXT("Texture %s was created with an invalid descriptor."), Name);
 
-		const bool bCanHaveUAV = Desc.TargetableFlags & TexCreate_UAV;
+		const bool bCanHaveUAV = (Desc.Flags & TexCreate_UAV) > 0;
 		const bool bIsMSAA = Desc.NumSamples > 1;
 
 		// D3D11 doesn't allow creating a UAV on MSAA texture.
@@ -107,28 +46,22 @@ inline FRDGTextureRef FRDGBuilder::CreateTexture(
 	}
 #endif
 
-	// Fix-up the debug name to force consistency.
-	FRDGTextureDesc TextureDesc = Desc;
-	TextureDesc.DebugName = Name;
-
-	FRDGTexture* Texture = AllocateForRHILifeTime<FRDGTexture>(Name, TextureDesc, Flags);
-
-	TextureCount++;
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateTexture(Texture));
-
+	FRDGTextureRef Texture = Textures.Allocate(Allocator, Name, Desc, Flags, ERenderTargetTexture::ShaderResource);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateTexture(Texture));
 	return Texture;
 }
 
 inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	const FRDGBufferDesc& Desc,
 	const TCHAR* Name,
-	ERDGResourceFlags Flags)
+	ERDGBufferFlags Flags)
 {
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(Name, TEXT("Creating a render graph buffer requires a valid debug name."));
-		Validation.ExecuteGuard(TEXT("CreateBuffer"), Name);
+		checkf(Name, TEXT("Creating a buffer requires a valid debug name."));
+		UserValidation.ExecuteGuard(TEXT("CreateBuffer"), Name);
+
+		checkf(Desc.GetTotalNumBytes() > 0, TEXT("Creating buffer '%s' is zero bytes in size."), Name);
 
 		const bool bIsByteAddress = (Desc.Usage & BUF_ByteAddressBuffer) == BUF_ByteAddressBuffer;
 
@@ -139,12 +72,8 @@ inline FRDGBufferRef FRDGBuilder::CreateBuffer(
 	}
 #endif
 
-	FRDGBufferRef Buffer = AllocateForRHILifeTime<FRDGBuffer>(Name, Desc, Flags);
-
-	BufferCount++;
-
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateCreateBuffer(Buffer));
-
+	FRDGBufferRef Buffer = Buffers.Allocate(Allocator, Name, Desc, Flags);
+	IF_RDG_ENABLE_DEBUG(UserValidation.ValidateCreateBuffer(Buffer));
 	return Buffer;
 }
 
@@ -154,9 +83,10 @@ inline FRDGTextureSRVRef FRDGBuilder::CreateSRV(const FRDGTextureSRVDesc& Desc)
 
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(Texture, TEXT("RenderGraph texture SRV created with a null texture."));
-		Validation.ExecuteGuard(TEXT("CreateSRV"), Texture->Name);
-		checkf(Texture->Desc.TargetableFlags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
+		checkf(Texture, TEXT("Texture SRV created with a null texture."));
+		checkf(!Texture->IsPassthrough(), TEXT("Texture SRV created with passthrough texture '%s'."), Texture->Name);
+		UserValidation.ExecuteGuard(TEXT("CreateSRV"), Texture->Name);
+		checkf(Texture->Desc.Flags & TexCreate_ShaderResource, TEXT("Attempted to create SRV from texture %s which was not created with TexCreate_ShaderResource"), Desc.Texture->Name);
 		
 		// Validate the pixel format if overridden by the SRV's descriptor.
 		if (Desc.Format == PF_X24_G8)
@@ -183,10 +113,18 @@ inline FRDGTextureSRVRef FRDGBuilder::CreateSRV(const FRDGTextureSRVDesc& Desc)
 
 		checkf((Desc.MipLevel + Desc.NumMipLevels) <= Texture->Desc.NumMips, TEXT("Failed to create SRV at mips %d-%d: the texture %s has only %d mip levels."),
 			Desc.MipLevel, (Desc.MipLevel + Desc.NumMipLevels), Texture->Name, Texture->Desc.NumMips);
+
+		checkf(Desc.MetaData != ERDGTextureMetaDataAccess::FMask || GRHISupportsExplicitFMask,
+			TEXT("Failed to create FMask SRV for texture %s because the current RHI doesn't support it. Be sure to gate the call with GRHISupportsExplicitFMask."),
+			Texture->Name);
+
+		checkf(Desc.MetaData != ERDGTextureMetaDataAccess::HTile || GRHISupportsExplicitHTile,
+			TEXT("Failed to create HTile SRV for texture %s because the current RHI doesn't support it. Be sure to gate the call with GRHISupportsExplicitHTile."),
+			Texture->Name);
 	}
 #endif
 
-	return AllocateForRHILifeTime<FRDGTextureSRV>(Texture->Name, Desc);
+	return Views.Allocate<FRDGTextureSRV>(Allocator, Texture->Name, Desc);
 }
 
 inline FRDGBufferSRVRef FRDGBuilder::CreateSRV(const FRDGBufferSRVDesc& Desc)
@@ -195,73 +133,152 @@ inline FRDGBufferSRVRef FRDGBuilder::CreateSRV(const FRDGBufferSRVDesc& Desc)
 
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(Buffer, TEXT("RenderGraph buffer SRV created with a null buffer."));
-		Validation.ExecuteGuard(TEXT("CreateSRV"), Buffer->Name);
+		checkf(Buffer, TEXT("Buffer SRV created with a null buffer."));
+		UserValidation.ExecuteGuard(TEXT("CreateSRV"), Buffer->Name);
 	}
 #endif
 
-	return AllocateForRHILifeTime<FRDGBufferSRV>(Buffer->Name, Desc);
+	return Views.Allocate<FRDGBufferSRV>(Allocator, Buffer->Name, Desc);
 }
 
-inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc)
+inline FRDGTextureUAVRef FRDGBuilder::CreateUAV(const FRDGTextureUAVDesc& Desc, ERDGUnorderedAccessViewFlags InFlags)
 {
 	FRDGTextureRef Texture = Desc.Texture;
 
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(Texture, TEXT("RenderGraph texture UAV created with a null texture."));
-		Validation.ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
-		checkf(Texture->Desc.TargetableFlags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
+		checkf(Texture, TEXT("Texture UAV created with a null texture."));
+		checkf(!Texture->IsPassthrough(), TEXT("Texture UAV created with passthrough texture '%s'."), Texture->Name);
+		UserValidation.ExecuteGuard(TEXT("CreateUAV"), Texture->Name);
+		checkf(Texture->Desc.Flags & TexCreate_UAV, TEXT("Attempted to create UAV from texture %s which was not created with TexCreate_UAV"), Texture->Name);
 		checkf(Desc.MipLevel < Texture->Desc.NumMips, TEXT("Failed to create UAV at mip %d: the texture %s has only %d mip levels."), Desc.MipLevel, Texture->Name, Texture->Desc.NumMips);
 	}
 #endif
 
-	return AllocateForRHILifeTime<FRDGTextureUAV>(Texture->Name, Desc);
+	return Views.Allocate<FRDGTextureUAV>(Allocator, Texture->Name, Desc, InFlags);
 }
 
-inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc)
+inline FRDGBufferUAVRef FRDGBuilder::CreateUAV(const FRDGBufferUAVDesc& Desc, ERDGUnorderedAccessViewFlags InFlags)
 {
 	FRDGBufferRef Buffer = Desc.Buffer;
 
 #if RDG_ENABLE_DEBUG
 	{
-		checkf(Buffer, TEXT("RenderGraph buffer UAV created with a null buffer."));
-		Validation.ExecuteGuard(TEXT("CreateUAV"), Buffer->Name);
+		checkf(Buffer, TEXT("Buffer UAV created with a null buffer."));
+		UserValidation.ExecuteGuard(TEXT("CreateUAV"), Buffer->Name);
 	}
 #endif
 
-	return AllocateForRHILifeTime<FRDGBufferUAV>(Buffer->Name, Desc);
+	return Views.Allocate<FRDGBufferUAV>(Allocator, Buffer->Name, Desc, InFlags);
+}
+
+FORCEINLINE void* FRDGBuilder::Alloc(uint32 SizeInBytes, uint32 AlignInBytes)
+{
+	return Allocator.Alloc(SizeInBytes, AlignInBytes);
+}
+
+template <typename PODType>
+FORCEINLINE PODType* FRDGBuilder::AllocPOD()
+{
+	return Allocator.AllocPOD<PODType>();
+}
+
+template <typename ObjectType, typename... TArgs>
+FORCEINLINE ObjectType* FRDGBuilder::AllocObject(TArgs&&... Args)
+{
+	return Allocator.AllocObject<ObjectType>(Forward<TArgs&&>(Args)...);
 }
 
 template <typename ParameterStructType>
-ParameterStructType* FRDGBuilder::AllocParameters()
+FORCEINLINE ParameterStructType* FRDGBuilder::AllocParameters()
 {
-	// TODO(RDG): could allocate using AllocateForRHILifeTime() to avoid the copy done when using FRHICommandList::BuildLocalUniformBuffer()
-	ParameterStructType* OutParameterPtr = new(MemStack) ParameterStructType;
-	FMemory::Memzero(OutParameterPtr, sizeof(ParameterStructType));
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateAllocPassParameters(OutParameterPtr));
-	return OutParameterPtr;
+	return Allocator.AllocObject<ParameterStructType>();
 }
 
-template <typename ParameterStructType, typename ExecuteLambdaType>
-void FRDGBuilder::AddPass(
+FORCEINLINE FRDGSubresourceState* FRDGBuilder::AllocSubresource(const FRDGSubresourceState& Other)
+{
+	FRDGSubresourceState* State = Allocator.AllocPOD<FRDGSubresourceState>();
+	*State = Other;
+	return State;
+}
+
+template <typename ParameterStructType>
+TRDGUniformBufferRef<ParameterStructType> FRDGBuilder::CreateUniformBuffer(ParameterStructType* ParameterStruct)
+{
+	const TCHAR* Name = ParameterStructType::StaticStructMetadata.GetShaderVariableName();
+
+#if RDG_ENABLE_DEBUG
+	{
+		checkf(ParameterStruct, TEXT("Uniform buffer '%s' created with null parameters."), Name);
+		UserValidation.ExecuteGuard(TEXT("CreateUniformBuffer"), Name);
+	}
+#endif
+
+	return UniformBuffers.Allocate<TRDGUniformBuffer<ParameterStructType>>(Allocator, ParameterStruct, Name);
+}
+
+template <typename ExecuteLambdaType>
+FRDGPassRef FRDGBuilder::AddPass(
 	FRDGEventName&& Name,
-	ParameterStructType* ParameterStruct,
 	ERDGPassFlags Flags,
 	ExecuteLambdaType&& ExecuteLambda)
 {
-	// Verify that the amount of stuff captured by a pass's lambda is reasonable. Changing this maximum as desired without review is not OK,
-	// the all point being to catch things that should be captured by referenced instead of captured by copy.
-	constexpr int32 kMaximumLambdaCaptureSize = 1024;
-	static_assert(sizeof(ExecuteLambdaType) <= kMaximumLambdaCaptureSize, "The amount of data of captured for the pass looks abnormally high.");
+	using LambdaPassType = TRDGEmptyLambdaPass<ExecuteLambdaType>;
 
-	auto NewPass = new(MemStack) TRDGLambdaPass<ParameterStructType, ExecuteLambdaType>(
+#if RDG_ENABLE_DEBUG
+	{
+		UserValidation.ExecuteGuard(TEXT("AddPass"), Name.GetTCHAR());
+
+		checkf(!EnumHasAnyFlags(Flags, ERDGPassFlags::Copy | ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute | ERDGPassFlags::Raster),
+			TEXT("Pass %s may not specify any of the (Copy, Compute, AsyncCompute, Raster) flags, because it has no parameters. Use None instead."), Name.GetTCHAR());
+	}
+#endif
+
+	Flags |= ERDGPassFlags::NeverCull;
+
+	LambdaPassType* Pass = Passes.Allocate<LambdaPassType>(Allocator, MoveTemp(Name), Flags, MoveTemp(ExecuteLambda));
+	SetupEmptyPass(Pass);
+	return Pass;
+}
+
+template <typename ParameterStructType, typename ExecuteLambdaType>
+FRDGPassRef FRDGBuilder::AddPass(
+	FRDGEventName&& Name,
+	const ParameterStructType* ParameterStruct,
+	ERDGPassFlags Flags,
+	ExecuteLambdaType&& ExecuteLambda)
+{
+	using LambdaPassType = TRDGLambdaPass<ParameterStructType, ExecuteLambdaType>;
+
+#if RDG_ENABLE_DEBUG
+	{
+		checkf(ParameterStruct, TEXT("Pass '%s' created with null parameters."), Name.GetTCHAR());
+		UserValidation.ExecuteGuard(TEXT("AddPass"), Name.GetTCHAR());
+
+		checkf(EnumHasAnyFlags(Flags, ERDGPassFlags::CommandMask),
+			TEXT("Pass %s must specify at least one of the following flags: (Copy, Compute, AsyncCompute, Raster)"), Name.GetTCHAR());
+
+		checkf(!EnumHasAllFlags(Flags, ERDGPassFlags::Compute | ERDGPassFlags::AsyncCompute),
+			TEXT("Pass %s specified both Compute and AsyncCompute. They are mutually exclusive."), Name.GetTCHAR());
+
+		checkf(!EnumHasAllFlags(Flags, ERDGPassFlags::Raster | ERDGPassFlags::AsyncCompute),
+			TEXT("Pass %s specified both Raster and AsyncCompute. They are mutually exclusive."), Name.GetTCHAR());
+
+		checkf(!EnumHasAllFlags(Flags, ERDGPassFlags::SkipRenderPass) || EnumHasAllFlags(Flags, ERDGPassFlags::Raster),
+			TEXT("Pass %s specified SkipRenderPass without Raster. Only raster passes support this flag."));
+	}
+#endif
+
+	FRDGPass* Pass = Allocator.AllocObject<LambdaPassType>(
 		MoveTemp(Name),
-		FRDGPassParameterStruct(ParameterStruct),
-		Flags,
+		ParameterStruct,
+		OverridePassFlags(Name.GetTCHAR(), Flags, LambdaPassType::kSupportsAsyncCompute),
 		MoveTemp(ExecuteLambda));
 
-	AddPassInternal(NewPass);
+	IF_RDG_ENABLE_DEBUG(ClobberPassOutputs(Pass));
+	Passes.Insert(Pass);
+	SetupPass(Pass);
+	return Pass;
 }
 
 inline void FRDGBuilder::QueueTextureExtraction(
@@ -269,37 +286,103 @@ inline void FRDGBuilder::QueueTextureExtraction(
 	TRefCountPtr<IPooledRenderTarget>* OutTexturePtr,
 	bool bTransitionToRead)
 {
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateExtractResource(Texture));
-
-	check(OutTexturePtr);
-
-	FDeferredInternalTextureQuery Query;
-	Query.Texture = Texture;
-	Query.OutTexturePtr = OutTexturePtr;
-	Query.bTransitionToRead = bTransitionToRead;
-	DeferredInternalTextureQueries.Emplace(Query);
+	QueueTextureExtraction(Texture, OutTexturePtr, bTransitionToRead ? kDefaultAccessFinal : ERHIAccess::Unknown);
 }
 
-inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FPooledRDGBuffer>* OutBufferPtr, FRDGResourceState::EAccess DestinationAccess, FRDGResourceState::EPipeline DestinationPipeline)
+inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr, ERHIAccess AccessFinal)
 {
-	IF_RDG_ENABLE_DEBUG(Validation.ValidateExtractResource(Buffer));
+	QueueTextureExtraction(Texture, OutTexturePtr);
+	SetTextureAccessFinal(Texture, AccessFinal);
+}
 
+inline void FRDGBuilder::QueueTextureExtraction(FRDGTextureRef Texture, TRefCountPtr<IPooledRenderTarget>* OutTexturePtr)
+{
+#if RDG_ENABLE_DEBUG
+	check(OutTexturePtr);
+	UserValidation.ValidateExtractResource(Texture);
+#endif
+
+	Texture->bExtracted = true;
+	Texture->bCulled = false;
+	ExtractedTextures.Emplace(Texture, OutTexturePtr);
+
+	if (Texture->AccessFinal == ERHIAccess::Unknown)
+	{
+		Texture->AccessFinal = kDefaultAccessFinal;
+	}
+}
+
+inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr)
+{
+#if RDG_ENABLE_DEBUG
 	check(OutBufferPtr);
+	UserValidation.ValidateExtractResource(Buffer);
+#endif
 
-	FDeferredInternalBufferQuery Query;
-	Query.Buffer = Buffer;
-	Query.OutBufferPtr = OutBufferPtr;
-	Query.DestinationAccess = DestinationAccess;
-	Query.DestinationPipeline = DestinationPipeline;
-	DeferredInternalBufferQueries.Emplace(Query);
+	Buffer->bExtracted = true;
+	Buffer->bCulled = false;
+	ExtractedBuffers.Emplace(Buffer, OutBufferPtr);
+
+	if (Buffer->AccessFinal == ERHIAccess::Unknown)
+	{
+		Buffer->AccessFinal = kDefaultAccessFinal;
+	}
+}
+
+inline void FRDGBuilder::QueueBufferExtraction(FRDGBufferRef Buffer, TRefCountPtr<FRDGPooledBuffer>* OutBufferPtr, ERHIAccess AccessFinal)
+{
+	QueueBufferExtraction(Buffer, OutBufferPtr);
+	SetBufferAccessFinal(Buffer, AccessFinal);
+}
+
+inline const TRefCountPtr<IPooledRenderTarget>& FRDGBuilder::GetPooledTexture(FRDGTextureRef Texture) const
+{
+#if RDG_ENABLE_DEBUG
+	check(Texture);
+	checkf(Texture->bExternal, TEXT("GetPooledTexture called on texture %s, but it is not external. Call PreallocateTexture or register as an external texture instead."), Texture->Name);
+#endif
+
+	return Texture->Allocation;
+}
+
+inline const TRefCountPtr<FRDGPooledBuffer>& FRDGBuilder::GetPooledBuffer(FRDGBufferRef Buffer) const
+{
+#if RDG_ENABLE_DEBUG
+	check(Buffer);
+	checkf(Buffer->bExternal, TEXT("GetPooledBuffer called on buffer %s, but it is not external. Call PreallocateBuffer or register as an external buffer instead."), Buffer->Name);
+#endif
+
+	return Buffer->Allocation;
+}
+
+inline void FRDGBuilder::SetTextureAccessFinal(FRDGTextureRef Texture, ERHIAccess AccessFinal)
+{
+#if RDG_ENABLE_DEBUG
+	check(Texture);
+	check(AccessFinal != ERHIAccess::Unknown && IsValidAccess(AccessFinal));
+	checkf(Texture->bExternal || Texture->bExtracted, TEXT("Cannot set final access on nont-external texture '%s' unless it is first extracted."), Texture->Name);
+#endif
+
+	Texture->AccessFinal = AccessFinal;
+}
+
+inline void FRDGBuilder::SetBufferAccessFinal(FRDGBufferRef Buffer, ERHIAccess AccessFinal)
+{
+#if RDG_ENABLE_DEBUG
+	check(Buffer);
+	check(AccessFinal != ERHIAccess::Unknown && IsValidAccess(AccessFinal));
+	checkf(Buffer->bExternal || Buffer->bExtracted, TEXT("Cannot set final access on nont-external buffer '%s' unless it is first extracted."), Buffer->Name);
+#endif
+
+	Buffer->AccessFinal = AccessFinal;
 }
 
 inline void FRDGBuilder::RemoveUnusedTextureWarning(FRDGTextureRef Texture)
 {
 #if RDG_ENABLE_DEBUG
 	check(Texture);
-	Validation.ExecuteGuard(TEXT("RemoveUnusedTextureWarning"), Texture->Name);
-	Validation.RemoveUnusedWarning(Texture);
+	UserValidation.ExecuteGuard(TEXT("RemoveUnusedTextureWarning"), Texture->Name);
+	UserValidation.RemoveUnusedWarning(Texture);
 #endif
 }
 
@@ -307,24 +390,7 @@ inline void FRDGBuilder::RemoveUnusedBufferWarning(FRDGBufferRef Buffer)
 {
 #if RDG_ENABLE_DEBUG
 	check(Buffer);
-	Validation.ExecuteGuard(TEXT("RemoveUnusedBufferWarning"), Buffer->Name);
-	Validation.RemoveUnusedWarning(Buffer);
+	UserValidation.ExecuteGuard(TEXT("RemoveUnusedBufferWarning"), Buffer->Name);
+	UserValidation.RemoveUnusedWarning(Buffer);
 #endif
-}
-
-template<class Type, class ...ConstructorParameterTypes>
-Type* FRDGBuilder::AllocateForRHILifeTime(ConstructorParameterTypes&&... ConstructorParameters)
-{
-	check(IsInRenderingThread());
-	// When bypassing the RHI command queuing, can allocate directly on render thread memory stack allocator, otherwise allocate
-	// on the RHI's stack allocator so RHICreateUniformBuffer() can dereference render graph resources.
-	if (RHICmdList.Bypass() || 1) // TODO: UE-68018
-	{
-		return new (MemStack) Type(Forward<ConstructorParameterTypes>(ConstructorParameters)...);
-	}
-	else
-	{
-		void* UnitializedType = RHICmdList.Alloc<Type>();
-		return new (UnitializedType) Type(Forward<ConstructorParameterTypes>(ConstructorParameters)...);
-	}
 }

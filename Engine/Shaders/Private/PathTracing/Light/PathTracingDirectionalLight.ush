@@ -16,7 +16,7 @@ void DirectionalLight_GenerateLightRay(
 )
 {
 	OutLightRay.Origin = Ray.Origin;
-	OutLightRay.TMin = 0.1;
+	OutLightRay.TMin = 0.0;
 	OutLightRay.Direction = normalize(LightUV);
 	OutLightRay.TMax = 1.0e27;
 }
@@ -51,8 +51,12 @@ void DirectionalLight_EstimateLight(
 {
 	float3 LightDirection = GetNormal(LightId);
 	float3 SurfaceNormal = Payload.WorldNormal;
-	float NoL = dot(SurfaceNormal, LightDirection);
-	NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
+	float NoL = 1.0;
+	if (GetRadius(LightId) == 0.0)
+	{
+		NoL = dot(SurfaceNormal, LightDirection);
+		NoL = ENABLE_TRANSMISSION && HasTransmission(LightId) ? abs(NoL) : saturate(NoL);
+	}
 
 	float LightPower = Luminance(GetColor(LightId));
 	OutIrradiance = LightPower * NoL;
@@ -67,7 +71,32 @@ void DirectionalLight_SampleLight(
 	out float OutPdf
 )
 {
-	float3 Direction = GetNormal(LightId);
-	OutLightUV = Direction;
+	float3 N = normalize(GetNormal(LightId));
+	float3 dPdu = float3(1, 0, 0);
+	if (dot(N, dPdu) != 0)
+	{
+		dPdu = cross(N, dPdu);
+	}
+	else
+	{
+		dPdu = cross(N, float3(0, 1, 0));
+	}
+	float3 dPdv = cross(dPdu, N);
+
+	float Radius = GetRadius(LightId);
+	float2 DiskUV = UniformSampleDiskConcentric(RandSample.yz) * Radius;
+
+	float3 Direction = N;
+	OutLightUV = Direction + dPdu * DiskUV.x + dPdv * DiskUV.y;
 	OutPdf = 1.0;
+
+#if 0
+	// Pdf calculation for when directional light is visible to material rays
+	if (Radius > 0.0)
+	{
+		float Area = PI * Radius * Radius;
+		float SolidAngle = Area;
+		OutPdf /= SolidAngle;
+	}
+#endif
 }

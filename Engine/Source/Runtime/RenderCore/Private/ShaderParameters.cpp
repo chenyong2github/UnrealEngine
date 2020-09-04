@@ -242,7 +242,7 @@ static void CreateHLSLUniformBufferStructMembersDeclaration(
 		if (IsShaderParameterTypeForUniformBufferLayout(Member.GetBaseType()))
 		{
 			check(Member.GetBaseType() != UBMT_RDG_TEXTURE_SRV && Member.GetBaseType() != UBMT_RDG_TEXTURE_UAV);
-			checkf(Member.GetBaseType() != UBMT_RDG_TEXTURE_COPY_DEST && Member.GetBaseType() != UBMT_RDG_BUFFER_COPY_DEST, TEXT("Copy destination usage is not supported in uniform buffers."));
+			checkf(Member.GetBaseType() != UBMT_RDG_TEXTURE_ACCESS && Member.GetBaseType() != UBMT_RDG_BUFFER_ACCESS, TEXT("Copy destination usage is not supported in uniform buffers."));
 			if (Member.GetBaseType() == UBMT_SRV)
 			{
 				// TODO: handle arrays?

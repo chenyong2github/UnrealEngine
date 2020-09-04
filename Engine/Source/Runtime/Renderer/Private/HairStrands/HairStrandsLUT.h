@@ -9,6 +9,8 @@
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
 
+class FViewInfo;
+
 enum FHairLUTType
 {
 	HairLUTType_DualScattering,
@@ -24,3 +26,4 @@ struct FHairLUT
 
 /// Returns Hair LUTs. LUTs are generated on demand.
 FHairLUT GetHairLUT(FRHICommandListImmediate& RHICmdList, const FViewInfo& View);
+FHairLUT GetHairLUT(FRDGBuilder& GraphBuilder, const FViewInfo& View);

@@ -1,5 +1,7 @@
 /*
-** Copyright (c) 2017-2019 The Khronos Group Inc.
+** Copyright (c) 2017-2020 The Khronos Group Inc.
+**
+** SPDX-License-Identifier: Apache-2.0
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -36,11 +38,7 @@ extern "C" {
  * Function pointer type: typedef void (XRAPI_PTR *PFN_xrFunction)(void);
  */
 #if defined(_WIN32)
-#ifdef XRAPI_DLL_EXPORT
-#define XRAPI_ATTR __declspec(dllexport)
-#else
 #define XRAPI_ATTR
-#endif
 // On Windows, functions use the stdcall convention
 #define XRAPI_CALL __stdcall
 #define XRAPI_PTR XRAPI_CALL

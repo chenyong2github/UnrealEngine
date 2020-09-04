@@ -147,6 +147,12 @@ void FSystemSettings::RegisterShowFlagConsoleVariables()
 			return true;
 		}
 
+		bool OnCustomShowFlag(uint32 InIndex, const FString& InName)
+		{
+			// FEngineShowFlags registers its own integer console variables for custom show flags as they are registered by modules loading
+			return false;
+		}
+
 		FSystemSettings& This;
 	};
 		

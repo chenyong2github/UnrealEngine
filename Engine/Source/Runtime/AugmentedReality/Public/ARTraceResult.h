@@ -27,6 +27,8 @@ struct AUGMENTEDREALITY_API FARTraceResult
 	
 	FTransform GetLocalToWorldTransform() const;
 	
+	FTransform GetLocalTransform() const;
+	
 	UARTrackedGeometry* GetTrackedGeometry() const;
 	
 	EARLineTraceChannels GetTraceChannel() const;
@@ -51,10 +53,10 @@ private:
 	
 	/**
 	 * The transformation matrix that defines the intersection's rotation, translation and scale
-	 * relative to the world.
+	 * in AR system's local space.
 	 */
 	UPROPERTY()
-	FTransform LocalToTrackingTransform;
+	FTransform LocalTransform;
 	
 	/**
 	 * A pointer to the geometry data that was intersected by this trace, if any.

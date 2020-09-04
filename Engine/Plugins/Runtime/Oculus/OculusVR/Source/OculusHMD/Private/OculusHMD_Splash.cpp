@@ -105,20 +105,28 @@ void FSplash::LoadSettings()
 		AddSplash(SplashDesc);
 	}
 
-	UStereoLayerFunctionLibrary::EnableAutoLoadingSplashScreen(HMDSettings->bAutoEnabled);
 	if (HMDSettings->bAutoEnabled)
 	{
-		if (!LoadLevelDelegate.IsValid())
+		if (!PreLoadLevelDelegate.IsValid())
 		{
-			LoadLevelDelegate = FCoreUObjectDelegates::PreLoadMap.AddSP(this, &FSplash::OnPreLoadMap);
+			PreLoadLevelDelegate = FCoreUObjectDelegates::PreLoadMap.AddSP(this, &FSplash::OnPreLoadMap);
+		}
+		if (!PostLoadLevelDelegate.IsValid())
+		{
+			PostLoadLevelDelegate = FCoreUObjectDelegates::PostLoadMapWithWorld.AddSP(this, &FSplash::OnPostLoadMap);
 		}
 	}
 	else
 	{
-		if (LoadLevelDelegate.IsValid())
+		if (PreLoadLevelDelegate.IsValid())
 		{
-			FCoreUObjectDelegates::PreLoadMap.Remove(LoadLevelDelegate);
-			LoadLevelDelegate.Reset();
+			FCoreUObjectDelegates::PreLoadMap.Remove(PreLoadLevelDelegate);
+			PreLoadLevelDelegate.Reset();
+		}
+		if (PostLoadLevelDelegate.IsValid())
+		{
+			FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadLevelDelegate);
+			PostLoadLevelDelegate.Reset();
 		}
 	}
 }
@@ -127,6 +135,23 @@ void FSplash::OnPreLoadMap(const FString&)
 {
 	DoShow();
 }
+
+void FSplash::OnPostLoadMap(UWorld* LoadedWorld)
+{
+	// Don't auto-hide splash if show loading screen is called explicitly
+	if (!bShouldShowSplash)
+	{
+		UE_LOG(LogHMD, Log, TEXT("FSplash::OnPostLoadMap Hide Auto Splash"));
+		HideLoadingScreen();
+	}
+}
+
+#if WITH_EDITOR
+void FSplash::OnPieBegin(bool bIsSimulating)
+{
+	LoadSettings();
+}
+#endif
 
 void FSplash::Startup()
 {
@@ -147,7 +172,19 @@ void FSplash::Startup()
 
 		LoadSettings();
 
+		OculusHMD->InitDevice();
 
+#if WITH_EDITOR
+		PieBeginDelegateHandle = FEditorDelegates::BeginPIE.AddRaw(this, &FSplash::OnPieBegin);
+#else
+		UOculusHMDRuntimeSettings* HMDSettings = GetMutableDefault<UOculusHMDRuntimeSettings>();
+		check(HMDSettings);
+		if (HMDSettings->bAutoEnabled)
+		{
+			UE_LOG(LogHMD, Log, TEXT("FSplash::Startup Show Splash on Startup"));
+			DoShow();
+		}
+#endif
 
 		bInitialized = true;
 	}
@@ -207,7 +244,7 @@ void FSplash::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
 	}
 
 	ovrpResult Result;
-	if ( FOculusHMDModule::GetPluginWrapper().GetInitialized() && OculusHMD->WaitFrameNumber != Frame->FrameNumber)
+	if ( FOculusHMDModule::GetPluginWrapper().GetInitialized() && OculusHMD->WaitFrameNumber != XFrame->FrameNumber)
 	{ 
 		UE_LOG(LogHMD, Verbose, TEXT("Splash FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame %u"), XFrame->FrameNumber);
 		if (OVRP_FAILURE(Result = FOculusHMDModule::GetPluginWrapper().WaitToBeginFrame(XFrame->FrameNumber)))
@@ -270,6 +307,9 @@ void FSplash::RenderFrame_RenderThread(FRHICommandListImmediate& RHICmdList)
 	{
 		Layers_RenderThread[LayerIndex]->UpdateTexture_RenderThread(CustomPresent, RHICmdList);
 	}
+
+	// This submit is required since splash happens before the game is rendering, so layers won't be submitted with game render commands
+	CustomPresent->SubmitGPUCommands_RenderThread(RHICmdList);
 
 	// RHIFrame
 	for (int32 LayerIndex = 0; LayerIndex < XLayers.Num(); LayerIndex++)
@@ -348,6 +388,25 @@ void FSplash::PreShutdown()
 void FSplash::Shutdown()
 {
 	CheckInGameThread();
+
+#if WITH_EDITOR
+	if (PieBeginDelegateHandle.IsValid())
+	{
+		FEditorDelegates::BeginPIE.Remove(PieBeginDelegateHandle);
+		PieBeginDelegateHandle.Reset();
+	}
+#endif
+
+	if (PreLoadLevelDelegate.IsValid())
+	{
+		FCoreUObjectDelegates::PreLoadMap.Remove(PreLoadLevelDelegate);
+		PreLoadLevelDelegate.Reset();
+	}
+	if (PostLoadLevelDelegate.IsValid())
+	{
+		FCoreUObjectDelegates::PostLoadMapWithWorld.Remove(PostLoadLevelDelegate);
+		PostLoadLevelDelegate.Reset();
+	}
 
 	if (bInitialized)
 	{
@@ -442,8 +501,6 @@ void FSplash::DoShow()
 {
 	CheckInGameThread();
 
-	OculusHMD->InitDevice();
-
 	OculusHMD->SetSplashRotationToForward();
 
 	// Create new textures
@@ -532,7 +589,7 @@ void FSplash::DoShow()
 	StartTicker();
 	bIsShown = true;
 
-	UE_LOG(LogHMD, Log, TEXT("FSplash::OnShow"));
+	UE_LOG(LogHMD, Log, TEXT("FSplash::DoShow"));
 }
 
 
@@ -540,7 +597,7 @@ void FSplash::DoHide()
 {
 	CheckInGameThread();
 
-	UE_LOG(LogHMD, Log, TEXT("FSplash::OnHide"));
+	UE_LOG(LogHMD, Log, TEXT("FSplash::DoHide"));
 	bIsShown = false;
 
 	StopTicker();

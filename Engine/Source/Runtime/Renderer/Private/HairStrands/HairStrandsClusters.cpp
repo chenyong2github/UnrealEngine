@@ -489,9 +489,9 @@ static void AddClusterCullingPass(
 	}
 
 	{
-		GraphBuilder.QueueBufferExtraction(GlobalClusterIdBuffer,  &ClusterData.ClusterIdBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-		GraphBuilder.QueueBufferExtraction(GlobalIndexStartBuffer, &ClusterData.ClusterIndexOffsetBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-		GraphBuilder.QueueBufferExtraction(GlobalIndexCountBuffer, &ClusterData.ClusterIndexCountBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+		ConvertToExternalBuffer(GraphBuilder, GlobalClusterIdBuffer, ClusterData.ClusterIdBuffer);
+		ConvertToExternalBuffer(GraphBuilder, GlobalIndexStartBuffer, ClusterData.ClusterIndexOffsetBuffer);
+		ConvertToExternalBuffer(GraphBuilder, GlobalIndexCountBuffer, ClusterData.ClusterIndexCountBuffer);
 	}
 
 	/// Prepare some indirect dispatch for compute raster visibility buffers
@@ -516,11 +516,11 @@ static void AddClusterCullingPass(
 #if WITH_EDITOR
 	if (bClusterDebugAABBBuffer)
 	{
-		GraphBuilder.QueueBufferExtraction(ClusterDebugInfoBuffer, &ClusterData.ClusterDebugInfoBuffer,	FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
+		ConvertToExternalBuffer(GraphBuilder, ClusterDebugInfoBuffer, ClusterData.ClusterDebugInfoBuffer);
 	}
 	if (bClusterDebug)
 	{
-		GraphBuilder.QueueBufferExtraction(DispatchIndirectParametersClusterCount, &ClusterData.CulledDispatchIndirectParametersClusterCount, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Graphics);
+		ConvertToExternalBuffer(GraphBuilder, DispatchIndirectParametersClusterCount, ClusterData.CulledDispatchIndirectParametersClusterCount);
 	}
 #endif
 }
@@ -557,15 +557,15 @@ static void AddClusterResetLod0(
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 
 void ComputeHairStrandsClustersCulling(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	FGlobalShaderMap& ShaderMap,
 	const TArray<FViewInfo>& Views,
 	const FHairCullingParams& CullingParameters,
 	FHairStrandClusterData& ClusterDatas)
 {
 	DECLARE_GPU_STAT(HairStrandsClusterCulling);
-	SCOPED_DRAW_EVENT(RHICmdList, HairStrandsClusterCulling);
-	SCOPED_GPU_STAT(RHICmdList, HairStrandsClusterCulling);
+	RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsClusterCulling");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsClusterCulling);
 
 	uint32 ViewCount = Views.Num();
 	TArray<const FSceneView*> SceneViews;
@@ -603,7 +603,6 @@ void ComputeHairStrandsClustersCulling(
 	{
 		// TODO use compute overlap (will need to split AddClusterCullingPass)
 		FBufferTransitionQueue TransitionQueue;
-		FRDGBuilder GraphBuilder(RHICmdList);
 		for (FHairStrandClusterData::FHairGroup& ClusterData : ClusterDatas.HairGroups)
 		{
 			AddClusterResetLod0(GraphBuilder, &ShaderMap, ClusterData, TransitionQueue);
@@ -625,8 +624,7 @@ void ComputeHairStrandsClustersCulling(
 				ClusterData.SetCullingResultAvailable(true);
 			}
 		}
-		GraphBuilder.Execute();
-		TransitBufferToReadable(RHICmdList, TransitionQueue);
+		TransitBufferToReadable(GraphBuilder.RHICmdList, TransitionQueue);
 	}
 }
 

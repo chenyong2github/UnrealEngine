@@ -220,7 +220,7 @@ void FTextureRenderTargetCubeResource::InitDynamicRHI()
 		}
 
 		// Create the RHI texture. Only one mip is used and the texture is targetable for resolve.
-		uint32 TexCreateFlags = bIsSRGB ? TexCreate_SRGB : 0;
+		ETextureCreateFlags TexCreateFlags = bIsSRGB ? TexCreate_SRGB : TexCreate_None;
 		{
 			FRHIResourceCreateInfo CreateInfo = { FClearValueBinding(Owner->ClearColor) };
 			RHICreateTargetableShaderResourceCube(
@@ -313,6 +313,12 @@ void FTextureRenderTargetCubeResource::UpdateDeferredResource(FRHICommandListImm
 		// copy surface to the texture for use
 		FResolveParams ResolveParams;
 		ResolveParams.CubeFace = (ECubeFace)FaceIdx;
+
+		FRHITransitionInfo TransitionsBefore[] = {
+			FRHITransitionInfo(RenderTargetTextureRHI, ERHIAccess::RTV, ERHIAccess::ResolveSrc),
+			FRHITransitionInfo(TextureCubeRHI, ERHIAccess::Unknown, ERHIAccess::ResolveDst)
+		};
+		RHICmdList.Transition(MakeArrayView(TransitionsBefore, UE_ARRAY_COUNT(TransitionsBefore)));
 		RHICmdList.CopyToResolveTarget(RenderTargetTextureRHI, TextureCubeRHI, ResolveParams);
 	}
 }

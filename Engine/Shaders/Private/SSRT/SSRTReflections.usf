@@ -118,9 +118,7 @@ void ScreenSpaceReflections(
 	const float3 PositionTranslatedWorld = mul( float4( ScreenPos * SceneDepth, SceneDepth, 1 ), View.ScreenToTranslatedWorld ).xyz;
 	const float3 V = normalize(View.TranslatedWorldCameraOrigin - PositionTranslatedWorld);
 
-#if GBUFFER_HAS_TANGENT
 	ModifyGGXAnisotropicNormalRoughness(GBuffer.WorldTangent, GBuffer.Anisotropy, GBuffer.Roughness, N, V);
-#endif
 	
 	float Roughness = GetRoughness(GBuffer);
 	float RoughnessFade = GetRoughnessFade(Roughness);
@@ -257,7 +255,7 @@ void ScreenSpaceReflections(
 
 				float2 SampleUV;
 				float Vignette;
-				ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
+				ReprojectHit(PrevScreenPositionScaleBias, GBufferVelocityTexture, GBufferVelocityTextureSampler, HitUVz, SampleUV, Vignette);
 
 				float4 SampleColor = SampleScreenColor( SceneColor, SceneColorSampler, SampleUV ) * Vignette;
 
@@ -336,7 +334,7 @@ void ScreenSpaceReflections(
 
 			float2 SampleUV;
 			float Vignette;
-			ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
+			ReprojectHit(PrevScreenPositionScaleBias, GBufferVelocityTexture, GBufferVelocityTextureSampler, HitUVz, SampleUV, Vignette);
 
 			OutColor = SampleScreenColor(SceneColor, SceneColorSampler, SampleUV) * Vignette;
 		}

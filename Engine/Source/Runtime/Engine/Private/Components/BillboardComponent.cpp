@@ -295,6 +295,7 @@ UBillboardComponent::UBillboardComponent(const FObjectInitializer& ObjectInitial
 	bHiddenInGame = true;
 	SetGenerateOverlapEvents(false);
 	bUseEditorCompositing = true;
+	bExcludeFromLightAttachmentGroup = true;
 
 #if WITH_EDITORONLY_DATA
 	SpriteInfo.Category = ConstructorStatics.ID_Misc;

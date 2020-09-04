@@ -83,7 +83,7 @@ RAY_TRACING_ENTRY_RAYGEN(GlobalIlluminationRGS)
 	{
 		GBufferData.DiffuseColor = GBufferData.StoredBaseColor;
 	}
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	float3 WorldPosition;
 	float3 CameraDirection;
 	ReconstructWorldPositionAndCameraDirectionFromDeviceZ(PixelCoord, DeviceZ, WorldPosition, CameraDirection);

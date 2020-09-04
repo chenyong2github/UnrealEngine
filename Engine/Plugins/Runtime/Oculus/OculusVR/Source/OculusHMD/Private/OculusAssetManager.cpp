@@ -2,6 +2,7 @@
 
 #include "OculusAssetManager.h"
 #include "OculusHMDPrivate.h"
+#include "OculusHMDModule.h"
 #include "Engine/StaticMesh.h"
 #include "Components/StaticMeshComponent.h"
 #include "UObject/SoftObjectPath.h"
@@ -16,11 +17,10 @@
 FSoftObjectPath FOculusAssetDirectory::AssetListing[] =
 {
 	FString(TEXT("/OculusVR/Meshes/RiftHMD.RiftHMD")),
-	FString(TEXT("/OculusVR/Meshes/GearVRController.GearVRController")),
 	FString(TEXT("/OculusVR/Meshes/LeftTouchController.LeftTouchController")),
 	FString(TEXT("/OculusVR/Meshes/RightTouchController.RightTouchController")),
-
-	FString(TEXT("/OculusVR/Materials/PokeAHoleMaterial.PokeAHoleMaterial"))
+	FString(TEXT("/OculusVR/Meshes/LeftTouchForQuestRiftSController.LeftTouchForQuestRiftSController")),
+	FString(TEXT("/OculusVR/Meshes/RightTouchForQuestRiftSController.RightTouchForQuestRiftSController"))
 };
 
 #if WITH_EDITORONLY_DATA
@@ -77,18 +77,22 @@ namespace OculusAssetManager_Impl
 	struct FRenderableDevice
 	{
 		ovrpNode OVRNode;
+		ovrpSystemHeadset MinDeviceRange;
+		ovrpSystemHeadset MaxDeviceRange;
 		FSoftObjectPath MeshAssetRef;
 	};
 
 	static FRenderableDevice RenderableDevices[] =
 	{
-		{ ovrpNode_Head,      FOculusAssetDirectory::AssetListing[0] },
+		{ ovrpNode_Head,      ovrpSystemHeadset_Rift_DK1, ovrpSystemHeadset_Rift_S, FOculusAssetDirectory::AssetListing[0] },
 #if PLATFORM_ANDROID
-		{ ovrpNode_HandLeft,  FOculusAssetDirectory::AssetListing[1] },
-		{ ovrpNode_HandRight, FOculusAssetDirectory::AssetListing[1] },
+		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Oculus_Quest, ovrpSystemHeadset_Oculus_Quest, FOculusAssetDirectory::AssetListing[3] },
+		{ ovrpNode_HandRight, ovrpSystemHeadset_Oculus_Quest, ovrpSystemHeadset_Oculus_Quest, FOculusAssetDirectory::AssetListing[4] },
 #else 
-		{ ovrpNode_HandLeft,  FOculusAssetDirectory::AssetListing[2] },
-		{ ovrpNode_HandRight, FOculusAssetDirectory::AssetListing[3] },
+		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Rift_S, ovrpSystemHeadset_Oculus_Link_Quest, FOculusAssetDirectory::AssetListing[3] },
+		{ ovrpNode_HandRight, ovrpSystemHeadset_Rift_S, ovrpSystemHeadset_Oculus_Link_Quest, FOculusAssetDirectory::AssetListing[4] },
+		{ ovrpNode_HandLeft,  ovrpSystemHeadset_Rift_DK1, ovrpSystemHeadset_Rift_CB, FOculusAssetDirectory::AssetListing[1] },
+		{ ovrpNode_HandRight, ovrpSystemHeadset_Rift_DK1, ovrpSystemHeadset_Rift_CB, FOculusAssetDirectory::AssetListing[2] },
 #endif
 	};
 
@@ -105,6 +109,13 @@ static UObject* OculusAssetManager_Impl::FindDeviceMesh(const int32 DeviceID)
 #if OCULUS_HMD_SUPPORTED_PLATFORMS
 	const ovrpNode DeviceOVRNode = OculusHMD::ToOvrpNode(DeviceID);
 
+	bool bUseSystemHeadsetType = false;
+	ovrpSystemHeadset HeadsetType;
+	if (OVRP_SUCCESS(FOculusHMDModule::GetPluginWrapper().GetSystemHeadsetType2(&HeadsetType)))
+	{
+		bUseSystemHeadsetType = true;
+	}
+
 	if (DeviceOVRNode != ovrpNode_None)
 	{
 		for (uint32 DeviceIndex = 0; DeviceIndex < RenderableDeviceCount; ++DeviceIndex)
@@ -112,8 +123,20 @@ static UObject* OculusAssetManager_Impl::FindDeviceMesh(const int32 DeviceID)
 			const FRenderableDevice& RenderableDevice = RenderableDevices[DeviceIndex];
 			if (RenderableDevice.OVRNode == DeviceOVRNode)
 			{
-				DeviceMesh = RenderableDevice.MeshAssetRef.TryLoad();
-				break;
+				// If we have information about the current headset, load the model based of the headset information, otherwise load defaults.
+				if (bUseSystemHeadsetType)
+				{
+					if (HeadsetType >= RenderableDevice.MinDeviceRange && HeadsetType <= RenderableDevice.MaxDeviceRange)
+					{
+						DeviceMesh = RenderableDevice.MeshAssetRef.TryLoad();
+						break;
+					}
+				}
+				else
+				{
+					DeviceMesh = RenderableDevice.MeshAssetRef.TryLoad();
+					break;
+				}
 			}
 		}
 	}
@@ -127,10 +150,19 @@ static UObject* OculusAssetManager_Impl::FindDeviceMesh(const int32 DeviceID)
 FOculusAssetManager::FOculusAssetManager()
 {
 	IModularFeatures::Get().RegisterModularFeature(IXRSystemAssets::GetModularFeatureName(), this);
+
+	ResourceHolder = NewObject<UOculusResourceHolder>();
+	ResourceHolder->AddToRoot();
 }
 
 FOculusAssetManager::~FOculusAssetManager()
 {
+	if (ResourceHolder)
+	{
+		ResourceHolder->ConditionalBeginDestroy();
+		ResourceHolder = NULL;
+	}
+
 	IModularFeatures::Get().UnregisterModularFeature(IXRSystemAssets::GetModularFeatureName(), this);
 }
 

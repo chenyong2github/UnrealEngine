@@ -4,6 +4,8 @@
 	DiaphragmDOF/DOFReduce.usf: Diaphragm DOF's reduce pass. 
 =============================================================================*/
 
+#define EYE_ADAPTATION_LOOSE_PARAMETERS 1
+
 #include "DOFDownsample.ush"
 #include "DOFHybridScatterCompilation.ush"
 #include "../ReductionCommon.ush"

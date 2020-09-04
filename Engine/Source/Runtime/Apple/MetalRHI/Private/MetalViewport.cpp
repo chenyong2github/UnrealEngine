@@ -243,17 +243,17 @@ void FMetalViewport::Resize(uint32 InSizeX, uint32 InSizeY, bool bInIsFullscreen
         FTexture2DRHIRef DoubleBuffer;
         if (GMetalSupportsIntermediateBackBuffer)
         {
-            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, CreateInfo);
+            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Unknown, CreateInfo);
             
             if (GMetalSeparatePresentThread)
             {
-                DoubleBuffer = GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, CreateInfo);
+                DoubleBuffer = GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable, ERHIAccess::Unknown, CreateInfo);
                 ((FMetalTexture2D*)DoubleBuffer.GetReference())->Surface.Viewport = this;
             }
         }
         else
         {
-            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable | TexCreate_Presentable, CreateInfo);
+            NewBackBuffer = (FMetalTexture2D*)(FRHITexture2D*)GDynamicRHI->RHICreateTexture2D(InSizeX, InSizeY, Format, 1, 1, TexCreate_RenderTargetable | TexCreate_Presentable, ERHIAccess::Unknown, CreateInfo);
         }
         ((FMetalTexture2D*)NewBackBuffer.GetReference())->Surface.Viewport = this;
         
@@ -489,20 +489,18 @@ void FMetalViewport::Present(FMetalCommandQueue& CommandQueue, bool bLockToVsync
 								Debugging = FMetalBlitCommandEncoderDebugging(Encoder, CmdDebug);
 							}
 #endif
-							
-							METAL_STATISTIC(Profiler->BeginEncoder(Stats, Encoder));
 							METAL_GPUPROFILE(Profiler->EncodeBlit(Stats, __FUNCTION__));
 
 							Encoder.Copy(Src, 0, 0, mtlpp::Origin(0, 0, 0), mtlpp::Size(Width, Height, 1), Dst, 0, 0, mtlpp::Origin(0, 0, 0));
 							METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, Debugging.Copy(Src, 0, 0, mtlpp::Origin(0, 0, 0), mtlpp::Size(Width, Height, 1), Dst, 0, 0, mtlpp::Origin(0, 0, 0)));
-							
-							METAL_STATISTIC(Profiler->EndEncoder(Stats, Encoder));
+
 							Encoder.EndEncoding();
 							METAL_DEBUG_LAYER(EMetalDebugLevelFastValidation, Debugging.EndEncoder());
-							
+
 							mtlpp::CommandBufferHandler H = [Src, Dst](const mtlpp::CommandBuffer &) {
+								// void
 							};
-							
+
 							CurrentCommandBuffer.AddCompletedHandler(H);
 
 							[Drawable release];

@@ -102,7 +102,7 @@ void FSkyTextureCubeResource::InitRHI()
 		CreateInfo.DebugName = TEXT("SkyTextureCube");
 		
 		checkf(FMath::IsPowerOfTwo(Size), TEXT("Size of SkyTextureCube must be a power of two; size is %d"), Size);
-		TextureCubeRHI = RHICreateTextureCube(Size, Format, NumMips, 0, CreateInfo);
+		TextureCubeRHI = RHICreateTextureCube(Size, Format, NumMips, TexCreate_None, CreateInfo);
 		TextureRHI = TextureCubeRHI;
 
 		// Create the sampler state RHI resource.

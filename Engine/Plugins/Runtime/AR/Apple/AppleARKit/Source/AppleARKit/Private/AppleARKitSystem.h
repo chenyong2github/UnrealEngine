@@ -3,17 +3,18 @@
 #pragma once
 
 #include "XRTrackingSystemBase.h"
-#include "ARSystem.h"
-#include "AppleARKitHitTestResult.h"
+#include "ARSystemSupportBase.h"
 #include "AppleARKitTextures.h"
 #include "Kismet/BlueprintPlatformLibrary.h"
 #include "AppleARKitFaceSupport.h"
 #include "AppleARKitPoseTrackingLiveLink.h"
+#include "ARActor.h"
 
 // ARKit
 #if SUPPORTS_ARKIT_1_0
 	#import <ARKit/ARKit.h>
 	#include "AppleARKitSessionDelegate.h"
+	#include "ARKitCoachingOverlay.h"
 #endif
 
 
@@ -26,7 +27,7 @@ DECLARE_STATS_GROUP(TEXT("ARKit"), STATGROUP_ARKIT, STATCAT_Advanced);
 struct FAppleARKitFrame;
 struct FAppleARKitAnchorData;
 
-class FAppleARKitSystem : public IARSystemSupport, public FXRTrackingSystemBase, public FGCObject, public TSharedFromThis<FAppleARKitSystem, ESPMode::ThreadSafe>
+class FAppleARKitSystem : public FARSystemSupportBase, public FXRTrackingSystemBase, public FGCObject, public TSharedFromThis<FAppleARKitSystem, ESPMode::ThreadSafe>
 {
 	friend class FAppleARKitXRCamera;
 	
@@ -37,6 +38,7 @@ public:
 	
 	//~ IXRTrackingSystem
 	FName GetSystemName() const override;
+	int32 GetXRSystemFlags() const override;
 	bool GetCurrentPose(int32 DeviceId, FQuat& OutOrientation, FVector& OutPosition) override;
 	FString GetVersionString() const override;
 	bool EnumerateTrackedDevices(TArray<int32>& OutDevices, EXRTrackedDeviceType Type) override;
@@ -51,11 +53,10 @@ public:
 	void* GetARSessionRawPointer() override;
 	void* GetGameThreadARFrameRawPointer() override;
 	
-	// @todo arkit : this is for the blueprint library only; try to get rid of this method
-	bool GetCurrentFrame(FAppleARKitFrame& OutCurrentFrame) const;
-
 	/** So the module can shut down the ar services cleanly */
 	void Shutdown();
+	
+	bool GetGuidForGeometry(UARTrackedGeometry* InGeometry, FGuid& OutGuid) const;
 
 private:
 	//~ FGCObject
@@ -79,10 +80,11 @@ protected:
 	virtual TArray<UARPin*> OnGetAllPins() const override;
 	virtual bool OnIsTrackingTypeSupported(EARSessionType SessionType) const override;
 	virtual UARLightEstimate* OnGetCurrentLightEstimate() const override;
+	virtual UARPin* FindARPinByComponent(const USceneComponent* Component) const override;
 	virtual UARPin* OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry = nullptr, const FName DebugName = NAME_None) override;
 	virtual void OnRemovePin(UARPin* PinToRemove) override;
-	virtual UARTextureCameraImage* OnGetCameraImage() override;
-	virtual UARTextureCameraDepth* OnGetCameraDepth() override;
+    virtual bool OnTryGetOrCreatePinForNativeResource(void* InNativeResource, const FString& InAnchorName, UARPin*& OutAnchor) override;
+	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const override;
 	virtual bool OnAddManualEnvironmentCaptureProbe(FVector Location, FVector Extent) override;
 	virtual TSharedPtr<FARGetCandidateObjectAsyncTask, ESPMode::ThreadSafe> OnGetCandidateObject(FVector Location, FVector Extent) const override;
 	virtual TSharedPtr<FARSaveWorldAsyncTask, ESPMode::ThreadSafe> OnSaveWorld() const override;
@@ -93,8 +95,10 @@ protected:
 	
 	virtual bool OnIsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) const override;
 	virtual TArray<FARPose2D> OnGetTracked2DPose() const override;
-	virtual UARTextureCameraImage* OnGetPersonSegmentationImage() const override;
-	virtual UARTextureCameraImage* OnGetPersonSegmentationDepthImage() const override;
+	virtual bool OnIsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod) const override;
+	virtual bool OnAddTrackedPointWithName(const FTransform& WorldTransform, const FString& PointName, bool bDeletePointsWithSameName) override;
+	virtual int32 OnGetNumberOfTrackedFacesSupported() const override;
+	bool OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const override;
 	//~IARSystemSupport
 
 private:
@@ -102,7 +106,6 @@ private:
 	bool IsRunning() const;
 	bool Pause();
 	void OrientationChanged(const int32 NewOrientation);
-	void UpdatePoses();
 	void UpdateFrame();
 	void CalcTrackingToWorldRotation();
 #if SUPPORTS_ARKIT_1_0
@@ -129,20 +132,6 @@ private:
 	void ClearTrackedGeometries();
 	
 public:
-	/**
-	 * Searches the last processed frame for anchors corresponding to a point in the captured image.
-	 *
-	 * A 2D point in the captured image's coordinate space can refer to any point along a line segment
-	 * in the 3D coordinate space. Hit-testing is the process of finding anchors of a frame located along this line segment.
-	 *
-	 * NOTE: The hit test locations are reported in ARKit space. For hit test results
-	 * in game world coordinates, you're after UAppleARKitCameraComponent::HitTestAtScreenPosition
-	 *
-	 * @param ScreenPosition The viewport pixel coordinate of the trace origin.
-	 */
-	UFUNCTION( BlueprintCallable, Category="AppleARKit|Session" )
-	bool HitTestAtScreenPosition( const FVector2D ScreenPosition, EAppleARKitHitTestResultType Types, TArray< FAppleARKitHitTestResult >& OutResults );
-	
 	
 private:
 	
@@ -162,6 +151,13 @@ private:
 	/** Inits the textures and sets the texture on the overlay */
 	void SetupCameraTextures();
 
+    UARTrackedGeometry* TryCreateTrackedGeometry(TSharedRef<FAppleARKitAnchorData> AnchorData);
+    
+	void OnSpawnARActor(AARActor* NewARActor, UARComponent* NewARComponent, FGuid NativeID);
+	
+	FGuid GetSessionGuid() const;
+
+
 	/** The orientation of the device; see EDeviceScreenOrientation */
 	EDeviceScreenOrientation DeviceOrientation;
 	
@@ -176,23 +172,34 @@ private:
 	// ARKit Session Delegate
 	FAppleARKitSessionDelegate* Delegate = nullptr;
 
+	/** The Metal texture cache for unbuffered texture uploads. */
+	CVMetalTextureCacheRef MetalTextureCache = nullptr;
+	
 	/** Cache of images that we've converted previously to prevent repeated conversion */
 	TMap< FString, CGImage* > ConvertedCandidateImages;
-
+	
+	// All the anchors added from the current session
+	TMap<FGuid, ARAnchor*> AllAnchors;
+	
+	FCriticalSection AnchorsLock;
 #endif
-
+	
+#if SUPPORTS_ARKIT_3_0
+	FARKitCoachingOverlay* CoachingOverlay = nullptr;
+#endif
+	
 	//
 	// PROPERTIES REPORTED TO FGCObject
 	// ...
-	TMap< FGuid, UARTrackedGeometry* > TrackedGeometries;
+	TMap< FGuid, FTrackedGeometryGroup > TrackedGeometryGroups;
 	TArray<UARPin*> Pins;
-	UARLightEstimate* LightEstimate;
-	UAppleARKitTextureCameraImage* CameraImage;
-	UAppleARKitTextureCameraDepth* CameraDepth;
+	UARLightEstimate* LightEstimate = nullptr;
+	UAppleARKitCameraVideoTexture* CameraImage = nullptr;
+	UAppleARKitTextureCameraDepth* CameraDepth = nullptr;
 	TMap< FString, UARCandidateImage* > CandidateImages;
 	TMap< FString, UARCandidateObject* > CandidateObjects;
-	UAppleARKitTextureCameraImage* PersonSegmentationImage = nullptr;
-	UAppleARKitTextureCameraImage* PersonSegmentationDepthImage = nullptr;
+	UAppleARKitTextureCameraImage* SceneDepthMap = nullptr;
+	UAppleARKitTextureCameraImage* SceneDepthConfidenceMap = nullptr;
 	// ...
 	// PROPERTIES REPORTED TO FGCObject
 	//
@@ -210,13 +217,16 @@ private:
 	TSharedPtr< FAppleARKitFrame, ESPMode::ThreadSafe > LastReceivedFrame;
 
 	// The object that is handling face support if present
-	IAppleARKitFaceSupport* FaceARSupport;
+	IAppleARKitFaceSupport* FaceARSupport = nullptr;
 
 	// The object that is handling pose tracking livelink if present
 	IAppleARKitPoseTrackingLiveLink* PoseTrackingARLiveLink;
 
 	/** The time code provider to use when tagging time stamps */
 	UTimecodeProvider* TimecodeProvider = nullptr;
+
+	//for networked callbacks
+	FDelegateHandle SpawnARActorDelegateHandle;
 };
 
 

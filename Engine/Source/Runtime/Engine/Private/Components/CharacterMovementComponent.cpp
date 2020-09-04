@@ -107,6 +107,13 @@ namespace CharacterMovementCVars
 		TEXT("0: Disable, 1: Enable"),
 		ECVF_Default);
 
+	static int32 NetPackedMovementMaxBits = 2048;
+	FAutoConsoleVariableRef CVarNetPackedMovementMaxBits(
+		TEXT("p.NetPackedMovementMaxBits"),
+		NetPackedMovementMaxBits,
+		TEXT("Max number of bits allowed in each packed movement RPC. Used to protect against bad data causing the server to allocate too much memory.\n"),
+		ECVF_Default);
+
 	// Listen server smoothing
 	static int32 NetEnableListenServerSmoothing = 1;
 	FAutoConsoleVariableRef CVarNetEnableListenServerSmoothing(
@@ -8794,11 +8801,10 @@ bool FCharacterNetworkSerializationPackedBits::NetSerialize(FArchive& Ar, class 
 	uint32 NumBits = DataBits.Num();
 	Ar.SerializeIntPacked(NumBits);
 
-	// TODO: make the bit limit configurable
-	if (NumBits > 2048)
+	if (!ensure(NumBits <= (uint32)CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause server to allocate way too much memory.
-		UE_LOG(LogNetPlayerMovement, Error, TEXT("FCharacterNetworkSerializationPackedBits::NetSerialize: NumBits (%d) exceeds allowable limit!"), NumBits);
+		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("FCharacterNetworkSerializationPackedBits::NetSerialize: NumBits (%d) exceeds allowable limit!"), NumBits));
 		return false;
 	}
 
@@ -8958,10 +8964,10 @@ void UCharacterMovementComponent::ServerMovePacked_ServerReceive(const FCharacte
 	}
 
 	const int32 NumBits = PackedBits.DataBits.Num();
-	if (NumBits > 2048) // TODO: make this configurable
+	if (!ensure(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
 		// Protect against bad data that could cause server to allocate way too much memory.
-		UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerMovePacked_ServerReceive: NumBits (%d) exceeds allowable limit!"), NumBits);
+		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerMovePacked_ServerReceive: NumBits (%d) exceeds allowable limit!"), NumBits));
 		return;
 	}
 
@@ -8974,7 +8980,7 @@ void UCharacterMovementComponent::ServerMovePacked_ServerReceive(const FCharacte
 	FCharacterNetworkMoveDataContainer& MoveDataContainer = GetNetworkMoveDataContainer();
 	if (!MoveDataContainer.Serialize(*this, ServerMoveBitReader, ServerMoveBitReader.PackageMap) || ServerMoveBitReader.IsError())
 	{
-		UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerMovePacked_ServerReceive: Failed to serialize movement data!"));
+		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("ServerMovePacked_ServerReceive: Failed to serialize movement data!")));
 		return;
 	}
 
@@ -9566,10 +9572,10 @@ void UCharacterMovementComponent::MoveResponsePacked_ClientReceive(const FCharac
 	}
 
 	const int32 NumBits = PackedBits.DataBits.Num();
-	if (NumBits > 2048) // TODO: make this configurable
+	if (!ensure(NumBits <= CharacterMovementCVars::NetPackedMovementMaxBits))
 	{
-		// Protect against bad data that could cause server to allocate way too much memory.
-		UE_LOG(LogNetPlayerMovement, Error, TEXT("MoveResponsePacked_ClientReceive: NumBits (%d) exceeds allowable limit!"), NumBits);
+		// Protect against bad data that could cause client to allocate way too much memory.
+		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("MoveResponsePacked_ClientReceive: NumBits (%d) exceeds allowable limit!"), NumBits));
 		return;
 	}
 
@@ -9582,7 +9588,7 @@ void UCharacterMovementComponent::MoveResponsePacked_ClientReceive(const FCharac
 	FCharacterMoveResponseDataContainer& ResponseDataContainer = GetMoveResponseDataContainer();
 	if (!ResponseDataContainer.Serialize(*this, MoveResponseBitReader, MoveResponseBitReader.PackageMap) || MoveResponseBitReader.IsError())
 	{
-		UE_LOG(LogNetPlayerMovement, Error, TEXT("MoveResponsePacked_ClientReceive: Failed to serialize response data!"));
+		devCode(UE_LOG(LogNetPlayerMovement, Error, TEXT("MoveResponsePacked_ClientReceive: Failed to serialize response data!")));
 		return;
 	}
 

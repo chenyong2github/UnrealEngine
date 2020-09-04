@@ -188,6 +188,8 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(GetTiledMultiResSupported),
 		OCULUS_BIND_ENTRY_POINT(GetTiledMultiResLevel),
 		OCULUS_BIND_ENTRY_POINT(SetTiledMultiResLevel),
+		OCULUS_BIND_ENTRY_POINT(GetTiledMultiResDynamic),
+		OCULUS_BIND_ENTRY_POINT(SetTiledMultiResDynamic),
 		OCULUS_BIND_ENTRY_POINT(GetGPUUtilSupported),
 		OCULUS_BIND_ENTRY_POINT(GetGPUUtilLevel),
 		OCULUS_BIND_ENTRY_POINT(SetThreadPerformance),
@@ -205,7 +207,7 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(GetTrackingTransformRawPose),
 		OCULUS_BIND_ENTRY_POINT(GetTrackingTransformRelativePose),
 		OCULUS_BIND_ENTRY_POINT(GetTimeInSeconds),
-		OCULUS_BIND_ENTRY_POINT(GetPTWNear),
+		//OCULUS_BIND_ENTRY_POINT(GetPTWNear),
 		OCULUS_BIND_ENTRY_POINT(GetASWVelocityScale),
 		OCULUS_BIND_ENTRY_POINT(GetASWDepthScale),
 		OCULUS_BIND_ENTRY_POINT(GetASWAdaptiveMode),
@@ -214,9 +216,17 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(GetPredictedDisplayTime),
 		OCULUS_BIND_ENTRY_POINT(GetHandTrackingEnabled),
 		OCULUS_BIND_ENTRY_POINT(GetHandState),
+		OCULUS_BIND_ENTRY_POINT(GetHandState2),
 		OCULUS_BIND_ENTRY_POINT(GetSkeleton),
 		OCULUS_BIND_ENTRY_POINT(GetMesh),
 		OCULUS_BIND_ENTRY_POINT(GetLocalTrackingSpaceRecenterCount),
+		OCULUS_BIND_ENTRY_POINT(GetSystemHmd3DofModeEnabled),
+		OCULUS_BIND_ENTRY_POINT(SetClientColorDesc),
+		OCULUS_BIND_ENTRY_POINT(GetHmdColorDesc),
+#ifndef OVRPLUGIN_JNI_LIB_EXCLUDED
+		OCULUS_BIND_ENTRY_POINT(GetSystemVolume2),
+		OCULUS_BIND_ENTRY_POINT(GetSystemHeadphonesPresent2),
+#endif
 
 		// OVR_Plugin_MixedReality.h
 
@@ -284,6 +294,20 @@ bool InitializeOculusPluginWrapper(OculusPluginWrapper* wrapper)
 		OCULUS_BIND_ENTRY_POINT(Media_EncodeMrcFrame),
 		OCULUS_BIND_ENTRY_POINT(Media_EncodeMrcFrameWithDualTextures),
 		OCULUS_BIND_ENTRY_POINT(Media_SyncMrcFrame),
+		OCULUS_BIND_ENTRY_POINT(Media_EncodeMrcFrameWithPoseTime),
+		OCULUS_BIND_ENTRY_POINT(Media_EncodeMrcFrameDualTexturesWithPoseTime),
+		OCULUS_BIND_ENTRY_POINT(Media_SetHeadsetControllerPose),
+		OCULUS_BIND_ENTRY_POINT(Media_EnumerateCameraAnchorHandles),
+		OCULUS_BIND_ENTRY_POINT(Media_GetCurrentCameraAnchorHandle),
+		OCULUS_BIND_ENTRY_POINT(Media_GetCameraAnchorName),
+		OCULUS_BIND_ENTRY_POINT(Media_GetCameraAnchorHandle),
+		OCULUS_BIND_ENTRY_POINT(Media_GetCameraAnchorType),
+		OCULUS_BIND_ENTRY_POINT(Media_CreateCustomCameraAnchor),
+		OCULUS_BIND_ENTRY_POINT(Media_DestroyCustomCameraAnchor),
+		OCULUS_BIND_ENTRY_POINT(Media_GetCustomCameraAnchorPose),
+		OCULUS_BIND_ENTRY_POINT(Media_SetCustomCameraAnchorPose),
+		OCULUS_BIND_ENTRY_POINT(Media_GetCameraMinMaxDistance),
+		OCULUS_BIND_ENTRY_POINT(Media_SetCameraMinMaxDistance),
 	};
 
 #undef OCULUS_BIND_ENTRY_POINT

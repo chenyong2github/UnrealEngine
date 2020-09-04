@@ -1,31 +1,17 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-	DistortionRendering.cpp: Distortion rendering implementation.
-=============================================================================*/
-
 #include "DistortionRendering.h"
-#include "HitProxies.h"
-#include "ShaderParameters.h"
 #include "RHIStaticStates.h"
-#include "Shader.h"
 #include "StaticBoundShaderState.h"
 #include "SceneUtils.h"
 #include "PostProcess/SceneRenderTargets.h"
-#include "GlobalShader.h"
-#include "MaterialShaderType.h"
 #include "MeshMaterialShader.h"
-#include "ShaderBaseClasses.h"
-#include "SceneRendering.h"
-#include "DynamicPrimitiveDrawing.h"
-#include "PostProcess/RenderingCompositionGraph.h"
-#include "PostProcess/PostProcessing.h"
-#include "PostProcess/SceneFilterRendering.h"
+#include "DeferredShadingRenderer.h"
+#include "TranslucentRendering.h"
 #include "Materials/Material.h"
-#include "UnrealEngine.h"
 #include "PipelineStateCache.h"
 #include "ScenePrivate.h"
-#include "VisualizeTexture.h"
+#include "ScreenPass.h"
 #include "MeshPassProcessor.inl"
 
 DECLARE_GPU_STAT(Distortion);
@@ -33,13 +19,26 @@ DECLARE_GPU_STAT(Distortion);
 const uint8 kStencilMaskBit = STENCIL_SANDBOX_MASK;
 
 static TAutoConsoleVariable<int32> CVarDisableDistortion(
-														 TEXT("r.DisableDistortion"),
-														 0,
-														 TEXT("Prevents distortion effects from rendering.  Saves a full-screen framebuffer's worth of memory."),
-														 ECVF_Default);
+	TEXT("r.DisableDistortion"),
+	0,
+	TEXT("Prevents distortion effects from rendering.  Saves a full-screen framebuffer's worth of memory."),
+	ECVF_Default);
 
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FDistortionPassUniformParameters, "DistortionPass");
-IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FMobileDistortionPassUniformParameters, "MobileDistortionPass");
+IMPLEMENT_STATIC_UNIFORM_BUFFER_STRUCT(FDistortionPassUniformParameters, "DistortionPass", SceneTextures);
+
+int32 FSceneRenderer::GetRefractionQuality(const FSceneViewFamily& ViewFamily)
+{
+	static const auto ICVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RefractionQuality"));
+
+	int32 Value = 0;
+
+	if (ViewFamily.EngineShowFlags.Refraction)
+	{
+		Value = ICVar->GetValueOnRenderThread();
+	}
+
+	return Value;
+}
 
 void SetupDistortionParams(FVector4& DistortionParams, const FViewInfo& View)
 {
@@ -60,212 +59,72 @@ void SetupDistortionParams(FVector4& DistortionParams, const FViewInfo& View)
 	}
 }
 
-void SetupDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FDistortionPassUniformParameters& DistortionPassParameters)
+TRDGUniformBufferRef<FDistortionPassUniformParameters> CreateDistortionPassUniformBuffer(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-	SetupSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, ESceneTextureSetupMode::All, DistortionPassParameters.SceneTextures);
-	SetupDistortionParams(DistortionPassParameters.DistortionParams, View);
+	auto* Parameters = GraphBuilder.AllocParameters<FDistortionPassUniformParameters>();
+	SetupSceneTextureUniformParameters(GraphBuilder, View.FeatureLevel, ESceneTextureSetupMode::All, Parameters->SceneTextures);
+	SetupDistortionParams(Parameters->DistortionParams, View);
+	return GraphBuilder.CreateUniformBuffer(Parameters);
 }
 
-void SetupMobileDistortionPassUniformBuffer(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, FMobileDistortionPassUniformParameters& DistortionPassParameters)
+class FDistortionScreenPS : public FGlobalShader
 {
-	FSceneRenderTargets& SceneRenderTargets = FSceneRenderTargets::Get(RHICmdList);
-	SetupMobileSceneTextureUniformParameters(SceneRenderTargets, View.FeatureLevel, true, View.bCustomDepthStencilValid, DistortionPassParameters.SceneTextures);
-	SetupDistortionParams(DistortionPassParameters.DistortionParams, View);
-}
-
-/**
-* A pixel shader for rendering the full screen refraction pass
-*/
-template <bool UseMSAA>
-class TDistortionApplyScreenPS : public FGlobalShader
-{
-	DECLARE_SHADER_TYPE(TDistortionApplyScreenPS,Global);
 public:
+	class FUseMSAADim : SHADER_PERMUTATION_BOOL("USE_MSAA");
+	using FPermutationDomain = TShaderPermutationDomain<FUseMSAADim>;
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, DistortionMSAATexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2DMS<float4>, SceneColorMSAATexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DistortionTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
+		SHADER_PARAMETER_SAMPLER(SamplerState, DistortionTextureSampler)
+		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorTextureSampler)
+		RENDER_TARGET_BINDING_SLOTS()
+	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
-		return !UseMSAA || IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
+		const FPermutationDomain PermutationVector(Parameters.PermutationId);
+		return !PermutationVector.Get<FUseMSAADim>() || IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
 	}
 
-	TDistortionApplyScreenPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
+	FDistortionScreenPS() = default;
+	FDistortionScreenPS(const FGlobalShaderType::CompiledShaderInitializerType& Initializer)
 		: FGlobalShader(Initializer)
-	{
-		if (UseMSAA)
-		{
-			DistortionTexture.Bind(Initializer.ParameterMap, TEXT("DistortionMSAATexture"));
-			SceneColorTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorMSAATexture"));
-		}
-		else
-		{
-			DistortionTexture.Bind(Initializer.ParameterMap, TEXT("DistortionTexture"));
-			SceneColorTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorTexture"));
-		}
-		DistortionTextureSampler.Bind(Initializer.ParameterMap,TEXT("DistortionTextureSampler"));
-		SceneColorTextureSampler.Bind(Initializer.ParameterMap,TEXT("SceneColorTextureSampler"));
-	}
-	TDistortionApplyScreenPS() {}
-
-	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, IPooledRenderTarget& DistortionRT)
-	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-
-		FRHITexture* DistortionTextureValue = DistortionRT.GetRenderTargetItem().TargetableTexture;
-		FRHITexture* SceneColorTextureValue = SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture;
-
-		// Here we use SF_Point as in fullscreen the pixels are 1:1 mapped.
-		SetTextureParameter(
-			Context.RHICmdList,
-			ShaderRHI,
-			DistortionTexture,
-			DistortionTextureSampler,
-			TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			DistortionTextureValue
-			);
-
-		SetTextureParameter(
-			Context.RHICmdList,
-			ShaderRHI,
-			SceneColorTexture,
-			SceneColorTextureSampler,
-			TStaticSamplerState<SF_Bilinear,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			SceneColorTextureValue
-			);
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/DistortApplyScreenPS.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("Main");
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, DistortionTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, DistortionTextureSampler);
-	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTextureSampler);
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_MSAA"), UseMSAA ? 1 : 0);
-	}
+	{}
 };
 
-// #define avoids a lot of code duplication
-#define VARIATION1(A) \
-	typedef TDistortionApplyScreenPS<A> TDistortionApplyScreenPS##A; \
-	IMPLEMENT_SHADER_TYPE2(TDistortionApplyScreenPS##A,SF_Pixel)
-VARIATION1(false);
-VARIATION1(true);
-#undef VARIATION1
-
-/**
-* A pixel shader that applies the distorted image to the scene
-*/
-template <bool UseMSAA>
-class TDistortionMergePS : public FGlobalShader
+/** A pixel shader for rendering the full screen refraction pass */
+class FDistortionApplyScreenPS : public FDistortionScreenPS
 {
-	DECLARE_SHADER_TYPE(TDistortionMergePS,Global);
 public:
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return !UseMSAA || IsFeatureLevelSupported(Parameters.Platform, ERHIFeatureLevel::SM5);
-	}
-
-	TDistortionMergePS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
-		: FGlobalShader(Initializer)
-	{
-		if (UseMSAA)
-		{
-			SceneColorTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorMSAATexture"));
-		}
-		else
-		{
-			SceneColorTexture.Bind(Initializer.ParameterMap, TEXT("SceneColorTexture"));
-		}
-		SceneColorTextureSampler.Bind(Initializer.ParameterMap,TEXT("SceneColorTextureSampler"));
-	}
-	TDistortionMergePS() {}
-
-	void SetParameters(const FRenderingCompositePassContext& Context, const FViewInfo& View, FRHITexture* PassTexture)
-	{
-		FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(Context.RHICmdList);
-		FRHIPixelShader* ShaderRHI = Context.RHICmdList.GetBoundPixelShader();
-
-		FGlobalShader::SetParameters<FViewUniformShaderParameters>(Context.RHICmdList, ShaderRHI, View.ViewUniformBuffer);
-
-		SetTextureParameter(
-			Context.RHICmdList,
-			ShaderRHI,
-			SceneColorTexture,
-			SceneColorTextureSampler,
-			TStaticSamplerState<SF_Point,AM_Clamp,AM_Clamp,AM_Clamp>::GetRHI(),
-			PassTexture
-			);
-	}
-
-	static const TCHAR* GetSourceFilename()
-	{
-		return TEXT("/Engine/Private/DistortApplyScreenPS.usf");
-	}
-
-	static const TCHAR* GetFunctionName()
-	{
-		return TEXT("Merge");
-	}
-
-private:
-	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTexture);
-	LAYOUT_FIELD(FShaderResourceParameter, SceneColorTextureSampler);
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("USE_MSAA"), UseMSAA ? 1 : 0);
-	}
+	DECLARE_GLOBAL_SHADER(FDistortionApplyScreenPS);
+	SHADER_USE_PARAMETER_STRUCT(FDistortionApplyScreenPS, FDistortionScreenPS);
 };
 
-// #define avoids a lot of code duplication
-#define VARIATION1(A) \
-	typedef TDistortionMergePS<A> TDistortionMergePS##A; \
-	IMPLEMENT_SHADER_TYPE2(TDistortionMergePS##A,SF_Pixel)
-VARIATION1(false);
-VARIATION1(true);
-#undef VARIATION1
+IMPLEMENT_GLOBAL_SHADER(FDistortionApplyScreenPS, "/Engine/Private/DistortApplyScreenPS.usf", "Main", SF_Pixel);
 
-/**
-* A vertex shader for rendering distortion meshes
-*/
+/** A pixel shader that applies the distorted image to the scene */
+class FDistortionMergeScreenPS : public FDistortionScreenPS
+{
+public:
+	DECLARE_GLOBAL_SHADER(FDistortionMergeScreenPS);
+	SHADER_USE_PARAMETER_STRUCT(FDistortionMergeScreenPS, FDistortionScreenPS);
+};
+
+IMPLEMENT_GLOBAL_SHADER(FDistortionMergeScreenPS, "/Engine/Private/DistortApplyScreenPS.usf", "Merge", SF_Pixel);
+
 class FDistortionMeshVS : public FMeshMaterialShader
 {
+public:
 	DECLARE_SHADER_TYPE(FDistortionMeshVS,MeshMaterial);
 
-protected:
+	FDistortionMeshVS() = default;
 
 	FDistortionMeshVS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FMeshMaterialShader(Initializer)
-	{
-		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileDistortionPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-		else // deferred
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FDistortionPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-	}
-
-	FDistortionMeshVS()
 	{
 	}
 
@@ -275,23 +134,16 @@ protected:
 	}
 };
 
-
-/**
- * A hull shader for rendering distortion meshes
- */
 class FDistortionMeshHS : public FBaseHS
 {
+public:
 	DECLARE_SHADER_TYPE(FDistortionMeshHS,MeshMaterial);
 
-protected:
+	FDistortionMeshHS() = default;
 
 	FDistortionMeshHS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FBaseHS(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDistortionPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FDistortionMeshHS() {}
+	{}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -300,22 +152,16 @@ protected:
 	}
 };
 
-/**
- * A domain shader for rendering distortion meshes
- */
 class FDistortionMeshDS : public FBaseDS
 {
+public:
 	DECLARE_SHADER_TYPE(FDistortionMeshDS,MeshMaterial);
 
-protected:
+	FDistortionMeshDS() = default;
 
 	FDistortionMeshDS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		: FBaseDS(Initializer)
-	{
-		PassUniformBuffer.Bind(Initializer.ParameterMap, FDistortionPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-	}
-
-	FDistortionMeshDS() {}
+	{}
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
@@ -324,392 +170,248 @@ protected:
 	}
 };
 
-
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshVS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("Main"), SF_Vertex);
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshHS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("MainHull"), SF_Hull);
-IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshDS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("MainDomain"), SF_Domain);
-
-
-/**
-* A pixel shader to render distortion meshes
-*/
 class FDistortionMeshPS : public FMeshMaterialShader
 {
+public:
 	DECLARE_SHADER_TYPE(FDistortionMeshPS,MeshMaterial);
 
-public:
-	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
-	{
-		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
-	}
+	FDistortionMeshPS() = default;
 
 	FDistortionMeshPS(const ShaderMetaType::CompiledShaderInitializerType& Initializer)
 		:	FMeshMaterialShader(Initializer)
 	{
-		ERHIFeatureLevel::Type FeatureLevel = GetMaxSupportedFeatureLevel((EShaderPlatform)Initializer.Target.Platform);
-		if (FSceneInterface::GetShadingPath(FeatureLevel) == EShadingPath::Mobile)
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FMobileDistortionPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
-		else // deferred
-		{
-			PassUniformBuffer.Bind(Initializer.ParameterMap, FDistortionPassUniformParameters::StaticStructMetadata.GetShaderVariableName());
-		}
+	}
+
+	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
+	{
+		return IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) && Parameters.MaterialParameters.bIsDistorted;
 	}
 
 	static void ModifyCompilationEnvironment(const FMaterialShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FMeshMaterialShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 
-		if (IsVulkanMobilePlatform(Parameters.Platform))
+		if (IsMobilePlatform(Parameters.Platform))
 		{
-			// depth fetch only available during base pass rendering
-			// TODO: find better place to enable frame buffer fetch feature only for base pass
-			OutEnvironment.SetDefine(TEXT("VULKAN_SUBPASS_DEPTHFETCH"), 0);
+			// use same path for scene textures as post-process material
+			OutEnvironment.SetDefine(TEXT("POST_PROCESS_MATERIAL_MOBILE"), 1);
 		}
-	}
-	
-	FDistortionMeshPS()
-	{
 	}
 };
 
-//** distortion accumulate pixel shader type implementation */
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshVS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("Main"), SF_Vertex);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshHS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("MainHull"), SF_Hull);
+IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshDS, TEXT("/Engine/Private/DistortAccumulateVS.usf"), TEXT("MainDomain"), SF_Domain);
 IMPLEMENT_MATERIAL_SHADER_TYPE(, FDistortionMeshPS,TEXT("/Engine/Private/DistortAccumulatePS.usf"),TEXT("Main"),SF_Pixel);
 
-int32 FSceneRenderer::GetRefractionQuality(const FSceneViewFamily& ViewFamily)
+bool FDeferredShadingSceneRenderer::ShouldRenderDistortion() const
 {
-	static const auto ICVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.RefractionQuality"));
+	static const auto DisableDistortionCVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.DisableDistortion"));
+	const bool bAllowDistortion = DisableDistortionCVar->GetValueOnAnyThread() != 1;
 
-	int32 Value = 0;
-
-	if(ViewFamily.EngineShowFlags.Refraction)
+	if (GetRefractionQuality(ViewFamily) <= 0 || !bAllowDistortion)
 	{
-		Value = ICVar->GetValueOnRenderThread();
+		return false;
 	}
 
-	return Value;
-}
-
-template <bool UseMSAA>
-static void DrawDistortionApplyScreenPass(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FViewInfo& View, IPooledRenderTarget& DistortionRT) {
-	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<TDistortionApplyScreenPS<UseMSAA>> PixelShader(View.ShaderMap);
-
-	FRenderingCompositePassContext Context(RHICmdList, View);
-
-	Context.SetViewportAndCallRHI(View.ViewRect);
-
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	// test against stencil mask
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
-		false, CF_Always,
-		true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
-		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-		kStencilMaskBit, kStencilMaskBit>::GetRHI();
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	RHICmdList.SetStencilRef(kStencilMaskBit);
-
-	VertexShader->SetParameters(Context);
-	PixelShader->SetParameters(Context, View, DistortionRT);
-
-	// Draw a quad mapping scene color to the view's render target
-	DrawRectangle(
-		RHICmdList,
-		0, 0,
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		View.ViewRect.Min.X, View.ViewRect.Min.Y,
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		View.ViewRect.Size(),
-		SceneContext.GetBufferSizeXY(),
-		VertexShader,
-		EDRF_UseTriangleOptimization);
-}
-
-template <bool UseMSAA>
-static void DrawDistortionMergePass(FRHICommandListImmediate& RHICmdList, FSceneRenderTargets& SceneContext, FViewInfo& View, FRHITexture* PassTexture) {
-	TShaderMapRef<FPostProcessVS> VertexShader(View.ShaderMap);
-	TShaderMapRef<TDistortionMergePS<UseMSAA>> PixelShader(View.ShaderMap);
-
-	FRenderingCompositePassContext Context(RHICmdList, View);
-
-	Context.SetViewportAndCallRHI(View.ViewRect);
-
-	FGraphicsPipelineStateInitializer GraphicsPSOInit;
-	RHICmdList.ApplyCachedRenderTargets(GraphicsPSOInit);
-
-	// test against stencil mask and clear it
-	GraphicsPSOInit.BlendState = TStaticBlendState<>::GetRHI();
-	GraphicsPSOInit.RasterizerState = TStaticRasterizerState<>::GetRHI();
-	GraphicsPSOInit.DepthStencilState = TStaticDepthStencilState<
-		false, CF_Always,
-		true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
-		false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-		kStencilMaskBit, kStencilMaskBit>::GetRHI();
-
-	GraphicsPSOInit.BoundShaderState.VertexDeclarationRHI = GFilterVertexDeclaration.VertexDeclarationRHI;
-	GraphicsPSOInit.BoundShaderState.VertexShaderRHI = VertexShader.GetVertexShader();
-	GraphicsPSOInit.BoundShaderState.PixelShaderRHI = PixelShader.GetPixelShader();
-	GraphicsPSOInit.PrimitiveType = PT_TriangleList;
-
-	SetGraphicsPipelineState(RHICmdList, GraphicsPSOInit);
-	RHICmdList.SetStencilRef(kStencilMaskBit);
-
-	VertexShader->SetParameters(Context);
-	PixelShader->SetParameters(Context, View, PassTexture);
-
-	DrawRectangle(
-		RHICmdList,
-		0, 0,
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		View.ViewRect.Min.X, View.ViewRect.Min.Y,
-		View.ViewRect.Width(), View.ViewRect.Height(),
-		View.ViewRect.Size(),
-		SceneContext.GetBufferSizeXY(),
-		VertexShader,
-		EDRF_UseTriangleOptimization);
-}
-
-bool SubmitDistortionMeshDrawCommands(FRHICommandListImmediate& RHICmdList, const FViewInfo& View, const FMeshPassProcessorRenderState& DrawRenderState)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FDistortionPrimSet_DrawAccumulatedOffsets);
-
-	bool bDirty = false;
-
-	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FDistortionPrimSet_DrawAccumulatedOffsets_Prims);
-		View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, RHICmdList);
-		bDirty |= View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].HasAnyDraw();
-	}
-
-	return bDirty;
-}
-
-static void SetupDistortionPassView(FRHICommandList& RHICmdList, const FViewInfo& View, const FSceneRenderer* SceneRenderer)
-{
-	if (!View.IsInstancedStereoPass())
-	{
-		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
-	}
-	else
-	{
-		if (View.bIsMultiViewEnabled)
-		{
-			const uint32 LeftMinX = SceneRenderer->Views[0].ViewRect.Min.X;
-			const uint32 LeftMaxX = SceneRenderer->Views[0].ViewRect.Max.X;
-			const uint32 RightMinX = SceneRenderer->Views[1].ViewRect.Min.X;
-			const uint32 RightMaxX = SceneRenderer->Views[1].ViewRect.Max.X;
-
-			const uint32 LeftMaxY = SceneRenderer->Views[0].ViewRect.Max.Y;
-			const uint32 RightMaxY = SceneRenderer->Views[1].ViewRect.Max.Y;
-
-			RHICmdList.SetStereoViewport(LeftMinX, RightMinX, 0, 0, 0.0f, LeftMaxX, RightMaxX, LeftMaxY, RightMaxY, 1.0f);
-		}
-		else
-		{
-			RHICmdList.SetViewport(0, 0, 0, SceneRenderer->InstancedStereoWidth, View.ViewRect.Max.Y, 1);
-		}
-	}
-}
-
-/**
- * Renders the scene's distortion
- */
-void FSceneRenderer::RenderDistortion(FRHICommandListImmediate& RHICmdList)
-{
-	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion);
-	SCOPED_DRAW_EVENT(RHICmdList, Distortion);
-	SCOPED_GPU_STAT(RHICmdList, Distortion);
-
-	// do we need to render the distortion pass?
-	bool bRender=false;
-	for(int32 ViewIndex = 0;ViewIndex < Views.Num();ViewIndex++)
+	for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ++ViewIndex)
 	{
 		const FViewInfo& View = Views[ViewIndex];
-		if (View.bHasDistortionPrimitives && View.ShouldRenderView())
+
+		if (View.bHasDistortionPrimitives && View.ShouldRenderView() && View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].HasAnyDraw())
 		{
-			bRender=true;
-			break;
+			return true;
 		}
 	}
+	return false;
+}
 
-	bool bDirty = false;
+BEGIN_SHADER_PARAMETER_STRUCT(FDistortionPassParameters, )
+	SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FDistortionPassUniformParameters, Pass)
+	RENDER_TARGET_BINDING_SLOTS()
+END_SHADER_PARAMETER_STRUCT()
 
-	TRefCountPtr<IPooledRenderTarget> DistortionRT;
-	FSceneRenderTargets& SceneContext = FSceneRenderTargets::Get(RHICmdList);
-	uint32 MSAACount = SceneContext.SceneDepthZ->GetDesc().NumSamples;
+void FDeferredShadingSceneRenderer::RenderDistortion(FRDGBuilder& GraphBuilder, FRDGTextureRef SceneColorTexture, FRDGTextureRef SceneDepthTexture)
+{
+	check(SceneDepthTexture);
+	check(SceneColorTexture);
+
+	if (!ShouldRenderDistortion())
+	{
+		return;
+	}
+
+	QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion);
+	RDG_EVENT_SCOPE(GraphBuilder, "Distortion");
+	RDG_GPU_STAT_SCOPE(GraphBuilder, Distortion);
+
+	const FDepthStencilBinding StencilReadBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
+	const FDepthStencilBinding StencilWriteBinding(SceneDepthTexture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilWrite);
+
+	FRDGTextureRef DistortionTexture = nullptr;
+	FGlobalShaderMap* ShaderMap = GetGlobalShaderMap(FeatureLevel);
 
 	// Use stencil mask to optimize cases with lower screen coverage.
 	// Note: This adds an extra pass which is actually slower as distortion tends towards full-screen.
 	//       It could be worth testing object screen bounds then reverting to a target flip and single pass.
 
-	// Render accumulated distortion offsets
-	if( bRender)
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_Render);
-		SCOPED_DRAW_EVENT(RHICmdList, DistortionAccum);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_Accumulate);
+		RDG_EVENT_SCOPE(GraphBuilder, "Accumulate");
 
-		// Create a texture to store the resolved light attenuation values, and a render-targetable surface to hold the unresolved light attenuation values.
+		// Use RGBA8 light target for accumulating distortion offsets.
+		// R = positive X offset
+		// G = positive Y offset
+		// B = negative X offset
+		// A = negative Y offset
+
+		DistortionTexture = GraphBuilder.CreateTexture(
+			FRDGTextureDesc::Create2D(
+				SceneDepthTexture->Desc.Extent,
+				PF_B8G8R8A8,
+				FClearValueBinding::Transparent,
+				GFastVRamConfig.Distortion | TexCreate_RenderTargetable | TexCreate_ShaderResource,
+				1,
+				SceneDepthTexture->Desc.NumSamples),
+			TEXT("Distortion"));
+
+		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::EClear;
+
+		for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 		{
-			FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::Create2DDesc(SceneContext.GetBufferSizeXY(), PF_B8G8R8A8, FClearValueBinding::Transparent, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false));
-			Desc.Flags |= GFastVRamConfig.Distortion;
-			Desc.NumSamples = MSAACount;
-			GRenderTargetPool.FindFreeElement(RHICmdList, Desc, DistortionRT, TEXT("Distortion"));
+			const FViewInfo& View = Views[ViewIndex];
+			const ETranslucencyView TranslucencyView = GetTranslucencyView(View);
 
-			// use RGBA8 light target for accumulating distortion offsets
-			// R = positive X offset
-			// G = positive Y offset
-			// B = negative X offset
-			// A = negative Y offset
-		}
-
-		// DistortionRT==0 should never happen but better we don't crash
-		if(DistortionRT)
-		{
-			FRHIRenderPassInfo RPInfo(DistortionRT->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Clear_Store);
-			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
-			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
-			RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
-
-			RHICmdList.TransitionResource(RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil, SceneContext.GetSceneDepthSurface());
-
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("RenderDistortion"));
+			if (!View.ShouldRenderView() && !EnumHasAnyFlags(TranslucencyView, ETranslucencyView::RayTracing))
 			{
-				for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
-				{
-					FViewInfo& View = Views[ViewIndex];
-
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
-					if (!View.ShouldRenderView())
-					{
-						continue;
-					}
-
-					// viewport to match view size
-					SetupDistortionPassView(RHICmdList, View, this);
-
-					Scene->UniformBuffers.UpdateViewUniformBuffer(View);
-
-					FDistortionPassUniformParameters DistortionPassParameters;
-					SetupDistortionPassUniformBuffer(RHICmdList, View, DistortionPassParameters);
-					Scene->UniformBuffers.DistortionPassUniformBuffer.UpdateUniformBufferImmediate(DistortionPassParameters);
-
-					FMeshPassProcessorRenderState DrawRenderState(View, Scene->UniformBuffers.DistortionPassUniformBuffer);
-					DrawRenderState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-
-					// test against depth and write stencil mask
-					DrawRenderState.SetDepthStencilState(TStaticDepthStencilState<
-						false, CF_DepthNearOrEqual,
-						true, CF_Always, SO_Keep, SO_Keep, SO_Replace,
-						false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
-						kStencilMaskBit, kStencilMaskBit>::GetRHI());
-					DrawRenderState.SetStencilRef(kStencilMaskBit);
-
-					// additive blending of offsets (or complexity if the shader complexity viewmode is enabled)
-					DrawRenderState.SetBlendState(TStaticBlendState<CW_RGBA, BO_Add, BF_One, BF_One, BO_Add, BF_One, BF_One>::GetRHI());
-
-
-					// Draw distortion meshes to accumulate their offsets.
-					bDirty |= SubmitDistortionMeshDrawCommands(RHICmdList, View, DrawRenderState);
-				}
+				continue;
 			}
-			RHICmdList.EndRenderPass();
 
-			if (bDirty)
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
+
+			auto* PassParameters = GraphBuilder.AllocParameters<FDistortionPassParameters>();
+			PassParameters->Pass = CreateDistortionPassUniformBuffer(GraphBuilder, View);
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(DistortionTexture, LoadAction);
+			PassParameters->RenderTargets.DepthStencil = StencilWriteBinding;
+
+			GraphBuilder.AddPass(
+				{},
+				PassParameters,
+				ERDGPassFlags::Raster,
+				[this, &View](FRHICommandListImmediate& RHICmdList)
 			{
-				// Ideally we skip the EliminateFastClear since we don't need pixels with no stencil set to be cleared
-				RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DistortionRT->GetRenderTargetItem().TargetableTexture);
-				// to be able to observe results with VisualizeTexture
-				GVisualizeTexture.SetCheckPoint(RHICmdList, DistortionRT);
-			}
+				QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRender_RenderDistortion_Accumulate_Meshes);
+				Scene->UniformBuffers.UpdateViewUniformBuffer(View);
+
+				SetStereoViewport(RHICmdList, View);
+				View.ParallelMeshDrawCommandPasses[EMeshPass::Distortion].DispatchDraw(nullptr, RHICmdList);
+			});
+
+			LoadAction = ERenderTargetLoadAction::ELoad;
 		}
 	}
 
-	if (bDirty)
+	FRDGTextureDesc DistortedSceneColorDesc = SceneColorTexture->Desc;
+	EnumRemoveFlags(DistortedSceneColorDesc.Flags, TexCreate_FastVRAM | TexCreate_Transient);
+
+	FRDGTextureRef DistortionSceneColorTexture = GraphBuilder.CreateTexture(DistortedSceneColorDesc, TEXT("DistortedSceneColor"));
+
+	FDistortionScreenPS::FParameters CommonParameters;
+	CommonParameters.DistortionMSAATexture = DistortionTexture;
+	CommonParameters.DistortionTexture = DistortionTexture;
+	CommonParameters.SceneColorTextureSampler = TStaticSamplerState<>::GetRHI();
+	CommonParameters.DistortionTextureSampler = TStaticSamplerState<>::GetRHI();
+
+	FDistortionScreenPS::FPermutationDomain PermutationVector;
+	PermutationVector.Set<FDistortionScreenPS::FUseMSAADim>(SceneColorTexture->Desc.NumSamples > 1);
+
+	TShaderMapRef<FScreenPassVS> VertexShader(ShaderMap);
+	TShaderMapRef<FDistortionApplyScreenPS> ApplyPixelShader(ShaderMap, PermutationVector);
+	TShaderMapRef<FDistortionMergeScreenPS> MergePixelShader(ShaderMap, PermutationVector);
+
+	FScreenPassPipelineState PipelineState(VertexShader, {});
+	FScreenPassTextureViewport Viewport(SceneColorTexture);
+
+	// Apply distortion and store off-screen.
 	{
-		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_Post);
-		SCOPED_DRAW_EVENT(RHICmdList, DistortionApply);
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_Apply);
+		RDG_EVENT_SCOPE(GraphBuilder, "Apply");
+		CommonParameters.SceneColorMSAATexture = SceneColorTexture;
+		CommonParameters.SceneColorTexture = SceneColorTexture;
+		CommonParameters.RenderTargets.DepthStencil = StencilReadBinding;
+		PipelineState.PixelShader = ApplyPixelShader;
 
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture);
+		// Test against stencil mask but don't clear.
+		PipelineState.DepthStencilState = TStaticDepthStencilState<
+			false, CF_Always,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Keep,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			kStencilMaskBit, kStencilMaskBit>::GetRHI();
 
-		TRefCountPtr<IPooledRenderTarget> NewSceneColor;
-		FPooledRenderTargetDesc Desc = SceneContext.GetSceneColor()->GetDesc();
-		Desc.Flags &= ~(TexCreate_FastVRAM | TexCreate_Transient);
-		GRenderTargetPool.FindFreeElement(RHICmdList, Desc, NewSceneColor, TEXT("DistortedSceneColor"));
-		const FSceneRenderTargetItem& DestRenderTarget = NewSceneColor->GetRenderTargetItem();
+		ERenderTargetLoadAction LoadAction = ERenderTargetLoadAction::ENoAction;
 
-		// Apply distortion and store off-screen
+		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 		{
-			FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
-			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
-			RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
+			const FViewInfo& View = Views[ViewIndex];
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("DistortionApply"));
+			auto* PassParameters = GraphBuilder.AllocParameters<FDistortionScreenPS::FParameters>();
+			*PassParameters = CommonParameters;
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(DistortionSceneColorTexture, LoadAction);
+
+			Viewport.Rect = View.ViewRect;
+
+			ClearUnusedGraphResources(ApplyPixelShader, PassParameters);
+			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PipelineState, PassParameters,
+				[ApplyPixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
-				for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
-				{
-					FViewInfo& View = Views[ViewIndex];
+				RHICmdList.SetStencilRef(kStencilMaskBit);
+				SetShaderParameters(RHICmdList, ApplyPixelShader, ApplyPixelShader.GetPixelShader(), *PassParameters);
+			});
 
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_PostView1);
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
-					if (MSAACount == 1)
-					{
-						DrawDistortionApplyScreenPass<false>(RHICmdList, SceneContext, View, *DistortionRT);
-					}
-					else
-					{
-						DrawDistortionApplyScreenPass<true>(RHICmdList, SceneContext, View, *DistortionRT);
-					}
-				}
-			}
-			RHICmdList.EndRenderPass();
-
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, DestRenderTarget.TargetableTexture);
+			LoadAction = ERenderTargetLoadAction::ELoad;
 		}
+	}
 
+	// Merge distortion back to scene color.
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_Merge);
+		RDG_EVENT_SCOPE(GraphBuilder, "Merge");
+		CommonParameters.SceneColorMSAATexture = DistortionSceneColorTexture;
+		CommonParameters.SceneColorTexture = DistortionSceneColorTexture;
+		CommonParameters.RenderTargets.DepthStencil = StencilWriteBinding;
+		PipelineState.PixelShader = MergePixelShader;
+
+		// Test against stencil mask and clear it.
+		PipelineState.DepthStencilState = TStaticDepthStencilState<
+			false, CF_Always,
+			true, CF_Equal, SO_Keep, SO_Keep, SO_Zero,
+			false, CF_Always, SO_Keep, SO_Keep, SO_Keep,
+			kStencilMaskBit, kStencilMaskBit>::GetRHI();
+
+		for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
 		{
-			FRHIRenderPassInfo RPInfo(SceneContext.GetSceneColor()->GetRenderTargetItem().TargetableTexture, ERenderTargetActions::Load_Store);
-			RPInfo.DepthStencilRenderTarget.Action = MakeDepthStencilTargetActions(ERenderTargetActions::Load_DontStore, ERenderTargetActions::Load_Store);
-			RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneContext.GetSceneDepthSurface();
-			RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilWrite;
+			const FViewInfo& View = Views[ViewIndex];
+			RDG_GPU_MASK_SCOPE(GraphBuilder, View.GPUMask);
+			RDG_EVENT_SCOPE_CONDITIONAL(GraphBuilder, Views.Num() > 1, "View%d", ViewIndex);
 
-			TransitionRenderPassTargets(RHICmdList, RPInfo);
-			RHICmdList.BeginRenderPass(RPInfo, TEXT("DistortionMerge"));
+			auto* PassParameters = GraphBuilder.AllocParameters<FDistortionScreenPS::FParameters>();
+			*PassParameters = CommonParameters;
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->RenderTargets[0] = FRenderTargetBinding(SceneColorTexture, ERenderTargetLoadAction::ELoad);
+
+			Viewport.Rect = View.ViewRect;
+
+			ClearUnusedGraphResources(MergePixelShader, PassParameters);
+			AddDrawScreenPass(GraphBuilder, {}, View, Viewport, Viewport, PipelineState, PassParameters,
+				[MergePixelShader, PassParameters](FRHICommandList& RHICmdList)
 			{
-				for (int32 ViewIndex = 0, Num = Views.Num(); ViewIndex < Num; ++ViewIndex)
-				{
-					FViewInfo& View = Views[ViewIndex];
-
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_FSceneRenderer_RenderDistortion_PostView2);
-					SCOPED_GPU_MASK(RHICmdList, View.GPUMask);
-					SCOPED_CONDITIONAL_DRAW_EVENTF(RHICmdList, EventView, Views.Num() > 1, TEXT("View%d"), ViewIndex);
-
-					if (MSAACount == 1)
-					{
-						DrawDistortionMergePass<false>(RHICmdList, SceneContext, View, DestRenderTarget.TargetableTexture);
-					}
-					else
-					{
-						DrawDistortionMergePass<true>(RHICmdList, SceneContext, View, DestRenderTarget.TargetableTexture);
-					}
-				}
-			}
-			RHICmdList.EndRenderPass();
+				RHICmdList.SetStencilRef(kStencilMaskBit);
+				SetShaderParameters(RHICmdList, MergePixelShader, MergePixelShader.GetPixelShader(), *PassParameters);
+			});
 		}
 	}
 }
@@ -816,15 +518,13 @@ void FDistortionMeshProcessor::Process(
 FDistortionMeshProcessor::FDistortionMeshProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, const FMeshPassProcessorRenderState& InPassDrawRenderState, FMeshPassDrawListContext* InDrawListContext)
 	: FMeshPassProcessor(Scene, Scene->GetFeatureLevel(), InViewIfDynamicMeshCommand, InDrawListContext)
 	, PassDrawRenderState(InPassDrawRenderState)
-{
-}
+{}
 
 FMeshPassProcessor* CreateDistortionPassProcessor(const FScene* Scene, const FSceneView* InViewIfDynamicMeshCommand, FMeshPassDrawListContext* InDrawListContext)
 {
 	FMeshPassProcessorRenderState DistortionPassState;
 	DistortionPassState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
 	DistortionPassState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-	DistortionPassState.SetPassUniformBuffer(Scene->UniformBuffers.DistortionPassUniformBuffer);
 	
 	// test against depth and write stencil mask
 	DistortionPassState.SetDepthStencilState(TStaticDepthStencilState<
@@ -846,7 +546,6 @@ FMeshPassProcessor* CreateMobileDistortionPassProcessor(const FScene* Scene, con
 	FMeshPassProcessorRenderState DistortionPassState;
 	DistortionPassState.SetViewUniformBuffer(Scene->UniformBuffers.ViewUniformBuffer);
 	DistortionPassState.SetInstancedViewUniformBuffer(Scene->UniformBuffers.InstancedViewUniformBuffer);
-	DistortionPassState.SetPassUniformBuffer(Scene->UniformBuffers.MobileDistortionPassUniformBuffer);
 
 	// We don't have depth, render all pixels, pixel shader will sample SceneDepth from SceneColor.A and discard if occluded
 	DistortionPassState.SetDepthStencilState(TStaticDepthStencilState<false, CF_Always>::GetRHI());

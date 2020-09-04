@@ -10,13 +10,13 @@ LUMIN_THIRD_PARTY_INCLUDES_START
 #include <ml_snapshot.h>
 LUMIN_THIRD_PARTY_INCLUDES_END
 
-namespace MLSDK_API
+namespace LUMIN_MLSDK_API
 {
 
 CREATE_FUNCTION_SHIM(ml_perception_client, MLResult, MLSnapshotGetTransform)
-#define MLSnapshotGetTransform ::MLSDK_API::MLSnapshotGetTransformShim
+#define MLSnapshotGetTransform ::LUMIN_MLSDK_API::MLSnapshotGetTransformShim
 CREATE_FUNCTION_SHIM(ml_perception_client, const char*, MLSnapshotGetResultString)
-#define MLSnapshotGetResultString ::MLSDK_API::MLSnapshotGetResultStringShim
+#define MLSnapshotGetResultString ::LUMIN_MLSDK_API::MLSnapshotGetResultStringShim
 
 }
 

@@ -396,24 +396,20 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)requestDidFinish:(SKRequest*)request
 {
-#ifdef __IPHONE_7_0
 	if ([Request isKindOfClass : [SKReceiptRefreshRequest class]])
 	{
 		[[SKPaymentQueue defaultQueue] restoreCompletedTransactions];
 	}
-#endif
 }
 
 -(void)request:(SKRequest*)request didFailWithError : (NSError *)error
 {
-#ifdef __IPHONE_7_0
 	if ([Request isKindOfClass : [SKReceiptRefreshRequest class]])
 	{
 		[self restoreCompletedTransactionsFailedWithError : error.code];
 		[Request release];
 		Request = nullptr;
 	}
-#endif
 }
 
 -(void)restorePurchases
@@ -640,11 +636,9 @@ FStoreKitTransactionData::FStoreKitTransactionData(const SKPaymentTransaction* T
 
 -(void)dumpAppReceipt
 {
-#ifdef __IPHONE_7_0
 	FString receiptData = convertReceiptToString(nullptr);
 	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("FStoreKitHelper::dumpAppReceipt"));
 	UE_LOG_ONLINE_STOREV2(Verbose, TEXT("%s"), *receiptData);
-#endif
 }
 
 -(FOnProductsRequestResponse&)OnProductRequestResponse

@@ -418,7 +418,7 @@ struct FRenderingCompositePass
 		return bIsComputePass && bPreferAsyncCompute && GSupportsEfficientAsyncCompute;
 #endif
 	};
-	virtual FRHIComputeFence* GetComputePassEndFence() const { return nullptr; }
+	virtual const FRHITransition* GetComputePassEndFence() const { return nullptr; }
 
 protected:
 	/** to avoid wasteful recomputation and to support graph/DAG traversal, if ComputeOutputDesc() was called */
@@ -467,7 +467,7 @@ struct FRenderingCompositeOutputRef
 		return IsValid() && Source->IsAsyncComputePass();
 	}
 
-	FRHIComputeFence* GetComputePassEndFence() const
+	const FRHITransition* GetComputePassEndFence() const
 	{
 		return IsValid() ? Source->GetComputePassEndFence() : nullptr;
 	}
@@ -717,10 +717,10 @@ protected:
 		{
 			if (IsAsyncComputePass() != Input.IsAsyncComputePass())
 			{
-				FRHIComputeFence* InputComputePassEndFence = Input.GetComputePassEndFence();
+				const FRHITransition* InputComputePassEndFence = Input.GetComputePassEndFence();
 				if (InputComputePassEndFence)
 				{
-					RHICmdList.WaitComputeFence(InputComputePassEndFence);
+					RHICmdList.EndTransition(InputComputePassEndFence);
 				}
 			}
 		}

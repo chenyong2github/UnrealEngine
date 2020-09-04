@@ -17,19 +17,13 @@ class FTexture2DStreamIn_DDC : public FTexture2DStreamIn
 {
 public:
 
-	FTexture2DStreamIn_DDC(UTexture2D* InTexture, int32 InRequestedMips);
+	FTexture2DStreamIn_DDC(UTexture2D* InTexture);
 	~FTexture2DStreamIn_DDC();
-
-	/** Returns whether DDC of this texture needs to be regenerated.  */
-	bool DDCIsInvalid() const override { return bDDCIsInvalid; }
 
 protected:
 
 	// StreamIn_Default : Locked mips of the intermediate textures, used as disk load destination.
 	TArray<uint32, TInlineAllocator<MAX_TEXTURE_MIP_COUNT> > DDCHandles;
-
-	// Whether the DDC data was compatible or not.
-	bool bDDCIsInvalid;
 
 	// ****************************
 	// ********* Helpers **********

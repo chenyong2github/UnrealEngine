@@ -59,6 +59,7 @@ class FScopedGPUStatEvent;
 		void Stop();
 	};
 
+	/** Legacy support for template class version. */
 	template <typename TRHICmdList>
 	struct TDrawEvent : FDrawEvent {};
 
@@ -259,6 +260,10 @@ public:
 	/** Push/pop events */
 	void PushEvent(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName);
 	void PopEvent(FRHICommandListImmediate& RHICmdList);
+
+	/** Push/pop stats which do additional draw call tracking on top of events. */
+	void PushStat(FRHICommandListImmediate& RHICmdList, const FName& Name, const FName& StatName, int32* InNumDrawCallsPtr);
+	void PopStat(FRHICommandListImmediate& RHICmdList, int32* InNumDrawCallsPtr);
 
 private:
 	FRealtimeGPUProfiler();
