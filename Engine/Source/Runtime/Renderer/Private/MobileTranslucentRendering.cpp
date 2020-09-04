@@ -31,7 +31,7 @@
 #include "MeshPassProcessor.inl"
 #include "ClearQuad.h"
 
-void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews, bool bRenderToSceneColor)
+void FMobileSceneRenderer::RenderTranslucency(FRHICommandListImmediate& RHICmdList, const TArrayView<const FViewInfo*> PassViews)
 {
 	ETranslucencyPass::Type TranslucencyPass = 
 		ViewFamily.AllowTranslucencyAfterDOF() ? ETranslucencyPass::TPT_StandardTranslucency : ETranslucencyPass::TPT_AllTranslucency;
@@ -103,12 +103,18 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 	RPInfo.SubpassHint = ESubpassHint::DepthReadSubpass;
 
 	// make sure targets are writable
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneColorSurface());
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneContext.GetSceneDepthSurface());
+	FRHITransitionInfo TransitionsBefore[3];
+	int32 NumTransitionsBefore = 0;
+	TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(SceneContext.GetSceneColorSurface(), ERHIAccess::Unknown, ERHIAccess::RTV);
+	++NumTransitionsBefore;
+	TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(SceneContext.GetSceneDepthSurface(), ERHIAccess::Unknown, ERHIAccess::DSVWrite);
+	++NumTransitionsBefore;
 	if (SceneColorResolve)
 	{
-		RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, SceneColorResolve);
+		TransitionsBefore[NumTransitionsBefore] = FRHITransitionInfo(SceneColorResolve, ERHIAccess::Unknown, ERHIAccess::RTV | ERHIAccess::ResolveDst);
+		++NumTransitionsBefore;
 	}
+	RHICmdList.Transition(MakeArrayView(TransitionsBefore, NumTransitionsBefore));
 
 	if (Scene->UniformBuffers.UpdateViewUniformBuffer(View))
 	{
@@ -135,7 +141,8 @@ bool FMobileSceneRenderer::RenderInverseOpacity(FRHICommandListImmediate& RHICmd
 	
 	RHICmdList.EndRenderPass();
 	
-	RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, SceneContext.GetSceneColorTexture());
+	ERHIAccess AccessBefore = bMobileMSAA ? ERHIAccess::RTV | ERHIAccess::ResolveDst : ERHIAccess::RTV;
+	RHICmdList.Transition(FRHITransitionInfo(SceneContext.GetSceneColorTexture(), AccessBefore, ERHIAccess::SRVMask));
 	
 	return bDirty;
 }

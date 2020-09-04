@@ -21,8 +21,9 @@ public class UnrealHeaderTool : ModuleRules
 		PrivateIncludePaths.AddRange(
 			new string[]
 			{
-				// For LaunchEngineLoop.cpp include
+				// For LaunchEngineLoop.cpp includes
 				"Runtime/Launch/Private",
+				"Runtime/RHI/Public",
 				"Programs/UnrealHeaderTool/Private",
 			});
 		

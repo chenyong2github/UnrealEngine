@@ -13,7 +13,7 @@
 class UCanvas;
 class UMaterialInterface;
 class UTexture2D;
-template<typename TRHICmdList> struct TDrawEvent;
+struct FDrawEvent;
 
 USTRUCT(BlueprintType)
 struct FDrawToRenderTargetContext

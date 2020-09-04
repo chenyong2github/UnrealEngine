@@ -5801,16 +5801,6 @@ SpirvEmitter::tryToGenFloatVectorScale(const BinaryOperator *expr) {
   const Expr *lhs = expr->getLHS();
   const Expr *rhs = expr->getRHS();
 
-  // UE Change Begin: Hack to make binops cast arguments to necessary types because otherwise (e.g. sqrt(2.)) is treated as double and we fail validation
-  QualType lhsElemType = {};
-  QualType rhsElemType = {};
-  bool isLhsVector = isVectorType(lhs->getType(), &lhsElemType);
-  bool isRhsVector = isVectorType(rhs->getType(), &rhsElemType);
-	
-  if ((isLhsVector && lhsElemType != rhs->getType()) || (isRhsVector && rhsElemType != lhs->getType()))
-    return nullptr;
-  // UE Change End: Hack to make binops cast arguments to necessary types because otherwise (e.g. sqrt(2.)) is treated as double and we fail validation
-
   // Multiplying a float vector with a float scalar will be represented in
   // AST via a binary operation with two float vectors as operands; one of
   // the operand is from an implicit cast with kind CK_HLSLVectorSplat.

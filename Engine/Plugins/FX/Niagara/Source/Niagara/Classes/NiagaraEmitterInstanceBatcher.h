@@ -36,7 +36,7 @@ enum class ETickStage
 class NiagaraEmitterInstanceBatcher : public FFXSystemInterface
 {
 public:
-	using FNiagaraBufferArray = TArray<FRHIUnorderedAccessView*, TMemStackAllocator<>>;
+	using FNiagaraTransitionList = TArray<FRHITransitionInfo, TMemStackAllocator<>>;
 	using FOverlappableTicks = TArray<FNiagaraGPUSystemTick*, TMemStackAllocator<>>;
 
 	NiagaraEmitterInstanceBatcher(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform InShaderPlatform, FGPUSortManager* InGPUSortManager);
@@ -107,7 +107,7 @@ public:
 
 	const FGlobalDistanceFieldParameterData& GetGlobalDistanceFieldParameters() const { return GlobalDistanceFieldParams; }
 
-	void ProcessDebugInfo(FRHICommandList &RHICmdLis, const FNiagaraComputeExecutionContext* Context) const;
+	void ProcessDebugInfo(const FNiagaraComputeExecutionContext* Context) const;
 
 	void SetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList &RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick, uint32 SimulationStageIndex) const;
 	void UnsetDataInterfaceParameters(const TArray<FNiagaraDataInterfaceProxy*>& DataInterfaceProxies, const FNiagaraShaderRef& Shader, FRHICommandList& RHICmdList, const FNiagaraComputeInstanceData* Instance, const FNiagaraGPUSystemTick& Tick, uint32 SimulationStageIndex) const;
@@ -138,13 +138,13 @@ public:
 	bool ResetDataInterfaces(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderScript* ShaderScript) const;
 
 	/** Given a shader stage index, find the corresponding data interface */
-	FNiagaraDataInterfaceProxy* FindIterationInterface(FNiagaraComputeInstanceData *Instance, const uint32 SimulationStageIndex) const;
+	FNiagaraDataInterfaceProxy* FindIterationInterface(FNiagaraComputeInstanceData* Instance, const uint32 SimulationStageIndex) const;
 
 	/** Loop over all the data interfaces and call the prestage methods */
-	void PreStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderRef& ComputeShader, const uint32 SimulationStageIndex) const;
+	void PreStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const uint32 SimulationStageIndex) const;
 
 	/** Loop over all the data interfaces and call the poststage methods */
-	void PostStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData *Instance, FRHICommandList &RHICmdList, const FNiagaraShaderRef& ComputeShader, const uint32 SimulationStageIndex) const;
+	void PostStageInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const uint32 SimulationStageIndex) const;
 
 	/** Loop over all data interfaces and call the postsimulate methods */
 	void PostSimulateInterface(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, const FNiagaraShaderScript* ShaderScript) const;
@@ -157,15 +157,32 @@ public:
 
 private:
 	using FEmitterInstanceList = TArray<FNiagaraComputeInstanceData*>;
+	struct FDispatchInstance
+	{
+		FNiagaraGPUSystemTick* Tick;
+		FNiagaraComputeInstanceData* InstanceData;
+	};
+	using FDispatchInstanceList = TArray<FDispatchInstance, TMemStackAllocator<>>;
+
+	struct FDispatchGroup
+	{
+		FDispatchInstanceList DispatchInstances;
+		FNiagaraTransitionList TransitionsBefore;
+		FNiagaraTransitionList TransitionsAfter;
+		int32 StageIndex;
+	};
+	using FDispatchGroupList = TArray<FDispatchGroup, TMemStackAllocator<>>;
 
 	void UpdateInstanceCountManager(FRHICommandListImmediate& RHICmdList);
 	void BuildTickStagePasses(FRHICommandListImmediate& RHICmdList, ETickStage GenerateTickStage);
 
 	void ExecuteAll(FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, ETickStage TickStage);
-	void GatherResources(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FNiagaraBufferArray& OutputGraphicsBuffers, FEmitterInstanceList& InstancesWithPersistentIDs);
-	void TransitionBuffers(FRHICommandList& RHICmdList, const FNiagaraShaderRef& ComputeShader, FNiagaraComputeInstanceData* Instance, uint32 SimulationStageIndex, const FNiagaraDataBuffer*& LastSource, bool& bFreeIDTableTransitioned);
-	void DispatchAllOnCompute(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer);
-	void DispatchMultipleStages(const FNiagaraGPUSystemTick& Tick, FNiagaraComputeInstanceData* Instance, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer, const FNiagaraShaderScript* ShaderScript);
+	void AddDestinationBufferTransitions(FDispatchGroup* Group, FNiagaraDataBuffer* DestinationData);
+	void AddSimulationStageToGroup(FDispatchGroup* StageGroup, uint32 StageIndex, const FDispatchInstance& DispatchInstance, FRHICommandList& RHICmdList);
+	void BuildSimulationStageGroups(FDispatchGroupList& DispatchGroups, FRHICommandList& RHICmdList, FDispatchInstanceList& EmittersWithStages, uint32& MaxStageCountForGroup);
+	void BuildDispatchGroups(FOverlappableTicks& OverlappableTick, FRHICommandList& RHICmdList, FDispatchGroupList& DispatchGroups, FEmitterInstanceList& InstancesWithPersistentIDs);
+	void DispatchStage(FDispatchInstance& DispatchInstance, uint32 StageIndex, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer);
+	void DispatchAllOnCompute(FDispatchInstanceList& DispatchInstances, uint32 StageIndex, FRHICommandList& RHICmdList, FRHIUniformBuffer* ViewUniformBuffer);
 
 	/**
 	 * Generate all the initial keys and values for a GPUSortManager sort batch.
@@ -203,7 +220,7 @@ private:
 	bool UseOverlapCompute();
 	void FinishDispatches();
 	void ReleaseTicks();
-	void ResizeFreeIDsListSizesBuffer(uint32 NumInstances);
+	void ResizeFreeIDsListSizesBuffer(FRHICommandList& RHICmdList, uint32 NumInstances);
 	void ClearFreeIDsListSizesBuffer(FRHICommandList& RHICmdList);
 	void UpdateFreeIDBuffers(FRHICommandList& RHICmdList, FEmitterInstanceList& Instances);
 
@@ -263,7 +280,7 @@ private:
 	mutable TMap<EPixelFormat, DummyUAVPool> DummyTexturePool;
 
 	FRHIUnorderedAccessView* GetEmptyUAVFromPool(FRHICommandList& RHICmdList, EPixelFormat Format, bool IsTexture) const;
-	void ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap, TArray<FRHIUnorderedAccessView*>& Transitions);
+	void ResetEmptyUAVPool(TMap<EPixelFormat, DummyUAVPool>& UAVMap);
 	void ResetEmptyUAVPools(FRHICommandList& RHICmdList);
 
 	uint32 NumTicksThatRequireDistanceFieldData = 0;

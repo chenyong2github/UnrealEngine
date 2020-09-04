@@ -6,7 +6,7 @@
 #include "Engine/Engine.h"
 
 UOculusMR_Settings::UOculusMR_Settings(const FObjectInitializer& ObjectInitializer)
-	: Super(ObjectInitializer)	
+	: Super(ObjectInitializer)
 	, ClippingReference(EOculusMR_ClippingReference::CR_Head)
 	, bUseTrackedCameraResolution(true)
 	, WidthPerView(960)
@@ -18,15 +18,10 @@ UOculusMR_Settings::UOculusMR_Settings(const FObjectInitializer& ObjectInitializ
 	, ChromaKeySimilarity(0.6f)
 	, ChromaKeySmoothRange(0.03f)
 	, ChromaKeySpillRange(0.04f)
-	, VirtualGreenScreenType(EOculusMR_VirtualGreenScreenType::VGS_Off)
-	, DynamicLightingDepthSmoothFactor(8.0f)
-	, DynamicLightingDepthVariationClampingValue(0.001f)
 	, ExternalCompositionPostProcessEffects(EOculusMR_PostProcessEffects::PPE_Off)
 	, bIsCasting(false)
 	, CompositionMethod(EOculusMR_CompositionMethod::ExternalComposition)
 	, CapturingCamera(EOculusMR_CameraDeviceEnum::CD_WebCamera0)
-	, bUseDynamicLighting(false)
-	, DepthQuality(EOculusMR_DepthQuality::DQ_Medium)
 	, BindToTrackedCameraIndex(-1)
 {
 }
@@ -62,28 +57,6 @@ void UOculusMR_Settings::SetIsCasting(bool val)
 	auto old = bIsCasting;
 	bIsCasting = val;
 	IsCastingChangeDelegate.Execute(old, val);
-}
-
-void UOculusMR_Settings::SetUseDynamicLighting(bool val)
-{
-	if (bUseDynamicLighting == val)
-	{
-		return;
-	}
-	auto old = bUseDynamicLighting;
-	bUseDynamicLighting = val;
-	UseDynamicLightingChangeDelegate.Execute(old, val);
-}
-
-void UOculusMR_Settings::SetDepthQuality(EOculusMR_DepthQuality val)
-{
-	if (DepthQuality == val)
-	{
-		return;
-	}
-	auto old = DepthQuality;
-	DepthQuality = val;
-	DepthQualityChangeDelegate.Execute(old, val);
 }
 
 void UOculusMR_Settings::BindToTrackedCameraIndexIfAvailable(int InTrackedCameraIndex)
@@ -167,26 +140,6 @@ void UOculusMR_Settings::LoadFromIni()
 	{
 		ChromaKeySpillRange = f;
 	}
-	if (GConfig->GetInt(OculusMRSettings, TEXT("VirtualGreenScreenType"), i, GEngineIni))
-	{
-		VirtualGreenScreenType = (EOculusMR_VirtualGreenScreenType)i;
-	}
-	if (GConfig->GetBool(OculusMRSettings, TEXT("bUseDynamicLighting"), v, GEngineIni))
-	{
-		SetUseDynamicLighting(v);
-	}
-	if (GConfig->GetInt(OculusMRSettings, TEXT("DepthQuality"), i, GEngineIni))
-	{
-		SetDepthQuality((EOculusMR_DepthQuality)i);
-	}
-	if (GConfig->GetFloat(OculusMRSettings, TEXT("DynamicLightingDepthSmoothFactor"), f, GEngineIni))
-	{
-		DynamicLightingDepthSmoothFactor = f;
-	}
-	if (GConfig->GetFloat(OculusMRSettings, TEXT("DynamicLightingDepthVariationClampingValue"), f, GEngineIni))
-	{
-		DynamicLightingDepthVariationClampingValue = f;
-	}
 	if (GConfig->GetInt(OculusMRSettings, TEXT("BindToTrackedCameraIndex"), i, GEngineIni))
 	{
 		BindToTrackedCameraIndexIfAvailable(i);
@@ -221,11 +174,6 @@ void UOculusMR_Settings::SaveToIni() const
 	GConfig->SetFloat(OculusMRSettings, TEXT("ChromaKeySimilarity"), ChromaKeySimilarity, GEngineIni);
 	GConfig->SetFloat(OculusMRSettings, TEXT("ChromaKeySmoothRange"), ChromaKeySmoothRange, GEngineIni);
 	GConfig->SetFloat(OculusMRSettings, TEXT("ChromaKeySpillRange"), ChromaKeySpillRange, GEngineIni);
-	GConfig->SetInt(OculusMRSettings, TEXT("VirtualGreenScreenType"), (int32)VirtualGreenScreenType, GEngineIni);
-	GConfig->SetBool(OculusMRSettings, TEXT("bUseDynamicLighting"), bUseDynamicLighting, GEngineIni);
-	GConfig->SetInt(OculusMRSettings, TEXT("DepthQuality"), (int32)DepthQuality, GEngineIni);
-	GConfig->SetFloat(OculusMRSettings, TEXT("DynamicLightingDepthSmoothFactor"), DynamicLightingDepthSmoothFactor, GEngineIni);
-	GConfig->SetFloat(OculusMRSettings, TEXT("DynamicLightingDepthVariationClampingValue"), DynamicLightingDepthVariationClampingValue, GEngineIni);
 	GConfig->SetInt(OculusMRSettings, TEXT("BindToTrackedCameraIndex"), (int32)BindToTrackedCameraIndex, GEngineIni);
 	GConfig->SetInt(OculusMRSettings, TEXT("ExternalCompositionPostProcessEffects"), (int32)ExternalCompositionPostProcessEffects, GEngineIni);
 

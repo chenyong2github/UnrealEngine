@@ -253,7 +253,7 @@ void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan Sampl
 			// Expecting BiPlanar kCVPixelFormatType_420YpCbCr8BiPlanar Full/Video
 			check(CVPixelBufferGetPlaneCount(Frame) == 2);
 			
-			uint32 TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling;
+			ETextureCreateFlags TexCreateFlags = TexCreate_Dynamic | TexCreate_NoTiling;
 			
 			int32 YWidth = CVPixelBufferGetWidthOfPlane(Frame, 0);
 			int32 YHeight = CVPixelBufferGetHeightOfPlane(Frame, 0);
@@ -340,7 +340,7 @@ void FAvfMediaVideoSampler::ProcessFrame(CVPixelBufferRef Frame, FTimespan Sampl
 			CreateInfo.BulkData = new FAvfTexture2DResourceWrapper(TextureRef);
 			CreateInfo.ResourceArray = nullptr;
 			
-			uint32 TexCreateFlags = TexCreate_SRGB;
+			ETextureCreateFlags TexCreateFlags = TexCreate_SRGB;
 			TexCreateFlags |= TexCreate_Dynamic | TexCreate_NoTiling;
 			
 			ShaderResource = RHICreateTexture2D(Width, Height, PF_B8G8R8A8, 1, 1, TexCreateFlags | TexCreate_ShaderResource, CreateInfo);

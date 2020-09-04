@@ -160,7 +160,7 @@ void FIndirectLightingCache::InitDynamicRHI()
 	if (CanIndirectLightingCacheUseVolumeTexture(GetFeatureLevel()))
 	{
 		FRHICommandListImmediate& RHICmdList = FRHICommandListExecutor::GetImmediateCommandList();
-		uint32 Flags = TexCreate_ShaderResource | TexCreate_NoTiling;
+		ETextureCreateFlags Flags = TexCreate_ShaderResource | TexCreate_NoTiling;
 
 		FPooledRenderTargetDesc Desc(FPooledRenderTargetDesc::CreateVolumeDesc(
 			CacheSize,

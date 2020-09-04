@@ -146,29 +146,6 @@ void FMetalRHICommandContext::RHIBeginRenderPass(const FRHIRenderPassInfo& InInf
 	@autoreleasepool {
 	bool bHasTarget = (InInfo.DepthStencilRenderTarget.DepthStencilTarget != nullptr || InInfo.GetNumColorRenderTargets() > 0);
 	
-	if (InInfo.bGeneratingMips)
-	{
-		FRHITexture* Textures[MaxSimultaneousRenderTargets];
-		FRHITexture** LastTexture = Textures;
-		for (int32 Index = 0; Index < MaxSimultaneousRenderTargets; ++Index)
-		{
-			if (!InInfo.ColorRenderTargets[Index].RenderTarget)
-			{
-				break;
-			}
-			
-			*LastTexture = InInfo.ColorRenderTargets[Index].RenderTarget;
-			++LastTexture;
-		}
-		
-		//Use RWBarrier since we don't transition individual subresources.  Basically treat the whole texture as R/W as we walk down the mip chain.
-		int32 NumTextures = (int32)(LastTexture - Textures);
-		if (NumTextures)
-		{
-			IRHICommandContext::RHITransitionResources(EResourceTransitionAccess::ERWSubResBarrier, Textures, NumTextures);
-		}
-	}
-	
 	if (InInfo.bOcclusionQueries)
 	{
 		Context->GetCommandList().SetParallelIndex(0, 0);
@@ -231,7 +208,10 @@ void FMetalRHICommandContext::RHINextSubpass()
 	if (RenderPassInfo.SubpassHint == ESubpassHint::DepthReadSubpass)
 	{
 		FMetalRenderPass& RP = Context->GetCurrentRenderPass();
-		RP.InsertTextureBarrier();
+		if (RP.GetCurrentCommandEncoder().IsRenderCommandEncoderActive())
+		{
+			RP.InsertTextureBarrier();
+		}
 	}
 #endif
 }

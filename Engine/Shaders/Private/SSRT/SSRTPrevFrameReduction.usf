@@ -149,7 +149,7 @@ void MainCS(
 
 		bool bIsSky = WorldDepth > 100 * 1000;
 
-		float4 EncodedVelocity = SceneVelocityBuffer.SampleLevel(SceneVelocityBufferSampler, SceneBufferUV, 0);
+		float4 EncodedVelocity = GBufferVelocityTexture.SampleLevel(GBufferVelocityTextureSampler, SceneBufferUV, 0);
 		if (EncodedVelocity.x > 0.0)
 		{
 			PrevScreen = ThisClip.xy - DecodeVelocityFromTexture(EncodedVelocity).xy;

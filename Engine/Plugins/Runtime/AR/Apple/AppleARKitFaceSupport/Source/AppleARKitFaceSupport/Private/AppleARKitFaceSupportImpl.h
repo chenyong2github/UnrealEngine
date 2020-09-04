@@ -6,6 +6,8 @@
 #include "AppleARKitFaceSupport.h"
 #include "AppleARKitLiveLinkSourceFactory.h"
 #include "AppleARKitConversion.h"
+#include "Misc/Guid.h"
+#include "HAL/CriticalSection.h"
 
 
 class APPLEARKITFACESUPPORT_API FAppleARKitFaceSupport :
@@ -27,8 +29,9 @@ private:
 	virtual ARConfiguration* ToARConfiguration(UARSessionConfig* InSessionConfig, UTimecodeProvider* InProvider) override;
 
 	virtual bool DoesSupportFaceAR() override;
+
 #if SUPPORTS_ARKIT_1_5
-	virtual TArray<FARVideoFormat> ToARConfiguration() override;
+	virtual NSArray<ARVideoFormat*>* GetSupportedVideoFormats() const override;
 #endif
 
 #if SUPPORTS_ARKIT_3_0
@@ -39,10 +42,15 @@ private:
 	/** Publishes the remote publisher and the file writer if present */
 	void ProcessRealTimePublishers(TSharedPtr<FAppleARKitAnchorData> AnchorData);
 
-	virtual void PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorData> Anchor) override;
-#endif
+	virtual void PublishLiveLinkData(const FGuid& SessionGuid, TSharedPtr<FAppleARKitAnchorData> Anchor) override;
+#endif // SUPPORTS_ARKIT_1_0
+	
+	virtual int32 GetNumberOfTrackedFacesSupported() const override;
+	
 	/** Inits the real time providers if needed */
 	void InitRealtimeProviders();
+	
+	FName GetLiveLinkSubjectName(const FGuid& AnchorId);
 
 	//~ FSelfRegisteringExec
 	virtual bool Exec(UWorld*, const TCHAR* Cmd, FOutputDevice& Ar) override;
@@ -54,8 +62,6 @@ private:
 protected:
 	/** If requested, publishes face ar updates to LiveLink for the animation system to use */
 	TSharedPtr<ILiveLinkSourceARKit> LiveLinkSource;
-	/** Copied from the UARSessionConfig project settings object */
-	FName FaceTrackingLiveLinkSubjectName;
 	/** The id of this device */
 	FName LocalDeviceId;
 	/** A publisher that sends to a remote machine */
@@ -68,5 +74,12 @@ protected:
 	 * implement the FGCObject interface but this gets created before UObjects are init-ed so not possible
 	 * */
 	UTimecodeProvider* TimecodeProvider;
+	
+	// The id of the last session
+	FGuid LastSessionId;
+	
+	// { Anchor Id : livelink subject name }
+	TMap<FGuid, FName> AnchorIdToSubjectName;
+	
+	FCriticalSection AnchorIdLock;
 };
-

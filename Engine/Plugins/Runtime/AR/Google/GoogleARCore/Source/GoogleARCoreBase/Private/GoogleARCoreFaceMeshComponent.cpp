@@ -7,13 +7,13 @@
 #include "ARSessionConfig.h"
 #include "DrawDebugHelpers.h"
 
-UGoogleARCoreFaceMeshComponent::UGoogleARCoreFaceMeshComponent(const FObjectInitializer& ObjectInitializer)
+UDEPRECATED_GoogleARCoreFaceMeshComponent::UDEPRECATED_GoogleARCoreFaceMeshComponent(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
 	PrimaryComponentTick.bCanEverTick = true;
 }
 
-void UGoogleARCoreFaceMeshComponent::InitializeComponent()
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::InitializeComponent()
 {
 	Super::InitializeComponent();
 
@@ -23,7 +23,7 @@ void UGoogleARCoreFaceMeshComponent::InitializeComponent()
 	}
 }
 
-void UGoogleARCoreFaceMeshComponent::CreateMesh(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector2D>& UV0)
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::CreateMesh(const TArray<FVector>& Vertices, const TArray<int32>& Triangles, const TArray<FVector2D>& UV0)
 {
 	TArray<FVector> Normals;
 	TArray<FLinearColor> VertexColors;
@@ -32,7 +32,7 @@ void UGoogleARCoreFaceMeshComponent::CreateMesh(const TArray<FVector>& Vertices,
 	CreateMeshSection_LinearColor(0, Vertices, Triangles, Normals, UV0, VertexColors, Tangents, bWantsCollision);
 }
 
-FMatrix UGoogleARCoreFaceMeshComponent::GetRenderMatrix() const
+FMatrix UDEPRECATED_GoogleARCoreFaceMeshComponent::GetRenderMatrix() const
 {
 	FTransform RenderTrans;
 
@@ -59,7 +59,7 @@ FMatrix UGoogleARCoreFaceMeshComponent::GetRenderMatrix() const
 	return RenderTrans.ToMatrixWithScale();
 }
 
-class UMaterialInterface* UGoogleARCoreFaceMeshComponent::GetMaterial(int32 ElementIndex) const
+class UMaterialInterface* UDEPRECATED_GoogleARCoreFaceMeshComponent::GetMaterial(int32 ElementIndex) const
 {
 	if (ElementIndex == 0)
 	{
@@ -68,7 +68,7 @@ class UMaterialInterface* UGoogleARCoreFaceMeshComponent::GetMaterial(int32 Elem
 	return nullptr;
 }
 
-void UGoogleARCoreFaceMeshComponent::SetMaterial(int32 ElementIndex, class UMaterialInterface* Material)
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::SetMaterial(int32 ElementIndex, class UMaterialInterface* Material)
 {
 	if (ElementIndex == 0)
 	{
@@ -76,7 +76,7 @@ void UGoogleARCoreFaceMeshComponent::SetMaterial(int32 ElementIndex, class UMate
 	}
 }
 
-void UGoogleARCoreFaceMeshComponent::UpdateMesh(const TArray<FVector>& Vertices)
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::UpdateMesh(const TArray<FVector>& Vertices)
 {
 	TArray<FVector> Normals;
 	TArray<FVector2D> UV0;
@@ -86,7 +86,7 @@ void UGoogleARCoreFaceMeshComponent::UpdateMesh(const TArray<FVector>& Vertices)
 	UpdateMeshSection_LinearColor(0, Vertices, Normals, UV0, VertexColors, Tangents);
 }
 
-UARFaceGeometry* UGoogleARCoreFaceMeshComponent::FindFaceGeometry()
+UARFaceGeometry* UDEPRECATED_GoogleARCoreFaceMeshComponent::FindFaceGeometry()
 {
 	const TArray<UARTrackedGeometry*> Geometries = UARBlueprintLibrary::GetAllGeometries();
 	for (UARTrackedGeometry* Geo : Geometries)
@@ -100,7 +100,7 @@ UARFaceGeometry* UGoogleARCoreFaceMeshComponent::FindFaceGeometry()
 	return nullptr;
 }
 
-void UGoogleARCoreFaceMeshComponent::SetAutoBind(bool bAutoBind)
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::SetAutoBind(bool bAutoBind)
 {
 	if (bAutoBindToLocalFaceMesh != bAutoBind)
 	{
@@ -109,12 +109,12 @@ void UGoogleARCoreFaceMeshComponent::SetAutoBind(bool bAutoBind)
 	}
 }
 
-void UGoogleARCoreFaceMeshComponent::BindARFaceGeometry(UARFaceGeometry* FaceGeometry)
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::BindARFaceGeometry(UARFaceGeometry* FaceGeometry)
 {
 	BoundFaceGeometry = FaceGeometry;
 }
 
-void UGoogleARCoreFaceMeshComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
+void UDEPRECATED_GoogleARCoreFaceMeshComponent::TickComponent(float DeltaTime, ELevelTick, FActorComponentTickFunction*)
 {
 	if (bAutoBindToLocalFaceMesh)
 	{
@@ -147,7 +147,7 @@ void UGoogleARCoreFaceMeshComponent::TickComponent(float DeltaTime, ELevelTick, 
 	}
 }
 
-FTransform UGoogleARCoreFaceMeshComponent::GetTransform() const
+FTransform UDEPRECATED_GoogleARCoreFaceMeshComponent::GetTransform() const
 {
 	return LocalToWorldTransform;
 }

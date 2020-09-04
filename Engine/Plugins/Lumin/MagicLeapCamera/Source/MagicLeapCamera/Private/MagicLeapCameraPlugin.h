@@ -7,7 +7,6 @@
 #include "IMagicLeapCameraPlugin.h"
 #include "MagicLeapCameraRunnable.h"
 #include "MagicLeapCameraTypes.h"
-#include "MagicLeapPluginUtil.h"
 #include "AppEventHandler.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMagicLeapCamera, Verbose, All);
@@ -33,9 +32,6 @@ public:
 	bool IsCapturing() const;
 
 private:
-	bool TryPushNewCaptureTask(FCameraTask::EType InTaskType);
-	void OnAppPause();
-
 	enum class ECaptureState : uint32
 	{
 		Idle,
@@ -46,7 +42,6 @@ private:
 		EndingCapture,
 	};
 
-	FMagicLeapAPISetup APISetup;
 	FTickerDelegate TickDelegate;
 	FDelegateHandle TickDelegateHandle;
 	uint32 UserCount;
@@ -61,6 +56,10 @@ private:
 	FMagicLeapCameraStartRecordingMulti OnStartRecording;
 	FMagicLeapCameraStopRecordingMulti OnStopRecording;
 	FMagicLeapCameraLogMessageMulti OnLogMessage;
+
+	bool TryPushNewCaptureTask(FCameraTask::EType InTaskType);
+	void OnAppPause();
+	const TCHAR* CaptureStateToString(ECaptureState InCaptureState);
 };
 
 inline FMagicLeapCameraPlugin& GetMagicLeapCameraPlugin()

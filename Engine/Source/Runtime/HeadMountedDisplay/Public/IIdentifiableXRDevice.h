@@ -12,7 +12,7 @@ class HEADMOUNTEDDISPLAY_API IXRSystemIdentifier
 public:
 	/**
 	 * Returns a unique identifier that's supposed to represent the third party 
-	 * system that this object is part of (Vive, Oculus, PSVR, Gear VR, etc.).
+	 * system that this object is part of (Vive, Oculus, PSVR, etc.).
 	 *
 	 * @return  A name unique to the system which this object belongs to.
 	 */

@@ -115,17 +115,9 @@ int32 FTurnBasedMatchIOS::GetLocalPlayerIndex() const
 	for (GKTurnBasedParticipant* participant in participantArray)
 	{
         NSString* PlayerIDString = nil;
-#ifdef __IPHONE_8_0
         if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
         {
 			PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
-        }
-        else
-#endif
-        {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-            PlayerIDString = participant.playerID;
-#endif
         }
 		if ([playerID isEqualToString : PlayerIDString])
 		{
@@ -165,17 +157,9 @@ int32 FTurnBasedMatchIOS::GetPlayerIndexForPlayer(NSString* PlayerID) const
 	for (GKTurnBasedParticipant* participant in Match.participants)
 	{
         NSString* PlayerIDString = nil;
-#ifdef __IPHONE_8_0
         if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
         {
 			PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
-        }
-        else
-#endif
-        {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-            PlayerIDString = participant.playerID;
-#endif
         }
 		if ([PlayerIDString isEqualToString : PlayerID])
 		{
@@ -604,17 +588,9 @@ NSArray* FOnlineTurnBasedIOS::GetPlayerIdentifierArrayForMatch(GKTurnBasedMatch*
 	for (GKTurnBasedParticipant* participant in match.participants)
 	{
         NSString* PlayerIDString = nil;
-#ifdef __IPHONE_8_0
         if ([GKTurnBasedParticipant respondsToSelector:@selector(player)] == YES)
         {
 			PlayerIDString = FOnlineSubsystemIOS::GetPlayerId(participant.player);
-        }
-        else
-#endif
-        {
-#if __IPHONE_OS_VERSION_MIN_REQUIRED < __IPHONE_8_0
-            PlayerIDString = participant.playerID;
-#endif
         }
 		if (!PlayerIDString)
 		{

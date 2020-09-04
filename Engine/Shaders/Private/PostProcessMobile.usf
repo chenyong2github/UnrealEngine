@@ -9,6 +9,57 @@
 #include "PostprocessHistogramCommon.ush"
 #include "ScreenPass.ush"
 
+Texture2D SceneColorTexture;
+SamplerState SceneColorSampler;
+
+Texture2D LastFrameSceneColorTexture;
+SamplerState LastFrameSceneColorSampler;
+
+Texture2D SunShaftAndDofTexture;
+SamplerState SunShaftAndDofSampler;
+
+Texture2D DofNearTexture;
+SamplerState DofNearSampler;
+
+Texture2D DofDownTexture;
+SamplerState DofDownSampler;
+
+Texture2D DofBlurTexture;
+SamplerState DofBlurSampler;
+
+Texture2D BloomDownSourceTexture;
+SamplerState BloomDownSourceSampler;
+
+Texture2D BloomUpSourceATexture;
+SamplerState BloomUpSourceASampler;
+
+Texture2D BloomUpSourceBTexture;
+SamplerState BloomUpSourceBSampler;
+
+Texture2D SunAlphaTexture;
+SamplerState SunAlphaSampler;
+
+Texture2D SunBlurTexture;
+SamplerState SunBlurSampler;
+
+Texture2D BloomSetup_BloomTexture;
+SamplerState BloomSetup_BloomSampler;
+
+Texture2D BloomUpTexture;
+SamplerState BloomUpSampler;
+
+Texture2D SunMergeTexture;
+SamplerState SunMergeSampler;
+
+Texture2D LastFrameSunMergeTexture;
+SamplerState LastFrameSunMergeSampler;
+
+float4 BufferSizeAndInvSize;
+float4 DofBlurSizeAndInvSize;
+float4 BufferASizeAndInvSize;
+float4 BufferBSizeAndInvSize;
+float4 BloomUpSizeAndInvSize;
+
 // Point on circle.
 float2 Circle(float Start, float Points, float Point) 
 {
@@ -86,26 +137,27 @@ half2 SunConstDepthMaskScaleBias()
 
 #if SHADER_SUN_MASK
 
-Texture2D SceneColorTexture;
-SamplerState SceneColorSampler;
-
-void SunMaskPS_ES2(
+void SunMaskPS_Mobile(
 	float4 InUVPos : TEXCOORD0,
 	out half OutSunShaftAndDof : SV_Target0
-#if !ES2_USE_DEPTHTEXTURE
+#if !MOBILE_USEDEPTHTEXTURE
 	, out half4 OutColor : SV_Target1
 #endif
 	)
 {
 	half4 SceneColor = SceneColorTexture.Sample(SceneColorSampler, InUVPos.xy);
 
-	#if ES2_USE_DEPTHTEXTURE
+	#if MOBILE_USEDEPTHTEXTURE
 		half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthTexture, MobileSceneTextures.SceneDepthTextureSampler, InUVPos.xy, 0).r);
 	#else
-		half InDepth = ConvertFromDeviceZ(SceneColor.a);
+		#if MOBILE_DEFERRED_SHADING
+			half InDepth = ConvertFromDeviceZ(Texture2DSampleLevel(MobileSceneTextures.SceneDepthAuxTexture, MobileSceneTextures.SceneDepthAuxTextureSampler, InUVPos.xy, 0).r);
+		#else
+			half InDepth = ConvertFromDeviceZ(SceneColor.a);
+		#endif
 	#endif
 	
-	#if ES2_USE_SUN
+	#if MOBILE_USESUN
 
 		#if METAL_MSAA_HDR_DECODE
 			SceneColor.rgb *= rcp(SceneColor.r*(-0.299) + SceneColor.g*(-0.587) + SceneColor.b*(-0.114) + 1.0);
@@ -126,11 +178,11 @@ void SunMaskPS_ES2(
 		OutSunShaftAndDof = 0.0;
 	#endif
 
-	#if ES2_USE_DOF
+	#if MOBILE_USEDOF
 		OutSunShaftAndDof += Coc2(InDepth);
 	#endif
 
-	#if !ES2_USE_DEPTHTEXTURE
+	#if !MOBILE_USEDEPTHTEXTURE
 		OutColor = SceneColor;
 	#endif
 }
@@ -141,14 +193,14 @@ void SunMaskPS_ES2(
 // Pre-tonemap before hardware box-filtered resolve.
 //
 
-void PreTonemapMSAA_ES2(
+void PreTonemapMSAA_Mobile(
 	float4 InUVPos : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
 {
-#if (COMPILER_GLSL_ES3_1) || (METAL_PROFILE && !MAC)
+#if (METAL_PROFILE && !MAC)
 	// On-chip pre-tonemap before MSAA resolve.
-	OutColor = FramebufferFetchES2();
+	OutColor = SubpassFetchRGBA_0();
 	OutColor.rgb *= rcp(OutColor.r*0.299 + OutColor.g*0.587 + OutColor.b*0.114 + 1.0);
 #endif
 }
@@ -172,7 +224,7 @@ void MSAADecodeAndCopyRectPS(
 // Bloom Setup - Mask Bloom and Downsample 1/16 Area
 //
 
-void BloomVS_ES2(
+void BloomVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutTexCoords[4] : TEXCOORD0,
@@ -182,29 +234,29 @@ void BloomVS_ES2(
 	float2 TransformedUV;
 	DrawRectangle(InPosition, InTexCoord, OutPosition, TransformedUV);
 
-	OutTexCoords[0] = TransformedUV + PostprocessInput0Size.zw * float2(-1, -1);
-	OutTexCoords[1] = TransformedUV + PostprocessInput0Size.zw * float2( 1, -1);
-	OutTexCoords[2] = TransformedUV + PostprocessInput0Size.zw * float2(-1,  1);
-	OutTexCoords[3] = TransformedUV + PostprocessInput0Size.zw * float2( 1,  1);
+	OutTexCoords[0] = TransformedUV + BufferSizeAndInvSize.zw * float2(-1, -1);
+	OutTexCoords[1] = TransformedUV + BufferSizeAndInvSize.zw * float2( 1, -1);
+	OutTexCoords[2] = TransformedUV + BufferSizeAndInvSize.zw * float2(-1,  1);
+	OutTexCoords[3] = TransformedUV + BufferSizeAndInvSize.zw * float2( 1,  1);
 }
 
-void BloomPS_ES2(
+void BloomPS_Mobile(
 	float2 InUVs[4] : TEXCOORD0
-#if ES2_USE_BLOOM
+#if MOBILE_USEBLOOM
 
 	, out half4 OutColor : SV_Target0
 
-	#if ES2_USE_DOF || ES2_USE_SUN
+	#if MOBILE_USEDOF || MOBILE_USESUN
 
 		,out half OutSunShaftAndDof : SV_Target1
 
-		#if ES2_USE_EYEADAPTATION
+		#if MOBILE_USEEYEADAPTATION
 			, out half OutEyeAdaptation : SV_Target2
 		#endif
 
 	#else
 
-		#if ES2_USE_EYEADAPTATION
+		#if MOBILE_USEEYEADAPTATION
 			, out half OutEyeAdaptation : SV_Target1
 		#endif
 
@@ -213,17 +265,17 @@ void BloomPS_ES2(
 
 #else
 
-	#if ES2_USE_DOF || ES2_USE_SUN
+	#if MOBILE_USEDOF || MOBILE_USESUN
 
 		, out half OutSunShaftAndDof : SV_Target0
 
-		#if ES2_USE_EYEADAPTATION
+		#if MOBILE_USEEYEADAPTATION
 			, out half OutEyeAdaptation : SV_Target1
 		#endif
 
 	#else
 
-		#if ES2_USE_EYEADAPTATION
+		#if MOBILE_USEEYEADAPTATION
 			, out half OutEyeAdaptation : SV_Target0
 		#endif
 
@@ -242,11 +294,11 @@ void BloomPS_ES2(
 	const float PreExposure = View.PreExposure;
 #endif
 
-#if ES2_USE_BLOOM || ES2_USE_SUN || ES2_USE_EYEADAPTATION
-	half4 C0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]);
-	half4 C1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]);
-	half4 C2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]);
-	half4 C3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]);
+#if MOBILE_USEBLOOM || MOBILE_USESUN || MOBILE_USEEYEADAPTATION
+	half4 C0 = SceneColorTexture.Sample(SceneColorSampler, InUVs[0]);
+	half4 C1 = SceneColorTexture.Sample(SceneColorSampler, InUVs[1]);
+	half4 C2 = SceneColorTexture.Sample(SceneColorSampler, InUVs[2]);
+	half4 C3 = SceneColorTexture.Sample(SceneColorSampler, InUVs[3]);
 
 	C0.rgb = C0;
 	C1.rgb = C1;
@@ -265,14 +317,14 @@ void BloomPS_ES2(
 	AverageColor.rgb = max(AverageColor.rgb, 0) * OneOverPreExposure;
 
 	
-	#if ES2_USE_BLOOM || ES2_USE_SUN
+	#if MOBILE_USEBLOOM || MOBILE_USESUN
 		// Trim bloom and sunshafts black level.
 		half TotalLuminance = Luminance(AverageColor.rgb);
 		half BloomLuminance = TotalLuminance - BloomThreshold;
 		half Amount = saturate(BloomLuminance * 0.5f);
 	#endif
 
-	#if ES2_USE_BLOOM 
+	#if MOBILE_USEBLOOM 
 		OutColor.rgb = AverageColor;
 		OutColor.rgb *= Amount;
 		OutColor.a = 0;
@@ -281,11 +333,11 @@ void BloomPS_ES2(
 	#endif
 #endif
 
-#if ES2_USE_DOF || ES2_USE_SUN
-	half A0 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0]).r;
-	half A1 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[1]).r;
-	half A2 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[2]).r;
-	half A3 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3]).r;
+#if MOBILE_USEDOF || MOBILE_USESUN
+	half A0 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[0]).r;
+	half A1 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[1]).r;
+	half A2 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[2]).r;
+	half A3 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[3]).r;
 #endif
 
 // In the case of both DOF and SUN,
@@ -293,7 +345,7 @@ void BloomPS_ES2(
 // Expand {near to in-focus} {0.0 to 0.5} to {0.0 to 1.0} for near DOF diolation.
 // Must keep 1.0 the in-focus here (sunshaft pass will use this data).
 
-#if ES2_USE_DOF
+#if MOBILE_USEDOF
 	// Expand {near to in-focus} {0.0 to 0.5} to {0.0 to 1.0} for near DOF diolation.
 	// Must keep 1.0 the in-focus here (sunshaft pass will use this data).
 	half Coc0 = saturate(A0*2.0);
@@ -308,11 +360,11 @@ void BloomPS_ES2(
 	OutSunShaftAndDof = 1.0 - OutSunShaftAndDof;
 	OutSunShaftAndDof *= OutSunShaftAndDof;
 	OutSunShaftAndDof = 1.0 - OutSunShaftAndDof;
-#elif ES2_USE_SUN
+#elif MOBILE_USESUN
 	OutSunShaftAndDof = 0.0f;
 #endif
 
-#if ES2_USE_SUN
+#if MOBILE_USESUN
 	half Sun0 = max(0.0, A0-1.0);
 	half Sun1 = max(0.0, A1-1.0);
 	half Sun2 = max(0.0, A2-1.0);
@@ -323,7 +375,7 @@ void BloomPS_ES2(
 	OutSunShaftAndDof += (Sun0 * Amount) + (Sun1 * Amount) + (Sun2 * Amount) + (Sun3 * Amount);
 #endif
 
-#if ES2_USE_EYEADAPTATION
+#if MOBILE_USEEYEADAPTATION
 
 	const half Intensity = max(dot(AverageColor, half3(1.0f, 1.0f, 1.0f) / 3.0f), EyeAdaptation_LuminanceMin);
 	const float LogIntensity = clamp(log2(Intensity), -10.0f, 20.0f);
@@ -344,7 +396,7 @@ void BloomPS_ES2(
 
 float BloomDownScale;
 
-void BloomDownVS_ES2(
+void BloomDownVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float4 OutTexCoords[8] : TEXCOORD0,
@@ -357,43 +409,43 @@ void BloomDownVS_ES2(
 	float Scale = BloomDownScale;
 
 	OutTexCoords[0].xy = InTexCoord.xy;
-	OutTexCoords[0].zw = InTexCoord.xy + Circle(Start, 14.0, 0.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 14.0, 1.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1].zw = InTexCoord.xy + Circle(Start, 14.0, 2.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 14.0, 3.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2].zw = InTexCoord.xy + Circle(Start, 14.0, 4.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 14.0, 5.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[3].zw = InTexCoord.xy + Circle(Start, 14.0, 6.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 14.0, 7.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[4].zw = InTexCoord.xy + Circle(Start, 14.0, 8.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 14.0, 9.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[5].zw = InTexCoord.xy + Circle(Start, 14.0, 10.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[6].xy = InTexCoord.xy + Circle(Start, 14.0, 11.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[6].zw = InTexCoord.xy + Circle(Start, 14.0, 12.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[7].xy = InTexCoord.xy + Circle(Start, 14.0, 13.0) * Scale * PostprocessInput0Size.zw;
+	OutTexCoords[0].zw = InTexCoord.xy + Circle(Start, 14.0, 0.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 14.0, 1.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[1].zw = InTexCoord.xy + Circle(Start, 14.0, 2.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 14.0, 3.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[2].zw = InTexCoord.xy + Circle(Start, 14.0, 4.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 14.0, 5.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[3].zw = InTexCoord.xy + Circle(Start, 14.0, 6.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 14.0, 7.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[4].zw = InTexCoord.xy + Circle(Start, 14.0, 8.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 14.0, 9.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[5].zw = InTexCoord.xy + Circle(Start, 14.0, 10.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[6].xy = InTexCoord.xy + Circle(Start, 14.0, 11.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[6].zw = InTexCoord.xy + Circle(Start, 14.0, 12.0) * Scale * BufferSizeAndInvSize.zw;
+	OutTexCoords[7].xy = InTexCoord.xy + Circle(Start, 14.0, 13.0) * Scale * BufferSizeAndInvSize.zw;
 	OutTexCoords[7].zw = float2(0.0, 0.0);
 }
 
-void BloomDownPS_ES2(
+void BloomDownPS_Mobile(
 	float4 InUVs[8] : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
 {
-	half4 N0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).rgba;
-	half4 N1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).rgba;
-	half4 N2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).rgba;
-	half4 N3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).rgba;
-	half4 N4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).rgba;
-	half4 N5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).rgba;
-	half4 N6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).rgba;
-	half4 N7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).rgba;
-	half4 N8 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4].xy).rgba;
-	half4 N9 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4].zw).rgba;
-	half4 N10 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5].xy).rgba;
-	half4 N11 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5].zw).rgba;
-	half4 N12 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6].xy).rgba;
-	half4 N13 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6].zw).rgba;
-	half4 N14 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7].xy).rgba;
+	half4 N0 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[0].xy).rgba;
+	half4 N1 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[0].zw).rgba;
+	half4 N2 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[1].xy).rgba;
+	half4 N3 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[1].zw).rgba;
+	half4 N4 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[2].xy).rgba;
+	half4 N5 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[2].zw).rgba;
+	half4 N6 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[3].xy).rgba;
+	half4 N7 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[3].zw).rgba;
+	half4 N8 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[4].xy).rgba;
+	half4 N9 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[4].zw).rgba;
+	half4 N10 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[5].xy).rgba;
+	half4 N11 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[5].zw).rgba;
+	half4 N12 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[6].xy).rgba;
+	half4 N13 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[6].zw).rgba;
+	half4 N14 = BloomDownSourceTexture.Sample(BloomDownSourceSampler, InUVs[7].xy).rgba;
 	float W = 1.0/15.0;
 	OutColor.rgb = 
 		(N0 * W) +
@@ -421,7 +473,7 @@ void BloomDownPS_ES2(
 
 float2 BloomUpScales;
 
-void BloomUpVS_ES2(
+void BloomUpVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float4 OutTexCoords[8] : TEXCOORD0,
@@ -437,54 +489,54 @@ void BloomUpVS_ES2(
 	Scale = BloomUpScales.x;
 
 
-	OutTexCoords[0].xy = InTexCoord.xy + Circle(Start, 7.0, 0.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[0].zw = InTexCoord.xy + Circle(Start, 7.0, 1.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 7.0, 2.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[1].zw = InTexCoord.xy + Circle(Start, 7.0, 3.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 7.0, 4.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[2].zw = InTexCoord.xy + Circle(Start, 7.0, 5.0) * Scale * PostprocessInput0Size.zw;
-	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 7.0, 6.0) * Scale * PostprocessInput0Size.zw;
+	OutTexCoords[0].xy = InTexCoord.xy + Circle(Start, 7.0, 0.0) * Scale * BufferASizeAndInvSize.zw;
+	OutTexCoords[0].zw = InTexCoord.xy + Circle(Start, 7.0, 1.0) * Scale * BufferASizeAndInvSize.zw;
+	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 7.0, 2.0) * Scale * BufferASizeAndInvSize.zw;
+	OutTexCoords[1].zw = InTexCoord.xy + Circle(Start, 7.0, 3.0) * Scale * BufferASizeAndInvSize.zw;
+	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 7.0, 4.0) * Scale * BufferASizeAndInvSize.zw;
+	OutTexCoords[2].zw = InTexCoord.xy + Circle(Start, 7.0, 5.0) * Scale * BufferASizeAndInvSize.zw;
+	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 7.0, 6.0) * Scale * BufferASizeAndInvSize.zw;
 
 	OutTexCoords[3].zw = InTexCoord.xy;
 
 	Start = 2.0/7.0;
 	Scale = BloomUpScales.y;
 
-	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 7.0, 0.0) * Scale * PostprocessInput1Size.zw;
-	OutTexCoords[4].zw = InTexCoord.xy + Circle(Start, 7.0, 1.0) * Scale * PostprocessInput1Size.zw;
-	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 7.0, 2.0) * Scale * PostprocessInput1Size.zw;
-	OutTexCoords[5].zw = InTexCoord.xy + Circle(Start, 7.0, 3.0) * Scale * PostprocessInput1Size.zw;
-	OutTexCoords[6].xy = InTexCoord.xy + Circle(Start, 7.0, 4.0) * Scale * PostprocessInput1Size.zw;
-	OutTexCoords[6].zw = InTexCoord.xy + Circle(Start, 7.0, 5.0) * Scale * PostprocessInput1Size.zw;
-	OutTexCoords[7].xy = InTexCoord.xy + Circle(Start, 7.0, 6.0) * Scale * PostprocessInput1Size.zw;
+	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 7.0, 0.0) * Scale * BufferBSizeAndInvSize.zw;
+	OutTexCoords[4].zw = InTexCoord.xy + Circle(Start, 7.0, 1.0) * Scale * BufferBSizeAndInvSize.zw;
+	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 7.0, 2.0) * Scale * BufferBSizeAndInvSize.zw;
+	OutTexCoords[5].zw = InTexCoord.xy + Circle(Start, 7.0, 3.0) * Scale * BufferBSizeAndInvSize.zw;
+	OutTexCoords[6].xy = InTexCoord.xy + Circle(Start, 7.0, 4.0) * Scale * BufferBSizeAndInvSize.zw;
+	OutTexCoords[6].zw = InTexCoord.xy + Circle(Start, 7.0, 5.0) * Scale * BufferBSizeAndInvSize.zw;
+	OutTexCoords[7].xy = InTexCoord.xy + Circle(Start, 7.0, 6.0) * Scale * BufferBSizeAndInvSize.zw;
 	OutTexCoords[7].zw = float2(0.0, 0.0);
 }
 
 float4 BloomTintA;
 float4 BloomTintB;
 
-void BloomUpPS_ES2(
+void BloomUpPS_Mobile(
 	float4 InUVs[8] : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
 {
-	half3 A0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).rgba;
-	half3 A1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).rgba;
-	half3 A2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).rgba;
-	half3 A3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).rgba;
-	half3 A4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).rgba;
-	half3 A5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).rgba;
-	half3 A6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).rgba;
-	half3 A7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).rgba;
+	half3 A0 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[0].xy).rgb;
+	half3 A1 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[0].zw).rgb;
+	half3 A2 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[1].xy).rgb;
+	half3 A3 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[1].zw).rgb;
+	half3 A4 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[2].xy).rgb;
+	half3 A5 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[2].zw).rgb;
+	half3 A6 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[3].xy).rgb;
+	half3 A7 = BloomUpSourceATexture.Sample(BloomUpSourceASampler, InUVs[3].zw).rgb;
 
-	half3 B0 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].zw).rgba;
-	half3 B1 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgba;
-	half3 B2 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].zw).rgba;
-	half3 B3 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgba;
-	half3 B4 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].zw).rgba;
-	half3 B5 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[6].xy).rgba;
-	half3 B6 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[6].zw).rgba;
-	half3 B7 = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[7].xy).rgba;
+	half3 B0 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[3].zw).rgb;
+	half3 B1 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[4].xy).rgb;
+	half3 B2 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[4].zw).rgb;
+	half3 B3 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[5].xy).rgb;
+	half3 B4 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[5].zw).rgb;
+	half3 B5 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[6].xy).rgb;
+	half3 B6 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[6].zw).rgb;
+	half3 B7 = BloomUpSourceBTexture.Sample(BloomUpSourceBSampler, InUVs[7].xy).rgb;
 
 	// A is the same size source.
 	half3 WA = BloomTintA.rgb;
@@ -516,7 +568,7 @@ void BloomUpPS_ES2(
 // Near Setup - Generate near diolation for DOF.
 //
 
-void DofNearVS_ES2(
+void DofNearVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutTexCoords2 : TEXCOORD0,
@@ -527,34 +579,34 @@ void DofNearVS_ES2(
 	DrawRectangle(InPosition, InTexCoord, OutPosition, InTexCoord);
 
 	OutTexCoords2 = InTexCoord;
-	OutTexCoords4[0].xy = InTexCoord + PostprocessInput0Size.zw * float2(-0.5,-1.0);
-	OutTexCoords4[0].zw = InTexCoord + PostprocessInput0Size.zw * float2( 1.0,-0.5);
-	OutTexCoords4[1].xy = InTexCoord + PostprocessInput0Size.zw * float2( 0.5, 1.0);
-	OutTexCoords4[1].zw = InTexCoord + PostprocessInput0Size.zw * float2(-1.0, 0.5);
-	OutTexCoords4[2].xy = InTexCoord + PostprocessInput0Size.zw * float2( 0.5,-1.0);
-	OutTexCoords4[2].zw = InTexCoord + PostprocessInput0Size.zw * float2( 1.0, 0.5);
-	OutTexCoords4[3].xy = InTexCoord + PostprocessInput0Size.zw * float2(-0.5, 1.0);
-	OutTexCoords4[3].zw = InTexCoord + PostprocessInput0Size.zw * float2(-1.0,-0.5);
+	OutTexCoords4[0].xy = InTexCoord + BufferSizeAndInvSize.zw * float2(-0.5,-1.0);
+	OutTexCoords4[0].zw = InTexCoord + BufferSizeAndInvSize.zw * float2( 1.0,-0.5);
+	OutTexCoords4[1].xy = InTexCoord + BufferSizeAndInvSize.zw * float2( 0.5, 1.0);
+	OutTexCoords4[1].zw = InTexCoord + BufferSizeAndInvSize.zw * float2(-1.0, 0.5);
+	OutTexCoords4[2].xy = InTexCoord + BufferSizeAndInvSize.zw * float2( 0.5,-1.0);
+	OutTexCoords4[2].zw = InTexCoord + BufferSizeAndInvSize.zw * float2( 1.0, 0.5);
+	OutTexCoords4[3].xy = InTexCoord + BufferSizeAndInvSize.zw * float2(-0.5, 1.0);
+	OutTexCoords4[3].zw = InTexCoord + BufferSizeAndInvSize.zw * float2(-1.0,-0.5);
 }
 
-void DofNearPS_ES2(
+void DofNearPS_Mobile(
 	float2 InUVs2 : TEXCOORD0,
 	float4 InUVs[4] : TEXCOORD1,
 	out half OutColor : SV_Target0
 	)
 {
-	half N0 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs2).r;
-	half N1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].xy).r;
-	half N2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).r;
-	half N3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].xy).r;
-	half N4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).r;
-	half N5 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].xy).r;
-	half N6 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).r;
-	half N7 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].xy).r;
-	half N8 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).r;
+	half N0 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs2).r;
+	half N1 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[0].xy).r;
+	half N2 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[0].zw).r;
+	half N3 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[1].xy).r;
+	half N4 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[1].zw).r;
+	half N5 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[2].xy).r;
+	half N6 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[2].zw).r;
+	half N7 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[3].xy).r;
+	half N8 = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[3].zw).r;
 
 	// Remove sunshaft intensity component and reverse.
-	#if ES2_USE_SUN
+	#if MOBILE_USESUN
 		N0 = saturate(1.0 - N0);
 		N1 = saturate(1.0 - N1);
 		N2 = saturate(1.0 - N2);
@@ -590,7 +642,7 @@ void DofNearPS_ES2(
 
 
 
-void DofDownVS_ES2(
+void DofDownVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutTexCoords[5] : TEXCOORD0,
@@ -602,13 +654,13 @@ void DofDownVS_ES2(
 	// Near position fixed to use UV based out output position.
 	OutTexCoords[0] = OutPosition.xy * float2(0.5,-0.5) + 0.5;
 	// Other source UVs based on possible non-full texture.
-	OutTexCoords[1] = InTexCoord + PostprocessInput0Size.zw * float2(-0.5, -0.5);
-	OutTexCoords[2] = InTexCoord + PostprocessInput0Size.zw * float2( 0.5, -0.5);
-	OutTexCoords[3] = InTexCoord + PostprocessInput0Size.zw * float2(-0.5,  0.5);
-	OutTexCoords[4] = InTexCoord + PostprocessInput0Size.zw * float2( 0.5,  0.5);
+	OutTexCoords[1] = InTexCoord + BufferSizeAndInvSize.zw * float2(-0.5, -0.5);
+	OutTexCoords[2] = InTexCoord + BufferSizeAndInvSize.zw * float2( 0.5, -0.5);
+	OutTexCoords[3] = InTexCoord + BufferSizeAndInvSize.zw * float2(-0.5,  0.5);
+	OutTexCoords[4] = InTexCoord + BufferSizeAndInvSize.zw * float2( 0.5,  0.5);
 }
 
-void DofDownPS_ES2(
+void DofDownPS_Mobile(
 	float2 InUVs[5] : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
@@ -616,19 +668,19 @@ void DofDownPS_ES2(
 	// This shader needs float precision to work.
 
 	// Fetch near diolation and scale to (0 to 16384.0) range.
-	float N = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0]).r * 16384.0;
+	float N = DofNearTexture.Sample(DofNearSampler, InUVs[0]).r * 16384.0;
 
-	float4 A = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]);
-	float4 B = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]);
-	float4 C = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]);
-	float4 D = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]);
+	float4 A = SceneColorTexture.Sample(SceneColorSampler, InUVs[1]);
+	float4 B = SceneColorTexture.Sample(SceneColorSampler, InUVs[2]);
+	float4 C = SceneColorTexture.Sample(SceneColorSampler, InUVs[3]);
+	float4 D = SceneColorTexture.Sample(SceneColorSampler, InUVs[4]);
 
-	A.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[1]).r;
-	B.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[2]).r;
-	C.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[3]).r;
-	D.a = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVs[4]).r;
+	A.a = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[1]).r;
+	B.a = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[2]).r;
+	C.a = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[3]).r;
+	D.a = SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[4]).r;
 
-	#if ES2_USE_SUN
+	#if MOBILE_USESUN
 		// The {0.0 to 1.0} range is focus.
 		// The {1.0 to 65504.0} range is light shaft source intensity (always at fully out of focus).
 		// Must clamp back to {0.0 to 1.0} range.
@@ -727,7 +779,7 @@ half DofWeight(half Coc)
 	return saturate(Coc * Scale + Bias);
 }
 
-void DofBlurVS_ES2(
+void DofBlurVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutTexCoords[5] : TEXCOORD0,
@@ -737,24 +789,24 @@ void DofBlurVS_ES2(
 	DrawRectangle(InPosition, InTexCoord, OutPosition, InTexCoord);
 
     OutTexCoords[0] = InTexCoord.xy;
-    OutTexCoords[1] = InTexCoord.xy + float2(DOF_1) * PostprocessInput0Size.zw;
-    OutTexCoords[2] = InTexCoord.xy + float2(DOF_2) * PostprocessInput0Size.zw;
-    OutTexCoords[3] = InTexCoord.xy + float2(DOF_3) * PostprocessInput0Size.zw;
-    OutTexCoords[4] = InTexCoord.xy + float2(DOF_4) * PostprocessInput0Size.zw;
+    OutTexCoords[1] = InTexCoord.xy + float2(DOF_1) * BufferSizeAndInvSize.zw;
+    OutTexCoords[2] = InTexCoord.xy + float2(DOF_2) * BufferSizeAndInvSize.zw;
+    OutTexCoords[3] = InTexCoord.xy + float2(DOF_3) * BufferSizeAndInvSize.zw;
+    OutTexCoords[4] = InTexCoord.xy + float2(DOF_4) * BufferSizeAndInvSize.zw;
 }
 
-void DofBlurPS_ES2(
+void DofBlurPS_Mobile(
 	float2 InUVs[5] : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
 {
 	// Near diolation size is copied into alpha for the tonemapper pass.
-	OutColor.a = PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0]).r;
+	OutColor.a = DofNearTexture.Sample(DofNearSampler, InUVs[0]).r;
 
-	half4 C1 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]);
-	half4 C2 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]);
-	half4 C3 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]);
-	half4 C4 = PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]);
+	half4 C1 = DofDownTexture.Sample(DofDownSampler, InUVs[1]);
+	half4 C2 = DofDownTexture.Sample(DofDownSampler, InUVs[2]);
+	half4 C3 = DofDownTexture.Sample(DofDownSampler, InUVs[3]);
+	half4 C4 = DofDownTexture.Sample(DofDownSampler, InUVs[4]);
 
 	// Restore color (colors are weighted by CoC to help remove bleeding).
 	C1.rgb *= rcp(C1.a);
@@ -777,7 +829,7 @@ void DofBlurPS_ES2(
 
 // Integrate DOF
 
-void IntegrateDOFVS_ES2(
+void IntegrateDOFVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float4 OutTexCoords : TEXCOORD0,
@@ -788,26 +840,26 @@ void IntegrateDOFVS_ES2(
 	DrawRectangle(InPosition, InTexCoord, OutPosition, OutTexCoords.xy);
 
 	// Fine adjustment is inside the possible non-full viewport in the full resolution texture.
-	OutFineDofGrain.xy = OutTexCoords.xy + PostprocessInput0Size.zw * float2(-0.5, 0.5);
+	OutFineDofGrain.xy = OutTexCoords.xy + BufferSizeAndInvSize.zw * float2(-0.5, 0.5);
 	// Want grain and a second UV based on the knowledge that the source texture has a full viewport.
 	float2 FullViewUV = OutPosition.xy * float2(0.5, -0.5) + 0.5;
 	// For DOF attempt to undo sampling bias for the first transition region.
 	// This is better for the fine transition, breaks down for the larger bokeh.
 	// This is the best compromise for mobile using 4 bilinear taps only.
-	OutTexCoords.zw = FullViewUV.xy + PostprocessInput1Size.zw * float2(0.25, -0.5);
+	OutTexCoords.zw = FullViewUV.xy + DofBlurSizeAndInvSize.zw * float2(0.25, -0.5);
 }
 
-void IntegrateDOFPS_ES2(
+void IntegrateDOFPS_Mobile(
 	in float4 TexCoords : TEXCOORD0,
 	in float2 FineDofGrain : TEXCOORD1,
 	out half4 OutColor : SV_Target0
 )
 {
-	half4 SceneColor = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, TexCoords.xy);
+	half4 SceneColor = Texture2DSample(SceneColorTexture, SceneColorSampler, TexCoords.xy);
 
-	half4 DofFine = Texture2DSample(PostprocessInput0, PostprocessInput0Sampler, FineDofGrain.xy);
-	half4 Dof = Texture2DSample(PostprocessInput1, PostprocessInput1Sampler, TexCoords.zw);
-	half DofCoc = Texture2DSample(PostprocessInput2, PostprocessInput2Sampler, TexCoords.xy).r;
+	half4 DofFine = Texture2DSample(SceneColorTexture, SceneColorSampler, FineDofGrain.xy);
+	half4 Dof = Texture2DSample(DofBlurTexture, DofBlurSampler, TexCoords.zw);
+	half DofCoc = Texture2DSample(SunShaftAndDofTexture, SunShaftAndDofSampler, TexCoords.xy).r;
 	// Convert alpha back into circle of confusion.
 	SceneColor.a = max(Dof.a, abs(DofCoc * 2.0 - 1.0));
 	// Convert circle of confusion into blend factors.		
@@ -845,7 +897,7 @@ float2 SunShaftPosToUV(float2 Pos)
 }
 
 // Center of light shaft.
-float4 LightShaftCenter;
+float2 LightShaftCenter;
 
 // Position in {-1 to 1} space.
 float2 SunPos() 
@@ -873,7 +925,7 @@ float2 SunShaftRect(float2 InPosition, float amount)
 
 #define SUN_M 1.0
 
-void SunAlphaVS_ES2(
+void SunAlphaVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutTexCoords[8] : TEXCOORD0,
@@ -898,27 +950,27 @@ void SunAlphaVS_ES2(
 // This sets negatives to zero because 0-1 is used for DOF.
 half SunUnBias(half A)
 {
-	#if ES2_USE_DOF
+	#if MOBILE_USEDOF
 		return max(0.0, A - 1.0);
 	#else
 		return A;
 	#endif
 }
 
-void SunAlphaPS_ES2(
+void SunAlphaPS_Mobile(
 	float2 InUVs[8] : TEXCOORD0,
 	out half OutColor : SV_Target0
 	)
 {
 	OutColor = 
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6]).r) * 0.125 +
-		SunUnBias(PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7]).r) * 0.125;
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[0]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[1]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[2]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[3]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[4]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[5]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[6]).r) * 0.125 +
+		SunUnBias(SunShaftAndDofTexture.Sample(SunShaftAndDofSampler, InUVs[7]).r) * 0.125;
 	OutColor = HighlightCompression(OutColor);
 }
 
@@ -931,7 +983,7 @@ void SunAlphaPS_ES2(
 
 #define SUN_M 0.5
 
-void SunBlurVS_ES2(
+void SunBlurVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutTexCoords[8] : TEXCOORD0,
@@ -952,20 +1004,20 @@ void SunBlurVS_ES2(
 
 #undef SUN_M
 
-void SunBlurPS_ES2(
+void SunBlurPS_Mobile(
 	float2 InUVs[8] : TEXCOORD0,
 	out half OutColor : SV_Target0
 	)
 {
 	OutColor = 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6]).r * 0.125 +
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[7]).r * 0.125;
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[0]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[1]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[2]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[3]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[4]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[5]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[6]).r * 0.125 +
+		SunAlphaTexture.Sample(SunAlphaSampler, InUVs[7]).r * 0.125;
 }
 
 
@@ -975,7 +1027,7 @@ void SunBlurPS_ES2(
 
 #define SUN_M 0.25
 
-void SunMergeVS_ES2(
+void SunMergeVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float4 OutTexCoordVignette : TEXCOORD0,
@@ -994,12 +1046,12 @@ void SunMergeVS_ES2(
 	Start = 2.0/6.0;
 	Scale = 0.66/2.0;
 
-	OutTexCoords[0].xy = InTexCoord.xy + Circle(Start, 6.0, 0.0) * Scale * PostprocessInput2Size.zw;
-	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 6.0, 1.0) * Scale * PostprocessInput2Size.zw;
-	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 6.0, 2.0) * Scale * PostprocessInput2Size.zw;
-	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 6.0, 3.0) * Scale * PostprocessInput2Size.zw;
-	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 6.0, 4.0) * Scale * PostprocessInput2Size.zw;
-	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 6.0, 5.0) * Scale * PostprocessInput2Size.zw;
+	OutTexCoords[0].xy = InTexCoord.xy + Circle(Start, 6.0, 0.0) * Scale * BloomUpSizeAndInvSize.zw;
+	OutTexCoords[1].xy = InTexCoord.xy + Circle(Start, 6.0, 1.0) * Scale * BloomUpSizeAndInvSize.zw;
+	OutTexCoords[2].xy = InTexCoord.xy + Circle(Start, 6.0, 2.0) * Scale * BloomUpSizeAndInvSize.zw;
+	OutTexCoords[3].xy = InTexCoord.xy + Circle(Start, 6.0, 3.0) * Scale * BloomUpSizeAndInvSize.zw;
+	OutTexCoords[4].xy = InTexCoord.xy + Circle(Start, 6.0, 4.0) * Scale * BloomUpSizeAndInvSize.zw;
+	OutTexCoords[5].xy = InTexCoord.xy + Circle(Start, 6.0, 5.0) * Scale * BloomUpSizeAndInvSize.zw;
 
     OutTexCoords[0].zw = SunShaftRect(OutPosition.xy, 1.0 - SUN_P0 * SUN_M);
     OutTexCoords[1].zw = SunShaftRect(OutPosition.xy, 1.0 - SUN_P1 * SUN_M);
@@ -1021,28 +1073,28 @@ Texture2D BloomDirtMaskTexture;
 SamplerState BloomDirtMaskSampler;
 float4 BloomDirtMaskTint;
 
-void SunMergePS_ES2(
+void SunMergePS_Mobile(
 	float4 InUVVignette : TEXCOORD0,
 	float4 InUVs[7] : TEXCOORD1,
 	out half4 OutColor : SV_Target0
 	)
 {
-	#if ES2_USE_BLOOM
+	#if MOBILE_USEBLOOM
 
 		float Scale1 = 1.0/7.0;
 
 		float Scale2 = 1.0/7.0;
 
 		half3 Bloom2 = (
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVVignette.xy).rgba *Scale1 +
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[0].xy).rgba * Scale2 +
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[1].xy).rgba * Scale2 +
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[2].xy).rgba * Scale2 +
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[3].xy).rgba * Scale2 +
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[4].xy).rgba * Scale2 +
-			PostprocessInput1.Sample(PostprocessInput1Sampler, InUVs[5].xy).rgba * Scale2) * rcp(Scale1 * 1.0 + Scale2 * 6.0);
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVVignette.xy).rgba *Scale1 +
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVs[0].xy).rgba * Scale2 +
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVs[1].xy).rgba * Scale2 +
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVs[2].xy).rgba * Scale2 +
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVs[3].xy).rgba * Scale2 +
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVs[4].xy).rgba * Scale2 +
+			BloomSetup_BloomTexture.Sample(BloomSetup_BloomSampler, InUVs[5].xy).rgba * Scale2) * rcp(Scale1 * 1.0 + Scale2 * 6.0);
 
-		OutColor.rgb = PostprocessInput2.Sample(PostprocessInput2Sampler, InUVVignette.xy);
+		OutColor.rgb = BloomUpTexture.Sample(BloomUpSampler, InUVVignette.xy);
 
 		half3 BloomDirtMaskColor = BloomDirtMaskTexture.Sample(BloomDirtMaskSampler, InUVVignette.xy).rgb * BloomDirtMaskTint.rgb;
 
@@ -1059,16 +1111,16 @@ void SunMergePS_ES2(
 		OutColor.rgb = half3(0.0, 0.0, 0.0);
 	#endif
 
-	#if ES2_USE_SUN
+	#if MOBILE_USESUN
 		half Sun = 
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[0].zw).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[1].zw).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[2].zw).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[3].zw).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[4].zw).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[5].zw).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVs[6].xy).r * 0.125 +
-			PostprocessInput0.Sample(PostprocessInput0Sampler, InUVVignette.xy).r * 0.125;
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[0].zw).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[1].zw).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[2].zw).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[3].zw).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[4].zw).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[5].zw).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVs[6].xy).r * 0.125 +
+			SunBlurTexture.Sample(SunBlurSampler, InUVVignette.xy).r * 0.125;
 		Sun = HighlightDecompression(Sun);
 		OutColor.rgb += SunColorVignetteIntensity.rgb * Sun;
 	#endif
@@ -1091,24 +1143,14 @@ void SunMergePS_ES2(
 // Average results of bloom/sunshaft/vignette for 2 frames (used for temporal AA).
 //
 
-void SunAvgVS_ES2(
-	in float4 InPosition : ATTRIBUTE0,
-	in float2 InTexCoord : ATTRIBUTE1,
-	out float2 OutTexCoord : TEXCOORD0,
-	out float4 OutPosition : SV_POSITION
-	)
-{
-	DrawRectangle(InPosition, InTexCoord, OutPosition, OutTexCoord);
-}
-
-void SunAvgPS_ES2(
-	float2 InUV : TEXCOORD0,
+void SunAvgPS_Mobile(
+	float4 InUV : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
 {
 	OutColor = 
-		PostprocessInput0.Sample(PostprocessInput0Sampler, InUV.xy).rgba * 0.5 +
-		PostprocessInput1.Sample(PostprocessInput1Sampler, InUV.xy).rgba * 0.5;
+		SunMergeTexture.Sample(SunMergeSampler, InUV.xy).rgba * 0.5 +
+		LastFrameSunMergeTexture.Sample(LastFrameSunMergeSampler, InUV.xy).rgba * 0.5;
 }
 
 
@@ -1119,7 +1161,7 @@ void SunAvgPS_ES2(
 
 float AaBlendAmount;
 
-void AaVS_ES2(
+void AaVS_Mobile(
 	in float4 InPosition : ATTRIBUTE0,
 	in float2 InTexCoord : ATTRIBUTE1,
 	out float2 OutUV[6] : TEXCOORD0,
@@ -1135,15 +1177,15 @@ void AaVS_ES2(
 	float2 Aa2 = float2(-0.0,0.5);
 	if(abs(AaX) == 0.0) Aa1 = float2(-0.0,0.5);
 	if(abs(AaX) == 0.0) Aa2 = float2(0.5,-0.0);
-	OutUV[0] = InTexCoord.xy + (Aa1 + float2(-0.75, 0.0)) * PostprocessInput0Size.zw;
-	OutUV[1] = InTexCoord.xy + (Aa1 + float2( 0.0,-0.75)) * PostprocessInput0Size.zw;
-	OutUV[2] = InTexCoord.xy + Aa1 * PostprocessInput0Size.zw;
-	OutUV[3] = InTexCoord.xy + (Aa1 + float2( 0.0, 0.75)) * PostprocessInput0Size.zw;
-	OutUV[4] = InTexCoord.xy + (Aa1 + float2( 0.75, 0.0)) * PostprocessInput0Size.zw;
-	OutUV[5] = InTexCoord.xy + Aa2 * PostprocessInput0Size.zw;
+	OutUV[0] = InTexCoord.xy + (Aa1 + float2(-0.75, 0.0)) * BufferSizeAndInvSize.zw;
+	OutUV[1] = InTexCoord.xy + (Aa1 + float2( 0.0,-0.75)) * BufferSizeAndInvSize.zw;
+	OutUV[2] = InTexCoord.xy + Aa1 * BufferSizeAndInvSize.zw;
+	OutUV[3] = InTexCoord.xy + (Aa1 + float2( 0.0, 0.75)) * BufferSizeAndInvSize.zw;
+	OutUV[4] = InTexCoord.xy + (Aa1 + float2( 0.75, 0.0)) * BufferSizeAndInvSize.zw;
+	OutUV[5] = InTexCoord.xy + Aa2 * BufferSizeAndInvSize.zw;
 }
 
-void AaPS_ES2(
+void AaPS_Mobile(
 	float2 UV[6] : TEXCOORD0,
 	out half4 OutColor : SV_Target0
 	)
@@ -1151,12 +1193,12 @@ void AaPS_ES2(
 	//   N
 	// w M E            P = previous middle
 	//   S
-	half4 ColorN = PostprocessInput0.Sample(PostprocessInput0Sampler, UV[0].xy);
-	half4 ColorW = PostprocessInput0.Sample(PostprocessInput0Sampler, UV[1].xy);
-	half4 ColorM = PostprocessInput0.Sample(PostprocessInput0Sampler, UV[2].xy);
-	half4 ColorE = PostprocessInput0.Sample(PostprocessInput0Sampler, UV[3].xy);
-	half4 ColorS = PostprocessInput0.Sample(PostprocessInput0Sampler, UV[4].xy);
-	half4 ColorP = PostprocessInput1.Sample(PostprocessInput1Sampler, UV[5].xy);
+	half4 ColorN = SceneColorTexture.Sample(SceneColorSampler, UV[0].xy);
+	half4 ColorW = SceneColorTexture.Sample(SceneColorSampler, UV[1].xy);
+	half4 ColorM = SceneColorTexture.Sample(SceneColorSampler, UV[2].xy);
+	half4 ColorE = SceneColorTexture.Sample(SceneColorSampler, UV[3].xy);
+	half4 ColorS = SceneColorTexture.Sample(SceneColorSampler, UV[4].xy);
+	half4 ColorP = LastFrameSceneColorTexture.Sample(LastFrameSceneColorSampler, UV[5].xy);
 
 	half LumaN = ColorN.g;
 	half LumaW = ColorW.g;
@@ -1305,7 +1347,7 @@ void AverageLuminance_MainCS(
 
 Buffer<uint> LogLuminanceWeightBuffer;
 
-float4 BasicEyeAdaptation_ES2()
+float4 BasicEyeAdaptation_Mobile()
 {
 	float LogLumSum = LogLuminanceWeightBuffer[0];
 	float WeightSum = LogLuminanceWeightBuffer[1];
@@ -1352,9 +1394,9 @@ float4 BasicEyeAdaptation_ES2()
 RWBuffer<float4> OutputBuffer;
 
 [numthreads(1, 1, 1)]
-void BasicEyeAdaptationCS_ES2()
+void BasicEyeAdaptationCS_Mobile()
 {
-	OutputBuffer[0] = BasicEyeAdaptation_ES2();
+	OutputBuffer[0] = BasicEyeAdaptation_Mobile();
 }
 
 #endif
@@ -1378,6 +1420,15 @@ const static uint ThreadGroupSize = THREADGROUP_SIZEX * THREADGROUP_SIZEY;
 // THREADGROUP_SIZEX*THREADGROUP_SIZEY histograms of the size HISTOGRAM_SIZE
 groupshared float4 SharedHistogram[(HISTOGRAM_SIZE / 4) * THREADGROUP_SIZEX * THREADGROUP_SIZEY];
 
+void WriteToHistogramBuffer(uint HitogramIndex, float NormalizeFactor)
+{
+	uint4 LuminanceInt = SharedHistogram[(HitogramIndex / 4) * ThreadGroupSize] * NormalizeFactor * FLOAT_PRECISION;
+
+	uint LuminanceIntIndex = HitogramIndex % 4;
+
+	InterlockedAdd(RWHistogramBuffer[HitogramIndex], LuminanceInt[LuminanceIntIndex]);
+}
+
 [numthreads(THREADGROUP_SIZEX, THREADGROUP_SIZEY, 1)]
 void Histogram_MainCS(
 	uint3 GroupId : SV_GroupID,
@@ -1391,8 +1442,6 @@ void Histogram_MainCS(
 	{
 		SharedHistogram[i * ThreadGroupSize + GroupIndex] = float4(0.0f, 0.0f, 0.0f, 0.0f);
 	}
-	
-//	GroupMemoryBarrierWithGroupSync();
 
 	// Top left input texel for this group.
 	uint2 LeftTop = DispatchThreadId.xy * TileSize;
@@ -1462,33 +1511,38 @@ void Histogram_MainCS(
 
 	GroupMemoryBarrierWithGroupSync();
 
-	UNROLL for (uint cutoff = (ThreadGroupSize >> 1); cutoff > 0; cutoff >>= 1)
+// Reduction.
+//
+// float4 SharedHistogram[] is laid out like this:
+//   [       float4         ] [       float4         ] ... [        float4         ] [       float4        ] [      float4         ] ...
+//   [ Histogram 0, bins 0-3] [ Histogram 1, bins 0-3] ... [ Histogram 63, bins 0-3] [Histogram 0, bins 4-7] [Histogram 1, bins 4-7] ...
+//
+// To reduce we use HISTOGRAM_SIZE/4 threads to accumulate, where thread 0 accumulates bins 0-3 from all histograms, thread 1 bins 4-7, etc.
+	if (GroupIndex < QUARTER_HISTOGRAM_SIZE)
 	{
-		if (GroupIndex < cutoff)
+		float4 Sum = float4(0.0f, 0.0f, 0.0f, 0.0f);
+		UNROLL for (uint i = 0; i < ThreadGroupSize; ++i)
 		{
-			UNROLL for (uint i = 0; i < QUARTER_HISTOGRAM_SIZE; ++i)
-			{
-				uint HistogramThreadIndex = i * ThreadGroupSize;
-				SharedHistogram[HistogramThreadIndex + GroupIndex] += SharedHistogram[HistogramThreadIndex + GroupIndex + cutoff];
-			}
-		}
 
-		if (cutoff > 4) // https://www.anandtech.com/show/12834/arm-announces-the-mali-g76-scaling-up-bifrost/2 said 4 is the wavefront for bifrost mali gpu
-		{
-			GroupMemoryBarrierWithGroupSync();
+			// Accumulate bins from histogram i
+			Sum += SharedHistogram[GroupIndex * ThreadGroupSize + i];
 		}
+		SharedHistogram[GroupIndex * ThreadGroupSize] = Sum;
 	}
 
-	if (GroupIndex < HISTOGRAM_SIZE / 2) // The maximum number of InterlockedAdd to be executed concurrently must be less than 32, or it will don't work properly even on pc
+	GroupMemoryBarrierWithGroupSync();
+
+
+
+	if (GroupIndex < HISTOGRAM_SIZE)
 	{
 		float NormalizeFactor = SourceSizeAndInvSize.z * SourceSizeAndInvSize.w * 4.0f; // multiply 4 because bilinear filter, so sample only the 1/4 resolustion
 
-		uint4 LuminanceInt = SharedHistogram[(GroupIndex / 2) * ThreadGroupSize] * NormalizeFactor * FLOAT_PRECISION;
+		WriteToHistogramBuffer(GroupIndex, NormalizeFactor);
 
-		uint HistogramIndex = GroupIndex * 2;
-		uint LuminanceIntIndex = (GroupIndex % 2) * 2;
-		InterlockedAdd(RWHistogramBuffer[HistogramIndex], LuminanceInt[LuminanceIntIndex]);
-		InterlockedAdd(RWHistogramBuffer[HistogramIndex + 1], LuminanceInt[LuminanceIntIndex + 1]);
+#if IOS // Need to write two texels for each thread on IOS since there are only 32 threads in each tile.
+		WriteToHistogramBuffer(GroupIndex * 2 + 1, NormalizeFactor);
+#endif
 	}
 }
 

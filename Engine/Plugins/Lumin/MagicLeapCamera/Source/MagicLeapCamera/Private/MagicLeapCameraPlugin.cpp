@@ -283,3 +283,19 @@ void FMagicLeapCameraPlugin::OnAppPause()
 		// The runnable will take care of terminating the video on it's own.
 	}
 }
+
+const TCHAR* FMagicLeapCameraPlugin::CaptureStateToString(ECaptureState InCaptureState)
+{
+	const TCHAR* CaptureStateString = TEXT("Invalid");
+	switch (InCaptureState)
+	{
+		case ECaptureState::Idle: CaptureStateString = TEXT("Idle"); break;
+		case ECaptureState::Connecting: CaptureStateString = TEXT("Connecting"); break;
+		case ECaptureState::Disconnecting: CaptureStateString = TEXT("Disconnecting"); break;
+		case ECaptureState::BeginningCapture: CaptureStateString = TEXT("BeginningCapture"); break;
+		case ECaptureState::Capturing: CaptureStateString = TEXT("Capturing"); break;
+		case ECaptureState::EndingCapture: CaptureStateString = TEXT("EndingCapture"); break;
+	}
+
+	return CaptureStateString;
+}

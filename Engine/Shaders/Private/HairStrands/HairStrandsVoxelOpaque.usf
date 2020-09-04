@@ -13,7 +13,6 @@ uint MacroGroupId;
 float2 SceneDepthResolution;
 uint VoxelBiasCount;
 uint VoxelMarkCount;
-Texture2D<float> SceneDepthTexture;
 RWTexture3D<uint> OutPageTexture;
 
 uint		 VirtualVoxelParams_PageIndexCount;

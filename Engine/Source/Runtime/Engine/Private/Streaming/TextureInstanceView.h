@@ -270,7 +270,7 @@ public:
 	// MaxSize_VisibleOnly : Biggest screen size for visble instances only.
 	// MaxForcedNumLODs: max number of LODs forced resident. Used for meshes only
 	void GetRenderAssetScreenSize(
-		typename FStreamingRenderAsset::EAssetType AssetType,
+		EStreamableRenderAssetType AssetType,
 		const UStreamableRenderAsset* InAsset,
 		float& MaxSize,
 		float& MaxSize_VisibleOnly,
@@ -311,7 +311,7 @@ private:
 	float MaxLevelRenderAssetScreenSize;
 
 	void ProcessElement(
-		typename FStreamingRenderAsset::EAssetType AssetType,
+		EStreamableRenderAssetType AssetType,
 		const FBoundsViewInfo& BoundsVieWInfo,
 		float TexelFactor,
 		bool bForceLoad,

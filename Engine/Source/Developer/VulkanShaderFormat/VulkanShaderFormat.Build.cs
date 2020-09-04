@@ -25,16 +25,9 @@ public class VulkanShaderFormat : ModuleRules
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "HLSLCC");
 		AddEngineThirdPartyPrivateStaticDependencies(Target, "GlsLang");
 
-		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64)
+		if (Target.Platform == UnrealTargetPlatform.Mac || Target.Platform == UnrealTargetPlatform.Win64 || Target.Platform == UnrealTargetPlatform.Linux)
 		{
-			AddEngineThirdPartyPrivateStaticDependencies(Target,
-				"ShaderConductor",
-				"SPIRVReflect"
-			);
-
-			string BinaryFolder = Target.UEThirdPartyBinariesDirectory + "ShaderConductor/Win64";
-			RuntimeDependencies.Add(BinaryFolder + "/dxcompiler.dll");
-			RuntimeDependencies.Add(BinaryFolder + "/ShaderConductor.dll");
+			AddEngineThirdPartyPrivateStaticDependencies(Target, "SPIRVReflect");
 		}
 
 		if (Target.Platform != UnrealTargetPlatform.Win64 &&

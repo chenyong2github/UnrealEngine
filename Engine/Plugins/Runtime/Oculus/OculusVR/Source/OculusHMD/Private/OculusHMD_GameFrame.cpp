@@ -19,7 +19,8 @@ FGameFrame::FGameFrame() :
 	WorldToMetersScale(100.f),
 	ShowFlags(ESFIM_All0),
 	PlayerOrientation(FQuat::Identity),
-	PlayerLocation(FVector::ZeroVector)
+	PlayerLocation(FVector::ZeroVector),
+	FFRDynamic(false)
 {
 	Flags.Raw = 0;
 	Fov[0] = Fov[1] = ovrpFovf{0,0,0,0};

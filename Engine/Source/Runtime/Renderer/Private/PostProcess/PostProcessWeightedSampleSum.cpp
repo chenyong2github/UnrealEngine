@@ -9,7 +9,7 @@
 // maximum number of sample available using unrolled loop shaders
 #define MAX_FILTER_COMPILE_TIME_SAMPLES 32
 #define MAX_FILTER_COMPILE_TIME_SAMPLES_IOS 15
-#define MAX_FILTER_COMPILE_TIME_SAMPLES_ES2 7
+#define MAX_FILTER_COMPILE_TIME_SAMPLES_ES3_1 7
 
 namespace
 {
@@ -124,7 +124,7 @@ uint32 GetSampleCountMax(ERHIFeatureLevel::Type InFeatureLevel, EShaderPlatform 
 	}
 	else if (InFeatureLevel < ERHIFeatureLevel::SM5)
 	{
-		return MAX_FILTER_COMPILE_TIME_SAMPLES_ES2;
+		return MAX_FILTER_COMPILE_TIME_SAMPLES_ES3_1;
 	}
 	else
 	{
@@ -242,7 +242,7 @@ public:
 		}
 		else
 		{
-			return StaticSampleCount <= MAX_FILTER_COMPILE_TIME_SAMPLES_ES2;
+			return StaticSampleCount <= MAX_FILTER_COMPILE_TIME_SAMPLES_ES3_1;
 		}
 	}
 
@@ -374,8 +374,7 @@ FScreenPassTexture AddGaussianBlurPass(
 	FRDGTextureDesc OutputDesc = Filter.Texture->Desc;
 	OutputDesc.Reset();
 	OutputDesc.Extent = OutputViewport.Extent;
-	OutputDesc.TargetableFlags |= bIsComputePass ? TexCreate_UAV : TexCreate_None;
-	OutputDesc.Flags &= TexCreate_FastVRAM;
+	OutputDesc.Flags |= bIsComputePass ? TexCreate_UAV : TexCreate_None;
 	OutputDesc.ClearValue = FClearValueBinding(FLinearColor::Transparent);
 
 	const FScreenPassRenderTarget Output(GraphBuilder.CreateTexture(OutputDesc, Name), OutputViewport.Rect, ERenderTargetLoadAction::ENoAction);
@@ -425,7 +424,6 @@ FScreenPassTexture AddGaussianBlurPass(
 				OutputViewport,
 				FScreenPassTextureViewport(Filter),
 				FScreenPassPipelineState(VertexShader, PixelShader),
-				EScreenPassDrawFlags::None,
 				PassParameters,
 				[VertexShader, PixelShader, PassParameters] (FRHICommandListImmediate& RHICmdList)
 			{
@@ -470,7 +468,7 @@ FScreenPassTexture AddGaussianBlurPass(
 
 	// Downscale output width by half when using fast blur optimization.
 	const FScreenPassTextureViewport HorizontalOutputViewport = bFastBlurEnabled
-		? FScreenPassTextureViewport::CreateDownscaled(FilterViewport, FIntPoint(2, 1))
+		? GetDownscaledViewport(FilterViewport, FIntPoint(2, 1))
 		: FilterViewport;
 
 	FScreenPassTexture HorizontalOutput;
@@ -545,59 +543,4 @@ FScreenPassTexture AddGaussianBlurPass(
 			TArrayView<const FVector2D>(SampleOffsets, SampleCount),
 			TArrayView<const FLinearColor>(SampleWeights, SampleCount));
 	}
-}
-
-FRenderingCompositeOutputRef AddGaussianBlurPass(
-	FRenderingCompositionGraph& Graph,
-	const TCHAR *InNameX,
-	const TCHAR* InNameY,
-	FRenderingCompositeOutputRef FilterInput,
-	float KernelSizePercent,
-	FLinearColor TintColor,
-	FRenderingCompositeOutputRef AdditiveInput,
-	FVector2D CrossCenterWeight)
-{
-	FRenderingCompositePass* Pass = Graph.RegisterPass(
-		new(FMemStack::Get()) TRCPassForRDG<2, 1>(
-			[InNameX, InNameY, TintColor, KernelSizePercent, CrossCenterWeight] (FRenderingCompositePass* InPass, FRenderingCompositePassContext& InContext)
-	{
-		FRDGBuilder GraphBuilder(InContext.RHICmdList);
-
-		FRDGTextureRef FilterTexture = InPass->CreateRDGTextureForRequiredInput(GraphBuilder, ePId_Input0, TEXT("GaussianBlurInput"));
-		const FIntRect FilterViewportRect = InContext.GetDownsampledSceneColorViewRectFromInputExtent(FilterTexture->Desc.Extent);
-
-		FRDGTextureRef AdditiveTexture = InPass->CreateRDGTextureForOptionalInput(GraphBuilder, ePId_Input1, TEXT("AdditiveTexture"));
-		FIntRect AdditiveViewportRect;
-
-		if (AdditiveTexture)
-		{
-			AdditiveViewportRect = InContext.GetDownsampledSceneColorViewRectFromInputExtent(AdditiveTexture->Desc.Extent);
-		}
-
-		FGaussianBlurInputs PassInputs;
-		PassInputs.NameX = InNameX;
-		PassInputs.NameY = InNameY;
-		PassInputs.Filter.Texture = FilterTexture;
-		PassInputs.Filter.ViewRect = FilterViewportRect;
-		PassInputs.Additive.Texture = AdditiveTexture;
-		PassInputs.Additive.ViewRect = AdditiveViewportRect;
-		PassInputs.TintColor = TintColor;
-		PassInputs.CrossCenterWeight = CrossCenterWeight;
-		PassInputs.KernelSizePercent = KernelSizePercent;
-
-		FRDGTextureRef OutputTexture = AddGaussianBlurPass(GraphBuilder, InContext.View, PassInputs).Texture;
-
-		InPass->ExtractRDGTextureForOutput(GraphBuilder, ePId_Output0, OutputTexture);
-
-		GraphBuilder.Execute();
-	}));
-
-	Pass->SetInput(ePId_Input0, FilterInput);
-
-	if (AdditiveInput.IsValid())
-	{
-		Pass->SetInput(ePId_Input1, AdditiveInput);
-	}
-
-	return Pass;
 }

@@ -59,6 +59,11 @@ UARTrackedGeometry* FLuminARPointsTracker::CreateTrackableObject()
 	return NewObject<UARTrackedPoint>();
 }
 
+UClass* FLuminARPointsTracker::GetARComponentClass(const UARSessionConfig& SessionConfig)
+{
+	return SessionConfig.GetPointComponentClass();
+}
+
 IARRef* FLuminARPointsTracker::CreateNativeResource(const FGuid& Handle, UARTrackedGeometry* TrackableObject)
 {
 	return new FLuminARTrackedPointResource(Handle, TrackableObject);

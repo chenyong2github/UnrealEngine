@@ -233,6 +233,40 @@ enum class EGoogleARCoreTrackingFailureReason : uint8
 };
 
 /**
+ * @ingroup GoogleARCoreBase
+ * Describes the target FPS of the ARCore camera.
+ */
+UENUM(BlueprintType, Category = "GoogleARCore|CameraConfig")
+enum class EGoogleARCoreCameraFPS : uint8
+{
+	/** Targeting any FPS. */
+	FPS_Any = 0,
+
+	/** Targeting 30 FPS. */
+	FPS_30 = 1 << 0,
+
+	/** Targeting 60 FPS. */
+	FPS_60 = 1 << 1,
+};
+
+/**
+ * @ingroup GoogleARCoreBase
+ * Describes the usage of the depth sensor of the ARCore camera.
+ */
+UENUM(BlueprintType, Category = "GoogleARCore|CameraConfig")
+enum class EGoogleARCoreCameraDepthSensorUsage : uint8
+{
+	/** Do not specify the depth sensor usage. */
+	DepthSensor_Any = 0,
+
+	/** Require and use the depth sensor. */
+	DepthSensor_RequireAndUse = 1 << 0,
+
+	/** Do not use the depth sensor. */
+	DepthSensor_DoNotUse = 1 << 1,
+};
+
+/**
  * Camera configuration from ARCore.
  */
 USTRUCT(BlueprintType)
@@ -244,31 +278,33 @@ struct GOOGLEARCOREBASE_API FGoogleARCoreCameraConfig
 	 * CPU-accessible camera image resolution.
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
-	FIntPoint CameraImageResolution;
+	FIntPoint CameraImageResolution = FIntPoint::ZeroValue;
 
 	/**
 	 * Texture resolution for the camera image accessible to the
 	 * graphics API and shaders.
 	 */
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
-	FIntPoint CameraTextureResolution;
+	FIntPoint CameraTextureResolution = FIntPoint::ZeroValue;
 
 	/** The id of the camera will be used in this CameraConfig. */
 	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig")
 	FString CameraID;
 
-	/**
-	 * Comparison operator.
-	 *
-	 * @param OtherConfig	The other configuration to compare this against.
-	 * @return True if this configuration is identical to OtherConfig.
-	 */
-	bool operator==(const FGoogleARCoreCameraConfig& OtherConfig) const
-	{
-		return CameraImageResolution == OtherConfig.CameraImageResolution
-			&& CameraTextureResolution == OtherConfig.CameraTextureResolution
-			&& CameraID == OtherConfig.CameraID;
-	}
+	/** The target FPS of the camera. */
+	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = EGoogleARCoreCameraFPS))
+	int32 TargetFPS = 0; // EGoogleARCoreCameraFPS::FPS_Any
+
+	/** The desired depth sensor usage of the camera. */
+	UPROPERTY(BlueprintReadOnly, Category = "GoogleARCore|CameraConfig", meta = (Bitmask, BitmaskEnum = EGoogleARCoreCameraDepthSensorUsage))
+	int32 DepthSensorUsage = 0; // EGoogleARCoreCameraDepthSensorUsage::DepthSensor_Any
+
+	/** Below are for internal use only */
+	FGoogleARCoreCameraConfig();
+	bool IsCompatibleWith(const FGoogleARCoreCameraConfig& OtherConfig) const;
+	int32 GetMaxFPS() const;
+	void SetMaxFPS(int32 MaxFPS);
+	FString ToLogString() const;
 };
 
 /**

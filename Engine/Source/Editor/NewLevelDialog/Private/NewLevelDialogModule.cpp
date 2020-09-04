@@ -47,7 +47,7 @@ public:
 		ENQUEUE_RENDER_COMMAND(UpdateSTexture2DView)(
 			[TextureView, InTexture2D](FRHICommandListImmediate& RHICmdList)
 			{
-				TextureView->ShaderResource = ((FTexture2DResource*)(InTexture2D->Resource))->GetTexture2DRHI();
+				TextureView->ShaderResource = InTexture2D->Resource->GetTexture2DRHI();
 			});
 	}
 

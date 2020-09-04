@@ -424,6 +424,10 @@
 	#define PRESERVE_LOG_BACKUPS_IN_SHIPPING 1
 #endif
 
+#ifndef ENABLE_RHI_VALIDATION
+	#define ENABLE_RHI_VALIDATION (UE_BUILD_DEBUG || UE_BUILD_DEVELOPMENT)
+#endif
+
 // Controls whether FPlatformMisc::GetDeviceId() is available to be called.
 // When set to 1, calls to this API will be hardcoded to return an empty string
 // to avoid running afoul of calling device APIs that platform owners may restrict
@@ -433,4 +437,3 @@
 #ifndef GET_DEVICE_ID_UNAVAILABLE
 	#define GET_DEVICE_ID_UNAVAILABLE 0
 #endif
-

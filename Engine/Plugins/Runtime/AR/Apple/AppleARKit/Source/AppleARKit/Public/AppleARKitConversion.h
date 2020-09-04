@@ -6,10 +6,13 @@
 #include "Math/Transform.h"
 #include "ARPin.h"
 #include "Misc/Compression.h"
+#include "Misc/Optional.h"
 #include "ARTypes.h"
 #include "ARTrackable.h"
 #include "ARSessionConfig.h"
 #include "Misc/Timecode.h"
+#include "AppleARKitMeshData.h"
+#include "ARGeoTrackingSupport.h"
 
 #include "IAppleImageUtilsPlugin.h"
 
@@ -18,7 +21,13 @@
 #endif
 
 #define AR_SAVE_WORLD_KEY 0x505A474A
-#define AR_SAVE_WORLD_VER 1
+
+enum class EARSaveWorldVersions : uint8
+{
+	Default = 1,
+	AddAlignmentTransform = 2,
+	Latest = AddAlignmentTransform,
+};
 
 struct FARWorldSaveHeader
 {
@@ -29,7 +38,7 @@ struct FARWorldSaveHeader
 	FARWorldSaveHeader() :
 		Magic(AR_SAVE_WORLD_KEY),
 		UncompressedSize(0),
-		Version(AR_SAVE_WORLD_VER)
+		Version((uint8)EARSaveWorldVersions::Latest)
 	{
 		
 	}
@@ -151,11 +160,8 @@ struct APPLEARKIT_API FAppleARKitConversion
 
 	static FORCEINLINE FGuid ToFGuid( uuid_t UUID )
 	{
-		FGuid AsGUID(
-			*(uint32*)UUID,
-			*((uint32*)UUID)+1,
-			*((uint32*)UUID)+2,
-			*((uint32*)UUID)+3);
+		const uint32* Components = reinterpret_cast<const uint32*>(UUID);
+		FGuid AsGUID(Components[0], Components[1], Components[2], Components[3]);
 		return AsGUID;
 	}
 
@@ -217,34 +223,83 @@ struct APPLEARKIT_API FAppleARKitConversion
 		return EARObjectClassification::Unknown;
 	}
 #endif
+	
+#if SUPPORTS_ARKIT_3_5
+	static FORCEINLINE EARObjectClassification ToEARObjectClassification(ARMeshClassification Classification)
+	{
+		switch (Classification)
+		{
+			case ARMeshClassificationCeiling:
+			{
+				return EARObjectClassification::Ceiling;
+			}
+
+			case ARMeshClassificationDoor:
+			{
+				return EARObjectClassification::Door;
+			}
+
+			case ARMeshClassificationFloor:
+			{
+				return EARObjectClassification::Floor;
+			}
+
+			case ARMeshClassificationNone:
+			{
+				return EARObjectClassification::Unknown;
+			}
+
+			case ARMeshClassificationSeat:
+			{
+				return EARObjectClassification::Seat;
+			}
+				
+			case ARMeshClassificationTable:
+			{
+				return EARObjectClassification::Table;
+			}
+				
+			case ARMeshClassificationWall:
+			{
+				return EARObjectClassification::Wall;
+			}
+				
+			case ARMeshClassificationWindow:
+			{
+				return EARObjectClassification::Window;
+			}
+		}
+		
+		return EARObjectClassification::Unknown;
+	}
+#endif
 
 #pragma clang diagnostic push
 #pragma clang diagnostic ignored "-Wpartial-availability"
 
 #if SUPPORTS_ARKIT_1_5
-
-	static ARVideoFormat* ToARVideoFormat(const FARVideoFormat& DesiredFormat, NSArray<ARVideoFormat*>* Formats);
+	static ARVideoFormat* ToARVideoFormat(const FARVideoFormat& DesiredFormat, NSArray<ARVideoFormat*>* Formats, bool bUseOptimalFormat);
 	
 	static FARVideoFormat FromARVideoFormat(ARVideoFormat* Format);
 	
 	static TArray<FARVideoFormat> FromARVideoFormatArray(NSArray<ARVideoFormat*>* Formats);
 
-	static NSSet* InitImageDetection(UARSessionConfig* SessionConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages);
+	static NSSet* InitImageDetection(UARSessionConfig* SessionConfig, TMap<FString, UARCandidateImage*>& CandidateImages, TMap<FString, CGImageRef>& ConvertedCandidateImages);
 
-	static void InitImageDetection(UARSessionConfig* SessionConfig, ARWorldTrackingConfiguration* WorldConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages);
+	static NSArray<ARVideoFormat*>* GetSupportedVideoFormats(EARSessionType SessionType);
 #endif
 
 #if SUPPORTS_ARKIT_2_0
-	static void InitImageDetection(UARSessionConfig* SessionConfig, ARImageTrackingConfiguration* ImageConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages);
+	static void InitImageDetection(UARSessionConfig* SessionConfig, ARImageTrackingConfiguration* ImageConfig, TMap<FString, UARCandidateImage*>& CandidateImages, TMap<FString, CGImageRef>& ConvertedCandidateImages);
 
 	static AREnvironmentTexturing ToAREnvironmentTexturing(EAREnvironmentCaptureProbeType CaptureType);
 
-	static ARWorldMap* ToARWorldMap(const TArray<uint8>& WorldMapData);
+	static ARWorldMap* ToARWorldMap(const TArray<uint8>& WorldMapData, TOptional<FTransform>& AlignmentTransform);
 
 	static NSSet* ToARReferenceObjectSet(const TArray<UARCandidateObject*>& CandidateObjects, TMap< FString, UARCandidateObject* >& CandidateObjectMap);
 #endif
 
-	static ARConfiguration* ToARConfiguration( UARSessionConfig* SessionConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages, TMap< FString, UARCandidateObject* >& CandidateObjects );
+	static ARConfiguration* ToARConfiguration(UARSessionConfig* SessionConfig, TMap<FString, UARCandidateImage*>& CandidateImages, TMap<FString, CGImageRef>& ConvertedCandidateImages, TMap<FString, UARCandidateObject*>& CandidateObjects, TOptional<FTransform>& InitialAlignmentTransform);
 	
 	static void ConfigureSessionTrackingFeatures(UARSessionConfig* SessionConfig, ARConfiguration* SessionConfiguration);
 
@@ -254,12 +309,20 @@ struct APPLEARKIT_API FAppleARKitConversion
 #if SUPPORTS_ARKIT_1_0
 	// Helper function to check if a particular session feature is supported with the specified session type
 	static bool IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature);
+	static bool IsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod);
 #else
 	static bool IsSessionTrackingFeatureSupported(EARSessionType SessionType, EARSessionTrackingFeature SessionTrackingFeature) { return false; }
+	static bool IsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod) { return false; }
+#endif
+	
+#if SUPPORTS_ARKIT_4_0
+	static EARGeoTrackingState ToGeoTrackingState(ARGeoTrackingState InState);
+	static EARGeoTrackingStateReason ToGeoTrackingStateReason(ARGeoTrackingStateReason InReason);
+	static EARGeoTrackingAccuracy ToGeoTrackingAccuracy(ARGeoTrackingAccuracy InAccuracy);
+	static EARAltitudeSource ToAltitudeSource(ARAltitudeSource InSource);
 #endif
 		
 #if SUPPORTS_ARKIT_3_0
-	static void InitImageDetection(UARSessionConfig* SessionConfig, ARBodyTrackingConfiguration* BodyTrackingConfig, TMap< FString, UARCandidateImage* >& CandidateImages, TMap< FString, CGImageRef >& ConvertedCandidateImages);
 	static ARFrameSemantics ToARFrameSemantics(EARSessionTrackingFeature SessionTrackingFeature);
 	static FARPose2D ToARPose2D(const ARBody2D* InARPose2D);
 	static FARPose3D ToARPose3D(const ARBodyAnchor* InARBodyAnchor);
@@ -280,26 +343,16 @@ enum class EAppleAnchorType : uint8
 	EnvironmentProbeAnchor,
 	ObjectAnchor,
 	PoseAnchor,
+	MeshAnchor,
+	GeoAnchor,
 	MAX
 };
 
 struct FAppleARKitAnchorData
 {
-	FAppleARKitAnchorData()
-		: AnchorType()
-		, AnchorGUID(FGuid())
-		, ProbeTexture(nullptr)
-		, Timestamp(0.0)
-		, FrameNumber(0)
-		, bIsTracked(false)
-	{
-	}
-
-	FAppleARKitAnchorData(const FAppleARKitAnchorData& Other)
-	{
-		Copy(Other);
-	}
-
+	FAppleARKitAnchorData() = default;
+	
+	// Generic Anchor
 	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::Anchor )
@@ -308,6 +361,7 @@ struct FAppleARKitAnchorData
 	{
 	}
 
+	// Plane Anchor
 	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FVector InCenter, FVector InExtent, EARPlaneOrientation InOrientation)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::PlaneAnchor )
@@ -318,12 +372,14 @@ struct FAppleARKitAnchorData
 	{
 	}
 
-	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FARBlendShapeMap InBlendShapes, TArray<FVector> InFaceVerts, FTransform InLeftEyeTransform, FTransform InRightEyeTransform, FVector InLookAtTarget, const FTimecode& InTimecode, uint32 InFrameRate)
+	// Face Anchor
+	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FARBlendShapeMap InBlendShapes, TArray<FVector> InFaceVerts, TArray<FVector2D> InFaceUVData, FTransform InLeftEyeTransform, FTransform InRightEyeTransform, FVector InLookAtTarget, const FTimecode& InTimecode, uint32 InFrameRate)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::FaceAnchor )
 		, AnchorGUID( InAnchorGuid )
 		, BlendShapes( MoveTemp(InBlendShapes) )
 		, FaceVerts( MoveTemp(InFaceVerts) )
+		, FaceUVData( MoveTemp(InFaceUVData) )
 		, LeftEyeTransform( InLeftEyeTransform )
 		, RightEyeTransform( InRightEyeTransform )
 		, LookAtTarget( InLookAtTarget )
@@ -331,7 +387,8 @@ struct FAppleARKitAnchorData
 		, FrameRate( InFrameRate )
 	{
 	}
-
+	
+	// Image Anchor
 	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, EAppleAnchorType InAnchorType, FString InDetectedAnchorName)
 		: Transform( InTransform )
 		, AnchorType( InAnchorType )
@@ -339,7 +396,8 @@ struct FAppleARKitAnchorData
 		, DetectedAnchorName( MoveTemp(InDetectedAnchorName) )
     {
     }
-
+	
+	// Probe Anchor
 	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FVector InExtent, id<MTLTexture> InProbeTexture)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::EnvironmentProbeAnchor )
@@ -349,6 +407,7 @@ struct FAppleARKitAnchorData
 	{
 	}
 
+	// Body Anchor
 	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FARPose3D InTrackedPose)
 		: Transform( InTransform )
 		, AnchorType( EAppleAnchorType::PoseAnchor )
@@ -357,99 +416,74 @@ struct FAppleARKitAnchorData
 	{
 	}
 	
-	FAppleARKitAnchorData& operator=(const FAppleARKitAnchorData& Other)
+	// Mesh Anchor
+	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, FARKitMeshData::MeshDataPtr InMeshData)
+		: Transform( InTransform )
+		, AnchorType( EAppleAnchorType::MeshAnchor )
+		, AnchorGUID( InAnchorGuid )
+		, MeshData( InMeshData )
 	{
-		if (this != &Other)
-		{
-			Clear();
-			Copy(Other);
-		}
-
-		return *this;
+	}
+	
+	// Geo Anchor
+	FAppleARKitAnchorData(FGuid InAnchorGuid, FTransform InTransform, float InLongitude, float InLatitude, float InAltitudeMeters, EARAltitudeSource InAltitudeSource)
+		: Transform( InTransform )
+		, AnchorType( EAppleAnchorType::GeoAnchor )
+		, AnchorGUID( InAnchorGuid )
+		, Longitude( InLongitude )
+		, Latitude( InLatitude )
+		, AltitudeMeters( InAltitudeMeters )
+		, AltitudeSource( InAltitudeSource )
+	{
 	}
 
-	void Copy(const FAppleARKitAnchorData& Other)
-	{
-		Transform = Other.Transform;
-		AnchorType = Other.AnchorType;
-		AnchorGUID = Other.AnchorGUID;
-		Center = Other.Center;
-		Extent = Other.Center;
-		BoundaryVerts = Other.BoundaryVerts;
-
-		BlendShapes = Other.BlendShapes;
-		FaceVerts = Other.FaceVerts;
-
-		DetectedAnchorName = Other.DetectedAnchorName;
-
-		ProbeTexture = Other.ProbeTexture;
-
-		LeftEyeTransform = Other.LeftEyeTransform;
-		RightEyeTransform = Other.RightEyeTransform;
-		LookAtTarget = Other.LookAtTarget;
-		Timestamp = Other.Timestamp;
-		FrameNumber = Other.FrameNumber;
-		Timecode = Other.Timecode;
-		FrameRate = Other.FrameRate;
-
-		Vertices = Other.Vertices;
-		Indices = Other.Indices;
-		Orientation = Other.Orientation;
-		ObjectClassification = Other.ObjectClassification;
-
-		bIsTracked = Other.bIsTracked;
-		
-		TrackedPose = Other.TrackedPose;
-	}
-
-	void Clear()
-	{
-		BoundaryVerts.Empty();
-		BlendShapes.Empty();
-		FaceVerts.Empty();
-		Vertices.Empty();
-		Indices.Empty();
-		ProbeTexture = nullptr;
-		
-		TrackedPose = {};
-	}
-
-	FTransform Transform;
-	EAppleAnchorType AnchorType;
+	FTransform Transform = FTransform::Identity;
+	EAppleAnchorType AnchorType = EAppleAnchorType::Anchor;
 	FGuid AnchorGUID;
-	FVector Center;
-	FVector Extent;
-	EARPlaneOrientation Orientation;
-	EARObjectClassification ObjectClassification;
+	FVector Center = FVector::ZeroVector;
+	FVector Extent = FVector::ZeroVector;
+	EARPlaneOrientation Orientation = EARPlaneOrientation::Horizontal;
+	EARObjectClassification ObjectClassification = EARObjectClassification::NotApplicable;
 	/** Set by the session config to detemine whether to generate geometry or not */
 	static bool bGenerateGeometry;
 	TArray<FVector> BoundaryVerts;
 	TArray<FVector> Vertices;
-	TArray<uint16> Indices;
+	TArray<uint32> Indices;
 
 	FARBlendShapeMap BlendShapes;
 	TArray<FVector> FaceVerts;
+	TArray<FVector2D> FaceUVData;
 	// Note: the index buffer never changes so can be safely read once
 	static TArray<int32> FaceIndices;
 
 	FString DetectedAnchorName;
 
-	id<MTLTexture> ProbeTexture;
+	id<MTLTexture> ProbeTexture = nullptr;
 
-	FTransform LeftEyeTransform;
-	FTransform RightEyeTransform;
-	FVector LookAtTarget;
-	double Timestamp;
-	uint32 FrameNumber;
+	FTransform LeftEyeTransform = FTransform::Identity;
+	FTransform RightEyeTransform = FTransform::Identity;
+	FVector LookAtTarget = FVector::ZeroVector;
+	double Timestamp = 0.0;
+	uint32 FrameNumber = 0;
 	FTimecode Timecode;
-	uint32 FrameRate;
+	uint32 FrameRate = 0;
 
 	/** Only valid for tracked real world objects (face, images) */
-	bool bIsTracked;
+	bool bIsTracked = true;
 	
 	/** Only valid if this is a body anchor */
 	FARPose3D TrackedPose;
-
+	
+	FARKitMeshData::MeshDataPtr MeshData;
+	
+	FString AnchorName;
+	
+	// Geo Anchor Properties
+	float Longitude = 0.f;
+	float Latitude = 0.f;
+	float AltitudeMeters = 0.f;
+	EARAltitudeSource AltitudeSource = EARAltitudeSource::Unknown;
+	
 	// only need to be initialized once
 	static TSharedPtr<FARPose3D> BodyRefPose;
 };

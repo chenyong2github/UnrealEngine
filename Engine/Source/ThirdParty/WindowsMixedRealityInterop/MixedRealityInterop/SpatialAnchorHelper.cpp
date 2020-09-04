@@ -235,7 +235,7 @@ namespace WindowsMixedReality
 		}
 	}
 
-	bool SpatialAnchorHelper::SaveAnchor(const wchar_t* anchorId)
+	bool SpatialAnchorHelper::SaveAnchor(const wchar_t* saveId, const wchar_t* anchorId)
 	{
 		try
 		{
@@ -259,7 +259,7 @@ namespace WindowsMixedReality
 			}
 
 			// Failure may indicate the anchor ID is taken, or the anchor limit is reached for the app.
-			bool success = m_spatialAnchorStore.TrySave(anchorId, iterator->second);
+			bool success = m_spatialAnchorStore.TrySave(saveId, iterator->second);
 			{ std::wstringstream string; string << L"SaveAnchor: Saving " << anchorId << " success: " << success; Log(string); }
 			return success;
 		}
@@ -269,7 +269,7 @@ namespace WindowsMixedReality
 		}
 	}
 
-	void SpatialAnchorHelper::RemoveSavedAnchor(const wchar_t* anchorId)
+	void SpatialAnchorHelper::RemoveSavedAnchor(const wchar_t* saveId)
 	{
 		try
 		{
@@ -282,9 +282,9 @@ namespace WindowsMixedReality
 				}
 			}
 
-			{ std::wstringstream string; string << L"RemoveSavedAnchor: Removing " << anchorId << " anchors."; Log(string); }
+			{ std::wstringstream string; string << L"RemoveSavedAnchor: Removing " << saveId << " anchor."; Log(string); }
 
-			m_spatialAnchorStore.Remove(anchorId);
+			m_spatialAnchorStore.Remove(saveId);
 		}
 		catch (winrt::hresult_error const&)
 		{
@@ -292,50 +292,7 @@ namespace WindowsMixedReality
 		}
 	}
 
-	bool SpatialAnchorHelper::SaveAnchors()
-	{
-		try
-		{
-			{
-				std::lock_guard<std::mutex> lock(m_spatialAnchorStoreLock);
-				if (m_spatialAnchorStore == nullptr)
-				{
-					Log(L"SaveAnchors. Anchor store not ready.");
-					return false;
-				}
-			}
-
-			Log(L"SaveAnchors.");
-
-			// This function returns true if all the anchors in the in-memory collection are saved to the anchor
-			// store. If zero anchors are in the in-memory collection, we will still return true because the
-			// condition has been met.
-			bool success = true;
-
-			// If access is denied, 'anchorStore' will not be obtained.
-			std::lock_guard<std::mutex> lock(m_spatialAnchorMapLock);
-			for (auto& pair : m_spatialAnchorMap)
-			{
-				//TODO currently we save all anchors to the store.
-				// Maybe we only want to save some?  and others are run-time-only?
-
-				// Try to save the anchors.
-				if (!m_spatialAnchorStore.TrySave(pair.first, pair.second))
-				{
-					// This may indicate the anchor ID is taken, or the anchor limit is reached for the app.
-					success = false;
-				}
-			}
-
-			return success;
-		}
-		catch (winrt::hresult_error const&)
-		{
-			return false;
-		}
-	}
-
-	bool SpatialAnchorHelper::LoadAnchors(std::function<void(const wchar_t* text)> anchorIdWritingFunctionPointer)
+	bool SpatialAnchorHelper::LoadAnchors(std::function<void(const wchar_t* saveId, const wchar_t* anchorId)> anchorIdWritingFunctionPointer)
 	{
 		try
 		{
@@ -380,7 +337,7 @@ namespace WindowsMixedReality
 					m_spatialAnchorMap.insert(std::make_pair(KeyView.data(), pair.Value()));
 				}
 				SubscribeToRawCoordinateSystemAdjusted(pair.Value(), KeyView.data());
-				anchorIdWritingFunctionPointer(KeyView.data());
+				anchorIdWritingFunctionPointer(KeyView.data(), KeyView.data());
 			}
 
 			{ std::wstringstream string; string << L"LoadAnchors: Loaded " << anchorMapView.Size() << " anchors."; Log(string); }

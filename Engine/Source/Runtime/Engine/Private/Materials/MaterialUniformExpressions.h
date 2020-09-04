@@ -13,9 +13,6 @@
 #include "Materials/MaterialExpressionTextureProperty.h"
 #include "Materials/MaterialLayersFunctions.h"
 
-// Temporary flag for toggling experimental material layers functionality
-bool AreExperimentalMaterialLayersEnabled();
-
 /**
  * Represents a subclass of FMaterialUniformExpression.
  */

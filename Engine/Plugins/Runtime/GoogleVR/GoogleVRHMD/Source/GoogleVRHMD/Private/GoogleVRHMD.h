@@ -68,7 +68,7 @@ public:
 		EPixelFormat InFormat,
 		bool bInCubemap,
 		bool bInAllocatedStorage,
-		uint32 InFlags,
+		ETextureCreateFlags InFlags,
 		uint8* InTextureRange
 	);
 
@@ -81,7 +81,7 @@ public:
 		uint32 InNumSamples,
 		uint32 InNumSamplesTileMem,
 		EPixelFormat InFormat,
-		uint32 InFlags);
+		ETextureCreateFlags InFlags);
 };
 
 class FGoogleVRHMDCustomPresent : public FXRRenderBridge
@@ -116,7 +116,7 @@ public:
 	 * @param Index			(in) index of the buffer, changing from 0 to GetNumberOfBufferedFrames()
 	 * @return				true, if texture was allocated; false, if the default texture allocation should be used.
 	 */
-	bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumLayers, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags);
+	bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumLayers, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags);
 
 	// Frame operations
 	void UpdateRenderingViewportList(const gvr_buffer_viewport_list* BufferViewportList);
@@ -178,6 +178,11 @@ public:
 	{
 		static FName DefaultName(TEXT("FGoogleVRHMD"));
 		return DefaultName;
+	}
+
+	virtual int32 GetXRSystemFlags() const override
+	{
+		return EXRSystemFlags::IsHeadMounted;
 	}
 
 	/** @return	True if the HMD was initialized OK */
@@ -540,7 +545,7 @@ public:
 	 * @param Index			(in) index of the buffer, changing from 0 to GetNumberOfBufferedFrames()
 	 * @return				true, if texture was allocated; false, if the default texture allocation should be used.
 	 */
-	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, uint32 Flags, uint32 TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
+	virtual bool AllocateRenderTargetTexture(uint32 Index, uint32 SizeX, uint32 SizeY, uint8 Format, uint32 NumMips, ETextureCreateFlags Flags, ETextureCreateFlags TargetableTextureFlags, FTexture2DRHIRef& OutTargetableTexture, FTexture2DRHIRef& OutShaderResourceTexture, uint32 NumSamples = 1) override;
 
 	////////////////////////////////////////////////////
 	// Begin IXRTrackingSystem Pure-Virtual Interface //

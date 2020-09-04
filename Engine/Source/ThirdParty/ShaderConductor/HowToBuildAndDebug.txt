@@ -1,23 +1,23 @@
 
 WINDOWS:
 	Prerequisites:
-		VisualStudio 15.0 (2017), cmake, python3, Windows Driver Kit (WDK) [1]
+		VisualStudio 16.0 (2019), CMake (3.13 or newer), Python 3, Windows Driver Kit (WDK) [1]
 	Build:
 		Open a Visual Studio Developer Command Prompt.		
-		Run "UE4_BuildThirdPartyLib.bat" script. Intermediate files, including VisualStudio solution,
+		Run "Build_ShaderConductor_Win64.bat" script. Intermediate files, including VisualStudio solution,
 		will be stored at "%ROOT_UE4_PATH%\Intermediate\ShaderConductor\ShaderConductor.sln" where %ROOT_UE4_PATH% is the
 		path to your UE4 Perforce repository.
 		Modify %ROOT_UE4_PATH%\Engine\Source\ThirdParty\ShaderConductor\ShaderConductor\Source\Core\ShaderConductor.cpp to the direct path for the DLL:
-		eg
+		e.g.
 			#ifdef _WIN32
 				const char* dllName = "D:\\P4\\DevR\\Engine\\Intermediate\\ShaderConductor\\External\\DirectXShaderCompiler\\RelWithDebInfo\\bin\\dxcompiler.dll";
 		or
 				const char* dllName = "D:\\P4\\DevR\\Engine\\Intermediate\\ShaderConductor\\External\\DirectXShaderCompiler\\Debug\\bin\\dxcompiler.dll";
-		You should be able to compiler/build/run ShaderConductorCmd project with the command line dumped on ShaderConductorCmdLine.txt
+		You should be able to compile/build/run ShaderConductorCmd project with the command line dumped on ShaderConductorCmdLine.txt.
 
 MAC:
 	Prerequisites:
-		git, ninja, cmake, clang, python3
+		git, ninja, CMake (3.13 or newer), clang, Python 3
 	Build:
 		Run "UE4_Build_ShaderConductor_Mac.command". Intermediate files will be stored at "Build/"
 		in the current working directory.

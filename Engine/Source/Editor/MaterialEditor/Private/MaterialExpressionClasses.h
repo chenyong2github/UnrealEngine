@@ -69,7 +69,4 @@ private:
 	 * editors has already been created.
 	 */
 	bool bInitialized;
-
-	// Temporary flag for toggling experimental nodes
-	bool bMaterialLayersEnabled;
 };

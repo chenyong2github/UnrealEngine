@@ -20,7 +20,7 @@
 
 // The flags are defined so that 0 value has no effect!
 // These occupy the 4 high bits in the same channel as the SHADINGMODELID_*
-#define SKIP_CUSTOMDATA_MASK			(1 << 4)	// TODO remove. Can be inferred from shading model.
+#define HAS_ANISOTROPY_MASK				(1 << 4)
 #define SKIP_PRECSHADOW_MASK			(1 << 5)
 #define ZERO_PRECSHADOW_MASK			(1 << 6)
 #define SKIP_VELOCITY_MASK				(1 << 7)

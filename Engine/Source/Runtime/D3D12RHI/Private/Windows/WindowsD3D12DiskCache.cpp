@@ -93,7 +93,11 @@ void FDiskCacheInterface::GrowMapping(SIZE_T size, bool firstrun)
 
 	uint32 flag = (mCacheExists) ? OPEN_EXISTING : CREATE_NEW;
 	// open the shader cache file
+#if PLATFORM_HOLOLENS
+	mFile = CreateFile2(mFileName.GetCharArray().GetData(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, flag, NULL);
+#else
 	mFile = CreateFile(mFileName.GetCharArray().GetData(), GENERIC_READ | GENERIC_WRITE, FILE_SHARE_READ, NULL, flag, FILE_ATTRIBUTE_NORMAL, NULL);
+#endif
 
 	if (mFile == INVALID_HANDLE_VALUE)
 	{
@@ -104,7 +108,18 @@ void FDiskCacheInterface::GrowMapping(SIZE_T size, bool firstrun)
 
 	mCacheExists = true;
 
+#if PLATFORM_HOLOLENS
+	LARGE_INTEGER largeFileSize;
+	if (!GetFileSizeEx(mFile, &largeFileSize))
+	{
+		//error state!
+		mInErrorState = true;
+		return;
+	}
+	uint32 fileSize = largeFileSize.LowPart;
+#else
 	uint32 fileSize = GetFileSize(mFile, NULL);
+#endif
 	if (fileSize == 0)
 	{
 		byte data[64];

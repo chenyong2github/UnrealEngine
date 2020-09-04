@@ -1504,25 +1504,42 @@ void ApplyViewModeOverrides(
 	{	
 		if (EngineShowFlags.PropertyColoration)
 		{
-			// In property coloration mode, override the mesh's material with a color that was chosen based on property value.
-			const UMaterial* PropertyColorationMaterial = EngineShowFlags.Lighting ? GEngine->LevelColorationLitMaterial : GEngine->LevelColorationUnlitMaterial;
+			const FLinearColor SelectionColor = GetSelectionColor(PrimitiveSceneProxy->GetPropertyColor(), bSelected, PrimitiveSceneProxy->IsHovered());
+			FMaterialRenderProxy* PropertyColorationMaterialInstance = nullptr;
 
-			auto PropertyColorationMaterialInstance = new FColoredMaterialRenderProxy(
-				PropertyColorationMaterial->GetRenderProxy(),
-				GetSelectionColor(PrimitiveSceneProxy->GetPropertyColor(),bSelected,PrimitiveSceneProxy->IsHovered())
-				);
+			if (bMaterialModifiesMeshPosition)
+			{
+				// If the material is mesh-modifying, we cannot rely on substitution.
+				PropertyColorationMaterialInstance = new FOverrideSelectionColorMaterialRenderProxy(Mesh.MaterialRenderProxy, SelectionColor);
+			}
+			else
+			{
+				// In property coloration mode, override the mesh's material with a color that was chosen based on property value.
+				const UMaterial* PropertyColorationMaterial = EngineShowFlags.Lighting ? GEngine->LevelColorationLitMaterial : GEngine->LevelColorationUnlitMaterial;
+
+				PropertyColorationMaterialInstance = new FColoredMaterialRenderProxy(PropertyColorationMaterial->GetRenderProxy(), SelectionColor);
+			}
 
 			Mesh.MaterialRenderProxy = PropertyColorationMaterialInstance;
 			Collector.RegisterOneFrameMaterialProxy(PropertyColorationMaterialInstance);
 		}
 		else if (EngineShowFlags.LevelColoration)
 		{
-			const UMaterial* LevelColorationMaterial = EngineShowFlags.Lighting ? GEngine->LevelColorationLitMaterial : GEngine->LevelColorationUnlitMaterial;
-			// Draw the mesh with level coloration.
-			auto LevelColorationMaterialInstance = new FColoredMaterialRenderProxy(
-				LevelColorationMaterial->GetRenderProxy(),
-				GetSelectionColor(PrimitiveSceneProxy->GetLevelColor(),bSelected,PrimitiveSceneProxy->IsHovered())
-				);
+			const FLinearColor SelectionColor = GetSelectionColor(PrimitiveSceneProxy->GetLevelColor(), bSelected, PrimitiveSceneProxy->IsHovered());
+			FMaterialRenderProxy* LevelColorationMaterialInstance = nullptr;
+
+			if (bMaterialModifiesMeshPosition)
+			{
+				// If the material is mesh-modifying, we cannot rely on substitution.
+				LevelColorationMaterialInstance = new FOverrideSelectionColorMaterialRenderProxy(Mesh.MaterialRenderProxy, SelectionColor);
+			}
+			else
+			{
+				const UMaterial* LevelColorationMaterial = EngineShowFlags.Lighting ? GEngine->LevelColorationLitMaterial : GEngine->LevelColorationUnlitMaterial;
+				// Draw the mesh with level coloration.
+				LevelColorationMaterialInstance = new FColoredMaterialRenderProxy(LevelColorationMaterial->GetRenderProxy(), SelectionColor);
+			}
+
 			Mesh.MaterialRenderProxy = LevelColorationMaterialInstance;
 			Collector.RegisterOneFrameMaterialProxy(LevelColorationMaterialInstance);
 		}

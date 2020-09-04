@@ -625,10 +625,10 @@ static void AddDrawDebugCardsAtlasPass(
 	const int32 DebugMode = FMath::Clamp(GHairCardsAtlasDebug, 1, 4);
 	switch (DebugMode)
 	{
-	case 1: AtlasTexture = GraphBuilder.TryRegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsDepthTextureRT); break;
-	case 2: AtlasTexture = GraphBuilder.TryRegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsCoverageTextureRT); break;
-	case 3: AtlasTexture = GraphBuilder.TryRegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsTangentTextureRT); break;
-	case 4: AtlasTexture = GraphBuilder.TryRegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsAttributeTextureRT); break;
+	case 1: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsDepthTextureRT); break;
+	case 2: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsCoverageTextureRT); break;
+	case 3: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsTangentTextureRT); break;
+	case 4: AtlasTexture = GraphBuilder.RegisterExternalTexture(Instance->Cards.LODs[LODIndex].RestResource->CardsAttributeTextureRT); break;
 	}
 
 	if (AtlasTexture != nullptr)
@@ -835,9 +835,7 @@ void RunHairStrandsDebug(
 				Desc.NumMips = 1;
 				Desc.NumSamples = 1;
 				Desc.Flags = TexCreate_None;
-				Desc.TargetableFlags = TexCreate_DepthStencilTargetable;
 				Desc.ClearValue = FClearValueBinding::DepthFar;
-				Desc.bForceSharedTargetAndShaderResource = true;
 				DepthTexture = GraphBuilder.CreateTexture(Desc, TEXT("HairInterpolationDepthTexture"));
 			}
 

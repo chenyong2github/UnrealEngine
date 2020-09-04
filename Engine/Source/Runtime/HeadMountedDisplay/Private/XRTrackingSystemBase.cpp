@@ -5,8 +5,10 @@
 #include "Engine/Engine.h" // for FWorldContext
 #include "Engine/LocalPlayer.h"
 #include "Camera/CameraComponent.h"
+#include "MotionControllerComponent.h"
 #include "GameFramework/PlayerController.h"
 #include "DefaultXRLoadingScreen.h"
+#include "UObject/UObjectHash.h"
 
 
 // Tracking system delegates
@@ -118,6 +120,41 @@ void FXRTrackingSystemBase::UpdateExternalTrackingPosition(const FTransform& Ext
 
 	SetBaseOrientation((DeltaOffset.GetRotation().Inverse() * GetBaseOrientation()).GetNormalized());
 	SetBasePosition(GetBasePosition() - DeltaOffset.GetTranslation());
+}
+
+void FXRTrackingSystemBase::GetMotionControllerData(UObject* WorldContext, const EControllerHand Hand, FXRMotionControllerData& MotionControllerData)
+{
+	MotionControllerData.DeviceName = GetSystemName();
+	MotionControllerData.ApplicationInstanceID = FApp::GetInstanceId();
+
+	//get all motion controllers and find the one for this hand for this local player
+	TArray<UObject*> MotionControllers;
+	GetObjectsOfClass(UMotionControllerComponent::StaticClass(), MotionControllers);
+
+	MotionControllerData.bValid = false;
+
+	for (int32 MotionControllerIndex = 0; MotionControllerIndex < MotionControllers.Num(); ++MotionControllerIndex)
+	{
+		UMotionControllerComponent* MotionController = Cast<UMotionControllerComponent>(MotionControllers[MotionControllerIndex]);
+		check(MotionController);
+
+		AActor* Owner = MotionController->GetOwner();
+		if ((Owner!= nullptr) && (MotionController->GetTrackingSource() == Hand) && (Owner->GetLocalRole() == ROLE_Authority))
+		{
+			MotionControllerData.bValid = true;
+			MotionControllerData.DeviceVisualType = EXRVisualType::Controller;
+			MotionControllerData.TrackingStatus = MotionController->CurrentTrackingStatus;
+
+			FTransform WorldTransform = MotionController->GetComponentTransform();
+			MotionControllerData.GripPosition = WorldTransform.GetLocation();
+			MotionControllerData.GripRotation = WorldTransform.GetRotation();
+
+			MotionControllerData.AimPosition = MotionControllerData.GripPosition;
+			MotionControllerData.AimRotation = MotionControllerData.GripRotation;
+
+			break;
+		}
+	}
 }
 
 

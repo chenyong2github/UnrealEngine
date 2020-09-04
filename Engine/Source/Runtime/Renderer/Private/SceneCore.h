@@ -107,7 +107,7 @@ private:
 	/** True if the primitive only shadows itself. */
 	uint32 bSelfShadowOnly : 1;
 
-	/** True this is an ES2 dynamic point light interaction. */
+	/** True this is a mobile dynamic point light interaction. */
 	uint32 bMobileDynamicPointLight : 1;
 
 	/** Initialization constructor. */
@@ -163,7 +163,7 @@ private:
 class FStaticMeshBatchRelevance
 {
 public:
-	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, ERHIFeatureLevel::Type FeatureLevel)
+	FStaticMeshBatchRelevance(const FStaticMeshBatch& StaticMesh, float InScreenSize, bool InbSupportsCachingMeshDrawCommands, bool InbUseSkyMaterial, bool bInUseSingleLayerWaterMaterial, bool bInUseAnisotropy, ERHIFeatureLevel::Type FeatureLevel)
 		: Id(StaticMesh.Id)
 		, ScreenSize(InScreenSize)
 		, NumElements(StaticMesh.Elements.Num())
@@ -178,6 +178,7 @@ public:
 		, bUseSkyMaterial(InbUseSkyMaterial)
 		, bUseSingleLayerWaterMaterial(bInUseSingleLayerWaterMaterial)
 		, bUseHairStrands(StaticMesh.UseForHairStrands(FeatureLevel))
+		, bUseAnisotropy(bInUseAnisotropy)
 		, bRenderToVirtualTexture(StaticMesh.bRenderToVirtualTexture)
 		, RuntimeVirtualTextureMaterialType(StaticMesh.RuntimeVirtualTextureMaterialType)
 		, bSupportsCachingMeshDrawCommands(InbSupportsCachingMeshDrawCommands)
@@ -215,6 +216,7 @@ public:
 	uint8 bUseSkyMaterial	: 1; // Whether this batch uses a Sky material or not.
 	uint8 bUseSingleLayerWaterMaterial : 1; // Whether this batch uses a water material or not.
 	uint8 bUseHairStrands	: 1; // Whether it contains hair strands geometry.
+	uint8 bUseAnisotropy	: 1; // Whether material uses anisotropy parameter.
 
 	/** Whether the mesh batch can be used for rendering to a virtual texture. */
 	uint8 bRenderToVirtualTexture : 1;

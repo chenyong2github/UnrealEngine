@@ -37,11 +37,17 @@ TArray<FShowFlagData>& GetShowFlagMenuItems()
 {
 	static TArray<FShowFlagData> OutShowFlags;
 
+	static bool bInvalidated = false;
 	static bool bFirst = true; 
 	if(bFirst)
 	{
 		// do this only once
 		bFirst = false;
+		check(IsInGameThread());
+		FEngineShowFlags::OnCustomShowFlagRegistered.AddLambda([&]() {
+			check(IsInGameThread());
+			bInvalidated = true;
+		});
 
 		// FEngineShowFlags 
 		{
@@ -63,7 +69,7 @@ TArray<FShowFlagData>& GetShowFlagMenuItems()
 				{
 				}
 
-				bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
+				bool HandleShowFlag(uint32 InIndex, const FString& InName)
 				{
 					EShowFlagGroup Group = FEngineShowFlags::FindShowFlagGroup(*InName);
 					if( Group != SFG_Hidden && Group != SFG_Transient )
@@ -84,6 +90,16 @@ TArray<FShowFlagData>& GetShowFlagMenuItems()
 					return true;
 				}
 
+				bool OnEngineShowFlag(uint32 InIndex, const FString& InName)
+				{
+					return HandleShowFlag(InIndex, InName);
+				}
+
+				bool OnCustomShowFlag(uint32 InIndex, const FString& InName)
+				{
+					return HandleShowFlag(InIndex, InName);
+				}
+
 				TArray<FShowFlagData>& ShowFlagData;
 				const TMap<FString, FInputChord>& ChordsMap;
 			};
@@ -102,6 +118,29 @@ TArray<FShowFlagData>& GetShowFlagMenuItems()
 			}
 		};
 		OutShowFlags.Sort( FCompareFShowFlagDataByName() );
+	}
+
+	if (bInvalidated)
+	{
+		bInvalidated = false;
+		TSet<uint32> SeenIndices;
+		for (const FShowFlagData& Data : OutShowFlags)
+		{
+			SeenIndices.Add(Data.EngineShowFlagIndex);
+		}
+
+		FEngineShowFlags::IterateCustomFlags([&](uint32 Index, const FString& Name) {
+			if (SeenIndices.Contains(Index)) 
+			{
+				return true;
+			}
+
+			EShowFlagGroup Group = FEngineShowFlags::FindShowFlagGroup(*Name);
+			FText FlagDisplayName;
+			FEngineShowFlags::FindShowFlagDisplayName(Name, FlagDisplayName);
+			OutShowFlags.Add(FShowFlagData(Name, FlagDisplayName, Index, Group));
+			return true;
+		});
 	}
 
 	return OutShowFlags;

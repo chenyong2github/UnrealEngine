@@ -8,7 +8,7 @@
 
 #include <EGL/eglext.h>
 #include <EGL/eglplatform.h>
-#include <GLES2/gl2.h>
+#include <GLES3/gl31.h>
 #include <GLES2/gl2ext.h>
 
 typedef EGLSyncKHR		UGLsync;
@@ -45,20 +45,18 @@ struct FLuminOpenGL : public FOpenGLES
 	// Optional:
 	static FORCEINLINE void QueryTimestampCounter(GLuint QueryID)
 	{
-		glQueryCounterEXT(QueryID, GL_TIMESTAMP_EXT);
 	}
 
 	static FORCEINLINE void GetQueryObject(GLuint QueryId, EQueryMode QueryMode, GLuint *OutResult)
 	{
 		GLenum QueryName = (QueryMode == QM_Result) ? GL_QUERY_RESULT_EXT : GL_QUERY_RESULT_AVAILABLE_EXT;
-		glGetQueryObjectuivEXT(QueryId, QueryName, OutResult);
+		glGetQueryObjectuiv(QueryId, QueryName, OutResult);
 	}
 
 	static FORCEINLINE void GetQueryObject(GLuint QueryId, EQueryMode QueryMode, GLuint64* OutResult)
 	{
-		GLenum QueryName = (QueryMode == QM_Result) ? GL_QUERY_RESULT_EXT : GL_QUERY_RESULT_AVAILABLE_EXT;
-		GLuint64 Result = 0;
-		glGetQueryObjectui64vEXT(QueryId, QueryName, &Result);
+		GLuint Result = 0;
+		GetQueryObject(QueryId, QueryMode, &Result);
 		*OutResult = Result;
 	}
 
@@ -116,11 +114,6 @@ struct FLuminOpenGL : public FOpenGLES
 	// MRT triggers black rendering for the SensoryWare plugin. Turn it off for now.
 	static FORCEINLINE bool SupportsMultipleRenderTargets()				{ return false; }
 	static FORCEINLINE bool SupportsImageExternal()						{ return bSupportsImageExternal; }
-
-	static FORCEINLINE bool UseES30ShadingLanguage()
-	{
-		return bUseES30ShadingLanguage;
-	}
 
 	enum class EImageExternalType : uint8
 	{

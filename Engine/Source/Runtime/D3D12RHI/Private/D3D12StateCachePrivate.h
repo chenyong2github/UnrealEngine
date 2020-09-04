@@ -352,7 +352,6 @@ protected:
 	bool bNeedSetStencilRef;
 	bool bNeedSetDepthBounds;
 	bool bNeedSetShadingRate;
-	bool bAutoFlushComputeShaderCache;
 	D3D12_RESOURCE_BINDING_TIER ResourceBindingTier;
 
 	struct
@@ -1015,11 +1014,6 @@ public:
 	void SetComputeBudget(EAsyncComputeBudget ComputeBudget)
 	{
 		PipelineState.Compute.ComputeBudget = ComputeBudget;
-	}
-
-	D3D12_STATE_CACHE_INLINE void AutoFlushComputeShaderCache(bool bEnable)
-	{
-		bAutoFlushComputeShaderCache = bEnable;
 	}
 
 	void FlushComputeShaderCache(bool bForce = false);

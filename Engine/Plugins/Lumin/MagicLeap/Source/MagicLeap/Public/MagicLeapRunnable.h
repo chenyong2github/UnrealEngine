@@ -11,11 +11,13 @@
 #include "Containers/Array.h"
 #include "Misc/Variant.h"
 #include "AppEventHandler.h"
+#include "MagicLeapTypes.h"
 #include "Lumin/CAPIShims/LuminAPI.h"
 
 struct FMagicLeapTask
 {
 	bool bSuccess;
+	FMagicLeapResult Result;
 
 	FMagicLeapTask()
 	: bSuccess(false)
@@ -164,13 +166,11 @@ public:
 
 	bool TryGetCompletedTask(TTaskType& OutCompletedTask)
 	{
-#if PLATFORM_LUMIN
 		if (CompletedTasks.Peek(OutCompletedTask))
 		{
 			CompletedTasks.Pop();
 			return true;
 		}
-#endif //PLATFORM_LUMIN
 		return false;
 	}
 
@@ -184,7 +184,7 @@ protected:
 	{
 		while (IncomingTasks.Dequeue(CurrentTask))
 		{
-			CurrentTask.bSuccess = false;
+			CurrentTask.Result.bSuccess = CurrentTask.bSuccess = false;
 			CompletedTasks.Enqueue(CurrentTask);
 		}
 	}
@@ -193,9 +193,9 @@ protected:
 	virtual void Pause() {}
 	virtual void Resume() {}
 
-	/** Internal thread this instance is running on */
 	MagicLeap::IAppEventHandler AppEventHandler;
 	FString Name;
+	/** Internal thread this instance is running on */
 	FRunnableThread* Thread;
 	EThreadPriority ThreadPriority;
 	FThreadSafeCounter StopTaskCounter;
@@ -210,7 +210,7 @@ private:
 	bool DoNextTask()
 	{
 		IncomingTasks.Dequeue(CurrentTask);
-		CurrentTask.bSuccess = ProcessCurrentTask();
+		CurrentTask.Result.bSuccess = CurrentTask.bSuccess = ProcessCurrentTask();
 
 		if (bPaused)
 		{
@@ -219,6 +219,6 @@ private:
 
 		CompletedTasks.Enqueue(CurrentTask);
 
-		return CurrentTask.bSuccess;
+		return CurrentTask.Result.bSuccess;
 	}
 };

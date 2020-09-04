@@ -3,7 +3,6 @@
 #pragma once
 
 #include "ScreenPass.h"
-#include "RenderingCompositionGraph.h"
 
 struct FGaussianBlurInputs
 {
@@ -30,13 +29,3 @@ struct FGaussianBlurInputs
 using FGaussianBlurOutputs = FScreenPassTexture;
 
 FGaussianBlurOutputs AddGaussianBlurPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FGaussianBlurInputs& Inputs);
-
-FRenderingCompositeOutputRef AddGaussianBlurPass(
-	FRenderingCompositionGraph& Graph,
-	const TCHAR *InNameX,
-	const TCHAR* InNameY,
-	FRenderingCompositeOutputRef FilterInput,
-	float FilterPercent,
-	FLinearColor Tint = FLinearColor::White,
-	FRenderingCompositeOutputRef Additive = FRenderingCompositeOutputRef(),
-	FVector2D CrossCenterWeight = FVector2D::ZeroVector);

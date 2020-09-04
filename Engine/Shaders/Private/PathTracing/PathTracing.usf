@@ -174,9 +174,15 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 				if (NeePdf > 0.0)
 				{
 					RayDesc LightRay;
-
 					GenerateLightRay(Ray, LightId, LightUV, LightRay);
-					ApplyPositionBias(LightRay, Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
+
+					float SignedPositionBias = 1.0;
+					float NoL = dot(Payload.WorldNormal, LightRay.Direction);
+					if (ENABLE_TRANSMISSION && HasTransmission(LightId) && IsMaterialTransmissive(RayHitInfo) && NoL < 0.0)
+					{
+						SignedPositionBias = -1.0;
+					}
+					ApplyPositionBias(LightRay, SignedPositionBias * Payload.WorldNormal, AdaptiveSamplingData.MaxNormalBias);
 
 					const uint RayFlags = RAY_FLAG_ACCEPT_FIRST_HIT_AND_END_SEARCH | RAY_FLAG_SKIP_CLOSEST_HIT_SHADER;
 					const uint InstanceInclusionMask = RAY_TRACING_MASK_SHADOW;
@@ -207,9 +213,10 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 						EvalLight(LightId, LightUV, LightRay, Radiance);
 
 						// Evaluate material
+						float Ior1 = 1.0;
 						float3 MaterialThroughput;
 						float MaterialEvalPdf = 0.0;
-						EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, false, MaterialThroughput, MaterialEvalPdf);
+						EvalMaterial(Ray.Direction, LightRay.Direction, RayHitInfo, Ior1, false, MaterialThroughput, MaterialEvalPdf);
 
 						// Apply material Pdf for correct MIS weight
 						float MisWeight = 1.0;
@@ -218,7 +225,7 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 #if 0
 							// DEBUG: Validate Material PDF
 							float MaterialPdfTmp;
-							PdfMaterial(Ray.Direction, LightRay, RayHitInfo, false, MaterialPdfTmp);
+							PdfMaterial(Ray.Direction, LightRay, RayHitInfo, Ior1, false, MaterialPdfTmp);
 							if (abs(MaterialPdf - MaterialPdfTmp) > 0.0001)
 							{
 								MaterialThroughput *= -1.f;
@@ -235,20 +242,21 @@ RAY_TRACING_ENTRY_RAYGEN(PathTracingMainRG)
 			}
 
 			// Sample material
+			float Ior1 = 1.0;
 			float3 Direction;
 			float3 Throughput;
 			float4 RandSample = RandomSequence_GenerateSample4D(RandSequence, SampleIndex);
 			float SignedPositionBias;
 			float SamplePdf;
-			SampleMaterial(Ray.Direction, RayHitInfo, RandSample, false, Direction, Throughput, SamplePdf, SignedPositionBias);
+			SampleMaterial(Ray.Direction, RayHitInfo, Ior1, RandSample, false, Direction, Throughput, SamplePdf, SignedPositionBias);
 			if (SamplePdf == 0.0)
 			{
 				break;
 			}
 
-			PdfMaterial(Ray.Direction, Direction, Payload, false, MaterialPdf);
+			PdfMaterial(Ray.Direction, Direction, Payload, Ior1, false, MaterialPdf);
 			// Debug: Evaluation of a candidate sample direction should maintain energy balance with pathspace MIS
-			// EvalMaterial(Ray.Direction, Direction, RayHitInfo, false, Throughput, MaterialPdf);
+			// EvalMaterial(Ray.Direction, Direction, RayHitInfo, Ior1, false, Throughput, MaterialPdf);
 			// SamplePdf = MaterialPdf;
 
 			// Update ray

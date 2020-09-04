@@ -102,21 +102,6 @@ void FD3D12CommandContext::RHISetComputeShader(FRHIComputeShader* ComputeShaderR
 	RHISetComputePipelineState(ComputePipelineState);
 }
 
-void FD3D12CommandContextBase::RHIWaitComputeFence(FRHIComputeFence* InFenceRHI)
-{
-	FD3D12Fence* Fence = FD3D12DynamicRHI::ResourceCast(InFenceRHI);
-
-	if (Fence)
-	{
-		check(IsDefaultContext());
-		RHISubmitCommandsHint();
-
-		checkf(Fence->GetWriteEnqueued(), TEXT("ComputeFence: %s waited on before being written. This will hang the GPU."), *Fence->GetName().ToString());
-
-		Fence->GpuWait(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default , Fence->GetLastSignaledFence());
-	}
-}
-
 void FD3D12CommandContext::RHIDispatchComputeShader(uint32 ThreadGroupCountX, uint32 ThreadGroupCountY, uint32 ThreadGroupCountZ)
 {
 	FD3D12ComputeShader* ComputeShader = nullptr;
@@ -181,99 +166,259 @@ void FD3D12CommandContext::RHIDispatchIndirectComputeShader(FRHIVertexBuffer* Ar
 	DEBUG_EXECUTE_COMMAND_LIST(this);
 }
 
-
-void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, FRHITexture** InTextures, int32 NumTextures)
+template <typename FunctionType>
+void EnumerateSubresources(FD3D12Resource* Resource, const FRHITransitionInfo& Info, FunctionType Function)
 {
-#if !USE_D3D12RHI_RESOURCE_STATE_TRACKING
-	// TODO: Make sure that EMetaData is supported with an aliasing barrier, otherwise the CMask decal optimisation will break.
-	check(TransitionType != EResourceTransitionAccess::EMetaData && (TransitionType == EResourceTransitionAccess::EReadable || TransitionType == EResourceTransitionAccess::EWritable || TransitionType == EResourceTransitionAccess::ERWSubResBarrier));
-	// TODO: Remove this skip.
-	// Skip for now because we don't have enough info about what mip to transition yet.
-	// Note: This causes visual corruption.
-	if (TransitionType == EResourceTransitionAccess::ERWSubResBarrier)
+	uint32 FirstMipSlice = 0;
+	uint32 FirstArraySlice = 0;
+	uint32 FirstPlaneSlice = 0;
+
+	uint32 MipCount = Resource->GetMipLevels();
+	uint32 ArraySize = Resource->GetArraySize();
+	uint32 PlaneCount = Resource->GetPlaneCount();
+
+	if (!Info.IsAllMips())
 	{
-		return;
+		FirstMipSlice = Info.MipIndex;
+		MipCount = 1;
 	}
 
-	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
-	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
-
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i Textures"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], NumTextures);
-
-	// Determine the direction of the transitions.
-	const D3D12_RESOURCE_STATES* pBefore = nullptr;
-	const D3D12_RESOURCE_STATES* pAfter = nullptr;
-	D3D12_RESOURCE_STATES WritableState;
-	D3D12_RESOURCE_STATES ReadableState;
-	switch (TransitionType)
+	if (!Info.IsAllArraySlices())
 	{
-	case EResourceTransitionAccess::EReadable:
-		// Write -> Read
-		pBefore = &WritableState;
-		pAfter = &ReadableState;
-		break;
-
-	case EResourceTransitionAccess::EWritable:
-		// Read -> Write
-		pBefore = &ReadableState;
-		pAfter = &WritableState;
-		break;
-
-	default:
-		check(false);
-		break;
+		FirstArraySlice = Info.ArraySlice;
+		ArraySize = 1;
 	}
 
-	// Create the resource barrier descs for each texture to transition.
-	for (int32 i = 0; i < NumTextures; ++i)
+	if (!Info.IsAllPlaneSlices())
 	{
-		if (InTextures[i])
+		FirstPlaneSlice = Info.PlaneSlice;
+		PlaneCount = 1;
+	}
+
+	for (uint32 PlaneSlice = FirstPlaneSlice; PlaneSlice < FirstPlaneSlice + PlaneCount; ++PlaneSlice)
+	{
+		for (uint32 ArraySlice = FirstArraySlice; ArraySlice < FirstArraySlice + ArraySize; ++ArraySlice)
 		{
-			FD3D12Resource* Resource = RetrieveTextureBase(InTextures[i])->GetResource();
-			check(Resource->RequiresResourceStateTracking());
-
-			SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResourcesLoop, bShowTransitionEvents, TEXT("To:%i - %s"), i, *Resource->GetName().ToString());
-
-			WritableState = Resource->GetWritableState();
-			ReadableState = Resource->GetReadableState();
-
-			CommandListHandle.AddTransitionBarrier(Resource, *pBefore, *pAfter, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
-
-			DUMP_TRANSITION(Resource->GetName(), TransitionType);
+			for (uint32 MipSlice = FirstMipSlice; MipSlice < FirstMipSlice + MipCount; ++MipSlice)
+			{
+				const uint32 Subresource = D3D12CalcSubresource(FirstMipSlice, FirstArraySlice, FirstPlaneSlice, MipCount, ArraySize);
+				Function(Subresource);
+			}
 		}
 	}
-#else
-	if (TransitionType == EResourceTransitionAccess::EMetaData)
-	{
-		FlushMetadata(InTextures, NumTextures);
-	}
-#endif // !USE_D3D12RHI_RESOURCE_STATE_TRACKING
 }
 
+template <typename FunctionType>
+void ProcessResource(FD3D12CommandContext& Context, const FRHITransitionInfo& Info, FunctionType Function)
+{
+	switch (Info.Type)
+	{
+	case FRHITransitionInfo::EType::UAV:
+	{
+		FD3D12UnorderedAccessView* UAV = Context.RetrieveObject<FD3D12UnorderedAccessView>(Info.UAV);
+		check(UAV);
 
-void FD3D12CommandContext::RHITransitionResources(EResourceTransitionAccess TransitionType, EResourceTransitionPipeline TransitionPipeline, FRHIUnorderedAccessView** InUAVs, int32 InNumUAVs, FRHIComputeFence* WriteComputeFenceRHI)
+		FRHITransitionInfo LocalInfo = Info;
+		LocalInfo.MipIndex = UAV->GetViewSubresourceSubset().MostDetailedMip();
+		Function(LocalInfo, UAV->GetResource());
+	}
+	break;
+	case FRHITransitionInfo::EType::VertexBuffer:
+	{
+		FD3D12VertexBuffer* VertexBuffer = Context.RetrieveObject<FD3D12VertexBuffer>(Info.VertexBuffer);
+		check(VertexBuffer);
+		Function(Info, VertexBuffer->GetResource());
+	}
+	break;
+	case FRHITransitionInfo::EType::IndexBuffer:
+	{
+		FD3D12IndexBuffer* IndexBuffer = Context.RetrieveObject<FD3D12IndexBuffer>(Info.IndexBuffer);
+		check(IndexBuffer);
+		Function(Info, IndexBuffer->GetResource());
+	}
+	break;
+	case FRHITransitionInfo::EType::StructuredBuffer:
+	{
+		FD3D12StructuredBuffer* StructuredBuffer = Context.RetrieveObject<FD3D12StructuredBuffer>(Info.StructuredBuffer);
+		check(StructuredBuffer);
+		Function(Info, StructuredBuffer->GetResource());
+	}
+	break;
+	case FRHITransitionInfo::EType::Texture:
+	{
+		FD3D12TextureBase* Texture = Context.RetrieveTextureBase(Info.Texture);
+		check(Texture);
+		Function(Info, Texture->GetResource());
+	}
+	break;
+	default:
+		checkNoEntry();
+		break;
+	}
+}
+
+void FD3D12CommandContext::RHIBeginTransitionsWithoutFencing(TArrayView<const FRHITransition*> Transitions)
 {
 	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
 	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
+	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHIBeginTransitions, bShowTransitionEvents, TEXT("RHIBeginTransitions"));
 
-	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHITransitionResources, bShowTransitionEvents, TEXT("TransitionTo: %s: %i UAVs"), *FResourceTransitionUtility::ResourceTransitionAccessStrings[(int32)TransitionType], InNumUAVs);
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
 
-	// Always perform UAV barrier when transition type is ERWBarrier because we don't know if the transition will be UAV -> UAV or any other state when ERWBarrier is set
-	// This is the safest path, but sadly enough not the fastest path. Barrier refactor code and RDG will fix this in the future
-	const bool bUAVBarrier = (TransitionType == EResourceTransitionAccess::ERWBarrier);
+		// Same pipe transitions or transitions onto the graphics pipe are handled in End.
+		if (Data->SrcPipelines == Data->DstPipelines || Data->DstPipelines == ERHIPipeline::Graphics)
+		{
+			continue;
+		}
+
+		for (const FRHITransitionInfo& Info : Data->Infos)
+		{
+			if (!Info.Resource)
+			{
+				continue;
+			}
+
+			ProcessResource(*this, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
+			{
+				if (!Resource->RequiresResourceStateTracking())
+				{
+					return;
+				}
+
+				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+
+				if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
+				{
+					State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+				}
+				else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
+				{
+					State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+				}
+
+				if (State == D3D12_RESOURCE_STATE_COMMON)
+				{
+					return;
+				}
+
+				if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
+				{
+					FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+				}
+				else
+				{
+					EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
+					{
+						FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, Subresource);
+					});
+				}
+			});
+		}
+	}
+}
+
+void FD3D12CommandContext::RHIBeginTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	RHIBeginTransitionsWithoutFencing(Transitions);
+	SignalTransitionFences(Transitions);
+}
+
+void FD3D12CommandContext::RHIEndTransitions(TArrayView<const FRHITransition*> Transitions)
+{
+	WaitForTransitionFences(Transitions);
+
+	static IConsoleVariable* CVarShowTransitions = IConsoleManager::Get().FindConsoleVariable(TEXT("r.ProfileGPU.ShowTransitions"));
+	const bool bShowTransitionEvents = CVarShowTransitions->GetInt() != 0;
+	SCOPED_RHI_CONDITIONAL_DRAW_EVENTF(*this, RHIEndTransitions, bShowTransitionEvents, TEXT("RHIEndTransitions"));
+
+	static_assert(USE_D3D12RHI_RESOURCE_STATE_TRACKING, "RHIEndTransitions is not implemented properly for this to be disabled.");
+
+	bool bUAVBarrier = false;
+
+	for (const FRHITransition* Transition : Transitions)
+	{
+		const FD3D12TransitionData* Data = Transition->GetPrivateData<FD3D12TransitionData>();
+
+		const bool bSamePipeline = !Data->bCrossPipeline;
+
+		for (const FRHITransitionInfo& Info : Data->Infos)
+		{
+			// Sometimes we could still have barriers with resources, invalid but can still happen
+			if (bSamePipeline)
+			{
+				bUAVBarrier |= Info.AccessAfter == ERHIAccess::ERWBarrier;
+				bUAVBarrier |= EnumHasAnyFlags(Info.AccessBefore, ERHIAccess::UAVMask) && EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::UAVMask);
+			}
+
+			if (!Info.Resource)
+			{
+				continue;
+			}
+
+			ProcessResource(*this, Info, [&](const FRHITransitionInfo& Info, FD3D12Resource* Resource)
+			{
+				if (!Resource->RequiresResourceStateTracking())
+				{
+					return;
+				}
+
+				D3D12_RESOURCE_STATES State = D3D12_RESOURCE_STATE_COMMON;
+				if (EnumHasAnyFlags(Info.Flags, EResourceTransitionFlags::MaintainCompression))
+				{
+					State |= SkipFastClearEliminateState;
+				}
+
+				if (Info.AccessAfter != ERHIAccess::ERWBarrier)
+				{
+					if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EWritable))
+					{
+						if (bIsAsyncComputeContext)
+						{
+							State |= D3D12_RESOURCE_STATE_UNORDERED_ACCESS;
+						}
+						else
+						{
+							State |= Resource->GetWritableState();
+						}
+					}
+					else if (EnumHasAnyFlags(Info.AccessAfter, ERHIAccess::EReadable))
+					{
+						if (bIsAsyncComputeContext)
+						{
+							State |= D3D12_RESOURCE_STATE_NON_PIXEL_SHADER_RESOURCE;
+						}
+						else
+						{
+							State |= Resource->GetReadableState();
+						}
+					}
+				}
+
+				if (State == D3D12_RESOURCE_STATE_COMMON)
+				{
+					return;
+				}
+
+				if (Info.IsWholeResource() || Resource->GetSubresourceCount() == 1)
+				{
+					FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, D3D12_RESOURCE_BARRIER_ALL_SUBRESOURCES);
+				}
+				else
+				{
+					EnumerateSubresources(Resource, Info, [&](uint32 Subresource)
+					{
+						FD3D12DynamicRHI::TransitionResource(CommandListHandle, Resource, State, Subresource);
+					});
+				}
+			});
+		}
+	}
+
 	if (bUAVBarrier)
 	{
 		StateCache.FlushComputeShaderCache(true);
-	}
-
-	if (WriteComputeFenceRHI)
-	{
-		RHISubmitCommandsHint();
-
-		FD3D12Fence* Fence = FD3D12DynamicRHI::ResourceCast(WriteComputeFenceRHI);
-		Fence->WriteFence();
-
-		Fence->Signal(bIsAsyncComputeContext ? ED3D12CommandQueueType::Async : ED3D12CommandQueueType::Default);
 	}
 }
 
@@ -1711,11 +1856,6 @@ void FD3D12CommandContext::RHIClearMRTImpl(bool bClearColor, int32 NumClearColor
 	}
 
 	DEBUG_EXECUTE_COMMAND_LIST(this);
-}
-
-void FD3D12CommandContext::RHIBindClearMRTValues(bool bClearColor, bool bClearDepth, bool bClearStencil)
-{
-	// Not necessary for d3d.
 }
 
 // Blocks the CPU until the GPU catches up and goes idle.

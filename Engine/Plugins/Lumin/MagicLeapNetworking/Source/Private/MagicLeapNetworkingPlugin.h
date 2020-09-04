@@ -7,7 +7,6 @@
 #include "Containers/Ticker.h"
 #include "IMagicLeapPlugin.h"
 #include "IMagicLeapNetworkingPlugin.h"
-#include "MagicLeapPluginUtil.h"
 #include "MagicLeapNetworkingTypes.h"
 #include "Lumin/CAPIShims/LuminAPINetworking.h"
 

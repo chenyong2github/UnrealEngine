@@ -8,7 +8,6 @@
 #include "MagicLeapContactsTypes.h"
 #include "AppEventHandler.h"
 #include "Lumin/CAPIShims/LuminAPIContacts.h"
-#include "MagicLeapPluginUtil.h"
 
 DECLARE_LOG_CATEGORY_EXTERN(LogMagicLeapContacts, Verbose, All);
 
@@ -42,7 +41,6 @@ private:
 	const int32 MAX_EMAIL_COUNT;
 
 	MagicLeap::IAppEventHandler PrivilegesManager;
-	FMagicLeapAPISetup APISetup;
 	FTickerDelegate TickDelegate;
 	FDelegateHandle TickDelegateHandle;
 	struct FContactRequest

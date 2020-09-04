@@ -54,6 +54,8 @@ struct FVertexFactoryIntermediates
 	float3 TangentUp;
 	/** The point's tangent in world space (+U) */
 	float3 TangentRight;
+	/** The point's normal in world space */
+	float3 TangentNormal;
 	/** The color of the sprite. */
 	half4 Color;
 };
@@ -176,6 +178,7 @@ FVertexFactoryIntermediates GetVertexFactoryIntermediates(FVertexFactoryInput In
 	Intermediates.PointTranslatedWorldPosition = PointTranslatedWorldPosition;
 	Intermediates.TangentUp = TangentUp;
 	Intermediates.TangentRight = TangentRight;
+	Intermediates.TangentNormal = normalize(cross(TangentRight, TangentUp));
 
 	Intermediates.Color = GetPointColor(Input);
 
@@ -317,4 +320,9 @@ uint VertexFactoryGetEyeIndex(uint InstanceId)
 float4 VertexFactoryGetTranslatedPrimitiveVolumeBounds(FVertexFactoryInterpolantsVSToPS Interpolants)
 {
 	return 0;
+}
+
+float3 VertexFactoryGetWorldNormal(FVertexFactoryInput Input, FVertexFactoryIntermediates Intermediates)
+{
+	return Intermediates.TangentNormal;
 }

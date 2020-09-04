@@ -2,6 +2,67 @@
 
 #pragma once
 
+inline FIntPoint GetDownscaledExtent(FIntPoint Extent, FIntPoint Divisor)
+{
+	Extent = FIntPoint::DivideAndRoundUp(Extent, Divisor);
+	Extent.X = FMath::Max(1, Extent.X);
+	Extent.Y = FMath::Max(1, Extent.Y);
+	return Extent;
+}
+
+inline FIntPoint GetScaledExtent(FIntPoint Extent, FVector2D Multiplier)
+{
+	Extent.X *= Multiplier.X;
+	Extent.Y *= Multiplier.Y;
+	Extent.X = FMath::Max(1, Extent.X);
+	Extent.Y = FMath::Max(1, Extent.Y);
+	return Extent;
+}
+
+inline FIntPoint GetScaledExtent(FIntPoint Extent, float Multiplier)
+{
+	return GetScaledExtent(Extent, FVector2D(Multiplier));
+}
+
+inline FIntRect GetDownscaledRect(FIntRect Rect, FIntPoint Divisor)
+{
+	Rect.Min /= Divisor;
+	Rect.Max = GetDownscaledExtent(Rect.Max, Divisor);
+	return Rect;
+}
+
+inline FIntRect GetScaledRect(FIntRect Rect, FVector2D Multiplier)
+{
+	Rect.Min.X *= Multiplier.X;
+	Rect.Min.Y *= Multiplier.Y;
+	Rect.Max = GetScaledExtent(Rect.Max, Multiplier);
+	return Rect;
+}
+
+FORCEINLINE FIntRect GetScaledRect(FIntRect Rect, float Multiplier)
+{
+	return GetScaledRect(Rect, FVector2D(Multiplier));
+}
+
+inline FScreenPassTextureViewport GetDownscaledViewport(FScreenPassTextureViewport Viewport, FIntPoint Divisor)
+{
+	Viewport.Rect = GetDownscaledRect(Viewport.Rect, Divisor);
+	Viewport.Extent = GetDownscaledExtent(Viewport.Extent, Divisor);
+	return Viewport;
+}
+
+inline FScreenPassTextureViewport GetScaledViewport(FScreenPassTextureViewport Viewport, FVector2D Multiplier)
+{
+	Viewport.Rect = GetScaledRect(Viewport.Rect, Multiplier);
+	Viewport.Extent = GetScaledExtent(Viewport.Extent, Multiplier);
+	return Viewport;
+}
+
+inline FIntRect GetRectFromExtent(FIntPoint Extent)
+{
+	return FIntRect(FIntPoint::ZeroValue, Extent);
+}
+
 inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateFromInput(
 	FRDGBuilder& GraphBuilder,
 	FScreenPassTexture Input,
@@ -24,28 +85,6 @@ inline FScreenPassRenderTarget FScreenPassRenderTarget::CreateViewFamilyOutput(F
 		View.PrimaryScreenPercentageMethod == EPrimaryScreenPercentageMethod::RawOutput ? View.ViewRect : View.UnscaledViewRect,
 		// First view clears the view family texture; all remaining views load.
 		(!View.Family->bAdditionalViewFamily && View.IsFirstInFamily() )? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
-}
-
-inline FScreenPassTextureViewport FScreenPassTextureViewport::CreateDownscaled(const FScreenPassTextureViewport& Other, uint32 DownscaleFactor)
-{
-	return CreateDownscaled(Other, FIntPoint(DownscaleFactor, DownscaleFactor));
-}
-
-inline FScreenPassTextureViewport FScreenPassTextureViewport::CreateDownscaled(const FScreenPassTextureViewport& Other, FIntPoint ScaleFactor)
-{
-	const auto GetDownscaledSize = [](FIntPoint Size, FIntPoint InScaleFactor)
-	{
-		Size = FIntPoint::DivideAndRoundUp(Size, InScaleFactor);
-		Size.X = FMath::Max(1, Size.X);
-		Size.Y = FMath::Max(1, Size.Y);
-		return Size;
-	};
-
-	FScreenPassTextureViewport Viewport;
-	Viewport.Rect.Min = Other.Rect.Min / ScaleFactor;
-	Viewport.Rect.Max = GetDownscaledSize(Other.Rect.Max, ScaleFactor);
-	Viewport.Extent = GetDownscaledSize(Other.Extent, ScaleFactor);
-	return Viewport;
 }
 
 inline FScreenPassTexture::FScreenPassTexture(FRDGTextureRef InTexture)
@@ -112,6 +151,11 @@ inline bool FScreenPassTextureViewport::IsEmpty() const
 inline bool FScreenPassTextureViewport::IsFullscreen() const
 {
 	return Rect.Min == FIntPoint::ZeroValue && Rect.Max == Extent;
+}
+
+inline FVector2D FScreenPassTextureViewport::GetRectToExtentRatio() const
+{
+	return FVector2D((float)Rect.Width() / Extent.X, (float)Rect.Height() / Extent.X);
 }
 
 inline FScreenPassTextureViewportTransform GetScreenPassTextureViewportTransform(

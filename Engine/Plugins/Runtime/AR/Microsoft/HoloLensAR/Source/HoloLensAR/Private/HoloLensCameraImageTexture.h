@@ -24,7 +24,7 @@
 /**
  * Provides access to the camera's image data as a texture
  */
-UCLASS()
+UCLASS(NotBlueprintType)
 class HOLOLENSAR_API UHoloLensCameraImageTexture :
 	public UARTextureCameraImage
 {
@@ -35,8 +35,6 @@ public:
 	virtual void BeginDestroy() override;
 	virtual FTextureResource* CreateResource() override;
 	virtual EMaterialValueType GetMaterialType() const override { return MCT_Texture2D; }
-	virtual float GetSurfaceWidth() const override { return Size.X; }
-	virtual float GetSurfaceHeight() const override { return Size.Y; }
 	// End UTexture interface
 
 #if SUPPORTS_WINDOWS_MIXED_REALITY_AR

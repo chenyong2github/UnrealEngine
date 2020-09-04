@@ -66,9 +66,12 @@ public:
 	 */
 	virtual void Unlock() = 0;
 
+	FORCEINLINE const FRHIGPUMask& GetLastCopyGPUMask() const { return LastCopyGPUMask; }
+
 protected:
 
 	FGPUFenceRHIRef Fence;
+	FRHIGPUMask LastCopyGPUMask;
 };
 
 /** Buffer readback implementation. */
@@ -92,16 +95,18 @@ private:
 class RHI_API FRHIGPUTextureReadback final : public FRHIGPUMemoryReadback
 {
 public:
-
 	FRHIGPUTextureReadback(FName RequestName);
 
+	void EnqueueCopyRDG(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect());
 	void EnqueueCopy(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveRect Rect = FResolveRect()) override;
+
 	void* Lock(uint32 NumBytes) override;
 	void Unlock() override;
 
 	void LockTexture(FRHICommandListImmediate& RHICmdList, void*& OutBufferPtr, int32& OutRowPitchInPixels);
 
 private:
+	void EnqueueCopyInternal(FRHICommandList& RHICmdList, FRHITexture* SourceTexture, FResolveParams Params);
 
 	FTextureRHIRef DestinationStagingBuffer;
 };

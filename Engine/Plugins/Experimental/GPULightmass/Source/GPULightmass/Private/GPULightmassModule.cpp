@@ -79,7 +79,7 @@ void FGPULightmassModule::EditorTick()
 	{
 		FGPULightmass* GPULightmass = StaticLightingSystem.Value;
 		GPULightmass->EditorTick();
-		if (GPULightmass->LightBuildPercentage >= 100)
+		if (GPULightmass->LightBuildPercentage >= 100 && !GPULightmass->bOnlyBakeWhatYouSee)
 		{
 			FinishedStaticLightingSystems.Add(GPULightmass);
 		}

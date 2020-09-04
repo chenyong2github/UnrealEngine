@@ -742,7 +742,7 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			}
 
 			//make UAV safe for clear
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GSortOffsetBuffers.BufferUAVs[0]);
+			RHICmdList.Transition(FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 			
 			// Clear the offsets buffer.			
 			RHICmdList.SetComputeShader(ClearOffsetsCS.GetComputeShader());			
@@ -751,7 +751,7 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			ClearOffsetsCS->UnbindBuffers(RHICmdList);
 
 			//make UAV safe for readback
-			RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, GSortOffsetBuffers.BufferUAVs[0]);
+			RHICmdList.Transition(FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 
 			// Phase 1: Scan upsweep to compute per-digit totals.
 			RHICmdList.SetComputeShader(UpsweepCS.GetComputeShader());
@@ -761,11 +761,10 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			UpsweepCS->UnbindBuffers(RHICmdList);
 
 			//barrier both UAVS since for next step.
-			FRHIUnorderedAccessView* PrePhase2BarrierUAVS[2];
-			PrePhase2BarrierUAVS[0] = GSortOffsetBuffers.BufferUAVs[0];
-			PrePhase2BarrierUAVS[1] = GSortOffsetBuffers.BufferUAVs[1];
-
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, PrePhase2BarrierUAVS, 2);
+			FRHITransitionInfo PrePhase2BarrierUAVS[2];
+			PrePhase2BarrierUAVS[0] = FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[0], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+			PrePhase2BarrierUAVS[1] = FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[1], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+			RHICmdList.Transition(MakeArrayView(PrePhase2BarrierUAVS, 2));
 
 			if (bDebugOffsets)
 			{
@@ -787,14 +786,12 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			}
 
 			//UAV is going to SRV, so transition to Readable.
-			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, GSortOffsetBuffers.BufferUAVs[1]);
+			RHICmdList.Transition(FRHITransitionInfo(GSortOffsetBuffers.BufferUAVs[1], ERHIAccess::Unknown, ERHIAccess::SRVCompute));
 
-
-			FRHIUnorderedAccessView* PrePhase3BarrierUAVS[2];
-			PrePhase3BarrierUAVS[0] = SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1];
-			PrePhase3BarrierUAVS[1] = SortBuffers.RemoteValueUAVs[BufferIndex ^ 0x1];
-
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, PrePhase3BarrierUAVS, 2);
+			FRHITransitionInfo PrePhase3BarrierUAVS[2];
+			PrePhase3BarrierUAVS[0] = FRHITransitionInfo(SortBuffers.RemoteKeyUAVs[BufferIndex ^ 0x1], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+			PrePhase3BarrierUAVS[1] = FRHITransitionInfo(SortBuffers.RemoteValueUAVs[BufferIndex ^ 0x1], ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+			RHICmdList.Transition(MakeArrayView(PrePhase3BarrierUAVS, 2));
 
 			const bool bIsLastPass = ((PassBits << RADIX_BITS) & KeyMask) == 0;
 			// Phase 3: Downsweep to compute final offsets and scatter keys.
@@ -805,7 +802,7 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 				{
 					ValuesUAV = SortBuffers.FinalValuesUAV;
 					// Transition resource since FinalValuesUAV can also be SortBuffers.FirstValuesSRV.
-					RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, ValuesUAV);
+					RHICmdList.Transition(FRHITransitionInfo(ValuesUAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier));
 				}
 				else
 				{
@@ -820,7 +817,7 @@ int32 SortGPUBuffers(FRHICommandListImmediate& RHICmdList, FGPUSortBuffers SortB
 			DispatchComputeShader(RHICmdList, DownsweepCS.GetShader(), GroupCount, 1, 1 );
 			DownsweepCS->UnbindBuffers(RHICmdList);
 
-			RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, PrePhase3BarrierUAVS, 2);
+			RHICmdList.Transition(MakeArrayView(PrePhase3BarrierUAVS, 2));
 
 			// Flip buffers.
 			BufferIndex ^= 0x1;
@@ -894,10 +891,10 @@ static bool RunGPUSortTest(FRHICommandListImmediate& RHICmdList, int32 TestSize,
 	for (int32 BufferIndex = 0; BufferIndex < 2; ++BufferIndex)
 	{
 		FRHIResourceCreateInfo CreateInfo;
-		KeysBufferRHI[BufferIndex] = RHICmdList.CreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		KeysBufferRHI[BufferIndex] = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		KeysBufferSRV[BufferIndex] = RHICmdList.CreateShaderResourceView(KeysBufferRHI[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT);
 		KeysBufferUAV[BufferIndex] = RHICmdList.CreateUnorderedAccessView(KeysBufferRHI[BufferIndex], PF_R32_UINT);
-		ValuesBufferRHI[BufferIndex] = RHICmdList.CreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
+		ValuesBufferRHI[BufferIndex] = RHICreateVertexBuffer(BufferSize, BUF_Static | BUF_ShaderResource | BUF_UnorderedAccess, CreateInfo);
 		ValuesBufferSRV[BufferIndex] = RHICmdList.CreateShaderResourceView(ValuesBufferRHI[BufferIndex], /*Stride=*/ sizeof(uint32), PF_R32_UINT);
 		ValuesBufferUAV[BufferIndex] = RHICmdList.CreateUnorderedAccessView(ValuesBufferRHI[BufferIndex], PF_R32_UINT);
 	}

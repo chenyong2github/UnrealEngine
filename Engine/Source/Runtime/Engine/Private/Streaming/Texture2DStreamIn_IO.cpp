@@ -15,12 +15,12 @@ Texture2DStreamIn.cpp: Stream in helper for 2D textures using texture streaming 
 #include "ContentStreaming.h"
 
 
-FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, int32 InRequestedMips, bool InPrioritizedIORequest)
-	: FTexture2DStreamIn(InTexture, InRequestedMips)
+FTexture2DStreamIn_IO::FTexture2DStreamIn_IO(UTexture2D* InTexture, bool InPrioritizedIORequest)
+	: FTexture2DStreamIn(InTexture)
 	, bPrioritizedIORequest(InPrioritizedIORequest)
 
 {
-	IORequests.AddZeroed(InTexture->GetNumMips());
+	IORequests.AddZeroed(ResourceState.MaxNumLODs);
 }
 
 FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
@@ -36,13 +36,10 @@ FTexture2DStreamIn_IO::~FTexture2DStreamIn_IO()
 void FTexture2DStreamIn_IO::SetIORequests(const FContext& Context)
 {
 	SetAsyncFileCallback();
-	
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-	const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
 
-	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip && !IsCancelled(); ++MipIndex)
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx && !IsCancelled(); ++MipIndex)
 	{
-		const FTexture2DMipMap& MipMap = OwnerMips[MipIndex];
+		const FTexture2DMipMap& MipMap = *Context.MipsView[MipIndex];
 		check(MipData[MipIndex]);
 
 		const int64 BulkDataSize = MipMap.BulkData.GetBulkDataSize();
@@ -83,10 +80,7 @@ void FTexture2DStreamIn_IO::CancelIORequests()
 
 void FTexture2DStreamIn_IO::ClearIORequests(const FContext& Context)
 {
-	const TIndirectArray<FTexture2DMipMap>& OwnerMips = Context.Texture->GetPlatformMips();
-	const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-
-	for (int32 MipIndex = PendingFirstMip; MipIndex < CurrentFirstMip; ++MipIndex)
+	for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 	{
 		IBulkDataIORequest* IORequest = IORequests[MipIndex];
 		IORequests[MipIndex] = nullptr;
@@ -110,13 +104,12 @@ void FTexture2DStreamIn_IO::ReportIOError(const FContext& Context)
 	if (bFailedOnIOError && Context.Texture)
 	{
 		IRenderAssetStreamingManager& StreamingManager = IStreamingManager::Get().GetTextureStreamingManager();
-		const int32 CurrentFirstMip = Context.Resource->GetCurrentFirstMip();
-		for (int32 MipIndex = 0; MipIndex < CurrentFirstMip; ++MipIndex)
+		// Need to start at index 0 because the streamer only gets the hash for the first optional mip (and we don't know which one it is).
+		for (int32 MipIndex = 0; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
-			StreamingManager.MarkMountedStateDirty(Context.Texture->GetMipIoFilenameHash(MipIndex));
+			StreamingManager.MarkMountedStateDirty(Context.Texture->GetMipIoFilenameHash(ResourceState.AssetLODBias + MipIndex));
 		}
-
-		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Texture->GetName());
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Texture stream in request failed due to IO error (Mip %d-%d)."), *Context.Texture->GetName(), ResourceState.AssetLODBias + PendingFirstLODIdx, ResourceState.AssetLODBias + CurrentFirstLODIdx - 1);
 	}
 }
 

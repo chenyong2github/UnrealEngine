@@ -16,7 +16,7 @@ FSlateTexture2DRHIRef::FSlateTexture2DRHIRef( FTexture2DRHIRef InRef, uint32 InW
 
 }
 
-FSlateTexture2DRHIRef::FSlateTexture2DRHIRef( uint32 InWidth, uint32 InHeight, EPixelFormat InPixelFormat, TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> InTextureData, uint32 InTexCreateFlags, bool bInCreateEmptyTexture)
+FSlateTexture2DRHIRef::FSlateTexture2DRHIRef( uint32 InWidth, uint32 InHeight, EPixelFormat InPixelFormat, TSharedPtr<FSlateTextureData, ESPMode::ThreadSafe> InTextureData, ETextureCreateFlags InTexCreateFlags, bool bInCreateEmptyTexture)
 	: Width( InWidth )
 	, Height( InHeight )
 	, TexCreateFlags( InTexCreateFlags )
@@ -125,7 +125,7 @@ void FSlateTexture2DRHIRef::SetTextureData( FSlateTextureDataPtr NewTextureData 
 	TextureData = NewTextureData;
 }
 
-void FSlateTexture2DRHIRef::SetTextureData( FSlateTextureDataPtr NewTextureData, EPixelFormat InPixelFormat, uint32 InTexCreateFlags )
+void FSlateTexture2DRHIRef::SetTextureData( FSlateTextureDataPtr NewTextureData, EPixelFormat InPixelFormat, ETextureCreateFlags InTexCreateFlags )
 {
 	check( IsInRenderingThread() );
 
@@ -321,7 +321,7 @@ void FSlateTextureRenderTarget2DResource::InitDynamicRHI()
 			TargetSizeY, 
 			Format, 
 			1,
-			/*TexCreateFlags=*/0,
+			/*TexCreateFlags=*/TexCreate_None,
 			TexCreate_RenderTargetable,
 			/*bNeedsTwoCopies=*/false,
 			CreateInfo,

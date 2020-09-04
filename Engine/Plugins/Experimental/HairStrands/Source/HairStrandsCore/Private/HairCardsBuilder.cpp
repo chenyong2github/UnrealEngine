@@ -3195,10 +3195,10 @@ void RunHairCardsAtlasQueries(
 			continue;
 
 		// Allocate resources for generating the atlas texture (for editor mode only)
-		FRDGTextureDesc Desc0(FPooledRenderTargetDesc::Create2DDesc(Q.ProceduralData->Atlas.Resolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false, 1));
-		FRDGTextureDesc Desc1(FPooledRenderTargetDesc::Create2DDesc(Q.ProceduralData->Atlas.Resolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false, 1));
-		FRDGTextureDesc Desc2(FPooledRenderTargetDesc::Create2DDesc(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false, 1));
-		FRDGTextureDesc Desc3(FPooledRenderTargetDesc::Create2DDesc(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false, 1));
+		FRDGTextureDesc Desc0(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_None));
+		FRDGTextureDesc Desc1(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R32_FLOAT, FClearValueBinding::Black, TexCreate_None));
+		FRDGTextureDesc Desc2(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None));
+		FRDGTextureDesc Desc3(FRDGTextureDesc::Create2D(Q.ProceduralData->Atlas.Resolution, PF_R8G8B8A8, FClearValueBinding::Black, TexCreate_None));
 	//
 	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc0, Q.ProceduralResource->CardsDepthTextureRT, TEXT("HairCardsAtlasDepthTexture"), true, ERenderTargetTransience::NonTransient);
 	//	GRenderTargetPool.FindFreeElement(RHICmdList, Desc1, Q.ProceduralResource->CardsCoverageTextureRT, TEXT("HairCardsAtlasCoverageTexture"), true, ERenderTargetTransience::NonTransient);

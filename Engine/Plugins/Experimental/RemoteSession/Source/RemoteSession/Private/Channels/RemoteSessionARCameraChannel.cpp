@@ -256,8 +256,7 @@ void FARCameraSceneViewExtension::RenderARCamera_RenderThread(FRHICommandListImm
 	FUniformBufferRHIRef PassUniformBuffer = CreateSceneTextureUniformBufferDependentOnShadingPath(
 		RHICmdList,
 		InView.GetFeatureLevel(),
-		ESceneTextureSetupMode::None,
-		UniformBuffer_SingleDraw);
+		ESceneTextureSetupMode::None);
 	FUniformBufferStaticBindings GlobalUniformBuffers(PassUniformBuffer);
 	SCOPED_UNIFORM_BUFFER_GLOBAL_BINDINGS(RHICmdList, GlobalUniformBuffers);
 

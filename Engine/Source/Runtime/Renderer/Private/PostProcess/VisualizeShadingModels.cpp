@@ -4,6 +4,7 @@
 #include "CanvasTypes.h"
 #include "RenderTargetTemp.h"
 #include "SceneTextureParameters.h"
+#include "UnrealEngine.h"
 
 class FVisualizeShadingModelPS : public FGlobalShader
 {
@@ -20,8 +21,7 @@ public:
 	
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
+		SHADER_PARAMETER_RDG_UNIFORM_BUFFER(FSceneTextureUniformParameters, SceneTextures)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SceneColorTexture)
 		SHADER_PARAMETER_SAMPLER(SamplerState, SceneColorSampler)
 		SHADER_PARAMETER_ARRAY(uint32, ShadingModelMaskInView, [ShadingModelCount])
@@ -53,10 +53,9 @@ FScreenPassTexture AddVisualizeShadingModelPass(FRDGBuilder& GraphBuilder, const
 	FVisualizeShadingModelPS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeShadingModelPS::FParameters>();
 	PassParameters->RenderTargets[0] = Output.GetRenderTargetBinding();
 	PassParameters->View = View.ViewUniformBuffer;
-	PassParameters->SceneTextures = *Inputs.SceneTextures;
+	PassParameters->SceneTextures = Inputs.SceneTextures;
 	PassParameters->SceneColorTexture = Inputs.SceneColor.Texture;
 	PassParameters->SceneColorSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-	SetupSceneTextureSamplers(&PassParameters->SceneTextureSamplers);
 
 	for (uint32 BitIndex = 0; BitIndex < FVisualizeShadingModelPS::ShadingModelCount; ++BitIndex)
 	{

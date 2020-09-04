@@ -574,22 +574,6 @@ struct INPUTCORE_API EKeys
 	static const FKey MixedReality_Right_Trackpad_Left;
 	static const FKey MixedReality_Right_Trackpad_Right;
 
-	// Oculus Go Controller
-	static const FKey OculusGo_Left_System_Click;
-	static const FKey OculusGo_Left_Back_Click;
-	static const FKey OculusGo_Left_Trigger_Click;
-	static const FKey OculusGo_Left_Trackpad_X;
-	static const FKey OculusGo_Left_Trackpad_Y;
-	static const FKey OculusGo_Left_Trackpad_Click;
-	static const FKey OculusGo_Left_Trackpad_Touch;
-	static const FKey OculusGo_Right_System_Click;
-	static const FKey OculusGo_Right_Back_Click;
-	static const FKey OculusGo_Right_Trigger_Click;
-	static const FKey OculusGo_Right_Trackpad_X;
-	static const FKey OculusGo_Right_Trackpad_Y;
-	static const FKey OculusGo_Right_Trackpad_Click;
-	static const FKey OculusGo_Right_Trackpad_Touch;
-
 	// Oculus Touch Controller
 	static const FKey OculusTouch_Left_X_Click;
 	static const FKey OculusTouch_Left_Y_Click;
@@ -635,7 +619,6 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Left_B_Touch;
 	static const FKey ValveIndex_Left_System_Click;
 	static const FKey ValveIndex_Left_System_Touch;
-	static const FKey ValveIndex_Left_Grip_Click;
 	static const FKey ValveIndex_Left_Grip_Axis;
 	static const FKey ValveIndex_Left_Grip_Force;
 	static const FKey ValveIndex_Left_Trigger_Click;
@@ -651,7 +634,6 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Left_Thumbstick_Right;
 	static const FKey ValveIndex_Left_Trackpad_X;
 	static const FKey ValveIndex_Left_Trackpad_Y;
-	static const FKey ValveIndex_Left_Trackpad_Click;
 	static const FKey ValveIndex_Left_Trackpad_Force;
 	static const FKey ValveIndex_Left_Trackpad_Touch;
 	static const FKey ValveIndex_Left_Trackpad_Up;
@@ -664,7 +646,6 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Right_B_Touch;
 	static const FKey ValveIndex_Right_System_Click;
 	static const FKey ValveIndex_Right_System_Touch;
-	static const FKey ValveIndex_Right_Grip_Click;
 	static const FKey ValveIndex_Right_Grip_Axis;
 	static const FKey ValveIndex_Right_Grip_Force;
 	static const FKey ValveIndex_Right_Trigger_Click;
@@ -680,7 +661,6 @@ struct INPUTCORE_API EKeys
 	static const FKey ValveIndex_Right_Thumbstick_Right;
 	static const FKey ValveIndex_Right_Trackpad_X;
 	static const FKey ValveIndex_Right_Trackpad_Y;
-	static const FKey ValveIndex_Right_Trackpad_Click;
 	static const FKey ValveIndex_Right_Trackpad_Force;
 	static const FKey ValveIndex_Right_Trackpad_Touch;
 	static const FKey ValveIndex_Right_Trackpad_Up;

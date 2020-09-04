@@ -321,4 +321,9 @@ void WaterRefractionCopyPS(
 	DeviceDepthZ = Texture2DSampleLevel(SceneDepthCopyDownsampleTexture, SceneDepthCopyDownsampleSampler, BufferUV, 0).x;
 #endif
 	OutSceneDepth = ConvertFromDeviceZ(DeviceDepthZ) / SINGLE_LAYER_WATER_DEPTH_SCALE;
+
+#if METAL_PROFILE
+	// Clamp on iOS to avoid #inf
+    OutSceneDepth = min(OutSceneDepth, 65500.0f);
+#endif
 }

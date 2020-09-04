@@ -12,12 +12,12 @@
 #include "Common.ush"
 
 // Reroute SceneTexturesStruct uniform buffer references to the shadow depth pass uniform buffer
-#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4
+#if FEATURE_LEVEL >= FEATURE_LEVEL_SM5
 #define PassStruct ShadowDepthPass
 #define SceneTexturesStruct ShadowDepthPass.SceneTextures 
 #else
 #define PassStruct MobileShadowDepthPass
-#define SceneTexturesStruct MobileShadowDepthPass.SceneTextures 
+#define MobileSceneTextures MobileShadowDepthPass.SceneTextures 
 #endif
 
 #include "/Engine/Generated/Material.ush"

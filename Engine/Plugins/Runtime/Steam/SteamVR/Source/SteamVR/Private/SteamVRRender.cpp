@@ -264,8 +264,8 @@ void FSteamVRHMD::D3D12Bridge::FinishRendering()
 	bool bSubmitDepth = CVarEnableDepthSubmission->GetInt() > 0;
 	vr::EVRSubmitFlags Flags = bSubmitDepth ? vr::EVRSubmitFlags::Submit_TextureWithDepth : vr::EVRSubmitFlags::Submit_Default;
 
-	auto D3D12RHI = static_cast<FD3D12DynamicRHI*>(GDynamicRHI);
-	auto Device = D3D12RHI->GetAdapter().GetDevice(0);
+	FD3D12DynamicRHI* D3D12RHI = FD3D12DynamicRHI::GetD3DRHI();
+	FD3D12Device* Device = D3D12RHI->GetAdapter().GetDevice(0);
 
 	vr::D3D12TextureData_t TextureData;
 	TextureData.m_pResource = (ID3D12Resource*)SwapChain->GetTexture2D()->GetNativeResource();
@@ -359,16 +359,15 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 	bool bSubmitDepth = false; // CVarEnableDepthSubmission->GetInt() > 0;
 	vr::EVRSubmitFlags Flags = bSubmitDepth ? vr::EVRSubmitFlags::Submit_TextureWithDepth : vr::EVRSubmitFlags::Submit_Default;
 
-	auto vlkRHI = static_cast<FVulkanDynamicRHI*>(GDynamicRHI);
 	if(SwapChain->GetTexture2D())
 	{
 		FVulkanTexture2D* Texture2D = (FVulkanTexture2D*)SwapChain->GetTexture2D();
 		FVulkanTexture2D* DepthTexture2D = (FVulkanTexture2D*)DepthSwapChain->GetTexture2D();
 
-		FVulkanCommandListContext& ImmediateContext = vlkRHI->GetDevice()->GetImmediateContext();
+		FVulkanCommandListContext& ImmediateContext = GVulkanRHI->GetDevice()->GetImmediateContext();
 
 		// Color layout
-		VkImageLayout& CurrentLayout = ImmediateContext.GetTransitionAndLayoutManager().FindOrAddLayoutRW(Texture2D->Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
+		VkImageLayout& CurrentLayout = ImmediateContext.GetLayoutManager().FindOrAddLayoutRW(Texture2D->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
 		bool bHadLayout = (CurrentLayout != VK_IMAGE_LAYOUT_UNDEFINED);
 		
 		FVulkanCmdBuffer* CmdBuffer = ImmediateContext.GetCommandBufferManager()->GetUploadCmdBuffer();
@@ -376,7 +375,7 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 
 		if (CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			vlkRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, SubresourceRange);
+			GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), Texture2D->Surface.Image, CurrentLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, SubresourceRange);
 		}
 
 		vr::VRTextureBounds_t LeftBounds;
@@ -392,11 +391,11 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 		RightBounds.vMax = 1.0f;
 
 		vr::VRVulkanTextureData_t VulkanTextureDataColor {};
-		VulkanTextureDataColor.m_pInstance			= vlkRHI->GetInstance();
-		VulkanTextureDataColor.m_pDevice			= vlkRHI->GetDevice()->GetInstanceHandle();
-		VulkanTextureDataColor.m_pPhysicalDevice	= vlkRHI->GetDevice()->GetPhysicalHandle();
-		VulkanTextureDataColor.m_pQueue				= vlkRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
-		VulkanTextureDataColor.m_nQueueFamilyIndex	= vlkRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
+		VulkanTextureDataColor.m_pInstance			= GVulkanRHI->GetInstance();
+		VulkanTextureDataColor.m_pDevice			= GVulkanRHI->GetDevice()->GetInstanceHandle();
+		VulkanTextureDataColor.m_pPhysicalDevice	= GVulkanRHI->GetDevice()->GetPhysicalHandle();
+		VulkanTextureDataColor.m_pQueue				= GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
+		VulkanTextureDataColor.m_nQueueFamilyIndex	= GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
 		VulkanTextureDataColor.m_nImage				= (uint64_t)Texture2D->Surface.Image;
 		VulkanTextureDataColor.m_nWidth				= Texture2D->Surface.Width;
 		VulkanTextureDataColor.m_nHeight			= Texture2D->Surface.Height;
@@ -406,20 +405,20 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 		if (bSubmitDepth)
 		{
 			VkImageSubresourceRange SubresourceRangeDepth = { VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT, 0, 1, 0, 1 };
-			VkImageLayout& CurrentDepthLayout = ImmediateContext.GetTransitionAndLayoutManager().FindOrAddLayoutRW(DepthTexture2D->Surface.Image, VK_IMAGE_LAYOUT_UNDEFINED);
+			VkImageLayout& CurrentDepthLayout = ImmediateContext.GetLayoutManager().FindOrAddLayoutRW(DepthTexture2D->Surface, VK_IMAGE_LAYOUT_UNDEFINED);
 			bool bDepthHadLayout = (CurrentDepthLayout != VK_IMAGE_LAYOUT_UNDEFINED);
 
 			if (CurrentDepthLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 			{
-				vlkRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), DepthTexture2D->Surface.Image, CurrentDepthLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, SubresourceRangeDepth);
+				GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), DepthTexture2D->Surface.Image, CurrentDepthLayout, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, SubresourceRangeDepth);
 			}
 
 			vr::VRVulkanTextureData_t VulkanTextureDataDepth{};
-			VulkanTextureDataDepth.m_pInstance = vlkRHI->GetInstance();
-			VulkanTextureDataDepth.m_pDevice = vlkRHI->GetDevice()->GetInstanceHandle();
-			VulkanTextureDataDepth.m_pPhysicalDevice = vlkRHI->GetDevice()->GetPhysicalHandle();
-			VulkanTextureDataDepth.m_pQueue = vlkRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
-			VulkanTextureDataDepth.m_nQueueFamilyIndex = vlkRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
+			VulkanTextureDataDepth.m_pInstance = GVulkanRHI->GetInstance();
+			VulkanTextureDataDepth.m_pDevice = GVulkanRHI->GetDevice()->GetInstanceHandle();
+			VulkanTextureDataDepth.m_pPhysicalDevice = GVulkanRHI->GetDevice()->GetPhysicalHandle();
+			VulkanTextureDataDepth.m_pQueue = GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetHandle();
+			VulkanTextureDataDepth.m_nQueueFamilyIndex = GVulkanRHI->GetDevice()->GetGraphicsQueue()->GetFamilyIndex();
 			VulkanTextureDataDepth.m_nImage = (uint64_t)DepthTexture2D->Surface.Image;
 			VulkanTextureDataDepth.m_nWidth = DepthTexture2D->Surface.Width;
 			VulkanTextureDataDepth.m_nHeight = DepthTexture2D->Surface.Height;
@@ -450,7 +449,7 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 
 			if (bDepthHadLayout && CurrentDepthLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 			{
-				vlkRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), DepthTexture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentDepthLayout, SubresourceRangeDepth);
+				GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), DepthTexture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentDepthLayout, SubresourceRangeDepth);
 			}
 			else
 			{
@@ -470,7 +469,7 @@ void FSteamVRHMD::VulkanBridge::FinishRendering()
 
 		if (bHadLayout && CurrentLayout != VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL)
 		{
-			vlkRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout, SubresourceRange);
+			GVulkanRHI->VulkanSetImageLayout(CmdBuffer->GetHandle(), Texture2D->Surface.Image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL, CurrentLayout, SubresourceRange);
 		}
 		else
 		{

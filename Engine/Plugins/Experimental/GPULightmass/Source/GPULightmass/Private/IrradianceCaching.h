@@ -6,6 +6,7 @@
 
 BEGIN_UNIFORM_BUFFER_STRUCT(FIrradianceCachingParameters, )
 	SHADER_PARAMETER(uint32, HashTableSize)
+	SHADER_PARAMETER(uint32, CacheSize)
 	SHADER_PARAMETER(int32, Quality)
 	SHADER_PARAMETER(float, Spacing)
 	SHADER_PARAMETER_UAV(RWStructuredBuffer<FIrradianceCacheRecord>, IrradianceCacheRecords)

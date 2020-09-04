@@ -74,7 +74,7 @@ void MLToUnrealBlockInfo(const MLMeshingBlockInfo& MLBlockInfo, const FTransform
 
 	// Splat the OBB to an AABB
 	FMatrix AbsWorldMatrix(BlockTransform.ToMatrixNoScale());
-	AbsWorldMatrix.SetAxis(3, FVector::ZeroVector);
+	AbsWorldMatrix.SetOrigin(FVector::ZeroVector);
 	for (int32 R = 0; R < 3; ++R)
 	{
 		for (int32 C = 0; C < 3; ++C)
@@ -397,6 +397,7 @@ UMagicLeapMeshTrackerComponent::UMagicLeapMeshTrackerComponent()
 	: VertexColorFromConfidenceZero(FLinearColor::Red)
 	, VertexColorFromConfidenceOne(FLinearColor::Blue)
 	, Impl(new FMagicLeapMeshTrackerImpl())
+	, PreviousWorldScale(100.0f)
 {
 
 	// Make sure this component ticks
@@ -556,20 +557,18 @@ void UMagicLeapMeshTrackerComponent::TickComponent(float DeltaTime, enum ELevelT
 	}
 
 	TSet<EMagicLeapHeadTrackingMapEvent> MapEvents;
-	bool bHasMapEvents = UMagicLeapHMDFunctionLibrary::GetHeadTrackingMapEvents(MapEvents);
-	if (bHasMapEvents)
+	const bool bHasMapEvents = UMagicLeapHMDFunctionLibrary::GetHeadTrackingMapEvents(MapEvents);
+	const float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
+
+	// Clear existing meshes if a new headpose session has started.
+	// Clear if WorldScale has changed
+	if ((bHasMapEvents && MapEvents.Contains(EMagicLeapHeadTrackingMapEvent::NewSession)) ||
+		PreviousWorldScale != WorldToMetersScale)
 	{
-		for (EMagicLeapHeadTrackingMapEvent MapEvent : MapEvents)
-		{
-			if (MapEvent == EMagicLeapHeadTrackingMapEvent::NewSession)
-			{
-				// Clear existing meshes if a new headpose session has started.
-				MRMesh->Clear();
-			}
-		}
+		MRMesh->Clear();
 	}
 
-	const float WorldToMetersScale = AppFramework.GetWorldToMetersScale();
+	PreviousWorldScale = WorldToMetersScale;
 
 	// Make sure MR Mesh is at 0,0,0 (verts received from ML meshing are in tracking space)
 	MRMesh->SendRelativeTransform(FTransform::Identity);

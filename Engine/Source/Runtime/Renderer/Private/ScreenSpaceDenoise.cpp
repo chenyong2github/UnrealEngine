@@ -691,7 +691,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FSSDCommonParameters, )
 
 	SHADER_PARAMETER_RDG_TEXTURE_ARRAY(Texture2D<uint>, CompressedMetadata, [kCompressedMetadataTextures])
 
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptation)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, EyeAdaptationTexture)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<uint>, TileClassificationTexture)
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, ViewUniformBuffer)
 	
@@ -1199,7 +1199,7 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 	const bool bUseMultiInputSPPShaderPath = Settings.MaxInputSPP > 1;
 
-	FIntPoint FullResBufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+	FIntPoint FullResBufferExtent = SceneTextures.SceneDepthTexture->Desc.Extent;
 	FIntPoint BufferExtent = FullResBufferExtent;
 	FIntRect Viewport = Settings.FullResViewport;
 	if (Settings.DenoisingResolutionFraction == 0.5f)
@@ -1235,13 +1235,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 			PF_FloatRGBA,
 		};
 
-		FRDGTextureDesc RefDesc = FRDGTextureDesc::Create2DDesc(
+		FRDGTextureDesc RefDesc = FRDGTextureDesc::Create2D(
 			BufferExtent,
 			PF_Unknown,
 			FClearValueBinding::Black,
-			/* InFlags = */ TexCreate_None,
-			/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-			/* bInForceSeparateTargetAndShaderResource = */ false);
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
 
 		DebugDesc = RefDesc;
 		DebugDesc.Format = PF_FloatRGBA;
@@ -1377,12 +1375,12 @@ static void DenoiseSignalAtConstantPixelDensity(
 
 		CommonParameters.SceneTextures = SceneTextures;
 		CommonParameters.ViewUniformBuffer = View.ViewUniformBuffer;
-		CommonParameters.EyeAdaptation = GetEyeAdaptationTexture(GraphBuilder, View);
+		CommonParameters.EyeAdaptationTexture = GetEyeAdaptationTexture(GraphBuilder, View);
 
 		// Remove dependency of the velocity buffer on camera cut, given it's going to be ignored by the shaders.
-		if (View.bCameraCut || !CommonParameters.SceneTextures.SceneVelocityBuffer)
+		if (View.bCameraCut || !CommonParameters.SceneTextures.GBufferVelocityTexture)
 		{
-			CommonParameters.SceneTextures.SceneVelocityBuffer = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
+			CommonParameters.SceneTextures.GBufferVelocityTexture = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 		}
 
 		float PixelPositionToFullResPixel = 1.0f / Settings.DenoisingResolutionFraction;
@@ -1470,13 +1468,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 		if (CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndNormal ||
 			CompressedMetadataLayout == ECompressedMetadataLayout::DepthAndViewNormal)
 		{
-			FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+			FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 				BufferExtent,
 				PF_R32_UINT,
 				FClearValueBinding::Black,
-				/* InFlags = */ TexCreate_None,
-				/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV,
-				/* bInForceSeparateTargetAndShaderResource = */ false);
+				TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV);
 
 			CommonParameters.CompressedMetadata[0] = GraphBuilder.CreateTexture(Desc, TEXT("DenoiserMetadata0"));
 		}
@@ -1884,19 +1880,19 @@ static void DenoiseSignalAtConstantPixelDensity(
 			// Might requires the depth.
 			if (bExtractSceneDepth)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneDepthBuffer, ViewInfoPooledRenderTargets.NextDepthBuffer);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneDepthTexture, ViewInfoPooledRenderTargets.NextDepthBuffer);
 			}
 
 			// Might requires the world normal that are in GBuffer A.
 			if (bExtractSceneGBufferA)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferA, ViewInfoPooledRenderTargets.NextGBufferA);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferATexture, ViewInfoPooledRenderTargets.NextGBufferA);
 			}
 
 			// Might need the roughness that is in GBuffer B.
 			if (bExtractSceneGBufferB)
 			{
-				GraphBuilder.QueueTextureExtraction(SceneTextures.SceneGBufferB, ViewInfoPooledRenderTargets.NextGBufferB);
+				GraphBuilder.QueueTextureExtraction(SceneTextures.GBufferBTexture, ViewInfoPooledRenderTargets.NextGBufferB);
 			}
 
 			// Extract the compressed scene texture to make te history re-projection faster.
@@ -2004,13 +2000,11 @@ static void DenoiseSignalAtConstantPixelDensity(
 // static
 IScreenSpaceDenoiser::FHarmonicTextures IScreenSpaceDenoiser::CreateHarmonicTextures(FRDGBuilder& GraphBuilder, FIntPoint Extent, const TCHAR* DebugName)
 {
-	FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+	FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 		Extent,
 		PF_FloatRGBA,
 		FClearValueBinding::None,
-		TexCreate_None,
-		TexCreate_ShaderResource | TexCreate_UAV,
-		/* bInForceSeparateTargetAndShaderResource = */ false);
+		TexCreate_ShaderResource | TexCreate_UAV);
 
 	FHarmonicTextures HarmonicTextures;
 	for (int32 HarmonicBorderId = 0; HarmonicBorderId < kHarmonicBordersCount; HarmonicBorderId++)
@@ -2251,16 +2245,14 @@ public:
 		// Merges the different harmonics.
 		FSSDSignalTextures ComposedHarmonics;
 		{
-			FIntPoint BufferExtent = SceneTextures.SceneDepthBuffer->Desc.Extent;
+			FIntPoint BufferExtent = SceneTextures.SceneDepthTexture->Desc.Extent;
 
 			{
-				FRDGTextureDesc Desc = FRDGTextureDesc::Create2DDesc(
+				FRDGTextureDesc Desc = FRDGTextureDesc::Create2D(
 					BufferExtent,
 					PF_FloatRGBA,
 					FClearValueBinding::Black,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				ComposedHarmonics.Textures[0] = GraphBuilder.CreateTexture(Desc, TEXT("PolychromaticPenumbraComposition0"));
 				ComposedHarmonics.Textures[1] = GraphBuilder.CreateTexture(Desc, TEXT("PolychromaticPenumbraComposition1"));
@@ -2279,13 +2271,11 @@ public:
 			ComposePassParameters->SignalOutput = CreateMultiplexedUAVs(GraphBuilder, ComposedHarmonics);
 
 			{
-				FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2DDesc(
-					SceneTextures.SceneDepthBuffer->Desc.Extent,
+				FRDGTextureDesc DebugDesc = FRDGTextureDesc::Create2D(
+					SceneTextures.SceneDepthTexture->Desc.Extent,
 					PF_FloatRGBA,
 					FClearValueBinding::Black,
-					/* InFlags = */ TexCreate_None,
-					/* InTargetableFlags = */ TexCreate_ShaderResource | TexCreate_UAV,
-					/* bInForceSeparateTargetAndShaderResource = */ false);
+					TexCreate_ShaderResource | TexCreate_UAV);
 
 				FRDGTextureRef DebugTexture = GraphBuilder.CreateTexture(DebugDesc, TEXT("DebugHarmonicComposition"));
 				ComposePassParameters->DebugOutput = GraphBuilder.CreateUAV(DebugTexture);

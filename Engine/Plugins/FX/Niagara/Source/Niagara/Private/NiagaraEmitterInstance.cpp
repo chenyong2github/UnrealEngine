@@ -1118,7 +1118,7 @@ bool FNiagaraEmitterInstance::WaitForDebugInfo()
 	{
 		ENQUEUE_RENDER_COMMAND(CaptureCommand)([=](FRHICommandListImmediate& RHICmdList)
 		{
-			Batcher->ProcessDebugInfo(RHICmdList, GPUExecContext);
+			Batcher->ProcessDebugInfo(GPUExecContext);
 		});
 		return true;
 	}

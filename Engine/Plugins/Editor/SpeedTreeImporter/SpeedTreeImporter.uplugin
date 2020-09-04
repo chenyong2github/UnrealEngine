@@ -3,7 +3,7 @@
 	"Version": 1,
 	"VersionName": "1.0",
 	"FriendlyName": "SpeedTree Importer",
-	"Description": "An importer for SpeedTree runtime (SRT) files.",
+	"Description": "An importer for SpeedTree runtime files.",
 	"Category": "Importers",
 	"CreatedBy": "IDV, Inc.",
 	"CreatedByURL": "http://www.speedtree.com",
@@ -11,7 +11,7 @@
 	"MarketplaceURL": "",
 	"SupportURL": "",
 	"EnabledByDefault": true,
-	"CanContainContent": false,
+	"CanContainContent": true,
 	"IsBetaVersion": false,
 	"Installed": false,
 	"Modules": [

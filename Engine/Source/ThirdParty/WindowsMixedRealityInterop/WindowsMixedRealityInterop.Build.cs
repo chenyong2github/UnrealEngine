@@ -34,7 +34,14 @@ public class WindowsMixedRealityInterop : ModuleRules
         else if (Target.Platform == UnrealTargetPlatform.HoloLens)
         {
             LibrariesPath = Path.Combine(LibrariesPath, Target.WindowsPlatform.GetArchitectureSubpath());
-            PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInteropHoloLens.lib"));
+            if (Target.Configuration == UnrealTargetConfiguration.Debug)
+            {
+				PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInteropHoloLensDebug.lib"));
+			}
+			else
+			{
+				PublicAdditionalLibraries.Add(Path.Combine(LibrariesPath, "MixedRealityInteropHoloLens.lib"));
+			}
 
             // Add a dependency to SceneUnderstanding.dll if present
             string SceneUnderstandingPath = Path.Combine(Target.UEThirdPartyBinariesDirectory, "HoloLens", Target.WindowsPlatform.GetArchitectureSubpath(), "Microsoft.MixedReality.SceneUnderstanding.dll");

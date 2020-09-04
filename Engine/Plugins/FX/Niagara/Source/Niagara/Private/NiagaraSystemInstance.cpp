@@ -2025,8 +2025,9 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	EmittersShouldTick.Init(false, NumEmitters);
 
 	bool bHasTickingEmitters = false;
-	for (const int32& EmitterIdx : EmitterExecutionOrder)
+	for (int32 EmitterIdx : EmitterExecutionOrder)
 	{
+		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		if (Inst.ShouldTick())
 		{
@@ -2043,8 +2044,9 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 
 	FScopeCycleCounter SystemStat(System->GetStatID(true, true));
 
-	for (const int32& EmitterIdx : EmitterExecutionOrder)
+	for (int32 EmitterIdx : EmitterExecutionOrder)
 	{
+		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
 		if (EmittersShouldTick[EmitterIdx])
 		{
 			FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
@@ -2055,8 +2057,9 @@ void FNiagaraSystemInstance::Tick_Concurrent(bool bEnqueueGPUTickIfNeeded)
 	int32 TotalCombinedParamStoreSize = 0;
 
 	// now tick all emitters
-	for (const int32& EmitterIdx : EmitterExecutionOrder)
+	for (int32 EmitterIdx : EmitterExecutionOrder)
 	{
+		EmitterIdx = EmitterIdx & (~UNiagaraSystem::kStartNewOverlapGroupBit);
 		FNiagaraEmitterInstance& Inst = Emitters[EmitterIdx].Get();
 		if (EmittersShouldTick[EmitterIdx])
 		{

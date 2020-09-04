@@ -10,6 +10,7 @@
 #include "HAL/ConsoleManager.h"
 #include "Engine/Engine.h"
 #include "Engine/GameViewportClient.h"
+#include "Engine/LocalPlayer.h"
 #include "Engine/ViewportSplitScreen.h"
 #include "GameFramework/PlayerController.h"
 #include "GameFramework/HUD.h"
@@ -28,28 +29,63 @@ DEFINE_LOG_CATEGORY_STATIC(LogAnsel, Log, All);
 
 #define LOCTEXT_NAMESPACE "Photography"
 
+static TAutoConsoleVariable<int32> CVarPhotographyAllow(
+	TEXT("r.Photography.Allow"),
+	1,
+	TEXT("If 1, allow the user to freeze the scene and potentially use a roaming camera to\n")
+	TEXT("take screenshots.  Set this dynamically to permit or forbid photography per-level,\n")
+	TEXT("per-cutscene, etc.  (Default: 1)"));
+
+static TAutoConsoleVariable<int32> CVarPhotographyEnableMultipart(
+	TEXT("r.Photography.EnableMultipart"),
+	1,
+	TEXT("If 1, allow the photography system to take high-resolution shots that need to be rendered in tiles which are later stitched together.  (Default: 1)"));
+
+static TAutoConsoleVariable<int32> CVarPhotographySettleFrames(
+	TEXT("r.Photography.SettleFrames"),
+	10,
+	TEXT("The number of frames to let the rendering 'settle' before taking a photo.  Useful to allow temporal AA/smoothing to work well; if not using any temporal effects, can be lowered for faster capture.  (Default: 10)"));
+
+static TAutoConsoleVariable<float> CVarPhotographyTranslationSpeed(
+	TEXT("r.Photography.TranslationSpeed"),
+	300.0f,
+	TEXT("Normal speed (in Unreal Units per second) at which to move the roaming photography camera. (Default: 300.0)"));
+
+static TAutoConsoleVariable<float> CVarConstrainCameraSize(
+	TEXT("r.Photography.Constrain.CameraSize"),
+	14.0f,
+	TEXT("Radius (in Unreal Units) of sphere around the camera; used to prevent the camera clipping into nearby geometry when constraining camera with collision.  Negative values disable default camera collisions. (Default: 14.0)"));
+
+static TAutoConsoleVariable<float> CVarConstrainCameraDistance(
+	TEXT("r.Photography.Constrain.MaxCameraDistance"),
+	2500.0f,
+	TEXT("Maximum distance (in Unreal Units) which camera is allowed to wander from its initial position when constraining camera by distance.  Negative values disable default distance contraints. (Default: 2500.0)"));
+
+static TAutoConsoleVariable<int32> CVarPhotographyAutoPostprocess(
+	TEXT("r.Photography.AutoPostprocess"),
+	1,
+	TEXT("If 1, the photography system will attempt to automatically disable HUD, subtitles, and some standard postprocessing effects during photography sessions/captures which are known to give poor photography results.  Set to 0 to manage all postprocessing tweaks manually from the PlayerCameraManager Blueprint callbacks.  Note: Blueprint callbacks will be called regardless of AutoPostprocess value.  (Default: auto-disable (1)"));
+
+static TAutoConsoleVariable<int32> CVarPhotographyAutoPause(
+	TEXT("r.Photography.AutoPause"),
+	1,
+	TEXT("If 1, the photography system will attempt to ensure that the level is paused while in photography mode.  Set to 0 to manage pausing and unpausing manually from the PlayerCameraManager Blueprint callbacks.    Note: Blueprint callbacks will be called regardless of AutoPause value.  (Default: auto-pause (1)"));
+
 static TAutoConsoleVariable<int32> CVarAllowHighQuality(
 	TEXT("r.Photography.AllowHighQuality"),
 	1,
 	TEXT("Whether to permit Ansel RT (high-quality mode).\n"),
 	ECVF_RenderThreadSafe);
 
-// intentionally undocumented until tested further
+// intentionally undocumented
 static TAutoConsoleVariable<int32> CVarExtreme(
 	TEXT("r.Photography.Extreme"),
 	0,
-	TEXT("Whether to allow 'extreme' quality for Ansel RT (EXPERIMENTAL).\n"),
-	ECVF_RenderThreadSafe);
-
-// intentionally undocumented - debug flag
-static TAutoConsoleVariable<int32> CVarDebug0(
-	TEXT("r.Photography.Debug0"),
-	0,
-	TEXT("Debug - kill RT when in high-quality(!) mode\n"),
+	TEXT("Whether to use 'extreme' quality settings for Ansel RT (EXPERIMENTAL).\n"),
 	ECVF_RenderThreadSafe);
 
 /////////////////////////////////////////////////
-// All the NVIDIA Ansel-specific details
+// All the Ansel-specific details
 
 class FNVAnselCameraPhotographyPrivate : public ICameraPhotography
 {
@@ -148,6 +184,12 @@ private:
 	bool bHighQualityModeDesired = false;
 	bool bHighQualityModeIsSetup = false;
 
+	ansel::FovType RequiredFovType = ansel::kHorizontalFov;
+	ansel::FovType CurrentlyConfiguredFovType = ansel::kHorizontalFov;
+
+	float RequiredWorldToMeters = 100.f;
+	float CurrentlyConfiguredWorldToMeters = 0.f;
+
 	uint32_t NumFramesSinceSessionStart;
 
 	// members relating to the 'Game Settings' controls in the Ansel overlay UI
@@ -212,11 +254,8 @@ FNVAnselCameraPhotographyPrivate::FNVAnselCameraPhotographyPrivate()
 			static float LastTranslationSpeed = -1.0f;
 			static int32 LastSettleFrames = -1;
 			
-			static IConsoleVariable* CVarTranslationSpeed = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.TranslationSpeed"));
-			static IConsoleVariable* CVarSettleFrames = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.SettleFrames"));
-			
-			float ThisTranslationSpeed = CVarTranslationSpeed->GetFloat();
-			int32 ThisSettleFrames = CVarSettleFrames->GetInt();
+			float ThisTranslationSpeed = CVarPhotographyTranslationSpeed->GetFloat();
+			int32 ThisSettleFrames = CVarPhotographySettleFrames->GetInt();
 
 			if (ThisTranslationSpeed != LastTranslationSpeed ||
 				ThisSettleFrames != LastSettleFrames)
@@ -491,8 +530,54 @@ bool FNVAnselCameraPhotographyPrivate::UpdateCamera(FMinimalViewInfo& InOutPOV, 
 		{
 			bForceDisallow = bForceDisallow || (ViewportClient->GetCurrentSplitscreenConfiguration() != ESplitScreenType::None); // forbid if in splitscreen.
 		}
-		// forbid if in stereoscopic/VR mode
+
+		// forbid photography if in stereoscopic/VR mode
 		bForceDisallow = bForceDisallow || (GEngine->IsStereoscopic3D());
+
+		// continually check for infrequent changes in some game parameters which annoyingly
+		// require Ansel to be completely reinitialized:
+		// 1. detect world-to-meters scale
+		if (const UWorld* World = GEngine->GetWorld())
+		{
+			const AWorldSettings* WorldSettings = GEngine->GetWorld()->GetWorldSettings();
+			if (WorldSettings && WorldSettings->WorldToMeters != 0.f)
+			{
+				RequiredWorldToMeters = WorldSettings->WorldToMeters;
+			}
+		}
+		// 2. detect FOV constraint settings - vital for multi-part snapshot tiling
+		if (const APlayerController* PC = PCMgr->GetOwningPlayerController())
+		{
+			if (const ULocalPlayer* LocalPlayer = PC->GetLocalPlayer())
+			{
+				if (const UGameViewportClient* ViewportClient = LocalPlayer->ViewportClient)
+				{
+					if (const FViewport* Viewport = ViewportClient->Viewport)
+					{
+						const FVector2D& LPViewScale = LocalPlayer->Size;
+						uint32 SizeX = FMath::TruncToInt(LPViewScale.X * Viewport->GetSizeXY().X);
+						uint32 SizeY = FMath::TruncToInt(LPViewScale.Y * Viewport->GetSizeXY().Y);
+
+						EAspectRatioAxisConstraint AspectRatioAxisConstraint = LocalPlayer->AspectRatioAxisConstraint;
+
+						// (logic from FMinimalViewInfo::CalculateProjectionMatrixGivenView() -) if x is bigger, and we're respecting x or major axis, AND mobile isn't forcing us to be Y axis aligned
+						if (((SizeX > SizeY) && (AspectRatioAxisConstraint == AspectRatio_MajorAxisFOV)) || (AspectRatioAxisConstraint == AspectRatio_MaintainXFOV) || (InOutPOV.ProjectionMode == ECameraProjectionMode::Orthographic))
+						{
+							RequiredFovType = ansel::kHorizontalFov;
+						}
+						else
+						{
+							RequiredFovType = ansel::kVerticalFov;
+						}
+					}
+				}
+			}
+		}
+		if (CurrentlyConfiguredWorldToMeters != RequiredWorldToMeters ||
+			CurrentlyConfiguredFovType != RequiredFovType)
+		{
+			ReconfigureAnsel();
+		}
 	}
 
 	if (bAnselSessionActive)
@@ -556,8 +641,8 @@ bool FNVAnselCameraPhotographyPrivate::UpdateCamera(FMinimalViewInfo& InOutPOV, 
 			TSharedPtr<GenericApplication> PlatformApplication = FSlateApplicationBase::Get().GetPlatformApplication();
 			if (PlatformApplication.IsValid() && PlatformApplication->Cursor.IsValid())
 			{
-				//PlatformApplication->Cursor->Show(true); // If we don't show it now, it never seems to come back when PCOwner does actually want it...?  Perhaps an Ansel DX12 bug? -> nerf this kludge until proven to still affect DX12 w/4.22 + latest driver
-				PlatformApplication->Cursor->Show(PCOwner->ShouldShowMouseCursor());
+				PlatformApplication->Cursor->Show(true); // If we don't force-show it now (nb. it may nonetheless be an invisible cursor), in DX12 it never seems to come back when PCOwner does actually want it...?
+				//PlatformApplication->Cursor->Show(PCOwner->ShouldShowMouseCursor());
 			}
 
 			for (auto &foo : InitialCVarMap)
@@ -583,12 +668,9 @@ bool FNVAnselCameraPhotographyPrivate::UpdateCamera(FMinimalViewInfo& InOutPOV, 
 
 				PCMgr->OnPhotographySessionStart(); // before pausing
 
-				// copy these values to avoid mixup if the CVars are changed during capture callbacks
-				static IConsoleVariable* CVarAutoPause = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.AutoPause"));
-				static IConsoleVariable* CVarAutoPostProcess = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.AutoPostprocess"));
-
-				bAutoPause = !!CVarAutoPause->GetInt();
-				bAutoPostprocess = !!CVarAutoPostProcess->GetInt();
+				// copy these values to avoid mix-up if the CVars are changed during capture callbacks
+				bAutoPause = !!CVarPhotographyAutoPause->GetInt();
+				bAutoPostprocess = !!CVarPhotographyAutoPostprocess->GetInt();
 				bRayTracingEnabled = IsRayTracingEnabled();
 				
 				// attempt to pause game
@@ -599,7 +681,7 @@ bool FNVAnselCameraPhotographyPrivate::UpdateCamera(FMinimalViewInfo& InOutPOV, 
 				{
 					fTimeDilationBeforeSession = PCOwner->GetWorldSettings()->TimeDilation;
 					PCOwner->GetWorldSettings()->SetTimeDilation(0.f); // kill character motion-blur, this looks better than setting the motion-blur level to 0 (which flickers) - kinda heavy-handed but the only way I've found to kill motion-blur while also preventing flicker
-					// we pause in a *future* frame so Slomo can kick-in properly
+					// we pause() properly in a *future* frame so Slomo can first kick-in properly
 				}
 
 				SetUpSessionCVars();
@@ -705,55 +787,43 @@ void FNVAnselCameraPhotographyPrivate::ConfigureRenderingSettingsForPhotography(
 #define QUALITY_CVAR_AT_MOST(NAME,BOOSTVAL) SetCapturedCVarPredicated(NAME, BOOSTVAL, std::less<float>(), !bHighQualityModeDesired, true)
 #define QUALITY_CVAR_LOWPRIORITY_AT_LEAST(NAME,BOOSTVAL) SetCapturedCVarPredicated(NAME, BOOSTVAL, std::greater<float>(), !bHighQualityModeDesired, false)
 
-	if (CVarDebug0->GetInt()
-		&& CVarAllowHighQuality.GetValueOnAnyThread()
-		&& bHighQualityModeIsSetup != bHighQualityModeDesired)
-	{
-		// Debug - makes HQ mode actually try to kill RT features
-		QUALITY_CVAR("r.RayTracing.GlobalIllumination", 0);
-		QUALITY_CVAR("r.RayTracing.Reflections", 0);
-		QUALITY_CVAR("r.RayTracing.Shadows", 0);
-		QUALITY_CVAR("r.RayTracing.Translucency", 0);
-		QUALITY_CVAR("r.RayTracing.AmbientOcclusion", 0);
-		UE_LOG(LogAnsel, Log, TEXT("Photography Debug0 mode actualized (enabled=%d)"), (int)bHighQualityModeDesired);
-		bHighQualityModeIsSetup = bHighQualityModeDesired;
-	}
-	else if (CVarAllowHighQuality.GetValueOnAnyThread()
+	if (CVarAllowHighQuality.GetValueOnAnyThread()
 		&& bHighQualityModeIsSetup != bHighQualityModeDesired
 		&& (bPausedInternally || !bAutoPause) // <- don't start overriding vars until truly paused
-		&& (!CVarDebug0->GetInt()))
+		)
 	{
 		// Pump up (or reset) the quality. 
 
 		// bring rendering up to (at least) 100% resolution, but won't override manually set value on console
 		QUALITY_CVAR_LOWPRIORITY_AT_LEAST("r.ScreenPercentage", 100);
 
-		// most of these similar to typical cinematic sg.* scalability settings, toned down a little for performance
+		// most of these are similar to typical cinematic sg.* scalability settings, toned down a little for performance
 
-		// can be a mild help with reflections
+		// can be a mild help with reflections quality
 		QUALITY_CVAR("r.gbufferformat", 5); // 5 = highest precision
 
 		// bias various geometry LODs
 		QUALITY_CVAR_AT_MOST("r.staticmeshloddistancescale", 0.25f); // large quality bias
 		QUALITY_CVAR_AT_MOST("r.landscapelodbias", -2);
-		QUALITY_CVAR_AT_MOST("r.skeletalmeshlodbias", -2);
+		QUALITY_CVAR_AT_MOST("r.skeletalmeshlodbias", -4); // big bias here since when paused this never gets re-evaluated and the camera could roam to look at a skeletal mesh far away
 
 		// ~sg.AntiAliasingQuality @ cine
 		QUALITY_CVAR("r.postprocessaaquality", 6); // 6 == max
-		QUALITY_CVAR("r.defaultfeature.antialiasing", 2); // TAA
+		QUALITY_CVAR_AT_LEAST("r.defaultfeature.antialiasing", 2); // TAA or higher
+		QUALITY_CVAR_AT_LEAST("r.ngx.dlss.quality", 2); // high-quality mode for DLSS if in use
 
 		// ~sg.EffectsQuality @ cinematic
 		QUALITY_CVAR_AT_LEAST("r.TranslucencyLightingVolumeDim", 64);
 		QUALITY_CVAR("r.RefractionQuality", 2);
 		QUALITY_CVAR("r.SSR.Quality", 4);
-		// QUALITY_CVAR("r.SceneColorFormat", 4); // don't really want to mess with this
+		// QUALITY_CVAR("r.SceneColorFormat", 4); // no - don't really want to mess with this
 		QUALITY_CVAR("r.TranslucencyVolumeBlur", 1);
-		QUALITY_CVAR("r.MaterialQualityLevel", 1); // 1==high, 2==medium!
+		QUALITY_CVAR("r.MaterialQualityLevel", 1); // 0==low, -> 1==high <- , 2==medium
 		QUALITY_CVAR("r.SSS.Scale", 1);
 		QUALITY_CVAR("r.SSS.SampleSet", 2);
 		QUALITY_CVAR("r.SSS.Quality", 1);
 		QUALITY_CVAR("r.SSS.HalfRes", 0);
-		QUALITY_CVAR_AT_LEAST("r.EmitterSpawnRateScale", 1.f); // not sure this has a point when game is paused though
+		//QUALITY_CVAR_AT_LEAST("r.EmitterSpawnRateScale", 1.f); // no - not sure this has a point when game is paused
 		QUALITY_CVAR("r.ParticleLightQuality", 2);
 		QUALITY_CVAR("r.DetailMode", 2);
 
@@ -796,6 +866,8 @@ void FNVAnselCameraPhotographyPrivate::ConfigureRenderingSettingsForPhotography(
 		// ~sg.FoliageQuality @ cinematic
 		QUALITY_CVAR_AT_LEAST("foliage.DensityScale", 1.f);
 		QUALITY_CVAR_AT_LEAST("grass.DensityScale", 1.f);
+		// boosted foliage LOD (use distance scale not lod bias - latter is buggy)
+		QUALITY_CVAR_AT_LEAST("foliage.LODDistanceScale", 4.f);
 
 		// ~sg.ViewDistanceQuality @ cine but only mild draw distance boost
 		QUALITY_CVAR_AT_LEAST("r.viewdistancescale", 2.0f); // or even more...?
@@ -815,41 +887,49 @@ void FNVAnselCameraPhotographyPrivate::ConfigureRenderingSettingsForPhotography(
 		QUALITY_CVAR("r.VolumetricFog.GridPixelSize", 4);
 		QUALITY_CVAR("r.VolumetricFog.GridSizeZ", 128);
 		QUALITY_CVAR_AT_LEAST("r.VolumetricFog.HistoryMissSupersampleCount", 16);
-		QUALITY_CVAR_AT_LEAST("r.LightMaxDrawDistanceScale", 2.f);
-		QUALITY_CVAR("r.CapsuleShadows", 1);
+		QUALITY_CVAR_AT_LEAST("r.LightMaxDrawDistanceScale", 4.f);
 
 		// pump up the quality of raytracing features, though we won't necessarily turn them on if the game doesn't already have them enabled
 		if (bRayTracingEnabled)
 		{
+			QUALITY_CVAR_AT_LEAST("D3D12.PSO.StallTimeoutInMs", 8000.0f); // the high-quality RTPSOs may have to be built from scratch the first time; temporarily raise this limit in the hope of avoiding the rare barf-outs.
+
 			/*** HIGH-QUALITY MODE DOES *NOT* FORCE GI ON ***/
-			QUALITY_CVAR_AT_MOST("r.RayTracing.GlobalIllumination.DiffuseThreshold", 0); // artifact avoidance
-			//QUALITY_CVAR_AT_LEAST("r.RayTracing.GlobalIllumination.MaxBounces", 1); // 1~=IQ cost:benefit sweet-spot
+			// Don't tweak GI parameters right now - its performance is super-sensitive to changes and a long long frame will cause a device-disconnect.
+			//QUALITY_CVAR_AT_MOST("r.RayTracing.GlobalIllumination.DiffuseThreshold", 0); // artifact avoidance
 
 			/*** HIGH-QUALITY MODE DOES *NOT* FORCE RT AO ON ***/
-			QUALITY_CVAR_AT_LEAST("r.RayTracing.AmbientOcclusion.SamplesPerPixel", 1); // haven't seen benefit from larger values
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.AmbientOcclusion.SamplesPerPixel", 3);
 
-			/*** HIGH-QUALITY MODE FORCES RT REFLECTIONS ON ***/
-			QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.MaxBounces", 2); // sweet-spot
+			/*** HIGH-QUALITY MODE DOES *NOT* FORCE RT REFLECTIONS ON ***/
+			QUALITY_CVAR("r.raytracing.reflections.rendertilesize", 128); // somewhat protect against long frames (from pumped-up quality) causing a device-disconnect
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.MaxBounces", 2); // ~sweet-spot
 			QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.MaxRoughness", 0.9f); // speed hit
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.MaxRayDistance", 1000000.f);
 			QUALITY_CVAR("r.RayTracing.Reflections.SortMaterials", 1); // usually some kind of perf win, especially w/above reflection quality
 			QUALITY_CVAR("r.RayTracing.Reflections.DirectLighting", 1);
-			//QUALITY_CVAR("r.RayTracing.Reflections.EmissiveAndIndirectLighting", 1);// curiously problematic, leave alone
+			//QUALITY_CVAR("r.RayTracing.Reflections.EmissiveAndIndirectLighting", 1);// curiously problematic to force, leave alone
 			QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.Shadows", 1); // -1==auto, 0==off, 1==hard, 2==soft/area(requires high spp)
 			QUALITY_CVAR("r.RayTracing.Reflections.HeightFog", 1);
+			QUALITY_CVAR("r.RayTracing.Reflections.ReflectionCaptures", 1);
 			//QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.SamplesPerPixel", 2); // -1==use pp vol // NOPE, don't touch spp right now: 1 is ok, ~10 is good, anywhere in-between is noisy
 			QUALITY_CVAR_AT_LEAST("r.RayTracing.Reflections.ScreenPercentage", 100);
-			QUALITY_CVAR("r.RayTracing.Reflections", 1); // FORCE ON: ignore postproc volume flag
+			// QUALITY_CVAR("r.RayTracing.Reflections", 1); // FORCE ON: ignore postproc volume flag -- NOPE, there are a couple of RT reflection issues right now which can leave RT reflections much brighter than their raster counterparts
+			//QUALITY_CVAR("r.raytracing.reflections.translucency", 1); // hmm, nope, usually good translucency - but the reflection shader appears to apply translucency after roughness-fade so there's some risk of IQ regression here right now.  may enable after more testing.
 
 			/*** HIGH-QUALITY MODE DOES *NOT* FORCE RT TRANSLUCENCY ON ***/
 			QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.MaxRoughness", 0.9f);
-			//QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.MaxRefractionRays", 11); // buggy with grass, leave alone for now
-			QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.Shadows", 1); // turn on at least
-			//QUALITY_CVAR("r.RayTracing.Translucency", -1); // 1==enabled always, ignore postproc volume flags -- NOPE, DON'T FORCE-ENABLE TRANSLUCENCY, IT MAKES EVERY SINGLE TRANSLUCENCY REFRACT or just plain disappear, too weird for random content (i.e. Infiltrator). -1 == explicitly marked-up volumes use RT
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.MaxRayDistance", 1000000.f);
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.MaxRefractionRays", 11); // number of layers of ray penetration, actually regardless of whether refraction is enabled
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.Translucency.Shadows", 1); // turn on at least basic quality
 
-			/*** HIGH-QUALITY MODE FORCES RT SHADOWS ON ***/
-			//QUALITY_CVAR_AT_LEAST("r.RayTracing.Shadow.SamplesPerPixel", 1); // 5==reduces stippling artifacts // >1 seems to do nothing extra now?
-			////QUALITY_CVAR("r.Shadow.Denoiser", 2); // "GScreenSpaceDenoiser witch may be overriden by a third party plugin"
-			QUALITY_CVAR_AT_LEAST("r.RayTracing.Shadows", 1); // 1==enableRT (default)
+			/*** HIGH-QUALITY MODE DOES *NOT* FORCE RT SHADOWS ON ***/
+			QUALITY_CVAR("r.RayTracing.Shadow.MaxLights", -1); // unlimited
+			QUALITY_CVAR("r.RayTracing.Shadow.MaxDenoisedLights", -1); // unlimited
+
+			// these apply to various RT effects but mostly reflections+translucency
+			QUALITY_CVAR_AT_LEAST("r.raytracing.lighting.maxshadowlights", 256); // as seen in reflections/translucencies
+			QUALITY_CVAR_AT_LEAST("r.RayTracing.lighting.maxlights", 256); // as seen in reflections/translucencies
 		}
 
 		 // these are some extreme settings whose quality:risk ratio may be debatable or unproven
@@ -874,9 +954,9 @@ void FNVAnselCameraPhotographyPrivate::ConfigureRenderingSettingsForPhotography(
 
 				/*** EXTREME-QUALITY MODE FORCES GI ON ***/
 				// first, some IQ:speed tweaks to make GI speed practical
-				//
+				QUALITY_CVAR("r.raytracing.GlobalIllumination.rendertilesize", 128); // somewhat protect against long frames (from pumped-up quality) causing a device-disconnect
 				QUALITY_CVAR("r.RayTracing.GlobalIllumination.ScreenPercentage", 50); // 50% = this is actually a quality DROP by default but it makes the GI speed practical -- requires >>>=2spp though
-				QUALITY_CVAR_AT_MOST("r.RayTracing.GlobalIllumination.MaxRayDistance", 7500); // ditto; most of the IQ benefit, but often faster than default huge ray distance
+				QUALITY_CVAR("r.RayTracing.GlobalIllumination.MaxRayDistance", 7500); // ditto; most of the IQ benefit, but often faster than default huge ray distance
 				QUALITY_CVAR_AT_LEAST("r.RayTracing.GlobalIllumination.SamplesPerPixel", 4); // at LEAST 2spp needed to reduce significant noise in some scenes, even up to 8+ helps
 				QUALITY_CVAR_AT_LEAST("r.RayTracing.GlobalIllumination.NextEventEstimationSamples", 16); // 2==default; 16 necessary for low-light conditions when using only 4spp, else get blotches.  raising estimation samples cheaper than raising spp.
 				QUALITY_CVAR_AT_LEAST("r.GlobalIllumination.Denoiser.ReconstructionSamples", 56/*=max*/); // better if only using 4spp @ quarter rez.  default is 16.
@@ -1016,14 +1096,12 @@ void FNVAnselCameraPhotographyPrivate::DefaultConstrainCamera(const FVector NewC
 	// let proposed camera through unmodified by default
 	OutCameraLocation = NewCameraLocation;
 
-	static IConsoleVariable* CVarConstrainCameraDistance = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.Constrain.MaxCameraDistance"));
-
 	// First, constrain by distance
 	FVector ConstrainedLocation;
 	float MaxDistance = CVarConstrainCameraDistance->GetFloat();
 	UAnselFunctionLibrary::ConstrainCameraByDistance(PCMgr, NewCameraLocation, PreviousCameraLocation, OriginalCameraLocation, ConstrainedLocation, MaxDistance);
 
-	// Second, constrain against collidable geometry
+	// Second, constrain against collision geometry
 	UAnselFunctionLibrary::ConstrainCameraByGeometry(PCMgr, ConstrainedLocation, PreviousCameraLocation, OriginalCameraLocation, OutCameraLocation);
 }
 
@@ -1033,12 +1111,10 @@ ansel::StartSessionStatus FNVAnselCameraPhotographyPrivate::AnselStartSessionCal
 	FNVAnselCameraPhotographyPrivate* PrivateImpl = static_cast<FNVAnselCameraPhotographyPrivate*>(userPointer);
 	check(PrivateImpl != nullptr);
 
-	static IConsoleVariable* CVarAllow = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.Allow"));
-	static IConsoleVariable* CVarEnableMultipart = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.EnableMultipart"));
-	if (!PrivateImpl->bForceDisallow && CVarAllow->GetInt() && !GIsEditor)
+	if (!PrivateImpl->bForceDisallow && CVarPhotographyAllow->GetInt() && !GIsEditor)
 	{
 		bool bPauseAllowed = true;
-		bool bEnableMultipart = !!CVarEnableMultipart->GetInt();
+		bool bEnableMultipart = !!CVarPhotographyEnableMultipart->GetInt();
 
 		settings.isTranslationAllowed = true;
 		settings.isFovChangeAllowed = !PrivateImpl->bIsOrthoProjection;
@@ -1116,6 +1192,9 @@ void FNVAnselCameraPhotographyPrivate::ReconfigureAnsel()
 	AnselConfig->startCaptureCallback = AnselStartCaptureCallback;
 	AnselConfig->stopCaptureCallback = AnselStopCaptureCallback;
 	AnselConfig->changeQualityCallback = AnselChangeQualityCallback;
+
+	// Getting fovType wrong can lead to multi-part captures stitching incorrectly, especially 360 shots
+	AnselConfig->fovType = RequiredFovType;
 	
 	if (GEngine->GameViewport && GEngine->GameViewport->GetWindow().IsValid() && GEngine->GameViewport->GetWindow()->GetNativeWindow().IsValid())
 	{
@@ -1123,33 +1202,25 @@ void FNVAnselCameraPhotographyPrivate::ReconfigureAnsel()
 	}
 	UE_LOG(LogAnsel, Log, TEXT("gameWindowHandle= %p"), AnselConfig->gameWindowHandle);
 
-	static IConsoleVariable* CVarTranslationSpeed = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.TranslationSpeed"));
-	AnselConfig->translationalSpeedInWorldUnitsPerSecond = CVarTranslationSpeed->GetFloat();
+	AnselConfig->translationalSpeedInWorldUnitsPerSecond = CVarPhotographyTranslationSpeed->GetFloat();
 
-	AnselConfig->metersInWorldUnit = 1.0f / 100.0f;
-	AWorldSettings* WorldSettings = nullptr;
-	if (GEngine->GetWorld() != nullptr)
-	{
-		WorldSettings = GEngine->GetWorld()->GetWorldSettings();
-	}
-	if (WorldSettings != nullptr && WorldSettings->WorldToMeters != 0.f)
-	{
-		AnselConfig->metersInWorldUnit = 1.0f / WorldSettings->WorldToMeters;
-	}
+	AnselConfig->metersInWorldUnit = 1.0f / RequiredWorldToMeters;
 	UE_LOG(LogAnsel, Log, TEXT("We reckon %f meters to 1 world unit"), AnselConfig->metersInWorldUnit);
 
 	AnselConfig->isCameraOffcenteredProjectionSupported = true;
 
 	AnselConfig->captureLatency = 0; // important
 
-	static IConsoleVariable* CVarSettleFrames = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Photography.SettleFrames"));
-	AnselConfig->captureSettleLatency = CVarSettleFrames->GetInt();
+	AnselConfig->captureSettleLatency = CVarPhotographySettleFrames->GetInt();
 
 	ansel::SetConfigurationStatus status = ansel::setConfiguration(*AnselConfig);
 	if (status != ansel::kSetConfigurationSuccess)
 	{
 		UE_LOG(LogAnsel, Log, TEXT("ReconfigureAnsel setConfiguration returned %ld"), (long int)(status));
 	}
+
+	CurrentlyConfiguredFovType = RequiredFovType;
+	CurrentlyConfiguredWorldToMeters = RequiredWorldToMeters;
 }
 
 void FNVAnselCameraPhotographyPrivate::DeconfigureAnsel()

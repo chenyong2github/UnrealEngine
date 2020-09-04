@@ -5,7 +5,7 @@
 =============================================================================*/
 
 // Update this GUID to improve shader recompilation for Metal only shaders
-// GUID = E3AC9C39-C9CD-48C1-8F24-DEDF572A4871
+// GUID = E350CDA7-99C7-4015-B4B1-CD065CDBA628
 
 #pragma once
 
@@ -29,39 +29,26 @@
 
 #define COMPILER_SUPPORTS_MINMAX3 0
 
-#if IOS
-#if COMPILER_HLSLCC > 1
-
-// Determine dimension of color attachment SV_Target0 for subpass input
-#ifndef SUBPASS_COLOR0_ATTACHMENT_DIM
-#define SUBPASS_COLOR0_ATTACHMENT_DIM 4
-#endif
-
-#if SUBPASS_COLOR0_ATTACHMENT_DIM == 1
-	#define SUBPASS_COLOR0_ATTACHMENT_VEC float
-#elif SUBPASS_COLOR0_ATTACHMENT_DIM == 2
-	#define SUBPASS_COLOR0_ATTACHMENT_VEC float2
-#elif SUBPASS_COLOR0_ATTACHMENT_DIM == 3
-	#define SUBPASS_COLOR0_ATTACHMENT_VEC float3
-#else
-	#define SUBPASS_COLOR0_ATTACHMENT_VEC float4
-#endif
-
-#if PIXELSHADER
+#if IOS && PIXELSHADER 
 	// The load operation here will be patched by the MetalShaderCompiler,
-	// do NOT change any character in the "FramebufferFetchES2" macro definition, including white spaces!
- 	Texture2D<SUBPASS_COLOR0_ATTACHMENT_VEC> gl_LastFragData;
-	#define FramebufferFetchES2() gl_LastFragData.Load(uint3(0, 0, 0), 0)
+	// do NOT change any character in the "SubpassFetch*" macro definition, including white spaces!
+	
+	// 4 components: RGBA_0
+	Texture2D<float4> gl_LastFragDataRGBA_0;
+	#define SubpassFetchRGBA_0() gl_LastFragDataRGBA_0.Load(uint3(0, 0, 0), 0)
+	// 1 component: R_4
+	Texture2D<float> gl_LastFragDataR_4;
+	#define SubpassFetchR_4() gl_LastFragDataR_4.Load(uint3(0, 0, 0), 0)
+	//
+	// Rest of SubpassFetch can be found in MetalSubpassSupport.ush
+	//
+	#if MOBILE_DEFERRED_SHADING
+		#define DepthbufferFetchES2() SubpassFetchR_4()
+	#else
+		#define DepthbufferFetchES2() SubpassFetchRGBA_0().w
+	#endif
 #else
-	#define FramebufferFetchES2() ((SUBPASS_COLOR0_ATTACHMENT_VEC)0)
-#endif // PIXELSHADER
-
-// Special case for fetching depth attachment
-#if SUBPASS_COLOR0_ATTACHMENT_DIM == 1
-	#define DepthbufferFetchES2() FramebufferFetchES2()
-#else
-	#define DepthbufferFetchES2() FramebufferFetchES2().w
-#endif
-
-#endif // COMPILER_HLSLCC > 1
-#endif // IOS
+	#define SubpassFetchRGBA_0() ((float4)0.0)
+	#define SubpassFetchR_0() (0.0)
+	#define SubpassFetchR_4() (0.0)
+#endif //IOS && PIXELSHADER 

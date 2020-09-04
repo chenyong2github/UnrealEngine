@@ -50,7 +50,7 @@
 		},
 		{
 			"Name": "SteamVREditor",
-			"Type": "Editor",
+			"Type": "UncookedOnly",
 			"LoadingPhase": "PostEngineInit",
 			"WhitelistPlatforms": [
 				"Win64",

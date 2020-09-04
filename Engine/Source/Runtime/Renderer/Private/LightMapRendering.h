@@ -16,8 +16,6 @@
 
 class FPrimitiveSceneProxy;
 
-extern bool GVisualizeMipLevels;
-
 BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FIndirectLightingCacheUniformParameters, )
 	SHADER_PARAMETER(FVector, IndirectLightingCachePrimitiveAdd) // FCachedVolumeIndirectLightingPolicy
 	SHADER_PARAMETER(FVector, IndirectLightingCachePrimitiveScale) // FCachedVolumeIndirectLightingPolicy
@@ -485,6 +483,12 @@ struct FSimpleStationaryLightVolumetricLightmapShadowsLightingPolicy : public FP
 	}
 };
 
+FORCEINLINE_DEBUGGABLE bool UsePermutationWithMobileDeferred(const FMeshMaterialShaderPermutationParameters& Parameters)
+{
+	// transluceny and water uses forward shading and require this permutation
+	return (IsTranslucentBlendMode(Parameters.MaterialParameters.BlendMode) || Parameters.MaterialParameters.ShadingModels.HasShadingModel(MSM_SingleLayerWater));
+}
+
 /** Mobile Specific: Combines a distance field shadow with LQ lightmaps. */
 class FMobileDistanceFieldShadowsAndLQLightMapPolicy : public TDistanceFieldShadowsAndLightMapPolicy<LQ_LIGHTMAP>
 {
@@ -514,6 +518,10 @@ struct FMobileDirectionalLightAndSHIndirectPolicy
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		{
+			return false;
+		}
 		static auto* CVarAllowStaticLighting = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.AllowStaticLighting"));
 		const bool bAllowStaticLighting = CVarAllowStaticLighting->GetValueOnAnyThread() != 0;
 
@@ -539,6 +547,10 @@ struct FMobileMovableDirectionalLightAndSHIndirectPolicy : public FMobileDirecti
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		{
+			return false;
+		}
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 
@@ -563,6 +575,10 @@ struct FMobileMovableDirectionalLightLightingPolicy
 {
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		{
+			return false;
+		}
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 		return bMobileAllowMovableDirectionalLights
@@ -589,6 +605,10 @@ struct FMobileMovableDirectionalLightWithLightmapPolicy : public TLightMapPolicy
 
 	static bool ShouldCompilePermutation(const FMeshMaterialShaderPermutationParameters& Parameters)
 	{
+		if (IsMobileDeferredShading() && !UsePermutationWithMobileDeferred(Parameters))
+		{
+			return false;
+		}
 		static auto* CVarMobileAllowMovableDirectionalLights = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.Mobile.AllowMovableDirectionalLights"));
 		const bool bMobileAllowMovableDirectionalLights = CVarMobileAllowMovableDirectionalLights->GetValueOnAnyThread() != 0;
 

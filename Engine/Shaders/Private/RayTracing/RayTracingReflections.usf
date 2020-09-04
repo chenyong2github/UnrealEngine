@@ -267,7 +267,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 	uint LocalSamplesPerPixel = SamplesPerPixel; 
 
 	// Mask out depth values that are infinitely far away
-	float DeviceZ = SceneDepthBuffer.Load(int3(PixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(PixelCoord, 0)).r;
 	bool IsFiniteDepth = DeviceZ > 0.0;
 	if (!IsFiniteDepth)
 	{
@@ -415,9 +415,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 				TopLayerRay.TMin = 0.0;
 				TopLayerRay.TMax = LocalMaxRayDistance;
 
-#if GBUFFER_HAS_TANGENT
 				ModifyGGXAnisotropicNormalRoughness(TopLayerWorldTangent, TopLayerAnisotropy, TopLayerRoughness, TopLayerWorldNormal, IncidentDirection);
-#endif
 
 				TopLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, TopLayerWorldNormal, TopLayerRoughness);
 
@@ -468,7 +466,7 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 								if (all(abs(RayHitScreenPos) < float2(1, 1)))
 								{
 									float2 RayHitUV = RayHitScreenPos * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
-									float GBufferHitDepth  = ConvertFromDeviceZ(SceneDepthBuffer.SampleLevel(GlobalPointClampedSampler, RayHitUV, 0).r);
+									float GBufferHitDepth  = ConvertFromDeviceZ(SceneDepthTexture.SampleLevel(GlobalPointClampedSampler, RayHitUV, 0).r);
 									float RayHitDepth = RayHitClipPos.w;
 									float ScreenSpaceReflectionDepthDeltaThreshold = 5.0; // Arbitrary threshold
 									if (RayHitDepth - GBufferHitDepth < ScreenSpaceReflectionDepthDeltaThreshold)
@@ -510,9 +508,8 @@ RAY_TRACING_ENTRY_RAYGEN(RayTracingReflectionsRGS)
 					BottomLayerRay.TMin = 0.0;
 					BottomLayerRay.TMax = LocalMaxRayDistance;
 
-#if GBUFFER_HAS_TANGENT
 					ModifyGGXAnisotropicNormalRoughness(BottomLayerWorldTangent, BottomLayerAnisotropy, BottomLayerRoughness, BottomLayerWorldNormal, IncidentDirection);
-#endif
+
 					BottomLayerRay.Direction = GenerateReflectionDirection(RandSequence, DispatchThreadId, BounceIndex, LocalSamplesPerPixel, IncidentDirection, BottomLayerWorldNormal, BottomLayerRoughness);
 					ApplyPositionBias(BottomLayerRay, BottomLayerWorldNormal, ReflectionMaxNormalBias);
 					if (BounceIndex == 0 && dot(GBufferData.WorldNormal, BottomLayerRay.Direction) < 0.0)

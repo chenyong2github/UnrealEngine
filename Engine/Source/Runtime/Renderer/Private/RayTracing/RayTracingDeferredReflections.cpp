@@ -156,7 +156,6 @@ class FRayTracingDeferredReflectionsRGS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FRayIntersectionBookmark>, BookmarkBuffer)
 		SHADER_PARAMETER_RDG_BUFFER_UAV(RWStructuredBuffer<FDeferredMaterialPayload>, MaterialBuffer)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
 		SHADER_PARAMETER_SRV(StructuredBuffer<FRTLightingData>, LightDataBuffer)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, SSProfilesTexture)
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, ColorOutput)
@@ -274,11 +273,10 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 {
 	const bool bGenerateRaysWithRGS = CVarRayTracingReflectionsGenerateRaysWithRGS.GetValueOnRenderThread()==1;
 
-	FRDGTextureDesc OutputDesc = FPooledRenderTargetDesc::Create2DDesc(
+	FRDGTextureDesc OutputDesc = FRDGTextureDesc::Create2D(
 		FSceneRenderTargets::Get_FrameConstantsOnly().GetBufferSizeXY(),
 		PF_FloatRGBA, FClearValueBinding(FLinearColor(0, 0, 0, 0)),
-		TexCreate_None, TexCreate_ShaderResource | TexCreate_UAV,
-		false);
+		TexCreate_ShaderResource | TexCreate_UAV);
 
 	OutDenoiserInputs->Color          = GraphBuilder.CreateTexture(OutputDesc, TEXT("RayTracingReflections"));
 	OutputDesc.Format                 = PF_R16F;
@@ -292,6 +290,7 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 	FRayTracingDeferredReflectionsRGS::FParameters CommonParameters;
 	CommonParameters.RayTracingResolution    = RayTracingResolution;
 	CommonParameters.TileAlignedResolution   = TileAlignedResolution;
+	CommonParameters.GlossyReflections       = CVarRayTracingReflectionsGlossy.GetValueOnRenderThread();
 	CommonParameters.ReflectionMaxRoughness  = Options.MaxRoughness;
 	CommonParameters.ReflectionSmoothBias    = CVarRayTracingReflectionsSmoothBias.GetValueOnRenderThread();
 	CommonParameters.AnyHitMaxRoughness      = CVarRayTracingReflectionsAnyHitMaxRoughness.GetValueOnRenderThread();
@@ -303,7 +302,6 @@ void FDeferredShadingSceneRenderer::RenderRayTracingDeferredReflections(
 
 	CommonParameters.TLAS                    = View.RayTracingScene.RayTracingSceneRHI->GetShaderResourceView();
 	CommonParameters.SceneTextures           = SceneTextures;
-	SetupSceneTextureSamplers(&CommonParameters.SceneTextureSamplers);
 	CommonParameters.ViewUniformBuffer       = View.ViewUniformBuffer;
 	CommonParameters.LightDataPacked         = View.RayTracingLightData.UniformBuffer;
 	CommonParameters.LightDataBuffer         = View.RayTracingLightData.LightBufferSRV;

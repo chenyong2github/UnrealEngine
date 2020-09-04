@@ -100,7 +100,8 @@ Texture2D<uint4> HairCategorizationTexture;
 // Need to disable early depth stencil as discard operation are not supported. 
 // This is only for hair case. One way to solve this would be to run tile coverring 
 // hair pixels, rather than rendering a full screen to avoid partially this extra cost
-#if SUBPIXEL_SHADOW == 0
+// Do not force early_fragment_tests on mobile, as it does not work with depth fetch on MALI
+#if (SUBPIXEL_SHADOW == 0 && FEATURE_LEVEL > FEATURE_LEVEL_ES3_1)
 EARLYDEPTHSTENCIL
 #endif
 void Main(

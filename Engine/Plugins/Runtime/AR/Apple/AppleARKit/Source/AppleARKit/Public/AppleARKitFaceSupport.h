@@ -15,6 +15,7 @@
 
 struct FAppleARKitAnchorData;
 struct FARVideoFormat;
+struct FGuid;
 class UTimecodeProvider;
 enum class EARFaceTrackingUpdate : uint8;
 
@@ -38,11 +39,12 @@ public:
 	 * Publishes any face AR data that needs to be sent to LiveLink. Done as a separate step because MakeAnchorData is called
 	 * on an arbitrary thread and we can't access UObjects there safely
 	 *
+	 * @param SessionGuid the Guid of the session
 	 * @param AnchorList the list of anchors to publish to LiveLink
 	 *
 	 * @return the set of face anchors to dispatch
 	 */
-	virtual void PublishLiveLinkData(TSharedPtr<FAppleARKitAnchorData> Anchor) { }
+	virtual void PublishLiveLinkData(const FGuid& SessionGuid, TSharedPtr<FAppleARKitAnchorData> Anchor) { }
 
 	/**
 	 * Creates a face ar specific configuration object if that is requested without exposing the main code to the face APIs
@@ -61,7 +63,7 @@ public:
 	/**
 	 * @return the supported video formats by the face ar device
 	 */
-	virtual TArray<FARVideoFormat> ToARConfiguration() { return TArray<FARVideoFormat>(); }
+	virtual NSArray<ARVideoFormat*>* GetSupportedVideoFormats() const { return nullptr; }
 #endif
 	
 #if SUPPORTS_ARKIT_3_0
@@ -70,6 +72,9 @@ public:
 	 */
 	virtual bool IsARFrameSemanticsSupported(ARFrameSemantics InSemantics) const { return false; }
 #endif
+	
+	/** @return the max number of faces can be tracked at the same time */
+	virtual int32 GetNumberOfTrackedFacesSupported() const = 0;
 	
 	static FName GetModularFeatureName()
 	{

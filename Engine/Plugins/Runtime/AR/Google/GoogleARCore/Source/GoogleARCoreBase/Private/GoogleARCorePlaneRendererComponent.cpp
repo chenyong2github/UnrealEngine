@@ -7,7 +7,7 @@
 #include "DrawDebugHelpers.h"
 #include "Templates/Casts.h"
 
-UGoogleARCorePlaneRendererComponent::UGoogleARCorePlaneRendererComponent()
+UDEPRECATED_GoogleARCorePlaneRendererComponent::UDEPRECATED_GoogleARCorePlaneRendererComponent()
 	: bRenderPlane(true)
 	, bRenderBoundaryPolygon(true)
 	, PlaneColor(FColor::Green)
@@ -21,12 +21,12 @@ UGoogleARCorePlaneRendererComponent::UGoogleARCorePlaneRendererComponent()
 	PlaneIndices[3] = 0; PlaneIndices[4] = 2; PlaneIndices[5] = 3;
 }
 
-void UGoogleARCorePlaneRendererComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction)
+void UDEPRECATED_GoogleARCorePlaneRendererComponent::TickComponent(float DeltaTime, enum ELevelTick TickType, FActorComponentTickFunction * ThisTickFunction)
 {
 	DrawPlanes();
 }
 
-void UGoogleARCorePlaneRendererComponent::DrawPlanes()
+void UDEPRECATED_GoogleARCorePlaneRendererComponent::DrawPlanes()
 {
 	UWorld* World = GetWorld();
 	if (UARBlueprintLibrary::GetTrackingQuality() == EARTrackingQuality::OrientationAndPosition)

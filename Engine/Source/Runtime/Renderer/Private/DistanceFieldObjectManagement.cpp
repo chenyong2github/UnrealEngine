@@ -303,10 +303,10 @@ public:
 	{
 		FRHIComputeShader* ShaderRHI = RHICmdList.GetBoundComputeShader();
 
-		FRHIUnorderedAccessView* OutUAVs[2];
-		OutUAVs[0] = ObjectBuffersDest.Bounds.UAV;
-		OutUAVs[1] = ObjectBuffersDest.Data.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
+		FRHITransitionInfo TransitionInfos[2];
+		TransitionInfos[0] = FRHITransitionInfo(ObjectBuffersDest.Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+		TransitionInfos[1] = FRHITransitionInfo(ObjectBuffersDest.Data.UAV, ERHIAccess::Unknown, ERHIAccess::ERWBarrier);
+		RHICmdList.Transition(MakeArrayView(TransitionInfos, UE_ARRAY_COUNT(TransitionInfos)));
 
 		CopyObjectBounds.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffersDest.Bounds);
 		CopyObjectData.SetBuffer(RHICmdList, ShaderRHI, ObjectBuffersDest.Data);
@@ -340,10 +340,10 @@ public:
 		CopyObjectBounds.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 		CopyObjectData.UnsetUAV(RHICmdList, RHICmdList.GetBoundComputeShader());
 
-		FRHIUnorderedAccessView* OutUAVs[2];
-		OutUAVs[0] = ObjectBuffersDest.Bounds.UAV;
-		OutUAVs[1] = ObjectBuffersDest.Data.UAV;
-		RHICmdList.TransitionResources(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToCompute, OutUAVs, UE_ARRAY_COUNT(OutUAVs));
+		FRHITransitionInfo TransitionInfos[2];
+		TransitionInfos[0] = FRHITransitionInfo(ObjectBuffersDest.Bounds.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+		TransitionInfos[1] = FRHITransitionInfo(ObjectBuffersDest.Data.UAV, ERHIAccess::Unknown, ERHIAccess::SRVMask);
+		RHICmdList.Transition(MakeArrayView(TransitionInfos, UE_ARRAY_COUNT(TransitionInfos)));
 	}
 
 private:

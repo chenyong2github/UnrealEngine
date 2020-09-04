@@ -508,7 +508,7 @@ bool PlatformBlitToViewport(FPlatformOpenGLDevice* Device,
 		FScopeContext ScopeContext(Context);
 		if (bPresent && Viewport.GetCustomPresent())
 		{
-			// Commented out becuase we try to match Lumin ES2 standard here. This does not match Windows/Linux though
+			// Commented out becuase we try to match Lumin standard here. This does not match Windows/Linux though
 			// glDisable(GL_FRAMEBUFFER_SRGB);
 			bPresent = Viewport.GetCustomPresent()->Present(SyncInterval);
 			// glEnable(GL_FRAMEBUFFER_SRGB);

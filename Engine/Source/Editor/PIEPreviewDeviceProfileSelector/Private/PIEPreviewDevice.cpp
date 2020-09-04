@@ -261,7 +261,7 @@ ERHIFeatureLevel::Type FPIEPreviewDevice::GetPreviewDeviceFeatureLevel() const
 			// at least one of these should be valid!
 			check(bProjectBuiltForMetal);
 
-			// if device doesn't support metal the project must have ES2 enabled.
+			// if device doesn't support metal the project must have ES enabled.
 			check(bProjectBuiltForMetal && bDeviceSupportsMetal);
 
 			return ERHIFeatureLevel::ES3_1;

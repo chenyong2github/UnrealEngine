@@ -70,11 +70,11 @@ namespace VirtualHeightfieldMesh
 	struct FDrawInstanceBuffers
 	{
 		/* Culled instance buffer. */
-		TRefCountPtr<FPooledRDGBuffer> InstanceBuffer;
+		TRefCountPtr<FRDGPooledBuffer> InstanceBuffer;
 		FShaderResourceViewRHIRef InstanceBufferSRV;
 
 		/* IndirectArgs buffer for final DrawInstancedIndirect. */
-		TRefCountPtr<FPooledRDGBuffer> IndirectArgsBuffer;
+		TRefCountPtr<FRDGPooledBuffer> IndirectArgsBuffer;
 	};
 
 	/** Initialize the FDrawInstanceBuffers objects. */
@@ -481,7 +481,7 @@ void FVirtualHeightfieldMeshSceneProxy::GetDynamicMeshElements(const TArray<cons
 				FMeshBatchElement& BatchElement = Mesh.Elements[0];
 
 				BatchElement.IndexBuffer = VertexFactory->IndexBuffer;
-				BatchElement.IndirectArgsBuffer = Buffers.IndirectArgsBuffer->VertexBuffer;
+				BatchElement.IndirectArgsBuffer = Buffers.IndirectArgsBuffer->GetVertexBufferRHI();
 				BatchElement.IndirectArgsOffset = 0;
 
 				BatchElement.FirstIndex = 0;
@@ -1019,8 +1019,8 @@ namespace VirtualHeightfieldMesh
 
 	/* Dummy parameter struct used to allocate FPooledRDGBuffer objects using a fake RDG pass. */
 	BEGIN_SHADER_PARAMETER_STRUCT(FCreateBufferParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(, InstanceBuffer)
-		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(, IndirectArgsBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(InstanceBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_UPLOAD(IndirectArgsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
 	void InitializeInstanceBuffers(FRHICommandListImmediate& InRHICmdList, FDrawInstanceBuffers& InBuffers)
@@ -1047,13 +1047,13 @@ namespace VirtualHeightfieldMesh
 				//IndirectArgsBuffer->MarkResourceAsUsed();
 			});
 
-		GraphBuilder.QueueBufferExtraction(InstanceBuffer, &InBuffers.InstanceBuffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
-		GraphBuilder.QueueBufferExtraction(IndirectArgsBuffer, &InBuffers.IndirectArgsBuffer, FRDGResourceState::EAccess::Write, FRDGResourceState::EPipeline::Compute);
+		GraphBuilder.QueueBufferExtraction(InstanceBuffer, &InBuffers.InstanceBuffer, ERHIAccess::UAVCompute);
+		GraphBuilder.QueueBufferExtraction(IndirectArgsBuffer, &InBuffers.IndirectArgsBuffer, ERHIAccess::UAVCompute);
 
 		GraphBuilder.Execute();
 
 		// The SRV objects referenced by final rendering are managed outside of RDG.
-		InBuffers.InstanceBufferSRV = RHICreateShaderResourceView(InBuffers.InstanceBuffer->StructuredBuffer);
+		InBuffers.InstanceBufferSRV = RHICreateShaderResourceView(InBuffers.InstanceBuffer->GetStructuredBufferRHI());
 	}
 
 	/** Initialize the volatie resources used in the render graph. */
@@ -1077,11 +1077,11 @@ namespace VirtualHeightfieldMesh
 		OutResources.IndirectArgsBufferUAV = GraphBuilder.CreateUAV(OutResources.IndirectArgsBuffer);
 		OutResources.IndirectArgsBufferSRV = GraphBuilder.CreateSRV(OutResources.IndirectArgsBuffer);
 
-		FPooledRenderTargetDesc LodTextureDesc = FPooledRenderTargetDesc::Create2DDesc(
+		FRDGTextureDesc LodTextureDesc = FRDGTextureDesc::Create2D(
 			FIntPoint(InDesc.PageTableSize.X, InDesc.PageTableSize.Y),
 			PF_R8G8,
 			FClearValueBinding::None,
-			TexCreate_None, TexCreate_RenderTargetable | TexCreate_ShaderResource, false);
+			TexCreate_RenderTargetable | TexCreate_ShaderResource);
 		OutResources.LodTexture = GraphBuilder.CreateTexture(LodTextureDesc, TEXT("LodTexture"));
 
 		OutResources.QuadNeighborBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), InDesc.MaxRenderItems * 4), TEXT("QuadNeighborBuffer"));
@@ -1121,7 +1121,7 @@ namespace VirtualHeightfieldMesh
 			{
 				//todo: If feedback parsing understands append counter we don't need to fully clear
 				RHICmdList.ClearUAVUint(PassParameters->RWFeedbackBuffer->GetRHI(), FUintVector4(0xffffffff, 0xffffffff, 0xffffffff, 0xffffffff));
-				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWNoBarrier, EResourceTransitionPipeline::EGfxToGfx, PassParameters->RWFeedbackBuffer->GetRHI());
+				RHICmdList.Transition(FRHITransitionInfo(PassParameters->RWFeedbackBuffer->GetRHI(), ERHIAccess::UAVCompute, ERHIAccess::UAVCompute));
 
 				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, FIntVector(1, 1, 1));
 			});
@@ -1313,7 +1313,7 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 	// Collect feedback buffers from each pass to submit together after RenderGraph execution.
 	// todo: Convert feedback submission to RDG so that it can be included in the render graph. 
 	//       Then the render graph builder can be passed in and executed externally.
-	TArray< TRefCountPtr< FPooledRDGBuffer > > FeedbackBuffers;
+	TArray< TRefCountPtr< FRDGPooledBuffer > > FeedbackBuffers;
 
 	FRDGBuilder GraphBuilder(InRHICmdList);
 	{
@@ -1400,7 +1400,7 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 
 				// Tag feedback buffer for extraction
 				FeedbackBuffers.AddDefaulted();
-				GraphBuilder.QueueBufferExtraction(VolatileResources.FeedbackBuffer, &FeedbackBuffers.Last(), FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
+				GraphBuilder.QueueBufferExtraction(VolatileResources.FeedbackBuffer, &FeedbackBuffers.Last(), ERHIAccess::SRVMask);
 
 				while (WorkIndex < NumWorkItems && MainViews[WorkDescs[WorkIndex].MainViewIndex] == MainView)
 				{
@@ -1446,7 +1446,7 @@ void FVirtualHeightfieldMeshRendererExtension::SubmitWork(FRHICommandListImmedia
 		{
 			FVirtualTextureFeedbackBufferDesc Desc;
 			Desc.Init(CVarVHMMaxFeedbackItems.GetValueOnRenderThread() + 1);
-			SubmitVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList, FeedbackBuffers[0].GetReference()->VertexBuffer, Desc);
+			SubmitVirtualTextureFeedbackBuffer(GraphBuilder.RHICmdList, FeedbackBuffers[0].GetReference()->GetVertexBufferRHI(), Desc);
 		}
 	}
 }

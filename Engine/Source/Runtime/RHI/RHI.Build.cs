@@ -28,11 +28,12 @@ public class RHI : ModuleRules
 				{
 					//#todo-rco: D3D12 requires different SDK headers not compatible with WinXP
 					DynamicallyLoadedModuleNames.Add("D3D12RHI");
-                }
+				}
 
 				if ((Target.Platform == UnrealTargetPlatform.HoloLens))
 				{
 					DynamicallyLoadedModuleNames.Add("D3D11RHI");
+					DynamicallyLoadedModuleNames.Add("D3D12RHI");
 				}
 
 				if ((Target.Platform == UnrealTargetPlatform.Win64) ||

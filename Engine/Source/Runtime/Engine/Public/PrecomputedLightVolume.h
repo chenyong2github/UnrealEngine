@@ -194,7 +194,7 @@ public:
 
 	ENGINE_API void ApplyWorldOffset(const FVector& InOffset);
 
-	// temporary, for ES2 preview verification.
+	// temporary, for ES 3.1 preview verification.
 	FORCEINLINE bool IsUsingHighQualityLightMap() const
 	{
 		return OctreeForRendering == &Data->HighQualityLightmapOctree;

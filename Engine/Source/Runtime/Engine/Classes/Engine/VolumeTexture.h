@@ -8,6 +8,8 @@
 #include "Engine/Texture2D.h"
 #include "VolumeTexture.generated.h"
 
+extern bool GSupportsVolumeTextureStreaming;
+
 class FTextureResource;
 
 UCLASS(hidecategories=(Object, Compositing, ImportSettings), MinimalAPI)
@@ -118,6 +120,13 @@ public:
 #endif
 
 	ENGINE_API static bool ShaderPlatformSupportsCompression(FStaticShaderPlatform ShaderPlatform);
+
+
+	//~ Begin UStreamableRenderAsset Interface
+	virtual int32 CalcCumulativeLODSize(int32 NumLODs) const final override { return CalcTextureMemorySize(NumLODs); }
+	virtual bool StreamOut(int32 NewMipCount) final override;
+	virtual bool StreamIn(int32 NewMipCount, bool bHighPrio) final override;
+	//~ End UStreamableRenderAsset Interface
 
 protected:
 

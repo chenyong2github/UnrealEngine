@@ -2,7 +2,7 @@
     "FileVersion" : 3,
 
     "Version" : 11,
-    "VersionName" : "1.7.0",
+    "VersionName" : "1.16.0",
     "FriendlyName" : "Google ARCore Services",
     "Description" : "Provide functionality in Google cross-platform ARCore services.",
     "Category" : "Augmented Reality",

@@ -251,6 +251,8 @@ struct FMaterialClosestHitPayload : FMinimalPayload
 
 	FRayCone GetRayCone() { return RayCone; }
 	void SetRayCone(FRayCone NewRayCone) { RayCone = NewRayCone; }
+
+	bool HasAnisotropy() { return abs(Anisotropy) >= 0.001f; }
 };
 
 // WorldNormal is the vector towards which the ray position will be offseted.

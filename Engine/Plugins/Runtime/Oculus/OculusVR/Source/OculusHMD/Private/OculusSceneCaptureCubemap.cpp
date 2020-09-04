@@ -171,8 +171,8 @@ void UOculusSceneCaptureCubemap::CaptureCubemapCommandHandler(const TArray<FStri
 		FParse::Value(*Arg, TEXT("YOFF="), CaptureOffset.Y);
 		FParse::Value(*Arg, TEXT("ZOFF="), CaptureOffset.Z);
 		FParse::Value(*Arg, TEXT("YAW="), Yaw);
-		// Leave GearVR for backwards compat
-		if (Arg.Equals(TEXT("GEARVR"), ESearchCase::IgnoreCase) || Arg.Equals(TEXT("MOBILE"), ESearchCase::IgnoreCase))
+
+		if (Arg.Equals(TEXT("MOBILE"), ESearchCase::IgnoreCase))
 		{
 			bCreateOculusMobileCubemap = true;
 		}

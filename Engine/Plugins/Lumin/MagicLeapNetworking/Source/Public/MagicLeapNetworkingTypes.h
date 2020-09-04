@@ -7,7 +7,7 @@
 
 /** WiFi related data. */
 USTRUCT(BlueprintType)
-struct FMagicLeapNetworkingWiFiData
+struct MAGICLEAPNETWORKING_API FMagicLeapNetworkingWiFiData
 {
 	GENERATED_USTRUCT_BODY()
 

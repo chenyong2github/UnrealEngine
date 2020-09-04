@@ -326,7 +326,8 @@ template<
 	EBlendFactor    RT7ColorDestBlend = BF_Zero,
 	EBlendOperation RT7AlphaBlendOp = BO_Add,
 	EBlendFactor    RT7AlphaSrcBlend = BF_One,
-	EBlendFactor    RT7AlphaDestBlend = BF_Zero
+	EBlendFactor    RT7AlphaDestBlend = BF_Zero,
+	bool			bUseAlphaToCoverage = false
 	>
 class TStaticBlendState : public TStaticStateRHI<
 	TStaticBlendState<
@@ -337,7 +338,8 @@ class TStaticBlendState : public TStaticStateRHI<
 		RT4ColorWriteMask,RT4ColorBlendOp,RT4ColorSrcBlend,RT4ColorDestBlend,RT4AlphaBlendOp,RT4AlphaSrcBlend,RT4AlphaDestBlend,
 		RT5ColorWriteMask,RT5ColorBlendOp,RT5ColorSrcBlend,RT5ColorDestBlend,RT5AlphaBlendOp,RT5AlphaSrcBlend,RT5AlphaDestBlend,
 		RT6ColorWriteMask,RT6ColorBlendOp,RT6ColorSrcBlend,RT6ColorDestBlend,RT6AlphaBlendOp,RT6AlphaSrcBlend,RT6AlphaDestBlend,
-		RT7ColorWriteMask,RT7ColorBlendOp,RT7ColorSrcBlend,RT7ColorDestBlend,RT7AlphaBlendOp,RT7AlphaSrcBlend,RT7AlphaDestBlend
+		RT7ColorWriteMask,RT7ColorBlendOp,RT7ColorSrcBlend,RT7ColorDestBlend,RT7AlphaBlendOp,RT7AlphaSrcBlend,RT7AlphaDestBlend,
+		bUseAlphaToCoverage
 		>,
 	FBlendStateRHIRef,
 	FRHIBlendState*
@@ -356,7 +358,7 @@ public:
 		RenderTargetBlendStates[6] = FBlendStateInitializerRHI::FRenderTarget(RT6ColorBlendOp,RT6ColorSrcBlend,RT6ColorDestBlend,RT6AlphaBlendOp,RT6AlphaSrcBlend,RT6AlphaDestBlend,RT6ColorWriteMask);
 		RenderTargetBlendStates[7] = FBlendStateInitializerRHI::FRenderTarget(RT7ColorBlendOp,RT7ColorSrcBlend,RT7ColorDestBlend,RT7AlphaBlendOp,RT7AlphaSrcBlend,RT7AlphaDestBlend,RT7ColorWriteMask);
 
-		return RHICreateBlendState(FBlendStateInitializerRHI(RenderTargetBlendStates));
+		return RHICreateBlendState(FBlendStateInitializerRHI(RenderTargetBlendStates, bUseAlphaToCoverage));
 	}
 };
 
@@ -372,7 +374,8 @@ template<
 	EColorWriteMask RT4ColorWriteMask = CW_RGBA,
 	EColorWriteMask RT5ColorWriteMask = CW_RGBA,
 	EColorWriteMask RT6ColorWriteMask = CW_RGBA,
-	EColorWriteMask RT7ColorWriteMask = CW_RGBA
+	EColorWriteMask RT7ColorWriteMask = CW_RGBA,
+	bool			bUseAlphaToCoverage = false
 	>
 class TStaticBlendStateWriteMask : public TStaticBlendState<
 	RT0ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
@@ -382,7 +385,8 @@ class TStaticBlendStateWriteMask : public TStaticBlendState<
 	RT4ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
 	RT5ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
 	RT6ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
-	RT7ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero
+	RT7ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
+	bUseAlphaToCoverage
 	>
 {
 public:
@@ -396,7 +400,8 @@ public:
 			RT4ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
 			RT5ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
 			RT6ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
-			RT7ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero
+			RT7ColorWriteMask,BO_Add,BF_One,BF_Zero,BO_Add,BF_One,BF_Zero,
+			bUseAlphaToCoverage
 			>
 			::CreateRHI();
 	}

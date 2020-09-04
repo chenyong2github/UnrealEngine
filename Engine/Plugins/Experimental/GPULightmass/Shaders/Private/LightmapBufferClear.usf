@@ -91,3 +91,24 @@ void UploadConvergedLightmapTilesCS(uint3 DispatchThreadId : SV_DispatchThreadID
 	
 	DstTexture[LaunchIndex + DstTilePositions[TileIndex]] = SrcTexture[LaunchIndex + SrcTilePositions[TileIndex]];
 }
+
+int NumTiles;
+int TileSize;
+Buffer<int2> TilePositions;
+RWTexture2D<float4> TilePool;
+
+[numthreads(8, 8, 1)]
+void MultiTileClearCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	uint2 BatchedLaunchIndex = DispatchThreadId.xy;
+	
+	if (BatchedLaunchIndex.y >= TileSize) return;
+
+	int TileIndex = BatchedLaunchIndex.x / TileSize;
+	
+	if (TileIndex >= NumTiles) return;
+	
+	int2 LaunchIndex = int2(BatchedLaunchIndex.x % TileSize, BatchedLaunchIndex.y);
+	
+	TilePool[LaunchIndex + TilePositions[TileIndex] * TileSize] = float4(0, 0, 0, 0);
+}

@@ -742,6 +742,13 @@ namespace UnrealBuildTool
 		public bool bUseChecksInShipping = false;
 
 		/// <summary>
+		/// Whether to use the EstimatedUtcNow or PlatformUtcNow.  EstimatedUtcNow is appropriate in
+		/// cases where PlatformUtcNow can be slow.
+		/// </summary>
+		[RequiresUniqueBuildEnvironment]
+		public bool bUseEstimatedUtcNow = false;
+
+		/// <summary>
 		/// True if we need FreeType support.
 		/// </summary>
 		[RequiresUniqueBuildEnvironment]
@@ -2221,6 +2228,11 @@ namespace UnrealBuildTool
 		public bool bUseChecksInShipping
 		{
 			get { return Inner.bUseChecksInShipping; }
+		}
+
+		public bool bUseEstimatedUtcNow
+		{
+			get { return Inner.bUseEstimatedUtcNow; }
 		}
 
 		public bool bCompileFreeType

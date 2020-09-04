@@ -220,15 +220,14 @@ public:
 		];
 
 		// Get List from Renderer
-		FQueryVisualizeTexureInfo VisTextureInfo;
-		{
-			GVisualizeTexture.QueryInfo_GameThread(VisTextureInfo);
-		}
+		TArray<FString> VisTextureEntries;
+		GVisualizeTexture.GetTextureInfos_GameThread(VisTextureEntries);
+
 		uint32 TotalSize = 0;
-		for (int32 Index = 0; Index < VisTextureInfo.Entries.Num(); ++Index)
+		for (int32 Index = 0; Index < VisTextureEntries.Num(); ++Index)
 		{
 			TSharedPtr<FRTInfo> RTInfo = MakeShareable(new FRTInfo);
-			if (RTInfo->Parse(VisTextureInfo.Entries[Index]))
+			if (RTInfo->Parse(VisTextureEntries[Index]))
 			{
 #if ENABLE_IMAGES
 				FColor Color(0x80808080 + (Index << 9) +  ((Index&3) << 2));

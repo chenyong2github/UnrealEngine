@@ -4311,8 +4311,11 @@ void FLevelOfDetailSettingsLayout::OnNumStreamedLODsCommitted(int32 InValue, ETe
 	check(StaticMesh);
 	if (UpdateStaticMeshNumStreamedLODsHelper(StaticMesh, InValue, Platform))
 	{
-		// Make sure FStaticMeshRenderData::CurrentFirstLODIdx is not accessed on other threads
-		IStreamingManager::Get().GetTextureStreamingManager().BlockTillAllRequestsFinished();
+		if (IStreamingManager::Get().IsRenderAssetStreamingEnabled(EStreamableRenderAssetType::StaticMesh))
+		{
+			// Make sure FStaticMeshRenderData::CurrentFirstLODIdx is not accessed on other threads
+			IStreamingManager::Get().GetRenderAssetStreamingManager().BlockTillAllRequestsFinished();
+		}
 		// Recache derived data and relink streaming
 		ApplyChanges();
 	}

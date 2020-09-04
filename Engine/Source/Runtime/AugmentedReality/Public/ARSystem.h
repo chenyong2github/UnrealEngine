@@ -34,9 +34,10 @@ public: \
 		DelegateName##Delegates.RemoveAll(Object); \
 	}
 
+//need to move refactor some class hierarchies to make this protected again
 #define DEFINE_AR_DELEGATE_ONE_PARAM(DelegateName, Param1Type) \
 	DEFINE_AR_DELEGATE_BASE(DelegateName) \
-protected: \
+public: \
 	virtual void Trigger##DelegateName##Delegates(Param1Type Param1) \
 	{ \
 		DelegateName##Delegates.Broadcast(Param1); \
@@ -133,9 +134,19 @@ public:
 	/** @return whether the specified tracking type is supported by this device */
 	virtual bool OnIsTrackingTypeSupported(EARSessionType SessionType) const = 0;
 
+	virtual bool OnToggleARCapture(const bool bOnOff, const EARCaptureType CaptureType) { return false; };
+
+	virtual void OnSetEnabledXRCamera(bool bOnOff) {};
+	virtual FIntPoint OnResizeXRCamera(const FIntPoint& InSize) { return FIntPoint(0, 0); }
+
 	/** @return the best available light estimate; nullptr if light estimation is inactive or not available */
 	virtual UARLightEstimate* OnGetCurrentLightEstimate() const = 0;
-	
+
+	/**
+	 * Given a scene component find the ARPin which it is pinned by, if any.
+	 */
+	virtual UARPin* FindARPinByComponent(const USceneComponent* Component) const = 0;
+
 	/**
 	 * Pin an Unreal Component to a location in the world.
 	 * Optionally, associate with a TrackedGeometry to receive transform updates that effectively attach the component to the geometry.
@@ -145,16 +156,26 @@ public:
 	virtual UARPin* OnPinComponent(USceneComponent* ComponentToPin, const FTransform& PinToWorldTransform, UARTrackedGeometry* TrackedGeometry = nullptr, const FName DebugName = NAME_None) = 0;
 	
 	/**
+	 * Pin a component to an existing ARPin.  
+	 * If the component is alreayd pinned it will first be removed from that pin, which will be left empty.
+	 * If the target Pin is already in use the component previously pinned to it will be unpinned.
+	 *
+	 * @return true if the operation was successful
+	 */
+	virtual bool OnPinComponentToARPin(USceneComponent* ComponentToPin, UARPin* Pin) = 0;
+
+	/**
 	 * Given a pin, remove it and stop updating the associated component based on the tracked geometry.
 	 * The component in question will continue to track with the world, but will not get updates specific to a TrackedGeometry.
 	 */
 	virtual void OnRemovePin(UARPin* PinToRemove) = 0;
 
-	/** @return the last camera image the AR system has seen */
-	virtual UARTextureCameraImage* OnGetCameraImage() = 0;
-
-	/** @return the last camera depth information the AR system has seen */
-	virtual UARTextureCameraDepth* OnGetCameraDepth() = 0;
+	/**
+	* Given the platform specific native resource for a pin, create a pin.
+	*
+	* @return true when a pin is successfully created, otherwise false
+	*/
+	virtual bool OnTryGetOrCreatePinForNativeResource(void* InNativeResource, const FString& InPinName, UARPin*& OutPin) { OutPin = nullptr;  return false; }
 
 	/** Tells the ARSystem to generate a capture probe at the specified location if supported */
 	virtual bool OnAddManualEnvironmentCaptureProbe(FVector Location, FVector Extent) = 0;
@@ -186,12 +207,17 @@ public:
 	/** @return all the tracked 2D poses in AR */
 	virtual TArray<FARPose2D> OnGetTracked2DPose() const { return {}; }
 	
-	/** @return the person segmentation image */
-	virtual UARTextureCameraImage* OnGetPersonSegmentationImage() const { return nullptr; }
+	/** @return the required scene construction method is supported */
+	virtual bool OnIsSceneReconstructionSupported(EARSessionType SessionType, EARSceneReconstruction SceneReconstructionMethod) const { return false; }
 	
-	/** @return the person segmentation depth image */
-	virtual UARTextureCameraImage* OnGetPersonSegmentationDepthImage() const { return nullptr; }
-
+	virtual bool OnAddTrackedPointWithName(const FTransform& WorldTransform, const FString& PointName, bool bDeletePointsWithSameName) { return false; }
+	
+	/** @return the max number of faces can be tracked at the same time */
+	virtual int32 OnGetNumberOfTrackedFacesSupported() const { return 1; }
+	
+	/** @return the AR texture for the specified type */
+	virtual UARTexture* OnGetARTexture(EARTextureType TextureType) const { return nullptr; }
+	
 	virtual ~IARSystemSupport(){}
 
 	/**
@@ -214,8 +240,39 @@ public:
 	 * @param Removed the item that was removed
 	 */
 	DEFINE_AR_DELEGATE_ONE_PARAM(OnTrackableRemoved, UARTrackedGeometry* /* Removed */);
+
+	// ARPin Local Store support.
+	// Some Platforms/Devices have the ability to persist AR Anchors (real world positiosn) to the device or user account.
+	// They are saved and loaded with a string identifier.
+
+	virtual bool IsLocalPinSaveSupported() const
+	{
+		return false;
+	}
+
+	virtual bool ArePinsReadyToLoad()
+	{
+		//UE_LOG(LogHMD, Log, TEXT("Pin Local Store is not supported on this platform"));
+		return false;
+	}
+
+	virtual void LoadARPins(TMap<FName, UARPin*>& LoadedPins)
+	{
+		//UE_LOG(LogHMD, Log, TEXT("Pin Local Store is not supported on this platform"));
+	}
+	virtual bool SaveARPin(FName InName, UARPin* InPin)
+	{
+		//UE_LOG(LogHMD, Log, TEXT("Pin Local Store is not supported on this platform"));
+		return false;
+	}
+	virtual void RemoveSavedARPin(FName InName)
+	{
+		//UE_LOG(LogHMD, Log, TEXT("Pin Local Store is not supported on this platform"));
+	}
+	virtual void RemoveAllSavedARPins()
+	{
+		//UE_LOG(LogHMD, Log, TEXT("Pin Local Store is not supported on this platform"));
+	}
+	
+	virtual bool OnGetCameraIntrinsics(FARCameraIntrinsics& OutCameraIntrinsics) const { return false; }
 };
-
-
-
-

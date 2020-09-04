@@ -1,9 +1,5 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-/*=============================================================================
-TranslucencyPass.h: Translucency pass enum.
-=============================================================================*/
-
 #pragma once
 
 // enum instead of bool to get better visibility when we pass around multiple bools, also allows for easier extensions
@@ -20,3 +16,12 @@ namespace ETranslucencyPass
 		TPT_MAX
 	};
 };
+
+enum class ETranslucencyView
+{
+	None       = 0,
+	UnderWater = 1 << 0,
+	AboveWater = 1 << 1,
+	RayTracing = 1 << 2
+};
+ENUM_CLASS_FLAGS(ETranslucencyView);

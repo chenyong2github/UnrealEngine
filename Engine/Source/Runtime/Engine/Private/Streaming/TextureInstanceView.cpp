@@ -477,7 +477,7 @@ void FRenderAssetInstanceAsyncView::UpdateBoundSizes_Async(
 }
 
 void FRenderAssetInstanceAsyncView::ProcessElement(
-	typename FStreamingRenderAsset::EAssetType AssetType,
+	EStreamableRenderAssetType AssetType,
 	const FBoundsViewInfo& BoundsVieWInfo,
 	float TexelFactor,
 	bool bForceLoad,
@@ -503,14 +503,14 @@ void FRenderAssetInstanceAsyncView::ProcessElement(
 	}
 	else // Negative texel factors map to fixed resolution. Currently used for lanscape.
 	{
-		if (AssetType == FStreamingRenderAsset::AT_Texture)
+		if (AssetType == EStreamableRenderAssetType::Texture)
 		{
 			MaxSize = FMath::Max(MaxSize, -TexelFactor);
 			MaxSize_VisibleOnly = FMath::Max(MaxSize_VisibleOnly, -TexelFactor);
 		}
 		else
 		{
-			check(AssetType == FStreamingRenderAsset::AT_StaticMesh || AssetType == FStreamingRenderAsset::AT_SkeletalMesh);
+			check(AssetType == EStreamableRenderAssetType::StaticMesh || AssetType == EStreamableRenderAssetType::SkeletalMesh);
 			check(-TexelFactor <= MAX_MESH_LOD_COUNT);
 			MaxNumForcedLODs = FMath::Max(MaxNumForcedLODs, static_cast<int32>(-TexelFactor));
 		}
@@ -525,7 +525,7 @@ void FRenderAssetInstanceAsyncView::ProcessElement(
 }
 
 void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
-	typename FStreamingRenderAsset::EAssetType AssetType,
+	EStreamableRenderAssetType AssetType,
 	const UStreamableRenderAsset* InAsset,
 	float& MaxSize,
 	float& MaxSize_VisibleOnly,
@@ -557,7 +557,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 					if (ensure(BoundsViewInfo.IsValidIndex(CompiledElement.BoundsIndex)))
 					{
 						// Texel factor wasn't available because the component wasn't registered. Lazy initialize it now.
-						if (AssetType != FStreamingRenderAsset::AT_Texture
+						if (AssetType != EStreamableRenderAssetType::Texture
 							&& CompiledElement.TexelFactor == 0.f
 							&& ensure(CompiledElement.BoundsIndex < View->NumBounds4() * 4))
 						{
@@ -588,7 +588,7 @@ void FRenderAssetInstanceAsyncView::GetRenderAssetScreenSize(
 		else
 		{
 			int32 IterationCount_DebuggingOnly = 0;
-			for (auto It = View->GetElementIterator(InAsset); It && (AssetType != FStreamingRenderAsset::AT_Texture || MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It, ++IterationCount_DebuggingOnly)
+			for (auto It = View->GetElementIterator(InAsset); It && (AssetType != EStreamableRenderAssetType::Texture || MaxSize_VisibleOnly < MAX_TEXTURE_SIZE || LogPrefix); ++It, ++IterationCount_DebuggingOnly)
 			{
 				View->VerifyElementIdx_DebuggingOnly(It.GetCurElementIdx_ForDebuggingOnly(), IterationCount_DebuggingOnly);
 				// Only handle elements that are in bounds.

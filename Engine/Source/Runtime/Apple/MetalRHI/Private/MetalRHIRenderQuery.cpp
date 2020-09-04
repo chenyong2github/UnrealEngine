@@ -12,10 +12,6 @@
 #include "MetalCommandBuffer.h"
 #include "HAL/PThreadEvent.h"
 
-#if METAL_STATISTICS
-extern int32 GMetalProfilerStatisticsTiming;
-#endif
-
 
 //------------------------------------------------------------------------------
 
@@ -265,64 +261,35 @@ void FMetalRHIRenderQuery::End(FMetalContext* Context)
 
 			QueryWrittenEvent = MakeShareable(new FPThreadEvent());
 			QueryWrittenEvent->Create(true);
-			
-#if METAL_STATISTICS
-			class IMetalStatistics* Stats = Context->GetCommandQueue().GetStatistics();
-			if (Stats && GMetalProfilerStatisticsTiming)
-			{
-				id<IMetalStatisticsSamples> StatSample = Stats->GetLastStatisticsSample(Context->GetCurrentCommandBuffer().GetPtr());
-				if (!StatSample)
-				{
-					Context->GetCurrentRenderPass().InsertDebugEncoder();
-					StatSample = Stats->GetLastStatisticsSample(Context->GetCurrentCommandBuffer().GetPtr());
-				}
-				check(StatSample);
-				[StatSample retain];
 
-				// Insert the fence to wait on the current command buffer
-				Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this, StatSample](mtlpp::CommandBuffer const&)
-				{
-					if (StatSample.Count > 0)
-					{
-						Result = (FPlatformTime::ToMilliseconds64(StatSample.Array[0]) * 1000.0);
-					}
-					[StatSample release];
-					
-					QueryWrittenEvent->Trigger();
-					this->Release();
-				});
-			}
-			else
-#endif // METAL_STATISTICS
+			// Insert the fence to wait on the current command buffer
+			Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const& CmdBuffer)
 			{
-				// Insert the fence to wait on the current command buffer
-				Context->InsertCommandBufferFence(*(Buffer.CommandBufferFence), [this](mtlpp::CommandBuffer const& CmdBuffer)
-				{
-					Result = 0;
-					
+				Result = 0;
+				
 #if PLATFORM_MAC
-					if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0)
+				if(FPlatformMisc::MacOSXVersionCompare(10,15,0) >= 0)
 #endif
-					{
-						// If there are no commands in the command buffer then this can be zero
-						// In this case GPU start time is also not correct - we need to fall back standard behaviour
-						// Only seen empty command buffers at the very end of a frame
-						Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
-					}
-					
-					if(Result == 0)
-					{
-						Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
-					}
+				{
+					// If there are no commands in the command buffer then this can be zero
+					// In this case GPU start time is also not correct - we need to fall back standard behaviour
+					// Only seen empty command buffers at the very end of a frame
+					Result = uint64((CmdBuffer.GetGpuEndTime() / 1000.0) / FPlatformTime::GetSecondsPerCycle64());
+				}
+				
+				if(Result == 0)
+				{
+					Result = (FPlatformTime::ToMilliseconds64(mach_absolute_time()) * 1000.0);
+				}
 
-					QueryWrittenEvent->Trigger();
-					this->Release();
-				});
+				QueryWrittenEvent->Trigger();
+				this->Release();
+			});
 
-				// Submit the current command buffer, marking this is as a break of a logical command buffer for render restart purposes
-				// This is necessary because we use command-buffer completion to emulate timer queries as Metal has no such API
-				Context->SubmitCommandsHint(EMetalSubmitFlagsCreateCommandBuffer|EMetalSubmitFlagsBreakCommandBuffer);
-			}
+			// Submit the current command buffer, marking this is as a break of a logical command buffer for render restart purposes
+			// This is necessary because we use command-buffer completion to emulate timer queries as Metal has no such API
+			Context->SubmitCommandsHint(EMetalSubmitFlagsCreateCommandBuffer|EMetalSubmitFlagsBreakCommandBuffer);
+
 			break;
 		}
 		default:

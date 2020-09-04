@@ -36,13 +36,13 @@ struct FHairStrandsVisibilityData
 
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeCounterTexture;
 	TRefCountPtr<IPooledRenderTarget> PPLLNodeIndexTexture;
-	TRefCountPtr<FPooledRDGBuffer>	  PPLLNodeDataBuffer;
+	TRefCountPtr<FRDGPooledBuffer>	  PPLLNodeDataBuffer;
 	uint32							  MaxPPLLNodePerPixelCount = 0;
 	uint32							  MaxPPLLNodeCount = 0;
 
 	TRefCountPtr<IPooledRenderTarget> TileIndexTexture;
-	TRefCountPtr<FPooledRDGBuffer>	  TileBuffer;
-	TRefCountPtr<FPooledRDGBuffer>	  TileIndirectArgs;
+	TRefCountPtr<FRDGPooledBuffer>	  TileBuffer;
+	TRefCountPtr<FRDGPooledBuffer>	  TileIndirectArgs;
 	const uint32					  TileSize = 8;
 	const uint32					  TileThreadGroupSize = 32;
 
@@ -50,11 +50,11 @@ struct FHairStrandsVisibilityData
 	uint32							  MaxNodeCount = 0;
 	TRefCountPtr<IPooledRenderTarget> NodeCount;
 	TRefCountPtr<IPooledRenderTarget> NodeIndex;
-	TRefCountPtr<FPooledRDGBuffer>	  NodeData;
+	TRefCountPtr<FRDGPooledBuffer>	  NodeData;
 	FShaderResourceViewRHIRef		  NodeDataSRV;
-	TRefCountPtr<FPooledRDGBuffer>	  NodeCoord;
+	TRefCountPtr<FRDGPooledBuffer>	  NodeCoord;
 	FShaderResourceViewRHIRef		  NodeCoordSRV;
-	TRefCountPtr<FPooledRDGBuffer>	  NodeIndirectArg;
+	TRefCountPtr<FRDGPooledBuffer>	  NodeIndirectArg;
 	uint32							  NodeGroupSize = 0;
 
 	// Hair lighting is accumulated within this buffer
@@ -72,7 +72,7 @@ struct FHairStrandsVisibilityViews
 };
 
 FHairStrandsVisibilityViews RenderHairStrandsVisibilityBuffer(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const class FScene* Scene,
 	const TArray<FViewInfo>& Views,
 	TRefCountPtr<IPooledRenderTarget> GBufferBTexture,

@@ -5,6 +5,10 @@
 #include "Modules/ModuleManager.h"
 #include "IInputDeviceModule.h"
 
+#include "WindowsMixedRealityHandTrackingTypes.h"
+
+enum class EControllerHand : uint8;
+
 /**
  * The public interface to this module.  In most cases, this interface is only public to sibling modules
  * within this plugin.
@@ -58,4 +62,7 @@ public:
 
 	virtual void AddLiveLinkSource() = 0;
 	virtual void RemoveLiveLinkSource() = 0;
+
+	virtual bool GetHandJointTransform(EControllerHand Hand, EWMRHandKeypoint Keypoint, FTransform& Transform, float& OutRadius) = 0;
+
 };

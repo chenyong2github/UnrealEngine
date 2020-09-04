@@ -457,7 +457,11 @@ void RadixSort_Spine(
 	// Acquire LocalRakingTotals.
 	GroupMemoryBarrierWithGroupSync();
 
-	uint DigitSum = LocalRakingTotals[RAKING_COUNTERS_PER_DIGIT * (ThreadId+1) - 1];
+	uint DigitSum = 0;
+	if(ThreadId < RAKING_THREAD_COUNT)
+	{
+		DigitSum = LocalRakingTotals[RAKING_COUNTERS_PER_DIGIT * (ThreadId+1) - 1];
+	}
 	LocalTotals[ThreadId + DIGIT_SCAN_PADDING] = DigitSum;
 
 	// Scan local totals.
@@ -468,6 +472,7 @@ void RadixSort_Spine(
 			// Acquire LocalTotals.
 			PPS_BARRIER();
 			DigitSum += LocalTotals[ThreadId + DIGIT_SCAN_PADDING - RakingOffset];
+			GroupMemoryBarrierWithGroupSync();
 			LocalTotals[ThreadId + DIGIT_SCAN_PADDING] = DigitSum;
 		}
 	}
@@ -629,7 +634,11 @@ void ScanKeys(
 	// Acquire LocalRakingTotals.
 	GroupMemoryBarrierWithGroupSync();
 
-	uint DigitSum = LocalRakingTotals[RAKING_COUNTERS_PER_DIGIT * (ThreadId+1) - 1];
+	uint DigitSum = 0;
+	if(ThreadId < RAKING_THREAD_COUNT)
+	{
+		DigitSum = LocalRakingTotals[RAKING_COUNTERS_PER_DIGIT * (ThreadId+1) - 1];
+	}
 	DigitTotalThisTile = DigitSum;
 	LocalTotals[ThreadId + DIGIT_SCAN_PADDING] = DigitSum;
 
@@ -640,6 +649,7 @@ void ScanKeys(
 		// Acquire LocalTotals.
 		PPS_BARRIER();
 		DigitSum += LocalTotals[ThreadId + DIGIT_SCAN_PADDING - RakingOffset];
+		GroupMemoryBarrierWithGroupSync();
 		LocalTotals[ThreadId + DIGIT_SCAN_PADDING] = DigitSum;
 	}
 

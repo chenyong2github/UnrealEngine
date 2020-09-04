@@ -122,13 +122,16 @@ private:
 			OutStdErr = &DefaultError;
 		}
 
-		FPlatformProcess::ExecProcess(*ADBPath, *CommandLine, &ReturnCode, OutStdOut, OutStdErr);
-
-		if (ReturnCode != 0)
+		if (FPaths::FileExists(*ADBPath))
 		{
-			FPlatformMisc::LowLevelOutputDebugStringf(TEXT("The Android SDK command '%s' failed to run. Return code: %d, Error: %s\n"), *CommandLine, ReturnCode, **OutStdErr);
+			FPlatformProcess::ExecProcess(*ADBPath, *CommandLine, &ReturnCode, OutStdOut, OutStdErr);
 
-			return false;
+			if (ReturnCode != 0)
+			{
+				FPlatformMisc::LowLevelOutputDebugStringf(TEXT("The Android SDK command '%s' failed to run. Return code: %d, Error: %s\n"), *CommandLine, ReturnCode, **OutStdErr);
+
+				return false;
+			}
 		}
 
 		return true;

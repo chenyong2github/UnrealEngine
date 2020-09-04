@@ -154,7 +154,7 @@ static void InternalUpdateMacroGroup(FHairStrandsMacroGroupData& MacroGroup, int
 }
 
 FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
-	FRHICommandListImmediate& RHICmdList,
+	FRDGBuilder& GraphBuilder,
 	const FScene* Scene,
 	const TArray<FViewInfo>& Views)
 {
@@ -222,10 +222,9 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 			if (MacroGroupCount > 0)
 			{
 				DECLARE_GPU_STAT(HairStrandsAABB);
-				SCOPED_DRAW_EVENT(RHICmdList, HairStrandsAABB);
-				SCOPED_GPU_STAT(RHICmdList, HairStrandsAABB);
+				RDG_EVENT_SCOPE(GraphBuilder, "HairStrandsAABB");
+				RDG_GPU_STAT_SCOPE(GraphBuilder, HairStrandsAABB);
 
-				FRDGBuilder GraphBuilder(RHICmdList);
 				FRDGBufferRef MacroGroupAABBBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(4, 6 * MacroGroupCount), TEXT("HairMacroGroupAABBBuffer"));
 				FRDGBufferUAVRef MacroGroupAABBBufferUAV = GraphBuilder.CreateUAV(MacroGroupAABBBuffer, PF_R32_SINT);
 				for (FHairStrandsMacroGroupData& MacroGroup : MacroGroups.Datas)
@@ -233,8 +232,7 @@ FHairStrandsMacroGroupViews CreateHairStrandsMacroGroups(
 					AddHairMacroGroupAABBPass(GraphBuilder, MacroGroup, MacroGroupAABBBufferUAV);
 				}
 				MacroGroups.MacroGroupResources.MacroGroupCount = MacroGroups.Datas.Num();
-				GraphBuilder.QueueBufferExtraction(MacroGroupAABBBuffer, &MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer, FRDGResourceState::EAccess::Read, FRDGResourceState::EPipeline::Compute);
-				GraphBuilder.Execute();
+				ConvertToExternalBuffer(GraphBuilder, MacroGroupAABBBuffer, MacroGroups.MacroGroupResources.MacroGroupAABBsBuffer);
 			}
 		}
 	}

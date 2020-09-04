@@ -233,9 +233,10 @@ void FRCPassPostProcessLpvIndirect::Process(FRenderingCompositePassContext& Cont
 		DoDirectionalOcclusionPass(Context);
 	}
 
-	FRHITexture* RenderTargets[2];
-	RenderTargets[0] = DestColorRenderTarget.TargetableTexture;
-	RenderTargets[1] = DestSpecularRenderTarget.TargetableTexture;
+	FRHITexture* RenderTargets[2] = {
+		DestColorRenderTarget.TargetableTexture,
+		DestSpecularRenderTarget.TargetableTexture
+	};
 
 	// Set the view family's render target/viewport.
 	// If specular not applied: set only color target
@@ -246,6 +247,7 @@ void FRCPassPostProcessLpvIndirect::Process(FRenderingCompositePassContext& Cont
 	}
 
 	FRHIRenderPassInfo RPInfo(NumRenderTargets, RenderTargets, ERenderTargetActions::Load_Store);
+	TransitionRenderPassTargets(Context.RHICmdList, RPInfo);
 
 	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("LPVIndirect"));
 	{
@@ -310,11 +312,16 @@ void FRCPassPostProcessLpvIndirect::Process(FRenderingCompositePassContext& Cont
 		}
 	}
 	Context.RHICmdList.EndRenderPass();
-	Context.RHICmdList.CopyToResolveTarget(DestColorRenderTarget.TargetableTexture, DestColorRenderTarget.ShaderResourceTexture, FResolveParams());
+
+	FResolveParams ResolveParams;
+	ResolveParams.SourceAccessFinal = ERHIAccess::RTV;
+	ResolveParams.DestAccessFinal = ERHIAccess::SRVMask;
+
+	Context.RHICmdList.CopyToResolveTarget(DestColorRenderTarget.TargetableTexture, DestColorRenderTarget.ShaderResourceTexture, ResolveParams);
 
 	if (bApplySeparateSpecularRT)
 	{
-		Context.RHICmdList.CopyToResolveTarget(DestSpecularRenderTarget.TargetableTexture, DestSpecularRenderTarget.ShaderResourceTexture, FResolveParams());
+		Context.RHICmdList.CopyToResolveTarget(DestSpecularRenderTarget.TargetableTexture, DestSpecularRenderTarget.ShaderResourceTexture, ResolveParams);
 	}
 
 	if ( LPVSettings.LPVDirectionalOcclusionIntensity > 0.0001f )

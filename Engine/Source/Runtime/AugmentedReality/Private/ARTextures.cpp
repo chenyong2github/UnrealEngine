@@ -10,11 +10,13 @@ UARTexture::UARTexture(const FObjectInitializer& ObjectInitializer)
 UARTextureCameraImage::UARTextureCameraImage(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	TextureType = EARTextureType::CameraImage;
 }
 
 UARTextureCameraDepth::UARTextureCameraDepth(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
+	TextureType = EARTextureType::CameraDepth;
 }
 
 UAREnvironmentCaptureProbeTexture::UAREnvironmentCaptureProbeTexture(const FObjectInitializer& ObjectInitializer)

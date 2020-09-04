@@ -437,7 +437,8 @@ void BuildMeshDrawCommandPrimitiveIdBuffer(
 				// First time state bucket setup
 				CurrentStateBucketId = VisibleMeshDrawCommand.StateBucketId;
 
-				if (VisibleMeshDrawCommand.MeshDrawCommand->PrimitiveIdStreamIndex >= 0
+				if (VisibleMeshDrawCommand.StateBucketId != INDEX_NONE
+					&& VisibleMeshDrawCommand.MeshDrawCommand->PrimitiveIdStreamIndex >= 0
 					&& VisibleMeshDrawCommand.MeshDrawCommand->NumInstances == 1
 					// Don't create a new FMeshDrawCommand for the last command and make it safe for us to look at the next command
 					&& DrawCommandIndex + 1 < NumDrawCommands

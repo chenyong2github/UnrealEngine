@@ -359,7 +359,8 @@ bool FMacPlatformProcess::ExecProcess( const TCHAR* URL, const TCHAR* Params, in
 		{
 			if (MultiPartArg.IsEmpty())
 			{
-				if ((ArgsArray[Index].StartsWith(TEXT("\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for a starting quote but no ending quote, excludes quoted single arguments
+				if ((ArgsArray[Index].StartsWith(TEXT("'")) && !ArgsArray[Index].EndsWith(TEXT("'"))) // check for a starting quote single but no ending single quote, excludes quoted single arguments
+					|| (ArgsArray[Index].StartsWith(TEXT("\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for a starting quote but no ending quote, excludes quoted single arguments
 					|| (ArgsArray[Index].Contains(TEXT("=\"")) && !ArgsArray[Index].EndsWith(TEXT("\""))) // check for quote after =, but no ending quote, this gets arguments of the type -blah="string string string"
 					|| ArgsArray[Index].EndsWith(TEXT("=\""))) // check for ending quote after =, this gets arguments of the type -blah=" string string string "
 				{
@@ -386,7 +387,15 @@ bool FMacPlatformProcess::ExecProcess( const TCHAR* URL, const TCHAR* Params, in
 			{
 				MultiPartArg += TEXT(" ");
 				MultiPartArg += ArgsArray[Index];
-				if (ArgsArray[Index].EndsWith(TEXT("\"")))
+				// deal with single quoted arguments, potentially with double quotes inside, common for things like sh -c 'blah < "path to/blah"'
+				if (ArgsArray[Index].EndsWith(TEXT("'")) && MultiPartArg.StartsWith(TEXT("'")))
+				{
+					NSString* Arg = (NSString*)FPlatformString::TCHARToCFString(*MultiPartArg.Mid(1, MultiPartArg.Len()-2));
+					[Arguments addObject : Arg];
+					CFRelease((CFStringRef)Arg);
+					MultiPartArg.Empty();
+				}
+				else if (ArgsArray[Index].EndsWith(TEXT("\"")))
 				{
 					NSString* Arg;
 					if (MultiPartArg.StartsWith(TEXT("\"")))

@@ -92,7 +92,7 @@ public:
 		}
 
 		FRHIResourceCreateInfo CreateInfo;
-		const uint32 CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
+		const ETextureCreateFlags CreateFlags = TexCreate_Dynamic | TexCreate_DisableSRVCreation;
 		DestinationTexture = RHICreateTexture2D(
 			Dim.X,
 			Dim.Y,

@@ -19,6 +19,7 @@ enum EMetalPipelineHashBits
 	NumBits_BlendState = 7, //(x8=56),
 	NumBits_PrimitiveTopology = 2, //(x1=2)
 	NumBits_IndexType = 2, //(x1=2)
+	NumBits_AlphaToCoverage = 1, //(x1=1)
 };
 
 enum EMetalPipelineHashOffsets
@@ -46,7 +47,8 @@ enum EMetalPipelineHashOffsets
 	Offset_DepthFormat = Offset_RenderTargetFormat7 + NumBits_RenderTargetFormat,
 	Offset_StencilFormat = Offset_DepthFormat + NumBits_DepthFormat,
 	Offset_SampleCount = Offset_StencilFormat + NumBits_StencilFormat,
-	Offset_End = Offset_SampleCount + NumBits_SampleCount
+	Offset_AlphaToCoverage = Offset_SampleCount + NumBits_SampleCount,
+	Offset_End = Offset_AlphaToCoverage + NumBits_AlphaToCoverage
 };
 
 class FMetalPipelineStateCacheManager

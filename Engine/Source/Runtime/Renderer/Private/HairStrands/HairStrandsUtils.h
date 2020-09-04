@@ -11,6 +11,8 @@
 #include "HairStrandsInterface.h"
 #include "SceneTypes.h"
 
+class FViewInfo;
+
 FIntRect ComputeProjectedScreenRect(const FBox& B, const FViewInfo& View);
 
 void ComputeWorldToLightClip(

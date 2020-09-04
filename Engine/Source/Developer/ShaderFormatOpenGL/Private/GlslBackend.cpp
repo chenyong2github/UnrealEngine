@@ -587,7 +587,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 	int loop_count;
 
 	/** Whether the shader being cross compiled needs EXT_shader_texture_lod. */
-	bool bUsesES2TextureLODExtension;
+	bool bUsesGLTextureLODExtension;
 
 	/** Whether the shader being cross compiled needs GL_EXT_texture_buffer. */
 	bool bUsesTextureBuffer;
@@ -1194,7 +1194,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 				if (bGenerateLayoutLocations && var->explicit_location)
 				{
 					check(layout_bits == 0);
-					layout = ralloc_asprintf(nullptr, "INTERFACE_LOCATION(%d) ", var->location);
+					layout = ralloc_asprintf(nullptr, "layout(location=%d) ", var->location);
 				}
 
 				const bool bOverrideFBFOutputVarStorageQualifier = bIsES31 && bUsesFrameBufferFetch && var->name && (strncmp(var->name, "out_Target0", 11) == 0);
@@ -1460,7 +1460,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 		if (bIsES && op == ir_txl && ShaderTarget == fragment_shader)
 		{
 			// See http://www.khronos.org/registry/gles/extensions/EXT/EXT_shader_texture_lod.txt
-			bUsesES2TextureLODExtension = true;
+			bUsesGLTextureLODExtension = true;
 			bEmitEXT = true;
 		}
 
@@ -1934,7 +1934,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 			}
 		}
 		else if (constant->type->base_type == GLSL_TYPE_INT
-			// print literal uints as ints for ES2.
+			// print literal uints as ints.
 			|| (bIsES && !bIsES31 && !bIsWebGL && constant->type->base_type == GLSL_TYPE_UINT)
 			)
 		{
@@ -3115,7 +3115,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 			ralloc_asprintf_append(buffer, "// Uses samplerExternalOES\n");
 		}
 
-		if (bUsesES2TextureLODExtension)
+		if (bUsesGLTextureLODExtension)
 		{
 			ralloc_asprintf_append(buffer, "#ifndef DONTEMITEXTENSIONSHADERTEXTURELODENABLE\n");
 			ralloc_asprintf_append(buffer, "#extension GL_EXT_shader_texture_lod : enable\n");
@@ -3200,7 +3200,7 @@ class ir_gen_glsl_visitor : public ir_visitor
 
 			if (bUsesTextureBuffer)
 			{
-				// Not supported by ES2 and ES3.1 spec, but many phones support this extension
+				// Not supported by ES3.1 spec, but many phones support this extension
 				// GPU particles require this
 				// App shall not use a shader if this extension is not supported on device
 				ralloc_asprintf_append(buffer, "\n#ifdef GL_EXT_texture_buffer\n");
@@ -3234,7 +3234,7 @@ public:
 		, needs_semicolon(false)
 		, should_print_uint_literals_as_ints(false)
 		, loop_count(0)
-		, bUsesES2TextureLODExtension(false)
+		, bUsesGLTextureLODExtension(false)
 		, bUsesTextureBuffer(false)
 		, bUseImageAtomic(false)
 		, bUsesDXDY(false)
@@ -3277,7 +3277,7 @@ public:
 			// always use highp for integers as shaders use them as bit storage
 			ralloc_asprintf_append(&default_precision_buffer, "precision %s int;\n", "highp");
 
-			if (bIsES) // ES2 workarounds
+			if (bIsES) // ES workarounds
 			{
 				ralloc_asprintf_append(buffer, "\n#ifndef DONTEMITSAMPLERDEFAULTPRECISION\n"); 
 				ralloc_asprintf_append(buffer, "precision %s sampler2D;\n", DefaultPrecision);
@@ -3354,7 +3354,7 @@ bool compiler_internal_AdjustIsFrontFacing(bool isFrontFacing)
 				ralloc_asprintf_append(buffer, "	vec4 FramebufferFetchES2() { return vec4(0.0, 0.0, 0.0, 0.0); }\n");
 				ralloc_asprintf_append(buffer, "#endif\n\n");
 			}
-			else // ES3, ES2
+			else // ES3
 			{
 				ralloc_asprintf_append(buffer, "\n#ifdef UE_EXT_shader_framebuffer_fetch\n");
 				ralloc_asprintf_append(buffer, "	#if (__VERSION__ >= 300)\n");
@@ -3671,18 +3671,18 @@ struct SPromoteSampleLevel : public ir_hierarchical_visitor
 
 
 // Converts an array index expression using an integer input attribute, to a float input attribute using a conversion to int
-struct SConvertIntVertexAttributeES2 final : public ir_hierarchical_visitor
+struct SConvertIntVertexAttributeES final : public ir_hierarchical_visitor
 {
 	_mesa_glsl_parse_state* ParseState;
 	exec_list* FunctionBody;
 	int InsideArrayDeref;
 	std::map<ir_variable*, ir_variable*> ConvertedVarMap;
 
-	SConvertIntVertexAttributeES2(_mesa_glsl_parse_state* InParseState, exec_list* InFunctionBody) : ParseState(InParseState), FunctionBody(InFunctionBody), InsideArrayDeref(0)
+	SConvertIntVertexAttributeES(_mesa_glsl_parse_state* InParseState, exec_list* InFunctionBody) : ParseState(InParseState), FunctionBody(InFunctionBody), InsideArrayDeref(0)
 	{
 	}
 
-	virtual ~SConvertIntVertexAttributeES2()
+	virtual ~SConvertIntVertexAttributeES()
 	{
 	}
 
@@ -3764,7 +3764,7 @@ bool FGlslCodeBackend::ApplyAndVerifyPlatformRestrictions(exec_list* Instruction
 		// Handle integer vertex attributes used as array indices
 		if (bIsVertexShader)
 		{
-			SConvertIntVertexAttributeES2 ConvertIntVertexAttributeVisitor(ParseState, Instructions);
+			SConvertIntVertexAttributeES ConvertIntVertexAttributeVisitor(ParseState, Instructions);
 			ConvertIntVertexAttributeVisitor.run(Instructions);
 		}
 	}

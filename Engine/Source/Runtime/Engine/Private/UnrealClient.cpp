@@ -1215,7 +1215,7 @@ bool FViewport::TakeHighResScreenShot()
 		Info.bUseLargeFont = false;
 		FSlateNotificationManager::Get().AddNotification(Info); 
 
-		UE_LOG(LogClient, Warning, TEXT("The specified multiplier for high resolution screenshot is too large for your system! Please try again with a smaller value."));
+		UE_LOG(LogClient, Warning, TEXT("The specified multiplier for high resolution screenshot is too large for your system (requested size %ux%u, max size %ux%u)! Please try again with a smaller value."), GScreenshotResolutionX, GScreenshotResolutionY, MaxTextureDimension, MaxTextureDimension);
 
 		GIsHighResScreenshot = false;
 		return false;
@@ -1654,7 +1654,9 @@ const TArray<FColor>& FViewport::GetRawHitProxyData(FIntRect InRect)
 			{
 				// Set the hit proxy map's render target.
 				// Clear the hit proxy map to white, which is overloaded to mean no hit proxy.
-				FRHIRenderPassInfo RPInfo(Viewport->HitProxyMap.GetRenderTargetTexture(), ERenderTargetActions::Clear_Store);
+				FRHITexture* RenderTarget = Viewport->HitProxyMap.GetRenderTargetTexture();
+				RHICmdList.Transition(FRHITransitionInfo(RenderTarget, ERHIAccess::Unknown, ERHIAccess::RTV));
+				FRHIRenderPassInfo RPInfo(RenderTarget, ERenderTargetActions::Clear_Store);
 				RHICmdList.BeginRenderPass(RPInfo, TEXT("ClearHitProxyMap"));
 				RHICmdList.EndRenderPass();
 			});

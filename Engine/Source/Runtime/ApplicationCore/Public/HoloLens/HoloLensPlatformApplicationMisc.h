@@ -19,6 +19,14 @@ struct APPLICATIONCORE_API FHoloLensPlatformApplicationMisc : public FGenericPla
 		// Also note comments in FDisplayMetrics::GetDisplayMetrics for HoloLens.
 		return true;
 	}
+	
+	static bool RequiresVirtualKeyboard()
+	{
+#if PLATFORM_HOLOLENS
+		return true;
+#endif
+		return false;
+	}
 };
 
 typedef FHoloLensPlatformApplicationMisc FPlatformApplicationMisc;

@@ -35,6 +35,9 @@ struct FVisualizeGBufferOverviewInputs
 	// The original scene velocity texture to composite.
 	FScreenPassTexture Velocity;
 
+	/** The uniform buffer containing all scene textures. */
+	FSceneTextureShaderParameters SceneTextures;
+
 	// Dump targets to files on disk.
 	bool bDumpToFile = false;
 

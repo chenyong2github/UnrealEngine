@@ -138,9 +138,6 @@ struct CORE_API FMapErrors
 	/** Component is a static type but has invalid lightmap settings!  Indirect lighting will be black.  Common causes are lightmap resolution of 0, LightmapCoordinateIndex out of bounds. */
 	static FLazyName StaticComponentHasInvalidLightmapSettings;
 
-	/** Anisotropic BRDF and output velocity during base pass are mutually exclusive options */
-	static FLazyName AnisotropicBRDF_or_BasePassVelocity;
-
 	/** Navigation */
 
 	/** Paths need to be rebuilt: **TODO** */

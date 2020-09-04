@@ -13,42 +13,20 @@ bool IsMobileSeparateTranslucencyActive(const FViewInfo& View)
 	return View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyAfterDOF].HasAnyDraw();
 }
 
-void FRCSeparateTranslucensyPassES2::Process(FRenderingCompositePassContext& Context)
+void AddMobileSeparateTranslucencyPass(FRDGBuilder& GraphBuilder, const FViewInfo& View, const FMobileSeparateTranslucencyInputs& Inputs)
 {
-	SCOPED_DRAW_EVENT(Context.RHICmdList, SeparateTranslucensyPass);
+	FRenderTargetParameters* PassParameters = GraphBuilder.AllocParameters<FRenderTargetParameters>();
+	PassParameters->RenderTargets[0] = FRenderTargetBinding(Inputs.SceneColor.Texture, ERenderTargetLoadAction::ELoad);
+	PassParameters->RenderTargets.DepthStencil = FDepthStencilBinding(Inputs.SceneDepth.Texture, ERenderTargetLoadAction::ELoad, ERenderTargetLoadAction::ELoad, FExclusiveDepthStencil::DepthRead_StencilRead);
 
-	const FViewInfo& View = Context.View;
-
-	FSceneRenderTargets& SceneTargets = FSceneRenderTargets::Get(Context.RHICmdList);
-	const FSceneRenderTargetItem& DestRenderTarget = GetOutput(ePId_Output0)->RequestSurface(Context);
-		
-	FRHIRenderPassInfo RPInfo(DestRenderTarget.TargetableTexture, ERenderTargetActions::Load_Store);
-	RPInfo.DepthStencilRenderTarget.Action = EDepthStencilTargetActions::LoadDepthStencil_StoreDepthStencil;
-	RPInfo.DepthStencilRenderTarget.DepthStencilTarget = SceneTargets.GetSceneDepthSurface();
-	RPInfo.DepthStencilRenderTarget.ExclusiveDepthStencil = FExclusiveDepthStencil::DepthRead_StencilRead;
-	Context.RHICmdList.BeginRenderPass(RPInfo, TEXT("SeparateTranslucency"));
+	GraphBuilder.AddPass(
+		RDG_EVENT_NAME("SeparateTranslucency %dx%d", View.ViewRect.Width(), View.ViewRect.Height()),
+		PassParameters,
+		ERDGPassFlags::Raster,
+		[&View](FRHICommandList& RHICmdList)
 	{
 		// Set the view family's render target/viewport.
-		Context.SetViewportAndCallRHI(View.ViewRect);
-		View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyAfterDOF].DispatchDraw(nullptr, Context.RHICmdList);
-	}
-	Context.RHICmdList.EndRenderPass();
-}
-
-FRenderingCompositeOutput* FRCSeparateTranslucensyPassES2::GetOutput(EPassOutputId InPassOutputId)
-{
-	// draw on top of input (scenecolor)
-	if (InPassOutputId == ePId_Output0)
-	{
-		return GetInput(EPassInputId::ePId_Input0)->GetOutput();
-	}
-
-	return nullptr;
-}
-
-FPooledRenderTargetDesc FRCSeparateTranslucensyPassES2::ComputeOutputDesc(EPassOutputId InPassOutputId) const
-{
-	FPooledRenderTargetDesc Ret = GetInput(ePId_Input0)->GetOutput()->RenderTargetDesc;
-	Ret.DebugName = TEXT("SeparateTranslucensyPassES2");
-	return Ret;
+		RHICmdList.SetViewport(View.ViewRect.Min.X, View.ViewRect.Min.Y, 0.0f, View.ViewRect.Max.X, View.ViewRect.Max.Y, 1.0f);
+		View.ParallelMeshDrawCommandPasses[EMeshPass::TranslucencyAfterDOF].DispatchDraw(nullptr, RHICmdList);
+	});
 }

@@ -15,7 +15,6 @@
 #include "RenderingThread.h"
 #include "RHI.h"
 #include "RHIResources.h"
-#include "MagicLeapPluginUtil.h" // for ML_INCLUDES_START/END
 
 class FMediaSamples;
 class IMediaEventSink;

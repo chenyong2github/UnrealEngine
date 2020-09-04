@@ -27,41 +27,33 @@ template class TRenderAssetUpdate<FStaticMeshUpdateContext>;
 static constexpr uint32 GStaticMeshMaxNumResourceUpdatesPerLOD = 14;
 static constexpr uint32 GStaticMeshMaxNumResourceUpdatesPerBatch = (MAX_STATIC_MESH_LODS - 1) * GStaticMeshMaxNumResourceUpdatesPerLOD;
 
-FStaticMeshUpdateContext::FStaticMeshUpdateContext(UStaticMesh* InMesh, EThreadType InCurrentThread)
+FStaticMeshUpdateContext::FStaticMeshUpdateContext(const UStaticMesh* InMesh, EThreadType InCurrentThread)
 	: Mesh(InMesh)
 	, CurrentThread(InCurrentThread)
 {
 	check(InMesh);
 	checkSlow(InCurrentThread != FStaticMeshUpdate::TT_Render || IsInRenderingThread());
 	RenderData = Mesh->RenderData.Get();
+	if (RenderData)
+	{
+		LODResourcesView = TArrayView<FStaticMeshLODResources*>(RenderData->LODResources.GetData() + InMesh->GetStreamableResourceState().AssetLODBias, InMesh->GetStreamableResourceState().MaxNumLODs);
+	}
 }
 
-FStaticMeshUpdateContext::FStaticMeshUpdateContext(UStreamableRenderAsset* InMesh, EThreadType InCurrentThread)
+FStaticMeshUpdateContext::FStaticMeshUpdateContext(const UStreamableRenderAsset* InMesh, EThreadType InCurrentThread)
 #if UE_BUILD_SHIPPING
-	: FStaticMeshUpdateContext(static_cast<UStaticMesh*>(InMesh), InCurrentThread)
+	: FStaticMeshUpdateContext(static_cast<const UStaticMesh*>(InMesh), InCurrentThread)
 #else
 	: FStaticMeshUpdateContext(Cast<UStaticMesh>(InMesh), InCurrentThread)
 #endif
 {}
 
-FStaticMeshUpdate::FStaticMeshUpdate(UStaticMesh* InMesh, int32 InRequestedMips)
-	: TRenderAssetUpdate<FStaticMeshUpdateContext>(InMesh, InRequestedMips)
+FStaticMeshUpdate::FStaticMeshUpdate(const UStaticMesh* InMesh)
+	: TRenderAssetUpdate<FStaticMeshUpdateContext>(InMesh)
 {
-	if (InMesh->RenderData)
-	{
-		CurrentFirstLODIdx = InMesh->RenderData->CurrentFirstLODIdx;
-		check(CurrentFirstLODIdx >= 0 && CurrentFirstLODIdx < MAX_MESH_LOD_COUNT);
-	}
-	else
-	{
-		RequestedMips = INDEX_NONE;
-		PendingFirstMip = INDEX_NONE;
-		bIsCancelled = true;
-		CurrentFirstLODIdx = INDEX_NONE;
-	}
 }
 
-void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(UStaticMesh* Mesh, FStaticMeshLODResources& LODResource)
+void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(FStaticMeshLODResources& LODResource)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.VertexBuffers;
 	TangentsVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTangentsRHIBuffer_RenderThread();
@@ -81,7 +73,7 @@ void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_RenderThread(U
 	}
 }
 
-void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_Async(UStaticMesh* Mesh, FStaticMeshLODResources& LODResource)
+void FStaticMeshStreamIn::FIntermediateBuffers::CreateFromCPUData_Async(FStaticMeshLODResources& LODResource)
 {
 	FStaticMeshVertexBuffers& VBs = LODResource.VertexBuffers;
 	TangentsVertexBuffer = VBs.StaticMeshVertexBuffer.CreateTangentsRHIBuffer_Async();
@@ -148,8 +140,8 @@ void FStaticMeshStreamIn::FIntermediateBuffers::CheckIsNull() const
 		&& !AdjacencyIndexBuffer);
 }
 
-FStaticMeshStreamIn::FStaticMeshStreamIn(UStaticMesh* InMesh, int32 InRequestedMips)
-	: FStaticMeshUpdate(InMesh, InRequestedMips)
+FStaticMeshStreamIn::FStaticMeshStreamIn(const UStaticMesh* InMesh)
+	: FStaticMeshUpdate(InMesh)
 {}
 
 FStaticMeshStreamIn::~FStaticMeshStreamIn()
@@ -167,22 +159,19 @@ void FStaticMeshStreamIn::CreateBuffers_Internal(const FContext& Context)
 {
 	LLM_SCOPE(ELLMTag::StaticMesh);
 	
-	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (!IsCancelled() && Mesh && RenderData)
+	if (!IsCancelled() && RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip < CurrentFirstLODIdx);
-
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
-			FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
+			FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 			if (bRenderThread)
 			{
-				IntermediateBuffersArray[LODIdx].CreateFromCPUData_RenderThread(Mesh, LODResource);
+				IntermediateBuffersArray[LODIdx].CreateFromCPUData_RenderThread(LODResource);
 			}
 			else
 			{
-				IntermediateBuffersArray[LODIdx].CreateFromCPUData_Async(Mesh, LODResource);
+				IntermediateBuffersArray[LODIdx].CreateFromCPUData_Async(LODResource);
 			}
 		}
 	}
@@ -205,11 +194,9 @@ void FStaticMeshStreamIn::DiscardNewLODs(const FContext& Context)
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (RenderData)
 	{
-		check(CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx && PendingFirstMip < CurrentFirstLODIdx);
-
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
-			FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
+			FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 			LODResource.DiscardCPUData();
 		}
 	}
@@ -217,20 +204,17 @@ void FStaticMeshStreamIn::DiscardNewLODs(const FContext& Context)
 
 void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 {
-	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (!IsCancelled() && Mesh && RenderData)
+	if (!IsCancelled() && RenderData)
 	{
-		check(Context.CurrentThread == TT_Render
-			&& CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx
-			&& PendingFirstMip < CurrentFirstLODIdx);
+		check(Context.CurrentThread == TT_Render);
 		// Use a scope to flush the batcher before updating CurrentFirstLODIdx
 		{
 			TRHIResourceUpdateBatcher<GStaticMeshMaxNumResourceUpdatesPerBatch> Batcher;
 
-			for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+			for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 			{
-				FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
+				FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 				LODResource.IncrementMemoryStats();
 				IntermediateBuffersArray[LODIdx].TransferBuffers(LODResource, Batcher);
 			}
@@ -240,24 +224,21 @@ void FStaticMeshStreamIn::DoFinishUpdate(const FContext& Context)
 		// Must happen after the batched updates have been flushed
 		if (IsRayTracingEnabled())
 		{
-			for (int32 LODIndex = PendingFirstMip; LODIndex < CurrentFirstLODIdx; ++LODIndex)
+			for (int32 LODIndex = PendingFirstLODIdx; LODIndex < CurrentFirstLODIdx; ++LODIndex)
 			{
 				// Skip LODs that have their render data stripped
-				if (RenderData->LODResources[LODIndex].VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
+				if (Context.LODResourcesView[LODIndex]->VertexBuffers.StaticMeshVertexBuffer.GetNumVertices() > 0)
 				{
-					RenderData->LODResources[LODIndex].RayTracingGeometry.InitResource();
+					Context.LODResourcesView[LODIndex]->RayTracingGeometry.InitResource();
 				}
 			}
 		}
 #endif
-
-		check(Mesh->GetCachedNumResidentLODs() == RenderData->LODResources.Num() - RenderData->CurrentFirstLODIdx);
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
+		RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
 	}
 	else
 	{
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
 			IntermediateBuffersArray[LODIdx].SafeRelease();
 		}
@@ -274,19 +255,17 @@ void FStaticMeshStreamIn::DoCancel(const FContext& Context)
 	DoFinishUpdate(Context);
 }
 
-FStaticMeshStreamOut::FStaticMeshStreamOut(UStaticMesh* InMesh, int32 InRequestedMips, bool InDiscardCPUData)
-	: FStaticMeshUpdate(InMesh, InRequestedMips)
+FStaticMeshStreamOut::FStaticMeshStreamOut(const UStaticMesh* InMesh, bool InDiscardCPUData)
+	: FStaticMeshUpdate(InMesh)
 	, bDiscardCPUData(InDiscardCPUData)
 {
 	check(InMesh);
 
-	// Immediately change CurrentFirstLOdIdx to prevent new references from being made to streamed out lods.
+	// Immediately change CurrentFirstLODIdx to prevent new references from being made to the streamed out lods.
 	FStaticMeshRenderData* RenderData = InMesh->RenderData.Get();
 	if (RenderData)
 	{
-		InitialFirstLOD = RenderData->CurrentFirstLODIdx;
-		RenderData->CurrentFirstLODIdx = PendingFirstMip;
-		InMesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - PendingFirstMip));
+		RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumRequestedLODs);
 	}
 
 	if (InDiscardCPUData)
@@ -304,16 +283,16 @@ void FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData(const FContext& Cont
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData"), STAT_StaticMeshStreamOut_CheckReferencesAndDiscardCPUData, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
 
-	UStaticMesh* Mesh = Context.Mesh;
+	const UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	uint32 NumExternalReferences = 0;
 
 	if (Mesh && RenderData)
 	{
-		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstLODIdx; ++LODIdx)
 		{
 			// Minus 1 since the LODResources reference is not considered external
-			NumExternalReferences += RenderData->LODResources[LODIdx].GetRefCount() - 1;
+			NumExternalReferences += Context.LODResourcesView[LODIdx]->GetRefCount() - 1;
 		}
 
 		if (NumExternalReferences > PreviousNumberOfExternalReferences && NumReferenceChecks > 0)
@@ -327,9 +306,9 @@ void FStaticMeshStreamOut::CheckReferencesAndDiscardCPUData(const FContext& Cont
 	{
 		if (RenderData)
 		{
-			for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+			for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstLODIdx; ++LODIdx)
 			{
-				RenderData->LODResources[LODIdx].DiscardCPUData();
+				Context.LODResourcesView[LODIdx]->DiscardCPUData();
 			}
 		}
 
@@ -354,14 +333,13 @@ void FStaticMeshStreamOut::ReleaseRHIBuffers(const FContext& Context)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshStreamOut::ReleaseRHIBuffers"), STAT_StaticMeshStreamOut_ReleaseRHIBuffers, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Render);
 
-	UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (Mesh && RenderData)
+	if (RenderData)
 	{
 		TRHIResourceUpdateBatcher<GStaticMeshMaxNumResourceUpdatesPerBatch> Batcher;
-		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstMip; ++LODIdx)
+		for (int32 LODIdx = CurrentFirstLODIdx; LODIdx < PendingFirstLODIdx; ++LODIdx)
 		{
-			FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
+			FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 			LODResource.DecrementMemoryStats();
 			LODResource.ReleaseRHIForStreaming(Batcher);
 			
@@ -380,14 +358,10 @@ void FStaticMeshStreamOut::Cancel(const FContext& Context)
 	DECLARE_SCOPE_CYCLE_COUNTER(TEXT("FStaticMeshStreamOut::Cancel"), STAT_StaticMeshStreamOut_Cancel, STATGROUP_StreamingDetails);
 	check(Context.CurrentThread == TT_Async);
 
-	UStaticMesh* Mesh = Context.Mesh;
-	FStaticMeshRenderData* RenderData = Context.RenderData;
-	if (Mesh && RenderData)
+	if (Context.RenderData)
 	{
-		RenderData->CurrentFirstLODIdx = InitialFirstLOD;
-		Mesh->SetCachedNumResidentLODs(static_cast<uint8>(RenderData->LODResources.Num() - InitialFirstLOD));
+		Context.RenderData->CurrentFirstLODIdx = ResourceState.LODCountToAssetFirstLODIdx(ResourceState.NumResidentLODs);
 	}
-
 }
 
 void FStaticMeshStreamIn_IO::FCancelIORequestsTask::DoWork()
@@ -400,8 +374,8 @@ void FStaticMeshStreamIn_IO::FCancelIORequestsTask::DoWork()
 	PendingUpdate->DoUnlock(PreviousTaskState);
 }
 
-FStaticMeshStreamIn_IO::FStaticMeshStreamIn_IO(UStaticMesh* InMesh, int32 InRequestedMips, bool bHighPrio)
-	: FStaticMeshStreamIn(InMesh, InRequestedMips)
+FStaticMeshStreamIn_IO::FStaticMeshStreamIn_IO(const UStaticMesh* InMesh, bool bHighPrio)
+	: FStaticMeshStreamIn(InMesh)
 	, IORequest(nullptr)
 	, bHighPrioIORequest(bHighPrio)
 {}
@@ -459,23 +433,23 @@ void FStaticMeshStreamIn_IO::SetIORequest(const FContext& Context)
 		return;
 	}
 
-	check(!IORequest && PendingFirstMip < CurrentFirstLODIdx);
+	check(!IORequest && PendingFirstLODIdx < CurrentFirstLODIdx);
 
-	UStaticMesh* Mesh = Context.Mesh;
+	const UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (Mesh && RenderData)
 	{
 #if USE_BULKDATA_STREAMING_TOKEN
 		FString Filename;
-		verify(Mesh->GetMipDataFilename(PendingFirstMip, Filename));
+		verify(Mesh->GetMipDataFilename(PendingFirstLODIdx, Filename));
 #endif	
 
 		SetAsyncFileCallback(Context);
 
 		FBulkDataInterface::BulkDataRangeArray BulkDataArray;
-		for (int32 Index = PendingFirstMip; Index < CurrentFirstLODIdx; ++Index)
+		for (int32 Index = PendingFirstLODIdx; Index < CurrentFirstLODIdx; ++Index)
 		{
-			BulkDataArray.Push(&RenderData->LODResources[Index].StreamingBulkData);
+			BulkDataArray.Push(&Context.LODResourcesView[Index]->StreamingBulkData);
 		}
 
 		// Increment as we push the request. If a request complete immediately, then it will call the callback
@@ -520,7 +494,7 @@ void FStaticMeshStreamIn_IO::ReportIOError(const FContext& Context)
 			StreamingManager.MarkMountedStateDirty(Context.Mesh->GetMipIoFilenameHash(MipIndex));
 		}
 
-		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] Stream in request failed due to IO error."), *Context.Mesh->GetName());
+		UE_LOG(LogContentStreaming, Warning, TEXT("[%s] StaticMesh stream in request failed due to IO error (LOD %d-%d)."), *Context.Mesh->GetName(), PendingFirstLODIdx, CurrentFirstLODIdx - 1);
 	}
 }
 
@@ -529,22 +503,21 @@ void FStaticMeshStreamIn_IO::SerializeLODData(const FContext& Context)
 	LLM_SCOPE(ELLMTag::StaticMesh);
 
 	check(!TaskSynchronization.GetValue());
-	UStaticMesh* Mesh = Context.Mesh;
+	const UStaticMesh* Mesh = Context.Mesh;
 	FStaticMeshRenderData* RenderData = Context.RenderData;
 	if (!IsCancelled() && Mesh && RenderData)
 	{
-		check(PendingFirstMip < CurrentFirstLODIdx && CurrentFirstLODIdx == RenderData->CurrentFirstLODIdx);
 		check(IORequest->GetSize() >= 0 && IORequest->GetSize() <= TNumericLimits<uint32>::Max());
 
 		TArrayView<uint8> Data(IORequest->GetReadResults(), IORequest->GetSize());
 
 		FMemoryReaderView Ar(Data, true);
-		for (int32 LODIdx = PendingFirstMip; LODIdx < CurrentFirstLODIdx; ++LODIdx)
+		for (int32 LODIdx = PendingFirstLODIdx; LODIdx < CurrentFirstLODIdx; ++LODIdx)
 		{
-			FStaticMeshLODResources& LODResource = RenderData->LODResources[LODIdx];
+			FStaticMeshLODResources& LODResource = *Context.LODResourcesView[LODIdx];
 			constexpr uint8 DummyStripFlags = 0;
 			typename FStaticMeshLODResources::FStaticMeshBuffersSize DummyBuffersSize;
-			LODResource.SerializeBuffers(Ar, Mesh, DummyStripFlags, DummyBuffersSize);
+			LODResource.SerializeBuffers(Ar, const_cast<UStaticMesh*>(Mesh), DummyStripFlags, DummyBuffersSize);
 			check(DummyBuffersSize.CalcBuffersSize() == LODResource.BuffersSize);
 		}
 		
@@ -568,8 +541,8 @@ void FStaticMeshStreamIn_IO::CancelIORequest()
 }
 
 template <bool bRenderThread>
-TStaticMeshStreamIn_IO<bRenderThread>::TStaticMeshStreamIn_IO(UStaticMesh* InMesh, int32 InRequestedMips, bool bHighPrio)
-	: FStaticMeshStreamIn_IO(InMesh, InRequestedMips, bHighPrio)
+TStaticMeshStreamIn_IO<bRenderThread>::TStaticMeshStreamIn_IO(const UStaticMesh* InMesh, bool bHighPrio)
+	: FStaticMeshStreamIn_IO(InMesh, bHighPrio)
 {
 	PushTask(FContext(InMesh, TT_None), TT_Async, SRA_UPDATE_CALLBACK(DoInitiateIO), TT_None, nullptr);
 }
@@ -625,9 +598,8 @@ template class TStaticMeshStreamIn_IO<true>;
 template class TStaticMeshStreamIn_IO<false>;
 
 #if WITH_EDITOR
-FStaticMeshStreamIn_DDC::FStaticMeshStreamIn_DDC(UStaticMesh* InMesh, int32 InRequestedMips)
-	: FStaticMeshStreamIn(InMesh, InRequestedMips)
-	, bDerivedDataInvalid(false)
+FStaticMeshStreamIn_DDC::FStaticMeshStreamIn_DDC(const UStaticMesh* InMesh)
+	: FStaticMeshStreamIn(InMesh)
 {}
 
 void FStaticMeshStreamIn_DDC::LoadNewLODsFromDDC(const FContext& Context)
@@ -637,8 +609,8 @@ void FStaticMeshStreamIn_DDC::LoadNewLODsFromDDC(const FContext& Context)
 }
 
 template <bool bRenderThread>
-TStaticMeshStreamIn_DDC<bRenderThread>::TStaticMeshStreamIn_DDC(UStaticMesh* InMesh, int32 InRequestedMips)
-	: FStaticMeshStreamIn_DDC(InMesh, InRequestedMips)
+TStaticMeshStreamIn_DDC<bRenderThread>::TStaticMeshStreamIn_DDC(const UStaticMesh* InMesh)
+	: FStaticMeshStreamIn_DDC(InMesh)
 {
 	PushTask(FContext(InMesh, TT_None), TT_Async, SRA_UPDATE_CALLBACK(DoLoadNewLODsFromDDC), TT_None, nullptr);
 }

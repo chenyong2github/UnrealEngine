@@ -337,7 +337,6 @@ ir_expression::ir_expression(int op, ir_rvalue* op0)
 	case ir_unop_u2i:
 	case ir_unop_h2i:
 	case ir_unop_fasi:
-	case ir_unop_bitcount:
 	case ir_unop_msb:
 	case ir_unop_lsb:
 		this->type = glsl_type::get_instance(GLSL_TYPE_INT,
@@ -375,6 +374,7 @@ ir_expression::ir_expression(int op, ir_rvalue* op0)
 	case ir_unop_h2u:
 	case ir_unop_b2u:
 	case ir_unop_fasu:
+	case ir_unop_bitcount:
 		this->type = glsl_type::get_instance(GLSL_TYPE_UINT,
 			op0->type->vector_elements, 1);
 		break;

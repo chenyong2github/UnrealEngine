@@ -55,6 +55,7 @@ DEFINE_STAT(STAT_LightingDrawTime);
 DEFINE_STAT(STAT_DynamicPrimitiveDrawTime);
 DEFINE_STAT(STAT_StaticDrawListDrawTime);
 DEFINE_STAT(STAT_BasePassDrawTime);
+DEFINE_STAT(STAT_AnisotropyPassDrawTime);
 DEFINE_STAT(STAT_DepthDrawTime);
 DEFINE_STAT(STAT_WaterPassDrawTime);
 DEFINE_STAT(STAT_DynamicShadowSetupTime);

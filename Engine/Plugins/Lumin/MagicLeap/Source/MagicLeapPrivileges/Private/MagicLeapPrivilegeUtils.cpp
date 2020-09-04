@@ -48,6 +48,7 @@ namespace MagicLeap
 			PRIVCASE(HandMesh)
 			PRIVCASE(WifiStatusRead)
 			PRIVCASE(SocialConnectionsInvitesAccess)
+			PRIVCASE(SecureBrowserWindow)
 		default:
 			UE_LOG(LogMagicLeapPrivileges, Error, TEXT("Unmapped privilege %d"), static_cast<int32>(Privilege));
 			break;
@@ -97,6 +98,7 @@ namespace MagicLeap
 		PRIV_TO_STR_CASE(MLPrivilegeID_HandMesh)
 		PRIV_TO_STR_CASE(MLPrivilegeID_WifiStatusRead)
 		PRIV_TO_STR_CASE(MLPrivilegeID_SocialConnectionsInvitesAccess)
+		PRIV_TO_STR_CASE(MLPrivilegeID_SecureBrowserWindow)
 		default:
 			UE_LOG(LogMagicLeapPrivileges, Error, TEXT("Unmapped privilege %d"), static_cast<int32>(PrivilegeID));
 			break;

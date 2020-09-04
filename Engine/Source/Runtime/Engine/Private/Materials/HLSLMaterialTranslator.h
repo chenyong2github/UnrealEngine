@@ -289,6 +289,9 @@ protected:
 	/** True if this material reads any per-instance custom data */
 	uint32 bUsesPerInstanceCustomData : 1;
 
+	/** True if this material write anisotropy material property */
+	uint32 bUsesAnisotropy : 1;
+
 	/** Tracks the texture coordinates used by this material. */
 	TBitArray<> AllocatedUserTexCoords;
 	/** Tracks the texture coordinates used by the vertex shader in this material. */
@@ -346,7 +349,7 @@ public:
 
 protected:
 
-	bool IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex, const FLinearColor& ReferenceValue, int32 NumComponents);
+	bool IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex, const FLinearColor& ReferenceValue, int32 NumComponents) const;
 
 	// only used by GetMaterialShaderCode()
 	// @param Index ECompiledMaterialProperty or EMaterialProperty
@@ -466,6 +469,7 @@ protected:
 	virtual ERHIFeatureLevel::Type GetFeatureLevel() override;
 	virtual EShaderPlatform GetShaderPlatform() override;
 	virtual const ITargetPlatform* GetTargetPlatform() const override;
+	virtual bool IsMaterialPropertyUsed(EMaterialProperty Property, int32 PropertyChunkIndex) const override;
 
 	/** 
 	 * Casts the passed in code to DestType, or generates a compile error if the cast is not valid. 

@@ -10,23 +10,6 @@ FTextureStreamIn.cpp : Implement a generic texture stream in strategy.
 
 template class TRenderAssetUpdate<FTextureUpdateContext>;
 
-FTextureUpdateContext::FTextureUpdateContext(UTexture* InTexture, EThreadType InCurrentThread) 
-	: Texture(InTexture)
-	, CurrentThread(InCurrentThread) 
-{
-}
-
-FTextureUpdateContext::FTextureUpdateContext(UStreamableRenderAsset* InTexture, EThreadType InCurrentThread)
-	: Texture(CastChecked<UTexture>(InTexture, ECastCheckedType::NullChecked))
-	, CurrentThread(InCurrentThread) 
-{
-}
-
-UStreamableRenderAsset* FTextureUpdateContext::GetRenderAsset() const
-{
-	return Texture;
-}
-
 bool FTextureStreamIn::IsSameThread(FTextureMipAllocator::ETickThread TickThread, int32 TaskThread)
 {
 	if (TaskThread == TT_Async)
@@ -54,17 +37,15 @@ bool FTextureStreamIn::IsSameThread(FTextureMipDataProvider::ETickThread TickThr
 }
 
 FTextureStreamIn::FTextureStreamIn(
-	UTexture* InTexture, 
-	int32 InRequestedMips, 
+	const UTexture* InTexture, 
 	FTextureMipAllocator* InMipAllocator, 
 	FTextureMipDataProvider* InCustomMipDataProvider, 
 	FTextureMipDataProvider* InDefaultMipDataProvider
 )
-	: TRenderAssetUpdate<FTextureUpdateContext>(InTexture, InRequestedMips)
+	: TRenderAssetUpdate<FTextureUpdateContext>(InTexture)
 {
 	check(InMipAllocator);
-	CurrentFirstMip = InMipAllocator->GetCurrentFirstMip(InTexture);
-	StartingMipIndex = PendingFirstMip;
+	StartingMipIndex = PendingFirstLODIdx;
 
 	// Init the allocator and provider.
 	MipAllocator.Reset(InMipAllocator);
@@ -88,7 +69,6 @@ FTextureStreamIn::FTextureStreamIn(
 
 	// Schedule the first update step.
 	FContext Context(InTexture, TT_None);
-	InitContext(Context);
 	const EThreadType NextThread = GetMipDataProviderThread(FTextureMipDataProvider::ETickState::Init);
 	if (NextThread != TT_None)
 	{
@@ -176,13 +156,6 @@ FRenderAssetUpdate::EThreadType FTextureStreamIn::GetCancelThread() const
 
 	// If both are cancelled, then run the final cleanup on the async thread.
 	return TT_Async;
-}
-
-void FTextureStreamIn::InitContext(FContext& Context) const
-{
-	Context.PendingFirstMipIndex = PendingFirstMip;
-	Context.CurrentFirstMipIndex = CurrentFirstMip;
-	Context.NumRequestedMips = RequestedMips;
 }
 
 // ****************************
@@ -304,7 +277,7 @@ void FTextureStreamIn::AllocateNewMips(const FContext& Context)
 	else
 	{
 		// Check that all mips have data available. If not, something went wrong in DoAllocateNewMips() and everything must be cancelled.
-		for (int32 MipIndex = Context.PendingFirstMipIndex; MipIndex < Context.CurrentFirstMipIndex; ++MipIndex)
+		for (int32 MipIndex = PendingFirstLODIdx; MipIndex < CurrentFirstLODIdx; ++MipIndex)
 		{
 			if (!MipInfos.IsValidIndex(MipIndex) || !MipInfos[MipIndex].DestData)
 			{
@@ -341,7 +314,7 @@ void FTextureStreamIn::GetMipData(const FContext& Context)
 	else
 	{
 		// All mips must have been updated correctly.
-		if (StartingMipIndex != CurrentFirstMip)
+		if (StartingMipIndex != CurrentFirstLODIdx)
 		{
 			MarkAsCancelled();
 		}

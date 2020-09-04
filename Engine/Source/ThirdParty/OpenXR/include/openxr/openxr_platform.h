@@ -2,7 +2,9 @@
 #define OPENXR_PLATFORM_H_ 1
 
 /*
-** Copyright (c) 2017-2019 The Khronos Group Inc.
+** Copyright (c) 2017-2020 The Khronos Group Inc.
+**
+** SPDX-License-Identifier: Apache-2.0
 **
 ** Licensed under the Apache License, Version 2.0 (the "License");
 ** you may not use this file except in compliance with the License.
@@ -99,7 +101,7 @@ typedef struct XrVulkanSwapchainFormatListCreateInfoKHR {
 #ifdef XR_USE_GRAPHICS_API_OPENGL
 
 #define XR_KHR_opengl_enable 1
-#define XR_KHR_opengl_enable_SPEC_VERSION 7
+#define XR_KHR_opengl_enable_SPEC_VERSION 8
 #define XR_KHR_OPENGL_ENABLE_EXTENSION_NAME "XR_KHR_opengl_enable"
 #ifdef XR_USE_PLATFORM_WIN32
 typedef struct XrGraphicsBindingOpenGLWin32KHR {
@@ -277,7 +279,7 @@ typedef struct XrGraphicsBindingD3D11KHR {
 } XrGraphicsBindingD3D11KHR;
 
 typedef struct XrSwapchainImageD3D11KHR {
-    XrStructureType       type;
+     XrStructureType      type;
     void* XR_MAY_ALIAS    next;
     ID3D11Texture2D*      texture;
 } XrSwapchainImageD3D11KHR;
@@ -302,7 +304,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetD3D11GraphicsRequirementsKHR(
 #ifdef XR_USE_GRAPHICS_API_D3D12
 
 #define XR_KHR_D3D12_enable 1
-#define XR_KHR_D3D12_enable_SPEC_VERSION  5
+#define XR_KHR_D3D12_enable_SPEC_VERSION  6
 #define XR_KHR_D3D12_ENABLE_EXTENSION_NAME "XR_KHR_D3D12_enable"
 typedef struct XrGraphicsBindingD3D12KHR {
     XrStructureType             type;
@@ -312,7 +314,7 @@ typedef struct XrGraphicsBindingD3D12KHR {
 } XrGraphicsBindingD3D12KHR;
 
 typedef struct XrSwapchainImageD3D12KHR {
-    XrStructureType       type;
+     XrStructureType      type;
     void* XR_MAY_ALIAS    next;
     ID3D12Resource*       texture;
 } XrSwapchainImageD3D12KHR;
@@ -340,7 +342,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrGetD3D12GraphicsRequirementsKHR(
 #define XR_KHR_win32_convert_performance_counter_time_SPEC_VERSION 1
 #define XR_KHR_WIN32_CONVERT_PERFORMANCE_COUNTER_TIME_EXTENSION_NAME "XR_KHR_win32_convert_performance_counter_time"
 typedef XrResult (XRAPI_PTR *PFN_xrConvertWin32PerformanceCounterToTimeKHR)(XrInstance instance, const LARGE_INTEGER* performanceCounter, XrTime* time);
-typedef XrResult (XRAPI_PTR *PFN_xrConvertTimeToWin32PerformanceCounterKHR)(XrInstance instance, XrTime time, LARGE_INTEGER* performanceCounter);
+typedef XrResult (XRAPI_PTR *PFN_xrConvertTimeToWin32PerformanceCounterKHR)(XrInstance instance, XrTime   time, LARGE_INTEGER* performanceCounter);
 
 #ifndef XR_NO_PROTOTYPES
 XRAPI_ATTR XrResult XRAPI_CALL xrConvertWin32PerformanceCounterToTimeKHR(
@@ -361,7 +363,7 @@ XRAPI_ATTR XrResult XRAPI_CALL xrConvertTimeToWin32PerformanceCounterKHR(
 #define XR_KHR_convert_timespec_time_SPEC_VERSION 1
 #define XR_KHR_CONVERT_TIMESPEC_TIME_EXTENSION_NAME "XR_KHR_convert_timespec_time"
 typedef XrResult (XRAPI_PTR *PFN_xrConvertTimespecTimeToTimeKHR)(XrInstance instance, const struct timespec* timespecTime, XrTime* time);
-typedef XrResult (XRAPI_PTR *PFN_xrConvertTimeToTimespecTimeKHR)(XrInstance instance, XrTime time, struct timespec* timespecTime);
+typedef XrResult (XRAPI_PTR *PFN_xrConvertTimeToTimespecTimeKHR)(XrInstance instance, XrTime   time, struct timespec* timespecTime);
 
 #ifndef XR_NO_PROTOTYPES
 XRAPI_ATTR XrResult XRAPI_CALL xrConvertTimespecTimeToTimeKHR(
@@ -376,29 +378,21 @@ XRAPI_ATTR XrResult XRAPI_CALL xrConvertTimeToTimespecTimeKHR(
 #endif
 #endif /* XR_USE_TIMESPEC */
 
-#ifdef XR_USE_PLATFORM_WIN32
+#ifdef XR_USE_PLATFORM_EGL
 
-#define XR_MSFT_spatial_perception_bridge 1
-#define XR_MSFT_spatial_perception_bridge_SPEC_VERSION 1
-#define XR_MSFT_SPATIAL_PERCEPTION_BRIDGE_EXTENSION_NAME "XR_MSFT_spatial_perception_bridge"
-#ifdef XR_USE_PLATFORM_WIN32
-typedef struct XrSpatialCoordinateSystemSpaceCreateInfoMSFT {
+#define XR_MNDX_egl_enable 1
+#define XR_MNDX_egl_enable_SPEC_VERSION   1
+#define XR_MNDX_EGL_ENABLE_EXTENSION_NAME "XR_MNDX_egl_enable"
+typedef struct XrGraphicsBindingEGLMNDX {
     XrStructureType             type;
     const void* XR_MAY_ALIAS    next;
-    XrPosef                     pose;
-    IUnknown*                   spatialCoordinateSystem;
-} XrSpatialCoordinateSystemSpaceCreateInfoMSFT;
-#endif // XR_USE_PLATFORM_WIN32
+    PFNEGLGETPROCADDRESSPROC    getProcAddress;
+    EGLDisplay                  display;
+    EGLConfig                   config;
+    EGLContext                  context;
+} XrGraphicsBindingEGLMNDX;
 
-typedef XrResult (XRAPI_PTR *PFN_xrCreateSpaceFromSpatialCoordinateSystemMSFT)(XrSession session, const XrSpatialCoordinateSystemSpaceCreateInfoMSFT*spaceCreateInfo, XrSpace*space);
-
-#ifndef XR_NO_PROTOTYPES
-XRAPI_ATTR XrResult XRAPI_CALL xrCreateSpaceFromSpatialCoordinateSystemMSFT(
-    XrSession                                   session,
-    const XrSpatialCoordinateSystemSpaceCreateInfoMSFT* spaceCreateInfo,
-    XrSpace*                                    space);
-#endif
-#endif /* XR_USE_PLATFORM_WIN32 */
+#endif /* XR_USE_PLATFORM_EGL */
 
 #ifdef __cplusplus
 }
