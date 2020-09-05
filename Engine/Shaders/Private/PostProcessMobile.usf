@@ -184,7 +184,6 @@ void SunMaskPS_Mobile(
 
 	#if !MOBILE_USEDEPTHTEXTURE
 		OutColor = SceneColor;
-		OutColor.a = OutSunShaftAndDof;
 	#endif
 }
 
