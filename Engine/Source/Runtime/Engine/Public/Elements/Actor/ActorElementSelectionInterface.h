@@ -5,12 +5,16 @@
 #include "TypedElementSelectionInterface.h"
 #include "ActorElementSelectionInterface.generated.h"
 
+class FTypedElementList;
+
 UCLASS()
-class UActorElementSelectionInterface : public UTypedElementSelectionInterface
+class ENGINE_API UActorElementSelectionInterface : public UTypedElementSelectionInterface
 {
 	GENERATED_BODY()
 
 public:
-	virtual bool IsValidSelection(const FTypedElementHandle& InElementHandle) override;
 	virtual UObject* Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle) override;
+
+	static int32 GetNumSelectedActors(const FTypedElementList& InCurrentSelection);
+	static bool HasSelectedActors(const FTypedElementList& InCurrentSelection);
 };

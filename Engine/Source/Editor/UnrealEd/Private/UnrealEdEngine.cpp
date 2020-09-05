@@ -32,6 +32,7 @@
 #include "EditorModeRegistry.h"
 #include "EditorModeManager.h"
 #include "EditorModes.h"
+#include "Elements/EditorElements.h"
 #include "UnrealEdMisc.h"
 #include "UnrealEdGlobals.h"
 
@@ -75,6 +76,8 @@ DEFINE_LOG_CATEGORY_STATIC(LogUnrealEdEngine, Log, All);
 void UUnrealEdEngine::Init(IEngineLoop* InEngineLoop)
 {
 	Super::Init(InEngineLoop);
+
+	RegisterEditorElements();
 
 	// Display warnings to the user about disk space issues
 	ValidateFreeDiskSpace();

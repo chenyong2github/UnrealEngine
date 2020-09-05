@@ -1,17 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ActorElementSelectionInterface.h"
-#include "ActorElementData.h"
+#include "Elements/Actor/ActorElementSelectionInterface.h"
+#include "Elements/Actor/ActorElementData.h"
 #include "GameFramework/Actor.h"
-
-bool UActorElementSelectionInterface::IsValidSelection(const FTypedElementHandle& InElementHandle)
-{
-	// TODO: Validate that this actor is in a valid state to be selected?
-	return true;
-}
+#include "TypedElementList.h"
 
 UObject* UActorElementSelectionInterface::Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle)
 {
 	const FActorElementData* ActorData = InElementHandle.GetData<FActorElementData>();
 	return ActorData ? ActorData->Actor : nullptr;
+}
+
+int32 UActorElementSelectionInterface::GetNumSelectedActors(const FTypedElementList& InCurrentSelection)
+{
+	int32 NumSelected = 0;
+	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	{
+		if (SelectedElement.GetData<FActorElementData>(/*bSilent*/true))
+		{
+			++NumSelected;
+		}
+	}
+	return NumSelected;
+}
+
+bool UActorElementSelectionInterface::HasSelectedActors(const FTypedElementList& InCurrentSelection)
+{
+	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	{
+		if (SelectedElement.GetData<FActorElementData>(/*bSilent*/true))
+		{
+			return true;
+		}
+	}
+	return false;
 }

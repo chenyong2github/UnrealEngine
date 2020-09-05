@@ -9,7 +9,7 @@ class AActor;
 /**
  * Element data that represents an Actor.
  */
-struct FActorElementData
+struct ENGINE_API FActorElementData
 {
 	UE_DECLARE_TYPED_ELEMENT_DATA_RTTI(FActorElementData);
 

@@ -5,13 +5,13 @@
 
 #include "TypedElementRegistry.h"
 
-#include "Actor/ActorElementData.h"
-#include "Actor/ActorElementSelectionInterface.h"
+#include "Elements/Actor/ActorElementData.h"
+#include "Elements/Actor/ActorElementSelectionInterface.h"
 
-#include "Component/ComponentElementData.h"
-#include "Component/ComponentElementSelectionInterface.h"
+#include "Elements/Component/ComponentElementData.h"
+#include "Elements/Component/ComponentElementSelectionInterface.h"
 
-void RegisterActorElements()
+void RegisterEngineActorElements()
 {
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
@@ -19,7 +19,7 @@ void RegisterActorElements()
 	Registry->RegisterElementInterface<UTypedElementSelectionInterface>(NAME_Actor, NewObject<UActorElementSelectionInterface>());
 }
 
-void RegisterComponentElements()
+void RegisterEngineComponentElements()
 {
 	UTypedElementRegistry* Registry = UTypedElementRegistry::GetInstance();
 
@@ -33,6 +33,6 @@ void RegisterEngineElements()
 	FModuleManager::Get().LoadModuleChecked("TypedElementFramework");
 	FModuleManager::Get().LoadModuleChecked("TypedElementInterfaces");
 
-	RegisterActorElements();
-	RegisterComponentElements();
+	RegisterEngineActorElements();
+	RegisterEngineComponentElements();
 }

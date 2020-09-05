@@ -1,17 +1,37 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
-#include "ComponentElementSelectionInterface.h"
-#include "ComponentElementData.h"
+#include "Elements/Component/ComponentElementSelectionInterface.h"
+#include "Elements/Component/ComponentElementData.h"
 #include "Components/ActorComponent.h"
-
-bool UComponentElementSelectionInterface::IsValidSelection(const FTypedElementHandle& InElementHandle)
-{
-	// TODO: Validate that this component is in a valid state to be selected?
-	return true;
-}
+#include "TypedElementList.h"
 
 UObject* UComponentElementSelectionInterface::Legacy_GetSelectionObject(const FTypedElementHandle& InElementHandle)
 {
 	const FComponentElementData* ComponentData = InElementHandle.GetData<FComponentElementData>();
 	return ComponentData ? ComponentData->Component : nullptr;
+}
+
+int32 UComponentElementSelectionInterface::GetNumSelectedComponents(const FTypedElementList& InCurrentSelection)
+{
+	int32 NumSelected = 0;
+	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	{
+		if (SelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
+		{
+			++NumSelected;
+		}
+	}
+	return NumSelected;
+}
+
+bool UComponentElementSelectionInterface::HasSelectedComponents(const FTypedElementList& InCurrentSelection)
+{
+	for (const FTypedElementHandle& SelectedElement : InCurrentSelection)
+	{
+		if (SelectedElement.GetData<FComponentElementData>(/*bSilent*/true))
+		{
+			return true;
+		}
+	}
+	return false;
 }

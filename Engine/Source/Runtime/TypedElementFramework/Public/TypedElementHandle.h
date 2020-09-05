@@ -258,17 +258,23 @@ public:
 	 * @note This is not typically something you'd want to use outside of data access within an interface implementation.
 	 */
 	template <typename ElementDataType>
-	const ElementDataType* GetData() const
+	const ElementDataType* GetData(const bool bSilent = false) const
 	{
 		if (!DataPtr)
 		{
-			FFrame::KismetExecutionMessage(TEXT("Element handle data is null!"), ELogVerbosity::Error);
+			if (!bSilent)
+			{
+				FFrame::KismetExecutionMessage(TEXT("Element handle data is null!"), ELogVerbosity::Error);
+			}
 			return nullptr;
 		}
 
 		if (!IsDataOfType<ElementDataType>())
 		{
-			FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Element handle data type is '%d', but '%d' (%s) was requested!"), Id.GetTypeId(), ElementDataType::StaticTypeId(), *ElementDataType::StaticTypeName().ToString()), ELogVerbosity::Error);
+			if (!bSilent)
+			{
+				FFrame::KismetExecutionMessage(*FString::Printf(TEXT("Element handle data type is '%d', but '%d' (%s) was requested!"), Id.GetTypeId(), ElementDataType::StaticTypeId(), *ElementDataType::StaticTypeName().ToString()), ELogVerbosity::Error);
+			}
 			return nullptr;
 		}
 
