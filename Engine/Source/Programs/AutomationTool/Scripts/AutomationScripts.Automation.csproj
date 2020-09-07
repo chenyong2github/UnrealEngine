@@ -78,6 +78,7 @@
     <Compile Include="BenchmarkBuild\BenchmarkRunEditorTask.cs" />
     <Compile Include="BenchmarkBuild\BenchmarkSingleCompileTask.cs" />
     <Compile Include="BenchmarkBuild\BenchmarkTaskBase.cs" />
+    <Compile Include="DownloadJupiterBuild.cs" />
     <Compile Include="CheckPerforceCase.cs" />
     <Compile Include="FinalizeInstalledBuild.cs" />
     <Compile Include="BuildHlslcc.Automation.cs" />

@@ -51,6 +51,7 @@
     <Reference Include="System.Core" />
     <Reference Include="System.IO.Compression" />
     <Reference Include="System.IO.Compression.FileSystem" />
+    <Reference Include="System.Net.Http" />
     <Reference Include="System.Runtime.Serialization" />
     <Reference Include="System.Web" />
     <Reference Include="System.Web.Extensions" />
@@ -103,6 +104,7 @@
     <Compile Include="Tasks\SetVersionTask.cs" />
     <Compile Include="Tasks\UnzipTask.cs" />
     <Compile Include="Tasks\WriteTextFileTask.cs" />
+    <Compile Include="Tasks\UploadTask.cs" />
     <Compile Include="Tasks\ZipTask.cs" />
     <Compile Include="TempStorage.cs" />
     <Compile Include="Tasks\ModifyConfigTask.cs" />
