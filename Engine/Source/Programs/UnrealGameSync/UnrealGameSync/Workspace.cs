@@ -55,7 +55,7 @@ namespace UnrealGameSync
 		public int ChangeNumber;
 		public WorkspaceUpdateOptions Options;
 		public string[] SyncFilter;
-		public Dictionary<string, string> ArchiveTypeToDepotPath = new Dictionary<string,string>();
+		public Dictionary<string, Tuple<IArchiveInfo, string>> ArchiveTypeToArchive = new Dictionary<string, Tuple<IArchiveInfo, string>>();
 		public Dictionary<string, bool> DeleteFiles = new Dictionary<string,bool>();
 		public Dictionary<string, bool> ClobberFiles = new Dictionary<string,bool>();
 		public Dictionary<Guid,ConfigObject> DefaultBuildSteps;
@@ -911,39 +911,33 @@ namespace UnrealGameSync
 					Directory.CreateDirectory(ManifestDirectoryName);
 
 					// Sync and extract (or just remove) the given archives
-					foreach(KeyValuePair<string, string> ArchiveTypeAndDepotPath in Context.ArchiveTypeToDepotPath)
+					foreach(KeyValuePair<string, Tuple<IArchiveInfo, string>> ArchiveTypeAndArchive in Context.ArchiveTypeToArchive)
 					{
+						string ArchiveType = ArchiveTypeAndArchive.Key;
+
 						// Remove any existing binaries
-						string ManifestFileName = Path.Combine(ManifestDirectoryName, String.Format("{0}.zipmanifest", ArchiveTypeAndDepotPath.Key));
+						string ManifestFileName = Path.Combine(ManifestDirectoryName, String.Format("{0}.zipmanifest", ArchiveType));
 						if(File.Exists(ManifestFileName))
 						{
-							Log.WriteLine("Removing {0} binaries...", ArchiveTypeAndDepotPath.Key);
-							Progress.Set(String.Format("Removing {0} binaries...", ArchiveTypeAndDepotPath.Key), 0.0f);
+							Log.WriteLine("Removing {0} binaries...", ArchiveType);
+							Progress.Set(String.Format("Removing {0} binaries...", ArchiveType), 0.0f);
 							ArchiveUtils.RemoveExtractedFiles(LocalRootPath, ManifestFileName, Progress, Log);
 							File.Delete(ManifestFileName);
 							Log.WriteLine();
 						}
 
 						// If we have a new depot path, sync it down and extract it
-						if(ArchiveTypeAndDepotPath.Value != null)
+						if(ArchiveTypeAndArchive.Value != null)
 						{
-							string TempZipFileName = Path.GetTempFileName();
-							try
+							IArchiveInfo ArchiveInfo = ArchiveTypeAndArchive.Value.Item1;
+							string ArchiveKey = ArchiveTypeAndArchive.Value.Item2;
+
+							Log.WriteLine("Syncing {0} binaries...", ArchiveType.ToLowerInvariant());
+							Progress.Set(String.Format("Syncing {0} binaries...", ArchiveType.ToLowerInvariant()), 0.0f);
+							if (!ArchiveInfo.DownloadArchive(ArchiveKey, LocalRootPath, ManifestFileName, Log, Progress))
 							{
-								Log.WriteLine("Syncing {0} binaries...", ArchiveTypeAndDepotPath.Key.ToLowerInvariant());
-								Progress.Set(String.Format("Syncing {0} binaries...", ArchiveTypeAndDepotPath.Key.ToLowerInvariant()), 0.0f);
-								if(!Perforce.PrintToFile(ArchiveTypeAndDepotPath.Value, TempZipFileName, Log) || new FileInfo(TempZipFileName).Length == 0)
-								{
-									StatusMessage = String.Format("Couldn't read {0}", ArchiveTypeAndDepotPath.Value);
-									return WorkspaceUpdateResult.FailedToSync;
-								}
-								ArchiveUtils.ExtractFiles(TempZipFileName, LocalRootPath, ManifestFileName, Progress, Log);
-								Log.WriteLine();
-							}
-							finally
-							{
-								File.SetAttributes(TempZipFileName, FileAttributes.Normal);
-								File.Delete(TempZipFileName);
+								StatusMessage = String.Format("Couldn't read {0}", ArchiveKey);
+								return WorkspaceUpdateResult.FailedToSync;
 							}
 						}
 					}

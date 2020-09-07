@@ -18,6 +18,10 @@
   </PropertyGroup>
   <ItemGroup>
     <PackageReference Include="EnvDTE" Version="16.7.30328.74" />
+    <PackageReference Include="IdentityModel.OidcClient" Version="3.1.2" />
+  </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\..\DotNETCommon\DotNETUtilities\DotNETUtilities.csproj" />
   </ItemGroup>
   <ItemGroup>
     <Reference Include="Ionic.Zip.Reduced">

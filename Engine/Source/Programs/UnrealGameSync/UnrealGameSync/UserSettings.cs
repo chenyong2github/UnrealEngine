@@ -273,6 +273,9 @@ namespace UnrealGameSync
 		// Precompiled binaries
 		public List<ArchiveSettings> Archives = new List<ArchiveSettings>();
 
+		// OIDC Settings
+		public Dictionary<string, string> ProviderToRefreshTokens = new Dictionary<string, string>();
+
 		// Window settings
 		public bool bWindowVisible;
 		public FormWindowState WindowState;
@@ -432,6 +435,16 @@ namespace UnrealGameSync
 			if (bSyncPrecompiledEditor)
 			{
 				Archives.Add(new ArchiveSettings(true, "Editor", new string[0]));
+			}
+
+			// OIDC Settings
+			string[] Tokens = ConfigFile.GetValues("OIDCProviders.Tokens", new string[0]);
+			foreach (string TokenValue in Tokens)
+			{
+				ConfigObject O = new ConfigObject(TokenValue);
+				string Provider = O.GetValue("Provider");
+				string Token = O.GetValue("Token");
+				ProviderToRefreshTokens.TryAdd(Provider, Token);
 			}
 
 			// Window settings
@@ -739,6 +752,19 @@ namespace UnrealGameSync
 			// Precompiled binaries
 			ConfigSection ArchivesSection = ConfigFile.FindOrAddSection("PrecompiledBinaries");
 			ArchivesSection.SetValues("Archives", Archives.Select(x => x.ToConfigEntry()).ToArray());
+
+			// OIDC Settings
+			ConfigSection OIDCSection = ConfigFile.FindOrAddSection("OIDCProviders");
+			List<ConfigObject> TokenObjects = new List<ConfigObject>();
+			foreach (KeyValuePair<string, string> Pair in ProviderToRefreshTokens)
+			{
+				ConfigObject TokenEntryObject = new ConfigObject();
+				TokenEntryObject.SetValue("Provider", Pair.Key);
+				TokenEntryObject.SetValue("Token", Pair.Value);
+				TokenObjects.Add(TokenEntryObject);
+			}
+			OIDCSection.SetValues("Tokens", TokenObjects.Select(x => x.ToString()).ToArray());
+
 
 			// Window settings
 			ConfigSection WindowSection = ConfigFile.FindOrAddSection("Window");
