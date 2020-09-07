@@ -199,6 +199,7 @@ export interface ChangeInfo extends TargetInfo {
 	propagatingNullMerge: boolean
 	forceCreateAShelf: boolean
 	overriddenCommand: string
+	macros: string[]
 	hasOkForGithubTag: boolean
 }
 

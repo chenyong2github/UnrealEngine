@@ -87,6 +87,138 @@ interface EdgeMergeResults extends PerforceRequestResult {
 	skippedEdges?: Set<string>
 }
 
+function parseTargetList(targetString: string) {
+	return targetString.split(/[ ,]/).filter(Boolean)
+}
+
+class DescriptionParser {
+	source: string | null = null
+	owner: string | null = null
+	authorTag: string | null = null
+
+	descFinal: string[] = []
+
+	propagatingNullMerge = false
+	hasOkForGithubTag = false
+	useDefaultFlow = true
+	requestedTargetNames: string[] = []
+
+	expandedMacros: string[] = []
+	expandedMacroLines: string[] = []
+
+	constructor(private isDefaultBot: boolean, private graphBotName: string, private cl: number, private aliasUpper: string) {
+	}
+
+	parseLine(line: string) {
+
+		// trim end - keep any initial whitespace
+		const comp = line.replace(/\s+$/, '')
+
+		// check for control hashes
+		const match = comp.match(/^(\s*)#([-\w[\]]+)[:\s]*(.*)$/)
+		if (!match) {
+			// strip beginning blanks
+			if (this.descFinal.length > 0 || comp !== '') {
+				if (comp.indexOf('[NULL MERGE]') !== -1) {
+					this.propagatingNullMerge = true
+				}
+				this.descFinal.push(line)
+			}
+			return
+		}
+
+		const ws = match[1] 
+		const command = match[2].toUpperCase()
+		const value = match[3].trim()
+
+		// #robomerge tags are required to be at the start of the line
+		if (ws && command === 'ROBOMERGE' && value.match(/\bnone\b/i)) {
+			// completely skip #robomerge nones that might come in from GraphBot branch integrations, so we don't
+			// get impaled on our own commit hook
+			return
+		}
+		
+		if (ws || !command.startsWith('ROBOMERGE')) {
+			// check for commands to neuter
+			if (NEUTER_COMMANDS.indexOf(command) >= 0) {
+				// neuter codereviews so they don't spam out again
+				this.descFinal.push(`${ws}[${command}] ${value}`)
+			}
+			
+			else if (command.indexOf('REVIEW-') === 0) {
+				// remove swarm review numbers entirely (The can't be neutered and generate emails)
+				if (value !== '') {
+					this.descFinal.push(value)
+				}
+			}
+			else if (command === 'OKFORGITHUB') {
+				this.hasOkForGithubTag = true
+				this.descFinal.push(line)
+			}
+			else {
+
+				// default behavior is to keep any hashes we don't recognize
+				this.descFinal.push(line)
+			}
+			return
+		}
+
+		// Handle commands
+		if (command === 'ROBOMERGE') {
+
+			// completely ignore bare ROBOMERGE tags if we're not the default bot (should not affect default flow)
+			if (this.isDefaultBot) {
+				this.useDefaultFlow = false
+				// for (const target of NodeBot._parseTargetList(value)) {
+				// 	const macroLines = this.config
+				// }
+				this.requestedTargetNames = [...this.requestedTargetNames, ...parseTargetList(value)]
+			}
+			return
+		}
+		
+		// Look for a specified bot and other defined tags
+		const specificBotMatch = command.match(/ROBOMERGE\[([-_a-z0-9]+)\]/i)
+
+		if (specificBotMatch) {
+			const specificBot = specificBotMatch[1].toUpperCase()
+			if (specificBot === this.graphBotName ||
+				specificBot === this.aliasUpper || 
+				specificBot === 'ALL') {
+				this.useDefaultFlow = false
+
+				this.requestedTargetNames = [...this.requestedTargetNames, ...parseTargetList(value)]
+			}
+			else {
+				// allow commands to other bots to propagate!
+				this.descFinal.push(line)
+			}
+		}
+		else if (command === 'ROBOMERGE-AUTHOR') {
+			// tag intended to be purely for propagating
+			// currently using it to set owner if not already set
+			this.authorTag = value
+		}
+		else if (command === 'ROBOMERGE-OWNER') {
+			this.owner = value.toLowerCase()
+		}
+		else if (command === 'ROBOMERGE-SOURCE') {
+			this.source = `${value} via CL ${this.cl}`
+		}
+		else if (command === 'ROBOMERGE-BOT') {
+			// if matches description written in _mergeCl
+			if (value.startsWith(this.graphBotName + ' (')) {
+				this.useDefaultFlow = false
+			}
+		}
+		else if (command !== 'ROBOMERGE-EDIGRATE' &&
+				 command !== 'ROBOMERGE-COMMAND') {
+			// add unknown command as a branch name to force a syntax error
+			this.requestedTargetNames = [command]
+		}
+	}
+}
+
 export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 	readonly graphBotName: string
 	readonly branch: Branch
@@ -1579,151 +1711,53 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		this._sendGenericEmail(recipients, subject, errorPreface, message);
 	}
 
-	private static _parseTargetList(targetString: string) {
-		return targetString.split(/[ ,]/).filter(Boolean)
-	}
-
 	private parseChange(change: Change, optTargetBranch?: Branch | null): ChangeInfo {
-		let source: string | null = null
-		let source_cl = -1
-		let owner: string | null = null
-		let authorTag: string | null = null
 
 		// parse the description
-		const descFinal: string[] = []
 		if (change.desc && typeof(change.desc.split) !== 'function') {
 			this.nodeBotLogger.warn(`Unrecognised description type: ${typeof(change.desc)}, CL#${change.change}`)
 			change.desc = '<description not available>'
 		}
 		const commandOverride = (change.commandOverride || '').trim()
-		const descLines = commandOverride ? commandOverride.split('|') :
+		let descLines = commandOverride ? commandOverride.split('|') :
 							change.desc ? change.desc.split('\n') : []
-		let propagatingNullMerge = false
-		let hasOkForGithubTag = false
 
-		// flag to check whether default targets have been overridden
-		let useDefaultFlow = true
 
-		let requestedTargetNames: string[] = []
-		for (const line of descLines) {
-			// trim end - keep any initial whitespace
-			const comp = line.replace(/\s+$/, '')
+		const lineParser = new DescriptionParser(
+			this.branch.isDefaultBot,
+			(this.branchGraph.config.alias || '').toUpperCase(),
+			change.change,
+			this.graphBotName
+		)
 
-			// check for control hashes
-			const match = comp.match(/^(\s*)#([-\w[\]]+)[:\s]*(.*)$/)
-			if (!match) {
-				// strip beginning blanks
-				if (descFinal.length > 0 || comp !== '') {
-					if (comp.indexOf('[NULL MERGE]') !== -1) {
-						propagatingNullMerge = true
-					}
-					descFinal.push(line)
-				}
-				continue
+		let safety = 5
+		while (descLines.length > 0) {
+			for (const line of descLines) {
+				lineParser.parseLine(line)
 			}
+			descLines = lineParser.expandedMacroLines
+			lineParser.expandedMacroLines = []
 
-			const ws = match[1] 
-			const command = match[2].toUpperCase()
-			const value = match[3].trim()
-
-			// #robomerge tags are required to be at the start of the line
-			if (ws && command === 'ROBOMERGE' && value.match(/\bnone\b/i)) {
-				// completely skip #robomerge nones that might come in from GraphBot branch integrations, so we don't
-				// get impaled on our own commit hook
-				continue
+			if (--safety === 0) {
+				this.nodeBotLogger.warn('Got stuck in a loop expanding macros in CL#' + change.change)
+				break
 			}
-			
-			if (ws || !command.startsWith('ROBOMERGE')) {
-				// check for commands to neuter
-				if (NEUTER_COMMANDS.indexOf(command) >= 0) {
-					// neuter codereviews so they don't spam out again
-					descFinal.push(`${ws}[${command}] ${value}`)
-				}
-				
-				else if (command.indexOf('REVIEW-') === 0) {
-					// remove swarm review numbers entirely (The can't be neutered and generate emails)
-					if (value !== '') {
-						descFinal.push(value)
-					}
-				}
-				else if (command === 'OKFORGITHUB') {
-					hasOkForGithubTag = true
-					descFinal.push(line)
-				}
-				else {
-
-					// default behavior is to keep any hashes we don't recognize
-					descFinal.push(line)
-				}
-				continue
-			}
-
-			// Handle commands
-			if (command === 'ROBOMERGE') {
-
-				// completely ignore bare ROBOMERGE tags if we're not the default bot (should not affect default flow)
-				if (this.branch.isDefaultBot) {
-					useDefaultFlow = false
-					requestedTargetNames = [...requestedTargetNames, ...NodeBot._parseTargetList(value)]
-				}
-				continue
-			}
-			
-			// Look for a specified bot and other defined tags
-			const specificBotMatch = command.match(/ROBOMERGE\[([-_a-z0-9]+)\]/i)
-
-			if (specificBotMatch) {
-				const specificBot = specificBotMatch[1].toUpperCase()
-				if (specificBot === this.graphBotName ||
-					specificBot === (this.branchGraph.config.alias || '').toUpperCase() || 
-					specificBot === 'ALL') {
-					useDefaultFlow = false
-
-					requestedTargetNames = [...requestedTargetNames, ...NodeBot._parseTargetList(value)]
-				}
-				else {
-					// allow commands to other bots to propagate!
-					descFinal.push(line)
-				}
-			}
-			else if (command === 'ROBOMERGE-AUTHOR') {
-				// tag intended to be purely for propagating
-				// currently using it to set owner if not already set
-				authorTag = value
-			}
-			else if (command === 'ROBOMERGE-OWNER') {
-				owner = value.toLowerCase()
-			}
-			else if (command === 'ROBOMERGE-SOURCE') {
-				source = `${value} via CL ${change.change}`
-			}
-			else if (command === 'ROBOMERGE-BOT') {
-				// if matches description written in _mergeCl
-				if (value.startsWith(this.graphBotName + ' (')) {
-					useDefaultFlow = false
-				}
-			}
-			else if (command !== 'ROBOMERGE-EDIGRATE' &&
-					 command !== 'ROBOMERGE-COMMAND') {
-				// add unknown command as a branch name to force a syntax error
-				requestedTargetNames = [command]
-			}
-
 		}
 
 		// make the end description (without any robomerge tags or 'at' references)
-		const description = descFinal.join('\n').replace(/@/g, '[at]').trim()
+		const description = lineParser.descFinal.join('\n').replace(/@/g, '[at]').trim()
 
 		// Author is always CL user
 		const author = (change.user || 'robomerge').toLowerCase()
 
 		// default source to current
-		if (source === null) {
-			source = `CL ${change.change} in ${this.branch.rootPath}`
+		let source_cl
+		if (!lineParser.source) {
+			lineParser.source = `CL ${change.change} in ${this.branch.rootPath}`
 			source_cl = change.change
 		}
 		else {
-			let m = source.match(/^CL (\d+)/)
+			let m = lineParser.source.match(/^CL (\d+)/)
 			let num = m ? (parseInt(m[1]) || 0) : 0
 			source_cl = num > 0 ? num : change.change
 		}
@@ -1741,27 +1775,35 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 			cl: change.change,
 			source_cl: source_cl,
 			isManual: !!change.isManual,
-			author, source, description, propagatingNullMerge, forceCreateAShelf, sendNoShelfEmail, 
-			forceStompChanges, additionalDescriptionText, hasOkForGithubTag,
+			author,
+			source: lineParser.source,
+			description,
+			propagatingNullMerge: lineParser.propagatingNullMerge,
+			forceCreateAShelf,
+			sendNoShelfEmail,
+
+			forceStompChanges, additionalDescriptionText,
+			hasOkForGithubTag: lineParser.hasOkForGithubTag,
 			numFiles: -1, // calculate later if there are any targets
-			overriddenCommand: commandOverride
+			overriddenCommand: commandOverride,
+			macros: lineParser.expandedMacros
 		}
 
-		if (authorTag) {
-			info.authorTag = authorTag
+		if (lineParser.authorTag) {
+			info.authorTag = lineParser.authorTag
 		}
 
-		if (owner) {
-			info.owner = owner
+		if (lineParser.owner) {
+			info.owner = lineParser.owner
 		}
 
 		// compute targets if list is not empty
 		const defaultTargets = commandOverride ? [] :
-								useDefaultFlow ? this.branch.defaultFlow :
+								lineParser.useDefaultFlow ? this.branch.defaultFlow :
 								this.branch.forceFlowTo
 
-		if (optTargetBranch || (requestedTargetNames.length + defaultTargets.length) > 0) {
-			this._computeTargets(info, requestedTargetNames, defaultTargets, optTargetBranch)
+		if (optTargetBranch || (lineParser.requestedTargetNames.length + defaultTargets.length) > 0) {
+			this._computeTargets(info, lineParser.requestedTargetNames, defaultTargets, optTargetBranch)
 		}
 
 		return info
