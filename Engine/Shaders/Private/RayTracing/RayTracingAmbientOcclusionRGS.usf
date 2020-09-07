@@ -79,9 +79,9 @@ void GenerateCosineNormalRay(
 
 float3 SampleNeightborPosition(uint2 PixelCoord, int2 Offset)
 {
-	uint2 ClampedPixelCoord = clamp(PixelCoord + Offset, View.ViewRectMin, View.ViewRectMin + View.ViewSizeAndInvSize.xy - 1);
+	uint2 ClampedPixelCoord = clamp(uint2(PixelCoord + Offset), uint2(View.ViewRectMin.xy), uint2(View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1));
 
-	float DeviceZ = SceneDepthBuffer.Load(int3(ClampedPixelCoord, 0)).r;
+	float DeviceZ = SceneDepthTexture.Load(int3(ClampedPixelCoord, 0)).r;
 
 	return ReconstructWorldPositionFromDeviceZ(PixelCoord + Offset, DeviceZ);
 }
