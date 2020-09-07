@@ -1768,7 +1768,7 @@ void FSceneRenderer::RenderVolumetricCloud(
 								TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("RGBCloudIntermediate"));
 					}
 
-					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(RtSize.X, RtSize.Y), PF_R16F, FClearValueBinding::Black,
+					DestinationRTDepth = GraphBuilder.CreateTexture(FRDGTextureDesc::Create2D(FIntPoint(RtSize.X, RtSize.Y), PF_G16R16F, FClearValueBinding::Black,
 						TexCreate_ShaderResource | TexCreate_RenderTargetable), TEXT("DummyDepth"));
 					CloudRC.RenderTargets[0] = FRenderTargetBinding(bShouldUseHighQualityAerialPerspective ? IntermediateRT : DestinationRT, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ELoad);
 					CloudRC.RenderTargets[1] = FRenderTargetBinding(DestinationRTDepth, bShouldUseHighQualityAerialPerspective ? ERenderTargetLoadAction::EClear : ERenderTargetLoadAction::ENoAction);
