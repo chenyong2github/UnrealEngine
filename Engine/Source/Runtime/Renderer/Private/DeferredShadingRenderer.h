@@ -21,14 +21,6 @@
 enum class ERayTracingPrimaryRaysFlag : uint32;
 enum class EVelocityPass : uint32;
 
-enum class EDepthDownsampleMode : uint32
-{
-	Sample0 = 0,
-	Max,
-	Checkerboard,
-	Count
-};
-
 class FSceneTextureParameters;
 class FDistanceFieldAOParameters;
 class UStaticMeshComponent;
@@ -387,7 +379,7 @@ private:
 	void RenderDebugViewMode(FRDGBuilder& GraphBuilder, const FRenderTargetBindingSlots& RenderTargets);
 
 	/** Updates the downsized depth buffer with the current full resolution depth buffer using a min/max checkerboard pattern. */
-	void UpdateHalfResDepthSurfaceCheckerboardMinMax(FRHICommandList& RHICmdList);
+	void UpdateHalfResDepthSurfaceCheckerboardMinMax(FRDGBuilder& GraphBuilder);
 
 	FRDGTextureRef CopyStencilToLightingChannelTexture(FRDGBuilder& GraphBuilder, FRDGTextureSRVRef SceneStencilTexture);
 
