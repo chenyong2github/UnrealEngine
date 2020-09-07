@@ -29,7 +29,6 @@ namespace UnrealBuildTool.Rules
                     "RigVM",
                     "ControlRig",
                     "RigLogicLib",
-                    "MessageLog",
                     "RigVM",
                     "Projects"
                 }
@@ -39,7 +38,8 @@ namespace UnrealBuildTool.Rules
             {
 				PublicDependencyModuleNames.Add("EditorFramework");
                 PublicDependencyModuleNames.Add("UnrealEd");
-            }
+				PublicDependencyModuleNames.Add("MessageLog");
+			}
 
             PrivateDependencyModuleNames.AddRange(
                 new string[]
