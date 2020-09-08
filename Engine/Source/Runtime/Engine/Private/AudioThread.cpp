@@ -84,10 +84,8 @@ struct FAudioThreadInteractor
 
 static FAutoConsoleVariableSink CVarUseAudioThreadSink(FConsoleCommandDelegate::CreateStatic(&FAudioThreadInteractor::UseAudioThreadCVarSinkFunction));
 
-bool FAudioThread::bIsAudioThreadRunning = false;
-bool FAudioThread::bIsAudioThreadSuspended = false;
+TAtomic<bool> FAudioThread::bIsAudioThreadRunning(false);
 bool FAudioThread::bUseThreadedAudio = false;
-uint32 FAudioThread::CachedAudioThreadId = 0;
 FRunnable* FAudioThread::AudioThreadRunnable = nullptr;
 FCriticalSection FAudioThread::CurrentAudioThreadStatIdCS;
 TStatId FAudioThread::CurrentAudioThreadStatId;
@@ -137,8 +135,9 @@ static int32 AudioThreadSuspendCount = 0;
 
 void FAudioThread::SuspendAudioThread()
 {
+PRAGMA_DISABLE_DEPRECATION_WARNINGS
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	check(!bIsAudioThreadSuspended || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
+	check(!GIsAudioThreadSuspended.Load() || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
 	if (bIsAudioThreadRunning)
 	{
 		// Make GC wait on the audio thread finishing processing
@@ -146,31 +145,29 @@ void FAudioThread::SuspendAudioThread()
 		AudioFence.BeginFence();
 		AudioFence.Wait();
 
-PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		CachedAudioThreadId = GAudioThreadId;
-		GAudioThreadId = 0; // While we are suspended we will pretend we have no audio thread
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		bIsAudioThreadSuspended = true;
+		GIsAudioThreadSuspended = true;
 		FPlatformMisc::MemoryBarrier();
 		bIsAudioThreadRunning = false;
 	}
-	check(!bIsAudioThreadRunning);
+	check(!bIsAudioThreadRunning.Load());
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAudioThread::ResumeAudioThread()
 {
-	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	if (bIsAudioThreadSuspended && CVarSuspendAudioThread.GetValueOnGameThread() == 0)
-	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		GAudioThreadId = CachedAudioThreadId;
-		CachedAudioThreadId = 0;
-PRAGMA_ENABLE_DEPRECATION_WARNINGS
-		bIsAudioThreadSuspended = false;
+
+	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
+	if (GIsAudioThreadSuspended.Load() && CVarSuspendAudioThread.GetValueOnGameThread() == 0)
+	{
+		GIsAudioThreadSuspended = false;
 		FPlatformMisc::MemoryBarrier();
 		bIsAudioThreadRunning = true;
 	}
 	ProcessAllCommands();
+
+PRAGMA_ENABLE_DEPRECATION_WARNINGS
 }
 
 void FAudioThread::OnPreGarbageCollect()
@@ -220,7 +217,7 @@ uint32 FAudioThread::Run()
 
 void FAudioThread::SetUseThreadedAudio(const bool bInUseThreadedAudio)
 {
-	if (bIsAudioThreadRunning && !bInUseThreadedAudio)
+	if (bIsAudioThreadRunning.Load() && !bInUseThreadedAudio)
 	{
 		UE_LOG(LogAudio, Error, TEXT("You cannot disable using threaded audio once the thread has already begun running."));
 	}
@@ -403,8 +400,8 @@ void FAudioThread::StartAudioThread()
 {
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
 
-	check(!bIsAudioThreadRunning);
-	check(!bIsAudioThreadSuspended);
+	check(!bIsAudioThreadRunning.Load());
+	check(!GIsAudioThreadSuspended.Load());
 	if (bUseThreadedAudio)
 	{
 PRAGMA_DISABLE_DEPRECATION_WARNINGS
@@ -444,9 +441,9 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void FAudioThread::StopAudioThread()
 {
 	check(FPlatformTLS::GetCurrentThreadId() == GGameThreadId);
-	check(!bIsAudioThreadSuspended || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
+	check(!GIsAudioThreadSuspended.Load() || CVarSuspendAudioThread.GetValueOnGameThread() != 0);
 
-	if (!bIsAudioThreadRunning && CachedAudioThreadId == 0)
+	if (!bIsAudioThreadRunning.Load())
 	{
 		return;
 	}
@@ -485,7 +482,6 @@ FAudioCommandFence::~FAudioCommandFence()
 {
 	if (FenceDoneEvent)
 	{
-
 		FenceDoneEvent->Wait();
 
 		FPlatformProcess::ReturnSynchEventToPool(FenceDoneEvent);
@@ -508,7 +504,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 
 		if (FenceDoneEvent)
 		{
-
 			FenceDoneEvent->Wait();
 
 			FPlatformProcess::ReturnSynchEventToPool(FenceDoneEvent);
@@ -550,7 +545,6 @@ PRAGMA_ENABLE_DEPRECATION_WARNINGS
 void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
 {
 	FAudioThread::ProcessAllCommands();
-
 
 	if (!IsFenceComplete()) // this checks the current thread
 	{
@@ -598,10 +592,6 @@ void FAudioCommandFence::Wait(bool bProcessGameThreadTasks) const
 		} while (!bDone);
 
 		FAudioThread::ResetAudioThreadTimers();
-
-
-
 	}
-	
 }
 

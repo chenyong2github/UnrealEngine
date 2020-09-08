@@ -415,6 +415,9 @@ extern CORE_API uint32 GSlateLoadingThreadId;
 UE_DEPRECATED(4.26, "Please use `IsAudioThreadRunning()` or `IsInAudioThread()`")
 extern CORE_API uint32 GAudioThreadId;
 
+/** Whether the audio thread is suspended */
+extern CORE_API TAtomic<bool> GIsAudioThreadSuspended;
+
 /** Has GGameThreadId been set yet? */
 extern CORE_API bool GIsGameThreadIdInitialized;
 
