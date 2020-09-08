@@ -1180,7 +1180,8 @@ void UReplicationGraph::ReplicateActorListsForConnections_Default(UNetReplicatio
 		const float MaxDistanceScaling = PrioritizationConstants.MaxDistanceScaling;
 		const uint32 MaxFramesSinceLastRep = PrioritizationConstants.MaxFramesSinceLastRep;
 
-		for (FActorRepListRawView& List : GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::Default))
+		const TArray<FActorRepListConstView>& GatheredLists = GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::Default);
+		for (const FActorRepListConstView& List : GatheredLists)
 		{
 			// Add actors from gathered list
 			NumGatheredActorsOnConnection += List.Num();
@@ -1492,10 +1493,10 @@ void UReplicationGraph::ReplicateActorListsForConnections_FastShared(UNetReplica
 	// This really isn't ideal. We want to have better ways of tracking and limiting network traffic. This feels pretty hacky in implementation but conceptually is good.
 	FScopedQueuedBits ScopedQueuedBits(NetConnection->QueuedBits, TotalBitsWritten);
 
-	TArray< FActorRepListRawView>& GatheredLists = GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::FastShared);
+	const TArray<FActorRepListConstView>& GatheredLists = GatheredReplicationListsForConnection.GetLists(EActorRepListTypeFlags::FastShared);
 	for (int32 ListIdx = 0; ListIdx < GatheredLists.Num(); ++ListIdx)
 	{
-		FActorRepListRawView& List = GatheredLists[(ListIdx + FrameNum) % GatheredLists.Num()];
+		const FActorRepListConstView& List = GatheredLists[(ListIdx + FrameNum) % GatheredLists.Num()];
 		for (int32 i = 0; i < List.Num(); ++i)
 		{
 			// Round robin through the list over multiple frames. We want to avoid sorting this list based on 'time since last rep'. This is a good balance

@@ -210,6 +210,9 @@ struct TActorRepListViewBase
 		return Str;
 	}
 
+	FActorRepListType* begin() const { return RepList->Data; }
+	FActorRepListType* end() const { return RepList->Data + RepList->Num; }
+
 private:
 
 	FORCEINLINE friend FActorRepListType* begin(const TActorRepListViewBase<PointerType>& View) { return View.RepList->Data; }
@@ -345,8 +348,35 @@ private:
 	}
 };
 
+/**
+ * Gives temporary read-only access to a FActorRepListRefView by holding a reference to it.
+ */
+struct REPLICATIONGRAPH_API FActorRepListConstView
+{
+	FActorRepListConstView(const FActorRepListRefView& InListReferenced) :
+		ListReferenced(InListReferenced)
+	{}
+
+	FActorRepListType operator[](int32 idx) const
+	{
+		return ListReferenced[idx];
+	}
+
+	int32 Num() const
+	{
+		return ListReferenced.Num();
+	}
+
+	FActorRepListType* begin() const { return ListReferenced.begin(); }
+	FActorRepListType* end() const { return ListReferenced.end(); }
+
+private:
+	const FActorRepListRefView& ListReferenced;
+};
+
 /** A read only, non owning (ref counting) view to an actor replication list: essentially a raw pointer and the category of the list. These are only created *from* FActorRepListRefView */
-struct REPLICATIONGRAPH_API FActorRepListRawView : public TActorRepListViewBase<FActorRepList*>
+
+struct UE_DEPRECATED(4.27, "Replace this struct with the new FActorRepListConstView struct.") REPLICATIONGRAPH_API FActorRepListRawView : public TActorRepListViewBase<FActorRepList*>
 {
 	/** Standard ctor: make raw view from ref view */
 	FActorRepListRawView(const FActorRepListRefView& Source) { RepList = Source.RepList.GetReference(); }
@@ -1152,7 +1182,7 @@ struct REPLICATIONGRAPH_API FGatheredReplicationActorLists
 		repCheck(List.IsValid());
 		if (List.Num() > 0)
 		{
-			ReplicationLists[(uint32)Flags].Emplace(FActorRepListRawView(List));
+			ReplicationLists[(uint32)Flags].Emplace(FActorRepListConstView(List));
 			CachedNum++;
 		}
 	}
@@ -1170,18 +1200,18 @@ struct REPLICATIONGRAPH_API FGatheredReplicationActorLists
 		return CachedNum; 
 	}
 	
-	FORCEINLINE TArray< FActorRepListRawView>& GetLists(EActorRepListTypeFlags ListFlags)
+	FORCEINLINE const TArray<FActorRepListConstView>& GetLists(EActorRepListTypeFlags ListFlags) const
 	{ 
 		return ReplicationLists[(uint32)ListFlags];
 	}
-	FORCEINLINE bool ContainsLists(EActorRepListTypeFlags Flags) 
+	FORCEINLINE bool ContainsLists(EActorRepListTypeFlags Flags) const
 	{ 
 		return ReplicationLists[(uint32)Flags].Num() > 0;
 	}
 	
 private:
 
-	TStaticArray< TArray<FActorRepListRawView>, (uint32)EActorRepListTypeFlags::Max > ReplicationLists;
+	TStaticArray< TArray<FActorRepListConstView>, (uint32)EActorRepListTypeFlags::Max > ReplicationLists;
 	int32 CachedNum = 0;
 };
 
