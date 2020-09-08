@@ -154,6 +154,14 @@ public:
 	/** Whether this package has been fully loaded (aka had all it's exports created) at some point.															*/
 	mutable uint8 bHasBeenFullyLoaded:1;
 
+	/**
+	 * Whether this package can be imported, i.e. its package name is a package that exists on disk.
+	 * Note: This includes all normal packages where the Name matches the FileName
+	 * and localized packages shadowing an existing source package,
+	 * but excludes level streaming packages with /Temp/ names.
+	 */
+	uint8 bCanBeImported:1;
+
 private:
 	/** Time in seconds it took to fully load this package. 0 if package is either in process of being loaded or has never been fully loaded.					*/
 	float LoadTime;		// TODO: strip from runtime?
@@ -324,6 +332,23 @@ public:
 	*/
 	void FullyLoad();
 
+	/**
+	* Marks/Unmarks the package's bCanBeImported flag.
+	*/
+	void SetCanBeImportedFlag(bool bInCanBeImported)
+	{
+		bCanBeImported = bInCanBeImported;
+	}
+
+	/**
+	* Returns whether the package can be imported.
+	*
+	* @return		true if the package can be imported.
+	*/
+	bool CanBeImported() const
+	{
+		return bCanBeImported;
+	}
 	/**
 	* Tags the Package's metadata
 	*/
