@@ -331,7 +331,13 @@ bool UNiagaraDataInterfaceGrid2DCollectionReader::InitPerInstanceData(void* PerI
 	InstanceData->DIName = DIName;
 	for (TSharedPtr<FNiagaraEmitterInstance, ESPMode::ThreadSafe> EmitterInstance : SystemInstance->GetEmitters())
 	{
-		if (EmitterName == EmitterInstance->GetCachedEmitter()->GetUniqueEmitterName())
+		UNiagaraEmitter* Emitter = EmitterInstance->GetCachedEmitter();
+		if (Emitter == nullptr)
+		{
+			continue;
+		}
+
+		if (EmitterName == Emitter->GetUniqueEmitterName())
 		{
 			InstanceData->EmitterInstance = EmitterInstance.Get();			
 			break;
