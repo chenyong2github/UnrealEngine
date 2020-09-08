@@ -192,7 +192,7 @@ bool UNiagaraDataInterfaceCollisionQuery::GetFunctionHLSL(const FNiagaraDataInte
 			#if PLATFORM_SUPPORTS_DISTANCE_FIELDS\n\
 			Out_DistanceToNearestSurface = GetDistanceToNearestSurfaceGlobal(In_SamplePos);\n\
 			Out_FieldGradient = GetDistanceFieldGradientGlobal(In_SamplePos);\n\
-			Out_IsDistanceFieldValid = MaxGlobalDistance > 0;\n\
+			Out_IsDistanceFieldValid = MaxGlobalDFAOConeDistance > 0;\n\
 			#else\n\
 			Out_DistanceToNearestSurface = 0;\n\
 			Out_FieldGradient = (float3)0;\n\

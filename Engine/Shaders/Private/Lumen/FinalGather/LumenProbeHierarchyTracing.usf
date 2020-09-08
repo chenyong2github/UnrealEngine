@@ -6,16 +6,9 @@
 
 #include "../../Common.ush"
 #include "../LumenCardCommon.ush"
-#define CARD_BVH 0
-#if CULLED_CARDS_GRID
-	#define CARD_CULLED_LIST 1
-#else
-	#define CARD_CULLED_LIST 0
-#endif
 // Depth weighted OIT doesn't cover enough depth range for ConeTraceLumenDistantScene
 // This has the side effect that card tracing for detail traces in this file don't get blended
 #define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
-#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
 #include "../LumenTracingCommon.ush"
 #include "../ProbeHierarchy/LumenProbeTracing.ush"
 #include "../LumenRadianceCacheCommon.ush"
@@ -43,17 +36,6 @@ float GetLumenLightingCorrection()
 	LightingCorrection *= View.PreExposure;
 #endif
 	
-	// Lumen equation:
-	//		SceneColor += Diffuse_Lambert(DiffuseColor) * Sum(TraceResult.Lighting * SampleWeight) * AO
-	//		SampleWeight = LumenDiffuseIntensity * 2.0f * PI / RayCountPerPixel
-					
-	//LightingCorrection *= 2.0 * PI;
-
-	// Because DiffuseIndirectMergeSamples.usf does /= RayCountPerPixel
-	//LightingCorrection *= RayCountPerPixel;
-					
-	// Because DiffuseIndirectComposite.usf doesn't do Diffuse_Lambert(DiffuseColor)
-	//LightingCorrection *= rcp(PI);
 	return LightingCorrection;
 }
 
@@ -134,28 +116,14 @@ void CardTraceProbeCS(
 
 		uint CardGridCellIndex = ProbeTracingCtx.ProbeIndex;
 
-		#if CULLED_CARDS_GRID
-			uint NumOverlappingCards = CulledCardGridHeader[CardGridCellIndex * CULLED_CARD_GRID_HEADER_STRIDE + 0];
-			uint OverlappingCardsStartIndex = CulledCardGridHeader[CardGridCellIndex * CULLED_CARD_GRID_HEADER_STRIDE + 1];
-		#endif
+		uint NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
+		uint MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
 
-		#if CARD_TRACE_MESH_SDF
-			uint NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
-			uint MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
-		#endif
-
-		#if CARD_CULLED_LIST
-			TraceInput.NumOverlappingCards = NumOverlappingCards;
-			TraceInput.OverlappingCardsStartIndex = OverlappingCardsStartIndex;
-		#endif
-
-		#if CARD_TRACE_MESH_SDF
-			TraceInput.NumMeshSDFs = NumMeshSDFs;
-			TraceInput.MeshSDFStartOffset = MeshSDFStartOffset;
-			TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
-			//@todo - derive from card texel size
-			TraceInput.CardInterpolateDepthVisibilityRadius = 10;
-		#endif
+		TraceInput.NumMeshSDFs = NumMeshSDFs;
+		TraceInput.MeshSDFStartOffset = MeshSDFStartOffset;
+		TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
+		//@todo - derive from card texel size
+		TraceInput.CardInterpolateDepthVisibilityRadius = 10;
 			
 		FConeTraceResult TraceResult;
 		TraceResult = (FConeTraceResult)0;
@@ -234,8 +202,7 @@ void VoxelTraceProbeCS(
 
 		bool bContinueCardTracing = (DIFFUSE_TRACE_CARDS != 0);
 
-		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
-			SamplePosition, TanDiffuseConeHalfAngle, FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
 		
 		FConeTraceResult TraceResult;
 		TraceResult = (FConeTraceResult)0;
@@ -247,7 +214,7 @@ void VoxelTraceProbeCS(
 #if RADIANCE_CACHE
 		if (bCoveredByRadianceCache)
 		{
-			SampleRadianceCacheAndApply(SamplePosition, WorldConeDirection, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			SampleRadianceCacheAndApply(SamplePosition, WorldConeDirection, TanDiffuseConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
 			
 			Lighting = TraceResult.Lighting;
 			bHit = true;

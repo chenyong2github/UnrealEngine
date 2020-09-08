@@ -1,0 +1,632 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "LumenCardCommon.ush"
+#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
+#include "LumenTracingCommon.ush"
+#include "LumenRadianceCacheCommon.ush"
+#include "LumenScreenProbeCommon.ush"
+
+#define IS_SSGI_SHADER 0
+#include "../SSRT/SSRTRayCast.ush"
+#include "../SHCommon.ush"
+
+#include "LumenScreenTracing.ush"
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 0
+#endif
+
+#ifndef DIFFUSE_TRACE_CARDS
+#define DIFFUSE_TRACE_CARDS 0
+#endif
+
+#define DEBUG_VISUALIZE_TRACE_TYPES 0
+
+RWTexture2D<float> RWTraceHit;
+RWTexture2D<float3> RWTraceRadiance;
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ClearTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	RWTraceRadiance[DispatchThreadId.xy] = 0.0f;
+	RWTraceHit[DispatchThreadId.xy] = EncodeProbeRayDistance(0.0f, false);
+}
+
+float MaxTraceDistance;
+float MaxRayIntensity;
+
+Texture2D FurthestHZBTexture;
+Texture2D ColorTexture;
+#define FurthestHZBTextureSampler GlobalPointClampedSampler
+#define ColorTextureSampler GlobalPointClampedSampler
+float4 HZBUvFactorAndInvFactor;
+float4 ColorBufferScaleBias;
+float2 ReducedColorUVMax;
+float MaxHierarchicalScreenTraceIterations;
+float UncertainTraceRelativeDepthThreshold;
+float NumThicknessStepsToDetermineCertainty;
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeTraceScreenTexturesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+#define DEINTERLEAVED_SCREEN_TRACING 1
+#if DEINTERLEAVED_SCREEN_TRACING
+	uint2 AtlasSizeInProbes = uint2(ScreenProbeAtlasViewSize.x, (GetNumScreenProbes() + ScreenProbeAtlasViewSize.x - 1) / ScreenProbeAtlasViewSize.x);
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy % AtlasSizeInProbes;
+	uint2 TraceTexelCoord = DispatchThreadId.xy / AtlasSizeInProbes;
+#else
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeTracingOctahedronResolution;
+	uint2 TraceTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution;
+#endif
+
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes() && all(TraceTexelCoord < ScreenProbeTracingOctahedronResolution))
+	{
+		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+			float2 ProbeUV;
+			float ConeHalfAngle;
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			{
+				float TraceDistance = MaxTraceDistance;
+				bool bCoveredByRadianceCache = false;
+				#if RADIANCE_CACHE
+					float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
+					TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+				#endif
+
+
+#if HIERARCHICAL_SCREEN_TRACING
+
+				bool bHit;
+				bool bUncertain;
+				float3 HitUVz;
+
+				TraceScreen(
+					WorldPosition + View.PreViewTranslation,
+					WorldConeDirection,
+					TraceDistance,
+					HZBUvFactorAndInvFactor,
+					MaxHierarchicalScreenTraceIterations, 
+					UncertainTraceRelativeDepthThreshold,
+					NumThicknessStepsToDetermineCertainty,
+					bHit,
+					bUncertain,
+					HitUVz);
+				
+				float Level = 1;
+				bool bWriteDepthOnMiss = true;
+#else
+	
+				uint NumSteps = 16;
+				float StartMipLevel = 1.0f;
+				float MaxScreenTraceFraction = .2f;
+
+				// Can only get decent quality out of fixed step count screen traces by limiting the trace distance
+				float MaxWorldTraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
+				TraceDistance = min(TraceDistance, MaxWorldTraceDistance);
+
+				uint2 NoiseCoord = ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution + TraceTexelCoord;
+				float StepOffset = InterleavedGradientNoise(NoiseCoord + 0.5f, 0);
+
+				float RayRoughness = .2f;
+				StepOffset = StepOffset - .9f;
+
+				FSSRTCastingSettings CastSettings = CreateDefaultCastSettings();
+				CastSettings.bStopWhenUncertain = true;
+
+				bool bHit = false;
+				float Level;
+				float3 HitUVz;
+				bool bRayWasClipped;
+
+				FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
+					WorldPosition + View.PreViewTranslation, WorldConeDirection,
+					/* WorldTMax = */ TraceDistance,
+					/* SceneDepth = */ SceneDepth,
+					/* SlopeCompareToleranceScale */ 2.0f,
+					/* bExtendRayToScreenBorder = */ false,
+					/* out */ bRayWasClipped);
+
+				bool bUncertain;
+				float3 DebugOutput;
+
+				CastScreenSpaceRay(
+					FurthestHZBTexture, FurthestHZBTextureSampler,
+					StartMipLevel,
+					CastSettings,
+					Ray, RayRoughness, NumSteps, StepOffset,
+					HZBUvFactorAndInvFactor, false,
+					/* out */ DebugOutput,
+					/* out */ HitUVz,
+					/* out */ Level,
+					/* out */ bHit,
+					/* out */ bUncertain);
+
+				// CastScreenSpaceRay skips Mesh SDF tracing in a lot of places where it shouldn't, in particular missing thin occluders due to low NumSteps.  
+				bool bWriteDepthOnMiss = !bUncertain;
+
+#endif
+				bHit = bHit && !bUncertain;
+
+				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+
+				if (bHit)
+				{
+					float2 ReducedColorUV = HitUVz.xy * ColorBufferScaleBias.xy + ColorBufferScaleBias.zw;
+					ReducedColorUV = min(ReducedColorUV, ReducedColorUVMax);
+
+					float3 Lighting = ColorTexture.SampleLevel(ColorTextureSampler, ReducedColorUV, Level).rgb;
+					float MaxLighting = max3(Lighting.x, Lighting.y, Lighting.z);
+
+					if (MaxLighting > MaxRayIntensity)
+					{
+						Lighting *= MaxRayIntensity / MaxLighting;
+					}
+					
+					#if DEBUG_VISUALIZE_TRACE_TYPES
+						RWTraceRadiance[TraceCoord] = float3(.5f, 0, 0) * View.PreExposure;
+					#else
+						RWTraceRadiance[TraceCoord] = Lighting;
+					#endif
+				}
+
+				if (bHit || bWriteDepthOnMiss)
+				{
+					float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + View.PreViewTranslation, HitUVz)), MaxTraceDistance);
+					RWTraceHit[TraceCoord] = EncodeProbeRayDistance(HitDistance, bHit);
+				}
+			}
+		}
+	}
+}
+
+Texture2D<float> TraceHit;
+
+uint2 EncodeTraceTexel(uint ScreenProbeIndex, uint2 TraceTexelCoord, float TraceHitDistance)
+{
+	return uint2(
+		(ScreenProbeIndex & 0xFFFFF) | ((TraceTexelCoord.x & 0x1F) << 20) | ((TraceTexelCoord.y & 0x1F) << 25),
+		asuint(TraceHitDistance));
+}
+
+void DecodeTraceTexel(uint2 TraceTexelData, inout uint ScreenProbeIndex, inout uint2 TraceTexelCoord, inout float TraceHitDistance)
+{
+	ScreenProbeIndex = TraceTexelData.x & 0xFFFFF;
+	TraceTexelCoord.x = (TraceTexelData.x >> 20) & 0x1F;
+	TraceTexelCoord.y = (TraceTexelData.x >> 25) & 0x1F;
+	TraceHitDistance = asfloat(TraceTexelData.y);
+}
+
+RWBuffer<uint> RWCompactedTraceTexelAllocator;
+RWBuffer<uint2> RWCompactedTraceTexelData;
+
+float CompactionTracingEndDistanceFromCamera;
+float CompactionMaxTraceDistance;
+
+groupshared uint SharedTraceTexelAllocator;
+groupshared uint SharedGlobalTraceTexelStartOffset;
+groupshared uint2 SharedTraceTexels[PROBE_THREADGROUP_SIZE_2D * PROBE_THREADGROUP_SIZE_2D];
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeCompactTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	SharedTraceTexelAllocator = 0;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeTracingOctahedronResolution;
+	uint2 TraceTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes() && all(TraceTexelCoord < ScreenProbeTracingOctahedronResolution))
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+
+		bool bHit;
+		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceCoord].x, bHit);
+
+		if (SceneDepth > 0 
+			&& !bHit
+			&& SceneDepth < CompactionTracingEndDistanceFromCamera 
+			&& TraceHitDistance < CompactionMaxTraceDistance)
+		{
+			uint SharedTexelOffset;
+			InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
+			SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint ThreadIndex = GroupThreadId.y * PROBE_THREADGROUP_SIZE_2D + GroupThreadId.x;
+
+	if (ThreadIndex == 0)
+	{
+		InterlockedAdd(RWCompactedTraceTexelAllocator[0], SharedTraceTexelAllocator, SharedGlobalTraceTexelStartOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < SharedTraceTexelAllocator)
+	{
+		RWCompactedTraceTexelData[SharedGlobalTraceTexelStartOffset + ThreadIndex] = SharedTraceTexels[ThreadIndex];
+	}
+}
+
+Buffer<uint> CompactedTraceTexelAllocator;
+RWBuffer<uint> RWScreenProbeCompactTracingIndirectArgs;
+
+[numthreads(1, 1, 1)]
+void SetupCompactedTracesIndirectArgsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	RWScreenProbeCompactTracingIndirectArgs[0] = (CompactedTraceTexelAllocator[0] + PROBE_THREADGROUP_SIZE_1D - 1) / PROBE_THREADGROUP_SIZE_1D;
+	RWScreenProbeCompactTracingIndirectArgs[1] = 1;
+	RWScreenProbeCompactTracingIndirectArgs[2] = 1;
+}
+
+uint CardGridPixelSizeShift;
+float3 CardGridZParams;
+uint3 CullGridSize;
+
+uint ComputeCardGridCellIndex(uint2 PixelPos, float SceneDepth)
+{
+	uint ZSlice = (uint)(max(0, log2(SceneDepth * CardGridZParams.x + CardGridZParams.y) * CardGridZParams.z));
+	ZSlice = min(ZSlice, (uint)(CullGridSize.z - 1));
+	uint3 GridCoordinate = uint3(PixelPos >> CardGridPixelSizeShift, ZSlice);
+	uint GridIndex = (GridCoordinate.z * CullGridSize.y + GridCoordinate.y) * CullGridSize.x + GridCoordinate.x;
+	return GridIndex;
+}
+
+float StepFactor;
+float VoxelStepFactor;
+float MinSampleRadius;
+float MinTraceDistance;
+float SurfaceBias;
+float CardInterpolateInfluenceRadius;
+float CardTraceEndDistanceFromCamera;
+float MaxCardTraceDistance;
+
+void TraceCards(
+	uint2 ScreenProbeAtlasCoord,
+	uint2 TraceTexelCoord,
+	uint ScreenProbeIndex,
+	float TraceHitDistance)
+{
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	{
+		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+		float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+
+		bool bHit = false;
+
+		{
+			float2 ProbeUV;
+			float ConeHalfAngle;
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			float3 SamplePosition = WorldPosition + SurfaceBias * WorldConeDirection;
+			SamplePosition += SurfaceBias * SceneNormal;
+
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(SamplePosition, WorldConeDirection, ConeHalfAngle, MinSampleRadius, max(MinTraceDistance, TraceHitDistance - SurfaceBias * 2), MaxTraceDistance, StepFactor);
+			TraceInput.VoxelStepFactor = VoxelStepFactor;
+			TraceInput.VoxelTraceStartDistance = MaxCardTraceDistance;
+
+			uint CardGridCellIndex = ComputeCardGridCellIndex(ScreenProbeScreenCoord * ScreenProbeDownsampleFactor, SceneDepth);
+			TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
+			TraceInput.MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
+			TraceInput.CardInterpolateInfluenceRadius = CardInterpolateInfluenceRadius;
+			//@todo - derive from card texel size
+			TraceInput.CardInterpolateDepthVisibilityRadius = 10;
+
+			FConeTraceResult TraceResult;
+			ConeTraceLumenSceneCards(TraceInput, TraceResult);
+
+			float3 Lighting = TraceResult.Lighting;
+			float Transparency = TraceResult.Transparency;
+			float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
+
+			float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
+			float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
+
+			Lighting *= 1 - DistanceFade;
+			Transparency = lerp(Transparency, 1, DistanceFade);
+
+			#if USE_PREEXPOSURE
+				Lighting *= View.PreExposure;
+			#endif
+
+			#if DEBUG_VISUALIZE_TRACE_TYPES
+				RWTraceRadiance[TraceCoord] = float3(0, .5f, 0) * View.PreExposure;
+			#else
+				RWTraceRadiance[TraceCoord] = Lighting;
+			#endif
+
+			//@todo - dither to handle fractional Transparency for fade
+			if (Transparency < .5f)
+			{
+				bHit = true;
+			}
+
+			TraceHitDistance = OpaqueHitDistance + length(WorldPosition - SamplePosition);
+		}
+
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit);
+	}
+}
+
+Buffer<uint2> CompactedTraceTexelData;
+
+[numthreads(PROBE_THREADGROUP_SIZE_1D, 1, 1)]
+void ScreenProbeTraceCardsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	if (DispatchThreadId.x < CompactedTraceTexelAllocator[0])
+	{
+		uint ScreenProbeIndex;
+		uint2 TraceTexelCoord;
+		float TraceHitDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+
+		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
+		TraceCards(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex, TraceHitDistance);
+	}
+}
+
+void TraceVoxels(
+	uint2 ScreenProbeAtlasCoord,
+	uint2 TraceTexelCoord,
+	uint ScreenProbeIndex,
+	float TraceHitDistance)
+{
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+	
+	{
+		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+
+		bool bHit = false;
+
+		{
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+			float2 ProbeUV;
+			float ConeHalfAngle;
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			float3 SamplePosition = WorldPosition + SurfaceBias * WorldConeDirection;
+			SamplePosition += SurfaceBias * SceneNormal;
+
+			float TraceDistance = MaxTraceDistance;
+			bool bCoveredByRadianceCache = false;
+#if RADIANCE_CACHE
+			float ProbeOcclusionDistance = GetRadianceProbeOcclusionDistanceWithInterpolation(WorldPosition, WorldConeDirection, bCoveredByRadianceCache);
+			TraceDistance = min(TraceDistance, ProbeOcclusionDistance);
+#endif
+
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(SamplePosition, WorldConeDirection, ConeHalfAngle, MinSampleRadius, MinTraceDistance, TraceDistance, StepFactor);
+			TraceInput.VoxelStepFactor = VoxelStepFactor;
+			TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance);
+
+			FConeTraceResult TraceResult = (FConeTraceResult)0;
+			TraceResult.Lighting = 0;
+			TraceResult.Transparency = 1;
+			TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
+
+			ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+			if (TraceResult.Transparency <= .5f)
+			{
+				// Self intersection from grazing angle traces causes noise that can't be removed by the spatial filter
+				#define USE_VOXEL_TRACE_HIT_DISTANCE 0
+				#if USE_VOXEL_TRACE_HIT_DISTANCE
+					TraceHitDistance = TraceResult.OpaqueHitDistance;
+				#else
+					TraceHitDistance = TraceDistance;
+				#endif
+				bHit = true;
+			}
+
+#if RADIANCE_CACHE
+			if (bCoveredByRadianceCache)
+			{
+				if (TraceResult.Transparency > .5f)
+				{
+					// We don't store depth of Radiance Cache hits
+					TraceHitDistance = MaxTraceDistance;
+				}
+
+				SampleRadianceCacheAndApply(WorldPosition, WorldConeDirection, ConeHalfAngle, float3(0, 0, 0), TraceResult.Lighting, TraceResult.Transparency);
+			}
+			else
+#endif
+			{
+#if TRACE_DISTANT_SCENE
+				if (TraceResult.Transparency > .01f)
+				{
+					FConeTraceResult DistantTraceResult;
+					ConeTraceLumenDistantScene(TraceInput, DistantTraceResult);
+					TraceResult.Lighting += DistantTraceResult.Lighting * TraceResult.Transparency;
+					TraceResult.Transparency *= DistantTraceResult.Transparency;
+				}
+#endif
+				EvaluateSkyRadianceForCone(WorldConeDirection, tan(ConeHalfAngle), TraceResult);
+
+				if (TraceHitDistance >= GetProbeMaxHitDistance())
+				{
+					TraceHitDistance = MaxTraceDistance;
+				}
+			}
+			
+			#if USE_PREEXPOSURE
+				TraceResult.Lighting *= View.PreExposure;
+			#endif
+
+			#if DEBUG_VISUALIZE_TRACE_TYPES
+				RWTraceRadiance[TraceCoord] = float3(0, 0, .5f) * View.PreExposure;
+			#else
+				RWTraceRadiance[TraceCoord] = TraceResult.Lighting;
+			#endif
+		}
+
+		RWTraceHit[TraceCoord] = EncodeProbeRayDistance(TraceHitDistance, bHit);
+	}
+}
+
+[numthreads(PROBE_THREADGROUP_SIZE_1D, 1, 1)]
+void ScreenProbeTraceVoxelsCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	if (DispatchThreadId.x < CompactedTraceTexelAllocator[0])
+	{
+		uint ScreenProbeIndex;
+		uint2 TraceTexelCoord;
+		float TraceHitDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId.x], ScreenProbeIndex, TraceTexelCoord, TraceHitDistance);
+
+		uint2 ScreenProbeAtlasCoord = uint2(ScreenProbeIndex % ScreenProbeAtlasViewSize.x, ScreenProbeIndex / ScreenProbeAtlasViewSize.x);
+		TraceVoxels(ScreenProbeAtlasCoord, TraceTexelCoord, ScreenProbeIndex, TraceHitDistance);
+	}
+}
+
+#define VISUALIZE_TRACE_DATA_STRIDE 3
+
+RWBuffer<float4> RWVisualizeTracesData;
+
+Texture2D TraceRadiance;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ScreenProbeSetupVisualizeTraces(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = ScreenProbeViewSize / 2;
+	uint2 ScreenProbeScreenCoord = ScreenProbeAtlasCoord;
+	uint2 TraceTexelCoord = DispatchThreadId.xy;
+
+	if (all(TraceTexelCoord < ScreenProbeTracingOctahedronResolution))
+	{
+		uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TraceTexelCoord);
+		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, 0);
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		bool bHit;
+		float TraceHitDistance = DecodeProbeRayDistance(TraceHit[TraceCoord].x, bHit);
+
+		float3 WorldPosition = 0;
+		float3 WorldConeDirection = 0;
+		float RefinementRay = 0;
+
+		if (SceneDepth > 0.0f)
+		{
+			WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+			float2 ProbeUV;
+			float ConeHalfAngle;
+			GetProbeTracingUV(ScreenProbeAtlasCoord, TraceTexelCoord, GetProbeTexelCenter(ScreenProbeAtlasCoord), 1, ProbeUV, ConeHalfAngle);
+
+			WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+			float BaseAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution));
+			RefinementRay = ConeHalfAngle < BaseAngle ? 1 : 0;
+
+		}
+
+		uint TraceIndex = TraceTexelCoord.y * ScreenProbeTracingOctahedronResolution + TraceTexelCoord.x;
+
+		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0] = float4(WorldPosition, 0);
+		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1] = float4(WorldConeDirection * TraceHitDistance, 0);
+
+		bool bVisualizeRefinementRays = false;
+		RWVisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2] = bVisualizeRefinementRays ? RefinementRay : TraceRadiance[TraceCoord];
+	}
+}
+
+Buffer<float4> VisualizeTracesData;
+
+struct FVisualizeTracesVertexOutput
+{
+	float3 TraceLighting : TEXCOORD0;
+};
+
+void VisualizeTracesVS(
+	uint VertexIndex : SV_VertexID,
+	out FVisualizeTracesVertexOutput Output,
+	out float4 OutPosition : SV_POSITION
+	)
+{
+	uint TraceIndex = VertexIndex / 2;
+	float3 WorldPosition = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 0].xyz;
+
+	if (VertexIndex & 1)
+	{
+		WorldPosition += VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 1].xyz;
+	}
+
+	OutPosition = mul(float4(WorldPosition, 1), View.WorldToClip);
+	Output.TraceLighting = VisualizeTracesData[TraceIndex * VISUALIZE_TRACE_DATA_STRIDE + 2].xyz;
+} 
+
+void VisualizeTracesPS(
+	FVisualizeTracesVertexOutput Input,
+	in float4 SVPos : SV_POSITION,
+	out float4 OutColor : SV_Target0)
+{
+	OutColor = float4(Input.TraceLighting, 0);
+}

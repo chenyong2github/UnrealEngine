@@ -71,6 +71,7 @@ FSSRTRay InitScreenSpaceRayFromWorldSpace(
 	float3 WorldRayDirection,
 	float WorldTMax,
 	float SceneDepth,
+	float SlopeCompareToleranceScale,
 	const bool bExtendRayToScreenBorder,
 	out bool bRayWasClipped)
 {
@@ -107,13 +108,7 @@ FSSRTRay InitScreenSpaceRayFromWorldSpace(
 	}
 
 	Ray.RayStepScreen *= ClipToScreenFactor;
-
-	// TODO
-	#if IS_SSGI_SHADER
-		Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * 2);
-	#else
-		Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * 4);
-	#endif
+	Ray.CompareTolerance = max(abs(Ray.RayStepScreen.z), (RayStartScreen.z - RayDepthScreen.z) * SlopeCompareToleranceScale);
 
 	return Ray;
 } // InitScreenSpaceRayFromWorldSpace()
@@ -610,15 +605,17 @@ void CastScreenSpaceRay(
 				PrintSample(HZBUvFactorAndInvFactor, OutHitUVz.xy, float4(0, 0, 1, 1));
 		}
 		#endif
-
-		OutHitUVz.xy *= HZBUvFactorAndInvFactor.zw;
-		OutHitUVz.xy = OutHitUVz.xy * float2( 2, -2 ) + float2( -1, 1 );
-		OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
     }
 	else
     {
-        OutHitUVz = RayUVz + RayStepUVz * NumSteps;
+		// Uncertain intersection - conservatively pull back to an iteration which didn't intersect
+        OutHitUVz = RayUVz + RayStepUVz * i;
     }
+
+	OutHitUVz.xy *= HZBUvFactorAndInvFactor.zw;
+	OutHitUVz.xy = OutHitUVz.xy * float2( 2, -2 ) + float2( -1, 1 );
+	OutHitUVz.xy = OutHitUVz.xy * View.ScreenPositionScaleBias.xy + View.ScreenPositionScaleBias.wz;
+
 } // CastScreenSpaceRay()
 
 
@@ -632,11 +629,18 @@ bool RayCast(
 	out float3 OutHitUVz,
 	out float Level)
 {
+	#if IS_SSGI_SHADER
+		float SlopeCompareToleranceScale = 2.0f;
+	#else
+		float SlopeCompareToleranceScale = 4.0f;
+	#endif
+
 	bool bRayWasClipped;
 	FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
 		RayOriginTranslatedWorld, RayDirection,
 		/* WorldTMax = */ SceneDepth,
 		/* SceneDepth = */ SceneDepth,
+		/* SlopeCompareToleranceScale = */ SlopeCompareToleranceScale,
 		/* bExtendRayToScreenBorder = */ true,
 		/* out */ bRayWasClipped);
 

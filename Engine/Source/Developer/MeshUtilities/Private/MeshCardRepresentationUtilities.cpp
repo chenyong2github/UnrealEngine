@@ -230,7 +230,9 @@ void BuildCubeMapTree(const FBox& CardBounds, const FGenerateCardMeshContext& Co
 	static const auto CVarLumenCubeMapTreeBuildMinSurface = IConsoleManager::Get().FindTConsoleVariableDataFloat(TEXT("r.LumenCubeMapTreeBuild.MinSurface"));
 	const float MinSurfaceThreshold = CVarLumenCubeMapTreeBuildMinSurface->GetValueOnAnyThread();
 
-	const FBox CubeMapTreeBounds = CardBounds.ExpandBy(CardBounds.GetExtent() * 0.05f);
+	const float MaxExtent = CardBounds.GetExtent().GetMax();
+	// Ensure bounds don't have zero extent (was possible for planes)
+	const FBox CubeMapTreeBounds = CardBounds.ExpandBy(FVector::Max(CardBounds.GetExtent() * 0.05f, .001f * FVector(MaxExtent, MaxExtent, MaxExtent)));
 
 	FIntVector LUTVolumeResolution(1, 1, 1);
 

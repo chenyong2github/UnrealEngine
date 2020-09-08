@@ -12,14 +12,8 @@
 
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
-#if CULLED_CARDS_GRID
-	#define CARD_CULLED_LIST 1
-#endif
-#define CARD_BVH 0
 // 16 bit render target accumulation
 #define DEPTH_WEIGHTED_OIT_32_BIT 0
-// Causes artifacts on steep surfaces due to extrapolation
-#define CARD_TRACE_FOR_VOXELIZATION 0
 #include "LumenTracingCommon.ush"
 
 #ifndef THREADGROUP_SIZE
@@ -34,80 +28,13 @@ float3 GridMin;
 float3 GridVoxelSize;
 float GridConeRadiusSq;
 
-bool BVHCullingNodeTest(FLumenCardBVHNodeData BVHNode, uint3 CullGridPos)
-{
-	if (BVHNode.LumenCardId != INVALID_PROXY_CARD_ID && !IsCardVisible(BVHNode.LumenCardId))
-	{
-		return false;
-	}
-
-	float3 VoxelMin = GridMin + GridVoxelSize * CullGridPos;
-	float3 VoxelExtent = .5f * GridVoxelSize;
-	float3 VoxelCenter = VoxelMin + VoxelExtent;
-
-	float DistanceSq = ComputeSquaredDistanceBetweenAABBs(BVHNode.BBoxCenter, BVHNode.BBoxExtent, VoxelCenter, VoxelExtent);
-	return DistanceSq <= GridConeRadiusSq;
-}
-#include "LumenCardBVHCulling.ush"
-
 uint TargetClipmapIndex;
 uint3 GridResolution;
-RWTexture3D<float4> RWVoxelLighting;
+RWTexture3D<float3> RWVoxelLighting;
+RWTexture3D<float> RWVoxelLightingAlpha;
 
 Buffer<uint> CulledCardGridHeader;
 uint CullGridFactor;
-
-// #lumen_todo: remove after everything gets converted to voxel ray tracing.
-uint VoxelRayTracing;
-
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void ComputeVoxelLightingGatherCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	uint3 VoxelCoord = DispatchThreadId;
-
-	#if CULLED_CARDS_GRID
-		uint3 CullGridCoord = VoxelCoord / CullGridFactor;
-		uint CullGridCellIndex = CullGridCoord.x + CullGridCoord.y * CullGridSize.x + CullGridCoord.z * CullGridSize.x * CullGridSize.y;
-		uint NumOverlappingCards = CulledCardGridHeader[CullGridCellIndex * CULLED_CARD_GRID_HEADER_STRIDE + 0];
-		uint OverlappingCardsStartIndex = CulledCardGridHeader[CullGridCellIndex * CULLED_CARD_GRID_HEADER_STRIDE + 1];
-	#endif
-
-	if (all(VoxelCoord < GridResolution))
-	{
-		float3 VoxelMin = GridMin + GridVoxelSize * VoxelCoord;
-		float3 VoxelExtent = .5f * GridVoxelSize;
-		float3 VoxelCenter = VoxelMin + VoxelExtent;
-
-		LOOP
-		for (uint i = 0; i < 6; i++)
-		{
-			float Sign = (i & 1) ? -1.0f : 1.0f;
-			uint Axis = i / 2;
-			float3 AxisDirection = Sign * float3(Axis == 0 ? 1.0f : 0.0f, Axis == 1 ? 1.0f : 0.0f, Axis == 2 ? 1.0f : 0.0f);
-			float3 RayStart = VoxelCenter - AxisDirection * VoxelExtent * (VoxelRayTracing ? 2 : 1);
-			float3 RayEnd = RayStart + AxisDirection * 2 * VoxelExtent;
-			float RayLength = length(RayEnd - RayStart);
-
-			FConeTraceInput TraceInput;
-			TraceInput.Setup(RayStart, AxisDirection, 0, 0, 0, RayLength, 2.0f);
-			TraceInput.ConeStartRadius = length(AxisDirection * VoxelExtent);
-
-			#if CULLED_CARDS_GRID
-				TraceInput.NumOverlappingCards = NumOverlappingCards;
-				TraceInput.OverlappingCardsStartIndex = OverlappingCardsStartIndex;
-			#endif
-
-			FConeTraceResult TraceResult;
-			ConeTraceLumenCards(TraceInput, TraceResult);
-
-			uint3 WriteCoord = uint3(VoxelCoord.x, TargetClipmapIndex * GridResolution.y + VoxelCoord.y, i * GridResolution.z + VoxelCoord.z);
-			RWVoxelLighting[WriteCoord] = float4(TraceResult.Lighting, TraceResult.Transparency);
-		}
-	}
-}
 
 uint NumClipmaps;
 float4 ClipmapWorldMin[MAX_VOXEL_CLIPMAP_LEVELS];
@@ -145,27 +72,6 @@ void AddQuadsForIntersectingObject(uint ObjectIndex, float3 WorldObjectCenter, f
 				RWQuadData[QuadIndex] = Packed;
 				QuadIndex++;
 			}
-		}
-	}
-}
-
-[numthreads(THREADGROUP_SIZE, 1, 1)]
-void SetupCardScatterInstancesCS(
-	uint3 DispatchThreadId : SV_DispatchThreadID)
-{
-	uint CardIndex = DispatchThreadId.x;
-
-	if (CardIndex < LumenCardScene.NumCards)
-	{
-		FLumenCardData LumenCardData = GetLumenCardData(CardIndex);
-
-		if (LumenCardData.bVisible)
-		{
-			float3 WorldCardCenter;
-			float3 WorldCardExtent;
-			GetCardAABB(LumenCardData, WorldCardCenter, WorldCardExtent);
-
-			AddQuadsForIntersectingObject(CardIndex, WorldCardCenter, WorldCardExtent);
 		}
 	}
 }
@@ -308,19 +214,11 @@ void CardVoxelizeVS(
 		uint ClipmapIndex = (QuadInfo >> 24) & 0xF;
 		uint DirectionIndex = (QuadInfo >> 28) & 0xF;
 
-#if CARD_TRACE_MESH_SDF
 		float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex) * LUMEN_SDF_APPROX_MARGIN;
 		float3x3 VolumeToWorld = LoadGlobalObjectVolumeToWorld(ObjectIndex);
 
 		float3 WorldObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
 		float3 WorldObjectExtent = mul(LocalPositionExtent, abs(VolumeToWorld));
-#else
-		FLumenCardData LumenCardData = GetLumenCardData(ObjectIndex);
-
-		float3 WorldObjectCenter;
-		float3 WorldObjectExtent;
-		GetCardAABB(LumenCardData, WorldObjectCenter, WorldObjectExtent);
-#endif
 
 		// Expand voxelization region by half a voxel on each side
 		float3 ConservativeRasterizationExtent = .5f * ClipmapVoxelSizeAndRadius[ClipmapIndex].xyz;
@@ -401,7 +299,6 @@ void CardVoxelizeMaskSetupPS(
 	uint DirectionIndex = Input.DirectionIndex;
 	float3 VoxelSize = ClipmapVoxelSizeAndRadius[ClipmapIndex].xyz;
 
-#if CARD_TRACE_MESH_SDF
 	uint ObjectIndex = Input.ObjectIndex;
 	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex) * LUMEN_SDF_APPROX_MARGIN;
 	float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
@@ -415,8 +312,6 @@ void CardVoxelizeMaskSetupPS(
 	float VoxelRadius = length(ExpandTweak * VoxelSize);
 	float3 VolumeSpaceVoxelRadii = mul(float4(VoxelRadius.xxx, 0), WorldToVolume).xyz;
 	float VolumeSpaceVoxelRadius = max(VolumeSpaceVoxelRadii.x, max(VolumeSpaceVoxelRadii.y, VolumeSpaceVoxelRadii.z));
-
-#endif
 
 	for (uint ZIndex = 0; ZIndex < Input.NumLayers; ZIndex++)
 	{
@@ -435,26 +330,7 @@ void CardVoxelizeMaskSetupPS(
 		}
 #endif
 
-		
-#if CARD_TRACE_MESH_SDF && 0
-
-		bool bIntersectsVoxel = false;
-
-		float3 VolumeSpaceVoxelCenter = mul(float4(WorldVertexPosition, 1), WorldToVolume).xyz;
-		float DistanceSq = ComputeSquaredDistanceFromBoxToPoint(0, LocalPositionExtent, VolumeSpaceVoxelCenter);
-
-		if (DistanceSq < VolumeSpaceVoxelRadius * VolumeSpaceVoxelRadius)
-		{
-			float3 MeshSDFVolumeUV = DistanceFieldVolumePositionToUV(VolumeSpaceVoxelCenter, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-			float DistanceField = SampleMeshDistanceField(MeshSDFVolumeUV, DistanceFieldMAD).x;
-
-			bIntersectsVoxel = DistanceField < VolumeSpaceVoxelRadius;
-		}
-
-#else
 		bool bIntersectsVoxel = true;
-#endif
-
 		if (bIntersectsVoxel)
 		{
 			float3 VolumeUV = WorldVertexPosition * ClipmapWorldToUVScale[ClipmapIndex].xyz + ClipmapWorldToUVBias[ClipmapIndex].xyz;
@@ -519,12 +395,19 @@ struct FVoxelVisBuffer
 	uint HitObjectId;
 };
 
+#define VIS_BUFFER_INVALID	0
+#define VIS_BUFFER_CLEAR	0xFFFFFFFF
+
 uint EncodeVoxelVisBuffer(FVoxelVisBuffer VisBuffer)
 {
 	uint HitDistanceUInt = uint(saturate(VisBuffer.NormalizedHitDistance) * 0xFF) & 0xFF;
 	uint HitObjectUInt = VisBuffer.HitObjectId & 0xFFFFFF;
 
 	uint Payload = (HitDistanceUInt << 24) | HitObjectUInt;
+
+	// Don't collide with VIS_BUFFER_INVALID
+	Payload = max(Payload, 1U);
+
 	return Payload;
 }
 
@@ -544,176 +427,6 @@ void CardVoxelizePS(
 	uint DirectionIndex = Input.DirectionIndex;
 	float3 VoxelSize = ClipmapVoxelSizeAndRadius[ClipmapIndex].xyz;
 
-#define CARD_FAST_VOXELIZE 0
-#if CARD_FAST_VOXELIZE && !CARD_TRACE_MESH_SDF
-
-	float StartSwizzledWorldZ = Input.SwizzledWorldCardMinZ + .5f * VoxelSize.z;
-	float3 RayStart = float3(Input.SwizzledWorldPositionXY, StartSwizzledWorldZ);
-
-	float EndSwizzledWorldZ = Input.SwizzledWorldCardMinZ + (Input.NumLayers - 1 + .5f) * VoxelSize.z;
-	float3 RayEnd = float3(Input.SwizzledWorldPositionXY, EndSwizzledWorldZ);
-
-	// Unswizzle back to world space
-	if (Input.RasterizationZAxis == 0)
-	{
-		RayStart = RayStart.zxy;
-		RayEnd = RayEnd.zxy;
-	}
-	else if (Input.RasterizationZAxis == 1)
-	{
-		RayStart = RayStart.yzx;
-		RayEnd = RayEnd.yzx;
-	}
-
-	if (DirectionIndex & 1)
-	{
-		float3 Swap = RayStart;
-		RayStart = RayEnd;
-		RayEnd = Swap;
-	}
-
-	float RayLength = length(RayEnd - RayStart); 
-	float3 UnitRayDirection = (RayEnd - RayStart) / RayLength;
-
-	FConeTraceInput TraceInput;
-	TraceInput.Setup(RayStart, UnitRayDirection, 0, 0, 0, RayLength, 2);
-	TraceInput.ConeStartRadius = .5f * VoxelSize.z;
-		
-	FCardTraceBlendState TraceBlendState;
-	TraceBlendState.Initialize(TraceInput.MaxTraceDistance);
-	float3 debug = 0;
-	float TraceEndDistance = 0.0f;
-
-	ConeTraceSingleLumenCard(
-		TraceInput,
-		Input.ObjectIndex,
-		debug,
-		TraceEndDistance,
-		TraceBlendState);
-
-	if (TraceBlendState.Revealage < 1 && TraceBlendState.OpaqueHitDistance < RayLength)
-	{
-		float3 WorldIntersectPosition = RayStart + UnitRayDirection * TraceBlendState.OpaqueHitDistance;
-		float3 VolumeUV = WorldIntersectPosition * ClipmapWorldToUVScale[ClipmapIndex].xyz + ClipmapWorldToUVBias[ClipmapIndex].xyz;
-		float3 VoxelCoordFloat = VolumeUV * GridResolution;
-		uint3 VoxelCoord = VoxelCoordFloat;
-		float LerpFraction = 0;
-
-#define WRITE_TO_NEAREST_VOXELS 0
-#if WRITE_TO_NEAREST_VOXELS
-		uint Axis = DirectionIndex / 2;
-		LerpFraction = VoxelCoordFloat[Axis] - VoxelCoord[Axis];
-		uint3 SecondVoxelCoord = VoxelCoord + (Axis == uint3(0, 1, 2) ? uint3(1, 1, 1) : uint3(0, 0, 0));
-
-		WriteToVoxelLighting(SecondVoxelCoord, ClipmapIndex, DirectionIndex, TraceBlendState.LightingAndOpacity, TraceBlendState.Revealage);
-#endif
-		WriteToVoxelLighting(VoxelCoord, ClipmapIndex, DirectionIndex, TraceBlendState.LightingAndOpacity, TraceBlendState.Revealage);
-	}
-
-#else
-	/*
-#define MESH_SDF_FAST_VOXELIZE 0
-#if MESH_SDF_FAST_VOXELIZE && CARD_TRACE_MESH_SDF
-
-	// fetch object properties
-	// for each z, sample SDF once to determine coverage (skip if outside box)
-	// interpolate to voxel center.  use face direction instead of hit normal (no gradient)
-	// interpolate closest 1 face?
-	// write to lighting
-
-	uint ObjectIndex = Input.ObjectIndex;
-	float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex) * LUMEN_SDF_APPROX_MARGIN;
-	float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
-	bool bGeneratedAsTwoSided;
-	float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
-	float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
-	float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
-
-	float VolumeSpaceVoxelRadius = length(mul(float4(.5f * VoxelSize, 0), WorldToVolume).xyz);
-
-	// Fetch preculled card list based on global SDF index
-	uint2 Header = MeshSDFObjectOverlappingCardHeader[ObjectIndex];
-	uint NumOverlappingCards = Header.x;
-	uint OverlappingCardsStartIndex = Header.y;
-
-	float Sign = (DirectionIndex & 1) ? -1.0f : 1.0f;
-	uint Axis = DirectionIndex / 2;
-	float3 AxisDirection = Sign * float3(Axis == 0 ? 1.0f : 0.0f, Axis == 1 ? 1.0f : 0.0f, Axis == 2 ? 1.0f : 0.0f);
-
-	FTraceMeshSDFDerivedData TraceSDFData;
-	TraceSDFData.HitNormal = -AxisDirection;
-	TraceSDFData.bAccurateHit = true;
-
-	for (uint ZIndex = 0; ZIndex < Input.NumLayers; ZIndex++)
-	{
-		float SwizzledWorldZ = Input.SwizzledWorldCardMinZ + ZIndex * VoxelSize.z;
-		float3 WorldVoxelPosition = float3(Input.SwizzledWorldPositionXY, SwizzledWorldZ + .5f * VoxelSize.z);
-
-#if RASTERIZE_MODE != RASTERIZE_ONTO_WORLD_Z
-		// Unswizzle back to world space
-		if (Input.RasterizationZAxis == 0)
-		{
-			WorldVoxelPosition = WorldVoxelPosition.zxy;
-		}
-		else if (Input.RasterizationZAxis == 1)
-		{
-			WorldVoxelPosition = WorldVoxelPosition.yzx;
-		}
-#endif
-
-		float3 VolumeSpaceVoxelCenter = mul(float4(WorldVoxelPosition, 1), WorldToVolume).xyz;
-
-		float DistanceSq = ComputeSquaredDistanceFromBoxToPoint(0, LocalPositionExtent, VolumeSpaceVoxelCenter);
-
-		if (DistanceSq < 0.01f)
-		{
-			float3 MeshSDFVolumeUV = DistanceFieldVolumePositionToUV(VolumeSpaceVoxelCenter, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
-			float DistanceField = SampleMeshDistanceField(MeshSDFVolumeUV, DistanceFieldMAD).x;
-
-			float VoxelTransparency = saturate(DistanceField / VolumeSpaceVoxelRadius);
-
-			if (VoxelTransparency < .99f)
-			{
-				float CardInterpolateInfluenceRadius = 20;
-				float CardInterpolateDepthVisibilityRadius = VoxelSize.x;
-
-				float3 Lighting = 0;
-				float TotalWeight = 0;
-
-				for (uint ListIndex = 0; ListIndex < NumOverlappingCards; ListIndex++)
-				{
-					uint CardIndex = MeshSDFObjectOverlappingCardData[OverlappingCardsStartIndex + ListIndex];
-
-					InterpolateFromLumenCard(
-						WorldVoxelPosition,
-						TraceSDFData.HitNormal,
-						.5f * VoxelSize.x,
-						TraceSDFData.bAccurateHit,
-						CardIndex,
-						CardInterpolateInfluenceRadius,
-						CardInterpolateDepthVisibilityRadius,
-						Lighting,
-						TotalWeight);
-				}
-
-				if (TotalWeight > 0)
-				{
-					Lighting = Lighting / TotalWeight;
-				}
-
-				FCardTraceBlendState TraceBlendState;
-				TraceBlendState.Initialize(1.0f);
-				TraceBlendState.AddLighting(Lighting, 1 - VoxelTransparency, .5f);
-
-				float3 VoxelLightingVolumeUV = WorldVoxelPosition * ClipmapWorldToUVScale[ClipmapIndex].xyz + ClipmapWorldToUVBias[ClipmapIndex].xyz;
-				uint3 VoxelCoord = VoxelLightingVolumeUV * GridResolution;
-				WriteToVoxelLighting(VoxelCoord, ClipmapIndex, DirectionIndex, TraceBlendState.LightingAndOpacity, TraceBlendState.Revealage);
-			}
-		}
-	}
-
-#else // #if MESH_SDF_FAST_VOXELIZE
-*/
 	for (uint ZIndex = 0; ZIndex < Input.NumLayers; ZIndex++)
 	{
 		float SwizzledWorldZ = Input.SwizzledWorldCardMinZ + ZIndex * VoxelSize.z;
@@ -750,7 +463,7 @@ void CardVoxelizePS(
 			float Sign = (DirectionIndex & 1) ? -1.0f : 1.0f;
 			uint Axis = DirectionIndex / 2;
 			float3 AxisDirection = Sign * float3(Axis == 0 ? 1.0f : 0.0f, Axis == 1 ? 1.0f : 0.0f, Axis == 2 ? 1.0f : 0.0f);
-			float3 RayStart = VoxelCenter - AxisDirection * VoxelExtent * (VoxelRayTracing ? 2 : 1);
+			float3 RayStart = VoxelCenter - AxisDirection * VoxelExtent;
 			float3 RayEnd = RayStart + AxisDirection * 2 * VoxelExtent;
 			float RayLength = length(RayEnd - RayStart); 
 
@@ -761,8 +474,6 @@ void CardVoxelizePS(
 			FCardTraceBlendState TraceBlendState;
 			TraceBlendState.Initialize(TraceInput.MaxTraceDistance);
 			float3 debug = 0;
-
-#if CARD_TRACE_MESH_SDF
 
 			FTraceMeshSDFResult TraceMeshSDFResult;
 			TraceMeshSDFResult.HitDistance = TraceInput.MaxTraceDistance;
@@ -775,6 +486,8 @@ void CardVoxelizePS(
 				TraceInput.MinTraceDistance,
 				TraceInput.MaxTraceDistance, 
 				Input.ObjectIndex, 
+				true,
+				0.0f,
 				TraceMeshSDFResult);
 
 			if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance)
@@ -796,44 +509,10 @@ void CardVoxelizePS(
 				float CardInterpolateInfluenceRadius = 20;
 				float CardInterpolateDepthVisibilityRadius = VoxelSize.x;
 
-#if CUBE_MAP_TREE
 				// #lumen_todo: TEMP hack, remove after atlas mip-map out of bounds bug is fixed
 				InterpolateRadius = 0.0f;
 
 				float3 Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius);
-
-#else
-
-				// Fetch preculled card list based on global SDF index
-				uint2 Header = MeshSDFObjectOverlappingCardHeader[TraceMeshSDFResult.HitObject];
-				uint NumOverlappingCards = Header.x;
-				uint OverlappingCardsStartIndex = Header.y;
-
-				float3 Lighting = 0;
-				float TotalWeight = 0;
-
-				for (uint ListIndex = 0; ListIndex < NumOverlappingCards; ListIndex++)
-				{
-					uint CardIndex = MeshSDFObjectOverlappingCardData[OverlappingCardsStartIndex + ListIndex];
-
-					InterpolateFromLumenCard(
-						InterpolatePosition,
-						TraceSDFData.HitNormal,
-						InterpolateRadius,
-						TraceSDFData.bAccurateHit,
-						CardIndex,
-						CardInterpolateInfluenceRadius,
-						CardInterpolateDepthVisibilityRadius,
-						Lighting,
-						TotalWeight);
-				}
-
-				if (TotalWeight > 0)
-				{
-					Lighting = Lighting / TotalWeight;
-				}
-
-#endif // CUBE_MAP_TREE
 
 				TraceBlendState.AddLighting(Lighting, 1.0f, TraceMeshSDFResult.HitDistance);
 				TraceBlendState.RegisterOpaqueHit(TraceMeshSDFResult.HitDistance);
@@ -844,25 +523,8 @@ void CardVoxelizePS(
 				}
 #endif // VIS_BUFFER
 			}
-
-#else // CARD_TRACE_MESH_SDF
-			float TraceEndDistance = 0.0f;
-
-			ConeTraceSingleLumenCard(
-				TraceInput,
-				Input.ObjectIndex,
-				debug,
-				TraceEndDistance,
-				TraceBlendState);
-
-			if (TraceBlendState.GetTransparency() < 1)
-			{
-				WriteToVoxelLighting(VoxelCoord, ClipmapIndex, DirectionIndex, TraceBlendState.GetLightingAndOpacity(), TraceBlendState.GetTransparency());
-			}
-#endif
 		}
 	}
-#endif
 }
 
 [numthreads(1, 1, 1)]
@@ -876,7 +538,6 @@ void SetupComputeScaterIndirectArgsCS()
 	RWObjectIndirectArguments[2] = 1;
 }
 
-#if CARD_TRACE_MESH_SDF
 [numthreads(THREADGROUP_SIZE, 1, 1)]
 void ComputeScatterCS(
 	uint3 GroupId : SV_GroupID,
@@ -931,35 +592,71 @@ void ComputeScatterCS(
 				float Sign = (DirectionIndex & 1) ? -1.0f : 1.0f;
 				uint Axis = DirectionIndex / 2;
 				float3 AxisDirection = Sign * float3(Axis == 0 ? 1.0f : 0.0f, Axis == 1 ? 1.0f : 0.0f, Axis == 2 ? 1.0f : 0.0f);
-				float3 RayStart = VoxelCenter - AxisDirection * VoxelExtent * (VoxelRayTracing ? 2 : 1);
+				float3 RayStart = VoxelCenter - AxisDirection * VoxelExtent;
 				float3 RayEnd = RayStart + AxisDirection * 2 * VoxelExtent;
 				float RayLength = length(RayEnd - RayStart);
 
-				FConeTraceInput TraceInput;
-				TraceInput.Setup(RayStart, AxisDirection, 0, 0, 0, RayLength, 2.0f);
-				TraceInput.ConeStartRadius = length(AxisDirection * VoxelExtent);
-
-				FTraceMeshSDFResult TraceMeshSDFResult;
-				TraceMeshSDFResult.HitDistance = TraceInput.MaxTraceDistance;
-				TraceMeshSDFResult.HitObject = 0;
-
-				RayTraceSingleMeshSDF(
-					TraceInput.ConeOrigin,
-					TraceInput.ConeDirection,
-					TraceInput.TanConeAngle,
-					TraceInput.MinTraceDistance,
-					TraceInput.MaxTraceDistance,
-					ObjectIndex,
-					TraceMeshSDFResult);
-
-				if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance)
+				uint VisBufferPayload = VIS_BUFFER_CLEAR;
+			
+				// Check if start of the ray is inside the geometry
 				{
-					FVoxelVisBuffer VisBuffer;
-					VisBuffer.NormalizedHitDistance = saturate(TraceMeshSDFResult.HitDistance / TraceInput.MaxTraceDistance);
-					VisBuffer.HitObjectId = TraceMeshSDFResult.HitObject;
+					bool bGeneratedAsTwoSided;
+					float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
+					float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
+					float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
+					float3 SampleVolumePosition = mul(float4(RayStart, 1), WorldToVolume).xyz;
+					float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
+					float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
+					float ExpandSurfaceDistance = LoadGlobalObjectLocalSurfaceBias(ObjectIndex);
+					float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
 
-					uint VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
+					if (all(SampleVolumePosition >= -LocalPositionExtent) && all(SampleVolumePosition <= LocalPositionExtent))
+					{
+						float DistanceFieldValue = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD);
 
+						bool bInsideGeometry = DistanceFieldValue < 0.0f;
+
+						if (bInsideGeometry)
+						{
+							// Skip voxelization for this ray
+							VisBufferPayload = VIS_BUFFER_INVALID;
+						}
+					}
+				}
+
+				if (VisBufferPayload == VIS_BUFFER_CLEAR)
+				{
+					FConeTraceInput TraceInput;
+					TraceInput.Setup(RayStart, AxisDirection, 0, 0, 0, RayLength, 2.0f);
+					TraceInput.ConeStartRadius = length(AxisDirection * VoxelExtent);
+
+					FTraceMeshSDFResult TraceMeshSDFResult;
+					TraceMeshSDFResult.HitDistance = TraceInput.MaxTraceDistance;
+					TraceMeshSDFResult.HitObject = 0;
+
+					RayTraceSingleMeshSDF(
+						TraceInput.ConeOrigin,
+						TraceInput.ConeDirection,
+						TraceInput.TanConeAngle,
+						TraceInput.MinTraceDistance,
+						TraceInput.MaxTraceDistance,
+						ObjectIndex,
+						true,
+						0.0f,
+						TraceMeshSDFResult);
+
+					if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance)
+					{
+						FVoxelVisBuffer VisBuffer;
+						VisBuffer.NormalizedHitDistance = saturate(TraceMeshSDFResult.HitDistance / TraceInput.MaxTraceDistance);
+						VisBuffer.HitObjectId = TraceMeshSDFResult.HitObject;
+
+						VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
+					}
+				}
+
+				if (VisBufferPayload != VIS_BUFFER_CLEAR)
+				{
 					uint3 WriteCoord = uint3(VoxelCoord.x, ClipmapIndex * GridResolution.y + VoxelCoord.y, DirectionIndex * GridResolution.z + VoxelCoord.z);
 					InterlockedMin(RWVoxelVisBuffer[WriteCoord], VisBufferPayload);
 				}
@@ -967,7 +664,262 @@ void ComputeScatterCS(
 		}
 	}
 }
-#endif
+
+#define CULL_GRID_TILE_SIZE 4
+
+// Tweaked for the LDS size / occupancy
+#define MAX_CULLED_DF_OBJECTS 510
+groupshared uint GroupCellObjects[MAX_CULLED_DF_OBJECTS];
+groupshared uint GroupCellObjectNum;
+groupshared uint GroupCullGridDataInsertIndex;
+
+RWBuffer<uint> RWCullGridAllocator;
+RWBuffer<uint> RWCullGridHeader;
+RWBuffer<uint> RWCullGridData;
+
+uint CullGridCapacity;
+float3 CullTileWorldExtent;
+float3 CullGridCoordToWorldCenterScale;
+float3 CullGridCoordToWorldCenterBias;
+
+RWBuffer<uint> RWObjectIndexAllocator;
+RWBuffer<uint> RWObjectIndexBuffer;
+
+float3 CullClipmapWorldCenter;
+float3 CullClipmapWorldExtent;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void GatherVoxelizeClipmapCullCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ObjectIndex = DispatchThreadId.x;
+
+	if (ObjectIndex < NumSceneObjects)
+	{
+		float3 WorldObjectCenter = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
+		float3 WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz * LUMEN_SDF_APPROX_MARGIN;
+
+		float BoundsRadius = length(WorldObjectExtent);
+
+		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullClipmapWorldCenter, CullClipmapWorldExtent, WorldObjectCenter, WorldObjectExtent);
+
+		float DistanceToView = length(View.WorldCameraOrigin - WorldObjectCenter);
+
+		if (DistanceSq < 0.01f
+			&& BoundsRadius > MeshSDFRadiusThreshold
+			&& BoundsRadius / DistanceToView > MeshSDFScreenSizeThreshold)
+		{
+			uint InsertIndex;
+			InterlockedAdd(RWObjectIndexAllocator[0], 1U, InsertIndex);
+			RWObjectIndexBuffer[InsertIndex] = ObjectIndex;
+		}
+	}
+}
+
+uint3 CullGridResolution;
+Buffer<uint> ObjectIndexAllocator;
+Buffer<uint> ObjectIndexBuffer;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void GatherVoxelizeGridCullCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ThreadIndex = GroupThreadId.x;
+	uint3 CullGridCoord = GroupId;
+	uint CullGridLinearIndex = CullGridCoord.x + CullGridCoord.y * CullGridResolution.x + CullGridCoord.z * CullGridResolution.x * CullGridResolution.y;
+
+	if (ThreadIndex == 0)
+	{
+		GroupCellObjectNum = 0;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint NumObjects = ObjectIndexAllocator[0];
+
+	for (uint ObjectIndexInList = ThreadIndex; ObjectIndexInList < NumObjects; ObjectIndexInList += 64)
+	{
+		uint ObjectIndex = ObjectIndexBuffer[ObjectIndexInList];
+
+		float3 WorldObjectCenter = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 0].xyz;
+		float3 WorldObjectExtent = SceneObjectBounds[ObjectIndex * OBJECT_BOUNDS_STRIDE + 1].xyz * LUMEN_SDF_APPROX_MARGIN;
+
+		float3 CullTileWorldCenter = CullGridCoord * CullGridCoordToWorldCenterScale + CullGridCoordToWorldCenterBias;
+
+		float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, WorldObjectCenter, WorldObjectExtent);
+
+		if (DistanceSq < 0.01f)
+		{
+			// #lumen_todo: restore
+			//float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex) * LUMEN_SDF_APPROX_MARGIN;
+			//if (DoesMeshSDFAffectSphere(CullTileWorldCenter, length(CullTileWorldExtent.xyz), ObjectIndex, LocalPositionExtent))
+			{
+				uint InsertIndex;
+				InterlockedAdd(GroupCellObjectNum, 1, InsertIndex);
+
+				if (InsertIndex < MAX_CULLED_DF_OBJECTS)
+				{
+					GroupCellObjects[InsertIndex] = ObjectIndex;
+				}
+			}
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex == 0)
+	{
+		uint CellObjectNum = min(GroupCellObjectNum, MAX_CULLED_DF_OBJECTS);
+
+		uint CullGridDataInsertIndex;
+		InterlockedAdd(RWCullGridAllocator[0], CellObjectNum, CullGridDataInsertIndex);
+
+		if (CullGridDataInsertIndex > CullGridCapacity)
+		{
+			CellObjectNum = 0;
+		}
+		else
+		{
+			CellObjectNum = min(CellObjectNum, CullGridCapacity - CullGridDataInsertIndex);
+		}
+
+		RWCullGridHeader[CullGridLinearIndex * 2 + 0] = CellObjectNum;
+		RWCullGridHeader[CullGridLinearIndex * 2 + 1] = CullGridDataInsertIndex;
+
+		GroupCullGridDataInsertIndex = CullGridDataInsertIndex;
+		GroupCellObjectNum = CellObjectNum;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	for (uint ObjectInListIndex = ThreadIndex; ObjectInListIndex < GroupCellObjectNum; ObjectInListIndex += 64)
+	{
+		RWCullGridData[GroupCullGridDataInsertIndex + ObjectInListIndex] = GroupCellObjects[ObjectInListIndex];
+	}
+}
+
+Buffer<uint> CullGridHeader;
+Buffer<uint> CullGridData;
+uint3 ClipmapGridResolution;
+uint3 OutputGridResolution;
+uint CompactedClipmapIndex;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
+void GatherVoxelizeCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint3 VoxelCoord = DispatchThreadId;
+
+	if (all(VoxelCoord < OutputGridResolution))
+	{
+		uint DirectionA = DispatchThreadId.x % 3;
+		uint DirectionB = DispatchThreadId.y % 2;
+		uint DirectionIndex = DirectionA + DirectionB * 3;
+		VoxelCoord.x /= 3;
+		VoxelCoord.y /= 2;
+
+		float3 VoxelMin = GridMin + GridVoxelSize * VoxelCoord;
+		float3 VoxelExtent = .5f * GridVoxelSize;
+		float3 VoxelCenter = VoxelMin + VoxelExtent;
+
+		float DirectionSign = (DirectionIndex & 0x1) ? -1.0f : 1.0f;
+		uint AxisIndex = DirectionIndex / 2;
+		float3 RayDirection = DirectionSign * float3(AxisIndex == 0 ? 1.0f : 0.0f, AxisIndex == 1 ? 1.0f : 0.0f, AxisIndex == 2 ? 1.0f : 0.0f);
+		float3 RayStart = VoxelCenter - RayDirection * VoxelExtent;
+		float3 RayEnd = RayStart + RayDirection * 2 * VoxelExtent;
+		float RayLength = length(RayEnd - RayStart);
+
+		bool bInsideGeometry = false;
+		uint HitObjectId = 0xFFFFFFFF;
+		float HitTime = 1e6;
+
+		uint3 CullGridCoord = VoxelCoord / CULL_GRID_TILE_SIZE;
+		uint CullGridLinearIndex = CullGridCoord.x + CullGridCoord.y * CullGridResolution.x + CullGridCoord.z * CullGridResolution.x * CullGridResolution.y;
+
+		uint NumCulledObjects = CullGridHeader[CullGridLinearIndex * 2 + 0];
+		uint CullGridOffset = CullGridHeader[CullGridLinearIndex * 2 + 1];
+
+		for (uint ObjectIndexInCell = 0; ObjectIndexInCell < NumCulledObjects; ++ObjectIndexInCell)
+		{
+			uint ObjectIndex = CullGridData[CullGridOffset + ObjectIndexInCell];
+
+			// Check if start of the ray is inside the geometry
+			{
+				bool bGeneratedAsTwoSided;
+				float4 UVScaleAndVolumeScale = LoadGlobalObjectUVScale(ObjectIndex, bGeneratedAsTwoSided);
+				float4 UVAddAndSelfShadowBias = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex);
+				float4x4 WorldToVolume = LoadGlobalObjectWorldToVolume(ObjectIndex);
+				float3 SampleVolumePosition = mul(float4(RayStart, 1), WorldToVolume).xyz;
+				float3 VolumeUV = DistanceFieldVolumePositionToUV(SampleVolumePosition, UVScaleAndVolumeScale.xyz, UVAddAndSelfShadowBias.xyz);
+				float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
+				float ExpandSurfaceDistance = LoadGlobalObjectLocalSurfaceBias(ObjectIndex);
+				float3 LocalPositionExtent = LoadGlobalObjectLocalPositionExtent(ObjectIndex);
+
+				if (all(SampleVolumePosition >= -LocalPositionExtent) && all(SampleVolumePosition <= LocalPositionExtent))
+				{
+					float DistanceFieldValue = SampleMeshDistanceField(VolumeUV, DistanceFieldMAD);
+
+					bInsideGeometry = DistanceFieldValue < 0.0f;
+					if (bInsideGeometry)
+					{
+						break;
+					}
+				}
+			}
+
+			FConeTraceInput TraceInput;
+			TraceInput.Setup(RayStart, RayDirection, 0, 0, 0, RayLength, 2.0f);
+			TraceInput.ConeStartRadius = length(RayDirection * VoxelExtent);
+
+			FTraceMeshSDFResult TraceMeshSDFResult;
+			TraceMeshSDFResult.HitDistance = TraceInput.MaxTraceDistance;
+			TraceMeshSDFResult.HitObject = 0;
+
+			RayTraceSingleMeshSDF(
+				TraceInput.ConeOrigin,
+				TraceInput.ConeDirection,
+				TraceInput.TanConeAngle,
+				TraceInput.MinTraceDistance,
+				//min(TraceInput.MaxTraceDistance, HitTime), // #lumen_todo: fix flicker and restore
+				TraceInput.MaxTraceDistance,
+				ObjectIndex,
+				true,
+				0.0f,
+				TraceMeshSDFResult);
+
+			if (TraceMeshSDFResult.HitDistance < TraceInput.MaxTraceDistance && TraceMeshSDFResult.HitDistance < HitTime)
+			{
+				HitTime = TraceMeshSDFResult.HitDistance;
+				HitObjectId = TraceMeshSDFResult.HitObject;
+			}
+		}
+
+		uint VisBufferPayload = VIS_BUFFER_CLEAR;
+
+		if (bInsideGeometry)
+		{
+			// Skip voxelization for this ray
+			VisBufferPayload = VIS_BUFFER_INVALID;
+		}
+		else if (HitObjectId < 0xFFFFFFFF)
+		{
+			FVoxelVisBuffer VisBuffer;
+			VisBuffer.NormalizedHitDistance = saturate(HitTime / RayLength);
+			VisBuffer.HitObjectId = HitObjectId;
+
+			VisBufferPayload = EncodeVoxelVisBuffer(VisBuffer);
+		}
+
+		uint3 WriteCoord = uint3(VoxelCoord.x, CompactedClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
+		RWVoxelVisBuffer[WriteCoord] = VisBufferPayload;
+	}
+}
 
 uint3 ClipmapTextureResolution;
 Texture3D<uint> VoxelOITLighting;
@@ -1007,15 +959,13 @@ void CompactVoxelLightingCS(
 		}
 	
 		uint3 WriteCoord = uint3(VoxelCoord.x, VoxelCoord.y + DestClipmapIndex * GridResolution.y, VoxelCoord.z);
-		RWVoxelLighting[WriteCoord] = float4(Lighting, Revealage);
+		RWVoxelLighting[WriteCoord] = Lighting;
+		RWVoxelLightingAlpha[WriteCoord] = 1.0f - Revealage;
 	}
 }
 
 Texture3D<uint> VoxelVisBuffer;
-uint3 ClipmapGridResolution;
-uint3 OutputGridResolution;
 
-#if CARD_TRACE_MESH_SDF
 [numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, THREADGROUP_SIZE)]
 void VoxelVisBufferShadingCS(
 	uint3 GroupId : SV_GroupID,
@@ -1042,12 +992,12 @@ void VoxelVisBufferShadingCS(
 		uint3 ReadCoord = uint3(VoxelCoord.x, VoxelCoord.y + SourceClipmapIndex * ClipmapGridResolution.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
 		uint VisBufferPayload = VoxelVisBuffer.Load(int4(ReadCoord, 0)).x;
 
-		if (VisBufferPayload < 0xFFFFFFFF)
+		if (VisBufferPayload != VIS_BUFFER_INVALID && VisBufferPayload != VIS_BUFFER_CLEAR)
 		{
 			float Sign = (DirectionIndex & 1) ? -1.0f : 1.0f;
 			uint Axis = DirectionIndex / 2;
 			float3 RayDirection = Sign * float3(Axis == 0 ? 1.0f : 0.0f, Axis == 1 ? 1.0f : 0.0f, Axis == 2 ? 1.0f : 0.0f);
-			float3 RayStart = VoxelCenter - RayDirection * VoxelExtent * (VoxelRayTracing ? 2 : 1);
+			float3 RayStart = VoxelCenter - RayDirection * VoxelExtent;
 			float3 RayEnd = RayStart + RayDirection * 2 * VoxelExtent;
 			float RayLength = length(RayEnd - RayStart);
 			float ConeStartRadius = length(RayDirection * VoxelExtent);
@@ -1061,55 +1011,22 @@ void VoxelVisBufferShadingCS(
 			FTraceMeshSDFDerivedData TraceSDFData = CalculateMeshSDFDerivedData(RayStart, RayDirection, RayLength, TraceMeshSDFResult);
 
 			float3 InterpolatePosition = RayStart + RayDirection * TraceMeshSDFResult.HitDistance;
-			float InterpolateRadius = ConeStartRadius;
-			float CardInterpolateDepthVisibilityRadius = GridVoxelSize.x;
+
+			//@todo - compute based on SDF voxel size, or card texel size
+			float CardInterpolateDepthVisibilityRadius = 10.0f;
+			float InterpolateRadius = VoxelExtent.x;
 
 			// #lumen_todo: TEMP hack, remove after atlas mip-map out of bounds bug is fixed
 			InterpolateRadius = 0.0f;
 
-			Lighting = SampleLumenCubeMapTree(TraceMeshSDFResult.HitObject, InterpolatePosition, TraceSDFData.HitNormal, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius);
-			Transparency = 0;
+			float4 LightingAndWeight = SampleLumenCubeMapTreeWithWeight(TraceMeshSDFResult.HitObject, InterpolatePosition, -RayDirection, InterpolateRadius, TraceSDFData.bAccurateHit, CardInterpolateDepthVisibilityRadius);
+
+			Lighting = LightingAndWeight.xyz;
+			Transparency = 1.0f - LightingAndWeight.w;
 		}
 
 		uint3 WriteCoord = uint3(VoxelCoord.x, TargetClipmapIndex * ClipmapGridResolution.y + VoxelCoord.y, DirectionIndex * ClipmapGridResolution.z + VoxelCoord.z);
-		RWVoxelLighting[WriteCoord] = float4(Lighting, Transparency);
-	}
-}
-#endif
-
-Texture3D FaceVoxelLighting;
-
-RWTexture3D<float4> RWMergedVoxelLighting;
-
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void MergeVoxelLightingCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	uint3 VoxelCoord = DispatchThreadId;
-
-	if (all(VoxelCoord < GridResolution))
-	{
-		float4 FaceLighting[6];
-
-		for (uint i = 0; i < 6; i++)
-		{
-			uint3 ReadCoord = uint3(VoxelCoord.x, TargetClipmapIndex * GridResolution.y + VoxelCoord.y, i * GridResolution.z + VoxelCoord.z);
-			FaceLighting[i] = FaceVoxelLighting.Load(int4(ReadCoord, 0));
-		}
-
-		for (uint DirectionIndex = 0; DirectionIndex < 8; DirectionIndex++)
-		{
-			float3 Direction = float3((DirectionIndex & 1) ? -1.0f : 1.0f, (DirectionIndex & 2) ? -1.0f : 1.0f, (DirectionIndex & 4) ? -1.0f : 1.0f);
-			float4 XAxisLighting = FaceLighting[Direction.x > 0 ? 0 : 1];
-			float4 YAxisLighting = FaceLighting[Direction.y > 0 ? 2 : 3];
-			float4 ZAxisLighting = FaceLighting[Direction.z > 0 ? 4 : 5];
-
-			float4 MergedLighting = (XAxisLighting + YAxisLighting + ZAxisLighting) / 3.0f;
-
-			uint3 WriteCoord = uint3(VoxelCoord.x, TargetClipmapIndex * GridResolution.y + VoxelCoord.y, DirectionIndex * GridResolution.z + VoxelCoord.z);
-			RWMergedVoxelLighting[WriteCoord] = MergedLighting;
-		}
+		RWVoxelLighting[WriteCoord] = Lighting;
+		RWVoxelLightingAlpha[WriteCoord] = 1.0f - Transparency;
 	}
 }

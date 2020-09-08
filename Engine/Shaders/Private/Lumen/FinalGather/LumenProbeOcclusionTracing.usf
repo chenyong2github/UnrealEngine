@@ -11,14 +11,6 @@
 
 #define CONFIG_WAVE_LAYOUT WAVE_LAYOUT_ONE_WAVE_PER_TILE
 
-#if DIM_CARD_TRACING
-	#define CARD_TRACE_MESH_SDF 1
-	#define CARD_CULLED_LIST 1
-#endif
-#define CUBE_MAP_TREE 1
-#define CARD_BVH 0
-#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
-
 //------------------------------------------------------- INCLUDES
 
 #include "../../Common.ush"
@@ -57,17 +49,6 @@ float GetLumenLightingCorrection()
 	LightingCorrection *= View.PreExposure;
 #endif
 	
-	// Lumen equation:
-	//		SceneColor += Diffuse_Lambert(DiffuseColor) * Sum(TraceResult.Lighting * SampleWeight) * AO
-	//		SampleWeight = LumenDiffuseIntensity * 2.0f * PI / RayCountPerPixel
-					
-	//LightingCorrection *= 2.0 * PI;
-
-	// Because DiffuseIndirectMergeSamples.usf does /= RayCountPerPixel
-	//LightingCorrection *= RayCountPerPixel;
-					
-	// Because DiffuseIndirectComposite.usf doesn't do Diffuse_Lambert(DiffuseColor)
-	//LightingCorrection *= rcp(PI);
 	return LightingCorrection;
 }
 
@@ -134,11 +115,6 @@ void TraceRay(
 
 	float FinalMaxTraceDistance = min(MaxTraceDistance, RayInfos.TMax);
 
-	bool bContinueCardTracing = (DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_VOXELS_AFTER_CARDS);
-
-	float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
-		WorldPosition, ConeHalfAngle, MinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
-
 	FConeTraceInput TraceInput;
 
 	#if DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_CARDS
@@ -167,7 +143,14 @@ void TraceRay(
 		FinalMaxTraceDistance,
 		StepFactor);
 	TraceInput.VoxelStepFactor = VoxelStepFactor;
+
+#if DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_CARDS
+	TraceInput.VoxelTraceStartDistance = FinalMaxTraceDistance;
+#else
+	bool bContinueCardTracing = (DIM_LUMEN_TRACING_PERMUTATION == LUMEN_TRACING_VOXELS_AFTER_CARDS);
+	float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
 	TraceInput.VoxelTraceStartDistance = VoxelTraceStartDistance;
+#endif
 		
 	FConeTraceResult TraceResult;
 	TraceResult = (FConeTraceResult)0;

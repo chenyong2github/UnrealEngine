@@ -12,8 +12,9 @@
 #include "PipelineStateCache.h"
 #include "ShaderParameterStruct.h"
 #include "DistanceFieldAmbientOcclusion.h"
+#include "LumenScreenProbeGather.h"
 
-int32 GLumenRadianceCache = 0;
+int32 GLumenRadianceCache = 1;
 FAutoConsoleVariableRef CVarRadianceCache(
 	TEXT("r.Lumen.RadianceCache"),
 	GLumenRadianceCache,
@@ -45,6 +46,14 @@ FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapWorldExtent(
 	ECVF_RenderThreadSafe
 );
 
+float GLumenRadianceCacheClipmapDistributionBase = 2.0f;
+FAutoConsoleVariableRef CVarLumenRadianceCacheClipmapDistributionBase(
+	TEXT("r.Lumen.RadianceCache.ClipmapDistributionBase"),
+	GLumenRadianceCacheClipmapDistributionBase,
+	TEXT("Base of the Pow() that controls the size of each successive clipmap relative to the first."),
+	ECVF_RenderThreadSafe
+);
+
 int32 GRadianceCacheGridResolution = 64;
 FAutoConsoleVariableRef CVarRadianceCacheResolution(
 	TEXT("r.Lumen.RadianceCache.GridResolution"),
@@ -58,6 +67,14 @@ FAutoConsoleVariableRef CVarRadianceCacheProbeResolution(
 	TEXT("r.Lumen.RadianceCache.ProbeResolution"),
 	GRadianceCacheProbeResolution,
 	TEXT("Resolution of the probe's 2d radiance layout.  The number of rays traced for the probe will be ProbeResolution ^ 2"),
+	ECVF_RenderThreadSafe
+);
+
+int32 GRadianceCacheNumMipmaps = 3;
+FAutoConsoleVariableRef CVarRadianceCacheNumMipmaps(
+	TEXT("r.Lumen.RadianceCache.NumMipmaps"),
+	GRadianceCacheNumMipmaps,
+	TEXT("Number of radiance cache mipmaps."),
 	ECVF_RenderThreadSafe
 );
 
@@ -81,14 +98,6 @@ float GRadianceCacheReprojectionRadiusScale = 10;
 FAutoConsoleVariableRef CVarRadianceCacheProbeReprojectionRadiusScale(
 	TEXT("r.Lumen.RadianceCache.ReprojectionRadiusScale"),
 	GRadianceCacheReprojectionRadiusScale,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GRadianceCacheMarkUsedByGBufferDownsampleFactor = 2;
-FAutoConsoleVariableRef CVarRadianceCacheMarkUsedByGBufferDownsampleFactor(
-	TEXT("r.Lumen.RadianceCache.MarkUsedByGBufferDownsampleFactor"),
-	GRadianceCacheMarkUsedByGBufferDownsampleFactor,
 	TEXT(""),
 	ECVF_RenderThreadSafe
 );
@@ -147,10 +156,7 @@ namespace LumenRadianceCache
 {
 	bool IsEnabled(const FViewInfo& View)
 	{
-		return GLumenRadianceCache != 0
-			&& View.ViewState 
-			&& View.ViewState->RadianceCacheState.Clipmaps.Num() > 0
-			&& View.ViewState->RadianceCacheState.FinalRadianceAtlas.IsValid();
+		return GLumenRadianceCache != 0;
 	}
 
 	int32 GetNumClipmaps()
@@ -171,7 +177,7 @@ namespace LumenRadianceCache
 
 	int32 GetFinalProbeResolution()
 	{
-		return GetProbeResolution() + 2;
+		return GetProbeResolution() + 2 * (1 << (GRadianceCacheNumMipmaps - 1));
 	}
 
 	FIntVector GetProbeIndirectionTextureSize()
@@ -211,6 +217,7 @@ namespace LumenRadianceCache
 			}
 
 			OutParameters.ReprojectionRadiusScale = FMath::Clamp<float>(GRadianceCacheReprojectionRadiusScale, 1.0f, 10000.0f);
+			OutParameters.FinalRadianceAtlasMaxMip = GRadianceCacheNumMipmaps - 1;
 			OutParameters.InvRadianceProbeAtlasResolution = FVector2D(1.0f, 1.0f) / FVector2D(LumenRadianceCache::GetFinalRadianceAtlasTextureSize());
 
 			OutParameters.RadianceProbeClipmapResolution = GetClipmapGridResolution();
@@ -344,17 +351,16 @@ public:
 IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByProbeHierarchyCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "MarkRadianceProbesUsedByProbeHierarchyCS", SF_Compute);
 
 
-class FMarkRadianceProbesUsedByGBufferCS : public FGlobalShader
+class FMarkRadianceProbesUsedByScreenProbesCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByGBufferCS)
-	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByGBufferCS, FGlobalShader);
+	DECLARE_GLOBAL_SHADER(FMarkRadianceProbesUsedByScreenProbesCS)
+	SHADER_USE_PARAMETER_STRUCT(FMarkRadianceProbesUsedByScreenProbesCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWRadianceProbeIndirectionTexture)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER(FIntPoint, DownsampledViewSize)
-		SHADER_PARAMETER(float, DownsampleFactor)
+		SHADER_PARAMETER_STRUCT_INCLUDE(FScreenProbeParameters, ScreenProbeParameters)
 		SHADER_PARAMETER(uint32, VisualizeLumenScene)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
 	END_SHADER_PARAMETER_STRUCT()
@@ -378,12 +384,13 @@ public:
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByGBufferCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "MarkRadianceProbesUsedByGBufferCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FMarkRadianceProbesUsedByScreenProbesCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "MarkRadianceProbesUsedByScreenProbesCS", SF_Compute);
 
 void RadianceCacheMarkUsedProbes(
 	FRDGBuilder& GraphBuilder,
 	const FViewInfo& View,
 	const LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
+	const FScreenProbeParameters* ScreenProbeParameters,
 	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
 	FRDGTextureUAVRef RadianceProbeIndirectionTextureUAV)
 {
@@ -436,25 +443,24 @@ void RadianceCacheMarkUsedProbes(
 	}
 	else
 	{
-		FMarkRadianceProbesUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByGBufferCS::FParameters>();
+		check(ScreenProbeParameters);
+		FMarkRadianceProbesUsedByScreenProbesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMarkRadianceProbesUsedByScreenProbesCS::FParameters>();
 		PassParameters->RWRadianceProbeIndirectionTexture = RadianceProbeIndirectionTextureUAV;
 		PassParameters->View = View.ViewUniformBuffer;
 		PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(GraphBuilder.RHICmdList, ESceneTextureSetupMode::SceneDepth, View.FeatureLevel);
-		PassParameters->DownsampledViewSize = View.ViewRect.Size() / FIntPoint(GRadianceCacheMarkUsedByGBufferDownsampleFactor);
-		PassParameters->DownsampleFactor = GRadianceCacheMarkUsedByGBufferDownsampleFactor;
+		PassParameters->ScreenProbeParameters = *ScreenProbeParameters;
 		PassParameters->VisualizeLumenScene = View.Family->EngineShowFlags.VisualizeLumenScene != 0 ? 1 : 0;
 		PassParameters->RadianceCacheParameters = RadianceCacheParameters;
 
-		auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByGBufferCS>(0);
-
-		const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(PassParameters->DownsampledViewSize, FMarkRadianceProbesUsedByGBufferCS::GetGroupSize());
+		auto ComputeShader = View.ShaderMap->GetShader<FMarkRadianceProbesUsedByScreenProbesCS>(0);
 
 		FComputeShaderUtils::AddPass(
 			GraphBuilder,
-			RDG_EVENT_NAME("MarkRadianceProbesUsedByGBuffer %ux%u", PassParameters->DownsampledViewSize.X, PassParameters->DownsampledViewSize.Y),
+			RDG_EVENT_NAME("MarkRadianceProbesUsedByScreenProbes %ux%u", ScreenProbeParameters->ScreenProbeAtlasViewSize.X, ScreenProbeParameters->ScreenProbeAtlasViewSize.Y),
 			ComputeShader,
 			PassParameters,
-			GroupSize);
+			ScreenProbeParameters->ProbeIndirectArgs,
+			(uint32)EScreenProbeIndirectArgs::ThreadPerProbe * sizeof(FRHIDispatchIndirectParameters));
 	}
 }
 
@@ -627,10 +633,11 @@ class FRadianceCacheTraceFromProbesCS : public FGlobalShader
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FOverbudgetPass : SHADER_PERMUTATION_BOOL("OVERBUDGET_TRACING_PASS");
+	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDistantScene : SHADER_PERMUTATION_BOOL("TRACE_DISTANT_SCENE");
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 
-	using FPermutationDomain = TShaderPermutationDomain<FOverbudgetPass, FDistantScene, FDynamicSkyLight>;
+	using FPermutationDomain = TShaderPermutationDomain<FOverbudgetPass, FVoxelTracingMode, FDistantScene, FDynamicSkyLight>;
 
 public:
 
@@ -687,11 +694,53 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FCopyProbesAndFixupBordersCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "CopyProbesAndFixupBordersCS", SF_Compute);
 
+
+class FGenerateMipLevelCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGenerateMipLevelCS)
+	SHADER_USE_PARAMETER_STRUCT(FGenerateMipLevelCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float3>, RWFinalRadianceAtlasMip)
+		SHADER_PARAMETER_RDG_TEXTURE_SRV(Texture2D, FinalRadianceAtlasParentMip)
+		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<float4>, ProbeTraceData)
+		SHADER_PARAMETER(uint32, MipLevel)
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, FixupProbeBordersIndirectArgs)
+	END_SHADER_PARAMETER_STRUCT()
+
+public:
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static uint32 GetGroupSize()
+	{
+		return 8;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGenerateMipLevelCS, "/Engine/Private/Lumen/LumenRadianceCache.usf", "GenerateMipLevelCS", SF_Compute);
+
+
 bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 {
 	FRadianceCacheState& CacheState = View.ViewState->RadianceCacheState;
 
-	bool bResetState = false;
+	bool bResetState = CacheState.ClipmapWorldExtent != GLumenRadianceCacheClipmapWorldExtent || CacheState.ClipmapDistributionBase != GLumenRadianceCacheClipmapDistributionBase;
+
+	CacheState.ClipmapWorldExtent = GLumenRadianceCacheClipmapWorldExtent;
+	CacheState.ClipmapDistributionBase = GLumenRadianceCacheClipmapDistributionBase;
+
 	const int32 ClipmapResolution = LumenRadianceCache::GetClipmapGridResolution();
 	const int32 NumClipmaps = LumenRadianceCache::GetNumClipmaps();
 	const FIntPoint RadianceProbeAtlasTextureSize = LumenRadianceCache::GetProbeAtlasTextureSize();
@@ -719,7 +768,8 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 	const FIntPoint FinalRadianceAtlasSize = LumenRadianceCache::GetFinalRadianceAtlasTextureSize();
 
 	if (!CacheState.FinalRadianceAtlas.IsValid()
-		|| CacheState.FinalRadianceAtlas->GetDesc().Extent != FinalRadianceAtlasSize)
+		|| CacheState.FinalRadianceAtlas->GetDesc().Extent != FinalRadianceAtlasSize
+		|| CacheState.FinalRadianceAtlas->GetDesc().NumMips != GRadianceCacheNumMipmaps)
 	{
 		FPooledRenderTargetDesc FinalRadianceAtlasDesc = FPooledRenderTargetDesc(FPooledRenderTargetDesc::Create2DDesc(
 			FinalRadianceAtlasSize,
@@ -727,7 +777,8 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 			FClearValueBinding::Green,
 			0,
 			TexCreate_ShaderResource | TexCreate_UAV,
-			false));
+			false,
+			GRadianceCacheNumMipmaps));
 
 		GRenderTargetPool.FindFreeElement(
 			GraphBuilder.RHICmdList,
@@ -748,7 +799,7 @@ bool UpdateRadianceCacheState(FRDGBuilder& GraphBuilder, const FViewInfo& View)
 	{
 		FRadianceCacheClipmap& Clipmap = CacheState.Clipmaps[ClipmapIndex];
 
-		const float ClipmapExtent = GLumenRadianceCacheClipmapWorldExtent * FMath::Pow(2.0f, ClipmapIndex);
+		const float ClipmapExtent = GLumenRadianceCacheClipmapWorldExtent * FMath::Pow(GLumenRadianceCacheClipmapDistributionBase, ClipmapIndex);
 		const float CellSize = (2.0f * ClipmapExtent) / LumenRadianceCache::GetClipmapGridResolution();
 
 		FIntVector GridCenter;
@@ -784,6 +835,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 	const FLumenCardTracingInputs& TracingInputs, 
 	const FViewInfo& View, 
 	const LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
+	const FScreenProbeParameters* ScreenProbeParameters,
 	LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters)
 {
 	if (ShouldRenderRadianceCache(ShaderPlatform, ViewFamily, Scene) && GRadianceCacheUpdate != 0)
@@ -831,7 +883,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 		}
 
 		// Mark indirection entries around positions that will be sampled by dependent features as used
-		RadianceCacheMarkUsedProbes(GraphBuilder, View, ProbeHierarchyParameters, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV);
+		RadianceCacheMarkUsedProbes(GraphBuilder, View, ProbeHierarchyParameters, ScreenProbeParameters, RadianceCacheParameters, RadianceProbeIndirectionTextureUAV);
 
 		const bool bPersistentCache = !GRadianceCacheForceFullUpdate 
 			&& View.ViewState 
@@ -1019,6 +1071,7 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 
 				FRadianceCacheTraceFromProbesCS::FPermutationDomain PermutationVector;
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FOverbudgetPass>(TracePassIndex == 1);
+				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDistantScene>(Scene->LumenSceneData->DistantCardIndices.Num() > 0);
 				PermutationVector.Set<FRadianceCacheTraceFromProbesCS::FDynamicSkyLight>(ShouldRenderDynamicSkyLight(Scene, ViewFamily));
 				auto ComputeShader = View.ShaderMap->GetShader<FRadianceCacheTraceFromProbesCS>(PermutationVector);
@@ -1048,6 +1101,28 @@ void FDeferredShadingSceneRenderer::RenderRadianceCache(
 					ComputeShader,
 					PassParameters,
 					FixupProbeBordersIndirectArgs,
+					0);
+			}
+
+			for (int32 MipLevel = 1; MipLevel < GRadianceCacheNumMipmaps; MipLevel++)
+			{
+				FGenerateMipLevelCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGenerateMipLevelCS::FParameters>();
+				PassParameters->RWFinalRadianceAtlasMip = GraphBuilder.CreateUAV(FRDGTextureUAVDesc(FinalRadianceAtlas, MipLevel));
+				PassParameters->FinalRadianceAtlasParentMip = GraphBuilder.CreateSRV(FRDGTextureSRVDesc::CreateForMipLevel(FinalRadianceAtlas, MipLevel - 1));
+				PassParameters->RadianceCacheParameters = RadianceCacheParameters;
+				PassParameters->ProbeTraceData = GraphBuilder.CreateSRV(FRDGBufferSRVDesc(ProbeTraceData, PF_A32B32G32R32F));
+				PassParameters->MipLevel = MipLevel;
+				PassParameters->FixupProbeBordersIndirectArgs = FixupProbeBordersIndirectArgs;
+				PassParameters->View = View.ViewUniformBuffer;
+
+				auto ComputeShader = View.ShaderMap->GetShader<FGenerateMipLevelCS>();
+
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("GenerateMipLevel"),
+					ComputeShader,
+					PassParameters,
+					FixupProbeBordersIndirectArgs, //@todo - dispatch the right number of threads for this mip instead of mip0
 					0);
 			}
 		}

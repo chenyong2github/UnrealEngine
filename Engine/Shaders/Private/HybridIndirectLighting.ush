@@ -35,14 +35,6 @@ uint2 RayStoragePerPixelVector;
 uint PixelRayIndexAbscissMask;
 uint PixelRayIndexOrdinateShift;
 
-float4 PrecomputedE[INDIRECT_LIGHTING_INTERLEAVING_TILE_SIZE * INDIRECT_LIGHTING_INTERLEAVING_TILE_SIZE * INDIRECT_LIGHTING_MAX_RAY_PER_PIXEL];
-
-Texture2D HitDistance;
-Texture2D HitRadiance;
-
-RWTexture2D<float4> HitDistanceOutput;
-RWTexture2D<float4> HitRadianceOutput;
-
 
 bool ShouldComputeIndirectLighting(uint ShadingModelID)
 {
@@ -61,55 +53,6 @@ void UnpackRayInformationFromGlobalRayId(uint GlobalRayIndex, out uint2 TracingP
 	TracingPixelCoord.x = (GlobalRayIndex >>  0) & 0x1FFF;
 	TracingPixelCoord.y = (GlobalRayIndex >> 13) & 0x1FFF;
 	PixelRayIndex = (GlobalRayIndex >> 26) & 0x7;
-}
-
-float3 GetDiffuseWorldRayDirection(float3 N, uint2 TracingPixelCoord, uint PixelRayIndex)
-{
-	float3x3 TangentBasis = GetTangentBasisFrisvad(N);
-
-	uint2 InterleavedTileCoord = TracingPixelCoord % uint2(INDIRECT_LIGHTING_INTERLEAVING_TILE_SIZE, INDIRECT_LIGHTING_INTERLEAVING_TILE_SIZE);  
-	
-#if 1 // Old lumen
-	float3 LocalConeDirection = PrecomputedE[
-		InterleavedTileCoord.x + INDIRECT_LIGHTING_INTERLEAVING_TILE_SIZE * InterleavedTileCoord.y + 
-		PixelRayIndex * INDIRECT_LIGHTING_INTERLEAVING_BUCKET_COUNT].xyz;
-	
-	#if 1
-		float3 WorldConeDirection = LocalConeDirection;
-
-		if (dot(WorldConeDirection, N) <= 0)
-		{
-			WorldConeDirection = -WorldConeDirection;
-		}
-	#else
-		float3 WorldConeDirection = mul(LocalConeDirection, TangentBasis);
-	#endif
-
-	return WorldConeDirection;
-#else
-#if 1 // Precomputed for optimal denoising
-	float2 E = PrecomputedE[
-		InterleavedTileCoord.x + INDIRECT_LIGHTING_INTERLEAVING_TILE_SIZE * InterleavedTileCoord.y + 
-		PixelRayIndex * INDIRECT_LIGHTING_INTERLEAVING_BUCKET_COUNT].xy;
-#else // SSGI
-	uint2 RandomSeed = Rand3DPCG16(int3(TracingPixelCoord, View.StateFrameIndexMod8)).xy;
-
-	float2 E = Hammersley16(PixelRayIndex, RayCountPerPixel, RandomSeed);
-#endif	
-
-	float2 DiskE = UniformSampleDiskConcentric(E);
-	float DiskR = length(DiskE);
-	
-	// TODO(Guillaume): Should be important sampled cosine hemisphere instead.
-	float CosTheta = DiskR * DiskR;
-	float SinTheta = sqrt( 1 - CosTheta * CosTheta );
-
-	float3 H;
-	H.xy = DiskE * SinTheta;
-	H.z = CosTheta;
-
-	return mul(H, TangentBasis);
-#endif
 }
 
 uint2 GetRayStorageCoords(uint2 TracingPixelCoord, uint PixelRayIndex)

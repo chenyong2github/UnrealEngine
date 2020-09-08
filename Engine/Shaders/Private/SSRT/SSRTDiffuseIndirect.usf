@@ -430,6 +430,7 @@ void MainCS(
 					PositionTranslatedWorld, L,
 					/* WorldTMax = */ SceneDepth,
 					/* SceneDepth = */ SceneDepth,
+					/* SlopeCompareToleranceScale */ 2.0f,
 					/* bExtendRayToScreenBorder = */ true,
 					/* out */ bRayWasClipped);
 				

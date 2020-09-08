@@ -8,8 +8,11 @@
 #include "RendererPrivate.h"
 #include "MeshCardRepresentation.h"
 #include "ComponentRecreateRenderStateContext.h"
+#include "LumenSceneUtils.h"
 
 #define LUMEN_LOG_HITCHES 0
+
+#define INVALID_CUBE_MAP_TREE_ID 0x7fffffff
 
 FLumenCubeMapTreeLUTAtlas GLumenCubeMapTreeLUTAtlas;
 
@@ -105,6 +108,18 @@ FAutoConsoleVariableRef CVarLumenCubeMapTreeCullFaces(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
+bool IsPrimitiveToDFObjectMappingRequired()
+{
+	bool bGeneratePrimitiveToDFObjectMapping = false;
+
+#if RHI_RAYTRACING
+	static IConsoleVariable* CVarRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.RayTracing"));
+	bGeneratePrimitiveToDFObjectMapping = (CVarRayTracing ? (CVarRayTracing->GetInt() != 0) : false) && IsRayTracingEnabled();
+#endif
+
+	return bGeneratePrimitiveToDFObjectMapping;
+}
+
 void FLumenCubeMapTreeGPUData::FillData(const class FLumenCubeMapTree& RESTRICT CubeMapTree, FVector4* RESTRICT OutData)
 {
 	// Note: layout must match GetLumenCubeMapTreeData in usf
@@ -169,7 +184,7 @@ void LumenUpdateDFObjectIndex(FScene* Scene, int32 DFObjectIndex)
 	Scene->LumenSceneData->DFObjectIndicesToUpdateInBuffer.Add(DFObjectIndex);
 }
 
-void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList)
+void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList, int32 NumScenePrimitives)
 {
 	LLM_SCOPE(ELLMTag::Lumen);
 	QUICK_SCOPE_CYCLE_COUNTER(UpdateLumenCubeMapTrees);
@@ -349,6 +364,84 @@ void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneDa
 
 			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.UAV);
 		}
+	}
+	
+	// Upload primitive index to DFObject index mapping
+	{
+		QUICK_SCOPE_CYCLE_COUNTER(UpdatePrimitiveToDFIndexBufferMapping);
+
+		extern int32 GLumenSceneUploadDFObjectToCubeMapTreeIndexBufferEveryFrame;
+		if (GLumenSceneUploadDFObjectToCubeMapTreeIndexBufferEveryFrame)
+		{
+			LumenSceneData.PrimitiveToDFObjectIndexBufferSize = 0;
+		}
+		
+		const bool bShouldUpdatePrimitiveToDFIndexBufferMapping = IsPrimitiveToDFObjectMappingRequired();
+		const int NumPrimitiveElements = bShouldUpdatePrimitiveToDFIndexBufferMapping ? NumScenePrimitives : 1;
+		const int32 NumPrimitiveIndices = FMath::RoundUpToPowerOfTwo(NumPrimitiveElements);
+		const uint32 IndexSizeInBytes = GPixelFormats[PF_R32_UINT].BlockBytes;
+		const uint32 IndicesSizeInBytesForPrimitives = FMath::DivideAndRoundUp<int32>(NumPrimitiveIndices * IndexSizeInBytes, 16) * 16; // Round to multiple of 16 bytes
+		const bool bResizedPrimitiveIndexElements = ResizeResourceIfNeeded(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, IndicesSizeInBytesForPrimitives, TEXT("PritimitiveToDFObjectIndices"));
+		
+		const int32 DFObjectIndexInvalid = INVALID_CUBE_MAP_TREE_ID;
+		const bool bBufferResized = IndicesSizeInBytesForPrimitives > LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
+
+		if (bBufferResized)
+		{
+			const uint32 DeltaIndicesSizeInBytesForPrimitives = IndicesSizeInBytesForPrimitives - LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
+			const uint32 DstOffset = LumenSceneData.PrimitiveToDFObjectIndexBufferSize;
+			MemsetResource(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, DFObjectIndexInvalid, DeltaIndicesSizeInBytesForPrimitives, DstOffset);
+		}
+
+		LumenSceneData.PrimitiveToDFObjectIndexBufferSize = IndicesSizeInBytesForPrimitives;
+
+		const int32 NumIndexUploads = bShouldUpdatePrimitiveToDFIndexBufferMapping? LumenSceneData.DFObjectIndicesToUpdateInBuffer.Num():0;
+
+		// Update the primitive to DFObject index mapping.
+		if(NumIndexUploads > 0)
+		{
+			LumenSceneData.UploadPrimitiveBuffer.Init(NumIndexUploads, IndexSizeInBytes, false, TEXT("UploadPrimitiveBuffer"));
+
+			for (int32 DFObjectIndex : LumenSceneData.DFObjectIndicesToUpdateInBuffer)
+			{
+				if (DFObjectIndex < DistanceFieldSceneData.PrimitiveInstanceMapping.Num())
+				{
+					const FPrimitiveAndInstance& Mapping = DistanceFieldSceneData.PrimitiveInstanceMapping[DFObjectIndex];
+
+					int32 CubeMapTreeIndex = -1;
+
+					if (Mapping.InstanceIndex < Mapping.Primitive->LumenCubeMapTreeInstanceIndices.Num())
+					{
+						CubeMapTreeIndex = Mapping.Primitive->LumenCubeMapTreeInstanceIndices[Mapping.InstanceIndex];
+					}
+					// When instances are merged, only one entry is added to LumenCubeMapTreeInstanceIndices
+					else if (Mapping.Primitive->LumenCubeMapTreeInstanceIndices.Num() == 1)
+					{
+						CubeMapTreeIndex = Mapping.Primitive->LumenCubeMapTreeInstanceIndices[0];
+					}
+					//@TODO: Instancing is not supported at this moment.
+					if (CubeMapTreeIndex != -1)
+					{
+						const int32 PrimitiveIndex = Mapping.Primitive->GetIndex();
+						LumenSceneData.UploadPrimitiveBuffer.Add(PrimitiveIndex, &DFObjectIndex);
+					}
+				}
+			}
+
+			if (bBufferResized)
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::ERWBarrier, EResourceTransitionPipeline::EComputeToCompute, LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV);
+			}
+			else
+			{
+				RHICmdList.TransitionResource(EResourceTransitionAccess::EWritable, EResourceTransitionPipeline::EGfxToCompute, LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV);
+			}
+
+			LumenSceneData.UploadPrimitiveBuffer.ResourceUploadTo(RHICmdList, LumenSceneData.PrimitiveToDFObjectIndexBuffer, false);
+
+			RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.PrimitiveToDFObjectIndexBuffer.UAV);
+		}
+
 	}
 
 	// Reset arrays, but keep allocated memory for 1024 elements

@@ -262,6 +262,21 @@ float4 ImportanceSampleGGX( float2 E, float a2 )
 	return float4( H, PDF );
 }
 
+float VisibleGGXPDF(float3 V, float3 H, float a2)
+{
+	float NoV = V.z;
+	float NoH = H.z;
+	float VoH = dot(V, H);
+
+	float d = (NoH * a2 - NoH) * NoH + 1;
+	float D = a2 / (PI*d*d);
+
+	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
+
+	float PDF = G_SmithV * VoH * D / NoV;
+	return PDF;
+}
+
 // [ Heitz 2018, "Sampling the GGX Distribution of Visible Normals" ]
 // http://jcgt.org/published/0007/04/01/
 // PDF = G_SmithV * VoH * D / NoV / (4 * VoH)
@@ -296,18 +311,7 @@ float4 ImportanceSampleVisibleGGX( float2 DiskE, float a2, float3 V )
 	// unstretch
 	H = normalize( float3( a * H.xy, max(0.0, H.z) ) );
 
-	float NoV = V.z;
-	float NoH = H.z;
-	float VoH = dot(V, H);
-
-	float d = (NoH * a2 - NoH) * NoH + 1;
-	float D = a2 / (PI*d*d);
-
-	float G_SmithV = 2 * NoV / (NoV + sqrt(NoV * (NoV - NoV * a2) + a2));
-
-	float PDF = G_SmithV * VoH * D / NoV;
-
-	return float4(H, PDF);
+	return float4(H, VisibleGGXPDF(V, H, a2));
 }
 
 // Multiple importance sampling power heuristic of two functions with a power of two. 

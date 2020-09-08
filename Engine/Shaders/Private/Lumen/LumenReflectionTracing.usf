@@ -1,0 +1,346 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "LumenCardCommon.ush"
+#define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
+#include "LumenTracingCommon.ush"
+#include "LumenRadianceCacheCommon.ush"
+#include "LumenReflectionCommon.ush"
+#include "../SceneTextureParameters.ush"
+#include "../SSRT/SSRTRayCast.ush"
+#include "../SHCommon.ush"
+#define HZB_TRACE_INCLUDE_FULL_RES_DEPTH 1
+#include "LumenScreenTracing.ush"
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 0
+#endif
+
+#define DEBUG_VISUALIZE_TRACE_TYPES 0
+
+RWTexture2D<float> RWTraceHit;
+RWTexture2D<float3> RWTraceRadiance;
+
+[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+void ReflectionClearTracesCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	RWTraceRadiance[ReflectionTracingCoord] = 0.0f;
+	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(0.0f, false);
+}
+
+float MaxTraceDistance;
+
+Texture2D ColorTexture;
+#define ColorTextureSampler GlobalPointClampedSampler
+float4 PrevScreenPositionScaleBias;
+float PrevSceneColorPreExposureCorrection;
+float4 HZBUvFactorAndInvFactor;
+float MaxHierarchicalScreenTraceIterations;
+float UncertainTraceRelativeDepthThreshold;
+
+[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+void ReflectionTraceScreenTexturesCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+
+	if (all(ReflectionTracingCoord < ReflectionTracingViewSize))
+	{
+		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
+		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
+			float TraceDistance = MaxTraceDistance;
+
+			bool bHit;
+			bool bUncertain;
+			float3 HitUVz;
+
+			TraceScreen(
+				WorldPosition + View.PreViewTranslation,
+				RayData.Direction,
+				TraceDistance,
+				HZBUvFactorAndInvFactor,
+				MaxHierarchicalScreenTraceIterations, 
+				UncertainTraceRelativeDepthThreshold,
+				0,
+				bHit,
+				bUncertain,
+				HitUVz);
+
+			bHit = bHit && !bUncertain;
+
+			float HitDistance = min(sqrt(ComputeRayHitSqrDistance(WorldPosition + View.PreViewTranslation, HitUVz)), MaxTraceDistance);
+
+			float2 SampleUV;
+			float Vignette;
+			ReprojectHit(PrevScreenPositionScaleBias, SceneVelocityBuffer, SceneVelocityBufferSampler, HitUVz, SampleUV, Vignette);
+
+			// Skip reporting a hit if near the edge of the screen or Temporal AA is off
+			if (Vignette < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0)
+				|| PrevScreenPositionScaleBias.x < .000001f)
+			{
+				bHit = false;
+				HitDistance = 0;
+			}
+
+			if (bHit)
+			{
+				float3 Lighting = SampleScreenColor(ColorTexture, ColorTextureSampler, SampleUV).xyz * PrevSceneColorPreExposureCorrection;
+
+				#if DEBUG_VISUALIZE_TRACE_TYPES
+					RWTraceRadiance[ReflectionTracingCoord] = float3(.5f, 0, 0) * View.PreExposure;
+				#else
+					RWTraceRadiance[ReflectionTracingCoord] = Lighting;
+				#endif
+			}
+
+			RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(HitDistance, bHit);
+		}
+	}
+}
+
+uint2 EncodeTraceTexel(uint2 ReflectionTracingCoord, float TraceHitDistance)
+{
+	return uint2(
+		(ReflectionTracingCoord.x & 0xFFFF) | ((ReflectionTracingCoord.y & 0xFFFF) << 16),
+		asuint(TraceHitDistance));
+}
+
+void DecodeTraceTexel(uint2 TraceTexelData, inout uint2 ReflectionTracingCoord, inout float TraceHitDistance)
+{
+	ReflectionTracingCoord.x = TraceTexelData.x & 0xFFFF;
+	ReflectionTracingCoord.y = (TraceTexelData.x >> 16) & 0xFFFF;
+	TraceHitDistance = asfloat(TraceTexelData.y);
+}
+
+RWBuffer<uint> RWCompactedTraceTexelAllocator;
+RWBuffer<uint2> RWCompactedTraceTexelData;
+
+float CompactionTracingEndDistanceFromCamera;
+float CompactionMaxTraceDistance;
+
+groupshared uint SharedTraceTexelAllocator;
+groupshared uint SharedGlobalTraceTexelStartOffset;
+groupshared uint2 SharedTraceTexels[REFLECTION_THREADGROUP_SIZE_1D];
+
+[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+void ReflectionCompactTracesCS(
+	uint GroupId : SV_GroupID,
+	uint GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ReflectionTracingCoord = GetReflectionScreenCoord(GroupId, GroupThreadId);
+	SharedTraceTexelAllocator = 0;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (all(ReflectionTracingCoord < ReflectionTracingViewSize))
+	{
+		float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
+		float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
+
+		bool bHit;
+		float TraceHitDistance = DecodeRayDistance(TraceHit[ReflectionTracingCoord].x, bHit);
+
+		if (SceneDepth > 0 
+			&& !bHit
+			&& SceneDepth < CompactionTracingEndDistanceFromCamera 
+			&& TraceHitDistance < CompactionMaxTraceDistance)
+		{
+			uint SharedTexelOffset;
+			InterlockedAdd(SharedTraceTexelAllocator, 1, SharedTexelOffset);
+			SharedTraceTexels[SharedTexelOffset] = EncodeTraceTexel(ReflectionTracingCoord, TraceHitDistance);
+		}
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	uint ThreadIndex = GroupThreadId;
+
+	if (ThreadIndex == 0)
+	{
+		InterlockedAdd(RWCompactedTraceTexelAllocator[0], SharedTraceTexelAllocator, SharedGlobalTraceTexelStartOffset);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < SharedTraceTexelAllocator)
+	{
+		RWCompactedTraceTexelData[SharedGlobalTraceTexelStartOffset + ThreadIndex] = SharedTraceTexels[ThreadIndex];
+	}
+}
+
+Buffer<uint> CompactedTraceTexelAllocator;
+RWBuffer<uint> RWReflectionCompactTracingIndirectArgs;
+
+[numthreads(1, 1, 1)]
+void SetupCompactedTracesIndirectArgsCS()
+{
+	RWReflectionCompactTracingIndirectArgs[0] = (CompactedTraceTexelAllocator[0] + REFLECTION_THREADGROUP_SIZE_1D - 1) / REFLECTION_THREADGROUP_SIZE_1D;
+	RWReflectionCompactTracingIndirectArgs[1] = 1;
+	RWReflectionCompactTracingIndirectArgs[2] = 1;
+}
+
+uint CardGridPixelSizeShift;
+float3 CardGridZParams;
+uint3 CullGridSize;
+
+uint ComputeCardGridCellIndex(uint2 PixelPos, float SceneDepth)
+{
+	uint ZSlice = (uint)(max(0, log2(SceneDepth * CardGridZParams.x + CardGridZParams.y) * CardGridZParams.z));
+	ZSlice = min(ZSlice, (uint)(CullGridSize.z - 1));
+	uint3 GridCoordinate = uint3(PixelPos >> CardGridPixelSizeShift, ZSlice);
+	uint GridIndex = (GridCoordinate.z * CullGridSize.y + GridCoordinate.y) * CullGridSize.x + GridCoordinate.x;
+	return GridIndex;
+}
+
+float SurfaceBias;
+float CardTraceEndDistanceFromCamera;
+float MaxCardTraceDistance;
+
+void TraceCards(
+	uint2 ReflectionTracingCoord,
+	float TraceHitDistance)
+{
+	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
+	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
+
+	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
+	bool bHit = false;
+
+	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
+
+	FConeTraceInput TraceInput;
+	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, TraceHitDistance, MaxTraceDistance, 1.0f);
+	TraceInput.VoxelStepFactor = 1.0f;
+	TraceInput.VoxelTraceStartDistance = MaxCardTraceDistance;
+
+	uint CardGridCellIndex = ComputeCardGridCellIndex(ReflectionTracingCoord * ReflectionDownsampleFactor, SceneDepth);
+	TraceInput.NumMeshSDFs = NumGridCulledMeshSDFObjects[CardGridCellIndex];
+	TraceInput.MeshSDFStartOffset = GridCulledMeshSDFObjectStartOffsetArray[CardGridCellIndex];
+	TraceInput.CardInterpolateInfluenceRadius = 10;
+	//@todo - derive from card texel size
+	TraceInput.CardInterpolateDepthVisibilityRadius = 10;
+	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
+	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
+	TraceInput.InitialMaxDistance = TraceHitDistance;
+
+	FConeTraceResult TraceResult;
+	ConeTraceLumenSceneCards(TraceInput, TraceResult);
+
+	float3 Lighting = TraceResult.Lighting;
+	float Transparency = TraceResult.Transparency;
+	float OpaqueHitDistance = TraceResult.OpaqueHitDistance;
+
+	float DistanceFromViewpoint = length(View.WorldCameraOrigin - WorldPosition);
+	float DistanceFade = saturate(4 * DistanceFromViewpoint / CardTraceEndDistanceFromCamera - 3);
+	DistanceFade = max(DistanceFade, saturate((OpaqueHitDistance - MaxCardTraceDistance * .7f) / (MaxCardTraceDistance * .3f)));
+
+	Transparency = lerp(Transparency, 1, DistanceFade);
+
+	#if DEBUG_VISUALIZE_TRACE_TYPES
+		RWTraceRadiance[ReflectionTracingCoord] = float3(0, .5f, 0) * View.PreExposure;
+	#else
+		RWTraceRadiance[ReflectionTracingCoord] = Lighting * View.PreExposure;
+	#endif
+
+	if (Transparency < InterleavedGradientNoise(ReflectionTracingCoord + 0.5f, 0))
+	{
+		bHit = true;
+	}
+
+	TraceHitDistance = OpaqueHitDistance;
+
+	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
+}
+
+Buffer<uint2> CompactedTraceTexelData;
+
+[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+void ReflectionTraceCardsCS(uint DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId < CompactedTraceTexelAllocator[0])
+	{
+		uint2 ReflectionTracingCoord;
+		float TraceHitDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance);
+
+		TraceCards(ReflectionTracingCoord, TraceHitDistance);
+	}
+}
+
+void TraceVoxels(
+	uint2 ReflectionTracingCoord,
+	float TraceHitDistance)
+{
+	float2 ScreenUV = GetScreenUVFromReflectionTracingCoord(ReflectionTracingCoord);
+	float SceneDepth = DownsampledDepth.Load(int3(ReflectionTracingCoord, 0)).x;
+
+	float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+	float3 SceneNormal = DecodeNormal(SceneTexturesStruct.GBufferATexture.Load(int3(ScreenUV * View.BufferSizeAndInvSize.xy, 0)).xyz);
+	FRayData RayData = DecodeRayData(RayBuffer[ReflectionTracingCoord]);
+
+	bool bHit = false;
+
+	float3 SamplePosition = WorldPosition + SurfaceBias * RayData.Direction;
+
+	float TraceDistance = MaxTraceDistance;
+	float MinTraceDistance = 0;
+
+	FConeTraceInput TraceInput;
+	TraceInput.Setup(SamplePosition, RayData.Direction, RayData.ConeHalfAngle, 0.0f, MinTraceDistance, TraceDistance, 1.0f);
+	TraceInput.VoxelStepFactor = 1.0f;
+	TraceInput.VoxelTraceStartDistance = max(MinTraceDistance, TraceHitDistance);
+	// Only expand the SDF surface when the ray traversal is far enough away to not self-intersect
+	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = false;
+	TraceInput.InitialMaxDistance = TraceHitDistance;
+
+	FConeTraceResult TraceResult = (FConeTraceResult)0;
+	TraceResult.Lighting = 0;
+	TraceResult.Transparency = 1;
+	TraceResult.OpaqueHitDistance = TraceInput.MaxTraceDistance;
+
+	ConeTraceLumenSceneVoxels(TraceInput, TraceResult);
+
+	if (TraceResult.Transparency <= .5f)
+	{
+		TraceHitDistance = TraceResult.OpaqueHitDistance;
+		bHit = true;
+	}
+	else
+	{
+		TraceHitDistance = GetMaxHitDistance();
+	}
+
+	EvaluateSkyRadianceForCone(RayData.Direction, tan(RayData.ConeHalfAngle), TraceResult);
+	
+	#if DEBUG_VISUALIZE_TRACE_TYPES
+		RWTraceRadiance[ReflectionTracingCoord] = float3(0, 0, .5f) * View.PreExposure;
+	#else
+		RWTraceRadiance[ReflectionTracingCoord] = TraceResult.Lighting * View.PreExposure;
+	#endif
+
+	RWTraceHit[ReflectionTracingCoord] = EncodeRayDistance(TraceHitDistance, bHit);
+}
+
+[numthreads(REFLECTION_THREADGROUP_SIZE_1D, 1, 1)]
+void ReflectionTraceVoxelsCS(uint DispatchThreadId : SV_DispatchThreadID)
+{
+	if (DispatchThreadId < CompactedTraceTexelAllocator[0])
+	{
+		uint2 ReflectionTracingCoord;
+		float TraceHitDistance;
+		DecodeTraceTexel(CompactedTraceTexelData[DispatchThreadId], ReflectionTracingCoord, TraceHitDistance);
+
+		TraceVoxels(ReflectionTracingCoord, TraceHitDistance);
+	}
+}

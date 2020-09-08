@@ -11,7 +11,6 @@
 #include "ShaderParameterStruct.h"
 #include "VolumeLighting.h"
 #include "LumenSceneUtils.h"
-#include "LumenSceneBVH.h"
 #include "DistanceFieldLightingShared.h"
 #include "LumenCubeMapTree.h"
 
@@ -47,30 +46,6 @@ FAutoConsoleVariableRef CVarLumenSceneClipmapWorldExtent(
 	ECVF_RenderThreadSafe
 	);
 
-int32 GLumenSceneVoxelLightingBVHCulling = 1;
-FAutoConsoleVariableRef CVarLumenSceneVoxelLightingBVHCulling(
-	TEXT("r.LumenScene.VoxelLightingBVHCulling"),
-	GLumenSceneVoxelLightingBVHCulling,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneVoxelLightingBVHCullingGridFactor = 4;
-FAutoConsoleVariableRef CVarLumenSceneVoxelLightingBVHCullingGridFactor(
-	TEXT("r.LumenScene.VoxelLightingBVHCullingGridFactor"),
-	GLumenSceneVoxelLightingBVHCullingGridFactor,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneVoxelLightingRasterizerScatter = 1;
-FAutoConsoleVariableRef CVarLumenSceneVoxelLightingRasterizerScatter(
-	TEXT("r.LumenScene.VoxelLightingRasterizerScatter"),
-	GLumenSceneVoxelLightingRasterizerScatter,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 int32 GLumenSceneVoxelLightingVisBuffer = 1;
 FAutoConsoleVariableRef CVarLumenSceneVoxelLightingVisBuffer(
 	TEXT("r.LumenScene.VoxelLightingVisBuffer"),
@@ -95,19 +70,11 @@ FAutoConsoleVariableRef CVarLumenSceneVoxelLightingComputeScatter(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GLumenSceneVoxelLightingCubeMapTree = 1;
-FAutoConsoleVariableRef GVarLumenSceneVoxelLightingCubeMapTree(
-	TEXT("r.LumenScene.VoxelLightingCubeMapTree"),
-	GLumenSceneVoxelLightingCubeMapTree,
-	TEXT("Whether to use cube map trees to apply texture on mesh SDF hit points during voxelization."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
-int32 GLumenSceneVoxelLightingTraceMeshSDF = 1;
-FAutoConsoleVariableRef GVarLumenSceneVoxelLightingTraceMeshSDF(
-	TEXT("r.LumenScene.VoxelLightingTraceMeshSDF"),
-	GLumenSceneVoxelLightingTraceMeshSDF,
-	TEXT("."),
+int32 GLumenSceneVoxelLightingComputeGather = 0;
+FAutoConsoleVariableRef CVarLumenSceneVoxelLightingComputeGather(
+	TEXT("r.LumenScene.VoxelLightingComputeGather"),
+	GLumenSceneVoxelLightingComputeGather,
+	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
@@ -248,216 +215,8 @@ FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex)
 	return CameraOrigin;
 }
 
-class FVoxelLightingBVHCullingCS : public FBVHCullingBaseCS
-{
-	DECLARE_GLOBAL_SHADER(FVoxelLightingBVHCullingCS)
-	SHADER_USE_PARAMETER_STRUCT(FVoxelLightingBVHCullingCS, FBVHCullingBaseCS)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FBVHCullingParameters, BVHCullingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER(FVector, GridMin)
-		SHADER_PARAMETER(FVector, GridVoxelSize)
-		SHADER_PARAMETER(float, GridConeRadiusSq)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_GLOBAL_SHADER(FVoxelLightingBVHCullingCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "BVHCullingCS", SF_Compute);
-
 FIntVector ComputeVoxelLightingGroupSize(8, 8, 1);
-
-class FComputeVoxelLightingGatherCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FComputeVoxelLightingGatherCS)
-	SHADER_USE_PARAMETER_STRUCT(FComputeVoxelLightingGatherCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWVoxelLighting)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledCardGridHeader)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledCardGridData)
-		SHADER_PARAMETER(FIntVector, GridResolution)
-		SHADER_PARAMETER(uint32, TargetClipmapIndex)
-		SHADER_PARAMETER(FVector, GridMin)
-		SHADER_PARAMETER(FVector, GridVoxelSize)
-		SHADER_PARAMETER(FIntVector, CullGridSize)
-		SHADER_PARAMETER(uint32, CullGridFactor)
-		SHADER_PARAMETER(uint32, VoxelRayTracing)
-	END_SHADER_PARAMETER_STRUCT()
-
-	class FCulledCardsGrid : SHADER_PERMUTATION_BOOL("CULLED_CARDS_GRID");
-	using FPermutationDomain = TShaderPermutationDomain<FCulledCardsGrid>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ComputeVoxelLightingGroupSize.X);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FComputeVoxelLightingGatherCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "ComputeVoxelLightingGatherCS", SF_Compute);
-
-class FMergeVoxelLightingCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FMergeVoxelLightingCS)
-	SHADER_USE_PARAMETER_STRUCT(FMergeVoxelLightingCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWMergedVoxelLighting)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, FaceVoxelLighting)
-		SHADER_PARAMETER(uint32, TargetClipmapIndex)
-		SHADER_PARAMETER(FIntVector, GridResolution)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), ComputeVoxelLightingGroupSize.X);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FMergeVoxelLightingCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "MergeVoxelLightingCS", SF_Compute);
-
-void InjectCardsWithComputeGather(
-	const FViewInfo& View,
-	const FLumenCardTracingInputs& TracingInputs,
-	FRDGTextureRef VoxelLighting,
-	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
-	FRDGBuilder& GraphBuilder)
-{
-	LLM_SCOPE(ELLMTag::Lumen);
-
-	const FIntVector VoxelGridResolution = GetClipmapResolution();
-
-	const int32 CullGridFactor = FMath::Clamp(GLumenSceneVoxelLightingBVHCullingGridFactor, 1, GLumenSceneClipmapResolution);
-	const int32 CullGridRes = GetClipmapResolutionXY() / CullGridFactor;
-	const FIntVector CullGridSize = FIntVector(CullGridRes, CullGridRes, GetClipmapResolutionZ() / CullGridFactor);
-	
-	FBVHCulling BVHCulling[MaxVoxelClipmapLevels];
-	if (GLumenSceneVoxelLightingBVHCulling)
-	{
-		RDG_EVENT_SCOPE(GraphBuilder, "VoxelLightingBVHCulling");
-
-		for (int32 ClipmapIndex : ClipmapsToUpdate)
-		{
-			BVHCulling[ClipmapIndex].Init(GraphBuilder, View.ShaderMap, CullGridSize);
-		}
-
-		for (int32 BVHLevel = 0; BVHLevel < FMath::Max(1, TracingInputs.BVHDepth); ++BVHLevel)
-		{
-			for (int32 ClipmapIndex : ClipmapsToUpdate)
-			{
-				BVHCulling[ClipmapIndex].InitNextPass(GraphBuilder, View.ShaderMap, BVHLevel);
-			}
-
-			// Run pass for the current BVH level.
-			for (int32 ClipmapIndex : ClipmapsToUpdate)
-			{
-				FVoxelLightingBVHCullingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelLightingBVHCullingCS::FParameters>();
-				PassParameters->BVHCullingParameters = BVHCulling[ClipmapIndex].BVHCullingParameters;
-
-				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
-
-				FVoxelLightingClipmap Clipmap;
-				const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
-				ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, VoxelGridResolution);
-				const float GridConeRadius = (Clipmap.VoxelSize * 0.5f).GetAbsMax();
-				PassParameters->GridMin = Clipmap.WorldMin;
-				PassParameters->GridVoxelSize = Clipmap.VoxelSize * CullGridFactor;
-				PassParameters->GridConeRadiusSq = GridConeRadius * GridConeRadius;
-
-				BVHCulling[ClipmapIndex].NextPass<FVoxelLightingBVHCullingCS>(GraphBuilder, View.ShaderMap, BVHLevel, PassParameters);
-			}
-		}
-
-		for (int32 ClipmapIndex : ClipmapsToUpdate)
-		{
-			BVHCulling[ClipmapIndex].CompactListIntoGrid(GraphBuilder, View.ShaderMap);
-		}
-	}
-
-	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting);
-
-	for (int32 ClipmapIndex : ClipmapsToUpdate)
-	{
-		FComputeVoxelLightingGatherCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FComputeVoxelLightingGatherCS::FParameters>();
-		PassParameters->RWVoxelLighting = VoxelLightingUAV;
-
-		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
-		PassParameters->TargetClipmapIndex = ClipmapIndex;
-		PassParameters->GridResolution = VoxelGridResolution;
-
-		FVoxelLightingClipmap Clipmap;
-		const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
-		ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, VoxelGridResolution);
-		PassParameters->GridMin = Clipmap.WorldMin;
-		PassParameters->GridVoxelSize = Clipmap.VoxelSize;
-
-		PassParameters->CulledCardGridHeader = BVHCulling[ClipmapIndex].CulledCardGridHeaderSRV;
-		PassParameters->CulledCardGridData = BVHCulling[ClipmapIndex].CulledCardGridDataSRV;
-		PassParameters->CullGridSize = CullGridSize;
-		PassParameters->CullGridFactor = CullGridFactor;
-
-		PassParameters->VoxelRayTracing = Lumen::UseVoxelRayTracing();
-
-		FComputeVoxelLightingGatherCS::FPermutationDomain PermutationVector;
-		PermutationVector.Set<FComputeVoxelLightingGatherCS::FCulledCardsGrid>(GLumenSceneVoxelLightingBVHCulling != 0);
-		auto ComputeShader = View.ShaderMap->GetShader<FComputeVoxelLightingGatherCS>(PermutationVector);
-
-		const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(PassParameters->GridResolution, ComputeVoxelLightingGroupSize);
-	
-		FComputeShaderUtils::AddPass(
-			GraphBuilder,
-			RDG_EVENT_NAME("ComputeVoxelLighting %ux%ux%u", GetClipmapResolutionXY(), GetClipmapResolutionXY(), GetClipmapResolutionZ()),
-			ComputeShader,
-			PassParameters,
-			GroupSize);
-	}
-}
-
 uint32 SetupCardScatterInstancesGroupSize = 64;
-
-class FSetupCardScatterInstancesCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FSetupCardScatterInstancesCS);
-	SHADER_USE_PARAMETER_STRUCT(FSetupCardScatterInstancesCS, FGlobalShader);
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadAllocator)
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWQuadData)
-		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
-		SHADER_PARAMETER(uint32, NumClipmaps)
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldMin, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSize, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER(FIntVector, GridResolution)
-	END_SHADER_PARAMETER_STRUCT()
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), SetupCardScatterInstancesGroupSize);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FSetupCardScatterInstancesCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "SetupCardScatterInstancesCS", SF_Compute);
 
 uint32 SetupMeshSDFScatterInstancesGroupSize = 64;
 
@@ -472,12 +231,10 @@ class FSetupMeshSDFScatterInstancesCS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 		SHADER_PARAMETER(uint32, NumClipmaps)
-		SHADER_PARAMETER(uint32, OutermostClipmapIndex)
+        SHADER_PARAMETER(uint32, OutermostClipmapIndex)
+		SHADER_PARAMETER_STRUCT_REF(FLumenVoxelTracingParameters,LumenVoxelTracingParameters)
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldMin, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSize, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector, ClipmapToGridScale, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector, ClipmapToGridBias, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER(FIntVector, GridResolution)
@@ -539,19 +296,14 @@ class FCardVoxelizeVS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, QuadAllocator)
 		SHADER_PARAMETER_STRUCT_REF(FLumenCardScene, LumenCardScene)
 		SHADER_PARAMETER(uint32, NumClipmaps)
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
+		SHADER_PARAMETER_STRUCT_REF(FLumenVoxelTracingParameters,LumenVoxelTracingParameters)
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldMin, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSize, [MaxVoxelClipmapLevels])
-		SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER(FIntVector, GridResolution)
 		SHADER_PARAMETER(uint32, TilesPerInstance)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
 		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
 	END_SHADER_PARAMETER_STRUCT()
-
-	class FTraceMeshSDF : SHADER_PERMUTATION_BOOL("CARD_TRACE_MESH_SDF");
-	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDF>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -576,9 +328,6 @@ class FCardVoxelizeMaskSetupPS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSize, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER(FIntVector, GridResolution)
 	END_SHADER_PARAMETER_STRUCT()
-
-	class FTraceMeshSDF : SHADER_PERMUTATION_BOOL("CARD_TRACE_MESH_SDF");
-	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDF>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -640,27 +389,13 @@ class FCardVoxelizePS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldMin, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSize, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER(FIntVector, GridResolution)
-		SHADER_PARAMETER(uint32, VoxelRayTracing)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FTraceMeshSDF : SHADER_PERMUTATION_BOOL("CARD_TRACE_MESH_SDF");
-	class FCubeMapTree : SHADER_PERMUTATION_BOOL("CUBE_MAP_TREE");
 	class FVoxelVisBuffer : SHADER_PERMUTATION_BOOL("VOXEL_VIS_BUFFER");
-	using FPermutationDomain = TShaderPermutationDomain<FTraceMeshSDF, FCubeMapTree, FVoxelVisBuffer>;
+	using FPermutationDomain = TShaderPermutationDomain<FVoxelVisBuffer>;
 
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (!PermutationVector.Get<FTraceMeshSDF>())
-		{
-			PermutationVector.Set<FCubeMapTree>(false);
-			PermutationVector.Set<FVoxelVisBuffer>(false);
-		}
-
-		if (PermutationVector.Get<FVoxelVisBuffer>())
-		{
-			PermutationVector.Set<FCubeMapTree>(true);
-		}
-
 		return PermutationVector;
 	}
 
@@ -693,7 +428,8 @@ class FCompactVoxelLightingCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FCompactVoxelLightingCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWVoxelLighting)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, RWVoxelLighting)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWVoxelLightingAlpha)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelOITLighting)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelOITTransparency)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D<uint>, VoxelMask)
@@ -759,7 +495,6 @@ class FComputeScatterCS : public FGlobalShader
 		SHADER_PARAMETER_ARRAY(FVector, ClipmapToGridScale, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER_ARRAY(FVector, ClipmapToGridBias, [MaxVoxelClipmapLevels])
 		SHADER_PARAMETER(FIntVector, GridResolution)
-		SHADER_PARAMETER(uint32, VoxelRayTracing)
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, ComputeScatterIndirectArgsBuffer)
 	END_SHADER_PARAMETER_STRUCT()
 
@@ -780,7 +515,6 @@ class FComputeScatterCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-		OutEnvironment.SetDefine(TEXT("CARD_TRACE_MESH_SDF"), 1);
 		OutEnvironment.CompilerFlags.Add(CFLAG_Wave32);
 	}
 };
@@ -793,7 +527,8 @@ class FVoxelVisBufferShadingCS : public FGlobalShader
 	SHADER_USE_PARAMETER_STRUCT(FVoxelVisBufferShadingCS, FGlobalShader);
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float4>, RWVoxelLighting)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float3>, RWVoxelLighting)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<float>, RWVoxelLightingAlpha)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFTracingParameters, MeshSDFTracingParameters)
 		SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelVisBuffer)
@@ -803,7 +538,6 @@ class FVoxelVisBufferShadingCS : public FGlobalShader
 		SHADER_PARAMETER(FVector, GridVoxelSize)
 		SHADER_PARAMETER(FIntVector, ClipmapGridResolution)
 		SHADER_PARAMETER(FIntVector, OutputGridResolution)
-		SHADER_PARAMETER(uint32, VoxelRayTracing)
 	END_SHADER_PARAMETER_STRUCT()
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
@@ -823,17 +557,390 @@ class FVoxelVisBufferShadingCS : public FGlobalShader
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
 		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
-		OutEnvironment.SetDefine(TEXT("CARD_TRACE_MESH_SDF"), 1);
 	}
 };
 
 IMPLEMENT_GLOBAL_SHADER(FVoxelVisBufferShadingCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "VoxelVisBufferShadingCS", SF_Compute);
+
+class FGatherVoxelizeClipmapCullCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGatherVoxelizeClipmapCullCS);
+	SHADER_USE_PARAMETER_STRUCT(FGatherVoxelizeClipmapCullCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndexAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWObjectIndexBuffer)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER(FVector, CullClipmapWorldCenter)
+		SHADER_PARAMETER(FVector, CullClipmapWorldExtent)
+		SHADER_PARAMETER(float, MeshSDFRadiusThreshold)
+		SHADER_PARAMETER(float, MeshSDFScreenSizeThreshold)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static int32 GetGroupSize()
+	{
+		return 64;
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGatherVoxelizeClipmapCullCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "GatherVoxelizeClipmapCullCS", SF_Compute);
+
+class FGatherVoxelizeGridCullCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGatherVoxelizeGridCullCS)
+	SHADER_USE_PARAMETER_STRUCT(FGatherVoxelizeGridCullCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCullGridAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCullGridHeader)
+		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWCullGridData)
+		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
+		SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ObjectIndexAllocator)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, ObjectIndexBuffer)
+		SHADER_PARAMETER(float, MeshSDFRadiusThreshold)
+		SHADER_PARAMETER(float, MeshSDFScreenSizeThreshold)
+		SHADER_PARAMETER(FIntVector, CullGridResolution)
+		SHADER_PARAMETER(uint32, CullGridCapacity)
+		SHADER_PARAMETER(FVector, CullGridCoordToWorldCenterScale)
+		SHADER_PARAMETER(FVector, CullGridCoordToWorldCenterBias)
+		SHADER_PARAMETER(FVector, CullTileWorldExtent)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	static FIntVector GetGroupSize()
+	{
+		return FIntVector(64, 1, 1);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGatherVoxelizeGridCullCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "GatherVoxelizeGridCullCS", SF_Compute);
+
+class FGatherVoxelizeCS : public FGlobalShader
+{
+	DECLARE_GLOBAL_SHADER(FGatherVoxelizeCS)
+	SHADER_USE_PARAMETER_STRUCT(FGatherVoxelizeCS, FGlobalShader);
+
+	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
+		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
+		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture3D<uint>, RWVoxelVisBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CullGridHeader)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CullGridData)
+		SHADER_PARAMETER(FVector, GridMin)
+		SHADER_PARAMETER(FVector, GridVoxelSize)
+		SHADER_PARAMETER(FIntVector, ClipmapGridResolution)
+		SHADER_PARAMETER(FIntVector, OutputGridResolution)
+		SHADER_PARAMETER_TEXTURE(Texture3D, DistanceFieldTexture)
+		SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
+		SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
+		SHADER_PARAMETER(uint32, NumSceneObjects)
+		SHADER_PARAMETER(FIntVector, CullGridResolution)
+		SHADER_PARAMETER(uint32, CullGridCapacity)
+		SHADER_PARAMETER(uint32, CompactedClipmapIndex)
+	END_SHADER_PARAMETER_STRUCT()
+
+	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
+	{
+		return DoesPlatformSupportLumenGI(Parameters.Platform);
+	}
+
+	class FDistantScene : SHADER_PERMUTATION_BOOL("DISTANT_SCENE");
+	using FPermutationDomain = TShaderPermutationDomain<FDistantScene>;
+
+	static FIntVector GetGroupSize()
+	{
+		return FIntVector(4, 4, 4);
+	}
+
+	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
+	{
+		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize().X);
+	}
+};
+
+IMPLEMENT_GLOBAL_SHADER(FGatherVoxelizeCS, "/Engine/Private/Lumen/LumenVoxelLighting.usf", "GatherVoxelizeCS", SF_Compute);
+
+void GatherVoxelize(
+	const FViewInfo& View,
+	FScene* Scene,
+	const FLumenCardTracingInputs& TracingInputs,
+	FRDGTextureRef VoxelLighting,
+	FRDGTextureRef VoxelLightingAlpha,
+	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
+	FRDGBuilder& GraphBuilder)
+{
+	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
+	const FIntVector VoxelGridResolution = GetClipmapResolution();
+	const bool bUseVoxelVisBuffer = GLumenSceneVoxelLightingVisBuffer != 0;
+
+	int32 MaxObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+	if (MaxObjects == 0)
+	{
+		// Nothing to voxelize. Just clear voxel lighting and return.
+
+		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 0.0f);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLighting), VoxelLightingClearValue);
+
+		const FLinearColor VoxelLightingAlphaClearValue(1.0f, 1.0f, 1.0f, 1.0f);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLightingAlpha), VoxelLightingAlphaClearValue);
+
+		return;
+	}
+
+	FIntVector ClipmapGridResolution = GetClipmapResolution();
+	FIntVector VolumeTextureResolution(GetClipmapResolutionXY(), GetClipmapResolutionXY() * ClipmapsToUpdate.Num(), GetClipmapResolutionZ() * 6);
+
+	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGChildResourceFlags::NoUAVBarrier);
+	FRDGTextureUAVRef VoxelLightingAlphaUAV = GraphBuilder.CreateUAV(VoxelLightingAlpha, ERDGChildResourceFlags::NoUAVBarrier);
+	FRDGTextureRef VoxelVisBuffer = nullptr;
+	FRDGTextureUAVRef VoxelVisBufferUAV = nullptr;
+
+	if (bUseVoxelVisBuffer)
+	{
+		FPooledRenderTargetDesc VoxelVisBuferDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
+			VolumeTextureResolution.X,
+			VolumeTextureResolution.Y,
+			VolumeTextureResolution.Z,
+			PF_R32_UINT,
+			FClearValueBinding::Transparent,
+			TexCreate_None,
+			TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
+			false));
+		VoxelVisBuffer = GraphBuilder.CreateTexture(VoxelVisBuferDesc, TEXT("VoxelVisBuffer"));
+		VoxelVisBufferUAV = GraphBuilder.CreateUAV(VoxelVisBuffer);
+	}
+
+	const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+	const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+	const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+	const FVector DistanceFieldAtlasTexelSize(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
+
+	const uint32 CULL_GRID_TILE_SIZE = 4;
+	const FIntVector CullGridResolution = ClipmapGridResolution / CULL_GRID_TILE_SIZE;
+	const uint32 AverageNumberOfObjectsPerCullGridCell = 16;
+	const uint32 CullGridCapacity = AverageNumberOfObjectsPerCullGridCell * CullGridResolution.X * CullGridResolution.Y * CullGridResolution.Z;
+
+	int32 MaxSDFMeshObjects = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
+	FRDGBufferRef ObjectIndexAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("ObjectIndexAllocator"));
+	FRDGBufferRef ObjectIndexBuffer = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxSDFMeshObjects), TEXT("ObjectIndexBuffer"));
+
+	FRDGBufferRef CullGridAllocator = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 1), TEXT("CullGridAllocator"));
+	FRDGBufferRef CullGridHeader = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), 2 * CullGridResolution.X * CullGridResolution.Y * CullGridResolution.Z), TEXT("CullGridHeader"));
+	FRDGBufferRef CullGridData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), CullGridCapacity), TEXT("CullGridData"));
+
+	uint32 CompactedClipmapIndex = 0;
+
+	for (int32 ClipmapIndex : ClipmapsToUpdate)
+	{
+		FVoxelLightingClipmap Clipmap;
+		const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
+		ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, ClipmapGridResolution);
+
+		FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, GraphBuilder.CreateUAV(ObjectIndexAllocator, PF_R32_UINT), 0);
+		FComputeShaderUtils::ClearUAV(GraphBuilder, View.ShaderMap, GraphBuilder.CreateUAV(CullGridAllocator, PF_R32_UINT), 0);
+
+		// Cull to a clipmap
+		{
+			FGatherVoxelizeClipmapCullCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGatherVoxelizeClipmapCullCS::FParameters>();
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->RWObjectIndexAllocator = GraphBuilder.CreateUAV(ObjectIndexAllocator, PF_R32_UINT);
+			PassParameters->RWObjectIndexBuffer = GraphBuilder.CreateUAV(ObjectIndexBuffer, PF_R32_UINT);
+			PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+			PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+			PassParameters->CullClipmapWorldCenter = Clipmap.WorldMin + Clipmap.WorldExtent;
+			PassParameters->CullClipmapWorldExtent = Clipmap.WorldExtent;
+			PassParameters->MeshSDFRadiusThreshold = GLumenSceneVoxelLightingMeshSDFRadiusThreshold;
+			PassParameters->MeshSDFScreenSizeThreshold = GLumenSceneVoxelLightingMeshSDFScreenSizeThreshold;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FGatherVoxelizeClipmapCullCS>();
+			const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(DistanceFieldSceneData.NumObjectsInBuffer, FGatherVoxelizeClipmapCullCS::GetGroupSize());
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("CullToClipmap"),
+				ComputeShader,
+				PassParameters,
+				GroupSize);
+		}
+
+		// Cull to a grid
+		{
+			const FVector CullTileWorldExtent = Clipmap.WorldExtent / FVector(CullGridResolution);
+			const FVector CullGridCoordToWorldCenterScale = (2.0f * Clipmap.WorldExtent) / FVector(CullGridResolution);
+			const FVector CullGridCoordToWorldCenterBias = Clipmap.WorldMin + CullTileWorldExtent;
+
+			FGatherVoxelizeGridCullCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGatherVoxelizeGridCullCS::FParameters>();
+			PassParameters->RWCullGridAllocator = GraphBuilder.CreateUAV(CullGridAllocator, PF_R32_UINT);
+			PassParameters->RWCullGridHeader = GraphBuilder.CreateUAV(CullGridHeader, PF_R32_UINT);
+			PassParameters->RWCullGridData = GraphBuilder.CreateUAV(CullGridData, PF_R32_UINT);
+			PassParameters->View = View.ViewUniformBuffer;
+			PassParameters->DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			PassParameters->DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
+			PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+			PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+			PassParameters->ObjectIndexAllocator = GraphBuilder.CreateSRV(ObjectIndexAllocator, PF_R32_UINT);
+			PassParameters->ObjectIndexBuffer = GraphBuilder.CreateSRV(ObjectIndexBuffer, PF_R32_UINT);
+			PassParameters->CullGridCoordToWorldCenterScale = CullGridCoordToWorldCenterScale;
+			PassParameters->CullGridCoordToWorldCenterBias = CullGridCoordToWorldCenterBias;
+			PassParameters->CullTileWorldExtent = CullTileWorldExtent;
+			PassParameters->MeshSDFRadiusThreshold = GLumenSceneVoxelLightingMeshSDFRadiusThreshold;
+			PassParameters->MeshSDFScreenSizeThreshold = GLumenSceneVoxelLightingMeshSDFScreenSizeThreshold;
+			PassParameters->CullGridResolution = CullGridResolution;
+			PassParameters->CullGridCapacity = CullGridCapacity;
+
+			auto ComputeShader = View.ShaderMap->GetShader<FGatherVoxelizeGridCullCS>();
+
+			const FIntVector GroupSize = CullGridResolution;
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GridCull %u", ClipmapIndex),
+				ComputeShader,
+				PassParameters,
+				GroupSize);
+		}
+
+		// Gather voxelize
+		{
+			// Run one lane per voxel direction (3 * 2 = NUM_VOXEL_DIRECTIONS)
+			FIntVector OutputGridResolution = ClipmapGridResolution;
+			OutputGridResolution.X *= 3;
+			OutputGridResolution.Y *= 2;
+
+			FGatherVoxelizeCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FGatherVoxelizeCS::FParameters>();
+			PassParameters->RWVoxelVisBuffer = VoxelVisBufferUAV;
+			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
+			PassParameters->CullGridHeader = GraphBuilder.CreateSRV(CullGridHeader, PF_R32_UINT);
+			PassParameters->CullGridData = GraphBuilder.CreateSRV(CullGridData, PF_R32_UINT);
+			PassParameters->CompactedClipmapIndex = CompactedClipmapIndex;
+			PassParameters->ClipmapGridResolution = ClipmapGridResolution;
+			PassParameters->OutputGridResolution = OutputGridResolution;
+			PassParameters->DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+			PassParameters->DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
+			PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+			PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+			PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+			PassParameters->GridMin = Clipmap.WorldMin;
+			PassParameters->GridVoxelSize = Clipmap.VoxelSize;
+			PassParameters->CullGridResolution = CullGridResolution;
+			PassParameters->CullGridCapacity = CullGridCapacity;
+
+			FGatherVoxelizeCS::FPermutationDomain PermutationVector;
+			auto ComputeShader = View.ShaderMap->GetShader<FGatherVoxelizeCS>(PermutationVector);
+
+			const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(OutputGridResolution, FGatherVoxelizeCS::GetGroupSize());
+
+			FComputeShaderUtils::AddPass(
+				GraphBuilder,
+				RDG_EVENT_NAME("GatherVoxelize %u", ClipmapIndex),
+				ComputeShader,
+				PassParameters,
+				GroupSize);
+		}
+
+		++CompactedClipmapIndex;
+	}
+
+	FLumenMeshSDFTracingParameters MeshSDFTracingParameters;
+	FMemory::Memzero(MeshSDFTracingParameters);
+
+	MeshSDFTracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+	MeshSDFTracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+	MeshSDFTracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+	MeshSDFTracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+	MeshSDFTracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+	MeshSDFTracingParameters.DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
+
+	// Vis buffer shading
+	CompactedClipmapIndex = 0;
+	for (int32 ClipmapIndex : ClipmapsToUpdate)
+	{
+		// Run one lane per voxel direction (3 * 2 = NUM_VOXEL_DIRECTIONS)
+		FIntVector OutputGridResolution = ClipmapGridResolution;
+		OutputGridResolution.X *= 3;
+		OutputGridResolution.Y *= 2;
+
+		FVoxelVisBufferShadingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelVisBufferShadingCS::FParameters>();
+		PassParameters->RWVoxelLighting = VoxelLightingUAV;
+		PassParameters->RWVoxelLightingAlpha = VoxelLightingAlphaUAV;
+		GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
+		PassParameters->MeshSDFTracingParameters = MeshSDFTracingParameters;
+		PassParameters->VoxelVisBuffer = VoxelVisBuffer;
+		PassParameters->SourceClipmapIndex = CompactedClipmapIndex;
+		PassParameters->TargetClipmapIndex = ClipmapIndex;
+		PassParameters->ClipmapGridResolution = ClipmapGridResolution;
+		PassParameters->OutputGridResolution = OutputGridResolution;
+
+		FVoxelLightingClipmap Clipmap;
+		const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
+		ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, ClipmapGridResolution);
+		PassParameters->GridMin = Clipmap.WorldMin;
+		PassParameters->GridVoxelSize = Clipmap.VoxelSize;
+
+		bool bDistantScene = false;
+		if (GLumenSceneVoxelLightingDistantScene != 0
+			&& LumenSceneData.DistantCardIndices.Num() > 0
+			&& ClipmapIndex + 1 == GetNumLumenVoxelClipmaps())
+		{
+			bDistantScene = true;
+		}
+
+		FVoxelVisBufferShadingCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FVoxelVisBufferShadingCS::FDistantScene>(bDistantScene);
+		auto ComputeShader = View.ShaderMap->GetShader<FVoxelVisBufferShadingCS>(PermutationVector);
+
+		const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(OutputGridResolution, FVoxelVisBufferShadingCS::GetGroupSize());
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("VoxelVisBufferShading %u", ClipmapIndex),
+			ComputeShader,
+			PassParameters,
+			GroupSize);
+
+		++CompactedClipmapIndex;
+	}
+}
 
 void InjectCardsWithRasterizerScatter(
 	const FViewInfo& View,
 	FScene* Scene,
 	const FLumenCardTracingInputs& TracingInputs,
 	FRDGTextureRef VoxelLighting,
+	FRDGTextureRef VoxelLightingAlpha,
 	const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
 	FRDGBuilder& GraphBuilder)
 {
@@ -842,15 +949,20 @@ void InjectCardsWithRasterizerScatter(
 	const FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
 	const FIntVector VoxelGridResolution = GetClipmapResolution();
-	const bool bUseVoxelVisBuffer = GLumenSceneVoxelLightingTraceMeshSDF != 0 && GLumenSceneVoxelLightingVisBuffer != 0;
+	const bool bUseVoxelVisBuffer = GLumenSceneVoxelLightingVisBuffer != 0;
 	const bool bUseComputeScatter = bUseVoxelVisBuffer && GLumenSceneVoxelLightingComputeScatter != 0;
 
-	int32 MaxObjects = GLumenSceneVoxelLightingTraceMeshSDF ? DistanceFieldSceneData.NumObjectsInBuffer : LumenSceneData.Cards.Num();
+	int32 MaxObjects = DistanceFieldSceneData.NumObjectsInBuffer;
 	if (MaxObjects == 0)
 	{
 		// Nothing to voxelize. Just clear voxel lighting and return.
-		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 1.0f);
+
+		const FLinearColor VoxelLightingClearValue(0.0f, 0.0f, 0.0f, 0.0f);
 		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLighting), VoxelLightingClearValue);
+
+		const FLinearColor VoxelLightingAlphaClearValue(1.0f, 1.0f, 1.0f, 1.0f);
+		AddClearUAVPass(GraphBuilder, GraphBuilder.CreateUAV(VoxelLightingAlpha), VoxelLightingAlphaClearValue);
+
 		return;
 	}
 
@@ -879,87 +991,21 @@ void InjectCardsWithRasterizerScatter(
 	FLumenMeshSDFTracingParameters MeshSDFTracingParameters;
 	FMemory::Memzero(MeshSDFTracingParameters);
 
-	if (GLumenSceneVoxelLightingTraceMeshSDF)
 	{
-		{
-			FSetupMeshSDFScatterInstancesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupMeshSDFScatterInstancesCS::FParameters>();
-			PassParameters->RWQuadAllocator = QuadAllocatorUAV;
-			PassParameters->RWQuadData = QuadDataUAV;
-
-			PassParameters->LumenCardScene = LumenSceneData.UniformBuffer;
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->OutermostClipmapIndex = ClipmapsToUpdate.Num() - 1;
-			PassParameters->NumClipmaps = ClipmapsToUpdate.Num();
-			PassParameters->GridResolution = VoxelGridResolution;
-
-			int32 CompactedClipmapIndex = 0;
-
-			for (int32 ClipmapIndex : ClipmapsToUpdate)
-			{
-				FVoxelLightingClipmap Clipmap;
-				const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
-				ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, VoxelGridResolution);
-
-				PassParameters->ClipmapWorldMin[CompactedClipmapIndex] = Clipmap.WorldMin;
-				PassParameters->ClipmapWorldSize[CompactedClipmapIndex] = Clipmap.WorldExtent * 2;
-				PassParameters->ClipmapWorldCenter[CompactedClipmapIndex] = Clipmap.WorldMin + Clipmap.WorldExtent;
-				PassParameters->ClipmapWorldExtent[CompactedClipmapIndex] = Clipmap.WorldExtent;
-				PassParameters->ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
-				PassParameters->ClipmapToGridScale[CompactedClipmapIndex] = Clipmap.ToGridScale;
-				PassParameters->ClipmapToGridBias[CompactedClipmapIndex] = Clipmap.ToGridBias;
-				CompactedClipmapIndex++;
-			}
-
-			PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-			PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-			PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
-			PassParameters->MeshSDFRadiusThreshold = GLumenSceneVoxelLightingMeshSDFRadiusThreshold;
-			PassParameters->MeshSDFScreenSizeThreshold = GLumenSceneVoxelLightingMeshSDFScreenSizeThreshold;
-
-			FSetupMeshSDFScatterInstancesCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set<FSetupMeshSDFScatterInstancesCS::FComputeScatter>(bUseComputeScatter);
-			PermutationVector.Set<FSetupMeshSDFScatterInstancesCS::FSingleClipmapToUpdate>(ClipmapsToUpdate.Num() == 1);
-			auto ComputeShader = View.ShaderMap->GetShader<FSetupMeshSDFScatterInstancesCS>(PermutationVector);
-			const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(DistanceFieldSceneData.NumObjectsInBuffer, SetupMeshSDFScatterInstancesGroupSize), 1, 1);
-			FScene* LocalScene = Scene;
-
-			GraphBuilder.AddPass(
-				RDG_EVENT_NAME("SetupMeshSDFScatterInstances"),
-				PassParameters,
-				ERDGPassFlags::Compute,
-				[LocalScene, PassParameters, ComputeShader, GroupSize](FRHICommandList& RHICmdList)
-			{
-				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupSize);
-			});
-		}
-
-		MeshSDFTracingParameters.MeshSDFObjectOverlappingCardHeader = LumenSceneData.MeshSDFOverlappingCardHeader.SRV;
-		MeshSDFTracingParameters.MeshSDFObjectOverlappingCardData = LumenSceneData.MeshSDFOverlappingCardData.SRV;
-
-		MeshSDFTracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
-		MeshSDFTracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
-		MeshSDFTracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
-
-		MeshSDFTracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
-		MeshSDFTracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
-
-		const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
-		const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
-		const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
-		const FVector DistanceFieldAtlasTexelSize(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
-		MeshSDFTracingParameters.DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
-	}
-	else
-	{
-		FSetupCardScatterInstancesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupCardScatterInstancesCS::FParameters>();
+		FSetupMeshSDFScatterInstancesCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FSetupMeshSDFScatterInstancesCS::FParameters>();
 		PassParameters->RWQuadAllocator = QuadAllocatorUAV;
 		PassParameters->RWQuadData = QuadDataUAV;
 
 		PassParameters->LumenCardScene = LumenSceneData.UniformBuffer;
+		PassParameters->View = View.ViewUniformBuffer;
+		PassParameters->OutermostClipmapIndex = ClipmapsToUpdate.Num() - 1;
 		PassParameters->NumClipmaps = ClipmapsToUpdate.Num();
 		PassParameters->GridResolution = VoxelGridResolution;
 
 		int32 CompactedClipmapIndex = 0;
+
+		FLumenVoxelTracingParameters LumenVoxelTracingParameters;
+		LumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
 
 		for (int32 ClipmapIndex : ClipmapsToUpdate)
 		{
@@ -969,25 +1015,51 @@ void InjectCardsWithRasterizerScatter(
 
 			PassParameters->ClipmapWorldMin[CompactedClipmapIndex] = Clipmap.WorldMin;
 			PassParameters->ClipmapWorldSize[CompactedClipmapIndex] = Clipmap.WorldExtent * 2;
-			PassParameters->ClipmapWorldCenter[CompactedClipmapIndex] = Clipmap.WorldMin + Clipmap.WorldExtent;
-			PassParameters->ClipmapWorldExtent[CompactedClipmapIndex] = Clipmap.WorldExtent;
-			PassParameters->ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
+			LumenVoxelTracingParameters.ClipmapWorldCenter[CompactedClipmapIndex] = Clipmap.WorldMin + Clipmap.WorldExtent;
+			LumenVoxelTracingParameters.ClipmapWorldExtent[CompactedClipmapIndex] = Clipmap.WorldExtent;
+			LumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
+			PassParameters->ClipmapToGridScale[CompactedClipmapIndex] = Clipmap.ToGridScale;
+			PassParameters->ClipmapToGridBias[CompactedClipmapIndex] = Clipmap.ToGridBias;
 			CompactedClipmapIndex++;
 		}
 
-		auto ComputeShader = View.ShaderMap->GetShader<FSetupCardScatterInstancesCS>();
-		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(LumenSceneData.Cards.Num(), SetupCardScatterInstancesGroupSize), 1, 1);
+		PassParameters->LumenVoxelTracingParameters = CreateUniformBufferImmediate(LumenVoxelTracingParameters, UniformBuffer_SingleFrame);
+
+		PassParameters->SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+		PassParameters->SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+		PassParameters->NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+		PassParameters->MeshSDFRadiusThreshold = GLumenSceneVoxelLightingMeshSDFRadiusThreshold;
+		PassParameters->MeshSDFScreenSizeThreshold = GLumenSceneVoxelLightingMeshSDFScreenSizeThreshold;
+
+		FSetupMeshSDFScatterInstancesCS::FPermutationDomain PermutationVector;
+		PermutationVector.Set<FSetupMeshSDFScatterInstancesCS::FComputeScatter>(bUseComputeScatter);
+		PermutationVector.Set<FSetupMeshSDFScatterInstancesCS::FSingleClipmapToUpdate>(ClipmapsToUpdate.Num() == 1);
+		auto ComputeShader = View.ShaderMap->GetShader<FSetupMeshSDFScatterInstancesCS>(PermutationVector);
+		const FIntVector GroupSize(FMath::DivideAndRoundUp<int32>(DistanceFieldSceneData.NumObjectsInBuffer, SetupMeshSDFScatterInstancesGroupSize), 1, 1);
 		FScene* LocalScene = Scene;
 
 		GraphBuilder.AddPass(
-			RDG_EVENT_NAME("SetupCardScatterInstances"),
+			RDG_EVENT_NAME("SetupMeshSDFScatterInstances"),
 			PassParameters,
 			ERDGPassFlags::Compute,
 			[LocalScene, PassParameters, ComputeShader, GroupSize](FRHICommandList& RHICmdList)
-		{
-			FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupSize);
-		});
+			{
+				FComputeShaderUtils::Dispatch(RHICmdList, ComputeShader, *PassParameters, GroupSize);
+			});
 	}
+
+	MeshSDFTracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
+	MeshSDFTracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
+	MeshSDFTracingParameters.NumSceneObjects = DistanceFieldSceneData.NumObjectsInBuffer;
+
+	MeshSDFTracingParameters.DistanceFieldTexture = GDistanceFieldVolumeTextureAtlas.VolumeTextureRHI;
+	MeshSDFTracingParameters.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
+
+	const int32 NumTexelsOneDimX = GDistanceFieldVolumeTextureAtlas.GetSizeX();
+	const int32 NumTexelsOneDimY = GDistanceFieldVolumeTextureAtlas.GetSizeY();
+	const int32 NumTexelsOneDimZ = GDistanceFieldVolumeTextureAtlas.GetSizeZ();
+	const FVector DistanceFieldAtlasTexelSize(1.0f / NumTexelsOneDimX, 1.0f / NumTexelsOneDimY, 1.0f / NumTexelsOneDimZ);
+	MeshSDFTracingParameters.DistanceFieldAtlasTexelSize = DistanceFieldAtlasTexelSize;
 
 	FIntVector ClipmapGridResolution = GetClipmapResolution();
 	FIntVector VolumeTextureResolution(GetClipmapResolutionXY(), GetClipmapResolutionXY() * ClipmapsToUpdate.Num(), GetClipmapResolutionZ() * 6);
@@ -1109,6 +1181,12 @@ void InjectCardsWithRasterizerScatter(
 			PassParameters->PS.RWVoxelMask = VoxelMaskUAV;
 
 			int32 CompactedClipmapIndex = 0;
+			
+			FLumenVoxelTracingParameters PSLumenVoxelTracingParameters;
+			PSLumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
+
+			FLumenVoxelTracingParameters VSLumenVoxelTracingParameters;
+			VSLumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
 
 			for (int32 ClipmapIndex : ClipmapsToUpdate)
 			{
@@ -1116,32 +1194,30 @@ void InjectCardsWithRasterizerScatter(
 				const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
 				ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, VoxelMaskGridResolution);
 
-				PassParameters->VS.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-				PassParameters->VS.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
+				VSLumenVoxelTracingParameters.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
+				VSLumenVoxelTracingParameters.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
 				PassParameters->VS.ClipmapWorldMin[CompactedClipmapIndex] = Clipmap.WorldMin;
 				PassParameters->VS.ClipmapWorldSize[CompactedClipmapIndex] = Clipmap.WorldExtent * 2;
-				PassParameters->VS.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
+				VSLumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
 
 				PassParameters->PS.ClipmapWorldMin[CompactedClipmapIndex] = Clipmap.WorldMin;
 				PassParameters->PS.ClipmapWorldSize[CompactedClipmapIndex] = Clipmap.WorldExtent * 2;
-				PassParameters->PS.TracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
-				PassParameters->PS.TracingParameters.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-				PassParameters->PS.TracingParameters.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
-				PassParameters->PS.TracingParameters.ClipmapWorldCenter[CompactedClipmapIndex] = TracingInputs.ClipmapWorldCenter[ClipmapIndex];
-				PassParameters->PS.TracingParameters.ClipmapWorldExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldExtent[ClipmapIndex];
-				PassParameters->PS.TracingParameters.ClipmapWorldSamplingExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex];
+				PSLumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
+				PSLumenVoxelTracingParameters.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
+				PSLumenVoxelTracingParameters.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
+				PSLumenVoxelTracingParameters.ClipmapWorldCenter[CompactedClipmapIndex] = TracingInputs.ClipmapWorldCenter[ClipmapIndex];
+				PSLumenVoxelTracingParameters.ClipmapWorldExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldExtent[ClipmapIndex];
+				PSLumenVoxelTracingParameters.ClipmapWorldSamplingExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex];
 				CompactedClipmapIndex++;
 			}
 
+			PassParameters->VS.LumenVoxelTracingParameters = CreateUniformBufferImmediate(VSLumenVoxelTracingParameters, UniformBuffer_SingleFrame);
+			PassParameters->PS.TracingParameters.LumenVoxelTracingParameters = CreateUniformBufferImmediate(PSLumenVoxelTracingParameters, UniformBuffer_SingleFrame);
+
 			PassParameters->CardIndirectArgs = CardIndirectArgsBuffer;
 
-			FCardVoxelizeVS::FPermutationDomain PermutationVectorVS;
-			PermutationVectorVS.Set<FCardVoxelizeVS::FTraceMeshSDF>(GLumenSceneVoxelLightingTraceMeshSDF != 0);
-			auto VertexShader = View.ShaderMap->GetShader<FCardVoxelizeVS>(PermutationVectorVS);
-
-			FCardVoxelizeMaskSetupPS::FPermutationDomain PermutationVectorPS;
-			PermutationVectorPS.Set<FCardVoxelizeMaskSetupPS::FTraceMeshSDF>(GLumenSceneVoxelLightingTraceMeshSDF != 0);
-			auto PixelShader = View.ShaderMap->GetShader<FCardVoxelizeMaskSetupPS>(PermutationVectorPS);
+			auto VertexShader = View.ShaderMap->GetShader<FCardVoxelizeVS>();
+			auto PixelShader = View.ShaderMap->GetShader<FCardVoxelizeMaskSetupPS>();
 
 			GraphBuilder.AddPass(
 				RDG_EVENT_NAME("ScatterCardsToMask"),
@@ -1220,9 +1296,11 @@ void InjectCardsWithRasterizerScatter(
 		PassParameters->QuadData = QuadDataSRV;
 		PassParameters->GridResolution = ClipmapGridResolution;
 		PassParameters->ComputeScatterIndirectArgsBuffer = ComputeScatterIndirectArgsBuffer;
-		PassParameters->VoxelRayTracing = Lumen::UseVoxelRayTracing();
 
 		int32 CompactedClipmapIndex = 0;
+		
+		FLumenVoxelTracingParameters LumenVoxelTracingParameters;
+		LumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
 
 		for (int32 ClipmapIndex : ClipmapsToUpdate)
 		{
@@ -1235,15 +1313,12 @@ void InjectCardsWithRasterizerScatter(
 			PassParameters->ClipmapToGridScale[CompactedClipmapIndex] = Clipmap.ToGridScale;
 			PassParameters->ClipmapToGridBias[CompactedClipmapIndex] = Clipmap.ToGridBias;
 
-			PassParameters->TracingParameters.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-			PassParameters->TracingParameters.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
-			PassParameters->TracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex];
-			PassParameters->TracingParameters.ClipmapWorldCenter[CompactedClipmapIndex] = TracingInputs.ClipmapWorldCenter[ClipmapIndex];
-			PassParameters->TracingParameters.ClipmapWorldExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldExtent[ClipmapIndex];
-			PassParameters->TracingParameters.ClipmapWorldSamplingExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex];
+			GetLumenVoxelParametersForClipmapLevel(TracingInputs, LumenVoxelTracingParameters, ClipmapIndex, CompactedClipmapIndex);
 
 			CompactedClipmapIndex++;
 		}
+
+		PassParameters->TracingParameters.LumenVoxelTracingParameters = CreateUniformBufferImmediate(LumenVoxelTracingParameters, UniformBuffer_SingleFrame);
 
 		FComputeScatterCS::FPermutationDomain PermutationVector;
 		PermutationVector.Set<FComputeScatterCS::FSingleClipmapToUpdate>(ClipmapsToUpdate.Num() == 1);
@@ -1279,9 +1354,14 @@ void InjectCardsWithRasterizerScatter(
 		PassParameters->PS.RWVoxelVisBuffer = VoxelVisBufferUAV;
 		PassParameters->PS.VoxelMask = VoxelMask;
 		PassParameters->PS.VoxelMaskResolutionShift = GLumenSceneVoxelLightingMaskDownsampleShift;
-		PassParameters->PS.VoxelRayTracing = Lumen::UseVoxelRayTracing();
 
 		int32 CompactedClipmapIndex = 0;
+
+		FLumenVoxelTracingParameters PSLumenVoxelTracingParameters;
+		PSLumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
+
+		FLumenVoxelTracingParameters VSLumenVoxelTracingParameters;
+		VSLumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
 
 		for (int32 ClipmapIndex : ClipmapsToUpdate)
 		{
@@ -1289,32 +1369,26 @@ void InjectCardsWithRasterizerScatter(
 			const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
 			ComputeVoxelLightingClipmap(Clipmap, LumenSceneCameraOrigin, ClipmapIndex, VoxelGridResolution);
 
-			PassParameters->VS.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-			PassParameters->VS.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
+			VSLumenVoxelTracingParameters.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
+			VSLumenVoxelTracingParameters.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
 			PassParameters->VS.ClipmapWorldMin[CompactedClipmapIndex] = Clipmap.WorldMin;
 			PassParameters->VS.ClipmapWorldSize[CompactedClipmapIndex] = Clipmap.WorldExtent * 2;
-			PassParameters->VS.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
+			VSLumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
 
 			PassParameters->PS.ClipmapWorldMin[CompactedClipmapIndex] = Clipmap.WorldMin;
 			PassParameters->PS.ClipmapWorldSize[CompactedClipmapIndex] = Clipmap.WorldExtent * 2;
-			PassParameters->PS.TracingParameters.ClipmapWorldToUVScale[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVScale[ClipmapIndex];
-			PassParameters->PS.TracingParameters.ClipmapWorldToUVBias[CompactedClipmapIndex] = TracingInputs.ClipmapWorldToUVBias[ClipmapIndex];
-			PassParameters->PS.TracingParameters.ClipmapVoxelSizeAndRadius[CompactedClipmapIndex] = TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex];
-			PassParameters->PS.TracingParameters.ClipmapWorldCenter[CompactedClipmapIndex] = TracingInputs.ClipmapWorldCenter[ClipmapIndex];
-			PassParameters->PS.TracingParameters.ClipmapWorldExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldExtent[ClipmapIndex];
-			PassParameters->PS.TracingParameters.ClipmapWorldSamplingExtent[CompactedClipmapIndex] = TracingInputs.ClipmapWorldSamplingExtent[ClipmapIndex];
+			GetLumenVoxelParametersForClipmapLevel(TracingInputs, PSLumenVoxelTracingParameters, ClipmapIndex, CompactedClipmapIndex);
 			CompactedClipmapIndex++;
 		}
 
+		PassParameters->VS.LumenVoxelTracingParameters = CreateUniformBufferImmediate(VSLumenVoxelTracingParameters, UniformBuffer_SingleFrame);
+		PassParameters->PS.TracingParameters.LumenVoxelTracingParameters = CreateUniformBufferImmediate(PSLumenVoxelTracingParameters, UniformBuffer_SingleFrame);
+
 		PassParameters->CardIndirectArgs = CardIndirectArgsBuffer;
 
-		FCardVoxelizeVS::FPermutationDomain PermutationVectorVS;
-		PermutationVectorVS.Set<FCardVoxelizeVS::FTraceMeshSDF>(GLumenSceneVoxelLightingTraceMeshSDF != 0);
-		auto VertexShader = View.ShaderMap->GetShader<FCardVoxelizeVS>(PermutationVectorVS);
+		auto VertexShader = View.ShaderMap->GetShader<FCardVoxelizeVS>();
 		
 		FCardVoxelizePS::FPermutationDomain PermutationVectorPS;
-		PermutationVectorPS.Set<FCardVoxelizePS::FTraceMeshSDF>(GLumenSceneVoxelLightingTraceMeshSDF != 0);
-		PermutationVectorPS.Set<FCardVoxelizePS::FCubeMapTree>(GLumenSceneVoxelLightingCubeMapTree != 0);
 		PermutationVectorPS.Set<FCardVoxelizePS::FVoxelVisBuffer>(bUseVoxelVisBuffer);
 		PermutationVectorPS = FCardVoxelizePS::RemapPermutation(PermutationVectorPS);
 		auto PixelShader = View.ShaderMap->GetShader<FCardVoxelizePS>(PermutationVectorPS);
@@ -1359,6 +1433,7 @@ void InjectCardsWithRasterizerScatter(
 	}
 
 	FRDGTextureUAVRef VoxelLightingUAV = GraphBuilder.CreateUAV(VoxelLighting, ERDGChildResourceFlags::NoUAVBarrier);
+	FRDGTextureUAVRef VoxelLightingAlphaUAV = GraphBuilder.CreateUAV(VoxelLightingAlpha, ERDGChildResourceFlags::NoUAVBarrier);
 
 	FIntVector ClipmapTextureResolution = VolumeTextureResolution;
 	ClipmapTextureResolution.Y /= ClipmapsToUpdate.Num();
@@ -1376,6 +1451,7 @@ void InjectCardsWithRasterizerScatter(
 
 			FVoxelVisBufferShadingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVoxelVisBufferShadingCS::FParameters>();
 			PassParameters->RWVoxelLighting = VoxelLightingUAV;
+			PassParameters->RWVoxelLightingAlpha = VoxelLightingAlphaUAV;
 			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters, true);
 			PassParameters->MeshSDFTracingParameters = MeshSDFTracingParameters;
 			PassParameters->VoxelVisBuffer = VoxelVisBuffer;
@@ -1383,7 +1459,6 @@ void InjectCardsWithRasterizerScatter(
 			PassParameters->TargetClipmapIndex = ClipmapIndex;
 			PassParameters->ClipmapGridResolution = ClipmapGridResolution;
 			PassParameters->OutputGridResolution = OutputGridResolution;
-			PassParameters->VoxelRayTracing = Lumen::UseVoxelRayTracing();
 
 			FVoxelLightingClipmap Clipmap;
 			const FVector LumenSceneCameraOrigin = GetLumenSceneViewOrigin(View, ClipmapIndex);
@@ -1421,6 +1496,7 @@ void InjectCardsWithRasterizerScatter(
 		{
 			FCompactVoxelLightingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FCompactVoxelLightingCS::FParameters>();
 			PassParameters->RWVoxelLighting = VoxelLightingUAV;
+			PassParameters->RWVoxelLightingAlpha = VoxelLightingAlphaUAV;
 
 			PassParameters->VoxelOITLighting = VoxelOITLighting;
 			PassParameters->VoxelOITTransparency = VoxelOITTransparency;
@@ -1509,19 +1585,38 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 		GetClipmapResolutionXY(), 
 		GetClipmapResolutionXY() * ClampedNumClipmapLevels, 
 		GetClipmapResolutionZ() * 6, 
-		PF_FloatRGBA, 
+		PF_FloatRGB, 
 		FClearValueBinding::Black, 
 		TexCreate_None, 
 		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
 		false));
 	LightingDesc.AutoWritable = false;
+
+	FPooledRenderTargetDesc LightingAlphaDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
+		LightingDesc.Extent.X,
+		LightingDesc.Extent.Y,
+		LightingDesc.Depth,
+		PF_R8,
+		FClearValueBinding::Black,
+		TexCreate_None,
+		TexCreate_ShaderResource | TexCreate_RenderTargetable | TexCreate_UAV | TexCreate_3DTiling,
+		false));
+	LightingAlphaDesc.AutoWritable = false;
+
 	FRDGTextureRef VoxelLighting = TracingInputs.VoxelLighting;
+	FRDGTextureRef VoxelLightingAlpha = TracingInputs.VoxelLightingAlpha;
 	bool bForceFullUpdate = GLumenSceneVoxelLightingForceFullUpdate != 0;
 
 	if (!VoxelLighting || !VoxelLighting->Desc.Compare(LightingDesc, true))
 	{
 		bForceFullUpdate = true;
 		VoxelLighting = GraphBuilder.CreateTexture(LightingDesc, TEXT("VoxelLighting"));
+	}
+
+	if (!VoxelLightingAlpha || !VoxelLightingAlpha->Desc.Compare(LightingAlphaDesc, true))
+	{
+		bForceFullUpdate = true;
+		VoxelLightingAlpha = GraphBuilder.CreateTexture(LightingAlphaDesc, TEXT("VoxelLightingAlpha"));
 	}
 
 	TArray<int32, SceneRenderingAllocator> ClipmapsToUpdate;
@@ -1568,66 +1663,18 @@ void FDeferredShadingSceneRenderer::ComputeLumenSceneVoxelLighting(
 			TracingInputs.ClipmapVoxelSizeAndRadius[ClipmapIndex] = Clipmap.GetVoxelSizeAndRadius();
 		}
 
-		if (GLumenSceneVoxelLightingRasterizerScatter)
+		if (GLumenSceneVoxelLightingComputeGather)
 		{
-			InjectCardsWithRasterizerScatter(View, Scene, TracingInputs, VoxelLighting, ClipmapsToUpdate, GraphBuilder);
+			GatherVoxelize(View, Scene, TracingInputs, VoxelLighting, VoxelLightingAlpha, ClipmapsToUpdate, GraphBuilder);
 		}
 		else
 		{
-			InjectCardsWithComputeGather(View, TracingInputs, VoxelLighting, ClipmapsToUpdate, GraphBuilder);
-		}
-
-		extern int32 GLumenRadiosityMergedVoxelDirections;
-		FRDGTextureRef MergedVoxelLighting = TracingInputs.MergedVoxelLighting;
-
-		if (GLumenRadiosityMergedVoxelDirections)
-		{
-			FPooledRenderTargetDesc MergedLightingDesc(FPooledRenderTargetDesc::CreateVolumeDesc(
-				GetClipmapResolutionXY(),
-				GetClipmapResolutionXY() * ClampedNumClipmapLevels,
-				GetClipmapResolutionZ() * 8,
-				PF_FloatRGBA,
-				FClearValueBinding::Black,
-				TexCreate_None,
-				TexCreate_ShaderResource | TexCreate_UAV | TexCreate_3DTiling,
-				false));
-
-			if (!MergedVoxelLighting || !MergedVoxelLighting->Desc.Compare(MergedLightingDesc, true))
-			{
-				MergedVoxelLighting = GraphBuilder.CreateTexture(MergedLightingDesc, TEXT("MergedVoxelLighting"));
-			}
-
-			FRDGTextureUAVRef MergedVoxelLightingUAV = GraphBuilder.CreateUAV(MergedVoxelLighting);
-
-			for (int32 ClipmapIndex : ClipmapsToUpdate)
-			{
-				FMergeVoxelLightingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMergeVoxelLightingCS::FParameters>();
-				PassParameters->RWMergedVoxelLighting = MergedVoxelLightingUAV;
-
-				PassParameters->FaceVoxelLighting = VoxelLighting;
-				PassParameters->TargetClipmapIndex = ClipmapIndex;
-				PassParameters->GridResolution = VoxelGridResolution;
-
-				auto ComputeShader = View.ShaderMap->GetShader<FMergeVoxelLightingCS>();
-				const FIntVector GroupSize = FComputeShaderUtils::GetGroupCount(PassParameters->GridResolution, ComputeVoxelLightingGroupSize);
-
-				FComputeShaderUtils::AddPass(
-					GraphBuilder,
-					RDG_EVENT_NAME("MergeVoxelLighting"),
-					ComputeShader,
-					PassParameters,
-					GroupSize);
-			}
+			InjectCardsWithRasterizerScatter(View, Scene, TracingInputs, VoxelLighting, VoxelLightingAlpha, ClipmapsToUpdate, GraphBuilder);
 		}
 
 		TracingInputs.VoxelLighting = VoxelLighting;
-		TracingInputs.MergedVoxelLighting = MergedVoxelLighting;
+		TracingInputs.VoxelLightingAlpha = VoxelLightingAlpha;
 		TracingInputs.VoxelGridResolution = VoxelGridResolution;
 		TracingInputs.NumClipmapLevels = ClampedNumClipmapLevels;
-
-		Lumen::UpdateVoxelDistanceField(GraphBuilder,
-			View,
-			ClipmapsToUpdate,
-			TracingInputs);
 	}
 }

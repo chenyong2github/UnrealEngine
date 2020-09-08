@@ -10,6 +10,7 @@
 #include "SceneView.h"
 #include "SceneRendering.h"
 #include "RendererPrivateUtils.h"
+#include "Lumen.h"
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardScatterParameters, )
 	SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, CardIndirectArgs)
@@ -270,6 +271,19 @@ public:
 	}
 };
 
+BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenVoxelTracingParameters, )
+SHADER_PARAMETER(uint32, NumClipmapLevels)
+SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
+SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
+SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
+SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
+SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
+SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
+END_GLOBAL_SHADER_PARAMETER_STRUCT()
+
+extern void GetLumenVoxelParametersForClipmapLevel(const FLumenCardTracingInputs& TracingInputs, FLumenVoxelTracingParameters& LumenVoxelTracingParameters, 
+								int SrcClipmapLevel, int DstClipmapLevel);
+
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
 	SHADER_PARAMETER_STRUCT_REF(FReflectionUniformParameters, ReflectionStruct)
@@ -278,16 +292,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, OpacityAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DilatedDepthAtlas)
 	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelLighting)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, MergedVoxelLighting)
-	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelDistanceField)
+	SHADER_PARAMETER_RDG_TEXTURE(Texture3D, VoxelLightingAlpha)
 	SHADER_PARAMETER_TEXTURE(Texture3D, CubeMapTreeLUTAtlas)
-	SHADER_PARAMETER(uint32, NumClipmapLevels)
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVScale, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldToUVBias, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldCenter, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldExtent, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapWorldSamplingExtent, [MaxVoxelClipmapLevels])
-	SHADER_PARAMETER_ARRAY(FVector4, ClipmapVoxelSizeAndRadius, [MaxVoxelClipmapLevels])
+	SHADER_PARAMETER_STRUCT_REF(FLumenVoxelTracingParameters, LumenVoxelTracingParameters)
 	SHADER_PARAMETER(uint32, NumGlobalSDFClipmaps)
 END_SHADER_PARAMETER_STRUCT()
 
@@ -302,11 +309,9 @@ public:
 	FRDGTextureRef OpacityAtlas;
 	FRDGTextureRef DilatedDepthAtlas;
 	FRDGTextureRef VoxelLighting;
-	FRDGTextureRef MergedVoxelLighting;
-	FRDGTextureRef VoxelDistanceField;
+	FRDGTextureRef VoxelLightingAlpha;
 	FIntVector VoxelGridResolution;
 	int32 NumClipmapLevels;
-	int32 BVHDepth;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVScale;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldToUVBias;
 	TStaticArray<FVector, MaxVoxelClipmapLevels> ClipmapWorldCenter;
@@ -316,19 +321,56 @@ public:
 	TUniformBufferRef<FLumenCardScene> LumenCardScene;
 };
 
+// Must match LIGHT_TYPE_* in LumenSceneDirectLighting.usf
+enum class ELumenLightType
+{
+	Directional,
+	Point,
+	Spot,
+	Rect,
+
+	MAX
+};
+
+struct FLumenDirectLightingHardwareRayTracingData
+{
+public:
+	FLumenDirectLightingHardwareRayTracingData();
+
+	void Initialize(FRDGBuilder& GraphBuilder, const FScene* Scene);
+
+	void BeginLumenDirectLightingUpdate();
+	void EndLumenDirectLightingUpdate();
+
+	int GetLightId();
+	bool ShouldClearLightMask();
+	bool IsInterpolantsTextureCreated();
+
+	FRDGTextureRef LightMaskTexture;
+	FRDGTextureRef ShadowMaskAtlas;
+	FRDGTextureRef CardInterpolantsTexture;
+	FRDGBufferRef CardInterpolantsBuffer;
+private:
+	int LightId;	// Used for efficient raytracing when indirect dispatch is not supported.
+	bool bSouldClearLightMask;
+	bool bIsInterpolantsTextureCreated;
+};
+
+void RenderHardwareRayTracedShadowIntoLumenCards(FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	const FViewInfo& View,
+	FRDGTextureRef OpacityAtlas,
+	const FLightSceneInfo* LightSceneInfo,
+	const FString& LightName,
+	const FLumenCardScatterContext& CardScatterContext,
+	int32 ScatterInstanceIndex,
+	FLumenDirectLightingHardwareRayTracingData& LumenDirectLightingHardwareRayTracingData,
+	bool bDynamicallyShadowed,
+	ELumenLightType LumenLightType);
+
 extern void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly = false);
 
-BEGIN_SHADER_PARAMETER_STRUCT(FLumenCardFroxelGridParameters, )
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledCardGridHeader)
-	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, CulledCardGridData)
-	SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
-	SHADER_PARAMETER(FVector, CardGridZParams)
-	SHADER_PARAMETER(FIntVector, CullGridSize)
-END_SHADER_PARAMETER_STRUCT()
-
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFTracingParameters, )
-	SHADER_PARAMETER_SRV(Buffer<uint2>, MeshSDFObjectOverlappingCardHeader)
-	SHADER_PARAMETER_SRV(Buffer<uint>, MeshSDFObjectOverlappingCardData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectBounds)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, SceneObjectData)
 	SHADER_PARAMETER(uint32, NumSceneObjects)
@@ -338,10 +380,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFTracingParameters, )
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridParameters, )
+	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFTracingParameters, TracingParameters)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumGridCulledMeshSDFObjects)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectStartOffsetArray)
 	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectIndicesArray)
-	SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFTracingParameters, TracingParameters)
+	SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectIndexBitmasks)
+	SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
+	SHADER_PARAMETER(FVector, CardGridZParams)
+	SHADER_PARAMETER(FIntVector, CullGridSize)
 END_SHADER_PARAMETER_STRUCT()
 
 BEGIN_SHADER_PARAMETER_STRUCT(FLumenMeshSDFGridCompactParameters, )
@@ -373,19 +419,14 @@ BEGIN_SHADER_PARAMETER_STRUCT(FLumenDiffuseTracingParameters, )
 	SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledNormal)	
 END_SHADER_PARAMETER_STRUCT()
 
-
-extern void CullLumenCardsToFroxelGrid(
+void RenderHardwareRayTracingScreenProbe(FRDGBuilder& GraphBuilder,
+	const FScene* Scene,
+	FScreenProbeParameters& CommonDiffuseParameters,
 	const FViewInfo& View,
 	const FLumenCardTracingInputs& TracingInputs,
-	float TanConeAngle, 
-	float MinTraceDistance,
-	float MaxTraceDistance,
-	float MaxCardTraceDistance,
-	float CardTraceEndDistanceFromCamera,
-	int32 ScreenDownsampleFactor,
-	FRDGTextureRef DownsampledDepth,
-	FRDGBuilder& GraphBuilder,
-	FLumenCardFroxelGridParameters& OutGridParameters);
+	FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+	FLumenIndirectTracingParameters& DiffuseTracingParameters,
+	const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
 
 extern void CullMeshSDFObjectsToViewGrid(
 	const FViewInfo& View,
@@ -398,20 +439,6 @@ extern void CullMeshSDFObjectsToViewGrid(
 	FRDGBuilder& GraphBuilder,
 	FLumenMeshSDFGridParameters& OutGridParameters,
 	FLumenMeshSDFGridCompactParameters& OutGridCompactParameters);
-
-extern void CullMeshSDFObjectGridToGBuffer(
-	const FViewInfo& View,
-	const FScene* Scene,
-	float MaxMeshSDFInfluenceRadius,
-	float CardTraceEndDistanceFromCamera,
-	const HybridIndirectLighting::FCommonParameters& CommonDiffuseParameters,
-	FRDGTextureRef DownsampledDepth,
-	int32 GridPixelsPerCellXY,
-	int32 GridSizeZ,
-	FVector ZParams,
-	FRDGBuilder& GraphBuilder,
-	const FLumenMeshSDFGridParameters& GridParameters,
-	const FLumenMeshSDFGridCompactParameters& GridCompactParameters);
 
 extern void CullMeshSDFObjectsToProbes(
 	FRDGBuilder& GraphBuilder,
@@ -428,39 +455,15 @@ extern void CullForCardTracing(
 	const FScene* Scene,
 	const FViewInfo& View,
 	FLumenCardTracingInputs TracingInputs,
-	const FLumenDiffuseTracingParameters& DiffuseTracingParameters,
-	FLumenCardFroxelGridParameters& GridParameters,
+	FRDGTextureRef DownsampledDepth,
+	uint32 DownsampleFactor,
+	const FLumenIndirectTracingParameters& IndirectTracingParameters,
 	FLumenMeshSDFGridParameters& MeshSDFGridParameters);
 
 extern void SetupLumenDiffuseTracingParameters(FLumenIndirectTracingParameters& OutParameters);
 extern void SetupLumenDiffuseTracingParametersForProbe(FLumenIndirectTracingParameters& OutParameters, float DiffuseConeAngle);
-extern void SetupLumenSpecularTracingParameters(FLumenIndirectTracingParameters& OutParameters);
 extern bool ShouldRenderLumenReflections(const FViewInfo& View);
 extern void ClearAtlasRDG(FRDGBuilder& GraphBuilder, FRDGTextureRef AtlasTexture);
 extern FVector GetLumenSceneViewOrigin(const FViewInfo& View, int32 ClipmapIndex);
 extern int32 GetNumLumenVoxelClipmaps();
 extern void UpdateDistantScene(FScene* Scene, FViewInfo& View);
-
-namespace Lumen
-{
-	enum class ETracingPermutation
-	{
-		Cards,
-		VoxelsAfterCards,
-		Voxels,
-		MAX
-	};
-
-	float GetDistanceSceneNaniteLODScaleFactor();
-	uint32 GetVoxelTracingMode();
-	bool UseVoxelRayTracing();
-	float GetMaxTraceDistance();
-
-	void UpdateVoxelDistanceField(FRDGBuilder& GraphBuilder,
-		const FViewInfo& View,
-		const TArray<int32, SceneRenderingAllocator>& ClipmapsToUpdate,
-		FLumenCardTracingInputs& TracingInputs);
-};
-
-extern int32 GLumenFastCameraMode;
-extern int32 GLumenDistantScene;

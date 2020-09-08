@@ -6,6 +6,10 @@
 
 #include "LumenOctahedralProbe.ush"
 
+#ifndef LUMEN_HARDWARE_RAYTRACING
+#define LUMEN_HARDWARE_RAYTRACING 0
+#endif
+
 #define RADIANCE_PROBE_MAX_CLIPMAPS 6
 #define RADIANCE_CACHE_USE_INTERPOLATION 1
 #define RADIANCE_CACHE_USE_HIERARCHY 0
@@ -14,12 +18,26 @@
 Texture3D<uint> RadianceProbeIndirectionTexture;
 Texture2D<float3> RadianceCacheFinalRadianceAtlas;
 
+#if LUMEN_HARDWARE_RAYTRACING
+
+// Temporary hack to access SHADER_PARAMETER_ARRAY in RGS
+// Workaround for error "subscripted value is not an array, matrix, or vector" in DXC when SHADER_PARAMETER_ARRAY is used in RGS
+#define RadianceProbeClipmapTMin  RGSRadianceCacheParameters.RadianceProbeClipmapTMin
+#define WorldPositionToRadianceProbeCoordScale RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordScale
+#define WorldPositionToRadianceProbeCoordBias RGSRadianceCacheParameters.WorldPositionToRadianceProbeCoordBias
+#define RadianceProbeCoordToWorldPositionScale RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionScale
+#define RadianceProbeCoordToWorldPositionBias RGSRadianceCacheParameters.RadianceProbeCoordToWorldPositionBias
+
+#else
 float RadianceProbeClipmapTMin[RADIANCE_PROBE_MAX_CLIPMAPS];
 float WorldPositionToRadianceProbeCoordScale[RADIANCE_PROBE_MAX_CLIPMAPS];
 float3 WorldPositionToRadianceProbeCoordBias[RADIANCE_PROBE_MAX_CLIPMAPS];
 float RadianceProbeCoordToWorldPositionScale[RADIANCE_PROBE_MAX_CLIPMAPS];
 float3 RadianceProbeCoordToWorldPositionBias[RADIANCE_PROBE_MAX_CLIPMAPS];
+#endif
+
 float ReprojectionRadiusScale;
+float FinalRadianceAtlasMaxMip;
 
 uint2 ProbeAtlasResolutionInProbes;
 float2 InvRadianceProbeAtlasResolution;
@@ -72,7 +90,7 @@ float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float
 	if (ClipmapIndex < NumRadianceProbeClipmaps)
 	{
 		bCoveredByRadianceCache = true;
-		// Should technically be diagonal voxel length
+		// Should technically be diagonal voxel length of trilinear footprint + ProbeTMin
 		return GetRadianceProbeTMin(ClipmapIndex) + RadianceProbeCoordToWorldPositionScale[ClipmapIndex];
 	}
 	else
@@ -82,7 +100,7 @@ float GetRadianceProbeOcclusionDistanceWithInterpolation(float3 RayOrigin, float
 	}
 }
 
-float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
+float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection, float MipLevel)
 {
 	uint ClipmapResolution = RadianceProbeClipmapResolution;
 	uint NumClipmaps = NumRadianceProbeClipmaps;
@@ -90,15 +108,13 @@ float3 SampleRadianceCacheProbe(uint ProbeIndex, float3 WorldSpaceDirection)
 	uint2 ProbeAtlasCoord = FinalProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 	float2 ProbeUV = DirectionToOctahedralMap(WorldSpaceDirection);
 
-	float2 ProbeTexelCoord = ProbeUV * RadianceProbeResolution + 1;
+	float2 ProbeTexelCoord = ProbeUV * RadianceProbeResolution + exp2(FinalRadianceAtlasMaxMip);
 	float2 ProbeAtlasUV = (ProbeAtlasCoord + ProbeTexelCoord) * InvRadianceProbeAtlasResolution;
 
 	float3 UnmappedDebugColor = 0.0f;
-	// Uncomment to see bright green when an unallocated probe is sampled
-	// This indicates a mismatch between probe placement and probe usage
-	// Off by default as downsampled GBuffer placement causes some unmapped accesses
+	// Show bright green when an unallocated probe is sampled
 	UnmappedDebugColor = float3(0.0f, 10.0f, 0.0f);
-	return ProbeIndex == INVALID_PROBE_INDEX ? UnmappedDebugColor : RadianceCacheFinalRadianceAtlas.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, 0);
+	return ProbeIndex == INVALID_PROBE_INDEX ? UnmappedDebugColor : RadianceCacheFinalRadianceAtlas.SampleLevel(GlobalBilinearClampedSampler, ProbeAtlasUV, MipLevel);
 }
 
 uint GetProbeIndexFromIndirectionTexture(uint3 ProbeCoord, uint ClipmapIndex)
@@ -107,23 +123,27 @@ uint GetProbeIndexFromIndirectionTexture(uint3 ProbeCoord, uint ClipmapIndex)
 	return RadianceProbeIndirectionTexture.Load(uint4(ProbeIndirectionTextureCoord, 0));
 }
 
-float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint ProbeClipmapIndex, float3 WorldSpacePosition, float3 WorldSpaceDirection)
+float3 SampleRadianceCacheProbeWithParallaxCorrection(uint3 ProbeCoord, uint ProbeClipmapIndex, float3 WorldSpacePosition, float3 WorldSpaceDirection, float MipLevel)
 {
 	float3 ProbeWorldPosition = ProbeCoord * RadianceProbeCoordToWorldPositionScale[ProbeClipmapIndex] + RadianceProbeCoordToWorldPositionBias[ProbeClipmapIndex];
 	float ReprojectionRadius = ReprojectionRadiusScale * GetRadianceProbeTMin(ProbeClipmapIndex);
 	float3 IntersectionPosition = WorldSpacePosition + WorldSpaceDirection * RayIntersectSphere(WorldSpacePosition, WorldSpaceDirection, float4(ProbeWorldPosition, ReprojectionRadius)).y;
 	float3 ReprojectedDirection = IntersectionPosition - ProbeWorldPosition;
 	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(ProbeCoord, ProbeClipmapIndex);
-	return SampleRadianceCacheProbe(ProbeIndex, ReprojectedDirection);
+	return SampleRadianceCacheProbe(ProbeIndex, ReprojectedDirection, MipLevel);
 }
 
-float3 SampleRadianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSpaceDirection, float3 Random)
+float3 SampleRadianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSpaceDirection, float ConeHalfAngle, float3 Random)
 {
 	uint ClipmapIndex = GetRadianceProbeClipmap(WorldSpacePosition);
 
 	if (ClipmapIndex < NumRadianceProbeClipmaps)
 	{
 		float3 ProbeCoordFloat = WorldSpacePosition * WorldPositionToRadianceProbeCoordScale[ClipmapIndex] + WorldPositionToRadianceProbeCoordBias[ClipmapIndex];
+
+		//float ConeHalfAngle = acosFast(1.0f - NumTexels * NumTexels / (float)(RadianceProbeResolution * RadianceProbeResolution));
+		float NumTexels = sqrt(1.0f - cos(ConeHalfAngle)) * RadianceProbeResolution;
+		float MipLevel = clamp(log2(NumTexels), 0, FinalRadianceAtlasMaxMip);
 
 #if RADIANCE_CACHE_USE_INTERPOLATION
 		float3 CornerProbeCoordFloat = ProbeCoordFloat - .5f;
@@ -133,16 +153,17 @@ float3 SampleRadianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSp
 #define STOCHASTIC_INTERPOLATION 0
 #if STOCHASTIC_INTERPOLATION
 		int3 StochasticProbeCoord = CornerProbeCoord + int3(Random < LerpAlphas ? 1 : 0);
-		return SampleRadianceCacheProbeWithParallaxCorrection(StochasticProbeCoord, ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
+		return SampleRadianceCacheProbeWithParallaxCorrection(StochasticProbeCoord, ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
 #else
-		float3 Lighting000 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 0, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting001 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 0, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting010 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 1, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting011 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 1, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting100 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 0, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting101 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 0, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting110 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 1, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
-		float3 Lighting111 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 1, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection);
+		//@todo - parallax correct using a single sphere bounding all the probes
+		float3 Lighting000 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 0, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting001 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 0, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting010 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 1, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting011 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(0, 1, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting100 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 0, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting101 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 0, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting110 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 1, 0), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
+		float3 Lighting111 = SampleRadianceCacheProbeWithParallaxCorrection(CornerProbeCoord + int3(1, 1, 1), ClipmapIndex, WorldSpacePosition, WorldSpaceDirection, MipLevel);
 
 		float3 ZLerp00 = lerp(Lighting000, Lighting001, LerpAlphas.z);
 		float3 ZLerp01 = lerp(Lighting010, Lighting011, LerpAlphas.z);
@@ -158,26 +179,22 @@ float3 SampleRadianceCacheInterpolated(float3 WorldSpacePosition, float3 WorldSp
 #else
 		int3 ProbeCoord = ProbeCoordFloat;
 		uint ProbeIndex = GetProbeIndexFromIndirectionTexture(ProbeCoord, ClipmapIndex);
-		return SampleRadianceCacheProbe(ProbeIndex, WorldSpaceDirection);
+		return SampleRadianceCacheProbe(ProbeIndex, WorldSpaceDirection, MipLevel);
 #endif
 	}
 
 	return float3(0.0f, 0.0f, 0.0f);
 }
 
-void SampleRadianceCacheAndApply(float3 WorldSpacePosition, float3 WorldSpaceDirection, float3 Random, inout float3 Lighting, inout float Transparency)
+void SampleRadianceCacheAndApply(float3 WorldSpacePosition, float3 WorldSpaceDirection, float ConeHalfAngle, float3 Random, inout float3 Lighting, inout float Transparency)
 {
-	float3 RadianceCacheLighting = SampleRadianceCacheInterpolated(WorldSpacePosition, WorldSpaceDirection, Random);
+	float3 RadianceCacheLighting = SampleRadianceCacheInterpolated(WorldSpacePosition, WorldSpaceDirection, ConeHalfAngle, Random);
 
-	if (ShowBlackRadianceCacheLighting > 0)
-	{
-		Lighting = 0;
-	}
-	else if (OverrideCacheOcclusionLighting > 0)
+	if (OverrideCacheOcclusionLighting > 0)
 	{
 		Lighting = RadianceCacheLighting;
 	}
-	else
+	else if (ShowBlackRadianceCacheLighting == 0)
 	{
 		Lighting += RadianceCacheLighting * Transparency;
 	}

@@ -111,6 +111,7 @@ void MainCS(
 			WorldConeDirection,
 			/* WorldTMax = */ ProbeTMax - ProbeTMin,
 			/* SceneDepth = */ SceneDepth,
+			/* SlopeCompareToleranceScale */ 4.0f,
 			bExtendRayToScreenBorder,
 			/* out */ bRayWasClipped);
 

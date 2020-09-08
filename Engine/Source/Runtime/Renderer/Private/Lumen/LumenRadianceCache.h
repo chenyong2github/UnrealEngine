@@ -4,7 +4,6 @@
 
 #include "CoreMinimal.h"
 #include "RendererInterface.h"
-#include "RenderGraph.h"
 
 namespace LumenRadianceCache
 {
@@ -21,6 +20,7 @@ namespace LumenRadianceCache
 		SHADER_PARAMETER_ARRAY(float, RadianceProbeCoordToWorldPositionScale, [MaxClipmaps])
 		SHADER_PARAMETER_ARRAY(FVector, RadianceProbeCoordToWorldPositionBias, [MaxClipmaps])
 		SHADER_PARAMETER(float, ReprojectionRadiusScale)
+		SHADER_PARAMETER(float, FinalRadianceAtlasMaxMip)
 		SHADER_PARAMETER(FVector2D, InvRadianceProbeAtlasResolution)
 		SHADER_PARAMETER(FIntPoint, ProbeAtlasResolutionInProbes)
 		SHADER_PARAMETER(uint32, RadianceProbeClipmapResolution)

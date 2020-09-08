@@ -289,8 +289,7 @@ private:
 		Disabled,
 		SSR,
 		RTR,
-		Lumen,
-		HybridLumenSSR,
+		Lumen
 	};
 
 	/** Structure that contains the final state of deferred shading pipeline for a FViewInfo */
@@ -475,15 +474,14 @@ private:
 	/** Render diffuse indirect (regardless of the method) of the views into the scene color. */
 	void RenderDiffuseIndirectAndAmbientOcclusion(
 		FRHICommandListImmediate& RHICmdList,
-		TRefCountPtr<IPooledRenderTarget>& OutLumenRoughSpecularIndirect, bool bIsVisualizePass);
+		bool bIsVisualizePass);
 
 	/** Renders sky lighting and reflections that can be done in a deferred pass. */
 	void RenderDeferredReflectionsAndSkyLighting(
 		FRHICommandListImmediate& RHICmdList,
 		TRefCountPtr<IPooledRenderTarget>& DynamicBentNormalAO,
 		const TRefCountPtr<IPooledRenderTarget>& VelocityRT,
-		struct FHairStrandsRenderingData* HairDatas,
-		const TRefCountPtr<IPooledRenderTarget>& LumenDiffuseGI);
+		struct FHairStrandsRenderingData* HairDatas);
 
 	void RenderDeferredReflectionsAndSkyLightingHair(FRHICommandListImmediate& RHICmdList, struct FHairStrandsRenderingData* HairDatas);
 
@@ -515,13 +513,25 @@ private:
 
 	bool ShouldRenderLumenDiffuseGI(const FViewInfo& View) const;
 
-	void RenderLumenDiffuseGI(
+	FSSDSignalTextures RenderLumenScreenProbeGather(
 		FRDGBuilder& GraphBuilder,
-		const HybridIndirectLighting::FCommonParameters& CommonDiffuseParameters,
+		const FSceneTextureParameters& SceneTextures,
+		const ScreenSpaceRayTracing::FPrevSceneColorMip& PrevSceneColorMip,
 		const FViewInfo& View,
-		bool bResumeRays,
-		FRDGTextureRef SceneColor,
-		FRDGTextureRef RoughSpecularIndirect);
+		FPreviousViewInfo* PreviousViewInfos,
+		bool bSSGI,
+		bool& bLumenUseDenoiserComposite,
+		class FLumenMeshSDFGridParameters& MeshSDFGridParameters);
+
+	void RenderScreenProbeGatherVisualizeTraces(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FRDGTextureRef SceneColor);
+
+	void RenderScreenProbeGatherVisualizeHardwareTraces(
+		FRDGBuilder& GraphBuilder,
+		const FViewInfo& View,
+		FRDGTextureRef SceneColor);
 
 	void RenderLumenProbe(
 		FRDGBuilder& GraphBuilder,
@@ -529,7 +539,8 @@ private:
 		const LumenProbeHierarchy::FHierarchyParameters& HierarchyParameters,
 		const LumenProbeHierarchy::FIndirectLightingAtlasParameters& IndirectLightingAtlasParameters,
 		const LumenProbeHierarchy::FEmitProbeParameters& EmitProbeParameters,
-		const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
+		const LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters,
+		bool bUseRadianceCache);
 
 	void RenderLumenProbeOcclusion(
 		FRDGBuilder& GraphBuilder,
@@ -537,13 +548,12 @@ private:
 		const HybridIndirectLighting::FCommonParameters& CommonParameters,
 		const LumenProbeHierarchy::FIndirectLightingProbeOcclusionParameters& ProbeOcclusionParameters);
 
-	void RenderLumenReflections(
-		FRDGBuilder& GraphBuilder, 
+	FRDGTextureRef RenderLumenReflections(
+		FRDGBuilder& GraphBuilder,
 		const FViewInfo& View,
 		const FSceneTextureParameters& SceneTextures,
-		const TRefCountPtr<IPooledRenderTarget>& LumenRoughSpecularIndirect, 
-		FRDGTextureRef& InOutReflectionComposition,
-		FTiledScreenSpaceReflection* TiledScreenSpaceReflection);
+		const class FLumenMeshSDFGridParameters& MeshSDFGridParameters,
+		FRDGTextureRef RoughSpecularIndirect);
 
 	bool ShouldRenderLumenSceneVisualization(const FViewInfo& View);
 	void RenderLumenSceneVisualization(FRHICommandListImmediate& RHICmdList);
@@ -556,6 +566,7 @@ private:
 		const FLumenCardTracingInputs& TracingInputs, 
 		const FViewInfo& View, 
 		const class LumenProbeHierarchy::FHierarchyParameters* ProbeHierarchyParameters,
+		const class FScreenProbeParameters* ScreenProbeParameters,
 		LumenRadianceCache::FRadianceCacheParameters& RadianceCacheParameters);
 
 	/** Whether tiled deferred is supported and can be used at all. */
@@ -958,6 +969,8 @@ private:
 	static void PrepareRayTracingTranslucency(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PrepareRayTracingDebug(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 	static void PreparePathTracing(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareRayTracingLumenDirectLighting(const FViewInfo& View,const FScene& Scene, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
+	static void PrepareRayTracingScreenProbeGather(const FViewInfo& View, TArray<FRHIRayTracingShader*>& OutRayGenShaders);
 
 	/** Lighting evaluation shader registration */
 	static FRHIRayTracingShader* GetRayTracingLightingMissShader(FViewInfo& View);

@@ -11,48 +11,16 @@
 #include "ShaderParameterStruct.h"
 #include "ReflectionEnvironment.h"
 #include "LumenSceneUtils.h"
-#include "LumenSceneBVH.h"
 #include "LumenCubeMapTree.h"
 #include "LumenRadianceCache.h"
 #include "DynamicMeshBuilder.h"
-
-int32 GVisualizeLumenSceneBVHCulling = 1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneBVHCulling(
-	TEXT("r.Lumen.Visualize.BVHCulling"),
-	GVisualizeLumenSceneBVHCulling,
-	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GVisualizeLumenSceneMaxCulledNodesPerCell = 32;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneMaxCulledNodesPerCell(
-	TEXT("r.Lumen.Visualize.MaxCulledNodesPerCell"),
-	GVisualizeLumenSceneMaxCulledNodesPerCell,
-	TEXT("Controls how much memory is allocated for temporary BVH nodes during BVH card culling."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GVisualizeLumenSceneMaxCulledCardsPerCell = 256;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneMaxCulledCardsPerCell(
-	TEXT("r.Lumen.Visualize.MaxCulledCardsPerCell"),
-	GVisualizeLumenSceneMaxCulledCardsPerCell,
-	TEXT("Controls how much memory is allocated for culled cards during BVH card culling."),
-	ECVF_RenderThreadSafe
-);
+#include "ShaderPrintParameters.h"
 
 int32 GVisualizeLumenSceneGridPixelSize = 32;
 FAutoConsoleVariableRef CVarVisualizeLumenSceneGridPixelSize(
 	TEXT("r.Lumen.Visualize.GridPixelSize"),
 	GVisualizeLumenSceneGridPixelSize,
 	TEXT(""),
-	ECVF_RenderThreadSafe
-);
-
-int32 GLumenVisualizeCardBVH = 0;
-FAutoConsoleVariableRef CVarLumenVisualizeCardBVH(
-	TEXT("r.Lumen.Visualize.CardBVH"),
-	GLumenVisualizeCardBVH,
-	TEXT("Visualize lumen scene card BVH."),
 	ECVF_RenderThreadSafe
 );
 
@@ -64,19 +32,11 @@ FAutoConsoleVariableRef CVarLumenVisualizeVoxels(
 	ECVF_RenderThreadSafe
 );
 
-int32 GVisualizeLumenSceneCardTraceMeshSDF = 1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneCardTraceMeshSDF(
-	TEXT("r.Lumen.Visualize.CardTraceMeshSDF"),
-	GVisualizeLumenSceneCardTraceMeshSDF,
-	TEXT("Whether to trace Mesh Signed Distance Fields for the beginning of each cone, or Lumen card heightfields."),
-	ECVF_RenderThreadSafe
-);
-
-int32 GVisualizeLumenSceneCubeMapTree = 1;
-FAutoConsoleVariableRef CVarVisualizeLumenSceneCubeMapTree(
-	TEXT("r.Lumen.Visualize.CubeMapTree"),
-	GVisualizeLumenSceneCubeMapTree,
-	TEXT("Whether to use cube map trees to apply texture on mesh SDF hit points."),
+int32 GLumenVisualizeStats = 0;
+FAutoConsoleVariableRef CVarLumenVisualizeStats(
+	TEXT("r.Lumen.Visualize.Stats"),
+	GLumenVisualizeStats,
+	TEXT("Print out Lumen scene stats."),
 	ECVF_RenderThreadSafe
 );
 
@@ -201,6 +161,7 @@ FAutoConsoleVariableRef CVarCardInterpolateInfluenceRadius(
 	);
 
 BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLumenSceneParameters, )
+	SHADER_PARAMETER(FIntVector, VoxelLightingGridResolution)
 	SHADER_PARAMETER(float, PreviewConeAngle)
 	SHADER_PARAMETER(float, TanPreviewConeAngle)
 	SHADER_PARAMETER(float, VisualizeStepFactor)
@@ -214,21 +175,6 @@ BEGIN_SHADER_PARAMETER_STRUCT(FVisualizeLumenSceneParameters, )
 	SHADER_PARAMETER(int, VisualizeVoxelFaceIndex)
 END_SHADER_PARAMETER_STRUCT()
 
-class FVisualizeLumenSceneBVHCullingCS : public FBVHCullingBaseCS
-{
-	DECLARE_GLOBAL_SHADER(FVisualizeLumenSceneBVHCullingCS)
-	SHADER_USE_PARAMETER_STRUCT(FVisualizeLumenSceneBVHCullingCS, FBVHCullingBaseCS)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FBVHCullingParameters, BVHCullingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeLumenSceneParameters, VisualizeParameters)
-		SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
-	END_SHADER_PARAMETER_STRUCT()
-};
-
-IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenSceneBVHCullingCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "BVHCullingCS", SF_Compute);
-
 class FVisualizeLumenSceneCS : public FGlobalShader
 {
 	DECLARE_GLOBAL_SHADER(FVisualizeLumenSceneCS)
@@ -237,7 +183,6 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
 		SHADER_PARAMETER(FIntRect, ViewDimensions)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardFroxelGridParameters, GridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeLumenSceneParameters, VisualizeParameters)
 		SHADER_PARAMETER_STRUCT_INCLUDE(LumenRadianceCache::FRadianceCacheParameters, RadianceCacheParameters)
@@ -245,28 +190,15 @@ class FVisualizeLumenSceneCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FCulledCardsGrid : SHADER_PERMUTATION_BOOL("CULLED_CARDS_GRID");
 	class FTraceCards : SHADER_PERMUTATION_BOOL("TRACE_CARDS");
-	class FCardTraceMeshSDF : SHADER_PERMUTATION_BOOL("CARD_TRACE_MESH_SDF");
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, 3);
-	class FCubeMapTree : SHADER_PERMUTATION_BOOL("CUBE_MAP_TREE");
+	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FRadianceCache : SHADER_PERMUTATION_BOOL("RADIANCE_CACHE");
 
-	using FPermutationDomain = TShaderPermutationDomain<FCulledCardsGrid, FTraceCards, FCardTraceMeshSDF, FVoxelTracingMode, FCubeMapTree, FRadianceCache>;
+	using FPermutationDomain = TShaderPermutationDomain<FTraceCards, FVoxelTracingMode, FRadianceCache>;
 
 public:
 	static FPermutationDomain RemapPermutation(FPermutationDomain PermutationVector)
 	{
-		if (!PermutationVector.Get<FTraceCards>())
-		{
-			PermutationVector.Set<FCardTraceMeshSDF>(false);
-		}
-
-		if (!PermutationVector.Get<FCardTraceMeshSDF>())
-		{
-			PermutationVector.Set<FCubeMapTree>(false);
-		}
-
 		return PermutationVector;
 	}
 
@@ -296,17 +228,15 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenSceneCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeQuadsCS", SF_Compute);
 
-class FVisualizeLumenCardBVHCS : public FGlobalShader
+class FVisualizeLumenSceneStatsCS : public FGlobalShader
 {
-	DECLARE_GLOBAL_SHADER(FVisualizeLumenCardBVHCS)
-	SHADER_USE_PARAMETER_STRUCT(FVisualizeLumenCardBVHCS, FGlobalShader)
+	DECLARE_GLOBAL_SHADER(FVisualizeLumenSceneStatsCS)
+	SHADER_USE_PARAMETER_STRUCT(FVisualizeLumenSceneStatsCS, FGlobalShader)
 
 	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER(FIntRect, ViewDimensions)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenCardTracingParameters, TracingParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FVisualizeLumenSceneParameters, VisualizeParameters)
-		SHADER_PARAMETER_STRUCT_REF(FSceneTexturesUniformParameters, SceneTexturesStruct)
-		SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D, RWSceneColor)
+		SHADER_PARAMETER_STRUCT_INCLUDE(ShaderPrint::FShaderParameters, ShaderPrintUniformBuffer)
+		SHADER_PARAMETER_RDG_BUFFER_SRV(StructuredBuffer<uint>, GlobalDistanceFieldPageFreeListAllocatorBuffer)
+		SHADER_PARAMETER(uint32, GlobalDistanceFieldMaxPageNum)
 	END_SHADER_PARAMETER_STRUCT()
 
 public:
@@ -318,16 +248,11 @@ public:
 	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
 	{
 		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-
-	static int32 GetGroupSize()
-	{
-		return 8;
+		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), 1);
 	}
 };
 
-IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenCardBVHCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeLumenCardBVHCS", SF_Compute);
+IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenSceneStatsCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeStatsCS", SF_Compute);
 
 class FVisualizeLumenVoxelsCS : public FGlobalShader
 {
@@ -362,34 +287,42 @@ public:
 
 IMPLEMENT_GLOBAL_SHADER(FVisualizeLumenVoxelsCS, "/Engine/Private/Lumen/VisualizeLumenScene.usf", "VisualizeLumenVoxelsCS", SF_Compute);
 
+bool ShouldRenderLumenVisualizations(const FViewInfo& View, const FScene* Scene, EShaderPlatform ShaderPlatform)
+{
+	static const auto CVar = IConsoleManager::Get().FindTConsoleVariableDataInt(TEXT("r.GenerateMeshDistanceFields"));
+	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+	return GAllowLumenScene
+		&& DoesPlatformSupportLumenGI(ShaderPlatform)
+		&& LumenSceneData.VisibleCardsIndices.Num() > 0 
+		&& LumenSceneData.AlbedoAtlas
+		&& CVar->GetValueOnRenderThread() != 0;
+}
+
 bool FDeferredShadingSceneRenderer::ShouldRenderLumenSceneVisualization(const FViewInfo& View)
 {
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
-	const bool bVisualizeCardBVH = GLumenVisualizeCardBVH && LumenSceneData.CardBVH.Num() > 0;
 	const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
 
-	return GAllowLumenScene
-		&& DoesPlatformSupportLumenGI(ShaderPlatform)
+	return ShouldRenderLumenVisualizations(View, Scene, ShaderPlatform)
 		&& Views.Num() == 1
-		&& LumenSceneData.VisibleCardsIndices.Num() > 0 
-		&& LumenSceneData.AlbedoAtlas
-		&& (bVisualizeScene || bVisualizeCardBVH || bVisualizeVoxels);
+		&& (bVisualizeScene || bVisualizeVoxels);
 }
 
 void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandListImmediate& RHICmdList)
 {
 	const FViewInfo& View = Views[0];
 
-	if (ShouldRenderLumenSceneVisualization(View))
+	if (ShouldRenderLumenVisualizations(View, Scene, ShaderPlatform) && Views.Num() == 1)
 	{
-		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-		const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
-		const bool bVisualizeCardBVH = GLumenVisualizeCardBVH && LumenSceneData.CardBVH.Num() > 0;
-		const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
-
 		SCOPED_DRAW_EVENT(RHICmdList, VisualizeLumenScene);
+
+		FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
+
+		const bool bVisualizeScene = ViewFamily.EngineShowFlags.VisualizeLumenScene;
+		const bool bVisualizeVoxels = GLumenVisualizeVoxels != 0;
 
 		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneVisualization"));
 
@@ -400,9 +333,13 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 		TRefCountPtr<IPooledRenderTarget> ResultSceneColor;
 		GraphBuilder.QueueTextureExtraction(SceneColor, &ResultSceneColor);
 
+		RenderScreenProbeGatherVisualizeHardwareTraces(GraphBuilder, View, SceneColor);
+		RenderScreenProbeGatherVisualizeTraces(GraphBuilder, View, SceneColor);
+
 		FLumenCardTracingInputs TracingInputs(GraphBuilder, Scene, View);
 
 		FVisualizeLumenSceneParameters VisualizeParameters;
+		VisualizeParameters.VoxelLightingGridResolution = TracingInputs.VoxelGridResolution;
 		VisualizeParameters.PreviewConeAngle = FMath::Clamp(GVisualizeLumenSceneConeAngle, 0.0f, 45.0f) * (float)PI / 180.0f;
 		VisualizeParameters.TanPreviewConeAngle = FMath::Tan(VisualizeParameters.PreviewConeAngle);
 		VisualizeParameters.VisualizeStepFactor = FMath::Clamp(GVisualizeLumenSceneConeStepFactor, .1f, 10.0f);
@@ -428,45 +365,14 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 
 		if (bVisualizeScene)
 		{
-			FLumenCardFroxelGridParameters GridParameters;
-
 			const uint32 CullGridPixelSize = FMath::Clamp(GVisualizeLumenSceneGridPixelSize, 8, 1024);
 			const FIntPoint CullGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), CullGridPixelSize);
 			const FIntVector CullGridSize = FIntVector(CullGridSizeXY.X, CullGridSizeXY.Y, 1);
 
-			FLumenMeshSDFGridParameters MeshSDFGridParameters;
+			FLumenMeshSDFGridParameters MeshSDFGridParameters;			
+			MeshSDFGridParameters.CardGridPixelSizeShift = FMath::FloorLog2(CullGridPixelSize);
+			MeshSDFGridParameters.CullGridSize = CullGridSize;
 
-			if (GVisualizeLumenSceneBVHCulling)
-			{
-				RDG_EVENT_SCOPE(GraphBuilder, "VisualizeBVHCulling");
-
-				FBVHCulling BVHCulling;
-				BVHCulling.Init(GraphBuilder, View.ShaderMap, CullGridSize, GVisualizeLumenSceneMaxCulledNodesPerCell, GVisualizeLumenSceneMaxCulledCardsPerCell);
-
-				for (int32 BVHLevel = 0; BVHLevel < FMath::Max(1, TracingInputs.BVHDepth); ++BVHLevel)
-				{
-					BVHCulling.InitNextPass(GraphBuilder, View.ShaderMap, BVHLevel);
-
-					// Run pass for the current BVH level.
-					{
-						FVisualizeLumenSceneBVHCullingCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneBVHCullingCS::FParameters>();
-						PassParameters->BVHCullingParameters = BVHCulling.BVHCullingParameters;
-						GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
-						PassParameters->VisualizeParameters = VisualizeParameters;
-						PassParameters->CardGridPixelSizeShift = FMath::FloorLog2(CullGridPixelSize);
-						BVHCulling.NextPass<FVisualizeLumenSceneBVHCullingCS>(GraphBuilder, View.ShaderMap, BVHLevel, PassParameters);
-					}
-				}
-
-				BVHCulling.CompactListIntoGrid(GraphBuilder, View.ShaderMap);
-
-				GridParameters.CulledCardGridHeader = BVHCulling.CulledCardGridHeaderSRV;
-				GridParameters.CulledCardGridData = BVHCulling.CulledCardGridDataSRV;
-				GridParameters.CardGridPixelSizeShift = FMath::FloorLog2(CullGridPixelSize);
-				GridParameters.CullGridSize = CullGridSize;
-			}
-			
-			if (GVisualizeLumenSceneCardTraceMeshSDF)
 			{
 				const float CardTraceEndDistanceFromCamera = VisualizeParameters.MaxCardTraceDistance;
 
@@ -485,53 +391,57 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 					Unused);
 			}
 
-			FVisualizeLumenSceneCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneCS::FParameters>();
-			PassParameters->ViewDimensions = View.ViewRect;
-			PassParameters->RWSceneColor = SceneColorUAV;
-			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
-			PassParameters->GridParameters = GridParameters;
-			PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
-			PassParameters->VisualizeParameters = VisualizeParameters;
-			LumenRadianceCache::GetParameters(View, GraphBuilder, PassParameters->RadianceCacheParameters);
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+			extern bool ShouldVisualizeLumenHardwareRayTracingPrimaryRay();
+			
+			if (ShouldVisualizeLumenHardwareRayTracingPrimaryRay())
+			{
+				extern void VisualizeLumenHardwareRayTracingPrimaryRay(FRDGBuilder & GraphBuilder,
+					const FScene * Scene,
+					const FViewInfo & View,
+					const FLumenCardTracingInputs & TracingInputs,
+					FLumenMeshSDFGridParameters & MeshSDFGridParameters,
+					FLumenIndirectTracingParameters & IndirectTracingParameters,
+					const LumenRadianceCache::FRadianceCacheParameters & RadianceCacheParameters,
+					FRDGTextureRef SceneColor);
 
-			FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
-			PermutationVector.Set< FVisualizeLumenSceneCS::FCulledCardsGrid >(GVisualizeLumenSceneBVHCulling != 0);
-			PermutationVector.Set< FVisualizeLumenSceneCS::FTraceCards >(GVisualizeLumenSceneTraceCards != 0);
-			PermutationVector.Set< FVisualizeLumenSceneCS::FCardTraceMeshSDF >(GVisualizeLumenSceneCardTraceMeshSDF != 0);
-			PermutationVector.Set< FVisualizeLumenSceneCS::FVoxelTracingMode >(Lumen::GetVoxelTracingMode());
-			PermutationVector.Set< FVisualizeLumenSceneCS::FCubeMapTree >(GVisualizeLumenSceneCubeMapTree != 0);
-			PermutationVector.Set< FVisualizeLumenSceneCS::FRadianceCache >(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenRadianceCache::IsEnabled(View));
-			PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
+				FLumenIndirectTracingParameters IndirectTracingParameters;
+				IndirectTracingParameters.CardInterpolateInfluenceRadius = VisualizeParameters.CardInterpolateInfluenceRadius;
+				IndirectTracingParameters.MinTraceDistance = VisualizeParameters.MinTraceDistance;
+				IndirectTracingParameters.MaxTraceDistance = VisualizeParameters.MaxTraceDistance;
+				IndirectTracingParameters.MaxCardTraceDistance = VisualizeParameters.MaxCardTraceDistance;
+				LumenRadianceCache::FRadianceCacheParameters RadianceCacheParameters;
+				LumenRadianceCache::GetParameters(View, GraphBuilder, RadianceCacheParameters);
+				
+				VisualizeLumenHardwareRayTracingPrimaryRay(GraphBuilder, Scene, View,
+					TracingInputs, MeshSDFGridParameters, IndirectTracingParameters, RadianceCacheParameters, SceneColor);
+			}
+			else
+			{
+				FVisualizeLumenSceneCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneCS::FParameters>();
+				PassParameters->ViewDimensions = View.ViewRect;
+				PassParameters->RWSceneColor = SceneColorUAV;
+				PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
+				PassParameters->MeshSDFGridParameters = MeshSDFGridParameters;
+				PassParameters->VisualizeParameters = VisualizeParameters;
+				LumenRadianceCache::GetParameters(View, GraphBuilder, PassParameters->RadianceCacheParameters);
+				GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
 
-			auto ComputeShader = View.ShaderMap->GetShader< FVisualizeLumenSceneCS >(PermutationVector);
-			FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVisualizeLumenSceneCS::GetGroupSize()));
+				FVisualizeLumenSceneCS::FPermutationDomain PermutationVector;
+				PermutationVector.Set<FVisualizeLumenSceneCS::FTraceCards>(GVisualizeLumenSceneTraceCards != 0);
+				PermutationVector.Set<FVisualizeLumenSceneCS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
+				PermutationVector.Set<FVisualizeLumenSceneCS::FRadianceCache>(GVisualizeLumenSceneTraceRadianceCache != 0 && LumenRadianceCache::IsEnabled(View));
+				PermutationVector = FVisualizeLumenSceneCS::RemapPermutation(PermutationVector);
 
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("LumenSceneVisualization"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(GroupSize.X, GroupSize.Y, 1));
-		}
-		else if (bVisualizeCardBVH)
-		{
-			FVisualizeLumenCardBVHCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenCardBVHCS::FParameters>();
-			PassParameters->ViewDimensions = View.ViewRect;
-			PassParameters->RWSceneColor = SceneColorUAV;
-			PassParameters->SceneTexturesStruct = CreateSceneTextureUniformBufferSingleDraw(RHICmdList, ESceneTextureSetupMode::All, View.FeatureLevel);
-			PassParameters->VisualizeParameters = VisualizeParameters;
-			GetLumenCardTracingParameters(View, TracingInputs, PassParameters->TracingParameters);
+				auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneCS>(PermutationVector);
+				FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVisualizeLumenSceneCS::GetGroupSize()));
 
-			auto ComputeShader = View.ShaderMap->GetShader< FVisualizeLumenCardBVHCS >();
-			FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), FVisualizeLumenCardBVHCS::GetGroupSize()));
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("LumenCardBVHVisualization"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(GroupSize.X, GroupSize.Y, 1));
+				FComputeShaderUtils::AddPass(
+					GraphBuilder,
+					RDG_EVENT_NAME("LumenSceneVisualization"),
+					ComputeShader,
+					PassParameters,
+					FIntVector(GroupSize.X, GroupSize.Y, 1));
+			}
 		}
 		else if (bVisualizeVoxels)
 		{
@@ -556,6 +466,33 @@ void FDeferredShadingSceneRenderer::RenderLumenSceneVisualization(FRHICommandLis
 		GraphBuilder.Execute();
 
 		check(ResultSceneColor.GetReference() == SceneContext.GetSceneColor().GetReference());
+	}
+
+	if (GAllowLumenScene
+		&& DoesPlatformSupportLumenGI(ShaderPlatform)
+		&& Views.Num() == 1
+		&& GLumenVisualizeStats != 0
+		&& View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer)
+	{
+		FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("LumenSceneStats"));
+
+		FRDGBufferRef GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.RegisterExternalBuffer(View.GlobalDistanceFieldInfo.PageFreeListAllocatorBuffer, TEXT("PageFreeListAllocator"));
+
+		FVisualizeLumenSceneStatsCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FVisualizeLumenSceneStatsCS::FParameters>();
+		ShaderPrint::SetParameters(View, PassParameters->ShaderPrintUniformBuffer);
+		PassParameters->GlobalDistanceFieldPageFreeListAllocatorBuffer = GraphBuilder.CreateSRV(GlobalDistanceFieldPageFreeListAllocatorBuffer, PF_R32_UINT);
+		PassParameters->GlobalDistanceFieldMaxPageNum = View.GlobalDistanceFieldInfo.ParameterData.MaxPageNum;
+
+		auto ComputeShader = View.ShaderMap->GetShader<FVisualizeLumenSceneStatsCS>();
+
+		FComputeShaderUtils::AddPass(
+			GraphBuilder,
+			RDG_EVENT_NAME("LumenSceneStats"),
+			ComputeShader,
+			PassParameters,
+			FIntVector(1, 1, 1));
+
+		GraphBuilder.Execute();
 	}
 
 	RenderLumenRadianceCacheVisualization(RHICmdList);

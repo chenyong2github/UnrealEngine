@@ -30,13 +30,6 @@ FAutoConsoleVariableRef CVarLumenSceneCardLightingUpdateMinFrequency(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-bool ShouldPrepareGlobalDistanceFieldForLumen(EShaderPlatform ShaderPlatform)
-{
-	// Used for offscreen shadowing
-	return DoesPlatformSupportLumenGI(ShaderPlatform)
-		&& GAllowLumenScene;
-}
-
 FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, const FScene* Scene, const FViewInfo& View)
 {
 	LLM_SCOPE(ELLMTag::Lumen);
@@ -44,7 +37,6 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
 
 	LumenCardScene = LumenSceneData.UniformBuffer;
-	BVHDepth = LumenSceneData.BVHDepth;
 
 	if (LumenSceneData.Cards.Num() > 0)
 	{
@@ -57,11 +49,10 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 		FinalLightingAtlas = OpacityAtlas = DilatedDepthAtlas = GraphBuilder.RegisterExternalTexture(GSystemTextures.BlackDummy);
 	}
 
-	if (View.ViewState && View.ViewState->Lumen.VoxelLighting)
+	if (View.ViewState && View.ViewState->Lumen.VoxelLighting && View.ViewState->Lumen.VoxelLightingAlpha)
 	{
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelLighting);
-		MergedVoxelLighting = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.MergedVoxelLighting);
-		VoxelDistanceField = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelDistanceField);
+		VoxelLightingAlpha = GraphBuilder.RegisterExternalTexture(View.ViewState->Lumen.VoxelLightingAlpha);
 		VoxelGridResolution = View.ViewState->Lumen.VoxelGridResolution;
 		NumClipmapLevels = View.ViewState->Lumen.NumClipmapLevels;
 		ClipmapWorldToUVScale = View.ViewState->Lumen.ClipmapWorldToUVScale;
@@ -74,8 +65,7 @@ FLumenCardTracingInputs::FLumenCardTracingInputs(FRDGBuilder& GraphBuilder, cons
 	else
 	{
 		VoxelLighting = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
-		MergedVoxelLighting = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
-		VoxelDistanceField = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
+		VoxelLightingAlpha = GraphBuilder.RegisterExternalTexture(GSystemTextures.VolumetricBlackDummy);
 		VoxelGridResolution = FIntVector(1, 1, 1);
 		NumClipmapLevels = 0;
 	}
@@ -94,8 +84,7 @@ void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* 
 	if (View.ViewState)
 	{
 		GraphBuilder.QueueTextureExtraction(VoxelLighting, &View.ViewState->Lumen.VoxelLighting);
-		GraphBuilder.QueueTextureExtraction(MergedVoxelLighting, &View.ViewState->Lumen.MergedVoxelLighting);
-		GraphBuilder.QueueTextureExtraction(VoxelDistanceField, &View.ViewState->Lumen.VoxelDistanceField);
+		GraphBuilder.QueueTextureExtraction(VoxelLightingAlpha, &View.ViewState->Lumen.VoxelLightingAlpha);
 		View.ViewState->Lumen.VoxelGridResolution = VoxelGridResolution;
 		View.ViewState->Lumen.NumClipmapLevels = NumClipmapLevels;
 		View.ViewState->Lumen.ClipmapWorldToUVScale = ClipmapWorldToUVScale;
@@ -105,6 +94,43 @@ void FLumenCardTracingInputs::ExtractToScene(FRDGBuilder& GraphBuilder, FScene* 
 		View.ViewState->Lumen.ClipmapWorldExtent = ClipmapWorldExtent;
 		View.ViewState->Lumen.ClipmapWorldSamplingExtent = ClipmapWorldSamplingExtent;
 	}
+}
+
+typedef TUniformBufferRef<FLumenVoxelTracingParameters> FLumenVoxelTracingParametersBufferRef;
+IMPLEMENT_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenVoxelTracingParameters, "LumenVoxelTracingParameters");
+
+void GetLumenVoxelParametersForClipmapLevel(const FLumenCardTracingInputs& TracingInputs, FLumenVoxelTracingParameters& LumenVoxelTracingParameters,
+									int SrcClipmapLevel, int DstClipmapLevel)
+{
+	LumenVoxelTracingParameters.ClipmapWorldToUVScale[DstClipmapLevel] = TracingInputs.ClipmapWorldToUVScale[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldToUVBias[DstClipmapLevel] = TracingInputs.ClipmapWorldToUVBias[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[DstClipmapLevel] = TracingInputs.ClipmapVoxelSizeAndRadius[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldCenter[DstClipmapLevel] = TracingInputs.ClipmapWorldCenter[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldExtent[DstClipmapLevel] = TracingInputs.ClipmapWorldExtent[SrcClipmapLevel];
+	LumenVoxelTracingParameters.ClipmapWorldSamplingExtent[DstClipmapLevel] = TracingInputs.ClipmapWorldSamplingExtent[SrcClipmapLevel];
+}
+
+//@todo Create the uniform buffer as less as possible.
+void GetLumenVoxelTracingParameters(const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly)
+{
+	FLumenVoxelTracingParameters LumenVoxelTracingParameters;
+
+	LumenVoxelTracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
+
+	ensureMsgf(bShaderWillTraceCardsOnly || TracingInputs.NumClipmapLevels > 0, TEXT("Higher level code should have prevented GetLumenCardTracingParameters in a scene with no voxel clipmaps"));
+
+	for (int32 i = 0; i < TracingInputs.NumClipmapLevels; i++)
+	{
+		/*LumenVoxelTracingParameters.ClipmapWorldToUVScale[i] = TracingInputs.ClipmapWorldToUVScale[i];
+		LumenVoxelTracingParameters.ClipmapWorldToUVBias[i] = TracingInputs.ClipmapWorldToUVBias[i];
+		LumenVoxelTracingParameters.ClipmapVoxelSizeAndRadius[i] = TracingInputs.ClipmapVoxelSizeAndRadius[i];
+		LumenVoxelTracingParameters.ClipmapWorldCenter[i] = TracingInputs.ClipmapWorldCenter[i];
+		LumenVoxelTracingParameters.ClipmapWorldExtent[i] = TracingInputs.ClipmapWorldExtent[i];
+		LumenVoxelTracingParameters.ClipmapWorldSamplingExtent[i] = TracingInputs.ClipmapWorldSamplingExtent[i];*/
+		GetLumenVoxelParametersForClipmapLevel(TracingInputs, LumenVoxelTracingParameters, i, i);
+	}
+
+	TracingParameters.LumenVoxelTracingParameters = CreateUniformBufferImmediate(LumenVoxelTracingParameters, UniformBuffer_SingleFrame);
 }
 
 void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracingInputs& TracingInputs, FLumenCardTracingParameters& TracingParameters, bool bShaderWillTraceCardsOnly)
@@ -119,22 +145,10 @@ void GetLumenCardTracingParameters(const FViewInfo& View, const FLumenCardTracin
 	TracingParameters.DilatedDepthAtlas = TracingInputs.DilatedDepthAtlas;
 
 	TracingParameters.VoxelLighting = TracingInputs.VoxelLighting;
-	TracingParameters.MergedVoxelLighting = TracingInputs.MergedVoxelLighting;
-	TracingParameters.VoxelDistanceField = TracingInputs.VoxelDistanceField;
+	TracingParameters.VoxelLightingAlpha = TracingInputs.VoxelLightingAlpha;
 	TracingParameters.CubeMapTreeLUTAtlas = GLumenCubeMapTreeLUTAtlas.GetTexture();
-	TracingParameters.NumClipmapLevels = TracingInputs.NumClipmapLevels;
-
-	ensureMsgf(bShaderWillTraceCardsOnly ||TracingInputs.NumClipmapLevels > 0, TEXT("Higher level code should have prevented GetLumenCardTracingParameters in a scene with no voxel clipmaps"));
-
-	for (int32 i = 0; i < TracingInputs.NumClipmapLevels; i++)
-	{
-		TracingParameters.ClipmapWorldToUVScale[i] = TracingInputs.ClipmapWorldToUVScale[i];
-		TracingParameters.ClipmapWorldToUVBias[i] = TracingInputs.ClipmapWorldToUVBias[i];
-		TracingParameters.ClipmapVoxelSizeAndRadius[i] = TracingInputs.ClipmapVoxelSizeAndRadius[i];
-		TracingParameters.ClipmapWorldCenter[i] = TracingInputs.ClipmapWorldCenter[i];
-		TracingParameters.ClipmapWorldExtent[i] = TracingInputs.ClipmapWorldExtent[i];
-		TracingParameters.ClipmapWorldSamplingExtent[i] = TracingInputs.ClipmapWorldSamplingExtent[i];
-	}
+	
+	GetLumenVoxelTracingParameters(TracingInputs, TracingParameters, bShaderWillTraceCardsOnly);
 
 	TracingParameters.NumGlobalSDFClipmaps = View.GlobalDistanceFieldInfo.Clipmaps.Num();
 }

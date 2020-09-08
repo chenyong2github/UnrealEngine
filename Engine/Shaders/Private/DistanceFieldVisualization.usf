@@ -104,37 +104,19 @@ void VisualizeMeshDistanceFieldCS(
 	float TraceDistance = 40000;
 	float3 WorldRayStart = View.WorldCameraOrigin;
 	float3 WorldRayEnd = WorldRayStart + normalize(OpaqueWorldPosition - View.WorldCameraOrigin) * TraceDistance;
-	float3 WorldRayDirection = WorldRayEnd - WorldRayStart;
-	float3 UnitWorldRayDirection = normalize(WorldRayDirection);
+	float3 WorldRayDirection = normalize(WorldRayEnd - WorldRayStart);
 
 #if USE_GLOBAL_DISTANCE_FIELD
 
-	float TotalStepsTaken = 0;
-	float StepFactor = 1;
-	float MinStepSizeScale = 1.0f / 8000.0f;
+	FGlobalSDFTraceInput TraceInput = SetupGlobalSDFTraceInput(WorldRayStart, WorldRayDirection, 0.0f, TraceDistance, 1.0f, 1.0f);
 
-	FGlobalSDFTraceInput TraceInput = SetupTraceInput(WorldRayStart, WorldRayDirection, TraceDistance, StepFactor, MinStepSizeScale);
+	FGlobalSDFTraceResult SDFTraceResult = RayTraceGlobalDistanceField(TraceInput);
 
-	float MinRayTime = 0;
-
-	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps && ClipmapIndex < MAX_GLOBAL_DF_CLIPMAPS; ClipmapIndex++)
+	float3 Result = saturate(SDFTraceResult.TotalStepsTaken / 400.0f);
+	if (!SDFTraceResult.IsHit())
 	{
-		float NewMinRayTime;
-		float IntersectRayTime;
-		float StepsTaken;
-		RayTraceThroughGlobalDistanceFieldClipmap(ClipmapIndex, TraceInput, MinRayTime, NewMinRayTime, IntersectRayTime, StepsTaken);
-
-		TotalStepsTaken += StepsTaken;
-
-		if (IntersectRayTime < TraceDistance)
-		{
-			break;
-		}
-
-		MinRayTime = NewMinRayTime;
+		Result.xy *= 0.25f;
 	}
-
-	float3 Result = saturate(TotalStepsTaken / 400.0f);
 
 #else
 	if (ThreadIndex == 0)
@@ -193,7 +175,7 @@ void VisualizeMeshDistanceFieldCS(
 
 	float TempMinRayTime;
 	// Recompute the ray end point
-	WorldRayEnd = WorldRayStart + UnitWorldRayDirection * MinRayTime;
+	WorldRayEnd = WorldRayStart + WorldRayDirection * MinRayTime;
 	// Trace a second time to only accumulate steps taken before the first intersection, improves visualization
 	RayTraceThroughTileCulledDistanceFields(WorldRayStart, WorldRayEnd, MinRayTime, TempMinRayTime, TotalStepsTaken);
 

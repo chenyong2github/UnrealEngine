@@ -199,6 +199,14 @@ static TAutoConsoleVariable<float> CVarGeneralPurposeTweak(
 	TEXT("DON'T USE THIS FOR ANYTHING THAT IS CHECKED IN. Compiled out in SHIPPING to make cheating a bit harder."),
 	ECVF_RenderThreadSafe);
 
+static TAutoConsoleVariable<float> CVarGeneralPurposeTweak2(
+	TEXT("r.GeneralPurposeTweak2"),
+	1.0f,
+	TEXT("Useful for low level shader development to get quick iteration time without having to change any c++ code.\n")
+	TEXT("Value maps to Frame.GeneralPurposeTweak2 inside the shaders.\n")
+	TEXT("Example usage: Multiplier on some value to tweak, toggle to switch between different algorithms (Default: 1.0)\n")
+	TEXT("DON'T USE THIS FOR ANYTHING THAT IS CHECKED IN. Compiled out in SHIPPING to make cheating a bit harder."),
+	ECVF_RenderThreadSafe);
 
 static TAutoConsoleVariable<int32> CVarDisplayInternals(
 	TEXT("r.DisplayInternals"),
@@ -1515,13 +1523,16 @@ void FViewInfo::SetupUniformBufferParameters(
 	{
 		// This is the CVar default
 		float Value = 1.0f;
+		float Value2 = 1.0f;
 
 		// Compiled out in SHIPPING to make cheating a bit harder.
 #if !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
 		Value = CVarGeneralPurposeTweak.GetValueOnRenderThread();
+		Value2 = CVarGeneralPurposeTweak2.GetValueOnRenderThread();
 #endif
 
 		ViewUniformShaderParameters.GeneralPurposeTweak = Value;
+		ViewUniformShaderParameters.GeneralPurposeTweak2 = Value2;
 	}
 
 	ViewUniformShaderParameters.DemosaicVposOffset = 0.0f;

@@ -467,7 +467,7 @@ void FComputeShaderUtils::ClearUAV(FRDGBuilder& GraphBuilder, FGlobalShaderMap* 
 	FClearUAVUIntCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FClearUAVUIntCS::FParameters>();
 	PassParameters->UAV = UAV;
 	PassParameters->ClearValue = ClearValue;
-	check(UAV->Desc.Format == PF_R32_UINT || UAV->Desc.Format == PF_R32_SINT && ClearValue <= MAX_int32);
+	ensure(UAV->Desc.Format == PF_R32_UINT || UAV->Desc.Format == PF_R8_UINT || UAV->Desc.Format == PF_R16_UINT || UAV->Desc.Format == PF_R32_SINT && ClearValue <= MAX_int32);
 	PassParameters->NumEntries = UAV->Desc.Buffer->Desc.NumElements;
 	check(PassParameters->NumEntries > 0);
 

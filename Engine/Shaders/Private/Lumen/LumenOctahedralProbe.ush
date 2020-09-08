@@ -26,28 +26,61 @@ float3 OctahedralMapToDirection(float2 UV)
 }
 
 // Wrap around octahedral map for correct hardware bilinear filtering
-uint2 OctahedralMapWrapBorder(uint2 TexelCoord, uint Resolution)
+uint2 OctahedralMapWrapBorder(uint2 TexelCoord, uint Resolution, uint BorderSize)
 {
-	if (TexelCoord.x == 0)
+	if (TexelCoord.x < BorderSize)
 	{
-		TexelCoord.x = 1;
+		TexelCoord.x = BorderSize - 1 + BorderSize - TexelCoord.x;
 		TexelCoord.y = Resolution - 1 - TexelCoord.y;
 	}
-	if (TexelCoord.x == Resolution - 1)
+	if (TexelCoord.x >= Resolution - BorderSize)
 	{
-		TexelCoord.x = Resolution - 2;
+		TexelCoord.x = (Resolution - BorderSize) - (TexelCoord.x - (Resolution - BorderSize - 1));
 		TexelCoord.y = Resolution - 1 - TexelCoord.y;
 	}
-	if (TexelCoord.y == 0)
+	if (TexelCoord.y < BorderSize)
 	{
-		TexelCoord.y = 1;
+		TexelCoord.y = BorderSize - 1 + BorderSize - TexelCoord.y;
 		TexelCoord.x = Resolution - 1 - TexelCoord.x;
 	}
-	if (TexelCoord.y == Resolution - 1)
+	if (TexelCoord.y >= Resolution - BorderSize)
 	{
-		TexelCoord.y = Resolution - 2;
+		TexelCoord.y = (Resolution - BorderSize) - (TexelCoord.y - (Resolution - BorderSize - 1));
 		TexelCoord.x = Resolution - 1 - TexelCoord.x;
 	}
 
-	return TexelCoord - 1;
+	return TexelCoord - BorderSize;
+}
+
+// Computes the spherical excess (solid angle) of a spherical triangle with vertices A, B, C as unit length vectors
+// https://en.wikipedia.org/wiki/Spherical_trigonometry#Area_and_spherical_excess
+float ComputeSphericalExcess(float3 A, float3 B, float3 C) {
+    float CosAB = dot(A, B);
+    float SinAB = 1.0f - CosAB * CosAB;
+    float CosBC = dot(B, C);
+    float SinBC = 1.0f - CosBC * CosBC;
+    float CosCA = dot(C, A);
+    float CosC = CosCA - CosAB * CosBC;
+    float SinC = sqrt(SinAB * SinBC - CosC * CosC);
+    float Inv = (1.0f - CosAB) * (1.0f - CosBC);
+	return 2.0f * atan2(SinC, sqrt((SinAB * SinBC * (1.0f + CosBC) * (1.0f + CosAB)) / Inv) + CosC);
+}
+
+// TexelCoord should be centered on the octahedral texel, in the range [.5f, .5f + Resolution - 1]
+float OctahedralSolidAngle(float2 TexelCoord, float InvResolution)
+{
+	float3 Direction10 = OctahedralMapToDirection(TexelCoord + float2(.5f, -.5f) * InvResolution);
+	float3 Direction01 = OctahedralMapToDirection(TexelCoord + float2(-.5f, .5f) * InvResolution);
+
+	float SolidAngle0 = ComputeSphericalExcess(
+		OctahedralMapToDirection(TexelCoord + float2(-.5f, -.5f) * InvResolution), 
+		Direction10,
+		Direction01);
+
+	float SolidAngle1 = ComputeSphericalExcess(
+		OctahedralMapToDirection(TexelCoord + float2(.5f, .5f) * InvResolution), 
+		Direction01,
+		Direction10);
+
+	return SolidAngle0 + SolidAngle1;
 }

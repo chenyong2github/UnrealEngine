@@ -4,97 +4,6 @@
 	GlobalDistanceFieldUtils.ush
 =============================================================================*/
 
-struct FGlobalSDFTraceInput
-{
-	float3 WorldRayStart;
-	float3 WorldRayDirection;
-	float TraceDistance;
-	float StepFactor;
-	float MinStepSizeScale;
-	float ExpandSurfaceStartDistance;
-	float ExpandSurfaceInvLength;
-	float ExpandSurfaceAmount;
-};
-
-FGlobalSDFTraceInput SetupTraceInput(float3 InWorldRayStart, float3 InWorldRayDirection, float InTraceDistance, float InStepFactor, float InMinStepSizeScale)
-{
-	FGlobalSDFTraceInput TraceInput;
-	TraceInput.WorldRayStart = InWorldRayStart;
-	TraceInput.WorldRayDirection = InWorldRayDirection;
-	TraceInput.TraceDistance = InTraceDistance;
-	TraceInput.StepFactor = InStepFactor;
-	TraceInput.MinStepSizeScale = InMinStepSizeScale;
-	TraceInput.ExpandSurfaceStartDistance = 0;
-	TraceInput.ExpandSurfaceInvLength = 0;
-	TraceInput.ExpandSurfaceAmount = 0;
-	return TraceInput;
-}
-
-
-void RayTraceThroughGlobalDistanceFieldClipmap(
-	uniform uint ClipmapIndex,
-	FGlobalSDFTraceInput TraceInput,
-	float MinRayTime, 
-	out float OutMaxRayTime, 
-	out float OutIntersectRayTime, 
-	out float OutTotalStepsTaken)
-{
-	OutIntersectRayTime = TraceInput.TraceDistance;
-	OutTotalStepsTaken = 0;
-	OutMaxRayTime = 1;
-
-	float SurfaceBias = .5f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
-	float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
-	// Subtract one texel from the extent to avoid filtering from invalid texels
-	float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w - GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
-	float3 VolumeRayStart = TraceInput.WorldRayStart - GlobalVolumeCenter;
-	float3 WorldRayEnd = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * TraceInput.TraceDistance;
-	float3 VolumeRayEnd = WorldRayEnd - GlobalVolumeCenter;
-	float3 VolumeRayDirection = VolumeRayEnd - VolumeRayStart;
-	float VolumeRayLength = length(VolumeRayDirection);
-	VolumeRayDirection /= VolumeRayLength;
-
-	float2 IntersectionTimes = LineBoxIntersect(VolumeRayStart, VolumeRayEnd, -GlobalVolumeExtent.xxx, GlobalVolumeExtent.xxx);
-
-	if (IntersectionTimes.x < IntersectionTimes.y && IntersectionTimes.x < 1)
-	{
-		OutMaxRayTime = IntersectionTimes.y;
-		float SampleRayTime = max(MinRayTime, IntersectionTimes.x) * VolumeRayLength;
-		float MinDistance = 1000000;
-
-		uint StepIndex = 0;
-		uint MaxSteps = 512;
-
-		LOOP
-		for (; StepIndex < MaxSteps; StepIndex++)
-		{
-			float3 SampleVolumePosition = VolumeRayStart + VolumeRayDirection * SampleRayTime;
-			float3 VolumeUV = ComputeGlobalUV(SampleVolumePosition + GlobalVolumeCenter, ClipmapIndex);
-			float ExpandSurfaceAmount = TraceInput.ExpandSurfaceAmount * saturate((SampleRayTime - TraceInput.ExpandSurfaceStartDistance) * TraceInput.ExpandSurfaceInvLength);
-			float DistanceField = SampleGlobalDistanceField(ClipmapIndex, VolumeUV).x - ExpandSurfaceAmount;
-			MinDistance = min(MinDistance, DistanceField);
-
-			float MinStepSize = GlobalVolumeExtent * 2 * TraceInput.MinStepSizeScale;
-			float StepDistance = max(DistanceField * TraceInput.StepFactor, MinStepSize);
-			SampleRayTime += StepDistance;
-
-			// Terminate the trace if we reached a negative area or went past the end of the ray
-			if (DistanceField < SurfaceBias
-				|| SampleRayTime > IntersectionTimes.y * VolumeRayLength)
-			{
-				break;
-			}
-		}
-
-		if (MinDistance < SurfaceBias || StepIndex == MaxSteps)
-		{
-			OutIntersectRayTime = min(OutIntersectRayTime, SampleRayTime);
-		}
-
-		OutTotalStepsTaken += StepIndex;
-	}
-}
-
 uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
 {
 	uint FoundClipmapIndex = 0;
@@ -113,40 +22,161 @@ uint ComputeGlobalDistanceFieldClipmapIndex(float3 WorldPosition)
 	return FoundClipmapIndex;
 }
 
-struct FGlobalSDFTraceResult
+struct FGlobalSDFTraceInput
 {
-	bool bHit;
-	float3 Position;
-	uint ClipmapIndex;
+	float3 WorldRayStart;
+	float3 WorldRayDirection;
+	float MinTraceDistance;
+	float MaxTraceDistance;
+	float StepFactor;
+	float MinStepFactor;
+	// The SDF surface is expanded to reduce leaking through thin surfaces, especially foliage meshes with bGenerateDistanceFieldAsIfTwoSided
+	// Expanding as RayTime increases errors on the side of over-occlusion, especially at grazing angles, which can be desirable for diffuse GI.
+	// Expanding as MaxDistance increases has less incorrect self-intersection which is desirable for reflections rays.
+	bool bExpandSurfaceUsingRayTimeInsteadOfMaxDistance;
+	float InitialMaxDistance;
 };
 
-FGlobalSDFTraceResult RayTraceThroughGlobalDistanceField(FGlobalSDFTraceInput TraceInput)
+FGlobalSDFTraceInput SetupGlobalSDFTraceInput(float3 InWorldRayStart, float3 InWorldRayDirection, float InMinTraceDistance, float InMaxTraceDistance, float InStepFactor, float InMinStepFactor)
 {
-	uint StartClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart);
+	FGlobalSDFTraceInput TraceInput;
+	TraceInput.WorldRayStart = InWorldRayStart;
+	TraceInput.WorldRayDirection = InWorldRayDirection;
+	TraceInput.MinTraceDistance = InMinTraceDistance;
+	TraceInput.MaxTraceDistance = InMaxTraceDistance;
+	TraceInput.StepFactor = InStepFactor;
+	TraceInput.MinStepFactor = InMinStepFactor;
+	TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance = true;
+	TraceInput.InitialMaxDistance = 0;
+	return TraceInput;
+}
 
-	FGlobalSDFTraceResult Result;
-	Result.bHit = false;
+struct FGlobalSDFTraceResult
+{
+	float HitTime;
+	uint HitClipmapIndex;
+	uint TotalStepsTaken;
 
-	float LastMaxRayTime = 0;
-	float NextMaxRayTime;
-	float IntersectRayTime;
-	float Unused;
+	bool IsHit()
+	{ 
+		return HitTime >= 0.0f;
+	}
+};
 
-	for (uint ClipmapIndex = StartClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && ClipmapIndex < MAX_GLOBAL_DF_CLIPMAPS; ClipmapIndex++)
+FGlobalSDFTraceResult RayTraceGlobalDistanceField(FGlobalSDFTraceInput TraceInput)
+{
+	FGlobalSDFTraceResult TraceResult;
+	TraceResult.HitTime = -1.0f;
+	TraceResult.HitClipmapIndex = 0;
+	TraceResult.TotalStepsTaken = 0;
+
+	uint MinClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(TraceInput.WorldRayStart);
+	float MaxDistance = TraceInput.InitialMaxDistance;
+
+	// Bias
+	float RayStartDistance = max(TraceInput.MinTraceDistance, GlobalVolumeCenterAndExtent[MinClipmapIndex].w * GlobalVolumeTexelSize);
+	float SampleRayTime = RayStartDistance;
+
+	int3 VoxelStep = (TraceInput.WorldRayDirection < 0) ? int3(-1, -1, -1) : int3(1, 1, 1);
+	const float NumPagesPerClipmap = GlobalDistanceFieldClipmapSizeInPages;
+	const float InvNumPagesPerClipmap = rcp(NumPagesPerClipmap);
+
+	LOOP
+	for (uint ClipmapIndex = MinClipmapIndex; ClipmapIndex < NumGlobalSDFClipmaps && TraceResult.HitTime < 0.0f && SampleRayTime < TraceInput.MaxTraceDistance; ++ClipmapIndex)
 	{
-		RayTraceThroughGlobalDistanceFieldClipmap(ClipmapIndex, TraceInput, LastMaxRayTime, NextMaxRayTime, IntersectRayTime, Unused);
+		float3 GlobalVolumeCenter = GlobalVolumeCenterAndExtent[ClipmapIndex].xyz;
+		float GlobalVolumeExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w;
 
-		if (IntersectRayTime < TraceInput.TraceDistance)
+		float VoxelSize = 2.0f * GlobalVolumeExtent * InvNumPagesPerClipmap;
+		float3 GlobalClipmapMin = GlobalVolumeCenter - GlobalVolumeExtent;
+		float3 GlobalClipmapSize = 2.0f * GlobalVolumeExtent;
+
+		float3 SampleWorldPosition = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * SampleRayTime;
+		int3 VoxelCoord = NumPagesPerClipmap * (SampleWorldPosition - GlobalClipmapMin) / GlobalClipmapSize;
+		float3 VoxelMin = (VoxelCoord - 0.0f) * VoxelSize + GlobalClipmapMin;
+		float3 VoxelMax = (VoxelCoord + 1.0f) * VoxelSize + GlobalClipmapMin;
+		float3 MaxNegT = (VoxelMin - TraceInput.WorldRayStart) / TraceInput.WorldRayDirection;
+		float3 MaxPosT = (VoxelMax - TraceInput.WorldRayStart) / TraceInput.WorldRayDirection;
+		float3 NextVoxelFaceT = (TraceInput.WorldRayDirection < 0) ? MaxNegT : MaxPosT;
+		float3 VoxelFaceStepT = abs(VoxelSize / TraceInput.WorldRayDirection);
+
+		float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		float MinStepSize = TraceInput.MinStepFactor * ClipmapVoxelExtent;
+		float ExpandSurfaceDistance = ClipmapVoxelExtent;
+		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+
+		uint StepIndex = 0;
+		const uint MaxSteps = 256;
+
+		LOOP
+		for (; StepIndex < MaxSteps; ++StepIndex)
 		{
-			Result.bHit = true;
-			Result.ClipmapIndex = ClipmapIndex;
-			break;
+			int3 PageTableCoord = frac(VoxelCoord * InvNumPagesPerClipmap + GlobalDistanceFieldPageTableScrollOffset[ClipmapIndex]) * NumPagesPerClipmap
+				+ int3(0, 0, ClipmapIndex * GlobalDistanceFieldClipmapSizeInPages);
+
+			const uint PageIndex = GlobalDistanceFieldPageTableTexture.Load(int4(PageTableCoord, 0));
+			const float MinNextVoxelFaceT = min3(NextVoxelFaceT.x, NextVoxelFaceT.y, NextVoxelFaceT.z);
+
+			if (PageIndex != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID && SampleRayTime < MinNextVoxelFaceT)
+			{
+				float3 BasePagePos = -(GlobalClipmapMin + VoxelCoord * VoxelSize) / VoxelSize;
+				float3 BasePageCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(PageIndex) + BasePagePos * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
+				float3 BasePageUV = BasePageCoord * GlobalDistanceFieldInvPageAtlasSize;
+
+				// Trace single page
+				LOOP
+				for (; StepIndex < MaxSteps; ++StepIndex)
+				{
+					SampleWorldPosition = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * SampleRayTime;
+					float3 PageUV = BasePageUV + (SampleWorldPosition / VoxelSize) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION * GlobalDistanceFieldInvPageAtlasSize;
+
+					float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+					float DistanceField = DecodeGlobalDistanceFieldPageDistance(DistanceFieldValue, ClipmapInfluenceRange);
+
+					MaxDistance = max(DistanceField, MaxDistance);
+					float ExpandSurfaceTime = TraceInput.bExpandSurfaceUsingRayTimeInsteadOfMaxDistance ? SampleRayTime : MaxDistance;
+
+					float ExpandSurfaceFalloff = ExpandSurfaceDistance;
+					float ExpandSurfaceAmount = ExpandSurfaceDistance * saturate((ExpandSurfaceTime - ExpandSurfaceFalloff) / ExpandSurfaceFalloff);
+
+					if (DistanceField < ExpandSurfaceAmount)
+					{
+						TraceResult.HitTime = max(SampleRayTime + DistanceField - ExpandSurfaceAmount, RayStartDistance);
+						TraceResult.HitClipmapIndex = ClipmapIndex;
+						break;
+					}
+
+					float StepDistance = max(DistanceField * TraceInput.StepFactor, MinStepSize);
+					SampleRayTime += StepDistance;
+
+					// Terminate the trace if we went past the end of page or hit something
+					if (SampleRayTime >= MinNextVoxelFaceT || SampleRayTime >= TraceInput.MaxTraceDistance)
+					{
+						break;
+					}
+				}
+			}
+
+			// Step to the next voxel (page)
+			uint3 StepInc = int3(NextVoxelFaceT == MinNextVoxelFaceT);
+			SampleRayTime = max(SampleRayTime, MinNextVoxelFaceT);
+			NextVoxelFaceT += StepInc * VoxelFaceStepT;
+			VoxelCoord += StepInc * VoxelStep;
+
+			// Next clipmap if we are out of bounds
+			if (any(VoxelCoord < 0) || any(VoxelCoord >= NumPagesPerClipmap) || TraceResult.HitTime >= 0.0f || SampleRayTime > TraceInput.MaxTraceDistance)
+			{
+				break;
+			}
 		}
 
-		LastMaxRayTime = NextMaxRayTime;
+		TraceResult.TotalStepsTaken += StepIndex;
 	}
 
-	Result.Position = TraceInput.WorldRayStart + TraceInput.WorldRayDirection * IntersectRayTime;
+	if (TraceResult.HitTime > TraceInput.MaxTraceDistance)
+	{
+		TraceResult.HitTime = -1;
+	}
 
-	return Result;
+	return TraceResult;
 }

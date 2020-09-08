@@ -13,7 +13,6 @@
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
-#include "LumenSceneBVH.h"
 
 int32 GLumenDistantScene = 0;
 FAutoConsoleVariableRef CVarLumenDistantScene(

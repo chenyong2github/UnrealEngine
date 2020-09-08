@@ -1,0 +1,996 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../BRDF.ush"
+#include "LumenOctahedralProbe.ush"
+#include "LumenScreenProbeCommon.ush"
+#include "../SHCommon.ush"
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 1
+#endif
+
+RWTexture2D<float3> RWScreenProbeRadiance;
+
+Texture2D TraceRadiance;
+Texture2D<float> TraceHit;
+
+float SpatialFilterMaxRadianceHitAngle;
+float SpatialFilterPositionWeightScale;
+int SpatialFilterHalfKernelSize;
+
+#ifndef SCATTER_THREADGROUP_SIZE
+#define SCATTER_THREADGROUP_SIZE 1
+#endif
+
+groupshared float ProbeHitDistance[SCATTER_THREADGROUP_SIZE][SCATTER_THREADGROUP_SIZE];
+groupshared uint ProbeLightingAndWeight[4][SCATTER_THREADGROUP_SIZE][SCATTER_THREADGROUP_SIZE];
+
+// Stores the index into TraceRadiance and TraceHit for each direction at MaxImportanceSamplingOctahedronResolution resolution
+Texture2D<float2> StructuredImportanceSampledRayCoordForComposite;
+
+[numthreads(SCATTER_THREADGROUP_SIZE, SCATTER_THREADGROUP_SIZE, 1)]
+void ScreenProbeFilterScatterTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+#if 0
+	uint2 ScreenProbeAtlasCoord = GroupId.xy;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			// Clear groupshared lighting and weight to 0
+			// For each neighbor, project onto the right direction, atomic accumulate
+			// Add in original trace, normalize and write out
+
+			if (all(GroupThreadId.xy < ScreenProbeGatherOctahedronResolution))
+			{
+				uint2 ProbeTexelCoord = GroupThreadId.xy;
+				ProbeLightingAndWeight[0][ProbeTexelCoord.y][ProbeTexelCoord.x] = 0;
+				ProbeLightingAndWeight[1][ProbeTexelCoord.y][ProbeTexelCoord.x] = 0;
+				ProbeLightingAndWeight[2][ProbeTexelCoord.y][ProbeTexelCoord.x] = 0;
+				ProbeLightingAndWeight[3][ProbeTexelCoord.y][ProbeTexelCoord.x] = 0;
+
+				///////////////////////////////////////////////////////////////////////// todo is ProbeHitDistance needed
+				float MinHitDistance = GetProbeMaxHitDistance();
+
+				#if STRUCTURED_IMPORTANCE_SAMPLING
+					uint DownsampleKernelSize = MaxImportanceSamplingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
+
+					if (MaxImportanceSamplingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+					{
+						for (uint Y = 0; Y < DownsampleKernelSize; Y++)
+						{
+							for (uint X = 0; X < DownsampleKernelSize; X++)
+							{
+								uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
+								uint2 SourceCoord = ScreenProbeScreenCoord * MaxImportanceSamplingOctahedronResolution + SourceProbeTexelCoord;
+								uint2 RayCoord = StructuredImportanceSampledRayCoordForComposite[SourceCoord] * 255.0f + .5f;
+								MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(ScreenProbeScreenCoord * ScreenProbeTracingOctahedronResolution + RayCoord, 0)).x));
+							}
+						}
+					}
+					else
+					{
+						ProbeLightingAndWeight[0][ProbeTexelCoord.y][ProbeTexelCoord.x] = 0xFFFFFFFF;
+					}
+				#else
+					ProbeLightingAndWeight[0][ProbeTexelCoord.y][ProbeTexelCoord.x] = 0xFFFFFFFF;
+				#endif
+
+				ProbeHitDistance[ProbeTexelCoord.y][ProbeTexelCoord.x] = MinHitDistance;
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+
+			float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord);
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float InvSceneDepthSq = 1.0f / (SceneDepth * SceneDepth);
+
+			if (all(GroupThreadId.xy < ScreenProbeTracingOctahedronResolution))
+			{
+				uint2 NeighborProbeTraceCoord = GroupThreadId.xy;
+
+				for (int YOffset = -SpatialFilterHalfKernelSize; YOffset <= SpatialFilterHalfKernelSize; YOffset++)
+				{
+					for (int XOffset = -SpatialFilterHalfKernelSize; XOffset <= SpatialFilterHalfKernelSize; XOffset++)
+					{
+						int2 Offset = int2(XOffset, YOffset);
+						int2 NeighborScreenProbeScreenCoord = ScreenProbeScreenCoord + Offset;
+
+						if (all(NeighborScreenProbeScreenCoord >= 0 && NeighborScreenProbeScreenCoord < (int2)ScreenProbeViewSize))
+						{
+							float NeighborSceneDepth = DownsampledDepth.Load(int3(NeighborScreenProbeScreenCoord, 0)).x;
+
+							if (NeighborSceneDepth > 0.0f)
+							{
+								float2 NeighborScreenUV = ScreenUV + (float2)Offset * ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw;
+								float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
+
+								float DistanceSq = dot(NeighborWorldPosition - WorldPosition, NeighborWorldPosition - WorldPosition);
+								//@todo - why does a larger position weight scale work for scatter but not gather?
+								float PositionWeight = saturate(exp2(-DistanceSq * InvSceneDepthSq * SpatialFilterPositionWeightScale));
+	
+								if (PositionWeight > 0.0f)
+								{
+									uint2 NeighborTraceCoord = GetTraceBufferCoord(NeighborScreenProbeScreenCoord, NeighborProbeTraceCoord);
+									float2 ProbeTexelCenter = float2(0.5, 0.5);
+
+									float2 NeighborProbeUV;
+
+									#if STRUCTURED_IMPORTANCE_SAMPLING
+										uint2 RayTexelCoord;
+										uint RayLevel;
+										UnpackRayInfo(StructuredImportanceSampledRayInfosForTracing[NeighborTraceCoord], RayTexelCoord, RayLevel);
+
+										uint MipSize = MaxImportanceSamplingOctahedronResolution >> RayLevel;
+										NeighborProbeUV = (RayTexelCoord + ProbeTexelCenter) / (float)MipSize;
+
+									#else
+										NeighborProbeUV = (NeighborProbeTraceCoord + ProbeTexelCenter) / (float)ScreenProbeTracingOctahedronResolution;
+									#endif
+
+									float3 NeighborWorldConeDirection = OctahedralMapToDirection(NeighborProbeUV);
+
+									float NeighborRadianceDepth = DecodeProbeRayDistance(TraceHit.Load(int3(NeighborTraceCoord, 0)).x);
+
+									if (NeighborRadianceDepth > 0)
+									{
+										float3 NeighborHitPosition = NeighborWorldPosition + NeighborWorldConeDirection * NeighborRadianceDepth;
+										float3 ToNeighborHit = NeighborHitPosition - WorldPosition;
+
+										float AngleBetweenProbes = acosFast(dot(ToNeighborHit, NeighborWorldConeDirection) / length(ToNeighborHit));
+										//////////////////////////////////////////////////////////////////////////////////////////////// todo why is angle weight backwards
+										float AngleWeight = 1.0f - saturate(AngleBetweenProbes / SpatialFilterMaxRadianceHitAngle);
+
+										float Weight = PositionWeight * AngleWeight;
+
+										float2 ProbeUV = DirectionToOctahedralMap(ToNeighborHit);
+										uint2 ProbeTexelCoord = ProbeUV * ScreenProbeGatherOctahedronResolution;
+
+										//float HitDistance = ProbeHitDistance[ProbeTexelCoord.y][ProbeTexelCoord.x];
+										//if (DistanceToNeighborHit < max(HitDistance * 1.5f, 10) && DistanceToNeighborHit > 20)
+
+
+										{
+											float3 NeighborLighting = TraceRadiance.Load(int3(NeighborTraceCoord, 0)).xyz * Weight;
+
+											uint3 NeighborLightingQuantized = NeighborLighting * (0xffffffff / (float)0xfffff);
+											InterlockedAdd(ProbeLightingAndWeight[0][ProbeTexelCoord.y][ProbeTexelCoord.x], NeighborLightingQuantized.x);
+											InterlockedAdd(ProbeLightingAndWeight[1][ProbeTexelCoord.y][ProbeTexelCoord.x], NeighborLightingQuantized.y);
+											InterlockedAdd(ProbeLightingAndWeight[2][ProbeTexelCoord.y][ProbeTexelCoord.x], NeighborLightingQuantized.z);
+											InterlockedAdd(ProbeLightingAndWeight[3][ProbeTexelCoord.y][ProbeTexelCoord.x], (uint)(Weight * (0xffffffff / (float)0xfffff)));
+										}
+									}
+								}
+							}
+						}
+					}
+				}
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+
+			if (all(GroupThreadId.xy < ScreenProbeGatherOctahedronResolution))
+			{
+				uint2 ProbeTexelCoord = GroupThreadId.xy;
+
+				float3 TotalLighting = 0;
+				float TotalWeight = 0;
+
+				uint2 TraceRadianceCoord = ScreenProbeScreenCoord * ScreenProbeGatherOctahedronResolution + GroupThreadId.xy;
+
+				TotalLighting.x += ProbeLightingAndWeight[0][ProbeTexelCoord.y][ProbeTexelCoord.x] * ((float)0xfffff / 0xffffffff);
+				TotalLighting.y += ProbeLightingAndWeight[1][ProbeTexelCoord.y][ProbeTexelCoord.x] * ((float)0xfffff / 0xffffffff);
+				TotalLighting.z += ProbeLightingAndWeight[2][ProbeTexelCoord.y][ProbeTexelCoord.x] * ((float)0xfffff / 0xffffffff);
+				TotalWeight += ProbeLightingAndWeight[3][ProbeTexelCoord.y][ProbeTexelCoord.x] * ((float)0xfffff / 0xffffffff);
+
+				if (TotalWeight > 0)
+				{
+					TotalLighting /= TotalWeight;
+				}
+
+				RWScreenProbeRadiance[TraceRadianceCoord] = TotalLighting;
+			}
+		}
+	}
+#endif
+}
+
+
+
+
+RWTexture2D<float4> RWScreenProbeRadiance0;
+RWTexture2D<float4> RWScreenProbeRadiance1;
+RWTexture2D<float4> RWScreenProbeRadiance2;
+
+groupshared float4 Band2Lighting[PROBE_THREADGROUP_SIZE_2D][PROBE_THREADGROUP_SIZE_2D];
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeDecomposeTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
+	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	Band2Lighting[GroupThreadId.x][GroupThreadId.y] = 0;
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float3 TexelLighting = 0.0f;
+			float MinHitDistance = GetProbeMaxHitDistance();
+
+#if STRUCTURED_IMPORTANCE_SAMPLING
+
+			uint DownsampleKernelSize = MaxImportanceSamplingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
+
+			if (MaxImportanceSamplingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+			{
+				float TotalWeight = 0.0f;
+
+				for (uint Y = 0; Y < DownsampleKernelSize; Y++)
+				{
+					for (uint X = 0; X < DownsampleKernelSize; X++)
+					{
+						uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
+						const float InvProbeTracingResolution = 1.0f / MaxImportanceSamplingOctahedronResolution;
+
+						float2 ProbeTexelCenter = float2(0.5, 0.5);
+						float2 ProbeUV = (SourceProbeTexelCoord + ProbeTexelCenter) * InvProbeTracingResolution;
+						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, MaxImportanceSamplingOctahedronResolution);
+						float Weight = SolidAngle;
+
+						uint2 SourceCoord = ScreenProbeAtlasCoord * MaxImportanceSamplingOctahedronResolution + SourceProbeTexelCoord;
+						uint2 RayCoord = StructuredImportanceSampledRayCoordForComposite[SourceCoord] * 255.0f + .5f;
+
+						if (RayCoord.x == INVALID_TRACING_COORD)
+						{
+							MinHitDistance = -1;
+						}
+						else
+						{
+							uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, RayCoord);
+							TexelLighting += TraceRadiance.Load(int3(TraceCoord, 0)).xyz * Weight;
+							TotalWeight += Weight;
+							MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x));
+						}
+					}
+				}
+
+				if (TotalWeight > 0.0f)
+				{
+					TexelLighting /= TotalWeight;
+				}
+			}
+			else
+			{
+				TexelLighting = float3(0.0f, 0.0f, 10.0f);
+			}
+
+#else
+			uint DownsampleKernelSize = ScreenProbeTracingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
+			uint UpsampleFactor = ScreenProbeGatherOctahedronResolution / ScreenProbeTracingOctahedronResolution;
+
+			if (ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+			{
+				float TotalWeight = 0.0f;
+
+				for (uint Y = 0; Y < DownsampleKernelSize; Y++)
+				{
+					for (uint X = 0; X < DownsampleKernelSize; X++)
+					{
+						uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
+						const float InvProbeTracingResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
+
+						float2 ProbeTexelCenter = float2(0.5, 0.5);
+						float2 ProbeUV = (SourceProbeTexelCoord + ProbeTexelCenter) * InvProbeTracingResolution;
+						float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
+						float Weight = SolidAngle;
+
+						uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, SourceProbeTexelCoord);
+						TexelLighting += TraceRadiance.Load(int3(TraceCoord, 0)).xyz * Weight;
+						TotalWeight += Weight;
+						MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x));
+					}
+				}
+
+				TexelLighting /= TotalWeight;
+			}
+			else if (UpsampleFactor * ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution)
+			{
+				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, ProbeTexelCoord / UpsampleFactor);
+				TexelLighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
+				MinHitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x);
+			}
+			else
+			{
+				TexelLighting = float3(0.0f, 0.0f, 10.0f);
+			}
+#endif
+
+#if SPATIAL_FILTER_PROBES
+			float Band1Alpha = saturate(MinHitDistance / 10.0f);
+			RWScreenProbeRadiance0[DispatchThreadId.xy] = float4(TexelLighting * (1 - Band1Alpha), 1 - Band1Alpha);
+			float Band2Alpha = saturate(MinHitDistance / 200.0f);
+			float3 Band1Lighting = TexelLighting * Band1Alpha;
+			RWScreenProbeRadiance1[DispatchThreadId.xy] = float4(Band1Lighting * (1 - Band2Alpha), (1 - Band2Alpha) * Band1Alpha);
+			Band2Lighting[GroupThreadId.x][GroupThreadId.y] = float4(Band1Lighting * Band2Alpha, Band2Alpha * Band1Alpha);
+
+#else
+			RWScreenProbeRadiance[DispatchThreadId.xy] = TexelLighting;
+#endif
+		}
+	}
+
+#if SPATIAL_FILTER_PROBES
+	GroupMemoryBarrierWithGroupSync();
+
+	if (all(GroupThreadId.xy < ScreenProbeGatherOctahedronResolution / 2))
+	{
+		uint2 BaseCoord = GroupThreadId.xy * 2;
+		float4 DownsampledLighting = Band2Lighting[BaseCoord.x + 0][BaseCoord.y + 0];
+		DownsampledLighting += Band2Lighting[BaseCoord.x + 1][BaseCoord.y + 0];
+		DownsampledLighting += Band2Lighting[BaseCoord.x + 0][BaseCoord.y + 1];
+		DownsampledLighting += Band2Lighting[BaseCoord.x + 1][BaseCoord.y + 1];
+		RWScreenProbeRadiance2[ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution / 2 + GroupThreadId.xy] = DownsampledLighting / 4.0f;
+	}
+#endif
+}
+
+
+
+Texture2D<float4> ScreenProbeRadiance1;
+Texture2D<float4> ScreenProbeRadiance2;
+
+void GatherNeighborRadianceMultiresolution(
+	float2 ScreenUV,
+	uint2 ScreenProbeScreenCoord,
+	int2 Offset,
+	uint2 ProbeTexelCoord,
+	float3 WorldPosition,
+	float InvSceneDepthSq,
+	inout float4 TotalRadiance1, 
+	inout float4 TotalRadiance2, 
+	inout float TotalWeight)
+{
+	int2 NeighborScreenProbeScreenCoord = ScreenProbeScreenCoord + Offset;
+
+	if (all(NeighborScreenProbeScreenCoord >= 0 && NeighborScreenProbeScreenCoord < (int2)ScreenProbeViewSize))
+	{
+		float NeighborSceneDepth = DownsampledDepth.Load(int3(NeighborScreenProbeScreenCoord, 0)).x;
+
+		if (NeighborSceneDepth > 0.0f)
+		{
+			float2 NeighborScreenUV = ScreenUV + (float2)Offset * ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw;
+			float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
+
+			float DistanceSq = dot(NeighborWorldPosition - WorldPosition, NeighborWorldPosition - WorldPosition);
+			float PositionWeight = saturate(exp2(-DistanceSq * InvSceneDepthSq * SpatialFilterPositionWeightScale));
+
+			if (PositionWeight > 0.0f)
+			{
+				uint2 NeighborTraceCoord = NeighborScreenProbeScreenCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+				TotalRadiance1 += ScreenProbeRadiance1.Load(int3(NeighborTraceCoord, 0)) * PositionWeight;
+				TotalWeight += PositionWeight;
+
+				if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution / 2))
+				{
+					TotalRadiance2 += ScreenProbeRadiance2.Load(int3(NeighborScreenProbeScreenCoord * ScreenProbeGatherOctahedronResolution / 2 + ProbeTexelCoord, 0)) * PositionWeight;
+				}
+			}
+		}
+	}
+}
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeFilterMultiresolutionTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
+	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float InvSceneDepthSq = 1.0f / (SceneDepth * SceneDepth);
+			float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+			float4 TotalRadiance1 = ScreenProbeRadiance1.Load(int3(DispatchThreadId.xy, 0));
+			float4 TotalRadiance2 = 0;
+
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution / 2))
+			{
+				TotalRadiance2 = ScreenProbeRadiance2.Load(int3(ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution / 2 + ProbeTexelCoord, 0));
+			}
+
+			float TotalWeight = 0;
+
+			int2 Offsets[4];
+			Offsets[0] = int2(-1, 0);
+			Offsets[1] = int2(1, 0);
+			Offsets[2] = int2(0, -1);
+			Offsets[3] = int2(0, 1);
+
+			LOOP
+			for (uint OffsetIndex = 0; OffsetIndex < 4; OffsetIndex++)
+			{
+				GatherNeighborRadianceMultiresolution(ScreenUV, ScreenProbeScreenCoord, Offsets[OffsetIndex], ProbeTexelCoord, WorldPosition, InvSceneDepthSq, TotalRadiance1, TotalRadiance2, TotalWeight);
+			}
+
+			if (TotalWeight > 0)
+			{
+				TotalRadiance1 /= TotalWeight;
+				TotalRadiance2 /= TotalWeight;
+			}
+
+			RWScreenProbeRadiance1[DispatchThreadId.xy] = TotalRadiance1;
+
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution / 2))
+			{
+				RWScreenProbeRadiance2[ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution / 2 + ProbeTexelCoord] = TotalRadiance2;
+			}
+		}
+	}
+}
+
+
+Texture2D<float4> ScreenProbeRadiance0;
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeRecombineTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
+	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float4 Band0 = ScreenProbeRadiance0.Load(int3(DispatchThreadId.xy, 0));
+			float4 Band1 = ScreenProbeRadiance1.Load(int3(DispatchThreadId.xy, 0));
+			float4 Band2 = ScreenProbeRadiance2.Load(int3(DispatchThreadId.xy / 2, 0));
+
+			float TotalWeight = Band0.w + Band1.w + Band2.w;
+
+			float3 FinalLighting = (Band0.xyz + Band1.xyz + Band2.xyz) / max(TotalWeight, .00001f);
+			RWScreenProbeRadiance[DispatchThreadId.xy] = FinalLighting;
+		}
+	}
+}
+
+
+RWTexture2D<float> RWScreenProbeHitDistance;
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeCompositeTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
+	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float3 TexelLighting = 0.0f;
+			float MinHitDistance = GetProbeMaxHitDistance();
+
+#if STRUCTURED_IMPORTANCE_SAMPLING
+
+			uint DownsampleKernelSize = MaxImportanceSamplingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
+
+			if (MaxImportanceSamplingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+			{
+				float TotalWeight = 0.0f;
+
+				for (uint Y = 0; Y < DownsampleKernelSize; Y++)
+				{
+					for (uint X = 0; X < DownsampleKernelSize; X++)
+					{
+						uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
+						const float InvProbeTracingResolution = 1.0f / MaxImportanceSamplingOctahedronResolution;
+
+						float2 ProbeTexelCenter = float2(0.5, 0.5);
+						float2 ProbeUV = (SourceProbeTexelCoord + ProbeTexelCenter) * InvProbeTracingResolution;
+						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, MaxImportanceSamplingOctahedronResolution);
+						float Weight = SolidAngle;
+
+						uint2 SourceCoord = ScreenProbeAtlasCoord * MaxImportanceSamplingOctahedronResolution + SourceProbeTexelCoord;
+						uint2 RayCoord = StructuredImportanceSampledRayCoordForComposite[SourceCoord] * 255.0f + .5f;
+
+						if (RayCoord.x == INVALID_TRACING_COORD)
+						{
+							MinHitDistance = -1;
+						}
+						else
+						{
+							uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, RayCoord);
+							TexelLighting += TraceRadiance.Load(int3(TraceCoord, 0)).xyz * Weight;
+							TotalWeight += Weight;
+							MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x));
+						}
+					}
+				}
+
+				if (TotalWeight > 0.0f)
+				{
+					TexelLighting /= TotalWeight;
+				}
+			}
+			else
+			{
+				TexelLighting = float3(0.0f, 0.0f, 10.0f);
+			}
+
+#else
+			uint DownsampleKernelSize = ScreenProbeTracingOctahedronResolution / ScreenProbeGatherOctahedronResolution;
+			uint UpsampleFactor = ScreenProbeGatherOctahedronResolution / ScreenProbeTracingOctahedronResolution;
+
+			if (ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution * DownsampleKernelSize)
+			{
+				float TotalWeight = 0.0f;
+
+				for (uint Y = 0; Y < DownsampleKernelSize; Y++)
+				{
+					for (uint X = 0; X < DownsampleKernelSize; X++)
+					{
+						uint2 SourceProbeTexelCoord = ProbeTexelCoord * DownsampleKernelSize + uint2(X, Y);
+						const float InvProbeTracingResolution = 1.0f / ScreenProbeTracingOctahedronResolution;
+
+						float2 ProbeTexelCenter = float2(0.5, 0.5);
+						float2 ProbeUV = (SourceProbeTexelCoord + ProbeTexelCenter) * InvProbeTracingResolution;
+						float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+						float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeTracingOctahedronResolution);
+						float Weight = SolidAngle;
+
+						uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, SourceProbeTexelCoord);
+						TexelLighting += TraceRadiance.Load(int3(TraceCoord, 0)).xyz * Weight;
+						TotalWeight += Weight;
+						MinHitDistance = min(MinHitDistance, DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x));
+					}
+				}
+
+				TexelLighting /= TotalWeight;
+			}
+			else if (UpsampleFactor * ScreenProbeTracingOctahedronResolution == ScreenProbeGatherOctahedronResolution)
+			{
+				uint2 TraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, ProbeTexelCoord / UpsampleFactor);
+				TexelLighting = TraceRadiance.Load(int3(TraceCoord, 0)).xyz;
+				MinHitDistance = DecodeProbeRayDistance(TraceHit.Load(int3(TraceCoord, 0)).x);
+			}
+			else
+			{
+				TexelLighting = float3(0.0f, 0.0f, 10.0f);
+			}
+#endif
+			RWScreenProbeRadiance[DispatchThreadId.xy] = TexelLighting;
+			RWScreenProbeHitDistance[DispatchThreadId.xy] = EncodeProbeHitDistanceForFiltering(MinHitDistance);
+		}
+	}
+}
+
+Texture2D<float3> ScreenProbeRadiance;
+Texture2D<float> ScreenProbeHitDistance;
+
+void GatherNeighborRadiance(
+	float2 ScreenUV,
+	uint2 ScreenProbeScreenCoord,
+	int2 Offset,
+	uint2 ProbeTexelCoord,
+	float3 WorldPosition,
+	float3 WorldConeDirection,
+	float InvSceneDepthSq, 
+	float HitDistance, 
+	inout float3 TotalRadiance, 
+	inout float TotalWeight)
+{
+	int2 NeighborScreenProbeScreenCoord = ScreenProbeScreenCoord + Offset;
+
+	if (all(NeighborScreenProbeScreenCoord >= 0 && NeighborScreenProbeScreenCoord < (int2)ScreenProbeViewSize))
+	{
+		float NeighborSceneDepth = DownsampledDepth.Load(int3(NeighborScreenProbeScreenCoord, 0)).x;
+
+		if (NeighborSceneDepth > 0.0f)
+		{
+			float2 NeighborScreenUV = ScreenUV + (float2)Offset * ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw;
+			float3 NeighborWorldPosition = GetWorldPositionFromScreenUV(NeighborScreenUV, NeighborSceneDepth);
+
+			float DistanceSq = dot(NeighborWorldPosition - WorldPosition, NeighborWorldPosition - WorldPosition);
+			float PositionWeight = saturate(exp2(-DistanceSq * InvSceneDepthSq * SpatialFilterPositionWeightScale));
+
+			if (PositionWeight > 0.0f)
+			{
+				uint2 NeighborTraceCoord = NeighborScreenProbeScreenCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+				float NeighborRadianceDepth = DecodeProbeHitDistanceForFiltering(ScreenProbeHitDistance.Load(int3(NeighborTraceCoord, 0)).x);
+
+				if (NeighborRadianceDepth >= 0)
+				{
+					// Clamp neighbor's hit distance to our own.  This helps preserve contact shadows, as a long neighbor hit distance will cause a small NeighborAngle and bias toward distant lighting.
+					if (HitDistance >= 0)
+					{
+						NeighborRadianceDepth = min(NeighborRadianceDepth, HitDistance);
+					}
+					float3 NeighborHitPosition = NeighborWorldPosition + WorldConeDirection * NeighborRadianceDepth;
+					float3 ToNeighborHit = NeighborHitPosition - WorldPosition;
+					float NeighborAngle = acosFast(dot(ToNeighborHit, WorldConeDirection) / length(ToNeighborHit));
+					float AngleWeight = 1.0f - saturate(NeighborAngle / SpatialFilterMaxRadianceHitAngle);
+
+					float Weight = PositionWeight * AngleWeight;
+					TotalRadiance += ScreenProbeRadiance.Load(int3(NeighborTraceCoord, 0)).xyz * Weight;
+					TotalWeight += Weight;
+				}
+			}
+		}
+	}
+}
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeFilterGatherTracesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolution;
+	uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			float InvSceneDepthSq = 1.0f / (SceneDepth * SceneDepth);
+			float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+
+			float2 ProbeTexelCenter = float2(0.5, 0.5);
+			float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)ScreenProbeGatherOctahedronResolution;
+			float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+			float HitDistance = DecodeProbeHitDistanceForFiltering(ScreenProbeHitDistance.Load(int3(DispatchThreadId.xy, 0)).x);
+			float3 TotalRadiance = 0;
+			float TotalWeight = 0;
+
+			{
+				TotalRadiance = ScreenProbeRadiance.Load(int3(DispatchThreadId.xy, 0)).xyz;
+				TotalWeight = 1.0f;
+			}
+#if 0
+			for (int YOffset = -SpatialFilterHalfKernelSize; YOffset <= SpatialFilterHalfKernelSize; YOffset++)
+			{
+				for (int XOffset = -SpatialFilterHalfKernelSize; XOffset <= SpatialFilterHalfKernelSize; XOffset++)
+				{
+					int2 Offset = int2(XOffset, YOffset);
+
+					if (any(Offset != int2(0, 0)))
+					{
+						GatherNeighborRadiance(ScreenUV, ScreenProbeScreenCoord, Offset, ProbeTexelCoord, WorldPosition, WorldConeDirection, InvSceneDepthSq, HitDistance, TotalRadiance, TotalWeight);
+					}
+				}
+			}
+#else
+			int2 Offsets[4];
+			Offsets[0] = int2(-1, 0);
+			Offsets[1] = int2(1, 0);
+			Offsets[2] = int2(0, -1);
+			Offsets[3] = int2(0, 1);
+
+			LOOP
+			for (uint OffsetIndex = 0; OffsetIndex < 4; OffsetIndex++)
+			{
+				GatherNeighborRadiance(ScreenUV, ScreenProbeScreenCoord, Offsets[OffsetIndex], ProbeTexelCoord, WorldPosition, WorldConeDirection, InvSceneDepthSq, HitDistance, TotalRadiance, TotalWeight);
+			}
+#endif
+
+			if (TotalWeight > 0)
+			{
+				TotalRadiance /= TotalWeight;
+			}
+
+			RWScreenProbeRadiance[DispatchThreadId.xy] = TotalRadiance;
+		}
+	}
+}
+
+RWBuffer<float3> RWScreenProbeRadianceSHAmbient;
+RWBuffer<float4> RWScreenProbeRadianceSHDirectional;
+
+#define NUM_LIGHTING_SH_COEFFICIENTS 9
+groupshared float SharedSHBasisFunctions[THREADGROUP_SIZE * THREADGROUP_SIZE][NUM_LIGHTING_SH_COEFFICIENTS];
+groupshared float SharedLightingRadiance[THREADGROUP_SIZE * THREADGROUP_SIZE][4];
+groupshared float SharedSums[NUM_LIGHTING_SH_COEFFICIENTS * 4];
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ScreenProbeConvertToSphericalHarmonicCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = GroupId.xy;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
+		{
+			uint ThreadIndex = GroupThreadId.y * ScreenProbeGatherOctahedronResolution + GroupThreadId.x;
+			uint2 ProbeTexelCoord = GroupThreadId.xy;
+
+			// Write out (SH3 + Radiance) x 64 to groupshared
+			// Read 64 values and accumulate
+			// Write out final SH
+
+			if (all(ProbeTexelCoord < ScreenProbeGatherOctahedronResolution))
+			{
+				float2 ProbeTexelCenter = float2(0.5, 0.5);
+				float2 ProbeUV = (ProbeTexelCoord + ProbeTexelCenter) / (float)ScreenProbeGatherOctahedronResolution;
+				float3 WorldConeDirection = OctahedralMapToDirection(ProbeUV);
+
+				float SolidAngle = OctahedralSolidAngleLUT(ProbeUV, ScreenProbeGatherOctahedronResolution);
+				uint2 ReadIndex = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+				float3 Radiance = ScreenProbeRadiance.Load(int3(ReadIndex, 0)).xyz;
+
+				FThreeBandSHVector BasisFunction = SHBasisFunction3(WorldConeDirection);
+#if WAVE_OPS
+				FThreeBandSHVectorRGB LightingSH = MulSH3(BasisFunction, Radiance * SolidAngle);
+
+				float NormalizeWeight = 1.0f / WaveActiveSum(SolidAngle);
+				float3 AmbientRGB = float3(WaveActiveSum(float3(LightingSH.R.V0.x, LightingSH.G.V0.x, LightingSH.B.V0.x))) * NormalizeWeight;
+
+				if (ThreadIndex == 0)
+				{
+					uint WriteIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
+					RWScreenProbeRadianceSHAmbient[WriteIndex] = AmbientRGB;
+				}
+
+				float4 DirectionalSH0[3];
+				DirectionalSH0[0] = WaveActiveSum(float4(LightingSH.R.V0.yzw, LightingSH.R.V1.x)) * NormalizeWeight;
+				DirectionalSH0[1] = WaveActiveSum(float4(LightingSH.G.V0.yzw, LightingSH.G.V1.x)) * NormalizeWeight;
+				DirectionalSH0[2] = WaveActiveSum(float4(LightingSH.B.V0.yzw, LightingSH.B.V1.x)) * NormalizeWeight;
+
+				float4 DirectionalSH1[3];
+				DirectionalSH1[0] = WaveActiveSum(float4(LightingSH.R.V1.yzw, LightingSH.R.V2)) * NormalizeWeight;
+				DirectionalSH1[1] = WaveActiveSum(float4(LightingSH.G.V1.yzw, LightingSH.G.V2)) * NormalizeWeight;
+				DirectionalSH1[2] = WaveActiveSum(float4(LightingSH.B.V1.yzw, LightingSH.B.V2)) * NormalizeWeight;
+
+				if (ThreadIndex < 3)
+				{
+					float4 ThreadDirectionalSH0 = DirectionalSH0[ThreadIndex];
+					float4 ThreadDirectionalSH1 = DirectionalSH1[ThreadIndex];
+
+					#if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
+
+						float4 CoefficientNormalizationScale0 = float4(
+							0.282095f / 0.488603f,
+							0.282095f / 0.488603f,
+							0.282095f / 0.488603f,
+							0.282095f / 1.092548f);
+
+						float4 CoefficientNormalizationScale1 = float4(
+							0.282095f / 1.092548f,
+							0.282095f / (4.0f * 0.315392f),
+							0.282095f / 1.092548f,
+							0.282095f / (2.0f * 0.546274f));
+
+						ThreadDirectionalSH0 = ThreadDirectionalSH0 * CoefficientNormalizationScale0 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
+						ThreadDirectionalSH1 = ThreadDirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
+					#endif
+
+					uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
+					RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = ThreadDirectionalSH0;
+					RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = ThreadDirectionalSH1;
+				}
+#else
+				SharedSHBasisFunctions[ThreadIndex][0] = BasisFunction.V0.x;
+				SharedSHBasisFunctions[ThreadIndex][1] = BasisFunction.V0.y;
+				SharedSHBasisFunctions[ThreadIndex][2] = BasisFunction.V0.z;
+				SharedSHBasisFunctions[ThreadIndex][3] = BasisFunction.V0.w;
+				SharedSHBasisFunctions[ThreadIndex][4] = BasisFunction.V1.x;
+				SharedSHBasisFunctions[ThreadIndex][5] = BasisFunction.V1.y;
+				SharedSHBasisFunctions[ThreadIndex][6] = BasisFunction.V1.z;
+				SharedSHBasisFunctions[ThreadIndex][7] = BasisFunction.V1.w;
+				SharedSHBasisFunctions[ThreadIndex][8] = BasisFunction.V2;
+				SharedLightingRadiance[ThreadIndex][0] = Radiance.x * SolidAngle;
+				SharedLightingRadiance[ThreadIndex][1] = Radiance.y * SolidAngle;
+				SharedLightingRadiance[ThreadIndex][2] = Radiance.z * SolidAngle;
+				SharedLightingRadiance[ThreadIndex][3] = SolidAngle;
+#endif
+			}
+
+#if !WAVE_OPS
+			GroupMemoryBarrierWithGroupSync();
+
+			uint NumValuesToSum = ScreenProbeGatherOctahedronResolution * ScreenProbeGatherOctahedronResolution;
+			ThreadIndex = GroupThreadId.y * THREADGROUP_SIZE + GroupThreadId.x;
+
+			for (uint SumIndex = ThreadIndex; SumIndex < NUM_LIGHTING_SH_COEFFICIENTS * 4; SumIndex += THREADGROUP_SIZE * THREADGROUP_SIZE)
+			{
+				uint SHCoefficientIndex = SumIndex % NUM_LIGHTING_SH_COEFFICIENTS;
+				uint RadianceCoefficientIndex = SumIndex % 4;
+				float Sum = 0;
+
+				for (uint SumThreadIndex = 0; SumThreadIndex < NumValuesToSum; SumThreadIndex++)
+				{
+					float SHCoefficient = (RadianceCoefficientIndex == 3) ? 1.0f : SharedSHBasisFunctions[SumThreadIndex][SHCoefficientIndex];
+					Sum += SHCoefficient * SharedLightingRadiance[SumThreadIndex][RadianceCoefficientIndex];
+				}
+
+				SharedSums[RadianceCoefficientIndex * NUM_LIGHTING_SH_COEFFICIENTS + SHCoefficientIndex] = Sum;
+			}
+
+			GroupMemoryBarrierWithGroupSync();
+
+			float NormalizeWeight = 1.0f / SharedSums[3 * NUM_LIGHTING_SH_COEFFICIENTS];
+			float3 AmbientRGB = float3(SharedSums[0 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[1 * NUM_LIGHTING_SH_COEFFICIENTS], SharedSums[2 * NUM_LIGHTING_SH_COEFFICIENTS]) * NormalizeWeight;
+
+			if (ThreadIndex == 0)
+			{
+				uint WriteIndex = (ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x);
+				RWScreenProbeRadianceSHAmbient[WriteIndex] = AmbientRGB;
+			}
+
+			if (ThreadIndex < 3)
+			{
+				float4 DirectionalSH0 = float4(
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 1], 
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 2],
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 3],
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 4]) * NormalizeWeight;
+
+				float4 DirectionalSH1 = float4(
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 5], 
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 6],
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 7],
+					SharedSums[ThreadIndex * NUM_LIGHTING_SH_COEFFICIENTS + 8]) * NormalizeWeight;
+
+				#if SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS
+
+					float4 CoefficientNormalizationScale0 = float4(
+						0.282095f / 0.488603f,
+						0.282095f / 0.488603f,
+						0.282095f / 0.488603f,
+						0.282095f / 1.092548f);
+
+					float4 CoefficientNormalizationScale1 = float4(
+						0.282095f / 1.092548f,
+						0.282095f / (4.0f * 0.315392f),
+						0.282095f / 1.092548f,
+						0.282095f / (2.0f * 0.546274f));
+
+					DirectionalSH0 = DirectionalSH0 * CoefficientNormalizationScale0 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
+					DirectionalSH1 = DirectionalSH1 * CoefficientNormalizationScale1 / max(AmbientRGB[ThreadIndex], .00001f) * .5f + .5f;
+				#endif
+
+				uint WriteIndex = ((ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x) * 3 + ThreadIndex) * 2;
+				RWScreenProbeRadianceSHDirectional[WriteIndex + 0] = DirectionalSH0;
+				RWScreenProbeRadianceSHDirectional[WriteIndex + 1] = DirectionalSH1;
+			}
+#endif
+		}
+	}
+}
+
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void ScreenProbeFixupBordersCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / ScreenProbeGatherOctahedronResolutionWithBorder;
+	uint2 ProbeTexelCoordWithBorder = DispatchThreadId.xy - ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolutionWithBorder;
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+
+	if (ScreenProbeIndex < GetNumScreenProbes() && all(ProbeTexelCoordWithBorder < ScreenProbeGatherOctahedronResolutionWithBorder))
+	{
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+
+		if (SceneDepth > 0.0f)
+		{
+			uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ProbeTexelCoordWithBorder, ScreenProbeGatherOctahedronResolutionWithBorder, 1 << (uint)ScreenProbeGatherMaxMip);
+			uint2 ReadIndex = ScreenProbeAtlasCoord * ScreenProbeGatherOctahedronResolution + ProbeTexelCoord;
+			RWScreenProbeRadiance[DispatchThreadId.xy] = ScreenProbeRadiance.Load(int3(ReadIndex, 0)).xyz;
+		}
+	}
+}
+
+RWTexture2D<float3> RWScreenProbeRadianceWithBorderMip;
+Texture2D<float3> ScreenProbeRadianceWithBorderParentMip;
+uint MipLevel; 
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ScreenProbeGenerateMipLevelCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ParentMipSize = ScreenProbeGatherOctahedronResolutionWithBorder >> (MipLevel - 1);
+	uint MipSize = ScreenProbeGatherOctahedronResolutionWithBorder >> MipLevel;
+
+	if (all(DispatchThreadId.xy < ScreenProbeAtlasViewSize * MipSize))
+	{
+		uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy / MipSize;
+		uint2 ProbeTexelCoord = DispatchThreadId.xy - ScreenProbeAtlasCoord * MipSize;
+		uint2 ParentFinalAtlasCoord = ParentMipSize * ScreenProbeAtlasCoord + ProbeTexelCoord * 2;
+
+		float InvParentMipSize = 1.0f / ParentMipSize;
+		float2 ProbeUV00 = (ProbeTexelCoord * 2 + float2(0, 0) + float2(.5f, .5f)) * InvParentMipSize;
+		float2 ProbeUV10 = (ProbeTexelCoord * 2 + float2(1, 0) + float2(.5f, .5f)) * InvParentMipSize;
+		float2 ProbeUV01 = (ProbeTexelCoord * 2 + float2(0, 1) + float2(.5f, .5f)) * InvParentMipSize;
+		float2 ProbeUV11 = (ProbeTexelCoord * 2 + float2(1, 1) + float2(.5f, .5f)) * InvParentMipSize;
+
+		float4 Weights;
+		Weights.x = OctahedralSolidAngleLUT(ProbeUV00, ParentMipSize);
+		Weights.y = OctahedralSolidAngleLUT(ProbeUV10, ParentMipSize);
+		Weights.z = OctahedralSolidAngleLUT(ProbeUV01, ParentMipSize);
+		Weights.w = OctahedralSolidAngleLUT(ProbeUV11, ParentMipSize);
+
+		//@todo - gather area around texel, not aligned to power of 2
+		float3 Lighting = 0;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 0), 0)).xyz * Weights.x;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 0), 0)).xyz * Weights.y;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 1), 0)).xyz * Weights.z;
+		Lighting += ScreenProbeRadianceWithBorderParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 1), 0)).xyz * Weights.w;
+
+		uint2 WriteCoord = MipSize * ScreenProbeAtlasCoord + ProbeTexelCoord;
+		RWScreenProbeRadianceWithBorderMip[WriteCoord] = Lighting / dot(Weights, 1);
+	}
+}

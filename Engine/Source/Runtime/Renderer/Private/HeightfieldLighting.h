@@ -123,16 +123,12 @@ public:
 		const class FAOScreenGridResources& ScreenGridResources,
 		const class FDistanceFieldAOParameters& Parameters) const;
 
-	void ComposeHeightfieldsIntoGlobalDistanceField(
-		FRDGBuilder& GraphBuilder,
-		const FScene* Scene,
-		const FViewInfo& View,
-		FRDGTextureRef GlobalDistanceFieldTexture,
-		float InfluenceRadius,
-		const class FGlobalDistanceFieldInfo& GlobalDistanceFieldInfo,
-		const FGlobalDistanceFieldClipmap& Clipmap,
-		int32 ClipmapIndexValue,
-		const class FVolumeUpdateRegion& UpdateRegion) const;
+	void ComputeIrradianceForScreenGrid(
+		const FViewInfo& View, 
+		FRHICommandListImmediate& RHICmdList, 
+		FSceneRenderTargetItem& DistanceFieldNormal, 
+		const FAOScreenGridResources& ScreenGridResources,
+		const FDistanceFieldAOParameters& Parameters) const;
 
 private:
 

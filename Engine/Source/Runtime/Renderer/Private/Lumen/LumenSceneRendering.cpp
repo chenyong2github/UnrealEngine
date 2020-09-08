@@ -184,6 +184,54 @@ FAutoConsoleVariableRef CVarLumenCoarseCardCulling(
 	ECVF_RenderThreadSafe
 );
 
+int32 GLumenSceneGlobalDFResolution = 224;
+FAutoConsoleVariableRef CVarLumenSceneGlobalDFResolution(
+	TEXT("r.LumenScene.GlobalDFResolution"),
+	GLumenSceneGlobalDFResolution,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+float GLumenSceneGlobalDFClipmapExtent = 2500.0f;
+FAutoConsoleVariableRef CVarLumenSceneGlobalDFClipmapExtent(
+	TEXT("r.LumenScene.GlobalDFClipmapExtent"),
+	GLumenSceneGlobalDFClipmapExtent,
+	TEXT(""),
+	ECVF_RenderThreadSafe
+);
+
+namespace Lumen
+{
+	bool AnyLumenHardwareRayTracingPassEnabled()
+	{
+		bool bLumenHardwareRayTracing = GAllowLumenScene != 0;
+
+#if RHI_RAYTRACING
+		static auto CVarLumenDirectLightingHardwareRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.DirectLighting.HardwareRayTracing"));
+		static auto CVarLumenScreenProbeGatherHardwareRayTracing = IConsoleManager::Get().FindConsoleVariable(TEXT("r.Lumen.ScreenProbeGather.HardwareRayTracing"));
+
+		bLumenHardwareRayTracing |= (CVarLumenDirectLightingHardwareRayTracing ? (CVarLumenDirectLightingHardwareRayTracing->GetInt() != 0) : false)
+			|| (CVarLumenScreenProbeGatherHardwareRayTracing ? (CVarLumenScreenProbeGatherHardwareRayTracing->GetInt() != 0) : false);
+#endif
+		return bLumenHardwareRayTracing;
+	}
+}
+
+bool Lumen::ShouldPrepareGlobalDistanceField(EShaderPlatform ShaderPlatform)
+{
+	return GAllowLumenScene && DoesPlatformSupportLumenGI(ShaderPlatform);
+}
+
+int32 Lumen::GetGlobalDFResolution()
+{
+	return GLumenSceneGlobalDFResolution;
+}
+
+float Lumen::GetGlobalDFClipmapExtent()
+{
+	return GLumenSceneGlobalDFClipmapExtent;
+}
+
 float GetCardCameraDistanceTexelDensityScale()
 {
 	return GLumenSceneCardCameraDistanceTexelDensityScale * (GLumenFastCameraMode ? .2f : 1.0f);
@@ -592,7 +640,6 @@ void FCardSourceData::RemoveFromAtlas(FLumenSceneData& LumenSceneData)
 
 FLumenSceneData::FLumenSceneData(EShaderPlatform ShaderPlatform, EWorldType::Type WorldType) :
 	Generation(0),
-	BVHDepth(-1),
 	bFinalLightingAtlasContentsValid(false),
 	MaxAtlasSize(0, 0),
 	AtlasAllocator(FIntPoint(1, 1), 1)
@@ -1632,17 +1679,14 @@ public:
 		EPixelFormat BufferFormat = PF_A32B32G32R32F;
 		uint32 BytesPerElement = GPixelFormats[BufferFormat].BlockBytes;
 		CardData.Initialize(BytesPerElement, 1, 0, TEXT("FNullCardBuffers"));
-		InitNullCardBVHData(CardBVHData);
 	}
 
 	virtual void ReleaseRHI() override
 	{
 		CardData.Release();
-		CardBVHData.Release();
 	}
 
 	FRWBufferStructured CardData;
-	FRWBufferStructured CardBVHData;
 };
 
 TGlobalResource<FNullCardBuffers> GNullCardBuffers;
@@ -1681,15 +1725,6 @@ void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters
 		OutParameters.CardData = GNullCardBuffers.CardData.SRV;
 	}
 
-	if (LumenSceneData.CardBVH.Num() > 0)
-	{
-		OutParameters.CardBVHData = LumenSceneData.CardBVHBuffer.SRV;
-	}
-	else
-	{
-		OutParameters.CardBVHData = GNullCardBuffers.CardBVHData.SRV;
-	}
-
 	if (LumenSceneData.AlbedoAtlas.IsValid())
 	{
 		OutParameters.AlbedoAtlas = LumenSceneData.AlbedoAtlas->GetRenderTargetItem().ShaderResourceTexture;
@@ -1706,119 +1741,7 @@ void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters
 	OutParameters.CubeMapData = LumenSceneData.CubeMapBuffer.SRV;
 	OutParameters.CubeMapTreeData = LumenSceneData.CubeMapTreeBuffer.SRV;
 	OutParameters.DFObjectToCubeMapTreeIndexBuffer = LumenSceneData.DFObjectToCubeMapTreeIndexBuffer.SRV;
-}
-
-class FMeshSDFOverlappingCardHeader
-{
-public:
-	int32 NumCards;
-	int32 StartOffset;
-};
-
-void ScatterToMeshSDFHeader(const FPrimitiveSceneInfo* PrimitiveSceneInfo, FMeshSDFOverlappingCardHeader* RESTRICT MeshSDFOverlappingCardHeader)
-{
-	for (int32 DFObjectIndex : PrimitiveSceneInfo->DistanceFieldInstanceIndices)
-	{
-		if (DFObjectIndex >= 0)
-		{
-			MeshSDFOverlappingCardHeader[DFObjectIndex].NumCards++;
-		}
-	}
-}
-
-void ScatterToMeshSDFData(const FPrimitiveSceneInfo* PrimitiveSceneInfo, int32 CardIndex, FMeshSDFOverlappingCardHeader* RESTRICT MeshSDFOverlappingCardHeader, int32* RESTRICT MeshSDFOverlappingCardData)
-{
-	for (int32 DFObjectIndex : PrimitiveSceneInfo->DistanceFieldInstanceIndices)
-	{
-		if (DFObjectIndex >= 0)
-		{
-			const int32 OverlappingCardIndex = MeshSDFOverlappingCardHeader[DFObjectIndex].NumCards;
-			MeshSDFOverlappingCardHeader[DFObjectIndex].NumCards++;
-			MeshSDFOverlappingCardData[MeshSDFOverlappingCardHeader[DFObjectIndex].StartOffset + OverlappingCardIndex] = CardIndex;
-		}
-	}
-}
-
-void UpdateMeshSDFOverlappingCardBuffers(FRHICommandListImmediate& RHICmdList, FScene* Scene)
-{
-	LLM_SCOPE(ELLMTag::Lumen);
-
-	//@todo - cache this mapping and only update with scene changes, instead of iterating over everything on the CPU every frame
-	QUICK_SCOPE_CYCLE_COUNTER(MeshSDFOverlappingCardBuffers);
-
-	const FDistanceFieldSceneData& DistanceFieldSceneData = Scene->DistanceFieldSceneData;
-	FLumenSceneData& LumenSceneData = *Scene->LumenSceneData;
-
-	TArray<FMeshSDFOverlappingCardHeader> MeshSDFOverlappingCardHeader;
-	MeshSDFOverlappingCardHeader.Empty(DistanceFieldSceneData.NumObjectsInBuffer);
-	MeshSDFOverlappingCardHeader.AddZeroed(DistanceFieldSceneData.NumObjectsInBuffer);
-	FMeshSDFOverlappingCardHeader* RESTRICT MeshSDFOverlappingCardHeaderPtr = MeshSDFOverlappingCardHeader.GetData();
-
-	// We currently only have a mapping from Card -> Primitive and from Primitive -> MeshSDFIndex
-	// Scatter card indices onto each MeshSDFIndex to count how many cards affect each Mesh SDF
-	for (const FCardSourceData& Card : LumenSceneData.Cards)
-	{
-		if (Card.bVisible && Card.PrimitiveSceneInfo)
-		{
-			ScatterToMeshSDFHeader(Card.PrimitiveSceneInfo, MeshSDFOverlappingCardHeaderPtr);
-		}
-	}
-
-	int32 ObjectDataAllocator = 0;
-
-	// Allocate the start offset for each Mesh SDF
-	for (int32 MeshSDFObjectIndex = 0; MeshSDFObjectIndex < MeshSDFOverlappingCardHeader.Num(); MeshSDFObjectIndex++)
-	{
-		const int32 StartOffset = ObjectDataAllocator;
-		ObjectDataAllocator += MeshSDFOverlappingCardHeaderPtr[MeshSDFObjectIndex].NumCards;
-		MeshSDFOverlappingCardHeaderPtr[MeshSDFObjectIndex].NumCards = 0;
-		MeshSDFOverlappingCardHeaderPtr[MeshSDFObjectIndex].StartOffset = StartOffset;
-	}
-
-	TArray<int32> MeshSDFOverlappingCardData;
-	MeshSDFOverlappingCardData.Empty(ObjectDataAllocator);
-	MeshSDFOverlappingCardData.AddUninitialized(ObjectDataAllocator);
-	int32* RESTRICT MeshSDFOverlappingCardDataPtr = MeshSDFOverlappingCardData.GetData();
-
-	// Scatter the card indices onto Mesh SDF's a second time, now writing the card index to the correct spot in MeshSDFOverlappingCardData
-	for (int32 CardIndex = 0; CardIndex < LumenSceneData.Cards.Num(); CardIndex++)
-	{
-		if (LumenSceneData.Cards.IsAllocated(CardIndex))
-		{
-			const FCardSourceData& Card = LumenSceneData.Cards[CardIndex];
-
-			if (Card.bVisible && Card.PrimitiveSceneInfo)
-			{
-				ScatterToMeshSDFData(Card.PrimitiveSceneInfo, CardIndex, MeshSDFOverlappingCardHeaderPtr, MeshSDFOverlappingCardDataPtr);
-			}
-		}
-	}
-
-	// Allocate buffers
-	const int32 NumHeaderElements = FMath::RoundUpToPowerOfTwo(DistanceFieldSceneData.NumObjectsInBuffer);
-
-	if (LumenSceneData.MeshSDFOverlappingCardHeader.NumBytes != NumHeaderElements * GPixelFormats[PF_R32G32_UINT].BlockBytes)
-	{
-		LumenSceneData.MeshSDFOverlappingCardHeader.Release();
-		LumenSceneData.MeshSDFOverlappingCardHeader.Initialize(GPixelFormats[PF_R32G32_UINT].BlockBytes, NumHeaderElements, PF_R32G32_UINT, BUF_Volatile);
-	}
-
-	const int32 NumDataElements = FMath::RoundUpToPowerOfTwo(ObjectDataAllocator);
-
-	if (LumenSceneData.MeshSDFOverlappingCardData.NumBytes != NumDataElements * GPixelFormats[PF_R32_UINT].BlockBytes)
-	{
-		LumenSceneData.MeshSDFOverlappingCardData.Release();
-		LumenSceneData.MeshSDFOverlappingCardData.Initialize(GPixelFormats[PF_R32_UINT].BlockBytes, NumDataElements, PF_R32_UINT, BUF_Volatile);
-	}
-
-	// Upload to GPU
-	void* HeaderPtr = RHICmdList.LockVertexBuffer(LumenSceneData.MeshSDFOverlappingCardHeader.Buffer, 0, LumenSceneData.MeshSDFOverlappingCardHeader.NumBytes, RLM_WriteOnly);
-	FPlatformMemory::Memcpy(HeaderPtr, MeshSDFOverlappingCardHeaderPtr, MeshSDFOverlappingCardHeader.Num() * MeshSDFOverlappingCardHeader.GetTypeSize());
-	RHICmdList.UnlockVertexBuffer(LumenSceneData.MeshSDFOverlappingCardHeader.Buffer);
-
-	void* DataPtr = RHICmdList.LockVertexBuffer(LumenSceneData.MeshSDFOverlappingCardData.Buffer, 0, LumenSceneData.MeshSDFOverlappingCardData.NumBytes, RLM_WriteOnly);
-	FPlatformMemory::Memcpy(DataPtr, MeshSDFOverlappingCardDataPtr, MeshSDFOverlappingCardData.Num() * MeshSDFOverlappingCardData.GetTypeSize());
-	RHICmdList.UnlockVertexBuffer(LumenSceneData.MeshSDFOverlappingCardData.Buffer);
+	OutParameters.PrimitiveToDFObjectIndexBuffer = LumenSceneData.PrimitiveToDFObjectIndexBuffer.SRV;
 }
 
 DECLARE_GPU_STAT(UpdateCardSceneBuffer);
@@ -1887,24 +1810,7 @@ void UpdateCardSceneBuffer(FRHICommandListImmediate& RHICmdList, const FSceneVie
 		RHICmdList.TransitionResource(EResourceTransitionAccess::EReadable, EResourceTransitionPipeline::EComputeToGfx, LumenSceneData.CardBuffer.UAV);
 	}
 
-	extern int32 GLumenDiffuseCardTraceMeshSDF;
-	extern int32 GLumenGICardBVH;
-	extern int32 GLumenReflectionsTraceCards;
-	extern int32 GVisualizeLumenSceneCardTraceMeshSDF;
-	extern int32 GLumenVisualizeCardBVH;
-	extern int32 GLumenSceneVoxelLightingRasterizerScatter;
-	const bool bVisualizeUsesBVH = ViewFamily.EngineShowFlags.VisualizeLumenScene && (GLumenVisualizeCardBVH || !GVisualizeLumenSceneCardTraceMeshSDF);
-	const bool bVoxelizeUsesBVH = GLumenSceneVoxelLightingRasterizerScatter == 0;
-	const bool bUseBVH = GLumenGICardBVH && (!GLumenDiffuseCardTraceMeshSDF || GLumenVisualizeCardBVH || GLumenReflectionsTraceCards || bVisualizeUsesBVH || bVoxelizeUsesBVH);
-
-	if (NumCardDataUploads > 0 || LumenSceneData.Cards.Num() != LumenSceneData.NumCardsInBVH || bUseBVH != LumenSceneData.bUseBVH)
-	{
-		UpdateCardBVH(bUseBVH, LumenSceneData, RHICmdList);
-		LumenSceneData.NumCardsInBVH = LumenSceneData.Cards.Num();
-		LumenSceneData.bUseBVH = bUseBVH;
-	}
-
-	UpdateLumenCubeMapTrees(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList);
+	UpdateLumenCubeMapTrees(Scene->DistanceFieldSceneData, LumenSceneData, RHICmdList, Scene->Primitives.Num());
 
 	{
 		FLumenCardScene LumenCardSceneParameters;
@@ -2006,34 +1912,6 @@ void FDeferredShadingSceneRenderer::UpdateLumenScene(FRHICommandListImmediate& R
 
 		UpdateCardSceneBuffer(RHICmdList, ViewFamily, Scene);
 		
-		extern int32 GLumenDiffuseTraceCards;
-		extern int32 GLumenDiffuseCardTraceMeshSDF;
-		extern int32 GVisualizeLumenSceneCardTraceMeshSDF;
-		extern int32 GLumenSceneVoxelLightingTraceMeshSDF;
-		extern int32 GLumenDiffuseCubeMapTree;
-		extern int32 GLumenSceneVoxelLightingCubeMapTree;
-		extern int32 GVisualizeLumenSceneCubeMapTree;
-
-		if ((ShouldRenderLumenDiffuseGI(Views[0]) && GLumenDiffuseTraceCards && GLumenDiffuseCardTraceMeshSDF )
-			|| (ShouldRenderLumenSceneVisualization(Views[0]) && GVisualizeLumenSceneCardTraceMeshSDF)
-			|| (GLumenSceneVoxelLightingTraceMeshSDF))
-		{
-			const bool bRequiresMeshSDFOverlappingCardData =
-				(GLumenDiffuseCardTraceMeshSDF && !GLumenDiffuseCubeMapTree)
-				|| (GLumenSceneVoxelLightingTraceMeshSDF && !GLumenSceneVoxelLightingCubeMapTree)
-				|| (GVisualizeLumenSceneCardTraceMeshSDF && !GVisualizeLumenSceneCubeMapTree);
-
-			if (bRequiresMeshSDFOverlappingCardData)
-			{
-				UpdateMeshSDFOverlappingCardBuffers(RHICmdList, Scene);
-			}
-			else
-			{
-				LumenSceneData.MeshSDFOverlappingCardData.Release();
-				LumenSceneData.MeshSDFOverlappingCardHeader.Release();
-			}
-		}
-
 		LumenCardRenderer.CardIdsToRender.Empty(CardsToRender.Num());
 
 		if (CardsToRender.Num() > 0)

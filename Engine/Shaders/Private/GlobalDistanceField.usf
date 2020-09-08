@@ -9,7 +9,6 @@
 #include "DistanceFieldLightingShared.ush"
 #include "DistanceFieldAOShared.ush"
 #include "GlobalDistanceFieldShared.ush"
-#include "HeightfieldLightingShared.ush"
 
 #ifndef CULLOBJECTS_THREADGROUP_SIZE
 	#define CULLOBJECTS_THREADGROUP_SIZE 1
@@ -18,6 +17,15 @@
 #ifndef THREADGROUP_SIZE
 	#define THREADGROUP_SIZE 1
 #endif
+
+#ifndef THREADGROUP_SIZE_X
+	#define THREADGROUP_SIZE_X 1
+	#define THREADGROUP_SIZE_Y 1
+	#define THREADGROUP_SIZE_Z 1
+#endif
+
+#define GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS / 4)
+#define GLOBAL_DISTANCE_FIELD_PAGE_GROUP_NUM (GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X * GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X * GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X)
 
 float ComputeSquaredDistanceBetweenAABBs(float3 CenterA, float3 ExtentA, float3 CenterB, float3 ExtentB)
 {
@@ -28,30 +36,18 @@ float ComputeSquaredDistanceBetweenAABBs(float3 CenterA, float3 ExtentA, float3 
 float InfluenceRadius;
 uint ClipmapIndex;
 float3 VolumeTexelSize;
-float3 UpdateRegionVolumeMin;
-float UpdateRegionVolumeStep;
-float HeightfieldThickness;
 uint3 CullGridDimension;
 
-RWBuffer<uint> RWCullGridAllocator;
-RWBuffer<uint> RWCullGridObjectHeader;
-RWBuffer<uint> RWCullGridObjectArray;
+RWStructuredBuffer<uint> RWCullGridAllocator;
+RWStructuredBuffer<uint> RWCullGridObjectHeader;
+RWStructuredBuffer<uint> RWCullGridObjectArray;
 
-#ifndef MAX_GRID_CULLED_DF_OBJECTS
-#define MAX_GRID_CULLED_DF_OBJECTS 1
-#endif
-
-#ifndef CULL_GRID_TILE_SIZE
-#define CULL_GRID_TILE_SIZE 1
-#endif
-
-#define GRID_CULL_THREADGORUP_TOTALSIZE 256
+#define GRID_CULL_THREADGROUP_TOTALSIZE 256
 
 uint3 UpdateRegionSize;
-Buffer<uint> CullGridObjectHeader;
-Buffer<uint> CullGridObjectArray;
-Texture3D<float> ParentGlobalDistanceFieldTexture;
-RWTexture3D<float> RWGlobalDistanceFieldTexture;
+StructuredBuffer<uint> CullGridObjectHeader;
+StructuredBuffer<uint> CullGridObjectArray;
+RWTexture3D<float> RWPageAtlasTexture;
 
 #ifndef COMPOSITE_THREADGROUP_SIZEX
 #define COMPOSITE_THREADGROUP_SIZEX 1
@@ -79,7 +75,7 @@ float DistanceToNearestSurfaceForObject(uint ObjectIndex, float3 WorldPosition, 
 	float DistanceToOccluder = MaxDistance;
 
 	BRANCH
-	if (BoxDistance < InfluenceRadius)
+	if (BoxDistance < MaxDistance)
 	{
 		float3 UVAdd = LoadGlobalObjectUVAddAndSelfShadowBias(ObjectIndex).xyz;
 		float2 DistanceFieldMAD = LoadGlobalObjectDistanceFieldMAD(ObjectIndex);
@@ -94,8 +90,8 @@ float DistanceToNearestSurfaceForObject(uint ObjectIndex, float3 WorldPosition, 
 	return DistanceToOccluder;
 }
 
-RWBuffer<uint> RWObjectIndexBuffer;
-RWBuffer<uint> RWObjectIndexNumBuffer;
+RWStructuredBuffer<uint> RWObjectIndexBuffer;
+RWStructuredBuffer<uint> RWObjectIndexNumBuffer;
 float3 ClipmapWorldCenter;
 float3 ClipmapWorldExtent;
 float InfluenceRadiusSq;
@@ -134,10 +130,10 @@ void CullObjectsToClipmapCS(
 	}
 }
 
-RWBuffer<uint> RWComposeIndirectArgBuffer;
-RWBuffer<uint> RWCullGridIndirectArgBuffer;
+RWBuffer<uint> RWPageComposeIndirectArgBuffer;
+RWBuffer<uint> RWPageUpdateIndirectArgBuffer;
 
-[numthreads(THREADGROUP_SIZE, 1, 1)]
+[numthreads(1, 1, 1)]
 void ClearIndirectArgBufferCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
@@ -145,17 +141,17 @@ void ClearIndirectArgBufferCS(
 {
 	if (DispatchThreadId.x == 0)
 	{
-		RWComposeIndirectArgBuffer[0] = 0;
-		RWComposeIndirectArgBuffer[1] = 1;
-		RWComposeIndirectArgBuffer[2] = 1;
+		RWPageComposeIndirectArgBuffer[0] = 0;
+		RWPageComposeIndirectArgBuffer[1] = 1;
+		RWPageComposeIndirectArgBuffer[2] = 1;
 
-		RWCullGridIndirectArgBuffer[0] = 0;
-		RWCullGridIndirectArgBuffer[1] = 1;
-		RWCullGridIndirectArgBuffer[2] = 1;
+		RWPageUpdateIndirectArgBuffer[0] = 0;
+		RWPageUpdateIndirectArgBuffer[1] = 1;
+		RWPageUpdateIndirectArgBuffer[2] = 1;
 	}
 }
 
-RWBuffer<uint> RWGridTileBuffer;
+RWStructuredBuffer<uint> RWGridTileBuffer;
 RWBuffer<uint> RWGridIndirectArgBuffer;
 
 Buffer<float4> UpdateBoundsBuffer;
@@ -209,24 +205,283 @@ void BuildGridTilesCS(
 		if (GroupInsideBounds)
 		{
 			uint DestIndex;
-			InterlockedAdd(RWGridIndirectArgBuffer[0], 1U, DestIndex);
+			InterlockedAdd(RWGridIndirectArgBuffer[0], 1, DestIndex);
 			RWGridTileBuffer[DestIndex] = GridCoord.x | (GridCoord.y << 8) | (GridCoord.z << 16);
 		}
+	}
+}
+
+RWStructuredBuffer<uint> RWPageFreeListBuffer;
+RWStructuredBuffer<int> RWPageFreeListAllocatorBuffer;
+uint GlobalDistanceFieldMaxPageNum;
+
+[numthreads(THREADGROUP_SIZE, 1, 1)]
+void InitPageFreeListCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint FreeListIndex = DispatchThreadId.x;
+
+	if (FreeListIndex < GlobalDistanceFieldMaxPageNum)
+	{
+		RWPageFreeListBuffer[FreeListIndex] = GlobalDistanceFieldMaxPageNum - 1 - FreeListIndex;
+	}
+
+	if (DispatchThreadId.x == 0)
+	{
+		RWPageFreeListAllocatorBuffer[0] = GlobalDistanceFieldMaxPageNum;
+	}
+}
+
+RWTexture3D<uint> RWPageTableCombinedTexture;
+RWTexture3D<uint> RWPageTableLayerTexture;
+Texture3D<uint> PageTableLayerTexture;
+Texture3D<uint> ParentPageTableLayerTexture;
+
+uint3 CullGridResolution;
+float3 InvPageGridResolution;
+uint3 PageGridResolution;
+uint PageTableClipmapOffsetZ;
+float3 PageWorldExtent;
+float PageWorldRadius;
+float ClipmapInfluenceRadius;
+float3 PageCoordToPageWorldCenterScale;
+float3 PageCoordToPageWorldCenterBias;
+float4 ClipmapVolumeWorldToUVAddAndMul;
+
+RWStructuredBuffer<uint> RWPageComposeTileBuffer;
+
+RWStructuredBuffer<uint> RWPageFreeListReturnBuffer;
+RWStructuredBuffer<uint> RWPageFreeListReturnAllocatorBuffer;
+
+StructuredBuffer<uint> MarkedHeightfieldPageBuffer;
+StructuredBuffer<uint> PageUpdateTileBuffer;
+StructuredBuffer<uint> PageFreeListBuffer;
+
+groupshared float GroupMinPageDistance[64];
+
+uint3 PageGridCoordToPageTableTextureCoord(uint3 PageGridCoord)
+{
+	float3 PageWorldCenter = PageGridCoord * PageCoordToPageWorldCenterScale + PageCoordToPageWorldCenterBias;
+
+	float4 WorldToUVAddAndMul = ClipmapVolumeWorldToUVAddAndMul;
+	float3 ClipmapUV = frac(PageWorldCenter * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz);
+
+	int3 PageTableTextureCoord = clamp(saturate(ClipmapUV) * PageGridResolution, 0, PageGridResolution - 1) + int3(0, 0, PageTableClipmapOffsetZ);
+	return PageTableTextureCoord;
+}
+
+[numthreads(THREADGROUP_SIZE_X, 1, 1)]
+void AllocatePagesCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ThreadIndex = GroupThreadId.x;
+	uint IndexInPageTileBuffer = GroupId.x;
+	uint PackedPageGridCoord = PageUpdateTileBuffer[IndexInPageTileBuffer];
+
+	bool bAnyObjectsInPage = false;
+#if MARKED_HEIGHTFIELD_PAGE_BUFFER
+	bAnyObjectsInPage = MarkedHeightfieldPageBuffer[IndexInPageTileBuffer] > 0;
+#endif
+
+	uint3 PageGridCoord;
+	PageGridCoord.x = PackedPageGridCoord & 0xFF;
+	PageGridCoord.y = (PackedPageGridCoord >> 8) & 0xFF;
+	PageGridCoord.z = (PackedPageGridCoord >> 16) & 0xFF;
+
+	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
+	float3 PageWorldCenter = PageGridCoord * PageCoordToPageWorldCenterScale + PageCoordToPageWorldCenterBias;
+
+	// Loop through objects to find out if the current page contains any objects and should be allocated
+	if (!bAnyObjectsInPage)
+	{
+		float InfluenceMax = ClipmapInfluenceRadius + PageWorldRadius + 1.0f;
+		float MinDistanceToPageCenter = InfluenceMax;
+
+		uint3 CullGridCoord = PageGridCoord;
+		uint CullGridLinearIndex = (CullGridCoord.z * CullGridResolution.y + CullGridCoord.y) * CullGridResolution.x + CullGridCoord.x;
+		uint CullGridObjectNum = CullGridObjectHeader[CullGridLinearIndex * 2 + 0];
+		uint CullGridObjectOffset = CullGridObjectHeader[CullGridLinearIndex * 2 + 1];
+
+		for (uint IndexInCullCell = ThreadIndex; IndexInCullCell < CullGridObjectNum; IndexInCullCell += 64)
+		{
+			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullCell];
+
+			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
+			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
+
+			float SquaredDistanceBetweenAABBs = ComputeSquaredDistanceBetweenAABBs(PageWorldCenter, PageWorldExtent, ObjectCenter, ObjectExtent);
+
+			if (SquaredDistanceBetweenAABBs < ClipmapInfluenceRadius * ClipmapInfluenceRadius)
+			{
+				float DistanceToPageCenter = DistanceToNearestSurfaceForObject(ObjectIndex, PageWorldCenter, InfluenceMax);
+				MinDistanceToPageCenter = min(MinDistanceToPageCenter, DistanceToPageCenter);
+			}
+		}
+
+		GroupMinPageDistance[ThreadIndex] = MinDistanceToPageCenter;
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < 32)
+	{
+		GroupMinPageDistance[ThreadIndex] = min(GroupMinPageDistance[ThreadIndex], GroupMinPageDistance[ThreadIndex + 32]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < 16)
+	{
+		GroupMinPageDistance[ThreadIndex] = min(GroupMinPageDistance[ThreadIndex], GroupMinPageDistance[ThreadIndex + 16]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < 8)
+	{
+		GroupMinPageDistance[ThreadIndex] = min(GroupMinPageDistance[ThreadIndex], GroupMinPageDistance[ThreadIndex + 8]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < 4)
+	{
+		GroupMinPageDistance[ThreadIndex] = min(GroupMinPageDistance[ThreadIndex], GroupMinPageDistance[ThreadIndex + 4]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex < 2)
+	{
+		GroupMinPageDistance[ThreadIndex] = min(GroupMinPageDistance[ThreadIndex], GroupMinPageDistance[ThreadIndex + 2]);
+	}
+
+	GroupMemoryBarrierWithGroupSync();
+
+	if (ThreadIndex == 0)
+	{
+		float MinPageDistance = min(GroupMinPageDistance[0], GroupMinPageDistance[1]);
+
+		if (MinPageDistance + PageWorldRadius >= -ClipmapInfluenceRadius && MinPageDistance - PageWorldRadius <= ClipmapInfluenceRadius)
+		{
+			bAnyObjectsInPage = true;
+		}
+
+		uint PageId = RWPageTableLayerTexture[PageTableTextureCoord];
+
+		if (bAnyObjectsInPage)
+		{
+			// Allocate new page if required
+			if (PageId == GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			{
+				int FreeListSize = 0;
+				InterlockedAdd(RWPageFreeListAllocatorBuffer[0], -1, FreeListSize);
+
+				uint AllocatedPageId = GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID;
+				if (FreeListSize > 0)
+				{
+					// Grab last element
+					AllocatedPageId = PageFreeListBuffer[FreeListSize - 1];
+				}
+
+				if (AllocatedPageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+				{
+					RWPageTableLayerTexture[PageTableTextureCoord] = AllocatedPageId;
+					PageId = AllocatedPageId;
+				}
+			}
+		}
+		else
+		{
+			if (PageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			{
+				// Delete current page and return it to the free list
+
+				// Return to the free list
+				uint FreeListReturnIndex = 0;
+				InterlockedAdd(RWPageFreeListReturnAllocatorBuffer[0], 1, FreeListReturnIndex);
+				RWPageFreeListReturnBuffer[FreeListReturnIndex] = PageId;
+
+				PageId = GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID;
+				RWPageTableLayerTexture[PageTableTextureCoord] = GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID;
+			}
+		}
+
+		// Update combined (static and movable) page table
+		uint CombinedPageId = PageId;
+		#if COMPOSE_PARENT_DISTANCE_FIELD
+		{
+			if (CombinedPageId == GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			{
+				CombinedPageId = ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
+			}
+		}
+		RWPageTableCombinedTexture[PageTableTextureCoord] = CombinedPageId;
+		#endif
+
+		// Add new dispatch tile for this page if compose is required for it
+		if (PageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+		{
+			uint DestIndex;
+			InterlockedAdd(RWPageComposeIndirectArgBuffer[0], GLOBAL_DISTANCE_FIELD_PAGE_GROUP_NUM, DestIndex);
+			RWPageComposeTileBuffer[DestIndex / GLOBAL_DISTANCE_FIELD_PAGE_GROUP_NUM] = PageGridCoord.x | (PageGridCoord.y << 8) | (PageGridCoord.z << 16);
+		}
+	}
+}
+
+StructuredBuffer<uint> PageFreeListReturnAllocatorBuffer;
+StructuredBuffer<uint> PageFreeListReturnBuffer;
+RWBuffer<uint> RWFreeListReturnIndirectArgBuffer;
+
+[numthreads(1, 1, 1)]
+void PageFreeListReturnIndirectArgBufferCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	if (DispatchThreadId.x == 0)
+	{
+		RWFreeListReturnIndirectArgBuffer[0] = (PageFreeListReturnAllocatorBuffer[0] + 63) / 64;
+		RWFreeListReturnIndirectArgBuffer[1] = 1;
+		RWFreeListReturnIndirectArgBuffer[2] = 1;
+
+		// Clamp to 0
+		RWPageFreeListAllocatorBuffer[0] = max(RWPageFreeListAllocatorBuffer[0], 0);
+	}
+}
+
+[numthreads(THREADGROUP_SIZE_X, 1, 1)]
+void PageFreeListReturnCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint IndexInReturnList = DispatchThreadId.x;
+
+	if (IndexInReturnList < PageFreeListReturnAllocatorBuffer[0])
+	{
+		uint FreeListLastElementIndex = 0;
+		InterlockedAdd(RWPageFreeListAllocatorBuffer[0], 1, FreeListLastElementIndex);
+
+		RWPageFreeListBuffer[FreeListLastElementIndex] = PageFreeListReturnBuffer[IndexInReturnList];
 	}
 }
 
 groupshared uint NumObjectsGridCell;
 groupshared uint GridCellStartOffset;
 
-Buffer<uint> ObjectIndexBuffer;
-Buffer<uint> ObjectIndexNumBuffer;
-Buffer<uint> CullGridTileBuffer;
-uint3 CullGridResolution;
+StructuredBuffer<uint> ObjectIndexBuffer;
+StructuredBuffer<uint> ObjectIndexNumBuffer;
+StructuredBuffer<uint> CullGridTileBuffer;
 float3 CullGridCoordToWorldCenterScale;
 float3 CullGridCoordToWorldCenterBias;
 float3 CullTileWorldExtent;
 
-[numthreads(GRID_CULL_THREADGORUP_TOTALSIZE, 1, 1)]
+[numthreads(GRID_CULL_THREADGROUP_TOTALSIZE, 1, 1)]
 void CullObjectsToGridCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
@@ -254,7 +509,7 @@ void CullObjectsToGridCS(
 
 	if (all(CullGridCoord < CullGridResolution))
 	{
-		for (uint IndexInObjectIndexBuffer = ThreadIndex; IndexInObjectIndexBuffer < ObjectIndexNumBuffer[0]; IndexInObjectIndexBuffer += GRID_CULL_THREADGORUP_TOTALSIZE)
+		for (uint IndexInObjectIndexBuffer = ThreadIndex; IndexInObjectIndexBuffer < ObjectIndexNumBuffer[0]; IndexInObjectIndexBuffer += GRID_CULL_THREADGROUP_TOTALSIZE)
 		{
 			uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
@@ -263,7 +518,7 @@ void CullObjectsToGridCS(
 
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, ObjectCenter, ObjectExtent);
 
-			if (DistanceSq < InfluenceRadiusSq)
+			if (DistanceSq <= InfluenceRadiusSq)
 			{
 				InterlockedAdd(NumObjectsGridCell, 1U);
 			}
@@ -285,7 +540,7 @@ void CullObjectsToGridCS(
 
 	if (all(CullGridCoord < CullGridResolution))
 	{
-		for (uint IndexInObjectIndexBuffer = ThreadIndex; IndexInObjectIndexBuffer < ObjectIndexNumBuffer[0]; IndexInObjectIndexBuffer += GRID_CULL_THREADGORUP_TOTALSIZE)
+		for (uint IndexInObjectIndexBuffer = ThreadIndex; IndexInObjectIndexBuffer < ObjectIndexNumBuffer[0]; IndexInObjectIndexBuffer += GRID_CULL_THREADGROUP_TOTALSIZE)
 		{
 			uint ObjectIndex = ObjectIndexBuffer[IndexInObjectIndexBuffer];
 
@@ -294,7 +549,7 @@ void CullObjectsToGridCS(
 
 			float DistanceSq = ComputeSquaredDistanceBetweenAABBs(CullTileWorldCenter, CullTileWorldExtent, ObjectCenter, ObjectExtent);
 
-			if (DistanceSq < InfluenceRadiusSq)
+			if (DistanceSq <= InfluenceRadiusSq)
 			{
 				uint DestIndex;
 				InterlockedAdd(NumObjectsGridCell, 1U, DestIndex);
@@ -313,39 +568,55 @@ groupshared uint NumTileCulledObjects;
 
 #define USE_CULL_GRID 1
 
-Buffer<uint> ComposeTileBuffer;
-uint3 GlobalDistanceFieldScrollOffset;
+StructuredBuffer<uint> PageTileBuffer;
+StructuredBuffer<uint> ComposeTileBuffer;
 uint3 ClipmapResolution;
-float3 VoxelCoordToWorldVoxelCenterScale;
-float3 VoxelCoordToWorldVoxelCenterBias;
-float3 ComposeGridCoordToWorldCenterScale;
-float3 ComposeGridCoordToWorldCenterBias;
 float3 ComposeTileWorldExtent;
+float3 ClipmapMinBounds;
+float ClipmapVoxelExtent;
+
+float3 PageCoordToVoxelCenterScale;
+float3 PageCoordToVoxelCenterBias;
 
 [numthreads(COMPOSITE_THREADGROUP_SIZEX, COMPOSITE_THREADGROUP_SIZEY, COMPOSITE_THREADGROUP_SIZEZ)]
-void ComposeObjectDistanceFieldsCS(
+void ComposeObjectsIntoPagesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
     uint3 GroupThreadId : SV_GroupThreadID) 
 {
 	uint ThreadIndex = (GroupThreadId.z * COMPOSITE_THREADGROUP_SIZEY + GroupThreadId.y) * COMPOSITE_THREADGROUP_SIZEX + GroupThreadId.x;
 
-	uint PackedComposeTile = ComposeTileBuffer[GroupId.x];
+	uint PackedPageTile = ComposeTileBuffer[GroupId.x / GLOBAL_DISTANCE_FIELD_PAGE_GROUP_NUM];
 
-	uint3 ComposeGridCoord;
-	ComposeGridCoord.x = PackedComposeTile & 0xFF;
-	ComposeGridCoord.y = (PackedComposeTile >> 8) & 0xFF;
-	ComposeGridCoord.z = (PackedComposeTile >> 16) & 0xFF;
+	uint LinearPageGroupOffset = GroupId.x % GLOBAL_DISTANCE_FIELD_PAGE_GROUP_NUM;
 
-	uint3 VoxelCoord = ComposeGridCoord * COMPOSITE_THREADGROUP_SIZEX + GroupThreadId;
-	uint3 CullGridCoord = (ComposeGridCoord * COMPOSITE_THREADGROUP_SIZEX) / CULL_GRID_TILE_SIZE;
+	uint3 PageGroupOffset;
+	PageGroupOffset.x = LinearPageGroupOffset % GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X;
+	PageGroupOffset.y = (LinearPageGroupOffset / GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X) % GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X;
+	PageGroupOffset.z = (LinearPageGroupOffset / GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X) / GLOBAL_DISTANCE_FIELD_PAGE_GROUP_X;
+
+	uint3 PageGridCoord;
+	PageGridCoord.x = PackedPageTile & 0xFF;
+	PageGridCoord.y = (PackedPageTile >> 8) & 0xFF;
+	PageGridCoord.z = (PackedPageTile >> 16) & 0xFF;
+
+	uint3 TexelCoordInPage = PageGroupOffset * 4 + GroupThreadId;
+
+	uint3 PageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + TexelCoordInPage - 1;
+	float3 ComposeTileCenterPageCoord = PageGridCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + PageGroupOffset * 4 + 1.5f - 1.0f;
+	uint3 CullGridCoord = PageGridCoord;
+
+	float3 VoxelWorldCenter = PageCoord * PageCoordToVoxelCenterScale + PageCoordToVoxelCenterBias;
+	float3 ComposeTileWorldCenter = ComposeTileCenterPageCoord * PageCoordToVoxelCenterScale + PageCoordToVoxelCenterBias;
+
+	uint3 PageTableTextureCoord = PageGridCoordToPageTableTextureCoord(PageGridCoord);
+	uint PageId = PageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
+	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(PageId);
+	PageAtlasCoord += TexelCoordInPage;
 
 	uint CullGridLinearIndex = (CullGridCoord.z * CullGridResolution.y + CullGridCoord.y) * CullGridResolution.x + CullGridCoord.x;
 	uint CullGridObjectNum = CullGridObjectHeader[CullGridLinearIndex * 2 + 0];
 	uint CullGridObjectOffset = CullGridObjectHeader[CullGridLinearIndex * 2 + 1];
-
-	float3 VoxelWorldCenter = VoxelCoord * VoxelCoordToWorldVoxelCenterScale + VoxelCoordToWorldVoxelCenterBias;
-	float3 ComposeTileWorldCenter = ComposeGridCoord * ComposeGridCoordToWorldCenterScale + ComposeGridCoordToWorldCenterBias;
 
 	float MinDistance = InfluenceRadius;
 
@@ -367,9 +638,9 @@ void ComposeObjectDistanceFieldsCS(
 
 		GroupMemoryBarrierWithGroupSync();
 
-		for (uint CulledGridObjectIndex = PassStartObject + ThreadIndex; CulledGridObjectIndex < PassNumObjects; CulledGridObjectIndex += COMPOSITE_THREADGORUP_TOTALSIZE)
+		for (uint IndexInCullCell = PassStartObject + ThreadIndex; IndexInCullCell < PassNumObjects; IndexInCullCell += COMPOSITE_THREADGORUP_TOTALSIZE)
 		{
-			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + CulledGridObjectIndex];
+			uint ObjectIndex = CullGridObjectArray[CullGridObjectOffset + IndexInCullCell];
 
 			float3 ObjectCenter = LoadGlobalObjectPositionAndRadius(ObjectIndex).xyz;
 			float3 ObjectExtent = LoadGlobalObjectExtent(ObjectIndex) * MESH_SDF_APPROX_MARGIN;
@@ -410,87 +681,23 @@ void ComposeObjectDistanceFieldsCS(
 
 #endif
 
-	if (all(VoxelCoord < ClipmapResolution))
+	if (all(TexelCoordInPage < GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS))
 	{
-		uint3 GlobalSDFClipmapCoord = (VoxelCoord + GlobalDistanceFieldScrollOffset) % ClipmapResolution;
-
 		#if COMPOSE_PARENT_DISTANCE_FIELD
-			MinDistance = min(MinDistance, ParentGlobalDistanceFieldTexture[GlobalSDFClipmapCoord].x);
+		{
+			uint ParentPageId = ParentPageTableLayerTexture.Load(int4(PageTableTextureCoord, 0));
+			if (ParentPageId != GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+			{
+				uint3 ParentPageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(ParentPageId);
+				ParentPageAtlasCoord += TexelCoordInPage;
+
+				float ParentDistanceField = DecodeGlobalDistanceFieldPageDistance(RWPageAtlasTexture[ParentPageAtlasCoord].x, InfluenceRadius);
+
+				MinDistance = min(MinDistance, ParentDistanceField);
+			}
+		}
 		#endif
 
-		RWGlobalDistanceFieldTexture[GlobalSDFClipmapCoord] = MinDistance;
-	}
-}
-
-#ifndef COMPOSITE_HEIGHTFIELDS_THREADGROUP_SIZE
-	#define COMPOSITE_HEIGHTFIELDS_THREADGROUP_SIZE 1
-#endif
-
-[numthreads(COMPOSITE_HEIGHTFIELDS_THREADGROUP_SIZE, COMPOSITE_HEIGHTFIELDS_THREADGROUP_SIZE, 1)]
-void ComposeHeightfieldsIntoGlobalDistanceFieldCS(
-	uint3 GroupId : SV_GroupID,
-	uint3 DispatchThreadId : SV_DispatchThreadID,
-	uint3 GroupThreadId : SV_GroupThreadID)
-{
-	// We only dispatch one depth layer, so the z value is incorrect
-	float3 LookupWorldPosition = UpdateRegionVolumeMin + float3(DispatchThreadId.xy, 0.0f) * UpdateRegionVolumeStep;
-
-	uint ValidHeightfieldIndex = 0;
-
-	LOOP
-		for (uint HeightfieldIndex = 0; HeightfieldIndex < NumHeightfields; HeightfieldIndex++)
-		{
-			float3 LocalPosition = mul(float4(LookupWorldPosition, 1), GetWorldToLocal(HeightfieldIndex)).xyz;
-			float4 MinMaxHeightfieldUV;
-			float2 HeightfieldUV = GetHeightfieldUV(HeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
-
-			if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
-			{
-				ValidHeightfieldIndex = HeightfieldIndex;
-				break;
-			}
-		}
-
-
-	float3 LocalPosition = mul(float4(LookupWorldPosition, 1), GetWorldToLocal(ValidHeightfieldIndex)).xyz;
-	float4 MinMaxHeightfieldUV;
-	float2 HeightfieldUV = GetHeightfieldUV(ValidHeightfieldIndex, LocalPosition.xy, MinMaxHeightfieldUV);
-
-	if (all(HeightfieldUV > MinMaxHeightfieldUV.xy) && all(HeightfieldUV < MinMaxHeightfieldUV.zw))
-	{
-		if (all(DispatchThreadId.xy < UpdateRegionSize.xy))
-		{
-			float3 WorldHeightfieldNormal;
-			float HeightfieldVisibility;
-			float3 WorldHeightfieldShadingPosition = GetHeightfieldWorldPositionAndNormal(ValidHeightfieldIndex, LocalPosition.xy, HeightfieldUV, WorldHeightfieldNormal, HeightfieldVisibility);
-
-			if (HeightfieldVisibility > 0.5f) // Skip holes in the heightfield
-			{
-				// Compute distance for all Z values of the update region
-				LOOP
-					for (uint ZIndex = 0; ZIndex < UpdateRegionSize.z; ZIndex++)
-					{
-						float3 WorldPosition;
-						WorldPosition.xy = LookupWorldPosition.xy;
-						WorldPosition.z = UpdateRegionVolumeMin.z + ZIndex * UpdateRegionVolumeStep;
-
-						// Project the vertical height vector onto the normal of the heightfield directly below the point we are computing the distance field for, use the perpendicular distance
-						float DistanceToHeightfieldPlane = dot(WorldHeightfieldNormal, WorldPosition - WorldHeightfieldShadingPosition);
-
-						// Limit negative region of a heighfield to a user defined thickness  
-						const float MinInteriorDistance = -HeightfieldThickness;
-						if (DistanceToHeightfieldPlane < MinInteriorDistance)
-						{
-							DistanceToHeightfieldPlane = MinInteriorDistance - DistanceToHeightfieldPlane;
-						}
-
-						float MinDistance = clamp(DistanceToHeightfieldPlane, -InfluenceRadius, InfluenceRadius);
-
-						float3 GlobalUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
-						uint3 WriteCoordinate = (uint3)(frac(GlobalUV) * GlobalVolumeDimension);
-						RWGlobalDistanceFieldTexture[WriteCoordinate] = min(MinDistance, RWGlobalDistanceFieldTexture[WriteCoordinate]);
-					}
-			}
-		}
+		RWPageAtlasTexture[PageAtlasCoord] = EncodeGlobalDistanceFieldPageDistance(MinDistance, InfluenceRadius);
 	}
 }

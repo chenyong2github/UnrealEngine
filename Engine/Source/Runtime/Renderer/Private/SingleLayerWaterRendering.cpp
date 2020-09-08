@@ -773,7 +773,7 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 			}
 		}
 
-		// Lumen reflections
+		/*// Lumen reflections
 		extern bool ShouldRenderLumenReflections(const FViewInfo& View);
 		const bool bComposeLumenReflections = CVarWaterSingleLayerLumenReflections.GetValueOnRenderThread() != 0 && ShouldRenderLumenReflections(View);
 		if (bComposeLumenReflections)
@@ -788,6 +788,9 @@ void FDeferredShadingSceneRenderer::RenderSingleLayerWaterReflections(FRHIComman
 				ReflectionsColor,
 				bRunTiled ? &TiledScreenSpaceReflection : nullptr);
 		}
+*/
+
+		const bool bComposeLumenReflections = false;
 
 		// Composite reflections on water
 		{

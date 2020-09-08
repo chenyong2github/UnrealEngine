@@ -18,6 +18,7 @@
 #include "PipelineStateCache.h"
 #include "VisualizeTexture.h"
 #include "RayTracing/RaytracingOptions.h"
+#include "Lumen/Lumen.h"
 
 IMPLEMENT_TYPE_LAYOUT(FAOParameters);
 IMPLEMENT_TYPE_LAYOUT(FDFAOUpsampleParameters);
@@ -735,7 +736,7 @@ bool FDeferredShadingSceneRenderer::ShouldPrepareGlobalDistanceField() const
 			|| ((Views.Num() > 0) && Views[0].bUsesGlobalDistanceField)
 			|| ((Scene->FXSystem != nullptr) && Scene->FXSystem->UsesGlobalDistanceField()));
 
-	bShouldPrepareForAO = bShouldPrepareForAO || ShouldPrepareGlobalDistanceFieldForLumen(ShaderPlatform);
+	bShouldPrepareForAO = bShouldPrepareForAO || Lumen::ShouldPrepareGlobalDistanceField(ShaderPlatform);
 
 	return bShouldPrepareForAO && UseGlobalDistanceField();
 }

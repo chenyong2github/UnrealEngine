@@ -35,43 +35,14 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT(FLumenCardScene, )
 	SHADER_PARAMETER(FVector, DistantSceneDirection)
 	SHADER_PARAMETER_ARRAY(uint32, DistantCardIndices,[MaxDistantCards])
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardData)
-	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CardBVHData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CubeMapData)
 	SHADER_PARAMETER_SRV(StructuredBuffer<float4>, CubeMapTreeData)
 	SHADER_PARAMETER_SRV(ByteAddressBuffer, DFObjectToCubeMapTreeIndexBuffer)
+	SHADER_PARAMETER_SRV(ByteAddressBuffer, PrimitiveToDFObjectIndexBuffer)
 	SHADER_PARAMETER_TEXTURE(Texture2D, AlbedoAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, NormalAtlas)
 	SHADER_PARAMETER_TEXTURE(Texture2D, DepthBufferAtlas)
 END_GLOBAL_SHADER_PARAMETER_STRUCT()
-
-static constexpr uint32 INVALID_BVH_NODE_ID = 65535;
-static constexpr uint32 INVALID_PROXY_CARD_ID = 65535;
-static constexpr uint32 BVH_WIDTH = 64;
-
-class FLumenSceneCardBVHNode
-{
-public:
-	FLumenSceneCardBVHNode()
-	{
-		for (int32 ChildIndex = 0; ChildIndex < UE_ARRAY_COUNT(Children); ++ChildIndex)
-		{
-			Children[ChildIndex].BBoxCenter.Set(FLT_MAX * 0.5f, FLT_MAX * 0.5f, FLT_MAX * 0.5f);
-			Children[ChildIndex].BBoxExtent.Set(0.0f, 0.0f, 0.0f);
-			Children[ChildIndex].ChildId = INVALID_BVH_NODE_ID;
-			Children[ChildIndex].LumenCardId = INVALID_PROXY_CARD_ID;
-		}
-	}
-
-	struct FChild
-	{
-		FVector BBoxCenter;
-		FVector BBoxExtent;
-		uint32 ChildId;
-		uint32 LumenCardId;
-	};
-
-	FChild Children[BVH_WIDTH];
-};
 
 class FMeshCardRepresentationLink
 {
@@ -217,19 +188,11 @@ public:
 	FScatterUploadBuffer UploadCubeMapTreeBuffer;
 	FScatterUploadBuffer UploadCubeMapBuffer;
 	FScatterUploadBuffer ByteBufferUploadBuffer;
+	FScatterUploadBuffer UploadPrimitiveBuffer;
 
 	TArray<int32> CardIndicesToUpdateInBuffer;
 	FRWBufferStructured CardBuffer;
 	TUniformBufferRef<FLumenCardScene> UniformBuffer;
-	FReadBuffer MeshSDFOverlappingCardHeader;
-	FReadBuffer MeshSDFOverlappingCardData;
-
-	// BVH
-	int32 BVHDepth;
-	int32 NumCardsInBVH = 0;
-	bool bUseBVH = false;
-	TArray<FLumenSceneCardBVHNode> CardBVH;
-	FRWBufferStructured CardBVHBuffer;
 
 	// Cube map trees
 	TArray<int32> DFObjectIndicesToUpdateInBuffer;
@@ -244,6 +207,7 @@ public:
 	FRWBufferStructured CubeMapTreeBuffer;
 	FRWBufferStructured CubeMapBuffer;
 	FRWByteAddressBuffer DFObjectToCubeMapTreeIndexBuffer;
+	FRWByteAddressBuffer PrimitiveToDFObjectIndexBuffer;
 
 	TArray<int32> VisibleCardsIndices;
 	TRefCountPtr<FPooledRDGBuffer> VisibleCardsIndexBuffer;
@@ -267,6 +231,7 @@ public:
 	int32 NumCardsLeftToCapture = 0;
 	int32 NumCardsLeftToReallocate = 0;
 	int32 NumTexelsLeftToCapture = 0;
+	uint32 PrimitiveToDFObjectIndexBufferSize = 0;
 
 	bool bTrackAllPrimitives;
 	TArray<FLumenPrimitiveAddInfo> PendingAddOperations;

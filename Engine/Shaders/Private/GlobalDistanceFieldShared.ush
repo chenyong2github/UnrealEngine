@@ -11,12 +11,11 @@
 #endif
 
 #if DISTANCE_FIELD_IN_VIEW_UB
-#define MaxGlobalDistance				View.MaxGlobalDistance
+#define MaxGlobalDFAOConeDistance View.MaxGlobalDFAOConeDistance
 #else
-float MaxGlobalDistance;
+float MaxGlobalDFAOConeDistance;
 #endif
 
-//@todo - get the clipmap branches to compile under gl
 #if PLATFORM_SUPPORTS_DISTANCE_FIELDS
 
 // Must match C++
@@ -25,238 +24,203 @@ float MaxGlobalDistance;
 
 #if DISTANCE_FIELD_IN_VIEW_UB
     // for materials, these are in the view UB
-	#define GlobalDistanceFieldTexture0		View.GlobalDistanceFieldTexture0
-	#define GlobalDistanceFieldTexture1		View.GlobalDistanceFieldTexture1
-	#define GlobalDistanceFieldTexture2		View.GlobalDistanceFieldTexture2
-	#define GlobalDistanceFieldTexture3		View.GlobalDistanceFieldTexture3
-	#define GlobalDistanceFieldTexture4		View.GlobalDistanceFieldTexture4
-	#define GlobalDistanceFieldSampler0		View.GlobalDistanceFieldSampler0
-	#define GlobalDistanceFieldSampler1		View.GlobalDistanceFieldSampler1
-	#define GlobalDistanceFieldSampler2		View.GlobalDistanceFieldSampler2
-	#define GlobalDistanceFieldSampler3		View.GlobalDistanceFieldSampler3
-	#define GlobalDistanceFieldSampler4		View.GlobalDistanceFieldSampler4
-	#define GlobalVolumeCenterAndExtent		View.GlobalVolumeCenterAndExtent
-	#define GlobalVolumeWorldToUVAddAndMul	View.GlobalVolumeWorldToUVAddAndMul
-	#define GlobalVolumeDimension			View.GlobalVolumeDimension
-	#define GlobalVolumeTexelSize			View.GlobalVolumeTexelSize
-	#define NumGlobalSDFClipmaps			View.NumGlobalSDFClipmaps
+	#define GlobalDistanceFieldPageAtlasTexture			View.GlobalDistanceFieldPageAtlasTexture
+	#define GlobalDistanceFieldPageTableTexture			View.GlobalDistanceFieldPageTableTexture
+	#define GlobalVolumeCenterAndExtent					View.GlobalVolumeCenterAndExtent
+	#define GlobalVolumeWorldToUVAddAndMul				View.GlobalVolumeWorldToUVAddAndMul
+	#define GlobalDistanceFieldPageTableScrollOffset	View.GlobalDistanceFieldPageTableScrollOffset
+	#define GlobalDistanceFieldInvPageAtlasSize			View.GlobalDistanceFieldInvPageAtlasSize
+	#define GlobalDistanceFieldClipmapSizeInPages		View.GlobalDistanceFieldClipmapSizeInPages
+	#define GlobalVolumeDimension						View.GlobalVolumeDimension
+	#define GlobalVolumeTexelSize						View.GlobalVolumeTexelSize
+	#define NumGlobalSDFClipmaps						View.NumGlobalSDFClipmaps
 #else
 	// these are only used for the precomputation shaders; which don't have a view UB
-	Texture3D GlobalDistanceFieldTexture0;
-	Texture3D GlobalDistanceFieldTexture1;
-	Texture3D GlobalDistanceFieldTexture2;
-	Texture3D GlobalDistanceFieldTexture3;
-	Texture3D GlobalDistanceFieldTexture4;
-	SamplerState GlobalDistanceFieldSampler0;
-	SamplerState GlobalDistanceFieldSampler1;
-	SamplerState GlobalDistanceFieldSampler2;
-	SamplerState GlobalDistanceFieldSampler3;
-	SamplerState GlobalDistanceFieldSampler4;
+	Texture3D GlobalDistanceFieldPageAtlasTexture;
+	Texture3D<uint> GlobalDistanceFieldPageTableTexture;
 	float4 GlobalVolumeCenterAndExtent[MAX_GLOBAL_DF_CLIPMAPS];
 	float4 GlobalVolumeWorldToUVAddAndMul[MAX_GLOBAL_DF_CLIPMAPS];
+	float3 GlobalDistanceFieldPageTableScrollOffset[MAX_GLOBAL_DF_CLIPMAPS];
+	float3 GlobalDistanceFieldInvPageAtlasSize;
+	uint GlobalDistanceFieldClipmapSizeInPages;
 	float GlobalVolumeDimension;
 	float GlobalVolumeTexelSize;
 	uint NumGlobalSDFClipmaps;
 #endif
 
-#if SUPPORTS_INDEPENDENT_SAMPLERS
-	#define SharedGlobalDistanceFieldSampler0 GlobalDistanceFieldSampler0
-	#define SharedGlobalDistanceFieldSampler1 GlobalDistanceFieldSampler0
-	#define SharedGlobalDistanceFieldSampler2 GlobalDistanceFieldSampler0
-	#define SharedGlobalDistanceFieldSampler3 GlobalDistanceFieldSampler0
-	#define SharedGlobalDistanceFieldSampler4 GlobalDistanceFieldSampler0
-#else
-	#define SharedGlobalDistanceFieldSampler0 GlobalDistanceFieldSampler0
-	#define SharedGlobalDistanceFieldSampler1 GlobalDistanceFieldSampler1
-	#define SharedGlobalDistanceFieldSampler2 GlobalDistanceFieldSampler2
-	#define SharedGlobalDistanceFieldSampler3 GlobalDistanceFieldSampler3
-	#define SharedGlobalDistanceFieldSampler4 GlobalDistanceFieldSampler4
-#endif
+// Must match GlobalDistanceField.cpp
+#define GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS 16 // Includes 1 texel bilinear filter margin
+#define GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION (GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS - 2)
+#define GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X 32
+#define GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y 32
+#define GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS 4
+#define GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID 0xFFFF
 
-float4 SampleGlobalDistanceField(int ClipmapIndex, float3 UV)
+uint3 GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(uint PageLinearIndex)
 {
-	if (ClipmapIndex == 0)
-	{
-		return Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, UV, 0);
-	}
-	else if (ClipmapIndex == 1)
-	{
-		return Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, UV, 0);
-	}
-	else if (ClipmapIndex == 2)
-	{
-		return Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, UV, 0);
-	}
-	else if (ClipmapIndex == 3)
-	{
-		return Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, UV, 0);
-	}
-	else
-	{
-		return Texture3DSampleLevel(GlobalDistanceFieldTexture4, SharedGlobalDistanceFieldSampler4, UV, 0);
-	}
+	uint3 PageAtlasCoord;
+	//PageAtlasCoord.x = (PageLinearIndex % GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X);
+	//PageAtlasCoord.y = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) % GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
+	//PageAtlasCoord.z = ((PageLinearIndex / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_X) / GLOBAL_DISTANCE_FIELD_PAGE_ATLAS_SIZE_IN_PAGES_Y);
+
+	// Same as above, but with bit operations
+	PageAtlasCoord.x = PageLinearIndex & 0x1F;
+	PageAtlasCoord.y = (PageLinearIndex >> 5) & 0x1F;
+	PageAtlasCoord.z = PageLinearIndex >> 10;
+
+	return PageAtlasCoord * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION_IN_ATLAS;
+}
+
+uint GetGlobalDistanceFieldPage(float3 VolumeUV, uint ClipmapIndex)
+{
+	int4 PageTableCoord = int4(saturate(VolumeUV) * GlobalDistanceFieldClipmapSizeInPages + int3(0, 0, ClipmapIndex * GlobalDistanceFieldClipmapSizeInPages), 0);
+
+	uint PageIndex = GlobalDistanceFieldPageTableTexture.Load(PageTableCoord);
+	return PageIndex;
+}
+
+float3 ComputeGlobalDistanceFieldPageUV(float3 VolumeUV, uint PageIndex)
+{
+	uint3 PageAtlasCoord = GlobalDistanceFieldPageLinearIndexToPageAtlasCoord(PageIndex);
+
+	float3 PageCoord = PageAtlasCoord;
+	PageCoord += frac(VolumeUV * GlobalDistanceFieldClipmapSizeInPages) * GLOBAL_DISTANCE_FIELD_PAGE_RESOLUTION + 1.0f;
+
+	float3 PageUV = PageCoord * GlobalDistanceFieldInvPageAtlasSize;
+	return PageUV;
+}
+
+float EncodeGlobalDistanceFieldPageDistance(float Distance, float ClipmapInfluenceRange)
+{
+	return saturate(Distance / (2.0f * ClipmapInfluenceRange) + 0.5f);
+}
+
+float DecodeGlobalDistanceFieldPageDistance(float EncodedDistance, float ClipmapInfluenceRange)
+{
+	return (EncodedDistance * 2.0f - 1.0f) * ClipmapInfluenceRange;
 }
 
 float3 ComputeGlobalUV(float3 WorldPosition, uint ClipmapIndex)
 {
 	//return ((WorldPosition - GlobalVolumeCenterAndExtent[ClipmapIndex].xyz + GlobalVolumeScollOffset[ClipmapIndex].xyz) / (GlobalVolumeCenterAndExtent[ClipmapIndex].w * 2) + .5f);
 	float4 WorldToUVAddAndMul = GlobalVolumeWorldToUVAddAndMul[ClipmapIndex];
-	return WorldPosition * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz;
-}
-
-float GetDistanceToNearestSurfaceGlobalClipmap(float3 WorldPosition, uint ClipmapIndex, float OuterClipmapFade)
-{
-	float3 GlobalUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
-	float DistanceToSurface = 0;
-	if (ClipmapIndex == 0)
-	{
-		DistanceToSurface = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, GlobalUV, 0).x;
-	}
-	else if (ClipmapIndex == 1)
-	{
-		DistanceToSurface = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, GlobalUV, 0).x;
-	}
-	else if (ClipmapIndex == 2)
-	{
-		DistanceToSurface = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, GlobalUV, 0).x;
-	}
-	else if (ClipmapIndex == 3)
-	{
-		DistanceToSurface = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, GlobalUV, 0).x;
-		DistanceToSurface = lerp(MaxGlobalDistance, DistanceToSurface, OuterClipmapFade);
-	}
-	return DistanceToSurface;
+	return frac(WorldPosition * WorldToUVAddAndMul.www + WorldToUVAddAndMul.xyz);
 }
 
 float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
 {
-	float DistanceToSurface = MaxGlobalDistance;
-	float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[0].xyz, GlobalVolumeCenterAndExtent[0].www, WorldPosition);
+	float Distance = 0.0f;
 
-	//@todo - would be nice to atlas to get rid of branches and multiple samplers but the partial update scrolling relies on wrap addressing
-	BRANCH
-	if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[0].w * GlobalVolumeTexelSize)
+	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ClipmapIndex++)
 	{
-		DistanceToSurface = GetDistanceToNearestSurfaceGlobalClipmap(WorldPosition, 0, 0);
-	}
-	else
-	{
-		DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[1].xyz, GlobalVolumeCenterAndExtent[1].www, WorldPosition);
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
+		const float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		const float ClipmapInfluenceRange = 2.0f * GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * ClipmapVoxelExtent;
 
-		BRANCH
-		if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[1].w * GlobalVolumeTexelSize)
-		{
-			DistanceToSurface = GetDistanceToNearestSurfaceGlobalClipmap(WorldPosition, 1, 0);
-		}
-		else
-		{
-			DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[2].xyz, GlobalVolumeCenterAndExtent[2].www, WorldPosition);
-			float DistanceFromLastClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[3].xyz, GlobalVolumeCenterAndExtent[3].www, WorldPosition);
+		Distance = ClipmapInfluenceRange;
 
-			BRANCH
-			if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[2].w * GlobalVolumeTexelSize)
+		if (DistanceFromClipmap > ClipmapVoxelExtent)
+		{
+			float3 ClipmapVolumeUV = frac(ComputeGlobalUV(WorldPosition, ClipmapIndex));
+
+			uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
+
+			if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
 			{
-				DistanceToSurface = GetDistanceToNearestSurfaceGlobalClipmap(WorldPosition, 2, 0);
-			}
-			else if (DistanceFromLastClipmap > GlobalVolumeCenterAndExtent[3].w * GlobalVolumeTexelSize)
-			{
-				// Fade to max distance in the last 10% of the largest clipmap
-				float OuterClipmapFade = saturate(DistanceFromLastClipmap * 10 * GlobalVolumeWorldToUVAddAndMul[3].w);
-				DistanceToSurface = GetDistanceToNearestSurfaceGlobalClipmap(WorldPosition, 3, OuterClipmapFade);
+				float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
+
+				float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+
+				if (DistanceFieldValue < 1.0f)
+				{
+					Distance = DecodeGlobalDistanceFieldPageDistance(DistanceFieldValue, ClipmapInfluenceRange);
+					break;
+				}
 			}
 		}
 	}
 
-	return DistanceToSurface;
+	return Distance;
 }
 
-float3 GetDistanceFieldGradientGlobalClipmap(float3 WorldPosition, uint ClipmapIndex)
+float SampleGlobalDistanceField(float3 WorldPosition, float MaxDistance, int MinClipmapIndex)
 {
-	float3 GlobalUV = ComputeGlobalUV(WorldPosition, ClipmapIndex);
+	float Distance = MaxDistance;
 
-	float R = 0;
-	float L = 0;
-	float F = 0;
-	float B = 0;
-	float U = 0;
-	float D = 0;
-
-	if (ClipmapIndex == 0)
+	for (uint ClipmapIndex = MinClipmapIndex; Distance <= MaxDistance && ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
 	{
-		R = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, float3(GlobalUV.x + GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		L = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, float3(GlobalUV.x - GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		F = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, float3(GlobalUV.x, GlobalUV.y + GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		B = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, float3(GlobalUV.x, GlobalUV.y - GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		U = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z + GlobalVolumeTexelSize), 0).x;
-		D = Texture3DSampleLevel(GlobalDistanceFieldTexture0, SharedGlobalDistanceFieldSampler0, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z - GlobalVolumeTexelSize), 0).x;
-	}
-	else if (ClipmapIndex == 1)
-	{
-		R = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, float3(GlobalUV.x + GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		L = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, float3(GlobalUV.x - GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		F = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, float3(GlobalUV.x, GlobalUV.y + GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		B = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, float3(GlobalUV.x, GlobalUV.y - GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		U = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z + GlobalVolumeTexelSize), 0).x;
-		D = Texture3DSampleLevel(GlobalDistanceFieldTexture1, SharedGlobalDistanceFieldSampler1, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z - GlobalVolumeTexelSize), 0).x;
-	}
-	else if (ClipmapIndex == 2)
-	{
-		R = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, float3(GlobalUV.x + GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		L = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, float3(GlobalUV.x - GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		F = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, float3(GlobalUV.x, GlobalUV.y + GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		B = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, float3(GlobalUV.x, GlobalUV.y - GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		U = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z + GlobalVolumeTexelSize), 0).x;
-		D = Texture3DSampleLevel(GlobalDistanceFieldTexture2, SharedGlobalDistanceFieldSampler2, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z - GlobalVolumeTexelSize), 0).x;
-	}
-	else if (ClipmapIndex == 3)
-	{
-		R = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, float3(GlobalUV.x + GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		L = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, float3(GlobalUV.x - GlobalVolumeTexelSize, GlobalUV.y, GlobalUV.z), 0).x;
-		F = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, float3(GlobalUV.x, GlobalUV.y + GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		B = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, float3(GlobalUV.x, GlobalUV.y - GlobalVolumeTexelSize, GlobalUV.z), 0).x;
-		U = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z + GlobalVolumeTexelSize), 0).x;
-		D = Texture3DSampleLevel(GlobalDistanceFieldTexture3, SharedGlobalDistanceFieldSampler3, float3(GlobalUV.x, GlobalUV.y, GlobalUV.z - GlobalVolumeTexelSize), 0).x;
-	}
+		const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
 		
-	float Extent = GlobalVolumeCenterAndExtent[ClipmapIndex].w;
-	float3 Gradient = .5f * float3(R - L, F - B, U - D) / Extent;
-	return Gradient;
+		float3 ClipmapVolumeUV = frac(ComputeGlobalUV(WorldPosition, ClipmapIndex));
+		uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
+
+		if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
+		{
+			float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
+
+			float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+
+			if (DistanceFieldValue < 1.0f)
+			{
+				Distance = DecodeGlobalDistanceFieldPageDistance(DistanceFieldValue, ClipmapInfluenceRange);
+				break;
+			}
+		}
+	}
+
+	return Distance;
 }
 
+float3 GlobalDistanceFieldPageCentralDiff(float3 PageUV)
+{
+	// Distance field pages have a 1 texel border and can't bilinear sample further than 0.5 texel from that border
+	float3 TexelOffset = 0.5f * GlobalDistanceFieldInvPageAtlasSize;
+
+	float R = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x + TexelOffset.x, PageUV.y, PageUV.z), 0).x;
+	float L = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x - TexelOffset.x, PageUV.y, PageUV.z), 0).x;
+	float F = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y + TexelOffset.y, PageUV.z), 0).x;
+	float B = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y - TexelOffset.y, PageUV.z), 0).x;
+	float U = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y, PageUV.z + TexelOffset.z), 0).x;
+	float D = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, float3(PageUV.x, PageUV.y, PageUV.z - TexelOffset.z), 0).x;
+
+	return float3(R - L, F - B, U - D);
+}
+
+// Returns vector (unnormalized) to the nearest surface point
 float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 {
-	float3 Gradient = float3(0, 0, .001f);
-	float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[0].xyz, GlobalVolumeCenterAndExtent[0].www, WorldPosition);
-	// Don't sample near the border to avoid sampling out of bounds during partial differencing
-	float BorderTexels = GlobalVolumeTexelSize * 4;
+	float3 Gradient = float3(0, 0, 0.001f);
 
-	BRANCH
-	if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[0].w * BorderTexels)
+	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ClipmapIndex++)
 	{
-		Gradient = GetDistanceFieldGradientGlobalClipmap(WorldPosition, 0);
-	}
-	else
-	{
-		DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[1].xyz, GlobalVolumeCenterAndExtent[1].www, WorldPosition);
+		const float ClipmapVoxelExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w * GlobalVolumeTexelSize;
+		const float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldPosition);
 
-		BRANCH
-		if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[1].w * BorderTexels)
+		if (DistanceFromClipmap >= ClipmapVoxelExtent)
 		{
-			Gradient = GetDistanceFieldGradientGlobalClipmap(WorldPosition, 1);
-		}
-		else
-		{
-			DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[2].xyz, GlobalVolumeCenterAndExtent[2].www, WorldPosition);
-			float DistanceFromLastClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[3].xyz, GlobalVolumeCenterAndExtent[3].www, WorldPosition);
+			const float3 ClipmapVolumeUV = frac(ComputeGlobalUV(WorldPosition, ClipmapIndex));
 
-			BRANCH
-			if (DistanceFromClipmap > GlobalVolumeCenterAndExtent[2].w * BorderTexels)
+			uint PageIndex = GetGlobalDistanceFieldPage(ClipmapVolumeUV, ClipmapIndex);
+
+			if (PageIndex < GLOBAL_DISTANCE_FIELD_INVALID_PAGE_ID)
 			{
-				Gradient = GetDistanceFieldGradientGlobalClipmap(WorldPosition, 2);
-			}
-			else if (DistanceFromLastClipmap > GlobalVolumeCenterAndExtent[3].w * BorderTexels)
-			{
-				Gradient = GetDistanceFieldGradientGlobalClipmap(WorldPosition, 3);
+				float3 PageUV = ComputeGlobalDistanceFieldPageUV(ClipmapVolumeUV, PageIndex);
+
+				float DistanceFieldValue = Texture3DSampleLevel(GlobalDistanceFieldPageAtlasTexture, GlobalTrilinearWrappedSampler, PageUV, 0).x;
+
+				// Find a page which where narrow band isn't clipped
+				if (DistanceFieldValue < 0.9f)
+				{
+					float3 PageCentralDiff = GlobalDistanceFieldPageCentralDiff(PageUV);
+
+					const float ClipmapInfluenceRange = GLOBAL_DISTANCE_FIELD_INFLUENCE_RANGE_IN_VOXELS * 2.0f * ClipmapVoxelExtent;
+					const float PageDistanceDecodeFactor = 2.0f * ClipmapInfluenceRange;
+					float ClipmapExtent = GlobalVolumeCenterAndExtent[ClipmapIndex].w;
+
+					Gradient = PageDistanceDecodeFactor * PageCentralDiff / (ClipmapExtent);
+
+					break;
+				}
 			}
 		}
 	}
@@ -268,7 +232,7 @@ float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)
 
 float GetDistanceToNearestSurfaceGlobal(float3 WorldPosition)
 {
-	return MaxGlobalDistance;
+	return MaxGlobalDFAOConeDistance;
 }
 
 float3 GetDistanceFieldGradientGlobal(float3 WorldPosition)

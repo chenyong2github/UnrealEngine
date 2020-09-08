@@ -13,7 +13,6 @@
 #include "PixelShaderUtils.h"
 #include "ReflectionEnvironment.h"
 #include "DistanceFieldAmbientOcclusion.h"
-#include "LumenSceneBVH.h"
 
 int32 GLumenRadiosity = 1;
 FAutoConsoleVariableRef CVarLumenRadiosity(
@@ -92,14 +91,6 @@ FAutoConsoleVariableRef CVarRadiosityVoxelStepFactor(
 	TEXT("r.Lumen.Radiosity.VoxelStepFactor"),
 	GLumenRadiosityVoxelStepFactor,
 	TEXT("."),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-	);
-
-int32 GLumenRadiosityMergedVoxelDirections = 0;
-FAutoConsoleVariableRef CVarLumenRadiosityMergedVoxelDirections(
-	TEXT("r.Lumen.Radiosity.MergedVoxelDirections"),
-	GLumenRadiosityMergedVoxelDirections,
-	TEXT(""),
 	ECVF_Scalability | ECVF_RenderThreadSafe
 	);
 
@@ -258,7 +249,7 @@ class FTraceProbeCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, 3);
+		class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode>;
 
 	static uint32 GetGroupSize()
@@ -588,7 +579,7 @@ class FLumenCardRadiosityTraceBlocksCS : public FGlobalShader
 		SHADER_PARAMETER_RDG_BUFFER(Buffer<uint>, IndirectArgs)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, 3);
+	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
 	class FProbes : SHADER_PERMUTATION_BOOL("RADIOSITY_PROBES");
 
@@ -729,12 +720,11 @@ class FLumenCardRadiosityPS : public FGlobalShader
 		SHADER_PARAMETER_STRUCT_INCLUDE(FRadiosityTraceFromTexelParameters, TraceFromTexelParameters)
 	END_SHADER_PARAMETER_STRUCT()
 
-	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, 3);
+	class FVoxelTracingMode : SHADER_PERMUTATION_RANGE_INT("VOXEL_TRACING_MODE", 0, Lumen::VoxelTracingModeCount);
 	class FDynamicSkyLight : SHADER_PERMUTATION_BOOL("ENABLE_DYNAMIC_SKY_LIGHT");
-	class FVoxelTraceBlendBetweenAxes : SHADER_PERMUTATION_BOOL("VOXEL_TRACE_BLEND_BETWEEN_AXES");
 	class FProbes : SHADER_PERMUTATION_BOOL("RADIOSITY_PROBES");
 
-	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight, FVoxelTraceBlendBetweenAxes, FProbes>;
+	using FPermutationDomain = TShaderPermutationDomain<FVoxelTracingMode, FDynamicSkyLight, FProbes>;
 
 	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
 	{
@@ -855,7 +845,6 @@ void FDeferredShadingSceneRenderer::RenderRadiosityForLumenScene(
 			FLumenCardRadiosityPS::FPermutationDomain PermutationVector;
 			PermutationVector.Set<FLumenCardRadiosityPS::FVoxelTracingMode>(Lumen::GetVoxelTracingMode());
 			PermutationVector.Set<FLumenCardRadiosityPS::FDynamicSkyLight>(bRenderSkylight);
-			PermutationVector.Set<FLumenCardRadiosityPS::FVoxelTraceBlendBetweenAxes>(GLumenRadiosityMergedVoxelDirections == 0);
 			PermutationVector.Set<FLumenCardRadiosityPS::FProbes>(GLumenRadiosityProbes != 0);
 			auto PixelShader = GlobalShaderMap->GetShader<FLumenCardRadiosityPS>(PermutationVector);
 

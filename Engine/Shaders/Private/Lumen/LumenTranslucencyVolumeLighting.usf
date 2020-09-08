@@ -7,8 +7,6 @@
 #include "../Common.ush"
 #include "../SHCommon.ush"
 #include "LumenCardCommon.ush"
-#define CARD_BVH 0
-#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
 #include "LumenTracingCommon.ush"
 
 RWTexture3D<float4> RWTranslucencyGI0;
@@ -85,7 +83,7 @@ void TranslucencyLightingCS(
 		float SceneDepth;
 		float3 WorldPosition = ComputeCellWorldPosition(GridCoordinate, FrameJitterOffset.xyz, SceneDepth);
 
-		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(WorldPosition, ConeHalfAngle, 0, MaxTraceDistance, MaxCardTraceDistance, false) * VoxelTraceStartDistanceScale;
+		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(0, MaxTraceDistance, MaxCardTraceDistance, false) * VoxelTraceStartDistanceScale;
 
 		FTwoBandSHVectorRGB Lighting = (FTwoBandSHVectorRGB)0;
 
@@ -100,36 +98,7 @@ void TranslucencyLightingCS(
 			TraceInput.SDFStepFactor = 1;
 
 			FConeTraceResult TraceResult;
-
-			bool bHitSDF = false;
-			
-// Reduces leaking from using only voxels for tracing
-#define SHORT_RANGE_OCCLUSION_FROM_GLOBAL_SDF 1
-#if SHORT_RANGE_OCCLUSION_FROM_GLOBAL_SDF
-
-			if (ShortRangeOcclusionFromGlobalSDF > 0)
-			{
-				uint ClipmapIndex = ComputeGlobalDistanceFieldClipmapIndex(WorldPosition);
-				float NextMaxRayTime;
-				float IntersectRayTime;
-				float Unused;
-
-				float MinStepSizeScale = 1.0f / 8000.0f;
-				FGlobalSDFTraceInput SDFTraceInput = SetupTraceInput(WorldPosition, WorldConeDirection, VoxelTraceStartDistance * 2, TraceInput.SDFStepFactor, MinStepSizeScale);
-				RayTraceThroughGlobalDistanceFieldClipmap(ClipmapIndex, SDFTraceInput, 0, NextMaxRayTime, IntersectRayTime, Unused);
-				bHitSDF = IntersectRayTime < SDFTraceInput.TraceDistance;
-			}
-
-			if (bHitSDF)
-			{
-				TraceResult = (FConeTraceResult)0;
-				TraceResult.Transparency = 0;
-			}
-			else
-#endif
-			{
-				ConeTraceVoxels(TraceInput, TraceResult);
-			}
+			ConeTraceVoxels(TraceInput, TraceResult);
 
 			EvaluateSkyRadianceForCone(WorldConeDirection, TraceInput.TanConeAngle, TraceResult);
 

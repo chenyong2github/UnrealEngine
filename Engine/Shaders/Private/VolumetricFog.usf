@@ -368,7 +368,7 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 	{
 		float3 WorldSamplePosition = WorldShadingPosition + ConeDirection * WorldStepOffset;
 		float3 StepVolumeUV = ComputeGlobalUV(WorldSamplePosition, ClipmapIndex);
-		float DistanceToOccluder = SampleGlobalDistanceField(ClipmapIndex, StepVolumeUV).x;
+		float DistanceToOccluder = SampleGlobalDistanceField(WorldSamplePosition, AOGlobalMaxOcclusionDistance, ClipmapIndex);
 		float SphereRadius = WorldStepOffset * TanConeHalfAngle;
 		float InvSphereRadius = rcpFast(SphereRadius);
 
@@ -390,38 +390,21 @@ float HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(
 
 float HemisphereConeTraceAgainstGlobalDistanceField(float3 WorldShadingPosition, float3 ConeDirection, float TanConeHalfAngle)
 {
-	float MinVisibility = 1.0f;
-	float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[0].xyz, GlobalVolumeCenterAndExtent[0].www, WorldShadingPosition);
-
-	BRANCH
-	if (DistanceFromClipmap > AOGlobalMaxOcclusionDistance)
+	int MinClipmapIndex = -1;
+	for (uint ClipmapIndex = 0; ClipmapIndex < NumGlobalSDFClipmaps; ++ClipmapIndex)
 	{
-		MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap((uint)0, WorldShadingPosition, ConeDirection, TanConeHalfAngle);
-	}
-	else
-	{
-		DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[1].xyz, GlobalVolumeCenterAndExtent[1].www, WorldShadingPosition);
-
-		BRANCH
+		float DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[ClipmapIndex].xyz, GlobalVolumeCenterAndExtent[ClipmapIndex].www, WorldShadingPosition);
 		if (DistanceFromClipmap > AOGlobalMaxOcclusionDistance)
 		{
-			MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap((uint)1, WorldShadingPosition, ConeDirection, TanConeHalfAngle);
+			MinClipmapIndex = ClipmapIndex;
+			break;
 		}
-		else
-		{
-			DistanceFromClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[2].xyz, GlobalVolumeCenterAndExtent[2].www, WorldShadingPosition);
-			float DistanceFromLastClipmap = ComputeDistanceFromBoxToPointInside(GlobalVolumeCenterAndExtent[3].xyz, GlobalVolumeCenterAndExtent[3].www, WorldShadingPosition);
+	}
 
-			BRANCH
-			if (DistanceFromClipmap > AOGlobalMaxOcclusionDistance)
-			{
-				MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap((uint)2, WorldShadingPosition, ConeDirection, TanConeHalfAngle);
-			}
-			else if (DistanceFromLastClipmap > AOGlobalMaxOcclusionDistance)
-			{
-				MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap((uint)3, WorldShadingPosition, ConeDirection, TanConeHalfAngle);
-			}
-		}
+	float MinVisibility = 1.0f;
+	if (MinClipmapIndex >= 0)
+	{
+		MinVisibility = HemisphereConeTraceAgainstGlobalDistanceFieldClipmap(MinClipmapIndex, WorldShadingPosition, ConeDirection, TanConeHalfAngle);
 	}
 
 	return MinVisibility;

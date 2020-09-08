@@ -1,0 +1,410 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+/*=============================================================================
+	LumenSceneDirectShadowingHardwareRayTracing.usf
+=============================================================================*/
+
+#include "../Common.ush"
+#include "LumenCardCommon.ush"
+#define SUPPORT_CONTACT_SHADOWS 0
+#include "../DeferredLightingCommon.ush"
+
+#if LUMEN_HARDWARE_RAYTRACING
+#include "../LightShaderParameters.ush"
+#include "../SceneTextureParameters.ush"
+#include "../ScreenSpaceDenoise/SSDPublic.ush"
+#include "../SobolRandom.ush"
+#include "../RayTracing/RayTracingCommon.ush"
+#include "../RayTracing/RayTracingDeferredShadingCommon.ush"
+#include "../RayTracing/RayTracingDirectionalLight.ush"
+#include "../RayTracing/RayTracingRectLight.ush"
+#include "../RayTracing/RayTracingSphereLight.ush"
+#include "../RayTracing/RayTracingSpotLight.ush"
+#include "../RayTracing/RayTracingPointLight.ush"
+#endif
+
+// Must match ELumenLightType in LumenSceneDirectLighting.cpp
+#define LIGHT_TYPE_DIRECTIONAL 0
+#define LIGHT_TYPE_POINT 1
+#define LIGHT_TYPE_SPOT 2
+#define LIGHT_TYPE_RECT 3
+
+#define ShadowMaskType_Opaque 0
+#define ShadowMaskType_Hair 1
+
+#ifndef LUMEN_HARDWARE_RAYTRACING
+#define LUMEN_HARDWARE_RAYTRACING 0
+#endif
+
+#ifndef ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+#define ENABLE_MULTIPLE_SAMPLES_PER_PIXEL 0
+#endif
+
+//No hair lighting is handled here
+
+#ifndef ENABLE_TWO_SIDED_GEOMETRY
+#define ENABLE_TWO_SIDED_GEOMETRY 0
+#endif
+
+float SurfaceBias;
+float SlopeScaledSurfaceBias;
+Texture2D OpacityAtlas;
+float4 AtlasSizeAndInvSize;
+
+uint2 AtlasCoordToPos(float2 AtlasCoord)
+{
+	uint2 Pos2D = AtlasCoord * AtlasSizeAndInvSize.xy - float2(0.5, 0.5) * AtlasSizeAndInvSize.zw;
+	return Pos2D;
+}
+
+uint AtlasCoordToBufferPos(float2 AtlasCoord)
+{
+	uint2 Pos2D = AtlasCoordToPos(AtlasCoord);
+
+	return Pos2D.x + Pos2D.y * AtlasSizeAndInvSize.x;
+}
+
+uint ScreenPosToAtlasBufferPos(float2 ScreenPos)
+{
+	return ScreenPos.x + ScreenPos.y * AtlasSizeAndInvSize.x;
+}
+
+#if !LUMEN_HARDWARE_RAYTRACING
+RWStructuredBuffer<uint> CardInterpolantsUAV;
+RWTexture2D<uint> RWLightMask;
+int LightUniqueId;
+
+void LumenCardRayGenSetupPS(
+	FCardVSToPS CardInterpolants,
+	out float4 OutColor : SV_Target0)
+{
+	uint BufferPosition = AtlasCoordToBufferPos(CardInterpolants.AtlasCoord);
+
+	FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+	float Depth = Texture2DSampleLevel(LumenCardScene.DepthBufferAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+
+	float3 LocalPosition;
+	LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
+	LocalPosition.z = -LumenCardData.LocalExtent.z + Depth * 2 * LumenCardData.LocalExtent.z;
+
+	float3 WorldPosition = mul(LumenCardData.WorldToLocalRotation, LocalPosition) + LumenCardData.Origin;
+
+	float GrayScale = 1.0f;
+	uint2 TexPosition = AtlasCoordToPos(CardInterpolants.AtlasCoord);
+
+	float Opacity = Texture2DSampleLevel(OpacityAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+
+	CardInterpolantsUAV[BufferPosition * 2] = CardInterpolants.CardId;
+	CardInterpolantsUAV[BufferPosition * 2 + 1] = CardInterpolants.QuadIndex;
+	RWLightMask[TexPosition] = (Opacity > 0) ? LightUniqueId : 0;
+	OutColor = float4(CardInterpolants.AtlasCoord, CardInterpolants.CardUV.xy);
+}
+#endif
+
+#if LUMEN_COMPUTE
+RWTexture2D<uint> RWUintTexture;
+float Width;
+float Height;
+
+[numthreads(8, 8, 1)]
+void ClearUAVTextureUintCS(uint3 DispatchThreadId : SV_DispatchThreadID)
+{
+	if (all(DispatchThreadId.xy < float2(Width, Height)))
+	{
+		RWUintTexture[DispatchThreadId.xy] = 0;
+	}
+}
+#endif
+
+#if LUMEN_HARDWARE_RAYTRACING
+/*Note:
+	No special handling of subsurface, eye, hair and transmission due to lack of SHADERMODEID.
+*/
+RWStructuredBuffer<uint> CardInterpolantsUAV;
+Texture2D<float4> CardInterpolantsTexture;
+RWTexture2D<float> RWShadowMaskAtlas;
+Texture2D<uint> LightMask;
+RaytracingAccelerationStructure TLAS;
+float NormalBias;
+float SamplesPerPixel;
+int LightUniqueId;
+float MaxTraceDistance;
+
+//Content adapted from RayTracingOcclusionRGS.usf
+struct FOcclusionResult
+{
+	float Visibility;
+};
+
+FOcclusionResult InitOcclusionResult()
+{
+	FOcclusionResult Out;
+	Out.Visibility = 0.0;
+	return Out;
+}
+
+float OcclusionToShadow(FOcclusionResult In, uint LocalSamplesPerPixel)
+{
+	return (LocalSamplesPerPixel > 0) ? In.Visibility / LocalSamplesPerPixel : In.Visibility;
+}
+
+bool GenerateOcclusionRay(
+	FLightShaderParameters LightParameters,
+	float3 WorldPosition,
+	float3 WorldNormal,
+	float2 RandSample,
+	out float3 RayOrigin,
+	out float3 RayDirection,
+	out float RayTMin,
+	out float RayTMax
+)
+{
+#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+	{
+		GenerateDirectionalLightOcclusionRay(
+			LightParameters,
+			MaxTraceDistance,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax);
+	}
+#elif LIGHT_TYPE == LIGHT_TYPE_POINT
+	{
+		if (LightParameters.SourceRadius == 0)
+		{
+			return GeneratePointLightOcclusionRay(
+				LightParameters,
+				WorldPosition, WorldNormal,
+				RandSample,
+				/* out */ RayOrigin,
+				/* out */ RayDirection,
+				/* out */ RayTMin,
+				/* out */ RayTMax);
+		}
+		else
+		{
+			float RayPdf;
+			return GenerateRectLightOcclusionRay(
+				LightParameters,
+				WorldPosition, WorldNormal,
+				RandSample,
+				/* out */ RayOrigin,
+				/* out */ RayDirection,
+				/* out */ RayTMin,
+				/* out */ RayTMax,
+				/* out */ RayPdf);
+		}
+	}
+#elif LIGHT_TYPE == LIGHT_TYPE_SPOT
+	{
+		return GenerateSpotLightOcclusionRay(
+			LightParameters,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax);
+	}
+#elif LIGHT_TYPE == LIGHT_TYPE_RECT
+	{
+		float RayPdf = 0.0;
+		return GenerateRectLightOcclusionRay(
+			LightParameters,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ RayOrigin,
+			/* out */ RayDirection,
+			/* out */ RayTMin,
+			/* out */ RayTMax,
+			/* out */ RayPdf);
+	}
+#else
+#error Unknown light type.
+#endif
+	return true;
+}
+
+//Adapted from ApplyCameraRelativeDepthBias() in RayTracingCommon.ush
+void ApplyCameraRelativeDepthBias(inout RayDesc Ray, float3 WorldPosition, const float3 WorldNormal, const float AbsoluteNormalBias)
+{
+	float3 CameraDirection = WorldPosition - View.TranslatedWorldCameraOrigin;
+	float DistanceToCamera = length(CameraDirection);
+	CameraDirection = normalize(CameraDirection);
+	float Epsilon = 1.0e-4;
+	float RelativeBias = DistanceToCamera * Epsilon;
+	//float ProjectedBias = RelativeBias / dot(Ray.Direction, WorldNormal);
+
+	float RayBias = max(RelativeBias, AbsoluteNormalBias);
+	Ray.Origin -= CameraDirection * RayBias;
+	ApplyPositionBias(Ray, WorldNormal, RayBias);
+}
+
+FOcclusionResult ComputeLumenOcclusion(
+	const uint2 PixelCoord,
+	float3 WorldPosition,
+	RandomSequence RandSequence,
+	const uint RaytracingMask,
+	float3 WorldNormal,
+	const FLightShaderParameters LightParameters,
+	const uint LocalSamplesPerPixel)
+{
+	FOcclusionResult Out = InitOcclusionResult();
+
+	bool bApplyNormalCulling = true;
+
+#if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+	LOOP for (uint SampleIndex = 0; SampleIndex < LocalSamplesPerPixel; ++SampleIndex)
+#else // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+	do if (LocalSamplesPerPixel > 0)
+#endif // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+	{
+		float2 RandSample = 0;
+
+#if ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+		{
+			uint DummyVariable;
+			RandSample = RandomSequence_GenerateSample2D(RandSequence, DummyVariable);
+		}
+#endif
+
+		RayDesc Ray;
+		bool bIsValidRay = GenerateOcclusionRay(
+			LightParameters,
+			WorldPosition, WorldNormal,
+			RandSample,
+			/* out */ Ray.Origin,
+			/* out */ Ray.Direction,
+			/* out */ Ray.TMin,
+			/* out */ Ray.TMax);
+		ApplyCameraRelativeDepthBias(Ray, WorldPosition, WorldNormal, NormalBias);
+
+		bool bApplyNormalCulling = true;
+		BRANCH
+			if (!bIsValidRay)
+			{
+				continue;
+			}
+			else if (bApplyNormalCulling && dot(WorldNormal, Ray.Direction) <= 0.0)
+			{
+				continue;
+			}
+
+		// Attenuation check
+		if (LightParameters.InvRadius > 0.0)
+		{
+			const float MaxAttenuationDistance = 1.0 / LightParameters.InvRadius;
+			if (Ray.TMax > MaxAttenuationDistance)
+			{
+				continue;
+			}
+		}
+
+		uint RayFlags = 0;
+
+#if !ENABLE_TWO_SIDED_GEOMETRY
+		RayFlags |= RAY_FLAG_CULL_BACK_FACING_TRIANGLES;
+#endif
+
+		FMinimalPayload MinimalPayload = TraceVisibilityRay(
+			TLAS,
+			RayFlags,
+			RaytracingMask,
+			PixelCoord,
+			Ray);
+
+		Out.Visibility += MinimalPayload.IsMiss() ? 1.0 : 0.0;
+
+	}
+#if !ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+	while (0);
+#endif // ENABLE_MULTIPLE_SAMPLES_PER_PIXEL
+
+	return Out;
+}
+
+
+FCardVSToPS ReconstructCardIndexInfo(uint2 PixelCoord/*, out bool IsValid*/)
+{
+	uint CardBufferIdx;
+
+	/*reconstruct the card interpolants*/
+	FCardVSToPS CardInterpolants = (FCardVSToPS)0;
+	float4 PackedAtlasCoordAndCardUV = CardInterpolantsTexture.Load(int3(PixelCoord, 0));
+	bool bValid = false;
+	{
+		CardInterpolants.AtlasCoord = PackedAtlasCoordAndCardUV.xy;
+		CardInterpolants.CardUV = PackedAtlasCoordAndCardUV.zw;
+
+		CardBufferIdx = AtlasCoordToBufferPos(CardInterpolants.AtlasCoord);
+
+		CardInterpolants.CardId = CardInterpolantsUAV[CardBufferIdx * 2];
+		CardInterpolants.QuadIndex = CardInterpolantsUAV[CardBufferIdx * 2 + 1];
+	}
+
+	return CardInterpolants;
+}
+
+RAY_TRACING_ENTRY_RAYGEN(LumenCardDirectLightingRGS)
+{
+	uint2 PixelCoord = DispatchRaysIndex().xy;
+	float3 DirectLighting = float3(0.0f,0.0f,0.0f);
+	float ShadowFactor = 0.0f;
+	FCardVSToPS CardInterpolants = ReconstructCardIndexInfo(PixelCoord);
+	bool bRayTracing = LightMask.Load(int3(PixelCoord, 0)) == LightUniqueId;
+
+	if (bRayTracing)
+	{
+		FLumenCardData LumenCardData = GetLumenCardData(CardInterpolants.CardId);
+
+		float Depth = Texture2DSampleLevel(LumenCardScene.DepthBufferAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).x;
+
+		float3 LocalPosition;
+		LocalPosition.xy = (CardInterpolants.AtlasCoord - LumenCardData.LocalPositionToAtlasUVBias) / LumenCardData.LocalPositionToAtlasUVScale;
+		LocalPosition.z = -LumenCardData.LocalExtent.z + Depth * 2 * LumenCardData.LocalExtent.z;
+
+		float3 WorldPosition = mul(LumenCardData.WorldToLocalRotation, LocalPosition) + LumenCardData.Origin;
+
+		float3 LightColor = DeferredLightUniforms.Color;
+		float3 L = DeferredLightUniforms.Direction;//LightData.Direction
+		float3 ToLight = L;
+
+		float3 WorldNormal = Texture2DSampleLevel(LumenCardScene.NormalAtlas, GlobalBilinearClampedSampler, CardInterpolants.AtlasCoord, 0).xyz * 2 - 1;
+
+#if LIGHT_TYPE == LIGHT_TYPE_DIRECTIONAL
+		if (dot(WorldNormal, L) > 0)
+#endif
+		{
+			//@todo DynamicGI - derive from card texel size
+			float3 WorldPositionForShadowing = WorldPosition + L * (SurfaceBias + SlopeScaledSurfaceBias * saturate(1 - dot(L, WorldNormal)));
+
+			uint LocalSamplesPerPixel = ENABLE_MULTIPLE_SAMPLES_PER_PIXEL ? SamplesPerPixel : 1;
+
+			RandomSequence RandSequence;
+			uint LinearIndex = CalcLinearIndex(PixelCoord);
+			RandomSequence_Initialize(RandSequence, LinearIndex, View.StateFrameIndex);
+
+			FLightShaderParameters LightParameters = GetRootLightShaderParameters();
+
+			FOcclusionResult Occlusion = InitOcclusionResult();
+
+			Occlusion = ComputeLumenOcclusion(
+				PixelCoord,
+				WorldPositionForShadowing,
+				RandSequence,
+				RAY_TRACING_MASK_SHADOW | RAY_TRACING_MASK_THIN_SHADOW,
+				WorldNormal,
+				LightParameters,
+				LocalSamplesPerPixel);
+
+			ShadowFactor = OcclusionToShadow(Occlusion, LocalSamplesPerPixel);
+		}
+	}
+	
+	RWShadowMaskAtlas[PixelCoord] = ShadowFactor;
+}
+#endif
+

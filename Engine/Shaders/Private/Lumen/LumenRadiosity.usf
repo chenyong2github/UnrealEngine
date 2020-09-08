@@ -6,7 +6,6 @@
 
 #include "../Common.ush"
 #include "LumenCardCommon.ush"
-#define CARD_BVH 0
 #include "LumenTracingCommon.ush"
 #include "../DeferredShadingCommon.ush"
 #include "../BRDF.ush"
@@ -143,8 +142,7 @@ void TraceProbeCS(
 
 			bool bContinueCardTracing = false;
 
-			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
-				ProbeWorldCenter, TanDiffuseConeHalfAngle, ProbeMinTraceDistance, ProbeMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+			TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(ProbeMinTraceDistance, ProbeMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
 
 			FConeTraceResult TraceResult;
 			TraceResult = (FConeTraceResult)0;
@@ -194,13 +192,13 @@ void ComposeRadiosityProbesCS(
 	ProbeCoord.y = (ComposedAtlasCoord.x / RADIOSITY_COMPOSED_PROBE_RESOLUTION) / ComposedProbeLightingAtlasSize.x;
 	ProbeCoord.z = ComposedAtlasCoord.y / RADIOSITY_COMPOSED_PROBE_RESOLUTION;
 
-	uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ComposedProbeTexelCoord, RADIOSITY_COMPOSED_PROBE_RESOLUTION);
+	uint2 ProbeTexelCoord = OctahedralMapWrapBorder(ComposedProbeTexelCoord, RADIOSITY_COMPOSED_PROBE_RESOLUTION, 1);
 
 	uint2 AtlasCoord;
 	AtlasCoord.x = (ProbeCoord.x + ProbeCoord.y * ComposedProbeLightingAtlasSize.x) * RADIOSITY_PROBE_RESOLUTION + ProbeTexelCoord.x;
 	AtlasCoord.y = ProbeCoord.z * RADIOSITY_PROBE_RESOLUTION + ProbeTexelCoord.y;
 
-	if (all(ProbeCoord < ComposedProbeLightingAtlasSize))
+	if (all(ProbeCoord.xy < ComposedProbeLightingAtlasSize))
 	{
 		float3 Lighting = ProbeLighting.Load(uint3(AtlasCoord, 0)).xyz;
 
@@ -354,7 +352,7 @@ float3 RadiosityTraceFromTexel(float2 AtlasUV, int2 AtlasCoord, uint ProbeIndex,
 		float4 ProbeSphere = ProbeData[ProbeIndex];
 #endif
 
-		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(WorldPosition, TanConeAngle, MinTraceDistance, MaxTraceDistance, MaxCardTraceDistance, false);
+		float VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(MinTraceDistance, MaxTraceDistance, MaxCardTraceDistance, false);
 
 		for (uint ConeIndex = ConeStartIndex; ConeIndex < ConeEndIndex; ConeIndex++)
 		{

@@ -171,10 +171,6 @@ struct FCardVSToPS
 	nointerpolation uint QuadIndex : QUAD_ID;
 };
 
-// Stride of culled card link lists and grids, must match C++
-#define	CULLED_CARD_LINK_STRIDE			2
-#define CULLED_CARD_GRID_HEADER_STRIDE	2
-
 // Stride of cube map tree data, must match C++
 #define LUMEN_CUBE_MAP_TREE_DATA_STRIDE 8
 

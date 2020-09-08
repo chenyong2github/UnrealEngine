@@ -4,9 +4,7 @@
 	LumenRadianceCache.usf
 =============================================================================*/
 
-#define CARD_BVH 0
 #define CARD_TRACE_DEPTH_WEIGHTED_OIT 0
-#define VOXEL_TRACE_BLEND_BETWEEN_AXES 1
 
 #include "../Common.ush"
 #include "../MonteCarlo.ush"
@@ -16,6 +14,7 @@
 #include "LumenTracingCommon.ush"
 #include "LumenRadianceCacheCommon.ush"
 #include "ProbeHierarchy/LumenProbeTracing.ush"
+#include "LumenScreenProbeCommon.ush"
 
 RWTexture3D<uint> RWRadianceProbeIndirectionTexture;
 
@@ -111,13 +110,13 @@ void MarkRadianceProbesUsedByProbeHierarchyCS(
 	}
 } 
 
-[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
-void MarkRadianceProbesUsedByGBufferCS(
+[numthreads(PROBE_THREADGROUP_SIZE_2D, PROBE_THREADGROUP_SIZE_2D, 1)]
+void MarkRadianceProbesUsedByScreenProbesCS(
 	uint3 GroupId : SV_GroupID,
 	uint3 DispatchThreadId : SV_DispatchThreadID,
 	uint3 GroupThreadId : SV_GroupThreadID)
 {
-	uint2 ScreenCoord = DispatchThreadId.xy;
+	uint2 ScreenProbeAtlasCoord = DispatchThreadId.xy;
 	
 	if (VisualizeLumenScene > 0 && all(DispatchThreadId.xy == 0))
 	{
@@ -126,17 +125,19 @@ void MarkRadianceProbesUsedByGBufferCS(
 		MarkPositionUsedInIndirectionTexture(View.WorldCameraOrigin, ClipmapIndex);
 	}
 
-	if (all(ScreenCoord < DownsampledViewSize))
+	uint ScreenProbeIndex = ScreenProbeAtlasCoord.y * ScreenProbeAtlasViewSize.x + ScreenProbeAtlasCoord.x;
+	uint2 ScreenProbeScreenCoord;
+	uint ScreenProbeSubsampleIndex;
+	GetScreenProbeScreenCoord(ScreenProbeIndex, ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+
+	if (ScreenProbeIndex < GetNumScreenProbes())
 	{
-		float2 ScreenUV = float2((ScreenCoord * DownsampleFactor + View.ViewRectMin.xy + .5f) * View.BufferSizeAndInvSize.zw);
+		float2 ScreenUV = GetScreenUVFromScreenProbeCoord(ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+		float SceneDepth = DownsampledDepth.Load(int3(ScreenProbeAtlasCoord, 0)).x;
+		float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
 
-		float SceneDepth = CalcSceneDepth(ScreenUV);
-
-		if (SceneDepth < 1000000.0f)
+		if (SceneDepth > 0 && SceneDepth < 1000000.0f)
 		{
-			float2 ScreenPosition = (ScreenUV.xy - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
-			float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
-
 			uint ClipmapIndex = GetRadianceProbeClipmap(WorldPosition);
 
 			if (ClipmapIndex < NumRadianceProbeClipmaps)
@@ -315,9 +316,9 @@ void ClampProbeFreeListAllocatorCS()
 		RWProbeFreeListAllocator[0] = 0;
 	}
 
-	if (RWProbeFreeListAllocator[0] > MaxNumProbes)
+	if (RWProbeFreeListAllocator[0] > (int)MaxNumProbes)
 	{
-		RWProbeFreeListAllocator[0] = MaxNumProbes;
+		RWProbeFreeListAllocator[0] = (int)MaxNumProbes;
 	}
 }
 
@@ -402,8 +403,7 @@ void TraceFromProbesCS(
 
 		bool bContinueCardTracing = false;
 
-		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(
-			ProbeWorldCenter, ConeHalfAngle, FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
+		TraceInput.VoxelTraceStartDistance = CalculateVoxelTraceStartDistance(FinalMinTraceDistance, FinalMaxTraceDistance, MaxCardTraceDistance, bContinueCardTracing);
 
 		FConeTraceResult TraceResult;
 		TraceResult = (FConeTraceResult)0;
@@ -464,7 +464,7 @@ void CopyProbesAndFixupBordersCS(
 
 	if (all(FinalProbeTexelCoord < FinalProbeResolution))
 	{
-		uint2 ProbeTexelCoord = OctahedralMapWrapBorder(FinalProbeTexelCoord, FinalProbeResolution);
+		uint2 ProbeTexelCoord = OctahedralMapWrapBorder(FinalProbeTexelCoord, FinalProbeResolution, 1 << (uint)FinalRadianceAtlasMaxMip);
 		uint2 AtlasCoord = ProbeTexelCoord + RadianceProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 
 		float3 Lighting = RadianceProbeAtlasTexture.Load(uint3(AtlasCoord, 0)).xyz;
@@ -472,5 +472,53 @@ void CopyProbesAndFixupBordersCS(
 		uint2 FinalAtlasCoord = FinalProbeTexelCoord + FinalProbeResolution * uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
 
 		RWFinalRadianceAtlas[FinalAtlasCoord] = Lighting;
+	}
+}
+
+RWTexture2D<float3> RWFinalRadianceAtlasMip;
+Texture2D<float3> FinalRadianceAtlasParentMip;
+uint MipLevel; 
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void GenerateMipLevelCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	uint ProbeTraceIndex = DispatchThreadId.z;
+	uint PackedW = asuint(ProbeTraceData[ProbeTraceIndex].w);
+	uint ProbeIndex = PackedW & 0xFFFFFF;
+
+	uint2 FinalProbeTexelCoord = DispatchThreadId.xy;
+	uint ParentMipSize = FinalProbeResolution >> (MipLevel - 1);
+	uint MipSize = FinalProbeResolution >> MipLevel;
+
+	if (all(FinalProbeTexelCoord < MipSize))
+	{
+		uint2 ProbeCoord = uint2(ProbeIndex % ProbeAtlasResolutionInProbes.x, ProbeIndex / ProbeAtlasResolutionInProbes.x);
+		uint2 ParentProbeTexelCoordBase = FinalProbeTexelCoord * 2;
+		uint2 ParentFinalAtlasCoord = ParentProbeTexelCoordBase + ParentMipSize * ProbeCoord;
+		//@todo - gather area around texel, not aligned to power of 2
+
+		float InvParentMipSize = 1.0f / ParentMipSize;
+		float2 ProbeUV00 = (ParentProbeTexelCoordBase + float2(0, 0) + float2(.5f, .5f)) * InvParentMipSize;
+		float2 ProbeUV10 = (ParentProbeTexelCoordBase + float2(1, 0) + float2(.5f, .5f)) * InvParentMipSize;
+		float2 ProbeUV01 = (ParentProbeTexelCoordBase + float2(0, 1) + float2(.5f, .5f)) * InvParentMipSize;
+		float2 ProbeUV11 = (ParentProbeTexelCoordBase + float2(1, 1) + float2(.5f, .5f)) * InvParentMipSize;
+
+		float4 Weights;
+		Weights.x = OctahedralSolidAngle(ProbeUV00, InvParentMipSize);
+		Weights.y = OctahedralSolidAngle(ProbeUV10, InvParentMipSize);
+		Weights.z = OctahedralSolidAngle(ProbeUV01, InvParentMipSize);
+		Weights.w = OctahedralSolidAngle(ProbeUV11, InvParentMipSize);
+
+		float3 Lighting = 0;
+		Lighting += FinalRadianceAtlasParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 0), 0)).xyz * Weights.x;
+		Lighting += FinalRadianceAtlasParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 0), 0)).xyz * Weights.y;
+		Lighting += FinalRadianceAtlasParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(0, 1), 0)).xyz * Weights.z;
+		Lighting += FinalRadianceAtlasParentMip.Load(uint3(ParentFinalAtlasCoord + uint2(1, 1), 0)).xyz * Weights.w;
+
+		uint2 FinalAtlasCoord = FinalProbeTexelCoord + MipSize * ProbeCoord;
+		RWFinalRadianceAtlasMip[FinalAtlasCoord] = Lighting / dot(Weights, 1);
 	}
 }

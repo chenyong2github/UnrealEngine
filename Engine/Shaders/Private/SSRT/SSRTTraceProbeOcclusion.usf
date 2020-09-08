@@ -105,6 +105,7 @@ void TraceRay(
 			PixelInfos.TranslatedWorldPosition, RayInfos.BxDFSample.L,
 			/* WorldTMax = */ RayInfos.TMax * WorldTMaxTightness,
 			/* SceneDepth = */ PixelInfos.GBuffer.Depth,
+			/* SlopeCompareToleranceScale */ 2.0f,
 			/* bExtendRayToScreenBorder = */ false,
 			/* out */ bRayWasClipped);
 
@@ -117,6 +118,7 @@ void TraceRay(
 			PixelInfos.TranslatedWorldPosition, RayInfos.BxDFSample.L,
 			/* WorldTMax = */ RayInfos.TMax,
 			/* SceneDepth = */ PixelInfos.GBuffer.Depth,
+			/* SlopeCompareToleranceScale */ 2.0f,
 			/* bExtendRayToScreenBorder = */ false,
 			/* out */ bRayWasClipped);
 				

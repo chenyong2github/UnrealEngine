@@ -711,6 +711,7 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(float, MotionBlurNormalizedToPixel) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, bSubsurfacePostprocessEnabled) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GeneralPurposeTweak) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, GeneralPurposeTweak2) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, DemosaicVposOffset, EShaderPrecisionModifier::Half) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FVector, IndirectLightingColorScale) \
 	VIEW_UNIFORM_BUFFER_MEMBER_EX(float, AtmosphericFogSunPower, EShaderPrecisionModifier::Half) \
@@ -768,9 +769,12 @@ enum ETranslucencyVolumeCascade
 	VIEW_UNIFORM_BUFFER_MEMBER(int32, StereoPassIndex) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, GlobalVolumeCenterAndExtent, [GMaxGlobalDistanceFieldClipmaps]) \
 	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector4, GlobalVolumeWorldToUVAddAndMul, [GMaxGlobalDistanceFieldClipmaps]) \
+	VIEW_UNIFORM_BUFFER_MEMBER_ARRAY(FVector, GlobalDistanceFieldPageTableScrollOffset, [GMaxGlobalDistanceFieldClipmaps]) \
+	VIEW_UNIFORM_BUFFER_MEMBER(int32, GlobalDistanceFieldClipmapSizeInPages) \
+	VIEW_UNIFORM_BUFFER_MEMBER(FVector, GlobalDistanceFieldInvPageAtlasSize) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeDimension) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, GlobalVolumeTexelSize) \
-	VIEW_UNIFORM_BUFFER_MEMBER(float, MaxGlobalDistance) \
+	VIEW_UNIFORM_BUFFER_MEMBER(float, MaxGlobalDFAOConeDistance) \
 	VIEW_UNIFORM_BUFFER_MEMBER(uint32, NumGlobalSDFClipmaps) \
 	VIEW_UNIFORM_BUFFER_MEMBER(FIntPoint, CursorPosition) \
 	VIEW_UNIFORM_BUFFER_MEMBER(float, bCheckerboardSubsurfaceProfileRendering) \
@@ -837,16 +841,8 @@ BEGIN_GLOBAL_SHADER_PARAMETER_STRUCT_WITH_CONSTRUCTOR(FViewUniformShaderParamete
 	SHADER_PARAMETER_SAMPLER(SamplerState, SkyBentNormalTextureSampler) // FPrecomputedVolumetricLightmapLightingPolicy
 	SHADER_PARAMETER_SAMPLER(SamplerState, DirectionalLightShadowingTextureSampler) // FPrecomputedVolumetricLightmapLightingPolicy
 
-	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture0)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler0)
-	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture1)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler1)
-	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture2)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler2)
-	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture3)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler3)
-	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldTexture4)
-	SHADER_PARAMETER_SAMPLER(SamplerState, GlobalDistanceFieldSampler4)
+	SHADER_PARAMETER_TEXTURE(Texture3D, GlobalDistanceFieldPageAtlasTexture)
+	SHADER_PARAMETER_TEXTURE(Texture3D<uint>, GlobalDistanceFieldPageTableTexture)
 
 	SHADER_PARAMETER_TEXTURE(Texture2D, AtmosphereTransmittanceTexture)
 	SHADER_PARAMETER_SAMPLER(SamplerState, AtmosphereTransmittanceTextureSampler)

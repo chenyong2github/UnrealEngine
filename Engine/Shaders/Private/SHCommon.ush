@@ -301,3 +301,23 @@ FThreeBandSHVector CalcDiffuseTransferSH3(half3 Normal,half Exponent)
 
 	return Result;
 }
+
+
+// Calculates Irradiance for a cone with the given SH lighting
+// From "Horizon-Based Indirect Lighting"
+float3 EvaluateSHIrradiance(float3 Direction, float CosThetaAO, FThreeBandSHVectorRGB SH)
+{
+	float t2 = CosThetaAO * CosThetaAO;
+	float t3 = t2 * CosThetaAO;
+	float t4 = t2 * t2;
+
+	float c0 = .5f * sqrt(PI) * (1 - t2);
+	float c1 = sqrt(PI / 3.0f) * (1 - t3);
+	float c2 = sqrt(5.0f * PI) / 16.0f * (3.0f * (1.0f - t4) - 2.0f * (1.0f - t2));
+
+	return max(0.0f, c0 * float3(SH.R.V0.x, SH.G.V0.x, SH.B.V0.x)
+		+ c1 * (-float3(SH.R.V0.y, SH.G.V0.y, SH.B.V0.y) * Direction.y + float3(SH.R.V0.z, SH.G.V0.z, SH.B.V0.z) * Direction.z - float3(SH.R.V0.w, SH.G.V0.w, SH.B.V0.w) * Direction.x)
+		+ c2 * (float3(SH.R.V1.z, SH.G.V1.z, SH.B.V1.z) * (3.0f * Direction.z * Direction.z - 1.0f)
+			+ sqrt(3.0f) * (float3(SH.R.V2, SH.G.V2, SH.B.V2) * (Direction.x * Direction.x - Direction.y * Direction.y)
+				+ 2.0f * (float3(SH.R.V1.x, SH.G.V1.x, SH.B.V1.x) * Direction.x * Direction.y - float3(SH.R.V1.y, SH.G.V1.y, SH.B.V1.y) * Direction.y * Direction.z - float3(SH.R.V1.w, SH.G.V1.w, SH.B.V1.w) * Direction.z * Direction.x))));
+}

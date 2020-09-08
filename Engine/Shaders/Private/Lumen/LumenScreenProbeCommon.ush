@@ -1,0 +1,231 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#pragma once
+
+#include "../MonteCarlo.ush"
+#include "../BlueNoise.ush"
+
+//Note: Also have to change format on C++ side
+#define SH_QUANTIZE_DIRECTIONAL_COEFFICIENTS 0
+#define PROBE_THREADGROUP_SIZE_2D 8
+#define PROBE_THREADGROUP_SIZE_1D 64
+
+uint ScreenProbeTracingOctahedronResolution;
+uint ScreenProbeGatherOctahedronResolution;
+uint ScreenProbeGatherOctahedronResolutionWithBorder;
+
+// Size of the downsampled viewport, in probes.  This corresponds to the uniform placement viewport.
+uint2 ScreenProbeViewSize;
+
+// Size of the active viewport into the atlas, in probes
+uint2 ScreenProbeAtlasViewSize;
+// Size of all the probe atlas textures, in probes
+uint2 ScreenProbeAtlasBufferSize;
+
+uint2 ScreenProbeTraceBufferSize;
+uint2 ScreenProbeGatherBufferSize;
+
+float ScreenProbeGatherMaxMip;
+
+// Downsample factor from full res to Screen Probe res
+uint ScreenProbeDownsampleFactor;
+// Number of adaptive probes we will try to place along one dimension of each screen tile
+uint AdaptiveScreenTileSampleResolution;
+// Number of screen probes with SubsampleIndex == 0
+uint NumUniformScreenProbes;
+uint MaxNumAdaptiveProbes;
+
+// Note: negative if unlit
+Texture2D DownsampledDepth;
+
+// [0, ScreenProbeViewSize - 1]
+Buffer<uint> NumAdaptiveScreenProbes;
+Buffer<uint> AdaptiveScreenProbeData;
+
+#if 1
+	#define SCREEN_TEMPORAL_INDEX			View.StateFrameIndexMod8
+	#define SCREEN_HISTORY_TEMPORAL_INDEX	(SCREEN_TEMPORAL_INDEX == 0 ? 7 : SCREEN_TEMPORAL_INDEX - 1)
+#else
+	#define SCREEN_TEMPORAL_INDEX			0
+	#define SCREEN_HISTORY_TEMPORAL_INDEX	0
+#endif
+
+#if 1
+	#define RAY_DIRECTION_TEMPORAL_INDEX View.StateFrameIndex
+#else
+	#define RAY_DIRECTION_TEMPORAL_INDEX 0
+#endif
+
+// Returns the jitter offset in the range [0, ScreenProbeDownsampleFactor - 1]
+float2 GetScreenTileJitter(uint TemporalIndex, uint SubsampleIndex)
+{
+	uint2 RandomSeed = Rand3DPCG16(int3(uint2(0, 0), SubsampleIndex)).xy;
+	return floor(Hammersley16(TemporalIndex, 8, RandomSeed) * ScreenProbeDownsampleFactor);
+}
+
+float2 GetProbeTexelCenter(uint2 ScreenProbeAtlasCoord)
+{
+#define JITTER_RAY_DIRECTION 1
+#if JITTER_RAY_DIRECTION
+	#define BLUE_NOISE_LUT 1
+	#if BLUE_NOISE_LUT
+		return EvalBlueNoise(ScreenProbeAtlasCoord % BlueNoise.Dimensions.xy, RAY_DIRECTION_TEMPORAL_INDEX % BlueNoise.Dimensions.z).xy;
+	#else
+		uint2 RandomSeed = Rand3DPCG16(int3(ScreenProbeAtlasCoord, 0)).xy;
+		return Hammersley16(RAY_DIRECTION_TEMPORAL_INDEX % 8, 8, RandomSeed);
+	#endif
+#else
+	return float2(0.5, 0.5);
+#endif
+}
+
+uint GetNumAdaptiveScreenProbes()
+{
+	return min(NumAdaptiveScreenProbes[0], MaxNumAdaptiveProbes);
+}
+
+uint GetNumScreenProbes()
+{
+	return NumUniformScreenProbes + GetNumAdaptiveScreenProbes();
+}
+
+uint EncodeScreenProbeData(uint2 ScreenProbeScreenCoord, uint ScreenProbeSubsampleIndex)
+{
+	return (ScreenProbeScreenCoord.x & 0xFFF) | ((ScreenProbeScreenCoord.y & 0xFFF) << 12) | ((ScreenProbeSubsampleIndex & 0xFF) << 24);
+}
+
+void DecodeScreenProbeData(uint EncodedProbeData, out uint2 ScreenProbeScreenCoord, out uint ScreenProbeSubsampleIndex)
+{
+	ScreenProbeScreenCoord = uint2(EncodedProbeData & 0xFFF, (EncodedProbeData >> 12) & 0xFFF);
+	ScreenProbeSubsampleIndex = (EncodedProbeData >> 24) & 0xFF;
+}
+
+void GetScreenProbeScreenCoord(uint ScreenProbeIndex, out uint2 ScreenProbeScreenCoord, out uint ScreenProbeSubsampleIndex)
+{
+	ScreenProbeScreenCoord = uint2(ScreenProbeIndex % ScreenProbeViewSize.x, ScreenProbeIndex / ScreenProbeViewSize.x);
+	ScreenProbeSubsampleIndex = 0;
+
+	if (ScreenProbeIndex >= NumUniformScreenProbes)
+	{
+		DecodeScreenProbeData(AdaptiveScreenProbeData[ScreenProbeIndex - NumUniformScreenProbes], ScreenProbeScreenCoord, ScreenProbeSubsampleIndex);
+	}
+}
+
+float2 GetScreenUVFromScreenProbeCoord(uint2 ScreenProbeScreenCoord, uint ScreenProbeSubsampleIndex)
+{
+	float2 ScreenCoord = ScreenProbeScreenCoord * ScreenProbeDownsampleFactor + View.ViewRectMin.xy + GetScreenTileJitter(SCREEN_TEMPORAL_INDEX, ScreenProbeSubsampleIndex) + 0.5f;
+	// Probe ScreenUV can be outside of valid viewport, since probes are downsampled with DivideAndRoundUp
+	ScreenCoord = min(ScreenCoord, View.ViewRectMin.xy + View.ViewSizeAndInvSize.xy - 1.0f);
+	return ScreenCoord * View.BufferSizeAndInvSize.zw;
+}
+
+float2 GetScreenProbeCoordFromScreenUV(float2 ScreenUV, uint TemporalIndex, uint ScreenProbeSubsampleIndex)
+{
+	float2 ScreenProbeScreenCoord = (ScreenUV - (View.ViewRectMin.xy + GetScreenTileJitter(TemporalIndex, ScreenProbeSubsampleIndex) + 0.5f) * View.BufferSizeAndInvSize.zw) / (ScreenProbeDownsampleFactor * View.BufferSizeAndInvSize.zw);
+	return ScreenProbeScreenCoord;
+}
+
+float3 GetWorldPositionFromScreenUV(float2 ScreenUV, float SceneDepth)
+{
+	float2 ScreenPosition = (ScreenUV - View.ScreenPositionScaleBias.wz) / View.ScreenPositionScaleBias.xy;
+	float3 WorldPosition = mul(float4(ScreenPosition * SceneDepth, SceneDepth, 1), View.ScreenToWorld).xyz;
+	return WorldPosition;
+}
+
+uint2 GetTraceBufferCoord(uint2 ScreenProbeAtlasCoord, uint2 TraceTexelCoord)
+{
+	#define DEINTERLEAVED_TRACE_BUFFER_STORAGE 0
+	#if DEINTERLEAVED_TRACE_BUFFER_STORAGE
+		return TraceTexelCoord * ScreenProbeAtlasViewSize + ScreenProbeAtlasCoord;
+	#else
+		return ScreenProbeAtlasCoord * ScreenProbeTracingOctahedronResolution + TraceTexelCoord;
+	#endif
+}
+
+float GetProbeMaxHitDistance()
+{
+	return MaxHalfFloat;
+}
+
+float EncodeProbeRayDistance(float HitDistance, bool bHit)
+{
+	return HitDistance * (bHit ? -1.0f : 1.0f);
+}
+
+float DecodeProbeRayDistance(float Encoded, out bool bHit)
+{
+	bHit = Encoded < 0.0f;
+	return abs(Encoded);
+}
+
+float DecodeProbeRayDistance(float Encoded)
+{
+	return abs(Encoded);
+}
+
+float EncodeProbeHitDistanceForFiltering(float HitDistance)
+{
+	// Encode one negative value to indicate invalid ray
+	return sqrt(HitDistance / GetProbeMaxHitDistance()) * 254.0f / 255.0f + 1.0f / 255.0f;
+}
+
+float DecodeProbeHitDistanceForFiltering(float Encoded)
+{
+	float Linear = Encoded * Encoded * GetProbeMaxHitDistance();
+	return (Linear - 1.0f / 255.0f) * 255.0f / 254.0f;
+}
+
+// Stores a packed ray info for each tracing shader lane storing the direction and mip level of the ray to trace
+Texture2D<uint> StructuredImportanceSampledRayInfosForTracing;
+uint MaxImportanceSamplingOctahedronResolution;
+uint ScreenProbeBRDFOctahedronResolution;
+
+#define INVALID_TRACING_COORD 0xFE
+
+uint PackRayInfo(uint2 TexelCoord, uint Level)
+{
+	// Pack in 16 bits
+	return (TexelCoord.x & 0x7F) | ((TexelCoord.y & 0x7F) << 7) | ((Level & 0x3) << 14);
+}
+
+void UnpackRayInfo(uint RayInfo, out uint2 TexelCoord, out uint Level)
+{
+	TexelCoord.x = RayInfo & 0x7F;
+	TexelCoord.y = (RayInfo >> 7) & 0x7F;
+	Level = (RayInfo >> 14) & 0x3;
+}
+
+void GetProbeTracingUV(
+	uint2 ScreenProbeAtlasCoord,
+	uint2 TracingTexelCoord,
+	float2 ProbeTexelCenter,
+	float NumSupersamples,
+	out float2 ProbeUV,
+	out float ConeHalfAngle)
+{
+#if STRUCTURED_IMPORTANCE_SAMPLING
+	uint2 GlobalTraceCoord = GetTraceBufferCoord(ScreenProbeAtlasCoord, TracingTexelCoord);
+	uint RayInfo = StructuredImportanceSampledRayInfosForTracing[GlobalTraceCoord];
+	uint2 RayTexelCoord;
+	uint RayLevel;
+	UnpackRayInfo(RayInfo, RayTexelCoord, RayLevel);
+
+	uint MipSize = MaxImportanceSamplingOctahedronResolution >> RayLevel;
+	float InvSupersampledMipSize = 1.0f / (MipSize * NumSupersamples);
+	ProbeUV = (RayTexelCoord * NumSupersamples + ProbeTexelCenter) * InvSupersampledMipSize;
+	ConeHalfAngle = acosFast(1.0f - 1.0f * InvSupersampledMipSize * InvSupersampledMipSize);
+
+#else
+	ProbeUV = (TracingTexelCoord * NumSupersamples + ProbeTexelCenter) / float(ScreenProbeTracingOctahedronResolution * NumSupersamples);
+	// Evenly distributing the sphere solid angle among all cones
+	ConeHalfAngle = acosFast(1.0f - 1.0f / (float)(ScreenProbeTracingOctahedronResolution * ScreenProbeTracingOctahedronResolution * NumSupersamples * NumSupersamples));
+#endif
+}
+
+Texture2D OctahedralSolidAngleTexture;
+float InvOctahedralSolidAngleTextureResolutionSq;
+
+float OctahedralSolidAngleLUT(float2 UV, float Resolution)
+{
+	return OctahedralSolidAngleTexture.SampleLevel(GlobalBilinearClampedSampler, UV, 0).x * Resolution * Resolution * InvOctahedralSolidAngleTextureResolutionSq;
+}

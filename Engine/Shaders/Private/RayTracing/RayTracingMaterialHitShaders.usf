@@ -259,6 +259,29 @@ void CalcInterpolants(in FRayCone RayCone, in FDefaultAttributes Attributes, out
 #endif
 }
 
+float3 GetLumenGeometryNormal()
+{
+	float3 WorldPositions[3];
+
+	for (int i = 0; i < 3; i++)
+	{
+		FVertexFactoryInput Input = LoadVertexFactoryInputForHGS(PrimitiveIndex(), i);
+		FVertexFactoryIntermediates VFIntermediates = GetVertexFactoryIntermediates(Input);
+		float4 WorldPositionExcludingWPO = VertexFactoryGetWorldPosition(Input, VFIntermediates);
+
+		WorldPositions[i] = WorldPositionExcludingWPO.xyz;
+	}
+
+	float3 PA = WorldPositions[1] - WorldPositions[0];
+	float3 PB = WorldPositions[2] - WorldPositions[0];
+	float3 Unnormalized = cross(PB, PA);
+
+	// Safe normal
+	float SqareLength = dot(Unnormalized, Unnormalized);
+	float3 Normal = lerp(rsqrt(SqareLength)* Unnormalized, -WorldRayDirection(), SqareLength == 0.0f);
+	return Normal;
+}
+
 RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 	FPackedMaterialClosestHitPayload, PackedPayload,
 	FDefaultAttributes, Attributes)
@@ -275,6 +298,13 @@ RAY_TRACING_ENTRY_CLOSEST_HIT(MaterialCHS,
 		return;
 	}
 
+	if (PackedPayload.IsLumenMinimalPayload())
+	{
+		float3 SurfaceNormal = GetLumenGeometryNormal();
+		PackedPayload.SetGeometryNormal(SurfaceNormal);
+		PackedPayload.SetInstanceID(GetInstanceUserData());//InstanceID
+		return;
+	}
 	const uint2 PixelCoord = PackedPayload.GetPixelCoordFromCustomData();
 
 	ResolvedView = ResolveView();

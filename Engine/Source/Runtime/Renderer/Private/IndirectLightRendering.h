@@ -47,22 +47,9 @@ BEGIN_SHADER_PARAMETER_STRUCT(FCommonParameters, )
 	SHADER_PARAMETER(int32, PixelRayIndexAbscissMask)
 	SHADER_PARAMETER(int32, PixelRayIndexOrdinateShift)
 
-	// Pre computed directions.
-	SHADER_PARAMETER_ARRAY(FVector4, PrecomputedE, [kInterleavingTileSize * kInterleavingTileSize * kMaxRayPerPixel])
-
 	// Scene textures and its sampler.
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureParameters, SceneTextures)
 	SHADER_PARAMETER_STRUCT_INCLUDE(FSceneTextureSamplerParameters, SceneTextureSamplers)
-
-	// Output world hit distance that should be used.
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, HitDistance)
-
-	// Output RDG lighting from the intersection of ray, Alpha unused.
-	SHADER_PARAMETER_RDG_TEXTURE(Texture2D<float4>, HitRadiance)
-
-	// Output world hit distance that should be used.
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float>, HitDistanceOutput)
-	SHADER_PARAMETER_RDG_TEXTURE_UAV(RWTexture2D<float4>, HitRadianceOutput)
 END_SHADER_PARAMETER_STRUCT()
 
 } // HybridIndirectLighting

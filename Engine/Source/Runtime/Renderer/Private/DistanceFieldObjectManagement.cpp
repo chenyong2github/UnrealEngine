@@ -642,16 +642,16 @@ void FDeferredShadingSceneRenderer::UpdateGlobalDistanceFieldObjectBuffers(FRHIC
 									UploadObjectData[1] = (*(FVector4*)&WorldToVolumeT.M[1]);
 									UploadObjectData[2] = (*(FVector4*)&WorldToVolumeT.M[2]);
 
-									// Minimal surface bias which guarantees that ray hit will a surface located between two texels
-									float SurfaceBias = 0.5f * (LocalVolumeBounds.GetExtent() * InvBlockSize).Size() / VolumeScale;
+									// Minimal surface bias which increases chance that ray hit will a surface located between two texels
+									float ExpandSurfaceDistance = (0.25f * InvBlockSize * LocalVolumeBounds.GetSize()).Size() / LocalVolumeBounds.GetExtent().GetMax();
 									if (bBuiltAsIfTwoSided)
 									{
-										SurfaceBias *= 2.0f;
+										ExpandSurfaceDistance *= 2.0f;
 									}
 
 									// Clamp to texel center by subtracting a half texel in the [-1,1] position space
 									// LocalPositionExtent
-									UploadObjectData[3] = FVector4(LocalPositionExtent - InvBlockSize, SurfaceBias);
+									UploadObjectData[3] = FVector4(LocalPositionExtent - InvBlockSize, ExpandSurfaceDistance);
 
 									// UVScale, VolumeScale and sign gives bGeneratedAsTwoSided
 									const float WSign = bBuiltAsIfTwoSided ? -1 : 1;

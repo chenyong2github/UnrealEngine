@@ -35,6 +35,15 @@
 	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_DIFFUSE_INDIRECT_AND_AO_HISTORY
 	#define CONFIG_INPUT_TEXTURE_COUNT 2
 
+#elif DIM_APPLY_DIFFUSE_INDIRECT == 4 // Screen Probe Gather output
+	#define CONFIG_SIGNAL_PROCESSING SIGNAL_PROCESSING_SSGI
+	#define COMPILE_SIGNAL_COLOR_ARRAY 2
+	#define MAX_SIGNAL_BATCH_SIZE 1
+	#define SIGNAL_ARRAY_SIZE 1
+
+	#define CONFIG_SIGNAL_INPUT_LAYOUT  SIGNAL_BUFFER_LAYOUT_SSGI_HISTORY_R11G11B10
+	#define CONFIG_INPUT_TEXTURE_COUNT 2
+
 #else // !DIM_APPLY_DIFFUSE_INDIRECT
 	// NOP
 #endif // !DIM_APPLY_DIFFUSE_INDIRECT
@@ -124,6 +133,11 @@ void MainPS(
 	{
 		float3 DiffuseIndirectLighting = 0;
 		float3 SpecularIndirectLighting = 0;
+
+		#if DIM_APPLY_DIFFUSE_INDIRECT == 4
+			DiffuseIndirectLighting = DiffuseIndirect_Textures_0.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+			SpecularIndirectLighting = DiffuseIndirect_Textures_1.SampleLevel(GlobalPointClampedSampler, SceneBufferUV, 0).rgb;
+		#else
 		{
 			// Sample the output of the denoiser.
 			FSSDKernelConfig KernelConfig = CreateKernelConfig();
@@ -207,16 +221,12 @@ void MainPS(
 				#error Unimplemented
 			#endif
 		}
+		#endif
 
 		float3 DiffuseColor = bVisualizeDiffuseIndirect ? float3(.18f, .18f, .18f) : GBuffer.DiffuseColor;
 		float3 SpecularColor = GBuffer.SpecularColor;
 
-		if (bVisualizeDiffuseIndirect)
-		{
-			SpecularColor = DiffuseColor = float3(1, 1, 1);
-		}
-
-		#if DIM_APPLY_DIFFUSE_INDIRECT == 2
+		#if DIM_APPLY_DIFFUSE_INDIRECT == 2 || DIM_APPLY_DIFFUSE_INDIRECT == 4
 			float DiffuseIndirectAO = 1;
 		#else
 			float DiffuseIndirectAO = lerp(1, FinalAmbientOcclusion, ApplyAOToDynamicDiffuseIndirect);

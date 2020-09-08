@@ -234,6 +234,10 @@ static TAutoConsoleVariable<int32> CVarForceBlackVelocityBuffer(
 	ECVF_RenderThreadSafe);
 #endif
 
+namespace Lumen
+{
+	extern bool AnyLumenHardwareRayTracingPassEnabled();
+}
 namespace Nanite
 {
 	extern bool IsStatFilterActive(const FString& FilterName);
@@ -533,7 +537,7 @@ bool FDeferredShadingSceneRenderer::RenderHzb(FRHICommandListImmediate& RHICmdLi
 		FSceneViewState* ViewState = View.ViewState;
 		const FPerViewPipelineState& ViewPipelineState = *ViewPipelineStates[ViewIndex];
 
-		if (ViewPipelineState.bFurthestHZB)
+		if (ViewPipelineState.bClosestHZB || ViewPipelineState.bFurthestHZB)
 		{
 			FRDGBuilder GraphBuilder(RHICmdList, RDG_EVENT_NAME("BuildHZB(ViewId=%d)", ViewIndex));
 
@@ -1326,6 +1330,8 @@ bool FDeferredShadingSceneRenderer::DispatchRayTracingWorldUpdates(FRHICommandLi
 		PrepareRayTracingTranslucency(View, RayGenShaders);
 		PrepareRayTracingDebug(View, RayGenShaders);
 		PreparePathTracing(View, RayGenShaders);
+		PrepareRayTracingLumenDirectLighting(View, *Scene,RayGenShaders);
+		PrepareRayTracingScreenProbeGather(View,RayGenShaders);
 
 		View.RayTracingScene.RayTracingSceneRHI = RHICreateRayTracingScene(SceneInitializer);
 
@@ -1549,12 +1555,11 @@ void FDeferredShadingSceneRenderer::CommitFinalPipelineState()
 				ViewPipelineState[&FPerViewPipelineState::bUseLumenProbeHierarchy] ||
 				ViewPipelineState[&FPerViewPipelineState::AmbientOcclusionMethod] == EAmbientOcclusionMethod::SSAO ||
 				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::SSR ||
-				ViewPipelineState[&FPerViewPipelineState::ReflectionsMethod] == EReflectionsMethod::HybridLumenSSR ||
 				bHasSSGI);
 
 			// SSGI requires ClosestHZB
 			ViewPipelineState.Set(&FPerViewPipelineState::bClosestHZB, 
-				bHasSSGI || ViewPipelineState[&FPerViewPipelineState::bUseLumenProbeHierarchy]);
+				bHasSSGI || ViewPipelineState[&FPerViewPipelineState::DiffuseIndirectMethod] == EDiffuseIndirectMethod::Lumen);
 		}
 	}
 
@@ -2846,8 +2851,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 
 		GRenderTargetPool.AddPhaseEvent(TEXT("Lighting"));
 
-		TRefCountPtr<IPooledRenderTarget> LumenRoughSpecularIndirect;
-		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList, /* out */ LumenRoughSpecularIndirect, /* bIsVisualizePass = */ false);
+		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList, /* bIsVisualizePass = */ false);
 
 		// These modulate the scenecolor output from the basepass, which is assumed to be indirect lighting
 		RenderIndirectCapsuleShadows(
@@ -2928,10 +2932,9 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 		checkSlow(RHICmdList.IsOutsideRenderPass());
 
 		// Render diffuse sky lighting and reflections that only operate on opaque pixels
-		RenderDeferredReflectionsAndSkyLighting(RHICmdList, DynamicBentNormalAO, SceneContext.SceneVelocity, HairDatas, LumenRoughSpecularIndirect);
+		RenderDeferredReflectionsAndSkyLighting(RHICmdList, DynamicBentNormalAO, SceneContext.SceneVelocity, HairDatas);
 
 		DynamicBentNormalAO = NULL;
-		LumenRoughSpecularIndirect = nullptr;
 
 		// SSS need the SceneColor finalized as an SRV.
 		ResolveSceneColor(RHICmdList);
@@ -3329,10 +3332,7 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 	}
 
 	RenderLumenSceneVisualization(RHICmdList);
-	{
-		TRefCountPtr<IPooledRenderTarget> LumenRoughSpecularIndirect;
-		RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList, /* out */ LumenRoughSpecularIndirect, /* bIsVisualizePass = */ true);
-	}
+	RenderDiffuseIndirectAndAmbientOcclusion(RHICmdList, /* bIsVisualizePass = */ true);
 
 	if (ViewFamily.EngineShowFlags.StationaryLightOverlap &&
 		FeatureLevel >= ERHIFeatureLevel::SM5)
@@ -3409,8 +3409,8 @@ void FDeferredShadingSceneRenderer::Render(FRHICommandListImmediate& RHICmdList)
 				AddDebugViewPostProcessingPasses(GraphBuilder, View, PostProcessingInputs, NaniteResults);
 			}
 		}
-		else
-		{
+			else
+			{
 			for (int32 ViewIndex = 0; ViewIndex < Views.Num(); ViewIndex++)
 			{
 				FViewInfo& View = Views[ViewIndex];
@@ -3763,6 +3763,7 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 
 	const bool bRayTracingShadows = CVarRayTracingShadows != nullptr && CVarRayTracingShadows->GetInt() > 0;
 	const bool bRayTracingStochasticRectLight = CVarStochasticRectLight != nullptr && CVarStochasticRectLight->GetInt() > 0;
+	const bool bLumenHardwareRayTracing = Lumen::AnyLumenHardwareRayTracingPassEnabled();
 
 	if (
 		ShouldRenderRayTracingAmbientOcclusion(View)
@@ -3772,6 +3773,7 @@ bool AnyRayTracingPassEnabled(const FScene* Scene, const FViewInfo& View)
 		|| ShouldRenderRayTracingSkyLight(Scene? Scene->SkyLight : nullptr)
 		|| bRayTracingShadows
 		|| bRayTracingStochasticRectLight
+		|| bLumenHardwareRayTracing
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::PathTracing
 		|| View.RayTracingRenderMode == ERayTracingRenderMode::RayTracingDebug
 		)

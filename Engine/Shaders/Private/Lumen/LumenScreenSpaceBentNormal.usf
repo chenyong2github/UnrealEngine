@@ -1,0 +1,125 @@
+// Copyright 1998-2019 Epic Games, Inc. All Rights Reserved.
+
+#include "../Common.ush"
+#include "../DeferredShadingCommon.ush"
+#include "../BRDF.ush"
+#include "LumenScreenProbeCommon.ush"
+#include "../MonteCarlo.ush"
+#include "../ShadingModelsSampling.ush"
+#include "../SceneTextureParameters.ush"
+
+#define IS_SSGI_SHADER 1
+#include "../SSRT/SSRTRayCast.ush"
+
+#ifndef THREADGROUP_SIZE
+#define THREADGROUP_SIZE 1
+#endif
+
+
+RWTexture2D<UNORM float3> RWScreenBentNormal;
+
+Texture2D FurthestHZBTexture;
+#define FurthestHZBTextureSampler GlobalPointClampedSampler
+float4 HZBUvFactorAndInvFactor;
+
+[numthreads(THREADGROUP_SIZE, THREADGROUP_SIZE, 1)]
+void ScreenSpaceBentNormalCS(
+	uint3 GroupId : SV_GroupID,
+	uint3 DispatchThreadId : SV_DispatchThreadID,
+	uint3 GroupThreadId : SV_GroupThreadID)
+{
+	float2 ScreenUV = float2((DispatchThreadId.xy + .5f) * View.BufferSizeAndInvSize.zw);
+	float SceneDepth = CalcSceneDepth(ScreenUV);
+
+	if (SceneDepth < 1000000.0f)
+	{
+		FScreenSpaceData ScreenSpaceData = GetScreenSpaceData(ScreenUV);
+		FGBufferData GBufferData = ScreenSpaceData.GBuffer;
+
+		if (GBufferData.ShadingModelID != SHADINGMODELID_UNLIT)
+		{
+			float3 WorldPosition = GetWorldPositionFromScreenUV(ScreenUV, SceneDepth);
+			float3 V = normalize(View.WorldCameraOrigin - WorldPosition);
+			float3x3 TangentBasis = GetTangentBasis(GBufferData.WorldNormal);
+			uint2 Seed0 = Rand3DPCG16(int3(DispatchThreadId.xy, View.StateFrameIndexMod8)).xy;
+			float MaxScreenTraceFraction = ScreenProbeDownsampleFactor * 2 * View.ViewSizeAndInvSize.z;
+			float TraceDistance = SceneDepth * MaxScreenTraceFraction * 2.0 * GetTanHalfFieldOfView().x;
+
+			uint NumPixelSamples = 4;
+
+			float3 UnoccludedSum = 0;
+			float3 BentNormal = 0;
+
+			LOOP
+			for (uint PixelRayIndex = 0; PixelRayIndex < NumPixelSamples; PixelRayIndex++)
+			{
+				float2 UniformRandom = Hammersley16(PixelRayIndex, NumPixelSamples, Seed0);
+				//@todo - other shading models
+				float4 HemisphereSample = CosineSampleHemisphere(UniformRandom);
+				float3 RayDirection = mul(HemisphereSample.xyz, TangentBasis);
+				float DirectionVisible = 1;
+
+				#define TRACE_SCREEN 1
+				#if TRACE_SCREEN
+				{
+					uint NumSteps = 4;
+					float StartMipLevel = 0;
+
+					uint2 NoiseCoord = DispatchThreadId.xy * uint2(NumPixelSamples, 1) + uint2(PixelRayIndex, 0);
+					float StepOffset = InterleavedGradientNoise(NoiseCoord + 0.5f, 0);
+
+					float RayRoughness = .2f;
+		
+					FSSRTCastingSettings CastSettings = CreateDefaultCastSettings();
+					CastSettings.bStopWhenUncertain = true;
+
+					bool bHit = false;
+					float Level;
+					float3 HitUVz;
+					bool bRayWasClipped;
+
+					FSSRTRay Ray = InitScreenSpaceRayFromWorldSpace(
+						WorldPosition + View.PreViewTranslation, RayDirection,
+						/* WorldTMax = */ TraceDistance,
+						/* SceneDepth = */ SceneDepth,
+						/* SlopeCompareToleranceScale */ 2.0f,
+						/* bExtendRayToScreenBorder = */ false,
+						/* out */ bRayWasClipped);
+
+					bool bUncertain;
+					float3 DebugOutput;
+
+					CastScreenSpaceRay(
+						FurthestHZBTexture, FurthestHZBTextureSampler,
+						StartMipLevel,
+						CastSettings,
+						Ray, RayRoughness, NumSteps, StepOffset - .9f,
+						HZBUvFactorAndInvFactor, false,
+						/* out */ DebugOutput,
+						/* out */ HitUVz,
+						/* out */ Level,
+						/* out */ bHit,
+						/* out */ bUncertain);
+
+					DirectionVisible = bHit && !bUncertain ? 0.0f : 1.0f;
+				}
+				#endif
+
+				UnoccludedSum += RayDirection;
+				BentNormal += RayDirection * DirectionVisible;
+			}
+
+			float NormalizeFactor = length(UnoccludedSum);
+
+			if (NormalizeFactor > 0)
+			{
+				BentNormal /= NormalizeFactor;
+			}
+
+			// Debug passthrough
+			//BentNormal = GBufferData.WorldNormal;
+
+			RWScreenBentNormal[DispatchThreadId.xy] = BentNormal * .5f + .5f;
+		}
+	}
+}

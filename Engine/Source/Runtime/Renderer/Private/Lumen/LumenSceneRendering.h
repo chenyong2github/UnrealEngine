@@ -17,13 +17,11 @@ class FLumenCardScene;
 
 inline bool DoesPlatformSupportLumenGI(EShaderPlatform Platform)
 {
-	
 	return Platform == SP_PCD3D_SM5 || Platform == SP_PS4 || FDataDrivenShaderPlatformInfo::GetSupportsLumenGI(Platform);
 }
 
 extern int32 GAllowLumenScene;
 
-extern bool ShouldPrepareGlobalDistanceFieldForLumen(EShaderPlatform ShaderPlatform);
 extern bool ShouldRenderLumenDiffuseGI(EShaderPlatform ShaderPlatform, const FSceneViewFamily& ViewFamily);
 
 class FCardRenderData
@@ -81,6 +79,4 @@ FMeshPassProcessor* CreateLumenCardNaniteMeshProcessor(
 	FMeshPassDrawListContext* InDrawListContext);
 
 extern void SetupLumenCardSceneParameters(FScene* Scene, FLumenCardScene& OutParameters);
-extern void InitNullCardBVHData(FRWBufferStructured& CardBVHData);
-extern void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList);
-extern void UpdateCardBVH(bool bUseBVH, FLumenSceneData& SceneData, FRHICommandListImmediate& RHICmdList);
+extern void UpdateLumenCubeMapTrees(const FDistanceFieldSceneData& DistanceFieldSceneData, FLumenSceneData& LumenSceneData, FRHICommandListImmediate& RHICmdList, int32 NumScenePrimitives);

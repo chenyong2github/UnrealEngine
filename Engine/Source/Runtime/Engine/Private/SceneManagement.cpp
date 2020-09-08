@@ -735,16 +735,8 @@ FViewUniformShaderParameters::FViewUniformShaderParameters()
 
 	SobolSamplingTexture = GWhiteTexture->TextureRHI;
 
-	GlobalDistanceFieldTexture0 = BlackVolume;
-	GlobalDistanceFieldSampler0 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	GlobalDistanceFieldTexture1 = BlackVolume;
-	GlobalDistanceFieldSampler1 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	GlobalDistanceFieldTexture2 = BlackVolume;
-	GlobalDistanceFieldSampler2 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	GlobalDistanceFieldTexture3 = BlackVolume;
-	GlobalDistanceFieldSampler3 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
-	GlobalDistanceFieldTexture4 = BlackVolume;
-	GlobalDistanceFieldSampler4 = TStaticSamplerState<SF_Bilinear, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
+	GlobalDistanceFieldPageAtlasTexture = BlackVolume;
+	GlobalDistanceFieldPageTableTexture = BlackVolume;
 
 	SharedPointWrappedSampler = TStaticSamplerState<SF_Point, AM_Wrap, AM_Wrap, AM_Wrap>::GetRHI();
 	SharedPointClampedSampler = TStaticSamplerState<SF_Point, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();

@@ -1,5 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
+#pragma once
+
 float3 EvalBlueNoise(uint2 TileCoord, uint Slice)
 {
 	uint3 BlueNoiseCoord = uint3(TileCoord.x, Slice * BlueNoise.Dimensions.y + TileCoord.y, 0);

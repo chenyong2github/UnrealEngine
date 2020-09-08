@@ -556,29 +556,35 @@ public:
 	FVector ScrollOffset;
 
 	/** Legacy regions in the volume texture to update. Used only by heighfield composition. */
-	TArray<FVolumeUpdateRegion, TInlineAllocator<3> > UpdateRegions;
 
 	// Bounds in the volume texture to update. This should replace UpdateRegions after rewriting heighfield composition
 	TArray<FClipmapUpdateBounds, TInlineAllocator<64>> UpdateBounds;
+};
 
-	/** Volume texture for this clipmap. */
-	TRefCountPtr<IPooledRenderTarget> RenderTarget;
+enum FGlobalDFCacheType
+{
+	GDF_MostlyStatic,
+	GDF_Full,
+	GDF_Num
 };
 
 class FGlobalDistanceFieldInfo
 {
 public:
+	bool bInitialized = false;
 
-	bool bInitialized;
 	TArray<FGlobalDistanceFieldClipmap> MostlyStaticClipmaps;
 	TArray<FGlobalDistanceFieldClipmap> Clipmaps;
+
 	FGlobalDistanceFieldParameterData ParameterData;
 
-	void UpdateParameterData(float MaxOcclusionDistance);
+	TRefCountPtr<FPooledRDGBuffer> PageFreeListAllocatorBuffer;
+	TRefCountPtr<FPooledRDGBuffer> PageFreeListBuffer;
+	TRefCountPtr<IPooledRenderTarget> PageAtlasTexture;
+	TRefCountPtr<IPooledRenderTarget> PageTableCombinedTexture;
+	TRefCountPtr<IPooledRenderTarget> PageTableLayerTextures[GDF_Num];
 
-	FGlobalDistanceFieldInfo() :
-		bInitialized(false)
-	{}
+	void UpdateParameterData(float MaxOcclusionDistance);
 };
 
 const int32 GMaxForwardShadowCascades = 4;
@@ -839,7 +845,7 @@ struct FPreviousViewInfo
 	FIntRect ViewRect;
 
 	// View matrices.
-	FViewMatrices ViewMatrices;
+	FViewMatrices	ViewMatrices;
 
 	// Scene color's PreExposure.
 	float SceneColorPreExposure = 1.0f;

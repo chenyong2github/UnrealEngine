@@ -65,12 +65,16 @@ void VisualizeRadianceCachePS(
 	float3 SphereNormal = normalize(IntersectionPosition - Input.CellSphere.xyz);
 
 	uint ProbeIndex = GetProbeIndexFromIndirectionTexture(Input.ProbeCoord, ProbeClipmapIndex);
-	float3 Lighting = SampleRadianceCacheProbe(ProbeIndex, SphereNormal);
+	float3 Lighting = SampleRadianceCacheProbe(ProbeIndex, SphereNormal, 0);
 
 	if (ProbeIndex == INVALID_PROBE_INDEX)
 	{
 		Lighting = float3(0, 1000.0f, 0);
 	}
+
+	#if USE_PREEXPOSURE
+		Lighting *= View.PreExposure;
+	#endif
 
 	OutColor = float4(Lighting, 1.0f);
 }

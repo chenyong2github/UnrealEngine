@@ -435,23 +435,10 @@ public:
 	bool bValid;
 };
 
-enum FGlobalDFCacheType
-{
-	GDF_MostlyStatic,
-	GDF_Full,
-	GDF_Num
-};
-
 class FGlobalDistanceFieldCacheTypeState
 {
 public:
-
-	FGlobalDistanceFieldCacheTypeState()
-	{
-	}
-
 	TArray<FBox> PrimitiveModifiedBounds;
-	TRefCountPtr<IPooledRenderTarget> VolumeTexture;
 };
 
 class FGlobalDistanceFieldClipmapState
@@ -460,18 +447,16 @@ public:
 
 	FGlobalDistanceFieldClipmapState()
 	{
-		FullUpdateOrigin = FIntVector::ZeroValue;
-		LastPartialUpdateOrigin = FIntVector::ZeroValue;
-		CachedMaxOcclusionDistance = 0;
-		CachedGlobalDistanceFieldViewDistance = 0;
+		FullUpdateOriginInPages = FIntVector::ZeroValue;
+		LastPartialUpdateOriginInPages = FIntVector::ZeroValue;
+		CachedClipmapExtent = 0.0f;
 		CacheMostlyStaticSeparately = 1;
 		LastUsedSceneDataForFullUpdate = nullptr;
 	}
 
-	FIntVector FullUpdateOrigin;
-	FIntVector LastPartialUpdateOrigin;
-	float CachedMaxOcclusionDistance;
-	float CachedGlobalDistanceFieldViewDistance;
+	FIntVector FullUpdateOriginInPages;
+	FIntVector LastPartialUpdateOriginInPages;
+	float CachedClipmapExtent;
 	uint32 CacheMostlyStaticSeparately;
 
 	FGlobalDistanceFieldCacheTypeState Cache[GDF_Num];
@@ -510,7 +495,8 @@ public:
 
 	TArray<FRadianceCacheClipmap> Clipmaps;
 
-	float RadianceProbeBaseClipmapTMin;
+	float ClipmapWorldExtent = 0.0f;
+	float ClipmapDistributionBase = 0.0f;
 
 	/** Clipmaps of probe indexes, used to lookup the probe index for a world space position. */
 	TRefCountPtr<IPooledRenderTarget> RadianceProbeIndirectionTexture;
@@ -1064,9 +1050,16 @@ public:
 	class FAOScreenGridResources* AOScreenGridResources;
 
 	bool bInitializedGlobalDistanceFieldOrigins;
+	bool bGlobalDistanceFieldPendingReset = false;
 	FGlobalDistanceFieldClipmapState GlobalDistanceFieldClipmapState[GMaxGlobalDistanceFieldClipmaps];
 	int32 GlobalDistanceFieldUpdateIndex;
 	FVector GlobalDistanceFieldCameraVelocityOffset;
+
+	TRefCountPtr<FPooledRDGBuffer> GlobalDistanceFieldPageFreeListAllocatorBuffer;
+	TRefCountPtr<FPooledRDGBuffer> GlobalDistanceFieldPageFreeListBuffer;
+	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageAtlasTexture;
+	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableCombinedTexture;
+	TRefCountPtr<IPooledRenderTarget> GlobalDistanceFieldPageTableLayerTextures[GDF_Num];
 
 	FRadianceCacheState RadianceCacheState;
 

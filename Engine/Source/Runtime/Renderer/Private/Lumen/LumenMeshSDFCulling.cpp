@@ -22,14 +22,6 @@ FAutoConsoleVariableRef CVarMeshSDFAverageCulledCount(
 	ECVF_Scalability | ECVF_RenderThreadSafe
 );
 
-int32 GMeshSDFGridCullToGBuffer = 0;
-FAutoConsoleVariableRef CVarMeshSDFGridCullToGBuffer(
-	TEXT("r.Lumen.DiffuseIndirect.MeshSDFCullGridUseGBuffer"),
-	GMeshSDFGridCullToGBuffer,
-	TEXT(""),
-	ECVF_Scalability | ECVF_RenderThreadSafe
-);
-
 float GMeshSDFRadiusThreshold = 100;
 FAutoConsoleVariableRef CVarMeshSDFRadiusThreshold(
 	TEXT("r.Lumen.DiffuseIndirect.MeshSDFRadiusThreshold"),
@@ -120,6 +112,11 @@ class FMeshSDFObjectCullPS : public FGlobalShader
 		SHADER_PARAMETER_SAMPLER(SamplerState, DistanceFieldSampler)
 		SHADER_PARAMETER(FVector, DistanceFieldAtlasTexelSize)
 		SHADER_PARAMETER(uint32, MaxNumberOfCulledObjects)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, ClosestHZBTexture)
+		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, FurthestHZBTexture)
+		SHADER_PARAMETER(float, HZBMipLevel)
+		SHADER_PARAMETER(uint32, HaveClosestHZB)
+		SHADER_PARAMETER(FVector2D, ViewportUVToHZBBufferUV)
 	END_SHADER_PARAMETER_STRUCT()
 
 	class FCullToFroxelGrid : SHADER_PERMUTATION_BOOL("CULL_TO_FROXEL_GRID");
@@ -306,8 +303,6 @@ void FillGridParameters(
 	OutGridParameters.NumGridCulledMeshSDFObjects = GraphBuilder.CreateSRV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
 	OutGridParameters.GridCulledMeshSDFObjectStartOffsetArray = GraphBuilder.CreateSRV(Context.GridCulledMeshSDFObjectStartOffsetArray, PF_R32_UINT);
 	OutGridParameters.GridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateSRV(Context.GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
-	OutGridParameters.TracingParameters.MeshSDFObjectOverlappingCardHeader = LumenSceneData.MeshSDFOverlappingCardHeader.SRV;
-	OutGridParameters.TracingParameters.MeshSDFObjectOverlappingCardData = LumenSceneData.MeshSDFOverlappingCardData.SRV;
 
 	OutGridParameters.TracingParameters.SceneObjectBounds = DistanceFieldSceneData.GetCurrentObjectBuffers()->Bounds.SRV;
 	OutGridParameters.TracingParameters.SceneObjectData = DistanceFieldSceneData.GetCurrentObjectBuffers()->Data.SRV;
@@ -635,6 +630,14 @@ void CullMeshSDFObjectsToViewGrid(
 		PassParameters->PS.DistanceFieldSampler = TStaticSamplerState<SF_Bilinear, AM_Clamp, AM_Clamp, AM_Clamp>::GetRHI();
 		PassParameters->PS.DistanceFieldAtlasTexelSize = Context.DistanceFieldAtlasTexelSize;
 		PassParameters->PS.MaxNumberOfCulledObjects = Context.MaxNumberOfCulledObjects;
+		PassParameters->PS.ClosestHZBTexture = GraphBuilder.RegisterExternalTexture(View.ClosestHZB ? View.ClosestHZB : GSystemTextures.BlackDummy, TEXT("ClosestHZB"));
+		PassParameters->PS.FurthestHZBTexture = GraphBuilder.RegisterExternalTexture(View.HZB, TEXT("FurthestHZB"));
+		PassParameters->PS.HZBMipLevel = FMath::Max<float>((int32)FMath::FloorLog2(GridPixelsPerCellXY) - 1, 0.0f);
+		PassParameters->PS.HaveClosestHZB = View.ClosestHZB ? 1 : 0;
+		PassParameters->PS.ViewportUVToHZBBufferUV = FVector2D(
+			float(View.ViewRect.Width()) / float(2 * View.HZBMipmap0Size.X),
+			float(View.ViewRect.Height()) / float(2 * View.HZBMipmap0Size.Y)
+		);
 
 		PassParameters->MeshSDFIndirectArgs = Context.ObjectIndirectArguments;
 
@@ -692,213 +695,4 @@ void CullMeshSDFObjectsToViewGrid(
 
 	OutGridCompactParameters.RWNumGridCulledMeshSDFObjects = GraphBuilder.CreateUAV(Context.NumGridCulledMeshSDFObjects, PF_R32_UINT);
 	OutGridCompactParameters.RWGridCulledMeshSDFObjectIndicesArray = GraphBuilder.CreateUAV(Context.GridCulledMeshSDFObjectIndicesArray, PF_R32_UINT);
-}
-
-
-class FMeshSDFGridClearUsedByGBufferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FMeshSDFGridClearUsedByGBufferCS)
-	SHADER_USE_PARAMETER_STRUCT(FMeshSDFGridClearUsedByGBufferCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWUsedMeshSDFData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, NumGridCulledMeshSDFObjects)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectStartOffsetArray)
-		SHADER_PARAMETER(FIntVector, CullGridSize)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static uint32 GetGroupSize()
-	{
-		return 4;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FMeshSDFGridClearUsedByGBufferCS, "/Engine/Private/Lumen/LumenMeshSDFCulling.usf", "MeshSDFGridClearUsedByGBufferCS", SF_Compute);
-
-
-uint32 MeshSDFGridMarkUsedGroupSize = 8;
-
-class FMeshSDFGridMarkUsedByGBufferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FMeshSDFGridMarkUsedByGBufferCS)
-	SHADER_USE_PARAMETER_STRUCT(FMeshSDFGridMarkUsedByGBufferCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_RDG_BUFFER_UAV(RWBuffer<uint>, RWUsedMeshSDFData)
-		SHADER_PARAMETER_RDG_TEXTURE(Texture2D, DownsampledDepth)
-		SHADER_PARAMETER_STRUCT_REF(FViewUniformShaderParameters, View)
-		SHADER_PARAMETER_STRUCT_INCLUDE(HybridIndirectLighting::FCommonParameters, CommonDiffuseParameters)
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridParameters, MeshSDFGridParameters)
-		SHADER_PARAMETER(float, MaxMeshSDFInfluenceRadius)
-		SHADER_PARAMETER(float, CardTraceEndDistanceFromCamera)
-		SHADER_PARAMETER(uint32, CardGridPixelSizeShift)
-		SHADER_PARAMETER(FVector, CardGridZParams)
-		SHADER_PARAMETER(FIntVector, CullGridSize)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), MeshSDFGridMarkUsedGroupSize);
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FMeshSDFGridMarkUsedByGBufferCS, "/Engine/Private/Lumen/LumenMeshSDFCulling.usf", "MeshSDFGridMarkUsedByGBufferCS", SF_Compute);
-
-class FMeshSDFGridCompactUsedByGBufferCS : public FGlobalShader
-{
-	DECLARE_GLOBAL_SHADER(FMeshSDFGridCompactUsedByGBufferCS)
-	SHADER_USE_PARAMETER_STRUCT(FMeshSDFGridCompactUsedByGBufferCS, FGlobalShader)
-
-	BEGIN_SHADER_PARAMETER_STRUCT(FParameters, )
-		SHADER_PARAMETER_STRUCT_INCLUDE(FLumenMeshSDFGridCompactParameters, MeshSDFGridCompactParameters)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, UsedMeshSDFData)
-		SHADER_PARAMETER_RDG_BUFFER_SRV(Buffer<uint>, GridCulledMeshSDFObjectStartOffsetArray)
-		SHADER_PARAMETER(FIntVector, CullGridSize)
-	END_SHADER_PARAMETER_STRUCT()
-
-	using FPermutationDomain = TShaderPermutationDomain<>;
-
-	static bool ShouldCompilePermutation(const FGlobalShaderPermutationParameters& Parameters)
-	{
-		return DoesPlatformSupportLumenGI(Parameters.Platform);
-	}
-
-	static uint32 GetGroupSize()
-	{
-		return 4;
-	}
-
-	static void ModifyCompilationEnvironment(const FGlobalShaderPermutationParameters& Parameters, FShaderCompilerEnvironment& OutEnvironment)
-	{
-		FGlobalShader::ModifyCompilationEnvironment(Parameters, OutEnvironment);
-		OutEnvironment.SetDefine(TEXT("THREADGROUP_SIZE"), GetGroupSize());
-	}
-};
-
-IMPLEMENT_GLOBAL_SHADER(FMeshSDFGridCompactUsedByGBufferCS, "/Engine/Private/Lumen/LumenMeshSDFCulling.usf", "MeshSDFGridCompactUsedByGBufferCS", SF_Compute);
-
-
-void CullMeshSDFObjectGridToGBuffer(
-	const FViewInfo& View,
-	const FScene* Scene,
-	float MaxMeshSDFInfluenceRadius,
-	float CardTraceEndDistanceFromCamera,
-	const HybridIndirectLighting::FCommonParameters& CommonDiffuseParameters,
-	FRDGTextureRef DownsampledDepth,
-	int32 GridPixelsPerCellXY,
-	int32 GridSizeZ,
-	FVector ZParams,
-	FRDGBuilder& GraphBuilder,
-	const FLumenMeshSDFGridParameters& GridParameters,
-	const FLumenMeshSDFGridCompactParameters& GridCompactParameters)
-{
-	LLM_SCOPE(ELLMTag::Lumen);
-
-	if (GMeshSDFGridCullToGBuffer)
-	{
-		const FIntPoint CardGridSizeXY = FIntPoint::DivideAndRoundUp(View.ViewRect.Size(), GridPixelsPerCellXY);
-		const FIntVector CullGridSize(CardGridSizeXY.X, CardGridSizeXY.Y, GridSizeZ);
-		const uint32 NumCullGridCells = CullGridSize.X * CullGridSize.Y * CullGridSize.Z;
-
-		uint32 MaxCullGridCells;
-
-		{
-			const FIntPoint BufferSize = FSceneRenderTargets::Get(GraphBuilder.RHICmdList).GetBufferSizeXY();
-			const FIntPoint MaxCardGridSizeXY = FIntPoint::DivideAndRoundUp(BufferSize, GridPixelsPerCellXY);
-			MaxCullGridCells = MaxCardGridSizeXY.X * MaxCardGridSizeXY.Y * GridSizeZ;
-			ensure(MaxCullGridCells >= NumCullGridCells);
-		}
-
-		FRDGBufferRef UsedMeshSDFData = GraphBuilder.CreateBuffer(FRDGBufferDesc::CreateBufferDesc(sizeof(uint32), MaxCullGridCells * GMeshSDFAverageCulledCount), TEXT("UsedMeshSDFData"));
-		FRDGBufferUAVRef UsedMeshSDFDataUAV = GraphBuilder.CreateUAV(UsedMeshSDFData, PF_R32_UINT);
-		
-		{
-			FMeshSDFGridClearUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMeshSDFGridClearUsedByGBufferCS::FParameters>();
-
-			PassParameters->RWUsedMeshSDFData = UsedMeshSDFDataUAV;
-			PassParameters->NumGridCulledMeshSDFObjects = GridParameters.NumGridCulledMeshSDFObjects;
-			PassParameters->GridCulledMeshSDFObjectStartOffsetArray = GridParameters.GridCulledMeshSDFObjectStartOffsetArray;
-			PassParameters->CullGridSize = CullGridSize;
-
-			auto ComputeShader = View.ShaderMap->GetShader<FMeshSDFGridClearUsedByGBufferCS>(0);
-
-			const FIntVector GroupSize = FIntVector::DivideAndRoundUp(CullGridSize, FMeshSDFGridClearUsedByGBufferCS::GetGroupSize());
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("ClearUsedByGBuffer"),
-				ComputeShader,
-				PassParameters,
-				GroupSize);
-		}
-
-		{
-			FMeshSDFGridMarkUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMeshSDFGridMarkUsedByGBufferCS::FParameters>();
-			PassParameters->RWUsedMeshSDFData = UsedMeshSDFDataUAV;
-			PassParameters->DownsampledDepth = DownsampledDepth;
-			PassParameters->CommonDiffuseParameters = CommonDiffuseParameters;
-			PassParameters->View = View.ViewUniformBuffer;
-			PassParameters->MeshSDFGridParameters = GridParameters;
-
-			PassParameters->MaxMeshSDFInfluenceRadius = MaxMeshSDFInfluenceRadius;
-			PassParameters->CardTraceEndDistanceFromCamera = CardTraceEndDistanceFromCamera;
-			PassParameters->CardGridPixelSizeShift = FMath::FloorLog2(GridPixelsPerCellXY);
-			PassParameters->CardGridZParams = ZParams;
-			PassParameters->CullGridSize = CullGridSize;
-
-			auto ComputeShader = View.ShaderMap->GetShader<FMeshSDFGridMarkUsedByGBufferCS>();
-
-			FIntPoint GroupSize(FIntPoint::DivideAndRoundUp(CommonDiffuseParameters.TracingViewportSize, MeshSDFGridMarkUsedGroupSize));
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("MarkUsedByGBuffer"),
-				ComputeShader,
-				PassParameters,
-				FIntVector(GroupSize.X, GroupSize.Y, 1));
-		}
-
-		{
-			FRDGBufferSRVRef UsedMeshSDFDataSRV = GraphBuilder.CreateSRV(UsedMeshSDFData, PF_R32_UINT);
-
-			FMeshSDFGridCompactUsedByGBufferCS::FParameters* PassParameters = GraphBuilder.AllocParameters<FMeshSDFGridCompactUsedByGBufferCS::FParameters>();
-
-			PassParameters->MeshSDFGridCompactParameters = GridCompactParameters;
-			PassParameters->UsedMeshSDFData = UsedMeshSDFDataSRV;
-			PassParameters->GridCulledMeshSDFObjectStartOffsetArray = GridParameters.GridCulledMeshSDFObjectStartOffsetArray;
-			PassParameters->CullGridSize = CullGridSize;
-
-			auto ComputeShader = View.ShaderMap->GetShader<FMeshSDFGridCompactUsedByGBufferCS>(0);
-
-			const FIntVector GroupSize = FIntVector::DivideAndRoundUp(CullGridSize, FMeshSDFGridCompactUsedByGBufferCS::GetGroupSize());
-
-			FComputeShaderUtils::AddPass(
-				GraphBuilder,
-				RDG_EVENT_NAME("CompactUsedByGBuffer"),
-				ComputeShader,
-				PassParameters,
-				GroupSize);
-		}
-	}
 }
