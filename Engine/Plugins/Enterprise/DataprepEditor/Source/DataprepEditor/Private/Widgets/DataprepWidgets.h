@@ -21,6 +21,7 @@ class UDataprepContentConsumer;
 class UDataprepParameterizableObject;
 
 struct FAssetData;
+struct FDetailColumnSizeData;
 
 namespace DataprepWidgetUtils
 {
