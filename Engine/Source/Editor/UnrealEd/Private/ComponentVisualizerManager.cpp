@@ -80,9 +80,24 @@ bool FComponentVisualizerManager::HandleProxyForComponentVis(FEditorViewportClie
 			}
 		}
 	}
-	else
+
+	return false;
+}
+
+bool FComponentVisualizerManager::SetActiveComponentVis(FEditorViewportClient* InViewportClient, TSharedPtr<FComponentVisualizer>& InVisualizer)
+{
+	if (InViewportClient && InVisualizer.IsValid())
 	{
-		ClearActiveComponentVis();
+		// call EndEditing on any currently edited visualizer, if we are going to change it
+		TSharedPtr<FComponentVisualizer> EditedVisualizer = EditedVisualizerPtr.Pin();
+		if (EditedVisualizer.IsValid() && InVisualizer.Get() != EditedVisualizer.Get())
+		{
+			EditedVisualizer->EndEditing();
+		}
+
+		EditedVisualizerPtr = InVisualizer;
+		EditedVisualizerViewportClient = InViewportClient;
+		return true;
 	}
 
 	return false;
