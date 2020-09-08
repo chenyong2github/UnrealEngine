@@ -95,8 +95,7 @@ namespace ChaosTest
 	TYPED_TEST(AllTraits, DataMarshalling_Callbacks)
 	{
 		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr, EThreadingMode::SingleThread);
-		Solver->SetEnabled(true);
-
+		
 		int Count = 0;
 		float Time = 0;
 		FSimCallbackHandle* Callback = &Solver->RegisterSimCallback([&Count, &Time](const TArray<FSimCallbackData*>& Data)
@@ -138,8 +137,7 @@ namespace ChaosTest
 	TYPED_TEST(AllTraits,DataMarshalling_OneShotCallbacks)
 	{
 		auto* Solver = FChaosSolversModule::GetModule()->CreateSolver<TypeParam>(nullptr,EThreadingMode::SingleThread);
-		Solver->SetEnabled(true);
-
+		
 		int Count = 0;
 		Solver->RegisterSimOneShotCallback([&Count]()
 		{

@@ -135,6 +135,9 @@ struct CORE_API FFortniteMainBranchObjectVersion
 		// Levelset Serialization support for BodySetup.
 		LevelsetSerializationSupportForBodySetup,
 
+		// Moving Chaos solver properties to allow them to exist in the project physics settings
+		ChaosSolverPropertiesMoved,
+
 		// -----<new versions can be added above this line>-------------------------------------------------
 		VersionPlusOne,
 		LatestVersion = VersionPlusOne - 1
