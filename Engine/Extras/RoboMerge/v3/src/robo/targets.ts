@@ -2,8 +2,11 @@
 
 import { Branch, BranchGraphInterface, MergeAction, MergeMode } from './branch-interfaces';
 import { PendingChange, Target, TargetInfo } from './branch-interfaces';
+import { Graph } from '../new/graph';
 import { ContextualLogger } from '../common/logger';
 import { setDefault } from '../common/helper';
+
+// const NEW_STUFF = false
 
 export function getIntegrationOwner(targetBranch: Branch, overriddenOwner?: string): string | null
 export function getIntegrationOwner(pending: PendingChange): string
@@ -223,7 +226,7 @@ export class DescriptionParser {
 	}
 }
 
-export function parse(
+export function parseDescriptionLines(
 	lines: string[],
 	isDefaultBot: boolean, 
 	graphBotName: string, 
@@ -334,155 +337,218 @@ export function computeImplicitTargets(
 	return merges
 }
 
-// public so it can be called from unit tests
-export function computeTargets(sourceBranch: Branch, branchGraph: BranchGraphInterface, info: TargetInfo, requestedTargetNames: string[],
-	defaultTargets: string[], logger: ContextualLogger, optTargetBranch?: Branch | null) {
-	const errors: string[] = []
-	const flags = new Set<string>()
+class RequestedIntegrations {
 
-	// list of branch names and merge mode (default targets first, so merge mode gets overwritten if added explicitly)
-	const defaultMergeMode: MergeMode = info.forceStompChanges ? 'clobber' : 'normal'
-	const requestedMerges: [string, MergeMode][] = defaultTargets.map(name => [name, defaultMergeMode] as [string, MergeMode])
+	readonly flags = new Set<string>()
+	readonly integrations: [string, MergeMode][] = []
 
-	// Parse prefixed branch names and flags
-	for (const rawTargetName of requestedTargetNames) {
-		const rawTargetLower = rawTargetName.toLowerCase()
+	parse(commandArguments: string[], cl: number, forceStomp: boolean, logger: ContextualLogger) {
 
-		// check for 'ignore' and remap to #ignore flag
-		if (ALLOWED_RAW_FLAGS.indexOf(rawTargetLower) >= 0)
-		{
-			flags.add(FLAGMAP[rawTargetLower]);
-			continue;
+		for (const arg of commandArguments) {
+			const argLower = arg.toLowerCase()
+
+			// check for 'ignore' and remap to #ignore flag
+			if (ALLOWED_RAW_FLAGS.indexOf(argLower) >= 0)
+			{
+				this.flags.add(FLAGMAP[argLower]);
+				continue;
+			}
+
+			const firstChar = arg.charAt(0)
+
+			// If forceStompChanges, add the target as a stomp if it isn't a flagged target
+			if (forceStomp && '!-$#'.indexOf(firstChar) === -1) {
+				this.integrations.push([arg, 'clobber'])
+				continue
+			}
+
+			// see if this has a modifier
+			switch (firstChar)
+			{
+			default:
+				this.integrations.push([arg, 'normal'])
+				break
+			
+			case '!':
+				this.integrations.push([arg.substr(1), 'null'])
+				break;
+
+			case '-':
+				this.integrations.push([arg.substr(1), 'skip'])
+				break
+
+			case '$':
+			case '#':
+				// set the flag and continue the loop
+				const flagname = FLAGMAP[argLower.substr(1)]
+				if (flagname) {
+					this.flags.add(flagname)
+				}
+				else {
+					logger.warn(`Ignoring unknown flag "${arg}" in CL#${cl}`)
+				}
+				break
+			}
 		}
 
-		// If forceStompChanges, add the target as a stomp if it isn't a flagged target
-		if (info.forceStompChanges && ['!', '-', '$', '#'].indexOf(rawTargetName.charAt(0)) === -1) {
-			requestedMerges.push([rawTargetName, 'clobber'])
+	}
+}
+
+// public so it can be called from unit tests
+export function computeTargetsImpl(
+	sourceBranch: Branch, 
+	_ubergraph: Graph | null,
+	cl: number,
+	forceStomp: boolean,
+	commandArguments: string[],
+	defaultTargets: string[], 
+	logger: ContextualLogger
+):	{ blah:
+	  { merges: Map<Branch, Branch[]> | null
+	  , flags: Set<string>
+	  , targets: Map<Branch, MergeMode>
+	  } | null
+	, errors: string[] 
+
+	} {
+
+	// list of branch names and merge mode (default targets first, so merge mode gets overwritten if added explicitly)
+
+	const ri = new RequestedIntegrations
+	ri.parse(commandArguments, cl, forceStomp, logger)
+
+	if (ri.flags.has('ignore')) {
+		return { blah: null, errors: [] }
+	}
+
+	if (ri.flags.has('null')) {
+		for (const branchName of sourceBranch.forceFlowTo) {
+			ri.integrations.push([branchName, 'null'])
+		}
+	}
+
+	// note: this allows multiple mentions of same branch, with flag of last mention taking priority. Could be an error instead
+
+	const defaultMergeMode: MergeMode = forceStomp ? 'clobber' : 'normal'
+
+	const requestedMerges = [
+		...defaultTargets.map(name => [name, defaultMergeMode] as [string, MergeMode]),
+		...ri.integrations
+	]
+
+	const branchGraph = sourceBranch.parent
+
+	// compute the targets map
+	const skipBranches = new Set<Branch>()
+	const targets = new Map<Branch, MergeMode>()
+	const errors: string[] = []
+
+	// process parsed targets
+	for (const [targetName, mergeMode] of requestedMerges) {
+		// make sure the target exists
+		const targetBranch = branchGraph.getBranch(targetName)
+		if (!targetBranch) {
+			errors.push(`Unable to find branch "${targetName}"`)
 			continue
 		}
 
-		// see if this has a modifier
-		switch (rawTargetName.charAt(0))
-		{
-		default:
-			requestedMerges.push([rawTargetName, 'normal'])
-			break
-		
-		case '!':
-			requestedMerges.push([rawTargetName.substr(1), 'null'])
-			break;
+		if (targetBranch === sourceBranch) {
+			// ignore merge to self to prevent indirect target loops
+			continue
+		}
 
-		case '-':
-			requestedMerges.push([rawTargetName.substr(1), 'skip'])
-			break
+		if (mergeMode === 'skip') {
+			skipBranches.add(targetBranch)
+		}
 
-		case '$':
-		case '#':
-			// set the flag and continue the loop
-			const flagname = FLAGMAP[rawTargetLower.substr(1)]
-			if (flagname) {
-				flags.add(flagname)
+		targets.set(targetBranch, mergeMode)
+	}
+
+	if (targets.size === 0) {
+		return {blah: null, errors}
+	}
+
+	const merges = computeImplicitTargets(sourceBranch, branchGraph, errors, new Set(targets.keys()), skipBranches)
+	return {blah: {merges, flags: ri.flags, targets}, errors}
+}
+
+
+export function computeTargets(
+	sourceBranch: Branch, 
+	// branchGraph: BranchGraph | null,
+	ubergraph: Graph | null,
+	cl: number,
+	info: TargetInfo, 
+	commandArguments: string[],
+	defaultTargets: string[], 
+	logger: ContextualLogger,
+
+	optTargetBranch?: Branch | null
+) {
+
+
+	const { blah, errors } = computeTargetsImpl(sourceBranch, ubergraph, cl, info.forceStompChanges, commandArguments, defaultTargets, logger)
+
+	if (!blah) {
+		return
+	}
+
+	if (errors.length > 0) {
+		info.errors = errors
+		return
+	}
+
+	let { merges, flags, targets } = blah
+	if (!merges) {
+		// shouldn't get here - there will have been errors
+		return
+	}
+
+	// Now that all targets from original changelist description are computed, compare to requested target branch, if applicable
+	if (optTargetBranch) {
+		// Ensure optTargetBranch is a (possibly indirect) target of this change
+		if (!merges.has(optTargetBranch)) {
+			errors.push(`Requested target branch ${optTargetBranch.name} not a valid target for this changelist`)
+		}
+		// Ensure we provide informative error around requesting to remerge when it should be null or skipped (though we shouldn't get in this state)
+		else {
+			const targetMergeMode = targets.get(optTargetBranch) || 'normal'
+			if (targetMergeMode === 'null' || targetMergeMode === 'skip') {
+				errors.push(`Invalid request to merge to ${optTargetBranch.name}: Changelist originally specified '${targetMergeMode}' merge for this branch`)
 			}
 			else {
-				logger.warn(`Ignoring unknown flag "${rawTargetName}" from ${info.author}`)
+				// Success!
+				// Override targets with ONLY optTargetBranch
+				merges = new Map([[optTargetBranch, merges.get(optTargetBranch)!]])
 			}
-			break
 		}
 	}
 
-	if (flags.has('null')) {
-		for (const branchName of sourceBranch.forceFlowTo) {
-			requestedMerges.push([branchName, 'null'])
-		}
-	}
-
-	// compute the targets map
+	// compute final merge modes of all targets
 	const mergeActions: MergeAction[] = []
-	let allDownstream: Set<Branch> | null = null
-	if (!flags.has('ignore')) {
-		const skipBranches = new Set<Branch>()
-		const targets = new Map<Branch, MergeMode>()
+	const allDownstream = new Set<Branch>()
 
-		// process parsed targets
-		for (const [targetName, mergeMode] of requestedMerges) {
-			// make sure the target exists
-			const targetBranch = branchGraph.getBranch(targetName)
-			if (!targetBranch) {
-				errors.push(`Unable to find branch "${targetName}"`)
-				continue
-			}
+	for (const [direct, indirectTargets] of merges.entries()) {
+		const mergeMode : MergeMode = targets.get(direct) || 'normal'
+		if (mergeMode === 'skip') {
+			continue
+		}
+		allDownstream.add(direct)
 
-			if (targetBranch === sourceBranch) {
-				// ignore merge to self to prevent indirect target loops
-				continue
-			}
-
-			if (targetBranch.whitelist.length !== 0) {
-				const owner = getIntegrationOwner(targetBranch, info.owner) || info.author
-				if (targetBranch.whitelist.indexOf(owner) < 0) {
-					errors.push(`${owner} is not on the whitelist to merge to "${targetBranch.name}"`)
-					continue
-				}
-			}
-
-			if (mergeMode === 'skip') {
-				skipBranches.add(targetBranch)
-			}
-
-			// note: this allows multiple mentions of same branch, with flag of last mention taking priority. Could be an error instead
-			targets.set(targetBranch, mergeMode)
+		const furtherMerges: Target[] = []
+		for (const branch of indirectTargets) {
+			furtherMerges.push({branch, mergeMode: targets.get(branch) || 'normal'})
+			allDownstream.add(branch)
 		}
 
-		let merges: Map<Branch, Branch[]> | null = null
-		if (targets.size > 0) {
-			merges = computeImplicitTargets(sourceBranch, branchGraph, errors, new Set(targets.keys()), skipBranches)
-		}
+		mergeActions.push({branch: direct, mergeMode, furtherMerges, flags})
+	}
 
-		// Now that all targets from original changelist description are computed, compare to requested target branch, if applicable
-		if (optTargetBranch) {
-			// Ensure optTargetBranch is a (possibly indirect) target of this change
-			if (!merges || !merges.has(optTargetBranch)) {
-				errors.push(`Requested target branch ${optTargetBranch.name} not a valid target for this changelist`)
-			}
-			// Ensure we provide informative error around requesting to remerge when it should be null or skipped (though we shouldn't get in this state)
-			else {
-				const targetMergeMode = targets.get(optTargetBranch) || 'normal'
-				if (targetMergeMode === 'null' || targetMergeMode === 'skip') {
-					errors.push(`Invalid request to merge to ${optTargetBranch.name}: Changelist originally specified '${targetMergeMode}' merge for this branch`)
-				}
-				else {
-					// Success!
-					// Override targets with ONLY optTargetBranch
-					merges = new Map([[optTargetBranch, merges.get(optTargetBranch)!]])
-				}
-			}
-		}
+	const branchGraph = sourceBranch.parent
 
-		if (merges && merges.size > 0 && errors.length === 0) {
-			// compute final merge modes of all targets
-			allDownstream = new Set<Branch>()
-
-			for (const [direct, indirectTargets] of merges.entries()) {
-				const mergeMode : MergeMode = targets.get(direct) || 'normal'
-				if (mergeMode === 'skip') {
-					continue
-				}
-				allDownstream.add(direct)
-
-				const furtherMerges: Target[] = []
-				for (const branch of indirectTargets) {
-					furtherMerges.push({branch, mergeMode: targets.get(branch) || 'normal'})
-					allDownstream.add(branch)
-				}
-
-				mergeActions.push({branch: direct, mergeMode, furtherMerges, flags})
-			}
-
-			// add indirect forced branches to allDownstream
-			for (const branch of [...allDownstream]) {
-				branchGraph._computeReachableFrom(allDownstream, 'forceFlowTo', branch)
-			}
-		}
+	// add indirect forced branches to allDownstream
+	for (const branch of [...allDownstream]) {
+		branchGraph._computeReachableFrom(allDownstream, 'forceFlowTo', branch)
 	}
 
 	// send errors if we had any

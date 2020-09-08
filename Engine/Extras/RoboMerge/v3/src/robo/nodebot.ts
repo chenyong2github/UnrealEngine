@@ -7,7 +7,7 @@ import { Mailer, MailParams, Recipients } from '../common/mailer';
 import { Change, ConflictedResolveNFile, PerforceContext, ResolveResult, RoboWorkspace } from '../common/perforce';
 import { IPCControls, NodeBotInterface, QueuedChange, ReconsiderArgs } from './bot-interfaces';
 import { AlreadyIntegrated, Blockage, Branch, BranchArg, BranchGraphInterface, BranchStatus, ChangeInfo, Failure } from './branch-interfaces';
-import { MergeAction, OperationResult, PendingChange, resolveBranchArg, StompedRevision, StompVerification, StompVerificationFile, TargetInfo }  from './branch-interfaces';
+import { MergeAction, OperationResult, PendingChange, resolveBranchArg, StompedRevision, StompVerification, StompVerificationFile }  from './branch-interfaces';
 import { Conflicts } from './conflicts';
 import { EdgeBot } from './edgebot';
 import { BotEventTriggers } from './events';
@@ -16,7 +16,8 @@ import { BlockageNodeOpUrls, OperationUrlHelper } from './roboserver';
 import { Context } from './settings';
 import { BlockagePauseInfo, PauseState } from './state-interfaces';
 import { newTickJournal, TickJournal } from './tick-journal';
-import { computeTargets, parse, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
+import { computeTargets, parseDescriptionLines, getIntegrationOwner, getNodeBotFullName, getNodeBotFullNameForLogging } from './targets';
+import { Graph } from '../new/graph';
 
 /**********************************
  * Bot monitoring a single stream
@@ -85,7 +86,8 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 		mailer: Mailer, 
 		externalUrl: string, 
 		private readonly eventTriggers: BotEventTriggers,
-		settings: Context
+		settings: Context,
+		private readonly ubergraph: Graph
 	) {
 		// Node initial CL used when creating new (sub-)graph: should be able to set initial CL of source node and have that apply to edges
 		super(settings, branchDef.config.initialCL)
@@ -1518,7 +1520,7 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 							change.desc ? change.desc.split('\n') : []
 
 
-		const parsedLines = parse(
+		const parsedLines = parseDescriptionLines(
 			descLines,
 			this.branch.isDefaultBot,
 			(this.branchGraph.config.alias || '').toUpperCase(),
@@ -1586,14 +1588,10 @@ export class NodeBot extends PerforceStatefulBot implements NodeBotInterface {
 								this.branch.forceFlowTo
 
 		if (optTargetBranch || (parsedLines.arguments.length + defaultTargets.length) > 0) {
-			this._computeTargets(info, parsedLines.arguments, defaultTargets, optTargetBranch)
+			computeTargets(this.branch, this.ubergraph, change.change, info, parsedLines.arguments, defaultTargets, this.nodeBotLogger, optTargetBranch)
 		}
 
 		return info
-	}
-
-	private _computeTargets(info: TargetInfo, requestedTargetNames: string[], defaultTargets: string[], optTargetBranch?: Branch | null) {
-		computeTargets(this.branch, this.branchGraph, info, requestedTargetNames, defaultTargets, this.nodeBotLogger, optTargetBranch)
 	}
 
 	private _getBranch(name: string) {
