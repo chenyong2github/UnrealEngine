@@ -3,17 +3,19 @@
 #include "MemoryDerivedDataBackend.h"
 #include "Templates/UniquePtr.h"
 
-FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize)
+FMemoryDerivedDataBackend::FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize, bool bInCanBeDisabled)
 	: Name(InName)
 	, MaxCacheSize(InMaxCacheSize)
 	, bDisabled( false )
 	, CurrentCacheSize( SerializationSpecificDataSize )
 	, bMaxSizeExceeded(false)
+	, bCanBeDisabled(bInCanBeDisabled)
 {
 }
 
 FMemoryDerivedDataBackend::~FMemoryDerivedDataBackend()
 {
+	bShuttingDown = true;
 	Disable();
 }
 
@@ -30,6 +32,12 @@ FDerivedDataBackendInterface::ESpeedClass FMemoryDerivedDataBackend::GetSpeedCla
 
 bool FMemoryDerivedDataBackend::CachedDataProbablyExists(const TCHAR* CacheKey)
 {
+	// See comments on the declaration of bCanBeDisabled variable.
+	if (bCanBeDisabled)
+	{
+		return false;
+	}
+
 	COOK_STAT(auto Timer = UsageStats.TimeProbablyExists());
 
 	if (ShouldSimulateMiss(CacheKey))
@@ -309,6 +317,7 @@ bool FMemoryDerivedDataBackend::LoadCache(const TCHAR* Filename)
 
 void FMemoryDerivedDataBackend::Disable()
 {
+	check(bCanBeDisabled || bShuttingDown);
 	FScopeLock ScopeLock(&SynchronizationObject);
 	bDisabled = true;
 	for (TMap<FString,FCacheValue*>::TIterator It(CacheItems); It; ++It )

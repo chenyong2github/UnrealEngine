@@ -17,7 +17,7 @@ class Error;
 class FMemoryDerivedDataBackend : public FFileBackedDerivedDataBackend
 {
 public:
-	explicit FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize = -1);
+	explicit FMemoryDerivedDataBackend(const TCHAR* InName, int64 InMaxCacheSize = -1, bool bCanBeDisabled = false);
 	~FMemoryDerivedDataBackend();
 
 	/** Return a name for this interface */
@@ -128,6 +128,26 @@ private:
 	/** Indicates that the cache max size has been exceeded. This is used to avoid
 		warning spam after the size has reached the limit. */
 	bool bMaxSizeExceeded;
+
+	/** When a memory cache can be disabled, it won't return true for CachedDataProbablyExists calls.
+	  * This is to avoid having the Boot DDC tells it has some resources that will suddenly disappear after the boot.
+	  * Get() requests will still get fulfilled and other cache level will be properly back-filled 
+	  * offering the speed benefit of the boot cache while maintaining coherency at all cache levels.
+	  * 
+	  * The problem is that most asset types (audio/staticmesh/texture) will always verify if their different LODS/Chunks can be found in the cache using CachedDataProbablyExists.
+	  * If any of the LOD/MIP can't be found, a build of the asset is triggered, otherwise they skip asset compilation altogether.
+	  * However, we should not skip the compilation based on the CachedDataProbablyExists result of the boot cache because it is a lie and will disappear at some point.
+	  * When the boot cache disappears and the streamer tries to fetch a LOD that it has been told was cached, it will fail and will then have no choice but to rebuild the asset synchronously.
+	  * This obviously causes heavy game-thread stutters.
+
+	  * However, if the bootcache returns false during CachedDataProbablyExists. The async compilation will be triggered and data will be put in the both the boot.ddc and the local cache.
+	  * This way, no more heavy game-thread stutters during streaming...
+
+	  * This can be reproed when you clear the local cache but do not clear the boot.ddc file, but even if it's a corner case, I stumbled upon it enough times that I though it was worth to fix so the caches are coherent.
+	  */
+	bool bCanBeDisabled = false;
+	bool bShuttingDown  = false;
+
 	enum 
 	{
 		/** Magic number to use in header */
