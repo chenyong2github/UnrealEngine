@@ -810,6 +810,32 @@ void ConvertToUntrackedExternalTexture(
 		[](FRHICommandList&) {});
 }
 
+BEGIN_SHADER_PARAMETER_STRUCT(FBufferAccessDynamicPassParameters, )
+	RDG_BUFFER_ACCESS_DYNAMIC(Buffer)
+END_SHADER_PARAMETER_STRUCT()
+
+void ConvertToUntrackedExternalBuffer(
+	FRDGBuilder& GraphBuilder,
+	FRDGBufferRef Buffer,
+	TRefCountPtr<FRDGPooledBuffer>& OutPooledBuffer,
+	ERHIAccess AccessFinal)
+{
+	ConvertToExternalBuffer(GraphBuilder, Buffer, OutPooledBuffer);
+	GraphBuilder.SetBufferAccessFinal(Buffer, AccessFinal);
+
+	auto* PassParameters = GraphBuilder.AllocParameters<FBufferAccessDynamicPassParameters>();
+	PassParameters->Buffer = FRDGBufferAccess(Buffer, AccessFinal);
+	GraphBuilder.AddPass({}, PassParameters,
+		// Use all of the work flags so that any access is valid.
+		ERDGPassFlags::Copy |
+		ERDGPassFlags::Compute |
+		ERDGPassFlags::Raster |
+		ERDGPassFlags::SkipRenderPass |
+		// We're not writing to anything, so we have to tell the pass not to cull.
+		ERDGPassFlags::NeverCull,
+		[](FRHICommandList&) {});
+}
+
 FRDGTextureRef RegisterExternalOrPassthroughTexture(
 	FRDGBuilder* GraphBuilder,
 	const TRefCountPtr<IPooledRenderTarget>& PooledRenderTarget,
