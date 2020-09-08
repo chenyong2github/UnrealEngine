@@ -345,9 +345,9 @@ class RHI_API FGenericDataDrivenShaderPlatformInfo
 	uint32 bSupportsConservativeRasterization : 1;
 	uint32 bRequiresExplicit128bitRT : 1;
 	uint32 bSupportsGen5TemporalAA : 1;
-
 	uint32 bTargetsTiledGPU: 1;
 	uint32 bNeedsOfflineCompiler: 1;
+	uint32 bSupportsComputeFramework : 1;
 
 	// NOTE: When adding fields, you must also add to ParseDataDrivenShaderInfo!
 	uint32 bContainsValidPlatformInfo : 1;
@@ -515,6 +515,11 @@ public:
 	static FORCEINLINE_DEBUGGABLE const bool GetSupportsGPUSkinCache(const FStaticShaderPlatform Platform)
 	{
 		return Infos[Platform].bSupportsGPUSkinCache;
+	}
+
+	static FORCEINLINE_DEBUGGABLE const bool GetSupportsComputeFramework(const FStaticShaderPlatform Platform)
+	{
+		return Infos[Platform].bSupportsComputeFramework;
 	}
 
 	static FORCEINLINE_DEBUGGABLE const bool GetTargetsTiledGPU(const FStaticShaderPlatform Platform)

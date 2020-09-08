@@ -32,6 +32,7 @@ class UStaticMeshComponent;
 class UTextureCube;
 class FViewInfo;
 class FSceneRenderer;
+class FComputeFramework;
 
 enum EBasePassDrawListType
 {
@@ -394,6 +395,11 @@ public:
 	* Gets the GPU Skin Cache system associated with the scene.
 	*/
 	virtual class FGPUSkinCache* GetGPUSkinCache()
+	{
+		return nullptr;
+	}
+
+	virtual FComputeFramework* GetComputeFramework()
 	{
 		return nullptr;
 	}
