@@ -1789,7 +1789,7 @@ bool FSceneRenderer::RenderShadowProjections(FRHICommandListImmediate& RHICmdLis
 						FSceneTextureParameters SceneTextures;
 						SetupSceneTextureParameters(GraphBuilder, &SceneTextures);
 
-						// Virtual SMs draw into a texture with R=Mask, G=OccluderDistance to feed into denoising, similar to ray traced shadows
+						// Virtual SMs draw into a texture formatted for the denoiser. See VirtualShadowMapProjection.usf
 						FRDGTextureRef SignalTexture;
 						const FLinearColor ClearColor(0.0f, 0.0f, 0.0f, 0.0f);
 						{

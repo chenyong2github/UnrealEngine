@@ -181,25 +181,38 @@ void VirtualShadowMapProjectionPS(
 	}
 #endif
 
-	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION in SSDSignalBufferEncoding.ush
-	float4 OutputSignal = float4(0, 0, 0, 0);
-	if (VirtualShadowMapSample.bOccluded)
+	float RayMissFactor = VirtualShadowMapSample.bOccluded ? 0.0f : 1.0f;
+	float HitDistance = VirtualShadowMapSample.OccluderDistance;
+	if (ContactShadow < 1.0f)
 	{
-		// Hit
-		float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, VirtualShadowMapSample.OccluderDistance);
-		OutputSignal = float4(0, 1, WorldBluringRadius, 0);
+		RayMissFactor *= ContactShadow;
+		HitDistance = ContactShadowLengthWorld;
+	}
+
+	// See signal encoding for SIGNAL_BUFFER_LAYOUT_PENUMBRA_HISTORY in SSDSignalBufferEncoding.ush
+	// We fuse that logic in here to avoid needing another pass, but it's hard to call the functions directly as they depend on a large
+	// number of preprocessor defines and logic that we don't want to mirror here.
+	// Unfortunately that means this logic can get out of date when the denoiser changes, but that's the trade-off for now.
+	float4 OutputSignal = float4(0, 0, 0, 0);
+	float SampleCount = 1.0f;
+	float TransmissionDistance = RayMissFactor; // As per RayTracingOcclusionRGS.usf
+	if (RayMissFactor < 1.0f)
+	{
+		float WorldBluringRadius = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, HitDistance);
+
+		OutputSignal = float4(
+			RayMissFactor,
+			SampleCount,
+			WorldBluringRadius,
+			TransmissionDistance);
 	}
 	else
 	{
 		// Miss
-		OutputSignal = float4(1, 1, -1, 0);
+		OutputSignal = float4(RayMissFactor, SampleCount, WORLD_RADIUS_MISS, TransmissionDistance);
 	}
 
-	if (ContactShadow < 1)
-	{
-		OutputSignal.x *= ContactShadow;
-		OutputSignal.z = ComputeLightSampleWorldBluringRadius(TranslatedWorldPosition, LightType, Light, ContactShadowLengthWorld);
-	}
+	
 
 #if OUTPUT_TYPE == 0
 	// Output feeds into denoiser
@@ -230,8 +243,8 @@ void VirtualShadowMapCompositePS(
 	// NOTE: The signal is encoded as per SSDSignalBufferEncoding.ush, SIGNAL_BUFFER_LAYOUT_PENUMBRA_RECONSTRUCTION
 	float4 Input = InputSignal.Load(int3(SvPosition.xy, 0));
 	float SampleCount = Input.g;
-	float MissCount = Input.r;
-	float Shadow = (SampleCount > 0 ? MissCount : 1.0f);
+	float MissFactor = Input.r;
+	float Shadow = (SampleCount > 0 ? MissFactor : 1.0f);
 	
 	OutShadowMask = EncodeLightAttenuationFromMask(Shadow);
 }
