@@ -2365,6 +2365,11 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 		}
 		
 		MemAdvisor = new MemoryAdvisor(this);
+		JSONObject DeviceProfile = MemAdvisor.getDeviceInfo(this).optJSONObject("deviceProfile");
+		if (DeviceProfile != null)
+		{
+			Log.debug("Memoryadvise device finderprint is: `" + DeviceProfile.optString("fingerprint", "FAILED") + "` matched device is `" + DeviceProfile.optString("matched", "FAILED") + "`");
+		}
 		LastMemoryInfoPollTime = System.currentTimeMillis();
 
 		// update memory stats every 10 seconds
@@ -2376,6 +2381,7 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 				MemoryAdvisor.MemoryState CurrentMemoryState = MemoryAdvisor.getMemoryState(Advice);				
 				if (CurrentMemoryState != MemState)
 				{
+					final int MB = 1024 * 1024;
 					switch (CurrentMemoryState)
 					{
 						case UNKNOWN:
@@ -2383,14 +2389,18 @@ public class GameActivity extends $${gameActivitySuperClass}$$ implements Surfac
 							nativeOnMemoryWarningChanged(_activity, -1);
 							break;
 						case OK:
+							if (MemState != MemoryAdvisor.MemoryState.UNKNOWN)
+							{
+								Log.warn("Available memory is back to safe limits. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) / MB + " MB");
+							}
 							nativeOnMemoryWarningChanged(_activity, 0);
 							break;
 						case APPROACHING_LIMIT:
-							Log.warn("Approaching memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) + " bytes");
+							Log.warn("Approaching memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) / MB + " MB");
 							nativeOnMemoryWarningChanged(_activity, 1);
 							break;
 						case CRITICAL:
-							Log.warn("Critical memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) + " bytes");
+							Log.warn("Critical memory limit. Estimated available memory is " + MemoryAdvisor.availabilityEstimate(Advice) / MB + " MB");
 							nativeOnMemoryWarningChanged(_activity, 2);
 							break;
 					}
