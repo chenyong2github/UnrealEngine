@@ -10,6 +10,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "DetailCategoryBuilderImpl.h"
+#include "PropertyCustomizationHelpers.h"
 
 class FAdvancedDropdownNode : public FDetailTreeNode, public TSharedFromThis<FAdvancedDropdownNode>
 {

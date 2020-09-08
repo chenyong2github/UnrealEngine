@@ -21,6 +21,7 @@
 #include "IDetailsView.h"
 #include "IDetailsViewPrivate.h"
 #include "PropertyRowGenerator.h"
+#include "PropertyCustomizationHelpers.h"
 
 class FDetailCategoryImpl;
 class FDetailLayoutBuilderImpl;
@@ -69,14 +70,7 @@ struct FDetailFilter
 	TSet<FPropertyPath> WhitelistedProperties;
 };
 
-struct FDetailColumnSizeData
-{
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
 
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
-};
 
 class SDetailsViewBase : public IDetailsViewPrivate
 {

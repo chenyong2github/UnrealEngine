@@ -32,7 +32,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-
+#include "PropertyCustomizationHelpers.h"
 #define LOCTEXT_NAMESPACE "DataprepProducersWidget"
 
 FContentProducerEntry::FContentProducerEntry(int32 InProducerIndex, UDataprepAssetProducers* InAssetProducersPtr)
@@ -76,7 +76,7 @@ void FContentProducerEntry::RemoveProducer()
 
 
 /** Construct function for this widget */
-void SDataprepProducersTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedRef<FContentProducerEntry>& InNode, TSharedRef< FDataprepDetailsViewColumnSizeData > InColumnSizeData)
+void SDataprepProducersTableRow::Construct(const FArguments& InArgs, const TSharedRef<STableViewBase>& OwnerTableView, const TSharedRef<FContentProducerEntry>& InNode, TSharedRef< FDetailColumnSizeData > InColumnSizeData)
 {
 	Node = InNode;
 	STableRow::Construct(STableRow::FArguments(), OwnerTableView);
@@ -93,7 +93,7 @@ void SDataprepProducersTableRow::Construct(const FArguments& InArgs, const TShar
 	}
 }
 
-TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< FDataprepDetailsViewColumnSizeData > ColumnSizeData )
+TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< FDetailColumnSizeData > ColumnSizeData )
 {
 	FContentProducerEntryPtr ProducerStackEntry = Node.Pin();
 
@@ -147,7 +147,7 @@ TSharedRef<SWidget> SDataprepProducersTableRow::GetInputMainWidget( TSharedRef< 
 	return Widget.ToSharedRef();
 }
 
-void SDataprepProducersTreeView::Construct(const FArguments& InArgs, UDataprepAssetProducers* InAssetProducersPtr, TSharedRef< FDataprepDetailsViewColumnSizeData > InColumnSizeData )
+void SDataprepProducersTreeView::Construct(const FArguments& InArgs, UDataprepAssetProducers* InAssetProducersPtr, TSharedRef< FDetailColumnSizeData > InColumnSizeData )
 {
 	ColumnSizeData = InColumnSizeData;
 	AssetProducersPtr = InAssetProducersPtr;

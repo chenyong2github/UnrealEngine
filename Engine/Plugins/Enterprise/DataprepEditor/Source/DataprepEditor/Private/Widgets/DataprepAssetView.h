@@ -9,7 +9,7 @@
 #include "DataprepContentProducer.h"
 #include "DataprepEditor.h"
 #include "DataprepWidgets.h"
-
+#include "PropertyCustomizationHelpers.h"
 #include "Delegates/IDelegateInstance.h"
 #include "Widgets/Input/STextComboBox.h"
 #include "Widgets/SCompoundWidget.h"
@@ -60,7 +60,7 @@ private:
 	TSharedPtr< SDataprepConsumerWidget > ConsumerWidget;
 
 	/** Container used by all splitters in the details view, so that they move in sync */
-	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+	TSharedPtr< FDetailColumnSizeData > ColumnSizeData;
 
 	/** Relative width to control splitters */
 	float ColumnWidth;

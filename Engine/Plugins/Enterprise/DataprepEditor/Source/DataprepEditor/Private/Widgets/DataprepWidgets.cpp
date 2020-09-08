@@ -49,7 +49,7 @@
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
 #include "UObject/UObjectGlobals.h"
-
+#include "PropertyCustomizationHelpers.h"
 #define LOCTEXT_NAMESPACE "DataprepSlateHelper"
 
 namespace DataprepWidgetUtils
@@ -60,7 +60,7 @@ namespace DataprepWidgetUtils
 		SLATE_BEGIN_ARGS(SCustomSplitter) {}
 			SLATE_ARGUMENT( TSharedPtr<SWidget>, NameWidget )
 			SLATE_ARGUMENT( TSharedPtr<SWidget>, ValueWidget )
-			SLATE_ARGUMENT( TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData )
+			SLATE_ARGUMENT( TSharedPtr< FDetailColumnSizeData >, ColumnSizeData )
 		SLATE_END_ARGS();
 
 		void Construct(const FArguments& InArgs)
@@ -121,10 +121,10 @@ namespace DataprepWidgetUtils
 		}
 
 	private:
-		TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+		TSharedPtr< FDetailColumnSizeData > ColumnSizeData;
 	};
 
-	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData, float Spacing, bool bResizableColumn = true)
+	TSharedRef<SWidget> CreatePropertyWidget( TSharedPtr<SWidget> NameWidget, TSharedPtr<SWidget> ValueWidget, TSharedPtr< FDetailColumnSizeData > ColumnSizeData, float Spacing, bool bResizableColumn = true)
 	{
 		if (bResizableColumn)
 		{
@@ -602,7 +602,7 @@ void SDataprepDetailsView::Construct(const FArguments& InArgs)
 	else
 	{
 		ColumnWidth = 0.7f;
-		ColumnSizeData = MakeShared<FDataprepDetailsViewColumnSizeData>();
+		ColumnSizeData = MakeShared<FDetailColumnSizeData>();
 		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepDetailsView::OnGetLeftColumnWidth);
 		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepDetailsView::OnGetRightColumnWidth);
 		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepDetailsView::OnSetColumnWidth);
@@ -801,7 +801,7 @@ void SDataprepInstanceParentWidget::Construct(const FArguments& InArgs)
 	else
 	{
 		ColumnWidth = 0.5f;
-		ColumnSizeData = MakeShared<FDataprepDetailsViewColumnSizeData>();
+		ColumnSizeData = MakeShared<FDetailColumnSizeData>();
 		ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepInstanceParentWidget::OnGetLeftColumnWidth);
 		ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepInstanceParentWidget::OnGetRightColumnWidth);
 		ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepInstanceParentWidget::OnSetColumnWidth);

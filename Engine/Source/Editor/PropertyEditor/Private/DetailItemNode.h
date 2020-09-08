@@ -10,6 +10,7 @@
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "DetailCategoryBuilderImpl.h"
+#include "PropertyCustomizationHelpers.h"
 
 /**
  * A single item in a detail tree                                                              

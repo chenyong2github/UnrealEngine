@@ -7,7 +7,7 @@
 #include "SDetailSingleItemRow.h"
 #include "IDetailKeyframeHandler.h"
 #include "ObjectPropertyNode.h"
-
+#include "PropertyCustomizationHelpers.h"
 
 FDetailItemNode::FDetailItemNode(const FDetailLayoutCustomization& InCustomization, TSharedRef<FDetailCategoryImpl> InParentCategory, TAttribute<bool> InIsParentEnabled, TSharedPtr<IDetailGroup> InParentGroup)
 	: Customization( InCustomization )

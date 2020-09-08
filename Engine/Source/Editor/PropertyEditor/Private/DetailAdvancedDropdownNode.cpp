@@ -4,6 +4,7 @@
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
 #include "SDetailTableRowBase.h"
+#include "PropertyCustomizationHelpers.h"
 
 class SAdvancedDropdownRow : public SDetailTableRowBase
 {

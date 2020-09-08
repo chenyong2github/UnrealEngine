@@ -12,6 +12,7 @@
 #include "Widgets/Views/STableRow.h"
 #include "DetailCategoryBuilderImpl.h"
 #include "SDetailTableRowBase.h"
+#include "PropertyCustomizationHelpers.h"
 
 class SDetailCategoryTableRow : public SDetailTableRowBase
 {

@@ -7,6 +7,7 @@
 #include "PropertyPath.h"
 #include "IPropertyUtilities.h"
 #include "IDetailTreeNode.h"
+#include "PropertyCustomizationHelpers.h"
 
 class FDetailCategoryImpl;
 class IDetailsViewPrivate;

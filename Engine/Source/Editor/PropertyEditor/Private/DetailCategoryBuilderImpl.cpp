@@ -14,6 +14,7 @@
 #include "ItemPropertyNode.h"
 #include "IPropertyGenerationUtilities.h"
 #include "DetailBuilderTypes.h"
+#include "PropertyCustomizationHelpers.h"
 
 namespace DetailLayoutConstants
 {

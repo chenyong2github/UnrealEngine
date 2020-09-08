@@ -5,7 +5,7 @@
 #include "DetailWidgetRow.h"
 #include "ObjectPropertyNode.h"
 #include "Misc/ConfigCacheIni.h"
-
+#include "PropertyCustomizationHelpers.h"
 
 void SDetailMultiTopLevelObjectTableRow::Construct( const FArguments& InArgs, TSharedRef<FDetailTreeNode> InOwnerTreeNode, const TSharedRef<STableViewBase>& InOwnerTableView )
 {

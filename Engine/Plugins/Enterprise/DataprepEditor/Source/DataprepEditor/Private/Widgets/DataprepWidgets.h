@@ -52,15 +52,6 @@ namespace DataprepWidgetUtils
 	};
 }
 
-struct FDataprepDetailsViewColumnSizeData
-{
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
-
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
-};
-
 enum class EDataprepCategory 
 { 
 	Producers, 
@@ -75,7 +66,7 @@ class SDataprepCategoryWidget : public STableRow< TSharedPtr< EDataprepCategory 
 public:
 
 	SLATE_BEGIN_ARGS(SDataprepCategoryWidget) {}
-	SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
+	SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
 	SLATE_ARGUMENT(FText, Title)
 	SLATE_ARGUMENT(TSharedPtr< SWidget >, TitleDetail)
 	SLATE_END_ARGS()
@@ -103,7 +94,7 @@ public:
 		, _ColumnPadding(false)
 		, _ResizableColumn(true)
 		{}
-		SLATE_ARGUMENT(TSharedPtr<FDataprepDetailsViewColumnSizeData>, ColumnSizeData)
+		SLATE_ARGUMENT(TSharedPtr<FDetailColumnSizeData>, ColumnSizeData)
 		SLATE_ARGUMENT(UObject*, Object)
 		SLATE_ARGUMENT(float, Spacing)
 		SLATE_ARGUMENT(bool, ColumnPadding)
@@ -204,7 +195,7 @@ private:
 	float ColumnWidth;
 
 	/** Points to the currently used column size data. Can be provided via argument as well. */
-	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+	TSharedPtr< FDetailColumnSizeData > ColumnSizeData;
 
 	/** If there is a new object to display on the next tick */
 	uint8 bRefreshObjectToDisplay : 1;
@@ -263,7 +254,7 @@ class SDataprepInstanceParentWidget : public SCompoundWidget
 {
 public:
 	SLATE_BEGIN_ARGS(SDataprepInstanceParentWidget) {}
-		SLATE_ARGUMENT(TSharedPtr< FDataprepDetailsViewColumnSizeData >, ColumnSizeData)
+		SLATE_ARGUMENT(TSharedPtr< FDetailColumnSizeData >, ColumnSizeData)
 		SLATE_ARGUMENT(UDataprepAssetInstance*, DataprepInstance)
 	SLATE_END_ARGS()
 
@@ -290,7 +281,7 @@ private:
 	TWeakObjectPtr<UDataprepAssetInstance> DataprepInstancePtr;
 
 	/** Helps sync column resizing with another part of the UI */
-	TSharedPtr< FDataprepDetailsViewColumnSizeData > ColumnSizeData;
+	TSharedPtr< FDetailColumnSizeData > ColumnSizeData;
 
 	/** Relative width to control splitters. */
 	float ColumnWidth;

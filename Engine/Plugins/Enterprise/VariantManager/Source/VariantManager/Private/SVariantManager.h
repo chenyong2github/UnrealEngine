@@ -10,7 +10,7 @@
 #include "Widgets/Views/SListView.h"
 #include "Framework/Commands/UICommandList.h"
 #include "UObject/WeakObjectPtr.h"
-
+#include "PropertyCustomizationHelpers.h"
 #include "VariantManager.h"
 
 class FExtender;
@@ -61,16 +61,6 @@ struct FSplitterValues
 	FSplitterValues(){};
 	FSplitterValues(FString& InSerialized);
 	FString ToString();
-};
-
-// Replica of FDetailColumnSizeData used by DetailViews
-struct FPropertyColumnSizeData
-{
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
-
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
 };
 
 class SVariantManager
@@ -187,7 +177,7 @@ public:
 	void SortDisplayNodes(TArray<TSharedRef<FVariantManagerDisplayNode>>& DisplayNodes);
 
 	TSharedRef<SWidget> MakeAddButton();
-	FPropertyColumnSizeData& GetPropertyColumnSizeData()
+	FDetailColumnSizeData& GetPropertyColumnSizeData()
 	{
 		return ColumnSizeData;
 	}
@@ -263,7 +253,7 @@ private:
 	bool bAutoCaptureProperties = false;
 
 	// Mirrors detailview, its used by all splitters in the column, so that they move in sync
-	FPropertyColumnSizeData ColumnSizeData;
+	FDetailColumnSizeData ColumnSizeData;
 	float RightPropertyColumnWidth;
 
 	FDelegateHandle OnObjectTransactedHandle;

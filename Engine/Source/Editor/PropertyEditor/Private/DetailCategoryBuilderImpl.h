@@ -17,6 +17,7 @@
 #include "DetailLayoutBuilderImpl.h"
 #include "IDetailCustomNodeBuilder.h"
 #include "DetailCategoryBuilder.h"
+#include "PropertyCustomizationHelpers.h"
 
 class FDetailGroup;
 class FDetailPropertyRow;

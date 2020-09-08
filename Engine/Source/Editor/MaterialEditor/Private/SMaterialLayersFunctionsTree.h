@@ -14,7 +14,7 @@
 #include "IDetailTreeNode.h"
 #include "IDetailPropertyRow.h"
 #include "MaterialPropertyHelpers.h"
-
+#include "PropertyCustomizationHelpers.h"
 class IPropertyHandle;
 class UMaterialEditorInstanceConstant;
 class SMaterialLayersFunctionsInstanceTree;
@@ -34,7 +34,7 @@ public:
 	SLATE_ARGUMENT(SMaterialLayersFunctionsInstanceTree*, InTree)
 	SLATE_END_ARGS()
 
-	FMaterialTreeColumnSizeData ColumnSizeData;
+	FDetailColumnSizeData ColumnSizeData;
 	bool bIsBeingDragged;
 
 private:
@@ -213,7 +213,7 @@ public:
 	SLATE_ARGUMENT(SMaterialLayersFunctionsMaterialTree*, InTree)
 	SLATE_END_ARGS()
 
-	FMaterialTreeColumnSizeData ColumnSizeData;
+	FDetailColumnSizeData ColumnSizeData;
 	bool bIsBeingDragged;
 
 private:

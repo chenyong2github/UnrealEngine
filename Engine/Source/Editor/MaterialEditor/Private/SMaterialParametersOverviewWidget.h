@@ -13,7 +13,7 @@
 #include "IDetailTreeNode.h"
 #include "IDetailPropertyRow.h"
 #include "MaterialPropertyHelpers.h"
-
+#include "PropertyCustomizationHelpers.h"
 class IPropertyHandle;
 class SMaterialParametersOverviewTree;
 class UMaterialEditorPreviewParameters;
@@ -59,7 +59,7 @@ private:
 	/** The set of material parameters this is associated with */
 	UMaterialEditorPreviewParameters* MaterialEditorInstance;
 
-	FMaterialTreeColumnSizeData ColumnSizeData;
+	FDetailColumnSizeData ColumnSizeData;
 };
 
 // ********* SMaterialParametersOverviewPanel *******

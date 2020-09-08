@@ -12,6 +12,7 @@
 #include "SDetailTableRowBase.h"
 #include "DragAndDrop/DecoratedDragDropOp.h"
 #include "ScopedTransaction.h"
+#include "PropertyCustomizationHelpers.h"
 
 class IDetailKeyframeHandler;
 struct FDetailLayoutCustomization;

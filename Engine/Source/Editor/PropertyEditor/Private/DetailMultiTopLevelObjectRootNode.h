@@ -13,6 +13,7 @@
 #include "SDetailsViewBase.h"
 #include "SDetailTableRowBase.h"
 #include "IDetailRootObjectCustomization.h"
+#include "PropertyCustomizationHelpers.h"
 
 using EExpansionArrowUsage = IDetailRootObjectCustomization::EExpansionArrowUsage;
 

@@ -34,7 +34,7 @@
 #include "Widgets/Layout/SSpacer.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
 #include "Widgets/Text/STextBlock.h"
-
+#include "PropertyCustomizationHelpers.h"
 
 #define LOCTEXT_NAMESPACE "DataprepAssetView"
 
@@ -404,7 +404,7 @@ void SDataprepAssetView::Construct( const FArguments& InArgs, UDataprepAssetInte
 	bIsChecked = true;
 
 	ColumnWidth = 0.7f;
-	ColumnSizeData = MakeShared< FDataprepDetailsViewColumnSizeData >();
+	ColumnSizeData = MakeShared< FDetailColumnSizeData >();
 	ColumnSizeData->LeftColumnWidth = TAttribute<float>(this, &SDataprepAssetView::OnGetLeftColumnWidth);
 	ColumnSizeData->RightColumnWidth = TAttribute<float>(this, &SDataprepAssetView::OnGetRightColumnWidth);
 	ColumnSizeData->OnWidthChanged = SSplitter::FOnSlotResized::CreateSP(this, &SDataprepAssetView::OnSetColumnWidth);

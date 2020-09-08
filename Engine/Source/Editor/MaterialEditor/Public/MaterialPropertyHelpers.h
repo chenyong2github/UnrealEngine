@@ -71,15 +71,6 @@ struct FUnsortedParamData
 	TSharedPtr<class IPropertyHandle> ParameterHandle;
 };
 
-struct FMaterialTreeColumnSizeData
-{
-	TAttribute<float> LeftColumnWidth;
-	TAttribute<float> RightColumnWidth;
-	SSplitter::FOnSlotResized OnWidthChanged;
-
-	void SetColumnWidth(float InWidth) { OnWidthChanged.ExecuteIfBound(InWidth); }
-};
-
 class SLayerHandle : public SCompoundWidget
 {
 public:

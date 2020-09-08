@@ -26,7 +26,7 @@
 #include "Widgets/DeclarativeSyntaxSupport.h"
 #include "Widgets/Images/SImage.h"
 #include "Widgets/Input/SButton.h"
-
+#include "PropertyCustomizationHelpers.h"
 #define LOCTEXT_NAMESPACE "FVariantManagerPropertyNode"
 
 using FDisplayNodeRef = TSharedRef<FVariantManagerDisplayNode>;
@@ -373,7 +373,7 @@ TSharedPtr<SWidget> FVariantManagerPropertyNode::GetPropertyValueWidget()
 TSharedRef<SWidget> FVariantManagerPropertyNode::GetCustomOutlinerContent(TSharedPtr<SVariantManagerTableRow> InTableRow)
 {
 	// Using this syncs all splitters between property nodes and also the header
-	FPropertyColumnSizeData& ColumnSizeData = GetVariantManager().Pin()->GetVariantManagerWidget()->GetPropertyColumnSizeData();
+	FDetailColumnSizeData& ColumnSizeData = GetVariantManager().Pin()->GetVariantManagerWidget()->GetPropertyColumnSizeData();
 
 	return SNew(SBox)
 	[
