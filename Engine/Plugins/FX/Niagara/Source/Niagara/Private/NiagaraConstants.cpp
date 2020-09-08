@@ -99,6 +99,7 @@ void FNiagaraConstants::Init()
 		SystemParameters.Add(SYS_PARAM_EMITTER_DETERMINISM);
 		SystemParameters.Add(SYS_PARAM_EMITTER_OVERRIDE_GLOBAL_SPAWN_COUNT_SCALE);
 		SystemParameters.Add(SYS_PARAM_EMITTER_RANDOM_SEED);
+		SystemParameters.Add(SYS_PARAM_EMITTER_INSTANCE_SEED);
 		SystemParameters.Add(SYS_PARAM_EMITTER_SPAWN_GROUP);
 	}
 
@@ -148,6 +149,7 @@ void FNiagaraConstants::Init()
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Age")), SYS_PARAM_EMITTER_AGE);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Local Space")), SYS_PARAM_EMITTER_LOCALSPACE);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Random Seed")), SYS_PARAM_EMITTER_RANDOM_SEED);
+		UpdatedSystemParameters.Add(FName(TEXT("Emitter Instance Seed")), SYS_PARAM_EMITTER_INSTANCE_SEED);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Determinism")), SYS_PARAM_EMITTER_DETERMINISM);
 		UpdatedSystemParameters.Add(FName(TEXT("Emitter Override Global Spawn Count Scale")), SYS_PARAM_EMITTER_OVERRIDE_GLOBAL_SPAWN_COUNT_SCALE);
 		UpdatedSystemParameters.Add(FName(TEXT("Effect Position")), SYS_PARAM_ENGINE_POSITION);
