@@ -66,7 +66,7 @@ float FDecomposedFloat::Recompose(FMovieSceneEntityID RecomposeEntity, float Cur
 	{
 		if (bIsAdditive)
 		{
-			const float WeightedAdditiveResult = CurrentValue - ResultAbsolute.Combine(DecomposedAbsolute).WeightedValue();
+			const float WeightedAdditiveResult = CurrentValue - ResultAbsolute.Combine(DecomposedAbsolute).WeightedValue() - Result.Additive;
 			return Channel.Weight == 0.f ? WeightedAdditiveResult : WeightedAdditiveResult / Channel.Weight;
 		}
 		else
