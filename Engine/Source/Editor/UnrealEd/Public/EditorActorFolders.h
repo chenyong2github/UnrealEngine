@@ -105,6 +105,14 @@ struct UNREALED_API FActorFolders : public FGCObject
 	/** Rename the specified path to a new name */
 	bool RenameFolderInWorld(UWorld& World, FName OldPath, FName NewPath);
 
+	/** Apply an operation to each actor in the given list of folders. Will stop when operation returns false. */
+	static void ForEachActorInFolders(UWorld& World, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation);
+	
+	/** Get an array of actors from a list of folders */
+	static void GetActorsFromFolders(UWorld& World, const TArray<FName>& Paths, TArray<AActor*>& OutActors);
+
+	/** Get an array of weak actor pointers from a list of folders */
+	static void GetWeakActorsFromFolders(UWorld& World, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors);
 private:
 
 	/** Returns true if folders have been created for the specified world */

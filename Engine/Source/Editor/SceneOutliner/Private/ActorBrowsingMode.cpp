@@ -731,7 +731,7 @@ TSharedPtr<FDragDropOperation> FActorBrowsingMode::CreateDragDropOperation(const
 	if (DraggedObjects.Has<FFolderTreeItem>())
 	{
 		TSharedPtr<FFolderDragDropOp> FolderOperation = MakeShareable(new FFolderDragDropOp);
-		FolderOperation->Init(DraggedObjects.GetData<FName>(SceneOutliner::FFolderPathSelector()));
+		FolderOperation->Init(DraggedObjects.GetData<FName>(SceneOutliner::FFolderPathSelector()), RepresentingWorld.Get());
 		OutlinerOp->AddSubOp(FolderOperation);
 	}
 	OutlinerOp->Construct();

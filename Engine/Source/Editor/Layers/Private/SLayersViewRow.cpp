@@ -6,9 +6,10 @@
 #include "Widgets/Input/SButton.h"
 #include "Widgets/Views/SListView.h"
 #include "EditorStyleSet.h"
-#include "SceneOutlinerDragDrop.h"
 #include "DragAndDrop/ActorDragDropOp.h"
+#include "DragAndDrop/FolderDragDropOp.h"
 #include "Widgets/Text/SInlineEditableTextBlock.h"
+#include "EditorActorFolders.h"
 
 #define LOCTEXT_NAMESPACE "LayersView"
 
@@ -124,65 +125,100 @@ bool SLayersViewRow::OnRenameLayerTextChanged(const FText& NewText, FText& OutEr
 
 void SLayersViewRow::OnDragLeave(const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
+	TSharedPtr< FDecoratedDragDropOp > DragOp = DragDropEvent.GetOperationAs<FDecoratedDragDropOp>();
 	if (DragOp.IsValid())
 	{
-		TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
-		if (ActorDragOp.IsValid())
-		{
-			ActorDragOp->ResetToDefaultToolTip();
-		}
+		DragOp->ResetToDefaultToolTip();
 	}
 }
 
 FReply SLayersViewRow::OnDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
-	if (DragOp.IsValid())
+	TArray<TWeakObjectPtr<AActor>> Actors;
+	TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+	if (ActorDragOp.IsValid() && ActorDragOp->Actors.Num() > 0)
 	{
-		TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
-		if (ActorDragOp.IsValid())
-		{
-			bool bCanAssign = false;
-			FText Message;
-			if (ActorDragOp->Actors.Num() > 1)
-			{
-				bCanAssign = ViewModel->CanAssignActors(ActorDragOp->Actors, OUT Message);
-			}
-			else
-			{
-				bCanAssign = ViewModel->CanAssignActor(ActorDragOp->Actors[0], OUT Message);
-			}
+		Actors = ActorDragOp->Actors;
+	}
 
-			if (bCanAssign)
+	TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+	if (FolderDragOp.IsValid())
+	{
+		if (UWorld* World = FolderDragOp->World.Get())
+		{
+			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, Actors);
+		}
+	}
+
+	if (Actors.Num() > 0)
+	{
+		bool bCanAssign = false;
+		FText Message;
+		if (Actors.Num() > 1)
+		{
+			bCanAssign = ViewModel->CanAssignActors(Actors, OUT Message);
+		}
+		else
+		{
+			bCanAssign = ViewModel->CanAssignActor(Actors[0], OUT Message);
+		}
+
+		if (bCanAssign)
+		{
+			if (ActorDragOp.IsValid())
 			{
 				ActorDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
 			}
-			else
+			if (FolderDragOp.IsValid())
+			{
+				FolderDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.OK")));
+			}
+		}
+		else
+		{
+			if (ActorDragOp.IsValid())
 			{
 				ActorDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
 			}
-
-			FReply::Handled();
+			if (FolderDragOp.IsValid())
+			{
+				FolderDragOp->SetToolTip(Message, FEditorStyle::GetBrush(TEXT("Graph.ConnectorFeedback.Error")));
+			}
 		}
+		return FReply::Handled();
 	}
+
 	return FReply::Unhandled();
 }
 
 FReply SLayersViewRow::OnDrop(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent)
 {
-	TSharedPtr< FSceneOutlinerDragDropOp > DragOp = DragDropEvent.GetOperationAs< FSceneOutlinerDragDropOp >();
-	if (DragOp.IsValid())
+	bool bHandled = false;
+	TArray<TWeakObjectPtr<AActor>> ActorsToDrop;
+
+	TSharedPtr< FActorDragDropOp > ActorDragOp = DragDropEvent.GetOperationAs<FActorDragDropOp>();
+	if (ActorDragOp.IsValid())
 	{
-		TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
-		if (ActorDragOp.IsValid())
+		ActorsToDrop = ActorDragOp->Actors;
+		bHandled = true;
+	}
+
+	TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropEvent.GetOperationAs<FFolderDragDropOp>();
+	if (FolderDragOp.IsValid())
+	{
+		if (UWorld* World = FolderDragOp->World.Get())
 		{
-			ViewModel->AddActors(ActorDragOp->Actors);
-			return FReply::Handled();
+			FActorFolders::GetWeakActorsFromFolders(*World, FolderDragOp->Folders, ActorsToDrop);
+			bHandled = true;
 		}
 	}
 
-	return FReply::Unhandled();
+	if (ActorsToDrop.Num() > 0)
+	{
+		ViewModel->AddActors(ActorsToDrop);
+	}
+
+	return bHandled ? FReply::Handled() : FReply::Unhandled();
 }
 
 FSlateColor SLayersViewRow::GetColorAndOpacity() const
@@ -195,17 +231,30 @@ FSlateColor SLayersViewRow::GetColorAndOpacity() const
 	bool bCanAcceptDrop = false;
 	TSharedPtr<FDragDropOperation> DragDropOp = FSlateApplication::Get().GetDragDroppingContent();
 
-	if (DragDropOp.IsValid() && DragDropOp->IsOfType<FSceneOutlinerDragDropOp>())
+	if (DragDropOp.IsValid() && (DragDropOp->IsOfType<FActorDragDropOp>() || DragDropOp->IsOfType<FFolderDragDropOp>()))
 	{
-		TSharedPtr<FSceneOutlinerDragDropOp> DragOp = StaticCastSharedPtr<FSceneOutlinerDragDropOp>(DragDropOp);
-		if (DragOp.IsValid())
+		TArray<TWeakObjectPtr<AActor>> DraggedActors;
+
+		TSharedPtr<FActorDragDropOp> ActorDragOp = DragDropOp->CastTo<FActorDragDropOp>();
+		TSharedPtr<FFolderDragDropOp> FolderDragOp = DragDropOp->CastTo<FFolderDragDropOp>();
+
+		if (ActorDragOp.IsValid())
 		{
-			TSharedPtr< FActorDragDropOp > ActorDragOp = DragOp->GetSubOp<FActorDragDropOp>();
-			if (ActorDragOp.IsValid())
+			DraggedActors = ActorDragOp->Actors;
+		}
+		if (FolderDragOp.IsValid())
+		{
+			auto World = FolderDragOp->World;
+			if (UWorld* WorldPtr = World.Get())
 			{
-				FText Message;
-				bCanAcceptDrop = ViewModel->CanAssignActors(ActorDragOp->Actors, OUT Message);
+				FActorFolders::GetWeakActorsFromFolders(*WorldPtr, FolderDragOp->Folders, DraggedActors);
 			}
+		}
+
+		if (DraggedActors.Num() > 0)
+		{
+			FText Message;
+			bCanAcceptDrop = ViewModel->CanAssignActors(DraggedActors, OUT Message);
 		}
 	}
 

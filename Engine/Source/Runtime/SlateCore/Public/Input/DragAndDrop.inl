@@ -10,7 +10,7 @@ TSharedPtr<OperationType> FDragDropEvent::GetOperationAs() const
 {
 	if (Content.IsValid() && Content->IsOfType<OperationType>())
 	{
-		return StaticCastSharedPtr<OperationType>(Content);
+		return Content->CastTo<OperationType>();
 	}
 	else
 	{

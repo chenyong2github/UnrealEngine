@@ -8,16 +8,21 @@
 #include "EditorFolderUtils.h"
 
 /* A drag/drop operation when dragging actor folders */
-struct FFolderDragDropOp : public FDecoratedDragDropOp
+class FFolderDragDropOp : public FDecoratedDragDropOp
 {
+public:
 	DRAG_DROP_OPERATOR_TYPE(FFolderDragDropOp, FDecoratedDragDropOp)
 
 	/** Array of folders that we are dragging */
 	TArray<FName> Folders;
+	/** World to which the folders belong */
+	TWeakObjectPtr<UWorld> World;
 
-	void Init(TArray<FName> InFolders)
+	void Init(TArray<FName> InFolders, UWorld* InWorld)
 	{
+		check(InWorld != nullptr);
 		Folders = MoveTemp(InFolders);
+		World = InWorld;
 
 		CurrentIconBrush = FEditorStyle::Get().GetBrush(TEXT("SceneOutliner.FolderClosed"));
 		if (Folders.Num() == 1)

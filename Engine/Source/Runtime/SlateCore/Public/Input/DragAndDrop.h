@@ -37,6 +37,17 @@ public:
 		return IsOfTypeImpl(TType::GetTypeId());
 	}
 
+	/** Cast this drag and drop operation to the specified template type */
+	template <class OperationType> TSharedPtr<OperationType> CastTo()
+	{
+		TSharedPtr<FDragDropOperation> Converted(this->ConvertTo(OperationType::GetTypeId()));
+		if (Converted != nullptr)
+		{
+			return StaticCastSharedPtr<OperationType>(Converted);
+		}
+		return TSharedPtr<OperationType>();
+	}
+
 	/**
 	* Checks if this drag and drop operation is affected by a given PointerEvent.
 	*
@@ -88,6 +99,13 @@ public:
 	 */
 	void SetCursorOverride( TOptional<EMouseCursor::Type> CursorType );
 
+	/**
+	 * Checks whether this drag and drop operation can cast safely to the specified type.
+	 */
+	virtual bool IsOfTypeImpl(const FString& Type) const
+	{
+		return false;
+	}
 protected:
 
 	/**
@@ -105,12 +123,9 @@ protected:
 	 */
 	void DestroyCursorDecoratorWindow();
 
-	/**
-	 * Checks whether this drag and drop operation can cast safely to the specified type.
-	 */
-	virtual bool IsOfTypeImpl( const FString& Type ) const
+	virtual TSharedPtr<FDragDropOperation> ConvertTo(const FString& TypeId)
 	{
-		return false;
+		return IsOfTypeImpl(TypeId) ? AsShared() : TSharedPtr<FDragDropOperation>();
 	}
 
 protected:

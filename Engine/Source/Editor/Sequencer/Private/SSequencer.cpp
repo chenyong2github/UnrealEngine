@@ -52,7 +52,6 @@
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/ActorDragDropGraphEdOp.h"
 #include "DragAndDrop/ClassDragDropOp.h"
-#include "DragAndDrop/CompositeDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "Widgets/Input/SSearchBox.h"
 #include "SSequencerTreeView.h"
@@ -98,7 +97,7 @@
 #include "SequencerTrackFilters.h"
 #include "SequencerTrackFilterExtension.h"
 #include "SequencerCustomizationManager.h"
-#include "EngineUtils.h"
+#include "EditorActorFolders.h"
 
 #define LOCTEXT_NAMESPACE "Sequencer"
 
@@ -342,7 +341,7 @@ void SSequencer::Construct(const FArguments& InArgs, TSharedRef<FSequencer> InSe
 	RootCustomization.OnAssetsDrop = InArgs._OnAssetsDrop;
 	RootCustomization.OnClassesDrop = InArgs._OnClassesDrop;
 	RootCustomization.OnActorsDrop = InArgs._OnActorsDrop;
-	RootCustomization.OnCompositeDrop = InArgs._OnCompositeDrop;
+	RootCustomization.OnFoldersDrop = InArgs._OnFoldersDrop;
 
 	// Get the desired display format from the user's settings each time.
 	TAttribute<EFrameNumberDisplayFormats> GetDisplayFormatAttr = MakeAttributeLambda(
@@ -2893,8 +2892,8 @@ FReply SSequencer::OnDragOver( const FGeometry& MyGeometry, const FDragDropEvent
 	if (Operation.IsValid() && (
 		Operation->IsOfType<FAssetDragDropOp>() ||
 		Operation->IsOfType<FClassDragDropOp>() ||
-		Operation->IsOfType<FActorDragDropGraphEdOp>() ||
-		Operation->IsOfType<FCompositeDragDropOp>() ) )
+		Operation->IsOfType<FActorDragDropOp>() ||
+		Operation->IsOfType<FFolderDragDropOp>() ) )
 	{
 		bIsDragSupported = true;
 	}
@@ -2936,30 +2935,30 @@ FReply SSequencer::OnDrop( const FGeometry& MyGeometry, const FDragDropEvent& Dr
 	{
 		if ( Operation->IsOfType<FAssetDragDropOp>() )
 		{
-			const auto& DragDropOp = StaticCastSharedPtr<FAssetDragDropOp>( Operation );
+			const auto& DragDropOp = Operation->CastTo<FAssetDragDropOp>();
 
 			OnAssetsDropped( *DragDropOp );
 			bWasDropHandled = true;
 		}
-		else if( Operation->IsOfType<FClassDragDropOp>() )
+		if( Operation->IsOfType<FClassDragDropOp>() )
 		{
-			const auto& DragDropOp = StaticCastSharedPtr<FClassDragDropOp>( Operation );
+			const auto& DragDropOp = Operation->CastTo<FClassDragDropOp>();
 
 			OnClassesDropped( *DragDropOp );
 			bWasDropHandled = true;
 		}
-		else if( Operation->IsOfType<FActorDragDropGraphEdOp>() )
+		if( Operation->IsOfType<FActorDragDropOp>() )
 		{
-			const auto& DragDropOp = StaticCastSharedPtr<FActorDragDropGraphEdOp>( Operation );
+			const auto& DragDropOp = Operation->CastTo<FActorDragDropOp>();
 
 			OnActorsDropped( *DragDropOp );
 			bWasDropHandled = true;
 		}
-		else if (Operation->IsOfType<FCompositeDragDropOp>())
+		if (Operation->IsOfType<FFolderDragDropOp>())
 		{
-			const auto& DragDropOp = StaticCastSharedPtr<FCompositeDragDropOp>(Operation);
+			const auto& DragDropOp = Operation->CastTo<FFolderDragDropOp>();
 
-			OnCompositeDropped(*DragDropOp);
+			OnFolderDropped(*DragDropOp);
 			bWasDropHandled = true;
 		}
 	}
@@ -3149,7 +3148,7 @@ void SSequencer::OnClassesDropped( const FClassDragDropOp& DragDropOp )
 	}
 }
 
-void SSequencer::OnActorsDropped( FActorDragDropGraphEdOp& DragDropOp )
+void SSequencer::OnActorsDropped( FActorDragDropOp& DragDropOp )
 {
 	const FScopedTransaction Transaction(LOCTEXT("DropActors", "Drop Actors"));
 
@@ -3173,31 +3172,13 @@ void SSequencer::OnActorsDropped( FActorDragDropGraphEdOp& DragDropOp )
 	}
 }
 
-void SSequencer::OnCompositeDropped( FCompositeDragDropOp& DragDropOp )
+void SSequencer::OnFolderDropped( FFolderDragDropOp& DragDropOp )
 {
 	const FScopedTransaction Transaction(LOCTEXT("DropActors", "Drop Actors"));
 
 	ESequencerDropResult DropResult = ESequencerDropResult::Unhandled;
 
 	TArray<TWeakObjectPtr<AActor>> DraggedActors;
-	FFolderDragDropOp* FolderDrag = DragDropOp.GetSubOp<FFolderDragDropOp>().Get();
-	FActorDragDropOp* ActorDrag = DragDropOp.GetSubOp<FActorDragDropOp>().Get();
-	if (ActorDrag)
-	{
-		DraggedActors.Reserve(ActorDrag->Actors.Num());
-		for (TWeakObjectPtr<AActor> WeakActor : ActorDrag->Actors)
-		{
-			if (AActor* Actor = WeakActor.Get())
-			{
-				DraggedActors.Add(Actor);
-			}
-		}
-	}
-
-	if (FolderDrag)
-	{
-		// Copy the array onto the stack if it's within a reasonable size
-		TArray<FName, TInlineAllocator<16>> DraggedFolders(FolderDrag->Folders);
 
 		// Find any actors in the global editor world that have any of the dragged paths.
 		// WARNING: Actor iteration can be very slow, so this needs to be optimized
@@ -3206,24 +3187,14 @@ void SSequencer::OnCompositeDropped( FCompositeDragDropOp& DragDropOp )
 		UWorld* World = PlaybackContext ? PlaybackContext->GetWorld() : nullptr;
 		if (World)
 		{
-			for (FActorIterator ActorIt(World); ActorIt; ++ActorIt)
-			{
-				FName ActorPath = ActorIt->GetFolderPath();
-				if (ActorPath.IsNone() || !DraggedFolders.Contains(ActorPath))
-				{
-					continue;
+		FActorFolders::GetWeakActorsFromFolders(*World, DragDropOp.Folders, DraggedActors);
 				}
-
-				DraggedActors.Add(*ActorIt);
-			}		
-		}
-	}	
 	
-	for (FOnCompositeDrop Delegate : OnCompositeDrop)
+	for (FOnFoldersDrop Delegate : OnFoldersDrop)
 	{
 		if (Delegate.IsBound())
 		{
-			DropResult = Delegate.Execute(DraggedActors, DragDropOp);
+			DropResult = Delegate.Execute(DragDropOp.Folders, DragDropOp);
 			if (DropResult != ESequencerDropResult::Unhandled)
 			{
 				break;
@@ -3945,7 +3916,7 @@ void SSequencer::ApplySequencerCustomizations(const TArray<FSequencerCustomizati
 	OnAssetsDrop.Reset();
 	OnActorsDrop.Reset();
 	OnClassesDrop.Reset();
-	OnCompositeDrop.Reset();
+	OnFoldersDrop.Reset();
 
 	ApplySequencerCustomization(RootCustomization);
 	for (const FSequencerCustomizationInfo& Info : Customizations)
@@ -3987,9 +3958,9 @@ void SSequencer::ApplySequencerCustomization(const FSequencerCustomizationInfo& 
 	{
 		OnClassesDrop.Add(Customization.OnClassesDrop);
 	}
-	if (Customization.OnCompositeDrop.IsBound())
+	if (Customization.OnFoldersDrop.IsBound())
 	{
-		OnCompositeDrop.Add(Customization.OnCompositeDrop);
+		OnFoldersDrop.Add(Customization.OnFoldersDrop);
 	}
 }
 

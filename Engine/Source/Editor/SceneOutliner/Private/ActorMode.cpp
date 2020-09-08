@@ -24,12 +24,15 @@ namespace SceneOutliner
 {
 	bool FWeakActorSelector::operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, TWeakObjectPtr<AActor>& DataOut) const
 	{
-		if (FActorTreeItem* ActorItem = Item.Pin()->CastTo<FActorTreeItem>())
+		if (TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin())
 		{
-			if (ActorItem->IsValid())
+			if (FActorTreeItem* ActorItem = ItemPtr->CastTo<FActorTreeItem>())
 			{
-				DataOut = ActorItem->Actor;
-				return true;
+				if (ActorItem->IsValid())
+				{
+					DataOut = ActorItem->Actor;
+					return true;
+				}
 			}
 		}
 		return false;
@@ -37,28 +40,31 @@ namespace SceneOutliner
 
 	bool FActorSelector::operator()(const TWeakPtr<ISceneOutlinerTreeItem>& Item, AActor*& ActorPtrOut) const
 	{
-		if (FActorTreeItem* ActorItem = Item.Pin()->CastTo<FActorTreeItem>())
+		if (TSharedPtr<ISceneOutlinerTreeItem> ItemPtr = Item.Pin())
 		{
-			if (ActorItem->IsValid())
+			if (FActorTreeItem* ActorItem = ItemPtr->CastTo<FActorTreeItem>())
 			{
-				AActor* Actor = ActorItem->Actor.Get();
-				if (Actor)
+				if (ActorItem->IsValid())
 				{
-					ActorPtrOut = Actor;
-					return true;
+					AActor* Actor = ActorItem->Actor.Get();
+					if (Actor)
+					{
+						ActorPtrOut = Actor;
+						return true;
+					}
 				}
 			}
-		}
-		// If a component is selected, we meant for the owning actor to be selected
-		else if (FComponentTreeItem* ComponentItem = Item.Pin()->CastTo<FComponentTreeItem>())
-		{
-			if (ComponentItem->IsValid())
+			// If a component is selected, we meant for the owning actor to be selected
+			else if (FComponentTreeItem* ComponentItem = ItemPtr->CastTo<FComponentTreeItem>())
 			{
-				AActor* Actor = ComponentItem->Component->GetOwner();
-				if (Actor)
+				if (ComponentItem->IsValid())
 				{
-					ActorPtrOut = Actor;
-					return true;
+					AActor* Actor = ComponentItem->Component->GetOwner();
+					if (Actor)
+					{
+						ActorPtrOut = Actor;
+						return true;
+					}
 				}
 			}
 		}

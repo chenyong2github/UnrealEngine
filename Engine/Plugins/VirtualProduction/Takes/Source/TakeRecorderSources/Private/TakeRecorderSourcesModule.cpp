@@ -14,7 +14,6 @@
 #include "TakeRecorderSources.h"
 #include "TakeRecorderSettings.h"
 #include "Features/IModularFeatures.h"
-#include "DragAndDrop/CompositeDragDropOp.h"
 #include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/FolderDragDropOp.h"
 #include "EngineUtils.h"
@@ -34,6 +33,7 @@
 #include "SceneOutlinerPublicTypes.h"
 #include "Subsystems/AssetEditorSubsystem.h"
 #include "ActorTreeItem.h"
+#include "EditorActorFolders.h"
 
 #include "TakeRecorderMicrophoneAudioSource.h"
 #include "TakeRecorderWorldSource.h"
@@ -176,45 +176,39 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 
 	virtual bool CanHandleOperation(TSharedPtr<FDragDropOperation> InOperation, UTakeRecorderSources* Sources) override
 	{
+		bool bCanHandle = false;
 		if (InOperation)
 		{
 			if (InOperation->IsOfType<FActorDragDropOp>())
 			{
-				return StaticCastSharedPtr<FActorDragDropOp>(InOperation)->Actors.Num() > 0;
+				bCanHandle |= InOperation->CastTo<FActorDragDropOp>()->Actors.Num() > 0;
 			}
-			else if (InOperation->IsOfType<FCompositeDragDropOp>())
+			if (InOperation->IsOfType<FFolderDragDropOp>())
 			{
-				return true;
+				bCanHandle |= true;
 			}
 		}
 
-		return false;
+		return bCanHandle;
 	}
 
 	TArray<AActor*> GetValidDropActors(TSharedPtr<FDragDropOperation> InOperation, UTakeRecorderSources* Sources)
 	{
-		FActorDragDropOp*  ActorDrag = nullptr;
-		FFolderDragDropOp* FolderDrag = nullptr;
+		TSharedPtr<FActorDragDropOp>  ActorDrag = nullptr;
+		TSharedPtr<FFolderDragDropOp> FolderDrag = nullptr;
 
 		FDragDropOperation* OperationPtr = InOperation.Get();
 		if (!OperationPtr)
 		{
 			return TArray<AActor*>();
 		}
-		else if (OperationPtr->IsOfType<FCompositeDragDropOp>())
+		if (OperationPtr->IsOfType<FActorDragDropOp>())
 		{
-			FCompositeDragDropOp* OutlinerOp = static_cast<FCompositeDragDropOp*>(OperationPtr);
-			FolderDrag = OutlinerOp->GetSubOp<FFolderDragDropOp>().Get();
-			ActorDrag  = OutlinerOp->GetSubOp<FActorDragDropOp>().Get();
-
+			ActorDrag = OperationPtr->CastTo<FActorDragDropOp>();
 		}
-		else if (OperationPtr->IsOfType<FActorDragDropOp>())
+		if (OperationPtr->IsOfType<FFolderDragDropOp>())
 		{
-			ActorDrag = static_cast<FActorDragDropOp*>(OperationPtr);
-		}
-		else if (OperationPtr->IsOfType<FFolderDragDropOp>())
-		{
-			FolderDrag = static_cast<FFolderDragDropOp*>(OperationPtr);
+			FolderDrag = OperationPtr->CastTo<FFolderDragDropOp>();
 		}
 
 		TArray<AActor*> DraggedActors;
@@ -233,21 +227,7 @@ struct FActorTakeRecorderDropHandler : ITakeRecorderDropHandler
 
 		if (FolderDrag)
 		{
-			// Copy the array onto the stack if it's within a reasonable size
-			TArray<FName, TInlineAllocator<16>> DraggedFolders(FolderDrag->Folders);
-
-			// Find any actors in the global editor world that have any of the dragged paths.
-			// WARNING: Actor iteration can be very slow, so this needs to be optimized
-			for (FActorIterator ActorIt(GWorld); ActorIt; ++ActorIt)
-			{
-				FName ActorPath = ActorIt->GetFolderPath();
-				if (ActorPath.IsNone() || !DraggedFolders.Contains(ActorPath))
-				{
-					continue;
-				}
-
-				DraggedActors.Add(*ActorIt);
-			}
+			FActorFolders::GetActorsFromFolders(*GWorld, FolderDrag->Folders, DraggedActors);
 		}
 
 		TArray<AActor*> ExistingActors;

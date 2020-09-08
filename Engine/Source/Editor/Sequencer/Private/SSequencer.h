@@ -18,10 +18,10 @@
 #include "Widgets/Text/STextBlock.h"
 #include "Sequencer.h"
 
-class FActorDragDropGraphEdOp;
+class FActorDragDropOp;
+class FFolderDragDropOp;
 class FAssetDragDropOp;
 class FClassDragDropOp;
-class FCompositeDragDropOp;
 class FMovieSceneClipboard;
 class FSequencerTimeSliderController;
 class FVirtualTrackArea;
@@ -261,8 +261,8 @@ public:
 		/** Called when an actor is dropped on the sequencer. Not called if OnReceivedDrop is bound and returned true. */
 		SLATE_EVENT( FOnActorsDrop, OnActorsDrop )
 
-		/** Called when an actor is dropped on the sequencer as a composite. Not called if OnReceivedDrop is bound and returned true. */
-		SLATE_EVENT( FOnCompositeDrop, OnCompositeDrop )
+		/** Called when a folder is dropped onto the sequencer. Not called if OnReceivedDrop is bound and returned true. */
+		SLATE_EVENT(FOnFoldersDrop, OnFoldersDrop)
 
 		/** Extender to use for the add menu. */
 		SLATE_ARGUMENT( TSharedPtr<FExtender>, AddMenuExtender )
@@ -512,14 +512,14 @@ private:
 	 *
 	 * @param	DragDropOp	Information about the actor(s) that was dropped
 	 */
-	void OnActorsDropped(FActorDragDropGraphEdOp& DragDropOp); 
+	void OnActorsDropped(FActorDragDropOp& DragDropOp); 
 
 	/**
-	 * Called when one or more objects are dropped into the widget as a composite
+	 * Called when one or more folders are dropped into the widget
 	 *
 	 * @param	DragDropOp	Information about the objects(s) that was dropped
 	 */
-	void OnCompositeDropped(FCompositeDragDropOp& DragDropOp); 
+	void OnFolderDropped(FFolderDragDropOp& DragDropOp); 
 
 	/** Called when a breadcrumb is clicked on in the sequencer */
 	void OnCrumbClicked(const FSequencerBreadcrumb& Item);
@@ -731,8 +731,8 @@ private:
 	/** Called when an actor is dropped on the sequencer. */
 	TArray<FOnActorsDrop> OnActorsDrop;
 
-	/** Called when an actor is dropped on the sequencer as a composite. */
-	TArray<FOnCompositeDrop> OnCompositeDrop;
+	/** Called when a folder is dropped on the sequencer. */
+	TArray<FOnFoldersDrop> OnFoldersDrop;
 
 	/** Stores the callbacks and extenders provided to the constructor. */
 	FSequencerCustomizationInfo RootCustomization;

@@ -5,7 +5,7 @@
 #include "AssetToolsModule.h"
 #include "CameraAnimationSequence.h"
 #include "ClassViewerModule.h"
-#include "DragAndDrop/ActorDragDropGraphEdOp.h"
+#include "DragAndDrop/ActorDragDropOp.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "DragAndDrop/ClassDragDropOp.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
@@ -40,7 +40,7 @@ private:
 	bool OnSequencerReceivedDragOver(const FGeometry& MyGeometry, const FDragDropEvent& DragDropEvent, FReply& OutReply);
 	ESequencerDropResult OnSequencerAssetsDrop(const TArray<UObject*>& Assets, const FAssetDragDropOp& DragDropOp);
 	ESequencerDropResult OnSequencerClassesDrop(const TArray<TWeakObjectPtr<UClass>>& Classes, const FClassDragDropOp& DragDropOp);
-	ESequencerDropResult OnSequencerActorsDrop(const TArray<TWeakObjectPtr<AActor>>& Actors, const FActorDragDropGraphEdOp& DragDropOp);
+	ESequencerDropResult OnSequencerActorsDrop(const TArray<TWeakObjectPtr<AActor>>& Actors, const FActorDragDropOp& DragDropOp);
 
 	FText GetBoundActorClassName() const;
 	TSharedRef<SWidget> GetBoundActorClassMenuContent();
@@ -276,9 +276,9 @@ bool FTemplateSequenceCustomization::OnSequencerReceivedDragOver(const FGeometry
 
 	TSharedPtr<FDragDropOperation> Operation = DragDropEvent.GetOperation();
 	if (Operation.IsValid() && (
-		(Operation->IsOfType<FAssetDragDropOp>() && StaticCastSharedPtr<FAssetDragDropOp>(Operation)->GetAssetPaths().Num() <= 1) ||
-		(Operation->IsOfType<FClassDragDropOp>() && StaticCastSharedPtr<FClassDragDropOp>(Operation)->ClassesToDrop.Num() <= 1) ||
-		(Operation->IsOfType<FActorDragDropGraphEdOp>() && StaticCastSharedPtr<FActorDragDropGraphEdOp>(Operation)->Actors.Num() <= 1)))
+		(Operation->IsOfType<FAssetDragDropOp>() && Operation->CastTo<FAssetDragDropOp>()->GetAssetPaths().Num() <= 1) ||
+		(Operation->IsOfType<FClassDragDropOp>() && Operation->CastTo<FClassDragDropOp>()->ClassesToDrop.Num() <= 1) ||
+		(Operation->IsOfType<FActorDragDropOp>() && Operation->CastTo<FActorDragDropOp>()->Actors.Num() <= 1)))
 	{
 		bIsDragSupported = true;
 	}
@@ -318,7 +318,7 @@ ESequencerDropResult FTemplateSequenceCustomization::OnSequencerClassesDrop(cons
 	return ESequencerDropResult::Unhandled;
 }
 
-ESequencerDropResult FTemplateSequenceCustomization::OnSequencerActorsDrop(const TArray<TWeakObjectPtr<AActor>>& Actors, const FActorDragDropGraphEdOp& DragDropOp)
+ESequencerDropResult FTemplateSequenceCustomization::OnSequencerActorsDrop(const TArray<TWeakObjectPtr<AActor>>& Actors, const FActorDragDropOp& DragDropOp)
 {
 	return ESequencerDropResult::Unhandled;
 }
@@ -376,7 +376,7 @@ void FCameraAnimationSequenceCustomation::RegisterSequencerCustomization(FSequen
 
 	Customization.OnAssetsDrop.BindLambda([](const TArray<UObject*>&, const FAssetDragDropOp&) -> ESequencerDropResult { return ESequencerDropResult::DropDenied; });
 	Customization.OnClassesDrop.BindLambda([](const TArray<TWeakObjectPtr<UClass>>&, const FClassDragDropOp&) -> ESequencerDropResult { return ESequencerDropResult::DropDenied; });
-	Customization.OnActorsDrop.BindLambda([](const TArray<TWeakObjectPtr<AActor>>&, const FActorDragDropGraphEdOp&) -> ESequencerDropResult { return ESequencerDropResult::DropDenied; });
+	Customization.OnActorsDrop.BindLambda([](const TArray<TWeakObjectPtr<AActor>>&, const FActorDragDropOp&) -> ESequencerDropResult { return ESequencerDropResult::DropDenied; });
 
 	Builder.AddCustomization(Customization);
 }

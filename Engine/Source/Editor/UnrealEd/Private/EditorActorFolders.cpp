@@ -563,4 +563,39 @@ bool FActorFolders::AddFolderToWorld(UWorld& InWorld, FName Path)
 	return false;
 }
 
+void FActorFolders::ForEachActorInFolders(UWorld& World, const TArray<FName>& Paths, TFunctionRef<bool(AActor*)> Operation)
+{
+	for (FActorIterator ActorIt(&World); ActorIt; ++ActorIt)
+	{
+		FName ActorPath = ActorIt->GetFolderPath();
+		if (ActorPath.IsNone() || !Paths.Contains(ActorPath))
+		{
+			continue;
+		}
+
+		if (!Operation(*ActorIt))
+		{
+			return;
+		}
+	}
+}
+
+void FActorFolders::GetActorsFromFolders(UWorld& World, const TArray<FName>& Paths, TArray<AActor*>& OutActors)
+{
+	ForEachActorInFolders(World, Paths, [&OutActors](AActor* InActor)
+		{
+			OutActors.Add(InActor);
+			return true;
+		});
+}
+
+void FActorFolders::GetWeakActorsFromFolders(UWorld& World, const TArray<FName>& Paths, TArray<TWeakObjectPtr<AActor>>& OutActors)
+{
+	ForEachActorInFolders(World, Paths, [&OutActors](AActor* InActor)
+		{
+			OutActors.Add(InActor);
+			return true;
+		});
+}
+
 #undef LOCTEXT_NAMESPACE
