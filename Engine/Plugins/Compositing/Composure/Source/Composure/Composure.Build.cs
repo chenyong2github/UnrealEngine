@@ -39,6 +39,7 @@ namespace UnrealBuildTool.Rules
                     "MediaAssets",
 					"MovieSceneCapture",
 					"ImageWriteQueue",
+					"ActorLayerUtilities",
                 }
                 );
 
