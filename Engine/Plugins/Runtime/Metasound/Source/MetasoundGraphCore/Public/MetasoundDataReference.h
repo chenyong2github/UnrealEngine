@@ -240,7 +240,6 @@ namespace Metasound
 
 			typedef TDataReferenceTypeInfo<DataType> FInfoType;
 
-
 			/** This should be used to construct a new DataType object and return this TDataReference as a wrapper around it.
 			 */
 			template <typename... ArgTypes>
@@ -461,6 +460,21 @@ namespace Metasound
 		UObjectProxyArray,
 		None, // If this is set, we will invoke TType(const FOperatorSettings&) If that constructor exists, or the default constructor if not.
 		Invalid,
+	};
+
+	// This empty base class is used so that we can specialize various nodes (Send, Receive, etc.) for subclasses of IAudioDatatype.
+	class METASOUNDGRAPHCORE_API IAudioDatatype
+	{
+		/**
+		 * Audio datatypes require the following functions:
+		 * int32 GetNumChannels() const { return NumChannels; }
+		 *
+		 * int32 GetMaxNumChannels() const { return MaxNumChannels; }
+
+		 * const TArrayView<const FAudioBufferReadRef> GetBuffers() const { return ReadableBuffers; }
+
+		 * const TArrayView<const FAudioBufferWriteRef> GetBuffers() { return WritableBuffers; }
+		 */
 	};
 }
 

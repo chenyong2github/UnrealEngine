@@ -19,7 +19,7 @@ namespace Metasound
 	 * of the FUnformattedAudio. All audio buffers within a FUnformattedAudio object must contain the 
 	 * same number of audio frames.
 	 */
-	class METASOUNDSTANDARDNODES_API FUnformattedAudio
+	class METASOUNDSTANDARDNODES_API FUnformattedAudio : public IAudioDatatype
 	{
 		public:
 			/** FUnformattedAudio Constructor.
@@ -29,6 +29,10 @@ namespace Metasound
 			 * @param InMaxNumChannels - Maximum number of audio channels.
 			 */
 			FUnformattedAudio(int32 InNumFrames, int32 InNumChannels, int32 InMaxNumChannels);
+
+			FUnformattedAudio()
+				: FUnformattedAudio(0, 0, 0)
+			{}
 
 			/**
 			 * FUnformattedAudio Constructor used by the metasound frontend.
@@ -61,13 +65,13 @@ namespace Metasound
 			 *
 			 * This array will have GetNumChannels() elements.
 			 */
-			const TArrayView<const FAudioBufferReadRef>& GetBuffers() const { return ReadableBuffers; }
+			const TArrayView<const FAudioBufferReadRef> GetBuffers() const { return ReadableBuffers; }
 
 			/** Return an array view of the writable buffer references.
 			 *
 			 * This array will have GetNumChannels() elements.
 			 */
-			const TArrayView<const FAudioBufferWriteRef>& GetBuffers() { return WritableBuffers; }
+			const TArrayView<const FAudioBufferWriteRef> GetBuffers() { return WritableBuffers; }
 
 			/** Return an array of the readable buffer reference storage.
 			 *
@@ -103,7 +107,7 @@ namespace Metasound
 	 * of the FMultichannelAudioFormat. All audio buffers within a FMultichannelAudioFormat object must contain the 
 	 * same number of audio frames.
 	 */
-	class METASOUNDSTANDARDNODES_API FMultichannelAudioFormat
+	class METASOUNDSTANDARDNODES_API FMultichannelAudioFormat : public IAudioDatatype
 	{
 		public:
 			FMultichannelAudioFormat();
@@ -147,17 +151,20 @@ namespace Metasound
 			/** Return the number of audio channels. */
 			int32 GetNumChannels() const { return NumChannels; }
 
+			/** Return the maximum number of channels. Multichannel audio buffers cannot be resized after construction. */
+			int32 GetMaxNumChannels() const { return NumChannels; }
+
 			/** Return an array view of the readable buffer references.
 			 *
 			 * This array will have GetNumChannels() elements.
 			 */
-			const TArrayView<const FAudioBufferReadRef>& GetBuffers() const { return ReadableBuffers; }
+			const TArrayView<const FAudioBufferReadRef> GetBuffers() const { return ReadableBuffers; }
 
 			/** Return an array view of the writable buffer references.
 			 *
 			 * This array will have GetNumChannels() elements.
 			 */
-			const TArrayView<const FAudioBufferWriteRef>& GetBuffers() { return WritableBuffers; }
+			const TArrayView<const FAudioBufferWriteRef> GetBuffers() { return WritableBuffers; }
 
 			/** Return an array of the readable buffer reference storage.
 			 *
@@ -205,7 +212,7 @@ namespace Metasound
 	 * number of audio frames.
 	 */
 	template<int32 NumChannels>
-	class TStaticChannelAudioFormat
+	class TStaticChannelAudioFormat : public IAudioDatatype
 	{
 		public:
 			/** TStaticChannelAudioFormat Constructor
@@ -236,6 +243,9 @@ namespace Metasound
 			{
 				return NumChannels;
 			}
+
+			/** Return the maximum number of channels. static channel audio buffers cannot be resized after construction. */
+			int32 GetMaxNumChannels() const { return NumChannels; }
 
 			/** Return an readable buffer reference for a specific channel. */
 			template<int32 ChannelIndex>

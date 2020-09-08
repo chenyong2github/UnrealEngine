@@ -26,7 +26,7 @@ namespace UnrealBuildTool.Rules
 			(
 				new string[]
 				{
-					"MetasoundGraphCore",
+					"MetasoundGraphCore"
 				}
 			);
 

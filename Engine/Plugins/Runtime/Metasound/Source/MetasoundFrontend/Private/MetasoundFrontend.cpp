@@ -12,6 +12,12 @@
 #include "Serialization/MemoryReader.h"
 #include "MetasoundFrontendRegistries.h"
 
+#include "MetasoundDataTypeRegistrationMacro.h"
+
+#include "MetasoundPrimitives.h"
+
+#include "MetasoundAudioBuffer.h"
+#include "MetasoundRouter.h"
 
 static int32 MetasoundUndoRollLimitCvar = 128;
 FAutoConsoleVariableRef CVarMetasoundUndoRollLimit(
@@ -2154,7 +2160,7 @@ namespace Metasound
 					}
 				}
 
-				if (ensureAlwaysMsgf(IndexOfDependencyToRemove > 0, TEXT(R"(Couldn't find node class %s in the list of dependencies for this graph, but found it in the nodes list.
+				if (ensureAlwaysMsgf(IndexOfDependencyToRemove >= 0, TEXT(R"(Couldn't find node class %s in the list of dependencies for this graph, but found it in the nodes list.
 				This likely means that the underlying class description is corrupted.)"), *NodeClassName))
 				{
 					DependencyIDs.RemoveAt(IndexOfDependencyToRemove);
@@ -2726,5 +2732,23 @@ class FMetasoundFrontendModule : public IModuleInterface
 		Metasound::Frontend::InitializeFrontend();
 	}
 };
+
+
+REGISTER_METASOUND_DATATYPE(bool, "Primitive:Bool", ::Metasound::ELiteralArgType::Boolean)
+REGISTER_METASOUND_DATATYPE(int32, "Primitive:Int32", ::Metasound::ELiteralArgType::Integer)
+REGISTER_METASOUND_DATATYPE(int64, "Primitive:Int64", ::Metasound::ELiteralArgType::Integer)
+REGISTER_METASOUND_DATATYPE(float, "Primitive:Float", ::Metasound::ELiteralArgType::Float)
+REGISTER_METASOUND_DATATYPE(double, "Primitive:Double", ::Metasound::ELiteralArgType::Float)
+REGISTER_METASOUND_DATATYPE(FString, "Primitive:String", ::Metasound::ELiteralArgType::String)
+
+namespace Metasound
+{
+	REGISTER_METASOUND_DATATYPE(FAudioBuffer, "Audio:Buffer")
+
+
+	static_assert(TDataReferenceTypeInfo<FSendAddress>::bIsValidSpecialization, "ahhhhh");
+
+	REGISTER_METASOUND_DATATYPE(FSendAddress, "Send:Address")
+}
 
 IMPLEMENT_MODULE(FMetasoundFrontendModule, MetasoundFrontend);

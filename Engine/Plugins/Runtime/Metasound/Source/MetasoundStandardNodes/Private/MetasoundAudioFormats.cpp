@@ -18,7 +18,7 @@ private:
 
 namespace Metasound
 {
-	REGISTER_METASOUND_DATATYPE(FAudioBuffer, "Audio:Buffer")
+	// REGISTER_METASOUND_DATATYPE(FAudioBuffer, "Audio:Buffer")
 	REGISTER_METASOUND_DATATYPE(FUnformattedAudio, "Audio:Unformatted")
 	REGISTER_METASOUND_DATATYPE(FMultichannelAudioFormat, "Audio:Multichannel")
 

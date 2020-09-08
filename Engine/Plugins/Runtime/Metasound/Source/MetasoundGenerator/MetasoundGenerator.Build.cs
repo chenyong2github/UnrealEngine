@@ -25,7 +25,8 @@ namespace UnrealBuildTool.Rules
                     "Core",
 					"AudioMixer",
 					"MetasoundGraphCore",
-					"MetasoundStandardNodes"
+					"MetasoundStandardNodes",
+					"MetasoundFrontend"
                 }
             );
 		}

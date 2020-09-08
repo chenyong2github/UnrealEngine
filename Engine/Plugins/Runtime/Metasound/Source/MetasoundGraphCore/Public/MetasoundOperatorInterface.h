@@ -183,7 +183,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		bool IsCompatibleWithType()
+		bool IsCompatibleWithType() const
 		{
 			switch (ConstructorArgType)
 			{
@@ -227,7 +227,7 @@ namespace Metasound
 		// This is a bucket constructor for when ConstructorArgType is unsupported by the data type we're trying to generate.
 		// This will only be invoked if something has gone terribly wrong in the frontend.
 		template<typename DataType>
-		DataType InvalidConstructor()
+		DataType InvalidConstructor() const
 		{
 			checkNoEntry();
 
@@ -246,7 +246,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf<
 			TIsConstructible<DataType, const TArray<Audio::IProxyDataPtr>&, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-			DataType ParseAsAudioProxyArray(const FOperatorSettings& WithOperatorSettings)
+			DataType ParseAsAudioProxyArray(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::UObjectProxyArray);
 			const TArray<Audio::IProxyDataPtr>& ProxyArrayToParse = ConstructorArg.Get<TArray<Audio::IProxyDataPtr>>();
@@ -256,7 +256,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf<
 			TIsConstructible<DataType, const TArray<Audio::IProxyDataPtr>&>::Value && !TIsConstructible<DataType, const TArray<Audio::IProxyDataPtr>&, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-			DataType ParseAsAudioProxyArray(const FOperatorSettings& WithOperatorSettings)
+			DataType ParseAsAudioProxyArray(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::UObjectProxyArray);
 			const TArray<Audio::IProxyDataPtr>& ProxyArrayToParse = ConstructorArg.Get<TArray<Audio::IProxyDataPtr>>();
@@ -264,7 +264,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		DataType ParseAsAudioProxyArray(...)
+		DataType ParseAsAudioProxyArray(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -272,7 +272,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf<
 			TIsConstructible<DataType, const Audio::IProxyData&, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsAudioProxy(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsAudioProxy(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::UObjectProxy);
 			const Audio::IProxyDataPtr& ProxyToParse = ConstructorArg.Get<Audio::IProxyDataPtr>();
@@ -282,7 +282,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf<
 			TIsConstructible<DataType, const Audio::IProxyData&>::Value && !TIsConstructible<DataType, const Audio::IProxyData&, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsAudioProxy(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsAudioProxy(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::UObjectProxy);
 			const Audio::IProxyDataPtr& ProxyToParse = ConstructorArg.Get<Audio::IProxyDataPtr>();
@@ -291,7 +291,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		DataType ParseAsAudioProxy(...)
+		DataType ParseAsAudioProxy(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -299,7 +299,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, const FString&, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsString(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsString(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::String);
 			FString StringToParse = ConstructorArg.Get<FString>();
@@ -309,7 +309,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, const FString&>::Value && !TIsConstructible<DataType, const FString&, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsString(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsString(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::String);
 			FString StringToParse = ConstructorArg.Get<FString>();
@@ -317,7 +317,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		DataType ParseAsString(...)
+		DataType ParseAsString(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -325,7 +325,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, float, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsFloat(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsFloat(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::Float);
 			float ValueToParse = ConstructorArg.Get<float>();
@@ -335,7 +335,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, float >::Value && !TIsConstructible<DataType, float, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsFloat(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsFloat(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::Float);
 			float ValueToParse = ConstructorArg.Get<float>();
@@ -343,7 +343,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		DataType ParseAsFloat(...)
+		DataType ParseAsFloat(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -351,7 +351,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, int32, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsInt(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsInt(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::Integer);
 			int32 ValueToParse = ConstructorArg.Get<int32>();
@@ -361,7 +361,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, int32>::Value && !TIsConstructible<DataType, int32, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsInt(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsInt(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::Integer);
 			int32 ValueToParse = ConstructorArg.Get<int32>();
@@ -369,7 +369,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		DataType ParseAsInt(...)
+		DataType ParseAsInt(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -377,7 +377,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, bool, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsBool(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsBool(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::Boolean);
 			bool ValueToParse = ConstructorArg.Get<bool>();
@@ -387,7 +387,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, bool>::Value && !TIsConstructible<DataType, bool, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseAsBool(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseAsBool(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::Boolean);
 			bool ValueToParse = ConstructorArg.Get<bool>();
@@ -395,7 +395,7 @@ namespace Metasound
 		}
 
 		template<typename DataType>
-		DataType ParseAsBool(...)
+		DataType ParseAsBool(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -404,7 +404,7 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType, const FOperatorSettings&>::Value
 			, bool >::Type = true >
-		DataType ParseWithDefaultConstructor(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseWithDefaultConstructor(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::None);
 			return DataType(WithOperatorSettings);
@@ -413,14 +413,14 @@ namespace Metasound
 		template<typename DataType, typename TEnableIf< 
 			TIsConstructible<DataType>::Value && !TIsConstructible<DataType, const FOperatorSettings&>::Value
 			, bool>::Type = true >
-		DataType ParseWithDefaultConstructor(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseWithDefaultConstructor(const FOperatorSettings& WithOperatorSettings) const
 		{
 			check(ConstructorArgType == ELiteralArgType::None);
 			return DataType();
 		}
 
 		template<typename DataType>
-		DataType ParseWithDefaultConstructor(...)
+		DataType ParseWithDefaultConstructor(...) const
 		{
 			return InvalidConstructor<DataType>();
 		}
@@ -429,7 +429,7 @@ namespace Metasound
 
 		// This can be used to invoke the correct constructor for this init param for a data type.
 		template<typename DataType>
-		DataType ParseTo(const FOperatorSettings& WithOperatorSettings)
+		DataType ParseTo(const FOperatorSettings& WithOperatorSettings) const
 		{
 			switch (ConstructorArgType)
 			{

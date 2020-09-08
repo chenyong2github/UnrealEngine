@@ -6,7 +6,6 @@
 #include "DSP/BufferVectorOperations.h"
 #include "MetasoundGraphCoreModule.h"
 #include "MetasoundDataReference.h"
-#include "MetasoundDataTypeRegistrationMacro.h"
 
 /** Define which determines whether to check that the size of the audio buffer has not changed since initialization */
 #define METASOUNDGRAPHCORE_CHECKAUDIONUM !(UE_BUILD_SHIPPING || UE_BUILD_TEST)
@@ -20,7 +19,7 @@ namespace Metasound
 	 * arguments via an implicit conversion operator which exposes the underlying AlignedFloatBuffer container.
 	 *
 	 */
-	class METASOUNDSTANDARDNODES_API FAudioBuffer
+	class METASOUNDFRONTEND_API FAudioBuffer
 	{
 		public:
 			/** Create an FAudioBuffer with a specific number of samples. 
@@ -49,37 +48,6 @@ namespace Metasound
 				InitialNum = Buffer.Num();
 #endif	
 			}
-
-			/** Allow all other constructors of Audio::AlignedFloatBuffer to be forwarded to
-			 * underlying container */
-			/*
-			template <
-				typename... ArgTypes,
-				typename = typename TEnableIf<
-					TAndValue<
-						sizeof...(ArgTypes) != 0,
-						TOrValue<
-							sizeof...(ArgTypes) != 1,
-							TNot<
-								TIsIntegral<
-									typename TDecay<
-										typename TNthTypeFromParameterPack<0, ArgTypes...>::Type
-									>::Type
-								>
-							>
-						>
-					>::Value
-				>::Type
-			>
-			FAudioBuffer(ArgTypes&&... Args)
-			:	Buffer(Forward<ArgTypes>(Args)...)
-			{
-#if METASOUNDGRAPHCORE_CHECKAUDIONUM
-				// InitialNum should not change during the life of an FAudioBuffer
-				InitialNum = Buffer.Num();
-#endif				
-			}
-			*/
 
 			FAudioBuffer()
 			{
@@ -154,5 +122,5 @@ namespace Metasound
 #endif				
 	};
 
-	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDSTANDARDNODES_API, FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
+	DECLARE_METASOUND_DATA_REFERENCE_TYPES(FAudioBuffer, METASOUNDFRONTEND_API, FAudioBufferTypeInfo, FAudioBufferReadRef, FAudioBufferWriteRef);
 };

@@ -610,6 +610,7 @@ namespace Audio
 
 		// Pushes some amount of samples into this circular buffer.
 		// Returns the amount of samples written.
+		// This can only be used for trivially copyable types.
 		int32 Push(const SampleType* InBuffer, uint32 NumSamples)
 		{
 			SampleType* DestBuffer = InternalBuffer.GetData();
@@ -625,6 +626,46 @@ namespace Audio
 			WriteCounter.Set((WriteIndex + NumToCopy) % Capacity);
 
 			return NumToCopy;
+		}
+
+		// Push a single sample onto this buffer.
+		// Returns false if the buffer is full.
+		bool Push(const SampleType& InElement)
+		{
+			if (Remainder() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				SampleType* DestBuffer = InternalBuffer.GetData();
+				const uint32 ReadIndex = ReadCounter.GetValue();
+				const uint32 WriteIndex = WriteCounter.GetValue();
+
+				DestBuffer[WriteIndex] = InElement;
+
+				WriteCounter.Set((WriteIndex + 1) % Capacity);
+				return true;
+			}
+		}
+
+		bool Push(SampleType&& InElement)
+		{
+			if (Remainder() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				SampleType* DestBuffer = InternalBuffer.GetData();
+				const uint32 ReadIndex = ReadCounter.GetValue();
+				const uint32 WriteIndex = WriteCounter.GetValue();
+
+				DestBuffer[WriteIndex] = MoveTemp(InElement);
+
+				WriteCounter.Set((WriteIndex + 1) % Capacity);
+				return true;
+			}
 		}
 
 		// Same as Pop(), but does not increment the read counter.
@@ -646,6 +687,25 @@ namespace Audio
 			return NumToCopy;
 		}
 
+		// Peeks a single element.
+		// returns false if the element is empty.
+		bool Peek(SampleType& OutElement)
+		{
+			if (Num() == 0)
+			{
+				return false;
+			}
+			else
+			{
+				SampleType* SrcBuffer = InternalBuffer.GetData();
+				const uint32 ReadIndex = ReadCounter.GetValue();
+				
+				OutElement = SrcBuffer[ReadIndex];
+
+				return true;
+			}
+		}
+
 		// Pops some amount of samples into this circular buffer.
 		// Returns the amount of samples read.
 		int32 Pop(SampleType* OutBuffer, uint32 NumSamples)
@@ -656,6 +716,21 @@ namespace Audio
 			ReadCounter.Set((ReadCounter.GetValue() + NumSamplesRead) % Capacity);
 
 			return NumSamplesRead;
+		}
+
+		// Pops a single element.
+		// Will assert if the buffer is empty. Please check Num() > 0 before calling.
+		SampleType Pop()
+		{
+			// Calling this when the buffer is empty is considered a fatal error.
+			check(Num() > 0);
+
+			SampleType* SrcBuffer = InternalBuffer.GetData();
+			const uint32 ReadIndex = ReadCounter.GetValue();
+
+			SampleType PoppedValue = MoveTempIfPossible(InternalBuffer[ReadIndex]);
+			ReadCounter.Set((ReadCounter.GetValue() + 1) % Capacity);
+			return PoppedValue;
 		}
 
 		// When called, seeks the read or write cursor to only retain either the NumSamples latest data

@@ -306,6 +306,10 @@ namespace Metasound
 				: TTime(InSeconds, ETimeResolution::Seconds, InSettings.GetSampleRate())
 			{}
 
+			TTime()
+				: TTime(0.0f, ETimeResolution::Seconds, SMALL_NUMBER)
+			{}
+
 			/** Construct a sample count based TTime using a number of samples
 			 * and a sample rate.
 			 *

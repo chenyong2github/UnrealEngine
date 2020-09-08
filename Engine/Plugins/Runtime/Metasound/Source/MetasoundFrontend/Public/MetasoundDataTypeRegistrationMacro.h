@@ -13,6 +13,9 @@
 #include "MetasoundAutoConverterNode.h"
 #include "MetasoundNodeRegistrationMacro.h"
 #include "MetasoundConverterNodeRegistrationMacro.h"
+#include "MetasoundSendNode.h"
+#include "MetasoundReceiveNode.h"
+#include "MetasoundRouter.h"
 
 #include <type_traits>
 
@@ -35,6 +38,35 @@ template<typename UClassToUse, typename TEnableIf<!TIsDerivedFrom<UClassToUse, I
 IAudioProxyDataFactory* CastToAudioProxyDataFactory(UObject* InObject)
 {
 	return nullptr;
+}
+
+// Helper utility to test if we can transmit a datatype between a send and a receive node.
+template <typename TDataType>
+struct TIsTransmittable
+{
+private:
+	static constexpr bool bCanBeTransmitted =
+		std::is_copy_constructible<TDataType>::value|| TIsDerivedFrom<TDataType, ::Metasound::IAudioDatatype>::Value;
+
+public:
+
+	static constexpr bool Value = bCanBeTransmitted;
+};
+
+// This utility function can be used to optionally check to see if we can transmit a data type, and autogenerate send and receive nodes for that datatype.
+template<typename TDataType, typename TEnableIf<TIsTransmittable<TDataType>::Value, bool>::Type = true>
+void AttemptToRegisterSendAndReceiveNodes()
+{
+	ensureAlways(RegisterNodeWithFrontend<Metasound::TSendNode<TDataType>>());
+	ensureAlways(RegisterNodeWithFrontend<Metasound::TReceiveNode<TDataType>>());
+}
+
+template<typename TDataType, typename TEnableIf<!TIsTransmittable<TDataType>::Value, bool>::Type = true>
+void AttemptToRegisterSendAndReceiveNodes()
+{
+	// This implementation intentionally noops, because Metasound::TIsTransmittable is false for this datatype.
+	// This is either because the datatype is not trivially copyable, and thus can't be buffered between threads,
+	// or it's not an audio buffer type, which we use Audio::FPatchMixerSplitter instances for.
 }
 
 // This utility function can be used to check to see if we can static cast between two types, and autogenerate a node for that static cast.
@@ -155,6 +187,7 @@ bool RegisterDataTypeWithFrontend()
 	ensureAlwaysMsgf(bSucceeded, TEXT("Failed to register data type %s in the node registry!"), ::Metasound::TDataReferenceTypeInfo<TDataType>::TypeName);
 	
 	RegisterConverterNodes<TDataType>();
+	AttemptToRegisterSendAndReceiveNodes<TDataType>();
 	
 	return bSucceeded;
 }
