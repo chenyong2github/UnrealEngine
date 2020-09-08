@@ -194,7 +194,6 @@ export interface ChangeInfo extends TargetInfo {
 	authorTag?: string
 	source: string
 	description: string
-	numFiles: number // number of files, capped out at maxFilesPerIntegration
 
 	propagatingNullMerge: boolean
 	forceCreateAShelf: boolean

@@ -2,7 +2,7 @@
 import { ContextualLogger, NpmLogLevel } from "../common/logger";
 import { Change, ChangelistStatus, PerforceContext } from "../common/perforce";
 import { BotIPC, ReconsiderArgs } from "./bot-interfaces";
-import { Branch, OperationResult, PendingChange } from "./branch-interfaces";
+import { Branch, OperationResult } from "./branch-interfaces";
 import { Context } from "./settings";
 import { BlockagePauseInfo, BlockagePauseInfoMinimal, PauseState } from "./state-interfaces";
 
@@ -109,32 +109,6 @@ export abstract class PerforceStatefulBot implements BotIPC {
 		return this.unacknowledgeConflict(changeCl, this.pauseState, this.pauseState.blockagePauseInfo!)
 	}
 	abstract unacknowledgeConflict(changeCl : number, pauseState: PauseState, blockageInfo: BlockagePauseInfo) : OperationResult
-
-	protected static getIntegrationOwner(targetBranch: Branch, overriddenOwner?: string): string | null
-	protected static getIntegrationOwner(pending: PendingChange): string
-	protected static getIntegrationOwner(arg0: Branch | PendingChange, overriddenOwner?: string) {
-		// order of priority for owner:
-
-		//  1) manual requester - if this change was manually requested, use the requestor (now set as the change owner)
-		//	2) resolver - need resolver to take priority, even over reconsider, since recon might be from branch with
-		//					multiple targets, so instigator might not even know about target with resolver
-		//	3) reconsider
-		//	4) propagated/manually added tag
-		//	5) author - return null here for that case
-
-		const pending = (arg0 as PendingChange)
-
-		const branch = pending.action ? pending.action.branch : (arg0 as Branch)
-		const owner = pending.change ? pending.change.owner : overriddenOwner
-
-		// Manual requester
-		if ( (pending.action && pending.action.flags.has('manual')) ||
-			(pending.change && pending.change.forceCreateAShelf)
-		) {
-			return owner
-		}
-		return branch!.resolver || owner || null
-	}
 
 	abstract get displayName(): string
 	abstract get fullName(): string

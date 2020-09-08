@@ -16,7 +16,6 @@ export interface BotConfig {
 	visibility: string[] | string
 	slackChannel: string
 	reportToBuildHealth: boolean
-	maxFilesPerIntegration: number // otherwise auto pause
 	mirrorPath: string[]
 	alias: string // alias if we need to make name of bot in commands
 	emailDomainWhitelist: string[]
@@ -30,7 +29,6 @@ export interface BranchBase {
 	rootPath: string
 	isDefaultBot: boolean
 	emailOnBlockage: boolean // if present, completely overrides BotConfig
-	maxFilesPerIntegration: number // otherwise auto pause
 
 	notify: string[]
 	flowsTo: string[]
@@ -160,7 +158,6 @@ export class BranchDefs {
 			visibility: ['fte'],
 			slackChannel: '',
 			reportToBuildHealth: false,
-			maxFilesPerIntegration: -1,
 			mirrorPath: [],
 			alias: '',
 			emailDomainWhitelist: [],
@@ -178,10 +175,35 @@ export class BranchDefs {
 
 		// copy config values
 		for (let key of Object.keys(defaultConfigForWholeBot)) {
-			let value = (<any>branchGraph)[key]
-			if (value !== undefined)
-				(<any>defaultConfigForWholeBot)[key] = value
+			let value = (branchGraph as any)[key]
+			if (value !== undefined) {
+				if (key === 'macros') {
+					let macrosLower: {[name:string]: string[]} | null = {}
+					if (value === null && typeof value !== 'object') {
+						macrosLower = null
+					}
+					else {
+						const macrosObj = value as any
+						for (const name of Object.keys(macrosObj)) {
+							const lines = macrosObj[name]
+							if (!Array.isArray(lines)) {
+								macrosLower = null
+								break
+							}
+							macrosLower[name.toLowerCase()] = lines
+						}
+					}
+					if (!macrosLower) {
+						outErrors.push(`Invalid macro property: '${value}'`)
+						return {branchGraphDef: null, config: defaultConfigForWholeBot}
+					}
+					value = macrosLower
+				}
+				(defaultConfigForWholeBot as any)[key] = value
+			}
 		}
+
+
 
 		if (defaultConfigForWholeBot.defaultIntegrationMethod) {
 			BranchDefs.checkValidIntegrationMethod(outErrors, defaultConfigForWholeBot.defaultIntegrationMethod, 'config')
