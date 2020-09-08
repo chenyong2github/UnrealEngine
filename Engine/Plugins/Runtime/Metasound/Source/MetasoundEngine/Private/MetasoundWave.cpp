@@ -5,20 +5,12 @@
 #include "IAudioCodec.h"
 #include "IAudioCodecRegistry.h"
 #include "Sound/SoundWave.h"
+#include "DecoderInputFactory.h"
+#include "AudioDeviceManager.h"
+#include "AudioDevice.h"
 
 namespace Metasound
 {	
-	// Simple for now, just wrap around the TArray<uint8>
-	class FWaveDecoderInput : public Audio::FDecoderInputArrayView
-	{
-		FWaveReadRef WaveRef;	// These are not thread safe, and will need to be
-	public:
-		FWaveDecoderInput(const FWaveReadRef& InWaveRef)
-			: Audio::FDecoderInputArrayView(MakeArrayView(InWaveRef->CompressedBytes.GetData(), InWaveRef->CompressedBytes.Num()), 0)
-			, WaveRef(InWaveRef)
-		{}
-	};
-
 	// Small RAII helper.
 	struct FScopedBulkDataLock
 	{
@@ -88,22 +80,19 @@ namespace Metasound
 #endif //WITH_EDITORONLY_DATA
 	}
 	
-	FWave::FWave(USoundWave* InWave) 
-	{
-		DoInlineEncode(InWave,CompressedBytes);
-	}
 
-	FWave::FWave(const TArray<uint8>& InBytes) 
-		: CompressedBytes(InBytes)
-	{
-	}
+	FWaveAsset::FDecoderInputPtr FWaveAsset::CreateDecoderInput(const FWaveAssetReadRef& InWaveRef)
+	{				
+		FName OldFormat = FAudioDeviceManager::Get()->GetActiveAudioDevice()->GetRuntimeFormat(
+			const_cast<USoundWave*>(InWaveRef->GetSoundWave())
+		);
 
-	FWave::FDecoderInputPtr FWave::CreateDecoderInput(const FWaveReadRef& InWaveRef)
-	{
-		if( InWaveRef->CompressedBytes.Num() > 0)
-		{
-			return MakeShared<FWaveDecoderInput, ESPMode::ThreadSafe>(InWaveRef);
-		}
+		TUniquePtr<Audio::IDecoderInput> Input = Audio::CreateBackCompatDecoderInput(
+			OldFormat,
+			InWaveRef->GetSoundWave()
+		);		
+		return FWaveAsset::FDecoderInputPtr(Input.Release());
+
 		return nullptr;
 	}
 }

@@ -16,7 +16,8 @@ namespace UnrealBuildTool.Rules
 					"Core",
 					"MetasoundGraphCore",
 					"MetasoundGenerator",
-					"AudioExtensions"
+					"AudioExtensions",
+					"AudioCodecEngine"
 				}
 			);
 

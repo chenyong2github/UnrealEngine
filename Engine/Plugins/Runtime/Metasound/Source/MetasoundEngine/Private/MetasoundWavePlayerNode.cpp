@@ -35,7 +35,7 @@ namespace Metasound
 		// Silent setup
 		FWavePlayerOperator(
 			const FOperatorSettings& InSettings, 
-			const FWaveReadRef& InWave )
+			const FWaveAssetReadRef& InWave )
 			: OperatorSettings(InSettings)
 			, Wave(InWave)
 			, AudioBuffer(FAudioBufferWriteRef::CreateNew(InSettings))
@@ -46,8 +46,8 @@ namespace Metasound
 		
 		FWavePlayerOperator(
 			const FOperatorSettings& InSettings,
-			const FWaveReadRef& InWave, 
-			FWave::FDecoderInputPtr&& InDecoderInput, 
+			const FWaveAssetReadRef& InWave, 
+			FWaveAsset::FDecoderInputPtr&& InDecoderInput, 
 			TUniquePtr<Audio::IDecoderOutput>&& InDecoderOutput,
 			TUniquePtr<Audio::IDecoder>&& InDecoder )
 			: OperatorSettings(InSettings)
@@ -107,25 +107,24 @@ namespace Metasound
 	private:
 		const FOperatorSettings OperatorSettings;
 
-		FWaveReadRef Wave;
+		FWaveAssetReadRef Wave;
 		FAudioBufferWriteRef AudioBuffer;
 		FDataReferenceCollection InputDataReferences;
 		FDataReferenceCollection OutputDataReferences;
 
 		// Decoder/IO. 
 		Audio::ICodec::FDecoderPtr Decoder;
-		FWave::FDecoderInputPtr DecoderInput;
+		FWaveAsset::FDecoderInputPtr DecoderInput;
 		TUniquePtr<Audio::IDecoderOutput> DecoderOutput;
 	};
 
 	const FNodeInfo FWavePlayerNode::Info = FNodeInfo(
-		{
-			FName(TEXT("Wave")),
-			LOCTEXT("Metasound_WavePlayerNodeDescription", "Plays a supplied Wave"),
-			PluginAuthor,
-			PluginNodeMissingPrompt
-		}
-	);
+	{
+		FName(TEXT("Wave Player")),
+		LOCTEXT("Metasound_WavePlayerNodeDescription", "Plays a supplied Wave"),
+		PluginAuthor,
+		PluginNodeMissingPrompt
+	});
 
 	TUniquePtr<IOperator> FWavePlayerNode::FOperatorFactory::CreateOperator(
 		const FCreateOperatorParams& InParams, 
@@ -137,16 +136,20 @@ namespace Metasound
 
 		const FDataReferenceCollection& InputCol = InParams.InputDataReferences;
 
-		FWaveReadRef Wave = InputCol.GetDataReadReferenceOrConstruct<FWave>(TEXT("Wave"));
+		FWaveAssetReadRef Wave = InputCol.GetDataReadReferenceOrConstruct<FWaveAsset>(TEXT("Wave"));
 
-		FWave::FDecoderInputPtr Input = FWave::CreateDecoderInput(Wave);
+		FWaveAsset::FDecoderInputPtr Input = FWaveAsset::CreateDecoderInput(Wave);
 		if (Input)
 		{
 			ICodecRegistry::FCodecPtr Codec = ICodecRegistry::Get().FindCodecByParsingInput(Input.Get());
 			if (Codec)
 			{
-				// V1, Ask for an output buffer the size of a frame.
-				IDecoderOutput::FRequirements Reqs { Float32_Interleaved, InParams.OperatorSettings.GetNumFramesPerBlock() };
+				IDecoderOutput::FRequirements Reqs 
+				{ 
+					Float32_Interleaved, 
+					InParams.OperatorSettings.GetNumFramesPerBlock(), 
+					InParams.OperatorSettings.GetSampleRate() 
+				};
 				TUniquePtr<IDecoderOutput> Output = IDecoderOutput::Create(Reqs);
 				TUniquePtr<IDecoder> Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
 
@@ -178,7 +181,7 @@ namespace Metasound
 		:	FNode(InName, FWavePlayerNode::Info)
 		,	Factory(MakeOperatorFactoryRef<FWavePlayerNode::FOperatorFactory>())
 	{
-		Interface.GetInputInterface().Add(TInputDataVertexModel<FWave>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded")));
+		Interface.GetInputInterface().Add(TInputDataVertexModel<FWaveAsset>(TEXT("Wave"), LOCTEXT("WaveTooltip", "The Wave to be decoded")));
 		Interface.GetOutputInterface().Add(TOutputDataVertexModel<FAudioBuffer>(TEXT("Audio"), LOCTEXT("AudioTooltip", "The output audio")));
 	}
 

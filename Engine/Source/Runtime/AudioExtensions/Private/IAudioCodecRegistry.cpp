@@ -202,14 +202,24 @@ namespace Audio
 				return nullptr;
 			}
 
-			FCodecPtr Ptr = FindCodecByFamilyName(
-				Format.CodecFamilyName,
+			FCodecPtr Ptr = FindCodecByName(
+				Format.CodecName,
 				Format.CodecVersion);
 
 			if( Ptr )
 			{
 				return Ptr;
 			}
+
+			FCodecPtr FamilyPtr = FindCodecByFamilyName(
+				Format.CodecFamilyName,
+				Format.CodecVersion);
+			
+			if (FamilyPtr)
+			{
+				return FamilyPtr;
+			}
+
 
 			// Fail.
 			return nullptr;		

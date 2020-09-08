@@ -40,18 +40,6 @@ namespace Audio
 	public:
 		FFcc() = default;
 
-#if 0 // Clang doesn't like this.
-		template<uint32 N>
-		constexpr FFcc(const char(&InStr)[N])
-			: Value(0)
-		{
-			static_assert(N <= 5, "Four Or Less Characters Strings Only");
-			for (uint32 i = 0, Shift = 0; i < N; ++i, Shift += 8)
-			{
-				Value |= static_cast<uint32>(InStr[i] << Shift);
-			}
-		}
-#endif 
 		constexpr FFcc(const char One, const char Two, const char Three, const char Four)
 		{
 			Value = static_cast<uint32>(One) |
@@ -139,8 +127,9 @@ namespace Audio
 	{	
 		struct FRequirements
 		{
-			EBitRepresentation DownstreamFormat	= Float32_Interleaved;	// Our pipeline is all float downstream, so this might not be necessary.
+			EBitRepresentation DownstreamFormat	= Float32_Interleaved;	
 			int32 NumSampleFramesWanted			= 256;
+			int32 NumSampleFramesPerSecond		= 48000;
 		};
 
 		// Factory.
@@ -219,9 +208,6 @@ namespace Audio
 
 	struct AUDIOEXTENSIONS_API FCodecFeatures
 	{	
-		bool HasFeature(FName Feature) const { return true; }
-		void GetFeatures(TArray<FName>& OutFeatureNames) const {}
-
 		enum EFeatureBitField
 		{
 			HwDecode,
@@ -235,13 +221,12 @@ namespace Audio
 			HasDecoder,
 			HasEncoder,
 		};
-		uint32_t FeaturesBitField;		// Store as bitfield.
+		uint32_t FeaturesBitField = 0;		// Store as bitfield.
 
 		bool HasFeature(EFeatureBitField InBit) const { return ( FeaturesBitField & (uint32)InBit); };
 
-		FCodecFeatures(std::initializer_list<EFeatureBitField> InitList)
+		constexpr FCodecFeatures(std::initializer_list<EFeatureBitField> InitList)
 		{
-			FeaturesBitField = 0;
 			for (EFeatureBitField i : InitList)
 			{
 				FeaturesBitField |= 1 << i;
@@ -748,25 +733,13 @@ namespace Audio
 		{}
 	};
 
-	struct AUDIOEXTENSIONS_API ICodec : public IModularFeature
+	struct AUDIOEXTENSIONS_API ICodec 
 	{
 		virtual ~ICodec() {}
 
-		static FName GetModularFeatureName() 
-		{ 
-			static const FName sName = TEXT("AudioCodec"); 
-			return sName; 
-		}	
-
-		// TODO. Add lifetime subscription delegates.
-		// OnDecoderCreated 
-		// OnEncoderCreated
-		// OnStaticInit
-		// OnStaticDeint
-		
 		// Query.
-		virtual bool SupportsPlatform(FName InPlatformName) const = 0;		// This could move to the details.
-		virtual const FCodecDetails& GetDetails() const = 0;				// Name/Version/ImplName/Features.
+		virtual bool SupportsPlatform(FName InPlatformName) const = 0;	
+		virtual const FCodecDetails& GetDetails() const = 0;			
 		FName GetName() const { return GetDetails().Name; };
 
 		// Factory for encoders
@@ -785,28 +758,7 @@ namespace Audio
 		{ 
 			return nullptr; 
 		}			
-
-	protected:
-		// Register Modular features.
-		void RegisterModularFeature() { IModularFeatures::Get().RegisterModularFeature(ICodec::GetModularFeatureName(), this); }
-		void UnRegisterModularFeature() { IModularFeatures::Get().UnregisterModularFeature(ICodec::GetModularFeatureName(), this); }
 	};
-
-	// template this with the codec class.
-	// Convenience class for when you have just one codec in a module.
-	struct AUDIOEXTENSIONS_API IAudioCodecModule : public ICodec,
-												   public IModuleInterface
-	{
-		virtual void StartupModule() override
-		{
-			RegisterModularFeature();
-		}
-		virtual void ShutdownModule() override
-		{
-			UnRegisterModularFeature();
-		}
-	};
-
 } // namespace Audio
 
 #pragma endregion Codec
