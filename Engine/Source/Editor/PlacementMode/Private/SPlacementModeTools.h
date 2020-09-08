@@ -9,7 +9,7 @@
 #include "Widgets/SCompoundWidget.h"
 #include "ActorPlacementInfo.h"
 #include "IPlacementModeModule.h"
-#include "Widgets/Input/SSegmentedControl.h"
+#include "Widgets/Layout/SUniformWrapPanel.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Misc/TextFilter.h"
@@ -97,7 +97,7 @@ private:
 
 	/** When the tab is clicked we adjust the check state, so that the right style is displayed. */
 	void OnPlacementTabChanged( ECheckBoxState NewState, FName CategoryName );
-	void OnCategoryChanged(FName InCategory);
+	void OnCategoryChanged(const ECheckBoxState NewState, FName InCategory);
 
 	/** Gets the tab 'active' state, so that we can show the active style */
 	ECheckBoxState GetPlacementTabCheckedState( FName CategoryName ) const;
@@ -144,7 +144,7 @@ private:
 	TSharedPtr<SSearchBox> SearchBoxPtr;
 
 	/* Category Filter */
-	TSharedPtr<SSegmentedControl<FName>> CategoryFilterPtr;
+	TSharedPtr<SUniformWrapPanel> CategoryFilterPtr;
 
 	/* Active Category Filter Label */
 	TSharedPtr<STextBlock> FilterLabelPtr;

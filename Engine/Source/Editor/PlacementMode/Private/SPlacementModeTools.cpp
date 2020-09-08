@@ -322,10 +322,9 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 		FPlacementAssetEntryTextFilter::FItemToStringArray::CreateStatic(&PlacementViewFilter::GetBasicStrings)
 		));
 
-	SAssignNew(CategoryFilterPtr, SSegmentedControl<FName>)
-	.Style(&FAppStyle::Get(), "PlacementBrowser.CategoryControl")
-    .OnValueChanged(this, &SPlacementModeTools::OnCategoryChanged)
-    .Value_Lambda( [this] { return ActiveTabName; } );
+	SAssignNew(CategoryFilterPtr, SUniformWrapPanel)
+	.HAlign(HAlign_Center)
+	.SlotPadding(FMargin(2.0f, 0.0f));
 
 	// Populate the categories and body from the defined placeable items
 	IPlacementModeModule& PlacementModeModule = IPlacementModeModule::Get();
@@ -334,7 +333,20 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 	PlacementModeModule.GetSortedCategories(Categories);
 	for (const FPlacementCategoryInfo& Category : Categories)
 	{
-		CategoryFilterPtr->AddSlot(Category.UniqueHandle).Icon(Category.DisplayIcon.GetIcon());// .Text(Category.DisplayName);
+		CategoryFilterPtr->AddSlot()
+		[
+			SNew(SCheckBox)
+			.Padding(FMargin(4.f, 4.f))
+			.Style( &FAppStyle::Get(),  "PaletteToolBar.Tab" )
+			.OnCheckStateChanged(this, &SPlacementModeTools::OnCategoryChanged, Category.UniqueHandle)
+			.IsChecked(this, &SPlacementModeTools::GetPlacementTabCheckedState, Category.UniqueHandle)
+			.ToolTipText(Category.DisplayName)
+			[
+				  SNew(SImage)
+	              .ColorAndOpacity(FSlateColor::UseForeground())
+	              .Image(Category.DisplayIcon.GetIcon())
+			]
+		];
 	}
 
 	TSharedRef<SScrollBar> ScrollBar = SNew(SScrollBar)
@@ -360,11 +372,12 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 
 		+ SVerticalBox::Slot()
 		.AutoHeight()
+		.HAlign(HAlign_Fill)
 		[
 			SNew(SBorder)
 			.BorderImage(FEditorStyle::GetBrush("ToolPanel.GroupBorder"))
 			.Padding(FMargin(8.f, 6.f, 8.f, 8.f))
-			.HAlign(HAlign_Center)
+			.HAlign(HAlign_Fill)
 			.Visibility(this, &SPlacementModeTools::GetTabsVisibility)
 			[
 				CategoryFilterPtr.ToSharedRef()
@@ -564,9 +577,9 @@ TSharedRef<ITableRow> SPlacementModeTools::OnGenerateWidgetForItem(TSharedPtr<FP
 		];
 }
 
-void SPlacementModeTools::OnCategoryChanged(FName InCategory)
+void SPlacementModeTools::OnCategoryChanged(const ECheckBoxState NewState, FName InCategory)
 {
-	if (InCategory != ActiveTabName)
+	if (NewState == ECheckBoxState::Checked && InCategory != ActiveTabName)
 	{
 		ActiveTabName = InCategory;
 		IPlacementModeModule::Get().RegenerateItemsForCategory(ActiveTabName);
