@@ -33,6 +33,7 @@ namespace UnrealBuildTool
 		/// Whether debug info should be written to the console.
 		/// </summary>
 		[XmlConfigFile]
+		[CommandLine("-PrintDebugInfo", Value = "true")]
 		public bool bPrintDebugInfo = false;
 
 		/// <summary>

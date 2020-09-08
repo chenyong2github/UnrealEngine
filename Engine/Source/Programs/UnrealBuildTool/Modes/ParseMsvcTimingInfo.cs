@@ -105,7 +105,7 @@ namespace UnrealBuildTool
 			Summary.AddChild(SummarizeParsedTimingData("FunctionTimings", TimingDataType.Function, Functions));
 
 			// Write out the timing binary file.
-			using (BinaryWriter Writer = new BinaryWriter(File.Open(InputFile.ChangeExtension(".timing.bin").FullName, FileMode.Create)))
+			using (BinaryWriter Writer = new BinaryWriter(File.Open(InputFile.ChangeExtension(".cta").FullName, FileMode.Create)))
 			{
 				Writer.Write(Summary);
 			}

@@ -47,7 +47,8 @@ namespace UnrealBuildTool
 			GroupTimingDataOnName(AggregateData, "Function Timings", AggregateFunctions);
 
 			// Write out aggregate summary.
-			string OutputFile = Path.Combine(ManifestFile.Directory.FullName, String.Format("{0}.timing.bin", AggregateName));
+			string OutputFile = Path.Combine(ManifestFile.Directory.FullName, String.Format("{0}.cta", AggregateName));
+			Log.TraceLog("Writing {0}", OutputFile);
 			using (BinaryWriter Writer = new BinaryWriter(File.Open(OutputFile, FileMode.Create)))
 			{
 				// Write out the aggregate data.
@@ -104,6 +105,7 @@ namespace UnrealBuildTool
 
 		private void ParseTimingDataFile(string ParsedFileName)
 		{
+			Log.TraceLog("Parsing {0}", ParsedFileName);
 			// Convert input file back into summary objects.
 			using (BinaryReader Reader = new BinaryReader(File.Open(ParsedFileName, FileMode.Open, FileAccess.Read)))
 			{

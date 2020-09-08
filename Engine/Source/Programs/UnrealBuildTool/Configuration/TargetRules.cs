@@ -861,6 +861,7 @@ namespace UnrealBuildTool
 		/// incremental compile times. The current implementation uses the read-only flag to distinguish the working set, assuming that files will
 		/// be made writable by the source control system if they are being modified. This is true for Perforce, but not for Git.
 		/// </summary>
+		[CommandLine("-DisableAdaptiveUnity", Value = "false")]
 		[XmlConfigFile(Category = "BuildConfiguration")]
 		public bool bUseAdaptiveUnityBuild = true;
 
