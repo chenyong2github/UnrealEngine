@@ -709,6 +709,7 @@ public:
 #if WITH_EDITOR
 	ENGINE_API static bool GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds);
 	ENGINE_API static bool GetIsLevelPartitionedFromPackage(FName LevelPackage);
+	ENGINE_API static bool GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage);
 #endif
 
 private:

@@ -7725,6 +7725,12 @@ void UWorld::GetAssetRegistryTags(TArray<FAssetRegistryTag>& OutTags) const
 			static const FName NAME_LevelIsPartitioned(TEXT("LevelIsPartitioned"));
 			OutTags.Add(FAssetRegistryTag(NAME_LevelIsPartitioned, TEXT("1"), FAssetRegistryTag::TT_Hidden));
 		}
+
+		if (PersistentLevel->IsUsingExternalActors())
+		{
+			static const FName NAME_LevelIsUsingExternalActors(TEXT("LevelIsUsingExternalActors"));
+			OutTags.Add(FAssetRegistryTag(NAME_LevelIsUsingExternalActors, TEXT("1"), FAssetRegistryTag::TT_Hidden));
+		}
 	}
 
 	// Get the full file path with extension

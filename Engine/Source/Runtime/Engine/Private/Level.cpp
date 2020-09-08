@@ -1745,6 +1745,21 @@ bool ULevel::GetIsLevelPartitionedFromPackage(FName LevelPackage)
 	});
 }
 
+bool ULevel::GetIsLevelUsingExternalActorsFromPackage(FName LevelPackage)
+{
+	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [](const FAssetData& Asset)
+	{
+		FString LevelIsUsingExternalActorsStr;
+		static const FName NAME_LevelIsUsingExternalActors(TEXT("LevelIsUsingExternalActors"));
+		if (Asset.GetTagValue(NAME_LevelIsUsingExternalActors, LevelIsUsingExternalActorsStr))
+		{
+			check(LevelIsUsingExternalActorsStr == TEXT("1"));
+			return true;
+		}
+		return false;
+	});
+}
+
 bool ULevel::GetLevelBoundsFromPackage(FName LevelPackage, FBox& OutLevelBounds)
 {
 	return LevelAssetRegistryHelper::GetLevelInfoFromAssetRegistry(LevelPackage, [&OutLevelBounds](const FAssetData& Asset)
