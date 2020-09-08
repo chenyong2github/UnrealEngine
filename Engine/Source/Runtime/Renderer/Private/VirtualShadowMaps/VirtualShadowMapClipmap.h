@@ -20,7 +20,7 @@ public:
 		FVirtualShadowMapArray& VirtualShadowMapArray,
 		FVirtualShadowMapArrayCacheManager* VirtualShadowMapArrayCacheManager,
 		const FLightSceneInfo& InLightSceneInfo,
-		const FMatrix& WorldToLight,
+		const FMatrix& WorldToLightRotationMatrix,
 		const FViewMatrices& CameraViewMatrices,
 		float MaxRadius		// Maximum radius the clipmap must cover from the center point; used to compute level count
 	);
@@ -65,7 +65,8 @@ private:
 	* */
 	FVector WorldOrigin;
 
-	FMatrix TranslatedWorldToView;
+	/** Directional light rotation matrix (no translation) */
+	FMatrix WorldToViewRotationMatrix;
 
 	int32 FirstLevel;
 	float ResolutionLodBias;
