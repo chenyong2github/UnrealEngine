@@ -207,12 +207,6 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 		SetLevelEditorInstance(LevelEditorTmp);
 		LevelEditorTmp->Initialize(LevelEditorTab, OwnerWindow.ToSharedRef());
 
-		if (GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-		{
-			GLevelEditorModeTools().RemoveDefaultMode(FBuiltinEditorModes::EM_Default);
-			GLevelEditorModeTools().AddDefaultMode(FBuiltinEditorModes::EM_Placement);
-		}
-
 		GLevelEditorModeTools().DeactivateAllModes();
 		GLevelEditorModeTools().ActivateDefaultMode();
 
@@ -221,15 +215,6 @@ TSharedRef<SDockTab> FLevelEditorModule::SpawnLevelEditor( const FSpawnTabArgs& 
 			// In legacy mode this toolbox should always be open
 			static const FTabId ToolboxTabId("LevelEditorToolBox");
 			LevelEditorTabManager->TryInvokeTab(ToolboxTabId);
-
-			// In legacy mode the standalone placement browser tab should not be opened
-			static const FTabId PlacementBrowserTabId("PlacementBrowser");
-			TSharedPtr<SDockTab> PlacementBrowserTab = LevelEditorTabManager->FindExistingLiveTab(PlacementBrowserTabId);
-			if (PlacementBrowserTab.IsValid())
-			{
-				PlacementBrowserTab->RequestCloseTab();
-
-			}
 		}
 
 		LevelEditorCreatedEvent.Broadcast(LevelEditorTmp);

@@ -56,7 +56,6 @@
 #include "SnappingUtils.h"
 #include "LevelEditorViewport.h"
 #include "Layers/LayersSubsystem.h"
-#include "IPlacementMode.h"
 #include "IPlacementModeModule.h"
 #include "AssetSelection.h"
 #include "IDocumentation.h"

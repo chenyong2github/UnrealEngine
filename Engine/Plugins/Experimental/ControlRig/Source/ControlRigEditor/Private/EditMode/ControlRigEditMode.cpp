@@ -904,10 +904,6 @@ bool FControlRigEditMode::ShouldDrawWidget() const
 
 bool FControlRigEditMode::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
-	if (OtherModeID == FBuiltinEditorModes::EM_Placement)
-	{
-		return false;
-	}
 	return true;
 }
 

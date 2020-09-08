@@ -275,8 +275,8 @@ void UVREditorMode::Enter()
 		}
 	}
 
-	// Switch us back to placement mode and close any open sequencer windows
-	FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Placement);
+	// Switch us back to default mode and close any open sequencer windows
+	FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Default);
 	FLevelEditorModule& LevelEditorModule = FModuleManager::GetModuleChecked<FLevelEditorModule>(TEXT("LevelEditor"));
 	LevelEditorModule.GetLevelEditorTabManager()->TryInvokeTab(FTabId("Sequencer"))->RequestCloseTab();
 
@@ -363,7 +363,7 @@ void UVREditorMode::Exit(const bool bShouldDisableStereo)
 		GetLevelViewportPossessedForVR().RemoveAllPreviews(false);
 		GEditor->SelectNone(true, true, false);
 		GEditor->NoteSelectionChange();
-		FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Placement);
+		FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Default);
 		
 		//Destroy the avatar
 		{

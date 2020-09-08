@@ -1867,7 +1867,7 @@ void UVREditorUISystem::ResetAll()
 			ShowEditorUIPanel(FloatingUI, UIInteractor, bShouldShow, bSpawnInFront, bDragFromOpen, bPlaySound);
 		}
 	}
-	FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Placement);
+	FVREditorActionCallbacks::ChangeEditorModes(FBuiltinEditorModes::EM_Default);
 
 	// Turn off all snapping
 	if (FVREditorActionCallbacks::GetTranslationSnapState() == ECheckBoxState::Checked)

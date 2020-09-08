@@ -45,7 +45,6 @@
 #include "AssetRegistryModule.h"
 #include "ActorPlacementInfo.h"
 #include "IPlacementModeModule.h"
-#include "PlacementMode.h"
 #include "AssetToolsModule.h"
 #include "Kismet2/KismetEditorUtilities.h"
 #include "ActorFactories/ActorFactoryPlanarReflection.h"
@@ -83,12 +82,6 @@ void FPlacementModeModule::StartupModule()
 	{
 		RecentlyPlaced.Add(FActorPlacementInfo(RecentlyPlacedAsStrings[Index]));
 	}
-
-	FEditorModeRegistry::Get().RegisterMode<FPlacementMode>(
-		FBuiltinEditorModes::EM_Placement,
-		NSLOCTEXT("PlacementMode", "DisplayName", "Place"),
-		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.PlacementMode", "LevelEditor.PlacementMode.Small"),
-		GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI, 0);
 
 	FAssetRegistryModule& AssetRegistryModule = FModuleManager::LoadModuleChecked<FAssetRegistryModule>(TEXT("AssetRegistry"));
 	AssetRegistryModule.Get().OnAssetRemoved().AddRaw(this, &FPlacementModeModule::OnAssetRemoved);
@@ -221,8 +214,6 @@ void FPlacementModeModule::StartupModule()
 
 void FPlacementModeModule::PreUnloadCallback()
 {
-	FEditorModeRegistry::Get().UnregisterMode(FBuiltinEditorModes::EM_Placement);
-
 	FAssetRegistryModule* AssetRegistryModule = FModuleManager::GetModulePtr<FAssetRegistryModule>("AssetRegistry");
 	if (AssetRegistryModule)
 	{

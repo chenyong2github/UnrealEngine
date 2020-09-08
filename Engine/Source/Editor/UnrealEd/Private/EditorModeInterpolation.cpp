@@ -190,9 +190,7 @@ void FEdModeInterpEdit::ActorSelectionChangeNotify()
 
 bool FEdModeInterpEdit::IsCompatibleWith(FEditorModeID OtherModeID) const
 {
-	return
-		OtherModeID == FBuiltinEditorModes::EM_Placement ||
-		OtherModeID == FBuiltinEditorModes::EM_MeshPaint;
+	return OtherModeID == FBuiltinEditorModes::EM_MeshPaint;
 }
 
 //////////////////////////////////////////////////////////////////////////

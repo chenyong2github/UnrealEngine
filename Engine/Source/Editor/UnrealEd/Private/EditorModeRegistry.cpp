@@ -43,30 +43,21 @@ TSharedRef<FEdMode> FEditorModeFactory::CreateMode() const
 
 void FEditorModeRegistry::Initialize()
 {
-	// Send notifications for any legacy modes that were registered before the asset subsytem started up
+	// Send notifications for any legacy modes that were registered before the asset subsystem started up
 	UAssetEditorSubsystem* AssetEditorSubsystem = GEditor->GetEditorSubsystem<UAssetEditorSubsystem>();
 	for (const FactoryMap::ElementType& ModeEntry : ModeFactories)
 	{
 		AssetEditorSubsystem->OnEditorModeRegistered().Broadcast(ModeEntry.Key);
 	}
 
-	if(!GetDefault<UEditorStyleSettings>()->bEnableLegacyEditorModeUI)
-	{
-		// Add default editor modes
-		RegisterMode<FEdModeDefault>(
-			FBuiltinEditorModes::EM_Default,
-			NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
-			FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
-			true, 0);
-	}
-	else
-	{
-		RegisterMode<FEdModeDefault>(FBuiltinEditorModes::EM_Default);
-	}
-
+	// Add default editor modes
+	RegisterMode<FEdModeDefault>(
+		FBuiltinEditorModes::EM_Default,
+		NSLOCTEXT("DefaultMode", "DisplayName", "Select"),
+		FSlateIcon(FEditorStyle::GetStyleSetName(), "LevelEditor.SelectMode", "LevelEditor.SelectMode.Small"),
+		true, 0);
 	RegisterMode<FEdModeInterpEdit>(FBuiltinEditorModes::EM_InterpEdit);
 
-	FModuleManager::LoadModuleChecked<IPlacementModeModule>(TEXT("PlacementMode"));
 	FModuleManager::LoadModuleChecked<FActorPickerModeModule>(TEXT("ActorPickerMode"));
 	FModuleManager::LoadModuleChecked<FSceneDepthPickerModeModule>(TEXT("SceneDepthPickerMode"));
 	FModuleManager::LoadModuleChecked<IMeshPaintModule>(TEXT("MeshPaintMode"));

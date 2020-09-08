@@ -11,7 +11,6 @@
 #include "Modules/ModuleManager.h"
 #include "ActorFactories/ActorFactory.h"
 #include "ActorPlacementInfo.h"
-#include "IPlacementMode.h"
 #include "GameFramework/Volume.h"
 #include "Editor.h"
 
@@ -230,34 +229,20 @@ public:
 	/**
 	 * @return the event that is broadcast whenever a placement mode category is refreshed
 	 */
-	DECLARE_EVENT_OneParam( IPlacementMode, FOnPlacementModeCategoryRefreshed, FName /*CategoryName*/ );
+	DECLARE_EVENT_OneParam( IPlacementModeModule, FOnPlacementModeCategoryRefreshed, FName /*CategoryName*/ );
 	virtual FOnPlacementModeCategoryRefreshed& OnPlacementModeCategoryRefreshed() = 0;
 
 	/**
 	 * @return the event that is broadcast whenever the list of recently placed assets changes
 	 */
-	DECLARE_EVENT_OneParam( IPlacementMode, FOnRecentlyPlacedChanged, const TArray< FActorPlacementInfo >& /*NewRecentlyPlaced*/ );
+	DECLARE_EVENT_OneParam( IPlacementModeModule, FOnRecentlyPlacedChanged, const TArray< FActorPlacementInfo >& /*NewRecentlyPlaced*/ );
 	virtual FOnRecentlyPlacedChanged& OnRecentlyPlacedChanged() = 0;
 
 	/**
 	 * @return the event that is broadcast whenever the list of all placeable assets changes
 	 */
-	DECLARE_EVENT( IPlacementMode, FOnAllPlaceableAssetsChanged );
+	DECLARE_EVENT( IPlacementModeModule, FOnAllPlaceableAssetsChanged );
 	virtual FOnAllPlaceableAssetsChanged& OnAllPlaceableAssetsChanged() = 0;
-
-	/**
-	 * @return the event that is broadcast whenever a placement mode enters a placing session
-	 */
-	DECLARE_EVENT_OneParam( IPlacementMode, FOnStartedPlacingEvent, const TArray< UObject* >& /*Assets*/ );
-	virtual FOnStartedPlacingEvent& OnStartedPlacing() = 0;
-	virtual void BroadcastStartedPlacing( const TArray< UObject* >& Assets ) = 0;
-
-	/**
-	 * @return the event that is broadcast whenever a placement mode exits a placing session
-	 */
-	DECLARE_EVENT_OneParam( IPlacementMode, FOnStoppedPlacingEvent, bool /*bWasSuccessfullyPlaced*/ );
-	virtual FOnStoppedPlacingEvent& OnStoppedPlacing() = 0;
-	virtual void BroadcastStoppedPlacing( bool bWasSuccessfullyPlaced ) = 0;
 
 	/**
 	 * Creates the placement browser widget

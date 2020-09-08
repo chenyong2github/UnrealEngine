@@ -13,7 +13,6 @@
 #include "EditorModes.h"
 #include "AssetThumbnail.h"
 #include "LevelEditor.h"
-#include "PlacementMode.h"
 #include "DragAndDrop/AssetDragDropOp.h"
 #include "EditorClassUtils.h"
 #include "Widgets/Input/SSearchBox.h"
@@ -318,13 +317,6 @@ void SPlacementModeTools::Construct( const FArguments& InArgs )
 
 	static const FName PlacementBrowserActiveTabBarBrushName("PlacementBrowser.ActiveTabBar");
 	PlacementBrowserActiveTabBarBrush = FEditorStyle::GetBrush(PlacementBrowserActiveTabBarBrushName);
-
-
-	FPlacementMode* PlacementEditMode = (FPlacementMode*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Placement );
-	if (PlacementEditMode)
-	{
-		PlacementEditMode->AddValidFocusTargetForPlacement(SharedThis(this));
-	}
 
 	SearchTextFilter = MakeShareable(new FPlacementAssetEntryTextFilter(
 		FPlacementAssetEntryTextFilter::FItemToStringArray::CreateStatic(&PlacementViewFilter::GetBasicStrings)
@@ -642,24 +634,6 @@ void SPlacementModeTools::Tick( const FGeometry& AllottedGeometry, const double 
 	{
 		UpdateFilteredItems();
 	}
-}
-
-FReply SPlacementModeTools::OnKeyDown( const FGeometry& MyGeometry, const FKeyEvent& InKeyEvent )
-{
-	FReply Reply = FReply::Unhandled();
-
-	if ( InKeyEvent.GetKey() == EKeys::Escape )
-	{
-		FPlacementMode* PlacementEditMode = (FPlacementMode*)GLevelEditorModeTools().GetActiveMode( FBuiltinEditorModes::EM_Placement );
-		// Catch potential nullptr
-		if (ensureMsgf(PlacementEditMode, TEXT("PlacementEditMode was null, but SPlacementModeTools is still accepting KeyDown events")))
-		{
-			PlacementEditMode->StopPlacing();
-		}
-		Reply = FReply::Handled();
-	}
-
-	return Reply;
 }
 
 void SPlacementModeTools::OnSearchChanged(const FText& InFilterText)

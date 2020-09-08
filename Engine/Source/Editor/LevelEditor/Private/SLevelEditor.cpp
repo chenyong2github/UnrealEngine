@@ -1456,14 +1456,6 @@ void SLevelEditor::ToggleEditorMode( FEditorModeID ModeID )
 
 bool SLevelEditor::IsModeActive( FEditorModeID ModeID )
 {
-	// The level editor changes the default mode to placement
-	if ( ModeID == FBuiltinEditorModes::EM_Placement )
-	{
-		if (!GLevelEditorModeTools().IsOnlyVisibleActiveMode(ModeID))
-		{
-			return false;
-		}
-	}
 	return GLevelEditorModeTools().IsModeActive( ModeID );
 }
 
@@ -1535,7 +1527,7 @@ void SLevelEditor::RefreshEditorModeCommands()
 				Commands.EditorModeCommands[CommandIndex],
 				FExecuteAction::CreateStatic( &SLevelEditor::ToggleEditorMode, Mode.ID ),
 				FCanExecuteAction(),
-				FIsActionChecked::CreateStatic( &SLevelEditor::IsModeActive, Mode.ID ));
+				FIsActionChecked::CreateSP( GetEditorModeManager().AsShared(), &FEditorModeTools::IsModeActive, Mode.ID ));
 		}
 
 		CommandIndex++;

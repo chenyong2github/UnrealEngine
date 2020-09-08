@@ -181,6 +181,7 @@ private:
 	static void ToggleEditorMode( FEditorModeID ModeID );
 
 	/** Checks if the editor mode is active for the auto-generated editor mode command. */
+	UE_DEPRECATED(5.0, "Use GLevelEditorModeTools().IsModeActive.")
 	static bool IsModeActive( FEditorModeID ModeID );
 
 	/**
