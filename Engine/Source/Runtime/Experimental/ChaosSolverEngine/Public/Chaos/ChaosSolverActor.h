@@ -4,30 +4,37 @@
 
 /** This class represents an ChaosSolver Actor. */
 
+#include "CoreMinimal.h"
+#include "Engine/EngineTypes.h"
+#include "GameFramework/Actor.h"
+#include "Components/BillboardComponent.h"
+#include "UObject/ObjectMacros.h"
 #include "Chaos/ChaosSolver.h"
 #include "Chaos/ChaosSolverComponentTypes.h"
 #include "Chaos/ClusterCreationParameters.h"
-#include "Components/BillboardComponent.h"
-#include "CoreMinimal.h"
-#include "GameFramework/Actor.h"
 #include "Physics/Experimental/PhysScene_Chaos.h"
-#include "UObject/ObjectMacros.h"
+#include "ChaosSolverConfiguration.h"
 #include "SolverEventFilters.h"
-
-#include "Engine/EngineTypes.h"
 
 #include "ChaosSolverActor.generated.h"
 
 class UChaosGameplayEventDispatcher;
 
+namespace Chaos
+{
+	template<typename, int>
+	class TGeometryParticle;
+}
+
+/** Legacy enum for old deprecated configuration properties. To be removed when those properties are */
 UENUM()
 enum class EClusterConnectionTypeEnum : uint8
 {
-	Chaos_PointImplicit = Chaos::FClusterCreationParameters<float>::PointImplicit UMETA(DisplayName = "PointImplicit"),
-	Chaos_DelaunayTriangulation = Chaos::FClusterCreationParameters<float>::DelaunayTriangulation UMETA(DisplayName = "DelaunayTriangulation"),
-	Chaos_MinimalSpanningSubsetDelaunayTriangulation = Chaos::FClusterCreationParameters<float>::MinimalSpanningSubsetDelaunayTriangulation UMETA(DisplayName = "MinimalSpanningSubsetDelaunayTriangulation"),
-	Chaos_PointImplicitAugmentedWithMinimalDelaunay = Chaos::FClusterCreationParameters<float>::PointImplicitAugmentedWithMinimalDelaunay UMETA(DisplayName = "PointImplicitAugmentedWithMinimalDelaunay"),
-	Chaos_None = Chaos::FClusterCreationParameters<float>::None UMETA(DisplayName = "None"),
+	Chaos_PointImplicit = Chaos::FClusterCreationParameters<float>::PointImplicit UMETA(Hidden),
+	Chaos_DelaunayTriangulation = Chaos::FClusterCreationParameters<float>::DelaunayTriangulation UMETA(Hidden),
+	Chaos_MinimalSpanningSubsetDelaunayTriangulation = Chaos::FClusterCreationParameters<float>::MinimalSpanningSubsetDelaunayTriangulation UMETA(Hidden),
+	Chaos_PointImplicitAugmentedWithMinimalDelaunay = Chaos::FClusterCreationParameters<float>::PointImplicitAugmentedWithMinimalDelaunay UMETA(Hidden),
+	Chaos_None = Chaos::FClusterCreationParameters<float>::None UMETA(Hidden),
 	//
 	Chaos_EClsuterCreationParameters_Max UMETA(Hidden)
 };
@@ -68,102 +75,46 @@ class CHAOSSOLVERENGINE_API AChaosSolverActor : public AActor
 	GENERATED_UCLASS_BODY()
 
 public:
-	/**
-	* NumberOfSubSteps
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics")
-	float TimeStepMultiplier;
+	
+	UPROPERTY(EditAnywhere, Category = "Chaos", meta=(ShowOnlyInnerProperties))
+	FChaosSolverConfiguration Properties;
 
-	/**
-	* Collision Iteration
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Iterations")
-	int32 CollisionIterations;
-
-	/**
-	* PushOut Iteration
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Iterations")
-	int32 PushOutIterations;
-
-	/**
-	* PushOut Iteration
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Iterations")
-	int32 PushOutPairIterations;
-
-	/**
-	* ClusterConnectionFactor
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
-	float ClusterConnectionFactor;
-
-	/*
-	*  ObjectType defines how to initialize the rigid objects state, Kinematic, Sleeping, Dynamic.
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Clustering")
-	EClusterConnectionTypeEnum ClusterUnionConnectionType;
-
-	/*
-	* Turns on/off collision data generation
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|CollisionData Generation", meta = (DisplayName = "Generate Collision Data"))
-	bool DoGenerateCollisionData;
-
-	/*
-	*
-	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|CollisionData Generation")
-	FSolverCollisionFilterSettings CollisionFilterSettings;
-
-
-	/*
-	* Turns on/off breaking data generation
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|BreakingData Generation", meta = (DisplayName = "Generate Breaking Data"))
-	bool DoGenerateBreakingData;
-
-	/*
-	*
-	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|BreakingData Generation")
-	FSolverBreakingFilterSettings BreakingFilterSettings;
-
-	/*
-	* Turns on/off trailing data generation
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|TrailingData Generation", meta = (DisplayName = "Generate Trailing Data"))
-	bool DoGenerateTrailingData;
-
-	/*
-	*
-	*/
-	UPROPERTY(EditAnywhere, Category = "ChaosPhysics|TrailingData Generation")
-	FSolverTrailingFilterSettings TrailingFilterSettings;
-
-	/*
-	* 
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Floor", meta = (DisplayName = "Use Floor"))
+	/** Deprecated solver properties (moved to FChaosSolverConfiguration)*/
+	UPROPERTY()
+	float TimeStepMultiplier_DEPRECATED;
+	UPROPERTY()
+	int32 CollisionIterations_DEPRECATED;
+	UPROPERTY()
+	int32 PushOutIterations_DEPRECATED;
+	UPROPERTY()
+	int32 PushOutPairIterations_DEPRECATED;
+	UPROPERTY()
+	float ClusterConnectionFactor_DEPRECATED;
+	UPROPERTY()
+	EClusterConnectionTypeEnum ClusterUnionConnectionType_DEPRECATED;
+	UPROPERTY()
+	bool DoGenerateCollisionData_DEPRECATED;
+	UPROPERTY()
+	FSolverCollisionFilterSettings CollisionFilterSettings_DEPRECATED;
+	UPROPERTY()
+	bool DoGenerateBreakingData_DEPRECATED;
+	UPROPERTY()
+	FSolverBreakingFilterSettings BreakingFilterSettings_DEPRECATED;
+	UPROPERTY()
+	bool DoGenerateTrailingData_DEPRECATED;
+	UPROPERTY()
+	FSolverTrailingFilterSettings TrailingFilterSettings_DEPRECATED;
+	UPROPERTY()
+	float MassScale_DEPRECATED;
+	UPROPERTY()
+	bool bGenerateContactGraph_DEPRECATED;
+	/** End deprecated properties */
+	
+	UPROPERTY(EditAnywhere, Category = Settings)
 	bool bHasFloor;
 
-	/*
-	* 
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics|Floor", meta = (DisplayName = "Floor Height"))
+	UPROPERTY(EditAnywhere, Category=Settings)
 	float FloorHeight;
-
-	/*
-	* 
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics", meta = (DisplayName = "Mass Scale"))
-	float MassScale;
-
-	/*
-	* 
-	*/
-	UPROPERTY(EditAnywhere, BlueprintReadWrite, Category = "ChaosPhysics", meta = (DisplayName = "Generate Contact Graph"))
-	bool bGenerateContactGraph;
 
 	/*
 	* Control to pause/step/substep the solver to the next synchronization point.
@@ -190,21 +141,33 @@ public:
 	TSharedPtr<FPhysScene_Chaos> GetPhysicsScene() const { return PhysScene; }
 	Chaos::FPhysicsSolver* GetSolver() const { return Solver; }
 
-#if WITH_EDITOR
-	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
-#endif
 	virtual void PostRegisterAllComponents() override;
-	
-	virtual void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
 	virtual void PreInitializeComponents() override;
+	
 	virtual void BeginPlay() override;
 	virtual void EndPlay(const EEndPlayReason::Type ReasonEnd) override;
 
+	/** UObject interface */
+#if WITH_EDITOR
+	virtual void PostEditChangeProperty(struct FPropertyChangedEvent& PropertyChangedEvent) override;
+#endif
+	void PostLoad() override;
+	void Serialize(FArchive& Ar) override;
+	void PostDuplicate(EDuplicateMode::Type DuplicateMode) override;
+	/** End UObject interface */
+
 private:
+
+	/** If floor is enabled, make a particle to represent it */
+	void MakeFloor();
+
 	TSharedPtr<FPhysScene_Chaos> PhysScene;
 	Chaos::FPhysicsSolver* Solver;
 
 	/** Component responsible for harvesting and triggering physics-related gameplay events (hits, breaks, etc) */
 	UPROPERTY()
 	UChaosGameplayEventDispatcher* GameplayEventDispatcherComponent;
+
+	/** If floor is enabled - this will point to the solver particle for it */
+	TUniquePtr<Chaos::TGeometryParticle<Chaos::FReal, 3>> FloorParticle;
 };

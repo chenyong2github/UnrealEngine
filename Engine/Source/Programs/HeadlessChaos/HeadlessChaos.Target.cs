@@ -18,7 +18,7 @@ public class HeadlessChaosTarget : TargetRules
 
 		// HeadlessChaos doesn't ever compile with the engine linked in
 		bCompileAgainstEngine = false;
-		bCompileAgainstCoreUObject = false;
+		bCompileAgainstCoreUObject = true;
 
         bHasExports = false;
 

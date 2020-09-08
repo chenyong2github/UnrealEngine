@@ -967,7 +967,7 @@ namespace ChaosTest {
 		// Randomize the constraint order
 		if (bRandomize)
 		{
-			FMath::RandInit((int32)3354786483);
+			FMath::RandInit((int32)354786483);
 			for (int32 RandIndex = 0; RandIndex < 2 * ConstrainedParticles.Num(); ++RandIndex)
 			{
 				int32 Rand0 = FMath::RandRange(0, ConstrainedParticles.Num() - 1);

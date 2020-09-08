@@ -190,10 +190,12 @@ namespace Chaos
 
 		FGraphEventRef AdvanceAndDispatch_External(FReal InDt)
 		{
-			//make sure any GT state is pushed into necessary buffer
-			PushPhysicsState(InDt);
+			const FReal DtWithPause = bPaused_External ? 0.0f : InDt;
 
-			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(InDt);
+			//make sure any GT state is pushed into necessary buffer
+			PushPhysicsState(DtWithPause);
+
+			TArray<FPushPhysicsData*> PushData = MarshallingManager.StepInternalTime_External(DtWithPause);
 			SetExternalTimestampConsumed_External(MarshallingManager.GetExternalTimestampConsumed_External());
 
 			if(PushData.Num())	//only kick off sim if enough dt passed
@@ -202,7 +204,7 @@ namespace Chaos
 				if(ThreadingMode == EThreadingModeTemp::SingleThread)
 				{
 					ensure(!PendingTasks || PendingTasks->IsComplete());	//if mode changed we should have already blocked
-					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData),InDt);
+					FPhysicsSolverAdvanceTask ImmediateTask(*this,MoveTemp(CommandQueue),MoveTemp(PushData), DtWithPause);
 					ImmediateTask.AdvanceSolver();
 				}
 				else
@@ -213,7 +215,7 @@ namespace Chaos
 						Prereqs.Add(PendingTasks);
 					}
 
-					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), InDt);
+					PendingTasks = TGraphTask<FPhysicsSolverAdvanceTask>::CreateTask(&Prereqs).ConstructAndDispatchWhenReady(*this,MoveTemp(CommandQueue), MoveTemp(PushData), DtWithPause);
 				}
 			}
 
@@ -268,6 +270,16 @@ namespace Chaos
 		}
 
 		void UpdateParticleInAccelerationStructure_External(TGeometryParticle<FReal,3>* Particle,bool bDelete);
+
+		bool IsPaused_External() const
+		{
+			return bPaused_External;
+		}
+
+		void SetIsPaused_External(bool bShouldPause)
+		{
+			bPaused_External = bShouldPause;
+		}
 
 	protected:
 		/** Mode that the results buffers should be set to (single, double, triple) */
@@ -327,6 +339,13 @@ namespace Chaos
 	FGraphEventRef PendingTasks;
 
 	private:
+
+		/** 
+		 * Whether this solver is paused. Paused solvers will still 'tick' however they will receive a Dt of zero so they can still
+		 * build acceleration structures or accept inputs from external threads 
+		 */
+		bool bPaused_External;
+
 		/** 
 		 * Ptr to the engine object that is counted as the owner of this solver.
 		 * Never used internally beyond how the solver is stored and accessed through the solver module.

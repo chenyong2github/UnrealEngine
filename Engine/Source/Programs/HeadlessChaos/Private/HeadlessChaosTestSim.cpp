@@ -26,7 +26,6 @@ namespace ChaosTest {
 
 		// Create solver #TODO make TFramework a little more general instead of mostly geometry collection focused
 		GeometryCollectionTest::TFramework<TypeParam> Framework;
-		Framework.Solver->SetEnabled(true);
 
 		// Make a particle
 		TUniquePtr<Chaos::TPBDRigidParticle<FReal, 3>> Particle = Chaos::TPBDRigidParticle<float, 3>::CreateParticle();
