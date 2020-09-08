@@ -12,48 +12,48 @@
 #include "ScopedTransaction.h"
 #include "SkeletalMeshEditorSubsystem.h"
 
-bool UEditorSkeletalMeshLibrary::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
+bool UDEPRECATED_EditorSkeletalMeshLibrary::RegenerateLOD(USkeletalMesh* SkeletalMesh, int32 NewLODCount /*= 0*/, bool bRegenerateEvenIfImported /*= false*/, bool bGenerateBaseLOD /*= false*/)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->RegenerateLOD(SkeletalMesh, NewLODCount, bRegenerateEvenIfImported, bGenerateBaseLOD) : false;
 }
 
-int32 UEditorSkeletalMeshLibrary::GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex)
+int32 UDEPRECATED_EditorSkeletalMeshLibrary::GetNumVerts(USkeletalMesh* SkeletalMesh, int32 LODIndex)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->GetNumVerts(SkeletalMesh, LODIndex) : 0;
 }
 
-bool UEditorSkeletalMeshLibrary::RenameSocket(USkeletalMesh* SkeletalMesh, FName OldName, FName NewName)
+bool UDEPRECATED_EditorSkeletalMeshLibrary::RenameSocket(USkeletalMesh* SkeletalMesh, FName OldName, FName NewName)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->RenameSocket(SkeletalMesh, OldName, NewName) : 0;
 }
-int32 UEditorSkeletalMeshLibrary::GetLODCount(USkeletalMesh* SkeletalMesh)
+int32 UDEPRECATED_EditorSkeletalMeshLibrary::GetLODCount(USkeletalMesh* SkeletalMesh)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->GetLODCount(SkeletalMesh) : INDEX_NONE;
 }
 
-int32 UEditorSkeletalMeshLibrary::ImportLOD(USkeletalMesh* BaseMesh, const int32 LODIndex, const FString& SourceFilename)
+int32 UDEPRECATED_EditorSkeletalMeshLibrary::ImportLOD(USkeletalMesh* BaseMesh, const int32 LODIndex, const FString& SourceFilename)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->ImportLOD(BaseMesh, LODIndex, SourceFilename) : INDEX_NONE;
 }
 
-bool UEditorSkeletalMeshLibrary::ReimportAllCustomLODs(USkeletalMesh* SkeletalMesh)
+bool UDEPRECATED_EditorSkeletalMeshLibrary::ReimportAllCustomLODs(USkeletalMesh* SkeletalMesh)
 {
 	USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>();
 
 	return SkeletalMeshEditorSubsystem ? SkeletalMeshEditorSubsystem->ReimportAllCustomLODs(SkeletalMesh) : false;
 }
 
-void UEditorSkeletalMeshLibrary::GetLodBuildSettings(const USkeletalMesh* SkeletalMesh, const int32 LodIndex, FSkeletalMeshBuildSettings& OutBuildOptions)
+void UDEPRECATED_EditorSkeletalMeshLibrary::GetLodBuildSettings(const USkeletalMesh* SkeletalMesh, const int32 LodIndex, FSkeletalMeshBuildSettings& OutBuildOptions)
 {
 	if (USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>())
 	{
@@ -61,7 +61,7 @@ void UEditorSkeletalMeshLibrary::GetLodBuildSettings(const USkeletalMesh* Skelet
 	}
 }
 
-void UEditorSkeletalMeshLibrary::SetLodBuildSettings(USkeletalMesh* SkeletalMesh, const int32 LodIndex, const FSkeletalMeshBuildSettings& BuildOptions)
+void UDEPRECATED_EditorSkeletalMeshLibrary::SetLodBuildSettings(USkeletalMesh* SkeletalMesh, const int32 LodIndex, const FSkeletalMeshBuildSettings& BuildOptions)
 {
 	if (USkeletalMeshEditorSubsystem* SkeletalMeshEditorSubsystem = GEditor->GetEditorSubsystem<USkeletalMeshEditorSubsystem>())
 	{

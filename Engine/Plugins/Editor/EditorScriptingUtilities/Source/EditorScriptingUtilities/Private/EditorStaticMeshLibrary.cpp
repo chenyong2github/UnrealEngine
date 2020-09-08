@@ -47,7 +47,7 @@
  *
  **/
 
-FStaticMeshReductionOptions UEditorStaticMeshLibrary::ConvertReductionOptions(const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions)
+FStaticMeshReductionOptions UDEPRECATED_EditorStaticMeshLibrary::ConvertReductionOptions(const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions)
 {
 	FStaticMeshReductionOptions MeshReductionOptions;
 
@@ -67,7 +67,7 @@ FStaticMeshReductionOptions UEditorStaticMeshLibrary::ConvertReductionOptions(co
 }
 
 // Converts the deprecated EScriptingCollisionShapeType_Deprecated to the new EScriptCollisionShapeType
-EScriptCollisionShapeType UEditorStaticMeshLibrary::ConvertCollisionShape(const EScriptingCollisionShapeType_Deprecated& CollisionShape)
+EScriptCollisionShapeType UDEPRECATED_EditorStaticMeshLibrary::ConvertCollisionShape(const EScriptingCollisionShapeType_Deprecated& CollisionShape)
 {
 	switch (CollisionShape)
 	{
@@ -108,14 +108,14 @@ EScriptCollisionShapeType UEditorStaticMeshLibrary::ConvertCollisionShape(const 
 	}
 }
 
-int32 UEditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions, bool bApplyChanges)
+int32 UDEPRECATED_EditorStaticMeshLibrary::SetLodsWithNotification(UStaticMesh* StaticMesh, const FEditorScriptingMeshReductionOptions_Deprecated& ReductionOptions, bool bApplyChanges)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, ConvertReductionOptions(ReductionOptions), bApplyChanges) : -1;
 }
 
-void UEditorStaticMeshLibrary::GetLodReductionSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshReductionSettings& OutReductionOptions)
+void UDEPRECATED_EditorStaticMeshLibrary::GetLodReductionSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshReductionSettings& OutReductionOptions)
 {
 	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
 	{
@@ -123,7 +123,7 @@ void UEditorStaticMeshLibrary::GetLodReductionSettings(const UStaticMesh* Static
 	}
 }
 
-void UEditorStaticMeshLibrary::SetLodReductionSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshReductionSettings& ReductionOptions)
+void UDEPRECATED_EditorStaticMeshLibrary::SetLodReductionSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshReductionSettings& ReductionOptions)
 {
 	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
 	{
@@ -131,7 +131,7 @@ void UEditorStaticMeshLibrary::SetLodReductionSettings(UStaticMesh* StaticMesh, 
 	}
 }
 
-void UEditorStaticMeshLibrary::GetLodBuildSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshBuildSettings& OutBuildOptions)
+void UDEPRECATED_EditorStaticMeshLibrary::GetLodBuildSettings(const UStaticMesh* StaticMesh, const int32 LodIndex, FMeshBuildSettings& OutBuildOptions)
 {
 	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
 	{
@@ -139,7 +139,7 @@ void UEditorStaticMeshLibrary::GetLodBuildSettings(const UStaticMesh* StaticMesh
 	}
 }
 
-void UEditorStaticMeshLibrary::SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions)
+void UDEPRECATED_EditorStaticMeshLibrary::SetLodBuildSettings(UStaticMesh* StaticMesh, const int32 LodIndex, const FMeshBuildSettings& BuildOptions)
 {
 	if (UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>())
 	{
@@ -147,42 +147,42 @@ void UEditorStaticMeshLibrary::SetLodBuildSettings(UStaticMesh* StaticMesh, cons
 	}
 }
 
-int32 UEditorStaticMeshLibrary::ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename)
+int32 UDEPRECATED_EditorStaticMeshLibrary::ImportLOD(UStaticMesh* BaseStaticMesh, const int32 LODIndex, const FString& SourceFilename)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->ImportLOD(BaseStaticMesh, LODIndex, SourceFilename) : INDEX_NONE;
 }
 
-bool UEditorStaticMeshLibrary::ReimportAllCustomLODs(UStaticMesh* StaticMesh)
+bool UDEPRECATED_EditorStaticMeshLibrary::ReimportAllCustomLODs(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->ReimportAllCustomLODs(StaticMesh) : false;
 }
 
-int32 UEditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots)
+int32 UDEPRECATED_EditorStaticMeshLibrary::SetLodFromStaticMesh(UStaticMesh* DestinationStaticMesh, int32 DestinationLodIndex, UStaticMesh* SourceStaticMesh, int32 SourceLodIndex, bool bReuseExistingMaterialSlots)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetLodFromStaticMesh(DestinationStaticMesh, DestinationLodIndex, SourceStaticMesh, SourceLodIndex, bReuseExistingMaterialSlots) : -1;
 }
 
-int32 UEditorStaticMeshLibrary::GetLodCount(UStaticMesh* StaticMesh)
+int32 UDEPRECATED_EditorStaticMeshLibrary::GetLodCount(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetLodCount(StaticMesh) : -1;
 }
 
-bool UEditorStaticMeshLibrary::RemoveLods(UStaticMesh* StaticMesh)
+bool UDEPRECATED_EditorStaticMeshLibrary::RemoveLods(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->RemoveLods(StaticMesh) : false;
 }
 
-TArray<float> UEditorStaticMeshLibrary::GetLodScreenSizes(UStaticMesh* StaticMesh)
+TArray<float> UDEPRECATED_EditorStaticMeshLibrary::GetLodScreenSizes(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 	TArray<float> ScreenSizes;
@@ -190,21 +190,21 @@ TArray<float> UEditorStaticMeshLibrary::GetLodScreenSizes(UStaticMesh* StaticMes
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetLodScreenSizes(StaticMesh) : ScreenSizes;
 }
 
-int32 UEditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType_Deprecated ShapeType, bool bApplyChanges)
+int32 UDEPRECATED_EditorStaticMeshLibrary::AddSimpleCollisionsWithNotification(UStaticMesh* StaticMesh, const EScriptingCollisionShapeType_Deprecated ShapeType, bool bApplyChanges)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification(StaticMesh, ConvertCollisionShape(ShapeType), bApplyChanges) : INDEX_NONE;
 }
 
-int32 UEditorStaticMeshLibrary::GetSimpleCollisionCount(UStaticMesh* StaticMesh)
+int32 UDEPRECATED_EditorStaticMeshLibrary::GetSimpleCollisionCount(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetSimpleCollisionCount(StaticMesh) : -1;
 }
 
-TEnumAsByte<ECollisionTraceFlag> UEditorStaticMeshLibrary::GetCollisionComplexity(UStaticMesh* StaticMesh)
+TEnumAsByte<ECollisionTraceFlag> UDEPRECATED_EditorStaticMeshLibrary::GetCollisionComplexity(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
@@ -215,35 +215,35 @@ TEnumAsByte<ECollisionTraceFlag> UEditorStaticMeshLibrary::GetCollisionComplexit
 	return ECollisionTraceFlag::CTF_UseDefault;
 }
 
-int32 UEditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)
+int32 UDEPRECATED_EditorStaticMeshLibrary::GetConvexCollisionCount(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetConvexCollisionCount(StaticMesh) : -1;
 }
 
-bool UEditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& InStaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
+bool UDEPRECATED_EditorStaticMeshLibrary::BulkSetConvexDecompositionCollisionsWithNotification(const TArray<UStaticMesh*>& InStaticMeshes, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->BulkSetConvexDecompositionCollisionsWithNotification(InStaticMeshes, HullCount, MaxHullVerts, HullPrecision, bApplyChanges) : false;
 }
 
-bool UEditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
+bool UDEPRECATED_EditorStaticMeshLibrary::SetConvexDecompositionCollisionsWithNotification(UStaticMesh* StaticMesh, int32 HullCount, int32 MaxHullVerts, int32 HullPrecision, bool bApplyChanges)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetConvexDecompositionCollisionsWithNotification(StaticMesh, HullCount, MaxHullVerts, HullPrecision, bApplyChanges) : false;
 }
 
-bool UEditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges)
+bool UDEPRECATED_EditorStaticMeshLibrary::RemoveCollisionsWithNotification(UStaticMesh* StaticMesh, bool bApplyChanges)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->RemoveCollisionsWithNotification(StaticMesh, bApplyChanges) : false;
 }
 
-void UEditorStaticMeshLibrary::EnableSectionCollision(UStaticMesh* StaticMesh, bool bCollisionEnabled, int32 LODIndex, int32 SectionIndex)
+void UDEPRECATED_EditorStaticMeshLibrary::EnableSectionCollision(UStaticMesh* StaticMesh, bool bCollisionEnabled, int32 LODIndex, int32 SectionIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
@@ -253,14 +253,14 @@ void UEditorStaticMeshLibrary::EnableSectionCollision(UStaticMesh* StaticMesh, b
 	}
 }
 
-bool UEditorStaticMeshLibrary::IsSectionCollisionEnabled(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex)
+bool UDEPRECATED_EditorStaticMeshLibrary::IsSectionCollisionEnabled(UStaticMesh* StaticMesh, int32 LODIndex, int32 SectionIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->IsSectionCollisionEnabled(StaticMesh, LODIndex, SectionIndex) : false;
 }
 
-void UEditorStaticMeshLibrary::EnableSectionCastShadow(UStaticMesh* StaticMesh, bool bCastShadow, int32 LODIndex, int32 SectionIndex)
+void UDEPRECATED_EditorStaticMeshLibrary::EnableSectionCastShadow(UStaticMesh* StaticMesh, bool bCastShadow, int32 LODIndex, int32 SectionIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
@@ -270,42 +270,42 @@ void UEditorStaticMeshLibrary::EnableSectionCastShadow(UStaticMesh* StaticMesh, 
 	}
 }
 
-bool UEditorStaticMeshLibrary::HasVertexColors(UStaticMesh* StaticMesh)
+bool UDEPRECATED_EditorStaticMeshLibrary::HasVertexColors(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->HasVertexColors(StaticMesh) : false;
 }
 
-bool UEditorStaticMeshLibrary::HasInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent)
+bool UDEPRECATED_EditorStaticMeshLibrary::HasInstanceVertexColors(UStaticMeshComponent* StaticMeshComponent)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->HasInstanceVertexColors(StaticMeshComponent) : false;
 }
 
-bool UEditorStaticMeshLibrary::SetGenerateLightmapUVs(UStaticMesh* StaticMesh, bool bGenerateLightmapUVs)
+bool UDEPRECATED_EditorStaticMeshLibrary::SetGenerateLightmapUVs(UStaticMesh* StaticMesh, bool bGenerateLightmapUVs)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->SetGenerateLightmapUVs(StaticMesh, bGenerateLightmapUVs) : false;
 }
 
-int32 UEditorStaticMeshLibrary::GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex)
+int32 UDEPRECATED_EditorStaticMeshLibrary::GetNumberVerts(UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetNumberVerts(StaticMesh, LODIndex) : 0;
 }
 
-int32 UEditorStaticMeshLibrary::GetNumberMaterials(UStaticMesh* StaticMesh)
+int32 UDEPRECATED_EditorStaticMeshLibrary::GetNumberMaterials(UStaticMesh* StaticMesh)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetNumberMaterials(StaticMesh) : 0;
 }
 
-void UEditorStaticMeshLibrary::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess)
+void UDEPRECATED_EditorStaticMeshLibrary::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool bAllowCPUAccess)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
@@ -315,49 +315,49 @@ void UEditorStaticMeshLibrary::SetAllowCPUAccess(UStaticMesh* StaticMesh, bool b
 	}
 }
 
-int32 UEditorStaticMeshLibrary::GetNumUVChannels(UStaticMesh* StaticMesh, int32 LODIndex)
+int32 UDEPRECATED_EditorStaticMeshLibrary::GetNumUVChannels(UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GetNumUVChannels(StaticMesh, LODIndex) : 0;
 }
 
-bool UEditorStaticMeshLibrary::AddUVChannel(UStaticMesh* StaticMesh, int32 LODIndex)
+bool UDEPRECATED_EditorStaticMeshLibrary::AddUVChannel(UStaticMesh* StaticMesh, int32 LODIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->AddUVChannel(StaticMesh, LODIndex) : false;
 }
 
-bool UEditorStaticMeshLibrary::InsertUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex)
+bool UDEPRECATED_EditorStaticMeshLibrary::InsertUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->InsertUVChannel(StaticMesh, LODIndex, UVChannelIndex) : false;
 }
 
-bool UEditorStaticMeshLibrary::RemoveUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex)
+bool UDEPRECATED_EditorStaticMeshLibrary::RemoveUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->RemoveUVChannel(StaticMesh, LODIndex, UVChannelIndex) : false;
 }
 
-bool UEditorStaticMeshLibrary::GeneratePlanarUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling)
+bool UDEPRECATED_EditorStaticMeshLibrary::GeneratePlanarUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GeneratePlanarUVChannel(StaticMesh, LODIndex, UVChannelIndex, Position, Orientation, Tiling) : false;
 }
 
-bool UEditorStaticMeshLibrary::GenerateCylindricalUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling)
+bool UDEPRECATED_EditorStaticMeshLibrary::GenerateCylindricalUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector2D& Tiling)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 
 	return StaticMeshEditorSubsystem ? StaticMeshEditorSubsystem->GenerateCylindricalUVChannel(StaticMesh, LODIndex, UVChannelIndex, Position, Orientation, Tiling) : false;
 }
 
-bool UEditorStaticMeshLibrary::GenerateBoxUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector& Size)
+bool UDEPRECATED_EditorStaticMeshLibrary::GenerateBoxUVChannel(UStaticMesh* StaticMesh, int32 LODIndex, int32 UVChannelIndex, const FVector& Position, const FRotator& Orientation, const FVector& Size)
 {
 	UStaticMeshEditorSubsystem* StaticMeshEditorSubsystem = GEditor->GetEditorSubsystem<UStaticMeshEditorSubsystem>();
 

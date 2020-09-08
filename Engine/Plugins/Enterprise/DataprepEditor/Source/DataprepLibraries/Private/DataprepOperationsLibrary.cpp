@@ -397,7 +397,7 @@ void UDataprepOperationsLibrary::SetLods(const TArray<UObject*>& SelectedObjects
 		{
 			DataprepOperationsLibraryUtil::FScopedStaticMeshEdit StaticMeshEdit( StaticMesh );
 
-			StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, UEditorStaticMeshLibrary::ConvertReductionOptions(ReductionOptions), false);
+			StaticMeshEditorSubsystem->SetLodsWithNotification(StaticMesh, UDEPRECATED_EditorStaticMeshLibrary::ConvertReductionOptions(ReductionOptions), false);
 
 			ModifiedObjects.Add( StaticMesh );
 		}
@@ -446,7 +446,7 @@ void UDataprepOperationsLibrary::SetSimpleCollision(const TArray<UObject*>& Sele
 			// Remove existing simple collisions
 			StaticMeshEditorSubsystem->RemoveCollisionsWithNotification( StaticMesh, false );
 
-			StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification( StaticMesh, UEditorStaticMeshLibrary::ConvertCollisionShape(ShapeType), false );
+			StaticMeshEditorSubsystem->AddSimpleCollisionsWithNotification( StaticMesh, UDEPRECATED_EditorStaticMeshLibrary::ConvertCollisionShape(ShapeType), false );
 
 			ModifiedObjects.Add( StaticMesh );
 		}
