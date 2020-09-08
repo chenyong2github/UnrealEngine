@@ -332,7 +332,7 @@ void UObject::PostLoad()
 #if WITH_EDITOR
 void UObject::PreEditChange(FProperty* PropertyAboutToChange)
 {
-	Modify();
+	Modify(!GIsTransacting);
 }
 
 

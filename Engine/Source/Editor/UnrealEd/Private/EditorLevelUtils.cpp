@@ -1025,7 +1025,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 			{
 				if (ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 				{
-					CurActor->Modify();
+					CurActor->Modify(false);
 				}
 				
 				CurActor->bHiddenEdLevel = !bShouldBeVisible;
@@ -1158,7 +1158,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 					{
 						if (ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 						{
-							bModified = Actor->Modify();
+							bModified = Actor->Modify(false);
 						}
 						
 						Actor->bHiddenEdLayer = false;
@@ -1173,7 +1173,7 @@ void SetLevelVisibilityNoGlobalUpdateInternal(ULevel* Level, const bool bShouldB
 				{
 					if (!bModified && ModifyMode == ELevelVisibilityDirtyMode::ModifyOnChange)
 					{
-						bModified = Actor->Modify();
+						bModified = Actor->Modify(false);
 					}
 					Actor->bHiddenEdLevel = !bShouldBeVisible;
 
