@@ -6259,6 +6259,8 @@ bool SSCSEditor::CanDeleteNodes() const
 
 void SSCSEditor::OnDeleteNodes()
 {
+	const FScopedTransaction Transaction( LOCTEXT("RemoveComponents", "Remove Components") );
+
 	// Invalidate any active component in the visualizer
 	GUnrealEd->ComponentVisManager.ClearActiveComponentVis();
 
@@ -6318,7 +6320,7 @@ void SSCSEditor::OnDeleteNodes()
 			}
 		}
 
-		const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
+		//const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
 
 		for (int32 i = 0; i < SelectedNodes.Num(); ++i)
 		{
@@ -6357,7 +6359,7 @@ void SSCSEditor::OnDeleteNodes()
 	}
 	else    // EComponentEditorMode::ActorInstance
 	{
-		const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
+	//	const FScopedTransaction Transaction(LOCTEXT("SetNodeEnabledState", "Set Node Enabled State"));
 
 		if (AActor* ActorInstance = GetActorContext())
 		{
