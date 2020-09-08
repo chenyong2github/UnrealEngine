@@ -11,7 +11,7 @@
 #include "SceneTypes.h"
 #include "Engine/Scene.h"
 #include "Camera/CameraTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "ShowFlags.h"
 #include "UnrealClient.h"
 #include "SceneManagement.h"
@@ -606,12 +606,12 @@ public:
 	/**
 	 * Sets the current widget mode
 	 */
-	virtual void SetWidgetMode(FWidget::EWidgetMode NewMode);
+	virtual void SetWidgetMode(UE::Widget::EWidgetMode NewMode);
 
 	/**
 	 * Whether or not the new widget mode can be set in this viewport
 	 */
-	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const;
+	virtual bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const;
 
 	/**
 	 * Whether or not the widget mode can be cycled
@@ -621,7 +621,7 @@ public:
 	/**
 	 * @return The current display mode for transform widget 
 	 */
-	virtual FWidget::EWidgetMode GetWidgetMode() const;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const;
 
 	/**
 	 * @return The world space location of the transform widget
@@ -1066,7 +1066,7 @@ public:
 	void SetRequiredCursorOverride( bool WantOverride, EMouseCursor::Type RequiredCursor = EMouseCursor::Default ); 
 
 	/** Overrides current widget mode */
-	void SetWidgetModeOverride(FWidget::EWidgetMode InWidgetMode);
+	void SetWidgetModeOverride(UE::Widget::EWidgetMode InWidgetMode);
 
 	/** Get the camera speed for this viewport */
 	float GetCameraSpeed() const;

@@ -614,7 +614,7 @@
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Editor.h"
 #include "EditorUndoClient.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "ScopedTransaction.h"
 #include "GraphEditor.h"
 #include "EditorComponents.h"

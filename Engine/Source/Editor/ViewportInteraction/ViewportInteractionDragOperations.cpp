@@ -7,7 +7,7 @@
 #include "ViewportWorldInteraction.h"
 #include "SnappingUtils.h"
 #include "ViewportInteractor.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 
 namespace VI
 {

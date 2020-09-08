@@ -286,7 +286,7 @@ bool FSpriteGeometryEditMode::InputDelta(FEditorViewportClient* InViewportClient
 	{
 		bHandled = true;
 
-		const FWidget::EWidgetMode MoveMode = GetModeManager()->GetWidgetMode();
+		const UE::Widget::EWidgetMode MoveMode = GetModeManager()->GetWidgetMode();
 
 		// Negate Y because vertices are in source texture space, not world space
 		const FVector2D Drag2D(FVector::DotProduct(InDrag, PaperAxisX), -FVector::DotProduct(InDrag, PaperAxisY));

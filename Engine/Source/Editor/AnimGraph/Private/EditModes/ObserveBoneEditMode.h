@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "AnimNodeEditMode.h"
 
 class FObserveBoneEditMode : public FAnimNodeEditMode
@@ -14,7 +14,7 @@ public:
 	virtual void ExitMode() override;
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
 	virtual FVector GetWidgetLocation() const override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
 	virtual FName GetSelectedBone() const override;
 
 private:

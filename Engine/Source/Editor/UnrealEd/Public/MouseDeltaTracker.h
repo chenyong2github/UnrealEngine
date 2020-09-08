@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 
 class FCanvas;
 class FDragTool;
@@ -130,7 +130,7 @@ public:
 	/** 
 	 * @return 		the widget mode last time this tracker object started tracking
 	 */
-	FWidget::EWidgetMode GetTrackingWidgetMode() const { return TrackingWidgetMode; }
+	UE::Widget::EWidgetMode GetTrackingWidgetMode() const { return TrackingWidgetMode; }
 private:
 	/**
 	 * Starts using a drag tool if needed
@@ -178,7 +178,7 @@ private:
 	bool bIsDeletingDragTool;
 
 	/** Stores the widget mode active when the tracker begins tracking to help stop it change mid-track */
-	FWidget::EWidgetMode TrackingWidgetMode;
+	UE::Widget::EWidgetMode TrackingWidgetMode;
 
 	/**
 	 * Sets the current axis of the widget for the specified viewport.

@@ -9,6 +9,7 @@
 #include "Editor.h"
 #include "EditorDragTools.h"
 #include "SnappingUtils.h"
+#include "UnrealWidget.h"
 
 #define LOCTEXT_NAMESPACE "MouseDeltaTracker"
 
@@ -62,7 +63,7 @@ void FMouseDeltaTracker::DetermineCurrentAxis(FEditorViewportClient* InViewportC
 		{
 			switch( InViewportClient->GetWidgetMode() )
 			{
-				case FWidget::WM_Scale:
+				case UE::Widget::WM_Scale:
 					// Non-uniform scale when shift is down, uniform when it is up
 					if (ShiftDown)
 					{
@@ -104,9 +105,9 @@ void FMouseDeltaTracker::DetermineCurrentAxis(FEditorViewportClient* InViewportC
 					}
 					break;
 
-				case FWidget::WM_Translate:
-				case FWidget::WM_TranslateRotateZ:
-				case FWidget::WM_2D:
+				case UE::Widget::WM_Translate:
+				case UE::Widget::WM_TranslateRotateZ:
+				case UE::Widget::WM_2D:
 					switch( InViewportClient->ViewportType )
 					{
 						case LVT_Perspective:
@@ -140,7 +141,7 @@ void FMouseDeltaTracker::DetermineCurrentAxis(FEditorViewportClient* InViewportC
 					}
 				break;
 
-				case FWidget::WM_Rotate:
+				case UE::Widget::WM_Rotate:
 					switch( InViewportClient->ViewportType )
 					{
 						case LVT_Perspective:
@@ -228,7 +229,7 @@ void FMouseDeltaTracker::StartTracking(FEditorViewportClient* InViewportClient, 
 	{
 		InViewportClient->Widget->SetDragStartPosition(FVector2D(InX, InY));
 		InViewportClient->Widget->SetDragging(bIsDragging);
-		if (InViewportClient->GetWidgetMode() == FWidget::WM_Rotate)
+		if (InViewportClient->GetWidgetMode() == UE::Widget::WM_Rotate)
 		{
 			InViewportClient->Invalidate();
 		}
@@ -252,23 +253,23 @@ void FMouseDeltaTracker::StartTracking(FEditorViewportClient* InViewportClient, 
 	// No drag tool is active, so handle snapping.
 	switch( TrackingWidgetMode )
 	{
-		case FWidget::WM_Translate:
+		case UE::Widget::WM_Translate:
 			FSnappingUtils::SnapPointToGrid( StartSnapped, FVector(GEditor->GetGridSize(),GEditor->GetGridSize(),GEditor->GetGridSize()) );
 			break;
 
-		case FWidget::WM_Scale:
+		case UE::Widget::WM_Scale:
 			FSnappingUtils::SnapScale( StartSnapped, FVector(GEditor->GetGridSize(),GEditor->GetGridSize(),GEditor->GetGridSize()) );
 			break;
 
-		case FWidget::WM_Rotate:
+		case UE::Widget::WM_Rotate:
 		{
 			FRotator Rotation( StartSnapped.X, StartSnapped.Y, StartSnapped.Z );
 			FSnappingUtils::SnapRotatorToGrid( Rotation );
 			StartSnapped = FVector( Rotation.Pitch, Rotation.Yaw, Rotation.Roll );
 		}
 		break;
-		case FWidget::WM_TranslateRotateZ:
-		case FWidget::WM_2D:
+		case UE::Widget::WM_TranslateRotateZ:
+		case UE::Widget::WM_2D:
 			FSnappingUtils::SnapPointToGrid( StartSnapped, FVector(GEditor->GetGridSize(),GEditor->GetGridSize(),GEditor->GetGridSize()) );
 			break;
 
@@ -444,15 +445,15 @@ void FMouseDeltaTracker::AddDelta(FEditorViewportClient* InViewportClient, FKey 
 	{
 		// Affect input delta by the camera speed
 
-		FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
-		bool bIsRotation = (WidgetMode == FWidget::WM_Rotate) 
-			|| ( ( WidgetMode == FWidget::WM_TranslateRotateZ ) && ( InViewportClient->GetCurrentWidgetAxis() == EAxisList::ZRotation ) )
-			|| ( ( WidgetMode == FWidget::WM_2D) && (InViewportClient->GetCurrentWidgetAxis() == EAxisList::Rotate2D ) );
+		UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+		bool bIsRotation = (WidgetMode == UE::Widget::WM_Rotate) 
+			|| ( ( WidgetMode == UE::Widget::WM_TranslateRotateZ ) && ( InViewportClient->GetCurrentWidgetAxis() == EAxisList::ZRotation ) )
+			|| ( ( WidgetMode == UE::Widget::WM_2D) && (InViewportClient->GetCurrentWidgetAxis() == EAxisList::Rotate2D ) );
 		if (bIsRotation)
 		{
 			Wk *= GetDefault<ULevelEditorViewportSettings>()->MouseSensitivty;
 		}
-		else if( WidgetMode == FWidget::WM_Scale && !GEditor->UsePercentageBasedScaling() )
+		else if( WidgetMode == UE::Widget::WM_Scale && !GEditor->UsePercentageBasedScaling() )
 		{
 			const float ScaleSpeedMultipler = 0.01f;
 			Wk *= ScaleSpeedMultipler;
@@ -525,23 +526,23 @@ void FMouseDeltaTracker::AddDelta(FEditorViewportClient* InViewportClient, FKey 
 	{
 		switch( InViewportClient->GetWidgetMode() )
 		{
-			case FWidget::WM_Translate:
+			case UE::Widget::WM_Translate:
 				FSnappingUtils::SnapPointToGrid( EndSnapped, FVector(GEditor->GetGridSize(),GEditor->GetGridSize(),GEditor->GetGridSize()) );
 				break;
 
-			case FWidget::WM_Scale:
+			case UE::Widget::WM_Scale:
 				FSnappingUtils::SnapScale( EndSnapped, FVector(GEditor->GetGridSize(),GEditor->GetGridSize(),GEditor->GetGridSize()) );
 				break;
 
-			case FWidget::WM_Rotate:
+			case UE::Widget::WM_Rotate:
 			{
 				FRotator Rotation( EndSnapped.X, EndSnapped.Y, EndSnapped.Z );
 				FSnappingUtils::SnapRotatorToGrid( Rotation );
 				EndSnapped = FVector( Rotation.Pitch, Rotation.Yaw, Rotation.Roll );
 			}
 			break;
-			case FWidget::WM_TranslateRotateZ:
-			case FWidget::WM_2D:
+			case UE::Widget::WM_TranslateRotateZ:
+			case UE::Widget::WM_2D:
 			{
 				if (InViewportClient->GetCurrentWidgetAxis() == EAxisList::Rotate2D)
 				{

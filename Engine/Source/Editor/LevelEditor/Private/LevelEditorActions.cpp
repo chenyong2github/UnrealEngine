@@ -2664,7 +2664,7 @@ void FLevelEditorActionCallbacks::SelectActorsInLayers()
 	Layers->SelectActorsInLayers( SelectedLayers, bSelect, bNotify );
 }
 
-void FLevelEditorActionCallbacks::SetWidgetMode( FWidget::EWidgetMode WidgetMode )
+void FLevelEditorActionCallbacks::SetWidgetMode( UE::Widget::EWidgetMode WidgetMode )
 {
 	if( !GLevelEditorModeTools().IsTracking() )
 	{
@@ -2673,12 +2673,12 @@ void FLevelEditorActionCallbacks::SetWidgetMode( FWidget::EWidgetMode WidgetMode
 	}
 }
 
-bool FLevelEditorActionCallbacks::IsWidgetModeActive( FWidget::EWidgetMode WidgetMode )
+bool FLevelEditorActionCallbacks::IsWidgetModeActive( UE::Widget::EWidgetMode WidgetMode )
 {
 	return GLevelEditorModeTools().GetWidgetMode() == WidgetMode;
 }
 
-bool FLevelEditorActionCallbacks::CanSetWidgetMode( FWidget::EWidgetMode WidgetMode )
+bool FLevelEditorActionCallbacks::CanSetWidgetMode( UE::Widget::EWidgetMode WidgetMode )
 {
 	return GLevelEditorModeTools().UsesTransformWidget(WidgetMode) == true;
 }

@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "AnimNodeEditMode.h"
 #include "BoneControllers/AnimNode_ModifyBone.h"
 
@@ -17,9 +17,9 @@ public:
 	virtual void ExitMode() override;
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
 	virtual FVector GetWidgetLocation() const override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-	virtual FWidget::EWidgetMode ChangeToNextWidgetMode(FWidget::EWidgetMode InCurWidgetMode) override;
-	virtual bool SetWidgetMode(FWidget::EWidgetMode InWidgetMode) override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual UE::Widget::EWidgetMode ChangeToNextWidgetMode(UE::Widget::EWidgetMode InCurWidgetMode) override;
+	virtual bool SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode) override;
 	virtual FName GetSelectedBone() const override;
 	virtual void DoTranslation(FVector& InTranslation) override;
 	virtual void DoRotation(FRotator& InRotation) override;
@@ -28,14 +28,14 @@ public:
 
 private:
 	// methods to find a valid widget mode for gizmo because doesn't need to show gizmo when the mode is "Ignore"
-	FWidget::EWidgetMode FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const;
-	EBoneModificationMode GetBoneModificationMode(FWidget::EWidgetMode InWidgetMode) const;
-	FWidget::EWidgetMode GetNextWidgetMode(FWidget::EWidgetMode InWidgetMode) const;
+	UE::Widget::EWidgetMode FindValidWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const;
+	EBoneModificationMode GetBoneModificationMode(UE::Widget::EWidgetMode InWidgetMode) const;
+	UE::Widget::EWidgetMode GetNextWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const;
 
 private:
 	struct FAnimNode_ModifyBone* RuntimeNode;
 	class UAnimGraphNode_ModifyBone* GraphNode;
 
 	// storing current widget mode 
-	mutable FWidget::EWidgetMode CurWidgetMode;
+	mutable UE::Widget::EWidgetMode CurWidgetMode;
 };

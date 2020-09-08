@@ -24,7 +24,7 @@
 #include "EngineGlobals.h"
 #include "Components/ArrowComponent.h"
 #include "Components/BillboardComponent.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorModeManager.h"
 #include "UnrealEdMisc.h"
 #include "CrashReporterSettings.h"
@@ -923,11 +923,11 @@ void ULevelEditorViewportSettings::PostEditChangeProperty( struct FPropertyChang
 	{
 		if (bAllowTranslateRotateZWidget)
 		{
-			GLevelEditorModeTools().SetWidgetMode(FWidget::WM_TranslateRotateZ);
+			GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_TranslateRotateZ);
 		}
-		else if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_TranslateRotateZ)
+		else if (GLevelEditorModeTools().GetWidgetMode() == UE::Widget::WM_TranslateRotateZ)
 		{
-			GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Translate);
+			GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
 		}
 	}
 	else if (Name == GET_MEMBER_NAME_CHECKED(ULevelEditorViewportSettings, bHighlightWithBrackets))

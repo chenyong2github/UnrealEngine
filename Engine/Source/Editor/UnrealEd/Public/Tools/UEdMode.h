@@ -4,7 +4,7 @@
 
 #include "Tools/Modes.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorComponents.h"
 #include "Templates/SharedPointer.h"
 #include "UObject/Object.h"
@@ -12,7 +12,7 @@
 #include "Math/Ray.h"
 #include "UObject/SoftObjectPtr.h"
 #include "Engine/EngineBaseTypes.h"
-
+#include "GenericPlatform/ICursor.h"
 #include "UEdMode.generated.h"
 
 

@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
 #include "Components.h"
 #include "Interfaces/Interface_CollisionDataProvider.h"
@@ -35,9 +35,9 @@ public:
 	virtual bool InputWidgetDelta( FViewport* Viewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale ) override;
 	virtual void TrackingStarted( const struct FInputEventState& InInputState, bool bIsDragging, bool bNudge ) override;
 	virtual void TrackingStopped() override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-	virtual void SetWidgetMode(FWidget::EWidgetMode NewMode) override;
-	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual void SetWidgetMode(UE::Widget::EWidgetMode NewMode) override;
+	virtual bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override;
 	virtual bool CanCycleWidgetMode() const override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual FMatrix GetWidgetCoordSystem() const override;
@@ -206,7 +206,7 @@ private:
 	/** true when the user is manipulating a socket widget. */
 	bool bManipulating;
 
-	FWidget::EWidgetMode WidgetMode;
+	UE::Widget::EWidgetMode WidgetMode;
 
 	/** The current widget axis the mouse is highlighting. */
 	EAxis::Type SocketManipulateAxis;

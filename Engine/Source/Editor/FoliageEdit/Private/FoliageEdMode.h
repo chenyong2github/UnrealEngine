@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "InstancedFoliage.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 #include "Widgets/Views/SHeaderRow.h"
 
@@ -409,7 +409,7 @@ public:
 	virtual bool AllowWidgetMove() override;
 	virtual bool ShouldDrawWidget() const override;
 	virtual bool UsesTransformWidget() const override;
-	virtual EAxisList::Type GetWidgetAxisToDraw(FWidget::EWidgetMode InWidgetMode) const override;
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const override;
 
 	virtual bool DisallowMouseDeltaTracking() const override;
 

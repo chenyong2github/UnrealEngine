@@ -20,9 +20,9 @@ public:
 	virtual void ExitMode() override;
 	ECoordSystem GetWidgetCoordinateSystem() const;
 	virtual FVector GetWidgetLocation() const override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-	virtual FWidget::EWidgetMode ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode) override;
-	virtual bool SetWidgetMode(FWidget::EWidgetMode InWidgetMode) override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual UE::Widget::EWidgetMode ChangeToNextWidgetMode(UE::Widget::EWidgetMode CurWidgetMode) override;
+	virtual bool SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode) override;
 	virtual FName GetSelectedBone() const override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;
 	virtual void DoTranslation(FVector& InTranslation) override;
@@ -35,9 +35,9 @@ public:
 
 private:
 	/** Mode helper functions */
-	bool IsModeValid(FWidget::EWidgetMode InWidgetMode) const;
-	FWidget::EWidgetMode GetNextWidgetMode(FWidget::EWidgetMode InWidgetMode) const;
-	FWidget::EWidgetMode FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const;
+	bool IsModeValid(UE::Widget::EWidgetMode InWidgetMode) const;
+	UE::Widget::EWidgetMode GetNextWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const;
+	UE::Widget::EWidgetMode FindValidWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const;
 
 private:
 	/** Cache the typed nodes */
@@ -48,5 +48,5 @@ private:
 	int32 SelectedSplinePoint;
 
 	/** Current widget mode */
-	FWidget::EWidgetMode WidgetMode;
+	UE::Widget::EWidgetMode WidgetMode;
 };

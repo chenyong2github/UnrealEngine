@@ -54,7 +54,7 @@ public:
 	virtual void Render(const FSceneView* View,FViewport* Viewport,FPrimitiveDrawInterface* PDI) override;
 	virtual void DrawHUD(FEditorViewportClient* ViewportClient,FViewport* Viewport,const FSceneView* View,FCanvas* Canvas) override;
 	virtual bool UsesTransformWidget() const override { return false; }
-	virtual bool UsesTransformWidget(FWidget::EWidgetMode CheckMode) const override { return false; }
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override { return false; }
 	virtual void AddReferencedObjects(FReferenceCollector& Collector) override;
 
 	void AddSequencer(TWeakPtr<FSequencer> InSequencer) { Sequencers.AddUnique(InSequencer); }

@@ -251,7 +251,7 @@ void UDefaultControlRigManipulationLayer::GetGizmoCreationParams(TArray<FGizmoAc
 	}
 }
 
-bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, FWidget::EWidgetMode InMode) const
+bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, UE::Widget::EWidgetMode InMode) const
 {
 	const FControlData* Control = GetControlDataFromGizmo(GizmoActor);
 	if (Control)
@@ -263,7 +263,7 @@ bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AContr
 			{
 				switch (InMode)
 				{
-					case FWidget::WM_Rotate:
+					case UE::Widget::WM_Rotate:
 					{
 						switch (RigControl->ControlType)
 						{
@@ -280,7 +280,7 @@ bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AContr
 						}
 						break;
 					}
-					case FWidget::WM_Translate:
+					case UE::Widget::WM_Translate:
 					{
 						switch (RigControl->ControlType)
 						{
@@ -299,7 +299,7 @@ bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AContr
 						}
 						break;
 					}
-					case FWidget::WM_Scale:
+					case UE::Widget::WM_Scale:
 					{
 						switch (RigControl->ControlType)
 						{
@@ -315,7 +315,7 @@ bool UDefaultControlRigManipulationLayer::ModeSupportedByGizmoActor(const AContr
 						}
 						break;
 					}
-					case FWidget::WM_TranslateRotateZ:
+					case UE::Widget::WM_TranslateRotateZ:
 					{
 						switch (RigControl->ControlType)
 						{

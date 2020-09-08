@@ -128,16 +128,16 @@ FVector FTwoBoneIKEditMode::GetWidgetLocation() const
 	return GetWidgetLocation(BoneSelectMode);
 }
 
-FWidget::EWidgetMode FTwoBoneIKEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FTwoBoneIKEditMode::GetWidgetMode() const
 {
 	int32 BoneIndex = GetAnimPreviewScene().GetPreviewMeshComponent()->GetBoneIndex(TwoBoneIKGraphNode->Node.IKBone.BoneName);
 	// Two bone IK node uses only Translate
 	if (BoneIndex != INDEX_NONE)
 	{
-		return FWidget::WM_Translate;
+		return UE::Widget::WM_Translate;
 	}
 
-	return FWidget::WM_None;
+	return UE::Widget::WM_None;
 }
 
 FBoneSocketTarget FTwoBoneIKEditMode::GetSelectedTarget() const

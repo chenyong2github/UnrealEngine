@@ -7,7 +7,7 @@
 #include "InputCoreTypes.h"
 #include "GameFramework/Actor.h"
 #include "Camera/CameraComponent.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
 #include "UObject/ObjectKey.h"
 #include "UnrealEdMisc.h"
@@ -167,7 +167,7 @@ public:
 	virtual void TrackingStarted( const struct FInputEventState& InInputState, bool bIsDraggingWidget, bool bNudge ) override;
 	virtual void TrackingStopped() override;
 	virtual void AbortTracking() override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual FMatrix GetWidgetCoordSystem() const override;
 	virtual void SetupViewForRendering( FSceneViewFamily& ViewFamily, FSceneView& View ) override;

@@ -5,7 +5,7 @@
 #include "Materials/MaterialInterface.h"
 #include "AI/NavigationSystemBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 #include "LandscapeToolInterface.h"
@@ -63,7 +63,7 @@ public:
 		{
 			CenterMirrorPoint();
 		}
-		GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Translate);
+		GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
 		SavedCoordSystem = GLevelEditorModeTools().GetCoordSystem();
 		GLevelEditorModeTools().SetCoordSystem(COORD_Local);
 	}
@@ -203,9 +203,9 @@ public:
 		return false;
 	}
 
-	virtual EAxisList::Type GetWidgetAxisToDraw(FWidget::EWidgetMode CheckMode) const override
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode CheckMode) const override
 	{
-		if (CheckMode == FWidget::WM_Translate)
+		if (CheckMode == UE::Widget::WM_Translate)
 		{
 			switch (EdMode->UISettings->MirrorOp)
 			{

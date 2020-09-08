@@ -130,16 +130,16 @@ bool FEdModeTexture::GetCustomInputCoordinateSystem( FMatrix& InMatrix, void* In
 	return false;
 }
 
-EAxisList::Type FEdModeTexture::GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const
+EAxisList::Type FEdModeTexture::GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const
 {
 	switch( InWidgetMode ) //-V719
 	{
-	case FWidget::WM_Translate:
-	case FWidget::WM_Scale:
+	case UE::Widget::WM_Translate:
+	case UE::Widget::WM_Scale:
 		return EAxisList::XY;
 		break;
 
-	case FWidget::WM_Rotate:
+	case UE::Widget::WM_Rotate:
 		return EAxisList::Z;
 		break;
 	}

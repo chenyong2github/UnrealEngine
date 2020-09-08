@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "LandscapeProxy.h"
 #include "EdMode.h"
 #include "LandscapeToolInterface.h"
@@ -469,7 +469,7 @@ public:
 	/** FEdMode: Returns true if this mode uses the transform widget */
 	virtual bool UsesTransformWidget() const override;
 
-	virtual EAxisList::Type GetWidgetAxisToDraw(FWidget::EWidgetMode InWidgetMode) const override;
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const override;
 
 	virtual FVector GetWidgetLocation() const override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData) override;

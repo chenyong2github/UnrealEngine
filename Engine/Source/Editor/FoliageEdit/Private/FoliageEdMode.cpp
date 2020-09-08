@@ -3860,13 +3860,13 @@ bool FEdModeFoliage::ShouldDrawWidget() const
 	return false;
 }
 
-EAxisList::Type FEdModeFoliage::GetWidgetAxisToDraw(FWidget::EWidgetMode InWidgetMode) const
+EAxisList::Type FEdModeFoliage::GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const
 {
 	switch (InWidgetMode)
 	{
-	case FWidget::WM_Translate:
-	case FWidget::WM_Rotate:
-	case FWidget::WM_Scale:
+	case UE::Widget::WM_Translate:
+	case UE::Widget::WM_Rotate:
+	case UE::Widget::WM_Scale:
 		return EAxisList::XYZ;
 	default:
 		return EAxisList::None;

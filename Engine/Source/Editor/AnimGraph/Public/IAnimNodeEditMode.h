@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "IPersonaEditMode.h"
 
 /** Base interface for skeletal control edit modes */
@@ -14,13 +14,13 @@ public:
 	virtual ECoordSystem GetWidgetCoordinateSystem() const = 0;
 
 	/** @return current widget mode this anim graph node supports */
-	virtual FWidget::EWidgetMode GetWidgetMode() const = 0;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const = 0;
 
 	/** Called when the user changed widget mode by pressing "Space" key */
-	virtual FWidget::EWidgetMode ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode) = 0;
+	virtual UE::Widget::EWidgetMode ChangeToNextWidgetMode(UE::Widget::EWidgetMode CurWidgetMode) = 0;
 
 	/** Called when the user set widget mode directly, returns true if InWidgetMode is available */
-	virtual bool SetWidgetMode(FWidget::EWidgetMode InWidgetMode) = 0;
+	virtual bool SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode) = 0;
 
 	/** Get the bone that the skeletal control is manipulating */
 	virtual FName GetSelectedBone() const = 0;

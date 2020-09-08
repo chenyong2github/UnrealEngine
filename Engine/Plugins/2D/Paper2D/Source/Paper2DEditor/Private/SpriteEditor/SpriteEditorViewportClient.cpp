@@ -27,6 +27,7 @@
 
 #include "SpriteEditor/SpriteEditorSettings.h"
 #include "PaperSpriteFactory.h"
+#include "UnrealWidget.h"
 
 #define LOCTEXT_NAMESPACE "SpriteEditor"
 
@@ -134,7 +135,7 @@ void FSpriteEditorViewportClient::ActivateEditMode()
 	check(GeometryEditMode);
 	GeometryEditMode->SetEditorContext(this);
 	GeometryEditMode->BindCommands(SpriteEditorViewportPtr.Pin()->GetCommandList());
-	ModeTools->SetWidgetMode(FWidget::WM_Translate);
+	ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
 }
 
 void FSpriteEditorViewportClient::UpdateSourceTextureSpriteFromSprite(UPaperSprite* SourceSprite)

@@ -66,7 +66,7 @@ public:
 	virtual void SelectNone() override;
 	virtual bool InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale) override;
 	virtual bool UsesTransformWidget() const override;
-	virtual bool UsesTransformWidget(FWidget::EWidgetMode CheckMode) const;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const;
 	virtual FVector GetWidgetLocation() const override;
 	virtual bool GetCustomDrawingCoordinateSystem(FMatrix& OutMatrix, void* InData) override;
 	virtual bool GetCustomInputCoordinateSystem(FMatrix& OutMatrix, void* InData) override;
@@ -247,7 +247,7 @@ private:
 
 /* store coordinate system per widget mode*/
 private:
-	void OnWidgetModeChanged(FWidget::EWidgetMode InWidgetMode);
+	void OnWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMode);
 	void OnCoordSystemChanged(ECoordSystem InCoordSystem);
 	TArray<ECoordSystem> CoordSystemPerWidgetMode;
 	bool bIsChangingCoordSystem;

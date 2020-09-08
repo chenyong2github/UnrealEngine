@@ -269,39 +269,39 @@ void SEditorViewport::BindCommands()
 	
 	CommandListRef.MapAction(
 		Commands.TranslateMode,
-		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, FWidget::WM_Translate ),
-		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, FWidget::WM_Translate ),
-		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, FWidget::WM_Translate ) 
+		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, UE::Widget::WM_Translate ),
+		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, UE::Widget::WM_Translate ),
+		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, UE::Widget::WM_Translate ) 
 		);
 
 	CommandListRef.MapAction( 
 		Commands.RotateMode,
-		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, FWidget::WM_Rotate ),
-		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, FWidget::WM_Rotate ),
-		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, FWidget::WM_Rotate )
+		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, UE::Widget::WM_Rotate ),
+		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, UE::Widget::WM_Rotate ),
+		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, UE::Widget::WM_Rotate )
 		);
 		
 
 	CommandListRef.MapAction( 
 		Commands.ScaleMode,
-		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, FWidget::WM_Scale ),
-		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, FWidget::WM_Scale ),
-		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, FWidget::WM_Scale )
+		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, UE::Widget::WM_Scale ),
+		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, UE::Widget::WM_Scale ),
+		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, UE::Widget::WM_Scale )
 		);
 
 	CommandListRef.MapAction( 
 		Commands.TranslateRotateMode,
-		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, FWidget::WM_TranslateRotateZ ),
-		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, FWidget::WM_TranslateRotateZ ),
-		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, FWidget::WM_TranslateRotateZ ),
+		FExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::SetWidgetMode, UE::Widget::WM_TranslateRotateZ ),
+		FCanExecuteAction::CreateSP( ClientRef, &FEditorViewportClient::CanSetWidgetMode, UE::Widget::WM_TranslateRotateZ ),
+		FIsActionChecked::CreateSP( this, &SEditorViewport::IsWidgetModeActive, UE::Widget::WM_TranslateRotateZ ),
 		FIsActionButtonVisible::CreateSP( this, &SEditorViewport::IsTranslateRotateModeVisible )
 		);
 
 	CommandListRef.MapAction(
 		Commands.TranslateRotate2DMode,
-		FExecuteAction::CreateSP(ClientRef, &FEditorViewportClient::SetWidgetMode, FWidget::WM_2D),
-		FCanExecuteAction::CreateSP(ClientRef, &FEditorViewportClient::CanSetWidgetMode, FWidget::WM_2D),
-		FIsActionChecked::CreateSP(this, &SEditorViewport::IsWidgetModeActive, FWidget::WM_2D),
+		FExecuteAction::CreateSP(ClientRef, &FEditorViewportClient::SetWidgetMode, UE::Widget::WM_2D),
+		FCanExecuteAction::CreateSP(ClientRef, &FEditorViewportClient::CanSetWidgetMode, UE::Widget::WM_2D),
+		FIsActionChecked::CreateSP(this, &SEditorViewport::IsWidgetModeActive, UE::Widget::WM_2D),
 		FIsActionButtonVisible::CreateSP(this, &SEditorViewport::Is2DModeVisible)
 		);
 
@@ -575,7 +575,7 @@ void SEditorViewport::OnScreenCaptureForProjectThumbnail()
 
 EVisibility SEditorViewport::GetTransformToolbarVisibility() const
 {
-	return (Client->GetWidgetMode() != FWidget::WM_None) ? EVisibility::Visible : EVisibility::Hidden;
+	return (Client->GetWidgetMode() != UE::Widget::WM_None) ? EVisibility::Visible : EVisibility::Hidden;
 }
 
 TSharedRef<SWidget> SEditorViewport::BuildFixedEV100Menu()  const
@@ -633,7 +633,7 @@ void SEditorViewport::OnFixedEV100ValueChanged(float NewValue)
 	}
 }
 
-bool SEditorViewport::IsWidgetModeActive( FWidget::EWidgetMode Mode ) const
+bool SEditorViewport::IsWidgetModeActive( UE::Widget::EWidgetMode Mode ) const
 {
 	return Client->GetWidgetMode() == Mode;
 }
@@ -655,10 +655,10 @@ bool SEditorViewport::IsCoordSystemActive(ECoordSystem CoordSystem) const
 
 void SEditorViewport::OnCycleWidgetMode()
 {
-	FWidget::EWidgetMode WidgetMode = Client->GetWidgetMode();
+	UE::Widget::EWidgetMode WidgetMode = Client->GetWidgetMode();
 
 	// Can't cycle the widget mode if we don't currently have a widget
-	if (WidgetMode == FWidget::WM_None)
+	if (WidgetMode == UE::Widget::WM_None)
 	{
 		return;
 	}
@@ -669,24 +669,24 @@ void SEditorViewport::OnCycleWidgetMode()
 	{
 		++WidgetModeAsInt;
 
-		if ((WidgetModeAsInt == FWidget::WM_TranslateRotateZ) && (!GetDefault<ULevelEditorViewportSettings>()->bAllowTranslateRotateZWidget))
+		if ((WidgetModeAsInt == UE::Widget::WM_TranslateRotateZ) && (!GetDefault<ULevelEditorViewportSettings>()->bAllowTranslateRotateZWidget))
 		{
 			++WidgetModeAsInt;
 		}
 
-		if ((WidgetModeAsInt == FWidget::WM_2D) && (!GetDefault<ULevelEditor2DSettings>()->bEnable2DWidget))
+		if ((WidgetModeAsInt == UE::Widget::WM_2D) && (!GetDefault<ULevelEditor2DSettings>()->bEnable2DWidget))
 		{
 			++WidgetModeAsInt;
 		}
 
-		if( WidgetModeAsInt == FWidget::WM_Max )
+		if( WidgetModeAsInt == UE::Widget::WM_Max )
 		{
-			WidgetModeAsInt -= FWidget::WM_Max;
+			WidgetModeAsInt -= UE::Widget::WM_Max;
 		}
 	}
-	while( !Client->CanSetWidgetMode( (FWidget::EWidgetMode)WidgetModeAsInt ) && WidgetModeAsInt != WidgetMode );
+	while( !Client->CanSetWidgetMode( (UE::Widget::EWidgetMode)WidgetModeAsInt ) && WidgetModeAsInt != WidgetMode );
 
-	Client->SetWidgetMode( (FWidget::EWidgetMode)WidgetModeAsInt );
+	Client->SetWidgetMode( (UE::Widget::EWidgetMode)WidgetModeAsInt );
 }
 
 void SEditorViewport::OnCycleCoordinateSystem()

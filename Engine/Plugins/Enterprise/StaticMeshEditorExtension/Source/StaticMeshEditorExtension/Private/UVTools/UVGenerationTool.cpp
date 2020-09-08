@@ -55,14 +55,14 @@ bool FUVGenerationTool::StartTracking(FEditorViewportClient* InViewportClient, F
 	{
 		if (!bIsTrackingWidgetDrag)
 		{
-			const FWidget::EWidgetMode WidgetMode = GetModeManager()->GetWidgetMode();
+			const UE::Widget::EWidgetMode WidgetMode = GetModeManager()->GetWidgetMode();
 			FText TransText;
 
-			if (WidgetMode == FWidget::WM_Rotate)
+			if (WidgetMode == UE::Widget::WM_Rotate)
 			{
 				TransText = LOCTEXT("ChangeRotationSettings", "Rotate projection shape");
 			}
-			else if(WidgetMode == FWidget::WM_Scale)
+			else if(WidgetMode == UE::Widget::WM_Scale)
 			{
 				TransText = LOCTEXT("ChangeSizeSettings", "Scale projection shape");
 			}
@@ -97,7 +97,7 @@ bool FUVGenerationTool::EndTracking(FEditorViewportClient* InViewportClient, FVi
 void FUVGenerationTool::Enter()
 {
 	PreviousWidgetMode = GetModeManager()->GetWidgetMode();
-	GetModeManager()->SetWidgetMode(FWidget::EWidgetMode::WM_Translate);
+	GetModeManager()->SetWidgetMode(UE::Widget::EWidgetMode::WM_Translate);
 }
 
 void FUVGenerationTool::Exit()
@@ -168,10 +168,10 @@ void FUVGenerationTool::SetShapeSettings(const FUVGenerationSettings& Generation
 bool FUVGenerationTool::IsHandlingInputs() const 
 {
 	const ECoordSystem DeltaCoordSystem = GetModeManager()->GetCoordSystem();
-	const FWidget::EWidgetMode WidgetMode = GetModeManager()->GetWidgetMode();
+	const UE::Widget::EWidgetMode WidgetMode = GetModeManager()->GetWidgetMode();
 
 	return (DeltaCoordSystem == ECoordSystem::COORD_Local || DeltaCoordSystem == COORD_World) &&
-		(WidgetMode == FWidget::WM_Translate ||	WidgetMode == FWidget::WM_Rotate ||	WidgetMode == FWidget::WM_Scale);
+		(WidgetMode == UE::Widget::WM_Translate ||	WidgetMode == UE::Widget::WM_Rotate ||	WidgetMode == UE::Widget::WM_Scale);
 }
 
 #undef LOCTEXT_NAMESPACE

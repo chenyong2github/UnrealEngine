@@ -26,6 +26,7 @@
 #include "Engine/TextureCube.h"
 #include "SSCSEditorViewport.h"
 #include "PhysicsEngine/PhysicsConstraintComponent.h"
+#include "UnrealWidget.h"
 
 DEFINE_LOG_CATEGORY_STATIC(LogSCSEditorViewport, Log, All);
 
@@ -34,10 +35,10 @@ namespace
 	/** Automatic translation applied to the camera in the default editor viewport logic when orbit mode is enabled. */
 	const float AutoViewportOrbitCameraTranslate = 256.0f;
 
-	void DrawAngles(FCanvas* Canvas, int32 XPos, int32 YPos, EAxisList::Type ManipAxis, FWidget::EWidgetMode MoveMode, const FRotator& Rotation, const FVector& Translation)
+	void DrawAngles(FCanvas* Canvas, int32 XPos, int32 YPos, EAxisList::Type ManipAxis, UE::Widget::EWidgetMode MoveMode, const FRotator& Rotation, const FVector& Translation)
 	{
 		FString OutputString(TEXT(""));
-		if(MoveMode == FWidget::WM_Rotate && Rotation.IsZero() == false)
+		if(MoveMode == UE::Widget::WM_Rotate && Rotation.IsZero() == false)
 		{
 			//Only one value moves at a time
 			const FVector EulerAngles = Rotation.Euler();
@@ -54,7 +55,7 @@ namespace
 				OutputString += FString::Printf(TEXT("Yaw: %0.2f"), EulerAngles.Z);
 			}
 		}
-		else if(MoveMode == FWidget::WM_Translate && Translation.IsZero() == false)
+		else if(MoveMode == UE::Widget::WM_Translate && Translation.IsZero() == false)
 		{
 			//Only one value moves at a time
 			if(ManipAxis == EAxisList::X)
@@ -115,7 +116,7 @@ FSCSEditorViewportClient::FSCSEditorViewportClient(TWeakPtr<FBlueprintEditor>& I
 	, ScopedTransaction(NULL)
 	, bIsSimulateEnabled(false)
 {
-	WidgetMode = FWidget::WM_Translate;
+	WidgetMode = UE::Widget::WM_Translate;
 	WidgetCoordSystem = COORD_Local;
 	EngineShowFlags.DisableAdvancedFeatures();
 
@@ -575,10 +576,10 @@ void FSCSEditorViewportClient::TrackingStopped()
 	}
 }
 
-FWidget::EWidgetMode FSCSEditorViewportClient::GetWidgetMode() const
+UE::Widget::EWidgetMode FSCSEditorViewportClient::GetWidgetMode() const
 {
 	// Default to not drawing the widget
-	FWidget::EWidgetMode ReturnWidgetMode = FWidget::WM_None;
+	UE::Widget::EWidgetMode ReturnWidgetMode = UE::Widget::WM_None;
 
 	AActor* PreviewActor = GetPreviewActor();
 	if(!bIsSimulateEnabled && PreviewActor)
@@ -625,7 +626,7 @@ FWidget::EWidgetMode FSCSEditorViewportClient::GetWidgetMode() const
 }
 
 
-void FSCSEditorViewportClient::SetWidgetMode( FWidget::EWidgetMode NewMode )
+void FSCSEditorViewportClient::SetWidgetMode( UE::Widget::EWidgetMode NewMode )
 {
 	WidgetMode = NewMode;
 }

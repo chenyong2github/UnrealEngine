@@ -52,7 +52,7 @@ public:
 	virtual void MoveGizmo(AControlRigGizmoActor* GizmoActor, const bool bTranslation, FVector& InDrag, 
 		const bool bRotation, FRotator& InRot, const bool bScale, FVector& InScale, const FTransform& ToWorldTransform) override;
 	virtual void TickGizmo(AControlRigGizmoActor* GizmoActor, const FTransform& ComponentTransform) override;
-	virtual bool ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, FWidget::EWidgetMode InMode) const override;
+	virtual bool ModeSupportedByGizmoActor(const AControlRigGizmoActor* GizmoActor, UE::Widget::EWidgetMode InMode) const override;
 	// IControlRigManipulationLayer END
 
 	// Object binding

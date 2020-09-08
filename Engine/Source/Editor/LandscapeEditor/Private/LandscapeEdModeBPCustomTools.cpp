@@ -5,7 +5,7 @@
 #include "Materials/MaterialInterface.h"
 #include "AI/NavigationSystemBase.h"
 #include "Materials/MaterialInstanceDynamic.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorModeManager.h"
 #include "EditorViewportClient.h"
 #include "LandscapeToolInterface.h"

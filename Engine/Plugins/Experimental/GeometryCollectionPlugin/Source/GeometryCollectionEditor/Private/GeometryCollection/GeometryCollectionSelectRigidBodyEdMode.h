@@ -36,7 +36,7 @@ public:
 	virtual bool GetCursor(EMouseCursor::Type& OutCursor) const { OutCursor = bIsHoveringGeometryCollection ? EMouseCursor::EyeDropper: EMouseCursor::SlashedCircle; return true; }
 
 	virtual bool UsesTransformWidget() const override { return false; }
-	virtual bool UsesTransformWidget(FWidget::EWidgetMode /*CheckMode*/) const override { return false; }
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode /*CheckMode*/) const override { return false; }
 
 	virtual void Tick(FEditorViewportClient* ViewportClient, float DeltaTime) override;
 

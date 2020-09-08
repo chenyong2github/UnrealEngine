@@ -20,5 +20,5 @@ private:
 	class UAnimGraphNode_Constraint* GraphNode;
 
 	// storing current widget mode 
-	mutable FWidget::EWidgetMode CurWidgetMode;
+	mutable UE::Widget::EWidgetMode CurWidgetMode;
 };

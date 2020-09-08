@@ -10,7 +10,7 @@
 #include "ThumbnailRendering/ThumbnailManager.h"
 #include "UnrealEdGlobals.h"
 #include "Widgets/Docking/SDockTab.h"
-
+#include "UnrealWidget.h"
 
 class FOptimusEditorViewportClient : public FEditorViewportClient
 {

@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_ModifyBone.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "AnimNodeEditModes.h"
 #include "Kismet2/CompilerResultsLog.h"
 
@@ -13,7 +13,7 @@
 UAnimGraphNode_ModifyBone::UAnimGraphNode_ModifyBone(const FObjectInitializer& ObjectInitializer)
 	: Super(ObjectInitializer)
 {
-	CurWidgetMode = (int32)FWidget::WM_Rotate;
+	CurWidgetMode = (int32)UE::Widget::WM_Rotate;
 }
 
 void UAnimGraphNode_ModifyBone::ValidateAnimNodeDuringCompilation(USkeleton* ForSkeleton, FCompilerResultsLog& MessageLog)

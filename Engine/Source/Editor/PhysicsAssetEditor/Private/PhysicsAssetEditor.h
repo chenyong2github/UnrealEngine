@@ -8,7 +8,7 @@
 #include "UObject/GCObject.h"
 #include "Textures/SlateIcon.h"
 #include "Editor/UnrealEdTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Widgets/Views/STableViewBase.h"
 #include "Widgets/Views/STableRow.h"
 #include "Widgets/Views/STreeView.h"

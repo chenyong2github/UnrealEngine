@@ -7,7 +7,7 @@
 
 FModifyBoneEditMode::FModifyBoneEditMode()
 {
-	CurWidgetMode = FWidget::WM_Rotate;
+	CurWidgetMode = UE::Widget::WM_Rotate;
 }
 
 void FModifyBoneEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)
@@ -31,13 +31,13 @@ ECoordSystem FModifyBoneEditMode::GetWidgetCoordinateSystem() const
 	EBoneControlSpace Space = BCS_BoneSpace;
 	switch (CurWidgetMode)
 	{
-	case FWidget::WM_Rotate:
+	case UE::Widget::WM_Rotate:
 		Space = GraphNode->Node.RotationSpace;
 		break;
-	case FWidget::WM_Translate:
+	case UE::Widget::WM_Translate:
 		Space = GraphNode->Node.TranslationSpace;
 		break;
-	case FWidget::WM_Scale:
+	case UE::Widget::WM_Scale:
 		Space = GraphNode->Node.ScaleSpace;
 		break;
 	}
@@ -63,7 +63,7 @@ FVector FModifyBoneEditMode::GetWidgetLocation() const
 	FVector WidgetLoc = FVector::ZeroVector;
 
 	// if the current widget mode is translate, then shows the widget according to translation space
-	if (CurWidgetMode == FWidget::WM_Translate)
+	if (CurWidgetMode == UE::Widget::WM_Translate)
 	{
 		FCSPose<FCompactHeapPose>& MeshBases = RuntimeNode->ForwardedPose;
 		WidgetLoc = ConvertWidgetLocation(SkelComp, MeshBases, GraphNode->Node.BoneToModify.BoneName, GraphNode->GetNodeValue(TEXT("Translation"), GraphNode->Node.Translation), GraphNode->Node.TranslationSpace);
@@ -98,62 +98,62 @@ FVector FModifyBoneEditMode::GetWidgetLocation() const
 	return WidgetLoc;
 }
 
-EBoneModificationMode FModifyBoneEditMode::GetBoneModificationMode(FWidget::EWidgetMode InWidgetMode) const
+EBoneModificationMode FModifyBoneEditMode::GetBoneModificationMode(UE::Widget::EWidgetMode InWidgetMode) const
 {
 	switch (InWidgetMode)
 	{
-	case FWidget::WM_Translate:
+	case UE::Widget::WM_Translate:
 		if(!GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Translation)))
 		{
 			return GraphNode->Node.TranslationMode;
 		}
 		break;
-	case FWidget::WM_Rotate:
+	case UE::Widget::WM_Rotate:
 		if(!GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Rotation)))
 		{
 			return GraphNode->Node.RotationMode;
 		}
 		break;
-	case FWidget::WM_Scale:
+	case UE::Widget::WM_Scale:
 		if(!GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Scale)))
 		{
 			return GraphNode->Node.ScaleMode;
 		}
 		break;
-	case FWidget::WM_TranslateRotateZ:
-	case FWidget::WM_2D:
+	case UE::Widget::WM_TranslateRotateZ:
+	case UE::Widget::WM_2D:
 		break;
 	}
 
 	return EBoneModificationMode::BMM_Ignore;
 }
 
-FWidget::EWidgetMode FModifyBoneEditMode::GetNextWidgetMode(FWidget::EWidgetMode InWidgetMode) const
+UE::Widget::EWidgetMode FModifyBoneEditMode::GetNextWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const
 {
-	FWidget::EWidgetMode InMode = InWidgetMode;
+	UE::Widget::EWidgetMode InMode = InWidgetMode;
 	switch (InMode)
 	{
-	case FWidget::WM_Translate:
-		return FWidget::WM_Rotate;
-	case FWidget::WM_Rotate:
-		return FWidget::WM_Scale;
-	case FWidget::WM_Scale:
-		return FWidget::WM_Translate;
-	case FWidget::WM_TranslateRotateZ:
-	case FWidget::WM_2D:
+	case UE::Widget::WM_Translate:
+		return UE::Widget::WM_Rotate;
+	case UE::Widget::WM_Rotate:
+		return UE::Widget::WM_Scale;
+	case UE::Widget::WM_Scale:
+		return UE::Widget::WM_Translate;
+	case UE::Widget::WM_TranslateRotateZ:
+	case UE::Widget::WM_2D:
 		break;
 	}
 
-	return FWidget::WM_None;
+	return UE::Widget::WM_None;
 }
 
-FWidget::EWidgetMode FModifyBoneEditMode::FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const
+UE::Widget::EWidgetMode FModifyBoneEditMode::FindValidWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const
 {
-	FWidget::EWidgetMode InMode = InWidgetMode;
-	FWidget::EWidgetMode ValidMode = InMode;
-	if (InMode == FWidget::WM_None)
+	UE::Widget::EWidgetMode InMode = InWidgetMode;
+	UE::Widget::EWidgetMode ValidMode = InMode;
+	if (InMode == UE::Widget::WM_None)
 	{	// starts from Rotate mode
-		ValidMode = FWidget::WM_Rotate;
+		ValidMode = UE::Widget::WM_Rotate;
 	}
 
 	// find from current widget mode and loop 1 cycle until finding a valid mode
@@ -168,12 +168,12 @@ FWidget::EWidgetMode FModifyBoneEditMode::FindValidWidgetMode(FWidget::EWidgetMo
 	}
 
 	// if couldn't find a valid mode, returns None
-	ValidMode = FWidget::WM_None;
+	ValidMode = UE::Widget::WM_None;
 
 	return ValidMode;
 }
 
-FWidget::EWidgetMode FModifyBoneEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FModifyBoneEditMode::GetWidgetMode() const
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 	int32 BoneIndex = SkelComp->GetBoneIndex(GraphNode->Node.BoneToModify.BoneName);
@@ -183,18 +183,18 @@ FWidget::EWidgetMode FModifyBoneEditMode::GetWidgetMode() const
 		return CurWidgetMode;
 	}
 
-	return FWidget::WM_None;
+	return UE::Widget::WM_None;
 }
 
-FWidget::EWidgetMode FModifyBoneEditMode::ChangeToNextWidgetMode(FWidget::EWidgetMode InCurWidgetMode)
+UE::Widget::EWidgetMode FModifyBoneEditMode::ChangeToNextWidgetMode(UE::Widget::EWidgetMode InCurWidgetMode)
 {
-	FWidget::EWidgetMode NextWidgetMode = GetNextWidgetMode(InCurWidgetMode);
+	UE::Widget::EWidgetMode NextWidgetMode = GetNextWidgetMode(InCurWidgetMode);
 	CurWidgetMode = FindValidWidgetMode(NextWidgetMode);
 
 	return CurWidgetMode;
 }
 
-bool FModifyBoneEditMode::SetWidgetMode(FWidget::EWidgetMode InWidgetMode)
+bool FModifyBoneEditMode::SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode)
 {
 	// if InWidgetMode is available 
 	if (FindValidWidgetMode(InWidgetMode) == InWidgetMode)
@@ -254,17 +254,17 @@ void FModifyBoneEditMode::DoScale(FVector& InScale)
 bool FModifyBoneEditMode::ShouldDrawWidget() const
 {
 	// Prevent us from using widgets if pins are linked
-	if(CurWidgetMode == FWidget::WM_Translate && GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Translation)))
+	if(CurWidgetMode == UE::Widget::WM_Translate && GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Translation)))
 	{
 		return false;
 	}
 
-	if(CurWidgetMode == FWidget::WM_Rotate && GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Rotation)))
+	if(CurWidgetMode == UE::Widget::WM_Rotate && GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Rotation)))
 	{
 		return false;
 	}
 
-	if(CurWidgetMode == FWidget::WM_Scale && GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Scale)))
+	if(CurWidgetMode == UE::Widget::WM_Scale && GraphNode->IsPinExposedAndLinked(GET_MEMBER_NAME_STRING_CHECKED(FAnimNode_ModifyBone, Scale)))
 	{
 		return false;
 	}

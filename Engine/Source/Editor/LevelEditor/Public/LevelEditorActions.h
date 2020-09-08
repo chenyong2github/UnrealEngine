@@ -5,7 +5,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "SceneTypes.h"
 #include "Framework/Commands/Commands.h"
 #include "AssetData.h"
@@ -1226,9 +1226,9 @@ public:
 
 	static void SelectActorsInLayers();
 
-	static void SetWidgetMode( FWidget::EWidgetMode WidgetMode );
-	static bool IsWidgetModeActive( FWidget::EWidgetMode WidgetMode );
-	static bool CanSetWidgetMode( FWidget::EWidgetMode WidgetMode );
+	static void SetWidgetMode( UE::Widget::EWidgetMode WidgetMode );
+	static bool IsWidgetModeActive( UE::Widget::EWidgetMode WidgetMode );
+	static bool CanSetWidgetMode( UE::Widget::EWidgetMode WidgetMode );
 	static bool IsTranslateRotateModeVisible();
 	static void SetCoordinateSystem( ECoordSystem CoordSystem );
 	static bool IsCoordinateSystemActive( ECoordSystem CoordSystem );

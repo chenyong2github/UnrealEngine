@@ -398,7 +398,7 @@ bool FEdMode::UsesTransformWidget() const
 	return true;
 }
 
-bool FEdMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) const
+bool FEdMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
 	if (UsesPropertyWidgets())
 	{
@@ -410,7 +410,7 @@ bool FEdMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) const
 			// If editing a vector (not a transform)
 			if (!EditedPropertyName.IsEmpty() && !bEditedPropertyIsTransform)
 			{
-				return (CheckMode == FWidget::WM_Translate);
+				return (CheckMode == UE::Widget::WM_Translate);
 			}
 		}
 	}
@@ -505,7 +505,7 @@ bool FEdMode::ShouldDrawWidget() const
 	return bDrawWidget;
 }
 
-EAxisList::Type FEdMode::GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const
+EAxisList::Type FEdMode::GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const
 {
 	return EAxisList::All;
 }

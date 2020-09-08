@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "HitProxies.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 
 //////////////////////////////////////////////////////////////////////////
 // FSelectedItem
@@ -41,7 +41,7 @@ public:
 		return false;
 	}
 
-	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode)
+	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode)
 	{
 	}
 

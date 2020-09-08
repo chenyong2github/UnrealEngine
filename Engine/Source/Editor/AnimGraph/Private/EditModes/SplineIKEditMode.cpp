@@ -13,7 +13,7 @@ FSplineIKEditMode::FSplineIKEditMode()
 	: SplineIKRuntimeNode(nullptr)
 	, SplineIKGraphNode(nullptr)
 	, SelectedSplinePoint(0)
-	, WidgetMode(FWidget::WM_None)
+	, WidgetMode(UE::Widget::WM_None)
 {
 }
 
@@ -22,7 +22,7 @@ void FSplineIKEditMode::EnterMode(UAnimGraphNode_Base* InEditorNode, FAnimNode_B
 	SplineIKRuntimeNode = static_cast<FAnimNode_SplineIK*>(InRuntimeNode);
 	SplineIKGraphNode = CastChecked<UAnimGraphNode_SplineIK>(InEditorNode);
 
-	WidgetMode = FindValidWidgetMode(FWidget::WM_None);
+	WidgetMode = FindValidWidgetMode(UE::Widget::WM_None);
 
 	FAnimNodeEditMode::EnterMode(InEditorNode, InRuntimeNode);
 }
@@ -92,45 +92,45 @@ FVector FSplineIKEditMode::GetWidgetLocation() const
 	return FVector::ZeroVector;
 }
 
-FWidget::EWidgetMode FSplineIKEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FSplineIKEditMode::GetWidgetMode() const
 {
 	return WidgetMode;
 }
 
-bool FSplineIKEditMode::IsModeValid(FWidget::EWidgetMode InWidgetMode) const
+bool FSplineIKEditMode::IsModeValid(UE::Widget::EWidgetMode InWidgetMode) const
 {
 	// @TODO: when transforms are exposed as pin, deny editing via widget
 	return true;
 }
 
 
-FWidget::EWidgetMode FSplineIKEditMode::GetNextWidgetMode(FWidget::EWidgetMode InWidgetMode) const
+UE::Widget::EWidgetMode FSplineIKEditMode::GetNextWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const
 {
-	FWidget::EWidgetMode InMode = InWidgetMode;
+	UE::Widget::EWidgetMode InMode = InWidgetMode;
 	switch (InMode)
 	{
-	case FWidget::WM_Translate:
-		return FWidget::WM_Rotate;
-	case FWidget::WM_Rotate:
-		return FWidget::WM_Scale;
-	case FWidget::WM_Scale:
-		return FWidget::WM_Translate;
-	case FWidget::WM_TranslateRotateZ:
-	case FWidget::WM_2D:
+	case UE::Widget::WM_Translate:
+		return UE::Widget::WM_Rotate;
+	case UE::Widget::WM_Rotate:
+		return UE::Widget::WM_Scale;
+	case UE::Widget::WM_Scale:
+		return UE::Widget::WM_Translate;
+	case UE::Widget::WM_TranslateRotateZ:
+	case UE::Widget::WM_2D:
 		break;
 	}
 
-	return FWidget::WM_None;
+	return UE::Widget::WM_None;
 }
 
-FWidget::EWidgetMode FSplineIKEditMode::FindValidWidgetMode(FWidget::EWidgetMode InWidgetMode) const
+UE::Widget::EWidgetMode FSplineIKEditMode::FindValidWidgetMode(UE::Widget::EWidgetMode InWidgetMode) const
 {
-	FWidget::EWidgetMode InMode = InWidgetMode;
-	FWidget::EWidgetMode ValidMode = InMode;
-	if (InMode == FWidget::WM_None)
+	UE::Widget::EWidgetMode InMode = InWidgetMode;
+	UE::Widget::EWidgetMode ValidMode = InMode;
+	if (InMode == UE::Widget::WM_None)
 	{	
 		// starts from translate mode
-		ValidMode = FWidget::WM_Translate;
+		ValidMode = UE::Widget::WM_Translate;
 	}
 
 	// find from current widget mode and loop 1 cycle until finding a valid mode
@@ -145,20 +145,20 @@ FWidget::EWidgetMode FSplineIKEditMode::FindValidWidgetMode(FWidget::EWidgetMode
 	}
 
 	// if couldn't find a valid mode, returns None
-	ValidMode = FWidget::WM_None;
+	ValidMode = UE::Widget::WM_None;
 
 	return ValidMode;
 }
 
-FWidget::EWidgetMode FSplineIKEditMode::ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode)
+UE::Widget::EWidgetMode FSplineIKEditMode::ChangeToNextWidgetMode(UE::Widget::EWidgetMode CurWidgetMode)
 {
-	FWidget::EWidgetMode NextWidgetMode = GetNextWidgetMode(CurWidgetMode);
+	UE::Widget::EWidgetMode NextWidgetMode = GetNextWidgetMode(CurWidgetMode);
 	WidgetMode = FindValidWidgetMode(NextWidgetMode);
 
 	return WidgetMode;
 }
 
-bool FSplineIKEditMode::SetWidgetMode(FWidget::EWidgetMode InWidgetMode)
+bool FSplineIKEditMode::SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode)
 {
 	WidgetMode = InWidgetMode;
 	return true;

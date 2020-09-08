@@ -5,6 +5,7 @@
 #include "CoreMinimal.h"
 #include "HitProxies.h"
 #include "UObject/GCObject.h"
+#include "UnrealWidgetFwd.h"
 
 class FCanvas;
 class FEditorModeTools;
@@ -14,15 +15,6 @@ class FSceneView;
 class UMaterialInstanceDynamic;
 class UMaterialInterface;
 class FMaterialRenderProxy;
-
-/** Coordinate system identifiers. */
-enum ECoordSystem
-{
-	COORD_None = -1,
-	COORD_World,
-	COORD_Local,
-	COORD_Max,
-};
 
 class FWidget : public FGCObject
 {
@@ -36,17 +28,6 @@ public:
 	constexpr static int32 AXIS_CIRCLE_SIDES                   = 24;
 	constexpr static float ARCALL_RELATIVE_INNER_SIZE          = 0.75f;
 	constexpr static float AXIS_LENGTH_SCALE_OFFSET            = 5.0f;
-
-	enum EWidgetMode
-	{
-		WM_None = -1,
-		WM_Translate,
-		WM_TranslateRotateZ,
-		WM_2D,
-		WM_Rotate,
-		WM_Scale,
-		WM_Max,
-	};
 
 	FWidget();
 
@@ -90,10 +71,10 @@ public:
 	}
 
 	/** Only some modes support Absolute Translation Movement.  Check current mode */
-	static bool AllowsAbsoluteTranslationMovement(FWidget::EWidgetMode WidgetMode);
+	static bool AllowsAbsoluteTranslationMovement(UE::Widget::EWidgetMode WidgetMode);
 
 	/** Only some modes support Absolute Rotation Movement.  Check current mode */
-	static bool AllowsAbsoluteRotationMovement(EWidgetMode WidgetMode, EAxisList::Type InAxisType);
+	static bool AllowsAbsoluteRotationMovement(UE::Widget::EWidgetMode WidgetMode, EAxisList::Type InAxisType);
 	/**
 	 * Sets the default visibility of the widget, if it is not overridden by an active editor mode tool.
 	 *
@@ -177,7 +158,7 @@ public:
 	/**
 	 * Gets the axis to draw based on the current widget mode
 	 */
-	EAxisList::Type GetAxisToDraw(EWidgetMode WidgetMode) const;
+	EAxisList::Type GetAxisToDraw(UE::Widget::EWidgetMode WidgetMode) const;
 
 	/** @return true if the widget is disabled */
 	bool IsWidgetDisabled() const;

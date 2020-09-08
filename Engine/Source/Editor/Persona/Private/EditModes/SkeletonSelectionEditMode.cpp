@@ -88,7 +88,7 @@ FSelectedSocketInfo FSkeletonSelectionEditMode::DuplicateAndSelectSocket(const F
 bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport)
 {
 	EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
-	FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+	UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 
 	int32 BoneIndex = GetAnimPreviewScene().GetSelectedBoneIndex();
 	USkeletalMeshSocket* SelectedSocket = GetAnimPreviewScene().GetSelectedSocket().Socket;
@@ -118,7 +118,7 @@ bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewport
 
 				if (Socket && bInTransaction == false)
 				{
-					if (WidgetMode == FWidget::WM_Rotate)
+					if (WidgetMode == UE::Widget::WM_Rotate)
 					{
 						GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_RotateSocket", "Rotate Socket"));
 					}
@@ -137,7 +137,7 @@ bool FSkeletonSelectionEditMode::StartTracking(FEditorViewportClient* InViewport
 				if (bInTransaction == false)
 				{
 					// we also allow undo/redo of bone manipulations
-					if (WidgetMode == FWidget::WM_Rotate)
+					if (WidgetMode == UE::Widget::WM_Rotate)
 					{
 						GEditor->BeginTransaction(LOCTEXT("AnimationEditorViewport_RotateBone", "Rotate Bone"));
 					}
@@ -185,7 +185,7 @@ bool FSkeletonSelectionEditMode::EndTracking(FEditorViewportClient* InViewportCl
 bool FSkeletonSelectionEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
-	const FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+	const UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 	const ECoordSystem CoordSystem = InViewportClient->GetWidgetCoordSystemSpace();
 
 	// Get some useful info about buttons being held down
@@ -234,9 +234,9 @@ bool FSkeletonSelectionEditMode::InputDelta(FEditorViewportClient* InViewportCli
 			// Remove SkelControl's orientation from BoneMatrix, as we need to translate/rotate in the non-SkelControlled space
 			BaseTM = BaseTM.GetRelativeTransformReverse(CurrentSkelControlTM);
 
-			const bool bDoRotation    = WidgetMode == FWidget::WM_Rotate    || WidgetMode == FWidget::WM_TranslateRotateZ;
-			const bool bDoTranslation = WidgetMode == FWidget::WM_Translate || WidgetMode == FWidget::WM_TranslateRotateZ;
-			const bool bDoScale = WidgetMode == FWidget::WM_Scale;
+			const bool bDoRotation    = WidgetMode == UE::Widget::WM_Rotate    || WidgetMode == UE::Widget::WM_TranslateRotateZ;
+			const bool bDoTranslation = WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ;
+			const bool bDoScale = WidgetMode == UE::Widget::WM_Scale;
 
 			if (bDoRotation)
 			{
@@ -300,7 +300,7 @@ bool FSkeletonSelectionEditMode::InputDelta(FEditorViewportClient* InViewportCli
 		}
 		else if( SelectedActor != nullptr )
 		{
-			if (WidgetMode == FWidget::WM_Rotate)
+			if (WidgetMode == UE::Widget::WM_Rotate)
 			{
 				FTransform Transform = SelectedActor->GetTransform();
 				FRotator NewRotation = (Transform * FTransform( InRot ) ).Rotator();
@@ -431,9 +431,9 @@ bool FSkeletonSelectionEditMode::UsesTransformWidget() const
 	return true;
 }
 
-bool FSkeletonSelectionEditMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) const
+bool FSkeletonSelectionEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
-	return ShouldDrawWidget() && (CheckMode == FWidget::WM_Scale || CheckMode == FWidget::WM_Translate || CheckMode == FWidget::WM_Rotate);
+	return ShouldDrawWidget() && (CheckMode == UE::Widget::WM_Scale || CheckMode == UE::Widget::WM_Translate || CheckMode == UE::Widget::WM_Rotate);
 }
 
 bool FSkeletonSelectionEditMode::GetCustomDrawingCoordinateSystem(FMatrix& InMatrix, void* InData)

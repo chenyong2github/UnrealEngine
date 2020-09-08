@@ -5,7 +5,7 @@
 #include "Tools/UEdMode.h"
 #include "UObject/Object.h"
 #include "UObject/Interface.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "AssetEditorGizmoFactory.h"
 
 #include "GizmoEdMode.generated.h"

@@ -1,6 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Materials/Material.h"
 #include "CanvasItem.h"
 #include "Settings/LevelEditorViewportSettings.h"
@@ -215,23 +216,23 @@ void FWidget::Render( const FSceneView* View,FPrimitiveDrawInterface* PDI, FEdit
 
 	switch( ViewportClient->GetWidgetMode() )
 	{
-		case WM_Translate:
+		case UE::Widget::EWidgetMode::WM_Translate:
 			Render_Translate(View, PDI, ViewportClient, WidgetLocation, bDrawWidget);
 			break;
 
-		case WM_Rotate:
+		case UE::Widget::EWidgetMode::WM_Rotate:
 			Render_Rotate(View, PDI, ViewportClient, WidgetLocation, bDrawWidget);
 			break;
 
-		case WM_Scale:
+		case UE::Widget::EWidgetMode::WM_Scale:
 			Render_Scale(View, PDI, ViewportClient, WidgetLocation, bDrawWidget);
 			break;
 
-		case WM_TranslateRotateZ:
+		case UE::Widget::EWidgetMode::WM_TranslateRotateZ:
 			Render_TranslateRotateZ(View, PDI, ViewportClient, WidgetLocation, bDrawWidget);
 			break;
 
-		case WM_2D:
+		case UE::Widget::EWidgetMode::WM_2D:
 			Render_2D(View, PDI, ViewportClient, WidgetLocation, bDrawWidget);
 			break;
 
@@ -1436,7 +1437,7 @@ void FWidget::DrawStartStopMarker(FPrimitiveDrawInterface* PDI, const FVector& I
 	}
 }
 
-EAxisList::Type FWidget::GetAxisToDraw( EWidgetMode WidgetMode ) const
+EAxisList::Type FWidget::GetAxisToDraw( UE::Widget::EWidgetMode WidgetMode ) const
 {
 	return EditorModeTools ? EditorModeTools->GetWidgetAxisToDraw( WidgetMode ) : EAxisList::All;
 }

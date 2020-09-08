@@ -56,33 +56,33 @@ ECoordSystem FAnimNodeEditMode::GetWidgetCoordinateSystem() const
 	return ECoordSystem::COORD_None;
 }
 
-FWidget::EWidgetMode FAnimNodeEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FAnimNodeEditMode::GetWidgetMode() const
 {
 	UAnimGraphNode_SkeletalControlBase* SkelControl = Cast<UAnimGraphNode_SkeletalControlBase>(AnimNode);
 	if (SkelControl != nullptr)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return (FWidget::EWidgetMode)SkelControl->GetWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent());
+		return (UE::Widget::EWidgetMode)SkelControl->GetWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent());
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	return FWidget::EWidgetMode::WM_None;
+	return UE::Widget::EWidgetMode::WM_None;
 }
 
-FWidget::EWidgetMode FAnimNodeEditMode::ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode)
+UE::Widget::EWidgetMode FAnimNodeEditMode::ChangeToNextWidgetMode(UE::Widget::EWidgetMode CurWidgetMode)
 {
 	UAnimGraphNode_SkeletalControlBase* SkelControl = Cast<UAnimGraphNode_SkeletalControlBase>(AnimNode);
 	if (SkelControl != nullptr)
 	{
 		PRAGMA_DISABLE_DEPRECATION_WARNINGS
-		return (FWidget::EWidgetMode)SkelControl->ChangeToNextWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent(), CurWidgetMode);
+		return (UE::Widget::EWidgetMode)SkelControl->ChangeToNextWidgetMode(GetAnimPreviewScene().GetPreviewMeshComponent(), CurWidgetMode);
 		PRAGMA_ENABLE_DEPRECATION_WARNINGS
 	}
 
-	return FWidget::EWidgetMode::WM_None;
+	return UE::Widget::EWidgetMode::WM_None;
 }
 
-bool FAnimNodeEditMode::SetWidgetMode(FWidget::EWidgetMode InWidgetMode)
+bool FAnimNodeEditMode::SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode)
 {
 	UAnimGraphNode_SkeletalControlBase* SkelControl = Cast<UAnimGraphNode_SkeletalControlBase>(AnimNode);
 	if (SkelControl != nullptr)
@@ -227,9 +227,9 @@ bool FAnimNodeEditMode::InputKey(FEditorViewportClient* InViewportClient, FViewp
 	// Handle switching modes - only allowed when not already manipulating
 	if ((InEvent == IE_Pressed) && (InKey == EKeys::SpaceBar) && !bManipulating)
 	{
-		FWidget::EWidgetMode WidgetMode = (FWidget::EWidgetMode)ChangeToNextWidgetMode(GetModeManager()->GetWidgetMode());
+		UE::Widget::EWidgetMode WidgetMode = (UE::Widget::EWidgetMode)ChangeToNextWidgetMode(GetModeManager()->GetWidgetMode());
 		GetModeManager()->SetWidgetMode(WidgetMode);
-		if (WidgetMode == FWidget::WM_Scale)
+		if (WidgetMode == UE::Widget::WM_Scale)
 		{
 			GetModeManager()->SetCoordSystem(COORD_Local);
 		}
@@ -248,7 +248,7 @@ bool FAnimNodeEditMode::InputKey(FEditorViewportClient* InViewportClient, FViewp
 bool FAnimNodeEditMode::InputDelta(FEditorViewportClient* InViewportClient, FViewport* InViewport, FVector& InDrag, FRotator& InRot, FVector& InScale)
 {
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
-	const FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+	const UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 
 	bool bHandled = false;
 
@@ -258,9 +258,9 @@ bool FAnimNodeEditMode::InputDelta(FEditorViewportClient* InViewportClient, FVie
 	{
 		bHandled = true;
 
-		const bool bDoRotation = WidgetMode == FWidget::WM_Rotate || WidgetMode == FWidget::WM_TranslateRotateZ;
-		const bool bDoTranslation = WidgetMode == FWidget::WM_Translate || WidgetMode == FWidget::WM_TranslateRotateZ;
-		const bool bDoScale = WidgetMode == FWidget::WM_Scale;
+		const bool bDoRotation = WidgetMode == UE::Widget::WM_Rotate || WidgetMode == UE::Widget::WM_TranslateRotateZ;
+		const bool bDoTranslation = WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ;
+		const bool bDoScale = WidgetMode == UE::Widget::WM_Scale;
 
 		if (bDoRotation)
 		{

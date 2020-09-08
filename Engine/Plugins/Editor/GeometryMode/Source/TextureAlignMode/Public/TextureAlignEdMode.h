@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "Modules/ModuleInterface.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 #include "EditorModeTools.h"
 
@@ -49,7 +49,7 @@ public:
 	virtual bool ShouldDrawWidget() const override;
 	virtual bool GetCustomDrawingCoordinateSystem( FMatrix& InMatrix, void* InData ) override;
 	virtual bool GetCustomInputCoordinateSystem( FMatrix& InMatrix, void* InData ) override;
-	virtual EAxisList::Type GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const override;
+	virtual EAxisList::Type GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const override;
 	virtual bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
 	virtual bool EndTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport) override;
 	virtual bool AllowWidgetMove() override { return false; }

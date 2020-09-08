@@ -189,11 +189,11 @@ void FControlRigEditMode::Enter()
 		Toolkit->Init(Owner->GetToolkitHost());
 
 		bIsChangingCoordSystem = false;
-		if (CoordSystemPerWidgetMode.Num() < (FWidget::WM_Max))
+		if (CoordSystemPerWidgetMode.Num() < (UE::Widget::WM_Max))
 		{
-			CoordSystemPerWidgetMode.SetNum(FWidget::WM_Max);
+			CoordSystemPerWidgetMode.SetNum(UE::Widget::WM_Max);
 			ECoordSystem CoordSystem = GLevelEditorModeTools().GetCoordSystem();
-			for (int32 i = 0; i < FWidget::WM_Max; ++i)
+			for (int32 i = 0; i < UE::Widget::WM_Max; ++i)
 			{
 				CoordSystemPerWidgetMode[i] = CoordSystem;
 			}
@@ -295,7 +295,7 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 	{
 		if (WeakControlRigEditing.IsValid())
 		{
-			const FWidget::EWidgetMode CurrentWidgetMode = ViewportClient->GetWidgetMode();
+			const UE::Widget::EWidgetMode CurrentWidgetMode = ViewportClient->GetWidgetMode();
 			for (FRigElementKey SelectedRigElement : SelectedRigElements)
 			{
 				if (AControlRigGizmoActor* GizmoActor = GetGizmoFromControlName(SelectedRigElement.Name))
@@ -312,17 +312,17 @@ void FControlRigEditMode::Tick(FEditorViewportClient* ViewportClient, float Delt
 								case ERigControlType::Transform:
 								case ERigControlType::TransformNoScale:
 								{
-									ViewportClient->SetWidgetMode(FWidget::WM_Translate);
+									ViewportClient->SetWidgetMode(UE::Widget::WM_Translate);
 									break;
 								}
 								case ERigControlType::Rotator:
 								{
-									ViewportClient->SetWidgetMode(FWidget::WM_Rotate);
+									ViewportClient->SetWidgetMode(UE::Widget::WM_Rotate);
 									break;
 								}
 								case ERigControlType::Scale:
 								{
-									ViewportClient->SetWidgetMode(FWidget::WM_Scale);
+									ViewportClient->SetWidgetMode(UE::Widget::WM_Scale);
 									break;
 								}
 							}
@@ -536,7 +536,7 @@ bool FControlRigEditMode::UsesTransformWidget() const
 	return FEdMode::UsesTransformWidget();
 }
 
-bool FControlRigEditMode::UsesTransformWidget(FWidget::EWidgetMode CheckMode) const
+bool FControlRigEditMode::UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const
 {
 	for (const AControlRigGizmoActor* GizmoActor : GizmoActors)
 	{
@@ -799,15 +799,15 @@ bool FControlRigEditMode::InputDelta(FEditorViewportClient* InViewportClient, FV
 	const bool bAltDown = InViewport->KeyState(EKeys::LeftAlt) || InViewport->KeyState(EKeys::RightAlt);
 	const bool bMouseButtonDown = InViewport->KeyState(EKeys::LeftMouseButton);
 
-	const FWidget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
+	const UE::Widget::EWidgetMode WidgetMode = InViewportClient->GetWidgetMode();
 	const EAxisList::Type CurrentAxis = InViewportClient->GetCurrentWidgetAxis();
 	const ECoordSystem CoordSystem = InViewportClient->GetWidgetCoordSystemSpace();
 
 	if (bIsTransacting && bMouseButtonDown && !bCtrlDown && !bShiftDown && !bAltDown && CurrentAxis != EAxisList::None)
 	{
-		const bool bDoRotation = !Rot.IsZero() && (WidgetMode == FWidget::WM_Rotate || WidgetMode == FWidget::WM_TranslateRotateZ);
-		const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == FWidget::WM_Translate || WidgetMode == FWidget::WM_TranslateRotateZ);
-		const bool bDoScale = !Scale.IsZero() && WidgetMode == FWidget::WM_Scale;
+		const bool bDoRotation = !Rot.IsZero() && (WidgetMode == UE::Widget::WM_Rotate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
+		const bool bDoTranslation = !Drag.IsZero() && (WidgetMode == UE::Widget::WM_Translate || WidgetMode == UE::Widget::WM_TranslateRotateZ);
+		const bool bDoScale = !Scale.IsZero() && WidgetMode == UE::Widget::WM_Scale;
 
 		if (ManipulationLayer != nullptr && AreRigElementsSelected(FRigElementTypeHelper::ToMask(ERigElementType::Control)))
 		{
@@ -1467,7 +1467,7 @@ AControlRigGizmoActor* FControlRigEditMode::GetGizmoFromControlName(const FName&
 	return ManipulationLayer ? ManipulationLayer->GetGizmoFromControlName(InControlName) : nullptr;
 }
 
-void FControlRigEditMode::OnWidgetModeChanged(FWidget::EWidgetMode InWidgetMode)
+void FControlRigEditMode::OnWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMode)
 {
 	if (Settings && Settings->bCoordSystemPerWidgetMode)
 	{

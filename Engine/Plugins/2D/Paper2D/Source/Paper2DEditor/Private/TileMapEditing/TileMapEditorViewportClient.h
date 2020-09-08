@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "PreviewScene.h"
 #include "TileMapEditing/TileMapEditor.h"
 #include "PaperEditorViewportClient.h"
@@ -67,7 +67,7 @@ private:
 	UPaperTileMapComponent* RenderTileMapComponent;
 
 	// Widget mode
-	FWidget::EWidgetMode WidgetMode;
+	UE::Widget::EWidgetMode WidgetMode;
 
 	// Are we currently manipulating something?
 	bool bManipulating;

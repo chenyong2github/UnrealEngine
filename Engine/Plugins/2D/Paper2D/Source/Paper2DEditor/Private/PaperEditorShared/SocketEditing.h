@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "UObject/WeakObjectPtr.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "PaperEditorShared/AssetEditorSelectedItem.h"
 
 class FCanvas;
@@ -29,7 +29,7 @@ public:
 
 	// FSelectedItem interface
 	virtual bool Equals(const FSelectedItem& OtherItem) const override;
-	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode) override;
+	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode) override;
 	FVector GetWorldPos() const override;
 	virtual void DeleteThisItem() override;
 	// End of FSelectedItem interface

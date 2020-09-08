@@ -5,7 +5,7 @@
 #include "Styling/SlateTypes.h"
 #include "InputCoreTypes.h"
 #include "Editor.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 
 // Forward declarations 
 class UVREditorMode;

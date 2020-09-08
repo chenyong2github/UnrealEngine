@@ -35,6 +35,7 @@
 #include "CameraController.h"
 #include "Animation/MorphTarget.h"
 #include "Rendering/SkeletalMeshModel.h"
+#include "UnrealWidget.h"
 
 namespace {
 	// Value from UE3
@@ -95,7 +96,7 @@ FAnimationViewportClient::FAnimationViewportClient(const TSharedRef<IPersonaPrev
 	DrawHelper.AxesLineThickness = ConfigOption->bHighlightOrigin ? 1.0f : 0.0f;
 	DrawHelper.bDrawGrid = true;	// Toggling grid now relies on the show flag
 
-	WidgetMode = FWidget::WM_Rotate;
+	WidgetMode = UE::Widget::WM_Rotate;
 	ModeTools->SetWidgetMode(WidgetMode);
 
 	EngineShowFlags.Game = 0;

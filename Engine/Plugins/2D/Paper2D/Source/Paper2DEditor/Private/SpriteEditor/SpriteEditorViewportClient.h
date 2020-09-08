@@ -128,7 +128,7 @@ private:
 	UPaperSpriteComponent* RenderSpriteComponent;
 
 	// Widget mode
-// 	FWidget::EWidgetMode DesiredWidgetMode;
+// 	UE::Widget::EWidgetMode DesiredWidgetMode;
 
 	// Are we currently manipulating something?
 	bool bManipulating;

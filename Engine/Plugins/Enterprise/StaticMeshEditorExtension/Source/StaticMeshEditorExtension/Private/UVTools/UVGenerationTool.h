@@ -52,7 +52,7 @@ private:
 	/** The shape's rotation. */
 	FRotator ShapeRotation;
 
-	FWidget::EWidgetMode PreviousWidgetMode;
+	UE::Widget::EWidgetMode PreviousWidgetMode;
 
 	FOnShapeSettingsChanged OnShapeSettingsChangedEvent;
 

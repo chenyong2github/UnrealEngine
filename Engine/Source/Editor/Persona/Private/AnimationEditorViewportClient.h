@@ -6,7 +6,7 @@
 #include "Misc/Guid.h"
 #include "InputCoreTypes.h"
 #include "HitProxies.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
 #include "Toolkits/AssetEditorToolkit.h"
 #include "Animation/DebugSkelMeshComponent.h"
@@ -135,9 +135,9 @@ public:
 //	virtual bool InputWidgetDelta( FViewport* Viewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale ) override;
 	virtual void TrackingStarted( const struct FInputEventState& InInputState, bool bIsDragging, bool bNudge ) override;
 	virtual void TrackingStopped() override;
-//	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-//	virtual void SetWidgetMode(FWidget::EWidgetMode InWidgetMode) override;
-//	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const override;
+//	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+//	virtual void SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode) override;
+//	virtual bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual FMatrix GetWidgetCoordSystem() const override;
 	virtual ECoordSystem GetWidgetCoordSystemSpace() const override;
@@ -346,7 +346,7 @@ private:
 	TWeakPtr<class FAssetEditorToolkit> AssetEditorToolkitPtr;
 
 	// Current widget mode
-	FWidget::EWidgetMode WidgetMode;
+	UE::Widget::EWidgetMode WidgetMode;
 
 	/** The current camera follow mode */
 	EAnimationViewportCameraFollowMode CameraFollowMode;

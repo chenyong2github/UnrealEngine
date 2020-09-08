@@ -30,6 +30,7 @@
 #include "Engine/AssetUserData.h"
 #include "Editor/EditorPerProjectUserSettings.h"
 #include "AssetViewerSettings.h"
+#include "UnrealWidget.h"
 
 #define LOCTEXT_NAMESPACE "FStaticMeshEditorViewportClient"
 
@@ -64,7 +65,7 @@ FStaticMeshEditorViewportClient::FStaticMeshEditorViewportClient(TWeakPtr<IStati
 
 	SetViewMode(VMI_Lit);
 
-	WidgetMode = FWidget::WM_None;
+	WidgetMode = UE::Widget::WM_None;
 
 	EngineShowFlags.SetSeparateTranslucency(true);
 	EngineShowFlags.SetSnap(0);
@@ -174,8 +175,8 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 			if(SelectedSocket)
 			{
 				FProperty* ChangedProperty = NULL;
-				const FWidget::EWidgetMode MoveMode = GetWidgetMode();
-				if(MoveMode == FWidget::WM_Rotate)
+				const UE::Widget::EWidgetMode MoveMode = GetWidgetMode();
+				if(MoveMode == UE::Widget::WM_Rotate)
 				{
 					ChangedProperty = FindFProperty<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeRotation" );
 					SelectedSocket->PreEditChange(ChangedProperty);
@@ -194,7 +195,7 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 					SelectedSocket->RelativeRotation += DeltaRot;
 					SelectedSocket->RelativeRotation = SelectedSocket->RelativeRotation.Clamp();
 				}
-				else if(MoveMode == FWidget::WM_Translate)
+				else if(MoveMode == UE::Widget::WM_Translate)
 				{
 					ChangedProperty = FindFProperty<FProperty>( UStaticMeshSocket::StaticClass(), "RelativeLocation" );
 					SelectedSocket->PreEditChange(ChangedProperty);
@@ -217,16 +218,16 @@ bool FStaticMeshEditorViewportClient::InputWidgetDelta( FViewport* InViewport, E
 				const bool bSelectedPrim = StaticMeshEditorPtr.Pin()->HasSelectedPrims();
 				if (bSelectedPrim && CurrentAxis != EAxisList::None)
 				{
-					const FWidget::EWidgetMode MoveMode = GetWidgetMode();
-					if (MoveMode == FWidget::WM_Rotate)
+					const UE::Widget::EWidgetMode MoveMode = GetWidgetMode();
+					if (MoveMode == UE::Widget::WM_Rotate)
 					{
 						StaticMeshEditorPtr.Pin()->RotateSelectedPrims(Rot);
 					}
-					else if (MoveMode == FWidget::WM_Scale)
+					else if (MoveMode == UE::Widget::WM_Scale)
 					{
 						StaticMeshEditorPtr.Pin()->ScaleSelectedPrims(Scale);
 					}
-					else if (MoveMode == FWidget::WM_Translate)
+					else if (MoveMode == UE::Widget::WM_Translate)
 					{
 						StaticMeshEditorPtr.Pin()->TranslateSelectedPrims(Drag);
 					}
@@ -254,11 +255,11 @@ void FStaticMeshEditorViewportClient::TrackingStarted( const struct FInputEventS
 		if (SelectedSocket)
 		{
 			FText TransText;
-			if( GetWidgetMode() == FWidget::WM_Rotate )
+			if( GetWidgetMode() == UE::Widget::WM_Rotate )
 			{
 				TransText = LOCTEXT("FStaticMeshEditorViewportClient_RotateSocket", "Rotate Socket");
 			}
-			else if (GetWidgetMode() == FWidget::WM_Translate)
+			else if (GetWidgetMode() == UE::Widget::WM_Translate)
 			{
 				if( InInputState.IsLeftMouseButtonPressed() && (Widget->GetCurrentAxis() & EAxisList::XYZ) )
 				{
@@ -283,15 +284,15 @@ void FStaticMeshEditorViewportClient::TrackingStarted( const struct FInputEventS
 		if (bSelectedPrim)
 		{
 			FText TransText;
-			if (GetWidgetMode() == FWidget::WM_Rotate)
+			if (GetWidgetMode() == UE::Widget::WM_Rotate)
 			{
 				TransText = LOCTEXT("FStaticMeshEditorViewportClient_RotateCollision", "Rotate Collision");
 			}
-			else if (GetWidgetMode() == FWidget::WM_Scale)
+			else if (GetWidgetMode() == UE::Widget::WM_Scale)
 			{
 				TransText = LOCTEXT("FStaticMeshEditorViewportClient_ScaleCollision", "Scale Collision");
 			}
-			else if (GetWidgetMode() == FWidget::WM_Translate)
+			else if (GetWidgetMode() == UE::Widget::WM_Translate)
 			{
 				if (InInputState.IsLeftMouseButtonPressed() && (Widget->GetCurrentAxis() & EAxisList::XYZ))
 				{
@@ -320,7 +321,7 @@ void FStaticMeshEditorViewportClient::TrackingStarted( const struct FInputEventS
 
 }
 
-FWidget::EWidgetMode FStaticMeshEditorViewportClient::GetWidgetMode() const
+UE::Widget::EWidgetMode FStaticMeshEditorViewportClient::GetWidgetMode() const
 {
 	if (IsCustomModeUsingWidget())
 	{
@@ -335,10 +336,10 @@ FWidget::EWidgetMode FStaticMeshEditorViewportClient::GetWidgetMode() const
 		return WidgetMode;
 	}
 
-	return FWidget::WM_Max;
+	return UE::Widget::WM_Max;
 }
 
-void FStaticMeshEditorViewportClient::SetWidgetMode(FWidget::EWidgetMode NewMode)
+void FStaticMeshEditorViewportClient::SetWidgetMode(UE::Widget::EWidgetMode NewMode)
 {
 	if (IsCustomModeUsingWidget())
 	{
@@ -352,7 +353,7 @@ void FStaticMeshEditorViewportClient::SetWidgetMode(FWidget::EWidgetMode NewMode
 	Invalidate();
 }
 
-bool FStaticMeshEditorViewportClient::CanSetWidgetMode(FWidget::EWidgetMode NewMode) const
+bool FStaticMeshEditorViewportClient::CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const
 {
 	if (!Widget->IsDragging())
 	{
@@ -364,7 +365,7 @@ bool FStaticMeshEditorViewportClient::CanSetWidgetMode(FWidget::EWidgetMode NewM
 		{
 			return true;
 		}
-		else if (NewMode != FWidget::WM_Scale)	// Sockets don't support scaling
+		else if (NewMode != UE::Widget::WM_Scale)	// Sockets don't support scaling
 		{
 			const UStaticMeshSocket* SelectedSocket = StaticMeshEditorPtr.Pin()->GetSelectedSocket();
 			if (SelectedSocket)
@@ -683,10 +684,10 @@ void FStaticMeshEditorViewportClient::Draw(const FSceneView* View,FPrimitiveDraw
 	}
 }
 
-static void DrawAngles(FCanvas* Canvas, int32 XPos, int32 YPos, EAxisList::Type ManipAxis, FWidget::EWidgetMode MoveMode, const FRotator& Rotation, const FVector& Translation)
+static void DrawAngles(FCanvas* Canvas, int32 XPos, int32 YPos, EAxisList::Type ManipAxis, UE::Widget::EWidgetMode MoveMode, const FRotator& Rotation, const FVector& Translation)
 {
 	FString OutputString(TEXT(""));
-	if (MoveMode == FWidget::WM_Rotate && Rotation.IsZero() == false)
+	if (MoveMode == UE::Widget::WM_Rotate && Rotation.IsZero() == false)
 	{
 		//Only one value moves at a time
 		const FVector EulerAngles = Rotation.Euler();
@@ -703,7 +704,7 @@ static void DrawAngles(FCanvas* Canvas, int32 XPos, int32 YPos, EAxisList::Type 
 			OutputString += FString::Printf(TEXT("Yaw: %0.2f"), EulerAngles.Z);
 		}
 	}
-	else if (MoveMode == FWidget::WM_Translate && Translation.IsZero() == false)
+	else if (MoveMode == UE::Widget::WM_Translate && Translation.IsZero() == false)
 	{
 		//Only one value moves at a time
 		if (ManipAxis == EAxisList::X)
@@ -986,9 +987,9 @@ void FStaticMeshEditorViewportClient::ProcessClick(class FSceneView& InView, cla
 			}
 
 			// Force the widget to translate, if not already set
-			if (WidgetMode == FWidget::WM_None)
+			if (WidgetMode == UE::Widget::WM_None)
 			{
-				WidgetMode = FWidget::WM_Translate;
+				WidgetMode = UE::Widget::WM_Translate;
 			}
 
 			ClearSelectedPrims = false;
@@ -1685,9 +1686,9 @@ void FStaticMeshEditorViewportClient::OnSocketSelectionChanged( UStaticMeshSocke
 	{
 		SelectedEdgeIndices.Empty();
 
-		if (WidgetMode == FWidget::WM_None || WidgetMode == FWidget::WM_Scale)
+		if (WidgetMode == UE::Widget::WM_None || WidgetMode == UE::Widget::WM_Scale)
 		{
-			WidgetMode = FWidget::WM_Translate;
+			WidgetMode = UE::Widget::WM_Translate;
 		}
 	}
 
@@ -1696,9 +1697,9 @@ void FStaticMeshEditorViewportClient::OnSocketSelectionChanged( UStaticMeshSocke
 
 bool FStaticMeshEditorViewportClient::IsCustomModeUsingWidget() const
 {
-	const FWidget::EWidgetMode ToolsWidgetMode = ModeTools->GetWidgetMode();
+	const UE::Widget::EWidgetMode ToolsWidgetMode = ModeTools->GetWidgetMode();
 	const bool bDisplayToolWidget = ModeTools->GetShowWidget();
 
-	return bDisplayToolWidget && ToolsWidgetMode != FWidget::EWidgetMode::WM_None;
+	return bDisplayToolWidget && ToolsWidgetMode != UE::Widget::EWidgetMode::WM_None;
 }
-#undef LOCTEXT_NAMESPACE 
+#undef LOCTEXT_NAMESPACE

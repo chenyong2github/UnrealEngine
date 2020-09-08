@@ -7,7 +7,7 @@
 #include "Engine/Engine.h"
 #include "EngineGlobals.h"
 #include "SceneManagement.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "PaperEditorShared/AssetEditorSelectedItem.h"
 #include "SpriteEditorOnlyTypes.h"
 #include "SpriteEditor/SpriteEditorSelections.h"
@@ -94,15 +94,15 @@ bool FSpriteSelectedShape::IsBackgroundObject() const
 	return bIsBackground;
 }
 
-void FSpriteSelectedShape::ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode)
+void FSpriteSelectedShape::ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode)
 {
 	if (Geometry.Shapes.IsValidIndex(ShapeIndex))
 	{
 		FSpriteGeometryShape& Shape = Geometry.Shapes[ShapeIndex];
 
-		const bool bDoRotation = (MoveMode == FWidget::WM_Rotate) || (MoveMode == FWidget::WM_TranslateRotateZ);
-		const bool bDoTranslation = (MoveMode == FWidget::WM_Translate) || (MoveMode == FWidget::WM_TranslateRotateZ);
-		const bool bDoScale = MoveMode == FWidget::WM_Scale;
+		const bool bDoRotation = (MoveMode == UE::Widget::WM_Rotate) || (MoveMode == UE::Widget::WM_TranslateRotateZ);
+		const bool bDoTranslation = (MoveMode == UE::Widget::WM_Translate) || (MoveMode == UE::Widget::WM_TranslateRotateZ);
+		const bool bDoScale = MoveMode == UE::Widget::WM_Scale;
 
 		if (bDoTranslation)
 		{

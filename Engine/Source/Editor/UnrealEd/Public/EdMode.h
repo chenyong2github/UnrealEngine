@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "UObject/GCObject.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorComponents.h"
 #include "EngineGlobals.h"
 #include "EditorModeRegistry.h"
@@ -150,7 +150,7 @@ public:
 	 *
 	 * @return					A bitfield comprised of AXIS_* values
 	 */
-	virtual EAxisList::Type GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const;
+	virtual EAxisList::Type GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const;
 
 	/**
 	 * Allows each mode/tool to determine a good location for the widget to be drawn at.
@@ -180,7 +180,7 @@ public:
 	/**
 	 * Lets each mode selectively exclude certain widget types.
 	 */
-	virtual bool UsesTransformWidget(FWidget::EWidgetMode CheckMode) const;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const;
 
 	virtual void PostUndo() {}
 

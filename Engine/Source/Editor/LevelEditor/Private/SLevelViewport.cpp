@@ -76,6 +76,7 @@
 #include "Bookmarks/IBookmarkTypeTools.h"
 #include "ToolMenus.h"
 #include "Bookmarks/IBookmarkTypeTools.h"
+#include "UnrealWidget.h"
 
 static const FName LevelEditorName("LevelEditor");
 

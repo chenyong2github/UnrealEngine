@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "IAnimNodeEditMode.h"
 #include "BonePose.h"
 
@@ -23,9 +23,9 @@ public:
 
 	/** IAnimNodeEditMode interface */
 	virtual ECoordSystem GetWidgetCoordinateSystem() const override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-	virtual FWidget::EWidgetMode ChangeToNextWidgetMode(FWidget::EWidgetMode CurWidgetMode) override;
-	virtual bool SetWidgetMode(FWidget::EWidgetMode InWidgetMode) override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual UE::Widget::EWidgetMode ChangeToNextWidgetMode(UE::Widget::EWidgetMode CurWidgetMode) override;
+	virtual bool SetWidgetMode(UE::Widget::EWidgetMode InWidgetMode) override;
 	virtual FName GetSelectedBone() const override;
 	virtual void DoTranslation(FVector& InTranslation) override;
 	virtual void DoRotation(FRotator& InRotation) override;

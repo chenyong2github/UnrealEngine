@@ -85,6 +85,7 @@
 #include "Materials/MaterialExpressionTransformPosition.h"
 #include "Materials/MaterialExpressionCustom.h"
 #include "Materials/MaterialExpressionWorldPosition.h"
+#include "UnrealWidget.h"
 
 DEFINE_LOG_CATEGORY(LogEditorViewport);
 
@@ -182,24 +183,24 @@ static void NotifyAtmosphericLightHasMoved(UDirectionalLightComponent& SelectedA
 
 namespace LevelEditorViewportClientHelper
 {
-	FProperty* GetEditTransformProperty(FWidget::EWidgetMode WidgetMode)
+	FProperty* GetEditTransformProperty(UE::Widget::EWidgetMode WidgetMode)
 	{
 		FProperty* ValueProperty = nullptr;
 		switch (WidgetMode)
 		{
-		case FWidget::WM_Translate:
+		case UE::Widget::WM_Translate:
 			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
-		case FWidget::WM_Rotate:
+		case UE::Widget::WM_Rotate:
 			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeRotationPropertyName());
 			break;
-		case FWidget::WM_Scale:
+		case UE::Widget::WM_Scale:
 			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeScale3DPropertyName());
 			break;
-		case FWidget::WM_TranslateRotateZ:
+		case UE::Widget::WM_TranslateRotateZ:
 			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
-		case FWidget::WM_2D:
+		case UE::Widget::WM_2D:
 			ValueProperty = FindFProperty<FProperty>(USceneComponent::StaticClass(), USceneComponent::GetRelativeLocationPropertyName());
 			break;
 		default:
@@ -1746,7 +1747,7 @@ FLevelEditorViewportClient::FLevelEditorViewportClient(const TSharedPtr<SLevelVi
 	GEditor->AddLevelViewportClients(this);
 
 	// The level editor fully supports mode tools and isn't doing any incompatible stuff with the Widget
-	ModeTools->SetWidgetMode(FWidget::WM_Translate);
+	ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
 	Widget->SetUsesEditorModeTools(ModeTools);
 
 	// Register for editor cleanse events so we can release references to hovered actors
@@ -1960,7 +1961,7 @@ void FLevelEditorViewportClient::BeginCameraMovement(bool bHasMovement)
 			{
 				GEditor->BroadcastBeginCameraMovement(*ActorLock);
 				// consider modification from piloting as relative location changes
-				FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(FWidget::WM_Translate);
+				FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(UE::Widget::WM_Translate);
 				if (TransformProperty)
 				{
 					// Create edit property event
@@ -1989,7 +1990,7 @@ void FLevelEditorViewportClient::EndCameraMovement()
 		{
 			GEditor->BroadcastEndCameraMovement(*ActorLock);
 			// Create post edit property change event, consider modification from piloting as relative location changes
-			FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(FWidget::WM_Translate);
+			FProperty* TransformProperty = LevelEditorViewportClientHelper::GetEditTransformProperty(UE::Widget::WM_Translate);
 			FPropertyChangedEvent PropertyChangedEvent(TransformProperty, EPropertyChangeType::ValueSet);
 
 			// Broadcast Post Edit change notification, we can't call PostEditChangeProperty directly on Actor or ActorComponent from here since it wasn't pair with a proper PreEditChange
@@ -2968,19 +2969,19 @@ void FLevelEditorViewportClient::TrackingStarted( const FInputEventState& InInpu
 
 			switch( GetWidgetMode() )
 			{
-			case FWidget::WM_Translate:
+			case UE::Widget::WM_Translate:
 				TrackingDescription = FText::Format(LOCTEXT("MoveTransaction", "Move {0}"), ObjectTypeBeingTracked);
 				break;
-			case FWidget::WM_Rotate:
+			case UE::Widget::WM_Rotate:
 				TrackingDescription = FText::Format(LOCTEXT("RotateTransaction", "Rotate {0}"), ObjectTypeBeingTracked);
 				break;
-			case FWidget::WM_Scale:
+			case UE::Widget::WM_Scale:
 				TrackingDescription = FText::Format(LOCTEXT("ScaleTransaction", "Scale {0}"), ObjectTypeBeingTracked);
 				break;
-			case FWidget::WM_TranslateRotateZ:
+			case UE::Widget::WM_TranslateRotateZ:
 				TrackingDescription = FText::Format(LOCTEXT("TranslateRotateZTransaction", "Translate/RotateZ {0}"), ObjectTypeBeingTracked);
 				break;
-			case FWidget::WM_2D:
+			case UE::Widget::WM_2D:
 				TrackingDescription = FText::Format(LOCTEXT("TranslateRotate2D", "Translate/Rotate2D {0}"), ObjectTypeBeingTracked);
 				break;
 			default:
@@ -3487,11 +3488,11 @@ void FLevelEditorViewportClient::SetVREditView(bool bGameViewEnable)
 	FEditorViewportClient::SetVREditView(bGameViewEnable);
 }
 
-FWidget::EWidgetMode FLevelEditorViewportClient::GetWidgetMode() const
+UE::Widget::EWidgetMode FLevelEditorViewportClient::GetWidgetMode() const
 {
 	if (GUnrealEd->ComponentVisManager.IsActive() && GUnrealEd->ComponentVisManager.IsVisualizingArchetype())
 	{
-		return FWidget::WM_None;
+		return UE::Widget::WM_None;
 	}
 
 	return FEditorViewportClient::GetWidgetMode();
@@ -4734,9 +4735,9 @@ bool FLevelEditorViewportClient::ShouldUseMoveCanvasMovement()
 
 		//OBJECT MOVEMENT CODE
 		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
-			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
-			( GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
-			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
+			( ( GetWidgetMode() == UE::Widget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == UE::Widget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == UE::Widget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
 		{
 			return true;
 		}

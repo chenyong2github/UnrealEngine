@@ -31,7 +31,7 @@ FVector FCCDIKEditMode::GetWidgetLocation() const
 	return ConvertWidgetLocation(SkelComp, RuntimeNode->ForwardedPose, Target, Location, Space);
 }
 
-FWidget::EWidgetMode FCCDIKEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FCCDIKEditMode::GetWidgetMode() const
 {
 	USkeletalMeshComponent* SkelComp = GetAnimPreviewScene().GetPreviewMeshComponent();
 	int32 TipBoneIndex = SkelComp->GetBoneIndex(RuntimeNode->TipBone.BoneName);
@@ -39,10 +39,10 @@ FWidget::EWidgetMode FCCDIKEditMode::GetWidgetMode() const
 
 	if (TipBoneIndex!= INDEX_NONE && RootBoneIndex != INDEX_NONE)
 	{
-		return FWidget::WM_Translate;
+		return UE::Widget::WM_Translate;
 	}
 
-	return FWidget::WM_None;
+	return UE::Widget::WM_None;
 }
 
 void FCCDIKEditMode::DoTranslation(FVector& InTranslation)

@@ -53,8 +53,8 @@ FEditorModeTools::FEditorModeTools()
 	, TranslateRotateXAxisAngle(0.0f)
 	, TranslateRotate2DAngle(0.0f)
 	, DefaultModeIDs()
-	, WidgetMode(FWidget::WM_None)
-	, OverrideWidgetMode(FWidget::WM_None)
+	, WidgetMode(UE::Widget::WM_None)
+	, OverrideWidgetMode(UE::Widget::WM_None)
 	, bShowWidget(true)
 	, bHideViewportUI(false)
 	, bSelectionHasSceneComponent(false)
@@ -503,7 +503,7 @@ void FEditorModeTools::SetPivotLocation( const FVector& Location, const bool bIn
 
 ECoordSystem FEditorModeTools::GetCoordSystem(bool bGetRawValue)
 {
-	if (!bGetRawValue && (GetWidgetMode() == FWidget::WM_Scale))
+	if (!bGetRawValue && (GetWidgetMode() == UE::Widget::WM_Scale))
 	{
 		return COORD_Local;
 	}
@@ -987,7 +987,7 @@ FMatrix FEditorModeTools::GetLocalCoordinateSystem()
 }
 
 /** Gets the widget axis to be drawn */
-EAxisList::Type FEditorModeTools::GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const
+EAxisList::Type FEditorModeTools::GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const
 {
 	EAxisList::Type OutAxis = EAxisList::All;
 	for( int Index = ActiveScriptableModes.Num() - 1; Index >= 0 ; Index-- )
@@ -1111,7 +1111,7 @@ bool FEditorModeTools::UsesTransformWidget() const
 }
 
 /** true if any active mode uses the passed in transform widget */
-bool FEditorModeTools::UsesTransformWidget( FWidget::EWidgetMode CheckMode ) const
+bool FEditorModeTools::UsesTransformWidget( UE::Widget::EWidgetMode CheckMode ) const
 {
 	bool bUsesTransformWidget = false;
 	for (UEdMode* Mode : ActiveScriptableModes)
@@ -1480,18 +1480,18 @@ void FEditorModeTools::CycleWidgetMode (void)
 		do
 		{
 			Wk++;
-			if ((Wk == FWidget::WM_TranslateRotateZ) && (!GetDefault<ULevelEditorViewportSettings>()->bAllowTranslateRotateZWidget))
+			if ((Wk == UE::Widget::WM_TranslateRotateZ) && (!GetDefault<ULevelEditorViewportSettings>()->bAllowTranslateRotateZWidget))
 			{
 				Wk++;
 			}
-			// Roll back to the start if we go past FWidget::WM_Scale
-			if( Wk >= FWidget::WM_Max)
+			// Roll back to the start if we go past UE::Widget::WM_Scale
+			if( Wk >= UE::Widget::WM_Max)
 			{
-				Wk -= FWidget::WM_Max;
+				Wk -= UE::Widget::WM_Max;
 			}
 		}
-		while (!UsesTransformWidget((FWidget::EWidgetMode)Wk) && Wk != CurrentWk);
-		SetWidgetMode( (FWidget::EWidgetMode)Wk );
+		while (!UsesTransformWidget((UE::Widget::EWidgetMode)Wk) && Wk != CurrentWk);
+		SetWidgetMode( (UE::Widget::EWidgetMode)Wk );
 		FEditorSupportDelegates::RedrawAllViewports.Broadcast();
 	}
 }
@@ -1531,17 +1531,17 @@ FVector FEditorModeTools::GetWidgetLocation() const
  * Changes the current widget mode.
  */
 
-void FEditorModeTools::SetWidgetMode( FWidget::EWidgetMode InWidgetMode )
+void FEditorModeTools::SetWidgetMode( UE::Widget::EWidgetMode InWidgetMode )
 {
 	WidgetMode = InWidgetMode;
 }
 
 /**
  * Allows you to temporarily override the widget mode.  Call this function again
- * with FWidget::WM_None to turn off the override.
+ * with UE::Widget::WM_None to turn off the override.
  */
 
-void FEditorModeTools::SetWidgetModeOverride( FWidget::EWidgetMode InWidgetMode )
+void FEditorModeTools::SetWidgetModeOverride( UE::Widget::EWidgetMode InWidgetMode )
 {
 	OverrideWidgetMode = InWidgetMode;
 }
@@ -1550,9 +1550,9 @@ void FEditorModeTools::SetWidgetModeOverride( FWidget::EWidgetMode InWidgetMode 
  * Retrieves the current widget mode, taking overrides into account.
  */
 
-FWidget::EWidgetMode FEditorModeTools::GetWidgetMode() const
+UE::Widget::EWidgetMode FEditorModeTools::GetWidgetMode() const
 {
-	if( OverrideWidgetMode != FWidget::WM_None )
+	if( OverrideWidgetMode != UE::Widget::WM_None )
 	{
 		return OverrideWidgetMode;
 	}

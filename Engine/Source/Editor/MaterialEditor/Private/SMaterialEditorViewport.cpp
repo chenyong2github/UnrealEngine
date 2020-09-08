@@ -32,6 +32,7 @@
 #include "MaterialEditorSettings.h"
 
 #define LOCTEXT_NAMESPACE "MaterialEditor"
+#include "UnrealWidget.h"
 
 /** Viewport Client for the preview viewport */
 class FMaterialEditorViewportClient : public FEditorViewportClient

@@ -6,7 +6,7 @@
 
 FConstraintEditMode::FConstraintEditMode()
 {
-	CurWidgetMode = FWidget::WM_Rotate;
+	CurWidgetMode = UE::Widget::WM_Rotate;
 }
 
 void FConstraintEditMode::EnterMode(class UAnimGraphNode_Base* InEditorNode, struct FAnimNode_Base* InRuntimeNode)

@@ -8,7 +8,7 @@
 #include "Input/Reply.h"
 #include "Widgets/SOverlay.h"
 #include "Widgets/SViewport.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
 
 class FActiveTimerHandle;
@@ -194,7 +194,7 @@ protected:
 	/**
 	 * @return true if the specified widget mode is active
 	 */
-	virtual bool IsWidgetModeActive( FWidget::EWidgetMode Mode ) const;
+	virtual bool IsWidgetModeActive( UE::Widget::EWidgetMode Mode ) const;
 
 	/**
 	 * @return true if the translate/rotate mode widget is visible 

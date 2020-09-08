@@ -1,7 +1,7 @@
 // Copyright Epic Games, Inc. All Rights Reserved.
 
 #include "AnimGraphNode_SkeletalControlBase.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "AnimationGraphSchema.h"
 #include "Animation/AnimationSettings.h"
 #include "Components/SkeletalMeshComponent.h"
@@ -24,7 +24,7 @@ UAnimGraphNode_SkeletalControlBase::UAnimGraphNode_SkeletalControlBase(const FOb
 int32 UAnimGraphNode_SkeletalControlBase::GetWidgetCoordinateSystem(const USkeletalMeshComponent* SkelComp)
 {
 	PRAGMA_DISABLE_DEPRECATION_WARNINGS
-	if (GetWidgetMode(SkelComp) == FWidget::WM_Scale)
+	if (GetWidgetMode(SkelComp) == UE::Widget::WM_Scale)
 	{
 		return COORD_Local;
 	}
@@ -38,7 +38,7 @@ int32 UAnimGraphNode_SkeletalControlBase::GetWidgetCoordinateSystem(const USkele
 // returns int32 instead of EWidgetMode because of compiling issue on Mac
 int32 UAnimGraphNode_SkeletalControlBase::GetWidgetMode(const USkeletalMeshComponent* SkelComp)
 {
-	return  (int32)FWidget::EWidgetMode::WM_None;
+	return  (int32)UE::Widget::EWidgetMode::WM_None;
 }
 
 int32 UAnimGraphNode_SkeletalControlBase::ChangeToNextWidgetMode(const USkeletalMeshComponent* SkelComp, int32 CurWidgetMode)

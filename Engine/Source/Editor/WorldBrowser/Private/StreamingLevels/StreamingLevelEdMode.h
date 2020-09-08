@@ -2,7 +2,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 
 class FEditorViewportClient;
@@ -28,11 +28,11 @@ public:
 
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
 
-	virtual EAxisList::Type GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const override;
+	virtual EAxisList::Type GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const override;
 
 	virtual bool ShouldDrawWidget() const override;
 
-	virtual bool UsesTransformWidget(FWidget::EWidgetMode CheckMode) const override;
+	virtual bool UsesTransformWidget(UE::Widget::EWidgetMode CheckMode) const override;
 
 	virtual FVector GetWidgetLocation() const override;
 

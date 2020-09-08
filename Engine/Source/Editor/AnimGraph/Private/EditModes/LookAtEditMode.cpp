@@ -27,9 +27,9 @@ FVector FLookAtEditMode::GetWidgetLocation() const
 	return GraphNode->Node.GetCachedTargetLocation();
 }
 
-FWidget::EWidgetMode FLookAtEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FLookAtEditMode::GetWidgetMode() const
 {
-	return FWidget::WM_Translate;
+	return UE::Widget::WM_Translate;
 }
 
 FName FLookAtEditMode::GetSelectedBone() const

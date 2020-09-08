@@ -3190,16 +3190,16 @@ EGizmoHandleTypes UViewportWorldInteraction::GetCurrentGizmoType() const
 	{
 		switch( GetModeTools().GetWidgetMode() )
 		{
-			case FWidget::WM_TranslateRotateZ:
+			case UE::Widget::WM_TranslateRotateZ:
 				return EGizmoHandleTypes::All;
 
-			case FWidget::WM_Translate:
+			case UE::Widget::WM_Translate:
 				return EGizmoHandleTypes::Translate;
 
-			case FWidget::WM_Rotate:
+			case UE::Widget::WM_Rotate:
 				return EGizmoHandleTypes::Rotate;
 
-			case FWidget::WM_Scale:
+			case UE::Widget::WM_Scale:
 				return EGizmoHandleTypes::Scale;
 		}
 	}
@@ -3215,19 +3215,19 @@ void UViewportWorldInteraction::SetGizmoHandleType( const EGizmoHandleTypes InGi
 	{
 		case EGizmoHandleTypes::All:
 			GizmoType = InGizmoHandleType;
-			GetModeTools().SetWidgetMode( FWidget::WM_Translate );
+			GetModeTools().SetWidgetMode( UE::Widget::WM_Translate );
 			break;
 
 		case EGizmoHandleTypes::Translate:
-			GetModeTools().SetWidgetMode( FWidget::WM_Translate );
+			GetModeTools().SetWidgetMode( UE::Widget::WM_Translate );
 			break;
 
 		case EGizmoHandleTypes::Rotate:
-			GetModeTools().SetWidgetMode( FWidget::WM_Rotate );
+			GetModeTools().SetWidgetMode( UE::Widget::WM_Rotate );
 			break;
 
 		case EGizmoHandleTypes::Scale:
-			GetModeTools().SetWidgetMode( FWidget::WM_Scale );
+			GetModeTools().SetWidgetMode( UE::Widget::WM_Scale );
 			break;
 
 		check(0);

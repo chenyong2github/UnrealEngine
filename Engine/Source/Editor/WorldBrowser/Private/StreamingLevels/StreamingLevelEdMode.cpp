@@ -35,15 +35,15 @@ void FStreamingLevelEdMode::AddReferencedObjects( FReferenceCollector& Collector
 	Collector.AddReferencedObject(BoxMaterial);
 }
 
-EAxisList::Type FStreamingLevelEdMode::GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const
+EAxisList::Type FStreamingLevelEdMode::GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const
 {
 	switch(InWidgetMode)
 	{
-	case FWidget::WM_Translate:
+	case UE::Widget::WM_Translate:
 		return EAxisList::XYZ;
-	case FWidget::WM_Rotate:
+	case UE::Widget::WM_Rotate:
 		return EAxisList::Z;
-	case FWidget::WM_Scale:
+	case UE::Widget::WM_Scale:
 		return EAxisList::None;
 	default:
 		return EAxisList::None;
@@ -55,9 +55,9 @@ bool FStreamingLevelEdMode::ShouldDrawWidget() const
 	return SelectedLevel.IsValid();
 }
 
-bool FStreamingLevelEdMode::UsesTransformWidget( FWidget::EWidgetMode CheckMode ) const 
+bool FStreamingLevelEdMode::UsesTransformWidget( UE::Widget::EWidgetMode CheckMode ) const 
 {
-	if( CheckMode == FWidget::EWidgetMode::WM_Scale )
+	if( CheckMode == UE::Widget::EWidgetMode::WM_Scale )
 	{
 		return false;
 	}

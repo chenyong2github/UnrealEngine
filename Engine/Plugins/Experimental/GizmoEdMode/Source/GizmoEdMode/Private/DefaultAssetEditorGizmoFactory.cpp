@@ -5,7 +5,7 @@
 #include "Engine/Selection.h"
 #include "BaseGizmos/TransformGizmo.h"
 #include "BaseGizmos/TransformProxy.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 
 bool UDefaultAssetEditorGizmoFactory::CanBuildGizmoForSelection(FEditorModeTools* ModeTools) const
 {
@@ -16,20 +16,20 @@ TArray<UInteractiveGizmo*> UDefaultAssetEditorGizmoFactory::BuildGizmoForSelecti
 {
 	ETransformGizmoSubElements Elements  = ETransformGizmoSubElements::None;
 	bool bUseContextCoordinateSystem = true;
-	FWidget::EWidgetMode WidgetMode = ModeTools->GetWidgetMode();
+	UE::Widget::EWidgetMode WidgetMode = ModeTools->GetWidgetMode();
 	switch ( WidgetMode )
 	{
-	case FWidget::EWidgetMode::WM_Translate:
+	case UE::Widget::EWidgetMode::WM_Translate:
 		Elements = ETransformGizmoSubElements::TranslateAllAxes | ETransformGizmoSubElements::TranslateAllPlanes;
 		break;
-	case FWidget::EWidgetMode::WM_Rotate:
+	case UE::Widget::EWidgetMode::WM_Rotate:
 		Elements = ETransformGizmoSubElements::RotateAllAxes;
 		break;
-	case FWidget::EWidgetMode::WM_Scale:
+	case UE::Widget::EWidgetMode::WM_Scale:
 		Elements = ETransformGizmoSubElements::ScaleAllAxes | ETransformGizmoSubElements::ScaleAllPlanes;
 		bUseContextCoordinateSystem = false;
 		break;
-	case FWidget::EWidgetMode::WM_2D:
+	case UE::Widget::EWidgetMode::WM_2D:
 		Elements = ETransformGizmoSubElements::RotateAxisY | ETransformGizmoSubElements::TranslatePlaneXZ;
 		break;
 	default:

@@ -55,6 +55,7 @@
 #include "Misc/ScopedSlowTask.h"
 #include "UnrealEngine.h"
 #include "BufferVisualizationData.h"
+#include "UnrealWidget.h"
 
 #include "CustomEditorStaticScreenPercentage.h"
 
@@ -1570,7 +1571,7 @@ EMouseCursor::Type FEditorViewportClient::GetCursor(FViewport* InViewport,int32 
 	}
 	else if (bMoveCanvasMovement &&
 		bHasMouseMovedSinceClick &&
-		(GetWidgetMode() == FWidget::WM_Translate || GetWidgetMode() == FWidget::WM_TranslateRotateZ || GetWidgetMode() == FWidget::WM_2D))
+		(GetWidgetMode() == UE::Widget::WM_Translate || GetWidgetMode() == UE::Widget::WM_TranslateRotateZ || GetWidgetMode() == UE::Widget::WM_2D))
 	{
 		MouseCursor = EMouseCursor::CardinalCross;
 	}
@@ -2521,7 +2522,7 @@ bool FEditorViewportClient::IsUsingAbsoluteTranslation(bool bAlsoCheckAbsoluteRo
 	bool bIsHotKeyAxisLocked = Viewport->KeyState(EKeys::LeftControl) || Viewport->KeyState(EKeys::RightControl);
 	bool bCameraLockedToWidget = !(Widget && Widget->GetCurrentAxis() & EAxisList::Screen) && (Viewport->KeyState(EKeys::LeftShift) || Viewport->KeyState(EKeys::RightShift));
 	// Screen-space movement must always use absolute translation
-	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen) && GetWidgetMode() != FWidget::WM_Rotate;
+	bool bScreenSpaceTransformation = Widget && (Widget->GetCurrentAxis() == EAxisList::Screen) && GetWidgetMode() != UE::Widget::WM_Rotate;
 	bool bAbsoluteMovementEnabled = GetDefault<ULevelEditorViewportSettings>()->bUseAbsoluteTranslation || bScreenSpaceTransformation;
 	bool bCurrentWidgetSupportsAbsoluteMovement = FWidget::AllowsAbsoluteTranslationMovement( GetWidgetMode()) || bScreenSpaceTransformation;
 	EAxisList::Type AxisType = Widget ? Widget->GetCurrentAxis() : EAxisList::None;
@@ -2763,11 +2764,11 @@ bool FEditorViewportClient::InputKey(FViewport* InViewport, int32 ControllerId, 
 		&& InputState.IsButtonPressed(EKeys::RightMouseButton)
 		&& IsOrtho())
 	{
-		ModeTools->SetWidgetModeOverride(FWidget::WM_Rotate);
+		ModeTools->SetWidgetModeOverride(UE::Widget::WM_Rotate);
 	}
 	else
 	{
-		ModeTools->SetWidgetModeOverride(FWidget::WM_None);
+		ModeTools->SetWidgetModeOverride(UE::Widget::WM_None);
 	}
 
 	const int32	HitX = InViewport->GetMouseX();
@@ -3149,9 +3150,9 @@ bool FEditorViewportClient::ShouldUseMoveCanvasMovement() const
 
 		//OBJECT MOVEMENT CODE
 		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
-			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
-			( GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
-			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
+			( ( GetWidgetMode() == UE::Widget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == UE::Widget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == UE::Widget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
 		{
 			return true;
 		}
@@ -3559,7 +3560,7 @@ bool FEditorViewportClient::InputWidgetDelta(FViewport* InViewport, EAxisList::T
 	}
 }
 
-void FEditorViewportClient::SetWidgetMode(FWidget::EWidgetMode NewMode)
+void FEditorViewportClient::SetWidgetMode(UE::Widget::EWidgetMode NewMode)
 {
 	if (!ModeTools->IsTracking() && !IsFlightCameraActive())
 	{
@@ -3577,12 +3578,12 @@ void FEditorViewportClient::SetWidgetMode(FWidget::EWidgetMode NewMode)
 	RedrawAllViewportsIntoThisScene();
 }
 
-bool FEditorViewportClient::CanSetWidgetMode(FWidget::EWidgetMode NewMode) const
+bool FEditorViewportClient::CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const
 {
 	return ModeTools->UsesTransformWidget(NewMode) == true;
 }
 
-FWidget::EWidgetMode FEditorViewportClient::GetWidgetMode() const
+UE::Widget::EWidgetMode FEditorViewportClient::GetWidgetMode() const
 {
 	return ModeTools->GetWidgetMode();
 }
@@ -4220,8 +4221,8 @@ FVector FEditorViewportClient::TranslateDelta( FKey InKey, float InDelta, bool I
 			//update and apply cursor visibility
 			UpdateAndApplyCursorVisibility();
 
-			FWidget::EWidgetMode WidgetMode = GetWidgetMode();
-			bool bIgnoreOrthoScaling = (WidgetMode == FWidget::WM_Scale) && (Widget->GetCurrentAxis() != EAxisList::None);
+			UE::Widget::EWidgetMode WidgetMode = GetWidgetMode();
+			bool bIgnoreOrthoScaling = (WidgetMode == UE::Widget::WM_Scale) && (Widget->GetCurrentAxis() != EAxisList::None);
 
 			if( InNudge || bIgnoreOrthoScaling )
 			{
@@ -4797,9 +4798,9 @@ void FEditorViewportClient::UpdateRequiredCursorVisibility()
 	{
 		//Translating an object, but NOT moving the camera AND the object (shift)
 		if ( ( AltDown == false && ShiftDown == false && ( LeftMouseButtonDown ^ RightMouseButtonDown ) ) &&
-			( ( GetWidgetMode() == FWidget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
-			(  GetWidgetMode() == FWidget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
-			( GetWidgetMode() == FWidget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
+			( ( GetWidgetMode() == UE::Widget::WM_Translate && Widget->GetCurrentAxis() != EAxisList::None ) ||
+			(  GetWidgetMode() == UE::Widget::WM_TranslateRotateZ && Widget->GetCurrentAxis() != EAxisList::ZRotation &&  Widget->GetCurrentAxis() != EAxisList::None ) ||
+			( GetWidgetMode() == UE::Widget::WM_2D && Widget->GetCurrentAxis() != EAxisList::Rotate2D &&  Widget->GetCurrentAxis() != EAxisList::None ) ) )
 		{
 			SetRequiredCursor(false, true);
 			SetRequiredCursorOverride( true , EMouseCursor::CardinalCross );
@@ -4886,7 +4887,7 @@ void FEditorViewportClient::SetRequiredCursorOverride( bool WantOverride, EMouse
 	RequiredCursorVisibiltyAndAppearance.RequiredCursor = RequiredCursor;
 }
 
-void FEditorViewportClient::SetWidgetModeOverride(FWidget::EWidgetMode InWidgetMode)
+void FEditorViewportClient::SetWidgetModeOverride(UE::Widget::EWidgetMode InWidgetMode)
 {
 	ModeTools->SetWidgetModeOverride(InWidgetMode);
 }
@@ -5049,7 +5050,7 @@ void FEditorViewportClient::CheckHoveredHitProxy( HHitProxy* HoveredHitProxy )
 			// In the case of the widget mode being overridden we can have a hit proxy
 			// from the previous mode with an inappropriate axis for rotation.
 			EAxisList::Type ProxyAxis = ((HWidgetAxis*)HoveredHitProxy)->Axis;
-			if ( !IsOrtho() || GetWidgetMode() != FWidget::WM_Rotate
+			if ( !IsOrtho() || GetWidgetMode() != UE::Widget::WM_Rotate
 				|| ProxyAxis == EAxisList::X || ProxyAxis == EAxisList::Y || ProxyAxis == EAxisList::Z )
 			{
 				NewAxis = ProxyAxis;

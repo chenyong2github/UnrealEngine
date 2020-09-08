@@ -39,7 +39,7 @@ public:
 	virtual void Draw(FViewport* Viewport,FCanvas* Canvas) override;
 	virtual bool ShouldOrbitCamera() const override;
 	virtual FSceneView* CalcSceneView(FSceneViewFamily* ViewFamily, const EStereoscopicPass StereoPass = eSSP_FULL) override;
-	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const override { return false; }
+	virtual bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override { return false; }
 	virtual bool CanCycleWidgetMode() const override { return false; }
 
 

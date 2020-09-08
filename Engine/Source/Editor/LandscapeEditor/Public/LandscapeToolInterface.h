@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "UObject/GCObject.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EdMode.h"
 #include "LandscapeEdit.h"
 
@@ -211,7 +211,7 @@ public:
 	virtual bool OverrideSelection() const { return false; }
 	virtual bool IsSelectionAllowed(AActor* InActor, bool bInSelection) const { return false; }
 	virtual bool UsesTransformWidget() const { return false; }
-	virtual EAxisList::Type GetWidgetAxisToDraw(FWidget::EWidgetMode InWidgetMode) const { return EAxisList::All; }
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const { return EAxisList::All; }
 
 	virtual bool OverrideWidgetLocation() const { return true; }
 	virtual bool OverrideWidgetRotation() const { return true; }

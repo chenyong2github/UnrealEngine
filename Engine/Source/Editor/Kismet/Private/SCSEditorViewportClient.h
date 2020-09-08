@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
 
 class FBlueprintEditor;
@@ -42,8 +42,8 @@ public:
 	virtual bool InputWidgetDelta( FViewport* Viewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale ) override;
 	virtual void TrackingStarted( const struct FInputEventState& InInputState, bool bIsDragging, bool bNudge ) override;
 	virtual void TrackingStopped() override;
-	virtual FWidget::EWidgetMode GetWidgetMode() const override;
-	virtual void SetWidgetMode( FWidget::EWidgetMode NewMode ) override;
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override;
+	virtual void SetWidgetMode( UE::Widget::EWidgetMode NewMode ) override;
 	virtual void SetWidgetCoordSystemSpace( ECoordSystem NewCoordSystem ) override;
 	virtual FVector GetWidgetLocation() const override;
 	virtual FMatrix GetWidgetCoordSystem() const override;
@@ -136,7 +136,7 @@ protected:
 	void RefreshPreviewBounds();
 
 private:
-	FWidget::EWidgetMode WidgetMode;
+	UE::Widget::EWidgetMode WidgetMode;
 	ECoordSystem WidgetCoordSystem;
 
 	/** Weak reference to the editor hosting the viewport */

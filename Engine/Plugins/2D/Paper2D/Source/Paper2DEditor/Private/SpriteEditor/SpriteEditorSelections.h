@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "SpriteEditorOnlyTypes.h"
 #include "Paper2DModule.h"
 #include "PaperEditorShared/AssetEditorSelectedItem.h"
@@ -194,9 +194,9 @@ public:
 		return Result;
 	}
 
-	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode) override
+	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode) override
 	{
-		if (MoveMode == FWidget::WM_Translate)
+		if (MoveMode == UE::Widget::WM_Translate)
 		{
 			ApplyDeltaIndexed(Delta, VertexIndex);
 		}
@@ -236,7 +236,7 @@ public:
 	virtual EMouseCursor::Type GetMouseCursor() const override;
 	virtual bool Equals(const FSelectedItem& OtherItem) const override;
 	virtual bool IsBackgroundObject() const override;
-	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode) override;
+	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode) override;
 	virtual FVector GetWorldPos() const override;
 	// End of FSelectedItem interface
 };
@@ -328,9 +328,9 @@ public:
 		return Result;
 	}
 
-	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode) override
+	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode) override
 	{
-		if (MoveMode == FWidget::WM_Translate)
+		if (MoveMode == UE::Widget::WM_Translate)
 		{
 			ApplyDeltaIndexed(Delta, VertexIndex);
 		}
@@ -376,7 +376,7 @@ public:
 		}
 	}
 
-	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, FWidget::EWidgetMode MoveMode) override
+	virtual void ApplyDelta(const FVector2D& Delta, const FRotator& Rotation, const FVector& Scale3D, UE::Widget::EWidgetMode MoveMode) override
 	{
 		ApplyDeltaIndexed(Delta, VertexIndex);
 		ApplyDeltaIndexed(Delta, VertexIndex+1);

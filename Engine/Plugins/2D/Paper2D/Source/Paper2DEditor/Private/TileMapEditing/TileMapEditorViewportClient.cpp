@@ -14,6 +14,7 @@
 #include "ComponentReregisterContext.h"
 #include "CanvasTypes.h"
 #include "TileMapEditing/TileMapEditorSettings.h"
+#include "UnrealWidget.h"
 
 #define LOCTEXT_NAMESPACE "TileMapEditor"
 
@@ -34,7 +35,7 @@ FTileMapEditorViewportClient::FTileMapEditorViewportClient(TWeakPtr<FTileMapEdit
 
 	SetRealtime(true);
 
-	WidgetMode = FWidget::WM_Translate;
+	WidgetMode = UE::Widget::WM_Translate;
 	bManipulating = false;
 	bManipulationDirtiedSomething = false;
 	bShowTileMapStats = true;

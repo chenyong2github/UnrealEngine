@@ -16,6 +16,7 @@
 
 #include "Framework/Notifications/NotificationManager.h"
 #include "Widgets/Notifications/SNotificationList.h"
+#include "UnrealWidget.h"
 
 #define LOCTEXT_NAMESPACE "TileSetEditor"
 
@@ -298,7 +299,7 @@ void FSingleTileEditorViewportClient::ActivateEditMode(TSharedPtr<FUICommandList
 	//@TODO: ModeTools->SetToolkitHost(SpriteEditorPtr.Pin()->GetToolkitHost());
 	ModeTools->SetDefaultMode(FSpriteGeometryEditMode::EM_SpriteGeometry);
 	ModeTools->ActivateDefaultMode();
-	ModeTools->SetWidgetMode(FWidget::WM_Translate);
+	ModeTools->SetWidgetMode(UE::Widget::WM_Translate);
 
 	FSpriteGeometryEditMode* GeometryEditMode = ModeTools->GetActiveModeTyped<FSpriteGeometryEditMode>(FSpriteGeometryEditMode::EM_SpriteGeometry);
 	check(GeometryEditMode);

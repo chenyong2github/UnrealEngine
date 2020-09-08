@@ -14,7 +14,7 @@
 #include "UObject/PropertyPortFlags.h"
 #include "EngineUtils.h"
 #include "EditorUndoClient.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorModeManager.h"
 #include "UnrealEdGlobals.h"
 #include "EditorViewportClient.h"
@@ -33,6 +33,7 @@
 #include "Algo/Copy.h"
 #include "HAL/PlatformApplicationMisc.h"
 #include "UnrealExporter.h"
+#include "UnrealWidget.h"
 
 
 #define LOCTEXT_NAMESPACE "Landscape"
@@ -175,7 +176,7 @@ public:
 		Segment->Modify(false);
 		Segment->SetSplineSelected(true);
 
-		GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Scale);
+		GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Scale);
 	}
 
 	void SelectConnected()
@@ -1367,7 +1368,7 @@ public:
 						checkSlow(SelectedSplineControlPoints.Num() > 0);
 						bMovingControlPoint = true;
 
-						if (SelectedSplineControlPoints.Num() == 1 && InViewportClient->IsAltPressed() && InViewportClient->GetWidgetMode() == FWidget::WM_Translate && InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
+						if (SelectedSplineControlPoints.Num() == 1 && InViewportClient->IsAltPressed() && InViewportClient->GetWidgetMode() == UE::Widget::WM_Translate && InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
 						{
 							GEditor->BeginTransaction(LOCTEXT("LandscapeSpline_DuplicateControlPoint", "Duplicate Landscape Spline Control Point"));
 						}
@@ -1517,7 +1518,7 @@ public:
 		{
 			SplitSegment(SegmentToSplit, Location);
 
-			FWidget::EWidgetMode WidgetMode = EdMode->GetModeManager()->GetWidgetMode(); 
+			UE::Widget::EWidgetMode WidgetMode = EdMode->GetModeManager()->GetWidgetMode(); 
 			SelectControlPoint(SplinesComponent->ControlPoints.Last());
 			EdMode->GetModeManager()->SetWidgetMode(WidgetMode);
 		}
@@ -1576,7 +1577,7 @@ public:
 	{
 		if (DraggingTangent_Segment)
 		{
-			InViewportClient->SetWidgetModeOverride(FWidget::WM_Translate);
+			InViewportClient->SetWidgetModeOverride(UE::Widget::WM_Translate);
 			InViewportClient->SetCurrentWidgetAxis(EAxisList::X);
 			return true;
 		}
@@ -1588,7 +1589,7 @@ public:
 	{
 		if (DraggingTangent_Segment)
 		{
-			InViewportClient->SetWidgetModeOverride(FWidget::WM_Scale);
+			InViewportClient->SetWidgetModeOverride(UE::Widget::WM_Scale);
 			InViewportClient->SetCurrentWidgetAxis(EAxisList::None);
 			return true;
 		}
@@ -1642,7 +1643,7 @@ public:
 			return true;
 		}
 
-		if (SelectedSplineControlPoints.Num() == 1 && InViewportClient->IsAltPressed() && InViewportClient->GetWidgetMode() == FWidget::WM_Translate && InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
+		if (SelectedSplineControlPoints.Num() == 1 && InViewportClient->IsAltPressed() && InViewportClient->GetWidgetMode() == UE::Widget::WM_Translate && InViewportClient->GetCurrentWidgetAxis() != EAxisList::None)
 		{
 			static const int MaxDuplicationDelay = 3;
 
@@ -1800,7 +1801,7 @@ public:
 				FVector HandlePos1 = SplinesComponent->GetComponentTransform().TransformPosition(ControlPoint->Location + ControlPoint->Rotation.Vector() * 20);
 				DrawDashedLine(PDI, HandlePos0, HandlePos1, FColor::White, 20, SDPG_Foreground);
 
-				if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_Scale && !Viewport->GetClient()->IsOrtho())
+				if (GLevelEditorModeTools().GetWidgetMode() == UE::Widget::WM_Scale && !Viewport->GetClient()->IsOrtho())
 				{
 					for (const FLandscapeSplineConnection& Connection : ControlPoint->ConnectedSegments)
 					{
@@ -1819,7 +1820,7 @@ public:
 				}
 			}
 
-			if (GLevelEditorModeTools().GetWidgetMode() == FWidget::WM_Scale && !Viewport->GetClient()->IsOrtho())
+			if (GLevelEditorModeTools().GetWidgetMode() == UE::Widget::WM_Scale && !Viewport->GetClient()->IsOrtho())
 			{
 				for (ULandscapeSplineSegment* Segment : SelectedSplineSegments)
 				{
@@ -1876,17 +1877,17 @@ public:
 		return false;
 	}
 
-	virtual EAxisList::Type GetWidgetAxisToDraw(FWidget::EWidgetMode CheckMode) const override
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode CheckMode) const override
 	{
 		if (SelectedSplineControlPoints.Num() > 0)
 		{
-			//if (CheckMode == FWidget::WM_Rotate
+			//if (CheckMode == UE::Widget::WM_Rotate
 			//	&& SelectedSplineControlPoints.Num() >= 2)
 			//{
 			//	return AXIS_X;
 			//}
 			//else
-			if (CheckMode != FWidget::WM_Scale)
+			if (CheckMode != UE::Widget::WM_Scale)
 			{
 				return EAxisList::XYZ;
 			}

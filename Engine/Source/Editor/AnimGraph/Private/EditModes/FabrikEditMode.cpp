@@ -32,10 +32,10 @@ FVector FFabrikEditMode::GetWidgetLocation() const
 	return WidgetLoc;
 }
 
-FWidget::EWidgetMode FFabrikEditMode::GetWidgetMode() const
+UE::Widget::EWidgetMode FFabrikEditMode::GetWidgetMode() const
 {
 	// allow translation all the time for effectot target
-	return FWidget::WM_Translate;
+	return UE::Widget::WM_Translate;
 }
 
 void FFabrikEditMode::DoTranslation(FVector& InTranslation)

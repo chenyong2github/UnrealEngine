@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
 #include "UObject/GCObject.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Editor.h"
 #include "EditorUndoClient.h"
 #include "Widgets/Layout/SWidgetSwitcher.h"
@@ -183,7 +183,7 @@ public:
 	void LoadWidgetSettings();
 
 	/** Gets the widget axis to be drawn */
-	EAxisList::Type GetWidgetAxisToDraw( FWidget::EWidgetMode InWidgetMode ) const;
+	EAxisList::Type GetWidgetAxisToDraw( UE::Widget::EWidgetMode InWidgetMode ) const;
 
 	/** Mouse tracking interface.  Passes tracking messages to all active modes */
 	bool StartTracking(FEditorViewportClient* InViewportClient, FViewport* InViewport);
@@ -208,7 +208,7 @@ public:
 	bool UsesTransformWidget() const;
 
 	/** true if any active mode uses the passed in transform widget */
-	bool UsesTransformWidget( FWidget::EWidgetMode CheckMode ) const;
+	bool UsesTransformWidget( UE::Widget::EWidgetMode CheckMode ) const;
 
 	/** Sets the current widget axis */
 	void SetCurrentWidgetAxis( EAxisList::Type NewAxis );
@@ -311,18 +311,18 @@ public:
 	/**
 	 * Changes the current widget mode.
 	 */
-	void SetWidgetMode( FWidget::EWidgetMode InWidgetMode );
+	void SetWidgetMode( UE::Widget::EWidgetMode InWidgetMode );
 
 	/**
 	 * Allows you to temporarily override the widget mode.  Call this function again
 	 * with WM_None to turn off the override.
 	 */
-	void SetWidgetModeOverride( FWidget::EWidgetMode InWidgetMode );
+	void SetWidgetModeOverride( UE::Widget::EWidgetMode InWidgetMode );
 
 	/**
 	 * Retrieves the current widget mode, taking overrides into account.
 	 */
-	FWidget::EWidgetMode GetWidgetMode() const;
+	UE::Widget::EWidgetMode GetWidgetMode() const;
 
 	// FGCObject interface
 	virtual void AddReferencedObjects( FReferenceCollector& Collector ) override;
@@ -356,11 +356,11 @@ public:
 	FEditorModeIDChangedEvent& OnEditorModeIDChanged() { return EditorModeIDChangedEvent; }
 
 	/** delegate type for triggering when widget mode changed */
-	DECLARE_EVENT_OneParam( FEditorModeTools, FWidgetModeChangedEvent, FWidget::EWidgetMode );
+	DECLARE_EVENT_OneParam( FEditorModeTools, FWidgetModeChangedEvent, UE::Widget::EWidgetMode );
 	FWidgetModeChangedEvent& OnWidgetModeChanged() { return WidgetModeChangedEvent; }
 
 	/**	Broadcasts the WidgetModeChanged event */
-	void BroadcastWidgetModeChanged(FWidget::EWidgetMode InWidgetMode) { WidgetModeChangedEvent.Broadcast(InWidgetMode); }
+	void BroadcastWidgetModeChanged(UE::Widget::EWidgetMode InWidgetMode) { WidgetModeChangedEvent.Broadcast(InWidgetMode); }
 
 	/**	Broadcasts the EditorModeIDChanged event */
 	void BroadcastEditorModeIDChanged(const FEditorModeID& ModeID, bool IsEnteringMode) { EditorModeIDChangedEvent.Broadcast(ModeID, IsEnteringMode); }
@@ -505,10 +505,10 @@ protected:
 	TMap< FEditorModeID, UEdMode* > RecycledScriptableModes;
 
 	/** The mode that the editor viewport widget is in. */
-	FWidget::EWidgetMode WidgetMode;
+	UE::Widget::EWidgetMode WidgetMode;
 
 	/** If the widget mode is being overridden, this will be != WM_None. */
-	FWidget::EWidgetMode OverrideWidgetMode;
+	UE::Widget::EWidgetMode OverrideWidgetMode;
 
 	/** If 1, draw the widget and let the user interact with it. */
 	bool bShowWidget;

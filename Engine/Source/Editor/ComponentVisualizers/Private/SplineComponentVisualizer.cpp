@@ -9,7 +9,7 @@
 #include "Framework/Commands/UICommandList.h"
 #include "Framework/MultiBox/MultiBoxBuilder.h"
 #include "EditorStyleSet.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Editor.h"
 #include "EditorViewportClient.h"
 #include "EditorViewportCommands.h"
@@ -769,7 +769,7 @@ bool FSplineComponentVisualizer::GetWidgetLocation(const FEditorViewportClient* 
 
 bool FSplineComponentVisualizer::GetCustomInputCoordinateSystem(const FEditorViewportClient* ViewportClient, FMatrix& OutMatrix) const
 {
-	if (ViewportClient->GetWidgetCoordSystemSpace() == COORD_Local || ViewportClient->GetWidgetMode() == FWidget::WM_Rotate)
+	if (ViewportClient->GetWidgetCoordSystemSpace() == COORD_Local || ViewportClient->GetWidgetMode() == UE::Widget::WM_Rotate)
 	{
 		USplineComponent* SplineComp = GetEditedSplineComponent();
 		if (SplineComp != nullptr)
@@ -823,7 +823,7 @@ bool FSplineComponentVisualizer::HandleInputDelta(FEditorViewportClient* Viewpor
 		}
 		else if (ViewportClient->IsAltPressed())
 		{
-			if (ViewportClient->GetWidgetMode() == FWidget::WM_Translate && ViewportClient->GetCurrentWidgetAxis() != EAxisList::None && SelectedKeys.Num() == 1)
+			if (ViewportClient->GetWidgetMode() == UE::Widget::WM_Translate && ViewportClient->GetCurrentWidgetAxis() != EAxisList::None && SelectedKeys.Num() == 1)
 			{
 				static const int MaxDuplicationDelay = 3;
 

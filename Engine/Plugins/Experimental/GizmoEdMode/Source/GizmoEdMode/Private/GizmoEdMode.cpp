@@ -7,7 +7,7 @@
 #include "EdModeInteractiveToolsContext.h"
 #include "InteractiveGizmo.h"
 #include "BaseGizmos/TransformGizmo.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Utils.h"
 
 #define LOCTEXT_NAMESPACE "FGizmoEdMode"
@@ -72,7 +72,7 @@ void UGizmoEdMode::Enter()
 	Super::Enter();
 	RecreateGizmo();
 	WidgetModeChangedHandle =
-	    GetModeManager()->OnWidgetModeChanged().AddLambda([this](FWidget::EWidgetMode) { RecreateGizmo(); });
+	    GetModeManager()->OnWidgetModeChanged().AddLambda([this](UE::Widget::EWidgetMode) { RecreateGizmo(); });
 	GetModeManager()->SetShowWidget(false);
 }
 

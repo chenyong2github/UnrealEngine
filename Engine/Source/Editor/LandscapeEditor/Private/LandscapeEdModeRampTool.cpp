@@ -6,7 +6,7 @@
 #include "AI/NavigationSystemBase.h"
 #include "Editor/UnrealEdEngine.h"
 #include "Engine/Texture2D.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorModeManager.h"
 #include "UnrealEdGlobals.h"
 #include "EditorViewportClient.h"
@@ -134,7 +134,7 @@ public:
 	{
 		NumPoints = 0;
 		SelectedPoint = INDEX_NONE;
-		GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Translate);
+		GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
 	}
 
 	virtual bool BeginTool(FEditorViewportClient* ViewportClient, const FLandscapeToolTarget& Target, const FVector& InHitLocation) override
@@ -145,7 +145,7 @@ public:
 			SelectedPoint = NumPoints;
 			NumPoints++;
 			bMovingPoint = true;
-			GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Translate);
+			GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
 		}
 		else
 		{
@@ -153,7 +153,7 @@ public:
 			{
 				Points[SelectedPoint] = InHitLocation;
 				bMovingPoint = true;
-				GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Translate);
+				GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
 			}
 		}
 
@@ -224,7 +224,7 @@ public:
 					{
 						HLandscapeRampToolPointHitProxy* PointHitProxy = (HLandscapeRampToolPointHitProxy*)HitProxy;
 						SelectedPoint = PointHitProxy->Point;
-						GLevelEditorModeTools().SetWidgetMode(FWidget::WM_Translate);
+						GLevelEditorModeTools().SetWidgetMode(UE::Widget::WM_Translate);
 						GUnrealEd->RedrawLevelEditingViewports();
 
 						bMovingPoint = true;
@@ -432,11 +432,11 @@ public:
 		return false;
 	}
 
-	virtual EAxisList::Type GetWidgetAxisToDraw(FWidget::EWidgetMode CheckMode) const override
+	virtual EAxisList::Type GetWidgetAxisToDraw(UE::Widget::EWidgetMode CheckMode) const override
 	{
 		if (SelectedPoint != INDEX_NONE)
 		{
-			if (CheckMode == FWidget::WM_Translate)
+			if (CheckMode == UE::Widget::WM_Translate)
 			{
 				return EAxisList::XYZ;
 			}

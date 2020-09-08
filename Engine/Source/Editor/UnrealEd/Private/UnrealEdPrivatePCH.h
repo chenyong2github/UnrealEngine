@@ -626,7 +626,7 @@
 #include "Editor.h"
 #include "Factories/Factory.h"
 #include "TickableEditorObject.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorComponents.h"
 #include "Toolkits/IToolkit.h"
 #include "AssetThumbnail.h"

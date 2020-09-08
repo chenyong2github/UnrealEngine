@@ -3072,7 +3072,7 @@ bool FEdModeLandscape::ShouldDrawWidget() const
 	return UsesTransformWidget();
 }
 
-EAxisList::Type FEdModeLandscape::GetWidgetAxisToDraw(FWidget::EWidgetMode InWidgetMode) const
+EAxisList::Type FEdModeLandscape::GetWidgetAxisToDraw(UE::Widget::EWidgetMode InWidgetMode) const
 {
 	if (NewLandscapePreviewMode == ENewLandscapePreviewMode::None)
 	{
@@ -3085,11 +3085,11 @@ EAxisList::Type FEdModeLandscape::GetWidgetAxisToDraw(FWidget::EWidgetMode InWid
 
 	switch (InWidgetMode)
 	{
-	case FWidget::WM_Translate:
+	case UE::Widget::WM_Translate:
 		return EAxisList::XYZ;
-	case FWidget::WM_Rotate:
+	case UE::Widget::WM_Rotate:
 		return EAxisList::Z;
-	case FWidget::WM_Scale:
+	case UE::Widget::WM_Scale:
 		return EAxisList::XYZ;
 	default:
 		return EAxisList::None;

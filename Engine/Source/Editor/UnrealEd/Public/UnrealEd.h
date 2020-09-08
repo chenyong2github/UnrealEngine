@@ -287,7 +287,7 @@ MONOLITHIC_HEADER_BOILERPLATE()
 #include "Commandlets/EditorCommandlets.h"
 #include "EditorUndoClient.h"
 #include "EditorModeTools.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Editor.h"
 
 #include "EditorViewportClient.h"

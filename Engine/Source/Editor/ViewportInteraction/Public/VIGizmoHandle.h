@@ -3,7 +3,7 @@
 #pragma once
 
 #include "CoreMinimal.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "UObject/ObjectMacros.h"
 #include "Components/SceneComponent.h"
 #include "ViewportInteractionTypes.h"

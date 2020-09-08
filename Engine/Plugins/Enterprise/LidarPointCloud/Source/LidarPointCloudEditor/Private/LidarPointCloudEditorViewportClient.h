@@ -4,7 +4,7 @@
 
 #include "CoreMinimal.h"
 #include "InputCoreTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "EditorViewportClient.h"
 #include "Components.h"
 
@@ -41,9 +41,9 @@ public:
 	virtual bool InputWidgetDelta(FViewport* InViewport, EAxisList::Type CurrentAxis, FVector& Drag, FRotator& Rot, FVector& Scale) override { return false; }
 	virtual void TrackingStarted(const struct FInputEventState& InInputState, bool bIsDragging, bool bNudge) override {}
 	virtual void TrackingStopped() override {}
-	virtual FWidget::EWidgetMode GetWidgetMode() const override { return FWidget::WM_None; }
-	virtual void SetWidgetMode(FWidget::EWidgetMode NewMode) override {}
-	virtual bool CanSetWidgetMode(FWidget::EWidgetMode NewMode) const override { return false; }
+	virtual UE::Widget::EWidgetMode GetWidgetMode() const override { return UE::Widget::WM_None; }
+	virtual void SetWidgetMode(UE::Widget::EWidgetMode NewMode) override {}
+	virtual bool CanSetWidgetMode(UE::Widget::EWidgetMode NewMode) const override { return false; }
 	virtual bool CanCycleWidgetMode() const override { return false; }
 	virtual FVector GetWidgetLocation() const override { return FVector::ZeroVector; }
 	virtual FMatrix GetWidgetCoordSystem() const override { return FMatrix::Identity; }

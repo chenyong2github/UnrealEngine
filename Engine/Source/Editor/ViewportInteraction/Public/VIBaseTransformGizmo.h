@@ -5,7 +5,7 @@
 #include "CoreMinimal.h"
 #include "UObject/ObjectMacros.h"
 #include "GameFramework/Actor.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "ViewportInteractionTypes.h"
 #include "VIBaseTransformGizmo.generated.h"
 

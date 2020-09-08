@@ -6,7 +6,7 @@
 #include "BaseGizmos/TransformGizmo.h"
 #include "SubTransformProxy.h"
 #include "Math/Rotator.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "Engine/PointLight.h"
 #include "PointLightGizmo.h"
 #include "LightGizmosModule.h"
@@ -54,21 +54,21 @@ TArray<UInteractiveGizmo*> UPointLightGizmoFactory::BuildGizmoForSelection(FEdit
 	// Create one transform gizmo for the whole selection
 	ETransformGizmoSubElements Elements = ETransformGizmoSubElements::None;
 	bool bUseContextCoordinateSystem = true;
-	FWidget::EWidgetMode WidgetMode = ModeTools->GetWidgetMode();
+	UE::Widget::EWidgetMode WidgetMode = ModeTools->GetWidgetMode();
 
 	switch (WidgetMode)
 	{
-	case FWidget::EWidgetMode::WM_Translate:
+	case UE::Widget::EWidgetMode::WM_Translate:
 		Elements = ETransformGizmoSubElements::TranslateAllAxes | ETransformGizmoSubElements::TranslateAllPlanes;
 		break;
-	case FWidget::EWidgetMode::WM_Rotate:
+	case UE::Widget::EWidgetMode::WM_Rotate:
 		Elements = ETransformGizmoSubElements::None; // Rotation doesn't make sense for point lights
 		break;
-	case FWidget::EWidgetMode::WM_Scale:
+	case UE::Widget::EWidgetMode::WM_Scale:
 		Elements = ETransformGizmoSubElements::None; // Attenuation can be scaled using custom gizmo anyways, so scaling doesn't make sense
 		bUseContextCoordinateSystem = false;
 		break;
-	case FWidget::EWidgetMode::WM_2D:
+	case UE::Widget::EWidgetMode::WM_2D:
 		Elements = ETransformGizmoSubElements::RotateAxisY | ETransformGizmoSubElements::TranslatePlaneXZ;
 		break;
 	default:

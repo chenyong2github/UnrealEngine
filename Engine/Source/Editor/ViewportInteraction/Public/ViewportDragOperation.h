@@ -8,7 +8,7 @@
 #include "Templates/SubclassOf.h"
 #include "Components/ActorComponent.h"
 #include "ViewportInteractionTypes.h"
-#include "UnrealWidget.h"
+#include "UnrealWidgetFwd.h"
 #include "ViewportDragOperation.generated.h"
 
 /**
