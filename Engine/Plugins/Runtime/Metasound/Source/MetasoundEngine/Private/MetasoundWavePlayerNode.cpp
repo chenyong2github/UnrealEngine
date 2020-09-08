@@ -148,7 +148,7 @@ namespace Metasound
 				{ 
 					Float32_Interleaved, 
 					InParams.OperatorSettings.GetNumFramesPerBlock(), 
-					InParams.OperatorSettings.GetSampleRate() 
+					static_cast<int32>(InParams.OperatorSettings.GetSampleRate()) 
 				};
 				TUniquePtr<IDecoderOutput> Output = IDecoderOutput::Create(Reqs);
 				TUniquePtr<IDecoder> Decoder = Codec->CreateDecoder(Input.Get(), Output.Get());
