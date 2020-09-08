@@ -325,7 +325,7 @@ TFunction<void(TUniquePtr<FImagePixelData>&&)> UMoviePipelineDeferredPassBase::M
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.bAccumulateAlpha = bOutputAlpha;
+		AccumulationArgs.bAccumulateAlpha = bAccumulateMultisampleAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
@@ -478,7 +478,7 @@ void UMoviePipelineDeferredPassBase::PostRendererSubmission(const FMoviePipeline
 	{
 		AccumulationArgs.OutputMerger = GetPipeline()->OutputBuilder;
 		AccumulationArgs.ImageAccumulator = StaticCastSharedPtr<FImageOverlappedAccumulator>(SampleAccumulator->Accumulator);
-		AccumulationArgs.bAccumulateAlpha = bOutputAlpha;
+		AccumulationArgs.bAccumulateAlpha = bAccumulateMultisampleAlpha;
 	}
 
 	auto Callback = [this, FramePayload, AccumulationArgs, SampleAccumulator](TUniquePtr<FImagePixelData>&& InPixelData)
@@ -607,7 +607,7 @@ void UMoviePipelineDeferredPassBase::SetupImpl(const MoviePipeline::FMoviePipeli
 		GetPipeline()->SetPreviewTexture(TileRenderTarget.Get());
 	}
 	
-	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3);
+	SurfaceQueue = MakeShared<FMoviePipelineSurfaceQueue>(InPassInitSettings.BackbufferResolution, EPixelFormat::PF_FloatRGBA, 3, true);
 	AccumulatorPool = MakeShared<TAccumulatorPool<FImageOverlappedAccumulator>, ESPMode::ThreadSafe>(6);
 
 	// This scene view extension will be released automatically as soon as Render Sequence is torn down.
