@@ -159,6 +159,7 @@ public:
 
 	void Tick(float DeltaSeconds);
 	void UpdateStreamingState();
+	class ULevel* GetPreferredLoadedLevelToAddToWorld() const;
 
 	FVector2D GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize);
 	void DrawRuntimeHash2D(class UCanvas* Canvas, const FVector2D& PartitionCanvasOffset, const FVector2D& PartitionCanvasSize);

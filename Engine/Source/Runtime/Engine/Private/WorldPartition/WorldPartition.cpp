@@ -1155,6 +1155,15 @@ void UWorldPartition::UpdateStreamingState()
 	}
 }
 
+class ULevel* UWorldPartition::GetPreferredLoadedLevelToAddToWorld() const
+{
+	if (GetWorld()->IsGameWorld())
+	{
+		return GetStreamingPolicy()->GetPreferredLoadedLevelToAddToWorld();
+	}
+	return nullptr;
+}
+
 FVector2D UWorldPartition::GetDrawRuntimeHash2DDesiredFootprint(const FVector2D& CanvasSize)
 {
 	check(GetWorld()->IsGameWorld());

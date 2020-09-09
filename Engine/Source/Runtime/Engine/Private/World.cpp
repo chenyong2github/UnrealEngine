@@ -371,6 +371,7 @@ UWorld::UWorld( const FObjectInitializer& ObjectInitializer )
 ,	NextTravelType(TRAVEL_Relative)
 ,	CleanupWorldTag(0)
 {
+	NextPreferredLevelPendingVisibility = nullptr;
 	TimerManager = new FTimerManager();
 #if WITH_EDITOR
 	SetPlayInEditorInitialNetMode(ENetMode::NM_Standalone);
@@ -2405,6 +2406,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		
 		// Mark level as being the one in process of being made visible.
 		CurrentLevelPendingVisibility = Level;
+		NextPreferredLevelPendingVisibility = nullptr;
 
 		// Add to the UWorld's array of levels, which causes it to be rendered et al.
 		Levels.AddUnique( Level );
@@ -2606,7 +2608,7 @@ void UWorld::AddToWorld( ULevel* Level, const FTransform& LevelTransform, bool b
 		Level->bAlreadyClearedActorsSeamlessTravelFlag	= false;
 
 		// Finished making level visible - allow other levels to be added to the world.
-		CurrentLevelPendingVisibility					= NULL;
+		CurrentLevelPendingVisibility = nullptr;
 
 		// notify server that the client has finished making this level visible
 		if (!Level->bClientOnlyVisible)
@@ -3486,6 +3488,15 @@ void UWorld::InternalUpdateStreamingState()
 	}
 }
 
+void UWorld::UpdateNextPreferredLevelPendingVisibility()
+{
+	if (CurrentLevelPendingVisibility == nullptr)
+	{
+		const UWorldPartition* WorldPartition = GetWorldPartition();
+		NextPreferredLevelPendingVisibility = WorldPartition ? WorldPartition->GetPreferredLoadedLevelToAddToWorld() : nullptr;
+	}
+}
+
 void UWorld::UpdateLevelStreaming()
 {
 	SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreamingTime);
@@ -3507,6 +3518,8 @@ void UWorld::UpdateLevelStreaming()
 	{
 		if (ULevelStreaming* StreamingLevel = StreamingLevelsToConsider.GetStreamingLevels()[Index])
 		{
+			UpdateNextPreferredLevelPendingVisibility();
+
 			bool bUpdateAgain = true;
 			bool bShouldContinueToConsider = true;
 			while (bUpdateAgain && bShouldContinueToConsider)

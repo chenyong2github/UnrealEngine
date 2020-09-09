@@ -570,23 +570,26 @@ void ULevelStreaming::UpdateStreamingState(bool& bOutUpdateAgain, bool& bOutRede
 	case ECurrentState::MakingVisible:
 		if (ensure(LoadedLevel))
 		{
-			World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad);
-
-			if (LoadedLevel->bIsVisible)
+			if (!World->GetNextPreferredLevelPendingVisibility() || World->GetNextPreferredLevelPendingVisibility() == LoadedLevel)
 			{
-				// immediately discard previous level
-				DiscardPendingUnloadLevel(World);
+				World->AddToWorld(LoadedLevel, LevelTransform, !bShouldBlockOnLoad);
 
-				if (World->Scene)
+				if (LoadedLevel->bIsVisible)
 				{
-					QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreamingInner_OnLevelAddedToWorld);
-					// Notify the new level has been added after the old has been discarded
-					World->Scene->OnLevelAddedToWorld(LoadedLevel->GetOutermost()->GetFName(), World, LoadedLevel->bIsLightingScenario);
-				}
+					// immediately discard previous level
+					DiscardPendingUnloadLevel(World);
 
-				CurrentState = ECurrentState::LoadedVisible;
-				bOutUpdateAgain = true;
-				bOutRedetermineTarget = true;
+					if (World->Scene)
+					{
+						QUICK_SCOPE_CYCLE_COUNTER(STAT_UpdateLevelStreamingInner_OnLevelAddedToWorld);
+						// Notify the new level has been added after the old has been discarded
+						World->Scene->OnLevelAddedToWorld(LoadedLevel->GetOutermost()->GetFName(), World, LoadedLevel->bIsLightingScenario);
+					}
+
+					CurrentState = ECurrentState::LoadedVisible;
+					bOutUpdateAgain = true;
+					bOutRedetermineTarget = true;
+				}
 			}
 		}
 		break;

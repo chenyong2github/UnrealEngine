@@ -87,6 +87,18 @@ static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridLevelCount(
 	GShowRuntimeSpatialHashGridLevelCount,
 	TEXT("Used to choose how many grid levels to display when showing world partition runtime hash."));
 
+static int32 GShowRuntimeSpatialHashGridIndex = 0;
+static FAutoConsoleVariableRef CVarShowRuntimeSpatialHashGridIndex(
+	TEXT("WorldPartition.ShowRuntimeSpatialHashGridIndex"),
+	GShowRuntimeSpatialHashGridIndex,
+	TEXT("Used to show only one particual grid when showing world partition runtime hash (invalid index will show all)."));
+
+static float GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance = 0.4f; // Value between [0, 1]
+static FAutoConsoleVariableRef CVarRuntimeSpatialHashCellToSourceAngleContributionToCellImportance(
+	TEXT("WorldPartition.RuntimeSpatialHashCellToSourceAngleContributionToCellImportance"),
+	GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance,
+	TEXT("Value between 0 and 1 that modulates the contribution of the angle between streaming source-to-cell vector and source-forward vector to the cell importance. The closest to 0, the less the angle will contribute to the cell importance."));
+
 // ------------------------------------------------------------------------------------------------
 
 /**
@@ -589,7 +601,7 @@ void FSpatialHashStreamingGrid::Draw3D(UWorld* World, const TArray<FWorldPartiti
 				
 				FVector BoundsExtent(CellWorldBounds.GetExtent(), 100.f);
 				const UWorldPartitionRuntimeSpatialHashCell* Cell = Cast<const UWorldPartitionRuntimeSpatialHashCell>(GridLevels[GridLevel].GridCells[Coords.Y * Helper.Levels[GridLevel].GridSize + Coords.X]);
-				FColor CellColor = Cell ? Cell->GetDebugColor().ToFColor(false).WithAlpha(32) : FColor(0, 0, 0, 32);
+				FColor CellColor = Cell ? Cell->GetDebugColor().ToFColor(false).WithAlpha(16) : FColor(0, 0, 0, 16);
 				FVector BoundsOrigin(CellWorldBounds.GetCenter(), Z);
 				DrawDebugSolidBox(World, BoundsOrigin, BoundsExtent, CellColor, false, -1.f, 255);
 				DrawDebugBox(World, BoundsOrigin, BoundsExtent, CellColor.WithAlpha(255), false, -1.f, 255, 10.f);
@@ -1292,7 +1304,7 @@ int32 UWorldPartitionRuntimeSpatialHash::GetStreamingCells(const TArray<FWorldPa
 	return Cells.Num();
 }
 
-void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByDistance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*>& OutSortedCells)
+void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByImportance(const TSet<const UWorldPartitionRuntimeCell*>& InCells, const TArray<FWorldPartitionStreamingSource>& InSources, TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>>& OutSortedCells) const
 {
 	struct FCellShortestDist
 	{
@@ -1311,10 +1323,21 @@ void UWorldPartitionRuntimeSpatialHash::SortStreamingCellsByDistance(const TSet<
 		const UWorldPartitionRuntimeSpatialHashCell* Cell = Cast<const UWorldPartitionRuntimeSpatialHashCell>(ToLoadCell);
 		FCellShortestDist& SortedCell = SortedCells.Emplace_GetRef(Cell, FLT_MAX);
 
+		const float AngleContribution = FMath::Clamp(GRuntimeSpatialHashCellToSourceAngleContributionToCellImportance, 0.f, 1.f);
 		for (const FWorldPartitionStreamingSource& Source : InSources)
 		{
-			float SqrDistance = FVector::DistSquared(Source.Location, Cell->Position);
-			SortedCell.SourceMinDistance = FMath::Min(SqrDistance, SortedCell.SourceMinDistance);
+			const float SqrDistance = FVector::DistSquared(Source.Location, Cell->Position);
+			float AngleFactor = 1.f;
+			if (!FMath::IsNearlyZero(AngleContribution))
+			{
+				const FVector2D SourceForward(Source.Rotation.Quaternion().GetForwardVector());
+				const FVector2D SourceToCell(Cell->Position - Source.Location);
+				const float Dot = FVector2D::DotProduct(SourceForward.GetSafeNormal(), SourceToCell.GetSafeNormal());
+				const float NormalizedAngle = FMath::Clamp(FMath::Abs(FMath::Acos(Dot)/PI), 0.f, 1.f);
+				AngleFactor = FMath::Pow(NormalizedAngle, AngleContribution);
+			}
+			// Modulate distance to cell by angle relative to source forward vector (to prioritize cells in front)
+			SortedCell.SourceMinDistance = FMath::Min(SqrDistance * AngleFactor, SortedCell.SourceMinDistance);
 		}
 	}
 
@@ -1402,9 +1425,16 @@ void UWorldPartitionRuntimeSpatialHash::Draw2D(UCanvas* Canvas, const TArray<FWo
 void UWorldPartitionRuntimeSpatialHash::Draw3D(const TArray<FWorldPartitionStreamingSource>& Sources) const
 {
 	UWorld* World = GetWorld();
-	// Get cells based on streaming sources
-	for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+
+	if (StreamingGrids.IsValidIndex(GShowRuntimeSpatialHashGridIndex))
 	{
-		StreamingGrid.Draw3D(World, Sources);
+		StreamingGrids[GShowRuntimeSpatialHashGridIndex].Draw3D(World, Sources);
+	}
+	else
+	{
+		for (const FSpatialHashStreamingGrid& StreamingGrid : StreamingGrids)
+		{
+			StreamingGrid.Draw3D(World, Sources);
+		}
 	}
 }

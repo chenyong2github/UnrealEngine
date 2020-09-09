@@ -23,6 +23,7 @@ public:
 	virtual void LoadCells(const TSet<const UWorldPartitionRuntimeCell*>& ToLoadCells) override;
 	virtual void LoadCell(const UWorldPartitionRuntimeCell* Cell) override;
 	virtual void UnloadCell(const UWorldPartitionRuntimeCell* Cell) override;
+	virtual class ULevel* GetPreferredLoadedLevelToAddToWorld() const override;
 
 #if WITH_EDITOR
 	virtual TSubclassOf<class UWorldPartitionRuntimeCell> GetRuntimeCellClass() const override;

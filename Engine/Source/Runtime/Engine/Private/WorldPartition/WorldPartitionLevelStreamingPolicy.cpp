@@ -11,6 +11,7 @@
 #include "WorldPartition/WorldPartitionLevelStreamingDynamic.h"
 #include "WorldPartition/WorldPartitionRuntimeHash.h"
 #include "WorldPartition/WorldPartitionLevelHelper.h"
+#include "Engine/Level.h"
 #include "Engine/World.h"
 
 #if WITH_EDITOR
@@ -54,9 +55,9 @@ void UWorldPartitionLevelStreamingPolicy::LoadCells(const TSet<const UWorldParti
 		return;
 	}
 
-	// Sort cells based on shortest distance
-	TArray<const UWorldPartitionRuntimeCell*> SortedCells;
-	WorldPartition->RuntimeHash->SortStreamingCellsByDistance(ToLoadCells, StreamingSources, SortedCells);
+	// Sort cells based on importance
+	TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedCells;
+	WorldPartition->RuntimeHash->SortStreamingCellsByImportance(ToLoadCells, StreamingSources, SortedCells);
 
 	// Trigger cell loading until we hit the maximum
 	for (const UWorldPartitionRuntimeCell* Cell : SortedCells)
@@ -71,6 +72,34 @@ void UWorldPartitionLevelStreamingPolicy::LoadCells(const TSet<const UWorldParti
 			}
 		}
 	}
+}
+
+ULevel* UWorldPartitionLevelStreamingPolicy::GetPreferredLoadedLevelToAddToWorld() const
+{
+	check(WorldPartition->IsInitialized());
+	UWorld* World = WorldPartition->GetWorld();
+	if (World->GetNetMode() == NM_DedicatedServer)
+	{
+		return nullptr;
+	}
+
+	// Sort loaded cells based on importance (only those with a streaming level in MakingVisible state)
+	TArray<const UWorldPartitionRuntimeCell*, TInlineAllocator<256>> SortedMakingVisibileCells;
+	TSet<const UWorldPartitionRuntimeCell*> MakingVisibileCells;
+	MakingVisibileCells.Reserve(LoadedCells.Num());
+	for (const UWorldPartitionRuntimeCell* LoadedCell : LoadedCells)
+	{
+		if (const UWorldPartitionRuntimeLevelStreamingCell* LevelSreamingCell = Cast<const UWorldPartitionRuntimeLevelStreamingCell>(LoadedCell))
+		{
+			ULevelStreaming* LevelStreaming = LevelSreamingCell->GetLevelStreaming();
+			if (LevelStreaming && LevelStreaming->GetLoadedLevel() && (LevelStreaming->GetCurrentState() == ULevelStreaming::ECurrentState::MakingVisible))
+			{
+				MakingVisibileCells.Add(LoadedCell);
+			}
+		}
+	}
+	WorldPartition->RuntimeHash->SortStreamingCellsByImportance(MakingVisibileCells, StreamingSources, SortedMakingVisibileCells);
+	return SortedMakingVisibileCells.Num() > 0 ? CastChecked<UWorldPartitionRuntimeLevelStreamingCell>(SortedMakingVisibileCells[0])->GetLevelStreaming()->GetLoadedLevel() : nullptr;
 }
 
 void UWorldPartitionLevelStreamingPolicy::LoadCell(const UWorldPartitionRuntimeCell* InCell)
