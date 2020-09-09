@@ -461,7 +461,7 @@ static bool LogDREDData(ID3D12Device* Device)
 						}
 
 						const TCHAR* OpName = (BreadcrumbOp < UE_ARRAY_COUNT(OpNames)) ? OpNames[BreadcrumbOp] : TEXT("Unknown Op");
-						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - Last completed") : TEXT(""));
+						UE_LOG(LogD3D12RHI, Error, TEXT("\tOp: %d, %s%s%s"), Op, OpName, *ContextStr, (Op + 1 == LastCompletedOp) ? TEXT(" - LAST COMPLETED") : TEXT(""));
 					}
 				}
 
@@ -637,6 +637,9 @@ namespace D3D12RHI
 
 			// Report the GPU crash which will raise the exception (only interesting if we have a GPU dump)
 			ReportGPUCrash(TEXT("Aftermath GPU Crash dump Triggered"), 0);
+
+			// Force shutdown, we can't do anything useful anymore.
+			FPlatformMisc::RequestExit(true);
 		}
 #endif // PLATFORM_WINDOWS
 
