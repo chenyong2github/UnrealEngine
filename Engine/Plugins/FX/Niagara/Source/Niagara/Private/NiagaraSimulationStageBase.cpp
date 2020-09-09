@@ -110,4 +110,14 @@ void UNiagaraSimulationStageGeneric::PostEditChangeProperty(struct FPropertyChan
 		RequestRecompile();
 	}
 }
+
+FName UNiagaraSimulationStageGeneric::GetStackContextReplacementName() const 
+{
+	if (IterationSource == ENiagaraIterationSource::Particles)
+		return NAME_None;
+	else if (IterationSource == ENiagaraIterationSource::DataInterface)
+		return DataInterface.BoundVariable.GetName();
+	ensureMsgf(false, TEXT("Should not get here! Need to handle unknown case!"));
+	return NAME_None;
+}
 #endif

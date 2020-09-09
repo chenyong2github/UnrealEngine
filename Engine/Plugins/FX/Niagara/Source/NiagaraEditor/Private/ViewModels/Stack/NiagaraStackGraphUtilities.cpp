@@ -35,6 +35,7 @@
 #include "EdGraphUtilities.h"
 #include "ObjectTools.h"
 #include "NiagaraMessageManager.h"
+#include "NiagaraSimulationStageBase.h"
 
 DECLARE_CYCLE_STAT(TEXT("Niagara - StackGraphUtilities - RelayoutGraph"), STAT_NiagaraEditor_StackGraphUtilities_RelayoutGraph, STATGROUP_NiagaraEditor);
 
@@ -327,6 +328,32 @@ const UNiagaraNodeOutput* FNiagaraStackGraphUtilities::GetEmitterOutputNodeForSt
 	return GetEmitterOutputNodeForStackNodeInternal<const UNiagaraNodeOutput, const UNiagaraNode>(StackNode);
 }
 
+void FNiagaraStackGraphUtilities::BuildParameterMapHistoryWithStackContextResolution(UNiagaraEmitter* OwningEmitter, UNiagaraNodeOutput* OutputNodeInChain, UNiagaraNode* NodeToVisit, FNiagaraParameterMapHistoryBuilder& Builder, bool bRecursive /*= true*/, bool bFilterForCompilation /*= true*/)
+{
+	bool bSetUsage = false;
+	if (OwningEmitter && OutputNodeInChain)
+	{
+		ENiagaraScriptUsage Usage = OutputNodeInChain->GetUsage();
+		FName StageName;
+		if (Usage == ENiagaraScriptUsage::ParticleSimulationStageScript)
+		{
+			UNiagaraSimulationStageBase* Base = OwningEmitter->GetSimulationStageById(OutputNodeInChain->GetUsageId());
+			if (Base)
+				StageName = Base->GetStackContextReplacementName();
+		}
+		Builder.BeginUsage(Usage, StageName);
+		bSetUsage = true;
+	}
+
+	NodeToVisit->BuildParameterMapHistory(Builder, bRecursive, bFilterForCompilation);
+
+	if (bSetUsage)
+	{
+		Builder.EndUsage();
+	}
+}
+
+
 UNiagaraNodeInput* FNiagaraStackGraphUtilities::GetEmitterInputNodeForStackNode(UNiagaraNode& StackNode)
 {
 	// Since the stack graph can have arbitrary branches when traversing inputs, the only safe way to get the initial input
@@ -577,6 +604,7 @@ void FNiagaraStackGraphUtilities::GetStackFunctionInputPins(UNiagaraNodeFunction
 	FNiagaraParameterMapHistoryBuilder Builder;
 	Builder.SetIgnoreDisabled(bIgnoreDisabled);
 	Builder.ConstantResolver = ConstantResolver;
+	
 	FunctionCallNode.BuildParameterMapHistory(Builder, false, false);
 	
 	if (Builder.Histories.Num() == 1)

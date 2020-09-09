@@ -485,8 +485,24 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 
 			FString TranslationName = TEXT("Emitter");
 			Builder.BeginTranslation(TranslationName);
+			FName SimStageName;
+			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript && SimStages && SimStages->IsValidIndex(NumSimStageNodes))
+			{
+				UNiagaraSimulationStageBase* SimStage = (*SimStages)[NumSimStageNodes];
+				if (SimStage == nullptr || !SimStage->bEnabled)
+				{
+					// Do nothing
+				}
+				else if (UNiagaraSimulationStageGeneric* GenericStage = Cast<UNiagaraSimulationStageGeneric>(SimStage))
+				{
+					SimStageName = GenericStage->IterationSource == ENiagaraIterationSource::DataInterface ? GenericStage->DataInterface.BoundVariable.GetName() : FName();
+				}
+			}
+
+			Builder.BeginUsage(FoundOutputNode->GetUsage(), SimStageName);
 			Builder.EnableScriptWhitelist(true, FoundOutputNode->GetUsage());
 			Builder.BuildParameterMaps(FoundOutputNode, true);
+			Builder.EndUsage();
 			
 			ensure(Builder.Histories.Num() <= 1);
 
@@ -501,6 +517,7 @@ void FNiagaraCompileRequestData::FinishPrecompile(UNiagaraScriptSource* ScriptSo
 					}
 				}
 			}
+
 			if (FoundOutputNode->GetUsage() == ENiagaraScriptUsage::ParticleSimulationStageScript)
 			{
 				NumSimStageNodes++;
@@ -1310,6 +1327,7 @@ TOptional<FNiagaraCompileResults> FHlslNiagaraCompiler::GetCompileResult(int32 J
 			Errors += ShaderError.StrippedErrorMessage + "\n";
 		}
 		Error(FText::Format(LOCTEXT("VectorVMCompileErrorMessageFormat", "The Vector VM compile failed.  Errors:\n{0}"), FText::FromString(Errors)));
+		DumpHLSLText(Results.Data->LastHlslTranslation, CompilationJob->CompileResults.DumpDebugInfoPath);
 	}
 
 	if (!Results.bVMSucceeded)

@@ -48,6 +48,7 @@
 #include "HAL/PlatformApplicationMisc.h"
 #include "NiagaraClipboard.h"
 #include "NiagaraEditorModule.h"
+#include "NiagaraSimulationStageBase.h"
 
 #define LOCTEXT_NAMESPACE "NiagaraParameterMapView"
 
@@ -113,6 +114,10 @@ void NiagaraParameterMapSectionID::OnGetSectionNamespaces(const NiagaraParameter
 	case NiagaraParameterMapSectionID::PARAMETERCOLLECTION:
 		OutSectionNamespaces.Add(FNiagaraConstants::ParameterCollectionNamespace);
 		break;
+	case NiagaraParameterMapSectionID::STACK_CONTEXT:
+		OutSectionNamespaces.Add(FNiagaraConstants::StackContextNamespace);
+		break;
+
 	}
 }
 
@@ -167,6 +172,10 @@ NiagaraParameterMapSectionID::Type NiagaraParameterMapSectionID::OnGetSectionFro
 	else if (OutParameterHandle.IsDataInstanceHandle())
 	{
 		SectionID = NiagaraParameterMapSectionID::DATA_INSTANCE;
+	}
+	else if (OutParameterHandle.IsStackContextHandle())
+	{
+		SectionID = NiagaraParameterMapSectionID::STACK_CONTEXT;
 	}
 
 	return SectionID;
@@ -654,6 +663,7 @@ void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVa
 			continue;
 		}
 
+		int32 NumSimStages = 0;
 		TArray<UNiagaraNodeOutput*> OutputNodes;
 		Graph->GetNodesOfClass<UNiagaraNodeOutput>(OutputNodes);
 		for (UNiagaraNodeOutput* OutputNode : OutputNodes)
@@ -685,7 +695,19 @@ void SNiagaraParameterMapView::CollectAllActionsForSystemToolkit(TMap<FNiagaraVa
 
 			Builder.SetIgnoreDisabled(bIgnoreDisabled);
 			Builder.ConstantResolver = ConstantResolver;
+			FName StageName;
+			ENiagaraScriptUsage StageUsage = OutputNode->GetUsage();
+			if (StageUsage == ENiagaraScriptUsage::ParticleSimulationStageScript && GraphOwningEmitter)
+			{
+				UNiagaraSimulationStageBase* Base = GraphOwningEmitter->GetSimulationStageById(OutputNode->GetUsageId());
+				if (Base)
+				{
+					StageName = Base->GetStackContextReplacementName();
+				}
+			}
+			Builder.BeginUsage(StageUsage, StageName);
 			NodeToTraverse->BuildParameterMapHistory(Builder, true, false);
+			Builder.EndUsage();
 			
 			TMap<FNiagaraVariable, FNiagaraGraphParameterReferenceCollection> ReferenceCollectionsForTraversedNode;
 			if (Builder.Histories.Num() == 1)

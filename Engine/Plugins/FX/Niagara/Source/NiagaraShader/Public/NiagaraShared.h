@@ -129,6 +129,25 @@ struct NIAGARASHADER_API FNiagaraDataInterfaceGeneratedFunction
 
 	bool Serialize(FArchive& Ar);
 	friend bool operator<<(FArchive& Ar, FNiagaraDataInterfaceGeneratedFunction& DIFunction);
+
+	bool operator==(const FNiagaraDataInterfaceGeneratedFunction& Other) const
+	{
+		if (DefinitionName != Other.DefinitionName || InstanceName != Other.InstanceName)
+			return false;
+		if (Specifiers.Num() != Other.Specifiers.Num())
+			return false;
+		for (int32 i = 0; i < Specifiers.Num(); i++)
+		{
+			if (Specifiers[i] != Other.Specifiers[i])
+				return false;
+		}
+		return true;
+	}
+
+	bool operator!=(const FNiagaraDataInterfaceGeneratedFunction& Other) const
+	{
+		return !(*this == Other);
+	}
 };
 
 template<> struct TStructOpsTypeTraits<FNiagaraDataInterfaceGeneratedFunction> : public TStructOpsTypeTraitsBase2<FNiagaraDataInterfaceGeneratedFunction>
