@@ -318,7 +318,7 @@ void Main(
 		OutParameters.PixelPosition = WorldPos.xyz;
 	#endif
 
-	#if USING_VERTEX_SHADER_LAYER && VERTEXSHADER
+	#if FEATURE_LEVEL >= FEATURE_LEVEL_SM4 && USING_VERTEX_SHADER_LAYER && VERTEXSHADER
 		LayerIndex = LayerId;
 		OutPosition = mul(WorldPos, PassStruct.ShadowViewProjectionMatrices[LayerIndex]);
 		#if INTERPOLATE_VF_ATTRIBUTES

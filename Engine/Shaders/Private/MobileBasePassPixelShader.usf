@@ -557,7 +557,7 @@ void Main(
 	IndirectIrradiance *= MaterialAO;
 
 	// Shadow
-	half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants).r;
+	half Shadow = GetPrimaryPrecomputedShadowMask(Interpolants, MaterialParameters).r;
 #if DIRECTIONAL_LIGHT_CSM && !MATERIAL_SHADINGMODEL_SINGLELAYERWATER
 	// Cascaded Shadow Map
 	if(MobileBasePass.UseCSM)
