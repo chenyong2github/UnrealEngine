@@ -77,6 +77,8 @@ void UChaosClothConfig::MigrateFrom(const FClothConfig_Legacy& ClothConfig)
 	bUseGravityOverride = ClothConfig.bUseGravityOverride;
 	GravityScale = ClothConfig.GravityScale;
 	Gravity = ClothConfig.GravityOverride;
+
+	bUseLegacyBackstop = true;
 }
 
 void UChaosClothConfig::MigrateFrom(const UClothSharedConfigCommon* ClothSharedConfig)
@@ -123,6 +125,11 @@ void UChaosClothConfig::PostLoad()
 	{
 		MinPerParticleMass = 0.0001f;  // Override these values in case they might have been accidentally
 		bUseGeodesicDistance = true;   // changed from their default at any point in time
+	}
+
+	if (ChaosClothConfigCustomVersion < FChaosClothConfigCustomVersion::AddLegacyBackstopParameter)
+	{
+		bUseLegacyBackstop = true;
 	}
 }
 

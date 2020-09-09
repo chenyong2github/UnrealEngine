@@ -223,7 +223,7 @@ void FClothingSimulationCloth::FLODData::Add(FClothingSimulationSolver* Solver, 
 	const TConstArrayView<float>& BackstopRadiuses = WeightMaps[(int32)EChaosWeightMapTarget::BackstopRadius];
 	if (BackstopRadiuses.Num() && BackstopDistances.Num())
 	{
-		ClothConstraints.SetBackstopConstraints(BackstopDistances, BackstopRadiuses);
+		ClothConstraints.SetBackstopConstraints(BackstopDistances, BackstopRadiuses, Cloth->bUseLegacyBackstop);
 	}
 
 	// Animation Drive Constraints
@@ -345,6 +345,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	float InFrictionCoefficient,
 	bool bInUseSelfCollisions,
 	float InSelfCollisionThickness,
+	bool bInUseLegacyBackstop,
 	bool bInUseLODIndexOverride, 
 	int32 InLODIndexOverride)
 	: Mesh(nullptr)
@@ -378,6 +379,7 @@ FClothingSimulationCloth::FClothingSimulationCloth(
 	, FrictionCoefficient(InFrictionCoefficient)
 	, bUseSelfCollisions(bInUseSelfCollisions)
 	, SelfCollisionThickness(InSelfCollisionThickness)
+	, bUseLegacyBackstop(bInUseLegacyBackstop)
 	, bUseLODIndexOverride(bInUseLODIndexOverride)
 	, LODIndexOverride(InLODIndexOverride)
 	, bNeedsReset(false)
