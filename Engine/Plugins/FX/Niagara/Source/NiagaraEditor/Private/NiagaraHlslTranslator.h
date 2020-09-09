@@ -327,6 +327,11 @@ public:
 	bool bWritesParticles = false;
 	bool bPartialParticleUpdate = false;
 	TArray<FNiagaraVariable> SetParticleAttributes;
+	FString CustomReadFunction;
+	FString CustomWriteFunction;
+
+	bool ShouldDoSpawnOnlyLogic() const;
+	bool IsRelevantToSpawnForStage(const FNiagaraParameterMapHistory& InHistory, const FNiagaraVariable& InAliasedVar) const;
 	int32 CurrentCallID = 0;
 	bool bCallIDInitialized = false;
 };
@@ -469,7 +474,7 @@ protected:
 	FString GetUniqueEmitterName() const;
 
 	void HandleDataInterfaceCall(FNiagaraScriptDataInterfaceCompileInfo& Info, const FNiagaraFunctionSignature& InMatchingSignature);
-
+	void ConvertCompileInfoToParamInfo(const FNiagaraScriptDataInterfaceCompileInfo& InCompileInfo, FNiagaraDataInterfaceGPUParamInfo& OutGPUParamInfo);
 public:
 
 	FHlslNiagaraTranslator();
@@ -596,9 +601,11 @@ private:
 	FString ComputeMatrixColumnAccess(const FString& Name);
 	FString ComputeMatrixRowAccess(const FString& Name);
 
-	bool ParseDIFunctionSpecifiers(UNiagaraNodeCustomHlsl* CustomHLSLNode, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx);
+	bool ParseDIFunctionSpecifiers(UNiagaraNode* NodeForErrorReporting, FNiagaraFunctionSignature& Sig, TArray<FString>& Tokens, int32& TokenIdx);
 	void HandleCustomHlslNode(UNiagaraNodeCustomHlsl* CustomFunctionHlsl, ENiagaraScriptUsage& OutScriptUsage, FString& OutName, FString& OutFullName, bool& bOutCustomHlsl, FString& OutCustomHlsl,
 		FNiagaraFunctionSignature& OutSignature, TArray<int32>& Inputs);
+	void ProcessCustomHlsl(const FString& InCustomHlsl, ENiagaraScriptUsage InUsage, const FNiagaraFunctionSignature& InSignature, const TArray<int32>& Inputs, UNiagaraNode* NodeForErrorReporting, FString& OutCustomHlsl, FNiagaraFunctionSignature& OutSignature);
+	void HandleSimStageSetupAndTeardown(int32 InWhichStage, FString& OutHlsl);
 	
 	// Add a raw float constant chunk
 	int32 GetConstantDirect(float InValue);
@@ -648,7 +655,7 @@ private:
 	void BuildConstantBuffer(ENiagaraCodeChunkMode ChunkMode);
 
 	void TrimAttributes(const FNiagaraCompileOptions& InCompileOptions, TArray<FNiagaraVariable>& Attributes);
-
+	
 	/** Map of symbol names to count of times it's been used. Used for generating unique symbol names. */
 	TMap<FName, uint32> SymbolCounts;
 
@@ -661,6 +668,9 @@ private:
 	// Keep track of the other output nodes in the graph's histories so that we can make sure to 
 	// create any variables that are needed downstream.
 	TArray<FNiagaraParameterMapHistory> OtherOutputParamMapHistories;
+
+	// All of the variables arrays in the other histories converted to sanitized HLSL format. Used in parsing custom hlsl nodes.
+	TArray< TArray<FNiagaraVariable> > OtherOutputParamMapHistoriesSanitizedVariables;
 
 	// Make sure that the function call names match up on the second traversal.
 	FNiagaraParameterMapHistoryBuilder ActiveHistoryForFunctionCalls;

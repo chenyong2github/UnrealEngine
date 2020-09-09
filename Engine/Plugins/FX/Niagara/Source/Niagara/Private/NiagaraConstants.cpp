@@ -31,6 +31,7 @@ const FName FNiagaraConstants::ParticleAttributeNamespace(TEXT("Particles"));
 const FName FNiagaraConstants::ModuleNamespace(TEXT("Module"));
 const FName FNiagaraConstants::OutputNamespace(TEXT("Output"));
 const FName FNiagaraConstants::TransientNamespace(TEXT("Transient"));
+const FName FNiagaraConstants::StackContextNamespace(TEXT("StackContext"));
 const FName FNiagaraConstants::DataInstanceNamespace(TEXT("DataInstance"));
 const FName FNiagaraConstants::StaticSwitchNamespace(TEXT("StaticSwitch"));
 const FName FNiagaraConstants::ArrayNamespace(TEXT("Array"));
