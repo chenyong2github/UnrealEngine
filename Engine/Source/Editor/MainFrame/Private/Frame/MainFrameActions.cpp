@@ -390,7 +390,7 @@ static bool ShowBadSDKDialog(FName IniPlatformName)
 		FFormatNamedArguments Args;
 		//		Args.Add(TEXT("DisplayName"), PlatformInfo->DisplayName);
 		Args.Add(TEXT("DisplayName"), FText::FromName(IniPlatformName));
-		FText WarningText = FText::Format(LOCTEXT("BadSDK_Message", "The SDK for {DisplayName} appears to not be installed properly, which is needed to generate data. Check the SDK section of the Launch On menu in the main toolbar to update SDK.\n\nWould you like to attempt to continue anyway?"), Args);
+		FText WarningText = FText::Format(LOCTEXT("BadSDK_Message", "The SDK for {DisplayName} appears to not be installed properly, which is needed to generate data. Check the SDK section of the Launch On menu in the main toolbar to update SDK.\n\nAlternatively, you may continue anyway, which will attempt to install/update the SDK before cookingt the content. This is a new feature, and is not guaranteed to work.\n\nWould you like to continue?"), Args);
 
 		FSuppressableWarningDialog::FSetupInfo Info(
 			WarningText,
@@ -457,7 +457,7 @@ void FMainFrameActionCallbacks::CookContent(const FName InPlatformInfoName)
 	}
 
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");
-	FString CommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" BuildCookRun %s%s -nop4 -project=\"%s\" -cook -skipstage -ue4exe=\"%s\" %s -utf8output"),
+	FString CommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" BuildCookRun %s%s -nop4 -project=\"%s\" -cook -skipstage -ue4exe=\"%s\" %s -utf8output -WaitForUATMutex"),
 		*ProjectPath,
 		GetUATCompilationFlags(),
 		FApp::IsEngineInstalled() ? TEXT(" -installed") : TEXT(""),
@@ -859,7 +859,7 @@ void FMainFrameActionCallbacks::PackageProject( const FName InPlatformInfoName )
 	FString TurnkeyCommandline = FString::Printf(TEXT("Turnkey -command=VerifySdk -platform=%s -UpdateIfNeeded -EditorIO"), *PlatformInfo->DataDrivenPlatformInfo->UBTPlatformString);
 
 	FString ProjectPath = FPaths::IsProjectFilePathSet() ? FPaths::ConvertRelativePathToFull(FPaths::GetProjectFilePath()) : FPaths::RootDir() / FApp::GetProjectName() / FApp::GetProjectName() + TEXT(".uproject");
-	FString CommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" %s BuildCookRun %s%s -nop4 -project=\"%s\" -cook -stage -archive -archivedirectory=\"%s\" -package -ue4exe=\"%s\" %s -utf8output"),
+	FString CommandLine = FString::Printf(TEXT("-ScriptsForProject=\"%s\" %s BuildCookRun %s%s -nop4 -project=\"%s\" -cook -stage -archive -archivedirectory=\"%s\" -package -ue4exe=\"%s\" %s -utf8output -WaitForUATMutex"),
 		*ProjectPath,
 		*TurnkeyCommandline,
 		GetUATCompilationFlags(),

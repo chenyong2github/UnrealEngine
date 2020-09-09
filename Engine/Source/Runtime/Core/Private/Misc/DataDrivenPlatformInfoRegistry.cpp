@@ -15,6 +15,7 @@ namespace
 	TMap<FName, FDataDrivenPlatformInfo> DataDrivenPlatforms;
 	TArray<FName> SortedPlatformNames;
 	TArray<const FDataDrivenPlatformInfo*> SortedPlatformInfos;
+	FCriticalSection DDPILocker;
 }
 
 #if DDPI_HAS_EXTENDED_PLATFORMINFO_DATA
@@ -406,12 +407,10 @@ static void PrepForTurnkeyReport(FString& Command, FString& BaseCommandline, FSt
 
 	Command = TEXT("{EngineDir}Build/BatchFiles/RunuAT");
 //	Command = TEXT("{EngineDir}/Binaries/DotNET/AutomationTool.exe");
-	BaseCommandline = FString::Printf(TEXT("Turnkey -command=VerifySdk -ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
+	BaseCommandline = FString::Printf(TEXT("Turnkey -utf8output -WaitForUATMutex -command=VerifySdk -ReportFilename=\"%s\" -log=\"%s\""), *ReportFilename, *LogFilename);
 
 	// convert into appropriate calls for the current platform
 	FPlatformProcess::ModifyCreateProcParams(Command, BaseCommandline, FGenericPlatformProcess::ECreateProcHelperFlags::AppendPlatformScriptExtension | FGenericPlatformProcess::ECreateProcHelperFlags::RunThroughShell);
-
-	UE_LOG(LogInit, Log, TEXT("Running Turnkey SDK detection: '%s %s'"), *Command, *BaseCommandline);
 }
 
 static FString ConvertToDDPIPlatform(const FString& Platform)
@@ -474,13 +473,19 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 	PrepForTurnkeyReport(Command, BaseCommandline, ReportFilename);
 	FString Commandline = BaseCommandline + FString(TEXT(" -platform=")) + FString::JoinBy(DataDrivenPlatforms, TEXT("+"), [](TPair<FName, FDataDrivenPlatformInfo> Pair) { return ConvertToUATPlatform(Pair.Key.ToString()); });
 
-	// reset status to unknown
-	for (auto& It : DataDrivenPlatforms)
+	UE_LOG(LogInit, Log, TEXT("Running Turnkey SDK detection: '%s %s'"), *Command, *Commandline);
+
 	{
-		It.Value.SdkStatus = DDPIPlatformSdkStatus::Querying;
-		
-		// reset the per-device status when querying general Sdk status
-		It.Value.ClearDeviceStatus();
+		FScopeLock Lock(&DDPILocker);
+
+		// reset status to unknown
+		for (auto& It : DataDrivenPlatforms)
+		{
+			It.Value.SdkStatus = DDPIPlatformSdkStatus::Querying;
+
+			// reset the per-device status when querying general Sdk status
+			It.Value.ClearDeviceStatus();
+		}
 	}
 
 	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(Command, Commandline, true, false);
@@ -488,6 +493,8 @@ void FDataDrivenPlatformInfoRegistry::UpdateSdkStatus()
 	{
 		AsyncTask(ENamedThreads::GameThread, [ReportFilename, TurnkeyProcess, ExitCode]()
 		{
+			FScopeLock Lock(&DDPILocker);
+
 			if (ExitCode == 0 || ExitCode == 10)
 			{
 				TArray<FString> Contents;
@@ -589,10 +596,16 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 
 	FString Commandline = BaseCommandline + FString(TEXT(" -Device=")) + FString::JoinBy(PlatformDeviceIds, TEXT("+"), [](FString Id) { return ConvertToUATDeviceId(Id); });
 
-	// set status to querying
-	for (const FString& Id : PlatformDeviceIds)
+	UE_LOG(LogInit, Log, TEXT("Running Turnkey SDK detection: '%s %s'"), *Command, *Commandline);
+
 	{
-		DeviceIdToInfo(Id).PerDeviceStatus.Add(ConvertToDDPIDeviceId(Id), DDPIPlatformSdkStatus::Querying);
+		FScopeLock Lock(&DDPILocker);
+
+		// set status to querying
+		for (const FString& Id : PlatformDeviceIds)
+		{
+			DeviceIdToInfo(Id).PerDeviceStatus.Add(ConvertToDDPIDeviceId(Id), DDPIPlatformSdkStatus::Querying);
+		}
 	}
 
 	FMonitoredProcess* TurnkeyProcess = new FMonitoredProcess(Command, Commandline, true, false);
@@ -600,6 +613,8 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 	{
 		AsyncTask(ENamedThreads::GameThread, [ReportFilename, TurnkeyProcess, PlatformDeviceIds, ExitCode]()
 		{
+			FScopeLock Lock(&DDPILocker);
+
 			if (ExitCode == 0 || ExitCode == 10)
 			{
 				TArray<FString> Contents;
@@ -653,6 +668,8 @@ void FDataDrivenPlatformInfoRegistry::UpdateDeviceSdkStatus(TArray<FString> Plat
 
 void FDataDrivenPlatformInfoRegistry::ClearDeviceStatus(FName PlatformName)
 {
+	FScopeLock Lock(&DDPILocker);
+
 	if (PlatformName != NAME_None)
 	{
 		for (auto It : DataDrivenPlatforms)
@@ -677,7 +694,10 @@ DDPIPlatformSdkStatus FDataDrivenPlatformInfo::GetStatusForDeviceId(const FStrin
 
 void FDataDrivenPlatformInfo::ClearDeviceStatus()
 {
-	PerDeviceStatus.Empty();
+	for (auto& Pair : PerDeviceStatus)
+	{
+		Pair.Value = DDPIPlatformSdkStatus::Unknown;
+	}
 }
 
 #endif
