@@ -3039,7 +3039,10 @@ void FHlslNiagaraTranslator::DefineMain(FString &OutHlslOutput,
 			}
 		}
 
+		FName ScopeName(TranslationStages[StageIdx].PassNamespace + TEXT("Main"));
+		EnterStatsScope(FNiagaraStatScope(*(CompileOptions.GetName() + TEXT("_") + ScopeName.ToString()), ScopeName), OutHlslOutput);
 		OutHlslOutput += FString::Printf(TEXT("\tSimulate%s(Context);\n"), TranslationStages.Num() > 1 ? *TranslationStages[StageIdx].PassNamespace : TEXT(""));
+		ExitStatsScope(OutHlslOutput);
 
 		if (StageIdx + 1 < TranslationStages.Num() && TranslationStages[StageIdx + 1].bCopyPreviousParams)
 		{
