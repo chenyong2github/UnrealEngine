@@ -20,6 +20,8 @@ export interface BotConfig {
 	mirrorPath: string[]
 	alias: string // alias if we need to make name of bot in commands
 	emailDomainWhitelist: string[]
+
+	macros: { [name: string]: string[] }
 }
 
 export interface BranchBase {
@@ -55,7 +57,21 @@ export class IntegrationMethod {
 
 // probably not right to extend BranchBase, because so much is optional
 
-interface NodeOptionFields extends BranchBase {
+type CommonOptionFields = {
+	lastGoodCLPath: string | number
+
+	initialCL: number
+	forcePause: boolean
+
+	disallowSkip: boolean
+	incognitoMode: boolean
+
+	excludeAuthors: string[] // if present, completely overrides BotConfig
+
+	p4MaxRowsOverride: number // use with care and check with p4 admins
+}
+
+type NodeOptionFields = BranchBase & CommonOptionFields & {
 	disabled: boolean
 	integrationMethod: string
 	forceAll: boolean
@@ -71,33 +87,14 @@ interface NodeOptionFields extends BranchBase {
 	workspaceNameOverride: string
 	additionalSlackChannelForBlockages: string
 	ignoreBranchspecs: boolean
-	lastGoodCLPath: string | number
-
-	initialCL: number
-	forcePause: boolean
-
-	disallowSkip: boolean
-	incognitoMode: boolean
-
-	excludeAuthors: string[] // if present, completely overrides BotConfig
-
-	p4MaxRowsOverride: number // use with care and check with p4 admins
 }
 
 // will eventually have all properties listed on wiki
-type EdgeOptionFields = {
-	lastGoodCLPath: string | number
+type EdgeOptionFields = CommonOptionFields & {
 	additionalSlackChannel: string
-	initialCL: number
-	forcePause: boolean
-	p4MaxRowsOverride: number // use with care and check with p4 admins
 
-	disallowSkip: boolean
-	incognitoMode: boolean
 	terminal: boolean // changes go along terminal edges but no further
 	doHackyOkForGithubThing: boolean
-
-	excludeAuthors: string[] // if present, completely overrides bot and node configs
 }
 
 export type NodeOptions = Partial<NodeOptionFields>
@@ -166,7 +163,8 @@ export class BranchDefs {
 			maxFilesPerIntegration: -1,
 			mirrorPath: [],
 			alias: '',
-			emailDomainWhitelist: []
+			emailDomainWhitelist: [],
+			macros: {}
 		}
 
 		let branchGraph
