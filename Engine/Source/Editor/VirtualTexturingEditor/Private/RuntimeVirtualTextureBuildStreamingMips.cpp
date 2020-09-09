@@ -149,7 +149,7 @@ namespace RuntimeVirtualTexture
 		const FBox Bounds = InComponent->Bounds.GetBox();
 
 		FVTProducerDescription VTDesc;
-		RuntimeVirtualTexture->GetProducerDescription(VTDesc, Transform);
+		RuntimeVirtualTexture->GetProducerDescription(VTDesc, URuntimeVirtualTexture::FInitSettings(), Transform);
 
 		const int32 TileSize = VTDesc.TileSize;
 		const int32 TileBorderSize = VTDesc.TileBorderSize;
