@@ -5,6 +5,7 @@
 #include "CoreTypes.h"
 #include "Containers/Map.h"
 #include "Features/IModularFeature.h"
+#include "Modules/ModuleInterface.h"
 #include "Delegates/Delegate.h"
 
 #define LIVE_CODING_SERVER_FEATURE_NAME "LiveCodingServer"
@@ -21,6 +22,14 @@ enum class ELiveCodingLogVerbosity
 	Success,
 	Warning,
 	Failure,
+};
+
+class ILiveCodingServerModule : public IModuleInterface
+{
+public:
+	// IModuleInterface implementation
+	virtual void StartupModule() override = 0;
+	virtual void ShutdownModule() override = 0;
 };
 
 class ILiveCodingServer : public IModularFeature
