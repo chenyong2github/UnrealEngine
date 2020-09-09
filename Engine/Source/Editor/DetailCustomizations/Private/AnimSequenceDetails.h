@@ -53,6 +53,7 @@ private:
 
 	// retarget source handler
 	TSharedPtr<IPropertyHandle> RetargetSourceNameHandler;
+	TSharedPtr<IPropertyHandle> RetargetSourceAssetHandle;
 
 	TSharedPtr<class SSearchableComboBox> RetargetSourceComboBox;
 	TArray< TSharedPtr< FString > >						RetargetSourceComboList;
@@ -63,6 +64,8 @@ private:
 	FText GetRetargetSourceComboBoxToolTip() const;
 	void OnRetargetSourceComboOpening();
 	TSharedPtr<FString> GetRetargetSourceString(FName RetargetSourceName) const;
+	EVisibility UpdateRetargetSourceAssetDataVisibility() const;
+	FReply UpdateRetargetSourceAssetData();
 
 	USkeleton::FOnRetargetSourceChanged OnDelegateRetargetSourceChanged;
 	FDelegateHandle OnDelegateRetargetSourceChangedDelegateHandle;
