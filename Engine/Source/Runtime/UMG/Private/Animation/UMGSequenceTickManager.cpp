@@ -83,30 +83,41 @@ void UUMGSequenceTickManager::TickWidgetAnimations(float DeltaSeconds)
 	// stopping, etc.), we might see some blocking (immediate) evaluations running here.
 	//
 
-	for (auto WidgetIter = WeakUserWidgets.CreateIterator(); WidgetIter; ++WidgetIter)
 	{
-		UUserWidget* UserWidget = WidgetIter->Get();
-		if (!UserWidget)
-		{
-			WidgetIter.RemoveCurrent();
-		}
-		else if (!UserWidget->IsConstructed())
-		{
-			UserWidget->TearDownAnimations();
-			UserWidget->AnimationTickManager = nullptr;
+	#if STATS || ENABLE_STATNAMEDEVENTS
+		const bool bShouldTrackObject = Stats::IsThreadCollectingData();
+		FScopeCycleCounterUObject ContextScope(bShouldTrackObject ? this : nullptr);
+	#endif
 
-			WidgetIter.RemoveCurrent();
-		}
-		else
+		for (auto WidgetIter = WeakUserWidgets.CreateIterator(); WidgetIter; ++WidgetIter)
 		{
-#if WITH_EDITOR
-			const bool bTickAnimations = !UserWidget->IsDesignTime();
-#else
-			const bool bTickAnimations = true;
-#endif
-			if (bTickAnimations && UserWidget->IsVisible())
+			UUserWidget* UserWidget = WidgetIter->Get();
+			if (!UserWidget)
 			{
-				UserWidget->TickActionsAndAnimation(DeltaSeconds);
+				WidgetIter.RemoveCurrent();
+			}
+			else if (!UserWidget->IsConstructed())
+			{
+				UserWidget->TearDownAnimations();
+				UserWidget->AnimationTickManager = nullptr;
+
+				WidgetIter.RemoveCurrent();
+			}
+			else
+			{
+	#if STATS || ENABLE_STATNAMEDEVENTS
+				FScopeCycleCounterUObject WidgetContextScope(bShouldTrackObject ? UserWidget : nullptr);
+	#endif
+
+	#if WITH_EDITOR
+				const bool bTickAnimations = !UserWidget->IsDesignTime();
+	#else
+				const bool bTickAnimations = true;
+	#endif
+				if (bTickAnimations && UserWidget->IsVisible())
+				{
+					UserWidget->TickActionsAndAnimation(DeltaSeconds);
+				}
 			}
 		}
 	}
